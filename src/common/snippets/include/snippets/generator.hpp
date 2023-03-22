@@ -12,7 +12,6 @@
 #include "emitter.hpp"
 #include "target_machine.hpp"
 #include "lowered_expr.hpp"
-#include "pass/lowered/linear_IR_transformation.hpp"
 
 namespace ngraph {
 namespace snippets {

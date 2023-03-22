@@ -25,10 +25,8 @@ public:
     bool run(LoweredExprIR& linear_ir) override;
 
 private:
-    bool insert_load(LoweredExprIR& linear_ir, const LoweredExprIR::LoweredLoopManagerPtr& loop_manager, const LoweredExprPort& entry_point,
-                     LoweredExprIR::constExprIt loop_begin_pos, LoweredExprIR::constExprIt loop_end_pos, size_t loop_id);
-    bool insert_store(LoweredExprIR& linear_ir,  const LoweredExprIR::LoweredLoopManagerPtr& loop_manager, const LoweredExprPort& exit_point,
-                      LoweredExprIR::constExprIt loop_begin_pos, LoweredExprIR::constExprIt loop_end_pos, size_t loop_id);
+    bool insert_load(LoweredExprIR& linear_ir, const LoweredExprIR::constExprIt& data_expr_it);
+    bool insert_store(LoweredExprIR& linear_ir, const LoweredExprIR::constExprIt& data_expr_it);
     void update_loops(const LoweredExprIR::LoweredLoopManagerPtr& loop_manager, const std::vector<size_t>& loop_ids,
                       const LoweredExprPort& actual_port, const std::vector<LoweredExprPort>& target_ports, bool is_entry = true);
     void update_loop(const LoweredExprIR::LoweredLoopManager::LoweredLoopInfoPtr& loop_info,

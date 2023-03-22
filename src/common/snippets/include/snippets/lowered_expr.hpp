@@ -14,7 +14,6 @@
 namespace ngraph {
 namespace snippets {
 
-
 using code = const uint8_t *;
 using RegInfo = std::pair<std::vector<size_t>, std::vector<size_t>>;
 
@@ -53,10 +52,10 @@ public:
     void set_reg_info(RegInfo rinfo) {m_reg_info = std::move(rinfo);}
     const std::vector<TensorDescriptorPtr>& get_inputs() {return m_inputs; }
     const std::vector<TensorDescriptorPtr>& get_outputs() {return m_outputs; }
-    std::vector<size_t> get_loop_identifies() const { return m_loop_identifies; }
-    void set_loop_identifies(const std::vector<size_t>& loops) { m_loop_identifies = loops; }
-    void set_loop_identificator(size_t id, size_t idx);
-    void remove_loop_identificator(size_t id);
+    std::vector<size_t> get_loop_ids() const { return m_loop_ids; }
+    void set_loop_ids(const std::vector<size_t>& loops) { m_loop_ids = loops; }
+    void set_loop_id(size_t id, size_t idx);
+    void remove_loop_id(size_t id);
 
 protected:
     void replace_input(size_t port, TensorDescriptorPtr to);
@@ -67,7 +66,7 @@ protected:
     std::vector<TensorDescriptorPtr> m_outputs;
     RegInfo m_reg_info{{}, {}};
     // The order Loops identifies: Outer ---> Inner
-    std::vector<size_t> m_loop_identifies;
+    std::vector<size_t> m_loop_ids;
 };
 
 class IOLoweredExpr : public LoweredExpr {
@@ -110,7 +109,13 @@ public:
     exprIt insert(constExprIt pos, const container::value_type& value);
     exprIt insert(constExprIt pos, exprIt begin, exprIt end);
     exprIt insert(constExprIt pos, constExprIt begin, constExprIt end);
-    void splice(constExprIt position, constExprIt value);
+
+    /**
+    * @brief Move an expression from the position "from" to the position immediately before "to".
+     * Note: this method does NOT take care about data dependencies and no relevant checks are performed.
+     *       and doesn't touch internal maps.
+    */
+    void move(constExprIt from, constExprIt to);
 
     bool empty() const noexcept {return m_lowered_ops.empty(); }
     void debug_print(bool tds_as_pointers = false) const;
@@ -145,32 +150,31 @@ public:
                             const std::vector<LoweredExprPort>& entries,
                             const std::vector<LoweredExprPort>& exits)
                     : m_work_amount(work_amount), m_increment(increment), m_entry_exprs(entries), m_exit_exprs(exits) {}
-            size_t m_work_amount;
-            size_t m_increment;
+            size_t m_work_amount = 0;
+            size_t m_increment = 0;
             // The order of entry and exit expressions is important:
-            //     - The position of first entry expr is Loop Begin position
+            //     - The position before first entry expr is Loop Begin position
             //     - The position after last exit expr is Loop End position
             // Note: Scalars aren't entry expressions but can be before first entry expr in Linear IR
-            std::vector<LoweredExprPort> m_entry_exprs;
-            std::vector<LoweredExprPort> m_exit_exprs;
+            std::vector<LoweredExprPort> m_entry_exprs = {};
+            std::vector<LoweredExprPort> m_exit_exprs = {};
         };
         using LoweredLoopInfoPtr = std::shared_ptr<LoweredLoopInfo>;
 
-        size_t add(const LoweredLoopInfoPtr& loop);
-        void remove(size_t index);
-        LoweredLoopInfoPtr get(size_t index) const;
+        size_t add_loop_info(const LoweredLoopInfoPtr& loop);
+        void remove_loop_info(size_t index);
+        LoweredLoopInfoPtr get_loop_info(size_t index) const;
         size_t get_loop_count() const { return m_map.size(); }
-        std::set<size_t> get_identifies() const;
+        const std::map<size_t, LoweredLoopInfoPtr>& get_map() const;
 
-        static void skipped_marking(LoweredExprIR::constExprIt loop_begin_pos,
+        static void skipped_mark(LoweredExprIR::constExprIt loop_begin_pos,
                                     LoweredExprIR::constExprIt loop_end_pos,
                                     size_t loop_depth);
-        void marking(LoweredExprIR& linear_ir,
+        void mark_loop(LoweredExprIR& linear_ir,
                      LoweredExprIR::constExprIt loop_begin_pos,
                      LoweredExprIR::constExprIt loop_end_pos,
-                     size_t loop_depth, size_t vector_size,
-                     const std::vector<LoweredExprPtr>& body_exprs = {});
-        void marking(LoweredExprIR& linear_ir,
+                     size_t loop_depth, size_t vector_size);
+        void mark_loop(LoweredExprIR& linear_ir,
                      LoweredExprIR::constExprIt loop_begin_pos,
                      LoweredExprIR::constExprIt loop_end_pos,
                      size_t idx,
@@ -191,18 +195,13 @@ public:
                                   LoweredExprIR::constExprIt loop_end_pos,
                                   size_t loop_id, size_t idx);
         static void get_io_loop_ports(LoweredExprIR& linear_ir,
-                                      const std::vector<LoweredExprPtr>& body_exprs,
-                                      std::vector<LoweredExprPort>& entries,
-                                      std::vector<LoweredExprPort>& exits);
-        static void get_io_loop_ports(LoweredExprIR& linear_ir,
                                       LoweredExprIR::constExprIt loop_begin_pos,
                                       LoweredExprIR::constExprIt loop_end_pos,
                                       std::vector<LoweredExprPort>& entries,
                                       std::vector<LoweredExprPort>& exits);
-        static std::vector<LoweredExprPtr> get_body_exprs(LoweredExprIR::constExprIt loop_begin_pos, LoweredExprIR::constExprIt loop_end_pos);
 
-        std::map<size_t, LoweredLoopInfoPtr> m_map;
-        size_t size;
+        std::map<size_t, LoweredLoopInfoPtr> m_map = {};
+        size_t next_id = 0;
     };
     using LoweredLoopManagerPtr = std::shared_ptr<LoweredLoopManager>;
 

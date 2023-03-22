@@ -35,9 +35,8 @@ bool LoadMoveBroadcastToBroadcastLoad::run(LoweredExprIR& linear_ir) {
             size_t count = 0;
             for (const auto& consumer_expr_input : load_consumers_inputs) {
                 const auto consumer = consumer_expr_input.first->get_node();
-                if (ov::is_type<op::LoopEnd>(consumer))
-                    continue;
-                count++;
+                if (!ov::is_type<op::LoopEnd>(consumer))
+                    count++;
             }
 
             if (count > 1)

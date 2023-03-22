@@ -38,12 +38,10 @@ bool MoveResultOutOfLoop::run(LoweredExprIR& linear_ir) {
             const auto insertion_pos = std::next(loop_parenthesis.front());
             const auto result_it = std::prev(expr_it.base());
             expr_it = std::prev(expr_it);  // save iterator before moving
-            linear_ir.splice(insertion_pos, result_it);
+            linear_ir.move(result_it, insertion_pos);
             modified = true;
         }
     }
-    linear_ir.serialize("/home/a-sidorova/projects/loops/openvino/graphs/lin_result.xml",
-                        "/home/a-sidorova/projects/loops/openvino/graphs/lin_result.bin");
 
     return modified;
 }

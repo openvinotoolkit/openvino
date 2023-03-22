@@ -410,8 +410,6 @@ Engine::LoadExeNetworkImpl(const InferenceEngine::CNNNetwork &network, const std
     }
 
     auto nGraphFunc = clonedNetwork.getFunction();
-    ov::pass::Serialize("/home/a-sidorova/projects/loops/openvino/graphs/test_model.xml",
-                        "/home/a-sidorova/projects/loops/openvino/graphs/test_model.bin").run_on_model(nGraphFunc);
 
     DEBUG_LOG(PrintableModel(*nGraphFunc, "org_"));
 

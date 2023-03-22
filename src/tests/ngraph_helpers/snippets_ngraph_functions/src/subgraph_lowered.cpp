@@ -6,7 +6,6 @@
 #include "common_test_utils/data_utils.hpp"
 #include <snippets/snippets_isa.hpp>
 #include "ngraph_functions/builders.hpp"
-#include "snippets/pass/loop_helpers.hpp"
 
 namespace ov {
 namespace test {

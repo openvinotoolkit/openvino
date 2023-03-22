@@ -35,9 +35,6 @@ Generator::LoweringResult Generator::generate(std::shared_ptr<ov::Model>& m, con
         throw ngraph_error("unsupported architecture for code generation");
 
     auto linear_ir = LoweredExprIR(m, config);
-
-    // At the moment we support only full vector Load/Store and scalar Load/Store so that count is equal to lanes.
-    // Then we are going to support variadic Load/Store with different element count
     const size_t vector_size = get_target_machine()->get_lanes();
     const int32_t buffer_allocation_rank = static_cast<int32_t>(config.m_loop_depth);
 

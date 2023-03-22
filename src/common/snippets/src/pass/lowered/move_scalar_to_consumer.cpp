@@ -34,7 +34,7 @@ bool MoveScalarToConsumer::run(LoweredExprIR& linear_ir) {
                 auto consumer_it = forward_it;
                 while (*consumer_it != consumer_expr)
                     consumer_it++;
-                linear_ir.splice(consumer_it, forward_it);
+                linear_ir.move(forward_it, consumer_it);
                 modified = true;
             }
         }

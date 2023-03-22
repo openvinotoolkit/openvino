@@ -14,7 +14,8 @@ namespace lowered {
 
 /**
  * @interface BufferInsertion
- * @brief The pass inserts Buffer between entry and exit points of Loop and Brgemm to store intermediate data.
+ * @brief The pass inserts Buffer between exit points of one loop (or Brgemm) and
+ *        entry points of another loop (or Brgemm) to store intermediate data.
  *        The pass should be called after LoopFusion.
  * @param m_buffer_allocation_rank - rank of shape for memory allocation: shape[shape_rank - normalize(m_allocation_rank) : shape_rank]
  * @ingroup snippets

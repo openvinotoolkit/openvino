@@ -7,7 +7,6 @@
 #include <snippets_transformations/mul_add_to_fma.hpp>
 #include <snippets_transformations/op/fused_mul_add.hpp>
 
-#include "snippets/pass/loop_helpers.hpp"
 #include "lowering_utils.hpp"
 
 namespace ov {

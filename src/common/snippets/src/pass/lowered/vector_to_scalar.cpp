@@ -21,12 +21,13 @@ bool SetScalarCountForLoadStore::run(LoweredExprIR& linear_ir) {
         const auto load = ov::as_type_ptr<op::Load>(op);
         const auto store = ov::as_type_ptr<op::Store>(op);
         if (load || store) {
-            const auto td = (*expr_it)->get_outputs().front();
-            const auto layout = td->get_layout();
-            const auto tensor_shape = td->get_tensor();
+            const auto td = load ? (*expr_it)->get_inputs().front() :
+                                   (*expr_it)->get_outputs().front();
+            const auto& layout = td->get_layout();
+            const auto& tensor_shape = td->get_tensor();
             // Find last dimension by layout
             const auto last_dim_idx = std::find(layout.begin(), layout.end(), layout.size() - 1);
-            OPENVINO_ASSERT(last_dim_idx != layout.end(), "Load/Store expression have incorrect tensor");
+            OPENVINO_ASSERT(last_dim_idx != layout.end(), "Load/Store expression have incorrect layout");
             const auto dim = tensor_shape[*last_dim_idx];
             if (dim == 1) {
                 modified |= true;

@@ -23,9 +23,9 @@ LoweredExprIR::constExprIt BufferInsertion::insertion_position(const LoweredExpr
         return std::find(linear_ir.begin(), linear_ir.end(), down_expr);
     }
 
-    const auto up_loops = up_expr->get_loop_identifies();
-    const auto down_loops = down_expr->get_loop_identifies();
-    OPENVINO_ASSERT(up_loops.size() == down_loops.size());
+    const auto up_loops = up_expr->get_loop_ids();
+    const auto down_loops = down_expr->get_loop_ids();
+    OPENVINO_ASSERT(up_loops.size() == down_loops.size(), "The Loop IDs must be normalized!");
     size_t loop_idx = 0;
     for (; loop_idx < up_loops.size(); ++loop_idx) {
         if (up_loops[loop_idx] != down_loops[loop_idx])
@@ -33,7 +33,7 @@ LoweredExprIR::constExprIt BufferInsertion::insertion_position(const LoweredExpr
     }
     OPENVINO_ASSERT(loop_idx != up_loops.size(), "A Buffer must be inserted only between Loops!");
     const auto loop_id = up_loops[loop_idx];
-    const auto loop_info = loop_manager->get(loop_id);
+    const auto loop_info = loop_manager->get_loop_info(loop_id);
     LoweredExprIR::constExprIt loop_begin_pos, loop_end_pos;
 
     LoweredExprIR::LoweredLoopManager::get_loop_bounds(linear_ir, loop_info->m_entry_exprs, loop_info->m_exit_exprs, loop_begin_pos, loop_end_pos);
@@ -60,8 +60,8 @@ void BufferInsertion::insertion(LoweredExprIR& linear_ir, const LoweredExprIR::L
         // TODO: Need to cover Brgemm is more pretty
         bool is_buffer_needed = ov::is_type<op::Brgemm>(parent) || ov::is_type<op::Brgemm>(node);
         if (!is_buffer_needed) {
-            const auto current_loops = expr->get_loop_identifies();
-            const auto parent_loops = parent_expr->get_loop_identifies();
+            const auto current_loops = expr->get_loop_ids();
+            const auto parent_loops = parent_expr->get_loop_ids();
             const auto current_loop_count = current_loops.size();
             const auto parent_loop_count = parent_loops.size();
             OPENVINO_ASSERT(current_loop_count == parent_loop_count);
@@ -85,7 +85,7 @@ void BufferInsertion::insertion(LoweredExprIR& linear_ir, const LoweredExprIR::L
             auto buffer = std::make_shared<op::Buffer>(parent->output(parent_port), m_buffer_allocation_rank);
 
             const auto td = std::make_shared<TensorDescriptor>(input_td->get_tensor(),
-                                                               std::vector<size_t>{},  // or copy?
+                                                               input_td->get_subtensor(),
                                                                input_td->get_layout());
             const std::vector<TensorDescriptorPtr> buffer_outs = { td };
             const std::vector<TensorDescriptorPtr> parent_outs = { input_td };
@@ -100,7 +100,7 @@ void BufferInsertion::insertion(LoweredExprIR& linear_ir, const LoweredExprIR::L
         const auto node = expr->get_node();
         const auto output_td = expr->get_outputs()[port];
         const auto child_exprs_inputs = linear_ir.get_exprs_by_input(output_td);
-        const auto current_loops = expr->get_loop_identifies();
+        const auto current_loops = expr->get_loop_ids();
         const auto current_loop_count = current_loops.size();
         const std::vector<TensorDescriptorPtr> node_outs = {output_td};
 
@@ -121,9 +121,9 @@ void BufferInsertion::insertion(LoweredExprIR& linear_ir, const LoweredExprIR::L
                 continue;
             }
 
-            const auto child_loops = child_expr->get_loop_identifies();
+            const auto child_loops = child_expr->get_loop_ids();
             const auto child_loop_count = child_loops.size();
-            OPENVINO_ASSERT(current_loop_count == child_loop_count);
+            OPENVINO_ASSERT(current_loop_count == child_loop_count, "The Loop IDs must be normalized!");
             for (size_t i = current_loop_lvl; i < child_loop_count; i++) {
                 if (current_loops[i] != child_loops[i] &&
                     current_loops[i] != LoweredExpr::LOOP_NULL_ID &&
@@ -161,7 +161,7 @@ void BufferInsertion::insertion(LoweredExprIR& linear_ir, const LoweredExprIR::L
 
             auto buffer = std::make_shared<op::Buffer>(node->output(port), m_buffer_allocation_rank);
             const auto td = std::make_shared<TensorDescriptor>(output_td->get_tensor(),
-                                                               std::vector<size_t>{},
+                                                               output_td->get_subtensor(),
                                                                output_td->get_layout());
             // We cannot insert Node output tensor on Buffer output because not all consumers of Node needs Buffer
             //  Example:
@@ -187,8 +187,11 @@ bool BufferInsertion::run(LoweredExprIR& linear_ir) {
         return false;
 
     const auto& loop_manager = linear_ir.get_loop_manager();
-    for (const auto loop_id : loop_manager->get_identifies()) {
-        const auto loop_info = loop_manager->get(loop_id);
+    const auto loop_data_map = loop_manager->get_map();
+    // C++17: for (auto const& [loop_id, loop_info] : loop_data_map)
+    for (const auto loop_data : loop_data_map) {
+        const auto loop_id = loop_data.first;
+        const auto loop_info = loop_data.second;
         const auto loop_entries = loop_info->m_entry_exprs;
         const auto loop_exits = loop_info->m_exit_exprs;
         insertion(linear_ir, loop_manager, loop_id, loop_entries, loop_exits);

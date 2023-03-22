@@ -1,4 +1,4 @@
-// Copyright (C) 2023 Intel Corporationidentifies
+// Copyright (C) 2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -36,7 +36,7 @@ bool LoopMarkup::run(LoweredExprIR& linear_ir) {
         if (is_not_start_point(node))
             continue;
         if (ov::is_type<op::Brgemm>(node)) {
-            loop_manager->skipped_marking(expr_it, std::next(expr_it), loop_depth);
+            loop_manager->skipped_mark(expr_it, std::next(expr_it), loop_depth);
             continue;
         }
 
@@ -47,10 +47,9 @@ bool LoopMarkup::run(LoweredExprIR& linear_ir) {
         const auto& loop_inner_layout = outputs.front()->get_layout();
         const auto& loop_inner_subtensor = outputs.front()->get_subtensor();
 
-        std::vector<LoweredExprPtr> body_exprs;
         bool is_inside = true;
         do {
-            body_exprs.push_back(*loop_end_pos);
+            const auto& prev_expr = *loop_end_pos;
             loop_end_pos++;
             // If iterator is the last, we should finish Loop
             if (loop_end_pos == linear_ir.end())
@@ -67,7 +66,7 @@ bool LoopMarkup::run(LoweredExprIR& linear_ir) {
 
             // If the next expr isn't real customer of prev expr we should finish Loop
             const auto& ins = loop_end_pos->get()->get_inputs();
-            auto connected = [&](const TensorDescriptorPtr& td) {return linear_ir.get_expr_by_output(td).first == body_exprs.back();};
+            auto connected = [&](const TensorDescriptorPtr& td) {return linear_ir.get_expr_by_output(td).first == prev_expr;};
             if (std::none_of(ins.begin(), ins.end(), connected))
                 break;
 
@@ -76,12 +75,9 @@ bool LoopMarkup::run(LoweredExprIR& linear_ir) {
             is_inside &= layout == loop_inner_layout && subtensor == loop_inner_subtensor;
         } while (is_inside);
 
-        loop_manager->marking(linear_ir, loop_begin_pos, loop_end_pos, loop_depth, m_vector_size, body_exprs);
+        loop_manager->mark_loop(linear_ir, loop_begin_pos, loop_end_pos, loop_depth, m_vector_size);
         expr_it = std::prev(loop_end_pos);
     }
-
-    linear_ir.serialize("/home/a-sidorova/projects/loops/openvino/graphs/lin_markup.xml",
-                        "/home/a-sidorova/projects/loops/openvino/graphs/lin_markup.bin");
 
     return true;
 }

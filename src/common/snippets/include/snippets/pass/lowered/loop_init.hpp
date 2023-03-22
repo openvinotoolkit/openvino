@@ -30,6 +30,8 @@ private:
                                              const std::vector<LoweredExprPtr>& loop_out_exprs,
                                              size_t dim_idx) const;
     std::vector<int64_t> init_finalization_offsets(const std::vector<int64_t>& ptr_increments, size_t work_amount) const;
+    std::vector<int64_t> init_element_type_sizes(const std::vector<LoweredExprPtr>& loop_in_exprs,
+                                                 const std::vector<LoweredExprPtr>& loop_out_exprs);
 };
 
 } // namespace lowered
