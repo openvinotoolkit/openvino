@@ -20,6 +20,7 @@
 #include "openvino/runtime/icore.hpp"
 #include "openvino/runtime/iremote_context.hpp"
 #include "openvino/runtime/threading/executor_manager.hpp"
+#include "openvino/util/pp.hpp"
 
 namespace InferenceEngine {
 
@@ -256,7 +257,11 @@ OPENVINO_RUNTIME_API std::unordered_set<std::string> get_supported_nodes(
     std::function<void(std::shared_ptr<ov::Model>&)> transform,
     std::function<bool(const std::shared_ptr<ov::Node>)> is_node_supported);
 
-}  // namespace ov
+/**
+ * @private
+ */
+using CreatePluginFunc = void(std::shared_ptr<::ov::IPlugin>&);
+
 /**
  * @def OV_CREATE_PLUGIN
  * @brief Defines a name of a function creating plugin instance
@@ -265,6 +270,13 @@ OPENVINO_RUNTIME_API std::unordered_set<std::string> get_supported_nodes(
 #ifndef OV_CREATE_PLUGIN
 #    define OV_CREATE_PLUGIN CreatePluginEngine
 #endif
+
+/**
+ * @private
+ */
+constexpr static const auto create_plugin_function = OV_PP_TOSTRING(OV_CREATE_PLUGIN);
+
+}  // namespace ov
 
 /**
  * @def OV_DEFINE_PLUGIN_CREATE_FUNCTION(PluginType, version)
