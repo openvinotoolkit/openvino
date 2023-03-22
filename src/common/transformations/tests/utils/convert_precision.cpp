@@ -1556,7 +1556,7 @@ TEST(TransformationTests, ConvertPrecision_no_keep_f32_for_quantized) {
 
         type_to_fuse_map empty_type_to_fuse_map = {};
         bool keep_precision_sensitive_in_fp32 = true;
-        manager.register_pass<pass::ConvertPrecision>(precisions_array{{element::f32, element::f16}},
+        manager.register_pass<pass::ConvertPrecision>(precisions_map{{element::f32, element::f16}},
                                                       empty_type_to_fuse_map,
                                                       keep_precision_sensitive_in_fp32);
         manager.run_passes(model);
