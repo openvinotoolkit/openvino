@@ -2180,6 +2180,7 @@ struct dynamic_fully_connected_gpu : ::testing::TestWithParam<fully_connected_dy
 
 using dynamic_fully_connected_gpu_f32_3d = dynamic_fully_connected_gpu<float, float, float, float>;
 using dynamic_fully_connected_gpu_f16_3d = dynamic_fully_connected_gpu<FLOAT16, FLOAT16, FLOAT16, FLOAT16>;
+using dynamic_fully_connected_gpu_i8_3d = dynamic_fully_connected_gpu<int8_t, int8_t, int8_t, float>;
 
 static const std::vector<ov::Dimension::value_type>
     dyn_batches_full = {1, 2, 4, 7, 8, 9, 15, 16, 31, 32, 33, 47, 48, 49, 58, 63, 64};
@@ -2191,6 +2192,10 @@ TEST_P(dynamic_fully_connected_gpu_f32_3d, basic) {
 }
 
 TEST_P(dynamic_fully_connected_gpu_f16_3d, basic) {
+    run_test();
+}
+
+TEST_P(dynamic_fully_connected_gpu_i8_3d, basic) {
     run_test();
 }
 
@@ -2207,6 +2212,16 @@ INSTANTIATE_TEST_SUITE_P(
 INSTANTIATE_TEST_SUITE_P(
     smoke,
     dynamic_fully_connected_gpu_f16_3d,
+    ::testing::Combine(
+        ::testing::Values(dyn_batches_smoke),
+        ::testing::Values(10, 32, 42, 53, 64, 128),
+        ::testing::Values(2, 9, 128),
+        ::testing::Values(false, true))
+);
+
+INSTANTIATE_TEST_SUITE_P(
+    smoke,
+    dynamic_fully_connected_gpu_i8_3d,
     ::testing::Combine(
         ::testing::Values(dyn_batches_smoke),
         ::testing::Values(10, 32, 42, 53, 64, 128),
@@ -2227,6 +2242,16 @@ INSTANTIATE_TEST_SUITE_P(
 INSTANTIATE_TEST_SUITE_P(
     full,
     dynamic_fully_connected_gpu_f16_3d,
+    ::testing::Combine(
+        ::testing::Values(dyn_batches_full),
+        ::testing::Values(10, 32, 42, 53, 64, 128),
+        ::testing::Values(2, 9, 16, 32, 64, 128),
+        ::testing::Values(false, true))
+);
+
+INSTANTIATE_TEST_SUITE_P(
+    full,
+    dynamic_fully_connected_gpu_i8_3d,
     ::testing::Combine(
         ::testing::Values(dyn_batches_full),
         ::testing::Values(10, 32, 42, 53, 64, 128),
