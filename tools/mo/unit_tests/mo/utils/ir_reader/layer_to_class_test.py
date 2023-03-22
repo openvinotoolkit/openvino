@@ -166,6 +166,34 @@ class TestFunction(unittest.TestCase):
         (flag, resp) = compare_graphs(graph, graph_ref, 'result', check_op_attrs=True)
         self.assertTrue(flag, resp)
 
+    def test_squeeze_no_axes(self):
+        nodes_attributes = {
+            'input': {'kind': 'op', 'type': 'Parameter'},
+            'input_data': {'shape': [2, 1, 3], 'kind': 'data'},
+
+            'squeeze': {'kind': 'op', 'type': 'Squeeze'},
+            'squeeze_data': {'shape': [2, 3], 'kind': 'data', 'value': None},
+
+            'result': {'kind': 'op', 'type': 'Result'}
+        }
+
+        edges = [('input', 'input_data'),
+                 ('input_data', 'squeeze'),
+                 ('squeeze', 'squeeze_data'),
+                 ('squeeze_data', 'result'),
+                 ]
+
+        graph = build_graph(nodes_attributes, edges, nodes_with_edges_only=True)
+
+        squeeze_node = Node(graph, 'squeeze')
+        SqueezeInternal.infer(squeeze_node)
+
+        graph_ref = build_graph(nodes_attributes, edges, nodes_with_edges_only=True)
+
+        # Check that graph wasn't changed after shape infer
+        (flag, resp) = compare_graphs(graph, graph_ref, 'result', check_op_attrs=True)
+        self.assertTrue(flag, resp)
+
     def test_unsqueeze(self):
         nodes_attributes = {
             'input': {'kind': 'op', 'type': 'Parameter'},

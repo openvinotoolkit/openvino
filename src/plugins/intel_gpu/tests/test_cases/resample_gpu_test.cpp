@@ -47,7 +47,7 @@ void test_basic_in2x3x2x2_nearest(bool is_caching_test) {
         12.f, 9.f, -17.f,
     });
 
-    cldnn::network::ptr net = get_network(engine, topology, ExecutionConfig(), get_test_stream_ptr(), is_caching_test);
+    cldnn::network::ptr net = get_network(engine, topology, get_test_default_config(engine), get_test_stream_ptr(), is_caching_test);
 
     net->set_input_data("input", input);
 
@@ -117,7 +117,7 @@ TEST(resample_gpu, basic_in2x3x2x2_bilinear) {
         3.f, 4.f,
     });
 
-    cldnn::network net{ engine, topology };
+    cldnn::network net{ engine, topology, get_test_default_config(engine) };
     net.set_input_data("input", input);
 
     auto outputs = net.execute();
@@ -168,7 +168,7 @@ TEST(resample_gpu, nearest_asymmetric) {
         3.f, 4.f,
     });
 
-    cldnn::network net{ engine, topology };
+    cldnn::network net{ engine, topology, get_test_default_config(engine) };
     net.set_input_data("input", input);
 
     auto outputs = net.execute();
@@ -219,7 +219,7 @@ TEST(resample_gpu, nearest_asymmetric_i8) {
             3, 4,
     });
 
-    cldnn::network net{ engine, topology };
+    cldnn::network net{ engine, topology, get_test_default_config(engine) };
     net.set_input_data("input", input);
 
     auto outputs = net.execute();
@@ -270,7 +270,7 @@ TEST(resample_gpu, bilinear_asymmetric) {
         3.f, 4.f,
                });
 
-    cldnn::network net{ engine, topology };
+    cldnn::network net{ engine, topology, get_test_default_config(engine) };
     net.set_input_data("input", input);
 
     auto outputs = net.execute();
@@ -471,7 +471,8 @@ struct resample_random_test : testing::TestWithParam<resample_random_test_params
         auto prim = resample("resample", input_info("in"), params.output_size, params.num_filter, params.operation_type);
         topo.add(prim);
 
-        ExecutionConfig config(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ {"resample", {params.out_format, ""}} }));
+        ExecutionConfig config = get_test_default_config(engine);
+        config.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ {"resample", {params.out_format, ""}} }));
         cldnn::network::ptr net = get_network(engine, topo, config, get_test_stream_ptr(), is_caching_test);
 
         auto in_mem = engine.allocate_memory(in_layout);
@@ -631,7 +632,7 @@ struct caffe_resample_random_test : testing::TestWithParam<caffe_resample_random
         prim.pads_end = params.pads_end;
         topo.add(prim);
 
-        ExecutionConfig config;
+        ExecutionConfig config = get_test_default_config(engine);
         config.set_property(ov::intel_gpu::custom_outputs(std::vector<std::string>{"resample"}));
         config.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ {"resample", {params.in_format, "resample_ref"}} }));
 
@@ -649,7 +650,7 @@ struct caffe_resample_random_test : testing::TestWithParam<caffe_resample_random
         prim_opt.pads_end = params.pads_end;
         topo_opt.add(prim_opt);
 
-        ExecutionConfig config_opt;
+        ExecutionConfig config_opt = get_test_default_config(engine);
         config_opt.set_property(ov::intel_gpu::custom_outputs(std::vector<std::string>{"resample_opt"}));
         config_opt.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ {"resample_opt", {params.in_format, "resample_opt"}} }));
 
@@ -725,7 +726,7 @@ TEST(resample_gpu, interpolate_in2x2x3x2_nearest1) {
     //  Sample Type: Nearest
 
     auto& engine = get_test_engine();
-    ov::intel_gpu::ExecutionConfig config;
+    ov::intel_gpu::ExecutionConfig config = get_test_default_config(engine);
     config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
 
     int b = 2;
@@ -815,7 +816,7 @@ TEST(resample_gpu, interpolate_in2x2x3x2_nearest2) {
     //  Sample Type: Nearest
 
     auto& engine = get_test_engine();
-    ov::intel_gpu::ExecutionConfig config;
+    ov::intel_gpu::ExecutionConfig config = get_test_default_config(engine);
     config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
 
     int b = 2;
@@ -905,7 +906,7 @@ TEST(resample_gpu, interpolate_in2x2x3x2_nearest3) {
     //  Sample Type: Nearest
 
     auto& engine = get_test_engine();
-    ov::intel_gpu::ExecutionConfig config;
+    ov::intel_gpu::ExecutionConfig config = get_test_default_config(engine);
     config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
 
     int b = 2;
@@ -995,7 +996,7 @@ TEST(resample_gpu, interpolate_in2x2x3x2_nearest4) {
     //  Sample Type: Nearest
 
     auto& engine = get_test_engine();
-    ov::intel_gpu::ExecutionConfig config;
+    ov::intel_gpu::ExecutionConfig config = get_test_default_config(engine);
     config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
 
     int b = 2;
@@ -1085,7 +1086,7 @@ TEST(resample_gpu, interpolate_in2x2x3x2_nearest5) {
     //  Sample Type: Nearest
 
     auto& engine = get_test_engine();
-    ov::intel_gpu::ExecutionConfig config;
+    ov::intel_gpu::ExecutionConfig config = get_test_default_config(engine);
     config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
 
     int b = 2;
@@ -1175,7 +1176,7 @@ TEST(resample_gpu, interpolate_in2x2x3x2_coord_transform_mode1) {
     //  Sample Type: Nearest
 
     auto& engine = get_test_engine();
-    ov::intel_gpu::ExecutionConfig config;
+    ov::intel_gpu::ExecutionConfig config = get_test_default_config(engine);
     config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
 
     int b = 2;
@@ -1245,7 +1246,7 @@ TEST(resample_gpu, interpolate_in2x2x3x2_coord_transform_mode2) {
     //  Sample Type: Nearest
 
     auto& engine = get_test_engine();
-    ov::intel_gpu::ExecutionConfig config;
+    ov::intel_gpu::ExecutionConfig config = get_test_default_config(engine);
     config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
 
     int b = 2;
@@ -1309,7 +1310,7 @@ TEST(resample_gpu, interpolate_in2x2x3x2_coord_transform_mode3) {
     //  Sample Type: Nearest
 
     auto& engine = get_test_engine();
-    ov::intel_gpu::ExecutionConfig config;
+    ov::intel_gpu::ExecutionConfig config = get_test_default_config(engine);
     config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
 
     int b = 2;
@@ -1379,7 +1380,7 @@ TEST(resample_gpu, interpolate_in2x2x3x2_coord_transform_mode4) {
     //  Sample Type: Nearest
 
     auto& engine = get_test_engine();
-    ov::intel_gpu::ExecutionConfig config;
+    ov::intel_gpu::ExecutionConfig config = get_test_default_config(engine);
     config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
 
     int b = 2;
@@ -1449,7 +1450,7 @@ TEST(resample_gpu, interpolate_in2x2x3x2_coord_transform_mode5) {
     //  Sample Type: Nearest
 
     auto& engine = get_test_engine();
-    ov::intel_gpu::ExecutionConfig config;
+    ov::intel_gpu::ExecutionConfig config = get_test_default_config(engine);
     config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
 
     int b = 2;
@@ -1519,7 +1520,7 @@ TEST(resample_gpu, interpolate_in2x2x3x2_cubic) {
     //  Sample Type: Nearest
 
     auto& engine = get_test_engine();
-    ov::intel_gpu::ExecutionConfig config;
+    ov::intel_gpu::ExecutionConfig config = get_test_default_config(engine);
     config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
 
     int b = 2;
@@ -1587,7 +1588,7 @@ TEST(resample_gpu, interpolate_in2x2x3x2_cubic2) {
     //  Sample Type: Nearest
 
     auto& engine = get_test_engine();
-    ov::intel_gpu::ExecutionConfig config;
+    ov::intel_gpu::ExecutionConfig config = get_test_default_config(engine);
     config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
 
     int b = 1;
@@ -1640,7 +1641,7 @@ TEST(resample_gpu, interpolate_in2x2x3x2_linear) {
     //  Sample Type: Nearest
 
     auto& engine = get_test_engine();
-    ov::intel_gpu::ExecutionConfig config;
+    ov::intel_gpu::ExecutionConfig config = get_test_default_config(engine);
     config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
 
     int b = 2;
@@ -1867,7 +1868,7 @@ TEST(resample_gpu, interpolate_in1x1x2x4_linear_scale) {
     //  Sample Type: Linear
 
     auto& engine = get_test_engine();
-    ov::intel_gpu::ExecutionConfig config;
+    ov::intel_gpu::ExecutionConfig config = get_test_default_config(engine);
     config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
 
     int b = 1;
@@ -2027,7 +2028,7 @@ struct resample_opt_random_test : testing::TestWithParam<resample_opt_random_tes
         prim.pads_end = params.pads_end;
         topo.add(prim);
 
-        ExecutionConfig config;
+        ExecutionConfig config = get_test_default_config(engine);
         config.set_property(ov::intel_gpu::custom_outputs(std::vector<std::string>{"resample"}));
 
         network net(engine, topo, config);
@@ -2046,7 +2047,7 @@ struct resample_opt_random_test : testing::TestWithParam<resample_opt_random_tes
         topo_opt.add(prim_opt);
         topo_opt.add(reorder("res_to_bfyx", input_info("resample_opt"), origin_format, params.input_type));
 
-        ExecutionConfig config_opt;
+        ExecutionConfig config_opt = get_test_default_config(engine);
         config_opt.set_property(ov::intel_gpu::custom_outputs(std::vector<std::string>{"resample_opt", "res_to_bfyx"}));
 
         cldnn::network::ptr net_opt = get_network(engine, topo_opt, config_opt, get_test_stream_ptr(), is_caching_test);
@@ -2138,10 +2139,10 @@ struct resample_opt_random_test_ext : resample_opt_random_test
         topo_opt.add(prim_opt);
         topo_opt.add(reorder("res_to_bfyx", input_info("resample_opt"), origin_format, params.input_type));
 
-        ExecutionConfig cfg{ov::enable_profiling(true),
-                            ov::intel_gpu::custom_outputs(std::vector<std::string>{"res_to_bfyx"}),
-                            ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ {"resample_opt", {working_format, kernel}} })
-        };
+        ExecutionConfig cfg = get_test_default_config(engine);
+        cfg.set_property(ov::enable_profiling(true));
+        cfg.set_property(ov::intel_gpu::custom_outputs(std::vector<std::string>{"res_to_bfyx"}));
+        cfg.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ {"resample_opt", {working_format, kernel}} }));
 
         network net_opt(engine, topo_opt, cfg);
 
