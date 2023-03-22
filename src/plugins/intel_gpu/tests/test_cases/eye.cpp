@@ -85,7 +85,7 @@ public:
             tp.add(reorder("output", input_info("eye"), oupput_fmt, type_to_data_type<OutputType>::value));
         }
 
-        cldnn::network::ptr network = get_network(engine_, tp, ExecutionConfig(), get_test_stream_ptr(), is_caching_test);
+        cldnn::network::ptr network = get_network(engine_, tp, get_test_default_config(engine_), get_test_stream_ptr(), is_caching_test);
 
         auto outputs = network->execute();
 
