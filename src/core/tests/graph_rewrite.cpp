@@ -55,9 +55,9 @@ public:
     Anchor() : GraphRewrite() {}
 };
 
-NGRAPH_RTTI_DEFINITION(TestPass, "TestPass", 0);
-NGRAPH_RTTI_DEFINITION(Anchor, "Anchor", 0);
-NGRAPH_RTTI_DEFINITION(GatherNodesPass, "GatherNodesPass", 0);
+NGRAPH_RTTI_DEFINITION(TestPass, "TestPass");
+NGRAPH_RTTI_DEFINITION(Anchor, "Anchor");
+NGRAPH_RTTI_DEFINITION(GatherNodesPass, "GatherNodesPass");
 
 std::shared_ptr<Function> get_function() {
     auto data = std::make_shared<ngraph::opset3::Parameter>(ngraph::element::f32, ngraph::Shape{3, 1, 2});
@@ -165,7 +165,7 @@ public:
     using ngraph::opset3::Divide::Divide;
 };
 
-NGRAPH_RTTI_DEFINITION(PrivateDivide, "PrivateDivide", 0, ngraph::opset3::Divide);
+NGRAPH_RTTI_DEFINITION(PrivateDivide, "PrivateDivide", ngraph::opset3::Divide);
 
 std::shared_ptr<Function> get_derived_function() {
     auto data = std::make_shared<ngraph::opset3::Parameter>(ngraph::element::f32, ngraph::Shape{3, 1, 2});
@@ -434,7 +434,7 @@ public:
     }
 };
 
-NGRAPH_RTTI_DEFINITION(CheckConsumers, "CheckConsumers", 0);
+NGRAPH_RTTI_DEFINITION(CheckConsumers, "CheckConsumers");
 
 TEST(GraphRewriteTest, nodes_use_count) {
     auto f = get_function();

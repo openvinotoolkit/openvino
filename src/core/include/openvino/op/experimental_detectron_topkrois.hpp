@@ -19,7 +19,7 @@ namespace v6 {
 /// \ingroup ov_ops_cpp_api
 class OPENVINO_API ExperimentalDetectronTopKROIs : public Op {
 public:
-    OPENVINO_OP("ExperimentalDetectronTopKROIs", "opset6", op::Op, 6);
+    OPENVINO_OP("ExperimentalDetectronTopKROIs", "opset6", op::Op);
 
     ExperimentalDetectronTopKROIs() = default;
     /// \brief Constructs a ExperimentalDetectronTopKROIs operation.

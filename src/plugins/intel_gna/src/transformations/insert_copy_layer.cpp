@@ -20,11 +20,11 @@ using namespace ov::intel_gna::pass;
 using namespace ov::intel_gna::ngraph_util;
 using namespace ov::opset9;
 
-NGRAPH_RTTI_DEFINITION(InsertCopyBeforeAssignLayer, "InsertCopyBeforeAssignLayer", 0);
-NGRAPH_RTTI_DEFINITION(InsertCopyBeforeConcatLayer, "InsertCopyBeforeConcatLayer", 0);
-NGRAPH_RTTI_DEFINITION(HandleMultiConnectedLayerToConcatAndMemory, "HandleMultiConnectedLayerToConcatAndMemory", 0);
-NGRAPH_RTTI_DEFINITION(MatchNonComputationalLayers, "MatchNonComputationalLayers", 0);
-NGRAPH_RTTI_DEFINITION(HandleNonFunctionalSubgraphs, "HandleNonFunctionalSubgraphs", 0);
+NGRAPH_RTTI_DEFINITION(InsertCopyBeforeAssignLayer, "InsertCopyBeforeAssignLayer");
+NGRAPH_RTTI_DEFINITION(InsertCopyBeforeConcatLayer, "InsertCopyBeforeConcatLayer");
+NGRAPH_RTTI_DEFINITION(HandleMultiConnectedLayerToConcatAndMemory, "HandleMultiConnectedLayerToConcatAndMemory");
+NGRAPH_RTTI_DEFINITION(MatchNonComputationalLayers, "MatchNonComputationalLayers");
+NGRAPH_RTTI_DEFINITION(HandleNonFunctionalSubgraphs, "HandleNonFunctionalSubgraphs");
 
 namespace {
 void insert_copy_layer_between(std::shared_ptr<ngraph::Node> input_op,

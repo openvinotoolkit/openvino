@@ -99,7 +99,7 @@ namespace v6 {
 /// \ingroup ov_ops_cpp_api
 class OPENVINO_API MVN : public Op {
 public:
-    OPENVINO_OP("MVN", "opset6", op::Op, 6);
+    OPENVINO_OP("MVN", "opset6", op::Op);
 
     MVN() = default;
     /// \brief Constructs an MVN operation.

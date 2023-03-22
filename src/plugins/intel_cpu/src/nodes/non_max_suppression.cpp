@@ -600,7 +600,7 @@ NonMaxSuppression::NonMaxSuppression(const std::shared_ptr<ngraph::Node>& op, co
             sortResultDescending = nmsIe->m_sort_result_descending;
         } else {
             const auto &typeInfo = op->get_type_info();
-            IE_THROW() << errorPrefix << " doesn't support NMS: " << typeInfo.name << " v" << typeInfo.version;
+            IE_THROW() << errorPrefix << " doesn't support NMS: " << typeInfo.name << " v" << typeInfo.version_id;
         }
 
         const auto &boxes_dims = getInputShapeAtPort(NMS_BOXES).getDims();

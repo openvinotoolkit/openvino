@@ -14,7 +14,7 @@ namespace v1 {
 /// \ingroup ov_ops_cpp_api
 class OPENVINO_API VariadicSplit : public Op {
 public:
-    OPENVINO_OP("VariadicSplit", "opset1", op::Op, 1);
+    OPENVINO_OP("VariadicSplit", "opset1", op::Op);
 
     /// \brief Constructs a variadic split operation.
     VariadicSplit() = default;

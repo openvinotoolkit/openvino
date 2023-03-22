@@ -20,7 +20,7 @@ namespace v6 {
 /// \ingroup ov_ops_cpp_api
 class OPENVINO_API ExperimentalDetectronDetectionOutput : public Op {
 public:
-    OPENVINO_OP("ExperimentalDetectronDetectionOutput", "opset6", op::Op, 6);
+    OPENVINO_OP("ExperimentalDetectronDetectionOutput", "opset6", op::Op);
 
     /// \brief Structure that specifies attributes of the operation
     struct Attributes {

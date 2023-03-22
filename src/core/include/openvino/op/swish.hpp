@@ -16,7 +16,7 @@ namespace v4 {
 /// \ingroup ov_ops_cpp_api
 class OPENVINO_API Swish : public Op {
 public:
-    OPENVINO_OP("Swish", "opset4", op::Op, 4);
+    OPENVINO_OP("Swish", "opset4", op::Op);
     Swish() = default;
 
     /// \brief Constructs an Swish operation.

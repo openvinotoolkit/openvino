@@ -13,7 +13,7 @@ namespace v1 {
 /// \ingroup ov_ops_cpp_api
 class OPENVINO_API Transpose : public Op {
 public:
-    OPENVINO_OP("Transpose", "opset1", op::Op, 1);
+    OPENVINO_OP("Transpose", "opset1", op::Op);
 
     Transpose() = default;
     ///

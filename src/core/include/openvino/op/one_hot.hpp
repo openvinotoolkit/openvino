@@ -14,7 +14,7 @@ namespace v1 {
 /// \ingroup ov_ops_cpp_api
 class OPENVINO_API OneHot : public Op {
 public:
-    OPENVINO_OP("OneHot", "opset1", op::Op, 1);
+    OPENVINO_OP("OneHot", "opset1", op::Op);
 
     /// \brief Constructs a one-hot operation.
     OneHot() = default;

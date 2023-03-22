@@ -15,7 +15,7 @@ namespace v1 {
 /// \ingroup ov_ops_cpp_api
 class OPENVINO_API ReduceProd : public util::ArithmeticReductionKeepDims {
 public:
-    OPENVINO_OP("ReduceProd", "opset1", util::ArithmeticReductionKeepDims, 1);
+    OPENVINO_OP("ReduceProd", "opset1", util::ArithmeticReductionKeepDims);
     /// \brief Constructs a product reduction operation.
     ReduceProd() = default;
     /// \brief Constructs a product reduction operation.

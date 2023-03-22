@@ -17,7 +17,7 @@ namespace v3 {
 /// \ingroup ov_ops_cpp_api
 class OPENVINO_API Broadcast : public util::BroadcastBase {
 public:
-    OPENVINO_OP("Broadcast", "opset3", op::util::BroadcastBase, 3);
+    OPENVINO_OP("Broadcast", "opset3", op::util::BroadcastBase);
 
     /// \brief Constructs a broadcast operation.
     Broadcast() = default;
@@ -81,7 +81,7 @@ namespace v1 {
 /// \ingroup ov_ops_cpp_api
 class OPENVINO_API Broadcast : public util::BroadcastBase {
 public:
-    OPENVINO_OP("Broadcast", "opset1", op::util::BroadcastBase, 1);
+    OPENVINO_OP("Broadcast", "opset1", op::util::BroadcastBase);
 
     /// \brief Constructs a broadcast operation.
     Broadcast() = default;

@@ -58,7 +58,7 @@ public:
  */
 class LP_TRANSFORMATIONS_API IntervalsAlignmentAttribute : public SharedAttribute<IntervalsAlignmentSharedValue> {
 public:
-    OPENVINO_RTTI("LowPrecision::IntervalsAlignment", "", ov::RuntimeAttribute, 0);
+    OPENVINO_RTTI("LowPrecision::IntervalsAlignment", "", ov::RuntimeAttribute);
     IntervalsAlignmentAttribute() = default;
     IntervalsAlignmentAttribute(IntervalsAlignmentSharedValue::Interval combinedInterval, size_t levels);
     IntervalsAlignmentAttribute(

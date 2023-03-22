@@ -14,7 +14,7 @@ namespace v1 {
 ///
 class OPENVINO_API AvgPool : public Op {
 public:
-    OPENVINO_OP("AvgPool", "opset1", op::Op, 1);
+    OPENVINO_OP("AvgPool", "opset1", op::Op);
 
     /// \brief Constructs a batched average pooling operation.
     AvgPool() = default;

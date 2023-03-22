@@ -14,7 +14,7 @@ namespace v3 {
 /// \ingroup ov_ops_cpp_api
 class OPENVINO_API ROIAlign : public Op {
 public:
-    OPENVINO_OP("ROIAlign", "opset3", op::Op, 3);
+    OPENVINO_OP("ROIAlign", "opset3", op::Op);
     enum class PoolingMode { AVG, MAX };
 
     ROIAlign() = default;
