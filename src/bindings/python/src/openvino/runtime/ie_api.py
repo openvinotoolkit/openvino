@@ -2,7 +2,6 @@
 # Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-from functools import singledispatch
 from typing import Any, Iterable, Union, Dict, Optional
 from pathlib import Path
 
@@ -16,6 +15,7 @@ from openvino._pyopenvino import ConstOutput
 from openvino._pyopenvino import Tensor
 
 from openvino.runtime.utils.data_helpers import (
+    OVDict,
     _InferRequestWrapper,
     _data_dispatch,
     tensor_from_file,
@@ -25,7 +25,7 @@ from openvino.runtime.utils.data_helpers import (
 class InferRequest(_InferRequestWrapper):
     """InferRequest class represents infer request which can be run in asynchronous or synchronous manners."""
 
-    def infer(self, inputs: Any = None, shared_memory: bool = False) -> dict:
+    def infer(self, inputs: Any = None, shared_memory: bool = False) -> OVDict:
         """Infers specified input(s) in synchronous mode.
 
         Blocks all methods of InferRequest while request is running.
@@ -68,14 +68,14 @@ class InferRequest(_InferRequestWrapper):
 
                               Default value: False
         :type shared_memory: bool, optional
-        :return: Dictionary of results from output tensors with ports as keys.
-        :rtype: Dict[openvino.runtime.ConstOutput, numpy.ndarray]
+        :return: Dictionary of results from output tensors with port/int/str keys.
+        :rtype: OVDict
         """
-        return super().infer(_data_dispatch(
+        return OVDict(super().infer(_data_dispatch(
             self,
             inputs,
             is_shared=shared_memory,
-        ))
+        )))
 
     def start_async(
         self,
@@ -138,6 +138,15 @@ class InferRequest(_InferRequestWrapper):
             userdata,
         )
 
+    @property
+    def results(self) -> OVDict:
+        """Gets all outputs tensors of this InferRequest.
+
+        :return: Dictionary of results from output tensors with ports as keys.
+        :rtype: Dict[openvino.runtime.ConstOutput, numpy.array]
+        """
+        return OVDict(super().results)
+
 
 class CompiledModel(CompiledModelBase):
     """CompiledModel class.
@@ -161,7 +170,7 @@ class CompiledModel(CompiledModelBase):
         """
         return InferRequest(super().create_infer_request())
 
-    def infer_new_request(self, inputs: Union[dict, list, tuple, Tensor, np.ndarray] = None) -> dict:
+    def infer_new_request(self, inputs: Union[dict, list, tuple, Tensor, np.ndarray] = None) -> OVDict:
         """Infers specified input(s) in synchronous mode.
 
         Blocks all methods of CompiledModel while request is running.
@@ -187,8 +196,8 @@ class CompiledModel(CompiledModelBase):
 
         :param inputs: Data to be set on input tensors.
         :type inputs: Union[Dict[keys, values], List[values], Tuple[values], Tensor, numpy.ndarray], optional
-        :return: Dictionary of results from output tensors with ports as keys.
-        :rtype: Dict[openvino.runtime.ConstOutput, numpy.array]
+        :return: Dictionary of results from output tensors with port/int/str keys.
+        :rtype: OVDict
         """
         # It returns wrapped python InferReqeust and then call upon
         # overloaded functions of InferRequest class
@@ -196,7 +205,7 @@ class CompiledModel(CompiledModelBase):
 
     def __call__(self,
                  inputs: Union[dict, list, tuple, Tensor, np.ndarray] = None,
-                 shared_memory: bool = True) -> dict:
+                 shared_memory: bool = True) -> OVDict:
         """Callable infer wrapper for CompiledModel.
 
         Infers specified input(s) in synchronous mode.
@@ -248,8 +257,8 @@ class CompiledModel(CompiledModelBase):
                               Default value: True
         :type shared_memory: bool, optional
 
-        :return: Dictionary of results from output tensors with ports as keys.
-        :rtype: Dict[openvino.runtime.ConstOutput, numpy.ndarray]
+        :return: Dictionary of results from output tensors with port/int/str as keys.
+        :rtype: OVDict
         """
         if self._infer_request is None:
             self._infer_request = self.create_infer_request()

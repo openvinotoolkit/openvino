@@ -24,7 +24,6 @@
 #endif
 #include "pyopenvino/core/async_infer_queue.hpp"
 #include "pyopenvino/core/compiled_model.hpp"
-#include "pyopenvino/core/containers.hpp"
 #include "pyopenvino/core/core.hpp"
 #include "pyopenvino/core/extension.hpp"
 #include "pyopenvino/core/infer_request.hpp"
@@ -210,9 +209,6 @@ PYBIND11_MODULE(_pyopenvino, m) {
 
     regclass_Core(m);
     regclass_Tensor(m);
-    // Registering specific types of containers
-    Containers::regclass_TensorIndexMap(m);
-    Containers::regclass_TensorNameMap(m);
 
     regclass_CompiledModel(m);
     regclass_InferRequest(m);
