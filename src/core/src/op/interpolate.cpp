@@ -186,6 +186,21 @@ void ov::op::v4::Interpolate::validate_and_infer_types() {
         input_shapes = {input_shape, target_spatial_shape, scales, axes};
     }
 
+    const auto interpolation_mode_check = [](const op::util::InterpolateBase::InterpolateMode mode) {
+        constexpr std::array<op::util::InterpolateBase::InterpolateMode, 4> allowed_modes = {
+            op::util::InterpolateBase::InterpolateMode::NEAREST,
+            op::util::InterpolateBase::InterpolateMode::LINEAR,
+            op::util::InterpolateBase::InterpolateMode::LINEAR_ONNX,
+            op::util::InterpolateBase::InterpolateMode::CUBIC};
+
+        return std::find(std::begin(allowed_modes), std::end(allowed_modes), mode) != std::end(allowed_modes);
+    };
+
+    NODE_VALIDATION_CHECK(this,
+                          interpolation_mode_check(m_attrs.mode),
+                          "Unsupported interpolation mode used with version 4 of the Interpolate op: ",
+                          as_string(m_attrs.mode));
+
     util::correct_pads_attr(this, m_attrs.pads_begin, m_attrs.pads_end, input_shapes);
     shape_infer(this, m_attrs.pads_begin, m_attrs.pads_end, input_shapes, output_shapes, {});
     set_output_type(0, get_input_element_type(0), output_shapes[0]);
