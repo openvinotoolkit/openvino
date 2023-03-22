@@ -124,6 +124,14 @@ void RemoveSingleInputNodeFromFunction(std::shared_ptr<ov::Node> node);
  */
 ov::Shape SqueezeShape(const ov::Shape& shape);
 
+/**
+ * @brief Transpose shape
+ * @param shape the shape to be transposed
+ * @param order the permutation to apply to the axes of the input shape
+ * @return transposed shape
+ */
+ov::Shape TransposeShape(const ov::Shape& shape, std::vector<size_t> order);
+
 }  // namespace helper
 }  // namespace pass
 }  // namespace intel_gna
