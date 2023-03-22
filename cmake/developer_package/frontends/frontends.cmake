@@ -229,9 +229,9 @@ macro(ov_add_frontend)
             link_system_libraries(${TARGET_NAME} PRIVATE ${Protobuf_LIBRARIES})
         endif()
 
-        # prptobuf generated code emits -Wsuggest-override error
+        # protobuf generated code emits -Wsuggest-override error
         if(SUGGEST_OVERRIDE_SUPPORTED)
-            target_compile_options(${TARGET_NAME} PRIVATE -Wno-suggest-override)
+            target_compile_options(${TARGET_NAME} PRIVATE $<$<COMPILE_LANGUAGE:CXX>:-Wno-suggest-override>)
         endif()
     endif()
 
