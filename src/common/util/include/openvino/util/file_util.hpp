@@ -260,6 +260,8 @@ inline std::basic_string<C> make_plugin_library_name(const std::basic_string<C>&
  */
 FilePath get_plugin_path(const std::string& plugin);
 
+FilePath get_compiled_plugin_path(const std::string& plugin);
+
 /**
  * @brief Format plugin path (canonicalize, complete to absolute or complete to file name) for further
  * dynamic loading by OS

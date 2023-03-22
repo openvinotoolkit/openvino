@@ -23,6 +23,7 @@
 #include "openvino/runtime/common.hpp"
 #include "openvino/runtime/icompiled_model.hpp"
 #include "openvino/runtime/threading/executor_manager.hpp"
+#include "openvino/util/file_util.hpp"
 
 namespace ov {
 
@@ -248,7 +249,7 @@ public:
 
         for (const auto& plugin : plugins) {
             const auto& deviceName = plugin.first;
-            const auto& pluginPath = ov::util::get_plugin_path(plugin.second);
+            const auto& pluginPath = ov::util::get_compiled_plugin_path(plugin.second);
 
             if (pluginRegistry.find(deviceName) == pluginRegistry.end() && FileUtils::fileExist(pluginPath)) {
                 PluginDescriptor desc{pluginPath};
