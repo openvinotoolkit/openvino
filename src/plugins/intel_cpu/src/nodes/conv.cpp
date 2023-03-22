@@ -1637,7 +1637,7 @@ void Convolution::appendZeroPointsArgs() {
     }
 }
 
-// Due to performance issue, brgconv will only be enabled by default:
+// brgconv will be enabled by default:
 // 1, static shape(dynamic shape may change weights layout if the input shape changes and cause performance issue: 86948)
 // 2, hw supports avx512+
 void Convolution::initTryBrgconvFlag() {
