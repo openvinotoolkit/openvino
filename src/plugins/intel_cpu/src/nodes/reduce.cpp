@@ -2147,22 +2147,24 @@ void Reduce::reduce_PLN(const uint8_t *in_ptr, uint8_t *out_ptr) {
             } else if (!ReduceC && ReduceD && ReduceH && !ReduceW) {
                 size_t IWB = IW / blk_size;
                 if (ReduceDH_opt) {
-                    // reduce parallelly in D dimension
-                    // step1: !ReduceD && ReduceH && !ReduceW
-                    uint8_t *prc_ptr_n = &vec_reduceDH_prc[0];
-                    init_dst_data(prc_ptr_n, prc_size);
-                    parallel_for2d(ID, IWB, [&](size_t id, size_t iwb){
-                        size_t pd = id, pwb = iwb;
-                        reduce_kernel_process(in_ptr_n + (id * IH * IW + iwb * blk_size) * src_data_size,
-                                              prc_ptr_n + (pd * PW + pwb * blk_size) * prc_data_size, blk_size, 0, IH);
-                    });
-                    // step2: ReduceD
-                    reduce_stride = PW;
-                    parallel_for(IWB, [&](size_t iwb){
-                        size_t pwb = iwb, owb = iwb;
-                        reduce_kernel_process(prc_ptr_n + pwb * blk_size * prc_data_size,
-                                              out_ptr_n + owb * blk_size * dst_data_size, blk_size, 0, ID);
-                    });
+                    if (IWB > 0) {
+                        // reduce parallelly in D dimension
+                        // step1: !ReduceD && ReduceH && !ReduceW
+                        uint8_t *prc_ptr_n = &vec_reduceDH_prc[0];
+                        init_dst_data(prc_ptr_n, prc_size);
+                        parallel_for2d(ID, IWB, [&](size_t id, size_t iwb){
+                            size_t pd = id, pwb = iwb;
+                            reduce_kernel_process(in_ptr_n + (id * IH * IW + iwb * blk_size) * src_data_size,
+                                                prc_ptr_n + (pd * PW + pwb * blk_size) * prc_data_size, blk_size, 0, IH);
+                        });
+                        // step2: ReduceD
+                        reduce_stride = PW;
+                        parallel_for(IWB, [&](size_t iwb){
+                            size_t pwb = iwb, owb = iwb;
+                            reduce_kernel_process(prc_ptr_n + pwb * blk_size * prc_data_size,
+                                                out_ptr_n + owb * blk_size * dst_data_size, blk_size, 0, ID);
+                        });
+                    }
                     // reduce tail
                     reduce_stride = IW;
                     size_t tail_start = IWB * blk_size;
@@ -2740,7 +2742,7 @@ inline void Reduce::set_reduce_dim_flags() {
     ReduceH = IH != OH && OH == 1;
     ReduceW = IW != OW && OW == 1;
 
-    // must be done before the above dimension change
+    // must be done after the above dimension change
     create_DH_working_memory();
 
     // suit for parallel
