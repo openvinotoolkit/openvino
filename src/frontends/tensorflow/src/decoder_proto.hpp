@@ -12,6 +12,8 @@
 #include "types.pb.h"
 
 namespace tensorflow {
+class GraphDef;
+class FunctionDef;
 class NodeDef;
 class AttrValue;
 }  // namespace tensorflow
@@ -29,7 +31,18 @@ void parse_producer_name(const std::string& producer_port_name,
 
 class DecoderProto : public ov::frontend::tensorflow::DecoderBase {
 public:
-    explicit DecoderProto(const ::tensorflow::NodeDef* node_def) : m_node_def(node_def) {}
+    explicit DecoderProto(const ::tensorflow::NodeDef* node_def,
+                          const std::shared_ptr<::tensorflow::GraphDef>& graph_def)
+        : m_node_def(node_def),
+          m_graph_def(graph_def),
+          m_func_def(nullptr) {}
+
+    explicit DecoderProto(const ::tensorflow::NodeDef* node_def,
+                          const std::shared_ptr<::tensorflow::GraphDef>& graph_def,
+                          const std::shared_ptr<::tensorflow::FunctionDef>& func_def)
+        : m_node_def(node_def),
+          m_graph_def(graph_def),
+          m_func_def(func_def) {}
 
     ov::Any get_attribute(const std::string& name) const override;
 
@@ -51,6 +64,12 @@ public:
 private:
     std::vector<::tensorflow::AttrValue> decode_attribute_helper(const std::string& name) const;
     const ::tensorflow::NodeDef* m_node_def;
+    // For existence of NodeDef object corresponding to the main graph node,
+    // GraphDef object must live in the memory
+    const std::shared_ptr<::tensorflow::GraphDef> m_graph_def;
+    // For existence of NodeDef object corresponding to the body graph node,
+    // both GraphDef and FunctionDef objects must be alive in the memory
+    const std::shared_ptr<::tensorflow::FunctionDef> m_func_def;
 };
 }  // namespace tensorflow
 }  // namespace frontend
