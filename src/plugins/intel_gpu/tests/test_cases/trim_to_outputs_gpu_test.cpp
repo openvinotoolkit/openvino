@@ -26,7 +26,7 @@ public:
     */
     void test_one_node_to_eliminate_case1(bool is_caching_test) {
         auto& engine = get_test_engine();
-        ExecutionConfig config;
+        ExecutionConfig config = get_test_default_config(engine);
         config.set_property(ov::intel_gpu::custom_outputs(std::vector<std::string>{ "conv1" }));
         config.set_property(ov::intel_gpu::optimize_data(false));             // to avoid adding reorders
 
@@ -75,7 +75,7 @@ public:
     */
     void test_one_node_to_eliminate_case2(bool is_caching_test) {
         auto& engine = get_test_engine();
-        ExecutionConfig config;
+        ExecutionConfig config = get_test_default_config(engine);
         config.set_property(ov::intel_gpu::custom_outputs(std::vector<std::string>{ "conv1" }));
         config.set_property(ov::intel_gpu::optimize_data(false));             // to avoid adding reorders
 
@@ -132,7 +132,7 @@ public:
     */
     void test_two_nodes_to_eliminate_case1(bool is_caching_test) {
         auto& engine = get_test_engine();
-        ExecutionConfig config;
+        ExecutionConfig config = get_test_default_config(engine);
         config.set_property(ov::intel_gpu::custom_outputs(std::vector<std::string>{ "conv4" }));
         config.set_property(ov::intel_gpu::optimize_data(false));             // to avoid adding reorders
 
