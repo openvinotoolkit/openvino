@@ -1,6 +1,6 @@
-# GPU plugin workflow
+# GPU Plugin Workflow
 
-The simplified workflow in the GPU plugin is shown on the picture below (click on image for higher resolution):
+The simplified workflow in the GPU plugin is shown in the diagram below (click it for higher resolution):
 
 ```mermaid
 classDiagram 
@@ -147,6 +147,7 @@ class `intel_gpu::device_query` {Detects available devices for given backend}
 ```
 
 ## See also
+
  * [OpenVINO™ README](../../../../README.md)
  * [OpenVINO Core Components](../../../README.md)
  * [OpenVINO Plugins](../../README.md)
