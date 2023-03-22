@@ -480,6 +480,14 @@ void regclass_graph_Model(py::module m) {
                     :return: ParameterVector containing model parameters.
                     :rtype: ParameterVector
                  )");
+    model.def_property_readonly("parameters",
+                                &ov::Model::get_parameters,
+                                R"(
+                                        Return the model parameters.
+                                        
+                                        :return: ParameterVector containing model parameters.
+                                        :rtype: ParameterVector
+                                    )");
     model.def("get_results",
               &ov::Model::get_results,
               R"(
@@ -488,6 +496,14 @@ void regclass_graph_Model(py::module m) {
                     :return: ResultVector containing model parameters.
                     :rtype: ResultVector
                  )");
+    model.def_property_readonly("results",
+                                &ov::Model::get_results,
+                                R"(
+                                        Return a list of model outputs.
+
+                                        :return: ResultVector containing model parameters.
+                                        :rtype: ResultVector
+                                    )");
     model.def("get_result",
               &ov::Model::get_result,
               R"(
@@ -496,6 +512,14 @@ void regclass_graph_Model(py::module m) {
                     :return: Node object representing result.
                     :rtype: openvino.runtime.Node
                  )");
+    model.def_property_readonly("result",
+                                &ov::Model::get_result,
+                                R"(
+                                        Return single result.
+
+                                        :return: Node object representing result.
+                                        :rtype: openvino.runtime.Node
+                                    )");
     model.def("get_result_index",
               (int64_t(ov::Model::*)(const ov::Output<ov::Node>&) const) & ov::Model::get_result_index,
               py::arg("value"),
@@ -561,6 +585,14 @@ void regclass_graph_Model(py::module m) {
 
                     :rtype: bool
                  )");
+    model.def_property_readonly("dynamic",
+                                &ov::Model::is_dynamic,
+                                R"(
+                                        Returns true if any of the op's defined in the model
+                                        contains partial shape.
+
+                                        :rtype: bool
+                                    )");
     model.def("input", (ov::Output<ov::Node>(ov::Model::*)()) & ov::Model::input);
 
     model.def("input", (ov::Output<ov::Node>(ov::Model::*)(size_t)) & ov::Model::input, py::arg("index"));
