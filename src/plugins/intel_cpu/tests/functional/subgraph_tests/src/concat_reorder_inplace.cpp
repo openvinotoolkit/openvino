@@ -21,7 +21,7 @@ namespace SubgraphTestsDefinitions {
  *                     Concat (inPlace)
  *                    /   |   \
  *                   /    |    \
- *             Reorder Reorder Reorder
+ *             Reorder Reorder Reorder (the reorder nodes are optimized and use inplace memory mode)
  *                /       |       \
  *               /        |        \
  *         Multiply    Multiply    Multiply
