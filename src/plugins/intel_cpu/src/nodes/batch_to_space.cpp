@@ -24,12 +24,6 @@ bool BatchToSpace::isSupportedOperation(const std::shared_ptr<const ngraph::Node
             errorMessage = "Only opset2 BatchToSpace operation is supported";
             return false;
         }
-        if (std::dynamic_pointer_cast<const ngraph::opset1::Constant>(op->get_input_node_shared_ptr(1)) == nullptr ||
-            std::dynamic_pointer_cast<const ngraph::opset1::Constant>(op->get_input_node_shared_ptr(2)) == nullptr ||
-            std::dynamic_pointer_cast<const ngraph::opset1::Constant>(op->get_input_node_shared_ptr(3)) == nullptr) {
-            errorMessage = "Only constant 'block_shape', 'crops_begin', 'crops_end' are supported";
-            return false;
-        }
     } catch (...) {
         return false;
     }
@@ -54,9 +48,6 @@ BatchToSpace::BatchToSpace(const std::shared_ptr<ngraph::Node>& op, const GraphC
         IE_THROW() << errorPrefix << " has unsupported 'data' input rank: " << inDims.size();
     if (inDims.size() != outDims.size())
         IE_THROW() << errorPrefix << " has incorrect number of input/output dimensions";
-
-    blockShapeIn = std::dynamic_pointer_cast<const ngraph::opset1::Constant>(op->get_input_node_shared_ptr(1))->cast_vector<size_t>();
-    cropsBeginIn  = std::dynamic_pointer_cast<const ngraph::opset1::Constant>(op->get_input_node_shared_ptr(2))->cast_vector<size_t>();
 }
 
 void BatchToSpace::initSupportedPrimitiveDescriptors() {
@@ -70,30 +61,30 @@ void BatchToSpace::initSupportedPrimitiveDescriptors() {
         IE_THROW() << errorPrefix << " has unsupported precision: " << precision.name();
 
     addSupportedPrimDesc({{LayoutType::nspc, precision},
-                          {LayoutType::ncsp},
-                          {LayoutType::ncsp},
-                          {LayoutType::ncsp}},
+                          {LayoutType::ncsp, Precision::I32},
+                          {LayoutType::ncsp, Precision::I32},
+                          {LayoutType::ncsp, Precision::I32}},
                          {{LayoutType::nspc, precision}},
                          impl_desc_type::ref_any);
     addSupportedPrimDesc({{LayoutType::ncsp, precision},
-                          {LayoutType::ncsp},
-                          {LayoutType::ncsp},
-                          {LayoutType::ncsp}},
+                          {LayoutType::ncsp, Precision::I32},
+                          {LayoutType::ncsp, Precision::I32},
+                          {LayoutType::ncsp, Precision::I32}},
                          {{LayoutType::ncsp, precision}},
                          impl_desc_type::ref_any);
     if (inDims[1] != Shape::UNDEFINED_DIM && inDims[1] % 8 == 0) {
         addSupportedPrimDesc({{LayoutType::nCsp8c, precision},
-                              {LayoutType::ncsp},
-                              {LayoutType::ncsp},
-                              {LayoutType::ncsp}},
+                              {LayoutType::ncsp, Precision::I32},
+                              {LayoutType::ncsp, Precision::I32},
+                              {LayoutType::ncsp, Precision::I32}},
                              {{LayoutType::nCsp8c, precision}},
                              impl_desc_type::ref_any);
     }
     if (inDims[1] != Shape::UNDEFINED_DIM && inDims[1] % 16 == 0) {
         addSupportedPrimDesc({{LayoutType::nCsp16c, precision},
-                              {LayoutType::ncsp},
-                              {LayoutType::ncsp},
-                              {LayoutType::ncsp}},
+                              {LayoutType::ncsp, Precision::I32},
+                              {LayoutType::ncsp, Precision::I32},
+                              {LayoutType::ncsp, Precision::I32}},
                              {{LayoutType::nCsp16c, precision}},
                              impl_desc_type::ref_any);
     }
@@ -112,6 +103,19 @@ static std::vector<size_t> getShape5D(const SizeVector &shape) {
 template<typename T>
 void BatchToSpace::batchToSpaceKernel() {
     const auto *srcData = reinterpret_cast<const T *>(getParentEdgeAt(0)->getMemoryPtr()->GetPtr());
+    const auto *blockShapesPtr = reinterpret_cast<int *>(getParentEdgeAt(1)->getMemoryPtr()->GetPtr());
+    size_t dataRank = getParentEdgesAtPort(0)[0]->getMemoryPtr()->GetShape().getRank();
+    blockShapeIn.clear();
+    for (size_t i = 0; i < dataRank; i++) {
+        blockShapeIn.push_back(*(blockShapesPtr + i));
+    }
+
+    const auto *padsBeginPtr = reinterpret_cast<int *>(getParentEdgeAt(2)->getMemoryPtr()->GetPtr());
+    cropsBeginIn.clear();
+    for (size_t i = 0; i < dataRank; i++) {
+        cropsBeginIn.push_back(*(padsBeginPtr + i));
+    }
+
     auto *dstData = reinterpret_cast<T *>(getChildEdgeAt(0)->getMemoryPtr()->GetPtr());
 
     const auto &inDims = getParentEdgesAtPort(0)[0]->getMemory().getStaticDims();
