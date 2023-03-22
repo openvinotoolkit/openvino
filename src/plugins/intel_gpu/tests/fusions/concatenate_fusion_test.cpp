@@ -42,12 +42,14 @@ public:
         ov::intel_gpu::ImplementationDesc cldnn_impl = { p.input_format, "", impl_types::ocl };
 
         // for onednn fusing test, topology_non_fused means cldnn, topology_fused is onednn
-        ExecutionConfig cldnn_cfg{ov::intel_gpu::queue_type(QueueTypes::in_order),
+        ExecutionConfig cldnn_cfg = get_test_default_config(engine,
+                                  {ov::intel_gpu::queue_type(QueueTypes::in_order),
                                   ov::intel_gpu::optimize_data(true),
-                                  ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ { "concat", cldnn_impl } })};
-        ExecutionConfig onednn_cfg{ov::intel_gpu::queue_type(QueueTypes::in_order),
+                                  ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ { "concat", cldnn_impl } })});
+        ExecutionConfig onednn_cfg = get_test_default_config(engine,
+                                   {ov::intel_gpu::queue_type(QueueTypes::in_order),
                                    ov::intel_gpu::optimize_data(true),
-                                   ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ { "concat", onednn_impl } })};
+                                   ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ { "concat", onednn_impl } })});
         network network_fused_cldnn(this->engine, this->topology_non_fused, cldnn_cfg);
         network network_fused_onednn(this->engine, this->topology_fused, onednn_cfg);
 
