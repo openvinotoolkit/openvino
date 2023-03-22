@@ -70,7 +70,7 @@ TEST_P(ExecutableNetworkBaseTest, checkGetMetric) {
 
 TEST_P(ExecutableNetworkBaseTest, canLoadCorrectNetworkToGetExecutableAndCheckConfig) {
     auto execNet = ie->LoadNetwork(cnnNet, target_device, configuration);
-    if (target_device == CommonTestUtils::DEVICE_AUTO) {
+    if (target_device == CommonTestUtils::DEVICE_AUTO || target_device == CommonTestUtils::DEVICE_MULTI) {
         // AUTO executable network didn't support to read any config.
         GTEST_SKIP();
     }

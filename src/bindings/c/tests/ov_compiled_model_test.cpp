@@ -145,7 +145,9 @@ TEST_P(ov_compiled_model_test, set_and_get_property) {
 
     const char* key_1 = ov_property_key_device_priorities;
     const char* value_1 = "GPU,CPU";
-    OV_EXPECT_OK(ov_compiled_model_set_property(compiled_model, key_1, value_1));
+    // compile modle will retun AUTO executable_network for MULTI, but AUTO executable_network doesn't implement
+    // set config, here will throw exception
+    EXPECT_EQ(ov_compiled_model_set_property(compiled_model, key_1, value_1), ov_status_e::GENERAL_ERROR);
     char* result = nullptr;
     OV_EXPECT_OK(ov_compiled_model_get_property(compiled_model, key_1, &result));
     EXPECT_STREQ(value_1, result);
