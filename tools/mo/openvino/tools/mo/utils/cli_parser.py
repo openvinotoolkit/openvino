@@ -25,17 +25,6 @@ from openvino.tools.mo.middle.passes.convert_data_type import np_data_type_to_de
 from openvino.tools.mo.utils import import_extensions
 from openvino.tools.mo.utils.error import Error
 from openvino.tools.mo.utils.utils import refer_to_faq_msg, get_mo_root_dir
-from openvino.tools.mo.utils.version import get_version
-
-
-dir_keys = [
-        'output_dir', 'extensions', 'saved_model_dir', 'tensorboard_logdir', 'caffe_parser_path'
-    ]
-file_keys = [
-    'input_model', 'input_proto', 'caffe_parser_path', 'k', 'input_checkpoint', 'input_meta_graph', 'saved_model_dir',
-    'tensorflow_custom_operations_config_update', 'tensorflow_object_detection_api_pipeline_config', 'tensorboard_logdir',
-    'tensorflow_custom_layer_libraries', 'input_symbol', 'counts'
-]
 
 cli_tool_specific_descriptions = {
     'input_model':
@@ -583,14 +572,15 @@ def get_mo_convert_params():
         'transformations_config': transformations_config_to_str,
         'saved_model_tags': str_list_to_str
     }
+    params_with_paths = get_params_with_paths_list()
 
     for group_name, param_group in mo_convert_params.items():
         for param_name, d in param_group.items():
             to_str_method = None
-            if param_name in file_keys or dir_keys:
-                to_str_method = path_to_str
             if param_name in params_converted_to_string:
                 to_str_method = params_converted_to_string[param_name]
+            elif param_name in params_with_paths:
+                to_str_method = path_to_str
 
             cli_tool_description = None
             if param_name in cli_tool_specific_descriptions:
@@ -842,14 +832,33 @@ def writable_dir(path: str):
 
 def add_args_by_description(args_group, params_description):
     signature = inspect.signature(openvino.tools.mo.convert_model)
+    filepath_args = get_params_with_paths_list()
 
     for param_name, param_description in params_description.items():
-        if "--"+param_name not in args_group._option_string_actions:
+        cli_param_name = "--"+param_name
+        if cli_param_name not in args_group._option_string_actions:
             help_text = cli_tool_specific_descriptions[param_name] if param_name in cli_tool_specific_descriptions \
                 else param_description.description
-            args_group.add_argument("--"+param_name,
-                                    help=help_text,
-                                    default=signature.parameters[param_name].default)
+            if signature.parameters[param_name].annotation == [bool, str]:
+                args_group.add_argument(
+                    cli_param_name,
+                    type=check_bool,
+                    nargs="?",
+                    const=True,
+                    help=help_text,
+                    default=signature.parameters[param_name].default)
+            elif param_name in filepath_args:
+                args_group.add_argument(
+                    cli_param_name,
+                    type=str,
+                    action=CanonicalizePathCheckExistenceAction,
+                    help=help_text,
+                    default=signature.parameters[param_name].default)
+            else:
+                args_group.add_argument(
+                    cli_param_name,
+                    help=help_text,
+                    default=signature.parameters[param_name].default)
 
 
 def get_common_cli_parser(parser: argparse.ArgumentParser = None):
@@ -884,15 +893,6 @@ def get_common_cli_parser(parser: argparse.ArgumentParser = None):
                                    'If both --mean_values and --scale  are specified, ' +
                                    'the mean is subtracted first and then scale is applied ' +
                                    'regardless of the order of options in command line.')
-    common_group.add_argument('--reverse_input_channels',
-                              help='Switch the input channels order from RGB to BGR (or vice versa). Applied to '
-                                   'original inputs of the model if and only if a number of channels equals 3. '
-                                   'When --mean_values/--scale_values are also specified, reversing of channels will '
-                                   'be applied to user\'s input data first, so that numbers in --mean_values '
-                                   'and --scale_values go in the order of channels used in the original model. '
-                                   'In other words, if both options are specified, then the data flow in the model '
-                                   'looks as following: Parameter -> ReverseInputChannels -> Mean apply-> Scale apply -> the original body of the model.',
-                              action='store_true')
     common_group.add_argument('--log_level',
                               help='Logger level',
                               choices=['CRITICAL', 'ERROR', 'WARN', 'WARNING', 'INFO',
@@ -907,12 +907,6 @@ def get_common_cli_parser(parser: argparse.ArgumentParser = None):
                               choices=["FP16", "FP32", "half", "float"],
                               default='FP16',
                               action=DeprecatedOptionCommon)
-    common_group.add_argument('--compress_to_fp16',
-                              help=mo_convert_params_common['compress_to_fp16'].description,
-                              type=check_bool,
-                              nargs="?",
-                              const=True,
-                              default=True)
     # we use CanonicalizeDirCheckExistenceAction instead of readable_dirs to handle empty strings
     common_group.add_argument("--extensions",
                               help=cli_tool_specific_descriptions['extensions'],
@@ -923,39 +917,15 @@ def get_common_cli_parser(parser: argparse.ArgumentParser = None):
                               type=check_positive,
                               default=None,
                               help=mo_convert_params_common['batch'].description)
-    common_group.add_argument("--version",
-                              action='version',
-                              version='Version of Model Optimizer is: {}'.format(get_version()),
-                              help=mo_convert_params_common['version'].description)
-
-    common_group.add_argument('--silent',
-                              help=mo_convert_params_common['silent'].description,
-                              type=check_bool,
-                              default=True)
     common_group.add_argument('--freeze_placeholder_with_value',
                               help='Replaces input layer with constant node with '
                                    'provided value, for example: "node_name->True". '
                                    'It will be DEPRECATED in future releases. '
                                    'Use --input option to specify a value for freezing.',
                               default=None)
-    common_group.add_argument('--static_shape',
-                              help=mo_convert_params_common['static_shape'].description,
-                              action='store_true', default=False)
-    common_group.add_argument('--progress',
-                              help=mo_convert_params_common['progress'].description,
-                              action='store_true', default=False)
-    common_group.add_argument('--stream_output',
-                              help=mo_convert_params_common['stream_output'].description,
-                              action='store_true', default=False)
     common_group.add_argument('--transformations_config',
                               help=cli_tool_specific_descriptions['transformations_config'],
                               action=CanonicalizeTransformationPathCheckExistenceAction)
-    common_group.add_argument("--use_new_frontend",
-                              help=mo_convert_params_common['use_new_frontend'].description,
-                              action='store_true', default=False)
-    common_group.add_argument("--use_legacy_frontend",
-                              help=mo_convert_params_common['use_legacy_frontend'].description,
-                              action='store_true', default=False)
     add_args_by_description(common_group, mo_convert_params_common)
     return parser
 
@@ -1072,26 +1042,7 @@ def get_caffe_cli_parser(parser: argparse.ArgumentParser = None):
                              help=mo_convert_params_caffe['input_proto'].description,
                              type=str,
                              action=CanonicalizePathCheckExistenceAction)
-    caffe_group.add_argument('--caffe_parser_path',
-                             help=mo_convert_params_caffe['caffe_parser_path'].description,
-                             type=str,
-                             default=os.path.join(os.path.dirname(__file__), os.pardir, 'front', 'caffe', 'proto'),
-                             action=CanonicalizePathCheckExistenceAction)
-    caffe_group.add_argument('-k',
-                             help=mo_convert_params_caffe['k'].description,
-                             type=str,
-                             default=os.path.join(os.path.dirname(__file__), os.pardir, os.pardir, 'extensions',
-                                                  'front', 'caffe',
-                                                  'CustomLayersMapping.xml'),
-                             action=CanonicalizePathCheckExistenceAction)
-    caffe_group.add_argument('--disable_omitting_optional',
-                             help=mo_convert_params_caffe['disable_omitting_optional'].description,
-                             action='store_true',
-                             default=False)
-    caffe_group.add_argument('--enable_flattening_nested_params',
-                             help=mo_convert_params_caffe['enable_flattening_nested_params'].description,
-                             action='store_true',
-                             default=False)
+    add_args_by_description(caffe_group, mo_convert_params_caffe)
     return parser
 
 
@@ -1109,43 +1060,11 @@ def get_tf_cli_parser(parser: argparse.ArgumentParser = None):
     mo_convert_params_tf = get_mo_convert_params()['TensorFlow*-specific parameters:']
 
     tf_group = parser.add_argument_group('TensorFlow*-specific parameters')
-    tf_group.add_argument('--input_model_is_text',
-                          help=mo_convert_params_tf['input_model_is_text'].description,
-                          action='store_true')
-    tf_group.add_argument('--input_checkpoint', type=str, default=None,
-                          help=mo_convert_params_tf['input_checkpoint'].description,
-                          action=CanonicalizePathCheckExistenceAction)
-    tf_group.add_argument('--input_meta_graph',
-                          help=mo_convert_params_tf['input_meta_graph'].description,
-                          action=CanonicalizePathCheckExistenceAction,
-                          type=readable_file)
-    tf_group.add_argument('--saved_model_dir', default=None,
-                          help=mo_convert_params_tf['saved_model_dir'].description,
-                          action=CanonicalizePathCheckExistenceAction,
-                          type=readable_dirs)
-    tf_group.add_argument('--saved_model_tags', type=str, default=None,
-                          help=mo_convert_params_tf['saved_model_tags'].description)
-    tf_group.add_argument('--tensorflow_custom_operations_config_update',
-                          help=mo_convert_params_tf['tensorflow_custom_operations_config_update'].description,
-                          action=CanonicalizePathCheckExistenceAction)
-    tf_group.add_argument('--tensorflow_use_custom_operations_config',
-                          help='Use the configuration file with custom operation description.',
-                          action=DeprecatedCanonicalizePathCheckExistenceAction)
-    tf_group.add_argument('--tensorflow_object_detection_api_pipeline_config',
-                          help=mo_convert_params_tf['tensorflow_object_detection_api_pipeline_config'].description,
-                          action=CanonicalizePathCheckExistenceAction)
-    tf_group.add_argument('--tensorboard_logdir',
-                          help=mo_convert_params_tf['tensorboard_logdir'].description,
-                          default=None,
-                          action=CanonicalizePathCheckExistenceAction)
-    tf_group.add_argument('--tensorflow_custom_layer_libraries',
-                          help=mo_convert_params_tf['tensorflow_custom_layer_libraries'].description,
-                          default=None,
-                          action=CanonicalizePathCheckExistenceAction)
     tf_group.add_argument('--disable_nhwc_to_nchw',
                           help='[DEPRECATED] Disables the default translation from NHWC to NCHW. Since 2022.1 this option '
                                'is deprecated and used only to maintain backward compatibility with previous releases.',
                           action=DeprecatedStoreTrue, default=False)
+    add_args_by_description(tf_group, mo_convert_params_tf)
     return parser
 
 
@@ -1163,27 +1082,7 @@ def get_mxnet_cli_parser(parser: argparse.ArgumentParser = None):
 
     mx_group = parser.add_argument_group('Mxnet-specific parameters')
     mo_convert_params_mxnet = get_mo_convert_params()['Mxnet-specific parameters:']
-
-    mx_group.add_argument('--input_symbol',
-                          help=mo_convert_params_mxnet['input_symbol'].description,
-                          type=str,
-                          action=CanonicalizePathCheckExistenceAction)
-    mx_group.add_argument("--nd_prefix_name",
-                          help=mo_convert_params_mxnet['nd_prefix_name'].description,
-                          default=None)
-    mx_group.add_argument("--pretrained_model_name",
-                          help=mo_convert_params_mxnet['pretrained_model_name'].description,
-                          default=None)
-    mx_group.add_argument("--save_params_from_nd",
-                          action='store_true',
-                          help=mo_convert_params_mxnet['save_params_from_nd'].description)
-    mx_group.add_argument("--legacy_mxnet_model",
-                          action='store_true',
-                          help=mo_convert_params_mxnet['legacy_mxnet_model'].description)
-    mx_group.add_argument("--enable_ssd_gluoncv",
-                          action='store_true',
-                          help=mo_convert_params_mxnet['enable_ssd_gluoncv'].description,
-                          default=False)
+    add_args_by_description(mx_group, mo_convert_params_mxnet)
 
     return parser
 
@@ -1207,16 +1106,7 @@ def get_kaldi_cli_parser(parser: argparse.ArgumentParser = None):
                              help=mo_convert_params_kaldi['counts'].description,
                              default=None,
                              action=CanonicalizePathCheckExistenceIfNeededAction)
-
-    kaldi_group.add_argument("--remove_output_softmax",
-                             help=mo_convert_params_kaldi['remove_output_softmax'].description,
-                             action='store_true',
-                             default=False)
-
-    kaldi_group.add_argument("--remove_memory",
-                             help=mo_convert_params_kaldi['remove_memory'].description,
-                             action='store_true',
-                             default=False)
+    add_args_by_description(kaldi_group, mo_convert_params_kaldi)
     return parser
 
 
@@ -2153,6 +2043,9 @@ def check_bool(value):
 
 
 def depersonalize(value: str, key: str):
+    dir_keys = [
+        'output_dir', 'extensions', 'saved_model_dir', 'tensorboard_logdir', 'caffe_parser_path'
+    ]
     if isinstance(value, list):
         updated_value = []
         for elem in value:

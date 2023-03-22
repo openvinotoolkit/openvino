@@ -1,71 +1,76 @@
 # Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
-
+import os
+import pathlib
 from collections import namedtuple
+from typing import Any
 
 from openvino.frontend import FrontEndManager
+from openvino.runtime import PartialShape, Shape, Layout
 
 from openvino.tools.mo.convert_impl import _convert
+from openvino.tools.mo.utils import import_extensions
 from openvino.tools.mo.utils.cli_parser import get_all_cli_parser
 from openvino.tools.mo.utils.logger import get_logger_state, restore_logger_state
 
 InputCutInfo = namedtuple("InputInfo", ["name", "shape", "type", "value"])
 LayoutMap = namedtuple("LayoutMap", ["source_layout", "target_layout"])
 
-# TODO: add types annotation
+
 def convert_model(
-        help: bool = None,
-        framework: str = None,
-        input_model=None,
-        input_shape=None,
-        scale=None,
-        reverse_input_channels=None,
-        log_level=None,
-        input=None,
-        output=None,
-        mean_values=(),
-        scale_values=(),
-        source_layout=(),
-        target_layout=(),
-        layout=(),
-        compress_to_fp16=None,
-        transform=None,
-        extensions=None,
-        batch=None,
-        silent=None,
-        version=None,
-        static_shape=None,
-        progress=None,
-        stream_output=None,
-        transformations_config=None,
-        use_new_frontend=None,
-        use_legacy_frontend=None,
-        disable_omitting_optional=None,
-        enable_flattening_nested_params=None,
-        input_model_is_text=None,
-        input_checkpoint=None,
-        input_meta_graph=None,
-        saved_model_dir=None,
-        saved_model_tags=None,
-        tensorflow_custom_operations_config_update=None,
-        tensorflow_object_detection_api_pipeline_config=None,
-        tensorboard_logdir=None,
-        tensorflow_custom_layer_libraries=None,
-        input_proto=None,
-        caffe_parser_path=None,
-        k=None,
-        input_symbol=None,
-        nd_prefix_name=None,
-        pretrained_model_name=None,
-        save_params_from_nd=None,
-        legacy_mxnet_model=None,
-        enable_ssd_gluoncv=None,
-        counts=None,
-        remove_output_softmax=None,
-        remove_memory=None,
-        example_input=None,
-        onnx_opset_version=None,
-        input_signature=None
+        input_model: [str, pathlib.Path, Any] = None,
+        help: bool = False,
+        framework: [str] = None,
+        input_shape: [str, PartialShape, Shape, list] = None,
+        scale: [str, float] = None,
+        reverse_input_channels: bool = False,
+        log_level: str = 'ERROR',
+        input: [str, list, tuple, InputCutInfo] = None,
+        output: [str, list] = None,
+        mean_values: [str, dict, list] = (),
+        scale_values: [str, dict, list] = (),
+        source_layout: [str, Layout, dict] = (),
+        target_layout: [str, Layout, dict] = (),
+        layout: [str, Layout, LayoutMap, list, dict] = (),
+        compress_to_fp16: bool = True,
+        transform: [str, list, tuple] = "",
+        extensions: [str, pathlib.Path, list, Any] = [import_extensions.default_path()],
+        batch: int = None,
+        silent: bool = True,
+        version: bool = None,
+        static_shape: bool = False,
+        progress: bool = False,
+        stream_output: bool = False,
+        transformations_config: [str, pathlib.Path] = None,
+        use_new_frontend: bool = False,
+        use_legacy_frontend: bool = False,
+        disable_omitting_optional: bool = False,
+        enable_flattening_nested_params: bool = False,
+        input_model_is_text: bool = None,
+        input_checkpoint: [str, pathlib.Path] = None,
+        input_meta_graph: [str, pathlib.Path] = None,
+        saved_model_dir: [str, pathlib.Path] = None,
+        saved_model_tags: [str, list] = None,
+        tensorflow_custom_operations_config_update: [str, pathlib.Path] = None,
+        tensorflow_object_detection_api_pipeline_config: [str, pathlib.Path] = None,
+        tensorboard_logdir: [str, pathlib.Path] = None,
+        tensorflow_custom_layer_libraries: [str, pathlib.Path] = None,
+        input_proto: [str, pathlib.Path] = None,
+        caffe_parser_path: [str, pathlib.Path] = os.path.join(os.path.dirname(__file__), os.pardir, 'front', 'caffe', 'proto'),
+        k: [str, pathlib.Path] = os.path.join(os.path.dirname(__file__), os.pardir, os.pardir, 'extensions', 'front', 'caffe', 'CustomLayersMapping.xml'),
+        input_symbol: [str, pathlib.Path] = None,
+        nd_prefix_name: str = None,
+        pretrained_model_name: str = None,
+        save_params_from_nd: bool = None,
+        legacy_mxnet_model: bool = None,
+        enable_ssd_gluoncv: bool = False,
+        counts: [str, pathlib.Path] = None,
+        remove_output_softmax: bool = False,
+        remove_memory: bool = False,
+        example_input: Any = None,
+        onnx_opset_version: int = None,
+        input_signature: Any = None,
+        **args
 ):
     """
     Converts the model from original framework to OpenVino Model.
@@ -352,9 +357,11 @@ def convert_model(
     Returns:
         openvino.runtime.Model
     """
+    params = locals()
     logger_state = get_logger_state()
-    args = locals()
+    del params['args']
+    params.update(args)
     cli_parser = get_all_cli_parser(FrontEndManager())
-    ov_model, _ = _convert(cli_parser, framework, args)
+    ov_model, _ = _convert(cli_parser, framework, params)
     restore_logger_state(logger_state)
     return ov_model

@@ -650,7 +650,7 @@ def get_non_default_params(argv, cli_parser):
 
 def params_to_string(**kwargs):
     all_params = {}
-    for key, value in mo_convert_params.items():
+    for key, value in get_mo_convert_params().items():
         all_params.update(value)
 
     for key, value in kwargs.items():
@@ -707,7 +707,7 @@ def pack_params_to_args_namespace(args: dict, cli_parser: argparse.ArgumentParse
 
         # get list of all available params for convert_model()
         all_params = {}
-        for key, value in mo_convert_params.items():
+        for key, value in get_mo_convert_params().items():
             all_params.update(value)
 
         # check that there are no unknown params provided
@@ -721,12 +721,23 @@ def pack_params_to_args_namespace(args: dict, cli_parser: argparse.ArgumentParse
                 setattr(argv, key, value)
     else:
         argv = cli_parser.parse_args()
+    # Set complex default value
+    if not hasattr(argv, 'extensions') or argv.extensions is None:
+        argv.extensions = [import_extensions.default_path()]
+    if not hasattr(argv, 'k') or argv.k is None:
+        argv.k = os.path.join(os.path.dirname(__file__), os.pardir, os.pardir,
+                              'extensions', 'front', 'caffe', 'CustomLayersMapping.xml')
+    if not hasattr(argv, 'caffe_parser_path') or argv.caffe_parser_path is None:
+        argv.caffe_parser_path = os.path.join(os.path.dirname(__file__), os.pardir, 'front', 'caffe', 'proto')
     return argv
 
 
 def _convert(cli_parser: argparse.ArgumentParser, framework, args):
     if 'help' in args and args['help']:
         show_mo_convert_help()
+        return None, None
+    if 'version' in args and args['version']:
+        print('Version of Model Optimizer is: {}'.format(get_version()))
         return None, None
 
     telemetry = tm.Telemetry(tid=get_tid(), app_name='Model Optimizer', app_version=get_simplified_mo_version())
@@ -800,4 +811,4 @@ def _convert(cli_parser: argparse.ArgumentParser, framework, args):
         telemetry.send_event('mo', 'conversion_result', 'fail')
         telemetry.end_session('mo')
         telemetry.force_shutdown(1.0)
-        raise e.with_traceback(None)
+        raise e#.with_traceback(None)
