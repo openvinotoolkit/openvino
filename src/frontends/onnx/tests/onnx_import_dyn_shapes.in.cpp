@@ -93,7 +93,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_dyn_shapes_ab_plus_c_inference) {
         const auto elems_in_tensor = shape_size(shape);
 
         std::vector<int64_t> input_values(elems_in_tensor);
-        std::iota(input_values.begin(), input_values.end(), 1.f);
+        std::iota(input_values.begin(), input_values.end(), 1);
 
         test_case.add_input<int64_t>(shape, input_values);
         test_case.add_input<int64_t>(shape, input_values);

@@ -188,7 +188,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_group_norm) {
         file_util::path_join(CommonTestUtils::getExecutableDirectory(), SERIALIZED_ZOO, "onnx/group_norm.onnx"));
     auto test_case = test::TestCase(function, s_device);
     Shape shape{2, 8, 2, 2};
-    int size = shape_size(shape);
+    const auto size = shape_size(shape);
     std::vector<float> data(size);
     std::iota(data.begin(), data.end(), 0.f);
     std::vector<float> output = {
@@ -212,7 +212,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_group_norm_5d) {
         file_util::path_join(CommonTestUtils::getExecutableDirectory(), SERIALIZED_ZOO, "onnx/group_norm_5d.onnx"));
     auto test_case = test::TestCase(function, s_device);
     Shape shape{2, 8, 1, 2, 1};
-    int size = shape_size(shape);
+    const auto size = shape_size(shape);
     std::vector<float> data(size);
     std::iota(data.begin(), data.end(), 0.f);
     std::vector<float> output = {-0.34163546562f, 0.55278813838f,  2.89442372322f,  4.68327093124f,  -1.02490639686f,
@@ -441,7 +441,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_experimental_detectron_group_norm) {
 
     auto test_case = test::TestCase(function, s_device);
     Shape shape{2, 8, 2, 2};
-    int size = shape_size(shape);
+    const auto size = shape_size(shape);
     std::vector<float> data(size);
     std::iota(data.begin(), data.end(), 0.f);
     std::vector<float> output = {
