@@ -65,7 +65,7 @@ Napi::Object TensorWrap::Wrap(Napi::Env env, ov::Tensor tensor) {
     return obj;
 }
 
-Napi::Value TensorWrap::get_tensor_data(const Napi::CallbackInfo& info) {
+Napi::Value TensorWrap::get_data(const Napi::CallbackInfo& info) {
     auto arr = Napi::Float32Array::New(info.Env(), _tensor.get_size());
     auto* buffer = arr.Data();
     std::memcpy(buffer, _tensor.data(), _tensor.get_byte_size());
@@ -73,14 +73,17 @@ Napi::Value TensorWrap::get_tensor_data(const Napi::CallbackInfo& info) {
 }
 
 Napi::Value TensorWrap::get_shape(const Napi::CallbackInfo& info){
-    auto arr = Napi::Array::New(info.Env(), 4);
     auto shape = _tensor.get_shape();
-    for (size_t i = 0; i < 4; i++)
-        arr[i] = shape[i];
+    return ShapeLite::Wrap(info.Env(), shape)
+    
+    // auto arr = Napi::Array::New(info.Env(), 4);
+    // auto shape = _tensor.get_shape();
+    // for (size_t i = 0; i < 4; i++)
+    //     arr[i] = shape[i];
 
-    return arr;
+    // return arr;
 }
 
-Napi::Value TensorWrap::get_element_type(const Napi::CallbackInfo& info){
+Napi::String TensorWrap::get_precision(const Napi::CallbackInfo& info){
     return cpp_to_js<ov::element::Type_t, Napi::String>(info, _tensor.get_element_type());
 }

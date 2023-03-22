@@ -55,12 +55,12 @@ public:
      * @param info Contains information about the environment in which to create the Napi::Float32Array instance.
      * @return Napi::Float32Array containing the tensor data.
      */
-    Napi::Value get_tensor_data(const Napi::CallbackInfo& info);
+    Napi::Value get_data(const Napi::CallbackInfo& info);
 
-    /// @return Napi::Array containing a tensor shape.
+    /// @return A Javascript ShapeLite object containing a tensor shape.
     Napi::Value get_shape(const Napi::CallbackInfo& info);
     /// @return Napi::String containing ov::element type.
-    Napi::Value get_element_type(const Napi::CallbackInfo& info);
+    Napi::String get_precision(const Napi::CallbackInfo& info);
 
 private:
     ov::Tensor _tensor;
