@@ -8,40 +8,37 @@ import torch
 from pytorch_layer_test_class import PytorchLayerTest
 
 class aten_chunk_2(torch.nn.Module):
-    def __init__(self, dim, chunks) -> None:
+    def __init__(self, dim) -> None:
         torch.nn.Module.__init__(self)
-        self.chunks = chunks
         self.dim = dim
 
     def forward(self, input_tensor):
         a,b = torch.chunk(input_tensor, 
-            chunks = self.chunks,
+            chunks = 2,
             dim = self.dim
         )
         return a,b
 
 class aten_chunk_3(torch.nn.Module):
-    def __init__(self, dim, chunks) -> None:
+    def __init__(self, dim) -> None:
         torch.nn.Module.__init__(self)
-        self.chunks = chunks
         self.dim = dim
 
     def forward(self, input_tensor):
         a,b,c = torch.chunk(input_tensor, 
-            chunks = self.chunks,
+            chunks = 3,
             dim = self.dim
         )
         return a,b,c
 
 class aten_chunk_4(torch.nn.Module):
-    def __init__(self, dim, chunks) -> None:
+    def __init__(self, dim) -> None:
         torch.nn.Module.__init__(self)
-        self.chunks = chunks
         self.dim = dim
 
     def forward(self, input_tensor):
         a,b,c,d = torch.chunk(input_tensor, 
-            chunks = self.chunks,
+            chunks = 4,
             dim = self.dim
         )
         return a,b,c,d
@@ -52,16 +49,17 @@ class TestChunk(PytorchLayerTest):
 
     @pytest.mark.parametrize("input_tensor", [
         np.random.rand(4, 4),
-        # np.random.rand(1, 4),
-        # np.random.rand(4, 4, 4),
-        # np.random.rand(10, 10, 10),
-        # np.random.rand(8, 8, 8, 8, 8)
+        np.random.rand(5, 9, 7),
+        np.random.rand(10, 13, 11),
+        np.random.rand(8, 7, 6, 5, 4),
+        np.random.rand(11, 11),
+        np.random.rand(7, 7),
     ])
     @pytest.mark.parametrize("chunks", [
         # 1, Does not work for 1 without translate
         2,
-        # 3,
-        # 4
+        3,
+        4
     ])
     @pytest.mark.nightly
     @pytest.mark.precommit
@@ -82,5 +80,5 @@ class TestChunk(PytorchLayerTest):
             elif output_chunks == 4:
                 cls = aten_chunk_4
 
-            self._test(cls(dim, chunks), None, "aten::chunk", 
-                    ie_device, precision, ir_version, dynamic_shapes=False)
+            self._test(cls(dim), None, "aten::chunk", 
+                    ie_device, precision, ir_version)
