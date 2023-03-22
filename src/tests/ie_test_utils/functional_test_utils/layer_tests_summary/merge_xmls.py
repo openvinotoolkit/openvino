@@ -70,7 +70,7 @@ def aggregate_test_results(aggregated_results: SubElement, xml_reports: list, re
             aggregated_device_results = aggregated_results.find(xml_device_entry.tag)
             if aggregated_device_results is None:
                 aggregated_results.append(xml_device_entry)
-                continue
+                aggregated_device_results = aggregated_results.find(xml_device_entry.tag)
             # op or api_type
             for xml_results_entry in xml_device_entry:
                 aggregated_results_entry = aggregated_device_results.find(xml_results_entry.tag)
@@ -88,7 +88,6 @@ def aggregate_test_results(aggregated_results: SubElement, xml_reports: list, re
                             aggregated_results_entry.append(xml_real_device_entry)
                             continue
                         update_result_node(xml_real_device_entry, aggregated_real_device_api_report)
-                a = 1
     return aggregated_timestamp
 
 
