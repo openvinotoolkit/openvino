@@ -73,7 +73,8 @@ PrimListUnpackReplacer::PrimListUnpackReplacer() {
         }
 
         if (auto chunk = cast_fw_node(input_node, "aten::chunk")) {
-            auto input_tensor = chunk->get_input_source_output(0); //opset10::Constant::create(element::f64, Shape{4,4}, {0}); 
+            auto input_tensor =
+                chunk->get_input_source_output(0);  // opset10::Constant::create(element::f64, Shape{4,4}, {0});
             auto chunks_i32 = chunk->get_input_source_output(1);
             auto dim = chunk->get_input_source_output(2);
 
@@ -94,22 +95,29 @@ PrimListUnpackReplacer::PrimListUnpackReplacer() {
 
             auto computed_chunk_size = std::make_shared<opset10::Add>(chunk_size, is_last_chunk_nonzero_int);
             auto computed_last_chunk_size = std::make_shared<opset10::Mod>(input_size, computed_chunk_size);
-            auto computed_is_last_chunk_nonzero = std::make_shared<opset10::Greater>(computed_last_chunk_size, const_0_nodim);
-            auto computed_is_last_chunk_nonzero_int = std::make_shared<opset10::Convert>(computed_is_last_chunk_nonzero, element::i64);
-            auto computed_normal_chunks = std::make_shared<opset10::Divide>(input_size, computed_chunk_size, true); 
+            auto computed_is_last_chunk_nonzero =
+                std::make_shared<opset10::Greater>(computed_last_chunk_size, const_0_nodim);
+            auto computed_is_last_chunk_nonzero_int =
+                std::make_shared<opset10::Convert>(computed_is_last_chunk_nonzero, element::i64);
+
+            auto computed_normal_chunks = std::make_shared<opset10::Divide>(input_size, computed_chunk_size, true);
+            auto computed_normal_chunks_unsq = std::make_shared<opset10::Unsqueeze>(computed_normal_chunks, const_0);
+            auto computed_is_last_chunk_nonzero_int_unsq =
+                std::make_shared<opset10::Unsqueeze>(computed_is_last_chunk_nonzero_int, const_0);
 
             auto computed_chunk_size_incremented = std::make_shared<opset10::Add>(computed_chunk_size, const_1_nodim);
-            
-            auto computed_normal_chunks_unsq = std::make_shared<opset10::Unsqueeze>(computed_normal_chunks, const_0);
-            auto computed_is_last_chunk_nonzero_int_unsq = std::make_shared<opset10::Unsqueeze>(computed_is_last_chunk_nonzero_int, const_0);
+            auto normal_chunk_lengths = std::make_shared<opset10::RandomUniform>(computed_normal_chunks_unsq,
+                                                                                 computed_chunk_size,
+                                                                                 computed_chunk_size_incremented,
+                                                                                 element::i64);
 
-            auto normal_chunk_lengths =
-                std::make_shared<opset10::RandomUniform>(computed_normal_chunks_unsq, computed_chunk_size, computed_chunk_size_incremented, element::i64);
             auto split_lengths = std::make_shared<opset10::Pad>(normal_chunk_lengths,
-                                                                    const_0,
-                                                                    computed_is_last_chunk_nonzero_int_unsq,
-                                                                    computed_last_chunk_size,
-                                                                    ov::op::PadMode::CONSTANT);
+                                                                const_0,
+                                                                computed_is_last_chunk_nonzero_int_unsq,
+                                                                computed_last_chunk_size,
+                                                                ov::op::PadMode::CONSTANT);
+
+            split_lengths->set_output_size(list_unpack->get_output_size());
 
             auto sliced_chunks = std::make_shared<opset10::VariadicSplit>(input_tensor, dim, split_lengths);
 

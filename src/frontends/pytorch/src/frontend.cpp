@@ -39,6 +39,10 @@ std::set<std::string> get_unconverted_types_from_model(const std::shared_ptr<Mod
     for (const auto& node : model->get_ordered_ops()) {
         if (const auto& fw_node = ov::as_type_ptr<PtFrameworkNode>(node)) {
             auto op_type = fw_node->get_decoder()->get_op_type();
+            if(op_type == "aten::zeros") {
+                ov::serialize(model, "test_path.xml");
+                // exit - it can happen multiple times
+            }
             unconverted_ops_types.insert(op_type);
         }
         if (const auto& fw_node = ov::as_type_ptr<ov::op::util::MultiSubGraphOp>(node)) {
