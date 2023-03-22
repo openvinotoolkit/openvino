@@ -91,7 +91,7 @@ def aggregate_test_results(aggregated_results: SubElement, xml_reports: list, re
     return aggregated_timestamp
 
 
-def merge_xml(input_folder_paths: list, output_folder_paths: str, output_filename: str, report_type: str, merge_device_suffix = False):
+def merge_xml(input_folder_paths: list, output_folder_paths: str, output_filename: str, report_type: str):
     logger.info(f" Processing is finished")
 
     summary = Element("report")
