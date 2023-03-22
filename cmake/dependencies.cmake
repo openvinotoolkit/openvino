@@ -97,10 +97,10 @@ function(ov_download_tbb)
     if(WIN32 AND X86_64)
         # TODO: add target_path to be platform specific as well, to avoid following if
         RESOLVE_DEPENDENCY(TBB
-                ARCHIVE_WIN "oneapi-tbb-2021.2.0-win-v1.zip"
+                ARCHIVE_WIN "oneapi-tbb-2021.2.1-win.zip"
                 TARGET_PATH "${TEMP}/tbb"
                 ENVIRONMENT "TBBROOT"
-                SHA256 "d4e1646df1d1d31215e2e19a9370e85e4a8d0dc51a35051683679dc898534a2c"
+                SHA256 "0be4bed407a81cb79d32a20cefa980d62da8d3ba60559b97df834bc089a4b4d4"
                 USE_NEW_LOCATION TRUE)
     elseif(ANDROID AND X86_64)
         RESOLVE_DEPENDENCY(TBB
@@ -110,10 +110,10 @@ function(ov_download_tbb)
                 SHA256 "f42d084224cc2d643314bd483ad180b081774608844000f132859fca3e9bf0ce")
     elseif(LINUX AND X86_64)
         RESOLVE_DEPENDENCY(TBB
-                ARCHIVE_LIN "oneapi-tbb-2021.2.0-lin-v1.tgz"
+                ARCHIVE_LIN "oneapi-tbb-2021.2.1-lin.tgz"
                 TARGET_PATH "${TEMP}/tbb"
                 ENVIRONMENT "TBBROOT"
-                SHA256 "e8bb777c3f83f70e5f3978447cc65de9f7d98efce39a8219088355e8e4b49d3e"
+                SHA256 "0a56f73baaa40d72e06949ea6d593ae63a19f7580ce71c08287c1f59d2e5b988"
                 USE_NEW_LOCATION TRUE)
     elseif(YOCTO_AARCH64)
         RESOLVE_DEPENDENCY(TBB
@@ -123,10 +123,10 @@ function(ov_download_tbb)
                 SHA256 "321261ff2eda6d4568a473cb883262bce77a93dac599f7bd65d2918bdee4d75b")
     elseif(APPLE AND X86_64)
         RESOLVE_DEPENDENCY(TBB
-                ARCHIVE_MAC "oneapi-tbb-2021.2.0-mac-v1.tgz"
+                ARCHIVE_MAC "oneapi-tbb-2021.2.1-mac.tgz"
                 TARGET_PATH "${TEMP}/tbb"
                 ENVIRONMENT "TBBROOT"
-                SHA256 "9807eec4948dc9ee1b1e1302252d82a81e74874e8d4d76389e468e850eacd41c"
+                SHA256 "428ac051e58c407400308ff7ffa80603c61be0ccb1d81d35c7f29bf1f5035025"
                 USE_NEW_LOCATION TRUE)
     else()
         message(WARNING "Prebuilt TBB is not available on current platform")
