@@ -13,7 +13,7 @@
 #include "common_test_utils/file_utils.hpp"
 #include "common_test_utils/data_utils.hpp"
 #include "common_test_utils/common_utils.hpp"
-#include "common_test_utils/crash_handler.hpp"
+#include "functional_test_utils/crash_handler.hpp"
 #include "functional_test_utils/summary/op_info.hpp"
 #include "functional_test_utils/skip_tests_config.hpp"
 
