@@ -232,29 +232,29 @@ void FullyConnected::getSupportedDescriptors() {
     auto inputDataType = DnnlExtensionUtils::IEPrecisionToDataType(getOriginalInputPrecisionAtPort(DATA_ID));
     outputDataType = DnnlExtensionUtils::IEPrecisionToDataType(getOriginalOutputPrecisionAtPort(DATA_ID));
 
-    if (inputDataType == memory::data_type::f32) {
-        outputDataType = memory::data_type::f32;
-    }
-
     if (!fusedWith.empty()) {
         outputDataType = DnnlExtensionUtils::IEPrecisionToDataType(fusedWith[fusedWith.size() - 1]->getOriginalOutputPrecisionAtPort(0));
     }
     auto weightsDataType = DnnlExtensionUtils::IEPrecisionToDataType(getOriginalInputPrecisionAtPort(WEIGHTS_ID));
 
-    //  We have to extend gemm_x8s8s32x_inner_product_fwd_t from oneDNN to support BF16 output data type
-    if ((!one_of(inputDataType , memory::data_type::u8, memory::data_type::s8) || weightsDataType != memory::data_type::s8)
-            && inputDataType != memory::data_type::bf16) {
-        inputDataType = outputDataType = memory::data_type::f32;
-    }
-
-    if (one_of(inputDataType , memory::data_type::u8, memory::data_type::s8)
-        && outputDataType == memory::data_type::bf16) {
+    // revert back outputDataType on special cases
+    if (inputDataType == memory::data_type::f32) {
+        // oneDNN only support f32 output when input is f32, even if FQ is fused
         outputDataType = memory::data_type::f32;
-    }
-
-    if (inputDataType == memory::data_type::bf16
-        && one_of(outputDataType , memory::data_type::u8, memory::data_type::s8)) {
-        outputDataType = memory::data_type::bf16;
+    } else if (inputDataType == memory::data_type::bf16) {
+        // bf16 input only supports bf16/f32 output, even if FQ is fused as post-ops
+        if (one_of(outputDataType , memory::data_type::u8, memory::data_type::s8)) {
+            outputDataType = memory::data_type::bf16;
+        }
+    } else if (one_of(inputDataType, memory::data_type::u8, memory::data_type::s8)) {
+        if (weightsDataType != memory::data_type::s8) {
+            // weight has to be s8 for INT8 mode, otherwise fallback to
+            // f32 mode
+            inputDataType = outputDataType = memory::data_type::f32;
+        }
+    } else {
+        // s32/u32/... unsupported input data types, fallback to f32
+        inputDataType = outputDataType = memory::data_type::f32;
     }
 
     inDims = isDynamicNode() ? makeDummyInputDims() : getInputShapeAtPort(DATA_ID).getStaticDims();

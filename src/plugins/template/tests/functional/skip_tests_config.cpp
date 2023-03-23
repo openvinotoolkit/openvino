@@ -112,10 +112,8 @@ std::vector<std::string> disabledTestPatterns() {
         // CVS-71891
         R"(.*ReferenceTileTest.*rType=i4.*)",
         R"(.*ReferenceTileTest.*rType=u4.*)",
-        R"(.*DeviceID.*)",
         // CVS-95608
         R"(.*CachingSupportCase.*CompileModelCacheTestBase.*)",
-        R"(.*OVClassLoadNetworkTest.*QueryNetworkMULTIWithHETERONoThrow_V10.*)",
         // New plugin API doesn't support legacy NV12 I420 preprocessing
         R"(.*ConvertNV12WithLegacyTest.*)",
         R"(.*ConvertI420WithLegacyTest.*)",
@@ -133,6 +131,8 @@ std::vector<std::string> disabledTestPatterns() {
         R"(.*InferRequestIOBBlobTest.*secondCallGetOutputAfterInferSync.*)",
         // Old API cannot deallocate tensor
         R"(.*InferRequestIOBBlobTest.*canProcessDeallocatedOutputBlobAfterGetAndSetBlob.*)",
+        // Why query state should throw an exception
+        R"(.*InferRequestQueryStateExceptionTest.*inferreq_smoke_QueryState_ExceptionTest.*)",
     };
 
 #ifdef _WIN32
