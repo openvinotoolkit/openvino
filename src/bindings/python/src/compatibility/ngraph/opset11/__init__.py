@@ -170,7 +170,7 @@ from ngraph.opset1.ops import tan
 from ngraph.opset1.ops import tanh
 from ngraph.opset1.ops import tensor_iterator
 from ngraph.opset1.ops import tile
-from ngraph.opset3.ops import topk
+from ngraph.opset11.ops import topk
 from ngraph.opset1.ops import transpose
 from ngraph.opset10.ops import unique
 from ngraph.opset1.ops import unsqueeze
