@@ -287,7 +287,7 @@ std::pair<std::string, StreamCfg> get_num_streams(
         streams_info.small_core_streams,
         "(",
         streams_info.threads_per_stream_small,
-        ")\n");
+        ")");
 
     return std::pair<std::string, StreamCfg>(std::to_string(streams_info.num_streams), streams_info);
 }

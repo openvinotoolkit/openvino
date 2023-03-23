@@ -134,9 +134,9 @@ struct CPUStreamsExecutor::Impl {
                     : (stream_id < _impl->_config._big_core_streams + _impl->_config._big_core_logic_streams
                            ? _impl->_config._threads_per_stream_big
                            : _impl->_config._threads_per_stream_small);
-            if (ThreadBindingType::CORES == _impl->_config._threadBindingType ||
-                ThreadBindingType::NONE == _impl->_config._threadBindingType || _impl->any_cores ||
-                _streamId >= _impl->_config._streams) {
+            if (_impl->_config._threads > 0 && (ThreadBindingType::CORES == _impl->_config._threadBindingType ||
+                                                ThreadBindingType::NONE == _impl->_config._threadBindingType ||
+                                                _impl->any_cores || _streamId >= _impl->_config._streams)) {
                 _taskArena.reset(new custom::task_arena{concurrency});
             } else if (ThreadBindingType::NUMA == _impl->_config._threadBindingType) {
                 _taskArena.reset(new custom::task_arena{custom::task_arena::constraints{_numaNodeId, concurrency}});
