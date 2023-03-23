@@ -103,9 +103,9 @@ jobs:
           build-type: Release
           target: all
           parallel: ${{ steps.cpu-cores.outputs.count }}
-          run-test: true
-          ctest-options: -V -L OV
-
+      
+      - name: Run OV tests
+        run: ctest -V -L OV
       #- name: ls all
       #  run:  ls -laR .
 
