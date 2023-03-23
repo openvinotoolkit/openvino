@@ -36,8 +36,8 @@ Generator::LoweringResult Generator::generate(std::shared_ptr<ov::Model>& m, con
 
     auto linear_ir = LoweredExprIR(m, config);
     const size_t vector_size = get_target_machine()->get_lanes();
-    const int32_t buffer_allocation_rank = static_cast<int32_t>(config.m_loop_depth);
-
+    const auto buffer_allocation_rank = static_cast<int32_t>(config.m_loop_depth);
+    ov::pass::Serialize("snsdebug_lowered.xml", "snsdebug_lowered.bin").run_on_model(m);
     // Note: The pass LoopInit uses LoopInfo that contains entry and exit points of the corresponding Loop.
     //       To avoid the Loop information corruption, we should call the passes with Load/Store work
     //       (for example, LoadMoveBroadcastToBroadcastLoad()) after explicit Loop insertion (LoopInit())
@@ -62,6 +62,7 @@ Generator::LoweringResult Generator::generate(std::shared_ptr<ov::Model>& m, con
     for (const auto& transform : transformation_pipeline) {
         transform->run(linear_ir);
     }
+    linear_ir.serialize("snsdebug_linear.xml", "snsdebug_linear.bin");
 
     const auto buffer_scratchpad_size = propagate_buffer_offsets->get_scratchpad_size();
     linear_ir.init_emitters(target);
