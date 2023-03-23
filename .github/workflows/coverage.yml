@@ -109,6 +109,7 @@ jobs:
       
       - name: Run OV core tests
         run: ${{ github.workspace }}/bin/intel64/Release/ov_core_unit_tests
+      
 
       - name: Build coverage with CMake
         uses: ashutoshvarma/action-cmake-build@master
@@ -116,12 +117,23 @@ jobs:
           cc: ${{ matrix.config.cc }}
           cxx: ${{ matrix.config.cxx }}
           target: ov_coverage
-          configure-options: -DCMAKE_VERBOSE_MAKEFILE=ON
+          configure-options: >
+            -GNinja
+            -DCMAKE_VERBOSE_MAKEFILE=ON
+            -DCMAKE_C_COMPILER_LAUNCHER=ccache
+            -DCMAKE_CXX_COMPILER_LAUNCHER=ccache
+            -DCMAKE_C_LINKER_LAUNCHER=ccache
+            -DCMAKE_CXX_LINKER_LAUNCHER=ccache
+      
+      - name: Print info
+        run: |
+          ls -laR
+          pwd
 
-            #- name: Generate raport
-            #run: |
-            # lcov --capture --directory . --output-file coverage.info
-            #genhtml coverage.info --output-directory coverage-report
+      - name: Generate raport
+        run: |
+          lcov --capture --directory ${{ github.workspace }}/../. --output-file coverage.info
+          genhtml coverage.info --output-directory coverage-report
 
       - name: Collect coverage
         uses: codecov/codecov-action@v3
