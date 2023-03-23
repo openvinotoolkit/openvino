@@ -23,6 +23,14 @@ using namespace ov::pass::transpose_sinking::utils;
 
 namespace {
 
+/**
+* @brief Checks that Reshape operation is equal to Squeeze:
+* Only 1 dims are deleted, all other dims must be the same.
+* Converts these 1 dims to axes format.
+* @arg reshape Reshape operation.
+* @arg reshape_to_shape 2nd input to Reshape op as a constant.
+* @arg result_axes Contains axes which will be squeezed.
+*/
 bool shape_to_squeeze_axes(const std::shared_ptr<Node>& reshape,
                            const std::shared_ptr<Constant>& reshape_to_shape,
                            std::vector<size_t>& result_axes) {
@@ -61,10 +69,22 @@ bool shape_to_squeeze_axes(const std::shared_ptr<Node>& reshape,
     return true;
 }
 
-std::vector<size_t> squeeze_axes_to_shape(const Output<Node>& input_node, std::vector<size_t> squeeze_axes) {
-    std::vector<size_t> to_shape;
+/**
+* @brief Converts squeezed_axes to actual shape (2nd input) for Reshape operation
+* using the shape of the 1st input to Reshape.
+* @arg input_node 1st input to Reshape op.
+* @arg squeeze_axes In case of Reshape op is equal to squeeze, these axes indicate the places where 1 dims have
+* to be deleted.
+*/
+bool squeeze_axes_to_shape(const Output<Node>& input_node, std::vector<size_t> squeeze_axes,
+                                          std::vector<size_t>& to_shape) {
+    to_shape.clear();
     std::sort(squeeze_axes.begin(), squeeze_axes.end());
-    const auto& input_shape = input_node.get_shape();  // check is static
+    const auto& input_pshape = input_node.get_partial_shape();
+    if (input_pshape.is_dynamic()) {
+        return false;
+    }
+    const auto& input_shape = input_pshape.get_shape();
     for (size_t i = 0, j = 0; i < input_shape.size(); ++i) {
         if (j < squeeze_axes.size() && i == squeeze_axes[j]) {
             ++j;
@@ -72,7 +92,7 @@ std::vector<size_t> squeeze_axes_to_shape(const Output<Node>& input_node, std::v
         }
         to_shape.push_back(input_shape[i]);
     }
-    return to_shape;
+    return true;
 }
 
 }  // namespace
@@ -133,7 +153,12 @@ TSSqueezeForward::TSSqueezeForward() {
                                                     transpose_order_values);
 
         if (as_type_ptr<Reshape>(squeeze)) {
-            new_values = squeeze_axes_to_shape(transpose->input_value(0), new_values);
+            std::vector<size_t> to_shape;
+            auto success = squeeze_axes_to_shape(transpose->input_value(0), new_values, to_shape);
+            if (!success) {
+                return false;
+            }
+            new_values = to_shape;
         }
 
         auto new_const = Constant::create(squeeze_axes->get_element_type(), squeeze_axes->get_shape(), new_values);
@@ -215,7 +240,12 @@ TSSqueezeBackward::TSSqueezeBackward() {
                                                     transpose_order_values);
         auto new_transpose = transpose->clone_with_new_inputs({squeeze->input_value(0), new_transpose_order});
         if (as_type_ptr<Reshape>(squeeze)) {
-            new_values = squeeze_axes_to_shape(new_transpose->output(0), new_values);
+            std::vector<size_t> to_shape;
+            auto success = squeeze_axes_to_shape(new_transpose->output(0), new_values, to_shape);
+            if (!success) {
+                return false;
+            }
+            new_values = to_shape;
         }
 
         std::shared_ptr<Node> new_squeeze;
