@@ -89,7 +89,7 @@ jobs:
         uses: ashutoshvarma/action-cmake-build@master
         with:
           source-dir: ${{ github.workspace }}
-          build-dir: ${{ github.workspace }}/build
+          build-dir: ${{ github.workspace }}/../build
           cc: ${{ matrix.config.cc }}
           cxx: ${{ matrix.config.cxx }}
           configure-options: >
@@ -109,7 +109,13 @@ jobs:
           parallel: ${{ steps.cpu-cores.outputs.count }}
       
       - name: Build coverage with CMake
-        run: cmake --build ${{ github.workspace }}/build --target ov_coverage -- -C ${{ github.workspace }}/build
+        uses: ashutoshvarma/action-cmake-build@master
+        with:
+          cc: ${{ matrix.config.cc }}
+          cxx: ${{ matrix.config.cxx }}
+          target: ov_coverage
+          configure-options: -DCMAKE_VERBOSE_MAKEFILE=ON
+          build-options: ${{ github.workspace }}/../build
 
       - name: Generate raport
         run: |
