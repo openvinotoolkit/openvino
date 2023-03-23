@@ -207,7 +207,7 @@ void ov::template_plugin::InferRequest::infer_preprocess() {
 void ov::template_plugin::InferRequest::start_pipeline() {
     OV_ITT_SCOPED_TASK(itt::domains::TemplatePlugin, m_profiling_task[StartPipeline])
     auto start = Time::now();
-    m_executable->call(m_backend_output_tensors, m_backend_input_tensors);
+    m_executable->call(m_backend_output_tensors, m_backend_input_tensors, m_eval_context);
     m_durations[StartPipeline] = Time::now() - start;
 }
 // ! [infer_request:start_pipeline]
