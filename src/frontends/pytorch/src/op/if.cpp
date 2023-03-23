@@ -21,9 +21,11 @@ void align_result_types(const NodeContext& context,
                         std::shared_ptr<opset10::Result> r2) {
     auto r1_tensor = r1->input_value(0);
     auto r2_tensor = r2->input_value(0);
-    element::Type merged_type;
     auto r1_type = r1_tensor.get_element_type();
     auto r2_type = r2_tensor.get_element_type();
+    if (r1_type.is_dynamic() || r2_type.is_dynamic())
+        return;
+    element::Type merged_type;
     if (!element::Type::merge(merged_type, r1_type, r2_type)) {
         if (r1_type.bitwidth() >= r2_type.bitwidth()) {
             auto convert = std::make_shared<opset10::Convert>(r2_tensor, r1_type);

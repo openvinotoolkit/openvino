@@ -50,6 +50,7 @@ ListConstructReplacer::ListConstructReplacer() {
     auto tile_op = pattern::wrap_type<v0::Tile>({pattern::any_input(), list});
     // replace aten::permute(tensor, prim::ListConstruct)
     auto transpose_op = pattern::wrap_type<v1::Transpose>({pattern::any_input(), list});
+    // aten::split_with_sizes case
     auto vsplit_op = pattern::wrap_type<v1::VariadicSplit>({pattern::any_input(), pattern::any_input(), list});
     auto lc_pattern = std::make_shared<pattern::op::Or>(OutputVector{reshape_op,
                                                                      roll_op,
@@ -60,7 +61,8 @@ ListConstructReplacer::ListConstructReplacer() {
                                                                      select_op,
                                                                      tile_op,
                                                                      transpose_op,
-                                                                     vsplit_op});
+                                                                     vsplit_op
+                                                                     });
 
     ov::matcher_pass_callback callback = [=](pattern::Matcher& m) {
         auto& pattern_map = m.get_pattern_value_map();
