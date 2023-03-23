@@ -2419,8 +2419,8 @@ def test_topk_opset11():
     data = ng.parameter(data_shape, dtype=np.int32, name="Data")
     k_val = np.int32(3)
     axis = np.int32(-1)
-    node = ng_opset11.topk(data_parameter, k_val, axis, "min", "value", stable=True)
-    
+    node = ng_opset11.topk(data, k_val, axis, "min", "value", stable=True)
+
     assert node.get_type_name() == "TopK"
     assert node.get_output_size() == 2
     assert list(node.get_output_shape(0)) == [1, 3, 3]

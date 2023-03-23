@@ -2307,8 +2307,8 @@ def test_topk_opset11():
     data = ov.parameter(data_shape, dtype=np.int32, name="Data")
     k_val = np.int32(3)
     axis = np.int32(-1)
-    node = ov.topk(data_parameter, k_val, axis, "min", "value", stable=True)
-    
+    node = ov.topk(data, k_val, axis, "min", "value", stable=True)
+
     assert node.get_type_name() == "TopK"
     assert node.get_output_size() == 2
     assert list(node.get_output_shape(0)) == [1, 3, 3]

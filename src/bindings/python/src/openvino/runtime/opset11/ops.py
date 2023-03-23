@@ -96,7 +96,7 @@ def topk(
     :param mode: Compute TopK largest ('max') or smallest ('min')
     :param sort: Order of output elements (sort by: 'none', 'index' or 'value')
     :param index_element_type: Type of output tensor with indices.
-    :param stable: Specifies whether the equivalent elements should maintain 
+    :param stable: Specifies whether the equivalent elements should maintain
                    their relative order from the input tensor during sorting.
     :return: The new node which performs TopK
     """
