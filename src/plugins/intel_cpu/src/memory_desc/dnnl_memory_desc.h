@@ -45,6 +45,8 @@ public:
 
     bool hasEmptyExtraData() const;
 
+    size_t getOffsetPadding() const override;
+
 protected:
     DnnlMemoryDesc() {}
     static constexpr size_t UNREACHABLE_DIM = std::numeric_limits<size_t>::max();

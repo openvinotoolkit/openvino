@@ -13,7 +13,7 @@ namespace op {
 
 using namespace ov::op;
 
-OutputVector translate_max_poolnd(NodeContext& context) {
+OutputVector translate_max_poolnd(const NodeContext& context) {
     num_inputs_check(context, 6, 6);
     auto kernel = context.const_input<Shape>(1);
     auto strides = context.const_input<Strides>(2);

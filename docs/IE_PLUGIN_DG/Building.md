@@ -1,4 +1,4 @@
-# Build Plugin Using CMake {#openvino_docs_ie_plugin_dg_plugin_build}
+# Build Plugin Using CMake {#openvino_docs_ov_plugin_dg_plugin_build}
 
 OpenVINO build infrastructure provides the OpenVINO Developer Package for plugin development.
 
@@ -30,6 +30,7 @@ Once the commands above are executed, the OpenVINO Developer Package is generate
        * `openvino::unitTestUtils` - static library with unit tests utilities 
        * `openvino::ngraphFunctions` - static library with the set of `ov::Model` builders
        * `openvino::funcSharedTests` - static library with common functional tests
+       * `openvino::ngraph_reference` - static library with operation reference implementations.
 
 > **NOTE**: it's enough just to run `cmake --build . --target ov_dev_targets` command to build only targets from the
 > OpenVINO Developer package.
@@ -61,7 +62,7 @@ $ cmake -DENABLE_FUNCTIONAL_TESTS=OFF -DOpenVINODeveloperPackage_DIR=../openvino
 
 - `src/CMakeLists.txt` to build a plugin shared library from sources:
 @snippet template/src/CMakeLists.txt cmake:plugin
-   > **NOTE**: `openvino::runtime` target is imported from the OpenVINO Developer Package.
+   > **NOTE**: `openvino::...` targets are imported from the OpenVINO Developer Package.
 
 - `tests/functional/CMakeLists.txt` to build a set of functional plugin tests:
 @snippet template/tests/functional/CMakeLists.txt cmake:functional_tests
