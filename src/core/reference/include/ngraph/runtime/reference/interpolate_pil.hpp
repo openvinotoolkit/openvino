@@ -95,14 +95,11 @@ static int precompute_coeffs(int in_size,
                              float in1,
                              int out_size,
                              struct filter* filterp,
-                             int** boundsp,
-                             double** kkp) {
+                             std::vector<int>& bounds,
+                             std::vector<double>& kk) {
     double support, scale, filterscale;
     double center, ww, ss;
     int xx, x, ksize, xmin, xmax;
-    int* bounds;
-    double *kk, *k;
-
     /* prepare for horizontal stretch */
     filterscale = scale = (double)(in1 - in0) / out_size;
     if (filterscale < 1.0) {
@@ -116,18 +113,8 @@ static int precompute_coeffs(int in_size,
     ksize = (int)ceil(support) * 2 + 1;
 
     /* coefficient buffer */
-    kk = (double*)malloc(out_size * ksize * sizeof(double));
-    if (!kk) {
-        // TODO: Throw error or use std::vector
-        return 0;
-    }
-
-    bounds = (int*)malloc(out_size * 2 * sizeof(int));
-    if (!bounds) {
-        free(kk);
-        // TODO: Throw error or use std::vector
-        return 0;
-    }
+    kk.resize(out_size * ksize);
+    bounds.resize(out_size * 2);
 
     for (xx = 0; xx < out_size; xx++) {
         center = in0 + (xx + 0.5) * scale;
@@ -144,7 +131,7 @@ static int precompute_coeffs(int in_size,
             xmax = in_size;
         }
         xmax -= xmin;
-        k = &kk[xx * ksize];
+        double* k = &kk[xx * ksize];
         for (x = 0; x < xmax; x++) {
             double w = filterp->filter((x + xmin - center + 0.5) * ss, filterp->coeff_a);
             k[x] = w;
@@ -162,8 +149,6 @@ static int precompute_coeffs(int in_size,
         bounds[xx * 2 + 0] = xmin;
         bounds[xx * 2 + 1] = xmax;
     }
-    *boundsp = bounds;
-    *kkp = kk;
     return ksize;
 }
 
@@ -174,8 +159,8 @@ void imaging_resample_horizontal(T* im_out,
                                  Shape im_in_shape,
                                  int offset,
                                  int ksize,
-                                 int* bounds,
-                                 double* kk) {
+                                 std::vector<int>& bounds,
+                                 std::vector<double>& kk) {
     double ss;
     int x, xmin, xmax;
     double* k;
@@ -187,10 +172,10 @@ void imaging_resample_horizontal(T* im_out,
             k = &kk[xx * ksize];
             ss = 0.0;
             for (x = 0; x < xmax; x++) {
-                size_t in_idx = ((yy + offset)) * im_in_shape[1] + (x + xmin);
+                size_t in_idx = (yy + offset) * im_in_shape[1] + (x + xmin);
                 ss += im_in[in_idx] * k[x];
             }
-            size_t out_idx = (yy)*im_out_shape[1] + xx;
+            size_t out_idx = yy * im_out_shape[1] + xx;
             if (std::is_integral<T>()) {
                 im_out[out_idx] = T(clip<T, int64_t>(round_up<int64_t, double>(ss)));
             } else {
@@ -207,8 +192,8 @@ void imaging_resample_vertical(T* im_out,
                                Shape im_in_shape,
                                int offset,
                                int ksize,
-                               int* bounds,
-                               double* kk) {
+                               std::vector<int>& bounds,
+                               std::vector<double>& kk) {
     double ss;
     int y, ymin, ymax;
     double* k;
@@ -220,10 +205,10 @@ void imaging_resample_vertical(T* im_out,
         for (size_t xx = 0; xx < im_out_shape[1]; xx++) {
             ss = 0.0;
             for (y = 0; y < ymax; y++) {
-                size_t in_idx = ((y + ymin)) * im_in_shape[1] + xx;
+                size_t in_idx = (y + ymin) * im_in_shape[1] + xx;
                 ss += im_in[in_idx] * k[y];
             }
-            size_t out_idx = (yy)*im_out_shape[1] + xx;
+            size_t out_idx = yy * im_out_shape[1] + xx;
             if (std::is_integral<T>()) {
                 im_out[out_idx] = T(clip<T, int64_t>(round_up<int64_t, double>(ss)));
             } else {
@@ -245,25 +230,17 @@ void imaging_resample_inner(const T* im_in,
     int need_horizontal, need_vertical;
     int ybox_first, ybox_last;
     int ksize_horiz, ksize_vert;
-    int *bounds_horiz, *bounds_vert;
-    double *kk_horiz, *kk_vert;
+
+    std::vector<int> bounds_horiz;
+    std::vector<int> bounds_vert;
+    std::vector<double> kk_horiz;
+    std::vector<double> kk_vert;
 
     need_horizontal = xsize != im_in_xsize || box[0] || box[2] != xsize;
     need_vertical = ysize != im_in_ysize || box[1] || box[3] != ysize;
 
-    ksize_horiz = precompute_coeffs(im_in_xsize, box[0], box[2], xsize, filterp, &bounds_horiz, &kk_horiz);
-    if (!ksize_horiz) {
-        free(bounds_horiz);
-        free(kk_horiz);
-        return;
-    }
-
-    ksize_vert = precompute_coeffs(im_in_ysize, box[1], box[3], ysize, filterp, &bounds_vert, &kk_vert);
-    if (!ksize_vert) {
-        free(bounds_vert);
-        free(kk_vert);
-        return;
-    }
+    ksize_horiz = precompute_coeffs(im_in_xsize, box[0], box[2], xsize, filterp, bounds_horiz, kk_horiz);
+    ksize_vert = precompute_coeffs(im_in_ysize, box[1], box[3], ysize, filterp, bounds_vert, kk_vert);
 
     // First used row in the source image
     ybox_first = bounds_vert[0];
@@ -291,48 +268,31 @@ void imaging_resample_inner(const T* im_in,
                                         bounds_horiz,
                                         kk_horiz);
         }
-        free(bounds_horiz);
-        free(kk_horiz);
-    } else {
-        free(bounds_horiz);
-        free(kk_horiz);
     }
 
     /* vertical pass */
     if (need_vertical) {
-        if (im_out) {
-            /* im_in can be the original image or horizontally resampled one */
-            if (need_horizontal) {
-                imaging_resample_vertical(im_out,
-                                          Shape{ysize, xsize},
-                                          im_temp.data(),
-                                          Shape{im_temp_ysize, xsize},
-                                          0,
-                                          ksize_vert,
-                                          bounds_vert,
-                                          kk_vert);
-            } else {
-                imaging_resample_vertical(im_out,
-                                          Shape{ysize, xsize},
-                                          im_in,
-                                          Shape{im_in_ysize, im_in_xsize},
-                                          0,
-                                          ksize_vert,
-                                          bounds_vert,
-                                          kk_vert);
-            }
+        /* im_in can be the original image or horizontally resampled one */
+        if (need_horizontal) {
+            imaging_resample_vertical(im_out,
+                                      Shape{ysize, xsize},
+                                      im_temp.data(),
+                                      Shape{im_temp_ysize, xsize},
+                                      0,
+                                      ksize_vert,
+                                      bounds_vert,
+                                      kk_vert);
+        } else {
+            imaging_resample_vertical(im_out,
+                                      Shape{ysize, xsize},
+                                      im_in,
+                                      Shape{im_in_ysize, im_in_xsize},
+                                      0,
+                                      ksize_vert,
+                                      bounds_vert,
+                                      kk_vert);
         }
-        free(bounds_vert);
-        free(kk_vert);
-
-        if (!im_out) {
-            return;
-        }
-    } else {
-        free(bounds_vert);
-        free(kk_vert);
     }
-
     /* none of the previous steps are performed, copying */
     if (!need_horizontal && !need_vertical) {
         std::copy(im_in, im_in + (im_in_xsize * im_in_ysize), im_out);
