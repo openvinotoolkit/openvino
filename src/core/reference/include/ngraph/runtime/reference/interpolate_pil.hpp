@@ -116,14 +116,12 @@ static int precompute_coeffs(int in_size,
     ksize = (int)ceil(support) * 2 + 1;
 
     /* coefficient buffer */
-    /* malloc check ok, overflow checked above */
     kk = (double*)malloc(out_size * ksize * sizeof(double));
     if (!kk) {
         // TODO: Throw error or use std::vector
         return 0;
     }
 
-    /* malloc check ok, ksize*sizeof(double) > 2*sizeof(int) */
     bounds = (int*)malloc(out_size * 2 * sizeof(int));
     if (!bounds) {
         free(kk);
@@ -170,14 +168,14 @@ static int precompute_coeffs(int in_size,
 }
 
 template <typename T>
-void ImagingResampleHorizontal(T* im_out,
-                               Shape im_out_shape,
-                               const T* im_in,
-                               Shape im_in_shape,
-                               int offset,
-                               int ksize,
-                               int* bounds,
-                               double* kk) {
+void imaging_resample_horizontal(T* im_out,
+                                 Shape im_out_shape,
+                                 const T* im_in,
+                                 Shape im_in_shape,
+                                 int offset,
+                                 int ksize,
+                                 int* bounds,
+                                 double* kk) {
     double ss;
     int x, xmin, xmax;
     double* k;
@@ -203,14 +201,14 @@ void ImagingResampleHorizontal(T* im_out,
 }
 
 template <typename T>
-void ImagingResampleVertical(T* im_out,
-                             Shape im_out_shape,
-                             const T* im_in,
-                             Shape im_in_shape,
-                             int offset,
-                             int ksize,
-                             int* bounds,
-                             double* kk) {
+void imaging_resample_vertical(T* im_out,
+                               Shape im_out_shape,
+                               const T* im_in,
+                               Shape im_in_shape,
+                               int offset,
+                               int ksize,
+                               int* bounds,
+                               double* kk) {
     double ss;
     int y, ymin, ymax;
     double* k;
@@ -236,14 +234,14 @@ void ImagingResampleVertical(T* im_out,
 }
 
 template <typename T>
-void ImagingResampleInner(const T* im_in,
-                          size_t im_in_xsize,
-                          size_t im_in_ysize,
-                          size_t xsize,
-                          size_t ysize,
-                          struct filter* filterp,
-                          float* box,
-                          T* im_out) {
+void imaging_resample_inner(const T* im_in,
+                            size_t im_in_xsize,
+                            size_t im_in_ysize,
+                            size_t xsize,
+                            size_t ysize,
+                            struct filter* filterp,
+                            float* box,
+                            T* im_out) {
     int need_horizontal, need_vertical;
     int ybox_first, ybox_last;
     int ksize_horiz, ksize_vert;
@@ -284,14 +282,14 @@ void ImagingResampleInner(const T* im_in,
         }
 
         if (im_temp.size() > 0) {
-            ImagingResampleHorizontal(im_temp.data(),
-                                      Shape{im_temp_ysize, xsize},
-                                      im_in,
-                                      Shape{im_in_ysize, im_in_xsize},
-                                      ybox_first,
-                                      ksize_horiz,
-                                      bounds_horiz,
-                                      kk_horiz);
+            imaging_resample_horizontal(im_temp.data(),
+                                        Shape{im_temp_ysize, xsize},
+                                        im_in,
+                                        Shape{im_in_ysize, im_in_xsize},
+                                        ybox_first,
+                                        ksize_horiz,
+                                        bounds_horiz,
+                                        kk_horiz);
         }
         free(bounds_horiz);
         free(kk_horiz);
@@ -305,23 +303,23 @@ void ImagingResampleInner(const T* im_in,
         if (im_out) {
             /* im_in can be the original image or horizontally resampled one */
             if (need_horizontal) {
-                ImagingResampleVertical(im_out,
-                                        Shape{ysize, xsize},
-                                        im_temp.data(),
-                                        Shape{im_temp_ysize, xsize},
-                                        0,
-                                        ksize_vert,
-                                        bounds_vert,
-                                        kk_vert);
+                imaging_resample_vertical(im_out,
+                                          Shape{ysize, xsize},
+                                          im_temp.data(),
+                                          Shape{im_temp_ysize, xsize},
+                                          0,
+                                          ksize_vert,
+                                          bounds_vert,
+                                          kk_vert);
             } else {
-                ImagingResampleVertical(im_out,
-                                        Shape{ysize, xsize},
-                                        im_in,
-                                        Shape{im_in_ysize, im_in_xsize},
-                                        0,
-                                        ksize_vert,
-                                        bounds_vert,
-                                        kk_vert);
+                imaging_resample_vertical(im_out,
+                                          Shape{ysize, xsize},
+                                          im_in,
+                                          Shape{im_in_ysize, im_in_xsize},
+                                          0,
+                                          ksize_vert,
+                                          bounds_vert,
+                                          kk_vert);
             }
         }
         free(bounds_vert);

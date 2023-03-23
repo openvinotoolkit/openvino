@@ -605,14 +605,14 @@ void InterpolateEval<T>::multidim_pil_func(const T* input_data, T* out, struct i
 
     if (shape_size(m_input_data_shape) == in_matrix_elem_size) {
         // Input data is 2D or ND with other dimensions equal 1
-        interpolate_pil::ImagingResampleInner(input_data,
-                                              w_dim_in,
-                                              h_dim_in,
-                                              w_dim_out,
-                                              h_dim_out,
-                                              filterp,
-                                              box.data(),
-                                              out);
+        interpolate_pil::imaging_resample_inner(input_data,
+                                                w_dim_in,
+                                                h_dim_in,
+                                                w_dim_out,
+                                                h_dim_out,
+                                                filterp,
+                                                box.data(),
+                                                out);
     } else {
         // Flatten other dimensions and interpolate over 2D matrices
         std::vector<int64_t> in_transp_axes_order;
@@ -649,14 +649,14 @@ void InterpolateEval<T>::multidim_pil_func(const T* input_data, T* out, struct i
 
         // Resample each 2D matrix
         for (size_t i = 0; i < flat_batch_size; ++i) {
-            interpolate_pil::ImagingResampleInner(in_matrix_ptr,
-                                                  w_dim_in,
-                                                  h_dim_in,
-                                                  w_dim_out,
-                                                  h_dim_out,
-                                                  filterp,
-                                                  box.data(),
-                                                  out_matrix_ptr);
+            interpolate_pil::imaging_resample_inner(in_matrix_ptr,
+                                                    w_dim_in,
+                                                    h_dim_in,
+                                                    w_dim_out,
+                                                    h_dim_out,
+                                                    filterp,
+                                                    box.data(),
+                                                    out_matrix_ptr);
             in_matrix_ptr += in_matrix_elem_size;
             out_matrix_ptr += out_matrix_elem_size;
         }
