@@ -4,7 +4,7 @@
 
 #include "behavior/plugin/configuration_tests.hpp"
 
-#include "template/properties.hpp"
+#include "openvino/runtime/properties.hpp"
 
 using namespace BehaviorTestsDefinitions;
 
@@ -14,13 +14,13 @@ const std::vector<InferenceEngine::Precision> netPrecisions = {InferenceEngine::
                                                                InferenceEngine::Precision::FP16};
 
 const std::vector<std::map<std::string, std::string>> configs = {
-    {{CONFIG_KEY(CPU_THROUGHPUT_STREAMS), InferenceEngine::PluginConfigParams::CPU_THROUGHPUT_AUTO}},
-    {{CONFIG_KEY(CPU_THROUGHPUT_STREAMS), InferenceEngine::PluginConfigParams::CPU_THROUGHPUT_NUMA}},
-    {{CONFIG_KEY(CPU_THROUGHPUT_STREAMS), "8"}},
+    {{ov::num_streams.name(), InferenceEngine::PluginConfigParams::CPU_THROUGHPUT_AUTO}},
+    {{ov::num_streams.name(), InferenceEngine::PluginConfigParams::CPU_THROUGHPUT_NUMA}},
+    {{ov::num_streams.name(), "8"}},
 };
 
 const std::vector<std::map<std::string, std::string>> inconfigs = {
-    {{CONFIG_KEY(CPU_THROUGHPUT_STREAMS), CONFIG_VALUE(NO)}},
+    {{ov::num_streams.name(), CONFIG_VALUE(NO)}},
 };
 
 INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests,

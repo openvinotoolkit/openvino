@@ -7,6 +7,7 @@
 #include <cpp_interfaces/interface/ie_internal_plugin_config.hpp>
 #include <ie_plugin_config.hpp>
 
+#include "openvino/runtime/properties.hpp"
 #include "template/properties.hpp"
 
 using namespace ov::template_plugin;
@@ -53,7 +54,7 @@ ov::Any Configuration::Get(const std::string& name) const {
         return {perf_count};
     } else if (name == ov::template_plugin::disable_transformations) {
         return {disable_transformations};
-    } else if (name == CONFIG_KEY(CPU_THROUGHPUT_STREAMS)) {
+    } else if (name == ov::num_streams) {
         return {std::to_string(streams_executor_config._streams)};
     } else if (name == CONFIG_KEY(CPU_BIND_THREAD)) {
         return streams_executor_config.get_property(name);
