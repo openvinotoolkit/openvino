@@ -11,7 +11,7 @@
 
 #include "cpp_interfaces/interface/ie_iplugin_internal.hpp"
 
-@IE_PLUGINS_DECLARATIONS@
+@OV_PLUGINS_DECLARATIONS@
 
 struct Value {
     InferenceEngine::CreatePluginEngineFunc * m_create_plugin_func;
@@ -33,6 +33,6 @@ using PluginsStaticRegistry = std::map<Key, Value>;
 
 
 inline const std::map<Key, Value> getCompiledPluginsRegistry() {
-@IE_PLUGINS_MAP_DEFINITION@
+@OV_PLUGINS_MAP_DEFINITION@
     return plugins_hpp;
 }

@@ -955,7 +955,7 @@ bool ov::Model::has_rt_info(const std::vector<std::string>& args) const {
             return false;
         if (i == args.size() - 1)
             break;
-        const ov::Any& rt_attr = get_rt_arg<std::string>(info, args[i]);
+        const ov::Any rt_attr = get_rt_arg<std::string>(info, args[i]);
         info = get_map_from_attr(rt_attr);
     }
     return true;
