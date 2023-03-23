@@ -53,9 +53,8 @@
 #include "memory_desc/dnnl_blocked_memory_desc.h"
 #include <common/primitive_desc.hpp>
 #include <common/primitive_desc_iface.hpp>
-#if (IE_THREAD == IE_THREAD_TBB || IE_THREAD == IE_THREAD_TBB_AUTO)
+#if (OV_THREAD == OV_THREAD_TBB || OV_THREAD == OV_THREAD_TBB_AUTO)
 #   include <tbb/task.h>
-#   include <tbb/task_group.h>
 #endif
 
 using namespace dnnl;
@@ -1073,26 +1072,199 @@ void Graph::InferStatic(InferRequestBase* request) {
 }
 
 namespace {
-template <typename Body>
-class processTask : public tbb::detail::d1::task {
+
+class IUpdateNodes {
 public:
-    processTask(Body& body, tbb::detail::d1::wait_context& wait, size_t node_indx) :
-        my_body(body), my_wait(wait), my_node_indx(node_indx) {}
+    virtual void run(size_t stopIndx) = 0;
+};
+
+class UpdateNodesSeq : public IUpdateNodes {
+public:
+    explicit UpdateNodesSeq(std::vector<NodePtr>& executableGraphNodes) : m_executableGraphNodes(executableGraphNodes) {}
+    void run(size_t stopIndx) override {
+        for (; prepareCounter < stopIndx; ++prepareCounter) {
+            const auto& node = m_executableGraphNodes[prepareCounter];
+            if (node->isDynamicNode()) {
+                node->updateShapes();
+                node->updateDynamicParams();
+            }
+        }
+    }
+
+private:
+    size_t prepareCounter = 0;
+    std::vector<NodePtr>& m_executableGraphNodes;
+};
+
+#if (OV_THREAD == OV_THREAD_SEQ)
+    using UpdateNodes = UpdateNodesSeq;
+#endif
+
+#if (OV_THREAD == OV_THREAD_TBB || OV_THREAD == OV_THREAD_TBB_AUTO || OV_THREAD == OV_THREAD_OMP)
+class UpdateNodesBase : public IUpdateNodes {
+public:
+    explicit UpdateNodesBase(std::vector<NodePtr>& executableGraphNodes) : m_executableGraphNodes(executableGraphNodes) {}
+    void updateShapes(size_t node_indx, size_t stop_indx) {
+        auto start = std::chrono::steady_clock::now();
+        m_prepareCounter.store(node_indx);
+        if (node_indx >= stop_indx) {
+            m_completion.store(true);
+            return;
+        }
+
+        const auto& node = m_executableGraphNodes[node_indx];
+        if (node->isDynamicNode()) {
+            node->updateShapes();
+        }
+        auto end = std::chrono::steady_clock::now();
+        g_thread_counter_upd[std::this_thread::get_id()] += std::chrono::duration_cast<std::chrono::nanoseconds>(end - start).count();
+        updateShapes(node_indx + 1, stop_indx);
+    }
+
+    void updateDynParams(size_t node_indx, size_t /*unused*/) {
+        size_t local_counter = node_indx;
+        while (true) {
+            if (m_completion && local_counter == m_prepareCounter) {
+                break;
+            }
+            while (local_counter < m_prepareCounter) {
+                const auto& node = m_executableGraphNodes[local_counter++];
+                if (node->isDynamicNode()) {
+                    auto start = std::chrono::steady_clock::now();
+                    node->updateDynamicParams();
+                    auto end = std::chrono::steady_clock::now();
+                    g_thread_counter_prep[std::this_thread::get_id()] += std::chrono::duration_cast<std::chrono::nanoseconds>(end - start).count();
+                }
+            }
+        }
+    }
+
+protected:
+    std::atomic<size_t> m_prepareCounter{0};
+    std::atomic<bool> m_completion{false};
+    std::vector<NodePtr>& m_executableGraphNodes;
+};
+
+#if (OV_THREAD == OV_THREAD_TBB || OV_THREAD == OV_THREAD_TBB_AUTO)
+#if (TBB_VERSION_MAJOR > 2020)
+template <typename Body>
+class AsyncTask : public tbb::detail::d1::task {
+public:
+    AsyncTask(Body& body, tbb::detail::d1::wait_context& wait, size_t node_indx, size_t stop_indx) :
+        m_body(body), m_wait(wait), m_node_indx(node_indx), m_stop_indx(stop_indx) {}
     task* execute(tbb::detail::d1::execution_data&) override {
-        my_body(my_node_indx);
-        my_wait.release();
+        m_body(m_node_indx, m_stop_indx);
+        m_wait.release();
         return nullptr;
     }
     task* cancel(tbb::detail::d1::execution_data&) override {
-        my_wait.release();
+        m_wait.release();
         return nullptr;
     }
+
 private:
-    Body& my_body;
-    tbb::detail::d1::wait_context& my_wait;
-    size_t my_node_indx;
+    Body& m_body;
+    tbb::detail::d1::wait_context& m_wait;
+    size_t m_node_indx;
+    size_t m_stop_indx;
 };
+
+class UpdateNodes : public UpdateNodesBase {
+public:
+    using UpdateNodesBase::UpdateNodesBase;
+    void run(size_t stopIndx) override {
+        m_completion.store(false);
+        auto startCounter = m_prepareCounter.load();
+        tbb::detail::d1::wait_context wait_ctx(2);
+
+        auto task1 = [this](size_t start, size_t stop) {
+            this->updateShapes(start, stop);
+        };
+        AsyncTask<decltype(task1)> t1(task1, wait_ctx, startCounter, stopIndx);
+
+        auto task2 = [this](size_t start, size_t stop) {
+            this->updateDynParams(start, stop);
+        };
+        AsyncTask<decltype(task2)> t2(task2, wait_ctx, startCounter, stopIndx);
+
+        tbb::detail::d1::spawn(t2, ctx, /* always submit the task to a thread that occupies the first slot */ 1);
+        tbb::detail::d1::execute_and_wait(t1, ctx, wait_ctx, ctx);
+    }
+
+private:
+    tbb::task_group_context ctx;
+};
+#else
+template <typename Body>
+class AsyncTask : public tbb::task {
+public:
+    AsyncTask(Body& body, size_t node_indx, size_t stop_indx) : m_body(body), m_node_indx(node_indx), m_stop_indx(stop_indx) {}
+    task* execute() override {
+        m_body(m_node_indx, m_stop_indx);
+        return nullptr;
+    }
+
+private:
+    Body& m_body;
+    size_t m_node_indx;
+    size_t m_stop_indx;
+};
+
+class UpdateNodes : public UpdateNodesBase {
+public:
+    using UpdateNodesBase::UpdateNodesBase;
+    void run(size_t stopIndx) override {
+        m_completion.store(false);
+        auto startCounter = m_prepareCounter.load();
+        tbb::task& root = *new(tbb::task::allocate_root()) tbb::empty_task;
+        root.set_ref_count(3); // two for children and one preserved
+
+        auto task1 = [this](size_t start, size_t stop) {
+            this->updateShapes(start, stop);
+        };
+        AsyncTask<decltype(task1)>& a = *new (root.allocate_child()) AsyncTask<decltype(task1)>(task1, startCounter, stopIndx);
+
+        auto task2 = [this](size_t start, size_t stop) {
+            this->updateDynParams(start, stop);
+        };
+        AsyncTask<decltype(task2)>& b = *new (root.allocate_child()) AsyncTask<decltype(task2)>(task2, startCounter, stopIndx);
+
+        b.set_affinity(2); // slot 1 plus 1
+        tbb::task::spawn(b);
+        root.spawn_and_wait_for_all(a);
+    }
+};
+#endif
+#endif
+
+#if (OV_THREAD == OV_THREAD_OMP)
+class UpdateNodes : public UpdateNodesBase {
+public:
+    using UpdateNodesBase::UpdateNodesBase;
+    void run(size_t stopIndx) override {
+        m_completion.store(false);
+        auto startCounter = m_prepareCounter.load();
+
+        #pragma omp parallel
+        #pragma omp single
+        {
+            #pragma omp task
+            {
+                updateDynParams(startCounter, stopIndx);
+            }
+            #pragma omp task
+            {
+                updateShapes(startCounter, stopIndx);
+            }
+            #pragma omp taskwait
+        }
+    }
+};
+#endif
+
+#endif
 } // namespace
+
 
 void Graph::InferDynamic(InferRequestBase* request) {
     dnnl::stream stream(getEngine());
@@ -1106,78 +1278,16 @@ void Graph::InferDynamic(InferRequestBase* request) {
     }
     syncIndsWorkSet.insert(executableGraphNodes.size());
 
-    std::function<void(size_t)> updateNodes;
-
-#if (IE_THREAD == IE_THREAD_TBB || IE_THREAD == IE_THREAD_TBB_AUTO)
-    std::atomic<size_t> prepareCounter(0);
-
-    tbb::task_group_context ctx;
-    std::function<void(size_t, size_t)> updateShapes;
-    std::function<void(size_t)> updateDynParams;
-
-    std::atomic<bool> completion{false};
-
-    updateShapes = [&](size_t node_indx, size_t stop_indx) {
-        auto start = std::chrono::steady_clock::now();
-        prepareCounter.store(node_indx);
-        if (node_indx >= stop_indx) {
-            completion.store(true);
-            return;
-        }
-
-        const auto& node = executableGraphNodes[node_indx];
-        if (node->isDynamicNode()) {
-            node->updateShapes();
-        }
-        auto end = std::chrono::steady_clock::now();
-        g_thread_counter_upd[std::this_thread::get_id()] += std::chrono::duration_cast<std::chrono::nanoseconds>(end - start).count();
-        updateShapes(node_indx + 1, stop_indx);
-    };
-
-    updateDynParams = [&](size_t node_indx) { //size_t node_indx, size_t stop_indx
-        size_t local_counter = node_indx;
-        while (true) {
-            if (completion && local_counter == prepareCounter) {
-                break;
-            }
-            while (local_counter < prepareCounter) {
-                const auto& node = executableGraphNodes[local_counter++];
-                if (node->isDynamicNode()) {
-                    auto start = std::chrono::steady_clock::now();
-                    node->updateDynamicParams();
-                    auto end = std::chrono::steady_clock::now();
-                    g_thread_counter_prep[std::this_thread::get_id()] += std::chrono::duration_cast<std::chrono::nanoseconds>(end - start).count();
-                }
-            }
-        }
-    };
-
-
-    updateNodes = [&](size_t stopIndx) {
-        completion.store(false);
-        auto startCounter = prepareCounter.load();;
-        tbb::detail::d1::wait_context wait_ctx(1);
-        processTask<decltype(updateDynParams)> t1(updateDynParams, wait_ctx, startCounter);
-        tbb::detail::d1::spawn(t1, ctx, /* always submit a task to thread that occupied first slot */ 1);
-        updateShapes(startCounter, stopIndx);
-        tbb::detail::d1::wait(wait_ctx, ctx);
-    };
-#else
-    size_t prepareCounter = 0;
-    updateNodes = [&](size_t stopIndx) {
-        for (; prepareCounter < stopIndx; ++prepareCounter) {
-            const auto& node = executableGraphNodes[prepareCounter];
-            if (node->isDynamicNode()) {
-                node->updateShapes();
-                node->updateDynamicParams();
-            }
-        }
-    };
-#endif
+    std::unique_ptr<IUpdateNodes> updateNodes = nullptr;
+    if (parallel_get_max_threads() > 1) {
+        updateNodes.reset(new UpdateNodes(executableGraphNodes));
+    } else {
+        updateNodes.reset(new UpdateNodesSeq(executableGraphNodes));
+    }
     size_t inferCounter = 0;
 
     for (auto stopIndx : syncIndsWorkSet) {
-        updateNodes(stopIndx);
+        updateNodes->run(stopIndx);
         for (; inferCounter < stopIndx; ++inferCounter) {
             auto& node = executableGraphNodes[inferCounter];
             VERBOSE(node, getConfig().debugCaps.verbose);
