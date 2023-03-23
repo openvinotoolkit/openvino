@@ -82,11 +82,17 @@ void TransformationsPipeline::apply(const std::shared_ptr<ov::Model>& model,
     const bool has_mvn = ov::op::util::has_op_with_type<ov::opset8::MVN>(model) ||
                          ov::op::util::has_op_with_type<ov::op::v0::MVN>(model);
 
+    if (has_convolution || has_maxpool || has_mvn) {
+        if (ov::op::util::has_op_with_type<ov::opset8::MatMul>(model))
+            std::cout << "[EMUTEX DEBUG] MatMul node" << std::endl;
+    }
+
     ov::pass::Manager manager;
     manager.register_pass<ov::pass::InitNodeInfo>();
     // In OV API 2.0(IRv10) default convertion to fp32 (inputs, outputs and weights) is disabled
     // and we need to run the ConvertPrecision transformation to support old networks.
     manager.register_pass<ov::pass::ConvertPrecision>(precisions_map{{ngraph::element::f16, ngraph::element::f32}});
+    EMUTEX_DEBUG_VISUALIZE("start");
     manager.register_pass<ov::pass::ConvertMVN1ToMVN6>();
     manager.register_pass<ov::intel_gna::pass::DecomposeMVN>();
     manager.register_pass<ov::pass::CommonOptimizations>();
@@ -131,13 +137,16 @@ void TransformationsPipeline::apply(const std::shared_ptr<ov::Model>& model,
     manager.register_pass<ov::intel_gna::pass::InsertCopyBeforeLayerToBeEliminated>();
     // TODO enable this transformation for networks without convolutions
     if (has_convolution || has_maxpool || has_mvn) {
+        EMUTEX_DEBUG_VISUALIZE("before");
         manager.register_pass<ov::intel_gna::pass::TransposeNCHW>();
+        EMUTEX_DEBUG_VISUALIZE("after_TransposeNCHW");
         manager.register_pass<ov::intel_gna::pass::ReshapeTransposeSubstitute>();
         manager.register_pass<ov::pass::TransposeSinkingGeneral>();
         manager.register_pass<ov::intel_gna::pass::GatherSinkingGeneral>();
         manager.register_pass<ov::pass::ReshapeSequenceFusion>();
         manager.register_pass<ov::pass::TransposeToReshape>();
         manager.register_pass<ov::intel_gna::pass::GnaConvolutionFusion>();
+        EMUTEX_DEBUG_VISUALIZE("after");
     }
     manager.register_pass<ov::intel_gna::pass::RemoveInputsProcessing>(subgraph_cpu_map);
     manager.register_pass<ov::intel_gna::pass::RemoveOutputsProcessing>(subgraph_cpu_map);
@@ -205,6 +214,8 @@ void TransformationsPipeline::apply(const std::shared_ptr<ov::Model>& model,
     // Operations Max and Min aren't supported
     pass_config->disable<ov::pass::ConcatReduceFusion>();
 
+    EMUTEX_DEBUG_VISUALIZE("finish");
+
     manager.run_passes(model);
 
     if (has_slice && (has_convolution || has_maxpool || has_mvn)) {
@@ -212,6 +223,7 @@ void TransformationsPipeline::apply(const std::shared_ptr<ov::Model>& model,
         manager.register_pass<ov::pass::InitNodeInfo>();
         manager.register_pass<ov::pass::SliceToStridedSlice>(true);
         manager.register_pass<ngraph::pass::ConvertStridedSliceToCropMatcher>();
+        EMUTEX_DEBUG_VISUALIZE("finish1");
         manager.run_passes(model);
     }
 

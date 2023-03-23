@@ -325,6 +325,7 @@ bool CanPropagateGatherForwardThrough(Node* node) {
     CHECK_GATHER_SINKING_SUPPORTED(ov::op::util::BinaryElementwiseArithmetic, node);
     CHECK_GATHER_SINKING_SUPPORTED(Gather, node);
     CHECK_GATHER_SINKING_SUPPORTED(Reshape, node);
+    CHECK_GATHER_SINKING_SUPPORTED(MatMul, node);
     return false;
 }
 

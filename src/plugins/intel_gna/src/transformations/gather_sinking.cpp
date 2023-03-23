@@ -17,6 +17,7 @@
 #include "transformations/gather_sinking_transpose_reshape.hpp"
 #include "transformations/gather_sinking_reshape.hpp"
 #include "transformations/gather_sinking_split.hpp"
+#include "transformations/gather_sinking_matmul.hpp"
 
 using namespace ov;
 using namespace ov::pass::pattern;
@@ -28,6 +29,7 @@ GatherSinkingGeneralForward::GatherSinkingGeneralForward() {
     add_matcher<GatherSinkingUnaryForward>();
     add_matcher<GatherSinkingBinaryForward>();
     add_matcher<GatherSinkingTransposeReshapeForward>();
+    add_matcher<GatherSinkingMatmulForward>();
     add_matcher<GatherSinkingFuse>();
 }
 
@@ -56,6 +58,5 @@ bool GatherSinkingGeneral::run_on_model(const std::shared_ptr<ov::Model>& f) {
         manager.register_pass<ngraph::pass::ConstantFolding>();
         manager.run_passes(f);
     }
-
     return false;
 }

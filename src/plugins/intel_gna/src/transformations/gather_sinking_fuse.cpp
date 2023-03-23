@@ -13,6 +13,8 @@
 #include "transformations/rt_info/gather_sinking_attr.hpp"
 #include "transformations/utils/gather_sinking_utils.hpp"
 
+#include "../debug_new_pass.hpp"
+
 using namespace ov;
 using namespace ov::opset9;
 using namespace ov::pass::pattern;

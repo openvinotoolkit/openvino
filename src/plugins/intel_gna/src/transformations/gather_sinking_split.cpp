@@ -19,8 +19,6 @@
 #include "transformations/rt_info/gather_sinking_attr.hpp"
 #include "transformations/utils/gather_sinking_utils.hpp"
 
-#include "../debug_new_pass.hpp"
-
 using namespace ov;
 using namespace ov::opset10;
 using namespace ov::pass::pattern;
@@ -119,37 +117,6 @@ std::vector<int64_t> NormalizeGatherIndices(const std::vector<int64_t>& indices)
     }
     return normalized;
 }
-#if 0
-struct OutputTranspose {
-    OutputTranspose() = default;
-    Transpose* transpose = {};
-    Constant* const_node = {};
-    int output_idx = {};
-};
-
-OutputTranspose FindFirstOutputTranspose(NodePtr node) {
-    for (size_t output_idx = 0; output_idx < node->get_output_size(); ++output_idx) {
-        for (auto& input : node->get_output_target_inputs(output_idx)) {
-            auto transpose_node = dynamic_cast<Transpose*>(input.get_node());
-            if (!transpose_node)
-                continue;
-            auto const_node = dynamic_cast<Constant*>(transpose_node->input_value(1).get_node());
-            if (!const_node)
-                continue;
-            {
-                OutputTranspose output_transpose;
-                output_transpose.transpose = transpose_node;
-                output_transpose.const_node = const_node;
-                output_transpose.output_idx = output_idx;
-
-                return output_transpose;
-            }
-        }
-    }
-
-    return {};
-}
-#endif
 
 } // namespace
 
@@ -231,66 +198,3 @@ GatherSinkingSplitBackward::GatherSinkingSplitBackward() {
     auto m = std::make_shared<Matcher>(gather_label, matcher_name);
     register_matcher(m, matcher_pass_callback);
 }
-#if 0
-GatherSinkingSplitTransposeBackward::GatherSinkingSplitTransposeBackward() {
-    MATCHER_SCOPE(GatherSinkingSplitTransposeBackward);
-
-    auto transpose_const_label = wrap_type<Constant>();
-    auto transpose_label = wrap_type<Gather>({any_input(), transpose_const_label}, IsSplitSinked);
-
-    matcher_pass_callback matcher_pass_callback = [=](Matcher& m) {
-        const auto& pattern_to_output = m.get_pattern_value_map();
-        auto transpose = as_type_ptr<Gather>(pattern_to_output.at(transpose_label).get_node_shared_ptr());
-
-        auto split = FindInputNode<Split>(transpose);
-        auto split_axis_constant = as_type_ptr<Constant>(split->input_value(1).get_node_shared_ptr());
-        if (!split_axis_constant) {
-            return false;
-        }
-
-        int64_t split_axis;
-        if (!GetSplitAxis(split_axis_constant, split->input_value(0).get_partial_shape().rank(), split_axis)) {
-            return false;
-        }
-
-        OutputTranspose output_transpose = FindFirstOutputTranspose(split);
-
-        // TODO
-        //
-        intel_gna_debug::Print("gather_indices", gather_indices);
-
-        //
-        std::vector<int64_t> new_indices(split->get_input_shape(0)[gather_axis]);
-        std::iota(new_indices.begin(), new_indices.end(), 0);
-
-        const size_t base = output_transpose.output_idx * split->get_output_shape(0)[split_axis];
-        for (size_t i = 0; i < gather_indices.size(); ++i) {
-            new_indices[base + i] = base + gather_indices[i];
-        }
-
-        intel_gna_debug::Print("new_indices", new_indices);
-
-        auto split_input = split->input_value(0);
-        auto new_indices_const = std::make_shared<Constant>(output_transpose.gather_axis->get_element_type(),
-                                                            Shape{new_indices.size()},
-                                                            new_indices);
-        auto new_axis_const = output_transpose.gather_axis->clone_with_new_inputs({});
-        auto new_gather = std::make_shared<Gather>(split_input, new_indices_const, new_axis_const);
-        split->input(0).replace_source_output(new_gather->output(0));
-        copy_runtime_info(split_input.get_node_shared_ptr(), {new_gather, new_indices_const, new_axis_const});
-        register_new_node(new_gather);
-
-        for (auto& input : split->get_output_target_inputs(output_transpose.output_idx)) {
-            Node* consumer = input.get_node();
-            if (consumer->get_output_size() != 1)
-                continue;
-            consumer->output(0).replace(split->output(output_transpose.output_idx));
-        }
-
-        return true;
-    };
-
-    auto m = std::make_shared<Matcher>(gather_label, matcher_name);
-    register_matcher(m, matcher_pass_callback);
-}
-#endif
