@@ -88,13 +88,13 @@ jobs:
       - name: Build OpenVINO with CMake
         uses: ashutoshvarma/action-cmake-build@master
         with:
-          source-dir: ${{ github.workspace }}
-          build-dir: ${{ github.workspace }}/../build
           cc: ${{ matrix.config.cc }}
           cxx: ${{ matrix.config.cxx }}
           configure-options: >
             -GNinja
             -DCMAKE_VERBOSE_MAKEFILE=ON
+            -DENABLE_STRICT_DEPENDENCIES=OFF
+            -DENABLE_REQUIREMENTS_INSTALL=OFF
             -DENABLE_FASTER_BUILD=ON
             -DENABLE_OV_ONNX_FRONTEND=ON
             -DENABLE_TESTS=ON
@@ -104,10 +104,11 @@ jobs:
             -DCMAKE_C_LINKER_LAUNCHER=ccache
             -DCMAKE_CXX_LINKER_LAUNCHER=ccache
           build-type: Release
-          run-test: false
-          ctest-options: -V OV
           parallel: ${{ steps.cpu-cores.outputs.count }}
       
+      - name: Run OV core tests
+        run: ${{ github.workspace }}/bin/intel64/Release/ov_core_unit_tests
+
       - name: Build coverage with CMake
         uses: ashutoshvarma/action-cmake-build@master
         with:
