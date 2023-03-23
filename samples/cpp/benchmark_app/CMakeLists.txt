@@ -98,6 +98,8 @@ if(SAMPLES_ENABLE_OPENCL)
         HINTS
             ${opencl_root_hints}
         PATHS
+            ${CMAKE_SOURCE_DIR}/thirdparty/ocl/cl_headers
+            ${CMAKE_SOURCE_DIR}/thirdparty/ocl/clhpp_headers
             ENV "PROGRAMFILES(X86)"
             ENV AMDAPPSDKROOT
             ENV INTELOCLSDKROOT
