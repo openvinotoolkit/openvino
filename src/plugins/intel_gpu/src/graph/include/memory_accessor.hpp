@@ -47,10 +47,10 @@ struct MemoryAccessor : public ov::ITensorAccessor {
     /**
      * @brief Get data from CLDNN memory container or by custom callback function if defined.
      *
-     * Data get from CLDNN memory are locket until this accessor will be deleter or access new data.
+     * Data get from CLDNN memory are locket until this accessor will be deleted or access new data.
      *
      * @param port  Number of operator port to access data.
-     * @return      Constant pointer to data adapter.
+     * @return      Tensor to data.
      */
     ov::Tensor operator()(size_t port) const override {
         unlock_current_data();

@@ -11,10 +11,10 @@ namespace ov {
 class OPENVINO_API ITensorAccessor {
 public:
     /**
-     * @brief Get tensor adapter at index
+     * @brief Get tensor at port.
      *
-     * @param port  Number of data port to get tensor adapter (operator input).
-     * @return      Constant pointer to tensor adapter interface.
+     * @param port  Number of data port (operator input) to get tensor.
+     * @return      Tensor to data at port.
      */
     virtual Tensor operator()(size_t port) const = 0;
 
@@ -24,7 +24,7 @@ public:
 /**
  * @brief Null tensor accessor.
  *
- * Return null pointer for any input port.
+ * Return empty tensor for any input port.
  */
 struct OPENVINO_API NullTensorAccessor : public ITensorAccessor {
     Tensor operator()(size_t port) const override {
@@ -34,10 +34,10 @@ struct OPENVINO_API NullTensorAccessor : public ITensorAccessor {
 };
 
 /**
- * @brief Get null data adapter pointer for any index number.
+ * @brief Get null tensor accessor which returns empty tensor for any index number.
  *
  * @param port  Port number to get data.
- * @return      Null pointer.
+ * @return      Null tensor accessor.
  */
 inline auto null_tensor_accessor() -> const ITensorAccessor& {
     static const auto null_accessor = NullTensorAccessor();
@@ -47,7 +47,7 @@ inline auto null_tensor_accessor() -> const ITensorAccessor& {
 /**
  * @brief Tensor data accessor functor.
  *
- * Creates the tensor data adapter if found in tensor container.
+ * Creates the ov::Tensor found in tensors container.
  * This accessor not take ownership of tensors container.
  * Supports following containers:
  * - ov::TensorVector
@@ -67,11 +67,11 @@ public:
     TensorAccessor(const TContainer* tensors) : m_tensors{tensors} {}
 
     /**
-     * @brief Get tensor data adapter for given index.
+     * @brief Get tensor for given port number.
      *
      * @param port  Port number to get data.
      *
-     * @return Pointer to tensor adapter or nullptr if data not found at given index.
+     * @return Tensor to data or empty tensor if data not found.
      */
     Tensor operator()(size_t port) const override;
 
