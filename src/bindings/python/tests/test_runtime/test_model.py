@@ -5,6 +5,7 @@
 import os
 import numpy as np
 import pytest
+import math
 
 import openvino.runtime.opset8 as ops
 from openvino.runtime import (
@@ -549,22 +550,6 @@ def test_serialize_rt_info(request, tmp_path):
 # request - https://docs.pytest.org/en/7.1.x/reference/reference.html#request
 def test_serialize_complex_rt_info(request, tmp_path):
     def check_rt_info(model, serialized):
-        if serialized:
-            threshold = "13.23"
-            min_val = "-3.24543"
-            max_val = "3.23422"
-            directed = "YES"
-            empty = ""
-            ids = "sasd fdfdfsdf"
-            mean = "22.3 33.11 44"
-        else:
-            threshold = 13.23
-            min_val = -3.24543
-            max_val = 3.234223
-            directed = True
-            empty = []
-            ids = ["sasd", "fdfdfsdf"]
-            mean = [22.3, 33.11, 44.0]
         assert model.has_rt_info(["config", "type_of_model"]) is True
         assert model.has_rt_info(["config", "converter_type"]) is True
         assert model.has_rt_info(["config", "model_parameters", "threshold"]) is True
@@ -577,17 +562,29 @@ def test_serialize_complex_rt_info(request, tmp_path):
         assert model.has_rt_info(["config", "model_parameters", "labels", "label_groups", "ids"]) is True
         assert model.has_rt_info(["config", "model_parameters", "mean_values"]) is True
 
-        assert model.get_rt_info(["config", "type_of_model"]) == "classification"
-        assert model.get_rt_info(["config", "converter_type"]) == "classification"
-        assert model.get_rt_info(["config", "model_parameters", "threshold"]) == threshold
-        assert model.get_rt_info(["config", "model_parameters", "min"]) == min_val
-        assert model.get_rt_info(["config", "model_parameters", "max"]) == max_val
-        assert model.get_rt_info(["config", "model_parameters", "labels", "label_tree", "type"]) == "tree"
-        assert model.get_rt_info(["config", "model_parameters", "labels", "label_tree", "directed"]) == directed
-        assert model.get_rt_info(["config", "model_parameters", "labels", "label_tree", "float_empty"]) == empty
-        assert model.get_rt_info(["config", "model_parameters", "labels", "label_tree", "nodes"]) == empty
-        assert model.get_rt_info(["config", "model_parameters", "labels", "label_groups", "ids"]) == ids
-        assert model.get_rt_info(["config", "model_parameters", "mean_values"]) == mean
+        assert model.get_rt_info(["config", "type_of_model"]).astype(str) == "classification"
+        assert model.get_rt_info(["config", "converter_type"]).astype(str) == "classification"
+        assert math.isclose(model.get_rt_info(["config", "model_parameters", "threshold"]).astype(float), 13.23, rel_tol=0.0001)
+        assert math.isclose(model.get_rt_info(["config", "model_parameters", "min"]).astype(float), -3.24543, rel_tol=0.0001)
+        assert math.isclose(model.get_rt_info(["config", "model_parameters", "max"]).astype(float), 3.234223, rel_tol=0.0001)
+        assert model.get_rt_info(["config", "model_parameters", "labels", "label_tree", "type"]).astype(str) == "tree"
+        assert model.get_rt_info(["config", "model_parameters", "labels", "label_tree", "directed"]).astype(bool) is True
+
+        assert model.get_rt_info(["config", "model_parameters", "labels", "label_tree", "float_empty"]).aslist() == []
+        assert model.get_rt_info(["config", "model_parameters", "labels", "label_tree", "nodes"]).aslist() == []
+        assert model.get_rt_info(["config", "model_parameters", "labels", "label_groups", "ids"]).aslist(str) == ["sasd", "fdfdfsdf"]
+        assert model.get_rt_info(["config", "model_parameters", "mean_values"]).aslist(float) == [22.3, 33.11, 44.0]
+
+        rt_info = model.get_rt_info()
+        assert isinstance(rt_info["config"], dict)
+
+        for key, value in rt_info.items():
+            if key == "config":
+                for config_value in value:
+                    assert config_value in ["type_of_model", "converter_type", "model_parameters"]
+
+        for rt_info_val in model.get_rt_info(["config", "model_parameters", "labels", "label_tree"]).astype(dict):
+            assert rt_info_val in ["float_empty", "nodes", "type", "directed"]
 
     core = Core()
     xml_path, bin_path = create_filename_for_test(request.node.name, tmp_path)

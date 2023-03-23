@@ -774,47 +774,41 @@ void regclass_graph_Model(py::module m) {
             for (size_t i = 0; i < path.size(); i++) {
                 cpp_args[i] = path[i].cast<std::string>();
             }
-            return Common::utils::from_ov_any(self.get_rt_info<ov::Any>(cpp_args));
+            return py::cast(self.get_rt_info<ov::Any>(cpp_args));
         },
         py::arg("path"),
         R"(
-                Returns runtime attribute.
+                Returns runtime attribute as a OVAny object.
 
                 :param path: List of strings which defines a path to runtime info.
                 :type path: List[str]
 
                 :return: A runtime attribute.
-                :rtype: Any
+                :rtype: openvino.runtime.OVAny
              )");
     model.def(
         "get_rt_info",
         [](const ov::Model& self, const py::str& path) -> py::object {
-            return Common::utils::from_ov_any(self.get_rt_info<ov::Any>(path.cast<std::string>()));
+            return py::cast(self.get_rt_info<ov::Any>(path.cast<std::string>()));
         },
         py::arg("path"),
         R"(
-                Returns runtime attribute.
+                Returns runtime attribute as a OVAny object.
 
                 :param path: List of strings which defines a path to runtime info.
                 :type path: str
 
                 :return: A runtime attribute.
-                :rtype: Any
+                :rtype: openvino.runtime.OVAny
              )");
     model.def(
         "has_rt_info",
         [](const ov::Model& self, const py::list& path) -> bool {
-            // FIXME: understand why has_rt_info causes Python crash
-            try {
-                std::vector<std::string> cpp_args(path.size());
-                for (size_t i = 0; i < path.size(); i++) {
-                    cpp_args[i] = path[i].cast<std::string>();
-                }
-                self.get_rt_info<ov::Any>(cpp_args);
-                return true;
-            } catch (ov::Exception&) {
-                return false;
+            std::vector<std::string> cpp_args(path.size());
+            for (size_t i = 0; i < path.size(); i++) {
+                cpp_args[i] = path[i].cast<std::string>();
             }
+            return self.has_rt_info(cpp_args);
         },
         py::arg("path"),
         R"(

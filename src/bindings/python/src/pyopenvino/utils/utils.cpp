@@ -12,6 +12,7 @@
 #include <vector>
 
 #include "Python.h"
+#include "meta_data.hpp"
 #include "openvino/core/except.hpp"
 #include "openvino/frontend/decoder.hpp"
 
@@ -20,12 +21,57 @@ using Version = ov::pass::Serialize::Version;
 namespace Common {
 namespace utils {
 
+// For complex structure if an element isn't map, then just cast it to OVAny
+py::object from_ov_any_no_leaves(const ov::Any& any) {
+    if (any.is<std::shared_ptr<ov::Meta>>() || any.is<ov::AnyMap>()) {
+        return Common::utils::from_ov_any_map_no_leaves(any);
+    } else {
+        return py::cast(any);
+    }
+}
+
+// Recursively go through dict to unwrap nested dicts and keep leaves as OVAny.
+py::object from_ov_any_map_no_leaves(const ov::Any& any) {
+    const auto traverse_map = [](const ov::AnyMap& map) {
+        const auto unwrap_only_maps = [](const ov::Any& any) {
+            if (any.is<std::shared_ptr<ov::Meta>>()) {
+                const ov::AnyMap& as_map = *any.as<std::shared_ptr<ov::Meta>>();
+                return from_ov_any_map_no_leaves(as_map);
+            } else if (any.is<ov::AnyMap>()) {
+                return from_ov_any_map_no_leaves(any.as<ov::AnyMap>());
+            }
+            return py::cast(any);
+        };
+
+        std::map<std::string, py::object> result;
+        for (const auto& entry : map) {
+            result[entry.first] = unwrap_only_maps(entry.second);
+        }
+        return py::cast(result);
+    };
+
+    if (any.is<std::shared_ptr<ov::Meta>>()) {
+        const ov::AnyMap& as_map = *any.as<std::shared_ptr<ov::Meta>>();
+        return traverse_map(as_map);
+    } else if (any.is<ov::AnyMap>()) {
+        return traverse_map(any.as<ov::AnyMap>());
+    }
+    OPENVINO_THROW("Only ov::AnyMap or ov::Meta are expected here.");
+}
+
+py::object from_ov_any_map(const ov::AnyMap& map) {
+    std::map<std::string, py::object> result;
+    for (const auto& entry : map) {
+        result[entry.first] = from_ov_any(entry.second);
+    }
+    return py::cast(result);
+}
+
 py::object from_ov_any(const ov::Any& any) {
     // Check for py::object
     if (any.is<py::object>()) {
         return any.as<py::object>();
-    }
-    // Check for std::string
+    }  // Check for std::string
     else if (any.is<std::string>()) {
         return py::cast(any.as<std::string>().c_str());
     }
@@ -98,6 +144,9 @@ py::object from_ov_any(const ov::Any& any) {
     // Check for std::map<element::Type, float>
     else if (any.is<std::map<ov::element::Type, float>>()) {
         return py::cast(any.as<std::map<ov::element::Type, float>>());
+    }  // Check for ov::AnyMap (std::map<std::string, ov::Any>)
+    else if (any.is<ov::AnyMap>()) {
+        return from_ov_any_map(any.as<ov::AnyMap>());
     }
     // Check for std::map<std::string, Any> {
     else if (any.is<std::map<std::string, ov::Any>>()) {
@@ -113,6 +162,9 @@ py::object from_ov_any(const ov::Any& any) {
             PyDict_SetItemString(dict, property_name.c_str(), PyUnicode_FromString(mutability.c_str()));
         }
         return py::cast<py::object>(dict);
+    } else if (any.is<std::shared_ptr<ov::Meta>>()) {
+        const ov::AnyMap& as_map = *any.as<std::shared_ptr<ov::Meta>>();
+        return from_ov_any_map(as_map);
     } else if (any.is<ov::element::Type>()) {
         return py::cast(any.as<ov::element::Type>());
     } else if (any.is<ov::hint::Priority>()) {
@@ -258,9 +310,8 @@ ov::Any py_object_to_any(const py::object& py_obj) {
             }
         }
 
-        // In case of empty vector works like with vector of strings
         if (_list.empty())
-            return _list.cast<std::vector<std::string>>();
+            return ov::Any(EmptyList());
 
         switch (detected_type) {
         case PY_TYPE::STR:
