@@ -139,7 +139,7 @@ OutputVector resize(const onnx_import::Node& node) {
     const auto& scales = inputs.at(1);
 
     auto attrs = get_resize_attrs(node);
-    attrs.shape_calculation_mode = default_opset::Interpolate::ShapeCalcMode::SCALES;
+    attrs.shape_calculation_mode = default_opset::Interpolate::ShapeCalcMode::SIZES;
 
     if (attrs.mode == InterpolateMode::NEAREST) {
         attrs.nearest_mode = Nearest_mode::FLOOR;
@@ -148,7 +148,12 @@ OutputVector resize(const onnx_import::Node& node) {
         attrs.coordinate_transformation_mode = Transform_mode::ASYMMETRIC;
     }
 
-    return {std::make_shared<default_opset::Interpolate>(data, scales, attrs)};
+    const auto shape_of_data = std::make_shared<default_opset::Convert>(std::make_shared<default_opset::ShapeOf>(data),
+                                                                        scales.get_element_type());
+    const auto multiply = std::make_shared<default_opset::Multiply>(shape_of_data, scales);
+    const auto output_shape = std::make_shared<default_opset::Convert>(multiply, ngraph::element::i64);
+
+    return {std::make_shared<default_opset::Interpolate>(data, output_shape, attrs)};
 }
 
 }  // namespace set_1
