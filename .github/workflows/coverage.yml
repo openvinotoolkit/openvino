@@ -56,7 +56,10 @@ jobs:
           max-size: 50G
 
       - name: Install build dependencies
-        run: sudo -E ${{ github.workspace }}/install_build_dependencies.sh
+        run: |
+          sudo apt --assume-yes update
+          sudo -E ${{ github.workspace }}/install_build_dependencies.sh
+          sudo apt --assume-yes install lcov
       
      # - name: Install python dependencies
      #   run: |
@@ -105,7 +108,7 @@ jobs:
           parallel: ${{ steps.cpu-cores.outputs.count }}
       
       - name: Run OV tests
-        run: ctest -V -L OV
+        run: ctest -V
       #- name: ls all
       #  run:  ls -laR .
 
