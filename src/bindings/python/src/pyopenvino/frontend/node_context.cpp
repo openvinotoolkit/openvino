@@ -53,7 +53,7 @@ void regclass_frontend_NodeContext(py::module m) {
                                                                                           "NodeContext",
                                                                                           py::dynamic_attr());
 
-    auto cast_attribute = [] (const ov::Any& any, const py::object& dtype) -> py::object {
+    auto cast_attribute = [](const ov::Any& any, const py::object& dtype) -> py::object {
         CAST_TO_PY(any, dtype, int32_t);
         CAST_TO_PY(any, dtype, int64_t);
         CAST_TO_PY(any, dtype, bool);
@@ -118,8 +118,7 @@ void regclass_frontend_NodeContext(py::module m) {
 
     ext.def(
         "const_input",
-        [=](NodeContext& self, int idx, const py::object& default_value, const py::object& dtype)
-            -> py::object {
+        [=](NodeContext& self, int idx, const py::object& default_value, const py::object& dtype) -> py::object {
             auto any = self.const_input(idx);
             auto casted = cast_attribute(any, dtype);
             if (!casted.is_none())
