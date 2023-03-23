@@ -504,6 +504,37 @@ ov::util::FilePath ov::util::get_plugin_path(const std::string& plugin) {
     return ov::util::to_file_path(lib_name);
 }
 
+ov::util::FilePath ov::util::get_compiled_plugin_path(const std::string& plugin) {
+    const auto ov_library_path = get_ov_lib_path();
+
+    // plugin can be found either:
+
+    // 1. in openvino-X.Y.Z folder relative to libopenvino.so
+    std::ostringstream str;
+    str << "openvino-" << OpenVINO_VERSION;
+    const auto sub_folder = str.str();
+
+    std::string abs_file_path = ov::util::path_join({ov_library_path, sub_folder, plugin});
+    if (ov::util::file_exists(abs_file_path))
+        return ov::util::to_file_path(abs_file_path);
+
+    // 2. in the openvino.so location
+    abs_file_path = ov::util::path_join({ov_library_path, plugin});
+    if (ov::util::file_exists(abs_file_path))
+        return ov::util::to_file_path(abs_file_path);
+
+    auto lib_name = plugin;
+    // For 3rd case - convert to 4th case
+    if (!ov::util::ends_with(plugin, ov::util::FileTraits<char>::library_ext()))
+        lib_name = ov::util::make_plugin_library_name({}, plugin);
+
+    // For 4th case
+    auto lib_path = ov::util::to_file_path(ov::util::get_absolute_file_path(lib_name));
+    if (ov::util::file_exists(lib_path))
+        return lib_path;
+    return ov::util::to_file_path(lib_name);
+}
+
 ov::util::FilePath ov::util::get_plugin_path(const std::string& plugin, const std::string& xml_path, bool as_abs_only) {
     // Assume `plugin` (from XML "location" record) contains only:
     // 1. /path/to/libexample.so absolute path
