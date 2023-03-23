@@ -209,12 +209,13 @@ void apply_auto_pad(const TOp* op,
  * @param pads_begin    Begin padding to updated.
  * @param pads_end      End padding to update.
  */
-template <class TOp, class TShape,
+template <class TOp,
+          class TShape,
           typename std::enable_if<std::is_base_of<util::ConvolutionFwdPropBase, TOp>::value ||
                                   std::is_base_of<util::DeformableConvolutionBase, TOp>::value>::type* = nullptr>
 void apply_padding(const TOp* op,
-const TShape& data_shape,
-const TShape& filters_shape,
+                   const TShape& data_shape,
+                   const TShape& filters_shape,
                    CoordinateDiff& pads_begin,
                    CoordinateDiff& pads_end) {
     if (convolution::is_auto_pad(op) && data_shape.rank().is_static() && filters_shape.rank().is_static()) {
