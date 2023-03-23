@@ -11,11 +11,7 @@
 #include <string>
 
 #include "pyopenvino/core/common.hpp"
-#include "pyopenvino/core/containers.hpp"
 #include "pyopenvino/utils/utils.hpp"
-
-PYBIND11_MAKE_OPAQUE(Containers::TensorIndexMap);
-PYBIND11_MAKE_OPAQUE(Containers::TensorNameMap);
 
 namespace py = pybind11;
 
@@ -26,7 +22,7 @@ inline py::dict run_sync_infer(InferRequestWrapper& self) {
         self.m_request.infer();
         *self.m_end_time = Time::now();
     }
-    return Common::outputs_to_dict(self.m_outputs, self.m_request);
+    return Common::outputs_to_dict(self);
 }
 
 void regclass_InferRequest(py::module m) {
@@ -103,7 +99,7 @@ void regclass_InferRequest(py::module m) {
     cls.def(
         "set_output_tensors",
         [](InferRequestWrapper& self, const py::dict& outputs) {
-            auto outputs_map = Common::cast_to_tensor_index_map(outputs);
+            auto outputs_map = Common::containers::cast_to_tensor_index_map(outputs);
             for (auto&& output : outputs_map) {
                 self.m_request.set_output_tensor(output.first, output.second);
             }
@@ -120,7 +116,7 @@ void regclass_InferRequest(py::module m) {
     cls.def(
         "set_input_tensors",
         [](InferRequestWrapper& self, const py::dict& inputs) {
-            auto inputs_map = Common::cast_to_tensor_index_map(inputs);
+            auto inputs_map = Common::containers::cast_to_tensor_index_map(inputs);
             for (auto&& input : inputs_map) {
                 self.m_request.set_input_tensor(input.first, input.second);
             }
@@ -719,7 +715,7 @@ void regclass_InferRequest(py::module m) {
     cls.def_property_readonly(
         "results",
         [](InferRequestWrapper& self) {
-            return Common::outputs_to_dict(self.m_outputs, self.m_request);
+            return Common::outputs_to_dict(self);
         },
         R"(
             Gets all outputs tensors of this InferRequest.

@@ -82,7 +82,7 @@ private:
         return it->second();
     }
 
-    const ngraph::OpSet& m_opset = ngraph::get_opset10();
+    const ngraph::OpSet& m_opset = ngraph::get_opset11();
     std::unordered_map<std::string, std::shared_ptr<ngraph::Variable>> m_variables;
 };
 }  // namespace
