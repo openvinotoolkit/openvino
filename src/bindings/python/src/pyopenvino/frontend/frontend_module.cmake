@@ -25,7 +25,7 @@ function(frontend_module TARGET FRAMEWORK INSTALL_COMPONENT)
 
     target_include_directories(${TARGET_NAME} PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}"
                                                       "${OpenVINOPython_SOURCE_DIR}/src/pyopenvino/utils/")
-    target_link_libraries(${TARGET_NAME} PRIVATE openvino::runtime openvino::frontend::${FRAMEWORK})
+    target_link_libraries(${TARGET_NAME} PRIVATE openvino::runtime openvino::runtime::dev openvino::frontend::${FRAMEWORK})
 
     set_target_properties(${TARGET_NAME} PROPERTIES INTERPROCEDURAL_OPTIMIZATION_RELEASE ${ENABLE_LTO})
 
