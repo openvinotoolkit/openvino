@@ -460,8 +460,7 @@ TEST_F(TransformationTestsF, RaggedTensorToSparse) {
         auto target_shape2 = make_shared<Constant>(i32, Shape{1}, -1);
         auto reshape2 = make_shared<Reshape>(sub, target_shape2, false);
 
-        auto convert_like2 = make_shared<ConvertLike>(reshape2, reshape1);
-        auto concat = make_shared<Concat>(OutputVector{reshape1, convert_like2}, 0);
+        auto concat = make_shared<Concat>(OutputVector{reshape1, reshape2}, 0);
 
         model_ref = make_shared<Model>(OutputVector{concat}, ParameterVector{row_splits, strings});
     }
