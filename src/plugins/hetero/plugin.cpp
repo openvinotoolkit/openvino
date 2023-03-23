@@ -18,6 +18,7 @@
 #include "cpp_interfaces/interface/ie_internal_plugin_config.hpp"
 #include "openvino/runtime/properties.hpp"
 #include "internal_properties.hpp"
+#include "openvino/util/common_util.hpp"
 // clang-format on
 
 using namespace InferenceEngine;
@@ -201,19 +202,14 @@ std::string Engine::DeviceCachingProperties(const std::string& targetFallback) c
         auto device_name = parser.get_device_name();
         auto supported_properties =
             GetCore()->GetMetric(device, ov::supported_properties.name()).as<std::vector<ov::PropertyName>>();
-        if (std::find(supported_properties.begin(), supported_properties.end(), ov::caching_properties.name()) !=
-            supported_properties.end()) {
+        if (ov::util::contains(supported_properties, ov::caching_properties.name())) {
             auto caching_properties =
                 GetCore()->GetMetric(device, ov::caching_properties.name()).as<std::vector<ov::PropertyName>>();
-            if (caching_properties.size()) {
-                for (auto& property_name : caching_properties) {
-                    properties[property_name] = GetCore()->GetMetric(device, property_name);
-                }
+            for (auto& property_name : caching_properties) {
+                properties[property_name] = GetCore()->GetMetric(device, property_name);
             }
             // If caching properties are not supported by device, try to add at least device architecture
-        } else if (std::find(supported_properties.begin(),
-                             supported_properties.end(),
-                             ov::device::architecture.name()) != supported_properties.end()) {
+        } else if (ov::util::contains(supported_properties, ov::device::architecture.name())) {
             auto device_architecture = GetCore()->GetMetric(device, ov::device::architecture.name());
             properties = ov::AnyMap{{ov::device::architecture.name(), device_architecture}};
             // Device architecture is not supported, add device name as achitecture
