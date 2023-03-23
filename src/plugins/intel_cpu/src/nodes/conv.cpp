@@ -1507,7 +1507,7 @@ void Convolution::prepareParams() {
             // when the input weight data is guaranteed to be ready (considering possible const-folding
             // subgraphs inserted between constant weight node and conv)
             auto it = primArgs.find(DNNL_ARG_WEIGHTS);
-            if (it == primArgs.end() || it->second.get_desc() != execPtr->getWeightDesc()) {
+            if (it == primArgs.end() || prevExecPtr->getWeightDesc() != execPtr->getWeightDesc()) {
                 pendingConstWeightReorder = true;
             }
         } else {

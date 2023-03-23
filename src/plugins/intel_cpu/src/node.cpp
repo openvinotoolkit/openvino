@@ -837,18 +837,18 @@ void Node::prepareMemory(dnnl::primitive_desc_iterator& itpd) {
 MemoryPtr Node::prepareWeightMemory(DnnlMemoryDescPtr weightDesc) {
     if (!getParentEdgeAt(1)->getParent()->isConstant())
         IE_THROW() << "Weight input is not const for node " << getName() << ".";
-    auto blob = getParentEdgeAt(1)->getMemoryPtr();
-    if (!blob)
-        IE_THROW() << "Cannot get const weights blob for node " << getName() << ".";
+    auto edgeMem = getParentEdgeAt(1)->getMemoryPtr();
+    if (!edgeMem)
+        IE_THROW() << "Cannot get const weights edgeMem for node " << getName() << ".";
 
-    auto constDnnlMemOutDesc = blob->GetDescWithType<DnnlMemoryDesc>();
+    auto constDnnlMemOutDesc = edgeMem->GetDescWithType<DnnlMemoryDesc>();
     auto weightSrcDesc = constDnnlMemOutDesc->getDnnlDesc();
     weightSrcDesc = weightSrcDesc.reshape(weightDesc->getDnnlDesc().get_dims());
     auto create = [&] () {
         auto newSrcDesc = DnnlExtensionUtils::makeDescriptor(weightSrcDesc);
 
         Memory srcMemory{ getEngine() };
-        srcMemory.Create(newSrcDesc, blob->GetData());
+        srcMemory.Create(newSrcDesc, edgeMem->GetData());
 
         MemoryPtr _ptr = std::make_shared<Memory>(getEngine());
         _ptr->Create(weightDesc);
@@ -866,8 +866,8 @@ MemoryPtr Node::prepareWeightMemory(DnnlMemoryDescPtr weightDesc) {
         auto weightCache = context->getWeightsCache();
         if (weightCache != nullptr) {
             const std::string string_hash = getName() + "_" + format
-                                            + "_" + std::to_string(blob->GetSize())
-                                            + "_" + std::to_string(reinterpret_cast<uint64_t>(blob->GetData()));
+                                            + "_" + std::to_string(edgeMem->GetSize())
+                                            + "_" + std::to_string(reinterpret_cast<uint64_t>(edgeMem->GetData()));
 
             ptr = *weightCache->findOrCreate(string_hash, create);
         } else {
