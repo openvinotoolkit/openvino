@@ -142,6 +142,21 @@ element::Type convert_dtype(int64_t pt_type) {
     return TORCH_TO_OV_TYPE.at(pt_type);
 };
 
+Output<Node> apply_dtype(const NodeContext& context, size_t dtype_port, const Output<Node>& input_tensor) {
+    if (std::dynamic_pointer_cast<opset10::Constant>(
+            context.get_input_from_visible_context(dtype_port).get_node_shared_ptr())) {
+        auto dtype = convert_dtype(context.const_input<int64_t>(dtype_port));
+        return context.mark_node(std::make_shared<opset10::Convert>(input_tensor, dtype));
+    } else if (const auto& fw_node =
+                   cast_fw_node(context.get_input(static_cast<int>(dtype_port)).get_node_shared_ptr(), "prim::dtype")) {
+        auto out_tensor = fw_node->input_value(0);
+        return context.mark_node(std::make_shared<opset10::ConvertLike>(input_tensor, out_tensor));
+    } else {
+        FRONT_END_OP_CONVERSION_CHECK(false, "Couldn't get dtype input");
+    }
+    return input_tensor;
+};
+
 ov::op::PadType convert_pad(const std::string& pt_pad) {
     FRONT_END_OP_CONVERSION_CHECK(TORCH_AUTO_PAD_TO_OV.count(pt_pad), "Unknown pad: ", pt_pad);
     return TORCH_AUTO_PAD_TO_OV.at(pt_pad);
@@ -162,7 +177,7 @@ std::shared_ptr<Node> concat_list_construct(std::shared_ptr<Node> input) {
     return input;
 }
 
-OutputVector make_framework_node(NodeContext& context) {
+OutputVector make_framework_node(const NodeContext& context) {
     auto schema = context.get_schema();
     // TODO: properly process schema to get the actual position of mutable input
     // Hack. Can indicate mutable inputs, but can it be reliable?

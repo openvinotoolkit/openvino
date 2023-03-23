@@ -129,7 +129,7 @@ TSSqueezeForward::TSSqueezeForward() {
 
         // if 2nd input to squeeze is empty then all '1' dims will be deleted.
         if (non_negative_axes.empty()) {
-            auto input_pshape = transpose->input_value(0).get_partial_shape();
+            auto input_pshape = transpose->output(0).get_partial_shape();
             if (input_pshape.is_dynamic()) {
                 return false;
             }
@@ -161,7 +161,7 @@ TSSqueezeForward::TSSqueezeForward() {
             new_values = to_shape;
         }
 
-        auto new_const = Constant::create(squeeze_axes->get_element_type(), squeeze_axes->get_shape(), new_values);
+        auto new_const = Constant::create(squeeze_axes->get_element_type(), {new_values.size()}, new_values);
         auto new_squeeze = squeeze->clone_with_new_inputs({transpose->input_value(0), new_const});
         auto new_transpose = transpose->clone_with_new_inputs({new_squeeze, new_transpose_order});
 
