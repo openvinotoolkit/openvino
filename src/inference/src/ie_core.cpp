@@ -30,7 +30,6 @@
 #include "ie_network_reader.hpp"
 #include "ie_ngraph_utils.hpp"
 #include "ie_plugin_config.hpp"
-#include "ie_plugins.hpp"
 #include "ie_remote_context.hpp"
 #include "ngraph/graph_util.hpp"
 #include "ngraph/ngraph.hpp"

@@ -12,7 +12,6 @@
 #include <fstream>
 #include <sstream>
 
-#include "openvino/core/version.hpp"
 #include "openvino/util/common_util.hpp"
 
 #ifdef _WIN32
@@ -512,7 +511,7 @@ ov::util::FilePath ov::util::get_compiled_plugin_path(const std::string& plugin)
 
     // 1. in openvino-X.Y.Z folder relative to libopenvino.so
     std::ostringstream str;
-    str << "openvino-" << OPENVINO_VERSION_MAJOR << "." << OPENVINO_VERSION_MINOR << "." << OPENVINO_VERSION_PATCH;
+    str << "openvino-" << OpenVINO_VERSION;
     const auto sub_folder = str.str();
 
     std::string abs_file_path = ov::util::path_join({ov_library_path, sub_folder, plugin});
