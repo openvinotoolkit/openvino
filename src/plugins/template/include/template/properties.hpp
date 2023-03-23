@@ -18,14 +18,14 @@
 namespace ov {
 namespace template_plugin {
 
-// ! [public_header:properties]
+// ! [properties:public_header]
 
 /**
  * @brief Allows to disable all transformations for execution inside the TEMPLATE plugin.
  */
 static constexpr Property<bool, PropertyMutability::RW> disable_transformations{"DISABLE_TRANSFORMATIONS"};
 
-// ! [public_header:properties]
+// ! [properties:public_header]
 
 }  // namespace template_plugin
 }  // namespace ov
