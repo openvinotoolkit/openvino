@@ -90,8 +90,13 @@ static inline double bicubic_filter(double x, double a) {
     return 0.0;
 }
 
-static int
-precompute_coeffs(int inSize, float in0, float in1, int outSize, struct filter* filterp, int** boundsp, double** kkp) {
+static int precompute_coeffs(int in_size,
+                             float in0,
+                             float in1,
+                             int out_size,
+                             struct filter* filterp,
+                             int** boundsp,
+                             double** kkp) {
     double support, scale, filterscale;
     double center, ww, ss;
     int xx, x, ksize, xmin, xmax;
@@ -99,7 +104,7 @@ precompute_coeffs(int inSize, float in0, float in1, int outSize, struct filter* 
     double *kk, *k;
 
     /* prepare for horizontal stretch */
-    filterscale = scale = (double)(in1 - in0) / outSize;
+    filterscale = scale = (double)(in1 - in0) / out_size;
     if (filterscale < 1.0) {
         filterscale = 1.0;
     }
@@ -112,21 +117,21 @@ precompute_coeffs(int inSize, float in0, float in1, int outSize, struct filter* 
 
     /* coefficient buffer */
     /* malloc check ok, overflow checked above */
-    kk = (double*)malloc(outSize * ksize * sizeof(double));
+    kk = (double*)malloc(out_size * ksize * sizeof(double));
     if (!kk) {
         // TODO: Throw error or use std::vector
         return 0;
     }
 
     /* malloc check ok, ksize*sizeof(double) > 2*sizeof(int) */
-    bounds = (int*)malloc(outSize * 2 * sizeof(int));
+    bounds = (int*)malloc(out_size * 2 * sizeof(int));
     if (!bounds) {
         free(kk);
         // TODO: Throw error or use std::vector
         return 0;
     }
 
-    for (xx = 0; xx < outSize; xx++) {
+    for (xx = 0; xx < out_size; xx++) {
         center = in0 + (xx + 0.5) * scale;
         ww = 0.0;
         ss = 1.0 / filterscale;
@@ -137,8 +142,8 @@ precompute_coeffs(int inSize, float in0, float in1, int outSize, struct filter* 
         }
         // Round the value
         xmax = (int)(center + support + 0.5);
-        if (xmax > inSize) {
-            xmax = inSize;
+        if (xmax > in_size) {
+            xmax = in_size;
         }
         xmax -= xmin;
         k = &kk[xx * ksize];
@@ -165,10 +170,10 @@ precompute_coeffs(int inSize, float in0, float in1, int outSize, struct filter* 
 }
 
 template <typename T>
-void ImagingResampleHorizontal(T* imOut,
-                               Shape imOutShape,
-                               const T* imIn,
-                               Shape imInShape,
+void ImagingResampleHorizontal(T* im_out,
+                               Shape im_out_shape,
+                               const T* im_in,
+                               Shape im_in_shape,
                                int offset,
                                int ksize,
                                int* bounds,
@@ -177,31 +182,31 @@ void ImagingResampleHorizontal(T* imOut,
     int x, xmin, xmax;
     double* k;
 
-    for (size_t yy = 0; yy < imOutShape[0]; yy++) {
-        for (size_t xx = 0; xx < imOutShape[1]; xx++) {
+    for (size_t yy = 0; yy < im_out_shape[0]; yy++) {
+        for (size_t xx = 0; xx < im_out_shape[1]; xx++) {
             xmin = bounds[xx * 2 + 0];
             xmax = bounds[xx * 2 + 1];
             k = &kk[xx * ksize];
             ss = 0.0;
             for (x = 0; x < xmax; x++) {
-                size_t in_idx = ((yy + offset)) * imInShape[1] + (x + xmin);
-                ss += imIn[in_idx] * k[x];
+                size_t in_idx = ((yy + offset)) * im_in_shape[1] + (x + xmin);
+                ss += im_in[in_idx] * k[x];
             }
-            size_t out_idx = (yy)*imOutShape[1] + xx;
+            size_t out_idx = (yy)*im_out_shape[1] + xx;
             if (std::is_integral<T>()) {
-                imOut[out_idx] = T(clip<T, int64_t>(round_up<int64_t, double>(ss)));
+                im_out[out_idx] = T(clip<T, int64_t>(round_up<int64_t, double>(ss)));
             } else {
-                imOut[out_idx] = T(ss);
+                im_out[out_idx] = T(ss);
             }
         }
     }
 }
 
 template <typename T>
-void ImagingResampleVertical(T* imOut,
-                             Shape imOutShape,
-                             const T* imIn,
-                             Shape imInShape,
+void ImagingResampleVertical(T* im_out,
+                             Shape im_out_shape,
+                             const T* im_in,
+                             Shape im_in_shape,
                              int offset,
                              int ksize,
                              int* bounds,
@@ -210,52 +215,52 @@ void ImagingResampleVertical(T* imOut,
     int y, ymin, ymax;
     double* k;
 
-    for (size_t yy = 0; yy < imOutShape[0]; yy++) {
+    for (size_t yy = 0; yy < im_out_shape[0]; yy++) {
         ymin = bounds[yy * 2 + 0];
         ymax = bounds[yy * 2 + 1];
         k = &kk[yy * ksize];
-        for (size_t xx = 0; xx < imOutShape[1]; xx++) {
+        for (size_t xx = 0; xx < im_out_shape[1]; xx++) {
             ss = 0.0;
             for (y = 0; y < ymax; y++) {
-                size_t in_idx = ((y + ymin)) * imInShape[1] + xx;
-                ss += imIn[in_idx] * k[y];
+                size_t in_idx = ((y + ymin)) * im_in_shape[1] + xx;
+                ss += im_in[in_idx] * k[y];
             }
-            size_t out_idx = (yy)*imOutShape[1] + xx;
+            size_t out_idx = (yy)*im_out_shape[1] + xx;
             if (std::is_integral<T>()) {
-                imOut[out_idx] = T(clip<T, int64_t>(round_up<int64_t, double>(ss)));
+                im_out[out_idx] = T(clip<T, int64_t>(round_up<int64_t, double>(ss)));
             } else {
-                imOut[out_idx] = T(ss);
+                im_out[out_idx] = T(ss);
             }
         }
     }
 }
 
 template <typename T>
-void ImagingResampleInner(const T* imIn,
-                          size_t imIn_xsize,
-                          size_t imIn_ysize,
+void ImagingResampleInner(const T* im_in,
+                          size_t im_in_xsize,
+                          size_t im_in_ysize,
                           size_t xsize,
                           size_t ysize,
                           struct filter* filterp,
                           float* box,
-                          T* imOut) {
+                          T* im_out) {
     int need_horizontal, need_vertical;
     int ybox_first, ybox_last;
     int ksize_horiz, ksize_vert;
     int *bounds_horiz, *bounds_vert;
     double *kk_horiz, *kk_vert;
 
-    need_horizontal = xsize != imIn_xsize || box[0] || box[2] != xsize;
-    need_vertical = ysize != imIn_ysize || box[1] || box[3] != ysize;
+    need_horizontal = xsize != im_in_xsize || box[0] || box[2] != xsize;
+    need_vertical = ysize != im_in_ysize || box[1] || box[3] != ysize;
 
-    ksize_horiz = precompute_coeffs(imIn_xsize, box[0], box[2], xsize, filterp, &bounds_horiz, &kk_horiz);
+    ksize_horiz = precompute_coeffs(im_in_xsize, box[0], box[2], xsize, filterp, &bounds_horiz, &kk_horiz);
     if (!ksize_horiz) {
         free(bounds_horiz);
         free(kk_horiz);
         return;
     }
 
-    ksize_vert = precompute_coeffs(imIn_ysize, box[1], box[3], ysize, filterp, &bounds_vert, &kk_vert);
+    ksize_vert = precompute_coeffs(im_in_ysize, box[1], box[3], ysize, filterp, &bounds_vert, &kk_vert);
     if (!ksize_vert) {
         free(bounds_vert);
         free(kk_vert);
@@ -267,9 +272,9 @@ void ImagingResampleInner(const T* imIn,
     // Last used row in the source image
     ybox_last = bounds_vert[ysize * 2 - 2] + bounds_vert[ysize * 2 - 1];
 
-    size_t imTemp_ysize = (ybox_last - ybox_first);
-    auto imTemp_elem_count = imTemp_ysize * xsize;
-    auto imTemp = std::vector<T>(imTemp_elem_count, 0);
+    size_t im_temp_ysize = (ybox_last - ybox_first);
+    auto im_temp_elem_count = im_temp_ysize * xsize;
+    auto im_temp = std::vector<T>(im_temp_elem_count, 0);
 
     /* two-pass resize, horizontal pass */
     if (need_horizontal) {
@@ -278,11 +283,11 @@ void ImagingResampleInner(const T* imIn,
             bounds_vert[i * 2] -= ybox_first;
         }
 
-        if (imTemp.size() > 0) {
-            ImagingResampleHorizontal(imTemp.data(),
-                                      Shape{imTemp_ysize, xsize},
-                                      imIn,
-                                      Shape{imIn_ysize, imIn_xsize},
+        if (im_temp.size() > 0) {
+            ImagingResampleHorizontal(im_temp.data(),
+                                      Shape{im_temp_ysize, xsize},
+                                      im_in,
+                                      Shape{im_in_ysize, im_in_xsize},
                                       ybox_first,
                                       ksize_horiz,
                                       bounds_horiz,
@@ -297,22 +302,22 @@ void ImagingResampleInner(const T* imIn,
 
     /* vertical pass */
     if (need_vertical) {
-        if (imOut) {
-            /* imIn can be the original image or horizontally resampled one */
+        if (im_out) {
+            /* im_in can be the original image or horizontally resampled one */
             if (need_horizontal) {
-                ImagingResampleVertical(imOut,
+                ImagingResampleVertical(im_out,
                                         Shape{ysize, xsize},
-                                        imTemp.data(),
-                                        Shape{imTemp_ysize, xsize},
+                                        im_temp.data(),
+                                        Shape{im_temp_ysize, xsize},
                                         0,
                                         ksize_vert,
                                         bounds_vert,
                                         kk_vert);
             } else {
-                ImagingResampleVertical(imOut,
+                ImagingResampleVertical(im_out,
                                         Shape{ysize, xsize},
-                                        imIn,
-                                        Shape{imIn_ysize, imIn_xsize},
+                                        im_in,
+                                        Shape{im_in_ysize, im_in_xsize},
                                         0,
                                         ksize_vert,
                                         bounds_vert,
@@ -322,7 +327,7 @@ void ImagingResampleInner(const T* imIn,
         free(bounds_vert);
         free(kk_vert);
 
-        if (!imOut) {
+        if (!im_out) {
             return;
         }
     } else {
@@ -332,9 +337,9 @@ void ImagingResampleInner(const T* imIn,
 
     /* none of the previous steps are performed, copying */
     if (!need_horizontal && !need_vertical) {
-        std::copy(imIn, imIn + (imIn_xsize * imIn_ysize), imOut);
+        std::copy(im_in, im_in + (im_in_xsize * im_in_ysize), im_out);
     } else if (need_horizontal && !need_vertical) {
-        std::copy(imTemp.begin(), imTemp.end(), imOut);
+        std::copy(im_temp.begin(), im_temp.end(), im_out);
     }
 
     return;
