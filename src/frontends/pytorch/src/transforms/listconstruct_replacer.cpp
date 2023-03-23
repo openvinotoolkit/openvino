@@ -61,8 +61,7 @@ ListConstructReplacer::ListConstructReplacer() {
                                                                      select_op,
                                                                      tile_op,
                                                                      transpose_op,
-                                                                     vsplit_op
-                                                                     });
+                                                                     vsplit_op});
 
     ov::matcher_pass_callback callback = [=](pattern::Matcher& m) {
         auto& pattern_map = m.get_pattern_value_map();
