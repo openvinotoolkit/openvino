@@ -117,7 +117,6 @@ jobs:
           cxx: ${{ matrix.config.cxx }}
           target: ov_coverage
           configure-options: -DCMAKE_VERBOSE_MAKEFILE=ON
-          build-options: ${{ github.workspace }}/build
 
       - name: Generate raport
         run: |
