@@ -11,7 +11,7 @@ namespace frontend {
 namespace pytorch {
 namespace op {
 
-OutputVector translate_hardtanh(NodeContext& context) {
+OutputVector translate_hardtanh(const NodeContext& context) {
     num_inputs_check(context, 1, 3);
     float min = -1;
     float max = 1;

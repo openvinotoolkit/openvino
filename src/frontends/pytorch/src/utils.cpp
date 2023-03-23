@@ -177,7 +177,7 @@ std::shared_ptr<Node> concat_list_construct(std::shared_ptr<Node> input) {
     return input;
 }
 
-OutputVector make_framework_node(NodeContext& context) {
+OutputVector make_framework_node(const NodeContext& context) {
     auto schema = context.get_schema();
     // TODO: properly process schema to get the actual position of mutable input
     // Hack. Can indicate mutable inputs, but can it be reliable?

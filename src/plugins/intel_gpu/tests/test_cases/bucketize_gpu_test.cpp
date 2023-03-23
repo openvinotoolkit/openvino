@@ -59,7 +59,7 @@ struct bucketize_test : testing::TestWithParam<bucketize_test_params<I, B, O>> {
         topology.add(
             reorder("plane_bucketize_left_bound", input_info("bucketize_left_bound"), format::bfyx, type_to_data_type<O>::value));
 
-        cldnn::network::ptr network = get_network(engine, topology, ExecutionConfig(), get_test_stream_ptr(), is_caching_test);
+        cldnn::network::ptr network = get_network(engine, topology, get_test_default_config(engine), get_test_stream_ptr(), is_caching_test);
 
         network->set_input_data("input", input);
         network->set_input_data("buckets", buckets);
