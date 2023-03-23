@@ -269,6 +269,7 @@ def arguments_post_parsing(argv: argparse.Namespace):
         argv.freeze_placeholder_with_value, argv.input = get_freeze_placeholder_values(
             argv.input,
             argv.freeze_placeholder_with_value)
+        argv.unnamed_freeze_placeholder_with_value = {}
 
     argv.output = argv.output.split(',') if argv.output else None
     argv.layout_values = get_layout_values(argv.layout, argv.source_layout, argv.target_layout)
@@ -733,12 +734,12 @@ def python_api_params_parsing(argv):
     argv.input = input_names_list
 
     input_shape_to_input_cut_info(argv.input_shape, inputs)
-    freeze_placeholder_to_input_cut_info(argv.freeze_placeholder_with_value, inputs)
+    argv.freeze_placeholder_with_value, argv.unnamed_freeze_placeholder_with_value = \
+        freeze_placeholder_to_input_cut_info(argv.freeze_placeholder_with_value, inputs)
     if len(input_names_list) > 0:
         # named inputs case
         shape_dict = {}
         data_type_dict = {}
-        value_dict = {}
         for inp in inputs:
             if inp.shape is not None:
                 shape_dict[inp.name] = PartialShape(inp.shape)
@@ -751,16 +752,12 @@ def python_api_params_parsing(argv):
                     data_type_dict[inp.name] = inp.type.to_dtype().type
                 else:
                     data_type_dict[inp.name] = inp.type
-            if inp.value is not None:
-                value_dict[inp.name] = inp.value
         argv.placeholder_shapes = shape_dict if len(shape_dict) > 0 else None
         argv.placeholder_data_types = data_type_dict if len(data_type_dict) > 0 else {}
-        argv.freeze_placeholder_with_value = value_dict if len(value_dict) > 0 else {}
     else:
         # unnamed inputs case
         shape_list = []
         data_type_list = []
-        value_list = []
         for inp in inputs:
             if inp.shape is not None:
                 shape_list.append(PartialShape(inp.shape))
@@ -771,11 +768,8 @@ def python_api_params_parsing(argv):
                     data_type_list.append(inp.type.to_dtype().type)
                 else:
                     data_type_list.append(inp.type)
-            if inp.value is not None:
-                value_list.append(inp.value)
         argv.placeholder_shapes = shape_list if len(shape_list) > 0 else None
         argv.placeholder_data_types = data_type_list if len(data_type_list) > 0 else {}
-        argv.freeze_placeholder_with_value = value_list if len(value_list) > 0 else {}
 
 
 def pack_params_to_args_namespace(args: dict, cli_parser: argparse.ArgumentParser):

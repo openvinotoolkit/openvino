@@ -43,6 +43,27 @@ class TestComplexParams(CommonMOConvertTest):
         # save model to .pb and return path to the model
         return save_to_pb(tf_net, tmp_dir)
 
+    def create_tf_model_no_concat(self, tmp_dir):
+        import tensorflow as tf
+
+        tf.compat.v1.reset_default_graph()
+
+        with tf.compat.v1.Session() as sess:
+            inp1 = tf.compat.v1.placeholder(tf.float32, [1, 3, 2, 2], 'Input1')
+            inp2 = tf.compat.v1.placeholder(tf.float32, [1, 3, 2, 2], 'Input2')
+            inp3 = tf.compat.v1.placeholder(tf.bool, [], 'Input3')
+            output2 = inp3
+
+            relu1 = tf.nn.sigmoid(inp1, name='Relu1')
+            relu2 = tf.nn.sigmoid(inp2, name='Relu2')
+            output = relu1 + relu2
+
+            tf.compat.v1.global_variables_initializer()
+            tf_net = sess.graph_def
+
+        # save model to .pb and return path to the model
+        return save_to_pb(tf_net, tmp_dir)
+
     def create_tf_model_single_input_output(self, tmp_dir):
         #
         #   Create Tensorflow model with single input/output
@@ -158,7 +179,6 @@ class TestComplexParams(CommonMOConvertTest):
                                    InputCutInfo(None, [1], np.int32, [20]),
                                    InputCutInfo(None, [1], np.int32, [30])]},
          'params_ref': {'input': 'Input1[1]{i32}->[10],Input2[1]{i32}->[20],Input3[1]{i32}->[30]'}}
-
     ]
 
     @pytest.mark.parametrize("params", test_data)
@@ -166,6 +186,39 @@ class TestComplexParams(CommonMOConvertTest):
     def test_mo_convert_tf_model(self, params, ie_device, precision, ir_version,
                                  temp_dir, use_new_frontend, use_old_api):
         tf_net_path = self.create_tf_model(temp_dir)
+
+        test_params = params['params_test']
+        ref_params = params['params_ref']
+        test_params.update({'input_model': tf_net_path})
+        ref_params.update({'input_model': tf_net_path})
+        self._test(temp_dir, test_params, ref_params)
+
+    test_data = [
+        {'params_test': {'input_shape': [[Dimension(1), 2, 3], [Dimension(1), 2, 3]],
+                         'freeze_placeholder_with_value': 'Input3->[1]'},
+
+         'params_ref': {'input_shape': '[1,2,3],[1,2,3]',
+                        'freeze_placeholder_with_value': 'Input3->[1]'}},
+        {'params_test': {'input': [PartialShape([Dimension(-1), 5, 6]), [-1, 5, 6]],
+                         'freeze_placeholder_with_value': 'Input3->[1]'},
+
+         'params_ref': {'input': 'Input1[?,5,6],Input2[?,5,6]',
+                        'freeze_placeholder_with_value': 'Input3->[1]'}},
+        {'params_test': {'input': [np.float16, np.float16],
+                         'input_shape': [[10, 20], [10, 20]],
+                         'freeze_placeholder_with_value': 'Input3->[1]'},
+
+         'params_ref': {'input': 'Input1{f16},Input2{f16}',
+                        'input_shape': "[10,20],[10,20]",
+                        'freeze_placeholder_with_value': 'Input3->[1]'}},
+
+    ]
+
+    @pytest.mark.parametrize("params", test_data)
+    @pytest.mark.nightly
+    def test_mo_convert_tf_model_no_concat(self, params, ie_device, precision, ir_version,
+                                 temp_dir, use_new_frontend, use_old_api):
+        tf_net_path = self.create_tf_model_no_concat(temp_dir)
 
         test_params = params['params_test']
         ref_params = params['params_ref']
@@ -213,7 +266,15 @@ class TestComplexParams(CommonMOConvertTest):
         {'params_test': {'input': InputCutInfo(None, [1], np.int32, [10])},
          'params_ref': {'input': "Input[1]{i32}->[10]"}},
         {'params_test': {'input': (np.int32, [1, 2, 3])},
-         'params_ref': {'input': "Input[1,2,3]{i32}"}}
+         'params_ref': {'input': "Input[1,2,3]{i32}"}},
+        {'params_test': {'input_shape': [Dimension(3, 10), 10, -1]},
+         'params_ref': {'input_shape': '[3..10,10,?]'}},
+        {'params_test': {'input': [Dimension(3, 10), 10, -1]},
+         'params_ref': {'input': 'Input[3..10,10,?]'}},
+        {'params_test': {'input': PartialShape([1, 100, 100, 3]), 'mean_values': [0.5, 1.3, 0.67]},
+         'params_ref': {'input': "Input[1,100,100,3]", 'mean_values': "[0.5,1.3,0.67]"}},
+        {'params_test': {'input': [1, 100, 100, 3], 'scale_values': [0.5, 1.3, 0.67]},
+         'params_ref': {'input': "Input[1,100,100,3]", 'scale_values': "[0.5,1.3,0.67]"}},
     ]
 
     @pytest.mark.parametrize("params", test_data)

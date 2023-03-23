@@ -147,7 +147,10 @@ def single_input_to_input_cut_info(input):
                                               data_type,
                                               value)
     if isinstance(input, openvino.tools.mo.InputCutInfo):
-        return input
+        return openvino.tools.mo.InputCutInfo(input.name,
+                                              PartialShape(input.shape) if input.shape is not None else None,
+                                              input.type,
+                                              input.value)
     if isinstance(input, (tuple, list, PartialShape)):
         if len(input) > 0 and isinstance(input[0], (int, Dimension)):
             input = [input]
@@ -194,7 +197,7 @@ def input_to_input_cut_info(input):
                                                          value))
         return inputs
     if isinstance(input, openvino.tools.mo.InputCutInfo):
-        return [input]
+        return [single_input_to_input_cut_info(input)]
     if isinstance(input, tuple):
         if len(input) > 0 and isinstance(input[0], (int, Dimension)):
             input = [input]
@@ -233,7 +236,7 @@ def input_shape_to_input_cut_info(input_shape, inputs):
 
         else:
             for shape in input_shape:
-                inputs.append(openvino.tools.mo.InputCutInfo(None, shape, None, None))
+                inputs.append(openvino.tools.mo.InputCutInfo(None, PartialShape(shape), None, None))
         return
 
     raise Exception("Unexpected object provided for input_shape. Expected PartialShape, Shape, tuple, list or str. "
@@ -241,27 +244,24 @@ def input_shape_to_input_cut_info(input_shape, inputs):
 
 
 def freeze_placeholder_to_input_cut_info(argv_freeze_placeholder_with_value: str, inputs: list):
-    if argv_freeze_placeholder_with_value is None:
-        return {}, ""
     placeholder_values = parse_freeze_placeholder_values(argv_freeze_placeholder_with_value)
-    input_node_names = None
-
+    unnamed_placeholder_values = []
     if inputs is not None and len(inputs) > 0:
-        input_node_names = ''
         # walkthrough all input values and save values for freezing
         for input in inputs:
             node_name = input.name
             value = input.value
-            if node_name is not None:
-                input_node_names = input_node_names + ',' + node_name if input_node_names != '' else node_name
             if value is None:
                 continue
             if node_name in placeholder_values and placeholder_values[node_name] != value:
                 raise Error("Overriding replacement value of the placeholder with name '{}': old value = {}, new value = {}"
                             ".".format(node_name, placeholder_values[node_name], value))
-            placeholder_values[node_name] = value
+            if node_name is not None:
+                placeholder_values[node_name] = value
+            else:
+                unnamed_placeholder_values.append(value)
 
-    return placeholder_values, input_node_names
+    return placeholder_values, unnamed_placeholder_values
 
 
 def mean_scale_value_to_str(value):
