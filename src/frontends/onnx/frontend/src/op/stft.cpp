@@ -35,7 +35,14 @@ OutputVector stft(const Node& node) {
                          signal_param_shape[axis].is_static(),
                      "Shape of DFT axis must be known.");  // TODO: CHECK IF SCALAR
 
-    const int64_t frame_length = 16; // TODO: Read from param or calculate
+    int64_t frame_length = signal_param_shape[axis].get_length() / frame_step; // default value
+    if(dft_length_provided) {
+        const auto& frame_length_node = ng_inputs[3];
+        CHECK_VALID_NODE(node,
+                        ngraph::op::is_constant(frame_length_node.get_node_shared_ptr()),
+                        "Non-constant frame_step input is not supported.");  // TODO: CHECK IF SCALAR
+        frame_length = ov::as_type_ptr<default_opset::Constant>(frame_length_node.get_node_shared_ptr())->cast_vector<int64_t>()[0];
+    }
     const int64_t nstfts = std::floor((signal_param_shape[axis].get_length() - frame_length) / frame_step) + 1;
     //std::cout << "nstfts: " << nstfts  << ", len: " << signal_param_shape[axis].get_length() << ", frame_length: " << frame_length << ", frame_step: " << frame_step << std::endl;
     const auto axis_const = default_opset::Constant::create(element::i64, {}, {axis});
