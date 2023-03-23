@@ -1,5 +1,4 @@
 ir_version: 8
-producer_name: "ONNX FE"
 graph {
   node {
     output: "frame_step"
@@ -19,10 +18,11 @@ graph {
   node {
     input: "signal"
     input: "frame_step"
-    output: "output"
+    input: ""
+    output: "Y"
     op_type: "STFT"
   }
-  name: "test_graph"
+  name: "g"
   input {
     name: "signal"
     type {
@@ -43,10 +43,20 @@ graph {
     }
   }
   output {
-    name: "output"
+    name: "Y"
     type {
       tensor_type {
         elem_type: 1
+        shape {
+          dim {
+          }
+          dim {
+          }
+          dim {
+          }
+          dim {
+          }
+        }
       }
     }
   }

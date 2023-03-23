@@ -6662,7 +6662,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_dft_inverse_length_provided_onesided) {
                                           11.000000f});
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, onnx_model_stft) {
+NGRAPH_TEST(${BACKEND_NAME}, onnx_model_stft_onesided) {
     auto function = onnx_import::import_onnx_model(
         file_util::path_join(CommonTestUtils::getExecutableDirectory(), SERIALIZED_ZOO, "onnx/stft.onnx"));
     auto test_case = test::TestCase(function, s_device);
@@ -6670,5 +6670,12 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_stft) {
     std::vector<float> signal(ov::shape_size(signal_shape));
     std::iota(std::begin(signal), std::end(signal), 0.f);
     test_case.add_input<float>(signal_shape, signal);
-    // test_case.add_expected_output<float>( // TODO: FIX
+    test_case.add_expected_output<float>(Shape{1, 15, 9, 2}, {120.0f, 0.0f, -8.0f, 40.218716f, -8.0f, 19.31371f, -8.0f, 11.972846f, -8.0f, 8.0f, -8.0f, 5.3454294f, -8.0f, 3.3137083f, -8.0f, 1.5912971f, -8.0f, 0.0f, 248.0f, 0.0f, -8.0f, 40.218716f, -8.0f, 19.31371f, -8.0f, 11.972846f, -8.0f, 8.0f, -8.0f, 5.3454294f, -8.0f, 3.3137083f, -8.0f, 1.5912971f, -8.0f, 0.0f, 376.0f, 0.0f, -8.0f, 40.218716f, -8.0f, 19.31371f, -8.0f, 11.972846f, -8.0f, 8.0f, -8.0f, 5.3454294f, -8.0f, 3.3137083f, -8.0f, 1.5912971f, -8.0f, 0.0f, 504.0f, 0.0f, -8.0f, 40.218716f, -8.0f, 19.31371f, -8.0f, 11.972846f, -8.0f, 8.0f, -8.0f, 5.3454294f, -8.0f, 3.3137083f, -8.0f, 1.5912971f, -8.0f, 0.0f, 632.0f, 0.0f, -8.0f, 40.218716f, -8.0f, 19.31371f, -8.0f, 11.972846f, -8.0f, 8.0f, -8.0f, 5.3454294f, -8.0f, 3.3137083f, -8.0f, 1.5912971f, -8.0f, 0.0f, 760.0f, 0.0f, -8.0f, 40.218716f, -8.0f, 19.31371f, -8.0f, 11.972846f, -8.0f, 8.0f, -8.0f, 5.3454294f, -8.0f, 3.3137083f, -8.0f, 1.5912971f, -8.0f, 0.0f, 888.0f, 0.0f, -8.0f, 40.218716f, -8.0f, 19.31371f, -8.0f, 11.972846f, -8.0f, 8.0f, -8.0f, 5.3454294f, -8.0f, 3.3137083f, -8.0f, 1.5912971f, -8.0f, 0.0f, 1016.0f, 0.0f, -8.0f, 40.218716f, -8.0f, 19.31371f, -8.0f, 11.972846f, -8.0f, 8.0f, -8.0f, 5.3454294f, -8.0f, 3.3137083f, -8.0f, 1.5912971f, -8.0f, 0.0f, 1144.0f, 0.0f, -8.0f, 40.218716f, -8.0f, 19.31371f, -8.0f, 11.972846f, -8.0f, 8.0f, -8.0f, 5.3454294f, -8.0f, 3.3137083f, -8.0f, 1.5912971f, -8.0f, 0.0f, 1272.0f, 0.0f, -8.0f, 40.218716f, -8.0f, 19.31371f, -8.0f, 11.972846f, -8.0f, 8.0f, -8.0f, 5.3454294f, -8.0f, 3.3137083f, -8.0f, 1.5912971f, -8.0f, 0.0f, 1400.0f, 0.0f, -8.0f, 40.218716f, -8.0f, 19.31371f, -8.0f, 11.972846f, -8.0f, 8.0f, -8.0f, 5.3454294f, -8.0f, 3.3137083f, -8.0f, 1.5912971f, -8.0f, 0.0f, 1528.0f, 0.0f, -8.0f, 40.218716f, -8.0f, 19.31371f, -8.0f, 11.972846f, -8.0f, 8.0f, -8.0f, 5.3454294f, -8.0f, 3.3137083f, -8.0f, 1.5912971f, -8.0f, 0.0f, 1656.0f, 0.0f, -8.0f, 40.218716f, -8.0f, 19.31371f, -8.0f, 11.972846f, -8.0f, 8.0f, -8.0f, 5.3454294f, -8.0f, 3.3137083f, -8.0f, 1.5912971f, -8.0f, 0.0f, 1784.0f, 0.0f, -8.0f, 40.218716f, -8.0f, 19.31371f, -8.0f, 11.972846f, -8.0f, 8.0f, -8.0f, 5.3454294f, -8.0f, 3.3137083f, -8.0f, 1.5912971f, -8.0f, 0.0f, 1912.0f, 0.0f, -8.0f, 40.218716f, -8.0f, 19.31371f, -8.0f, 11.972846f, -8.0f, 8.0f, -8.0f, 5.3454294f, -8.0f, 3.3137083f, -8.0f, 1.5912971f, -8.0f, 0.0f});
 }
+
+// input complex vs input not complex
+// frame frame lenght given and default
+// given window
+// non-const frame step
+// exception if not 3D input
+// exception if dynamic signal axis
