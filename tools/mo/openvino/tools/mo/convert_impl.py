@@ -775,7 +775,7 @@ def _convert(cli_parser: argparse.ArgumentParser, framework, args):
                                                                            if argv.feManager else [])))
         framework = argv.framework if hasattr(argv, 'framework') and argv.framework is not None else framework
         if framework is not None:
-            assert framework in frameworks, "error: argument --framework: invalid choice: {}. " \
+            assert framework in frameworks, "error: argument --framework: invalid choice: '{}'. " \
                                             "Expected one of {}.".format(framework, frameworks)
             setattr(argv, 'framework', framework)
 
