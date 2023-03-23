@@ -5,7 +5,6 @@
 #pragma once
 
 #include "openvino/frontend/exception.hpp"
-#include "openvino/frontend/extension/telemetry.hpp"
 #include "openvino/frontend/input_model.hpp"
 #include "openvino/frontend/place.hpp"
 
@@ -32,8 +31,7 @@ class InputModel : public ov::frontend::InputModel {
     friend class ::ov::frontend::pytorch::Place;
 
 public:
-    explicit InputModel(const std::shared_ptr<TorchDecoder>& model_decoder,
-                        const std::shared_ptr<TelemetryExtension>& telemetry = {});
+    explicit InputModel(const std::shared_ptr<TorchDecoder>& model_decoder);
 
     std::vector<frontend::Place::Ptr> get_inputs() const override;
     std::vector<frontend::Place::Ptr> get_outputs() const override;
@@ -48,7 +46,6 @@ private:
     std::shared_ptr<TorchDecoder> m_model_decoder;
     std::unordered_map<std::string, std::shared_ptr<frontend::Place>> m_name_to_place;
     std::unordered_map<size_t, PlaceDesc> m_descriptors;
-    std::shared_ptr<TelemetryExtension> m_telemetry;
 };
 
 }  // namespace pytorch

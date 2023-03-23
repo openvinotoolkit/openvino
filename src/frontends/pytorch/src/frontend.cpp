@@ -78,7 +78,7 @@ void FrontEnd::convert(const std::shared_ptr<Model>& partiallyConverted) const {
 std::shared_ptr<Model> FrontEnd::convert_partially(const ov::frontend::InputModel::Ptr& model) const {
     FRONT_END_GENERAL_CHECK(std::dynamic_pointer_cast<pytorch::InputModel>(model), "Invalid input model");
     try {
-        TranslateSession translate_session(model, m_op_translators);
+        TranslateSession translate_session(model, m_op_translators, m_telemetry);
         return translate_session.get_converted_model();
     } catch (const std::runtime_error& e) {
         std::cerr << "[ ERROR ] Unexpected error while converting pytorch model: " << e.what() << '\n';
@@ -135,7 +135,7 @@ void FrontEnd::normalize(const std::shared_ptr<ov::Model>& model) const {
 }
 
 void FrontEnd::add_extension(const std::shared_ptr<ov::Extension>& extension) {
-    if (auto telemetry = std::dynamic_pointer_cast<TelemetryExtension>(extension)) {
+    if (const auto& telemetry = std::dynamic_pointer_cast<TelemetryExtension>(extension)) {
         m_telemetry = telemetry;
     }
 }
@@ -156,7 +156,7 @@ ov::frontend::InputModel::Ptr FrontEnd::load_impl(const std::vector<ov::Any>& va
     auto decoder = variants[0].as<std::shared_ptr<IDecoder>>();
     auto tdecoder = std::dynamic_pointer_cast<TorchDecoder>(decoder);
     FRONT_END_GENERAL_CHECK(tdecoder, "Couldn't cast ov::Any to TorchDecoder");
-    return std::make_shared<pytorch::InputModel>(tdecoder, m_telemetry);
+    return std::make_shared<pytorch::InputModel>(tdecoder);
 }
 
 }  // namespace pytorch
