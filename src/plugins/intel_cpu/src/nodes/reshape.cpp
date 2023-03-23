@@ -42,17 +42,17 @@ public:
     ReshapeShapeInfer(bool specialZero) : m_specialZero(specialZero) {}
     Result infer(const std::vector<std::reference_wrapper<const VectorDims>>& input_shapes,
                  const std::unordered_map<size_t, MemoryPtr>& data_dependency) override {
-        static constexpr size_t RESHAPE_DATA = 0, RESHAPE_SHAPE = 1;
-        const auto& inputShape = input_shapes[RESHAPE_DATA].get();
+        static constexpr size_t RESHAPE_SRC = 0, RESHAPE_PATTERN = 1;
+        const auto& inputShape = input_shapes[RESHAPE_SRC].get();
         const size_t inputShapeSize = inputShape.size();
-        const auto memPtr = data_dependency.at(RESHAPE_SHAPE);
+        const auto memPtr = data_dependency.at(RESHAPE_PATTERN);
         const auto data = memPtr->GetPtr();
         const auto outputPatternSize = shape_size(ov::Shape(memPtr->getStaticDims()));
-        std::vector<int32_t> outPattern = ov::get_raw_data_as<int32_t>(
-                InferenceEngine::details::convertPrecision(memPtr->getDesc().getPrecision()),
-                data,
-                outputPatternSize,
-                ov::util::Cast<int32_t>());
+        std::vector<int64_t> outPattern = ov::get_raw_data_as<int64_t>(
+                                              InferenceEngine::details::convertPrecision(memPtr->getDesc().getPrecision()),
+                                              data,
+                                              outputPatternSize,
+                                              ov::util::Cast<int64_t>());
         VectorDims outputShape(outputPatternSize);
         size_t outputProduct(1);
         size_t minusOneIdx = -1;
@@ -78,7 +78,7 @@ public:
             outputProduct *= outputShape[minusOneIdx];
         }
         if (minusOneCount > 1  || inputProduct != outputProduct) {
-            IE_THROW(Unexpected) << "the shape of input data is conflict with shape pattern";
+            IE_THROW(Unexpected) << "[cpu]reshape: the shape of input data is conflict with reshape pattern";
         }
         return {{std::move(outputShape)}, ShapeInferStatus::success};
     }
@@ -90,12 +90,128 @@ private:
     bool m_specialZero;
 };
 
+class SqueezeShapeInfer : public ShapeInferEmptyPads {
+public:
+    SqueezeShapeInfer() {}
+    Result infer(const std::vector<std::reference_wrapper<const VectorDims>>& input_shapes,
+                 const std::unordered_map<size_t, MemoryPtr>& data_dependency) override {
+        static constexpr size_t SQUEEZE_SRC = 0, SQUEEZE_PATTERN = 1;
+        const auto& inputShape = input_shapes[SQUEEZE_SRC].get();
+        const size_t inputShapeSize = inputShape.size();
+        auto itr = data_dependency.find(SQUEEZE_PATTERN);
+        VectorDims outputShape;
+        if (itr != data_dependency.end()) {
+            const auto memPtr = data_dependency.at(SQUEEZE_PATTERN);
+            const auto data = memPtr->GetPtr();
+            const auto outputPatternSize = shape_size(ov::Shape(memPtr->getStaticDims()));
+            std::vector<int64_t> outPattern = ov::get_raw_data_as<int64_t>(
+                                                  InferenceEngine::details::convertPrecision(memPtr->getDesc().getPrecision()),
+                                                  data,
+                                                  outputPatternSize,
+                                                  ov::util::Cast<int64_t>());
+            std::vector<bool> removeMask(inputShapeSize, false);
+            bool existError = false;
+            for (size_t i = 0; i < outputPatternSize; i++) {
+                if (outPattern[i] < 0) {
+                    outPattern[i] = inputShapeSize + outPattern[i];
+                }
+                if (outPattern[i] >= 0 && outPattern[i] < inputShapeSize) {
+                    removeMask[outPattern[i]] = true;
+                } else {
+                    existError = true;
+                    break;
+                }
+            }
+            for (size_t i = 0; i < inputShapeSize; i++) {
+                if (!removeMask[i]) {
+                    outputShape.push_back(inputShape[i]);
+                } else if (inputShape[i] != 1) {
+                    existError = true;
+                    break;
+                }
+            }
+            if (existError) {
+                IE_THROW(Unexpected) << "[cpu]squeeze: the shape of input data is conflict with squeeze pattern";
+            }
+        } else {
+            for (size_t i = 0; i < inputShapeSize; i++) {
+                if (inputShape[i] != 1) {
+                    outputShape.push_back(inputShape[i]);
+                }
+            }
+        }
+        return {{std::move(outputShape)}, ShapeInferStatus::success};
+    }
+    port_mask_t get_port_mask() const override {
+        return PortMask(1);
+    }
+};
+
+class UnsqueezeShapeInfer : public ShapeInferEmptyPads {
+public:
+    UnsqueezeShapeInfer() {}
+    Result infer(const std::vector<std::reference_wrapper<const VectorDims>>& input_shapes,
+                 const std::unordered_map<size_t, MemoryPtr>& data_dependency) override {
+        static constexpr size_t UNSQUEEZE_SRC = 0, UNSQUEEZE_PATTERN = 1;
+        const auto& inputShape = input_shapes[UNSQUEEZE_SRC].get();
+        const size_t inputShapeSize = inputShape.size();
+        const auto memPtr = data_dependency.at(UNSQUEEZE_PATTERN);
+        const auto data = memPtr->GetPtr();
+        const auto outputPatternSize = shape_size(ov::Shape(memPtr->getStaticDims()));
+        std::vector<int64_t> outPattern = ov::get_raw_data_as<int64_t>(
+                                              InferenceEngine::details::convertPrecision(memPtr->getDesc().getPrecision()),
+                                              data,
+                                              outputPatternSize,
+                                              ov::util::Cast<int64_t>());
+        size_t outputShapeSize = inputShapeSize + outputPatternSize;
+        VectorDims outputShape(outputShapeSize, 0);
+        bool existError = false;
+        for (size_t i = 0; i < outputPatternSize; i++) {
+            if (outPattern[i] < 0) {
+                outPattern[i] = outputShapeSize + outPattern[i];
+            }
+            if (outPattern[i] >= 0 && outPattern[i] < inputShapeSize) {
+                outputShape[outPattern[i]] = 1;
+            } else {
+                existError = true;
+                break;
+            }
+        }
+        for (size_t i = 0, y = 0; i < outputShapeSize; i++) {
+            if (outputShape[i] == 0) {
+                if (y < inputShapeSize) {
+                    outputShape[i] = inputShape[y];
+                    y++;
+                } else {
+                    existError = true;
+                    break;
+                }
+            }
+        }
+        if (existError) {
+            IE_THROW(Unexpected) << "[cpu]unsqueeze: the shape of input data is conflict with unsqueeze pattern";
+        }
+        return {{std::move(outputShape)}, ShapeInferStatus::success};
+    }
+    port_mask_t get_port_mask() const override {
+        return PortMask(1);
+    }
+};
+
 class ReshapeShapeInferFactory : public ShapeInferFactory {
 public:
     ReshapeShapeInferFactory(std::shared_ptr<ov::Node> op) : m_op(op) {}
     ShapeInferPtr makeShapeInfer() const override {
-        const auto reshapeOp = ov::as_type_ptr<const ov::op::v1::Reshape>(m_op);
-        return std::make_shared<ReshapeShapeInfer>(reshapeOp->get_special_zero());
+        if (ov::is_type<ov::op::v1::Reshape>(m_op)) {
+            const auto reshapeOp = ov::as_type_ptr<const ov::op::v1::Reshape>(m_op);
+            return std::make_shared<ReshapeShapeInfer>(reshapeOp->get_special_zero());
+        } else if (ov::is_type<ov::op::v0::Squeeze>(m_op)) {
+            return std::make_shared<SqueezeShapeInfer>();
+        } else if (ov::is_type<ov::op::v0::Unsqueeze>(m_op)) {
+            return std::make_shared<UnsqueezeShapeInfer>();
+        } else {
+            IE_THROW(Unexpected) << "[cpu]reshape: " << m_op->get_type_name() << "not implement";
+        }
     }
 private:
     std::shared_ptr<ov::Node> m_op;
