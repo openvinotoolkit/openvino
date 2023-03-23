@@ -45,12 +45,13 @@ public:
         for (int input_ind = 0; input_ind < input_size; ++input_ind) {
             auto input_arg = &m_func_def->signature().input_arg(input_ind);
             m_input_names.push_back(input_arg->name());
-            m_decoders.push_back(std::make_shared<DecoderArgDef>(input_arg, "input_arg"));
+            m_decoders.push_back(std::make_shared<DecoderArgDef>(input_arg, m_graph_def, m_func_def, "input_arg"));
         }
 
         // fill all node defs from library functions
         for (int node_ind = 0; node_ind < nodes_size; ++node_ind) {
-            m_decoders.push_back(std::make_shared<DecoderProto>(&(m_func_def->node_def(node_ind))));
+            m_decoders.push_back(
+                std::make_shared<DecoderProto>(&(m_func_def->node_def(node_ind)), m_graph_def, m_func_def));
         }
 
         // fill all outputs from library functions
@@ -60,7 +61,8 @@ public:
             auto output_arg = &m_func_def->signature().output_arg(output_ind);
             m_output_names.push_back(output_arg->name());
             auto producer_name = ret_map.at(output_arg->name());
-            m_decoders.push_back(std::make_shared<DecoderArgDef>(output_arg, "output_arg", producer_name));
+            m_decoders.push_back(
+                std::make_shared<DecoderArgDef>(output_arg, m_graph_def, m_func_def, "output_arg", producer_name));
         }
     }
 
@@ -76,7 +78,7 @@ public:
         auto nodes_size = m_graph_def->node_size();
         m_decoders.resize(static_cast<size_t>(nodes_size));
         for (int node_ind = 0; node_ind < nodes_size; ++node_ind) {
-            m_decoders[node_ind] = std::make_shared<DecoderProto>(&m_graph_def->node(node_ind));
+            m_decoders[node_ind] = std::make_shared<DecoderProto>(&m_graph_def->node(node_ind), m_graph_def);
         }
 
         // initialize a library map
