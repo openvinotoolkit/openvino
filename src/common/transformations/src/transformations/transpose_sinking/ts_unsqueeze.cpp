@@ -24,13 +24,13 @@ using namespace ov::pass::transpose_sinking::utils;
 namespace {
 
 /**
-* @brief Checks that Reshape operation is equal to Unsqueeze:
-* Only 1 dims are inserted, all other dims must be the same.
-* Converts these 1 dims to axes format.
-* @arg reshape Reshape operation.
-* @arg reshape_to_shape 2nd input to Reshape op as a constant.
-* @arg result_axes contains axes which will be unsqueezed.
-*/
+ * @brief Checks that Reshape operation is equal to Unsqueeze:
+ * Only 1 dims are inserted, all other dims must be the same.
+ * Converts these 1 dims to axes format.
+ * @arg reshape Reshape operation.
+ * @arg reshape_to_shape 2nd input to Reshape op as a constant.
+ * @arg result_axes contains axes which will be unsqueezed.
+ */
 bool shape_to_unsqueeze_axes(const std::shared_ptr<Node>& reshape,
                              const std::shared_ptr<Constant>& reshape_to_shape,
                              std::vector<size_t>& result_axes) {
@@ -69,14 +69,15 @@ bool shape_to_unsqueeze_axes(const std::shared_ptr<Node>& reshape,
 }
 
 /**
-* @brief Converts unsqueeze_axes to actual shape (2nd input) for Reshape operation
-* using the shape of the 1st input to Reshape.
-* @arg input_node 1st input to Reshape op.
-* @arg unsqueeze_axes In case of Reshape op is equal to Unsqueeze, these axes indicate the places where 1 dims have
-* to be inserted.
-*/
-bool unsqueeze_axes_to_shape(const Output<Node>& input_node, std::vector<size_t> unsqueeze_axes,
-                                            std::vector<size_t>& to_shape) {
+ * @brief Converts unsqueeze_axes to actual shape (2nd input) for Reshape operation
+ * using the shape of the 1st input to Reshape.
+ * @arg input_node 1st input to Reshape op.
+ * @arg unsqueeze_axes In case of Reshape op is equal to Unsqueeze, these axes indicate the places where 1 dims have
+ * to be inserted.
+ */
+bool unsqueeze_axes_to_shape(const Output<Node>& input_node,
+                             std::vector<size_t> unsqueeze_axes,
+                             std::vector<size_t>& to_shape) {
     to_shape.clear();
     const auto& input_pshape = input_node.get_partial_shape();
     if (input_pshape.is_dynamic()) {
