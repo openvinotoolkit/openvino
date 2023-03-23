@@ -34,7 +34,7 @@ def interpolate(
     axes: Optional[NodeInput] = None,
     name: Optional[str] = None,
 ) -> Node:
-    """Perfors the interpolation of the input tensor.
+    """Performs the interpolation of the input tensor.
 
     :param  image:         The node providing input tensor with data for interpolation.
     :param  scales_or_sizes:
@@ -75,3 +75,33 @@ def interpolate(
     inputs = as_nodes(image, scales_or_sizes) if axes is None else as_nodes(image, scales_or_sizes, axes)
 
     return _get_node_factory_opset11().create("Interpolate", inputs, attrs)
+
+
+@nameable_op
+def topk(
+    data: NodeInput,
+    k: NodeInput,
+    axis: int,
+    mode: str,
+    sort: str,
+    index_element_type: str = "i32",
+    stable: bool = False,
+    name: Optional[str] = None,
+) -> Node:
+    """Return a node which performs TopK.
+
+    :param data: Input data.
+    :param k: K.
+    :param axis: TopK Axis.
+    :param mode: Compute TopK largest ('max') or smallest ('min')
+    :param sort: Order of output elements (sort by: 'none', 'index' or 'value')
+    :param index_element_type: Type of output tensor with indices.
+    :param stable: Specifies whether the equivalent elements should maintain
+                   their relative order from the input tensor during sorting.
+    :return: The new node which performs TopK
+    """
+    return _get_node_factory_opset11().create(
+        "TopK",
+        as_nodes(data, k),
+        {"axis": axis, "mode": mode, "sort": sort, "index_element_type": index_element_type, "stable": stable},
+    )
