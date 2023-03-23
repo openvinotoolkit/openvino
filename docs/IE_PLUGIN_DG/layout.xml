@@ -79,6 +79,7 @@
                 </tab>
                 <tab type="user" url="@ref infer_request" visibile="yes" title="Implement Synchronous Inference Request"/>
                 <tab type="user" url="@ref async_infer_request" visibile="yes" title="Implement Asynchronous Inference Request"/>
+                <tab type="user" url="@ref properties" visibile="yes" title="Provide Plugin Specific Properties"/>
                 <tab type="user" url="@ref remote_context" visibile="yes" title="Implement Remote Context"/>
                 <tab type="user" url="@ref remote_tensor" visibile="yes" title="Implement Remote Tensor"/>
             </tab>
