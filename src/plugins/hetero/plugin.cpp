@@ -16,6 +16,7 @@
 #include "ie_plugin_config.hpp"
 #include "executable_network.hpp"
 #include "cpp_interfaces/interface/ie_internal_plugin_config.hpp"
+#include "openvino/util/common_util.hpp"
 #include "openvino/runtime/properties.hpp"
 // clang-format on
 
@@ -72,36 +73,36 @@ std::string Engine::GetTargetFallback(const Engine::Configs& config, bool raise_
 }
 
 InferenceEngine::IExecutableNetworkInternal::Ptr Engine::LoadExeNetworkImpl(const InferenceEngine::CNNNetwork& network,
-                                                                            const Configs& config) {
+                                                                            const Configs& user_config) {
     if (GetCore() == nullptr) {
         IE_THROW() << "Please, work with HETERO device via InferencEngine::Core object";
     }
-    auto tconfig = mergeConfigs(_config, config);
-    std::string fallbackDevicesStr = GetTargetFallback(tconfig);
-    DeviceMetaInformationMap metaDevices = GetDevicePlugins(fallbackDevicesStr, tconfig);
+    auto full_config = mergeConfigs(_config, user_config);
+    std::string fallbackDevicesStr = GetTargetFallback(full_config);
+    DeviceMetaInformationMap metaDevices = GetDevicePlugins(fallbackDevicesStr, user_config);
 
     auto function = network.getFunction();
     if (function == nullptr) {
         IE_THROW() << "HETERO device supports just ngraph network representation";
     }
 
-    return std::make_shared<HeteroExecutableNetwork>(network, mergeConfigs(_config, config), this);
+    return std::make_shared<HeteroExecutableNetwork>(network, full_config, this);
 }
 
 InferenceEngine::IExecutableNetworkInternal::Ptr Engine::ImportNetwork(
     std::istream& heteroModel,
-    const std::map<std::string, std::string>& config) {
-    return std::make_shared<HeteroExecutableNetwork>(heteroModel, mergeConfigs(_config, config), this);
+    const std::map<std::string, std::string>& user_config) {
+    return std::make_shared<HeteroExecutableNetwork>(heteroModel, mergeConfigs(_config, user_config), this);
 }
 
 Engine::DeviceMetaInformationMap Engine::GetDevicePlugins(const std::string& targetFallback,
-                                                          const Configs& localConfig) const {
+                                                          const Configs& user_config) const {
     auto fallbackDevices = ov::DeviceIDParser::get_hetero_devices(targetFallback);
     Engine::DeviceMetaInformationMap metaDevices;
     for (auto&& deviceName : fallbackDevices) {
         auto itPlugin = metaDevices.find(deviceName);
         if (metaDevices.end() == itPlugin) {
-            metaDevices[deviceName] = GetCore()->GetSupportedConfig(deviceName, mergeConfigs(_config, localConfig));
+            metaDevices[deviceName] = GetCore()->GetSupportedConfig(deviceName, user_config);
         }
     }
     return metaDevices;
@@ -118,16 +119,16 @@ void Engine::SetConfig(const Configs& configs) {
     }
 }
 
-QueryNetworkResult Engine::QueryNetwork(const CNNNetwork& network, const Configs& config) const {
+QueryNetworkResult Engine::QueryNetwork(const CNNNetwork& network, const Configs& user_config) const {
     QueryNetworkResult qr;
 
     if (GetCore() == nullptr) {
         IE_THROW() << "Please, work with HETERO device via InferencEngine::Core object";
     }
 
-    auto tconfig = mergeConfigs(_config, config);
-    std::string fallbackDevicesStr = GetTargetFallback(tconfig);
-    DeviceMetaInformationMap metaDevices = GetDevicePlugins(fallbackDevicesStr, tconfig);
+    auto full_config = mergeConfigs(_config, user_config);
+    std::string fallbackDevicesStr = GetTargetFallback(full_config);
+    DeviceMetaInformationMap metaDevices = GetDevicePlugins(fallbackDevicesStr, user_config);
 
     auto function = network.getFunction();
     if (function == nullptr) {
@@ -136,7 +137,7 @@ QueryNetworkResult Engine::QueryNetwork(const CNNNetwork& network, const Configs
 
     std::map<std::string, QueryNetworkResult> queryResults;
     for (auto&& metaDevice : metaDevices) {
-        auto& deviceName = metaDevice.first;
+        const auto& deviceName = metaDevice.first;
         queryResults[deviceName] = GetCore()->QueryNetwork(network, deviceName, metaDevice.second);
     }
 
@@ -155,7 +156,7 @@ QueryNetworkResult Engine::QueryNetwork(const CNNNetwork& network, const Configs
     return qr;
 }
 
-Parameter Engine::GetMetric(const std::string& name, const std::map<std::string, Parameter>& options) const {
+Parameter Engine::GetMetric(const std::string& name, const std::map<std::string, Parameter>& user_options) const {
     if (ov::supported_properties == name) {
         return decltype(ov::supported_properties)::value_type{
             ov::PropertyName{ov::supported_properties.name(), ov::PropertyMutability::RO},
@@ -180,8 +181,7 @@ Parameter Engine::GetMetric(const std::string& name, const std::map<std::string,
     } else if (ov::device::capabilities == name) {
         return decltype(ov::device::capabilities)::value_type{{ov::device::capability::EXPORT_IMPORT}};
     } else if (ov::device::architecture == name) {
-        auto tconfig = mergeConfigs(_config, options);
-        std::string targetFallback = GetTargetFallback(tconfig);
+        std::string targetFallback = GetTargetFallback(mergeConfigs(_config, user_options));
         return decltype(ov::device::architecture)::value_type{DeviceArchitecture(targetFallback)};
     } else {
         IE_THROW() << "Unsupported metric key: " << name;
