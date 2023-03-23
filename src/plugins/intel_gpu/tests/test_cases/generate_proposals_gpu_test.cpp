@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "intel_gpu/runtime/execution_config.hpp"
 #include "test_utils.h"
 
 #include <intel_gpu/primitives/generate_proposals.hpp>
@@ -289,7 +290,7 @@ public:
         const auto rois_num_type = type_to_data_type<ROIS_NUM_T>::value;
 
         auto& engine = get_test_engine();
-
+        std::shared_ptr<cldnn::stream> stream = get_test_stream_ptr();;
         const primitive_id input_im_info_id = "InputImInfo";
         const auto input_im_info = engine.allocate_memory({data_type, format::bfyx, tensor{batch(num_batches), feature(3)}});
         set_values(input_im_info, getValues<T>(im_info));
@@ -355,7 +356,7 @@ public:
         const primitive_id reorder_result_id = generate_proposals_id + "Reordered";
         topology.add(reorder(reorder_result_id, input_info(generate_proposals_id), format::bfyx, data_type));
 
-        cldnn::network::ptr network = get_network(engine, topology, ExecutionConfig(), get_test_stream_ptr(), is_caching_test);
+        cldnn::network::ptr network = get_network(engine, topology, get_test_default_config(engine), stream, is_caching_test);
 
         network->set_input_data(input_im_info_id, input_im_info);
         network->set_input_data(input_anchors_id, input_anchors);
@@ -366,7 +367,7 @@ public:
 
         const auto rois = outputs.at(reorder_result_id).get_memory();
 
-        const cldnn::mem_lock<T> rois_ptr(rois, get_test_stream());
+        const cldnn::mem_lock<T> rois_ptr(rois, *stream);
         ASSERT_EQ(rois_ptr.size(), num_batches * param.post_nms_count * 4);
 
         const auto get_plane_data = [&](const memory::ptr& mem, const data_types data_type, const layout& from_layout) {
@@ -376,7 +377,7 @@ public:
             cldnn::topology reorder_topology;
             reorder_topology.add(input_layout("data", from_layout));
             reorder_topology.add(reorder("plane_data", input_info("data"), format::bfyx, data_type));
-            cldnn::network reorder_net{engine, reorder_topology};
+            cldnn::network reorder_net{engine, reorder_topology, get_test_default_config(engine)};
             reorder_net.set_input_data("data", mem);
             const auto second_output_result = reorder_net.execute();
             const auto plane_data_mem = second_output_result.at("plane_data").get_memory();
@@ -384,11 +385,11 @@ public:
         };
 
         const cldnn::mem_lock<T> roi_scores_ptr(
-                get_plane_data(output_roi_scores, data_type, rois_scores_layout), get_test_stream());
+                get_plane_data(output_roi_scores, data_type, rois_scores_layout), *stream);
         ASSERT_EQ(roi_scores_ptr.size(), num_batches * param.post_nms_count);
 
         const cldnn::mem_lock<ROIS_NUM_T> rois_num_ptr(
-                get_plane_data(output_rois_num, rois_num_type, rois_num_layout), get_test_stream());
+                get_plane_data(output_rois_num, rois_num_type, rois_num_layout), *stream);
         ASSERT_EQ(rois_num_ptr.size(), num_batches);
 
         const auto& expected_rois = param.expected_rois;

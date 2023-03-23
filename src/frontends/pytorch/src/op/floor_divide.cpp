@@ -14,10 +14,11 @@ namespace op {
 
 using namespace ov::op;
 
-OutputVector translate_floor_divide(NodeContext& context) {
+OutputVector translate_floor_divide(const NodeContext& context) {
     num_inputs_check(context, 2, 2);
     auto x = context.get_input(0);
     auto y = context.get_input(1);
+    align_eltwise_input_types(context, x, y, true);
     auto div = context.mark_node(std::make_shared<v1::Divide>(x, y, true));
     return {context.mark_node(std::make_shared<v0::Floor>(div))};
 };
