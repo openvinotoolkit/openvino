@@ -209,7 +209,10 @@ TEST_P(ExpectFailedGroupConvolutionLayerCPUTest, CompareWithRefs) {
     if (isBias) {
         checkBiasFusing(compiledModel);
     }
-    ExpectPluginRelatedResultsFailed(compiledModel, "Convolution");
+    bool isCurrentTestDisabled = FuncTestUtils::SkipTestsConfig::currentTestIsDisabled();
+    if (!isCurrentTestDisabled) {
+        ExpectPluginRelatedResultsFailed(compiledModel, "Convolution");
+    }
 }
 
 TEST_P(GroupConvolutionLayerCPUTest, CompareWithRefs) {
