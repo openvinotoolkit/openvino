@@ -12,7 +12,6 @@
 #include "itt.hpp"
 #include "openvino/runtime/properties.hpp"
 #include "plugin.hpp"
-#include "template/config.hpp"
 #include "transformations/utils/utils.hpp"
 
 // ! [compiled_model:ctor]
@@ -47,6 +46,8 @@ ov::template_plugin::CompiledModel::CompiledModel(const std::shared_ptr<ov::Mode
 void transform_model(const std::shared_ptr<ov::Model>& model);
 
 void ov::template_plugin::CompiledModel::compile_model(const std::shared_ptr<ov::Model>& model) {
+    if (m_cfg.disable_transformations)
+        return;
     // apply plugins transformations
     transform_model(model);
     // Perform any other steps like allocation and filling backend specific memory handles and so on
@@ -107,9 +108,7 @@ ov::Any ov::template_plugin::CompiledModel::get_property(const std::string& name
         return ro_properties;
     };
     const auto& default_rw_properties = []() {
-        std::vector<ov::PropertyName> rw_properties{ov::device::id,
-                                                    ov::enable_profiling,
-                                                    ov::template_plugin::throughput_streams};
+        std::vector<ov::PropertyName> rw_properties{ov::device::id, ov::enable_profiling};
         return rw_properties;
     };
     const auto& to_string_vector = [](const std::vector<ov::PropertyName>& properties) {
