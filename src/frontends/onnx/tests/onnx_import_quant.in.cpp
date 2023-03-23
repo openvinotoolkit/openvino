@@ -1061,7 +1061,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_fake_quantize_const_inputs_infer) {
     const Shape data_shape{1, 2, 3, 4};
     const auto n_elements = shape_size(data_shape);
     std::vector<float> input_data(n_elements);
-    std::iota(std::begin(input_data), std::end(input_data), 0);
+    std::iota(std::begin(input_data), std::end(input_data), 0.f);
 
     auto test_case = test::TestCase(function, s_device);
     test_case.add_input<float>(input_data);
@@ -1081,7 +1081,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_fake_quantize_nonconst_inputs_infer) {
     const Shape data_shape{1, 2, 3, 4};
     const size_t n_elements = shape_size(data_shape);
     std::vector<float> input_data(n_elements);
-    std::iota(std::begin(input_data), std::end(input_data), 0);
+    std::iota(std::begin(input_data), std::end(input_data), 0.f);
 
     auto test_case = test::TestCase(function, s_device);
     test_case.add_input<float>(input_data);

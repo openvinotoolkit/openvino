@@ -56,7 +56,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_const_folding_model_scatter_elements) {
                                                                         SERIALIZED_ZOO,
                                                                         "onnx/scatter_elements_opset11.onnx"));
 
-    test_constant_folding<float>(fn, {1.0, 1.1, 3.0, 2.1, 5.0}, Shape{1, 5});
+    test_constant_folding<float>(fn, {1.0f, 1.1f, 3.0f, 2.1f, 5.0f}, Shape{1, 5});
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_const_folding_model_non_zero_scalar) {
