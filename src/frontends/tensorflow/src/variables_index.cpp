@@ -85,10 +85,10 @@ struct VIFooter {
 };
 
 void VariablesIndex::read_variables_index_block(std::ifstream& fs,
-                                                          const VIBlock& index,
-                                                          std::vector<char>& data,
-                                                          uint32_t& offset,
-                                                          uint32_t& offset_end) {
+                                                const VIBlock& index,
+                                                std::vector<char>& data,
+                                                uint32_t& offset,
+                                                uint32_t& offset_end) {
     size_t block_size = index.m_size;
     data.clear();
     data.resize(block_size + 5 /*kBlockTrailerSize*/);
@@ -118,10 +118,10 @@ void VariablesIndex::read_variables_index_block(std::ifstream& fs,
 }
 
 void VariablesIndex::read_variables_index_pair(char*& ptr,
-                                                         const char* ptr_end,
-                                                         std::string& key,
-                                                         char*& value,
-                                                         uint32_t& val_length) {
+                                               const char* ptr_end,
+                                               std::string& key,
+                                               char*& value,
+                                               uint32_t& val_length) {
     uint32_t shared, nonShared;
     shared = smUnpack<uint32_t>(ptr, ptr_end);
     nonShared = smUnpack<uint32_t>(ptr, ptr_end);
@@ -140,8 +140,7 @@ void VariablesIndex::read_variables_index_pair(char*& ptr,
     ptr = value + val_length;
 }
 
-void VariablesIndex::read_variables_index(std::ifstream& fs,
-                                                    std::map<std::string, std::vector<char>>& varIndex) {
+void VariablesIndex::read_variables_index(std::ifstream& fs, std::map<std::string, std::vector<char>>& varIndex) {
     VIFooter footer;
 
     footer.read(fs);
@@ -239,7 +238,7 @@ bool VariablesIndex::read_variables(std::ifstream& vi_stream, const std::string&
     std::vector<char> suffix(20);
     for (int32_t shard = 0; shard < m_total_shards; ++shard) {
         std::snprintf(suffix.data(), suffix.size(), "data-%05d-of-%05d", shard, m_total_shards);
-        std::string fullPath; 
+        std::string fullPath;
         if (is_saved_model) {
             fullPath = ov::util::path_join({path, "variables", std::string("variables.") + suffix.data()});
         } else {
@@ -282,7 +281,6 @@ bool VariablesIndex::read_variables(std::ifstream& vi_stream, const std::wstring
     return true;
 }
 #endif
-
 
 struct PtrNode {
     const ::tensorflow::NodeDef* node;
@@ -393,7 +391,7 @@ static void read_stateful_partitioned_call(const std::shared_ptr<::tensorflow::G
 }
 
 void VariablesIndex::map_assignvariable(const std::shared_ptr<::tensorflow::GraphDef> graph_def,
-                                                 std::map<std::string, std::string>& variables_map) {
+                                        std::map<std::string, std::string>& variables_map) {
     std::map<std::string, PtrNode*> nodes;
 
     for (const auto& node : graph_def->node()) {
@@ -405,32 +403,50 @@ void VariablesIndex::map_assignvariable(const std::shared_ptr<::tensorflow::Grap
     }
 
     for (const auto& node : nodes) {
-        if (node.second->op() != "AssignVariableOp") {
-            continue;
+        if (node.second->op() == "AssignVariableOp") {
+            // TODO: assets reading
+
+            std::vector<PtrNode*> restorev2_nodes;
+            std::vector<PtrNode*> varhandle_nodes;
+
+            node.second->find_parent_by_op("RestoreV2", restorev2_nodes);
+            node.second->find_parent_by_op("VarHandleOp", varhandle_nodes);
+
+            FRONT_END_GENERAL_CHECK(restorev2_nodes.size() == 1, "Found unexpected amount of RestoreV2 nodes");
+            FRONT_END_GENERAL_CHECK(varhandle_nodes.size() == 1, "Found unexpected amount of VarHandleOp nodes");
+
+            std::vector<std::string> restore_output;
+            // Expected path is: RestoreV2 -(output_index)-(0)-> Identity -(0)-(1)-> AssignVariableOp
+            PtrNode::parse_node_name(node.second->inputs[1]->node->input(0), restore_output);
+
+            int output_index = std::atoi(restore_output[restore_output.size() - 1].c_str());
+
+            // Expected path is: Const(tensor_names) -(0)-(1)-> RestoreV2
+            const auto& variable_name =
+                restorev2_nodes[0]->inputs[1]->node->attr().at("value").tensor().string_val(output_index);
+
+            variables_map[varhandle_nodes[0]->node->name()] = variable_name;
+        } else if (node.second->op() == "Assign") {
+            std::vector<PtrNode*> restorev2_nodes;
+            std::vector<PtrNode*> variablev2_nodes;
+
+            node.second->find_parent_by_op("RestoreV2", restorev2_nodes);
+            node.second->find_parent_by_op("VariableV2", variablev2_nodes);
+
+            if (restorev2_nodes.size() == 1 && variablev2_nodes.size() == 1) {
+                std::vector<std::string> restore_output;
+                // Expected path is: RestoreV2 -(output_index)-(0)-> Assign
+                PtrNode::parse_node_name(node.second->node->input(1), restore_output);
+
+                int output_index = std::atoi(restore_output[restore_output.size() - 1].c_str());
+
+                // Expected path is: Const(tensor_names) -(0)-(1)-> RestoreV2
+                const auto& variable_name =
+                    restorev2_nodes[0]->inputs[1]->node->attr().at("value").tensor().string_val(output_index);
+
+                variables_map[variablev2_nodes[0]->node->name()] = variable_name;
+            }
         }
-
-        // TODO: assets reading
-
-        std::vector<PtrNode*> restorev2_nodes;
-        std::vector<PtrNode*> varhandle_nodes;
-
-        node.second->find_parent_by_op("RestoreV2", restorev2_nodes);
-        node.second->find_parent_by_op("VarHandleOp", varhandle_nodes);
-
-        FRONT_END_GENERAL_CHECK(restorev2_nodes.size() == 1, "Found unexpected amount of RestoreV2 nodes");
-        FRONT_END_GENERAL_CHECK(varhandle_nodes.size() == 1, "Found unexpected amount of VarHandleOp nodes");
-
-        std::vector<std::string> restore_output;
-        // Expected path is: RestoreV2 -(output_index)-(0)-> Identity -(0)-(1)-> AssignVariableOp
-        PtrNode::parse_node_name(node.second->inputs[1]->node->input(0), restore_output);
-
-        int output_index = std::atoi(restore_output[restore_output.size() - 1].c_str());
-
-        // Expected path is: Const(tensor_names) -(0)-(1)-> RestoreV2
-        const auto& variable_name =
-            restorev2_nodes[0]->inputs[1]->node->attr().at("value").tensor().string_val(output_index);
-
-        variables_map[varhandle_nodes[0]->node->name()] = variable_name;
     }
 
     nodes.clear();
