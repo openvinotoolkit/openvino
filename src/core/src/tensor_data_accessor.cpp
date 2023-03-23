@@ -6,33 +6,32 @@
 
 namespace ov {
 template <>
-const ITensorDataAdapter* TensorAccessor<TensorVector>::operator()(size_t port) const {
+Tensor TensorAccessor<TensorVector>::operator()(size_t port) const {
     if (port < m_tensors->size()) {
-        m_adapter.m_ptr = &(*m_tensors)[port];
-        return &m_adapter;
+        return (*m_tensors)[port];
     } else {
-        return nullptr;
+        return null_tensor_accessor()(port);
     }
 }
 
 template <>
-const ITensorDataAdapter* TensorAccessor<HostTensorVector>::operator()(size_t port) const {
+Tensor TensorAccessor<HostTensorVector>::operator()(size_t port) const {
     if (port < m_tensors->size()) {
-        m_adapter.m_ptr = (*m_tensors)[port].get();
-        return &m_adapter;
+        auto ptr = (*m_tensors)[port];
+        return {ptr->get_element_type(), ptr->get_shape(), ptr->get_data_ptr()};
     } else {
-        return nullptr;
+        return null_tensor_accessor()(port);
     }
 }
 
 template <>
-const ITensorDataAdapter* TensorAccessor<std::map<size_t, HostTensorPtr>>::operator()(size_t port) const {
+Tensor TensorAccessor<std::map<size_t, HostTensorPtr>>::operator()(size_t port) const {
     const auto t_iter = m_tensors->find(port);
     if (t_iter != m_tensors->cend()) {
-        m_adapter.m_ptr = t_iter->second.get();
-        return &m_adapter;
+        auto ptr = t_iter->second.get();
+        return {ptr->get_element_type(), ptr->get_shape(), ptr->get_data_ptr()};
     } else {
-        return nullptr;
+        return null_tensor_accessor()(port);
     }
 }
 }  // namespace ov

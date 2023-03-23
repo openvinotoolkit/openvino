@@ -51,10 +51,13 @@ std::vector<layout> tile_inst::calc_output_layouts(tile_node const& /*node*/, co
         repeats_shape
     };
 
-    const auto repeats_data = ov::ContainerDataAdapter<std::vector<int64_t>>{desc->repeats};
+    auto repeats = desc->repeats;
     const auto data_accessor =
-        MemoryAccessor(&impl_param.memory_deps, impl_param.prog->get_stream(), [&repeats_data](size_t port) {
-            return (port == 1) ? &repeats_data : nullptr;
+        MemoryAccessor(&impl_param.memory_deps, impl_param.prog->get_stream(), [&repeats, &repeats_shape](size_t port) {
+            return (port == 1) ? ov::Tensor(data_type_to_element_type(data_types::i64),
+                                            repeats_shape.to_shape(),
+                                            repeats.data())
+                               : ov::null_tensor_accessor()(port);
         });
 
     std::vector<ShapeType> output_shapes = ov::op::v0::shape_infer(&op, input_shapes, data_accessor);

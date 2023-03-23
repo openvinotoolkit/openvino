@@ -5,7 +5,6 @@
 #pragma once
 
 #include "intel_gpu/runtime/memory.hpp"
-#include "memory_adapter.hpp"
 #include "tensor_data_accessor.hpp"
 
 namespace cldnn {
@@ -26,7 +25,7 @@ struct MemoryAccessor : public ov::ITensorAccessor {
         : m_ptrs{ptrs},
           m_stream{stream},
           m_clbk{},
-          m_adapter{} {}
+          m_accessed_data{} {}
 
     /**
      * @brief Construct a new Memory Accessor with custom callback function.
@@ -35,13 +34,15 @@ struct MemoryAccessor : public ov::ITensorAccessor {
      * @param stream  CLDNN stream used for memory locks.
      * @param clbk    Function object for custom callback when accessing data and not found in CLDNN memories.
      */
-    MemoryAccessor(const container_type* ptrs,
-                   const stream& stream,
-                   std::function<const ov::ITensorDataAdapter*(size_t)> clbk)
+    MemoryAccessor(const container_type* ptrs, const stream& stream, std::function<const ov::Tensor(size_t)> clbk)
         : m_ptrs{ptrs},
           m_stream{stream},
           m_clbk{std::move(clbk)},
-          m_adapter{} {}
+          m_accessed_data{} {}
+
+    ~MemoryAccessor() {
+        unlock_current_data();
+    }
 
     /**
      * @brief Get data from CLDNN memory container or by custom callback function if defined.
@@ -51,22 +52,33 @@ struct MemoryAccessor : public ov::ITensorAccessor {
      * @param port  Number of operator port to access data.
      * @return      Constant pointer to data adapter.
      */
-    const ov::ITensorDataAdapter* operator()(size_t port) const override {
+    ov::Tensor operator()(size_t port) const override {
+        unlock_current_data();
+        m_accessed_data = nullptr;
+
         const auto t_iter = m_ptrs->find(port);
         if (t_iter != m_ptrs->cend()) {
-            m_adapter.reset(new MemoryAdapter{t_iter->second, m_stream});
-            return m_adapter.get();
+            m_accessed_data = t_iter->second;
+            return {data_type_to_element_type(m_accessed_data->get_layout().data_type),
+                    m_accessed_data->get_layout().get_shape(),
+                    m_accessed_data->lock(m_stream, mem_lock_type::read)};
         } else if (m_clbk) {
             return m_clbk(port);
         } else {
-            return nullptr;
+            return ov::null_tensor_accessor()(port);
         }
     }
 
 private:
-    const container_type* m_ptrs;                                 //!< Pointer to CLDNN memory pointers with op data.
-    const stream& m_stream;                                       //!< Current stream used for data lock.
-    std::function<const ov::ITensorDataAdapter*(size_t)> m_clbk;  //!< Function object to get data if not in m_ptrs.
-    mutable std::unique_ptr<ov::ITensorDataAdapter> m_adapter;    //!< Holds data adapter from last get port.
+    void unlock_current_data() const {
+        if (m_accessed_data) {
+            m_accessed_data->unlock(m_stream);
+        }
+    }
+
+    const container_type* m_ptrs;              //!< Pointer to CLDNN memory pointers with op data.
+    const stream& m_stream;                    //!< Current stream used for data lock.
+    std::function<ov::Tensor(size_t)> m_clbk;  //!< Function object to get data if not in m_ptrs.
+    mutable memory::ptr m_accessed_data;       //!< Pointer to current accessed data.
 };
 }  // namespace cldnn
