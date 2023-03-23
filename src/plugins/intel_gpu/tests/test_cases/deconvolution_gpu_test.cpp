@@ -7,6 +7,7 @@
 #include <intel_gpu/primitives/input_layout.hpp>
 #include <intel_gpu/primitives/deconvolution.hpp>
 #include <intel_gpu/primitives/crop.hpp>
+#include <intel_gpu/primitives/eltwise.hpp>
 #include <intel_gpu/primitives/reorder.hpp>
 #include <intel_gpu/primitives/data.hpp>
 
@@ -175,7 +176,7 @@ TYPED_TEST(deconvolution_basic, basic_wsiz2x2_in2x2x1x1_nopad) {
         reorder("plane_output", input_info("deconv"), format::bfyx, cldnn::data_types::f32)
     );
 
-    network network(engine, topology);
+    network network(engine, topology, get_test_default_config(engine));
     network.set_input_data("input", input);
 
     auto outputs = network.execute();
@@ -235,8 +236,80 @@ TYPED_TEST(deconvolution_basic, no_bias_basic_wsiz2x2_in2x2x1x1_nopad) {
         reorder("plane_output", input_info("deconv"), format::bfyx, data_types::f32)
     );
 
-    network network(engine, topology);
+    network network(engine, topology, get_test_default_config(engine));
     network.set_input_data("input", input);
+
+    auto outputs = network.execute();
+    ASSERT_EQ(outputs.size(), size_t(1));
+    ASSERT_EQ(outputs.begin()->first, "plane_output");
+
+    auto output_prim = outputs.begin()->second.get_memory();
+
+    cldnn::mem_lock<float> output_ptr (output_prim, get_test_stream());
+
+    std::vector<float> expected_output_vec = {
+        -16.f, 3.f, 0.25f,
+        16.f, -1.25f, 5.25f,
+        21.f, 40.5f, 13.5f
+    };
+
+    for (unsigned int i = 0; i < expected_output_vec.size(); i++)
+    {
+        ASSERT_FLOAT_EQ(expected_output_vec[i], output_ptr[i]);
+    }
+}
+
+
+TYPED_TEST(deconvolution_basic, no_bias_basic_wsiz2x2_in2x2x1x1_nopad_exclude_fused_mem_dep) {
+    //  Filter : 2x2
+    //  Input  : 2x2
+    //  Output : 3x3
+    //
+    //  Input:
+    //  8  0.5
+    //  6  9
+    //
+    //  Filter
+    //  -2   0.5
+    //   3.5 1.5
+    //
+    //  no bias
+    //
+    //
+    //  Output:
+    // -16.f, 3.f, 0.25f,
+    // 16.f, -1.25f, 5.25f,
+    // 21.f, 40.5f, 13.5f
+
+    auto& engine = get_test_engine();
+
+    auto input = engine.allocate_memory({ data_types::f32, format::yxfb,{ 1, 1, 2, 2 } });
+    auto weights = engine.allocate_memory({ data_types::f32, format::oiyx,{ 1, 1, 2, 2 } });
+    auto elt_input = engine.allocate_memory({ data_types::f32, format::yxfb,{ 9, 1, 1, 1 } });
+    auto in_layout = layout(ov::PartialShape::dynamic(4), data_types::f32, format::yxfb);
+
+    set_values(input, { 8.f, 0.5f, 6.f, 9.f });
+    set_values(weights, { -2.0f, 0.5f, 3.5f, 1.5f });
+    set_values(elt_input, { 1.f, 1.f, 1.f, 1.f, 1.f, 1.f, 1.f, 1.f, 1.f });
+
+    topology topology(
+        input_layout("input", in_layout),
+        input_layout("elt_input", elt_input->get_layout()),
+        reorder("reordered_input", input_info("input"), this->input_layout_format, data_types::f32),
+        reorder("reordered_elt_input", input_info("elt_input"), format::bfyx, data_types::f32),
+        data("weights", weights),
+        deconvolution("deconv", input_info("reordered_input"), { "weights" }),
+        eltwise("elt_scale", { input_info("deconv"), input_info("reordered_elt_input") }, eltwise_mode::prod),
+        reorder("plane_output", input_info("elt_scale"), format::bfyx, data_types::f32)
+    );
+
+    ExecutionConfig config;
+    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+    config.set_property(ov::intel_gpu::optimize_data(true));
+
+    network network(engine, topology, config);
+    network.set_input_data("input", input);
+    network.set_input_data("elt_input", elt_input);
 
     auto outputs = network.execute();
     ASSERT_EQ(outputs.size(), size_t(1));
@@ -297,7 +370,7 @@ TYPED_TEST(deconvolution_basic, basic_wsiz2x2_in2x2x1x1_nopad_bfyx) {    //  Fil
         reorder("plane_output", input_info("deconv"), format::bfyx, cldnn::data_types::f32)
     );
 
-    network network(engine, topology);
+    network network(engine, topology, get_test_default_config(engine));
     network.set_input_data("input", input);
 
     auto outputs = network.execute();
@@ -359,7 +432,7 @@ TYPED_TEST(deconvolution_basic, basic_wsiz2x2_in2x2x1x1_pad1) {
         reorder("plane_output", input_info("deconv"), format::bfyx, cldnn::data_types::f32)
     );
 
-    network network(engine, topology);
+    network network(engine, topology, get_test_default_config(engine));
     network.set_input_data("input", input);
 
     auto outputs = network.execute();
@@ -410,7 +483,7 @@ TYPED_TEST(deconvolution_basic, basic_wsiz2x2_in2x2x1x1_stride2_nopad) {
         reorder("plane_output", input_info("deconv"), format::bfyx, cldnn::data_types::f32)
     );
 
-    network network(engine, topology);
+    network network(engine, topology, get_test_default_config(engine));
     network.set_input_data("input", input);
 
     auto outputs = network.execute();
@@ -475,7 +548,7 @@ TYPED_TEST(deconvolution_basic, basic_wsiz2x2_in2x2x1x1_stride4_pad2) {
         reorder("plane_output", input_info("deconv"), format::bfyx, cldnn::data_types::f32)
     );
 
-    network network(engine, topology);
+    network network(engine, topology, get_test_default_config(engine));
     network.set_input_data("input", input);
 
     auto outputs = network.execute();
@@ -537,7 +610,7 @@ TYPED_TEST(deconvolution_basic, basic_wsiz2x2_in2x2x1x2_stride2_pad1) {
         reorder("plane_output", input_info("deconv"), format::yxfb, cldnn::data_types::f32)
     );
 
-    network network(engine, topology);
+    network network(engine, topology, get_test_default_config(engine));
     network.set_input_data("input", input);
 
     auto outputs = network.execute();
@@ -584,7 +657,7 @@ TYPED_TEST(deconvolution_basic, basic_wsiz2x2x2_in2x2x1x1_stride2_pad1) {
     //  f1: 17 - 13
 
     auto& engine = get_test_engine();
-    ov::intel_gpu::ExecutionConfig config;
+    ov::intel_gpu::ExecutionConfig config = get_test_default_config(engine);
     config.set_property(ov::intel_gpu::optimize_data(true));
 
     auto input = engine.allocate_memory({ data_types::f32, format::yxfb, { 1, 1, 2, 2 } });
@@ -665,7 +738,7 @@ TYPED_TEST(deconvolution_basic, basic_wsiz2x2_in2x2x1x2_bfyx_stride2_pad1) {
         reorder("plane_output", input_info("deconv"), format::bfyx, cldnn::data_types::f32)
     );
 
-    network network(engine, topology);
+    network network(engine, topology, get_test_default_config(engine));
     network.set_input_data("input", input);
 
     auto outputs = network.execute();
@@ -726,7 +799,7 @@ TEST(deconvolution_f32_fw_gpu, basic_wsiz2x2_in2x2x1x2_bfyx_stride2_pad1_input_p
         deconvolution("deconv", input_info("reorder"), { "weights" }, { "biases" }, { 2, 2 }, { 1, 1 })
     );
 
-    network network(engine, topology);
+    network network(engine, topology, get_test_default_config(engine));
     network.set_input_data("input", input);
 
     auto outputs = network.execute();
@@ -776,7 +849,7 @@ TEST(deconvolution_f32_fw_gpu, basic_wsiz2x2x2_in2x2x1x1_stride2_pad1_input_padd
     //  f1: 17 - 13
 
     auto& engine = get_test_engine();
-    ov::intel_gpu::ExecutionConfig config;
+    ov::intel_gpu::ExecutionConfig config = get_test_default_config(engine);
     config.set_property(ov::intel_gpu::optimize_data(true));
 
     auto input = engine.allocate_memory({ data_types::f32, format::yxfb,{ 1, 1, 2, 2 } });
@@ -858,7 +931,7 @@ TYPED_TEST(deconvolution_basic, basic_wsiz2x2_in2x2x1x2_bfyx_yxfb_stride2_pad1) 
         reorder("plane_output", input_info("deconv"), format::bfyx, cldnn::data_types::f32)
     );
 
-    network network(engine, topology);
+    network network(engine, topology, get_test_default_config(engine));
     network.set_input_data("input", input);
 
     auto outputs = network.execute();
@@ -907,7 +980,7 @@ TYPED_TEST(deconvolution_basic, basic_f16_wsiz2x2_in2x2x1x2_bfyx_yxfb_stride2_pa
     auto weights = engine.allocate_memory({ data_types::f32, format::oiyx,{ 1, 1, 2, 2 } });
     auto biases = engine.allocate_memory({ data_types::f32, format::bfyx,{ 1, 1, 1, 1 } });
 
-    ov::intel_gpu::ExecutionConfig config;
+    ov::intel_gpu::ExecutionConfig config = get_test_default_config(engine);
     config.set_property(ov::intel_gpu::optimize_data(true));
 
     set_values(input, { FLOAT16(8.f), FLOAT16(0.5f),
@@ -996,7 +1069,7 @@ TYPED_TEST(deconvolution_basic, basic_wsiz2x2_in1x2x2x2_bfyx_stride2_pad1_split2
         reorder("plane_output", input_info("deconv"), format::bfyx, cldnn::data_types::f32)
     );
 
-    network network(engine, topology);
+    network network(engine, topology, get_test_default_config(engine));
     network.set_input_data("input", input);
 
     auto outputs = network.execute();
@@ -1041,7 +1114,7 @@ TYPED_TEST(deconvolution_basic, basic_wsiz2x2_in1x2x2x2_bfyx_stride2_pad1_group2
         reorder("plane_output", input_info("deconv"), format::bfyx, cldnn::data_types::f32)
     );
 
-    network network(engine, topology);
+    network network(engine, topology, get_test_default_config(engine));
     network.set_input_data("input", input);
 
     auto outputs = network.execute();
@@ -1118,7 +1191,7 @@ TYPED_TEST(deconvolution_basic, basic_wsiz2x2_in1x2x2x2_bfyx_stride2_pad1_group1
         deconvolution("deconv", input_info("reordered_input"), { "weights" }, { "bias" }, 16, { 2, 2 }, { 1, 1 }),
         reorder("plane_output", input_info("deconv"), format::bfyx, cldnn::data_types::f32));
 
-    network network(engine, topology);
+    network network(engine, topology, get_test_default_config(engine));
     network.set_input_data("input", input);
 
     auto outputs = network.execute();
@@ -1208,7 +1281,7 @@ TYPED_TEST(deconvolution_basic, basic_wsiz2x2_in1x2x2x2_bfyx_stride2_pad1_group1
         deconvolution("deconv", input_info("reordered_input"), { "weights" }, { "bias" }, 16, { 2, 2 }, { 1, 1 }),
         reorder("plane_output", input_info("deconv"), format::bfyx, cldnn::data_types::f32));
 
-    network network(engine, topology);
+    network network(engine, topology, get_test_default_config(engine));
     network.set_input_data("input", input);
 
     auto outputs = network.execute();
@@ -1264,7 +1337,7 @@ TYPED_TEST(deconvolution_basic, basic_wsiz2x2_in1x6x1x1_bfyx_stride2_pad1_group2
         reorder("plane_output", input_info("deconv"), format::bfyx, cldnn::data_types::f32)
     );
 
-    network network(engine, topology);
+    network network(engine, topology, get_test_default_config(engine));
     network.set_input_data("input", input);
 
     auto outputs = network.execute();
@@ -1337,7 +1410,7 @@ TYPED_TEST(deconvolution_basic_3d, basic3D_wsiz2x2x1_in1x1x2x2x1_nopad) {
         reorder("plane_output", input_info("deconv"), format::bfzyx, cldnn::data_types::f32)
     );
 
-    network network(engine, topology);
+    network network(engine, topology, get_test_default_config(engine));
     network.set_input_data("input", input);
 
     auto outputs = network.execute();
@@ -1489,7 +1562,7 @@ TYPED_TEST(deconvolution_basic_3d, basic3D_wsiz3x3x3_in1x1x4x4x4_nopad) {
         reorder("plane_output", input_info("deconv"), format::bfzyx, cldnn::data_types::f32)
     );
 
-    network network(engine, topology);
+    network network(engine, topology, get_test_default_config(engine));
     network.set_input_data("input", input);
 
     auto outputs = network.execute();
@@ -1583,7 +1656,7 @@ TYPED_TEST(deconvolution_basic_3d, basic3D_wsiz2x2x2_in1x1x2x2x2_stride2_nopad) 
         reorder("plane_output", input_info("deconv"), format::bfzyx, cldnn::data_types::f32)
     );
 
-    network network(engine, topology);
+    network network(engine, topology, get_test_default_config(engine));
     network.set_input_data("input", input);
 
     auto outputs = network.execute();
@@ -1656,7 +1729,7 @@ TYPED_TEST(deconvolution_basic_3d, basic3D_wsiz2x2x2_in1x1x2x2x2_stride2_pad1) {
         reorder("plane_output", input_info("deconv"), format::bfzyx, cldnn::data_types::f32)
     );
 
-    network network(engine, topology);
+    network network(engine, topology, get_test_default_config(engine));
     network.set_input_data("input", input);
 
     auto outputs = network.execute();
@@ -1719,7 +1792,7 @@ TYPED_TEST(deconvolution_basic, basic_f16_k9x9_s2x2_pad4x4) {
         reorder("plane_output", input_info("deconv"), format::bfyx, cldnn::data_types::f16)
     );
 
-    network network_ref(engine, topology_ref);
+    network network_ref(engine, topology_ref, get_test_default_config(engine));
     network_ref.set_input_data("input", input);
 
     auto outputs_ref = network_ref.execute();
@@ -1739,7 +1812,7 @@ TYPED_TEST(deconvolution_basic, basic_f16_k9x9_s2x2_pad4x4) {
         reorder("out", input_info("deconv_act"), format::bfyx, data_types::f16)
     );
 
-    ov::intel_gpu::ExecutionConfig config;
+    ov::intel_gpu::ExecutionConfig config = get_test_default_config(engine);
     config.set_property(ov::intel_gpu::optimize_data(true));
     network network_act(engine, topology_act, config);
     network_act.set_input_data("input_act", input);
@@ -1797,7 +1870,7 @@ TEST(deconvolution_f32_fw_gpu, basic_wsiz2x2_in2x2x1x2_b_fs_yx_fsv16_stride2_pad
             reorder("out", input_info("deconv"), format::bfyx, data_types::f32)
     );
 
-    ov::intel_gpu::ExecutionConfig config;
+    ov::intel_gpu::ExecutionConfig config = get_test_default_config(engine);
     ov::intel_gpu::ImplementationDesc impl = { format::b_fs_yx_fsv16, "" };
     config.set_property(ov::intel_gpu::optimize_data(true));
     config.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ {"deconv", impl} }));
@@ -1868,7 +1941,7 @@ TEST(deconvolution_f16_fw_gpu, basic_wsiz2x2_in2x2x1x2_b_fs_yx_fsv16_stride2_pad
             reorder("out", input_info("deconv"), format::bfyx, data_types::f16)
     );
 
-    ov::intel_gpu::ExecutionConfig config;
+    ov::intel_gpu::ExecutionConfig config = get_test_default_config(engine);
     ov::intel_gpu::ImplementationDesc impl = { format::b_fs_yx_fsv16, "" };
     config.set_property(ov::intel_gpu::optimize_data(true));
     config.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ {"deconv", impl} }));
@@ -1917,7 +1990,7 @@ TEST(deconvolution_f32_fw_gpu, basic_wsiz2x2_in1x2x2x2_b_fs_yx_fsv16_stride2_pad
             reorder("out", input_info("deconv"), format::bfyx, data_types::f32)
     );
 
-    ov::intel_gpu::ExecutionConfig config;
+    ov::intel_gpu::ExecutionConfig config = get_test_default_config(engine);
     ov::intel_gpu::ImplementationDesc impl = { format::b_fs_yx_fsv16, "" };
     config.set_property(ov::intel_gpu::optimize_data(true));
     config.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ {"deconv", impl} }));
@@ -1965,7 +2038,7 @@ TEST(deconvolution_f32_fw_gpu, basic_wsiz2x2_in1x2x2x2_b_fs_yx_fsv16_stride2_pad
             reorder("out", input_info("deconv"), format::bfyx, data_types::f32)
     );
 
-    ov::intel_gpu::ExecutionConfig config;
+    ov::intel_gpu::ExecutionConfig config = get_test_default_config(engine);
     ov::intel_gpu::ImplementationDesc impl = { format::b_fs_yx_fsv16, "" };
     config.set_property(ov::intel_gpu::optimize_data(true));
     config.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ {"deconv", impl} }));
@@ -2011,7 +2084,7 @@ TEST(deconvolution_f32_fw_gpu, basic_wsiz2x2_in2x2x1x1_nopad_b_fs_yx_fsv16_dw) {
             reorder("out", input_info("deconv"), format::bfyx, data_types::f32)
     );
 
-    ov::intel_gpu::ExecutionConfig config;
+    ov::intel_gpu::ExecutionConfig config = get_test_default_config(engine);
     ov::intel_gpu::ImplementationDesc impl = { format::b_fs_yx_fsv16, "" };
     config.set_property(ov::intel_gpu::optimize_data(true));
     config.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ {"deconv", impl} }));
@@ -2065,7 +2138,7 @@ TEST(deconvolution_f32_fw_gpu, basic_wsiz2x2_in2x2x1x1_pad1_b_fs_yx_fsv16_dw) {
             reorder("out", input_info("deconv"), format::bfyx, data_types::f32)
     );
 
-    ov::intel_gpu::ExecutionConfig config;
+    ov::intel_gpu::ExecutionConfig config = get_test_default_config(engine);
     ov::intel_gpu::ImplementationDesc impl = { format::b_fs_yx_fsv16, "" };
     config.set_property(ov::intel_gpu::optimize_data(true));
     config.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ {"deconv", impl} }));
@@ -2107,7 +2180,7 @@ TEST(deconvolution_f32_fw_gpu, basic_wsiz2x2_in2x2x1x1_stride2_nopad_b_fs_yx_fsv
         reorder("out", input_info("deconv"), format::bfyx, data_types::f32)
     );
 
-    ov::intel_gpu::ExecutionConfig config;
+    ov::intel_gpu::ExecutionConfig config = get_test_default_config(engine);
     ov::intel_gpu::ImplementationDesc impl = { format::b_fs_yx_fsv16, "" };
     config.set_property(ov::intel_gpu::optimize_data(true));
     config.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ {"deconv", impl} }));
@@ -2163,7 +2236,7 @@ TEST(deconvolution_f32_fw_gpu, basic_wsiz2x2_in2x2x1x1_stride4_pad2_b_fs_yx_fsv1
             reorder("out", input_info("deconv"), format::bfyx, data_types::f32)
     );
 
-    ov::intel_gpu::ExecutionConfig config;
+    ov::intel_gpu::ExecutionConfig config = get_test_default_config(engine);
     ov::intel_gpu::ImplementationDesc impl = { format::b_fs_yx_fsv16, "" };
     config.set_property(ov::intel_gpu::optimize_data(true));
     config.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ {"deconv", impl} }));
@@ -2219,7 +2292,7 @@ TEST(deconvolution_f32_fw_gpu, basic_wsiz2x2_in2x2x1x1_stride4_pad2_b_fs_yx_fsv1
             reorder("out", input_info("deconv"), format::bfyx, data_types::f32)
     );
 
-    ov::intel_gpu::ExecutionConfig config;
+    ov::intel_gpu::ExecutionConfig config = get_test_default_config(engine);
     ov::intel_gpu::ImplementationDesc impl = { format::b_fs_yx_fsv16, "" };
     config.set_property(ov::intel_gpu::optimize_data(true));
     config.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ {"deconv", impl} }));
@@ -2304,7 +2377,7 @@ TEST(deconvolution_f32_fw_gpu, bs_fs_zyx_bsv16_fsv16_wsiz2x2x2_in1x1x2x2x2_strid
             reorder("out", input_info("deconv"), format::bfzyx, data_types::f32)
     );
 
-    ov::intel_gpu::ExecutionConfig config;
+    ov::intel_gpu::ExecutionConfig config = get_test_default_config(engine);
     ov::intel_gpu::ImplementationDesc impl = { format::bs_fs_zyx_bsv16_fsv16, "" };
     config.set_property(ov::intel_gpu::optimize_data(true));
     config.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ {"deconv", impl} }));
@@ -2357,7 +2430,7 @@ void test_deconvolution_f16_fw_gpu_basic_wsiz2x2_in1x2x2x2_fs_b_yx_fsv32_stride1
             reorder("out", input_info("deconv"), format::bfyx, data_types::f32)
     );
 
-    ov::intel_gpu::ExecutionConfig config;
+    ov::intel_gpu::ExecutionConfig config = get_test_default_config(engine);
     config.set_property(ov::intel_gpu::optimize_data(true));
 
     cldnn::network::ptr network = get_network(engine, topology, config, get_test_stream_ptr(), is_caching_test);
@@ -2714,7 +2787,7 @@ protected:
         }
     }
 
-    ov::intel_gpu::ExecutionConfig config;
+    ov::intel_gpu::ExecutionConfig config = get_test_default_config(get_test_engine());
 
 private:
     template <typename InputT, typename WeightsT, typename OutputT>
@@ -2971,8 +3044,9 @@ TEST(deconvolution_f32_fw_gpu_onednn, basic_wsiz2x2_in2x2x1x1_stride2_nopad) {
 
     ov::intel_gpu::ImplementationDesc conv_impl = { format::yxfb, "", impl_types::onednn };
 
-    ExecutionConfig cfg{ov::intel_gpu::queue_type(QueueTypes::in_order),
-                        ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ {"deconv", conv_impl} })};
+    ExecutionConfig cfg = get_test_default_config(engine);
+    cfg.set_property(ov::intel_gpu::queue_type(QueueTypes::in_order));
+    cfg.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ {"deconv", conv_impl} }));
     network network(engine, topology, cfg);
     network.set_input_data("input", input);
 

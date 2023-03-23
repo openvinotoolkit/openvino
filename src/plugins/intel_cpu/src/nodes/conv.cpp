@@ -503,11 +503,6 @@ void Convolution::getSupportedDescriptors() {
 
     if (canBeExecutedInInt8()) {
         DEBUG_LOG(getName(), "Creating I8 descriptor");
-        //  We have to extend convolution_x8s8s32x from oneDNN to support BF16 output data type
-        if (outputDataType == memory::data_type::bf16)
-            outputDataType = memory::data_type::f32;
-        if (eltwisePrecision == Precision::BF16)
-            eltwisePrecision = Precision::FP32;
         // initTryBrgconvFlag depends on outputDataType, should be after outputDataType computed
         if (!enforceBrgconv)
             initTryBrgconvFlag();
