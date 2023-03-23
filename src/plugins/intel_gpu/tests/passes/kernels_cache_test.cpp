@@ -63,13 +63,17 @@ TEST(kernels_cache, reuse_kernel_for_static_model_01) {
     ExecutionConfig config;
     config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
     auto prog = program::build_program(engine, topology, config, false, false);
+    auto& cache = prog->get_kernels_cache();
     auto& conv1_node = prog->get_node("conv1");
     auto& conv2_node = prog->get_node("conv2");
     auto conv1_kernels = conv1_node.get_selected_impl()->get_kernels();
     auto conv2_kernels = conv2_node.get_selected_impl()->get_kernels();
     ASSERT_EQ(conv1_kernels.size(), conv2_kernels.size());
     for (size_t idx = 0; idx < conv1_kernels.size(); idx++) {
-        ASSERT_EQ(conv1_kernels[idx], conv2_kernels[idx]);
+        auto conv1_kern = cache.get_cached_kernel_id(conv1_kernels[idx]);
+        auto conv2_kern = cache.get_cached_kernel_id(conv2_kernels[idx]);
+        ASSERT_EQ(conv1_kern.first, conv2_kern.first);
+        ASSERT_EQ(conv1_kern.second, conv2_kern.second);
     }
 
     auto& concat1_node = prog->get_node("concat1");
@@ -78,6 +82,9 @@ TEST(kernels_cache, reuse_kernel_for_static_model_01) {
     auto concat2_kernels = concat2_node.get_selected_impl()->get_kernels();
     ASSERT_EQ(concat1_kernels.size(), concat2_kernels.size());
     for (size_t idx = 0; idx < concat1_kernels.size(); idx++) {
-        ASSERT_EQ(concat1_kernels[idx], concat2_kernels[idx]);
+        auto concat1_kern = cache.get_cached_kernel_id(concat1_kernels[idx]);
+        auto concat2_kern = cache.get_cached_kernel_id(concat2_kernels[idx]);
+        ASSERT_EQ(concat1_kern.first, concat2_kern.first);
+        ASSERT_EQ(concat1_kern.second, concat2_kern.second);
     }
 }
