@@ -47,7 +47,7 @@ private:
     const std::map<std::string, CreatorFunction>& m_translator_map;
     std::shared_ptr<TelemetryExtension> m_telemetry;
     std::shared_ptr<Model> m_ov_model;
-    
+
     std::map<size_t, std::pair<size_t, Output<Node>>> m_counter_map;
     std::map<std::string, uint64_t> m_op_statistics;
 };
