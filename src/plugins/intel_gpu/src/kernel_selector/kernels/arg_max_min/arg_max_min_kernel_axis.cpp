@@ -123,6 +123,7 @@ KernelsData ArgMaxMinKernelAxis::GetKernelsData(const Params& params, const opti
         return {};
     }
     const arg_max_min_params& orgParams = static_cast<const arg_max_min_params&>(params);
+    bool is_dynamic = orgParams.outputs[0].is_dynamic();
 
     auto dispatchData = SetDefault(orgParams);
     KernelData kd = KernelData::Default<arg_max_min_params>(params);
@@ -132,6 +133,19 @@ KernelsData ArgMaxMinKernelAxis::GetKernelsData(const Params& params, const opti
         OPENVINO_ASSERT(kd.kernels.size() == 1, "[GPU] Invalid kernels size for update dispatch data func");
         kd.kernels[0].params.workGroups.global = dispatchData.gws;
         kd.kernels[0].params.workGroups.local = dispatchData.lws;
+
+        const size_t elem_size = prim_params.inputs[0].ElementSize();
+        const size_t iav_type_size = elem_size + 4;
+        const size_t sort_size = getSortSize(prim_params);
+        const size_t ops_size = getOperationNumber(prim_params);
+        const size_t group_size = prim_params.topK >= 8 ? prim_params.topK : 8;
+        const size_t group_num = ((sort_size - 1) / group_size) + 1;
+
+        kd.internalBufferSizes.clear();
+        kd.internalBufferSizes.push_back(iav_type_size * sort_size * ops_size * 2);
+        kd.internalBufferSizes.push_back(4 * group_num * ops_size * 2);
+        kd.internalBufferSizes.push_back(ops_size);
+        kd.internalBufferDataType = prim_params.inputs[0].GetDType();
     };
 
     auto cldnn_jit = GetJitConstants(orgParams);
@@ -151,10 +165,20 @@ KernelsData ArgMaxMinKernelAxis::GetKernelsData(const Params& params, const opti
                      1,
                      GetFusedPrimitiveInputsCount(params),
                      orgParams.use_multiple_outputs ? 2 : 1,
-                     orgParams.outputs[0].is_dynamic());
+                     is_dynamic);
 
     if (orgParams.has_second_output && !orgParams.use_multiple_outputs)
         kernel.params.arguments.push_back({ArgumentDescriptor::Types::INPUT, 1});
+
+    if (is_dynamic) {
+        kernel.params.arguments.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 0});
+        kernel.params.arguments.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 1});
+        kernel.params.arguments.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 2});
+        kd.internalBufferSizes.push_back(orgParams.inputs[0].PhysicalSizeInBytes());
+        kd.internalBufferSizes.push_back(orgParams.inputs[0].PhysicalSizeInBytes());
+        kd.internalBufferSizes.push_back(orgParams.inputs[0].PhysicalSizeInBytes());
+        kd.internalBufferDataType = orgParams.inputs[0].GetDType();
+    }
 
     return {kd};
 }
