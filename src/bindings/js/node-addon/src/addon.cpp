@@ -8,6 +8,8 @@
 #include "pre_post_process_wrap.hpp"
 #include "tensor.hpp"
 #include "element_type.hpp"
+#include "session.hpp"
+#include "shape_lite.hpp"
 
 /// @brief Initialize native add-on
 Napi::Object InitAll(Napi::Env env, Napi::Object exports) {
@@ -16,8 +18,9 @@ Napi::Object InitAll(Napi::Env env, Napi::Object exports) {
     CompiledModelWrap::Init(env, exports);
     InferRequestWrap::Init(env, exports);
     TensorWrap::Init(env, exports);
+    ShapeLite::Init(env, exports);
+    Session::Init(env, exports);
     PrePostProcessorWrap::Init(env, exports);
-
     Napi::PropertyDescriptor element = Napi::PropertyDescriptor::Accessor<enumElementType>("element");
     exports.DefineProperty(element);
 

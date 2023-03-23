@@ -33,9 +33,10 @@ TensorWrap::TensorWrap(const Napi::CallbackInfo& info) : Napi::ObjectWrap<Tensor
 Napi::Function TensorWrap::GetClassConstructor(Napi::Env env) {
     return DefineClass(env,
                        "TensorWrap",
-                       {InstanceAccessor<&TensorWrap::get_tensor_data>("data"),
-                        InstanceMethod("get_shape", &TensorWrap::get_shape),
-                        InstanceMethod("get_element_type", &TensorWrap::get_element_type)});
+                       {InstanceAccessor<&TensorWrap::get_data>("data"),
+                       InstanceMethod("getData", &TensorWrap::get_shape),
+                        InstanceMethod("getShape", &TensorWrap::get_shape),
+                        InstanceMethod("getPrecision", &TensorWrap::get_precision)});
 }
 
 Napi::Object TensorWrap::Init(Napi::Env env, Napi::Object exports) {
@@ -74,16 +75,9 @@ Napi::Value TensorWrap::get_data(const Napi::CallbackInfo& info) {
 
 Napi::Value TensorWrap::get_shape(const Napi::CallbackInfo& info){
     auto shape = _tensor.get_shape();
-    return ShapeLite::Wrap(info.Env(), shape)
-    
-    // auto arr = Napi::Array::New(info.Env(), 4);
-    // auto shape = _tensor.get_shape();
-    // for (size_t i = 0; i < 4; i++)
-    //     arr[i] = shape[i];
-
-    // return arr;
+    return ShapeLite::Wrap(info.Env(), shape);
 }
 
-Napi::String TensorWrap::get_precision(const Napi::CallbackInfo& info){
+Napi::Value TensorWrap::get_precision(const Napi::CallbackInfo& info){
     return cpp_to_js<ov::element::Type_t, Napi::String>(info, _tensor.get_element_type());
 }

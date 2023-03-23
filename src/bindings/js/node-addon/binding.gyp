@@ -7,6 +7,8 @@
       "cflags_cc": ["-std=c++17"],
 
       "sources": [  
+        "src/shape_lite.cpp",
+        "src/session.cpp",
         "src/async_reader.cpp",
         "src/pre_post_process_wrap.cpp",
         "src/errors.cpp",

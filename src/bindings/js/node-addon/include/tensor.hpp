@@ -18,6 +18,7 @@
 #include "errors.hpp"
 #include "helper.hpp"
 #include "napi.h"
+#include "shape_lite.hpp"
 
 class TensorWrap : public Napi::ObjectWrap<TensorWrap> {
 public:
@@ -60,7 +61,7 @@ public:
     /// @return A Javascript ShapeLite object containing a tensor shape.
     Napi::Value get_shape(const Napi::CallbackInfo& info);
     /// @return Napi::String containing ov::element type.
-    Napi::String get_precision(const Napi::CallbackInfo& info);
+    Napi::Value get_precision(const Napi::CallbackInfo& info);
 
 private:
     ov::Tensor _tensor;
