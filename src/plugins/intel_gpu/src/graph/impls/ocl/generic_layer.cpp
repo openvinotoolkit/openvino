@@ -15,6 +15,7 @@ struct generic_layer_impl : typed_primitive_impl<generic_layer> {
 
     kernel_selector::cl_kernel_data _cl_kernel_data;
     std::vector<kernel::ptr> _kernels;
+    cached_kernel_id_type _cached_kernel_id;
 
     DECLARE_OBJECT_TYPE_SERIALIZATION
 
@@ -43,18 +44,28 @@ struct generic_layer_impl : typed_primitive_impl<generic_layer> {
         return kernel_strings;
     }
 
+    std::vector<kernel::ptr> get_kernels() const override {
+        return _kernels;
+    }
+
     void save(BinaryOutputBuffer& ob) const override {
         ob <<_cl_kernel_data;
+        ob << kernels_cache::get_cached_kernel_id(_kernels[0]);
     }
 
     void load(BinaryInputBuffer& ib) override {
         ib >> _cl_kernel_data;
+        ib >> _cached_kernel_id;
     }
 
     void init_kernels(const kernels_cache& kernels_cache, const kernel_impl_params& params) override {
         _kernels.clear();
         auto compiled_kernels = kernels_cache.get_kernels(params);
         _kernels.insert(_kernels.begin(), compiled_kernels.begin(), compiled_kernels.end());
+    }
+
+    void init_by_cached_kernels(const kernels_cache& kernels_cache) override {
+        _kernels.emplace_back(kernels_cache.get_kernel_from_cached_kernels(_cached_kernel_id));
     }
 
     void set_arguments_impl(generic_layer_inst& instance) override {

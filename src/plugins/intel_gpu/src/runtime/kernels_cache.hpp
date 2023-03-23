@@ -23,6 +23,7 @@
 #include "ocl/ocl_engine.hpp"
 
 namespace cldnn {
+using cached_kernel_id_type = std::pair<size_t, std::string>;
 
 class kernels_cache {
 public:
@@ -81,8 +82,8 @@ private:
     kernels_code _kernels_code;
     std::atomic<bool> _pending_compilation{false};
     compiled_kernels _kernels;
+    std::map<cached_kernel_id_type, kernel::ptr> _cached_kernels;
     std::vector<std::string> batch_header_str;
-    std::unordered_map<size_t, kernel::ptr> _kernels_for_serialization;
 
     void get_program_source(const kernels_code& kernels_source_code, std::vector<batch_program>*) const;
     void build_batch(const engine& build_engine, const batch_program& batch, compiled_kernels& compiled_kernels);
@@ -97,6 +98,7 @@ public:
                            uint32_t prog_id,
                            InferenceEngine::CPUStreamsExecutor::Ptr task_executor = nullptr,
                            const std::vector<std::string>& batch_header_str = {});
+    kernel::ptr get_kernel_from_cached_kernels(cached_kernel_id_type id) const;
     std::vector<kernel::ptr> get_kernels(kernel_impl_params params) const;
     void set_batch_header_str(const std::vector<std::string> &batch_headers) {
         batch_header_str = std::move(batch_headers);
@@ -115,8 +117,9 @@ public:
                                 const std::vector<std::shared_ptr<kernel_string>>& kernel_sources,
                                 bool dump_custom_program = false);
 
-    void add_kernels_for_serialization(std::vector<std::pair<size_t, kernel::ptr>> dump_kernels);
-    kernel::ptr get_kernels_for_serialization(size_t kernel_hash) const;
+    static cached_kernel_id_type get_cached_kernel_id(kernel::ptr kernel);
+    static std::vector<cached_kernel_id_type> get_cached_kernel_ids(const std::vector<kernel::ptr>& kernels);
+    void add_to_cached_kernels(const std::vector<kernel::ptr>& kernels);
 
     void save(BinaryOutputBuffer& ob) const;
     void load(BinaryInputBuffer& ib);

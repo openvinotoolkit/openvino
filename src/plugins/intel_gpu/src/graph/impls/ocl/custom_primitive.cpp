@@ -28,6 +28,7 @@ struct custom_gpu_primitive_impl : typed_primitive_impl<custom_gpu_primitive> {
 
     std::shared_ptr<kernel_selector::cl_kernel_data> cl_kernel;
     std::vector<kernel::ptr> _kernels;
+    cached_kernel_id_type _cached_kernel_id;
 
     std::unique_ptr<primitive_impl> clone() const override {
         return make_unique<custom_gpu_primitive_impl>(*this);
@@ -61,6 +62,10 @@ struct custom_gpu_primitive_impl : typed_primitive_impl<custom_gpu_primitive> {
         _kernels.insert(_kernels.begin(), compiled_kernels.begin(), compiled_kernels.end());
     }
 
+    void init_by_cached_kernels(const kernels_cache& kernels_cache) override {
+        _kernels.emplace_back(kernels_cache.get_kernel_from_cached_kernels(_cached_kernel_id));
+    }
+
     void set_arguments_impl(custom_gpu_primitive_inst& instance) override {
         auto& stream = instance.get_network().get_stream();
         kernel_arguments_data args;
@@ -82,13 +87,19 @@ struct custom_gpu_primitive_impl : typed_primitive_impl<custom_gpu_primitive> {
         return stream.enqueue_kernel(*_kernels.front(), cl_kernel.get()->params, args, events, instance.is_output());
     }
 
+    std::vector<kernel::ptr> get_kernels() const override {
+        return _kernels;
+    }
+
     void save(BinaryOutputBuffer& ob) const override {
         ob << *cl_kernel;
+        ob << kernels_cache::get_cached_kernel_id(_kernels[0]);
     }
 
     void load(BinaryInputBuffer& ib) override {
         cl_kernel = std::make_shared<kernel_selector::cl_kernel_data>();
         ib >> *cl_kernel;
+        ib >> _cached_kernel_id;
     }
 };
 
