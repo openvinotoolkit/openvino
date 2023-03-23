@@ -18,7 +18,7 @@ namespace v1 {
 /// \ingroup ov_ops_cpp_api
 class OPENVINO_API Convolution : public util::ConvolutionFwdPropBase {
 public:
-    OPENVINO_OP("Convolution", "opset1", op::util::ConvolutionFwdPropBase, 1);
+    OPENVINO_OP("Convolution", "opset1", op::util::ConvolutionFwdPropBase);
 
     /// \brief Constructs a batched convolution operation.
     Convolution() = default;
@@ -59,7 +59,7 @@ public:
 /// \ingroup ov_ops_cpp_api
 class OPENVINO_API ConvolutionBackpropData : public util::ConvolutionBackPropBase {
 public:
-    OPENVINO_OP("ConvolutionBackpropData", "opset1", op::util::ConvolutionBackPropBase, 1);
+    OPENVINO_OP("ConvolutionBackpropData", "opset1", op::util::ConvolutionBackPropBase);
 
     /// \brief Constructs a batched-convolution data batch-backprop operation.
     ConvolutionBackpropData() = default;

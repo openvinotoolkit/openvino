@@ -15,7 +15,7 @@ namespace v1 {
 /// \brief Batched convolution operation, with optional window dilation and stride.
 class OPENVINO_API GroupConvolution : public util::ConvolutionFwdPropBase {
 public:
-    OPENVINO_OP("GroupConvolution", "opset1", op::util::ConvolutionFwdPropBase, 1);
+    OPENVINO_OP("GroupConvolution", "opset1", op::util::ConvolutionFwdPropBase);
 
     /// \brief Constructs a batched convolution operation.
     GroupConvolution() = default;
@@ -55,7 +55,7 @@ public:
 /// \brief Data batch backprop for batched convolution operation.
 class OPENVINO_API GroupConvolutionBackpropData : public util::ConvolutionBackPropBase {
 public:
-    OPENVINO_OP("GroupConvolutionBackpropData", "opset1", op::util::ConvolutionBackPropBase, 1);
+    OPENVINO_OP("GroupConvolutionBackpropData", "opset1", op::util::ConvolutionBackPropBase);
 
     /// \brief Constructs a batched-convolution data batch-backprop operation.
     GroupConvolutionBackpropData();
