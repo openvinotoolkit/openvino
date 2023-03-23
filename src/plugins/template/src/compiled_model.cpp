@@ -15,19 +15,20 @@
 #include "template/config.hpp"
 #include "transformations/utils/utils.hpp"
 
-// ! [executable_network:ctor_cnnnetwork]
+// ! [compiled_model:ctor]
 ov::template_plugin::CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model,
                                                   const std::shared_ptr<const ov::IPlugin>& plugin,
+                                                  const ov::RemoteContext& context,
                                                   const std::shared_ptr<ov::threading::ITaskExecutor>& task_executor,
                                                   const Configuration& cfg,
                                                   bool loaded_from_cache)
-    : ov::ICompiledModel(model, plugin, task_executor),  // Disable default threads creation
-      _cfg(cfg),
+    : ov::ICompiledModel(model, plugin, context, task_executor),  // Disable default threads creation
+      m_cfg(cfg),
       m_model(model),
       m_loaded_from_cache(loaded_from_cache) {
     // TODO: if your plugin supports device ID (more that single instance of device can be on host machine)
     // you should select proper device based on KEY_DEVICE_ID or automatic behavior
-    // In this case, _waitExecutor should also be created per device.
+    // In this case, m_wait_executor should also be created per device.
     try {
         compile_model(m_model);
     } catch (const InferenceEngine::Exception& e) {
@@ -39,9 +40,9 @@ ov::template_plugin::CompiledModel::CompiledModel(const std::shared_ptr<ov::Mode
         OPENVINO_THROW("Generic exception is thrown");
     }
 }
-// ! [executable_network:ctor_cnnnetwork]
+// ! [compiled_model:ctor]
 
-// ! [executable_network:map_graph]
+// ! [compiled_model:compile_model]
 // forward declaration
 void transform_model(const std::shared_ptr<ov::Model>& model);
 
@@ -50,9 +51,16 @@ void ov::template_plugin::CompiledModel::compile_model(const std::shared_ptr<ov:
     transform_model(model);
     // Perform any other steps like allocation and filling backend specific memory handles and so on
 }
-// ! [executable_network:map_graph]
+// ! [compiled_model:compile_model]
 
-// ! [executable_network:create_infer_request]
+// ! [compiled_model:create_sync_infer_request]
+std::shared_ptr<ov::ISyncInferRequest> ov::template_plugin::CompiledModel::create_sync_infer_request() const {
+    return std::make_shared<InferRequest>(
+        std::static_pointer_cast<const ov::template_plugin::CompiledModel>(shared_from_this()));
+}
+// ! [compiled_model:create_sync_infer_request]
+
+// ! [compiled_model:create_infer_request]
 std::shared_ptr<ov::IAsyncInferRequest> ov::template_plugin::CompiledModel::create_infer_request() const {
     auto internal_request = create_sync_infer_request();
     auto async_infer_request = std::make_shared<AsyncInferRequest>(
@@ -63,23 +71,19 @@ std::shared_ptr<ov::IAsyncInferRequest> ov::template_plugin::CompiledModel::crea
 
     return async_infer_request;
 }
+// ! [compiled_model:create_infer_request]
 
-std::shared_ptr<ov::ISyncInferRequest> ov::template_plugin::CompiledModel::create_sync_infer_request() const {
-    return std::make_shared<InferRequest>(
-        std::static_pointer_cast<const ov::template_plugin::CompiledModel>(shared_from_this()));
-}
-// ! [executable_network:create_infer_request]
-
+// ! [compiled_model:set_property]
 void ov::template_plugin::CompiledModel::set_property(const ov::AnyMap& properties) {
     OPENVINO_NOT_IMPLEMENTED;
 }
-ov::RemoteContext ov::template_plugin::CompiledModel::get_context() const {
-    OPENVINO_NOT_IMPLEMENTED;
-}
+// ! [compiled_model:set_property]
 
+// ! [compiled_model:get_runtime_model]
 std::shared_ptr<const ov::Model> ov::template_plugin::CompiledModel::get_runtime_model() const {
     return m_model;
 }
+// ! [compiled_model:get_runtime_model]
 
 std::shared_ptr<const ov::template_plugin::Plugin> ov::template_plugin::CompiledModel::get_template_plugin() const {
     auto plugin = get_plugin();
@@ -89,7 +93,7 @@ std::shared_ptr<const ov::template_plugin::Plugin> ov::template_plugin::Compiled
     return template_plugin;
 }
 
-// ! [executable_network:get_config]
+// ! [compiled_model:get_property]
 ov::Any ov::template_plugin::CompiledModel::get_property(const std::string& name) const {
     const auto& add_ro_properties = [](const std::string& name, std::vector<ov::PropertyName>& properties) {
         properties.emplace_back(ov::PropertyName{name, ov::PropertyMutability::RO});
@@ -97,6 +101,7 @@ ov::Any ov::template_plugin::CompiledModel::get_property(const std::string& name
     const auto& default_ro_properties = []() {
         std::vector<ov::PropertyName> ro_properties{ov::model_name,
                                                     ov::supported_properties,
+                                                    ov::execution_devices,
                                                     ov::loaded_from_cache,
                                                     ov::optimal_number_of_infer_requests};
         return ro_properties;
@@ -134,8 +139,11 @@ ov::Any ov::template_plugin::CompiledModel::get_property(const std::string& name
         return decltype(ov::model_name)::value_type(model_name);
     } else if (ov::loaded_from_cache == name) {
         return m_loaded_from_cache;
+    } else if (ov::execution_devices == name) {
+        return decltype(ov::execution_devices)::value_type{get_plugin()->get_device_name() + "." +
+                                                           std::to_string(m_cfg.device_id)};
     } else if (ov::optimal_number_of_infer_requests == name) {
-        unsigned int value = _cfg.streams_executor_config._streams;
+        unsigned int value = m_cfg.streams_executor_config._streams;
         return decltype(ov::optimal_number_of_infer_requests)::value_type(value);
     } else if (ov::supported_properties == name) {
         auto ro_properties = default_ro_properties();
@@ -148,13 +156,13 @@ ov::Any ov::template_plugin::CompiledModel::get_property(const std::string& name
         return decltype(ov::supported_properties)::value_type(supported_properties);
     }
 
-    return _cfg.Get(name);
+    return m_cfg.Get(name);
 }
-// ! [executable_network:get_config]
+// ! [compiled_model:get_property]
 
-// ! [executable_network:export]
-void ov::template_plugin::CompiledModel::export_model(std::ostream& modelStream) const {
-    OV_ITT_SCOPED_TASK(itt::domains::TemplatePlugin, "ExecutableNetwork::Export");
+// ! [compiled_model:export_model]
+void ov::template_plugin::CompiledModel::export_model(std::ostream& model_stream) const {
+    OV_ITT_SCOPED_TASK(itt::domains::TemplatePlugin, "CompiledModel::export_model");
 
     std::stringstream xmlFile, binFile;
     ov::pass::Serialize serializer(xmlFile, binFile);
@@ -164,11 +172,11 @@ void ov::template_plugin::CompiledModel::export_model(std::ostream& modelStream)
     auto m_model = xmlFile.str();
 
     auto dataSize = static_cast<std::uint64_t>(m_model.size());
-    modelStream.write(reinterpret_cast<char*>(&dataSize), sizeof(dataSize));
-    modelStream.write(m_model.c_str(), dataSize);
+    model_stream.write(reinterpret_cast<char*>(&dataSize), sizeof(dataSize));
+    model_stream.write(m_model.c_str(), dataSize);
 
     dataSize = static_cast<std::uint64_t>(m_constants.size());
-    modelStream.write(reinterpret_cast<char*>(&dataSize), sizeof(dataSize));
-    modelStream.write(reinterpret_cast<char*>(&m_constants[0]), dataSize);
+    model_stream.write(reinterpret_cast<char*>(&dataSize), sizeof(dataSize));
+    model_stream.write(reinterpret_cast<char*>(&m_constants[0]), dataSize);
 }
-// ! [executable_network:export]
+// ! [compiled_model:export_model]

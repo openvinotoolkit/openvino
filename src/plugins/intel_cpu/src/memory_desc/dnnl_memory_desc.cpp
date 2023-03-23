@@ -36,11 +36,16 @@ MemoryDescPtr DnnlMemoryDesc::cloneWithNewPrecision(const InferenceEngine::Preci
 }
 
 bool DnnlMemoryDesc::isCompatible(const MemoryDesc &rhs) const {
-    if (MemoryDescType::Dnnl == rhs.getType()) {
-        return this->desc == rhs.as<DnnlMemoryDesc>()->desc;
+    if (MemoryDescType::Dnnl & rhs.getType()) {
+        auto* dnnMemDesc = rhs.as<DnnlMemoryDesc>();
+        return isCompatible(*dnnMemDesc);
     } else {
         return false;
     }
+}
+
+bool DnnlMemoryDesc::isCompatible(const DnnlMemoryDesc& rhs) const {
+    return this->desc == rhs.desc;
 }
 
 std::string DnnlMemoryDesc::serializeFormat() const {
@@ -114,6 +119,12 @@ bool DnnlMemoryDesc::isDefinedImp() const {
 MemoryDescPtr DnnlMemoryDesc::cloneWithNewDimsImp(const VectorDims &dims) const {
     IE_THROW(Unexpected) << "Cannot clone non blocked oneDNN desc with new dims";
 }
+
+size_t DnnlMemoryDesc::getOffsetPadding() const {
+    dnnl::impl::memory_desc_wrapper wrap(desc.get());
+    return DnnlExtensionUtils::convertToDim(wrap.offset0());
+}
+
 
 }   // namespace intel_cpu
 }   // namespace ov
