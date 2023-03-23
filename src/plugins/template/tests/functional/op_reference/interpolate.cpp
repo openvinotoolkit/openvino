@@ -859,11 +859,11 @@ std::vector<InterpolateV11TestParams> generateParamsForInterpolate_bilinear_pil_
     const std::vector<size_t> zero_pads{0, 0, 0, 0};
     return {
         {
-            "bilinear.new_resize_downsample_scales_linear_range_h_pixel_hw_2D_sizes",
+            "bilinear.downsample_sizes_linear_range_h_pixel_hw_2D",
             Shape{8, 8},
             {4, 4},
             Shape{4, 4},
-            {0.5f, 0.5f},
+            {},
             {0, 1},
             {InterpolateMode::BILINEAR_PILLOW, ShapeCalcMode::SIZES, {0, 0}, {0, 0}},
             std::vector<Data_t>{0,  1,  2,  3,  4,  5,  6,  7,  8,  9,  10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21,
@@ -872,9 +872,9 @@ std::vector<InterpolateV11TestParams> generateParamsForInterpolate_bilinear_pil_
             std::vector<Data_t>{7, 9, 11, 12, 21, 23, 25, 26, 37, 39, 41, 42, 51, 53, 55, 56},
         },
         {
-            "bilinear.new_resize_downsample_scales_linear_range_h_pixel_hw_2D_scales",
+            "bilinear.downsample_scales_linear_range_h_pixel_hw_2D_scales",
             Shape{8, 8},
-            {4, 4},
+            {},
             Shape{4, 4},
             {0.5f, 0.5f},
             {0, 1},
@@ -885,9 +885,9 @@ std::vector<InterpolateV11TestParams> generateParamsForInterpolate_bilinear_pil_
             std::vector<Data_t>{7, 9, 11, 12, 21, 23, 25, 26, 37, 39, 41, 42, 51, 53, 55, 56},
         },
         {
-            "bilinear.new_resize_downsample_scales_linear_rand_h_pixel_nhwc",
+            "bilinear.downsample_scales_linear_rand_h_pixel_nhwc",
             Shape{1, 4, 4, 3},
-            {2, 2},
+            {},
             Shape{1, 2, 2, 3},
             {0.5f, 0.5f},
             {1, 2},
@@ -898,9 +898,9 @@ std::vector<InterpolateV11TestParams> generateParamsForInterpolate_bilinear_pil_
             std::vector<Data_t>{174, 97, 132, 144, 119, 173, 175, 129, 124, 160, 138, 129},
         },
         {
-            "bilinear.new_resize_downsample_scales_linear_range_h_pixel_nhwc",
+            "bilinear.downsample_scales_linear_range_h_pixel_nhwc",
             Shape{1, 4, 4, 3},
-            {2, 2},
+            {},
             Shape{1, 2, 2, 3},
             {0.5f, 0.5f},
             {1, 2},
@@ -911,9 +911,9 @@ std::vector<InterpolateV11TestParams> generateParamsForInterpolate_bilinear_pil_
             std::vector<Data_t>{11, 12, 13, 16, 17, 18, 29, 30, 31, 34, 35, 36},
         },
         {
-            "bilinear.new_resize_downsample_scales_linear_rand_h_pixel_nhwc_batch_2",
+            "bilinear.downsample_scales_linear_rand_h_pixel_nhwc_batch_2",
             Shape{2, 4, 4, 3},
-            {2, 2},
+            {},
             Shape{2, 2, 2, 3},
             {0.5f, 0.5f},
             {1, 2},
@@ -928,11 +928,11 @@ std::vector<InterpolateV11TestParams> generateParamsForInterpolate_bilinear_pil_
                                 11,  12, 13,  16,  17,  18,  29,  30,  31,  34,  35,  36},
         },
         {
-            "bilinear.new_resize_downsample_sizes_nhwc_1x5x6x3_to_1x2x4x3",
+            "bilinear.downsample_sizes_nhwc_1x5x6x3_to_1x2x4x3",
             Shape{1, 5, 6, 3},
             {2, 4},
             Shape{1, 2, 4, 3},
-            {0.5f, 0.5f},  // ignored
+            {},
             {1, 2},
             {InterpolateMode::BILINEAR_PILLOW, ShapeCalcMode::SIZES, zero_pads, zero_pads},
             std::vector<Data_t>{37,  244, 193, 106, 235, 128, 71,  255, 140, 47,  103, 184, 72,  20,  188,
@@ -945,11 +945,11 @@ std::vector<InterpolateV11TestParams> generateParamsForInterpolate_bilinear_pil_
                                 134,         119, 178, 171, 118, 148, 138, 130, 106, 116, 133, 120},
         },
         {
-            "bilinear.new_resize_upsample_sizes_nhwc_1x2x4x3_to_1x5x6x3",
+            "bilinear.upsample_sizes_nhwc_1x2x4x3_to_1x5x6x3",
             Shape{1, 2, 4, 3},
             {5, 6},
             Shape{1, 5, 6, 3},
-            {0.5f, 0.5f},  // ignored
+            {},
             {1, 2},
             {InterpolateMode::BILINEAR_PILLOW, ShapeCalcMode::SIZES, zero_pads, zero_pads},
             std::vector<Data_t>{37, 244, 193, 106, 235, 128, 71, 255, 140, 47,  103, 184,
@@ -962,11 +962,11 @@ std::vector<InterpolateV11TestParams> generateParamsForInterpolate_bilinear_pil_
                                 188, 155, 138,         157, 199, 212, 128, 46,  43,  135, 101, 102, 85,  195, 204, 32},
         },
         {
-            "bilinear.new_resize_downsample_sizes_nchw_1x3x5x6_to_1x3x2x4",
+            "bilinear.downsample_sizes_nchw_1x3x5x6_to_1x3x2x4",
             Shape{1, 3, 5, 6},
             {2, 4},
             Shape{1, 3, 2, 4},
-            {0.5f, 0.5f},  // ignored
+            {},
             {2, 3},
             {InterpolateMode::BILINEAR_PILLOW, ShapeCalcMode::SIZES, zero_pads, zero_pads},
             std::vector<Data_t>{37,  106, 71,  47,  72,  238, 7,   195, 203, 77,  193, 203, 192, 60,  163,
@@ -979,9 +979,9 @@ std::vector<InterpolateV11TestParams> generateParamsForInterpolate_bilinear_pil_
                                 119,         118, 130, 133, 129, 107, 113, 95,  178, 148, 106, 120},
         },
         {
-            "bilinear.new_resize_downsample_scales_range_h_pixel_nchw",
+            "bilinear.downsample_scales_range_h_pixel_nchw",
             Shape{1, 3, 4, 4},
-            {2, 2},
+            {},
             Shape{1, 3, 2, 2},
             {0.5f, 0.5f},
             {2, 3},
@@ -997,9 +997,9 @@ template <typename Data_t = uint8_t>
 std::vector<InterpolateV11TestParams> generateParamsForInterpolate_bicubic_pil_int() {
     return {
         {
-            "bicubic.new_resize_downsample_scales_2D",
+            "bicubic.downsample_scales_2D",
             Shape{8, 8},
-            {4, 4},
+            {},
             Shape{4, 4},
             {0.5f, 0.5f},
             {0, 1},
@@ -1011,11 +1011,11 @@ std::vector<InterpolateV11TestParams> generateParamsForInterpolate_bicubic_pil_i
             -0.5,  // cube_coeff
         },
         {
-            "bicubic.new_resize_downsample_sizes_2D",
+            "bicubic.downsample_sizes_2D",
             Shape{8, 8},
             {4, 4},
             Shape{4, 4},
-            {0.5f, 0.5f},
+            {},
             {0, 1},
             {InterpolateMode::BICUBIC_PILLOW, ShapeCalcMode::SIZES, {0, 0}, {0, 0}},
             std::vector<Data_t>{0,  1,  2,  3,  4,  5,  6,  7,  8,  9,  10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21,
@@ -1025,7 +1025,7 @@ std::vector<InterpolateV11TestParams> generateParamsForInterpolate_bicubic_pil_i
             -0.5,  // cube_coeff
         },
         {
-            "bicubic.new_resize_downsample_sizes_2D",
+            "bicubic.downsample_sizes_2D",
             Shape{5, 6},
             {2, 4},
             Shape{2, 4},
@@ -1038,7 +1038,7 @@ std::vector<InterpolateV11TestParams> generateParamsForInterpolate_bicubic_pil_i
             -0.5,  // cube_coeff
         },
         {
-            "bicubic.new_resize_downsample_sizes_2D_ov_default_cube_coeff",
+            "bicubic.downsample_sizes_2D_ov_default_cube_coeff",
             Shape{5, 6},
             {2, 4},
             Shape{2, 4},
@@ -1051,11 +1051,11 @@ std::vector<InterpolateV11TestParams> generateParamsForInterpolate_bicubic_pil_i
             // default cube_coeff -0.75
         },
         {
-            "bicubic.new_resize_downsample_sizes_1x1x8x8_nchw",
+            "bicubic.downsample_sizes_1x1x8x8_nchw",
             Shape{1, 1, 8, 8},
             {4, 4},
             Shape{4, 4},
-            {0.5f, 0.5f},
+            {},
             {2, 3},
             {InterpolateMode::BICUBIC_PILLOW, ShapeCalcMode::SIZES, {0, 0}, {0, 0}},
             std::vector<Data_t>{0,  1,  2,  3,  4,  5,  6,  7,  8,  9,  10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21,
@@ -1065,11 +1065,11 @@ std::vector<InterpolateV11TestParams> generateParamsForInterpolate_bicubic_pil_i
             -0.5,  // cube_coeff
         },
         {
-            "bicubic.new_resize_downsample_sizes_1x8x8x1_nhwc",
+            "bicubic.downsample_sizes_1x8x8x1_nhwc",
             Shape{1, 8, 8, 1},
             {4, 4},
             Shape{4, 4},
-            {0.5f, 0.5f},
+            {},
             {1, 2},
             {InterpolateMode::BICUBIC_PILLOW, ShapeCalcMode::SIZES, {0, 0}, {0, 0}},
             std::vector<Data_t>{0,  1,  2,  3,  4,  5,  6,  7,  8,  9,  10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21,
@@ -1079,11 +1079,11 @@ std::vector<InterpolateV11TestParams> generateParamsForInterpolate_bicubic_pil_i
             -0.5,  // cube_coeff
         },
         {
-            "bicubic.new_resize_upsample_sizes_1x2x4x3_to_1x5x6x3_nhwc",
+            "bicubic.upsample_sizes_1x2x4x3_to_1x5x6x3_nhwc",
             Shape{1, 2, 4, 3},
             {5, 6},
             Shape{1, 5, 6, 3},
-            {0.5f, 0.5f},  // ignored
+            {},
             {1, 2},
             {InterpolateMode::BICUBIC_PILLOW, ShapeCalcMode::SIZES, {0, 0}, {0, 0}},
             std::vector<Data_t>{168, 92,  157, 111, 15, 138, 97,  47,  237, 25,  163, 6,
@@ -1096,11 +1096,11 @@ std::vector<InterpolateV11TestParams> generateParamsForInterpolate_bicubic_pil_i
             -0.5,  // cube_coeff
         },
         {
-            "bicubic.new_resize_downsample_sizes_1x5x6x3_to_1x2x4x3_nhwc",
+            "bicubic.downsample_sizes_1x5x6x3_to_1x2x4x3_nhwc",
             Shape{1, 5, 6, 3},
             {2, 4},
             Shape{1, 2, 4, 3},
-            {0.5f, 0.5f},  // ignored
+            {},
             {1, 2},
             {InterpolateMode::BICUBIC_PILLOW, ShapeCalcMode::SIZES, {0, 0}, {0, 0}},
             std::vector<Data_t>{168, 92,  157, 111, 15,  138, 97,  47,  237, 25,  163, 6,   72,  118, 121,
