@@ -4,9 +4,9 @@
 # SPDX-License-Identifier: Apache-2.0
 
 abs_path () {
-    path=$(eval echo "$1")
-    directory=$(dirname "$path")
-    echo "$(cd "$directory" || exit; pwd -P)/$(basename "$path")";
+    script_path=$(eval echo "$1")
+    directory=$(dirname "$script_path")
+    echo "$(cd "$directory" || exit; pwd -P)/$(basename "$script_path")";
 }
 
 SCRIPT_DIR="$( cd "$( dirname "$(abs_path "${BASH_SOURCE[0]}")" )" >/dev/null 2>&1 && pwd )"
