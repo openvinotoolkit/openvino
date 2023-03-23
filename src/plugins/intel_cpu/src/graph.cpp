@@ -67,22 +67,8 @@ namespace intel_cpu {
 typedef std::unordered_set<EdgePtr> edge_cluster_t;
 typedef std::vector<edge_cluster_t> edge_clusters_t;
 
-size_t g_infer_time = 0;
-std::unordered_map<std::thread::id, size_t> g_thread_counter_prep;
-std::unordered_map<std::thread::id, size_t> g_thread_counter_upd;
-
 Graph::~Graph() {
     CPU_DEBUG_CAP_ENABLE(summary_perf(*this));
-    std::cout << "Total infer time: " << double(g_infer_time) / 1e+6 << " ms" << std::endl;
-    size_t num = 0;
-    for (auto& item : g_thread_counter_prep) {
-        std::cout << "Thread: " << num++ << " id: " << item.first << " time: " << double(item.second) / 1e+6 << " ms" << std::endl;
-    }
-    std::cout << std::endl;
-    num = 0;
-    for (auto& item : g_thread_counter_upd) {
-        std::cout << "Thread: " << num++ << " id: " << item.first << " time: " << double(item.second) / 1e+6 << " ms" << std::endl;
-    }
 }
 
 template<typename NET>
@@ -1105,7 +1091,6 @@ class UpdateNodesBase : public IUpdateNodes {
 public:
     explicit UpdateNodesBase(std::vector<NodePtr>& executableGraphNodes) : m_executableGraphNodes(executableGraphNodes) {}
     void updateShapes(size_t node_indx, size_t stop_indx) {
-        auto start = std::chrono::steady_clock::now();
         m_prepareCounter.store(node_indx);
         if (node_indx >= stop_indx) {
             m_completion.store(true);
@@ -1116,8 +1101,6 @@ public:
         if (node->isDynamicNode()) {
             node->updateShapes();
         }
-        auto end = std::chrono::steady_clock::now();
-        g_thread_counter_upd[std::this_thread::get_id()] += std::chrono::duration_cast<std::chrono::nanoseconds>(end - start).count();
         updateShapes(node_indx + 1, stop_indx);
     }
 
@@ -1130,10 +1113,7 @@ public:
             while (local_counter < m_prepareCounter) {
                 const auto& node = m_executableGraphNodes[local_counter++];
                 if (node->isDynamicNode()) {
-                    auto start = std::chrono::steady_clock::now();
                     node->updateDynamicParams();
-                    auto end = std::chrono::steady_clock::now();
-                    g_thread_counter_prep[std::this_thread::get_id()] += std::chrono::duration_cast<std::chrono::nanoseconds>(end - start).count();
                 }
             }
         }
