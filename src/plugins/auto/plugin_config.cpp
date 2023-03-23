@@ -95,11 +95,7 @@ void PluginConfig::set_user_property(const ov::AnyMap& config) {
             internal_properties[kv.first] = kv.second;
             user_properties[kv.first] = kv.second;
         } else {
-            if (device_property_validator->is_valid(ov::Any(name))) { // if it's a valid secondary, accept it
-                user_properties[kv.first] = kv.second;
-            } else {
-                OPENVINO_ASSERT(false, "property ", name,  ": not supported");
-            }
+            user_properties[kv.first] = kv.second;
         }
     }
 }
