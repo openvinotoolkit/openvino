@@ -101,6 +101,9 @@ def merge_xmls(xml_paths: list):
                                     continue
                                 xml_value = None
                                 if "relative_" in attr_name:
+                                    value = op_result.attrib.get(attr_name)
+                                    if value is None:
+                                        continue
                                     xml_value = float(op_result.attrib.get(attr_name))
                                 else:
                                     xml_value = int(op_result.attrib.get(attr_name))
