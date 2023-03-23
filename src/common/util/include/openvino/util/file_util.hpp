@@ -261,6 +261,14 @@ inline std::basic_string<C> make_plugin_library_name(const std::basic_string<C>&
 FilePath get_plugin_path(const std::string& plugin);
 
 /**
+ * @brief Find the plugins which are located together with OV library
+ * @param plugin - Path (absolute or relative) or name of a plugin. Depending on platform, `plugin` is wrapped with
+ * shared library suffix and prefix to identify library full name
+ * @return absolute path or file name with extension (to be found in ENV)
+ */
+FilePath get_compiled_plugin_path(const std::string& plugin);
+
+/**
  * @brief Format plugin path (canonicalize, complete to absolute or complete to file name) for further
  * dynamic loading by OS
  * @param plugin - Path (absolute or relative) or name of a plugin. Depending on platform, `plugin` is wrapped with

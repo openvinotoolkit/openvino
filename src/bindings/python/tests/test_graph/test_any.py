@@ -34,7 +34,7 @@ def test_any_list(values, data_type):
 
 
 @pytest.mark.parametrize(("value_dict", "value_type", "data_type"), [
-    ({"key": "value"}, OVAny, str),
+    ({"key": "value"}, str, str),
     ({21: 37}, int, int),
     ({21.0: 37.0}, float, float),
 ])
@@ -65,3 +65,26 @@ def test_any_class():
     value = OVAny(TestClass())
     assert isinstance(value.value, TestClass)
     assert value.value.text == "test"
+
+
+@pytest.mark.parametrize(("value", "dtype"), [
+    ("some_value", str),
+    (31.23456, float),
+    (True, bool),
+    (42, int),
+])
+def test_astype(value, dtype):
+    ovany = OVAny(value)
+    assert ovany.astype(dtype) == value
+
+
+@pytest.mark.parametrize(("value", "dtype"), [
+    (["some_value", "another value"], str),
+    ([31.23456, -31.3453], float),
+    ([True, False], bool),
+    ([42, 21], int),
+    ([], None),
+])
+def test_aslist(value, dtype):
+    ovany = OVAny(value)
+    assert ovany.aslist(dtype) == value

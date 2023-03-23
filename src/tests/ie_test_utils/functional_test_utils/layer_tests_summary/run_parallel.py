@@ -199,7 +199,10 @@ class TestParallelRunner:
     def __get_test_list_by_runtime(self):
         test_list_file_name = os.path.join(self._working_dir, "test_list.lst")
         if os.path.isfile(test_list_file_name):
-            os.remove(test_list_file_name)
+            try:
+                os.remove(test_list_file_name)
+            except Exception as err:
+                logger.warning(f"Imposible to remove {test_list_file_name}. Error: {err}")
         command_to_get_test_list = self._command + f' --gtest_list_tests >> {test_list_file_name}'
         logger.info(f"Get test list using command: {command_to_get_test_list}")
         run_res = run(command_to_get_test_list, check=True, shell=True)
