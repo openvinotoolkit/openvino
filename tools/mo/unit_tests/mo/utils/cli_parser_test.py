@@ -4,7 +4,6 @@
 import argparse
 import numpy
 import os
-import pathlib
 import shutil
 import sys
 import tempfile
@@ -16,13 +15,13 @@ import numpy as np
 from openvino.tools.mo.utils.cli_parser import get_placeholder_shapes, get_tuple_values, get_mean_scale_dictionary, \
     get_model_name, \
     parse_tuple_pairs, check_positive, writable_dir, readable_dirs, \
-    readable_file, get_freeze_placeholder_values, parse_transform, check_available_transforms, get_layout_values, get_data_type_from_input_value, get_all_cli_parser
+    readable_file, get_freeze_placeholder_values, parse_transform, check_available_transforms, get_layout_values, get_all_cli_parser, \
+    get_mo_convert_params
 from openvino.tools.mo.convert_impl import pack_params_to_args_namespace
 from openvino.tools.mo.convert import InputCutInfo, LayoutMap
 from openvino.tools.mo.utils.error import Error
 from unit_tests.mo.unit_test_with_mocked_telemetry import UnitTestWithMockedTelemetry
 from openvino.runtime import PartialShape, Dimension, Layout
-from openvino.frontend import FrontEndManager
 
 
 class TestingMeanScaleGetter(UnitTestWithMockedTelemetry):
@@ -2013,3 +2012,41 @@ class TestPackParamsToArgsNamespace(unittest.TestCase):
 
         with self.assertRaisesRegex(Error, "Unrecognized argument: a"):
             pack_params_to_args_namespace(args, cli_parser)
+
+
+class TestConvertModelParamsParsing(unittest.TestCase):
+    def test_mo_convert_params_parsing(self):
+        ref_params = {
+            'Optional parameters:': {'help', 'framework'},
+            'Framework-agnostic parameters:': {'input_model', 'input_shape', 'scale', 'reverse_input_channels',
+                                               'log_level', 'input', 'output', 'mean_values', 'scale_values', 'source_layout',
+                                               'target_layout', 'layout', 'compress_to_fp16', 'transform', 'extensions',
+                                               'batch', 'silent', 'version', 'static_shape', 'progress', 'stream_output',
+                                               'transformations_config', 'use_new_frontend', 'use_legacy_frontend'},
+            'Caffe*-specific parameters:': {'input_proto', 'caffe_parser_path', 'k', 'disable_omitting_optional',
+                                            'enable_flattening_nested_params'},
+            'TensorFlow*-specific parameters:': {'input_model_is_text', 'input_checkpoint', 'input_meta_graph',
+                                                 'saved_model_dir', 'saved_model_tags',
+                                                 'tensorflow_custom_operations_config_update',
+                                                 'tensorflow_object_detection_api_pipeline_config',
+                                                 'tensorboard_logdir', 'tensorflow_custom_layer_libraries'},
+            'Mxnet-specific parameters:': {'input_symbol', 'nd_prefix_name', 'pretrained_model_name', 'save_params_from_nd',
+                                           'legacy_mxnet_model', 'enable_ssd_gluoncv'},
+            'Kaldi-specific parameters:': {'counts', 'remove_output_softmax', 'remove_memory'},
+            'Pytorch-specific parameters:': {'example_input', 'onnx_opset_version', 'input_signature'}
+        }
+
+        params = get_mo_convert_params()
+        for group_name in ref_params:
+            assert group_name in params
+            assert params[group_name].keys() == ref_params[group_name]
+
+        cli_parser = get_all_cli_parser()
+        for group_name, params in ref_params.items():
+            for param_name in params:
+                param_name = '--' + param_name
+                if group_name == 'Pytorch-specific parameters:':
+                    assert param_name not in cli_parser._option_string_actions
+                else:
+                    assert param_name in cli_parser._option_string_actions
+

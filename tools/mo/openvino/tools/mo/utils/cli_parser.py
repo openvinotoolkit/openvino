@@ -25,6 +25,7 @@ from openvino.tools.mo.middle.passes.convert_data_type import np_data_type_to_de
 from openvino.tools.mo.utils import import_extensions
 from openvino.tools.mo.utils.error import Error
 from openvino.tools.mo.utils.utils import refer_to_faq_msg, get_mo_root_dir
+from openvino.tools.mo.utils.version import get_version
 
 cli_tool_specific_descriptions = {
     'input_model':
@@ -837,7 +838,8 @@ def add_args_by_description(args_group, params_description):
     special_actions = {'transformations_config': CanonicalizeTransformationPathCheckExistenceAction,
                        'input_model': CanonicalizePathCheckExistenceAction,
                        'extensions': CanonicalizeExtensionsPathCheckExistenceAction,
-                       'counts': CanonicalizePathCheckExistenceIfNeededAction}
+                       'counts': CanonicalizePathCheckExistenceIfNeededAction,
+                       'version': 'version'}
     special_types = {'input_model': readable_file_or_dir, 'scale': float, 'extensions': readable_dirs_or_files_or_empty, 'batch': check_positive}
     param_aliases = {'input_model': {'-w', '-m'}, 'scale': {'-s'}, 'batch': {'-b'}, 'input_proto': {'-d'}}
 
@@ -851,7 +853,7 @@ def add_args_by_description(args_group, params_description):
             action = special_actions[param_name] if param_name in special_actions else None
             param_type = special_types[param_name] if param_name in special_types else None
             param_alias = param_aliases[param_name] if param_name in param_aliases else {}
-            if signature.parameters[param_name].annotation == bool:
+            if signature.parameters[param_name].annotation == bool and param_name != 'version':
                 args_group.add_argument(
                     cli_param_name, *param_alias,
                     type=check_bool if param_type is None else param_type,
@@ -868,12 +870,20 @@ def add_args_by_description(args_group, params_description):
                     help=help_text,
                     default=signature.parameters[param_name].default)
             else:
+                additional_params = {}
+                if param_name == 'version':
+                    additional_params['version'] = 'Version of Model Optimizer is: {}'.format(get_version())
+                if param_type is not None:
+                    additional_params['type'] = param_type
+                if param_name == 'log_level':
+                    additional_params['choices'] = ['CRITICAL', 'ERROR', 'WARN', 'WARNING', 'INFO', 'DEBUG', 'NOTSET']
                 args_group.add_argument(
                     cli_param_name, *param_alias,
                     help=help_text,
                     default=signature.parameters[param_name].default,
                     action=action,
-                    type=param_type)
+                    **additional_params
+                )
 
 
 def get_common_cli_parser(parser: argparse.ArgumentParser = None):

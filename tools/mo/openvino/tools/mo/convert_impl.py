@@ -773,9 +773,10 @@ def _convert(cli_parser: argparse.ArgumentParser, framework, args):
         argv.feManager = FrontEndManager()
         frameworks = list(set(['tf', 'caffe', 'mxnet', 'kaldi', 'onnx'] + (get_available_front_ends(argv.feManager)
                                                                            if argv.feManager else [])))
+        framework = argv.framework if hasattr(argv, 'framework') and argv.framework is not None else framework
         if framework is not None:
-            assert framework in frameworks, "Unknown framework type. " \
-                                            "Expected one of {}, got {}.".format(frameworks, framework)
+            assert framework in frameworks, "error: argument --framework: invalid choice: {}. " \
+                                            "Expected one of {}.".format(framework, frameworks)
             setattr(argv, 'framework', framework)
 
         # send telemetry with params info

@@ -162,7 +162,6 @@ def convert_model(
             `node_name1` with the shape [3,4] as an input node and freeze output
             port 1 of the node `node_name2` with the value [20,15] of the int32 type
             and shape [2]: "0:node_name1[3,4],node_name2:1[2]{i32}->[20,15]".
-
         :param output:
             The name of the output operation of the model or list of names. For TensorFlow*,
             do not add :0 to this name.The order of outputs in converted model is the
@@ -196,7 +195,6 @@ def convert_model(
             Layout can be partially defined, "?" can be used to specify undefined
             layout for one dimension, "..." can be used to specify undefined layout
             for multiple dimensions, for example "?c??", "nc...", "n...c", etc.
-
         :param target_layout:
             Same as --source_layout, but specifies target layout that will be in
             the model after processing by ModelOptimizer.
@@ -342,10 +340,8 @@ def convert_model(
     Pytorch-specific parameters:
         :param example_input:
             Sample of model input in original framework. For PyTorch it can be torch.Tensor.
-
         :param onnx_opset_version:
             Version of ONNX opset that is used for converting from PyTorch to ONNX.
-
         :param input_signature:
             PyTorch model forward method input signature. It will be detected automatically
             for torch.nn.Module based model instances, for scripted models
