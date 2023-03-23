@@ -134,7 +134,8 @@ ov::hint::PerformanceMode get_performance_hint(const std::string& device, const 
             } else if (FLAGS_hint == "none") {
                 ov_perf_hint = ov::hint::PerformanceMode::UNDEFINED;
             } else {
-                throw std::logic_error("Incorrect performance hint. Please set -hint option to"
+                throw std::logic_error(
+                    "Incorrect performance hint. Please set -hint option to"
                     "`throughput`(tput), `latency', 'cumulative_throughput'(ctput) value or 'none'.");
             }
         } else {
