@@ -270,12 +270,12 @@ private:
     inline void topk_loop() {
         if (jcp_.algorithm == TopKAlgorithm::topk_bubble_sort) {
             if (jcp_.layout == TopKLayoutType::topk_blocked && jcp_.topk_innermost) {
-                if (jcp_.top_k == 1) {
+                if (jcp_.top_k == 1 && !jcp_.stable) {
                     topk_bubble_horiz();
                 } else {
                     topk_bubble_BLK_on_channel_verti();
                 }
-            } else if (jcp_.topk_innermost && jcp_.top_k == 1) {
+            } else if (jcp_.topk_innermost && jcp_.top_k == 1 && !jcp_.stable) {
                 topk_bubble_horiz();
             } else {
                 topk_bubble_vector();
@@ -2092,6 +2092,7 @@ void TopK::createPrimitive() {
         jcp.topk_innermost = topk_innermost;
         jcp.algorithm = algorithm;
         jcp.bubble_inplace = bubble_inplace;
+        jcp.stable = stable;
         jcp.sort_stride = static_cast<int>(I);
         jcp.work_amount = static_cast<int>(I);
         jcp.bitonic_idx_cnt = 0;
@@ -2225,7 +2226,7 @@ inline void TopK::prepare_original_idx() {
     bool shape_agnostic_alg = algorithm == TopKAlgorithm::topk_heap_sort ||
                              (algorithm == TopKAlgorithm::topk_bubble_sort && !bubble_inplace);
     if (shape_agnostic_alg) {
-        bool use_idx_seq = stable ? topk_innermost && (layout == TopKLayoutType::topk_blocked || top_k == 1)
+        bool use_idx_seq = stable ? topk_innermost && (layout == TopKLayoutType::topk_blocked || (top_k == 1 && !stable))
                                   : topk_innermost;
         if (use_idx_seq) {
             if (vec_idx_seq.empty()) {
