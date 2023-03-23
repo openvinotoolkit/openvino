@@ -47,7 +47,7 @@ namespace cnpy {
             num_vals = 1;
             for(size_t i = 0;i < shape.size();i++) num_vals *= shape[i];
             if (word_size &&
-                num_vals > (0.9 * GetFreeMemorySize() / sizeof(char) / word_size))
+                num_vals > (GetFreeMemorySize() / word_size))
                 throw std::length_error("NpyArray of " + std::to_string(num_vals) +
                                         "*" + std::to_string(word_size) +
                                         " elements is too big.");
