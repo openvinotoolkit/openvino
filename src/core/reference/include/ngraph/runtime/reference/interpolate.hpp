@@ -578,13 +578,13 @@ void InterpolateEval<T>::cubic_func(const T* input_data, T* out) {
 
 template <typename T>
 void InterpolateEval<T>::bilinear_pil_func(const T* input_data, T* out) {
-    struct filter BILINEAR = {bilinear_filter, 1.0};
+    struct filter BILINEAR = {bilinear_filter, 1.0, m_cube_coeff};
     multidim_pil_func(input_data, out, &BILINEAR);
 }
 
 template <typename T>
 void InterpolateEval<T>::bicubic_pil_func(const T* input_data, T* out) {
-    struct filter BICUBIC = {bicubic_filter, 2.0};
+    struct filter BICUBIC = {bicubic_filter, 2.0, m_cube_coeff};
     multidim_pil_func(input_data, out, &BICUBIC);
 }
 

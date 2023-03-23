@@ -49,8 +49,9 @@ namespace runtime {
 namespace reference {
 
 struct filter {
-    double (*filter)(double x);
+    double (*filter)(double x, double coeff_a);
     double support;
+    double coeff_a;
 };
 
 template <typename T_out, typename T_in>
@@ -65,7 +66,7 @@ T_out clip(const T_in& x,
     return T_out(std::max(T_in(min), std::min(x, T_in(max))));
 }
 
-static inline double bilinear_filter(double x) {
+static inline double bilinear_filter(double x, double) {
     if (x < 0.0) {
         x = -x;
     }
@@ -75,8 +76,7 @@ static inline double bilinear_filter(double x) {
     return 0.0;
 }
 
-static inline double bicubic_filter(double x) {
-#define a -0.5
+static inline double bicubic_filter(double x, double a) {
     if (x < 0.0) {
         x = -x;
     }
@@ -87,7 +87,6 @@ static inline double bicubic_filter(double x) {
         return (((x - 5) * x + 8) * x - 4) * a;
     }
     return 0.0;
-#undef a
 }
 
 static int
@@ -143,7 +142,7 @@ precompute_coeffs(int inSize, float in0, float in1, int outSize, struct filter* 
         xmax -= xmin;
         k = &kk[xx * ksize];
         for (x = 0; x < xmax; x++) {
-            double w = filterp->filter((x + xmin - center + 0.5) * ss);
+            double w = filterp->filter((x + xmin - center + 0.5) * ss, filterp->coeff_a);
             k[x] = w;
             ww += w;
         }
