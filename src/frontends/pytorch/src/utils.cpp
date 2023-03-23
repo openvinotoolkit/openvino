@@ -66,7 +66,8 @@ std::tuple<Output<Node>, Output<Node>> get_shape_rank(const NodeContext& context
     auto shape = context.mark_node(std::make_shared<opset10::ShapeOf>(x, output_type));
     Output<Node> rank = context.mark_node(std::make_shared<opset10::ShapeOf>(shape, output_type));
     if (as_scalar) {
-        rank = context.mark_node(std::make_shared<opset10::Squeeze>(rank));
+        auto axis_0 = context.mark_node(opset10::Constant::create(output_type, Shape{}, {0}));
+        rank = context.mark_node(std::make_shared<opset10::Squeeze>(rank, axis_0));
     }
     return std::make_tuple(shape, rank);
 }
@@ -110,9 +111,8 @@ std::shared_ptr<Node> get_axes_range(const NodeContext& context, int input_id) {
     auto x = context.get_input(input_id);
     auto start = std::make_shared<opset10::Constant>(element::i32, Shape{}, 0);
     auto step = std::make_shared<opset10::Constant>(element::i32, Shape{}, 1);
-    auto shape = context.mark_node(std::make_shared<opset10::ShapeOf>(x, element::i32));
-    auto rank = context.mark_node(std::make_shared<opset10::ShapeOf>(shape, element::i32));
-    auto reduced_rank = context.mark_node(std::make_shared<opset10::Squeeze>(rank));
+    Output<Node> reduced_rank;
+    std::tie(std::ignore, reduced_rank) = get_shape_rank(context, x, true);
     return context.mark_node(std::make_shared<opset10::Range>(start, reduced_rank, step, element::i32));
 };
 

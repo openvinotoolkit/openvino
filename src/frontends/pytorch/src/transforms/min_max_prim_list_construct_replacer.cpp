@@ -49,7 +49,8 @@ MinMaxPrimListConstructReplacer::MinMaxPrimListConstructReplacer() {
             auto step = std::make_shared<ov::op::v0::Constant>(element::i32, Shape{}, 1);
             auto shape = std::make_shared<ov::op::v3::ShapeOf>(input, element::i32);
             auto rank = std::make_shared<ov::op::v3::ShapeOf>(shape, element::i32);
-            auto reduced_rank = std::make_shared<ov::op::v0::Squeeze>(rank);
+            auto axis_0 = ov::op::v0::Constant::create(element::i32, Shape{}, {0});
+            auto reduced_rank = std::make_shared<ov::op::v0::Squeeze>(rank, axis_0);
             auto axes = std::make_shared<ov::op::v4::Range>(start, reduced_rank, step, element::i32);
             std::shared_ptr<Node> reduce_op;
             if (!is_min) {

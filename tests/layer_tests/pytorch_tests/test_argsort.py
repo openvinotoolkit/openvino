@@ -11,7 +11,7 @@ def not_yet_supported(value):
     return pytest.param(
         value,
         marks = pytest.mark.xfail(
-            reason="Failed due to aten::sargsort not yet supporting stable sorting. Ticket 105242"
+            reason="Failed due to aten::argsort not yet supporting stable sorting. Ticket 105242"
         ),
     )
 
