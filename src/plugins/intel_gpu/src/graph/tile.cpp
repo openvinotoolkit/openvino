@@ -54,17 +54,17 @@ std::vector<layout> tile_inst::calc_output_layouts(tile_node const& /*node*/, co
     auto repeats = desc->repeats;
     const auto data_accessor =
         MemoryAccessor(&impl_param.memory_deps, impl_param.prog->get_stream(), [&repeats, &repeats_shape](size_t port) {
-            return (port == 1) ? ov::Tensor(data_type_to_element_type(data_types::i64),
-                                            repeats_shape.to_shape(),
-                                            repeats.data())
-                               : ov::null_tensor_accessor()(port);
+            return (port == 1 && repeats.data()) ? ov::Tensor(data_type_to_element_type(data_types::i64),
+                                                              repeats_shape.to_shape(),
+                                                              repeats.data())
+                                                 : ov::null_tensor_accessor()(port);
         });
 
     std::vector<ShapeType> output_shapes = ov::op::v0::shape_infer(&op, input_shapes, data_accessor);
 
     format output_format = format::adjust_to_rank(input0_layout.format, output_shapes[0].size());
 
-    return { layout{output_shapes[0], output_type, output_format} };
+    return {layout{output_shapes[0], output_type, output_format}};
 }
 
 template std::vector<layout> tile_inst::calc_output_layouts<ov::PartialShape>(tile_node const& node, const kernel_impl_params& impl_param);
