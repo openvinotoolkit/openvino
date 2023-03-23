@@ -150,7 +150,12 @@ AxisVector AlignTransposeOrder(const Output<Node>& output, const TransposeInputs
     return new_transpose_order;
 }
 
-bool UpdateInputTransposes(const NodePtr& main_node, const TransposeInputsInfo& transpose_input_info) {
+bool UpdateInputTransposes(const NodePtr& main_node, const TransposeInputsInfo& transpose_input_info,
+                           std::vector<int> input_indexes) {
+    if (input_indexes.empty()) {
+        input_indexes.resize(main_node->get_input_size());
+        std::iota(input_indexes.begin(), input_indexes.end(), 0);
+    }
     if (transpose_input_info.isEmpty() || HasDynamicRankInput(main_node))
         return false;
 
@@ -161,7 +166,7 @@ bool UpdateInputTransposes(const NodePtr& main_node, const TransposeInputsInfo& 
     const size_t transpose_input_index = transpose_input_info.input_idx;
     const auto transpose_element_type = transpose_input_info.transpose_const->get_element_type();
 
-    for (size_t i = 0; i < main_node->get_input_size(); ++i) {
+    for (const auto& i : input_indexes) {
         auto input_node = main_node->input_value(i);
         if (i == transpose_input_index) {
             auto transpose_parent = input_node.get_node()->input_value(0);
