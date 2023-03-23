@@ -6,7 +6,7 @@
  * @brief A header that defines advanced related properties for DLIA plugins.
  * These properties should be used in set_property() and compile_model() methods of plugins
  *
- * @file template/config.hpp
+ * @file template/properties.hpp
  */
 
 #pragma once
@@ -21,9 +21,9 @@ namespace template_plugin {
 // ! [public_header:properties]
 
 /**
- * @brief Defines the number of throutput streams used by TEMPLATE plugin.
+ * @brief Allows to disable all transformations for execution inside the TEMPLATE plugin.
  */
-static constexpr Property<uint32_t, PropertyMutability::RW> throughput_streams{"THROUGHPUT_STREAMS"};
+static constexpr Property<bool, PropertyMutability::RW> disable_transformations{"DISABLE_TRANSFORMATIONS"};
 
 // ! [public_header:properties]
 

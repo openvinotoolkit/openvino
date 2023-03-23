@@ -4,7 +4,7 @@
 
 #include "behavior/plugin/configuration_tests.hpp"
 
-#include <template/config.hpp>
+#include "template/properties.hpp"
 
 using namespace BehaviorTestsDefinitions;
 
@@ -14,13 +14,13 @@ const std::vector<InferenceEngine::Precision> netPrecisions = {InferenceEngine::
                                                                InferenceEngine::Precision::FP16};
 
 const std::vector<std::map<std::string, std::string>> configs = {
-    {{ov::template_plugin::throughput_streams.name(), InferenceEngine::PluginConfigParams::CPU_THROUGHPUT_AUTO}},
-    {{ov::template_plugin::throughput_streams.name(), InferenceEngine::PluginConfigParams::CPU_THROUGHPUT_NUMA}},
-    {{ov::template_plugin::throughput_streams.name(), "8"}},
+    {{CONFIG_KEY(CPU_THROUGHPUT_STREAMS), InferenceEngine::PluginConfigParams::CPU_THROUGHPUT_AUTO}},
+    {{CONFIG_KEY(CPU_THROUGHPUT_STREAMS), InferenceEngine::PluginConfigParams::CPU_THROUGHPUT_NUMA}},
+    {{CONFIG_KEY(CPU_THROUGHPUT_STREAMS), "8"}},
 };
 
 const std::vector<std::map<std::string, std::string>> inconfigs = {
-    {{ov::template_plugin::throughput_streams.name(), CONFIG_VALUE(NO)}},
+    {{CONFIG_KEY(CPU_THROUGHPUT_STREAMS), CONFIG_VALUE(NO)}},
 };
 
 INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests,
