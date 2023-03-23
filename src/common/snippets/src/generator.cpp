@@ -63,7 +63,7 @@ Generator::LoweringResult Generator::generate(std::shared_ptr<ov::Model>& m, con
         transform->run(linear_ir);
     }
     linear_ir.serialize("snsdebug_linear.xml", "snsdebug_linear.bin");
-    throw std::runtime_error("FINITA");
+//    throw std::runtime_error("FINITA");
 
     const auto buffer_scratchpad_size = propagate_buffer_offsets->get_scratchpad_size();
     linear_ir.init_emitters(target);

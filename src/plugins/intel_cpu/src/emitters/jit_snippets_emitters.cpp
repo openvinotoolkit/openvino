@@ -767,6 +767,8 @@ BrgemmEmitter::BrgemmEmitter(dnnl::impl::cpu::x64::jit_generator* h, dnnl::impl:
     M = C_shape[C_layout[2]];
     K = A_shape[A_layout[3]];
     M_blk = matmulOptimalM;
+    // todo: for debug purposes
+    M_blk = 1;
     M_tail = M % M_blk;
     // B_shape[B_layout[3]]
     N = C_shape[C_layout[3]];
