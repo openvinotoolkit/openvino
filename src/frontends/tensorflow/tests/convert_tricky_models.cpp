@@ -346,6 +346,7 @@ TEST_F(TransformationTestsF, ModelWithIteratorGetNextAndUnsupportedOp) {
         model_ref = make_shared<Model>(OutputVector{add}, ParameterVector{x, y});
     }
 }
+
 TEST_F(TransformationTestsF, ModelWithMultioutputBodyGraphNode) {
     { model = convert_model("partitioned_call2/partitioned_call2.pb"); }
     {
@@ -374,5 +375,15 @@ TEST_F(TransformationTestsF, ModelWithEmptyTensorListAndPushBack) {
         auto recover_item_shape = make_shared<Constant>(i32, Shape{4}, vector<int32_t>{1, 2, 3, 5});
         auto recover_item = make_shared<Reshape>(list_push_back, recover_item_shape, false);
         model_ref = make_shared<Model>(OutputVector{recover_item}, ParameterVector{x});
+    }
+}
+
+TEST_F(TransformationTestsF, ModelWithAssertNode) {
+    { model = convert_model("model_with_assert/model_with_assert.pb"); }
+    {
+        auto x = make_shared<Parameter>(i32, PartialShape{Dimension::dynamic()});
+        auto y = make_shared<Parameter>(i32, PartialShape{Dimension::dynamic()});
+        auto add = make_shared<Add>(x, y);
+        model_ref = make_shared<Model>(OutputVector{add}, ParameterVector{x, y});
     }
 }
