@@ -31,7 +31,7 @@ namespace cldnn {
 
 constexpr int32_t tensor_batch_dim_max = 1;
 constexpr int32_t tensor_feature_dim_max = 1;
-constexpr int32_t tensor_spatial_dim_max = 4;
+constexpr int32_t tensor_spatial_dim_max = 6;
 constexpr int32_t tensor_group_dim_max = 1;
 constexpr int32_t tensor_dim_max = tensor_batch_dim_max + tensor_feature_dim_max + tensor_spatial_dim_max + tensor_group_dim_max;
 
@@ -346,7 +346,7 @@ public:
             delim = ",";
         }
 
-        std::vector<std::string> spatial_dim_names = {", x", ", y", ", z", ", w"};
+        std::vector<std::string> spatial_dim_names = {", x", ", y", ", z", ", w", ", u", ", v"};
         for (size_t i = 0; i < spatial.size(); ++i) {
             out << spatial_dim_names[i] << ":" << spatial[i];
         }
@@ -471,7 +471,7 @@ public:
        * @endcode
      */
     tensor transform(cldnn::format new_fmt, value_type default_size) const {
-        cldnn::format format = cldnn::format::bfwzyx;
+        cldnn::format format = cldnn::format::bfvuwzyx;
         auto val_order = format.internal_order();
         auto new_order = new_fmt.internal_order();
         std::vector<value_type> old_sizes = sizes();
@@ -479,18 +479,17 @@ public:
         auto tmp = 1;
         auto tmp_z = 1;
         auto tmp_w = 1;
+        auto tmp_u = 1;
+        auto tmp_v = 1;
         for (size_t i = 0; i < format.order().size(); i++) {
             auto c = val_order[i];
-            // skip f and y, z for the formats that do not have it
-            if (((new_fmt == format::bs_xs_xsv8_bsv8) ||
-                 (new_fmt == format::bs_xs_xsv8_bsv16) ||
+            // skip dim for the formats that do not have it
+            if (((new_fmt == format::bs_fs_fsv8_bsv8) ||
+                 (new_fmt == format::bs_fs_fsv8_bsv16) ||
                  (new_fmt == format::os_i_osv8__ai8) ||
                  (new_fmt == format::os_i_osv16__ai8) ||
-                 (new_fmt == format::bs_x_bsv16)) &&
-                ((c == 'f') ||
-                 (c == 'y') ||
-                 (c == 'z') ||
-                 (c == 'w'))) {
+                 (new_fmt == format::bs_f_bsv16)) &&
+                 (c != 'b' && c != 'f' && c != 'o' && c != 'i')) {
                 if (new_order[i] == '?')
                     new_sizes[i] = default_size;
 
@@ -525,6 +524,22 @@ public:
                 continue;
             }
 
+            if (new_fmt != format::bfuwzyx && c == 'u') {
+                if (new_order[i] == '?')
+                    new_sizes[i] = default_size;
+
+                tmp_u *= old_sizes[i];
+                continue;
+            }
+
+            if (new_fmt != format::bfvuwzyx && c == 'v') {
+                if (new_order[i] == '?')
+                    new_sizes[i] = default_size;
+
+                tmp_v *= old_sizes[i];
+                continue;
+            }
+
             auto new_pos = new_order.find(c);
             if (new_pos == std::string::npos)
                 throw std::invalid_argument("cannot convert to new format");
@@ -532,10 +547,10 @@ public:
         }
 
         // in case of formats with smaller number of dimensions than input, flatten is performed below
-        if (tmp != 1 || tmp_z != 1 || tmp_w != 1) {
+        if (tmp != 1 || tmp_z != 1 || tmp_w != 1 || tmp_u != 1 || tmp_v != 1) {
             for (size_t i = 0; i < format.order().size(); i++) {
                 auto c = val_order[i];
-                if (c == 'x') {
+                if (c == 'f') {
                     auto new_pos = new_order.find(c);
                     new_sizes[new_pos] *= tmp;
                 }
@@ -548,6 +563,16 @@ public:
                     auto new_pos = new_order.find(c);
                     if (new_pos != std::string::npos)
                         new_sizes[new_pos] *= tmp_w;
+                }
+                if (c == 'w') {
+                    auto new_pos = new_order.find(c);
+                    if (new_pos != std::string::npos)
+                        new_sizes[new_pos] *= tmp_u;
+                }
+                if (c == 'u') {
+                    auto new_pos = new_order.find(c);
+                    if (new_pos != std::string::npos)
+                        new_sizes[new_pos] *= tmp_v;
                 }
             }
         }

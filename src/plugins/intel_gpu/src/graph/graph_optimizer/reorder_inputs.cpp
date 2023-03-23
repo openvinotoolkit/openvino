@@ -13,7 +13,6 @@
 #include "mvn_inst.h"
 #include "to_string_utils.h"
 #include "pooling_inst.h"
-#include "reshape_inst.h"
 
 #ifdef ENABLE_ONEDNN_FOR_GPU
 #include "gemm_inst.h"
@@ -511,6 +510,8 @@ void minimize_local_reorders(program& p, std::map<program_node*, format::type>& 
             continue;
 
         for (auto new_fmt : local_formats) {
+            if (fmt_map.at(node) != format::any && format::dimension(fmt_map.at(node)) != format::dimension(new_fmt))
+                continue;
             fmt_map.at(node) = new_fmt;
 
             auto reorders_cnt = count_reorders(fmt_map, lo, node);
