@@ -52,6 +52,7 @@ private:
     InferenceEngine::Precision outputPrecision = InferenceEngine::Precision::FP32;
     bool canExecRef = false;
     static constexpr size_t MAX_RANK_REF = 6;
+    dnnl::primitive prim;
 };
 
 }   // namespace node

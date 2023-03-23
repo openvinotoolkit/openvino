@@ -1062,7 +1062,7 @@ void RNN::prepareParams() {
     RNNKey key = { inDataDescs, outDataDescs, wDescs, cell_type, cell_act, direction, *attr };
 
     auto engine = getEngine();
-    auto builder = [&engine](const RNNKey& key) -> dnnl::primitive {
+    auto builder = [&engine](const RNNKey& key) -> executorPtr {
         const auto descPtr = createPrimitiveDescriptor(engine,
                                                        key.cellType,
                                                        key.cellAct,
@@ -1072,23 +1072,22 @@ void RNN::prepareParams() {
                                                        key.wDescs,
                                                        key.attr);
 
-        return dnnl::primitive(descPtr);
+        return std::make_shared<DnnlExecutor>(descPtr);
     };
 
     auto cache = context->getParamsCache();
     auto result = cache->getOrCreate(key, builder);
 
-    if (!result.first) {
+    execPtr = result.first;
+
+    if (!execPtr) {
         IE_THROW() << "Primitive descriptor was not found for node " << getName() << ".";
     }
 
-    prim = result.first;
-
-    auto pd = prim.get_primitive_desc();
-    scratchpadMem = getScratchPadMem(pd);
+    scratchpadMem = getScratchPadMem(execPtr->getScratchPadDesc());
 
     if (!wasMemoryPrepared || wFormatWasChanged) {
-        auto pd = prim.get_primitive_desc();
+        auto pd = execPtr->getPrimitiveDesc();
         auto query_weights_md = [&](int idx = 0) -> dnnl::memory::desc {
             auto what = dnnl::convert_to_c(dnnl::query::weights_md);
             const_dnnl_memory_desc_t cdesc = dnnl_primitive_desc_query_md(pd, what, idx);
@@ -1118,7 +1117,7 @@ std::shared_ptr<MemoryDesc> RNN::getDstMemDesc(dnnl::primitive_desc_iterator& pr
 }
 
 void RNN::execute(dnnl::stream strm) {
-    if (!prim)
+    if (!execPtr)
         THROW_ERROR << "does not have initialized primitive to execute.";
 
     const auto src_data_mem = getParentEdgeAt(0)->getMemoryPtr();
@@ -1160,7 +1159,7 @@ void RNN::execute(dnnl::stream strm) {
         }
     }
 
-    prim.execute(strm, args);
+    execPtr->exec(args, strm);
 }
 
 void RNN::executeDynamicImpl(dnnl::stream strm) {

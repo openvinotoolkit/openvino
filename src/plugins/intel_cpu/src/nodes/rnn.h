@@ -11,6 +11,8 @@
 #include <memory>
 #include <vector>
 
+#include "common/dnnl_executor.h"
+
 namespace ov {
 namespace intel_cpu {
 namespace node {
@@ -65,6 +67,9 @@ private:
     void fillBiases(const int* gate_map);
 
     void copyWeightsData();
+
+    using executorPtr = std::shared_ptr<DnnlExecutor>;
+    executorPtr execPtr = nullptr;
 
     /** Specify mode Cell or Seq. true - Cell, false - Seq */
     bool is_cell = false;

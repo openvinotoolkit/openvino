@@ -90,16 +90,6 @@ private:
     std::unordered_map<std::string, MemoryPtr> privateWeightCache;
     dnnl::primitive_attr attr;
 
-    class ExecutorInnerProduct : public DnnlExecutor {
-        public:
-            ExecutorInnerProduct(const dnnl::inner_product_forward::primitive_desc& pd);
-    };
-
-    class ExecutorConv1x1 : public DnnlExecutor {
-        public:
-            ExecutorConv1x1(const dnnl::convolution_forward::primitive_desc& pd);
-    };
-
     static dnnl::convolution_forward::primitive_desc
     createDescriptorInternalForConv(DnnlMemoryDescCPtr inputDescPtr,
                                     DnnlMemoryDescCPtr weightDescPtr,

@@ -36,11 +36,16 @@ MemoryDescPtr DnnlMemoryDesc::cloneWithNewPrecision(const InferenceEngine::Preci
 }
 
 bool DnnlMemoryDesc::isCompatible(const MemoryDesc &rhs) const {
-    if (MemoryDescType::Dnnl == rhs.getType()) {
-        return this->desc == rhs.as<DnnlMemoryDesc>()->desc;
+    if (MemoryDescType::Dnnl & rhs.getType()) {
+        auto* dnnMemDesc = rhs.as<DnnlMemoryDesc>();
+        return isCompatible(*dnnMemDesc);
     } else {
         return false;
     }
+}
+
+bool DnnlMemoryDesc::isCompatible(const DnnlMemoryDesc& rhs) const {
+    return this->desc == rhs.desc;
 }
 
 std::string DnnlMemoryDesc::serializeFormat() const {
