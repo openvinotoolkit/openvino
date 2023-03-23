@@ -928,14 +928,6 @@ void GNAPlugin::LoadNetwork(const CNNNetwork& _network) {
         }
     }
 
-    if (dnn->do_rotate_input && transpose_inputs_info.empty()) {
-        for (auto& inputLayer : inputLayers) {
-            transpose_inputs_info.insert(
-                {inputLayer->name,
-                 {TranspositionInfo{dnn->do_rotate_input, dnn->num_rotate_rows, dnn->num_rotate_columns}}});
-        }
-    }
-
     // TODO: Need to remove this conversation when ngraph NCHW<->NHWC transformation is enabled
     if (!transpose_inputs_info.empty()) {
         ConvertTransposeMapToModel(transpose_inputs_info, inputs_ptr_->Get());
