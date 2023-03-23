@@ -104,16 +104,15 @@ jobs:
             -DCMAKE_C_LINKER_LAUNCHER=ccache
             -DCMAKE_CXX_LINKER_LAUNCHER=ccache
           build-type: Release
-          target: all
+          run-test: true
+          ctest-options: -V
           parallel: ${{ steps.cpu-cores.outputs.count }}
       
-      - name: Run OV tests
-        run: ctest -V
-      #- name: ls all
-      #  run:  ls -laR .
+      - name: list all
+        run: ls -laR
 
       - name: Build coverage with CMake
-        run: cmake --build build --target ov_coverage
+        run: cmake --build ${{ github.workspace }}/build --target ov_coverage -- -C ${{ github.workspace }}/build
 
       - name: Generate raport
         run: |
