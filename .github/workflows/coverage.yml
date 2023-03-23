@@ -118,10 +118,10 @@ jobs:
           target: ov_coverage
           configure-options: -DCMAKE_VERBOSE_MAKEFILE=ON
 
-      - name: Generate raport
-        run: |
-          lcov --capture --directory . --output-file coverage.info
-          genhtml coverage.info --output-directory coverage-report
+            #- name: Generate raport
+            #run: |
+            # lcov --capture --directory . --output-file coverage.info
+            #genhtml coverage.info --output-directory coverage-report
 
       - name: Collect coverage
         uses: codecov/codecov-action@v3
