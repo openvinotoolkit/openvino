@@ -3,7 +3,7 @@
 //
 
 /**
- * @brief A header that defines advanced related properties for Template plugins.
+ * @brief A header that defines advanced related properties for Template plugin.
  * These properties should be used in set_property() and compile_model() methods of plugins
  *
  * @file template/properties.hpp
