@@ -12,6 +12,7 @@ from pathlib import Path
 import glob
 import re
 import os
+import math
 
 
 class aten_relu(torch.nn.Module):
@@ -76,15 +77,18 @@ def test_pytorch_fe_set_input_value():
 def test_conversion_extension():
     from openvino.frontend.pytorch.decoder import TorchScriptPythonDecoder
 
-    class Elu(torch.nn.Module):
-        def __init__(self, alpha):
-            super(Elu, self).__init__()
-            self.alpha = alpha
+    class Model(torch.nn.Module):
+        def __init__(self):
+            super(Model, self).__init__()
 
         def forward(self, inp):
-            return torch.nn.functional.elu(inp, self.alpha)
+            elu = torch.nn.functional.elu(inp, alpha=0.123)
+            gelu = torch.nn.functional.gelu(elu, approximate="none")
+            gelu2 = torch.nn.functional.gelu(gelu, approximate="tanh")
+            softmax = torch.nn.functional.softmax(gelu2, dim=-1)
+            return softmax
 
-    model = Elu(alpha=0.123)
+    model = Model()
     decoder = TorchScriptPythonDecoder(get_scripted_model(model))
 
     fem = FrontEndManager()
@@ -95,7 +99,7 @@ def test_conversion_extension():
     assert input_model
     converted_model = fe.convert(input_model)
     assert converted_model
-    assert [n.get_type_name() for n in converted_model.get_ordered_ops()] == ["Parameter", "Elu", "Result"]
+    assert [n.get_type_name() for n in converted_model.get_ordered_ops()] == ["Parameter", "Elu", "Gelu", "Gelu", "Softmax", "Result"]
 
     def convert_elu(node: NodeContext):
         inp = node.get_input(0)
@@ -109,20 +113,62 @@ def test_conversion_extension():
         select = ops.select(greater, inp, mul)
         return select.outputs()
 
+    def convert_gelu(node: NodeContext):
+        inp = node.get_input(0)
+        approximate = node.const_input(1)
+        if approximate == "none":
+            f = ops.erf(ops.divide(inp, ops.constant(np.array([math.sqrt(2.0)], dtype=np.float32))))
+        elif approximate == "tanh":
+            f = ops.tanh(ops.multiply(ops.constant(np.array([math.sqrt(2.0 / math.pi)], dtype=np.float32)),
+                                      ops.add(inp, ops.multiply(ops.constant(np.array([0.044715], dtype=np.float32)),
+                                                                ops.power(inp, ops.constant(np.array([3], dtype=np.float32)))))))
+        mul = ops.multiply(ops.multiply(ops.constant(np.array([0.5], dtype=np.float32)), inp),
+                           ops.add(ops.constant(np.array([1], dtype=np.float32)), f))
+        return mul.outputs()
+
+    def convert_softmax(node: NodeContext):
+        inp = node.get_input(0)
+        dim = node.const_input(1, dtype=np.int32)
+        dim_const = ops.constant(np.array([dim], dtype=np.int32))
+        reduce_max = ops.reduce_max(inp, dim_const, True)
+        sub = ops.subtract(inp, reduce_max)
+        exp = ops.exp(sub)
+        reduce_sum = ops.reduce_sum(exp, dim_const, True)
+        div = ops.divide(exp, reduce_sum)
+        return div.outputs()
+
+
     fe.add_extension(ConversionExtension("aten::elu", convert_elu))
+    fe.add_extension(ConversionExtension("aten::gelu", convert_gelu))
+    fe.add_extension(ConversionExtension("aten::softmax", convert_softmax))
     converted_model = fe.convert(input_model)
     assert converted_model
-    assert [n.get_type_name() for n in converted_model.get_ordered_ops()] == ["Parameter", "Constant", "Greater", "Exp",
+
+    assert [n.get_type_name() for n in converted_model.get_ordered_ops()] == ["Parameter", "Constant", "Constant",
+                                                                              "Constant", "Greater", "Exp",
                                                                               "Constant", "Subtract", "Constant",
-                                                                              "Multiply", "Select", "Result"]
+                                                                              "Multiply", "Select", "Multiply",
+                                                                              "Constant", "Constant", "Divide",
+                                                                              "Erf", "Add", "Multiply",
+                                                                              "Multiply", "Constant", "Constant",
+                                                                              "Constant", "Constant", "Power",
+                                                                              "Multiply", "Add", "Multiply",
+                                                                              "Tanh", "Add", "Multiply",
+                                                                              "Constant", "ReduceMax", "Subtract",
+                                                                              "Exp", "ReduceSum", "Divide", "Result"]
 
 
 def get_builtin_extensions_path():
-    base_path = Path(__file__).parent.parent.parent.parent
-    paths = glob.glob(os.path.join(base_path, "bin", "*", "*", "*test_builtin_extensions*"))
-    for path in paths:
-        if re.search(r"(lib)?test_builtin_extensions.?\.(dll|so)", path):
-            return path
+    base_paths = [Path(__file__).parent.parent.parent.parent]
+    repo_dir = os.environ.get("REPO_DIR")
+    if repo_dir:
+        base_paths.append(repo_dir)
+
+    for base_path in base_paths:
+        paths = glob.glob(os.path.join(base_path, "bin", "*", "*", "*test_builtin_extensions*"))
+        for path in paths:
+            if re.search(r"(lib)?test_builtin_extensions.?\.(dll|so)", path):
+                return path
     raise RuntimeError("Unable to find test_builtin_extensions")
 
 
