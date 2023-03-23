@@ -1017,20 +1017,18 @@ void reorder_inputs::run(program& p, layout_optimizer& lo, reorder_factory& rf) 
             for (const auto& fused_prim : node->get_fused_primitives()) {
                 if (fused_prim.is_type<eltwise>() &&
                     one_of(fused_prim.typed_desc<eltwise>()->mode, {eltwise_mode::sum, eltwise_mode::sub, eltwise_mode::prod})) {
-                    auto& data = node->get_dependency(fused_prim.dep_start_idx);
-
                     auto fc_layout = node->get_output_layout();
-                    onednn::combine_bf_with_first_spatial_dim(fc_layout);
-
+                    auto& data = node->get_dependency(fused_prim.dep_start_idx);
                     auto data_layout = data.get_output_layout();
-                    onednn::combine_bf_with_first_spatial_dim(data_layout);
 
-                    if (fc_layout.batch() == data_layout.batch())
+                    if ((fc_layout.batch() == 1 || fc_layout.feature() == 1) ||
+                        (data_layout.batch() == 1 && data_layout.feature() == 1) ||
+                        (fc_layout.count() == data_layout.count())) {
                         continue;
+                    }
 
                     static size_t idx = 0;
                     const auto prim_id = "broadcast:" + data.id() + "_broadcasted" + std::to_string(idx++);
-                    fc_layout = node->get_output_layout();
                     auto broadcast_prim = std::make_shared<cldnn::broadcast>(prim_id, cldnn::input_info(data.id()), fc_layout.get_shape(), ov::AxisSet{});
 
                     auto& broadcast_node = p.get_or_create(broadcast_prim);

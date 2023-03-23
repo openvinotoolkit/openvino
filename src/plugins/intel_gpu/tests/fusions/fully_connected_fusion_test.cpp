@@ -159,10 +159,13 @@ public:
 #define CASE_FC_FP16_1 { 1, 3 }, { 1, 4 }, { 4, 3 }, data_types::f16, format::bfyx, data_types::f16, format::oiyx, data_types::f32, format::bfyx
 #define CASE_FC_FP16_2 { 2, 3 }, { 2, 4 }, { 4, 3 }, data_types::f16, format::bfyx, data_types::f16, format::oiyx, data_types::f32, format::bfyx
 #define CASE_FC_FP16_3 { 2, 32 }, { 2, 16 }, { 16, 32 }, data_types::f16, format::bfyx, data_types::f16, format::oiyx, data_types::f32, format::bfyx
+#define CASE_FC_FP16_4 { 128, 76 }, { 128, 768 }, { 768, 76 }, data_types::f16, format::bfyx, data_types::f16, format::oiyx, data_types::f32, format::bfyx
+#define CASE_FC_FP16_5 { 1, 128, 76 }, { 1, 128, 768 }, { 1, 768, 76 }, data_types::f16, format::bfyx, data_types::f16, format::oiyx, data_types::f32, format::bfyx
+#define CASE_FC_FP16_6 { 2, 1, 76 }, { 2, 1, 768 }, { 768, 76, 1 }, data_types::f16, format::bfyx, data_types::f16, format::oiyx, data_types::f32, format::bfyx
+#define CASE_FC_FP16_7 { 2, 128, 76 }, { 2, 128, 768 }, { 768, 76, 1 }, data_types::f16, format::bfyx, data_types::f16, format::oiyx, data_types::f32, format::bfyx
 #define CASE_FC_FP16_3D_1 { 2, 32, 3 }, { 2, 32, 16 }, { 16, 3, 1 }, data_types::f16, format::bfyx, data_types::f16, format::oiyx, data_types::f32, format::bfyx
 #define CASE_FC_FP16_3D_2 { 1, 1, 3 }, { 1, 1, 32 }, { 32, 3, 1 }, data_types::f16, format::bfyx, data_types::f16, format::oiyx, data_types::f32, format::bfyx
-// #define CASE_FC_FP16_3D_3 { 2, 3, 1 }, { 2, 3, 15 }, { 15, 1, 1 }, data_types::f16, format::bfyx, data_types::f16, format::oiyx, data_types::f32, format::bfyx
-// #define CASE_FC_FP16_3D_4 { 2, 1, 1 }, { 2, 1, 15 }, { 15, 1, 1 }, data_types::f16, format::bfyx, data_types::f16, format::oiyx, data_types::f32, format::bfyx
+
 /* ----------------------------------------------------------------------------------------------------- */
 /* ---------------------------------------- FC cases --------------------------------------------------- */
 /* ----------------------------------------------------------------------------------------------------- */
@@ -463,6 +466,10 @@ INSTANTIATE_TEST_SUITE_P(fusings_gpu, fc_fp16_eltwise_add, ::testing::ValuesIn(s
     fully_connected_test_params{ CASE_FC_FP16_1, 2, 3, "fully_connected_gpu_bfyx_ref" },
     fully_connected_test_params{ CASE_FC_FP16_2, 2, 3, "fully_connected_gpu_bfyx_ref" },
     fully_connected_test_params{ CASE_FC_FP16_3, 2, 3, "fully_connected_gpu_bfyx_ref" },
+    fully_connected_test_params{ CASE_FC_FP16_4, 2, 3, "fully_connected_gpu_bfyx_ref" },
+    fully_connected_test_params{ CASE_FC_FP16_5, 2, 3, "fully_connected_gpu_bfyx_ref" },
+    fully_connected_test_params{ CASE_FC_FP16_6, 2, 3, "fully_connected_gpu_bfyx_ref" },
+    fully_connected_test_params{ CASE_FC_FP16_7, 2, 3, "fully_connected_gpu_bfyx_ref" },
     fully_connected_test_params{ CASE_FC_FP16_3D_1, 2, 3, "fully_connected_gpu_bfyx_ref" },
     fully_connected_test_params{ CASE_FC_FP16_3D_2, 2, 3, "fully_connected_gpu_bfyx_ref" },
 }));
