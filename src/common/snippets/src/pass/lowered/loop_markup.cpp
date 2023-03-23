@@ -35,10 +35,10 @@ bool LoopMarkup::run(LoweredExprIR& linear_ir) {
         const auto& node = expr->get_node();
         if (is_not_start_point(node))
             continue;
-        if (ov::is_type<op::Brgemm>(node)) {
-            loop_manager->skipped_mark(expr_it, std::next(expr_it), loop_depth);
-            continue;
-        }
+//        if (ov::is_type<op::Brgemm>(node)) {
+//            loop_manager->skipped_mark(expr_it, std::next(expr_it), loop_depth);
+//            continue;
+//        }
 
         auto loop_begin_pos = expr_it;
         auto loop_end_pos = loop_begin_pos;
@@ -58,7 +58,7 @@ bool LoopMarkup::run(LoweredExprIR& linear_ir) {
             // If iterator is the last, we should finish Loop
             const auto& current_expr = *loop_end_pos;
             const auto& current_node = current_expr->get_node();
-            if (ov::is_type<op::Brgemm>(current_node) ||
+            if ( //ov::is_type<op::Brgemm>(current_node) ||
                 ov::is_type<opset1::Softmax>(current_node) ||
                 ov::is_type<opset1::Result>(current_node) ||
                 ov::is_type<opset1::Constant>(current_node))

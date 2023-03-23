@@ -14,10 +14,11 @@ class TensorDescriptorAttribute;
 class TensorDescriptor {
     friend class TensorDescriptorAttribute;
 public:
-explicit TensorDescriptor(const Output<ov::Node>& node,
+    static constexpr size_t ENTIRE_DIM = SIZE_MAX;
+    explicit TensorDescriptor(const Output<ov::Node>& node,
                               std::vector<size_t> subtensor_shape = {},
                               std::vector<size_t> layout = {});
-explicit TensorDescriptor(const Output<const ov::Node>& node,
+    explicit TensorDescriptor(const Output<const ov::Node>& node,
                               std::vector<size_t> subtensor_shape = {},
                               std::vector<size_t> layout = {});
     TensorDescriptor(std::vector<size_t> tensor_shape,

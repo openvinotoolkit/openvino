@@ -604,7 +604,9 @@ void LoweredExprIR::LoweredLoopManager::mark_loop(LoweredExprIR& linear_ir,
                                                 const std::vector<LoweredExprPort>& exits) {
     const auto loop_info = std::make_shared<LoweredLoopManager::LoweredLoopInfo>(
             work_amount, work_amount_increment, entries, exits);
-    const auto loop_id = this->add_loop_info(loop_info);
+    const auto loop_id = work_amount_increment == TensorDescriptor::ENTIRE_DIM ?
+                         LoweredExpr::LOOP_NULL_ID :
+                         this->add_loop_info(loop_info);
     exprs_marking(loop_begin_pos, loop_end_pos, loop_id, idx);
 }
 
