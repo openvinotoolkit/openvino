@@ -356,7 +356,7 @@ private:
 
     void bilinear_pil_func(const T* input_data, T* out);
     void bicubic_pil_func(const T* input_data, T* out);
-    void multidim_pil_func(const T* input_data, T* out, struct filter* filterp);
+    void multidim_pil_func(const T* input_data, T* out, struct interpolate_pil::filter* filterp);
 };
 
 template <typename T>
@@ -578,18 +578,18 @@ void InterpolateEval<T>::cubic_func(const T* input_data, T* out) {
 
 template <typename T>
 void InterpolateEval<T>::bilinear_pil_func(const T* input_data, T* out) {
-    struct filter BILINEAR = {bilinear_filter, 1.0, m_cube_coeff};
+    struct interpolate_pil::filter BILINEAR = {interpolate_pil::bilinear_filter, 1.0, m_cube_coeff};
     multidim_pil_func(input_data, out, &BILINEAR);
 }
 
 template <typename T>
 void InterpolateEval<T>::bicubic_pil_func(const T* input_data, T* out) {
-    struct filter BICUBIC = {bicubic_filter, 2.0, m_cube_coeff};
+    struct interpolate_pil::filter BICUBIC = {interpolate_pil::bicubic_filter, 2.0, m_cube_coeff};
     multidim_pil_func(input_data, out, &BICUBIC);
 }
 
 template <typename T>
-void InterpolateEval<T>::multidim_pil_func(const T* input_data, T* out, struct filter* filterp) {
+void InterpolateEval<T>::multidim_pil_func(const T* input_data, T* out, struct interpolate_pil::filter* filterp) {
     OPENVINO_ASSERT(m_axes.size() == 2, "For Pillow based modes exactly two (HW) axes need to be provided.");
 
     auto h_dim_idx = m_axes[0];
@@ -605,7 +605,14 @@ void InterpolateEval<T>::multidim_pil_func(const T* input_data, T* out, struct f
 
     if (shape_size(m_input_data_shape) == in_matrix_elem_size) {
         // Input data is 2D or ND with other dimensions equal 1
-        ImagingResampleInner(input_data, w_dim_in, h_dim_in, w_dim_out, h_dim_out, filterp, box.data(), out);
+        interpolate_pil::ImagingResampleInner(input_data,
+                                              w_dim_in,
+                                              h_dim_in,
+                                              w_dim_out,
+                                              h_dim_out,
+                                              filterp,
+                                              box.data(),
+                                              out);
     } else {
         // Flatten other dimensions and interpolate over 2D matrices
         std::vector<int64_t> in_transp_axes_order;
@@ -642,14 +649,14 @@ void InterpolateEval<T>::multidim_pil_func(const T* input_data, T* out, struct f
 
         // Resample each 2D matrix
         for (size_t i = 0; i < flat_batch_size; ++i) {
-            ImagingResampleInner(in_matrix_ptr,
-                                 w_dim_in,
-                                 h_dim_in,
-                                 w_dim_out,
-                                 h_dim_out,
-                                 filterp,
-                                 box.data(),
-                                 out_matrix_ptr);
+            interpolate_pil::ImagingResampleInner(in_matrix_ptr,
+                                                  w_dim_in,
+                                                  h_dim_in,
+                                                  w_dim_out,
+                                                  h_dim_out,
+                                                  filterp,
+                                                  box.data(),
+                                                  out_matrix_ptr);
             in_matrix_ptr += in_matrix_elem_size;
             out_matrix_ptr += out_matrix_elem_size;
         }

@@ -47,6 +47,7 @@
 namespace ngraph {
 namespace runtime {
 namespace reference {
+namespace interpolate_pil {
 
 struct filter {
     double (*filter)(double x, double coeff_a);
@@ -338,6 +339,8 @@ void ImagingResampleInner(const T* imIn,
 
     return;
 }
+
+}  // namespace interpolate_pil
 }  // namespace reference
 }  // namespace runtime
 }  // namespace ngraph
