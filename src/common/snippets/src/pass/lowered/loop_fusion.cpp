@@ -30,17 +30,17 @@ void LoopFusion::fuse_points(LoweredExprIR& linear_ir, std::vector<LoweredExprPo
                              LoweredExprIR::constExprIt loop_begin_pos, LoweredExprIR::constExprIt loop_end_pos) {
     std::vector<LoweredExprPort> new_exit_points;
     for (const auto& exit_point : exit_points) {
-        const auto expr = exit_point.first;
-        const auto port = exit_point.second;
+        const auto expr = exit_point.m_expr;
+        const auto port = exit_point.m_port;
         const auto output_td = expr->get_outputs()[port];
         const auto consumers_inputs = linear_ir.get_exprs_by_input(output_td);
 
         std::vector<LoweredExprPort> mapped_entry_points;
         std::vector<LoweredExprPtr> outside_consumers;
         for (const auto& consumer_input : consumers_inputs) {
-            const auto consumer = consumer_input.first;
-            const auto consumer_port = consumer_input.second;
-            const auto consumer_point = LoweredExprPort(consumer, consumer_port);
+            const auto consumer = consumer_input.m_expr;
+            const auto consumer_port = consumer_input.m_port;
+            const auto consumer_point = LoweredExprPort::make_input(consumer, consumer_port);
             const auto entry_point_it = std::find(entry_points.begin(), entry_points.end(), consumer_point);
             if (entry_point_it != entry_points.end()) {
                 mapped_entry_points.push_back(*entry_point_it);
@@ -86,13 +86,13 @@ bool LoopFusion::fuse_upper_into_current(LoweredExprIR& linear_ir,
     bool is_fusion_allowed = true;
     for (size_t i = 0; i < loop_target->m_exit_exprs.size() && is_fusion_allowed; ++i) {
         const auto target_exit_point = loop_target->m_exit_exprs[i];
-        const auto target_exit_expr = target_exit_point.first;
-        const auto port = target_exit_point.second;
+        const auto target_exit_expr = target_exit_point.m_expr;
+        const auto port = target_exit_point.m_port;
         const auto output_td = target_exit_expr->get_outputs()[port];
         const auto consumer_inputs = linear_ir.get_exprs_by_input(output_td);
         for (const auto& consumer_input : consumer_inputs) {
-            const auto consumer = consumer_input.first;
-            if (ov::is_type<opset1::Result>(consumer->get_node()) || consumer == current_entry_point.first)
+            const auto consumer = consumer_input.m_expr;
+            if (ov::is_type<opset1::Result>(consumer->get_node()) || consumer == current_entry_point.m_expr)
                 continue;
             // The fusing is only valid if target Loop consumer (the Consumer is outside of target Loop)
             // is after current Loop (after Loop_down).
@@ -156,12 +156,12 @@ bool LoopFusion::fuse_lower_into_current(LoweredExprIR& linear_ir,
     bool is_fusion_allowed = true;
     for (size_t i = 0; i < loop_target->m_entry_exprs.size() && is_fusion_allowed; ++i) {
         const auto target_entry_point = loop_target->m_entry_exprs[i];
-        const auto target_entry_expr = target_entry_point.first;
-        const auto port = target_entry_point.second;
+        const auto target_entry_expr = target_entry_point.m_expr;
+        const auto port = target_entry_point.m_port;
         const auto input_td = target_entry_expr->get_inputs()[port];
         const auto parent_expr_output = linear_ir.get_expr_by_output(input_td);
-        const auto parent_expr = parent_expr_output.first;
-        if (ov::is_type<opset1::Parameter>(parent_expr->get_node()) || parent_expr == current_exit_point.first)
+        const auto parent_expr = parent_expr_output.m_expr;
+        if (ov::is_type<opset1::Parameter>(parent_expr->get_node()) || parent_expr == current_exit_point.m_expr)
             continue;
         is_fusion_allowed = parent_expr->get_loop_ids()[dim_idx] == current_loop_id ||  // The parent expr is from the same current Loop
                             std::find(linear_ir.cbegin(), current_loop_begin_pos, parent_expr) != current_loop_begin_pos; // The parent is before current Loop
@@ -265,12 +265,12 @@ bool LoopFusion::run(LoweredExprIR& linear_ir) {
                 bool was_fusion_up = false;
                 for (size_t in_port = 0; in_port < entry_points.size() && !was_fusion_up; ++in_port) {
                     const auto entry_point = entry_points[in_port];
-                    const auto entry_expr = entry_point.first;
-                    const auto port = entry_point.second;
+                    const auto entry_expr = entry_point.m_expr;
+                    const auto port = entry_point.m_port;
                     const auto input_td = entry_expr->get_inputs()[port];
                     const auto parent_expr_output = linear_ir.get_expr_by_output(input_td);
-                    const auto parent_expr = parent_expr_output.first;
-                    const auto out_port = parent_expr_output.second;
+                    const auto parent_expr = parent_expr_output.m_expr;
+                    const auto out_port = parent_expr_output.m_port;
                     const auto parent = parent_expr->get_node();
                     if (ov::is_type<opset1::Constant>(parent) ||
                         ov::is_type<opset1::Parameter>(parent) ||
@@ -287,7 +287,7 @@ bool LoopFusion::run(LoweredExprIR& linear_ir) {
                         continue;
                     const auto loop_info_target = loop_manager->get_loop_info(loop_id_target);
 
-                    const auto target_exit_port = LoweredExprPort{parent_expr, out_port};
+                    const auto target_exit_port = LoweredExprPort::make_output(parent_expr, out_port);
                     if (fuse_upper_into_current(linear_ir, entry_point, target_exit_port, loop_id, loop_id_target,
                                                 dim_idx, loop_info, loop_info_target, loop_begin_pos, loop_end_pos)) {
                         was_fusion_up = true;
@@ -306,13 +306,13 @@ bool LoopFusion::run(LoweredExprIR& linear_ir) {
                 bool was_fusion_down = false;
                 for (size_t out_port = 0; out_port < exit_points.size() && !was_fusion_down; ++out_port) {
                     const auto exit_point = exit_points[out_port];
-                    const auto exit_expr = exit_point.first;
-                    const auto port = exit_point.second;
+                    const auto exit_expr = exit_point.m_expr;
+                    const auto port = exit_point.m_port;
                     const auto output_td = exit_expr->get_outputs()[port];
                     const auto consumer_exprs_inputs = linear_ir.get_exprs_by_input(output_td);
                     for (const auto& consumer_expr_input : consumer_exprs_inputs) {
-                        const auto consumer_expr = consumer_expr_input.first;
-                        const auto in_port = consumer_expr_input.second;
+                        const auto consumer_expr = consumer_expr_input.m_expr;
+                        const auto in_port = consumer_expr_input.m_port;
                         const auto consumer = consumer_expr->get_node();
                         if (ov::is_type<opset1::Result>(consumer) ||
                             ov::is_type<op::Buffer>(consumer)) {
@@ -329,7 +329,7 @@ bool LoopFusion::run(LoweredExprIR& linear_ir) {
                             continue;
 
                         const auto loop_info_target = loop_manager->get_loop_info(loop_id_target);
-                        const auto target_entry_port = LoweredExprPort{consumer_expr, in_port};
+                        const auto target_entry_port = LoweredExprPort::make_input(consumer_expr, in_port);
                         if (fuse_lower_into_current(linear_ir, exit_point, target_entry_port, loop_id, loop_id_target,
                                                     dim_idx, loop_info, loop_info_target, loop_begin_pos, loop_end_pos)) {
                             was_fusion_down = true;

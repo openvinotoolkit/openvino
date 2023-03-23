@@ -26,7 +26,7 @@ bool MoveScalarToConsumer::run(LoweredExprIR& linear_ir) {
             const auto& consumers = linear_ir.get_exprs_by_input(output);
             OPENVINO_ASSERT(consumers.size() == 1, "Scalar expression is expected to have a single consumer");
 
-            const auto& consumer_expr = consumers.begin()->first;
+            const auto& consumer_expr = consumers.begin()->m_expr;
             // Move something only if consumer is not already the next one (previous since the iterator is a reverse one)
             auto forward_it = std::prev(expr_it.base());
             if (consumer_expr != *std::next(forward_it)) {

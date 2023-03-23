@@ -43,8 +43,8 @@ bool LoadStoreInsertion::insert_load(LoweredExprIR& linear_ir, const LoweredExpr
 
     bool was_inserted = false;
     for (const auto& consumer_input : consumer_inputs) {
-        const auto& consumer_expr = consumer_input.first;
-        const auto port = consumer_input.second;
+        const auto& consumer_expr = consumer_input.m_expr;
+        const auto port = consumer_input.m_port;
         const auto& consumer = consumer_expr->get_node();
         if (ov::is_type<op::Load>(consumer) || ov::is_type<op::Brgemm>(consumer))
             continue;
@@ -69,13 +69,13 @@ bool LoadStoreInsertion::insert_load(LoweredExprIR& linear_ir, const LoweredExpr
         const auto param_outs = std::vector<TensorDescriptorPtr>{ output_td };
         const auto load_expr = std::make_shared<LoweredExpr>(load, param_outs, load_outs);
         linear_ir.insert(std::find(data_expr_it, linear_ir.cend(), consumer_expr), load_expr);
-        linear_ir.replace_input({consumer_expr, port}, load_td);
+        linear_ir.replace_input(consumer_expr, port, load_td);
         // Copy Loop identifies
         load_expr->set_loop_ids(loop_ids);
 
         // Need to update all the corresponding Loops with the same Entry Point
         const auto prev_entry_point = consumer_input;
-        const auto new_entry_point = LoweredExprPort{load_expr, 0};
+        const auto new_entry_point = LoweredExprPort::make_input(load_expr, 0);
         update_loops(loop_manager, loop_ids, prev_entry_point, {new_entry_point}, true);
         was_inserted = true;
     }
@@ -89,8 +89,8 @@ bool LoadStoreInsertion::insert_store(LoweredExprIR& linear_ir, const LoweredExp
     const auto& data_node = data_expr->get_node();
     const auto& input_td = data_expr->get_inputs().front();
     const auto parent_output = linear_ir.get_expr_by_output(input_td);
-    const auto& parent_expr = parent_output.first;
-    const auto port = parent_output.second;
+    const auto& parent_expr = parent_output.m_expr;
+    const auto port = parent_output.m_port;
     const auto& parent = parent_expr->get_node();
     if (ov::is_type<op::Store>(parent) || ov::is_type<op::Brgemm>(parent))
         return false;
@@ -117,7 +117,7 @@ bool LoadStoreInsertion::insert_store(LoweredExprIR& linear_ir, const LoweredExp
     const auto& reverse_insertion_pos = std::find(std::reverse_iterator<LoweredExprIR::constExprIt>(data_expr_it), linear_ir.crend(), parent_expr);
     const auto& insertion_pos = reverse_insertion_pos.base();
     linear_ir.insert(insertion_pos, store_expr);
-    linear_ir.replace_input({data_expr, 0}, store_td);
+    linear_ir.replace_input(data_expr, 0, store_td);
     // Copy Loop identifies
     store_expr->set_loop_ids(loop_ids);
 
@@ -128,10 +128,10 @@ bool LoadStoreInsertion::insert_store(LoweredExprIR& linear_ir, const LoweredExp
     const auto consumer_inputs = linear_ir.get_exprs_by_input(input_td);
     const auto should_be_saved = std::any_of(consumer_inputs.begin(), consumer_inputs.end(),
                                 [](const LoweredExprPort& input_port) {
-                                    const auto& node = input_port.first->get_node();
+                                    const auto& node = input_port.m_expr->get_node();
                                     return ov::is_type<opset1::Result>(node) || ov::is_type<op::Buffer>(node);
                                 });
-    const auto new_exit_point = LoweredExprPort{store_expr, 0};
+    const auto new_exit_point = LoweredExprPort::make_output(store_expr, 0);
     const auto new_exit_points = should_be_saved ? std::vector<LoweredExprPort>{prev_exit_point, new_exit_point}
                                                  : std::vector<LoweredExprPort>{new_exit_point};
     update_loops(loop_manager, loop_ids, prev_exit_point, new_exit_points, false);

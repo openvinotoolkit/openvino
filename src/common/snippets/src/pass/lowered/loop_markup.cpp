@@ -66,7 +66,7 @@ bool LoopMarkup::run(LoweredExprIR& linear_ir) {
 
             // If the next expr isn't real customer of prev expr we should finish Loop
             const auto& ins = loop_end_pos->get()->get_inputs();
-            auto connected = [&](const TensorDescriptorPtr& td) {return linear_ir.get_expr_by_output(td).first == prev_expr;};
+            auto connected = [&](const TensorDescriptorPtr& td) {return linear_ir.get_expr_by_output(td).m_expr == prev_expr;};
             if (std::none_of(ins.begin(), ins.end(), connected))
                 break;
 

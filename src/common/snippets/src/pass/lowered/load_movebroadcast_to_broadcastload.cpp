@@ -24,7 +24,7 @@ bool LoadMoveBroadcastToBroadcastLoad::run(LoweredExprIR& linear_ir) {
         // Match on MoveBroadcast because MoveBroadcast is rare node in bodies
         if (const auto move_broadcast = ov::as_type_ptr<op::BroadcastMove>(op)) {
             const auto interm_td = (*expr_it)->get_inputs().front();
-            const auto parent_expr = linear_ir.get_expr_by_output(interm_td).first;
+            const auto parent_expr = linear_ir.get_expr_by_output(interm_td).m_expr;
             const auto load = ov::as_type_ptr<op::Load>(parent_expr->get_node());
             if (!load)
                 continue;
@@ -34,7 +34,7 @@ bool LoadMoveBroadcastToBroadcastLoad::run(LoweredExprIR& linear_ir) {
             const auto load_consumers_inputs = linear_ir.get_exprs_by_input(interm_td);
             size_t count = 0;
             for (const auto& consumer_expr_input : load_consumers_inputs) {
-                const auto consumer = consumer_expr_input.first->get_node();
+                const auto consumer = consumer_expr_input.m_expr->get_node();
                 if (!ov::is_type<op::LoopEnd>(consumer))
                     count++;
             }

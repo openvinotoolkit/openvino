@@ -57,9 +57,9 @@ bool SoftmaxDecomposition::run(LoweredExprIR& linear_ir) {
 
             // Markup of ReduceMax Loop
             loop_manager->mark_loop(linear_ir, max.first, horizon_max.first, 1, inner_work_amount, m_vector_size,
-                                  std::vector<LoweredExprPort>{LoweredExprPort(*max.first, 0),
-                                                               LoweredExprPort(*max.first, 1)},
-                                  std::vector<LoweredExprPort>{LoweredExprPort(*max.first, 0)});
+                                  std::vector<LoweredExprPort>{LoweredExprPort::make_input(*max.first, 0),
+                                                               LoweredExprPort::make_input(*max.first, 1)},
+                                  std::vector<LoweredExprPort>{LoweredExprPort::make_output(*max.first, 0)});
 
             const auto broadcast_horizon_max = push_node(
                     std::make_shared<op::BroadcastMove>(horizon_max.second, horizon_max.second->get_input_partial_shape(0)));
@@ -77,11 +77,11 @@ bool SoftmaxDecomposition::run(LoweredExprIR& linear_ir) {
 
             // Markup of ReduceMax Loop
             loop_manager->mark_loop(linear_ir, sub.first, horizon_sum.first, 1, inner_work_amount, m_vector_size,
-                                  std::vector<LoweredExprPort>{LoweredExprPort(*sub.first, 0),
-                                                               LoweredExprPort(*sub.first, 1),
-                                                               LoweredExprPort(*sum.first, 1)},
-                                  std::vector<LoweredExprPort>{LoweredExprPort(*exp.first, 0),
-                                                               LoweredExprPort(*sum.first, 0)});
+                                  std::vector<LoweredExprPort>{LoweredExprPort::make_input(*sub.first, 0),
+                                                               LoweredExprPort::make_input(*sub.first, 1),
+                                                               LoweredExprPort::make_input(*sum.first, 1)},
+                                  std::vector<LoweredExprPort>{LoweredExprPort::make_output(*exp.first, 0),
+                                                               LoweredExprPort::make_output(*sum.first, 0)});
 
             // Divide is expensive operation, so we decompose it into 1 / x * y, where 1 / x is executed outside loop
             const auto pow = push_node(std::make_shared<op::PowerStatic>(horizon_sum.second, -1.));
@@ -93,15 +93,15 @@ bool SoftmaxDecomposition::run(LoweredExprIR& linear_ir) {
             const auto mul = push_node(std::make_shared<ov::op::v1::Multiply>(exp.second, broadcast_pow.second));
 
             // Transfer original TensorDescriptors
-            linear_ir.replace_input({*max.first, 0}, input_tds.front());
-            linear_ir.replace_input({*sub.first, 0}, input_tds.front());
-            linear_ir.replace_output({*mul.first, 0}, output_tds.front());
+            linear_ir.replace_input(*max.first, 0, input_tds.front());
+            linear_ir.replace_input(*sub.first, 0, input_tds.front());
+            linear_ir.replace_output(*mul.first, 0, output_tds.front());
 
             // Markup of Mul Loop
             loop_manager->mark_loop(linear_ir, mul.first, expr_it, 1, inner_work_amount, m_vector_size,
-                                  std::vector<LoweredExprPort>{LoweredExprPort(*mul.first, 0),
-                                                               LoweredExprPort(*mul.first, 1)},
-                                  std::vector<LoweredExprPort>{LoweredExprPort{*mul.first, 0}});
+                                  std::vector<LoweredExprPort>{LoweredExprPort::make_input(*mul.first, 0),
+                                                               LoweredExprPort::make_input(*mul.first, 1)},
+                                  std::vector<LoweredExprPort>{LoweredExprPort::make_output(*mul.first, 0)});
 
             // Markup inner loop for outside expression with null loop id
             for (const auto& expr : outer_exprs) {
@@ -110,9 +110,9 @@ bool SoftmaxDecomposition::run(LoweredExprIR& linear_ir) {
 
             // Outer Loop
             loop_manager->mark_loop(linear_ir, vector_buffer_max.first, expr_it, 0, outer_work_amount, 1,
-                                  std::vector<LoweredExprPort>{LoweredExprPort(*max.first, 0),
-                                                               LoweredExprPort(*sub.first, 0)},
-                                  std::vector<LoweredExprPort>{LoweredExprPort{*mul.first, 0}});
+                                  std::vector<LoweredExprPort>{LoweredExprPort::make_input(*max.first, 0),
+                                                               LoweredExprPort::make_input(*sub.first, 0)},
+                                  std::vector<LoweredExprPort>{LoweredExprPort::make_output(*mul.first, 0)});
 
             /* =========================================== */
 

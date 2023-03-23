@@ -82,7 +82,30 @@ private:
 };
 
 using LoweredExprPtr = std::shared_ptr<LoweredExpr>;
-using LoweredExprPort = std::pair<LoweredExprPtr, size_t>;
+
+struct LoweredExprPort {
+    enum Type {
+        Input,
+        Output
+    };
+
+    LoweredExprPort() = default;
+
+    static LoweredExprPort make_input(const LoweredExprPtr& expr, size_t port);
+    static LoweredExprPort make_output(const LoweredExprPtr& expr, size_t port);
+
+    LoweredExprPtr m_expr = nullptr;
+    size_t m_port = 0;
+    Type m_type = Type::Input;
+
+private:
+    LoweredExprPort(const LoweredExprPtr& expr, size_t port, Type type);
+};
+
+bool operator==(const LoweredExprPort& lhs, const LoweredExprPort& rhs);
+bool operator!=(const LoweredExprPort& lhs, const LoweredExprPort& rhs);
+bool operator<(const LoweredExprPort& lhs, const LoweredExprPort& rhs);
+
 class LoweredExprIR {
 public:
     using container = std::list<LoweredExprPtr>;
@@ -101,8 +124,10 @@ public:
     LoweredExprPtr get_expr_by_node(const std::shared_ptr<Node>& n) const;
     LoweredExprPort get_expr_by_output(const TensorDescriptorPtr& n) const;
     const std::set<LoweredExprPort>& get_exprs_by_input(const TensorDescriptorPtr& n) const;
-    void replace_input(const LoweredExprPort& expr_port, TensorDescriptorPtr to);
+    void replace_input(const LoweredExprPort& expr_port, const TensorDescriptorPtr& to);
+    void replace_input(const LoweredExprPtr& expr, size_t port, const TensorDescriptorPtr& to);
     void replace_output(const LoweredExprPort& expr_port, const TensorDescriptorPtr& to);
+    void replace_output(const LoweredExprPtr& expr, size_t port, const TensorDescriptorPtr& to);
     exprIt insert(constExprIt pos, const ov::NodeVector& nodes);
     exprIt insert(constExprIt pos, const std::shared_ptr<Node>& n);
     exprIt insert(constExprIt pos, container::value_type&& value);
@@ -168,20 +193,20 @@ public:
         const std::map<size_t, LoweredLoopInfoPtr>& get_map() const;
 
         static void skipped_mark(LoweredExprIR::constExprIt loop_begin_pos,
-                                    LoweredExprIR::constExprIt loop_end_pos,
-                                    size_t loop_depth);
+                                 LoweredExprIR::constExprIt loop_end_pos,
+                                 size_t loop_depth);
         void mark_loop(LoweredExprIR& linear_ir,
-                     LoweredExprIR::constExprIt loop_begin_pos,
-                     LoweredExprIR::constExprIt loop_end_pos,
-                     size_t loop_depth, size_t vector_size);
+                       LoweredExprIR::constExprIt loop_begin_pos,
+                       LoweredExprIR::constExprIt loop_end_pos,
+                       size_t loop_depth, size_t vector_size);
         void mark_loop(LoweredExprIR& linear_ir,
-                     LoweredExprIR::constExprIt loop_begin_pos,
-                     LoweredExprIR::constExprIt loop_end_pos,
-                     size_t idx,
-                     size_t work_amount,
-                     size_t work_amount_increment,
-                     const std::vector<LoweredExprPort>& entries,
-                     const std::vector<LoweredExprPort>& exits);
+                       LoweredExprIR::constExprIt loop_begin_pos,
+                       LoweredExprIR::constExprIt loop_end_pos,
+                       size_t idx,
+                       size_t work_amount,
+                       size_t work_amount_increment,
+                       const std::vector<LoweredExprPort>& entries,
+                       const std::vector<LoweredExprPort>& exits);
 
         static void get_loop_bounds(const LoweredExprIR& linear_ir,
                                     const std::vector<LoweredExprPort>& entries,

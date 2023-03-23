@@ -20,11 +20,11 @@ void get_io_exprs(LoweredExprIR& linear_ir,
 
     std::set<std::shared_ptr<ov::Node>> loop_parents;
     for (const auto& loop_entry_point : loop_entries) {
-        const auto& expr = loop_entry_point.first;
-        const auto port = loop_entry_point.second;
+        const auto& expr = loop_entry_point.m_expr;
+        const auto port = loop_entry_point.m_port;
         const auto node = expr->get_node();
         if (is_type<op::Load>(node) || is_type<op::BroadcastLoad>(node)) {
-            const auto& parent_expr = linear_ir.get_expr_by_output(expr->get_inputs()[port]).first;
+            const auto& parent_expr = linear_ir.get_expr_by_output(expr->get_inputs()[port]).m_expr;
             const auto& parent = parent_expr->get_node();
             // Todo: Sometimes several Load in one Loop read data from the same Node
             if (loop_parents.find(parent) == loop_parents.end()) {
@@ -35,7 +35,7 @@ void get_io_exprs(LoweredExprIR& linear_ir,
     }
 
     for (const auto& loop_exit_point : loop_exits) {
-        const auto expr = loop_exit_point.first;
+        const auto expr = loop_exit_point.m_expr;
         if (is_type<op::Store>(expr->get_node())) {
             loop_out_exprs.push_back(expr);
         }
@@ -66,7 +66,7 @@ std::vector<int64_t> LoopInit::init_ptr_increments(LoweredExprIR& linear_ir,
             !loop_in_exprs.empty() ? loop_in_exprs.front()->get_inputs()[0]->get_layout() :
             !loop_out_exprs.empty() ? loop_out_exprs.front()->get_outputs()[0]->get_layout() :
             std::vector<size_t>{}};
-    // Note: Need to find max relevant dim first to account for broadcasting, collect relevant_dims as well
+    // Note: Need to find max relevant dim m_expr to account for broadcasting, collect relevant_dims as well
     size_t max_relevant_dim_size = 0;
     for (const auto& expr : loop_in_exprs) {
         const auto& out_tds = expr->get_outputs();

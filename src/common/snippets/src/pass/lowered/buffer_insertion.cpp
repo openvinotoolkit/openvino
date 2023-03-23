@@ -43,13 +43,13 @@ LoweredExprIR::constExprIt BufferInsertion::insertion_position(const LoweredExpr
 void BufferInsertion::insertion(LoweredExprIR& linear_ir, const LoweredExprIR::LoweredLoopManagerPtr& loop_manager, size_t loop_id,
                                 const std::vector<LoweredExprPort>& loop_entries, const std::vector<LoweredExprPort>& loop_exits) {
     for (const auto& entry_point : loop_entries) {
-        const auto expr = entry_point.first;
-        const auto port = entry_point.second;
+        const auto expr = entry_point.m_expr;
+        const auto port = entry_point.m_port;
         const auto node = expr->get_node();
         const auto input_td = expr->get_inputs()[port];
         const auto parent_expr_output = linear_ir.get_expr_by_output(input_td);
-        const auto& parent_expr = parent_expr_output.first;
-        const auto parent_port = parent_expr_output.second;
+        const auto& parent_expr = parent_expr_output.m_expr;
+        const auto parent_port = parent_expr_output.m_port;
         const auto parent = parent_expr->get_node();
         if (ov::is_type<op::Buffer>(parent) ||
             ov::is_type<op::VectorBuffer>(parent) ||
@@ -90,13 +90,13 @@ void BufferInsertion::insertion(LoweredExprIR& linear_ir, const LoweredExprIR::L
             const std::vector<TensorDescriptorPtr> buffer_outs = { td };
             const std::vector<TensorDescriptorPtr> parent_outs = { input_td };
             linear_ir.insert(pos, std::make_shared<LoweredExpr>(buffer, parent_outs, buffer_outs));
-            linear_ir.replace_input({expr, port}, td);
+            linear_ir.replace_input(expr, port, td);
         }
     }
 
     for (const auto& exit_point : loop_exits) {
-        const auto expr = exit_point.first;
-        const auto port = exit_point.second;
+        const auto expr = exit_point.m_expr;
+        const auto port = exit_point.m_port;
         const auto node = expr->get_node();
         const auto output_td = expr->get_outputs()[port];
         const auto child_exprs_inputs = linear_ir.get_exprs_by_input(output_td);
@@ -108,7 +108,7 @@ void BufferInsertion::insertion(LoweredExprIR& linear_ir, const LoweredExprIR::L
         std::set<LoweredExprPtr> buffers;
         const auto current_loop_lvl = std::distance(current_loops.begin(), std::find(current_loops.begin(), current_loops.end(), loop_id));
         for (const auto& child_expr_input : child_exprs_inputs) {
-            const auto child_expr = child_expr_input.first;
+            const auto child_expr = child_expr_input.m_expr;
             const auto child = child_expr->get_node();
             if (ov::is_type<opset1::Result>(child))
                 continue;
@@ -142,9 +142,9 @@ void BufferInsertion::insertion(LoweredExprIR& linear_ir, const LoweredExprIR::L
                     const auto buffer_out = buffer->get_outputs().front();
                     const auto buffer_consumers_inputs = linear_ir.get_exprs_by_input(buffer_out);
                     for (const auto& consumer_input : buffer_consumers_inputs) {
-                        const auto consumer = consumer_input.first;
-                        const auto consumer_port = consumer_input.second;
-                        linear_ir.replace_input({consumer, consumer_port}, output_td);
+                        const auto consumer = consumer_input.m_expr;
+                        const auto consumer_port = consumer_input.m_port;
+                        linear_ir.replace_input(consumer, consumer_port, output_td);
                     }
                     potential_consumers.insert(buffer_consumers_inputs.begin(), buffer_consumers_inputs.end());
                     linear_ir.erase(std::find(linear_ir.begin(), linear_ir.end(), buffer));
@@ -157,7 +157,7 @@ void BufferInsertion::insertion(LoweredExprIR& linear_ir, const LoweredExprIR::L
             //          Need to insert after 2nd Loops
             // Note: All potential consumers must have the same count of first equal Loop identifies and the same count of different last identifies
             // TODO: Need to verify that
-            const auto pos = insertion_position(linear_ir, loop_manager, expr, (*potential_consumers.begin()).first);
+            const auto pos = insertion_position(linear_ir, loop_manager, expr, (*potential_consumers.begin()).m_expr);
 
             auto buffer = std::make_shared<op::Buffer>(node->output(port), m_buffer_allocation_rank);
             const auto td = std::make_shared<TensorDescriptor>(output_td->get_tensor(),
@@ -173,9 +173,9 @@ void BufferInsertion::insertion(LoweredExprIR& linear_ir, const LoweredExprIR::L
             const std::vector<TensorDescriptorPtr> buffer_outs = {td};
             linear_ir.insert(pos, std::make_shared<LoweredExpr>(buffer, node_outs, buffer_outs));
             for (const auto& consumer_input : potential_consumers) {
-                const auto consumer = consumer_input.first;
-                const auto consumer_port = consumer_input.second;
-                linear_ir.replace_input({consumer, consumer_port}, td);
+                const auto consumer = consumer_input.m_expr;
+                const auto consumer_port = consumer_input.m_port;
+                linear_ir.replace_input(consumer, consumer_port, td);
             }
         }
     }
@@ -203,8 +203,9 @@ bool BufferInsertion::run(LoweredExprIR& linear_ir) {
         if (!ov::is_type<op::Brgemm>(node))
             continue;
 
-        std::vector<LoweredExprPort> loop_entries = {{expr, 0}, {expr, 1}};
-        std::vector<LoweredExprPort> loop_exits = {{expr, 0}};
+        std::vector<LoweredExprPort> loop_entries = {LoweredExprPort::make_input(expr, 0),
+                                                     LoweredExprPort::make_input(expr, 1)};
+        std::vector<LoweredExprPort> loop_exits = {LoweredExprPort::make_output(expr, 0)};
 
         insertion(linear_ir, loop_manager, LoweredExpr::LOOP_NULL_ID, loop_entries, loop_exits);
     }
