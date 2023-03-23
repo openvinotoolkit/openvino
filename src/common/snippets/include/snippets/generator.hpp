@@ -16,6 +16,8 @@ namespace snippets {
 
 auto getRegisters(std::shared_ptr<ngraph::Node>& n) -> ngraph::snippets::RegInfo;
 
+typedef std::pair<std::function<std::shared_ptr<Emitter>(const std::shared_ptr<ngraph::Node>&)>,
+                  std::function<std::set<std::vector<element::Type>>(const std::shared_ptr<ngraph::Node>&)>> jitters_value;
 /**
  * @interface TargetMachine
  * @brief Base class Target machine representation. Target derives from this class to provide generator information about supported emitters
@@ -51,7 +53,16 @@ public:
         if (jitter == jitters.end()) {
             throw ngraph_error(std::string("Target code emitter is not available for ") + type.name + " operation.");
         }
-        return jitter->second;
+        return jitter->second.first;
+    }
+
+    std::function<std::set<std::vector<element::Type>>(const std::shared_ptr<ngraph::Node>&)>
+        get_supported_precisions(const ngraph::DiscreteTypeInfo type) const {
+        auto jitter = jitters.find(type);
+        if (jitter == jitters.end()) {
+            throw ngraph_error(std::string("Target code emitter is not available for ") + type.name + " operation.");
+        }
+        return jitter->second.second;
     }
 
     /**
@@ -64,7 +75,7 @@ public:
     virtual ~TargetMachine() = default;
 
 protected:
-    std::map<const ngraph::DiscreteTypeInfo, std::function<std::shared_ptr<Emitter>(std::shared_ptr<ngraph::Node>)>> jitters;
+    std::map<const ngraph::DiscreteTypeInfo, jitters_value> jitters;
 };
 
 /**

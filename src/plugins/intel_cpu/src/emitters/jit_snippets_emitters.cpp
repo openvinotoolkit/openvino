@@ -479,7 +479,20 @@ void BroadcastMoveEmitter::emit_isa(const std::vector<size_t> &in, const std::ve
 
 ScalarEmitter::ScalarEmitter(dnnl::impl::cpu::x64::jit_generator* h, dnnl::impl::cpu::x64::cpu_isa_t isa,
                              const std::shared_ptr<ov::Node>& n) : jit_emitter(h, isa, n) {
-    value = dnnl::impl::cpu::x64::float2int(ov::as_type_ptr<ngraph::snippets::op::Scalar>(n)->cast_vector<float>()[0]);
+    const auto precision = n->get_output_element_type(0);
+    switch (precision) {
+        case element::i32: {
+            value = ov::as_type_ptr<ov::op::v0::Constant>(n)->cast_vector<int32_t>()[0];
+            break;
+        }
+        case element::f32: {
+            value = dnnl::impl::cpu::x64::float2int(ov::as_type_ptr<ov::op::v0::Constant>(n)->cast_vector<float>()[0]);
+            break;
+        }
+        default: {
+            IE_THROW() << "Scalar emitter doesn't support " << precision;
+        }
+    }
     push_arg_entry_of("scalar", value, true);
     prepare_table();
 }

@@ -101,11 +101,17 @@ public:
     bool is_quantized() const { return config.m_is_quantized; }
     bool has_type_relaxed_ops() const { return config.m_has_type_relaxed_ops; }
     bool has_domain_sensitive_ops() const { return config.m_has_domain_sensitive_ops; }
-
-    snippets::Schedule generate(const BlockedShapeVector& output_shapes, const BlockedShapeVector& input_shapes, ngraph::pass::Manager& opt,
+    snippets::Schedule generate(const BlockedShapeVector& output_shapes,
+                                const BlockedShapeVector& input_shapes,
+                                ngraph::pass::Manager& pre_dialect,
+                                ngraph::pass::Manager& post_dialect,
+                                ngraph::pass::Manager& post_precision,
                                 const void* compile_params = nullptr);
     snippets::Schedule generate(const BlockedShapeVector& output_shapes, const BlockedShapeVector& input_shapes, const void* compile_params = nullptr);
-    snippets::Schedule generate(ngraph::pass::Manager &opt, const void* compile_params = nullptr);
+    snippets::Schedule generate(ngraph::pass::Manager& pre_dialect,
+                                ngraph::pass::Manager& post_dialect,
+                                ngraph::pass::Manager& post_precision,
+                                const void* compile_params = nullptr);
     snippets::Schedule generate(const void* compile_params = nullptr);
     ov::PartialShape canonicalize(const BlockedShapeVector& output_shapes, const BlockedShapeVector& input_shapes);
     std::vector<PartialShape> reshape_body(const std::vector<PartialShape>& input_shapes);
@@ -131,6 +137,8 @@ public:
     // should have explicit Constants even if they're non-scalar (Reshape, Transpose, Broadcast)
     // This check returns True if Constant op which is input of this op should be inside Subgraph body
     static auto constant_input_should_be_inside_body(const std::shared_ptr<ov::Node>& node) -> bool;
+
+    static bool check_broadcast(const std::shared_ptr<const ov::Node>& node) noexcept;
 
 private:
     void align_element_types(const BlockedShapeVector& outputShapes, const BlockedShapeVector& inputShapes);
@@ -164,8 +172,6 @@ private:
     public:
         // True if Subgraph contains FakeQuantize -> FQ decomposition should be called
         bool m_is_quantized = false;
-        // True if we should align element types indise body
-        bool m_is_needed_to_align_precision = false;
         // True if Subgraph contains TypeRelaxed nodes -> for several streams in tp mode we should copy body using mutexes
         // because TypeRelaxed::copy_with_new_inputs() isn't save-thread method
         bool m_has_type_relaxed_ops = false;

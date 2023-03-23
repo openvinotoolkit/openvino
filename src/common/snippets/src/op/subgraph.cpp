@@ -11,6 +11,7 @@
 #include "snippets/pass/insert_movebroadcast.hpp"
 #include "snippets/pass/broadcast_to_movebroadcast.hpp"
 #include "snippets/pass/load_movebroadcast_to_broadcastload.hpp"
+#include "snippets/pass/propagate_precision.hpp"
 #include "snippets/pass/assign_registers.hpp"
 #include "snippets/pass/convert_constants.hpp"
 #include "snippets/pass/convert_power_to_powerstatic.hpp"
@@ -18,7 +19,6 @@
 #include "snippets/pass/insert_loops.hpp"
 #include "snippets/pass/transpose_decomposition.hpp"
 #include "snippets/pass/transform_convert.hpp"
-#include "snippets/pass/align_element_type.hpp"
 #include "snippets/pass/matmul_to_brgemm.hpp"
 #include "snippets/pass/fuse_transpose_brgemm.hpp"
 #include "snippets/pass/softmax_decomposition.hpp"
@@ -62,10 +62,6 @@ void snippets::op::Subgraph::init_config() {
             ov::is_type<ov::op::v0::FakeQuantize>(op);
         config.m_has_type_relaxed_ops = config.m_has_type_relaxed_ops ||
             std::dynamic_pointer_cast<ov::op::TypeRelaxedBase>(op);
-        config.m_is_needed_to_align_precision = config.m_is_needed_to_align_precision ||
-            is_quantized() ||
-            has_type_relaxed_ops() ||
-            snippets::pass::AlignElementType::opNeedsAlignElementType(op, execution_element_type);
         config.m_has_domain_sensitive_ops = config.m_has_domain_sensitive_ops ||
             ov::is_type<ov::op::v1::Transpose>(op) ||
             ov::is_type<ov::op::v1::Softmax>(op) ||
@@ -359,6 +355,14 @@ ov::PartialShape snippets::op::Subgraph::canonicalize(const BlockedShapeVector& 
     return master_shape;
 }
 
+bool snippets::op::Subgraph::check_broadcast(const std::shared_ptr<const ov::Node>& node) noexcept {
+    const auto elementwise = std::dynamic_pointer_cast<const ov::op::util::BinaryElementwiseArithmetic>(node);
+    return
+        (elementwise == nullptr) ||
+        (elementwise->get_input_partial_shape(0).size() == elementwise->get_input_partial_shape(1).size()) ||
+        (elementwise->get_autob().m_type != ov::op::AutoBroadcastType::PDPD);
+}
+
 void snippets::op::Subgraph::align_element_types(const BlockedShapeVector& outputShapes,
                                                  const BlockedShapeVector& inputShapes) {
     // We should insert Convert before Results to set original output element type if needed
@@ -369,35 +373,34 @@ void snippets::op::Subgraph::align_element_types(const BlockedShapeVector& outpu
             const auto convert = std::make_shared<ngraph::snippets::op::ConvertSaturation>(
                 body_results[i]->get_input_node_shared_ptr(0), needed_out_type);
             body_results[i]->set_argument(0, convert);
+            body_results[i]->validate_and_infer_types();
         }
     }
 
     // We should change existing element type to original for Parameters if needed
-    const auto& body_parameters = body_ptr()->get_parameters();
+    const auto& parameters = body_ptr()->get_parameters();
     for (size_t i = 0; i < inputShapes.size(); ++i) {
         const auto needed_in_type = std::get<2>(inputShapes[i]);
-        if (body_parameters[i]->get_element_type() != needed_in_type) {
-            body_parameters[i]->set_element_type(needed_in_type);
-            config.m_is_needed_to_align_precision = true;
+        const auto& parameter = parameters[i];
+        if (parameter->get_element_type() != needed_in_type) {
+            const auto parameter_output = parameter->output(0);
+            const auto convert = std::make_shared<ngraph::snippets::op::ConvertSaturation>(
+                parameter_output,
+                parameter_output.get_element_type());
+            ngraph::copy_runtime_info(parameter, convert);
+
+            for (const auto input : parameter_output.get_target_inputs()) {
+                const auto& input_node = input.get_node();
+                if (input_node == convert.get()) {
+                    continue;
+                }
+                input_node->set_argument(input.get_index(), convert->output(0));
+            }
+
+            parameter->set_element_type(needed_in_type);
+            parameter->validate_and_infer_types();
         }
     }
-
-    // We should align element type inside body using the corresponding pass:
-    //  - Insert Convert before operations that doesn't support original element type for execution
-    //  - Insert reverse Convert before operations that support original element type
-    //    but have inputs that doesn't support it (because before them will be inserted Convert with exec_type - first point)
-    //  - Then we should use ConstantFolding pass to convert element type of Scalars before inference.
-    //  - Eliminate redundant Converts which can be inserted in AlignElementType() pass
-    ngraph::pass::Manager manager;
-    if (config.m_is_needed_to_align_precision) {
-        manager.register_pass<snippets::pass::AlignElementType>(execution_element_type);
-        manager.register_pass<ov::pass::ConstantFolding>();
-        // TODO [100041] : In some cases AlignElementType pass can insert extra Convert because
-        //                 the pass doesn't know real precisions in real time.
-        //                 We call EliminateConverts pass to remove them
-        manager.register_pass<ov::pass::EliminateConvert>();
-    }
-    manager.run_passes(body_ptr());
 }
 
 void snippets::op::Subgraph::initialize_buffer_scratchpad_size() {
@@ -602,24 +605,39 @@ snippets::Schedule snippets::op::Subgraph::generate(const BlockedShapeVector& ou
 
 snippets::Schedule snippets::op::Subgraph::generate(const BlockedShapeVector& output_shapes,
                                                     const BlockedShapeVector& input_shapes,
-                                                    ngraph::pass::Manager& opt,
+                                                    ngraph::pass::Manager& pre_dialect,
+                                                    ngraph::pass::Manager& post_dialect,
+                                                    ngraph::pass::Manager& post_precision,
                                                     const void* compile_params) {
     canonicalize(output_shapes, input_shapes);
-    return generate(opt, compile_params);
+    return generate(pre_dialect, post_dialect, post_precision, compile_params);
 }
 
 snippets::Schedule snippets::op::Subgraph::generate(const void* compile_params) {
     auto mngr = ngraph::pass::Manager();
-    return generate(mngr, compile_params);
+    return generate(mngr, mngr, mngr, compile_params);
 }
 
-snippets::Schedule snippets::op::Subgraph::generate(ngraph::pass::Manager& opt, const void* compile_params) {
+snippets::Schedule snippets::op::Subgraph::generate(
+    ngraph::pass::Manager& pre_dialect,
+    ngraph::pass::Manager& post_dialect,
+    ngraph::pass::Manager& post_precision,
+    const void* compile_params) {
     INTERNAL_OP_SCOPE(Subgraph);
     OV_ITT_SCOPED_TASK(ngraph::pass::itt::domains::SnippetsTransform, "Snippets::op::generate")
     NGRAPH_CHECK(m_generator != nullptr, "generate is called while generator is not set");
 
+    pre_dialect.run_passes(body_ptr());
     convert_to_snippet_dialect();
-    opt.run_passes(body_ptr());
+    post_dialect.run_passes(body_ptr());
+
+    ngraph::pass::Manager precision_manager;
+    precision_manager.register_pass<snippets::pass::PropagatePrecision>(m_generator->get_target_machine());
+    precision_manager.register_pass<ngraph::pass::ConstantFolding>();
+    precision_manager.register_pass<snippets::pass::ConvertConstantsToScalars>();
+    precision_manager.run_passes(body_ptr());
+
+    post_precision.run_passes(body_ptr());
 
     // After all passes, when all optimizations are completed and all MemoryAccess ops are inserted,
     // we can calculate common buffer scratchpad size and propagate offset from Buffer to the corresponding MemoryAccess ops

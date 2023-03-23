@@ -25,6 +25,7 @@
 #include "utils/cpu_utils.hpp"
 #include "snippets_transformations/fuse_load_store_and_convert.hpp"
 #include "snippets_transformations/mul_add_to_fma.hpp"
+#include "snippets_transformations/remove_converts.hpp"
 #include "ngraph_transformations/convert_to_swish_cpu.hpp"
 
 using namespace InferenceEngine;
@@ -39,7 +40,7 @@ namespace node {
 namespace {
 
 /* This class implementation is a temporal WA
-   TODO: revise the implementation to remove the node reference*/    
+   TODO: revise the implementation to remove the node reference*/
 class SnippetShapeInfer : public ShapeInferEmptyPads {
 public:
     SnippetShapeInfer(Snippet* node) : m_node(node) {}
@@ -531,28 +532,36 @@ bool Snippet::created() const {
 }
 
 void Snippet::generate(const jit_snippets_compile_args* jcp) {
-    ov::pass::Manager optManager;
-    optManager.register_pass<ov::intel_cpu::pass::FuseLoadConvert>();
-    optManager.register_pass<ov::intel_cpu::pass::FuseStoreConvert>();
-    optManager.register_pass<ConvertToSwishCPU>();
-    optManager.register_pass<ov::intel_cpu::pass::MulAddToFMA>();
+    ov::pass::Manager pre_dialect;
+    pre_dialect.register_pass<ConvertToSwishCPU>();
 
+    ov::pass::Manager post_dialect;
+
+    ov::pass::Manager post_precision;
+    post_precision.register_pass<ov::intel_cpu::pass::RemoveConverts>();
+    post_precision.register_pass<ov::intel_cpu::pass::FuseLoadConvert>();
+    post_precision.register_pass<ov::intel_cpu::pass::FuseStoreConvert>();
     // LoadConvert uses Load emitter that support conversion from any type to only f32
-    optManager.get_pass_config()->set_callback<ov::intel_cpu::pass::FuseLoadConvert>(
+    post_precision.get_pass_config()->set_callback<ov::intel_cpu::pass::FuseLoadConvert>(
             [](const std::shared_ptr<const ov::Node>& n) -> bool {
                 if (const auto& convert = std::dynamic_pointer_cast<const ov::op::v0::Convert>(n))
                     return convert->get_destination_type() != ov::element::f32;
                 return true;
             });
-
     // StoreConvert uses Store emitter that support conversion from only f32 to any types
-    optManager.get_pass_config()->set_callback<ov::intel_cpu::pass::FuseStoreConvert>(
+    post_precision.get_pass_config()->set_callback<ov::intel_cpu::pass::FuseStoreConvert>(
             [](const std::shared_ptr<const ov::Node>& n) -> bool {
                 if (const auto& convert = std::dynamic_pointer_cast<const ov::op::v0::Convert>(n))
                     return convert->get_input_element_type(0) != ov::element::f32;
                 return true;
             });
-    schedule = snippet->generate(optManager, reinterpret_cast<const void*>(jcp));
+    post_precision.register_pass<ov::intel_cpu::pass::MulAddToFMA>();
+
+    schedule = snippet->generate(
+        pre_dialect,
+        post_dialect,
+        post_precision,
+        reinterpret_cast<const void*>(jcp));
 }
 
 void Snippet::update_ptrs(jit_snippets_call_args& call_args) {

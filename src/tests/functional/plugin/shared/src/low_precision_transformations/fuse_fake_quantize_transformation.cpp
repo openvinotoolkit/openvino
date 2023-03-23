@@ -20,7 +20,7 @@ std::string FuseFakeQuantizeTransformation::getTestCaseName(const testing::TestP
     std::tie(targetDevice, testValues) = obj.param;
 
     std::ostringstream result;
-    result << targetDevice << "_" <<
+    result << "targetDevice=" << targetDevice << "_" <<
         testValues.actual.precisionBeforeAdd << "_" <<
         testValues.actual.add.values.size() << "_" <<
         testValues.actual.add.outPrecision << "_" <<

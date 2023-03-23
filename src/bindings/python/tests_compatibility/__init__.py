@@ -122,7 +122,6 @@ xfail_issue_onnx_models_140 = xfail_test(reason="https://github.com/onnx/models/
 
 xfail_issue_63033 = xfail_test(reason="BatchNormalization: Training mode is not supported")
 xfail_issue_63036 = xfail_test(reason="Changes in ConvTranspose padding")
-xfail_issue_63039 = xfail_test(reason="Result mismatches with UINT8 operations")
 xfail_issue_63043 = xfail_test(reason="Recurrent node expects constants as W, R, B inputs.")
 
 skip_rng_tests = pytest.mark.skip(reason="Tests use random number generator with no seed.")
