@@ -10,6 +10,7 @@
 #include <string>
 #include <memory>
 #include <vector>
+#include "common/dnnl_executor.h"
 
 namespace ov {
 namespace intel_cpu {
@@ -30,6 +31,7 @@ public:
     }
 
     void prepareParams() override;
+    void execute(dnnl::stream strm) override;
     void executeDynamicImpl(dnnl::stream strm) override;
 
     static bool isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept;
@@ -38,6 +40,9 @@ protected:
     AttrPtr initPrimitiveAttr() override;
 
 private:
+    using executorPtr = std::shared_ptr<DnnlExecutor>;
+    executorPtr execPtr = nullptr;
+
     void setPostOps(dnnl::primitive_attr &attr);
 
     void initEffectiveAttributes(const Shape &inDims, const Shape &outDims);
