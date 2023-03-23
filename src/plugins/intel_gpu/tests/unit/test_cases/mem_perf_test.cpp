@@ -9,6 +9,71 @@
 #include <intel_gpu/primitives/activation.hpp>
 #include <intel_gpu/primitives/data.hpp>
 
+static std::string mem_latency_kernel_code =
+    "\n#ifndef INTEL_INTERNAL_DEBUG_H_INCLUDED "
+    "\n#define INTEL_INTERNAL_DEBUG_H_INCLUDED "
+    "\nulong __attribute__((overloadable)) intel_get_cycle_counter( void ); "
+    "\n#endif "
+    ""
+    "\n__attribute__((intel_reqd_sub_group_size(SUB_GROUP_SIZE)))"
+    "\nvoid kernel touch_data(__global uint* dst, const __global int* test_data) {"
+    "\n    int sum = 0;"
+    "\n    int val = 0;"
+    "\n    int next_id = 0;"
+    "\n    const uint gid = get_global_id(0);"
+    "\n    __attribute__((opencl_unroll_hint(1)))"
+    "\n    for (uint j = 0; j < LOAD_ITERATIONS; j++) {"
+    "\n        // val = intel_sub_group_block_read(test_data + (next_id));"
+    "\n        val = test_data[next_id + gid];"
+    "\n        sum += val;"
+    "\n        next_id = val;"
+    "\n    }"
+    "\n    dst[gid] = sum;"
+    "\n}"
+    ""
+    "\n__attribute__((intel_reqd_sub_group_size(SUB_GROUP_SIZE)))"
+    "\nvoid kernel latency_test(__global uint* dst, const __global int* test_data, int iteration_num) {"
+    "\n    int sum = 0;"
+    "\n    int val = 0;"
+    "\n    int next_id = 0;"
+    "\n    ulong timer_start = 0;"
+    "\n    ulong timer_end = 0, total_time = 0, time = 0;"
+    "\n    ulong max_time = 0, min_time = -1;"
+    "\n    const uint gid = get_global_id(0);"
+    "\n    __attribute__((opencl_unroll_hint(1)))"
+    "\n#ifdef USE_PRE_HEAT"
+    "\n    for (uint iter = 0; iter < iteration_num + 1; iter++) {"
+    "\n#else"
+    "\n    for (uint iter = 0; iter < iteration_num; iter++) {"
+    "\n#endif"
+    "\n        next_id = 0;"
+    "\n        __attribute__((opencl_unroll_hint(1)))"
+    "\n        for (uint j = 0; j < LOAD_ITERATIONS; j++) {"
+    "\n            timer_start = intel_get_cycle_counter();"
+    "\n            val = test_data[next_id + gid];"
+    "\n            // val = intel_sub_group_block_read(test_data + (next_id));"
+    "\n            sum += val;"
+    "\n            timer_end = intel_get_cycle_counter();"
+    "\n            time = timer_end - timer_start;"
+    "\n            max_time = max(max_time, time);"
+    "\n            min_time = min(min_time, time);"
+    "\n            total_time += time;"
+    "\n            next_id = val;"
+    "\n#ifdef USE_PRE_HEAT"
+    "\n            if (iter == 0) {"
+    "\n                total_time = 0;"
+    "\n                max_time = 0;"
+    "\n                min_time = -1;"
+    "\n            }"
+    "\n#endif"
+    "\n        }"
+    "\n    }"
+    "\n    dst[gid] = sum;"
+    "\n    dst[0] = total_time;"
+    "\n    dst[1] = max_time;"
+    "\n    dst[2] = min_time;"
+    "\n}";
+
 static size_t img_size = 800;
 static std::string kernel_code =
     "__attribute__((intel_reqd_sub_group_size(16)))"
@@ -763,3 +828,172 @@ TEST(mem_perf_test_to_host_and_back_to_device, DISABLED_buffer_copy_host_ptr_eve
 
     validate_result(static_cast<float*>(output_buffer_host.data()), img_size * img_size);
 }
+
+using MemTestParams = std::tuple<
+    std::pair<size_t, size_t>,  // Buffer size in bytes, number of iterations in kernel
+    size_t                      // Mode (0 - cold run, 1 - warm data in prev kernel, 2 - warm data in main kernel)
+>;
+
+struct PrintToStringParamName {
+    std::string operator()(const testing::TestParamInfo<MemTestParams>& params) {
+        size_t mode;
+        std::pair<size_t, size_t> size_iters;
+        std::tie(size_iters, mode) = params.param;
+        size_t buffer_size_b = size_iters.first;
+        size_t iters_num = size_iters.second;
+        std::stringstream buf;
+        buf << "buffer_size_" << buffer_size_b << "B"
+            << "_mode_" << mode
+            << "_iters_num_" << iters_num;
+        return buf.str();
+    }
+};
+
+struct latency_test
+    : public ::testing::TestWithParam<MemTestParams> {
+public:
+    void test() {
+        size_t mode;
+        std::pair<size_t, size_t> size_iters;
+        std::tie(size_iters, mode) = this->GetParam();
+        size_t buffer_size_b = size_iters.first;
+        size_t iters_num = size_iters.second;
+
+        auto ocl_instance = std::make_shared<OpenCL>();
+        auto& ctx = ocl_instance->_context;
+        auto& device = ocl_instance->_device;
+
+        if (!ocl_instance->_supports_usm)
+            GTEST_SKIP();
+
+        std::cout << "Run with size " << buffer_size_b / 1024.0 << "KB mode=" << mode << " iters=" << iters_num << "\n";
+
+        const float gpu_frequency = device.getInfo<CL_DEVICE_MAX_CLOCK_FREQUENCY>() / 1000.0;
+
+        const bool use_two_kernels = mode == 1;
+        const bool use_pre_heat_in_kernel = mode == 2;
+
+        const size_t gws = 16;
+        const size_t lws = 16;
+        const size_t simd = 16;
+        const size_t test_data_size = buffer_size_b;
+        const size_t profiling_data_size = sizeof(uint32_t) * simd;
+        const size_t load_instuction_count = test_data_size / simd / sizeof(uint32_t);
+        const std::string touch_data_kernel = "touch_data";
+        const std::string kernel_name = "latency_test";
+        std::string build_options = "-DLOAD_ITERATIONS=" + std::to_string(load_instuction_count) + " "
+                                  + "-DSUB_GROUP_SIZE=" + std::to_string(simd) + " ";
+        if (use_pre_heat_in_kernel)
+            build_options += "-DUSE_PRE_HEAT=1 ";
+
+        std::string used_kernels = kernel_name;
+        if (use_two_kernels)
+            used_kernels = touch_data_kernel + " " + used_kernels;
+
+        std::cout << "gpu_frequency=" << gpu_frequency << "GHz" << std::endl;
+        std::cout << "gws=" << gws << " lws=" << lws << " simd=" << simd << " kernels=[" << used_kernels << "] use_pre_heat_in_kernel=" << use_pre_heat_in_kernel << std::endl;
+        std::cout << "test_data_size=" << test_data_size / 1024.0 << "KB profiling_data_size=" << profiling_data_size << "B "
+                  << "total_load_instructions_number=" << load_instuction_count << std::endl;
+
+        cl::Program program(ctx, mem_latency_kernel_code);
+        program.build({device}, build_options.c_str());
+        std::stringstream dump_file;
+
+        cl::Kernel latency_kernel_cl(program, kernel_name.c_str());
+        cl::KernelIntel latency_kernel(latency_kernel_cl, *ocl_instance->_usm_helper);
+
+        std::vector<int> test_data_buffer;
+        for (size_t i = 0; i < test_data_size / sizeof(int); i++) {
+            test_data_buffer.push_back(static_cast<int>(((i / simd) + 1) * simd));
+        }
+
+        cl::UsmMemory test_data_buffer_device(*ocl_instance->_usm_helper);
+        test_data_buffer_device.allocateDevice(test_data_size);
+
+        cl::UsmMemory output_buffer_device(*ocl_instance->_usm_helper);
+        output_buffer_device.allocateDevice(profiling_data_size);
+
+        cl::UsmMemory output_buffer_host(*ocl_instance->_usm_helper);
+        output_buffer_host.allocateHost(profiling_data_size);
+
+        cl::CommandQueue queue(ctx, device);
+
+        ocl_instance->_usm_helper->enqueue_memcpy(queue, test_data_buffer_device.get(), test_data_buffer.data(), test_data_size, true);
+
+        latency_kernel.setArgUsm(0, output_buffer_device);
+        latency_kernel.setArgUsm(1, test_data_buffer_device);
+        latency_kernel.setArg(2, iters_num);
+
+        cl::Event ev1;
+        std::vector<cl::Event> wait_list1;
+
+        // Flush all caches
+        queue.finish();
+
+        if (use_two_kernels) {
+            cl::Kernel cl_kernel1(program, touch_data_kernel.c_str());
+            cl::KernelIntel kernel1(cl_kernel1, *ocl_instance->_usm_helper);
+
+            kernel1.setArgUsm(0, output_buffer_device);
+            kernel1.setArgUsm(1, test_data_buffer_device);
+
+            queue.enqueueNDRangeKernel(kernel1, cl::NDRange(), cl::NDRange(gws), cl::NDRange(lws), nullptr, &ev1);
+            wait_list1.push_back(ev1);
+        }
+
+        cl::Event ev2;
+        queue.enqueueNDRangeKernel(latency_kernel, cl::NDRange(), cl::NDRange(gws), cl::NDRange(lws), &wait_list1, &ev2);
+        cl::WaitForEvents({ev2});
+
+        ocl_instance->_usm_helper->enqueue_memcpy(queue, output_buffer_host.get(), output_buffer_device.get(), test_data_size, true);
+
+        uint32_t* profiling_res = static_cast<uint32_t*>(output_buffer_host.get());
+        auto const clcs = profiling_res[0];
+        auto const max = profiling_res[1];
+        auto const max_ns = profiling_res[1] / gpu_frequency;
+        auto const min = profiling_res[2];
+        auto const min_ns = profiling_res[2] / gpu_frequency;
+        std::cout << "max=" << max << "(" << max_ns << "ns)" << " min=" << min << "(" << min_ns << "ns)" << std::endl;
+        std::cout << "clcs=" << clcs << " clcs_per_load=" << clcs / load_instuction_count / iters_num << " latency_per_load=" << clcs / load_instuction_count / gpu_frequency / iters_num << "ns" << std::endl;
+    }
+};
+
+TEST_P(latency_test, DISABLED_benchmark) {
+    ASSERT_NO_FATAL_FAILURE(test());
+}
+
+const size_t _B = 1;
+const size_t _KB = 1024 * _B;
+const size_t _MB = 1024 * _KB;
+
+// Buffer size in bytes and number of iterations in kernel (for larger buffers the number of iterations is
+// getting lower to prevent timer's variable overflow)
+const std::vector<std::pair<size_t, size_t>> sizes_and_iters = {
+    { 64 * _B, 10 },
+    { 256 * _B, 10 },
+    { 1 * _KB, 10 },
+    { 2 * _KB, 10 },
+    { 4 * _KB, 10 },
+    { 16 * _KB, 10 },
+    { 32 * _KB, 10 },
+    { 64 * _KB, 10 },
+    { 128 * _KB, 10 },
+    { 192 * _KB, 10 },
+    { 256 * _KB, 10 },
+    { 384 * _KB, 10 },
+    { 512 * _KB, 10 },
+    { 1 * _MB, 10 },
+    { 2 * _MB, 10 },
+    { 4 * _MB, 10 },
+    { 8 * _MB, 10 },
+    { 16 * _MB, 3 },
+    { 32 * _MB, 3 },
+    { 64 * _MB, 3 },
+};
+
+INSTANTIATE_TEST_SUITE_P(mem_test,
+                         latency_test,
+                         ::testing::Combine(
+                             ::testing::ValuesIn(sizes_and_iters),
+                             ::testing::Values(2)),
+                         PrintToStringParamName());
