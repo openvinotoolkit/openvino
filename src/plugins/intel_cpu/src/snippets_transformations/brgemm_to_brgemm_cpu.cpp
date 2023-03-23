@@ -82,7 +82,7 @@ pass::BrgemmToBrgemmCPU::BrgemmToBrgemmCPU() {
         }
 
         brgemm_cpu->set_friendly_name(brgemm->get_friendly_name());
-        ngraph::snippets::utils::set_transpose_output_layout(brgemm_cpu->output(0), ngraph::snippets::utils::get_node_output_layout(brgemm));
+        ngraph::snippets::utils::set_output_layout(brgemm_cpu->output(0), ngraph::snippets::utils::get_node_output_layout(brgemm));
         ngraph::copy_runtime_info(brgemm, brgemm_cpu);
         ngraph::replace_node(brgemm, brgemm_cpu);
 

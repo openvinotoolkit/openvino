@@ -772,7 +772,6 @@ BrgemmEmitter::BrgemmEmitter(dnnl::impl::cpu::x64::jit_generator* h, dnnl::impl:
 
     m_with_comp = brgemm_node->is_with_compensations();
     m_with_scratch = brgemm_node->is_with_scratchpad();
-    OPENVINO_ASSERT((m_with_scratch && brgemm_node->get_input_size() == 3) || !m_with_scratch, "Brgemm with scratchpad expect 3 inputs");
 
     m_N_blk = brg1Prc == Precision::FP32 ? m_N :
               brg1Prc == Precision::BF16 ? 32 : 64;
@@ -797,7 +796,7 @@ BrgemmEmitter::BrgemmEmitter(dnnl::impl::cpu::x64::jit_generator* h, dnnl::impl:
                 brgemmCtx.N = N_;
                 brgemmCtx.K = K_;
                 brgemmCtx.LDA = leading_dimensions[0];
-                brgemmCtx.LDB = brg1Prc == Precision::FP32 ? leading_dimensions[1] : rnd_up(m_N, m_N_blk);
+                brgemmCtx.LDB = brgemm_node->is_with_data_repacking() ? rnd_up(m_N, m_N_blk) : leading_dimensions[1];
                 brgemmCtx.LDC = leading_dimensions[2];
                 brgemmCtx.dt_in0 = static_cast<dnnl_data_type_t>(DnnlExtensionUtils::IEPrecisionToDataType(brg0Prc));
                 brgemmCtx.dt_in1 = static_cast<dnnl_data_type_t>(DnnlExtensionUtils::IEPrecisionToDataType(brg1Prc));

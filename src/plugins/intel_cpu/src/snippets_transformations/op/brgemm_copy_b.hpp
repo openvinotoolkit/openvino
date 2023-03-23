@@ -11,7 +11,9 @@ namespace intel_cpu {
 
 /**
 * @interface BrgemmCopyB
-* @brief The operation for data repacking of Brgemm with input non-fp32 precisions
+* @brief The operation for data repacking of Brgemm with input non-fp32 precisions.
+         The CPU Generator uses oneDNN primitives for generation code of Brgemm.
+         OneDNN requiers data repacking for second input of Brgemm with input non-fp32 precisions.
 * @ingroup snippets
 */
 class BrgemmCopyB : public ngraph::snippets::op::MemoryAccess {
@@ -41,8 +43,8 @@ public:
     std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& new_args) const override;
 
 private:
-    Type m_type;
-    element::Type m_src_type;  // src element type of the corresponding BRGEMM
+    Type m_type = Type::OnlyRepacking;
+    element::Type m_src_type = ov::element::undefined;  // src element type of the corresponding BRGEMM
 };
 
 } // namespace intel_cpu

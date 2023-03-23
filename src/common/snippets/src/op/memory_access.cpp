@@ -28,26 +28,26 @@ void MemoryAccess::validate_and_infer_types() {
 bool MemoryAccess::visit_attributes(AttributeVisitor& visitor) {
     for (size_t i = 0; i < m_input_ports.size(); ++i) {
         auto port = m_input_ports[i];
-        visitor.on_attribute("count_in_" + std::to_string(i), port.m_count);
-        visitor.on_attribute("offset_in_" + std::to_string(i), port.m_offset);
+        visitor.on_attribute("count_in_" + std::to_string(i), port.count);
+        visitor.on_attribute("offset_in_" + std::to_string(i), port.offset);
     }
     for (size_t i = 0; i < m_output_ports.size(); ++i) {
         auto port = m_output_ports[i];
-        visitor.on_attribute("count_out_" + std::to_string(i), port.m_count);
-        visitor.on_attribute("offset_out_" + std::to_string(i), port.m_offset);
+        visitor.on_attribute("count_out_" + std::to_string(i), port.count);
+        visitor.on_attribute("offset_out_" + std::to_string(i), port.offset);
     }
     return true;
 }
 
 void MemoryAccess::set_input_port_descriptor(const PortDescriptor& desc, const size_t i) {
     NGRAPH_CHECK(i < m_input_ports.size(), "Index of input port descriptor should be less than count of input ports");
-    m_input_ports[i] = { desc.m_count, desc.m_offset, i};
+    m_input_ports[i] = { desc.count, desc.offset, i};
 }
 
 void MemoryAccess::set_output_port_descriptor(const PortDescriptor& desc, const size_t i) {
     // Logic is as same as ov::Node::get_output_descriptor
     NGRAPH_CHECK(i < m_output_ports.size(), "Index of output port descriptor should be less than count of output ports");
-    m_output_ports[i] = { desc.m_count, desc.m_offset, i};
+    m_output_ports[i] = { desc.count, desc.offset, i};
 }
 
 const MemoryAccess::PortDescriptor& MemoryAccess::get_input_port_descriptor(const size_t i) const {
@@ -62,35 +62,35 @@ const MemoryAccess::PortDescriptor& MemoryAccess::get_output_port_descriptor(con
 
 void  MemoryAccess::set_input_count(size_t count, size_t idx) {
     NGRAPH_CHECK(idx < m_input_ports.size(), "Index of input port descriptor should be less than count of input ports");
-    m_input_ports[idx].m_count = count;
+    m_input_ports[idx].count = count;
 }
 void MemoryAccess::set_output_count(size_t count, size_t idx) {
     NGRAPH_CHECK(idx < m_output_ports.size(), "Index of output port descriptor should be less than count of output ports");
-    m_output_ports[idx].m_count = count;
+    m_output_ports[idx].count = count;
 }
 void  MemoryAccess::set_input_offset(size_t offset, size_t idx) {
     NGRAPH_CHECK(idx < m_input_ports.size(), "Index of input port descriptor should be less than count of input ports");
-    m_input_ports[idx].m_offset = offset;
+    m_input_ports[idx].offset = offset;
 }
 void MemoryAccess::set_output_offset(size_t offset, size_t idx) {
     NGRAPH_CHECK(idx < m_output_ports.size(), "Index of output port descriptor should be less than count of output ports");
-    m_output_ports[idx].m_offset = offset;
+    m_output_ports[idx].offset = offset;
 }
 size_t MemoryAccess::get_input_count(size_t idx) const {
     NGRAPH_CHECK(idx < m_input_ports.size(), "Index of input port descriptor should be less than count of input ports");
-    return m_input_ports[idx].m_count;
+    return m_input_ports[idx].count;
 }
 size_t MemoryAccess::get_output_count(size_t idx) const {
     NGRAPH_CHECK(idx < m_output_ports.size(), "Index of output port descriptor should be less than count of output ports");
-    return m_output_ports[idx].m_count;
+    return m_output_ports[idx].count;
 }
 size_t MemoryAccess::get_input_offset(size_t idx) const {
     NGRAPH_CHECK(idx < m_input_ports.size(), "Index of input port descriptor should be less than count of input ports");
-    return m_input_ports[idx].m_offset;
+    return m_input_ports[idx].offset;
 }
 size_t MemoryAccess::get_output_offset(size_t idx) const {
     NGRAPH_CHECK(idx < m_output_ports.size(), "Index of output port descriptor should be less than count of output ports");
-    return m_output_ports[idx].m_offset;
+    return m_output_ports[idx].offset;
 }
 
 } // namespace op

@@ -28,6 +28,9 @@ public:
     size_t get_offset() const { return get_output_offset(0); }
     size_t get_count() const { return get_output_count(0); }
 
+    void set_offset(size_t offset) { set_output_offset(offset, 0); }
+    void set_count(size_t count) { set_output_count(count, 0); }
+
     void validate_and_infer_types() override;
     std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& new_args) const override;
 };

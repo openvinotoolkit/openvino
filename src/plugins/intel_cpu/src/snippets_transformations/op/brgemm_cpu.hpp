@@ -48,7 +48,7 @@ public:
     constexpr static size_t SCRATCH_BYTE_SIZE = 32 * 1024;
 
 private:
-   Type m_type;
+   Type m_type = Type::Floating;
 };
 
 } // namespace intel_cpu

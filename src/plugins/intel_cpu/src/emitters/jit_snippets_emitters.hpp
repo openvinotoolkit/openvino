@@ -338,8 +338,6 @@ private:
         float beta;
     };
     void initBrgemm(brgemmCtx& ctx, std::unique_ptr<dnnl::impl::cpu::x64::brgemm_kernel_t>& brgKernel, bool use_amx) const;
-    void callBrgemm(brgemmCtx& ctx, std::unique_ptr<dnnl::impl::cpu::x64::brgemm_kernel_t>& brgKernel,
-                    const void* pin0, const void* pin1, void* pout, void* wsp) const;
     size_t getBrgIdx(size_t mIdx, size_t kIdx, size_t nIdx) const;
 
     void emit_brgemm_kernel_call(const dnnl::impl::cpu::x64::brgemm_kernel_t* brg_kernel, const brgemmCtx& ctx,

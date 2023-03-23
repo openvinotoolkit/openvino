@@ -32,15 +32,15 @@ public:
     * @ingroup snippets
     */
     struct PortDescriptor {
-        PortDescriptor(size_t count, size_t offset) : m_count(count), m_offset(offset) {}
+        PortDescriptor(size_t count, size_t offset) : count(count), offset(offset) {}
         PortDescriptor() = default;
 
-        size_t m_count = 0lu;
-        size_t m_offset = 0lu;
-        size_t m_index = 0lu;
+        size_t count = 0lu;
+        size_t offset = 0lu;
+        size_t index = 0lu;
 
     private:
-        PortDescriptor(size_t count, size_t offset, size_t index) : m_count(count), m_offset(offset), m_index(index) {}
+        PortDescriptor(size_t count, size_t offset, size_t index) : count(count), offset(offset), index(index) {}
 
         friend class MemoryAccess;
     };
@@ -50,15 +50,15 @@ public:
     const PortDescriptor& get_input_port_descriptor(const size_t i) const;
     const PortDescriptor& get_output_port_descriptor(const size_t i) const;
 
-    void set_input_count(size_t count, size_t idx);
-    void set_output_count(size_t count, size_t idx);
-    void set_input_offset(size_t offset, size_t idx);
-    void set_output_offset(size_t offset, size_t idx);
+    void set_input_count(size_t count, size_t idx = 0);
+    void set_output_count(size_t count, size_t idx = 0);
+    void set_input_offset(size_t offset, size_t idx = 0);
+    void set_output_offset(size_t offset, size_t idx = 0);
 
-    size_t get_input_count(size_t idx) const;
-    size_t get_output_count(size_t idx) const;
-    size_t get_input_offset(size_t idx) const;
-    size_t get_output_offset(size_t idx) const;
+    size_t get_input_count(size_t idx = 0) const;
+    size_t get_output_count(size_t idx = 0) const;
+    size_t get_input_offset(size_t idx = 0) const;
+    size_t get_output_offset(size_t idx = 0) const;
 
 
     bool visit_attributes(AttributeVisitor& visitor) override;
