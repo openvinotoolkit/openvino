@@ -13,11 +13,11 @@ from typing import Any, Dict, List, Optional, Sequence, Text, Tuple
 import numpy
 import onnx
 from onnx.backend.base import Backend, BackendRep
-from onnx.helper import make_graph, make_model, make_tensor_value_info
+from onnx.helper import make_graph, make_model, make_tensor_value_info, np_dtype_to_tensor_dtype
 
 from ngraph.impl import Function
 from tests_compatibility.runtime import get_runtime
-from tests_compatibility.test_onnx.utils.onnx_helpers import import_onnx_model, np_dtype_to_tensor_type
+from tests_compatibility.test_onnx.utils.onnx_helpers import import_onnx_model
 
 
 class OpenVinoOnnxBackendRep(BackendRep):
@@ -80,15 +80,15 @@ class OpenVinoOnnxBackend(Backend):
     ):  # type: (...) -> Optional[Tuple[Any, ...]]
         """Prepare and run a computation on an ONNX node."""
         # default values for input/output tensors
-        input_tensor_types = [np_dtype_to_tensor_type(node_input.dtype) for node_input in inputs]
-        output_tensor_types = [onnx.TensorProto.FLOAT for idx in range(len(node.output))]
+        input_tensor_types = [np_dtype_to_tensor_dtype(node_input.dtype) for node_input in inputs]
+        output_tensor_types = [onnx.TensorProto.FLOAT for _ in range(len(node.output))]
         output_tensor_shapes = [()]  # type: List[Tuple[int, ...]]
 
         if outputs_info is not None:
             output_tensor_types = [
-                np_dtype_to_tensor_type(dtype) for (dtype, shape) in outputs_info
+                np_dtype_to_tensor_dtype(dtype) for (dtype, _) in outputs_info
             ]
-            output_tensor_shapes = [shape for (dtype, shape) in outputs_info]
+            output_tensor_shapes = [shape for (_, shape) in outputs_info]
 
         input_tensors = [
             make_tensor_value_info(name, tensor_type, value.shape)

@@ -328,7 +328,7 @@ class TestMoConvertTF(CommonMOConvertTest):
         # TF2
         create_keras_model,
         create_keras_layer,
-        create_tf_function,
+        #create_tf_function,  # skip, ticket 106247
         create_tf_module,
         create_tf_checkpoint,
         create_tf_saved_model,

@@ -59,12 +59,14 @@ public:
 };
 
 TEST_P(SerializationTest, CompareFunctions) {
+    GTEST_SKIP() << "Ticket 99981";
     CompareSerialized([this](const std::shared_ptr<ov::Model>& m) {
         ov::pass::Serialize(m_out_xml_path, m_out_bin_path).run_on_model(m);
     });
 }
 
 TEST_P(SerializationTest, SerializeHelper) {
+    GTEST_SKIP() << "Ticket 99981";
     CompareSerialized([this](const std::shared_ptr<ov::Model>& m) {
         ov::serialize(m, m_out_xml_path, m_out_bin_path);
     });

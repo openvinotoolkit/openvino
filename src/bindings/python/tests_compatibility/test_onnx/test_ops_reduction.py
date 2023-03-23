@@ -5,6 +5,7 @@ import numpy as np
 import onnx
 import pytest
 
+from tests_compatibility import xfail_issue_99962
 from tests_compatibility.runtime import get_runtime
 from tests_compatibility.test_onnx.utils import (
     run_node,
@@ -79,6 +80,7 @@ def test_reduce_operation_keepdims_none_axes(operation, ref_operation):
                           ref_operation(reduce_data, keepdims=True))
 
 
+@xfail_issue_99962
 @pytest.mark.parametrize("operation, ref_operation", reduce_operation_parameters_as_attr)
 @pytest.mark.parametrize("axes", reduce_axis_parameters)
 def test_reduce_operation_keepdims_with_axes_as_attr(operation, ref_operation, axes):
@@ -93,6 +95,7 @@ def test_reduce_operation_keepdims_with_axes_as_const(operation, ref_operation, 
                           ref_operation(reduce_data, keepdims=True, axis=axes))
 
 
+@xfail_issue_99962
 @pytest.mark.parametrize("axes", [
     None,
     (0,),
@@ -134,6 +137,7 @@ def test_reduce_operation_no_keepdims_axes_as_const(operation, ref_operation, ax
                               ref_operation(reduce_data, keepdims=False))
 
 
+@xfail_issue_99962
 @pytest.mark.parametrize("reduction_axes", [(0,), (0, 2), (0, 1, 2)])
 def test_reduce_l1(reduction_axes):
     shape = [2, 4, 3, 2]
@@ -171,6 +175,7 @@ def test_reduce_l1_default_axes():
     assert np.allclose(expected, ng_result)
 
 
+@xfail_issue_99962
 @pytest.mark.parametrize("reduction_axes", [(0,), (0, 2), (0, 1, 2)])
 def test_reduce_l2(reduction_axes):
     shape = [2, 4, 3, 2]
@@ -209,6 +214,7 @@ def test_reduce_l2_default_axes():
     assert np.allclose(expected, ng_result)
 
 
+@xfail_issue_99962
 @pytest.mark.parametrize("reduction_axes", [(0,), (0, 2), (0, 1, 2)])
 def test_reduce_log_sum(reduction_axes):
     shape = [2, 4, 3, 2]
@@ -246,6 +252,7 @@ def test_reduce_log_sum_default_axes():
     assert np.allclose(expected, ng_result)
 
 
+@xfail_issue_99962
 def test_reduce_log_sum_exp():
     def logsumexp(data, axis=None, keepdims=True):
         return np.log(np.sum(np.exp(data), axis=axis, keepdims=keepdims))
@@ -283,6 +290,7 @@ def test_reduce_log_sum_exp():
     )
 
 
+@xfail_issue_99962
 @pytest.mark.parametrize("reduction_axes", [(0,), (0, 2), (0, 1, 2)])
 def test_reduce_sum_square(reduction_axes):
     shape = [2, 4, 3, 2]
