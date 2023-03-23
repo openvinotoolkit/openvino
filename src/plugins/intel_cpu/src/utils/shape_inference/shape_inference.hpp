@@ -36,6 +36,7 @@ public:
 class IStaticShapeInfer : public IShapeInferCommon {
 public:
     using port_mask_t = uint32_t;  //!< Operator's port mask to indicate input data dependency
+    using IShapeInferCommon::infer;
 
     virtual Result infer(const std::vector<StaticShape>& input_shapes, const ov::ITensorAccessor& tensor_accessor) = 0;
 
