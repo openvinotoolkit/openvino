@@ -11,8 +11,7 @@ namespace ov {
 namespace frontend {
 namespace pytorch {
 
-InputModel::InputModel(const std::shared_ptr<TorchDecoder>& model_decoder)
-    : m_model_decoder(model_decoder) {
+InputModel::InputModel(const std::shared_ptr<TorchDecoder>& model_decoder) : m_model_decoder(model_decoder) {
     const auto& inputs = m_model_decoder->inputs();
     for (size_t i = 0; i < inputs.size(); ++i) {
         auto in_place = std::make_shared<pytorch::Place>(*this, inputs[i]);
