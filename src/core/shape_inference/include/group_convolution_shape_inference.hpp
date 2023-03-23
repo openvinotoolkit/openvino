@@ -3,7 +3,7 @@
 //
 #pragma once
 
-#include "convolution_shape_inference.hpp"
+#include "convolution_shape_inference_util.hpp"
 #include "openvino/op/group_conv.hpp"
 #include "utils.hpp"
 
@@ -25,11 +25,13 @@ namespace v1 {
 template <class TShape>
 std::vector<TShape> shape_infer(const GroupConvolution* op,
                                 const std::vector<TShape>& input_shapes,
+                                CoordinateDiff& pads_begin,
+                                CoordinateDiff& pads_end,
                                 const std::map<size_t, HostTensorPtr>& constant_data = {}) {
     NODE_VALIDATION_CHECK(op, input_shapes.size() == 2);
     using namespace ov::util;
 
-    const auto num_spatial = convolution::get_num_spatial(op, input_shapes);
+    const auto num_spatial = convolution::calculate_num_spatial(op, input_shapes);
 
     TShape output_shape;
     if (num_spatial != convolution::num_spatial_undefined) {
@@ -38,7 +40,7 @@ std::vector<TShape> shape_infer(const GroupConvolution* op,
         const auto data_rank = data_shape.rank();
         const auto filters_rank = filters_shape.rank();
 
-        resize_attributes(const_cast<GroupConvolution*>(op), num_spatial);
+        convolution::resize_empty_padding(num_spatial, pads_begin, pads_end);
         if (is_attr_validation_required(op)) {
             convolution::validate::data_shape(op, data_shape);
 
@@ -52,9 +54,9 @@ std::vector<TShape> shape_infer(const GroupConvolution* op,
 
             convolution::validate::common_attributes(op, num_spatial);
         }
-        apply_padding(const_cast<GroupConvolution*>(op), data_shape, filters_shape);
+        convolution::apply_padding(op, data_shape, filters_shape, pads_begin, pads_end);
 
-        output_shape.reserve(convolution::spatial_dim_offset + num_spatial);
+        output_shape.reserve(util::spatial_dim_offset + num_spatial);
         output_shape.emplace_back(data_rank.is_static() ? data_shape[0] : dim::inf_bound);
 
         if (filters_rank.is_static()) {
@@ -73,7 +75,7 @@ std::vector<TShape> shape_infer(const GroupConvolution* op,
             output_shape.emplace_back(dim::inf_bound);
         }
 
-        convolution::append_spatial_shape(op, data_shape, filters_shape, output_shape);
+        convolution::append_spatial_shape(op, data_shape, filters_shape, pads_begin, pads_end, output_shape);
     } else {
         output_shape = PartialShape::dynamic();
     }

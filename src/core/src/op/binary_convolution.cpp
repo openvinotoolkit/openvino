@@ -22,7 +22,7 @@ ov::op::v1::BinaryConvolution::BinaryConvolution(const Output<Node>& data,
                                                  BinaryConvolutionMode mode,
                                                  float pad_value,
                                                  const PadType& auto_pad)
-    : ConvolutionBase({data, kernel}, strides, pads_begin, pads_end, dilations, auto_pad),
+    : ConvolutionFwdPropBase({data, kernel}, strides, pads_begin, pads_end, dilations, auto_pad),
       m_mode(mode),
       m_pad_value(pad_value) {
     constructor_validate_and_infer_types();
@@ -37,7 +37,7 @@ ov::op::v1::BinaryConvolution::BinaryConvolution(const Output<Node>& data,
                                                  const std::string& mode,
                                                  float pad_value,
                                                  const PadType& auto_pad)
-    : ConvolutionBase({data, kernel}, strides, pads_begin, pads_end, dilations, auto_pad),
+    : ConvolutionFwdPropBase({data, kernel}, strides, pads_begin, pads_end, dilations, auto_pad),
       m_mode(mode_from_string(mode)),
       m_pad_value(pad_value) {
     constructor_validate_and_infer_types();
@@ -54,7 +54,14 @@ void ov::op::v1::BinaryConvolution::validate_and_infer_types() {
 
     // TODO: Add NodeValidationCheck to filters et once u1 is supported in nGraph Python API
     // (#52715)
-    const auto output_shapes = shape_infer(this, get_node_input_partial_shapes(*this));
+    const auto input_shapes = get_node_input_partial_shapes(*this);
+
+    auto num_spatial = convolution::calculate_num_spatial(this, input_shapes);
+    if (num_spatial != util::num_spatial_undefined) {
+        resize_attributes(num_spatial);
+    }
+
+    const auto output_shapes = shape_infer(this, input_shapes, m_pads_begin, m_pads_end);
     set_output_type(0, data_batch_et, output_shapes[0]);
 }
 

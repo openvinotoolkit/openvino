@@ -16,9 +16,9 @@ namespace v1 {
 /// \brief Batched convolution operation, with optional window dilation and stride.
 ///
 /// \ingroup ov_ops_cpp_api
-class OPENVINO_API Convolution : public util::ConvolutionBase {
+class OPENVINO_API Convolution : public util::ConvolutionFwdPropBase {
 public:
-    OPENVINO_OP("Convolution", "opset1", op::util::ConvolutionBase, 1);
+    OPENVINO_OP("Convolution", "opset1", op::util::ConvolutionFwdPropBase, 1);
 
     /// \brief Constructs a batched convolution operation.
     Convolution() = default;

@@ -21,7 +21,7 @@ op::v1::Convolution::Convolution(const Output<Node>& data_batch,
                                  const CoordinateDiff& pads_end,
                                  const Strides& dilations,
                                  const PadType& auto_pad)
-    : ConvolutionBase({data_batch, filters}, strides, pads_begin, pads_end, dilations, auto_pad) {
+    : ConvolutionFwdPropBase({data_batch, filters}, strides, pads_begin, pads_end, dilations, auto_pad) {
     constructor_validate_and_infer_types();
 }
 
@@ -54,13 +54,16 @@ void op::v1::Convolution::validate_and_infer_types() {
                           "Element types must be numeric. Got: ",
                           result_et);
 
-    m_num_spatial = convolution::num_spatial_undefined;
     const auto input_shapes = get_node_input_partial_shapes(*this);
-    const auto output_shapes = shape_infer(this, input_shapes);
-    set_output_type(0, result_et, output_shapes[0]);
-    if (input_shapes[0].rank().is_static() && input_shapes[1].rank().is_static()) {
-        m_num_spatial = convolution::get_num_spatial(this, input_shapes);
+
+    auto num_spatial = convolution::calculate_num_spatial(this, input_shapes);
+    if (num_spatial != util::num_spatial_undefined) {
+        resize_attributes(num_spatial);
     }
+
+    const auto output_shapes = shape_infer(this, input_shapes, m_pads_begin, m_pads_end);
+    set_output_type(0, result_et, output_shapes[0]);
+    set_num_spatial(num_spatial, input_shapes);
 }
 
 shared_ptr<Node> op::v1::Convolution::clone_with_new_inputs(const OutputVector& new_args) const {
@@ -126,14 +129,19 @@ bool op::v1::ConvolutionBackpropData::is_dynamic() const {
 const ov::PartialShape op::v1::ConvolutionBackpropData::get_output_shape() const {
     auto shape = PartialShape::dynamic();
 
-    if (get_input_size() != 3 || !evaluate_as_partial_shape(input_value(2), shape)) {
-        const auto& data_pshape = get_input_partial_shape(0);
-        const auto& filter_pshape = get_input_partial_shape(1);
+    if (get_input_size() < 3 || !evaluate_as_partial_shape(input_value(2), shape)) {
+        const auto& data_rank = get_input_partial_shape(0).rank();
+        const auto& filter_rank = get_input_partial_shape(1).rank();
 
-        if (data_pshape.rank().is_static()) {
-            shape.resize(data_pshape.rank().get_length() - convolution::spatial_dim_offset);
-        } else if (filter_pshape.rank().is_static()) {
-            shape.resize(filter_pshape.rank().get_length() - convolution::spatial_dim_offset);
+        if (data_rank.is_static()) {
+            shape.resize(data_rank.get_length() - convolution::spatial_dim_offset);
+        } else if (filter_rank.is_static()) {
+            shape.resize(filter_rank.get_length() - convolution::spatial_dim_offset);
+        } else if (get_input_size() == 3) {
+            const auto& out_spatial_shape = get_input_partial_shape(2);
+            if (out_spatial_shape.is_static()) {
+                shape.resize(out_spatial_shape[0].get_length());
+            }
         }
     }
 
@@ -207,13 +215,17 @@ void op::v1::ConvolutionBackpropData::validate_and_infer_types() {
                               ").");
     }
 
-    m_num_spatial = convolution::num_spatial_undefined;
     const auto input_shapes = get_node_input_partial_shapes(*this);
-    const auto output_shapes = shape_infer(this, input_shapes);
-    set_output_type(0, result_et, output_shapes[0]);
-    if (input_shapes[0].rank().is_static() && input_shapes[1].rank().is_static()) {
-        m_num_spatial = convolution::get_num_spatial(this, input_shapes);
+    const auto out_spatial_shape = get_output_shape();
+    auto num_spatial = convolution::calculate_num_spatial(this, input_shapes, out_spatial_shape);
+
+    if (num_spatial != util::num_spatial_undefined) {
+        resize_attributes(num_spatial);
     }
+
+    const auto output_shapes = shape_infer(this, input_shapes, m_pads_begin, m_pads_end);
+    set_output_type(0, result_et, output_shapes[0]);
+    set_num_spatial(num_spatial, input_shapes);
 
     set_input_is_relevant_to_shape(0);
     set_input_is_relevant_to_shape(1);

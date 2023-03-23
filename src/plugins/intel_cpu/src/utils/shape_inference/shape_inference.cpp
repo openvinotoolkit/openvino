@@ -342,21 +342,25 @@ protected:
 template <class TOp>
 class ShapeInferWithPadding : public entryBase {
 public:
-    ShapeInferWithPadding(std::shared_ptr<Node> node) : entryBase{std::move(node)} {}
+    ShapeInferWithPadding(std::shared_ptr<Node> node) : entryBase{std::move(node)}, m_pads_begin{}, m_pads_end{} {}
 
     IShapeInferCommon::Result infer(const std::vector<StaticShape>& input_shapes,
                                     const std::map<size_t, ov::HostTensorPtr>& constant_data) override {
-        auto out_shapes = shape_infer(static_cast<TOp*>(node.get()), input_shapes, constant_data);
+        auto op = static_cast<TOp*>(node.get());
+        auto out_shapes = shape_infer(op, input_shapes, m_pads_begin, m_pads_end, constant_data);
         return {std::move(out_shapes), ShapeInferStatus::success};
     }
 
     const ov::CoordinateDiff& get_pads_begin() override {
-        return static_cast<TOp*>(node.get())->get_pads_begin();
+        return m_pads_begin;
     }
 
     const ov::CoordinateDiff& get_pads_end() override {
-        return static_cast<TOp*>(node.get())->get_pads_end();
+        return m_pads_end;
     }
+
+protected:
+    ov::CoordinateDiff m_pads_begin, m_pads_end;
 };
 
 /**

@@ -33,7 +33,7 @@ TEST_F(ConvolutionBackpropDataV1StaticShapeInferenceTest, default_ctor_with_outp
     op->set_auto_pad(op::PadType::EXPLICIT);
     op->set_output_shape(spatial_shape.to_shape());
 
-    input_shapes = ShapeVector{{1, 20, 224, 224}, {20, 10, 3, 3}, {2}};
+    input_shapes = ShapeVector{{1, 20, 224, 224}, {20, 10, 3, 3}, {spatial_shape.size()}};
     auto shape_infer = make_shape_inference(op);
     output_shapes = shape_infer->infer(input_shapes, {}).shapes;
 

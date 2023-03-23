@@ -30,7 +30,7 @@ TEST(type_prop, convolution_v1_partial_rank) {
                                                  padding_above,
                                                  window_dilation_strides);
 
-    EXPECT_EQ(conv->get_output_partial_shape(0), PartialShape::dynamic());
+    EXPECT_EQ(conv->get_output_partial_shape(0), PartialShape({-1, -1, {1, -1}, {1, -1}}));
 }
 
 TEST(type_prop, convolution_v1_partial_auto_padding_same) {

@@ -11,7 +11,7 @@
 namespace ov {
 namespace op {
 namespace util {
-/// \brief Base class for operations like convolution, group convolution
+/// \brief Base class for operations like convolutions
 class OPENVINO_API ConvolutionBase : public Op {
 public:
     OPENVINO_OP("ConvolutionBase", "util");
@@ -87,14 +87,64 @@ protected:
     PadType m_auto_pad;
     size_t m_num_spatial = std::numeric_limits<size_t>::max();
 
+    void resize_attributes(size_t num_spatial) {
+        if (m_strides.empty()) {
+            m_strides.resize(num_spatial, 1);
+        }
+        if (m_dilations.empty()) {
+            m_dilations.resize(num_spatial, 1);
+        }
+        if (m_pads_begin.empty()) {
+            m_pads_begin.resize(num_spatial, 0);
+        }
+        if (m_pads_end.empty()) {
+            m_pads_end.resize(num_spatial, 0);
+        }
+    }
+
+    void set_num_spatial(size_t num_spatial, const std::vector<PartialShape>& input_shapes) {
+        if (input_shapes[0].rank().is_static() && input_shapes[1].rank().is_static()) {
+            m_num_spatial = num_spatial;
+        }
+    }
+
 private:
-    friend void resize_attributes(ConvolutionBase* op, const size_t num_spatial);
+    friend bool is_attr_validation_required(const ConvolutionBase* op);
+    friend size_t get_num_spatial(const ConvolutionBase* op);
+};
 
-    template <class TShape>
-    friend void apply_padding(ConvolutionBase* op, const TShape& data_shape, const TShape& filters_shape);
+/// \brief Base class for operations like back propagation convolution
+class OPENVINO_API ConvolutionFwdPropBase : public ConvolutionBase {
+public:
+    OPENVINO_OP("ConvolutionFwdPropBase", "util");
 
+    /// \brief Constructs a conversion operation.
+    ConvolutionFwdPropBase() = default;
+
+    /// \brief Constructs a conversion operation.
+    /// \param strides            Convolution strides.
+    /// \param pads_begin         Amount of padding to be added to the beginning along
+    ///                           each axis. For example in case of a 2D input the value
+    ///                           of (1, 2) means that 1 element will be added to the
+    ///                           top and 2 elements to the left.
+    /// \param pads_end           Amount of padding to be added to the end along each
+    ///                           axis.
+    /// \param dilations          The distance in width and height between the weights
+    ///                           in the filters tensor.
+    /// \param auto_pad           Specifies how the automatic calculation of padding
+    ///                           should be done.
+    ConvolutionFwdPropBase(const OutputVector& arguments,
+                           const Strides& strides,
+                           const CoordinateDiff& pads_begin,
+                           const CoordinateDiff& pads_end,
+                           const Strides& dilations,
+                           const PadType& auto_pad = PadType::EXPLICIT)
+        : ConvolutionBase(arguments, strides, pads_begin, pads_end, dilations, auto_pad) {}
+
+private:
     friend bool is_attr_validation_required(const ConvolutionBase* op);
 };
+
 }  // namespace util
 }  // namespace op
 }  // namespace ov

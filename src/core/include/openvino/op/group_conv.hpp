@@ -13,9 +13,9 @@ namespace ov {
 namespace op {
 namespace v1 {
 /// \brief Batched convolution operation, with optional window dilation and stride.
-class OPENVINO_API GroupConvolution : public util::ConvolutionBase {
+class OPENVINO_API GroupConvolution : public util::ConvolutionFwdPropBase {
 public:
-    OPENVINO_OP("GroupConvolution", "opset1", op::util::ConvolutionBase, 1);
+    OPENVINO_OP("GroupConvolution", "opset1", op::util::ConvolutionFwdPropBase, 1);
 
     /// \brief Constructs a batched convolution operation.
     GroupConvolution() = default;

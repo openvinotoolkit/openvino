@@ -51,19 +51,13 @@ public:
 protected:
     CoordinateDiff m_output_padding;
 
-private:
-    friend void resize_attributes(ConvolutionBackPropBase* op, const size_t num_spatial);
+    void resize_attributes(size_t num_spatial) {
+        ConvolutionBase::resize_attributes(num_spatial);
 
-    template <class TShape>
-    friend void apply_padding(ConvolutionBackPropBase* op, const TShape& data_shape, const TShape& filters_shape);
-
-    template <class TShape>
-    friend void apply_padding(ConvolutionBackPropBase* op,
-                              const TShape& data_shape,
-                              const TShape& filters_shape,
-                              const TShape& out_spatial_shape);
-
-    friend bool is_attr_validation_required(const ConvolutionBase* op);
+        if (m_output_padding.empty()) {
+            m_output_padding.resize(num_spatial, 0);
+        }
+    }
 };
 }  // namespace util
 }  // namespace op

@@ -15,9 +15,9 @@ namespace v1 {
 /// \brief BinaryConvolution operation.
 ///
 /// \ingroup ov_ops_cpp_api
-class OPENVINO_API BinaryConvolution : public util::ConvolutionBase {
+class OPENVINO_API BinaryConvolution : public util::ConvolutionFwdPropBase {
 public:
-    OPENVINO_OP("BinaryConvolution", "opset1", op::util::ConvolutionBase, 1);
+    OPENVINO_OP("BinaryConvolution", "opset1", op::util::ConvolutionFwdPropBase, 1);
 
     enum class BinaryConvolutionMode {
         // Interpret input data and kernel values: 0 as -1, 1 as 1

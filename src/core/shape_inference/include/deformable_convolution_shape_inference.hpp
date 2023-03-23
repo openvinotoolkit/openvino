@@ -12,9 +12,10 @@ namespace ov {
 namespace op {
 namespace deformable_conv {
 template <class TShape>
-size_t get_num_spatial(const util::DeformableConvolutionBase* op, const std::vector<TShape>& input_shapes) {
+size_t calculate_num_spatial(const util::DeformableConvolutionBase* op, const std::vector<TShape>& input_shapes) {
     constexpr auto non_spatial_count = convolution::filter_non_spatial_dims_count<util::DeformableConvolutionBase>();
-    auto num_spatial = convolution::get_num_spatial(input_shapes[0], input_shapes[2], non_spatial_count);
+
+    auto num_spatial = util::num_spatial_from_shapes(input_shapes[0], input_shapes[2], non_spatial_count);
 
     if (num_spatial == convolution::num_spatial_undefined && input_shapes[1].rank().is_static()) {
         num_spatial = input_shapes[1].size() - non_spatial_count;
@@ -65,12 +66,14 @@ namespace util {
 template <class TShape>
 std::vector<TShape> shape_infer(const DeformableConvolutionBase* op,
                                 const std::vector<TShape>& input_shapes,
+                                CoordinateDiff& pads_begin,
+                                CoordinateDiff& pads_end,
                                 const std::map<size_t, HostTensorPtr>& constant_data = {}) {
     static constexpr std::array<const char*, 4> names{"Input", "Offsets", "Filters", "Mask"};
     using namespace ov::util;
     using TDim = typename TShape::value_type;
 
-    const auto num_spatial = deformable_conv::get_num_spatial(op, input_shapes);
+    const auto num_spatial = deformable_conv::calculate_num_spatial(op, input_shapes);
 
     TShape output_shape;
     if (num_spatial != convolution::num_spatial_undefined) {
@@ -82,16 +85,16 @@ std::vector<TShape> shape_infer(const DeformableConvolutionBase* op,
         const auto filters_rank = filters_shape.rank();
         const auto offsets_rank = offsets_shape.rank();
 
-        output_shape.reserve(num_spatial + convolution::spatial_dim_offset);
+        output_shape.reserve(num_spatial + util::spatial_dim_offset);
 
-        resize_attributes(const_cast<DeformableConvolutionBase*>(op), num_spatial);
+        convolution::resize_empty_padding(num_spatial, pads_begin, pads_end);
         for (size_t i = 0; i < input_shapes.size(); ++i) {
             deformable_conv::validate::input_shape(op, input_shapes[i], names[i]);
         }
         deformable_conv::validate::group_attribute(op, op->get_group(), "group");
         deformable_conv::validate::group_attribute(op, op->get_deformable_group(), "deformable group");
         convolution::validate::common_attributes(op, num_spatial);
-        apply_padding(const_cast<DeformableConvolutionBase*>(op), data_shape, filters_shape);
+        convolution::apply_padding(op, data_shape, filters_shape, pads_begin, pads_end);
 
         // add to output shape number of batches
         if (data_rank.is_static()) {
@@ -142,13 +145,13 @@ std::vector<TShape> shape_infer(const DeformableConvolutionBase* op,
         } else {
             output_shape.emplace_back(dim::inf_bound);
         }
-        convolution::append_spatial_shape(op, data_shape, filters_shape, output_shape);
+        convolution::append_spatial_shape(op, data_shape, filters_shape, pads_begin, pads_end, output_shape);
 
         // post infer check.
         if (offsets_rank.is_static()) {
-            auto offset_dim = offsets_shape.begin() + convolution::spatial_dim_offset;
+            auto offset_dim = offsets_shape.begin() + util::spatial_dim_offset;
             NODE_VALIDATION_CHECK(op,
-                                  std::all_of(output_shape.begin() + convolution::spatial_dim_offset,
+                                  std::all_of(output_shape.begin() + util::spatial_dim_offset,
                                               output_shape.end(),
                                               [&offset_dim](const TDim& d) {
                                                   return d.compatible(*offset_dim++);
@@ -168,9 +171,11 @@ namespace v1 {
 template <class TShape>
 std::vector<TShape> shape_infer(const DeformableConvolution* op,
                                 const std::vector<TShape>& input_shapes,
+                                CoordinateDiff& pads_begin,
+                                CoordinateDiff& pads_end,
                                 const std::map<size_t, HostTensorPtr>& constant_data = {}) {
     NODE_VALIDATION_CHECK(op, input_shapes.size() == 3);
-    return util::shape_infer(op, input_shapes, constant_data);
+    return util::shape_infer(op, input_shapes, pads_begin, pads_end, constant_data);
 }
 }  // namespace v1
 
@@ -178,6 +183,8 @@ namespace v8 {
 template <class TShape>
 std::vector<TShape> shape_infer(const DeformableConvolution* op,
                                 const std::vector<TShape>& input_shapes,
+                                CoordinateDiff& pads_begin,
+                                CoordinateDiff& pads_end,
                                 const std::map<size_t, HostTensorPtr>& constant_data = {}) {
     const auto has_mask_shape = input_shapes.size() == 4;
     NODE_VALIDATION_CHECK(op, input_shapes.size() == 3 || has_mask_shape);
@@ -220,12 +227,12 @@ std::vector<TShape> shape_infer(const DeformableConvolution* op,
         }
     }
 
-    auto output_shapes = util::shape_infer(op, input_shapes, constant_data);
+    auto output_shapes = util::shape_infer(op, input_shapes, pads_begin, pads_end, constant_data);
     // post infer checks
     if (has_mask_shape && input_shapes[3].rank().is_static() && output_shapes[0].rank().is_static()) {
-        auto mask_dim = input_shapes[3].begin() + convolution::spatial_dim_offset;
+        auto mask_dim = input_shapes[3].begin() + util::spatial_dim_offset;
         NODE_VALIDATION_CHECK(op,
-                              std::all_of(output_shapes[0].begin() + convolution::spatial_dim_offset,
+                              std::all_of(output_shapes[0].begin() + util::spatial_dim_offset,
                                           output_shapes[0].end(),
                                           [&mask_dim](const TDim& d) {
                                               return d.compatible(*mask_dim++);

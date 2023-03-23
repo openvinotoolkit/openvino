@@ -104,10 +104,8 @@ TEST_F(GroupConvolutionV1StaticShapeInferenceTest, dilations_not_defined_for_spa
     const auto data = std::make_shared<op::v0::Parameter>(element::f32, PartialShape::dynamic());
     const auto filters = std::make_shared<op::v0::Parameter>(element::f32, PartialShape::dynamic());
 
-    op = make_op(data, filters, strides, pads_begin, pads_end, dilations, auto_pad);
-
     input_shapes = ShapeVector{{1, 4, 5, 5}, {2, 1, 2, 3, 3}};
-    OV_EXPECT_THROW(shape_inference(op.get(), input_shapes, output_shapes),
+    OV_EXPECT_THROW(op = make_op(data, filters, strides, pads_begin, pads_end, dilations, auto_pad),
                     NodeValidationFailure,
                     HasSubstr("Dilations should be defined for all and only spatial dimensions"));
 }

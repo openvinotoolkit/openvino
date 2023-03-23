@@ -95,7 +95,14 @@ void op::v8::DeformableConvolution::validate_and_infer_types() {
                               mask_et);
     }
 
-    const auto output_shapes = shape_infer(this, get_node_input_partial_shapes(*this));
+    const auto input_shapes = get_node_input_partial_shapes(*this);
+
+    auto num_spatial = deformable_conv::calculate_num_spatial(this, input_shapes);
+    if (num_spatial != convolution::num_spatial_undefined) {
+        resize_attributes(num_spatial);
+    }
+
+    const auto output_shapes = shape_infer(this, input_shapes, m_pads_begin, m_pads_end);
     set_output_type(0, result_et, output_shapes[0]);
 }
 
@@ -192,7 +199,14 @@ void op::v1::DeformableConvolution::validate_and_infer_types() {
                           "Element type of inputs must be numeric. Got: ",
                           result_et);
 
-    const auto output_shapes = shape_infer(this, get_node_input_partial_shapes(*this));
+    const auto input_shapes = get_node_input_partial_shapes(*this);
+
+    auto num_spatial = deformable_conv::calculate_num_spatial(this, input_shapes);
+    if (num_spatial != convolution::num_spatial_undefined) {
+        resize_attributes(num_spatial);
+    }
+
+    const auto output_shapes = shape_infer(this, input_shapes, m_pads_begin, m_pads_end);
     set_output_type(0, result_et, output_shapes[0]);
 }
 }  // namespace ov
