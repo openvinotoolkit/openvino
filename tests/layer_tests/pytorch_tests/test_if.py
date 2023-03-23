@@ -38,7 +38,7 @@ class TestIf(PytorchLayerTest):
         return prim_if(), ref_net, "prim::If"
 
     @pytest.mark.parametrize("y", [np.array(1),
-                                   # only the branch with upgraded type is supported
+                                   # only the branch with upgraded type is supported, ticket 106627
                                    not_yet_supported(np.array(-1))
                                    ])
     @pytest.mark.nightly

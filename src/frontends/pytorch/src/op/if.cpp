@@ -14,7 +14,8 @@ namespace pytorch {
 namespace op {
 
 namespace {
-// TODO: is it a good solution?
+// TODO: Ticket 106627. This is a WA and will work only if both branches of if will eventually go to the operation that
+// will have same output type for both types
 void align_result_types(const NodeContext& context,
                         std::shared_ptr<opset10::Result> r1,
                         std::shared_ptr<opset10::Result> r2) {
