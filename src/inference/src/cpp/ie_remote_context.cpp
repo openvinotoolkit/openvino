@@ -11,6 +11,7 @@
 #include "ie_ngraph_utils.hpp"
 #include "ie_remote_blob.hpp"
 #include "openvino/core/except.hpp"
+#include "openvino/runtime/iremote_context.hpp"
 #include "openvino/runtime/itensor.hpp"
 #include "openvino/runtime/remote_context.hpp"
 
@@ -27,12 +28,12 @@
 
 namespace ov {
 
-void RemoteContext::type_check(const RemoteContext& tensor,
+void RemoteContext::type_check(const RemoteContext& context,
                                const std::map<std::string, std::vector<std::string>>& type_info) {
-    auto remote_impl = dynamic_cast<const ie::RemoteContext*>(tensor._impl.get());
+    auto remote_impl = context._impl;
     OPENVINO_ASSERT(remote_impl != nullptr, "Context was not initialized using remote implementation");
     if (!type_info.empty()) {
-        auto params = remote_impl->getParams();
+        auto params = remote_impl->get_property();
         for (auto&& type_info_value : type_info) {
             auto it_param = params.find(type_info_value.first);
             OPENVINO_ASSERT(it_param != params.end(), "Parameter with key ", type_info_value.first, " not found");
@@ -53,43 +54,33 @@ RemoteContext::~RemoteContext() {
     _impl = {};
 }
 
-RemoteContext::RemoteContext(const ie::RemoteContext::Ptr& impl, const std::vector<std::shared_ptr<void>>& so)
+RemoteContext::RemoteContext(const std::shared_ptr<ov::IRemoteContext>& impl,
+                             const std::vector<std::shared_ptr<void>>& so)
     : _impl{impl},
       _so{so} {
     OPENVINO_ASSERT(_impl != nullptr, "RemoteContext was not initialized.");
 }
 
 std::string RemoteContext::get_device_name() const {
-    OV_REMOTE_CONTEXT_STATEMENT(return _impl->getDeviceName());
+    OV_REMOTE_CONTEXT_STATEMENT(return _impl->get_device_name());
 }
 
 RemoteTensor RemoteContext::create_tensor(const element::Type& type, const Shape& shape, const AnyMap& params) {
     OV_REMOTE_CONTEXT_STATEMENT({
-        auto blob = _impl->CreateBlob(
-            {ie::details::convertPrecision(type), shape, ie::TensorDesc::getLayoutByRank(shape.size())},
-            params);
-        blob->allocate();
-        return {ov::make_tensor(blob), {_so}};
+        auto tensor = _impl->create_tensor(type, shape, params);
+        return {tensor, {_so}};
     });
 }
 
 Tensor RemoteContext::create_host_tensor(const element::Type element_type, const Shape& shape) {
     OV_REMOTE_CONTEXT_STATEMENT({
-        auto blob = _impl->CreateHostBlob(
-            {ie::details::convertPrecision(element_type), shape, ie::TensorDesc::getLayoutByRank(shape.size())});
-        blob->allocate();
-        return {ov::make_tensor(blob), {_so}};
+        auto tensor = _impl->create_host_tensor(element_type, shape);
+        return {tensor, {_so}};
     });
 }
 
 AnyMap RemoteContext::get_params() const {
-    AnyMap paramMap;
-    OV_REMOTE_CONTEXT_STATEMENT({
-        for (auto&& param : _impl->getParams()) {
-            paramMap.emplace(param.first, Any{param.second, _so});
-        }
-    });
-    return paramMap;
+    OV_REMOTE_CONTEXT_STATEMENT(return _impl->get_property());
 }
 
 }  // namespace ov

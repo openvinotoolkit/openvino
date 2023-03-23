@@ -13,8 +13,8 @@ namespace op {
 /**
  * @interface Buffer
  * @brief This is a base class for memory storage.
- *        If Buffer has a parent, the operation is for intermediate data storage - Intermediate type.
- *        Otherwise, the operation is for allocation of new empty memory with shape `m_shape` - Empty type
+ *        If Buffer has a parent, the operation is for intermediate data storage - IntermediateMemory type.
+ *        Otherwise, the operation is for allocation of new empty memory with shape `m_shape` - NewMemory type
  *        Notes:
  *               - All buffers in a graph have the same memory pointer. So if we have a few buffers,
  *                 each the corresponding MemoryAccess op for Buffer should have offset for common memory pointer of this Buffer

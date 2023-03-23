@@ -261,7 +261,7 @@ void summary_perf(const Graph &graph) {
     }
     const std::string& summaryPerf = graph.getConfig().debugCaps.summaryPerf;
 
-    if (summaryPerf.empty())
+    if (summaryPerf.empty() || !std::stoi(summaryPerf))
         return;
 
     std::map<std::string, double> perf_by_type;
@@ -308,7 +308,7 @@ void summary_perf(const Graph &graph) {
             std::stringstream ss;
             int percentage = static_cast<int>(it.second*100/total_avg);
             if (percentage == 0) break;
-            ss << std::setw(10) << std::right << percentage << " % :" << it.first << std::endl;
+            ss << std::setw(10) << std::right << percentage << " % :  " << std::setw(8) << std::right << it.second << "(us)  " << it.first << std::endl;
             std::cout << ss.str();
         }
     }

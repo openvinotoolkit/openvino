@@ -321,7 +321,8 @@ class BrgemmEmitter : public jit_emitter {
 public:
     BrgemmEmitter(dnnl::impl::cpu::x64::jit_generator* h, dnnl::impl::cpu::x64::cpu_isa_t isa, const std::shared_ptr<ov::Node>& n);
 
-    size_t get_inputs_num() const override {return 2;}
+    size_t get_inputs_num() const override { return m_with_scratch ? 3 : 2; }
+    static std::set<std::vector<element::Type>> get_supported_precisions(const std::shared_ptr<ngraph::Node>& node = nullptr);
 
 private:
     void emit_impl(const std::vector<size_t>& in,
@@ -370,7 +371,10 @@ class BrgemmCopyBEmitter : public jit_emitter {
 public:
     BrgemmCopyBEmitter(dnnl::impl::cpu::x64::jit_generator* h, dnnl::impl::cpu::x64::cpu_isa_t isa, const std::shared_ptr<ov::Node>& n);
 
-    size_t get_inputs_num() const override {return 2;}
+    size_t get_inputs_num() const override {return 1;}
+    static std::set<std::vector<element::Type>> get_supported_precisions(const std::shared_ptr<ngraph::Node>& node = nullptr) {
+        return {{element::i8}, {element::bf16}};
+    }
 
 private:
     void emit_impl(const std::vector<size_t>& in,
@@ -405,6 +409,9 @@ public:
     HorizonMaxEmitter(dnnl::impl::cpu::x64::jit_generator* h, dnnl::impl::cpu::x64::cpu_isa_t isa, const std::shared_ptr<ov::Node>& n);
 
     size_t get_inputs_num() const override {return 1;}
+    static std::set<std::vector<element::Type>> get_supported_precisions(const std::shared_ptr<ngraph::Node>& node = nullptr) {
+        return {{element::f32}};
+    }
 
 protected:
     size_t aux_gprs_count() const override {return 1;}
@@ -423,6 +430,9 @@ public:
     HorizonSumEmitter(dnnl::impl::cpu::x64::jit_generator* h, dnnl::impl::cpu::x64::cpu_isa_t isa, const std::shared_ptr<ov::Node>& n);
 
     size_t get_inputs_num() const override {return 1;}
+    static std::set<std::vector<element::Type>> get_supported_precisions(const std::shared_ptr<ngraph::Node>& node = nullptr) {
+        return {{element::f32}};
+    }
 
 protected:
     size_t aux_gprs_count() const override {return 1;}

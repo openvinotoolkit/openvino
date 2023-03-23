@@ -31,6 +31,7 @@ public:
     size_t get_offset_out() const { return get_output_offset(0); }
     size_t get_offset_compensations() const;
 
+    Type get_type() const { return m_type; }
     element::Type get_src_element_type() const { return m_src_type; }
     bool is_with_compensations() const { return m_type == Type::WithCompensations; }
 

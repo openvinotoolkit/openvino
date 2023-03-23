@@ -486,7 +486,20 @@ void BroadcastMoveEmitter::emit_isa(const std::vector<size_t> &in, const std::ve
 
 ScalarEmitter::ScalarEmitter(dnnl::impl::cpu::x64::jit_generator* h, dnnl::impl::cpu::x64::cpu_isa_t isa,
                              const std::shared_ptr<ov::Node>& n) : jit_emitter(h, isa, n) {
-    value = dnnl::impl::cpu::x64::float2int(ov::as_type_ptr<ngraph::snippets::op::Scalar>(n)->cast_vector<float>()[0]);
+    const auto precision = n->get_output_element_type(0);
+    switch (precision) {
+        case element::i32: {
+            value = ov::as_type_ptr<ov::op::v0::Constant>(n)->cast_vector<int32_t>()[0];
+            break;
+        }
+        case element::f32: {
+            value = dnnl::impl::cpu::x64::float2int(ov::as_type_ptr<ov::op::v0::Constant>(n)->cast_vector<float>()[0]);
+            break;
+        }
+        default: {
+            IE_THROW() << "Scalar emitter doesn't support " << precision;
+        }
+    }
     push_arg_entry_of("scalar", value, true);
     prepare_table();
 }
@@ -805,6 +818,25 @@ BrgemmEmitter::BrgemmEmitter(dnnl::impl::cpu::x64::jit_generator* h, dnnl::impl:
     m_store_offset_c = brgemm_node->get_offset_c();
     if (m_with_scratch)
         m_load_offset_scratch = brgemm_node->get_offset_scratch();
+}
+
+std::set<std::vector<element::Type>> BrgemmEmitter::get_supported_precisions(const std::shared_ptr<ngraph::Node>& node) {
+    const auto brgemm = as_type_ptr<ov::intel_cpu::BrgemmCPU>(node);
+    OPENVINO_ASSERT(brgemm, "BrgemmEmitter::get_supported_precisions() expects BrgemmCPU node");
+    switch (brgemm->get_type()) {
+        case BrgemmCPU::Type::Floating:
+            return {{element::f32, element::f32}};
+        case BrgemmCPU::Type::WithDataRepacking:
+            return {{element::u8, element::i8},
+                    {element::bf16, element::bf16}};
+        case BrgemmCPU::Type::WithCompensations:
+            return {{element::i8, element::i8, element::f32}};
+        case BrgemmCPU::Type::AMX:
+            return {{element::i8, element::i8, element::u8},
+                    {element::bf16, element::bf16, element::u8}};
+        default:
+            throw ov::Exception("BrgemmEmitter got BrgemmCPU node with unsupported type");
+    }
 }
 
 void BrgemmEmitter::initBrgemm(brgemmCtx& ctx, std::unique_ptr<brgemm_kernel_t>& brgKernel, bool use_amx) const {

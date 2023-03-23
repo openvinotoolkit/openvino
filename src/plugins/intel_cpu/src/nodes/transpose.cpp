@@ -37,6 +37,7 @@ bool Transpose::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, 
     return true;
 }
 
+namespace {
 class TransposeDynShapeInfer : public ShapeInferEmptyPads {
 public:
     TransposeDynShapeInfer() = default;
@@ -98,6 +99,7 @@ public:
 private:
     const std::shared_ptr<ov::Node> m_op;
 };
+} // namespace
 
 Transpose::Transpose(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context)
         : Node(op, context, TransposeShapeInferFactory(op)) {
