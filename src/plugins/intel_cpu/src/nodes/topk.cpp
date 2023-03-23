@@ -1847,6 +1847,14 @@ TopK::TopK(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context
         mode_max = topKOp->get_mode() == ov::op::TopKMode::MAX;
         sort_index = topKOp->get_sort_type() == ov::op::TopKSortType::SORT_INDICES;
 
+        stable = false;
+        if (!sort_index) {
+            const auto topKOpV11 = ngraph::as_type_ptr<const ov::op::v11::TopK>(op);
+            if (topKOpV11) {
+                stable = topKOpV11->get_stable();
+            }
+        }
+
         top_k = 0;
         preset_params_done = false;
         vec_idx_seq.clear();
@@ -1961,7 +1969,10 @@ void TopK::preset_params() {
     }
 
     if (isDynamicNode()) {
-        if ((layout == TopKLayoutType::topk_ncsp || layout == TopKLayoutType::topk_nspc) && topk_innermost) {
+        if (stable) {
+            algorithm = TopKAlgorithm::topk_bubble_sort;
+            bubble_inplace = false;
+        } else if ((layout == TopKLayoutType::topk_ncsp || layout == TopKLayoutType::topk_nspc) && topk_innermost) {
             algorithm = TopKAlgorithm::topk_heap_sort;
         } else {
             algorithm = TopKAlgorithm::topk_bubble_sort;
@@ -2008,8 +2019,10 @@ void TopK::prepareParams() {
         // [case 1]: if 2 * (top_k + 1) + 2 <= count_xmm, thus top_k is small enough that the vector registers are sufficient
         //           to keep all necessary data for sorting, no need to load and store frequently, use inplace bubble sort;
         //           (horizotal sorting cases not included)
-        // [case 2]: only when topk is imposed on innermost dimsension of planar(ncsp/nspc) layout, should heap sort be used;
-        // [case 3]: by default, use bitonic sort when alg_cost_bitonic < alg_cost_bubble, otherwise use bubble sort.
+        // [case 2]: if stable sorting is required, bubble sort will be applied currently, because among the implemented sorting
+        //           algorithms, bubbel sort is the only stable one;
+        // [case 3]: only when topk is imposed on innermost dimsension of planar(ncsp/nspc) layout, should heap sort be used;
+        // [case 4]: by default, use bitonic sort when alg_cost_bitonic < alg_cost_bubble, otherwise use bubble sort.
         //           alg_cost_bitonic = (N / 4) * logN * (logN + 1)
         //           alg_cost_bubble = K * (K - 1) / 2 + (N - K) * K
         //           where, N = axis_dim, K = topk_k
@@ -2020,6 +2033,9 @@ void TopK::prepareParams() {
             if (top_k <= count_xmm / 2 - 2) {
                 algorithm = TopKAlgorithm::topk_bubble_sort;
                 bubble_inplace = topk_innermost && top_k == 1 ? false : true;
+            } else if (stable) {
+                algorithm = TopKAlgorithm::topk_bubble_sort;
+                bubble_inplace = false;
             } else if ((layout == TopKLayoutType::topk_ncsp || layout == TopKLayoutType::topk_nspc) && topk_innermost) {
                 algorithm = TopKAlgorithm::topk_heap_sort;
             } else {
@@ -2209,7 +2225,9 @@ inline void TopK::prepare_original_idx() {
     bool shape_agnostic_alg = algorithm == TopKAlgorithm::topk_heap_sort ||
                              (algorithm == TopKAlgorithm::topk_bubble_sort && !bubble_inplace);
     if (shape_agnostic_alg) {
-        if (topk_innermost) {
+        bool use_idx_seq = stable ? topk_innermost && (layout == TopKLayoutType::topk_blocked || top_k == 1)
+                                  : topk_innermost;
+        if (use_idx_seq) {
             if (vec_idx_seq.empty()) {
                 vec_idx_seq.resize(axis_dim);
                 std::iota(vec_idx_seq.begin(), vec_idx_seq.end(), 0);

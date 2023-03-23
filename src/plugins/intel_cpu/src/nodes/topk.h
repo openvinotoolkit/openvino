@@ -115,6 +115,7 @@ private:
     bool topk_innermost;
     bool jit_mode;
     bool sort_index;
+    bool stable;
     bool mode_max;
     int axis;
     static const size_t TOPK_DATA = 0;
