@@ -107,9 +107,11 @@ bool evaluate_maxpool(const HostTensorPtr& arg,
 }  // namespace maxpool
 
 bool op::v1::MaxPool::evaluate_maxpool(const HostTensorVector& outputs, const HostTensorVector& inputs) const {
+    const auto input_shapes = std::vector<PartialShape>{inputs[0]->get_partial_shape()};
     const auto dilations = Strides(m_kernel.size(), 1);
-    auto out_shape =
-        pooling::out_shape_infer(this, inputs[0]->get_partial_shape(), m_pads_begin, m_pads_end, dilations);
+    auto pads_begin = m_pads_begin;
+    auto pads_end = m_pads_end;
+    auto out_shape = shape_infer(this, input_shapes, pads_begin, pads_end).front();
 
     return maxpool::evaluate_maxpool(inputs[0],
                                      outputs[0],
@@ -318,9 +320,11 @@ bool op::v8::MaxPool::has_evaluate() const {
 bool op::v8::MaxPool::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const {
     OV_OP_SCOPE(v8_MaxPool_evaluate);
 
+    const auto input_shapes = std::vector<PartialShape>{inputs[0]->get_partial_shape()};
     const auto dilations = Strides(m_kernel.size(), 1);
-    auto out_shape =
-        pooling::out_shape_infer(this, inputs[0]->get_partial_shape(), m_pads_begin, m_pads_end, dilations);
+    auto pads_begin = m_pads_begin;
+    auto pads_end = m_pads_end;
+    auto out_shape = shape_infer(this, input_shapes, pads_begin, pads_end).front();
 
     return maxpool_v8::evaluate_maxpool(inputs[0],
                                         outputs[0],
