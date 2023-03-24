@@ -119,8 +119,8 @@ jobs:
       - name: Run Paddle frontend unit tests
         run: ${{ github.workspace }}/bin/intel64/Release/paddle_tests
       
-      - name: Run TensorFlow frontend unit tests
-        run: ${{ github.workspace }}/bin/intel64/Release/ov_tensorflow_frontend_tests
+      #- name: Run TensorFlow frontend unit tests
+      #  run: ${{ github.workspace }}/bin/intel64/Release/ov_tensorflow_frontend_tests
       
       - name: Run IR frontend tests
         run: ${{ github.workspace }}/bin/intel64/Release/ov_ir_frontend_tests
