@@ -15,7 +15,6 @@
 #include "ie_cache_manager.hpp"
 #include "ie_extension.h"
 #include "ie_icore.hpp"
-#include "ie_plugins.hpp"
 #include "multi-device/multi_device_config.hpp"
 #include "openvino/core/any.hpp"
 #include "openvino/core/extension.hpp"
@@ -23,7 +22,6 @@
 #include "openvino/runtime/common.hpp"
 #include "openvino/runtime/icompiled_model.hpp"
 #include "openvino/runtime/threading/executor_manager.hpp"
-#include "openvino/util/file_util.hpp"
 
 namespace ov {
 

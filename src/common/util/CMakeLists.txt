@@ -24,12 +24,9 @@ endif()
 # Create named folders for the sources within the .vcproj
 # Empty name lists them directly under the .vcproj
 
-set(MIXED_SRC
-    "${CMAKE_CURRENT_SOURCE_DIR}/src/file_util.cpp")
-
-set_property(SOURCE ${MIXED_SRC}
-    APPEND PROPERTY INCLUDE_DIRECTORIES
-        $<TARGET_PROPERTY:ngraph_obj,INTERFACE_INCLUDE_DIRECTORIES>)
+set_source_files_properties(
+    "${CMAKE_CURRENT_SOURCE_DIR}/src/file_util.cpp"
+    PROPERTIES COMPILE_DEFINITIONS OpenVINO_VERSION="${OpenVINO_VERSION}")
 
 source_group("src" FILES ${LIBRARY_SRC})
 source_group("include" FILES ${PUBLIC_HEADERS})

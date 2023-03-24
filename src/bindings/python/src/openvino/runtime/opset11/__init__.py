@@ -171,7 +171,7 @@ from openvino.runtime.opset1.ops import tan
 from openvino.runtime.opset1.ops import tanh
 from openvino.runtime.opset1.ops import tensor_iterator
 from openvino.runtime.opset1.ops import tile
-from openvino.runtime.opset3.ops import topk
+from openvino.runtime.opset11.ops import topk
 from openvino.runtime.opset1.ops import transpose
 from openvino.runtime.opset10.ops import unique
 from openvino.runtime.opset1.ops import unsqueeze
