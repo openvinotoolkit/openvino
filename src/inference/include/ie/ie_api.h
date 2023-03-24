@@ -15,7 +15,7 @@
 #    define INFERENCE_ENGINE_API_CLASS(...) __VA_ARGS__
 #else
 #    if defined(_WIN32)
-#        ifdef IMPLEMENT_INFERENCE_ENGINE_API
+#        ifdef IMPLEMENT_OPENVINO_API
 #            define INFERENCE_ENGINE_API(...)       extern "C" __declspec(dllexport) __VA_ARGS__ __cdecl
 #            define INFERENCE_ENGINE_API_CPP(...)   __declspec(dllexport) __VA_ARGS__
 #            define INFERENCE_ENGINE_API_CLASS(...) __declspec(dllexport) __VA_ARGS__
