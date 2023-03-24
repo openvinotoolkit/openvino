@@ -48,6 +48,8 @@ TEST(multistream_gpu, basic) {
     std::vector<InferenceEngine::Task> tasks;
     for (size_t i = 0; i < num_streams; i++) {
         tasks.push_back([&networks, i, &engine] {
+            auto cfg = get_test_default_config(engine);
+            auto stream = engine.create_stream(cfg);
             auto net = networks[i];
             std::vector<int> various_size = {32, 128, 16, 64};
             for (size_t iter = 0; iter < 8; iter++) {
@@ -60,7 +62,7 @@ TEST(multistream_gpu, basic) {
                 auto outputs = net->execute();
 
                 auto output = outputs.at("shape_of").get_memory();
-                cldnn::mem_lock<int32_t> output_ptr(output, get_test_stream());
+                cldnn::mem_lock<int32_t> output_ptr(output, *stream);
 
                 std::vector<int32_t> expected_results = {1, len, 512};
 

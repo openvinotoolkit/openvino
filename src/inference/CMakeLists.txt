@@ -152,7 +152,7 @@ target_include_directories(${TARGET_NAME}_obj SYSTEM PRIVATE
 
 target_include_directories(${TARGET_NAME}_obj PRIVATE
     "${CMAKE_CURRENT_SOURCE_DIR}/src"
-    # for static ie_plugins.hpp
+    # for static ov_plugins.hpp
     "${CMAKE_CURRENT_BINARY_DIR}"
     # for ie_ir_version.hpp
     $<$<TARGET_EXISTS:inference_engine_ir_v7_reader>:$<TARGET_PROPERTY:inference_engine_ir_v7_reader,SOURCE_DIR>>
