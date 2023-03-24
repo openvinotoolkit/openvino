@@ -61,6 +61,9 @@ std::shared_ptr<Model> FrontEnd::convert(const InputModel::Ptr& model) const {
     std::set<std::string> unconverted_ops_types = get_unconverted_types_from_model(converted_model);
     std::stringstream ops_str;
     for (auto&& op_type : unconverted_ops_types) {
+        if (m_telemetry) {
+            m_telemetry->send_event("error_cause", "pytorch_" + op_type);
+        }
         ops_str << op_type << '\n';
     }
     FRONT_END_OP_CONVERSION_CHECK(unconverted_ops_types.size() == 0,
@@ -75,7 +78,7 @@ void FrontEnd::convert(const std::shared_ptr<Model>& partiallyConverted) const {
 std::shared_ptr<Model> FrontEnd::convert_partially(const ov::frontend::InputModel::Ptr& model) const {
     FRONT_END_GENERAL_CHECK(std::dynamic_pointer_cast<pytorch::InputModel>(model), "Invalid input model");
     try {
-        TranslateSession translate_session(model, m_op_translators);
+        TranslateSession translate_session(model, m_op_translators, m_telemetry);
         return translate_session.get_converted_model();
     } catch (const std::runtime_error& e) {
         std::cerr << "[ ERROR ] Unexpected error while converting pytorch model: " << e.what() << '\n';
@@ -132,9 +135,9 @@ void FrontEnd::normalize(const std::shared_ptr<ov::Model>& model) const {
 }
 
 void FrontEnd::add_extension(const std::shared_ptr<ov::Extension>& extension) {
-    // Extension loading mechanism is not implemented, any extensions will be ignored
-    // see CVS-98766 for tracking progress
-    return;
+    if (const auto& telemetry = std::dynamic_pointer_cast<TelemetryExtension>(extension)) {
+        m_telemetry = telemetry;
+    }
 }
 
 bool FrontEnd::supported_impl(const std::vector<ov::Any>& variants) const {
