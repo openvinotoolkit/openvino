@@ -1465,7 +1465,7 @@ TEST_P(CachingTest, TestNoDeviceArchitecture) {
     EXPECT_CALL(*mockPlugin, GetMetric(ov::caching_properties.name(), _))
         .Times(AnyNumber())
         .WillRepeatedly(Invoke([&](const std::string&, const std::map<std::string, Parameter>&) {
-            return std::vector<ov::PropertyName>{};
+            return std::vector<ov::PropertyName>{ov::supported_properties};
         }));
     EXPECT_CALL(*mockPlugin, GetMetric(METRIC_KEY(SUPPORTED_METRICS), _))
         .Times(AnyNumber())
