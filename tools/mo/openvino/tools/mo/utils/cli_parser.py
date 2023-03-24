@@ -707,10 +707,6 @@ mo_convert_params = {
                                        'For PyTorch it can be torch.Tensor.', '', '', None),
     'onnx_opset_version': ParamDescription('Version of ONNX opset that is used for converting from PyTorch to ONNX.',
                                            '', '', None),
-    'input_signature': ParamDescription('PyTorch model forward method input signature, ' 
-                                        'will be detected automatically for torch.nn.Module based model instances, '
-                                        'for for scripted models may requires to set manually. Example of usage: for forward method defined as'
-                                        ' def forward(self, x, y), it will be ["x", "y"]', '', '', None)
     }
 }
 

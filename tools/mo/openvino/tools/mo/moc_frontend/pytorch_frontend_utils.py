@@ -144,17 +144,3 @@ def convert_pytorch_via_onnx(args, example_inputs, cli_parser, framework, main_c
     finally:
         remove_tmp_onnx_model(out_dir)
     return ov_model, argv
-
-
-def resolve_input_signature(argv, ov_model):
-    def add_tensor_name(input_desc, input_name):
-        tensor = input_desc.get_tensor()
-        input_names = tensor.names
-        input_names.update(input_name)
-        tensor.set_names(input_names)
-
-    input_signature = getattr(argv, "input_signature", None)
-    if input_signature is not None:
-        for idx, input_tensor in enumerate(ov_model.inputs):
-            add_tensor_name(input_tensor, input_signature[idx])
-    return ov_model
