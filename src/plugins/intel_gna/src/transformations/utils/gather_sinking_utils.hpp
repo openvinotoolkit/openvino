@@ -61,12 +61,21 @@ void SwapFriendlyNames(std::shared_ptr<ov::Node>, std::shared_ptr<ov::Node>);
  */
 void SwapNames(std::shared_ptr<ov::Node>, std::shared_ptr<ov::Node>);
 
+/*
+Reverts gather indices in a such way that reverted and initial gather will do nothing if
+stays after another.
+Works only with positive form (no negative indices).
+*/
+std::vector<int64_t> ReverseGatherIndexes(const std::vector<int64_t>& indexes);
+
+int64_t GetNormalizedNegativeGatherAxis(const std::shared_ptr<ov::opset9::Constant>& axis, ov::Rank::value_type gather_input_rank);
+
 namespace sink_forward {
 /**
  * @brief Inserts reversed Gather on @args main_node inputs. Removes input Gather specified in @arg
  * transpose_input_info
  */
-void UpdateInputGather(std::shared_ptr<ov::Node> main_node, const GatherInputsInfo&);
+void UpdateInputGather(std::shared_ptr<ov::Node> main_node, const GatherInputsInfo&, const int64_t* a_gather_negative_axis = nullptr);
 
 /**
  * @brief Removes @arg input node

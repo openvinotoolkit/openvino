@@ -22,76 +22,60 @@ using namespace ov::intel_gna::pass;
 using namespace ov::intel_gna::rt_info;
 
 namespace {
-/*
-Reverts gather indices in a such way that reverted and initial gather will do nothing if
-stays after another.
-Works only with positive form (no negative indices).
-*/
-std::vector<int64_t> ReverseGatherIndexes(const std::vector<int64_t>& indexes) {
-    std::vector<int64_t> out(indexes.size());
-    for (size_t i = 0; i < indexes.size(); i++) {
-        out.at(indexes[i]) = i;
-    }
-    return out;
+bool Has2dInputs(const Output<Node>& output) {
+    auto node = output.get_node_shared_ptr();
+    auto input_left_rank = node->get_input_partial_shape(0).rank();
+    auto input_right_rank = node->get_input_partial_shape(0).rank();
+    return (input_left_rank.is_static() && input_right_rank.is_static() &&
+            input_left_rank.get_length() == 2 && input_right_rank.get_length() == 2);
+}
+
+bool HasGatherInputs(const Output<Node>& output) {
+    return !GetFirstGatherInput(output.get_node_shared_ptr()).isEmpty();
+}
+
+bool IsSinked(const Output<Node>& output) {
+    return Has2dInputs(output) && HasGatherInputs(output);
+}
+
+int64_t Swap2DNegativeAxis(int64_t axis) {
+    if (axis == -1)
+        return -2;
+    return -1;
+}
+
+size_t GetAnotherMatMulIndex(size_t input_idx) {
+    if (!input_idx)
+        return 1;
+    return 0;
+}
+
+bool IsMatMulInputTransposed(const std::shared_ptr<MatMul>& matmul, size_t input_idx) {
+    if (!input_idx)
+        return matmul->get_transpose_a();
+    return matmul->get_transpose_b();
 }
 
 } // namespace
 
 GatherSinkingMatmulForward::GatherSinkingMatmulForward() {
     MATCHER_SCOPE(GatherSinkingMatmulForward);
-    auto gather_indices_label = wrap_type<Constant>();
-    auto gather_axis_label = wrap_type<Constant>();
-    auto gather_label = wrap_type<Gather>({any_input(), gather_indices_label, gather_axis_label});
-    auto matmul_label = wrap_type<MatMul>({gather_label, any_input()});
+
+    auto matmul_label = wrap_type<MatMul>({any_input(), any_input()}, IsSinked);
 
     ov::matcher_pass_callback matcher_pass_callback = [=](Matcher& m) {
         const auto& pattern_to_output = m.get_pattern_value_map();
-        auto gather_indices = as_type_ptr<Constant>(pattern_to_output.at(gather_indices_label).get_node_shared_ptr());
-        auto gather_axis = as_type_ptr<Constant>(pattern_to_output.at(gather_axis_label).get_node_shared_ptr());
-        auto gather = as_type_ptr<Gather>(pattern_to_output.at(gather_label).get_node_shared_ptr());
         auto matmul = as_type_ptr<MatMul>(pattern_to_output.at(matmul_label).get_node_shared_ptr());
+        GatherInputsInfo gather_input_info = GetFirstGatherInput(matmul);
 
-        std::cout << "[EMUTEX DEBUG] GatherSinkingMatmulForward gather " << gather->get_friendly_name() << " matmul " << matmul->get_friendly_name() << std::endl;
-        std::cout << "[EMUTEX DEBUG] GatherSinkingMatmulForward gather axis " << gather_axis->cast_vector<int64_t>()[0] << std::endl;
+        int64_t gather_negative_axis =
+        GetNormalizedNegativeGatherAxis(gather_input_info.axis_const,
+                                        gather_input_info.gather->get_input_partial_shape(0).rank().get_length());
+        gather_negative_axis = Swap2DNegativeAxis(gather_negative_axis);
+        if (IsMatMulInputTransposed(matmul, GetAnotherMatMulIndex(gather_input_info.input_idx)))
+            gather_negative_axis = Swap2DNegativeAxis(gather_negative_axis);
 
-        auto gather_parent = matmul->input_value(0 /* TODO */).get_node()->input_value(0);;
-        // insert input gather
-#if 0
-        size_t gather_axis_value_current = ConvertAxisToPositive(gather_axis->cast_vector<int64_t>()[0],
-                                                   gather->get_input_shape(0).size());
-#endif
-        const size_t gather_axis_value_new = 0; // TODO
-
-        auto gather_axis_new1 = std::make_shared<Constant>(element::i64, Shape{}, gather_axis_value_new);
-        auto gather_indices_values = ReverseGatherIndexes(gather_indices->cast_vector<int64_t>());
-        auto gather_indices_new1 = std::make_shared<Constant>(element::i64, Shape{gather_indices_values.size()}, gather_indices_values); 
-        auto gather_new1 = std::make_shared<Gather>(matmul->input_value(1) /* TODO */, gather_indices_new1, gather_axis_new1);
-
-        matmul->input(1 /* TODO */).replace_source_output(gather_new1->output(0));
-
-        // remove input gather
-        matmul->input(0 /* TODO */).replace_source_output(gather_parent);
-
-        // insert output gather
-        auto matmul_consumers = matmul->output(0).get_target_inputs();
-
-        auto gather_axis_new2 = gather_axis->clone_with_new_inputs({});
-        auto gather_indices_new2 = gather_indices->clone_with_new_inputs({});
-        auto gather_new2 = std::make_shared<Gather>(matmul->output(0), gather_indices_new2, gather_axis_new2);
-
-        for (auto& consumer : matmul_consumers) {
-            consumer.replace_source_output(gather_new2);
-        }
-
-        SwapFriendlyNames(gather_new2, matmul);
-
-        copy_runtime_info(gather, {gather_new1, gather_indices_new1, gather_axis_new1, gather_new2, gather_indices_new2, gather_axis_new2});
-
-        register_new_node(gather_new1);
-        register_new_node(gather_new2);
-
-        gather_sinking::UpdateForwardGatherSinkingAbility(gather_new2);
-
+        sink_forward::UpdateInputGather(matmul, gather_input_info, &gather_negative_axis);
         return true;
     };
 

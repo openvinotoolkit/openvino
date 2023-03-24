@@ -103,12 +103,7 @@ int64_t NormalizeNegativeGatherAxis(int64_t axis, ov::Rank::value_type gather_in
     return axis - gather_input_rank;
 }
 
-/*
-Gets gather axis in negative form
-*/
-int64_t GetNormalizedNegativeGatherAxis(const std::shared_ptr<Constant>& axis, ov::Rank::value_type gather_input_rank) {
-    return NormalizeNegativeGatherAxis(axis->cast_vector<int64_t>()[0], gather_input_rank);
-}
+
 
 int64_t ConvertAxisToPositive(int64_t axis, ov::Rank::value_type rank) {
     if (axis >= 0)
@@ -116,18 +111,6 @@ int64_t ConvertAxisToPositive(int64_t axis, ov::Rank::value_type rank) {
     return axis + rank;
 }
 
-/*
-Reverts gather indices in a such way that reverted and initial gather will do nothing if
-stays after another.
-Works only with positive form (no negative indices).
-*/
-std::vector<int64_t> ReverseGatherIndexes(const std::vector<int64_t>& indexes) {
-    std::vector<int64_t> out(indexes.size());
-    for (size_t i = 0; i < indexes.size(); i++) {
-        out.at(indexes[i]) = i;
-    }
-    return out;
-}
 
 size_t GetDimByAxis(const Shape& shape, int64_t axis) {
     if (axis < 0)
@@ -151,6 +134,26 @@ Shape Broadcast(const Shape& shape, ov::Rank::value_type rank) {
 }
 
 }  // namespace
+
+/*
+Gets gather axis in negative form
+*/
+int64_t GetNormalizedNegativeGatherAxis(const std::shared_ptr<Constant>& axis, ov::Rank::value_type gather_input_rank) {
+    return NormalizeNegativeGatherAxis(axis->cast_vector<int64_t>()[0], gather_input_rank);
+}
+
+/*
+Reverts gather indices in a such way that reverted and initial gather will do nothing if
+stays after another.
+Works only with positive form (no negative indices).
+*/
+std::vector<int64_t> ReverseGatherIndexes(const std::vector<int64_t>& indexes) {
+    std::vector<int64_t> out(indexes.size());
+    for (size_t i = 0; i < indexes.size(); i++) {
+        out.at(indexes[i]) = i;
+    }
+    return out;
+}
 
 void SwapOutputNames(Output<Node> output1, Output<Node> output2) {
     const auto node2_output_names = output2.get_names();
@@ -179,12 +182,15 @@ namespace sink_forward {
  * Input nodes can have different shapes. That shapes can have smaller or larger ranks. To manage it we need
  * to find max input shape rank and broadcast all input shapes to it.
  */
-void UpdateInputGather(NodePtr main_node, const GatherInputsInfo& gather_input_info) {
+void UpdateInputGather(NodePtr main_node, const GatherInputsInfo& gather_input_info, const int64_t* a_gather_negative_axis) {
     if (gather_input_info.isEmpty() || HasDynamicRankInput(main_node))
         return;
 
-    const int64_t gather_negative_axis =
-        GetNormalizedNegativeGatherAxis(gather_input_info.axis_const,
+    int64_t gather_negative_axis = {};
+    if (a_gather_negative_axis)
+        gather_negative_axis = *a_gather_negative_axis;
+    else
+        gather_negative_axis = GetNormalizedNegativeGatherAxis(gather_input_info.axis_const,
                                         gather_input_info.gather->get_input_partial_shape(0).rank().get_length());
 
     const std::vector<int64_t> gather_indices = GetNormalizedGatherIndices(gather_input_info.indices_const);
