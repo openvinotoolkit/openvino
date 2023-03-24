@@ -315,7 +315,7 @@ Examples
 Running Inference on CPU
 ------------------------
 
-The following command shows how to run the Image Classification Code Sample using the `dog.bmp <https://storage.openvinotoolkit.org/data/test_data/images/224x224/dog.bmp>~`__ file as an input image, the model in IR format from the ``ir`` directory, and the CPU as the target hardware:
+The following command shows how to run the Image Classification Code Sample using the `dog.bmp <https://storage.openvinotoolkit.org/data/test_data/images/224x224/dog.bmp>`__ file as an input image, the model in IR format from the ``ir`` directory, and the CPU as the target hardware:
 
 .. tab:: Linux
 
@@ -341,22 +341,22 @@ When the sample application is complete, you are given the label and confidence 
 
    .. code-block:: sh
 
-   Top 10 results:
-
-   Image dog.bmp
-
-      classid probability label
-      ------- ----------- -----
-      156     0.6875963   Blenheim spaniel
-      215     0.0868125   Brittany spaniel
-      218     0.0784114   Welsh springer spaniel
-      212     0.0597296   English setter
-      217     0.0212105   English springer, English springer spaniel
-      219     0.0194193   cocker spaniel, English cocker spaniel, cocker
-      247     0.0086272   Saint Bernard, St Bernard
-      157     0.0058511   papillon
-      216     0.0057589   clumber, clumber spaniel
-      154     0.0052615   Pekinese, Pekingese, Peke
+      Top 10 results:
+   
+      Image dog.bmp
+   
+         classid probability label
+         ------- ----------- -----
+         156     0.6875963   Blenheim spaniel
+         215     0.0868125   Brittany spaniel
+         218     0.0784114   Welsh springer spaniel
+         212     0.0597296   English setter
+         217     0.0212105   English springer, English springer spaniel
+         219     0.0194193   cocker spaniel, English cocker spaniel, cocker
+         247     0.0086272   Saint Bernard, St Bernard
+         157     0.0058511   papillon
+         216     0.0057589   clumber, clumber spaniel
+         154     0.0052615   Pekinese, Pekingese, Peke
 
 The following example shows how to run the same sample using GPU as the target device.
 
