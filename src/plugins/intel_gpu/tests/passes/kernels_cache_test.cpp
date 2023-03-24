@@ -67,24 +67,26 @@ TEST(kernels_cache, reuse_kernel_for_static_model_01) {
     auto& conv1_node = prog->get_node("conv1");
     auto& conv2_node = prog->get_node("conv2");
     auto conv1_kernels = conv1_node.get_selected_impl()->get_kernels();
+    cache.add_to_cached_kernels(conv1_kernels);
     auto conv2_kernels = conv2_node.get_selected_impl()->get_kernels();
+    cache.add_to_cached_kernels(conv2_kernels);
     ASSERT_EQ(conv1_kernels.size(), conv2_kernels.size());
     for (size_t idx = 0; idx < conv1_kernels.size(); idx++) {
         auto conv1_kern = cache.get_cached_kernel_id(conv1_kernels[idx]);
         auto conv2_kern = cache.get_cached_kernel_id(conv2_kernels[idx]);
-        ASSERT_EQ(conv1_kern.first, conv2_kern.first);
-        ASSERT_EQ(conv1_kern.second, conv2_kern.second);
+        ASSERT_EQ(conv1_kern, conv2_kern);
     }
 
     auto& concat1_node = prog->get_node("concat1");
     auto& concat2_node = prog->get_node("concat2");
     auto concat1_kernels = concat1_node.get_selected_impl()->get_kernels();
+    cache.add_to_cached_kernels(concat1_kernels);
     auto concat2_kernels = concat2_node.get_selected_impl()->get_kernels();
+    cache.add_to_cached_kernels(concat2_kernels);
     ASSERT_EQ(concat1_kernels.size(), concat2_kernels.size());
     for (size_t idx = 0; idx < concat1_kernels.size(); idx++) {
         auto concat1_kern = cache.get_cached_kernel_id(concat1_kernels[idx]);
         auto concat2_kern = cache.get_cached_kernel_id(concat2_kernels[idx]);
-        ASSERT_EQ(concat1_kern.first, concat2_kern.first);
-        ASSERT_EQ(concat1_kern.second, concat2_kern.second);
+        ASSERT_EQ(concat1_kern, concat2_kern);
     }
 }

@@ -8,7 +8,6 @@
 #include "intel_gpu/graph/serialization/binary_buffer.hpp"
 #include "intel_gpu/graph/serialization/cl_kernel_data_serializer.hpp"
 #include "intel_gpu/graph/serialization/helpers.hpp"
-#include "intel_gpu/graph/serialization/pair_serializer.hpp"
 #include "intel_gpu/graph/serialization/set_serializer.hpp"
 #include "intel_gpu/graph/serialization/string_serializer.hpp"
 #include "intel_gpu/graph/serialization/vector_serializer.hpp"
@@ -33,7 +32,7 @@ For example, all gpu convolution implementations should derive from typed_primit
 template <class PType>
 struct typed_primitive_impl_ocl : public typed_primitive_impl<PType> {
     kernel_selector::kernel_data _kernel_data;
-    std::vector<cached_kernel_id_type> _cached_kernel_ids;
+    std::vector<std::string> _cached_kernel_ids;
     std::vector<kernel::ptr> _kernels;
 
     typed_primitive_impl_ocl() :  _kernel_data({}), _cached_kernel_ids({}), _kernels({}) {
@@ -74,7 +73,7 @@ struct typed_primitive_impl_ocl : public typed_primitive_impl<PType> {
         ob << make_data(&_kernel_data.internalBufferDataType, sizeof(kernel_selector::Datatype));
         ob << _kernel_data.internalBufferSizes;
         ob << _kernel_data.kernels;
-        ob << kernels_cache::get_cached_kernel_ids(_kernels);
+        ob << _cached_kernel_ids;
     }
 
     void load(BinaryInputBuffer& ib) override {
@@ -156,6 +155,10 @@ protected:
         for (size_t k = 0; k < _cached_kernel_ids.size(); ++k) {
             _kernels.emplace_back(kernels_cache.get_kernel_from_cached_kernels(_cached_kernel_ids[k]));
         }
+    }
+
+    void set_cached_kernel_ids(const kernels_cache& kernels_cache) override {
+        _cached_kernel_ids = kernels_cache.get_cached_kernel_ids(_kernels);
     }
 
     std::vector<kernel::ptr> get_kernels() const override {

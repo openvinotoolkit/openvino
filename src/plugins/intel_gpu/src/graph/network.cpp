@@ -515,7 +515,8 @@ network::~network() {
 //     [ executable primitive_inst ]
 //     [ memory reuse information ]
 void network::save(cldnn::BinaryOutputBuffer& ob) {
-    kernels_cache kernels_cache(get_engine(), _config, 0);
+    auto& kernels_cache = _program->get_kernels_cache();
+    kernels_cache.reset();
     for (const auto& p_inst : _exec_order) {
         if (p_inst->get_impl() != nullptr) {
             kernels_cache.add_to_cached_kernels(p_inst->get_impl()->get_kernels());
@@ -598,6 +599,7 @@ void network::save(cldnn::BinaryOutputBuffer& ob) {
     }
 
     ob << get_ext_id_mapping();
+    kernels_cache.reset();
 }
 
 network::ptr network::allocate_network(stream::ptr stream, program::ptr program, bool is_internal, bool is_primary_stream) {
