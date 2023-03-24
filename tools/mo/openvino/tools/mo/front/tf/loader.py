@@ -335,6 +335,14 @@ def convert_to_pb(argv: argparse.Namespace):
             isinstance(argv.input_model, str):
         return None
 
+    # MetaGraph format is supported directly by TF FE
+    if argv.input_meta_graph:
+        return None
+
+    # SavedModel format is supported directly by TF FE
+    if argv.saved_model_dir:
+        return None
+
     user_output_node_names_list = argv.output if argv.output else None
     if user_output_node_names_list is not None and not isinstance(user_output_node_names_list, list):
         user_output_node_names_list = user_output_node_names_list.split(',')
