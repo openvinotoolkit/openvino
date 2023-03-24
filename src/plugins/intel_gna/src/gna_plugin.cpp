@@ -417,7 +417,9 @@ void GNAPlugin::UpdateInputScaleFromNetwork(InferenceEngine::CNNNetwork& network
     for (auto&& input : inputs) {
         auto data = input.second->getInputData();
         for (auto&& nextToInputLayer : getInputTo(data)) {
-            auto next_layer = CNNNetCheckNextLayerSkipCertain(nextToInputLayer.second, 0, 0, true, [](CNNLayerPtr l) { return LayerInfo(l).isNonFunctional(); }).first;
+            auto next_layer = CNNNetCheckNextLayerSkipCertain(nextToInputLayer.second, 0, 0, true, [](CNNLayerPtr l) {
+                                  return LayerInfo(l).isNonFunctional();
+                              }).first;
             if (!LayerInfo(next_layer).isFakeQuantize()) {
                 continue;
             }
