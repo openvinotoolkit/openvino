@@ -388,19 +388,19 @@ TEST(type_prop, batch_to_space_input_interval_shape_block_one) {
 }
 
 TEST(type_prop, batch_to_space_and_space_to_batch) {
-    auto data = make_shared<op::Parameter>(element::f32, Shape{4800, 9, 11, 2});
+    auto data = make_shared<op::Parameter>(element::f32, PartialShape{4800, 9, {11, -1}, 2});
     auto block_shape = make_shared<op::Constant>(element::i64, Shape{4}, vector<int64_t>{1, 12, 100, 2});
     auto crops_begin = make_shared<op::Constant>(element::i64, Shape{4}, vector<int64_t>{0, 3, 38, 1});
     auto crops_end = make_shared<op::Constant>(element::i64, Shape{4}, vector<int64_t>{0, 5, 38, 0});
     auto batch_to_space = make_shared<op::v1::BatchToSpace>(data, block_shape, crops_begin, crops_end);
 
     ASSERT_EQ(batch_to_space->get_element_type(), element::f32);
-    ASSERT_EQ(batch_to_space->get_shape(),
-              (Shape{4800 / (12 * 100 * 2), 9 * 12 - 3 - 5, 11 * 100 - 38 - 38, 2 * 2 - 1}));
+    ASSERT_EQ(batch_to_space->get_output_partial_shape(0),
+              (PartialShape{4800 / (12 * 100 * 2), 9 * 12 - 3 - 5, {11 * 100 - 38 - 38, -1}, 2 * 2 - 1}));
 
     auto space_to_batch = make_shared<op::v1::SpaceToBatch>(batch_to_space, block_shape, crops_begin, crops_end);
     ASSERT_EQ(space_to_batch->get_element_type(), element::f32);
-    ASSERT_EQ(space_to_batch->get_shape(), (Shape{4800, 9, 11, 2}));
+    ASSERT_EQ(space_to_batch->get_output_partial_shape(0), (PartialShape{4800, 9, {11, -1}, 2}));
 }
 
 TEST(type_prop, batch_to_space_dynamic_shape_static_rank) {
@@ -440,4 +440,38 @@ TEST(type_prop, batch_to_space_default_ctor) {
     EXPECT_EQ(batch_to_space->get_output_size(), 1);
     EXPECT_EQ(batch_to_space->get_element_type(), element::i16);
     EXPECT_EQ(batch_to_space->get_shape(), (Shape{100 / (10 * 5), 7 * 10 - 3 - 3, 13 * 5 - 1, 3}));
+}
+
+TEST(type_prop, batch_to_space_non_const_inputs) {
+    auto data = make_shared<op::Parameter>(element::f32, PartialShape{100, 7, 13, 3});
+
+    auto block_shape = make_shared<op::Parameter>(element::i64, PartialShape{4});
+    auto crops_begin = make_shared<op::Parameter>(element::i64, PartialShape{4});
+    auto crops_end = make_shared<op::Parameter>(element::i64, PartialShape{4});
+    auto batch_to_space = make_shared<op::v1::BatchToSpace>(data, block_shape, crops_begin, crops_end);
+
+    EXPECT_EQ(batch_to_space->get_element_type(), element::f32);
+    EXPECT_EQ(batch_to_space->get_output_partial_shape(0), PartialShape::dynamic(4));
+}
+
+TEST(type_prop, batch_to_space_block_non_constant_only) {
+    auto data = make_shared<op::Parameter>(element::f32, PartialShape{100, 7, 13, 3});
+    auto block_shape = make_shared<op::Parameter>(element::i64, PartialShape{4});
+    auto crops_begin = make_shared<op::Constant>(element::i64, Shape{4}, vector<int64_t>{0, 3, 1, 0});
+    auto crops_end = make_shared<op::Constant>(element::i64, Shape{4}, vector<int64_t>{0, 3, 0, 0});
+    auto batch_to_space = make_shared<op::v1::BatchToSpace>(data, block_shape, crops_begin, crops_end);
+
+    EXPECT_EQ(batch_to_space->get_element_type(), element::f32);
+    EXPECT_EQ(batch_to_space->get_output_partial_shape(0), PartialShape({-1, {1, -1}, {12, -1}, {3, -1}}));
+}
+
+TEST(type_prop, batch_to_space_crops_non_constant_only) {
+    auto data = make_shared<op::Parameter>(element::f32, PartialShape{100, 7, 13, 3});
+    auto block_shape = make_shared<op::Constant>(element::i64, Shape{4}, vector<int64_t>{1, 2, 5, 1});
+    auto crops_begin = make_shared<op::Parameter>(element::i64, PartialShape{4});
+    auto crops_end = make_shared<op::Parameter>(element::i64, PartialShape{4});
+    auto batch_to_space = make_shared<op::v1::BatchToSpace>(data, block_shape, crops_begin, crops_end);
+
+    EXPECT_EQ(batch_to_space->get_element_type(), element::f32);
+    EXPECT_EQ(batch_to_space->get_output_partial_shape(0), PartialShape({10, -1, -1, -1}));
 }

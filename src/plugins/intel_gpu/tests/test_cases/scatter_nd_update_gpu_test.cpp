@@ -22,6 +22,18 @@
 using namespace cldnn;
 using namespace ::tests;
 
+namespace {
+template<typename T>
+T generate_random_val(int min, int max, int k = 8) {
+    static std::default_random_engine generator(random_seed);
+    // 1/k is the resolution of the floating point numbers
+    std::uniform_int_distribution<int> distribution(k * min, k * max);
+    T val = (T)distribution(generator);
+    val /= k;
+
+    return val;
+}
+}
 
 struct scatter_nd_update_basic_test_params
 {
@@ -49,17 +61,6 @@ struct scatter_nd_update_random_test : testing::TestWithParam<scatter_nd_update_
             return cldnn::format::bfzyx;
         else
             return cldnn::format::bfwzyx;
-    }
-
-    template<typename T>
-    T generate_random_val(int min, int max, int k = 8) {
-        static std::default_random_engine generator(random_seed);
-        // 1/k is the resolution of the floating point numbers
-        std::uniform_int_distribution<int> distribution(k * min, k * max);
-        T val = (T)distribution(generator);
-        val /= k;
-
-        return val;
     }
 
     template <typename T>
@@ -145,7 +146,7 @@ struct scatter_nd_update_random_test : testing::TestWithParam<scatter_nd_update_
             reorder("out", input_info("scatter_nd_update"), params.input_format, params.input_type)
         );
 
-        cldnn::network::ptr network = get_network(engine, topology, ExecutionConfig(), get_test_stream_ptr(), is_caching_test);
+        cldnn::network::ptr network = get_network(engine, topology, get_test_default_config(engine), get_test_stream_ptr(), is_caching_test);
 
         network->set_input_data("InputData", input1);
         network->set_input_data("InputIndices", input2);
@@ -215,7 +216,7 @@ struct scatter_nd_update_random_test : testing::TestWithParam<scatter_nd_update_
             reorder("out", input_info("scatter_nd_update"), params.input_format, params.input_type)
         );
 
-        cldnn::network::ptr network = get_network(engine, topology, ExecutionConfig(), get_test_stream_ptr(), is_caching_test);
+        cldnn::network::ptr network = get_network(engine, topology, get_test_default_config(engine), get_test_stream_ptr(), is_caching_test);
 
         network->set_input_data("InputData", input1);
         network->set_input_data("InputIndices", input2);
@@ -569,7 +570,7 @@ TEST(scatter_nd_update_gpu_fp16_test15, data5_indice3_update5) {
         scatter_nd_update("scatter_nd_update", input_info("InputData"), input_info("InputIndices"), input_info("InputUpdates"), 3)
     );
 
-    network network(engine, topology);
+    network network(engine, topology, get_test_default_config(engine));
 
 
     network.set_input_data("InputData", input1);
@@ -653,7 +654,7 @@ TEST(scatter_nd_update_gpu_fp16_test14, data5_indice2_update3) {
         scatter_nd_update("scatter_nd_update", input_info("InputData"), input_info("InputIndices"), input_info("InputUpdates"), 2)
     );
 
-    network network(engine, topology);
+    network network(engine, topology, get_test_default_config(engine));
 
 
     network.set_input_data("InputData", input1);
@@ -717,7 +718,7 @@ TEST(scatter_nd_update_gpu_fp16_test13, data4_indice2_update2) {
         scatter_nd_update("scatter_nd_update", input_info("InputData"), input_info("InputIndices"), input_info("InputUpdates"), 2)
     );
 
-    network network(engine, topology);
+    network network(engine, topology, get_test_default_config(engine));
 
 
     network.set_input_data("InputData", input1);
@@ -788,7 +789,7 @@ TEST(scatter_nd_update_gpu_fp16_test12, data3_indice3_update1) {
         scatter_nd_update("scatter_nd_update", input_info("InputData"), input_info("InputIndices"), input_info("InputUpdates"), 2)
     );
 
-    network network(engine, topology);
+    network network(engine, topology, get_test_default_config(engine));
 
 
     network.set_input_data("InputData", input1);
@@ -918,7 +919,7 @@ TEST(scatter_nd_update_gpu_fp16_test11, data6_indice1_update6) {
         scatter_nd_update("scatter_nd_update", input_info("InputData"), input_info("InputIndices"), input_info("InputUpdates"), 2)
     );
 
-    network network(engine, topology);
+    network network(engine, topology, get_test_default_config(engine));
 
 
     network.set_input_data("InputData", input1);
@@ -1014,7 +1015,7 @@ TEST(scatter_nd_update_gpu_fp16_test10, data5_indice1_update5) {
         scatter_nd_update("scatter_nd_update", input_info("InputData"), input_info("InputIndices"), input_info("InputUpdates"), 2)
     );
 
-    network network(engine, topology);
+    network network(engine, topology, get_test_default_config(engine));
 
 
     network.set_input_data("InputData", input1);
@@ -1092,7 +1093,7 @@ TEST(scatter_nd_update_gpu_fp16_test9, data4_indice1_update4) {
         scatter_nd_update("scatter_nd_update", input_info("InputData"), input_info("InputIndices"), input_info("InputUpdates"), 2)
     );
 
-    network network(engine, topology);
+    network network(engine, topology, get_test_default_config(engine));
 
 
     network.set_input_data("InputData", input1);
@@ -1190,7 +1191,7 @@ TEST(scatter_nd_update_gpu_fp16_test8, data6_indice2_update5) {
         scatter_nd_update("scatter_nd_update", input_info("InputData"), input_info("InputIndices"), input_info("InputUpdates"), 2)
     );
 
-    network network(engine, topology);
+    network network(engine, topology, get_test_default_config(engine));
 
 
     network.set_input_data("InputData", input1);
@@ -1258,7 +1259,7 @@ TEST(scatter_nd_update_gpu_fp16_test7, data5_indice2_update4) {
         scatter_nd_update("scatter_nd_update", input_info("InputData"), input_info("InputIndices"), input_info("InputUpdates"), 2)
     );
 
-    network network(engine, topology);
+    network network(engine, topology, get_test_default_config(engine));
 
 
     network.set_input_data("InputData", input1);
@@ -1324,7 +1325,7 @@ TEST(scatter_nd_update_gpu_fp16_test6, data4_indice2_update3) {
         scatter_nd_update("scatter_nd_update", input_info("InputData"), input_info("InputIndices"), input_info("InputUpdates"), 2)
     );
 
-    network network(engine, topology);
+    network network(engine, topology, get_test_default_config(engine));
 
 
     network.set_input_data("InputData", input1);
@@ -1389,7 +1390,7 @@ TEST(scatter_nd_update_gpu_fp16_test5, data3_indice2_update2) {
         scatter_nd_update("scatter_nd_update", input_info("InputData"), input_info("InputIndices"), input_info("InputUpdates"), 2)
     );
 
-    network network(engine, topology);
+    network network(engine, topology, get_test_default_config(engine));
 
 
     network.set_input_data("InputData", input1);
@@ -1444,7 +1445,7 @@ TEST(scatter_nd_update_gpu_fp16_test4, data2_indice2_update1) {
         scatter_nd_update("scatter_nd_update", input_info("InputData"), input_info("InputIndices"), input_info("InputUpdates"), 2)
     );
 
-    network network(engine, topology);
+    network network(engine, topology, get_test_default_config(engine));
 
 
     network.set_input_data("InputData", input1);
@@ -1519,7 +1520,7 @@ TEST(scatter_nd_update_gpu_fp16_test3, data3_indice1_update3) {
         scatter_nd_update("scatter_nd_update", input_info("InputData"), input_info("InputIndices"), input_info("InputUpdates"), 2)
     );
 
-    network network(engine, topology);
+    network network(engine, topology, get_test_default_config(engine));
 
 
     network.set_input_data("InputData", input1);
@@ -1574,7 +1575,7 @@ TEST(scatter_nd_update_gpu_fp16_test2, data2_indice1_update2) {
         scatter_nd_update("scatter_nd_update", input_info("InputData"), input_info("InputIndices"), input_info("InputUpdates"), 2)
     );
 
-    network network(engine, topology);
+    network network(engine, topology, get_test_default_config(engine));
 
 
     network.set_input_data("InputData", input1);
@@ -1623,7 +1624,7 @@ TEST(scatter_nd_update_gpu_fp16_test1, data1_indice1_update1) {
         scatter_nd_update("scatter_nd_update", input_info("InputData"), input_info("InputIndices"), input_info("InputUpdates"), 2)
     );
 
-    network network(engine, topology);
+    network network(engine, topology, get_test_default_config(engine));
 
 
     network.set_input_data("InputData", input1);
@@ -1718,7 +1719,7 @@ TEST(scatter_nd_update_gpu_fp16, d6661_i2311) {
         scatter_nd_update("scatter_nd_update", input_info("InputData"), input_info("InputIndices"), input_info("InputUpdates"), 2)
     );
 
-    network network(engine, topology);
+    network network(engine, topology, get_test_default_config(engine));
 
 
     network.set_input_data("InputData", input1);
@@ -1857,7 +1858,7 @@ TEST(scatter_nd_update_gpu_fp16, d6661_i2211) {
         scatter_nd_update("scatter_nd_update", input_info("InputData"), input_info("InputIndices"), input_info("InputUpdates"), 2)
     );
 
-    network network(engine, topology);
+    network network(engine, topology, get_test_default_config(engine));
 
 
     network.set_input_data("InputData", input1);
@@ -2007,7 +2008,7 @@ TEST(scatter_nd_update_gpu_fp16, d6661_i2111) {
         scatter_nd_update("scatter_nd_update", input_info("InputData"), input_info("InputIndices"), input_info("InputUpdates"), 2)
     );
 
-    network network(engine, topology);
+    network network(engine, topology, get_test_default_config(engine));
 
 
     network.set_input_data("InputData", input1);
@@ -2128,7 +2129,7 @@ TEST(scatter_nd_update_gpu_fp16, d3232_i2411) {
         scatter_nd_update("scatter_nd_update", input_info("InputData"), input_info("InputIndices"), input_info("InputUpdates"), 2)
     );
 
-    network network(engine, topology);
+    network network(engine, topology, get_test_default_config(engine));
 
 
     network.set_input_data("InputData", input1);
@@ -2231,7 +2232,7 @@ TEST(scatter_nd_update_gpu_fp16, d3232_i2311) {
         scatter_nd_update("scatter_nd_update", input_info("InputData"), input_info("InputIndices"), input_info("InputUpdates"), 2)
     );
 
-    network network(engine, topology);
+    network network(engine, topology, get_test_default_config(engine));
 
 
     network.set_input_data("InputData", input1);
@@ -2340,7 +2341,7 @@ TEST(scatter_nd_update_gpu_fp16, d3232_i2211) {
         scatter_nd_update("scatter_nd_update", input_info("InputData"), input_info("InputIndices"), input_info("InputUpdates"), 2)
     );
 
-    network network(engine, topology);
+    network network(engine, topology, get_test_default_config(engine));
 
 
     network.set_input_data("InputData", input1);
@@ -2457,7 +2458,7 @@ TEST(scatter_nd_update_gpu_fp16, d3232_i2111) {
         scatter_nd_update("scatter_nd_update", input_info("InputData"), input_info("InputIndices"), input_info("InputUpdates"), 2)
     );
 
-    network network(engine, topology);
+    network network(engine, topology, get_test_default_config(engine));
 
 
     network.set_input_data("InputData", input1);
@@ -2591,7 +2592,7 @@ TEST(scatter_nd_update_gpu_fp16, d32323_i25111) {
         scatter_nd_update("scatter_nd_update", input_info("InputData"), input_info("InputIndices"), input_info("InputUpdates"), 2)
     );
 
-    network network(engine, topology);
+    network network(engine, topology, get_test_default_config(engine));
 
 
     network.set_input_data("InputData", input1);
@@ -2759,7 +2760,7 @@ TEST(scatter_nd_update_gpu_fp16, d32323_i24111) {
         scatter_nd_update("scatter_nd_update", input_info("InputData"), input_info("InputIndices"), input_info("InputUpdates"), 2)
     );
 
-    network network(engine, topology);
+    network network(engine, topology, get_test_default_config(engine));
 
 
     network.set_input_data("InputData", input1);
@@ -2930,7 +2931,7 @@ TEST(scatter_nd_update_gpu_fp16, d32323_i23111) {
         scatter_nd_update("scatter_nd_update", input_info("InputData"), input_info("InputIndices"), input_info("InputUpdates"), 2)
     );
 
-    network network(engine, topology);
+    network network(engine, topology, get_test_default_config(engine));
 
 
     network.set_input_data("InputData", input1);
@@ -3113,7 +3114,7 @@ TEST(scatter_nd_update_gpu_fp16, d32323_i22111) {
         scatter_nd_update("scatter_nd_update", input_info("InputData"), input_info("InputIndices"), input_info("InputUpdates"), 2)
     );
 
-    network network(engine, topology);
+    network network(engine, topology, get_test_default_config(engine));
 
 
     network.set_input_data("InputData", input1);
@@ -3314,7 +3315,7 @@ TEST(scatter_nd_update_gpu_fp16, d32323_i21111) {
         scatter_nd_update("scatter_nd_update", input_info("InputData"), input_info("InputIndices"), input_info("InputUpdates"), 2)
     );
 
-    network network(engine, topology);
+    network network(engine, topology, get_test_default_config(engine));
 
 
     network.set_input_data("InputData", input1);
@@ -3474,7 +3475,7 @@ TEST(scatter_nd_update_gpu_fp16, d222222_i261111) {
         scatter_nd_update("scatter_nd_update", input_info("InputData"), input_info("InputIndices"), input_info("InputUpdates"), 2)
     );
 
-    network network(engine, topology);
+    network network(engine, topology, get_test_default_config(engine));
 
 
     network.set_input_data("InputData", input1);
@@ -3627,7 +3628,7 @@ TEST(scatter_nd_update_gpu_fp16, d222222_i251111) {
         scatter_nd_update("scatter_nd_update", input_info("InputData"), input_info("InputIndices"), input_info("InputUpdates"), 2)
     );
 
-    network network(engine, topology);
+    network network(engine, topology, get_test_default_config(engine));
 
 
     network.set_input_data("InputData", input1);
@@ -3783,7 +3784,7 @@ TEST(scatter_nd_update_gpu_fp16, d222222_i241111) {
         scatter_nd_update("scatter_nd_update", input_info("InputData"), input_info("InputIndices"), input_info("InputUpdates"), 2)
     );
 
-    network network(engine, topology);
+    network network(engine, topology, get_test_default_config(engine));
 
 
     network.set_input_data("InputData", input1);
@@ -3946,7 +3947,7 @@ TEST(scatter_nd_update_gpu_fp16, d222222_i231111) {
         scatter_nd_update("scatter_nd_update", input_info("InputData"), input_info("InputIndices"), input_info("InputUpdates"), 2)
     );
 
-    network network(engine, topology);
+    network network(engine, topology, get_test_default_config(engine));
 
 
     network.set_input_data("InputData", input1);
@@ -4120,7 +4121,7 @@ TEST(scatter_nd_update_gpu_fp16, d222222_i221111) {
         scatter_nd_update("scatter_nd_update", input_info("InputData"), input_info("InputIndices"), input_info("InputUpdates"), 2)
     );
 
-    network network(engine, topology);
+    network network(engine, topology, get_test_default_config(engine));
 
 
     network.set_input_data("InputData", input1);
@@ -4318,7 +4319,7 @@ void test_d222222_i211111(bool is_caching_test) {
         scatter_nd_update("scatter_nd_update", input_info("InputData"), input_info("InputIndices"), input_info("InputUpdates"), 2)
     );
 
-    cldnn::network::ptr network = get_network(engine, topology, ExecutionConfig(), get_test_stream_ptr(), is_caching_test);
+    cldnn::network::ptr network = get_network(engine, topology, get_test_default_config(engine), get_test_stream_ptr(), is_caching_test);
 
     network->set_input_data("InputData", input1);
     network->set_input_data("InputIndices", input2);
@@ -4430,7 +4431,7 @@ TEST(scatter_nd_update_gpu, dynamic) {
         scatter_nd_update("scatter_nd_update", input_info("InputData"), input_info("InputIndices"), input_info("InputUpdates"), 2)
     );
 
-    ExecutionConfig config;
+    ExecutionConfig config = get_test_default_config(engine);
     config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
     network network(engine, topology, config);
 
@@ -4457,6 +4458,111 @@ TEST(scatter_nd_update_gpu, dynamic) {
 
     for (size_t i = 0; i < expected_results.size(); ++i) {
         ASSERT_EQ(expected_results[i], output_ptr[i]);
+    }
+}
+
+TEST(scatter_nd_update_gpu, dynamic_5d) {
+    auto& engine = get_test_engine();
+
+    auto input1_layout = layout{{ 8, -1, -1, 384}, data_types::f32, format::bfyx };
+    auto input2_layout = layout{{-1, -1, -1, -1, -1}, data_types::i32, format::bfzyx };
+    auto input3_layout = layout{{-1, -1, -1, 384}, data_types::f32, format::bfyx };
+
+    topology topology;
+    topology.add(input_layout("data", input1_layout));
+    topology.add(input_layout("indices", input2_layout));
+    topology.add(input_layout("updates", input3_layout));
+    topology.add(scatter_nd_update("scatter_nd_update", input_info("data"), input_info("indices"), input_info("updates"), 5));
+
+    ExecutionConfig config;
+    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+    network network(engine, topology, config);
+
+    auto get_expected_res = [](const std::vector<float>& input,
+                               const std::vector<int32_t>& indices,
+                               const std::vector<float>& updates,
+                               ov::Shape input_shape,
+                               ov::Shape indices_shape,
+                               ov::Shape updates_shape) -> std::vector<float> {
+        size_t count = std::accumulate(input_shape.begin(), input_shape.end(), 1, std::multiplies<size_t>());
+        auto outputs_ref = std::vector<float>(count);
+        ngraph::runtime::reference::scatterNdUpdate<float, int32_t>(input.data(),
+                                                                    indices.data(),
+                                                                    updates.data(),
+                                                                    outputs_ref.data(),
+                                                                    input_shape,
+                                                                    indices_shape,
+                                                                    updates_shape);
+
+        return outputs_ref;
+    };
+
+
+    auto generate_unique_indices = [](ov::Shape data_shape, ov::Shape indices_shape) -> std::vector<int32_t>{
+        std::set<std::vector<int32_t>> unique_indices;
+        std::vector<int32_t> result;
+        size_t last_indices_dim = indices_shape.at(indices_shape.size() - 1);
+
+        size_t count = std::accumulate(indices_shape.begin(), indices_shape.end(), 1, std::multiplies<size_t>()) / last_indices_dim;
+
+        while (unique_indices.size() != count) {
+            std::vector<int32_t> indices;
+            for (size_t i = 0; i < last_indices_dim; i++) {
+                indices.push_back(static_cast<int32_t>(generate_random_val<int>(0, data_shape[i] - 1)));
+            }
+
+            unique_indices.insert(indices);
+        }
+
+        std::for_each(unique_indices.begin(),
+                      unique_indices.end(),
+                      [&](const std::vector<int32_t>& indices) {
+                          result.insert(result.end(), indices.begin(), indices.end());
+                      });
+
+        return result;
+    };
+
+    std::vector<std::vector<ov::Shape>> test_shapes = {
+        { { 8, 3, 1, 384 }, { 1, 3, 1, 384, 4 }, { 1, 3, 1, 384 } },
+        { { 8, 3, 2, 384 }, { 1, 3, 1, 384, 4 }, { 1, 3, 1, 384 } },
+    };
+
+    for (auto& shapes : test_shapes) {
+        ov::Shape in1_shape = shapes[0];
+        ov::Shape in2_shape = shapes[1];
+        ov::Shape in3_shape = shapes[2];
+        auto input1 = engine.allocate_memory({ in1_shape, data_types::f32, format::bfyx });  // Dictionary
+        auto input2 = engine.allocate_memory({ in2_shape, data_types::i32, format::bfzyx }); // Indexes
+        auto input3 = engine.allocate_memory({ in3_shape, data_types::f32, format::bfyx });  // Updates
+
+        std::vector<float> input_data = generate_random_1d<float>(input1->count(), 1, 100);
+        std::vector<int32_t> indices = generate_unique_indices(in1_shape, in2_shape);
+        std::vector<float> updates = generate_random_1d<float>(input3->count(), 100, 200);
+        auto expected_res = get_expected_res(input_data, indices, updates, in1_shape, in2_shape, in3_shape);
+
+        set_values<float>(input1, input_data);
+        set_values<int32_t>(input2, indices);
+        set_values<float>(input3, updates);
+
+        network.set_input_data("data", input1);
+        network.set_input_data("indices", input2);
+        network.set_input_data("updates", input3);
+
+        auto inst = network.get_primitive("scatter_nd_update");
+        auto impl = inst->get_impl();
+        ASSERT_TRUE(impl != nullptr);
+        ASSERT_TRUE(impl->is_dynamic());
+
+        auto outputs = network.execute();
+
+        auto output = outputs.at("scatter_nd_update").get_memory();
+        ASSERT_EQ(output->get_layout().get_partial_shape(), input1->get_layout().get_partial_shape());
+        cldnn::mem_lock<float> output_ptr(output, get_test_stream());
+
+        for (size_t i = 0; i < expected_res.size(); ++i) {
+            ASSERT_EQ(expected_res[i], output_ptr[i]) << " i = " << i;
+        }
     }
 }
 

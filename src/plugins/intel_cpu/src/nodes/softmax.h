@@ -4,11 +4,14 @@
 
 #pragma once
 
-#include <ie_common.h>
 #include <node.h>
+
+#include <ie_common.h>
 #include <string>
 #include <memory>
 #include <vector>
+
+#include "common/dnnl_executor.h"
 
 namespace ov {
 namespace intel_cpu {
@@ -23,13 +26,16 @@ public:
                           const std::vector<MemoryDescPtr>& outputDesc) override;
     void getSupportedDescriptors() override;
     bool created() const override;
+    AttrPtr initPrimitiveAttr() override;
+    void prepareParams() override;
+    void execute(dnnl::stream strm) override;
+    void executeDynamicImpl(dnnl::stream strm) override;
 
     static bool isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept;
 
-    void prepareParams() override;
-    void executeDynamicImpl(dnnl::stream strm) override;
-
 private:
+    using executorPtr = std::shared_ptr<DnnlExecutor>;
+    executorPtr execPtr = nullptr;
     size_t axis = 0;
 };
 

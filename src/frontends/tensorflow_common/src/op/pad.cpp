@@ -4,6 +4,7 @@
 
 #include "common_op_table.hpp"
 #include "openvino/opsets/opset9.hpp"
+#include "utils.hpp"
 
 using namespace std;
 using namespace ov;
@@ -44,7 +45,7 @@ OutputVector translate_pad_op(const NodeContext& node) {
     default_op_checks(node, 2, {"Pad"});
     auto input = node.get_input(0);
     auto paddings = node.get_input(1);
-    auto constant_value = make_shared<Constant>(input.get_element_type(), Shape{}, 0);
+    auto constant_value = create_same_type_const_scalar<int32_t>(input, 0);
 
     return translate_pad_base_op(node, input, paddings, constant_value);
 }

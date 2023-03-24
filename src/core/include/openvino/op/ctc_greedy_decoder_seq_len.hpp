@@ -14,7 +14,7 @@ namespace v6 {
 /// \ingroup ov_ops_cpp_api
 class OPENVINO_API CTCGreedyDecoderSeqLen : public Op {
 public:
-    OPENVINO_OP("CTCGreedyDecoderSeqLen", "opset6", op::Op, 6);
+    OPENVINO_OP("CTCGreedyDecoderSeqLen", "opset6", op::Op);
     CTCGreedyDecoderSeqLen() = default;
     /// \brief Constructs a CTCGreedyDecoderSeqLen operation
     ///

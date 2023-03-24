@@ -100,6 +100,7 @@ add_library(${TARGET_NAME}_plugin_api INTERFACE)
 
 target_include_directories(${TARGET_NAME}_plugin_api INTERFACE
     $<TARGET_PROPERTY:openvino_gapi_preproc,INTERFACE_INCLUDE_DIRECTORIES>
+    $<TARGET_PROPERTY:openvino::core::dev,INTERFACE_INCLUDE_DIRECTORIES>
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/dev_api>
     $<BUILD_INTERFACE:${PUBLIC_HEADERS_DIR}>
     $<BUILD_INTERFACE:${PUBLIC_HEADERS_DIR}/ie>)
@@ -151,7 +152,7 @@ target_include_directories(${TARGET_NAME}_obj SYSTEM PRIVATE
 
 target_include_directories(${TARGET_NAME}_obj PRIVATE
     "${CMAKE_CURRENT_SOURCE_DIR}/src"
-    # for static ie_plugins.hpp
+    # for static ov_plugins.hpp
     "${CMAKE_CURRENT_BINARY_DIR}"
     # for ie_ir_version.hpp
     $<$<TARGET_EXISTS:inference_engine_ir_v7_reader>:$<TARGET_PROPERTY:inference_engine_ir_v7_reader,SOURCE_DIR>>

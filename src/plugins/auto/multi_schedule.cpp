@@ -54,10 +54,11 @@ Pipeline MultiSchedule::GetPipeline(const IInferPtr& syncInferRequest, WorkerInf
             }
         });
     } else {
+        MultiImmediateExecutor::Ptr _firstExecutor = std::make_shared<MultiImmediateExecutor>();
         pipeline = {
             // if the request is coming with device-specific remote blobs make sure it is scheduled to the specific device only:
             Stage {
-                /*TaskExecutor*/ std::make_shared<IE::ImmediateExecutor>(), /*task*/ [this, &syncInferRequest]() {
+                /*TaskExecutor*/ _firstExecutor, /*task*/ [this, &syncInferRequest]() {
                     // by default, no preferred device:
                     _thisPreferredDeviceName = "";
                     auto execNetwork = _multiSContext->_executableNetwork.lock();
@@ -96,13 +97,18 @@ Pipeline MultiSchedule::GetPipeline(const IInferPtr& syncInferRequest, WorkerInf
                     multiSyncInferRequest->SetBlobsToAnotherRequest(_thisWorkerInferRequest->_inferRequest);
                     INFO_RUN([workerInferRequest]() {
                         (*workerInferRequest)->_startTimes.push_back(std::chrono::steady_clock::now());
-                });
+                        });
                 }},
             // final task in the pipeline:
             Stage {
-                /*TaskExecutor*/std::make_shared<ThisRequestExecutor>(workerInferRequest), /*task*/ [this, &syncInferRequest, workerInferRequest]() {
-                    if (nullptr != (*workerInferRequest)->_exceptionPtr) {
-                        std::rethrow_exception((*workerInferRequest)->_exceptionPtr);
+                /*TaskExecutor*/std::make_shared<ThisRequestExecutor>(workerInferRequest, _firstExecutor), /*task*/
+                [this, &syncInferRequest, workerInferRequest]() {
+                    INFO_RUN([workerInferRequest]() {
+                        (*workerInferRequest)->_endTimes.push_back(std::chrono::steady_clock::now());
+                    });
+                    std::exception_ptr eptr = (*workerInferRequest)->_exceptionPtr;
+                    if (nullptr != eptr) {
+                        std::rethrow_exception(eptr);
                     }
                     if (_multiSContext->_needPerfCounters) {
                         auto multiSyncInferRequest = std::dynamic_pointer_cast<MultiDeviceInferRequest>
@@ -110,9 +116,6 @@ Pipeline MultiSchedule::GetPipeline(const IInferPtr& syncInferRequest, WorkerInf
                         multiSyncInferRequest->_scheduledRequest =
                             (*workerInferRequest)->_inferRequest;
                     }
-                    INFO_RUN([workerInferRequest]() {
-                    (*workerInferRequest)->_endTimes.push_back(std::chrono::steady_clock::now());
-                    });
                 }}
         };
     }

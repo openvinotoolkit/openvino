@@ -543,7 +543,7 @@ void Transformations::PostLpt() {
             // Implementation calls AMX BF16 brgemm only for tensors with K and N aligned on 2, otherwise fallbacks on vector impl
             // Vector madd BF16 instruction on SPR has reduced performance on HW level, which results in overall perf degradation
             size_t bf16Factor = 2;
-            if (dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core_bf16_amx_bf16) &&
+            if (dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core_amx) &&
                 (n->get_input_element_type(0) == element::bf16 || (n->get_input_element_type(0) == element::f32 && enableBF16)) &&
                 (n->get_input_shape(0)[3] % bf16Factor != 0 || n->get_input_shape(1)[1] % bf16Factor != 0 || n->get_input_shape(3)[3] % bf16Factor != 0)) {
                 return true;

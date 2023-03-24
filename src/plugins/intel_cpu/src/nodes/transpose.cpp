@@ -37,6 +37,7 @@ bool Transpose::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, 
     return true;
 }
 
+namespace {
 class TransposeDynShapeInfer : public ShapeInferEmptyPads {
 public:
     TransposeDynShapeInfer() = default;
@@ -98,6 +99,7 @@ public:
 private:
     const std::shared_ptr<ov::Node> m_op;
 };
+} // namespace
 
 Transpose::Transpose(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context)
         : Node(op, context, TransposeShapeInferFactory(op)) {
@@ -189,7 +191,7 @@ void Transpose::prepareParams() {
         auto& srcMemPtr = getParentEdgeAt(INPUT_DATA_IDX)->getMemoryPtr();
         auto& dstMemPtr = getChildEdgeAt(0)->getMemoryPtr();
         auto dstDesc = dstMemPtr->GetDescWithType<DnnlMemoryDesc>()->getDnnlDesc();
-        auto srcDesc = dnnl::memory::desc(dstDesc.dims(), dstDesc.data_type(), memory::format_tag::acdb);
+        auto srcDesc = dnnl::memory::desc(dstDesc.get_dims(), dstDesc.get_data_type(), memory::format_tag::acdb);
         auto result = getReorderPrim(context->getParamsCache(), getEngine(), srcDesc, dstDesc);
         if (!result) {
             IE_THROW() << "Reorder primitive descriptor was not found for Transpose node " << getName() << ".";
