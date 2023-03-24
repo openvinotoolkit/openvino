@@ -25,13 +25,12 @@ public:
 private:
     bool insertion(LoweredExprIR& linear_ir, const LoweredExprIR::LoweredLoopManager::LoweredLoopInfoPtr& loop_info,
                    size_t loop_id, size_t dim_idx, bool has_outer_loop);
-    std::vector<int64_t> init_ptr_increments(LoweredExprIR& linear_ir,
-                                             const std::vector<LoweredExprPtr>& loop_in_exprs,
-                                             const std::vector<LoweredExprPtr>& loop_out_exprs,
+    std::vector<int64_t> init_ptr_increments(const std::vector<LoweredExprPort>& loop_inputs,
+                                             const std::vector<LoweredExprPort>& loop_outputs,
                                              size_t dim_idx) const;
     std::vector<int64_t> init_finalization_offsets(const std::vector<int64_t>& ptr_increments, size_t work_amount) const;
-    std::vector<int64_t> init_element_type_sizes(const std::vector<LoweredExprPtr>& loop_in_exprs,
-                                                 const std::vector<LoweredExprPtr>& loop_out_exprs);
+    std::vector<int64_t> init_element_type_sizes(const std::vector<LoweredExprPort>& loop_inputs,
+                                                 const std::vector<LoweredExprPort>& loop_outputs);
 };
 
 } // namespace lowered

@@ -50,7 +50,7 @@ bool LoadStoreInsertion::insert_load(LoweredExprIR& linear_ir, const LoweredExpr
             continue;
 
         // Find Inner Loop
-        const auto loop_ids = consumer_expr->get_loop_ids();
+        const auto& loop_ids = consumer_expr->get_loop_ids();
         size_t inner_loop = LoweredExpr::LOOP_NULL_ID;
         for (int i = loop_ids.size() - 1; i >= 0; --i) {
             if (loop_ids[i] != LoweredExpr::LOOP_NULL_ID) {
@@ -96,7 +96,7 @@ bool LoadStoreInsertion::insert_store(LoweredExprIR& linear_ir, const LoweredExp
         return false;
 
     // Find Inner Loop
-    const auto loop_ids = parent_expr->get_loop_ids();
+    const auto& loop_ids = parent_expr->get_loop_ids();
     size_t inner_loop = LoweredExpr::LOOP_NULL_ID;
     for (int i = loop_ids.size() - 1; i >= 0; --i) {
         if (loop_ids[i] != LoweredExpr::LOOP_NULL_ID) {

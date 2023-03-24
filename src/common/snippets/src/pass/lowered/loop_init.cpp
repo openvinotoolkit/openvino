@@ -12,11 +12,12 @@ namespace pass {
 namespace lowered {
 
 namespace {
-void get_io_exprs(LoweredExprIR& linear_ir,
-                  const std::vector<LoweredExprPort>& loop_entries, const std::vector<LoweredExprPort>& loop_exits,
-                  std::vector<LoweredExprPtr>& loop_in_exprs, std::vector<LoweredExprPtr>& loop_out_exprs) {
-    loop_in_exprs.clear();
-    loop_out_exprs.clear();
+void filter_ports(LoweredExprIR& linear_ir,
+                  std::vector<LoweredExprPort>& loop_entries, std::vector<LoweredExprPort>& loop_exits) {
+    std::vector<LoweredExprPort> new_loop_entries;
+    std::vector<LoweredExprPort> new_loop_exits;
+    new_loop_entries.reserve(loop_entries.size());
+    new_loop_exits.reserve(loop_exits.size());
 
     std::set<std::shared_ptr<ov::Node>> loop_parents;
     for (const auto& loop_entry_point : loop_entries) {
@@ -29,7 +30,7 @@ void get_io_exprs(LoweredExprIR& linear_ir,
             // Todo: Sometimes several Load in one Loop read data from the same Node
             if (loop_parents.find(parent) == loop_parents.end()) {
                 loop_parents.insert(parent);
-                loop_in_exprs.push_back(expr);
+                new_loop_entries.push_back(loop_entry_point);
             }
         }
     }
@@ -37,9 +38,12 @@ void get_io_exprs(LoweredExprIR& linear_ir,
     for (const auto& loop_exit_point : loop_exits) {
         const auto expr = loop_exit_point.m_expr;
         if (is_type<op::Store>(expr->get_node())) {
-            loop_out_exprs.push_back(expr);
+            new_loop_exits.push_back(loop_exit_point);
         }
     }
+
+    loop_entries = new_loop_entries;
+    loop_exits = new_loop_exits;
 }
 
 int64_t get_dim_stride(const size_t dim, const std::vector<size_t>& layout, const std::vector<size_t>& shape) {
@@ -55,59 +59,60 @@ int64_t get_dim_stride(const size_t dim, const std::vector<size_t>& layout, cons
 
 LoopInit::LoopInit() : LinearIRTransformation() {}
 
-std::vector<int64_t> LoopInit::init_ptr_increments(LoweredExprIR& linear_ir,
-                                                   const std::vector<LoweredExprPtr>& loop_in_exprs,
-                                                   const std::vector<LoweredExprPtr>& loop_out_exprs,
+std::vector<int64_t> LoopInit::init_ptr_increments(const std::vector<LoweredExprPort>& loop_inputs,
+                                                   const std::vector<LoweredExprPort>& loop_outputs,
                                                    size_t dim_idx) const {
     std::vector<int64_t> ptr_increments;
     // Note: All loop inputs must have the same layout by definition.
     // If this doesn't hold, then we're trying to inject loops in the wrong place.
     const std::vector<size_t> loop_layout{
-            !loop_in_exprs.empty() ? loop_in_exprs.front()->get_inputs()[0]->get_layout() :
-            !loop_out_exprs.empty() ? loop_out_exprs.front()->get_outputs()[0]->get_layout() :
+            !loop_inputs.empty() ? loop_inputs.front().m_expr->get_inputs()[0]->get_layout() :
+            !loop_outputs.empty() ? loop_outputs.front().m_expr->get_outputs()[0]->get_layout() :
             std::vector<size_t>{}};
     // Note: Need to find max relevant dim m_expr to account for broadcasting, collect relevant_dims as well
+    // Note: At the moment all loop_inputs and loop_outputs - are Load/Store ops in this method.
+    //       So for example, we can call loop_input[i]->get_outputs().front() because Load have one output
     size_t max_relevant_dim_size = 0;
-    for (const auto& expr : loop_in_exprs) {
-        const auto& out_tds = expr->get_outputs();
-        const auto& dst_layout = out_tds[0]->get_layout();
-        const auto& dst_tensor = out_tds[0]->get_tensor();
-        const auto& dst_dim = *(dst_layout.rbegin() + dim_idx);
-        max_relevant_dim_size = std::max(dst_tensor[dst_dim], max_relevant_dim_size);
-        if (loop_layout != expr->get_inputs()[0]->get_layout())
-            throw ngraph_error("LoopInit noticed an attempt to init loop with inconsistent input layouts");
+    for (const auto& loop_input : loop_inputs) {
+        const auto& expr = loop_input.m_expr;
+        const auto out_td = expr->get_outputs().front();
+        const auto& layout = out_td->get_layout();
+        const auto& tensor = out_td->get_tensor();
+        const auto& dim = *(layout.rbegin() + dim_idx);
+        max_relevant_dim_size = std::max(tensor[dim], max_relevant_dim_size);
     }
-    for (const auto& expr : loop_out_exprs) {
-        const auto& out_tds = expr->get_outputs();
-        const auto& dst_layout = out_tds[0]->get_layout();
-        const auto& dst_tensor = out_tds[0]->get_tensor();
-        const auto& dst_dim = *(dst_layout.rbegin() + dim_idx);
-        max_relevant_dim_size = std::max(dst_tensor[dst_dim], max_relevant_dim_size);
-        if (loop_layout != expr->get_outputs()[0]->get_layout())
-            throw ngraph_error("LoopInit noticed an attempt to init loop with inconsistent input layouts");
+    for (const auto& loop_output : loop_outputs) {
+        const auto& expr = loop_output.m_expr;
+        const auto in_td = expr->get_inputs().front();
+        const auto& layout = in_td->get_layout();
+        const auto& tensor = in_td->get_tensor();
+        const auto& dim = *(layout.rbegin() + dim_idx);
+        max_relevant_dim_size = std::max(tensor[dim], max_relevant_dim_size);
     }
-    for (const auto& expr : loop_in_exprs) {
-        const auto& out_tds = expr->get_outputs();
-        const auto& src_tensor = expr->get_inputs().front()->get_tensor();
-        const auto& dst_layout = out_tds[0]->get_layout();
-        const auto& dst_dim = *(dst_layout.rbegin() + dim_idx);
+    for (const auto& loop_input : loop_inputs) {
+        const auto& expr = loop_input.m_expr;
+        const auto out_td = expr->get_outputs().front();
+        const auto& layout = out_td->get_layout();
+        const auto& tensor = out_td->get_tensor();
+        const auto& dim = *(layout.rbegin() + dim_idx);
         int64_t ptr_increment = 0;
         // If relevant dim is not broadcasted, then ptr_increment is the dim stride in the new layout
-        if (!(src_tensor[dst_dim] == 1 && max_relevant_dim_size != 1))
-            ptr_increment = get_dim_stride(dst_dim, loop_layout, src_tensor);
+        if (!(tensor[dim] == 1 && max_relevant_dim_size != 1))
+            ptr_increment = get_dim_stride(dim, loop_layout, tensor);
         ptr_increments.push_back(ptr_increment);
     }
     // Note: Le already accounted for loop_input vs inside loops layout mismatch. So we need non-dense output
     // ptr_increments only if loop_input_layout doesn't match loop_output_layout
-    for (const auto& expr : loop_out_exprs) {
-        const auto& out_tds = expr->get_outputs();
-        const auto& dst_layout = out_tds[0]->get_layout();
-        const auto& dst_tensor = out_tds[0]->get_tensor();
-        const auto& dst_dim = *(loop_layout.rbegin() + dim_idx);
+    for (const auto& loop_output : loop_outputs) {
+        const auto& expr = loop_output.m_expr;
+        const auto in_td = expr->get_inputs().front();
+        const auto& layout = in_td->get_layout();
+        const auto& tensor = in_td->get_tensor();
+        const auto& dim = *(layout.rbegin() + dim_idx);
         int64_t ptr_increment = 0;
         // If relevant dim is not broadcasted, then ptr_increment is the dim stride in the new layout
-        if (!(dst_tensor[dst_dim] == 1 && max_relevant_dim_size != 1))
-            ptr_increment = get_dim_stride(dst_dim, dst_layout, dst_tensor);
+        if (!(tensor[dim] == 1 && max_relevant_dim_size != 1))
+            ptr_increment = get_dim_stride(dim, layout, tensor);
         ptr_increments.push_back(ptr_increment);
     }
 
@@ -123,36 +128,33 @@ std::vector<int64_t> LoopInit::init_finalization_offsets(const std::vector<int64
     return finalization_offsets;
 }
 
-std::vector<int64_t> LoopInit::init_element_type_sizes(const std::vector<LoweredExprPtr>& loop_in_exprs,
-                                                       const std::vector<LoweredExprPtr>& loop_out_exprs) {
+std::vector<int64_t> LoopInit::init_element_type_sizes(const std::vector<LoweredExprPort>& loop_inputs,
+                                                       const std::vector<LoweredExprPort>& loop_outputs) {
     std::vector<int64_t> element_types;
-    element_types.reserve(loop_in_exprs.size() + loop_out_exprs.size());
-    for (const auto& in : loop_in_exprs) {
-        element_types.push_back(in->get_node()->get_element_type().size());
+    element_types.reserve(loop_inputs.size() + loop_outputs.size());
+    for (const auto& in : loop_inputs) {
+        element_types.push_back(in.m_expr->get_node()->get_input_element_type(in.m_port).size());
     }
-    for (const auto& out : loop_out_exprs) {
-        element_types.push_back(out->get_node()->get_element_type().size());
+    for (const auto& out : loop_outputs) {
+        element_types.push_back(out.m_expr->get_node()->get_output_element_type(out.m_port).size());
     }
     return element_types;
 }
 
 bool LoopInit::insertion(LoweredExprIR& linear_ir, const LoweredExprIR::LoweredLoopManager::LoweredLoopInfoPtr& loop_info,
                          size_t loop_id, size_t dim_idx, bool has_outer_loop) {
-    const auto loop_entries = loop_info->m_entry_exprs;
-    const auto loop_exits = loop_info->m_exit_exprs;
+    auto loop_entries = loop_info->m_entry_exprs;
+    auto loop_exits = loop_info->m_exit_exprs;
     const auto work_amount = loop_info->m_work_amount;
     const auto work_amount_increment = loop_info->m_increment;
-
-    std::vector<LoweredExprPtr> loop_in_exprs, loop_out_exprs;
-    get_io_exprs(linear_ir, loop_entries, loop_exits,
-                 loop_in_exprs, loop_out_exprs);
 
     LoweredExprIR::constExprIt loop_begin_pos, loop_end_pos;
     LoweredExprIR::LoweredLoopManager::get_loop_bounds(linear_ir, loop_entries, loop_exits, loop_begin_pos, loop_end_pos, loop_id);
 
-    const auto ptr_increments = init_ptr_increments(linear_ir, loop_in_exprs, loop_out_exprs, dim_idx);
+    filter_ports(linear_ir, loop_entries, loop_exits);
+    const auto ptr_increments = init_ptr_increments(loop_entries, loop_exits, dim_idx);
     const auto finalization_offsets = init_finalization_offsets(ptr_increments, work_amount);
-    const auto io_data_sizes = init_element_type_sizes(loop_in_exprs, loop_out_exprs);
+    const auto io_data_sizes = init_element_type_sizes(loop_entries, loop_exits);
 
     const auto& loop_begin = std::make_shared<op::LoopBegin>();
     const auto& loop_begin_expr = std::make_shared<LoweredExpr>(loop_begin, std::vector<TensorDescriptorPtr>{});
@@ -160,14 +162,14 @@ bool LoopInit::insertion(LoweredExprIR& linear_ir, const LoweredExprIR::LoweredL
 
     const auto& loop_end = std::make_shared<op::LoopEnd>(
             loop_begin->output(0), work_amount, work_amount_increment, ptr_increments, finalization_offsets,
-            io_data_sizes, loop_in_exprs.size(), loop_out_exprs.size());
+            io_data_sizes, loop_entries.size(), loop_exits.size());
     loop_end->has_outer_loop = has_outer_loop;
 
     std::vector<TensorDescriptorPtr> loop_end_inputs;
-    for (const auto& expr : loop_in_exprs)
-        loop_end_inputs.push_back(expr->get_inputs().front());
-    for (const auto& expr : loop_out_exprs)
-        loop_end_inputs.push_back(expr->get_outputs().front());
+    for (const auto& expr_port : loop_entries)
+        loop_end_inputs.push_back(expr_port.m_expr->get_inputs()[expr_port.m_port]);
+    for (const auto& expr_port : loop_exits)
+        loop_end_inputs.push_back(expr_port.m_expr->get_outputs()[expr_port.m_port]);
     loop_end_inputs.push_back(linear_ir.get_expr_by_node(loop_begin)->get_outputs().front());
 
     const auto& loop_end_expr = std::make_shared<LoweredExpr>(loop_end, loop_end_inputs);
