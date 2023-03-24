@@ -92,26 +92,27 @@ Example
 1. Install the ``openvino-dev`` Python package to use Open Model Zoo Tools:
 
    .. code-block::
+      
       python -m pip install openvino-dev[caffe]
    
 
 2. Download a pre-trained model using:
 
    .. code-block::
-
+      
       omz_downloader --name googlenet-v1
    
 
 3. If a model is not in the IR or ONNX format, it must be converted. You can do this using the model converter:
 
    .. code-block::
-
+      
       omz_converter --name googlenet-v1
 
 4. Perform inference of ``dog.bmp`` using ``googlenet-v1`` model on a ``GPU``, for example:
    
    .. code-block::
-
+       
       classification_sample_async -m googlenet-v1.xml -i dog.bmp -d GPU
 
 Sample Output
