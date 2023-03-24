@@ -32,7 +32,11 @@ namespace op {
 using namespace ov::op;
 
 namespace {
-Output<Node> norm_vector(const NodeContext& context, Output<Node> input_tensor, Output<Node> dim, float p, bool keep_dim) {
+Output<Node> norm_vector(const NodeContext& context,
+                         Output<Node> input_tensor,
+                         Output<Node> dim,
+                         float p,
+                         bool keep_dim) {
     Output<Node> res;
     if (p == 1) {
         res = context.mark_node(std::make_shared<v4::ReduceL1>(input_tensor, dim, keep_dim));
@@ -66,7 +70,11 @@ Output<Node> norm_vector(const NodeContext& context, Output<Node> input_tensor, 
     return res;
 };
 
-Output<Node> norm_matrix(const NodeContext& context, Output<Node> input_tensor, Output<Node> dim, float p, bool keep_dim) {
+Output<Node> norm_matrix(const NodeContext& context,
+                         Output<Node> input_tensor,
+                         Output<Node> dim,
+                         float p,
+                         bool keep_dim) {
     Output<Node> res;
     auto one = context.mark_node(v0::Constant::create(element::i32, Shape{}, {1}));
     auto zero = context.mark_node(v0::Constant::create(element::i32, Shape{}, {0}));
@@ -100,23 +108,6 @@ Output<Node> frobenius_norm(const NodeContext& context, Output<Node> x, Output<N
     auto sumsqr = context.mark_node(std::make_shared<v1::ReduceSum>(sqr, dim, keep_dim));
     return context.mark_node(std::make_shared<v0::Sqrt>(sumsqr));
 }
-
-Output<Node> apply_dtype(const NodeContext& context, Output<Node> input_tensor, size_t dtype_id) {
-    if (!context.input_is_none(dtype_id)) {
-        if (std::dynamic_pointer_cast<v0::Constant>(
-                context.get_input_from_visible_context(dtype_id).get_node_shared_ptr())) {
-            auto dtype = convert_dtype(context.const_input<int64_t>(4));
-            input_tensor = context.mark_node(std::make_shared<v0::Convert>(input_tensor, dtype));
-        } else if (const auto& fw_node =
-                       cast_fw_node(context.get_input(dtype_id).get_node_shared_ptr(), "prim::dtype")) {
-            auto out_tensor = fw_node->input_value(0);
-            input_tensor = context.mark_node(std::make_shared<v1::ConvertLike>(input_tensor, out_tensor));
-        } else {
-            FRONT_END_OP_CONVERSION_CHECK(false, "Couldn't get dtype input");
-        }
-    }
-    return input_tensor;
-}
 };  // namespace
 
 OutputVector translate_norm(const NodeContext& context) {
@@ -135,7 +126,9 @@ OutputVector translate_norm(const NodeContext& context) {
         dim = context.get_input(2);
     }
     auto keep_dim = context.const_input<bool>(3);
-    input_tensor = apply_dtype(context, input_tensor, 4);
+    if (!context.input_is_none(4)) {
+        input_tensor = apply_dtype(context, 4, input_tensor);
+    }
     Output<Node> res;
     if (p_node_type.is<type::Str>()) {
         auto p_str = context.const_input<std::string>(1);
@@ -178,7 +171,9 @@ OutputVector translate_linalg_vector_norm(const NodeContext& context) {
     }
     // dtype may be used to perform the computation in a more precise dtype. It is semantically equivalent to calling
     // linalg.vector_norm(x.to(dtype))
-    x = apply_dtype(context, x, 4);
+    if (!context.input_is_none(4)) {
+        x = apply_dtype(context, 4, x);
+    }
     result = norm_vector(context, x, dim, ord, keep_dim);
     // output tensor
     if (!context.input_is_none(5)) {
@@ -202,7 +197,9 @@ OutputVector translate_linalg_matrix_norm(const NodeContext& context) {
 
     // dtype may be used to perform the computation in a more precise dtype. It is semantically equivalent to calling
     // linalg.mtrix_norm(x.to(dtype))
-    x = apply_dtype(context, x, 4);
+    if (!context.input_is_none(4)) {
+        x = apply_dtype(context, 4, x);
+    }
     if (ord_type.is<type::Str>()) {
         auto p_str = context.const_input<std::string>(1);
         if (p_str == "fro") {
@@ -233,7 +230,9 @@ OutputVector translate_linalg_norm(const NodeContext& context) {
     Output<Node> dim;
     // dtype may be used to perform the computation in a more precise dtype. It is semantically equivalent to calling
     // linalg.norm(x.to(dtype))
-    x = apply_dtype(context, x, 4);
+    if (!context.input_is_none(4)) {
+        x = apply_dtype(context, 4, x);
+    }
     // If dim= None and ord= None, A will be flattened to 1D and the 2-norm of the resulting vector will be computed.
     if (context.input_is_none(2) && context.input_is_none(1)) {
         auto minus_one = context.mark_node(v0::Constant::create(element::i32, Shape{1}, {-1}));
@@ -241,7 +240,7 @@ OutputVector translate_linalg_norm(const NodeContext& context) {
         dim = context.mark_node(v0::Constant::create(element::i32, Shape{1}, {0}));
         result = norm_vector(context, x, dim, 2, false);
     } else {
-        // If dim=None apply for all dimetions
+        // If dim=None apply for all dimesions
         if (context.input_is_none(2)) {
             auto zero = context.mark_node(v0::Constant::create(element::i32, Shape{}, {0}));
             auto one = context.mark_node(v0::Constant::create(element::i32, Shape{}, {1}));
