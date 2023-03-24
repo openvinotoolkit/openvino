@@ -243,6 +243,41 @@ void ReadIRTest::SetUp() {
         } else if (!hasDynamic && ov::test::conformance::shapeMode == ov::test::conformance::ShapeMode::DYNAMIC) {
             pgLink->SetRefuseResult();
         }
+
+        auto splittedFilename = CommonTestUtils::splitStringByDelimiter(path_to_model, CommonTestUtils::FileSeparator);
+        std::reverse(splittedFilename.begin(), splittedFilename.end());
+
+        // Try to resolve missing info
+        if (splittedFilename.size() > 2) {
+            auto pos = splittedFilename[2].find('-');
+            std::string op_name = "", op_version = "opset";
+            if (pos != std::string::npos) {
+                op_name = splittedFilename[2].substr(0, pos);
+                op_version += splittedFilename[2].substr(pos + 1);
+                if (ov::test::conformance::unique_ops.find(op_name) != ov::test::conformance::unique_ops.end() &&
+                    std::find(ov::test::conformance::unique_ops[op_name].begin(),
+                              ov::test::conformance::unique_ops[op_name].end(),
+                              op_version) != ov::test::conformance::unique_ops[op_name].end()) {
+                    pgLink->SetCustomField("opName", op_name, true);
+                    pgLink->SetCustomField("opSet", op_version, true);
+                }
+            } else {
+                for (const auto& path_part : splittedFilename) {
+                    if (ov::test::conformance::unique_ops.find(path_part) != ov::test::conformance::unique_ops.end()) {
+                        op_name = path_part;
+                        break;
+                    }
+                }
+                if (op_name.length() > 0) {
+                    for (const auto& node : function->get_ordered_ops()) {
+                        if (node->get_type_name() == op_name) {
+                            op_version += std::to_string(node->get_type_info().version);
+                            pgLink->SetCustomField("opSet", op_version, true);
+                        }
+                    }
+                }
+            }
+        }
     }
 #endif
 
