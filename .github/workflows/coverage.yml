@@ -1,25 +1,27 @@
 name: Code coverage
 on:
-  push:
-    branches:
-      - master
-      - releases/*
-    paths-ignore:
-      - docs/
-      - /**/docs/*
-      - /**/*.md
-      - README.md
-      - /**/layer_tests_summary/**
-  pull_request:
-    branches:
-      - master
-      - releases/*
-    paths-ignore:
-      - docs/
-      - /**/docs/*
-      - /**/*.md
-      - README.md
-      - /**/layer_tests_summary/**
+  issue_comment:
+    types: [created]
+  #  push:
+  #  branches:
+  #    - master
+  #    - releases/*
+  #  paths-ignore:
+  #    - docs/
+  #    - /**/docs/*
+  #    - /**/*.md
+  #    - README.md
+  #    - /**/layer_tests_summary/**
+  #pull_request:
+  #  branches:
+  #    - master
+  #    - releases/*
+  #  paths-ignore:
+  #    - docs/
+  #    - /**/docs/*
+  #    - /**/*.md
+  #    - README.md
+  #    - /**/layer_tests_summary/**
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -27,6 +29,7 @@ concurrency:
 
 jobs:
   Coverage:
+    if: contains(github.event.comment.html_url, '/pull/') && contains(github.event.comment.body, '/coverage')
     runs-on: ${{ matrix.config.os }}
     strategy:
       fail-fast: false
