@@ -105,6 +105,10 @@ add_fusing_type onednn_add_fusing_helpers::get_add_fusing_type(
     auto p_layout = p_node.get_output_layout();
     auto d_layout = dep_node.get_output_layout();
 
+    if (p_node.is_dynamic() || dep_node.is_dynamic()) {
+        return add_fusing_type::not_supported;
+    }
+
     if (is_full_tensor(p_layout) && is_full_tensor(d_layout)) {
         if (data_type_traits::size_of(p_layout.data_type) == data_type_traits::size_of(d_layout.data_type)
             && p_layout.format == d_layout.format && p_layout.get_tensor() == d_layout.get_tensor()

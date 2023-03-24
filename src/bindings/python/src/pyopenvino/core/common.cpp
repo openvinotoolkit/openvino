@@ -53,6 +53,27 @@ const std::map<std::string, ov::element::Type>& dtype_to_ov_type() {
     return dtype_to_ov_type_mapping;
 }
 
+namespace containers {
+const TensorIndexMap cast_to_tensor_index_map(const py::dict& inputs) {
+    TensorIndexMap result_map;
+    for (auto&& input : inputs) {
+        int idx;
+        if (py::isinstance<py::int_>(input.first)) {
+            idx = input.first.cast<int>();
+        } else {
+            throw py::type_error("incompatible function arguments!");
+        }
+        if (py::isinstance<ov::Tensor>(input.second)) {
+            auto tensor = Common::cast_to_tensor(input.second);
+            result_map[idx] = tensor;
+        } else {
+            throw ov::Exception("Unable to cast tensor " + std::to_string(idx) + "!");
+        }
+    }
+    return result_map;
+}
+};  // namespace containers
+
 namespace array_helpers {
 
 bool is_contiguous(const py::array& array) {
@@ -110,6 +131,67 @@ py::array as_contiguous(py::array& array, ov::element::Type type) {
     }
 }
 
+py::array array_from_tensor(ov::Tensor&& t) {
+    switch (t.get_element_type()) {
+    case ov::element::Type_t::f32: {
+        return py::array_t<float>(t.get_shape(), t.data<float>());
+        break;
+    }
+    case ov::element::Type_t::f64: {
+        return py::array_t<double>(t.get_shape(), t.data<double>());
+        break;
+    }
+    case ov::element::Type_t::bf16: {
+        return py::array(py::dtype("float16"), t.get_shape(), t.data<ov::bfloat16>());
+        break;
+    }
+    case ov::element::Type_t::f16: {
+        return py::array(py::dtype("float16"), t.get_shape(), t.data<ov::float16>());
+        break;
+    }
+    case ov::element::Type_t::i8: {
+        return py::array_t<int8_t>(t.get_shape(), t.data<int8_t>());
+        break;
+    }
+    case ov::element::Type_t::i16: {
+        return py::array_t<int16_t>(t.get_shape(), t.data<int16_t>());
+        break;
+    }
+    case ov::element::Type_t::i32: {
+        return py::array_t<int32_t>(t.get_shape(), t.data<int32_t>());
+        break;
+    }
+    case ov::element::Type_t::i64: {
+        return py::array_t<int64_t>(t.get_shape(), t.data<int64_t>());
+        break;
+    }
+    case ov::element::Type_t::u8: {
+        return py::array_t<uint8_t>(t.get_shape(), t.data<uint8_t>());
+        break;
+    }
+    case ov::element::Type_t::u16: {
+        return py::array_t<uint16_t>(t.get_shape(), t.data<uint16_t>());
+        break;
+    }
+    case ov::element::Type_t::u32: {
+        return py::array_t<uint32_t>(t.get_shape(), t.data<uint32_t>());
+        break;
+    }
+    case ov::element::Type_t::u64: {
+        return py::array_t<uint64_t>(t.get_shape(), t.data<uint64_t>());
+        break;
+    }
+    case ov::element::Type_t::boolean: {
+        return py::array_t<bool>(t.get_shape(), t.data<bool>());
+        break;
+    }
+    default: {
+        throw ov::Exception("Numpy array cannot be created from given OV Tensor!");
+        break;
+    }
+    }
+}
+
 };  // namespace array_helpers
 
 template <>
@@ -121,7 +203,7 @@ ov::op::v0::Constant create_copied(py::array& array) {
     // Create actual Constant and a constructor is copying data.
     return ov::op::v0::Constant(array_helpers::get_ov_type(array),
                                 array_helpers::get_shape(array),
-                                const_cast<void*>(array.data(0)));
+                                array.ndim() == 0 ? array.data() : array.data(0));
 }
 
 template <>
@@ -135,10 +217,10 @@ ov::op::v0::Constant create_shared(py::array& array) {
     // Check if passed array has C-style contiguous memory layout.
     // If memory is going to be shared it needs to be contiguous before passing to the constructor.
     if (array_helpers::is_contiguous(array)) {
-        auto memory =
-            std::make_shared<ngraph::runtime::SharedBuffer<py::array>>(static_cast<char*>(array.mutable_data(0)),
-                                                                       array.nbytes(),
-                                                                       array);
+        auto memory = std::make_shared<ngraph::runtime::SharedBuffer<py::array>>(
+            static_cast<char*>(array.ndim() == 0 ? array.mutable_data() : array.mutable_data(0)),
+            array.ndim() == 0 ? array.itemsize() : array.nbytes(),
+            array);
         return ov::op::v0::Constant(array_helpers::get_ov_type(array), array_helpers::get_shape(array), memory);
     }
     // If passed array is not C-style, throw an error.
@@ -159,9 +241,9 @@ ov::Tensor create_copied(py::array& array) {
     // Create actual Tensor and copy data.
     auto tensor = ov::Tensor(array_helpers::get_ov_type(array), array_helpers::get_shape(array));
     // If ndim of py::array is 0, array is a numpy scalar. That results in size to be equal to 0.
-    // To gain access to actual raw/low-level data, it is needed to use buffer protocol.
-    py::buffer_info buf = array.request();
-    std::memcpy(tensor.data(), buf.ptr, buf.ndim == 0 ? buf.itemsize : buf.itemsize * buf.size);
+    std::memcpy(tensor.data(),
+                array.ndim() == 0 ? array.data() : array.data(0),
+                array.ndim() == 0 ? array.itemsize() : array.nbytes());
     return tensor;
 }
 
@@ -170,9 +252,10 @@ ov::Tensor create_shared(py::array& array) {
     // Check if passed array has C-style contiguous memory layout.
     // If memory is going to be shared it needs to be contiguous before passing to the constructor.
     if (array_helpers::is_contiguous(array)) {
+        // If ndim of py::array is 0, array is a numpy scalar.
         return ov::Tensor(array_helpers::get_ov_type(array),
                           array_helpers::get_shape(array),
-                          const_cast<void*>(array.data(0)),
+                          array.ndim() == 0 ? array.mutable_data() : array.mutable_data(0),
                           array_helpers::get_strides(array));
     }
     // If passed array is not C-style, throw an error.
@@ -225,38 +308,6 @@ const ov::Tensor& cast_to_tensor(const py::handle& tensor) {
     return tensor.cast<const ov::Tensor&>();
 }
 
-const Containers::TensorNameMap cast_to_tensor_name_map(const py::dict& inputs) {
-    Containers::TensorNameMap result_map;
-    for (auto&& input : inputs) {
-        std::string name;
-        if (py::isinstance<py::str>(input.first)) {
-            name = input.first.cast<std::string>();
-        } else {
-            throw py::type_error("incompatible function arguments!");
-        }
-        OPENVINO_ASSERT(py::isinstance<ov::Tensor>(input.second), "Unable to cast tensor ", name, "!");
-        auto tensor = Common::cast_to_tensor(input.second);
-        result_map[name] = tensor;
-    }
-    return result_map;
-}
-
-const Containers::TensorIndexMap cast_to_tensor_index_map(const py::dict& inputs) {
-    Containers::TensorIndexMap result_map;
-    for (auto&& input : inputs) {
-        int idx;
-        if (py::isinstance<py::int_>(input.first)) {
-            idx = input.first.cast<int>();
-        } else {
-            throw py::type_error("incompatible function arguments!");
-        }
-        OPENVINO_ASSERT(py::isinstance<ov::Tensor>(input.second), "Unable to cast tensor ", idx, "!");
-        auto tensor = Common::cast_to_tensor(input.second);
-        result_map[idx] = tensor;
-    }
-    return result_map;
-}
-
 void set_request_tensors(ov::InferRequest& request, const py::dict& inputs) {
     if (!inputs.empty()) {
         for (auto&& input : inputs) {
@@ -292,67 +343,10 @@ uint32_t get_optimal_number_of_requests(const ov::CompiledModel& actual) {
     }
 }
 
-py::dict outputs_to_dict(const std::vector<ov::Output<const ov::Node>>& outputs, ov::InferRequest& request) {
+py::dict outputs_to_dict(InferRequestWrapper& request) {
     py::dict res;
-    for (const auto& out : outputs) {
-        ov::Tensor t{request.get_tensor(out)};
-        switch (t.get_element_type()) {
-        case ov::element::Type_t::i8: {
-            res[py::cast(out)] = py::array_t<int8_t>(t.get_shape(), t.data<int8_t>());
-            break;
-        }
-        case ov::element::Type_t::i16: {
-            res[py::cast(out)] = py::array_t<int16_t>(t.get_shape(), t.data<int16_t>());
-            break;
-        }
-        case ov::element::Type_t::i32: {
-            res[py::cast(out)] = py::array_t<int32_t>(t.get_shape(), t.data<int32_t>());
-            break;
-        }
-        case ov::element::Type_t::i64: {
-            res[py::cast(out)] = py::array_t<int64_t>(t.get_shape(), t.data<int64_t>());
-            break;
-        }
-        case ov::element::Type_t::u8: {
-            res[py::cast(out)] = py::array_t<uint8_t>(t.get_shape(), t.data<uint8_t>());
-            break;
-        }
-        case ov::element::Type_t::u16: {
-            res[py::cast(out)] = py::array_t<uint16_t>(t.get_shape(), t.data<uint16_t>());
-            break;
-        }
-        case ov::element::Type_t::u32: {
-            res[py::cast(out)] = py::array_t<uint32_t>(t.get_shape(), t.data<uint32_t>());
-            break;
-        }
-        case ov::element::Type_t::u64: {
-            res[py::cast(out)] = py::array_t<uint64_t>(t.get_shape(), t.data<uint64_t>());
-            break;
-        }
-        case ov::element::Type_t::bf16: {
-            res[py::cast(out)] = py::array(py::dtype("float16"), t.get_shape(), t.data<ov::bfloat16>());
-            break;
-        }
-        case ov::element::Type_t::f16: {
-            res[py::cast(out)] = py::array(py::dtype("float16"), t.get_shape(), t.data<ov::float16>());
-            break;
-        }
-        case ov::element::Type_t::f32: {
-            res[py::cast(out)] = py::array_t<float>(t.get_shape(), t.data<float>());
-            break;
-        }
-        case ov::element::Type_t::f64: {
-            res[py::cast(out)] = py::array_t<double>(t.get_shape(), t.data<double>());
-            break;
-        }
-        case ov::element::Type_t::boolean: {
-            res[py::cast(out)] = py::array_t<bool>(t.get_shape(), t.data<bool>());
-            break;
-        }
-        default: {
-            break;
-        }
-        }
+    for (const auto& out : request.m_outputs) {
+        res[py::cast(out)] = array_helpers::array_from_tensor(request.m_request.get_tensor(out));
     }
     return res;
 }

@@ -85,7 +85,7 @@ declared in `namespace opset11`.
 * [I420toBGR](image/I420toBGR_8.md)
 * [I420toRGB](image/I420toRGB_8.md)
 * [If](condition/If_8.md)
-* [Interpolate](image/Interpolate_4.md)
+* [Interpolate](image/Interpolate_11.md)
 * [IRDFT](signals/IRDFT_9.md)
 * [IsInf](comparison/IsInf_10.md)
 * [IsNaN](comparison/IsNaN_10.md)

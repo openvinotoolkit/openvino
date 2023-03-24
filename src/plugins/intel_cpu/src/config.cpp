@@ -139,28 +139,29 @@ void Config::readProperties(const std::map<std::string, std::string> &prop) {
             if (val == PluginConfigParams::YES) {
                 if (dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core)) {
                     enforceBF16 = true;
-                    manualEnforceBF16 = true;
                 } else {
                     IE_THROW() << "Platform doesn't support BF16 format";
                 }
             } else if (val == PluginConfigParams::NO) {
                 enforceBF16 = false;
-                manualEnforceBF16 = false;
             } else {
                 IE_THROW() << "Wrong value for property key " << PluginConfigParams::KEY_ENFORCE_BF16
                     << ". Expected only YES/NO";
+            }
+        } else if (key == ov::device::id.name()) {
+            device_id = val;
+            if (!device_id.empty()) {
+                IE_THROW() << "CPU plugin supports only '' as device id";
             }
         } else if (key == ov::inference_precision.name()) {
             if (val == "bf16") {
                 if (dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core)) {
                     enforceBF16 = true;
-                    manualEnforceBF16 = true;
                 } else {
                     IE_THROW() << "Platform doesn't support BF16 format";
                 }
             } else if (val == "f32") {
                 enforceBF16 = false;
-                manualEnforceBF16 = false;
             } else {
                 IE_THROW() << "Wrong value for property key " << ov::inference_precision.name()
                     << ". Supported values: bf16, f32";
@@ -247,6 +248,8 @@ void Config::updateProperties() {
     _config.insert({ PluginConfigParams::KEY_CPU_THROUGHPUT_STREAMS, std::to_string(streamExecutorConfig._streams) });
 
     _config.insert({ PluginConfigParams::KEY_CPU_THREADS_NUM, std::to_string(streamExecutorConfig._threads) });
+
+    _config.insert({ PluginConfigParams::KEY_DEVICE_ID, device_id });
 
     IE_SUPPRESS_DEPRECATED_START
         _config.insert({ PluginConfigParams::KEY_DUMP_EXEC_GRAPH_AS_DOT, dumpToDot });
