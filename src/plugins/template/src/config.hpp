@@ -34,6 +34,7 @@ struct Configuration {
     bool perf_count = true;
     ov::threading::IStreamsExecutor::Config streams_executor_config;
     ov::hint::PerformanceMode performance_mode = ov::hint::PerformanceMode::UNDEFINED;
+    bool disable_transformations = false;
 };
 // ! [configuration:header]
 
