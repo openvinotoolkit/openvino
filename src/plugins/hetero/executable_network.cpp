@@ -442,7 +442,8 @@ HeteroExecutableNetwork::HeteroExecutableNetwork(const InferenceEngine::CNNNetwo
         // disable caching for subgraphs, because the whole HERERO model is cached
         device_config[ov::cache_dir.name()] = "";
 
-        network._network = _heteroPlugin->GetCore()->LoadNetwork(network._clonedNetwork, network._device, device_config);
+        network._network =
+            _heteroPlugin->GetCore()->LoadNetwork(network._clonedNetwork, network._device, device_config);
     }
 }
 

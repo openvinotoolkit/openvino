@@ -18,10 +18,10 @@
 #include "ie_icore.hpp"
 #include "ie_ngraph_utils.hpp"
 #include "ie_performance_hints.hpp"
-#include "openvino/util/common_util.hpp"
 #include "openvino/pass/manager.hpp"
 #include "openvino/runtime/device_id_parser.hpp"
 #include "openvino/runtime/intel_gpu/properties.hpp"
+#include "openvino/util/common_util.hpp"
 #include "transformations/common_optimizations/dimension_tracking.hpp"
 #include "transformations/init_node_info.hpp"
 #include "transformations/utils/utils.hpp"
@@ -691,15 +691,17 @@ DeviceInformation AutoBatchInferencePlugin::ParseBatchDevice(const std::string& 
     return {deviceName, {{}}, batch};
 }
 
-DeviceInformation AutoBatchInferencePlugin::ParseMetaDevice(const std::string& devicesBatchCfg,
-                                                            const std::map<std::string, std::string>& user_config) const {
+DeviceInformation AutoBatchInferencePlugin::ParseMetaDevice(
+    const std::string& devicesBatchCfg,
+    const std::map<std::string, std::string>& user_config) const {
     auto metaDevice = ParseBatchDevice(devicesBatchCfg);
     metaDevice.config = GetCore()->GetSupportedConfig(metaDevice.deviceName, user_config);
 
     // check that no irrelevant config-keys left
     for (auto k : user_config) {
         const auto& name = k.first;
-        if (metaDevice.config.find(name) == metaDevice.config.end() && !ov::util::contains(supported_configKeys, name)) {
+        if (metaDevice.config.find(name) == metaDevice.config.end() &&
+            !ov::util::contains(supported_configKeys, name)) {
             IE_THROW() << "Unsupported config key: " << name;
         }
     }

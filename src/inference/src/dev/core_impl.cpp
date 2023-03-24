@@ -1242,7 +1242,7 @@ ov::AnyMap ov::CoreImpl::create_compile_config(const ov::Plugin& plugin, const o
     }
 
     // 2. Extract config keys which affect compilation process
-    auto caching_props = plugin.get_property(ov::caching_properties);
+    auto caching_props = plugin.get_property(ov::caching_properties, property_config);
     OPENVINO_ASSERT(!caching_props.empty(), "ov::caching_properties returned by ", plugin.get_name(), " are empty");
 
     ov::AnyMap compile_config;

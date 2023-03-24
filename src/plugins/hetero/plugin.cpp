@@ -35,19 +35,41 @@ Engine::Engine() {
 
 namespace {
 
-Engine::Configs mergeConfigs(Engine::Configs hetero_config, const Engine::Configs& user_config) {
+Engine::Configs mergeHeteroConfigs(Engine::Configs hetero_config, const Engine::Configs& user_config) {
     for (auto&& kvp : user_config) {
         if (hetero_config.find(kvp.first) != hetero_config.end())
             hetero_config[kvp.first] = kvp.second;
     }
+
+    auto target_fallback_it = user_config.find("TARGET_FALLBACK");
+    if (target_fallback_it != user_config.end()) {
+        hetero_config[target_fallback_it->first] = target_fallback_it->second;
+    } else {
+        auto device_priority_it = user_config.find(ov::device::priorities.name());
+        if (device_priority_it != user_config.end()) {
+            hetero_config[device_priority_it->first] = device_priority_it->second;
+        }
+    }
+
     return hetero_config;
 }
 
-Engine::Configs mergeConfigs(Engine::Configs hetero_config, const ov::AnyMap& user_config) {
+Engine::Configs mergeHeteroConfigs(Engine::Configs hetero_config, const ov::AnyMap& user_config) {
     for (auto&& kvp : user_config) {
         if (hetero_config.find(kvp.first) != hetero_config.end())
             hetero_config[kvp.first] = kvp.second.as<std::string>();
     }
+
+    auto target_fallback_it = user_config.find("TARGET_FALLBACK");
+    if (target_fallback_it != user_config.end()) {
+        hetero_config[target_fallback_it->first] = target_fallback_it->second.as<std::string>();
+    } else {
+        auto device_priority_it = user_config.find(ov::device::priorities.name());
+        if (device_priority_it != user_config.end()) {
+            hetero_config[device_priority_it->first] = device_priority_it->second.as<std::string>();
+        }
+    }
+
     return hetero_config;
 }
 
@@ -81,7 +103,7 @@ InferenceEngine::IExecutableNetworkInternal::Ptr Engine::LoadExeNetworkImpl(cons
     if (GetCore() == nullptr) {
         IE_THROW() << "Please, work with HETERO device via InferencEngine::Core object";
     }
-    auto hetero_config = mergeConfigs(_config, user_config);
+    auto hetero_config = mergeHeteroConfigs(_config, user_config);
     std::string fallbackDevicesStr = GetTargetFallback(hetero_config);
     DeviceMetaInformationMap metaDevices = GetDevicePlugins(fallbackDevicesStr, user_config);
 
@@ -96,7 +118,7 @@ InferenceEngine::IExecutableNetworkInternal::Ptr Engine::LoadExeNetworkImpl(cons
 InferenceEngine::IExecutableNetworkInternal::Ptr Engine::ImportNetwork(
     std::istream& heteroModel,
     const std::map<std::string, std::string>& user_config) {
-    return std::make_shared<HeteroExecutableNetwork>(heteroModel, mergeConfigs(_config, user_config), this);
+    return std::make_shared<HeteroExecutableNetwork>(heteroModel, mergeHeteroConfigs(_config, user_config), this);
 }
 
 Engine::DeviceMetaInformationMap Engine::GetDevicePlugins(const std::string& targetFallback,
@@ -130,7 +152,7 @@ QueryNetworkResult Engine::QueryNetwork(const CNNNetwork& network, const Configs
         IE_THROW() << "Please, work with HETERO device via InferencEngine::Core object";
     }
 
-    auto hetero_config = mergeConfigs(_config, user_config);
+    auto hetero_config = mergeHeteroConfigs(_config, user_config);
     std::string fallbackDevicesStr = GetTargetFallback(hetero_config);
     DeviceMetaInformationMap metaDevices = GetDevicePlugins(fallbackDevicesStr, user_config);
 
@@ -171,7 +193,7 @@ Parameter Engine::GetMetric(const std::string& name, const std::map<std::string,
     } else if (ov::caching_properties == name) {
         return decltype(ov::caching_properties)::value_type{ov::hetero::caching_device_properties.name()};
     } else if (ov::hetero::caching_device_properties == name) {
-        std::string targetFallback = GetTargetFallback(mergeConfigs(_config, user_options));
+        std::string targetFallback = GetTargetFallback(mergeHeteroConfigs(_config, user_options));
         return decltype(ov::hetero::caching_device_properties)::value_type{DeviceCachingProperties(targetFallback)};
     } else if (METRIC_KEY(SUPPORTED_METRICS) == name) {
         IE_SET_METRIC_RETURN(SUPPORTED_METRICS,

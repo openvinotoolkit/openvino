@@ -19,9 +19,9 @@
 #include <vector>
 
 #include "async_infer_request.hpp"
-#include "plugin.hpp"
 #include "ie_icore.hpp"
 #include "infer_request.hpp"
+#include "plugin.hpp"
 
 namespace HeteroPlugin {
 
@@ -43,9 +43,7 @@ public:
     /**
      * @brief Import from opened file constructor
      */
-    HeteroExecutableNetwork(std::istream& heteroModel,
-                            const Engine::Configs& config,
-                            Engine* plugin);
+    HeteroExecutableNetwork(std::istream& heteroModel, const Engine::Configs& config, Engine* plugin);
 
     InferenceEngine::IInferRequestInternal::Ptr CreateInferRequestImpl(
         InferenceEngine::InputsDataMap networkInputs,
