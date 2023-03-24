@@ -111,6 +111,9 @@ private:
                 }
             }
 
+            // MetaGraph may have a list of signatures, but at this moment we need information only about
+            // "serving_default" signature which contains information about inputs/outputs names for the
+            // model. Situation when it is missing in a file also could be.
             auto serving_default = validSignatures.find("serving_default");
 
             if (serving_default != validSignatures.end()) {
