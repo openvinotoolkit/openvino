@@ -53,9 +53,7 @@ OpenVINO plugin dynamic library consists of several main components:
 7. [Remote Tensor](@ref openvino_docs_ov_plugin_dg_remote_tensor)
     - Provides the device specific remote tensor API and implementation.
 
-> **NOTE**: This documentation is written based on the `Template` plugin, which demonstrates plugin 
-
-development details. Find the complete code of the `Template`, which is fully compilable and up-to-date,
+> **NOTE**: This documentation is written based on the `Template` plugin, which demonstrates plugin development details. Find the complete code of the `Template`, which is fully compilable and up-to-date,
 at `<openvino source dir>/src/plugins/template`.
 
 
