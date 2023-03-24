@@ -59,7 +59,7 @@ std::vector<TShape> shape_infer(const SpaceToBatch* op,
 
         auto blocks = get_input_const_data_as<TShape, int64_t>(op, 1, constant_data);
         if (blocks) {
-            TVal block_prod = std::accumulate(begin(*blocks), end(*blocks), 1, std::multiplies<int64_t>());
+            TVal block_prod = std::accumulate(begin(*blocks), end(*blocks), int64_t(1), std::multiplies<int64_t>());
             out_shape.push_back(data_shape[0] * block_prod);
         } else {
             out_shape.emplace_back(dim::inf_bound);
