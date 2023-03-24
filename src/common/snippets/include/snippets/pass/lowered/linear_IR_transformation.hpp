@@ -25,7 +25,7 @@ public:
     // Note that get_type_info_static and get_type_info are needed to mimic OPENVINO_RTTI interface,
     // so the standard OPENVINO_RTTI(...) macros could be used in derived classes.
     _OPENVINO_HIDDEN_METHOD static const ::ov::DiscreteTypeInfo& get_type_info_static() {
-        static ::ov::DiscreteTypeInfo type_info_static {"LinearIRTransformation", 0, "util"};
+        static ::ov::DiscreteTypeInfo type_info_static {"LinearIRTransformation"};
         type_info_static.hash();
         return type_info_static;
     }
