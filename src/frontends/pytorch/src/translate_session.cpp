@@ -20,10 +20,21 @@ namespace pytorch {
 using namespace ov::op;
 
 TranslateSession::TranslateSession(const ov::frontend::InputModel::Ptr& input_model,
-                                   const std::map<std::string, CreatorFunction>& translator_map)
+                                   const std::map<std::string, CreatorFunction>& translator_map,
+                                   const std::shared_ptr<TelemetryExtension>& telemetry)
     : m_input_model(input_model),
       m_translator_map(translator_map),
+      m_telemetry(telemetry),
       m_ov_model(nullptr) {}
+
+TranslateSession::~TranslateSession() {
+    if (m_telemetry) {
+        // Send statistics
+        for (const auto& op : m_op_statistics) {
+            m_telemetry->send_event("op_count", "pytorch_" + op.first, static_cast<int>(op.second));
+        }
+    }
+}
 
 std::shared_ptr<ov::Model> TranslateSession::get_converted_model() {
     if (m_ov_model) {
@@ -118,13 +129,15 @@ std::shared_ptr<Model> TranslateSession::convert_pytorch_model(
                 }
             }
             auto context = NodeContext(node, external_tensor_map, tensor_map, parameters, mutated_tensors, this);
+            // Add op type in the statistics
+            m_op_statistics[context.get_op_type()]++;
             auto converted_outputs = convert_node(context);
 
             auto fw_outputs = node->outputs();
             // Ops with subgraphs or with mutated inputs may have more outputs after conversion compared to pytorch ones
             FRONT_END_OP_CONVERSION_CHECK(fw_outputs.size() <= converted_outputs.size(),
                                           "Number of ",
-                                          node->get_op_type(),
+                                          context.get_op_type(),
                                           " outputs greater then number of converted outputs.");
 
             // TODO: Make sure that mapping of fw_outputs to converted_outputs does always work
