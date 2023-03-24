@@ -223,9 +223,9 @@ public:
         } else {
             local_op = local_op_default;
             for (size_t i = 0; i < local_op->get_input_size(); i++) {
-                auto parameter = dynamic_cast<ov::opset1::Parameter*>(local_op->get_input_node_ptr(i));
-                if (parameter != nullptr) {
+                if (auto parameter = dynamic_cast<ov::opset1::Parameter*>(local_op->get_input_node_ptr(i))) {
                     parameter->set_partial_shape(input_shapes[i].to_partial_shape());
+                    parameter->validate_and_infer_types();
                 }
             }
         }

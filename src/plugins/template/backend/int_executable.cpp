@@ -83,9 +83,9 @@ public:
         for (size_t i = 0; i < args.size(); ++i) {
             auto output = node->get_input_source_output(i);
             orig_shapes.push_back(output.get_partial_shape());
-            auto parameter = dynamic_cast<ov::op::v0::Parameter*>(node->get_input_node_ptr(i));
-            if (parameter != nullptr) {
+            if (auto parameter = dynamic_cast<ov::op::v0::Parameter*>(node->get_input_node_ptr(i))) {
                 parameter->set_partial_shape(args[i].get_shape());
+                parameter->validate_and_infer_types();
             }
         }
     }
@@ -93,9 +93,9 @@ public:
     ~TemporaryOverrideOutputs() {
         for (size_t i = 0; i < orig_shapes.size(); ++i) {
             auto output = node->get_input_source_output(i);
-            auto parameter = dynamic_cast<ov::op::v0::Parameter*>(node->get_input_node_ptr(i));
-            if (parameter != nullptr) {
+            if (auto parameter = dynamic_cast<ov::op::v0::Parameter*>(node->get_input_node_ptr(i))) {
                 parameter->set_partial_shape(orig_shapes[i]);
+                parameter->validate_and_infer_types();
             }
         }
     }
