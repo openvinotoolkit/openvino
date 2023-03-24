@@ -22,6 +22,7 @@ class TestSubprocessMoConvert(unittest.TestCase):
         params = [sys.executable, mo_runner, "--help"]
         _, mo_output, _ = shell(params)
 
+        # We don't expect PyTorch specific parameters to be in help message of the MO tool.
         for group in mo_convert_params:
             if group == 'Pytorch-specific parameters:':
                 continue

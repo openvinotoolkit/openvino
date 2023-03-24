@@ -22,113 +22,10 @@ import openvino
 from openvino.tools.mo.front.extractor import split_node_in_port
 from openvino.tools.mo.middle.passes.convert_data_type import destination_type_to_np_data_type
 from openvino.tools.mo.middle.passes.convert_data_type import np_data_type_to_destination_type
-from openvino.tools.mo.utils import import_extensions
 from openvino.tools.mo.utils.error import Error
 from openvino.tools.mo.utils.utils import refer_to_faq_msg, get_mo_root_dir
 from openvino.tools.mo.utils.version import get_version
-
-cli_tool_specific_descriptions = {
-    'input_model':
-        'Tensorflow*: a file with a pre-trained model '
-        '(binary or text .pb file after freezing). '
-        'Caffe*: a model proto file with model weights.',
-    'input_shape':
-        'Input shape(s) that should be fed to an input node(s) '
-        'of the model. Shape is defined as a comma-separated '
-        'list of integer numbers enclosed in parentheses or '
-        'square brackets, for example [1,3,227,227] or '
-        '(1,227,227,3), where the order of dimensions depends '
-        'on the framework input layout of the model. For '
-        'example, [N,C,H,W] is used for ONNX* models and '
-        '[N,H,W,C] for TensorFlow* models. The shape can '
-        'contain undefined dimensions (? or -1) and should fit '
-        'the dimensions defined in the input operation of the '
-        'graph. Boundaries of undefined dimension can be '
-        'specified with ellipsis, for example '
-        '[1,1..10,128,128]. One boundary can be undefined, for '
-        'example [1,..100] or [1,3,1..,1..]. If there are '
-        'multiple inputs in the model, --input_shape should '
-        'contain definition of shape for each input separated '
-        'by a comma, for example: [1,3,227,227],[2,4] for a '
-        'model with two inputs with 4D and 2D shapes. '
-        'Alternatively, specify shapes with the --input option.',
-    'input':
-        'Quoted list of comma-separated input nodes names with '
-        'shapes, data types, and values for freezing. The order '
-        'of inputs in converted model is the same as order of '
-        'specified operation names. The shape and value are '
-        'specified as comma-separated lists. The data type of '
-        'input node is specified in braces and can have one of '
-        'the values: f64 (float64), f32 (float32), f16 '
-        '(float16), i64 (int64), i32 (int32), u8 (uint8), '
-        'boolean (bool). Data type is optional. If it\'s not '
-        'specified explicitly then there are two options: if '
-        'input node is a parameter, data type is taken from the '
-        'original node dtype, if input node is not a parameter, '
-        'data type is set to f32. Example, to set `input_1` '
-        'with shape [1,100], and Parameter node `sequence_len` '
-        'with scalar input with value `150`, and boolean input '
-        '`is_training` with `False` value use the following '
-        'format: \n '
-        '\"input_1[1,100],sequence_len->150,is_training->False\". '
-        'Another example, use the following format to set input '
-        'port 0 of the node `node_name1` with the shape [3,4] '
-        'as an input node and freeze output port 1 of the node '
-        '\"node_name2\" with the value [20,15] of the int32 type '
-        'and shape [2]: \n '
-        '\"0:node_name1[3,4],node_name2:1[2]{i32}->[20,15]\".',
-    'mean_values':
-        'Mean values to be used for the input image per '
-        'channel. Values to be provided in the (R,G,B) or '
-        '[R,G,B] format. Can be defined for desired input of '
-        'the model, for example: "--mean_values '
-        'data[255,255,255],info[255,255,255]". The exact '
-        'meaning and order of channels depend on how the '
-        'original model was trained.',
-    'scale_values':
-        'Scale values to be used for the input image per '
-        'channel. Values are provided in the (R,G,B) or [R,G,B] '
-        'format. Can be defined for desired input of the model, '
-        'for example: "--scale_values '
-        'data[255,255,255],info[255,255,255]". The exact '
-        'meaning and order of channels depend on how the '
-        'original model was trained. If both --mean_values and '
-        '--scale_values are specified, the mean is subtracted '
-        'first and then scale is applied regardless of the '
-        'order of options in command line.',
-    'source_layout':
-        'Layout of the input or output of the model in the '
-        'framework. Layout can be specified in the short form, '
-        'e.g. nhwc, or in complex form, e.g. \"[n,h,w,c]\". '
-        'Example for many names: \"in_name1([n,h,w,c]),in_name2('
-        'nc),out_name1(n),out_name2(nc)\". Layout can be '
-        'partially defined, \"?\" can be used to specify '
-        'undefined layout for one dimension, \"...\" can be used '
-        'to specify undefined layout for multiple dimensions, '
-        'for example \"?c??\", \"nc...\", \"n...c\", etc.',
-    'transform':
-        'Apply additional transformations. Usage: \"--transform '
-        'transformation_name1[args],transformation_name2...\" '
-        'where [args] is key=value pairs separated by '
-        'semicolon. Examples: \"--transform LowLatency2\" or \"--'
-        'transform Pruning" or "--transform '
-        'LowLatency2[use_const_initializer=False]" or "--'
-        'transform "MakeStateful[param_res_names= {\'input_name_1\':'
-        '\'output_name_1\',\'input_name_2\':\'output_name_2\'}]\" \n'
-        'Available transformations: "LowLatency2", "MakeStateful", "Pruning"',
-    'extensions':
-        'Paths or a comma-separated list of paths to libraries '
-        '(.so or .dll) with extensions. For the legacy MO path '
-        '(if `--use_legacy_frontend` is used), a directory or a '
-        'comma-separated list of directories with extensions '
-        'are supported. To disable all extensions including '
-        'those that are placed at the default location, pass an empty string.',
-    'transformations_config':
-        'Use the configuration file with transformations '
-        'description. Transformations file can be specified as '
-        'relative path from the current directory, as absolute '
-        'path or as arelative path from the mo root directory.',
-    }
+from openvino.tools.mo.utils.cli_tool_specific_descriptions import get_cli_tool_specific_descriptions
 
 
 def extension_path_to_str_or_extensions_class(extension):
@@ -574,6 +471,7 @@ def get_mo_convert_params():
         'saved_model_tags': str_list_to_str
     }
     params_with_paths = get_params_with_paths_list()
+    cli_tool_specific_descriptions = get_cli_tool_specific_descriptions()
 
     for group_name, param_group in mo_convert_params.items():
         for param_name, d in param_group.items():
@@ -843,6 +741,7 @@ def add_args_by_description(args_group, params_description):
     special_types = {'input_model': readable_file_or_dir, 'scale': float, 'extensions': readable_dirs_or_files_or_empty, 'batch': check_positive}
     param_aliases = {'input_model': {'-w', '-m'}, 'scale': {'-s'}, 'batch': {'-b'}, 'input_proto': {'-d'}}
 
+    cli_tool_specific_descriptions = get_cli_tool_specific_descriptions()
     for param_name, param_description in params_description.items():
         if param_name == 'help':
             continue
@@ -921,6 +820,22 @@ def get_common_cli_parser(parser: argparse.ArgumentParser = None):
                                    'It will be DEPRECATED in future releases. '
                                    'Use --input option to specify a value for freezing.',
                               default=None)
+    common_group.add_argument('--static_shape',
+                              help='Enables IR generation for fixed input shape (folding `ShapeOf` operations and '
+                                   'shape-calculating sub-graphs to `Constant`). Changing model input shape using '
+                                   'the OpenVINO Runtime API in runtime may fail for such an IR.',
+                              action='store_true', default=False)
+    common_group.add_argument("--use_new_frontend",
+                              help='Force the usage of new Frontend of Model Optimizer for model conversion into IR. '
+                                   'The new Frontend is C++ based and is available for ONNX* and PaddlePaddle* models. '
+                                   'Model optimizer uses new Frontend for ONNX* and PaddlePaddle* by default that means '
+                                   '`--use_new_frontend` and `--use_legacy_frontend` options are not specified.',
+                              action='store_true', default=False)
+    common_group.add_argument("--use_legacy_frontend",
+                              help='Force the usage of legacy Frontend of Model Optimizer for model conversion into IR. '
+                                   'The legacy Frontend is Python based and is available for TensorFlow*, ONNX*, MXNet*, '
+                                   'Caffe*, and Kaldi* models.',
+                              action='store_true', default=False)
     add_args_by_description(common_group, mo_convert_params_common)
     return parser
 
@@ -1070,8 +985,8 @@ def get_mxnet_cli_parser(parser: argparse.ArgumentParser = None):
         parser = argparse.ArgumentParser(usage='%(prog)s [options]')
         get_common_cli_parser(parser=parser)
 
-    mx_group = parser.add_argument_group('Mxnet-specific parameters')
-    mo_convert_params_mxnet = get_mo_convert_params()['Mxnet-specific parameters:']
+    mx_group = parser.add_argument_group('MXNet-specific parameters')
+    mo_convert_params_mxnet = get_mo_convert_params()['MXNet-specific parameters:']
     add_args_by_description(mx_group, mo_convert_params_mxnet)
 
     return parser

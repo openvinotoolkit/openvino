@@ -623,15 +623,25 @@ def driver(argv: argparse.Namespace, non_default_params: dict):
 
 
 def args_dict_to_list(cli_parser, **kwargs):
+    # This method is needed to prepare args from convert_model() for args_parse().
+    # The method will not be needed when cli_parser checks are moved from cli_parser to a separate pass.
+    import inspect
+    from openvino.tools.mo import convert_model
+    signature = inspect.signature(convert_model)
     result = []
     for key, value in kwargs.items():
-        if value is not None and cli_parser.get_default(key) != value:
-            # skip parser checking for non str objects
-            if not isinstance(value, str):
-                continue
-            result.append('--{}'.format(key))
-            if not isinstance(value, bool):
-                result.append(value)
+        if value is None:
+            continue
+        if key in signature.parameters and signature.parameters[key].default == value:
+            continue
+        if cli_parser.get_default(key) == value:
+            continue
+        # skip parser checking for non str objects
+        if not isinstance(value, (str, bool)):
+            continue
+        result.append('--{}'.format(key))
+        if not isinstance(value, bool):
+            result.append(value)
 
     return result
 
@@ -736,9 +746,6 @@ def pack_params_to_args_namespace(args: dict, cli_parser: argparse.ArgumentParse
 def _convert(cli_parser: argparse.ArgumentParser, framework, args):
     if 'help' in args and args['help']:
         show_mo_convert_help()
-        return None, None
-    if 'version' in args and args['version']:
-        print('Version of Model Optimizer is: {}'.format(get_version()))
         return None, None
 
     telemetry = tm.Telemetry(tid=get_tid(), app_name='Model Optimizer', app_version=get_simplified_mo_version())

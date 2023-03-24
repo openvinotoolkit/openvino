@@ -2021,8 +2021,8 @@ class TestConvertModelParamsParsing(unittest.TestCase):
             'Framework-agnostic parameters:': {'input_model', 'input_shape', 'scale', 'reverse_input_channels',
                                                'log_level', 'input', 'output', 'mean_values', 'scale_values', 'source_layout',
                                                'target_layout', 'layout', 'compress_to_fp16', 'transform', 'extensions',
-                                               'batch', 'silent', 'version', 'static_shape', 'progress', 'stream_output',
-                                               'transformations_config', 'use_new_frontend', 'use_legacy_frontend'},
+                                               'batch', 'silent', 'version', 'progress', 'stream_output',
+                                               'transformations_config'},
             'Caffe*-specific parameters:': {'input_proto', 'caffe_parser_path', 'k', 'disable_omitting_optional',
                                             'enable_flattening_nested_params'},
             'TensorFlow*-specific parameters:': {'input_model_is_text', 'input_checkpoint', 'input_meta_graph',
@@ -2030,10 +2030,10 @@ class TestConvertModelParamsParsing(unittest.TestCase):
                                                  'tensorflow_custom_operations_config_update',
                                                  'tensorflow_object_detection_api_pipeline_config',
                                                  'tensorboard_logdir', 'tensorflow_custom_layer_libraries'},
-            'Mxnet-specific parameters:': {'input_symbol', 'nd_prefix_name', 'pretrained_model_name', 'save_params_from_nd',
+            'MXNet-specific parameters:': {'input_symbol', 'nd_prefix_name', 'pretrained_model_name', 'save_params_from_nd',
                                            'legacy_mxnet_model', 'enable_ssd_gluoncv'},
             'Kaldi-specific parameters:': {'counts', 'remove_output_softmax', 'remove_memory'},
-            'Pytorch-specific parameters:': {'example_input', 'onnx_opset_version', 'input_signature'}
+            'PyTorch-specific parameters:': {'example_input', 'onnx_opset_version', 'input_signature'}
         }
 
         params = get_mo_convert_params()
@@ -2045,7 +2045,7 @@ class TestConvertModelParamsParsing(unittest.TestCase):
         for group_name, params in ref_params.items():
             for param_name in params:
                 param_name = '--' + param_name
-                if group_name == 'Pytorch-specific parameters:':
+                if group_name == 'PyTorch-specific parameters:':
                     assert param_name not in cli_parser._option_string_actions
                 else:
                     assert param_name in cli_parser._option_string_actions
