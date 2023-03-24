@@ -126,17 +126,17 @@ ov::hint::PerformanceMode get_performance_hint(const std::string& device, const 
         supported_properties.end()) {
         if (FLAGS_hint != "") {
             if (FLAGS_hint == "throughput" || FLAGS_hint == "tput") {
-                slog::warn << "Device(" << device << ") performance hint is set to THROUGHPUT" << slog::endl;
                 ov_perf_hint = ov::hint::PerformanceMode::THROUGHPUT;
             } else if (FLAGS_hint == "latency") {
-                slog::warn << "Device(" << device << ") performance hint is set to LATENCY" << slog::endl;
                 ov_perf_hint = ov::hint::PerformanceMode::LATENCY;
             } else if (FLAGS_hint == "cumulative_throughput" || FLAGS_hint == "ctput") {
-                slog::warn << "Device(" << device << ") performance hint is set to CUMULATIVE_THROUGHPUT" << slog::endl;
                 ov_perf_hint = ov::hint::PerformanceMode::CUMULATIVE_THROUGHPUT;
             } else if (FLAGS_hint == "none") {
-                slog::warn << "No device(" << device << ") performance hint is set" << slog::endl;
                 ov_perf_hint = ov::hint::PerformanceMode::UNDEFINED;
+            } else {
+                throw std::logic_error(
+                    "Incorrect performance hint. Please set -hint option to"
+                    "`throughput`(tput), `latency', 'cumulative_throughput'(ctput) value or 'none'.");
             }
         } else {
             ov_perf_hint =

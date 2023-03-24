@@ -60,7 +60,7 @@ def parse_args():
                            'Default value is CPU. Use \'-d HETERO:<comma separated devices list>\' format to specify HETERO plugin. '
                            'Use \'-d MULTI:<comma separated devices list>\' format to specify MULTI plugin. '
                            'The application looks for a suitable plugin for the specified device.')
-    args.add_argument('-hint', '--perf_hint', type=str, required=False, default='', choices=['throughput', 'cumulative_throughput', 'latency', 'none'],
+    args.add_argument('-hint', '--perf_hint', type=str, required=False, default='', choices=('throughput', 'tput', 'cumulative_throughput', 'ctput', 'latency', 'none'),
                       help='Optional. Performance hint (latency or throughput or cumulative_throughput or none). Performance hint allows the OpenVINO device to select the right model-specific settings.\n'
                             '\'throughput\': device performance mode will be set to THROUGHPUT. \n'
                             '\'cumulative_throughput\': device performance mode will be set to CUMULATIVE_THROUGHPUT. \n'
