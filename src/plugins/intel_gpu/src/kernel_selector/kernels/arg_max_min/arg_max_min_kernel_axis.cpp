@@ -123,7 +123,7 @@ KernelsData ArgMaxMinKernelAxis::GetKernelsData(const Params& params, const opti
         return {};
     }
     const arg_max_min_params& orgParams = static_cast<const arg_max_min_params&>(params);
-    bool is_dynamic = orgParams.outputs[0].is_dynamic();
+    bool is_dynamic = orgParams.has_dynamic_tensors();
 
     auto dispatchData = SetDefault(orgParams);
     KernelData kd = KernelData::Default<arg_max_min_params>(params);

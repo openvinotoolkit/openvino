@@ -70,7 +70,7 @@ KernelsData ArgMaxMinKernelBase::GetCommonKernelsData(const Params& params, cons
                      (uint32_t)orgParams.inputs.size(),
                      GetFusedPrimitiveInputsCount(params),
                      (uint32_t)orgParams.outputs.size(),
-                     orgParams.outputs[0].is_dynamic());
+                     orgParams.has_dynamic_tensors());
 
     return {kd};
 }
