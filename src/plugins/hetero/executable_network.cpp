@@ -498,7 +498,7 @@ HeteroExecutableNetwork::HeteroExecutableNetwork(std::istream& heteroModel,
         InferenceEngine::SoExecutableNetworkInternal executableNetwork;
         CNNNetwork cnnnetwork;
         bool loaded = false;
-        if (_heteroPlugin->GetCore()->DeviceSupportsImportExport(deviceName)) {
+        if (_heteroPlugin->GetCore()->DeviceSupportsModelCaching(deviceName)) {
             executableNetwork = _heteroPlugin->GetCore()->ImportNetwork(heteroModel, deviceName, loadConfig);
         } else {
             // read XML content
@@ -699,7 +699,7 @@ void HeteroExecutableNetwork::Export(std::ostream& heteroModel) {
     heteroModel << std::endl;
 
     for (auto&& subnetwork : _networks) {
-        if (_heteroPlugin->GetCore()->DeviceSupportsImportExport(subnetwork._device)) {
+        if (_heteroPlugin->GetCore()->DeviceSupportsModelCaching(subnetwork._device)) {
             subnetwork._network->Export(heteroModel);
         } else {
             auto subnet = subnetwork._clonedNetwork;

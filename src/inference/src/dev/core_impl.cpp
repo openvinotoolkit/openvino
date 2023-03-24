@@ -299,8 +299,8 @@ ov::Parsed ov::parseDeviceNameIntoConfig(const std::string& deviceName, const An
     };
 
     // clean-up auto-batch related properties
-    clean_batch_properties(updated_device_name, updated_config, ov::hint::allow_auto_batching.name());
-    clean_batch_properties(updated_device_name, updated_config, ov::auto_batch_timeout.name());
+    clean_batch_properties(updated_device_name, updated_config, ov::hint::allow_auto_batching);
+    clean_batch_properties(updated_device_name, updated_config, ov::auto_batch_timeout);
 
     return {updated_device_name, updated_config};
 }
@@ -558,7 +558,7 @@ ov::SoPtr<ov::ICompiledModel> ov::CoreImpl::compile_model(const std::shared_ptr<
     auto plugin = get_plugin(parsed._deviceName);
     ov::SoPtr<ov::ICompiledModel> res;
     auto cacheManager = coreConfig.get_cache_config_for_device(plugin, parsed._config)._cacheManager;
-    if (cacheManager && device_supports_import_export(plugin)) {
+    if (cacheManager && device_supports_model_caching(plugin)) {
         CacheContent cacheContent{cacheManager};
         cacheContent.blobId = ov::ModelCache::compute_hash(model, create_compile_config(plugin, parsed._config));
         auto lock = cacheGuard.get_hash_lock(cacheContent.blobId);
@@ -587,7 +587,7 @@ ov::SoPtr<ov::ICompiledModel> ov::CoreImpl::compile_model(const std::shared_ptr<
     auto plugin = get_plugin(parsed._deviceName);
     ov::SoPtr<ov::ICompiledModel> res;
     auto cacheManager = coreConfig.get_cache_config_for_device(plugin, parsed._config)._cacheManager;
-    if (cacheManager && device_supports_import_export(plugin)) {
+    if (cacheManager && device_supports_model_caching(plugin)) {
         CacheContent cacheContent{cacheManager};
         cacheContent.blobId = ov::ModelCache::compute_hash(model, create_compile_config(plugin, parsed._config));
         auto lock = cacheGuard.get_hash_lock(cacheContent.blobId);
@@ -629,7 +629,7 @@ ov::SoPtr<ov::ICompiledModel> ov::CoreImpl::compile_model(const std::string& mod
     ov::SoPtr<ov::ICompiledModel> compiled_model;
 
     auto cacheManager = coreConfig.get_cache_config_for_device(plugin, parsed._config)._cacheManager;
-    if (cacheManager && device_supports_import_export(plugin)) {
+    if (cacheManager && device_supports_model_caching(plugin)) {
         CacheContent cacheContent{cacheManager, model_path};
         cacheContent.blobId = ov::ModelCache::compute_hash(model_path, create_compile_config(plugin, parsed._config));
         auto lock = cacheGuard.get_hash_lock(cacheContent.blobId);
@@ -660,7 +660,7 @@ ov::SoPtr<ov::ICompiledModel> ov::CoreImpl::compile_model(const std::string& mod
     ov::SoPtr<ov::ICompiledModel> compiled_model;
 
     auto cacheManager = coreConfig.get_cache_config_for_device(plugin, parsed._config)._cacheManager;
-    if (cacheManager && device_supports_import_export(plugin)) {
+    if (cacheManager && device_supports_model_caching(plugin)) {
         CacheContent cacheContent{cacheManager};
         cacheContent.blobId =
             ov::ModelCache::compute_hash(model_str, weights, create_compile_config(plugin, parsed._config));
@@ -1121,25 +1121,26 @@ const std::vector<InferenceEngine::IExtensionPtr>& ov::CoreImpl::GetExtensions()
     return extensions;
 }
 
-bool ov::CoreImpl::device_supports_import_export(const std::string& deviceName) const {
+bool ov::CoreImpl::device_supports_model_caching(const std::string& deviceName) const {
     auto parsed = parseDeviceNameIntoConfig(deviceName);
-    return device_supports_import_export(get_plugin(parsed._deviceName));
+    return device_supports_model_caching(get_plugin(parsed._deviceName));
 }
 
-bool ov::CoreImpl::device_supports_property(const ov::Plugin& plugin, const std::string& key) const {
+bool ov::CoreImpl::device_supports_property(const ov::Plugin& plugin, const ov::PropertyName& key) const {
     return util::contains(plugin.get_property(ov::supported_properties), key);
 }
 
-bool ov::CoreImpl::device_supports_import_export(const ov::Plugin& plugin) const {
+bool ov::CoreImpl::device_supports_model_caching(const ov::Plugin& plugin) const {
     auto supportedMetricKeys = plugin.get_property(METRIC_KEY(SUPPORTED_METRICS), {}).as<std::vector<std::string>>();
-    auto it = std::find(supportedMetricKeys.begin(), supportedMetricKeys.end(), METRIC_KEY(IMPORT_EXPORT_SUPPORT));
-    auto supported =
-        (it != supportedMetricKeys.end()) && plugin.get_property(METRIC_KEY(IMPORT_EXPORT_SUPPORT), {}).as<bool>();
+    auto supported = util::contains(supportedMetricKeys, METRIC_KEY(IMPORT_EXPORT_SUPPORT)) &&
+                     plugin.get_property(METRIC_KEY(IMPORT_EXPORT_SUPPORT), {}).as<bool>();
     if (!supported) {
-        if (device_supports_property(plugin, ov::device::capabilities.name())) {
-            supported =
-                util::contains(plugin.get_property(ov::device::capabilities), ov::device::capability::EXPORT_IMPORT);
-        }
+        supported =
+            device_supports_property(plugin, ov::device::capabilities) &&
+            util::contains(plugin.get_property(ov::device::capabilities), ov::device::capability::EXPORT_IMPORT);
+    }
+    if (supported) {
+        supported = device_supports_property(plugin, ov::caching_properties);
     }
     return supported;
 }
@@ -1156,7 +1157,7 @@ ov::SoPtr<ov::ICompiledModel> ov::CoreImpl::compile_model_and_cache(const std::s
     OV_ITT_SCOPED_TASK(ov::itt::domains::IE, "CoreImpl::compile_model_and_cache");
     ov::SoPtr<ov::ICompiledModel> execNetwork;
     execNetwork = compile_model_with_preprocess(plugin, model, context, parsedConfig);
-    if (cacheContent.cacheManager && device_supports_import_export(plugin)) {
+    if (cacheContent.cacheManager && device_supports_model_caching(plugin)) {
         try {
             // need to export network for further import from "cache"
             OV_ITT_SCOPE(FIRST_INFERENCE, InferenceEngine::itt::domains::IE_LT, "Core::compile_model::Export");
@@ -1227,15 +1228,14 @@ ov::SoPtr<ov::ICompiledModel> ov::CoreImpl::load_model_from_cache(
 
 ov::AnyMap ov::CoreImpl::create_compile_config(const ov::Plugin& plugin, const ov::AnyMap& user_config) const {
     ov::AnyMap property_config;
-    ov::AnyMap compile_config;
 
-    // 0. Move TARGET_FALLBACK key to property_config
-    auto targetFallbackIt = user_config.find("TARGET_FALLBACK");
-    if (targetFallbackIt == user_config.end()) {
-        targetFallbackIt = user_config.find(ov::device::priorities.name());
+    // 0. Move ov::device::priorities / TARGET_FALLBACK key to property_config
+    auto device_priorities_it = user_config.find("TARGET_FALLBACK");
+    if (device_priorities_it == user_config.end()) {
+        device_priorities_it = user_config.find(ov::device::priorities.name());
     }
-    if (targetFallbackIt != user_config.end()) {
-        property_config[targetFallbackIt->first] = targetFallbackIt->second.as<std::string>();
+    if (device_priorities_it != user_config.end()) {
+        property_config[device_priorities_it->first] = device_priorities_it->second.as<std::string>();
     }
 
     // 1. Move DEVICE_ID key to property_config
@@ -1248,24 +1248,17 @@ ov::AnyMap ov::CoreImpl::create_compile_config(const ov::Plugin& plugin, const o
         // for the default device (e.g. DEVICE_ID = 0 for GPU)
     }
 
-    // 2. Replace DEVICE_ID with DEVICE_ARCHITECTURE value to identify device
-    if (device_supports_property(plugin, ov::device::architecture.name())) {
-        compile_config[ov::device::architecture.name()] =
-            plugin.get_property(ov::device::architecture, property_config);
-    } else {
-        // Take device name if device does not support DEVICE_ARCHITECTURE metric
-        compile_config[ov::device::architecture.name()] = plugin.get_name();
+    // 2. Extract config keys which affect compilation process
+    auto caching_props = plugin.get_property(ov::caching_properties);
+    OPENVINO_ASSERT(!caching_props.empty(), "ov::caching_properties returned by ", plugin.get_name(), " are empty");
+
+    ov::AnyMap compile_config;
+    for (const auto& prop : caching_props) {
+        // user_config values have higher priority than plugin parameters
+        auto it = user_config.find(prop);
+        compile_config[prop] = it == user_config.end() ? plugin.get_property(prop, property_config) : it->second;
     }
 
-    // 3. Extract config keys which affect compilation process
-    if (device_supports_property(plugin, ov::caching_properties.name())) {
-        auto cachingProps = plugin.get_property(ov::caching_properties);
-        for (const auto& prop : cachingProps) {
-            // user_config values have higher priority than plugin parameters
-            auto it = user_config.find(prop);
-            compile_config[prop] = it == user_config.end() ? plugin.get_property(prop, property_config) : it->second;
-        }
-    }
     return compile_config;
 }
 

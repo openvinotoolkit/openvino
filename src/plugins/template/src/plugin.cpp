@@ -6,6 +6,7 @@
 
 #include <memory>
 
+#include "cpp_interfaces/interface/ie_internal_plugin_config.hpp"
 #include "cpp_interfaces/interface/ie_iplugin_internal.hpp"
 #include "ie_plugin_config.hpp"
 #include "itt.hpp"
@@ -224,6 +225,7 @@ ov::Any ov::template_plugin::Plugin::get_property(const std::string& name, const
                                                     ov::device::full_name,
                                                     ov::device::architecture,
                                                     ov::device::capabilities,
+                                                    ov::caching_properties,
                                                     ov::range_for_async_infer_requests};
         return ro_properties;
     };
@@ -281,6 +283,9 @@ ov::Any ov::template_plugin::Plugin::get_property(const std::string& name, const
         // TODO: return device architecture for device specified by DEVICE_ID config
         std::string arch = "TEMPLATE";
         return decltype(ov::device::architecture)::value_type(arch);
+    } else if (ov::caching_properties == name) {
+        std::vector<ov::PropertyName> caching_properties = {ov::device::architecture};
+        return decltype(ov::caching_properties)::value_type(caching_properties);
     } else if (ov::device::capabilities == name) {
         // TODO: fill actual list of supported capabilities: e.g. Template device supports only FP32 and EXPORT_IMPORT
         std::vector<std::string> capabilities = {ov::device::capability::FP32, ov::device::capability::EXPORT_IMPORT};

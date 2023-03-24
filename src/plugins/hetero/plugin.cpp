@@ -177,6 +177,7 @@ Parameter Engine::GetMetric(const std::string& name, const std::map<std::string,
                                                       ov::device::full_name.name(),
                                                       METRIC_KEY(SUPPORTED_CONFIG_KEYS),
                                                       METRIC_KEY(IMPORT_EXPORT_SUPPORT),
+                                                      ov::caching_properties.name(),
                                                       ov::device::capabilities.name()});
     } else if (METRIC_KEY(SUPPORTED_CONFIG_KEYS) == name) {
         IE_SET_METRIC_RETURN(SUPPORTED_CONFIG_KEYS, getSupportedConfigKeys());
