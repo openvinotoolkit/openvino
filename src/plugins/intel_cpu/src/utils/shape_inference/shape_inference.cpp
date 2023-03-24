@@ -260,11 +260,8 @@ public:
     }
 };
 
-static inline ov::CoordinateDiff convertPadding(const ov::CoordinateDiff& newPads) {
-    return newPads;
-}
-
-static inline ov::CoordinateDiff convertPadding(const ov::Shape& newPads) {
+template <class TContainer>
+ov::CoordinateDiff convertPadding(const TContainer& newPads) {
     return {newPads.begin(), newPads.end()};
 }
 
