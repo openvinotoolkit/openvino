@@ -17,7 +17,7 @@ def save_to_tf2_savedmodel(tf2_model, path_to_saved_tf2_model):
 
 
 class CommonTF2LayerTest(CommonLayerTest):
-    input_model_key = "saved_model_dir"
+    input_model_key = "input_model"
 
     def produce_model_path(self, framework_model, save_path):
         if not getattr(self, 'tflite', False):
