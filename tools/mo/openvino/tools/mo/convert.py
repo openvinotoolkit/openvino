@@ -47,7 +47,6 @@ def convert_model(
         # PyTorch-specific parameters:
         example_input: Any = None,
         onnx_opset_version: int = None,
-        input_signature: Any = None,
 
         # TensorFlow*-specific parameters
         input_model_is_text: bool = None,
@@ -266,11 +265,6 @@ def convert_model(
             Sample of model input in original framework. For PyTorch it can be torch.Tensor.
         :param onnx_opset_version:
             Version of ONNX opset that is used for converting from PyTorch to ONNX.
-        :param input_signature:
-            PyTorch model forward method input signature. It will be detected automatically
-            for torch.nn.Module based model instances, for scripted models
-            may be required to set it manually. Example of usage: for forward method defined
-            as def forward(self, x, y), it will be ["x", "y"]
 
     TensorFlow*-specific parameters:
         :param input_model_is_text:

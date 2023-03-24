@@ -230,16 +230,16 @@ bool WeightableLayerTransformation::isQuantizedStatic(const std::shared_ptr<cons
     FakeQuantizeDequantization dequantizationOnWeights;
     if (reshapeIsRequired) {
         const auto reshape = layer->get_input_node_shared_ptr(1);
-        if (!ov::is_type<opset1::Reshape>(reshape)) {
-            return false;
-        }
+        std::shared_ptr<Node> parent = ov::is_type<opset1::Reshape>(reshape) ?
+            reshape->get_input_node_shared_ptr(0) :
+            reshape;
 
-        if (ov::is_type<opset1::FakeQuantize>(reshape->get_input_node_shared_ptr(0))) {
-            const std::shared_ptr<opset1::FakeQuantize> fq = ov::as_type_ptr<opset1::FakeQuantize>(reshape->get_input_node_shared_ptr(0));
+        const auto fq = ov::as_type_ptr<opset1::FakeQuantize>(parent);
+        if (fq != nullptr) {
             return NetworkHelper::isQuantizeSupported(fq);
         }
 
-        dequantizationOnWeights = NetworkHelper::getDequantization(reshape, defaultPrecisions, 0);
+        dequantizationOnWeights = NetworkHelper::getDequantization(parent, defaultPrecisions, 0, true);
     } else if (ov::is_type<opset1::FakeQuantize>(layer->get_input_node_shared_ptr(1))) {
         const std::shared_ptr<opset1::FakeQuantize> fq = ov::as_type_ptr<opset1::FakeQuantize>(layer->get_input_node_shared_ptr(1));
         return NetworkHelper::isQuantizeSupported(fq);

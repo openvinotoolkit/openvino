@@ -24,6 +24,14 @@ public:
     /// \returns true if iteration is successful, false otherwise
     virtual bool call(std::vector<ov::Tensor>& outputs, const std::vector<ov::Tensor>& inputs) = 0;
 
+    /// \param outputs vector of runtime::Tensor used as outputs
+    /// \param inputs vector of runtime::Tensor used as inputs
+    /// \param context Evaluation context
+    /// \returns true if iteration is successful, false otherwise
+    virtual bool call(std::vector<ov::Tensor>& outputs,
+                      const std::vector<ov::Tensor>& inputs,
+                      const ov::EvaluationContext& context) = 0;
+
     /// \brief Executes a single iteration of a Function.
     /// \param outputs vector of runtime::Tensor used as outputs
     /// \param inputs vector of runtime::Tensor used as inputs
