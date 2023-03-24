@@ -389,8 +389,6 @@ if(WIN32)
         ie_add_compiler_flags(/Qdiag-disable:161,177,556,1744,1879,2586,2651,3180,11075,15335)
     endif()
 
-	ie_add_compiler_flags(/Qspectre)
-
     # Debug information flags, by default CMake adds /Zi option
     # but provides no way to specify CMAKE_COMPILE_PDB_NAME on root level
     # In order to avoid issues with ninja we are replacing default flag instead of having two of them
