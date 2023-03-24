@@ -45,7 +45,6 @@ void MemoryAccess::set_input_port_descriptor(const PortDescriptor& desc, const s
 }
 
 void MemoryAccess::set_output_port_descriptor(const PortDescriptor& desc, const size_t i) {
-    // Logic is as same as ov::Node::get_output_descriptor
     NGRAPH_CHECK(i < m_output_ports.size(), "Index of output port descriptor should be less than count of output ports");
     m_output_ports[i] = { desc.count, desc.offset, i};
 }
@@ -61,36 +60,28 @@ const MemoryAccess::PortDescriptor& MemoryAccess::get_output_port_descriptor(con
 }
 
 void  MemoryAccess::set_input_count(size_t count, size_t idx) {
-    NGRAPH_CHECK(idx < m_input_ports.size(), "Index of input port descriptor should be less than count of input ports");
-    m_input_ports[idx].count = count;
+    set_input_port_descriptor({count, get_input_port_descriptor(idx).offset, idx}, idx);
 }
 void MemoryAccess::set_output_count(size_t count, size_t idx) {
-    NGRAPH_CHECK(idx < m_output_ports.size(), "Index of output port descriptor should be less than count of output ports");
-    m_output_ports[idx].count = count;
+    set_output_port_descriptor({count, get_output_port_descriptor(idx).offset, idx}, idx);
 }
 void  MemoryAccess::set_input_offset(size_t offset, size_t idx) {
-    NGRAPH_CHECK(idx < m_input_ports.size(), "Index of input port descriptor should be less than count of input ports");
-    m_input_ports[idx].offset = offset;
+    set_input_port_descriptor({get_input_port_descriptor(idx).count, offset, idx}, idx);
 }
 void MemoryAccess::set_output_offset(size_t offset, size_t idx) {
-    NGRAPH_CHECK(idx < m_output_ports.size(), "Index of output port descriptor should be less than count of output ports");
-    m_output_ports[idx].offset = offset;
+    set_output_port_descriptor({get_output_port_descriptor(idx).count, offset, idx}, idx);
 }
 size_t MemoryAccess::get_input_count(size_t idx) const {
-    NGRAPH_CHECK(idx < m_input_ports.size(), "Index of input port descriptor should be less than count of input ports");
-    return m_input_ports[idx].count;
+    return get_input_port_descriptor(idx).count;
 }
 size_t MemoryAccess::get_output_count(size_t idx) const {
-    NGRAPH_CHECK(idx < m_output_ports.size(), "Index of output port descriptor should be less than count of output ports");
-    return m_output_ports[idx].count;
+    return get_output_port_descriptor(idx).count;
 }
 size_t MemoryAccess::get_input_offset(size_t idx) const {
-    NGRAPH_CHECK(idx < m_input_ports.size(), "Index of input port descriptor should be less than count of input ports");
-    return m_input_ports[idx].offset;
+    return get_input_port_descriptor(idx).offset;
 }
 size_t MemoryAccess::get_output_offset(size_t idx) const {
-    NGRAPH_CHECK(idx < m_output_ports.size(), "Index of output port descriptor should be less than count of output ports");
-    return m_output_ports[idx].offset;
+    return get_output_port_descriptor(idx).offset;
 }
 
 } // namespace op

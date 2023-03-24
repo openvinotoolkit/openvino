@@ -757,12 +757,21 @@ BrgemmEmitter::BrgemmEmitter(dnnl::impl::cpu::x64::jit_generator* h, dnnl::impl:
     const auto& C_shape = io_values[2].get_shape();
     const auto& C_layout = io_layouts[2];
 
-    m_M = C_shape[C_layout[2]];
-    m_K = A_shape[A_layout[3]];
+    // We need find original M,N,K having layouts and ordered shapes
+    // Layout:  0, 1, 2, 3   =>   New layout: 0, 2, 1, 3
+    // Shape:   1, 3, 5, 9   =>   New Shape:  1, 5, 3, 9
+    // To find original 2nd dimension, we should find index of position value `2` in new layout
+    // and get dimension from new shape by this index
+    auto get_ordered_idx = [](const std::vector<size_t>& layout, size_t idx) {
+        return std::distance(layout.begin(), std::find(layout.begin(), layout.end(), idx));
+    };
+
+    m_M = C_shape[get_ordered_idx(C_layout, C_layout.size() - 2)];
+    m_K = A_shape[get_ordered_idx(A_layout, A_layout.size() - 1)];
     m_M_blk = matmulOptimalM;
     m_M_tail = m_M % m_M_blk;
     // B_shape[B_layout[3]]
-    m_N = C_shape[C_layout[3]];
+    m_N = C_shape[get_ordered_idx(C_layout, C_layout.size() - 1)];
 
     auto brg0Prc = InferenceEngine::details::convertPrecision(brgemm_node->get_input_element_type(0));
     auto brg1Prc = InferenceEngine::details::convertPrecision(brgemm_node->get_input_element_type(1));

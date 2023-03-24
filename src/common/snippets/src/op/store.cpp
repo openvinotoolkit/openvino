@@ -28,6 +28,16 @@ std::shared_ptr<Node> snippets::op::Store::clone_with_new_inputs(const OutputVec
     return std::make_shared<Store>(new_args.at(0), get_count(), get_offset());
 }
 
+void Store::set_input_port_descriptor(const MemoryAccess::PortDescriptor& desc, const size_t i) {
+    // Store is one-port MemoryAccess operation. To simulate this behavior input_desc = output_desc
+    set_output_port_descriptor(desc, i);
+}
+
+const MemoryAccess::PortDescriptor& Store::get_input_port_descriptor(const size_t i) const {
+    // Store is one-port MemoryAccess operation. To simulate this behavior input_desc = output_desc
+    return get_output_port_descriptor(i);
+}
+
 } // namespace op
 } // namespace snippets
 } // namespace ngraph

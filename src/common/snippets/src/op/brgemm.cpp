@@ -7,7 +7,6 @@
 #include "ngraph/runtime/host_tensor.hpp"
 #include "openvino/core/rt_info.hpp"
 #include "snippets/utils.hpp"
-#include "matmul_shape_inference.hpp"
 
 namespace ngraph {
 namespace snippets {
@@ -67,13 +66,65 @@ ov::element::Type Brgemm::get_output_type() const {
 
 ov::PartialShape Brgemm::get_output_partial_shape(const std::vector<ov::PartialShape>& input_shapes) const {
     NGRAPH_CHECK(input_shapes.size() == 2, "BRGEMM expects 2 input shapes for shape inference");
-    auto matmul_in0 = std::make_shared<ngraph::opset1::Parameter>(ngraph::element::f32, input_shapes[0]);
-    auto matmul_in1 = std::make_shared<ngraph::opset1::Parameter>(ngraph::element::f32, input_shapes[1]);
-    auto matmul = std::make_shared<ngraph::opset1::MatMul>(matmul_in0, matmul_in1);
 
-    std::vector<ov::PartialShape> output_shapes = {ov::PartialShape{}};
-    ov::op::v0::shape_infer(matmul.get(), input_shapes, output_shapes);
-    return output_shapes.front();
+    // Note: All majors checks are missed because Brgemm is transformed from MatMul with whole shape infer support
+
+    const auto arg0_shape = input_shapes[0];
+    const auto arg1_shape = input_shapes[1];
+
+    size_t arg0_rank = arg0_shape.size(), arg1_rank = arg1_shape.size();
+
+    // temporary shapes to calculate output shape
+    ov::PartialShape arg0_shape_tmp(arg0_shape), arg1_shape_tmp(arg1_shape);
+
+    // one-dimensional tensors unsqueezing is applied to each input independently.
+    if (arg0_rank == 1) {
+        // If the first input is 1D tensor, it is unsqueezed to 2D tensor (row vector)
+        // by adding axes with size 1 at ROW_INDEX_DIM, to the left of the shape.
+        // For example {S} will be reshaped to {1, S}.
+        arg0_shape_tmp.insert(arg0_shape_tmp.begin(), 1);
+        arg0_rank = arg0_shape_tmp.size();
+    }
+    if (arg1_rank == 1) {
+        // If the second input is 1D tensor, it is unsqueezed to 2D tensor (column vector)
+        // by adding axes with size 1 at COL_INDEX_DIM, to the right of the shape.
+        // For example {S} will be reshaped to {S, 1}.
+        arg1_shape_tmp.insert(arg1_shape_tmp.end(), 1);
+        arg1_rank = arg1_shape_tmp.size();
+    }
+    // Check matrices dimensions compatibility,
+    using DimType = typename std::iterator_traits<typename ov::PartialShape::iterator>::value_type;
+    auto merged_dimension = DimType();
+    auto arg0_col_dim = arg0_shape_tmp[arg0_rank - 1];
+    auto arg1_row_dim = arg1_shape_tmp[arg1_rank - 2];
+    OPENVINO_ASSERT(DimType::merge(merged_dimension, arg0_col_dim, arg1_row_dim) || arg0_col_dim.is_dynamic() || arg1_row_dim.is_dynamic(),
+                    "Incompatible Brgemm matrix dimension");
+
+    // add 1 to begin to align shape ranks if needed
+    if (arg0_rank < arg1_rank)
+        arg0_shape_tmp.insert(arg0_shape_tmp.begin(), arg1_rank - arg0_rank, 1);
+    else if (arg0_rank > arg1_rank)
+        arg1_shape_tmp.insert(arg1_shape_tmp.begin(), arg0_rank - arg1_rank, 1);
+
+    size_t max_rank = arg0_shape_tmp.size();
+    std::vector<DimType> output_shape(max_rank);
+    for (size_t i = 0; i < max_rank - 2; ++i) {
+         OPENVINO_ASSERT(DimType::broadcast_merge(output_shape[i], arg0_shape_tmp[i], arg1_shape_tmp[i]) ||
+                         arg0_shape_tmp[i].is_dynamic() ||
+                         arg1_shape_tmp[i].is_dynamic(),
+                        "Incompatible Brgemm batch dimension");
+    }
+    output_shape[output_shape.size() - 2] = arg0_shape_tmp[arg0_shape_tmp.size() - 2];  // M
+    output_shape[output_shape.size() - 1] = arg1_shape_tmp[arg1_shape_tmp.size() - 1];  // N
+
+    // removing the temporary axes from originally 1D tensors.
+    if (arg0_shape.rank().get_length() == 1) {
+        output_shape.erase(output_shape.begin() + output_shape.size() - 2);
+    }
+    if (arg1_shape.rank().get_length() == 1) {
+        output_shape.erase(output_shape.begin() + output_shape.size() - 1);
+    }
+    return output_shape;
 }
 
 } // namespace op

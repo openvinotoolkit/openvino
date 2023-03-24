@@ -33,6 +33,10 @@ public:
 
     void validate_and_infer_types() override;
     std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& new_args) const override;
+
+protected:
+    void set_input_port_descriptor(const MemoryAccess::PortDescriptor& desc, const size_t i) override;
+    const MemoryAccess::PortDescriptor& get_input_port_descriptor(const size_t i) const override;
 };
 
 } // namespace op

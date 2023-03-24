@@ -28,6 +28,15 @@ std::shared_ptr<Node> Load::clone_with_new_inputs(const OutputVector& new_args) 
     return std::make_shared<Load>(new_args.at(0), get_count(), get_offset());
 }
 
+void Load::set_output_port_descriptor(const MemoryAccess::PortDescriptor& desc, const size_t i) {
+    // Load is one-port MemoryAccess operation. To simulate this behavior input_desc = output_desc
+    set_input_port_descriptor(desc, i);
+}
+
+const MemoryAccess::PortDescriptor& Load::get_output_port_descriptor(const size_t i) const {
+    // Load is one-port MemoryAccess operation. To simulate this behavior input_desc = output_desc
+    return get_input_port_descriptor(i);
+}
 
 LoadReshape::LoadReshape(const Output<ov::Node>& x, const size_t count, const size_t offset, std::vector<size_t> order)
                             : Load(x, count, offset), m_order(std::move(order)) {

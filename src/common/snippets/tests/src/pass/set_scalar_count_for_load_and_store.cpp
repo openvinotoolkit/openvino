@@ -24,8 +24,8 @@ size_t get_count(const std::shared_ptr<Function>& f, const std::string& name, bo
     for (auto op : f->get_ops()) {
         if (op->get_friendly_name() == name) {
             if (const auto memory_access = std::dynamic_pointer_cast<snippets::op::MemoryAccess>(op)) {
-                count = is_load ? memory_access->get_input_port_descriptor(0).offset
-                                : memory_access->get_output_port_descriptor(0).offset;
+                count = is_load ? memory_access->get_input_offset(0)
+                                : memory_access->get_output_offset(0);
             }
         }
     }

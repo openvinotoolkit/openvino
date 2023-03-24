@@ -45,11 +45,6 @@ public:
         friend class MemoryAccess;
     };
 
-    void set_input_port_descriptor(const PortDescriptor& desc, const size_t i);
-    void set_output_port_descriptor(const PortDescriptor& desc, const size_t i);
-    const PortDescriptor& get_input_port_descriptor(const size_t i) const;
-    const PortDescriptor& get_output_port_descriptor(const size_t i) const;
-
     void set_input_count(size_t count, size_t idx = 0);
     void set_output_count(size_t count, size_t idx = 0);
     void set_input_offset(size_t offset, size_t idx = 0);
@@ -67,6 +62,11 @@ public:
 protected:
     explicit MemoryAccess(const OutputVector& arguments);
     MemoryAccess() = default;
+
+    virtual void set_input_port_descriptor(const PortDescriptor& desc, const size_t i);
+    virtual void set_output_port_descriptor(const PortDescriptor& desc, const size_t i);
+    virtual const PortDescriptor& get_input_port_descriptor(const size_t i) const;
+    virtual const PortDescriptor& get_output_port_descriptor(const size_t i) const;
 
     std::vector<PortDescriptor> m_input_ports;
     std::vector<PortDescriptor> m_output_ports;
