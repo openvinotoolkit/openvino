@@ -165,8 +165,10 @@ class SamplesCommonTestClass():
         if is_windows and not 'python' in sample_type.lower():
             executable_path += '.exe'
 
+        print(f"\n\nIE_APP_PATH: {os.getenv('IE_APP_PATH')}\n\n")
+        print(f"\n\nIE_APP_PYTHON_PATH: {os.getenv('nIE_APP_PYTHON_PATH')}\n\n")
         # This exeption is made for benchmark_app, because it locates in another place.
-        if 'benchmark_app' in path2 and 'python' in sample_type.lower():
+        if 'benchmark_app' in path2 and 'python' in sample_type.lower():\
             executable_path = spawn.find_executable(str('benchmark_app'))
         # if not hasattr(cls, 'executable_path'):
         return executable_path
