@@ -208,7 +208,7 @@ TSUnsqueezeBackward::TSUnsqueezeBackward() {
         if (as_type_ptr<Reshape>(main_node)) {
             new_values = unsqueeze_axes_to_shape(main_node->input_value(0), new_values);
         }
-        auto new_const = Constant::create(unsqueeze_axes->get_element_type(), unsqueeze_axes->get_shape(), new_values);
+        auto new_const = Constant::create(unsqueeze_axes->get_element_type(), {new_values.size()}, new_values);
         main_node->input(1).replace_source_output(new_const);
 
         main_node->validate_and_infer_types();

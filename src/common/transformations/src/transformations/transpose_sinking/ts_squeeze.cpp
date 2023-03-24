@@ -139,7 +139,7 @@ TSSqueezeForward::TSSqueezeForward() {
             new_values = squeeze_axes_to_shape(transpose->input_value(0), new_values);
         }
 
-        auto new_const = Constant::create(squeeze_axes->get_element_type(), squeeze_axes->get_shape(), new_values);
+        auto new_const = Constant::create(squeeze_axes->get_element_type(), {new_values.size()}, new_values);
         main_node->input(1).replace_source_output(new_const);
         TransposeInputsInfo transpose_input_info = {transpose, new_transpose_order, 0};
         // deletes Transpose from 0 input

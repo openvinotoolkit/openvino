@@ -145,7 +145,7 @@ TSReductionBackward::TSReductionBackward() {
             new_values.push_back(reversed_order_values[axis]);
         }
 
-        auto new_const = Constant::create(reduction_axes->get_element_type(), reduction_axes->get_shape(), new_values);
+        auto new_const = Constant::create(reduction_axes->get_element_type(), {new_values}, new_values);
         main_node->input(1).replace_source_output(new_const);
         for (auto& new_node : sink_backward::InsertTransposeBeforeNode(main_node, new_transpose_order, {0})) {
             register_new_node(new_node);
