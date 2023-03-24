@@ -105,7 +105,7 @@ Tutorials that explain how to optimize and quantize models with OpenVINO tools.
 +-------------------------------------------------------------------------------------------------------------------------------+--------------------------------------------------------------------------------------------------------------------------------------------+-------------------------------------------+
 | `102-pytorch-onnx-to-openvino <notebooks/102-pytorch-onnx-to-openvino-with-output.html>`__                                    | Convert PyTorch models to OpenVINO IR.                                                                                                     | |n102-img1|                               |
 +-------------------------------------------------------------------------------------------------------------------------------+--------------------------------------------------------------------------------------------------------------------------------------------+-------------------------------------------+
-| `103-paddle-onnx-to-openvino <notebooks/103-paddle-onnx-to-openvino-classification-with-output.html>`__ |br| |n103|           | Convert PaddlePaddle models to OpenVINO IR.                                                                                                | |n103-img1|                               |
+| `103-paddle-onnx-to-openvino <notebooks/103-paddle-to-openvino-classification-with-output.html>`__ |br| |n103|                | Convert PaddlePaddle models to OpenVINO IR.                                                                                                | |n103-img1|                               |
 +-------------------------------------------------------------------------------------------------------------------------------+--------------------------------------------------------------------------------------------------------------------------------------------+-------------------------------------------+
 | `104-model-tools <notebooks/104-model-tools-with-output.html>`__ |br| |n104|                                                  | Download, convert and benchmark models from Open Model Zoo.                                                                                | |n104-img1|                               |
 +-------------------------------------------------------------------------------------------------------------------------------+--------------------------------------------------------------------------------------------------------------------------------------------+-------------------------------------------+
@@ -117,23 +117,25 @@ Tutorials that explain how to optimize and quantize models with OpenVINO tools.
    +==============================================================================================================================+==================================================================================================================================+
    | `105-language-quantize-bert <notebooks/105-language-quantize-bert-with-output.html>`__                                       | Optimize and quantize a pre-trained BERT model                                                                                   |
    +------------------------------------------------------------------------------------------------------------------------------+----------------------------------------------------------------------------------------------------------------------------------+
-   | `106-auto-device <notebooks/106-auto-device-with-output.html>`__                                                             | Demonstrates how to use AUTO Device                                                                                              |
+   | `106-auto-device <notebooks/106-auto-device-with-output.html>`__ |br| |n106|                                                 | Demonstrates how to use AUTO Device                                                                                              |
    +------------------------------------------------------------------------------------------------------------------------------+----------------------------------------------------------------------------------------------------------------------------------+
    | `107-speech-recognition-quantization <notebooks/107-speech-recognition-quantization-with-output.html>`__                     | Optimize and quantize a pre-trained Wav2Vec2 speech model                                                                        |
    +------------------------------------------------------------------------------------------------------------------------------+----------------------------------------------------------------------------------------------------------------------------------+
-   | `110-ct-segmentation-quantize <notebooks/110-ct-segmentation-quantize-with-output.html>`__                                   | Quantize a kidney segmentation model and show live inference                                                                     |
+   | `110-ct-segmentation-quantize <notebooks/110-ct-segmentation-quantize-with-output.html>`__ |br| |n110|                       | Quantize a kidney segmentation model and show live inference                                                                     |
    +------------------------------------------------------------------------------------------------------------------------------+----------------------------------------------------------------------------------------------------------------------------------+
    | `111-detection-quantization <notebooks/111-detection-quantization-with-output.html>`__ |br| |n111|                           | Quantize an object detection model                                                                                               |
    +------------------------------------------------------------------------------------------------------------------------------+----------------------------------------------------------------------------------------------------------------------------------+
    | `112-pytorch-post-training-quantization-nncf <notebooks/112-pytorch-post-training-quantization-nncf-with-output.html>`__     | Use Neural Network Compression Framework (NNCF) to quantize PyTorch model in post-training mode (without model fine-tuning)      |
    +------------------------------------------------------------------------------------------------------------------------------+----------------------------------------------------------------------------------------------------------------------------------+
-   | `113-image-classification-quantization <notebooks/113-image-classification-quantization-with-output.html>`__                 | Quantize mobilenet image classification                                                                                          |
+   | `113-image-classification-quantization <notebooks/113-image-classification-quantization-with-output.html>`__ |br| |n113|     | Quantize mobilenet image classification                                                                                          |
    +------------------------------------------------------------------------------------------------------------------------------+----------------------------------------------------------------------------------------------------------------------------------+
-   | `114-quantization-simplified-mode <notebooks/114-quantization-simplified-mode-with-output.html>`__                           | Quantize Image Classification Models with POT in Simplified Mode                                                                 |
+   | `114-quantization-simplified-mode <notebooks/114-quantization-simplified-mode-with-output.html>`__ |br| |n114|               | Quantize Image Classification Models with POT in Simplified Mode                                                                 |
    +------------------------------------------------------------------------------------------------------------------------------+----------------------------------------------------------------------------------------------------------------------------------+
-   | `115-async-api <notebooks/115-async-api-with-output.html>`__                                                                 | Use Asynchronous Execution to Improve Data Pipelining                                                                            |
+   | `115-async-api <notebooks/115-async-api-with-output.html>`__ |br| |n115|                                                     | Use Asynchronous Execution to Improve Data Pipelining                                                                            |
    +------------------------------------------------------------------------------------------------------------------------------+----------------------------------------------------------------------------------------------------------------------------------+
    | `116-sparsity-optimization <notebooks/116-sparsity-optimization-with-output.html>`__                                         | Improve performance of sparse Transformer models                                                                                 |
+   +------------------------------------------------------------------------------------------------------------------------------+----------------------------------------------------------------------------------------------------------------------------------+
+   | `117-model-server <notebooks/117-model-server-with-output.html>`__                                                           | Improve performance of sparse Transformer models                                                                                 |
    +------------------------------------------------------------------------------------------------------------------------------+----------------------------------------------------------------------------------------------------------------------------------+
    | `118-optimize-preprocessing <notebooks/118-optimize-preprocessing-with-output.html>`__                                       | Improve performance of image preprocessing step                                                                                  |
    +------------------------------------------------------------------------------------------------------------------------------+----------------------------------------------------------------------------------------------------------------------------------+
@@ -151,18 +153,16 @@ Demos that demonstrate inference on a particular model.
 +-------------------------------------------------------------------------------------------------------------------------------+--------------------------------------------------------------------------------------------------------------------------------------------+-------------------------------------------+
 | Notebook                                                                                                                      | Description                                                                                                                                | Preview                                   |
 +===============================================================================================================================+============================================================================================================================================+===========================================+
-| `210-ct-scan-live-inference <notebooks/210-ct-scan-live-inference-with-output.html>`__ |br| |n210|                            | Show live inference on segmentation of CT-scan data.                                                                                       | |n210-img1|                               |
-+-------------------------------------------------------------------------------------------------------------------------------+--------------------------------------------------------------------------------------------------------------------------------------------+-------------------------------------------+
-| `211-speech-to-text <notebooks/211-speech-to-text-with-output.html>`__ |br| |n211|                                            | Run inference on speech-to-text recognition model.                                                                                         | |n211-img1|                               |
-+-------------------------------------------------------------------------------------------------------------------------------+--------------------------------------------------------------------------------------------------------------------------------------------+-------------------------------------------+
-| `208-optical-character-recognition <notebooks/208-optical-character-recognition-with-output.html>`__                          | Annotate text on images using text recognition resnet.                                                                                     | |n208-img1|                               |
+| `205-vision-background-removal <notebooks/205-vision-background-removal-with-output.html>`__ |br| |n205|                      | Remove and replace the background in an image using salient object detection.                                                              | |n205-img1|                               |
 +-------------------------------------------------------------------------------------------------------------------------------+--------------------------------------------------------------------------------------------------------------------------------------------+-------------------------------------------+
 | `209-handwritten-ocr <notebooks/209-handwritten-ocr-with-output.html>`__ |br| |n209|                                          | OCR for handwritten simplified Chinese and Japanese.                                                                                       | |n209-img1| |br| |chinese-text|           |
 +-------------------------------------------------------------------------------------------------------------------------------+--------------------------------------------------------------------------------------------------------------------------------------------+-------------------------------------------+
-| `218-vehicle-detection-and-recognition <notebooks/218-vehicle-detection-and-recognition-with-output.html>`__                  | Use pre-trained models to detect and recognize vehicles and their attributes with OpenVINO.                                                | |n218-img1|                               |
+| `211-speech-to-text <notebooks/211-speech-to-text-with-output.html>`__ |br| |n211|                                            | Run inference on speech-to-text recognition model.                                                                                         | |n211-img1|                               |
 +-------------------------------------------------------------------------------------------------------------------------------+--------------------------------------------------------------------------------------------------------------------------------------------+-------------------------------------------+
-
-
+| `215-image-inpainting <notebooks/215-image-inpainting-with-output.html>`__ |br| |n215|                                        | Fill missing pixels with image in-painting.                                                                                                | |n215-img1|                               |
++-------------------------------------------------------------------------------------------------------------------------------+--------------------------------------------------------------------------------------------------------------------------------------------+-------------------------------------------+
+| `218-vehicle-detection-and-recognition <notebooks/218-vehicle-detection-and-recognition-with-output.html>`__ |br| |n218|      | Use pre-trained models to detect and recognize vehicles and their attributes with OpenVINO.                                                | |n218-img1|                               |
++-------------------------------------------------------------------------------------------------------------------------------+--------------------------------------------------------------------------------------------------------------------------------------------+-------------------------------------------+
 
 .. dropdown:: Explore more notebooks below.
 
@@ -177,31 +177,29 @@ Demos that demonstrate inference on a particular model.
    +-------------------------------------------------------------------------------------------------------------------------------+--------------------------------------------------------------------------------------------------------------------------------------------+-------------------------------------------+
    | `203-meter-reader <notebooks/203-meter-reader-with-output.html>`__ |br| |n203|                                                | PaddlePaddle pre-trained models to read industrial meter's value                                                                           | |n203-img1|                               |
    +-------------------------------------------------------------------------------------------------------------------------------+--------------------------------------------------------------------------------------------------------------------------------------------+-------------------------------------------+
-   | `204-named-entity-recognition <notebooks/204-named-entity-recognition-with-output.html>`__ |br| |n204|                        | Perform named entity recognition on simple text.                                                                                           | |n204-img1|                               |
+   | `206-vision-paddlegan-anime <notebooks/206-vision-paddlegan-anime-with-output.html>`__                                        | Turn an image into anime using a GAN.                                                                                                      | |n206-img1| → |n206-img2|                 |
    +-------------------------------------------------------------------------------------------------------------------------------+--------------------------------------------------------------------------------------------------------------------------------------------+-------------------------------------------+
-   | `205-vision-background-removal <notebooks/205-vision-background-removal-with-output.html>`__ |br| |n205|                      | Remove and replace the background in an image using salient object detection.                                                              | |n205-img1|                               |
+   | `207-vision-paddlegan-superresolution <notebooks/207-vision-paddlegan-superresolution-with-output.html>`__                    | Upscale small images with superresolution using a PaddleGAN model.                                                                         | |n207-img1| → |n207-img2|                 |
    +-------------------------------------------------------------------------------------------------------------------------------+--------------------------------------------------------------------------------------------------------------------------------------------+-------------------------------------------+
-   | `206-vision-paddlegan-anime <notebooks/206-vision-paddlegan-anime-with-output.html>`__ |br| |n206|                            | Turn an image into anime using a GAN.                                                                                                      | |n206-img1| → |n206-img2|                 |
+   | `208-optical-character-recognition <notebooks/208-optical-character-recognition-with-output.html>`__                          | Annotate text on images using text recognition resnet.                                                                                     | |n208-img1|                               |
    +-------------------------------------------------------------------------------------------------------------------------------+--------------------------------------------------------------------------------------------------------------------------------------------+-------------------------------------------+
-   | `207-vision-paddlegan-superresolution <notebooks/207-vision-paddlegan-superresolution-with-output.html>`__ |br| |n207|        | Upscale small images with superresolution using a PaddleGAN model.                                                                         | |n207-img1| → |n207-img2|                 |
+   | `212-pyannote-speaker-diarization <notebooks/212-pyannote-speaker-diarization-with-output.html>`__                            | Run inference on speaker diarization pipeline                                                                                              | |n212-img1|                               |
    +-------------------------------------------------------------------------------------------------------------------------------+--------------------------------------------------------------------------------------------------------------------------------------------+-------------------------------------------+
-   | `212-onnx-style-transfer <notebooks/212-onnx-style-transfer-with-output.html>`__ |br| |n212|                                  | Transform images to five different styles with neural style transfer.                                                                      | |n212-img1| → |n212-img2|                 |
+   | `213-question-answering <notebooks/213-question-answering-with-output.html>`__ |br| |n213|                                    | Answer your questions basing on a context.                                                                                                 | |n213-img1|                               |
    +-------------------------------------------------------------------------------------------------------------------------------+--------------------------------------------------------------------------------------------------------------------------------------------+-------------------------------------------+
-   | `214-vision-paddle-classification <notebooks/214-vision-paddle-classification-with-output.html>`__ |br| |n214|                | PaddlePaddle Image Classification with OpenVINO.                                                                                           |                                           |
+   | `214-grammar-correction <notebooks/214-grammar-correction-with-output.html>`__                                                | Grammatical Error Correction with OpenVINO                                                                                                 |                                           |
    +-------------------------------------------------------------------------------------------------------------------------------+--------------------------------------------------------------------------------------------------------------------------------------------+-------------------------------------------+
-   | `215-image-inpainting <notebooks/215-image-inpainting-with-output.html>`__                                                    | Fill missing pixels with image in-painting.                                                                                                | |n215-img1|                               |
-   +-------------------------------------------------------------------------------------------------------------------------------+--------------------------------------------------------------------------------------------------------------------------------------------+-------------------------------------------+
-   | `216-license-plate-recognition <notebooks/216-license-plate-recognition-with-output.html>`__                                  | Recognize Chinese license plates in traffic.                                                                                               | |n216-img1|                               |
+   | `216-license-plate-recognition <notebooks/216-license-plate-recognition-with-output.html>`__ |br| |n216|                      | Recognize Chinese license plates in traffic.                                                                                               | |n216-img1|                               |
    +-------------------------------------------------------------------------------------------------------------------------------+--------------------------------------------------------------------------------------------------------------------------------------------+-------------------------------------------+
    | `217-vision-deblur <notebooks/217-vision-deblur-with-output.html>`__ |br| |n217|                                              | Deblur Images with DeblurGAN-v2.                                                                                                           | |n217-img1|                               |
    +-------------------------------------------------------------------------------------------------------------------------------+--------------------------------------------------------------------------------------------------------------------------------------------+-------------------------------------------+
-   | `219-knowledge-graphs-conve <notebooks/219-knowledge-graphs-conve-with-output.html>`__                                        | Optimize the knowledge graph embeddings model (ConvE) with OpenVINO                                                                        |                                           |
+   | `219-knowledge-graphs-conve <notebooks/219-knowledge-graphs-conve-with-output.html>`__ |br| |n219|                            | Optimize the knowledge graph embeddings model (ConvE) with OpenVINO                                                                        |                                           |
    +-------------------------------------------------------------------------------------------------------------------------------+--------------------------------------------------------------------------------------------------------------------------------------------+-------------------------------------------+
    | `220-yolov5-accuracy-check-and-quantization <notebooks/220-yolov5-accuracy-check-and-quantization-with-output.html>`__        | Quantize the Ultralytics YOLOv5 model and check accuracy using the OpenVINO POT API                                                        | |n220-img1|                               |
    +-------------------------------------------------------------------------------------------------------------------------------+--------------------------------------------------------------------------------------------------------------------------------------------+-------------------------------------------+
-   | `221-machine-translation <notebooks/221-machine-translation-with-output.html>`__                                              | Real-time translation from English to German                                                                                               |                                           |
+   | `221-machine-translation <notebooks/221-machine-translation-with-output.html>`__ |br| |n221|                                  | Real-time translation from English to German                                                                                               |                                           |
    +-------------------------------------------------------------------------------------------------------------------------------+--------------------------------------------------------------------------------------------------------------------------------------------+-------------------------------------------+
-   | `222-vision-image-colorization <notebooks/222-vision-image-colorization-with-output.html>`__                                  | Use pre-trained models to colorize black & white images using OpenVINO                                                                     | |n222-img1|                               |
+   | `222-vision-image-colorization <notebooks/222-vision-image-colorization-with-output.html>`__ |br| |n222|                      | Use pre-trained models to colorize black & white images using OpenVINO                                                                     | |n222-img1|                               |
    +-------------------------------------------------------------------------------------------------------------------------------+--------------------------------------------------------------------------------------------------------------------------------------------+-------------------------------------------+
    | `223-gpt2-text-prediction <notebooks/223-gpt2-text-prediction-with-output.html>`__                                            | Use GPT-2 to perform text prediction on an input sequence                                                                                  | |n223-img1|                               |
    +-------------------------------------------------------------------------------------------------------------------------------+--------------------------------------------------------------------------------------------------------------------------------------------+-------------------------------------------+
@@ -215,7 +213,7 @@ Demos that demonstrate inference on a particular model.
    +-------------------------------------------------------------------------------------------------------------------------------+--------------------------------------------------------------------------------------------------------------------------------------------+-------------------------------------------+
    | `228-clip-zero-shot-image-classification <notebooks/228-clip-zero-shot-image-classification-with-output.html>`__              | Perform Zero-shot Image Classification with CLIP and OpenVINO                                                                              | |n228-img1|                               |
    +-------------------------------------------------------------------------------------------------------------------------------+--------------------------------------------------------------------------------------------------------------------------------------------+-------------------------------------------+
-   | `229-distilbert-sequence-classification <notebooks/229-distilbert-sequence-classification-with-output.html>`__                | Sequence Classification with OpenVINO                                                                                                      | |n229-img1|                               |
+   | `229-distilbert-sequence-classification <notebooks/229-distilbert-sequence-classification-with-output.html>`__ |br| |n229|    | Sequence Classification with OpenVINO                                                                                                      | |n229-img1|                               |
    +-------------------------------------------------------------------------------------------------------------------------------+--------------------------------------------------------------------------------------------------------------------------------------------+-------------------------------------------+
    | `230-yolov8-optimization <notebooks/230-yolov8-optimization-with-output.html>`__                                              | Optimize YOLOv8 using NNCF PTQ API                                                                                                         | |n230-img1|                               |
    +-------------------------------------------------------------------------------------------------------------------------------+--------------------------------------------------------------------------------------------------------------------------------------------+-------------------------------------------+
@@ -296,11 +294,11 @@ The following tutorials are guaranteed to provide a great experience with infere
 +===============================================================================================================================+============================================================================================================================================+===========================================+
 | `Vision-monodepth <notebooks/201-vision-monodepth-with-output.html>`__ |br| |n201|                                            | Monocular depth estimation with images and video.                                                                                          | |n201-img1|                               |
 +-------------------------------------------------------------------------------------------------------------------------------+--------------------------------------------------------------------------------------------------------------------------------------------+-------------------------------------------+
-| `CT-scan-live-inference <notebooks/210-ct-scan-live-inference-with-output.html>`__ |br| |n210|                                | Show live inference on segmentation of CT-scan data.                                                                                       | |n210-img1|                               |
+| `Vision-background-removal <notebooks/205-vision-background-removal-with-output.html>`__ |br| |n205|                          | Remove and replace the background in an image using salient object detection.                                                              | |n205-img1|                               |
 +-------------------------------------------------------------------------------------------------------------------------------+--------------------------------------------------------------------------------------------------------------------------------------------+-------------------------------------------+
 | `Object-detection-webcam <notebooks/401-object-detection-with-output.html>`__ |br| |n401|                                     | Object detection with a webcam or video file.                                                                                              | |n401-img1|                               |
 +-------------------------------------------------------------------------------------------------------------------------------+--------------------------------------------------------------------------------------------------------------------------------------------+-------------------------------------------+
-| `Pose-estimation-webcam <notebooks/402-pose-estimation-with-output>`__ |br| |n402|                                            | Human pose estimation with a webcam or video file.                                                                                         | |n402-img1|                               |
+| `Pose-estimation-webcam <notebooks/402-pose-estimation-with-output.html>`__ |br| |n402|                                       | Human pose estimation with a webcam or video file.                                                                                         | |n402-img1|                               |
 +-------------------------------------------------------------------------------------------------------------------------------+--------------------------------------------------------------------------------------------------------------------------------------------+-------------------------------------------+
 | `Action-recognition-webcam <notebooks/403-action-recognition-webcam-with-output.html>`__ |br| |n403|                          | Human action recognition with a webcam or video file.                                                                                      | |n403-img1|                               |
 +-------------------------------------------------------------------------------------------------------------------------------+--------------------------------------------------------------------------------------------------------------------------------------------+-------------------------------------------+
@@ -362,16 +360,6 @@ Made with `contributors-img <https://contrib.rocks>`__.
    :target: https://user-images.githubusercontent.com/15709723/127779326-dc14653f-a960-4877-b529-86908a6f2a61.png
 .. |n104-img1| image:: https://user-images.githubusercontent.com/10940214/157541917-c5455105-b0d9-4adf-91a7-fbc142918015.png
    :target: https://user-images.githubusercontent.com/10940214/157541917-c5455105-b0d9-4adf-91a7-fbc142918015.png
-.. |n210-img1| image:: https://user-images.githubusercontent.com/15709723/134784204-cf8f7800-b84c-47f5-a1d8-25a9afab88f8.gif
-   :target: https://user-images.githubusercontent.com/15709723/134784204-cf8f7800-b84c-47f5-a1d8-25a9afab88f8.gif
-.. |n211-img1| image:: https://user-images.githubusercontent.com/36741649/140987347-279de058-55d7-4772-b013-0f2b12deaa61.png
-   :target: https://user-images.githubusercontent.com/36741649/140987347-279de058-55d7-4772-b013-0f2b12deaa61.png
-.. |n213-img1| image:: https://user-images.githubusercontent.com/4547501/152571639-ace628b2-e3d2-433e-8c28-9a5546d76a86.gif
-   :target: https://user-images.githubusercontent.com/4547501/152571639-ace628b2-e3d2-433e-8c28-9a5546d76a86.gif
-.. |n208-img1| image:: https://user-images.githubusercontent.com/36741649/129315292-a37266dc-dfb2-4749-bca5-2ac9c1e93d64.jpg
-   :target: https://user-images.githubusercontent.com/36741649/129315292-a37266dc-dfb2-4749-bca5-2ac9c1e93d64.jpg
-.. |n209-img1| image:: https://user-images.githubusercontent.com/36741649/132660640-da2211ec-c389-450e-8980-32a75ed14abb.png
-   :target: https://user-images.githubusercontent.com/36741649/132660640-da2211ec-c389-450e-8980-32a75ed14abb.png
 .. |n201-img1| image:: https://user-images.githubusercontent.com/15709723/127752390-f6aa371f-31b5-4846-84b9-18dd4f662406.gif
    :target: https://user-images.githubusercontent.com/15709723/127752390-f6aa371f-31b5-4846-84b9-18dd4f662406.gif
 .. |n202i-img1| image:: https://user-images.githubusercontent.com/36741649/170005347-e4409f9e-ec34-416b-afdf-a9d8185929ca.jpg
@@ -388,8 +376,6 @@ Made with `contributors-img <https://contrib.rocks>`__.
    :target: https://user-images.githubusercontent.com/15709723/127269258-a8e2c03e-731e-4317-b5b2-ed2ee767ff5e.gif
 .. |n203-img1| image:: https://user-images.githubusercontent.com/91237924/166135627-194405b0-6c25-4fd8-9ad1-83fb3a00a081.jpg
    :target: https://user-images.githubusercontent.com/91237924/166135627-194405b0-6c25-4fd8-9ad1-83fb3a00a081.jpg
-.. |n204-img1| image:: https://user-images.githubusercontent.com/33627846/169470030-0370963e-6ad8-49e3-be7a-f02a2c677733.gif
-   :target: https://user-images.githubusercontent.com/33627846/169470030-0370963e-6ad8-49e3-be7a-f02a2c677733.gif
 .. |n205-img1| image:: https://user-images.githubusercontent.com/15709723/125184237-f4b6cd00-e1d0-11eb-8e3b-d92c9a728372.png
    :target: https://user-images.githubusercontent.com/15709723/125184237-f4b6cd00-e1d0-11eb-8e3b-d92c9a728372.png
 .. |n206-img1| image:: https://user-images.githubusercontent.com/15709723/127788059-1f069ae1-8705-4972-b50e-6314a6f36632.jpeg
@@ -402,10 +388,16 @@ Made with `contributors-img <https://contrib.rocks>`__.
 .. |n207-img2| image:: https://user-images.githubusercontent.com/36741649/127170593-86976dc3-e5e4-40be-b0a6-206379cd7df5.jpg
    :target: https://user-images.githubusercontent.com/36741649/127170593-86976dc3-e5e4-40be-b0a6-206379cd7df5.jpg
    :width: 130
-.. |n212-img1| image:: https://user-images.githubusercontent.com/77325899/147358090-ff5b21f5-0efb-4aff-8444-9d07add49b92.png
-   :target: https://user-images.githubusercontent.com/77325899/147358090-ff5b21f5-0efb-4aff-8444-9d07add49b92.png
-.. |n212-img2| image:: https://user-images.githubusercontent.com/77325899/147358009-0cf10d51-3150-40cb-a776-074558b98da5.png
-   :target: https://user-images.githubusercontent.com/77325899/147358009-0cf10d51-3150-40cb-a776-074558b98da5.png
+.. |n208-img1| image:: https://user-images.githubusercontent.com/36741649/129315292-a37266dc-dfb2-4749-bca5-2ac9c1e93d64.jpg
+   :target: https://user-images.githubusercontent.com/36741649/129315292-a37266dc-dfb2-4749-bca5-2ac9c1e93d64.jpg
+.. |n209-img1| image:: https://user-images.githubusercontent.com/36741649/132660640-da2211ec-c389-450e-8980-32a75ed14abb.png
+   :target: https://user-images.githubusercontent.com/36741649/132660640-da2211ec-c389-450e-8980-32a75ed14abb.png
+.. |n211-img1| image:: https://user-images.githubusercontent.com/36741649/140987347-279de058-55d7-4772-b013-0f2b12deaa61.png
+   :target: https://user-images.githubusercontent.com/36741649/140987347-279de058-55d7-4772-b013-0f2b12deaa61.png
+.. |n213-img1| image:: https://user-images.githubusercontent.com/4547501/152571639-ace628b2-e3d2-433e-8c28-9a5546d76a86.gif
+   :target: https://user-images.githubusercontent.com/4547501/152571639-ace628b2-e3d2-433e-8c28-9a5546d76a86.gif
+.. |n212-img1| image:: https://user-images.githubusercontent.com/29454499/218432101-0bd0c424-e1d8-46af-ba1d-ee29ed6d1229.png
+   :target: https://user-images.githubusercontent.com/29454499/218432101-0bd0c424-e1d8-46af-ba1d-ee29ed6d1229.png
 .. |n215-img1| image:: https://user-images.githubusercontent.com/4547501/167121084-ec58fbdb-b269-4de2-9d4c-253c5b95de1e.png
    :target: https://user-images.githubusercontent.com/4547501/167121084-ec58fbdb-b269-4de2-9d4c-253c5b95de1e.png
 .. |n216-img1| image:: https://user-images.githubusercontent.com/70456146/162759539-4a0a996f-dabe-40ea-98d6-85b4dce8511d.png
@@ -465,6 +457,7 @@ Made with `contributors-img <https://contrib.rocks>`__.
 
 .. |Apache License Version 2.0| image:: https://img.shields.io/badge/license-Apache_2.0-green.svg
    :target: https://github.com/openvinotoolkit/openvino_notebooks/blob/main/LICENSE
+
 .. |nbval| image:: https://github.com/openvinotoolkit/openvino_notebooks/actions/workflows/nbval.yml/badge.svg
    :target: https://github.com/openvinotoolkit/openvino_notebooks/actions/workflows/nbval.yml?query=branch%3Amain
 .. |nbval-docker| image:: https://github.com/openvinotoolkit/openvino_notebooks/actions/workflows/docker.yml/badge.svg
@@ -478,20 +471,26 @@ Made with `contributors-img <https://contrib.rocks>`__.
    :target: https://mybinder.org/v2/gh/openvinotoolkit/openvino_notebooks/HEAD?filepath=notebooks%2F003-hello-segmentation%2F003-hello-segmentation.ipynb
 .. |n004| image:: https://mybinder.org/badge_logo.svg
    :target: https://mybinder.org/v2/gh/openvinotoolkit/openvino_notebooks/HEAD?filepath=notebooks%2F004-hello-detection%2F004-hello-detection.ipynb
+
 .. |n101| image:: https://mybinder.org/badge_logo.svg
    :target: https://mybinder.org/v2/gh/openvinotoolkit/openvino_notebooks/HEAD?filepath=notebooks%2F101-tensorflow-to-openvino%2F101-tensorflow-to-openvino.ipynb
 .. |n103| image:: https://mybinder.org/badge_logo.svg
    :target: https://mybinder.org/v2/gh/openvinotoolkit/openvino_notebooks/HEAD?filepath=notebooks%2F103-paddle-onnx-to-openvino-classification%2F103-paddle-onnx-to-openvino-classification.ipynb
 .. |n104| image:: https://mybinder.org/badge_logo.svg
    :target: https://mybinder.org/v2/gh/openvinotoolkit/openvino_notebooks/HEAD?filepath=notebooks%2F104-model-tools%2F104-model-tools.ipynb
+.. |n106| image:: https://mybinder.org/badge_logo.svg
+   :target: https://mybinder.org/v2/gh/openvinotoolkit/openvino_notebooks/HEAD?labpath=notebooks%2F106-auto-device%2F106-auto-device.ipynb
+.. |n110| image:: https://mybinder.org/badge_logo.svg
+   :target: https://mybinder.org/v2/gh/openvinotoolkit/openvino_notebooks/HEAD?filepath=notebooks%2F110-ct-segmentation-quantize%2F110-ct-scan-live-inference.ipynb
 .. |n111| image:: https://mybinder.org/badge_logo.svg
    :target: https://mybinder.org/v2/gh/openvinotoolkit/openvino_notebooks/HEAD?filepath=notebooks%2F111-detection-quantization%2F111-detection-quantization.ipynb
-.. |n210| image:: https://mybinder.org/badge_logo.svg
-   :target: https://mybinder.org/v2/gh/openvinotoolkit/openvino_notebooks/HEAD?filepath=notebooks%2F210-ct-scan-live-inference%2F210-ct-scan-live-inference.ipynb
-.. |n211| image:: https://mybinder.org/badge_logo.svg
-   :target: https://mybinder.org/v2/gh/openvinotoolkit/openvino_notebooks/HEAD?filepath=notebooks%2F211-speech-to-text%2F211-speech-to-text.ipynb
-.. |n213| image:: https://mybinder.org/badge_logo.svg
-   :target: https://mybinder.org/v2/gh/openvinotoolkit/openvino_notebooks/HEAD?filepath=notebooks%2F213-question-answering%2F213-question-answering.ipynb
+.. |n113| image:: https://mybinder.org/badge_logo.svg
+   :target: https://mybinder.org/v2/gh/openvinotoolkit/openvino_notebooks/HEAD?labpath=notebooks%2F113-image-classification-quantization%2F113-image-classification-quantization.ipynb
+.. |n114| image:: https://mybinder.org/badge_logo.svg
+   :target: https://mybinder.org/v2/gh/openvinotoolkit/openvino_notebooks/HEAD?labpath=notebooks%2F114-quantization-simplified-mode%2F114-quantization-simplified-mode.ipynb
+.. |n115| image:: https://mybinder.org/badge_logo.svg
+   :target: https://mybinder.org/v2/gh/openvinotoolkit/openvino_notebooks/HEAD?labpath=notebooks%2F115-async-api%2F115-async-api.ipynb
+
 .. |n209| image:: https://mybinder.org/badge_logo.svg
    :target: https://mybinder.org/v2/gh/openvinotoolkit/openvino_notebooks/HEAD?filepath=notebooks%2F209-handwritten-ocr%2F209-handwritten-ocr.ipynb
 .. |n201| image:: https://mybinder.org/badge_logo.svg
@@ -502,20 +501,28 @@ Made with `contributors-img <https://contrib.rocks>`__.
    :target: https://mybinder.org/v2/gh/openvinotoolkit/openvino_notebooks/HEAD?filepath=notebooks%2F202-vision-superresolution%2F202-vision-superresolution-video.ipynb
 .. |n203| image:: https://mybinder.org/badge_logo.svg
    :target: https://mybinder.org/v2/gh/openvinotoolkit/openvino_notebooks/HEAD?labpath=notebooks%2F203-meter-reader%2F203-meter-reader.ipynb
-.. |n204| image:: https://mybinder.org/badge_logo.svg
-   :target: https://mybinder.org/v2/gh/openvinotoolkit/openvino_notebooks/HEAD?filepath=notebooks%2F204-named-entity-recognition%2F204-named-entity-recognition.ipynb
 .. |n205| image:: https://mybinder.org/badge_logo.svg
    :target: https://mybinder.org/v2/gh/openvinotoolkit/openvino_notebooks/HEAD?filepath=notebooks%2F205-vision-background-removal%2F205-vision-background-removal.ipynb
-.. |n206| image:: https://mybinder.org/badge_logo.svg
-   :target: https://mybinder.org/v2/gh/openvinotoolkit/openvino_notebooks/HEAD?filepath=notebooks%2F206-vision-paddlegan-anime%2F206-vision-paddlegan-anime.ipynb
-.. |n207| image:: https://mybinder.org/badge_logo.svg
-   :target: https://mybinder.org/v2/gh/openvinotoolkit/openvino_notebooks/HEAD?filepath=notebooks%2F207-vision-paddlegan-superresolution%2F207-vision-paddlegan-superresolution.ipynb
-.. |n212| image:: https://mybinder.org/badge_logo.svg
-   :target: https://mybinder.org/v2/gh/openvinotoolkit/openvino_notebooks/HEAD?filepath=notebooks%2F212-onnx-style-transfer%2F212-onnx-style-transfer.ipynb
-.. |n214| image:: https://mybinder.org/badge_logo.svg
-   :target: https://mybinder.org/v2/gh/openvinotoolkit/openvino_notebooks/HEAD?filepath=notebooks%2F214-vision-paddle-classification%2F214-vision-paddle-classification.ipynb
+.. |n211| image:: https://mybinder.org/badge_logo.svg
+   :target: https://mybinder.org/v2/gh/openvinotoolkit/openvino_notebooks/HEAD?filepath=notebooks%2F211-speech-to-text%2F211-speech-to-text.ipynb
+.. |n213| image:: https://mybinder.org/badge_logo.svg
+   :target: https://mybinder.org/v2/gh/openvinotoolkit/openvino_notebooks/HEAD?filepath=notebooks%2F213-question-answering%2F213-question-answering.ipynb
+.. |n215| image:: https://mybinder.org/badge_logo.svg
+   :target: https://mybinder.org/v2/gh/openvinotoolkit/openvino_notebooks/HEAD?labpath=notebooks%2F215-image-inpainting%2F215-image-inpainting.ipynb
+.. |n216| image:: https://mybinder.org/badge_logo.svg
+   :target: https://mybinder.org/v2/gh/openvinotoolkit/openvino_notebooks/HEAD?labpath=notebooks%2F216-license-plate-recognition%2F216-license-plate-recognition.ipynb
 .. |n217| image:: https://mybinder.org/badge_logo.svg
    :target: https://mybinder.org/v2/gh/ThanosM97/openvino_notebooks/217-vision-deblur?labpath=notebooks%2F217-vision-deblur%2F217-vision-deblur.ipynb
+.. |n218| image:: https://mybinder.org/badge_logo.svg
+   :target: https://mybinder.org/v2/gh/openvinotoolkit/openvino_notebooks/HEAD?labpath=notebooks%2F218-vehicle-detection-and-recognition%2F218-vehicle-detection-and-recognition.ipynb
+.. |n219| image:: https://mybinder.org/badge_logo.svg
+   :target: https://mybinder.org/v2/gh/openvinotoolkit/openvino_notebooks/HEAD?labpath=notebooks%2F219-knowledge-graphs-conve%2F219-knowledge-graphs-conve.ipynb
+.. |n221| image:: https://mybinder.org/badge_logo.svg
+   :target: https://mybinder.org/v2/gh/openvinotoolkit/openvino_notebooks/HEAD?labpath=notebooks%2F221-machine-translation%2F221-machine-translation.ipynb
+.. |n222| image:: https://mybinder.org/badge_logo.svg
+   :target: https://mybinder.org/v2/gh/openvinotoolkit/openvino_notebooks/HEAD?labpath=notebooks%2F222-vision-image-colorization%2F222-vision-image-colorization.ipynb
+.. |n229| image:: https://mybinder.org/badge_logo.svg
+   :target: https://mybinder.org/v2/gh/openvinotoolkit/openvino_notebooks/HEAD?labpath=notebooks%2F229-distilbert-sequence-classification%2F229-distilbert-sequence-classification.ipynb
 .. |n401| image:: https://mybinder.org/badge_logo.svg
    :target: https://mybinder.org/v2/gh/openvinotoolkit/openvino_notebooks/HEAD?filepath=notebooks%2F401-object-detection-webcam%2F401-object-detection.ipynb
 .. |n402| image:: https://mybinder.org/badge_logo.svg
