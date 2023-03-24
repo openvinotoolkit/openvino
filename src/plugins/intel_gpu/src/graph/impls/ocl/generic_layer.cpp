@@ -15,7 +15,7 @@ struct generic_layer_impl : typed_primitive_impl<generic_layer> {
 
     kernel_selector::cl_kernel_data _cl_kernel_data;
     std::vector<kernel::ptr> _kernels;
-    cached_kernel_id_type _cached_kernel_id;
+    std::string _cached_kernel_id;
 
     DECLARE_OBJECT_TYPE_SERIALIZATION
 
@@ -27,7 +27,8 @@ struct generic_layer_impl : typed_primitive_impl<generic_layer> {
 
     generic_layer_impl(const generic_layer_impl& other)
     : _cl_kernel_data(other._cl_kernel_data)
-    , _kernels({}) {
+    , _kernels({})
+    , _cached_kernel_id(other._cached_kernel_id) {
         if (other._kernels.empty()) {
             throw std::runtime_error("Can't copy generic_layer_impl node: kernels vector is empty");
         }
@@ -36,7 +37,8 @@ struct generic_layer_impl : typed_primitive_impl<generic_layer> {
 
     generic_layer_impl(const generic_layer_node& arg)
         : _cl_kernel_data(*arg.get_primitive()->generic_params.clKernel.get())
-        , _kernels() { }
+        , _kernels()
+        , _cached_kernel_id() { }
 
     std::vector<std::shared_ptr<cldnn::kernel_string>> get_kernels_source() override {
         std::vector<std::shared_ptr<cldnn::kernel_string>> kernel_strings;
@@ -50,7 +52,7 @@ struct generic_layer_impl : typed_primitive_impl<generic_layer> {
 
     void save(BinaryOutputBuffer& ob) const override {
         ob <<_cl_kernel_data;
-        ob << kernels_cache::get_cached_kernel_id(_kernels[0]);
+        ob << _cached_kernel_id;
     }
 
     void load(BinaryInputBuffer& ib) override {
@@ -66,6 +68,10 @@ struct generic_layer_impl : typed_primitive_impl<generic_layer> {
 
     void init_by_cached_kernels(const kernels_cache& kernels_cache) override {
         _kernels.emplace_back(kernels_cache.get_kernel_from_cached_kernels(_cached_kernel_id));
+    }
+
+    void set_cached_kernel_ids(const kernels_cache& kernels_cache) override {
+        _cached_kernel_id = kernels_cache.get_cached_kernel_id(_kernels[0]);
     }
 
     void set_arguments_impl(generic_layer_inst& instance) override {

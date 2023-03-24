@@ -334,10 +334,9 @@ void kernels_cache::build_batch(const engine& build_engine, const batch_program&
     }
 }
 
-kernel::ptr kernels_cache::get_kernel_from_cached_kernels(cached_kernel_id_type id) const {
+kernel::ptr kernels_cache::get_kernel_from_cached_kernels(std::string id) const {
     auto res = _cached_kernels.find(id);
-    if (_cached_kernels.end() == res)
-        throw std::runtime_error("Kernel " + id.second + " not found in the cached kernel cache!");
+    OPENVINO_ASSERT(_cached_kernels.end() != res, "[GPU] Kernel " + id + " not found in the cached kernel cache!");
     return res->second->clone();
 }
 
@@ -469,18 +468,19 @@ void kernels_cache::add_kernels_source(const kernel_impl_params& params,
     }
 }
 
-cached_kernel_id_type kernels_cache::get_cached_kernel_id(kernel::ptr kernel) {
+std::string kernels_cache::get_cached_kernel_id(kernel::ptr kernel) const {
     auto ocl_kernel = std::static_pointer_cast<cldnn::ocl::ocl_kernel>(kernel);
     const auto& entry_point = ocl_kernel->get_handle().getInfo<CL_KERNEL_FUNCTION_NAME>();
     auto program = ocl_kernel->get_handle().getInfo<CL_KERNEL_PROGRAM>();
     cl::vector<unsigned char> program_binaries = getProgramBinaries(program);
-    std::string str_for_hash(program_binaries.begin(), program_binaries.end());
-    size_t program_hash = std::hash<std::string>()(str_for_hash);
-    return std::make_pair(program_hash, entry_point);
+    auto iter = _cached_binaries.find(program_binaries);
+    OPENVINO_ASSERT(iter != _cached_binaries.end(), "[GPU] Not found cached kernel binaries");
+
+    return entry_point + "@" + std::to_string(iter->second);
 }
 
-std::vector<cached_kernel_id_type> kernels_cache::get_cached_kernel_ids(const std::vector<kernel::ptr>& kernels) {
-    std::vector<cached_kernel_id_type> kernel_ids;
+std::vector<std::string> kernels_cache::get_cached_kernel_ids(const std::vector<kernel::ptr>& kernels) const {
+    std::vector<std::string> kernel_ids;
 
     for (auto& kernel : kernels) {
         auto key = get_cached_kernel_id(kernel);
@@ -491,7 +491,19 @@ std::vector<cached_kernel_id_type> kernels_cache::get_cached_kernel_ids(const st
 }
 
 void kernels_cache::add_to_cached_kernels(const std::vector<kernel::ptr>& kernels) {
+    static std::atomic<uint32_t> id_gen{0};
+    std::lock_guard<std::mutex> lock(_mutex);
+
     for (auto& kernel : kernels) {
+        auto ocl_kernel = std::static_pointer_cast<cldnn::ocl::ocl_kernel>(kernel);
+        auto program = ocl_kernel->get_handle().getInfo<CL_KERNEL_PROGRAM>();
+        cl::vector<unsigned char> program_binaries = getProgramBinaries(program);
+
+        auto iter = _cached_binaries.find(program_binaries);
+        if (iter == _cached_binaries.end()) {
+            _cached_binaries[program_binaries] = id_gen++;
+        }
+
         auto key = get_cached_kernel_id(kernel);
 
         if (_cached_kernels.find(key) == _cached_kernels.end()) {
@@ -503,40 +515,34 @@ void kernels_cache::add_to_cached_kernels(const std::vector<kernel::ptr>& kernel
 void kernels_cache::save(BinaryOutputBuffer& ob) const {
     OPENVINO_ASSERT(_engine.type() == engine_types::ocl, "[GPU] Not supported engine type");
 
-    std::unique_ptr<ocl::ocl_engine> build_engine =
-        cldnn::make_unique<ocl::ocl_engine>(_engine.get_device(), runtime_types::ocl);
-
-    std::unordered_set<size_t> cached_kernel_hash_set;
-    std::map<size_t, std::vector<unsigned char>> precompiled_kernels;
-    for (auto iter = _cached_kernels.begin(); iter != _cached_kernels.end(); iter++) {
-        auto kernel_hash = iter->first.first;
-        const auto& hash_iter = cached_kernel_hash_set.find(kernel_hash);
-
-        if (hash_iter == cached_kernel_hash_set.end()) {
-            auto ocl_kernel = std::static_pointer_cast<cldnn::ocl::ocl_kernel>(iter->second);
-            auto program = ocl_kernel->get_handle().getInfo<CL_KERNEL_PROGRAM>();
-            precompiled_kernels[kernel_hash] = getProgramBinaries(program);
-            cached_kernel_hash_set.insert(kernel_hash);
-        }
+    ob << _cached_binaries.size();
+    for (auto& cached_binary : _cached_binaries) {
+        ob << cached_binary.second;
+        ob << cached_binary.first;
     }
-    ob << precompiled_kernels;
 }
 
 void kernels_cache::load(BinaryInputBuffer& ib) {
     OPENVINO_ASSERT(_engine.type() == engine_types::ocl, "[GPU] Not supported engine type");
 
+    std::unordered_map<uint32_t, std::vector<unsigned char>> precompiled_kernels;
+
+    size_t num_cached_binaries;
+    ib >> num_cached_binaries;
+    for (size_t i = 0; i < num_cached_binaries; ++i) {
+        uint32_t id;
+        ib >> id;
+        ib >> precompiled_kernels[id];
+    }
+
     std::unique_ptr<ocl::ocl_engine> build_engine =
         cldnn::make_unique<ocl::ocl_engine>(_engine.get_device(), runtime_types::ocl);
-
-    std::map<size_t, std::vector<unsigned char>> precompiled_kernels;
-    ib >> precompiled_kernels;
 
     try {
         std::lock_guard<std::mutex> lock(_mutex);
         _cached_kernels.clear();
 
         for (auto& precompiled_kernel : precompiled_kernels) {
-            auto kernel_hash = precompiled_kernel.first;
             cl::vector<cl::Kernel> kernels;
             cl::Program program(build_engine->get_cl_context(), {build_engine->get_cl_device()}, {precompiled_kernel.second});
             program.build({build_engine->get_cl_device()});
@@ -544,7 +550,7 @@ void kernels_cache::load(BinaryInputBuffer& ib) {
 
             for (auto& k : kernels) {
                 const auto& entry_point = k.getInfo<CL_KERNEL_FUNCTION_NAME>();
-                auto cached_kernel_id = std::make_pair(kernel_hash, entry_point);
+                std::string cached_kernel_id = entry_point + "@" + std::to_string(precompiled_kernel.first);
                 const auto& iter = _cached_kernels.find(cached_kernel_id);
                 if (iter == _cached_kernels.end()) {
                     cl_kernel cl_kernel = k.get();
