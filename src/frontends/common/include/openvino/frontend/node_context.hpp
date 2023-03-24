@@ -49,7 +49,7 @@ public:
     }
 
     /// \brief Returns const input with a given index
-    virtual Any const_input(int idx) const {
+    virtual Any const_input_as_any(int idx) const {
         FRONT_END_NOT_IMPLEMENTED(const_input);
     }
 

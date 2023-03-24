@@ -117,9 +117,9 @@ void regclass_frontend_NodeContext(py::module m) {
     });
 
     ext.def(
-        "const_input",
+        "const_input_as_any",
         [=](NodeContext& self, int idx, const py::object& default_value, const py::object& dtype) -> py::object {
-            auto any = self.const_input(idx);
+            auto any = self.const_input_as_any(idx);
             auto casted = cast_attribute(any, dtype);
             if (!casted.is_none())
                 return casted;

@@ -192,7 +192,7 @@ Any get_constant_data(const std::shared_ptr<opset10::Constant>& constant) {
 }
 }  // namespace
 
-Any NodeContext::const_input(int index) const {
+Any NodeContext::const_input_as_any(int index) const {
     FRONT_END_GENERAL_CHECK(!input_is_none(index), "Input with index: ", index, " is none.");
     auto input_node = get_input_from_visible_context(index).get_node_shared_ptr();
     if (auto constant = as_type_ptr<opset10::Constant>(input_node)) {

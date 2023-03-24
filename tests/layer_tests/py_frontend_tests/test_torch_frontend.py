@@ -115,7 +115,7 @@ def test_conversion_extension():
 
     def convert_gelu(node: NodeContext):
         inp = node.get_input(0)
-        approximate = node.const_input(1)
+        approximate = node.const_input_as_any(1)
         if approximate == "none":
             f = ops.erf(ops.divide(inp, ops.constant(np.array([math.sqrt(2.0)], dtype=np.float32))))
         elif approximate == "tanh":
@@ -128,7 +128,7 @@ def test_conversion_extension():
 
     def convert_softmax(node: NodeContext):
         inp = node.get_input(0)
-        dim = node.const_input(1, dtype=np.int32)
+        dim = node.const_input_as_any(1, dtype=np.int32)
         dim_const = ops.constant(np.array([dim], dtype=np.int32))
         reduce_max = ops.reduce_max(inp, dim_const, True)
         sub = ops.subtract(inp, reduce_max)
