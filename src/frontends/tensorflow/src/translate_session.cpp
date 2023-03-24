@@ -66,7 +66,16 @@ void TranslateSession::inject_body_model(std::shared_ptr<ov::Model> body_model,
                             "inputs and arguments to the function " +
                                 operation_type + " do not match.");
     for (size_t param_ind = 0; param_ind < body_parameters.size(); ++param_ind) {
+        auto orig_type = body_parameters[param_ind]->get_element_type();
         body_parameters[param_ind]->output(0).replace(ov_inputs[param_ind]);
+        if (auto ext_parameter = as_type_ptr<ov::opset8::Parameter>(ov_inputs[param_ind].get_node_shared_ptr())) {
+            // save type of a Parameter as converted in the body
+            // this is important if the external conversion extension is applied to body graph node
+            // with setting its own type
+            if (orig_type != element::dynamic) {
+                ext_parameter->set_element_type(orig_type);
+            }
+        }
     }
     for (const auto& result_node : body_model->get_results()) {
         ov_outputs.push_back(result_node->input_value(0));

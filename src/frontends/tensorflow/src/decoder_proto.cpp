@@ -306,6 +306,11 @@ void parse_producer_name(const std::string& producer_port_name,
         {"FusedBatchNormV2:batch_variance", 2},
         {"FusedBatchNormV3:batch_mean", 1},
         {"FusedBatchNormV3:batch_variance", 2},
+        {"Unique:y", 0},
+        {"Unique:idx", 1},
+        {"RaggedTensorToSparse:sparse_indices", 0},
+        {"RaggedTensorToSparse:sparse_values", 1},
+        {"RaggedTensorToSparse:sparse_dense_shape", 2},
     };
     // Body graph nodes may have two colons `:` input names, for example,
     // `TopKV2Name:indices:0` means that producer operation name is `TopKV2Name`
