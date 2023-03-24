@@ -556,29 +556,13 @@ void Node::execute(dnnl::stream strm) {
     }
 }
 
-void Node::updateShapes(std::unordered_map<std::string, std::array<uint64_t, 5>>& countersMap) {
+void Node::updateShapes() {
     IE_ASSERT(isDynamicNode()) << "Node::updateShapes() is called to a static shape node of type: " << getTypeStr() << " with name: " << getName();
-    // if (needShapeInfer()) {
-    //     auto result = shapeInfer();
-    //     if (ShapeInferStatus::success == result.status) {
-    //         redefineOutputMemory(result.dims);
-    //     }
-    // }
-    auto start = std::chrono::steady_clock::now();
-    bool result = needShapeInfer();
-    auto end = std::chrono::steady_clock::now();
-    countersMap[getTypeStr()][0] += std::chrono::duration_cast<std::chrono::nanoseconds>(end - start).count();
-    if (result) {
-        start = std::chrono::steady_clock::now();
-        auto outputShapesResult = shapeInfer();
-        end = std::chrono::steady_clock::now();
-        countersMap[getTypeStr()][0] += std::chrono::duration_cast<std::chrono::nanoseconds>(end - start).count();
-        start = std::chrono::steady_clock::now();
-        if (ShapeInferStatus::success == outputShapesResult.status) {
-            redefineOutputMemory(outputShapesResult.dims);
+    if (needShapeInfer()) {
+        auto result = shapeInfer();
+        if (ShapeInferStatus::success == result.status) {
+            redefineOutputMemory(result.dims);
         }
-        end = std::chrono::steady_clock::now();
-        countersMap[getTypeStr()][1] += std::chrono::duration_cast<std::chrono::nanoseconds>(end - start).count();
     }
 }
 

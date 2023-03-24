@@ -258,7 +258,6 @@ private:
     GraphContext::CPtr context;
 
     void EnforceBF16();
-    mutable std::unordered_map<std::string, std::array<uint64_t, 5>> countersMap;
 };
 
 }   // namespace intel_cpu
