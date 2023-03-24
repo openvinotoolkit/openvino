@@ -36,6 +36,25 @@ std::vector<T> reorder_ops_by_names(const std::vector<std::string>& names, const
     }
     return resulted_ops;
 };
+
+/// \brief Adds known input names from Saved Model file format
+/// \param[in] node Node which should be updated
+/// \param[in] saved_model_names Map of names from saved model
+/// \returns True if node was updated, false otherwise
+static bool apply_saved_model_names(std::shared_ptr<ov::Node> node,
+                                    const std::shared_ptr<std::map<std::string, std::string>>& saved_model_names) {
+    for (size_t i = 0; i < node->get_output_size(); ++i) {
+        const auto& node_names = node->get_output_tensor(i).get_names();
+        for (const auto& name : node_names) {
+            const auto& saved_model_name = saved_model_names->find(name);
+            if (saved_model_name != saved_model_names->end()) {
+                node->set_friendly_name(saved_model_name->second);
+                return true;
+            }
+        }
+    }
+    return false;
+}
 }  // namespace
 
 TranslateSession::TranslateSession(const ov::frontend::InputModel::Ptr& input_model,
@@ -94,6 +113,8 @@ void TranslateSession::translate_graph(const ov::frontend::InputModel::Ptr& inpu
     const auto& model_inputs = model_tf->get_inputs();
     const auto& model_outputs = model_tf->get_outputs();
     const auto& model_frozen_inputs = model_tf->get_tensor_values();
+    const auto& saved_model_inputs = model_tf->get_saved_model_input_names();
+    const auto& saved_model_outputs = model_tf->get_saved_model_output_names();
 
     // fill ng_op_map with Constant outputs for frozen inputs
     for (const auto& frozen_input : model_frozen_inputs) {
@@ -123,6 +144,11 @@ void TranslateSession::translate_graph(const ov::frontend::InputModel::Ptr& inpu
 
         auto param = std::make_shared<ov::opset8::Parameter>(input_type, input_shape);
         set_node_name(input_name, param);
+        if (saved_model_inputs.get() && saved_model_inputs->size() > 0) {
+            if (!apply_saved_model_names(param, saved_model_inputs)) {
+                param->get_output_tensor(0).add_names({"saved_model_unused"});
+            }
+        }
         params.push_back(param);
         ng_op_map[input_name] = {param};
     }
@@ -273,10 +299,30 @@ void TranslateSession::translate_graph(const ov::frontend::InputModel::Ptr& inpu
             if (port_type == "none") {
                 for (const auto& node_output : ng_op_map[operation_name]) {
                     auto result_node = std::make_shared<ov::opset8::Result>(node_output);
-                    // to be aligned with Legacy Frontend we set a name along with output port index
-                    // though, the Result name is not used in the OV API 2.0 but it is checked in MO args tests
-                    result_node->set_friendly_name(model_output_name + ":0");
-                    results.push_back(result_node);
+                    // Customize output name in case we have mapping from Saved Model format
+                    if (saved_model_outputs.get() && saved_model_outputs->size() > 0) {
+                        bool isUsed = true;
+                        for (const auto& name : model_output_tensor_place->get_names()) {
+                            auto saved_model_name = saved_model_outputs->find(name);
+                            if (saved_model_name == saved_model_outputs->end()) {
+                                saved_model_name = saved_model_outputs->find(name + ":0");
+                            }
+                            if (saved_model_name != saved_model_outputs->end()) {
+                                result_node->set_friendly_name(saved_model_name->second);
+                                results.push_back(result_node);
+                                isUsed = false;
+                                break;
+                            }
+                            if (!isUsed) {
+                                result_node->get_input_tensor(0).add_names({"saved_model_unused"});
+                            }
+                        }
+                    } else {
+                        // to be aligned with Legacy Frontend we set a name along with output port index
+                        // though, the Result name is not used in the OV API 2.0 but it is checked in MO args tests
+                        result_node->set_friendly_name(model_output_name + ":0");
+                        results.push_back(result_node);
+                    }
                 }
             } else if (port_type == "out") {
                 const auto& node_outputs = ng_op_map[operation_name];

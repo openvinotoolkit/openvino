@@ -417,6 +417,32 @@ if(ENABLE_OV_TF_LITE_FRONTEND)
 endif()
 
 #
+# Snappy Compression
+#
+if(ENABLE_SNAPPY_COMPRESSION)
+    function(tf_build_snappy)
+        set(BUILD_SHARED_LIBS OFF)
+        set(SNAPPY_BUILD_BENCHMARKS OFF)
+        set(SNAPPY_BUILD_TESTS OFF)
+        set(INSTALL_GTEST OFF)
+        set(CMAKE_COMPILE_WARNING_AS_ERROR OFF)
+        set(CMAKE_CXX_STANDARD 14)
+        if(NOT CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
+            # Removes 3rd party errors which may affect OpenVINO CI
+            if(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
+                if(NOT CMAKE_CXX_FLAGS MATCHES "-Werror=return-type")
+                    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Werror=return-type")
+                endif()
+            endif()
+        endif()
+        add_subdirectory(snappy EXCLUDE_FROM_ALL)
+    endfunction()
+
+    tf_build_snappy()
+    ov_install_static_lib(snappy ${OV_CPACK_COMP_CORE})
+endif()
+
+#
 # ONNX
 #
 
