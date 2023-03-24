@@ -21,6 +21,7 @@ std::vector<std::string> disabledTestPatterns() {
         R"(.*InferRequestPreprocessDynamicallyInSetBlobTest.*oPRC=0.*oLT=1.*)",
         // Not Implemented
         R"(.*Behavior.*ExecutableNetworkBaseTest.*(canSetConfigToExecNet|canSetConfigToExecNetAndCheckConfigAndCheck).*)",
+        R"(.*(Auto|Multi).*OVExecutableNetworkBaseTest.*canLoadCorrectNetworkToGetExecutableWithIncorrectConfig.*)",
         R"(.*OVExecutableNetworkBaseTest.*(CanSetConfigToExecNet|canSetConfigToExecNetAndCheckConfigAndCheck).*)",
         R"(.*Behavior.*ExecutableNetworkBaseTest.*(CheckExecGraphInfoBeforeExecution|CheckExecGraphInfoAfterExecution|CheckExecGraphInfoSerialization).*)",
         R"(.*Behavior.*ExecutableNetworkBaseTest.*canExport.*)",

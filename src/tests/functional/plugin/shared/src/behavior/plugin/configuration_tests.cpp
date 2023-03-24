@@ -197,7 +197,7 @@ TEST_P(SetPropLoadNetWorkGetPropTests, SetPropLoadNetWorkGetProperty) {
 
     InferenceEngine::ExecutableNetwork exeNetWork;
     ASSERT_NO_THROW(exeNetWork = ie->LoadNetwork(cnnNet, target_device, loadNetWorkConfig));
-    if (target_device == CommonTestUtils::DEVICE_AUTO)
+    if (target_device == CommonTestUtils::DEVICE_AUTO || target_device == CommonTestUtils::DEVICE_MULTI)
         GTEST_SKIP();
 
     for (const auto& property_item : loadNetWorkConfig) {

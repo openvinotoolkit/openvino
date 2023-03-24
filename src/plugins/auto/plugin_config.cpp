@@ -83,7 +83,7 @@ bool PluginConfig::is_set_by_user(const std::string& name) const {
     return user_properties.find(name) != user_properties.end();
 }
 
-void PluginConfig::set_user_property(const ov::AnyMap& config, bool checkfirstlevel) {
+void PluginConfig::set_user_property(const ov::AnyMap& config) {
     // user property, accept either internal property, or secondary property for hardware plugin
     // TODO: for multi, other first level property are also accepted
     for (auto& kv : config) {
@@ -95,13 +95,7 @@ void PluginConfig::set_user_property(const ov::AnyMap& config, bool checkfirstle
             internal_properties[kv.first] = kv.second;
             user_properties[kv.first] = kv.second;
         } else {
-            if (device_property_validator->is_valid(ov::Any(name))) { // if it's a valid secondary, accept it
-                user_properties[kv.first] = kv.second;
-            } else if (!checkfirstlevel) { // for multi, accept it anyway when compiled model
-                user_properties[kv.first] = kv.second;
-            } else {
-                OPENVINO_ASSERT(false, "property ", name,  ": not supported");
-            }
+            user_properties[kv.first] = kv.second;
         }
     }
 }

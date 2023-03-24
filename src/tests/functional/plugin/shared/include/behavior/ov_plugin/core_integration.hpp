@@ -1319,6 +1319,7 @@ TEST_P(OVClassLoadNetworkAndCheckSecondaryPropertiesTest, LoadNetworkAndCheckSec
     ASSERT_TRUE(property.count(ov::num_streams.name()));
     auto actual = property.at(ov::num_streams.name()).as<int32_t>();
     ov::Any value;
+    //AutoExcutableNetwork GetMetric() doesnot support key ov::num_streams
     OV_ASSERT_NO_THROW(value = model.get_property(ov::num_streams.name()));
     int32_t expect = value.as<int32_t>();
     ASSERT_EQ(actual, expect);
