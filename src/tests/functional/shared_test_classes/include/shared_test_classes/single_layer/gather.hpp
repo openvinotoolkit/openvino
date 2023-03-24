@@ -74,4 +74,13 @@ protected:
     void SetUp() override;
 };
 
+class Gather8IndiceScalarLayerTest : public testing::WithParamInterface<gather7ParamsTuple>,
+                         virtual public LayerTestsUtils::LayerTestsCommon {
+public:
+    static std::string getTestCaseName(const testing::TestParamInfo<gather7ParamsTuple>& obj);
+
+protected:
+    void SetUp() override;
+};
+
 }  // namespace LayerTestsDefinitions
