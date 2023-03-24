@@ -129,6 +129,7 @@ The target is able to take the following command-line arguments:
 * `--shape_mode` is optional. It allows you to run `static`, `dynamic` , or both scenarios. The default value is an empty string, which allows running both scenarios. Possible values
   are `static`, `dynamic`, ``
 * `--test_timeout` specifies setup timeout for each test in seconds. The default timeout is 900 seconds (15 minutes).
+* `--ignore_crash` Optional. Allow to not terminate the whole run after crash and continue execution from the next test. This is organized with custom crash handler. Please, note, that handler work for test body,  if crash happened on SetUp/TearDown stage, the process will be terminated.
 * All `gtest` command-line parameters
 
 > **NOTE**:

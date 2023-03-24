@@ -12,7 +12,7 @@
 #include "openvino/pass/manager.hpp"
 #include "openvino/runtime/properties.hpp"
 #include "remote_context.hpp"
-#include "template/config.hpp"
+#include "template/properties.hpp"
 #include "transformations/common_optimizations/common_optimizations.hpp"
 #include "transformations/common_optimizations/convert_compression_only_to_legacy.hpp"
 #include "transformations/control_flow/unroll_if.hpp"
@@ -171,6 +171,9 @@ ov::SupportedOpsMap ov::template_plugin::Plugin::query_model(const std::shared_p
     auto supported = ov::get_supported_nodes(
         model,
         [&](std::shared_ptr<ov::Model>& model) {
+            // skip transformations in case of user config
+            if (fullConfig.disable_transformations)
+                return;
             // 1. It is needed to apply all transformations as it is done in compile_model
             transform_model(model);
         },
@@ -228,7 +231,7 @@ ov::Any ov::template_plugin::Plugin::get_property(const std::string& name, const
         std::vector<ov::PropertyName> rw_properties{ov::device::id,
                                                     ov::enable_profiling,
                                                     ov::hint::performance_mode,
-                                                    ov::template_plugin::throughput_streams};
+                                                    ov::template_plugin::disable_transformations};
         return rw_properties;
     };
     const auto& to_string_vector = [](const std::vector<ov::PropertyName>& properties) {
