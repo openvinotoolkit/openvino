@@ -257,7 +257,7 @@ public:
         std::vector<Output<Node>> inputs;
         for (const auto& name : m_in_names_vec) {
             for (size_t i = 0; i < context.get_input_size(name); ++i) {
-                inputs.push_back(context.get_input(name, i));
+                inputs.push_back(context.get_input(name, static_cast<int>(i)));
             }
         }
 
