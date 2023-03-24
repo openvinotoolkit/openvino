@@ -16,6 +16,9 @@ class TRANSFORMATIONS_API TSGeneralBackward;
 class TRANSFORMATIONS_API TSGeneral;
 
 }  // namespace transpose_sinking
+
+using TransposeSinkingGeneral = ov::pass::transpose_sinking::TSGeneral;
+
 }  // namespace pass
 }  // namespace ov
 

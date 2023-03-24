@@ -268,7 +268,7 @@ void FrontEnd::normalize(const std::shared_ptr<ov::Model>& function) const {
     manager.register_pass<ov::frontend::tensorflow_lite::pass::TFLQuantizeResolver>();
     manager.register_pass<ov::frontend::tensorflow_lite::pass::Rfft2dSimplifier>();
     manager.register_pass<ov::pass::TransposeSinking>();
-    manager.register_pass<ov::pass::transpose_sinking::TSGeneral>();
+    manager.register_pass<ov::pass::TransposeSinkingGeneral>();
     manager.run_passes(function);
 }
 
