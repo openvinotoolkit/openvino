@@ -23,29 +23,6 @@ public:
 };
 
 /**
- * @brief Null tensor accessor.
- *
- * Return empty tensor for any input port.
- */
-struct OPENVINO_API NullTensorAccessor : public ITensorAccessor {
-    Tensor operator()(size_t port) const override {
-        const static auto null_tensor = Tensor();
-        return null_tensor;
-    }
-};
-
-/**
- * @brief Get null tensor accessor which returns empty tensor for any index number.
- *
- * @param port  Port number to get data.
- * @return      Null tensor accessor.
- */
-inline auto null_tensor_accessor() -> const ITensorAccessor& {
-    static const auto null_accessor = NullTensorAccessor();
-    return null_accessor;
-};
-
-/**
  * @brief Tensor data accessor functor.
  *
  * Creates the ov::Tensor found in tensors container.
@@ -89,6 +66,9 @@ OPENVINO_API Tensor TensorAccessor<HostTensorVector>::operator()(size_t port) co
 template <>
 OPENVINO_API Tensor TensorAccessor<std::map<size_t, HostTensorPtr>>::operator()(size_t port) const;
 
+template <>
+OPENVINO_API Tensor TensorAccessor<void>::operator()(size_t port) const;
+
 /**
  * @brief Makes TensorAccessor for specific tensor container.
  *
@@ -103,4 +83,10 @@ auto make_tensor_accessor(const TContainer& c) -> TensorAccessor<TContainer> {
     return TensorAccessor<TContainer>(&c);
 }
 
+/**
+ * @brief Makes empty TensorAccessor which return empty tensor for any port number.
+ *
+ * @return TensorAccessor to return empty tensor.
+ */
+OPENVINO_API auto make_tensor_accessor() -> TensorAccessor<void>;
 }  // namespace ov

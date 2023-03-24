@@ -14,7 +14,7 @@ namespace v0 {
 template <class T>
 std::vector<T> shape_infer(const Tile* op,
                            const std::vector<T>& input_shapes,
-                           const ITensorAccessor& tensor_accessor = null_tensor_accessor()) {
+                           const ITensorAccessor& tensor_accessor = make_tensor_accessor()) {
     using TDim = typename T::value_type;
     using TDimValue = typename TDim::value_type;
 

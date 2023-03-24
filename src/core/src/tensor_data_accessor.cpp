@@ -10,7 +10,7 @@ Tensor TensorAccessor<TensorVector>::operator()(size_t port) const {
     if (port < m_tensors->size()) {
         return (*m_tensors)[port];
     } else {
-        return null_tensor_accessor()(port);
+        return make_tensor_accessor()(port);
     }
 }
 
@@ -20,7 +20,7 @@ Tensor TensorAccessor<HostTensorVector>::operator()(size_t port) const {
         auto ptr = (*m_tensors)[port];
         return {ptr->get_element_type(), ptr->get_shape(), ptr->get_data_ptr()};
     } else {
-        return null_tensor_accessor()(port);
+        return make_tensor_accessor()(port);
     }
 }
 
@@ -31,7 +31,18 @@ Tensor TensorAccessor<std::map<size_t, HostTensorPtr>>::operator()(size_t port) 
         auto ptr = t_iter->second.get();
         return {ptr->get_element_type(), ptr->get_shape(), ptr->get_data_ptr()};
     } else {
-        return null_tensor_accessor()(port);
+        return make_tensor_accessor()(port);
     }
+}
+
+template <>
+Tensor TensorAccessor<void>::operator()(size_t) const {
+    static const auto empty = Tensor();
+    return empty;
+}
+
+auto make_tensor_accessor() -> TensorAccessor<void> {
+    static const auto empty_tensor_accessor = TensorAccessor<void>(nullptr);
+    return empty_tensor_accessor;
 }
 }  // namespace ov

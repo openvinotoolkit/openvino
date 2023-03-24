@@ -39,7 +39,7 @@ namespace v1 {
 template <class TShape>
 std::vector<TShape> shape_infer(const Reverse* op,
                                 const std::vector<TShape>& input_shapes,
-                                const ITensorAccessor& tensor_accessor = null_tensor_accessor()) {
+                                const ITensorAccessor& tensor_accessor = make_tensor_accessor()) {
     NODE_VALIDATION_CHECK(op, input_shapes.size() == 2);
 
     const auto& data_shape = input_shapes[0];

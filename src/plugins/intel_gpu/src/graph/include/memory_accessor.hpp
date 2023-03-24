@@ -65,7 +65,7 @@ struct MemoryAccessor : public ov::ITensorAccessor {
         } else if (m_clbk) {
             return m_clbk(port);
         } else {
-            return ov::null_tensor_accessor()(port);
+            return ov::make_tensor_accessor()(port);
         }
     }
 

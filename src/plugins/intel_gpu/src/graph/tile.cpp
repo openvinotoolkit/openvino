@@ -57,7 +57,7 @@ std::vector<layout> tile_inst::calc_output_layouts(tile_node const& /*node*/, co
             return (port == 1 && repeats.data()) ? ov::Tensor(data_type_to_element_type(data_types::i64),
                                                               repeats_shape.to_shape(),
                                                               repeats.data())
-                                                 : ov::null_tensor_accessor()(port);
+                                                 : ov::Tensor();
         });
 
     std::vector<ShapeType> output_shapes = ov::op::v0::shape_infer(&op, input_shapes, data_accessor);
