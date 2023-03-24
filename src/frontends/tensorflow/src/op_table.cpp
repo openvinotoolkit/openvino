@@ -32,6 +32,14 @@ TF_OP_CONVERTER(translate_queue_dequeue_many_op);
 TF_OP_CONVERTER(translate_sparse_fill_empty_rows_op);
 TF_OP_CONVERTER(translate_sparse_reshape_op);
 TF_OP_CONVERTER(translate_sparse_segment_sum_op);
+TF_OP_CONVERTER(translate_varisinitialized_op);
+TF_OP_CONVERTER(translate_readvariable_op);
+TF_OP_CONVERTER(translate_assignvariable_op);
+TF_OP_CONVERTER(translate_varhandle_op);
+TF_OP_CONVERTER(translate_restorev2_op);
+TF_OP_CONVERTER(translate_staticregexfullmatch_op);
+TF_OP_CONVERTER(translate_stringjoin_op);
+TF_OP_CONVERTER(translate_mergev2checkpoint_op);
 TF_OP_CONVERTER(translate_while_op);
 
 const std::map<std::string, CreatorFunction> get_supported_ops() {
@@ -246,6 +254,15 @@ const std::map<std::string, CreatorFunction> get_supported_ops() {
         {"TopK", translate_top_k_op},
         {"TopKV2", translate_top_k_v2_op},
         {"Transpose", translate_transpose_op},
+        {"ReadVariableOp", translate_readvariable_op},
+        {"AssignVariableOp", translate_assignvariable_op},
+        {"VarIsInitializedOp", translate_varisinitialized_op},
+        {"VarHandleOp", translate_varhandle_op},
+        {"RestoreV2", translate_restorev2_op},
+        {"StaticRegexFullMatch", translate_staticregexfullmatch_op},
+        {"StringJoin", translate_stringjoin_op},
+        {"ShardedFilename", translate_identity_op},
+        {"MergeV2Checkpoints", translate_identity_op},
         {"Unpack", translate_unpack_op},
         {"While", translate_while_op},
         {"Where", translate_where_op},

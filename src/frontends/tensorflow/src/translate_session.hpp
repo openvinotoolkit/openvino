@@ -31,6 +31,10 @@ public:
 
     std::shared_ptr<ov::Model> get_body_ov_model(const std::string& body_graph_name);
 
+    ov::frontend::InputModel::Ptr get_input_model(void) const {
+        return m_input_model;
+    }
+
 private:
     const ov::frontend::InputModel::Ptr m_input_model;
     const std::shared_ptr<TranslatorDictionaryType> m_translator_map;

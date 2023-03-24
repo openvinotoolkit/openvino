@@ -5,6 +5,7 @@
 #pragma once
 
 #include <fstream>
+#include <vector>
 
 #include "decoder_argdef.hpp"
 #include "decoder_proto.hpp"
@@ -18,6 +19,7 @@ namespace frontend {
 namespace tensorflow {
 
 class GraphIteratorProto : public GraphIterator {
+protected:
     std::shared_ptr<::tensorflow::GraphDef> m_graph_def;
     std::shared_ptr<::tensorflow::FunctionDef> m_func_def;
 
@@ -26,6 +28,11 @@ class GraphIteratorProto : public GraphIterator {
     std::unordered_map<std::string, int> m_library_map;
     std::vector<std::string> m_input_names;
     std::vector<std::string> m_output_names;
+
+    GraphIteratorProto()
+        : m_graph_def(std::make_shared<::tensorflow::GraphDef>()),
+          m_func_def(nullptr),
+          m_library_map() {}
 
 public:
     GraphIteratorProto(const std::shared_ptr<::tensorflow::GraphDef>& graph_def,
@@ -150,6 +157,7 @@ public:
         return m_output_names;
     }
 };
+
 }  // namespace tensorflow
 }  // namespace frontend
 }  // namespace ov
