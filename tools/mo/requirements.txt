@@ -1,5 +1,6 @@
 -c ../constraints.txt
 numpy>=1.16.6
+singledispatchmethod
 networkx
 defusedxml
 importlib-metadata

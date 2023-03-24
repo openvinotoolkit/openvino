@@ -1,4 +1,5 @@
 -c ../../constraints.txt
+singledispatchmethod
 requests
 pyyaml
 wheel
