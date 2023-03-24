@@ -196,8 +196,8 @@ protected:
      * Run ngraph model on CPU to modify inputs/outputs
      */
     void PrePostProcess(InferenceEngine::Blob::Ptr input_blob,
-                          InferenceEngine::Blob::Ptr output_blob,
-                          std::shared_ptr<ov::Model> model);
+                        InferenceEngine::Blob::Ptr output_blob,
+                        std::shared_ptr<ov::Model> model);
 
     void ImportFrames(void* ptr_dst,
                       const void* ptr_src,
