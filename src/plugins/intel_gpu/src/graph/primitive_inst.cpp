@@ -190,6 +190,10 @@ void primitive_inst::update_shape() {
         }
         auto& dep = _node->get_dependency(i);
         auto dep_id = dep.id();
+        // exclude fused node from memory_deps
+        if (_node->is_fused_dep(i)) {
+            break;
+        }
         // Events may be not created for in-order queue, so take them for OOO queue only
         if (_network.has_event(dep.id()) && queue_type == QueueTypes::out_of_order) {
             dependencies_events.push_back(_network.get_primitive_event(dep_id));
