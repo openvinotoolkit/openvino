@@ -488,8 +488,8 @@ void GNAPlugin::UpdateInputs(const std::vector<std::shared_ptr<const ov::Node>>&
         (*inputs_ptr_)[ie_name].tensor_names = param->get_output_tensor(0).get_names();
 
         // find preprocessing model
-        auto subgraph_it = subgraph_cpu_map.find(ie_name);
-        if (subgraph_it != subgraph_cpu_map.end()) {
+        auto subgraph_it = m_subgraph_cpu_map.find(ie_name);
+        if (subgraph_it != m_subgraph_cpu_map.end()) {
             (*inputs_ptr_)[ie_name].pre_post_process_model = subgraph_it->second;
         }
     }
@@ -503,8 +503,8 @@ void GNAPlugin::UpdateOutputs(const std::vector<std::shared_ptr<const ov::Node>>
         outputs_[ie_name].tensor_names = result->get_output_tensor(0).get_names();
 
         // find postprocessing model
-        auto subgraph_it = subgraph_cpu_map.find(ie_name);
-        if (subgraph_it != subgraph_cpu_map.end()) {
+        auto subgraph_it = m_subgraph_cpu_map.find(ie_name);
+        if (subgraph_it != m_subgraph_cpu_map.end()) {
             outputs_[ie_name].pre_post_process_model = subgraph_it->second;
         }
     }
