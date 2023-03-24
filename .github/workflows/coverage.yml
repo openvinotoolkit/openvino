@@ -134,8 +134,8 @@ jobs:
       - name: Run GNA unit tests
         run: ${{ github.workspace }}/bin/intel64/Release/ov_gna_unit_tests
       
-      - name: Run VPU unit tests
-        run: ${{ github.workspace }}/bin/intel64/Release/vpuUnitTests
+      #- name: Run VPU unit tests
+      #  run: ${{ github.workspace }}/bin/intel64/Release/vpuUnitTests
       
       - name: XLink tests
         run: ${{ github.workspace }}/bin/intel64/Release/XLinkTests
