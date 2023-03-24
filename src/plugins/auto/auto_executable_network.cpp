@@ -64,9 +64,8 @@ IE::Parameter AutoExecutableNetwork::GetMetric(const std::string& name) const {
         return decltype(ov::device::priorities)::value_type {value->second.as<std::string>()};
     } else if (name == ov::device::properties) {
         ov::AnyMap all_devices = {};
-        if (_autoSchedule->_loadContext[ACTUALDEVICE].isAlready) {
-            ov::AnyMap device_properties = {};
-            auto& context = _autoSchedule->_loadContext[ACTUALDEVICE];
+        auto get_device_supported_metrics = [this, &all_devices] (const AutoLoadContext& context) {
+             ov::AnyMap device_properties = {};
             auto device_supported_metrics = context.executableNetwork->GetMetric(METRIC_KEY(SUPPORTED_METRICS));
             for (auto&& property_name : device_supported_metrics.as<std::vector<std::string>>()) {
                 device_properties[property_name] = context.executableNetwork->GetMetric(property_name);
@@ -76,6 +75,26 @@ IE::Parameter AutoExecutableNetwork::GetMetric(const std::string& name) const {
                 device_properties[property_name] = context.executableNetwork->GetConfig(property_name);
             }
             all_devices[context.deviceInfo.deviceName] = device_properties;
+        };
+        if (_autoSchedule->_pCTPUTLoadContext) {
+            // need lock for inference failure
+            std::lock_guard<std::mutex> lock(_autoSContext->_fallbackMutex);
+            auto load_count = _autoSContext->_devicePriorities.size();
+            for (size_t i = 0; i < load_count; i++)
+                get_device_supported_metrics(_autoSchedule->_pCTPUTLoadContext[i]);
+        } else {
+            {
+                std::lock_guard<std::mutex> lock(_autoSContext->_fallbackMutex);
+                if (_autoSchedule->_loadContext[FALLBACKDEVICE].isAlready) {
+                    get_device_supported_metrics(_autoSchedule->_loadContext[FALLBACKDEVICE]);
+                }
+            }
+            std::lock_guard<std::mutex> lock(_autoSContext->_confMutex);
+            if (_autoSchedule->_loadContext[ACTUALDEVICE].isAlready) {
+                get_device_supported_metrics(_autoSchedule->_loadContext[ACTUALDEVICE]);
+            } else {
+                get_device_supported_metrics(_autoSchedule->_loadContext[CPU]);
+            }
         }
         return all_devices;
     } else if (name == ov::hint::model_priority) {
@@ -92,7 +111,22 @@ IE::Parameter AutoExecutableNetwork::GetMetric(const std::string& name) const {
         const unsigned int defaultNumForLatency = 1u;
         unsigned int real = 0;
         if (_autoSchedule->_pCTPUTLoadContext) {
-            return _autoSContext->_ctputOptimalNums;
+            std::lock_guard<std::mutex> lock(_autoSContext->_fallbackMutex);
+            unsigned int res = 0u;
+            auto load_count = _autoSContext->_devicePriorities.size();
+            for (size_t i = 0; i < load_count; i++) {
+                try {
+                    res += (_autoSchedule->_pCTPUTLoadContext[i]).executableNetwork->GetMetric(
+                        METRIC_KEY(OPTIMAL_NUMBER_OF_INFER_REQUESTS)).as<unsigned int>();
+                } catch (const IE::Exception& iie) {
+                    IE_THROW()
+                        << "Every device used in cumulative mode should "
+                            << "support OPTIMAL_NUMBER_OF_INFER_REQUESTS ExecutableNetwork metric. "
+                            << "Failed to query the metric for with error:" <<
+                            iie.what();
+                }
+            }
+            return decltype(ov::optimal_number_of_infer_requests)::value_type {res};
         }
         if (_autoSchedule->_loadContext[ACTUALDEVICE].isAlready) {
             real = _autoSchedule->_loadContext[ACTUALDEVICE].

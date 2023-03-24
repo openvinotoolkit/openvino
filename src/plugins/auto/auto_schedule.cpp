@@ -300,13 +300,6 @@ void AutoSchedule::init(const ScheduleContext::Ptr& sContext) {
             contextPtr->isReloadSuccess = true;
             auto& deviceName = contextPtr->deviceInfo.deviceName;
             LOG_INFO_TAG("device:%s loading Network finished", deviceName.c_str());
-            if (isCumulative) {
-                auto optimalNums = contextPtr->executableNetwork->GetMetric(ov::optimal_number_of_infer_requests.name())
-                                       .as<unsigned int>();
-                LOG_INFO_TAG("device:%s, optimal_infer_number:%d", deviceName.c_str(), optimalNums);
-                std::lock_guard<std::mutex> lock(_autoSContext->_confMutex);
-                _autoSContext->_ctputOptimalNums += optimalNums;
-            }
             auto supported_config_keys = _autoSContext->_core->GetMetric(deviceName, METRIC_KEY(SUPPORTED_CONFIG_KEYS))
                                              .as<std::vector<std::string>>();
             DEBUG_RUN([this, &contextPtr, &deviceName, &supported_config_keys] {
