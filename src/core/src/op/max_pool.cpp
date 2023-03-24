@@ -41,7 +41,7 @@ bool ngraph::op::v1::MaxPool::visit_attributes(AttributeVisitor& visitor) {
 void op::v1::MaxPool::validate_and_infer_types() {
     OV_OP_SCOPE(v1_MaxPool_validate_and_infer_types);
 
-    const auto output_shapes = shape_infer(this, get_node_input_partial_shapes(*this));
+    const auto output_shapes = shape_infer(this, get_node_input_partial_shapes(*this), m_pads_begin, m_pads_end);
     set_output_type(0, get_input_element_type(0), output_shapes.front());
 }
 
@@ -107,8 +107,9 @@ bool evaluate_maxpool(const HostTensorPtr& arg,
 }  // namespace maxpool
 
 bool op::v1::MaxPool::evaluate_maxpool(const HostTensorVector& outputs, const HostTensorVector& inputs) const {
-    const auto input_shapes = std::vector<PartialShape>{inputs[0]->get_partial_shape()};
-    auto out_shape = shape_infer(this, input_shapes).front();
+    const auto dilations = Strides(m_kernel.size(), 1);
+    auto out_shape =
+        pooling::out_shape_infer(this, inputs[0]->get_partial_shape(), m_pads_begin, m_pads_end, dilations);
 
     return maxpool::evaluate_maxpool(inputs[0],
                                      outputs[0],
@@ -276,7 +277,7 @@ void op::v8::MaxPool::validate_and_infer_types() {
         m_axis = ngraph::normalize_axis(this, m_axis, input_shape.rank());
     }
 
-    const auto output_shapes = shape_infer(this, get_node_input_partial_shapes(*this));
+    const auto output_shapes = shape_infer(this, get_node_input_partial_shapes(*this), m_pads_begin, m_pads_end);
     set_output_type(0, get_input_element_type(0), output_shapes[0]);
     set_output_type(1, m_index_element_type, output_shapes[1]);
 }
@@ -317,8 +318,9 @@ bool op::v8::MaxPool::has_evaluate() const {
 bool op::v8::MaxPool::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const {
     OV_OP_SCOPE(v8_MaxPool_evaluate);
 
-    const auto input_shapes = std::vector<PartialShape>{inputs[0]->get_partial_shape()};
-    auto out_shape = shape_infer(this, input_shapes).front();
+    const auto dilations = Strides(m_kernel.size(), 1);
+    auto out_shape =
+        pooling::out_shape_infer(this, inputs[0]->get_partial_shape(), m_pads_begin, m_pads_end, dilations);
 
     return maxpool_v8::evaluate_maxpool(inputs[0],
                                         outputs[0],
