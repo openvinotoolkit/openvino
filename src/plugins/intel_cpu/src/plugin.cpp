@@ -631,7 +631,7 @@ Parameter Engine::GetMetric(const std::string& name, const std::map<std::string,
         const std::tuple<unsigned int, unsigned int> range = std::make_tuple(1, parallel_get_max_threads());
         return decltype(ov::range_for_streams)::value_type(range);
     } else if (name == ov::caching_properties) {
-        std::vector<ov::PropertyName> cachingProperties;
+        std::vector<ov::PropertyName> cachingProperties = { ov::device::full_name };
         return decltype(ov::caching_properties)::value_type(cachingProperties);
     }
     /* Internally legacy parameters are used with new API as part of migration procedure.
