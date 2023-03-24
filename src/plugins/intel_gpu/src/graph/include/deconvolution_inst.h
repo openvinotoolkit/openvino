@@ -60,6 +60,23 @@ public:
     static layout calc_output_layout(deconvolution_node const& node, kernel_impl_params const& impl_param);
     static std::string to_string(deconvolution_node const& node);
 
+    bool need_reset_input_memory() const override {
+        auto input_layout = _deps[0].first->_impl_params->get_output_layout(0);
+        if (input_layout.data_padding) {
+            return true;
+        }
+        return false;
+    }
+
+    bool need_reset_output_memory() const override {
+        bool res = parent::need_reset_output_memory();
+        auto output_layout = _impl_params->get_output_layout(0);
+        if (output_layout.data_padding) {
+            return true;
+        }
+        return res;
+    }
+
     typed_primitive_inst(network& network, deconvolution_node const& node);
 
     memory::ptr weights_memory() const {

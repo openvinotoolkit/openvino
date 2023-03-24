@@ -48,10 +48,6 @@ std::string count_nonzero_inst::to_string(count_nonzero_node const& node) {
 
 count_nonzero_inst::typed_primitive_inst(network& network, count_nonzero_node const& node) : parent(network, node) {}
 
-void count_nonzero_inst::on_execute() {
-    output_memory().fill(_network.get_stream(), 0);
-}
-
 // -----------------------------------------------
 // gather_nonzero
 // -----------------------------------------------
