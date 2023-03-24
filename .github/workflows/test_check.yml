@@ -1,9 +1,5 @@
 name: Test by comment trigger
-on:
-  issue_comment:
-    types: [created]
-  workflow_dispatch::
-
+on: workflow_dispatch
 jobs:
   Job1:
     if: contains(github.event.comment.html_url, '/pull/') && contains(github.event.comment.body, '/coverage')
