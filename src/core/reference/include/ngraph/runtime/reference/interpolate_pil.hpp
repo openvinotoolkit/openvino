@@ -90,13 +90,13 @@ static inline double bicubic_filter(double x, double a) {
     return 0.0;
 }
 
-static int precompute_coeffs(int in_size,
-                             float in0,
-                             float in1,
-                             int out_size,
-                             struct filter* filterp,
-                             std::vector<int>& bounds,
-                             std::vector<double>& kk) {
+static inline int precompute_coeffs(int in_size,
+                                    float in0,
+                                    float in1,
+                                    int out_size,
+                                    struct filter* filterp,
+                                    std::vector<int>& bounds,
+                                    std::vector<double>& kk) {
     double support, scale, filterscale;
     double center, ww, ss;
     int xx, x, ksize, xmin, xmax;
