@@ -200,3 +200,41 @@ def test_op_extension():
     converted_model = fe.convert(input_model)
     assert converted_model
     assert [n.get_type_name() for n in converted_model.get_ordered_ops()] == ["Parameter", "CustomElu", "Result"]
+
+
+def test_pytorch_telemetry():
+    from openvino.frontend import TelemetryExtension
+    from openvino.frontend.pytorch.decoder import TorchScriptPythonDecoder
+
+    class MockTelemetry:
+        def __init__(self, stat):
+            self.stat = stat
+
+        def send_event(self, *arg, **kwargs):
+            self.stat["send_event"] += 1
+
+        def send_error(self, *arg, **kwargs):
+            self.stat["send_error"] += 1
+
+        def send_stack_trace(self, *arg, **kwargs):
+            self.stat["send_stack_trace"] += 1
+
+    def add_ext(front_end, stat):
+        tel = MockTelemetry(stat)
+        front_end.add_extension(TelemetryExtension("mock",
+                                                   tel.send_event,
+                                                   tel.send_error,
+                                                   tel.send_stack_trace))
+
+    tel_stat = {"send_event": 0, "send_error": 0, "send_stack_trace": 0}
+    # Ensure that MockTelemetry object is alive and can receive events (due to callbacks hold the object)
+    model = get_scripted_model(aten_relu())
+    decoder = TorchScriptPythonDecoder(model)
+    fe_manager = FrontEndManager()
+    fe = fe_manager.load_by_framework("pytorch")
+    add_ext(fe, tel_stat)
+    im = fe.load(decoder)
+    fe.convert(im)
+    assert tel_stat["send_event"] == 2
+    assert tel_stat["send_error"] == 0
+    assert tel_stat["send_stack_trace"] == 0

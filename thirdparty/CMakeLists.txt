@@ -346,7 +346,7 @@ if(ENABLE_OV_PADDLE_FRONTEND OR ENABLE_OV_ONNX_FRONTEND OR ENABLE_OV_TF_FRONTEND
         if(CMAKE_VERBOSE_MAKEFILE)
             set(Protobuf_DEBUG ON)
         endif()
-        find_package(Protobuf 3.18.2 REQUIRED)
+        find_package(Protobuf 3.20.3 REQUIRED)
         set(Protobuf_LITE_LIBRARIES protobuf::libprotobuf-lite)
         set(Protobuf_LIBRARIES protobuf::libprotobuf)
         set(PROTOC_EXECUTABLE protobuf::protoc)
@@ -414,6 +414,32 @@ if(ENABLE_OV_TF_LITE_FRONTEND)
     set(flatbuffers_INCLUDE_DIRECTORIES $<TARGET_PROPERTY:${flatbuffers_LIBRARY},INTERFACE_INCLUDE_DIRECTORIES> PARENT_SCOPE)
     set(flatbuffers_COMPILER ${flatbuffers_COMPILER} PARENT_SCOPE)
     set(flatbuffers_DEPENDENCY ${flatbuffers_DEPENDENCY} PARENT_SCOPE)
+endif()
+
+#
+# Snappy Compression
+#
+if(ENABLE_SNAPPY_COMPRESSION)
+    function(tf_build_snappy)
+        set(BUILD_SHARED_LIBS OFF)
+        set(SNAPPY_BUILD_BENCHMARKS OFF)
+        set(SNAPPY_BUILD_TESTS OFF)
+        set(INSTALL_GTEST OFF)
+        set(CMAKE_COMPILE_WARNING_AS_ERROR OFF)
+        set(CMAKE_CXX_STANDARD 14)
+        if(NOT CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
+            # Removes 3rd party errors which may affect OpenVINO CI
+            if(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
+                if(NOT CMAKE_CXX_FLAGS MATCHES "-Werror=return-type")
+                    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Werror=return-type")
+                endif()
+            endif()
+        endif()
+        add_subdirectory(snappy EXCLUDE_FROM_ALL)
+    endfunction()
+
+    tf_build_snappy()
+    ov_install_static_lib(snappy ${OV_CPACK_COMP_CORE})
 endif()
 
 #

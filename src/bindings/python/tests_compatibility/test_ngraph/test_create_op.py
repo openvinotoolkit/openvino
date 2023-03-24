@@ -2412,3 +2412,16 @@ def test_unique_opset10():
     assert node.get_output_element_type(1) == Type.i64
     assert node.get_output_element_type(2) == Type.i64
     assert node.get_output_element_type(3) == Type.i64
+
+
+def test_topk_opset11():
+    data_shape = [1, 3, 256]
+    data = ng.parameter(data_shape, dtype=np.int32, name="Data")
+    k_val = np.int32(3)
+    axis = np.int32(-1)
+    node = ng_opset11.topk(data, k_val, axis, "min", "value", stable=True)
+
+    assert node.get_type_name() == "TopK"
+    assert node.get_output_size() == 2
+    assert list(node.get_output_shape(0)) == [1, 3, 3]
+    assert list(node.get_output_shape(1)) == [1, 3, 3]
