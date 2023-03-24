@@ -299,8 +299,8 @@ ov::Parsed ov::parseDeviceNameIntoConfig(const std::string& deviceName, const An
     };
 
     // clean-up auto-batch related properties
-    clean_batch_properties(updated_device_name, updated_config, ov::hint::allow_auto_batching.name());
-    clean_batch_properties(updated_device_name, updated_config, ov::auto_batch_timeout.name());
+    clean_batch_properties(updated_device_name, updated_config, ov::hint::allow_auto_batching);
+    clean_batch_properties(updated_device_name, updated_config, ov::auto_batch_timeout);
 
     return {updated_device_name, updated_config};
 }
