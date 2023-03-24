@@ -433,3 +433,4 @@ IE_CPU.onnx_model_top_k_repeating_unsorted
 
 # Accuracy regression - Ticket 105909
 IE_CPU.onnx_model_attention_qkv_hidden_sizes
+
