@@ -30,6 +30,11 @@ Place::Place(const ov::frontend::InputModel& input_model, size_t tensor_index)
         if (debug_name != m_names.at(0)) {
             m_names.push_back(debug_name);
         }
+        const auto& signature_name =
+            im->m_model_decoder->get_input_signature_name(std::distance(inputs.begin(), in_it));
+        if (signature_name != m_names.at(0) && signature_name != debug_name) {
+            m_names.push_back(signature_name);
+        }
     }
     auto out_it = std::find(outputs.begin(), outputs.end(), tensor_index);
     if (out_it != outputs.end()) {

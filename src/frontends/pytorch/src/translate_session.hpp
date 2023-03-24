@@ -35,7 +35,9 @@ public:
         const TensorMap& external_tensor_map = {},
         const std::unordered_map<size_t, PlaceDesc>& external_descriptors = {});
 
-    void encode_tensor_name(Output<Node> tensor_desc, size_t tensor_idx, std::string debug_name = "");
+    void encode_tensor_name(Output<Node> tensor_desc,
+                            size_t tensor_idx,
+                            std::vector<std::string> additional_names = {});
     size_t decode_tensor_name(const Output<Node>& tensor_desc);
 
     size_t m_friendly_name_counter = 0;

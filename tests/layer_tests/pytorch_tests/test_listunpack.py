@@ -13,10 +13,10 @@ from pytorch_layer_test_class import PytorchLayerTest
 class TestListUnpack(PytorchLayerTest):
     def _prepare_input(self):
         return (
-            np.random.randn(8, 3, 512, 512),
-            np.random.randn(1, 3, 224, 224),
-            np.random.randn(10, 1, 8, 8),
-            np.random.randn(1, 1, 1, 1),
+            np.random.randn(8, 3, 512, 512).astype(np.float32),
+            np.random.randn(1, 3, 224, 224).astype(np.float32),
+            np.random.randn(10, 1, 8, 8).astype(np.float32),
+            np.random.randn(1, 1, 1, 1).astype(np.float32),
         )
 
     def create_model_size_listunpack(self):
@@ -122,7 +122,7 @@ class TestListUnpack(PytorchLayerTest):
             *self.create_model_listconstruct_getitem_listunpack(idx),
             ie_device,
             precision,
-            ir_version
+            ir_version,
         )
 
 class TestMeshgridListUnpack(PytorchLayerTest):
