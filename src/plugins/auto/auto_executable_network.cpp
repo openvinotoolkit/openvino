@@ -64,7 +64,7 @@ IE::Parameter AutoExecutableNetwork::GetMetric(const std::string& name) const {
         return decltype(ov::device::priorities)::value_type {value->second.as<std::string>()};
     } else if (name == ov::device::properties) {
         ov::AnyMap all_devices = {};
-        auto get_device_supported_metrics = [this, &all_devices] (const AutoLoadContext& context) {
+        auto get_device_supported_metrics = [&all_devices] (const AutoLoadContext& context) {
              ov::AnyMap device_properties = {};
             auto device_supported_metrics = context.executableNetwork->GetMetric(METRIC_KEY(SUPPORTED_METRICS));
             for (auto&& property_name : device_supported_metrics.as<std::vector<std::string>>()) {
