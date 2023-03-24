@@ -55,18 +55,19 @@ public:
 
     /// \brief Loads an input model by any specified arguments. Each FrontEnd separately
     /// defines what arguments it can accept.
+    /// \param config
     /// \param vars Any number of parameters of any type. What kind of parameters
     /// are accepted is determined by each FrontEnd individually, typically it is
     /// std::string containing path to the model file. For more information please
     /// refer to specific FrontEnd documentation.
     /// \return Loaded input model.
     template <typename... Types>
-    inline InputModel::Ptr load(const Types&... vars) const {
-        return load_impl({ov::Any{vars}...});
+    inline InputModel::Ptr load(const ov::AnyMap& config, const Types&... vars) const {
+        return load_impl(config, {ov::Any{vars}...});
     }
 
-    inline InputModel::Ptr load(const ov::AnyVector& vars) const {
-        return load_impl(vars);
+    inline InputModel::Ptr load(const ov::AnyMap& config, const ov::AnyVector& vars) const {
+        return load_impl(config, vars);
     }
 
     /// \brief Completely convert and normalize entire Model, throws if it is not
@@ -146,7 +147,7 @@ public:
 protected:
     virtual bool supported_impl(const std::vector<ov::Any>& variants) const;
 
-    virtual InputModel::Ptr load_impl(const std::vector<ov::Any>& variants) const;
+    virtual InputModel::Ptr load_impl(const ov::AnyMap& config, const std::vector<ov::Any>& variants) const;
 
     std::vector<ov::Extension::Ptr> m_extensions;
 

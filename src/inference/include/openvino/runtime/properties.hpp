@@ -595,6 +595,15 @@ static constexpr Property<std::tuple<unsigned int, unsigned int, unsigned int>, 
 static constexpr Property<bool, PropertyMutability::RW> force_tbb_terminate{"FORCE_TBB_TERMINATE"};
 
 /**
+ * @brief TODO: UPDATE Read-write property to set whether force terminate tbb when ov core destruction
+ * value type: boolean
+ *   - True explicitly terminate tbb when ov core destruction
+ *   - False will not involve additional tbb operations when core destruction
+ * @ingroup ov_runtime_cpp_prop_api
+ */
+static constexpr Property<bool, PropertyMutability::RW> ir_frontend_use_map_allocator{"IR_FRONTEND_USE_MAP_ALLOCATOR"};
+
+/**
  * @brief Namespace with device properties
  */
 namespace device {

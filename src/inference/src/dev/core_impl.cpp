@@ -1298,6 +1298,12 @@ void ov::CoreImpl::CoreConfig::set_and_update(ov::AnyMap& config) {
         _flag_allow_auto_batching = flag;
         config.erase(it);
     }
+
+    it = config.find(ov::ir_frontend_use_map_allocator.name());
+    if (it != config.end()) {
+        _feConfig[it->first] = it->second;
+        config.erase(it);
+    }
 }
 
 void ov::CoreImpl::CoreConfig::set_cache_dir_for_device(const std::string& dir, const std::string& name) {
@@ -1312,6 +1318,10 @@ std::string ov::CoreImpl::CoreConfig::get_cache_dir() const {
 
 bool ov::CoreImpl::CoreConfig::get_allow_auto_batch() const {
     return _flag_allow_auto_batching;
+}
+
+const ov::AnyMap ov::CoreImpl::CoreConfig::get_fe_config() const {
+    return _feConfig;
 }
 
 // Creating thread-safe copy of config including shared_ptr to ICacheManager

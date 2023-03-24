@@ -67,10 +67,11 @@ protected:
 
     /// \brief Reads model from 1 or 2 given file names or 1 or 2 std::istream containing
     /// model in protobuf format and weights
+    /// \param config
     /// \param params Can contain path to folder with __model__ file or path to .pdmodel
     /// file or 1 or 2 streams with model and weights
     /// \return InputModel::Ptr
-    InputModel::Ptr load_impl(const std::vector<ov::Any>& params) const override;
+    InputModel::Ptr load_impl(const ov::AnyMap& config, const std::vector<ov::Any>& params) const override;
 
 protected:
     void try_remove_internal_ops(const std::vector<std::shared_ptr<Model>>& models) const;

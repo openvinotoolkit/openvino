@@ -61,7 +61,8 @@ public:
 protected:
     /// \brief Check if FrontEndTensorflowLite can recognize model from given parts
     bool supported_impl(const std::vector<ov::Any>& variants) const override;
-    ov::frontend::InputModel::Ptr load_impl(const std::vector<ov::Any>& variants) const override;
+    ov::frontend::InputModel::Ptr load_impl(const ov::AnyMap& config,
+                                            const std::vector<ov::Any>& variants) const override;
 
     void translate_graph(const ov::frontend::InputModel::Ptr& model,
                          bool fail_fast,

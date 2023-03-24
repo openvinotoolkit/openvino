@@ -70,7 +70,8 @@ bool FrontEnd::supported_impl(const std::vector<ov::Any>& variants) const {
     return false;
 }
 
-ov::frontend::InputModel::Ptr FrontEnd::load_impl(const std::vector<ov::Any>& variants) const {
+ov::frontend::InputModel::Ptr FrontEnd::load_impl(const ov::AnyMap& config,
+                                                  const std::vector<ov::Any>& variants) const {
     if (variants.size() == 1) {
         if (variants[0].is<std::string>()) {
             std::string suffix = ".tflite";

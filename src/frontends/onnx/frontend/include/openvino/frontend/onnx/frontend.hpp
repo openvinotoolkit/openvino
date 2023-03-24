@@ -26,7 +26,7 @@ public:
     void add_extension(const std::shared_ptr<ov::Extension>& extension) override;
 
 protected:
-    InputModel::Ptr load_impl(const std::vector<ov::Any>& params) const override;
+    InputModel::Ptr load_impl(const ov::AnyMap& config, const std::vector<ov::Any>& params) const override;
 
     // m_other_extensions should be the first member here,
     // m_other_extensions can contain SO Extension (holder for other Extensions),

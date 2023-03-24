@@ -145,7 +145,7 @@ public:
         FRONT_END_GENERAL_CHECK(!m_throw_next, "Test exception");
     }
 
-    InputModel::Ptr load_impl(const std::vector<ov::Any>& variants) const override {
+    InputModel::Ptr load_impl(const ov::AnyMap& config, const std::vector<ov::Any>& variants) const override {
         auto input_model = std::make_shared<InputModelMock>();
         if (variants.size() == 1 && variants[0].is<std::string>()) {
             std::string command = variants[0].as<std::string>();

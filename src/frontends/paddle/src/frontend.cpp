@@ -388,7 +388,7 @@ bool FrontEnd::supported_impl(const std::vector<ov::Any>& variants) const {
     return false;
 }
 
-InputModel::Ptr FrontEnd::load_impl(const std::vector<ov::Any>& variants) const {
+InputModel::Ptr FrontEnd::load_impl(const ov::AnyMap& config, const std::vector<ov::Any>& variants) const {
     if (variants.size() == 1) {
         // The case when folder with __model__ and weight files is provided or .pdmodel file
         if (variants[0].is<std::string>()) {

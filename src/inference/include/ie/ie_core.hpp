@@ -249,7 +249,7 @@ public:
                                     const std::map<std::string, std::string>& config = {}) const;
 
     /**
-     * @brief Sets configuration for device, acceptable keys can be found in ie_plugin_config.hpp
+     * @brief TODO: update Sets configuration for device, acceptable keys can be found in ie_plugin_config.hpp
      *
      * @param deviceName An optional name of a device. If device name is not specified, the config is set for all the
      * registered devices.

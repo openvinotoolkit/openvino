@@ -389,7 +389,7 @@ class MOCK_API FrontEndMockPy : public FrontEnd {
 public:
     FrontEndMockPy() = default;
 
-    InputModel::Ptr load_impl(const std::vector<ov::Any>& params) const override;
+    InputModel::Ptr load_impl(const ov::AnyMap& config, const std::vector<ov::Any>& params) const override;
 
     bool supported_impl(const std::vector<ov::Any>& params) const override;
 

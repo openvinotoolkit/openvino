@@ -40,9 +40,10 @@ protected:
     bool supported_impl(const std::vector<ov::Any>& variants) const override;
 
     /// \brief Reads model from file or std::istream
+    /// \param config
     /// \param params Can be path to the model file or std::istream
     /// \return InputModel::Ptr
-    InputModel::Ptr load_impl(const std::vector<ov::Any>& params) const override;
+    InputModel::Ptr load_impl(const ov::AnyMap& config, const std::vector<ov::Any>& params) const override;
 
 private:
     std::shared_ptr<TelemetryExtension> m_telemetry;

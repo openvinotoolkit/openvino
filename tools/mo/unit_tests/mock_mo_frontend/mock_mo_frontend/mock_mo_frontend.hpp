@@ -426,7 +426,8 @@ public:
     static void clear_stat() { m_stat = {}; }
 
 private:
-    InputModel::Ptr load_impl(const std::vector<ov::Any>& params) const override
+    InputModel::Ptr load_impl(const ov::AnyMap& config,
+                              const std::vector<ov::Any>& params) const override
     {
         if (!params.empty() && params[0].is<std::string>())
         {

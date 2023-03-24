@@ -113,7 +113,7 @@ bool FrontEnd::supported_impl(const std::vector<ov::Any>& variants) const {
     return false;
 }
 
-ov::frontend::InputModel::Ptr FrontEnd::load_impl(const std::vector<ov::Any>& variants) const {
+ov::frontend::InputModel::Ptr FrontEnd::load_impl(const ov::AnyMap& config, const std::vector<ov::Any>& variants) const {
     // TODO: Support other TensorFlow formats: SavedModel, .meta, checkpoint, pbtxt
     FRONT_END_GENERAL_CHECK(variants.size() == 1,
                             "[TensorFlow Frontend] Internal error or inconsistent input model: the frontend supports "

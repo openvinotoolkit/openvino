@@ -148,7 +148,8 @@ bool FrontEnd::supported_impl(const std::vector<ov::Any>& variants) const {
     return decoder && std::dynamic_pointer_cast<TorchDecoder>(decoder);
 }
 
-ov::frontend::InputModel::Ptr FrontEnd::load_impl(const std::vector<ov::Any>& variants) const {
+ov::frontend::InputModel::Ptr FrontEnd::load_impl(const ov::AnyMap& config,
+                                                  const std::vector<ov::Any>& variants) const {
     FRONT_END_GENERAL_CHECK(variants.size() == 1,
                             "PyTorch Frontend supports exactly one parameter in model representation, got ",
                             std::to_string(variants.size()),

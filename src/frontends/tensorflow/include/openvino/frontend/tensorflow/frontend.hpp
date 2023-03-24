@@ -64,7 +64,8 @@ protected:
     /// \brief Check if FrontEndTensorflow can recognize model from given parts
     bool supported_impl(const std::vector<ov::Any>& variants) const override;
 
-    ov::frontend::InputModel::Ptr load_impl(const std::vector<ov::Any>& variants) const override;
+    ov::frontend::InputModel::Ptr load_impl(const ov::AnyMap& config,
+                                            const std::vector<ov::Any>& variants) const override;
 
     TelemetryExtension::Ptr m_telemetry;
     std::vector<DecoderTransformationExtension::Ptr> m_transformation_extensions;

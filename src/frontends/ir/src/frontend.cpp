@@ -111,7 +111,7 @@ void FrontEnd::add_extension(const ov::Extension::Ptr& ext) {
         m_extensions.emplace_back(ext);
 }
 
-InputModel::Ptr FrontEnd::load_impl(const std::vector<ov::Any>& variants) const {
+InputModel::Ptr FrontEnd::load_impl(const ov::AnyMap& config, const std::vector<ov::Any>& variants) const {
     std::ifstream local_model_stream;
     std::istream* provided_model_stream = nullptr;
     std::shared_ptr<ngraph::runtime::AlignedBuffer> weights;
@@ -198,7 +198,32 @@ InputModel::Ptr FrontEnd::load_impl(const std::vector<ov::Any>& variants) const 
         }
     }
     if (!weights_path.empty()) {
-        weights = ov::load_mmap_object(weights_path);
+        auto it = config.find(ov::ir_frontend_use_map_allocator.name());
+        if (it == config.end() || it->second.as<bool>())
+            weights = ov::load_mmap_object(weights_path);
+        else {
+            std::ifstream bin_stream;
+            bin_stream.open(weights_path, std::ios::binary);
+            if (!bin_stream.is_open())
+#if defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
+                IE_THROW() << "Weights file " + ov::util::wstring_to_string(weights_path) + " cannot be opened!";
+#else
+                IE_THROW() << "Weights file " + weights_path + " cannot be opened!";
+#endif
+
+            bin_stream.seekg(0, std::ios::end);
+            size_t file_size = bin_stream.tellg();
+            bin_stream.seekg(0, std::ios::beg);
+
+            auto aligned_weights_buffer = std::make_shared<ngraph::runtime::AlignedBuffer>(file_size);
+            bin_stream.read(aligned_weights_buffer->get_ptr<char>(), aligned_weights_buffer->size());
+            bin_stream.close();
+
+            weights = std::make_shared<ngraph::runtime::SharedBuffer<std::shared_ptr<ngraph::runtime::AlignedBuffer>>>(
+                aligned_weights_buffer->get_ptr<char>(),
+                aligned_weights_buffer->size(),
+                aligned_weights_buffer);
+        }
     }
 
     return create_input_model();

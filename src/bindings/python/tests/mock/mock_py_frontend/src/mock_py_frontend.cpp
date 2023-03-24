@@ -359,7 +359,7 @@ void InputModelMockPy::clear_stat() {
 }
 
 //--
-InputModel::Ptr FrontEndMockPy::load_impl(const std::vector<ov::Any>& params) const {
+InputModel::Ptr FrontEndMockPy::load_impl(const ov::AnyMap& config, const std::vector<ov::Any>& params) const {
     if (m_telemetry) {
         m_telemetry->send_event("load_impl", "label", 42);
         m_telemetry->send_error("load_impl_error");

@@ -418,6 +418,7 @@ CNNNetwork details::ReadNetwork(const std::string& modelPath,
                                 const std::string& binPath,
                                 const std::vector<IExtensionPtr>& exts,
                                 const std::vector<ov::Extension::Ptr>& ov_exts,
+                                const ov::AnyMap& fe_config,
                                 bool newAPI) {
 #ifdef ENABLE_IR_V7_READER
     // IR v7 obsolete code
@@ -463,7 +464,7 @@ CNNNetwork details::ReadNetwork(const std::string& modelPath,
         FE->add_extension(ov_exts);
         if (!exts.empty())
             FE->add_extension(wrap_old_extensions(exts));
-        inputModel = FE->load(params);
+        inputModel = FE->load(fe_config, params);
     }
 
     if (inputModel) {
@@ -485,6 +486,7 @@ CNNNetwork details::ReadNetwork(const std::string& model,
                                 const Blob::CPtr& weights,
                                 const std::vector<IExtensionPtr>& exts,
                                 const std::vector<ov::Extension::Ptr>& ov_exts,
+                                const ov::AnyMap& fe_config,
                                 bool newAPI,
                                 bool frontendMode) {
     std::istringstream modelStringStream(model);
@@ -524,7 +526,7 @@ CNNNetwork details::ReadNetwork(const std::string& model,
         FE->add_extension(ov_exts);
         if (!exts.empty())
             FE->add_extension(wrap_old_extensions(exts));
-        inputModel = FE->load(params);
+        inputModel = FE->load(fe_config, params);
     }
     if (inputModel) {
         auto ngFunc = FE->convert(inputModel);
