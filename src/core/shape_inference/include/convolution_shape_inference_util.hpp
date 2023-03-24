@@ -224,8 +224,8 @@ void apply_padding(const TOp* op,
         std::fill(pads_begin.begin(), pads_begin.end(), 0);
         std::fill(pads_end.begin(), pads_end.end(), 0);
     } else if (op->get_auto_pad() == op::PadType::EXPLICIT) {
-        pads_begin = op->get_pads_begin();
-        pads_end = op->get_pads_end();
+        std::copy(op->get_pads_begin().begin(), op->get_pads_begin().end(), pads_begin.begin());
+        std::copy(op->get_pads_end().begin(), op->get_pads_end().end(), pads_end.begin());
     }
 }
 
@@ -313,11 +313,12 @@ void filter_shape(const ov::op::util::ConvolutionBase* op, const TShape& filters
         ").");
 }
 
-inline void common_attributes(const util::ConvolutionBase* op, const size_t num_spatial) {
+inline void common_attributes(const util::ConvolutionBase* op,
+                              const size_t num_spatial,
+                              const CoordinateDiff& pads_begin,
+                              const CoordinateDiff& pads_end) {
     auto& strides = op->get_strides();
     auto& dilations = op->get_dilations();
-    auto& pads_begin = op->get_pads_begin();
-    auto& pads_end = op->get_pads_end();
 
     NODE_VALIDATION_CHECK(op,
                           strides.size() == num_spatial,
@@ -340,8 +341,11 @@ inline void common_attributes(const util::ConvolutionBase* op, const size_t num_
                           dilations);
 }
 
-inline void common_attributes(const util::ConvolutionBackPropBase* op, const size_t num_spatial) {
-    common_attributes(static_cast<const util::ConvolutionBase*>(op), num_spatial);
+inline void common_attributes(const util::ConvolutionBackPropBase* op,
+                              const size_t num_spatial,
+                              const CoordinateDiff& pads_begin,
+                              const CoordinateDiff& pads_end) {
+    common_attributes(static_cast<const util::ConvolutionBase*>(op), num_spatial, pads_begin, pads_end);
     NODE_VALIDATION_CHECK(op,
                           op->get_output_padding().size() == num_spatial,
                           "Output padding should be defined for all and only spatial dimensions.");

@@ -5,6 +5,7 @@
 #include <gmock/gmock.h>
 
 #include "common_test_utils/test_assertions.hpp"
+#include "group_convolution_shape_inference.hpp"
 #include "openvino/opsets/opset11.hpp"
 #include "utils.hpp"
 
@@ -18,6 +19,24 @@ protected:
         output_shapes.resize(1);
     }
 };
+
+TEST_F(GroupConvolutionV1StaticShapeInferenceTest, default_ctor_direct_infer_call) {
+    op = make_op();
+    op->set_strides({1, 1});
+    op->set_dilations({1, 1});
+    op->set_auto_pad(op::PadType::EXPLICIT);
+
+    auto pads_begin = CoordinateDiff{2, 2};
+    auto pads_end = CoordinateDiff{2, 1};
+
+    input_shapes = ShapeVector{{1, 6, 10, 12}, {3, 2, 2, 5, 5}};
+    output_shapes = ov::op::v1::shape_infer(op.get(), input_shapes, pads_begin, pads_end);
+
+    EXPECT_EQ(output_shapes.size(), 1);
+    EXPECT_EQ(output_shapes.front(), StaticShape({1, 6, 10, 11}));
+    EXPECT_EQ(pads_begin, CoordinateDiff({2, 2}));
+    EXPECT_EQ(pads_end, CoordinateDiff({2, 1}));
+}
 
 TEST_F(GroupConvolutionV1StaticShapeInferenceTest, default_ctor) {
     op = make_op();

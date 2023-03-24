@@ -93,7 +93,7 @@ std::vector<TShape> shape_infer(const DeformableConvolutionBase* op,
         }
         deformable_conv::validate::group_attribute(op, op->get_group(), "group");
         deformable_conv::validate::group_attribute(op, op->get_deformable_group(), "deformable group");
-        convolution::validate::common_attributes(op, num_spatial);
+        convolution::validate::common_attributes(op, num_spatial, pads_begin, pads_end);
         convolution::apply_padding(op, data_shape, filters_shape, pads_begin, pads_end);
 
         // add to output shape number of batches

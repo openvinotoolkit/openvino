@@ -54,7 +54,7 @@ std::vector<TShape> shape_infer(const ConvolutionBackpropData* op,
         convolution::validate::filter_shape(op, filters_shape, data_shape);
         if (is_attr_validation_required(op)) {
             convolution::validate::data_shape(op, data_shape);
-            convolution::validate::common_attributes(op, num_spatial);
+            convolution::validate::common_attributes(op, num_spatial, pads_begin, pads_end);
         }
         convolution::apply_padding(op, input_shapes, out_spatial_shape, pads_begin, pads_end);
 

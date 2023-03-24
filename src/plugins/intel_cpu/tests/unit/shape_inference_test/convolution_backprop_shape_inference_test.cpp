@@ -21,6 +21,28 @@ protected:
     }
 };
 
+TEST_F(ConvolutionBackpropDataV1StaticShapeInferenceTest, default_ctor_direct_infer_call) {
+    const auto spatial_shape = PartialShape{500, 500};
+    op = make_op();
+    op->set_strides({2, 2});
+    op->set_dilations({1, 1});
+    op->set_output_padding({0, 0});
+    op->set_auto_pad(op::PadType::EXPLICIT);
+    op->set_output_shape(spatial_shape.to_shape());
+
+    auto pads_begin = CoordinateDiff{1, 1};
+    auto pads_end = CoordinateDiff{1, 1};
+
+    input_shapes = ShapeVector{{1, 20, 224, 224}, {20, 10, 3, 3}, {spatial_shape.size()}};
+
+    output_shapes = ov::op::v1::shape_infer(op.get(), input_shapes, pads_begin, pads_end);
+
+    EXPECT_EQ(output_shapes.size(), 1);
+    EXPECT_EQ(output_shapes.front(), StaticShape({1, 10, 500, 500}));
+    EXPECT_EQ(pads_begin, CoordinateDiff({1, 1}));
+    EXPECT_EQ(pads_end, CoordinateDiff({1, 1}));
+}
+
 TEST_F(ConvolutionBackpropDataV1StaticShapeInferenceTest, default_ctor_with_output_shape) {
     const auto spatial_shape = PartialShape{500, 500};
 

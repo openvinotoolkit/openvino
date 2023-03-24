@@ -94,12 +94,6 @@ protected:
         if (m_dilations.empty()) {
             m_dilations.resize(num_spatial, 1);
         }
-        if (m_pads_begin.empty()) {
-            m_pads_begin.resize(num_spatial, 0);
-        }
-        if (m_pads_end.empty()) {
-            m_pads_end.resize(num_spatial, 0);
-        }
     }
 
     void set_num_spatial(size_t num_spatial, const std::vector<PartialShape>& input_shapes) {

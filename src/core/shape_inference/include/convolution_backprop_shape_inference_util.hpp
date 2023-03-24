@@ -141,8 +141,8 @@ void apply_padding(const util::ConvolutionBackPropBase* op,
         std::fill(pads_begin.begin(), pads_begin.end(), 0);
         std::fill(pads_end.begin(), pads_end.end(), 0);
     } else if (op->get_auto_pad() == op::PadType::EXPLICIT) {
-        pads_begin = op->get_pads_begin();
-        pads_end = op->get_pads_end();
+        std::copy(op->get_pads_begin().begin(), op->get_pads_begin().end(), pads_begin.begin());
+        std::copy(op->get_pads_end().begin(), op->get_pads_end().end(), pads_end.begin());
     }
 }
 

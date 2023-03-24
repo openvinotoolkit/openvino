@@ -75,7 +75,7 @@ std::vector<TShape> shape_infer(const GroupConvolutionBackpropData* op,
                                   filters_shape,
                                   ").");
 
-            convolution::validate::common_attributes(op, num_spatial);
+            convolution::validate::common_attributes(op, num_spatial, pads_begin, pads_end);
         }
         convolution::apply_padding(op, input_shapes, out_spatial_shape, pads_begin, pads_end);
 
