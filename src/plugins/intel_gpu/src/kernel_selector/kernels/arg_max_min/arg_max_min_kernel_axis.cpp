@@ -144,7 +144,7 @@ KernelsData ArgMaxMinKernelAxis::GetKernelsData(const Params& params, const opti
         kd.internalBufferSizes.clear();
         kd.internalBufferSizes.push_back(iav_type_size * sort_size * ops_size * 2);
         kd.internalBufferSizes.push_back(4 * group_num * ops_size * 2);
-        kd.internalBufferSizes.push_back(ops_size);
+        kd.internalBufferSizes.push_back(ops_size * elem_size);
         kd.internalBufferDataType = prim_params.inputs[0].GetDType();
     };
 
