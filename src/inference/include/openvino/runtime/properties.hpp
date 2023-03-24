@@ -271,7 +271,7 @@ inline std::ostream& operator<<(std::ostream& os, const Priority& priority) {
     case Priority::HIGH:
         return os << "HIGH";
     default:
-        OPENVINO_UNREACHABLE("Unsupported performance measure hint");
+        OPENVINO_THROW("Unsupported performance measure hint");
     }
 }
 
@@ -285,7 +285,7 @@ inline std::istream& operator>>(std::istream& is, Priority& priority) {
     } else if (str == "HIGH") {
         priority = Priority::HIGH;
     } else {
-        OPENVINO_UNREACHABLE("Unsupported model priority: ", str);
+        OPENVINO_THROW("Unsupported model priority: ", str);
     }
     return is;
 }
@@ -321,7 +321,7 @@ inline std::ostream& operator<<(std::ostream& os, const PerformanceMode& perform
     case PerformanceMode::CUMULATIVE_THROUGHPUT:
         return os << "CUMULATIVE_THROUGHPUT";
     default:
-        OPENVINO_UNREACHABLE("Unsupported performance mode hint");
+        OPENVINO_THROW("Unsupported performance mode hint");
     }
 }
 
@@ -337,7 +337,7 @@ inline std::istream& operator>>(std::istream& is, PerformanceMode& performance_m
     } else if (str == "UNDEFINED") {
         performance_mode = PerformanceMode::UNDEFINED;
     } else {
-        OPENVINO_UNREACHABLE("Unsupported performance mode: ", str);
+        OPENVINO_THROW("Unsupported performance mode: ", str);
     }
     return is;
 }
@@ -392,7 +392,7 @@ inline std::ostream& operator<<(std::ostream& os, const ExecutionMode& mode) {
     case ExecutionMode::ACCURACY:
         return os << "ACCURACY";
     default:
-        OPENVINO_UNREACHABLE("Unsupported execution mode hint");
+        OPENVINO_THROW("Unsupported execution mode hint");
     }
 }
 
@@ -406,7 +406,7 @@ inline std::istream& operator>>(std::istream& is, ExecutionMode& mode) {
     } else if (str == "UNDEFINED") {
         mode = ExecutionMode::UNDEFINED;
     } else {
-        OPENVINO_UNREACHABLE("Unsupported execution mode: ", str);
+        OPENVINO_THROW("Unsupported execution mode: ", str);
     }
     return is;
 }
@@ -468,7 +468,7 @@ inline std::ostream& operator<<(std::ostream& os, const Level& level) {
     case Level::TRACE:
         return os << "LOG_TRACE";
     default:
-        OPENVINO_UNREACHABLE("Unsupported log level");
+        OPENVINO_THROW("Unsupported log level");
     }
 }
 
@@ -488,7 +488,7 @@ inline std::istream& operator>>(std::istream& is, Level& level) {
     } else if (str == "LOG_TRACE") {
         level = Level::TRACE;
     } else {
-        OPENVINO_UNREACHABLE("Unsupported log level: ", str);
+        OPENVINO_THROW("Unsupported log level: ", str);
     }
     return is;
 }
@@ -647,7 +647,19 @@ static constexpr Priorities priorities{"MULTI_DEVICE_PRIORITIES"};
  * @brief Type for property to pass set of properties to specified device
  * @ingroup ov_runtime_cpp_prop_api
  */
-struct Properties {
+
+struct Properties : public Property<std::map<std::string, std::map<std::string, Any>>> {
+    using Property<std::map<std::string, std::map<std::string, Any>>>::Property;
+
+    /**
+     * @brief Constructs property
+     * @param configs set of property values with names
+     * @return Pair of string key representation and type erased property value.
+     */
+    inline std::pair<std::string, Any> operator()(const AnyMap& config) const {
+        return {name(), config};
+    }
+
     /**
      * @brief Constructs property
      * @param device_name device plugin alias
@@ -655,7 +667,7 @@ struct Properties {
      * @return Pair of string key representation and type erased property value.
      */
     inline std::pair<std::string, Any> operator()(const std::string& device_name, const AnyMap& config) const {
-        return {device_name, config};
+        return {name() + std::string("_") + device_name, config};
     }
 
     /**
@@ -669,7 +681,7 @@ struct Properties {
     inline util::EnableIfAllStringAny<std::pair<std::string, Any>, Properties...> operator()(
         const std::string& device_name,
         Properties&&... configs) const {
-        return {device_name, AnyMap{std::pair<std::string, Any>{configs}...}};
+        return {name() + std::string("_") + device_name, AnyMap{std::pair<std::string, Any>{configs}...}};
     }
 };
 
@@ -684,7 +696,7 @@ struct Properties {
  *     ov::device::properties("GPU", ov::enable_profiling(false)));
  * @endcode
  */
-static constexpr Properties properties;
+static constexpr Properties properties{"DEVICE_PROPERTIES"};
 
 /**
  * @brief Read-only property to get a std::string value representing a full device name.
@@ -754,7 +766,7 @@ inline std::ostream& operator<<(std::ostream& os, const Type& device_type) {
     case Type::INTEGRATED:
         return os << "integrated";
     default:
-        OPENVINO_UNREACHABLE("Unsupported device type");
+        OPENVINO_THROW("Unsupported device type");
     }
 }
 
@@ -766,7 +778,7 @@ inline std::istream& operator>>(std::istream& is, Type& device_type) {
     } else if (str == "integrated") {
         device_type = Type::INTEGRATED;
     } else {
-        OPENVINO_UNREACHABLE("Unsupported device type: ", str);
+        OPENVINO_THROW("Unsupported device type: ", str);
     }
     return is;
 }
@@ -881,7 +893,7 @@ inline std::istream& operator>>(std::istream& is, Num& num_val) {
         try {
             num_val = {std::stoi(str)};
         } catch (const std::exception& e) {
-            OPENVINO_UNREACHABLE("Could not read number of streams from str: ", str, "; ", e.what());
+            OPENVINO_THROW("Could not read number of streams from str: ", str, "; ", e.what());
         }
     }
     return is;
@@ -932,7 +944,7 @@ inline std::ostream& operator<<(std::ostream& os, const Affinity& affinity) {
     case Affinity::HYBRID_AWARE:
         return os << "HYBRID_AWARE";
     default:
-        OPENVINO_UNREACHABLE("Unsupported affinity pattern");
+        OPENVINO_THROW("Unsupported affinity pattern");
     }
 }
 
@@ -948,7 +960,7 @@ inline std::istream& operator>>(std::istream& is, Affinity& affinity) {
     } else if (str == "HYBRID_AWARE") {
         affinity = Affinity::HYBRID_AWARE;
     } else {
-        OPENVINO_UNREACHABLE("Unsupported affinity pattern: ", str);
+        OPENVINO_THROW("Unsupported affinity pattern: ", str);
     }
     return is;
 }

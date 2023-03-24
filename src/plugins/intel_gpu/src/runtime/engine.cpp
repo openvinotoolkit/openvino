@@ -215,6 +215,7 @@ uint64_t engine::get_used_device_memory(allocation_type type) const {
 }
 
 std::map<std::string, uint64_t> engine::get_memory_statistics() const {
+    std::lock_guard<std::mutex> guard(_mutex);
     std::map<std::string, uint64_t> statistics;
     for (auto const& m : _memory_usage_map) {
         std::ostringstream oss;

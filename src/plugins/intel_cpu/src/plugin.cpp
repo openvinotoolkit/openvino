@@ -302,15 +302,14 @@ void Engine::GetPerformanceStreams(std::map<std::string, std::string>& config,
     }
 
     auto num_requests = config.find(CONFIG_KEY(PERFORMANCE_HINT_NUM_REQUESTS));
+    int infer_requests = 0;
     if (num_requests != config.end()) {  // arrived with config to the LoadNetwork (and thus higher pri)
-        auto val = PerfHintsConfig::CheckPerformanceHintRequestValue(num_requests->second);
-        if (val > 0)
-            streams = std::min(streams, val);
+        infer_requests = PerfHintsConfig::CheckPerformanceHintRequestValue(num_requests->second);
     } else if (engConfig.perfHintsConfig.ovPerfHintNumRequests) {  // set thru SetConfig to the plugin, 2nd priority
-        streams = std::min(streams, engConfig.perfHintsConfig.ovPerfHintNumRequests);
+        infer_requests = engConfig.perfHintsConfig.ovPerfHintNumRequests;
     }
 
-    const auto common_hints = get_num_streams(streams, ngraphFunc, engConfig.streamExecutorConfig);
+    const auto common_hints = get_num_streams(streams, infer_requests, ngraphFunc, engConfig.streamExecutorConfig);
 
     config[CONFIG_KEY(CPU_THROUGHPUT_STREAMS)] = common_hints.first;
     config[ov::num_streams.name()] = common_hints.first;
@@ -507,7 +506,7 @@ Engine::LoadExeNetworkImpl(const InferenceEngine::CNNNetwork &network, const std
     if (cpu.has(Xbyak::util::Cpu::tSSE)) {
         if (conf.denormalsOptMode == Config::DenormalsOptMode::DO_On) {
             flush_to_zero(true);
-            denormals_as_zero(true);
+            conf.DAZOn = denormals_as_zero(true);
         } else if (conf.denormalsOptMode == Config::DenormalsOptMode::DO_Off) {
             flush_to_zero(false);
             denormals_as_zero(false);
@@ -570,6 +569,8 @@ Parameter Engine::GetConfig(const std::string& name, const std::map<std::string,
             return ov::Affinity::HYBRID_AWARE;
         }
         return ov::Affinity::NONE;
+    } else if (name == ov::device::id.name()) {
+        return decltype(ov::device::id)::value_type{engConfig.device_id};
     } else if (name == ov::inference_num_threads) {
         const auto num_threads = engConfig.streamExecutorConfig._threads;
         return decltype(ov::inference_num_threads)::value_type(num_threads);
@@ -659,7 +660,7 @@ Parameter Engine::GetMetric(const std::string& name, const std::map<std::string,
                                                     RO_property(ov::device::capabilities.name()),
                                                     RO_property(ov::caching_properties.name()),
         };
-        // the whole config is RW before network is loaded.
+        // the whole config is RW before model is loaded.
         std::vector<ov::PropertyName> rwProperties {RW_property(ov::num_streams.name()),
                                                     RW_property(ov::affinity.name()),
                                                     RW_property(ov::inference_num_threads.name()),
@@ -667,6 +668,7 @@ Parameter Engine::GetMetric(const std::string& name, const std::map<std::string,
                                                     RW_property(ov::inference_precision.name()),
                                                     RW_property(ov::hint::performance_mode.name()),
                                                     RW_property(ov::hint::num_requests.name()),
+                                                    RW_property(ov::device::id.name()),
         };
 
         std::vector<ov::PropertyName> supportedProperties;
@@ -712,11 +714,8 @@ void Engine::AddExtension(const InferenceEngine::IExtensionPtr& extension) {
 }
 
 QueryNetworkResult Engine::QueryNetwork(const CNNNetwork& network, const std::map<std::string, std::string>& config) const {
-    QueryNetworkResult res;
-
     WeightsSharing::Ptr fake_w_cache;
 
-    // TODO: Clarify the behavior of SetConfig method. Skip eng_config or not?
     Config conf = engConfig;
     conf.readProperties(config);
 
@@ -764,6 +763,7 @@ QueryNetworkResult Engine::QueryNetwork(const CNNNetwork& network, const std::ma
                                            return true;
                                        });
 
+    QueryNetworkResult res;
     for (auto&& layerName : supported) {
         res.supportedLayersMap.emplace(layerName, GetName());
     }

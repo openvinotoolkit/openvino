@@ -190,6 +190,10 @@ void primitive_inst::update_shape() {
         }
         auto& dep = _node->get_dependency(i);
         auto dep_id = dep.id();
+        // exclude fused node from memory_deps
+        if (_node->is_fused_dep(i)) {
+            break;
+        }
         // Events may be not created for in-order queue, so take them for OOO queue only
         if (_network.has_event(dep.id()) && queue_type == QueueTypes::out_of_order) {
             dependencies_events.push_back(_network.get_primitive_event(dep_id));
@@ -300,7 +304,7 @@ bool primitive_inst::update_impl() {
         size_t offset = 0;
         for (size_t i = 0; i < _node->get_dependencies().size(); i++) {
             if (_node->get_dependency(i).get_output_layout().is_dynamic()) {
-                auto input_shape = _node->type()->extend_input_shape_to_6d(params, i);
+                auto input_shape = _node->type()->extend_input_shape_to_6d(params, static_cast<uint32_t>(i));
                 for (size_t j = 0; j < input_shape.size(); j++)
                     lock[offset++] = static_cast<int32_t>(input_shape[j]);
             }
@@ -308,7 +312,7 @@ bool primitive_inst::update_impl() {
 
         for (size_t i = 0; i < _node->get_output_layouts().size(); i++) {
             if (_node->get_output_layout(i).is_dynamic()) {
-                auto output_shape = _node->type()->extend_output_shape_to_6d(params, i);
+                auto output_shape = _node->type()->extend_output_shape_to_6d(params, static_cast<uint32_t>(i));
                 for (size_t j = 0; j < output_shape.size(); j++)
                     lock[offset++] = static_cast<int32_t>(output_shape[j]);
             }

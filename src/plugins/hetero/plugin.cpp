@@ -4,6 +4,7 @@
 
 // clang-format off
 #include "ie_metric_helpers.hpp"
+#include "openvino/runtime/device_id_parser.hpp"
 #include "plugin.hpp"
 #include <memory>
 #include <vector>
@@ -14,8 +15,10 @@
 #include <unordered_set>
 #include "ie_plugin_config.hpp"
 #include "executable_network.hpp"
-#include <cpp_interfaces/interface/ie_internal_plugin_config.hpp>
-#include <openvino/runtime/properties.hpp>
+#include "cpp_interfaces/interface/ie_internal_plugin_config.hpp"
+#include "openvino/runtime/properties.hpp"
+#include "internal_properties.hpp"
+#include "openvino/util/common_util.hpp"
 // clang-format on
 
 using namespace InferenceEngine;
@@ -38,6 +41,13 @@ Engine::Configs mergeConfigs(Engine::Configs config, const Engine::Configs& loca
     return config;
 }
 
+Engine::Configs mergeConfigs(Engine::Configs config, const ov::AnyMap& local) {
+    for (auto&& kvp : local) {
+        config[kvp.first] = kvp.second.as<std::string>();
+    }
+    return config;
+}
+
 const std::vector<std::string>& getSupportedConfigKeys() {
     static const std::vector<std::string> supported_configKeys = {HETERO_CONFIG_KEY(DUMP_GRAPH_DOT),
                                                                   "TARGET_FALLBACK",
@@ -49,20 +59,28 @@ const std::vector<std::string>& getSupportedConfigKeys() {
 
 }  // namespace
 
+std::string Engine::GetTargetFallback(const Engine::Configs& config, bool raise_exception) const {
+    auto it = config.find("TARGET_FALLBACK");
+    if (it == config.end()) {
+        it = config.find(ov::device::priorities.name());
+    }
+    if (it == config.end()) {
+        if (raise_exception)
+            IE_THROW() << "The '" << ov::device::priorities.name()
+                       << "' option was not defined for heterogeneous plugin";
+        return std::string("");
+    }
+    return it->second;
+}
+
 InferenceEngine::IExecutableNetworkInternal::Ptr Engine::LoadExeNetworkImpl(const InferenceEngine::CNNNetwork& network,
                                                                             const Configs& config) {
     if (GetCore() == nullptr) {
         IE_THROW() << "Please, work with HETERO device via InferencEngine::Core object";
     }
     auto tconfig = mergeConfigs(_config, config);
-    auto it = tconfig.find("TARGET_FALLBACK");
-    if (it == tconfig.end()) {
-        it = tconfig.find(ov::device::priorities.name());
-    }
-    if (it == tconfig.end()) {
-        IE_THROW() << "The '" << ov::device::priorities.name() << "' option was not defined for heterogeneous plugin";
-    }
-    DeviceMetaInformationMap metaDevices = GetDevicePlugins(it->second, tconfig);
+    std::string fallbackDevicesStr = GetTargetFallback(tconfig);
+    DeviceMetaInformationMap metaDevices = GetDevicePlugins(fallbackDevicesStr, tconfig);
 
     auto function = network.getFunction();
     if (function == nullptr) {
@@ -80,26 +98,12 @@ InferenceEngine::IExecutableNetworkInternal::Ptr Engine::ImportNetwork(
 
 Engine::DeviceMetaInformationMap Engine::GetDevicePlugins(const std::string& targetFallback,
                                                           const Configs& localConfig) const {
-    auto getDeviceConfig = [&](const std::string& deviceWithID) {
-        DeviceIDParser deviceParser(deviceWithID);
-        std::string deviceName = deviceParser.getDeviceName();
-        Configs tconfig = mergeConfigs(_config, localConfig);
-
-        // set device ID if any
-        std::string deviceIDLocal = deviceParser.getDeviceID();
-        if (!deviceIDLocal.empty()) {
-            tconfig[KEY_DEVICE_ID] = deviceIDLocal;
-        }
-
-        return GetCore()->GetSupportedConfig(deviceName, tconfig);
-    };
-
-    auto fallbackDevices = InferenceEngine::DeviceIDParser::getHeteroDevices(targetFallback);
+    auto fallbackDevices = ov::DeviceIDParser::get_hetero_devices(targetFallback);
     Engine::DeviceMetaInformationMap metaDevices;
     for (auto&& deviceName : fallbackDevices) {
         auto itPlugin = metaDevices.find(deviceName);
         if (metaDevices.end() == itPlugin) {
-            metaDevices[deviceName] = getDeviceConfig(deviceName);
+            metaDevices[deviceName] = GetCore()->GetSupportedConfig(deviceName, mergeConfigs(_config, localConfig));
         }
     }
     return metaDevices;
@@ -124,15 +128,7 @@ QueryNetworkResult Engine::QueryNetwork(const CNNNetwork& network, const Configs
     }
 
     auto tconfig = mergeConfigs(_config, config);
-    auto it = tconfig.find("TARGET_FALLBACK");
-    if (it == tconfig.end()) {
-        it = tconfig.find(ov::device::priorities.name());
-    }
-    if (it == tconfig.end()) {
-        IE_THROW() << "The '" << ov::device::priorities.name() << "' option was not defined for heterogeneous plugin";
-    }
-
-    std::string fallbackDevicesStr = it->second;
+    std::string fallbackDevicesStr = GetTargetFallback(tconfig);
     DeviceMetaInformationMap metaDevices = GetDevicePlugins(fallbackDevicesStr, tconfig);
 
     auto function = network.getFunction();
@@ -147,7 +143,7 @@ QueryNetworkResult Engine::QueryNetwork(const CNNNetwork& network, const Configs
     }
 
     //  WARNING: Here is devices with user set priority
-    auto fallbackDevices = InferenceEngine::DeviceIDParser::getHeteroDevices(fallbackDevicesStr);
+    auto fallbackDevices = ov::DeviceIDParser::get_hetero_devices(fallbackDevicesStr);
 
     for (auto&& deviceName : fallbackDevices) {
         for (auto&& layerQueryResult : queryResults[deviceName].supportedLayersMap) {
@@ -162,12 +158,24 @@ QueryNetworkResult Engine::QueryNetwork(const CNNNetwork& network, const Configs
 }
 
 Parameter Engine::GetMetric(const std::string& name, const std::map<std::string, Parameter>& options) const {
-    if (METRIC_KEY(SUPPORTED_METRICS) == name) {
+    if (ov::supported_properties == name) {
+        return decltype(ov::supported_properties)::value_type{
+            ov::PropertyName{ov::supported_properties.name(), ov::PropertyMutability::RO},
+            ov::PropertyName{ov::caching_properties.name(), ov::PropertyMutability::RO},
+            ov::PropertyName{ov::device::full_name.name(), ov::PropertyMutability::RO},
+            ov::PropertyName{ov::device::capabilities.name(), ov::PropertyMutability::RO},
+            ov::PropertyName{ov::device::priorities.name(), ov::PropertyMutability::RW}};
+    } else if (ov::caching_properties == name) {
+        return decltype(ov::caching_properties)::value_type{ov::hetero::caching_device_properties.name()};
+    } else if (ov::hetero::caching_device_properties == name) {
+        auto tconfig = mergeConfigs(_config, options);
+        std::string targetFallback = GetTargetFallback(tconfig);
+        return decltype(ov::hetero::caching_device_properties)::value_type{DeviceCachingProperties(targetFallback)};
+    } else if (METRIC_KEY(SUPPORTED_METRICS) == name) {
         IE_SET_METRIC_RETURN(SUPPORTED_METRICS,
                              std::vector<std::string>{METRIC_KEY(SUPPORTED_METRICS),
                                                       ov::device::full_name.name(),
                                                       METRIC_KEY(SUPPORTED_CONFIG_KEYS),
-                                                      ov::device::architecture.name(),
                                                       METRIC_KEY(IMPORT_EXPORT_SUPPORT),
                                                       ov::device::capabilities.name()});
     } else if (METRIC_KEY(SUPPORTED_CONFIG_KEYS) == name) {
@@ -178,39 +186,39 @@ Parameter Engine::GetMetric(const std::string& name, const std::map<std::string,
         IE_SET_METRIC_RETURN(IMPORT_EXPORT_SUPPORT, true);
     } else if (ov::device::capabilities == name) {
         return decltype(ov::device::capabilities)::value_type{{ov::device::capability::EXPORT_IMPORT}};
-    } else if (ov::device::architecture == name) {
-        auto deviceIt = options.find("TARGET_FALLBACK");
-        std::string targetFallback;
-        if (deviceIt != options.end()) {
-            targetFallback = deviceIt->second.as<std::string>();
-        } else {
-            deviceIt = options.find(ov::device::priorities.name());
-            if (deviceIt != options.end()) {
-                targetFallback = deviceIt->second.as<std::string>();
-            } else {
-                targetFallback = GetConfig(ov::device::priorities.name(), {}).as<std::string>();
-            }
-        }
-        return decltype(ov::device::architecture)::value_type{DeviceArchitecture(targetFallback)};
     } else {
         IE_THROW() << "Unsupported metric key: " << name;
     }
 }
-std::string Engine::DeviceArchitecture(const std::string& targetFallback) const {
-    auto fallbackDevices = InferenceEngine::DeviceIDParser::getHeteroDevices(targetFallback);
-    std::string resArch;
-    for (const auto& device : fallbackDevices) {
-        InferenceEngine::DeviceIDParser parser(device);
 
-        auto supportedMetricKeys =
-            GetCore()->GetMetric(parser.getDeviceName(), METRIC_KEY(SUPPORTED_METRICS)).as<std::vector<std::string>>();
-        auto it = std::find(supportedMetricKeys.begin(), supportedMetricKeys.end(), METRIC_KEY(DEVICE_ARCHITECTURE));
-        auto arch = (it != supportedMetricKeys.end())
-                        ? GetCore()->GetMetric(device, METRIC_KEY(DEVICE_ARCHITECTURE)).as<std::string>()
-                        : parser.getDeviceName();
-        resArch += " " + arch;
+std::string Engine::DeviceCachingProperties(const std::string& targetFallback) const {
+    auto fallbackDevices = ov::DeviceIDParser::get_hetero_devices(targetFallback);
+    // Vector of caching configs for devices
+    std::vector<ov::AnyMap> result = {};
+    for (const auto& device : fallbackDevices) {
+        ov::DeviceIDParser parser(device);
+        ov::AnyMap properties = {};
+        // Use name without id
+        auto device_name = parser.get_device_name();
+        auto supported_properties =
+            GetCore()->GetMetric(device, ov::supported_properties.name()).as<std::vector<ov::PropertyName>>();
+        if (ov::util::contains(supported_properties, ov::caching_properties.name())) {
+            auto caching_properties =
+                GetCore()->GetMetric(device, ov::caching_properties.name()).as<std::vector<ov::PropertyName>>();
+            for (auto& property_name : caching_properties) {
+                properties[property_name] = GetCore()->GetMetric(device, property_name);
+            }
+            // If caching properties are not supported by device, try to add at least device architecture
+        } else if (ov::util::contains(supported_properties, ov::device::architecture.name())) {
+            auto device_architecture = GetCore()->GetMetric(device, ov::device::architecture.name());
+            properties = ov::AnyMap{{ov::device::architecture.name(), device_architecture}};
+            // Device architecture is not supported, add device name as achitecture
+        } else {
+            properties = ov::AnyMap{{ov::device::architecture.name(), device_name}};
+        }
+        result.emplace_back(properties);
     }
-    return resArch;
+    return result.empty() ? "" : ov::Any(result).as<std::string>();
 }
 
 Parameter Engine::GetConfig(const std::string& name, const std::map<std::string, Parameter>& /*options*/) const {
@@ -219,16 +227,12 @@ Parameter Engine::GetConfig(const std::string& name, const std::map<std::string,
         IE_ASSERT(it != _config.end());
         bool dump = it->second == YES;
         return {dump};
-    } else if (name == "TARGET_FALLBACK" || name == ov::device::priorities.name()) {
-        auto it = _config.find("TARGET_FALLBACK");
-        if (it == _config.end()) {
-            it = _config.find(ov::device::priorities.name());
-        }
-        if (it == _config.end()) {
-            IE_THROW() << "Value for" << name << " is not set";
-        } else {
-            return {it->second};
-        }
+    } else if (name == ov::device::priorities) {
+        std::string targetFallback = GetTargetFallback(_config);
+        auto priorities = ov::util::from_string(targetFallback, ov::device::priorities);
+        return decltype(ov::device::priorities)::value_type{priorities};
+    } else if (name == "TARGET_FALLBACK") {
+        return GetTargetFallback(_config);
     } else {
         IE_THROW() << "Unsupported config key: " << name;
     }

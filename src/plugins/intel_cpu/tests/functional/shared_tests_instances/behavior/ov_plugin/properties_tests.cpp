@@ -152,14 +152,18 @@ const std::vector<std::pair<ov::AnyMap, std::string>> automultiExeDeviceConfigs 
 INSTANTIATE_TEST_SUITE_P(smoke_AutoMultiCompileModelBehaviorTests,
                          OVCompileModelGetExecutionDeviceTests,
                          ::testing::Combine(::testing::Values(CommonTestUtils::DEVICE_AUTO,
-                                                              CommonTestUtils::DEVICE_MULTI),
+                                                              CommonTestUtils::DEVICE_MULTI,
+                                                              CommonTestUtils::DEVICE_HETERO),
                                             ::testing::ValuesIn(automultiExeDeviceConfigs)),
                          OVCompileModelGetExecutionDeviceTests::getTestCaseName);
 
 const std::vector<ov::AnyMap> auto_multi_device_properties = {
     {ov::device::priorities(CommonTestUtils::DEVICE_CPU), ov::device::properties("CPU", ov::num_streams(4))},
     {ov::device::priorities(CommonTestUtils::DEVICE_CPU),
-     ov::device::properties("CPU", ov::num_streams(4), ov::enable_profiling(true))}};
+     ov::device::properties("CPU", ov::num_streams(4), ov::enable_profiling(true))},
+    {ov::device::priorities(CommonTestUtils::DEVICE_CPU),
+     ov::device::properties(ov::AnyMap{{"CPU", ov::AnyMap{{ov::num_streams(4), ov::enable_profiling(true)}}}})}
+};
 
 const std::vector<ov::AnyMap> auto_multi_incorrect_device_properties = {
     {ov::device::priorities(CommonTestUtils::DEVICE_CPU),
@@ -170,16 +174,18 @@ const std::vector<ov::AnyMap> auto_multi_incorrect_device_properties = {
      ov::device::properties("CPU", ov::num_streams(4), ov::enable_profiling(true))}};
 
 INSTANTIATE_TEST_SUITE_P(smoke_AutoMultiSetAndCompileModelBehaviorTestsNoThrow,
-                         OVSetSupportPropComplieModleWithoutConfigTests,
+                         OVSetSupportPropCompileModelWithoutConfigTests,
                          ::testing::Combine(::testing::Values(CommonTestUtils::DEVICE_AUTO,
-                                                              CommonTestUtils::DEVICE_MULTI),
+                                                              CommonTestUtils::DEVICE_MULTI,
+                                                              CommonTestUtils::DEVICE_HETERO),
                                             ::testing::ValuesIn(auto_multi_device_properties)),
-                         OVSetSupportPropComplieModleWithoutConfigTests::getTestCaseName);
+                         OVSetSupportPropCompileModelWithoutConfigTests::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_AutoMultiSetAndCompileModelBehaviorTestsThrow,
-                         OVSetUnsupportPropComplieModleWithoutConfigTests,
+                         OVSetUnsupportPropCompileModelWithoutConfigTests,
                          ::testing::Combine(::testing::Values(CommonTestUtils::DEVICE_AUTO,
-                                                              CommonTestUtils::DEVICE_MULTI),
+                                                              CommonTestUtils::DEVICE_MULTI,
+                                                              CommonTestUtils::DEVICE_HETERO),
                                             ::testing::ValuesIn(auto_multi_incorrect_device_properties)),
-                         OVSetUnsupportPropComplieModleWithoutConfigTests::getTestCaseName);
+                         OVSetUnsupportPropCompileModelWithoutConfigTests::getTestCaseName);
 } // namespace

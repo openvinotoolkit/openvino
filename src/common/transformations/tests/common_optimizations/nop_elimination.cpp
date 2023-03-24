@@ -120,6 +120,30 @@ TEST(nop_elimination, reshape_elimination_v1) {
     ASSERT_TRUE(count_ops_of_type<op::v1::Reshape>(func_zero) == 1);
 }
 
+TEST(nop_elimination, reshape_v1_1D) {
+    auto make_model = [](int64_t input_dim, int64_t requested_dim) {
+        const auto input = make_shared<op::Parameter>(element::i64, PartialShape{{input_dim}});
+        const auto abs = make_shared<op::v0::Abs>(input);
+        const auto req_shape = op::Constant::create(element::i64, Shape{1}, {requested_dim});
+        const auto reshape = make_shared<op::v1::Reshape>(abs, req_shape, false);
+        return make_shared<ov::Model>(NodeVector{reshape}, ParameterVector{input});
+    };
+    // clang-format off
+    vector<shared_ptr<ov::Model>> models{
+        make_model( 7,  7),
+        make_model( 7, -1),
+        make_model(-1, -1),
+    };
+    // clang-format on
+
+    pass::Manager pass_manager;
+    pass_manager.register_pass<ov::pass::NopElimination>();
+    for (auto&& m : models) {
+        pass_manager.run_passes(m);
+        ASSERT_EQ(count_ops_of_type<op::v1::Reshape>(m), 0);
+    }
+}
+
 TEST(nop_elimination, squeeze_reshape_elimination_check_info) {
     std::shared_ptr<Function> f;
     {

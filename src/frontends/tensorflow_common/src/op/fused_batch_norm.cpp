@@ -4,6 +4,7 @@
 
 #include "common_op_table.hpp"
 #include "openvino/opsets/opset10.hpp"
+#include "utils.hpp"
 
 using namespace std;
 using namespace ov;
@@ -31,13 +32,13 @@ void generate_axes_range_except_c(const Output<Node>& x_rank, bool is_nhwc, Outp
 }
 
 void adjust_coeff(const Output<Node>& x_rank,
-                  element::Type x_type,
+                  const Output<Node>& x,
                   const Output<Node>& coeff,
                   Output<Node>& adjusted_coeff,
                   bool is_nhwc) {
     // adjust types of the normalizing coefficients
     // they can vary for FusedBatchNormV2 and FusedBatchNormV3 operations
-    adjusted_coeff = make_shared<Convert>(coeff, x_type)->output(0);
+    adjusted_coeff = make_shared<ConvertLike>(coeff, x)->output(0);
 
     if (is_nhwc) {
         return;
@@ -69,7 +70,7 @@ void compute_batch_mean_and_variance(const Output<Node>& x,
     // compute batch_variance
     auto unsqueezed_batch_mean = make_shared<Unsqueeze>(batch_mean, reduce_axes);
     batch_variance = make_shared<Subtract>(x, unsqueezed_batch_mean)->output(0);
-    auto const_two = make_shared<Constant>(x.get_element_type(), Shape{}, 2);
+    auto const_two = create_same_type_const_scalar<float>(x, 2);
     batch_variance = make_shared<Power>(batch_variance, const_two);
     batch_variance = make_shared<ReduceMean>(batch_variance, reduce_axes)->output(0);
 
@@ -80,8 +81,8 @@ void compute_batch_mean_and_variance(const Output<Node>& x,
     auto gather_axis = make_shared<Constant>(element::i32, Shape{}, 0);
     auto needed_dim_values = make_shared<Gather>(x_shape, reduce_axes, gather_axis);
     auto n = make_shared<ReduceProd>(needed_dim_values, gather_axis, false)->output(0);
-    n = make_shared<Convert>(n, batch_variance.get_element_type())->output(0);
-    auto const_one = make_shared<Constant>(batch_variance.get_element_type(), Shape{}, 1);
+    n = make_shared<ConvertLike>(n, batch_variance)->output(0);
+    auto const_one = create_same_type_const_scalar<float>(batch_variance, 1);
     auto bessel_correction = make_shared<Subtract>(n, const_one)->output(0);
     bessel_correction = make_shared<Divide>(n, bessel_correction);
 
@@ -104,7 +105,7 @@ void compute_weighted_batch_mean_and_variance(const Output<Node>& x,
     // for weighted_variance it is similar
     // (1 - exponential_avg_factor) * variance + exponential_avg_factor * batch_variance,
     // where batch_variance is the variance of the current batch in x.
-    auto const_one = make_shared<Constant>(exp_avg_factor_const.get_element_type(), Shape{}, 1);
+    auto const_one = create_same_type_const_scalar<float>(exp_avg_factor_const, 1);
     auto one_minus_exp_avg_factor = make_shared<Subtract>(const_one, exp_avg_factor_const);
 
     // compute weighted_batch_mean
@@ -148,16 +149,16 @@ void compute_fused_batch_norm_inference(const NodeContext& node,
     bool is_nhwc = (data_format == "NHWC");
 
     // create auxiliary Constant nodes for some attributes: epsilon and exponential_avg_factor
-    auto eps_const = make_shared<Constant>(x.get_element_type(), Shape{}, epsilon);
-    auto half = make_shared<Constant>(x.get_element_type(), Shape{}, 0.5);
+    auto eps_const = create_same_type_const_scalar<float>(x, epsilon);
+    auto half = create_same_type_const_scalar<float>(x, 0.5);
 
     // adjust normalizing coefficients: scale, offset, mean, and variance
     auto x_rank = compute_subgraph_scalar_rank(x, element::i32, true);
     Output<Node> adjusted_scale, adjusted_offset, adjusted_mean, adjusted_variance;
-    adjust_coeff(x_rank, x.get_element_type(), scale, adjusted_scale, is_nhwc);
-    adjust_coeff(x_rank, x.get_element_type(), offset, adjusted_offset, is_nhwc);
-    adjust_coeff(x_rank, x.get_element_type(), mean, adjusted_mean, is_nhwc);
-    adjust_coeff(x_rank, x.get_element_type(), variance, adjusted_variance, is_nhwc);
+    adjust_coeff(x_rank, x, scale, adjusted_scale, is_nhwc);
+    adjust_coeff(x_rank, x, offset, adjusted_offset, is_nhwc);
+    adjust_coeff(x_rank, x, mean, adjusted_mean, is_nhwc);
+    adjust_coeff(x_rank, x, variance, adjusted_variance, is_nhwc);
 
     // perform the main part of the transformation
     // 1. subtract mean from the input
@@ -196,8 +197,8 @@ void compute_fused_batch_norm_training(const NodeContext& node,
     // adjust normalizing coefficients: scale, offset
     auto x_rank = compute_subgraph_scalar_rank(x, element::i32, true);
     Output<Node> adjusted_scale, adjusted_offset;
-    adjust_coeff(x_rank, x.get_element_type(), scale, adjusted_scale, is_nhwc);
-    adjust_coeff(x_rank, x.get_element_type(), offset, adjusted_offset, is_nhwc);
+    adjust_coeff(x_rank, x, scale, adjusted_scale, is_nhwc);
+    adjust_coeff(x_rank, x, offset, adjusted_offset, is_nhwc);
 
     // generate axes for MVN operations
     Output<Node> mvn_axes;
@@ -215,7 +216,7 @@ void compute_fused_batch_norm_training(const NodeContext& node,
     if (node.get_input_size() >= 5) {
         Output<Node> weighted_batch_mean, weighted_batch_variance;
         auto exponential_avg_factor = node.get_attribute<float>("exponential_avg_factor", 1.0f);
-        auto exp_avg_factor_const = make_shared<Constant>(scale.get_element_type(), Shape{}, exponential_avg_factor);
+        auto exp_avg_factor_const = create_same_type_const_scalar<float>(scale, exponential_avg_factor);
         auto mean = node.get_input(3);
         auto variance = node.get_input(4);
         compute_weighted_batch_mean_and_variance(x,
@@ -252,20 +253,20 @@ OutputVector translate_fused_batch_norm_op(const NodeContext& node) {
     }
 
     // create fictious output for reserved outputs of FusedBatchNorm operation
-    auto zero_const = make_shared<Constant>(scale.get_element_type(), Shape{}, 0);
-    auto zero_const2 = make_shared<Constant>(scale.get_element_type(), Shape{}, 0);
+    auto zero_const = create_same_type_const_scalar<float>(scale, 0);
+    auto zero_const2 = create_same_type_const_scalar<float>(scale, 0);
 
     // set node names and tensor names
     set_node_name(node.get_name(), fused_batch_norm.get_node_shared_ptr());
     set_node_name(node.get_name() + ":1", batch_mean.get_node_shared_ptr());
     set_node_name(node.get_name() + ":2", batch_variance.get_node_shared_ptr());
-    set_node_name(node.get_name() + ":3", zero_const);
-    set_node_name(node.get_name() + ":4", zero_const2);
+    set_node_name(node.get_name() + ":3", zero_const.get_node_shared_ptr());
+    set_node_name(node.get_name() + ":4", zero_const2.get_node_shared_ptr());
 
     OutputVector results = OutputVector{fused_batch_norm, batch_mean, batch_variance, zero_const, zero_const2};
     if (is_v3) {
-        auto zero_const3 = make_shared<Constant>(scale.get_element_type(), Shape{}, 0);
-        set_node_name(node.get_name() + ":5", zero_const3);
+        auto zero_const3 = create_same_type_const_scalar<float>(scale, 0);
+        set_node_name(node.get_name() + ":5", zero_const3.get_node_shared_ptr());
         results.push_back(zero_const3);
     }
 

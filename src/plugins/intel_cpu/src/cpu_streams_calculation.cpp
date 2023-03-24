@@ -23,6 +23,7 @@ namespace intel_cpu {
 
 std::vector<std::vector<int>> get_streams_info_table(const int input_streams,
                                                      const int input_threads,
+                                                     const int input_infer_requests,
                                                      const int model_prefer_threads,
                                                      const std::vector<std::vector<int>> proc_type_table) {
     std::vector<int> stream_info(CPU_STREAMS_TABLE_SIZE);
@@ -78,13 +79,12 @@ std::vector<std::vector<int>> get_streams_info_table(const int input_streams,
         }
 
         if (0 != input_streams) {
-            if (input_streams >= n_threads) {
+            n_streams = (input_infer_requests > 0) ? std::min(input_streams, input_infer_requests) : input_streams;
+            if (n_streams >= n_threads) {
                 n_streams = n_threads;
                 n_threads_per_stream = 1;
             } else {
-                n_streams = input_streams;
-                n_threads_per_stream =
-                    std::min(std::max(1, n_threads / input_streams), proc_type_table[0][MAIN_CORE_PROC]);
+                n_threads_per_stream = std::min(std::max(1, n_threads / n_streams), proc_type_table[0][MAIN_CORE_PROC]);
                 if (proc_type_table.size() == 1) {
                     if ((n_threads_per_stream > proc_type_table[0][MAIN_CORE_PROC]) &&
                         (n_threads_per_stream < proc_type_table[0][MAIN_CORE_PROC] * 2)) {
@@ -111,21 +111,29 @@ std::vector<std::vector<int>> get_streams_info_table(const int input_streams,
                     n_threads_per_stream = (n_proc > 16) ? 4 : std::max(1, static_cast<int>(n_proc / 4));
                 }
                 n_streams = static_cast<int>(n_threads / n_threads_per_stream);
-
-                while (n_streams < n_threads_per_stream) {
-                    if (1 == n_threads_per_stream) {
-                        break;
-                    } else {
-                        n_threads_per_stream = static_cast<int>((n_threads_per_stream * 2 - 1) / 2);
-                        n_threads_per_stream = static_cast<int>(
-                            proc_type_table[0][MAIN_CORE_PROC] /
-                            ((proc_type_table[0][MAIN_CORE_PROC] + n_threads_per_stream - 1) / n_threads_per_stream));
-                        n_streams = static_cast<int>(n_threads / n_threads_per_stream);
+                if ((input_infer_requests > 0) && (n_streams > input_infer_requests)) {
+                    n_streams = input_infer_requests;
+                    n_threads_per_stream =
+                        std::min(static_cast<int>(n_threads / n_streams), proc_type_table[0][MAIN_CORE_PROC]);
+                } else {
+                    while (n_streams < n_threads_per_stream) {
+                        if (1 == n_threads_per_stream) {
+                            break;
+                        } else {
+                            n_threads_per_stream = static_cast<int>((n_threads_per_stream * 2 - 1) / 2);
+                            n_threads_per_stream =
+                                static_cast<int>(proc_type_table[0][MAIN_CORE_PROC] /
+                                                 ((proc_type_table[0][MAIN_CORE_PROC] + n_threads_per_stream - 1) /
+                                                  n_threads_per_stream));
+                            n_streams = static_cast<int>(n_threads / n_threads_per_stream);
+                        }
                     }
                 }
             } else {
                 n_streams = ((n_threads + model_prefer_threads - 1) / model_prefer_threads);
-                n_threads_per_stream = static_cast<int>(n_threads / n_streams);
+                n_streams = (input_infer_requests > 0) ? std::min(n_streams, input_infer_requests) : n_streams;
+                n_threads_per_stream =
+                    std::min(static_cast<int>(n_threads / n_streams), proc_type_table[0][MAIN_CORE_PROC]);
             }
         }
 
@@ -262,12 +270,13 @@ StreamCfg parse_streams_table(std::vector<std::vector<int>> streams_table) {
 
 std::pair<std::string, StreamCfg> get_num_streams(
     const int streams,
+    const int infer_requests,
     const std::shared_ptr<ngraph::Function>& ngraphFunc,
     const InferenceEngine::IStreamsExecutor::Config streamExecutorConfig) {
     const std::vector<std::vector<int>> proc_type_table = get_num_available_cpu_cores();
     const int model_prefer = get_model_prefer_threads(streams, proc_type_table, ngraphFunc, streamExecutorConfig);
     const std::vector<std::vector<int>> stream_info_table =
-        get_streams_info_table(streams, streamExecutorConfig._threads, model_prefer, proc_type_table);
+        get_streams_info_table(streams, streamExecutorConfig._threads, infer_requests, model_prefer, proc_type_table);
     StreamCfg streams_info = parse_streams_table(stream_info_table);
 
     DEBUG_LOG(

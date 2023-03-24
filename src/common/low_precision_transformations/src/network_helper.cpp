@@ -742,6 +742,26 @@ std::shared_ptr<Node> NetworkHelper::foldFakeQuantize(
             foldConvert(fq->input_value(3), element::f32));
     }
 
+    //    y = FakeQuantize(x, inputLow, inputHigh, outputLow, outputHigh)
+    // given:
+    //    outputLow is const
+    //    outputHigh is const
+    //    outputLow == outputHigh
+    // => y = Broadcast(Convert(outputLow, typeof(y))), ShapeOf(x))
+    if (ov::is_type<opset1::Constant>(fq->get_input_node_shared_ptr(3)) &&
+        ov::is_type<opset1::Constant>(fq->get_input_node_shared_ptr(4))) {
+        const auto outputLowValues =
+            ov::as_type_ptr<opset1::Constant>(fq->get_input_node_shared_ptr(3))->cast_vector<float>();
+        const auto outputHighValues =
+            ov::as_type_ptr<opset1::Constant>(fq->get_input_node_shared_ptr(4))->cast_vector<float>();
+
+        if (outputLowValues == outputHighValues) {
+            const auto data_shape_node = fold<opset1::ShapeOf>(fq->input_value(0));
+            const auto cvt_output_low = foldConvert(fq->input_value(3), fq->get_output_element_type(0));
+            return fold<opset1::Broadcast>(cvt_output_low, data_shape_node);
+        }
+    }
+
     auto constant = ov::as_type_ptr<opset1::Constant>(fq->get_input_node_shared_ptr(0));
 
     if (constant) {

@@ -378,6 +378,16 @@ bool program_node::has_padded_dependency() const {
     });
 }
 
+bool program_node::is_fused_dep(size_t dep_idx) const {
+    for (auto fused : get_fused_primitives()) {
+        if (dep_idx >= fused.dep_start_idx) {
+            return true;
+        }
+    }
+
+    return false;
+}
+
 std::map<size_t, memory::ptr> program_node::get_const_memory_deps() const {
     std::map<size_t, memory::ptr> mem_deps;
     for (auto& i : get_shape_infer_dependencies()) {
@@ -385,6 +395,12 @@ std::map<size_t, memory::ptr> program_node::get_const_memory_deps() const {
         if (i >= get_dependencies().size())
             continue;
 
+        // exclude fused dependency
+        if (is_fused_dep(i)) {
+            continue;
+        }
+
+        // constant type only
         auto& dep = get_dependency(i);
         if (dep.is_type<data>()) {
             mem_deps.insert({i, dep.as<data>().get_attached_memory_ptr()});
@@ -927,7 +943,7 @@ void program_node::init_onednn_primitive_attributes() {
             if (fused_desc->activation_function == cldnn::activation_func::relu_negative_slope
                 && !fused_desc->additional_params_input.empty()) {
                 auto dep_idx = cldnn_post_ops[idx].dep_start_idx;
-                int oc_dim = desc.output_layout.get_tensor().feature.size();
+                int oc_dim = static_cast<int>(desc.output_layout.get_tensor().feature.size());
                 post_ops.append_prelu(1 << oc_dim);
                 update_onednn_post_op_list(onednn_post_op_type::binary_relu, dep_idx);
             } else if (fused_desc->activation_function == cldnn::activation_func::hard_sigmoid) {
@@ -936,7 +952,7 @@ void program_node::init_onednn_primitive_attributes() {
             } else if (fused_desc->activation_function == cldnn::activation_func::hsigmoid) {
                 // hard_sigmoid(x,a,b) = clamp(ax+b, 0, 1)
                 // hsigmoid(x) = clamp(val+3, 0, 6) / 6 = clamp(val/6+0.5, 0, 1) = hard_sigmoid(val, 1/6, 1/2)
-                post_ops.append_eltwise(dnnl::algorithm::eltwise_hardsigmoid, 1./6, 1./2);
+                post_ops.append_eltwise(dnnl::algorithm::eltwise_hardsigmoid, 1.f/6, 1.f/2);
                 update_onednn_post_op_list(onednn_post_op_type::eltwise_hardsigmoid, empty_mem);
             } else if (fused_desc->activation_function == cldnn::activation_func::negative) {
                 post_ops.append_eltwise(dnnl::algorithm::eltwise_linear, -1, 0);

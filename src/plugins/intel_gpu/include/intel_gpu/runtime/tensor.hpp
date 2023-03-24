@@ -8,6 +8,8 @@
 #include "compounds.hpp"
 #include "utils.hpp"
 
+#include <openvino/core/partial_shape.hpp>
+
 #include <map>
 #include <list>
 #include <cstdint>
@@ -650,6 +652,19 @@ public:
             offset = offset * my_sizes[i] + adjusted_coords[i];
         }
         return offset;
+    }
+
+    /// @brief Returns tensor as Partial shape of requested rank
+    ov::PartialShape get_partial_shape(size_t rank) const {
+        ov::Shape shape;
+        size_t i = 0;
+        for (; i < std::min(static_cast<size_t>(2), rank); ++i) {
+            shape.push_back(_sizes[i]);
+        }
+        for (; i < rank; ++i) {
+            shape.push_back(_sizes[rank - (i - 2) - 1]);
+        }
+        return ov::PartialShape(shape);
     }
 
     /// @brief Returns a tensor containing values maximum from @p lhs and @p rhs.

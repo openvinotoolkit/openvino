@@ -14,13 +14,13 @@ gantt
 
 The articles below provide the basic informations about the process of building OpenVINO.
 
-* [Windows](build-windows.md)
-* [Linux](build-linux.md)
-* [Mac (Intel GPU)](build-mac-intel-cpu.md)
-* [Mac (ARM)](build-mac-arm.md)
-* [Android](build-android.md)
-* [Raspbian Stretch](./build-raspbian.md)
-* [Web Assembly](./build-webassembly.md)
+* [Windows](build_windows.md)
+* [Linux](build_linux.md)
+* [Mac (Intel GPU)](build_mac_intel_cpu.md)
+* [Mac (ARM)](build_mac_arm.md)
+* [Android](build_android.md)
+* [Raspbian Stretch](./build_raspbian.md)
+* [Web Assembly](./build_webassembly.md)
 * [Docker Image](https://github.com/openvinotoolkit/docker_ci/tree/master/dockerfiles/ubuntu18/build_custom)
 
 > **NOTE**: For the details on how to build static OpenVINO, refer to [Building static OpenVINO libraries](static_libaries.md)

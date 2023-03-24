@@ -30,7 +30,7 @@ public:
         assert(input_shape_.size() == 4 || input_shape_.size() == 5);
         format input_format = input_shape_.size() == 4 ? format::bfyx : format::bfzyx;
         layout data_layout ( input_type_, input_format, tensor{input_shape_} );
-        std::vector<T> input_vals = GenInput(data_layout.get_linear_size());
+        std::vector<T> input_vals = GenInput(static_cast<int>(data_layout.get_linear_size()));
         memory::ptr input = engine_.allocate_memory(data_layout);
         set_values(input, input_vals);
         topology topology;
@@ -45,7 +45,7 @@ public:
         }
         topology.add(slice("slice", inputs, tensor{output_shape_}));
 
-        cldnn::network::ptr network = get_network(engine_, topology, ExecutionConfig(), get_test_stream_ptr(), is_caching_test);
+        cldnn::network::ptr network = get_network(engine_, topology, get_test_default_config(engine_), get_test_stream_ptr(), is_caching_test);
 
         network->set_input_data("input", input);
 
