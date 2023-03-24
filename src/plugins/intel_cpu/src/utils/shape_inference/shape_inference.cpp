@@ -614,7 +614,7 @@ const IShapeInferCommonFactory::TRegistry IShapeInferCommonFactory::registry{
     _OV_OP_NON_TEMPLATE_SHAPE_INFER_REG(opset1::BatchNormInference, entryFirstPassthrough),
     _OV_OP_NON_TEMPLATE_SHAPE_INFER_REG(opset1::Softmax, entryCopy),
     _OV_OP_SHAPE_INFER_REG(opset1::Broadcast, entryIOC),
-    _OV_OP_SHAPE_INFER_REG(opset1::DeformableConvolution, entryFallbackWithPadding),
+    _OV_OP_SHAPE_INFER_REG(opset1::DeformableConvolution, ShapeInferWithPadding),
     _OV_OP_SHAPE_INFER_REG(opset1::DetectionOutput, entryIO),
     _OV_OP_SHAPE_INFER_REG(opset1::Interpolate, entryIOC),
     _OV_OP_SHAPE_INFER_REG(opset1::LSTMCell, entryIO),
