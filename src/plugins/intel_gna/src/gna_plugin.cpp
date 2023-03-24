@@ -417,17 +417,17 @@ void GNAPlugin::UpdateInputScaleFromNetwork(InferenceEngine::CNNNetwork& network
     for (auto&& input : inputs) {
         auto data = input.second->getInputData();
         for (auto&& nextToInputLayer : getInputTo(data)) {
-            if (!LayerInfo(nextToInputLayer.second).isFakeQuantize()) {
+            auto next_layer = CNNNetCheckNextLayerSkipCertain(nextToInputLayer.second, 0, 0, true, [](CNNLayerPtr l) { return LayerInfo(l).isNonFunctional(); }).first;
+            if (!LayerInfo(next_layer).isFakeQuantize()) {
                 continue;
             }
-
             // replacing scale factor from this fq layer
-            GNAFakeQuantizeLayer fqLayer(nextToInputLayer.second);
+            GNAFakeQuantizeLayer fqLayer(next_layer);
             auto inputRange = fqLayer.getInputRange();
             auto outputRange = fqLayer.getOutputRange();
             if (inputRange.second.size() != 1 || inputRange.second.size() != 1 || outputRange.second.size() != 1 ||
                 outputRange.second.size() != 1) {
-                THROW_GNA_LAYER_EXCEPTION(nextToInputLayer.second)
+                THROW_GNA_LAYER_EXCEPTION(next_layer)
                     << "unsupported, per-channel quantization for input layer : " << input.second->name();
             }
 
@@ -701,7 +701,7 @@ void GNAPlugin::LoadNetwork(const CNNNetwork& _network) {
     if (_network.getFunction()) {
         CNNNetwork clonedNetwork = InferenceEngine::cloneNetwork(_network);
         auto model = clonedNetwork.getFunction();
-        transformer.apply(model);
+        transformer.apply(model, &m_subgraph_cpu_map);
         limitations::check_all_ops_supported(model, effectiveCompileTarget, config.gnaPrecision);
         convertedNetwork = InferenceEngine::details::convertFunctionToICNNNetwork(model, clonedNetwork);
     }
@@ -712,6 +712,7 @@ void GNAPlugin::LoadNetwork(const CNNNetwork& _network) {
     transformer.convert_precision_legacy(network);
 
     //  Check the network
+
     std::string error;
     if (!limitations::AreLayersSupported(network, error)) {
         THROW_GNA_EXCEPTION << error.c_str();
@@ -1115,8 +1116,7 @@ uint32_t GNAPlugin::QueueInference(const InferenceEngine::BlobMap& inputs, Infer
     int inputNum = 0;
     for (auto& input : inputs) {
         std::string input_name = input.first;
-        Blob::Ptr gna_input_blob = input.second;  // this copy is needed to split user input and plugin's
-        InferenceEngine::Layout input_layout = gna_input_blob->getTensorDesc().getLayout();
+        InferenceEngine::Layout input_layout = input.second->getTensorDesc().getLayout();
 
         if (input_layout != InferenceEngine::Layout::C && input_layout != InferenceEngine::Layout::NC &&
             input_layout != InferenceEngine::Layout::CN && input_layout != InferenceEngine::Layout::CHW &&
@@ -1176,29 +1176,42 @@ uint32_t GNAPlugin::QueueInference(const InferenceEngine::BlobMap& inputs, Infer
                                 << ", but input blob size: " << importedBytes;
         }
 
-        // Perform preprocessing on CPU
+        // Perform preprocessing on CPU.
+        // When we need to perform preprocessing on CPU using ngraph model we copy user input to the buffer,
+        // then directly use prerocessing output as gna input.
         std::shared_ptr<ov::Model> model = inputs_ptr_->at(input_name).pre_post_process_model;
-        if (model != nullptr) {
-            Precision output_prc = inputs_ptr_->at(input_name).model_precision;
-            SizeVector output_dims = model->get_result()->get_shape();
-            TensorDesc output_desc(output_prc, output_dims, InferenceEngine::Layout::ANY);
-            Blob::Ptr output_blob = make_blob_with_precision(output_desc);
-            output_blob->allocate();
-            pre_post_process(gna_input_blob, output_blob, model);
-            gna_input_blob = output_blob;
+        Blob::Ptr buff_blob = nullptr;
+        TensorDesc buff_tensor_desc(input.second->getTensorDesc());
+        buff_tensor_desc.setPrecision(inputs_ptr_->at(input_name).tensor_precision);
+
+        if (model) {
+            // WA: evaluate gather with int16 precision as fp16
+            if (buff_tensor_desc.getPrecision() == Precision::I16) {
+                buff_tensor_desc.setPrecision(Precision::FP16);
+            }
+            buff_blob = make_blob_with_precision(buff_tensor_desc);
+            buff_blob->allocate();
         } else {
-            log::debug() << "Postprocessing for input " << input_name << " is not required" << std::endl;
+            buff_blob = make_blob_with_precision(buff_tensor_desc, inputs_ptr_->at(input_name).ptrs[index]);
         }
 
-        ImportFrames(inputs_ptr_->at(input_name).ptrs[index],
-                     gna_input_blob->cbuffer().as<float*>(),
-                     gna_input_blob->getTensorDesc().getPrecision(),
+        ImportFrames(buff_blob->buffer(),
+                     input.second->cbuffer().as<float*>(),
+                     input.second->getTensorDesc().getPrecision(),
                      gnaFlags->sw_fp32 ? kScaleFactorDefault : inputs_ptr_->at(input_name).scale_factor,
                      inputOrientation,
                      importedFrames,
                      targetGroups,
                      importedElements,
                      importedElements);
+
+        if (model) {
+            Precision output_prc = buff_blob->getTensorDesc().getPrecision();
+            SizeVector output_dims = model->get_result()->get_shape();
+            TensorDesc output_desc(output_prc, output_dims, InferenceEngine::Layout::ANY);
+            Blob::Ptr output_blob = make_blob_with_precision(output_desc, inputs_ptr_->at(input_name).ptrs[index]);
+            pre_post_process(buff_blob, output_blob, model);
+        }
 
         ++inputNum;
     }
@@ -1288,23 +1301,31 @@ RequestStatus GNAPlugin::WaitFor(uint32_t request_idx, int64_t millisTimeout) {
             isScalar ? 1 : (is1D ? dims.front() : details::product(++std::begin(dims), std::end(dims)));
 
         OutputDesc& gna_output_desc = outputs_.at(output_name);
-        // WA: evaluate gather with int16 precision as fp16
-        Precision preproc_prc = (gna_output_desc.tensor_precision == Precision::I16) ? Precision(Precision::FP16)
-                                                                                     : gna_output_desc.tensor_precision;
-        TensorDesc tensor_desc(preproc_prc, gna_output_desc.dims, gna_output_desc.model_layout);
-        Blob::Ptr gna_output_blob = make_blob_with_precision(tensor_desc, gna_output_desc.ptrs[request_idx]);
+        Blob::Ptr gna_output_blob = nullptr;
 
         // Perform postprocessing on CPU
         std::shared_ptr<ov::Model> model = gna_output_desc.pre_post_process_model;
         if (model) {
-            SizeVector output_dims = model->get_result()->get_shape();
+            // WA: evaluate gather with int16 precision as fp16
+            Precision preproc_prc = (gna_output_desc.tensor_precision == Precision::I16)
+                                        ? Precision(Precision::FP16)
+                                        : gna_output_desc.tensor_precision;
+            const SizeVector& input_dims = model->get_parameters().front()->get_shape();
+            TensorDesc input_desc(preproc_prc, input_dims, InferenceEngine::Layout::ANY);
+            Blob::Ptr input_blob = make_blob_with_precision(input_desc, gna_output_desc.ptrs[request_idx]);
+
+            const SizeVector& output_dims = model->get_result()->get_shape();
             TensorDesc output_desc(preproc_prc, output_dims, InferenceEngine::Layout::ANY);
-            Blob::Ptr output_blob = make_blob_with_precision(output_desc);
-            output_blob->allocate();
-            pre_post_process(gna_output_blob, output_blob, model);
-            gna_output_blob = output_blob;
+            gna_output_blob = make_blob_with_precision(output_desc);
+            gna_output_blob->allocate();
+
+            pre_post_process(input_blob, gna_output_blob, model);
         } else {
             log::debug() << "Postprocessing for output " << output_name << " is not required" << std::endl;
+            TensorDesc output_desc(gna_output_desc.tensor_precision,
+                                   gna_output_desc.dims,
+                                   gna_output_desc.model_layout);
+            gna_output_blob = make_blob_with_precision(output_desc, gna_output_desc.ptrs[request_idx]);
         }
 
         ExportScores(output_blob->buffer(),

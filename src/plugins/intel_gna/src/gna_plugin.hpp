@@ -55,7 +55,7 @@ protected:
     uint32_t activeLayerIndex = 0xffffffff;
     TranspositionInfoMap transpose_inputs_info;
     TranspositionInfoMap transpose_outputs_info;
-    PrePostProcessModels subgraph_cpu_map;
+    PrePostProcessModels m_subgraph_cpu_map;
 
     uint32_t dnn_dump_write_index = 0;
     intel_dnn_number_type_t output_type = kDnnInt;
