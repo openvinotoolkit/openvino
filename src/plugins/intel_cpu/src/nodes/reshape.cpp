@@ -55,8 +55,8 @@ public:
                                               ov::util::Cast<int64_t>());
         VectorDims outputShape(outputPatternSize);
         size_t outputProduct(1);
-        size_t minusOneIdx = -1;
-        size_t minusOneCount = 0;
+        int32_t minusOneIdx = -1;
+        int32_t minusOneCount = 0;
         for (size_t i = 0; i < outputPatternSize; ++i) {
             if (outPattern[i] == 0 && m_specialZero && i < inputShapeSize) {
                 outputShape[i] = inputShape[i];
@@ -70,7 +70,7 @@ public:
             }
         }
         size_t inputProduct(1);
-        for (size_t i = 0; i < inputShape.size(); ++i) {
+        for (size_t i = 0; i < inputShapeSize; ++i) {
             inputProduct *= inputShape[i];
         }
         if (outputProduct != 0 && inputProduct != 0 && minusOneIdx >= 0) {
@@ -170,7 +170,7 @@ public:
             if (outPattern[i] < 0) {
                 outPattern[i] = outputShapeSize + outPattern[i];
             }
-            if (outPattern[i] >= 0 && outPattern[i] < inputShapeSize) {
+            if (outPattern[i] >= 0 && outPattern[i] < outputShapeSize) {
                 outputShape[outPattern[i]] = 1;
             } else {
                 existError = true;
