@@ -21,7 +21,7 @@ using namespace ov::pass::transpose_sinking::utils;
 namespace {
 
 std::vector<size_t> get_indices_by_op_type(const std::shared_ptr<Node>& main_node) {
-    if (as_type_ptr<ReverseSequence>(main_node)){
+    if (as_type_ptr<ReverseSequence>(main_node)) {
         return {1};
     } else if (as_type_ptr<Pad>(main_node)) {
         return {1, 2};
@@ -32,14 +32,14 @@ std::vector<size_t> get_indices_by_op_type(const std::shared_ptr<Node>& main_nod
     }
 }
 
-}
+}  // namespace
 
 TSDataMovementForward::TSDataMovementForward() {
     MATCHER_SCOPE(TSDataMovementForward);
     auto const_label = wrap_type<Constant>();
     auto transpose_label = wrap_type<Transpose>({any_input(), const_label});
-    auto main_node_label =
-        wrap_type<Pad, BatchToSpace, SpaceToBatch, ReverseSequence>({transpose_label, any_input(), any_input(), any_input()});
+    auto main_node_label = wrap_type<Pad, BatchToSpace, SpaceToBatch, ReverseSequence>(
+        {transpose_label, any_input(), any_input(), any_input()});
 
     matcher_pass_callback matcher_pass_callback = [=](Matcher& m) {
         const auto& pattern_to_node = m.get_pattern_map();
@@ -70,7 +70,7 @@ TSDataMovementForward::TSDataMovementForward() {
         const auto& indices = get_indices_by_op_type(main_node);
         for (const auto& idx : indices) {
             main_node->input(idx).replace_source_output(
-                    ChangeValuesOrder(main_node->input_value(idx), reversed_transpose_order, axis));
+                ChangeValuesOrder(main_node->input_value(idx), reversed_transpose_order, axis));
         }
 
         if (auto reverse_seq = as_type_ptr<ReverseSequence>(main_node)) {
@@ -93,9 +93,10 @@ TSDataMovementForward::TSDataMovementForward() {
 TSDataMovementBackward::TSDataMovementBackward() {
     MATCHER_SCOPE(TSDataMovementBackward);
 
-    auto main_node_label = wrap_type<Pad, BatchToSpace, SpaceToBatch, ReverseSequence>([](const Output<Node>& output) -> bool {
-        return has_static_rank()(output) && HasSameOutputTransposeNodes(output);
-    });
+    auto main_node_label =
+        wrap_type<Pad, BatchToSpace, SpaceToBatch, ReverseSequence>([](const Output<Node>& output) -> bool {
+            return has_static_rank()(output) && HasSameOutputTransposeNodes(output);
+        });
 
     auto transpose_const_label = wrap_type<Constant>();
 
@@ -127,7 +128,7 @@ TSDataMovementBackward::TSDataMovementBackward() {
         const auto& indices = get_indices_by_op_type(main_node);
         for (const auto& idx : indices) {
             main_node->input(idx).replace_source_output(
-                    ChangeValuesOrder(main_node->input_value(idx), transpose_axis_order, axis));
+                ChangeValuesOrder(main_node->input_value(idx), transpose_axis_order, axis));
         }
 
         if (auto reverse_seq = as_type_ptr<ReverseSequence>(main_node)) {

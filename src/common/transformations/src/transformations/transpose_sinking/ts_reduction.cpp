@@ -81,7 +81,7 @@ TSReductionForward::TSReductionForward() {
                                                     {transpose_order_values.size()},
                                                     transpose_order_values);
 
-        auto new_const = Constant::create(reduction_axes->get_element_type(), reduction_axes->get_shape(), new_values);
+        auto new_const = Constant::create(reduction_axes->get_element_type(), {new_values.size()}, new_values);
         main_node->input(1).replace_source_output(new_const);
         TransposeInputsInfo transpose_input_info = {transpose, new_transpose_order, 0};
         // deletes Transpose from 0 input
@@ -90,12 +90,12 @@ TSReductionForward::TSReductionForward() {
             return false;
         }
 
+        copy_runtime_info(reduction_axes, new_const);
+        main_node->validate_and_infer_types();
         for (auto& new_node : sink_forward::InsertOutputTransposes(main_node, transpose_input_info)) {
             register_new_node(new_node);
             UpdateForwardSinkingAbility(new_node);
         }
-        copy_runtime_info(reduction_axes, new_const);
-        main_node->validate_and_infer_types();
         return true;
     };
 
@@ -109,9 +109,10 @@ TSReductionBackward::TSReductionBackward() {
     auto reduce_label = wrap_type<op::util::ArithmeticReductionKeepDims, op::util::LogicalReductionKeepDims>(
         {any_input(), wrap_type<Constant>()},
         HasSameOutputTransposeNodes);
-    auto transpose_label = wrap_type<Transpose>({reduce_label, wrap_type<Constant>()}, [](const Output<Node>& output) -> bool {
-        return has_static_rank()(output) && is_sinking_node(output);
-    });
+    auto transpose_label =
+        wrap_type<Transpose>({reduce_label, wrap_type<Constant>()}, [](const Output<Node>& output) -> bool {
+            return has_static_rank()(output) && is_sinking_node(output);
+        });
 
     ov::matcher_pass_callback matcher_pass_callback = [=](pattern::Matcher& m) {
         const auto& pattern_to_output = m.get_pattern_map();
@@ -145,7 +146,7 @@ TSReductionBackward::TSReductionBackward() {
             new_values.push_back(reversed_order_values[axis]);
         }
 
-        auto new_const = Constant::create(reduction_axes->get_element_type(), {new_values}, new_values);
+        auto new_const = Constant::create(reduction_axes->get_element_type(), {new_values.size()}, new_values);
         main_node->input(1).replace_source_output(new_const);
         for (auto& new_node : sink_backward::InsertTransposeBeforeNode(main_node, new_transpose_order, {0})) {
             register_new_node(new_node);

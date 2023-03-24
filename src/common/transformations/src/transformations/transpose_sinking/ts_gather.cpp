@@ -17,7 +17,6 @@ using namespace ov::pass::pattern;
 using namespace ov::pass::transpose_sinking;
 using namespace ov::pass::transpose_sinking::utils;
 
-
 TSGatherForward::TSGatherForward() {
     MATCHER_SCOPE(TSGatherForward);
 
@@ -59,10 +58,11 @@ TSGatherForward::TSGatherForward() {
 TSGatherBackward::TSGatherBackward() {
     MATCHER_SCOPE(TSGatherBackward);
 
-    auto gather_label = wrap_type<Gather>({any_input(), wrap_type<Constant>()}, HasSameOutputTransposeNodes);
-    auto transpose_label = wrap_type<Transpose>({gather_label, wrap_type<Constant>()}, [](const Output<Node>& output) -> bool {
-        return has_static_rank()(output) && is_sinking_node(output);
-    });
+    auto gather_label = wrap_type<Gather>({any_input(), any_input(), any_input()}, HasSameOutputTransposeNodes);
+    auto transpose_label =
+        wrap_type<Transpose>({gather_label, wrap_type<Constant>()}, [](const Output<Node>& output) -> bool {
+            return has_static_rank()(output) && is_sinking_node(output);
+        });
 
     ov::matcher_pass_callback matcher_pass_callback = [=](pattern::Matcher& m) {
         const auto& pattern_to_output = m.get_pattern_map();
@@ -80,7 +80,7 @@ TSGatherBackward::TSGatherBackward() {
 
         for (auto& new_node : sink_backward::InsertTransposeBeforeNode(main_node,
                                                                        transpose_order,
-                /* input_indexes= */ {0, 1})) {
+                                                                       /* input_indexes= */ {0, 1})) {
             register_new_node(new_node);
         }
 

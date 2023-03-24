@@ -112,7 +112,7 @@ TSSqueezeForward::TSSqueezeForward() {
 
         // if 2nd input to main_node is empty then all '1' dims will be deleted.
         if (non_negative_axes.empty()) {
-            auto input_pshape = transpose->input_value(0).get_partial_shape();
+            auto input_pshape = transpose->output(0).get_partial_shape();
             if (input_pshape.is_dynamic()) {
                 return false;
             }
@@ -148,12 +148,12 @@ TSSqueezeForward::TSSqueezeForward() {
             return false;
         }
 
+        copy_runtime_info(squeeze_axes, new_const);
+        main_node->validate_and_infer_types();
         for (auto& new_node : sink_forward::InsertOutputTransposes(main_node, transpose_input_info)) {
             register_new_node(new_node);
             UpdateForwardSinkingAbility(new_node);
         }
-        copy_runtime_info(squeeze_axes, new_const);
-        main_node->validate_and_infer_types();
 
         return true;
     };
@@ -231,8 +231,7 @@ TSSqueezeBackward::TSSqueezeBackward() {
 
         std::shared_ptr<Node> new_squeeze;
         if (!squeeze_all_dims) {
-            auto new_const =
-                std::make_shared<Constant>(squeeze_axes->get_element_type(), squeeze_axes->get_shape(), new_values);
+            auto new_const = Constant::create(squeeze_axes->get_element_type(), {new_values.size()}, new_values);
             main_node->input(1).replace_source_output(new_const);
             copy_runtime_info(squeeze_axes, new_const);
         }

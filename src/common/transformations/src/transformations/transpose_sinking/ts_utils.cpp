@@ -164,7 +164,8 @@ AxisVector AlignTransposeOrder(const Output<Node>& output, const TransposeInputs
     return new_transpose_order;
 }
 
-bool UpdateInputTransposes(const NodePtr& main_node, const TransposeInputsInfo& transpose_input_info,
+bool UpdateInputTransposes(const NodePtr& main_node,
+                           const TransposeInputsInfo& transpose_input_info,
                            std::vector<int> input_indexes) {
     if (input_indexes.empty()) {
         input_indexes.resize(main_node->get_input_size());

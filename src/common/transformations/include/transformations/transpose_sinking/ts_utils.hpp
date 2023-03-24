@@ -64,7 +64,8 @@ namespace sink_forward {
  * @brief Inserts reversed transposed on @args main_node inputs. Removes input transpose specified in @arg
  * transpose_input_info
  */
-bool UpdateInputTransposes(const std::shared_ptr<ov::Node>& main_node, const TransposeInputsInfo& transpose_input_info,
+bool UpdateInputTransposes(const std::shared_ptr<ov::Node>& main_node,
+                           const TransposeInputsInfo& transpose_input_info,
                            std::vector<int> input_indexes = {});
 
 /**
@@ -125,7 +126,7 @@ Output<Node> ChangeAxes(const Output<Node>& input,
 Output<Node> ChangeAxes(const Output<Node>& input,
                         const std::shared_ptr<ov::opset10::Constant>& transpose_axis_order,
                         const std::shared_ptr<ov::opset10::Constant>& axis);
-    /**
+/**
  * @brief Returns the updated axes order for case when the initial axes order has more elements
  * than after TransposeSinking, e.g.:
  *

@@ -130,11 +130,11 @@ TSUnsqueezeForward::TSUnsqueezeForward() {
             return false;
         }
 
+        main_node->validate_and_infer_types();
         for (auto& new_node : sink_forward::InsertOutputTransposes(main_node, transpose_input_info)) {
             register_new_node(new_node);
             UpdateForwardSinkingAbility(new_node);
         }
-        main_node->validate_and_infer_types();
 
         return true;
     };
