@@ -1047,7 +1047,8 @@ int main(int argc, char* argv[]) {
                         if (isDynamicNetwork) {
                             requestTensor.set_shape(inputTensor.get_shape());
                         }
-                        copy_tensor_data(requestTensor, inputTensor);
+                        bool vpu = device_name.find("VPU") != std::string::npos;
+                        copy_tensor_data(requestTensor, inputTensor, vpu);
                     }
                 }
 

@@ -962,10 +962,14 @@ std::map<std::string, ov::TensorVector> get_tensors_static_case(const std::vecto
     return blobs;
 }
 
-void copy_tensor_data(ov::Tensor& dst, const ov::Tensor& src) {
-    if (src.get_shape() != dst.get_shape() || src.get_byte_size() != dst.get_byte_size()) {
-        throw std::runtime_error(
-            "Source and destination tensors shapes and byte sizes are expected to be equal for data copying.");
+void copy_tensor_data(ov::Tensor& dst, const ov::Tensor& src, bool vpu) {
+    if (src.get_shape() != dst.get_shape()) {
+        if (vpu) {
+            dst.set_shape(src.get_shape());
+        } else {
+            throw std::runtime_error(
+                "Source and destination tensors shapes are expected to be equal for data copying.");
+        }
     }
 
     memcpy(dst.data(), src.data(), src.get_byte_size());
