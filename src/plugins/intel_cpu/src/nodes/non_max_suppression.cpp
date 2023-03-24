@@ -557,7 +557,7 @@ bool NonMaxSuppression::isSupportedOperation(const std::shared_ptr<const ngraph:
         // TODO [DS NMS]: remove when nodes from models where nms is not last node in model supports DS
         using NonMaxSuppressionV9 = ngraph::op::v9::NonMaxSuppression;
         if (!one_of(op->get_type_info(), NonMaxSuppressionV9::get_type_info_static(),
-                    ngraph::op::internal::NonMaxSuppressionIEInternal::get_type_info_static())) {
+                    ov::op::internal::NonMaxSuppressionIEInternal::get_type_info_static())) {
             errorMessage = "Only NonMaxSuppression v9 and NonMaxSuppressionIEInternal are supported";
             return false;
         }
@@ -595,7 +595,7 @@ NonMaxSuppression::NonMaxSuppression(const std::shared_ptr<ngraph::Node>& op, co
         boxEncodingType = static_cast<NMSBoxEncodeType>(nms9->get_box_encoding());
         sortResultDescending = nms9->get_sort_result_descending();
         // TODO [DS NMS]: remove when nodes from models where nms is not last node in model supports DS
-        } else if (const auto nmsIe = std::dynamic_pointer_cast<const ngraph::op::internal::NonMaxSuppressionIEInternal>(op)) {
+        } else if (const auto nmsIe = std::dynamic_pointer_cast<const ov::op::internal::NonMaxSuppressionIEInternal>(op)) {
             boxEncodingType = nmsIe->m_center_point_box ? NMSBoxEncodeType::CENTER : NMSBoxEncodeType::CORNER;
             sortResultDescending = nmsIe->m_sort_result_descending;
         } else {

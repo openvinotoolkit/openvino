@@ -28,9 +28,3 @@ public:
     OPENVINO_RTTI("LeakyReluFusion", "0");
     LeakyReluFusion();
 };
-
-namespace ngraph {
-namespace pass {
-using ov::pass::LeakyReluFusion;
-}  // namespace pass
-}  // namespace ngraph

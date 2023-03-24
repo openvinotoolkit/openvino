@@ -5,7 +5,7 @@
 #include "transformations/rt_info/attributes.hpp"
 
 ov::pass::Attributes::Attributes() {
-    register_factory<ngraph::FusedNames>();
+    register_factory<ov::FusedNames>();
     register_factory<PrimitivesPriority>();
     register_factory<DisableConstantFolding>();
     register_factory<DisableFP16Compression>();

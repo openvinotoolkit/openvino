@@ -42,5 +42,22 @@ struct gather_elements : public primitive_base<gather_elements> {
 
     /// @brief Which axis to gather on.
     int64_t axis;
+
+    size_t hash() const override {
+        size_t seed = primitive::hash();
+        seed = hash_combine(seed, output_format.value);
+        seed = hash_combine(seed, axis);
+        return seed;
+    }
+
+    bool operator==(const primitive& rhs) const override {
+        if (!compare_common_params(rhs))
+            return false;
+
+        auto rhs_casted = downcast<const gather_elements>(rhs);
+
+        return output_format == rhs_casted.output_format &&
+               axis == rhs_casted.axis;
+    }
 };
 }  // namespace cldnn

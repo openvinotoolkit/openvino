@@ -38,5 +38,22 @@ struct embedding_bag : public primitive_base<embedding_bag> {
     tensor output_shape;
     /// @brief Default index
     int32_t default_index;
+
+    size_t hash() const override {
+        size_t seed = primitive::hash();
+        seed = hash_combine(seed, type);
+        seed = hash_combine(seed, default_index);
+        return seed;
+    }
+
+    bool operator==(const primitive& rhs) const override {
+        if (!compare_common_params(rhs))
+            return false;
+
+        auto rhs_casted = downcast<const embedding_bag>(rhs);
+
+        return type == rhs_casted.type &&
+               default_index == rhs_casted.default_index;
+    }
 };
 }  // namespace cldnn

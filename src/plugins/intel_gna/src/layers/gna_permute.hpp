@@ -3,9 +3,10 @@
 //
 
 #pragma once
-#include <vector>
 #include <list>
 #include <utility>
+#include <vector>
+
 #include "ie_common.h"
 #include "log/debug.hpp"
 

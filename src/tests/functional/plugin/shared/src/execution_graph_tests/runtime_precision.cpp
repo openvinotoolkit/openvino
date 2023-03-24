@@ -12,7 +12,6 @@
 #include <ie_core.hpp>
 #include <ngraph/function.hpp>
 #include <exec_graph_info.hpp>
-#include <ngraph/variant.hpp>
 
 #include "common_test_utils/common_utils.hpp"
 #include "functional_test_utils/plugin_cache.hpp"

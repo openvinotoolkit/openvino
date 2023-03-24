@@ -67,6 +67,7 @@ int main(int argc, char* argv[]) {
     // ---------------------------Initialization of Gtest env -----------------------------------------------
     ov::test::conformance::targetDevice = FLAGS_device.c_str();
     ov::test::conformance::IRFolderPaths = CommonTestUtils::splitStringByDelimiter(FLAGS_input_folders);
+    ov::test::conformance::refCachePath = FLAGS_ref_dir.c_str();
     if (!FLAGS_plugin_lib_name.empty()) {
         ov::test::conformance::targetPluginName = FLAGS_plugin_lib_name.c_str();
     }

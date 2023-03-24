@@ -46,7 +46,6 @@
 
 #include <ngraph/node.hpp>
 #include <ngraph/function.hpp>
-#include <ngraph/variant.hpp>
 #include <ngraph/ops.hpp>
 #include <transformations/utils/utils.hpp>
 #include <low_precision/low_precision.hpp>
@@ -140,7 +139,7 @@ void Graph::Replicate(const std::shared_ptr<const ov::Model> &subgraph) {
         return -1;
     };
 
-    for (const auto op : subgraph->get_ordered_ops()) {
+    for (const auto& op : subgraph->get_ordered_ops()) {
         const NodePtr node {Node::factory().create(op, context)};
 
         graphNodes.push_back(node);
@@ -151,7 +150,7 @@ void Graph::Replicate(const std::shared_ptr<const ov::Model> &subgraph) {
 
         if (op->get_type_info() == ngraph::op::v0::Result::get_type_info_static()) {
             const auto prev = op->input_value(0);
-            const std::string inputID = ngraph::op::util::get_ie_output_name(prev);
+            const std::string inputID = ov::op::util::get_ie_output_name(prev);
 
             outputNodesMap[inputID] = node;
         }
@@ -265,7 +264,7 @@ void Graph::Replicate(const CNNNetwork &network) {
 
         if (op->get_type_info() == ngraph::op::v0::Result::get_type_info_static()) {
             const auto &input = op->input_value(0);
-            const auto name = ngraph::op::util::get_ie_output_name(input);
+            const auto name = ov::op::util::get_ie_output_name(input);
 
             if (outputsInfo.count(name) != 0) {
                 outputNodesMap[name] = node;
@@ -439,12 +438,15 @@ void Graph::InitDescriptors() {
         }
 
         OV_ITT_SCOPE_NEXT(FIRST_INFERENCE, taskChain, node->profiling.getSupportedDescriptors);
+        DEBUG_LOG("Get supported primitive descriptors for node: ", node->getName());
         node->getSupportedDescriptors();
 
         OV_ITT_SCOPE_NEXT(FIRST_INFERENCE, taskChain, node->profiling.initSupportedPrimitiveDescriptors);
+        DEBUG_LOG("Init supported primitive descriptors for node: ", node->getName());
         node->initSupportedPrimitiveDescriptors();
 
         OV_ITT_SCOPE_NEXT(FIRST_INFERENCE, taskChain, node->profiling.filterSupportedPrimitiveDescriptors);
+        DEBUG_LOG("Filter supported primitive descriptors for node: ", node->getName());
         node->filterSupportedPrimitiveDescriptors();
 
 #ifdef CPU_DEBUG_CAPS
@@ -458,6 +460,7 @@ void Graph::InitDescriptors() {
 
     for (auto &node : graphNodes) {
         OV_ITT_SCOPE_NEXT(FIRST_INFERENCE, taskChain, node->profiling.selectOptimalPrimitiveDescriptor);
+        DEBUG_LOG("Select optimal primitive descriptors for node: ", node->getName());
         node->selectOptimalPrimitiveDescriptor();
     }
 }
@@ -466,8 +469,10 @@ void Graph::InitOptimalPrimitiveDescriptors() {
     OV_ITT_SCOPED_TASK(itt::domains::intel_cpu, "Graph::InitOptimalPrimitiveDescriptors");
     for (auto &node : graphNodes) {
         OV_ITT_SCOPE(FIRST_INFERENCE, itt::domains::intel_cpu_LT, node->profiling.initOptimalPrimitiveDescriptor);
+        DEBUG_LOG("Init optimal primitive descriptors for node: ", node->getName());
         node->initOptimalPrimitiveDescriptor();
-        DEBUG_LOG("#", node->getExecIndex(), " ", node->getName(), "\n", *node->getSelectedPrimitiveDescriptor());
+        DEBUG_LOG("#", node->getExecIndex(), " ", node->getName(), "\n",
+                  *node->getSelectedPrimitiveDescriptor(), "selectedPrimitiveDescriptorIdx = ", node->selectedPrimitiveDescriptorIndex);
     }
 }
 
@@ -545,7 +550,7 @@ static bool isReorderAvailable(const MemoryDescPtr& parentDesc, const MemoryDesc
     dnnl::primitive_attr attr;
 
     dnnl_primitive_desc_t result = nullptr;
-    auto status = dnnl_reorder_primitive_desc_create(&result, &srcMemDesc.data, eng.get(), &dstMemDesc.data, eng.get(),
+    auto status = dnnl_reorder_primitive_desc_create(&result, srcMemDesc.get(), eng.get(), dstMemDesc.get(), eng.get(),
                                                      attr.get());
     if (result) {
         dnnl_primitive_desc_destroy(result);
@@ -589,7 +594,7 @@ void Graph::InitEdges() {
     for (auto i = 0; i < numberOfEdges; i++) {
         auto edge = graphEdges[i];
         auto reorderStatus = graphEdges[i]->needReorder();
-        DEBUG_LOG(graphEdges[i]->name(), " reorderStatus = ", static_cast<int>(reorderStatus));
+        DEBUG_LOG(graphEdges[i]->name(), " reorderStatus = ", reorderStatus);
         if (reorderStatus == Edge::ReorderStatus::Regular) {
             Edge::ReorderStatus reorderStatusInternal = Edge::ReorderStatus::Regular;
             // Check if there is a reorder that needs the precision conversion
@@ -880,7 +885,7 @@ void Graph::CreatePrimitives() {
         node->createPrimitive();
 #ifdef CPU_DEBUG_CAPS
         if (node->prim) {
-            auto pd_c = (*node->prim).get_primitive_desc();
+            auto pd_c = node->prim.get_primitive_desc();
             auto* pd = reinterpret_cast<const dnnl_primitive_desc*>(pd_c);
             DEBUG_LOG("verbose##", node->getName(), "##", pd->info(), "\n");
         }
@@ -1078,11 +1083,12 @@ void Graph::InferDynamic(InferRequestBase* request) {
     std::function<void(size_t, size_t)> updateDynParams;
 
     updateShapes = [&](size_t node_indx, size_t stop_indx) {
-        const auto& node = executableGraphNodes[node_indx];
         prepareCounter.store(node_indx);
         if (node_indx >= stop_indx) {
             return;
         }
+
+        const auto& node = executableGraphNodes[node_indx];
         if (node->isDynamicNode()) {
             node->updateShapes();
         }
@@ -1093,11 +1099,12 @@ void Graph::InferDynamic(InferRequestBase* request) {
     };
 
     updateDynParams = [&](size_t node_indx, size_t stop_indx) {
-        const auto& node = executableGraphNodes[node_indx];
         if (node_indx >= stop_indx) {
             prepareCounter.store(node_indx);
             return;
         }
+
+        const auto& node = executableGraphNodes[node_indx];
         if (node->isDynamicNode()) {
             node->updateDynamicParams();
         }
@@ -1499,11 +1506,6 @@ bool Graph::InsertNode(NodePtr parent, NodePtr child, NodePtr node, int parentPo
 
 // Set all non const data paths precision to BF16
 void Graph::EnforceBF16() {
-    // Floating point parts of FP32 + INT8 or FP32 + BIN mixed precision models will be executed in BF16 precision
-    // only if enforceBF16 flag was set manually because current performance is not good enough to enable it by default
-    if (!implication(context->isGraphQuantized(), getConfig().manualEnforceBF16))
-        return;
-
     std::function<void(const NodePtr&, std::unordered_set<NodePtr>& skipNodes)> searchForNodesToSkip;
     searchForNodesToSkip = [&](const NodePtr& node, std::unordered_set<NodePtr>& skipNodes) -> void {
         for (size_t i = 0; i < node->getParentEdges().size(); i++) {
@@ -1534,6 +1536,8 @@ void Graph::EnforceBF16() {
     // starting from output nodes
     for (const auto& entry : outputNodesMap) {
         const auto& node = entry.second;
+        if (node->getOriginalInputPrecisionAtPort(0) == Precision::BF16)
+            continue;
         searchForNodesToSkip(node, nodesToSkip);
     }
 

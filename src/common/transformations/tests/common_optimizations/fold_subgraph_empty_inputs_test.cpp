@@ -39,7 +39,7 @@ TEST_F(TransformationTestsF, FoldLoopEmptyInputs) {
         auto loop_res = std::make_shared<Result>(loop->get_iter_value(abs));
         function = std::make_shared<Model>(OutputVector{loop_res}, ParameterVector{a});
 
-        manager.register_pass<pass::FoldSubgraphEmptyInputs>();
+        manager.register_pass<ov::pass::FoldSubgraphEmptyInputs>();
     }
     {
         auto body = std::make_shared<Model>(OutputVector{condition, abs}, ParameterVector{ai});
@@ -83,7 +83,7 @@ TEST_F(TransformationTestsF, FoldLoopManyEmptyInputs) {
         auto loop_res = std::make_shared<Result>(loop->get_iter_value(concat));
         function = std::make_shared<Model>(OutputVector{loop_res}, ParameterVector{a, b, c});
 
-        manager.register_pass<pass::FoldSubgraphEmptyInputs>();
+        manager.register_pass<ov::pass::FoldSubgraphEmptyInputs>();
     }
     {
         auto body = std::make_shared<Model>(OutputVector{condition, concat}, ParameterVector{ai, bi, ci});
@@ -119,7 +119,7 @@ TEST_F(TransformationTestsF, FoldLoopEmptyMergedInputs) {
         auto loop_res = std::make_shared<Result>(loop->get_iter_value(concat));
         function = std::make_shared<Model>(OutputVector{loop_res}, ParameterVector{x_init});
 
-        manager.register_pass<pass::FoldSubgraphEmptyInputs>();
+        manager.register_pass<ov::pass::FoldSubgraphEmptyInputs>();
     }
     {
         auto body = std::make_shared<Model>(OutputVector{condition, concat}, ParameterVector{xi});
@@ -152,7 +152,7 @@ TEST_F(TransformationTestsF, FoldLoopSkipEmptyConstants) {
     auto loop_res = std::make_shared<Result>(loop->get_iter_value(abs));
     function = std::make_shared<Model>(OutputVector{loop_res}, ParameterVector{});
 
-    manager.register_pass<pass::FoldSubgraphEmptyInputs>();
+    manager.register_pass<ov::pass::FoldSubgraphEmptyInputs>();
 }
 
 TEST_F(TransformationTestsF, FoldLoopSkipDynamicInputs) {
@@ -175,7 +175,7 @@ TEST_F(TransformationTestsF, FoldLoopSkipDynamicInputs) {
     auto loop_res = std::make_shared<Result>(loop->get_iter_value(abs));
     function = std::make_shared<Model>(OutputVector{loop_res}, ParameterVector{a});
 
-    manager.register_pass<pass::FoldSubgraphEmptyInputs>();
+    manager.register_pass<ov::pass::FoldSubgraphEmptyInputs>();
 }
 
 TEST_F(TransformationTestsF, FoldLoopSkipNonEmptyInputs) {
@@ -198,7 +198,7 @@ TEST_F(TransformationTestsF, FoldLoopSkipNonEmptyInputs) {
     auto loop_res = std::make_shared<Result>(loop->get_iter_value(abs));
     function = std::make_shared<Model>(OutputVector{loop_res}, ParameterVector{a});
 
-    manager.register_pass<pass::FoldSubgraphEmptyInputs>();
+    manager.register_pass<ov::pass::FoldSubgraphEmptyInputs>();
 }
 
 TEST_F(TransformationTestsF, FoldIfManyEmptyInputs) {
@@ -229,7 +229,7 @@ TEST_F(TransformationTestsF, FoldIfManyEmptyInputs) {
         auto res = if_op->set_output(then_op_res, else_op_res);
         function = std::make_shared<Model>(OutputVector{res}, ParameterVector{X, Z});
 
-        manager.register_pass<pass::FoldSubgraphEmptyInputs>();
+        manager.register_pass<ov::pass::FoldSubgraphEmptyInputs>();
     }
     {
         auto then_body = std::make_shared<Model>(OutputVector{then_op_res}, ParameterVector{Zt});

@@ -14,7 +14,7 @@ namespace ov {
 namespace intel_gpu {
 
 
-static void CreateMulticlassNmsIEInternalOp(Program& p, const std::shared_ptr<ngraph::op::internal::MulticlassNmsIEInternal>& op) {
+static void CreateMulticlassNmsIEInternalOp(Program& p, const std::shared_ptr<op::internal::MulticlassNmsIEInternal>& op) {
     validate_inputs_count(op, {2, 3});
 
     auto inputs = p.GetInputInfo(op);

@@ -4,35 +4,125 @@
 
 #include "transformations/common_optimizations/remove_multi_subgraph_op_dangling_params.hpp"
 
-#include <memory>
-#include <ngraph/rt_info.hpp>
-#include <openvino/op/util/multi_subgraph_base.hpp>
-#include <openvino/opsets/opset8.hpp>
-#include <vector>
-
 #include "itt.hpp"
+#include "openvino/core/rt_info.hpp"
+#include "openvino/op/util/multi_subgraph_base.hpp"
+#include "openvino/opsets/opset10.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "transformations/utils/utils.hpp"
 
-ov::pass::RemoveMultiSubGraphOpDanglingParams::RemoveMultiSubGraphOpDanglingParams() {
-    MATCHER_SCOPE(RemoveMultiSubGraphOpDanglingParams);
-    auto multi_subgraph_op_pattern = pattern::wrap_type<op::util::MultiSubGraphOp>();
-    ov::matcher_pass_callback callback = [=](pattern::Matcher& m) {
-        auto multi_subgraph_op = std::dynamic_pointer_cast<op::util::MultiSubGraphOp>(m.get_match_root());
-        if (multi_subgraph_op == nullptr) {
-            return false;
+using namespace ov::op::util;
+
+bool ov::pass::RemoveMultiSubGraphOpDanglingParamsResults::run_on_model(const std::shared_ptr<ov::Model>& m) {
+    RUN_ON_MODEL_SCOPE(RemoveMultiSubGraphOpDanglingParamsResults);
+    bool is_changed = false;
+    auto ops = m->get_ordered_ops();
+    // Going in reverse order
+    for (auto it = ops.rbegin(); it != ops.rend(); ++it) {
+        auto multi_subgraph_op = std::dynamic_pointer_cast<MultiSubGraphOp>(*it);
+        if (!multi_subgraph_op)
+            continue;
+        auto if_op = std::dynamic_pointer_cast<opset10::If>(multi_subgraph_op);
+        auto loop_op = std::dynamic_pointer_cast<opset10::Loop>(multi_subgraph_op);
+        auto ti_op = std::dynamic_pointer_cast<opset10::TensorIterator>(multi_subgraph_op);
+        // Only If, Loop and TensorIterator are supported
+        if (!if_op && !loop_op && !ti_op)
+            continue;
+
+        // Shouldn't remove special output
+        int64_t special_out_port = -1;
+        if (loop_op) {
+            special_out_port = loop_op->get_special_body_ports().body_condition_output_idx;
         }
+
+        const auto subgraphs_size = multi_subgraph_op->get_internal_subgraphs_size();
+        // Starting from outputs
+        std::set<size_t> outputs_to_remove;
+        for (size_t out_idx = 0; out_idx < multi_subgraph_op->get_output_size(); ++out_idx) {
+            if (multi_subgraph_op->output(out_idx).get_target_inputs().empty()) {
+                outputs_to_remove.insert(out_idx);
+            }
+        }
+        std::vector<MultiSubGraphOp::MultiSubgraphOutputDescriptionVector> new_op_out_desc;
+        for (size_t body_idx = 0; body_idx < subgraphs_size; ++body_idx) {
+            auto body = multi_subgraph_op->get_function(static_cast<int>(body_idx));
+            // recursive call of this transformation on each body
+            run_on_model(body);
+            // need to pay attention to merged inputs, shouldn't remove them
+            MultiSubGraphOp::MultiSubgraphInputDescriptionVector merged_input_descs;
+            for (size_t body_idx = 0; body_idx < subgraphs_size; ++body_idx) {
+                for (const auto& desc : multi_subgraph_op->get_input_descriptions(static_cast<int>(body_idx))) {
+                    if (const auto& merged_input_desc =
+                            ov::as_type_ptr<MultiSubGraphOp::MergedInputDescription>(desc)) {
+                        merged_input_descs.push_back(desc);
+                    }
+                }
+            }
+            const auto& out_desc = multi_subgraph_op->get_output_descriptions(static_cast<int>(body_idx));
+            MultiSubGraphOp::MultiSubgraphOutputDescriptionVector new_out_desc;
+            std::set<size_t> results_idxs_to_remove;
+            for (const auto& odesc : out_desc) {
+                bool to_remove = outputs_to_remove.find(odesc->m_output_index) != outputs_to_remove.end();
+                if (!to_remove) {
+                    new_out_desc.push_back(odesc);
+                } else if (static_cast<int64_t>(odesc->m_body_value_index) == special_out_port) {
+                    // If this is special out port, we will remove output description and output, but do not remove
+                    // Result
+                    to_remove = false;
+                }
+                if (to_remove) {
+                    for (const auto& desc : merged_input_descs) {
+                        const auto& mdesc = ov::as_type_ptr<MultiSubGraphOp::MergedInputDescription>(desc);
+                        if (mdesc && mdesc->m_body_value_index == odesc->m_body_value_index) {
+                            // Cannot remove Result which is part of merged input
+                            to_remove = false;
+                        }
+                    }
+                }
+                if (to_remove) {
+                    results_idxs_to_remove.insert(odesc->m_body_value_index);
+                }
+            }
+            new_op_out_desc.push_back(new_out_desc);
+            auto results = body->get_results();
+            // go in reverse order to first delete last result
+            for (auto it = results_idxs_to_remove.rbegin(); it != results_idxs_to_remove.rend(); ++it) {
+                body->remove_result(results.at(*it));
+                is_changed = true;
+                // We need to go over output descriptors and modify them to reflect deleted result
+                for (auto& desc : new_out_desc) {
+                    if (desc->m_body_value_index > *it) {
+                        desc->m_body_value_index--;
+                    }
+                }
+                for (auto& desc : merged_input_descs) {
+                    const auto& mdesc = ov::as_type_ptr<MultiSubGraphOp::MergedInputDescription>(desc);
+                    if (mdesc && mdesc->m_body_value_index > *it) {
+                        mdesc->m_body_value_index--;
+                    }
+                }
+                if (special_out_port != -1) {
+                    if (special_out_port > static_cast<int64_t>(*it)) {
+                        special_out_port--;
+                    }
+                }
+            }
+            if (special_out_port != -1) {
+                loop_op->set_special_body_ports(
+                    {loop_op->get_special_body_ports().current_iteration_input_idx, special_out_port});
+            }
+        }
+        // Remove inputs
         bool pass_required = false;
         std::set<ov::Output<ov::Node>> required_inputs;
         auto op_inputs = multi_subgraph_op->input_values();
         std::vector<std::vector<size_t>> to_remove_descriptors_indexes;
-        const auto subgraphs_size = multi_subgraph_op->get_internal_subgraphs_size();
         to_remove_descriptors_indexes.resize(subgraphs_size);
         for (size_t body_idx = 0; body_idx < subgraphs_size; ++body_idx) {
             auto& body_func = multi_subgraph_op->get_function(static_cast<int>(body_idx));
             auto& body_params = body_func->get_parameters();
             auto& body_in_descriptors = multi_subgraph_op->get_input_descriptions(static_cast<int>(body_idx));
-            // collect all descriptors which should be removed and reqired inputs
+            // collect all descriptors which should be removed and required inputs
             for (size_t i = 0; i < body_in_descriptors.size(); ++i) {
                 auto& body_param = body_params[body_in_descriptors[i]->m_body_parameter_index];
                 if (body_param->get_output_target_inputs(0).size() == 0) {
@@ -46,6 +136,7 @@ ov::pass::RemoveMultiSubGraphOpDanglingParams::RemoveMultiSubGraphOpDanglingPara
             }
         }
         if (pass_required) {
+            is_changed = true;
             using DescType = op::util::MultiSubGraphOp::MultiSubgraphInputDescriptionVector;
             auto update_body_param_desc = [](DescType& descriptors, uint64_t removed_body_idx) {
                 for (auto& desc : descriptors) {
@@ -97,8 +188,47 @@ ov::pass::RemoveMultiSubGraphOpDanglingParams::RemoveMultiSubGraphOpDanglingPara
             }
             multi_subgraph_op->set_arguments(op_inputs);
         }
-        return false;
-    };
-    auto m = std::make_shared<pattern::Matcher>(multi_subgraph_op_pattern, matcher_name);
-    this->register_matcher(m, callback);
+        if (!outputs_to_remove.empty()) {
+            // we need to reconstruct operation with new number of outputs, we cannot reduce number of outputs of
+            // existing op
+            std::shared_ptr<MultiSubGraphOp> new_op;
+            if (if_op) {
+                new_op = std::make_shared<opset10::If>();
+            } else if (loop_op) {
+                auto new_loop_op = std::make_shared<opset10::Loop>();
+                new_loop_op->set_special_body_ports(loop_op->get_special_body_ports());
+                new_op = new_loop_op;
+            } else if (ti_op) {
+                new_op = std::make_shared<opset10::TensorIterator>();
+            }
+            new_op->set_arguments(multi_subgraph_op->input_values());
+            new_op->set_friendly_name(multi_subgraph_op->get_friendly_name());
+            copy_runtime_info(multi_subgraph_op, new_op);
+            for (int body_idx = 0; static_cast<size_t>(body_idx) < subgraphs_size; ++body_idx) {
+                new_op->set_function(body_idx, multi_subgraph_op->get_function(body_idx));
+                new_op->set_input_descriptions(body_idx, multi_subgraph_op->get_input_descriptions(body_idx));
+                new_op->set_output_descriptions(body_idx, new_op_out_desc.at(body_idx));
+            }
+            size_t removed_outs_counter = 0;
+            new_op->set_output_size(multi_subgraph_op->get_output_size() - outputs_to_remove.size());
+            for (size_t out_idx = 0; out_idx < multi_subgraph_op->get_output_size(); ++out_idx) {
+                if (outputs_to_remove.find(out_idx) != outputs_to_remove.end()) {
+                    // Need to go through all output descriptors to reflect deleted output
+                    for (int body_idx = 0; static_cast<size_t>(body_idx) < subgraphs_size; ++body_idx) {
+                        for (auto& odesc : new_op->get_output_descriptions(body_idx)) {
+                            if (odesc->m_output_index > out_idx - removed_outs_counter) {
+                                odesc->m_output_index--;
+                            }
+                        }
+                    }
+                    ++removed_outs_counter;
+                } else {
+                    // replace output with new one
+                    multi_subgraph_op->output(out_idx).replace(new_op->output(out_idx - removed_outs_counter));
+                }
+            }
+            new_op->validate_and_infer_types();
+        }
+    }
+    return is_changed;
 }

@@ -22,9 +22,3 @@ public:
     OPENVINO_RTTI("ConvertSubtract", "0");
     ConvertSubtract();
 };
-
-namespace ngraph {
-namespace pass {
-using ov::pass::ConvertSubtract;
-}  // namespace pass
-}  // namespace ngraph

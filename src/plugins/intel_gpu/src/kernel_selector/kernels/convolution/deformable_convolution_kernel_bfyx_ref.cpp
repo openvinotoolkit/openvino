@@ -27,7 +27,6 @@ ParamsKey DeformableConvolutionKernel_bfyx_Ref::GetSupportedKey() const {
     k.EnableBiasPerFeature();
     k.EnableNonBiasTerm();
     k.EnableBatching();
-    k.DisableTuning();
     k.EnableGroupedConvolution();
     k.EnableDeformableMode();
     k.EnableDeformableMask();

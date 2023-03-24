@@ -18,6 +18,6 @@ binary_convolution_kernel_selector::binary_convolution_kernel_selector() {
 
 KernelsData binary_convolution_kernel_selector::GetBestKernels(const Params& params,
                                                                const optional_params& options) const {
-    return GetAutoTuneBestKernel(params, options, KernelType::BINARY_CONVOLUTION);
+    return GetNaiveBestKernel(params, options, KernelType::BINARY_CONVOLUTION);
 }
 }  // namespace kernel_selector

@@ -195,10 +195,10 @@ function calculateColumnStatistics(device) {
     if (!all_operations) {
         trusted_op = "---";
     } else {
-        trusted_op = (count_trusted_op * 100 / all_operations).toFixed(1) + ' %';
+        trusted_op = (count_trusted_op * 100 / all_operations).toFixed(2) + ' %';
     }
     $('#statistic .table-primary.' + device + '.trusted-ops').text(trusted_op);
-    $('#statistic .table-primary.' + device + '.test_total').text(all_operations || 0);
+    // $('#statistic .table-primary.' + device + '.test_total').text(all_operations || 0);
 
     // tested op_counter
     tested_op_count = 0;
@@ -218,7 +218,7 @@ function calculateColumnStatistics(device) {
         $('#statistic .table-primary.' + device + '.general_pass_rate').text('---');
 
     } else {
-        general_pass_rate = (passed_tested_op_count * 100 / tested_op_count).toFixed(1) + ' %';
+        general_pass_rate = (passed_tested_op_count * 100 / tested_op_count).toFixed(2) + ' %';
         $('#statistic .table-primary.' + device + '.general_pass_rate').text(general_pass_rate);
     }
     $('#statistic .table-primary.' + device + '.tested-ops_count').text(tested_op_count);
@@ -231,9 +231,9 @@ function calculateColumnStatistics(device) {
         }
     });
     if (all_operations == 0) {
-        $('#statistic .table-primary.' + device + '.avg_pass_rate').text('---');
+        $('#statistic .table-primary.' + device + '.rel_pass_rate').text('---');
     } else {
-        avg_pass_rate = (sum_pass_rate / all_operations).toFixed(1) + ' %';
-        $('#statistic .table-primary.' + device + '.avg_pass_rate').text(avg_pass_rate);
+        rel_pass_rate = (sum_pass_rate / all_operations).toFixed(2) + ' %';
+        $('#statistic .table-primary.' + device + '.rel_pass_rate').text(rel_pass_rate);
     }
 }

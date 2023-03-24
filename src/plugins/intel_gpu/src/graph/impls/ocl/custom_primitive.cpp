@@ -2,13 +2,10 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "primitive_base.hpp"
+
 #include "custom_gpu_primitive_inst.h"
-#include "intel_gpu/runtime/engine.hpp"
-#include "impls/implementation_map.hpp"
-#include "kernel_selector_helper.h"
 #include "jitter.h"
-#include "intel_gpu/runtime/error_handler.hpp"
-#include "register.hpp"
 
 #include <map>
 #include <sstream>
@@ -45,7 +42,7 @@ struct custom_gpu_primitive_impl : typed_primitive_impl<custom_gpu_primitive> {
     , _kernels({})
     , _kernel_id(other._kernel_id) {
         for (const auto& kernel : other._kernels) {
-            _kernels.emplace_back(std::move(kernel->clone()));
+            _kernels.emplace_back(kernel->clone());
         }
     }
 
@@ -57,7 +54,7 @@ struct custom_gpu_primitive_impl : typed_primitive_impl<custom_gpu_primitive> {
     }
 
     void init_kernels(const kernels_cache& kernels_cache) override {
-        _kernels.emplace_back(std::move(kernels_cache.get_kernel(_kernel_id)));
+        _kernels.emplace_back(kernels_cache.get_kernel(_kernel_id));
     }
 
     void set_arguments_impl(custom_gpu_primitive_inst& instance) override {
@@ -142,9 +139,7 @@ static void add_layout_to_jit(kernel_selector::jit_constants& mem_consts, const 
         {data_types::f32, "float"},
     };
 
-    if (dataTypeToIndex.find(l.data_type) == dataTypeToIndex.end()) {
-        CLDNN_ERROR_MESSAGE("add layout to jit", "Unhandled data type in layout");
-    }
+    OPENVINO_ASSERT(dataTypeToIndex.find(l.data_type) != dataTypeToIndex.end(), "[GPU] Add layout to jit error: unhandled data type in layout");
 
     mem_consts.AddConstant(kernel_selector::MakeJitConstant(name + "_TYPE", dataTypeToIndex.at(l.data_type)));
 

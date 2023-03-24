@@ -30,4 +30,6 @@ void regclass_frontend_pytorch_decoder(py::module m) {
         def(py::init<Any>());
     py::class_<type::Str>(type_module, "Str").
         def(py::init<>());
+    py::class_<type::PyNone>(type_module, "PyNone").
+        def(py::init<>());
 }

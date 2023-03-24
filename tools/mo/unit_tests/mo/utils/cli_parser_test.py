@@ -2,7 +2,9 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import argparse
+import numpy
 import os
+import pathlib
 import shutil
 import sys
 import tempfile
@@ -14,10 +16,13 @@ import numpy as np
 from openvino.tools.mo.utils.cli_parser import get_placeholder_shapes, get_tuple_values, get_mean_scale_dictionary, \
     get_model_name, \
     parse_tuple_pairs, check_positive, writable_dir, readable_dirs, \
-    readable_file, get_freeze_placeholder_values, parse_transform, check_available_transforms, get_layout_values, get_data_type_from_input_value
+    readable_file, get_freeze_placeholder_values, parse_transform, check_available_transforms, get_layout_values, get_data_type_from_input_value, get_all_cli_parser
+from openvino.tools.mo.convert_impl import pack_params_to_args_namespace
+from openvino.tools.mo.convert import InputCutInfo, LayoutMap
 from openvino.tools.mo.utils.error import Error
 from unit_tests.mo.unit_test_with_mocked_telemetry import UnitTestWithMockedTelemetry
-from openvino.runtime import PartialShape, Dimension
+from openvino.runtime import PartialShape, Dimension, Layout
+from openvino.frontend import FrontEndManager
 
 
 class TestingMeanScaleGetter(UnitTestWithMockedTelemetry):
@@ -1955,3 +1960,56 @@ class TestLayoutParsingEmptyNamesNoBrackets(unittest.TestCase):
     def wrong_case_3(self):
         argv_source_layout = "nchv->"
         self.assertRaises(get_layout_values(argv_source_layout=argv_source_layout))
+
+class TestPackParamsToArgsNamespace(unittest.TestCase):
+    def test_mo_convert_params(self):
+        from openvino.frontend import ConversionExtension
+        args = {'input_model': os.path.dirname(__file__),
+                'input_shape': [PartialShape([1,100,100,3]), [2,3]],
+                'extensions': ConversionExtension("Ext", lambda x: x),
+                'reverse_input_channels': True,
+                'scale': 0.5,
+                'input': ['name', InputCutInfo("a", [1,2,3], numpy.float32, [5, 6, 7])],
+                'batch': 1,
+                'output': ["a", "b", "c"],
+                'mean_values': [0.5, 0.3],
+                'scale_values': {"a": np.array([0.4]), "b": [0.5, 0.6]},
+                'source_layout': Layout("nchw"),
+                'layout': {"a": LayoutMap("nchw","nhwc"), "b": "nc"},
+                'transform': ('LowLatency2', {'use_const_initializer': False})}
+
+        cli_parser = get_all_cli_parser(FrontEndManager())
+        argv = pack_params_to_args_namespace(args, cli_parser)
+
+        assert argv.input_model == args['input_model']
+        assert argv.extensions == [args['extensions']]
+        assert argv.reverse_input_channels == args['reverse_input_channels']
+        assert argv.scale == 0.5
+        assert argv.batch == 1
+        assert argv.input_shape == "[1,100,100,3],[2,3]"
+        assert argv.input == "name,a[1 2 3]{f32}->[5 6 7]"
+        assert argv.output == "a,b,c"
+        assert argv.mean_values == "[0.5,0.3]"
+        assert argv.scale_values == "a[0.4],b[0.5,0.6]"
+        assert argv.source_layout == "[N,C,H,W]"
+        assert argv.layout == "a(nchw->nhwc),b(nc)"
+        assert argv.transform == "LowLatency2[use_const_initializer=False]"
+
+        for arg, value in vars(argv).items():
+            if arg not in args:
+                assert value == cli_parser.get_default(arg)
+
+    def test_not_existing_dir(self):
+        args = {"input_model": "abc"}
+        cli_parser = get_all_cli_parser(FrontEndManager())
+
+        with self.assertRaisesRegex(Error, "The \"abc\" is not existing file or directory"):
+            pack_params_to_args_namespace(args, cli_parser)
+
+    def test_unknown_params(self):
+        args = {"input_model": os.path.dirname(__file__),
+                "a": "b"}
+        cli_parser = get_all_cli_parser(FrontEndManager())
+
+        with self.assertRaisesRegex(Error, "Unrecognized argument: a"):
+            pack_params_to_args_namespace(args, cli_parser)

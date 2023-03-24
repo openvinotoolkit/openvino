@@ -24,9 +24,3 @@ public:
     OPENVINO_RTTI("ConvertDeformableConv8To1", "0");
     ConvertDeformableConv8To1();
 };
-
-namespace ngraph {
-namespace pass {
-using ov::pass::ConvertDeformableConv8To1;
-}  // namespace pass
-}  // namespace ngraph

@@ -10,30 +10,35 @@
 #include <streambuf>
 #include <string>
 
+#include "details/ie_exception.hpp"
+#include "openvino/core/except.hpp"
 #include "openvino/openvino.hpp"
 
-// TODO: we need to catch ov::Exception instead of ie::Exception
-#include "details/ie_exception.hpp"
-
-#define CATCH_OV_EXCEPTION(StatusCode, ExceptionType) \
+#define CATCH_IE_EXCEPTION(StatusCode, ExceptionType) \
     catch (const InferenceEngine::ExceptionType&) {   \
+        return ov_status_e::StatusCode;               \
+    }
+#define CATCH_OV_EXCEPTION(StatusCode, ExceptionType) \
+    catch (const ov::ExceptionType&) {                \
         return ov_status_e::StatusCode;               \
     }
 
 #define CATCH_OV_EXCEPTIONS                                   \
-    CATCH_OV_EXCEPTION(GENERAL_ERROR, GeneralError)           \
     CATCH_OV_EXCEPTION(NOT_IMPLEMENTED, NotImplemented)       \
-    CATCH_OV_EXCEPTION(NETWORK_NOT_LOADED, NetworkNotLoaded)  \
-    CATCH_OV_EXCEPTION(PARAMETER_MISMATCH, ParameterMismatch) \
-    CATCH_OV_EXCEPTION(NOT_FOUND, NotFound)                   \
-    CATCH_OV_EXCEPTION(OUT_OF_BOUNDS, OutOfBounds)            \
-    CATCH_OV_EXCEPTION(UNEXPECTED, Unexpected)                \
-    CATCH_OV_EXCEPTION(REQUEST_BUSY, RequestBusy)             \
-    CATCH_OV_EXCEPTION(RESULT_NOT_READY, ResultNotReady)      \
-    CATCH_OV_EXCEPTION(NOT_ALLOCATED, NotAllocated)           \
-    CATCH_OV_EXCEPTION(INFER_NOT_STARTED, InferNotStarted)    \
-    CATCH_OV_EXCEPTION(NETWORK_NOT_READ, NetworkNotRead)      \
-    CATCH_OV_EXCEPTION(INFER_CANCELLED, InferCancelled)       \
+    CATCH_OV_EXCEPTION(GENERAL_ERROR, Exception)              \
+    CATCH_IE_EXCEPTION(GENERAL_ERROR, GeneralError)           \
+    CATCH_IE_EXCEPTION(NOT_IMPLEMENTED, NotImplemented)       \
+    CATCH_IE_EXCEPTION(NETWORK_NOT_LOADED, NetworkNotLoaded)  \
+    CATCH_IE_EXCEPTION(PARAMETER_MISMATCH, ParameterMismatch) \
+    CATCH_IE_EXCEPTION(NOT_FOUND, NotFound)                   \
+    CATCH_IE_EXCEPTION(OUT_OF_BOUNDS, OutOfBounds)            \
+    CATCH_IE_EXCEPTION(UNEXPECTED, Unexpected)                \
+    CATCH_IE_EXCEPTION(REQUEST_BUSY, RequestBusy)             \
+    CATCH_IE_EXCEPTION(RESULT_NOT_READY, ResultNotReady)      \
+    CATCH_IE_EXCEPTION(NOT_ALLOCATED, NotAllocated)           \
+    CATCH_IE_EXCEPTION(INFER_NOT_STARTED, InferNotStarted)    \
+    CATCH_IE_EXCEPTION(NETWORK_NOT_READ, NetworkNotRead)      \
+    CATCH_IE_EXCEPTION(INFER_CANCELLED, InferCancelled)       \
     catch (...) {                                             \
         return ov_status_e::UNKNOW_EXCEPTION;                 \
     }
@@ -165,6 +170,14 @@ struct ov_preprocess_preprocess_steps {
 };
 
 /**
+ * @struct ov_remote_context
+ * @brief This is an interface of ov::RemoteContext
+ */
+struct ov_remote_context {
+    std::shared_ptr<ov::RemoteContext> object;
+};
+
+/**
  * @struct mem_stringbuf
  * @brief This struct puts memory buffer to stringbuf.
  */
@@ -173,7 +186,7 @@ struct mem_stringbuf : std::streambuf {
         char* bptr(const_cast<char*>(buffer));
         setg(bptr, bptr, bptr + sz);
     }
-    
+
     pos_type seekoff(off_type off,
                      std::ios_base::seekdir dir,
                      std::ios_base::openmode which = std::ios_base::in) override {

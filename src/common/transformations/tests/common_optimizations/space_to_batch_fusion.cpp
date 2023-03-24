@@ -37,7 +37,7 @@ TEST_F(TransformationTestsF, SpaceToBatchFusionTranspose) {
                                                 op::Constant::create(element::i64, Shape{4}, {1, 0, 2, 3}));
         function = std::make_shared<Function>(NodeVector{trans_after}, ParameterVector{data});
 
-        manager.register_pass<pass::SpaceToBatchFusion>();
+        manager.register_pass<ov::pass::SpaceToBatchFusion>();
     }
 
     {
@@ -69,7 +69,7 @@ TEST_F(TransformationTestsF, SpaceToBatchFusionReshape) {
                                                 op::Constant::create(element::i64, Shape{4}, {1, 0, 2, 3}));
         function = std::make_shared<Function>(NodeVector{trans_after}, ParameterVector{data});
 
-        manager.register_pass<pass::SpaceToBatchFusion>();
+        manager.register_pass<ov::pass::SpaceToBatchFusion>();
     }
 
     {
@@ -101,7 +101,7 @@ TEST_F(TransformationTestsF, NegativeSpaceToBatchFusionInvalidTransposePerm) {
                                                 op::Constant::create(element::i64, Shape{4}, {1, 0, 2, 3}));
         function = std::make_shared<Function>(NodeVector{trans_after}, ParameterVector{data});
 
-        manager.register_pass<pass::SpaceToBatchFusion>();
+        manager.register_pass<ov::pass::SpaceToBatchFusion>();
     }
 
     {
@@ -139,7 +139,7 @@ TEST_F(TransformationTestsF, NegativeSpaceToBatchFusionInvalidPad) {
                                                 op::Constant::create(element::i64, Shape{4}, {1, 0, 2, 3}));
         function = std::make_shared<Function>(NodeVector{trans_after}, ParameterVector{data});
 
-        manager.register_pass<pass::SpaceToBatchFusion>();
+        manager.register_pass<ov::pass::SpaceToBatchFusion>();
     }
 
     {
@@ -177,7 +177,7 @@ TEST_F(TransformationTestsF, NegativeSpaceToBatchFusionInvalidMode) {
                                                 op::Constant::create(element::i64, Shape{4}, {1, 0, 2, 3}));
         function = std::make_shared<Function>(NodeVector{trans_after}, ParameterVector{data});
 
-        manager.register_pass<pass::SpaceToBatchFusion>();
+        manager.register_pass<ov::pass::SpaceToBatchFusion>();
     }
 
     {
@@ -215,7 +215,7 @@ TEST_F(TransformationTestsF, NegativeSpaceToBatchFusionInvalidRank) {
                                                 op::Constant::create(element::i64, Shape{5}, {1, 0, 2, 3, 4}));
         function = std::make_shared<Function>(NodeVector{trans_after}, ParameterVector{data});
 
-        manager.register_pass<pass::SpaceToBatchFusion>();
+        manager.register_pass<ov::pass::SpaceToBatchFusion>();
     }
 
     {

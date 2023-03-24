@@ -30,5 +30,14 @@ struct read_value : public primitive_base<read_value> {
 
     std::string variable_id;
     layout output_layout;
+
+    bool operator==(const primitive& rhs) const override {
+        if (!compare_common_params(rhs))
+            return false;
+
+        auto rhs_casted = downcast<const read_value>(rhs);
+
+        return variable_id == rhs_casted.variable_id;
+    }
 };
 }  // namespace cldnn

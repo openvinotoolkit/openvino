@@ -22,9 +22,3 @@ public:
     OPENVINO_RTTI("CommonOptimizations", "0");
     bool run_on_model(const std::shared_ptr<ov::Model>& f) override;
 };
-
-namespace ngraph {
-namespace pass {
-using ov::pass::CommonOptimizations;
-}  // namespace pass
-}  // namespace ngraph

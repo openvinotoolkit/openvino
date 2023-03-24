@@ -4,6 +4,7 @@
 #pragma once
 #ifdef CPU_DEBUG_CAPS
 
+#include "extension.h"
 #include "debug_caps_config.h"
 #include "openvino/util/file_util.hpp"
 #include <openvino/pass/manager.hpp>
@@ -17,7 +18,7 @@ class TransformationDumper {
 public:
     explicit TransformationDumper(const DebugCapsConfig& config, const DebugCapsConfig::TransformationFilter::Type type,
                                   const std::shared_ptr<ov::Model>& model)
-        : config(config), type(type), model(model) {
+        : config(config), model(model), type(type) {
         for (auto prev = infoMap.at(type).prev; prev != TransformationType::NumOfTypes;
              prev = infoMap.at(prev).prev) {
             // no need to serialize input graph if there was no transformations from previous dump
@@ -66,8 +67,10 @@ private:
 
         ov::pass::Manager serializer;
 
-        if (config.dumpIR.format.filter[DebugCapsConfig::IrFormatFilter::XmlBin])
-            serializer.register_pass<ov::pass::Serialize>(pathAndName + ".xml", "");
+        if (config.dumpIR.format.filter[DebugCapsConfig::IrFormatFilter::XmlBin]) {
+            auto custom_opsets = std::make_shared<Extension>()->getOpSets();
+            serializer.register_pass<ov::pass::Serialize>(pathAndName + ".xml", "", custom_opsets);
+        }
 
         if (config.dumpIR.format.filter[DebugCapsConfig::IrFormatFilter::Xml]) {
             std::string  xmlFile(pathAndName + ".xml");
@@ -92,9 +95,11 @@ private:
 }   // namespace intel_cpu
 }   // namespace ov
 
+// 'EXPAND' wrapper is necessary to ensure __VA_ARGS__ behaves the same on all the platforms
+#  define CPU_DEBUG_CAP_EXPAND(x) x
 #  define CPU_DEBUG_CAP_IS_TRANSFORMATION_DISABLED(_config, _type)                      \
     _config.disable.transformations.filter[DebugCapsConfig::TransformationFilter::Type::_type]
-#  define CPU_DEBUG_CAP_IS_TRANSFORMATION_ENABLED(...) !CPU_DEBUG_CAP_IS_TRANSFORMATION_DISABLED(__VA_ARGS__)
+#  define CPU_DEBUG_CAP_IS_TRANSFORMATION_ENABLED(...) CPU_DEBUG_CAP_EXPAND(!CPU_DEBUG_CAP_IS_TRANSFORMATION_DISABLED(__VA_ARGS__))
 #  define CPU_DEBUG_CAP_TRANSFORMATION_DUMP(_this, _type)                                                      \
     IE_ASSERT(CPU_DEBUG_CAP_IS_TRANSFORMATION_ENABLED(_this->config.debugCaps, _type));                                  \
     auto dumperPtr = _this->config.debugCaps.dumpIR.transformations.filter[DebugCapsConfig::TransformationFilter::Type::_type] ?  \

@@ -48,7 +48,7 @@ TEST_F(TransformationTestsF, SharedShapeOfTest) {
 
         auto concat = std::make_shared<ngraph::opset8::Concat>(inputs_of_concat, 0);
         function = std::make_shared<ngraph::Function>(ngraph::NodeVector{concat}, ngraph::ParameterVector{input});
-        manager.register_pass<ngraph::pass::SharedShapeOf>();
+        manager.register_pass<ov::pass::SharedShapeOf>();
     }
     {
         auto input = std::make_shared<ngraph::opset8::Parameter>(ngraph::element::f32, input_shape);
@@ -88,7 +88,7 @@ TEST_F(TransformationTestsF, SharedShapeOfTestI64Only) {
 
         auto concat = std::make_shared<ngraph::opset8::Concat>(inputs_of_concat, 0);
         function = std::make_shared<ngraph::Function>(ngraph::NodeVector{concat}, ngraph::ParameterVector{input});
-        manager.register_pass<ngraph::pass::SharedShapeOf>();
+        manager.register_pass<ov::pass::SharedShapeOf>();
     }
     {
         auto input = std::make_shared<ngraph::opset8::Parameter>(ngraph::element::f32, input_shape);
@@ -126,7 +126,7 @@ TEST_F(TransformationTestsF, SharedShapeOfTestI32Only) {
 
         auto concat = std::make_shared<ngraph::opset8::Concat>(inputs_of_concat, 0);
         function = std::make_shared<ngraph::Function>(ngraph::NodeVector{concat}, ngraph::ParameterVector{input});
-        manager.register_pass<ngraph::pass::SharedShapeOf>();
+        manager.register_pass<ov::pass::SharedShapeOf>();
     }
     {
         auto input = std::make_shared<ngraph::opset8::Parameter>(ngraph::element::f32, input_shape);
@@ -177,7 +177,7 @@ TEST_F(TransformationTestsF, SharedShapeOfTestMixed) {
 
         auto concat = std::make_shared<ngraph::opset8::Concat>(inputs_of_concat, 0);
         function = std::make_shared<ngraph::Function>(ngraph::NodeVector{concat}, ngraph::ParameterVector{input});
-        manager.register_pass<ngraph::pass::SharedShapeOf>();
+        manager.register_pass<ov::pass::SharedShapeOf>();
     }
     {
         auto input = std::make_shared<ngraph::opset8::Parameter>(ngraph::element::f32, input_shape);

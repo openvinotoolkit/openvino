@@ -14,7 +14,8 @@ using namespace cldnn;
 using namespace ::tests;
 using namespace testing;
 
-TEST(removing_output_node, multiple_outputs) {
+template <typename T>
+void test_multiple_outputs(bool is_caching_test) {
     // Tests split with crop implementation
     //                                                   _ strided_slice(bfyx)
     //                                                  |
@@ -58,19 +59,19 @@ TEST(removing_output_node, multiple_outputs) {
     topology.add(data("input4", strides));
     topology.add(strided_slice("strided_slice", input_info("shuffle_channels"), input_info("input2"), input_info("input3"), input_info("input4"), {}, {}, { 1 }, {}, {}, {6, 1, 1, 1}));
 
-    std::vector<float> input_vec = { 0.0f, 1.0f, 2.0f, 3.0f, 4.0f, 5.0f };
-    std::vector<float> out_vec = { 0.0f, 3.0f, 1.0f, 4.0f, 2.0f, 5.0f };
+    std::vector<T> input_vec = { 0.0f, 1.0f, 2.0f, 3.0f, 4.0f, 5.0f };
+    std::vector<T> out_vec = { 0.0f, 3.0f, 1.0f, 4.0f, 2.0f, 5.0f };
     set_values(input, input_vec);
 
-    ExecutionConfig config;
+    ExecutionConfig config = get_test_default_config(engine);
     config.set_property(ov::intel_gpu::custom_outputs(std::vector<std::string>{ "shuffle_channels", "reshape", "strided_slice" }));
 
-    network network(engine, topology, config);
-    network.set_input_data("input", input);
-    auto outputs = network.execute();
+    cldnn::network::ptr network = get_network(engine, topology, config, get_test_stream_ptr(), is_caching_test);
+    network->set_input_data("input", input);
+    auto outputs = network->execute();
 
     auto output = outputs.at("reshape").get_memory();
-    cldnn::mem_lock<float> output_ptr(output, get_test_stream());
+    cldnn::mem_lock<T> output_ptr(output, get_test_stream());
 
     ASSERT_TRUE(output->get_layout().get_tensor() == after_reshape);
 
@@ -80,7 +81,7 @@ TEST(removing_output_node, multiple_outputs) {
     // checking the output node has the same name after output node deleting due to StridedSlice optimization
     ASSERT_TRUE(outputs.find("strided_slice") != outputs.end());
     auto output2 = outputs.at("strided_slice").get_memory();
-    cldnn::mem_lock<float> output_ptr2(output, get_test_stream());
+    cldnn::mem_lock<T> output_ptr2(output, get_test_stream());
 
     ASSERT_TRUE(output2->get_layout().get_tensor() == after_strided_slice);
 
@@ -88,7 +89,12 @@ TEST(removing_output_node, multiple_outputs) {
         ASSERT_EQ(output_ptr2[i], out_vec[i]);
 }
 
-TEST(removing_output_node, output_node_optimization) {
+TEST(removing_output_node, multiple_outputs) {
+    test_multiple_outputs<float>(false);
+}
+
+template <typename T>
+void test_output_node_optimization(bool is_caching_test) {
     //  Filter : 2x3
     //  Stride : 2x1
     //  Input  : 4x5
@@ -115,7 +121,7 @@ TEST(removing_output_node, output_node_optimization) {
 
     set_values(input, { 1.0f, 2.0f, 3.0f, 4.0f, 5.0f, 2.0f, 2.0f, 3.0f, 4.0f, 6.0f, 3.0f, 3.0f, 3.0f, 5.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f });
     set_values(weights, { 1.0f, 2.0f, 1.0f, 2.0f, 1.0f, 2.0f });
-    VVF<float> output_vec = {
+    VVF<T> output_vec = {
             { 20.0f, 27.0f, 38.0f },
             { 17.0f, 19.0f, 19.0f } };
 
@@ -125,17 +131,17 @@ TEST(removing_output_node, output_node_optimization) {
     topology.add(convolution("conv", input_info("input"), { "weights" }, { 2, 1 }));
     topology.add(activation("relu", input_info("conv"), activation_func::relu));
 
-    network network(engine, topology);
-    network.set_input_data("input", input);
+    cldnn::network::ptr network = get_network(engine, topology, get_test_default_config(engine), get_test_stream_ptr(), is_caching_test);
+    network->set_input_data("input", input);
 
     // checking the output node has the same name after output node deleting due to ReLU optimization
-    auto outputs = network.execute();
+    auto outputs = network->execute();
     ASSERT_EQ(outputs.size(), size_t(1));
     ASSERT_EQ(outputs.begin()->first, "relu");
 
     auto output_memory = outputs.at("relu").get_memory();
     auto output_layout = output_memory->get_layout();
-    cldnn::mem_lock<float> output_ptr(output_memory, get_test_stream());
+    cldnn::mem_lock<T> output_ptr(output_memory, get_test_stream());
 
     int y_size = output_layout.spatial(1);
     int x_size = output_layout.spatial(0);
@@ -151,4 +157,17 @@ TEST(removing_output_node, output_node_optimization) {
             ASSERT_EQ(output_vec[y][x], output_ptr[y * x_size + x]);
         }
     }
+}
+
+TEST(removing_output_node, output_node_optimization) {
+    test_output_node_optimization<float>(false);
+}
+
+#ifdef RUN_ALL_MODEL_CACHING_TESTS
+TEST(removing_output_node, multiple_outputs_cached) {
+    test_multiple_outputs<float>(true);
+}
+#endif
+TEST(removing_output_node, output_node_optimization_cached) {
+    test_output_node_optimization<float>(true);
 }

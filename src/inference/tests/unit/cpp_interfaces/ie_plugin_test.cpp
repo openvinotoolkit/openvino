@@ -6,7 +6,6 @@
 #include <gtest/gtest.h>
 
 #include <cpp/ie_infer_async_request_base.hpp>
-#include <cpp/ie_plugin.hpp>
 #include <cpp_interfaces/interface/ie_iexecutable_network_internal.hpp>
 #include <ie_version.hpp>
 
@@ -143,29 +142,4 @@ TEST_F(InferenceEnginePluginInternalTest, failToSetNotAllocatedBlob) {
         ASSERT_TRUE(std::string{ex.what()}.find(refError) != std::string::npos)
             << "\tExpected: " << refError << "\n\tActual: " << ex.what();
     }
-}
-
-TEST(InferencePluginTests, throwsOnUninitializedGetVersion) {
-    InferencePlugin plg;
-    ASSERT_THROW(plg.GetVersion(), Exception);
-}
-
-TEST(InferencePluginTests, throwsOnUninitializedLoadNetwork) {
-    InferencePlugin plg;
-    ASSERT_THROW(plg.LoadNetwork(CNNNetwork(), {}), Exception);
-}
-
-TEST(InferencePluginTests, throwsOnUninitializedImportNetwork) {
-    InferencePlugin plg;
-    ASSERT_THROW(plg.ImportNetwork({}, {}), Exception);
-}
-
-TEST(InferencePluginTests, throwsOnUninitializedAddExtension) {
-    InferencePlugin plg;
-    ASSERT_THROW(plg.AddExtension(IExtensionPtr()), Exception);
-}
-
-TEST(InferencePluginTests, throwsOnUninitializedSetConfig) {
-    InferencePlugin plg;
-    ASSERT_THROW(plg.SetConfig({{}}), Exception);
 }

@@ -12,9 +12,10 @@
 #include <ngraph_functions/subgraph_builders.hpp>
 #include <openvino/runtime/core.hpp>
 
-#include "cpp/ie_plugin.hpp"
 #include "mock_common.hpp"
+#include "openvino/runtime/compiled_model.hpp"
 #include "plugin/mock_load_network_properties.hpp"
+#include "so_ptr.hpp"
 #include "unit_test_utils/mocks/cpp_interfaces/impl/mock_inference_plugin_internal.hpp"
 #include "unit_test_utils/mocks/cpp_interfaces/interface/mock_icore.hpp"
 #include "unit_test_utils/mocks/cpp_interfaces/interface/mock_iexecutable_network_internal.hpp"
@@ -59,13 +60,13 @@ public:
     std::shared_ptr<NiceMock<MockIExecutableNetworkInternal>> cpuMockIExeNet;
     ov::SoPtr<IExecutableNetworkInternal> cpuMockExeNetwork;
     NiceMock<MockIInferencePlugin>* cpuMockIPlugin;
-    InferenceEngine::InferencePlugin cpuMockPlugin;
+    std::shared_ptr<InferenceEngine::IInferencePlugin> cpuMockPlugin;
 
     // mock gpu exeNetwork
     std::shared_ptr<NiceMock<MockIExecutableNetworkInternal>> gpuMockIExeNet;
     ov::SoPtr<IExecutableNetworkInternal> gpuMockExeNetwork;
     NiceMock<MockIInferencePlugin>* gpuMockIPlugin;
-    InferenceEngine::InferencePlugin gpuMockPlugin;
+    std::shared_ptr<InferenceEngine::IInferencePlugin> gpuMockPlugin;
     std::shared_ptr<NiceMock<MockIInferRequestInternal>> inferReqInternal;
 
 public:
@@ -80,17 +81,12 @@ public:
         for (auto& device : targetDevices) {
             result << device << "_";
         }
-        auto cpuConfig = deviceConfigs.find("CPU");
-        auto gpuConfig = deviceConfigs.find("GPU");
-        auto priority = deviceConfigs.find("MULTI_DEVICE_PRIORITIES");
-        result << "properties_";
-        if (cpuConfig != deviceConfigs.end())
-            result << "CPU_" << cpuConfig->second << "_";
-        if (gpuConfig != deviceConfigs.end())
-            result << "GPU_" << gpuConfig->second << "_";
-        if (priority != deviceConfigs.end())
-            result << "priority_" << priority->second;
-        return result.str();
+        for (auto& item : deviceConfigs) {
+            result << item.first << "_" << item.second << "_";
+        }
+        auto name = result.str();
+        name.pop_back();
+        return name;
     }
 
     static std::vector<ConfigParams> CreateNumStreamsAndDefaultPerfHintTestConfigs() {
@@ -100,7 +96,7 @@ public:
         testConfigs.push_back(
             ConfigParams{"AUTO",
                          {"CPU"},
-                         {{"CPU", "NUM_STREAMS 3"}, {"MULTI_DEVICE_PRIORITIES", "CPU"}}});  // CPU: no perf_hint
+                         {{"DEVICE_PROPERTIES", "{CPU:{NUM_STREAMS:3}}"}, {"MULTI_DEVICE_PRIORITIES", "CPU"}}});  // CPU: no perf_hint
         testConfigs.push_back(
             ConfigParams{"AUTO",
                          {"CPU", "GPU"},
@@ -109,23 +105,23 @@ public:
         testConfigs.push_back(ConfigParams{
             "AUTO",
             {"CPU", "GPU"},
-            {{"CPU", "NUM_STREAMS 3"},
+            {{"DEVICE_PROPERTIES", "{CPU:{NUM_STREAMS:3}}"},
              {"MULTI_DEVICE_PRIORITIES", "GPU,CPU"}}});  // CPU: as helper, get default_hint:lantency GPU:get default_hint:lantency
         testConfigs.push_back(ConfigParams{
             "AUTO",
             {"CPU", "GPU"},
-            {{"GPU", "NUM_STREAMS 3"},
+            {{"DEVICE_PROPERTIES", "{GPU:{NUM_STREAMS:3}}"},
              {"MULTI_DEVICE_PRIORITIES", "GPU,CPU"}}});  // CPU: as helper, get default_hint:lantency GPU:no perf_hint
         testConfigs.push_back(
             ConfigParams{"AUTO",
                          {"CPU"},
-                         {{"CPU", "NUM_STREAMS 5"}, {"MULTI_DEVICE_PRIORITIES", "CPU,GPU"}}});  // CPU: no perf_hint
+                         {{"DEVICE_PROPERTIES", "{CPU:{NUM_STREAMS:5}}"}, {"MULTI_DEVICE_PRIORITIES", "CPU,GPU"}}});  // CPU: no perf_hint
         testConfigs.push_back(
             ConfigParams{"AUTO", {"GPU"}, {{"MULTI_DEVICE_PRIORITIES", "GPU"}}});  // GPU: get default_hint:lantency
         testConfigs.push_back(
             ConfigParams{"AUTO",
                          {"GPU"},
-                         {{"GPU", "NUM_STREAMS 3"}, {"MULTI_DEVICE_PRIORITIES", "GPU"}}});  // GPU: no perf_hint
+                         {{"DEVICE_PROPERTIES", "{GPU:{NUM_STREAMS:3}}"}, {"MULTI_DEVICE_PRIORITIES", "GPU"}}});  // GPU: no perf_hint
 
         testConfigs.push_back(ConfigParams{
             "MULTI:CPU,GPU",
@@ -134,18 +130,17 @@ public:
         testConfigs.push_back(
             ConfigParams{"MULTI:CPU,GPU",
                          {"CPU", "GPU"},
-                         {{"CPU", "NUM_STREAMS 3"},
+                         {{"DEVICE_PROPERTIES", "{CPU:{NUM_STREAMS:3}}"},
                           {"MULTI_DEVICE_PRIORITIES", "CPU,GPU"}}});  // CPU: no perf_hint  GPU: get default_hint:tput
         testConfigs.push_back(
             ConfigParams{"MULTI:CPU,GPU",
                          {"CPU", "GPU"},
-                         {{"GPU", "NUM_STREAMS 3"},
+                         {{"DEVICE_PROPERTIES", "{GPU:{NUM_STREAMS:3}}"},
                           {"MULTI_DEVICE_PRIORITIES", "CPU,GPU"}}});  // CPU: get default_hint:tput  GPU: no perf_hint
         testConfigs.push_back(
             ConfigParams{"MULTI:CPU,GPU",
                          {"CPU", "GPU"},
-                         {{"CPU", "NUM_STREAMS 3"},
-                          {"GPU", "NUM_STREAMS 3"},
+                         {{"DEVICE_PROPERTIES", "{CPU:{NUM_STREAMS:3},{GPU:{NUM_STREAMS:3}}"},
                           {"MULTI_DEVICE_PRIORITIES", "CPU,GPU"}}});  // CPU: no perf_hint  GPU: no perf_hint
         return testConfigs;
     }
@@ -155,44 +150,42 @@ public:
         testConfigs.push_back(ConfigParams{
             "AUTO",
             {"CPU"},
-            {{"CPU", "PERFORMANCE_HINT THROUGHPUT"}, {"MULTI_DEVICE_PRIORITIES", "CPU"}}});  // CPU: get perf_hint:tput
+            {{"DEVICE_PROPERTIES", "{CPU:{PERFORMANCE_HINT:THROUGHPUT}}"}, {"MULTI_DEVICE_PRIORITIES", "CPU"}}});  // CPU: get perf_hint:tput
         testConfigs.push_back(
             ConfigParams{"AUTO",
                          {"CPU", "GPU"},
-                         {{"CPU", "PERFORMANCE_HINT THROUGHPUT"},
+                         {{"DEVICE_PROPERTIES", "{CPU:{PERFORMANCE_HINT:THROUGHPUT}}"},
                           {"MULTI_DEVICE_PRIORITIES",
                            "GPU,CPU"}}});  // CPU: as helper, get perf_hint:lantency GPU:get default_hint:lantency
         testConfigs.push_back(
             ConfigParams{"AUTO",
                          {"CPU", "GPU"},
-                         {{"CPU", "PERFORMANCE_HINT THROUGHPUT"},
-                          {"GPU", "PERFORMANCE_HINT THROUGHPUT"},
+                         {{"DEVICE_PROPERTIES", "{CPU:{PERFORMANCE_HINT:THROUGHPUT},GPU:{PERFORMANCE_HINT:THROUGHPUT}}"},
                           {"MULTI_DEVICE_PRIORITIES",
                            "GPU,CPU"}}});  // CPU: as helper, get perf_hint:lantency GPU:get perf_hint:tput
         testConfigs.push_back(ConfigParams{"AUTO",
                                            {"CPU"},
-                                           {{"CPU", "PERFORMANCE_HINT THROUGHPUT"},
+                                           {{"DEVICE_PROPERTIES", "{CPU:{PERFORMANCE_HINT:THROUGHPUT}}"},
                                             {"MULTI_DEVICE_PRIORITIES", "CPU,GPU"}}});  // CPU: get perf_hint:tput
         testConfigs.push_back(ConfigParams{
             "AUTO",
             {"GPU"},
-            {{"GPU", "PERFORMANCE_HINT THROUGHPUT"}, {"MULTI_DEVICE_PRIORITIES", "GPU"}}});  // GPU: get perf_hint:tput
+            {{"DEVICE_PROPERTIES", "GPU:{PERFORMANCE_HINT:THROUGHPUT}}"}, {"MULTI_DEVICE_PRIORITIES", "GPU"}}});  // GPU: get perf_hint:tput
 
         testConfigs.push_back(ConfigParams{
             "MULTI:CPU,GPU",
             {"CPU", "GPU"},
-            {{"CPU", "PERFORMANCE_HINT LATENCY"},
+            {{"DEVICE_PROPERTIES", "{CPU:{PERFORMANCE_HINT:LATENCY}}"},
              {"MULTI_DEVICE_PRIORITIES", "CPU,GPU"}}});  // CPU: get perf_hint:latency  GPU: get default_hint:tput
         testConfigs.push_back(ConfigParams{
             "MULTI:CPU,GPU",
             {"CPU", "GPU"},
-            {{"GPU", "PERFORMANCE_HINT LATENCY"},
+            {{"DEVICE_PROPERTIES", "{GPU:{PERFORMANCE_HINT:LATENCY}}"},
              {"MULTI_DEVICE_PRIORITIES", "CPU,GPU"}}});  // CPU: get default_hint:tput  GPU: get perf_hint:latency
         testConfigs.push_back(ConfigParams{
             "MULTI:CPU,GPU",
             {"CPU", "GPU"},
-            {{"CPU", "PERFORMANCE_HINT LATENCY"},
-             {"GPU", "PERFORMANCE_HINT LATENCY"},
+            {{"DEVICE_PROPERTIES", "{CPU:{PERFORMANCE_HINT:LATENCY},GPU:{PERFORMANCE_HINT:LATENCY}}"},
              {"MULTI_DEVICE_PRIORITIES", "CPU,GPU"}}});  // CPU: get perf_hint:lantency  GPU: get perf_hint:lantency
         return testConfigs;
     }
@@ -202,44 +195,42 @@ public:
         testConfigs.push_back(ConfigParams{
             "AUTO",
             {"CPU"},
-            {{"CPU", "ALLOW_AUTO_BATCHING TRUE"}, {"MULTI_DEVICE_PRIORITIES", "CPU"}}});  // CPU: no perf_hint
+            {{"DEVICE_PROPERTIES", "{CPU:{ALLOW_AUTO_BATCHING:TRUE}}"}, {"MULTI_DEVICE_PRIORITIES", "CPU"}}});  // CPU: no perf_hint
         testConfigs.push_back(
             ConfigParams{"AUTO",
                          {"CPU", "GPU"},
-                         {{"CPU", "ALLOW_AUTO_BATCHING TRUE"},
+                         {{"DEVICE_PROPERTIES", "{CPU:{ALLOW_AUTO_BATCHING:TRUE}}"},
                           {"MULTI_DEVICE_PRIORITIES",
                            "GPU,CPU"}}});  // CPU: as helper, get perf_hint:lantency GPU:get default_hint:lantency
         testConfigs.push_back(
             ConfigParams{"AUTO",
                          {"CPU", "GPU"},
-                         {{"CPU", "ALLOW_AUTO_BATCHING TRUE"},
-                          {"GPU", "ALLOW_AUTO_BATCHING TRUE"},
+                         {{"DEVICE_PROPERTIES", "{CPU:{ALLOW_AUTO_BATCHING:TRUE},GPU:{ALLOW_AUTO_BATCHING:TRUE}}"},
                           {"MULTI_DEVICE_PRIORITIES",
                            "GPU,CPU"}}});  // CPU: as helper, get perf_hint:lantency GPU:no perf_hint
         testConfigs.push_back(ConfigParams{"AUTO",
                                            {"CPU"},
-                                           {{"CPU", "ALLOW_AUTO_BATCHING FALSE"},
+                                           {{"DEVICE_PROPERTIES", "{CPU:{ALLOW_AUTO_BATCHING:FALSE}}"},
                                             {"MULTI_DEVICE_PRIORITIES", "CPU,GPU"}}});  // CPU: no perf_hint
         testConfigs.push_back(ConfigParams{
             "AUTO",
             {"GPU"},
-            {{"GPU", "ALLOW_AUTO_BATCHING FALSE"}, {"MULTI_DEVICE_PRIORITIES", "GPU"}}});  // GPU: no perf_hint
+            {{"DEVICE_PROPERTIES", "GPU:{ALLOW_AUTO_BATCHING:FALSE}}"}, {"MULTI_DEVICE_PRIORITIES", "GPU"}}});  // GPU: no perf_hint
 
         testConfigs.push_back(ConfigParams{
             "MULTI:CPU,GPU",
             {"CPU", "GPU"},
-            {{"CPU", "ALLOW_AUTO_BATCHING FALSE"},
+            {{"CPU", "{ALLOW_AUTO_BATCHING:FALSE}"},
              {"MULTI_DEVICE_PRIORITIES", "CPU,GPU"}}});  // CPU: no perf_hint  GPU: get default_hint:tput
         testConfigs.push_back(ConfigParams{
             "MULTI:CPU,GPU",
             {"CPU", "GPU"},
-            {{"GPU", "ALLOW_AUTO_BATCHING FALSE"},
+            {{"DEVICE_PROPERTIES", "GPU:{ALLOW_AUTO_BATCHING:FALSE}}"},
              {"MULTI_DEVICE_PRIORITIES", "CPU,GPU"}}});  // CPU: get default_hint:tput  GPU: no perf_hint
         testConfigs.push_back(ConfigParams{
             "MULTI:CPU,GPU",
             {"CPU", "GPU"},
-            {{"CPU", "ALLOW_AUTO_BATCHING TRUE"},
-             {"GPU", "ALLOW_AUTO_BATCHING FALSE"},
+            {{"DEVICE_PROPERTIES", "CPU:{ALLOW_AUTO_BATCHING:TRUE},GPU:{ALLOW_AUTO_BATCHING:FALSE}}"},
              {"MULTI_DEVICE_PRIORITIES", "CPU,GPU"}}});  // CPU: no perf_hint GPU: no perf_hint
         return testConfigs;
     }
@@ -255,20 +246,20 @@ public:
         auto cpuMockIPluginPtr = std::make_shared<NiceMock<MockIInferencePlugin>>();
         ON_CALL(*cpuMockIPluginPtr, LoadNetwork(MatcherCast<const CNNNetwork&>(_), _))
             .WillByDefault(Return(cpuMockIExeNet));
-        cpuMockPlugin = InferenceEngine::InferencePlugin{cpuMockIPluginPtr, {}};
+        cpuMockPlugin = cpuMockIPluginPtr;
         // remove annoying ON CALL message
         EXPECT_CALL(*cpuMockIPluginPtr, LoadNetwork(MatcherCast<const CNNNetwork&>(_), _)).Times(1);
-        cpuMockExeNetwork = cpuMockPlugin.LoadNetwork(CNNNetwork{}, {});
+        cpuMockExeNetwork = ov::SoPtr<InferenceEngine::IExecutableNetworkInternal>(cpuMockPlugin->LoadNetwork(CNNNetwork{}, {}), {});
 
         // prepare gpuMockExeNetwork
         gpuMockIExeNet = std::make_shared<NiceMock<MockIExecutableNetworkInternal>>();
         auto gpuMockIPluginPtr = std::make_shared<NiceMock<MockIInferencePlugin>>();
         ON_CALL(*gpuMockIPluginPtr, LoadNetwork(MatcherCast<const CNNNetwork&>(_), _))
             .WillByDefault(Return(gpuMockIExeNet));
-        gpuMockPlugin = InferenceEngine::InferencePlugin{gpuMockIPluginPtr, {}};
+        gpuMockPlugin = gpuMockIPluginPtr;
         // remove annoying ON CALL message
         EXPECT_CALL(*gpuMockIPluginPtr, LoadNetwork(MatcherCast<const CNNNetwork&>(_), _)).Times(1);
-        gpuMockExeNetwork = gpuMockPlugin.LoadNetwork(CNNNetwork{}, {});
+        gpuMockExeNetwork = ov::SoPtr<InferenceEngine::IExecutableNetworkInternal>(gpuMockPlugin->LoadNetwork(CNNNetwork{}, {}), {});
 
         // prepare mockicore and cnnNetwork for loading
         core = std::shared_ptr<NiceMock<MockICore>>(new NiceMock<MockICore>());
@@ -293,6 +284,8 @@ public:
 
         std::vector<std::string> configKeys = {"SUPPORTED_CONFIG_KEYS", "NUM_STREAMS"};
         ON_CALL(*core, GetMetric(_, StrEq(METRIC_KEY(SUPPORTED_CONFIG_KEYS)), _)).WillByDefault(Return(configKeys));
+
+        ON_CALL(*core, GetConfig(_, StrEq(ov::compilation_num_threads.name()))).WillByDefault(Return(12));
 
         ON_CALL(*plugin, ParseMetaDevices)
             .WillByDefault(

@@ -26,7 +26,7 @@ TEST_F(TransformationTestsF, MVN6Decomposition_No_Variance) {
 
         function = std::make_shared<ngraph::Function>(ngraph::NodeVector{mvn}, ngraph::ParameterVector{data});
 
-        manager.register_pass<ngraph::pass::MVN6Decomposition>();
+        manager.register_pass<ov::pass::MVN6Decomposition>();
     }
 
     {
@@ -49,7 +49,7 @@ TEST_F(TransformationTestsF, MVN6Decomposition_Inside_Sqrt) {
 
         function = std::make_shared<ngraph::Function>(ngraph::NodeVector{mvn}, ngraph::ParameterVector{data});
 
-        manager.register_pass<ngraph::pass::MVN6Decomposition>();
+        manager.register_pass<ov::pass::MVN6Decomposition>();
     }
 
     {
@@ -81,7 +81,7 @@ TEST_F(TransformationTestsF, MVN6Decomposition_Outside_Sqrt) {
 
         function = std::make_shared<ngraph::Function>(ngraph::NodeVector{mvn}, ngraph::ParameterVector{data});
 
-        manager.register_pass<ngraph::pass::MVN6Decomposition>();
+        manager.register_pass<ov::pass::MVN6Decomposition>();
     }
 
     {

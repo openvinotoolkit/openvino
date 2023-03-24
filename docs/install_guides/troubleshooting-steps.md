@@ -35,12 +35,12 @@ python -m pip install --upgrade pip
 ## Check if required external dependencies are installed (for pre-2022.2 releases)
 
 For OpenVINO releases prior to 2022.2:
-- If you are using Ubuntu or RHEL 8 systems, and installed OpenVINO Runtime via the installer, APT, or YUM repository, and then decided to [install OpenVINO Development Tools](installing-model-dev-tools.md), make sure that you **Install External Software Dependencies** first by following the steps in the corresponding installation pages.
+- If you are using Ubuntu or RHEL 8 systems, and installed OpenVINO Runtime via the archive file, APT, or YUM repository, and then decided to [install OpenVINO Development Tools](installing-model-dev-tools.md), make sure that you **Install External Software Dependencies** first by following the steps in the corresponding installation pages.
 - For C++ developers with Windows systems, make sure that Microsoft Visual Studio 2019 with MSBuild and CMake 3.14 or higher (64-bit) are installed. While installing Microsoft Visual Studio 2019, make sure that you have selected **Desktop development with C++** in the **Workloads** tab. If not, launch the installer again to select that option. For more information on modifying the installation options for Microsoft Visual Studio, see its [official support page](https://docs.microsoft.com/en-us/visualstudio/install/modify-visual-studio?view=vs-2019).
 
 ## Check if environment variables are set correctly 
 
-- For Python developers, if you previously installed OpenVINO using the installer, and are now installing OpenVINO using PIP, remove all the PATH settings and the lines with `setupvars` from `.bashrc`. Note that if you installed OpenVINO with PIP in a virtual environment, you don't need to set any environment variables.
+- For Python developers, if you previously installed OpenVINO using the archive file, and are now installing OpenVINO using PIP, remove all the PATH settings and the lines with `setupvars` from `.bashrc`. Note that if you installed OpenVINO with PIP in a virtual environment, you don't need to set any environment variables.
 - If you have installed OpenVINO before, you probably have added `setupvars` to your `PATH /.bashrc` or Windows environment variables. After restarting your environment, you should see similar information as below: 
 ```sh
 [setupvars.sh] OpenVINO™ environment initialized
@@ -60,7 +60,7 @@ For OpenVINO releases prior to 2022.2:
    
   If OpenVINO was successfully installed, nothing will happen. If not, an error will be displayed.
 
-* If you installed OpenVINO Runtime using the installer, you can search "openvino" in Apps & Features on a Windows system, or check your installation directory on Linux to see if OpenVINO is there.
+* If you installed OpenVINO Runtime using the archive file, you can search "openvino" in Apps & Features on a Windows system, or check your installation directory on Linux to see if OpenVINO is there.
 
 * If you installed OpenVINO Runtime from APT, use the ``apt list --installed | grep openvino`` command to list the installed OpenVINO packages.
 

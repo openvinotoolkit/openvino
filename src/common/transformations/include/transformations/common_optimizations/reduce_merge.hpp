@@ -66,9 +66,3 @@ public:
     OPENVINO_RTTI("ReduceMerge", "0");
     ReduceMerge();
 };
-
-namespace ngraph {
-namespace pass {
-using ov::pass::ReduceMerge;
-}  // namespace pass
-}  // namespace ngraph

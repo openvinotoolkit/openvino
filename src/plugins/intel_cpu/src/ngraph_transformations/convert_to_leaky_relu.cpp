@@ -17,7 +17,7 @@ ov::intel_cpu::ConvertToLeakyRelu::ConvertToLeakyRelu() {
     auto slope_constant = ngraph::pattern::wrap_type<ngraph::opset1::Constant>();
     auto prelu = ngraph::pattern::wrap_type<ngraph::opset1::PRelu>({ input, slope_constant });
 
-    ngraph::matcher_pass_callback callback = [this](ngraph::pattern::Matcher& m) {
+    ngraph::matcher_pass_callback callback = [](ngraph::pattern::Matcher& m) {
         auto prelu = std::dynamic_pointer_cast<ngraph::opset1::PRelu>(m.get_match_root());
         if (!prelu) {
             return false;

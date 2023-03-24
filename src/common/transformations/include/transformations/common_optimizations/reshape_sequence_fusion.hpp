@@ -26,9 +26,3 @@ public:
     OPENVINO_RTTI("ReshapeSequenceFusion", "0");
     ReshapeSequenceFusion(bool use_shape_for_elimination = true);
 };
-
-namespace ngraph {
-namespace pass {
-using ov::pass::ReshapeSequenceFusion;
-}  // namespace pass
-}  // namespace ngraph

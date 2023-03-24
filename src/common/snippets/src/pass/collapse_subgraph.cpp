@@ -40,7 +40,7 @@ auto outputs_are_not_broadcastable(const std::shared_ptr<const Node>& node) -> b
         return false;
     ov::PartialShape ref_shape = outputs.front().get_partial_shape();
     bool success = true;
-    for (int i = 1; i < outputs.size() && success; i++) {
+    for (size_t i = 1; i < outputs.size() && success; i++) {
         success &= ov::PartialShape::broadcast_merge_into(ref_shape, outputs[i].get_partial_shape(), ov::op::AutoBroadcastType::NUMPY);
     }
     return !success;
@@ -74,7 +74,9 @@ auto is_supported_op(const std::shared_ptr<const Node> &n) -> bool {
                is_type<opset1::Constant>(n->get_input_node_shared_ptr(1)) &&
                is_type<opset1::Constant>(n->get_input_node_shared_ptr(2)) &&
                is_type<opset1::Constant>(n->get_input_node_shared_ptr(3)) &&
-               is_type<opset1::Constant>(n->get_input_node_shared_ptr(4));
+               is_type<opset1::Constant>(n->get_input_node_shared_ptr(4)) &&
+               (fq->get_auto_broadcast() == ov::op::AutoBroadcastType::NUMPY ||
+                fq->get_auto_broadcast() == ov::op::AutoBroadcastType::NONE);
     };
 
     auto is_supported_ternary_eltwise_op = [](const std::shared_ptr<const Node> &n) -> bool {
@@ -324,7 +326,7 @@ TokenizeSnippets::TokenizeSnippets() {
         for (const auto &input_node : ngraph::as_node_vector(input_values)) {
             if (auto subgraph = ov::as_type_ptr<op::Subgraph>(input_node)) {
                 if (!clones.count(input_node)) {
-                    auto f = ov::clone_model(subgraph->body());
+                    auto f = subgraph->body().clone();
                     f->set_friendly_name(subgraph->body_ptr()->get_friendly_name());
                     clones[input_node] = f;
                 }

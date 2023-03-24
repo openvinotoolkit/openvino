@@ -19,7 +19,6 @@ std::string FrontendLibraryExtensionTest::getTestCaseName(
 }
 
 void FrontendLibraryExtensionTest::SetUp() {
-    FrontEndTestUtils::setupTestEnv();
     m_fem = FrontEndManager();  // re-initialize after setting up environment
     initParamTest();
 }

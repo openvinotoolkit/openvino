@@ -30,9 +30,8 @@ void op::v6::GatherElements::validate_and_infer_types() {
                           "indices must be of int32 or int64 type. But instead got: ",
                           indices_type);
 
-    const auto& data_pshape = get_input_partial_shape(0);
-    const auto& indices_pshape = get_input_partial_shape(1);
-    std::vector<PartialShape> input_shapes = {data_pshape, indices_pshape}, output_shapes = {PartialShape{}};
+    const auto input_shapes = get_node_input_partial_shapes(*this);
+    auto output_shapes = std::vector<ov::PartialShape>(1);
     shape_infer(this, input_shapes, output_shapes);
     set_output_type(0, data_type, output_shapes[0]);
 }

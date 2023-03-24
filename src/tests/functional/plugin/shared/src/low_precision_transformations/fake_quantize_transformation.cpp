@@ -49,7 +49,7 @@ void FakeQuantizeTransformation::SetUp() {
         testParams.fakequantize,
         true);
 
-    ngraph::pass::InitNodeInfo().run_on_function(function);
+    ov::pass::InitNodeInfo().run_on_model(function);
 }
 
 void FakeQuantizeTransformation::Run() {

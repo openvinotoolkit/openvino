@@ -34,7 +34,7 @@
 Try out OpenVINO's capabilities with this quick start example that estimates depth in a scene using an OpenVINO monodepth model. <a href="https://mybinder.org/v2/gh/openvinotoolkit/openvino_notebooks/HEAD?filepath=notebooks%2F201-vision-monodepth%2F201-vision-monodepth.ipynb">Run the example in a Jupyter Notebook inside your web browser</a> to quickly see how to load a model, prepare an image, inference the image, and display the result.
 
    
-## <a name="install-openvino"></a>2. Install OpenVINO
+## <a name="install-openvino-gsg"></a>2. Install OpenVINO
    
 See the [installation overview page](./install_guides/installing-openvino-overview.md) for options to install OpenVINO and set up a development environment on your device.
    

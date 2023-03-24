@@ -20,8 +20,8 @@ class TRANSFORMATIONS_API DilatedConvolutionConverter;
 /**
  * @ingroup ie_transformation_common_api
  * @brief DilatedConvolutionConverter transformation replaces following graph:
- * SpaceToBatch -> Convolution -> BatchToSpace
- * to a single Convolution node with updated pads and dilations
+ * SpaceToBatch -> Convolution(GroupConvolution) -> BatchToSpace
+ * to a single Convolution(GroupConvolution) node with updated pads and dilations
  * Restrictions:
  * - pads in SpaceToBatch must have 0 on first and second position
  */
@@ -31,9 +31,3 @@ public:
     OPENVINO_RTTI("DilatedConvolutionConverter", "0");
     DilatedConvolutionConverter();
 };
-
-namespace ngraph {
-namespace pass {
-using ov::pass::DilatedConvolutionConverter;
-}  // namespace pass
-}  // namespace ngraph

@@ -8,7 +8,9 @@ import glob
 import defusedxml.ElementTree as ET
 from defusedxml import defuse_stdlib
 
-from utils import utils
+from utils.conformance_utils import get_logger
+from utils import stat_update_utils
+from utils.constants import OP_CONFORMANCE, API_CONFORMANCE
 
 # defuse_stdlib provide patched version of xml.etree.ElementTree which allows to use objects from xml.etree.ElementTree
 # in a safe manner without including unsafe xml.etree.ElementTree
@@ -16,7 +18,7 @@ ET_defused = defuse_stdlib()[ET]
 Element = ET_defused.Element
 SubElement = ET_defused.SubElement
 
-logger = utils.get_logger('XmlMerger')
+logger = get_logger('xml_merge_tool')
 
 def parse_arguments():
     parser = argparse.ArgumentParser()
@@ -35,8 +37,10 @@ def parse_arguments():
 
 
 def update_result_node(xml_node: SubElement, aggregated_res: SubElement):
+    stat_update_utils.update_rel_values(aggregated_res)
+    stat_update_utils.update_rel_values(xml_node)
     for attr_name in xml_node.attrib:
-        if attr_name == "passrate":
+        if attr_name == "passrate" or attr_name == "relative_passrate":
             continue
         if attr_name == "implemented":
             xml_value = xml_node.attrib.get(attr_name) == "true"
@@ -44,17 +48,15 @@ def update_result_node(xml_node: SubElement, aggregated_res: SubElement):
             str_value = "true" if xml_value or aggregated_value else "false"
             aggregated_res.set(attr_name, str_value)
             continue
-        xml_value = int(xml_node.attrib.get(attr_name))
-        aggregated_value = int(aggregated_res.attrib.get(attr_name))
-        # if attr_name == "crashed" and xml_value > 0:
-            # print("f")
+        xml_value = float(xml_node.attrib.get(attr_name)) if "relative_" in attr_name else int(xml_node.attrib.get(attr_name))
+        aggregated_value = float(aggregated_res.attrib.get(attr_name)) if "relative_" in attr_name else int(aggregated_res.attrib.get(attr_name))
         aggregated_res.set(attr_name, str(xml_value + aggregated_value))
 
 
 def aggregate_test_results(aggregated_results: SubElement, xml_reports: list, report_type: str):
     aggregated_timestamp = None
     for xml in xml_reports:
-        logger.info(f" Processing: {xml}")
+        # logger.info(f" Processing: {xml}")
         try:
             xml_root = ET.parse(xml).getroot()
         except ET.ParseError:
@@ -73,6 +75,7 @@ def aggregate_test_results(aggregated_results: SubElement, xml_reports: list, re
             for xml_results_entry in xml_device_entry:
                 aggregated_results_entry = aggregated_device_results.find(xml_results_entry.tag)
                 if aggregated_results_entry is None:
+                    stat_update_utils.update_rel_values(xml_results_entry)
                     aggregated_device_results.append(xml_results_entry)
                     continue
                 if report_type == "OP":
@@ -81,9 +84,11 @@ def aggregate_test_results(aggregated_results: SubElement, xml_reports: list, re
                     for xml_real_device_entry in xml_results_entry:
                         aggregated_real_device_api_report = aggregated_results_entry.find(xml_real_device_entry.tag)
                         if aggregated_real_device_api_report is None:
+                            stat_update_utils.update_rel_values(xml_results_entry)
                             aggregated_results_entry.append(xml_real_device_entry)
                             continue
                         update_result_node(xml_real_device_entry, aggregated_real_device_api_report)
+                a = 1
     return aggregated_timestamp
 
 
@@ -93,13 +98,13 @@ def merge_xml(input_folder_paths: list, output_folder_paths: str, output_filenam
     summary = Element("report")
     results = SubElement(summary, "results")
     entity_name = None
-    if report_type == "OP":
+    if report_type == OP_CONFORMANCE.lower() or report_type == OP_CONFORMANCE:
         entity_name = "ops_list"
-    elif report_type == "API":
+    elif report_type == API_CONFORMANCE.lower() or report_type == API_CONFORMANCE:
         entity_name = "api_list"
     else:
         raise Exception(f"Error to create aggregated report. Incorrect report type: {report_type}")
-        
+    
     entity_list = SubElement(summary, entity_name)
 
     for folder_path in input_folder_paths:
@@ -111,9 +116,9 @@ def merge_xml(input_folder_paths: list, output_folder_paths: str, output_filenam
             continue
 
         xml_reports = None
-        if report_type == "OP":
+        if report_type == OP_CONFORMANCE.lower() or report_type == OP_CONFORMANCE:
             xml_reports = glob.glob(os.path.join(folder_path, 'report_op*.xml'))
-        elif report_type == "API":
+        elif report_type == API_CONFORMANCE.lower() or report_type == API_CONFORMANCE:
             xml_reports = glob.glob(os.path.join(folder_path, 'report_api*.xml'))
         logger.info(f"Num of XML: {len(xml_reports)}")
 
@@ -131,10 +136,10 @@ def merge_xml(input_folder_paths: list, output_folder_paths: str, output_filenam
                 SubElement(entity_list, entity.tag)
         timestamp = aggregate_test_results(results, xml_reports, report_type)
         if report_type == "OP":
-            utils.update_passrates(results)
+            stat_update_utils.update_passrates(results)
         else:
             for sub_result in results:
-                utils.update_passrates(sub_result)
+                stat_update_utils.update_passrates(sub_result)
         summary.set("timestamp", timestamp)
         logger.info(f" Processing is finished")
 

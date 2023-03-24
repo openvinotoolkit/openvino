@@ -31,7 +31,7 @@ ParamsKey QuantizeKernelScaleShift::GetSupportedKey() const {
     return k;
 }
 
-CommonDispatchData QuantizeKernelScaleShift::SetDefault(const quantize_params& params, const optional_params&) const {
+CommonDispatchData QuantizeKernelScaleShift::SetDefault(const quantize_params& params) const {
     CommonDispatchData dispatchData;
 
     auto output = params.outputs[0];

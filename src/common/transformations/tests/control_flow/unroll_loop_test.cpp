@@ -67,8 +67,8 @@ TEST(TransformationTests, UnrollLoopGRUCell) {
         f = std::make_shared<Function>(NodeVector{res_ti_1}, ParameterVector{X, Y});
 
         pass::Manager manager;
-        manager.register_pass<pass::InitNodeInfo>();
-        manager.register_pass<pass::UnrollTensorIterator>();
+        manager.register_pass<ov::pass::InitNodeInfo>();
+        manager.register_pass<ov::pass::UnrollTensorIterator>();
         manager.run_passes(f);
 
         ASSERT_NO_THROW(check_rt_info(f));
@@ -153,8 +153,8 @@ TEST(TransformationTests, UnrollLoopRNNCell) {
         f = std::make_shared<Function>(NodeVector{res_ti_1}, ParameterVector{X, Y});
 
         pass::Manager manager;
-        manager.register_pass<pass::InitNodeInfo>();
-        manager.register_pass<pass::UnrollTensorIterator>();
+        manager.register_pass<ov::pass::InitNodeInfo>();
+        manager.register_pass<ov::pass::UnrollTensorIterator>();
         manager.run_passes(f);
 
         ASSERT_NO_THROW(check_rt_info(f));
@@ -242,8 +242,8 @@ TEST(TransformationTests, UnrollLoopLSTMCell) {
         f = std::make_shared<Function>(NodeVector{res_ti_1}, ParameterVector{X, Y, Z});
 
         pass::Manager manager;
-        manager.register_pass<pass::InitNodeInfo>();
-        manager.register_pass<pass::UnrollTensorIterator>();
+        manager.register_pass<ov::pass::InitNodeInfo>();
+        manager.register_pass<ov::pass::UnrollTensorIterator>();
         manager.run_passes(f);
 
         ASSERT_NO_THROW(check_rt_info(f));
@@ -329,8 +329,8 @@ TEST(TransformationTests, UnrollLoopGRUCellSingleIteration) {
         f = std::make_shared<Function>(NodeVector{res_ti_1}, ParameterVector{X, Y});
 
         pass::Manager manager;
-        manager.register_pass<pass::InitNodeInfo>();
-        manager.register_pass<pass::UnrollTensorIterator>();
+        manager.register_pass<ov::pass::InitNodeInfo>();
+        manager.register_pass<ov::pass::UnrollTensorIterator>();
         manager.run_passes(f);
 
         ASSERT_NO_THROW(check_rt_info(f));
@@ -409,8 +409,8 @@ TEST(TransformationTests, UnrollLoopRNNCellSingleIteration) {
         f = std::make_shared<Function>(NodeVector{res_ti_1}, ParameterVector{X, Y});
 
         pass::Manager manager;
-        manager.register_pass<pass::InitNodeInfo>();
-        manager.register_pass<pass::UnrollTensorIterator>();
+        manager.register_pass<ov::pass::InitNodeInfo>();
+        manager.register_pass<ov::pass::UnrollTensorIterator>();
         manager.run_passes(f);
 
         ASSERT_NO_THROW(check_rt_info(f));
@@ -491,8 +491,8 @@ TEST(TransformationTests, UnrollLoopLSTMCellSingleIteration) {
         f = std::make_shared<Function>(NodeVector{res_ti_1}, ParameterVector{X, Y, Z});
 
         pass::Manager manager;
-        manager.register_pass<pass::InitNodeInfo>();
-        manager.register_pass<pass::UnrollTensorIterator>();
+        manager.register_pass<ov::pass::InitNodeInfo>();
+        manager.register_pass<ov::pass::UnrollTensorIterator>();
         manager.run_passes(f);
 
         ASSERT_NO_THROW(check_rt_info(f));

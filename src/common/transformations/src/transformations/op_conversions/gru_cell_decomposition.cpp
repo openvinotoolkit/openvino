@@ -59,9 +59,9 @@ ov::pass::GRUCellDecomposition::GRUCellDecomposition() {
         }
 
         // zt = f(Xt*(Wz^T) + Ht-1*(Rz^T) + Wbz + Rbz)
-        auto z_t = ngraph::op::util::activation(gru_cell->get_activations()[0], clamp_z);
+        auto z_t = ov::op::util::activation(gru_cell->get_activations()[0], clamp_z);
         // rt = f(Xt*(Wr^T) + Ht-1*(Rr^T) + Wbr + Rbr)
-        auto r_t = ngraph::op::util::activation(gru_cell->get_activations()[0], clamp_r);
+        auto r_t = ov::op::util::activation(gru_cell->get_activations()[0], clamp_r);
 
         std::shared_ptr<Node> _h;
         if (gru_cell->get_linear_before_reset()) {
@@ -85,7 +85,7 @@ ov::pass::GRUCellDecomposition::GRUCellDecomposition() {
             clamp_h = std::make_shared<opset4::Clamp>(_h, -clip, clip);
             ngraph::copy_runtime_info(gru_cell, clamp_h);
         }
-        auto h_t = ngraph::op::util::activation(gru_cell->get_activations()[1], clamp_h);
+        auto h_t = ov::op::util::activation(gru_cell->get_activations()[1], clamp_h);
 
         // Ht = (1 - zt) (.) ht + zt (.) Ht-1
         auto one = opset4::Constant::create(z_t->get_element_type(), Shape{1}, {1.f});

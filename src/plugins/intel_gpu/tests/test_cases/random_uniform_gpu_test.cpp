@@ -30,7 +30,7 @@ struct RandomUniformParams {
 template<typename T>
 struct random_uniform_gpu_test : public ::testing::TestWithParam<RandomUniformParams<T> > {
 public:
-    void test() {
+    void test(bool is_caching_test) {
 
         auto data_type = type_to_data_type<T>::value;
         RandomUniformParams<T> params = testing::TestWithParam<RandomUniformParams<T> >::GetParam();
@@ -53,16 +53,16 @@ public:
         topology.add(input_layout("shape", shape->get_layout()));
         topology.add(input_layout("min_val", min_val->get_layout()));
         topology.add(input_layout("max_val", max_val->get_layout()));
-        ExecutionConfig config;
+        ExecutionConfig config = get_test_default_config(engine);
         config.set_property(ov::intel_gpu::optimize_data(true));
 
-        cldnn::network net{engine, topology, config};
+        cldnn::network::ptr net = get_network(engine, topology, config, get_test_stream_ptr(), is_caching_test);
 
-        net.set_input_data("shape", shape);
-        net.set_input_data("min_val", min_val);
-        net.set_input_data("max_val", max_val);
+        net->set_input_data("shape", shape);
+        net->set_input_data("min_val", min_val);
+        net->set_input_data("max_val", max_val);
 
-        auto result = net.execute();
+        auto result = net->execute();
 
         auto out_mem = result.at("random_uniform").get_memory();
         cldnn::mem_lock<T> out_ptr(out_mem, get_test_stream());
@@ -105,20 +105,20 @@ using random_uniform_gpu_test_f32 = random_uniform_gpu_test<float>;
 using random_uniform_gpu_test_f16 = random_uniform_gpu_test<half_t>;
 
 TEST_P(random_uniform_gpu_test_i32, random_int32) {
-    ASSERT_NO_FATAL_FAILURE(test());
+    ASSERT_NO_FATAL_FAILURE(test(false));
 }
 
 TEST_P(random_uniform_gpu_test_i64, random_int64) {
-    ASSERT_NO_FATAL_FAILURE(test());
+    ASSERT_NO_FATAL_FAILURE(test(false));
 }
 
 
 TEST_P(random_uniform_gpu_test_f32, random_f32) {
-    ASSERT_NO_FATAL_FAILURE(test());
+    ASSERT_NO_FATAL_FAILURE(test(false));
 }
 
 TEST_P(random_uniform_gpu_test_f16, random_f16) {
-    ASSERT_NO_FATAL_FAILURE(test());
+    ASSERT_NO_FATAL_FAILURE(test(false));
 }
 
 INSTANTIATE_TEST_SUITE_P(smoke_random_uniform_int32,
@@ -186,3 +186,20 @@ INSTANTIATE_TEST_SUITE_P(smoke_random_uniform_f16,
                                  }
                          ),
                          PrintToStringParamName());
+
+#ifdef RUN_ALL_MODEL_CACHING_TESTS
+TEST_P(random_uniform_gpu_test_i32, random_int32_cached) {
+    ASSERT_NO_FATAL_FAILURE(test(true));
+}
+
+TEST_P(random_uniform_gpu_test_i64, random_int64_cached) {
+    ASSERT_NO_FATAL_FAILURE(test(true));
+}
+
+TEST_P(random_uniform_gpu_test_f32, random_f32_cached) {
+    ASSERT_NO_FATAL_FAILURE(test(true));
+}
+#endif
+TEST_P(random_uniform_gpu_test_f16, random_f16_cached) {
+    ASSERT_NO_FATAL_FAILURE(test(true));
+}

@@ -25,7 +25,6 @@
 #include "transformations/common_optimizations/concat_reduce_fusion.hpp"
 #include "transformations/common_optimizations/conv_mul_fusion.hpp"
 #include "transformations/common_optimizations/conv_to_binary_conv.hpp"
-#include "transformations/common_optimizations/convert_compressed_to_mixed_precision.hpp"
 #include "transformations/common_optimizations/convert_compression_only_to_legacy.hpp"
 #include "transformations/common_optimizations/convert_nms_gather_path_to_unsigned.hpp"
 #include "transformations/common_optimizations/convert_quantize_dequantize.hpp"
@@ -93,6 +92,7 @@
 #include "transformations/op_conversions/convert_softmax_upgrade.hpp"
 #include "transformations/op_conversions/convert_space_to_depth.hpp"
 #include "transformations/op_conversions/convert_subtract.hpp"
+#include "transformations/op_conversions/convert_topk11_downgrade.hpp"
 #include "transformations/op_conversions/convert_xor_to_logical_xor.hpp"
 #include "transformations/op_conversions/detection_output_downgrade.hpp"
 #include "transformations/op_conversions/detection_output_upgrade.hpp"
@@ -125,8 +125,6 @@ bool ov::pass::CommonOptimizations::run_on_model(const std::shared_ptr<ov::Model
     // Enabling conversion of FP16 IR to legacy representation, each plugin have to disable it
     // after support for FP16 IR is implemented
     REGISTER_PASS(manager, ConvertCompressedOnlyToLegacy)
-    // should be enabled manually only on plugins supporting mixed precision inference
-    REGISTER_DISABLED_PASS(manager, ConvertCompressedToMixedPrecision);
 
     REGISTER_PASS(manager, MarkDividesInShapeSubgraphs)
     REGISTER_PASS(manager, WeightsDequantizeToFakeQuantize)
@@ -139,7 +137,7 @@ bool ov::pass::CommonOptimizations::run_on_model(const std::shared_ptr<ov::Model
     ADD_MATCHER(common_fusions, ReduceMerge)
     common_fusions->set_name("ngraph::pass::CommonFusions");
 
-    manager.register_pass<ngraph::pass::ConcatReduceFusion>();
+    manager.register_pass<ConcatReduceFusion>();
     REGISTER_DISABLED_PASS(manager, ConvertPadToGroupConvolution)
     REGISTER_DISABLED_PASS(manager, ConvertInterpolate1ToInterpolate4)
 
@@ -163,10 +161,10 @@ bool ov::pass::CommonOptimizations::run_on_model(const std::shared_ptr<ov::Model
     ADD_MATCHER(decomp, ConvertConvertLike)
     ADD_MATCHER(decomp, BatchNormDecomposition)
     ADD_MATCHER(decomp, MVN6Decomposition)
-    decomp->add_matcher<ngraph::pass::NormalizeL2Decomposition, false>();
+    decomp->add_matcher<NormalizeL2Decomposition, false>();
     ADD_MATCHER(decomp, SimplifyCTCGreedyDecoderSeqLen)
     ADD_MATCHER(decomp, EinsumDecomposition)
-    decomp->add_matcher<ngraph::pass::SoftmaxDecomposition, false>();
+    decomp->add_matcher<SoftmaxDecomposition, false>();
     ADD_MATCHER(decomp, SoftSignDecomposition)
     ADD_MATCHER(decomp, GatherNegativeConstIndicesNormalize)
     ADD_MATCHER(decomp, DropoutWithRandomUniformReplacer)
@@ -179,7 +177,7 @@ bool ov::pass::CommonOptimizations::run_on_model(const std::shared_ptr<ov::Model
     REGISTER_PASS(manager, ConstantFolding)
 
     // LinOpSequenceFusion must be executed after all decompositions
-    manager.register_pass<ngraph::pass::LinOpSequenceFusion>();
+    manager.register_pass<LinOpSequenceFusion>();
     REGISTER_PASS(manager, UnrollIf)
 
     auto multiply_fusions = manager.register_pass<GraphRewrite>();
@@ -212,6 +210,7 @@ bool ov::pass::CommonOptimizations::run_on_model(const std::shared_ptr<ov::Model
     REGISTER_PASS(manager, ConvertROIAlign9To3)
     REGISTER_PASS(manager, ConvertMulticlassNms8ToMulticlassNms9)
     REGISTER_PASS(manager, ConvertXorToLogicalXor)
+    REGISTER_PASS(manager, ConvertTopK11ToTopK3)
 
     auto fq_fusions = manager.register_pass<GraphRewrite>();
     ADD_MATCHER(fq_fusions, FakeQuantizeMulFusion)
@@ -225,7 +224,7 @@ bool ov::pass::CommonOptimizations::run_on_model(const std::shared_ptr<ov::Model
     // StridesOptimization should be at the very end
     // because we cannot insert any MaxPools since they may prevent
     // other optimizations
-    manager.register_pass<ngraph::pass::StridesOptimization>();
+    manager.register_pass<StridesOptimization>();
     REGISTER_PASS(manager, Validate)
     manager.run_passes(f);
 

@@ -30,7 +30,7 @@ public:
         return false;
     }
 
-    size_t descInputNumbers(DnnlDesriptor desc) override {
+    size_t descInputNumbers() override {
         return static_cast<size_t>(getParentEdges().size());
     }
 
@@ -80,6 +80,9 @@ private:
                                const dnnl::memory::desc& outMemDesc,
                                const dnnl::engine& engine);
     };
+    // have to hold reference (shared_ptr) to forward convolution primitive_desc
+    // since backward one uses the reference to it as a hint
+    std::vector<dnnl::convolution_forward::primitive_desc> fwdConvPD;
 
     bool withGroups = false;
     bool isDW = false;

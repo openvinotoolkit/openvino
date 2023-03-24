@@ -79,11 +79,3 @@ public:
     OPENVINO_RTTI("ConcatReduceFusion", "0");
     ConcatReduceFusion();
 };
-
-namespace ngraph {
-namespace pass {
-using ov::pass::ConcatReduceFusion;
-using ov::pass::PullSqueezeThroughEltwise;
-using ov::pass::ReplaceConcatReduceByMinOrMax;
-}  // namespace pass
-}  // namespace ngraph

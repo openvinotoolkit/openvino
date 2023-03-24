@@ -46,6 +46,11 @@ void prepare_primitive_fusing_through::run(program& p) {
             if (node->is_type<reshape>() && node->get_dependencies().front().first->is_type<reduce>())
                 return false;
 
+            // Not to raise up target node through reshape where the size of dimension is changed (e.g. Unsqueeze)
+            if (node->is_type<reshape>() &&
+                node->get_output_layout().get_partial_shape().size() != node->get_dependency(0).get_output_layout().get_partial_shape().size())
+                return false;
+
             return true;
         };
 

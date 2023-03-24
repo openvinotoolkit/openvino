@@ -144,9 +144,6 @@ std::vector<std::string> disabledTestPatterns() {
         R"(.*OVInferRequestCheckTensorPrecision.*type=i4.*)",
         R"(.*OVInferRequestCheckTensorPrecision.*type=u1.*)",
         R"(.*OVInferRequestCheckTensorPrecision.*type=u4.*)",
-        // Issue: 75022
-        R"(.*OVExecutableNetworkBaseTest.*LoadNetworkToDefaultDeviceNoThrow.*)",
-        R"(.*IEClassBasicTest.*LoadNetworkToDefaultDeviceNoThrow.*)",
         // Issue: 77390
         R"(.*LoopLayerCPUTest.*exec_cond=0.*)",
         R"(.*LoopLayerCPUTest.*trip_count=0.*)",
@@ -168,15 +165,8 @@ std::vector<std::string> disabledTestPatterns() {
         // Issue: 95590
         R"(.*CachingSupportCase.*CompileModelCacheTestBase.*(TIwithLSTMcell1|MatMulBias|2InputSubtract)_(u|i).*)",
         // Issue: 95607
-        R"(.*OVClass.*LoadNetwork.*LoadNetwork(HETEROAndDeviceIDThrows|MULTIwithAUTONoThrow|HETEROwithMULTINoThrow|MULTIwithHETERONoThrow).*)",
-        R"(.*OVClass.*LoadNetwork.*LoadNetwork(HETEROWithDeviceIDNoThrow|WithDeviceID|WithBigDeviceIDThrows|WithInvalidDeviceIDThrows|HETEROWithBigDeviceIDThrows).*)",
-        R"(.*OVClass.*QueryNetwork.*QueryNetwork(HETEROWithDeviceIDNoThrow|WithDeviceID|WithBigDeviceIDThrows|WithInvalidDeviceIDThrows|HETEROWithBigDeviceIDThrows).*)",
-        R"(.*OVClass.*LoadNetwork.*(DeviceID|MultiWithoutSettingDevicePrioritiesThrows).*)",
-        R"(.*OVClassLoadNetworkTest.*QueryNetwork(MULTIWithHETERO|HETEROWithMULTI)NoThrow_V10.*)",
         R"(.*CachingSupportCase.*LoadNetworkCacheTestBase.*(TIwithLSTMcell1|MatMulBias|2InputSubtract)_(i|u).*)",
         R"(.*CachingSupportCase.*ReadConcatSplitAssign.*)",
-        R"(.*IEClassQueryNetworkTest.*QueryNetwork.*)",
-        R"(.*IEClassLoadNetworkTest.*(Load|Query)Network.*)",
         // Issue: 95239
         // HETERO plugin lacks caching_properties definition
         R"(smoke_Hetero_CachingSupportCase.*)",
@@ -184,16 +174,16 @@ std::vector<std::string> disabledTestPatterns() {
         // The kernel does not have such garbage. The diff 0.000000745 is taken into account in calculations and affects further type conversion.
         // Reorder->GridSample->Reorder also does not work here. Potential fix is to use nearest conversion instead of truncation.
         R"(.*GridSampleLayerTestCPU.*(BILINEAR|BICUBIC).*(i32|i8).*)",
-        // 94989. BF16 Reference produces different results.
-        // GridSample regression on bf16 data.
-        R"(.*GridSampleLayerTestCPU.*(BILINEAR|BICUBIC).*bf16.*)",
         // // Issue: 95915
         R"(smoke_dynamic/AUGRUCellCPUTest.CompareWithRefs/IS=\(\[\?\.1\]_\[\?\.1\]_\[\?\.1\]_\)_TS=\{\(1\.1\)_\(1\.1\)_\(1\.1\)\}_\{\(3\.1\)_\(3\.1\)_\(3\.1\)\}_\{\(5\.1\)_\(5\.1\)_\(5\.1\)\}_decompose=0_activations=\(sigmoid\.tanh\)_clip=0_linear=0_netPrec=f32__inFmts=nc\.nc_outFmts=nc_primitive=ref_any_PluginConf_ENFORCE_BF16=YES)", // NOLINT
         R"(smoke_dynamic/GRUCellCPUTest.CompareWithRefs/IS=\(\[\?.1\]_\[\?\.1\]_\)_TS=\{\(1\.1\)_\(1\.1\)\}_\{\(3\.1\)_\(3\.1\)\}_\{\(5\.1\)_\(5\.1\)\}_decompose=0_activations=\(sigmoid\.tanh\)_clip=0_linear=0_netPrec=f32__inFmts=nc\.nc_outFmts=nc_primitive=ref_any_PluginConf_ENFORCE_BF16=YES)", // NOLINT
         R"(nightly_dynamic_bf16/RNNSequenceCPUTest.*activations=\(relu\).*)",
         R"(smoke_dynamic_BatchSizeOne/RNNSequenceCPUTest.*IS=\(\[1\.\?\.10\]_\[1\.1\.10\]_\[\?\]_\)_TS=\{\(1\.2\.10\)_\(1\.1\.10\)_\(1\)\}_\{\(1\.4\.10\)_\(1\.1\.10\)_\(1\)\}_\{\(1\.8\.10\)_\(1\.1\.10\)_\(1\)\}_seqMode=PURE_SEQ_activations=\(relu\)_clip=0_direction=forward_netPrec=f32__inFmts=ncw\.ntc_outFmts=ncw\.ncw_primitive=ref_any)", // NOLINT
         // 98151. Not valid sorting for slices in reference.
-        R"(.*UniqueLayerTestCPU.*axis.*True.*)"
+        R"(.*UniqueLayerTestCPU.*axis.*True.*)",
+        // Issue: 104402. Incorrect broadcasting in FQ reference implentation
+        R"(.*smoke_FakeQuantizeLayerCPUTest_Decompos.*IS=\[4\.5\.6\.6\]_TS=\(\(4\.5\.6\.6\)\)_RS=\(\(1\.1\.6\.6\)\)_\(\(1\.1\.6\.6\)\)_\(\(1\.5\.6\.1\)\)_\(\(1\.5\.1\.6\)\).*)",
+        R"(.*smoke_FakeQuantizeLayerCPUTest_Decompos.*IS=\[4\.5\.6\.6\]_TS=\(\(4\.5\.6\.6\)\)_RS=\(\(1\.5\.6\.1\)\)_\(\(1\.5\.6\.1\)\)_\(\(1\.5\.6\.1\)\)_\(\(1\.5\.1\.6\)\).*)",
     };
 
 #define FIX_62820 0

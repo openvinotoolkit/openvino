@@ -4,114 +4,26 @@
 
 #include "threading/ie_thread_affinity.hpp"
 
-#include <cerrno>
-#include <climits>
-#include <tuple>
-#include <utility>
-
-#include "ie_system_conf.h"
-
-#if !(defined(__APPLE__) || defined(__EMSCRIPTEN__) || defined(_WIN32))
-#    include <sched.h>
-#    include <unistd.h>
-#endif
+#include "dev/threading/thread_affinity.hpp"
 
 namespace InferenceEngine {
-#if !(defined(__APPLE__) || defined(__EMSCRIPTEN__) || defined(_WIN32))
+
 std::tuple<CpuSet, int> GetProcessMask() {
-    for (int ncpus = sizeof(cpu_set_t) / CHAR_BIT; ncpus < 32768 /* reasonable limit of #cores*/; ncpus <<= 1) {
-        CpuSet mask{CPU_ALLOC(ncpus)};
-        if (nullptr == mask)
-            break;
-        const size_t size = CPU_ALLOC_SIZE(ncpus);
-        CPU_ZERO_S(size, mask.get());
-        // the result fits the mask
-        if (0 == sched_getaffinity(getpid(), size, mask.get())) {
-            return std::make_tuple(std::move(mask), ncpus);
-        }
-        // other error
-        if (errno != EINVAL)
-            break;
-    }
-    return std::make_tuple(nullptr, 0);
+    return ov::threading::get_process_mask();
 }
 
-/* Release the cores affinity mask for the current process */
 void ReleaseProcessMask(cpu_set_t* mask) {
-    if (nullptr != mask)
-        CPU_FREE(mask);
-}
-
-bool PinCurrentThreadByMask(int ncores, const CpuSet& procMask) {
-    return 0 == sched_setaffinity(0, CPU_ALLOC_SIZE(ncores), procMask.get());
+    ov::threading::release_process_mask(mask);
 }
 
 bool PinThreadToVacantCore(int thrIdx, int hyperthreads, int ncores, const CpuSet& procMask, int cpuIdxOffset) {
-    if (procMask == nullptr)
-        return false;
-    const size_t size = CPU_ALLOC_SIZE(ncores);
-    const int num_cpus = CPU_COUNT_S(size, procMask.get());
-    thrIdx %= num_cpus;  // To limit unique number in [; num_cpus-1] range
-    // Place threads with specified step
-    int cpu_idx = cpuIdxOffset;
-    for (int i = 0, offset = 0; i < thrIdx; ++i) {
-        cpu_idx += hyperthreads;
-        if (cpu_idx >= num_cpus)
-            cpu_idx = ++offset;
-    }
-
-    // Find index of 'cpu_idx'-th bit that equals to 1
-    int mapped_idx = cpuIdxOffset - 1;
-    while (cpu_idx >= cpuIdxOffset) {
-        mapped_idx++;
-        if (CPU_ISSET_S(mapped_idx, size, procMask.get()))
-            --cpu_idx;
-    }
-
-    CpuSet targetMask{CPU_ALLOC(ncores)};
-    CPU_ZERO_S(size, targetMask.get());
-    CPU_SET_S(mapped_idx, size, targetMask.get());
-    bool res = PinCurrentThreadByMask(ncores, targetMask);
-    return res;
-}
-
-bool PinCurrentThreadToSocket(int socket) {
-    const int sockets = InferenceEngine::getAvailableNUMANodes().size();
-    const int cores = InferenceEngine::getNumberOfCPUCores();
-    const int cores_per_socket = cores / sockets;
-
-    int ncpus = 0;
-    CpuSet mask;
-    std::tie(mask, ncpus) = GetProcessMask();
-    CpuSet targetMask{CPU_ALLOC(ncpus)};
-    const size_t size = CPU_ALLOC_SIZE(ncpus);
-    CPU_ZERO_S(size, targetMask.get());
-
-    for (int core = socket * cores_per_socket; core < (socket + 1) * cores_per_socket; core++) {
-        CPU_SET_S(core, size, targetMask.get());
-    }
-    // respect the user-defined mask for the entire process
-    CPU_AND_S(size, targetMask.get(), targetMask.get(), mask.get());
-    bool res = false;
-    if (CPU_COUNT_S(size, targetMask.get())) {  //  if we have non-zero mask to set
-        res = PinCurrentThreadByMask(ncpus, targetMask);
-    }
-    return res;
-}
-#else   // no threads pinning/binding on Win/MacOS
-std::tuple<CpuSet, int> GetProcessMask() {
-    return std::make_tuple(nullptr, 0);
-}
-void ReleaseProcessMask(cpu_set_t*) {}
-
-bool PinThreadToVacantCore(int thrIdx, int hyperthreads, int ncores, const CpuSet& procMask, int cpuIdxOffset) {
-    return false;
+    return ov::threading::pin_thread_to_vacant_core(thrIdx, hyperthreads, ncores, procMask, cpuIdxOffset);
 }
 bool PinCurrentThreadByMask(int ncores, const CpuSet& procMask) {
-    return false;
+    return ov::threading::pin_current_thread_by_mask(ncores, procMask);
 }
 bool PinCurrentThreadToSocket(int socket) {
-    return false;
+    return ov::threading::pin_current_thread_to_socket(socket);
 }
-#endif  // !(defined(__APPLE__) || defined(__EMSCRIPTEN__) || defined(_WIN32))
+
 }  //  namespace InferenceEngine

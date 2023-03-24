@@ -76,6 +76,30 @@ def test_main_error_log():
     assert test_log == ref_log
 
 
+def test_mo_convert_logger():
+    setup_env()
+    args = [sys.executable,
+            os.path.join(os.path.dirname(__file__), 'convert/logger_test_actual.py')]
+
+    status = subprocess.run(args, env=os.environ, capture_output=True)
+    test_log = status.stdout.decode("utf-8").replace("\r\n", "\n")
+
+    assert "test message 1" in test_log
+    assert "test message 2" in test_log
+    assert "test message 3" in test_log
+
+    assert test_log.count("[ SUCCESS ] Total execution time") == 2
+
+
+def test_rt_info():
+    setup_env()
+    args = [sys.executable, '-m', 'pytest',
+            os.path.join(os.path.dirname(__file__), 'convert/meta_data_test_actual.py'), '-s']
+
+    status = subprocess.run(args, env=os.environ, capture_output=True)
+    assert not status.returncode
+
+
 def test_mo_extensions_test():
     setup_env()
     args = [sys.executable, '-m', 'pytest',

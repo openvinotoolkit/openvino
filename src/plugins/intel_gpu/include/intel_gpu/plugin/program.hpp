@@ -34,11 +34,11 @@ enum class eltwise_mode : int32_t;
 #define REGISTER_FACTORY_IMPL(op_version, op_name)                                                \
 void __register ## _ ## op_name ## _ ## op_version();                                             \
 void __register ## _ ## op_name ## _ ## op_version() {                                            \
-    Program::RegisterFactory<ngraph::op::op_version::op_name>(                                    \
-    [](Program& p, const std::shared_ptr<ngraph::Node>& op) {                                     \
-        auto op_casted = std::dynamic_pointer_cast<ngraph::op::op_version::op_name>(op);          \
+    Program::RegisterFactory<ov::op::op_version::op_name>(                                        \
+    [](Program& p, const std::shared_ptr<ov::Node>& op) {                                         \
+        auto op_casted = std::dynamic_pointer_cast<ov::op::op_version::op_name>(op);              \
         if (!op_casted)                                                                           \
-            IE_THROW() << "Invalid ngraph Node type passed into " << __PRETTY_FUNCTION__;         \
+            IE_THROW() << "Invalid ov Node type passed into " << __PRETTY_FUNCTION__;             \
         Create##op_name##Op(p, op_casted);                                                        \
        });                                                                                        \
 }
@@ -82,7 +82,8 @@ public:
 class Program {
 public:
     Program(InferenceEngine::CNNNetwork& network, cldnn::engine& engine, const ExecutionConfig& config,
-            bool createTopologyOnly = false, bool partialBuild = false);
+            bool createTopologyOnly = false, bool partialBuild = false,
+            InferenceEngine::InputsDataMap* inputs = nullptr, InferenceEngine::OutputsDataMap* outputs = nullptr);
     Program(cldnn::engine& engine, const ExecutionConfig& config)
         : m_max_batch(1)
         , m_curBatch(-1)
@@ -194,7 +195,10 @@ private:
 void CreateCustomOp(Program& p, const std::shared_ptr<ngraph::Node>& node, CustomLayerPtr customLayer);
 void CreateUnaryEltwiseOp(Program& p, const std::shared_ptr<ngraph::Node>& node,
                           cldnn::activation_func func, cldnn::activation_additional_params params);
-void CreateElementwiseOp(Program& p, const std::shared_ptr<ngraph::Node>& node, cldnn::eltwise_mode mode);
+void CreateElementwiseOp(Program& p,
+                         const std::shared_ptr<ngraph::Node>& node,
+                         cldnn::eltwise_mode mode,
+                         std::vector<float> coefficients = {});
 
 bool IsNodeOnConstPath(const std::shared_ptr<ngraph::Node>& node);
 

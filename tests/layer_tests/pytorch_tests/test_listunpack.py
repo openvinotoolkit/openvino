@@ -124,3 +124,81 @@ class TestListUnpack(PytorchLayerTest):
             precision,
             ir_version
         )
+
+class TestMeshgridListUnpack(PytorchLayerTest):
+    def _prepare_input(self):
+        return (
+            np.random.randn(3),
+            np.random.randn(5),
+            np.random.randn(7),
+            np.random.randn(11),
+        )
+
+    def create_model_meshgrid_listunpack_1_in(self, idx):
+        class prim_listunpack(torch.nn.Module):
+            def __init__(self, idx):
+                self.idx = idx
+                super(prim_listunpack, self).__init__()
+
+            def forward(self, in1, in2, in3, in4):
+                (
+                    a,
+                ) = torch.meshgrid(in1, indexing=self.idx)
+                return a
+
+        ref_net = None
+
+        return prim_listunpack(idx), ref_net, "prim::ListUnpack"
+
+    def create_model_meshgrid_listunpack_2_in(self, idx):
+        class prim_listunpack(torch.nn.Module):
+            def __init__(self, idx):
+                self.idx = idx
+                super(prim_listunpack, self).__init__()
+
+            def forward(self, in1, in2, in3, in4):
+                (
+                    a,
+                    b,
+                ) = torch.meshgrid(in1, in2, indexing=self.idx)
+                return a, b
+
+        ref_net = None
+
+        return prim_listunpack(idx), ref_net, "prim::ListUnpack"
+
+    def create_model_meshgrid_listunpack_3_in(self, idx):
+        class prim_listunpack(torch.nn.Module):
+            def __init__(self, idx):
+                self.idx = idx
+                super(prim_listunpack, self).__init__()
+
+            def forward(self, in1, in2, in3, in4):
+                a, b, c = torch.meshgrid(in1, in2, in3, indexing=self.idx)
+                return a, b, c
+
+        ref_net = None
+
+        return prim_listunpack(idx), ref_net, "prim::ListUnpack"
+
+    def create_model_meshgrid_listunpack_4_in(self, idx):
+        class prim_listunpack(torch.nn.Module):
+            def __init__(self, idx):
+                self.idx = idx
+                super(prim_listunpack, self).__init__()
+
+            def forward(self, in1, in2, in3, in4):
+                a, b, c, d = torch.meshgrid(in1, in2, in3, in4, indexing=self.idx)
+                return a, b, c, d
+
+        ref_net = None
+
+        return prim_listunpack(idx), ref_net, "prim::ListUnpack"
+
+    @pytest.mark.parametrize("idx", ["ij", "xy"])
+    @pytest.mark.parametrize("inp", [1, 2, 3, 4])
+    @pytest.mark.nightly
+    @pytest.mark.precommit
+    def test_meshgrid_listunpack(self, idx, inp, ie_device, precision, ir_version):
+        func = getattr(self, f"create_model_meshgrid_listunpack_{inp}_in")
+        self._test(*func(idx), ie_device, precision, ir_version)

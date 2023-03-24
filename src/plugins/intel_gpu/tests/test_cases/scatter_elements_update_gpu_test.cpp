@@ -16,7 +16,8 @@ using namespace cldnn;
 using namespace ::tests;
 
 
-TEST(scatter_elements_update_gpu_fp16, d2411_axisF) {
+template <typename T>
+void test_d2411_axisF(bool is_caching_test) {
     //  Dictionary : 2x4x1x1
     //  Indexes : 2x2x1x1
     //  Updates : 2x2x1x1
@@ -70,18 +71,18 @@ TEST(scatter_elements_update_gpu_fp16, d2411_axisF) {
         scatter_elements_update("scatter_elements_update", input_info("InputData"), input_info("InputIndices"), input_info("InputUpdates"), axis)
     );
 
-    network network(engine, topology);
+    cldnn::network::ptr network = get_network(engine, topology, get_test_default_config(engine), get_test_stream_ptr(), is_caching_test);
 
-    network.set_input_data("InputData", input1);
-    network.set_input_data("InputIndices", input2);
-    network.set_input_data("InputUpdates", input3);
+    network->set_input_data("InputData", input1);
+    network->set_input_data("InputIndices", input2);
+    network->set_input_data("InputUpdates", input3);
 
-    auto outputs = network.execute();
+    auto outputs = network->execute();
 
     auto output = outputs.at("scatter_elements_update").get_memory();
     cldnn::mem_lock<uint16_t> output_ptr(output, get_test_stream());
 
-    std::vector<float> expected_results = {
+    std::vector<T> expected_results = {
         10.f, 11.f, 5.f, 4.f,
         1.f, 7.f, 12.f, 13.f
     };
@@ -89,6 +90,10 @@ TEST(scatter_elements_update_gpu_fp16, d2411_axisF) {
     for (size_t i = 0; i < expected_results.size(); ++i) {
         ASSERT_EQ(expected_results[i], half_to_float(output_ptr[i]));
     }
+}
+
+TEST(scatter_elements_update_gpu_fp16, d2411_axisF) {
+    test_d2411_axisF<float>(false);
 }
 
 namespace {
@@ -253,7 +258,7 @@ template<typename T>
 struct scatter_elements_update_gpu_formats_test
         : public ::testing::TestWithParam<ScatterElementsUpdateParamsWithFormat<T> > {
 public:
-    void test() {
+    void test(bool is_caching_test) {
         const auto data_type = type_to_data_type<T>::value;
         ScatterElementsUpdateParams<T> params;
         format::type plain_format;
@@ -291,13 +296,13 @@ public:
         );
         topology.add(reorder("ScatterEelementsUpdatePlain", input_info("ScatterEelementsUpdate"), plain_format, data_type));
 
-        network network{engine, topology};
+        cldnn::network::ptr network = get_network(engine, topology, get_test_default_config(engine), get_test_stream_ptr(), is_caching_test);
 
-        network.set_input_data("Data", data);
-        network.set_input_data("Indices", indices);
-        network.set_input_data("Updates", updates);
+        network->set_input_data("Data", data);
+        network->set_input_data("Indices", indices);
+        network->set_input_data("Updates", updates);
 
-        const auto outputs = network.execute();
+        const auto outputs = network->execute();
         const auto output = outputs.at("ScatterEelementsUpdatePlain").get_memory();
         const cldnn::mem_lock<T> output_ptr(output, get_test_stream());
 
@@ -315,15 +320,15 @@ using scatter_elements_update_gpu_formats_test_f16 = scatter_elements_update_gpu
 using scatter_elements_update_gpu_formats_test_i32 = scatter_elements_update_gpu_formats_test<int32_t>;
 
 TEST_P(scatter_elements_update_gpu_formats_test_f32, basic) {
-    ASSERT_NO_FATAL_FAILURE(test());
+    ASSERT_NO_FATAL_FAILURE(test(false));
 }
 
 TEST_P(scatter_elements_update_gpu_formats_test_f16, basic) {
-    ASSERT_NO_FATAL_FAILURE(test());
+    ASSERT_NO_FATAL_FAILURE(test(false));
 }
 
 TEST_P(scatter_elements_update_gpu_formats_test_i32, basic) {
-    ASSERT_NO_FATAL_FAILURE(test());
+    ASSERT_NO_FATAL_FAILURE(test(false));
 }
 
 
@@ -392,3 +397,20 @@ INSTANTIATE_TEST_SUITE_P(scatter_elements_update_gpu_formats_test_mixed_inputs,
                                  ::testing::ValuesIn({format::bs_fs_yx_bsv32_fsv32, format::bfyx})
                          ),
                          PrintToStringParamName());
+
+#ifdef RUN_ALL_MODEL_CACHING_TESTS
+TEST_P(scatter_elements_update_gpu_formats_test_f32, basic_cached) {
+    ASSERT_NO_FATAL_FAILURE(test(true));
+}
+
+TEST_P(scatter_elements_update_gpu_formats_test_f16, basic_cached) {
+    ASSERT_NO_FATAL_FAILURE(test(true));
+}
+
+TEST_P(scatter_elements_update_gpu_formats_test_i32, basic_cached) {
+    ASSERT_NO_FATAL_FAILURE(test(true));
+}
+#endif
+TEST(scatter_elements_update_gpu_fp16, d2411_axisF_cached) {
+    test_d2411_axisF<float>(true);
+}

@@ -33,7 +33,7 @@ target_include_directories(${TARGET_NAME} PUBLIC
 target_compile_options(${TARGET_NAME} PRIVATE
   $<$<CONFIG:Release>:$<IF:$<CXX_COMPILER_ID:MSVC>,/Os,-Os>>)
 
-target_link_libraries(${TARGET_NAME} PUBLIC OpenCL)
+target_link_libraries(${TARGET_NAME} PUBLIC OpenCL::OpenCL)
 target_link_libraries(${TARGET_NAME} PRIVATE openvino_intel_gpu_kernels
                                              openvino_intel_gpu_runtime
                                              ov_shape_inference
@@ -61,5 +61,9 @@ endif()
 
 ov_install_static_lib(${TARGET_NAME} gpu)
 
-ie_sse42_optimization_flags(sse4_2_flags)
-set_source_files_properties(impls/cpu/detection_output.cpp half.cpp PROPERTIES COMPILE_FLAGS "${sse4_2_flags}")
+if(ENABLE_SSE42)
+  ie_sse42_optimization_flags(sse4_2_flags)
+  set_source_files_properties(impls/cpu/detection_output.cpp half.cpp PROPERTIES
+    COMPILE_FLAGS "${sse4_2_flags}"
+    COMPILE_DEFINITIONS "HAVE_SSE")
+endif()

@@ -22,9 +22,3 @@ public:
     OPENVINO_RTTI("ConvertTopK3", "0");
     ConvertTopK3();
 };
-
-namespace ngraph {
-namespace pass {
-using ov::pass::ConvertTopK3;
-}  // namespace pass
-}  // namespace ngraph

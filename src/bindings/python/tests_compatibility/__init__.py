@@ -142,5 +142,6 @@ xfail_issue_90649 = xfail_test(reason="RuntimeError: OV does not support the fol
                                       "MelWeightMatrix, SequenceMap, STFT")
 xfail_issue_91151 = xfail_test(reason="RuntimeError: model input (shape={3,4}) and blob (shape=(1)) are incompatible")
 xfail_issue_91490 = xfail_test(reason="y has zero dimension which is not allowed")
+xfail_issue_101965 = xfail_test(reason="Mismatch with numpy-based expected results.")
 
 skip_dynamic_model = pytest.mark.skip(reason="CPU plug-in can't load a model with dynamic output shapes via legacy API")

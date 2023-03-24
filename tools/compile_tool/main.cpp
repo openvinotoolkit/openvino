@@ -576,7 +576,7 @@ static bool parseCommandLine(int* argc, char*** argv) {
         std::stringstream message;
         message << "Unknown arguments: ";
         for (auto arg = 1; arg < *argc; arg++) {
-            message << argv[arg];
+            message << (*argv)[arg];
             if (arg < *argc) {
                 message << " ";
             }

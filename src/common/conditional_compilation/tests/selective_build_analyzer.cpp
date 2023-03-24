@@ -58,6 +58,9 @@ struct TestNode : public TestNodeBase {
 }  // namespace
 
 TEST(ConditionalCompilationTests, SimpleScopeAnalysys) {
+    auto func = SIMPLE_CCTests;
+    (void)func;
+
     int n = 0;
 
     OV_SCOPE(CCTests, Scope0) n = 42;

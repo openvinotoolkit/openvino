@@ -106,8 +106,8 @@ std::shared_ptr<ngraph::Function> AlignConcatQuantizationParametersFunction::get
         fakeQuantizeOnWeights->set_friendly_name("fakeQuantizeOnWeights");
 
         parent = std::make_shared<ngraph::opset1::Convolution>(
-            ngraph::op::TemporaryReplaceOutputType(parent, precision).get(),
-            ngraph::op::TemporaryReplaceOutputType(fakeQuantizeOnWeights, precision).get(),
+            ov::op::TemporaryReplaceOutputType(parent, precision).get(),
+            ov::op::TemporaryReplaceOutputType(fakeQuantizeOnWeights, precision).get(),
             ngraph::Strides{ 1, 1 },
             ngraph::CoordinateDiff{ 0, 0 },
             ngraph::CoordinateDiff{ 0, 0 },
@@ -217,8 +217,8 @@ std::shared_ptr<ngraph::Function> AlignConcatQuantizationParametersFunction::get
             std::vector<size_t>(outputChannels * inputChannels, 127));
 
         parent = std::make_shared<ngraph::opset1::Convolution>(
-            ngraph::op::TemporaryReplaceOutputType(parent, precision).get(),
-            ngraph::op::TemporaryReplaceOutputType(onWeights, precision).get(),
+            ov::op::TemporaryReplaceOutputType(parent, precision).get(),
+            ov::op::TemporaryReplaceOutputType(onWeights, precision).get(),
             ngraph::Strides{ 1, 1 },
             ngraph::CoordinateDiff{ 0, 0 },
             ngraph::CoordinateDiff{ 0, 0 },

@@ -38,7 +38,6 @@ ParamsKey ConvolutionKernel_Ref::GetSupportedKey() const {
     k.EnableBiasPerOutput();
     k.EnableNonBiasTerm();
     k.EnableBatching();
-    k.DisableTuning();
     k.EnableGroupedConvolution();
 
     k.EnableQuantization(QuantizationType::SYMMETRIC);

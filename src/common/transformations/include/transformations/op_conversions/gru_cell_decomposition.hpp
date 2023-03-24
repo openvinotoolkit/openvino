@@ -38,9 +38,3 @@ public:
     OPENVINO_RTTI("GRUCellDecomposition", "0");
     GRUCellDecomposition();
 };
-
-namespace ngraph {
-namespace pass {
-using ov::pass::GRUCellDecomposition;
-}  // namespace pass
-}  // namespace ngraph

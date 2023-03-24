@@ -6,7 +6,6 @@
 
 #include <algorithm>
 #include <iterator>
-#include <ngraph/validation_util.hpp>
 #include <sstream>
 
 #include "itt.hpp"
@@ -15,6 +14,7 @@
 #include "ngraph/op/constant.hpp"
 #include "ngraph/op/util/op_types.hpp"
 #include "ngraph/runtime/reference/reverse.hpp"
+#include "reverse_shape_inference.hpp"
 
 using namespace std;
 using namespace ngraph;
@@ -43,66 +43,15 @@ void op::v1::Reverse::validate_and_infer_types() {
         NODE_VALIDATION_CHECK(this,
                               get_input_element_type(1) == element::boolean,
                               "In 'mask' mode the second input must contain boolean values.");
-    }
-
-    const auto input_shape = get_input_partial_shape(0);
-    const auto input_rank = input_shape.rank();
-
-    const auto rev_axes_shape = get_input_partial_shape(1);
-    const auto rev_axes_rank = rev_axes_shape.rank();
-
-    if (rev_axes_rank.is_static()) {
+    } else {
+        // Index mode
         NODE_VALIDATION_CHECK(this,
-                              rev_axes_rank.get_length() == 1,
-                              "The reversed_axes input must be a 1D tensor (got ",
-                              rev_axes_rank.get_length(),
-                              ").");
-
-        if (m_mode == Mode::MASK) {
-            if (input_rank.is_static() && rev_axes_shape[0].is_static()) {
-                const auto rev_axes_mask_elems_count = rev_axes_shape[0].get_length();
-                NODE_VALIDATION_CHECK(this,
-                                      rev_axes_mask_elems_count == input_rank.get_length(),
-                                      "The number of elements in the reversed_axes tensor (",
-                                      rev_axes_mask_elems_count,
-                                      ") must match the input data tensor rank (",
-                                      input_rank.get_length(),
-                                      ") in 'mask' mode.");
-            }
-        }
+                              get_input_element_type(1).is_integral_number(),
+                              "In 'index' mode the second input must contain integer values.");
     }
 
-    if (input_rank.is_static()) {
-        const size_t rank = input_rank.get_length();
-
-        if (const auto& rev_axes_constant = get_constant_from_source(input_value(1))) {
-            if (m_mode == Mode::INDEX) {
-                const AxisSet rev_axes = rev_axes_constant->get_axis_set_val();
-
-                NODE_VALIDATION_CHECK(this,
-                                      rev_axes.size() <= rank,
-                                      "Too many axes(",
-                                      rev_axes,
-                                      ") have been provided for given input shape(",
-                                      input_shape,
-                                      ").");
-
-                bool all_axes_in_range = all_of(rev_axes.begin(), rev_axes.end(), [&rank](const size_t axis) {
-                    return axis < rank;
-                });
-
-                NODE_VALIDATION_CHECK(this,
-                                      all_axes_in_range,
-                                      "Some of the provided axes (",
-                                      rev_axes,
-                                      ") are out of bounds (input rank: ",
-                                      input_rank.get_length(),
-                                      ").");
-            }
-        }
-    }
-
-    set_output_type(0, get_input_element_type(0), input_shape);
+    const auto output_shape = shape_infer(this, get_node_input_partial_shapes(*this)).front();
+    set_output_type(0, get_input_element_type(0), output_shape);
 }
 
 shared_ptr<Node> op::v1::Reverse::clone_with_new_inputs(const OutputVector& new_args) const {

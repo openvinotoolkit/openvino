@@ -24,6 +24,14 @@ if(ENABLE_OV_IR_FRONTEND)
     add_subdirectory(ir)
 endif()
 
+if(ENABLE_OV_TF_FRONTEND OR ENABLE_OV_TF_LITE_FRONTEND)
+    add_subdirectory(tensorflow_common)
+endif()
+
 if(ENABLE_OV_TF_FRONTEND)
     add_subdirectory(tensorflow)
+endif()
+
+if (ENABLE_OV_TF_LITE_FRONTEND)
+    add_subdirectory(tensorflow_lite)
 endif()

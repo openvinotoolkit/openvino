@@ -394,3 +394,48 @@ ov_status_e ov_core_compile_model_from_file_unicode(const ov_core_t* core,
     return ov_status_e::OK;
 }
 #endif
+
+ov_status_e ov_core_compile_model_with_context(const ov_core_t* core,
+                                               const ov_model_t* model,
+                                               const ov_remote_context_t* context,
+                                               const size_t property_args_size,
+                                               ov_compiled_model_t** compiled_model,
+                                               ...) {
+    if (!core || !model || !context || !compiled_model || property_args_size % 2 != 0) {
+        return ov_status_e::INVALID_C_PARAM;
+    }
+
+    try {
+        ov::AnyMap property = {};
+        va_list args_ptr;
+        va_start(args_ptr, compiled_model);
+        size_t property_size = property_args_size / 2;
+        for (size_t i = 0; i < property_size; i++) {
+            GET_PROPERTY_FROM_ARGS_LIST;
+        }
+        va_end(args_ptr);
+
+        ov::CompiledModel object = core->object->compile_model(model->object, *context->object, property);
+        std::unique_ptr<ov_compiled_model_t> _compiled_model(new ov_compiled_model_t);
+        _compiled_model->object = std::make_shared<ov::CompiledModel>(std::move(object));
+        *compiled_model = _compiled_model.release();
+    }
+    CATCH_OV_EXCEPTIONS
+    return ov_status_e::OK;
+}
+
+ov_status_e ov_core_get_default_context(const ov_core_t* core, const char* device_name, ov_remote_context_t** context) {
+    if (!core || !device_name || !context) {
+        return ov_status_e::INVALID_C_PARAM;
+    }
+    try {
+        std::string dev_name = device_name;
+        ov::RemoteContext object = core->object->get_default_context(dev_name);
+
+        std::unique_ptr<ov_remote_context> _context(new ov_remote_context);
+        _context->object = std::make_shared<ov::RemoteContext>(std::move(object));
+        *context = _context.release();
+    }
+    CATCH_OV_EXCEPTIONS
+    return ov_status_e::OK;
+}

@@ -192,7 +192,7 @@ public:
      *
      * @param dims new shape
      */
-    void setShape(const SizeVector& dims);
+    virtual void setShape(const SizeVector& dims);
 
     /**
      * @deprecated Cast to MemoryBlob and use new wlock/rwlock API instead.
@@ -809,7 +809,7 @@ protected:
 };
 
 // These should not be exported for WIN32 to avoid usage of '_handle' and '_allocator' across CRT bounaries
-#ifndef WIN32
+#ifndef _WIN32
 extern template class INFERENCE_ENGINE_API_CLASS(InferenceEngine::TBlob<float>);
 extern template class INFERENCE_ENGINE_API_CLASS(InferenceEngine::TBlob<double>);
 extern template class INFERENCE_ENGINE_API_CLASS(InferenceEngine::TBlob<int8_t>);

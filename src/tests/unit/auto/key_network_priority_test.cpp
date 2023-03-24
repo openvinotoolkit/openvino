@@ -16,7 +16,6 @@
 #include <gtest/gtest.h>
 #include <gmock/gmock.h>
 #include "plugin/mock_auto_device_plugin.hpp"
-#include "cpp/ie_plugin.hpp"
 #include "mock_common.hpp"
 
 using ::testing::MatcherCast;
@@ -97,6 +96,10 @@ public:
                    const std::string& netPrecision, unsigned int Priority) {
                return plugin->MultiDeviceInferencePlugin::SelectDevice(metaDevices, netPrecision, Priority);
                });
+       ON_CALL(*plugin, GetValidDevice)
+           .WillByDefault([this](const std::vector<DeviceInformation>& metaDevices, const std::string& netPrecision) {
+               return plugin->MultiDeviceInferencePlugin::GetValidDevice(metaDevices, netPrecision);
+           });
     }
 };
 

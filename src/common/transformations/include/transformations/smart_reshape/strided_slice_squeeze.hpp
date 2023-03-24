@@ -55,11 +55,3 @@ public:
     OPENVINO_RTTI("SharedSqueeze", "0");
     bool run_on_model(const std::shared_ptr<ov::Model>& m) override;
 };
-
-namespace ngraph {
-namespace pass {
-using ov::pass::SharedSqueeze;
-using ov::pass::SqueezeStridedSlice;
-using ov::pass::StridedSliceSqueeze;
-}  // namespace pass
-}  // namespace ngraph

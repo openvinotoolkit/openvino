@@ -38,8 +38,8 @@ TEST_P(SoftmaxFusionFixture, SoftmaxFusion) {
         auto unh = std::make_shared<ngraph::pass::UniqueNamesHolder>();
         pass::Manager m;
         m.register_pass<pass::InitUniqueNames>(unh);
-        m.register_pass<pass::InitNodeInfo>();
-        m.register_pass<pass::SoftmaxFusion>();
+        m.register_pass<ov::pass::InitNodeInfo>();
+        m.register_pass<ov::pass::SoftmaxFusion>();
         m.register_pass<pass::CheckUniqueNames>(unh);
         m.run_passes(f);
         ASSERT_NO_THROW(check_rt_info(f));
@@ -92,8 +92,8 @@ TEST_P(NegativeSoftmaxFusionFixture, NegativeSoftmaxFusion) {
         auto unh = std::make_shared<ngraph::pass::UniqueNamesHolder>();
         pass::Manager m;
         m.register_pass<pass::InitUniqueNames>(unh);
-        m.register_pass<pass::InitNodeInfo>();
-        m.register_pass<pass::SoftmaxFusion>();
+        m.register_pass<ov::pass::InitNodeInfo>();
+        m.register_pass<ov::pass::SoftmaxFusion>();
         m.register_pass<pass::CheckUniqueNames>(unh);
         m.run_passes(f);
         ASSERT_NO_THROW(check_rt_info(f));

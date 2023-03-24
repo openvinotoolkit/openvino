@@ -45,7 +45,36 @@ KernelsPriority SoftmaxKernelRef::GetKernelsPriority(const Params& /*params*/, c
 }
 
 KernelsData SoftmaxKernelRef::GetKernelsData(const Params& params, const optional_params& options) const {
-    return GetCommonKernelsData(params, options);
+    KernelsData kds = GetCommonKernelsData(params, options);
+    if (!kds.empty()) {
+        const softmax_params& orgParams = static_cast<const softmax_params&>(params);
+        bool is_dynamic = orgParams.outputs[0].is_dynamic();
+
+        kds[0].update_dispatch_data_func = [this](const Params& params, KernelData& kd) {
+            const auto& prim_params = static_cast<const softmax_params&>(params);
+            auto dispatchData = SetDefault(prim_params);
+            OPENVINO_ASSERT(kd.kernels.size() == 1, "[GPU] Invalid kernels size for update dispatch data func");
+            kd.kernels[0].params.workGroups.global = dispatchData.gws;
+            kd.kernels[0].params.workGroups.local = dispatchData.lws;
+            kd.internalBufferSizes.clear();
+            kd.internalBufferSizes.push_back(prim_params.inputs[0].PhysicalSizeInBytes());
+            kd.internalBufferDataType = prim_params.inputs[0].GetDType();
+        };
+
+        if (is_dynamic) {
+            auto& args = kds[0].kernels[0].params.arguments;
+            args.clear();
+            args.push_back({ArgumentDescriptor::Types::SHAPE_INFO, 0});
+            args.push_back({ArgumentDescriptor::Types::INPUT, 0});
+            args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 0});
+            args.push_back({ArgumentDescriptor::Types::OUTPUT, 0});
+
+            kds[0].internalBufferSizes.clear();
+            kds[0].internalBufferSizes.push_back(orgParams.inputs[0].PhysicalSizeInBytes());
+            kds[0].internalBufferDataType = orgParams.inputs[0].GetDType();
+        }
+    }
+    return kds;
 }
 
 JitConstants SoftmaxKernelRef::GetJitConstants(const softmax_params& params, DispatchData dispatchData) const {

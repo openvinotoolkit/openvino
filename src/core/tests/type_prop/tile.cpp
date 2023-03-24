@@ -139,6 +139,24 @@ TEST_F(TypePropTileTest, preserve_partial_values_and_labels) {
                 ElementsAre(ov::no_label, ov::no_label, ov::no_label, 23, 24));
 }
 
+TEST_F(TypePropTileTest, repeats_has_dynamic_shape) {
+    const auto data = make_shared<op::Parameter>(element::f32, PartialShape{1, 3, 10, 2, 5});
+    const auto repeats = make_shared<op::Parameter>(element::i32, PartialShape::dynamic());
+
+    const auto op = make_op(data, repeats);
+
+    EXPECT_EQ(op->get_output_partial_shape(0), PartialShape::dynamic());
+}
+
+TEST_F(TypePropTileTest, repeats_has_interval_shape) {
+    const auto data = make_shared<op::Parameter>(element::f32, PartialShape{1, 3, 10, 2, 5});
+    const auto repeats = make_shared<op::Parameter>(element::i32, PartialShape{{3, 10}});
+
+    const auto op = make_op(data, repeats);
+
+    EXPECT_EQ(op->get_output_partial_shape(0), PartialShape::dynamic());
+}
+
 using TileTestParam = std::tuple<PartialShape, std::vector<int64_t>, PartialShape>;
 
 class TileTest : public TypePropTileTest, public WithParamInterface<TileTestParam> {
@@ -152,12 +170,11 @@ protected:
 
         if (!labels.empty()) {
             auto repeats = repeats_val;
-            int64_t size_diff = labels.size() - repeats.size();
 
-            if (size_diff >= 0) {
-                repeats.insert(repeats.begin(), size_diff, 1);
+            if (labels.size() > repeats.size()) {
+                repeats.insert(repeats.begin(), labels.size() - repeats.size(), 1);
             } else {
-                labels.insert(labels.begin(), -size_diff, ov::no_label);
+                labels.insert(labels.begin(), repeats.size() - labels.size(), ov::no_label);
             }
 
             std::transform(labels.begin(),

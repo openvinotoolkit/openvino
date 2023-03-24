@@ -27,9 +27,3 @@ public:
     OPENVINO_RTTI("GatherNegativeConstIndicesNormalize", "0");
     GatherNegativeConstIndicesNormalize();
 };
-
-namespace ngraph {
-namespace pass {
-using ov::pass::GatherNegativeConstIndicesNormalize;
-}  // namespace pass
-}  // namespace ngraph

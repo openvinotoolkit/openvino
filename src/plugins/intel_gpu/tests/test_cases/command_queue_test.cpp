@@ -36,24 +36,7 @@ void exexute_network(cldnn::engine& engine, const ExecutionConfig& cfg, bool is_
     };
     set_values(input, input_vec);
 
-    cldnn::network::ptr network;
-
-    if (is_caching_test) {
-        membuf mem_buf;
-        {
-            cldnn::network _network(engine, topology, cfg);
-            std::ostream out_mem(&mem_buf);
-            BinaryOutputBuffer ob = BinaryOutputBuffer(out_mem);
-            _network.save(ob);
-        }
-        {
-            std::istream in_mem(&mem_buf);
-            BinaryInputBuffer ib = BinaryInputBuffer(in_mem, engine);
-            network = std::make_shared<cldnn::network>(ib, cfg, get_test_stream_ptr(), engine);
-        }
-    } else {
-        network = std::make_shared<cldnn::network>(engine, topology, cfg);
-    }
+    cldnn::network::ptr network = get_network(engine, topology, cfg, get_test_stream_ptr(), is_caching_test);
 
     network->set_input_data("input", input);
     auto outputs = network->execute();
@@ -74,31 +57,55 @@ void exexute_network(cldnn::engine& engine, const ExecutionConfig& cfg, bool is_
 }  // namespace
 
 TEST(command_queue_test, test_priority_hints) {
-    ExecutionConfig cfg{ov::intel_gpu::queue_type(QueueTypes::out_of_order),
-                        ov::intel_gpu::hint::queue_priority(ov::hint::Priority::LOW)};
     auto engine = engine::create(engine_types::ocl, runtime_types::ocl);
+    ExecutionConfig cfg = get_test_default_config(*engine,
+                        {ov::intel_gpu::queue_type(QueueTypes::out_of_order),
+                        ov::intel_gpu::hint::queue_priority(ov::hint::Priority::LOW)});
+    if (engine->get_device_info().supports_immad) {
+        // Onednn currently does NOT support out_of_order queue-type
+        return;
+    }
+
     exexute_network(*engine, cfg);
 }
 
 TEST(command_queue_test, test_throttle_hints) {
-    ExecutionConfig cfg{ov::intel_gpu::queue_type(QueueTypes::out_of_order),
-                        ov::intel_gpu::hint::queue_throttle(ov::intel_gpu::hint::ThrottleLevel::HIGH)};
     auto engine = engine::create(engine_types::ocl, runtime_types::ocl);
+    ExecutionConfig cfg = get_test_default_config(*engine,
+                        {ov::intel_gpu::queue_type(QueueTypes::out_of_order),
+                        ov::intel_gpu::hint::queue_throttle(ov::intel_gpu::hint::ThrottleLevel::HIGH)});
+    if (engine->get_device_info().supports_immad) {
+        // Onednn currently does NOT support out_of_order queue-type
+        return;
+    }
+
     exexute_network(*engine, cfg);
 }
 
 TEST(command_queue_test, test_priority_and_throttle_hints) {
-    ExecutionConfig cfg{ov::intel_gpu::queue_type(QueueTypes::out_of_order),
-                        ov::intel_gpu::hint::queue_priority(ov::hint::Priority::HIGH),
-                        ov::intel_gpu::hint::queue_throttle(ov::intel_gpu::hint::ThrottleLevel::LOW)};
     auto engine = engine::create(engine_types::ocl, runtime_types::ocl);
+    ExecutionConfig cfg = get_test_default_config(*engine,
+                        {ov::intel_gpu::queue_type(QueueTypes::out_of_order),
+                        ov::intel_gpu::hint::queue_priority(ov::hint::Priority::HIGH),
+                        ov::intel_gpu::hint::queue_throttle(ov::intel_gpu::hint::ThrottleLevel::LOW)});
+    if (engine->get_device_info().supports_immad) {
+        // Onednn currently does NOT support out_of_order queue-type
+        return;
+    }
+
     exexute_network(*engine, cfg);
 }
 
 TEST(export_import_command_queue_test, test_priority_and_throttle_hints) {
-    ExecutionConfig cfg{ov::intel_gpu::queue_type(QueueTypes::out_of_order),
-                        ov::intel_gpu::hint::queue_priority(ov::hint::Priority::HIGH),
-                        ov::intel_gpu::hint::queue_throttle(ov::intel_gpu::hint::ThrottleLevel::LOW)};
     auto engine = engine::create(engine_types::ocl, runtime_types::ocl);
+    ExecutionConfig cfg = get_test_default_config(*engine,
+                        {ov::intel_gpu::queue_type(QueueTypes::out_of_order),
+                        ov::intel_gpu::hint::queue_priority(ov::hint::Priority::HIGH),
+                        ov::intel_gpu::hint::queue_throttle(ov::intel_gpu::hint::ThrottleLevel::LOW)});
+    if (engine->get_device_info().supports_immad) {
+        // Onednn currently does NOT support out_of_order queue-type
+        return;
+    }
+
     exexute_network(*engine, cfg, true);
 }

@@ -330,7 +330,7 @@ void generate_proposals(const std::vector<float>& im_info,
         std::accumulate(deltas_shape.begin() + 1, deltas_shape.end(), 1, std::multiplies<size_t>());
     const auto scores_size =
         std::accumulate(scores_shape.begin() + 1, scores_shape.end(), 1, std::multiplies<size_t>());
-    for (auto i = 0; i < im_info_shape[0]; i++) {
+    for (size_t i = 0; i < im_info_shape[0]; i++) {
         std::vector<float> cur_im_info(im_info.begin() + i * im_info_size,
                                        im_info.begin() + i * im_info_size + im_info_size);
         std::vector<float> cur_deltas(deltas.begin() + i * deltas_size, deltas.begin() + i * deltas_size + deltas_size);
@@ -403,7 +403,7 @@ void generate_proposals_postprocessing(void* prois,
                            " supports only fp32, fp16, or bf16 data.");
     }
 
-    for (auto i = 0; i < num_rois.size(); i++) {
+    for (size_t i = 0; i < num_rois.size(); i++) {
         switch (roi_num_type) {
         case element::Type_t::i32: {
             int32_t* roi_num_ptr = reinterpret_cast<int32_t*>(proi_num);

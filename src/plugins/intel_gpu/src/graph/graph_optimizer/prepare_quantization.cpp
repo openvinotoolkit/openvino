@@ -19,6 +19,10 @@
 #include <memory>
 #include <vector>
 
+using namespace cldnn;
+
+namespace {
+
 template<typename T>
 bool check_binarization(memory::ptr mem_input_low, memory::ptr mem_input_high, program& p) {
     bool is_binarization = true;
@@ -37,8 +41,14 @@ bool check_binarization(memory::ptr mem_input_low, memory::ptr mem_input_high, p
     return is_binarization;
 }
 
+inline float clamp(float val) {
+    return std::max(std::numeric_limits<float>::lowest(), std::min(std::numeric_limits<float>::max(), val));
+}
 
-void  prepare_quantization::prepare_scale_shift_opt(program &p, quantize_node& quantize_node) {
+}  // namespace
+
+
+void prepare_quantization::prepare_scale_shift_opt(program &p, quantize_node& quantize_node) {
     const auto& stream = p.get_stream();
 
     program_node &input_low_node = quantize_node.get_dependency(1);
@@ -151,7 +161,8 @@ void  prepare_quantization::prepare_scale_shift_opt(program &p, quantize_node& q
     bool has_negative_scales = false;
     bool need_post_scale = false;
     bool need_post_shift = false;
-    int levels = quantize_node.get_primitive()->levels;
+    auto primitive = quantize_node.get_primitive();
+    int levels = primitive->levels;
 
     for (int b = 0; b < scales_layout.batch(); b++) {
         for (int f = 0; f < scales_layout.feature(); f++) {
@@ -242,10 +253,47 @@ void  prepare_quantization::prepare_scale_shift_opt(program &p, quantize_node& q
     auto in_shift_prim = std::make_shared<data>(quantize_node.id() + "_in_shift", mem_input_shift);
     auto out_scale_prim = std::make_shared<data>(quantize_node.id() + "_output_scale", mem_output_scale);
     auto out_shift_prim = std::make_shared<data>(quantize_node.id() + "_output_shift", mem_output_shift);
+
+    std::vector<input_info> quantize_inputs = quantize_node.get_primitive()->input;
+    quantize_inputs.push_back(in_scale_prim->id);
+    quantize_inputs.push_back(in_shift_prim->id);
+    quantize_inputs.push_back(out_scale_prim->id);
+    quantize_inputs.push_back(out_shift_prim->id);
+
+    data_types out_dt = primitive->output_data_types.size() ? primitive->output_data_types[0].value_or(data_types::f32) : data_types::f32;
+    auto new_quantize_prim = std::make_shared<quantize>(quantize_node.id() + "_opt", quantize_inputs, primitive->levels, out_dt);
+    new_quantize_prim->origin_op_name = primitive->origin_op_name;
+    new_quantize_prim->origin_op_type_name = primitive->origin_op_type_name;
+
+    new_quantize_prim->scale_shift_opt = true;
+    new_quantize_prim->need_post_scale = need_post_scale;
+    new_quantize_prim->need_post_shift = need_post_shift;
+    new_quantize_prim->need_pre_shift = need_pre_shift;
+    new_quantize_prim->per_tensor_input_scale = per_tensor_in_scale;
+    new_quantize_prim->per_tensor_input_shift = per_tensor_in_shift && need_pre_shift;
+    new_quantize_prim->need_clamp = need_clamp;
+    new_quantize_prim->need_min_clamp = need_min_clamp;
+    new_quantize_prim->need_max_clamp = need_max_clamp;
+    new_quantize_prim->per_tensor_input_range = per_tensor_in_range;
+    new_quantize_prim->per_tensor_output_range = per_tensor_out_range;
+    new_quantize_prim->per_tensor_output_scale = per_tensor_out_scale;
+    new_quantize_prim->per_tensor_output_shift = per_tensor_out_shift;
+
+    // Clamp is needed to avoid inf and -inf which are converted to undefined "inf" constant in opencl
+    new_quantize_prim->in_scale  = clamp(in_scale_val);
+    new_quantize_prim->in_shift  = clamp(in_shift_val);
+    new_quantize_prim->in_lo     = clamp(in_lo_val);
+    new_quantize_prim->in_hi     = clamp(in_hi_val);
+    new_quantize_prim->out_lo    = clamp(out_lo_val);
+    new_quantize_prim->out_hi    = clamp(out_hi_val);
+    new_quantize_prim->out_scale = clamp(out_scale_val);
+    new_quantize_prim->out_shift = clamp(out_shift_val);
+
     auto& in_scale_node = p.get_or_create(in_scale_prim);
     auto& in_shift_node = p.get_or_create(in_shift_prim);
     auto& out_scale_node = p.get_or_create(out_scale_prim);
     auto& out_shift_node = p.get_or_create(out_shift_prim);
+    auto& new_quantize_node = p.get_or_create(new_quantize_prim);
 
     auto& inputs = p.get_inputs();
 
@@ -254,76 +302,20 @@ void  prepare_quantization::prepare_scale_shift_opt(program &p, quantize_node& q
     inputs.push_back(&out_scale_node);
     inputs.push_back(&out_shift_node);
 
-    p.add_connection(in_scale_node, quantize_node);
-    p.add_connection(in_shift_node, quantize_node);
-    p.add_connection(out_scale_node, quantize_node);
-    p.add_connection(out_shift_node, quantize_node);
-    quantize_node.add_memory_dependency(in_scale_node.id());
-    quantize_node.add_memory_dependency(in_shift_node.id());
-    quantize_node.add_memory_dependency(out_scale_node.id());
-    quantize_node.add_memory_dependency(out_shift_node.id());
-    p.get_processing_order().insert(&quantize_node, &in_shift_node);
-    p.get_processing_order().insert(&quantize_node, &in_scale_node);
-    p.get_processing_order().insert(&quantize_node, &out_shift_node);
-    p.get_processing_order().insert(&quantize_node, &out_scale_node);
+    p.replace(quantize_node, new_quantize_node);
 
-    quantize_node.set_scale_shift_opt();
-
-    if (need_post_scale) {
-        quantize_node.set_need_post_scale();
-    }
-
-    if (need_post_shift) {
-        quantize_node.set_need_post_shift();
-    }
-
-    if (need_pre_shift) {
-        quantize_node.set_need_pre_shift();
-    }
-
-    if (per_tensor_in_scale) {
-        quantize_node.set_per_tensor_input_scale();
-        quantize_node.set_input_scale_val(in_scale_val);
-    }
-
-    if (per_tensor_in_shift && need_pre_shift) {
-        quantize_node.set_per_tensor_input_shift();
-        quantize_node.set_input_shift_val(in_shift_val);
-    }
-
-    if (need_clamp) {
-        quantize_node.set_need_clamp();
-    }
-
-    if (need_min_clamp) {
-        quantize_node.set_need_min_clamp();
-    }
-
-    if (need_max_clamp) {
-        quantize_node.set_need_max_clamp();
-    }
-
-    if (per_tensor_in_range) {
-        quantize_node.set_per_tensor_input_range();
-        quantize_node.set_input_lo_val(in_lo_val);
-        quantize_node.set_input_hi_val(in_hi_val);
-    }
-
-    if (per_tensor_out_range) {
-        quantize_node.set_per_tensor_output_range();
-        quantize_node.set_output_lo_val(out_lo_val);
-        quantize_node.set_output_hi_val(out_hi_val);
-    }
-
-    if (per_tensor_out_scale) {
-        quantize_node.set_per_tensor_output_scale();
-        quantize_node.set_output_scale_val(out_scale_val);
-    }
-
-    if (per_tensor_out_shift) {
-        quantize_node.set_per_tensor_output_shift();
-        quantize_node.set_output_shift_val(out_shift_val);
-    }
+    p.add_connection(in_scale_node, new_quantize_node);
+    p.add_connection(in_shift_node, new_quantize_node);
+    p.add_connection(out_scale_node, new_quantize_node);
+    p.add_connection(out_shift_node, new_quantize_node);
+    new_quantize_node.add_memory_dependency(in_scale_node.id());
+    new_quantize_node.add_memory_dependency(in_shift_node.id());
+    new_quantize_node.add_memory_dependency(out_scale_node.id());
+    new_quantize_node.add_memory_dependency(out_shift_node.id());
+    p.get_processing_order().insert(&new_quantize_node, &in_shift_node);
+    p.get_processing_order().insert(&new_quantize_node, &in_scale_node);
+    p.get_processing_order().insert(&new_quantize_node, &out_shift_node);
+    p.get_processing_order().insert(&new_quantize_node, &out_scale_node);
 }
 
 void prepare_quantization::handle_quantize_node(program& p, quantize_node& quantize_node) {

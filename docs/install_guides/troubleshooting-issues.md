@@ -18,10 +18,11 @@ Users in China might encounter errors while downloading sources via PIP during O
    pip install openvino-dev[tensorflow2] -i https://mirrors.aliyun.com/pypi/simple/
    ```
 
-* For C++ developers, if you have installed OpenVINO Runtime via APT, YUM, or the installer, and then installed OpenVINO Development Tools via PyPI, you may run into issues. To resolve that, install the components in ``requirements.txt`` by using the following command: 
+* For C++ developers, if you have installed OpenVINO Runtime via APT, YUM, or the archive file, and then installed OpenVINO Development Tools via PyPI, you may run into issues. To resolve that, install the components in ``requirements.txt`` by using the following command: 
    ``` sh
    pip install -r <INSTALL_DIR>/tools/requirements.txt
    ```
+  For APT and YUM users, replace the `INSTALL_DIR` with `/usr/share/openvino`.
 
 <!-- this part was from Docker installation -->
 
@@ -29,7 +30,7 @@ Users in China might encounter errors while downloading sources via PIP during O
 
 ### <a name="proxy-issues"></a>Proxy Issues
 
-If you met proxy issues during the installation with Docker, you need set up proxy settings for Docker. See the [Set Proxy section in DL Workbench Installation](https://docs.openvino.ai/latest/workbench_docs_Workbench_DG_Prerequisites.html#set-proxy) for more details.
+If you met proxy issues during the installation with Docker, you need set up proxy settings for Docker. See the [Docker guide](https://docs.docker.com/network/proxy/) for more details.
 
 
 @anchor yocto-install-issues

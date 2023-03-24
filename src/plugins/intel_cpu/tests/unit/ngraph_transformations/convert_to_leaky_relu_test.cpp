@@ -29,7 +29,7 @@ TEST(TransformationTests, ConvertToLeakyReluTest1) {
 
         f = std::make_shared<ngraph::Function>(ngraph::NodeVector{ prelu }, ngraph::ParameterVector{ input });
         ngraph::pass::Manager m;
-        m.register_pass<ngraph::pass::InitNodeInfo>();
+        m.register_pass<ov::pass::InitNodeInfo>();
         m.register_pass<ConvertToLeakyRelu>();
         m.run_passes(f);
     }
@@ -54,7 +54,7 @@ TEST(TransformationTests, ConvertToLeakyReluTest2) {
 
         f = std::make_shared<ngraph::Function>(ngraph::NodeVector{ prelu }, ngraph::ParameterVector{ input });
         ngraph::pass::Manager m;
-        m.register_pass<ngraph::pass::InitNodeInfo>();
+        m.register_pass<ov::pass::InitNodeInfo>();
         m.register_pass<ConvertToLeakyRelu>();
         m.run_passes(f);
     }
@@ -79,7 +79,7 @@ TEST(TransformationTests, ConvertToLeakyReluTest3) {
 
         f = std::make_shared<ngraph::Function>(ngraph::NodeVector{ prelu }, ngraph::ParameterVector{ input });
         ngraph::pass::Manager m;
-        m.register_pass<ngraph::pass::InitNodeInfo>();
+        m.register_pass<ov::pass::InitNodeInfo>();
         m.register_pass<ConvertToLeakyRelu>();
         m.run_passes(f);
     }
@@ -100,15 +100,15 @@ TEST(TransformationTests, ConvertToLeakyReluTest4) {
     {
         auto input = std::make_shared<ngraph::opset1::Parameter>(ngraph::element::u8, ngraph::Shape{ 1, 3, 16, 16 });
         auto slope = ngraph::opset1::Constant::create(ngraph::element::f32, ngraph::Shape{}, { -2.f });
-        auto relaxed_prelu = std::make_shared<ngraph::op::TypeRelaxed<ngraph::opset1::PRelu>>(
+        auto relaxed_prelu = std::make_shared<ov::op::TypeRelaxed<ngraph::opset1::PRelu>>(
             ngraph::element::TypeVector{ ngraph::element::f32, ngraph::element::f32 },
             ngraph::element::TypeVector{ ngraph::element::f32 },
-            ngraph::op::TemporaryReplaceOutputType(input, ngraph::element::f32).get(),
-            ngraph::op::TemporaryReplaceOutputType(slope, ngraph::element::f32).get());
+            ov::op::TemporaryReplaceOutputType(input, ngraph::element::f32).get(),
+            ov::op::TemporaryReplaceOutputType(slope, ngraph::element::f32).get());
 
         f = std::make_shared<ngraph::Function>(ngraph::NodeVector{ relaxed_prelu }, ngraph::ParameterVector{ input });
         ngraph::pass::Manager m;
-        m.register_pass<ngraph::pass::InitNodeInfo>();
+        m.register_pass<ov::pass::InitNodeInfo>();
         m.register_pass<ConvertToLeakyRelu>();
         m.run_passes(f);
     }
@@ -135,7 +135,7 @@ TEST(TransformationTests, ConvertToLeakyReluTest5) {
         f_ref = f;
 
         ngraph::pass::Manager m;
-        m.register_pass<ngraph::pass::InitNodeInfo>();
+        m.register_pass<ov::pass::InitNodeInfo>();
         m.register_pass<ConvertToLeakyRelu>();
         m.run_passes(f);
     }

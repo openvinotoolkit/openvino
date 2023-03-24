@@ -24,7 +24,7 @@ TEST_F(TransformationTestsF, ConvertSoftMax1ToSoftMax8) {
         auto softmax_1 = std::make_shared<ngraph::opset1::Softmax>(data, axis);
 
         function = std::make_shared<ngraph::Function>(ngraph::NodeVector{softmax_1}, ngraph::ParameterVector{data});
-        manager.register_pass<ngraph::pass::ConvertSoftMax1ToSoftMax8>();
+        manager.register_pass<ov::pass::ConvertSoftMax1ToSoftMax8>();
     }
 
     {
@@ -43,7 +43,7 @@ TEST_F(TransformationTestsF, ConvertSoftMax1ToSoftMax8_dynamic_rank) {
         auto softmax_1 = std::make_shared<ngraph::opset1::Softmax>(data, axis);
 
         function = std::make_shared<ngraph::Function>(ngraph::NodeVector{softmax_1}, ngraph::ParameterVector{data});
-        manager.register_pass<ngraph::pass::ConvertSoftMax1ToSoftMax8>();
+        manager.register_pass<ov::pass::ConvertSoftMax1ToSoftMax8>();
     }
 
     {

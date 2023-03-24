@@ -108,7 +108,7 @@ TEST_F(RTInfoDeserialization, node_v10) {
     ASSERT_NE(nullptr, f);
 
     auto check_rt_info = [](const ov::RTMap& info) {
-        EXPECT_FALSE(info.count(ngraph::FusedNames::get_type_info_static()));
+        EXPECT_FALSE(info.count(ov::FusedNames::get_type_info_static()));
 
         const std::string& key_old_api_order = ov::OldApiMapOrder::get_type_info_static();
         EXPECT_FALSE(info.count(key_old_api_order));
@@ -352,7 +352,7 @@ TEST_F(RTInfoDeserialization, input_and_output_v10) {
     ASSERT_NE(nullptr, f);
 
     auto check_rt_info = [](const ov::RTMap& info) {
-        ASSERT_FALSE(info.count(ngraph::FusedNames::get_type_info_static()));
+        ASSERT_FALSE(info.count(ov::FusedNames::get_type_info_static()));
     };
 
     auto check_version = [](const std::shared_ptr<ov::Model>& f, int ref_version) {
@@ -498,8 +498,8 @@ TEST_F(RTInfoDeserialization, node_v11) {
     ASSERT_NE(nullptr, f);
 
     auto check_fused_names = [](const ov::RTMap& info, const std::string& names) {
-        ASSERT_TRUE(info.count(ngraph::FusedNames::get_type_info_static()));
-        auto fused_names_attr = info.at(ngraph::FusedNames::get_type_info_static()).as<ngraph::FusedNames>();
+        ASSERT_TRUE(info.count(ov::FusedNames::get_type_info_static()));
+        auto fused_names_attr = info.at(ov::FusedNames::get_type_info_static()).as<ov::FusedNames>();
         EXPECT_EQ(fused_names_attr.getNames(), names);
     };
     auto check_old_api_map_order = [](const ov::RTMap& info, const std::vector<uint64_t>& order) {
@@ -568,7 +568,7 @@ TEST_F(RTInfoDeserialization, node_v11) {
 
         auto round = std::make_shared<ov::opset8::Round>(convert_param, ov::opset8::Round::RoundMode::HALF_TO_EVEN);
         // TODO: runtime information should migrate as well?
-        round->get_rt_info()[ngraph::FusedNames::get_type_info_static()] = ngraph::FusedNames("Round1,Round2");
+        round->get_rt_info()[ov::FusedNames::get_type_info_static()] = ov::FusedNames("Round1,Round2");
 
         // TODO: No guarantee that exactly 'convert, then transpose' will be added by implicit post-processing
         auto constant_result =
@@ -706,7 +706,7 @@ TEST_F(RTInfoDeserialization, node_v11_uint8) {
     auto transpose_param = std::make_shared<ov::opset8::Transpose>(param, constant_param);
 
     auto round = std::make_shared<ov::opset8::Round>(transpose_param, ov::opset8::Round::RoundMode::HALF_TO_EVEN);
-    round->get_rt_info()[ngraph::FusedNames::get_type_info_static()] = ngraph::FusedNames("Round1,Round2");
+    round->get_rt_info()[ov::FusedNames::get_type_info_static()] = ov::FusedNames("Round1,Round2");
     auto constant_result =
         std::make_shared<ov::opset8::Constant>(ov::element::u64, ov::Shape{4}, std::vector<uint64_t>{0, 3, 1, 2});
     auto transpose_result = std::make_shared<ov::opset8::Transpose>(round, constant_result);
@@ -918,9 +918,9 @@ TEST_F(RTInfoDeserialization, input_and_output_v11) {
     check_version(f, 11);
 
     auto check_fused_names = [](const ov::RTMap& info, const std::string& names) {
-        const std::string& key = ngraph::FusedNames::get_type_info_static();
+        const std::string& key = ov::FusedNames::get_type_info_static();
         ASSERT_TRUE(info.count(key));
-        auto fused_names_attr = info.at(key).as<ngraph::FusedNames>();
+        auto fused_names_attr = info.at(key).as<ov::FusedNames>();
         ASSERT_EQ(fused_names_attr.getNames(), names);
     };
 

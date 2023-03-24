@@ -31,9 +31,54 @@ class TestViewListConstruct(PytorchLayerTest):
         self.input_data = input_data
         self._test(*self.create_model(), ie_device, precision, ir_version)
 
+@pytest.mark.parametrize('input_data', [(np.random.randn(4), np.array(2))])
+class TestViewDtype(PytorchLayerTest):
+
+    def _prepare_input(self):
+        return self.input_data
+
+    def create_model(self):
+        class aten_view_dtype(torch.nn.Module):
+
+            def forward(self, input_tensor, dtype):
+                return input_tensor.view(torch.int64)
+
+        ref_net = None
+
+        return aten_view_dtype(), ref_net, "aten::view"
+
+    @pytest.mark.nightly
+    @pytest.mark.precommit
+    def test_view_dtype(self, ie_device, precision, ir_version, input_data):
+        self.input_data = input_data
+        self._test(*self.create_model(), ie_device, precision, ir_version)
+
+
+@pytest.mark.parametrize('input_data', [(np.random.randn(4), np.random.randn(2, 2))])
+class TestViewSize(PytorchLayerTest):
+
+    def _prepare_input(self):
+        return self.input_data
+
+    def create_model(self):
+        class aten_view_size(torch.nn.Module):
+
+            def forward(self, input_tensor, input_size):
+                return input_tensor.view(input_size.size()[:])
+
+        ref_net = None
+
+        return aten_view_size(), ref_net, "aten::view"
+
+    @pytest.mark.nightly
+    @pytest.mark.precommit
+    def test_view_size(self, ie_device, precision, ir_version, input_data):
+        self.input_data = input_data
+        self._test(*self.create_model(), ie_device, precision, ir_version)
 
 @pytest.mark.parametrize('input_data', [(np.random.randn(2, 3, 2), 2, 6),
-                                        (np.random.randn(4), 2, 2)])
+                                        (np.random.randn(4), 2, 2),
+                                        (np.random.randn(4), 2, 2.1)])
 class TestView(PytorchLayerTest):
 
     def _prepare_input(self):
@@ -48,7 +93,7 @@ class TestView(PytorchLayerTest):
                 self.dim2 = input_data[2]
 
             def forward(self, input_tensor):
-                return input_tensor.view(self.dim1, self.dim2)
+                return input_tensor.view(self.dim1, int(self.dim2))
 
         ref_net = None
 

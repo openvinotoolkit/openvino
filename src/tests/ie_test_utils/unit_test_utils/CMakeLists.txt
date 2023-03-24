@@ -22,7 +22,4 @@ addIeTarget(
                 commonTestUtils_s
                 inference_engine_s
                 gmock
-        INCLUDES
-            PRIVATE
-                $<TARGET_PROPERTY:inference_engine_legacy,INTERFACE_INCLUDE_DIRECTORIES>
 )

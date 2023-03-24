@@ -27,10 +27,10 @@ namespace pass {
  */
 class RemoveSingleInputConcat : public ngraph::pass::MatcherPass {
 public:
-  OPENVINO_RTTI("RemoveSingleInputConcat", "0");
-  RemoveSingleInputConcat();
+    OPENVINO_RTTI("RemoveSingleInputConcat", "0");
+    RemoveSingleInputConcat();
 };
 
-} // namespace pass
-} // namespace intel_gna
-} // namespace ov
+}  // namespace pass
+}  // namespace intel_gna
+}  // namespace ov

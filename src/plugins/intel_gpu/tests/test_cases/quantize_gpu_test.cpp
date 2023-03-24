@@ -7,6 +7,7 @@
 #include <intel_gpu/primitives/input_layout.hpp>
 #include <intel_gpu/primitives/quantize.hpp>
 #include <intel_gpu/primitives/data.hpp>
+#include "quantize_inst.h"
 
 #include <cstddef>
 
@@ -83,7 +84,7 @@ TEST(quantize_gpu, quantize_levels_2_output_broadcast_inputs_1) {
         quantize("quantize", input_info("input"), input_info("input_low"), input_info("input_high"), input_info("output_low"), input_info("output_high"), 2, data_types::f32)
     );
 
-    network network(engine, topology);
+    network network(engine, topology, get_test_default_config(engine));
     network.set_input_data("input", input);
     auto outputs = network.execute();
 
@@ -147,7 +148,7 @@ TEST(quantize_gpu, quantize_levels_2_output_broadcast_inputs_1_ch8) {
         quantize("quantize", input_info("input"), input_info("input_low"), input_info("input_high"), input_info("output_low"), input_info("output_high"), 2, data_types::f32)
     );
 
-    network network(engine, topology);
+    network network(engine, topology, get_test_default_config(engine));
     network.set_input_data("input", input);
     auto outputs = network.execute();
 
@@ -211,7 +212,7 @@ TEST(quantize_gpu, quantize_levels_2_output_broadcast_inputs_1_ch8_binary_pack) 
         reorder("reorder", input_info("quantize"), layout{data_types::f32, format::bfyx, tensor{1,8,2,2}})
     );
 
-    ExecutionConfig config;
+    ExecutionConfig config = get_test_default_config(engine);
     config.set_property(ov::intel_gpu::optimize_data(true));
     network network(engine, topology, config);
     network.set_input_data("input", input);
@@ -291,7 +292,7 @@ TEST(quantize_gpu, quantize_levels_2_output_broadcast_inputs_2) {
         quantize("quantize", input_info("input"), input_info("input_low"), input_info("input_high"), input_info("output_low"), input_info("output_high"), 2, data_types::f32)
     );
 
-    network network(engine, topology);
+    network network(engine, topology, get_test_default_config(engine));
     network.set_input_data("input", input);
     auto outputs = network.execute();
 
@@ -380,7 +381,7 @@ TEST(quantize_gpu, quantize_levels_3) {
         quantize("quantize", input_info("input"), input_info("input_low"), input_info("input_high"), input_info("output_low"), input_info("output_high"), 3, data_types::f32)
     );
 
-    network network(engine, topology);
+    network network(engine, topology, get_test_default_config(engine));
     network.set_input_data("input", input);
     auto outputs = network.execute();
 
@@ -471,7 +472,7 @@ TEST(quantize_gpu, quantize_levels_256_2d_unsigned) {
         quantize("quantize", input_info("input"), input_info("input_low"), input_info("input_high"), input_info("output_low"), input_info("output_high"), 256, data_types::u8)
     );
 
-    network network(engine, topology);
+    network network(engine, topology, get_test_default_config(engine));
     network.set_input_data("input", input);
     auto outputs = network.execute();
 
@@ -563,7 +564,7 @@ TEST(quantize_gpu, quantize_levels_256_3d_unsigned) {
         reorder("out", input_info("quantize"), format::bfzyx, data_types::u8)
     );
 
-    network network(engine, topology);
+    network network(engine, topology, get_test_default_config(engine));
     network.set_input_data("input", input);
     auto outputs = network.execute();
 
@@ -579,6 +580,107 @@ TEST(quantize_gpu, quantize_levels_256_3d_unsigned) {
 
     for (size_t i = 0; i < ref_data.size(); ++i) {
         ASSERT_EQ(output_ptr[i], ref_data[i]) << " i=" << i;
+    }
+}
+
+TEST(quantize_gpu, dynamic) {
+    auto& engine = get_test_engine();
+
+    auto input       = engine.allocate_memory({ { 1, 16, 2, 2 }, data_types::f32, format::bfyx });
+    auto input_low   = engine.allocate_memory({ { 1, 16, 1, 1 }, data_types::f32, format::bfyx });
+    auto input_high  = engine.allocate_memory({ { 1, 16, 1, 1 }, data_types::f32, format::bfyx });
+    auto output_low  = engine.allocate_memory({ { 1, 1,  1, 1 }, data_types::f32, format::bfyx });
+    auto output_high = engine.allocate_memory({ { 1, 1,  1, 1 }, data_types::f32, format::bfyx });
+
+    layout in_dyn_layout { ov::PartialShape::dynamic(4), data_types::f32, format::bfyx };
+
+    set_values(input, { -1.0f, 2.0f, 3.0f, 4.0f,
+                         5.0f, 2.0f, 2.0f, 3.0f,
+                         4.0f, 6.0f, 3.0f, 3.0f,
+                         3.0f, 5.0f, 1.0f, 1.0f,
+
+                         1.0f, 1.0f, 1.0f, 1.0f,
+                         4.0f, 6.0f, 3.0f, 3.0f,
+                         3.0f, 5.0f, 1.0f, 1.0f,
+                         1.0f, 1.0f, 1.0f, 1.0f,
+
+                        -1.0f, 2.0f, 3.0f, 4.0f,
+                         5.0f, 2.0f, 2.0f, 3.0f,
+                         4.0f, 6.0f, 3.0f, 3.0f,
+                         3.0f, 5.0f, 1.0f, 1.0f,
+
+                         1.0f, 1.0f, 1.0f, 1.0f,
+                         4.0f, 6.0f, 3.0f, 3.0f,
+                         3.0f, 5.0f, 1.0f, 1.0f,
+                         1.0f, 1.0f, 1.0f, 1.0f });
+
+    set_values(input_low,  { 0.0f, 1.0f, 2.0f, 3.0f,
+                             4.0f, 5.0f, 6.0f, 7.0f,
+                             7.0f, 6.0f, 5.0f, 4.0f,
+                             3.0f, 2.0f, 1.0f, 0.0f });
+
+    set_values(input_high, { 0.0f, 1.0f, 2.0f, 3.0f,
+                             4.0f, 5.0f, 6.0f, 7.0f,
+                             7.0f, 6.0f, 5.0f, 4.0f,
+                             3.0f, 2.0f, 1.0f, 0.0f });
+
+    set_values(output_low,  { -1.0f });
+    set_values(output_high, {  1.0f });
+
+    // 0 1 1 0  0 0 0 0  0 0 0 0  0 1 1 1
+    // 1 1 1 1  0 1 0 0  0 0 1 1  0 1 1 1
+    // 1 1 1 0  0 0 0 0  0 0 0 0  0 1 0 1
+    // 1 1 1 0  0 0 0 0  0 0 0 0  0 1 0 1
+    std::vector<float> ref_data = { -1,  1,  1,  1,
+                                     1,  1,  1,  1,
+                                     1,  1,  1,  1,
+                                    -1,  1, -1, -1,
+                                    -1, -1, -1, -1,
+                                    -1,  1, -1, -1,
+                                    -1, -1, -1, -1,
+                                    -1, -1, -1, -1,
+                                    -1, -1, -1, -1,
+                                    -1, -1, -1, -1,
+                                    -1,  1, -1, -1,
+                                    -1,  1, -1, -1,
+                                    -1, -1, -1, -1,
+                                     1,  1,  1,  1,
+                                     1,  1, -1, -1,
+                                     1,  1,  1,  1 };
+
+    topology topology;
+    topology.add(
+        input_layout("input", in_dyn_layout),
+        data("input_low", input_low),
+        data("input_high", input_high),
+        data("output_low", output_low),
+        data("output_high", output_high),
+        quantize("quantize", input_info("input"), input_info("input_low"), input_info("input_high"), input_info("output_low"), input_info("output_high"), 2, data_types::f32)
+    );
+
+    ExecutionConfig config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+    network network(engine, topology, config);
+    network.set_input_data("input", input);
+
+    auto inst = network.get_primitive("quantize");
+    auto impl = inst->get_impl();
+    ASSERT_TRUE(impl != nullptr);
+    ASSERT_TRUE(impl->is_dynamic());
+
+    auto outputs = network.execute();
+
+    auto output = outputs.at("quantize").get_memory();
+    cldnn::mem_lock<float> output_ptr(output, get_test_stream());
+
+    // Check that layout and memory contains logical size of tensor
+    ASSERT_EQ(output->count(), (size_t)64);
+    ASSERT_EQ(output->get_layout().count(), (size_t)64);
+
+    ASSERT_EQ(output->size(), ref_data.size() * sizeof(uint32_t));
+
+    for (size_t i = 0; i < ref_data.size(); ++i) {
+        ASSERT_EQ(output_ptr[i], ref_data[i]) << " index = " << i;
     }
 }
 
@@ -692,7 +794,7 @@ struct quantize_random_test : testing::TestWithParam<quantize_random_test_params
         }
     }
 
-    void execute_compare(const quantize_random_test_params& params, bool check_result) {
+    void execute_compare(const quantize_random_test_params& params, bool check_result, bool is_caching_test) {
         auto& engine = get_test_engine();
 
         auto in_layout = layout(params.input_type, params.in_format, params.input_size);
@@ -735,13 +837,14 @@ struct quantize_random_test : testing::TestWithParam<quantize_random_test_params
             FAIL() << "Not supported inputs number: " << params.inputs_num;
         }
 
-        ExecutionConfig config;
+        ExecutionConfig config = get_test_default_config(engine);
         config.set_property(ov::intel_gpu::custom_outputs(std::vector<std::string>{"quantize"}));
 
-        network net(engine, topo, config);
-        net.set_input_data("input", input);
+        cldnn::network::ptr net = get_network(engine, topo, config, get_test_stream_ptr(), is_caching_test);
 
-        auto result = net.execute();
+        net->set_input_data("input", input);
+
+        auto result = net->execute();
         auto output = result.at("quantize").get_memory();
 
         auto input_opt = engine.allocate_memory(in_layout);
@@ -774,7 +877,7 @@ struct quantize_random_test : testing::TestWithParam<quantize_random_test_params
         }
 
 
-        network net_opt(engine, topo_opt, ExecutionConfig{});
+        network net_opt(engine, topo_opt, get_test_default_config(engine));
         net_opt.set_input_data("input_opt", input_opt);
 
         auto result_opt = net_opt.execute();
@@ -807,7 +910,7 @@ struct quantize_random_test_param_generator : std::vector<quantize_random_test_p
 
 TEST_P(quantize_random_test, random) {
     auto param = GetParam();
-    execute_compare(param, true);
+    execute_compare(param, true, false);
 }
 
 INSTANTIATE_TEST_SUITE_P(quantize_smoke,
@@ -817,3 +920,23 @@ INSTANTIATE_TEST_SUITE_P(quantize_smoke,
                             .simple_params(data_types::f32, data_types::u8, format::bs_fs_yx_bsv32_fsv32, format::bs_fs_yx_bsv32_fsv32, 5)
                             .simple_params(data_types::f32, data_types::u8, format::b_fs_yx_fsv16, format::b_fs_yx_fsv16, 5)
                         ));
+
+#ifdef RUN_ALL_MODEL_CACHING_TESTS
+TEST_P(quantize_random_test, random_cached) {
+    auto param = GetParam();
+    execute_compare(param, true, true);
+}
+#else
+using quantize_random_test_cached = quantize_random_test;
+
+TEST_P(quantize_random_test_cached, random) {
+    auto param = GetParam();
+    execute_compare(param, true, true);
+}
+
+INSTANTIATE_TEST_SUITE_P(quantize_smoke,
+                        quantize_random_test_cached,
+                        testing::Values(
+                            quantize_random_test_params{ data_types::f32, data_types::u8, {1, 16, 10, 10}, format::bs_fs_yx_bsv32_fsv32, format::bs_fs_yx_bsv32_fsv32, 5}
+                        ));
+#endif

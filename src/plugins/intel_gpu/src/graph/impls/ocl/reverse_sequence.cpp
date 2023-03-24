@@ -2,15 +2,11 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "reverse_sequence_inst.h"
 #include "primitive_base.hpp"
-#include "impls/implementation_map.hpp"
-#include "kernel_selector_helper.h"
+
+#include "reverse_sequence_inst.h"
 #include "reverse_sequence/reverse_sequence_kernel_selector.h"
 #include "reverse_sequence/reverse_sequence_kernel_ref.h"
-#include "intel_gpu/runtime/error_handler.hpp"
-
-using namespace cldnn;
 
 namespace cldnn {
 namespace ocl {

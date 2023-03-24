@@ -45,14 +45,14 @@ static void CreateCommonCTCGreedyDecoderOp(Program& p, const std::shared_ptr<ngr
         }
     }
 
-    uint32_t blank_index = op->get_input_shape(0).back() - 1;
+    uint32_t blank_index = static_cast<uint32_t>(op->get_input_shape(0).back() - 1);
     if (reordered_inputs.size() == 3) {
         auto blank_index_node = std::dynamic_pointer_cast<ngraph::op::v0::Constant>(op->get_input_node_shared_ptr(2));
         if (!blank_index_node) {
             IE_THROW() << "Unsupported blank_index node type in " << op->get_friendly_name() << " (" << op->get_type_name() << ")";
         }
         float val;
-        if (ngraph::shape_size(blank_index_node->get_output_shape(0)) != 1 || !ngraph::op::util::get_single_value(blank_index_node, val)) {
+        if (ngraph::shape_size(blank_index_node->get_output_shape(0)) != 1 || !ov::op::util::get_single_value(blank_index_node, val)) {
             IE_THROW() << "Unsupported parameter size in " << op->get_friendly_name() << " (" << op->get_type_name() << ")";
         }
         blank_index = static_cast<uint32_t>(val);

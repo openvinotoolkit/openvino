@@ -55,6 +55,23 @@ std::vector<layout> select_inst::calc_output_layouts(const select_node& /*node*/
     return {{output_shapes[0], dt, format::get_default_format(output_shapes[0].size())}};
 }
 
+std::vector<size_t> select_inst::extend_shape_to_6d(ov::PartialShape ps) {
+    if (ps.size() < 4) {
+        ps.insert(ps.begin(), 4 - ps.size(), ov::Dimension(1));
+    }
+
+    layout l(ps, data_types::i32, format::get_default_format(ps.size()));
+    return l.transform(format::bfwzyx).to_shape();
+}
+
+std::vector<size_t> select_inst::extend_input_shape_to_6d(kernel_impl_params const& orig_impl_param, int32_t input_idx) {
+    return extend_shape_to_6d(orig_impl_param.get_input_layout(input_idx).get_partial_shape());
+}
+
+std::vector<size_t> select_inst::extend_output_shape_to_6d(kernel_impl_params const& orig_impl_param, int32_t output_idx) {
+    return extend_shape_to_6d(orig_impl_param.get_output_layout(output_idx).get_partial_shape());
+}
+
 std::string select_inst::to_string(select_node const& node) {
     auto node_info = node.desc_to_json();
     auto desc = node.get_primitive();
@@ -91,22 +108,6 @@ select_inst::typed_primitive_inst(network& network, select_node const& node) : p
                                 3,
                                 "");
 
-    if (deps[1].first->get_output_layout().get_tensor() != cldnn::tensor(1))
-        CLDNN_ERROR_NOT_EQUAL(node.id(),
-                              "Mask format",
-                              deps[0].first->get_output_layout().format,
-                              "Positive input format",
-                              deps[1].first->get_output_layout().format,
-                              "");
-
-    if (deps[2].first->get_output_layout().get_tensor() != cldnn::tensor(1))
-        CLDNN_ERROR_NOT_EQUAL(node.id(),
-                              "Mask format",
-                              deps[0].first->get_output_layout().format,
-                              "Positive input format",
-                              deps[2].first->get_output_layout().format,
-                              "");
-
     if (node.get_primitive()->broadcast_spec.m_type == ov::op::AutoBroadcastType::NONE) {
         CLDNN_ERROR_LAYOUT_MISMATCH(node.id(),
                                 "Positive input layout",
@@ -122,14 +123,6 @@ select_inst::typed_primitive_inst(network& network, select_node const& node) : p
                                 deps[1].first->get_output_layout().get_tensor(),
                                 "");
     } else if (node.get_primitive()->broadcast_spec.m_type == ov::op::AutoBroadcastType::NUMPY) {
-        if (deps[1].first->get_output_layout().get_tensor() != cldnn::tensor(1) && deps[2].first->get_output_layout().get_tensor() != cldnn::tensor(1))
-            CLDNN_ERROR_NOT_EQUAL(node.id(),
-                                  "Positive input format",
-                                  deps[1].first->get_output_layout().format,
-                                  "Negative input format",
-                                  deps[2].first->get_output_layout().format,
-                                  "");
-
         CLDNN_ERROR_DATA_TYPES_MISMATCH(node.id(),
                                 "Positive input data type",
                                 deps[1].first->get_output_layout().data_type,
@@ -157,7 +150,7 @@ select_inst::typed_primitive_inst(network& network, select_node const& node) : p
             }
         }
     } else {
-        CLDNN_ERROR_MESSAGE(node.id(), "Unsupported broadcast_type: " + static_cast<int>(node.get_primitive()->broadcast_spec.m_type));
+        CLDNN_ERROR_MESSAGE(node.id(), "Unsupported broadcast_type: " + std::to_string(static_cast<int>(node.get_primitive()->broadcast_spec.m_type)));
     }
 }
 }  // namespace cldnn

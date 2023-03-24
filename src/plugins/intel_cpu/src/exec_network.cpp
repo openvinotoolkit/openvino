@@ -68,15 +68,15 @@ ExecNetwork::ExecNetwork(const InferenceEngine::CNNNetwork &network,
                          const std::shared_ptr<InferenceEngine::IInferencePlugin>& plugin) :
     InferenceEngine::ExecutableNetworkThreadSafeDefault{nullptr, nullptr},
     extensionManager(extMgr),
+    _network(network),
     _cfg{cfg},
-    _name{network.getName()},
-    _network(network) {
+    _name{network.getName()} {
     SetPointerToPlugin(plugin);
     auto function = network.getFunction();
     if (function == nullptr) {
         IE_THROW() << "CPU plug-in doesn't support not ngraph-based model!";
     }
-    bool isFloatModel = !ngraph::op::util::has_op_with_type<ngraph::op::FakeQuantize>(function);
+    bool isFloatModel = !ov::op::util::has_op_with_type<ngraph::op::FakeQuantize>(function);
 
     _cfg.isNewApi = !isLegacyAPI();
     _mutex = std::make_shared<std::mutex>();

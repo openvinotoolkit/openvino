@@ -58,5 +58,20 @@ struct concatenation : public primitive_base<concatenation> {
 
     /// @brief Dimension along which concatenation should take place
     int64_t axis;
+
+    size_t hash() const override {
+        size_t seed = primitive::hash();
+        seed = hash_combine(seed, axis);
+        return seed;
+    }
+
+    bool operator==(const primitive& rhs) const override {
+        if (!compare_common_params(rhs))
+            return false;
+
+        auto rhs_casted = downcast<const concatenation>(rhs);
+
+        return axis == rhs_casted.axis;
+    }
 };
 }  // namespace cldnn

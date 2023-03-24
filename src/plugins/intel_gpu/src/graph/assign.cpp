@@ -2,11 +2,10 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <assign_inst.h>
+#include "assign_inst.h"
 #include "primitive_type_base.h"
 #include <sstream>
 #include <json_object.h>
-#include <data_inst.h>
 
 namespace cldnn {
 GPU_DEFINE_PRIMITIVE_TYPE_ID(assign)
@@ -31,4 +30,17 @@ std::string assign_inst::to_string(const assign_node& node) {
     return primitive_description.str();
 }
 
+void assign_inst::save(cldnn::BinaryOutputBuffer& ob) const {
+    parent::save(ob);
+
+    ob << variable_id();
+}
+
+void assign_inst::load(cldnn::BinaryInputBuffer& ib) {
+    parent::load(ib);
+
+    std::string variable_id;
+    ib >> variable_id;
+    set_variable_id(variable_id);
+}
 } // namespace cldnn

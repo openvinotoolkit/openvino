@@ -27,6 +27,8 @@ public:
     GatherNonzeroKernelRef() : KernelBaseOpenCL("gather_nonzero_ref") {}
     virtual ~GatherNonzeroKernelRef() {}
 
+    virtual JitConstants GetJitConstants(const gather_nonzero_params& params) const;
+    virtual CommonDispatchData SetDefault(const gather_nonzero_params& params) const;
     KernelsData GetKernelsData(const Params& params, const optional_params& options) const override;
     KernelsPriority GetKernelsPriority(const Params& params, const optional_params& options) const override;
     ParamsKey GetSupportedKey() const override;

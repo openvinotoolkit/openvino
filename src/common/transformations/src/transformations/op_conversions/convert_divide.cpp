@@ -41,7 +41,7 @@ bool convert_divide(std::shared_ptr<ngraph::Node> node) {
 
     auto mul = std::make_shared<ov::opset1::Multiply>(div->input(0).get_source_output(), pow);
     // if Divide is an inverse, then we don't need the Multiply
-    if (ngraph::op::util::can_eliminate_eltwise_node(mul, mul->input_value(0), mul->input_value(1))) {
+    if (ov::op::util::can_eliminate_eltwise_node(mul, mul->input_value(0), mul->input_value(1))) {
         pow->set_friendly_name(div->get_friendly_name());
         ngraph::replace_node(div, pow);
     } else {

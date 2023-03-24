@@ -14,16 +14,16 @@
 #include <vector>
 
 #include "any_copy.hpp"
+#include "cache_guard.hpp"
 #include "check_network_batchable.hpp"
 #include "cnn_network_ngraph_impl.hpp"
 #include "compilation_context.hpp"
 #include "cpp/ie_cnn_network.h"
-#include "cpp/ie_plugin.hpp"
 #include "cpp_interfaces/interface/ie_iexecutable_network_internal.hpp"
 #include "cpp_interfaces/interface/ie_internal_plugin_config.hpp"
+#include "dev/converter_utils.hpp"
 #include "dev/core_impl.hpp"
 #include "file_utils.h"
-#include "ie_cache_guard.hpp"
 #include "ie_cache_manager.hpp"
 #include "ie_icore.hpp"
 #include "ie_itt.hpp"
@@ -40,6 +40,7 @@
 #include "openvino/op/result.hpp"
 #include "openvino/runtime/compiled_model.hpp"
 #include "openvino/runtime/core.hpp"
+#include "openvino/runtime/device_id_parser.hpp"
 #include "openvino/util/common_util.hpp"
 #include "openvino/util/file_util.hpp"
 #include "openvino/util/shared_object.hpp"
@@ -54,6 +55,32 @@ using namespace InferenceEngine::PluginConfigParams;
 using namespace InferenceEngine;
 using namespace std::placeholders;
 
+namespace {
+
+std::tuple<bool, std::string> CheckStatic(const InferenceEngine::CNNNetwork& network) {
+    bool res = true;
+    std::stringstream errMsg;
+    auto model = network.getFunction();
+    if (model) {
+        for (const auto& input : model->inputs()) {
+            if (input.get_partial_shape().is_dynamic()) {
+                errMsg << "{ input:'";
+                for (const auto& name : input.get_names()) {
+                    errMsg << name << ",";
+                }
+                if (auto node = input.get_node_shared_ptr()) {
+                    errMsg << node->get_friendly_name();
+                }
+                errMsg << "', shape=" << input.get_partial_shape() << "} ";
+                res = false;
+            }
+        }
+    }
+    return {res, errMsg.str()};
+}
+
+}  // namespace
+
 namespace InferenceEngine {
 
 class Core::Impl : public ov::CoreImpl {
@@ -65,9 +92,11 @@ Core::Core(const std::string& xmlConfigFile) {
     _impl = std::make_shared<Impl>();
 
 #ifdef OPENVINO_STATIC_LIBRARY
-    _impl->RegisterPluginsInRegistry(::getStaticPluginsRegistry());
+    _impl->register_plugins_in_registry(::getStaticPluginsRegistry());
 #else
-    RegisterPlugins(ov::findPluginXML(xmlConfigFile));
+    // If XML is default, load default plugins by absolute paths
+    auto loadByAbsPath = xmlConfigFile.empty();
+    _impl->register_plugins_in_registry(ov::findPluginXML(xmlConfigFile), loadByAbsPath);
 #endif
 }
 
@@ -98,7 +127,7 @@ ExecutableNetwork Core::LoadNetwork(const CNNNetwork& network, const std::map<st
 ExecutableNetwork Core::LoadNetwork(const CNNNetwork& network,
                                     const std::string& deviceName,
                                     const std::map<std::string, std::string>& config) {
-    auto valid = ov::CoreImpl::CheckStatic(network);
+    auto valid = ::CheckStatic(network);
     OPENVINO_ASSERT(std::get<0>(valid),
                     "InferenceEngine::Core::LoadNetwork doesn't support inputs having dynamic shapes. ",
                     "Use ov::Core::compile_model API instead. Dynamic inputs are :",
@@ -110,7 +139,7 @@ ExecutableNetwork Core::LoadNetwork(const CNNNetwork& network,
 ExecutableNetwork Core::LoadNetwork(const CNNNetwork& network,
                                     RemoteContext::Ptr context,
                                     const std::map<std::string, std::string>& config) {
-    auto valid = ov::CoreImpl::CheckStatic(network);
+    auto valid = ::CheckStatic(network);
     OPENVINO_ASSERT(std::get<0>(valid),
                     "InferenceEngine::Core::LoadNetwork doesn't support inputs having dynamic shapes. ",
                     "Use ov::Core::compile_model API instead. Dynamic inputs are :",
@@ -123,7 +152,7 @@ ExecutableNetwork Core::LoadNetwork(const std::string& modelPath,
                                     const std::string& deviceName,
                                     const std::map<std::string, std::string>& config) {
     auto exec = _impl->LoadNetwork(modelPath, deviceName, config, [](const CNNNetwork& network) {
-        auto valid = ov::CoreImpl::CheckStatic(network);
+        auto valid = ::CheckStatic(network);
         OPENVINO_ASSERT(std::get<0>(valid),
                         "InferenceEngine::Core::LoadNetwork doesn't support inputs having dynamic shapes. ",
                         "Use ov::Core::compile_model API instead. Dynamic inputs are :",
@@ -175,9 +204,12 @@ ExecutableNetwork Core::ImportNetwork(const std::string& modelFileName,
                                       const std::string& deviceName,
                                       const std::map<std::string, std::string>& config) {
     OV_ITT_SCOPED_TASK(ov::itt::domains::IE, "Core::ImportNetwork");
-    auto parsed = ov::parseDeviceNameIntoConfig(deviceName, config);
-    auto exec = _impl->GetCPPPluginByName(parsed._deviceName).import_model(modelFileName, parsed._config);
-    return {exec._ptr, exec._so};
+    auto parsed = ov::parseDeviceNameIntoConfig(deviceName, ov::any_copy(config));
+    std::ifstream modelStream(modelFileName, std::ios::binary);
+    if (!modelStream.is_open())
+        IE_THROW(NetworkNotRead) << "Model file " << modelFileName << " cannot be opened!";
+    auto exec = _impl->get_plugin(parsed._deviceName).import_model(modelStream, parsed._config);
+    return {ov::legacy_convert::convert_compiled_model(exec._ptr), exec._so};
 }
 
 ExecutableNetwork Core::ImportNetwork(std::istream& networkModel,
@@ -206,8 +238,8 @@ ExecutableNetwork Core::ImportNetwork(std::istream& networkModel) {
     }
     networkModel.seekg(currentPos, networkModel.beg);
 
-    auto exec = _impl->GetCPPPluginByName(deviceName).import_model(networkModel, {});
-    return {exec._ptr, exec._so};
+    auto exec = _impl->get_plugin(deviceName).import_model(networkModel, {});
+    return {ov::legacy_convert::convert_compiled_model(exec._ptr), exec._so};
 }
 
 ExecutableNetwork Core::ImportNetwork(std::istream& networkModel,
@@ -220,19 +252,21 @@ ExecutableNetwork Core::ImportNetwork(std::istream& networkModel,
     }
 
     std::string deviceName_ = context->getDeviceName();
-    DeviceIDParser device(deviceName_);
-    std::string deviceName = device.getDeviceName();
+    ov::DeviceIDParser device(deviceName_);
+    std::string deviceName = device.get_device_name();
 
-    auto parsed = ov::parseDeviceNameIntoConfig(deviceName, config);
-    auto exec = _impl->GetCPPPluginByName(deviceName)
-                    .import_model(networkModel, std::dynamic_pointer_cast<RemoteContext>(context), parsed._config);
-    return {exec._ptr, exec._so};
+    auto parsed = ov::parseDeviceNameIntoConfig(deviceName, ov::any_copy(config));
+    auto exec = _impl->get_plugin(deviceName)
+                    .import_model(networkModel,
+                                  ov::RemoteContext{ov::legacy_convert::convert_remote_context(context), {}},
+                                  parsed._config);
+    return {ov::legacy_convert::convert_compiled_model(exec._ptr), exec._so};
 }
 
 QueryNetworkResult Core::QueryNetwork(const CNNNetwork& network,
                                       const std::string& deviceName,
                                       const std::map<std::string, std::string>& config) const {
-    auto valid = ov::CoreImpl::CheckStatic(network);
+    auto valid = ::CheckStatic(network);
     OPENVINO_ASSERT(std::get<0>(valid),
                     "InferenceEngine::Core::QueryNetwork doesn't support inputs having dynamic shapes. ",
                     "Use ov::Core::compile_model API instead. Dynamic inputs are :",
@@ -262,9 +296,9 @@ void Core::SetConfig(const std::map<std::string, std::string>& config, const std
 
     ov::AnyMap conf = ov::any_copy(config);
     if (deviceName.empty()) {
-        _impl->SetConfigForPlugins(conf, std::string());
+        _impl->set_property_for_device(conf, std::string());
     } else {
-        _impl->SetConfigForPlugins(conf, deviceName);
+        _impl->set_property_for_device(conf, deviceName);
     }
 }
 
@@ -297,7 +331,7 @@ Parameter Core::GetConfig(const std::string& deviceName, const std::string& name
     }
 
     auto parsed = ov::parseDeviceNameIntoConfig(deviceName);
-    return _impl->GetCPPPluginByName(parsed._deviceName).get_config(name, parsed._config);
+    return _impl->get_plugin(parsed._deviceName).get_property(name, parsed._config);
 }
 
 Parameter Core::GetMetric(const std::string& deviceName, const std::string& name, const ParamMap& options) const {
@@ -309,18 +343,18 @@ std::vector<std::string> Core::GetAvailableDevices() const {
 }
 
 void Core::RegisterPlugin(const std::string& pluginName, const std::string& deviceName) {
-    _impl->RegisterPluginByName(pluginName, deviceName);
+    _impl->register_plugin(pluginName, deviceName);
 }
 
 void Core::RegisterPlugins(const std::string& xmlConfigFile) {
-    _impl->RegisterPluginsInRegistry(xmlConfigFile);
+    _impl->register_plugins_in_registry(xmlConfigFile);
 }
 
 void Core::UnregisterPlugin(const std::string& deviceName_) {
-    DeviceIDParser parser(deviceName_);
-    std::string deviceName = parser.getDeviceName();
+    ov::DeviceIDParser parser(deviceName_);
+    std::string deviceName = parser.get_device_name();
 
-    _impl->UnloadPluginByName(deviceName);
+    _impl->unload_plugin(deviceName);
 }
 
 }  // namespace InferenceEngine

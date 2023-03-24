@@ -47,10 +47,6 @@ std::string ExperimentalDetectronROIFeatureExtractorLayerTest::getTestCaseName(
 }
 
 void ExperimentalDetectronROIFeatureExtractorLayerTest::SetUp() {
-    // TODO: Remove it after fixing issue 69529
-    // w/a for myriad (cann't store 2 caches simultaneously)
-    PluginCache::get().reset();
-
     std::vector<InputShape> inputShapes;
     int64_t outputSize, samplingRatio;
     std::vector<int64_t> pyramidScales;

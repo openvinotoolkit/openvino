@@ -32,7 +32,7 @@ public:
     void execute(activation_test_params& p) {
         auto input_prim = get_mem(get_input_layout(p));
 
-        ExecutionConfig cfg;
+        ExecutionConfig cfg = get_test_default_config(engine);
         ov::intel_gpu::ImplementationDesc activation_impl = { p.input_format, p.kernel_name };
         cfg.set_property(ov::intel_gpu::optimize_data(true));
         cfg.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ { "act", activation_impl } }));
@@ -177,9 +177,6 @@ TEST_P(activation_eltwise_activation_quantize_u8, basic) {
                  input_info("out_low"), input_info("out_high"), 256, data_types::u8),
         reorder("reorder_bfyx", input_info("quant"), p.default_format, data_types::f32)
     );
-    // Activation won't be fused because onednn doesn't support softsign activation
-    if (engine.get_device_info().supports_immad)
-        p.expected_fused_primitives++;
 
     tolerance = 1.f;
     execute(p);
@@ -201,9 +198,6 @@ TEST_P(activation_eltwise_activation_quantize_u8, per_channel) {
                  input_info("out_low"), input_info("out_high"), 256, data_types::u8),
         reorder("reorder_bfyx", input_info("quant"), p.default_format, data_types::f32)
     );
-    // Activation won't be fused because onednn doesn't support softsign activation
-    if (engine.get_device_info().supports_immad)
-        p.expected_fused_primitives++;
 
     tolerance = 1.f;
     execute(p);

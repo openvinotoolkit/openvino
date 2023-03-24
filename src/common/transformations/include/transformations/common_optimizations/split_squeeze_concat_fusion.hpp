@@ -28,9 +28,3 @@ public:
     OPENVINO_RTTI("SplitSqueezeConcatFusion", "0");
     SplitSqueezeConcatFusion();
 };
-
-namespace ngraph {
-namespace pass {
-using ov::pass::SplitSqueezeConcatFusion;
-}  // namespace pass
-}  // namespace ngraph

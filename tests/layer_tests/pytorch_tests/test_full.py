@@ -103,6 +103,32 @@ class TestFull(PytorchLayerTest):
         self._test(*self.create_model(shape, dtype=dtype, use_out=True, with_names=with_names), ie_device, precision,
                    ir_version, kwargs_to_prepare_input={'value': value})
 
+class TestFill(PytorchLayerTest):
+    def _prepare_input(self, value, shape, input_dtype, value_dtype):
+        return (np.random.randn(*shape).astype(input_dtype), np.array(value, dtype=value_dtype),)
+
+    def create_model(self):
+        import torch
+
+        class aten_fill(torch.nn.Module):
+
+            def forward(self, input_t: torch.Tensor, x: float):
+                return input_t.fill_(x)
+        ref_net = None
+
+        model = aten_fill()
+
+        return model, ref_net, "aten::fill_"
+
+    @pytest.mark.parametrize("shape", [[1], [1, 2], [1, 2, 3], [1, 2, 3, 4], [2, 3, 4, 5, 6]])
+    @pytest.mark.parametrize("value", [0, 1, -1, 0.5])
+    @pytest.mark.parametrize("input_dtype", ["int8", "int32", "int64", "float32", "float64"])
+    @pytest.mark.parametrize("value_dtype", ["int8", "int32", "int64", "float32", "float64"])
+    @pytest.mark.nightly
+    @pytest.mark.precommit
+    def test_fill(self, shape, value, input_dtype, value_dtype, ie_device, precision, ir_version):
+        self._test(*self.create_model(), ie_device, precision, ir_version,
+                   kwargs_to_prepare_input={'value': value, 'shape': shape, "input_dtype": input_dtype, "value_dtype": value_dtype})
 
 class TestFullLike(PytorchLayerTest):
     def _prepare_input(self, value, shape):

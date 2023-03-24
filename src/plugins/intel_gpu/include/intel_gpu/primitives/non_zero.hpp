@@ -18,6 +18,10 @@ struct count_nonzero : public primitive_base<count_nonzero> {
                   const input_info& data,
                   const padding& output_padding = padding())
         : primitive_base(id, {data}, {output_padding}) {}
+
+    bool operator==(const primitive& rhs) const override {
+        return compare_common_params(rhs);
+    }
 };
 
 struct gather_nonzero : public primitive_base<gather_nonzero> {
@@ -32,6 +36,10 @@ struct gather_nonzero : public primitive_base<gather_nonzero> {
                    const input_info& output_shape,
                    const padding& output_padding = padding())
         : primitive_base(id, {data, output_shape}, {output_padding}) {}
+
+    bool operator==(const primitive& rhs) const override {
+        return compare_common_params(rhs);
+    }
 };
 
 }  // namespace cldnn

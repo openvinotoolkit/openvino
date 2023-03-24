@@ -31,9 +31,3 @@ public:
     OPENVINO_RTTI("ClampFusion", "0");
     ClampFusion();
 };
-
-namespace ngraph {
-namespace pass {
-using ov::pass::ClampFusion;
-}  // namespace pass
-}  // namespace ngraph

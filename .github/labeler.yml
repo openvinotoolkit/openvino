@@ -27,9 +27,11 @@
 'category: CPP API':
 - 'src/inference/include/**/*'
 - 'src/core/include/**/*'
-- 'src/frontends/common/**/*'
+- 'src/frontends/common/include/**/*'
 - 'src/frontends/onnx/frontend/include/**/*'
 - 'src/frontends/tensorflow/include/**/*'
+- 'src/frontends/tensorflow_lite/include/**/*'
+- 'src/frontends/pytorch/include/**/*'
 - 'src/frontends/paddle/include/**/*'
 
 'category: CPU':
@@ -56,7 +58,6 @@
 
 'category: GNA':
 - 'src/plugins/intel_gna/**/*'
-- 'src/common/legacy/**/*'
 
 'category: GPU':
 - 'src/plugins/intel_gpu/**/*'
@@ -119,7 +120,13 @@
 
 'category: TF FE':
 - 'src/frontends/tensorflow/**/*'
+- 'src/frontends/tensorflow_common/**/*'
 - 'tests/layer_tests/tensorflow_tests/**/*'
+
+'category: TFL FE':
+- 'src/frontends/tensorflow_lite/**/*'
+- 'src/frontends/tensorflow_common/**/*'
+- 'tests/layer_tests/tensorflow_lite_tests/**/*'
 
 'category: PyTorch FE':
 - 'src/frontends/pytorch/**/*'

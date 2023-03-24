@@ -19,9 +19,9 @@
 Overview
 ~~~~~~~~
 
-OpenVINO enables you to optimize a deep learning model from almost any framework and deploy it with best-in-class performance on a range of Intel  processors and other hardware platforms.
+OpenVINO enables you to optimize deep learning models from almost any framework and deploy them with best-in-class performance on a range of Intel hardware.
 
-A typical workflow with OpenVINO is shown below.
+A typical workflow with OpenVINO:
 
 .. container:: section
    :name: welcome-to-openvino-toolkit-s-documentation
@@ -63,7 +63,7 @@ A typical workflow with OpenVINO is shown below.
 High-Performance Deep Learning
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-OpenVINO Runtime automatically optimizes deep learning pipelines using aggressive graph fusion, memory reuse, load balancing, and inferencing parallelism across CPU, GPU, VPU, and more.
+OpenVINO Runtime automatically optimizes deep learning pipelines using aggressive graph fusion, memory reuse, load balancing, and inference parallelism across CPU, GPU, and more.
 You can integrate and offload to accelerators additional operations for pre- and post-processing to reduce end-to-end latency and improve throughput.
 
 Model Quantization and Compression
@@ -94,7 +94,7 @@ Boost your model’s speed even further with quantization and other state-of-the
 
    **Enhanced App Start-Up Time**
 
-   In applications where fast start-up is required, OpenVINO significantly reduces first-inference latency by using the CPU for initial inference and then switching to GPU or VPU once the model has been compiled and loaded to memory. Compiled models are cached to further improving start-up time.
+   In applications where fast start-up is required, OpenVINO significantly reduces first-inference latency by using the CPU for initial inference and then switching to another device once the model has been compiled and loaded to memory. Compiled models are cached improving start-up time even more.
 
 
 Supported Devices

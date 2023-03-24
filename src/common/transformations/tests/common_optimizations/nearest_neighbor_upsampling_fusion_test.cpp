@@ -75,7 +75,7 @@ TEST_F(TransformationTestsF, NearestNeighborUpsamplingFusionSpatial2D1) {
 
         auto reshape_2 = std::make_shared<ngraph::opset8::Reshape>(mul, concat_2, true);
         function = std::make_shared<ngraph::Function>(ngraph::NodeVector{reshape_2}, ngraph::ParameterVector{input});
-        manager.register_pass<ngraph::pass::NearestNeighborUpsamplingFusion>();
+        manager.register_pass<ov::pass::NearestNeighborUpsamplingFusion>();
     }
     {
         ngraph::opset8::Interpolate::InterpolateAttrs attrs;
@@ -159,7 +159,7 @@ TEST_F(TransformationTestsF, NearestNeighborUpsamplingFusionSpatial3D1) {
 
         auto reshape_2 = std::make_shared<ngraph::opset8::Reshape>(mul, concat_2, true);
         function = std::make_shared<ngraph::Function>(ngraph::NodeVector{reshape_2}, ngraph::ParameterVector{input});
-        manager.register_pass<ngraph::pass::NearestNeighborUpsamplingFusion>();
+        manager.register_pass<ov::pass::NearestNeighborUpsamplingFusion>();
     }
     {
         ngraph::opset8::Interpolate::InterpolateAttrs attrs;

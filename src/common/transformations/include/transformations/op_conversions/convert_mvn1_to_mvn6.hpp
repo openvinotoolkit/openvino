@@ -24,9 +24,3 @@ public:
     OPENVINO_RTTI("ConvertMVN1ToMVN6", "0");
     ConvertMVN1ToMVN6();
 };
-
-namespace ngraph {
-namespace pass {
-using ov::pass::ConvertMVN1ToMVN6;
-}  // namespace pass
-}  // namespace ngraph

@@ -22,9 +22,3 @@ public:
     OPENVINO_RTTI("ConvertGELU", "0");
     ConvertGELU();
 };
-
-namespace ngraph {
-namespace pass {
-using ov::pass::ConvertGELU;
-}  // namespace pass
-}  // namespace ngraph

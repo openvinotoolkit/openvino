@@ -64,6 +64,7 @@
 *.gif filter=lfs diff=lfs merge=lfs -text
 *.vsdx filter=lfs diff=lfs merge=lfs -text
 *.bmp filter=lfs diff=lfs merge=lfs -text
+*.svg filter=lfs diff=lfs merge=lfs -text
 
 #POT attributes
 tools/pot/tests/data/test_cases_refs/* filter=lfs diff=lfs merge=lfs -text

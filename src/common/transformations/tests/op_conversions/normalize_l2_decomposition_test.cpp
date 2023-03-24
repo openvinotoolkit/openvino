@@ -28,7 +28,7 @@ TEST_F(TransformationTestsF, NormalizeL2DecomositionFusionWithMax) {
 
         function = std::make_shared<ngraph::Function>(ngraph::NodeVector{normalize_l2}, ngraph::ParameterVector{input});
 
-        manager.register_pass<ngraph::pass::NormalizeL2Decomposition>();
+        manager.register_pass<ov::pass::NormalizeL2Decomposition>();
     }
 
     {
@@ -58,7 +58,7 @@ TEST_F(TransformationTestsF, NormalizeL2DecomositionFusionWithAdd) {
 
         function = std::make_shared<ngraph::Function>(ngraph::NodeVector{normalize_l2}, ngraph::ParameterVector{input});
 
-        manager.register_pass<ngraph::pass::NormalizeL2Decomposition>();
+        manager.register_pass<ov::pass::NormalizeL2Decomposition>();
     }
 
     {

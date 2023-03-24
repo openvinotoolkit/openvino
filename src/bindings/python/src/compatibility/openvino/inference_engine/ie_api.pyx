@@ -541,10 +541,10 @@ cdef class IECore:
 
 
     def register_plugin(self, plugin_name: str, device_name: str = ""):
-        """Registers plugins specified in an `.xml` configuration file
+        """Register a new device and plugin that enables this device inside OpenVINO Runtime.
         
-        :param plugin_name: A name of a plugin. Depending on a platform, plugin_name is wrapped with a shared
-                            library suffix and a prefix to identify a full name of the library
+        :param plugin_name: A path (absolute or relative) or name of a plugin. Depending on platform, 
+                            `plugin` is wrapped with shared library suffix and prefix to identify library full name
         :param device_name: A target device name for the plugin. If not specified, the method registers
                             a plugin with the default name.
         
@@ -555,7 +555,7 @@ cdef class IECore:
         .. code-block:: python
 
             ie = IECore()
-            ie.register_plugin(plugin="openvino_intel_cpu_plugin", device_name="MY_NEW_PLUGIN")
+            ie.register_plugin(plugin_name="openvino_intel_cpu_plugin", device_name="MY_NEW_PLUGIN")
         """
         self.impl.registerPlugin(plugin_name.encode(), device_name.encode())
 
