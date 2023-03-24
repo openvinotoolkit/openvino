@@ -51,7 +51,6 @@ TEST_P(test_empty_tensor, concat_two_inputs) {
 
     std::vector<int32_t> nonzero_input_with_all_zero(p.nonzero_input_layout.count());
     std::fill(nonzero_input_with_all_zero.begin(), nonzero_input_with_all_zero.end(), 0);
-    get_test_stream().finish();
     set_values(nonzero_input_mem, nonzero_input_with_all_zero); // nonzero output shape will be (2, 0)
 
     network.set_input_data("nonzero_input", nonzero_input_mem);

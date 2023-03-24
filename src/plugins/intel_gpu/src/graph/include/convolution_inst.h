@@ -129,7 +129,7 @@ public:
 
     bool need_reset_input_memory() const override {
         auto input_layout = _deps[0].first->_impl_params->get_output_layout(0);
-        if (input_layout.data_padding.lower_size() != tensor(0) || input_layout.data_padding.upper_size() != tensor(0)) {
+        if (input_layout.data_padding) {
             return true;
         }
         return false;
@@ -138,7 +138,7 @@ public:
     bool need_reset_output_memory() const override {
         bool res = parent::need_reset_output_memory();
         auto output_layout = _impl_params->get_output_layout(0);
-        if (output_layout.data_padding.lower_size() != tensor(0) || output_layout.data_padding.upper_size() != tensor(0)) {
+        if (output_layout.data_padding) {
             return true;
         }
         return res;

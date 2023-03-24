@@ -8813,7 +8813,6 @@ public:
 
         // Initialized output with zeros.
         std::fill(output_mem.begin(), output_mem.end(), static_cast<Type>(0));
-        get_test_stream().finish();
 
         // Add the bias
         for (int b = 0; b < input_size.batch[0]; b++) {
