@@ -118,12 +118,13 @@ jobs:
           cxx: ${{ matrix.config.cxx }}
           target: ov_coverage
           configure-options: >
-            -GNinja
             -DCMAKE_VERBOSE_MAKEFILE=ON
             -DCMAKE_C_COMPILER_LAUNCHER=ccache
             -DCMAKE_CXX_COMPILER_LAUNCHER=ccache
             -DCMAKE_C_LINKER_LAUNCHER=ccache
             -DCMAKE_CXX_LINKER_LAUNCHER=ccache
+          parallel: ${{ steps.cpu-cores.outputs.count }}
+
       
       - name: Print info
         run: |
