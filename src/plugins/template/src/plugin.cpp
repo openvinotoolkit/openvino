@@ -225,6 +225,7 @@ ov::Any ov::template_plugin::Plugin::get_property(const std::string& name, const
                                                     ov::device::full_name,
                                                     ov::device::architecture,
                                                     ov::device::capabilities,
+                                                    ov::caching_properties,
                                                     ov::range_for_async_infer_requests};
         return ro_properties;
     };

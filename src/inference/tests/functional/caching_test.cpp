@@ -408,7 +408,7 @@ private:
 
         ON_CALL(plugin, GetMetric(ov::caching_properties.name(), _))
             .WillByDefault(Invoke([&](const std::string&, const std::map<std::string, Parameter>&) {
-                std::vector<ov::PropertyName> cachingProperties = { ov::device::architecture.name() };
+                std::vector<ov::PropertyName> cachingProperties = {ov::device::architecture.name()};
                 return decltype(ov::caching_properties)::value_type(cachingProperties);
             }));
 
@@ -1502,6 +1502,41 @@ TEST_P(CachingTest, TestNoDeviceArchitecture) {
         }
         testLoad([&](Core& ie) {
             deviceToLoad = "mock.50";
+            ie.SetConfig({{CONFIG_KEY(CACHE_DIR), m_cacheDir}});
+            m_testFunction(ie);
+        });
+    }
+}
+
+TEST_P(CachingTest, TestNoCachingProperties) {
+    EXPECT_CALL(*mockPlugin, GetMetric(METRIC_KEY(SUPPORTED_CONFIG_KEYS), _)).Times(AnyNumber());
+    EXPECT_CALL(*mockPlugin, GetMetric(ov::supported_properties.name(), _))
+        .Times(AnyNumber())
+        .WillRepeatedly(Invoke([&](const std::string&, const std::map<std::string, Parameter>&) {
+            return std::vector<ov::PropertyName>{ov::device::capabilities.name()};
+        }));
+    EXPECT_CALL(*mockPlugin, GetMetric(ov::caching_properties.name(), _)).Times(0);
+    EXPECT_CALL(*mockPlugin, GetMetric(METRIC_KEY(SUPPORTED_METRICS), _))
+        .Times(AnyNumber())
+        .WillRepeatedly(Invoke([&](const std::string&, const std::map<std::string, Parameter>&) {
+            return std::vector<std::string>{METRIC_KEY(IMPORT_EXPORT_SUPPORT)};
+        }));
+    EXPECT_CALL(*mockPlugin, GetMetric(METRIC_KEY(IMPORT_EXPORT_SUPPORT), _)).Times(AnyNumber());
+    EXPECT_CALL(*mockPlugin, GetMetric(ov::device::capabilities.name(), _))
+        .Times(AnyNumber())
+        .WillRepeatedly(Return(decltype(ov::device::capabilities)::value_type{ov::device::capability::EXPORT_IMPORT}));
+    EXPECT_CALL(*mockPlugin, GetMetric(METRIC_KEY(DEVICE_ARCHITECTURE), _)).Times(0);
+    {
+        EXPECT_CALL(*mockPlugin, LoadExeNetworkImpl(_, _, _)).Times(m_remoteContext ? 1 : 0);
+        EXPECT_CALL(*mockPlugin, LoadExeNetworkImpl(_, _)).Times(!m_remoteContext ? 1 : 0);
+        EXPECT_CALL(*mockPlugin, OnLoadNetworkFromFile()).Times(m_type == TestLoadType::EModelName ? 1 : 0);
+        EXPECT_CALL(*mockPlugin, ImportNetwork(_, _, _)).Times(0);
+        EXPECT_CALL(*mockPlugin, ImportNetwork(_, _)).Times(0);
+        m_post_mock_net_callbacks.emplace_back([&](MockExecutableNetwork& net) {
+            EXPECT_CALL(net, Export(_)).Times(0);
+        });
+        testLoad([&](Core& ie) {
+            deviceToLoad = "mock.0";
             ie.SetConfig({{CONFIG_KEY(CACHE_DIR), m_cacheDir}});
             m_testFunction(ie);
         });

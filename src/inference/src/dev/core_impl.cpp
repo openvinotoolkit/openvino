@@ -1228,7 +1228,6 @@ ov::SoPtr<ov::ICompiledModel> ov::CoreImpl::load_model_from_cache(
 
 ov::AnyMap ov::CoreImpl::create_compile_config(const ov::Plugin& plugin, const ov::AnyMap& user_config) const {
     ov::AnyMap property_config;
-    ov::AnyMap compile_config;
 
     // 0. Move ov::device::priorities / TARGET_FALLBACK key to property_config
     auto device_priorities_it = user_config.find("TARGET_FALLBACK");
@@ -1250,14 +1249,16 @@ ov::AnyMap ov::CoreImpl::create_compile_config(const ov::Plugin& plugin, const o
     }
 
     // 2. Extract config keys which affect compilation process
-    if (device_supports_property(plugin, ov::caching_properties)) {
-        auto cachingProps = plugin.get_property(ov::caching_properties);
-        for (const auto& prop : cachingProps) {
-            // user_config values have higher priority than plugin parameters
-            auto it = user_config.find(prop);
-            compile_config[prop] = it == user_config.end() ? plugin.get_property(prop, property_config) : it->second;
-        }
+    auto caching_props = plugin.get_property(ov::caching_properties);
+    OPENVINO_ASSERT(!caching_props.empty(), "ov::caching_properties returned by ", plugin.get_name(), " are empty");
+
+    ov::AnyMap compile_config;
+    for (const auto& prop : caching_props) {
+        // user_config values have higher priority than plugin parameters
+        auto it = user_config.find(prop);
+        compile_config[prop] = it == user_config.end() ? plugin.get_property(prop, property_config) : it->second;
     }
+
     return compile_config;
 }
 
