@@ -31,9 +31,6 @@ inline const ov::OpSet& get_opset_by_name(const std::string& opset_name) {
     }
 }
 
-// special tag to avoid OpExtensionBase constructor (brace-enclosed initializer list) ambiguous
-struct PaddleTag {};
-
 /// \brief The helper function to create an instance of ov::Node class initialized by provided type name.
 /// Expected formats:
 /// - opsetN::OpName
@@ -116,21 +113,18 @@ public:
                     const std::map<std::string, std::string>& attr_names_map = {},
                     const std::map<std::string, ov::Any>& attr_values_map = {});
 
-    OpExtensionBase(PaddleTag tag,
-                    const std::vector<std::string>& in_names_vec,
+    OpExtensionBase(const std::vector<std::string>& in_names_vec,
                     const std::vector<std::string>& out_names_vec,
                     const std::map<std::string, std::string>& attr_names_map = {},
                     const std::map<std::string, ov::Any>& attr_values_map = {})
-        : OpExtensionBase(tag,
-                          OVOpType::get_type_info_static().name,
+        : OpExtensionBase(OVOpType::get_type_info_static().name,
                           in_names_vec,
                           out_names_vec,
                           attr_names_map,
                           attr_values_map) {}
 
     // Maps op with output names, a given type in FW and OV type given in template parameter
-    OpExtensionBase(PaddleTag,
-                    const std::string& fw_type_name,
+    OpExtensionBase(const std::string& fw_type_name,
                     const std::vector<std::string>& in_names_vec,
                     const std::vector<std::string>& out_names_vec,
                     const std::map<std::string, std::string>& attr_names_map = {},
@@ -155,15 +149,12 @@ public:
                     const std::map<std::string, std::string>& attr_names_map = {},
                     const std::map<std::string, ov::Any>& attr_values_map = {});
 
-    // Maps op with a given type in FW and specified OV type given in template parameter
-    OpExtensionBase(PaddleTag tag,
-                    const std::string& fw_ov_type_name,
+    OpExtensionBase(const std::string& fw_ov_type_name,
                     const std::vector<std::string>& in_names_vec,
                     const std::vector<std::string>& out_names_vec,
                     const std::map<std::string, std::string>& attr_names_map = {},
                     const std::map<std::string, ov::Any>& attr_values_map = {})
-        : OpExtensionBase(tag,
-                          fw_ov_type_name,
+        : OpExtensionBase(fw_ov_type_name,
                           fw_ov_type_name,
                           in_names_vec,
                           out_names_vec,
@@ -171,8 +162,7 @@ public:
                           attr_values_map) {}
 
     // Maps op with output names, a given type in FW and OV type given in template parameter
-    OpExtensionBase(PaddleTag,
-                    const std::string& ov_type_name,
+    OpExtensionBase(const std::string& ov_type_name,
                     const std::string& fw_type_name,
                     const std::vector<std::string>& in_names_vec,
                     const std::vector<std::string>& out_names_vec,
@@ -379,8 +369,7 @@ OpExtensionBase<BaseConversionType, void>::OpExtensionBase(const std::string& ov
                              attr_values_map)) {}
 
 template <typename BaseConversionType>
-OpExtensionBase<BaseConversionType, void>::OpExtensionBase(PaddleTag,
-                                                           const std::string& ov_type_name,
+OpExtensionBase<BaseConversionType, void>::OpExtensionBase(const std::string& ov_type_name,
                                                            const std::string& fw_type_name,
                                                            const std::vector<std::string>& in_names_vec,
                                                            const std::vector<std::string>& out_names_vec,
@@ -409,8 +398,7 @@ OpExtensionBase<BaseConversionType, OVOpType>::OpExtensionBase(const std::string
                              attr_values_map)) {}
 
 template <typename BaseConversionType, typename OVOpType>
-OpExtensionBase<BaseConversionType, OVOpType>::OpExtensionBase(PaddleTag,
-                                                               const std::string& fw_type_name,
+OpExtensionBase<BaseConversionType, OVOpType>::OpExtensionBase(const std::string& fw_type_name,
                                                                const std::vector<std::string>& in_names_vec,
                                                                const std::vector<std::string>& out_names_vec,
                                                                const std::map<std::string, std::string>& attr_names_map,
@@ -448,24 +436,19 @@ using OpExtension = ov::frontend::OpExtensionBase<ov::frontend::ConversionExtens
     if (!name.empty())                                                                           \
         return std::make_shared<ov::frontend::FRAMEWORK::OpExtension<T>>(name, attr_mp, val_mp); \
     return std::make_shared<ov::frontend::FRAMEWORK::OpExtension<T>>(attr_mp, val_mp);
-#define MAKE_MAP_onnx(...)       MAKE_MAP_COMMON(onnx, __VA_ARGS__)
-#define MAKE_MAP_tensorflow(...) MAKE_MAP_COMMON(tensorflow, __VA_ARGS__)
+#define MAKE_MAP_onnx(...)            MAKE_MAP_COMMON(onnx, __VA_ARGS__)
+#define MAKE_MAP_tensorflow(...)      MAKE_MAP_COMMON(tensorflow, __VA_ARGS__)
 #define MAKE_MAP_tensorflow_lite(...) MAKE_MAP_COMMON(tensorflow_lite, __VA_ARGS__)
 // make paddle OpExtension
 #define MAKE_MAP_paddle(...)                                                         \
     FRONTEND_EXPAND(GEN_VAR_PADDLE(__VA_ARGS__))                                     \
     if (!name.empty())                                                               \
-        return std::make_shared<ov::frontend::paddle::OpExtension<T>>(PaddleTag(),   \
-                                                                      name,          \
+        return std::make_shared<ov::frontend::paddle::OpExtension<T>>(name,          \
                                                                       in_names_vec,  \
                                                                       out_names_vec, \
                                                                       attr_mp,       \
                                                                       val_mp);       \
-    return std::make_shared<ov::frontend::paddle::OpExtension<T>>(PaddleTag(),       \
-                                                                  in_names_vec,      \
-                                                                  out_names_vec,     \
-                                                                  attr_mp,           \
-                                                                  val_mp);
+    return std::make_shared<ov::frontend::paddle::OpExtension<T>>(in_names_vec, out_names_vec, attr_mp, val_mp);
 
 // Per each FRAMEWORK this macro can be used once in one operation class definition
 // It defines a member inline function that creates required extension.

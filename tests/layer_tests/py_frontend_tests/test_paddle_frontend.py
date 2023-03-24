@@ -1,15 +1,21 @@
-# Copyright (C) 2018-2022 Intel Corporation
+# Copyright (C) 2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
+from pathlib import Path
 import os
+import glob
+import re
+
 import paddle
 from paddle.jit import to_static
 from paddle.static import InputSpec
 import pytest
-from pathlib import Path
-from itertools import chain
+
+import sys
+print(sys.path)
 
 from openvino.frontend import FrontEndManager
+from openvino.runtime import shutdown
 
 PADDLE_FRONTEND_NAME = "paddle"
 paddle_relu6_model_basename = "relu6"
@@ -50,6 +56,7 @@ def setup_module():
 def teardown_module():
     os.remove(paddle_relu6_model_filename)
     os.remove(paddle_concat_model_filename)
+    shutdown()
 
 
 def test_paddle_conversion_extension():
@@ -121,38 +128,20 @@ def test_op_extension_via_frontend_extension_set_attrs_values():
     assert model
 
 
-# could not find a suitable case because attribute type almost is not same
-# such as ov use int64 but paddle use int32, ov use double but paddle use float
-# def test_op_extension_via_frontend_extension_map_attributes():
-#     skip_if_paddle_frontend_is_disabled()
-#
-#     # use common (openvino.frontend) import here
-#     from openvino.frontend import OpExtension
-#     from openvino.runtime import Core
-#
-#     ie = Core()
-#     # check the model is valid
-#     model = ie.read_model(paddle_concat_model_filename)
-#     assert model
-#
-#     # add extensions
-#     ie.add_extension(OpExtension("Concat", "concat", ["X"], ["Out"], {"axis": "axis"}))
-#
-#     model = ie.read_model(paddle_concat_model_filename)
-#     assert model
-
-
 def get_builtin_extensions_path():
-    win_folder_path = Path(__file__).parent.parent.parent.parent
-    linux_folder_path = win_folder_path.joinpath("lib")
-    for lib_path in chain(win_folder_path.glob("*.dll"), linux_folder_path.glob("*.so")):
-        if "libtest_builtin_extensions_1" in lib_path.name:
-            return str(lib_path)
-    return ""
+    base_paths = [Path(__file__).parent.parent.parent.parent]
+    repo_dir = os.environ.get("REPO_DIR")
+    if repo_dir:
+        base_paths.append(repo_dir)
+
+    for base_path in base_paths:
+        paths = glob.glob(os.path.join(base_path, "bin", "*", "*", "*test_builtin_extensions*"))
+        for path in paths:
+            if re.search(r"(lib)?test_builtin_extensions.?\.(dll|so)", path):
+                return path
+    raise RuntimeError("Unable to find test_builtin_extensions")
 
 
-@pytest.mark.skipif(len(get_builtin_extensions_path()) == 0,
-                    reason="The extension library path was not found")
 def test_so_extension_via_frontend_convert_input_model():
     skip_if_paddle_frontend_is_disabled()
 
@@ -168,8 +157,6 @@ def test_so_extension_via_frontend_convert_input_model():
     assert all(op.get_type_name() != "Clamp" for op in model.get_ops())
 
 
-@pytest.mark.skipif(len(get_builtin_extensions_path()) == 0,
-                    reason="The extension library path was not found")
 def test_so_extension_via_frontend_decode_input_model():
     skip_if_paddle_frontend_is_disabled()
 
