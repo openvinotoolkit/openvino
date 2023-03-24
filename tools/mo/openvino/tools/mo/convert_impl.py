@@ -738,6 +738,20 @@ def pack_params_to_args_namespace(args: dict, cli_parser: argparse.ArgumentParse
     return argv
 
 
+def update_args_for_unnamed_saved_model(args):
+    if 'input_model' not in args or args['input_model'] is None:
+        return
+    if not isinstance(args['input_model'], (str, Path)):
+        return
+    if not os.path.isdir(args['input_model']):
+        return
+    if 'saved_model_dir' in args and args['saved_model_dir'] is not None:
+        raise Error("Both --input_model and --saved_model_dir are defined. "
+                    "Specify either inpust model or saved model directory.")
+    args['saved_model_dir'] = args['input_model']
+    args['input_model'] = None
+
+
 def _convert(cli_parser: argparse.ArgumentParser, framework, args):
     if 'help' in args and args['help']:
         show_mo_convert_help()
@@ -769,6 +783,8 @@ def _convert(cli_parser: argparse.ArgumentParser, framework, args):
                 args['input_model'] = decoder
                 args["framework"] = "pytorch"
                 args["input_signature"] = input_signature
+        if not inp_model_is_object:
+            update_args_for_unnamed_saved_model(args)
 
         argv = pack_params_to_args_namespace(args, cli_parser)
 
