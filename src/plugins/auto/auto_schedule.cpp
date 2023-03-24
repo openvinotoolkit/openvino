@@ -280,8 +280,8 @@ void AutoSchedule::init(const ScheduleContext::Ptr& sContext) {
     }
 
     auto loadDeviceTask = [&](AutoLoadContext* contextPtr,
-                              std::string modelPath,
-                              IE::CNNNetwork& network,
+                              const std::string& modelPath,
+                              const IE::CNNNetwork& network,
                               bool isCumulative) {
         TryToLoadNetWork(*contextPtr, modelPath, network, isCumulative);
         if (contextPtr->isLoadSuccess) {
@@ -431,13 +431,11 @@ void AutoSchedule::init(const ScheduleContext::Ptr& sContext) {
                 _loadContext[CPU].future.wait();
                 // clean up helper infer requests
                 // first, wait for all the remaining requests to finish
-                if (!_autoSContext->_runtimeFallback) {
-                    for (auto& iter : _workerRequests["CPU_HELP"]) {
-                        try {
-                            iter._inferRequest._ptr->Wait(IE::InferRequest::WaitMode::RESULT_READY);
-                        } catch (const IE::Exception& iie) {
-                            LOG_DEBUG_TAG("No infer results expected, infer in CPU_HELP throw some errors: %s", iie.what());
-                        }
+                for (auto& iter : _workerRequests["CPU_HELP"]) {
+                    try {
+                        iter._inferRequest._ptr->Wait(IE::InferRequest::WaitMode::RESULT_READY);
+                    } catch (const IE::Exception& iie) {
+                        LOG_DEBUG_TAG("No infer results expected, infer in CPU_HELP throw some errors: %s", iie.what());
                     }
                 }
                 // late enough to check the idle queue now
