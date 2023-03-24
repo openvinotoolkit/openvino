@@ -169,7 +169,7 @@ class SamplesCommonTestClass():
         if 'benchmark_app' in path2 and 'python' in sample_type.lower():
             executable_path = spawn.find_executable(str('benchmark_app'))
         # if not hasattr(cls, 'executable_path'):
-        cls.executable_path = executable_path
+        return executable_path
 
     @staticmethod
     def reset_models_path(model):
@@ -359,13 +359,14 @@ class SamplesCommonTestClass():
         # Copy param to another variable, because it is need to save original parameters without changes
         param_cp = dict(param)
         sample_type = param_cp.get('sample_type', "C++")
+        _executable_path = None
         if 'python' in sample_type.lower():
             assert os.environ.get('IE_APP_PYTHON_PATH') is not None, \
                 "IE_APP_PYTHON_PATH environment variable is not specified!"
-            self.made_executable_path(os.environ.get('IE_APP_PYTHON_PATH'), self.sample_name,
-                                      sample_type=sample_type)
+            _executable_path = self.made_executable_path(os.environ.get('IE_APP_PYTHON_PATH'), self.sample_name,
+                                                         sample_type=sample_type)
         else:
-            self.made_executable_path(os.environ.get('IE_APP_PATH'), self.sample_name, sample_type=sample_type)
+            _executable_path = self.made_executable_path(os.environ.get('IE_APP_PATH'), self.sample_name, sample_type=sample_type)
 
         if not os.path.exists(self.output_dir):
             os.mkdir(self.output_dir)
@@ -379,7 +380,7 @@ class SamplesCommonTestClass():
         if get_cmd_func is None:
             get_cmd_func = self.get_cmd_line
 
-        self.join_env_path(param_cp, executable_path=self.executable_path, complete_path=complete_path)
+        self.join_env_path(param_cp, executable_path=_executable_path, complete_path=complete_path)
 
         # Updating all attributes in the original dictionary (param), because param_cp was changes (join_env_path)
         for key in param.keys():
@@ -391,8 +392,8 @@ class SamplesCommonTestClass():
 
         cmd_line = get_cmd_func(param_cp, use_preffix=use_preffix, long_hyphen=long_hyphen)
 
-        log.info("Running command: {} {}".format(self.executable_path, cmd_line))
-        retcode, stdout, stderr = shell([self.executable_path, cmd_line])
+        log.info("Running command: {} {}".format(_executable_path, cmd_line))
+        retcode, stdout, stderr = shell([_executable_path, cmd_line])
         print(f"\n\nStdout:\n{stdout}\n\n")
         print(f"\n\nStderr:\n{stderr}\n\n")
 
@@ -409,7 +410,7 @@ class SamplesCommonTestClass():
                     Environment.env['list_of_skipped_samples'].append(self.sample_name)
                 else:
                     Environment.env.update({'list_of_skipped_samples': [self.sample_name]})
-                pytest.skip('[INFO] Sample {} not executed for performance'.format(self.executable_path))
+                pytest.skip('[INFO] Sample {} not executed for performance'.format(_executable_path))
             else:
                 log.info('Running perfomance for {} iteraction'.format(perf_iter))
                 # Perf_iter = 0 when it isn't neccessary to add niter key
@@ -421,7 +422,7 @@ class SamplesCommonTestClass():
                         log.warning('Added key: niter to param with value: {}'.format(perf_iter))
                         param_cp.update({'niter': perf_iter})
                 cmd_perf = get_cmd_func(param_cp, use_preffix=use_preffix, long_hyphen=long_hyphen)
-                retcode_perf, stdout_perf, stderr_perf = shell([self.executable_path, cmd_perf])
+                retcode_perf, stdout_perf, stderr_perf = shell([_executable_path, cmd_perf])
                 if (retcode_perf != 0):
                     log.error(stderr_perf)
                 assert retcode_perf == 0, "Execution sample for performance failed"
