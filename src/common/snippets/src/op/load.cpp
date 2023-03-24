@@ -13,12 +13,15 @@ namespace snippets {
 namespace op {
 
 Load::Load(const Output<Node>& x, const size_t count, const size_t offset) : MemoryAccess({x}) {
-    constructor_validate_and_infer_types();
+    m_input_ports.resize(get_output_size());
     set_input_port_descriptor({count, offset}, 0);
+    constructor_validate_and_infer_types();
 }
 
 void snippets::op::Load::validate_and_infer_types() {
-    MemoryAccess::validate_and_infer_types();
+    // Load has memory access port only on output
+    OPENVINO_ASSERT(get_input_port_count() == 1, "Load node must have memory access input port");
+    OPENVINO_ASSERT(get_output_port_count() == 0, "Load node mustn't have memory access output port");
     set_output_type(0, get_input_element_type(0), get_input_partial_shape(0));
 }
 
@@ -29,13 +32,11 @@ std::shared_ptr<Node> Load::clone_with_new_inputs(const OutputVector& new_args) 
 }
 
 void Load::set_output_port_descriptor(const MemoryAccess::PortDescriptor& desc, const size_t i) {
-    // Load is one-port MemoryAccess operation. To simulate this behavior input_desc = output_desc
-    set_input_port_descriptor(desc, i);
+    throw ov::Exception("Load node doesn't have memory access output port");
 }
 
 const MemoryAccess::PortDescriptor& Load::get_output_port_descriptor(const size_t i) const {
-    // Load is one-port MemoryAccess operation. To simulate this behavior input_desc = output_desc
-    return get_input_port_descriptor(i);
+    throw ov::Exception("Load node doesn't have memory access output port");
 }
 
 LoadReshape::LoadReshape(const Output<ov::Node>& x, const size_t count, const size_t offset, std::vector<size_t> order)

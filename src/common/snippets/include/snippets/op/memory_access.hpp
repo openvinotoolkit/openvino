@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -55,6 +55,8 @@ public:
     size_t get_input_offset(size_t idx = 0) const;
     size_t get_output_offset(size_t idx = 0) const;
 
+    size_t get_input_port_count() const { return m_input_ports.size(); }
+    size_t get_output_port_count() const { return m_output_ports.size(); }
 
     bool visit_attributes(AttributeVisitor& visitor) override;
     void validate_and_infer_types() override;

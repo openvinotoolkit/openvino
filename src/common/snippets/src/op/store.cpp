@@ -13,12 +13,15 @@ namespace snippets {
 namespace op {
 
 snippets::op::Store::Store(const Output<Node>& x, const size_t count, const size_t offset) : MemoryAccess({x}) {
-    constructor_validate_and_infer_types();
+    m_output_ports.resize(get_output_size());
     set_output_port_descriptor({count, offset}, 0);
+    constructor_validate_and_infer_types();
 }
 
 void snippets::op::Store::validate_and_infer_types() {
-    MemoryAccess::validate_and_infer_types();
+    // Store has memory access port only on output
+    OPENVINO_ASSERT(get_input_port_count() == 0, "Store node mustn't have memory access input port");
+    OPENVINO_ASSERT(get_output_port_count() == 1, "Store node must have memory access output port");
     set_output_type(0, get_input_element_type(0), get_input_partial_shape(0));
 }
 
@@ -29,13 +32,11 @@ std::shared_ptr<Node> snippets::op::Store::clone_with_new_inputs(const OutputVec
 }
 
 void Store::set_input_port_descriptor(const MemoryAccess::PortDescriptor& desc, const size_t i) {
-    // Store is one-port MemoryAccess operation. To simulate this behavior input_desc = output_desc
-    set_output_port_descriptor(desc, i);
+    throw ov::Exception("Store node doesn't have memory access input port");
 }
 
 const MemoryAccess::PortDescriptor& Store::get_input_port_descriptor(const size_t i) const {
-    // Store is one-port MemoryAccess operation. To simulate this behavior input_desc = output_desc
-    return get_output_port_descriptor(i);
+    throw ov::Exception("Store node doesn't have memory access input port");
 }
 
 } // namespace op
