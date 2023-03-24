@@ -9,6 +9,14 @@
 
 namespace ov {
 namespace intel_cpu {
+/**
+ * The operation flattens embedding tensor of token vectors and traverse it by a sliding window of size times the original embedding sizes.
+ * Inputs:
+ *     1. Embedding vectors - shape [N, m], where N - number of tokens, m - embedding size
+ *     2. Indices - shape [N, 2]. Contains pairs <batch_idx;idx> for the corresponding tokens. This op uses only batch indices.
+ * Outputs:
+ *     1. New embedding vector of shape [N, m * k], where k - operation attribute.
+ */
 class NgramNode : public ov::op::Op {
 public:
     OPENVINO_OP("Ngram", "cpu_plugin_opset");

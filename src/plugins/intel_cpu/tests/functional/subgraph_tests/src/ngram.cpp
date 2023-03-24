@@ -22,6 +22,8 @@ namespace CPUSubgraphTestsDefinitions {
 
 typedef std::tuple<
     std::vector<InputShape>,
+    ElementType,
+    ElementType,
     size_t
 > NgramTestParams;
 
@@ -41,9 +43,10 @@ static std::shared_ptr<ov::Node> getReshape(const std::shared_ptr<ov::Node> data
     return std::make_shared<ov::opset1::Reshape>(data, requested_shape_node, true);
 }
 
-static std::shared_ptr<ov::Model> initNgram(std::vector<ov::PartialShape>& input_shapes, const size_t k) {
-    const auto data_et = ov::element::f32;
-    const auto idces_et = ov::element::i32;
+static std::shared_ptr<ov::Model> initNgram(std::vector<ov::PartialShape>& input_shapes,
+                                            const ov::element::Type& data_et,
+                                            const ov::element::Type& idces_et,
+                                            const size_t k) {
     const size_t left_pad = k % 2 == 0 ? (k - 1) / 2 : k / 2;
     const size_t right_pad = k / 2;
     const size_t mid_idx = left_pad;
@@ -143,7 +146,9 @@ public:
     static std::string getTestCaseName(const testing::TestParamInfo<NgramTestParams> &obj) {
         std::vector<InputShape> input_shapes;
         size_t k;
-        std::tie(input_shapes, k) = obj.param;
+        ElementType data_et;
+        ElementType idces_et;
+        std::tie(input_shapes, data_et, idces_et, k) = obj.param;
         std::ostringstream results;
 
         results << "IS=(";
@@ -156,7 +161,7 @@ public:
                 results << CommonTestUtils::vec2str(item) << "_";
             }
         }
-        results << ")_k=" << k;
+        results << ")_data_prc=" << data_et << "_idces_prc=" << idces_et << "_k=" << k;
         return results.str();
     }
 
@@ -184,10 +189,12 @@ protected:
     void SetUp() override {
         targetDevice = CommonTestUtils::DEVICE_CPU;
         std::vector<InputShape> inputShapes;
+        ElementType data_et;
+        ElementType idces_et;
         size_t k;
-        std::tie(inputShapes, k) = this->GetParam();
+        std::tie(inputShapes, data_et, idces_et, k) = this->GetParam();
         init_input_shapes(inputShapes);
-        function = initNgram(inputDynamicShapes, k);
+        function = initNgram(inputDynamicShapes, data_et, idces_et, k);
     }
 };
 
@@ -217,6 +224,8 @@ std::vector<size_t> k_values = {2, 3, 5, 7};
 
 INSTANTIATE_TEST_SUITE_P(smoke_Ngram, NgramCPUTest,
                         ::testing::Combine(::testing::ValuesIn(inputShapes),
+                                           ::testing::Values(ElementType::f32),
+                                           ::testing::Values(ElementType::i32),
                                            ::testing::ValuesIn(k_values)),
                         NgramCPUTest::getTestCaseName);
 } // namespace

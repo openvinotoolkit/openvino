@@ -34,7 +34,7 @@ private:
 
 class NgramShapeInferFactory : public ShapeInferFactory {
 public:
-    NgramShapeInferFactory(std::shared_ptr<ov::Node> op) : m_op(op) {}
+    NgramShapeInferFactory(const std::shared_ptr<ov::Node>& op) : m_op(op) {}
     ShapeInferPtr makeShapeInfer() const override {
         auto ngram = ov::as_type_ptr<NgramNode>(m_op);
         if (!ngram) {
@@ -61,7 +61,7 @@ bool Ngram::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std:
     return true;
 }
 
-Ngram::Ngram(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context)
+Ngram::Ngram(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& context)
     : Node(op, context, NgramShapeInferFactory(op)) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
@@ -73,9 +73,9 @@ Ngram::Ngram(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr conte
     leftPad = k % 2 == 0 ? (k - 1) / 2 : k / 2;
     rightPad = k / 2;
 
-    const auto& window_stride_dim = ngram->get_input_partial_shape(0)[1];
-    if (window_stride_dim.is_static()) {
-        windowStride = window_stride_dim.get_length();
+    const auto& windowStrideDim = ngram->get_input_partial_shape(0)[1];
+    if (windowStrideDim.is_static()) {
+        windowStride = windowStrideDim.get_length();
         windowSize = k * windowStride;
         leftPaddingSize = windowStride * leftPad;
         rightPaddingSize = windowStride * rightPad;
@@ -121,6 +121,10 @@ void Ngram::execute(dnnl::stream strm) {
     }
     batchLenghts.push_back(idcesShapeSize / idcesStride);
 
+    /* The following procedure applied to each batch:
+       1. Pad both corners of current embedding with zeros. Left/Right pad are computed depending on k.
+       2. Apply sliding window of windowSize with a step windowStride and form k new embedding vectors for the embedding
+    */
     parallel_for(batchLenghts.size() - 1, [&](const size_t batchIdx) {
         size_t srcWindowBias = 0;
         size_t dstWindowBias = 0;
