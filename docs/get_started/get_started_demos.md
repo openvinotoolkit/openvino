@@ -4,14 +4,14 @@
 
 The guide presents a basic workflow for building and running C++ code samples in OpenVINO. Note that these steps will not work with the Python samples. 
 
-To get started, you must first install OpenVINO Runtime, install OpenVINO Development tools, and build the sample applications. See the `Prerequisites <prerequisites-samples>`__ section for instructions.
+To get started, you must first install OpenVINO Runtime, install OpenVINO Development tools, and build the sample applications. See the :ref:`Prerequisites <prerequisites-samples>` section for instructions.
 
 Once the prerequisites have been installed, perform the following steps:
 
-1. `Use Model Downloader to download a suitable model <download-models>`__ .
-2. `Convert the model with Model Optimizer <convert-models-to-intermediate-representation>`__ .
-3. `Download media files to run inference <download-media>`__ .
-4. `Run inference with the Image Classification sample application and see the results <run-image-classification>`__ .
+1. :ref:`Use Model Downloader to download a suitable model <download-models>`.
+2. :ref:`Convert the model with Model Optimizer <convert-models-to-intermediate-representation>`.
+3. :ref:`Download media files to run inference <download-media>`.
+4. :ref:`Run inference with the Image Classification sample application and see the results <run-image-classification>`.
 
 .. _prerequisites-samples:
 

@@ -36,6 +36,7 @@
 The OpenVINO™ samples are simple console applications that show how to utilize specific OpenVINO API capabilities within an application. They can assist you in executing specific tasks such as loading a model, running inference, querying specific device capabilities, etc.
 
 If you installed OpenVINO Runtime via archive files, sample applications for С, and C++, and Python are created in the following directories:
+
 * ``<INSTALL_DIR>/samples/c``
 * ``<INSTALL_DIR>/samples/cpp``
 * ``<INSTALL_DIR>/samples/python``
@@ -46,46 +47,53 @@ The applications include:
 
 - **Speech Sample** - Acoustic model inference based on Kaldi neural networks and speech feature vectors.
 
-    - :doc:`Automatic Speech Recognition C++ Sample <openvino_inference_engine_samples_speech_sample_README>`
-    - :doc:`Automatic Speech Recognition Python Sample <openvino_inference_engine_ie_bridges_python_sample_speech_sample_README>`
+  - :doc:`Automatic Speech Recognition C++ Sample <openvino_inference_engine_samples_speech_sample_README>`
+  - :doc:`Automatic Speech Recognition Python Sample <openvino_inference_engine_ie_bridges_python_sample_speech_sample_README>`
+
 - **Hello Classification Sample** – Inference of image classification networks like AlexNet and GoogLeNet using Synchronous Inference Request API. Input of any size and layout can be set to an infer request which will be pre-processed automatically during inference (the sample supports only images as inputs and supports Unicode paths).
 
-    - :doc:`Hello Classification C++ Sample <openvino_inference_engine_samples_hello_classification_README>`
-    - :doc:`Hello Classification C Sample <openvino_inference_engine_ie_bridges_c_samples_hello_classification_README>`
-    - :doc:`Hello Classification Python Sample <openvino_inference_engine_ie_bridges_python_sample_hello_classification_README>`
+  - :doc:`Hello Classification C++ Sample <openvino_inference_engine_samples_hello_classification_README>`
+  - :doc:`Hello Classification C Sample <openvino_inference_engine_ie_bridges_c_samples_hello_classification_README>`
+  - :doc:`Hello Classification Python Sample <openvino_inference_engine_ie_bridges_python_sample_hello_classification_README>`
+
 - **Hello NV12 Input Classification Sample** – Input of any size and layout can be provided to an infer request. The sample transforms the input to the NV12 color format and pre-process it automatically during inference. The sample supports only images as inputs.
 
-    - :doc:`Hello NV12 Input Classification C++ Sample <openvino_inference_engine_samples_hello_nv12_input_classification_README>`
-    - :doc:`Hello NV12 Input Classification C Sample <openvino_inference_engine_ie_bridges_c_samples_hello_nv12_input_classification_README>`
+  - :doc:`Hello NV12 Input Classification C++ Sample <openvino_inference_engine_samples_hello_nv12_input_classification_README>`
+  - :doc:`Hello NV12 Input Classification C Sample <openvino_inference_engine_ie_bridges_c_samples_hello_nv12_input_classification_README>`
+
 - **Hello Query Device Sample** – Query of available OpenVINO devices and their metrics, configuration values.
 
-    - :doc:`Hello Query Device C++ Sample <openvino_inference_engine_samples_hello_query_device_README>`
-    - :doc:`Hello Query Device Python* Sample <openvino_inference_engine_ie_bridges_python_sample_hello_query_device_README>`
+  - :doc:`Hello Query Device C++ Sample <openvino_inference_engine_samples_hello_query_device_README>`
+  - :doc:`Hello Query Device Python* Sample <openvino_inference_engine_ie_bridges_python_sample_hello_query_device_README>`
+
 - **Hello Reshape SSD Sample** – Inference of SSD networks resized by ShapeInfer API according to an input size.
 
-    - :doc:`Hello Reshape SSD C++ Sample** <openvino_inference_engine_samples_hello_reshape_ssd_README>`
-    - :doc:`Hello Reshape SSD Python Sample** <openvino_inference_engine_ie_bridges_python_sample_hello_reshape_ssd_README>`
+  - :doc:`Hello Reshape SSD C++ Sample** <openvino_inference_engine_samples_hello_reshape_ssd_README>`
+  - :doc:`Hello Reshape SSD Python Sample** <openvino_inference_engine_ie_bridges_python_sample_hello_reshape_ssd_README>`
+
 - **Image Classification Sample Async** – Inference of image classification networks like AlexNet and GoogLeNet using Asynchronous Inference Request API (the sample supports only images as inputs).
 
-    - :doc:`Image Classification Async C++ Sample <openvino_inference_engine_samples_classification_sample_async_README>`
-    - :doc:`Image Classification Async Python* Sample <openvino_inference_engine_ie_bridges_python_sample_classification_sample_async_README>`
+  - :doc:`Image Classification Async C++ Sample <openvino_inference_engine_samples_classification_sample_async_README>`
+  - :doc:`Image Classification Async Python* Sample <openvino_inference_engine_ie_bridges_python_sample_classification_sample_async_README>`
+
 - **OpenVINO Model Creation Sample** – Construction of the LeNet model using the OpenVINO model creation sample.
 
-    - :doc:`OpenVINO Model Creation C++ Sample <openvino_inference_engine_samples_model_creation_sample_README>`
-    - :doc:`OpenVINO Model Creation Python Sample <openvino_inference_engine_ie_bridges_python_sample_model_creation_sample_README>`
+  - :doc:`OpenVINO Model Creation C++ Sample <openvino_inference_engine_samples_model_creation_sample_README>`
+  - :doc:`OpenVINO Model Creation Python Sample <openvino_inference_engine_ie_bridges_python_sample_model_creation_sample_README>`
+
 - **Benchmark Samples** - Simple estimation of a model inference performance
 
-    - :doc:`Sync Benchmark C++ Sample <openvino_inference_engine_samples_sync_benchmark_README>`
-    - :doc:`Sync Benchmark Python* Sample <openvino_inference_engine_ie_bridges_python_sample_sync_benchmark_README>`
-    - :doc:`Throughput Benchmark C++ Sample <openvino_inference_engine_samples_throughput_benchmark_README>`
-    - :doc:`Throughput Benchmark Python* Sample <openvino_inference_engine_ie_bridges_python_sample_throughput_benchmark_README>`
-    - :doc:`Bert Benchmark Python* Sample <openvino_inference_engine_ie_bridges_python_sample_bert_benchmark_README>`
+  - :doc:`Sync Benchmark C++ Sample <openvino_inference_engine_samples_sync_benchmark_README>`
+  - :doc:`Sync Benchmark Python* Sample <openvino_inference_engine_ie_bridges_python_sample_sync_benchmark_README>`
+  - :doc:`Throughput Benchmark C++ Sample <openvino_inference_engine_samples_throughput_benchmark_README>`
+  - :doc:`Throughput Benchmark Python* Sample <openvino_inference_engine_ie_bridges_python_sample_throughput_benchmark_README>`
+  - :doc:`Bert Benchmark Python* Sample <openvino_inference_engine_ie_bridges_python_sample_bert_benchmark_README>`
 
 - **Benchmark Application** – Estimates deep learning inference performance on supported devices for synchronous and asynchronous modes.
 
-    - :doc:`Benchmark C++ Tool <openvino_inference_engine_samples_benchmark_app_README>`
-   
-    Note that the Python version of the benchmark tool is currently available only through the :doc:`OpenVINO Development Tools installation <openvino_docs_install_guides_install_dev_tools>`. It is not created in the samples directory but can be launched with the following command: ``benchmark_app -m <model> -i <input> -d <device>``. For more information, check the :doc:`Benchmark Python Tool <openvino_inference_engine_tools_benchmark_tool_README>` documentation.
+  - :doc:`Benchmark C++ Tool <openvino_inference_engine_samples_benchmark_app_README>`  
+  
+  Note that the Python version of the benchmark tool is currently available only through the :doc:`OpenVINO Development Tools installation <openvino_docs_install_guides_install_dev_tools>`. It is not created in the samples directory but can be launched with the following command: ``benchmark_app -m <model> -i <input> -d <device>``. For more information, check the :doc:`Benchmark Python Tool <openvino_inference_engine_tools_benchmark_tool_README>` documentation.
 
 .. note:: 
    
