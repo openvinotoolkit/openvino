@@ -939,9 +939,13 @@ void program::replace(program_node& old_node, program_node& new_node) {
     new_node.valid_output_layouts = old_node.valid_output_layouts;
 
     // copy old's dependencies
+    // First copy them from old node to new node
+    for (auto& dependency : old_node.dependencies) {
+        add_connection(*dependency.first, new_node);
+    }
+    // Second delete them from old node
     while (!old_node.dependencies.empty()) {
         auto& dep = old_node.dependencies.front().first;
-        add_connection(*dep, new_node);
         remove_connection(*dep, old_node);
     }
 
