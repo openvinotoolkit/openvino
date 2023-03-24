@@ -19,10 +19,12 @@ BrgemmCPU::BrgemmCPU(const Output<Node>& A, const Output<Node>& B, const Type ty
     // We call default ctor of Brgemm class to avoid incorrect shape infer in constructor_validate_and_type_infer() call
     set_arguments({A, B});
     set_output_size(1);
-    constructor_validate_and_infer_types();
+    m_input_ports.resize(get_input_size());
+    m_output_ports.resize(get_output_size());
     set_input_port_descriptor({0, offset_a}, 0);
     set_input_port_descriptor({0, offset_b}, 1);
     set_output_port_descriptor({0, offset_c}, 0);
+    constructor_validate_and_infer_types();
 }
 
 BrgemmCPU::BrgemmCPU(const Output<Node>& A, const Output<Node>& B, const Output<Node>& scratch, const Type type,
@@ -30,16 +32,17 @@ BrgemmCPU::BrgemmCPU(const Output<Node>& A, const Output<Node>& B, const Output<
     : Brgemm(), m_type(type) {
     set_arguments({A, B, scratch});
     set_output_size(1);
-    constructor_validate_and_infer_types();
+    m_input_ports.resize(get_input_size());
+    m_output_ports.resize(get_output_size());
     set_input_port_descriptor({0, offset_a}, 0);
     set_input_port_descriptor({0, offset_b}, 1);
     set_output_port_descriptor({0, offset_c}, 0);
     set_input_port_descriptor({0, offset_scratch}, 2);
+    constructor_validate_and_infer_types();
 }
 
 void BrgemmCPU::validate_and_infer_types() {
     INTERNAL_OP_SCOPE(BrgemmCPU_validate_and_infer_types);
-    MemoryAccess::validate_and_infer_types();
     // If no leading dimensions are provided, assume dense row-major inputs-outputs
     NODE_VALIDATION_CHECK(this, get_input_partial_shape(0).is_static() && get_input_partial_shape(1).is_static(),
                           "BrgemmCPU currently supports only static shapes.");

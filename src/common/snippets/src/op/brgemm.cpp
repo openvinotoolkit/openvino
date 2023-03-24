@@ -13,17 +13,16 @@ namespace snippets {
 namespace op {
 
 Brgemm::Brgemm(const Output<Node>& A, const Output<Node>& B,
-               const size_t offset_a, const size_t offset_b, const size_t offset_c) : MemoryAccess({A, B}) {
+               const size_t offset_a, const size_t offset_b, const size_t offset_c) : MemoryAccess({A, B}, 2, 1) {
     set_output_size(1);
-    constructor_validate_and_infer_types();
     set_input_offset(offset_a, 0);
     set_input_offset(offset_b, 1);
     set_output_offset(offset_a, 0);
+    constructor_validate_and_infer_types();
 }
 
 void Brgemm::validate_and_infer_types() {
     INTERNAL_OP_SCOPE(Brgemm_validate_and_infer_types);
-    MemoryAccess::validate_and_infer_types();
     // If no leading dimensions are provided, assume dense row-major inputs-outputs
     NODE_VALIDATION_CHECK(this, get_input_partial_shape(0).is_static() && get_input_partial_shape(1).is_static(),
                           "Brgemm currently supports only static shapes.");

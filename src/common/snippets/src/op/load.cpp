@@ -12,8 +12,7 @@ namespace ngraph {
 namespace snippets {
 namespace op {
 
-Load::Load(const Output<Node>& x, const size_t count, const size_t offset) : MemoryAccess({x}) {
-    m_input_ports.resize(get_output_size());
+Load::Load(const Output<Node>& x, const size_t count, const size_t offset) : MemoryAccess({x}, 1, 0) {
     set_input_port_descriptor({count, offset}, 0);
     constructor_validate_and_infer_types();
 }
@@ -31,14 +30,6 @@ std::shared_ptr<Node> Load::clone_with_new_inputs(const OutputVector& new_args) 
     return std::make_shared<Load>(new_args.at(0), get_count(), get_offset());
 }
 
-void Load::set_output_port_descriptor(const MemoryAccess::PortDescriptor& desc, const size_t i) {
-    throw ov::Exception("Load node doesn't have memory access output port");
-}
-
-const MemoryAccess::PortDescriptor& Load::get_output_port_descriptor(const size_t i) const {
-    throw ov::Exception("Load node doesn't have memory access output port");
-}
-
 LoadReshape::LoadReshape(const Output<ov::Node>& x, const size_t count, const size_t offset, std::vector<size_t> order)
                             : Load(x, count, offset), m_order(std::move(order)) {
     const auto& in_shape = x.get_partial_shape();
@@ -49,11 +40,12 @@ LoadReshape::LoadReshape(const Output<ov::Node>& x, const size_t count, const si
                  *std::min_element(m_order.begin(), m_order.end()) == 0, "LoadReshape detected invalid values in new_order");
     const std::set<size_t> unique_dims(order.begin(), order.end());
     NGRAPH_CHECK(unique_dims.size() == order.size(), "LoadReshape order must not contain repeated elements");
+    m_input_ports.resize(get_input_size());
+    set_input_port_descriptor({count, offset}, 0);
     constructor_validate_and_infer_types();
 }
 
 void snippets::op::LoadReshape::validate_and_infer_types() {
-    MemoryAccess::validate_and_infer_types();
     const auto& old_shape = get_input_partial_shape(0);
     ov::PartialShape new_shape;
     for (const auto idx : m_order)

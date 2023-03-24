@@ -9,20 +9,13 @@ namespace ngraph {
 namespace snippets {
 namespace op {
 
-MemoryAccess::MemoryAccess(const OutputVector& arguments) : Op(arguments) {}
-
-void MemoryAccess::validate_and_infer_types() {
-    // We create descriptors in validate_and_infer_types() (instead of in ctor)
-    const auto input_count = get_input_size();
-    const auto output_count = get_output_size();
+MemoryAccess::MemoryAccess(const OutputVector& arguments, size_t input_count, size_t output_count) : Op(arguments) {
     while (m_input_ports.size() < input_count) {
         m_input_ports.push_back({0, 0, m_input_ports.size()});
     }
     while (m_output_ports.size() < output_count) {
         m_output_ports.push_back({0, 0, m_output_ports.size()});
     }
-    OPENVINO_ASSERT(m_input_ports.size() == input_count, "The count of input ports must be equal to input count");
-    OPENVINO_ASSERT(m_output_ports.size() == output_count, "The count of output ports must be equal to output count");
 }
 
 bool MemoryAccess::visit_attributes(AttributeVisitor& visitor) {

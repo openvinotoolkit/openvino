@@ -11,9 +11,10 @@
 using namespace std;
 using namespace ngraph;
 
-snippets::op::BroadcastLoad::BroadcastLoad(const Output<Node>& x, ov::PartialShape shape, size_t offset) : MemoryAccess({x}), output_shape(std::move(shape)) {
-    constructor_validate_and_infer_types();
+snippets::op::BroadcastLoad::BroadcastLoad(const Output<Node>& x, ov::PartialShape shape, size_t offset)
+    : MemoryAccess({x}, 1, 0), output_shape(std::move(shape)) {
     set_input_port_descriptor({1, offset}, 0);
+    constructor_validate_and_infer_types();
 }
 
 bool snippets::op::BroadcastLoad::visit_attributes(AttributeVisitor& visitor) {
@@ -28,6 +29,5 @@ std::shared_ptr<Node> snippets::op::BroadcastLoad::clone_with_new_inputs(const O
 }
 
 void snippets::op::BroadcastLoad::validate_and_infer_types() {
-    MemoryAccess::validate_and_infer_types();
     set_output_type(0, get_input_element_type(0), output_shape);
 }

@@ -59,16 +59,15 @@ public:
     size_t get_output_port_count() const { return m_output_ports.size(); }
 
     bool visit_attributes(AttributeVisitor& visitor) override;
-    void validate_and_infer_types() override;
 
 protected:
-    explicit MemoryAccess(const OutputVector& arguments);
+    explicit MemoryAccess(const OutputVector& arguments, size_t input_count = 0, size_t output_count = 0);
     MemoryAccess() = default;
 
-    virtual void set_input_port_descriptor(const PortDescriptor& desc, const size_t i);
-    virtual void set_output_port_descriptor(const PortDescriptor& desc, const size_t i);
-    virtual const PortDescriptor& get_input_port_descriptor(const size_t i) const;
-    virtual const PortDescriptor& get_output_port_descriptor(const size_t i) const;
+    void set_input_port_descriptor(const PortDescriptor& desc, const size_t i);
+    void set_output_port_descriptor(const PortDescriptor& desc, const size_t i);
+    const PortDescriptor& get_input_port_descriptor(const size_t i) const;
+    const PortDescriptor& get_output_port_descriptor(const size_t i) const;
 
     std::vector<PortDescriptor> m_input_ports;
     std::vector<PortDescriptor> m_output_ports;

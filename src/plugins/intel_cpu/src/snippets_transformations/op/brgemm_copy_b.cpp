@@ -14,14 +14,16 @@ using namespace ov;
 
 intel_cpu::BrgemmCopyB::BrgemmCopyB(const Output<Node>& x, const element::Type src_type, const Type type,
                                     const size_t offset_in, const size_t offset_out0, const size_t offset_out1)
-    : ngraph::snippets::op::MemoryAccess({x}), m_type(type), m_src_type(src_type) {
-    set_output_size(is_with_compensations() ? 2 : 1);
-    constructor_validate_and_infer_types();
+    : ngraph::snippets::op::MemoryAccess({x}, 1, type == Type::WithCompensations ? 2 : 1), m_type(type), m_src_type(src_type) {
+    set_output_size(get_output_port_count());
+    m_input_ports.resize(get_input_size());
+    m_output_ports.resize(get_output_size());
     set_input_port_descriptor({0, offset_in}, 0);
     set_output_port_descriptor({0, offset_out0}, 0);
     if (is_with_compensations()) {
         set_output_port_descriptor({0, offset_out1}, 1);
     }
+    constructor_validate_and_infer_types();
 }
 
 bool intel_cpu::BrgemmCopyB::visit_attributes(AttributeVisitor& visitor) {
@@ -33,7 +35,6 @@ bool intel_cpu::BrgemmCopyB::visit_attributes(AttributeVisitor& visitor) {
 
 void intel_cpu::BrgemmCopyB::validate_and_infer_types() {
     INTERNAL_OP_SCOPE(BrgemmRepack_validate_and_infer_types);
-    MemoryAccess::validate_and_infer_types();
 
     const auto element_type = get_input_element_type(0);
     NGRAPH_CHECK(one_of(element_type, element::bf16, element::i8),
