@@ -29,13 +29,8 @@ void filter_ports(LoweredExprIR& linear_ir,
             const auto& parent = parent_expr->get_node();
             // Todo: Sometimes several Load in one Loop read data from the same Node.
             if (loop_parents.find(parent) == loop_parents.end()) {
-                // todo: Should we move it to a separate transformation?
-                //  Brgemm currently processes the whole subtensor on the 1st input,
-                //  so no pointer increment is required in this case. So this is not treated as a loop entry point
-                if (!is_type<op::Brgemm>(node) || port != 1) {
                     loop_parents.insert(parent);
                     new_loop_entries.push_back(loop_entry_point);
-                }
             }
         }
     }

@@ -62,6 +62,7 @@ Generator::LoweringResult Generator::generate(std::shared_ptr<ov::Model>& m, con
     for (const auto& transform : transformation_pipeline) {
         transform->run(linear_ir);
     }
+    linear_ir.debug_print(true);
     linear_ir.serialize("snsdebug_linear.xml", "snsdebug_linear.bin");
 //    throw std::runtime_error("FINITA");
 

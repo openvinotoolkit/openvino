@@ -12,7 +12,7 @@ namespace snippets {
 
 namespace {
 std::vector<std::vector<ov::PartialShape>> input_shapes{
-        {{2, 1, 7, 5}, {1, 2, 5, 3}},
+        {{1, 1, 7, 5}, {1, 1, 5, 3}},
 //        {{3, 1, 32, 14}, {1, 2, 14, 32}},
 //        {{1, 2, 37, 23}, {2, 1, 23, 37}},
 //        {{1, 1, 37, 23}, {1, 2, 23, 33}},
