@@ -49,6 +49,6 @@ public:
     std::string GetTargetFallback(const Engine::Configs& config, bool raise_exception = true) const;
 
 private:
-    std::string DeviceArchitecture(const std::string& targetFallback) const;
+    std::string DeviceCachingProperties(const std::string& targetFallback) const;
 };
 }  // namespace HeteroPlugin
