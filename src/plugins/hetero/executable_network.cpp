@@ -59,22 +59,24 @@ template <typename T>
 using NodeMap = std::unordered_map<ngraph::Node*, T>;
 
 HeteroExecutableNetwork::HeteroExecutableNetwork(const InferenceEngine::CNNNetwork& network,
-                                                 const Engine::Configs& config,
+                                                 const Engine::Configs& user_config,
+                                                 const Engine::Configs& hetero_config,
                                                  Engine* plugin)
     : InferenceEngine::ExecutableNetworkThreadSafeDefault(nullptr,
                                                           std::make_shared<InferenceEngine::ImmediateExecutor>()),
       _heteroPlugin{plugin},
       _name{network.getName()},
-      _config{config} {
+      _hetero_config{hetero_config},
+      _user_config{user_config} {
     auto function = network.getFunction();
-    IE_ASSERT(function != nullptr);
     auto clonedFunction = ngraph::clone_function(*function);
+
     bool dumpDotFile = false;
     if (std::getenv("OPENVINO_HETERO_VISUALIZE")) {
         dumpDotFile = true;
     } else {
-        auto itDumpDotFile = _config.find(HETERO_CONFIG_KEY(DUMP_GRAPH_DOT));
-        dumpDotFile = itDumpDotFile != _config.end() ? (itDumpDotFile->second == YES) : false;
+        auto itDumpDotFile = _hetero_config.find(HETERO_CONFIG_KEY(DUMP_GRAPH_DOT));
+        dumpDotFile = itDumpDotFile != _hetero_config.end() ? (itDumpDotFile->second == YES) : false;
     }
 
     QueryNetworkResult queryNetworkResult;
@@ -92,7 +94,7 @@ HeteroExecutableNetwork::HeteroExecutableNetwork(const InferenceEngine::CNNNetwo
     }
 
     if (queryNetworkResult.supportedLayersMap.empty()) {
-        queryNetworkResult = _heteroPlugin->QueryNetwork(network, _config);
+        queryNetworkResult = _heteroPlugin->QueryNetwork(network, _user_config);
     }
 
     using Input = ngraph::Input<ngraph::Node>;
@@ -434,20 +436,21 @@ HeteroExecutableNetwork::HeteroExecutableNetwork(const InferenceEngine::CNNNetwo
         ++id;
     }
     for (auto&& network : _networks) {
-        auto metaDevices = _heteroPlugin->GetDevicePlugins(network._device, _config);
+        auto metaDevices = _heteroPlugin->GetDevicePlugins(network._device, _user_config);
 
-        auto config = metaDevices[network._device];
+        auto device_config = metaDevices[network._device];
         // disable caching for subgraphs, because the whole HERERO model is cached
-        config[ov::cache_dir.name()] = "";
+        device_config[ov::cache_dir.name()] = "";
 
-        network._network = _heteroPlugin->GetCore()->LoadNetwork(network._clonedNetwork, network._device, config);
+        network._network = _heteroPlugin->GetCore()->LoadNetwork(network._clonedNetwork, network._device, device_config);
     }
 }
 
 HeteroExecutableNetwork::HeteroExecutableNetwork(std::istream& heteroModel,
-                                                 const std::map<std::string, std::string>& configs,
+                                                 const std::map<std::string, std::string>& hetero_config,
                                                  Engine* heteroPlugin)
-    : _heteroPlugin(heteroPlugin) {
+    : _heteroPlugin(heteroPlugin),
+      _hetero_config{hetero_config} {
     std::string heteroXmlStr;
     std::getline(heteroModel, heteroXmlStr);
 
@@ -471,10 +474,14 @@ HeteroExecutableNetwork::HeteroExecutableNetwork(std::istream& heteroModel,
     pugi::xml_node outputsNode = heteroNode.child("outputs");
     FOREACH_CHILD (outputNode, outputsNode, "output") { networkOutputs.insert(GetStrAttr(outputNode, "name")); }
 
-    Engine::Configs importedConfigs;
-    auto configsNode = heteroNode.child("configs");
-    FOREACH_CHILD (configNode, configsNode, "config") {
-        importedConfigs.emplace(GetStrAttr(configNode, "key"), GetStrAttr(configNode, "value"));
+    auto heteroConfigsNode = heteroNode.child("hetero_config");
+    FOREACH_CHILD (heteroConfigNode, heteroConfigsNode, "config") {
+        _hetero_config.emplace(GetStrAttr(heteroConfigNode, "key"), GetStrAttr(heteroConfigNode, "value"));
+    }
+
+    auto userConfigsNode = heteroNode.child("user_config");
+    FOREACH_CHILD (userConfigNode, userConfigsNode, "config") {
+        _user_config.emplace(GetStrAttr(userConfigNode, "key"), GetStrAttr(userConfigNode, "value"));
     }
 
     auto blobNamesNode = heteroNode.child("blob_names_map");
@@ -482,16 +489,12 @@ HeteroExecutableNetwork::HeteroExecutableNetwork(std::istream& heteroModel,
         _blobNameMap.emplace(GetStrAttr(blobNameNode, "key"), GetStrAttr(blobNameNode, "value"));
     }
 
-    for (auto&& config : configs) {
-        importedConfigs[config.first] = config.second;
-    }
-
     std::vector<NetworkDesc> descs;
     pugi::xml_node subnetworksNode = heteroNode.child("subnetworks");
     FOREACH_CHILD (subnetworkNode, subnetworksNode, "subnetwork") {
         auto deviceName = GetStrAttr(subnetworkNode, "device");
 
-        auto metaDevices = _heteroPlugin->GetDevicePlugins(deviceName, importedConfigs);
+        auto metaDevices = _heteroPlugin->GetDevicePlugins(deviceName, _user_config);
         assert(metaDevices.size() == 1);
         auto& loadConfig = metaDevices[deviceName];
 
@@ -593,7 +596,6 @@ HeteroExecutableNetwork::HeteroExecutableNetwork(std::istream& heteroModel,
     FOREACH_CHILD (resultNode, resultsNode, "result") { _results.emplace_back(parseNode(resultNode, false)); }
 
     // save state
-    this->_config = importedConfigs;
     this->_networks = std::move(descs);
     this->SetPointerToPlugin(_heteroPlugin->shared_from_this());
 }
@@ -680,11 +682,18 @@ void HeteroExecutableNetwork::Export(std::ostream& heteroModel) {
         }
     }
 
-    auto configsNode = heteroNode.append_child("configs");
-    for (auto&& config : _config) {
-        auto configNode = configsNode.append_child("config");
-        configNode.append_attribute("key").set_value(config.first.c_str());
-        configNode.append_attribute("value").set_value(config.second.c_str());
+    auto heteroConfigsNode = heteroNode.append_child("hetero_config");
+    for (auto&& config : _hetero_config) {
+        auto heteroConfigNode = heteroConfigsNode.append_child("config");
+        heteroConfigNode.append_attribute("key").set_value(config.first.c_str());
+        heteroConfigNode.append_attribute("value").set_value(config.second.c_str());
+    }
+
+    auto userConfigsNode = heteroNode.append_child("user_config");
+    for (auto&& config : _user_config) {
+        auto userConfigNode = userConfigsNode.append_child("config");
+        userConfigNode.append_attribute("key").set_value(config.first.c_str());
+        userConfigNode.append_attribute("value").set_value(config.second.c_str());
     }
 
     auto blobNamesNode = heteroNode.append_child("blob_names_map");
@@ -762,11 +771,11 @@ IInferRequestInternal::Ptr HeteroExecutableNetwork::CreateInferRequest() {
 InferenceEngine::Parameter HeteroExecutableNetwork::GetConfig(const std::string& name) const {
     InferenceEngine::Parameter result;
     if (name == "TARGET_FALLBACK" || name == ov::device::priorities.name()) {
-        result = _heteroPlugin->GetTargetFallback(_config, false);
+        result = _heteroPlugin->GetTargetFallback(_hetero_config, false);
     } else if (name == HETERO_CONFIG_KEY(DUMP_GRAPH_DOT) || name == CONFIG_KEY(EXCLUSIVE_ASYNC_REQUESTS)) {
-        auto it = _config.find(name);
-        IE_ASSERT(it != _config.end());
-        result = it->second == YES ? true : false;
+        auto it = _hetero_config.find(name);
+        IE_ASSERT(it != _hetero_config.end());
+        result = it->second == YES;
     } else {
         IE_THROW() << "Unsupported ExecutableNetwork config key: " << name;
     }

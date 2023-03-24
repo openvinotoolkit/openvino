@@ -35,18 +35,20 @@ Engine::Engine() {
 
 namespace {
 
-Engine::Configs mergeConfigs(Engine::Configs config, const Engine::Configs& local) {
-    for (auto&& kvp : local) {
-        config[kvp.first] = kvp.second;
+Engine::Configs mergeConfigs(Engine::Configs hetero_config, const Engine::Configs& user_config) {
+    for (auto&& kvp : user_config) {
+        if (hetero_config.find(kvp.first) != hetero_config.end())
+            hetero_config[kvp.first] = kvp.second;
     }
-    return config;
+    return hetero_config;
 }
 
-Engine::Configs mergeConfigs(Engine::Configs config, const ov::AnyMap& local) {
-    for (auto&& kvp : local) {
-        config[kvp.first] = kvp.second.as<std::string>();
+Engine::Configs mergeConfigs(Engine::Configs hetero_config, const ov::AnyMap& user_config) {
+    for (auto&& kvp : user_config) {
+        if (hetero_config.find(kvp.first) != hetero_config.end())
+            hetero_config[kvp.first] = kvp.second.as<std::string>();
     }
-    return config;
+    return hetero_config;
 }
 
 const std::vector<std::string>& getSupportedConfigKeys() {
@@ -79,8 +81,8 @@ InferenceEngine::IExecutableNetworkInternal::Ptr Engine::LoadExeNetworkImpl(cons
     if (GetCore() == nullptr) {
         IE_THROW() << "Please, work with HETERO device via InferencEngine::Core object";
     }
-    auto full_config = mergeConfigs(_config, user_config);
-    std::string fallbackDevicesStr = GetTargetFallback(full_config);
+    auto hetero_config = mergeConfigs(_config, user_config);
+    std::string fallbackDevicesStr = GetTargetFallback(hetero_config);
     DeviceMetaInformationMap metaDevices = GetDevicePlugins(fallbackDevicesStr, user_config);
 
     auto function = network.getFunction();
@@ -88,7 +90,7 @@ InferenceEngine::IExecutableNetworkInternal::Ptr Engine::LoadExeNetworkImpl(cons
         IE_THROW() << "HETERO device supports just ngraph network representation";
     }
 
-    return std::make_shared<HeteroExecutableNetwork>(network, full_config, this);
+    return std::make_shared<HeteroExecutableNetwork>(network, user_config, hetero_config, this);
 }
 
 InferenceEngine::IExecutableNetworkInternal::Ptr Engine::ImportNetwork(
@@ -128,8 +130,8 @@ QueryNetworkResult Engine::QueryNetwork(const CNNNetwork& network, const Configs
         IE_THROW() << "Please, work with HETERO device via InferencEngine::Core object";
     }
 
-    auto full_config = mergeConfigs(_config, user_config);
-    std::string fallbackDevicesStr = GetTargetFallback(full_config);
+    auto hetero_config = mergeConfigs(_config, user_config);
+    std::string fallbackDevicesStr = GetTargetFallback(hetero_config);
     DeviceMetaInformationMap metaDevices = GetDevicePlugins(fallbackDevicesStr, user_config);
 
     auto function = network.getFunction();

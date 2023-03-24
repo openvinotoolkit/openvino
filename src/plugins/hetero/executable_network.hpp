@@ -19,12 +19,11 @@
 #include <vector>
 
 #include "async_infer_request.hpp"
+#include "plugin.hpp"
 #include "ie_icore.hpp"
 #include "infer_request.hpp"
 
 namespace HeteroPlugin {
-
-class Engine;
 
 /**
  * @class ExecutableNetwork
@@ -38,13 +37,14 @@ public:
      * @brief constructor
      */
     HeteroExecutableNetwork(const InferenceEngine::CNNNetwork& network,
-                            const std::map<std::string, std::string>& config,
+                            const Engine::Configs& user_config,
+                            const Engine::Configs& hetero_config,
                             Engine* plugin);
     /**
      * @brief Import from opened file constructor
      */
     HeteroExecutableNetwork(std::istream& heteroModel,
-                            const std::map<std::string, std::string>& config,
+                            const Engine::Configs& config,
                             Engine* plugin);
 
     InferenceEngine::IInferRequestInternal::Ptr CreateInferRequestImpl(
@@ -63,9 +63,6 @@ public:
     void Export(std::ostream& modelFile) override;
 
 private:
-    void InitCNNImpl(const InferenceEngine::CNNNetwork& network);
-    void InitNgraph(const InferenceEngine::CNNNetwork& network);
-
     struct NetworkDesc {
         std::string _device;
         InferenceEngine::CNNNetwork _clonedNetwork;
@@ -75,7 +72,8 @@ private:
     std::vector<NetworkDesc> _networks;
     Engine* _heteroPlugin;
     std::string _name;
-    std::map<std::string, std::string> _config;
+    Engine::Configs _hetero_config;
+    Engine::Configs _user_config;
     std::unordered_map<std::string, std::string> _blobNameMap;
 };
 
