@@ -355,6 +355,16 @@ def get_default_frontends():
 def get_moc_frontends(argv: argparse.Namespace):
     fem = argv.feManager
 
+    # check all possible options how the input model path can be defined
+    input_model = None
+    if getattr(argv, 'input_model', None) is not None:
+        input_model = getattr(argv, 'input_model', None)
+    if getattr(argv, 'saved_model_dir', input_model) is not None:
+        input_model = getattr(argv, 'saved_model_dir', None)
+    if getattr(argv, 'input_meta_graph', input_model) is not None:
+        input_model = getattr(argv, 'input_meta_graph', None)
+    assert input_model, "Internal error: model is not defined"
+
     # Read user flags:
     use_legacy_frontend = argv.use_legacy_frontend
     use_new_frontend = argv.use_new_frontend
@@ -364,8 +374,8 @@ def get_moc_frontends(argv: argparse.Namespace):
 
     available_moc_front_ends = get_available_front_ends(fem)
 
-    if not argv.framework and argv.input_model:
-        moc_front_end = fem.load_by_model(argv.input_model)
+    if not argv.framework and input_model:
+        moc_front_end = fem.load_by_model(input_model)
         if not moc_front_end:
             return None, available_moc_front_ends
         argv.framework = moc_front_end.get_name()

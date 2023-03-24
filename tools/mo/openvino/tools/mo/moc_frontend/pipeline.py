@@ -34,9 +34,14 @@ def moc_pipeline(argv: argparse.Namespace, moc_front_end: FrontEnd):
                         "Please use use_legacy_frontend=True to convert the model.")
     else:
         # check all possible options how the input model path can be defined
-        input_model = getattr(argv, 'input_model', None)
-        input_model = getattr(argv, 'saved_model_dir', input_model)
-        input_model = getattr(argv, 'input_meta_graph', input_model)
+        input_model = None
+        if getattr(argv, 'input_model', None) is not None:
+            input_model = getattr(argv, 'input_model', None)
+        if getattr(argv, 'saved_model_dir', input_model) is not None:
+            input_model = getattr(argv, 'saved_model_dir', None)
+        if getattr(argv, 'input_meta_graph', input_model) is not None:
+            input_model = getattr(argv, 'input_meta_graph', None)
+        assert input_model, "Internal error: model is not defined"
 
         input_model = moc_front_end.load(input_model)
 
