@@ -189,7 +189,7 @@ bool BufferInsertion::run(LoweredExprIR& linear_ir) {
     const auto& loop_manager = linear_ir.get_loop_manager();
     const auto loop_data_map = loop_manager->get_map();
     // C++17: for (auto const& [loop_id, loop_info] : loop_data_map)
-    for (const auto loop_data : loop_data_map) {
+    for (const auto& loop_data : loop_data_map) {
         const auto loop_id = loop_data.first;
         const auto loop_info = loop_data.second;
         const auto loop_entries = loop_info->entry_exprs;

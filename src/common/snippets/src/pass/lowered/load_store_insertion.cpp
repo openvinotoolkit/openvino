@@ -86,7 +86,6 @@ bool LoadStoreInsertion::insert_load(LoweredExprIR& linear_ir, const LoweredExpr
 bool LoadStoreInsertion::insert_store(LoweredExprIR& linear_ir, const LoweredExprIR::constExprIt& data_expr_it) {
     const auto& loop_manager = linear_ir.get_loop_manager();
     const auto& data_expr = *data_expr_it;
-    const auto& data_node = data_expr->get_node();
     const auto& input_td = data_expr->get_inputs().front();
     const auto parent_output = linear_ir.get_expr_by_output(input_td);
     const auto& parent_expr = parent_output.expr;
