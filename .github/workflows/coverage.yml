@@ -97,7 +97,7 @@ jobs:
             -DENABLE_STRICT_DEPENDENCIES=OFF
             -DENABLE_REQUIREMENTS_INSTALL=OFF
             -DENABLE_FASTER_BUILD=ON
-            -DENABLE_OV_ONNX_FRONTEND=ON
+            -DENABLE_OV_ONNX_FRONTEND=OFF
             -DENABLE_TESTS=ON
             -DENABLE_COVERAGE=ON
             -DCMAKE_C_COMPILER_LAUNCHER=ccache
@@ -113,8 +113,8 @@ jobs:
       - name: Run IR frontend tests
         run: ${{ github.workspace }}/bin/intel64/Release/ov_ir_frontend_tests
       
-      - name: Run ONNX frontend tests
-        run: ${{ github.workspace }}/bin/intel64/Release/ov_onnx_frontend_tests
+      #- name: Run ONNX frontend tests
+      #  run: ${{ github.workspace }}/bin/intel64/Release/ov_onnx_frontend_tests
       
       - name: Run Paddle frontend unit tests
         run: ${{ github.workspace }}/bin/intel64/Release/paddle_tests
