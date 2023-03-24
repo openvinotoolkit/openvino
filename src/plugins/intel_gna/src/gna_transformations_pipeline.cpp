@@ -79,6 +79,7 @@ void TransformationsPipeline::apply(const std::shared_ptr<ov::Model>& model,
     const bool has_convolution = ov::op::util::has_op_with_type<ov::opset8::Convolution>(model);
     const bool has_maxpool = ov::op::util::has_op_with_type<ov::opset8::MaxPool>(model);
     const bool has_slice = ov::op::util::has_op_with_type<ov::opset8::Slice>(model);
+    const bool has_matmul = ov::op::util::has_op_with_type<ov::opset8::MatMul>(model);
     const bool has_mvn = ov::op::util::has_op_with_type<ov::opset8::MVN>(model) ||
                          ov::op::util::has_op_with_type<ov::op::v0::MVN>(model);
 
@@ -136,8 +137,7 @@ void TransformationsPipeline::apply(const std::shared_ptr<ov::Model>& model,
     manager.register_pass<ov::intel_gna::pass::SubstituteSoftsign>();
     manager.register_pass<ov::intel_gna::pass::InsertCopyBeforeLayerToBeEliminated>();
     // TODO enable this transformation for networks without convolutions
-    if (has_convolution || has_maxpool || has_mvn) {
-        EMUTEX_DEBUG_VISUALIZE("before");
+    if (has_convolution || has_maxpool || has_mvn || has_matmul) {
         manager.register_pass<ov::intel_gna::pass::TransposeNCHW>();
         EMUTEX_DEBUG_VISUALIZE("after_TransposeNCHW");
         manager.register_pass<ov::intel_gna::pass::ReshapeTransposeSubstitute>();

@@ -624,19 +624,6 @@ void GNAGraphCompiler::finalizeConvolution1DPrimitive(InferenceEngine::CNNLayerP
     }
 
 #ifndef DEBUG_USE_NEW_PASS
-    // TODO: convolution might be not the first layer in sorted order but connected via split for example - dont know
-    // how kaldi will handle that
-    if (!dnn->do_rotate_input) {
-        if ((inputs->getLayout() != InferenceEngine::Layout::NHWC || transpose_h_w) &&
-            LayerInfo(connectedInputLayer).isInput()) {
-            //  Kaldi features are opposite orientation
-            dnn->do_rotate_input = true;
-            dnn->num_rotate_rows = effectiveStride;
-            dnn->num_rotate_columns = num_inputs / effectiveStride;
-        } else {
-            dnn->do_rotate_input = false;
-        }
-    }
 #endif
     connectOutput(layer, ptr_outputs, num_data_bytes_out);
 
@@ -815,22 +802,6 @@ void GNAGraphCompiler::finalizeConvolution2DPrimitive(InferenceEngine::CNNLayerP
     size_t num_data_bytes_in = (num_inputs + num_input_padding) * inputs->getPrecision().size();
 
     auto connectedInputLayer = connectInput(layer, ptr_inputs, num_data_bytes_in).input;
-
-    // TODO: convolution might be not the first layer in sorted order but connected via split for example - dont know
-    // how kaldi will handle that
-    if (!dnn->do_rotate_input && inputs->getLayout() != InferenceEngine::Layout::NHWC &&
-        LayerInfo(connectedInputLayer).isInput()) {
-        //  Kaldi features are opposite orientation
-        dnn->do_rotate_input = true;
-        dnn->num_rotate_rows = in_channels;
-        if (in_height != 1) {
-            dnn->num_rotate_rows *= convolution._stride_y;
-        }
-        if (in_width != 1) {
-            dnn->num_rotate_rows *= convolution._stride_x;
-        }
-        dnn->num_rotate_columns = num_inputs / dnn->num_rotate_rows;
-    }
 
     connectOutput(layer, ptr_outputs, num_data_bytes_out);
 
