@@ -62,6 +62,9 @@ OP_CONVERTER(translate_instance_norm);
 OP_CONVERTER(translate_int);
 OP_CONVERTER(translate_layer_norm);
 OP_CONVERTER(translate_len);
+OP_CONVERTER(translate_linalg_norm);
+OP_CONVERTER(translate_linalg_matrix_norm);
+OP_CONVERTER(translate_linalg_vector_norm);
 OP_CONVERTER(translate_linear);
 OP_CONVERTER(translate_list_construct);
 OP_CONVERTER(translate_log);
@@ -235,6 +238,9 @@ const std::map<std::string, CreatorFunction> get_supported_ops() {
         {"aten::leaky_relu", op::translate_1to1_match_2_inputs<opset10::PRelu>},
         {"aten::leaky_relu_", op::inplace_op<op::translate_1to1_match_2_inputs<opset10::PRelu>>},
         {"aten::len", op::translate_len},
+        {"aten::linalg_norm", op::translate_linalg_norm},
+        {"aten::linalg_matrix_norm", op::translate_linalg_matrix_norm},
+        {"aten::linalg_vector_norm", op::translate_linalg_vector_norm},
         {"aten::linear", op::translate_linear},
         {"aten::log", op::translate_log},
         {"aten::log_", op::inplace_op<op::translate_log>},
