@@ -176,7 +176,7 @@ ov::Any DecoderProto::get_attribute(const std::string& name) const {
                 if (list.type(idx) != ::tensorflow::DataType::DT_STRING) {
                     res.emplace_back(get_ov_type(list.type(idx)));
                 } else {
-                    res.emplace_back(ov::element::undefined);
+                    res.emplace_back(ov::element::dynamic);
                 }
             }
             return res;
@@ -208,13 +208,8 @@ ov::Any DecoderProto::get_attribute(const std::string& name) const {
                 ov_type.is_static(),
                 "Encountered unknown element type " + DataType_Name(tf_type) + " on an empty tensor_proto");
         } else {
-            ov_type = ov::element::u64;
-            pshape.resize(0);
-            pshape.push_back(tensor_proto.string_val_size());
-        }
-        if (tf_type == ::tensorflow::DataType::DT_STRING) {
             auto data = std::vector<std::string>();
-            for (auto& item : tensor_proto.string_val()) {
+            for (const auto& item : tensor_proto.string_val()) {
                 data.push_back(item);
             }
             return data;
