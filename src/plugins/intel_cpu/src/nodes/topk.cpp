@@ -783,7 +783,7 @@ private:
     }
 
     inline bool is_valid_isa(cpu_isa_t cpu_isa) {
-        return cpu::x64::is_subset(cpu_isa, isa_all) && mayiuse(cpu_isa);
+        return mayiuse(cpu_isa);
     }
 
     inline void uni_vpcmpgtd(const Xbyak::Xmm &x1, const Xbyak::Xmm &x2,
@@ -2322,7 +2322,7 @@ void TopK::calc_bitonic_idx(size_t n, int &cnt, bool cmp_val) {
 // O: total size of the outer dimensions
 // A: size of the topk imposed dimension
 // I: total size of the inner dimensions
-void TopK::calc_dims_size(const SizeVector &layout_dims) {
+void TopK::calc_dims_size(const VectorDims &layout_dims) {
     O = 1, I = 1;
     A = src_dims[axis];
     int layout_axis = axis;
@@ -2346,7 +2346,7 @@ void TopK::topk_ref(const float *in_ptr, float *out_ptr, int32_t *dst_idx) {
         topk_ref_process(in_ptr, out_ptr, dst_idx, src_dims, [](float x, float y)->float { return x < y; });
 }
 
-void TopK::topk_ref_process(const float* src_data, float* dst_data, int32_t* dst_idx, const SizeVector &in_dims,
+void TopK::topk_ref_process(const float* src_data, float* dst_data, int32_t* dst_idx, const VectorDims &in_dims,
                                std::function<float(float, float)> compare) const {
     int after_num = count(in_dims, axis + 1, in_dims.size());
 
@@ -2410,14 +2410,14 @@ void TopK::topk_ref_process(const float* src_data, float* dst_data, int32_t* dst
     });
 }
 
-inline int TopK::count(SizeVector dims, size_t start_ind, size_t end_ind) {
+inline int TopK::count(const VectorDims& dims, size_t start_ind, size_t end_ind) {
     size_t count = 1;
     for (size_t i = start_ind; i < end_ind; i++)
         count *= dims[i];
     return static_cast<int>(count);
 }
 
-inline int TopK::count(SizeVector dims, size_t start_ind) {
+inline int TopK::count(const VectorDims& dims, size_t start_ind) {
     return count(dims, start_ind, dims.size());
 }
 

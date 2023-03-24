@@ -23,6 +23,7 @@ add_subdirectory(shape_inference)
 
 set(MIXED_SRC
     "${CMAKE_CURRENT_SOURCE_DIR}/src/runtime/allocator.cpp"
+    "${CMAKE_CURRENT_SOURCE_DIR}/src/runtime/itensor.cpp"
     "${CMAKE_CURRENT_SOURCE_DIR}/src/runtime/ov_tensor.cpp")
 
 set_property(SOURCE ${MIXED_SRC}
@@ -87,7 +88,7 @@ target_link_libraries(ngraph_obj PRIVATE ngraph::builder ngraph::reference openv
 ie_mark_target_as_cc(ngraph_obj)
 
 ov_ncc_naming_style(FOR_TARGET ngraph_obj
-                    SOURCE_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/include")
+                    SOURCE_DIRECTORIES "${CMAKE_CURRENT_SOURCE_DIR}/include")
 
 add_clang_format_target(ngraph_clang FOR_TARGETS ngraph_obj)
 

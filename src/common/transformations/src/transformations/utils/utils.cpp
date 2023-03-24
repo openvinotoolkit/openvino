@@ -47,7 +47,7 @@ bool get_single_value(const std::shared_ptr<op::v0::Constant>& const_node, float
     case element::Type_t::u64:
         return util::normalize_single_value(const_node->get_vector<uint64_t>(), value);
     default:
-        throw ov::Exception("Unsupported precision for const operation: " + const_node->get_friendly_name());
+        OPENVINO_THROW("Unsupported precision for const operation: ", const_node->get_friendly_name());
     }
 }
 
@@ -125,7 +125,7 @@ std::shared_ptr<ngraph::Node> activation(const std::string& activation_name,
     } else if (activation_name == "tanh") {
         return std::make_shared<opset4::Tanh>(apply_to);
     } else {
-        throw ov::Exception("Unsupported activation function");
+        OPENVINO_THROW("Unsupported activation function");
     }
 }
 

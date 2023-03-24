@@ -11,7 +11,7 @@ namespace frontend {
 namespace pytorch {
 namespace op {
 
-OutputVector translate_sum(NodeContext& context) {
+OutputVector translate_sum(const NodeContext& context) {
     num_inputs_check(context, 1, 3);
     bool keep_dims = false;
     ov::Output<ov::Node> axes;

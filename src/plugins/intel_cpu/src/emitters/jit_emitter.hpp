@@ -49,7 +49,13 @@ public:
     virtual size_t get_inputs_num() const = 0;
     virtual size_t aux_vecs_count() const;
     emitter_in_out_map get_in_out_type() const;
-    static std::set<InferenceEngine::Precision> get_supported_precisions();
+
+    /**
+     * @brief Returns supported precisions.
+     * Precisions are ordered, the first bigger bitness precision with the same type will be selected.
+     * Empty collection means the emitter supports any input precisions.
+     */
+    static std::set<std::vector<element::Type>> get_supported_precisions(const std::shared_ptr<ngraph::Node>& node = nullptr);
 
 protected:
     virtual size_t aux_gprs_count() const;
@@ -147,8 +153,7 @@ private:
         const auto scale = te.bcast ? get_vec_length() : sizeof(table_entry_val_t);
         return te.off + key_off_val_shift * scale;
     }
-    virtual void validate_arguments(const std::vector<size_t>&, const std::vector<size_t>&,
-                                    const std::vector<size_t>&, const std::vector<size_t> &) const {}
+    virtual void validate_arguments(const std::vector<size_t>&, const std::vector<size_t>&) const {}
 };
 
 }   // namespace intel_cpu

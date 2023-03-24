@@ -55,7 +55,7 @@ struct primitive_type_base : primitive_type {
                                         "[GPU] Original name: ", p->origin_op_name, "\n"
                                         "[GPU] Original type: ", p->origin_op_type_name, "\n"
                                         "[GPU] Reason: ", e.what());
-            throw ov::Exception(ss.str());
+            OPENVINO_THROW(ss.str());
         }
     }
 

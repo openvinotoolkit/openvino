@@ -18,6 +18,7 @@ struct AutoLoadContext {
     std::atomic<bool> isEnabled = {false};
     std::atomic<bool> isAlready = {false};
     std::atomic<bool> isLoadSuccess = {false};
+    std::atomic<bool> isReloadSuccess = {false};
     std::future<void> future;
     std::promise<void> promise;
     SoExecNetwork executableNetwork;
@@ -36,7 +37,8 @@ struct AutoLoadContext {
 enum AutoLoadContextIndex {
     CPU = 0,
     ACTUALDEVICE = 1,
-    CONTEXTNUM = 2
+    FALLBACKDEVICE = 2,
+    CONTEXTNUM = 3
 };
 class AutoSchedule : public MultiSchedule {
 public:
@@ -52,12 +54,15 @@ public:
 protected:
     void GenerateWorkers(const std::string& device, const SoExecNetwork& executableNetwork) override;
     bool ScheduleToWorkerInferRequest(IE::Task, DeviceName preferred_device = "") override;
-    static bool RunPipelineTask(IE::Task& inferPipelineTask, NotBusyPriorityWorkerRequests& idleWorkerRequests, const DeviceName& preferred_device);
+    static bool RunPipelineTask(IE::Task& inferPipelineTask, NotBusyPriorityWorkerRequests& idleWorkerRequests,
+                                const DeviceName& preferred_device);
     DeviceMap<NotBusyPriorityWorkerRequests> _idleWorkerRequests;
 
 private:
     void WaitFirstNetworkReady();
     void TryToLoadNetWork(AutoLoadContext& context, const std::string& modelPath, const IE::CNNNetwork& network);
+    bool selectOtherDevice(const std::string& currentDeviceName);
+    IE::Task releaseActualdeviceTask;
 
 private:
     IE::IStreamsExecutor::Ptr                _executor;

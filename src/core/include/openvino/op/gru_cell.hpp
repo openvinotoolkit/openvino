@@ -24,7 +24,7 @@ namespace v3 {
 /// \ingroup ov_ops_cpp_api
 class OPENVINO_API GRUCell : public util::RNNCellBase {
 public:
-    OPENVINO_OP("GRUCell", "opset3", op::util::RNNCellBase, 3);
+    OPENVINO_OP("GRUCell", "opset3", op::util::RNNCellBase);
     GRUCell();
     ///
     /// \brief      Constructs GRUCell node.
