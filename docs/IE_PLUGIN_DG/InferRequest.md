@@ -23,7 +23,9 @@ The example class has several fields:
 - backend specific fields:
     - `m_backend_input_tensors` - input backend tensors.
     - `m_backend_output_tensors` - output backend tensors.
-	- `m_executable` - an executable object / backend computational graph.
+    - `m_executable` - an executable object / backend computational graph.
+    - `m_eval_context` - an evaluation context to save backend states after the inference.
+    - `m_variable_states` - a vector of variable states.
 
 ### InferRequest Constructor
 
@@ -69,7 +71,13 @@ Executes a pipeline synchronously using `m_executable` object:
 
 @snippet src/sync_infer_request.cpp infer_request:start_pipeline
 
-#### 3. infer_postprocess()
+#### 3. wait_pipeline()
+
+Waits a pipeline in case of plugin asynchronous execution:
+
+@snippet src/sync_infer_request.cpp infer_request:wait_pipeline
+
+#### 4. infer_postprocess()
 
 Converts backend specific tensors to tensors passed by user:
 
