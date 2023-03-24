@@ -144,6 +144,12 @@ protected:
     void generate_inputs(const std::vector<ngraph::Shape>& targetInputStaticShapes) override {
         if (sort == SortType::SORT_VALUES && stable) {
             SubgraphBaseTest::generate_inputs(targetInputStaticShapes);
+
+            if (!staticShape) {
+                const auto& funcInputs = function->inputs();
+                inputs.erase(funcInputs[1].get_node_shared_ptr());
+                generate_dynamic_k(funcInputs, targetInputStaticShapes);
+            }
             return;
         }
 
@@ -211,16 +217,22 @@ protected:
         inputs.insert({funcInputs[0].get_node_shared_ptr(), tensor});
 
         if (!staticShape) {
-            const auto& kPrecision = funcInputs[1].get_element_type();
-            const auto& kShape = targetInputStaticShapes[1];
-
-            const size_t startFrom = 1;
-            const size_t range = targetInputStaticShapes[0][axis];
-            const size_t seed = inferRequestNum++;
-            const auto kTensor = ov::test::utils::create_and_fill_tensor(kPrecision, kShape, range, startFrom, 1, seed);
-
-            inputs.insert({funcInputs[1].get_node_shared_ptr(), kTensor});
+            generate_dynamic_k(funcInputs, targetInputStaticShapes);
         }
+    }
+
+private:
+    void generate_dynamic_k(const std::vector<ov::Output<ov::Node>>& funcInputs,
+                            const std::vector<ngraph::Shape>& targetInputStaticShapes) {
+        const auto& kPrecision = funcInputs[1].get_element_type();
+        const auto& kShape = targetInputStaticShapes[1];
+
+        const size_t startFrom = 1;
+        const size_t range = targetInputStaticShapes[0][axis];
+        const size_t seed = inferRequestNum++;
+        const auto kTensor = ov::test::utils::create_and_fill_tensor(kPrecision, kShape, range, startFrom, 1, seed);
+
+        inputs.insert({funcInputs[1].get_node_shared_ptr(), kTensor});
     }
 
 private:
