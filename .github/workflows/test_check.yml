@@ -2,7 +2,6 @@ name: Test by comment trigger
 on: workflow_dispatch
 jobs:
   Job1:
-    if: contains(github.event.comment.html_url, '/pull/') && contains(github.event.comment.body, '/coverage')
     runs-on: ubuntu-20.04
     steps:
       - name: Test if trigger works
