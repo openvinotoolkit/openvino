@@ -11,7 +11,7 @@
 
 namespace ov {
 namespace intel_gna {
-namespace pre_post_process {
+namespace pre_post_processing {
 
 struct TranspositionInfo {
     bool transpose;
@@ -50,6 +50,6 @@ static inline bool FoundPartToTranspose(const std::vector<TranspositionInfo>& tr
     return part_to_transpose != std::end(transposes);
 }
 
-}  // namespace pre_post_process
+}  // namespace pre_post_processing
 }  // namespace intel_gna
 }  // namespace ov

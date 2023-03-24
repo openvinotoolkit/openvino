@@ -70,7 +70,7 @@ void GNAVariableState::SetState(const InferenceEngine::Blob::Ptr& newState) {
             auto quantized =
                 InferenceEngine::getInjectedData<ov::intel_gna::frontend::QuantizedLayerParams>(state->getInput());
             auto scale_factor = quantized != nullptr ? quantized->_dst_quant.GetScale() : state->scale_factor;
-            pre_post_process::ConvertToInt16(static_cast<int16_t*>(state->gna_ptr),
+            pre_post_processing::ConvertToInt16(static_cast<int16_t*>(state->gna_ptr),
                                              newState->buffer().as<float*>(),
                                              1,
                                              data_elements,

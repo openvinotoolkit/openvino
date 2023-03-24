@@ -8,13 +8,13 @@
 #include "log/debug.hpp"
 #include "openvino/core/model.hpp"
 #include "openvino/core/shape.hpp"
-#include "openvino/opsets/opset9.hpp"
+#include "openvino/opsets/opset10.hpp"
 
 namespace ov {
 namespace intel_gna {
-namespace pre_post_process {
+namespace pre_post_processing {
 
-using namespace ov::opset9;
+using namespace ov::opset10;
 
 /*
  * Convert transposition info to preprocessing model using Transpose layer
@@ -102,6 +102,6 @@ std::shared_ptr<ov::Model> ToProcessModel(const std::vector<TranspositionInfo>& 
     return model;
 }
 
-}  // namespace pre_post_process
+}  // namespace pre_post_processing
 }  // namespace intel_gna
 }  // namespace ov

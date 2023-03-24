@@ -37,7 +37,7 @@ class WorkerPool;
 class Worker;
 }  // namespace request
 
-using namespace ov::intel_gna::pre_post_process;
+using namespace ov::intel_gna::pre_post_processing;
 
 class GNAPlugin : public InferenceEngine::IInferencePlugin {
 protected:
@@ -195,7 +195,7 @@ protected:
     /**
      * Run ngraph model on CPU to modify inputs/outputs
      */
-    void pre_post_process(InferenceEngine::Blob::Ptr input_blob,
+    void PrePostProcess(InferenceEngine::Blob::Ptr input_blob,
                           InferenceEngine::Blob::Ptr output_blob,
                           std::shared_ptr<ov::Model> model);
 

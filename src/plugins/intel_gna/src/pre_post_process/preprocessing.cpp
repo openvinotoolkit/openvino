@@ -6,7 +6,7 @@
 
 namespace ov {
 namespace intel_gna {
-namespace pre_post_process {
+namespace pre_post_processing {
 
 int16_t ConvertFloatToInt16(float src) {
     float rounding_value = (src > 0) ? 0.5f : -0.5f;
@@ -43,6 +43,6 @@ void ConvertToInt16(int16_t* ptr_dst,
     }
 }
 
-}  // namespace pre_post_process
+}  // namespace pre_post_processing
 }  // namespace intel_gna
 }  // namespace ov

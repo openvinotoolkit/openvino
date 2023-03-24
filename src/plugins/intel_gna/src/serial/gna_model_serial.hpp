@@ -15,7 +15,7 @@
 #include "pre_post_process/transposition_info.hpp"
 #include "serial/headers/latest/gna_model_header.hpp"
 
-using namespace ov::intel_gna::pre_post_process;
+using namespace ov::intel_gna::pre_post_processing;
 
 /**
  * @brief helper class for GNAGraph serialization tasks

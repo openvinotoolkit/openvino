@@ -342,7 +342,7 @@ void GNAPlugin::ImportFrames(void* ptr_dst,
     }
 }
 
-void GNAPlugin::pre_post_process(InferenceEngine::Blob::Ptr input_blob,
+void GNAPlugin::PrePostProcess(InferenceEngine::Blob::Ptr input_blob,
                                  InferenceEngine::Blob::Ptr output_blob,
                                  std::shared_ptr<ov::Model> model) {
     const ov::element::Type input_prc = details::convertPrecision(input_blob->getTensorDesc().getPrecision());
@@ -1212,7 +1212,7 @@ uint32_t GNAPlugin::QueueInference(const InferenceEngine::BlobMap& inputs, Infer
             SizeVector output_dims = model->get_result()->get_shape();
             TensorDesc output_desc(output_prc, output_dims, InferenceEngine::Layout::ANY);
             Blob::Ptr output_blob = make_blob_with_precision(output_desc, inputs_ptr_->at(input_name).ptrs[index]);
-            pre_post_process(buff_blob, output_blob, model);
+            PrePostProcess(buff_blob, output_blob, model);
         }
 
         ++inputNum;
@@ -1321,7 +1321,7 @@ RequestStatus GNAPlugin::WaitFor(uint32_t request_idx, int64_t millisTimeout) {
             gna_output_blob = make_blob_with_precision(output_desc);
             gna_output_blob->allocate();
 
-            pre_post_process(input_blob, gna_output_blob, model);
+            PrePostProcess(input_blob, gna_output_blob, model);
         } else {
             log::debug() << "Postprocessing for output " << output_name << " is not required" << std::endl;
             TensorDesc output_desc(gna_output_desc.tensor_precision,

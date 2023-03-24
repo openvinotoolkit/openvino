@@ -49,7 +49,7 @@ using namespace InferenceEngine;
 using namespace InferenceEngine::details;
 using namespace ov::intel_gna::frontend;
 using namespace ov::intel_gna::common;
-using namespace ov::intel_gna::pre_post_process;
+using namespace ov::intel_gna::pre_post_processing;
 
 namespace ov {
 namespace intel_gna {
