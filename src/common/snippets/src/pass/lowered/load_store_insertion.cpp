@@ -26,7 +26,7 @@ void LoadStoreInsertion::update_loops(const LoweredExprIR::LoweredLoopManagerPtr
 
 void LoadStoreInsertion::update_loop(const LoweredExprIR::LoweredLoopManager::LoweredLoopInfoPtr& loop_info,
                                      const LoweredExprPort& actual_port, const std::vector<LoweredExprPort>& target_ports, bool is_entry) {
-    auto& ports = is_entry ? loop_info->m_entry_exprs : loop_info->m_exit_exprs;
+    auto& ports = is_entry ? loop_info->entry_exprs : loop_info->exit_exprs;
     auto port_it = std::find(ports.begin(), ports.end(), actual_port);
     if (port_it == ports.end())
         return;
@@ -43,8 +43,8 @@ bool LoadStoreInsertion::insert_load(LoweredExprIR& linear_ir, const LoweredExpr
 
     bool was_inserted = false;
     for (const auto& consumer_input : consumer_inputs) {
-        const auto& consumer_expr = consumer_input.m_expr;
-        const auto port = consumer_input.m_port;
+        const auto& consumer_expr = consumer_input.expr;
+        const auto port = consumer_input.port;
         const auto& consumer = consumer_expr->get_node();
         if (ov::is_type<op::Load>(consumer) || ov::is_type<op::Brgemm>(consumer))
             continue;
@@ -89,8 +89,8 @@ bool LoadStoreInsertion::insert_store(LoweredExprIR& linear_ir, const LoweredExp
     const auto& data_node = data_expr->get_node();
     const auto& input_td = data_expr->get_inputs().front();
     const auto parent_output = linear_ir.get_expr_by_output(input_td);
-    const auto& parent_expr = parent_output.m_expr;
-    const auto port = parent_output.m_port;
+    const auto& parent_expr = parent_output.expr;
+    const auto port = parent_output.port;
     const auto& parent = parent_expr->get_node();
     if (ov::is_type<op::Store>(parent) || ov::is_type<op::Brgemm>(parent))
         return false;
@@ -128,7 +128,7 @@ bool LoadStoreInsertion::insert_store(LoweredExprIR& linear_ir, const LoweredExp
     const auto consumer_inputs = linear_ir.get_exprs_by_input(input_td);
     const auto should_be_saved = std::any_of(consumer_inputs.begin(), consumer_inputs.end(),
                                 [](const LoweredExprPort& input_port) {
-                                    const auto& node = input_port.m_expr->get_node();
+                                    const auto& node = input_port.expr->get_node();
                                     return ov::is_type<opset1::Result>(node) || ov::is_type<op::Buffer>(node);
                                 });
     const auto new_exit_point = LoweredExprPort::make_output(store_expr, 0);

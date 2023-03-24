@@ -85,7 +85,7 @@ IOLoweredExpr::IOLoweredExpr(const std::shared_ptr<ov::opset1::Result>& res, int
     m_outputs = {};
 }
 
-LoweredExprPort::LoweredExprPort(const LoweredExprPtr& expr, size_t port, Type type) : m_expr(expr), m_port(port), m_type(type) {
+LoweredExprPort::LoweredExprPort(const LoweredExprPtr& expr, size_t port, Type type) : expr(expr), port(port), type(type) {
     if (type == Type::Input) {
         OPENVINO_ASSERT(port < expr->get_inputs().size(), "The input port must be less than input count");
     } else if (type == Type::Output) {
@@ -103,8 +103,8 @@ LoweredExprPort LoweredExprPort::make_output(const LoweredExprPtr& expr, size_t 
 bool operator==(const LoweredExprPort& lhs, const LoweredExprPort& rhs) {
     if (&lhs == &rhs)
         return true;
-    OPENVINO_ASSERT(lhs.m_type == rhs.m_type, "Incorrect comparison: Ports are from different types!");
-    return lhs.m_expr == rhs.m_expr && lhs.m_port == rhs.m_port;
+    OPENVINO_ASSERT(lhs.type == rhs.type, "Incorrect comparison: Ports are from different types!");
+    return lhs.expr == rhs.expr && lhs.port == rhs.port;
 }
 
 bool operator!=(const LoweredExprPort& lhs, const LoweredExprPort& rhs) {
@@ -112,8 +112,8 @@ bool operator!=(const LoweredExprPort& lhs, const LoweredExprPort& rhs) {
 }
 
 bool operator<(const LoweredExprPort& lhs, const LoweredExprPort& rhs) {
-    OPENVINO_ASSERT(lhs.m_type == rhs.m_type, "Incorrect comparison: Ports are from different types!");
-    return (lhs.m_expr < rhs.m_expr) || (lhs.m_expr == rhs.m_expr && lhs.m_port < rhs.m_port);
+    OPENVINO_ASSERT(lhs.type == rhs.type, "Incorrect comparison: Ports are from different types!");
+    return (lhs.expr < rhs.expr) || (lhs.expr == rhs.expr && lhs.port < rhs.port);
 }
 
 LoweredExprIR::LoweredExprIR(const std::shared_ptr<ov::Model>& model, LoweringConfig config)
@@ -289,9 +289,9 @@ void LoweredExprIR::replace_input(const LoweredExprPtr& expr, size_t port, const
 }
 
 void LoweredExprIR::replace_input(const LoweredExprPort& expr_port, const TensorDescriptorPtr& to) {
-    const auto& expr = expr_port.m_expr;
-    const auto port = expr_port.m_port;
-    OPENVINO_ASSERT(expr_port.m_type == LoweredExprPort::Type::Input, "Failed to replace: target input port must have Input type");
+    const auto& expr = expr_port.expr;
+    const auto port = expr_port.port;
+    OPENVINO_ASSERT(expr_port.type == LoweredExprPort::Type::Input, "Failed to replace: target input port must have Input type");
     OPENVINO_ASSERT(port < expr->m_inputs.size(), "Failed to replace: target input port must be less than input count!");
     const auto from = expr->m_inputs[port];
     auto found = m_input2expression_map.find(from);
@@ -313,9 +313,9 @@ void LoweredExprIR::replace_output(const LoweredExprPtr& expr, size_t port, cons
 }
 
 void LoweredExprIR::replace_output(const LoweredExprPort& expr_port, const TensorDescriptorPtr& to) {
-    const auto& expr = expr_port.m_expr;
-    const auto port = expr_port.m_port;
-    OPENVINO_ASSERT(expr_port.m_type == LoweredExprPort::Type::Output, "Failed to replace: target output port must have Output type");
+    const auto& expr = expr_port.expr;
+    const auto port = expr_port.port;
+    OPENVINO_ASSERT(expr_port.type == LoweredExprPort::Type::Output, "Failed to replace: target output port must have Output type");
     OPENVINO_ASSERT(port < expr->m_outputs.size(), "Failed to replace: target output port must be less than output count!");
     const auto from = expr->m_outputs[port];
     auto found = m_output2expression_map.find(from);
@@ -476,7 +476,7 @@ void LoweredExprIR::LoweredLoopManager::get_loop_bounds(const LoweredExprIR& lin
                                                         size_t loop_id) {
     OPENVINO_ASSERT(!entries.empty(), "Loop must have entry points");
     OPENVINO_ASSERT(!exits.empty(), "Loop must have entry points");
-    loop_begin_pos = std::find(linear_ir.begin(), linear_ir.end(), entries.front().m_expr);
+    loop_begin_pos = std::find(linear_ir.begin(), linear_ir.end(), entries.front().expr);
     OPENVINO_ASSERT(loop_begin_pos != linear_ir.end(), "Loop begin hasn't been found!");
 
     // Some operations in Loop can be before first entry points: Scalars, VectorBuffer.
@@ -488,7 +488,7 @@ void LoweredExprIR::LoweredLoopManager::get_loop_bounds(const LoweredExprIR& lin
     }
 
     // At the moment all Loops must have exit points
-    loop_end_pos = std::next(std::find(loop_begin_pos, linear_ir.end(), exits.back().m_expr));
+    loop_end_pos = std::next(std::find(loop_begin_pos, linear_ir.end(), exits.back().expr));
     OPENVINO_ASSERT(loop_end_pos != linear_ir.end(), "Loop end hasn't been found!");
 }
 
@@ -506,7 +506,7 @@ void LoweredExprIR::LoweredLoopManager::get_io_loop_ports(LoweredExprIR& linear_
 
         for (size_t in_port = 0; in_port < inputs.size(); ++in_port) {
             const auto in_td = inputs[in_port];
-            const auto parent_expr = linear_ir.get_expr_by_output(in_td).m_expr;
+            const auto parent_expr = linear_ir.get_expr_by_output(in_td).expr;
             if (!ov::is_type<opset1::Constant>(parent_expr->get_node()) &&
                 std::find(loop_begin_pos, expr_it, parent_expr) == expr_it) {
                 entries.push_back(LoweredExprPort::make_input(expr, in_port));
@@ -517,7 +517,7 @@ void LoweredExprIR::LoweredLoopManager::get_io_loop_ports(LoweredExprIR& linear_
             const auto out_td = outputs[out_port];
             const auto consumer_exprs = linear_ir.get_exprs_by_input(out_td);
             for (const auto& conumer_expr : consumer_exprs) {
-                if (std::find(expr_it, loop_end_pos, conumer_expr.m_expr) == loop_end_pos) {
+                if (std::find(expr_it, loop_end_pos, conumer_expr.expr) == loop_end_pos) {
                     exits.push_back(LoweredExprPort::make_output(expr, out_port));
                     break;
                 }
@@ -563,8 +563,8 @@ void LoweredExprIR::LoweredLoopManager::mark_loop(LoweredExprIR& linear_ir,
     std::vector<size_t> loop_layout;
     std::vector<size_t> loop_tensor(1, 1);  // Scalar
     for (const auto& exit_point : loop_exit_points) {
-        const auto expr = exit_point.m_expr;
-        const auto port = exit_point.m_port;
+        const auto expr = exit_point.expr;
+        const auto port = exit_point.port;
         const auto out_td = expr->get_outputs()[port];
         const auto out_tensor = out_td->get_tensor();
         const auto out_layout = out_td->get_layout();
@@ -575,7 +575,7 @@ void LoweredExprIR::LoweredLoopManager::mark_loop(LoweredExprIR& linear_ir,
     }
 
     for (const auto& entry_point : loop_entry_points) {
-        const auto expr = entry_point.m_expr;
+        const auto expr = entry_point.expr;
         const auto out_td = expr->get_outputs().front();
         const auto out_subtensor = out_td->get_subtensor();
         if (loop_subtensor.empty())

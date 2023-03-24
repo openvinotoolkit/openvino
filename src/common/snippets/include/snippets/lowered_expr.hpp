@@ -94,9 +94,9 @@ struct LoweredExprPort {
     static LoweredExprPort make_input(const LoweredExprPtr& expr, size_t port);
     static LoweredExprPort make_output(const LoweredExprPtr& expr, size_t port);
 
-    LoweredExprPtr m_expr = nullptr;
-    size_t m_port = 0;
-    Type m_type = Type::Input;
+    LoweredExprPtr expr = nullptr;
+    size_t port = 0;
+    Type type = Type::Input;
 
 private:
     LoweredExprPort(const LoweredExprPtr& expr, size_t port, Type type);
@@ -174,15 +174,15 @@ public:
             LoweredLoopInfo(size_t work_amount, size_t increment,
                             const std::vector<LoweredExprPort>& entries,
                             const std::vector<LoweredExprPort>& exits)
-                    : m_work_amount(work_amount), m_increment(increment), m_entry_exprs(entries), m_exit_exprs(exits) {}
-            size_t m_work_amount = 0;
-            size_t m_increment = 0;
+                    : work_amount(work_amount), increment(increment), entry_exprs(entries), exit_exprs(exits) {}
+            size_t work_amount = 0;
+            size_t increment = 0;
             // The order of entry and exit expressions is important:
             //     - The position before first entry expr is Loop Begin position
             //     - The position after last exit expr is Loop End position
             // Note: Scalars aren't entry expressions but can be before first entry expr in Linear IR
-            std::vector<LoweredExprPort> m_entry_exprs = {};
-            std::vector<LoweredExprPort> m_exit_exprs = {};
+            std::vector<LoweredExprPort> entry_exprs = {};
+            std::vector<LoweredExprPort> exit_exprs = {};
         };
         using LoweredLoopInfoPtr = std::shared_ptr<LoweredLoopInfo>;
 

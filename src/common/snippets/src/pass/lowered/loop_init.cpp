@@ -21,11 +21,11 @@ void filter_ports(LoweredExprIR& linear_ir,
 
     std::set<std::shared_ptr<ov::Node>> loop_parents;
     for (const auto& loop_entry_point : loop_entries) {
-        const auto& expr = loop_entry_point.m_expr;
-        const auto port = loop_entry_point.m_port;
+        const auto& expr = loop_entry_point.expr;
+        const auto port = loop_entry_point.port;
         const auto node = expr->get_node();
         if (is_type<op::Load>(node) || is_type<op::BroadcastLoad>(node)) {
-            const auto& parent_expr = linear_ir.get_expr_by_output(expr->get_inputs()[port]).m_expr;
+            const auto& parent_expr = linear_ir.get_expr_by_output(expr->get_inputs()[port]).expr;
             const auto& parent = parent_expr->get_node();
             // Todo: Sometimes several Load in one Loop read data from the same Node
             if (loop_parents.find(parent) == loop_parents.end()) {
@@ -36,7 +36,7 @@ void filter_ports(LoweredExprIR& linear_ir,
     }
 
     for (const auto& loop_exit_point : loop_exits) {
-        const auto expr = loop_exit_point.m_expr;
+        const auto expr = loop_exit_point.expr;
         if (is_type<op::Store>(expr->get_node())) {
             new_loop_exits.push_back(loop_exit_point);
         }
@@ -66,15 +66,15 @@ std::vector<int64_t> LoopInit::init_ptr_increments(const std::vector<LoweredExpr
     // Note: All loop inputs must have the same layout by definition.
     // If this doesn't hold, then we're trying to inject loops in the wrong place.
     const std::vector<size_t> loop_layout{
-            !loop_inputs.empty() ? loop_inputs.front().m_expr->get_inputs()[0]->get_layout() :
-            !loop_outputs.empty() ? loop_outputs.front().m_expr->get_outputs()[0]->get_layout() :
+            !loop_inputs.empty() ? loop_inputs.front().expr->get_inputs()[0]->get_layout() :
+            !loop_outputs.empty() ? loop_outputs.front().expr->get_outputs()[0]->get_layout() :
             std::vector<size_t>{}};
-    // Note: Need to find max relevant dim m_expr to account for broadcasting, collect relevant_dims as well
+    // Note: Need to find max relevant dim expr to account for broadcasting, collect relevant_dims as well
     // Note: At the moment all loop_inputs and loop_outputs - are Load/Store ops in this method.
     //       So for example, we can call loop_input[i]->get_outputs().front() because Load have one output
     size_t max_relevant_dim_size = 0;
     for (const auto& loop_input : loop_inputs) {
-        const auto& expr = loop_input.m_expr;
+        const auto& expr = loop_input.expr;
         const auto out_td = expr->get_outputs().front();
         const auto& layout = out_td->get_layout();
         const auto& tensor = out_td->get_tensor();
@@ -82,7 +82,7 @@ std::vector<int64_t> LoopInit::init_ptr_increments(const std::vector<LoweredExpr
         max_relevant_dim_size = std::max(tensor[dim], max_relevant_dim_size);
     }
     for (const auto& loop_output : loop_outputs) {
-        const auto& expr = loop_output.m_expr;
+        const auto& expr = loop_output.expr;
         const auto in_td = expr->get_inputs().front();
         const auto& layout = in_td->get_layout();
         const auto& tensor = in_td->get_tensor();
@@ -90,7 +90,7 @@ std::vector<int64_t> LoopInit::init_ptr_increments(const std::vector<LoweredExpr
         max_relevant_dim_size = std::max(tensor[dim], max_relevant_dim_size);
     }
     for (const auto& loop_input : loop_inputs) {
-        const auto& expr = loop_input.m_expr;
+        const auto& expr = loop_input.expr;
         const auto out_td = expr->get_outputs().front();
         const auto& layout = out_td->get_layout();
         const auto& tensor = out_td->get_tensor();
@@ -104,7 +104,7 @@ std::vector<int64_t> LoopInit::init_ptr_increments(const std::vector<LoweredExpr
     // Note: Le already accounted for loop_input vs inside loops layout mismatch. So we need non-dense output
     // ptr_increments only if loop_input_layout doesn't match loop_output_layout
     for (const auto& loop_output : loop_outputs) {
-        const auto& expr = loop_output.m_expr;
+        const auto& expr = loop_output.expr;
         const auto in_td = expr->get_inputs().front();
         const auto& layout = in_td->get_layout();
         const auto& tensor = in_td->get_tensor();
@@ -133,20 +133,20 @@ std::vector<int64_t> LoopInit::init_element_type_sizes(const std::vector<Lowered
     std::vector<int64_t> element_types;
     element_types.reserve(loop_inputs.size() + loop_outputs.size());
     for (const auto& in : loop_inputs) {
-        element_types.push_back(in.m_expr->get_node()->get_input_element_type(in.m_port).size());
+        element_types.push_back(in.expr->get_node()->get_input_element_type(in.port).size());
     }
     for (const auto& out : loop_outputs) {
-        element_types.push_back(out.m_expr->get_node()->get_output_element_type(out.m_port).size());
+        element_types.push_back(out.expr->get_node()->get_output_element_type(out.port).size());
     }
     return element_types;
 }
 
 bool LoopInit::insertion(LoweredExprIR& linear_ir, const LoweredExprIR::LoweredLoopManager::LoweredLoopInfoPtr& loop_info,
                          size_t loop_id, size_t dim_idx, bool has_outer_loop) {
-    auto loop_entries = loop_info->m_entry_exprs;
-    auto loop_exits = loop_info->m_exit_exprs;
-    const auto work_amount = loop_info->m_work_amount;
-    const auto work_amount_increment = loop_info->m_increment;
+    auto loop_entries = loop_info->entry_exprs;
+    auto loop_exits = loop_info->exit_exprs;
+    const auto work_amount = loop_info->work_amount;
+    const auto work_amount_increment = loop_info->increment;
 
     LoweredExprIR::constExprIt loop_begin_pos, loop_end_pos;
     LoweredExprIR::LoweredLoopManager::get_loop_bounds(linear_ir, loop_entries, loop_exits, loop_begin_pos, loop_end_pos, loop_id);
@@ -167,9 +167,9 @@ bool LoopInit::insertion(LoweredExprIR& linear_ir, const LoweredExprIR::LoweredL
 
     std::vector<TensorDescriptorPtr> loop_end_inputs;
     for (const auto& expr_port : loop_entries)
-        loop_end_inputs.push_back(expr_port.m_expr->get_inputs()[expr_port.m_port]);
+        loop_end_inputs.push_back(expr_port.expr->get_inputs()[expr_port.port]);
     for (const auto& expr_port : loop_exits)
-        loop_end_inputs.push_back(expr_port.m_expr->get_outputs()[expr_port.m_port]);
+        loop_end_inputs.push_back(expr_port.expr->get_outputs()[expr_port.port]);
     loop_end_inputs.push_back(linear_ir.get_expr_by_node(loop_begin)->get_outputs().front());
 
     const auto& loop_end_expr = std::make_shared<LoweredExpr>(loop_end, loop_end_inputs);
