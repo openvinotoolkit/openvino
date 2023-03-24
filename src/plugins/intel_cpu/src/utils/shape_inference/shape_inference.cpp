@@ -264,10 +264,6 @@ static inline ov::CoordinateDiff convertPadding(const ov::CoordinateDiff& newPad
     return newPads;
 }
 
-static inline ov::CoordinateDiff convertPadding(const ov::Shape& newPads) {
-    return {newPads.begin(), newPads.end()};
-}
-
 template <typename OP>
 class entryFallbackWithPadding : public entryFallback {
 public:
