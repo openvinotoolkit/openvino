@@ -36,7 +36,7 @@ std::shared_ptr<ov::Model> ToProcessModel(const TranspositionInfo& t_info) {
         std::make_shared<Constant>(ov::element::i32, ov::Shape{reshape_pattern.size()}, reshape_pattern);
     auto reshape = std::make_shared<Reshape>(param, reshape_const, false);
 
-    // NCHW -> NHWC or NHWC -> NCHW
+    // CHW -> HWC or HWC -> CHW
     std::vector<int8_t> transpose_order{0, 2, 1};
     auto transpose_const =
         std::make_shared<Constant>(ov::element::i8, ov::Shape{transpose_order.size()}, transpose_order);
@@ -56,7 +56,7 @@ std::shared_ptr<ov::Model> ToProcessModel(const TranspositionInfo& t_info) {
 std::shared_ptr<ov::Model> ToProcessModel(const std::vector<TranspositionInfo>& transposes) {
     // count transposition parts need to be transposed
     int count_transposes = std::count_if(transposes.begin(), transposes.end(), [](TranspositionInfo t_info) {
-        return t_info.transpose || t_info.num_transpose_rows != 1 || t_info.num_transpose_rows != 1;
+        return t_info.transpose || t_info.num_transpose_rows != 1 || t_info.num_transpose_columns != 1;
     });
     if (count_transposes == 0) {
         return nullptr;
