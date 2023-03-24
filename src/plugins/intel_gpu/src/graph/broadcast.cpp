@@ -84,11 +84,11 @@ std::vector<layout> broadcast_inst::calc_output_layouts(broadcast_node const& /*
         ov::op::v3::shape_infer(&op, input_shapes, output_shapes, const_data);
     } else if (impl_param.input_layouts.size() >= 2) {
         auto input1 = impl_param.get_input_layout(1);
-        int output_rank = input1.get<ShapeType>().size();
+        auto output_rank = input1.get<ShapeType>().size();
         if (input1.is_static()) {
             output_rank = input1.get_dim(0);    // target shape rank is set as second input.
         }
-        output_shapes[0] = ShapeType::dynamic(std::max(output_rank, 1));
+        output_shapes[0] = ShapeType::dynamic(std::max(static_cast<int>(output_rank), 1));
     }
 
     format output_format = format::adjust_to_rank(input0_layout.format, output_shapes[0].size());

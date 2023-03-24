@@ -279,7 +279,7 @@ protected:
     void update_kernels_list_to_skip() {
         for (size_t i = 0; i < _kernel_data.kernels.size(); ++i) {
             auto gws = _kernel_data.kernels[i].params.workGroups.global;
-            _kernel_data.kernels[i].skip_execution = (std::accumulate(gws.begin(), gws.end(), 1, std::multiplies<size_t>()) == 0);
+            _kernel_data.kernels[i].skip_execution = (std::accumulate(gws.begin(), gws.end(), static_cast<size_t>(1), std::multiplies<size_t>()) == 0);
         }
     }
 
