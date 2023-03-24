@@ -104,16 +104,16 @@ struct custom_gpu_primitive : public primitive_base<custom_gpu_primitive> {
         if (build_options != rhs_casted.build_options)
             return false;
 
-        if (is_equal(kernel_arguments, rhs_casted.kernel_arguments))
+        if (!is_equal(kernel_arguments, rhs_casted.kernel_arguments))
             return false;
 
-        if (is_equal(kernels_code, rhs_casted.kernels_code))
+        if (!is_equal(kernels_code, rhs_casted.kernels_code))
             return false;
 
-        if (is_equal(gws, rhs_casted.gws))
+        if (!is_equal(gws, rhs_casted.gws))
             return false;
 
-        if (is_equal(lws, rhs_casted.lws))
+        if (!is_equal(lws, rhs_casted.lws))
             return false;
 
         return true;
