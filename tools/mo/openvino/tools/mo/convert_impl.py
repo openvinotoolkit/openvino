@@ -779,10 +779,10 @@ def _convert(cli_parser: argparse.ArgumentParser, framework, args):
                     args.pop("use_legacy_frontend")
                     return convert_pytorch_via_onnx(args, example_inputs, cli_parser, framework, _convert)
 
-                decoder, input_signature  = get_pytorch_decoder(args['input_model'], parse_input_shapes(args), example_inputs)
+                decoder = get_pytorch_decoder(args['input_model'], parse_input_shapes(args), example_inputs)
                 args['input_model'] = decoder
                 args["framework"] = "pytorch"
-                args["input_signature"] = input_signature
+
         if not inp_model_is_object:
             update_args_for_unnamed_saved_model(args)
 
