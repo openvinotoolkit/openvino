@@ -74,6 +74,9 @@ public:
         network_fused.set_input_data("input", input_prim);
         network_not_fused.set_input_data("input", input_prim);
         compare(network_not_fused, network_fused, p, true);
+        if (additional_check) {
+            additional_check(network_not_fused, network_fused);
+        }
     }
 
     layout get_input_layout(permute_reorder_params& p) {
@@ -88,6 +91,8 @@ public:
         }
         return layout{ ov::PartialShape(output_shape), p.permute_type, p.permute_format, padding{} };
     }
+
+    std::function<void(network&, network&)> additional_check;
 
 };
 }  // namespace
@@ -636,4 +641,41 @@ INSTANTIATE_TEST_SUITE_P(fusings_gpu, permute_eltwise_reorder, ::testing::Values
     permute_reorder_params{ CASE_PERMUTE_REORDER_TILED_F16_10, 3, 5 },
     permute_reorder_params{ CASE_PERMUTE_REORDER_TILED_F16_11, 3, 5 },
     permute_reorder_params{ CASE_PERMUTE_REORDER_TILED_F16_12, 3, 5 },
+}));
+
+class eltwise_reorder_permute_fusing : public PermuteReorderFusingTest {};
+TEST_P(eltwise_reorder_permute_fusing, basic) {
+    auto p = GetParam();
+
+    // not fused: Eltwise(FP32) - Reorder(FP16) - Permute(FP16)
+    //     fused: Eltwise(FP32) - Permute(FP16)
+    create_topologies(
+        input_layout("input", get_input_layout(p)),
+        data("data", get_mem(get_input_layout(p))),
+        eltwise("eltwise", {input_info("input"), input_info("data")}, eltwise_mode::sum),
+        reorder("convert", input_info("eltwise"), p.output_format, p.output_type),
+        permute("permute", input_info("convert"), p.permute_order1),
+        reorder("reorder_bfyx", input_info("permute"), format::bfyx, data_types::f32)
+    );
+
+    tolerance = default_tolerance(p.permute_type);
+
+    this->additional_check = [](network& not_fused, network& fused) {
+        for (auto& pi : fused.get_primitives_info()) {
+            if (pi.type_id == "eltwise") {
+                ASSERT_EQ(pi.output_layout.data_type, data_types::f32);
+            }
+            if (pi.type_id == "permute") {
+                ASSERT_EQ(pi.output_layout.data_type, data_types::f16);
+            }
+        }
+    };
+
+    execute(p);
+}
+
+#define CASE_ELTW_REORDER_PERMUTE_F16_0 { 1, 16, 32, 2 }, { 0, 2, 1, 3 }, { 0, 2, 1, 3 }, data_types::f32, data_types::f16, format::bfyx,  format::bfyx
+INSTANTIATE_TEST_SUITE_P(fusings_gpu, eltwise_reorder_permute_fusing, ::testing::ValuesIn(std::vector<permute_reorder_params>{
+    // permute_reorder_params{ CASE_ELTW_REORDER_PERMUTE_F16_0, 5, 6 },
+    permute_reorder_params{ CASE_ELTW_REORDER_PERMUTE_F16_0, 4, 5 },
 }));

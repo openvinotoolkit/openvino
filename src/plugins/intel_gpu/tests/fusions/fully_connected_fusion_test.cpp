@@ -100,6 +100,9 @@ public:
         network_not_fused->set_input_data("input", input_prim);
 
         compare(*network_not_fused, *network_fused, p);
+        if (additional_check) {
+            additional_check(*network_not_fused, *network_fused);
+        }
     }
 
     layout get_input_layout(fully_connected_test_params& p) {
@@ -130,6 +133,8 @@ public:
     layout get_output_layout(fully_connected_test_params& p) {
         return layout{ p.out_shape, p.data_type, p.input_format };
     }
+
+    std::function<void(network&, network&)> additional_check;
 };
 #endif  // ENABLE_ONEDNN_FOR_GPU
 
@@ -609,5 +614,41 @@ INSTANTIATE_TEST_SUITE_P(fusings_gpu, fc_fp16_eltwise_prod, ::testing::ValuesIn(
     fully_connected_test_params{ CASE_FC_FP16_3D_2, 2, 3 },
 }));
 
+class fc_fp16_convert_eltwise_fp32_fusing: public FullyConnectedFusingTestOneDNN {};
+TEST_P(fc_fp16_convert_eltwise_fp32_fusing, basic) {
+    auto p = GetParam();
+
+    // not fused: FullyConnected(FP16) - Reorder(FP32) - Eltwise(FP32)
+    //     fused: FullyConnected(FP32) - Eltwise(FP32)
+    create_topologies(
+        input_layout("input", get_input_layout(p)),
+        data("weights", get_mem(get_weights_layout(p))),
+        data("data", get_mem(layout{p.out_shape, data_types::f32, p.input_format})),
+        fully_connected("fc_prim", input_info("input"), "weights"),
+        reorder("convert", input_info("fc_prim"), p.default_format, data_types::f32),
+        eltwise("eltwise", { input_info("convert"), input_info("data") }, eltwise_mode::sum, cldnn::data_types::f32),
+        reorder("reorder_bfyx", input_info("eltwise"), p.default_format, data_types::f32)
+    );
+
+    tolerance = default_tolerance(p.default_type);
+
+    // Check if the output data type of FC is f32.
+    this->additional_check = [](network& not_fused, network& fused) {
+        for (auto& pi : fused.get_primitives_info()) {
+            if (pi.type_id == "fully_connected") {
+                ASSERT_EQ(pi.output_layout.data_type, data_types::f32);
+                break;
+            }
+        }
+    };
+
+    execute(p);
+}
+
+// in_shape; out_shape; kernel;  data_type; input_format; weights_type; weights_format; default_type; default_format;
+#define CASE_FC_FP16_1 { 1, 3 }, { 1, 4 }, { 4, 3 }, data_types::f16, format::bfyx, data_types::f16, format::oiyx, data_types::f32, format::bfyx
+INSTANTIATE_TEST_SUITE_P(fusings_gpu, fc_fp16_convert_eltwise_fp32_fusing, ::testing::ValuesIn(std::vector<fully_connected_test_params>{
+    fully_connected_test_params{ CASE_FC_FP16_1, 3, 3 },
+}));
 
 #endif

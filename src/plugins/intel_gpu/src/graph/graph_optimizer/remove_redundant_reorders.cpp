@@ -80,8 +80,20 @@ void remove_redundant_reorders::run(program& p) {
             auto i8_u8_input = input.get_output_layout().data_type == data_types::i8 ||
                                input.get_output_layout().data_type == data_types::u8;
             auto quantize_user = has_quantize_user(node);
+            auto only_change_dtype = [](program_node& input, reorder_node& node) {
+                auto& users = node.get_users();
+                if (users.size() != 1)
+                    return false;
+                auto input_layout = input.get_output_layout();
+                auto reorder_layout = node.get_output_layout();
+                if (input_layout.data_type == reorder_layout.data_type ||
+                    input_layout.format != reorder_layout.format) {
+                    return false;
+                }
+                return true;
+            };
 
-            if (!same_data_type && !(i8_u8_input && quantize_user))
+            if (!same_data_type && !(i8_u8_input && quantize_user) && !only_change_dtype(input, node))
                 continue;
 
             // Avoid optimization of nv12 reorder
@@ -401,7 +413,8 @@ void remove_redundant_reorders::run(program& p) {
 
             bool same_data_type = input.get_output_layout().data_type == output_layout.data_type;
             bool allowed_dt_conversion_fuse = (input.is_type<one_hot>() || input.is_type<permute>() ||
-                                               input.is_type<depth_to_space>() || input.is_type<region_yolo>() || input.is_type<detection_output>());
+                                               input.is_type<depth_to_space>() || input.is_type<region_yolo>() || input.is_type<detection_output>() ||
+                                               input.is_type<eltwise>() || input.is_type<fully_connected>());
             if (!same_data_type && !allowed_dt_conversion_fuse)
                 continue;
 
