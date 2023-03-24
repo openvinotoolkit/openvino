@@ -24,7 +24,7 @@ void filter_ports(LoweredExprIR& linear_ir,
         const auto& expr = loop_entry_point.expr;
         const auto port = loop_entry_point.port;
         const auto node = expr->get_node();
-        if (is_type<op::Load>(node) || is_type<op::BroadcastLoad>(node) || is_type<op::Brgemm>(node)) {
+        if (is_type<op::Load>(node) || is_type<op::BroadcastLoad>(node)) {
             const auto& parent_expr = linear_ir.get_expr_by_output(expr->get_inputs()[port]).expr;
             const auto& parent = parent_expr->get_node();
             // Todo: Sometimes several Load in one Loop read data from the same Node.
@@ -38,7 +38,7 @@ void filter_ports(LoweredExprIR& linear_ir,
     for (const auto& loop_exit_point : loop_exits) {
         const auto& expr = loop_exit_point.expr;
         const auto& node = expr->get_node();
-        if (is_type<op::Store>(node) || is_type<op::Brgemm>(node)) {
+        if (is_type<op::Store>(node)) {
             new_loop_exits.push_back(loop_exit_point);
         }
     }

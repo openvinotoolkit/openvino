@@ -18,7 +18,7 @@ namespace lowered {
  */
 class LoopInit : public LinearIRTransformation {
 public:
-    OPENVINO_RTTI("InsertLoops", "LinearIRTransformation")
+    OPENVINO_RTTI("LoopInit", "LinearIRTransformation")
     LoopInit();
     bool run(LoweredExprIR& linear_ir) override;
 

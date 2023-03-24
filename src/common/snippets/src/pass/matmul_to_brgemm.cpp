@@ -36,7 +36,8 @@ MatMulToBrgemm::MatMulToBrgemm() {
         ngraph::replace_node(matmul, brgemm);
         const std::vector<size_t> tensor = brgemm->get_output_shape(0);
 //        const std::vector<size_t> subtensor = {tensor[tensor.size() - 2], tensor[tensor.size() - 1]};
-        const std::vector<size_t> subtensor = {tensor[tensor.size() - 2], TensorDescriptor::ENTIRE_DIM};
+//        const std::vector<size_t> subtensor = {tensor[tensor.size() - 2], TensorDescriptor::ENTIRE_DIM};
+        const std::vector<size_t> subtensor = {1, TensorDescriptor::ENTIRE_DIM};
         ngraph::snippets::set_tensor_descriptor_ptr(brgemm->output(0), std::make_shared<TensorDescriptor>(tensor, subtensor));
         return true;
     };

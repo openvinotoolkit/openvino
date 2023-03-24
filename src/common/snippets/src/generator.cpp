@@ -19,6 +19,7 @@
 #include "snippets/pass/lowered/load_movebroadcast_to_broadcastload.hpp"
 #include "snippets/pass/lowered/buffer_propagate_offset_and_reset.hpp"
 #include "snippets/pass/lowered/propagate_layout.hpp"
+#include "snippets/pass/lowered/cleanup_brgemm_load_store.hpp"
 #include "snippets/pass/lowered/cleanup_loop_offsets.hpp"
 #include "snippets/pass/lowered/softmax_decomposition.hpp"
 #include "snippets/pass/lowered/move_scalar_to_consumer.hpp"
@@ -55,12 +56,18 @@ Generator::LoweringResult Generator::generate(std::shared_ptr<ov::Model>& m, con
             std::make_shared<pass::lowered::LoadMoveBroadcastToBroadcastLoad>(),
             std::make_shared<pass::lowered::PropagateLayout>(),
             propagate_buffer_offsets,
+            std::make_shared<pass::lowered::CleanupBrgemmLoadStore>(),
             std::make_shared<pass::lowered::CleanupLoopOffsets>(),
             std::make_shared<pass::lowered::AssignRegisters>(),
             std::make_shared<pass::lowered::InsertTailLoop>()
     };
     for (const auto& transform : transformation_pipeline) {
+        std::string name = transform->get_type_name();
         transform->run(linear_ir);
+        if (name == "CleanupBrgemmLoadStore") {
+            linear_ir.debug_print(true);
+            linear_ir.serialize("snsdebug_linear.xml", "snsdebug_linear.bin");
+        }
     }
     linear_ir.debug_print(true);
     linear_ir.serialize("snsdebug_linear.xml", "snsdebug_linear.bin");
