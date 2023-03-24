@@ -1,3 +1,4 @@
+
 // Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -8,6 +9,7 @@
 
 #include "cpu_types.h"
 #include "utils/bfloat16.hpp"
+#include "ie_ngraph_utils.hpp"
 #include <cpu/x64/injectors/jit_uni_quantization_injector.hpp>
 #include <cpu/ref_eltwise.hpp>
 
@@ -57,7 +59,7 @@ namespace {
 
 template<typename T>
 struct SupportedPrecisions {
-    void operator()(std::set<Precision> &precisions) {
+    void operator()(std::set<std::vector<element::Type>> &precisions) {
         precisions = T::get_supported_precisions();
     }
 };
@@ -104,7 +106,7 @@ struct EltwiseEmitter<jit_is_inf_emitter> {
 /**
  * Implements Eltwise shape inference algorithm. The algorithm is based on broadcasting all the input shapes
  * according to the NUMPY broadcast rule. This implementation is more lightweight than the ngraph one.
- * 
+ *
  */
 class EltwiseShapeInfer : public ShapeInferEmptyPads {
 public:
@@ -175,10 +177,31 @@ struct jit_uni_eltwise_generic : public jit_uni_eltwise_kernel, public jit_gener
     void generate() override {
         Precision exec_prc = Precision::UNSPECIFIED;
 
-        std::set<Precision> supported_precision_intersection = get_supported_precisions(eltwise_data_.front().algo);
+        std::set<std::vector<element::Type>> supported_precision_intersection = get_supported_precisions(eltwise_data_.front().algo);
+
+        // for element-wise operations all inputs must to have the same precisions
+        assert(std::all_of(
+            supported_precision_intersection.begin(),
+            supported_precision_intersection.end(),
+            [&supported_precision_intersection](const std::vector<element::Type>& precisions) {
+                return std::all_of(
+                    precisions.begin(),
+                    precisions.end(),
+                    [&precisions](const element::Type precision) { return precision == precisions[0]; });
+            }));
+
         for (size_t i = 1; i < eltwise_data_.size(); ++i) {
-            std::set<Precision> prcs = get_supported_precisions(eltwise_data_[i].algo);
-            std::set<Precision> prcs_intersect = {};
+            std::set<std::vector<element::Type>> prcs = get_supported_precisions(eltwise_data_[i].algo);
+            std::set<std::vector<element::Type>> prcs_intersect = {};
+
+            // to support previous functionality
+            if (!std::all_of(
+                prcs.begin(),
+                prcs.end(),
+                [&supported_precision_intersection](const std::vector<element::Type>& types) {
+                    return types.size() == supported_precision_intersection.size(); })) {
+                continue;
+            }
 
             std::set_intersection(supported_precision_intersection.begin(), supported_precision_intersection.end(),
                                   prcs.begin(), prcs.end(), std::inserter(prcs_intersect, prcs_intersect.begin()));
@@ -186,19 +209,22 @@ struct jit_uni_eltwise_generic : public jit_uni_eltwise_kernel, public jit_gener
             supported_precision_intersection = prcs_intersect;
         }
 
-        static const Precision exec_precisions_priority[] = {
-                Precision::U8,
-                Precision::I8,
-                Precision::U16,
-                Precision::I16,
-                Precision::BF16,
-                Precision::I32,
-                Precision::FP32
+        static const element::Type exec_precisions_priority[] = {
+                element::u8,
+                element::i8,
+                element::u16,
+                element::i16,
+                element::bf16,
+                element::i32,
+                element::f32
         };
 
-        for (auto prc : exec_precisions_priority) {
-            if (std::find(supported_precision_intersection.begin(), supported_precision_intersection.end(), prc) != supported_precision_intersection.end()) {
-                exec_prc = prc;
+        for (const auto prc : exec_precisions_priority) {
+            if (std::any_of(
+                supported_precision_intersection.begin(),
+                supported_precision_intersection.end(),
+                [&prc](const std::vector<element::Type>& precisions) { return std::find(precisions.begin(), precisions.end(), prc) != precisions.end(); })) {
+                exec_prc = InferenceEngine::details::convertPrecision(prc);
                 break;
             }
         }
@@ -481,8 +507,8 @@ private:
     const std::vector<ov::intel_cpu::Type>& ops_list_;
     const dnnl::post_ops& post_ops_;
 
-    std::set<Precision> get_supported_precisions(Algorithm algo) {
-        std::set<Precision> precisions;
+    std::set<std::vector<element::Type>> get_supported_precisions(Algorithm algo) {
+        std::set<std::vector<element::Type>> precisions;
 
         OV_SWITCH(intel_cpu, SupportedPrecisions, precisions, algo,
         OV_CASE(Algorithm::EltwiseRelu, jit_dnnl_aux_emitter),
@@ -1066,6 +1092,9 @@ const std::map<const ngraph::DiscreteTypeInfo, Eltwise::Initializer> Eltwise::in
         node.alpha = swishOp->get_alpha();
     }},
     {ngraph::op::v4::HSwish::get_type_info_static(), [](const std::shared_ptr<ngraph::Node>& op, Eltwise& node) {
+        // since v3.0 version, oneDNN has flexible implementation of hardswish, ov still uses the one with hardcoded alpha and beta
+        node.alpha = 1.f / 6.f;
+        node.beta = 0.5f;
         node.algorithm = Algorithm::EltwiseHswish;
         node.onednnAlgorithm = dnnl::algorithm::eltwise_hardswish;
     }},
@@ -1100,6 +1129,7 @@ const std::map<const ngraph::DiscreteTypeInfo, Eltwise::Initializer> Eltwise::in
     }},
     {ngraph::op::v4::SoftPlus::get_type_info_static(), [](const std::shared_ptr<ngraph::Node>& op, Eltwise& node) {
         node.algorithm = Algorithm::EltwiseSoftRelu;
+        node.alpha = 1.f;
         node.onednnAlgorithm = dnnl::algorithm::eltwise_soft_relu;
     }},
     {ngraph::op::v9::SoftSign::get_type_info_static(), [](const std::shared_ptr<ngraph::Node>& op, Eltwise& node) {
@@ -2195,7 +2225,6 @@ void Eltwise::appendPostOpsImpl(dnnl::post_ops& ops, const VectorDims &postOpDim
         case dnnl::algorithm::eltwise_abs:
         case dnnl::algorithm::eltwise_sqrt:
         case dnnl::algorithm::eltwise_linear:
-        case dnnl::algorithm::eltwise_bounded_relu:
         case dnnl::algorithm::eltwise_soft_relu:
         case dnnl::algorithm::eltwise_logistic:
         case dnnl::algorithm::eltwise_exp:
@@ -2208,7 +2237,7 @@ void Eltwise::appendPostOpsImpl(dnnl::post_ops& ops, const VectorDims &postOpDim
         case dnnl::algorithm::eltwise_hsigmoid:
         case dnnl::algorithm::eltwise_round_half_to_even:
         case dnnl::algorithm::eltwise_round_half_away_from_zero:
-            ops.append_eltwise(1.0, getOneDnnAlgorithm(), getAlpha(), getBeta());
+            ops.append_eltwise(getOneDnnAlgorithm(), getAlpha(), getBeta());
             break;
         default: IE_THROW() << errorPrefix << "as post operation is not supported";
         }
@@ -2216,10 +2245,10 @@ void Eltwise::appendPostOpsImpl(dnnl::post_ops& ops, const VectorDims &postOpDim
         // per-tensor EltwisePowerStatic can be implemented with more well-supported eltwise postOps
         if (getAlgorithm() == Algorithm::EltwisePowerStatic) {
             // d = s*beta + gamma
-            ops.append_eltwise(1.0, dnnl::algorithm::eltwise_linear, getBeta(), getGamma());
+            ops.append_eltwise(dnnl::algorithm::eltwise_linear, getBeta(), getGamma());
             if (getAlpha() != 1.0f) {
                 // d = 1 * s^alpha
-                ops.append_eltwise(1.0, dnnl::algorithm::eltwise_pow, 1.0f, getAlpha());
+                ops.append_eltwise(dnnl::algorithm::eltwise_pow, 1.0f, getAlpha());
             }
             return;
         }
@@ -2311,7 +2340,6 @@ bool Eltwise::appendAttrPostOps(DnnlPostOpsComposer& dnnlpoc, bool isLastPostOp,
         case dnnl::algorithm::eltwise_square:
         case dnnl::algorithm::eltwise_abs:
         case dnnl::algorithm::eltwise_sqrt:
-        case dnnl::algorithm::eltwise_bounded_relu:
         case dnnl::algorithm::eltwise_soft_relu:
         case dnnl::algorithm::eltwise_logistic:
         case dnnl::algorithm::eltwise_exp:
@@ -2324,11 +2352,11 @@ bool Eltwise::appendAttrPostOps(DnnlPostOpsComposer& dnnlpoc, bool isLastPostOp,
         case dnnl::algorithm::eltwise_hsigmoid:
         case dnnl::algorithm::eltwise_round_half_to_even:
         case dnnl::algorithm::eltwise_round_half_away_from_zero:
-            dnnlpoc.appendEltwise(1.0, getOneDnnAlgorithm(), getAlpha(), getBeta());
+            dnnlpoc.appendEltwise(getOneDnnAlgorithm(), getAlpha(), getBeta());
             break;
         case dnnl::algorithm::eltwise_linear:
             // call dnnlpoc's specialized API to generate optimized postOps sequence
-            dnnlpoc.appendLinear({getAlpha()}, {getBeta()});
+            dnnlpoc.appendLinear({getAlpha()}, {getBeta()}, isLastPostOp);
             break;
         default: IE_THROW() << errorPrefix << "as post operation is not supported";
         }
@@ -2339,14 +2367,14 @@ bool Eltwise::appendAttrPostOps(DnnlPostOpsComposer& dnnlpoc, bool isLastPostOp,
             return dnnlpoc.appendShift(shifts, allowBinary);
         case Algorithm::EltwiseDivide:
         case Algorithm::EltwiseMultiply:
-            return dnnlpoc.appendScale(scales, allowBinary);
+            return dnnlpoc.appendScale(scales, isLastPostOp, allowBinary);
         case Algorithm::EltwiseMulAdd:
-            return dnnlpoc.appendLinear(scales, shifts, allowBinary);
+            return dnnlpoc.appendLinear(scales, shifts, isLastPostOp, allowBinary);
         case Algorithm::EltwisePowerStatic:
             if (beta != 1.0f && gamma != 0.0f) {
-                return dnnlpoc.appendLinear(scales, shifts, allowBinary);
+                return dnnlpoc.appendLinear(scales, shifts, isLastPostOp, allowBinary);
             } else if (beta != 1.0f) {// Multiply if has scales
-                return dnnlpoc.appendScale(scales, allowBinary);
+                return dnnlpoc.appendScale(scales, isLastPostOp, allowBinary);
             } else if (gamma != 0.0f) {// Add only if has shifts
                 return dnnlpoc.appendShift(shifts, allowBinary);
             }

@@ -11,9 +11,7 @@ target_link_libraries(${TARGET_NAME} PRIVATE openvino_c commonTestUtils gtest_ma
 
 target_compile_definitions(${TARGET_NAME}
     PRIVATE
-    $<$<BOOL:${ENABLE_GAPI_PREPROCESSING}>:ENABLE_GAPI_PREPROCESSING>
-    DATA_PATH=\"${DATA_PATH}\"
-    MODELS_PATH=\"${MODELS_PATH}\")
+    $<$<BOOL:${ENABLE_GAPI_PREPROCESSING}>:ENABLE_GAPI_PREPROCESSING>)
 
 if(ENABLE_AUTO OR ENABLE_MULTI)
     add_dependencies(${TARGET_NAME} openvino_auto_plugin)
@@ -54,11 +52,6 @@ target_link_libraries(${TARGET_NAME} PRIVATE openvino_c openvino::util
 
 target_include_directories(${TARGET_NAME} PUBLIC
     $<BUILD_INTERFACE:${OPENVINO_API_SOURCE_DIR}/include>)
-
-target_compile_definitions(${TARGET_NAME}
-    PRIVATE
-    DATA_PATH=\"${DATA_PATH}\"
-    MODELS_PATH=\"${MODELS_PATH}\")
 
 if(TARGET OpenCL::OpenCL)
     target_link_libraries(${TARGET_NAME} PRIVATE OpenCL::OpenCL)

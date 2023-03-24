@@ -2,17 +2,17 @@
 
 ## Key Contacts
 
-Please contact a member of [openvino-ie-cpu-maintainers](https://github.com/orgs/openvinotoolkit/teams/openvino-ie-cpu-maintainers) group, for assistance regarding CPU.
+For assistance regarding CPU, contact a member of [openvino-ie-cpu-maintainers](https://github.com/orgs/openvinotoolkit/teams/openvino-ie-cpu-maintainers) group.
 
 ## Components
 
 CPU Plugin contains the following components:
 
-* [docs](./docs/) - contains developer documentation pages for the component.
-* [src](./src/) - folder contains sources of the core component.
-* [tests](./tests/) - contains tests for OpenVINO Plugin components.
-* [thirdparty](./thirdparty/) - contains third-party modules.
-* [tools](./tools/) - contains tools and helpers for OpenVINO Plugin components.
+* [docs](./docs/) - developer documentation pages for the component.
+* [src](./src/) - sources of the core component.
+* [tests](./tests/) - tests for OpenVINO Plugin components.
+* [thirdparty](./thirdparty/) - third-party modules.
+* [tools](./tools/) - tools and helpers for OpenVINO Plugin components.
 
 ## Tutorials
 
@@ -23,6 +23,7 @@ CPU Plugin contains the following components:
 * [Internal CPU Plugin Optimizations](./docs/internal_cpu_plugin_optimization.md)
 
 ## See also
+
  * [OpenVINO™ README](../../../README.md)
  * [OpenVINO Core Components](../../README.md)
  * [OpenVINO Plugins](../README.md)

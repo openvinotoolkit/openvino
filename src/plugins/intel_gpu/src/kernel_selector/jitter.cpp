@@ -1140,7 +1140,10 @@ JitConstants MakeActivationJitConstants(ActivationFunction activation_function,
                 jitConstants.AddConstant(MakeJitConstant(macro_def, "(input)"));
             break;
         case ActivationFunction::CEIL:
-            jitConstants.AddConstant(MakeJitConstant(macro_def, "(ceil(input))"));
+            if (out_dt == Datatype::F32 || out_dt == Datatype::F16)
+                jitConstants.AddConstant(MakeJitConstant(macro_def, "(ceil(input))"));
+            else
+                jitConstants.AddConstant(MakeJitConstant(macro_def, "(input)"));
             break;
         case ActivationFunction::NEGATIVE:
             jitConstants.AddConstant(MakeJitConstant(macro_def, "(-input)"));

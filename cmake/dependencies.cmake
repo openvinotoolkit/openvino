@@ -177,16 +177,18 @@ function(ov_download_tbbbind_2_5)
 
     if(WIN32 AND X86_64)
         RESOLVE_DEPENDENCY(TBBBIND_2_5
-                ARCHIVE_WIN "tbbbind_2_5_static_win_v1.zip"
+                ARCHIVE_WIN "tbbbind_2_5_static_win_v2.zip"
                 TARGET_PATH "${TEMP}/tbbbind_2_5"
                 ENVIRONMENT "TBBBIND_2_5_ROOT"
-                SHA256 "a67afeea8cf194f97968c800dab5b5459972908295242e282045d6b8953573c1")
+                SHA256 "49ae93b13a13953842ff9ae8d01681b269b5b0bc205daf18619ea9a828c44bee"
+                USE_NEW_LOCATION TRUE)
     elseif(LINUX AND X86_64)
         RESOLVE_DEPENDENCY(TBBBIND_2_5
-                ARCHIVE_LIN "tbbbind_2_5_static_lin_v2.tgz"
+                ARCHIVE_LIN "tbbbind_2_5_static_lin_v3.tgz"
                 TARGET_PATH "${TEMP}/tbbbind_2_5"
                 ENVIRONMENT "TBBBIND_2_5_ROOT"
-                SHA256 "865e7894c58402233caf0d1b288056e0e6ab2bf7c9d00c9dc60561c484bc90f4")
+                SHA256 "d39deb262c06981b5e2d2e3c593e9fc9be62ce4feb91dd4e648e92753659a6b3"
+                USE_NEW_LOCATION TRUE)
     else()
         # TMP: for Apple Silicon TBB does not provide TBBBind
         if(NOT (APPLE AND AARCH64))
@@ -298,8 +300,8 @@ if(ENABLE_INTEL_GNA)
             GNA_LIB_DIR
             libGNA_INCLUDE_DIRS
             libGNA_LIBRARIES_BASE_PATH)
-        set(GNA_VERSION "03.00.00.1910")
-        set(GNA_HASH "894ddbc0ae3459f04513b853b0cabc32890dd4ea37228a022b6a32101bdbb7f8")
+        set(GNA_VERSION "03.05.00.1906")
+        set(GNA_HASH "4a5be86d9c026b0e10afac2a57fc7c99d762b30e3d506abb3a3380fbcfe2726e")
 
         set(FILES_TO_EXTRACT_LIST gna_${GNA_VERSION}/include)
         if(WIN32)

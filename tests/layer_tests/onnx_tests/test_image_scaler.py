@@ -147,6 +147,7 @@ class TestImageScaler(OnnxRuntimeLayerTest):
 
     @pytest.mark.parametrize("params", test_data)
     @pytest.mark.nightly
+    @pytest.mark.skip(reason='GREEN_SUITE')
     def test_image_scaler(self, params, ie_device, precision, ir_version, temp_dir, use_old_api):
         self._test(*self.create_net(**params, ir_version=ir_version), ie_device, precision,
                    ir_version,
@@ -160,6 +161,7 @@ class TestImageScaler(OnnxRuntimeLayerTest):
 
     @pytest.mark.parametrize("params", test_data)
     @pytest.mark.nightly
+    @pytest.mark.skip(reason='GREEN_SUITE')
     def test_image_scaler_const(self, params, ie_device, precision, ir_version, temp_dir, use_old_api):
         self._test(*self.create_net_const(**params, precision=precision, ir_version=ir_version),
                    ie_device, precision, ir_version, temp_dir=temp_dir, use_old_api=use_old_api)

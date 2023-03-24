@@ -31,7 +31,7 @@ static void CreateLRNOp(Program& p, const std::shared_ptr<ngraph::op::v0::LRN>& 
         IE_THROW() << "Unsupported axes node type in " << op->get_friendly_name() << " (" << op->get_type_name() << ")";
     }
     auto axis_value = axis_const->cast_vector<int64_t>();
-    auto localSize = op->get_nsize();
+    auto localSize = static_cast<uint32_t>(op->get_nsize());
 
     auto lrnPrim = cldnn::lrn(layerName,
                               inputs[0],

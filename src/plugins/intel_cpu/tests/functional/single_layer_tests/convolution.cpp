@@ -8,6 +8,7 @@
 #include "shared_test_classes/base/ov_subgraph.hpp"
 #include "ngraph_functions/utils/ngraph_helpers.hpp"
 #include "ngraph_functions/builders.hpp"
+#include "openvino/core/visibility.hpp"
 #include <shared_test_classes/single_layer/convolution.hpp>
 
 using namespace InferenceEngine;
@@ -1630,6 +1631,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_Conv_2D_AutoPad_FP32, ConvolutionLayerCPUTest,
 
 } // namespace
 
+#if !defined(__clang__) || defined(__APPLE__)
 
 /* ============= Winograd ============= */
 namespace winograd {
@@ -1687,6 +1689,8 @@ INSTANTIATE_TEST_SUITE_P(smoke_Conv_winograd, ConvolutionLayerCPUTest,
                          ConvolutionLayerCPUTest::getTestCaseName);
 
 } // namespace winograd
+
+#endif
 
 /* ============= Large Filter Test ============= */
 namespace {

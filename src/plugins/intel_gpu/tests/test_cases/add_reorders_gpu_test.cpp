@@ -24,7 +24,7 @@ add_reorders optimization pass.
 //concatenation of incompatible convolutions
 TEST(add_reorders_gpu, two_convolutions_and_concatenation) {
     auto& engine = get_test_engine();
-    ExecutionConfig config;
+    ExecutionConfig config = get_test_default_config(engine);
     config.set_property(ov::intel_gpu::optimize_data(false));
 
     auto input = engine.allocate_memory({ data_types::f32, format::yxfb,{ 1, 1, 2, 2 } });
@@ -123,7 +123,7 @@ void test_add_reorders_gpu_basic_reshape_and_tile(bool is_caching_test) {
     set_values(input, input_vec);
     tile_ref<T>(input, output_ref, 2, 4);
 
-    cldnn::network::ptr network = get_network(engine, topology, ExecutionConfig(), get_test_stream_ptr(), is_caching_test);
+    cldnn::network::ptr network = get_network(engine, topology, get_test_default_config(engine), get_test_stream_ptr(), is_caching_test);
 
     network->set_input_data("input", input);
 
