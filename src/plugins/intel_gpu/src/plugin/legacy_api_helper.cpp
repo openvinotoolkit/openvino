@@ -4,6 +4,7 @@
 
 #include "intel_gpu/plugin/legacy_api_helper.hpp"
 #include "ie_plugin_config.hpp"
+#include "cpp_interfaces/interface/ie_internal_plugin_config.hpp"
 #include "gpu/gpu_config.hpp"
 
 namespace ov {
@@ -262,6 +263,7 @@ std::vector<std::string> LegacyAPIHelper::get_supported_metrics() {
         GPU_METRIC_KEY(UARCH_VERSION),
         GPU_METRIC_KEY(EXECUTION_UNITS_COUNT),
         GPU_METRIC_KEY(MEMORY_STATISTICS),
+        ov::caching_properties.name(),
     };
 
     return supported_metrics;

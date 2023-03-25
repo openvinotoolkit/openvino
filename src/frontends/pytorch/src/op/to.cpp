@@ -16,7 +16,7 @@ namespace op {
 
 using namespace ov::op;
 
-OutputVector translate_to(NodeContext& context) {
+OutputVector translate_to(const NodeContext& context) {
     int dtype_idx;
     int memory_format_idx;
     if (context.get_input_size() == 5) {
