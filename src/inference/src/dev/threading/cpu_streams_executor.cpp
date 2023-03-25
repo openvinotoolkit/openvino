@@ -133,9 +133,13 @@ struct CPUStreamsExecutor::Impl {
                             ? (small_core ? small_core_offset : (logic_core ? 0 : 1))
                             : 0;
 
+#    ifdef _WIN32
                     _taskArena.reset(new custom::task_arena{custom::task_arena::constraints{}
                                                                 .set_core_type(selected_core_type)
                                                                 .set_max_concurrency(max_concurrency)});
+#    else
+                    _taskArena.reset(new custom::task_arena{max_concurrency});
+#    endif
                     CpuSet processMask;
                     int ncpus = 0;
                     std::tie(processMask, ncpus) = get_process_mask();
