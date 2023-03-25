@@ -192,7 +192,8 @@ if(THREADING MATCHES "^(TBB|TBB_AUTO)$" AND
         else()
             install(DIRECTORY "${TBBROOT}/lib"
                     DESTINATION "${IE_TBB_DIR_INSTALL}"
-                    COMPONENT tbb)
+                    COMPONENT tbb
+                    PATTERN "cmake" EXCLUDE)
         endif()
 
         install(FILES "${TBBROOT}/LICENSE"
@@ -206,10 +207,19 @@ if(THREADING MATCHES "^(TBB|TBB_AUTO)$" AND
                                DEPENDS tbb)
         list(APPEND core_dev_components tbb_dev)
 
-        install(FILES "${TBBROOT}/cmake/TBBConfig.cmake"
-                      "${TBBROOT}/cmake/TBBConfigVersion.cmake"
-                DESTINATION "${IE_TBB_DIR_INSTALL}/cmake"
-                COMPONENT tbb_dev)
+        if(EXISTS "${TBBROOT}/lib/cmake")
+            # oneTBB case
+            install(DIRECTORY "${TBBROOT}/lib/cmake"
+                    DESTINATION "${IE_TBB_DIR_INSTALL}/lib"
+                    COMPONENT tbb_dev)
+        else()
+            # tbb2020 case
+            install(FILES "${TBBROOT}/cmake/TBBConfig.cmake"
+                          "${TBBROOT}/cmake/TBBConfigVersion.cmake"
+                    DESTINATION "${IE_TBB_DIR_INSTALL}/cmake"
+                    COMPONENT tbb_dev)
+        endif()
+
         install(DIRECTORY "${TBBROOT}/include"
                 DESTINATION "${IE_TBB_DIR_INSTALL}"
                 COMPONENT tbb_dev)
@@ -218,7 +228,8 @@ if(THREADING MATCHES "^(TBB|TBB_AUTO)$" AND
             # .lib files are needed only for Windows
             install(DIRECTORY "${TBBROOT}/lib"
                     DESTINATION "${IE_TBB_DIR_INSTALL}"
-                    COMPONENT tbb_dev)
+                    COMPONENT tbb_dev
+                    PATTERN "cmake" EXCLUDE)
         endif()
 
         set(pkg_config_tbb_lib_dir "${IE_TBB_DIR_INSTALL}/lib")
