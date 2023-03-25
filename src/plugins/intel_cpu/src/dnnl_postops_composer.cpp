@@ -17,6 +17,7 @@ DnnlPostOpsComposer::DnnlPostOpsComposer(const dnnl::engine& engine,
                                          std::unordered_map<int, MemoryPtr>& args,
                                          const VectorDims& outputDims,
                                          int indexOfOutputChannelDim,
+                                         const int weightScaleMaskPerChannel,
                                          bool isINT8)
     : engine(engine),
       attr(attr),
@@ -24,6 +25,7 @@ DnnlPostOpsComposer::DnnlPostOpsComposer(const dnnl::engine& engine,
       args(args),
       outputDims(outputDims),
       idxOC(indexOfOutputChannelDim),
+      weightScaleMaskPerChannel(weightScaleMaskPerChannel),
       isINT8(isINT8) {
     IE_ASSERT(idxOC >= 0 && idxOC < outputDims.size());
     OC = outputDims[idxOC];
@@ -38,13 +40,13 @@ void DnnlPostOpsComposer::updateOutputScales() {
         return;
 
     DEBUG_LOG("Set scales mask ", "DNNL_ARG: ", DNNL_ARG_DST, " mask: ", oscale_mask);
-    attr.set_scales_mask(DNNL_ARG_DST, oscale_mask);
+    attr.set_scales_mask(DNNL_ARG_WEIGHTS, oscale_mask);
 
     DnnlBlockedMemoryDesc memoryDesc(InferenceEngine::Precision::FP32, Shape({oscale_values.size()}));
     auto mem = std::make_shared<Memory>(engine);
     mem->Create(memoryDesc);
     memcpy(mem->GetPtr(), oscale_values.data(), oscale_values.size() * sizeof(float));
-    args[DNNL_ARG_ATTR_SCALES | DNNL_ARG_DST] = mem;
+    args[DNNL_ARG_ATTR_SCALES | DNNL_ARG_WEIGHTS] = mem;
 }
 
 void DnnlPostOpsComposer::appendBinary(const dnnl::algorithm alg, const std::vector<float>& data) {
@@ -95,10 +97,11 @@ bool DnnlPostOpsComposer::appendScale(const std::vector<float>& scale, bool isLa
 
     // fuse into existing output scale (only when isINT8)
     bool can_fuse_into_oscale = false;
-    if (isINT8 && isLastPostOp && scale.size() == 1) { // oneDNN v3.* limitation does not allow per-channel dst scales
+    if (isINT8) { // oneDNN v3.* limitation does not allow per-channel dst scales
         if (ops.len() == 0)
             can_fuse_into_oscale = true;
 
+#if 1
         // relu(x)*s = relu(x*s)
         // prelu(x)*s = prelu(x*s)
         if (ops.len() == 1) {
@@ -117,6 +120,7 @@ bool DnnlPostOpsComposer::appendScale(const std::vector<float>& scale, bool isLa
                 can_fuse_into_oscale = true;
             }
         }
+#endif
     }
 
     if (can_fuse_into_oscale) {
@@ -127,16 +131,16 @@ bool DnnlPostOpsComposer::appendScale(const std::vector<float>& scale, bool isLa
                 IE_ASSERT(oscale_values.size() == OC);
 
             for (int j = 0; j < OC; j++)
-                oscale_values[j] *= 1 / scale[j];
+                oscale_values[j] *= scale[j];
         } else {
             for (int j = 0; j < oscale_values.size(); j++)
-                oscale_values[j] *= 1 / scale[0];
+                oscale_values[j] *= scale[0];
         }
 
         if (oscale_values.size() == 1)
             oscale_mask = 0;
         else
-            oscale_mask = 1 << idxOC;
+            oscale_mask = weightScaleMaskPerChannel;
         updateOutputScales();
         return true;
     }
