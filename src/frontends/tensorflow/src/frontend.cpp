@@ -5,10 +5,12 @@
 #include "openvino/frontend/tensorflow/frontend.hpp"
 
 #include "graph_iterator_proto.hpp"
+#include "graph_iterator_saved_model.hpp"
 #include "helper_transforms/block_lstm_replacer.hpp"
 #include "helper_transforms/const_to_result_remover.hpp"
 #include "helper_transforms/embedding_segments_feature_fusing.hpp"
 #include "helper_transforms/gru_block_cell_replacer.hpp"
+#include "helper_transforms/saved_model_unused_remover.hpp"
 #include "input_model.hpp"
 #include "op_table.hpp"
 #include "openvino/frontend/tensorflow/extension/conversion.hpp"
@@ -86,6 +88,8 @@ bool FrontEnd::supported_impl(const std::vector<ov::Any>& variants) const {
             // for automatic deduction of the frontend to convert the model
             // we have more strict rule that is to have `.pb` extension in the path
             return true;
+        } else if (GraphIteratorSavedModel::is_supported(model_path)) {
+            return true;
         }
     }
 #if defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
@@ -96,6 +100,8 @@ bool FrontEnd::supported_impl(const std::vector<ov::Any>& variants) const {
             // handle binary protobuf format with a path in Unicode
             // for automatic deduction of the frontend to convert the model
             // we have more strict rule that is to have `.pb` extension in the path
+            return true;
+        } else if (GraphIteratorSavedModel::is_supported(model_path)) {
             return true;
         }
     }
@@ -118,6 +124,18 @@ ov::frontend::InputModel::Ptr FrontEnd::load_impl(const std::vector<ov::Any>& va
         if (GraphIteratorProto::is_supported(model_path)) {
             // handle binary protobuf format
             return std::make_shared<InputModel>(std::make_shared<GraphIteratorProto>(model_path), m_telemetry);
+        } else if (GraphIteratorSavedModel::is_supported(model_path)) {
+            std::shared_ptr<GraphIteratorSavedModel> graph_iterator;
+            if (variants.size() > 1 && variants[1].is<std::string>()) {
+                graph_iterator = std::make_shared<GraphIteratorSavedModel>(model_path, variants[1].as<std::string>());
+            } else {
+                graph_iterator = std::make_shared<GraphIteratorSavedModel>(model_path, std::string("serve"));
+            }
+            return std::make_shared<InputModel>(graph_iterator,
+                                                m_telemetry,
+                                                graph_iterator->get_variables_index(),
+                                                graph_iterator->get_saved_model_input_names(),
+                                                graph_iterator->get_saved_model_output_names());
         }
     }
 #if defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
@@ -126,6 +144,20 @@ ov::frontend::InputModel::Ptr FrontEnd::load_impl(const std::vector<ov::Any>& va
         if (GraphIteratorProto::is_supported(model_path)) {
             // handle binary protobuf format with a path in Unicode
             return std::make_shared<InputModel>(std::make_shared<GraphIteratorProto>(model_path), m_telemetry);
+        } else if (GraphIteratorSavedModel::is_supported(model_path)) {
+            std::shared_ptr<GraphIteratorSavedModel> graph_iterator;
+            if (variants.size() > 1 && variants[1].is<std::string>()) {
+                graph_iterator = std::make_shared<GraphIteratorSavedModel>(
+                    model_path,
+                    ov::util::wstring_to_string(variants[1].as<std::wstring>()));
+            } else {
+                graph_iterator = std::make_shared<GraphIteratorSavedModel>(model_path, std::string("serve"));
+            }
+            return std::make_shared<InputModel>(graph_iterator,
+                                                m_telemetry,
+                                                graph_iterator->get_variables_index(),
+                                                graph_iterator->get_saved_model_input_names(),
+                                                graph_iterator->get_saved_model_output_names());
         }
     }
 #endif
@@ -232,6 +264,7 @@ void FrontEnd::normalize(const std::shared_ptr<ov::Model>& model) const {
         // run transformations to convert sub-graphs with intermediate (or FrameworkNode) operations
         // into sub-graphs with only OpenVINO operations
         ov::pass::Manager manager;
+        manager.register_pass<pass::SavedModelUnusedRemover>();
         manager.register_pass<pass::EmbeddingSegmentSingleFeatureFusion>();
         manager.register_pass<pass::BlockLSTMReplacer>();
         manager.register_pass<pass::GRUBlockCellReplacer>();
@@ -248,7 +281,7 @@ void FrontEnd::normalize(const std::shared_ptr<ov::Model>& model) const {
     {
         // perform transpose sinking and reverse infer if the model contains only OpenVINO operations
         ov::pass::Manager manager;
-        manager.register_pass<ov::pass::transpose_sinking::TSGeneral>();
+        manager.register_pass<ov::pass::TransposeSinkingGeneral>();
         manager.register_pass<ov::pass::ReverseShapeAndTypeInfer>();
         manager.run_passes(model);
     }
