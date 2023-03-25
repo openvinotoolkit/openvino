@@ -18,7 +18,7 @@ OutputVector unique(const ov::frontend::tensorflow_lite::NodeContext& node) {
     std::map<std::string, ov::Any> attrs{
         {"out_idx", get_ov_type(decoder->get_attribute(&tflite::UniqueOptions::idx_out_type))},
     };
-    return attribute_helper(node, attrs, ov::frontend::tensorflow::op::translate_unique_op, "Unique");
+    return attribute_helper(node, attrs, [](const ov::frontend::NodeContext& node) { return indexed_from_named(ov::frontend::tensorflow::op::translate_unique_op(node)); }, "Unique");
 }
 
 }  // namespace op

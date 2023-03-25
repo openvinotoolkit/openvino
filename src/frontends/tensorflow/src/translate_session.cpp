@@ -9,6 +9,9 @@
 #include "tf_framework_node.hpp"
 #include "utils.hpp"
 
+// FIXME: remove direct dependency on proto decoder after appropriate uplifting of input node decoding capabilities
+#include "decoder_proto.hpp"
+
 using namespace ov::frontend::tensorflow;
 
 namespace {
@@ -55,6 +58,22 @@ static bool apply_saved_model_names(std::shared_ptr<ov::Node> node,
     }
     return false;
 }
+
+void decode_input_port(std::shared_ptr<DecoderBase> node,
+                        size_t input_port_idx,
+                        std::string& producer_name,
+                        std::string& producer_output_port_name,
+                        size_t& producer_output_port_index,
+                        const DecoderBase::OpTypeByName& op_type_by_name) {
+    auto proto_decoder = std::dynamic_pointer_cast<DecoderProto>(node);
+    if (proto_decoder) {
+        proto_decoder->get_input_node_named_port(input_port_idx, producer_name, producer_output_port_index, op_type_by_name, producer_output_port_name);
+    } else {
+        node->get_input_node(input_port_idx, producer_name, producer_output_port_index, op_type_by_name);
+        // TODO: eliminate this branch by appropriate lifting of the name decoding capability to Decoder base classes
+    }
+}
+
 }  // namespace
 
 TranslateSession::TranslateSession(const ov::frontend::InputModel::Ptr& input_model,
@@ -150,7 +169,7 @@ void TranslateSession::translate_graph(const ov::frontend::InputModel::Ptr& inpu
             }
         }
         params.push_back(param);
-        ng_op_map[input_name] = {param};
+        ng_op_map[input_name] = {NamedOutput(param)};
     }
 
     // create the OV ops from TensorFlow ops
@@ -179,7 +198,11 @@ void TranslateSession::translate_graph(const ov::frontend::InputModel::Ptr& inpu
             std::string producer_name;
             size_t producer_port_idx;
             try {
-                operation_decoder->get_input_node(input_port_idx, producer_name, producer_port_idx, op_type_by_name);
+                std::string producer_port_name;
+                decode_input_port(operation_decoder, input_port_idx, producer_name, producer_port_name, producer_port_idx, op_type_by_name);
+                if(!producer_port_name.empty()) {
+                    producer_port_idx = get_flat_index_by_name_and_id(ng_op_map[producer_name], producer_port_name, producer_port_idx);
+                }
                 //std::cerr << "for consumer: " << operation_decoder->get_op_name() << "\n";
                 //std::cerr << "producer_name = " << producer_name << ", producer_port_idx = " << producer_port_idx << "\n";
             } catch (const std::exception&) {
@@ -206,28 +229,28 @@ void TranslateSession::translate_graph(const ov::frontend::InputModel::Ptr& inpu
                 const auto& input_outputs_vector = ng_op_map.at(std::to_string(input_port_idx) + ":" + operation_name);
                 FRONT_END_GENERAL_CHECK(input_outputs_vector.size() == 1,
                                         "Input created with pruning must have one output");
-                ov_inputs.push_back(input_outputs_vector.at(0));
+                ov_inputs.push_back(input_outputs_vector.at(0).port);
             } else if (ng_op_map.count(producer_name + ":" + std::to_string(producer_port_idx))) {
                 const auto& input_outputs_vector =
                     ng_op_map.at(producer_name + ":" + std::to_string(producer_port_idx));
                 FRONT_END_GENERAL_CHECK(input_outputs_vector.size() == 1,
                                         "Input created with pruning must have one output");
-                ov_inputs.push_back(input_outputs_vector.at(0));
+                ov_inputs.push_back(input_outputs_vector.at(0).port);
             } else if (ng_op_map.count(producer_name)) {
                 const auto& input_outputs_vector = ng_op_map.at(producer_name);
                 if (input_outputs_vector.size() <= producer_port_idx) {
-                    auto producer_node = input_outputs_vector[0].get_node_shared_ptr();
+                    auto producer_node = input_outputs_vector[0].port.get_node_shared_ptr();
                     if (std::dynamic_pointer_cast<FrameworkNode>(producer_node)) {
                         // FrameworkNode node does not know in advance how many output ports will be used
                         // so we can increase number of outputs by demand
                         producer_node->set_output_type(producer_port_idx, element::dynamic, PartialShape::dynamic());
                         // update output vector in node map
-                        ng_op_map[producer_name] = producer_node->outputs();
+                        ng_op_map[producer_name] = named_from_indexed(producer_node->outputs());
                     }
                 }
                 FRONT_END_GENERAL_CHECK(input_outputs_vector.size() > producer_port_idx,
                                         "Input created with pruning must have one output");
-                ov_inputs.push_back(input_outputs_vector.at(producer_port_idx));
+                ov_inputs.push_back(input_outputs_vector.at(producer_port_idx).port);
             } else {
                 FRONT_END_GENERAL_CHECK(false,
                                         "No input is found for node \"" + operation_name + "\" by port " +
@@ -236,7 +259,7 @@ void TranslateSession::translate_graph(const ov::frontend::InputModel::Ptr& inpu
         }
 
         // generate OV node output vector for the current operation node
-        ov::OutputVector ov_outputs;
+        NamedOutputVector ov_outputs;
         auto operation_type = operation_decoder->get_op_type();
         if (m_translator_map->count(operation_type)) {
             try {
@@ -250,17 +273,18 @@ void TranslateSession::translate_graph(const ov::frontend::InputModel::Ptr& inpu
                                                                ov_inputs,
                                                                operation_place->get_output_ports().size());
                 set_node_name(operation_name, fw_node);
-                ov_outputs = fw_node->outputs();
+                ov_outputs = named_from_indexed(fw_node->outputs());
             }
         } else if (auto body_ov_model = get_body_ov_model(operation_type)) {
             //std::cerr << "Before inject_body_model\n";
-            inject_body_model(body_ov_model, operation_type, ov_inputs, ov_outputs);
+            auto indexed_ov_outputs = indexed_from_named(ov_outputs);
+            inject_body_model(body_ov_model, operation_type, ov_inputs, indexed_ov_outputs);
             //std::cerr << "Dumping after_inject_body_model.xml\n";
             //ov::serialize(body_ov_model, "after_inject_body_model.xml");
 
             // set output tensor names
             for (size_t idx = 0; idx < ov_outputs.size(); ++idx) {
-                ov_outputs[idx].get_tensor().set_names({operation_name + ":" + std::to_string(idx)});
+                indexed_ov_outputs[idx].get_tensor().set_names({operation_name + ":" + std::to_string(idx)});
             }
         } else {
             // continue translation by replacing with FrameworkNode
@@ -269,16 +293,16 @@ void TranslateSession::translate_graph(const ov::frontend::InputModel::Ptr& inpu
                                                            ov_inputs,
                                                            operation_place->get_output_ports().size());
             set_node_name(operation_name, fw_node);
-            ov_outputs = fw_node->outputs();
+            ov_outputs = named_from_indexed(fw_node->outputs());
         }
 
         // register OV node outputs in the map for new operation node
         for (const auto& output : ov_outputs) {
-            if (auto result = as_type_ptr<ov::opset10::Result>(output.get_node_shared_ptr())) {
+            if (auto result = as_type_ptr<ov::opset10::Result>(output.port.get_node_shared_ptr())) {
                 // do not add RetVal type operation to ng_op_map
                 results.push_back(result);
             } else {
-                auto param = as_type_ptr<ov::opset8::Parameter>(output.get_node_shared_ptr());
+                auto param = as_type_ptr<ov::opset8::Parameter>(output.port.get_node_shared_ptr());
                 // avoid duplicating Parameter nodes if they are already in the Parameters vector
                 if (param && std::find(params.begin(), params.end(), param) == params.end()) {
                     params.push_back(param);
@@ -302,7 +326,7 @@ void TranslateSession::translate_graph(const ov::frontend::InputModel::Ptr& inpu
                                                                       port_type);
 
             if (port_type == "none") {
-                for (const auto& node_output : ng_op_map[operation_name]) {
+                for (const auto& node_output : indexed_from_named(ng_op_map[operation_name])) {
                     auto result_node = std::make_shared<ov::opset8::Result>(node_output);
                     // Customize output name in case we have mapping from Saved Model format
                     if (saved_model_outputs.get() && saved_model_outputs->size() > 0) {
@@ -330,7 +354,7 @@ void TranslateSession::translate_graph(const ov::frontend::InputModel::Ptr& inpu
                     }
                 }
             } else if (port_type == "out") {
-                const auto& node_outputs = ng_op_map[operation_name];
+                const auto& node_outputs = indexed_from_named(ng_op_map[operation_name]);
                 FRONT_END_GENERAL_CHECK(node_outputs.size() > port_index,
                                         "Output port with index " + std::to_string(port_index) + " of " +
                                             operation_name + "node specified as custom output does not exist");
@@ -350,10 +374,15 @@ void TranslateSession::translate_graph(const ov::frontend::InputModel::Ptr& inpu
                 auto operation_decoder = operation_place->get_decoder();
 
                 // get to know a producer node and by which its output port data is generated
+                // TODO: handle named output ports here correctly
                 std::string producer_name;
                 size_t producer_port_idx;
                 try {
-                    operation_decoder->get_input_node(port_index, producer_name, producer_port_idx, op_type_by_name);
+                    std::string producer_port_name;
+                    decode_input_port(operation_decoder, port_index, producer_name, producer_port_name, producer_port_idx, op_type_by_name);
+                    if(!producer_port_name.empty()) {
+                        producer_port_idx = get_flat_index_by_name_and_id(ng_op_map[producer_name], producer_port_name, producer_port_idx);
+                    }
                 } catch (const std::exception&) {
                     FRONT_END_THROW("[ ERROR ] Exception happened when preparing input " + std::to_string(port_index) +
                                     " for op '" + operation_decoder->get_op_name() + "', expected input name: '" +
@@ -362,7 +391,7 @@ void TranslateSession::translate_graph(const ov::frontend::InputModel::Ptr& inpu
                 }
 
                 // add Result node for this producer output port
-                const auto& node_outputs = ng_op_map[producer_name];
+                const auto& node_outputs = indexed_from_named(ng_op_map[producer_name]);
                 FRONT_END_GENERAL_CHECK(node_outputs.size() > producer_port_idx,
                                         "Output port with index " + std::to_string(producer_port_idx) + " of " +
                                             producer_name + "node specified as custom output does not exist");
@@ -381,7 +410,7 @@ void TranslateSession::translate_graph(const ov::frontend::InputModel::Ptr& inpu
     if (results.empty()) {
         for (const auto& node_output_vector : ng_op_map) {
             for (size_t output_ind = 0; output_ind < node_output_vector.second.size(); ++output_ind) {
-                auto output = node_output_vector.second[output_ind];
+                auto output = node_output_vector.second[output_ind].port;
                 if (output.get_target_inputs().empty() &&
                     !std::dynamic_pointer_cast<ov::opset8::Result>(output.get_node_shared_ptr())) {
                     auto model_output_name =

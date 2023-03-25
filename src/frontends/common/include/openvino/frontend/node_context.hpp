@@ -117,8 +117,51 @@ private:
     std::string m_op_type;
 };
 
+struct NamedOutput {
+
+    //NamedOutput(std::shared_ptr<Node> node) : NamedOutput(Output<Node>(node)) {}
+    NamedOutput(const Output<Node>& _port) : port(_port) {}
+    NamedOutput(const std::string& _name, const Output<Node>& _port) : name(_name), port(_port) {}
+
+    std::string name;
+    Output<Node> port;
+};
+
+using NamedOutputVector = std::vector<NamedOutput>;
+
+inline OutputVector indexed_from_named (const NamedOutputVector& outputs) {
+    OutputVector result;
+    result.reserve(outputs.size());
+    std::transform(outputs.begin(), outputs.end(), std::back_inserter(result), [](const NamedOutput& x) { return x.port; });
+    return result;
+}
+
+inline NamedOutputVector named_from_indexed (const OutputVector& outputs) {
+    return NamedOutputVector(outputs.begin(), outputs.end());
+}
+
+inline size_t get_flat_index_by_name_and_id (const NamedOutputVector& outputs, const std::string& name, size_t id) {
+    // Assume that if at least one output port has name, then all the ports should have names
+    if(!outputs.empty() && !outputs.front().name.empty()) {
+        // Producer has names in ports
+        auto it = std::find_if(outputs.begin(), outputs.end(), [&](const NamedOutput& x) { return name == x.name; });
+        FRONT_END_GENERAL_CHECK(outputs.end() - it > ptrdiff_t(id), "There is no output port specified by name and id");
+        FRONT_END_GENERAL_CHECK(it[id].name == name, "There is no output port with specified index in a group with specified name");
+        return it - outputs.begin() + id;
+    } else {
+        // There are no named ports in the producer node, so reference by name wouldn't work
+        // Allow it when only a single output port exists in the producer
+
+        // FIXME: The following check is desired, but it doesn't pass for multi-output nodes like StatefulPartitionCall
+        // FIXME: Define names for output for such system-level nodes and restore the check
+        //FRONT_END_GENERAL_CHECK(outputs.size() == 1, "Ambiguous reference to output port";
+        return id;
+    }
+}
+
 using CreatorFunction = std::function<OutputVector(const NodeContext&)>;
 using CreatorFunctionNamed = std::function<std::map<std::string, OutputVector>(const NodeContext&)>;
+using CreatorFunctionNamedAndIndexed = std::function<NamedOutputVector(const NodeContext&)>;
 
 }  // namespace frontend
 }  // namespace ov

@@ -308,6 +308,7 @@ size_t DecoderProto::get_input_size() const {
 
 void parse_producer_name(const std::string& producer_port_name,
                          std::string& producer_name,
+                         std::string& producer_output_port_name,
                          size_t& producer_output_port_index,
                          const DecoderBase::OpTypeByName& op_type_by_name) {
     using OutputPortIdxMax = std::unordered_map<std::string, int>;
@@ -318,8 +319,8 @@ void parse_producer_name(const std::string& producer_port_name,
     const OutputPortIdxMax output_port_idx_map = {
         {"TopK:indices", 1},
         {"TopKV2:indices", 1},
-        {"Unique:y", 0},
-        {"Unique:idx", 1},
+        // {"Unique:y", 0},
+        // {"Unique:idx", 1},
         {"CTCGreedyDecoder:decoded_values", 1},
         {"CTCGreedyDecoder:decoded_shape", 2},
         {"CTCGreedyDecoder:log_probability", 3},
@@ -355,8 +356,12 @@ void parse_producer_name(const std::string& producer_port_name,
         auto producer_op_type =
             (op_type_by_name.count(producer_name) > 0) ? op_type_by_name.at(producer_name) : "Unknown";
         auto producer_key = producer_op_type + ":" + port_name;
-        producer_output_port_index = output_port_idx_map.count(producer_key) > 0 ? output_port_idx_map.at(producer_key)
-                                                                                 : producer_output_port_index;
+        if (output_port_idx_map.count(producer_key) > 0) {
+            producer_output_port_index = output_port_idx_map.at(producer_key); }
+        else {
+            producer_output_port_name = port_name;
+            producer_output_port_index = producer_output_port_index;
+        }
         return;
     } else if (first_colon != std::string::npos) {
         // just one colon case
@@ -372,12 +377,21 @@ void parse_producer_name(const std::string& producer_port_name,
     producer_output_port_index = 0;
 }
 
+void parse_producer_name(const std::string& producer_port_name,
+                         std::string& producer_name,
+                         size_t& producer_output_port_index,
+                         const DecoderBase::OpTypeByName& op_type_by_name) {
+    std::string producer_output_port_name;  // FIXME: don't ignore
+    return parse_producer_name(producer_port_name, producer_name, producer_output_port_name, producer_output_port_index, op_type_by_name);
+}
+
 void DecoderProto::get_input_node(size_t input_port_idx,
                                   std::string& producer_name,
                                   size_t& producer_output_port_index) const {
     const std::string producer_port_name = m_node_def->input(static_cast<int>(input_port_idx));
     //std::cerr << "producer_port_name:" << producer_port_name << "\n";
-    parse_producer_name(producer_port_name, producer_name, producer_output_port_index, {});
+    std::string producer_output_port_name;
+    parse_producer_name(producer_port_name, producer_name, producer_output_port_name, producer_output_port_index, {});
 }
 
 void DecoderProto::get_input_node(size_t input_port_idx,
@@ -386,7 +400,17 @@ void DecoderProto::get_input_node(size_t input_port_idx,
                                   const OpTypeByName& op_type_by_name) const {
     const std::string producer_port_name = m_node_def->input(static_cast<int>(input_port_idx));
     //std::cerr << "producer_port_name:" << producer_port_name << "\n";
-    parse_producer_name(producer_port_name, producer_name, producer_output_port_index, op_type_by_name);
+    std::string producer_output_port_name;
+    parse_producer_name(producer_port_name, producer_name, producer_output_port_name, producer_output_port_index, op_type_by_name);
+}
+
+void DecoderProto::get_input_node_named_port(size_t input_port_idx,
+                                  std::string& producer_name,
+                                  size_t& producer_output_port_index,
+                                  const OpTypeByName& op_type_by_name,
+                                  std::string& producer_output_port_name) const {
+    const std::string producer_port_name = m_node_def->input(static_cast<int>(input_port_idx));
+    parse_producer_name(producer_port_name, producer_name, producer_output_port_name, producer_output_port_index, op_type_by_name);
 }
 
 const std::string& DecoderProto::get_op_type() const {
