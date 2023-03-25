@@ -3,6 +3,7 @@
 //
 
 #include <openvino/frontend/exception.hpp>
+#include <openvino/frontend/extension.hpp>
 #include <openvino/frontend/manager.hpp>
 #include <openvino/opsets/opset10.hpp>
 #include <transformations/common_optimizations/moc_transformations.hpp>
@@ -20,11 +21,14 @@ using namespace ov::opset10;
 using namespace ov::frontend;
 
 namespace {
-shared_ptr<Model> convert_model(const string& model_path) {
+shared_ptr<Model> convert_model(const string& model_path, const ConversionExtension::Ptr& conv_ext = nullptr) {
     FrontEndManager fem;
     auto front_end = fem.load_by_framework(TF_FE);
     if (!front_end) {
         throw "TensorFlow Frontend is not initialized";
+    }
+    if (conv_ext) {
+        front_end->add_extension(conv_ext);
     }
     auto model_filename = FrontEndTestUtils::make_model_path(string(TEST_TENSORFLOW_MODELS_DIRNAME) + model_path);
     auto input_model = front_end->load(model_filename);
@@ -37,6 +41,36 @@ shared_ptr<Model> convert_model(const string& model_path) {
     }
 
     return model;
+}
+
+ov::OutputVector fake_translator_ragged_tensor_to_sparse(const ov::frontend::NodeContext& node) {
+    // NOTE: pay attention that this is a fake translator for RaggedTensorToSparse
+    // only serves for testing purposes
+    FRONT_END_GENERAL_CHECK(node.get_input_size() > 1, "RaggedTensorToSparse expects at least two inputs.");
+    auto node_name = node.get_name();
+    auto row_splits = node.get_input(0);
+    auto strings = node.get_input(1);
+
+    // Override type of input tensor if this is a Parameter
+    if (auto parameter = as_type_ptr<ov::opset10::Parameter>(strings.get_node_shared_ptr())) {
+        parameter->set_partial_shape(ov::PartialShape{Dimension()});
+        parameter->set_element_type(ov::element::u8);
+        parameter->validate_and_infer_types();
+    }
+
+    row_splits = make_shared<ConvertLike>(row_splits, strings);
+    auto const_one = make_shared<Constant>(row_splits.get_element_type(), Shape{}, 1);
+    Output<Node> mul = make_shared<Multiply>(row_splits, const_one);
+    auto const_two = make_shared<Constant>(ov::element::u8, Shape{}, 2);
+    Output<Node> add = make_shared<Add>(strings, const_two);
+    auto const_three = make_shared<Constant>(ov::element::u8, Shape{}, 3);
+    Output<Node> sub = make_shared<Subtract>(strings, const_three);
+
+    mul.get_tensor().add_names({node_name + ":0"});
+    add.get_tensor().add_names({node_name + ":1"});
+    sub.get_tensor().add_names({node_name + ":2"});
+
+    return {mul, add, sub};
 }
 }  // namespace
 
@@ -346,6 +380,7 @@ TEST_F(TransformationTestsF, ModelWithIteratorGetNextAndUnsupportedOp) {
         model_ref = make_shared<Model>(OutputVector{add}, ParameterVector{x, y});
     }
 }
+
 TEST_F(TransformationTestsF, ModelWithMultioutputBodyGraphNode) {
     { model = convert_model("partitioned_call2/partitioned_call2.pb"); }
     {
@@ -374,5 +409,59 @@ TEST_F(TransformationTestsF, ModelWithEmptyTensorListAndPushBack) {
         auto recover_item_shape = make_shared<Constant>(i32, Shape{4}, vector<int32_t>{1, 2, 3, 5});
         auto recover_item = make_shared<Reshape>(list_push_back, recover_item_shape, false);
         model_ref = make_shared<Model>(OutputVector{recover_item}, ParameterVector{x});
+    }
+}
+
+TEST_F(TransformationTestsF, ModelWithAssertNode) {
+    { model = convert_model("model_with_assert/model_with_assert.pb"); }
+    {
+        auto x = make_shared<Parameter>(i32, PartialShape{Dimension::dynamic()});
+        auto y = make_shared<Parameter>(i32, PartialShape{Dimension::dynamic()});
+        auto add = make_shared<Add>(x, y);
+        model_ref = make_shared<Model>(OutputVector{add}, ParameterVector{x, y});
+    }
+}
+
+TEST_F(TransformationTestsF, PartitionedCallWithUnique) {
+    // This test aims to test named output ports for Unique operation
+    { model = convert_model("partitioned_call_with_unique/partitioned_call_with_unique.pb"); }
+    {
+        auto x = make_shared<Parameter>(f32, Shape{5});
+        auto relu = make_shared<Relu>(x);
+        auto unique = make_shared<Unique>(relu, false, i32);
+        auto const_one = make_shared<Constant>(i32, Shape{}, 1);
+        auto add = make_shared<Add>(unique->output(2), const_one);
+        auto sigmoid = make_shared<Sigmoid>(unique->output(0));
+        model_ref = make_shared<Model>(OutputVector{sigmoid, add}, ParameterVector{x});
+    }
+}
+
+TEST_F(TransformationTestsF, RaggedTensorToSparse) {
+    // This test aims to test named output ports for RaggedTensorToSparse operation
+    // also, it tests propagation of custom type (specified in the extension) to Parameter node in the parent graph
+    {
+        // create FAKE conversion extension for RaggedTensorToSparse
+        auto conv_ext = std::make_shared<ov::frontend::ConversionExtension>("RaggedTensorToSparse",
+                                                                            fake_translator_ragged_tensor_to_sparse);
+        model = convert_model("ragged_tensor_to_sparse/ragged_tensor_to_sparse.pb", conv_ext);
+    }
+    {
+        auto strings = make_shared<Parameter>(u8, PartialShape{3});
+        auto row_splits = make_shared<Parameter>(i32, PartialShape{5});
+        auto convert_like = make_shared<ConvertLike>(row_splits, strings);
+
+        auto const_one = make_shared<Constant>(u8, Shape{}, 1);
+        Output<Node> mul = make_shared<Multiply>(convert_like, const_one);
+        auto const_three = make_shared<Constant>(u8, Shape{}, 3);
+        Output<Node> sub = make_shared<Subtract>(strings, const_three);
+
+        auto target_shape1 = make_shared<Constant>(i32, Shape{1}, -1);
+        auto reshape1 = make_shared<Reshape>(mul, target_shape1, false);
+        auto target_shape2 = make_shared<Constant>(i32, Shape{1}, -1);
+        auto reshape2 = make_shared<Reshape>(sub, target_shape2, false);
+
+        auto concat = make_shared<Concat>(OutputVector{reshape1, reshape2}, 0);
+
+        model_ref = make_shared<Model>(OutputVector{concat}, ParameterVector{row_splits, strings});
     }
 }
