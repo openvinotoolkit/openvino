@@ -197,8 +197,6 @@ TEST_P(SetPropLoadNetWorkGetPropTests, setConfigAndLoadNetWorkSetGetPropertyTest
 
     InferenceEngine::ExecutableNetwork exeNetWork;
     ASSERT_NO_THROW(exeNetWork = ie->LoadNetwork(cnnNet, target_device, loadNetWorkConfig));
-    if (target_device == CommonTestUtils::DEVICE_AUTO || target_device == CommonTestUtils::DEVICE_MULTI)
-        GTEST_SKIP();
 
     //ie's setConfig and LoadNetwork should not affect each other, for property settings
     for (const auto& property_item : loadNetWorkConfig) {
