@@ -53,8 +53,12 @@ IE::Parameter AutoExecutableNetwork::GetMetric(const std::string& name) const {
             ov::PropertyName{ov::execution_devices.name(), ov::PropertyMutability::RO}};
     } else if (name == ov::hint::performance_mode) {
         auto value = _autoSContext->_performanceHint;
-        if (!_autoSContext->_core->isNewAPI())
+        if (!_autoSContext->_core->isNewAPI()) {
+            if (_autoSContext->_LogTag == "MULTI") {
+                value = InferenceEngine::PluginConfigParams::THROUGHPUT;
+            }
             return value;
+        }
         if (value == InferenceEngine::PluginConfigParams::THROUGHPUT) {
             return ov::hint::PerformanceMode::THROUGHPUT;
         } else if (value == InferenceEngine::PluginConfigParams::LATENCY) {

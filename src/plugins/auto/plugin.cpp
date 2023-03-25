@@ -360,7 +360,7 @@ IExecutableNetworkInternal::Ptr MultiDeviceInferencePlugin::LoadNetworkImpl(cons
     // updateFromMap will check config valid
     loadConfig.set_user_property(PreProcessConfig(config));
     loadConfig.apply_user_properties();
-    if (GetName() == "MULTI") {
+    if (!workModeAuto) {
         if (itorConfig != config.end() && itorConfig->second != InferenceEngine::PluginConfigParams::THROUGHPUT) {
             LOG_WARNING_TAG("User set perf_hint:%s, but MULTI supports THROUGHPUT only", itorConfig->second.c_str());
         }
@@ -380,6 +380,8 @@ IExecutableNetworkInternal::Ptr MultiDeviceInferencePlugin::LoadNetworkImpl(cons
     std::unordered_map<std::string, ov::Any> multiNetworkConfig;
     std::vector<DeviceInformation> metaDevices;
     auto priorities = loadConfig.get_property(ov::device::priorities);
+    if (priorities.empty() && !workModeAuto)
+        IE_THROW() << "KEY_MULTI_DEVICE_PRIORITIES key is not set for " << GetName() << " device";
     if (priorities.find("AUTO") != std::string::npos || priorities.find("MULTI") != std::string::npos) {
         IE_THROW() << "The device candidate list should not include the meta plugin for " << GetName() << " device";
     }

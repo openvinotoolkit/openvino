@@ -43,6 +43,8 @@ protected:
     std::map<std::string, std::string> configuration;
 };
 
+using AutoMultiExecutableNetworkBaseTest = ExecutableNetworkBaseTest;
+
 TEST_P(ExecutableNetworkBaseTest, canLoadCorrectNetworkToGetExecutable) {
     ASSERT_NO_THROW(auto execNet = ie->LoadNetwork(cnnNet, target_device, configuration));
 }
@@ -70,10 +72,6 @@ TEST_P(ExecutableNetworkBaseTest, checkGetMetric) {
 
 TEST_P(ExecutableNetworkBaseTest, canLoadCorrectNetworkToGetExecutableAndCheckConfig) {
     auto execNet = ie->LoadNetwork(cnnNet, target_device, configuration);
-    if (target_device == CommonTestUtils::DEVICE_AUTO || target_device == CommonTestUtils::DEVICE_MULTI) {
-        // AUTO executable network didn't support to read any config.
-        GTEST_SKIP();
-    }
     for (const auto& configItem : configuration) {
         InferenceEngine::Parameter param;
         ASSERT_NO_THROW(param = execNet.GetConfig(configItem.first));
@@ -296,6 +294,16 @@ TEST_P(ExecutableNetworkBaseTest, pluginDoesNotChangeOriginalNetwork) {
     // compare 2 networks
     auto referenceNetwork = ngraph::builder::subgraph::makeConvPoolRelu();
     compare_functions(cnnNet.getFunction(), referenceNetwork);
+}
+
+TEST_P(AutoMultiExecutableNetworkBaseTest, canLoadCorrectNetworkToGetMetricAndCheckConfig) {
+    auto execNet = ie->LoadNetwork(cnnNet, target_device, configuration);
+    for (const auto& configItem : configuration) {
+        InferenceEngine::Parameter param;
+        ASSERT_NO_THROW(param = execNet.GetMetric(configItem.first));
+        ASSERT_FALSE(param.empty());
+        ASSERT_EQ(param, InferenceEngine::Parameter(configItem.second));
+    }
 }
 
 class ExecNetSetPrecision : public BehaviorTestsUtils::BehaviorTestsBasicBase,

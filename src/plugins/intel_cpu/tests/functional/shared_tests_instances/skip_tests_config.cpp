@@ -73,12 +73,13 @@ std::vector<std::string> disabledTestPatterns() {
         R"(.*Behavior.*InferRequestIOBBlobSetLayoutTest.*CanSetOutBlobWithDifferentLayouts.*layout=CN.*targetDevice=(AUTO|MULTI).*)",
         R"(.*Behavior.*InferRequestSetBlobByType.*Batched.*)",
         R"(.*Auto_Behavior.*InferRequestIOBBlobTest.*canProcessDeallocatedOutputBlobAfterGetAndSetBlob.*)",
-        R"(.*(Auto|Multi).*Behavior.*ExecutableNetworkBaseTest.*canLoadCorrectNetworkToGetExecutableWithIncorrectConfig.*)",
         R"(.*(Auto|Multi).*Behavior.*CorrectConfigAPITests.*CanSetExclusiveAsyncRequests.*)",
         R"(.*(Auto|Multi).*Behavior.*IncorrectConfigTests.*CanNotLoadNetworkWithIncorrectConfig.*)",
         R"(.*(Auto|Multi).*Behavior.*OVCompiledModelPropertiesIncorrectTests.*CanNotCompileModelWithIncorrectProperties.*)",
         R"(.*OVExecutableNetworkBaseTest.*(CanGetInputsInfoAndCheck|CanSetConfigToExecNet).*)",
         R"(.*Behavior.*CorrectConfigCheck.*(canSetConfigAndCheckGetConfig|canSetConfigTwiceAndCheckGetConfig).*CPU_BIND_THREAD=YES.*)",
+        // Auto|Multi does not check user-set config
+        R"(.*(Auto|Multi).*Behavior.*ExecutableNetworkBaseTest.*canLoadCorrectNetworkToGetExecutableWithIncorrectConfig.*)",
         // Issue: 72021 Unreasonable abs_threshold for comparing bf16 results
         R"(.*smoke_Reduce.*type=(Prod|Min).*netPRC=(BF|bf)16.*)",
         // TODO: 56520 Accuracy mismatch

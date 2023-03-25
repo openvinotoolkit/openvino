@@ -192,7 +192,7 @@ TEST_P(ExclusiveAsyncReqTests, excluAsyncReqTests) {
     ASSERT_NO_THROW(ie->LoadNetwork(cnnNet, target_device, configuration));
 }
 
-TEST_P(SetPropLoadNetWorkGetPropTests, SetPropLoadNetWorkGetProperty) {
+TEST_P(SetPropLoadNetWorkGetPropTests, setConfigAndLoadNetWorkSetGetPropertyTest) {
     ASSERT_NO_THROW(ie->SetConfig(configuration, target_device));
 
     InferenceEngine::ExecutableNetwork exeNetWork;
@@ -200,6 +200,7 @@ TEST_P(SetPropLoadNetWorkGetPropTests, SetPropLoadNetWorkGetProperty) {
     if (target_device == CommonTestUtils::DEVICE_AUTO || target_device == CommonTestUtils::DEVICE_MULTI)
         GTEST_SKIP();
 
+    //ie's setConfig and LoadNetwork should not affect each other, for property settings
     for (const auto& property_item : loadNetWorkConfig) {
         InferenceEngine::Parameter exeNetProperty;
         ASSERT_NO_THROW(exeNetProperty = exeNetWork.GetConfig(property_item.first));
@@ -211,6 +212,27 @@ TEST_P(SetPropLoadNetWorkGetPropTests, SetPropLoadNetWorkGetProperty) {
         InferenceEngine::Parameter property;
         ASSERT_NO_THROW(property = ie->GetConfig(target_device, property_item.first));
         ASSERT_EQ(property_item.second, property.as<std::string>());
+    }
+}
+
+TEST_P(AutoMultiSetPropLoadNetWorkGetPropTests, AutoMultisetConfigAndLoadNetWorkSetGetPropertyTest) {
+    ASSERT_NO_THROW(ie->SetConfig(configuration, target_device));
+
+    InferenceEngine::ExecutableNetwork exeNetWork;
+    ASSERT_NO_THROW(exeNetWork = ie->LoadNetwork(cnnNet, target_device, loadNetWorkConfig));
+
+    // the value of GetConfig should be the same as SetConfig
+    for (const auto& property_item : configuration) {
+        InferenceEngine::Parameter property;
+        ASSERT_NO_THROW(property = ie->GetConfig(target_device, property_item.first));
+        ASSERT_EQ(property_item.second, property.as<std::string>());
+    }
+
+    //ie's setConfig and LoadNetwork should not affect each other, for property settings
+    for (const auto& property_item : loadNetWorkConfig) {
+        InferenceEngine::Parameter exeNetProperty;
+        ASSERT_NO_THROW(exeNetProperty = exeNetWork.GetMetric(property_item.first));
+        ASSERT_EQ(property_item.second, exeNetProperty.as<std::string>());
     }
 }
 
