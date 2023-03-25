@@ -39,12 +39,12 @@ public:
     class Restriction {
     public:
         explicit Restriction(const bool versionIsRequired) : versionIsRequired(versionIsRequired) {}
-        void add(const uint64_t version, const ngraph::pass::low_precision::PrecisionsRestriction::PrecisionsByPorts& precisions) {
-            precisionsByVersion.emplace(version, precisions);
+        void add(const std::string version_id, const ngraph::pass::low_precision::PrecisionsRestriction::PrecisionsByPorts& precisions) {
+            precisionsByVersion.emplace(version_id, precisions);
         }
 
         bool versionIsRequired;
-        std::unordered_map<uint64_t, ngraph::pass::low_precision::PrecisionsRestriction::PrecisionsByPorts> precisionsByVersion;
+        std::unordered_map<std::string, ngraph::pass::low_precision::PrecisionsRestriction::PrecisionsByPorts> precisionsByVersion;
     };
 
     OPENVINO_RTTI("MarkupPrecisions", "0");

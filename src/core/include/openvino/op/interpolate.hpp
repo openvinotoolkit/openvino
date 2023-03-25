@@ -83,7 +83,7 @@ namespace v4 {
 /// \ingroup ov_ops_cpp_api
 class OPENVINO_API Interpolate : public util::InterpolateBase {
 public:
-    OPENVINO_OP("Interpolate", "opset4", util::InterpolateBase, 4);
+    OPENVINO_OP("Interpolate", "opset4", util::InterpolateBase);
 
     Interpolate() = default;
     /// \brief Constructs a Interpolate operation without 'axes' input.
@@ -190,7 +190,7 @@ namespace v11 {
 /// \ingroup ov_ops_cpp_api
 class OPENVINO_API Interpolate : public util::InterpolateBase {
 public:
-    OPENVINO_OP("Interpolate", "opset11", util::InterpolateBase, 11);
+    OPENVINO_OP("Interpolate", "opset11", util::InterpolateBase);
     Interpolate() = default;
     /// \brief Constructs a Interpolate operation without 'axes' input.
     ///
