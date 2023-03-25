@@ -5,6 +5,9 @@
 
 #include "eltwise.h"
 
+#include <map>
+#include <set>
+
 #include <ie_parallel.hpp>
 
 #include "cpu_types.h"
@@ -157,6 +160,27 @@ public:
     }
 };
 
+void set_intersection(const std::set<std::vector<element::Type>>& precisions1,
+                      const std::set<std::vector<element::Type>>& precisions2,
+                      std::set<std::vector<element::Type>>& intersection) {
+                      std::map<element::Type, size_t> intersection_types;
+
+    for (auto it1 = precisions1.begin(); it1 != precisions1.end(); ++it1) {
+        for (auto it2 = precisions2.begin(); it2 != precisions2.end(); ++it2) {
+            const auto& it1_precisions = *it1;
+            // all element types are equal
+            if (it1_precisions[0] == (*it2)[0]) {
+                // first precisions size is used
+                intersection_types.emplace(it1_precisions[0], it1_precisions.size());
+            }
+        }
+    }
+
+    for (auto it = intersection_types.begin(); it != intersection_types.end(); ++it) {
+        intersection.insert(std::vector<element::Type>(it->second, it->first));
+    }
+}
+
 }   // namespace
 
 template <cpu_isa_t isa>
@@ -194,17 +218,18 @@ struct jit_uni_eltwise_generic : public jit_uni_eltwise_kernel, public jit_gener
             std::set<std::vector<element::Type>> prcs = get_supported_precisions(eltwise_data_[i].algo);
             std::set<std::vector<element::Type>> prcs_intersect = {};
 
-            // to support previous functionality
-            if (!std::all_of(
+            // for element-wise nodes all precisions have to be equal
+            assert(std::all_of(
                 prcs.begin(),
                 prcs.end(),
-                [&supported_precision_intersection](const std::vector<element::Type>& types) {
-                    return types.size() == supported_precision_intersection.size(); })) {
-                continue;
-            }
+                [](const std::vector<element::Type>& precisions) {
+                    return std::all_of(
+                        precisions.begin(),
+                        precisions.end(),
+                        [&precisions](const element::Type& precision) { return precision == precisions[0]; });
+                }));
 
-            std::set_intersection(supported_precision_intersection.begin(), supported_precision_intersection.end(),
-                                  prcs.begin(), prcs.end(), std::inserter(prcs_intersect, prcs_intersect.begin()));
+            set_intersection(supported_precision_intersection, prcs, prcs_intersect);
 
             supported_precision_intersection = prcs_intersect;
         }
