@@ -29,6 +29,7 @@ public:
                         std::unordered_map<int, MemoryPtr>& args,
                         const VectorDims& outputDims,
                         int indexOfOutputChannelDim,
+                        const int weightScaleMaskPerChannel,
                         bool isINT8);
 
     void appendBinary(const dnnl::algorithm alg, const std::vector<float>& data);
@@ -50,6 +51,7 @@ private:
     std::unordered_map<int, MemoryPtr>& args;
     const VectorDims outputDims;
     int idxOC;
+    const int weightScaleMaskPerChannel;
     VectorDims dimsPerTensor;
     VectorDims dimsPerOC;
     Dim OC;

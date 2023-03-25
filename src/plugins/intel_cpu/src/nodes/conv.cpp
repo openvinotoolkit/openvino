@@ -604,7 +604,7 @@ void Convolution::setPostOps(dnnl::primitive_attr& attr,
     auto& args = convPostOpsArgs[useLegacyPostOps];
     bool isINT8 = canBeExecutedInInt8();
 
-    DnnlPostOpsComposer dnnlpoc(getEngine(), attr, ops, args, dims, 1, isINT8);
+    DnnlPostOpsComposer dnnlpoc(getEngine(), attr, ops, args, dims, 1, isGrouped ? 3 : 1 << 0, isINT8);
 
     DEBUG_LOG(getName(), " useLegacyPostOps=", useLegacyPostOps, " initWeights=", initWeights);
 
