@@ -417,6 +417,39 @@ if(ENABLE_OV_TF_LITE_FRONTEND)
 endif()
 
 #
+# Snappy Compression
+#
+
+if(ENABLE_SNAPPY_COMPRESSION)
+    if(ENABLE_SYSTEM_SNAPPY)
+        find_package(Snappy REQUIRED)
+    endif()
+
+    if(Snappy_FOUND)
+        set_target_properties(Snappy::snappy PROPERTIES IMPORTED_GLOBAL ON)
+    else()
+        function(tf_build_snappy)
+            set(BUILD_SHARED_LIBS OFF)
+            set(SNAPPY_BUILD_BENCHMARKS OFF)
+            set(SNAPPY_BUILD_TESTS OFF)
+            set(INSTALL_GTEST OFF)
+            set(CMAKE_CXX_STANDARD 14)
+            if(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
+                # 'conversion' conversion from 'type1' to 'type2', possible loss of data
+                ie_add_compiler_flags(/wd4244)
+                # 'var' : conversion from 'size_t' to 'type', possible loss of data
+                ie_add_compiler_flags(/wd4267)
+            endif()
+
+            add_subdirectory(snappy EXCLUDE_FROM_ALL)
+        endfunction()
+
+        tf_build_snappy()
+        ov_install_static_lib(snappy ${OV_CPACK_COMP_CORE})
+    endif()
+endif()
+
+#
 # ONNX
 #
 

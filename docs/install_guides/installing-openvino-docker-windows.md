@@ -9,18 +9,15 @@ This guide provides steps for creating a Docker image with Intel® Distribution 
 System Requirements
 ####################
 
-
 .. tab:: Target Operating System with Python Versions
 
-   .. list-table::
-      :header-rows: 1
-
-      * - Operating System
-        - Supported Python Version
-      * - Windows Server Core base LTSC 2019
-        - 3.8
-      * - Windows 10, version 20H2
-        - 3.8
+   +------------------------------------+--------------------------+
+   | Operating System                   | Supported Python Version |
+   +====================================+==========================+
+   | Windows Server Core base LTSC 2019 | 3.8                      |
+   +------------------------------------+--------------------------+
+   | Windows 10, version 20H2           | 3.8                      |
+   +------------------------------------+--------------------------+
 
 .. tab:: Host Operating Systems
 
