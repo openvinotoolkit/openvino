@@ -33,21 +33,13 @@ class HeteroExecutableNetwork : public InferenceEngine::ExecutableNetworkThreadS
 public:
     typedef std::shared_ptr<HeteroExecutableNetwork> Ptr;
 
-    /**
-     * @brief constructor
-     */
-    HeteroExecutableNetwork(const InferenceEngine::CNNNetwork& network,
-                            const Engine::Configs& user_config,
-                            const Engine::Configs& hetero_config,
-                            Engine* plugin);
-    /**
-     * @brief Import from opened file constructor
-     */
-    HeteroExecutableNetwork(std::istream& heteroModel, const Engine::Configs& config, Engine* plugin);
+    HeteroExecutableNetwork(const InferenceEngine::CNNNetwork& network, const Configs& user_config, Engine* plugin);
+    HeteroExecutableNetwork(std::istream& heteroModel, const Configs& user_config, Engine* plugin);
 
     InferenceEngine::IInferRequestInternal::Ptr CreateInferRequestImpl(
         InferenceEngine::InputsDataMap networkInputs,
         InferenceEngine::OutputsDataMap networkOutputs) override;
+
     InferenceEngine::IInferRequestInternal::Ptr CreateInferRequestImpl(
         const std::vector<std::shared_ptr<const ov::Node>>& inputs,
         const std::vector<std::shared_ptr<const ov::Node>>& outputs) override;
@@ -70,8 +62,8 @@ private:
     std::vector<NetworkDesc> _networks;
     Engine* _heteroPlugin;
     std::string _name;
-    Engine::Configs _hetero_config;
-    Engine::Configs _user_config;
+    Configs _hetero_config;
+    Configs _device_config;
     std::unordered_map<std::string, std::string> _blobNameMap;
 };
 
