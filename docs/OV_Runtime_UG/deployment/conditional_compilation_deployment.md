@@ -9,7 +9,7 @@ Conditional compilation can significantly reduce the binary size of OpenVINO™ 
     The cost is OpenVINO runtime will only run inference for these particular models and the device for which was applied in conditional compilation.
 
 
-More details can be found ``conditional_compilation_guide <https://github.com/openvinotoolkit/openvino/blob/master/docs/dev/conditional_compilation.md>`` and ``conditional_compilation_developer_guide <https://github.com/openvinotoolkit/openvino/blob/master/src/common/conditional_compilation/docs/develop_cc_for_new_component.md>``
+More details can be found `conditional_compilation_guide <https://github.com/openvinotoolkit/openvino/blob/master/docs/dev/conditional_compilation.md>`__ and `conditional_compilation_developer_guide <https://github.com/openvinotoolkit/openvino/blob/master/src/common/conditional_compilation/docs/develop_cc_for_new_component.md>`__
 
 There are mainly 2 stages to get optimal binary size of OpenVINO package size with conditional compilation:
 
@@ -95,7 +95,7 @@ Sometimes, we need adopt conditional compilation for multiple different SKUs, bu
 
 Conditional compilation need firstly to collect statistics information so that to exclude all unused code region, e.g. ops, kernels, which required that all included ops/kernels must be ran once at least. For multiple SKUs case, it need all ops/kernels that will be used by any one of SKUs, to be hit one time at least in the profiling data. If the profiling is done in one CPU platform, it is impossible except to adopt emulator.
 
-A simple method is to leverage ``SDE <https://www.intel.com/content/www/us/en/developer/articles/license/pre-release-license-agreement-for-software-development-emulator.html>`` to emulate different CPUs to generate multiple statistics csv files for different SKUs similar as below:
+A simple method is to leverage `SDE <https://www.intel.com/content/www/us/en/developer/articles/license/pre-release-license-agreement-for-software-development-emulator.html>`__ to emulate different CPUs to generate multiple statistics csv files for different SKUs similar as below:
 
 .. code-block:: sh
 
