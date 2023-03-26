@@ -25,6 +25,10 @@
 constexpr uint wg_size = WG_SIZE;
 #define REG_K 16
 
+CM_INLINE uint cm_global_id2(uint dim) {
+    return cm_group_id(dim) * cm_local_size(dim) + cm_local_id(dim);
+}
+
 extern "C" _GENX_MAIN_ void KERNEL_NAME(
     const half* key [[type("svmptr_t")]],
     const half* value [[type("svmptr_t")]],
@@ -63,7 +67,7 @@ extern "C" _GENX_MAIN_ void KERNEL_NAME(
     const auto wg_local_id = cm_local_id(2);
     const auto local_size = cm_local_size(2);
 
-    const uint token_idx = cm_global_id(2);
+    const uint token_idx = cm_global_id2(2);
 
     // token_idx -> subsequence_idx
     if (token_idx >= subsequence_begins[batch_size_in_sequences]) return;

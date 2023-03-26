@@ -569,10 +569,10 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
             // Disable XAttention if GPU Xe2/Xe3 architectures is unavaiable or IGC incompatiable.
             auto check_xattn_gpu_compatibility  = [&](void) -> bool {
                         auto& engine = m_context->get_engine();
-                        const auto& info = engine.get_device_info();
-                        if (info.arch != cldnn::gpu_arch::xe2 && info.arch != cldnn::gpu_arch::xe3) { // CM optimized for systolic-array architectures
-                            return false;
-                        }
+                        // const auto& info = engine.get_device_info();
+                        // if (info.arch != cldnn::gpu_arch::xe2 && info.arch != cldnn::gpu_arch::xe3) { // CM optimized for systolic-array architectures
+                        //     return false;
+                        // }
 
 #ifdef GPU_DEBUG_CONFIG
                         if (!config.get_use_cm()) {
@@ -596,13 +596,15 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
             // This is determined by inspecting the model parameters for XAttention configurations,
             // which are introduced during the SDPAToPagedAttention pass.
             bool use_xattention = false;
-            const auto& parameters = func->get_parameters();
-            for (const auto& param : parameters) {
-                if (param->get_friendly_name() == "xattention_block_size") {
-                    use_xattention = true;
-                    break;
-                }
-            }
+            // const auto& parameters = func->get_parameters();
+            // for (const auto& param : parameters) {
+            //     if (param->get_friendly_name() == "xattention_block_size") {
+            //         use_xattention = true;
+            //         break;
+            //     }
+            // }
+            use_xattention = true;
+            std::cout << "use_xattention: " << use_xattention << std::endl;
 
             if (use_xattention) {
                 // Throw exception if xattn is not supported by either GPU archieture or compiler.
