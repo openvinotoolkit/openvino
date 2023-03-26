@@ -54,7 +54,7 @@ IE::Parameter AutoExecutableNetwork::GetMetric(const std::string& name) const {
     } else if (name == ov::hint::performance_mode) {
         auto value = _autoSContext->_performanceHint;
         if (!_autoSContext->_core->isNewAPI()) {
-            if (_autoSContext->_LogTag == "MULTI") {
+            if (_autoSchedule->_pCTPUTLoadContext) {
                 value = InferenceEngine::PluginConfigParams::THROUGHPUT;
             }
             return value;
@@ -64,7 +64,7 @@ IE::Parameter AutoExecutableNetwork::GetMetric(const std::string& name) const {
         } else if (value == InferenceEngine::PluginConfigParams::LATENCY) {
             return ov::hint::PerformanceMode::LATENCY;
         } else if (value == InferenceEngine::PluginConfigParams::CUMULATIVE_THROUGHPUT) {
-            if (_autoSContext->_LogTag == "MULTI") {
+            if (_autoSchedule->_pCTPUTLoadContext) {
                 return ov::hint::PerformanceMode::THROUGHPUT;
             } else {
                 return ov::hint::PerformanceMode::CUMULATIVE_THROUGHPUT;
