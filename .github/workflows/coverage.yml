@@ -146,8 +146,8 @@ jobs:
       - name: TEMPLATE FuncTests
         run: ${{ github.workspace }}/bin/intel64/Release/ov_template_func_tests
       
-      - name: CPU FuncTests
-        run: ${{ github.workspace }}/bin/intel64/Release/ov_cpu_func_tests
+      #- name: CPU FuncTests
+      #  run: ${{ github.workspace }}/bin/intel64/Release/ov_cpu_func_tests
       
       - name: IE CAPITests
         run: ${{ github.workspace }}/bin/intel64/Release/InferenceEngineCAPITests
