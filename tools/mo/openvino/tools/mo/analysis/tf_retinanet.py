@@ -52,14 +52,14 @@ class TensorFlowRetinaNet(AnalyzeAction):
 
         if pattern_instance_counter.counter > 0:
             result = dict()
-            result['mandatory_parameters'] = {'transformations_config':
+            result['mandatory_parameters'] = {'tensorflow_use_custom_operations_config':
                                                   'openvino/tools/mo/front/tf/retinanet.json'}
 
             message = "Your model looks like TensorFlow RetinaNet Model.\n" \
                       "To generate the IR, provide model to the Model Optimizer with the following parameters:\n" \
                       "\t--input_model <path_to_model>/<model>.pb\n" \
                       "\t--input_shape [1,600,600,3]\n" \
-                      "\t--transformations_config <OPENVINO_INSTALL_DIR>/tools/model_optimizer/openvino/tools/mo/front/tf/retinanet.json\n" \
+                      "\t--tensorflow_use_custom_operations_config <OPENVINO_INSTALL_DIR>/tools/model_optimizer/openvino/tools/mo/front/tf/retinanet.json\n" \
                       "\t--reverse_input_channels"
 
             return {'model_type': {'TF_RetinaNet': result}}, message
