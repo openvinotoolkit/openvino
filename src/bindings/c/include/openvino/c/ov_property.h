@@ -171,3 +171,17 @@ ov_property_key_enable_profiling;
  */
 OPENVINO_C_VAR(const char*)
 ov_property_key_device_priorities;
+
+/**
+ * @brief Read-write property<string> for high-level OpenVINO Execution hint
+ * unlike low-level properties that are individual (per-device), the hints are something that every device accepts
+ * and turns into device-specific settings
+ * Execution mode hint controls preferred optimization targets (performance or accuracy) for given model
+ * It can be set to be below value:
+ *   "UNDEFINED"     //!<  Undefined value, settings may vary from device to device
+ *   "PERFORMANCE",  //!<  Optimize for max performance
+ *   "ACCURACY",     //!<  Optimize for max accuracy
+ * @ingroup ov_property_c_api
+ */
+OPENVINO_C_VAR(const char*)
+ov_property_key_hint_execution_mode;

@@ -6,7 +6,8 @@
 
 #define GET_OUTPUT_INDEX(prefix, idx_order) CAT(prefix, _GET_INDEX)(idx_order)
 
-KERNEL(gather_elements_ref)(const __global INPUT0_TYPE* data,
+KERNEL(gather_elements_ref)(OPTIONAL_SHAPE_INFO_ARG
+                   const __global INPUT0_TYPE* data,
                    const __global INPUT1_TYPE* indices,
                    __global OUTPUT_TYPE* output
 #if HAS_FUSED_OPS_DECLS

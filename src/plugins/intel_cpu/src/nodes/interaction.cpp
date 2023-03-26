@@ -21,10 +21,14 @@
 #include "emitters/jit_dnnl_emitters.hpp"
 #include "emitters/jit_load_store_emitters.hpp"
 
+using namespace InferenceEngine;
+using namespace dnnl::impl::cpu::x64;
+using namespace Xbyak;
+
 namespace ov {
 namespace intel_cpu {
 namespace node {
-using namespace Xbyak;
+
 #define THROW_ERROR IE_THROW() << getTypeStr() << " node with name '" << getName() << "' "
 template <cpu_isa_t isa>
 struct jit_move_scale_kernel : public jit_uni_move_scale_kernel, public jit_generator {
@@ -239,7 +243,7 @@ void Interaction::execRef(dnnl::stream strm) {
                                             {DNNL_ARG_WEIGHTS, inputMemPtr->GetPrimitive()},
                                             {DNNL_ARG_DST, outputMemPtr->GetPrimitive()}};
     float* scales = fqScales.empty() ? nullptr : fqScales.data();
-    for (int64_t start = 0; start < batchSize; start++) {
+    for (int64_t start = 0; start < static_cast<int64_t>(batchSize); start++) {
         cat(reinterpret_cast<uint8_t*>(inputMemPtr->GetPtr()), inputPtrs, featureSizes, start, dataPrecision.size());
         prim.execute(strm, mem_ags);
         flat_triangle(reinterpret_cast<const uint8_t*>(outputMemPtr->GetPtr()),
@@ -293,9 +297,8 @@ void Interaction::prepareParams() {
     auto src_md = memory::desc(lhsShape, dataType, lhsStride);
     auto weights_md = memory::desc(rhsShape, dataType, rhsStride);
     auto dst_md = memory::desc(resShape, dataType, resStride);
-    auto matmul_d = matmul::desc(src_md, weights_md, dst_md);
     primitive_attr matmul_attr;
-    auto matmul_pd = matmul::primitive_desc(matmul_d, matmul_attr, getEngine());
+    auto matmul_pd = matmul::primitive_desc(getEngine(), src_md, weights_md, dst_md, matmul_attr);
     prim = matmul(matmul_pd);
     featureSizes.assign(inputSizes, featureSize);
     auto initMemoryPtr = [&](const InferenceEngine::Precision &prc, const intel_cpu::Shape& shape,

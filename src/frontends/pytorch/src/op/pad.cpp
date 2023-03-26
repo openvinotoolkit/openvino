@@ -22,7 +22,7 @@ namespace op {
 
 using namespace ov::op;
 
-OutputVector translate_pad(NodeContext& context) {
+OutputVector translate_pad(const NodeContext& context) {
     num_inputs_check(context, 2, 4);
     auto data = context.get_input(0);
     auto paddings = context.const_input<std::vector<int64_t>>(1);

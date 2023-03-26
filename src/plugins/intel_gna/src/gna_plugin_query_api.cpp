@@ -64,7 +64,8 @@ Parameter GNAPlugin::GetMetric(const std::string& name,
     } else if (ov::model_name == name) {
         return _network_name;
     } else if (name == ov::caching_properties) {
-        std::vector<ov::PropertyName> cachingProperties = Config::GetImpactingModelCompilationProperties(true);
+        auto cachingProperties =
+            Config::GetImpactingModelCompilationProperties(true).as<std::vector<ov::PropertyName>>();
         cachingProperties.push_back(ov::PropertyName(ov::log::level.name(), ov::PropertyMutability::RO));
         return decltype(ov::caching_properties)::value_type(cachingProperties);
     } else {

@@ -40,34 +40,20 @@ FullyConnected_bs_f_bsv16_af8::DispatchData FullyConnected_bs_f_bsv16_af8::SetDe
     return dispatchData;
 }
 
-static bool check_input_layout(const DataTensor& t) {
-    bool b16_layout = false;
-    b16_layout |= t.GetLayout() == DataLayout::bs_f_bsv16__af8;
-    b16_layout |= DataTensor::Channelndex(t.GetLayout(), Tensor::DataChannelName::BATCH) == 0 && t.Batch().v == 16;
-    return b16_layout;
-}
-
 bool FullyConnected_bs_f_bsv16_af8::Validate(const Params& p, const optional_params& o) const {
     if (!FullyConnectedBlockKernelBase::Validate(p, o)) {
         return false;
     }
 
     const auto& params = static_cast<const fully_connected_params&>(p);
-    const auto& optParams = static_cast<const fully_connected_optional_params&>(o);
 
     if (!params.engineInfo.supports_intel_subgroups_short && params.inputs[0].GetDType() == Datatype::F16) {
         return false;
     }
 
     const bool bProperBatch = params.inputs[0].Batch().v == 16;
-    const bool bProperInput = check_input_layout(params.inputs[0]);
-    const bool bSupportedLayout = optParams.allowInputReordering || bProperInput;
 
-    if (!bProperBatch || !bSupportedLayout) {
-        return false;
-    }
-
-    return true;
+    return bProperBatch;
 }
 
 KernelsData FullyConnected_bs_f_bsv16_af8::GetKernelsData(const Params& params,

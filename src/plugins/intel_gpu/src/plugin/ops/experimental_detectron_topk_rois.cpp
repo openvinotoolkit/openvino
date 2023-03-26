@@ -21,7 +21,7 @@ void CreateExperimentalDetectronTopKROIsOp(Program &p,
                                            const std::shared_ptr<ngraph::op::v6::ExperimentalDetectronTopKROIs> &op) {
     validate_inputs_count(op, {2});
     auto inputs = p.GetInputInfo(op);
-    auto max_rois = op->get_max_rois();
+    auto max_rois = static_cast<uint32_t>(op->get_max_rois());
     auto layer_name = layer_type_name_ID(op);
     auto argmax_layer_name = layer_name + "_topk";
     auto top_k_indices = arg_max_min(argmax_layer_name,

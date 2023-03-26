@@ -255,6 +255,14 @@ void Input::cloneBlobIfRequired() {
     const size_t size = shape.getElementsCount();
     DnnlBlockedMemoryDesc memDesc(prec, shape);
 
+    bool needFlushDenormalsToZero = true;
+    if (context->getConfig().DAZOn) {
+        // DAZ has been set, processor automatically converts all denormal source operands
+        // to a zero with the sign of the original operand before performing any
+        // computations on them, thus no need to flush them to zero manually
+        needFlushDenormalsToZero = false;
+    }
+
     auto cloneBlob = [&, this] () {
         Memory memory{ getEngine() };
 
@@ -271,7 +279,7 @@ void Input::cloneBlobIfRequired() {
 
         MemoryPtr ptr = MemoryPtr(new Memory(getEngine()));
         ptr->Create(memDesc);
-        ptr->SetData(memory);
+        ptr->SetData(memory, needFlushDenormalsToZero);
 
         return ptr;
     };
@@ -355,7 +363,9 @@ void Input::cloneBlobIfRequired() {
     if (weightCache) {
         MemoryPtr ptr = *weightCache->findOrCreate(blobKey(), cloneBlob);
         memoryPtr = std::const_pointer_cast<const Memory>(ptr);
-    } else if (isBlobAligned() && !hasSubnormals() && !isWA()) {
+    // IRs already have all subnormals flushed to zero, but in
+    // read_model scenario with directly loaded original model still can have subnormals
+    } else if (isBlobAligned() && (!needFlushDenormalsToZero || !hasSubnormals()) && !isWA()) {
         auto ptr = new Memory(getEngine());
         ptr->Create(memDesc, constOp->get_data_ptr());
         memoryPtr = MemoryCPtr(ptr);

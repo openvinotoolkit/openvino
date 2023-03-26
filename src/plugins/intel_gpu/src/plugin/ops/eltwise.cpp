@@ -33,7 +33,10 @@
 namespace ov {
 namespace intel_gpu {
 
-void CreateElementwiseOp(Program& p, const std::shared_ptr<ngraph::Node>& op, cldnn::eltwise_mode mode) {
+void CreateElementwiseOp(Program& p,
+                         const std::shared_ptr<ngraph::Node>& op,
+                         cldnn::eltwise_mode mode,
+                         std::vector<float> coefficients) {
     auto inputs = p.GetInputInfo(op);
     std::string layerName = layer_type_name_ID(op);
 
@@ -81,7 +84,7 @@ void CreateElementwiseOp(Program& p, const std::shared_ptr<ngraph::Node>& op, cl
     auto eltwisePrim = cldnn::eltwise(layerName,
                                       inputs,
                                       mode,
-                                      {},
+                                      std::move(coefficients),
                                       out_dt,
                                       op->get_autob());
 
@@ -175,6 +178,21 @@ static void CreateModOp(Program& p, const std::shared_ptr<ngraph::op::v1::Mod>& 
     CreateElementwiseOp(p, op, cldnn::eltwise_mode::mod);
 }
 
+static void CreateIsFiniteOp(Program& p, const std::shared_ptr<ngraph::op::v10::IsFinite>& op) {
+    CreateElementwiseOp(p, op, cldnn::eltwise_mode::is_finite);
+}
+
+static void CreateIsInfOp(Program& p, const std::shared_ptr<ngraph::op::v10::IsInf>& op) {
+    const auto& attributes = op->get_attributes();
+    const auto detect_negative = static_cast<float>(attributes.detect_negative);
+    const auto detect_positive = static_cast<float>(attributes.detect_positive);
+    CreateElementwiseOp(p, op, cldnn::eltwise_mode::is_inf, {detect_negative, detect_positive});
+}
+
+static void CreateIsNaNOp(Program& p, const std::shared_ptr<ngraph::op::v10::IsNaN>& op) {
+    CreateElementwiseOp(p, op, cldnn::eltwise_mode::is_nan);
+}
+
 REGISTER_FACTORY_IMPL(v1, Add);
 REGISTER_FACTORY_IMPL(v1, Multiply);
 REGISTER_FACTORY_IMPL(v1, Maximum);
@@ -194,6 +212,9 @@ REGISTER_FACTORY_IMPL(v1, LogicalXor);
 REGISTER_FACTORY_IMPL(v1, Power);
 REGISTER_FACTORY_IMPL(v1, FloorMod);
 REGISTER_FACTORY_IMPL(v1, Mod);
+REGISTER_FACTORY_IMPL(v10, IsFinite);
+REGISTER_FACTORY_IMPL(v10, IsInf);
+REGISTER_FACTORY_IMPL(v10, IsNaN);
 
 }  // namespace intel_gpu
 }  // namespace ov
