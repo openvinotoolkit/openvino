@@ -14,25 +14,25 @@ namespace pass {
 /**
  * @brief Convert a Add Operation to a Group convolution followed by Add with NCHW layout:
  *                                    
- *                                                                                       * Add:  Input1: [B, A] A <= 8
- *                                                                                       *       Input2: [B, 1]   
- *                                            Input: [A, B]                              *       Output: [B, A]
- *                                                  |
- *                                            Transpose -> [B, A]                                   Input: [B, A]
- *                                                  |                                                    |
- *                                          Reshape 4D [1, B, 1, A]                             Reshape 4D [1, B, 1, A]
- *                                                  |                                                    |   
- * Add                               Group Convolution in NCHW layout                        Group Convolution in NCHW layout
- * Input1: [A, B] A <=8     ------->    Input:  [1, B, 1, A]                                    Input:  [1, B, 1, A]
- * Input2: [1, B]                       Kernel: [B, 1, 1, 1, 1] Initlialize to 1.0f             Kernel: [B, 1, 1, 1, 1] Initlialize to 1.0f
- * Output: [A, B]                       Output: [1, B, 1, A]                                    Output: [1, B, 1, A]
- *                                                  |                                                    |
- *                                                 Add                                                  Add
- *                                      Input:  [1, B, 1, A]                                    Input:  [1, B, 1, A]    
- *                                      Const:  [1, B, 1, 1] Assign Input2                      Const:  [1, B, 1, 1] Assign Input2
- *                                      Output: [1, B, 1, A]                                    Output: [1, B, 1, A]
- *                                                  |                                                    |
- *                                          Reshape 2D  [B, A]                                      Reshape 2D  [B, A]
+ * Add                                                                                       * Add:  Input1: [B, A]                                            *Add:  Input1: [A,B]
+ * Input1: [A,B]                                                                             *       Input2: [B, 1]                                            *      Input2: [A,B]
+ * Input2: [1,B]                                  Input: [A, B]                              *       Output: [B, A]                                            *      Output: [A,B]  
+ * Output: [A,B]                                    |                                                                                                       
+ *                                            Transpose -> [B, A]                                   Input: [B, A]                                                  Input: [A, B]           
+ *                                                  |                                                    |                                                               |
+ *                                          Reshape 4D [1, B, 1, A]                             Reshape 4D [1, B, 1, A]                                       Reshape 4D [1, A*B, 1, 1]
+ *                                                  |                                                    |                                                               |
+ *                                   Group Convolution in NCHW layout                        Group Convolution in NCHW layout                               Group Convolution in NCHW layout
+ *                                      Input:  [1, B, 1, A]                                    Input:  [1, B, 1, A]                                          Input:  [1, A*B, 1, 1]
+ *                                      Kernel: [B, 1, 1, 1, 1] Initlialize to 1.0f             Kernel: [B, 1, 1, 1, 1] Initlialize to 1.0f                   Kernel: [A*B, 1, 1, 1, 1] Initlialize to 1.0f
+ *                                         Output: [1, B, 1, A]                                    Output: [1, B, 1, A]                                          Output: [1, A*B, 1, 1]
+ *                                                  |                                                    |                                                                |
+ *                                                 Add                                                  Add                                                              Add
+ *                                      I0:  [1, B, 1, A]                                    I0:  [1, B, 1, A]                                                    I0:  [1, A*B, 1, ]   
+ *                                      I1:  [1, B, 1, 1] Assign Input2                      I1:  [1, B, 1, 1] Assign Input2                                      I1:  [1, A*B, 1, 1] Assign Input2
+ *                                      Output: [1, B, 1, A]                                    Output: [1, B, 1, A]                                              Output: [1, A*B, 1, 1]
+ *                                                  |                                                    |                                                                |
+ *                                          Reshape 2D  [B, A]                                      Reshape 2D  [B, A]                                             Reshape 2D  [A, B]
  *                                                  |
  *                                          Transpose -> [A, B]
  *                                                  
@@ -55,13 +55,13 @@ public:
  *                                             Reshape 4D
  *                                                  |
  * Subtract                            Group Convolution in NCHW layout
- * Input1: [A, B] A <=8     ------->    Input:  [1, B, 1, A]
- * Input2: [1, B]                       Kernel: [B, 1, 1, 1, 1] Initlialize to 1.0f
+ * Input1: [A, B]            ------->    Input:  [1, B, 1, A]
+ * Input2: [1, B]                       Kernel: [B, 1, 1, 1, 1] Initlialize to -1.0f
  * Output: [A, B]                       Output: [1, B, 1, A]
  *                                                  |
  *                                                 Add
- *                                      Input:  [1, B, 1, 1]
- *                                      Const:  [1, B, 1, 1] Negate and assign Input2
+ *                                      I0:  [1, B, 1, 1]
+ *                                      I1:  [1, B, 1, 1] Assign Input2
  *                                      Output: [1, B, 1, A]
  *                                                  |
  *                                             Reshape 2D
@@ -88,7 +88,7 @@ public:
  *                                             Reshape 4D
  *                                                  |
  * Multiply                            Group Convolution in NCHW layout
- * Input1: [A, B] A <=8     ------->    Input:  [1, B, 1, A]
+ * Input1: [A, B]            ------->    Input:  [1, B, 1, A]
  * Input2: [1, B]                       Kernel: [B, 1, 1, 1, 1] Assign Input 2
  * Output: [A, B]                       Output: [1, B, 1, A]
  *                                                  |
