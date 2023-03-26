@@ -31,8 +31,13 @@ constexpr auto get_pa_build_options() {
 #define PA_KV_CACHE_BLOCK_SIZE       16
 #define PA_KV_CACHE_BLOCK_SIZE_XATTN 256
 
+#ifdef CM_HAS_LSC_UNTYPED_2D
+constexpr uint32_t BLOCK_SG_M = 64;
+constexpr uint32_t BLOCK_SG_N = 32;
+#else
 constexpr uint32_t BLOCK_SG_M = 32;
 constexpr uint32_t BLOCK_SG_N = 16;
+#endif
 constexpr uint32_t SG_M = 4;
 constexpr uint32_t SG_N = 8;
 constexpr uint32_t BLOCK_WG_M = BLOCK_SG_M * SG_M;
