@@ -510,14 +510,16 @@ void CompiledKernelsCacheTest::SetUp() {
     std::string ext = userConfig.second;
     std::string::size_type pos = 0;
     if ((pos = ext.find(",", pos)) != std::string::npos) {
-    m_extList.push_back(ext.substr(0, pos));
-    m_extList.push_back(ext.substr(pos + 1));
-} else {
-    m_extList.push_back(ext);
-}
-    std::replace(test_name.begin(), test_name.end(), '/', '_');
-    std::replace(test_name.begin(), test_name.end(), '\\', '_');
-    cache_path = "compiledModel" + test_name + "_cache";
+        m_extList.push_back(ext.substr(0, pos));
+        m_extList.push_back(ext.substr(pos + 1));
+    } else {
+        m_extList.push_back(ext);
+    }
+    auto hash = std::hash<std::string>()(test_name);
+    std::stringstream ss;
+    ss << std::this_thread::get_id();
+    cache_path = "compiledModel" + std::to_string(hash) + "_"
+                + ss.str() + "_" + GetTimestamp() + "_cache";
 }
 
 void CompiledKernelsCacheTest::TearDown() {
