@@ -570,8 +570,10 @@ JitConstants XAttentionEstimateGeneratorBase::get_jit_constants(const kernel_imp
     int scale_factor_i;
     std::memcpy(static_cast<void*>(&scale_factor_i), &scale_factor, sizeof(scale_factor));
 
-    const uint32_t wg_k = BLOCK_WG_M;
-    const uint32_t wg_q = BLOCK_WG_N;
+    const uint32_t block_sg_m = get_block_sg_m(params);
+    const uint32_t block_sg_n = get_block_sg_n(params);
+    const uint32_t wg_k = get_block_wg_m(params);
+    const uint32_t wg_q = get_block_wg_n(params);
     const size_t block_size = get_xattn_block_size(params);
     OPENVINO_ASSERT(wg_k % block_size == 0, "wg_k should be multiple of block_size then there is no tails from block_size");
     OPENVINO_ASSERT(wg_q % block_size == 0, "wg_q should be multiple of block_size then there is no tails from block_size");
@@ -582,12 +584,12 @@ JitConstants XAttentionEstimateGeneratorBase::get_jit_constants(const kernel_imp
     jit.make("HEAD_SIZE", desc->k_head_size);
     jit.make("SG_M", SG_M);
     jit.make("SG_N", SG_N);
-    jit.make("BLOCK_SG_M", BLOCK_SG_M);
-    jit.make("BLOCK_SG_N", BLOCK_SG_N);
+    jit.make("BLOCK_SG_M", block_sg_m);
+    jit.make("BLOCK_SG_N", block_sg_n);
     jit.make("BLOCK_SIZE", block_size);
     jit.make("KV_BLOCK_SIZE", PA_KV_CACHE_BLOCK_SIZE_XATTN);
     jit.add(make_jit_constant("INV_S", scale_factor_i));
-    jit.make("BLOCK_SHARE_MAX", BLOCK_WG_N);
+    jit.make("BLOCK_SHARE_MAX", wg_q);
     //# loop order walks HQ first and the step is WALK_HQ, 1 means not walk HQ, 2 means walks 2 heads first. Valid value: 1, 2, 4...
     jit.make("WALK_HQ", desc->heads_num != desc->kv_heads_num ? 2 : 1);
     jit.make("IS_CAUSAL", 1);
@@ -660,7 +662,7 @@ DispatchDataFunc XAttentionEstimateGEMMQK::get_dispatch_data_func() const {
         const size_t WALK_HQ = desc->heads_num != desc->kv_heads_num ? 2 : 1;
 
         auto& wgs = kd.params.workGroups;
-        wgs.global = {rtp->N_kq_groups * (rtp->q_stride_pad / BLOCK_WG_M) * SG_N * WALK_HQ, SG_M, desc->heads_num / WALK_HQ};
+        wgs.global = {rtp->N_kq_groups * (rtp->q_stride_pad / get_block_wg_m(params)) * SG_N * WALK_HQ, SG_M, desc->heads_num / WALK_HQ};
         wgs.local = {SG_N, SG_M, 1};
 
         const size_t q_start_strided = N - M;

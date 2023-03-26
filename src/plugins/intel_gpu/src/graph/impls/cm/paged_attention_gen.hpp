@@ -31,20 +31,32 @@ constexpr auto get_pa_build_options() {
 #define PA_KV_CACHE_BLOCK_SIZE       16
 #define PA_KV_CACHE_BLOCK_SIZE_XATTN 256
 
-#ifdef CM_HAS_LSC_UNTYPED_2D
-constexpr uint32_t BLOCK_SG_M = 64;
-constexpr uint32_t BLOCK_SG_N = 32;
-#else
-constexpr uint32_t BLOCK_SG_M = 32;
-constexpr uint32_t BLOCK_SG_N = 16;
-#endif
 constexpr uint32_t SG_M = 4;
 constexpr uint32_t SG_N = 8;
-constexpr uint32_t BLOCK_WG_M = BLOCK_SG_M * SG_M;
-constexpr uint32_t BLOCK_WG_N = BLOCK_SG_N * SG_N;
 constexpr int STRIDE = 16;
 constexpr uint32_t XATTN_BLOCK_SIZE = 128;
 constexpr uint32_t MERGED_Q_NUM = PA_KV_CACHE_BLOCK_SIZE_XATTN / XATTN_BLOCK_SIZE;  // for xattn post_proc
+
+inline bool is_xe2_or_xe3(const kernel_impl_params& params) {
+    const auto arch = params.get_device_info().arch;
+    return arch == gpu_arch::xe2 || arch == gpu_arch::xe3;
+}
+
+inline uint32_t get_block_sg_m(const kernel_impl_params& params) {
+    return is_xe2_or_xe3(params) ? 64u : 32u;
+}
+
+inline uint32_t get_block_sg_n(const kernel_impl_params& params) {
+    return is_xe2_or_xe3(params) ? 32u : 16u;
+}
+
+inline uint32_t get_block_wg_m(const kernel_impl_params& params) {
+    return get_block_sg_m(params) * SG_M;
+}
+
+inline uint32_t get_block_wg_n(const kernel_impl_params& params) {
+    return get_block_sg_n(params) * SG_N;
+}
 
 enum class PagedAttentionStage : uint8_t { GENERATE = 0, PREFILL = 1, MIXED = 2, UNKNOWN = 3 };
 struct PagedAttentionRuntimeParams : public ImplRuntimeParams {

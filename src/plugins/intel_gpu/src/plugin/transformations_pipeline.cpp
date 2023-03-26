@@ -596,15 +596,13 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
             // This is determined by inspecting the model parameters for XAttention configurations,
             // which are introduced during the SDPAToPagedAttention pass.
             bool use_xattention = false;
-            // const auto& parameters = func->get_parameters();
-            // for (const auto& param : parameters) {
-            //     if (param->get_friendly_name() == "xattention_block_size") {
-            //         use_xattention = true;
-            //         break;
-            //     }
-            // }
-            use_xattention = true;
-            std::cout << "use_xattention: " << use_xattention << std::endl;
+            const auto& parameters = func->get_parameters();
+            for (const auto& param : parameters) {
+                if (param->get_friendly_name() == "xattention_block_size") {
+                    use_xattention = true;
+                    break;
+                }
+            }
 
             if (use_xattention) {
                 // Throw exception if xattn is not supported by either GPU archieture or compiler.

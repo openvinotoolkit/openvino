@@ -23,11 +23,11 @@
 #include <cm/cm.h>
 #include <cm/cmtl.h>
 
-// #ifdef CM_HAS_LSC_UNTYPED_2D
+#ifdef CM_HAS_LSC_UNTYPED_2D
+#define USE_LSC_BLOCK_2D_DESC 1
+#else
 #define USE_LSC_BLOCK_2D_DESC 0
-// #else
-// #define USE_LSC_BLOCK_2D_DESC 0
-// #endif
+#endif
 
 #if defined(SHIM) || defined(CMRT_EMU)
 #define ATTR

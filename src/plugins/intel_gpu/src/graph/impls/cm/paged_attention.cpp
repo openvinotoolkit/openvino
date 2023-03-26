@@ -58,14 +58,16 @@ public:
         // XAttention estimate is following afer kvcache_update.
         auto out_shape = params.output_layouts[0].get_shape();
         const size_t block_size = get_xattn_block_size(params);
+        const uint32_t block_wg_n = get_block_wg_n(params);
+        const uint32_t block_wg_m = get_block_wg_m(params);
         const size_t kv_len = get_max_context_len(params);
         const size_t q_len = out_shape[0];
         const size_t N = kv_len / STRIDE;
-        const size_t N_kq_groups = ceil_div(N, BLOCK_WG_N);
+        const size_t N_kq_groups = ceil_div(N, block_wg_n);
 
         const auto q_block_pad = ceil_div(q_len, block_size);
         const auto sum_per_token_in_block = block_size / STRIDE;
-        const auto k_block_in_group = BLOCK_WG_N / sum_per_token_in_block;
+        const auto k_block_in_group = block_wg_n / sum_per_token_in_block;
         const auto k_block_pad = k_block_in_group * N_kq_groups;
 
         auto rt_params = static_cast<PagedAttentionRuntimeParams*>(m_rt_params.get());
@@ -78,7 +80,7 @@ public:
         const auto M = q_len / STRIDE;  //# will slient drop the tails which is less than `stride`
         const auto K = STRIDE * head_size;
 
-        const size_t q_stride_pad = round_up_to(M, BLOCK_WG_M);
+        const size_t q_stride_pad = round_up_to(M, block_wg_m);
 
         rt_params->N_kq_groups = N_kq_groups;
         rt_params->M = M;
