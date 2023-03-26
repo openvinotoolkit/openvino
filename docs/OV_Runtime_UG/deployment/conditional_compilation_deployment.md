@@ -1,0 +1,226 @@
+# OpenVINO conditional compilation for optimal binary size{#opevino_conditional_compilation_deploying_guide}
+
+@sphinxdirective
+
+Conditional compilation can significantly reduce the binary size of OpenVINO™ package by excluding unnecessary components for inference of particular models, which makes the application benefit the optimal binary size.
+
+.. important::
+
+    The cost is OpenVINO runtime will only run inference for these particular models and the device for which was applied in conditional compilation.
+
+
+More details can be found ``conditional_compilation_guide <https://github.com/openvinotoolkit/openvino/blob/master/docs/dev/conditional_compilation.md>`` and ``conditional_compilation_developer_guide <https://github.com/openvinotoolkit/openvino/blob/master/src/common/conditional_compilation/docs/develop_cc_for_new_component.md>``
+
+There are mainly 2 stages to get optimal binary size of OpenVINO package size with conditional compilation:
+
+- Apply ``SELECTIVE_BUILD=COLLECT`` and ``DENABLE_PROFILING_ITT=ON`` build options to enable analysis mode of conditional compilation to collect statistics data using ``itt``.
+
+- Apply ``SELECTIVE_BUILD=ON`` and ``SELECTIVE_BUILD_STAT=<statistics_data.csv>`` build options to exclude inactive code region with the help of previous statistics data to get the final OpenVINO package.
+
+.. note::
+
+    Need install ``Python`` to help collect statistics data.
+
+
+Conditional compilation for different models
+############################################
+
+Stage 1: collecting statistics information about code usage
+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
+- Build OpenVINO with ``SELECTIVE_BUILD=COLLECT`` option
+
+    .. code-block:: sh
+
+        git submodule init
+        git submodule update
+        mkdir build && cd build
+        cmake -DENABLE_PROFILING_ITT=ON -DSELECTIVE_BUILD=COLLECT ..
+        cmake --build .
+
+- Build ITT collector for code usage analysis
+
+    .. code-block:: sh
+
+        cmake --build . --target sea_itt_lib
+
+- Run the target application under the ITT collector for code usage analysis for each models
+
+    .. code-block:: sh
+
+        python thirdparty/itt_collector/runtool/sea_runtool.py --bindir ${OPENVINO_LIBRARY_DIR} -o ${MY_MODEL_RESULT} ! ./benchmark_app -niter 1 -nireq 1 -m ${MY_MODEL}.xml
+
+    Then, statistics information are generated and stored into .cvs format files under ``{MY_MODEL_RESULT}`` directory.
+
+    .. tip::
+
+        If you want to run other application rather than benchmark_app to get statistics data, please make sure to limit inference request number and iterations to avoid too long profiling time and too large statistics data.
+
+Stage 2: build resulting OpenVINO package
+++++++++++++++++++++++++++++++++++++++++++
+
+Based on the statistics information, re-build OpenVINO to generate the optimal binary size of OpenVINO binaries
+
+.. code-block:: sh
+
+    cmake -DSELECTIVE_BUILD=ON -DSELECTIVE_BUILD_STAT=${ABSOLUTE_PATH_TO_STATISTICS_FILES}/*.csv -DENABLE_PROFILING_ITT=OFF ..
+    cmake --build .
+
+.. tip::
+
+    The recommended scenario for conditional complication is static build of OpenVINO, in this case you can add ``-DBUILD_SHARED_LIBS=ON`` to get optimal binary size benefit.
+
+
+Conditional compilation for different ISAs
+##########################################
+
+It is almost the same steps with for different models except to collect different statistics on different ISA.
+Run the target application under the ITT collector for code usage analysis on each ISAs:
+
+    .. code-block:: sh
+
+        python thirdparty/itt_collector/runtool/sea_runtool.py --bindir ${OPENVINO_LIBRARY_DIR} -o ${MY_MODEL_RESULT} ! ./benchmark_app -niter 1 -nireq 1 -m ${MY_MODEL}.xml
+
+Put all csv files together to stages 2 to generate resulting OpenVINO binaries:
+
+    .. code-block:: sh
+
+        cmake -DSELECTIVE_BUILD=ON -DSELECTIVE_BUILD_STAT=${ABSOLUTE_PATH_TO_STATISTICS_FILES}/*.csv -DENABLE_PROFILING_ITT=OFF ..
+        cmake --build .
+
+
+Device agnostic conditional compilation (POC)
+#############################################
+Sometimes, we need adopt conditional compilation for multiple different SKUs, but we don't have ability to collect the statistics information on every single target hardware. It requires conditional compilation have ability to run a model on an accelerator but with all previous SKUs.
+
+Conditional compilation need firstly to collect statistics information so that to exclude all unused code region, e.g. ops, kernels, which required that all included ops/kernels must be ran once at least. For multiple SKUs case, it need all ops/kernels that will be used by any one of SKUs, to be hit one time at least in the profiling data. If the profiling is done in one CPU platform, it is impossible except to adopt emulator.
+
+A simple method is to leverage ``SDE <https://www.intel.com/content/www/us/en/developer/articles/license/pre-release-license-agreement-for-software-development-emulator.html>`` to emulate different CPUs to generate multiple statistics csv files for different SKUs similar as below:
+
+.. code-block:: sh
+
+    for cpu in spr adl tgl icl skl; do
+        python ../thirdparty/itt_collector/runtool/sea_runtool.py --bindir ${OPENVINO_LIBRARY_DIR} -o ${MY_MODEL_RESULT} ! sde -$cpu -- ./benchmark_app -niter 1 -nireq 1 -m ${MY_MODEL}.xml
+    done
+
+Considered that JIT kernels chosen maybe affected by L2/L3 cache size and cpu core's number, there also is a simple method to emulate L2/L3 cache size and cpu core's number.
+
+- L2/L3 cache emulation
+
+    Hack the function of get cache size:
+
+        ``unsigned int dnnl::impl::cpu::platform::get_per_core_cache_size(int level)``
+
+    to make it return emulated cache size in analyzed stage, the simplest way is to leverage environment variable to pass the emulated cache size, for example:
+
+    .. code-block:: cpp
+
+        #if defined(SELECTIVE_BUILD_ANALYZER)
+            if (level == 2) {
+                const char* L2_cache_size = std::getenv("OV_CC_L2_CACHE_SIZE");
+                if (L2_cache_size) {
+                    int size = std::atoi(L2_cache_size);
+                    if (size > 0) {
+                        return size;
+                    }
+                }
+            } else if (level == 3) {
+                const char* L3_cache_size = std::getenv("OV_CC_L3_CACHE_SIZE");
+                if (L3_cache_size) {
+                    int size = std::atoi(L3_cache_size);
+                    if (size > 0) {
+                        return size;
+                    }
+                }
+            } else if (level == 1) {
+                const char* L1_cache_size = std::getenv("OV_CC_L1_CACHE_SIZE");
+                if (L1_cache_size) {
+                    int size = std::atoi(L1_cache_size);
+                    if (size > 0) {
+                        return size;
+                    }
+                }
+            }
+        #endif
+
+- CPU core number emulation
+
+    Leverage ``numactl`` tool to control core number.
+
+    .. code-block:: sh
+
+        python thirdparty/itt_collector/runtool/sea_runtool.py --bindir ${OPENVINO_LIBRARY_DIR} -o ${MY_MODEL_RESULT} ! numactl -C 0-$core_num ./benchmark_app -niter 1 -nireq 1 -m ${MY_MODEL}.xml
+
+
+Once the SKUs are decided, we can collect cpu information(CPUID, L1/L2/L3 cache size, core number) and then profile each pair of (CPUID, L1/L2/L3 cache size, core number) to get profiling csv files, then apply all csv files to generate final conditional compilation package.
+
+Such work can be done in a single machine as below: 
+
+    .. code-block:: sh
+
+        export OV_CC_L1_CACHE_SIZE=<L1 cache size>
+        export OV_CC_L2_CACHE_SIZE=<L2 cache size>
+        export OV_CC_L3_CACHE_SIZE=<L3 cache size>
+        python thirdparty/itt_collector/runtool/sea_runtool.py --bindir ${OPENVINO_LIBRARY_DIR} -o ${MY_MODEL_RESULT} ! sde -spr -- numactl -C 0-$core_num ./benchmark_app -niter 1 -nireq 1 -m ${MY_MODEL}.xml
+
+Do above steps for each SKUs to collect all generated statistics csv files together, and provide them to build resulting OpenVINO package.
+
+    .. code-block:: sh
+
+        cmake -DSELECTIVE_BUILD=ON -DSELECTIVE_BUILD_STAT=${ABSOLUTE_PATH_TO_STATISTICS_FILES}/*.csv -DENABLE_PROFILING_ITT=OFF ..
+        cmake --build .
+
+
+How to enable conditional compilation on Windows
+################################################
+
+Reference: https://github.com/openvinotoolkit/openvino/wiki/StaticLibraries
+
+Below is an example:
+
+Stage 1: Selective build analyzed stage
+++++++++++++++++++++++++++++++++++++++++
+
+    Build OpenVINO with conditional compilation enabled:
+
+    .. code-block:: sh
+
+        call C:\Program Files (x86)\Microsoft Visual Studio\2019\Community\VC\Auxiliary\Build\vcvar64.bat
+        set OPENVINO_HOME=D:\work_path\openvino
+        cd %OPENVINO_HOME%
+        md build_cc
+        cd build_cc
+        cmake -G Ninja -Wno-dev -DCMAKE_BUILD_TYPE=Debug -DENABLE_CPPLINT=OFF -DCMAKE_VERBOSE_MAKEFILE=ON -DCMAKE_COMPILE_WARNING_AS_ERROR=OFF -DENABLE_FASTER_BUILD=ON -DENABLE_SANITIZER=OFF -DTHREADING=TBB -DBUILD_SHARED_LIBS=OFF -DENABLE_PROFILING_ITT=ON -DSELECTIVE_BUILD=COLLECT -DENABLE_INTEL_GPU=OFF  -DENABLE_INTEL_GNA=OFF -DENABLE_MULTI=OFF -DENABLE_AUTO=OFF -DENABLE_AUTO_BATCH=OFF -DENABLE_HETERO=OFF -DENABLE_TEMPLATE=OFF -DENABLE_OV_ONNX_FRONTEND=OFF -DENABLE_OV_PADDLE_FRONTEND=OFF -DENABLE_OV_PYTORCH_FRONTEND=OFF -DENABLE_OV_TF_FRONTEND=OFF -DCMAKE_INSTALL_PREFIX=install ..
+
+        cmake --build . --config Debug
+
+
+    Collect statistics data
+
+    .. code-block:: sh
+
+        cd %OPENVINO_HOME%\build_cc
+        cmake --build . --config Debug --target sea_itt_lib
+        cd %OPENVINO_HOME%
+        set PATH=%PATH%;%OPENVINO_HOME%\\temp\tbb\bin
+        mkdir cc_data
+        cd %OPENVINO_HOME%\cc_data
+        python3 ..\thirdparty\itt_collector\runtool\sea_runtool.py --bindir ..\bin\intel64\Debug -o %OPENVINO_HOME%\cc_data\data ! ..\bin\intel64\Debug\benchmark_app.exe -niter 1 -nireq 1 -m <your_model.xml>
+
+Stage 2: build resulting OpenVINO package
++++++++++++++++++++++++++++++++++++++++++
+
+Generate final optimal binaries size of OpenVINO package
+
+    .. code-block:: sh
+
+        cd %OPENVINO_HOME%
+        md build
+        cd build
+
+        cmake -G "Visual Studio 16 2019" -A x64 -DENABLE_CPPLINT=OFF -DCMAKE_VERBOSE_MAKEFILE=ON -DCMAKE_COMPILE_WARNING_AS_ERROR=OFF -DCMAKE_BUILD_TYPE=Release -DENABLE_FASTER_BUILD=ON -DENABLE_PROFILING_ITT=OFF -DSELECTIVE_BUILD=ON -DENABLE_INTEL_GPU=OFF -DENABLE_INTEL_GNA=OFF -DENABLE_MULTI=OFF -DENABLE_AUTO=OFF -DENABLE_AUTO_BATCH=OFF -DENABLE_HETERO=OFF -DENABLE_TEMPLATE=OFF -DENABLE_OV_ONNX_FRONTEND=OFF -DENABLE_OV_PADDLE_FRONTEND=OFF -DENABLE_OV_PYTORCH_FRONTEND=OFF -DENABLE_OV_TF_FRONTEND=OFF -DSELECTIVE_BUILD_STAT=%OPENVINO_HOME%\cc_data\*.csv -DBUILD_SHARED_LIBS=OFF -DENABLE_LTO=ON -DENABLE_ONEDNN_FOR_GPU=OFF -DENABLE_GAPI_PREPROCESSING=OFF -DENABLE_OV_TF_LITE_FRONTEND=OFF -DENABLE_CLDNN=OFF -DENABLE_PROFILING_FIRST_INFERENCE=OFF -DENABLE_INTEL_MYRIAD_COMMON=OFF -DENABLE_INTEL_MYRIAD=OFF ..
+
+        cmake --build . --config Release
+
+
+@endsphinxdirective

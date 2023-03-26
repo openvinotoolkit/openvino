@@ -10,6 +10,7 @@
    Optimize Inference <openvino_docs_deployment_optimization_guide_dldt_optimization_guide>
    Deploy Application with Deployment Manager <openvino_docs_install_guides_deployment_manager_tool>
    Local Distribution Libraries <openvino_docs_deploy_local_distribution>
+   Optimize binaries size <opevino_conditional_compilation_deploying_guide>
 
 
 .. note::
