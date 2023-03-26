@@ -214,13 +214,6 @@ def arguments_post_parsing(argv: argparse.Namespace):
         log.error(e)
         raise_ie_not_found()
 
-    # Turn off compression only if it's disabled explicitly by --compress_to_fp16=False or --data_type=FP32.
-    # By default, in all other cases compression is enabled
-    if ('data_type' in argv and argv.data_type in ['FP32', 'float']) or \
-            ('compress_to_fp16' in argv and argv.compress_to_fp16 is False):
-        argv.compress_fp16 = False
-    else:
-        argv.compress_fp16 = True
     argv.data_type = 'FP32'  # if compression was enabled will be restored back to 'FP16' after apply_offline_transformations
 
     # This is just to check that transform key is valid and transformations are available
@@ -233,12 +226,6 @@ def arguments_post_parsing(argv: argparse.Namespace):
         ret_code = check_requirements(framework=argv.framework, silent=argv.silent)
     if ret_code:
         raise Error('check_requirements exited with return code {}'.format(ret_code))
-
-    if hasattr(argv, 'tensorflow_use_custom_operations_config') and \
-            argv.tensorflow_use_custom_operations_config is not None:
-        # update command-line arguments even for new TensorFlow Frontend
-        # because it should fallback to the Legacy Frontend in this case
-        argv.transformations_config = argv.tensorflow_use_custom_operations_config
 
     if argv.scale and argv.scale_values:
         raise Error(
@@ -390,12 +377,6 @@ def prepare_ir(argv: argparse.Namespace):
     # TODO: remove this workaround once new TensorFlow frontend supports non-frozen formats: checkpoint, MetaGraph, and SavedModel
     # Now it converts all TensorFlow formats to the frozen .pb format in case new TensorFlow frontend
     is_tf, _, _, _, _ = deduce_legacy_frontend_by_namespace(argv)
-    path_to_aux_pb = None
-    orig_argv_values = {"input_model": argv.input_model, "model_name": argv.model_name}
-    if not argv.use_legacy_frontend and is_tf:
-        from openvino.tools.mo.front.tf.loader import convert_to_pb
-        path_to_aux_pb = convert_to_pb(argv)
-
     argv = arguments_post_parsing(argv)
     t = tm.Telemetry()
     graph = None
@@ -405,6 +386,11 @@ def prepare_ir(argv: argparse.Namespace):
     if moc_front_end:
         fallback_reasons = check_fallback(argv)
         if len(fallback_reasons) == 0:
+            path_to_aux_pb = None
+            orig_argv_values = {"input_model": argv.input_model, "model_name": argv.model_name}
+            if not argv.use_legacy_frontend and is_tf:
+                from openvino.tools.mo.front.tf.loader import convert_to_pb
+                path_to_aux_pb = convert_to_pb(argv)
             try:
                 t.send_event("mo", "conversion_method", moc_front_end.get_name() + "_frontend")
                 moc_front_end.add_extension(TelemetryExtension("mo", t.send_event, t.send_error, t.send_stack_trace))
@@ -445,6 +431,8 @@ def prepare_ir(argv: argparse.Namespace):
                     f"The detailed reason why fallback was executed: not supported {reasons_message} were used. "
                     "You can specify --use_new_frontend flag to force using the Frontend MO path to avoid additional checks. " +
                     refer_to_faq_msg(105))
+        assert not hasattr(argv, 'is_fallback'), '`is_fallback` argument must not exist.'
+        argv.is_fallback = True
 
     t.send_event("mo", "conversion_method", "mo_legacy")
     graph = unified_pipeline(argv)
@@ -508,7 +496,7 @@ def emit_ir(graph: Graph, argv: argparse.Namespace, non_default_params: dict):
         try:
             from openvino.tools.mo.back.offline_transformations import apply_offline_transformations
             func = apply_offline_transformations(func, argv)
-            if "compress_fp16" in argv and argv.compress_fp16:
+            if "compress_to_fp16" in argv and argv.compress_to_fp16:
                 # restore data_type cmd parameter
                 argv.data_type = 'FP16'
             return_code = 0
@@ -764,10 +752,9 @@ def _convert(cli_parser: argparse.ArgumentParser, framework, args):
                     args.pop("use_legacy_frontend")
                     return convert_pytorch_via_onnx(args, example_inputs, cli_parser, framework, _convert)
 
-                decoder, input_signature  = get_pytorch_decoder(args['input_model'], parse_input_shapes(args), example_inputs)
+                decoder = get_pytorch_decoder(args['input_model'], parse_input_shapes(args), example_inputs)
                 args['input_model'] = decoder
                 args["framework"] = "pytorch"
-                args["input_signature"] = input_signature
 
         argv = pack_params_to_args_namespace(args, cli_parser)
 

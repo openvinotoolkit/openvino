@@ -23,7 +23,6 @@ public:
         support_padding_all(true);
     }
 
-    void set_transposed(bool node_transposed) { transposed = node_transposed; }
     bool get_transposed() const { return transposed; }
 
     uint32_t get_groups() const { return groups; }
@@ -83,7 +82,6 @@ public:
         support_padding_all(true);
     }
 
-    void set_transposed(bool node_transposed) { transposed = node_transposed; }
     bool get_transposed() const { return transposed; }
 
     uint32_t get_groups() const { return groups; }

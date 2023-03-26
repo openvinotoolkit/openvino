@@ -268,13 +268,13 @@ TEST_P(ExecNetworkGetMetricOptimalNumInferReq, OPTIMAL_NUMBER_OF_INFER_REQUESTS)
         ON_CALL(*core.get(), GetConfig(_, StrEq(CONFIG_KEY(PERFORMANCE_HINT_NUM_REQUESTS))))
             .WillByDefault(Return(std::to_string(gpuPerfHintNum)));
         EXPECT_CALL(*core.get(), GetConfig(_, StrEq(CONFIG_KEY(PERFORMANCE_HINT_NUM_REQUESTS)))).Times(AnyNumber());
-        ON_CALL(*core, GetConfig(_, StrEq(GPU_CONFIG_KEY(MAX_NUM_THREADS))))
+        ON_CALL(*core, GetConfig(_, StrEq(ov::compilation_num_threads.name())))
            .WillByDefault(Return(8));
-        EXPECT_CALL(*core.get(), GetConfig(_, StrEq(GPU_CONFIG_KEY(MAX_NUM_THREADS)))).Times(AnyNumber());
+        EXPECT_CALL(*core.get(), GetConfig(_, StrEq(ov::compilation_num_threads.name()))).Times(AnyNumber());
     } else {
         metaDevices.push_back({CommonTestUtils::DEVICE_CPU, {}, cpuCustomerNum, ""});
         metaDevices.push_back({actualDeviceName, {}, actualCustomerNum, ""});
-        ON_CALL(*core, GetConfig(_, StrEq(GPU_CONFIG_KEY(MAX_NUM_THREADS)))).WillByDefault(Return(8));
+        ON_CALL(*core, GetConfig(_, StrEq(ov::compilation_num_threads.name()))).WillByDefault(Return(8));
     }
     ON_CALL(*plugin, SelectDevice(_, _, _)).WillByDefault(Return(metaDevices[1]));
     ON_CALL(*plugin, ParseMetaDevices(_, _)).WillByDefault(Return(metaDevices));
@@ -402,7 +402,7 @@ TEST_P(ExecNetworkGetMetricOtherTest, modelPriority_perfHint_exclusiveAsyncReq_t
     config.insert({InferenceEngine::MultiDeviceConfigParams::KEY_MULTI_DEVICE_PRIORITIES,
                    CommonTestUtils::DEVICE_CPU + std::string(",") + actualDeviceName});
     config.insert({CONFIG_KEY(PERFORMANCE_HINT), performanceHint});
-    config.insert({CONFIG_KEY(MODEL_PRIORITY), modelPriority});
+    config.insert({CONFIG_KEY(MODEL_PRIORITY), modelPriority.as<std::string>()});
 
     if (isNewAPI) {
         ON_CALL(*core.get(), isNewAPI()).WillByDefault(Return(true));
@@ -421,7 +421,7 @@ TEST_P(ExecNetworkGetMetricOtherTest, modelPriority_perfHint_exclusiveAsyncReq_t
     EXPECT_CALL(*plugin, ParseMetaDevices(_, _)).Times(1);
     EXPECT_CALL(*plugin, SelectDevice(_, _, _)).Times(1);
 
-    ON_CALL(*core, GetConfig(_, StrEq(GPU_CONFIG_KEY(MAX_NUM_THREADS)))).WillByDefault(Return(8));
+    ON_CALL(*core, GetConfig(_, StrEq(ov::compilation_num_threads.name()))).WillByDefault(Return(8));
     ON_CALL(*core,
             LoadNetwork(::testing::Matcher<const InferenceEngine::CNNNetwork&>(_),
                         ::testing::Matcher<const std::string&>(StrEq(CommonTestUtils::DEVICE_CPU)),

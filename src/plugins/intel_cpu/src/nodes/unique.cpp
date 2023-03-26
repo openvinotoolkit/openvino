@@ -39,7 +39,7 @@ Unique::Unique(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr con
         IE_THROW(NotImplemented) << errorMessage;
     }
 
-    if (!one_of(op->get_input_size(), 1, 2) || op->get_output_size() != 4)
+    if (!one_of(op->get_input_size(), 1u, 2u) || op->get_output_size() != 4)
         THROW_ERROR << "has incorrect number of input/output edges.";
 
     for (int i = 0; i < 4; i++) {
@@ -389,7 +389,7 @@ void Unique::slicedTensorExec() {
         for (int64_t p = partsInBl - 1; p >= 0; p--) {
             for (int64_t e = elPerPart - 1; e >= 0 ; e--) {
                 int64_t pos1 = p * dstPrtStep + e;
-                for (int64_t i = 0; i < uniqueLen; i++) {
+                for (int64_t i = 0; i < static_cast<int64_t>(uniqueLen); i++) {
                     int64_t pos2 = i * elInBl + pos1;
                     colToSort[i] = {uniDataTmpPtr[pos2], i};
                 }
@@ -403,9 +403,9 @@ void Unique::slicedTensorExec() {
                     auto currDst = uniDataTmpPtr + pb * dstPrtStep;
                     memcpy(buff1.data(), currDst, partLenB);
                     auto dstIdx = moveTo[0];
-                    for (int64_t b = 0; b < uniqueLen; b++) {
+                    for (size_t b = 0; b < uniqueLen; b++) {
                         if (dstIdx == moveTo[dstIdx]) {
-                            dstIdx = moveTo[++dstIdx];
+                            dstIdx = moveTo[dstIdx + 1];
                             continue;
                         }
                         T* dst = currDst + dstIdx * elPerPart;
@@ -429,7 +429,7 @@ void Unique::slicedTensorExec() {
                 }
                 for (int k = 0; k < uniqueLen; k++) {
                     if (mPos == moveTo[mPos]) {
-                        mPos = moveTo[++mPos];
+                        mPos = moveTo[mPos + 1];
                         continue;
                     }
 

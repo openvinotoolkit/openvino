@@ -44,13 +44,14 @@ using namespace InferenceEngine::details;
 namespace ov {
 namespace intel_gpu {
 
-Graph::Graph(InferenceEngine::CNNNetwork& network, RemoteContextImpl::Ptr context, const ExecutionConfig& config, uint16_t stream_id)
+Graph::Graph(InferenceEngine::CNNNetwork& network, RemoteContextImpl::Ptr context, const ExecutionConfig& config, uint16_t stream_id,
+             InferenceEngine::InputsDataMap* inputs, InferenceEngine::OutputsDataMap* outputs)
     : m_context(context)
     , m_networkName(network.getName())
     , m_config(config)
     , m_stream_id(stream_id)
     , m_state(0) {
-    m_program = std::make_shared<Program>(network, get_engine(), config);
+    m_program = std::make_shared<Program>(network, get_engine(), config, false, false, inputs, outputs);
     if (m_program->m_max_batch > 1)
         m_config.set_property(ov::intel_gpu::max_dynamic_batch(m_program->m_max_batch));
     Build();

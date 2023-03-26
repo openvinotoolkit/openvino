@@ -306,7 +306,7 @@ std::pair<bool, ov::AxisSet> ov::op::util::BroadcastBase::get_broadcast_axes() c
             return get_broadcast_axes_numpy_pdpd(arg_shape, result_shape, m_mode);
         }
     } else {
-        throw ov::Exception("Unknown autobroadcast type");
+        OPENVINO_THROW("Unknown autobroadcast type");
     }
 
     return std::make_pair(axes_known, broadcast_axes);
@@ -365,7 +365,7 @@ void get_axis_vector_from_ht(const ngraph::HostTensorPtr& arg,
         break;
     default:
         // other types are not supported and would have thrown in ctor
-        throw ov::Exception("get_axis_vector_from_ht: type is not integral");
+        OPENVINO_THROW("get_axis_vector_from_ht: type is not integral");
     }
     // Rank(arg_shape) == shape_size(axes_mapping)
     NGRAPH_CHECK(axis_vector.size() == arg_shape.size(),
@@ -409,7 +409,7 @@ ov::Shape get_target_shape_from_ht(const ngraph::HostTensorPtr& input1) {
         break;
     default:
         // other types are not supported and would have thrown in ctor
-        throw ov::Exception("get_target_shape_from_ht: type is not integral");
+        OPENVINO_THROW("get_target_shape_from_ht: type is not integral");
     }
     return target_shape;
 }
@@ -473,7 +473,7 @@ bool ov::op::util::BroadcastBase::evaluate(const HostTensorVector& outputs, cons
         validate_target_shape_numpy(arg_shape, target_shape);
         pair_broadcast_axes = get_broadcast_axes_numpy_pdpd(arg_shape, result_shape.to_shape(), m_mode);
     } else {
-        throw ov::Exception("Unsupported BroadcastType ");
+        OPENVINO_THROW("Unsupported BroadcastType ");
     }
 
     return evaluate_broadcast(inputs[0], outputs[0], pair_broadcast_axes, result_shape.to_shape());
