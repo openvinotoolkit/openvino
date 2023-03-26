@@ -7,6 +7,7 @@
 #include "mutable_data_inst.h"
 #include "reshape_inst.h"
 #include "quantize_inst.h"
+#include "arg_max_min_inst.h"
 #include "program_node.h"
 #include "intel_gpu/runtime/engine.hpp"
 #include "intel_gpu/runtime/itt.hpp"
@@ -50,6 +51,11 @@ void compile_graph::run(program& p) {
         // e.g. process exceptions from choose_impl() and ignore those for dynamic parameters
         if (node->is_type<fully_connected>() && node->is_dynamic() && node->get_output_layout().get_partial_shape().size() > 3)
             can_select_impl = false;
+
+        // TODO: Remove this WA once we have shape agnostic arg_max_min_axis kernel with non-const k input
+        if (node->is_type<arg_max_min>() && node->is_dynamic() && node->as<arg_max_min>().get_primitive()->top_k == 0) {
+            can_select_impl = false;
+        }
 
         bool is_planar = node->get_output_layout().format == format::bfyx ||
                          node->get_output_layout().format == format::bfzyx ||
