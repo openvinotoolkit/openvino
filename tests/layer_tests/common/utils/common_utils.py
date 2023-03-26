@@ -26,6 +26,10 @@ def generate_ir(coverage=False, **kwargs):
             params.extend(("-b", str(value)))
         elif key == "k":
             params.extend(("-k", str(value)))
+        # for FP32 set explicitly compress_to_fp16=False,
+        # if we omit this argument for FP32, it will be set implicitly to True as the default
+        elif key == 'compress_to_fp16':
+            params.append("--{}={}".format(key, value))
         elif isinstance(value, bool) and value:
             params.append("--{}".format(key))
         elif isinstance(value, bool) and not value:
