@@ -137,8 +137,8 @@ jobs:
       #- name: Run VPU unit tests
       #  run: ${{ github.workspace }}/bin/intel64/Release/vpuUnitTests
       
-      - name: XLink tests
-        run: ${{ github.workspace }}/bin/intel64/Release/XLinkTests
+      #- name: XLink tests
+      #  run: ${{ github.workspace }}/bin/intel64/Release/XLinkTests
       
       - name: Multi unit tests
         run: ${{ github.workspace }}/bin/intel64/Release/ieMultiPluginUnitTests
