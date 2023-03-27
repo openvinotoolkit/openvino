@@ -54,17 +54,18 @@ Building
 
 To build the sample, please use instructions available at :doc:`Build the Sample Applications <openvino_docs_OV_UG_Samples_Overview>` section in OpenVINO™ Toolkit Samples guide.
 
-## Running
+Running
+#######
 
 Run the application with the ``-h`` option to see the usage instructions:
 
-.. code-block::
+.. code-block:: sh
 
    classification_sample_async -h
 
 Usage instructions:
 
-.. code-block::
+.. code-block:: sh
 
    [ INFO ] OpenVINO Runtime version ......... <version>
    [ INFO ] Build ........... <build>
@@ -81,7 +82,7 @@ Usage instructions:
 
 To run the sample, you need to specify a model and image:
 
-- You can use :doc:`public <omz_models_group_public>` or :doc:`Intel's <omz_models_group_intel>` pre-trained models from the Open Model Zoo. The models can be downloaded using the [Model Downloader](@ref omz_tools_downloader).
+- You can use :doc:`public <omz_models_group_public>` or :doc:`Intel's <omz_models_group_intel>` pre-trained models from the Open Model Zoo. The models can be downloaded using the :doc:`Model Downloader <omz_tools_downloader>`.
 - You can use images from the media files collection available `here <https://storage.openvinotoolkit.org/data/test_data>`.
 
 .. note::
@@ -97,34 +98,34 @@ Example
 
 1. Install the ``openvino-dev`` Python package to use Open Model Zoo Tools:
 
-   .. code-block::
+   .. code-block:: sh
       
       python -m pip install openvino-dev[caffe]
    
 
 2. Download a pre-trained model using:
 
-   .. code-block::
+   .. code-block:: sh
       
       omz_downloader --name googlenet-v1
    
 
 3. If a model is not in the IR or ONNX format, it must be converted. You can do this using the model converter:
 
-   .. code-block::
+   .. code-block:: sh
       
       omz_converter --name googlenet-v1
 
 4. Perform inference of ``dog.bmp`` using ``googlenet-v1`` model on a ``GPU``, for example:
    
-   .. code-block::
+   .. code-block:: sh
        
       classification_sample_async -m googlenet-v1.xml -i dog.bmp -d GPU
 
 Sample Output
 #############
 
-.. code-block::
+.. code-block:: sh
    
    [ INFO ] OpenVINO Runtime version ......... <version>
    [ INFO ] Build ........... <build>

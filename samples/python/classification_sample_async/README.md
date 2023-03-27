@@ -41,13 +41,13 @@ Running
 
 Run the application with the ``-h`` option to see the usage message:
 
-.. code-block::
+.. code-block:: sh
 
    python classification_sample_async.py -h
 
 Usage message:
 
-.. code-block::
+.. code-block:: sh
    
    usage: classification_sample_async.py [-h] -m MODEL -i INPUT [INPUT ...]
                                          [-d DEVICE]
@@ -83,26 +83,26 @@ Example
 
 1. Install the ``openvino-dev`` Python package to use Open Model Zoo Tools:
 
-   .. code-block::
+   .. code-block:: sh
 
       python -m pip install openvino-dev[caffe]
 
 2. Download a pre-trained model:
 
-   .. code-block::
+   .. code-block:: sh
 
       omz_downloader --name alexnet
    
 
 3. If a model is not in the IR or ONNX format, it must be converted. You can do this using the model converter:
 
-   .. code-block::
+   .. code-block:: sh
 
       omz_converter --name alexnet
 
 4. Perform inference of ``banana.jpg`` and ``car.bmp`` using the ``alexnet`` model on a ``GPU``, for example:
 
-   .. code-block::
+   .. code-block:: sh
 
       python classification_sample_async.py -m alexnet.xml -i banana.jpg car.bmp -d GPU
 
@@ -111,7 +111,7 @@ Sample Output
 
 The sample application logs each step in a standard output stream and outputs top-10 inference results.
 
-.. code-block::
+.. code-block:: sh
    
    [ INFO ] Creating OpenVINO Runtime Core
    [ INFO ] Reading the model: C:/test_data/models/alexnet.xml
