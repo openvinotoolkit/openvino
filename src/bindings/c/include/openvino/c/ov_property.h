@@ -181,7 +181,7 @@ OPENVINO_C_VAR(const char*)
 ov_property_key_intel_auto_device_bind_buffer;
 
 /**
- * @brief Read-write property<string> to enable/disable CPU as acceleration (or helper device) at the beginning
+ * @brief Read-write property<string> to enable/disable CPU as accelerator (or helper device) at the beginning
  * @ingroup ov_property_c_api
  */
 OPENVINO_C_VAR(const char*)
