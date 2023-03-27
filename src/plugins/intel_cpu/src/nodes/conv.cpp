@@ -859,6 +859,14 @@ createDescriptorInternal(const dnnl::engine& engine,
 }
 } // namespace
 
+static memory::data_type deriveWeightDataType(memory::data_type src_dt) {
+    memory::data_type wdt = src_dt;
+    if (one_of(src_dt, memory::data_type::s8, memory::data_type::u8)) {
+        wdt = memory::data_type::s8;
+    }
+    return wdt;
+}
+
 void Convolution::createDescriptor(const std::vector<MemoryDescPtr>& inputDesc,
                                    const std::vector<MemoryDescPtr>& outputDesc) {
     MemoryDescPtr inpDesc;
@@ -882,12 +890,7 @@ void Convolution::createDescriptor(const std::vector<MemoryDescPtr>& inputDesc,
     const auto& inDnnlDesc = definedInpMemDesc->getDnnlDesc();
     const auto& outDnnlDesc = definedOutMemDesc->getDnnlDesc();
 
-    memory::data_type dt  = inDnnlDesc.get_data_type();
-    memory::data_type wdt = dt;
-
-    if (one_of(dt, memory::data_type::s8, memory::data_type::u8)) {
-        wdt = memory::data_type::s8;
-    }
+    memory::data_type wdt = deriveWeightDataType(inDnnlDesc.get_data_type());
 
     dnnl::memory::desc weightDnnlDesc(DnnlExtensionUtils::convertToDnnlDims(weightDims), wdt, memory::format_tag::any);
     dnnl::memory::desc biasDnnlDesc;
@@ -1383,14 +1386,9 @@ void Convolution::prepareParams() {
     auto builder = [&engine](const ConvKey& key) -> executorPtr {
         // remove the requirement on weight memory layout to let primitive
         // report the best layout for weight to be reordered dynamically at runtime
-        auto src_dt = key.inp0->getDataType();
-        auto wdt = src_dt;
-        if (src_dt == dnnl_s8 || src_dt == dnnl_u8) {
-            wdt = memory::data_type::s8;
-        }
         auto wghDescAny =
             dnnl::memory::desc(DnnlExtensionUtils::convertToDnnlDims(key.inp1->getShape().getStaticDims()),
-                               wdt,
+                               deriveWeightDataType(key.inp0->getDataType()),
                                memory::format_tag::any);
         auto createDnnlConvDesc = [](const dnnl::engine engine,
                                      const dnnl::memory::desc& srcDesc,
@@ -1507,7 +1505,7 @@ void Convolution::prepareParams() {
             // when the input weight data is guaranteed to be ready (considering possible const-folding
             // subgraphs inserted between constant weight node and conv)
             auto it = primArgs.find(DNNL_ARG_WEIGHTS);
-            if (it == primArgs.end() || prevExecPtr->getWeightDesc() != execPtr->getWeightDesc()) {
+            if (it == primArgs.end() || !prevExecPtr || prevExecPtr->getWeightDesc() != execPtr->getWeightDesc()) {
                 pendingConstWeightReorder = true;
             }
         } else {
