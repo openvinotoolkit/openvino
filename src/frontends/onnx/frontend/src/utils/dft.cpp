@@ -13,6 +13,9 @@ namespace ngraph {
 namespace onnx_import {
 namespace dft {
 
+namespace {
+// For DFT, IDFT, IRDFT cases, if real signal are provided (with shape [D_0, D_1, ..., D_{N-1}, 1])
+// it's needed to fill tensors with zero imaginary part to be aligned with Core ops requirements.
 bool try_convert_real_to_complex(ov::Output<ov::Node>& signal) {
     if (signal.get_partial_shape().rank().is_static()) {
         const auto length = signal.get_partial_shape().rank().get_length();
@@ -29,6 +32,7 @@ bool try_convert_real_to_complex(ov::Output<ov::Node>& signal) {
     // [D_0, D_1, ..., D_{N-1}, 2] case, so additional transformations not needed or we are not able to check it during
     // importing.
     return false;
+}
 }
 
 ov::Output<ov::Node> make_dft(const ov::Output<ov::Node>& signal,

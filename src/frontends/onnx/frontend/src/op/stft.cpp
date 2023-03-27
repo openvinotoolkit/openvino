@@ -18,7 +18,6 @@ namespace set_17 {
 OutputVector stft(const Node& node) {
     const OutputVector ng_inputs{node.get_ng_inputs()};
     auto signal = ng_inputs.at(0);
-    //dft::try_convert_real_to_complex(signal);
     const auto dft_length_provided = ng_inputs.size() > 3 && !ngraph::op::is_null(ng_inputs[3]);
     const auto onesided = node.get_attribute_value<int64_t>("onesided", 1);
     const int64_t axis = 1;
@@ -58,12 +57,14 @@ OutputVector stft(const Node& node) {
             const auto stop = default_opset::Constant::create(element::i64, Shape{2}, std::vector<int64_t>{batch+1, sig_idx*frame_step+frame_length});
             const auto slice_axes = default_opset::Constant::create(element::i64, Shape{2}, std::vector<int64_t>{0, axis});
             const auto slice = std::make_shared<default_opset::Slice>(signal, start, stop, step, slice_axes);
-            const auto flatten_slice = std::make_shared<default_opset::Reshape>(slice, is_complex_signal ? default_opset::Constant::create(element::i64, {2},  {-1, 2}) : default_opset::Constant::create(element::i64, {1},  {-1}), false);
+            const auto flatten_slice = std::make_shared<default_opset::Reshape>(slice, is_complex_signal ? default_opset::Constant::create(element::i64, {2},  {-1, 2}) : (onesided ? default_opset::Constant::create(element::i64, {1},  {-1}) : default_opset::Constant::create(element::i64, {2},  {-1, 1})), false);
+            //std::cout << "flatten_slice: " << flatten_slice->get_output_partial_shape(0) << std::endl;
             const auto dft = dft::make_dft(flatten_slice,
-                        dft_length_provided ? ng_inputs.at(1) : std::make_shared<NullNode>(),
+                        dft_length_provided ? ng_inputs[3] : std::make_shared<NullNode>(),
                         0,
                         false,
                         onesided == 1);
+            //std::cout << "dft: " << dft.get_partial_shape() << std::endl;
             signals_in_batch.push_back(std::make_shared<default_opset::Unsqueeze>(dft, zero_const));
         }
         all_signals.push_back(std::make_shared<default_opset::Unsqueeze>(std::make_shared<default_opset::Concat>(signals_in_batch, 0), zero_const));
