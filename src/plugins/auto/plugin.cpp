@@ -358,7 +358,7 @@ IExecutableNetworkInternal::Ptr MultiDeviceInferencePlugin::LoadNetworkImpl(cons
         loadConfig.set_property(ov::hint::performance_mode(ov::hint::PerformanceMode::LATENCY));
     }
     // updateFromMap will check config valid
-    loadConfig.set_user_property(PreProcessConfig(config));
+    loadConfig.set_user_property(PreProcessConfig(config), workModeAuto);
     loadConfig.apply_user_properties();
     if (!workModeAuto) {
         if (itorConfig != config.end() && itorConfig->second != InferenceEngine::PluginConfigParams::THROUGHPUT) {
@@ -499,7 +499,7 @@ QueryNetworkResult MultiDeviceInferencePlugin::QueryNetwork(const CNNNetwork&   
 
     auto queryconfig = _pluginConfig;
     // updateFromMap will check config valid
-    queryconfig.set_user_property(PreProcessConfig(config));
+    queryconfig.set_user_property(PreProcessConfig(config), (GetName() == "AUTO")? true : false);
     queryconfig.apply_user_properties();
     auto fullproperty = queryconfig.get_full_properties();
     // this can be updated when plugin switch to 2.0 API
