@@ -42,7 +42,8 @@ struct Config {
     bool exclusiveAsyncRequests = false;
     bool enableDynamicBatch = false;
     SnippetsMode snippetsMode = SnippetsMode::Enable;
-    std::string dumpToDot = "";
+    std::string dumpToDot = {};
+    std::string device_id = {};
     int batchLimit = 0;
     float fcSparseWeiDecompressionRate = 1.0f;
     size_t rtCacheCapacity = 5000ul;
@@ -51,17 +52,18 @@ struct Config {
 #if defined(OPENVINO_ARCH_X86) || defined(OPENVINO_ARCH_X86_64)
     LPTransformsMode lpTransformsMode = LPTransformsMode::On;
     bool enforceBF16 = true;
-    bool manualEnforceBF16 = false;
 #else
     // Currently INT8 mode is not optimized on ARM / RISCV or other non-x86 platforms, fallback to FP32 mode.
     LPTransformsMode lpTransformsMode = LPTransformsMode::Off;
     bool enforceBF16 = false;
-    bool manualEnforceBF16 = false;
 #endif
 
-    std::string cache_dir{};
-
     DenormalsOptMode denormalsOptMode = DenormalsOptMode::DO_Keep;
+
+    // The denormals-are-zeros flag was introduced in the Pentium 4 and Intel Xeon processor
+    // In earlier IA-32 processors and in some models of the Pentium 4 processor, this flag (bit 6)
+    // is reserved.
+    bool DAZOn = false;
 
     void readProperties(const std::map<std::string, std::string> &config);
     void updateProperties();

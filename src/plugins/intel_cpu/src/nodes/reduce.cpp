@@ -581,7 +581,7 @@ private:
     inline void pack_gathered_vector(Vmm vmm_val, Vmm vmm_index, int offset, memory::data_type src_dt) {
         sub(rsp, vlen);
         uni_vmovdqu(ptr[rsp], vmm_index);
-        int repeats = vlen / sizeof(float);
+        size_t repeats = vlen / sizeof(float);
         for (size_t i = 0; i < repeats; i++) {
             mov(reg_tmp_64.cvt32(), ptr[rsp + i * sizeof(int)]);
             Xbyak::Address table_idx = ptr[reg_src + offset + reg_tmp_64];
@@ -2147,22 +2147,24 @@ void Reduce::reduce_PLN(const uint8_t *in_ptr, uint8_t *out_ptr) {
             } else if (!ReduceC && ReduceD && ReduceH && !ReduceW) {
                 size_t IWB = IW / blk_size;
                 if (ReduceDH_opt) {
-                    // reduce parallelly in D dimension
-                    // step1: !ReduceD && ReduceH && !ReduceW
-                    uint8_t *prc_ptr_n = &vec_reduceDH_prc[0];
-                    init_dst_data(prc_ptr_n, prc_size);
-                    parallel_for2d(ID, IWB, [&](size_t id, size_t iwb){
-                        size_t pd = id, pwb = iwb;
-                        reduce_kernel_process(in_ptr_n + (id * IH * IW + iwb * blk_size) * src_data_size,
-                                              prc_ptr_n + (pd * PW + pwb * blk_size) * prc_data_size, blk_size, 0, IH);
-                    });
-                    // step2: ReduceD
-                    reduce_stride = PW;
-                    parallel_for(IWB, [&](size_t iwb){
-                        size_t pwb = iwb, owb = iwb;
-                        reduce_kernel_process(prc_ptr_n + pwb * blk_size * prc_data_size,
-                                              out_ptr_n + owb * blk_size * dst_data_size, blk_size, 0, ID);
-                    });
+                    if (IWB > 0) {
+                        // reduce parallelly in D dimension
+                        // step1: !ReduceD && ReduceH && !ReduceW
+                        uint8_t *prc_ptr_n = &vec_reduceDH_prc[0];
+                        init_dst_data(prc_ptr_n, prc_size);
+                        parallel_for2d(ID, IWB, [&](size_t id, size_t iwb){
+                            size_t pd = id, pwb = iwb;
+                            reduce_kernel_process(in_ptr_n + (id * IH * IW + iwb * blk_size) * src_data_size,
+                                                prc_ptr_n + (pd * PW + pwb * blk_size) * prc_data_size, blk_size, 0, IH);
+                        });
+                        // step2: ReduceD
+                        reduce_stride = PW;
+                        parallel_for(IWB, [&](size_t iwb){
+                            size_t pwb = iwb, owb = iwb;
+                            reduce_kernel_process(prc_ptr_n + pwb * blk_size * prc_data_size,
+                                                out_ptr_n + owb * blk_size * dst_data_size, blk_size, 0, ID);
+                        });
+                    }
                     // reduce tail
                     reduce_stride = IW;
                     size_t tail_start = IWB * blk_size;
@@ -2740,7 +2742,7 @@ inline void Reduce::set_reduce_dim_flags() {
     ReduceH = IH != OH && OH == 1;
     ReduceW = IW != OW && OW == 1;
 
-    // must be done before the above dimension change
+    // must be done after the above dimension change
     create_DH_working_memory();
 
     // suit for parallel
@@ -2939,9 +2941,9 @@ std::vector<int> Reduce::update_src_dims() {
     int outer_end = reduce_axes[0];
     int inner_start = reduce_axes[reduce_axes.size() - 1];
     for (size_t i = 0; i < src_dims.size(); i++) {
-        if (i < outer_end) {
+        if (static_cast<int>(i) < outer_end) {
             outer_dim *= src_dims[i];
-        } else if (i > inner_start) {
+        } else if (static_cast<int>(i) > inner_start) {
             inner_dim *= src_dims[i];
         } else {
             axis_dim *= src_dims[i];

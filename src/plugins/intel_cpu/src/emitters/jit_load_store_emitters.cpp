@@ -46,7 +46,7 @@ size_t store_emitter_params::hash() const {
 }
 
 static int get_aux_regs_as_temp(const size_t byte_size, const bool is_fill = false) {
-    if (!one_of(byte_size, 64, 32, 16))
+    if (!one_of(byte_size, 64u, 32u, 16u))
         return 1;
     if (mayiuse(cpu::x64::avx512_core) && is_fill)
         return 1;
@@ -77,9 +77,7 @@ size_t jit_load_emitter::aux_gprs_count() const {
     return count;
 }
 
-void jit_load_emitter::emit_impl(const std::vector<size_t> &in_idxs, const std::vector<size_t> &out_idxs,
-                                 const std::vector<size_t> &pool_vec_idxs, const std::vector<size_t> &pool_gpr_idxs,
-                                 const emitter_context *emit_context) const {
+void jit_load_emitter::emit_impl(const std::vector<size_t> &in_idxs, const std::vector<size_t> &out_idxs) const {
     const int offset = in_idxs.size() == 2 ? in_idxs[1] : 0;
     if (host_isa_ == cpu::x64::sse41) {
         emit_isa<cpu::x64::sse41>(Reg64(in_idxs[0]), static_cast<int>(out_idxs[0]), offset);
@@ -149,6 +147,11 @@ void jit_load_emitter::emit_isa(const Xbyak::Reg64 &reg_src, const int out_vec_i
             default:
                 break;
         }
+    }
+
+    if (is_fill_) {
+        int dword_num_loaded = (src_prc_ != dst_prc_) ? load_num_ : (load_size_ / sizeof(float));
+        fill_with_default(Vmm(out_vec_idx), fill_value_, dword_num_loaded);
     }
 }
 
@@ -313,9 +316,6 @@ void jit_load_emitter::load_bytes(const Vmm &vmm, const Xbyak::Reg64 &reg, int o
             break;
         }
     }
-
-    if (is_fill_)
-        fill_with_default(vmm, fill_value_, load_size / 4);
 }
 
 /**
@@ -407,9 +407,6 @@ void jit_load_emitter::load_bytes_to_dword_extension(const Vmm &vmm, const Xbyak
             break;
         }
     }
-
-    if (is_fill_)
-        fill_with_default(vmm, fill_value_, load_size);
 }
 
 /**
@@ -524,9 +521,6 @@ void jit_load_emitter::load_words_to_dword_extension(const Vmm &vmm, const Xbyak
             break;
         }
     }
-
-    if (is_fill_)
-        fill_with_default(vmm, fill_value_, load_size / 2);
 }
 
 template <typename Vmm>
@@ -620,9 +614,7 @@ void jit_store_emitter::emit_data() const {
         uni_vcvtneps2bf16_->emit_data();
 }
 
-void jit_store_emitter::emit_impl(const std::vector<size_t> &in_idxs, const std::vector<size_t> &out_idxs,
-                  const std::vector<size_t> &pool_vec_idxs, const std::vector<size_t> &pool_gpr_idxs,
-                  const emitter_context *emit_context) const {
+void jit_store_emitter::emit_impl(const std::vector<size_t> &in_idxs, const std::vector<size_t> &out_idxs) const {
     const int offset = in_idxs.size() == 2 ? in_idxs[1] : 0;
     if (host_isa_ == cpu::x64::sse41) {
         emit_isa<cpu::x64::sse41>(static_cast<int>(in_idxs[0]), Reg64(out_idxs[0]), offset);

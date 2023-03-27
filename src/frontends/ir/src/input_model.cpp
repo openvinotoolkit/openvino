@@ -18,9 +18,9 @@ using namespace ngraph;
 using namespace InferenceEngine;
 
 namespace {
-void ParsePreProcess(pugi::xml_node& root,
-                     std::shared_ptr<ngraph::runtime::AlignedBuffer> weights,
-                     std::shared_ptr<Function> f) {
+void parse_pre_process(pugi::xml_node& root,
+                       std::shared_ptr<ngraph::runtime::AlignedBuffer> weights,
+                       std::shared_ptr<Function> f) {
     /* Preprocessing block can have two preprocessing types:
      *
      * <pre-process mean-precision="FP32" reference-layer-name="data">
@@ -46,7 +46,7 @@ void ParsePreProcess(pugi::xml_node& root,
     std::string inputName;
     std::shared_ptr<Node> input_node;
 
-    inputName = XMLParseUtils::GetStrAttr(ppNode, "reference-layer-name", "");
+    inputName = pugixml::utils::GetStrAttr(ppNode, "reference-layer-name", "");
     inputName = trim(inputName);
 
     if (inputName.empty()) {
@@ -110,7 +110,7 @@ void ParsePreProcess(pugi::xml_node& root,
 
     auto input_type = input_node->get_output_element_type(0);
     FOREACH_CHILD (chan, ppNode, "channel") {
-        auto chanNo = XMLParseUtils::GetUInt64Attr(chan, "id", next_channel_id++);
+        auto chanNo = pugixml::utils::GetUInt64Attr(chan, "id", next_channel_id++);
 
         auto meanNode = chan.child("mean");
         if (!meanNode.empty()) {
@@ -118,11 +118,11 @@ void ParsePreProcess(pugi::xml_node& root,
                 IE_THROW() << "mean should have at least one of the following attribute: value, size";
             }
             if (meanNode.attribute("value")) {
-                mean_scalar_values.insert({chanNo, XMLParseUtils::GetFloatAttr(meanNode, "value")});
+                mean_scalar_values.insert({chanNo, pugixml::utils::GetFloatAttr(meanNode, "value")});
             }
             if (meanNode.attribute("size") && meanNode.attribute("offset")) {
-                auto const_size = XMLParseUtils::GetUInt64Attr(meanNode, "size");
-                auto const_offset = XMLParseUtils::GetUInt64Attr(meanNode, "offset");
+                auto const_size = pugixml::utils::GetUInt64Attr(meanNode, "size");
+                auto const_offset = pugixml::utils::GetUInt64Attr(meanNode, "offset");
                 if (shape_size(mean_shape) * input_type.size() != const_size) {
                     IE_THROW() << "mean blob size mismatch expected input, got: " << const_size << " expecting "
                                << mean_shape << " x " << input_type.size();
@@ -229,12 +229,12 @@ std::shared_ptr<Function> InputModel::InputModelIRImpl::convert() {
     std::unordered_map<std::string, std::shared_ptr<ngraph::Variable>> variables;
 
     // Load default opsets
-    size_t version = XMLParseUtils::GetUIntAttr(m_root, "version", 0);
+    size_t version = pugixml::utils::GetUIntAttr(m_root, "version", 0);
     ov::XmlDeserializer visitor(m_root, m_weights, m_opsets, m_extensions, variables, version);
     std::shared_ptr<ngraph::Function> function;
     visitor.on_attribute("net", function);
     function->get_rt_info()["version"] = int64_t(version);
-    ParsePreProcess(m_root, m_weights, function);
+    parse_pre_process(m_root, m_weights, function);
 
     return function;
 }

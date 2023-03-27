@@ -428,7 +428,7 @@ void GenerateProposals::execute(dnnl::stream strm) {
                            reinterpret_cast<float *>(&proposals_[0]), anchors_num, bottom_H,
                            bottom_W, img_H, img_W,
                            min_box_H, min_box_W,
-                           static_cast<const float>(log(1000. / 16.)),
+                           static_cast<const float>(std::log(1000. / 16.)),
                            coordinates_offset_);
             std::partial_sort(proposals_.begin(), proposals_.begin() + pre_nms_topn, proposals_.end(),
                               [](const ProposalBox &struct1, const ProposalBox &struct2) {

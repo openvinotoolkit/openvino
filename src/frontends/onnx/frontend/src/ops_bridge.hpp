@@ -12,6 +12,7 @@
 
 #include "ngraph/except.hpp"
 #include "onnx_import/core/operator_set.hpp"
+#include "version_range.hpp"
 
 namespace ngraph {
 namespace onnx_import {
@@ -35,8 +36,6 @@ struct UnsupportedVersion : ngraph_error {
 
 class OperatorsBridge {
 public:
-    static constexpr const int LATEST_SUPPORTED_ONNX_OPSET_VERSION = ONNX_OPSET_VERSION;
-
     OperatorsBridge();
 
     OperatorsBridge(const OperatorsBridge&) = default;
@@ -77,6 +76,15 @@ public:
     void overwrite_operator(const std::string& name, const std::string& domain, Operator fn);
 
 private:
+    void register_operator_in_custom_domain(std::string name,
+                                            ov::frontend::onnx::VersionRange range,
+                                            Operator fn,
+                                            std::string domain,
+                                            std::string warning_mes = "");
+    void register_operator(std::string name,
+                           ov::frontend::onnx::VersionRange range,
+                           Operator fn,
+                           std::string warning_mes = "");
     // Registered operators structure
     // {
     //    domain_1: {

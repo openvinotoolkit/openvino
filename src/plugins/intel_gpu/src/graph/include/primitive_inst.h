@@ -8,7 +8,7 @@
 #include "intel_gpu/runtime/event.hpp"
 #include "intel_gpu/runtime/memory.hpp"
 #include "intel_gpu/graph/network.hpp"
-#include "meta_utils.h"
+#include "intel_gpu/runtime/utils.hpp"
 #include "program_node.h"
 #include "primitive_type.h"
 #include "intel_gpu/graph/serialization/binary_buffer.hpp"
@@ -192,7 +192,7 @@ public:
 
     void allocate_internal_buffers();
     static memory::ptr allocate_output(engine& engine, memory_pool& pool, const program_node& _node,
-                                       const kernel_impl_params& impl_params, uint32_t net_id, bool is_internal, size_t idx = 0);
+            const kernel_impl_params& impl_params, uint32_t net_id, bool is_internal, size_t idx = 0, bool reset_mem = true);
 
     std::vector<memory::cptr> get_intermediates_memories() const { return _intermediates_memory; }
 
@@ -218,9 +218,6 @@ public:
     std::shared_ptr<const PType> get_typed_desc() const { return _impl_params->typed_desc<PType>(); }
 
     virtual void update_output_memory() {}
-
-    virtual size_t get_impl_key(const kernel_impl_params& params) const;
-    virtual size_t get_impl_key() const;
 
 protected:
     primitive_inst(network& network, program_node const& node, bool allocate_memory);
@@ -287,7 +284,7 @@ protected:
     size_t max_output_layout_size = 0;
     std::vector<size_t> max_intermediates_memory_sizes;
 
-    std::vector<memory::ptr> allocate_outputs(kernel_impl_params* updated_params = nullptr);
+    std::vector<memory::ptr> allocate_outputs(kernel_impl_params* updated_params = nullptr, bool reset_mem = true);
     memory::ptr allocate_internal_buffer(size_t idx);
     static std::vector<std::shared_ptr<primitive_inst>> build_exec_deps(
         std::vector<std::pair<std::shared_ptr<primitive_inst>, int32_t>> const& mem_deps);
@@ -301,7 +298,7 @@ protected:
     virtual event::ptr update_weights();
     // if primitive_inst doesn't replace impl to new impl(static impl with opt kerenl or dynamic impl), return false
     bool update_impl();
-    void realloc_if_needed();
+    event::ptr realloc_if_needed();
 
     cldnn::network::ptr get_unfused_subgraph();
 
@@ -335,6 +332,21 @@ protected:
         return { layout(in_layout.get<ShapeType>(), output_type, in_layout.format) };
     }
 
+    virtual bool need_reset_input_memory() const {
+        return false;
+    }
+
+    virtual bool need_reset_output_memory() const {
+        std::vector<primitive_id> users;
+        for (auto u : _node->get_users())
+            users.push_back(u->id());
+
+        for (auto u : _network.get_primitives(users)) {
+            if (u->need_reset_input_memory())
+                return true;
+        }
+        return false;
+    }
 
     // This could be implemented via single map std::unordered_map<instrumentation::perf_counter_key, std::tuple<int64_t, size_t>>
     // but the overhead on using perf_counter_key as map key is too big, thus we use hash as map key

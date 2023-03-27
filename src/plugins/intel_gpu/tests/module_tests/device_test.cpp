@@ -18,7 +18,7 @@ public:
         _info = device_info{};
         _info.vendor_id = vendor_id;
         _info.dev_type = type;
-        _info.device_id = device_id;
+        _info.device_id = static_cast<uint32_t>(device_id);
     }
 
     device_info get_info() const override { return _info; }
