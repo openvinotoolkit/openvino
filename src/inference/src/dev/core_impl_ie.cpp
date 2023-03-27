@@ -214,8 +214,8 @@ void ov::CoreImpl::AddExtension(const InferenceEngine::IExtensionPtr& extension)
     AddExtensionUnsafe(extension);
 }
 
-bool ov::CoreImpl::DeviceSupportsImportExport(const std::string& deviceName) const {
-    return device_supports_import_export(deviceName);
+bool ov::CoreImpl::DeviceSupportsModelCaching(const std::string& deviceName) const {
+    return device_supports_model_caching(deviceName);
 }
 
 std::map<std::string, std::string> ov::CoreImpl::GetSupportedConfig(const std::string& deviceName,
