@@ -25,3 +25,7 @@ addIeTargetTest(
 target_compile_definitions(${TARGET_NAME}
         PUBLIC ${ARGV}
             DATA_PATH=\"${DATA_PATH}\")
+
+if (ENABLE_DATA)
+    add_dependencies(${TARGET_NAME} data)
+endif()
