@@ -37,8 +37,6 @@ class WorkerPool;
 class Worker;
 }  // namespace request
 
-using namespace ov::intel_gna::pre_post_processing;
-
 class GNAPlugin : public InferenceEngine::IInferencePlugin {
 protected:
     std::string _pluginName = "GNA";
@@ -53,8 +51,10 @@ protected:
     GNAGraphCompiler graphCompiler;
 
     uint32_t activeLayerIndex = 0xffffffff;
-    TranspositionInfoMap transpose_inputs_info;
-    TranspositionInfoMap transpose_outputs_info;
+    // TODO: transpose_inputs_info and transpose_outputs_info should be moved to GNAModelSerial class when ngraph
+    // migration is finished. Those filed are needed to support the exported models <= 2.8.
+    pre_post_processing::TranspositionInfoMap transpose_inputs_info;
+    pre_post_processing::TranspositionInfoMap transpose_outputs_info;
     PrePostProcessModels m_subgraph_cpu_map;
 
     uint32_t dnn_dump_write_index = 0;

@@ -17,7 +17,7 @@
 namespace ov {
 namespace intel_gna {
 
-using namespace ::pre_post_processing;
+using TranspositionInfo = pre_post_processing::TranspositionInfo;
 
 /**
  * @brief checks if it's a reshape from 4d to 3d tensor
