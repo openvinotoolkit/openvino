@@ -41,7 +41,8 @@ public:
             auto reshape_to_2d = [](const ov::PartialShape& shape, const ov::Dimension& feature) {
                 if (shape.is_static()) {
                     auto static_shape = shape.to_shape();
-                    size_t total = std::accumulate(static_shape.begin(), static_shape.end(), 1, std::multiplies<size_t>());
+                    size_t total =
+                        std::accumulate(static_shape.begin(), static_shape.end(), size_t(1), std::multiplies<size_t>());
                     auto dim = feature.is_static() ? feature.get_length() : static_cast<int64_t>(static_shape.back());
                     return ov::PartialShape{ static_cast<int64_t>(total) / dim, dim };
                 } else {

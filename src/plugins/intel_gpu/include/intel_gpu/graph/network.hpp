@@ -214,13 +214,6 @@ public:
     bool is_primary_stream() const { return _is_primary_stream; }
     bool is_dynamic() const { return _is_dynamic; }
 
-    /// Create memory object with specified @p layout and allocation @p type for primitive with @p id
-    /// Underlying memory handle can be reused with other primitives from memory pool based on @p dependencies
-    memory_ptr get_memory_from_pool(const layout& layout,
-                                    primitive_id id,
-                                    std::set<primitive_id> dependencies,
-                                    allocation_type type,
-                                    bool reusable = true);
     memory_pool& get_memory_pool() {
         return *_memory_pool;
     }

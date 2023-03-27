@@ -107,7 +107,7 @@ layout fully_connected_inst::calc_output_layout(fully_connected_node const& node
 
     auto reshape_to_2d = [](const ov::PartialShape& shape, int64_t feature) {
         auto staticShape = shape.to_shape();
-        size_t total = std::accumulate(staticShape.begin(), staticShape.end(), 1, std::multiplies<size_t>());
+        size_t total = std::accumulate(staticShape.begin(), staticShape.end(), static_cast<size_t>(1), std::multiplies<size_t>());
         std::vector<int64_t> reshapeSize = { static_cast<int64_t>(total) / feature, feature };
         return reshapeSize;
     };

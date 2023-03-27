@@ -9,6 +9,7 @@
 #include "openvino/runtime/core.hpp"
 #include "openvino/runtime/compiled_model.hpp"
 #include "openvino/runtime/properties.hpp"
+#include "openvino/runtime/intel_cpu/properties.hpp"
 
 #include <gtest/gtest.h>
 
@@ -111,6 +112,13 @@ TEST_F(OVClassConfigTestCPU, smoke_CheckModelStreamsHasHigherPriorityThanThrough
 
     ASSERT_NO_THROW(value = compiledModel.get_property(ov::num_streams));
     ASSERT_EQ(streams, value);
+}
+
+TEST_F(OVClassConfigTestCPU, smoke_CheckSparseWeigthsDecompressionRate) {
+    ov::Core core;
+
+    core.set_property(deviceName, ov::intel_cpu::sparse_weights_decompression_rate(0.8));
+    ASSERT_NO_THROW(ov::CompiledModel compiledModel = core.compile_model(model, deviceName));
 }
 
 const std::vector<ov::AnyMap> multiDevicePriorityConfigs = {

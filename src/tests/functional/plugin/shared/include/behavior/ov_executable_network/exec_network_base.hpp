@@ -681,7 +681,7 @@ TEST_P(OVExecutableNetworkBaseTest, precisionsAsInOriginalIR) {
     auto filePrefix = CommonTestUtils::generateTestFilePrefix();
     const std::string m_out_xml_path_1 = filePrefix + "precisionsAsInOriginalIR.xml";
     const std::string m_out_bin_path_1 = filePrefix + "precisionsAsInOriginalIR.bin";
-    ov::pass::Serialize(m_out_xml_path_1, m_out_bin_path_1).run_on_function(function);
+    ov::pass::Serialize(m_out_xml_path_1, m_out_bin_path_1).run_on_model(function);
 
     ov::CompiledModel execNet;
     EXPECT_NO_THROW(execNet = core->compile_model(m_out_xml_path_1, target_device, configuration));

@@ -75,7 +75,7 @@ std::vector<layout> resample_inst::calc_output_layouts(resample_node const& /*no
 
     auto pads_begin = desc->pads_begin;
     auto pads_end = desc->pads_end;
-    ov::op::v4::correct_pads_attr(&op, pads_begin, pads_end, input_shapes);
+    ov::op::util::correct_pads_attr(&op, pads_begin, pads_end, input_shapes);
 
     if (sizes_calc_mod) {
         if (!sizes_data.empty()) {

@@ -27,7 +27,7 @@ FILENAME_LENGTH = 255
 LOG_NAME_REPLACE_STR = "##NAME##"
 DEFAULT_PROCESS_TIMEOUT = 3600
 DEFAULT_TEST_TIMEOUT = 900
-MAX_LENGHT = 4096 if platform.system() != "Windows" else 8191
+MAX_LENGHT = 4096 if not constants.IS_WIN else 8191
 
 logger = get_logger('test_parallel_runner')
 
@@ -82,24 +82,17 @@ class TaskManager:
         thread.start()
         return thread
 
-    @staticmethod
-    def __normilize_path_in_args(command: str):
-        args = shlex.split(command)
-        for arg in args:
-            path = Path(arg)
-            if path.exists():
-                arg = path.expanduser().resolve()
-        return args
-
     def init_worker(self):
         if len(self._command_list) <= self._idx:
             logger.warning(f"Skip worker initialiazation. Command list lenght <= worker index")
             return
         log_file_name = self._log_filename.replace(LOG_NAME_REPLACE_STR, str(self._idx + self._prev_run_cmd_length))
         with open(log_file_name, "w") as log_file:
-            args = self.__normilize_path_in_args(self._command_list[self._idx])
+            args = self._command_list[self._idx]
+            if not constants.IS_WIN:
+                args = shlex.split(self._command_list[self._idx])
             worker = self.__create_thread(
-                self._process_list.append(Popen(args, stdout=log_file, stderr=log_file)))
+                self._process_list.append(Popen(args, shell=constants.IS_WIN, stdout=log_file, stderr=log_file)))
             self._workers.append(worker)
             worker.join()
             self._timers.append(datetime.datetime.now())
@@ -121,8 +114,10 @@ class TaskManager:
                     continue
 
     def __update_process(self, pid:int, log_file):
-        args = self.__normilize_path_in_args(self._command_list[self._idx])
-        self._process_list[pid] = Popen(args, stdout=log_file, stderr=log_file)
+        args = self._command_list[self._idx]
+        if not constants.IS_WIN:
+            args = shlex.split(self._command_list[self._idx])
+        self._process_list[pid] = Popen(args, shell=constants.IS_WIN, stdout=log_file, stderr=log_file)
 
     def update_worker(self):
         if self._idx >= len(self._command_list):
@@ -204,7 +199,10 @@ class TestParallelRunner:
     def __get_test_list_by_runtime(self):
         test_list_file_name = os.path.join(self._working_dir, "test_list.lst")
         if os.path.isfile(test_list_file_name):
-            os.remove(test_list_file_name)
+            try:
+                os.remove(test_list_file_name)
+            except Exception as err:
+                logger.warning(f"Imposible to remove {test_list_file_name}. Error: {err}")
         command_to_get_test_list = self._command + f' --gtest_list_tests >> {test_list_file_name}'
         logger.info(f"Get test list using command: {command_to_get_test_list}")
         run_res = run(command_to_get_test_list, check=True, shell=True)
