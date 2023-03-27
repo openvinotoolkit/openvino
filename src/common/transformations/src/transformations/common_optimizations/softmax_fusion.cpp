@@ -102,6 +102,8 @@ SoftmaxFusionSimplePattern::SoftmaxFusionSimplePattern() {
 
         auto reduce_axis =
             std::dynamic_pointer_cast<opset10::Constant>(pattern_map.at(reduce_axis_pattern).get_node_shared_ptr());
+        if (!reduce_axis || shape_size(reduce_axis->get_shape()) != 1)
+            return false;
         int64_t reduce_axis_val = reduce_axis->cast_vector<int64_t>()[0];
 
         auto softmax = register_new_node<opset10::Softmax>(pattern_map.at(data_pattern), reduce_axis_val);
