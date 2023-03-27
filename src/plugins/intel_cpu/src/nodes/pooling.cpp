@@ -369,7 +369,7 @@ void Pooling::prepareParams() {
                       alg,
                       selected_pd->getImplementationType()};
     auto engine = getEngine();
-    auto builder = [&engine](const PoolingKey& key) -> dnnl::primitive {
+    auto builder = [&engine](const PoolingKey& key) -> executorPtr {
         primitive_desc_iterator itpd = createDescriptorHelper(engine,
                                                               key.inp->getDnnlDesc(),
                                                               key.out->getDnnlDesc(),
@@ -393,25 +393,39 @@ void Pooling::prepareParams() {
                 break;
         }
 
-        return pooling_forward(prim_desc);
+        return std::make_shared<DnnlExecutor>(prim_desc);
     };
 
     auto cache = context->getParamsCache();
     auto result = cache->getOrCreate(key, builder);
 
-    if (!result.first) {
+    execPtr = result.first;
+
+    if (!execPtr) {
         IE_THROW() << "Primitive descriptor was not found for node " << getName() << ".";
     }
 
-    prim = result.first;
-
-    auto pd = prim.get_primitive_desc();
-    auto scratchpadMem = getScratchPadMem(pd);
-    auto src = getParentEdgesAtPort(0)[0]->getMemoryPtr()->GetPrimitive();
-    auto dst = getChildEdgesAtPort(0)[0]->getMemoryPtr()->GetPrimitive();
-    primArgs = {{DNNL_ARG_SRC, src}, {DNNL_ARG_DST, dst}, {DNNL_ARG_SCRATCHPAD, scratchpadMem->GetPrimitive()}};
+    auto scratchpadMem = getScratchPadMem(execPtr->getScratchPadDesc());
+    primArgs[DNNL_ARG_SCRATCHPAD] = scratchpadMem->GetPrimitive();
+    primArgs[DNNL_ARG_SRC] = getParentEdgesAtPort(0)[0]->getMemoryPtr()->GetPrimitive();
+    primArgs[DNNL_ARG_DST] = getChildEdgesAtPort(0)[0]->getMemoryPtr()->GetPrimitive();
 
     Node::appendPostOpArgs(*attr, primArgs, postOpsArgs);
+
+#ifdef CPU_DEBUG_CAPS
+    if (result.second == CacheEntryBase::LookUpStatus::Miss) {
+        auto pd = execPtr->getPrimitiveDesc();
+        DEBUG_LOG("verbose##", getName(), "##", DnnlExtensionUtils::query_pd_info(pd), "\n");
+    }
+#endif
+}
+
+void Pooling::execute(dnnl::stream strm) {
+    if (execPtr) {
+        execPtr->exec(primArgs, strm);
+    } else {
+        IE_THROW() << "Pooling node with name '" << getName() << "' doesn't have an initialized executor";
+    }
 }
 
 void Pooling::executeDynamicImpl(dnnl::stream strm) {

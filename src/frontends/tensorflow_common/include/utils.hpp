@@ -34,13 +34,26 @@ void set_node_name(const std::string& node_name, const std::shared_ptr<Node>& no
 bool is_conditional_edge(const std::string& input_tensor_name);
 
 template <typename T>
-ov::Output<ov::Node> create_same_type_const_scalar(const ov::Output<ov::Node>& same_type_output, T value) {
+ov::Output<ov::Node> create_same_type_const_scalar(const ov::Output<ov::Node>& same_type_output, const T& value) {
     if (same_type_output.get_element_type().is_static()) {
         return std::make_shared<ov::opset10::Constant>(same_type_output.get_element_type(), ov::Shape{}, value);
     } else {
         ov::Output<ov::Node> const_res =
             std::make_shared<ov::opset10::Constant>(ov::element::from<T>(), ov::Shape{}, value);
-        const_res = std::make_shared<ov::opset10::ConvertLike>(same_type_output, const_res);
+        const_res = std::make_shared<ov::opset10::ConvertLike>(const_res, same_type_output);
+        return const_res;
+    }
+}
+
+template <typename T>
+ov::Output<ov::Node> create_same_type_const(const ov::Output<ov::Node>& same_type_output,
+                                            const std::vector<T>& value,
+                                            const ov::Shape& shape) {
+    if (same_type_output.get_element_type().is_static()) {
+        return std::make_shared<ov::opset10::Constant>(same_type_output.get_element_type(), shape, value);
+    } else {
+        ov::Output<ov::Node> const_res = std::make_shared<ov::opset10::Constant>(ov::element::from<T>(), shape, value);
+        const_res = std::make_shared<ov::opset10::ConvertLike>(const_res, same_type_output);
         return const_res;
     }
 }

@@ -31,7 +31,7 @@ jobs:
           lfs: true
 
       - name: Install OpenCL
-        uses: awalsh128/cache-apt-pkgs-action@v1.2.4
+        uses: awalsh128/cache-apt-pkgs-action@v1.3.0
         if: runner.os == 'Linux'
         with:
           packages: ocl-icd-opencl-dev opencl-headers

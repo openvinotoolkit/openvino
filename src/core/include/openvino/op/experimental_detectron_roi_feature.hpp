@@ -20,7 +20,7 @@ namespace v6 {
 /// \ingroup ov_ops_cpp_api
 class OPENVINO_API ExperimentalDetectronROIFeatureExtractor : public Op {
 public:
-    OPENVINO_OP("ExperimentalDetectronROIFeatureExtractor", "opset6", op::Op, 6);
+    OPENVINO_OP("ExperimentalDetectronROIFeatureExtractor", "opset6", op::Op);
 
     /// \brief Structure that specifies attributes of the operation
     struct Attributes {

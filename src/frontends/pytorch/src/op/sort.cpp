@@ -9,7 +9,7 @@ namespace frontend {
 namespace pytorch {
 namespace op {
 
-OutputVector translate_sort(NodeContext& context) {
+OutputVector translate_sort(const NodeContext& context) {
     num_inputs_check(context, 3, 4);
     const auto input_tensor = context.get_input(0);
     bool stable, descending;
@@ -40,7 +40,7 @@ OutputVector translate_sort(NodeContext& context) {
     return topk->outputs();
 };
 
-OutputVector translate_argsort(NodeContext& context) {
+OutputVector translate_argsort(const NodeContext& context) {
     auto sort = translate_sort(context);
     return {sort[1]};
 };

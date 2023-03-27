@@ -65,3 +65,41 @@ def test_pytorch_fe_set_input_value():
     im.set_tensor_value(place, np.random.randn(1, 2, 3, 4).astype(np.float32))
     om = fe.convert(im)
     assert len(om.get_parameters()) == 0
+
+
+def test_pytorch_telemetry():
+    from openvino.frontend import TelemetryExtension
+    from openvino.frontend.pytorch.decoder import TorchScriptPythonDecoder
+
+    class MockTelemetry:
+        def __init__(self, stat):
+            self.stat = stat
+
+        def send_event(self, *arg, **kwargs):
+            self.stat["send_event"] += 1
+
+        def send_error(self, *arg, **kwargs):
+            self.stat["send_error"] += 1
+
+        def send_stack_trace(self, *arg, **kwargs):
+            self.stat["send_stack_trace"] += 1
+
+    def add_ext(front_end, stat):
+        tel = MockTelemetry(stat)
+        front_end.add_extension(TelemetryExtension("mock",
+                                                   tel.send_event,
+                                                   tel.send_error,
+                                                   tel.send_stack_trace))
+
+    tel_stat = {"send_event": 0, "send_error": 0, "send_stack_trace": 0}
+    # Ensure that MockTelemetry object is alive and can receive events (due to callbacks hold the object)
+    model = get_scripted_model(aten_relu())
+    decoder = TorchScriptPythonDecoder(model)
+    fe_manager = FrontEndManager()
+    fe = fe_manager.load_by_framework("pytorch")
+    add_ext(fe, tel_stat)
+    im = fe.load(decoder)
+    fe.convert(im)
+    assert tel_stat["send_event"] == 2
+    assert tel_stat["send_error"] == 0
+    assert tel_stat["send_stack_trace"] == 0
