@@ -161,9 +161,10 @@ To build the C++ or C sample applications for Linux, run the `build_samples.sh` 
 
       /usr/share/openvino/samples/c/build_samples.sh
 
-@endsphinxdirective
 
-For more information, refer to <a href="openvino_docs_OV_UG_Samples_Overview.html#build-samples-linux">Build the Sample Applications on Linux</a>.
+For more information, refer to :ref:`Build the Sample Applications on Linux <build-samples-linux>`.
+
+@endsphinxdirective
 
 ### Uninstalling OpenVINO Runtime
 
