@@ -25,7 +25,7 @@ jobs:
           lfs: true
 
       - name: Install apt-get dependencies
-        uses: awalsh128/cache-apt-pkgs-action@v1.2.4
+        uses: awalsh128/cache-apt-pkgs-action@v1.3.0
         with:
           packages: graphviz texlive liblua5.2-0 libclang1-9 libclang-cpp9
           version: 3.0
