@@ -34,7 +34,10 @@ size_t kernel_impl_params::hash() const {
 }
 
 bool kernel_impl_params::operator==(const kernel_impl_params& rhs) const {
-    if (desc != nullptr && rhs.desc != nullptr && *desc != *rhs.desc)
+    if ((desc != nullptr && rhs.desc == nullptr) || (desc == nullptr && rhs.desc != nullptr))
+        return false;
+
+    if ((desc != nullptr && rhs.desc != nullptr) && *desc != *rhs.desc)
         return false;
 
     if (rhs.input_layouts.size() != input_layouts.size())
