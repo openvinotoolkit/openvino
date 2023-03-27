@@ -22,7 +22,7 @@ The script should include three basic steps:
 Prepare data and dataset interface
 ##################################
 
-In most cases, it is required to implement only the ``openvino.tools.pot.DataLoader`` interface, which allows acquiring data from a dataset and applying model-specific pre-processing providing access by index. Any implementation should override the following methods: 
+In most cases, it is required to implement only the ``openvino.tools.pot.DataLoader`` interface, which allows acquiring data from a dataset and applying model-specific pre-processing providing access by index. Any implementation should override the following methods:
 
 * The ``__len__()``, returns the size of the dataset.
 * The ``__getitem__()``, provides access to the data by index in range of 0 to ``len(self)``. It can also encapsulate the logic of model-specific pre-processing. This method should return data in the ``(data, annotation)`` format, in which:
@@ -106,7 +106,7 @@ An example code below shows a basic quantization workflow:
    from openvino.tools.pot import create_pipeline
 
    # Model config specifies the name of the model and paths to .xml and .bin files of the model.
-   model_config = 
+   model_config =
    {
        "model_name": "model",
        "model": path_to_xml,
@@ -155,8 +155,8 @@ An example code below shows a basic quantization workflow:
 
 The output of the script is the quantized model that can be used for inference in the same way as the original full-precision model.
 
-If high degradation of accuracy occurs after applying the Default Quantization method, 
-it is recommended to follow the tips from :doc:`Quantization Best Practices <pot_docs_BestPractices>` 
+If high degradation of accuracy occurs after applying the Default Quantization method,
+it is recommended to follow the tips from :doc:`Quantization Best Practices <pot_docs_BestPractices>`
 article or use :doc:`Accuracy-aware Quantization <pot_accuracyaware_usage>` method.
 
 Quantizing cascaded models
