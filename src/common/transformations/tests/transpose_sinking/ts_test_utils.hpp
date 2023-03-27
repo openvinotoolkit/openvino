@@ -14,6 +14,19 @@ namespace transpose_sinking {
 namespace testing {
 namespace utils {
 
+struct Preprocessing {
+    std::vector<std::function<ov::OutputVector(std::vector<size_t>, ov::OutputVector)>> preprocessing;
+    std::vector<std::vector<size_t>> indices;
+
+    ov::OutputVector apply(const ov::OutputVector& inputs) const {
+        ov::OutputVector new_inputs = inputs;
+        for (size_t i = 0; i < preprocessing.size(); ++i) {
+            new_inputs = preprocessing[i](indices[i], new_inputs);
+        }
+        return new_inputs;
+    }
+};
+
 using NodePtr = std::shared_ptr<ov::Node>;
 
 class IFactory {
@@ -61,9 +74,9 @@ ov::OutputVector set_gather_for(const std::vector<size_t>& idxs, const ov::Outpu
 std::shared_ptr<ov::Node> create_main_node(const ov::OutputVector& inputs, size_t num_ops, const FactoryPtr& creator);
 ov::ParameterVector filter_parameters(const ov::OutputVector& out_vec);
 
-std::shared_ptr<ov::Node> parameter(ov::element::Type el_type, const ov::PartialShape& ps);
+ov::Output<ov::Node> parameter(ov::element::Type el_type, const ov::PartialShape& ps);
 template <class T>
-std::shared_ptr<ov::Node> constant(ov::element::Type el_type, const ov::Shape& shape, const std::vector<T>& value) {
+ov::Output<ov::Node> constant(ov::element::Type el_type, const ov::Shape& shape, const std::vector<T>& value) {
     return ov::opset10::Constant::create<T>(el_type, shape, value);
 }
 

@@ -21,7 +21,7 @@ TSGatherForward::TSGatherForward() {
     MATCHER_SCOPE(TSGatherForward);
 
     auto transpose_label = wrap_type<Transpose>({any_input(), wrap_type<Constant>()});
-    auto gather_label = wrap_type<Gather>({transpose_label, any_input(), any_input()});
+    auto gather_label = wrap_type<Gather>({transpose_label, any_input(), wrap_type<Constant>()});
 
     ov::matcher_pass_callback matcher_pass_callback = [=](pattern::Matcher& m) {
         const auto& pattern_to_output = m.get_pattern_map();
@@ -33,20 +33,37 @@ TSGatherForward::TSGatherForward() {
         }
 
         auto transpose_order = as_type_ptr<Constant>(transpose->get_input_node_shared_ptr(1));
-        if (!transpose || !transpose_order) {
+        auto gather_axis = as_type_ptr<Constant>(main_node->get_input_node_shared_ptr(2));
+        if (!transpose || !transpose_order || !gather_axis) {
             return false;
         }
-        TransposeInputsInfo transpose_input_info = {transpose, transpose_order, 0};
-        sink_forward::UpdateInputTransposes(main_node, transpose_input_info, {0, 1});
+        const auto& axes = gather_axis->cast_vector<int64_t>();
+        if (axes.size() != 1) {
+            return false;
+        }
 
-        auto axis = std::make_shared<Constant>(element::i32, Shape{}, std::vector<int32_t>{0});
-        auto new_axes = ChangeAxes(main_node->input_value(3), transpose_order, axis);
-        main_node->input(3).replace_source_output(new_axes);
+        const auto& indices_rank = main_node->get_input_partial_shape(1).rank();
+        if (indices_rank.is_dynamic()) {
+            return false;
+        }
+
+        const auto& order_val = transpose_order->cast_vector<int64_t>();
+        const auto& axis = order_val[axes[0]];
+        const auto& indices_rank_val = indices_rank.get_length();
+        std::vector<int64_t> new_transpose_order(order_val.size() + indices_rank_val - 1);
+        for (size_t i = 0; i < new_transpose_order.size(); ++i) {
+            if (i == axis) {
+
+            }
+        }
+
+/*
         main_node->validate_and_infer_types();
         for (auto& new_node : sink_forward::InsertOutputTransposes(main_node, transpose_input_info)) {
             register_new_node(new_node);
             UpdateForwardSinkingAbility(new_node);
         }
+*/
 
         return true;
     };
@@ -58,7 +75,7 @@ TSGatherForward::TSGatherForward() {
 TSGatherBackward::TSGatherBackward() {
     MATCHER_SCOPE(TSGatherBackward);
 
-    auto gather_label = wrap_type<Gather>({any_input(), any_input(), any_input()}, HasSameOutputTransposeNodes);
+    auto gather_label = wrap_type<Gather>({any_input(), any_input(), wrap_type<Constant>()}, HasSameOutputTransposeNodes);
     auto transpose_label =
         wrap_type<Transpose>({gather_label, wrap_type<Constant>()}, [](const Output<Node>& output) -> bool {
             return has_static_rank()(output) && is_sinking_node(output);
