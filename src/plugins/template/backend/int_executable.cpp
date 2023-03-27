@@ -153,6 +153,22 @@ bool ov::runtime::interpreter::INTExecutable::call(std::vector<ov::Tensor>& outp
             results_map.emplace(output, output_count);
     }
 
+    for (const auto& op : m_nodes) {
+        std::cout << "[Before] " << op->get_type_name() << " is dynamic: " << op->is_dynamic() << std::endl;
+    }
+
+    std::vector<TemporaryOverrideOutputs> overrider_vec = {};
+    for (const auto& op : m_nodes) {
+        if (std::string("Parameter") == op->get_type_name()) {
+            std::vector<ov::Tensor> op_inputs;
+            for (auto input : op->inputs()) {
+                auto tensor = input.get_tensor_ptr();
+                op_inputs.push_back(tensor_map.at(tensor));
+            }
+            overrider_vec.push_back(TemporaryOverrideOutputs(op, op_inputs));
+        }
+    }
+
     // for each ordered op in the graph
     for (const auto& op : m_nodes) {
         if (std::dynamic_pointer_cast<ov::op::v0::Parameter>(op)) {
@@ -166,7 +182,6 @@ bool ov::runtime::interpreter::INTExecutable::call(std::vector<ov::Tensor>& outp
             op_inputs.push_back(tensor_map.at(tensor));
         }
 
-        TemporaryOverrideOutputs overrider(op, op_inputs);
         OutputVector output_ports;
         for (size_t i = 0; i < op->inputs().size(); ++i) {
             output_ports.push_back(op->get_input_source_output(i));
