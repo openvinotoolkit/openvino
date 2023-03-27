@@ -271,7 +271,7 @@ void ReadIRTest::SetUp() {
                 if (op_name.length() > 0) {
                     for (const auto& node : function->get_ordered_ops()) {
                         if (node->get_type_name() == op_name) {
-                            op_version += std::to_string(node->get_type_info().version);
+                            op_version = node->get_type_info().version_id;
                             pgLink->SetCustomField("opSet", op_version, true);
                         }
                     }
