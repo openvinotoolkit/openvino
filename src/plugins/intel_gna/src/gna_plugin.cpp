@@ -1562,7 +1562,7 @@ InferenceEngine::IExecutableNetworkInternal::Ptr GNAPlugin::ImportNetwork(std::i
         }
     }
 
-    //  Support models versions <= 2.8
+    //  Support model versions <= 2.8
     if (!transpose_inputs_info.empty()) {
         ConvertTransposeMapToModel(transpose_inputs_info, inputs_ptr_->Get());
     }
