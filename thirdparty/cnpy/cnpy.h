@@ -19,6 +19,7 @@
 #include<stdint.h>
 #include<numeric>
 #if defined(_WIN32)
+    #define NOMINMAX
     #include <windows.h>
 #else
     #include <sys/sysinfo.h>
