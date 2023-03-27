@@ -169,7 +169,6 @@ class Conformance:
                              f'--gtest_filter={self._gtest_filter}', f'--config_path="{self._ov_config_path}"',
                              f'--shape_mode={self._shape_mode}']
         conformance = TestParallelRunner(f"{conformance_path}", command_line_args, self._workers, logs_dir, "")
-        # "/home/efode/repo/openvino/src/tests/ie_test_utils/functional_test_utils/layer_tests_summary/test_cache.lst")
         conformance.run()
         conformance.postprocess_logs()
 

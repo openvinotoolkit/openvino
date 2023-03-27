@@ -76,10 +76,6 @@ def aggregate_test_results(aggregated_results: SubElement, xml_reports: list,
                 new_data = ET.tostring(xml_device_entry).decode('utf8').replace(xml_device_entry.tag, device_name)
                 xml_device_entry = ET.fromstring(new_data)
             aggregated_device_results = aggregated_results.find(xml_device_entry.tag)
-            # if aggregated_device_results is None:
-            #     aggregated_results.append(xml_device_entry)
-            #     aggregated_device_results = aggregated_results.find(xml_device_entry.tag)
-            # op or api_type
             for xml_results_entry in xml_device_entry:
                 aggregated_results_entry = None
                 if not aggregated_device_results is None:
