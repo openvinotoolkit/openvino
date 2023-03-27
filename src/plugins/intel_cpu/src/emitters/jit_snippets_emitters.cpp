@@ -721,8 +721,8 @@ void StoreConvertEmitter::emit_isa(const std::vector<size_t> &in, const std::vec
 void StoreConvertEmitter::emit_data() const {
     store_emitter->emit_data();
 }
-size_t BrgemmEmitter::getBrgIdx(size_t mIdx, size_t kIdx, size_t nIdx) const {
-    return mIdx * 4 + kIdx * 2 + nIdx;
+size_t BrgemmEmitter::getBrgIdx(size_t kIdx, size_t nIdx) const {
+    return kIdx * 2 + nIdx;
 }
 BrgemmEmitter::BrgemmEmitter(dnnl::impl::cpu::x64::jit_generator* h, dnnl::impl::cpu::x64::cpu_isa_t isa,
                                          const std::shared_ptr<ov::Node>& node) : jit_emitter(h, isa, node) {
@@ -764,14 +764,9 @@ BrgemmEmitter::BrgemmEmitter(dnnl::impl::cpu::x64::jit_generator* h, dnnl::impl:
     const auto& C_shape = io_values[2].get_shape();
     const auto& C_layout = io_layouts[2];
 
-//    M = C_shape[C_layout[2]];
     K = A_shape[A_layout[3]];
-    M_blk = matmulOptimalM;
-    // todo: for debug purposes
-    M_blk = 1;
-    M = 1;
-    M_tail = M % M_blk;
-    // B_shape[B_layout[3]]
+    const auto& brgemm_td = ngraph::snippets::get_tensor_descriptor_ptr(brgemm_node);
+    M_blk = std::min(brgemm_node->get_count(), brgemm_td->get_subtensor().front());
     N = C_shape[C_layout[3]];
 
     auto brg0Prc = InferenceEngine::details::convertPrecision(brgemm_node->get_input_element_type(0));
@@ -788,33 +783,30 @@ BrgemmEmitter::BrgemmEmitter(dnnl::impl::cpu::x64::jit_generator* h, dnnl::impl:
     K_tail = K % K_blk;
 
     size_t brg0BaseIdx = -1;
-    for (size_t m = 0; m < 2; m++) {
-        for (size_t k = 0; k < 2; k++) {
-            for (size_t n = 0; n < 2; n++) {
-                auto& brgemmCtx = brgCtxs0[getBrgIdx(m, k, n)];
+    for (size_t k = 0; k < 2; k++) {
+        for (size_t n = 0; n < 2; n++) {
+            auto& brgemmCtx = brgCtxs0[getBrgIdx(k, n)];
 
-                auto M_ = m ? M_tail
-                            : M < M_blk ? 0 : M_blk;
-                auto N_ = n ? N_tail : N - N_tail;
-                auto K_ = k ? K_tail : K - K_tail;
-                auto beta = k && brgCtxs0[getBrgIdx(m, 0, n)].K != 0 ? 1.0f : 0.0f;
+            auto M_ = M_blk;
+            auto N_ = n ? N_tail : N - N_tail;
+            auto K_ = k ? K_tail : K - K_tail;
+            auto beta = k && brgCtxs0[getBrgIdx(0, n)].K != 0 ? 1.0f : 0.0f;
 
-                brgemmCtx.M = M_;
-                brgemmCtx.N = N_;
-                brgemmCtx.K = K_;
-                brgemmCtx.LDA = leading_dimensions[0];
-                brgemmCtx.LDB = leading_dimensions[1];
-                brgemmCtx.LDC = leading_dimensions[2];
-                brgemmCtx.dt_in0 = static_cast<dnnl_data_type_t>(DnnlExtensionUtils::IEPrecisionToDataType(brg0Prc));
-                brgemmCtx.dt_in1 = static_cast<dnnl_data_type_t>(DnnlExtensionUtils::IEPrecisionToDataType(brg1Prc));
-                brgemmCtx.beta = beta;
+            brgemmCtx.M = M_;
+            brgemmCtx.N = N_;
+            brgemmCtx.K = K_;
+            brgemmCtx.LDA = leading_dimensions[0];
+            brgemmCtx.LDB = leading_dimensions[1];
+            brgemmCtx.LDC = leading_dimensions[2];
+            brgemmCtx.dt_in0 = static_cast<dnnl_data_type_t>(DnnlExtensionUtils::IEPrecisionToDataType(brg0Prc));
+            brgemmCtx.dt_in1 = static_cast<dnnl_data_type_t>(DnnlExtensionUtils::IEPrecisionToDataType(brg1Prc));
+            brgemmCtx.beta = beta;
 
-                // don't create brgemm kernels for empty tiles
-                if (M_ != 0 && K_ != 0 && N_ != 0) {
-                    if (brg0BaseIdx == -1)
-                        brg0BaseIdx = getBrgIdx(m, k, n);
-                    initBrgemm(brgemmCtx, brgKernels0[getBrgIdx(m, k, n)], brg0WithAMX);
-                }
+            // don't create brgemm kernels for empty tiles
+            if (M_ != 0 && K_ != 0 && N_ != 0) {
+                if (brg0BaseIdx == -1)
+                    brg0BaseIdx = getBrgIdx(k, n);
+                initBrgemm(brgemmCtx, brgKernels0[getBrgIdx(k, n)], brg0WithAMX);
             }
         }
     }
@@ -973,35 +965,30 @@ void BrgemmEmitter::emit_isa(const std::vector<size_t> &in, const std::vector<si
     Reg64 input_1(static_cast<int>(in[1]));
     Reg64 output_0(static_cast<int>(out[0]));
 
-    for (size_t mb = 0; mb < div_up(M, M_blk); mb++) {
-        const bool is_M_tail = (M - mb * M_blk < M_blk);
+    size_t brgIdx0 = getBrgIdx(0, 0);
+    size_t K0_step0 = brgCtxs0[brgIdx0].K;
+    size_t K0_step1 = brgCtxs0[brgIdx0].K * brgCtxs0[brgIdx0].LDB;
+    size_t N0_step0 = brgCtxs0[brgIdx0].N * brg0VnniFactor;
+    size_t N0_step1 = brgCtxs0[brgIdx0].N;
+    for (size_t n = 0; n < 2; n++) {
+        for (size_t k = 0; k < 2; k++) {
+            auto& brgemmCtx = brgCtxs0[getBrgIdx(k, n)];
 
-        size_t brgIdx0 = getBrgIdx(0, 0, 0);
-        size_t K0_step0 = brgCtxs0[brgIdx0].K;
-        size_t K0_step1 = brgCtxs0[brgIdx0].K * brgCtxs0[brgIdx0].LDB;
-        size_t N0_step0 = brgCtxs0[brgIdx0].N * brg0VnniFactor;
-        size_t N0_step1 = brgCtxs0[brgIdx0].N;
-        for (size_t n = 0; n < 2; n++) {
-            for (size_t k = 0; k < 2; k++) {
-                size_t mIdx = is_M_tail ? 1 : 0;
-                auto& brgemmCtx = brgCtxs0[getBrgIdx(mIdx, k, n)];
+            if (brgemmCtx.K != 0 && brgemmCtx.N != 0) {
+                const size_t in0_offset = load_offset_a + k * K0_step0 * io_data_size[0];
+                const size_t in1_offset = load_offset_b + (k * K0_step1 + n * N0_step0) * io_data_size[1];
+                const size_t out0_offset = store_offset_c + n * N0_step1 * io_data_size[2];
 
-                if (brgemmCtx.K != 0 && brgemmCtx.N != 0) {
-                    const size_t in0_offset = load_offset_a + (k * K0_step0 + mb * M_blk * brgemmCtx.LDA) * io_data_size[0];
-                    const size_t in1_offset = load_offset_b + (k * K0_step1 + n * N0_step0) * io_data_size[1];
-                    const size_t out0_offset = store_offset_c + (n * N0_step1 + mb * M_blk * brgemmCtx.LDC) * io_data_size[2];
-
-                    emit_brgemm_kernel_call<isa>(brgKernels0[getBrgIdx(mIdx, k, n)].get(),
-                                                 1,
-                                                 input_0,
-                                                 input_1,
-                                                 nullptr,
-                                                 output_0,
-                                                 nullptr,
-                                                 in0_offset,
-                                                 in1_offset,
-                                                 out0_offset);
-                }
+                emit_brgemm_kernel_call<isa>(brgKernels0[getBrgIdx(k, n)].get(),
+                                             1,
+                                             input_0,
+                                             input_1,
+                                             nullptr,
+                                             output_0,
+                                             nullptr,
+                                             in0_offset,
+                                             in1_offset,
+                                             out0_offset);
             }
         }
     }

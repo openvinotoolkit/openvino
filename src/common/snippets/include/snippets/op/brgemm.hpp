@@ -36,10 +36,14 @@ public:
     void set_offset_b(const size_t offset) { m_offset_b = offset; }
     void set_offset_c(const size_t offset) { m_offset_c = offset; }
 
+    size_t get_count() const { return m_count; }
+    void set_count(const size_t count) { m_count = count; }
+
 private:
     size_t m_offset_a = 0lu;  // offset for first input
     size_t m_offset_b = 0lu;  // offset for second input
     size_t m_offset_c = 0lu;  // offset for output
+    size_t m_count = 1;      // number of A rows (M) processed on each iteration
 };
 
 } // namespace op

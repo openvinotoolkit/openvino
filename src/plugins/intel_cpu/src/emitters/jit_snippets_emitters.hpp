@@ -359,7 +359,7 @@ private:
     template <dnnl::impl::cpu::x64::cpu_isa_t isa>
     void callBrgemm(brgemmCtx& ctx, std::unique_ptr<dnnl::impl::cpu::x64::brgemm_kernel_t>& brgKernel,
                     const void* pin0, const void* pin1, void* pout, void* wsp) const;
-    size_t getBrgIdx(size_t mIdx, size_t kIdx, size_t nIdx) const;
+    size_t getBrgIdx(size_t kIdx, size_t nIdx) const;
     template <dnnl::impl::cpu::x64::cpu_isa_t isa>
     void emit_brgemm_kernel_call(const dnnl::impl::cpu::x64::brgemm_kernel_t *brg_kernel, int bs,
                                  Xbyak::Reg64 addr_A, Xbyak::Reg64 addr_B,

@@ -51,6 +51,8 @@ void InsertTailLoop::tail_transformations(LoweredExprIR& linear_ir,
             if (memory_access->get_count() != 1) {
                 memory_access->set_count(tail_size);
             }
+        } else if (const auto brgemm = std::dynamic_pointer_cast<ngraph::snippets::op::Brgemm>(op)) {
+                brgemm->set_count(tail_size);
         }
     }
 }

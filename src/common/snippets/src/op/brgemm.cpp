@@ -14,7 +14,7 @@ namespace snippets {
 namespace op {
 
 Brgemm::Brgemm(const Output<Node>& A, const Output<Node>& B, const size_t offset_a, const size_t offset_b, const size_t offset_c)
-    : MatMul(), m_offset_a(offset_a), m_offset_b(offset_b), m_offset_c(offset_c) {
+    : MatMul(), m_offset_a(offset_a), m_offset_b(offset_b), m_offset_c(offset_c), m_count(1) {
     set_arguments({A, B});
     set_output_size(1);
     constructor_validate_and_infer_types();
