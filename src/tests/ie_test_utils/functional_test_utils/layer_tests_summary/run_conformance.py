@@ -175,7 +175,7 @@ class Conformance:
 
         final_report_name = f'report_{self._type.lower()}'
         # API Conformance contains both report type
-        merge_xml([parallel_report_dir], report_dir, final_report_name, self._type)
+        merge_xml([parallel_report_dir], report_dir, final_report_name, self._type, True)
         if self._type == constants.API_CONFORMANCE:
             final_op_report_name = f'report_{constants.OP_CONFORMANCE.lower()}'
             merge_xml([parallel_report_dir], report_dir, final_op_report_name, constants.OP_CONFORMANCE.lower())
