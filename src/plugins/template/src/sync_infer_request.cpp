@@ -212,6 +212,7 @@ void ov::template_plugin::InferRequest::start_pipeline() {
 }
 // ! [infer_request:start_pipeline]
 
+// ! [infer_request:wait_pipeline]
 void ov::template_plugin::InferRequest::wait_pipeline() {
     OV_ITT_SCOPED_TASK(itt::domains::TemplatePlugin, m_profiling_task[WaitPipeline])
     auto start = Time::now();
@@ -219,6 +220,7 @@ void ov::template_plugin::InferRequest::wait_pipeline() {
     // NOTE: not used in current implementation since `startPipeline` executes pipiline synchronously
     m_durations[WaitPipeline] = Time::now() - start;
 }
+// ! [infer_request:wait_pipeline]
 
 // ! [infer_request:infer_postprocess]
 void ov::template_plugin::InferRequest::infer_postprocess() {

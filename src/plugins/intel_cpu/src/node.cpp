@@ -550,12 +550,6 @@ std::vector<memory::format_tag> Node::getAvailableFormatsForDims(const Shape &di
     return {memory::format_tag::any};
 }
 
-void Node::execute(dnnl::stream strm) {
-    if (prim) {
-        prim.execute(strm, primArgs);
-    }
-}
-
 void Node::updateShapes() {
     IE_ASSERT(isDynamicNode()) << "Node::updateShapes() is called to a static shape node of type: " << getTypeStr() << " with name: " << getName();
     if (needShapeInfer()) {
@@ -575,13 +569,6 @@ void Node::updateDynamicParams() {
             DEBUG_LOG(" prepareParams() on #", getExecIndex(), " ", getTypeStr(), " ", algToString(getAlgorithm()),
                       " ", getName(), " ", getOriginalLayers());
             prepareParams();
-#ifdef CPU_DEBUG_CAPS
-            if (prim) {
-                auto pd_c = prim.get_primitive_desc();
-                auto* pd = reinterpret_cast<const dnnl_primitive_desc*>(pd_c);
-                DEBUG_LOG("verbose##", getName(), "##", pd->info(), "\n");
-            }
-#endif
         }
     }
 }
