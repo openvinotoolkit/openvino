@@ -28,7 +28,7 @@ typedef std::tuple<ov::element::Type,                   // Network Precision
 class BackwardCompatibility : public testing::WithParamInterface<exportImportNetworkParams>,
                               virtual public LayerTestsUtils::LayerTestsCommon {
 public:
-    static std::string GetTestCaseName(testing::TestParamInfo<exportImportNetworkParams> obj) {
+    static std::string get_test_case_name(testing::TestParamInfo<exportImportNetworkParams> obj) {
         ov::element::Type input_prc;
         std::string target_device;
         std::map<std::string, std::string> conf_export;
@@ -67,7 +67,7 @@ public:
         }
 
         const auto compiled_network = executableNetwork;
-        auto model = TestDataHelpers::GetDataPath() + "/gna/" + m_export_model_name;
+        auto model = TestDataHelpers::get_data_path() + "/gna/" + m_export_model_name;
 
         const auto imported_network = core->ImportNetwork(model, targetDevice, configuration);
 
@@ -215,7 +215,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_OldVersion,
                                             ::testing::ValuesIn(export_models_legacy),
                                             ::testing::ValuesIn(export_configs_legacy),
                                             ::testing::ValuesIn(import_configs_legacy)),
-                         BackwardCompatibilityLegacy::GetTestCaseName);
+                         BackwardCompatibilityLegacy::get_test_case_name);
 
 INSTANTIATE_TEST_SUITE_P(smoke_OldVersion,
                          BackwardCompatibility,
@@ -224,4 +224,4 @@ INSTANTIATE_TEST_SUITE_P(smoke_OldVersion,
                                             ::testing::ValuesIn(export_models),
                                             ::testing::ValuesIn(export_configs),
                                             ::testing::ValuesIn(import_configs)),
-                         BackwardCompatibility::GetTestCaseName);
+                         BackwardCompatibility::get_test_case_name);

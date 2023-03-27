@@ -5,15 +5,15 @@
 #pragma once
 #include <string>
 
-std::string GetModelRepo();
+std::string get_model_repo();
 
 namespace TestDataHelpers {
 
-const char* GetModelPathNonFatal() noexcept;
+const char* get_model_path_non_fatal() noexcept;
 
-std::string GetDataPath();
+std::string get_data_path();
 
-inline const char* GetModelPathNonFatalDefault() noexcept {
+inline const char* get_model_path_non_fatal_default() noexcept {
     if (const auto env_var = std::getenv("MODELS_PATH")) {
         return env_var;
     }
@@ -25,7 +25,7 @@ inline const char* GetModelPathNonFatalDefault() noexcept {
 #endif
 };
 
-inline std::string GetDataPathDefault() {
+inline std::string get_data_path_default() {
     if (const auto env_var = std::getenv("DATA_PATH")) {
         return env_var;
     }

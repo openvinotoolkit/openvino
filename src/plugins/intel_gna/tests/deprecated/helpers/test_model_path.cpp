@@ -39,7 +39,7 @@ static std::string getDirname(std::string filePath) {
 #endif
 
 static std::string get_models_path() {
-    const char* models_path = TestDataHelpers::GetModelPathNonFatal();
+    const char* models_path = TestDataHelpers::get_model_path_non_fatal();
 
     if (nullptr == models_path) {
         ::testing::AssertionFailure() << "MODELS_PATH not defined";
@@ -57,7 +57,7 @@ static bool exist(const std::string& name) {
 }
 
 static std::vector<std::string> getModelsDirs() {
-    auto repo_list = GetModelRepo();
+    auto repo_list = get_model_repo();
     int last_delimiter = 0;
     std::vector<std::string> folders;
     for(;;) {
