@@ -75,7 +75,6 @@ std::vector<std::string> disabledTestPatterns() {
         R"(.*Auto_Behavior.*InferRequestIOBBlobTest.*canProcessDeallocatedOutputBlobAfterGetAndSetBlob.*)",
         R"(.*(Auto|Multi).*Behavior.*CorrectConfigAPITests.*CanSetExclusiveAsyncRequests.*)",
         R"(.*(Auto|Multi).*Behavior.*IncorrectConfigTests.*CanNotLoadNetworkWithIncorrectConfig.*)",
-        R"(.*(Auto|Multi).*Behavior.*OVCompiledModelPropertiesIncorrectTests.*CanNotCompileModelWithIncorrectProperties.*)",
         R"(.*OVExecutableNetworkBaseTest.*(CanGetInputsInfoAndCheck|CanSetConfigToExecNet).*)",
         R"(.*Behavior.*CorrectConfigCheck.*(canSetConfigAndCheckGetConfig|canSetConfigTwiceAndCheckGetConfig).*CPU_BIND_THREAD=YES.*)",
         // Issue: 72021 Unreasonable abs_threshold for comparing bf16 results
@@ -89,11 +88,14 @@ std::vector<std::string> disabledTestPatterns() {
         R"(.*(Auto|Multi).*Behavior.*ExecutableNetworkBaseTest.*CanCreateTwoExeNetworksAndCheckFunction.*)",
         R"(.*(Auto|Multi).*Behavior.*ExecutableNetworkBaseTest.*(CheckExecGraphInfoBeforeExecution|CheckExecGraphInfoAfterExecution).*)",
         R"(.*(Auto|Multi).*Behavior.*ExecutableNetworkBaseTest.*CheckExecGraphInfoSerialization.*)",
-        R"(.*(Auto|Multi).*Behavior.*ExecutableNetworkBaseTest.*canLoadCorrectNetworkToGetExecutableAndCheckConfig.*)",
         R"(.*Behavior.*ExecutableNetworkBaseTest.*canExport.*)",
         R"(.*Behavior.*ExecutableNetworkBaseTest.*canSetConfigToExecNetWithIncorrectConfig.*)",
         R"(.*Hetero.*Behavior.*ExecutableNetworkBaseTest.*ExecGraphInfo.*)",
         R"(.*Hetero.*Behavior.*ExecutableNetworkBaseTest.*CanCreateTwoExeNetworksAndCheckFunction.*)",
+        R"(.*Hetero.*Behavior.*ExecutableNetworkBaseTest.*canLoadCorrectNetworkToGetMetricAndCheckConfig.*)",
+        // AutoExcutableNetwork does not support GetConfig
+        R"(.*(Auto|Multi).*Behavior.*ExecutableNetworkBaseTest.*canLoadCorrectNetworkToGetExecutableAndCheckConfig.*)",
+        // AutoExcutableNetwork GetMetric does not support key ov::num_streams
         R"(.*smoke_CPU.*OVClassLoadNetworkAndCheckSecondaryProperties.*LoadNetworkAndCheckSecondaryPropertiesTest.*)",
 
         // CPU does not support dynamic rank
@@ -107,9 +109,6 @@ std::vector<std::string> disabledTestPatterns() {
         R"(.*smoke_Hetero_BehaviorTests.*DynamicInputToDynamicOutput.*)",
         R"(.*smoke_Auto_BehaviorTests.*DynamicOutputToDynamicInput.*)",
         R"(.*smoke_Auto_BehaviorTests.*DynamicInputToDynamicOutput.*)",
-
-        //MULTI's performance hint is always tput
-        R"(.*smoke_MULTI_DoNotReturnDefaultHintTest.*OVClassLoadNetWorkDoNotReturnDefaultHintTest.*LoadNetworkDoNotReturnDefaultHintTest.*)",
 
         // Issue 67214
         R"(smoke_PrePostProcess.*resize_and_convert_layout_i8.*)",

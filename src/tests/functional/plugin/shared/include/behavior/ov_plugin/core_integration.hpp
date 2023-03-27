@@ -1347,7 +1347,7 @@ TEST_P(OVClassLoadNetWorkDoNotReturnDefaultHintTest, LoadNetworkDoNotReturnDefau
     if (target_device.find("AUTO") != std::string::npos) {
         ASSERT_NE(value, ov::hint::PerformanceMode::LATENCY);
     } else {
-        ASSERT_NE(value, ov::hint::PerformanceMode::THROUGHPUT);
+        ASSERT_EQ(value, ov::hint::PerformanceMode::THROUGHPUT);
     }
 }
 
