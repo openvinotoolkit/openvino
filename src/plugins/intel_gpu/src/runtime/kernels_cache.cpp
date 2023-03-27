@@ -341,17 +341,14 @@ kernel::ptr kernels_cache::get_kernel_from_cached_kernels(std::string id) const 
 }
 
 std::vector<kernel::ptr> kernels_cache::get_kernels(kernel_impl_params params) const {
-    if (_pending_compilation)
-        throw std::runtime_error("Kernel cache is not compiled, call build_all() first!");
+    OPENVINO_ASSERT((_pending_compilation == false), "Kernel cache is not compiled, call build_all() first!");
 
-    auto res = _kernels.find(params);
-    if (_kernels.end() == res) {
-        std::string issued_id;
-        if (params.desc) {
-            issued_id = params.desc->id;
-        }
-        throw std::runtime_error("Kernel for {" + issued_id + "} is not found in the kernel cache!");
+    std::string current_node_id;
+    if (params.desc) {
+        current_node_id = params.desc->id;
     }
+    auto res = _kernels.find(params);
+    OPENVINO_ASSERT(_kernels.end() != res, "Kernel for {" + current_node_id + "} is not found in the kernel cache!");
 
     std::vector<kernel::ptr> kernels;
     kernels.reserve(res->second.size());
@@ -473,6 +470,8 @@ std::string kernels_cache::get_cached_kernel_id(kernel::ptr kernel) const {
     const auto& entry_point = ocl_kernel->get_handle().getInfo<CL_KERNEL_FUNCTION_NAME>();
     auto program = ocl_kernel->get_handle().getInfo<CL_KERNEL_PROGRAM>();
     cl::vector<unsigned char> program_binaries = getProgramBinaries(program);
+
+    std::lock_guard<std::mutex> lock(_mutex);
     auto iter = _cached_binaries.find(program_binaries);
     OPENVINO_ASSERT(iter != _cached_binaries.end(), "[GPU] Not found cached kernel binaries");
 

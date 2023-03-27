@@ -97,12 +97,12 @@ struct generic_layer : public primitive_base<generic_layer> {
 
             auto& gws       = clKernel->params.workGroups.global;
             auto& gws_rhs   = clKernel_rhs->params.workGroups.global;
-            if (!is_equal(gws, gws_rhs))
+            if (gws != gws_rhs)
                 return false;
 
             auto& lws       = clKernel->params.workGroups.local;
             auto& lws_rhs   = clKernel_rhs->params.workGroups.local;
-            if (!is_equal(lws, lws_rhs))
+            if (lws != lws_rhs)
                 return false;
 
             auto& arguments     = clKernel->params.arguments;
