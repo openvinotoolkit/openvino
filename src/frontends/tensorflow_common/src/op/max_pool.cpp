@@ -8,7 +8,7 @@
 
 using namespace std;
 using namespace ov;
-using namespace ov::frontend::tensorflow::detail;
+using namespace ov::frontend::tensorflow;
 
 namespace ov {
 namespace frontend {

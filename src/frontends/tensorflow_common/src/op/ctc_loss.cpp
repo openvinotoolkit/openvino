@@ -9,7 +9,7 @@ using namespace std;
 using namespace ov;
 using namespace opset8;
 using namespace ov::frontend;
-using namespace frontend::tensorflow::detail;
+using namespace frontend::tensorflow;
 
 namespace ov {
 namespace frontend {

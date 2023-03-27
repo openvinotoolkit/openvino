@@ -9,7 +9,6 @@
 #include "openvino/pass/pattern/op/label.hpp"
 #include "openvino/util/common_util.hpp"
 #include "openvino/util/log.hpp"
-#include "openvino_conversions.hpp"
 #include "utils.hpp"
 
 using namespace std;
