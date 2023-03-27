@@ -375,9 +375,10 @@ void GNAPlugin::InitGNADevice() {
         gnadevice = std::make_shared<GNADeviceHelper>(config.target,
                                                       gnaFlags->performance_counting,
                                                       !config.embedded_export_path.empty());
-        size_t page_size_bytes = 4096;
-        size_t mem_alignment = gnadevice->getMemAlignment();
-        gnamem = std::make_shared<gna_memory_device>(memory::GNAAllocator(gnadevice), mem_alignment, page_size_bytes);
+
+        gnamem = std::make_shared<gna_memory_device>(memory::GNAAllocator(gnadevice),
+                                                     gnadevice->getMemAlignment(),
+                                                     limitations::kMemoryPageSize);
     }
     graphCompiler.setGNAMemoryPtr(gnamem);
 }
