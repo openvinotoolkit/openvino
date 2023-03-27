@@ -49,15 +49,15 @@ struct Config {
     size_t rtCacheCapacity = 5000ul;
     InferenceEngine::IStreamsExecutor::Config streamExecutorConfig;
     InferenceEngine::PerfHintsConfig  perfHintsConfig;
+    bool useHyperThreading = true;
+    bool changedHyperThreading = false;
 #if defined(OPENVINO_ARCH_X86) || defined(OPENVINO_ARCH_X86_64)
     LPTransformsMode lpTransformsMode = LPTransformsMode::On;
     bool enforceBF16 = true;
-    bool manualEnforceBF16 = false;
 #else
     // Currently INT8 mode is not optimized on ARM / RISCV or other non-x86 platforms, fallback to FP32 mode.
     LPTransformsMode lpTransformsMode = LPTransformsMode::Off;
     bool enforceBF16 = false;
-    bool manualEnforceBF16 = false;
 #endif
 
     DenormalsOptMode denormalsOptMode = DenormalsOptMode::DO_Keep;

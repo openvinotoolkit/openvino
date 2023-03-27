@@ -48,6 +48,10 @@ INSTANTIATE_TEST_SUITE_P(
         smoke_OVClassGetMetricTest, OVClassGetMetricTest_FULL_DEVICE_NAME,
         ::testing::Values("CPU", "MULTI", "HETERO", "AUTO"));
 
+INSTANTIATE_TEST_SUITE_P(smoke_OVClassSetConfigTest,
+                         OVClassSetUseHyperThreadingHintConfigTest,
+                         ::testing::Values("CPU"));
+
 INSTANTIATE_TEST_SUITE_P(
         smoke_OVClassGetMetricTest, OVClassGetMetricTest_OPTIMIZATION_CAPABILITIES,
         ::testing::Values("CPU"));
@@ -252,6 +256,10 @@ TEST(OVClassBasicTest, smoke_SetConfigAffinity) {
     }
 #else
     auto defaultBindThreadParameter = ov::Affinity::CORE;
+    auto coreTypes = InferenceEngine::getAvailableCoresTypes();
+    if (coreTypes.size() > 1) {
+        defaultBindThreadParameter = ov::Affinity::HYBRID_AWARE;
+    }
 #endif
     OV_ASSERT_NO_THROW(value = ie.get_property("CPU", ov::affinity));
     ASSERT_EQ(defaultBindThreadParameter, value);

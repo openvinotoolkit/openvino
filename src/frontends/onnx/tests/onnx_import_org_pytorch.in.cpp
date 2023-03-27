@@ -34,23 +34,23 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_adaptive_avg_pooling2d_nchw) {
                                                             "onnx/org.pytorch/adaptive_avg_pooling2d_nchw.onnx"));
 
     auto test_case = test::TestCase(function, s_device);
-    test_case.add_input<float>({0.9945,
-                                0.3466,
-                                0.2894,
-                                0.9318,
-                                0.0115,
-                                0.4867,
-                                0.7608,
-                                0.1550,
-                                0.8485,
-                                0.4971,
-                                0.8833,
-                                0.4579,
-                                0.3673,
-                                0.5410,
-                                0.2004,
-                                0.1519});
-    test_case.add_expected_output<float>(Shape{1, 1, 2, 2}, {0.4598249, 0.5342500, 0.5634750, 0.4233750});
+    test_case.add_input<float>({0.9945f,
+                                0.3466f,
+                                0.2894f,
+                                0.9318f,
+                                0.0115f,
+                                0.4867f,
+                                0.7608f,
+                                0.1550f,
+                                0.8485f,
+                                0.4971f,
+                                0.8833f,
+                                0.4579f,
+                                0.3673f,
+                                0.5410f,
+                                0.2004f,
+                                0.1519f});
+    test_case.add_expected_output<float>(Shape{1, 1, 2, 2}, {0.4598249f, 0.5342500f, 0.5634750f, 0.4233750f});
     test_case.run();
 }
 
@@ -61,8 +61,8 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_adaptive_avg_pooling2d_chw) {
                                                             "onnx/org.pytorch/adaptive_avg_pooling2d_chw.onnx"));
 
     auto test_case = test::TestCase(function, s_device);
-    test_case.add_input<float>({12.0, -1.0, -56.0, 20.0, 1.0, -8.0, 7.0, 9.0});
+    test_case.add_input<float>({12.0f, -1.0f, -56.0f, 20.0f, 1.0f, -8.0f, 7.0f, 9.0f});
 
-    test_case.add_expected_output<float>(Shape{1, 2, 2}, {5.5, -18.0, -3.5, 8.0});
+    test_case.add_expected_output<float>(Shape{1, 2, 2}, {5.5f, -18.0f, -3.5f, 8.0f});
     test_case.run();
 }

@@ -55,6 +55,8 @@ if [ -f /etc/lsb-release ] || [ -f /etc/debian_version ] ; then
         opencl-headers \
         `# GPU plugin extensions` \
         libva-dev \
+        `# For TF FE saved models` \
+        libsnappy-dev \
         `# python API` \
         python3-pip \
         python3-venv \
@@ -116,6 +118,8 @@ elif [ -f /etc/redhat-release ] || grep -q "rhel" /etc/os-release ; then
         pugixml-devel \
         `# GPU plugin dependency` \
         libva-devel \
+        `# For TF FE saved models` \
+        snappy-devel \
         `# OpenCL for GPU` \
         ocl-icd-devel \
         opencl-headers \
@@ -148,11 +152,13 @@ elif [ -f /etc/os-release ] && grep -q "SUSE" /etc/os-release ; then
         rpmlint \
         `# check bash scripts for correctness` \
         ShellCheck \
-          `# main openvino dependencies` \
+        `# main openvino dependencies` \
         tbb-devel \
         pugixml-devel \
         `# GPU plugin dependency` \
-         libva-devel \
+        libva-devel \
+        `# For TF FE saved models` \
+        snappy-devel \
         `# OpenCL for GPU` \
         ocl-icd-devel \
         opencl-cpp-headers \

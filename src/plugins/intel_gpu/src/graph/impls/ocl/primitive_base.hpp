@@ -89,7 +89,7 @@ struct typed_primitive_impl_ocl : public typed_primitive_impl<PType> {
         if (arg.can_be_optimized()) {
             return make_unique<ImplType>(kernel_selector::kernel_data{});
         }
-        auto kernel_params = ImplType::get_kernel_params(impl_param);
+        auto kernel_params = ImplType::get_kernel_params(ImplType::static_canonicalize_shapes(impl_param));
         kernel_params.first.is_shape_agnostic = impl_param.is_dynamic();
         auto& kernel_selector = ImplType::kernel_selector_t::Instance();
         auto best_kernel = kernel_selector.get_best_kernel(kernel_params.first, kernel_params.second);
@@ -279,7 +279,7 @@ protected:
     void update_kernels_list_to_skip() {
         for (size_t i = 0; i < _kernel_data.kernels.size(); ++i) {
             auto gws = _kernel_data.kernels[i].params.workGroups.global;
-            _kernel_data.kernels[i].skip_execution = (std::accumulate(gws.begin(), gws.end(), 1, std::multiplies<size_t>()) == 0);
+            _kernel_data.kernels[i].skip_execution = (std::accumulate(gws.begin(), gws.end(), static_cast<size_t>(1), std::multiplies<size_t>()) == 0);
         }
     }
 

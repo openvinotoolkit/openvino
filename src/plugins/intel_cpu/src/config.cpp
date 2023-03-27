@@ -78,6 +78,17 @@ void Config::readProperties(const std::map<std::string, std::string> &prop) {
             streamExecutorConfig.SetConfig(key, val);
         } else if (hintsConfigKeys.end() != std::find(hintsConfigKeys.begin(), hintsConfigKeys.end(), key)) {
             perfHintsConfig.SetConfig(key, val);
+        } else if (key == ov::hint::use_hyper_threading.name()) {
+            if (val == PluginConfigParams::YES) {
+                useHyperThreading = true;
+                changedHyperThreading = true;
+            } else if (val == PluginConfigParams::NO) {
+                useHyperThreading = false;
+                changedHyperThreading = true;
+            } else {
+                IE_THROW() << "Wrong value " << val << "for property key " << ov::hint::use_hyper_threading.name()
+                           << ". Expected only true/false." << std::endl;
+            }
         } else if (key == PluginConfigParams::KEY_DYN_BATCH_LIMIT) {
             int val_i = -1;
             try {
@@ -139,13 +150,11 @@ void Config::readProperties(const std::map<std::string, std::string> &prop) {
             if (val == PluginConfigParams::YES) {
                 if (dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core)) {
                     enforceBF16 = true;
-                    manualEnforceBF16 = true;
                 } else {
                     IE_THROW() << "Platform doesn't support BF16 format";
                 }
             } else if (val == PluginConfigParams::NO) {
                 enforceBF16 = false;
-                manualEnforceBF16 = false;
             } else {
                 IE_THROW() << "Wrong value for property key " << PluginConfigParams::KEY_ENFORCE_BF16
                     << ". Expected only YES/NO";
@@ -159,13 +168,11 @@ void Config::readProperties(const std::map<std::string, std::string> &prop) {
             if (val == "bf16") {
                 if (dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core)) {
                     enforceBF16 = true;
-                    manualEnforceBF16 = true;
                 } else {
                     IE_THROW() << "Platform doesn't support BF16 format";
                 }
             } else if (val == "f32") {
                 enforceBF16 = false;
-                manualEnforceBF16 = false;
             } else {
                 IE_THROW() << "Wrong value for property key " << ov::inference_precision.name()
                     << ". Supported values: bf16, f32";
