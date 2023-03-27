@@ -47,7 +47,6 @@ public:
                                                           const layout& out_layout);
 
     std::pair<std::shared_ptr<primitive>, bool> get_weights_reorder(primitive_id input_id,
-                                                                    const layout& old_layout,
                                                                     std::shared_ptr<WeightsReorderParams> reorder_params);
 
 private:
@@ -73,7 +72,7 @@ private:
     };
 
     std::map<cache_key, std::shared_ptr<reorder>> _cached_reorders;
-    LruCache<size_t, std::shared_ptr<generic_layer>> _cached_weights_reorders{0};
+    std::map<cache_key, std::shared_ptr<generic_layer>> _cached_generic_reorders;
 };
 
 class layout_optimizer {

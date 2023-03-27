@@ -29,16 +29,19 @@ struct generic_layer_impl : typed_primitive_impl<generic_layer> {
     : _cl_kernel_data(other._cl_kernel_data)
     , _kernel(nullptr)
     , _cached_kernel_id(other._cached_kernel_id) {
-        if (other._kernel == nullptr) {
-            throw std::runtime_error("Can't copy generic_layer_impl node: kernel is nullptr");
-        }
+        OPENVINO_ASSERT(other._kernel, "[GPU] Can't copy generic_layer_impl node: kernel is nullptr");
         _kernel = other._kernel->clone();
     }
 
-    generic_layer_impl(const generic_layer_node& arg)
-        : _cl_kernel_data(*arg.get_primitive()->generic_params.clKernel.get())
+    generic_layer_impl(const kernel_impl_params& params)
+        : _cl_kernel_data()
         , _kernel(nullptr)
-        , _cached_kernel_id() { }
+        , _cached_kernel_id() {
+        auto reorder_params = params.typed_desc<generic_layer>()->params;
+        auto casted_params = std::dynamic_pointer_cast<WeightsReorderParamsOCL>(reorder_params);
+        OPENVINO_ASSERT(casted_params, "[GPU] Invalid weights reorder parameters type for ", params.desc->id, " node");
+        _cl_kernel_data = *casted_params->get_cl_kernel();
+    }
 
     std::vector<std::shared_ptr<cldnn::kernel_string>> get_kernels_source() override {
         std::vector<std::shared_ptr<cldnn::kernel_string>> kernel_strings;
@@ -50,18 +53,8 @@ struct generic_layer_impl : typed_primitive_impl<generic_layer> {
         return {_kernel};
     }
 
-    generic_layer_impl(kernels_cache& cache, const kernel_impl_params& params)
-        : _cl_kernel_data()
-        , _kernel(nullptr) {
-        auto reorder_params = params.typed_desc<generic_layer>()->params;
-        auto casted_params = std::dynamic_pointer_cast<WeightsReorderParamsOCL>(reorder_params);
-        OPENVINO_ASSERT(casted_params, "[GPU] Invalid weights reorder parameters type for ", params.desc->id, " node");
-        _cl_kernel_data = *casted_params->cl_kernel;
-        _cached_kernel_id = cache.set_kernel_source(_cl_kernel_data.code.kernelString, false);
-    }
-
     void save(BinaryOutputBuffer& ob) const override {
-        ob <<_cl_kernel_data;
+        ob << _cl_kernel_data;
         ob << _cached_kernel_id;
     }
 
@@ -73,7 +66,7 @@ struct generic_layer_impl : typed_primitive_impl<generic_layer> {
     void init_kernels(const kernels_cache& kernels_cache, const kernel_impl_params& params) override {
         _kernel = nullptr;
         auto compiled_kernels = kernels_cache.get_kernels(params);
-        OPENVINO_ASSERT(compiled_kernels.size() == 1, "[GPU] Unexpected number of kernels for generic layer");
+        OPENVINO_ASSERT(compiled_kernels.size() == 1, "[GPU] Unexpected number of kernels for generic_layer during init_kernels() call");
         _kernel = compiled_kernels.front();
     }
 
@@ -85,10 +78,10 @@ struct generic_layer_impl : typed_primitive_impl<generic_layer> {
         _cached_kernel_id = kernels_cache.get_cached_kernel_id(_kernel);
     }
 
-    void set_kernels(std::map<const std::string, kernel::ptr>& kernels) override {
-        OPENVINO_ASSERT(kernels.size() == 1, "[GPU] Unexpected kernels number for generic_layer");
-        _cached_kernel_id = kernels.begin()->first;
-        _kernel = kernels.begin()->second;
+    void set_kernels(cldnn::kernels_cache::compiled_kernels kernels) override {
+        OPENVINO_ASSERT(kernels.size() == 1 &&
+                        kernels.begin()->second.size() == 1, "[GPU] Unexpected number of kernels for generic_layer");
+        _kernel = kernels.begin()->second[0].first;
     }
 
     void set_arguments_impl(generic_layer_inst& instance) override {
@@ -120,42 +113,14 @@ struct generic_layer_impl : typed_primitive_impl<generic_layer> {
         return stream.enqueue_kernel(*_kernel, _cl_kernel_data.params, args, events, true);
     }
 
-    static std::unique_ptr<primitive_impl> create(kernels_cache& cache, const kernel_impl_params& params) {
-        return make_unique<generic_layer_impl>(cache, params);
+    static std::unique_ptr<primitive_impl> create(const kernel_impl_params& params) {
+        return make_unique<generic_layer_impl>(params);
     }
-
-    explicit generic_layer_cpu(const generic_layer_node& arg) : outer(arg) {}
-
-    event::ptr execute_impl(const std::vector<event::ptr>& events, generic_layer_inst& instance) override {
-        stream& stream = instance.get_network().get_stream();
-        auto input_mem = instance.input_memory_ptr();
-        auto output_mem = instance.output_memory_ptr();
-
-        auto ev = stream.create_user_event(false);
-        std::vector<event::ptr> tmp_events(events);
-
-        for (auto& a : events) {
-            a->wait();
-        }
-
-        mem_lock<uint8_t, mem_lock_type::read> old_pointer(input_mem, stream);
-        mem_lock<uint8_t, mem_lock_type::write> new_pointer(output_mem, stream);
-
-        const auto& cpu_kernel = *outer.get_primitive()->generic_params.cpuKernel.get();
-
-        cpu_kernel.Execute(old_pointer.data(), old_pointer.size(), new_pointer.data(), new_pointer.size());
-
-        ev->set();
-        return ev;
-    }
-
-    void init_kernels(const kernels_cache&, const kernel_impl_params&) override {}
 };
 
 static std::unique_ptr<primitive_impl> create(const generic_layer_node& arg, const kernel_impl_params& params) {
-    return make_unique<generic_layer_impl>(arg.get_program().get_kernels_cache(), params);
+    return make_unique<generic_layer_impl>(params);
 }
-
 
 namespace detail {
 attach_generic_layer_impl::attach_generic_layer_impl() {

@@ -369,7 +369,7 @@ bool primitive_inst::update_impl() {
         auto& cache = get_network().get_program()->get_implementations_cache();
         std::shared_ptr<primitive_impl> cached_impl = nullptr;
         {
-            // cached_impl = cache.get(updated_params);
+            cached_impl = cache.get(updated_params);
             if (cached_impl) {
                 _impl = cached_impl->clone();
                 GPU_DEBUG_PROFILED_STAGE_CACHE_HIT(true);
@@ -743,7 +743,7 @@ event::ptr primitive_inst::update_weights() {
     auto original_weights_memory = dep_memory_ptr(weights_idx);
     auto original_layout = original_weights_memory->get_layout();
 
-    if (!_impl->need_weights_reorder()) {
+    if (!reorder_kernel_params) {
         // If kernel doesn't says that it doesn't require weights reorder, but weights were reordered previously, then
         // incorrect memory buffer may be assigned, so reset cached weights for such case
         _reordered_weights_cache.add(original_layout, original_weights_memory);
@@ -767,33 +767,26 @@ event::ptr primitive_inst::update_weights() {
         } else {
             GPU_DEBUG_PROFILED_STAGE_CACHE_HIT(false);
             auto& cache = get_network().get_program()->get_implementations_cache();
-            generic_layer_inst inst(get_network());
-            auto prim = std::make_shared<generic_layer>("weights_reorder", "", weights_params);
+            auto reorder_inst = std::make_shared<generic_layer_inst>(get_network());
 
-            kernel_impl_params reorder_impl_params;
-            reorder_impl_params.desc = prim;
-            reorder_impl_params.unique_id = weights_params->hash();
-            reorder_impl_params.input_layouts.push_back(original_layout);
-            reorder_impl_params.output_layouts.push_back(expected_layout);
-
-            if (cache.has(reorder_impl_params)) {
+            if (auto cached_impl = cache.get(*reorder_kernel_params)) {
                 GPU_DEBUG_TRACE_DETAIL << id() << ": reorder weights (cached) from " << original_layout.to_short_string()
                                        << " to " << expected_layout.to_short_string() << std::endl;
-                inst.set_impl(cache.get(reorder_impl_params)->clone());
+                reorder_inst->set_impl(cached_impl->clone());
             } else {
                 GPU_DEBUG_TRACE_DETAIL << id() << ": reorder weights from " << original_layout.to_short_string()
                                        << " to " << expected_layout.to_short_string() << std::endl;
 
                 auto factory = WeightsReordersFactory::get(impl_types::ocl, shape_types::static_shape);
+                auto reorder_impl = factory(*reorder_kernel_params);
                 auto& kernels_cache = get_network().get_program()->get_kernels_cache();
-                auto reorder_impl = factory(kernels_cache, reorder_impl_params);
                 auto kernels = kernels_cache.compile(*_impl_params, reorder_impl->get_kernels_source());
                 OPENVINO_ASSERT(kernels.size() == 1, "[GPU] Expected number of compiled kernels is 1, but got ", kernels.size());
                 reorder_impl->set_kernels(kernels);
 
-                inst.set_impl(reorder_impl->clone());
+                reorder_inst->set_impl(reorder_impl->clone());
 
-                cache.add(reorder_impl_params, reorder_impl->clone());
+                cache.add(*reorder_kernel_params, reorder_impl->clone());
             }
 
             auto& stream = get_network().get_stream();
@@ -822,10 +815,9 @@ event::ptr primitive_inst::update_weights() {
             args.inputs.push_back(original_weights_memory);
             args.outputs.push_back(weights_memory);
 
-            auto reorder_impl = inst.get_impl();
-
-            reorder_impl->set_arguments(inst, args);
-            auto ev = reorder_impl->execute({}, inst);
+            auto reorder_impl = reorder_inst->get_impl();
+            reorder_impl->set_arguments(*reorder_inst, args);
+            auto ev = reorder_impl->execute({}, *reorder_inst);
 
             GPU_DEBUG_GET_INSTANCE(debug_config);
             GPU_DEBUG_IF(!debug_config->dump_profiling_data.empty()) {

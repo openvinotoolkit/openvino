@@ -262,7 +262,10 @@ private:
     };
 
     void run(program& p) override;
-    void optimize_weights(program_node& node, program& p, size_t weights_idx);
+    template<typename T>
+    weights_bias_offset get_weights_bias_offset(const T& node);
+    template<typename T>
+    void optimize_weights(T& node, program& p);
     reorder_factory& _rf;
 };
 

@@ -55,14 +55,6 @@ struct typed_primitive_impl_ocl : public typed_primitive_impl<PType> {
         this->can_reuse_memory = _kernel_data.can_reuse_memory;
     }
 
-    static std::shared_ptr<WeightsReorderParams> create_weights_reorder_params(const kernel_selector::WeightsReorderParams& params) {
-        if (params.engine == kernel_selector::generic_kernel_params::Engine::NONE) {
-            return nullptr;
-        }
-
-        return std::make_shared<WeightsReorderParamsOCL>(params);
-    }
-
     typed_primitive_impl_ocl(const kernel_selector::kernel_data& kd)
         : typed_primitive_impl<PType>(create_weights_reorder_params(kd.weightsReorderParams), kd.kernelName),
           _kernel_data(kd) {

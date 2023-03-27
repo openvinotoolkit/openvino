@@ -157,18 +157,23 @@ std::pair<std::shared_ptr<reorder>, bool> reorder_factory::get_reorder(primitive
 }
 
 std::pair<std::shared_ptr<primitive>, bool> reorder_factory::get_weights_reorder(primitive_id input_id,
-                                                                                 const layout& old_layout,
                                                                                  std::shared_ptr<WeightsReorderParams> reorder_params) {
-    auto hash = reorder_params->hash();
-    if (_cached_weights_reorders.has(hash)) {
-        return std::make_pair(_cached_weights_reorders.get(hash), true);
+    if (reorder_params == nullptr)
+        return {};
+
+    layout expected_layout = reorder_params->get_output_layout();
+
+    cache_key ckey{ input_id, expected_layout, false };
+    auto itr = _cached_generic_reorders.find(ckey);
+    if (itr != _cached_generic_reorders.end()) {
+        return std::make_pair(itr->second, true);
     } else {
-        auto count = _cached_weights_reorders.size();
+        auto count = _cached_generic_reorders.size();
         std::stringstream ss;
         ss << input_id << "_generic_layer_" << count;
 
         auto reorder = std::make_shared<cldnn::generic_layer>(ss.str(), input_id, reorder_params);
-        _cached_weights_reorders.add(hash, reorder);
+        _cached_generic_reorders[ckey] = reorder;
         return std::make_pair(reorder, false);
     }
 }

@@ -132,7 +132,7 @@ public:
 };
 
 struct WeightsReordersFactory {
-    using factory_type = std::function<std::unique_ptr<primitive_impl>(kernels_cache&, const kernel_impl_params&)>;
+    using factory_type = std::function<std::unique_ptr<primitive_impl>(const kernel_impl_params&)>;
     using map_type = singleton_map<std::pair<impl_types, shape_types>, factory_type>;
     static void add(impl_types impl_type, shape_types shape_type, factory_type factory) {
         OPENVINO_ASSERT(impl_type != impl_types::any, "[GPU] Can't register WeightsReordersFactory with type any");
