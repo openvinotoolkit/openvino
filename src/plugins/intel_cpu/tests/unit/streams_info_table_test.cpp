@@ -4,6 +4,7 @@
 
 #include <gtest/gtest.h>
 #include <ie_system_conf.h>
+#include <cpu_map_scheduling.hpp>
 
 #include <common_test_utils/test_common.hpp>
 
@@ -28,7 +29,7 @@ public:
         const auto& test_data = std::get<0>(GetParam());
 
         std::vector<std::vector<int>> test_result_table =
-            ov::intel_cpu::apply_core_type(test_data.input_type, test_data.proc_type_table);
+            ov::apply_scheduling_core_type(test_data.input_type, test_data.proc_type_table);
 
         ASSERT_EQ(test_data.result_table, test_result_table);
     }

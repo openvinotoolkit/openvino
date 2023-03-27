@@ -17,38 +17,6 @@ using namespace InferenceEngine;
 namespace ov {
 namespace intel_cpu {
 
-std::vector<std::vector<int>> apply_core_type(const ov::hint::SchedulingCoreType input_type,
-                                              const std::vector<std::vector<int>> proc_type_table) {
-    std::vector<std::vector<int>> result_table = proc_type_table;
-
-    switch (input_type) {
-    case ov::hint::SchedulingCoreType::ANY_CORE:
-        break;
-    case ov::hint::SchedulingCoreType::PCORE_ONLY:
-        if (proc_type_table[0][EFFICIENT_CORE_PROC] > 0) {
-            for (auto& i : result_table) {
-                i[ALL_PROC] -= i[EFFICIENT_CORE_PROC];
-                i[EFFICIENT_CORE_PROC] = 0;
-            }
-        }
-        break;
-    case ov::hint::SchedulingCoreType::ECORE_ONLY:
-        if ((proc_type_table[0][EFFICIENT_CORE_PROC] > 0) &&
-            (proc_type_table[0][EFFICIENT_CORE_PROC] != proc_type_table[0][ALL_PROC])) {
-            for (auto& i : result_table) {
-                i[ALL_PROC] -= i[MAIN_CORE_PROC] + i[HYPER_THREADING_PROC];
-                i[MAIN_CORE_PROC] = 0;
-                i[HYPER_THREADING_PROC] = 0;
-            }
-        }
-        break;
-    default:
-        throw ov::Exception{"Unsupported core type!"};
-    }
-
-    return result_table;
-}
-
 std::vector<std::vector<int>> get_streams_info_table(const int input_streams,
                                                      const int input_threads,
                                                      const int input_infer_requests,

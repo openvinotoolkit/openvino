@@ -83,7 +83,7 @@ void Config::readProperties(const std::map<std::string, std::string> &prop) {
             if (core_type == ov::hint::SchedulingCoreType::ANY_CORE ||
                 core_type == ov::hint::SchedulingCoreType::PCORE_ONLY ||
                 core_type == ov::hint::SchedulingCoreType::ECORE_ONLY) {
-                core_type_cfg = core_type;
+                schedulingCoreType = core_type;
             } else {
                 IE_THROW() << "Wrong value " << val << "for property key " << ov::hint::scheduling_core_type.name()
                            << ". Expected only " << ov::hint::SchedulingCoreType::ANY_CORE << "/"

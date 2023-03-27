@@ -621,12 +621,14 @@ TEST_P(OVClassSetSchedulingCoreTypeHintConfigTest, SetConfigNoThrow) {
     ASSERT_NO_THROW(defaultMode = ie.get_property(target_device, ov::hint::scheduling_core_type));
     (void)defaultMode;
 
-    ie.set_property(target_device, ov::hint::scheduling_core_type(ov::hint::SchedulingCoreType::ANY_CORE));
     ASSERT_EQ(ov::hint::SchedulingCoreType::ANY_CORE, ie.get_property(target_device, ov::hint::scheduling_core_type));
+
     ie.set_property(target_device, ov::hint::scheduling_core_type(ov::hint::SchedulingCoreType::PCORE_ONLY));
     ASSERT_EQ(ov::hint::SchedulingCoreType::PCORE_ONLY, ie.get_property(target_device, ov::hint::scheduling_core_type));
     ie.set_property(target_device, ov::hint::scheduling_core_type(ov::hint::SchedulingCoreType::ECORE_ONLY));
     ASSERT_EQ(ov::hint::SchedulingCoreType::ECORE_ONLY, ie.get_property(target_device, ov::hint::scheduling_core_type));
+    ie.set_property(target_device, ov::hint::scheduling_core_type(ov::hint::SchedulingCoreType::ANY_CORE));
+    ASSERT_EQ(ov::hint::SchedulingCoreType::ANY_CORE, ie.get_property(target_device, ov::hint::scheduling_core_type));
 }
 
 TEST_P(OVClassSetDevicePriorityConfigTest, SetConfigAndCheckGetConfigNoThrow) {

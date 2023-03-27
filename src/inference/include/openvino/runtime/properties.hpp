@@ -398,7 +398,7 @@ inline std::istream& operator>>(std::istream& is, SchedulingCoreType& core_type)
  * Developer can use this property to select specific CPU cores for inference. Please refer SchedulingCoreType for
  * all definition of core type.
  *
- * The following code is example to only use efficient-cores for inference on hybrid CPU. If user sets this
+ * The following code is an example to only use efficient-cores for inference on hybrid CPU. If user sets this
  * configuration on a platform with only performance-cores, CPU inference will still run on the performance-cores.
  *
  * @code
