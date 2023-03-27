@@ -2,7 +2,8 @@
 
 @sphinxdirective
 
-This sample demonstrates how to do inference of image classification models using Asynchronous Inference Request API.  
+This sample demonstrates how to do inference of image classification models using Asynchronous Inference Request API. 
+ 
 Models with only one input and output are supported.
 
 In addition to regular images, the sample also supports single-channel ``ubyte`` images as an input for LeNet model.
