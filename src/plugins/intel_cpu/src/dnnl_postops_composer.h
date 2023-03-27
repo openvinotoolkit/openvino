@@ -29,8 +29,9 @@ public:
                         std::unordered_map<int, MemoryPtr>& args,
                         const VectorDims& outputDims,
                         int indexOfOutputChannelDim,
+                        bool isINT8,
                         const int weightScaleMaskPerChannel,
-                        bool isINT8);
+                        const std::vector<float>& ScalesBeforeBias);
 
     void appendBinary(const dnnl::algorithm alg, const std::vector<float>& data);
     void appendEltwise(const dnnl::algorithm alg, float alpha, float beta);
@@ -51,15 +52,19 @@ private:
     std::unordered_map<int, MemoryPtr>& args;
     const VectorDims outputDims;
     int idxOC;
+    const bool isINT8;  // only INT8 primitive support output scale
     const int weightScaleMaskPerChannel;
+    const bool weightScaleAvailable;
+
     VectorDims dimsPerTensor;
     VectorDims dimsPerOC;
     Dim OC;
-    const bool isINT8;  // only INT8 primitive support output scale
-    int oscale_mask;
-    std::vector<float> oscale_values;
+    int wei_scale_mask;
+    std::vector<float> wei_scale_values;
+    float dst_scale_val;
 
-    void updateOutputScales();
+    void updateWeiScales();
+    void updateDestScales();
 };
 
 }  // namespace intel_cpu
