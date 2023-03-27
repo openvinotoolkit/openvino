@@ -92,7 +92,7 @@ class OPENVINO_API Allocator {
         virtual bool is_equal(const Base& other) const = 0;
 
     protected:
-        ~Base() = default;
+        virtual ~Base() = default;
     };
 
     template <typename A>
