@@ -14,18 +14,19 @@ The following Python API is used in the application:
 | Asynchronous Infer | `openvino.runtime.AsyncInferQueue <https://docs.openvino.ai/2022.3/api/ie_python_api/_autosummary/openvino.runtime.AsyncInferQueue.html>`__ , `openvino.runtime.AsyncInferQueue.set_callback <https://docs.openvino.ai/2022.3/api/ie_python_api/_autosummary/openvino.runtime.AsyncInferQueue.html#openvino.runtime.AsyncInferQueue.set_callback>`__ , `openvino.runtime.AsyncInferQueue.start_async <https://docs.openvino.ai/2022.3/api/ie_python_api/_autosummary/openvino.runtime.AsyncInferQueue.html#openvino.runtime.AsyncInferQueue.start_async>`__ , `openvino.runtime.AsyncInferQueue.wait_all <https://docs.openvino.ai/2022.3/api/ie_python_api/_autosummary/openvino.runtime.AsyncInferQueue.html#openvino.runtime.AsyncInferQueue.wait_all>`__ , `openvino.runtime.InferRequest.results <https://docs.openvino.ai/2022.3/api/ie_python_api/_autosummary/openvino.runtime.InferRequest.html#openvino.runtime.InferRequest.results>`__ | Do asynchronous inference |
 +--------------------+----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+---------------------------+
 
-
 Basic OpenVINO™ Runtime API is covered by :doc:`Hello Classification Python* Sample <openvino_inference_engine_ie_bridges_python_sample_hello_classification_README>`.
 
 +----------------------------+-----------------------------------------------------------------------------------+
 | Options                    | Values                                                                            |
 +============================+===================================================================================+
 | Validated Models           | :doc:`alexnet <omz_models_model_alexnet>`                                         |
++----------------------------+-----------------------------------------------------------------------------------+
 | Model Format               | OpenVINO™ toolkit Intermediate Representation (.xml + .bin), ONNX (.onnx)         |
++----------------------------+-----------------------------------------------------------------------------------+
 | Supported devices          | :doc:`All <openvino_docs_OV_UG_supported_plugins_Supported_Devices>`              |
++----------------------------+-----------------------------------------------------------------------------------+
 | Other language realization | :doc:`C++ <openvino_inference_engine_samples_classification_sample_async_README>` |
 +----------------------------+-----------------------------------------------------------------------------------+
-
 
 How It Works
 ############
