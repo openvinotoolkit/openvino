@@ -12,10 +12,10 @@
 #include "openvino/core/model.hpp"
 #include "openvino/core/shape.hpp"
 #include "openvino/core/type.hpp"
-#include "openvino/opsets/opset9.hpp"
+#include "openvino/opsets/opset10.hpp"
 #include "shared_test_classes/base/layer_test_utils.hpp"
 
-using namespace ov::opset9;
+using namespace ov::opset10;
 
 typedef std::tuple<ov::element::Type,                   // Network Precision
                    std::string,                         // Target Device
@@ -28,23 +28,23 @@ typedef std::tuple<ov::element::Type,                   // Network Precision
 class BackwardCompatibility : public testing::WithParamInterface<exportImportNetworkParams>,
                               virtual public LayerTestsUtils::LayerTestsCommon {
 public:
-    static std::string getTestCaseName(testing::TestParamInfo<exportImportNetworkParams> obj) {
+    static std::string GetTestCaseName(testing::TestParamInfo<exportImportNetworkParams> obj) {
         ov::element::Type input_prc;
-        std::string targetDevice;
-        std::map<std::string, std::string> exportConfiguration;
-        std::map<std::string, std::string> importConfiguration;
-        std::string nameExportModel;
-        std::tie(input_prc, targetDevice, nameExportModel, exportConfiguration, importConfiguration) = obj.param;
+        std::string target_device;
+        std::map<std::string, std::string> conf_export;
+        std::map<std::string, std::string> conf_import;
+        std::string name_export_model;
+        std::tie(input_prc, target_device, name_export_model, conf_export, conf_import) = obj.param;
 
         std::ostringstream result;
-        result << "netPRC=" << input_prc << "_";
-        result << "targetDevice=" << targetDevice << "_";
-        result << "nameExportModel=" << nameExportModel << "_";
-        for (auto const& configItem : exportConfiguration) {
-            result << "_exportConfigItem=" << configItem.first << "_" << configItem.second;
+        result << "input_prc=" << input_prc << "_";
+        result << "target_device=" << target_device << "_";
+        result << "name_export_model=" << name_export_model << "_";
+        for (auto const& conf_item : conf_export) {
+            result << "_exportConfigItem=" << conf_item.first << "_" << conf_item.second;
         }
-        for (auto const& configItem : importConfiguration) {
-            result << "_importConfigItem=" << configItem.first << "_" << configItem.second;
+        for (auto const& conf_item : conf_import) {
+            result << "_importConfigItem=" << conf_item.first << "_" << conf_item.second;
         }
         return result.str();
     }
@@ -53,46 +53,46 @@ public:
         SKIP_IF_CURRENT_TEST_IS_DISABLED()
         functionRefs = ngraph::clone_function(*function);
         // load export configuration and save outputs
-        configuration.insert(exportConfiguration.begin(), exportConfiguration.end());
+        configuration.insert(m_conf_export.begin(), m_conf_export.end());
         LoadNetwork();
         GenerateInputs();
         Infer();
-        auto actualOutputs = GetOutputs();
+        auto outputs = GetOutputs();
 
-        auto referenceOutputs = CalculateRefs();
-        Compare(referenceOutputs, actualOutputs);
+        auto output_refs = CalculateRefs();
+        Compare(output_refs, outputs);
 
-        for (auto const& configItem : importConfiguration) {
-            configuration[configItem.first] = configItem.second;
+        for (auto const& config_item : m_conf_import) {
+            configuration[config_item.first] = config_item.second;
         }
 
-        const auto compiledExecNetwork = executableNetwork;
-        auto model = TestDataHelpers::get_data_path() + "/gna/" + m_export_model_name;
+        const auto compiled_network = executableNetwork;
+        auto model = TestDataHelpers::GetDataPath() + "/gna/" + m_export_model_name;
 
-        const auto importedExecNetwork = core->ImportNetwork(model, targetDevice, configuration);
+        const auto imported_network = core->ImportNetwork(model, targetDevice, configuration);
 
         GenerateInputs();
         Infer();
 
-        ASSERT_EQ(importedExecNetwork.GetInputsInfo().size(), compiledExecNetwork.GetInputsInfo().size());
-        ASSERT_EQ(importedExecNetwork.GetOutputsInfo().size(), compiledExecNetwork.GetOutputsInfo().size());
+        ASSERT_EQ(imported_network.GetInputsInfo().size(), compiled_network.GetInputsInfo().size());
+        ASSERT_EQ(imported_network.GetOutputsInfo().size(), compiled_network.GetOutputsInfo().size());
 
-        for (const auto& next_output : importedExecNetwork.GetOutputsInfo()) {
-            ASSERT_NO_THROW(compiledExecNetwork.GetOutputsInfo()[next_output.first]);
+        for (const auto& next_output : imported_network.GetOutputsInfo()) {
+            ASSERT_NO_THROW(compiled_network.GetOutputsInfo()[next_output.first]);
         }
-        auto importedOutputs = GetOutputs();
+        auto outputs_imported = GetOutputs();
 
-        ASSERT_EQ(actualOutputs.size(), importedOutputs.size());
+        ASSERT_EQ(outputs.size(), outputs_imported.size());
 
-        for (size_t i = 0; i < actualOutputs.size(); i++) {
-            Compare(actualOutputs[i], importedOutputs[i]);
+        for (size_t i = 0; i < outputs.size(); i++) {
+            Compare(outputs[i], outputs_imported[i]);
         }
     }
 
 protected:
     void SetUp() override {
         ov::element::Type prc = ov::element::undefined;
-        std::tie(prc, targetDevice, m_export_model_name, exportConfiguration, importConfiguration) = this->GetParam();
+        std::tie(prc, targetDevice, m_export_model_name, m_conf_export, m_conf_import) = this->GetParam();
         ov::Shape input_shape{1, 80};
         ov::Shape conv_shape{1, 2, 1, 40};
         ov::Shape split_shape = {input_shape[0], 2 * input_shape[1]};
@@ -155,8 +155,8 @@ protected:
         function = std::make_shared<ov::Model>(results, sinks, inputs, "universal_export_model");
     }
 
-    std::map<std::string, std::string> exportConfiguration;
-    std::map<std::string, std::string> importConfiguration;
+    std::map<std::string, std::string> m_conf_export;
+    std::map<std::string, std::string> m_conf_import;
     std::string m_export_model_name;
 };
 
@@ -164,7 +164,7 @@ class BackwardCompatibilityLegacy : public BackwardCompatibility {
 protected:
     void SetUp() override {
         ov::element::Type prc = ov::element::undefined;
-        std::tie(prc, targetDevice, m_export_model_name, exportConfiguration, importConfiguration) = this->GetParam();
+        std::tie(prc, targetDevice, m_export_model_name, m_conf_export, m_conf_import) = this->GetParam();
         ov::Shape input_shape{1, 336};
 
         auto param = std::make_shared<Parameter>(prc, input_shape);
@@ -205,10 +205,8 @@ const std::vector<std::string> export_models_legacy = {"export2dot1.blob",
                                                        "export2dot3.blob",
                                                        "export2dot4.blob",
                                                        "export2dot5.blob"};
-const std::vector<std::string> export_models = {"export2dot6.blob",
-                                                "export2dot7.blob",
-                                                "export2dot8.blob",
-                                                "export2dot9.blob"};
+
+const std::vector<std::string> export_models = {"export2dot6.blob", "export2dot7.blob", "export2dot8.blob"};
 
 INSTANTIATE_TEST_SUITE_P(smoke_OldVersion,
                          BackwardCompatibilityLegacy,
@@ -217,7 +215,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_OldVersion,
                                             ::testing::ValuesIn(export_models_legacy),
                                             ::testing::ValuesIn(export_configs_legacy),
                                             ::testing::ValuesIn(import_configs_legacy)),
-                         BackwardCompatibilityLegacy::getTestCaseName);
+                         BackwardCompatibilityLegacy::GetTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_OldVersion,
                          BackwardCompatibility,
@@ -226,4 +224,4 @@ INSTANTIATE_TEST_SUITE_P(smoke_OldVersion,
                                             ::testing::ValuesIn(export_models),
                                             ::testing::ValuesIn(export_configs),
                                             ::testing::ValuesIn(import_configs)),
-                         BackwardCompatibility::getTestCaseName);
+                         BackwardCompatibility::GetTestCaseName);

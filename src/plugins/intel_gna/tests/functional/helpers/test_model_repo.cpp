@@ -4,14 +4,14 @@
 
 #include "test_model_repo.hpp"
 
-std::string get_model_repo() {
+std::string GetModelRepo() {
     return "models:";
 };
 
-const char* TestDataHelpers::getModelPathNonFatal() noexcept {
-    return TestDataHelpers::getModelPathNonFatalDefault();
+const char* TestDataHelpers::GetModelPathNonFatal() noexcept {
+    return TestDataHelpers::GetModelPathNonFatalDefault();
 }
 
-std::string TestDataHelpers::get_data_path() {
-    return TestDataHelpers::get_data_path_default();
+std::string TestDataHelpers::GetDataPath() {
+    return TestDataHelpers::GetDataPathDefault();
 }
