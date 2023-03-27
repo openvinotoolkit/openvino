@@ -1533,7 +1533,7 @@ Convolution::ConvolutionExecutor::ConvolutionExecutor(const dnnl::convolution_fo
         inputReorders.insert({DNNL_ARG_SRC, IntermReorder(inMemDesc, getDnnlSrcDesc(), engine)});
     }
 
-    if (weightMemDesc != getDnnlWeightDesc() && !constWeight) {
+    if (!constWeight && weightMemDesc != getDnnlWeightDesc()) {
         // const weight will be reordered at first execution
         inputReorders.insert({DNNL_ARG_WEIGHTS, IntermReorder(weightMemDesc, getDnnlWeightDesc(), engine)});
     }
