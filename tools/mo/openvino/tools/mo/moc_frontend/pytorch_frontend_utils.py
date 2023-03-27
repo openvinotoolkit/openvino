@@ -6,7 +6,7 @@ import logging as log
 import numpy as np
 from openvino.tools.mo.moc_frontend.shape_utils import get_static_shape, get_dynamic_dims, parse_input_shapes
 from openvino.tools.mo.utils.error import Error
-from openvino.runtime import PartialShape, Tensor
+from openvino.runtime import Tensor
 
 def get_onnx_temp_filename(output_dir):
     output_dir = output_dir if output_dir is not None else os.getcwd()
@@ -22,35 +22,15 @@ def remove_tmp_onnx_model(out_dir):
 
 
 def get_pytorch_decoder(model, input_shape, example_inputs):
-    import torch
-    import inspect
     try:
         from openvino.frontend.pytorch.decoder import TorchScriptPythonDecoder
     except Exception as e:
         log.error("PyTorch frontend loading failed")
         raise e
     inputs = prepare_torch_inputs(example_inputs, input_shape, allow_none=True)
-    model.eval()
-    input_signature = None
-    if isinstance(model, torch.nn.Module) and not isinstance(model, torch.jit._trace.TopLevelTracedModule):
-        input_signature = list(inspect.signature(model.forward).parameters.keys())
-        try:
-            scripted = torch.jit.script(model)
-        except Exception as scripting_err:
-            if example_inputs is not None:
-                try:
-                    scripted = torch.jit.trace(model, inputs)
-                except Exception as tracing_e:
-                    log.error('Both traicing and scripting failed')
-                    raise tracing_e
-            else:
-                log.error("Model scripting failed")
-                raise scripting_err
-    else:
-        scripted = model
-    f_model = torch.jit.freeze(scripted)
-    decoder = TorchScriptPythonDecoder(f_model)
-    return decoder, input_signature
+    decoder = TorchScriptPythonDecoder(model, example_input=inputs)
+        
+    return decoder
 
 
 def to_torch_tensor(tensor):
@@ -63,6 +43,8 @@ def to_torch_tensor(tensor):
         return torch.tensor(tensor)
     if isinstance(tensor, Tensor):
         return torch.tensor(tensor.data)
+    if isinstance(tensor, (float, int, bool)):
+        return tensor
     else:
         raise Error("Unexpected type of example_input. Supported types torch.Tensor, np.array or ov.Tensor. "
                     "Got {}".format(type(tensor)))
@@ -148,7 +130,6 @@ def convert_pytorch_via_onnx(args, example_inputs, cli_parser, framework, main_c
     args['example_input'] = None
     args['onnx_opset_version'] = None
     try:
-
         model_onnx = convert_pytorch_to_onnx(args['input_model'],
                                             parse_input_shapes(args),
                                             opset_version,
@@ -163,53 +144,3 @@ def convert_pytorch_via_onnx(args, example_inputs, cli_parser, framework, main_c
     finally:
         remove_tmp_onnx_model(out_dir)
     return ov_model, argv
-
-
-def pytorch_process_after_convert(argv, ov_model):
-    import torch
-    from openvino.frontend.pytorch.decoder import pt_to_ov_type_map
-
-    def add_tensor_name(input_desc, input_name):
-        tensor = input_desc.get_tensor()
-        input_names = tensor.names
-        input_names.update(input_name)
-        tensor.set_names(input_names)
-
-    example_inputs = getattr(argv, "example_input", None)
-    input_signature = getattr(argv, "input_signature", None)
-    provide_shapes = argv.input_shape is not None
-    if example_inputs is not None:
-        inputs = [example_inputs] if isinstance(example_inputs, torch.Tensor) else example_inputs
-        if input_signature is not None and isinstance(inputs, dict):
-            ordered_inputs = []
-            upd_sign = []
-            for key in input_signature:
-                if key not in inputs:
-                    continue
-                ordered_inputs.append(inputs[key])
-                upd_sign.append(key)
-            inputs = ordered_inputs
-            input_signature = upd_sign
-        for idx, input_tensor in enumerate(ov_model.inputs):
-            if isinstance(inputs, (list, tuple)):
-                input_data = inputs[idx]
-            else:
-                input_data = list(inputs.values())[idx]
-            pt_dtype = input_data.dtype if isinstance(input_data, torch.Tensor) else type(input_data)
-            dtype = pt_to_ov_type_map.get(str(pt_dtype))
-            if dtype is None:
-                raise f"Unknown input dtype {pt_dtype}"
-
-            input_tensor.get_node().set_element_type(dtype)
-            if input_signature is not None:
-                add_tensor_name(input_tensor, input_signature[idx])
-            if not provide_shapes:
-                # prevent dynamic rank issue
-                shape = [-1] * len(input_data.shape)
-                input_tensor.get_node().set_partial_shape(PartialShape(shape))
-            
-        ov_model.validate_nodes_and_infer_types() 
-    elif input_signature is not None:
-        for idx, input_tensor in enumerate(ov_model.inputs):
-            add_tensor_name(input_tensor, input_signature[idx])
-    return ov_model
