@@ -272,6 +272,7 @@ void GNAModelSerial::Import(void* basePointer,
                 (model_header_.version.minor >= 3) ? readString(is) : std::string("input" + std::to_string(inputIndex));
             inputs[name] = InputDesc(name);
         }
+        // Plugin uses ngraph pre/post-processing function to transpose inputs/outputs starting from version 2.9
         if (model_header_.version.minor >= 5 && model_header_.version.minor <= 8) {
             // 3. Read transposition input info
             for (int inputIx = 0; inputIx < model_header_.nTransposeInputs; ++inputIx) {
