@@ -5,6 +5,7 @@
 
 add_subdirectory(src)
 
-if(ENABLE_TESTS)
-    add_subdirectory(tests)
-endif()
+# TODO Reenable PDPD after paddlepaddle==2.5.0 with compliant protobuf is released (ticket 95904)
+#if(ENABLE_TESTS)
+#    add_subdirectory(tests)
+#endif()
