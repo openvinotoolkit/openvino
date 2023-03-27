@@ -20,7 +20,7 @@ public:
     void ApplyImplSpecificGraphOptimizations(Graph& graph);
 
 private:
-    void FuseConvolutionAndScale(Graph &graph);
+    void FuseConvMatmulDeconvAndDQScales(Graph &graph);
     void FuseConvolutionMatMulDeconvAndBias(Graph &graph);
     void FuseDeconvolutionAndSimpleOperation(Graph &graph);
     void FuseMultiplyAndAdd(Graph &graph);

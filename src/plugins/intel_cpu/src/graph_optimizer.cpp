@@ -61,8 +61,8 @@ namespace intel_cpu {
 GraphOptimizer::GraphOptimizer() {}
 
 void GraphOptimizer::ApplyCommonGraphOptimizations(Graph &graph) {
-    // FuseConvolutionAndScale(graph);
-    // graph.RemoveDroppedNodes();
+    FuseConvMatmulDeconvAndDQScales(graph);
+    graph.RemoveDroppedNodes();
 
     OV_ITT_SCOPE_CHAIN(FIRST_INFERENCE, taskChain, itt::domains::intel_cpu_LT, "ApplyCommonGraphOptimizations", "FuseConvolutionAndBias");
     FuseConvolutionMatMulDeconvAndBias(graph);
@@ -180,29 +180,37 @@ void GraphOptimizer::ApplyImplSpecificGraphOptimizations(Graph &graph) {
     graph.RemoveDroppedEdges();
 }
 
-void GraphOptimizer::FuseConvolutionAndScale(Graph &graph) {
+void GraphOptimizer::FuseConvMatmulDeconvAndDQScales(Graph &graph) {
     auto& graphNodes = graph.GetNodes();
 
     auto isSuitableMultiply = [](NodePtr node) {
         if (node->getType() != Type::Eltwise || node->getAlgorithm() != Algorithm::EltwiseMultiply) {
             return false;
         }
-        auto conv = node->getParentEdgesAtPort(0)[0]->getParent();
-        auto scale = node->getParentEdgesAtPort(1)[0]->getParent();
-        return conv->getType() == Type::Convolution && scale->isConstant();
+        auto parentNode = node->getParentEdgesAtPort(0)[0]->getParent();
+        auto scaleNode = node->getParentEdgesAtPort(1)[0]->getParent();
+        if (parentNode->getOriginalInputPrecisionAtPort(0) != Precision::U8 && parentNode->getOriginalInputPrecisionAtPort(0) != Precision::I8)
+            return false;
+        return ((parentNode->getType() == Type::Convolution
+                        || parentNode->getType() == Type::MatMul
+                        || parentNode->getType() == Type::Deconvolution)
+                        && scaleNode->isConstant());
     };
 
-    auto initializeOutputScales = [](NodePtr mul, NodePtr conv, NodePtr scales) {
-        auto* convNode = dynamic_cast<Convolution*>(conv.get());
-        if (convNode == nullptr)
-            IE_THROW() << "Cannot get convolution node " << conv->getName();
+    auto initializeDeQuantizedScales = [](NodePtr mul, NodePtr node, NodePtr scales) {
+        auto nodeType = node->getType();
+        if (nodeType != Type::Convolution
+                    && nodeType != Type::MatMul
+                    && nodeType != Type::Deconvolution)
+            IE_THROW() << "Cannot get convolution node " << node->getName();
 
-        auto OC = conv->getOutputShapeAtPort(0).getDims()[1];
+        const auto channelAxis = node->getFusingAxis();
+        auto OC = node->getOutputShapeAtPort(0).getDims()[channelAxis];
         if (Shape::UNDEFINED_DIM == OC)
             return false;
-        if (!conv->getFusedWith().empty() || !scales->getFusedWith().empty())
+        if (!node->getFusedWith().empty() || !scales->getFusedWith().empty())
             return false;
-        if (conv->getParentEdges().size() != 2)
+        if (node->getParentEdges().size() != 2)
             return false;
 
         auto scalesDims = scales->getOutputShapeAtPort(0).getDims();
@@ -228,8 +236,8 @@ void GraphOptimizer::FuseConvolutionAndScale(Graph &graph) {
         if (scalesData == nullptr)
             IE_THROW() << "scalesBlob has not allocated buffer";
 
-        auto zeroPointDataSize = std::accumulate(scalesDims.begin(), scalesDims.end(), 1, std::multiplies<size_t>());
-        convNode->initializeOutputScales(scalesData, zeroPointDataSize);
+        auto scaleSize = std::accumulate(scalesDims.begin(), scalesDims.end(), 1, std::multiplies<size_t>());
+        node->initializeDQScales(scalesData, scaleSize);
         return true;
     };
 
@@ -237,11 +245,11 @@ void GraphOptimizer::FuseConvolutionAndScale(Graph &graph) {
         auto mul = graphNodes[i];
         if (!isSuitableMultiply(mul)) continue;
 
-        CPU_GRAPH_OPTIMIZER_SCOPE(FuseConvolutionAndScale_ConvNode);
+        CPU_GRAPH_OPTIMIZER_SCOPE(FuseConvMatmulDeconvAndDQScales);
 
-        auto conv = mul->getParentEdgesAtPort(0)[0]->getParent();
+        auto node = mul->getParentEdgesAtPort(0)[0]->getParent();
         auto scales = mul->getParentEdgesAtPort(1)[0]->getParent();
-        if (initializeOutputScales(mul, conv, scales)) {
+        if (initializeDeQuantizedScales(mul, node, scales)) {
             auto p_edge = mul->getParentEdgesAtPort(1)[0];
             graph.RemoveEdge(p_edge);
             graph.DropNode(mul);
