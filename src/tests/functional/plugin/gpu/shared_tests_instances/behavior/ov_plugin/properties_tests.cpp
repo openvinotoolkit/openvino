@@ -13,8 +13,6 @@ namespace {
 const std::vector<ov::AnyMap> gpu_properties = {
         {ov::hint::performance_mode(ov::hint::PerformanceMode::LATENCY)},
         {ov::hint::performance_mode(ov::hint::PerformanceMode::THROUGHPUT)},
-        {ov::hint::performance_mode(ov::hint::PerformanceMode::UNDEFINED)},
-};
 
 INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests, OVPropertiesTests,
         ::testing::Combine(
@@ -24,8 +22,6 @@ INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests, OVPropertiesTests,
 
 auto auto_multi_properties = []() {
     return std::vector<ov::AnyMap>{
-        {ov::device::priorities(CommonTestUtils::DEVICE_GPU),
-         ov::hint::performance_mode(ov::hint::PerformanceMode::UNDEFINED)},
         {ov::device::priorities(CommonTestUtils::DEVICE_GPU),
          ov::hint::performance_mode(ov::hint::PerformanceMode::THROUGHPUT)},
         {ov::device::priorities(CommonTestUtils::DEVICE_GPU),
@@ -220,5 +216,4 @@ INSTANTIATE_TEST_SUITE_P(smoke_MultiCompileModelBehaviorTests,
                          ::testing::Combine(::testing::Values(CommonTestUtils::DEVICE_MULTI),
                                             ::testing::ValuesIn(multiExeDeviceConfigs)),
                          OVCompileModelGetExecutionDeviceTests::getTestCaseName);
-
 } // namespace

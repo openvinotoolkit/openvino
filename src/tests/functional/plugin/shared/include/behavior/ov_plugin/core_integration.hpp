@@ -603,8 +603,6 @@ TEST_P(OVClassSetExecutionModeHintConfigTest, SetConfigNoThrow) {
     ASSERT_NO_THROW(defaultMode = ie.get_property(target_device, ov::hint::execution_mode));
     (void)defaultMode;
 
-    ie.set_property(target_device, ov::hint::execution_mode(ov::hint::ExecutionMode::UNDEFINED));
-    ASSERT_EQ(ov::hint::ExecutionMode::UNDEFINED, ie.get_property(target_device, ov::hint::execution_mode));
     ie.set_property(target_device, ov::hint::execution_mode(ov::hint::ExecutionMode::ACCURACY));
     ASSERT_EQ(ov::hint::ExecutionMode::ACCURACY, ie.get_property(target_device, ov::hint::execution_mode));
     ie.set_property(target_device, ov::hint::execution_mode(ov::hint::ExecutionMode::PERFORMANCE));

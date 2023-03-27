@@ -28,8 +28,7 @@ public:
         auto mode = v.as<ov::hint::PerformanceMode>();
         return mode == ov::hint::PerformanceMode::CUMULATIVE_THROUGHPUT ||
                mode == ov::hint::PerformanceMode::THROUGHPUT ||
-               mode == ov::hint::PerformanceMode::LATENCY ||
-               mode == ov::hint::PerformanceMode::UNDEFINED;
+               mode == ov::hint::PerformanceMode::LATENCY;
     }
 };
 

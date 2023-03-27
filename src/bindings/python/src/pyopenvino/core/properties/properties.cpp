@@ -53,13 +53,12 @@ void regmodule_properties(py::module m) {
         .value("DEFAULT", ov::hint::Priority::DEFAULT);
 
     py::enum_<ov::hint::PerformanceMode>(m_hint, "PerformanceMode", py::arithmetic())
-        .value("UNDEFINED", ov::hint::PerformanceMode::UNDEFINED)
+        .value("UNDEFINED", ov::hint::PerformanceMode::LATENCY)
         .value("LATENCY", ov::hint::PerformanceMode::LATENCY)
         .value("THROUGHPUT", ov::hint::PerformanceMode::THROUGHPUT)
         .value("CUMULATIVE_THROUGHPUT", ov::hint::PerformanceMode::CUMULATIVE_THROUGHPUT);
 
     py::enum_<ov::hint::ExecutionMode>(m_hint, "ExecutionMode", py::arithmetic())
-        .value("UNDEFINED", ov::hint::ExecutionMode::UNDEFINED)
         .value("PERFORMANCE", ov::hint::ExecutionMode::PERFORMANCE)
         .value("ACCURACY", ov::hint::ExecutionMode::ACCURACY);
 

@@ -57,8 +57,6 @@ IE::Parameter AutoExecutableNetwork::GetMetric(const std::string& name) const {
             return ov::hint::PerformanceMode::LATENCY;
         else if (value == InferenceEngine::PluginConfigParams::CUMULATIVE_THROUGHPUT)
             return ov::hint::PerformanceMode::CUMULATIVE_THROUGHPUT;
-        else
-            return ov::hint::PerformanceMode::UNDEFINED;
     } else if (name == ov::device::priorities) {
         auto value = _autoSContext->_config.find(ov::device::priorities.name());
         return decltype(ov::device::priorities)::value_type {value->second.as<std::string>()};

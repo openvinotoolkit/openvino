@@ -303,17 +303,16 @@ static constexpr Property<Priority> model_priority{"MODEL_PRIORITY"};
  * @ingroup ov_runtime_cpp_prop_api
  */
 enum class PerformanceMode {
-    UNDEFINED = -1,             //!<  Undefined value, performance setting may vary from device to device
     LATENCY = 1,                //!<  Optimize for latency
     THROUGHPUT = 2,             //!<  Optimize for throughput
     CUMULATIVE_THROUGHPUT = 3,  //!<  Optimize for cumulative throughput
+    UNDEFINED OPENVINO_ENUM_DEPRECATED("Please use actual value instead. Will be removed in 2024.0") =
+        LATENCY,  //!<  Undefined value, performance setting may vary from device to device
 };
 
 /** @cond INTERNAL */
 inline std::ostream& operator<<(std::ostream& os, const PerformanceMode& performance_mode) {
     switch (performance_mode) {
-    case PerformanceMode::UNDEFINED:
-        return os << "UNDEFINED";
     case PerformanceMode::LATENCY:
         return os << "LATENCY";
     case PerformanceMode::THROUGHPUT:
@@ -335,7 +334,7 @@ inline std::istream& operator>>(std::istream& is, PerformanceMode& performance_m
     } else if (str == "CUMULATIVE_THROUGHPUT") {
         performance_mode = PerformanceMode::CUMULATIVE_THROUGHPUT;
     } else if (str == "UNDEFINED") {
-        performance_mode = PerformanceMode::UNDEFINED;
+        performance_mode = PerformanceMode::LATENCY;
     } else {
         OPENVINO_THROW("Unsupported performance mode: ", str);
     }
@@ -377,16 +376,13 @@ static constexpr Property<bool, PropertyMutability::RW> allow_auto_batching{"ALL
  * @ingroup ov_runtime_cpp_prop_api
  */
 enum class ExecutionMode {
-    UNDEFINED = -1,   //!<  Undefined value, settings may vary from device to device
-    PERFORMANCE = 1,  //!<  Optimize for max performance
+    PERFORMANCE = 1,  //!<  Optimize for max performance, may apply properties which slightly affect accuracy
     ACCURACY = 2,     //!<  Optimize for max accuracy
 };
 
 /** @cond INTERNAL */
 inline std::ostream& operator<<(std::ostream& os, const ExecutionMode& mode) {
     switch (mode) {
-    case ExecutionMode::UNDEFINED:
-        return os << "UNDEFINED";
     case ExecutionMode::PERFORMANCE:
         return os << "PERFORMANCE";
     case ExecutionMode::ACCURACY:
@@ -403,8 +399,6 @@ inline std::istream& operator>>(std::istream& is, ExecutionMode& mode) {
         mode = ExecutionMode::PERFORMANCE;
     } else if (str == "ACCURACY") {
         mode = ExecutionMode::ACCURACY;
-    } else if (str == "UNDEFINED") {
-        mode = ExecutionMode::UNDEFINED;
     } else {
         OPENVINO_THROW("Unsupported execution mode: ", str);
     }

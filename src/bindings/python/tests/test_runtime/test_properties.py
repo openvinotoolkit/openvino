@@ -54,7 +54,7 @@ def test_properties_rw_base():
         (
             properties.hint.PerformanceMode,
             (
-                (properties.hint.PerformanceMode.UNDEFINED, "PerformanceMode.UNDEFINED", -1),
+                (properties.hint.PerformanceMode.UNDEFINED, "PerformanceMode.LATENCY", -1),
                 (properties.hint.PerformanceMode.LATENCY, "PerformanceMode.LATENCY", 1),
                 (properties.hint.PerformanceMode.THROUGHPUT, "PerformanceMode.THROUGHPUT", 2),
                 (properties.hint.PerformanceMode.CUMULATIVE_THROUGHPUT, "PerformanceMode.CUMULATIVE_THROUGHPUT", 3),
@@ -63,7 +63,6 @@ def test_properties_rw_base():
         (
             properties.hint.ExecutionMode,
             (
-                (properties.hint.ExecutionMode.UNDEFINED, "ExecutionMode.UNDEFINED", -1),
                 (properties.hint.ExecutionMode.PERFORMANCE, "ExecutionMode.PERFORMANCE", 1),
                 (properties.hint.ExecutionMode.ACCURACY, "ExecutionMode.ACCURACY", 2),
             ),
@@ -222,7 +221,7 @@ def test_properties_ro(ov_property_ro, expected_value):
         (
             properties.hint.execution_mode,
             "EXECUTION_MODE_HINT",
-            ((properties.hint.ExecutionMode.UNDEFINED, properties.hint.ExecutionMode.UNDEFINED),),
+            ((properties.hint.ExecutionMode.PERFORMANCE, properties.hint.ExecutionMode.PERFORMANCE),),
         ),
         (
             properties.hint.num_requests,

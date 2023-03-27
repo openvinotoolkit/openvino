@@ -120,7 +120,7 @@ void next_step(const std::string additional_info = "") {
 }
 
 ov::hint::PerformanceMode get_performance_hint(const std::string& device, const ov::Core& core) {
-    ov::hint::PerformanceMode ov_perf_hint = ov::hint::PerformanceMode::UNDEFINED;
+    ov::hint::PerformanceMode ov_perf_hint = ov::hint::PerformanceMode::LATENCY;
     auto supported_properties = core.get_property(device, ov::supported_properties);
     if (std::find(supported_properties.begin(), supported_properties.end(), ov::hint::performance_mode) !=
         supported_properties.end()) {
@@ -131,8 +131,6 @@ ov::hint::PerformanceMode get_performance_hint(const std::string& device, const 
                 ov_perf_hint = ov::hint::PerformanceMode::LATENCY;
             } else if (FLAGS_hint == "cumulative_throughput" || FLAGS_hint == "ctput") {
                 ov_perf_hint = ov::hint::PerformanceMode::CUMULATIVE_THROUGHPUT;
-            } else if (FLAGS_hint == "none") {
-                ov_perf_hint = ov::hint::PerformanceMode::UNDEFINED;
             } else {
                 throw std::logic_error(
                     "Incorrect performance hint. Please set -hint option to"
@@ -442,7 +440,7 @@ int main(int argc, char* argv[]) {
                                                "<dev1>:<nstreams1>,<dev2>:<nstreams2>" +
                                                " or via configuration file.");
                     }
-                } else if (ov_perf_hint == ov::hint::PerformanceMode::UNDEFINED && !device_config.count(key) &&
+                } else if (ov_perf_hint == ov::hint::PerformanceMode::THROUGHPUT && !device_config.count(key) &&
                            (FLAGS_api == "async")) {
                     slog::warn << "-nstreams default value is determined automatically for " << device
                                << " device. "
@@ -451,7 +449,6 @@ int main(int argc, char* argv[]) {
                                   "but it still may be non-optimal for some cases, for more "
                                   "information look at README."
                                << slog::endl;
-
                     if (supported(key)) {
                         device_config[key] = std::string(getDeviceTypeFromName(device) + "_THROUGHPUT_AUTO");
                     } else if (supported(ov::num_streams.name())) {
