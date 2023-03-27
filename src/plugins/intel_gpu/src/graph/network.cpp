@@ -385,7 +385,7 @@ network::network(cldnn::BinaryInputBuffer& ib, const ExecutionConfig& config, st
         _primitives[_primitive_id] = new_primitive_inst;
     }
 
-    int exec_order_size;
+    size_t exec_order_size;
     ib >> exec_order_size;
     _exec_order.clear();
 
@@ -540,7 +540,7 @@ void network::save(cldnn::BinaryOutputBuffer& ob) {
         }
     }
 
-    int exec_order_size = _exec_order.size();
+    size_t exec_order_size = _exec_order.size();
     ob << exec_order_size;
 
     for (const auto& p_inst : _exec_order) {
@@ -1320,16 +1320,6 @@ void network::transfer_memory_to_device(std::shared_ptr<primitive_inst> instance
         _memory_pool->release_memory(&inst_mem, node.id(), get_id());
         instance->set_output_memory(device_mem);
     }
-}
-
-memory::ptr network::get_memory_from_pool(const layout& layout,
-                                               primitive_id id,
-                                               std::set<primitive_id> dependencies,
-                                               allocation_type type,
-                                               bool reusable) {
-    if (_config.get_property(ov::intel_gpu::enable_memory_pool))
-        return _memory_pool->get_memory(layout, id, get_id(), dependencies, type, reusable);
-    return _memory_pool->get_memory(layout, type);
 }
 
 network::VariableState& network::get_variable_memory(const std::string &variable_id) {
