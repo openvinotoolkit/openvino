@@ -6,6 +6,7 @@
 #include <ie_system_conf.h>
 
 #include <common_test_utils/test_common.hpp>
+#include <openvino/runtime/threading/cpu_map_scheduling.hpp>
 
 #include "cpu_streams_calculation.hpp"
 
@@ -14,6 +15,96 @@ using namespace InferenceEngine;
 using namespace ov;
 
 namespace {
+
+struct UseHTTestCase {
+    bool use_ht_value;
+    bool use_ht_changed;
+    std::vector<std::vector<int>> proc_type_table;
+    std::vector<std::vector<int>> result_table;
+};
+
+class UseHTTests : public CommonTestUtils::TestsCommon, public testing::WithParamInterface<std::tuple<UseHTTestCase>> {
+public:
+    void SetUp() override {
+        const auto& test_data = std::get<0>(GetParam());
+
+        std::vector<std::vector<int>> test_result_table =
+            ov::apply_hyper_threading(test_data.use_ht_value,
+                                                 test_data.use_ht_changed,
+                                                 test_data.proc_type_table);
+
+        ASSERT_EQ(test_data.result_table, test_result_table);
+    }
+};
+
+UseHTTestCase _2sockets_false = {
+    false,
+    true,
+    {{208, 104, 0, 104}, {104, 52, 0, 52}, {104, 52, 0, 52}},
+    {{104, 104, 0, 0}, {52, 52, 0, 0}, {52, 52, 0, 0}},
+};
+
+UseHTTestCase _2sockets_true = {
+    true,
+    true,
+    {{208, 104, 0, 104}, {104, 52, 0, 52}, {104, 52, 0, 52}},
+    {{208, 104, 0, 104}, {104, 52, 0, 52}, {104, 52, 0, 52}},
+};
+
+UseHTTestCase _2sockets_default_1 = {
+    false,
+    false,
+    {{208, 104, 0, 104}, {104, 52, 0, 52}, {104, 52, 0, 52}},
+    {{104, 104, 0, 0}, {52, 52, 0, 0}, {52, 52, 0, 0}},
+};
+
+UseHTTestCase _2sockets_default_2 = {
+    true,
+    false,
+    {{208, 104, 0, 104}, {104, 52, 0, 52}, {104, 52, 0, 52}},
+    {{104, 104, 0, 0}, {52, 52, 0, 0}, {52, 52, 0, 0}},
+};
+
+UseHTTestCase _1sockets_false = {
+    false,
+    true,
+    {{20, 6, 8, 6}},
+    {{14, 6, 8, 0}},
+};
+
+UseHTTestCase _1sockets_true = {
+    true,
+    true,
+    {{20, 6, 8, 6}},
+    {{20, 6, 8, 6}},
+};
+
+UseHTTestCase _1sockets_default_1 = {
+    false,
+    false,
+    {{20, 6, 8, 6}},
+    {{20, 6, 8, 6}},
+};
+
+UseHTTestCase _1sockets_default_2 = {
+    true,
+    false,
+    {{20, 6, 8, 6}},
+    {{20, 6, 8, 6}},
+};
+
+TEST_P(UseHTTests, UseHT) {}
+
+INSTANTIATE_TEST_SUITE_P(UseHTTable,
+                         UseHTTests,
+                         testing::Values(_2sockets_false,
+                                         _2sockets_true,
+                                         _2sockets_default_1,
+                                         _2sockets_default_2,
+                                         _1sockets_false,
+                                         _1sockets_true,
+                                         _1sockets_default_1,
+                                         _1sockets_default_2));
 
 struct StreamsCalculationTestCase {
     int input_streams;
