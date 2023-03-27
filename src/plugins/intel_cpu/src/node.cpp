@@ -1043,28 +1043,27 @@ void Node::initOptimalPrimitiveDescriptor() {
         IE_THROW() << "Preferable primitive descriptor is not set.";
 
     auto config = selected_pd->getConfig();
-    if (isDynamicNode()) {
-        // it is assumed that the nodes will define dense tensors on output edges
-        // if it is not the case the implementation must redefine this behaviour
-        for (size_t i = 0; i < config.outConfs.size(); i++) {
-            auto outMemDesc = config.outConfs[i].getMemDesc();
-            if (outMemDesc && (outMemDesc->getType() & Blocked)) {
-                config.outConfs[i].setMemDesc(std::dynamic_pointer_cast<BlockedMemoryDesc>(outMemDesc), BLOCKED_DESC_FULL_MASK);
-            }
-        }
-    } else {
-        for (size_t i = 0; i < config.inConfs.size(); i++) {
+    for (size_t i = 0; i < config.inConfs.size(); i++) {
+        if (!isDynamicNode() || config.inConfs[i].getMemDesc()->isDefined()) {
             auto inpPortDesc = getConsistentInputDesc(config, i);
             DEBUG_LOG(getName(), ": input PortDesc before: ", *inpPortDesc->getMemDesc());
             config.inConfs[i].setMemDesc(inpPortDesc->getMemDesc());
             DEBUG_LOG(getName(), ": input PortDesc after: ", *config.inConfs[i].getMemDesc());
         }
+    }
 
-        for (size_t i = 0; i < config.outConfs.size(); i++) {
+    for (size_t i = 0; i < config.outConfs.size(); i++) {
+        auto outMemDesc = config.outConfs[i].getMemDesc();
+        if (!isDynamicNode() || outMemDesc->isDefined()) {
             auto outPortDesc = getConsistentOutputDesc(config, i);
             DEBUG_LOG(getName(), ": output PortDesc before: ", *outPortDesc->getMemDesc());
             config.outConfs[i].setMemDesc(outPortDesc->getMemDesc());
-            DEBUG_LOG(getName(), ": output PortDesc after: ", *config.outConfs[i].getMemDesc());
+        } else {
+            // it is assumed that the nodes will define dense tensors on output edges
+            // if it is not the case the implementation must redefine this behaviour
+            if (outMemDesc->getType() & Blocked) {
+                config.outConfs[i].setMemDesc(std::dynamic_pointer_cast<BlockedMemoryDesc>(outMemDesc), BLOCKED_DESC_FULL_MASK);
+            }
         }
     }
 
