@@ -350,7 +350,7 @@ InferenceEngine::Parameter ExecNetwork::GetMetric(const std::string &name) const
         const auto perfHint = ov::util::from_string(config.perfHintsConfig.ovPerfHint, ov::hint::performance_mode);
         return perfHint;
     } else if (name == ov::hint::use_hyper_threading.name()) {
-        const bool use_ht = config.use_ht_value;
+        const bool use_ht = config.useHyperThreading;
         return decltype(ov::hint::use_hyper_threading)::value_type(use_ht);
     } else if (name == ov::hint::num_requests) {
         const auto perfHintNumRequests = config.perfHintsConfig.ovPerfHintNumRequests;

@@ -515,7 +515,7 @@ Parameter Engine::GetConfig(const std::string& name, const std::map<std::string,
         const auto perfHint = ov::util::from_string(engConfig.perfHintsConfig.ovPerfHint, ov::hint::performance_mode);
         return perfHint;
     } else if (name == ov::hint::use_hyper_threading) {
-        const bool ht_value = engConfig.use_ht_value;
+        const bool ht_value = engConfig.useHyperThreading;
         return decltype(ov::hint::use_hyper_threading)::value_type(ht_value);
     } else if (name == ov::hint::num_requests) {
         const auto perfHintNumRequests = engConfig.perfHintsConfig.ovPerfHintNumRequests;
