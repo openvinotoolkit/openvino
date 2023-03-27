@@ -89,7 +89,7 @@ class TestStructure:
 class TaskManager:
     process_timeout = -1
 
-    def __init__(self, command_list:list, working_dir: os.path, prev_run_cmd_length=0, device="None", available_devices=list()):
+    def __init__(self, command_list:list, working_dir: os.path, prev_run_cmd_length=0, device=None, available_devices=list()):
         self._command_list = command_list
         self._process_list = list()
         self._workers = list()
@@ -98,7 +98,12 @@ class TaskManager:
         self._prev_run_cmd_length = prev_run_cmd_length
         self._idx = 0
         self._device = device
-        self._available_devices = available_devices
+        if self._device is None:
+            self._device = "NOT_AFFECTED_BY_DEVICE"
+        if len(available_devices) > 0:
+            self._available_devices = available_devices
+        else:
+            self._available_devices = [self._device]
         self._device_cnt = len(self._available_devices)
 
     def __create_thread(self, func):
@@ -196,7 +201,11 @@ class TestParallelRunner:
         self._disabled_tests = list()
         self._total_test_cnt = 0
         self._available_devices = None
-        self._device = None
+        self._device = get_device_by_args(self._command.split())
+        if has_python_api:
+            self._available_devices = get_available_devices(self._device)
+        else:
+            self._available_devices = [self._device] if not self._device is None else []
 
     def __init_basic_command_line_for_exec_file(self, test_command_line: list):
         command = f'{self._exec_file_path}'
@@ -379,19 +388,9 @@ class TestParallelRunner:
             runtime_test_list.reverse()
         logger.info(f"Total test counter is {self._total_test_cnt}")
         return cached_test_list, runtime_test_list
-
-    def __generate_commands(self, filters: list()):
-        commands = [f'{self._command} --gtest_filter={filter}' for filter in filters]
-        self._device = get_device_by_args(self._command.split())
-        if has_python_api:
-            self._available_devices = get_available_devices(self._device)
-            logger.info(f"Tests will be run over devices: {self._available_devices} instead of {self._device}")
-        else:
-            self._available_devices = [self._device]
-        return commands
         
     def __execute_tests(self, filters: list(), prev_worker_cnt = 0):
-        commands = self.__generate_commands(filters)
+        commands = [f'{self._command} --gtest_filter={filter}' for filter in filters]
         task_manager = TaskManager(commands, self._working_dir, prev_worker_cnt, self._device, self._available_devices)
         for _ in progressbar(range(self._worker_num), "Worker initialization: ", 40):
             task_manager.init_worker()
@@ -404,6 +403,8 @@ class TestParallelRunner:
         if TaskManager.process_timeout == -1:
             TaskManager.process_timeout = DEFAULT_PROCESS_TIMEOUT
         logger.info(f"Run test parallel is started. Worker num is {self._worker_num}")
+        if len(self._available_devices) > 1:
+            logger.info(f"Tests will be run over devices: {self._available_devices} instead of {self._device}")
         t_start = datetime.datetime.now()
         
         filters_cache, filters_runtime = self.__get_filters()
