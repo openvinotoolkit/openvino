@@ -349,21 +349,17 @@ INSTANTIATE_TEST_SUITE_P(smoke_AUTO_MULTI_ReturnDefaultHintTest,
                          OVClassLoadNetWorkReturnDefaultHintTest,
                          ::testing::Combine(::testing::Values("AUTO:CPU", "MULTI:CPU"),
                                             ::testing::ValuesIn(auto_multi_default_properties)));
-OPENVINO_SUPPRESS_DEPRECATED_START
 // For AUTO, User sets perf_hint, AUTO's perf_hint should not return default value LATENCY
 const std::vector<ov::AnyMap> default_auto_properties = {
-    {ov::hint::performance_mode(ov::hint::PerformanceMode::THROUGHPUT)},
-    {ov::hint::performance_mode(ov::hint::PerformanceMode::UNDEFINED)}};
+    {ov::hint::performance_mode(ov::hint::PerformanceMode::THROUGHPUT)}};
 // For MULTI, User sets perf_hint or Affinity or num_streams or infer_num_threads, MULTI's perf_hint should
 // not return default value THROUGHPUT
 // For Secondary property test about default hint is in auto_load_network_properties_test.cpp
 const std::vector<ov::AnyMap> default_multi_properties = {
     {ov::hint::performance_mode(ov::hint::PerformanceMode::LATENCY)},
-    {ov::hint::performance_mode(ov::hint::PerformanceMode::UNDEFINED)},
     {ov::affinity(ov::Affinity::NONE)},
     {ov::num_streams(ov::streams::AUTO)},
     {ov::inference_num_threads(1)}};
-OPENVINO_SUPPRESS_DEPRECATED_END
 INSTANTIATE_TEST_SUITE_P(smoke_AUTO_DoNotReturnDefaultHintTest,
                          OVClassLoadNetWorkDoNotReturnDefaultHintTest,
                          ::testing::Combine(::testing::Values("AUTO:CPU"),

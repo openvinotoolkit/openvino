@@ -13,6 +13,7 @@ namespace {
 const std::vector<ov::AnyMap> gpu_properties = {
         {ov::hint::performance_mode(ov::hint::PerformanceMode::LATENCY)},
         {ov::hint::performance_mode(ov::hint::PerformanceMode::THROUGHPUT)},
+};
 
 INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests, OVPropertiesTests,
         ::testing::Combine(
