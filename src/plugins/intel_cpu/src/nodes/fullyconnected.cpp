@@ -311,7 +311,7 @@ void FullyConnected::prepareParams() {
                  implementationTypeIP,
                  useConv1x1};
 
-    auto engine = getEngine();
+    auto& engine = getEngine();
 
     auto builder = [&engine](const FCKey& key) -> executorPtr {
         executorPtr execPtr = nullptr;
@@ -333,7 +333,7 @@ void FullyConnected::prepareParams() {
             }
 
             if (prim_desc) {
-                execPtr = std::make_shared<ExecutorConv1x1>(prim_desc);
+                execPtr = std::make_shared<DnnlExecutor>(prim_desc);
             }
         }
         // fallback
@@ -388,7 +388,7 @@ void FullyConnected::prepareParams() {
                 }
             }
 
-            execPtr = std::make_shared<ExecutorInnerProduct>(prim_desc);
+            execPtr = std::make_shared<DnnlExecutor>(prim_desc);
         }
         return execPtr;
     };
@@ -404,26 +404,20 @@ void FullyConnected::prepareParams() {
     execPtr = result.first;
 
     if (execPtr) {
-        // no executor yet or shapes changed
-        if (!prevExecPtr || prevExecPtr->getSrcDesc() != execPtr->getSrcDesc()) {
-            auto oldMem = srcMemPtr->GetPrimitive();
-            // fast path: wanted is same with parent node output, typical is static shape with inner product
-            if (execPtr->getSrcDesc() == inDesc->getDnnlDesc()) {
-                primArgs[DNNL_ARG_SRC] = std::move(oldMem);
-            } else {
-                primArgs[DNNL_ARG_SRC] = dnnl::memory(execPtr->getSrcDesc(), oldMem.get_engine(), oldMem.get_data_handle());
-            }
+        if (execPtr->getSrcDesc()->isCompatible(*inDesc)) {
+            primArgs[DNNL_ARG_SRC] = srcMemPtr->GetPrimitive();
+        } else {
+            primArgs[DNNL_ARG_SRC] = dnnl::memory(execPtr->getDnnlSrcDesc(), engine, srcMemPtr->GetData());
         }
-        if (!prevExecPtr || prevExecPtr->getDstDesc() != execPtr->getDstDesc()) {
-            auto oldMem = dstMemPtr->GetPrimitive();
-            if (execPtr->getDstDesc() == outDesc->getDnnlDesc()) {
-                primArgs[DNNL_ARG_DST] = std::move(oldMem);
-            } else {
-                primArgs[DNNL_ARG_DST] = dnnl::memory(execPtr->getDstDesc(), oldMem.get_engine(), oldMem.get_data_handle());
-            }
+
+        if (execPtr->getDstDesc()->isCompatible(*outDesc)) {
+            primArgs[DNNL_ARG_DST] = dstMemPtr->GetPrimitive();
+        } else {
+            primArgs[DNNL_ARG_DST] = dnnl::memory(execPtr->getDnnlDstDesc(), engine, dstMemPtr->GetData());
         }
-        if (!prevExecPtr || prevExecPtr->getWeightDesc() != execPtr->getWeightDesc()) {
-            primArgs[DNNL_ARG_WEIGHTS] = prepareWeightMemory(DnnlExtensionUtils::makeDescriptor(execPtr->getWeightDesc()))->GetPrimitive();
+
+        if (!prevExecPtr || !execPtr->getWeightDesc()->isCompatible(*(prevExecPtr->getWeightDesc()))) {
+            primArgs[DNNL_ARG_WEIGHTS] = prepareWeightMemory(execPtr->getWeightDesc())->GetPrimitive();
         }
         // changed shapes may also cause the kernel type changed
         selected_pd->setImplementationType(execPtr->getImplementationType());
@@ -438,12 +432,12 @@ void FullyConnected::prepareParams() {
             primArgs[DNNL_ARG_BIAS] = biasMemPtr->GetPrimitive();
         }
 
-        auto pd = execPtr->getPrimitiveDesc();
-        auto scratchpadMem = getScratchPadMem(pd);
-        primArgs[DNNL_ARG_SCRATCHPAD] = scratchpadMem->GetPrimitive();
+        auto schratchpadMem = getScratchPadMem(execPtr->getScratchPadDesc());
+        primArgs[DNNL_ARG_SCRATCHPAD] = schratchpadMem->GetPrimitive();
 #ifdef CPU_DEBUG_CAPS
         if (result.second == CacheEntryBase::LookUpStatus::Miss) {
-            DEBUG_LOG("verbose##", getName(), "##", pd->info(), "\n");
+            auto pd = execPtr->getPrimitiveDesc();
+            DEBUG_LOG("verbose##", getName(), "##", DnnlExtensionUtils::query_pd_info(pd), "\n");
         }
 #endif
     } else {
@@ -917,14 +911,6 @@ bool FullyConnected::canBeExecutedInConv1x1() const {
     }
 
     return retVal;
-}
-
-FullyConnected::ExecutorInnerProduct::ExecutorInnerProduct(const dnnl::inner_product_forward::primitive_desc& pd) {
-    execPrim = dnnl::inner_product_forward(pd);
-}
-
-FullyConnected::ExecutorConv1x1::ExecutorConv1x1(const dnnl::convolution_forward::primitive_desc& pd) {
-    execPrim = dnnl::convolution_forward(pd);
 }
 
 MemoryPtr FullyConnected::prepareWeightMemory(DnnlMemoryDescPtr weightDesc) {
