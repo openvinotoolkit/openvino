@@ -4,7 +4,7 @@
 
 /**
  * @brief A header file for CPU map scheduling
- * @file ie_icore.hpp
+ * @file cpu_map_scheduling.hpp
  */
 
 #pragma once
