@@ -32,13 +32,10 @@ public:
     template<typename ShapeType>
     static std::vector<layout> calc_output_layouts(gemm_node const& /*node*/, const kernel_impl_params& impl_param);
     static layout calc_output_layout(gemm_node const& node, kernel_impl_params const& impl_param);
-    static std::vector<size_t> extend_input_shape_to_6d(kernel_impl_params const& orig_impl_param, int32_t input_idx);
-    static std::vector<size_t> extend_output_shape_to_6d(kernel_impl_params const& orig_impl_param, int32_t output_idx);
     static std::string to_string(gemm_node const& node);
 
     static std::vector<layout> transform_input_layouts(const std::shared_ptr<const gemm> primitive,
-                                                       const std::vector<layout>& input_layouts,
-                                                       const layout& output_layout);
+                                                       const std::vector<layout>& input_layouts);
     static layout transform_output_layout(const std::shared_ptr<const gemm> primitive, const std::vector<layout>& input_layouts, const layout& output_layout);
 
     typed_primitive_inst(network& network, gemm_node const& node);

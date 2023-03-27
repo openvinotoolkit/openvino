@@ -82,6 +82,12 @@ struct primitive_impl {
         OPENVINO_ASSERT(false, "[GPU] update_dispatch_data is not implemented for dynamic implemenation ", _kernel_name);
     }
 
+    static kernel_impl_params static_canonicalize_shapes(const kernel_impl_params& impl_params);
+
+    virtual kernel_impl_params canonicalize_shapes(const kernel_impl_params& impl_params) const {
+        return primitive_impl::static_canonicalize_shapes(impl_params);
+    }
+
     virtual void set_kernels(std::map<const std::string, kernel::ptr>& kernels) {}
 
 protected:
@@ -422,26 +428,6 @@ public:
 
     static kernel_impl_params get_fake_aligned_params(kernel_impl_params const& orig_impl_param) {
         return std::move(orig_impl_param);
-    }
-
-    static std::vector<size_t> extend_input_shape_to_6d(kernel_impl_params const& orig_impl_param, int32_t input_idx) {
-        ov::PartialShape ps = orig_impl_param.get_input_layout(input_idx).get_partial_shape();
-
-        if (ps.size() < 4) {
-            ps.insert(ps.end(), 4 - ps.size(), ov::Dimension(1));
-        }
-        layout l(ps, data_types::i32, format::get_default_format(ps.size()));
-        return l.transform(format::bfwzyx).to_shape();
-    }
-
-    static std::vector<size_t> extend_output_shape_to_6d(kernel_impl_params const& orig_impl_param, int32_t output_idx) {
-        ov::PartialShape ps = orig_impl_param.get_output_layout(output_idx).get_partial_shape();
-
-        if (ps.size() < 4) {
-            ps.insert(ps.end(), 4 - ps.size(), ov::Dimension(1));
-        }
-        layout l(ps, data_types::i32, format::get_default_format(ps.size()));
-        return l.transform(format::bfwzyx).to_shape();
     }
 
     typed_primitive_inst_base(network& network, typed_node const& node)

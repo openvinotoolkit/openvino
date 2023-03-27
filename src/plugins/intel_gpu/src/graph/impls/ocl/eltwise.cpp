@@ -119,6 +119,46 @@ public:
         return {params, optional_params};
     }
 
+    static kernel_impl_params static_canonicalize_shapes(const kernel_impl_params& impl_params) {
+        auto updated_impl_params = canonicalize_fused_shapes(impl_params);
+        bool use_new_shape_infer = impl_params.prog->get_config().get_property(ov::intel_gpu::allow_new_shape_infer);
+
+        auto broadcastable = [use_new_shape_infer](const ov::PartialShape& first_pshape, const ov::PartialShape& second_pshape) {
+            if (first_pshape.is_dynamic() || second_pshape.is_dynamic()) {
+                return false;
+            }
+            if (first_pshape.size() != second_pshape.size() && use_new_shape_infer) {
+                return false;
+            }
+            size_t min_size = std::min(first_pshape.size(), second_pshape.size());
+
+            for (size_t i = 0; i < min_size; ++i) {
+                if (!(first_pshape[i] == 1 || second_pshape[i] == 1 || first_pshape[i] == second_pshape[i])) {
+                    return false;
+                }
+            }
+            return true;
+        };
+
+        auto& output_layout = updated_impl_params.output_layouts[0];
+        auto out_pshape = output_layout.get_partial_shape();
+        output_layout.set_partial_shape(extend_shape_to_rank_from_end(out_pshape));
+
+        for (auto& input_layout : updated_impl_params.input_layouts) {
+            auto input_pshape = input_layout.get_partial_shape();
+            if (!broadcastable(input_pshape, out_pshape)) {
+                input_pshape = extend_shape_to_rank_from_begin(input_pshape, out_pshape.size());
+            }
+            input_layout.set_partial_shape(extend_shape_to_rank_from_end(input_pshape));
+        }
+
+        return updated_impl_params;
+    }
+
+    kernel_impl_params canonicalize_shapes(const kernel_impl_params& impl_params) const override {
+        return static_canonicalize_shapes(impl_params);
+    }
+
     void update_dispatch_data(const kernel_impl_params& impl_param) override {
         auto kernel_params = get_kernel_params(impl_param, true);
         (_kernel_data.update_dispatch_data_func)(kernel_params.first, _kernel_data);

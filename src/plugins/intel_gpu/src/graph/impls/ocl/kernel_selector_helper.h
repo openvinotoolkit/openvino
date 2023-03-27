@@ -7,6 +7,7 @@
 #include "intel_gpu/graph/serialization/binary_buffer.hpp"
 #include "intel_gpu/graph/kernel_impl_params.hpp"
 #include "intel_gpu/graph/fused_primitive_desc.hpp"
+#include "intel_gpu/graph/program.hpp"
 #include "intel_gpu/runtime/engine.hpp"
 #include "intel_gpu/runtime/utils.hpp"
 #include "intel_gpu/runtime/tensor.hpp"
@@ -289,6 +290,59 @@ switch (mode) {
         default:
             return kernel_selector::eltwise_mode::ADD;
     }
+}
+
+inline ov::PartialShape extend_shape_to_rank_from_end(ov::PartialShape pshape, size_t rank = 4) {
+    if (pshape.size() >= rank) {
+        return pshape;
+    }
+    pshape.insert(pshape.end(), rank - pshape.size(), ov::Dimension(1));
+    return pshape;
+}
+
+inline ov::PartialShape extend_shape_to_rank_from_begin(ov::PartialShape pshape, size_t rank = 4) {
+    if (pshape.size() >= rank) {
+        return pshape;
+    }
+    ov::PartialShape extended_pshape(std::vector<int64_t>(rank - pshape.size(), 1));
+    extended_pshape.insert(extended_pshape.end(), pshape.begin(), pshape.end());
+    return extended_pshape;
+}
+
+inline kernel_impl_params canonicalize_fused_shapes(const kernel_impl_params& impl_params) {
+    auto updated_impl_params = impl_params;
+    bool use_new_shape_infer = impl_params.prog->get_config().get_property(ov::intel_gpu::allow_new_shape_infer);
+
+    auto broadcastable = [use_new_shape_infer](const ov::PartialShape& first_pshape, const ov::PartialShape& second_pshape) {
+        if (first_pshape.is_dynamic() || second_pshape.is_dynamic()) {
+            return false;
+        }
+        if (first_pshape.size() != second_pshape.size() && use_new_shape_infer) {
+            return false;
+        }
+        size_t min_size = std::min(first_pshape.size(), second_pshape.size());
+
+        for (size_t i = 0; i < min_size; ++i) {
+            if (!(first_pshape[i] == 1 || second_pshape[i] == 1 || first_pshape[i] == second_pshape[i])) {
+                return false;
+            }
+        }
+        return true;
+    };
+
+    for (auto& fd : updated_impl_params.fused_desc) {
+        if (fd.is_type<eltwise>() && fd.total_num_deps == 2) {
+            auto out_pshape = updated_impl_params.output_layouts[0].get_partial_shape();
+
+            auto& dep_layout = updated_impl_params.input_layouts[fd.dep_start_idx];
+            auto dep_shape = dep_layout.get_partial_shape();
+
+            if (!broadcastable(dep_shape, out_pshape)) {
+                dep_layout.set_partial_shape(extend_shape_to_rank_from_begin(dep_shape, out_pshape.size()));
+            }
+        }
+    }
+    return updated_impl_params;
 }
 
 }  // namespace cldnn

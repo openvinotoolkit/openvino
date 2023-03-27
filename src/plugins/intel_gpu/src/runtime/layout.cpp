@@ -506,20 +506,19 @@ bool layout::identical(const layout& other) const {
     return are_layouts_identical(*this, other).first;
 }
 
-ov::PartialShape layout::transform(cldnn::format new_fmt) const {
-    if (format == new_fmt) {
-        return size;
+ov::PartialShape layout::transform(const ov::PartialShape& pshape, cldnn::format old_fmt, cldnn::format new_fmt) {
+    if (old_fmt == new_fmt) {
+        return pshape;
     }
 
     cldnn::tensor::value_type default_size = -1;
-    auto shape = size.to_shape();
+    auto shape = pshape.to_shape();
     std::vector<tensor::value_type> dims;
     for (auto dim : shape) {
         dims.push_back(static_cast<tensor::value_type>(dim));
     }
-
     const cldnn::format default_fmt = cldnn::format::bfwzyx;
-    auto old_sizes = convert_dimensions(dims, format.order(), default_fmt.internal_order()); // convert to internal order (bfxyzw)
+    auto old_sizes = convert_dimensions(dims, old_fmt.order(), default_fmt.internal_order()); // convert to internal order (bfxyzw)
 
     auto val_order = default_fmt.internal_order();
     auto new_order = new_fmt.internal_order();

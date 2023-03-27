@@ -127,7 +127,7 @@ TEST(shape_of_gpu, dynamic) {
 
     cldnn::topology topology;
     topology.add(input_layout("input", in_layout));
-    topology.add(shape_of("shape_of", input_info("input"), 5, data_types::i32));
+    topology.add(shape_of("shape_of", input_info("input"), 4, data_types::i32));
 
     ExecutionConfig config = get_test_default_config(engine);
     config.set_property(ov::intel_gpu::allow_new_shape_infer(true));

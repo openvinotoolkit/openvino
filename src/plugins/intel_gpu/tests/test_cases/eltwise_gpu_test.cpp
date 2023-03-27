@@ -1356,6 +1356,124 @@ TEST(eltwise_gpu_f32, dynamic_kernel_broadcast) {
     }
 }
 
+TEST(eltwise_gpu_f32, dynamic_kernel_broadcast_mixed_ranks_3d_2d) {
+    auto& engine = get_test_engine();
+
+    ov::PartialShape in1_shape = {3, 1, 5};
+    ov::PartialShape in2_shape = {1, 5};
+    auto in1_layout = layout{{-1, -1, 5}, data_types::f32, format::bfyx};
+    auto in2_layout = layout{{-1, 5}, data_types::f32, format::bfyx};
+    auto in1_mem_layout = layout{in1_shape, data_types::f32, format::bfyx};
+    auto in2_mem_layout = layout{in2_shape, data_types::f32, format::bfyx};
+    auto input1 = engine.allocate_memory(in1_mem_layout);
+    auto input2 = engine.allocate_memory(in2_mem_layout);
+
+    topology topology;
+    topology.add(input_layout("input1", in1_layout));
+    topology.add(input_layout("input2", in2_layout));
+    topology.add(eltwise("eltwise", { input_info("input1"), input_info("input2") }, eltwise_mode::sum));
+
+    set_values(input1, {
+        1.f,  0.f , 5.f,  1.5f, 2.f,
+        0.f,  6.f, 5.2f,   3.f, 0.5f,
+        7.f, 12.f,  4.f, -0.5f, 8.f
+    });
+
+    set_values(input2, { 0.5f, -0.5f, 1.0f, -1.0f, 2.f });
+
+    ExecutionConfig config;
+    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+    network network(engine, topology, config);
+    network.set_input_data("input1", input1);
+    network.set_input_data("input2", input2);
+
+    auto inst = network.get_primitive("eltwise");
+
+    auto impl = inst->get_impl();
+    ASSERT_TRUE(impl != nullptr);
+    ASSERT_TRUE(impl->is_dynamic());
+
+    auto outputs = network.execute();
+
+    ASSERT_EQ(outputs.size(), size_t(1));
+    ASSERT_EQ(outputs.begin()->first, "eltwise");
+
+    auto output = outputs.at("eltwise").get_memory();
+
+    ov::PartialShape expected_shape{3, 1, 5};
+
+    ASSERT_EQ(output->get_layout().get_partial_shape(), expected_shape);
+
+    float answers[15] = { 1.5f, -0.5f, 6.f,  0.5f, 4.f,
+                          0.5f,  5.5f, 6.2f,  2.f, 2.5f,
+                          7.5f, 11.5f, 5.f,  -1.5f, 10.f };
+
+    cldnn::mem_lock<float> output_ptr(output, get_test_stream());
+
+    for (int i = 0; i < 15; i++) {
+        ASSERT_EQ(answers[i], output_ptr[i]) << "i = " << i;
+    }
+}
+
+TEST(eltwise_gpu_f32, dynamic_kernel_broadcast_mixed_ranks_5d_2d) {
+    auto& engine = get_test_engine();
+
+    ov::PartialShape in1_shape = {1, 1, 3, 1, 5};
+    ov::PartialShape in2_shape = {1, 5};
+    auto in1_layout = layout{{1, 1, -1, -1, 5}, data_types::f32, format::bfzyx};
+    auto in2_layout = layout{{-1, 5}, data_types::f32, format::bfyx};
+    auto in1_mem_layout = layout{in1_shape, data_types::f32, format::bfzyx};
+    auto in2_mem_layout = layout{in2_shape, data_types::f32, format::bfyx};
+    auto input1 = engine.allocate_memory(in1_mem_layout);
+    auto input2 = engine.allocate_memory(in2_mem_layout);
+
+    topology topology;
+    topology.add(input_layout("input1", in1_layout));
+    topology.add(input_layout("input2", in2_layout));
+    topology.add(eltwise("eltwise", { input_info("input1"), input_info("input2") }, eltwise_mode::sum));
+
+    set_values(input1, {
+        1.f,  0.f , 5.f,  1.5f, 2.f,
+        0.f,  6.f, 5.2f,   3.f, 0.5f,
+        7.f, 12.f,  4.f, -0.5f, 8.f
+    });
+
+    set_values(input2, { 0.5f, -0.5f, 1.0f, -1.0f, 2.f });
+
+    ExecutionConfig config;
+    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+    network network(engine, topology, config);
+    network.set_input_data("input1", input1);
+    network.set_input_data("input2", input2);
+
+    auto inst = network.get_primitive("eltwise");
+
+    auto impl = inst->get_impl();
+    ASSERT_TRUE(impl != nullptr);
+    ASSERT_TRUE(impl->is_dynamic());
+
+    auto outputs = network.execute();
+
+    ASSERT_EQ(outputs.size(), size_t(1));
+    ASSERT_EQ(outputs.begin()->first, "eltwise");
+
+    auto output = outputs.at("eltwise").get_memory();
+
+    ov::PartialShape expected_shape{1, 1, 3, 1, 5};
+
+    ASSERT_EQ(output->get_layout().get_partial_shape(), expected_shape);
+
+    float answers[15] = { 1.5f, -0.5f, 6.f,  0.5f, 4.f,
+                          0.5f,  5.5f, 6.2f,  2.f, 2.5f,
+                          7.5f, 11.5f, 5.f,  -1.5f, 10.f };
+
+    cldnn::mem_lock<float> output_ptr(output, get_test_stream());
+
+    for (int i = 0; i < 15; i++) {
+        ASSERT_EQ(answers[i], output_ptr[i]) << "i = " << i;
+    }
+}
+
 TEST(eltwise_gpu_f32, add_basic_in4x4x2x2) {
     //  Input2   : 2x2x2
     //  Input  : 2x2x2x2

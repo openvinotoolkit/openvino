@@ -38,12 +38,11 @@ public:
         const auto& primitive = impl_param.typed_desc<fully_connected>();
 
         auto get_fc_input_layouts = [primitive](const std::vector<layout>& input_layouts) {
-            auto reshape_to_2d = [](const ov::PartialShape& shape, const ov::Dimension& feature) {
+            auto reshape_to_2d = [](const ov::PartialShape& shape, const ov::Dimension& feature, size_t rank) {
                 if (shape.is_static()) {
                     auto static_shape = shape.to_shape();
-                    size_t total =
-                        std::accumulate(static_shape.begin(), static_shape.end(), size_t(1), std::multiplies<size_t>());
-                    auto dim = feature.is_static() ? feature.get_length() : static_cast<int64_t>(static_shape.back());
+                    size_t total = std::accumulate(static_shape.begin(), static_shape.end(), static_cast<size_t>(1), std::multiplies<size_t>());
+                    auto dim = feature.is_static() ? feature.get_length() : static_cast<int64_t>(static_shape[rank - 1]);
                     return ov::PartialShape{ static_cast<int64_t>(total) / dim, dim };
                 } else {
                     return ov::PartialShape{ ov::Dimension::dynamic(), feature };
@@ -59,10 +58,10 @@ public:
             ov::Dimension feature = input0_pshape[std::min(primitive->input_size, static_cast<size_t>(4)) - 1ul];
 
             if (primitive->input_size > 3) {
-                input0_layout.set_partial_shape(reshape_to_2d(input0_pshape, feature));
+                input0_layout.set_partial_shape(reshape_to_2d(input0_pshape, feature, primitive->input_size));
             }
             if (input1_pshape.size() != 2) {
-                input1_layout.set_partial_shape(reshape_to_2d(input1_pshape, feature));
+                input1_layout.set_partial_shape(reshape_to_2d(input1_pshape, feature, primitive->weights_rank));
             }
 
             std::vector<layout> layouts{input0_layout, input1_layout};

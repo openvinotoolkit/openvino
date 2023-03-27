@@ -43,11 +43,13 @@ struct fully_connected : public primitive_base<fully_connected> {
                     const primitive_id& weights,
                     const primitive_id& bias = "",
                     const padding& output_padding = padding(),
-                    const size_t input_size = 2)
+                    const size_t input_size = 2,
+                    const size_t weights_rank = 2)
         : primitive_base(id, {input}, {output_padding}),
           weights(weights),
           bias(bias),
-          input_size(input_size)
+          input_size(input_size),
+          weights_rank(weights_rank)
     {}
 
     /// @brief Constructs fully connected layer.
@@ -61,11 +63,13 @@ struct fully_connected : public primitive_base<fully_connected> {
                     const primitive_id& bias,
                     const data_types data_type,
                     const padding& output_padding = padding(),
-                    const size_t input_size = 2)
+                    const size_t input_size = 2,
+                    const size_t weights_rank = 2)
         : primitive_base(id, { input }, {output_padding}, {optional_data_type{data_type}}),
           weights(weights),
           bias(bias),
-          input_size(input_size)
+          input_size(input_size),
+          weights_rank(weights_rank)
     {}
 
     /// @brief Primitive id containing weights data.
@@ -74,10 +78,13 @@ struct fully_connected : public primitive_base<fully_connected> {
     primitive_id bias;
     /// @brief Primitive dimension size.
     size_t input_size;
+    /// @brief Primitive weights rank.
+    size_t weights_rank;
 
     size_t hash() const override {
         size_t seed = primitive::hash();
         seed = hash_combine(seed, input_size);
+        seed = hash_combine(seed, weights_rank);
         seed = hash_combine(seed, bias.empty());
         return seed;
     }
@@ -89,6 +96,7 @@ struct fully_connected : public primitive_base<fully_connected> {
         auto rhs_casted = downcast<const fully_connected>(rhs);
 
         return input_size == rhs_casted.input_size &&
+               weights_rank == rhs_casted.weights_rank &&
                bias.empty() == rhs_casted.bias.empty();
     }
 
