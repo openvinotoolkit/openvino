@@ -572,4 +572,34 @@ TEST_P(ov_core_test, ov_core_compile_model_from_file_unicode) {
 }
 #endif
 
+using ov_core_test_auto = ov_core_test;
+INSTANTIATE_TEST_SUITE_P(device_name, ov_core_test_auto, ::testing::Values("AUTO"));
+
+TEST_P(ov_core_test_auto, ov_core_auto_set_and_get_property_bool) {
+    auto device_name = GetParam();
+    ov_core_t* core = nullptr;
+    OV_EXPECT_OK(ov_core_create(&core));
+    EXPECT_NE(nullptr, core);
+
+    const char* key_1 = ov_property_key_intel_auto_device_bind_buffer;
+    const char* key_2 = ov_property_key_intel_auto_enable_startup_fallback;
+    const char* key_3 = ov_property_key_intel_auto_enable_runtime_fallback;
+    const char* disable = "NO";
+    OV_EXPECT_OK(ov_core_set_property(core, device_name.c_str(), key_1, disable));
+    char* ret = nullptr;
+    OV_EXPECT_OK(ov_core_get_property(core, device_name.c_str(), key_1, &ret));
+    EXPECT_STREQ(disable, ret);
+    ov_free(ret);
+    OV_EXPECT_OK(ov_core_set_property(core, device_name.c_str(), key_2, disable));
+    ret = nullptr;
+    OV_EXPECT_OK(ov_core_get_property(core, device_name.c_str(), key_2, &ret));
+    EXPECT_STREQ(disable, ret);
+    ov_free(ret);
+    OV_EXPECT_OK(ov_core_set_property(core, device_name.c_str(), key_3, disable));
+    ret = nullptr;
+    OV_EXPECT_OK(ov_core_get_property(core, device_name.c_str(), key_3, &ret));
+    EXPECT_STREQ(disable, ret);
+    ov_free(ret);
+    ov_core_free(core);
+}
 }  // namespace
