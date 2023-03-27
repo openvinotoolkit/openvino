@@ -13,8 +13,10 @@
 
 #include "executable.hpp"
 #include "ngraph/runtime/tensor.hpp"
+#include "openvino/core/node.hpp"
 #include "openvino/itt.hpp"
 #include "openvino/runtime/isync_infer_request.hpp"
+#include "openvino/runtime/ivariable_state.hpp"
 
 namespace ov {
 namespace template_plugin {
@@ -49,9 +51,11 @@ private:
     // for performance counters
     std::array<std::chrono::duration<float, std::micro>, numOfStages> m_durations;
 
-    std::vector<std::shared_ptr<ngraph::runtime::Tensor>> m_backend_input_tensors;
-    std::vector<std::shared_ptr<ngraph::runtime::Tensor>> m_backend_output_tensors;
-    std::shared_ptr<ngraph::runtime::Executable> m_executable;
+    std::vector<ov::Tensor> m_backend_input_tensors;
+    std::vector<ov::Tensor> m_backend_output_tensors;
+    std::shared_ptr<ov::runtime::Executable> m_executable;
+    ov::EvaluationContext m_eval_context;
+    std::vector<std::shared_ptr<ov::IVariableState>> m_variable_states;
 };
 // ! [infer_request:header]
 

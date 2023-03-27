@@ -6,7 +6,6 @@
 #include "binary_convolution_inst.h"
 #include "primitive_type_base.h"
 #include "intel_gpu/runtime/memory.hpp"
-#include "intel_gpu/runtime/error_handler.hpp"
 #include "json_object.h"
 #include "data_inst.h"
 #include <string>
@@ -74,17 +73,6 @@ std::string quantize_inst::to_string(quantize_node const& node) {
     return primitive_description.str();
 }
 
-quantize_inst::typed_primitive_inst(network& network, quantize_node const& node) : parent(network, node) {
-    scale_shift_opt = node.get_scale_shift_opt();
-}
+quantize_inst::typed_primitive_inst(network& network, quantize_node const& node) : parent(network, node) {}
 
-void quantize_inst::save(cldnn::BinaryOutputBuffer& ob) const {
-    parent::save(ob);
-    ob << scale_shift_opt;
-}
-
-void quantize_inst::load(BinaryInputBuffer& ib) {
-    parent::load(ib);
-    ib >> scale_shift_opt;
-}
 }  // namespace cldnn

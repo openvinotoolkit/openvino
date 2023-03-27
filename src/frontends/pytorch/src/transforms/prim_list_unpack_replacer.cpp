@@ -33,6 +33,7 @@ PrimListUnpackReplacer::PrimListUnpackReplacer() {
             if (rank.is_dynamic()) {
                 return false;
             }
+            std::shared_ptr<Node> split;
             if (rank.get_length() == 0) {
                 // Create split_lenghts tensor from split_size int,
                 // allow for last chunk to be smaller if data is not equally divisible.
@@ -45,18 +46,17 @@ PrimListUnpackReplacer::PrimListUnpackReplacer() {
                 auto split_lenghts_m_1 = std::make_shared<opset10::Tile>(split_size, num_out_m_1);
                 NodeVector concat_inputs{split_lenghts_m_1, const_neg_1};
                 auto split_lenghts = std::make_shared<opset10::Concat>(concat_inputs, 0);
-                auto split = std::make_shared<opset10::VariadicSplit>(torch_split->get_input_source_output(0),
-                                                                      torch_split->get_input_source_output(2),
-                                                                      split_lenghts);
-                copy_runtime_info({list_unpack, input_node}, split);
-                replace_node(list_unpack, split);
+                split = std::make_shared<opset10::VariadicSplit>(torch_split->get_input_source_output(0),
+                                                                 torch_split->get_input_source_output(2),
+                                                                 split_lenghts);
             } else {
-                auto split = std::make_shared<opset10::VariadicSplit>(torch_split->get_input_source_output(0),
-                                                                      torch_split->get_input_source_output(2),
-                                                                      torch_split->get_input_source_output(1));
-                copy_runtime_info({list_unpack, input_node}, split);
-                replace_node(list_unpack, split);
+                split = std::make_shared<opset10::VariadicSplit>(torch_split->get_input_source_output(0),
+                                                                 torch_split->get_input_source_output(2),
+                                                                 torch_split->get_input_source_output(1));
             }
+            copy_runtime_info({list_unpack, input_node}, split);
+            split->set_friendly_name(input_node->get_friendly_name());
+            replace_node(list_unpack, split);
 
             return true;
         }
@@ -67,6 +67,7 @@ PrimListUnpackReplacer::PrimListUnpackReplacer() {
                                                                   split_with_sizes->get_input_source_output(1));
 
             copy_runtime_info({list_unpack, input_node}, split);
+            split->set_friendly_name(input_node->get_friendly_name());
             replace_node(list_unpack, split);
 
             return true;
@@ -105,7 +106,7 @@ PrimListUnpackReplacer::PrimListUnpackReplacer() {
         if (auto where = cast_fw_node(input_node, "aten::where")) {
             const auto input = where->get_input_source_output(0);
             auto non_zero = std::make_shared<opset10::NonZero>(input);
-            auto axis = opset10::Constant::create(element::i64, Shape{}, {0});
+            auto axis = opset10::Constant::create(element::i32, Shape{}, {0});
             const auto num_splits = list_unpack->get_output_size();
             auto split = std::make_shared<opset10::Split>(non_zero, axis, num_splits);
             NodeVector to_copy_rt{split};
@@ -123,7 +124,7 @@ PrimListUnpackReplacer::PrimListUnpackReplacer() {
         if (auto nonzero_numpy = cast_fw_node(input_node, "aten::nonzero_numpy")) {
             const auto input = nonzero_numpy->get_input_source_output(0);
             auto non_zero = std::make_shared<opset10::NonZero>(input);
-            auto axis = opset10::Constant::create(element::i64, Shape{}, {0});
+            auto axis = opset10::Constant::create(element::i32, Shape{}, {0});
             const auto num_splits = list_unpack->get_output_size();
             auto split = std::make_shared<opset10::Split>(non_zero, axis, num_splits);
             NodeVector to_copy_rt{split};
@@ -168,12 +169,12 @@ PrimListUnpackReplacer::PrimListUnpackReplacer() {
             }
             NodeVector cat_shapes{};
             NodeVector reshapes{};
-            auto const_neg_1 = opset10::Constant::create(element::i64, Shape{1}, {-1});
-            auto const_1 = opset10::Constant::create(element::i64, Shape{1}, {1});
+            auto const_neg_1 = opset10::Constant::create(element::i32, Shape{1}, {-1});
+            auto const_1 = opset10::Constant::create(element::i32, Shape{1}, {1});
             int input_idx = 0;
             for (auto& input : meshgrid_inputs) {
                 auto reshaped_input = std::make_shared<opset10::Reshape>(input, const_neg_1, false);
-                auto shape = std::make_shared<opset10::ShapeOf>(reshaped_input);
+                auto shape = std::make_shared<opset10::ShapeOf>(reshaped_input, element::i32);
                 cat_shapes.push_back(shape);
                 NodeVector cat_inputs(meshgrid_inputs.size(), const_1);
                 cat_inputs[input_idx] = shape;
@@ -202,7 +203,7 @@ PrimListUnpackReplacer::PrimListUnpackReplacer() {
         if (auto shape_of = std::dynamic_pointer_cast<opset10::ShapeOf>(input_node)) {
             // case aten::size as input
             // Number of ListUnpack outputs should be equal to rank of input shape.
-            auto axis_0 = opset10::Constant::create(element::i64, Shape{}, {0});
+            auto axis_0 = opset10::Constant::create(element::i32, Shape{}, {0});
             auto split = std::make_shared<opset10::Split>(shape_of, axis_0, list_unpack->get_output_size());
 
             NodeVector to_copy_rt{axis_0, split};
@@ -222,7 +223,7 @@ PrimListUnpackReplacer::PrimListUnpackReplacer() {
         if (auto slice = std::dynamic_pointer_cast<opset10::Slice>(input_node)) {
             // case aten::slice as input
             // Number of ListUnpack outputs should be equal to rank of input shape.
-            auto axis_0 = opset10::Constant::create(element::i64, Shape{}, {0});
+            auto axis_0 = opset10::Constant::create(element::i32, Shape{}, {0});
             auto split = std::make_shared<opset10::Split>(slice, axis_0, list_unpack->get_output_size());
 
             NodeVector to_copy_rt{axis_0, split};

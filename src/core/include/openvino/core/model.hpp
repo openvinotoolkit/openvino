@@ -47,7 +47,7 @@ class OPENVINO_API Model : public std::enable_shared_from_this<Model> {
 
 public:
     _OPENVINO_HIDDEN_METHOD static const ::ov::DiscreteTypeInfo& get_type_info_static() {
-        static const ::ov::DiscreteTypeInfo type_info_static{"Model", static_cast<uint64_t>(0)};
+        static const ::ov::DiscreteTypeInfo type_info_static{"Model"};
         return type_info_static;
     }
     const ::ov::DiscreteTypeInfo& get_type_info() const {
@@ -481,8 +481,8 @@ private:
                                           std::is_same<T, char*>::value,
                                       bool>::type = true>
     const ov::Any& get_rt_arg(const ov::AnyMap& rt_info, const T& name) const {
-        if (rt_info.find(name) == rt_info.end())
-            throw ov::Exception("Cannot get runtime attribute. Path to runtime attribute is incorrect.");
+        OPENVINO_ASSERT(rt_info.find(name) != rt_info.end(),
+                        "Cannot get runtime attribute. Path to runtime attribute is incorrect.");
         return get_attr(rt_info.at(name));
     }
 

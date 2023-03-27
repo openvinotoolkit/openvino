@@ -3,7 +3,6 @@
 //
 
 #include "ocl_command_queues_builder.hpp"
-#include "intel_gpu/runtime/error_handler.hpp"
 #include "intel_gpu/runtime/debug_configuration.hpp"
 #include <string>
 

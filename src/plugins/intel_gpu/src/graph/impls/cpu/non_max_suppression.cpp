@@ -6,7 +6,7 @@
 #include "primitive_inst.h"
 #include "register.hpp"
 #include "cpu_impl_helpers.hpp"
-#include "impls/implementation_map.hpp"
+#include "implementation_map.hpp"
 
 #include <vector>
 #include <queue>

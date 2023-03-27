@@ -16,6 +16,7 @@ namespace tensorflow {
 namespace op {
 
 OutputVector translate_matrix_diag_op(const NodeContext& node) {
+    default_op_checks(node, 1, {"MatrixDiag", "MATRIX_DIAG"});
     // The translation of MatrixDiag to OpenVINO opset relies on padding of input tensor with zeros,
     // reshape to a special form and cutting of unneeded padding part.
     // Here is a basic idea described by an example,
@@ -27,7 +28,6 @@ OutputVector translate_matrix_diag_op(const NodeContext& node) {
     // Reshape to tensor of a shape [12] equal to [1, 0, 0, 0, 2, 0, 0, 0, 3, 0, 0, 0]
     // Cut off last 3 elements and get [1, 0, 0, 0, 2, 0, 0, 0, 3] and reshape to [3, 3]
     // This idea is generalized to higher rank tensors
-    TENSORFLOW_OP_VALIDATION(node, node.get_input_size() > 0, "MatrixDiag must have at least one input.");
     // diagonal is the single input to MatrixDiag operation and has a shape [I, J, ..., M, N]
     auto diagonal = node.get_input(0);
     auto diagonal_type = diagonal.get_element_type();

@@ -42,16 +42,19 @@ std::shared_ptr<Node> NodeContext::mark_node(std::shared_ptr<Node> ov_node) cons
     return m_decoder->mark_node(ov_node);
 }
 
-void NodeContext::mutate_input(size_t index, Output<Node> ov_output) {
+void NodeContext::mutate_input(size_t index, Output<Node> ov_output) const {
     FRONT_END_GENERAL_CHECK(!m_decoder->input_is_none(index), "Input is none with index: ", index);
     auto input_id = m_decoder_inputs.at(index);
     FRONT_END_GENERAL_CHECK(m_tensor_map->count(input_id), "No tensor corresponding input: ", input_id, " exist.");
-    m_translate_session->encode_tensor_name(ov_output, input_id, m_decoder->get_input_debug_name(index));
+    m_translate_session->encode_tensor_name(
+        ov_output,
+        input_id,
+        {m_decoder->get_input_debug_name(index), m_decoder->get_input_signature_name(index)});
     (*m_tensor_map)[input_id] = ov_output;
-    m_mutated_tensors.insert(input_id);
+    m_mutated_tensors->insert(input_id);
 }
 
-void NodeContext::add_tensor_to_context(size_t index, Output<Node> ov_output) {
+void NodeContext::add_tensor_to_context(size_t index, Output<Node> ov_output) const {
     if (m_tensor_map->count(index)) {
         OPENVINO_DEBUG << "[ WARNING ] Current context has tensor. Rewriting.\n";
     }
@@ -59,7 +62,7 @@ void NodeContext::add_tensor_to_context(size_t index, Output<Node> ov_output) {
     (*m_tensor_map)[index] = ov_output;
 }
 
-Output<Node> NodeContext::get_tensor_from_model_or_create_input(size_t index) {
+Output<Node> NodeContext::get_tensor_from_model_or_create_input(size_t index) const {
     if (m_tensor_map->find(index) != m_tensor_map->end()) {
         return m_tensor_map->at(index);
     } else {
@@ -87,7 +90,7 @@ Output<Node> NodeContext::get_input_from_visible_context(size_t index) const {
     return input_tensor;
 }
 
-std::shared_ptr<ov::Model> NodeContext::convert_subgraph(size_t index) {
+std::shared_ptr<ov::Model> NodeContext::convert_subgraph(size_t index) const {
     auto subgraph_decoder = m_decoder->get_subgraph_decoder(index);
 
     // Extend external context with internal tensors except Parameter nodes, because internal Parameters are created to
@@ -128,18 +131,18 @@ std::vector<int64_t> NodeContext::const_input<std::vector<int64_t>>(size_t index
 }
 
 template <>
-ngraph::Strides NodeContext::const_input<ngraph::Strides>(size_t index) const {
-    return get_constant_at_input(*this, index)->cast_vector<ngraph::Strides::value_type>();
+Strides NodeContext::const_input<Strides>(size_t index) const {
+    return get_constant_at_input(*this, index)->cast_vector<Strides::value_type>();
 }
 
 template <>
-ngraph::CoordinateDiff NodeContext::const_input<ngraph::CoordinateDiff>(size_t index) const {
-    return get_constant_at_input(*this, index)->cast_vector<ngraph::CoordinateDiff::value_type>();
+CoordinateDiff NodeContext::const_input<CoordinateDiff>(size_t index) const {
+    return get_constant_at_input(*this, index)->cast_vector<CoordinateDiff::value_type>();
 }
 
 template <>
-ngraph::Shape NodeContext::const_input<ngraph::Shape>(size_t index) const {
-    return get_constant_at_input(*this, index)->cast_vector<ngraph::Shape::value_type>();
+Shape NodeContext::const_input<Shape>(size_t index) const {
+    return get_constant_at_input(*this, index)->cast_vector<Shape::value_type>();
 }
 
 template <>

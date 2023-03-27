@@ -28,9 +28,7 @@ void ngraph::op::v0::PRelu::validate_and_infer_types() {
 
 shared_ptr<ov::Node> ov::op::v0::PRelu::clone_with_new_inputs(const OutputVector& new_args) const {
     OV_OP_SCOPE(v0_PRelu_clone_with_new_inputs);
-    if (new_args.size() != 2) {
-        throw ov::Exception("Incorrect number of new arguments");
-    }
+    OPENVINO_ASSERT(new_args.size() == 2, "Incorrect number of new arguments");
     return make_shared<PRelu>(new_args.at(0), new_args.at(1));
 }
 

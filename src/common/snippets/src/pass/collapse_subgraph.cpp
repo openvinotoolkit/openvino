@@ -74,7 +74,9 @@ auto is_supported_op(const std::shared_ptr<const Node> &n) -> bool {
                is_type<opset1::Constant>(n->get_input_node_shared_ptr(1)) &&
                is_type<opset1::Constant>(n->get_input_node_shared_ptr(2)) &&
                is_type<opset1::Constant>(n->get_input_node_shared_ptr(3)) &&
-               is_type<opset1::Constant>(n->get_input_node_shared_ptr(4));
+               is_type<opset1::Constant>(n->get_input_node_shared_ptr(4)) &&
+               (fq->get_auto_broadcast() == ov::op::AutoBroadcastType::NUMPY ||
+                fq->get_auto_broadcast() == ov::op::AutoBroadcastType::NONE);
     };
 
     auto is_supported_ternary_eltwise_op = [](const std::shared_ptr<const Node> &n) -> bool {
@@ -210,7 +212,11 @@ const std::set<ngraph::element::Type> ngraph::snippets::pass::TokenizeSnippets::
         { ngraph::element::f32, ngraph::element::bf16, ngraph::element::i8, ngraph::element::u8 };
 
 bool TokenizeSnippets::AppropriateForSubgraph(const std::shared_ptr<const Node> &node) {
-    return is_supported_op(node) && has_supported_in_out(node) && node->get_control_dependencies().empty();
+    return
+        is_supported_op(node) &&
+        has_supported_in_out(node) &&
+        node->get_control_dependencies().empty() &&
+        snippets::op::Subgraph::check_broadcast(node);
 }
 
 TokenizeSnippets::TokenizeSnippets() {

@@ -9,9 +9,9 @@
 #include "intel_gpu/primitives/implementation_desc.hpp"
 #include "intel_gpu/graph/program.hpp"
 
-#include "kernel_selector_helper.h"
-#include "fused_primitive_desc.h"
-#include "meta_utils.h"
+#include "intel_gpu/graph/fused_primitive_desc.hpp"
+#include "intel_gpu/graph/kernel_impl_params.hpp"
+#include "intel_gpu/runtime/utils.hpp"
 
 #include <set>
 #include <array>
@@ -71,7 +71,7 @@ struct program_node {
 public:
     virtual const primitive_id& id() const { return desc->id; }
     virtual primitive_type_id type() const { return desc->type; }
-    virtual std::shared_ptr<kernel_selector::fuse_params> get_fuse_params() const { return nullptr; }
+    virtual std::shared_ptr<NodeFuseParams> get_fuse_params() const { return nullptr; }
     virtual bool generates_dynamic_output() const { return false; }
 
     virtual std::vector<size_t> get_shape_infer_dependencies() const {
@@ -91,6 +91,9 @@ public:
                 if (u->get_dependencies().size() <= dep_idx) {
                     continue;
                 }
+                if (u->is_fused_dep(dep_idx)) {
+                    continue;
+                }
                 if (u->get_dependency(dep_idx).get_unique_id() == unique_id) {
                     return true;
                 }
@@ -98,6 +101,8 @@ public:
         }
         return false;
     }
+
+    bool is_fused_dep(size_t dep_idx) const;
 
     std::map<size_t, memory::ptr> get_const_memory_deps() const;
 
@@ -386,10 +391,6 @@ public:
     void set_preferred_input_fmt(size_t idx, format::type type);
     void set_preferred_output_fmt(size_t idx, format::type type);
 
-    virtual void calculate_hash() {}
-
-    size_t get_hash() const { return seed; }
-
 protected:
     size_t unique_id = 0;
     static thread_local size_t cur_id;
@@ -429,8 +430,6 @@ protected:
     std::vector<fused_primitive_desc> fused_prims;
 
     void invalidate_users() const;
-
-    size_t seed = 0;
 
 private:
 #ifdef ENABLE_ONEDNN_FOR_GPU
@@ -473,16 +472,6 @@ public:
 
     std::shared_ptr<const PType> get_primitive() const {
         return std::static_pointer_cast<const PType>(program_node::get_primitive());
-    }
-
-    void calculate_hash() override {
-        // hash for primitive
-        seed = get_primitive()->hash();
-
-        // hash for fused prims
-        for (auto& prim : fused_prims) {
-            seed = hash_combine(seed, prim.desc->hash());
-        }
     }
 
 protected:

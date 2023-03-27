@@ -12,7 +12,7 @@ namespace frontend {
 namespace pytorch {
 namespace op {
 
-#define OP_CONVERTER(op) OutputVector op(NodeContext& node)
+#define OP_CONVERTER(op) OutputVector op(const NodeContext& node)
 
 OP_CONVERTER(translate_adaptive_avg_pool3d);
 OP_CONVERTER(translate_adaptive_max_pool2d);
@@ -20,16 +20,20 @@ OP_CONVERTER(translate_add);
 OP_CONVERTER(translate_addcmul);
 OP_CONVERTER(translate_addmm);
 OP_CONVERTER(translate_arange);
+OP_CONVERTER(translate_argsort);
 OP_CONVERTER(translate_as_tensor);
 OP_CONVERTER(translate_avg_poolnd);
 OP_CONVERTER(translate_bool);
 OP_CONVERTER(translate_batch_norm);
+OP_CONVERTER(translate_bitwise_not);
+OP_CONVERTER(translate_cat);
 OP_CONVERTER(translate_clamp);
 OP_CONVERTER(translate_constant);
 OP_CONVERTER(translate_conv_transposend);
 OP_CONVERTER(translate_convnd);
 OP_CONVERTER(translate_convolution);
 OP_CONVERTER(translate_convolution_mode);
+OP_CONVERTER(translate_cumsum);
 OP_CONVERTER(translate_dim);
 OP_CONVERTER(translate_div);
 OP_CONVERTER(translate_elu);
@@ -58,6 +62,9 @@ OP_CONVERTER(translate_instance_norm);
 OP_CONVERTER(translate_int);
 OP_CONVERTER(translate_layer_norm);
 OP_CONVERTER(translate_len);
+OP_CONVERTER(translate_linalg_norm);
+OP_CONVERTER(translate_linalg_matrix_norm);
+OP_CONVERTER(translate_linalg_vector_norm);
 OP_CONVERTER(translate_linear);
 OP_CONVERTER(translate_list_construct);
 OP_CONVERTER(translate_log);
@@ -82,6 +89,7 @@ OP_CONVERTER(translate_ones);
 OP_CONVERTER(translate_ones_like);
 OP_CONVERTER(translate_pad);
 OP_CONVERTER(translate_pow);
+OP_CONVERTER(translate_pythonop);
 OP_CONVERTER(translate_reciprocal);
 OP_CONVERTER(translate_relu6);
 OP_CONVERTER(translate_remainder);
@@ -99,6 +107,7 @@ OP_CONVERTER(translate_selu);
 OP_CONVERTER(translate_size);
 OP_CONVERTER(translate_slice);
 OP_CONVERTER(translate_softmax);
+OP_CONVERTER(translate_sort);
 OP_CONVERTER(translate_square);
 OP_CONVERTER(translate_squeeze);
 OP_CONVERTER(translate_sub);
@@ -124,11 +133,12 @@ OP_CONVERTER(translate_zeros_like);
 
 }  // namespace op
 
-const std::map<std::string, PytorchCreatorFunction> get_supported_ops() {
+const std::map<std::string, CreatorFunction> get_supported_ops() {
     return {
         {"aten::__and__", op::translate_1to1_match_2_inputs<opset10::LogicalAnd>},  // TODO: cover numerical cases
         {"aten::__getitem__", op::translate_getitem},
         {"aten::__not__", op::translate_1to1_match_1_inputs<opset10::LogicalNot>},
+        {"aten::__or__", op::translate_1to1_match_2_inputs<opset10::LogicalOr>},
         {"aten::_convolution", op::translate_convolution},
         {"aten::_convolution_mode", op::translate_convolution_mode},
         {"aten::_set_item", op::translate_set_item},
@@ -144,6 +154,7 @@ const std::map<std::string, PytorchCreatorFunction> get_supported_ops() {
         {"aten::add_", op::inplace_op<op::translate_add>},
         {"aten::addcmul", op::translate_addcmul},
         {"aten::addmm", op::translate_addmm},
+        {"aten::argsort", op::translate_argsort},
         {"aten::arange", op::translate_arange},
         {"aten::as_tensor", op::translate_as_tensor},
         {"aten::asin", op::translate_1to1_match_1_inputs<opset10::Asin>},
@@ -157,10 +168,12 @@ const std::map<std::string, PytorchCreatorFunction> get_supported_ops() {
         {"aten::avg_pool1d", op::translate_avg_poolnd},
         {"aten::avg_pool2d", op::translate_avg_poolnd},
         {"aten::avg_pool3d", op::translate_avg_poolnd},
+        {"aten::baddbmm", op::translate_addmm},
         {"aten::batch_norm", op::translate_batch_norm},
+        {"aten::bitwise_not", op::translate_bitwise_not},
         {"aten::bmm", op::translate_1to1_match_2_inputs<opset10::MatMul>},
         {"aten::Bool", op::translate_bool},
-        // {"aten::cat", done as transformation},
+        {"aten::cat", op::translate_cat},
         {"aten::ceil", op::translate_1to1_match_1_inputs<opset10::Ceiling>},
         {"aten::ceil_", op::inplace_op<op::translate_1to1_match_1_inputs<opset10::Ceiling>>},
         {"aten::clamp", op::translate_clamp},
@@ -181,7 +194,7 @@ const std::map<std::string, PytorchCreatorFunction> get_supported_ops() {
         {"aten::cos_", op::inplace_op<op::translate_1to1_match_1_inputs<opset10::Cos>>},
         {"aten::cosh", op::translate_1to1_match_1_inputs<opset10::Cosh>},
         {"aten::cosh_", op::inplace_op<op::translate_1to1_match_1_inputs<opset10::Cosh>>},
-        {"aten::cumsum", op::translate_1to1_match_2_inputs<opset10::CumSum>},
+        {"aten::cumsum", op::translate_cumsum},
         {"aten::dim", op::translate_dim},
         {"aten::div", op::translate_div},
         {"aten::div_", op::inplace_op<op::translate_div>},
@@ -225,6 +238,9 @@ const std::map<std::string, PytorchCreatorFunction> get_supported_ops() {
         {"aten::leaky_relu", op::translate_1to1_match_2_inputs<opset10::PRelu>},
         {"aten::leaky_relu_", op::inplace_op<op::translate_1to1_match_2_inputs<opset10::PRelu>>},
         {"aten::len", op::translate_len},
+        {"aten::linalg_norm", op::translate_linalg_norm},
+        {"aten::linalg_matrix_norm", op::translate_linalg_matrix_norm},
+        {"aten::linalg_vector_norm", op::translate_linalg_vector_norm},
         {"aten::linear", op::translate_linear},
         {"aten::log", op::translate_log},
         {"aten::log_", op::inplace_op<op::translate_log>},
@@ -248,6 +264,7 @@ const std::map<std::string, PytorchCreatorFunction> get_supported_ops() {
         {"aten::narrow", op::translate_narrow},
         {"aten::ne", op::translate_1to1_match_2_inputs_align_types<opset10::NotEqual>},
         {"aten::neg", op::translate_neg},
+        {"aten::new_empty", op::translate_new_zeros},
         {"aten::new_full", op::translate_new_full},
         {"aten::new_ones", op::translate_new_ones},
         {"aten::new_zeros", op::translate_new_zeros},
@@ -286,6 +303,7 @@ const std::map<std::string, PytorchCreatorFunction> get_supported_ops() {
         {"aten::size", op::translate_size},
         {"aten::slice", op::translate_slice},
         {"aten::softmax", op::translate_softmax},
+        {"aten::sort", op::translate_sort},
         {"aten::sqrt", op::translate_1to1_match_1_inputs<opset10::Sqrt>},
         {"aten::square", op::translate_square},
         {"aten::squeeze", op::translate_squeeze},
@@ -320,6 +338,7 @@ const std::map<std::string, PytorchCreatorFunction> get_supported_ops() {
         {"aten::zeros", op::translate_zeros},
         {"aten::zeros_like", op::translate_zeros_like},
         {"prim::Constant", op::translate_constant},
+        {"prim::device", op::translate_constant},
         {"prim::GetAttr", op::translate_get_attr},
         {"prim::If", op::translate_if},
         {"prim::is_cuda", op::return_false_scalar},
@@ -327,6 +346,8 @@ const std::map<std::string, PytorchCreatorFunction> get_supported_ops() {
         {"prim::Loop", op::translate_loop},
         {"prim::NumToTensor", op::skip_node},  // In openvino we already store number as tensor with shape []
         {"prim::requires_grad", op::return_false_scalar},
+        {"prim::PythonOp", op::translate_pythonop},
+        {"prim::type", op::skip_node},  // Used with prim::device, pass PtFrameworkNode.
         {"torchvision::nms", op::translate_nms},
         {"torchvision::roi_align", op::translate_roi_align},
     };

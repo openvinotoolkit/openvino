@@ -55,7 +55,7 @@ class TestRsub(PytorchLayerTest):
         self._test(*self.create_model(second_type="int"), ie_device, precision, ir_version)
 
 
-class TestRSubTypes(PytorchLayerTest):
+class TestRsubTypes(PytorchLayerTest):
 
     def _prepare_input(self):
         return (torch.randn(self.lhs_shape).to(self.lhs_type).numpy(),
@@ -67,7 +67,7 @@ class TestRSubTypes(PytorchLayerTest):
             def __init__(self, lhs_type, rhs_type):
                 super().__init__()
                 self.lhs_type = lhs_type
-                if rhs_type == "int":
+                if rhs_type == np.int32:
                     self.forward = self.forward2
                 else:
                     self.forward = self.forward1
@@ -83,17 +83,17 @@ class TestRSubTypes(PytorchLayerTest):
         return aten_rsub(lhs_type, rhs_type), ref_net, "aten::rsub"
 
     @pytest.mark.parametrize(("lhs_type", "rhs_type"),
-                             [[torch.int32, "int"],
-                            #  [torch.int32, "float"], fp64 produce ov error of eltwise constant fold
-                              [torch.int64, "int"],
-                            #  [torch.int64, "float"], fp64 produce ov error of eltwise constant fold
-                              [torch.float32, "int"],
-                              [torch.float32, "float"],
+                             [[torch.int32, np.int32],
+                              [torch.int32, np.float32],
+                              [torch.int64, np.int32],
+                              [torch.int64, np.float32],
+                              [torch.float32, np.int32],
+                              [torch.float32, np.float32],
                               ])
     @pytest.mark.parametrize(("lhs_shape"), [[2, 3], [3], [2, 3, 4]])
     @pytest.mark.nightly
     @pytest.mark.precommit
-    def test_sub_types(self, ie_device, precision, ir_version, lhs_type, lhs_shape, rhs_type):
+    def test_rsub_types(self, ie_device, precision, ir_version, lhs_type, lhs_shape, rhs_type):
         self.lhs_type = lhs_type
         self.lhs_shape = lhs_shape
         self.rhs_type = rhs_type

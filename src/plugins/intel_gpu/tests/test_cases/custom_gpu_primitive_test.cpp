@@ -82,7 +82,7 @@ TEST(custom_gpu_primitive_f32, add_basic_in2x2x2x2) {
         15.f,  17.f,    8.f,  10.f,
         -2.f,  6.5f,  -0.5f, -2.5f });
 
-    network network(engine, topology);
+    network network(engine, topology, get_test_default_config(engine));
 
     network.set_input_data("input", input);
     network.set_input_data("input2", input2);
@@ -188,7 +188,7 @@ void add_basic_in2x2x2x2_with_reorder()
         15.f,  17.f,    8.f,  10.f,
         -2.f,  6.f,  0.f, -2.f });
 
-    network network(engine, topology);
+    network network(engine, topology, get_test_default_config(engine));
 
     network.set_input_data("input", input);
     network.set_input_data("input2", input2);
@@ -288,7 +288,7 @@ TEST(custom_gpu_primitive_f32, eltwise_add_basic_in2x2x2x2) {
         15.f,  17.f,    8.f,  10.f,
         -2.f,  6.5f,  -0.5f, -2.5f });
 
-    network network(engine, topology);
+    network network(engine, topology, get_test_default_config(engine));
 
     network.set_input_data("input", input);
     network.set_input_data("input2", input2);
@@ -381,7 +381,7 @@ TEST(custom_gpu_primitive_f32, add_eltwise_basic_in2x2x2x2) {
         15.f,  17.f,    8.f,  10.f,
         -2.f,  6.5f,  -0.5f, -2.5f });
 
-    network network(engine, topology);
+    network network(engine, topology, get_test_default_config(engine));
 
     network.set_input_data("input", input);
     network.set_input_data("input2", input2);
@@ -483,7 +483,7 @@ TEST(custom_gpu_primitive_f32, two_kernels_with_same_entry_point_basic_in2x2x2x2
         4.f, -0.5f, 8.f,  8.f
     });
 
-    network network(engine, topology);
+    network network(engine, topology, get_test_default_config(engine));
 
     network.set_input_data("input", input);
     auto outputs = network.execute();
@@ -547,7 +547,7 @@ void test_custom_gpu_primitive_u8_add_basic_in2x2x2x2(bool is_caching_test) {
          2, 60,  0, 20
     });
 
-    cldnn::network::ptr network = get_network(engine, topology, ExecutionConfig(), get_test_stream_ptr(), is_caching_test);
+    cldnn::network::ptr network = get_network(engine, topology, get_test_default_config(engine), get_test_stream_ptr(), is_caching_test);
 
     network->set_input_data("input", input);
     network->set_input_data("input2", input2);

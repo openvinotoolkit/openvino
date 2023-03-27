@@ -1,10 +1,10 @@
 // Copyright (C) 2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
+
 #include "non_zero_inst.h"
 #include "primitive_type_base.h"
 #include "intel_gpu/runtime/memory.hpp"
-#include "intel_gpu/runtime/error_handler.hpp"
 #include "intel_gpu/runtime/debug_configuration.hpp"
 #include "json_object.h"
 #include <string>
@@ -47,10 +47,6 @@ std::string count_nonzero_inst::to_string(count_nonzero_node const& node) {
 }
 
 count_nonzero_inst::typed_primitive_inst(network& network, count_nonzero_node const& node) : parent(network, node) {}
-
-void count_nonzero_inst::on_execute() {
-    output_memory().fill(_network.get_stream(), 0);
-}
 
 // -----------------------------------------------
 // gather_nonzero

@@ -152,7 +152,7 @@ class CustomBuild(build):
             unique_req = list(set(map(lambda x: x.lower(), req)))
             self.distribution.extras_require[extra] = unique_req
 
-        # add dependecy on runtime package
+        # add dependency on runtime package
         runtime_req = [f'openvino=={self.distribution.get_version()}']
         self.distribution.install_requires.extend(runtime_req)
 

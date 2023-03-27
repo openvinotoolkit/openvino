@@ -91,9 +91,11 @@ static void CreateStridedSliceOp(Program& p, const std::shared_ptr<ngraph::op::v
                 }
 
                 // -1 because it's a position of ellipses
-                unsigned long num_input_axis_after_ellipses = (begin.size() - axis - num_new_axis_after_ellipses - 1);
-                unsigned long num_of_hidden_dims = input_shape.size() - num_input_axis_after_ellipses
-                                                    - num_input_axis_before_ellipses;
+                unsigned long num_input_axis_after_ellipses =
+                    static_cast<unsigned long>(begin.size() - axis - num_new_axis_after_ellipses - 1);
+                unsigned long num_of_hidden_dims =
+                    static_cast<unsigned long>(input_shape.size() - num_input_axis_after_ellipses
+                                                    - num_input_axis_before_ellipses);
                 for (size_t i = 0; i < num_of_hidden_dims; ++i) {
                     axes.emplace_back(uniq_id);
                     uniq_id++;
@@ -207,7 +209,7 @@ static void CreateStridedSliceOp(Program& p, const std::shared_ptr<ngraph::op::v
             if (axes[i] < 0 || axes[i] > 3) {
                 IE_THROW() << "Invalid crop axis: " << std::to_string(axes[i]) << " in op " + op->get_friendly_name();
             }
-            offset_tensor[axes[i]] = offset[i];
+            offset_tensor[axes[i]] = static_cast<uint32_t>(offset[i]);
         }
 
         ngraph::Shape crop_shape(reshape_pattern);
