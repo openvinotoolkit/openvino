@@ -433,6 +433,12 @@ void Concat::prepareParams() {
 
         auto primitive_desc = concat::primitive_desc(getEngine(), desc, static_cast<int>(axis), srcs_d);
         prim = concat(primitive_desc);
+#ifdef CPU_DEBUG_CAPS
+        if (prim) {
+            auto pd = prim.get_primitive_desc();
+            DEBUG_LOG("verbose##", getName(), "##", DnnlExtensionUtils::query_pd_info(pd), "\n");
+        }
+#endif
     }
 }
 

@@ -7,6 +7,8 @@
 #include <vector>
 #include "memory_desc/dnnl_blocked_memory_desc.h"
 #include "onednn/iml_type_mapper.h"
+#include <common/primitive_desc.hpp>
+#include <common/primitive_desc_iface.hpp>
 
 using namespace dnnl;
 
@@ -195,6 +197,10 @@ dnnl_memory_desc_t DnnlExtensionUtils::clone_desc(const_dnnl_memory_desc_t cdesc
     dnnl_memory_desc_t cloned_md = nullptr;
     dnnl_memory_desc_clone(&cloned_md, cdesc);
     return cloned_md;
+}
+
+const char* DnnlExtensionUtils::query_pd_info(const_dnnl_primitive_desc_t pd) {
+    return pd->info();
 }
 
 }   // namespace intel_cpu

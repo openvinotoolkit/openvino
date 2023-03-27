@@ -245,6 +245,13 @@ void Reorder::createReorderPrimitive(const dnnl::memory::desc& srcDesc,
     auto src = getParentEdgesAtPort(0)[0]->getMemoryPtr()->GetPrimitive();
     auto dst = getChildEdgesAtPort(0)[0]->getMemoryPtr()->GetPrimitive();
     primArgs = {{DNNL_ARG_SRC, src}, {DNNL_ARG_DST, dst}};
+
+#ifdef CPU_DEBUG_CAPS
+    if (prim) {
+        auto pd = prim.get_primitive_desc();
+        DEBUG_LOG("verbose##", getName(), "##", DnnlExtensionUtils::query_pd_info(pd), "\n");
+    }
+#endif
 }
 
 const std::vector<impl_desc_type>& Reorder::getPrimitivesPriority() {

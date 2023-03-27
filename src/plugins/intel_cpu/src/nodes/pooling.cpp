@@ -411,6 +411,13 @@ void Pooling::prepareParams() {
     primArgs[DNNL_ARG_DST] = getChildEdgesAtPort(0)[0]->getMemoryPtr()->GetPrimitive();
 
     Node::appendPostOpArgs(*attr, primArgs, postOpsArgs);
+
+#ifdef CPU_DEBUG_CAPS
+    if (result.second == CacheEntryBase::LookUpStatus::Miss) {
+        auto pd = execPtr->getPrimitiveDesc();
+        DEBUG_LOG("verbose##", getName(), "##", DnnlExtensionUtils::query_pd_info(pd), "\n");
+    }
+#endif
 }
 
 void Pooling::execute(dnnl::stream strm) {
