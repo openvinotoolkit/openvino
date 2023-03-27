@@ -29,6 +29,8 @@ static bool IsFuseable(std::shared_ptr<ov::Node> node, const Output<Node>& input
     }
     if (nullptr != std::dynamic_pointer_cast<ngraph::opset8::GroupConvolution>(parent.get_node()->shared_from_this()) ||
         nullptr != std::dynamic_pointer_cast<ngraph::opset8::Convolution>(parent.get_node()->shared_from_this()))
+        if ((bias_shape[0] != 1) || (bias_shape[2] != 1) || (bias_shape[3] != 1))
+            return false;
         return true;
     return false;
 }
@@ -108,7 +110,7 @@ std::shared_ptr<ov::Node> createBias(std::shared_ptr<ov::Node> math_node, const 
     uint32_t N_params = 0, C_params = 0, H_params = 0, W_params = 0;
     std::tie(supported, N_params, C_params, H_params, W_params) = GetTensorParams(params, math_node, false);
     if (!supported)
-        return false;
+        return nullptr;
 
     auto bias_const = std::dynamic_pointer_cast<ngraph::opset8::Constant>(params.get_node_shared_ptr());
     if (bias_const == nullptr) {
@@ -181,7 +183,7 @@ std::shared_ptr<ov::Node> createGroupConvolutionNode(const Output<Node>& input,
     uint32_t N = 0, C = 0, H = 0, W = 0;
     std::tie(supported, N, C, H, W) = GetTensorParams(input, math_node, true);
     if (!supported)
-        return false;
+        return nullptr;
 
     auto groupconv_weights = createWeights(math_node, params, C);
     groupconv_weights->set_friendly_name("groupconv_weights");
@@ -224,10 +226,10 @@ std::shared_ptr<ov::Node> createGroupConvolutionNode(const Output<Node>& input,
 }
 
 static bool Decompose(std::shared_ptr<ov::Node> math_node) {
-    Output<Node>& input = math_node->input_value(0);
-    Output<Node>& params = math_node->input_value(1);
+    ov::Output<ov::Node> input = math_node->input_value(0);
+    ov::Output<ov::Node> params = math_node->input_value(1);
 
-    if (!checkInputShapesEq(math_node)) {
+    if ((input.get_shape().size() == 2) && (!checkInputShapesEq(math_node))) {
         if ((math_node->input_value(0).get_shape().front() == 1 || math_node->input_value(0).get_shape().back() == 1)) {
             input = math_node->input_value(1);
             params = math_node->input_value(0);
@@ -244,11 +246,15 @@ static bool Decompose(std::shared_ptr<ov::Node> math_node) {
         return false;
 
     auto new_groupconv = createGroupConvolutionNode(input, params, math_node);
+    if (new_groupconv == nullptr)
+        return false;
     new_groupconv->set_friendly_name("replace_math_operation");
 
     std::shared_ptr<ov::Node> skip_node;
     if (nullptr == std::dynamic_pointer_cast<ngraph::opset8::Multiply>(math_node)) {
         auto new_bias = createBias(math_node, params);
+        if (new_bias == nullptr)
+            return false;
 
         auto new_add = std::make_shared<ngraph::opset8::Add>(new_groupconv->output(0), new_bias->output(0));
 
