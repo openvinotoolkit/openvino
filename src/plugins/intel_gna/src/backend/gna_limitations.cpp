@@ -41,6 +41,20 @@ const std::set<ov::element::Type> SupportedElementTypes::supported_parameter_typ
                                                                                       ov::element::i16,
                                                                                       ov::element::f32};
 
+size_t getMemoryAlignmentBytes(target::DeviceVersion target) {
+    static const std::unordered_map<target::DeviceVersion, size_t> mem_alignment_map{
+        {target::DeviceVersion::GNA1_0, 64},
+        {target::DeviceVersion::GNA2_0, 64},
+        {target::DeviceVersion::GNA3_0, 64},
+        {target::DeviceVersion::GNA3_1, 64},
+        {target::DeviceVersion::GNA3_5, 64},
+        {target::DeviceVersion::GNAEmbedded3_5, 64},
+        {target::DeviceVersion::GNA3_6, 16},
+        {target::DeviceVersion::GNA4_0, 16}};
+
+    return common::GetValueForKey<target::DeviceVersion, size_t>(target, mem_alignment_map);
+}
+
 bool SupportedElementTypes::is_parameter_type_supported(ov::element::Type elem_type, bool is_exception_allowed) {
     if (supported_parameter_types.count(elem_type) == 0) {
         if (is_exception_allowed) {
