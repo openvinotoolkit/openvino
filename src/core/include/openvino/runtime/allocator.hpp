@@ -58,7 +58,7 @@ struct OPENVINO_DEPRECATED("Do not inherit from AllocatorImpl. This class will b
     virtual bool is_equal(const AllocatorImpl& other) const = 0;
 
 protected:
-    ~AllocatorImpl() = default;
+    virtual ~AllocatorImpl() = default;
 };
 
 class Tensor;
