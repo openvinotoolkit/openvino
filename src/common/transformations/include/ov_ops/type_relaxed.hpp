@@ -8,6 +8,7 @@
 #include <memory>
 #include <mutex>
 #include <openvino/op/convert.hpp>
+#include <openvino/op/parameter.hpp>
 #include <string>
 #include <transformations_visibility.hpp>
 #include <vector>
@@ -158,9 +159,10 @@ public:
     TemporaryReplaceOutputType(Output<Node> output, element::Type tmp_type) : m_output(output) {
         // save original element type in order to restore it in the destructor
         orig_type = m_output.get_element_type();
-        OPENVINO_SUPPRESS_DEPRECATED_START
-        m_output.get_tensor().set_element_type(tmp_type);
-        OPENVINO_SUPPRESS_DEPRECATED_END
+        if (auto parameter = dynamic_cast<ov::op::v0::Parameter*>(m_output.get_node())) {
+            parameter->set_element_type(tmp_type);
+            parameter->validate_and_infer_types();
+        }
     }
 
     /// Return the output port that was used in the constructor
@@ -170,9 +172,10 @@ public:
 
     /// Restores the original element type for the output
     ~TemporaryReplaceOutputType() {
-        OPENVINO_SUPPRESS_DEPRECATED_START
-        m_output.get_tensor().set_element_type(orig_type);
-        OPENVINO_SUPPRESS_DEPRECATED_END
+        if (auto parameter = dynamic_cast<ov::op::v0::Parameter*>(m_output.get_node())) {
+            parameter->set_element_type(orig_type);
+            parameter->validate_and_infer_types();
+        }
     }
 };
 
