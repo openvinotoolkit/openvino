@@ -68,9 +68,6 @@ OutputVector stft(const Node& node) {
     }
     const int64_t batch_size = signal_param_shape[0].get_length();
     const int64_t nstfts = std::floor((signal_param_shape[axis].get_length() - frame_length) / frame_step) + 1;
-    std::cout << "nstfts: " << nstfts << ", shape: " << signal_param_shape
-              << ", len: " << signal_param_shape[axis].get_length() << ", frame_length: " << frame_length
-              << ", frame_step: " << frame_step << std::endl;
     const auto axis_const = default_opset::Constant::create(element::i64, {}, {axis});
     const auto zero_const = default_opset::Constant::create(element::i64, {}, {0});
     const auto step = default_opset::Constant::create(element::i64, Shape{2}, {1, 1});
@@ -94,12 +91,11 @@ OutputVector stft(const Node& node) {
                                   : (onesided ? default_opset::Constant::create(element::i64, {1}, {-1})
                                               : default_opset::Constant::create(element::i64, {2}, {-1, 1})),
                 false);
-            // std::cout << "flatten_slice: " << flatten_slice->get_output_partial_shape(0) << std::endl;
             const auto dft = dft::make_dft(
                 window_node_provided
                     ? std::make_shared<default_opset::Multiply>(
                           flatten_slice,
-                          is_complex(flatten_slice) ? std::make_shared<default_opset::Broadcast>(
+                          is_complex(flatten_slice) ? std::make_shared<default_opset::Broadcast>( // align window shape with signal shape
                                                           std::make_shared<default_opset::Unsqueeze>(
                                                               ng_inputs[2],
                                                               default_opset::Constant::create(element::i64, {1}, {1})),
@@ -110,7 +106,6 @@ OutputVector stft(const Node& node) {
                 0,
                 false,
                 onesided == 1);
-            // std::cout << "dft: " << dft.get_partial_shape() << std::endl;
             signals_in_batch.push_back(std::make_shared<default_opset::Unsqueeze>(dft, zero_const));
         }
         all_signals.push_back(
