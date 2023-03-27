@@ -1099,7 +1099,7 @@ void RNN::prepareParams() {
     };
 
     // to determine if need to prepare weights memory again.
-    if (DnnlExtensionUtils::makeDescriptor(query_weights_md(1))->getFormatKind() == dnnl_format_kind_rnn_packed) {
+    if (DnnlExtensionUtils::makeDescriptor(query_weights_md(1))->getFormatKind() == dnnl::memory::format_kind::opaque) {
         // Need to update its weights memory format of rnn_packed as the primitive gets updated.
         wFormatWasChanged = true;
     }
