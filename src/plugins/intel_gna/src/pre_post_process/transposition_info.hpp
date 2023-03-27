@@ -33,8 +33,8 @@ std::shared_ptr<ov::Model> ToProcessModel(const TranspositionInfo& t_info);
 std::shared_ptr<ov::Model> ToProcessModel(const std::vector<TranspositionInfo>& transposes);
 
 /*
- * Converts transposition map to ngraph model, which wil be ran on CPU as pre/post processing step/
- * This conversation is needed to support the exported models version <= 2.8 (OV < 2023.0)
+ * Converts transposition maps to ngraph model, which will be ran on CPU as pre/post-processing step.
+ * This conversion is needed to support the exported models version <= 2.8 (OV < 2023.0)
  * @return
  */
 template <class T1, class T2>
