@@ -45,8 +45,14 @@ OutputVector stft(const Node& node) {
 
     const auto window_node_provided = ng_inputs.size() > 2 && !ngraph::op::is_null(ng_inputs[2]);
     if(window_node_provided) { // window input provided
-        CHECK_VALID_NODE(node, ng_inputs[2].get_partial_shape().rank().is_static() && ng_inputs[2].get_partial_shape().rank().get_length() == 1,
-                        "The rank of window input must be 1D.");
+        if(ng_inputs[2].get_partial_shape().rank().is_static()) {
+            CHECK_VALID_NODE(node, ng_inputs[2].get_partial_shape().rank().get_length() == 1,
+                            "The rank of window input must be 1D.");
+            if(ng_inputs[2].get_partial_shape()[0].is_static()) {
+                CHECK_VALID_NODE(node, ng_inputs[2].get_partial_shape()[0].get_length() == frame_length,
+                    "The rank of window input must be 1D.");
+        }
+      }
     }
 
     const int64_t batch_size = signal_param_shape[0].get_length();
