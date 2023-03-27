@@ -47,7 +47,9 @@ public:
         const size_t inputShapeSize = inputShape.size();
         const auto memPtr = data_dependency.at(RESHAPE_PATTERN);
         const auto data = memPtr->GetPtr();
-        const auto outputPatternSize = shape_size(ov::Shape(memPtr->getStaticDims()));
+        // const auto outputPatternSize = shape_size(ov::Shape(memPtr->getStaticDims()));
+        const auto& dims = memPtr->getStaticDims();
+        const auto outputPatternSize = std::accumulate(dims.begin(), dims.end(), 1, std::multiplies<Dim>());
         std::vector<int64_t> outPattern = ov::get_raw_data_as<int64_t>(
                                               InferenceEngine::details::convertPrecision(memPtr->getDesc().getPrecision()),
                                               data,
@@ -78,7 +80,7 @@ public:
             outputProduct *= outputShape[minusOneIdx];
         }
         if (minusOneCount > 1  || inputProduct != outputProduct || (outputProduct == 0 && minusOneCount > 0)) {
-            IE_THROW(Unexpected) << "[cpu]reshape: the shape of input data is conflict with reshape pattern";
+            IE_THROW(Unexpected) << "[cpu]reshape: the shape of input data conflicts with the reshape pattern";
         }
         return {{std::move(outputShape)}, ShapeInferStatus::success};
     }
@@ -103,7 +105,8 @@ public:
         if (itr != data_dependency.end()) {
             const auto memPtr = data_dependency.at(SQUEEZE_PATTERN);
             const auto data = memPtr->GetPtr();
-            const auto outputPatternSize = shape_size(ov::Shape(memPtr->getStaticDims()));
+            const auto& dims = memPtr->getStaticDims();
+            const auto outputPatternSize = std::accumulate(dims.begin(), dims.end(), 1, std::multiplies<Dim>());
             std::vector<int64_t> outPattern = ov::get_raw_data_as<int64_t>(
                                                   InferenceEngine::details::convertPrecision(memPtr->getDesc().getPrecision()),
                                                   data,
@@ -131,7 +134,7 @@ public:
                 }
             }
             if (existError) {
-                IE_THROW(Unexpected) << "[cpu]squeeze: the shape of input data is conflict with squeeze pattern";
+                IE_THROW(Unexpected) << "[cpu]squeeze: the shape of input data conflict with the squeeze pattern";
             }
         } else {
             for (size_t i = 0; i < inputShapeSize; i++) {
@@ -157,7 +160,8 @@ public:
         const size_t inputShapeSize = inputShape.size();
         const auto memPtr = data_dependency.at(UNSQUEEZE_PATTERN);
         const auto data = memPtr->GetPtr();
-        const auto outputPatternSize = shape_size(ov::Shape(memPtr->getStaticDims()));
+        const auto& dims = memPtr->getStaticDims();
+        const auto outputPatternSize = std::accumulate(dims.begin(), dims.end(), 1, std::multiplies<Dim>());
         std::vector<int64_t> outPattern = ov::get_raw_data_as<int64_t>(
                                               InferenceEngine::details::convertPrecision(memPtr->getDesc().getPrecision()),
                                               data,
@@ -189,7 +193,7 @@ public:
             }
         }
         if (existError) {
-            IE_THROW(Unexpected) << "[cpu]unsqueeze: the shape of input data is conflict with unsqueeze pattern";
+            IE_THROW(Unexpected) << "[cpu]unsqueeze: the shape of input data conflicts with the unsqueeze pattern";
         }
         return {{std::move(outputShape)}, ShapeInferStatus::success};
     }
@@ -202,15 +206,14 @@ class ReshapeShapeInferFactory : public ShapeInferFactory {
 public:
     ReshapeShapeInferFactory(std::shared_ptr<ov::Node> op) : m_op(op) {}
     ShapeInferPtr makeShapeInfer() const override {
-        if (ov::is_type<ov::op::v1::Reshape>(m_op)) {
-            const auto reshapeOp = ov::as_type_ptr<const ov::op::v1::Reshape>(m_op);
+        if (const auto reshapeOp = ov::as_type_ptr<const ov::op::v1::Reshape>(m_op)) {
             return std::make_shared<ReshapeShapeInfer>(reshapeOp->get_special_zero());
         } else if (ov::is_type<ov::op::v0::Squeeze>(m_op)) {
             return std::make_shared<SqueezeShapeInfer>();
         } else if (ov::is_type<ov::op::v0::Unsqueeze>(m_op)) {
             return std::make_shared<UnsqueezeShapeInfer>();
         } else {
-            IE_THROW(Unexpected) << "[cpu]reshape: " << m_op->get_type_name() << "not implement";
+            IE_THROW(Unexpected) << "[cpu]reshape: " << m_op->get_type_name() << "is not implemented";
         }
     }
 private:

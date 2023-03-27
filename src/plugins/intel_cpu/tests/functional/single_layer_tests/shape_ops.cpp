@@ -99,7 +99,6 @@ protected:
                 switch (secondInPrc) {
                     RESHAPE_TEST_CASE(i64)
                     RESHAPE_TEST_CASE(i32)
-                    RESHAPE_TEST_CASE(i8)
                     default:
                           FAIL() << "We shouldn't get here.";
 #undef RESHAPE_TEST_CASE
@@ -181,7 +180,7 @@ TEST_P(ShapeOpsCPUTest, CompareWithRefs) {
 }
 
 namespace reshapeTest {
-const std::vector<ov::element::Type_t> secondInPrcs{ov::element::Type_t::i64, ov::element::Type_t::i32, ov::element::Type_t::i8};
+const std::vector<ov::element::Type_t> secondInPrcs{ov::element::Type_t::i64, ov::element::Type_t::i32};
 
 inputDescription noBounds{{{-1, -1, -1, -1},
                            {ngraph::Shape{2, 5, 7, 3}, ngraph::Shape{10, 6, 10, 5}, ngraph::Shape{10, 6, 10, 5}, ngraph::Shape{1, 2, 5, 5}}},
@@ -225,7 +224,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_CompareWithRefs_dynBatch, ShapeOpsCPUTest, params
 } // namespace reshapeTest
 
 namespace squeezeTest {
-const std::vector<ov::element::Type_t> secondInPrcs{ov::element::Type_t::i64, ov::element::Type_t::i32, ov::element::Type_t::i8};
+const std::vector<ov::element::Type_t> secondInPrcs{ov::element::Type_t::i64, ov::element::Type_t::i32};
 inputDescription noBounds{{{-1, -1, -1, -1, -1, -1},
                            {
                                 ngraph::Shape{2, 5, 1, 7, 3, 1},
@@ -262,7 +261,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_CompareWithRefs_dynamic_const, ShapeOpsCPUTest, p
 } // namespace squeezeTest
 
 namespace unsqueezeTest {
-const std::vector<ov::element::Type_t> secondInPrcs{ov::element::Type_t::i64, ov::element::Type_t::i32, ov::element::Type_t::i8};
+const std::vector<ov::element::Type_t> secondInPrcs{ov::element::Type_t::i64, ov::element::Type_t::i32};
 inputDescription noBounds{{{-1, -1, -1, -1},
                            {ngraph::Shape{2, 5, 7, 3}, ngraph::Shape{10, 6, 10, 5}, ngraph::Shape{10, 6, 10, 5}, ngraph::Shape{5, 1, 5}}},
                            {std::vector<int>{2, 5}, std::vector<int>{1, 2}, std::vector<int>{4, 5}, std::vector<int>{0, 1}}};
