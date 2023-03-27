@@ -33,6 +33,7 @@ PrimListUnpackReplacer::PrimListUnpackReplacer() {
             if (rank.is_dynamic()) {
                 return false;
             }
+            std::shared_ptr<Node> split;
             if (rank.get_length() == 0) {
                 // Create split_lenghts tensor from split_size int,
                 // allow for last chunk to be smaller if data is not equally divisible.
@@ -45,18 +46,17 @@ PrimListUnpackReplacer::PrimListUnpackReplacer() {
                 auto split_lenghts_m_1 = std::make_shared<opset10::Tile>(split_size, num_out_m_1);
                 NodeVector concat_inputs{split_lenghts_m_1, const_neg_1};
                 auto split_lenghts = std::make_shared<opset10::Concat>(concat_inputs, 0);
-                auto split = std::make_shared<opset10::VariadicSplit>(torch_split->get_input_source_output(0),
-                                                                      torch_split->get_input_source_output(2),
-                                                                      split_lenghts);
-                copy_runtime_info({list_unpack, input_node}, split);
-                replace_node(list_unpack, split);
+                split = std::make_shared<opset10::VariadicSplit>(torch_split->get_input_source_output(0),
+                                                                 torch_split->get_input_source_output(2),
+                                                                 split_lenghts);
             } else {
-                auto split = std::make_shared<opset10::VariadicSplit>(torch_split->get_input_source_output(0),
-                                                                      torch_split->get_input_source_output(2),
-                                                                      torch_split->get_input_source_output(1));
-                copy_runtime_info({list_unpack, input_node}, split);
-                replace_node(list_unpack, split);
+                split = std::make_shared<opset10::VariadicSplit>(torch_split->get_input_source_output(0),
+                                                                 torch_split->get_input_source_output(2),
+                                                                 torch_split->get_input_source_output(1));
             }
+            copy_runtime_info({list_unpack, input_node}, split);
+            split->set_friendly_name(input_node->get_friendly_name());
+            replace_node(list_unpack, split);
 
             return true;
         }
@@ -67,6 +67,7 @@ PrimListUnpackReplacer::PrimListUnpackReplacer() {
                                                                   split_with_sizes->get_input_source_output(1));
 
             copy_runtime_info({list_unpack, input_node}, split);
+            split->set_friendly_name(input_node->get_friendly_name());
             replace_node(list_unpack, split);
 
             return true;
