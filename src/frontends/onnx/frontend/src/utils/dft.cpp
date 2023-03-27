@@ -33,7 +33,7 @@ bool try_convert_real_to_complex(ov::Output<ov::Node>& signal) {
     // importing.
     return false;
 }
-}
+}  // namespace
 
 ov::Output<ov::Node> make_dft(const ov::Output<ov::Node>& signal,
                               const ov::Output<ov::Node>& length,
