@@ -1092,17 +1092,15 @@ class UpdateNodesBase : public IUpdateNodes {
 public:
     explicit UpdateNodesBase(std::vector<NodePtr>& executableGraphNodes) : m_executableGraphNodes(executableGraphNodes) {}
     void updateShapes(size_t node_indx, size_t stop_indx) {
-        m_prepareCounter.store(node_indx, std::memory_order::memory_order_release);
-        if (node_indx >= stop_indx) {
-            m_completion.store(true, std::memory_order::memory_order_relaxed);
-            return;
+        for (size_t i = node_indx; i < stop_indx; i++) {
+            const auto& node = m_executableGraphNodes[i];
+            if (node->isDynamicNode()) {
+                node->updateShapes();
+            }
+            m_prepareCounter.store(i, std::memory_order::memory_order_release);
         }
-
-        const auto& node = m_executableGraphNodes[node_indx];
-        if (node->isDynamicNode()) {
-            node->updateShapes();
-        }
-        updateShapes(node_indx + 1, stop_indx);
+        m_prepareCounter.store(stop_indx, std::memory_order::memory_order_release);
+        m_completion.store(true, std::memory_order::memory_order_relaxed);
     }
 
     void updateDynParams(size_t node_indx, size_t /*unused*/) {
