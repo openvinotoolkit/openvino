@@ -534,6 +534,7 @@ Parameter Engine::GetMetricLegacy(const std::string& name, const std::map<std::s
             METRIC_KEY(RANGE_FOR_ASYNC_INFER_REQUESTS),
             METRIC_KEY(RANGE_FOR_STREAMS),
             METRIC_KEY(IMPORT_EXPORT_SUPPORT),
+            ov::caching_properties.name(),
         };
         IE_SET_METRIC_RETURN(SUPPORTED_METRICS, metrics);
     } else if (name == METRIC_KEY(FULL_DEVICE_NAME)) {
@@ -565,6 +566,9 @@ Parameter Engine::GetMetricLegacy(const std::string& name, const std::map<std::s
         IE_SET_METRIC_RETURN(RANGE_FOR_STREAMS, range);
     } else if (name == METRIC_KEY(IMPORT_EXPORT_SUPPORT)) {
         IE_SET_METRIC_RETURN(IMPORT_EXPORT_SUPPORT, true);
+    } else if (name == ov::caching_properties) {
+        std::vector<ov::PropertyName> cachingProperties = { METRIC_KEY(FULL_DEVICE_NAME) };
+        return decltype(ov::caching_properties)::value_type(cachingProperties);
     }
 
     IE_CPU_PLUGIN_THROW() << "Unsupported metric key: " << name;
@@ -631,7 +635,7 @@ Parameter Engine::GetMetric(const std::string& name, const std::map<std::string,
         const std::tuple<unsigned int, unsigned int> range = std::make_tuple(1, parallel_get_max_threads());
         return decltype(ov::range_for_streams)::value_type(range);
     } else if (name == ov::caching_properties) {
-        std::vector<ov::PropertyName> cachingProperties;
+        std::vector<ov::PropertyName> cachingProperties = { ov::device::full_name };
         return decltype(ov::caching_properties)::value_type(cachingProperties);
     }
     /* Internally legacy parameters are used with new API as part of migration procedure.
