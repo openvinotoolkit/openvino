@@ -26,7 +26,7 @@ namespace pass {
  *                  \        Buffer (with repacked data)  Buffer (with compensations)
  *                   \                |                  /
  *                               BrgemmCPU
- *        - i8|i8 or bf16|bf16 on AMX system:
+ *        - u8|i8, i8|i8 or bf16|bf16 on AMX system:
  *                 \              BrgemmCopyB
  *                  \        Buffer (with repacked data)  Buffer (with new memory)
  *                   \                |                  /

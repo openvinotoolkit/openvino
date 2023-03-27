@@ -841,6 +841,7 @@ std::set<std::vector<element::Type>> BrgemmEmitter::get_supported_precisions(con
             return {{element::i8, element::i8, element::f32}};
         case BrgemmCPU::Type::AMX:
             return {{element::i8, element::i8, element::u8},
+                    {element::u8, element::i8, element::u8},
                     {element::bf16, element::bf16, element::u8}};
         default:
             throw ov::Exception("BrgemmEmitter got BrgemmCPU node with unsupported type");
