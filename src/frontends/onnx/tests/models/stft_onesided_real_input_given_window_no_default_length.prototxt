@@ -43,7 +43,6 @@ graph {
       type: INT
     }
   }
-  name: "g"
   input {
     name: "signal"
     type {

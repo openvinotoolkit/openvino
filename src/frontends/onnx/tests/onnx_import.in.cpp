@@ -6753,8 +6753,46 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_stft_onesided_real_input_given_window_no
     test_case.add_expected_output<float>(Shape{2, 3, 9, 2}, {55.996273f, 0.0f, 23.999104f, 24.93398f, -7.99869f, 22.70421f, -7.999475f, 12.814739f, -7.999694f, 8.329526f, -7.999781f, 5.5011215f, -7.999824f, 3.3910275f, -7.9998474f, 1.6240749f, -7.999859f, 0.0f, 119.99441f, 0.0f, 55.998657f, 24.931015f, -7.9980354f, 22.704208f, -7.9992137f, 12.814741f, -7.999542f, 8.329527f, -7.9996705f, 5.5011196f, -7.999737f, 3.3910284f, -7.999769f, 1.6240768f, -7.9997787f, 0.0f, 183.99254f, 0.0f, 87.998215f, 24.928047f, -7.9973803f, 22.70421f, -7.9989514f, 12.814744f, -7.9993896f, 8.329525f, -7.999561f, 5.5011206f, -7.999648f, 3.3910275f, -7.9996986f, 1.6240759f, -7.99971f, 0.0f, 311.98883f, 0.0f, 151.99731f, 24.922113f, -7.9960704f, 22.704214f, -7.998431f, 12.814743f, -7.9990845f, 8.329521f, -7.999341f, 5.5011144f, -7.999474f, 3.3910275f, -7.999542f, 1.6240788f, -7.9995728f, 0.0f, 375.98694f, 0.0f, 183.99686f, 24.919151f, -7.9954133f, 22.704203f, -7.9981623f, 12.814751f, -7.998932f, 8.329529f, -7.9992285f, 5.501122f, -7.9993834f, 3.3910313f, -7.9994736f, 1.6240854f, -7.9994965f, 0.0f, 439.98508f, 0.0f, 215.9964f, 24.916183f, -7.99476f, 22.704206f, -7.9979024f, 12.814749f, -7.9987793f, 8.329529f, -7.999122f, 5.5011153f, -7.9992967f, 3.391035f, -7.999382f, 1.6240807f, -7.99942f, 0.0f});
 }
 
-// non-const frame step
-// exception if not 3D input
-// exception if dynamic signal axis
-// exception if onesided + complex input
-// dynamic batch size exception
+NGRAPH_TEST(${BACKEND_NAME}, onnx_model_stft_proper_exception_if_non_const_frame_step) {
+    try {
+        onnx_import::import_onnx_model(
+            file_util::path_join(CommonTestUtils::getExecutableDirectory(), SERIALIZED_ZOO, "onnx/stft_non_const_frame_step.onnx"));
+        FAIL() << "Unknown error during STFT import";
+    } catch (const std::runtime_error& exc) {
+        std::string msg{exc.what()};
+        EXPECT_TRUE(msg.find("frame_step input must be a scalar or Shape{1} constant.") != std::string::npos);
+    }
+}
+
+NGRAPH_TEST(${BACKEND_NAME}, onnx_model_stft_proper_exception_if_dynamic_singal_shape) {
+    try {
+        onnx_import::import_onnx_model(
+            file_util::path_join(CommonTestUtils::getExecutableDirectory(), SERIALIZED_ZOO, "onnx/stft_dynamic_signal_shape.onnx"));
+        FAIL() << "Unknown error during STFT import";
+    } catch (const std::runtime_error& exc) {
+        std::string msg{exc.what()};
+        EXPECT_TRUE(msg.find("Shape of signal input must be static with the rank equal to 3.") != std::string::npos);
+    }
+}
+
+NGRAPH_TEST(${BACKEND_NAME}, onnx_model_stft_proper_exception_if_non_const_frame_length) {
+    try {
+        onnx_import::import_onnx_model(
+            file_util::path_join(CommonTestUtils::getExecutableDirectory(), SERIALIZED_ZOO, "onnx/stft_non_const_frame_length.onnx"));
+        FAIL() << "Unknown error during STFT import";
+    } catch (const std::runtime_error& exc) {
+        std::string msg{exc.what()};
+        EXPECT_TRUE(msg.find("frame_length input must be a scalar or Shape{1} constant.") != std::string::npos);
+    }
+}
+
+NGRAPH_TEST(${BACKEND_NAME}, onnx_model_stft_proper_exception_if_complex_signal_and_onesided) {
+    try {
+        onnx_import::import_onnx_model(
+            file_util::path_join(CommonTestUtils::getExecutableDirectory(), SERIALIZED_ZOO, "onnx/stft_onesided_complex_input.onnx"));
+        FAIL() << "Unknown error during STFT import";
+    } catch (const std::runtime_error& exc) {
+        std::string msg{exc.what()};
+        EXPECT_TRUE(msg.find("If attribute onesided==1, signal input can NOT be complex.") != std::string::npos);
+    }
+}
