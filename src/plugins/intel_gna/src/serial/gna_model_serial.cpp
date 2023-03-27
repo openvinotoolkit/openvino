@@ -49,6 +49,25 @@ inline void writeString(const std::string& str, std::ostream& os) {
     writeNBytes(c_str, str_len, os);
 }
 
+inline void write_pre_processing_model(const std::shared_ptr<ov::Model>& model, std::ostream& os) {
+    // allocate buffer for ir.xml
+    std::ostringstream xml_buf;
+    // allocate buffer for ir.bin
+    std::ostringstream bin_buf;
+
+    // serialize IR to stream buffer (.xml + .bin)
+    ov::pass::Serialize serializer(xml_buf, bin_buf);
+    serializer.run_on_model(model);
+
+    // write IR
+    writeString(xml_buf.str(), os);
+
+    // write BIN
+    size_t ir_bin_size = bin_buf.str().size();
+    writeBits(ir_bin_size, os);
+    writeNBytes(bin_buf.str().c_str(), ir_bin_size, os);
+}
+
 template <class T>
 inline void readBits(T& obj, std::istream& is) {
     is.read(reinterpret_cast<char*>(&obj), sizeof(T));
@@ -479,22 +498,7 @@ void GNAModelSerial::Export(const GnaAllocations& allocations, std::ostream& os)
         }
         // write pre-processing model
         if (input.pre_post_process_model) {
-            // allocate buffer for ir.xml
-            std::ostringstream xml_buf;
-            // allocate buffer for ir.bin
-            std::ostringstream bin_buf;
-
-            // serialize IR to stream buffer (.xml + .bin)
-            ov::pass::Serialize serializer(xml_buf, bin_buf);
-            serializer.run_on_model(input.pre_post_process_model);
-
-            // write IR
-            writeString(xml_buf.str(), os);
-
-            // write BIN
-            size_t ir_bin_size = bin_buf.str().size();
-            writeBits(ir_bin_size, os);
-            writeNBytes(bin_buf.str().c_str(), ir_bin_size, os);
+            write_pre_processing_model(input.pre_post_process_model, os);
         } else {
             // write empty string to detect  that model is absent during the import
             writeString("", os);
@@ -514,24 +518,9 @@ void GNAModelSerial::Export(const GnaAllocations& allocations, std::ostream& os)
             writeString(tname, os);
         }
 
-        // write pre-processing model
+        // write post-processing model
         if (output.pre_post_process_model) {
-            // allocate buffer for ir.xml
-            std::ostringstream xml_buf;
-            // allocate buffer for ir.bin
-            std::ostringstream bin_buf;
-
-            // serialize IR to stream buffer (.xml + .bin)
-            ov::pass::Serialize serializer(xml_buf, bin_buf);
-            serializer.run_on_model(output.pre_post_process_model);
-
-            // write IR
-            writeString(xml_buf.str(), os);
-
-            // write BIN
-            size_t ir_bin_size = bin_buf.str().size();
-            writeBits(ir_bin_size, os);
-            writeNBytes(bin_buf.str().c_str(), ir_bin_size, os);
+            write_pre_processing_model(output.pre_post_process_model, os);
         } else {
             // write empty string to detect  that model is absent during the import
             writeString("", os);
