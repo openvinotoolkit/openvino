@@ -74,7 +74,8 @@ void Memory::SetData(const Memory& src, bool ftz) const {
     node::Reorder::reorderData(src, *this);
 
     auto localPrim = GetPrimitive();
-    dnnl::impl::memory_desc_wrapper wrapper(localPrim.get_desc().get());
+    auto desc = localPrim.get_desc();
+    dnnl::impl::memory_desc_wrapper wrapper(desc.get());
 
     if (ftz
         && src.GetDataType() == memory::data_type::f32

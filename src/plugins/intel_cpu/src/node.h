@@ -334,7 +334,7 @@ public:
 
     void resolveInPlaceEdges();
 
-    virtual void execute(dnnl::stream strm);
+    virtual void execute(dnnl::stream strm) = 0;
     void updateShapes();
     void updateDynamicParams();
     void executeDynamic(dnnl::stream strm);
@@ -578,7 +578,6 @@ protected:
     std::vector<NodeDesc> supportedPrimitiveDescriptors;
     std::unordered_map<int, dnnl::memory> primArgs;
     std::unordered_map<int, MemoryPtr> postOpsArgs;
-    dnnl::primitive prim;
     std::vector<dnnl::primitive_desc> descs;
 
     const GraphContext::CPtr context;
@@ -651,9 +650,10 @@ protected:
         IE_THROW(NotImplemented) << "[DS] prapareParams not implemented for node with type " << NameFromType(getType());
     }
 
-    MemoryPtr getScratchPadMem(const const_dnnl_primitive_desc_t& pd) {
-        auto scratchpadMemoryDesc = DnnlExtensionUtils::query_md(pd, dnnl::query::scratchpad_md);
-        scratchpadMem = context->getScratchPad()->createScratchPadMem(scratchpadMemoryDesc);
+    MemoryPtr getScratchPadMem(const DnnlMemoryDescPtr& desc) {
+        if (!scratchpadMem || !scratchpadMem->getDesc().isCompatible(*desc)) {
+            scratchpadMem = context->getScratchPad()->createScratchPadMem(desc);
+        }
         return scratchpadMem;
     }
 

@@ -57,7 +57,7 @@ TEST(crop_gpu, basic_in2x3x2x2_crop_all) {
     std::vector<float> input_vec = generate_random_input<float>(batch_num, feature_num, y_size, x_size, -10, 10);
     set_values(input, input_vec);
 
-    network network(engine, topology);
+    network network(engine, topology, get_test_default_config(engine));
 
     network.set_input_data("input", input);
 
@@ -103,7 +103,7 @@ TEST(crop_gpu, basic_in2x2x2x3_crop_all) {
         input_vec.push_back(static_cast<float>(i));
     set_values(input, input_vec);
 
-    network network(engine, topology);
+    network network(engine, topology, get_test_default_config(engine));
 
     network.set_input_data("input", input);
 
@@ -152,7 +152,7 @@ TEST(crop_gpu, basic_i32_in2x3x2x2_crop_all) {
     std::vector<int32_t> input_vec = generate_random_input<int32_t>(batch_num, feature_num, y_size, x_size, -10, 10);
     set_values(input, input_vec);
 
-    network network(engine, topology);
+    network network(engine, topology, get_test_default_config(engine));
 
     network.set_input_data("input", input);
 
@@ -200,7 +200,7 @@ TEST(crop_gpu, basic_i64_in2x3x2x2_crop_all) {
     std::vector<int64_t> input_vec = generate_random_input<int64_t>(batch_num, feature_num, y_size, x_size, -10, 10);
     set_values(input, input_vec);
 
-    network network(engine, topology);
+    network network(engine, topology, get_test_default_config(engine));
 
     network.set_input_data("input", input);
 
@@ -248,7 +248,7 @@ TEST(crop_gpu, basic_in2x3x2x2_crop_all_bfyx) {
     std::vector<float> input_vec = generate_random_input<float>(batch_num, feature_num, y_size, x_size, -10, 10);
     set_values(input, input_vec);
 
-    network network(engine, topology);
+    network network(engine, topology, get_test_default_config(engine));
 
     network.set_input_data("input", input);
 
@@ -297,7 +297,7 @@ TEST(crop_gpu, basic_i32_in2x3x2x2_crop_all_bfyx) {
     std::vector<int32_t> input_vec = generate_random_input<int32_t>(batch_num, feature_num, y_size, x_size, -10, 10);
     set_values(input, input_vec);
 
-    network network(engine, topology);
+    network network(engine, topology, get_test_default_config(engine));
 
     network.set_input_data("input", input);
 
@@ -346,7 +346,7 @@ TEST(crop_gpu, basic_i64_in2x3x2x2_crop_all_bfyx) {
     std::vector<int64_t> input_vec = generate_random_input<int64_t>(batch_num, feature_num, y_size, x_size, -10, 10);
     set_values(input, input_vec);
 
-    network network(engine, topology);
+    network network(engine, topology, get_test_default_config(engine));
 
     network.set_input_data("input", input);
 
@@ -395,7 +395,7 @@ TEST(crop_gpu, basic_in2x3x2x2_crop_all_fyxb) {
     std::vector<float> input_vec = generate_random_input<float>(batch_num, feature_num, y_size, x_size, -10, 10);
     set_values(input, input_vec);
 
-    network network(engine, topology);
+    network network(engine, topology, get_test_default_config(engine));
 
     network.set_input_data("input", input);
 
@@ -442,7 +442,7 @@ TEST(crop_gpu, basic_i32_in2x3x2x2_crop_all_fyxb) {
     std::vector<int32_t> input_vec = generate_random_input<int32_t>(batch_num, feature_num, y_size, x_size, -10, 10);
     set_values(input, input_vec);
 
-    network network(engine, topology);
+    network network(engine, topology, get_test_default_config(engine));
 
     network.set_input_data("input", input);
 
@@ -489,7 +489,7 @@ TEST(crop_gpu, basic_i64_in2x3x2x2_crop_all_fyxb) {
     std::vector<int64_t> input_vec = generate_random_input<int64_t>(batch_num, feature_num, y_size, x_size, -10, 10);
     set_values(input, input_vec);
 
-    network network(engine, topology);
+    network network(engine, topology, get_test_default_config(engine));
 
     network.set_input_data("input", input);
 
@@ -553,7 +553,7 @@ TEST(crop_gpu, basic_in2x3x2x2_crop_offsets) {
         -14.f, -15.f, -16.f, -17.f };
     set_values(input, input_vec);
 
-    network network(engine, topology);
+    network network(engine, topology, get_test_default_config(engine));
 
     network.set_input_data("input", input);
 
@@ -618,7 +618,7 @@ TEST(crop_gpu, basic_i32_in2x3x2x2_crop_offsets) {
         -14, -15, -16, -17 };
     set_values(input, input_vec);
 
-    network network(engine, topology);
+    network network(engine, topology, get_test_default_config(engine));
 
     network.set_input_data("input", input);
 
@@ -683,7 +683,7 @@ TEST(crop_gpu, basic_i64_in2x3x2x2_crop_offsets) {
         -14, -15, -16, -17 };
     set_values(input, input_vec);
 
-    network network(engine, topology);
+    network network(engine, topology, get_test_default_config(engine));
 
     network.set_input_data("input", input);
 
@@ -759,7 +759,7 @@ TEST(crop_gpu, basic_in1x4x1x1_split) {
     std::vector<float> out1 = { -1.f, 2.f,-3.f };
     std::vector<float> out2 = { 4.f, };
     set_values(input, input_vec);
-    ExecutionConfig config;
+    ExecutionConfig config = get_test_default_config(engine);
     config.set_property(ov::intel_gpu::optimize_data(true));
     config.set_property(ov::intel_gpu::custom_outputs(topology.get_primitives_ids()));
 
@@ -807,7 +807,7 @@ TEST(crop_gpu, basic_in1x4x1x1_crop_pad) {
     std::vector<float> input_vec = { -1.f, 2.f, -3.f, 4.f };
     std::vector<float> out1 = { -1.f, 2.f,-3.f };
     set_values(input, input_vec);
-    ExecutionConfig config;
+    ExecutionConfig config = get_test_default_config(engine);
     config.set_property(ov::intel_gpu::optimize_data(true));
 
     network network(engine, topology, config);
@@ -875,7 +875,7 @@ TEST(crop_gpu, basic_i32_in1x4x1x1_split) {
     std::vector<int32_t> out1 = { -1, 2,-3 };
     std::vector<int32_t> out2 = { 4, };
     set_values(input, input_vec);
-    ExecutionConfig config;
+    ExecutionConfig config = get_test_default_config(engine);
     config.set_property(ov::intel_gpu::optimize_data(true));
     config.set_property(ov::intel_gpu::custom_outputs(topology.get_primitives_ids()));
 
@@ -950,7 +950,7 @@ TEST(crop_gpu, basic_i64_in1x4x1x1_split) {
     std::vector<int64_t> out1 = { -1, 2,-3 };
     std::vector<int64_t> out2 = { 4, };
     set_values(input, input_vec);
-    ExecutionConfig config;
+    ExecutionConfig config = get_test_default_config(engine);
     config.set_property(ov::intel_gpu::optimize_data(true));
     config.set_property(ov::intel_gpu::custom_outputs(topology.get_primitives_ids()));
 
@@ -1028,10 +1028,10 @@ TEST(crop_gpu, basic_in1x4x1x1_split_w_relu) {
     std::vector<float> out2 = { 4.f, };
     set_values(input, input_vec);
 
-    ExecutionConfig cfg{
-        ov::intel_gpu::enable_memory_pool(false),
-        ov::intel_gpu::optimize_data(true)
-    };
+    ExecutionConfig cfg = get_test_default_config(*engine);
+    cfg.set_property(ov::intel_gpu::enable_memory_pool(false));
+    cfg.set_property(ov::intel_gpu::optimize_data(true));
+
     network network(*engine, topology, cfg);
     network.set_input_data("input", input);
     auto outputs = network.execute();
@@ -1081,7 +1081,7 @@ TEST(crop_gpu, basic_in3x1x2x2x1_crop_all_bfzyx) {
     std::vector<float> input_vec = generate_random_input<float>(batch_num, feature_num, y_size, x_size, -10, 10);
     set_values(input, input_vec);
 
-    network network(engine, topology);
+    network network(engine, topology, get_test_default_config(engine));
 
     network.set_input_data("input", input);
 
@@ -1137,7 +1137,7 @@ TEST(crop_gpu, basic_in3x1x3x2x2x1_crop_all_bfwzyx) {
     VF<float> input_vec = flatten_6d<float>(format::bfwzyx, input_rnd);
     set_values(input, input_vec);
 
-    network network(engine, topology);
+    network network(engine, topology, get_test_default_config(engine));
 
     network.set_input_data("input", input);
 
@@ -1212,7 +1212,7 @@ TEST_P(crop_gpu, pad_test) {
         res.insert(res.end(), res_data.begin(), res_data.end());
     }
     set_values(input, input_vec);
-    ExecutionConfig config;
+    ExecutionConfig config = get_test_default_config(engine);
     config.set_property(ov::intel_gpu::optimize_data(true));
 
     cldnn::network::ptr network = get_network(engine, topology, config, get_test_stream_ptr(), is_caching_test);
@@ -1289,7 +1289,7 @@ TEST(crop_gpu, dynamic_i32_in2x3x2x2_crop_offsets) {
         4, -5, 8, 8,
         -14, -15, -16, -17 };
     set_values(input, input_vec);
-    ExecutionConfig config;
+    ExecutionConfig config = get_test_default_config(engine);
     config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
     network network(engine, topology, config);
 
@@ -1348,7 +1348,7 @@ TEST(crop_gpu, dynamic_in1x4x1x1_split) {
     std::vector<float> out1 = { -1.0f, 2.0f };
     std::vector<float> out2 = { -3.0f, 4.0f };
     set_values(input_mem, input_vec);
-    ExecutionConfig config;
+    ExecutionConfig config = get_test_default_config(engine);
     config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
     config.set_property(ov::intel_gpu::optimize_data(true));
     config.set_property(ov::intel_gpu::custom_outputs(topology.get_primitives_ids()));
@@ -1417,7 +1417,7 @@ TEST(crop_gpu, dynamic_in1x4x1x1_varaidic_split) {
     set_values(axis_mem, {1});
     set_values(splits_length_mem, splits_vec);
 
-    ExecutionConfig config;
+    ExecutionConfig config = get_test_default_config(engine);
     config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
     config.set_property(ov::intel_gpu::optimize_data(true));
     config.set_property(ov::intel_gpu::custom_outputs(topology.get_primitives_ids()));
@@ -1470,7 +1470,7 @@ TEST(crop_gpu, static_split_batch) {
 
     set_values(input_mem, input_vec);
 
-    ExecutionConfig config;
+    ExecutionConfig config = get_test_default_config(engine);
     config.set_property(ov::intel_gpu::optimize_data(true));
     config.set_property(ov::intel_gpu::custom_outputs(topology.get_primitives_ids()));
 
@@ -1525,7 +1525,7 @@ TEST(crop_gpu, optimized_out_crop) {
     topology.add(crop("crop2", { input_info("crop1") }, tensor(5, 4, 1, 1), { tensor(0, 0, 0, 0) }, padding({0, 0, 0, 0}, {0, 0, 0, 0})));
     topology.add(reorder("reorder_out", input_info("crop2"), layout{ ov::PartialShape{5, 4, 1, 1}, data_types::f32, format::bfyx }));
 
-    ExecutionConfig config;
+    ExecutionConfig config = get_test_default_config(engine);
     config.set_property(ov::intel_gpu::optimize_data(true));
 
     network network(engine, topology, config);

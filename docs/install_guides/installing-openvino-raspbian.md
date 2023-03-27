@@ -8,12 +8,8 @@
    * These steps have been validated with Raspberry Pi 3.
    * There is also an open-source version of OpenVINO™ that can be compiled for arch64 (see `build instructions <https://github.com/openvinotoolkit/openvino/blob/master/docs/dev/build_raspbian.md>`_).
 
-@endsphinxdirective
-
-
-## Development and Target Systems
-
-@sphinxdirective
+Development and Target Systems
+###############################
 
 .. tab:: System Requirements
 
@@ -28,12 +24,8 @@
 
 .. _install-openvino:
 
-@endsphinxdirective
-
-
-## Step 1: Download and Install OpenVINO Runtime
-
-@sphinxdirective
+Step 1: Download and Install OpenVINO Runtime
+#############################################
 
 #. Open the Terminal or your preferred console application.
 #. Create an installation folder for OpenVINO. If the folder already exists, skip this step.
@@ -99,12 +91,8 @@ Congratulations, you finished the installation! The ``/opt/intel/openvino_2022``
 
 .. _install-external-dependencies:
 
-@endsphinxdirective
-
-
-## Step 2: Install External Software Dependencies
-
-@sphinxdirective
+Step 2: Install External Software Dependencies
+##############################################
 
 CMake version 3.10 or higher is required for building the OpenVINO™ toolkit sample application. To install, open a Terminal window and run the following command:
 
@@ -117,12 +105,8 @@ CMake is installed. Continue to the next section to set the environment variable
 
 .. _set-the-environment-variables-raspbian:
 
-@endsphinxdirective
-
-
-## Step 3: Set the Environment Variables
-
-@sphinxdirective
+Step 3: Set the Environment Variables
+#####################################
 
 You must update several environment variables before you can compile and run OpenVINO applications. Open a terminal window and run the ``setupvars.sh`` script as shown below to temporarily set your environment variables. If your <INSTALL_DIR> is not ``/opt/intel/openvino_2022``, use the correct one instead.
 
@@ -141,12 +125,8 @@ The environment variables are set. Continue to the next section if you want to d
 
 .. _model-optimizer:
 
-@endsphinxdirective
-
-
-## Step 4 (Optional): Install Additional Components
-
-@sphinxdirective
+Step 4 (Optional): Install Additional Components
+################################################
 
 If you want to use your model for inference, the model must be converted to the ``.bin`` and ``.xml`` Intermediate Representation (IR) files that are used as input by OpenVINO Runtime. To get the optimized models, you can use one of the following options:
 
@@ -158,15 +138,10 @@ If you want to use your model for inference, the model must be converted to the 
 
   * OpenVINO Development Tools is a set of utilities for working with OpenVINO and OpenVINO models. It provides tools like Model Optimizer, Benchmark Tool, Post-Training Optimization Tool, and Open Model Zoo Downloader. See the :doc:`Install OpenVINO Development Tools <openvino_docs_install_guides_install_dev_tools>` page for step-by-step installation instructions.
 
-@endsphinxdirective
-
-
-## What's Next?
-
-@sphinxdirective
+What's Next?
+####################
 
 Now that you've installed OpenVINO Runtime, you're ready to run your own machine learning applications! Learn more about how to integrate a model in OpenVINO applications by trying out the following tutorials.
-
 
 .. tab:: Get started with Python
 
@@ -181,6 +156,7 @@ Now that you've installed OpenVINO Runtime, you're ready to run your own machine
    * `Basic image classification program with Hello Image Classification <https://docs.openvino.ai/nightly/notebooks/001-hello-world-with-output.html>`_
    * `Convert a PyTorch model and use it for image background removal <https://docs.openvino.ai/nightly/notebooks/205-vision-background-removal-with-output.html>`_
 
+
 .. tab:: Get started with C++
 
    Try the `C++ Quick Start Example <openvino_docs_get_started_get_started_demos.html>`_ for step-by-step instructions on building and running a basic image classification C++ application.
@@ -193,24 +169,17 @@ Now that you've installed OpenVINO Runtime, you're ready to run your own machine
    * `Basic object detection with the Hello Reshape SSD C++ sample <openvino_inference_engine_samples_hello_reshape_ssd_README.html>`_
    * `Automatic speech recognition C++ sample <openvino_inference_engine_samples_speech_sample_README.html>`_
 
-
 To uninstall the toolkit, follow the steps on the :doc:`Uninstalling page <openvino_docs_install_guides_uninstalling_openvino>`.
 
-@endsphinxdirective
-
-
-## Additional Resources
-
-@sphinxdirective
+Additional Resources
+####################
 
 * :ref:`Troubleshooting Guide for OpenVINO Installation & Configuration <troubleshooting guide for install>`
 * Converting models for use with OpenVINO™: :ref:`Model Optimizer User Guide <deep learning model optimizer>`
 * Writing your own OpenVINO™ applications: :ref:`OpenVINO™ Runtime User Guide <deep learning openvino runtime>`
 * Sample applications: :ref:`OpenVINO™ Toolkit Samples Overview <code samples>`
 * Pre-trained deep learning models: :ref:`Overview of OpenVINO™ Toolkit Pre-Trained Models <model zoo>`
-* IoT libraries and code samples in the GitHUB repository: `Intel® IoT Developer Kit`_ 
+* IoT libraries and code samples in the GitHUB repository: `Intel® IoT Developer Kit <https://github.com/intel-iot-devkit>`__
 * :ref:`OpenVINO Installation Selector Tool <https://www.intel.com/content/www/us/en/developer/tools/openvino-toolkit/download.html>`
-
-.. _Intel® IoT Developer Kit: https://github.com/intel-iot-devkit
 
 @endsphinxdirective

@@ -10,7 +10,8 @@
    Implement Plugin Functionality <openvino_docs_ov_plugin_dg_plugin>
    Implement Compiled Model Functionality <openvino_docs_ov_plugin_dg_compiled_model>
    Implement Synchronous Inference Request <openvino_docs_ov_plugin_dg_infer_request>
-   Implement Asynchronous Inference Request <openvino_docs_ie_plugin_dg_async_infer_request>
+   Implement Asynchronous Inference Request <openvino_docs_ov_plugin_dg_async_infer_request>
+   Provide Plugin Specific Properties <openvino_docs_ov_plugin_dg_properties>
    Implement Remote Context <openvino_docs_ov_plugin_dg_remote_context>
    Implement Remote Tensor <openvino_docs_ov_plugin_dg_remote_tensor>
    openvino_docs_ov_plugin_dg_plugin_build
@@ -43,16 +44,16 @@ OpenVINO plugin dynamic library consists of several main components:
 3. [Inference Request class](@ref openvino_docs_ov_plugin_dg_infer_request):
     - Runs an inference pipeline serially.
     - Can extract performance counters for an inference pipeline execution profiling.
-4. [Asynchronous Inference Request class](@ref openvino_docs_ie_plugin_dg_async_infer_request):
+4. [Asynchronous Inference Request class](@ref openvino_docs_ov_plugin_dg_async_infer_request):
     - Wraps the [Inference Request](@ref openvino_docs_ov_plugin_dg_infer_request) class and runs pipeline stages in parallel on several task executors based on a device-specific pipeline structure.
-5. [Remote Context](@ref openvino_docs_ov_plugin_dg_remote_context):
+5. [Plugin specific properties](@ref openvino_docs_ov_plugin_dg_properties):
+    - Provides the plugin specific properties.
+6. [Remote Context](@ref openvino_docs_ov_plugin_dg_remote_context):
     - Provides the device specific remote context. Context allows to create remote tensors.
-6. [Remote Tensor](@ref openvino_docs_ov_plugin_dg_remote_tensor)
+7. [Remote Tensor](@ref openvino_docs_ov_plugin_dg_remote_tensor)
     - Provides the device specific remote tensor API and implementation.
 
-> **NOTE**: This documentation is written based on the `Template` plugin, which demonstrates plugin 
-
-development details. Find the complete code of the `Template`, which is fully compilable and up-to-date,
+> **NOTE**: This documentation is written based on the `Template` plugin, which demonstrates plugin development details. Find the complete code of the `Template`, which is fully compilable and up-to-date,
 at `<openvino source dir>/src/plugins/template`.
 
 
@@ -61,7 +62,7 @@ Detailed guides
 
 * [Build](@ref openvino_docs_ov_plugin_dg_plugin_build) a plugin library using CMake
 * Plugin and its components [testing](@ref openvino_docs_ov_plugin_dg_plugin_testing)
-* [Quantized networks](@ref openvino_docs_ie_plugin_dg_quantized_networks)
+* [Quantized networks](@ref openvino_docs_ov_plugin_dg_quantized_models)
 * [Low precision transformations](@ref openvino_docs_OV_UG_lpt) guide
 * [Writing OpenVINO™ transformations](@ref openvino_docs_transformations) guide
 

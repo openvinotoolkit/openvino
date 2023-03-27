@@ -108,6 +108,8 @@ static void CreateConstantOp(Program& p, const std::shared_ptr<ngraph::op::v0::C
             }
             consts[op].needsBatchInterpretation = all_inputs_1d && constDims.size() == 1;
         } else if (ngraph::is_type<ngraph::op::v1::Gather>(outOp) ||
+                   ngraph::is_type<ngraph::op::v7::Gather>(outOp) ||
+                   ngraph::is_type<ngraph::op::v8::Gather>(outOp) ||
                    ngraph::is_type<ngraph::op::v1::Split>(outOp) ||
                    ngraph::is_type<ngraph::op::v1::VariadicSplit>(outOp)) {
             consts[op].needsBatchInterpretation = constDims.size() == 1;

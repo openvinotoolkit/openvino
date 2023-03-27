@@ -2,7 +2,7 @@
 
 `InferRequest` class functionality:
 - Allocate input and output tensors needed for a backend-dependent network inference.
-- Define functions for inference process stages (for example, `preprocess`, `upload`, `infer`, `download`, `postprocess`). These functions can later be used to define an execution pipeline during [Asynchronous Inference Request](@ref openvino_docs_ie_plugin_dg_async_infer_request) implementation.
+- Define functions for inference process stages (for example, `preprocess`, `upload`, `infer`, `download`, `postprocess`). These functions can later be used to define an execution pipeline during [Asynchronous Inference Request](@ref openvino_docs_ov_plugin_dg_async_infer_request) implementation.
 - Call inference stages one by one synchronously.
 
 InferRequest Class
@@ -23,7 +23,9 @@ The example class has several fields:
 - backend specific fields:
     - `m_backend_input_tensors` - input backend tensors.
     - `m_backend_output_tensors` - output backend tensors.
-	- `m_executable` - an executable object / backend computational graph.
+    - `m_executable` - an executable object / backend computational graph.
+    - `m_eval_context` - an evaluation context to save backend states after the inference.
+    - `m_variable_states` - a vector of variable states.
 
 ### InferRequest Constructor
 
@@ -69,7 +71,13 @@ Executes a pipeline synchronously using `m_executable` object:
 
 @snippet src/sync_infer_request.cpp infer_request:start_pipeline
 
-#### 3. infer_postprocess()
+#### 3. wait_pipeline()
+
+Waits a pipeline in case of plugin asynchronous execution:
+
+@snippet src/sync_infer_request.cpp infer_request:wait_pipeline
+
+#### 4. infer_postprocess()
 
 Converts backend specific tensors to tensors passed by user:
 
@@ -81,4 +89,4 @@ The method returns the profiling info which was measured during pipeline stages 
 
 @snippet src/sync_infer_request.cpp infer_request:get_profiling_info
 
-The next step in the plugin library implementation is the [Asynchronous Inference Request](@ref openvino_docs_ie_plugin_dg_async_infer_request) class.
+The next step in the plugin library implementation is the [Asynchronous Inference Request](@ref openvino_docs_ov_plugin_dg_async_infer_request) class.

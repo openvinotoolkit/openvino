@@ -506,11 +506,6 @@ void Convolution::getSupportedDescriptors() {
 
     if (canBeExecutedInInt8()) {
         DEBUG_LOG(getName(), "Creating I8 descriptor");
-        //  We have to extend convolution_x8s8s32x from oneDNN to support BF16 output data type
-        if (outputDataType == memory::data_type::bf16)
-            outputDataType = memory::data_type::f32;
-        if (eltwisePrecision == Precision::BF16)
-            eltwisePrecision = Precision::FP32;
         // initTryBrgconvFlag depends on outputDataType, should be after outputDataType computed
         if (!enforceBrgconv)
             initTryBrgconvFlag();
@@ -964,17 +959,6 @@ void Convolution::addLegacyZeroPoints(dnnl::primitive_attr& attr) {
             legacyOutputCompensationMemPtr->Create(memoryDesc, legacyOutputCompensation.data());
         }
     }
-}
-
-static bool attrContainsAnyOfPostOps(const dnnl::primitive_attr& attr, std::initializer_list<dnnl::impl::primitive_kind_t> kinds) {
-    const auto ops = attr.get_post_ops();
-
-    for (const auto& kind : kinds) {
-        if (ops.get()->find(kind) != -1)
-            return true;
-    }
-
-    return false;
 }
 
 static bool attrContainsPostOp(const dnnl::primitive_attr& attr, const dnnl::impl::primitive_kind_t kind) {
@@ -1505,7 +1489,8 @@ void Convolution::prepareParams() {
             // when the input weight data is guaranteed to be ready (considering possible const-folding
             // subgraphs inserted between constant weight node and conv)
             auto it = primArgs.find(DNNL_ARG_WEIGHTS);
-            if (it == primArgs.end() || !prevExecPtr || prevExecPtr->getWeightDesc() != execPtr->getWeightDesc()) {
+            if (it == primArgs.end() || !prevExecPtr ||
+                !execPtr->getWeightDesc()->isCompatible(*(prevExecPtr->getWeightDesc()))) {
                 pendingConstWeightReorder = true;
             }
         } else {
@@ -1524,8 +1509,7 @@ void Convolution::prepareParams() {
 
         Node::appendPostOpArgs(*pAttrLocal, primArgs, convPostOpsArgs[preferLegacyPostOps]);
 
-        auto pd = execPtr->getPrimitiveDesc();
-        auto scratchpadMem = getScratchPadMem(pd);
+        auto scratchpadMem = getScratchPadMem(execPtr->getScratchPadDesc());
         primArgs[DNNL_ARG_SCRATCHPAD] = scratchpadMem->GetPrimitive();
 
 #ifdef CPU_DEBUG_CAPS
@@ -1543,20 +1527,18 @@ Convolution::ConvolutionExecutor::ConvolutionExecutor(const dnnl::convolution_fo
                                                                 const dnnl::memory::desc& weightMemDesc,
                                                                 const dnnl::memory::desc& outMemDesc,
                                                                 const dnnl::engine& engine,
-                                                                bool constWeight) {
-    execPrim = dnnl::convolution_forward(pd);
-
-    if (inMemDesc != pd.src_desc()) {
-        inputReorders.insert({DNNL_ARG_SRC, IntermReorder(inMemDesc, pd.src_desc(), engine)});
+                                                                bool constWeight) : DnnlExecutor(pd) {
+    if (inMemDesc != getDnnlSrcDesc()) {
+        inputReorders.insert({DNNL_ARG_SRC, IntermReorder(inMemDesc, getDnnlSrcDesc(), engine)});
     }
 
-    if (weightMemDesc != pd.weights_desc() && !constWeight) {
+    if (weightMemDesc != getDnnlWeightDesc() && !constWeight) {
         // const weight will be reordered at first execution
-        inputReorders.insert({DNNL_ARG_WEIGHTS, IntermReorder(weightMemDesc, pd.weights_desc(), engine)});
+        inputReorders.insert({DNNL_ARG_WEIGHTS, IntermReorder(weightMemDesc, getDnnlWeightDesc(), engine)});
     }
 
-    if (outMemDesc != pd.dst_desc()) {
-        outputReorders.insert({DNNL_ARG_DST, IntermReorder(pd.dst_desc(), outMemDesc, engine)});
+    if (outMemDesc != getDnnlDstDesc()) {
+        outputReorders.insert({DNNL_ARG_DST, IntermReorder(getDnnlDstDesc(), outMemDesc, engine)});
     }
 }
 
@@ -1566,7 +1548,7 @@ void Convolution::execute(dnnl::stream strm) {
     }
 
     if (pendingConstWeightReorder) {
-        primArgs[DNNL_ARG_WEIGHTS] = prepareWeightMemory(DnnlExtensionUtils::makeDescriptor(execPtr->getWeightDesc()))->GetPrimitive();
+        primArgs[DNNL_ARG_WEIGHTS] = prepareWeightMemory(execPtr->getWeightDesc())->GetPrimitive();
         pendingConstWeightReorder = false;
     }
 
@@ -1684,24 +1666,10 @@ void Convolution::appendZeroPointsArgs() {
     }
 }
 
-// Due to performance issue, brgconv will only be enabled by default:
-// 1, support amx except having input zero point.
-// 2, support avx512 without legacy postops/per channel zero point when avx512
+// brgconv will be enabled by default when HW supports avx512+
 void Convolution::initTryBrgconvFlag() {
-    if (dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core_amx)) {
+    if (dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core)) {
         shouldTryBrgconv = true;
-    } else if (dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core)) {
-        shouldTryBrgconv = true;
-        // should remove after binary postops performance issue resolved
-        // heuristics: if it's  avx512 ISA model && it doesn't have binary post ops or per channel zero point.
-        dnnl::primitive_attr attr;
-        DEBUG_LOG("setPostOps, useLegacyPostOps=false");
-        setPostOps(attr, outputStaticShape(), false);
-
-        if (attrContainsPostOp(attr, dnnl::impl::primitive_kind::binary) &&
-            attrContainsAnyOfPostOps(attr, {dnnl::impl::primitive_kind::eltwise})) {
-            shouldTryBrgconv = false;
-        }
     }
 
     // Temporary debug functionality to be able to force brgconv for any model
