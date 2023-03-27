@@ -11,6 +11,7 @@
 #include <ngraph/function.hpp>
 #include <ngraph/opsets/opset8.hpp>
 #include <ngraph/pass/manager.hpp>
+#include <openvino/opsets/opset10.hpp>
 #include <transformations/common_optimizations/prelu_fusion.hpp>
 
 #include "common_test_utils/ngraph_test_utils.hpp"
@@ -130,4 +131,29 @@ TEST_F(TransformationTestsF, PReluFusionFail) {
     }
 
     function_ref = ngraph::clone_function(*function);
+}
+
+TEST_F(TransformationTestsF, PReluFusionAbsSubMulMulAdd) {
+    using namespace std;
+    using namespace ov::opset10;
+    {
+        const auto data = make_shared<Parameter>(element::f32, Shape{1, 128});
+        const auto relu = make_shared<Relu>(data);
+        const auto abs = make_shared<Abs>(data);
+        const auto sub = make_shared<Subtract>(data, abs);
+        const auto mul_1_const = Constant::create(element::f32, Shape{1}, {0.022});
+        const auto mul_1 = make_shared<Multiply>(sub, mul_1_const);
+        const auto mul_2_const = Constant::create(element::f32, Shape{1}, {0.5});
+        const auto mul_2 = make_shared<Multiply>(mul_1, mul_2_const);
+        const auto add = make_shared<Add>(relu, mul_2);
+        function = make_shared<Function>(NodeVector{add}, ParameterVector{data});
+
+        manager.register_pass<ov::pass::PReluFusion>();
+    }
+    {
+        const auto data = make_shared<Parameter>(element::f32, Shape{1, 128});
+        const auto prelu_const = Constant::create(element::f32, Shape{1}, {0.022});
+        const auto prelu = make_shared<PRelu>(data, prelu_const);
+        function_ref = make_shared<Function>(NodeVector{prelu}, ParameterVector{data});
+    }
 }

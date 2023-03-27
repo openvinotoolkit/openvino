@@ -9,6 +9,7 @@
 #include <algorithm>
 
 namespace cldnn {
+static inline bool check_redundant_1d_along_feature(layout const& l1, layout const& l2);
 namespace {
 // pair.first tells whether l1 and l2 are absolutely identical
 // pair.second tells whether l1 and l2 can be reinterpreted to each other without need of reordering
@@ -26,10 +27,10 @@ std::pair<bool, bool> are_layouts_identical(layout const& l1, layout const& l2) 
 
     auto l1_size = l1.get_tensor();
     auto l2_size = l2.get_tensor();
-    int64_t offset_last_element_l1 = l1.get_linear_offset(l1_size - tensor{1});
-    int64_t offset_last_element_l2 = l2.get_linear_offset(l2_size - tensor{1});
     if (l1 == l2)
         return {true, true};
+    if (check_redundant_1d_along_feature(l1, l2))
+        return {false, true};
     if (l1.data_type != l2.data_type)
         return {false, false};
     // Reorders between bfyx, bfzyx, bfwzyx can pe reinterpeted as reshape when
@@ -72,13 +73,6 @@ std::pair<bool, bool> are_layouts_identical(layout const& l1, layout const& l2) 
         check_format(format::bs_fs_zyx_bsv32_fsv16) ||
         check_format(format::bs_fs_zyx_bsv32_fsv32))
         return {false, false};
-
-    // If data is actually 1d along f and dense, the layouts are identical
-    if (l1.data_type == l2.data_type && l1_size == l2_size && !l1_pad && !l2_pad && l1_size.batch[0] == 1 &&
-        ((l1.format.spatial_num() == 2 && l1_size.spatial[0] == 1 && l1_size.spatial[1] == 1) ||
-        ((l1.format.spatial_num() == 3 && l1_size.spatial[0] == 1 && l1_size.spatial[1] == 1 && l1_size.spatial[2] == 1))) &&
-        (offset_last_element_l1 + 1 == l1_size.feature[0] && offset_last_element_l2 + 1 == l2_size.feature[0]))
-        return {false, true};
 
     auto l1_pitch = l1.get_pitches();
     auto l2_pitch = l2.get_pitches();
@@ -197,7 +191,10 @@ std::vector<tensor::value_type> layout::get_dims() const {
     if (is_dynamic())
         throw std::runtime_error("[GPU] get_dims() is called for dynamic shape");
     auto shape = size.to_shape();
-    std::vector<tensor::value_type> res(shape.begin(), shape.end());
+    std::vector<tensor::value_type> res;
+    for (auto dim : shape) {
+        res.push_back(static_cast<tensor::value_type>(dim));
+    }
 
     if (res.size() < format.dimension())
         res.insert(res.end(), format.dimension() - res.size(), 1);
@@ -239,6 +236,8 @@ static format to_weights_format(format f, bool is_grouped) {
             return format::o_is_yx_isv16;
         case format::bs_xs_xsv8_bsv8:
             return format::os_i_osv8__ai8;
+        case format::b_fs_yx_32fp:
+            return format::os_is_yx_osv32_isv32p;
         default:
             throw std::invalid_argument("Unable to convert data format " + f.to_string() + " to weights format");
     }
@@ -331,7 +330,10 @@ tensor layout::get_tensor() const {
         shape = size.to_shape();
     }
 
-    std::vector<tensor::value_type> dims(shape.begin(), shape.end());
+    std::vector<tensor::value_type> dims;
+    for (auto dim : shape) {
+        dims.push_back(static_cast<tensor::value_type>(dim));
+    }
 
     auto rank = std::max(format.dimension(), dims.size());
     auto default_fmt = format::get_default_format(rank, format::is_weights_format(format), format::is_grouped(format));
@@ -511,7 +513,10 @@ ov::PartialShape layout::transform(cldnn::format new_fmt) const {
 
     cldnn::tensor::value_type default_size = -1;
     auto shape = size.to_shape();
-    std::vector<tensor::value_type> dims(shape.begin(), shape.end());
+    std::vector<tensor::value_type> dims;
+    for (auto dim : shape) {
+        dims.push_back(static_cast<tensor::value_type>(dim));
+    }
 
     const cldnn::format default_fmt = cldnn::format::bfwzyx;
     auto old_sizes = convert_dimensions(dims, format.order(), default_fmt.internal_order()); // convert to internal order (bfxyzw)
@@ -612,7 +617,7 @@ ov::PartialShape layout::transform(cldnn::format new_fmt) const {
     }
 
     auto new_dims = convert_dimensions(new_sizes, default_fmt.internal_order(), new_fmt.order());
-    for (int idx = (new_dims.size() - 1); idx >= 0; idx--) {
+    for (int idx = static_cast<int>(new_dims.size() - 1); idx >= 0; idx--) {
         if (new_dims[idx] == -1)
             new_dims.erase((new_dims.begin() + idx));
         else if (new_dims[idx] < 0)
@@ -621,6 +626,37 @@ ov::PartialShape layout::transform(cldnn::format new_fmt) const {
 
     ov::Shape new_shape(new_dims.begin(), new_dims.end());
     return ov::PartialShape(new_shape);
+}
+
+// Check a reorder is 1d along feature axis. Or feature size fits to inner block size of feature axis
+static inline bool check_redundant_1d_along_feature(layout const& l1, layout const& l2) {
+    // No padding, double blocked format and different data_type
+    if (!l1.data_padding && !l2.data_padding && !format::is_multi_blocked(l1.format) && !format::is_multi_blocked(l2.format) &&
+        l2.data_type == l1.data_type && l2.count() == l1.count()) {
+        auto l1_inner_blk = format::is_single_blocked(l1.format) ? format::traits(l1.format).block_sizes.at(0).second : 1;
+        auto l2_inner_blk = format::is_single_blocked(l2.format) ? format::traits(l2.format).block_sizes.at(0).second : 1;
+        auto max_inner_blk = std::max(l1_inner_blk, l2_inner_blk);
+        if (static_cast<size_t>(l2.feature()) == l1.count() && l2.feature() == l1.feature() &&
+           (l2.feature() % max_inner_blk == 0)) {
+            return true;
+        }
+
+        // Acceptable if a feature size of l2 'byxf' fits to l1's inner block size of 'b_fs_yx_fsv'
+        if ((l2.format == format::byxf && (l1.format == format::b_fs_yx_fsv16 ||  l1.format == format::b_fs_yx_fsv32) &&
+            l2.feature() == l1_inner_blk) ||
+            (l1.format == format::byxf && (l2.format == format::b_fs_yx_fsv16 ||  l2.format == format::b_fs_yx_fsv32) &&
+            l1.feature() == l2_inner_blk)) {
+            // each spatial axis should be same
+            for (size_t i = 0 ; i < l2.get_spatial_rank() ; i++) {
+                if (l2.spatial(i) != l1.spatial(i))
+                    return false;
+            }
+
+            return true;
+        }
+    }
+
+    return false;
 }
 
 }  // namespace cldnn

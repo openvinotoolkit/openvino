@@ -61,6 +61,19 @@ public:
         m_decoder->get_input_node(input_port_idx, producer_name, producer_output_port_index);
     }
 
+    /// \brief Get a producer name and its output port index
+    ///
+    /// \param input_port_idx              Input port index by which data is consumed
+    /// \param producer_name               A producer name
+    /// \param producer_output_port_index  Output port index from which data is generated
+    /// \param op_type_by_name             Map of operation name to their types
+    void get_input_node(size_t input_port_idx,
+                        std::string& producer_name,
+                        size_t& producer_output_port_index,
+                        const OpTypeByName& op_type_by_name) const override {
+        FRONT_END_NOT_IMPLEMENTED("get_input_node method with op_type_by_name map is not implemented for TFL FE.");
+    }
+
     /// \brief Get operation type
     const std::string& get_op_type() const override {
         if (m_type.empty())

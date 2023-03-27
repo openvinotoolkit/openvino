@@ -8,34 +8,31 @@
 #include <cpu/x64/jit_generator.hpp>
 #include "jit_bf16_emitters.hpp"
 
-using namespace dnnl::impl;
-using namespace dnnl::impl::cpu::x64;
-using namespace InferenceEngine;
-
 namespace ov {
 namespace intel_cpu {
 
 struct load_emitter_params : public emitter_params {
-    load_emitter_params(Precision src_prc, Precision dst_prc, int load_num, bool is_fill = false, std::string fill_value = "zero"):
+    load_emitter_params(InferenceEngine::Precision src_prc, InferenceEngine::Precision dst_prc,
+                        int load_num, bool is_fill = false, std::string fill_value = "zero"):
         src_prc_(src_prc), dst_prc_(dst_prc), load_num_(load_num), is_fill_(is_fill), fill_value_(fill_value) {}
 
     size_t hash() const override;
 
-    Precision src_prc_;
-    Precision dst_prc_;
+    InferenceEngine::Precision src_prc_;
+    InferenceEngine::Precision dst_prc_;
     int load_num_;
     bool is_fill_;
     std::string fill_value_;
 };
 
 struct store_emitter_params : public emitter_params {
-    store_emitter_params(Precision src_prc, Precision dst_prc, int store_num):
+    store_emitter_params(InferenceEngine::Precision src_prc, InferenceEngine::Precision dst_prc, int store_num):
         src_prc_(src_prc), dst_prc_(dst_prc), store_num_(store_num) {}
 
     size_t hash() const override;
 
-    Precision src_prc_;
-    Precision dst_prc_;
+    InferenceEngine::Precision src_prc_;
+    InferenceEngine::Precision dst_prc_;
     int store_num_;
 };
 
@@ -47,8 +44,10 @@ enum arithmetic_mode {
 
 class jit_load_emitter : public jit_emitter {
 public:
-    jit_load_emitter(dnnl::impl::cpu::x64::jit_generator *host, dnnl::impl::cpu::x64::cpu_isa_t host_isa, Precision src_prc, Precision dst_prc, int load_num,
-                     Precision exec_prc = Precision::FP32, bool is_fill = false, std::string fill_value = "zero",
+    jit_load_emitter(dnnl::impl::cpu::x64::jit_generator *host, dnnl::impl::cpu::x64::cpu_isa_t host_isa,
+                     InferenceEngine::Precision src_prc, InferenceEngine::Precision dst_prc, int load_num,
+                     InferenceEngine::Precision exec_prc = InferenceEngine::Precision::FP32,
+                     bool is_fill = false, std::string fill_value = "zero",
                      emitter_in_out_map in_out_type = emitter_in_out_map::gpr_to_vec);
     /**
     * load_num values with src_prc precision are loaded from ptr[Reg64(in_idxs[0]) + offset_byte] address to Vmm[out_idxs[0]] as dst_prc, where offset_byte is in_idxs[1]
@@ -68,9 +67,7 @@ public:
     * \|/
     * dst_prc
     */
-    void emit_impl(const std::vector<size_t> &in_idxs, const std::vector<size_t> &out_idxs,
-                   const std::vector<size_t> &pool_vec_idxs, const std::vector<size_t> &pool_gpr_idxs,
-                   const emitter_context *emit_context) const override;
+    void emit_impl(const std::vector<size_t> &in_idxs, const std::vector<size_t> &out_idxs) const override;
 
     size_t get_inputs_num() const override;
 
@@ -98,16 +95,18 @@ private:
     int v_len_elt_;  // 4/8/16
     int load_num_;
     int load_size_;
-    Precision src_prc_;
-    Precision dst_prc_;
+    InferenceEngine::Precision src_prc_;
+    InferenceEngine::Precision dst_prc_;
     bool is_fill_;
     std::string fill_value_;
 };
 
 class jit_store_emitter : public jit_emitter {
 public:
-    jit_store_emitter(dnnl::impl::cpu::x64::jit_generator *host, dnnl::impl::cpu::x64::cpu_isa_t host_isa, Precision src_prc, Precision dst_prc, int store_num,
-                      arithmetic_mode mode = arithmetic_mode::saturation, Precision exec_prc = Precision::FP32,
+    jit_store_emitter(dnnl::impl::cpu::x64::jit_generator *host, dnnl::impl::cpu::x64::cpu_isa_t host_isa,
+                      InferenceEngine::Precision src_prc, InferenceEngine::Precision dst_prc, int store_num,
+                      arithmetic_mode mode = arithmetic_mode::saturation,
+                      InferenceEngine::Precision exec_prc = InferenceEngine::Precision::FP32,
                       emitter_in_out_map in_out_type = emitter_in_out_map::vec_to_gpr);
 
     /**
@@ -125,9 +124,7 @@ public:
     * dst_prc
     * note: FP32/I32-->BF16(x*) is supported only on at least avx512-core plateform
     */
-    void emit_impl(const std::vector<size_t> &in_idxs, const std::vector<size_t> &out_idxs,
-                   const std::vector<size_t> &pool_vec_idxs, const std::vector<size_t> &pool_gpr_idxs,
-                   const emitter_context *emit_context) const override;
+    void emit_impl(const std::vector<size_t> &in_idxs, const std::vector<size_t> &out_idxs) const override;
 
     size_t get_inputs_num() const override;
 
@@ -162,8 +159,8 @@ private:
     int v_len_elt_;  // 4/8/16
     int store_num_;
     int store_size_;
-    Precision src_prc_;
-    Precision dst_prc_;
+    InferenceEngine::Precision src_prc_;
+    InferenceEngine::Precision dst_prc_;
     arithmetic_mode mode_ = arithmetic_mode::saturation;
     std::shared_ptr<jit_uni_vcvtneps2bf16> uni_vcvtneps2bf16_;
 };

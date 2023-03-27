@@ -11,7 +11,7 @@
 
 template <class T>
 inline void dynamic_inference(const T& input_shape, T& output_shape, bool keep_dims) {
-    OPENVINO_UNREACHABLE("This code should be executed only for PartialShape class");
+    OPENVINO_THROW("This code should be executed only for PartialShape class");
 }
 
 template <>

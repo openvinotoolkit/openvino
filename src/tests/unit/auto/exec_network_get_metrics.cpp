@@ -402,7 +402,7 @@ TEST_P(ExecNetworkGetMetricOtherTest, modelPriority_perfHint_exclusiveAsyncReq_t
     config.insert({InferenceEngine::MultiDeviceConfigParams::KEY_MULTI_DEVICE_PRIORITIES,
                    CommonTestUtils::DEVICE_CPU + std::string(",") + actualDeviceName});
     config.insert({CONFIG_KEY(PERFORMANCE_HINT), performanceHint});
-    config.insert({CONFIG_KEY(MODEL_PRIORITY), modelPriority});
+    config.insert({CONFIG_KEY(MODEL_PRIORITY), modelPriority.as<std::string>()});
 
     if (isNewAPI) {
         ON_CALL(*core.get(), isNewAPI()).WillByDefault(Return(true));

@@ -30,8 +30,8 @@ size_t ReorderKey::hash() const {
     using namespace dnnl::impl::primitive_hashing;
 
     size_t seed = 0;
-    seed = hash_combine(seed, get_md_hash(src.data));
-    seed = hash_combine(seed, get_md_hash(dest.data));
+    seed = hash_combine(seed, get_md_hash(*src.get()));
+    seed = hash_combine(seed, get_md_hash(*dest.get()));
 
     return seed;
 }

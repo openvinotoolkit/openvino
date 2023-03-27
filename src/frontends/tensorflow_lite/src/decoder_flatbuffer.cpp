@@ -5,6 +5,7 @@
 #include "decoder_flatbuffer.h"
 
 #include "schema_generated.h"
+#include "utils.hpp"
 
 namespace ov {
 namespace frontend {
@@ -30,6 +31,13 @@ void DecoderFlatBuffer::get_input_node(size_t input_port_idx,
     std::string name = (*tensor).name()->str();
     producer_name = name;
     producer_output_port_index = input_tensor_idx;
+}
+
+void DecoderFlatBuffer::get_input_node(size_t input_port_idx,
+                                       std::string& producer_name,
+                                       size_t& producer_output_port_index,
+                                       const OpTypeByName& op_type_by_name) const {
+    FRONT_END_NOT_IMPLEMENTED("get_input_node method with op_type_by_name map is not implemented for TFL FE.");
 }
 
 const std::string& DecoderFlatBuffer::get_op_type() const {
@@ -61,21 +69,21 @@ ov::element::Type DecoderFlatBuffer::get_output_tensor_type(size_t idx) const {
 
 std::shared_ptr<ov::frontend::tensorflow_lite::TensorLitePlace> DecoderFlatBuffer::decode_input_tensor(
     size_t idx,
-    const InputModel& model) const {
+    const ov::frontend::InputModel& model) const {
     FRONT_END_GENERAL_CHECK(idx < get_input_size(), "Requested input is out-of-range");
     return decode_tensor(m_input_info.at(idx), model);
 }
 
 std::shared_ptr<ov::frontend::tensorflow_lite::TensorLitePlace> DecoderFlatBuffer::decode_output_tensor(
     size_t idx,
-    const InputModel& model) const {
+    const ov::frontend::InputModel& model) const {
     FRONT_END_GENERAL_CHECK(idx < get_output_size(), "Requested output is out-of-range");
     return decode_tensor(m_output_info.at(idx), model);
 }
 
 std::shared_ptr<ov::frontend::tensorflow_lite::TensorLitePlace> DecoderFlatBuffer::decode_tensor(
     const ov::frontend::tensorflow_lite::TensorInfo& tensor_info,
-    const InputModel& model) const {
+    const ov::frontend::InputModel& model) const {
     const auto tensor = tensor_info.tensor;
     std::vector<std::string> names = {tensor->name()->str()};
 

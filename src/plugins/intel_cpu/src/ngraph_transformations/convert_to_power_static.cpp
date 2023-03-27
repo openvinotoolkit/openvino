@@ -44,7 +44,7 @@ bool isConvertableToPowerStatic(const std::shared_ptr<BaseOp> &node) {
         return false;
     auto const_shape = node->get_input_shape(constPort);
     return ngraph::shape_size(const_shape) == 1 &&
-           input_rank.get_length() >= const_shape.size() &&
+           input_rank.get_length() >= static_cast<int64_t>(const_shape.size()) &&
            !ov::intel_cpu::one_of(node->get_input_node_shared_ptr(nonConstPort)->get_type_info(),
                                  ngraph::opset1::NormalizeL2::get_type_info_static(),
                                  ngraph::opset4::Interpolate::get_type_info_static(),
@@ -64,7 +64,9 @@ bool isConvertableToPowerStatic(const std::shared_ptr<ngraph::opset1::Power> &no
     if (input_rank.is_dynamic())
         return false;
     auto const_node =  std::dynamic_pointer_cast<ngraph::opset1::Constant>(node->get_input_node_shared_ptr(1));
-    return const_node && input_rank.get_length() >= const_node->get_shape().size() && ngraph::shape_size(const_node->get_shape()) == 1;
+    return const_node &&
+           input_rank.get_length() >= static_cast<ov::Dimension::value_type>(const_node->get_shape().size()) &&
+           ngraph::shape_size(const_node->get_shape()) == 1;
 }
 
 template <class BaseOp>

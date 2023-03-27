@@ -126,33 +126,43 @@ void set_arguments_impl(ocl_kernel_type& kernel,
                     switch (scalar.t) {
                         case scalar_t::UINT8:
                             status = kernel.setArg(i, scalar.v.u8);
+                            GPU_DEBUG_TRACE_DETAIL << "kernel: " << kernel.get() << " set scalar " << i << " (u8): " << scalar.v.u8 << "\n";
                             break;
                         case scalar_t::UINT16:
                             status = kernel.setArg(i, scalar.v.u16);
+                            GPU_DEBUG_TRACE_DETAIL << "kernel: " << kernel.get() << " set scalar " << i << " (u16): " << scalar.v.u16 << "\n";
                             break;
                         case scalar_t::UINT32:
                             status = kernel.setArg(i, scalar.v.u32);
+                            GPU_DEBUG_TRACE_DETAIL << "kernel: " << kernel.get() << " set scalar " << i << " (u32): " << scalar.v.u32 << "\n";
                             break;
                         case scalar_t::UINT64:
                             status = kernel.setArg(i, scalar.v.u64);
+                            GPU_DEBUG_TRACE_DETAIL << "kernel: " << kernel.get() << " set scalar " << i << " (u64): " << scalar.v.u64 << "\n";
                             break;
                         case scalar_t::INT8:
                             status = kernel.setArg(i, scalar.v.s8);
+                            GPU_DEBUG_TRACE_DETAIL << "kernel: " << kernel.get() << " set scalar " << i << " (s8): " << scalar.v.s8 << "\n";
                             break;
                         case scalar_t::INT16:
                             status = kernel.setArg(i, scalar.v.s16);
+                            GPU_DEBUG_TRACE_DETAIL << "kernel: " << kernel.get() << " set scalar " << i << " (s16): " << scalar.v.s16 << "\n";
                             break;
                         case scalar_t::INT32:
                             status = kernel.setArg(i, scalar.v.s32);
+                            GPU_DEBUG_TRACE_DETAIL << "kernel: " << kernel.get() << " set scalar " << i << " (s32): " << scalar.v.s32 << "\n";
                             break;
                         case scalar_t::INT64:
                             status = kernel.setArg(i, scalar.v.s64);
+                            GPU_DEBUG_TRACE_DETAIL << "kernel: " << kernel.get() << " set scalar " << i << " (s64): " << scalar.v.s64 << "\n";
                             break;
                         case scalar_t::FLOAT32:
                             status = kernel.setArg(i, scalar.v.f32);
+                            GPU_DEBUG_TRACE_DETAIL << "kernel: " << kernel.get() << " set scalar " << i << " (f32): " << scalar.v.f32 << "\n";
                             break;
                         case scalar_t::FLOAT64:
                             status = kernel.setArg(i, scalar.v.f64);
+                            GPU_DEBUG_TRACE_DETAIL << "kernel: " << kernel.get() << " set scalar " << i << " (f64): " << scalar.v.f64 << "\n";
                             break;
                         default:
                             break;

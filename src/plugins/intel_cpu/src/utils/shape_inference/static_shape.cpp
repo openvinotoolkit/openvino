@@ -114,7 +114,7 @@ bool StaticShape::broadcast_merge_into(StaticShape& dst,
             auto new_rank = std::max(dst_rank, src_rank);
             std::vector<StaticDimension> dims(new_rank);
             bool success = true;
-            for (int64_t i = 0; i < new_rank; i++) {
+            for (size_t i = 0; i < new_rank; i++) {
                 auto dsti = i < (new_rank - dst_rank) ? StaticDimension(1) : dst[i - (new_rank - dst_rank)];
                 auto srci = i < (new_rank - src_rank) ? StaticDimension(1) : src[i - (new_rank - src_rank)];
                 success &= StaticDimension::broadcast_merge(dims[i], dsti, srci);
