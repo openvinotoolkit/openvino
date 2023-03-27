@@ -8,6 +8,10 @@ set(PUBLIC_HEADERS_DIR "${CMAKE_CURRENT_SOURCE_DIR}/include")
 
 set(DEPENDENCIES mock_engine)
 
+list(APPEND LINK_LIBRARIES_PRIVATE
+        openvino::util
+        openvino::runtime::dev)
+
 if(ENABLE_HETERO)
     list(APPEND DEPENDENCIES openvino_hetero_plugin)
 endif()
@@ -33,6 +37,12 @@ else()
     set(EXCLUDED_SOURCE_PATHS ${CMAKE_CURRENT_SOURCE_DIR}/src/onnx)
 endif()
 
+if (TARGET inference_engine_snippets)
+    list(APPEND LINK_LIBRARIES_PRIVATE snippetsNgraphFunctions)
+else()
+    list(APPEND EXCLUDED_SOURCE_PATHS ${CMAKE_CURRENT_SOURCE_DIR}/src/snippets)
+endif()
+
 addIeTarget(
         NAME ${TARGET_NAME}
         TYPE STATIC
@@ -56,9 +66,7 @@ addIeTarget(
                 lptNgraphFunctions
                 sharedTestClasses
             PRIVATE
-                openvino::util
-                openvino::runtime::dev
-                snippetsNgraphFunctions
+                ${LINK_LIBRARIES_PRIVATE}
         DEPENDENCIES
             ${DEPENDENCIES}
 )
