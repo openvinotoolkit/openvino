@@ -1062,6 +1062,7 @@ namespace {
 class IUpdateNodes {
 public:
     virtual void run(size_t stopIndx) = 0;
+    virtual ~IUpdateNodes() = default;
 };
 
 class UpdateNodesSeq : public IUpdateNodes {
@@ -1258,7 +1259,7 @@ void Graph::InferDynamic(InferRequestBase* request) {
     }
     syncIndsWorkSet.insert(executableGraphNodes.size());
 
-    std::unique_ptr<IUpdateNodes> updateNodes = nullptr;
+    std::unique_ptr<IUpdateNodes> updateNodes{};
     if (parallel_get_max_threads() > 1) {
         updateNodes.reset(new UpdateNodes(executableGraphNodes));
     } else {
