@@ -4,6 +4,7 @@
 
 #include <gtest/gtest.h>
 #include <ie_system_conf.h>
+#include <cpu_map_scheduling.hpp>
 
 #include <common_test_utils/test_common.hpp>
 
