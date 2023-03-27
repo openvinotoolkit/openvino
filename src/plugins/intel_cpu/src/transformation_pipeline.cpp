@@ -87,6 +87,7 @@
 #include "low_precision/network_helper.hpp"
 #include "low_precision/multiply_to_group_convolution.hpp"
 #include "low_precision/group_convolution.hpp"
+#include "low_precision/rt_info/bias_attribute.hpp"
 
 // CPU specific transformations
 #include "ngraph_transformations/convert_to_cpu_specific_opset.hpp"
@@ -500,14 +501,7 @@ void Transformations::Lpt(const bool hasINT16orINT32Levels, const std::vector<ov
         });
     lptManager.get_pass_config()->set_callback<ngraph::pass::low_precision::AddTransformation>(
         [](const_node_ptr& node) -> bool {
-            auto check_input = [&node](const size_t idx) {
-                const auto dq = ngraph::pass::low_precision::NetworkHelper::getDequantization(node, {}, idx);
-                const auto data = dq.data.get_node_shared_ptr();
-                return data != nullptr &&
-                       (ov::is_type<ov::opset1::Convolution>(data) || ov::is_type<ov::opset1::GroupConvolution>(data) ||
-                        ov::is_type<ov::opset1::ConvolutionBackpropData>(data) || ov::is_type<ov::opset1::MatMul>(data));
-            };
-            return check_input(0) || check_input(1);
+            return ov::marked_as_bias(node);
         });
 
     lptManager.get_pass_config()->disable<ngraph::pass::low_precision::MultiplyToGroupConvolutionTransformation>();
