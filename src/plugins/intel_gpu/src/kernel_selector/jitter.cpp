@@ -245,7 +245,6 @@ public:
 
     JitDefinitions GetDefinitions(const Tensor::TensorBaseT<DType, Layout>& t) const {
         JitDefinitions definitions{
-            {_name + "_OFFSET", toCodeString(t.GetFirstElementOffset())},
             {_name + "_VIEW_OFFSET", toCodeString(t.GetViewOffset())},
             {_name + "_LENGTH", toCodeString(t.LogicalSize())},
             {_name + "_DIMS", toCodeString(t.GetDims().size())},
@@ -258,6 +257,7 @@ public:
         definitions.insert(definitions.end(), type_defs.begin(), type_defs.end());
 
         if (!t.is_dynamic()) {
+            definitions.push_back({_name + "_OFFSET", toCodeString(t.GetFirstElementOffset())});
             definitions.push_back({_name + "_SIZE", toCodeString(t.GetDims().size())});
             definitions.push_back(
                 {_name + "_SIZES_DATA",
@@ -265,13 +265,34 @@ public:
             definitions.push_back(
                 {_name + "_PITCHES",
                 toVectorString(t.GetDims(), "size_t", KERNEL_SELECTOR_TENSOR_DIM_MAX, 1, [](const Tensor::Dim& d) { return d.pitch; })});
+        } else {
+            // calculate tensor offset
+            std::vector<std::string> padded_pitches = {
+                toVectorMulString({_name + "_X_PITCH", _name + "_PAD_BEFORE_SIZE_X"}),
+                toVectorMulString({_name + "_Y_PITCH", _name + "_PAD_BEFORE_SIZE_Y"}),
+                toVectorMulString({_name + "_Z_PITCH", _name + "_PAD_BEFORE_SIZE_Z"}),
+                toVectorMulString({_name + "_W_PITCH", _name + "_PAD_BEFORE_SIZE_W"}),
+                toVectorMulString({_name + "_FEATURE_PITCH", _name + "_PAD_BEFORE_FEATURE_NUM"}),
+                toVectorMulString({_name + "_BATCH_PITCH", _name + "_PAD_BEFORE_BATCH_NUM"})};
+            std::string offset_str = "(";
+            for (size_t i = 0; i < padded_pitches.size(); ++i) {
+                offset_str += padded_pitches[i];
+                if (i < padded_pitches.size() - 1)
+                    offset_str += " + ";
+            }
+            offset_str += ")";
+            definitions.push_back({_name + "_OFFSET", offset_str});
         }
         definitions.push_back(
             {_name + "_PAD_BEFORE",
-             toVectorString(t.GetDims(), "size_t", KERNEL_SELECTOR_TENSOR_DIM_MAX, 0, [](const Tensor::Dim& d) { return d.pad.before; })});
+             toVectorString(t.GetDims(), "size_t", KERNEL_SELECTOR_TENSOR_DIM_MAX, 0, [](const Tensor::Dim& d) {
+                 return d.pad.before;
+             })});
         definitions.push_back(
             {_name + "_PAD_AFTER",
-             toVectorString(t.GetDims(), "size_t", KERNEL_SELECTOR_TENSOR_DIM_MAX, 0, [](const Tensor::Dim& d) { return d.pad.after; })});
+             toVectorString(t.GetDims(), "size_t", KERNEL_SELECTOR_TENSOR_DIM_MAX, 0, [](const Tensor::Dim& d) {
+                 return d.pad.after;
+             })});
 
         return definitions;
     }
