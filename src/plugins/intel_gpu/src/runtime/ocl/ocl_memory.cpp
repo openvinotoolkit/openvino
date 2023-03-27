@@ -73,9 +73,6 @@ event::ptr gpu_buffer::fill(stream& stream, unsigned char pattern) {
     cl::Event& ev_ocl = downcast<ocl_event>(ev.get())->get();
     cl_stream.get_cl_queue().enqueueFillBuffer<unsigned char>(_buffer, pattern, 0, size(), nullptr, &ev_ocl);
 
-    // TODO: do we need sync here?
-    cl_stream.finish();
-
     return ev;
 }
 
