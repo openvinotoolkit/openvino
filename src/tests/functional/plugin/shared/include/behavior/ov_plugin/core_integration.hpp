@@ -621,10 +621,12 @@ TEST_P(OVClassSetUseHyperThreadingHintConfigTest, SetConfigNoThrow) {
     ASSERT_NO_THROW(defaultMode = ie.get_property(target_device, ov::hint::use_hyper_threading));
     (void)defaultMode;
 
-    ie.set_property(target_device, ov::hint::use_hyper_threading(true));
     ASSERT_EQ(true, ie.get_property(target_device, ov::hint::use_hyper_threading));
+
     ie.set_property(target_device, ov::hint::use_hyper_threading(false));
     ASSERT_EQ(false, ie.get_property(target_device, ov::hint::use_hyper_threading));
+    ie.set_property(target_device, ov::hint::use_hyper_threading(true));
+    ASSERT_EQ(true, ie.get_property(target_device, ov::hint::use_hyper_threading));
 }
 
 TEST_P(OVClassSetDevicePriorityConfigTest, SetConfigAndCheckGetConfigNoThrow) {
