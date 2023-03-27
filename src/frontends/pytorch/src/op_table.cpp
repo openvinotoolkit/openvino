@@ -251,7 +251,7 @@ const std::map<std::string, PytorchCreatorFunction> get_supported_ops() {
         {"aten::max", op::translate_max},
         {"aten::max_pool1d", op::translate_max_poolnd},
         {"aten::max_pool2d", op::translate_max_poolnd},
-        {"aten.max_pool2d_with_indices.default", op::translate_adaptive_max_pool2d},
+        {"aten.max_pool2d_with_indices.default", op::translate_max_poolnd},
         {"aten::max_pool3d", op::translate_max_poolnd},
         {"aten::mean", op::translate_mean},
         {"aten.mean.dim", op::translate_mean},
