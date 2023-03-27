@@ -15,7 +15,12 @@
 #include "pre_post_process/transposition_info.hpp"
 #include "serial/headers/latest/gna_model_header.hpp"
 
-using namespace ov::intel_gna::pre_post_processing;
+
+namespace ov {
+namespace intel_gna {
+
+using TranspositionInfo = pre_post_processing::TranspositionInfo;
+using TranspositionInfoMap = pre_post_processing::TranspositionInfoMap;
 
 /**
  * @brief helper class for GNAGraph serialization tasks
@@ -126,3 +131,6 @@ public:
      */
     void Export(const GnaAllocations& allocations, std::ostream& os) const;
 };
+
+}  // namespace intel_gna
+}  // namespace ov

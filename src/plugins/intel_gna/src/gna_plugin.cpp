@@ -82,6 +82,7 @@ using namespace InferenceEngine::details;
 
 using namespace ov::intel_gna::memory;
 using namespace ov::intel_gna::frontend;
+using namespace ov::intel_gna::pre_post_processing;
 
 namespace InferenceEngine {
 template <>
