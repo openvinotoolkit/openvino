@@ -34,6 +34,7 @@ OP_CONVERTER(translate_convnd);
 OP_CONVERTER(translate_convolution);
 OP_CONVERTER(translate_convolution_mode);
 OP_CONVERTER(translate_cumsum);
+OP_CONVERTER(translate_deform_conv);
 OP_CONVERTER(translate_dim);
 OP_CONVERTER(translate_div);
 OP_CONVERTER(translate_elu);
@@ -348,6 +349,7 @@ const std::map<std::string, CreatorFunction> get_supported_ops() {
         {"prim::requires_grad", op::return_false_scalar},
         {"prim::PythonOp", op::translate_pythonop},
         {"prim::type", op::skip_node},  // Used with prim::device, pass PtFrameworkNode.
+        {"torchvision::deform_conv2d", op::translate_deform_conv},
         {"torchvision::nms", op::translate_nms},
         {"torchvision::roi_align", op::translate_roi_align},
     };
