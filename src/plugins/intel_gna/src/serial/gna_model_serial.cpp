@@ -476,7 +476,7 @@ void GNAModelSerial::Export(const GnaAllocations& allocations, std::ostream& os)
         for (const auto& tname : input.tensor_names) {
             writeString(tname, os);
         }
-        // write pre_processing model
+        // write pre-processing model
         if (input.pre_post_process_model) {
             // allocate buffer for ir.xml
             std::ostringstream xml_buf;
@@ -513,7 +513,7 @@ void GNAModelSerial::Export(const GnaAllocations& allocations, std::ostream& os)
             writeString(tname, os);
         }
 
-        // write pre_processing model
+        // write pre-processing model
         if (output.pre_post_process_model) {
             // allocate buffer for ir.xml
             std::ostringstream xml_buf;
@@ -636,7 +636,7 @@ void GNAModelSerial::ImportNodes(std::istream& is, void* base_ptr, T& nodes) {
         }
         AppendTensorNameIfNeeded(node);
 
-        // read preprocessing model
+        // read pre-sprocessing model
         if (model_header_.version.major == 2 && model_header_.version.minor >= 9) {
             std::string ir_xml_str = readString(is);
             if (!ir_xml_str.empty()) {

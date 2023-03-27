@@ -22,14 +22,19 @@ struct TranspositionInfo {
 using TranspositionInfoMap = std::map<std::string, std::vector<TranspositionInfo>>;
 
 /*
- * Convert transposition info to preprocessing model
+ * Converts TranspositionInfo struct to ngraph function.
+ * This method creates ngraph function with Transpose layer.
  */
 std::shared_ptr<ov::Model> ToProcessModel(const TranspositionInfo& t_info);
+/*
+ * Converts several TranspositionInfo structures to ngraph function.
+ * This method creates ngraph function with Gather layer.
+ */
 std::shared_ptr<ov::Model> ToProcessModel(const std::vector<TranspositionInfo>& transposes);
 
-/**
- * Converts transposition maps to ngraph model, which wil be ran on CPU as pre/post processing step/
- * This conversation is needed to support the exported models version <= 2.8 (OV< 2023.0)
+/*
+ * Converts transposition map to ngraph model, which wil be ran on CPU as pre/post processing step/
+ * This conversation is needed to support the exported models version <= 2.8 (OV < 2023.0)
  * @return
  */
 template <class T1, class T2>

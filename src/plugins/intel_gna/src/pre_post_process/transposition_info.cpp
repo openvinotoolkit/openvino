@@ -16,9 +16,6 @@ namespace pre_post_processing {
 
 using namespace ov::opset10;
 
-/*
- * Convert transposition info to preprocessing model using Transpose layer
- */
 std::shared_ptr<ov::Model> ToProcessModel(const TranspositionInfo& t_info) {
     int32_t c_size = t_info.num_transpose_rows;
     int32_t hw_size = t_info.num_transpose_columns;
@@ -30,7 +27,7 @@ std::shared_ptr<ov::Model> ToProcessModel(const TranspositionInfo& t_info) {
     ov::PartialShape input_shape{1, c_size, hw_size};
     auto param = std::make_shared<Parameter>(ov::element::f32, input_shape);
 
-    // legacy way was to revert C and HW dimentions in the reshaped tensor
+    // legacy way was to swap C and HW dimensions in the reshaped tensor
     std::vector<int32_t> reshape_pattern{-1, c_size, hw_size};
     auto reshape_const =
         std::make_shared<Constant>(ov::element::i32, ov::Shape{reshape_pattern.size()}, reshape_pattern);
@@ -50,9 +47,6 @@ std::shared_ptr<ov::Model> ToProcessModel(const TranspositionInfo& t_info) {
     return model;
 }
 
-/*
- * Convert transposition info to preprocessing model using Gather layer
- */
 std::shared_ptr<ov::Model> ToProcessModel(const std::vector<TranspositionInfo>& transposes) {
     // count transposition parts need to be transposed
     int count_transposes = std::count_if(transposes.begin(), transposes.end(), [](TranspositionInfo t_info) {
@@ -83,16 +77,16 @@ std::shared_ptr<ov::Model> ToProcessModel(const std::vector<TranspositionInfo>& 
     }
 
     auto param = std::make_shared<Parameter>(ov::element::f32, ov::Shape{1, indexes.size()});
-    // legacy way was to revert C and HW dimentions in the reshaped tensor
+    // legacy way was to swap C and HW dimensions in the reshaped tensor
     std::vector<int32_t> reshape_pattern{-1, static_cast<int32_t>(indexes.size())};
     auto reshape_const =
         std::make_shared<Constant>(ov::element::i32, ov::Shape{reshape_pattern.size()}, reshape_pattern);
     auto reshape = std::make_shared<Reshape>(param, reshape_const, false);
 
-    // NCHW -> NHWC or NHWC -> NCHW
-    auto gather_indixes = std::make_shared<Constant>(ov::element::i32, ov::Shape{indexes.size()}, indexes);
+    // CHW -> HWC or HWC -> CHW
+    auto gather_indexes = std::make_shared<Constant>(ov::element::i32, ov::Shape{indexes.size()}, indexes);
     auto gather_axis = std::make_shared<Constant>(ov::element::i8, ov::Shape{1}, std::vector<int8_t>{1});
-    auto gather = std::make_shared<Gather>(reshape, gather_indixes, gather_axis);
+    auto gather = std::make_shared<Gather>(reshape, gather_indexes, gather_axis);
 
     auto result = std::make_shared<Result>(gather);
 

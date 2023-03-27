@@ -345,21 +345,21 @@ void GNAPlugin::ImportFrames(void* ptr_dst,
 void GNAPlugin::PrePostProcess(InferenceEngine::Blob::Ptr input_blob,
                                InferenceEngine::Blob::Ptr output_blob,
                                std::shared_ptr<ov::Model> model) {
-    const ov::element::Type input_prc = details::convertPrecision(input_blob->getTensorDesc().getPrecision());
-    const ov::element::Type output_prc = details::convertPrecision(output_blob->getTensorDesc().getPrecision());
+    const ov::element::Type input_type = details::convertPrecision(input_blob->getTensorDesc().getPrecision());
+    const ov::element::Type output_type = details::convertPrecision(output_blob->getTensorDesc().getPrecision());
     const ov::Shape& input_shape = input_blob->getTensorDesc().getDims();
     const ov::Shape& output_shape = output_blob->getTensorDesc().getDims();
 
     for (auto param : model->get_parameters()) {
-        param->set_element_type(input_prc);
+        param->set_element_type(input_type);
     }
     model->validate_nodes_and_infer_types();
 
-    ov::TensorVector inputs = {ov::Tensor(input_prc, input_shape, input_blob->cbuffer().as<void*>())};
-    ov::TensorVector results = {ov::Tensor(output_prc, output_shape, output_blob->buffer().as<void*>())};
+    ov::TensorVector inputs = {ov::Tensor(input_type, input_shape, input_blob->cbuffer().as<void*>())};
+    ov::TensorVector results = {ov::Tensor(output_type, output_shape, output_blob->buffer().as<void*>())};
 
     if (!model->evaluate(results, inputs)) {
-        THROW_GNA_EXCEPTION << "Failed to evaluated model " << model->get_friendly_name() << std::endl;
+        THROW_GNA_EXCEPTION << "Failed to evaluate model " << model->get_friendly_name() << std::endl;
     }
 }
 
@@ -485,7 +485,7 @@ void GNAPlugin::UpdateInputs(const std::vector<std::shared_ptr<const ov::Node>>&
         (*inputs_ptr_)[ie_name].name = param->get_friendly_name();
         (*inputs_ptr_)[ie_name].tensor_names = param->get_output_tensor(0).get_names();
 
-        // find preprocessing model
+        // find pre-processing model
         auto subgraph_it = m_subgraph_cpu_map.find(ie_name);
         if (subgraph_it != m_subgraph_cpu_map.end()) {
             (*inputs_ptr_)[ie_name].pre_post_process_model = subgraph_it->second;
@@ -986,7 +986,7 @@ void GNAPlugin::LoadNetwork(const CNNNetwork& _network) {
         }
     }
 
-    // TODO: Need to remove this conversation when ngraph NCHW<->NHWC transformation is enabled
+    // TODO: Need to remove this conversion when ngraph NCHW->NHWC transformation is enabled
     if (!transpose_inputs_info.empty()) {
         ConvertTransposeMapToModel(transpose_inputs_info, inputs_ptr_->Get());
     }
@@ -1176,8 +1176,8 @@ uint32_t GNAPlugin::QueueInference(const InferenceEngine::BlobMap& inputs, Infer
                                 << ", but input blob size: " << importedBytes;
         }
 
-        // Perform preprocessing on CPU.
-        // When we need to perform preprocessing on CPU using ngraph model we copy user input to the buffer,
+        // Perform pre-processing on CPU.
+        // When we need to perform pre-processing on CPU using ngraph model we copy user input to the buffer,
         // then directly use prerocessing output as gna input.
         std::shared_ptr<ov::Model> model = inputs_ptr_->at(input_name).pre_post_process_model;
         Blob::Ptr buff_blob = nullptr;
@@ -1282,7 +1282,7 @@ RequestStatus GNAPlugin::WaitFor(uint32_t request_idx, int64_t millisTimeout) {
     for (auto&& outputBlobIt : requestResult) {
         const std::string& output_name = outputBlobIt.first;
         Blob::Ptr output_blob = outputBlobIt.second;
-        const InferenceEngine::Layout& output_layout = output_blob->getTensorDesc().getLayout();
+        const InferenceEngine::Layout output_layout = output_blob->getTensorDesc().getLayout();
 
         if (output_layout != InferenceEngine::Layout::C && output_layout != InferenceEngine::Layout::NC &&
             output_layout != InferenceEngine::Layout::CN && output_layout != InferenceEngine::Layout::NCHW &&

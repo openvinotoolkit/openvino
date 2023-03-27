@@ -191,9 +191,13 @@ protected:
     void InitGNADevice();
 
     void DumpXNNToFile() const;
-
     /**
-     * Run ngraph model on CPU to modify inputs/outputs
+     * @brief Run ngraph model on CPU to modify input or output (transposing, gathering)
+     * Method supports only models with 1 input and 1 output.
+     * @param input_blob input blob memory
+     * @param output_blob output blob memory
+     * @param model ngraph function needs to be executed to modify input blob and put result to the output blob
+     * @return void
      */
     void PrePostProcess(InferenceEngine::Blob::Ptr input_blob,
                         InferenceEngine::Blob::Ptr output_blob,
