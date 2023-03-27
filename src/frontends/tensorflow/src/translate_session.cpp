@@ -50,7 +50,7 @@ static bool apply_saved_model_names(std::shared_ptr<ov::Node> node,
         for (const auto& name : node_names) {
             const auto& saved_model_name = saved_model_names->find(name);
             if (saved_model_name != saved_model_names->end()) {
-                node->set_friendly_name(saved_model_name->second);
+                set_node_name(saved_model_name->second, node);
                 return true;
             }
         }
@@ -359,6 +359,7 @@ void TranslateSession::translate_graph(const ov::frontend::InputModel::Ptr& inpu
                             if (saved_model_name != saved_model_outputs->end()) {
                                 result_node->set_friendly_name(saved_model_name->second);
                                 results.push_back(result_node);
+                                result_node->get_input_tensor(0).add_names({saved_model_name->second});
                                 isUsed = false;
                                 break;
                             }
