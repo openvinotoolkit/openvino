@@ -554,7 +554,6 @@ private:
 
 bool NonMaxSuppression::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept {
     try {
-        // TODO [DS NMS]: remove when nodes from models where nms is not last node in model supports DS
         using NonMaxSuppressionV9 = ngraph::op::v9::NonMaxSuppression;
         if (!one_of(op->get_type_info(), NonMaxSuppressionV9::get_type_info_static(),
                     ov::op::internal::NonMaxSuppressionIEInternal::get_type_info_static())) {
@@ -584,6 +583,8 @@ NonMaxSuppression::NonMaxSuppression(const std::shared_ptr<ngraph::Node>& op, co
     }
 
     errorPrefix = "NMS layer with name '" + op->get_friendly_name() + "' ";
+    if (one_of(op->get_type_info(), ov::op::internal::NonMaxSuppressionIEInternal::get_type_info_static()))
+        m_outStaticShape = true;
 
     if (getOriginalInputsNumber() < 2 || getOriginalInputsNumber() > 6)
         IE_THROW() << errorPrefix << "has incorrect number of input edges: " << getOriginalInputsNumber();
@@ -594,7 +595,6 @@ NonMaxSuppression::NonMaxSuppression(const std::shared_ptr<ngraph::Node>& op, co
     if (const auto nms9 = std::dynamic_pointer_cast<const ngraph::op::v9::NonMaxSuppression>(op)) {
         boxEncodingType = static_cast<NMSBoxEncodeType>(nms9->get_box_encoding());
         sortResultDescending = nms9->get_sort_result_descending();
-        // TODO [DS NMS]: remove when nodes from models where nms is not last node in model supports DS
         } else if (const auto nmsIe = std::dynamic_pointer_cast<const ov::op::internal::NonMaxSuppressionIEInternal>(op)) {
             boxEncodingType = nmsIe->m_center_point_box ? NMSBoxEncodeType::CENTER : NMSBoxEncodeType::CORNER;
             sortResultDescending = nmsIe->m_sort_result_descending;
@@ -795,8 +795,7 @@ void NonMaxSuppression::execute(dnnl::stream strm) {
     auto scoresMemPtr =  getChildEdgesAtPort(NMS_SELECTEDSCORES)[0]->getMemoryPtr();
     const size_t validOutputs = std::min(filtBoxes.size(), maxNumberOfBoxes);
 
-    // TODO [DS NMS]: remove when nodes from models where nms is not last node in model supports DS
-    if (isDynamicNode()) {
+    if (!m_outStaticShape) {
         VectorDims newDims{validOutputs, 3};
         redefineOutputMemory({newDims, newDims, {1}});
     }
@@ -819,8 +818,7 @@ void NonMaxSuppression::execute(dnnl::stream strm) {
         selectedScoresPtr += selectedIndicesStride;
     }
 
-    // TODO [DS NMS]: remove when nodes from models where nms is not last node in model supports DS
-    if (!isDynamicNode()) {
+    if (m_outStaticShape) {
         std::fill(selectedIndicesPtr, selectedIndicesPtr + (maxNumberOfBoxes - idx) * selectedIndicesStride, -1);
         std::fill(selectedScoresPtr, selectedScoresPtr + (maxNumberOfBoxes - idx) * selectedIndicesStride, -1.f);
     }
