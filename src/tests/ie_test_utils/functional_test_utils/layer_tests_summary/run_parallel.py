@@ -371,8 +371,7 @@ class TestParallelRunner:
                 if is_device and argument[0] != "-":
                     self._device = argument
                     break
-            # self._available_devices = get_available_devices(self._device)
-            self._available_devices = get_available_devices()
+            self._available_devices = get_available_devices(self._device)
             logger.info(f"Tests will be run over devices: {self._available_devices} instead of {self._device}")
             device_cnt = len(self._available_devices)
             for i in range(len(commands)):
