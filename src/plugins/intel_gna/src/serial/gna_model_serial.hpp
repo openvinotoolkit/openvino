@@ -15,7 +15,6 @@
 #include "pre_post_process/transposition_info.hpp"
 #include "serial/headers/latest/gna_model_header.hpp"
 
-
 namespace ov {
 namespace intel_gna {
 
