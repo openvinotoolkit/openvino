@@ -1322,16 +1322,6 @@ void network::transfer_memory_to_device(std::shared_ptr<primitive_inst> instance
     }
 }
 
-memory::ptr network::get_memory_from_pool(const layout& layout,
-                                               primitive_id id,
-                                               std::set<primitive_id> dependencies,
-                                               allocation_type type,
-                                               bool reusable) {
-    if (_config.get_property(ov::intel_gpu::enable_memory_pool))
-        return _memory_pool->get_memory(layout, id, get_id(), dependencies, type, reusable);
-    return _memory_pool->get_memory(layout, type);
-}
-
 network::VariableState& network::get_variable_memory(const std::string &variable_id) {
     auto it = _variables_states.find(variable_id);
     if (it == _variables_states.end()) {
