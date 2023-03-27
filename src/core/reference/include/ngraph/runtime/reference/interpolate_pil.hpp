@@ -227,7 +227,6 @@ void imaging_resample_inner(const T* im_in,
                             struct filter* filterp,
                             float* box,
                             T* im_out) {
-    int need_horizontal, need_vertical;
     int ybox_first, ybox_last;
     int ksize_horiz, ksize_vert;
 
@@ -236,11 +235,23 @@ void imaging_resample_inner(const T* im_in,
     std::vector<double> kk_horiz;
     std::vector<double> kk_vert;
 
-    need_horizontal = xsize != im_in_xsize || box[0] || box[2] != xsize;
-    need_vertical = ysize != im_in_ysize || box[1] || box[3] != ysize;
+    auto need_horizontal = xsize != im_in_xsize || bool(box[0]) || box[2] != xsize;
+    auto need_vertical = ysize != im_in_ysize || bool(box[1]) || box[3] != ysize;
 
-    ksize_horiz = precompute_coeffs(im_in_xsize, box[0], box[2], xsize, filterp, bounds_horiz, kk_horiz);
-    ksize_vert = precompute_coeffs(im_in_ysize, box[1], box[3], ysize, filterp, bounds_vert, kk_vert);
+    ksize_horiz = precompute_coeffs(static_cast<int>(im_in_xsize),
+                                    box[0],
+                                    box[2],
+                                    static_cast<int>(xsize),
+                                    filterp,
+                                    bounds_horiz,
+                                    kk_horiz);
+    ksize_vert = precompute_coeffs(static_cast<int>(im_in_ysize),
+                                   box[1],
+                                   box[3],
+                                   static_cast<int>(ysize),
+                                   filterp,
+                                   bounds_vert,
+                                   kk_vert);
 
     // First used row in the source image
     ybox_first = bounds_vert[0];

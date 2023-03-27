@@ -586,33 +586,6 @@ bool op::v11::Interpolate::evaluate_interpolate(const HostTensorVector& outputs,
                                                        out_shape,
                                                        m_attrs);
         break;
-    case element::Type_t::f16:
-        ngraph::runtime::reference::interpolate<float16>(reinterpret_cast<float16*>(padded_data_ptr),
-                                                         padded_input_shape,
-                                                         scales,
-                                                         axes,
-                                                         outputs[0]->get_data_ptr<float16>(),
-                                                         out_shape,
-                                                         m_attrs);
-        break;
-    case element::Type_t::bf16:
-        ngraph::runtime::reference::interpolate<bfloat16>(reinterpret_cast<bfloat16*>(padded_data_ptr),
-                                                          padded_input_shape,
-                                                          scales,
-                                                          axes,
-                                                          outputs[0]->get_data_ptr<bfloat16>(),
-                                                          out_shape,
-                                                          m_attrs);
-        break;
-    case element::Type_t::i8:
-        ngraph::runtime::reference::interpolate<int8_t>(reinterpret_cast<int8_t*>(padded_data_ptr),
-                                                        padded_input_shape,
-                                                        scales,
-                                                        axes,
-                                                        outputs[0]->get_data_ptr<int8_t>(),
-                                                        out_shape,
-                                                        m_attrs);
-        break;
     case element::Type_t::u8:
         ngraph::runtime::reference::interpolate<uint8_t>(reinterpret_cast<uint8_t*>(padded_data_ptr),
                                                          padded_input_shape,
@@ -637,9 +610,6 @@ bool op::v11::Interpolate::has_evaluate() const {
     OV_OP_SCOPE(v11_Interpolate_has_evaluate);
     switch (get_input_element_type(0)) {
     case ov::element::i8:
-    case ov::element::u8:
-    case ov::element::bf16:
-    case ov::element::f16:
     case ov::element::f32:
         return true;
     default:
