@@ -124,16 +124,16 @@ std::unordered_map<std::string, ov::TensorLabel> compute_label_dim_map(const Ran
         if (label == ellipsis) {
             ov::TensorLabel label_dims;
             for (size_t ind = 0; ind < num_broadcasted_dims; ++ind) {
-                label_dims.push_back(current_dim + ind);
+                label_dims.push_back(static_cast<ov::label_t>(current_dim + ind));
             }
             resulted_map[label] = label_dims;
             current_dim += num_broadcasted_dims;
         } else if (resulted_map.find(label) != resulted_map.end()) {
-            resulted_map[label].push_back(current_dim);
+            resulted_map[label].push_back(static_cast<ov::label_t>(current_dim));
             ++current_dim;
         } else {
             ov::TensorLabel label_dims;
-            label_dims.push_back(current_dim);
+            label_dims.push_back(static_cast<ov::label_t>(current_dim));
             resulted_map[label] = label_dims;
             ++current_dim;
         }
