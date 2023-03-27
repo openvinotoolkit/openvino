@@ -45,7 +45,7 @@ public:
             auto runtime_offset = convert_data_tensor(impl_param.get_input_layout(), impl_param.input_offsets[0]).GetFirstElementOffset();
             kernel_selector::ScalarDescriptor s;
             s.t = kernel_selector::ScalarDescriptor::Types::UINT32;
-            s.v.u32 = runtime_offset;
+            s.v.u32 = static_cast<uint32_t>(runtime_offset);
             OPENVINO_ASSERT(_kernel_data.kernels[0].params.scalars.size() == 1,
                     "[GPU] Scalar field for runtime offset is not added for crop shape agnostic impl");
             _kernel_data.kernels[0].params.scalars[0] = s;

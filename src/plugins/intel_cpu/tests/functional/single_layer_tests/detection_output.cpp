@@ -211,14 +211,10 @@ private:
     static void set_dimension_intervals(std::vector<std::pair<ov::PartialShape, std::vector<ov::Shape>>>& inputShapes) {
         for (auto& input_shape : inputShapes) {
             const auto model_dynamic_shape = input_shape.first;
-            if (!model_dynamic_shape.is_dynamic()) {
-                throw ov::Exception("input shape is not dynamic");
-            }
+            OPENVINO_ASSERT(model_dynamic_shape.is_dynamic(), "input shape is not dynamic");
 
             const auto inputShapeRank = model_dynamic_shape.rank();
-            if (inputShapeRank.is_dynamic()) {
-                throw ov::Exception("input shape rank is dynamic");
-            }
+            OPENVINO_ASSERT(!inputShapeRank.is_dynamic(), "input shape rank is dynamic");
 
             for (auto dimension = 0; dimension < inputShapeRank.get_length(); ++dimension) {
                 auto interval_min = -1;

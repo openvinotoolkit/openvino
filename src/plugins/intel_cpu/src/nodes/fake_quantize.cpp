@@ -7,23 +7,25 @@
 #include <string>
 #include <vector>
 #include <math.h>
-#include <dnnl_types.h>
-#include <dnnl_extension_utils.h>
-#include "utils/general_utils.h"
-#include "utils/cpu_utils.hpp"
-
 #include <algorithm>
 #include <set>
 #include <cmath>
-#include <cpu/x64/jit_generator.hpp>
-#include "ie_parallel.hpp"
 
-#include <ngraph/opsets/opset1.hpp>
+#include <dnnl_types.h>
+#include <dnnl_extension_utils.h>
+#include <cpu/x64/jit_generator.hpp>
+#include <common/dnnl_thread.hpp>
+
+#include "ie_parallel.hpp"
+#include "utils/general_utils.h"
+#include "utils/cpu_utils.hpp"
 #include <memory_desc/cpu_memory_desc_utils.h>
 #include "memory_desc/dnnl_blocked_memory_desc.h"
-#include "utils/ngraph_utils.hpp"
 #include "common/cpu_memcpy.h"
 #include <common/primitive_hashing_utils.hpp>
+
+#include <ngraph/opsets/opset1.hpp>
+#include "utils/ngraph_utils.hpp"
 
 // Quantization ranges validation is switched off by default in order to avoid regressions on user side
 // #define VALIDATE_QUANTIZATION_RANGES
@@ -872,7 +874,7 @@ bool FakeQuantize::isSupportedOperation(const std::shared_ptr<const ngraph::Node
                  * Long term idea: restore limitation for channel axis 1 and
                  * support fusing of unfolded FQ (see FakeQuantizeDecomposition transformation)
                  */
-                if (count_not_unit_axis > 1 || !one_of(not_unit_axis, 1, 2)) {
+                if (count_not_unit_axis > 1 || !one_of(not_unit_axis, 1u, 2u)) {
                     errorMessage = "Supports only per-tensor and per-channel quantizations";
                     return false;
                 }
@@ -1016,7 +1018,7 @@ FakeQuantize::FakeQuantize(const std::shared_ptr<ngraph::Node>& op, const GraphC
                 }
             }
 
-            for (ptrdiff_t i = 0; i < std::max(inputLowAxisSize, inputHighAxisSize); i++) {
+            for (size_t i = 0; i < std::max(inputLowAxisSize, inputHighAxisSize); i++) {
                 if (inputLowData[isInputLowBroadcasted ? 0 : i] != inputHighData[isInputHighBroadcasted ? 0 : i]) {
                     binarization = false;
                     break;
@@ -1094,9 +1096,9 @@ FakeQuantize::FakeQuantize(const std::shared_ptr<ngraph::Node>& op, const GraphC
             outputScaleSize = outputScale.size();
             outputShiftSize = outputShift.size();
 
-            if (everyone_is(1, cropLowSize, cropHighSize, inputScaleSize, inputShiftSize, outputScaleSize, outputShiftSize))
+            if (everyone_is(1u, cropLowSize, cropHighSize, inputScaleSize, inputShiftSize, outputScaleSize, outputShiftSize))
                 broadcastingPolicy = PerTensor;
-            else if (one_of(1, cropLowSize, cropHighSize, inputScaleSize, inputShiftSize, outputScaleSize, outputShiftSize))
+            else if (one_of(1u, cropLowSize, cropHighSize, inputScaleSize, inputShiftSize, outputScaleSize, outputShiftSize))
                 broadcastingPolicy = Mixed;
             else
                 broadcastingPolicy = PerChannel;
@@ -1200,7 +1202,7 @@ std::vector<LayoutType> FakeQuantize::getDataFormats() const {
         if (isBinarization()) {
             return { LayoutType::nspc };
         } else {
-            if (one_of(dims.size(), 4, 5)) {
+            if (one_of(dims.size(), 4u, 5u)) {
                 if (getAxis() == 1) {
                     auto blkFormat = mayiuse(cpu::x64::avx512_core) ? LayoutType::nCsp16c : LayoutType::nCsp8c;
                     return { blkFormat, LayoutType::nspc, LayoutType::ncsp };
@@ -1430,7 +1432,7 @@ void FakeQuantize::prepareParams() {
         auto dstDesc = getChildEdgeAt(0)->getMemory().GetDescWithType<BlockedMemoryDesc>();
 
         key.jqp.d_str = dstDesc->getStrides();
-        key.jqp.is_planar = srcDesc->hasLayoutType(LayoutType::ncsp) && one_of(srcDesc->getShape().getRank(), 3, 4, 5);
+        key.jqp.is_planar = srcDesc->hasLayoutType(LayoutType::ncsp) && one_of(srcDesc->getShape().getRank(), 3u, 4u, 5u);
         key.jqp.op_type = getAlgorithm();
 
         auto cache = context->getParamsCache();
@@ -1616,8 +1618,8 @@ void FakeQuantize::executeQuantization(const std::unique_ptr<jit_uni_quantize_ke
     auto& srcDesc = srcMemory->getDesc();
     auto srcDims = srcDesc.getShape().getStaticDims();
 
-    bool is_blk_format = !srcDesc.hasLayoutType(LayoutType::nspc) && one_of(srcDesc.getShape().getRank(), 4, 5);
-    int blk_size = (srcDesc.hasLayoutType(LayoutType::ncsp) && one_of(srcDesc.getShape().getRank(), 3, 4, 5))
+    bool is_blk_format = !srcDesc.hasLayoutType(LayoutType::nspc) && one_of(srcDesc.getShape().getRank(), 4u, 5u);
+    int blk_size = (srcDesc.hasLayoutType(LayoutType::ncsp) && one_of(srcDesc.getShape().getRank(), 3u, 4u, 5u))
                     ? 1 : mayiuse(cpu::x64::avx512_core) ? 16 : 8;
 
     const auto &jqp = pKernel->jqp_;
@@ -1630,7 +1632,7 @@ void FakeQuantize::executeQuantization(const std::unique_ptr<jit_uni_quantize_ke
         s_str[1] /= blk_size;
     }
 
-    if (srcDesc.hasLayoutType(LayoutType::nspc) && one_of(srcDesc.getShape().getRank(), 4, 5)) {
+    if (srcDesc.hasLayoutType(LayoutType::nspc) && one_of(srcDesc.getShape().getRank(), 4u, 5u)) {
         size_t tmp = s_str[s_str.size() - 1];
         for (int i = s_str.size() - 1; i > 1; i--) {
             s_str[i] = s_str[i - 1];
@@ -2068,7 +2070,7 @@ bool FakeQuantize::appendAttrPostOps(DnnlPostOpsComposer& dnnlpoc,
         }
     }
 
-    if (!dnnlpoc.appendLinear(f.isc, f.ish, allowBinary))
+    if (!dnnlpoc.appendLinear(f.isc, f.ish, isLastPostOp && skipRoundClipOutputLinear, allowBinary))
         return false;
 
     if (skipRoundClipOutputLinear)
@@ -2077,7 +2079,7 @@ bool FakeQuantize::appendAttrPostOps(DnnlPostOpsComposer& dnnlpoc,
     if (doRounding)
         dnnlpoc.appendRoundHTE();
     dnnlpoc.appendClip(f.clo, f.chi);
-    dnnlpoc.appendLinear(f.osc, f.osh, allowBinary);
+    dnnlpoc.appendLinear(f.osc, f.osh, isLastPostOp, allowBinary);
     return true;
 }
 

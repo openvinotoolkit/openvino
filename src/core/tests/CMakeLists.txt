@@ -2,11 +2,6 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 
-if(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
-    # 'argument': conversion from 'size_t' to 'int', possible loss of data
-    ie_add_compiler_flags(/wd4267)
-    ie_add_compiler_flags(/wd4244)
-endif()
 
 set(TARGET_NAME ov_core_unit_tests)
 
@@ -15,11 +10,6 @@ set(CMAKE_INTERPROCEDURAL_OPTIMIZATION_RELEASE OFF)
 ov_try_use_gold_linker()
 
 add_definitions(-DSERIALIZED_ZOO=\"${TEST_MODEL_ZOO}/core/models\")
-
-if(NOT ENABLE_OV_CORE_UNIT_TESTS)
-    message(STATUS "OpenVINO Core unit tests disabled")
-    return()
-endif()
 
 message(STATUS "OpenVINO Core unit tests enabled")
 

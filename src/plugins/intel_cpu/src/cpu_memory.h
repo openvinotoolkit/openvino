@@ -70,7 +70,7 @@ public:
 };
 
 /**
- * @brief An implementation of the mem manager where memory reallocation occures only if bigger buffer is requested.
+ * @brief An implementation of the mem manager where memory reallocation occurs only if a bigger buffer is requested.
  */
 class MemoryMngrWithReuse : public IMemoryMngr {
 public:
@@ -164,16 +164,22 @@ public:
     Memory(Memory&&) = delete;
     Memory& operator= (Memory&&) = delete;
 
-    dnnl::memory GetPrimitive() const {
-        if (isAllocated()) {
-            return prim;
-        } else {
-            IE_THROW() << "Can not perform GetPrimitive call to the not allocated memory";
-        }
-    }
+    dnnl::memory GetPrimitive() const;
 
     bool isAllocated() const noexcept {
-        return static_cast<bool>(prim);
+        if (mgrHandle->getRawPtr()) {
+            return true;
+        }
+        if (!pMemDesc) {
+            return false;
+        }
+        if (!(pMemDesc->isDefined())) {
+            return true;
+        }
+        if (pMemDesc->getCurrentMemSize() == 0) {
+            return true;
+        }
+        return false;
     }
 
     /**
@@ -199,11 +205,11 @@ public:
      * @return
      */
     void* GetData() const {
-        void* data = mgrHandle->getRawPtr();
+        void* data = getDataNoThrow();
         if (data == nullptr &&
             pMemDesc->getShape().isStatic() &&
             pMemDesc->getShape().getElementsCount() != 0)
-            IE_THROW() << "Cannot get memory!";
+            IE_THROW() << "Memory has not been allocated";
         return data;
     }
 
@@ -258,14 +264,31 @@ private:
     friend DnnlMemoryMngr;
 
 private:
-    void Create(const dnnl::memory::desc& desc, const void* data = nullptr, bool pads_zeroing = true);
     void update();
 
 private:
     MemoryDescPtr pMemDesc;
-    dnnl::memory prim;
     dnnl::engine eng;
     DnnlMemMngrHandle mgrHandle;
+    bool padsZeroing = true;
+    class DnnlMemPrimHandle {
+    public:
+        explicit DnnlMemPrimHandle(const Memory* memObjPtr): m_memObjPtr(memObjPtr) {}
+        bool isInit() const;
+        dnnl::memory getPrim() const;
+        void resetDnnlPrim();
+
+    private:
+        // Since getPrim should behave as a constant method, even though it changes state, it must be thread safe.
+        // To provide thead safety we use this mutex
+        mutable std::mutex m_primCachingLock;
+        mutable dnnl::memory m_prim;
+        const Memory* m_memObjPtr;
+    } dnnlMemHandle;
+
+    void* getDataNoThrow() const noexcept {
+        return mgrHandle->getRawPtr();
+    }
 };
 
 using MemoryPtr = std::shared_ptr<Memory>;

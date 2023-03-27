@@ -18,9 +18,9 @@ public:
 
     void emit_data() const override;
 
-    void emit_impl(const std::vector<size_t> &in_idxs, const std::vector<size_t> &out_idxs,
-                   const std::vector<size_t> &pool_vec_idxs, const std::vector<size_t> &pool_gpr_idxs,
-                   const emitter_context *emit_context = nullptr) const override {};
+    void emit_impl(const std::vector<size_t> &in_idxs, const std::vector<size_t> &out_idxs) const override {};
+
+    static std::set<std::vector<element::Type>> get_supported_precisions(const std::shared_ptr<ngraph::Node>& node = nullptr);
 
 protected:
     jit_dnnl_emitter(dnnl::impl::cpu::x64::jit_generator *host, dnnl::impl::cpu::x64::cpu_isa_t host_isa,

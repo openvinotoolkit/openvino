@@ -83,7 +83,7 @@ if(ENABLE_ONEDNN_FOR_GPU)
                 "-DCMAKE_INSTALL_PREFIX=${ONEDNN_INSTALL_DIR}"
                 "-DCMAKE_INSTALL_LIBDIR=lib/$<CONFIG>"
                 "-DDNNL_ENABLE_CONCURRENT_EXEC=ON"
-                "-DDNNL_ENABLE_PRIMITIVE_CACHE=ON"
+                "-DDNNL_ENABLE_PRIMITIVE_CACHE=OFF"
                 "-DDNNL_ENABLE_WORKLOAD=INFERENCE"
                 "-DDNNL_ENABLE_JIT_PROFILING=${BUILD_SHARED_LIBS}"
                 "-DDNNL_ENABLE_ITT_TASKS=${BUILD_SHARED_LIBS}"
@@ -91,6 +91,7 @@ if(ENABLE_ONEDNN_FOR_GPU)
                 "-DDNNL_BUILD_EXAMPLES=OFF"
                 "-DDNNL_BLAS_VENDOR=NONE"
                 "-DDNNL_LIBRARY_TYPE=STATIC"
+                "-DONEDNN_BUILD_GRAPH=OFF"
                 "-DOpenCL_LIBRARY=${OpenCL_LIBRARY}"
                 "-DOpenCL_INCLUDE_DIR=${OpenCL_INCLUDE_DIR}"
         )
