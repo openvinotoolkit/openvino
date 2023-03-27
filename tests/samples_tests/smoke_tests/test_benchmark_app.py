@@ -50,13 +50,13 @@ class TestBenchmarkApp(SamplesCommonTestClass):
         cls.sample_name = 'benchmark_app'
         super().setup_class()
 
-    @pytest.mark.skip("Ticket: 106850")
     @pytest.mark.parametrize("param", test_data_fp32_async)
+    @pytest.mark.skip("Ticket: 106850")
     def test_benchmark_app_sample_fp32_async(self, param):
         _check_output(self, param)
 
-    @pytest.mark.skip("Ticket: 106850")
     @pytest.mark.parametrize("param", test_data_fp32_sync)
+    @pytest.mark.skip("Ticket: 106850")
     def test_benchmark_app_fp32_sync(self, param):
         _check_output(self, param)
 
