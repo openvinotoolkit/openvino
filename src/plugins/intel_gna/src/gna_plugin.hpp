@@ -52,10 +52,10 @@ protected:
 
     uint32_t activeLayerIndex = 0xffffffff;
     // TODO: transpose_inputs_info and transpose_outputs_info should be moved to GNAModelSerial class when ngraph
-    // migration is finished. Those filed are needed to support the exported models <= 2.8.
+    // migration is finished. Those structures are needed to support the exported models <= 2.8.
     pre_post_processing::TranspositionInfoMap transpose_inputs_info;
     pre_post_processing::TranspositionInfoMap transpose_outputs_info;
-    PrePostProcessModels m_subgraph_cpu_map;
+    PrePostProcessModels m_input_output_subgraphs;
 
     uint32_t dnn_dump_write_index = 0;
     intel_dnn_number_type_t output_type = kDnnInt;
