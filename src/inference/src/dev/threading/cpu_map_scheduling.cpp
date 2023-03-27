@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "cpu_map_scheduling.hpp"
+#include "openvino/runtime/threading/cpu_map_scheduling.hpp"
 
 #include "ie_system_conf.h"
 
