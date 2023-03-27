@@ -50,6 +50,7 @@ public:
 
 public:
     AutoLoadContext                           _loadContext[CONTEXTNUM];
+    std::unique_ptr<AutoLoadContext[]>        _pCTPUTLoadContext = nullptr;
 
 protected:
     void GenerateWorkers(const std::string& device, const SoExecNetwork& executableNetwork) override;
@@ -60,7 +61,7 @@ protected:
 
 private:
     void WaitFirstNetworkReady();
-    void TryToLoadNetWork(AutoLoadContext& context, const std::string& modelPath, const IE::CNNNetwork& network);
+    void TryToLoadNetWork(AutoLoadContext& context, const std::string& modelPath, const IE::CNNNetwork& network, bool isCumulative);
     bool selectOtherDevice(const std::string& currentDeviceName);
     IE::Task releaseActualdeviceTask;
 
