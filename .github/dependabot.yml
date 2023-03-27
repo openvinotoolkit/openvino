@@ -25,6 +25,20 @@ updates:
       - "jane-intel"
     versioning-strategy: increase-if-necessary
 
+  # Tests
+  - package-ecosystem: pip
+    directory: "/tests"
+    schedule:
+      interval: "daily"
+      time: "09:00"
+      timezone: "Poland"
+    open-pull-requests-limit: 3
+    assignees:
+      - "jiwaszki"
+      - "p-wysocki"
+      - "rkazants"
+    versioning-strategy: increase-if-necessary
+
   # Model Optimizer, openvino_dev and Benchmark tool
   - package-ecosystem: pip
     directory: "/tools"
