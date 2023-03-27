@@ -5,8 +5,8 @@
 #include <gtest/gtest.h>
 
 #include <ngraph/function.hpp>
-#include <ngraph/opsets/opset6.hpp>
 #include <ngraph/opsets/opset10.hpp>
+#include <ngraph/opsets/opset6.hpp>
 #include <ngraph/pass/manager.hpp>
 #include <openvino/pass/serialize.hpp>
 #include <transformations/common_optimizations/softmax_fusion.hpp>
@@ -78,7 +78,7 @@ TEST_P(SoftmaxFusionSimplePatternFixture, SoftmaxFusionSimplePatternTest) {
         auto data = std::make_shared<opset10::Parameter>(element::f32, shape);
         auto exp = std::make_shared<opset10::Exp>(data);
         auto reduce_axis = opset10::Constant::create(element::i64, Shape{}, {reduce_axis_val});
-        auto reduce_sum = std::make_shared<opset10::ReduceSum>(exp, reduce_axis);
+        auto reduce_sum = std::make_shared<opset10::ReduceSum>(exp, reduce_axis, true);
         auto div = std::make_shared<opset10::Divide>(exp, reduce_sum);
         f = std::make_shared<Function>(NodeVector{div}, ParameterVector{data});
 
@@ -98,7 +98,7 @@ TEST_P(SoftmaxFusionSimplePatternFixture, SoftmaxFusionSimplePatternTest) {
     }
 
     auto fc =
-            FunctionsComparator::no_default().enable(FunctionsComparator::PRECISIONS).enable(FunctionsComparator::NODES);
+        FunctionsComparator::no_default().enable(FunctionsComparator::PRECISIONS).enable(FunctionsComparator::NODES);
     auto res = fc.compare(f, f_ref);
     ASSERT_TRUE(res.valid) << res.message;
 }

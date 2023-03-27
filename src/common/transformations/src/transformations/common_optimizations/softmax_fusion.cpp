@@ -27,7 +27,7 @@ public:
     SoftmaxFusionSimplePattern();
 };
 
-SoftmaxFusionWithMaxPattern::SoftmaxFusionWithMaxPattern(){
+SoftmaxFusionWithMaxPattern::SoftmaxFusionWithMaxPattern() {
     MATCHER_SCOPE(SoftmaxFusionWithMaxPattern);
     auto data_pattern = pass::pattern::any_input(pass::pattern::has_static_rank());
     auto reduce_max_axes_pattern = ngraph::pattern::wrap_type<opset6::Constant>();
@@ -45,11 +45,11 @@ SoftmaxFusionWithMaxPattern::SoftmaxFusionWithMaxPattern(){
         const auto& pattern_map = m.get_pattern_value_map();
 
         auto reduce_max_axes =
-                std::dynamic_pointer_cast<opset6::Constant>(pattern_map.at(reduce_max_axes_pattern).get_node_shared_ptr());
+            std::dynamic_pointer_cast<opset6::Constant>(pattern_map.at(reduce_max_axes_pattern).get_node_shared_ptr());
         if (!reduce_max_axes || shape_size(reduce_max_axes->get_shape()) != 1)
             return false;
         auto reduce_sum_axes =
-                std::dynamic_pointer_cast<opset6::Constant>(pattern_map.at(reduce_sum_axes_pattern).get_node_shared_ptr());
+            std::dynamic_pointer_cast<opset6::Constant>(pattern_map.at(reduce_sum_axes_pattern).get_node_shared_ptr());
         if (!reduce_sum_axes || shape_size(reduce_sum_axes->get_shape()) != 1)
             return false;
 
@@ -71,14 +71,14 @@ SoftmaxFusionWithMaxPattern::SoftmaxFusionWithMaxPattern(){
         softmax->set_friendly_name(div->get_friendly_name());
 
         copy_runtime_info(
-                {
-                        pattern_map.at(reduce_max_pattern).get_node_shared_ptr(),
-                        pattern_map.at(sub_pattern).get_node_shared_ptr(),
-                        pattern_map.at(exp_pattern).get_node_shared_ptr(),
-                        pattern_map.at(reduce_sum_pattern).get_node_shared_ptr(),
-                        div,
-                },
-                softmax);
+            {
+                pattern_map.at(reduce_max_pattern).get_node_shared_ptr(),
+                pattern_map.at(sub_pattern).get_node_shared_ptr(),
+                pattern_map.at(exp_pattern).get_node_shared_ptr(),
+                pattern_map.at(reduce_sum_pattern).get_node_shared_ptr(),
+                div,
+            },
+            softmax);
         replace_node(div, softmax);
 
         return true;
@@ -87,7 +87,6 @@ SoftmaxFusionWithMaxPattern::SoftmaxFusionWithMaxPattern(){
     auto m = std::make_shared<ngraph::pattern::Matcher>(div_pattern, matcher_name);
     this->register_matcher(m, callback);
 }
-
 
 SoftmaxFusionSimplePattern::SoftmaxFusionSimplePattern() {
     MATCHER_SCOPE(SoftmaxFusionSimplePattern);
@@ -101,22 +100,23 @@ SoftmaxFusionSimplePattern::SoftmaxFusionSimplePattern() {
     ov::matcher_pass_callback callback = [=](pass::pattern::Matcher& m) {
         const auto& pattern_map = m.get_pattern_value_map();
 
-        auto reduce_axis = std::dynamic_pointer_cast<opset6::Constant>(pattern_map.at(reduce_axis_pattern).get_node_shared_ptr());
+        auto reduce_axis =
+            std::dynamic_pointer_cast<opset10::Constant>(pattern_map.at(reduce_axis_pattern).get_node_shared_ptr());
         int64_t reduce_axis_val = reduce_axis->cast_vector<int64_t>()[0];
 
-        auto softmax = register_new_node<opset6::Softmax>(pattern_map.at(data_pattern), reduce_axis_val);
+        auto softmax = register_new_node<opset10::Softmax>(pattern_map.at(data_pattern), reduce_axis_val);
 
         auto div = pattern_map.at(div_pattern).get_node_shared_ptr();
         softmax->set_friendly_name(div->get_friendly_name());
 
         copy_runtime_info(
-                {
-                        pattern_map.at(exp_pattern).get_node_shared_ptr(),
-                        reduce_axis,
-                        pattern_map.at(reduce_pattern).get_node_shared_ptr(),
-                        div,
-                },
-                softmax);
+            {
+                pattern_map.at(exp_pattern).get_node_shared_ptr(),
+                reduce_axis,
+                pattern_map.at(reduce_pattern).get_node_shared_ptr(),
+                div,
+            },
+            softmax);
         replace_node(div, softmax);
 
         return true;
