@@ -11,6 +11,5 @@ install(FILES ../constraints.txt DESTINATION tests COMPONENT tests EXCLUDE_FROM_
 
 file(READ smoke_tests/requirements.txt REQUIREMENTS_REPO)
 string(REPLACE "-c ../../constraints.txt" "-c ../constraints.txt" REQUIREMENTS_TMP ${REQUIREMENTS_REPO})
-file(WRITE ./requirements.txt ${REQUIREMENTS_TMP})
-install(FILES ./requirements.txt DESTINATION tests/smoke_tests COMPONENT tests EXCLUDE_FROM_ALL)
-file(REMOVE ./constraints.txt)
+file(WRITE ${CMAKE_CURRENT_BINARY_DIR}/smoke_tests/requirements.txt ${REQUIREMENTS_TMP})
+install(FILES ${CMAKE_CURRENT_BINARY_DIR}/smoke_tests/requirements.txt DESTINATION tests/smoke_tests COMPONENT tests EXCLUDE_FROM_ALL)
