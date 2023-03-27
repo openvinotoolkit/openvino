@@ -21,6 +21,11 @@ graph {
     input: ""
     output: "Y"
     op_type: "STFT"
+    attribute {
+      name: "onesided"
+      i: 0
+      type: INT
+    }
   }
   name: "g"
   input {
@@ -30,13 +35,13 @@ graph {
         elem_type: 1
         shape {
           dim {
-            dim_value: 1
+            dim_value: 2
           }
           dim {
-            dim_value: 128
+            dim_value: 64
           }
           dim {
-            dim_value: 1
+            dim_value: 2
           }
         }
       }
