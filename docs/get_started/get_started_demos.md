@@ -84,11 +84,11 @@ This guide uses OpenVINO Model Downloader to get pre-trained models. You can use
 
 This guide used the following model to run the Image Classification Sample:
 
-+----------------+-----------------------------+
-| Model Name     | Code Sample or Demo App     |
-+================+=============================+
-| `googlenet-v1` | Image Classification Sample |
-+----------------+-----------------------------+
++------------------+-----------------------------+
+| Model Name       | Code Sample or Demo App     |
++==================+=============================+
+| ``googlenet-v1`` | Image Classification Sample |
++------------------+-----------------------------+
 
 .. dropdown:: Click to view how to download the GoogleNet v1 Caffe model
 
