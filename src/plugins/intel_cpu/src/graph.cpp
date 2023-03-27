@@ -13,7 +13,6 @@
 #include <unordered_map>
 #include <memory>
 #include <utility>
-#include <queue>
 
 #include "graph.h"
 #include "graph_dumper.h"
