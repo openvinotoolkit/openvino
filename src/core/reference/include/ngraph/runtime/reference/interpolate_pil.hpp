@@ -94,7 +94,7 @@ static inline int precompute_coeffs(int in_size,
                                     float in0,
                                     float in1,
                                     int out_size,
-                                    struct filter* filterp,
+                                    const filter& filterp,
                                     std::vector<int>& bounds,
                                     std::vector<double>& kk) {
     double support, scale, filterscale;
@@ -107,7 +107,7 @@ static inline int precompute_coeffs(int in_size,
     }
 
     /* determine support size (length of resampling filter) */
-    support = filterp->support * filterscale;
+    support = filterp.support * filterscale;
 
     /* maximum number of coeffs */
     ksize = (int)ceil(support) * 2 + 1;
@@ -133,7 +133,7 @@ static inline int precompute_coeffs(int in_size,
         xmax -= xmin;
         double* k = &kk[xx * ksize];
         for (x = 0; x < xmax; x++) {
-            double w = filterp->filter((x + xmin - center + 0.5) * ss, filterp->coeff_a);
+            double w = filterp.filter((x + xmin - center + 0.5) * ss, filterp.coeff_a);
             k[x] = w;
             ww += w;
         }
@@ -224,7 +224,7 @@ void imaging_resample_inner(const T* im_in,
                             size_t im_in_ysize,
                             size_t xsize,
                             size_t ysize,
-                            struct filter* filterp,
+                            const filter& filterp,
                             float* box,
                             T* im_out) {
     int ybox_first, ybox_last;

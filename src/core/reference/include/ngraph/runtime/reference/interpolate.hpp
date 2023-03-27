@@ -356,7 +356,7 @@ private:
 
     void bilinear_pil_func(const T* input_data, T* out);
     void bicubic_pil_func(const T* input_data, T* out);
-    void multidim_pil_func(const T* input_data, T* out, struct interpolate_pil::filter* filterp);
+    void multidim_pil_func(const T* input_data, T* out, const interpolate_pil::filter& filterp);
 };
 
 template <typename T>
@@ -579,17 +579,17 @@ void InterpolateEval<T>::cubic_func(const T* input_data, T* out) {
 template <typename T>
 void InterpolateEval<T>::bilinear_pil_func(const T* input_data, T* out) {
     struct interpolate_pil::filter bilinear = {interpolate_pil::bilinear_filter, 1.0, m_cube_coeff};
-    multidim_pil_func(input_data, out, &bilinear);
+    multidim_pil_func(input_data, out, bilinear);
 }
 
 template <typename T>
 void InterpolateEval<T>::bicubic_pil_func(const T* input_data, T* out) {
     struct interpolate_pil::filter bicubic = {interpolate_pil::bicubic_filter, 2.0, m_cube_coeff};
-    multidim_pil_func(input_data, out, &bicubic);
+    multidim_pil_func(input_data, out, bicubic);
 }
 
 template <typename T>
-void InterpolateEval<T>::multidim_pil_func(const T* input_data, T* out, struct interpolate_pil::filter* filterp) {
+void InterpolateEval<T>::multidim_pil_func(const T* input_data, T* out, const interpolate_pil::filter& filterp) {
     OPENVINO_ASSERT(m_axes.size() == 2, "For Pillow based modes exactly two (HW) axes need to be provided.");
 
     auto h_dim_idx = m_axes[0];
