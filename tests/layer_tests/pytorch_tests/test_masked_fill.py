@@ -8,7 +8,7 @@ from pytorch_layer_test_class import PytorchLayerTest
 
 
 class TestMaskedFill(PytorchLayerTest):
-    def _prepare_input(self, mask_fill='ones', mask_dtype=bool):
+    def _prepare_input(self, mask_fill='ones', mask_dtype=bool, input_dtype=float):
         input_shape = [1, 10]
         mask = np.zeros(input_shape).astype(mask_dtype)
         if mask_fill == 'ones':
@@ -17,7 +17,7 @@ class TestMaskedFill(PytorchLayerTest):
             idx = np.random.choice(10, 5)
             mask[:, idx] = 1
 
-        return (np.random.randn(1, 10).astype(np.float32), mask)
+        return (np.random.randn(1, 10).astype(input_dtype), mask)
 
     def create_model(self, value, inplace):
         import torch
@@ -44,14 +44,15 @@ class TestMaskedFill(PytorchLayerTest):
             return aten_masked_fill(value), ref_net, "aten::masked_fill"
         return aten_masked_fill_(value), ref_net, "aten::masked_fill_"
 
-    @pytest.mark.parametrize("value", [0.0, 1.0, -1.0])
+    @pytest.mark.parametrize("value", [0.0, 1.0, -1.0, 2])
     @pytest.mark.parametrize(
         "mask_fill", ['zeros', 'ones', 'random'])
-    @pytest.mark.parametrize("mask_dtype", [np.uint8, bool])  # np.float32 incorrectly casted to bool
+    @pytest.mark.parametrize("input_dtype", [np.float32, np.float64, int, np.int32])
+    @pytest.mark.parametrize("mask_dtype", [np.uint8, np.int32, bool])  # np.float32 incorrectly casted to bool
     @pytest.mark.parametrize("inplace", [True, False])
     @pytest.mark.nightly
     @pytest.mark.precommit
-    def test_masked_fill(self, value, mask_fill, mask_dtype, inplace, ie_device, precision, ir_version):
+    def test_masked_fill(self, value, mask_fill, mask_dtype, input_dtype, inplace, ie_device, precision, ir_version):
         self._test(*self.create_model(value, inplace),
                    ie_device, precision, ir_version,
-                   kwargs_to_prepare_input={'mask_fill': mask_fill, 'mask_dtype': mask_dtype})
+                   kwargs_to_prepare_input={'mask_fill': mask_fill, 'mask_dtype': mask_dtype, "input_dtype": input_dtype})

@@ -83,6 +83,8 @@ class TestConv2D(CommonTFLayerTest):
     @pytest.mark.nightly
     def test_conv2d_placeholder_const(self, params, padding, ie_device, precision, ir_version, temp_dir,
                                       use_new_frontend, use_old_api):
+        if ie_device == 'GPU':
+            pytest.xfail('104862')
         self._test(*self.create_conv2d_placeholder_const_net(**params, input_padding=padding, ir_version=ir_version,
                                                              use_new_frontend=use_new_frontend),
                    ie_device, precision, ir_version, input_padding=padding, temp_dir=temp_dir,

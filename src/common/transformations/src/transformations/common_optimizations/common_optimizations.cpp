@@ -25,7 +25,6 @@
 #include "transformations/common_optimizations/concat_reduce_fusion.hpp"
 #include "transformations/common_optimizations/conv_mul_fusion.hpp"
 #include "transformations/common_optimizations/conv_to_binary_conv.hpp"
-#include "transformations/common_optimizations/convert_compressed_to_mixed_precision.hpp"
 #include "transformations/common_optimizations/convert_compression_only_to_legacy.hpp"
 #include "transformations/common_optimizations/convert_nms_gather_path_to_unsigned.hpp"
 #include "transformations/common_optimizations/convert_quantize_dequantize.hpp"
@@ -77,6 +76,7 @@
 #include "transformations/op_conversions/convert_gather_downgrade.hpp"
 #include "transformations/op_conversions/convert_gather_upgrade.hpp"
 #include "transformations/op_conversions/convert_gelu.hpp"
+#include "transformations/op_conversions/convert_interpolate11_downgrade.hpp"
 #include "transformations/op_conversions/convert_interpolate1_to_interpolate4.hpp"
 #include "transformations/op_conversions/convert_maxpool_downgrade.hpp"
 #include "transformations/op_conversions/convert_maxpool_upgrade.hpp"
@@ -93,6 +93,7 @@
 #include "transformations/op_conversions/convert_softmax_upgrade.hpp"
 #include "transformations/op_conversions/convert_space_to_depth.hpp"
 #include "transformations/op_conversions/convert_subtract.hpp"
+#include "transformations/op_conversions/convert_topk11_downgrade.hpp"
 #include "transformations/op_conversions/convert_xor_to_logical_xor.hpp"
 #include "transformations/op_conversions/detection_output_downgrade.hpp"
 #include "transformations/op_conversions/detection_output_upgrade.hpp"
@@ -125,8 +126,6 @@ bool ov::pass::CommonOptimizations::run_on_model(const std::shared_ptr<ov::Model
     // Enabling conversion of FP16 IR to legacy representation, each plugin have to disable it
     // after support for FP16 IR is implemented
     REGISTER_PASS(manager, ConvertCompressedOnlyToLegacy)
-    // should be enabled manually only on plugins supporting mixed precision inference
-    REGISTER_DISABLED_PASS(manager, ConvertCompressedToMixedPrecision);
 
     REGISTER_PASS(manager, MarkDividesInShapeSubgraphs)
     REGISTER_PASS(manager, WeightsDequantizeToFakeQuantize)
@@ -212,6 +211,8 @@ bool ov::pass::CommonOptimizations::run_on_model(const std::shared_ptr<ov::Model
     REGISTER_PASS(manager, ConvertROIAlign9To3)
     REGISTER_PASS(manager, ConvertMulticlassNms8ToMulticlassNms9)
     REGISTER_PASS(manager, ConvertXorToLogicalXor)
+    REGISTER_PASS(manager, ConvertTopK11ToTopK3)
+    REGISTER_PASS(manager, ConvertInterpolate11ToInterpolate4)
 
     auto fq_fusions = manager.register_pass<GraphRewrite>();
     ADD_MATCHER(fq_fusions, FakeQuantizeMulFusion)

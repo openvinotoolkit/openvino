@@ -35,7 +35,7 @@ class TestLog(PytorchLayerTest):
         return aten_log(op_fn), ref_net, f"aten::{op}"
 
     @pytest.mark.nightly
-    @pytest.mark.precomit
+    @pytest.mark.precommit
     @pytest.mark.parametrize(("op", "input_dtype"),
                              [["log", "float32"], 
                              ["log", "int32"], 

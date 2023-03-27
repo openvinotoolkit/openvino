@@ -17,6 +17,7 @@
 
 #include "snippets_transformations/op/load_convert.hpp"
 #include "snippets_transformations/op/store_convert.hpp"
+#include "snippets_transformations/op/fused_mul_add.hpp"
 #include "snippets/op/brgemm.hpp"
 #include "ngraph_transformations/op/swish_cpu.hpp"
 
@@ -25,8 +26,14 @@
 using namespace std;
 using namespace ngraph::snippets;
 
-#define CREATE_EMITTER(e_type) [this](const std::shared_ptr<ngraph::Node>& n) \
-    -> std::shared_ptr<ngraph::snippets::Emitter> {return std::make_shared<e_type>(h.get(), isa, n);};
+#define CREATE_EMITTER(e_type) { \
+    [this](const std::shared_ptr<ngraph::Node>& n) -> std::shared_ptr<ngraph::snippets::Emitter> { \
+        return std::make_shared<e_type>(h.get(), isa, n); \
+    }, \
+    [](const std::shared_ptr<ngraph::Node>& n) -> std::set<std::vector<element::Type>> { \
+        return e_type::get_supported_precisions(n); \
+    } \
+};
 
 class jit_snippet : public dnnl::impl::cpu::x64::jit_generator {
 public:
@@ -71,6 +78,7 @@ ov::intel_cpu::CPUTargetMachine::CPUTargetMachine(dnnl::impl::cpu::x64::cpu_isa_
 
     // ternary
     jitters[ngraph::opset1::Select::get_type_info_static()] = CREATE_EMITTER(ov::intel_cpu::jit_select_emitter);
+    jitters[ov::intel_cpu::FusedMulAdd::get_type_info_static()] = CREATE_EMITTER(ov::intel_cpu::jit_mul_add_emitter);
 
     // binary
     jitters[ngraph::opset1::Add::get_type_info_static()] = CREATE_EMITTER(ov::intel_cpu::jit_add_emitter);
@@ -153,7 +161,7 @@ bool ov::intel_cpu::CPUTargetMachine::is_supported() const {
 }
 
 code ov::intel_cpu::CPUTargetMachine::get_snippet() const {
-    if (h->create_kernel() != status::success) {
+    if (h->create_kernel() != dnnl::impl::status::success) {
         IE_THROW() << "Failed to create jit_kernel in get_snippet()";
     }
     return h->jit_ker();

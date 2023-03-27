@@ -47,7 +47,7 @@ shared_ptr<Model> gen_model(Dimension batch_size,
     if (with_two_outputs) {
         auto prev_cell_states = make_shared<Constant>(
             ov::element::f32,
-            ov::Shape{1, static_cast<uint64_t>(batch_size.get_length()), static_cast<uint64_t>(hidden_size)},
+            ov::Shape{1, static_cast<std::size_t>(batch_size.get_length()), static_cast<std::size_t>(hidden_size)},
             0);
         auto concat = make_shared<Concat>(OutputVector{prev_cell_states, block_lstm->output(1)}, 0);
         auto indices_const = make_shared<Constant>(ov::element::i32,

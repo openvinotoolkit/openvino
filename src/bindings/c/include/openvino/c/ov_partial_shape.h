@@ -30,8 +30,8 @@
  * An interface to make user can initialize ov_partial_shape_t
  */
 typedef struct ov_partial_shape {
-    ov_rank_t rank;                 //!< The rank
-    ov_dimension_t* dims;           //!< The dimension
+    ov_rank_t rank;        //!< The rank
+    ov_dimension_t* dims;  //!< The dimension
 } ov_partial_shape_t;
 
 /**
@@ -47,9 +47,7 @@ typedef struct ov_partial_shape {
  * @return Status code of the operation: OK(0) for success.
  */
 OPENVINO_C_API(ov_status_e)
-ov_partial_shape_create(const int64_t rank,
-                        const ov_dimension_t* dims,
-                        ov_partial_shape_t* partial_shape_obj);
+ov_partial_shape_create(const int64_t rank, const ov_dimension_t* dims, ov_partial_shape_t* partial_shape_obj);
 
 /**
  * @brief Initialze a partial shape with dynamic rank and dynamic dimension.
@@ -81,9 +79,7 @@ ov_partial_shape_create_dynamic(const ov_rank_t rank,
  * @return Status code of the operation: OK(0) for success.
  */
 OPENVINO_C_API(ov_status_e)
-ov_partial_shape_create_static(const int64_t rank,
-                               const int64_t* dims,
-                               ov_partial_shape_t* partial_shape_obj);
+ov_partial_shape_create_static(const int64_t rank, const int64_t* dims, ov_partial_shape_t* partial_shape_obj);
 
 /**
  * @brief Release internal memory allocated in partial shape.

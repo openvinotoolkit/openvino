@@ -8,6 +8,8 @@
 
 #include "behavior/ov_plugin/caching_tests.hpp"
 
+#include "openvino/pass/manager.hpp"
+
 #include "common_test_utils/file_utils.hpp"
 #include "functional_test_utils/skip_tests_config.hpp"
 #include "functional_test_utils/summary/api_summary.hpp"
@@ -289,7 +291,7 @@ void CompileModelLoadFromFileTestBase::SetUp() {
     }
     m_cacheFolderName = ss.str();
     core->set_property(ov::cache_dir());
-    ngraph::pass::Manager manager;
+    ov::pass::Manager manager;
     manager.register_pass<ov::pass::Serialize>(m_modelName, m_weightsName);
     manager.run_passes(ngraph::builder::subgraph::makeConvPoolRelu(
             {1, 3, 227, 227}, InferenceEngine::details::convertPrecision(InferenceEngine::Precision::FP32)));
@@ -319,7 +321,7 @@ void CompileModelLoadFromFileTestBase::run() {
     }
 }
 
-TEST_P(CompileModelLoadFromFileTestBase, CanLoadFromFileWithoutExecption) {
+TEST_P(CompileModelLoadFromFileTestBase, CanLoadFromFileWithoutException) {
     run();
 }
 
@@ -372,7 +374,7 @@ void CompileModelLoadFromMemoryTestBase::SetUp() {
     }
     m_cacheFolderName = ss.str();
     core->set_property(ov::cache_dir());
-    ngraph::pass::Manager manager;
+    ov::pass::Manager manager;
     manager.register_pass<ov::pass::Serialize>(m_modelName, m_weightsName);
     manager.run_passes(ngraph::builder::subgraph::makeConvPoolRelu(
         {1, 3, 227, 227},
@@ -455,7 +457,7 @@ TEST_P(CompileModelLoadFromMemoryTestBase, CanLoadFromMemoryWithoutExecption) {
 }
 
 TEST_P(CompileModelLoadFromMemoryTestBase, CanLoadFromMemoryWithoutWeightsANdExecption) {
-    ngraph::pass::Manager manager;
+    ov::pass::Manager manager;
     std::shared_ptr<ov::Model> model;
     {
         auto data = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{3, 1, 2});
@@ -508,14 +510,16 @@ void CompiledKernelsCacheTest::SetUp() {
     std::string ext = userConfig.second;
     std::string::size_type pos = 0;
     if ((pos = ext.find(",", pos)) != std::string::npos) {
-    m_extList.push_back(ext.substr(0, pos));
-    m_extList.push_back(ext.substr(pos + 1));
-} else {
-    m_extList.push_back(ext);
-}
-    std::replace(test_name.begin(), test_name.end(), '/', '_');
-    std::replace(test_name.begin(), test_name.end(), '\\', '_');
-    cache_path = "compiledModel" + test_name + "_cache";
+        m_extList.push_back(ext.substr(0, pos));
+        m_extList.push_back(ext.substr(pos + 1));
+    } else {
+        m_extList.push_back(ext);
+    }
+    auto hash = std::hash<std::string>()(test_name);
+    std::stringstream ss;
+    ss << std::this_thread::get_id();
+    cache_path = "compiledModel" + std::to_string(hash) + "_"
+                + ss.str() + "_" + GetTimestamp() + "_cache";
 }
 
 void CompiledKernelsCacheTest::TearDown() {

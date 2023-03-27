@@ -196,6 +196,12 @@ OPENVINO_API bool are_unique(const std::vector<int64_t>& data);
 /// \param max    Maximum value boiund
 ///
 /// \return Value if between min, max otherwise min or max.
-OPENVINO_API
-int64_t clip(const int64_t& value, const int64_t& min, const int64_t& max);
+OPENVINO_API int64_t clip(const int64_t& value, const int64_t& min, const int64_t& max);
+
+/// \brief Constant folds a subgraph to a constant node
+///
+/// \param subgraph sink
+///
+/// \return Constant node or nullptr if unable to constantfold the subgraph
+OPENVINO_API std::shared_ptr<op::v0::Constant> constantfold_subgraph(const Output<Node>& subgraph_sink);
 }  // namespace ov

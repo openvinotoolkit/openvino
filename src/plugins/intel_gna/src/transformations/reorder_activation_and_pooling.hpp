@@ -15,10 +15,10 @@ namespace pass {
  */
 class ReorderActivationAndPooling : public ngraph::pass::MatcherPass {
 public:
-  OPENVINO_RTTI("ReorderActivationAndPooling", "0");
-  ReorderActivationAndPooling();
+    OPENVINO_RTTI("ReorderActivationAndPooling", "0");
+    ReorderActivationAndPooling();
 };
 
-} // namespace pass
-} // namespace intel_gna
-} // namespace ov
+}  // namespace pass
+}  // namespace intel_gna
+}  // namespace ov

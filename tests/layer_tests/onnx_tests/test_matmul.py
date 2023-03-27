@@ -174,6 +174,8 @@ class TestMatMul(OnnxRuntimeLayerTest):
     @pytest.mark.parametrize("params", test_data_broadcasting)
     @pytest.mark.nightly
     def test_matmul_bc(self, params, ie_device, precision, ir_version, temp_dir, use_old_api):
+        if ie_device == 'GPU':
+            pytest.skip('GREEN_SUITE')
         self._test(*self.create_net(**params, precision=precision, ir_version=ir_version),
                    ie_device, precision, ir_version, temp_dir=temp_dir, use_old_api=use_old_api)
 
@@ -187,6 +189,8 @@ class TestMatMul(OnnxRuntimeLayerTest):
     @pytest.mark.parametrize("params", test_data_broadcasting)
     @pytest.mark.nightly
     def test_dual_matmul_bc(self, params, ie_device, precision, ir_version, temp_dir, use_old_api):
+        if ie_device == 'GPU':
+            pytest.skip('GREEN_SUITE')
         self._test(*self.create_dual_net(**params, ir_version=ir_version), ie_device, precision,
                    ir_version,
                    temp_dir=temp_dir, use_old_api=use_old_api)

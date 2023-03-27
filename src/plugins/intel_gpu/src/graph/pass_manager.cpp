@@ -13,6 +13,8 @@
 #include <iostream>
 #include <string>
 
+using namespace cldnn;
+
 pass_manager::pass_manager(program& p) {
     pass_count = 0;
     auto path = get_dir_path(p.get_config());

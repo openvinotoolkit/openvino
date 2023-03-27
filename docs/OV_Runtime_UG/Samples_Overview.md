@@ -102,7 +102,7 @@ The officially supported Linux build environment is the following:
 * GCC 7.5.0 (for Ubuntu 18.04) or GCC 9.3.0 (for Ubuntu 20.04)
 * CMake version 3.10 or higher
 
-> **NOTE**: For building samples from the open-source version of OpenVINO toolkit, see the [build instructions on GitHub](https://github.com/openvinotoolkit/openvino/wiki/BuildingCode).
+> **NOTE**: For building samples from the open-source version of OpenVINO toolkit, see the [build instructions on GitHub](https://github.com/openvinotoolkit/openvino/blob/master/docs/dev/build.md).
 
 To build the C or C++ sample applications for Linux, go to the `<INSTALL_DIR>/samples/c` or `<INSTALL_DIR>/samples/cpp` directory, respectively, and run the `build_samples.sh` script:
 ```sh
@@ -165,6 +165,7 @@ By default, the script automatically detects the highest Microsoft Visual Studio
 Once the build is completed, you can find sample binaries in the following folders:
 * C samples: `C:\Users\<user>\Documents\Intel\OpenVINO\openvino_c_samples_build\<architecture>\Release`
 * C++ samples: `C:\Users\<user>\Documents\Intel\OpenVINO\openvino_cpp_samples_build\<architecture>\Release`
+where the <architecture> is the output of `echo %PROCESSOR_ARCHITECTURE%`, for example, `intel64` (AMD64), or `arm64`.
 
 You can also build a generated solution manually. For example, if you want to build C++ sample binaries in Debug configuration, run the appropriate version of the
 Microsoft Visual Studio and open the generated solution file from the `C:\Users\<user>\Documents\Intel\OpenVINO\openvino_cpp_samples_build\Samples.sln`
@@ -178,7 +179,7 @@ The officially supported macOS build environment is the following:
 * Clang compiler from Xcode 10.1 or higher
 * CMake version 3.13 or higher
 
-> **NOTE**: For building samples from the open-source version of OpenVINO toolkit, see the [build instructions on GitHub](https://github.com/openvinotoolkit/openvino/wiki/BuildingCode).
+> **NOTE**: For building samples from the open-source version of OpenVINO toolkit, see the [build instructions on GitHub](https://github.com/openvinotoolkit/openvino/blob/master/docs/dev/build.md).
 
 To build the C or C++ sample applications for macOS, go to the `<INSTALL_DIR>/samples/c` or `<INSTALL_DIR>/samples/cpp` directory, respectively, and run the `build_samples.sh` script:
 ```sh

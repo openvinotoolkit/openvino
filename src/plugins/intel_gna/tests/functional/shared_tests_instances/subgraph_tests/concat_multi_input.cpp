@@ -2,9 +2,10 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "subgraph_tests/concat_multi_input.hpp"
+
 #include <vector>
 
-#include "subgraph_tests/concat_multi_input.hpp"
 #include "common_test_utils/test_constants.hpp"
 
 using namespace SubgraphTestsDefinitions;
@@ -32,12 +33,12 @@ std::map<std::string, std::string> additional_config = {
     {"GNA_PRECISION", "I16"},
 };
 
-INSTANTIATE_TEST_SUITE_P(smoke_concat_multi_input, ConcatMultiInput,
-    ::testing::Combine(
-        ::testing::ValuesIn(inShapes),
-        ::testing::ValuesIn(netPrecisions),
-        ::testing::Values(CommonTestUtils::DEVICE_GNA),
-        ::testing::Values(additional_config)),
-    ConcatMultiInput::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_concat_multi_input,
+                         ConcatMultiInput,
+                         ::testing::Combine(::testing::ValuesIn(inShapes),
+                                            ::testing::ValuesIn(netPrecisions),
+                                            ::testing::Values(CommonTestUtils::DEVICE_GNA),
+                                            ::testing::Values(additional_config)),
+                         ConcatMultiInput::getTestCaseName);
 
-} //namespace
+}  // namespace

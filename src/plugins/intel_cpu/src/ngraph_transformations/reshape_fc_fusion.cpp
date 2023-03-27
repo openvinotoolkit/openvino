@@ -23,7 +23,7 @@ ov::intel_cpu::ReshapeFullyConnectedFusion::ReshapeFullyConnectedFusion() {
     auto fcThreeInputs = ngraph::pattern::wrap_type<ov::intel_cpu::FullyConnectedNode>(threeInputs, ngraph::pattern::has_static_shape());
     const auto fcTwoOrThreeInputs = std::make_shared<ngraph::pattern::op::Or>(ngraph::OutputVector{fcTwoInputs, fcThreeInputs});
 
-    ngraph::matcher_pass_callback callback = [this](ngraph::pattern::Matcher &m) {
+    ngraph::matcher_pass_callback callback = [](ngraph::pattern::Matcher &m) {
         auto fc = std::dynamic_pointer_cast<ov::intel_cpu::FullyConnectedNode>(m.get_match_root());
         if (!fc)
             return false;

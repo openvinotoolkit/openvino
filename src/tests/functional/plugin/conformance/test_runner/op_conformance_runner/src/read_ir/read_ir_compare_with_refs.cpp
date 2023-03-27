@@ -16,8 +16,8 @@ using namespace ov::test::subgraph;
 
 namespace {
 
-#define _OPENVINO_OP_REG(NAME, NAMESPACE)                                                                         \
-    INSTANTIATE_TEST_SUITE_P(conformance_##NAME,                                                            \
+#define _OPENVINO_OP_REG(NAME, NAMESPACE)                                                                  \
+    INSTANTIATE_TEST_SUITE_P(conformance_##NAME,                                                           \
                              ReadIRTest,                                                                   \
                              ::testing::Combine(::testing::ValuesIn(getModelPaths(IRFolderPaths, #NAME)),  \
                                                 ::testing::Values(targetDevice),                           \

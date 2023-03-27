@@ -5,16 +5,16 @@ import os
 import subprocess
 import sys
 
-print(sys.argv)
+# do not print messages from TensorFlow
+os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
+
 if len(sys.argv) < 4:
-    print("Script[model in pbtxt format], output folder and mark file must be specified as arguments")
+    print("Script[model in pbtxt format], output folder and mark file must be specified as arguments", str(sys.argv))
     exit(1)
 
 gen_script = sys.argv[1]
 out_folder = sys.argv[2]
 mark_file = sys.argv[3]
-
-print("Processing: {} ".format(gen_script))
 
 if gen_script.endswith('.py'):
     subprocess.run([sys.executable, gen_script, out_folder], env=os.environ)

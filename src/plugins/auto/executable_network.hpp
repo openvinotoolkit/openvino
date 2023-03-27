@@ -20,10 +20,6 @@ public:
     using Ptr = std::shared_ptr<ExecutableNetwork>;
     ExecutableNetwork(const Schedule::Ptr& schedule, const ScheduleContext::Ptr& sContext);
     IInferPtr CreateInferRequest() override;
-    IInferPtr CreateInferRequestImpl(InferenceEngine::InputsDataMap networkInputs,
-                                     InferenceEngine::OutputsDataMap networkOutputs) override;
-    IInferPtr CreateInferRequestImpl(const std::vector<std::shared_ptr<const ov::Node>>& inputs,
-                                     const std::vector<std::shared_ptr<const ov::Node>>& outputs) override;
     ~ExecutableNetwork() override;
 
 protected:

@@ -9,6 +9,7 @@
 #include <unordered_set>
 
 #include "openvino/core/dimension.hpp"
+#include "openvino/core/type/element_type.hpp"
 
 namespace ov {
 /// \brief Special label value indicate no label set.

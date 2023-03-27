@@ -6,11 +6,10 @@
 
 using namespace BehaviorTestsDefinitions;
 namespace {
-INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests, InferRequestIOBBlobTest,
-        ::testing::Combine(
-                ::testing::Values(CommonTestUtils::DEVICE_GNA),
-                ::testing::Values(std::map<std::string, std::string>({}))),
-        InferRequestIOBBlobTest::getTestCaseName);
-
+INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests,
+                         InferRequestIOBBlobTest,
+                         ::testing::Combine(::testing::Values(CommonTestUtils::DEVICE_GNA),
+                                            ::testing::Values(std::map<std::string, std::string>({}))),
+                         InferRequestIOBBlobTest::getTestCaseName);
 
 }  // namespace

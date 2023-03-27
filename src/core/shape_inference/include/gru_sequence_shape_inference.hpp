@@ -15,7 +15,7 @@ void validate_inputs_rank(const OpType* op,
                           const std::vector<ShapeType>& input_shapes,
                           const std::vector<Rank>& expected_ranks) {
     NODE_VALIDATION_CHECK(op, input_shapes.size() >= expected_ranks.size(), "Can't validate inputs rank.");
-    for (auto i = 0; i < expected_ranks.size(); ++i) {
+    for (size_t i = 0; i < expected_ranks.size(); ++i) {
         NODE_VALIDATION_CHECK(op,
                               input_shapes[i].rank().compatible(expected_ranks[i]),
                               "Shape rank of input at ",

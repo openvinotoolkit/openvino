@@ -4,6 +4,7 @@
 import os
 import sys
 import re
+from typing import Dict, List
 import numpy as np
 from collections import defaultdict
 from pathlib import Path
@@ -12,16 +13,18 @@ from importlib.util import find_spec
 from openvino.runtime import Tensor, PartialShape
 from openvino.runtime.utils.types import get_dtype
 
-from .constants import IMAGE_EXTENSIONS, BINARY_EXTENSIONS
+from .constants import IMAGE_EXTENSIONS, NUMPY_EXTENSIONS, BINARY_EXTENSIONS
 from .logging import logger
+from .utils import AppInputInfo
 
 if find_spec('cv2') is not None:
     try:
         import cv2
     except ImportError as ex:
-        raise Exception("Failed to import opencv module. " \
-        "Please try to uninstall opencv-python " \
-        "and install opencv-python-headless instead.") from ex
+        raise Exception("Failed to import opencv module. "
+                        "Please try to uninstall opencv-python "
+                        "and install opencv-python-headless instead.") from ex
+
 
 class DataQueue:
     def __init__(self, input_data: dict, batch_sizes: list):
@@ -65,53 +68,57 @@ def get_group_batch_sizes(app_input_info):
     return batch_sizes
 
 
-def get_batch_sizes_per_input_map(app_input_info):
+def get_batch_sizes_per_input_map(app_input_info: List[AppInputInfo]):
     batch_sizes_map = {}
     for info in app_input_info:
         if info.layout.has_name('N'):
             if info.is_dynamic:
-                batch_sizes_map[info.name] = info.getDimentionsByLayout('N')
+                batch_sizes_map[info.name] = info.getDimensionsByLayout('N')
             else:
-                batch_sizes_map[info.name] = [len(info.getDimentionByLayout('N'))]
+                batch_sizes_map[info.name] = [len(info.getDimensionByLayout('N'))]
         else:
             batch_sizes_map[info.name] = [1] * len(info.shapes)
     return batch_sizes_map
 
+def verify_objects_to_be_used(objects_to_be_used_map: Dict[str, List[str]], info: AppInputInfo, total_frames: int, input_type_name: str):
+        if objects_to_be_used_map[info.name] > total_frames and objects_to_be_used_map[info.name] % total_frames != 0:
+            objects_to_be_used_map[info.name] = objects_to_be_used_map[info.name] - objects_to_be_used_map[info.name] % total_frames
+            logger.warning(f"Number of provided {input_type_name} for input '{info.name}' is not a multiple of the number of "
+                            f"provided data shapes. Only {objects_to_be_used_map[info.name]} {input_type_name} will be processed for this input.")
+        elif objects_to_be_used_map[info.name] < total_frames:
+            logger.warning(f"Some {input_type_name} will be dublicated: {total_frames} is required, "
+                            f"but only {objects_to_be_used_map[info.name]} were provided.")
 
 def get_input_data(paths_to_input, app_input_info):
-    image_mapping, binary_mapping = get_input_file_mappings(paths_to_input, app_input_info)
+    image_mapping, numpy_mapping, binary_mapping = get_input_file_mappings(paths_to_input, app_input_info)
 
     image_sizes = get_image_sizes(app_input_info)
     batch_sizes_map = get_batch_sizes_per_input_map(app_input_info)
 
-    images_to_be_used_map = {input_name: len(images) for input_name, images in image_mapping.items()}
-    binaries_to_be_used_map = {input_name: len(binaries) for input_name, binaries in binary_mapping.items()}
+    images_to_be_used_map = {input_name: len(images)
+                            for input_name, images in image_mapping.items()}
+    numpys_to_be_used_map = {input_name: len(images)
+                            for input_name, images in numpy_mapping.items()}
+    binaries_to_be_used_map = {input_name: len(binaries)
+                            for input_name, binaries in binary_mapping.items()}
 
     for info in app_input_info:
         if info.shapes:
             total_frames = np.sum(batch_sizes_map[info.name])
             if info.name in image_mapping:
-                if images_to_be_used_map[info.name] > total_frames and images_to_be_used_map[info.name] % total_frames != 0:
-                    images_to_be_used_map[info.name] = images_to_be_used_map[info.name] - images_to_be_used_map[info.name] % total_frames
-                    logger.warning(f"Number of provided images for input '{info.name}' is not a multiple of the number of "
-                                   f"provided data shapes. Only {images_to_be_used_map[info.name]} images will be processed for this input.")
-                elif images_to_be_used_map[info.name] < total_frames:
-                    logger.warning(f"Some images will be dublicated: {total_frames} is required, "
-                                   f"but only {images_to_be_used_map[info.name]} were provided.")
+                verify_objects_to_be_used(images_to_be_used_map, info, total_frames, "images")
+            elif info.name in numpy_mapping:
+                verify_objects_to_be_used(numpys_to_be_used_map, info, total_frames, "numpy arrays")
             elif info.name in binary_mapping:
-                if binaries_to_be_used_map[info.name] > total_frames and binaries_to_be_used_map[info.name] % total_frames != 0:
-                    binaries_to_be_used_map[info.name] = binaries_to_be_used_map - binaries_to_be_used_map % total_frames
-                    logger.warning(f"Number of provided binaries for input '{info.name}' is not a multiple of the number of "
-                                   f"provided data shapes. Only {binaries_to_be_used_map[info.name]} binaries will be processed for this input.")
-                elif binaries_to_be_used_map[info.name] < total_frames:
-                    logger.warning(f"Some binaries will be dublicated: {total_frames} is required, "
-                                   f"but only {binaries_to_be_used_map[info.name]} were provided.")
+                verify_objects_to_be_used(binaries_to_be_used_map, info, total_frames, "binaries")
             else:
                 if not (info.is_image_info and len(image_sizes) == 1):
                     logger.warning(f"No input files were given for input '{info.name}'!. This input will be filled with random values!")
         else:
             if info.name in image_mapping:
                 logger.info(f"Images given for input '{info.name}' will be processed with original shapes.")
+            elif info.name in numpy_mapping:
+                logger.info(f"Numpy arrays given for input '{info.name}' will be processed with original shapes.")
             else:
                 raise Exception(f"Input {info.name} is dynamic. Provide data shapes!")
 
@@ -119,6 +126,9 @@ def get_input_data(paths_to_input, app_input_info):
     for port, info in enumerate(app_input_info):
         if info.name in image_mapping:
             data[port] = get_image_tensors(image_mapping[info.name][:images_to_be_used_map[info.name]], info, batch_sizes_map[info.name])
+
+        elif info.name in numpy_mapping:
+            data[port] = get_numpy_tensors(numpy_mapping[info.name][:numpys_to_be_used_map[info.name]], info, batch_sizes_map[info.name])
 
         elif info.name in binary_mapping:
             data[port] = get_binary_tensors(binary_mapping[info.name][:binaries_to_be_used_map[info.name]], info, batch_sizes_map[info.name])
@@ -134,21 +144,21 @@ def get_input_data(paths_to_input, app_input_info):
     return DataQueue(data, get_group_batch_sizes(app_input_info))
 
 
-def get_image_tensors(image_paths, info, batch_sizes):  
+def get_image_tensors(image_paths: List[str], info: AppInputInfo, batch_sizes: List[int]) -> List[Tensor]:
     if 'cv2' not in sys.modules:
-        logger.error("Loading images requires the opencv-python or opencv-python-headless package. " \
-                "Please install it before continuing or run benchmark without "\
-                "the -i flag to fill vectors with random data.")
+        logger.error("Loading images requires the opencv-python or opencv-python-headless package. "
+                     "Please install it before continuing or run benchmark without "
+                     "the -i flag to fill vectors with random data.")
+
+    num_shapes = len(info.shapes)
+    num_images = len(image_paths)
 
     processed_frames = 0
-    widthes = info.widthes if info.is_dynamic else [info.width]
+    widths = info.widths if info.is_dynamic else [info.width]
     heights = info.heights if info.is_dynamic else [info.height]
+    process_with_original_shapes = num_shapes == 0
     tensors = []
-    process_with_original_shapes = False
-    num_shapes = len(info.shapes)
-    if num_shapes == 0:
-        process_with_original_shapes = True
-    num_images = len(image_paths)
+
     niter = max(num_shapes, num_images)
     for i in range(niter):
         shape = list(info.shapes[i % num_shapes]) if num_shapes else []
@@ -164,7 +174,7 @@ def get_image_tensors(image_paths, info, batch_sizes):
             if process_with_original_shapes:
                 logger.info(f'Image will be processed with original shape - {image.shape[:-1]}')
             elif info.layout.has_name('H') and info.layout.has_name('W'):
-                new_im_size = (widthes[i % num_shapes], heights[i % num_shapes])
+                new_im_size = (widths[i % num_shapes], heights[i % num_shapes])
                 if image.shape[:-1] != new_im_size:
                     logger.warning(f"Image is resized from ({image.shape[:-1]}) to ({new_im_size})")
                     image = cv2.resize(image, new_im_size)
@@ -200,7 +210,72 @@ def get_image_tensors(image_paths, info, batch_sizes):
     return tensors
 
 
-def get_binary_tensors(binary_paths, info, batch_sizes):
+def get_numpy_tensors(numpy_paths: List[str], info: AppInputInfo, batch_sizes: List[int]) -> List[Tensor]:
+
+    num_shapes = len(info.shapes)
+    num_arrays = len(numpy_paths)
+
+    processed_frames = 0
+    process_with_original_shapes = num_shapes == 0
+    tensors = []
+
+    niter = max(num_shapes, num_arrays)
+    for i in range(niter):
+        shape = list(info.shapes[i % num_shapes]) if num_shapes else []
+        dtype = get_dtype(info.element_type)
+        numpy_arrays = np.ndarray(shape=shape, dtype=dtype)
+        numpy_index = processed_frames
+
+        current_batch_size = 1 if process_with_original_shapes \
+            else batch_sizes[i % num_shapes]
+
+        for b in range(current_batch_size):
+            numpy_index %= num_arrays
+            numpy_filename: str = numpy_paths[numpy_index]
+            extension = numpy_filename.lower().split('.')[-1]
+            if extension == "npy":
+                numpy_arr: np.ndarray = np.load(numpy_filename)
+
+                if list(numpy_arr.shape) != shape and not process_with_original_shapes:
+                    raise Exception(
+                        f"Numpy array shape mismatch. File {numpy_filename} "
+                        f"has shape: {numpy_arr.shape}, expected: {shape}")
+
+                if numpy_arr.dtype != dtype:
+                    raise Exception(
+                        f"Numpy array in file {numpy_filename} is of "
+                        f"{numpy_arr.dtype} format, which does not match "
+                        f"input type {dtype}.")
+
+                if process_with_original_shapes:
+                    if len(info.partial_shape) - 1 == len(numpy_arr.shape):
+                        numpy_arr = np.expand_dims(numpy_arr, 0)
+
+                    p_shape = PartialShape(numpy_arr.shape)
+                    if info.partial_shape.compatible(p_shape):
+                        info.data_shapes.append(p_shape.to_shape())
+                    else:
+                        raise Exception(f"Data shape '{str(p_shape)}' provided for input '{info.name}' "
+                                        f"is not compatible with partial shape '{str(info.partial_shape)}' for this input.")
+                    tensors.append(Tensor(numpy_arr))
+                else:
+                    try:
+                        numpy_arrays[b] = numpy_arr
+                    except ValueError:
+                        raise Exception(f"Numpy array shape {numpy_arr.shape} is not compatible with input shape {shape}! "
+                                        f"Make sure -i parameter is valid.")
+            else:
+                raise Exception(
+                    f"Unsupported numpy file type: {extension}")
+            numpy_index += 1
+
+        processed_frames += current_batch_size
+        if not process_with_original_shapes:
+            tensors.append(Tensor(numpy_arrays))
+
+    return tensors
+
+def get_binary_tensors(binary_paths: List[str], info: AppInputInfo, batch_sizes: List[int]) -> List[Tensor]:
     num_shapes = len(info.shapes)
     num_binaries = len(binary_paths)
     niter = max(num_shapes, num_binaries)
@@ -217,15 +292,18 @@ def get_binary_tensors(binary_paths, info, batch_sizes):
         current_batch_size = batch_sizes[shape_id]
         for b in range(current_batch_size):
             binary_index %= num_binaries
-            binary_filename = binary_paths[binary_index]
-            logger.info("Prepare binary file " + binary_filename)
-
-            binary_file_size = os.path.getsize(binary_filename)
-            blob_size = dtype.itemsize * int(np.prod(shape))
-            if blob_size != binary_file_size:
+            binary_filename: str = binary_paths[binary_index]
+            extension = binary_filename.lower().split('.')[-1]
+            if extension == "bin":
+                binary_file_size = os.path.getsize(binary_filename)
+                blob_size = dtype.itemsize * int(np.prod(shape))
+                if blob_size != binary_file_size:
+                    raise Exception(
+                        f"File {binary_filename} contains {binary_file_size} bytes but model expects {blob_size}")
+                binaries[b] = np.reshape(np.fromfile(binary_filename, dtype), shape)
+            else:
                 raise Exception(
-                    f"File {binary_filename} contains {binary_file_size} bytes but model expects {blob_size}")
-            binaries[b] = np.reshape(np.fromfile(binary_filename, dtype), shape)
+                    f"Unsupported binary file type: {extension}")
 
             binary_index += 1
         processed_frames += current_batch_size
@@ -241,7 +319,7 @@ def get_image_sizes(app_input_info):
                 image_sizes.append((info.width, info.height))
             else:
                 info_image_sizes = []
-                for w, h in zip(info.widthes, info.heights):
+                for w, h in zip(info.widths, info.heights):
                     info_image_sizes.append((w, h))
                 image_sizes.append(info_image_sizes)
     return image_sizes
@@ -277,28 +355,34 @@ def fill_tensors_with_random(layer):
 
 def get_input_file_mappings(paths_to_inputs, app_input_info):
     image_dicts_list = []
+    numpy_dicts_list = []
     binary_dicts_list = []
+
     for path in paths_to_inputs:
-        image_dict, binary_dict = parse_path(path, app_input_info)
+        image_dict, numpy_dict, binary_dict = parse_path(path, app_input_info)
         image_dicts_list.append(image_dict)
+        numpy_dicts_list.append(numpy_dict)
         binary_dicts_list.append(binary_dict)
 
     def merge_dicts(dicts_list):
         merged = defaultdict(list)
         for dict in dicts_list:
-            for k,v in dict.items():
+            for k, v in dict.items():
                 merged[k] += v
         return merged
 
     def remove_empty_items(dict):
-        return {k: sorted(v) for k,v in dict.items() if v}
+        return {k: sorted(v) for k, v in dict.items() if v}
 
-    return remove_empty_items(merge_dicts(image_dicts_list)), remove_empty_items(merge_dicts(binary_dicts_list))
+    return remove_empty_items(merge_dicts(image_dicts_list)), \
+        remove_empty_items(merge_dicts(numpy_dicts_list)), \
+        remove_empty_items(merge_dicts(binary_dicts_list))
 
 
 def parse_path(path, app_input_info):
     """
-    Parse "input_1:file1/dir1,file2/dir2,input_2:file3/dir3 or file1/dir1,file2/dir2" into two dicts - with binary files and with images
+    Parse "input_1:file1/dir1,file2/dir2,input_2:file3/dir3 or file1/dir1,file2/dir2" into three dicts,
+    each containing input_name (str) as key and list of strings of binary/numpy/image filepaths as values.
     """
     input_names = list(info.name for info in app_input_info)
     input_node_names = list(info.node_name for info in app_input_info)
@@ -341,7 +425,9 @@ def parse_path(path, app_input_info):
             input_path_mapping[inputs_to_fill[i % len(inputs_to_fill)]].append(input_files[i])
 
     images_mapping = defaultdict(list)
+    numpy_mapping = defaultdict(list)
     binary_mapping = defaultdict(list)
+
     unsupported_files = list()
     for input_name, _input_pathes in input_path_mapping.items():
         for _input_path in _input_pathes:
@@ -353,15 +439,21 @@ def parse_path(path, app_input_info):
                 elif input_path.is_file:
                     files = [input_path]
                 for file in files:
-                        if file.suffix.lower() in IMAGE_EXTENSIONS:
-                            images_mapping[input_name].append(str(file))
-                        elif file.suffix.lower() in BINARY_EXTENSIONS:
-                            binary_mapping[input_name].append(str(file))
-                        else:
-                            unsupported_files.append(str(file))
+                    if file.suffix.lower() in IMAGE_EXTENSIONS:
+                        images_mapping[input_name].append(str(file))
+                    elif file.suffix.lower() in NUMPY_EXTENSIONS:
+                        numpy_mapping[input_name].append(str(file))
+                    elif file.suffix.lower() in BINARY_EXTENSIONS:
+                        binary_mapping[input_name].append(str(file))
+                    else:
+                        unsupported_files.append(str(file))
             else:
                 raise Exception(f"Path for input '{input_name}' doesn't exist \n {str(input_path)}")
     if unsupported_files:
-        logger.warning(f"This files has unsupported extensions and will be ignored: {unsupported_files}.\n"
-            f"Supported extentions:\nImages: {IMAGE_EXTENSIONS}\nBinary: {BINARY_EXTENSIONS}")
-    return images_mapping, binary_mapping
+        logger.warning(f"This files has unsupported extensions and will "
+                        f"be ignored: {unsupported_files}.\n"
+                        f"Supported extentions:\n"
+                        f"Images: {IMAGE_EXTENSIONS}\n"
+                        f"Binary: {BINARY_EXTENSIONS}\n"
+                        f"Numpy: {NUMPY_EXTENSIONS}")
+    return images_mapping, numpy_mapping, binary_mapping

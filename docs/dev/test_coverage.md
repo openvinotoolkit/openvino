@@ -65,7 +65,6 @@ coverage/paddle_frontend/index.html
 coverage/tf_frontend/index.html
 coverage/openvino/index.html
 coverage/onnx_frontend/index.html
-coverage/legacy/index.html
 coverage/ir_frontend/index.html
 coverage/low_precision_transformations/index.html
 coverage/template_plugin/index.html

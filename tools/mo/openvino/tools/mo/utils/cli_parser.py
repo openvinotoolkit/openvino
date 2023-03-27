@@ -559,7 +559,9 @@ mo_convert_params = {
         ' used to fuse dimensions, for example "[n,c,...]->[n*c,...]".', '', '', layout_param_to_str),
     'compress_to_fp16': ParamDescription(
         'If the original model has FP32 weights or biases, they are compressed to FP16. '
-        'All intermediate data is kept in original precision.', '', '', None),
+        'All intermediate data is kept in original precision. Option can be specified alone as "--compress_to_fp16", '
+        'or explicit True/False values can be set, for example: "--compress_to_fp16=False", or "--compress_to_fp16=True"',
+        '', '', None),
     'transform': ParamDescription(
         'Apply additional transformations. {}' +
         '"--transform transformation_name1[args],transformation_name2..." ' +
@@ -704,7 +706,7 @@ mo_convert_params = {
     'example_input': ParamDescription('Sample of model input in original framework. '
                                        'For PyTorch it can be torch.Tensor.', '', '', None),
     'onnx_opset_version': ParamDescription('Version of ONNX opset that is used for converting from PyTorch to ONNX.',
-                                           '', '', None)
+                                           '', '', None),
     }
 }
 
@@ -804,6 +806,19 @@ class CanonicalizePathCheckExistenceAction(argparse.Action):
         list_of_paths = canonicalize_and_check_paths(values, param_name=option_string,
                                                      try_mo_root=False, check_existance=True)
         setattr(namespace, self.dest, ','.join(list_of_paths))
+
+
+class CanonicalizeExtensionsPathCheckExistenceAction(argparse.Action):
+    """
+    Expand user home directory paths and convert relative-paths to absolute and check specified file or directory
+    existence.
+    """
+
+    def __call__(self, parser, namespace, values, option_string=None):
+        list_of_paths = canonicalize_and_check_paths(values, param_name=option_string,
+                                                     try_mo_root=False, check_existance=True)
+        # Extensions paths are needed to be stored as list
+        setattr(namespace, self.dest, list_of_paths)
 
 
 class CanonicalizePathCheckExistenceIfNeededAction(CanonicalizePathCheckExistenceAction):
@@ -1013,14 +1028,14 @@ def get_common_cli_parser(parser: argparse.ArgumentParser = None):
                                    'FP32 model weights and biases are compressed to FP16. '
                                    'All intermediate data is kept in original precision.',
                               choices=["FP16", "FP32", "half", "float"],
-                              default='float',
+                              default='FP16',
                               action=DeprecatedOptionCommon)
     common_group.add_argument('--compress_to_fp16',
                               help=mo_convert_params_common['compress_to_fp16'].description,
                               type=check_bool,
                               nargs="?",
                               const=True,
-                              default=False)
+                              default=True)
     common_group.add_argument('--transform',
                               help=mo_convert_params_common['transform'].description.format(
                                   mo_convert_params_common['transform'].possible_types_command_line),
@@ -1030,7 +1045,7 @@ def get_common_cli_parser(parser: argparse.ArgumentParser = None):
                               help=mo_convert_params_common['extensions'].description.format(
                                   mo_convert_params_common['extensions'].possible_types_command_line),
                               default=[import_extensions.default_path()],
-                              action=CanonicalizePathCheckExistenceAction,
+                              action=CanonicalizeExtensionsPathCheckExistenceAction,
                               type=readable_dirs_or_files_or_empty)
     common_group.add_argument("--batch", "-b",
                               type=check_positive,
@@ -1991,7 +2006,7 @@ def get_mean_scale_dictionary(mean_values, scale_values, argv_input: str):
     res = {}
     # collect input names
     if argv_input:
-        inputs = argv_input.split(',')
+        inputs =  [get_node_name_with_port_from_input_value(input_value) for input_value in split_inputs(argv_input)]
     else:
         inputs = []
         if type(mean_values) is dict:

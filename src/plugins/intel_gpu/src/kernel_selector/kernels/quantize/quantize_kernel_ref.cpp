@@ -25,10 +25,11 @@ ParamsKey QuantizeKernelRef::GetSupportedKey() const {
     k.EnableBatching();
     k.EnableDifferentTypes();
     k.EnableQuantizePackedBinaryOutput();
+    k.EnableDynamicShapesSupport();
     return k;
 }
 
-CommonDispatchData QuantizeKernelRef::SetDefault(const quantize_params& params, const optional_params&) const {
+CommonDispatchData QuantizeKernelRef::SetDefault(const quantize_params& params) const {
     CommonDispatchData dispatchData;
 
     auto output = params.outputs[0];

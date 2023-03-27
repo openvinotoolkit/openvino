@@ -88,7 +88,7 @@ void ov::frontend::tensorflow::fill_explicit_pads_vectors(const ov::frontend::No
                                                           ov::CoordinateDiff& pads_end) {
     auto fullfill_pads = [&](ov::CoordinateDiff& pads, const std::vector<int64_t>& indexes) {
         pads.resize(indexes.size());
-        for (int i = 0; i < indexes.size(); ++i) {
+        for (size_t i = 0; i < indexes.size(); ++i) {
             pads[i] = tf_explicit_paddings[indexes[i]];
         }
     };
@@ -241,7 +241,7 @@ ov::OutputVector ov::frontend::tensorflow::translate_convolution_op(const ov::fr
 }
 
 void ov::frontend::tensorflow::default_op_checks(const ov::frontend::NodeContext& node,
-                                                 int min_input_size,
+                                                 size_t min_input_size,
                                                  const std::vector<std::string>& supported_ops) {
     auto op_type = node.get_op_type();
     TENSORFLOW_OP_VALIDATION(node,

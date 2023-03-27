@@ -91,3 +91,48 @@ class TestAtenTo(PytorchLayerTest):
         self.input_type = input_type
         with pytest.raises(OpConversionFailure) as e:
             self._test(*self.create_model(output_type, memory_format=memory_format), ie_device, precision, ir_version)
+
+
+class TestAtenToDevice(PytorchLayerTest):
+    def _prepare_input(self):
+        return (np.random.uniform(low=0.0, high=50.0, size=(3,)), np.random.uniform(low=0.0, high=50.0, size=(3,)))
+
+    def create_model(self):
+        import torch
+
+        class aten_to(torch.nn.Module):
+
+            def forward(self, x, y):
+                return x.to(y.device)
+
+        ref_net = None
+
+        return aten_to(), ref_net, "aten::to"
+
+    @pytest.mark.parametrize("use_trace", [True, False])
+    @pytest.mark.nightly
+    @pytest.mark.precommit
+    def test_aten_to_device(self, use_trace, ie_device, precision, ir_version):
+        self._test(*self.create_model(), ie_device, precision, ir_version, trace_model=use_trace)
+
+class TestAtenToDeviceConst(PytorchLayerTest):
+    def _prepare_input(self):
+        return (np.random.uniform(low=0.0, high=50.0, size=(3,)),)
+
+    def create_model(self):
+        import torch
+
+        class aten_to(torch.nn.Module):
+
+            def forward(self, x):
+                return x.to("cpu")
+
+        ref_net = None
+
+        return aten_to(), ref_net, "aten::to"
+
+    @pytest.mark.parametrize("use_trace", [True, False])
+    @pytest.mark.nightly
+    @pytest.mark.precommit
+    def test_aten_to_device_const(self, use_trace, ie_device, precision, ir_version):
+        self._test(*self.create_model(), ie_device, precision, ir_version, trace_model=use_trace)

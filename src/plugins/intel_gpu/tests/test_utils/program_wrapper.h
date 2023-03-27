@@ -4,6 +4,8 @@
 
 #pragma once
 
+#include "pass_manager.h"
+
 namespace cldnn
 {
     struct program_node;
@@ -26,19 +28,10 @@ namespace cldnn
         {
             p.run_graph_compilation();
         }
-        static void compile(program& p)
-        {
-            p.compile();
-        }
         static void build(program& p)
         {
             program_wrapper::run_graph_compilation(p);
-            program_wrapper::compile(p);
-            program_wrapper::init_kernels(p);
-        }
-        static void init_kernels(program& p)
-        {
-            p.init_kernels();
+            p.apply_opt_pass<build_implementations>();
         }
         static void prepare_memory_dependencies(program& p)
         {

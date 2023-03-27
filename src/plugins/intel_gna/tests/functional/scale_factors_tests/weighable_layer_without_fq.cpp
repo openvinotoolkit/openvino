@@ -2,31 +2,30 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include <memory>
+#include <string>
 #include <tuple>
 #include <vector>
-#include <string>
-#include <memory>
 
-#include "shared_test_classes/base/layer_test_utils.hpp"
 #include "ngraph_functions/builders.hpp"
 #include "ngraph_functions/utils/ngraph_helpers.hpp"
+#include "shared_test_classes/base/layer_test_utils.hpp"
 
 namespace SubgraphTestsDefinitions {
 
-typedef std::tuple<
-        InferenceEngine::Precision,        // Net precision
-        std::vector<size_t>,               // Input shape;
-        std::vector<size_t>,               // Constant shape;
-        LayerTestsUtils::TargetDevice,     // Device name
-        std::map<std::string, std::string> // Additional backend configuration and alis name to it
-> WeighableLayerWithoutFqParamsSet;
+typedef std::tuple<InferenceEngine::Precision,         // Net precision
+                   std::vector<size_t>,                // Input shape;
+                   std::vector<size_t>,                // Constant shape;
+                   LayerTestsUtils::TargetDevice,      // Device name
+                   std::map<std::string, std::string>  // Additional backend configuration and alis name to it
+                   >
+    WeighableLayerWithoutFqParamsSet;
 
 /*
  * This test emulates cases in which the ConcatAlignFilter layer is created and the model has FakeQuantize layers.
  */
-class WeighableLayerWithoutFqTest :
-    public testing::WithParamInterface<WeighableLayerWithoutFqParamsSet>,
-    virtual public LayerTestsUtils::LayerTestsCommon {
+class WeighableLayerWithoutFqTest : public testing::WithParamInterface<WeighableLayerWithoutFqParamsSet>,
+                                    virtual public LayerTestsUtils::LayerTestsCommon {
 public:
     static std::string getTestCaseName(const testing::TestParamInfo<WeighableLayerWithoutFqParamsSet>& obj) {
         InferenceEngine::Precision netPrecision;
@@ -75,7 +74,7 @@ protected:
         auto concat = ngraph::builder::makeConcat({fq1, fq2}, 1);
         function = std::make_shared<ngraph::Function>(concat, params, "WeighableLayerWithoutFq");
     }
-}; // class WeighableLayerWithoutFqTest
+};  // class WeighableLayerWithoutFqTest
 
 TEST_P(WeighableLayerWithoutFqTest, CompareWithRefs) {
     Run();
@@ -87,26 +86,20 @@ const std::vector<InferenceEngine::Precision> netPrecisions = {
     InferenceEngine::Precision::FP16,
 };
 
-const std::vector<std::vector<size_t>> inputShapes = {
-    {{1, 5}}
-};
+const std::vector<std::vector<size_t>> inputShapes = {{{1, 5}}};
 
-const std::vector<std::vector<size_t>> constantShapes = {
-    {{1, 16}}
-};
+const std::vector<std::vector<size_t>> constantShapes = {{{1, 16}}};
 
-const std::vector<std::map<std::string, std::string>> configs = {
-    {{"GNA_DEVICE_MODE", "GNA_SW_FP32"}},
-    {{"GNA_DEVICE_MODE", "GNA_SW_EXACT"}}
-};
+const std::vector<std::map<std::string, std::string>> configs = {{{"GNA_DEVICE_MODE", "GNA_SW_FP32"}},
+                                                                 {{"GNA_DEVICE_MODE", "GNA_SW_EXACT"}}};
 
-INSTANTIATE_TEST_SUITE_P(smoke_WeighableLayerWithoutFqTest, WeighableLayerWithoutFqTest,
-                        ::testing::Combine(
-                                ::testing::ValuesIn(netPrecisions),
-                                ::testing::ValuesIn(inputShapes),
-                                ::testing::ValuesIn(constantShapes),
-                                ::testing::Values(CommonTestUtils::DEVICE_GNA),
-                                ::testing::ValuesIn(configs)),
-                        WeighableLayerWithoutFqTest::getTestCaseName);
-} // namespace
-} // namespace SubgraphTestsDefinitions
+INSTANTIATE_TEST_SUITE_P(smoke_WeighableLayerWithoutFqTest,
+                         WeighableLayerWithoutFqTest,
+                         ::testing::Combine(::testing::ValuesIn(netPrecisions),
+                                            ::testing::ValuesIn(inputShapes),
+                                            ::testing::ValuesIn(constantShapes),
+                                            ::testing::Values(CommonTestUtils::DEVICE_GNA),
+                                            ::testing::ValuesIn(configs)),
+                         WeighableLayerWithoutFqTest::getTestCaseName);
+}  // namespace
+}  // namespace SubgraphTestsDefinitions

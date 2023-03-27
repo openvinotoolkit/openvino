@@ -4,9 +4,9 @@
 
 #include "pwl_segments_creator_identity.hpp"
 
+#include "gna_slope_scale.hpp"
 #include "log/debug.hpp"
 #include "log/log.hpp"
-#include "gna_slope_scale.hpp"
 #include "pwl_input_params.hpp"
 #include "pwl_tools.hpp"
 #include "runtime/pwl.h"
@@ -71,7 +71,6 @@ std::vector<gna_pwl_segment_t> PWLSegmentsCreatorIdentity::CreateSegments(const 
 void PWLSegmentsCreatorIdentity::AddRightSegmentIFNeeded(const ov::intel_gna::backend::BorderValues& border_values,
                                                          std::vector<gna_pwl_segment_t>& segments) const {
     if (std::numeric_limits<int32_t>::max() > border_values.x_upper) {
-        auto back_segment = segments.back();
         segments.push_back(CreateSegmentOnTheRight(segments.back(), border_values));
     }
 }

@@ -40,16 +40,16 @@ def paddle_rnn_lstm(input_size, hidden_size, layers, direction, seq_len):
                     np.float32), 'sl': np.array(seq_len).astype(np.int32)},
                 fetch_list=[y, h, c],
                 program=main_program)
-            saveModel("rnn_lstm_layer_" + str(layers) + '_' + str(direction) + '_seq_len_' + str(len(seq_len)), exe, feedkeys=['x', 'sl'],
-                      fetchlist=[y, h, c], inputs=[np.ones([4, 3, input_size]).astype(np.float32), np.array(seq_len).astype(np.int32)], outputs=[outs[0], outs[1], outs[2]], target_dir=sys.argv[1])
+            saveModel("rnn_lstm_layer_" + str(layers) + '_' + str(direction) + '_seq_len_' + str(len(seq_len)), exe, feedkeys=[data, seq_lengths],
+                      fetchlist=[y, h, c], inputs=[np.ones([4, 3, input_size]).astype(np.float32), np.array(seq_len).astype(np.int32)], outputs=[outs[0], outs[1], outs[2]], target_dir=sys.argv[1], use_static_api=True)
         else:
             outs = exe.run(
                 feed={'x': np.ones([4, 3, input_size]).astype(
                     np.float32)},
                 fetch_list=[y, h, c],
                 program=main_program)
-            saveModel("rnn_lstm_layer_" + str(layers) + '_' + str(direction), exe, feedkeys=['x'],
-                      fetchlist=[y, h, c], inputs=[np.ones([4, 3, input_size]).astype(np.float32)], outputs=[outs[0], outs[1], outs[2]], target_dir=sys.argv[1])
+            saveModel("rnn_lstm_layer_" + str(layers) + '_' + str(direction), exe, feedkeys=[data],
+                      fetchlist=[y, h, c], inputs=[np.ones([4, 3, input_size]).astype(np.float32)], outputs=[outs[0], outs[1], outs[2]], target_dir=sys.argv[1], use_static_api=True)
 
     return outs[0]
 

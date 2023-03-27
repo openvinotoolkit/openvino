@@ -66,7 +66,7 @@ VVVVF<T> one_hot_cpu(VVVVF<T> &input, uint16_t axis,
 
 template <typename T>
 void generic_one_hot_test_int(cldnn::format test_input_fmt, int input_b, int input_f, int input_y, int input_x, tensor shape,
-    uint16_t one_hot_axis, int input_padding_y = 0, int input_padding_x = 0, int output_padding_y = 0, int output_padding_x = 0) {
+    uint16_t one_hot_axis, int input_padding_y, int input_padding_x, int output_padding_y, int output_padding_x, bool is_caching_test) {
     std::vector<tensor::value_type> output_dims = { shape.batch[0], shape.feature[0],
         shape.spatial[1], shape.spatial[0] };
     int32_t one_hot_limit = output_dims[one_hot_axis];
@@ -84,9 +84,9 @@ void generic_one_hot_test_int(cldnn::format test_input_fmt, int input_b, int inp
     topology.add(input_layout("input", input->get_layout()));
     topology.add(one_hot("output", input_info("input"), shape, one_hot_axis, one_hot_limit));
 
-    network network(engine, topology);
-    network.set_input_data("input", input);
-    auto outputs = network.execute();
+    cldnn::network::ptr network = get_network(engine, topology, get_test_default_config(engine), get_test_stream_ptr(), is_caching_test);
+    network->set_input_data("input", input);
+    auto outputs = network->execute();
     ASSERT_EQ(outputs.size(), size_t(1));
     ASSERT_EQ(outputs.begin()->first, "output");
 
@@ -130,17 +130,33 @@ void generic_one_hot_test_int(cldnn::format test_input_fmt, int input_b, int inp
 }
 
 TEST(one_hot_gpu_i32, generic) {
-    generic_one_hot_test_int<int32_t>(format::bfyx, 2, 2, 1, 1, tensor(5, 2, 1, 2), 0);
-    generic_one_hot_test_int<int32_t>(format::bfyx, 1, 2, 3, 1, tensor(1, 5, 3, 2), 1);
-    generic_one_hot_test_int<int32_t>(format::bfyx, 2, 2, 1, 1, tensor(2, 2, 1, 4), 2);
-    generic_one_hot_test_int<int32_t>(format::bfyx, 2, 2, 1, 1, tensor(2, 2, 4, 1), 3);
+    generic_one_hot_test_int<int32_t>(format::bfyx, 2, 2, 1, 1, tensor(5, 2, 1, 2), 0, 0, 0, 0, 0, false);
+    generic_one_hot_test_int<int32_t>(format::bfyx, 1, 2, 3, 1, tensor(1, 5, 3, 2), 1, 0, 0, 0, 0, false);
+    generic_one_hot_test_int<int32_t>(format::bfyx, 2, 2, 1, 1, tensor(2, 2, 1, 4), 2, 0, 0, 0, 0, false);
+    generic_one_hot_test_int<int32_t>(format::bfyx, 2, 2, 1, 1, tensor(2, 2, 4, 1), 3, 0, 0, 0, 0, false);
 }
 
 TEST(one_hot_gpu_i64, generic) {
-    generic_one_hot_test_int<int64_t>(format::bfyx, 2, 2, 1, 1, tensor(5, 2, 1, 2), 0);
-    generic_one_hot_test_int<int64_t>(format::bfyx, 1, 2, 3, 1, tensor(1, 5, 3, 2), 1);
-    generic_one_hot_test_int<int64_t>(format::bfyx, 2, 2, 1, 1, tensor(2, 2, 1, 4), 2);
-    generic_one_hot_test_int<int64_t>(format::bfyx, 2, 2, 1, 1, tensor(2, 2, 4, 1), 3);
+    generic_one_hot_test_int<int64_t>(format::bfyx, 2, 2, 1, 1, tensor(5, 2, 1, 2), 0, 0, 0, 0, 0, false);
+    generic_one_hot_test_int<int64_t>(format::bfyx, 1, 2, 3, 1, tensor(1, 5, 3, 2), 1, 0, 0, 0, 0, false);
+    generic_one_hot_test_int<int64_t>(format::bfyx, 2, 2, 1, 1, tensor(2, 2, 1, 4), 2, 0, 0, 0, 0, false);
+    generic_one_hot_test_int<int64_t>(format::bfyx, 2, 2, 1, 1, tensor(2, 2, 4, 1), 3, 0, 0, 0, 0, false);
+}
+
+TEST(one_hot_gpu_i32, generic_cached) {
+    generic_one_hot_test_int<int32_t>(format::bfyx, 2, 2, 1, 1, tensor(5, 2, 1, 2), 0, 0, 0, 0, 0, true);
+#ifdef RUN_ALL_MODEL_CACHING_TESTS
+    generic_one_hot_test_int<int32_t>(format::bfyx, 1, 2, 3, 1, tensor(1, 5, 3, 2), 1, 0, 0, 0, 0, true);
+    generic_one_hot_test_int<int32_t>(format::bfyx, 2, 2, 1, 1, tensor(2, 2, 1, 4), 2, 0, 0, 0, 0, true);
+    generic_one_hot_test_int<int32_t>(format::bfyx, 2, 2, 1, 1, tensor(2, 2, 4, 1), 3, 0, 0, 0, 0, true);
+}
+
+TEST(one_hot_gpu_i64, generic_cached) {
+    generic_one_hot_test_int<int64_t>(format::bfyx, 2, 2, 1, 1, tensor(5, 2, 1, 2), 0, 0, 0, 0, 0, true);
+    generic_one_hot_test_int<int64_t>(format::bfyx, 1, 2, 3, 1, tensor(1, 5, 3, 2), 1, 0, 0, 0, 0, true);
+    generic_one_hot_test_int<int64_t>(format::bfyx, 2, 2, 1, 1, tensor(2, 2, 1, 4), 2, 0, 0, 0, 0, true);
+    generic_one_hot_test_int<int64_t>(format::bfyx, 2, 2, 1, 1, tensor(2, 2, 4, 1), 3, 0, 0, 0, 0, true);
+#endif
 }
 
 TEST(one_hot_gpu_i32, bfzyx_ax4) {
@@ -167,7 +183,7 @@ TEST(one_hot_gpu_i32, bfzyx_ax4) {
 
     set_values(input, input_rnd_vec);
 
-    network network(engine, topology);
+    network network(engine, topology, get_test_default_config(engine));
     network.set_input_data("input", input);
     auto outputs = network.execute();
     ASSERT_EQ(outputs.size(), size_t(1));
@@ -226,7 +242,7 @@ TEST(one_hot_gpu_i64, bfzyx_ax4) {
 
     set_values(input, input_rnd_vec);
 
-    network network(engine, topology);
+    network network(engine, topology, get_test_default_config(engine));
     network.set_input_data("input", input);
     auto outputs = network.execute();
     ASSERT_EQ(outputs.size(), size_t(1));
@@ -285,7 +301,7 @@ TEST(one_hot_gpu_i32_to_f32, bfyx_ax4) {
 
     set_values(input, input_rnd_vec);
 
-    network network(engine, topology);
+    network network(engine, topology, get_test_default_config(engine));
     network.set_input_data("input", input);
     auto outputs = network.execute();
     ASSERT_EQ(outputs.size(), size_t(1));
@@ -338,7 +354,7 @@ TEST(one_hot_gpu_i64_to_f32, bfyx_ax4) {
 
     set_values(input, input_rnd_vec);
 
-    network network(engine, topology);
+    network network(engine, topology, get_test_default_config(engine));
     network.set_input_data("input", input);
     auto outputs = network.execute();
     ASSERT_EQ(outputs.size(), size_t(1));
@@ -389,7 +405,7 @@ TEST(one_hot_gpu_i32, bfzyx_ax0) {
 
     set_values(input, input_rnd_vec);
 
-    network network(engine, topology);
+    network network(engine, topology, get_test_default_config(engine));
     network.set_input_data("input", input);
     auto outputs = network.execute();
     ASSERT_EQ(outputs.size(), size_t(1));
@@ -444,7 +460,7 @@ TEST(one_hot_gpu_i64, bfzyx_ax0) {
 
     set_values(input, input_rnd_vec);
 
-    network network(engine, topology);
+    network network(engine, topology, get_test_default_config(engine));
     network.set_input_data("input", input);
     auto outputs = network.execute();
     ASSERT_EQ(outputs.size(), size_t(1));
@@ -499,7 +515,7 @@ TEST(one_hot_gpu_i32, bfzyx_ax1) {
 
     set_values(input, input_rnd_vec);
 
-    network network(engine, topology);
+    network network(engine, topology, get_test_default_config(engine));
     network.set_input_data("input", input);
     auto outputs = network.execute();
     ASSERT_EQ(outputs.size(), size_t(1));
@@ -554,7 +570,7 @@ TEST(one_hot_gpu_i64, bfzyx_ax1) {
 
     set_values(input, input_rnd_vec);
 
-    network network(engine, topology);
+    network network(engine, topology, get_test_default_config(engine));
     network.set_input_data("input", input);
     auto outputs = network.execute();
     ASSERT_EQ(outputs.size(), size_t(1));
@@ -609,7 +625,7 @@ TEST(one_hot_gpu_i32, bfzyx_ax2) {
 
     set_values(input, input_rnd_vec);
 
-    network network(engine, topology);
+    network network(engine, topology, get_test_default_config(engine));
     network.set_input_data("input", input);
     auto outputs = network.execute();
     ASSERT_EQ(outputs.size(), size_t(1));
@@ -664,7 +680,7 @@ TEST(one_hot_gpu_i64, bfzyx_ax2) {
 
     set_values(input, input_rnd_vec);
 
-    network network(engine, topology);
+    network network(engine, topology, get_test_default_config(engine));
     network.set_input_data("input", input);
     auto outputs = network.execute();
     ASSERT_EQ(outputs.size(), size_t(1));
@@ -719,7 +735,7 @@ TEST(one_hot_gpu_i32, bfzyx_ax3) {
 
     set_values(input, input_rnd_vec);
 
-    network network(engine, topology);
+    network network(engine, topology, get_test_default_config(engine));
     network.set_input_data("input", input);
     auto outputs = network.execute();
     ASSERT_EQ(outputs.size(), size_t(1));
@@ -774,7 +790,7 @@ TEST(one_hot_gpu_i64, bfzyx_ax3) {
 
     set_values(input, input_rnd_vec);
 
-    network network(engine, topology);
+    network network(engine, topology, get_test_default_config(engine));
     network.set_input_data("input", input);
     auto outputs = network.execute();
     ASSERT_EQ(outputs.size(), size_t(1));

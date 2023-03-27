@@ -12,7 +12,6 @@
 #include "ngraph/partial_shape.hpp"
 #include "ngraph/shape.hpp"
 #include "ngraph/type/element_type.hpp"
-#include "ngraph/variant.hpp"
 #include "openvino/core/node_output.hpp"
 
 namespace ngraph {

@@ -42,6 +42,21 @@ struct lstm_dynamic_input : public primitive_base<lstm_dynamic_input> {
     /// @brief Primitive id containing bias data.
     primitive_id bias;
 
+    size_t hash() const override {
+        size_t seed = primitive::hash();
+        seed = hash_combine(seed, bias.empty());
+        return seed;
+    }
+
+    bool operator==(const primitive& rhs) const override {
+        if (!compare_common_params(rhs))
+            return false;
+
+        auto rhs_casted = downcast<const lstm_dynamic_input>(rhs);
+
+        return bias.empty() == rhs_casted.bias.empty();
+    }
+
 protected:
     std::vector<std::reference_wrapper<const primitive_id>> get_dependencies() const override {
         std::vector<std::reference_wrapper<const primitive_id>> ret;

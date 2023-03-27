@@ -4,6 +4,7 @@
 
 #include "ngraph/op/transpose.hpp"
 
+#include "bound_evaluate.hpp"
 #include "itt.hpp"
 #include "ngraph/runtime/reference/transpose.hpp"
 #include "ngraph/validation_util.hpp"
@@ -83,11 +84,11 @@ bool op::v1::Transpose::has_evaluate() const {
     return get_input_element_type(1).is_integral_number();
 }
 
-bool op::v1::Transpose::evaluate_lower(const HostTensorVector& output_values) const {
+bool op::v1::Transpose::evaluate_lower(ov::TensorVector& output_values) const {
     return get_input_tensor(ORDER).has_and_set_bound() && default_lower_bound_evaluator(this, output_values);
 }
 
-bool op::v1::Transpose::evaluate_upper(const HostTensorVector& output_values) const {
+bool op::v1::Transpose::evaluate_upper(ov::TensorVector& output_values) const {
     return get_input_tensor(ORDER).has_and_set_bound() && default_upper_bound_evaluator(this, output_values);
 }
 

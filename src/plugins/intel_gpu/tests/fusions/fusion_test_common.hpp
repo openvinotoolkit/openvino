@@ -31,6 +31,9 @@ public:
     static const int max_random = 200;
 
     void SetUp() override {
+        cfg_fused = get_test_default_config(engine);
+        cfg_not_fused = get_test_default_config(engine);
+
         cfg_fused.set_property(ov::intel_gpu::optimize_data(true));
         cfg_not_fused.set_property(ov::intel_gpu::optimize_data(false));
         cfg_not_fused.set_property(ov::intel_gpu::allow_static_input_reorder(true));
@@ -74,20 +77,15 @@ public:
         ASSERT_EQ(outputs_ref.size(), outputs_fused.size());
         ASSERT_EQ(outputs_ref.size(), size_t(1));
 
-        auto output_not_fused_prim = outputs_ref.begin()->second.get_memory();
-        auto output_fused_prim = outputs_fused.begin()->second.get_memory();
-        if (output_not_fused_prim->get_layout().data_type == data_types::f32) {
-            cldnn::mem_lock<float> ref(output_not_fused_prim, get_test_stream());
-            cldnn::mem_lock<float> output_ptr(output_fused_prim, get_test_stream());
-            for (size_t i = 0; i < output_fused_prim->get_layout().count(); i++) {
-                ASSERT_NEAR(ref[i], output_ptr[i], tolerance) << "i = " << i;
-            }
-        } else {
-            cldnn::mem_lock<int16_t> ref(output_not_fused_prim, get_test_stream());
-            cldnn::mem_lock<int16_t> output_ptr(output_fused_prim, get_test_stream());
-            for (size_t i = 0; i < output_fused_prim->get_layout().count(); i++) {
-                ASSERT_NEAR(half_to_float(ref[i]), half_to_float(output_ptr[i]), tolerance) << "i = " << i;
-            }
+        auto val_ref=get_output_values_to_float(not_fused, outputs_ref.begin()->first);
+        auto val_opt=get_output_values_to_float(fused, outputs_fused.begin()->first);
+        ASSERT_EQ(val_ref.size(), val_opt.size());
+        for (size_t i = 0; i < val_ref.size(); i++) {
+            ASSERT_NEAR(val_ref[i], val_opt[i], tolerance)
+                << "tolerance = " << tolerance
+                << "\ni = " << i
+                << "\nref[i] = " << val_ref[i]
+                << "\nopt[i] = " << val_opt[i];
         }
     }
 

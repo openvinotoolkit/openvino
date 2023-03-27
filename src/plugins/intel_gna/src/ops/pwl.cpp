@@ -33,8 +33,7 @@ void Pwl::validate_and_infer_types() {
 }
 
 template <typename T1, typename T2>
-bool Pwl::evaluate(ov::TensorVector& outputs,
-                   const ov::TensorVector& inputs) const {
+bool Pwl::evaluate(ov::TensorVector& outputs, const ov::TensorVector& inputs) const {
     using A1 = typename ov::element_type_traits<T1::value>::value_type;
     using A2 = typename ov::element_type_traits<T2::value>::value_type;
     ov::intel_gna::op::reference::pwl(inputs[0].data<A2>(),
@@ -86,6 +85,6 @@ std::shared_ptr<ngraph::Node> Pwl::get_base_node() {
     return m_base_node;
 }
 
-} // namespace op
-} // namespace intel_gna
-} // namespace ov
+}  // namespace op
+}  // namespace intel_gna
+}  // namespace ov

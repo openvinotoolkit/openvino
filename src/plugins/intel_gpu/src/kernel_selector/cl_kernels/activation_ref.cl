@@ -12,6 +12,7 @@
 
 // TODO: move it from layout based to memory based
 KERNEL(activation)(
+    OPTIONAL_SHAPE_INFO_ARG
     __global INPUT0_TYPE* input,
     __global OUTPUT_TYPE* output
 #if HAS_FUSED_OPS_DECLS
@@ -32,7 +33,7 @@ KERNEL(activation)(
     const unsigned x = get_global_id(0);
     const uint y = (uint)get_global_id(1) % OUTPUT_SIZE_Y;
     const uint z = (uint)get_global_id(1) / OUTPUT_SIZE_Y;
-    #if OUTPUT_BATCH_NUM == 1
+    #if OUTPUT_BATCH_NUM_CONST == 1
         const unsigned feature = (uint)get_global_id(2);
         const unsigned batch = 0;
     #else
@@ -44,7 +45,7 @@ KERNEL(activation)(
         const unsigned x = (uint)get_global_id(1);
         const unsigned y = (uint)get_global_id(2);
         #define z 0
-        #if OUTPUT_BATCH_NUM == 1
+        #if OUTPUT_BATCH_NUM_CONST == 1
             const unsigned feature = (uint)get_global_id(0);
             const unsigned batch = 0;
         #else
@@ -60,7 +61,7 @@ KERNEL(activation)(
         #define z 0
             const unsigned x = (uint)get_global_id(0);
             const unsigned y = (uint)get_global_id(1);
-        #if OUTPUT_BATCH_NUM == 1
+        #if OUTPUT_BATCH_NUM_CONST == 1
             const unsigned feature = (uint)get_global_id(2);
             const unsigned batch = 0;
         #else
@@ -72,11 +73,11 @@ KERNEL(activation)(
 
 // GWS.feature and GWS.batch is aligned to 16. Otherwise, there are some idling WIs.
 #if (defined(OUTPUT_LAYOUT_B_FS_YX_FSV16) || defined(OUTPUT_LAYOUT_B_FS_YX_FSV32)) \
-    && OUTPUT_FEATURE_NUM % 16 != 0
+    && (OUTPUT_FEATURE_NUM_CONST % 16 != 0 || IS_DYNAMIC)
     if (feature >= OUTPUT_FEATURE_NUM)
         return;
 #elif (defined(OUTPUT_LAYOUT_BS_FS_YX_BSV32_FSV16) || defined(OUTPUT_LAYOUT_BS_FS_YX_BSV32_FSV32)) \
-    && (OUTPUT_FEATURE_NUM % 16 != 0 || OUTPUT_BATCH_NUM % 16 != 0)
+    && (OUTPUT_FEATURE_NUM_CONST % 16 != 0 || OUTPUT_BATCH_NUM_CONST % 16 != 0 || IS_DYNAMIC)
     if (batch >= OUTPUT_BATCH_NUM || feature >= OUTPUT_FEATURE_NUM)
         return;
 #endif

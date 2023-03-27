@@ -85,24 +85,7 @@ public:
             tp.add(reorder("output", input_info("eye"), oupput_fmt, type_to_data_type<OutputType>::value));
         }
 
-        cldnn::network::ptr network;
-
-        if (is_caching_test) {
-            membuf mem_buf;
-            {
-                cldnn::network _network(engine_, tp);
-                std::ostream out_mem(&mem_buf);
-                BinaryOutputBuffer ob = BinaryOutputBuffer(out_mem);
-                _network.save(ob);
-            }
-            {
-                std::istream in_mem(&mem_buf);
-                BinaryInputBuffer ib = BinaryInputBuffer(in_mem, engine_);
-                network = std::make_shared<cldnn::network>(ib, get_test_stream_ptr(), engine_);
-            }
-        } else {
-            network = std::make_shared<cldnn::network>(engine_, tp);
-        }
+        cldnn::network::ptr network = get_network(engine_, tp, get_test_default_config(engine_), get_test_stream_ptr(), is_caching_test);
 
         auto outputs = network->execute();
 

@@ -65,10 +65,11 @@ int onnx_editor::EdgeMapper::get_node_output_idx(int node_index, const std::stri
 
     const auto& node_outputs = m_node_outputs[node_index];
     const auto out_port_idx = std::find(std::begin(node_outputs), std::end(node_outputs), output_name);
-    if (out_port_idx == std::end(node_outputs)) {
-        throw ov::Exception("Node with index: " + std::to_string(node_index) +
-                            " has not output with name: " + output_name);
-    }
+    OPENVINO_ASSERT(out_port_idx != std::end(node_outputs),
+                    "Node with index: ",
+                    node_index,
+                    " has not output with name: ",
+                    output_name);
     return static_cast<int>(out_port_idx - std::begin(node_outputs));
 }
 
@@ -87,10 +88,11 @@ std::vector<int> onnx_editor::EdgeMapper::get_node_input_indexes(int node_index,
         }
         ++index;
     }
-    if (node_inputs_indexes.size() == 0) {
-        throw ov::Exception("Node with index: " + std::to_string(node_index) +
-                            " has not input with name: " + input_name);
-    }
+    OPENVINO_ASSERT(node_inputs_indexes.size() != 0,
+                    "Node with index: ",
+                    node_index,
+                    " has not input with name: ",
+                    input_name);
     return node_inputs_indexes;
 }
 
@@ -102,9 +104,11 @@ InputEdge onnx_editor::EdgeMapper::find_input_edge(const EditorNode& node, const
         if (node_indexes.size() == 1) {
             node_index = node_indexes[0];
         } else if (node_indexes.empty()) {
-            throw ov::Exception("Node with name: " + (node.m_node_name.empty() ? "not_given" : node.m_node_name) +
-                                " and output_name: " + (node.m_output_name.empty() ? "not_given" : node.m_output_name) +
-                                " was not found");
+            OPENVINO_THROW("Node with name: ",
+                           (node.m_node_name.empty() ? "not_given" : node.m_node_name),
+                           " and output_name: ",
+                           (node.m_output_name.empty() ? "not_given" : node.m_output_name),
+                           " was not found");
         } else if (!in.m_input_name.empty())  // input indexes are not deterministic if a node name is ambiguous
         {
             // many nodes with the same name
@@ -116,17 +120,24 @@ InputEdge onnx_editor::EdgeMapper::find_input_edge(const EditorNode& node, const
                     ++matched_inputs_number;
                 }
             }
-            if (matched_inputs_number == 0) {
-                throw ov::Exception("Input edge described by: " + node.m_node_name +
-                                    " and input name: " + in.m_input_name + " was not found");
-            }
-            if (matched_inputs_number > 1) {
-                throw ov::Exception("Given node name: " + node.m_node_name + " and input name: " + in.m_input_name +
-                                    " are ambiguous to determine input edge");
-            }
+            OPENVINO_ASSERT(matched_inputs_number != 0,
+                            "Input edge described by: ",
+                            node.m_node_name,
+                            " and input name: ",
+                            in.m_input_name,
+                            " was not found");
+            OPENVINO_ASSERT(matched_inputs_number <= 1,
+                            "Given node name: ",
+                            node.m_node_name,
+                            " and input name: ",
+                            in.m_input_name,
+                            " are ambiguous to determine input edge");
         } else {
-            throw ov::Exception("Given node name: " + node.m_node_name + " and input index: " +
-                                std::to_string(in.m_input_index) + " are ambiguous to determine input edge");
+            OPENVINO_THROW("Given node name: ",
+                           node.m_node_name,
+                           " and input index: ",
+                           in.m_input_index,
+                           " are ambiguous to determine input edge");
         }
     } else {  // the node index is provided
         check_node_index(node_index);
@@ -137,15 +148,15 @@ InputEdge onnx_editor::EdgeMapper::find_input_edge(const EditorNode& node, const
     }
     if (!in.m_input_name.empty()) {
         const auto input_indexes = get_node_input_indexes(node_index, in.m_input_name);
-        if (input_indexes.size() > 1)  // more indexes with the same name
-        {
-            throw ov::Exception("Node with index: " + std::to_string(node_index) +
-                                " has more than one inputs with name: " + in.m_input_name +
-                                ". You should use port indexes to distinguish them.");
-        }
+        OPENVINO_ASSERT(input_indexes.size() <= 1,
+                        "Node with index: ",
+                        node_index,
+                        " has more than one inputs with name: ",
+                        in.m_input_name,
+                        ". You should use port indexes to distinguish them.");
         return InputEdge{node_index, input_indexes[0], in.m_new_input_name};
     } else {
-        throw ov::Exception("Not enough information to determine input edge");
+        OPENVINO_THROW("Not enough information to determine input edge");
     }
 }
 
@@ -157,9 +168,11 @@ OutputEdge onnx_editor::EdgeMapper::find_output_edge(const EditorNode& node, con
         if (node_indexes.size() == 1) {
             node_index = node_indexes[0];
         } else if (node_indexes.empty()) {
-            throw ov::Exception("Node with name: " + (node.m_node_name.empty() ? "not_given" : node.m_node_name) +
-                                " and output_name: " + (node.m_output_name.empty() ? "not_given" : node.m_output_name) +
-                                " was not found");
+            OPENVINO_THROW("Node with name: ",
+                           (node.m_node_name.empty() ? "not_given" : node.m_node_name),
+                           " and output_name: ",
+                           (node.m_output_name.empty() ? "not_given" : node.m_output_name),
+                           " was not found");
         } else if (!out.m_output_name.empty())  // output indexes are not deterministic if a node name is ambiguous
         {
             // many nodes with the same name
@@ -172,13 +185,18 @@ OutputEdge onnx_editor::EdgeMapper::find_output_edge(const EditorNode& node, con
                     ++matched_outputs_number;
                 }
             }
-            if (matched_outputs_number == 0) {
-                throw ov::Exception("Output edge described by: " + node.m_node_name +
-                                    " and output name: " + out.m_output_name + " was not found");
-            }
+            OPENVINO_ASSERT(matched_outputs_number != 0,
+                            "Output edge described by: ",
+                            node.m_node_name,
+                            " and output name: ",
+                            out.m_output_name,
+                            " was not found");
         } else {
-            throw ov::Exception("Given node name: " + node.m_node_name + " and output index: " +
-                                std::to_string(out.m_output_index) + " are ambiguous to determine output edge");
+            OPENVINO_THROW("Given node name: ",
+                           node.m_node_name,
+                           " and output index: ",
+                           out.m_output_index,
+                           " are ambiguous to determine output edge");
         }
     } else {  // the node index is provided
         check_node_index(node_index);
@@ -187,12 +205,9 @@ OutputEdge onnx_editor::EdgeMapper::find_output_edge(const EditorNode& node, con
     {
         return OutputEdge{node_index, out.m_output_index};
     }
-    if (!out.m_output_name.empty()) {
-        const auto output_idx = get_node_output_idx(node_index, out.m_output_name);
-        return OutputEdge{node_index, output_idx};
-    } else {
-        throw ov::Exception("Not enough information to determine output edge");
-    }
+    OPENVINO_ASSERT(!out.m_output_name.empty(), "Not enough information to determine output edge");
+    const auto output_idx = get_node_output_idx(node_index, out.m_output_name);
+    return OutputEdge{node_index, output_idx};
 }
 
 OutputEdge onnx_editor::EdgeMapper::find_output_edge(const std::string& output_name) const {

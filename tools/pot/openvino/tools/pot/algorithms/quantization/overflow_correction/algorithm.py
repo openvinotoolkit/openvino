@@ -4,12 +4,12 @@
 from copy import deepcopy
 import numpy as np
 
-from .utils import correct_node_overflow, correct_elt_overflow
+from .utils import correct_node_overflow
 from ...algorithm_selector import COMPRESSION_ALGORITHMS
 from ...quantization import fake_quantize as fqut
 from ....algorithms.algorithm import Algorithm
 from ....graph import model_utils as mu, node_utils as nu
-from ....graph.special_operations import OPERATIONS_WITH_WEIGHTS, ELTWISE_ADD_SUB
+from ....graph.special_operations import OPERATIONS_WITH_WEIGHTS
 from ....samplers.creator import create_sampler
 from ....statistics.functions import activations as acf
 from ....utils.logger import get_logger
@@ -43,16 +43,13 @@ class OverflowCorrection(Algorithm):
          """
         activation_statistics = self._stats_collector.get_statistics_for_algorithm(self.name)
 
-        def get_node_orig_full_name(node):
-            return node['orig_node_name'] if 'orig_node_name' in node else node.fullname
-
-        # overflow correction for input_scale * weight_scale
         weighted_nodes = mu.get_nodes_by_type(model, [n['type'] for n in OPERATIONS_WITH_WEIGHTS])
         weighted_nodes = [n for n in weighted_nodes if nu.node_with_quantized_weights(n)]
         for weighted_node in weighted_nodes:
             bias_node = nu.get_bias_for_node(weighted_node)
             output_node = weighted_node if bias_node is None else nu.get_node_output(bias_node, 0)[0]
-            output_node_name = get_node_orig_full_name(output_node)
+            output_node_name = output_node['orig_node_name'] if 'orig_node_name' in output_node \
+                else output_node.fullname
             if output_node_name not in activation_statistics \
                     or 'max_per_tensor' not in activation_statistics[output_node_name]:
                 logger.debug('Skipping {}'.format(weighted_node.fullname))
@@ -67,27 +64,12 @@ class OverflowCorrection(Algorithm):
             if rescale_value:
                 logger.debug('Weights and scales for node {} '
                              'updated with scale coefficient: {}'.format(weighted_node.fullname, rescale_value))
-
-        # overflow correction for bias_scale / input_scale
-        elt_nodes = mu.get_nodes_by_type(model, [n['type'] for n in ELTWISE_ADD_SUB])
-        elt_nodes = [n for n in elt_nodes if nu.node_with_quantized_input_and_bias(n)]
-        for elt_node in elt_nodes:
-            elt_node_name = get_node_orig_full_name(elt_node)
-            logger.debug('Processing {}'.format(elt_node.fullname))
-
-            input_rescale, input_fq, bias_rescale, bias_fq = correct_elt_overflow(elt_node)
-            for (rescale, fq) in [(input_rescale, input_fq), (bias_rescale, bias_fq)]:
-                if rescale:
-                    logger.debug('Weights and scales for node {} '
-                                'updated with scale coefficient: {}'.format(fq.fullname, rescale))
-
         return model
 
     def register_statistics(self, model, stats_collector):
         self._stats_collector = stats_collector
         conv_nodes = mu.get_nodes_by_type(model, [n['type'] for n in OPERATIONS_WITH_WEIGHTS])
         stats_layout = {}
-
         for conv_node in conv_nodes:
             bias_node = nu.get_bias_for_node(conv_node)
             output_node = conv_node if bias_node is None else nu.get_node_output(bias_node, 0)[0]

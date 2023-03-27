@@ -16,12 +16,14 @@
 
 namespace MultiDevicePlugin {
 struct ThisRequestExecutor : public IE::ITaskExecutor {
-    explicit ThisRequestExecutor(WorkerInferRequest** ptr): _workptrptr{ptr} {}
+    explicit ThisRequestExecutor(WorkerInferRequest** ptr, MultiImmediateExecutor::Ptr executor = nullptr): _workptrptr{ptr}, _fallbackExec(executor) {}
     void run(IE::Task task) override {
         (*_workptrptr)->_task = std::move(task);
+        (*_workptrptr)->_fallbackExec = _fallbackExec;
         (*_workptrptr)->_inferRequest->StartAsync();
     };
     WorkerInferRequest** _workptrptr = nullptr;
+    MultiImmediateExecutor::Ptr _fallbackExec;
 };
 
 class MultiSchedule : public Schedule, public IE::ITaskExecutor {
@@ -54,7 +56,6 @@ protected:
     DeviceMap<std::unique_ptr<IE::ThreadSafeQueue<IE::Task>>> _inferPipelineTasksDeviceSpecific;
     DeviceMap<NotBusyWorkerRequests>                          _idleWorkerRequests;
     DeviceMap<std::vector<WorkerInferRequest>>                _workerRequests;
-    mutable std::mutex                                        _mutex;
     std::atomic_size_t                                        _numRequestsCreated = {0};
     MultiScheduleContext::Ptr                                 _multiSContext;
     SoExecNetwork                                             _passthroughExeNet;

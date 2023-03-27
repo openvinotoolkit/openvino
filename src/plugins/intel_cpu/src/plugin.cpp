@@ -445,7 +445,7 @@ Engine::LoadExeNetworkImpl(const InferenceEngine::CNNNetwork &network, const std
     if (cpu.has(Xbyak::util::Cpu::tSSE)) {
         if (conf.denormalsOptMode == Config::DenormalsOptMode::DO_On) {
             flush_to_zero(true);
-            denormals_as_zero(true);
+            conf.DAZOn = denormals_as_zero(true);
         } else if (conf.denormalsOptMode == Config::DenormalsOptMode::DO_Off) {
             flush_to_zero(false);
             denormals_as_zero(false);
@@ -499,6 +499,8 @@ Parameter Engine::GetConfig(const std::string& name, const std::map<std::string,
             return ov::Affinity::HYBRID_AWARE;
         }
         return ov::Affinity::NONE;
+    } else if (name == ov::device::id.name()) {
+        return decltype(ov::device::id)::value_type{engConfig.device_id};
     } else if (name == ov::inference_num_threads) {
         const auto num_threads = engConfig.streamExecutorConfig._threads;
         return decltype(ov::inference_num_threads)::value_type(num_threads);
@@ -532,6 +534,7 @@ Parameter Engine::GetMetricLegacy(const std::string& name, const std::map<std::s
             METRIC_KEY(RANGE_FOR_ASYNC_INFER_REQUESTS),
             METRIC_KEY(RANGE_FOR_STREAMS),
             METRIC_KEY(IMPORT_EXPORT_SUPPORT),
+            ov::caching_properties.name(),
         };
         IE_SET_METRIC_RETURN(SUPPORTED_METRICS, metrics);
     } else if (name == METRIC_KEY(FULL_DEVICE_NAME)) {
@@ -563,6 +566,9 @@ Parameter Engine::GetMetricLegacy(const std::string& name, const std::map<std::s
         IE_SET_METRIC_RETURN(RANGE_FOR_STREAMS, range);
     } else if (name == METRIC_KEY(IMPORT_EXPORT_SUPPORT)) {
         IE_SET_METRIC_RETURN(IMPORT_EXPORT_SUPPORT, true);
+    } else if (name == ov::caching_properties) {
+        std::vector<ov::PropertyName> cachingProperties = { METRIC_KEY(FULL_DEVICE_NAME) };
+        return decltype(ov::caching_properties)::value_type(cachingProperties);
     }
 
     IE_CPU_PLUGIN_THROW() << "Unsupported metric key: " << name;
@@ -587,9 +593,8 @@ Parameter Engine::GetMetric(const std::string& name, const std::map<std::string,
                                                     RO_property(ov::device::full_name.name()),
                                                     RO_property(ov::device::capabilities.name()),
                                                     RO_property(ov::caching_properties.name()),
-                                                    RO_property(ov::cache_dir.name())   // WA Can be removed after implementing snippet serialization.
         };
-        // the whole config is RW before network is loaded.
+        // the whole config is RW before model is loaded.
         std::vector<ov::PropertyName> rwProperties {RW_property(ov::num_streams.name()),
                                                     RW_property(ov::affinity.name()),
                                                     RW_property(ov::inference_num_threads.name()),
@@ -597,6 +602,7 @@ Parameter Engine::GetMetric(const std::string& name, const std::map<std::string,
                                                     RW_property(ov::inference_precision.name()),
                                                     RW_property(ov::hint::performance_mode.name()),
                                                     RW_property(ov::hint::num_requests.name()),
+                                                    RW_property(ov::device::id.name()),
         };
 
         std::vector<ov::PropertyName> supportedProperties;
@@ -629,7 +635,7 @@ Parameter Engine::GetMetric(const std::string& name, const std::map<std::string,
         const std::tuple<unsigned int, unsigned int> range = std::make_tuple(1, parallel_get_max_threads());
         return decltype(ov::range_for_streams)::value_type(range);
     } else if (name == ov::caching_properties) {
-        std::vector<ov::PropertyName> cachingProperties;
+        std::vector<ov::PropertyName> cachingProperties = { ov::device::full_name };
         return decltype(ov::caching_properties)::value_type(cachingProperties);
     }
     /* Internally legacy parameters are used with new API as part of migration procedure.
@@ -642,11 +648,8 @@ void Engine::AddExtension(const InferenceEngine::IExtensionPtr& extension) {
 }
 
 QueryNetworkResult Engine::QueryNetwork(const CNNNetwork& network, const std::map<std::string, std::string>& config) const {
-    QueryNetworkResult res;
-
     WeightsSharing::Ptr fake_w_cache;
 
-    // TODO: Clarify the behavior of SetConfig method. Skip eng_config or not?
     Config conf = engConfig;
     conf.readProperties(config);
 
@@ -694,6 +697,7 @@ QueryNetworkResult Engine::QueryNetwork(const CNNNetwork& network, const std::ma
                                            return true;
                                        });
 
+    QueryNetworkResult res;
     for (auto&& layerName : supported) {
         res.supportedLayersMap.emplace(layerName, GetName());
     }

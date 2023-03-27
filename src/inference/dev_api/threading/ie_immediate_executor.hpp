@@ -12,6 +12,7 @@
 #include <memory>
 #include <string>
 
+#include "openvino/runtime/threading/immediate_executor.hpp"
 #include "threading/ie_itask_executor.hpp"
 
 namespace InferenceEngine {

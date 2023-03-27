@@ -49,7 +49,7 @@ public:
     typedef std::function<bool(const value_type&)> predicate_type;
 
 public:
-    CreatorsMapFilterConstIterator(predicate_type filter, Iterator begin, Iterator end) : _filter(std::move(filter)), _iter(begin), _end(end)  {
+    CreatorsMapFilterConstIterator(predicate_type filter, Iterator begin, Iterator end) : _iter(begin), _end(end), _filter(std::move(filter))  {
         while (_iter != _end && !_filter(*_iter)) {
             ++_iter;
         }

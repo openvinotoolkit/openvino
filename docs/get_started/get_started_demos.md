@@ -20,13 +20,13 @@ To use sample applications, install OpenVINO Runtime via one of the following di
 * Archive files (recommended) - [Linux](@ref openvino_docs_install_guides_installing_openvino_from_archive_linux) | [Windows](@ref openvino_docs_install_guides_installing_openvino_from_archive_windows) | [macOS](@ref openvino_docs_install_guides_installing_openvino_from_archive_macos)
 * [APT](@ref openvino_docs_install_guides_installing_openvino_apt) or [YUM](@ref openvino_docs_install_guides_installing_openvino_yum) for Linux
 * Docker image - [Linux](@ref openvino_docs_install_guides_installing_openvino_docker_linux) | [Windows](@ref openvino_docs_install_guides_installing_openvino_docker_windows)
-* [Build from source](https://github.com/openvinotoolkit/openvino/wiki/BuildingCode)
+* [Build from source](https://github.com/openvinotoolkit/openvino/blob/master/docs/dev/build.md)
 
 Make sure that you also [install OpenCV](https://github.com/opencv/opencv/wiki/BuildOpenCV4OpenVINO), as it's required for running sample applications.
 
 ### Install OpenVINO Development Tools
 
-To install OpenVINO Development Tools, follow the [instructions for C++ developers on the Install OpenVINO Development Tools page](../install_guides/installing-model-dev-tools.md#cpp-developers). This guide uses the `googlenet-v1` model from the Caffe framework, therefore, when you get to Step 4 of the installation, run the following command to install OpenVINO with the Caffe requirements:
+To install OpenVINO Development Tools, follow the [instructions for C++ developers on the Install OpenVINO Development Tools page](../install_guides/installing-model-dev-tools.md#cpp_developers). This guide uses the `googlenet-v1` model from the Caffe framework, therefore, when you get to Step 4 of the installation, run the following command to install OpenVINO with the Caffe requirements:
 
 ``` sh
    pip install openvino-dev[caffe]

@@ -185,7 +185,7 @@ TEST_P(binary_convolution_test, conv) {
     if(engine.get_device_info().supports_immad)
         return;
 
-    ov::intel_gpu::ExecutionConfig config;
+    ov::intel_gpu::ExecutionConfig config = get_test_default_config(engine);
     config.set_property(ov::intel_gpu::optimize_data(true));
     topology topology_bin;
 
@@ -230,24 +230,7 @@ TEST_P(binary_convolution_test, conv) {
     topology_bin.add(binary_convolution(output_name, input_info(input_name), {output_name + weights_suffix},
                                         stride, pad, dilation, os_size, 1, p.pad_value, p.dt));
 
-    cldnn::network::ptr network_bin;
-
-    if (p.is_caching_test) {
-        membuf mem_buf;
-        {
-            cldnn::network _network(engine, topology_bin, config);
-            std::ostream out_mem(&mem_buf);
-            BinaryOutputBuffer ob = BinaryOutputBuffer(out_mem);
-            _network.save(ob);
-        }
-        {
-            std::istream in_mem(&mem_buf);
-            BinaryInputBuffer ib = BinaryInputBuffer(in_mem, engine);
-            network_bin = std::make_shared<cldnn::network>(ib, get_test_stream_ptr(), engine);
-        }
-    } else {
-        network_bin = std::make_shared<cldnn::network>(engine, topology_bin, config);
-    }
+    cldnn::network::ptr network_bin = get_network(engine, topology_bin, config, get_test_stream_ptr(), p.is_caching_test);
 
     network_bin->set_input_data(input_name, input);
 
@@ -399,7 +382,7 @@ TEST(binary_convolution, basic_convolution_1x1_single_packed_channel) {
                                padding{ { 0,0,0,0 }, 0 })
     );
 
-    ov::intel_gpu::ExecutionConfig config;
+    ov::intel_gpu::ExecutionConfig config = get_test_default_config(engine);
     config.set_property(ov::intel_gpu::optimize_data(true));
 
     network network(engine, topology, config);
@@ -485,7 +468,7 @@ TEST(binary_convolution, basic_convolution_1x1_single_packed_channel_fp16) {
                                padding{ { 0,0,0,0 }, 0 })
     );
 
-    ov::intel_gpu::ExecutionConfig config;
+    ov::intel_gpu::ExecutionConfig config = get_test_default_config(engine);
     config.set_property(ov::intel_gpu::optimize_data(true));
 
     network network(engine, topology, config);

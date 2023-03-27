@@ -34,11 +34,9 @@ bool is_type_relaxed(const std::string& type) {
 }
 
 bool compare_type_info(const ngraph::DiscreteTypeInfo& info1, const ngraph::DiscreteTypeInfo& info2) {
-    OPENVINO_SUPPRESS_DEPRECATED_START
-    if (!is_type_relaxed(info1.name) && !is_type_relaxed(info2.name) && (info1.version != info2.version)) {
+    if (!is_type_relaxed(info1.name) && !is_type_relaxed(info2.name) && (std::strcmp(info1.version_id, info2.version_id) != 0)) {
         return false;
     }
-            OPENVINO_SUPPRESS_DEPRECATED_END
 
     const std::string info1Name =
             is_type_relaxed(info1.name) && (info1.parent != nullptr) ? info1.parent->name : info1.name;
@@ -89,9 +87,7 @@ bool less_by_parent_name(const std::shared_ptr<ngraph::op::v0::Result>& l,
 }
 
 std::string typeInfoToStr(const ngraph::Node::type_info_t& typeInfo) {
-    OPENVINO_SUPPRESS_DEPRECATED_START
-    return std::string(typeInfo.name) + "/" + to_str(typeInfo.version);
-    OPENVINO_SUPPRESS_DEPRECATED_END
+    return std::string(typeInfo.name) + "/" + std::string(typeInfo.version_id);
 }
 
 std::string tensor_names(const ngraph::descriptor::Tensor& t) {
@@ -111,9 +107,7 @@ namespace detail {
 
 template <typename Ptr>
 Ptr not_null(Ptr&& p) {
-    if (!p) {
-        throw ov::Exception("empty pointer");
-    }
+    OPENVINO_ASSERT(p, "empty pointer");
     return std::forward<Ptr>(p);
 }
 
@@ -161,7 +155,7 @@ public:
 
         std::stringstream ss;
         ss << "Type is not supported: [" << lhs->get_type_info().name << "]";
-        throw ov::Exception(ss.str());
+        OPENVINO_THROW(ss.str());
     }
 
     bool parameter_and_input_match(size_t num_iterations) const {
@@ -202,7 +196,7 @@ public:
 
         std::stringstream ss;
         ss << "Type is not supported: [" << m_description->get_type_info().name << "]";
-        throw ov::Exception(ss.str());
+        OPENVINO_THROW(ss.str());
     }
 
     static bool equal_parameters(const Parameter* lhs, const Parameter* rhs) {
@@ -257,7 +251,7 @@ public:
 
         std::stringstream ss;
         ss << "Type is not supported: [" << lhs->get_type_info().name << "]";
-        throw ov::Exception(ss.str());
+        OPENVINO_THROW(ss.str());
     }
 
     bool result_and_output_match(size_t num_iterations) const {
@@ -292,7 +286,7 @@ public:
 
         std::stringstream ss;
         ss << "Type is not supported: [" << m_description->get_type_info().name << "]";
-        throw ov::Exception(ss.str());
+        OPENVINO_THROW(ss.str());
     }
 
     static bool equal_results(const Result* lhs, const Result* rhs) {
@@ -639,7 +633,7 @@ Comparator::Result Comparator::compare(const std::shared_ptr<ngraph::Function>& 
                                              "' is not a variable - graph comparison is not supported");
                     }
                     auto name2 = assign2->get_variable_id();
-                    if (name2.find(name1) != std::string::npos || name1.find(name2) != std::string::npos) {
+                    if (name2 == name1) {
                         found_sink2 = sink2;
                         break;
                     }
@@ -697,7 +691,8 @@ Comparator::Result Comparator::compare(ngraph::Node* node1, ngraph::Node* node2,
     auto type_info2 = node2->get_type_info();
 
     if (!compare_type_info(type_info1, type_info2)) {
-        return Result::error(typeInfoToStr(type_info1) + " != " + typeInfoToStr(type_info2));
+        return Result::error(name(node1) + " and " + name(node2) + "have different type info: " +
+                             typeInfoToStr(type_info1) + " != " + typeInfoToStr(type_info2));
     }
 
     auto subgraph1 = dynamic_cast<ov::op::util::SubGraphOp*>(node1);
@@ -806,6 +801,14 @@ void Comparator::compare_outputs(ngraph::Node* node1, ngraph::Node* node2, std::
         if (should_compare(CmpValues::RUNTIME_KEYS) && !compare_rt_keys(node1->output(i), node2->output(i), err_log)) {
             err_log << "Different runtime info detected at output(" << i << ")\n"
                     << name(node1) << " and " << name(node2) << " not equal runtime info." << std::endl;
+        }
+
+        if (should_compare(CmpValues::CONSUMERS_COUNT)) {
+            if (node1->output(i).get_target_inputs().size() != node2->output(i).get_target_inputs().size()) {
+                err_log << "Different consumers number detected\n"
+                        << name(node1) << " Output(" << i << ") " << node1->output(i).get_target_inputs().size() << " and "
+                        << name(node2) << " Output(" << i << ") " << node2->output(i).get_target_inputs().size() << std::endl;
+            }
         }
     }
 }

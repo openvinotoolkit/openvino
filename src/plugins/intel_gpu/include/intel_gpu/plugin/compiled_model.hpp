@@ -24,8 +24,9 @@ class CompiledModel : public InferenceEngine::ExecutableNetworkThreadSafeDefault
 public:
     typedef std::shared_ptr<CompiledModel> Ptr;
 
-    CompiledModel(InferenceEngine::CNNNetwork &network, InferenceEngine::RemoteContext::Ptr context, const ExecutionConfig& config);
-    CompiledModel(std::istream& networkModel, InferenceEngine::RemoteContext::Ptr context, const ExecutionConfig& config);
+    CompiledModel(InferenceEngine::CNNNetwork &network, InferenceEngine::RemoteContext::Ptr context, const ExecutionConfig& config,
+                  InferenceEngine::InputsDataMap* inputs = nullptr, InferenceEngine::OutputsDataMap* outputs = nullptr);
+    CompiledModel(cldnn::BinaryInputBuffer& ib, InferenceEngine::RemoteContext::Ptr context, const ExecutionConfig& config);
 
     void Export(std::ostream& networkModel) override;
     std::shared_ptr<ngraph::Function> GetExecGraphInfo() override;
@@ -46,9 +47,7 @@ public:
     ExecutionConfig m_config;
     InferenceEngine::ITaskExecutor::Ptr m_taskExecutor;
     InferenceEngine::ITaskExecutor::Ptr m_waitExecutor;
-
-private:
-    bool is_serializable();
+    InferenceEngine::CNNNetwork m_network;
 };
 
 }  // namespace intel_gpu

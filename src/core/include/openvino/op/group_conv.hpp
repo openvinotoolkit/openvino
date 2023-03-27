@@ -14,7 +14,7 @@ namespace v1 {
 /// \brief Batched convolution operation, with optional window dilation and stride.
 class OPENVINO_API GroupConvolution : public Op {
 public:
-    OPENVINO_OP("GroupConvolution", "opset1", op::Op, 1);
+    OPENVINO_OP("GroupConvolution", "opset1", op::Op);
 
     /// \brief Constructs a batched convolution operation.
     GroupConvolution() = default;
@@ -88,10 +88,6 @@ public:
     void set_auto_pad(const PadType& auto_pad) {
         m_auto_pad = auto_pad;
     }
-    /// \return The default value for Convolution.
-    OPENVINO_SUPPRESS_DEPRECATED_START
-    std::shared_ptr<Node> get_default_value() const override;
-    OPENVINO_SUPPRESS_DEPRECATED_END
 
 protected:
     Strides m_strides;
@@ -130,7 +126,7 @@ private:
 /// \brief Data batch backprop for batched convolution operation.
 class OPENVINO_API GroupConvolutionBackpropData : public Op {
 public:
-    OPENVINO_OP("GroupConvolutionBackpropData", "opset1", op::Op, 1);
+    OPENVINO_OP("GroupConvolutionBackpropData", "opset1", op::Op);
 
     /// \brief Constructs a batched-convolution data batch-backprop operation.
     GroupConvolutionBackpropData();

@@ -73,5 +73,23 @@ struct custom_gpu_primitive : public primitive_base<custom_gpu_primitive> {
     const std::vector<size_t> lws;
     /// @brief Source code for the kernel
     const primitive_id_arr kernels_code;
+
+    size_t hash() const override {
+        size_t seed = primitive::hash();
+        seed = hash_combine(seed, kernel_entry_point);
+        seed = hash_combine(seed, kernels_code.size());
+        return seed;
+    }
+
+    bool operator==(const primitive& rhs) const override {
+        if (!compare_common_params(rhs))
+            return false;
+
+        auto rhs_casted = downcast<const custom_gpu_primitive>(rhs);
+
+        return kernel_entry_point == rhs_casted.kernel_entry_point &&
+               build_options == rhs_casted.build_options &&
+               kernels_code.size() == rhs_casted.kernels_code.size();
+    }
 };
 }  // namespace cldnn

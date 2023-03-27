@@ -58,10 +58,8 @@ public:
         m_autob = autob;
     }
     bool visit_attributes(AttributeVisitor& visitor) override;
-    OPENVINO_SUPPRESS_DEPRECATED_START
-    bool evaluate_lower(const HostTensorVector& outputs) const override;
-    bool evaluate_upper(const HostTensorVector& outputs) const override;
-    OPENVINO_SUPPRESS_DEPRECATED_END
+    bool evaluate_lower(TensorVector& outputs) const override;
+    bool evaluate_upper(TensorVector& outputs) const override;
 
 private:
     AutoBroadcastSpec m_autob;

@@ -19,7 +19,6 @@ addIeTarget(
             PRIVATE
                 ngraphFunctions
                 openvino::runtime::dev
-                inference_engine_legacy
         ADD_CPPLINT
         DEPENDENCIES
             ngraphFunctions

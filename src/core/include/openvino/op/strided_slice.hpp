@@ -18,7 +18,7 @@ namespace v1 {
 /// \ingroup ov_ops_cpp_api
 class OPENVINO_API StridedSlice : public Op {
 public:
-    OPENVINO_OP("StridedSlice", "opset1", op::Op, 1);
+    OPENVINO_OP("StridedSlice", "opset1", op::Op);
 
     StridedSlice() = default;
 
@@ -113,9 +113,9 @@ public:
     OPENVINO_SUPPRESS_DEPRECATED_END
     bool has_evaluate() const override;
     OPENVINO_SUPPRESS_DEPRECATED_START
-    bool evaluate_lower(const HostTensorVector& outputs) const override;
-    bool evaluate_upper(const HostTensorVector& outputs) const override;
     OPENVINO_SUPPRESS_DEPRECATED_END
+    bool evaluate_lower(TensorVector& outputs) const override;
+    bool evaluate_upper(TensorVector& outputs) const override;
     bool evaluate_label(TensorLabelVector& output_labels) const override;
 
 private:

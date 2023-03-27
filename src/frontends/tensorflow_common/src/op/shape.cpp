@@ -6,6 +6,7 @@
 #include "openvino/opsets/opset8.hpp"
 
 using namespace std;
+using namespace ov;
 using namespace ov::opset8;
 
 namespace ov {
@@ -14,11 +15,12 @@ namespace tensorflow {
 namespace op {
 
 ov::OutputVector translate_shape_op(const NodeContext& node) {
-    auto data = node.get_input(0);
-    auto out_type = node.get_attribute<ov::element::Type>("out_type");
-    auto res = make_shared<ShapeOf>(data, out_type);
-    set_node_name(node.get_name(), res);
-    return res->outputs();
+    default_op_checks(node, 1, {"Shape", "SHAPE"});
+    auto input = node.get_input(0);
+    auto out_type = node.get_attribute<element::Type>("out_type", element::i32);
+    auto shapeof = make_shared<ShapeOf>(input, out_type);
+    set_node_name(node.get_name(), shapeof);
+    return {shapeof};
 }
 
 }  // namespace op

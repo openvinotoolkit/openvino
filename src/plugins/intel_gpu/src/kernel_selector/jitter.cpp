@@ -215,6 +215,12 @@ std::string toCodeString(double val) {
     return buf;
 }
 
+std::string toShapeInfoString(size_t arg_idx, size_t data_idx_at_6d, bool is_output, size_t num_of_inputs) {
+    size_t actual_idx = (num_of_inputs * 6 * (is_output ? 1 : 0)) + (6 * arg_idx) + data_idx_at_6d;
+    snprintf(buf, sizeof(buf), "shape_info[%zu]", actual_idx);
+    return buf;
+}
+
 JitDefinitions JitConstants::GetDefinitions() const {
     JitDefinitions definitons;
     definitons.reserve(_constants.size() * 6);  // assuming max 6 pairs per jit_constant
@@ -235,9 +241,10 @@ protected:
     explicit TensorBaseTJitConstant(const std::string& name) : JitConstant(name) {}
 
 public:
+    using JitConstant::GetDefinitions;
+
     JitDefinitions GetDefinitions(const Tensor::TensorBaseT<DType, Layout>& t) const {
         JitDefinitions definitions{
-            {_name + "_OFFSET", toCodeString(t.GetFirstElementOffset())},
             {_name + "_VIEW_OFFSET", toCodeString(t.GetViewOffset())},
             {_name + "_LENGTH", toCodeString(t.LogicalSize())},
             {_name + "_DIMS", toCodeString(t.GetDims().size())},
@@ -250,6 +257,7 @@ public:
         definitions.insert(definitions.end(), type_defs.begin(), type_defs.end());
 
         if (!t.is_dynamic()) {
+            definitions.push_back({_name + "_OFFSET", toCodeString(t.GetFirstElementOffset())});
             definitions.push_back({_name + "_SIZE", toCodeString(t.GetDims().size())});
             definitions.push_back(
                 {_name + "_SIZES_DATA",
@@ -257,13 +265,34 @@ public:
             definitions.push_back(
                 {_name + "_PITCHES",
                 toVectorString(t.GetDims(), "size_t", KERNEL_SELECTOR_TENSOR_DIM_MAX, 1, [](const Tensor::Dim& d) { return d.pitch; })});
+        } else {
+            // calculate tensor offset
+            std::vector<std::string> padded_pitches = {
+                toVectorMulString({_name + "_X_PITCH", _name + "_PAD_BEFORE_SIZE_X"}),
+                toVectorMulString({_name + "_Y_PITCH", _name + "_PAD_BEFORE_SIZE_Y"}),
+                toVectorMulString({_name + "_Z_PITCH", _name + "_PAD_BEFORE_SIZE_Z"}),
+                toVectorMulString({_name + "_W_PITCH", _name + "_PAD_BEFORE_SIZE_W"}),
+                toVectorMulString({_name + "_FEATURE_PITCH", _name + "_PAD_BEFORE_FEATURE_NUM"}),
+                toVectorMulString({_name + "_BATCH_PITCH", _name + "_PAD_BEFORE_BATCH_NUM"})};
+            std::string offset_str = "(";
+            for (size_t i = 0; i < padded_pitches.size(); ++i) {
+                offset_str += padded_pitches[i];
+                if (i < padded_pitches.size() - 1)
+                    offset_str += " + ";
+            }
+            offset_str += ")";
+            definitions.push_back({_name + "_OFFSET", offset_str});
         }
         definitions.push_back(
             {_name + "_PAD_BEFORE",
-             toVectorString(t.GetDims(), "size_t", KERNEL_SELECTOR_TENSOR_DIM_MAX, 0, [](const Tensor::Dim& d) { return d.pad.before; })});
+             toVectorString(t.GetDims(), "size_t", KERNEL_SELECTOR_TENSOR_DIM_MAX, 0, [](const Tensor::Dim& d) {
+                 return d.pad.before;
+             })});
         definitions.push_back(
             {_name + "_PAD_AFTER",
-             toVectorString(t.GetDims(), "size_t", KERNEL_SELECTOR_TENSOR_DIM_MAX, 0, [](const Tensor::Dim& d) { return d.pad.after; })});
+             toVectorString(t.GetDims(), "size_t", KERNEL_SELECTOR_TENSOR_DIM_MAX, 0, [](const Tensor::Dim& d) {
+                 return d.pad.after;
+             })});
 
         return definitions;
     }
@@ -305,18 +334,6 @@ JitDefinitions DataTensorJitConstant::GetDefinitions() const {
         auto f_padded = toCodeString(_tensor.Feature(), idx_offset + 1, true);
         auto b_padded = toCodeString(_tensor.Batch(), idx_offset + 0, true);
 
-        auto multiply = [](std::vector<std::string> dims) -> std::string {
-            std::string res = "(";
-            for (size_t i = 0; i < dims.size(); i++) {
-                auto& d = dims[i];
-                res += d;
-                if (i != dims.size() - 1)
-                    res += "*";
-            }
-            res += ")";
-            return res;
-        };
-
         definitions = {
             {_name + "_SIZE_X", x},
             {_name + "_SIZE_Y", y},
@@ -343,10 +360,10 @@ JitDefinitions DataTensorJitConstant::GetDefinitions() const {
             _tensor.GetLayout() == DataLayout::bfwzyx) {
             definitions.push_back({_name + "_X_PITCH", "1"});
             definitions.push_back({_name + "_Y_PITCH", x_padded});
-            definitions.push_back({_name + "_Z_PITCH", multiply({x_padded, y_padded})});
-            definitions.push_back({_name + "_W_PITCH", multiply({x_padded, y_padded, z_padded})});
-            definitions.push_back({_name + "_FEATURE_PITCH", multiply({x_padded, y_padded, z_padded, w_padded})});
-            definitions.push_back({_name + "_BATCH_PITCH", multiply({x_padded, y_padded, z_padded, w_padded, f_padded})});
+            definitions.push_back({_name + "_Z_PITCH", toVectorMulString({x_padded, y_padded})});
+            definitions.push_back({_name + "_W_PITCH", toVectorMulString({x_padded, y_padded, z_padded})});
+            definitions.push_back({_name + "_FEATURE_PITCH", toVectorMulString({x_padded, y_padded, z_padded, w_padded})});
+            definitions.push_back({_name + "_BATCH_PITCH", toVectorMulString({x_padded, y_padded, z_padded, w_padded, f_padded})});
         } else {
             OPENVINO_ASSERT(false, "[GPU] Jitter couldn't generate dynamic pitches for given layout");
         }
@@ -555,14 +572,9 @@ JitDefinitions DataTensorJitConstant::GetDefinitions() const {
 
     std::string offset = toCodeString(_tensor.GetFirstElementOffset());
     if (_tensor.LogicalSize() == 1 && !_tensor.is_dynamic()) {
-        // if tensor contains single element we can always return 0 for safe function
-        if (_tensor.PitchesDifferFromLogicalDims()) {
-            definitions.push_back({ safe_index_func_name, offset });
-            definitions.push_back({ index_func_name, offset });
-        } else {
-            definitions.push_back({ safe_index_func_name, "0" });
-            definitions.push_back({ index_func_name, "0" });
-        }
+        // if tensor contains single element we can always return first element offset for safe function
+        definitions.push_back({ safe_index_func_name, offset });
+        definitions.push_back({ index_func_name, offset });
     } else if (_tensor.LogicalSize() == _tensor.Feature().v && !_tensor.is_dynamic()) {
         // We support broadcast only if corresponding dimension is equal to 1.
         // Otherwise, dimensions should be equal and using "f" should be safe.
@@ -1149,7 +1161,10 @@ JitConstants MakeActivationJitConstants(ActivationFunction activation_function,
                 jitConstants.AddConstant(MakeJitConstant(macro_def, "(input)"));
             break;
         case ActivationFunction::CEIL:
-            jitConstants.AddConstant(MakeJitConstant(macro_def, "(ceil(input))"));
+            if (out_dt == Datatype::F32 || out_dt == Datatype::F16)
+                jitConstants.AddConstant(MakeJitConstant(macro_def, "(ceil(input))"));
+            else
+                jitConstants.AddConstant(MakeJitConstant(macro_def, "(input)"));
             break;
         case ActivationFunction::NEGATIVE:
             jitConstants.AddConstant(MakeJitConstant(macro_def, "(-input)"));

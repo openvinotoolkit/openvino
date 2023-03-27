@@ -13,6 +13,8 @@
 #include "resample_inst.h"
 #include "loop_inst.h"
 #include "non_max_suppression_inst.h"
+#include "experimental_detectron_roi_feature_extractor_inst.hpp"
+#include "border_inst.h"
 
 #include "pass_manager.h"
 #include "program_helpers.h"
@@ -196,6 +198,16 @@ bool concat_in_place_optimization::match(concatenation_node& node) {
         if (input.first->get_users().size() > 2)
             return false;
 
+        // If sibling is using onednn impl and batch > 1, the onednn impl cannot process the implicit concat'ed buffer.
+        // Onednn impls can process implicit concat'ed buffer only through buffer pointer manipulation.
+        if (node.get_output_layout().batch() > 1) {
+            for (auto& sib : input.first->get_users()) {
+                if (sib->get_preferred_impl_type() == impl_types::onednn) {
+                    return false;
+                }
+            }
+        }
+
         // Check that input isn't optimized out concatenation along different axis.
         if (input.first->is_type<concatenation>() && input.first->can_be_optimized() &&
             input.first->as<concatenation>().get_primitive()->axis != concat_axis)
@@ -361,6 +373,8 @@ void prepare_buffer_fusing::run(program& p) {
                     if (can_reshape_be_optimized(reshape_node))
                         return;
                 }
+                if (user->is_type<experimental_detectron_roi_feature_extractor>() && user->get_dependency_index(node) == 0)
+                    return;
             }
 
             if (node.get_dependencies().size() == 1 && node.get_users().size() > 0) {
@@ -376,8 +390,8 @@ void prepare_buffer_fusing::run(program& p) {
                 auto input_layout = node.get_dependency(0).get_output_layout();
                 const auto& crop_size = crop_layout.get_tensor();
                 const auto& out_padd = crop_layout.data_padding;
-                const auto opt_lower_pad = crop_prim->offsets.feature[0];
-                const auto opt_upper_pad = input_layout.feature() - crop_prim->offsets.feature[0] - crop_size.feature[0];
+                auto opt_lower_pad = crop_prim->offsets.feature[0];
+                auto opt_upper_pad = input_layout.feature() - crop_prim->offsets.feature[0] - crop_size.feature[0];
 
                 // do not optimize crop if paddings are not properly aligned
                 for (auto& usr : node.get_users()) {
@@ -415,6 +429,20 @@ void prepare_buffer_fusing::run(program& p) {
                     //  crop output buffer
                     //  |_low_pad_|__data_size__|___|<-upper pad
 
+                    //  feature num of pad should be accumulated if dep has been optimized out.
+                    auto& dep = node.get_dependency(0);
+                    if (dep.is_type<crop>() && dep.can_be_optimized()) {
+                        auto dep_pad = dep.get_output_layout().data_padding;
+                        OPENVINO_ASSERT(
+                            dep_pad.lower_size().batch[0] == 0 && dep_pad.upper_size().batch[0] == 0 &&
+                            dep_pad.lower_size().spatial[0] == 0 && dep_pad.upper_size().spatial[0] == 0 &&
+                            dep_pad.lower_size().spatial[1] == 0 && dep_pad.upper_size().spatial[1] == 0,
+                            "batch, y, x of pad should be aligned to 0.");
+
+                        opt_lower_pad += dep_pad.lower_size().feature[0];
+                        opt_upper_pad += dep_pad.upper_size().feature[0];
+                    }
+
                     node.set_output_padding(
                         padding({out_padd.lower_size().batch[0],
                                  opt_lower_pad,
@@ -440,7 +468,7 @@ void prepare_buffer_fusing::run(program& p) {
         if (!can_optimize(node))
             continue;
 
-        program_helpers::do_for_types<reshape>(*node, [&p](reshape_node& node) {
+        program_helpers::do_for_types<reshape>(*node, [](reshape_node& node) {
             node.get_output_layout();
             node.can_be_optimized(can_reshape_be_optimized(node));
         });
