@@ -62,6 +62,21 @@ def get_test_command_line_args():
             break
     return command_line_args
 
+def get_device_by_args(args: list):
+    device = None
+    is_device = False
+    for argument in args:
+        if "--device" in argument:
+            is_device = True
+            if argument.find("=") == -1:
+                continue
+            device = argument[argument.find("=")+1:]
+            break
+        if is_device and argument[0] != "-":
+            device = argument
+            break
+    return device
+
 # Class to read test cache    
 class TestStructure:
     _name = ""
@@ -74,7 +89,7 @@ class TestStructure:
 class TaskManager:
     process_timeout = -1
 
-    def __init__(self, command_list:list, working_dir: os.path, prev_run_cmd_length = 0):
+    def __init__(self, command_list:list, working_dir: os.path, prev_run_cmd_length=0, device="None", available_devices=list()):
         self._command_list = command_list
         self._process_list = list()
         self._workers = list()
@@ -82,6 +97,9 @@ class TaskManager:
         self._log_filename = os.path.join(working_dir, f"log_{LOG_NAME_REPLACE_STR}.log")
         self._prev_run_cmd_length = prev_run_cmd_length
         self._idx = 0
+        self._device = device
+        self._available_devices = available_devices
+        self._device_cnt = len(self._available_devices)
 
     def __create_thread(self, func):
         thread = threading.Thread(target=func)
@@ -96,6 +114,8 @@ class TaskManager:
         log_file_name = self._log_filename.replace(LOG_NAME_REPLACE_STR, str(self._idx + self._prev_run_cmd_length))
         with open(log_file_name, "w") as log_file:
             args = self._command_list[self._idx]
+            if self._device_cnt > 1:
+                args = args.replace(self._device, self._available_devices[self._idx % self._device_cnt])
             if not constants.IS_WIN:
                 args = shlex.split(self._command_list[self._idx])
             worker = self.__create_thread(
@@ -115,13 +135,17 @@ class TaskManager:
                         logger.warning(f"Process {pid} exceed time limetattion per process")
                         self._process_list[pid].kill()
                     self._process_list[pid].wait(timeout=0)
+                    device = get_device_by_args(self._process_list[pid].args)
+                    logger.warning(f"DEBUG {device}")
                     # logger.info(f"{self._idx}/{len(self._command_list)} is started")
-                    return pid
+                    return pid, device
                 except TimeoutExpired:
                     continue
 
-    def __update_process(self, pid:int, log_file):
+    def __update_process(self, pid:int, log_file, device):
         args = self._command_list[self._idx]
+        if self._device_cnt > 1:
+            args = args.replace(self._device, device)
         if not constants.IS_WIN:
             args = shlex.split(self._command_list[self._idx])
         self._process_list[pid] = Popen(args, shell=constants.IS_WIN, stdout=log_file, stderr=log_file)
@@ -129,10 +153,10 @@ class TaskManager:
     def update_worker(self):
         if self._idx >= len(self._command_list):
             return False
-        pid = self.__find_free_process()
+        pid, device = self.__find_free_process()
         log_file_name = self._log_filename.replace(LOG_NAME_REPLACE_STR, str(self._idx + self._prev_run_cmd_length))
         with open(log_file_name, "w") as log_file:
-            self._workers[pid] = self.__create_thread(self.__update_process(pid, log_file))
+            self._workers[pid] = self.__create_thread(self.__update_process(pid, log_file, device))
             self._workers[pid].join()
             self._timers[pid] = datetime.datetime.now()
         self._idx += 1
@@ -358,29 +382,18 @@ class TestParallelRunner:
         return cached_test_list, runtime_test_list
 
     def __generate_commands(self, filters: list()):
-        is_device = False
         commands = [f'{self._command} --gtest_filter={filter}' for filter in filters]
+        self._device = get_device_by_args(self._command.split())
         if has_python_api:
-            for argument in self._command.split():
-                if "--device" in argument:
-                    is_device = True
-                    if argument.find("=") == -1:
-                        continue
-                    self._device = argument[argument.find("=")+1:]
-                    break
-                if is_device and argument[0] != "-":
-                    self._device = argument
-                    break
             self._available_devices = get_available_devices(self._device)
             logger.info(f"Tests will be run over devices: {self._available_devices} instead of {self._device}")
-            device_cnt = len(self._available_devices)
-            for i in range(len(commands)):
-                commands[i] = commands[i].replace(self._device, self._available_devices[i % device_cnt])
+        else:
+            self._available_devices = [self._device]
         return commands
         
     def __execute_tests(self, filters: list(), prev_worker_cnt = 0):
         commands = self.__generate_commands(filters)
-        task_manager = TaskManager(commands, self._working_dir, prev_worker_cnt)
+        task_manager = TaskManager(commands, self._working_dir, prev_worker_cnt, self._device, self._available_devices)
         for _ in progressbar(range(self._worker_num), "Worker initialization: ", 40):
             task_manager.init_worker()
         for _ in progressbar(range(len(commands) - self._worker_num), "Worker execution: ", 40):
