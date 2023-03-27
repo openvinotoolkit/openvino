@@ -11,8 +11,9 @@ namespace {
     const std::vector<std::map<std::string, std::string>> configs = {
             {},
     };
-    const std::vector<std::map<std::string, std::string>> autoMultiConfigs = {
-        {{ov::device::priorities.name(), CommonTestUtils::DEVICE_CPU}}};
+    const std::vector<std::map<std::string, std::string>> multiConfigs = {
+            {{ InferenceEngine::MultiDeviceConfigParams::KEY_MULTI_DEVICE_PRIORITIES , CommonTestUtils::DEVICE_CPU}}
+    };
 
     const std::vector<std::map<std::string, std::string>> heteroConfigs = {
             {{"TARGET_FALLBACK", CommonTestUtils::DEVICE_CPU}}};
@@ -29,17 +30,17 @@ namespace {
                                      ::testing::ValuesIn(heteroConfigs)),
                              ExecutableNetworkBaseTest::getTestCaseName);
 
-    INSTANTIATE_TEST_SUITE_P(smoke_Multi_BehaviorTests, AutoMultiExecutableNetworkBaseTest,
+    INSTANTIATE_TEST_SUITE_P(smoke_Multi_BehaviorTests, ExecutableNetworkBaseTest,
                             ::testing::Combine(
                                     ::testing::Values(CommonTestUtils::DEVICE_MULTI),
-                                    ::testing::ValuesIn(autoMultiConfigs)),
-                            AutoMultiExecutableNetworkBaseTest::getTestCaseName);
+                                    ::testing::ValuesIn(multiConfigs)),
+                            ExecutableNetworkBaseTest::getTestCaseName);
 
-    INSTANTIATE_TEST_SUITE_P(smoke_Auto_BehaviorTests, AutoMultiExecutableNetworkBaseTest,
+    INSTANTIATE_TEST_SUITE_P(smoke_Auto_BehaviorTests, ExecutableNetworkBaseTest,
                             ::testing::Combine(
                                     ::testing::Values(CommonTestUtils::DEVICE_AUTO),
-                                    ::testing::ValuesIn(autoMultiConfigs)),
-                            AutoMultiExecutableNetworkBaseTest::getTestCaseName);
+                                    ::testing::ValuesIn(multiConfigs)),
+                            ExecutableNetworkBaseTest::getTestCaseName);
 
     const std::vector<InferenceEngine::Precision> netPrecisions = {
             InferenceEngine::Precision::FP32,

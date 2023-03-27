@@ -249,9 +249,9 @@ void AutoSchedule::init(const ScheduleContext::Ptr& sContext) {
                       std::end(validDevices),
                       std::back_inserter(_autoSContext->_devicePriorities));
             // Total number of devices in CTPUT
-            auto nCTputDeviceNums = validDevices.size();
+            _nCTputDeviceNums = validDevices.size();
             // Generate contexts for loading each device
-            _pCTPUTLoadContext.reset(new AutoLoadContext[nCTputDeviceNums]);
+            _pCTPUTLoadContext.reset(new AutoLoadContext[_nCTputDeviceNums]);
             int idx = 0;
             DeviceInformation cpuDeviceInformation;
             for (auto& device : validDevices) {
@@ -271,6 +271,10 @@ void AutoSchedule::init(const ScheduleContext::Ptr& sContext) {
                 _pCTPUTLoadContext[idx].deviceInfo.config[CONFIG_KEY(PERFORMANCE_HINT)] =
                     IE::PluginConfigParams::THROUGHPUT;
             }
+        }
+        if (_autoSContext->_LogTag == "MULTI") {
+            // MULTI's performance hint always is tput
+            _autoSContext->_performanceHint = IE::PluginConfigParams::THROUGHPUT;
         }
     } else {
         _loadContext[ACTUALDEVICE].deviceInfo =
@@ -318,29 +322,34 @@ void AutoSchedule::init(const ScheduleContext::Ptr& sContext) {
         // Handle device load failure in case of ctput
         if (isCumulative && !contextPtr->isLoadSuccess) {
             std::string failedDeviceName = contextPtr->deviceInfo.deviceName;
-            std::lock_guard<std::mutex> lock(_autoSContext->_confMutex);
-            const auto DeviceIter =
-                std::find_if(_autoSContext->_devicePriorities.begin(),
-                             _autoSContext->_devicePriorities.end(),
-                             [&](const DeviceInformation& d) -> bool {
-                                 return d.deviceName.find(failedDeviceName) != std::string::npos;
-                             });
-            // Remove failed device from _devicePriorities
-            if (DeviceIter != _autoSContext->_devicePriorities.end()) {
-                _autoSContext->_devicePriorities.erase(DeviceIter);
+            {
+                std::lock_guard<std::mutex> lock(_autoSContext->_fallbackMutex);
+                const auto DeviceIter =
+                    std::find_if(_autoSContext->_devicePriorities.begin(),
+                                _autoSContext->_devicePriorities.end(),
+                                [&](const DeviceInformation& d) -> bool {
+                                    return d.deviceName.find(failedDeviceName) != std::string::npos;
+                                });
+                // Remove failed device from _devicePriorities
+                if (DeviceIter != _autoSContext->_devicePriorities.end()) {
+                    _autoSContext->_devicePriorities.erase(DeviceIter);
+                }
             }
-            // Remove failed device from ov::device::priorities in config
-            auto it_prior = _autoSContext->_config.find(ov::device::priorities.name());
-            if (it_prior != _autoSContext->_config.end()) {
-                auto priorities = it_prior->second.as<std::string>();
-                size_t nPos = priorities.find(failedDeviceName);
-                if (nPos != std::string::npos) {
-                    // If need to delete failed device and "," then length plus 1
-                    size_t nNameLen = (nPos + failedDeviceName.length()) == priorities.length()
-                                   ? failedDeviceName.length()
-                                   : failedDeviceName.length() + 1;
-                    priorities.erase(nPos, nNameLen);
-                    it_prior->second = priorities;
+            {
+                std::lock_guard<std::mutex> lock(_autoSContext->_confMutex);
+                // Remove failed device from ov::device::priorities in config
+                auto it_prior = _autoSContext->_config.find(ov::device::priorities.name());
+                if (it_prior != _autoSContext->_config.end()) {
+                    auto priorities = it_prior->second.as<std::string>();
+                    size_t nPos = priorities.find(failedDeviceName);
+                    if (nPos != std::string::npos) {
+                        // If need to delete failed device and "," then length plus 1
+                        size_t nNameLen = (nPos + failedDeviceName.length()) == priorities.length()
+                                              ? failedDeviceName.length()
+                                              : failedDeviceName.length() + 1;
+                        priorities.erase(nPos, nNameLen);
+                        it_prior->second = priorities;
+                    }
                 }
             }
         }
@@ -648,7 +657,7 @@ void AutoSchedule::WaitFirstNetworkReady() {
     // devices loaded successfully in CTPUT
     if (_pCTPUTLoadContext) {
         int nLoadSucNums = 0;
-        for (size_t i = 0; i < _autoSContext->_devicePriorities.size(); i++) {
+        for (size_t i = 0; i < _nCTputDeviceNums; i++) {
             // check if device loaded successfully
             if (_pCTPUTLoadContext[i].isAlready) {
                 nLoadSucNums++;

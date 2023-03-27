@@ -43,8 +43,6 @@ protected:
     std::map<std::string, std::string> configuration;
 };
 
-using AutoMultiExecutableNetworkBaseTest = ExecutableNetworkBaseTest;
-
 TEST_P(ExecutableNetworkBaseTest, canLoadCorrectNetworkToGetExecutable) {
     ASSERT_NO_THROW(auto execNet = ie->LoadNetwork(cnnNet, target_device, configuration));
 }
@@ -296,7 +294,7 @@ TEST_P(ExecutableNetworkBaseTest, pluginDoesNotChangeOriginalNetwork) {
     compare_functions(cnnNet.getFunction(), referenceNetwork);
 }
 
-TEST_P(AutoMultiExecutableNetworkBaseTest, canLoadCorrectNetworkToGetMetricAndCheckConfig) {
+TEST_P(ExecutableNetworkBaseTest, canLoadCorrectNetworkToGetMetricAndCheckConfig) {
     auto execNet = ie->LoadNetwork(cnnNet, target_device, configuration);
     for (const auto& configItem : configuration) {
         InferenceEngine::Parameter param;

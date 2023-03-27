@@ -198,7 +198,7 @@ TEST_P(SetPropLoadNetWorkGetPropTests, setConfigAndLoadNetWorkSetGetPropertyTest
     InferenceEngine::ExecutableNetwork exeNetWork;
     ASSERT_NO_THROW(exeNetWork = ie->LoadNetwork(cnnNet, target_device, loadNetWorkConfig));
 
-    //ie's setConfig and LoadNetwork should not affect each other, for property settings
+    //ie's setConfig and LoadNetwork should not affect each other, for config settings
     for (const auto& property_item : loadNetWorkConfig) {
         InferenceEngine::Parameter exeNetProperty;
         ASSERT_NO_THROW(exeNetProperty = exeNetWork.GetConfig(property_item.first));
@@ -213,7 +213,7 @@ TEST_P(SetPropLoadNetWorkGetPropTests, setConfigAndLoadNetWorkSetGetPropertyTest
     }
 }
 
-TEST_P(AutoMultiSetPropLoadNetWorkGetPropTests, AutoMultisetConfigAndLoadNetWorkSetGetPropertyTest) {
+TEST_P(SetConfigGetConfigLoadNetWorkGetMetricTests, setConfigGetConfigAndLoadNetWorkGetMetricTests) {
     ASSERT_NO_THROW(ie->SetConfig(configuration, target_device));
 
     InferenceEngine::ExecutableNetwork exeNetWork;
@@ -226,7 +226,7 @@ TEST_P(AutoMultiSetPropLoadNetWorkGetPropTests, AutoMultisetConfigAndLoadNetWork
         ASSERT_EQ(property_item.second, property.as<std::string>());
     }
 
-    //ie's setConfig and LoadNetwork should not affect each other, for property settings
+    //ie's setConfig and LoadNetwork should not affect each other, for config settings
     for (const auto& property_item : loadNetWorkConfig) {
         InferenceEngine::Parameter exeNetProperty;
         ASSERT_NO_THROW(exeNetProperty = exeNetWork.GetMetric(property_item.first));

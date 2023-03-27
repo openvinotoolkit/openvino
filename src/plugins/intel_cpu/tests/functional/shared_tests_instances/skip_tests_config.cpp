@@ -78,8 +78,6 @@ std::vector<std::string> disabledTestPatterns() {
         R"(.*(Auto|Multi).*Behavior.*OVCompiledModelPropertiesIncorrectTests.*CanNotCompileModelWithIncorrectProperties.*)",
         R"(.*OVExecutableNetworkBaseTest.*(CanGetInputsInfoAndCheck|CanSetConfigToExecNet).*)",
         R"(.*Behavior.*CorrectConfigCheck.*(canSetConfigAndCheckGetConfig|canSetConfigTwiceAndCheckGetConfig).*CPU_BIND_THREAD=YES.*)",
-        // Auto|Multi does not check user-set config
-        R"(.*(Auto|Multi).*Behavior.*ExecutableNetworkBaseTest.*canLoadCorrectNetworkToGetExecutableWithIncorrectConfig.*)",
         // Issue: 72021 Unreasonable abs_threshold for comparing bf16 results
         R"(.*smoke_Reduce.*type=(Prod|Min).*netPRC=(BF|bf)16.*)",
         // TODO: 56520 Accuracy mismatch
@@ -91,6 +89,7 @@ std::vector<std::string> disabledTestPatterns() {
         R"(.*(Auto|Multi).*Behavior.*ExecutableNetworkBaseTest.*CanCreateTwoExeNetworksAndCheckFunction.*)",
         R"(.*(Auto|Multi).*Behavior.*ExecutableNetworkBaseTest.*(CheckExecGraphInfoBeforeExecution|CheckExecGraphInfoAfterExecution).*)",
         R"(.*(Auto|Multi).*Behavior.*ExecutableNetworkBaseTest.*CheckExecGraphInfoSerialization.*)",
+        R"(.*(Auto|Multi).*Behavior.*ExecutableNetworkBaseTest.*canLoadCorrectNetworkToGetExecutableAndCheckConfig.*)",
         R"(.*Behavior.*ExecutableNetworkBaseTest.*canExport.*)",
         R"(.*Behavior.*ExecutableNetworkBaseTest.*canSetConfigToExecNetWithIncorrectConfig.*)",
         R"(.*Hetero.*Behavior.*ExecutableNetworkBaseTest.*ExecGraphInfo.*)",

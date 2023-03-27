@@ -30,8 +30,6 @@ std::vector<std::string> disabledTestPatterns() {
         R"(.*OVClassExecutableNetworkGetMetricTest_EXEC_DEVICES.*CanGetExecutionDeviceInfo.*)",
         R"(.*OVClassHeteroExecutableNetworkGetMetricTest_SUPPORTED_CONFIG_KEYS.*GetMetricNoThrow.*)",
         R"(.*OVClassHeteroExecutableNetworkGetMetricTest_SUPPORTED_METRICS.*GetMetricNoThrow.*)",
-        // Auto|Multi does not check user-set config
-        R"(.*(Auto|Multi).*OVExecutableNetworkBaseTest.*canLoadCorrectNetworkToGetExecutableWithIncorrectConfig.*)",
 
         // TODO: Round with f16 is not supported
         R"(.*smoke_Hetero_BehaviorTests.*OVExecGraphImportExportTest.*readFromV10IR.*)",
