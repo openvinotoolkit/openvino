@@ -199,7 +199,7 @@ Create an ``<ir_dir>`` directory to contain the model's Intermediate Representat
 
       mkdir ~/ir
 
-To save disk space for your IR file, you can apply :doc:`weights compression to FP16 <openvino_docs_MO_DG_FP16_Compression>`. To generate an IR with FP16 weights, run Model Optimizer with the ``--compress_to_fp16` option.
+To save disk space for your IR file, you can apply :doc:`weights compression to FP16 <openvino_docs_MO_DG_FP16_Compression>`. To generate an IR with FP16 weights, run Model Optimizer with the ``--compress_to_fp16`` option.
 
 Generic Model Optimizer script:
 
@@ -251,64 +251,64 @@ To run the **Image Classification** code sample with an input image using the IR
 
 1. Set up the OpenVINO environment variables:
 
-.. tab:: Linux
-
-   .. code-block:: sh
-
-      source  <INSTALL_DIR>/setupvars.sh
-
-.. tab:: Windows
-
-   .. code-block:: bat
-
-      <INSTALL_DIR>\setupvars.bat
-
-.. tab:: macOS
-
-   .. code-block:: sh
-
-      source <INSTALL_DIR>/setupvars.sh
+   .. tab:: Linux
+   
+      .. code-block:: sh
+   
+         source  <INSTALL_DIR>/setupvars.sh
+   
+   .. tab:: Windows
+   
+      .. code-block:: bat
+   
+         <INSTALL_DIR>\setupvars.bat
+   
+   .. tab:: macOS
+   
+      .. code-block:: sh
+   
+         source <INSTALL_DIR>/setupvars.sh
 
 2. Go to the code samples release directory created when you built the samples earlier:
 
-.. tab:: Linux
-
-   .. code-block:: sh
-
-      cd ~/openvino_cpp_samples_build/intel64/Release
-
-.. tab:: Windows
-
-   .. code-block:: bat
-
-      cd  %USERPROFILE%\Documents\Intel\OpenVINO\openvino_samples_build\intel64\Release
-
-.. tab:: macOS
-
-   .. code-block:: sh
-
-      cd ~/openvino_cpp_samples_build/intel64/Release
-
+   .. tab:: Linux
+   
+      .. code-block:: sh
+   
+         cd ~/openvino_cpp_samples_build/intel64/Release
+   
+   .. tab:: Windows
+   
+      .. code-block:: bat
+   
+         cd  %USERPROFILE%\Documents\Intel\OpenVINO\openvino_samples_build\intel64\Release
+   
+   .. tab:: macOS
+   
+      .. code-block:: sh
+   
+         cd ~/openvino_cpp_samples_build/intel64/Release
+   
 3. Run the code sample executable, specifying the input media file, the IR for your model, and a target device for performing inference:
 
-.. tab:: Linux
-
-   .. code-block:: sh
-
-      classification_sample_async -i <path_to_media> -m <path_to_model> -d <target_device>
-
-.. tab:: Windows
-
-   .. code-block:: bat
-
-      classification_sample_async.exe -i <path_to_media> -m <path_to_model> -d <target_device>
-
-.. tab:: macOS
-
-   .. code-block:: sh
-
-      classification_sample_async -i <path_to_media> -m <path_to_model> -d <target_device>
-
+   .. tab:: Linux
+   
+      .. code-block:: sh
+   
+         classification_sample_async -i <path_to_media> -m <path_to_model> -d <target_device>
+   
+   .. tab:: Windows
+   
+      .. code-block:: bat
+   
+         classification_sample_async.exe -i <path_to_media> -m <path_to_model> -d <target_device>
+   
+   .. tab:: macOS
+   
+      .. code-block:: sh
+   
+         classification_sample_async -i <path_to_media> -m <path_to_model> -d <target_device>
+   
 Examples
 ++++++++
 
@@ -385,7 +385,7 @@ Other Demos and Samples
 
 See the :doc:`Samples <openvino_docs_OV_UG_Samples_Overview>` page for more sample applications. Each sample page explains how the application works and shows how to run it. Use the samples as a starting point that can be adapted for your own application.
 
-OpenVINO also provides demo applications for using off-the-shelf models from :doc:`Open Model Zoo <model_zoo>`. Visit :doc`Open Model Zoo Demos <omz_demos>` if you'd like to see even more examples of how to run model inference with the OpenVINO API.
+OpenVINO also provides demo applications for using off-the-shelf models from :doc:`Open Model Zoo <model_zoo>`. Visit :doc:`Open Model Zoo Demos <omz_demos>` if you'd like to see even more examples of how to run model inference with the OpenVINO API.
 
 @endsphinxdirective
 

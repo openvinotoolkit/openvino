@@ -93,6 +93,7 @@ The applications include:
 
   - :doc:`Benchmark C++ Tool <openvino_inference_engine_samples_benchmark_app_README>`  
   
+
   Note that the Python version of the benchmark tool is currently available only through the :doc:`OpenVINO Development Tools installation <openvino_docs_install_guides_install_dev_tools>`. It is not created in the samples directory but can be launched with the following command: ``benchmark_app -m <model> -i <input> -d <device>``. For more information, check the :doc:`Benchmark Python Tool <openvino_inference_engine_tools_benchmark_tool_README>` documentation.
 
 .. note:: 
@@ -146,20 +147,20 @@ You can also build the sample applications manually:
 
 1. Navigate to a directory that you have write access to and create a samples build directory. This example uses a directory named ``build``:
 
-.. code-block:: sh
+   .. code-block:: sh
+      
+      mkdir build
    
-   mkdir build
-
-.. note:: 
-
-   If you run the Image Classification verification script during the installation, the C++ samples build directory is created in your home directory: ``~/openvino_cpp_samples_build/``
-
+   .. note:: 
+   
+      If you run the Image Classification verification script during the installation, the C++ samples build directory is created in your home directory: ``~/openvino_cpp_samples_build/``
+   
 2. Go to the created directory:
-
-.. code-block:: sh
    
-   cd build
-
+   .. code-block:: sh
+      
+      cd build
+   
 3. Run CMake to generate the Make files for release or debug configuration. For example, for C++ samples:
    
    - For release configuration:
@@ -176,9 +177,9 @@ You can also build the sample applications manually:
 
 4. Run ``make`` to build the samples:
 
-.. code-block:: sh
-   
-   make
+   .. code-block:: sh
+      
+      make
 
 For the release configuration, the sample application binaries are in ``<path_to_build_directory>/<architecture>/Release/``;
 for the debug configuration — in ``<path_to_build_directory>/<architecture>/Debug/``.
@@ -209,7 +210,7 @@ By default, the script automatically detects the highest Microsoft Visual Studio
 Once the build is completed, you can find sample binaries in the following folders:
 
 * C samples: ``C:\Users\<user>\Documents\Intel\OpenVINO\openvino_c_samples_build\<architecture>\Release``
-* C++ samples: ``C:\Users\<user>\Documents\Intel\OpenVINO\openvino_cpp_samples_build\<architecture>\Release`` where the <architecture> is the output of ``echo %PROCESSOR_ARCHITECTURE%``, for example, ``intel64`` (AMD64), or ``arm64``.
+* C++ samples: ``C:\Users\<user>\Documents\Intel\OpenVINO\openvino_cpp_samples_build\<architecture>\Release`` where the <architecture> is the output of ``echo PROCESSOR_ARCHITECTURE%``, for example, ``intel64`` (AMD64), or ``arm64``.
 
 You can also build a generated solution manually. For example, if you want to build C++ sample binaries in Debug configuration, run the appropriate version of the Microsoft Visual Studio and open the generated solution file from the ``C:\Users\<user>\Documents\Intel\OpenVINO\openvino_cpp_samples_build\Samples.sln`` directory.
 
@@ -256,20 +257,19 @@ You can also build the sample applications manually:
 
 1. Navigate to a directory that you have write access to and create a samples build directory. This example uses a directory named ``build``:
 
-.. code-block:: sh
-
-   mkdir build
-
-
-.. note:: 
-
-   If you ran the Image Classification verification script during the installation, the C++ samples build directory was already created in your home directory: ``~/openvino_cpp_samples_build/``
-
+   .. code-block:: sh
+   
+      mkdir build
+   
+   .. note:: 
+   
+      If you ran the Image Classification verification script during the installation, the C++ samples build directory was already created in your home directory: ``~/openvino_cpp_samples_build/``
+   
 2. Go to the created directory:
 
-.. code-block:: sh
-
-   cd build
+   .. code-block:: sh
+   
+      cd build
 
 3. Run CMake to generate the Make files for release or debug configuration. For example, for C++ samples:
 
@@ -287,9 +287,9 @@ You can also build the sample applications manually:
    
 4. Run ``make`` to build the samples:
 
-.. code-block:: sh
-
-   make
+   .. code-block:: sh
+   
+      make
 
 For the release configuration, the sample application binaries are in ``<path_to_build_directory>/<architecture>/Release/``; for the debug configuration — in ``<path_to_build_directory>/<architecture>/Debug/``.
 
@@ -312,15 +312,15 @@ The OpenVINO environment variables are removed when you close the shell. As an o
 
 1. Open the ``.bashrc`` file in ``<user_home_directory>``:
 
-.. code-block:: sh
-   
-   vi <user_home_directory>/.bashrc
+   .. code-block:: sh
+      
+      vi <user_home_directory>/.bashrc
 
 2. Add this line to the end of the file:
 
-.. code-block:: sh
-
-   source /opt/intel/openvino_2022/setupvars.sh
+   .. code-block:: sh
+   
+      source /opt/intel/openvino_2022/setupvars.sh
 
 3. Save and close the file: press the **Esc** key, type ``:wq`` and press the **Enter** key.
 4. To test your change, open a new terminal. You will see ``[setupvars.sh] OpenVINO environment initialized``.
@@ -336,7 +336,7 @@ Before running compiled binary files, make sure your application can find the Op
    
    <INSTALL_DIR>\setupvars.bat
 
-To debug or run the samples on Windows in Microsoft Visual Studio, make sure you have properly configured **Debugging** environment settings for the **Debug** and **Release** configurations. Set correct paths to the OpenCV libraries, and debug and release versions of the OpenVINO Runtime libraries. For example, for the **Debug** configuration, go to the project's **Configuration Properties** to the **Debugging** category and set the `PATH` variable in the **Environment** field to the following:
+To debug or run the samples on Windows in Microsoft Visual Studio, make sure you have properly configured **Debugging** environment settings for the **Debug** and **Release** configurations. Set correct paths to the OpenCV libraries, and debug and release versions of the OpenVINO Runtime libraries. For example, for the **Debug** configuration, go to the project's **Configuration Properties** to the **Debugging** category and set the ``PATH`` variable in the **Environment** field to the following:
 
 .. code-block:: sh
 
