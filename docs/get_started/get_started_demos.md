@@ -45,7 +45,7 @@ Build Samples
 
 To build OpenVINO samples, follow the build instructions for your operating system on the :doc:`OpenVINO Samples <openvino_docs_OV_UG_Samples_Overview>` page. The build will take about 5-10 minutes, depending on your system.
 
-.. _download-models
+.. _download-models:
 
 Step 1: Download the Models
 ###########################
