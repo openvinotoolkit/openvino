@@ -73,11 +73,6 @@ def openvino_execute(gm: GraphModule, *args, executor_parameters=None, partition
 
     results1 = [res[out] for out in compiled.outputs]
     results = torch.from_numpy(np.array(results1, dtype=np.float32))
-    flat_res, unflatten_spec = tree_flatten(results)
-    if (len(results) != 2):
-        results = torch.squeeze(results, 0)
-    else:
-        results = torch.flatten(results, end_dim=1)
     return results
 
 
