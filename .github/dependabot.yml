@@ -17,6 +17,7 @@ updates:
     assignees:
       - "jiwaszki"
       - "p-wysocki"
+      - "akuporos"
       - "rkazants"
       - "ceciliapeng2011"
       - "meiyang-intel"
@@ -36,6 +37,7 @@ updates:
     assignees:
       - "jiwaszki"
       - "p-wysocki"
+      - "akuporos"
       - "rkazants"
     versioning-strategy: increase-if-necessary
 
@@ -52,6 +54,7 @@ updates:
       - "andrei-kochin"
       - "jiwaszki"
       - "p-wysocki"
+      - "akuporos"
       - "Wovchena"
     allow:
       - dependency-name: "*"
@@ -71,6 +74,7 @@ updates:
       - "KodiaqQ"
       - "jiwaszki"
       - "p-wysocki"
+      - "akuporos"
       - "rkazants"
     versioning-strategy: increase-if-necessary
 
@@ -89,6 +93,7 @@ updates:
       - "Wovchena"
       - "jiwaszki"
       - "p-wysocki"
+      - "akuporos"
       - "rkazants"
     versioning-strategy: increase-if-necessary
 
@@ -103,6 +108,7 @@ updates:
       - "Wovchena"
       - "jiwaszki"
       - "p-wysocki"
+      - "akuporos"
       - "rkazants"
     versioning-strategy: increase-if-necessary
 
@@ -117,6 +123,7 @@ updates:
       - "Wovchena"
       - "jiwaszki"
       - "p-wysocki"
+      - "akuporos"
       - "rkazants"
     versioning-strategy: increase-if-necessary
 
@@ -131,6 +138,7 @@ updates:
       - "Wovchena"
       - "jiwaszki"
       - "p-wysocki"
+      - "akuporos"
       - "rkazants"
     versioning-strategy: increase-if-necessary
 
