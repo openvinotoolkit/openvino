@@ -200,12 +200,6 @@ TEST_P(LoadNetworkWithCTPUTMockTest, CTPUTSingleDevLogicTest) {
                                 ::testing::Matcher<const std::map<std::string, std::string>&>(
                                     ComparePerfHint(InferenceEngine::PluginConfigParams::THROUGHPUT))))
             .Times(1);
-        // no MULTI logic to be called
-        EXPECT_CALL(*core,
-                    LoadNetwork(::testing::Matcher<const InferenceEngine::CNNNetwork&>(_),
-                                ::testing::Matcher<const std::string&>("MULTI:" + targetDevice),
-                                ::testing::Matcher<const std::map<std::string, std::string>&>(_)))
-            .Times(0);
         // if target device only has GPU, no CPU helper to be called
         if (targetDevice.find("GPU") != std::string::npos) {
             EXPECT_CALL(*core,
@@ -220,14 +214,14 @@ TEST_P(LoadNetworkWithCTPUTMockTest, CTPUTSingleDevLogicTest) {
         for (auto& deviceName : targetDevices) {
             targetDev += deviceName;
             targetDev += ((deviceName == targetDevices.back()) ? "" : ",");
+            EXPECT_CALL(*core,
+                        LoadNetwork(::testing::Matcher<const InferenceEngine::CNNNetwork&>(_),
+                                    ::testing::Matcher<const std::string&>(deviceName),
+                                    ::testing::Matcher<const std::map<std::string, std::string>&>(
+                                        ComparePerfHint(InferenceEngine::PluginConfigParams::THROUGHPUT))))
+                .Times(1);
         }
         config.insert({InferenceEngine::MultiDeviceConfigParams::KEY_MULTI_DEVICE_PRIORITIES, targetDev});
-        // Call MULTI logic
-        EXPECT_CALL(*core,
-                    LoadNetwork(::testing::Matcher<const InferenceEngine::CNNNetwork&>(_),
-                                ::testing::Matcher<const std::string&>("MULTI:" + targetDev),
-                                ::testing::Matcher<const std::map<std::string, std::string>&>(_)))
-            .Times(1);
         // no CPU helper to be called
         EXPECT_CALL(*core,
                     LoadNetwork(::testing::Matcher<const InferenceEngine::CNNNetwork&>(_),
