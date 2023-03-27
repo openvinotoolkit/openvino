@@ -52,7 +52,7 @@ bool PinThreadToVacantCore(int thrIdx,
                            int hyperThreads,
                            int ncores,
                            const CpuSet& processMask,
-                           std::vector<int> cpu_ids = {},
+                           const std::vector<int>& cpu_ids = {},
                            int cpuIdxOffset = 0);
 
 /**

@@ -100,7 +100,7 @@ ExecNetwork::ExecNetwork(const InferenceEngine::CNNNetwork &network,
         _taskExecutor = _plugin->executorManager()->getExecutor("CPU");
     } else {
         auto streamsExecutorConfig =
-            cpu_map_available()
+            is_cpu_map_available()
                 ? _cfg.streamExecutorConfig
                 : InferenceEngine::IStreamsExecutor::Config::MakeDefaultMultiThreaded(_cfg.streamExecutorConfig,
                                                                                       isFloatModel);

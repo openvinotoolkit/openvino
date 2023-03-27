@@ -482,7 +482,7 @@ Engine::LoadExeNetworkImpl(const InferenceEngine::CNNNetwork &network, const std
         }
     }
 
-    if (cpu_map_available()) {
+    if (is_cpu_map_available()) {
         SetStreamtoConfig(config);
         GetPerformanceStreams(config, nGraphFunc);
     } else {
@@ -526,7 +526,7 @@ void Engine::SetStreamtoConfig(const std::map<std::string, std::string>& config)
     auto set_enable = config.count(PluginConfigParams::KEY_CPU_THROUGHPUT_STREAMS) ||
                       config.count(ov::num_streams.name()) || config.count(CONFIG_KEY(CPU_THREADS_NUM)) ||
                       config.count(ov::inference_num_threads.name());
-    if (set_enable && cpu_map_available()) {
+    if (set_enable && is_cpu_map_available()) {
         engConfig.readProperties(config);
     }
 }

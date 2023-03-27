@@ -101,7 +101,7 @@ void IStreamsExecutor::Config::set_property(const ov::AnyMap& property) {
                 _streams = static_cast<int32_t>(get_available_numa_nodes().size());
             } else if (streams == ov::streams::AUTO) {
                 // bare minimum of streams (that evenly divides available number of cores)
-                if (!cpu_map_available()) {
+                if (!is_cpu_map_available()) {
                     _streams = get_default_num_streams();
                 }
             } else if (streams.num >= 0) {
@@ -439,28 +439,6 @@ void IStreamsExecutor::Config::update_hybrid_custom_threads(Config& config) {
         config._threads_per_stream_big = threads_per_stream;
         config._threads_per_stream_small = threads_per_stream;
     }
-}
-
-IStreamsExecutor::Config IStreamsExecutor::Config::reserve_cpu_cores(const Config& config) {
-    auto streamExecutorConfig = config;
-    if (cpu_map_available()) {
-        if (streamExecutorConfig._name.find("CPU") == std::string::npos) {
-            streamExecutorConfig._plugin_task = get_task_flag();
-        }
-        if (streamExecutorConfig._threadBindingType != NUMA) {
-            auto core_type =
-                streamExecutorConfig._threadPreferredCoreType == LITTLE ? EFFICIENT_CORE_PROC : MAIN_CORE_PROC;
-            reserve_available_cpus(core_type,
-                                   streamExecutorConfig._streams,
-                                   NOT_USED,
-                                   streamExecutorConfig._plugin_task,
-                                   core_type == MAIN_CORE_PROC);
-        }
-    }
-    OPENVINO_DEBUG << "[ " << streamExecutorConfig._name << " reserve_cpu_cores ] "
-                   << " streams: " << streamExecutorConfig._streams
-                   << " core type: " << streamExecutorConfig._threadPreferredCoreType << "\n";
-    return streamExecutorConfig;
 }
 
 IStreamsExecutor::Config IStreamsExecutor::Config::make_default_multi_threaded(const IStreamsExecutor::Config& initial,

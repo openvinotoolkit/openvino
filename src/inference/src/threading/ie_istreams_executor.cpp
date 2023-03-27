@@ -45,10 +45,6 @@ void IStreamsExecutor::Config::UpdateHybridCustomThreads(Config& config) {
     return update_hybrid_custom_threads(config);
 }
 
-IStreamsExecutor::Config IStreamsExecutor::Config::ReserveCpuCores(Config& config) {
-    return reserve_cpu_cores(config);
-}
-
 IStreamsExecutor::Config IStreamsExecutor::Config::MakeDefaultMultiThreaded(const IStreamsExecutor::Config& initial,
                                                                             const bool fp_intesive) {
     return make_default_multi_threaded(initial);

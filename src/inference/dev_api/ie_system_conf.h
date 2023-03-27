@@ -147,7 +147,7 @@ using ov::with_cpu_x86_avx512_core_amx;
  * @ingroup    ie_dev_api_system_conf
  * @return     `True` is CPU mapping is available, `false` otherwise
  */
-using ov::cpu_map_available;
+using ov::is_cpu_map_available;
 
 /**
  * @brief      Set flag bit 'Used' of CPU
@@ -164,13 +164,6 @@ using ov::set_cpu_used;
  * @return     Number of CPU cores with core_type.
  */
 using ov::get_num_available_cpu_cores;
-
-/**
- * @brief      Get cpu_used_flag in current task
- * @ingroup    ie_dev_api_system_conf
- * @return     Task status
- */
-using ov::get_task_flag;
 
 /**
  * @brief      Returns corresponding logical cores
@@ -236,6 +229,6 @@ using ov::ColumnOfCPUMappingTable;
 /**
  * @brief      Defination of CPU_MAP_USED_FLAG column in CPU mapping table.
  */
-using ov::CpuUseStatus;
+using ov::ProcessorUseStatus;
 
 }  // namespace InferenceEngine

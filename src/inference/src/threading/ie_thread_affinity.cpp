@@ -20,7 +20,7 @@ bool PinThreadToVacantCore(int thrIdx,
                            int hyperthreads,
                            int ncores,
                            const CpuSet& procMask,
-                           std::vector<int> cpu_ids,
+                           const std::vector<int>& cpu_ids,
                            int cpuIdxOffset) {
     return ov::threading::pin_thread_to_vacant_core(thrIdx, hyperthreads, ncores, procMask, cpu_ids, cpuIdxOffset);
 }

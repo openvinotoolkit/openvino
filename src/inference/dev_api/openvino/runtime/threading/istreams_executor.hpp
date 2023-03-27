@@ -114,9 +114,6 @@ public:
         } _threadPreferredCoreType =
             PreferredCoreType::ANY;  //!< In case of @ref HYBRID_AWARE hints the TBB to affinitize
 
-        // Generate IStreamsExecutor Config
-        static Config reserve_cpu_cores(const Config& config);
-
         /**
          * @brief      A constructor with arguments
          *

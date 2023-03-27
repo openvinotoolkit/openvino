@@ -165,10 +165,7 @@ int get_number_of_logical_cpu_cores(bool) {
 std::vector<std::vector<int>> get_num_available_cpu_cores() {
     return {{-1}};
 }
-int get_task_flag() {
-    return -1;
-}
-bool cpu_map_available() {
+bool is_cpu_map_available() {
     return false;
 }
 std::vector<int> reserve_available_cpus(const ColumnOfProcessorTypeTable core_type,
@@ -181,7 +178,7 @@ std::vector<int> reserve_available_cpus(const ColumnOfProcessorTypeTable core_ty
 std::vector<int> get_logic_cores(const std::vector<int> cpu_ids) {
     return {};
 }
-void set_cpu_used(std::vector<int> cpu_ids, int used) {}
+void set_cpu_used(const std::vector<int>& cpu_ids, int used) {}
 
 #else
 
@@ -247,12 +244,7 @@ std::vector<std::vector<int>> get_num_available_cpu_cores() {
     return cpu._proc_type_table;
 }
 
-int get_task_flag() {
-    std::lock_guard<std::mutex> lock{cpu._task_mutex};
-    return cpu._plugin_status++;
-}
-
-bool cpu_map_available() {
+bool is_cpu_map_available() {
     return cpu._cpu_mapping_table.size() > 0;
 }
 
@@ -310,7 +302,7 @@ std::vector<int> get_logic_cores(const std::vector<int> cpu_ids) {
     return logic_cores;
 }
 
-void set_cpu_used(std::vector<int> cpu_ids, int used) {
+void set_cpu_used(const std::vector<int>& cpu_ids, int used) {
     const auto cpu_size = static_cast<int>(cpu_ids.size());
     for (int i = 0; i < cpu_size; i++) {
         if (cpu_ids[i] < cpu._processors) {
@@ -321,7 +313,7 @@ void set_cpu_used(std::vector<int> cpu_ids, int used) {
     if (used == NOT_USED || used >= PLUGIN_USED_START) {
         std::vector<int> all_table;
         int start = cpu._sockets > 1 ? 1 : 0;
-        if (cpu_map_available()) {
+        if (is_cpu_map_available()) {
             cpu._proc_type_table.assign(cpu._proc_type_table.size(), std::vector<int>(PROC_TYPE_TABLE_SIZE, 0));
             all_table.resize(PROC_TYPE_TABLE_SIZE, 0);
             for (int i = 0; i < cpu._processors; i++) {
