@@ -1671,5 +1671,21 @@ void Node::addSupportedPrimDesc(const std::vector<PortConfigurator>& inPortConfi
     supportedPrimitiveDescriptors.push_back({config, implType});
 }
 
+void Node::initializeDQScales(const float* scaleData, const size_t scaleSize) {
+    if (!DQScales.empty())
+        IE_THROW() << "DQ scales vector is not empty '" << getName() << "'";
+    if (scaleSize) {
+        DQScales.reserve(scaleSize);
+        DQScalesType = scalesType::PerTensor;
+    }
+    for (size_t i = 0; i < scaleSize; i++) {
+        DQScales.push_back(scaleData[i]);
+        if (scaleData[i] != scaleData[0])
+            DQScalesType = scalesType::PerChannel;
+    }
+}
+
+
+
 }   // namespace intel_cpu
 }   // namespace ov

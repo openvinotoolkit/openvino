@@ -961,18 +961,18 @@ void Convolution::addLegacyZeroPoints(dnnl::primitive_attr& attr) {
     }
 }
 
-void Convolution::addOutputScales(dnnl::primitive_attr& attr) {
-    if (outputScales.empty())
-        return;
-    DEBUG_LOG("Set original output scales");
-    // attr.set_scales_mask(DNNL_ARG_DST, 0);
+// void Convolution::addOutputScales(dnnl::primitive_attr& attr) {
+//     if (outputScales.empty())
+//         return;
+//     DEBUG_LOG("Set original output scales");
+//     // attr.set_scales_mask(DNNL_ARG_DST, 0);
 
-    // if (!outScaleMemPtr) {
-    //     outScaleMemPtr.reset(new Memory(getEngine()));
-    //     DnnlBlockedMemoryDesc memoryDesc(Precision::FP32, {outputScales.size()});
-    //     outScaleMemPtr->Create(memoryDesc, outputScales.data());
-    // }
-}
+//     // if (!outScaleMemPtr) {
+//     //     outScaleMemPtr.reset(new Memory(getEngine()));
+//     //     DnnlBlockedMemoryDesc memoryDesc(Precision::FP32, {outputScales.size()});
+//     //     outScaleMemPtr->Create(memoryDesc, outputScales.data());
+//     // }
+// }
 
 static bool attrContainsPostOp(const dnnl::primitive_attr& attr, const dnnl::impl::primitive_kind_t kind) {
     const auto ops = attr.get_post_ops();
@@ -985,7 +985,7 @@ void Convolution::SetPostOpsAndZeroPoints(std::vector<dnnl::primitive_attr> &att
     auto outputShape = outputStaticShape();
     // attr[0] - Legacy post ops + Legacy zero points.
     DEBUG_LOG(getName(), ": set post ops, attr 0, useLegacyPostOps=true");
-    addOutputScales(attrs[0]);
+    // addOutputScales(attrs[0]);
     setPostOps(attrs[0], outputShape, true);
     addLegacyZeroPoints(attrs[0]);
 
@@ -1712,18 +1712,18 @@ void Convolution::initializeInputZeroPoints(const uint8_t* inputZpData, const si
         inputZeroPoints.push_back(static_cast<int32_t>(inputZpData[0]));
 }
 
-void Convolution::initializeOutputScales(const float* outputScalesData, const size_t outputScalesSize) {
-    if (!outputScales.empty())
-        IE_THROW() << "Output scales vector is not empty '" << getName() << "'";
+// void Convolution::initializeOutputScales(const float* outputScalesData, const size_t outputScalesSize) {
+//     if (!outputScales.empty())
+//         IE_THROW() << "Output scales vector is not empty '" << getName() << "'";
 
-    if (outputScalesSize)
-        outputScalesType = scalesType::PerTensor;
-    for (size_t i = 0; i < outputScalesSize; i++) {
-        outputScales.push_back(outputScalesData[i]);
-        if (outputScalesData[i] != outputScalesData[0])
-            outputScalesType = scalesType::PerChannel;
-    }
-}
+//     if (outputScalesSize)
+//         outputScalesType = scalesType::PerTensor;
+//     for (size_t i = 0; i < outputScalesSize; i++) {
+//         outputScales.push_back(outputScalesData[i]);
+//         if (outputScalesData[i] != outputScalesData[0])
+//             outputScalesType = scalesType::PerChannel;
+//     }
+// }
 
 VectorDims Convolution::makeInputDummyShape(const Shape& inpShape) const {
     // There are a bunch of heuristics mostly aimed to guess the most appropriate oneDNN implementation, to reduce the
