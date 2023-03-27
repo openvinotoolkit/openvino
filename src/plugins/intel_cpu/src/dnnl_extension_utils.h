@@ -56,6 +56,7 @@ public:
     static std::string query_impl_info_str(const const_dnnl_primitive_desc_t& pd);
     static bool hasProperImplementationType(dnnl::primitive_desc& desc, impl_desc_type implType);
     static dnnl_memory_desc_t clone_desc(const_dnnl_memory_desc_t cdesc);
+    static const char* query_pd_info(const_dnnl_primitive_desc_t pd);
 };
 
 }   // namespace intel_cpu
