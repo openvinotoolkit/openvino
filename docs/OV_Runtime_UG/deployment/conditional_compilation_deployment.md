@@ -56,6 +56,14 @@ Stage 1: collecting statistics information about code usage
 
         If you want to run other application rather than benchmark_app to get statistics data, please make sure to limit inference request number and iterations to avoid too long profiling time and too large statistics data.
 
+
+    You can run this `script <https://github.com/openvinotoolkit/openvino/blob/master/src/common/conditional_compilation/scripts/ccheader.py>`__ to get the generated header file from csv files, and to confirm whether the statistics is correct.
+
+    ..code-block:: sh
+
+        python3.8 ../../src/common/conditional_compilation/scripts/ccheader.py --stat ${csv_files} --out conditional_compilation_gen.h
+
+
 Stage 2: build resulting OpenVINO package
 ++++++++++++++++++++++++++++++++++++++++++
 
@@ -68,20 +76,20 @@ Based on the statistics information, re-build OpenVINO to generate the optimal b
 
 .. tip::
 
-    The recommended scenario for conditional complication is static build of OpenVINO, in this case you can add ``-DBUILD_SHARED_LIBS=ON`` to get optimal binary size benefit.
+    The recommended scenario for conditional complication is static build of OpenVINO, in this case you can add ``-DBUILD_SHARED_LIBS=OFF`` to enable static build to get optimal binary size benefit.
 
 
 Conditional compilation for different ISAs
 ##########################################
 
-It is almost the same steps with for different models except to collect different statistics on different ISA.
-Run the target application under the ITT collector for code usage analysis on each ISAs:
+It is almost the same steps with the build for different models except for collecting different statistics data on different ``ISAs``.
+Run the target application under the ITT collector for code usage analysis on each ``ISAs``:
 
     .. code-block:: sh
 
         python thirdparty/itt_collector/runtool/sea_runtool.py --bindir ${OPENVINO_LIBRARY_DIR} -o ${MY_MODEL_RESULT} ! ./benchmark_app -niter 1 -nireq 1 -m ${MY_MODEL}.xml
 
-Put all csv files together to stages 2 to generate resulting OpenVINO binaries:
+Put all csv files together for ``stage 2`` to generate resulting OpenVINO binaries:
 
     .. code-block:: sh
 
@@ -91,11 +99,11 @@ Put all csv files together to stages 2 to generate resulting OpenVINO binaries:
 
 Device agnostic conditional compilation (POC)
 #############################################
-Sometimes, we need adopt conditional compilation for multiple different SKUs, but we don't have ability to collect the statistics information on every single target hardware. It requires conditional compilation have ability to run a model on an accelerator but with all previous SKUs.
+Sometimes, we need adopt conditional compilation to support multiple different ``SKUs``, but we don't have ability to collect the statistics information on every single target hardware. It requires conditional compilation have ability to run a model on an accelerator but with all previous SKUs.
 
 Conditional compilation need firstly to collect statistics information so that to exclude all unused code region, e.g. ops, kernels, which required that all included ops/kernels must be ran once at least. For multiple SKUs case, it need all ops/kernels that will be used by any one of SKUs, to be hit one time at least in the profiling data. If the profiling is done in one CPU platform, it is impossible except to adopt emulator.
 
-A simple method is to leverage `SDE <https://www.intel.com/content/www/us/en/developer/articles/license/pre-release-license-agreement-for-software-development-emulator.html>`__ to emulate different CPUs to generate multiple statistics csv files for different SKUs similar as below:
+A simple method is to leverage `SDE <https://www.intel.com/content/www/us/en/developer/articles/license/pre-release-license-agreement-for-software-development-emulator.html>`__ to emulate different CPU's SKU to generate multiple statistics csv files for different SKUs similar as below:
 
 .. code-block:: sh
 
@@ -103,7 +111,7 @@ A simple method is to leverage `SDE <https://www.intel.com/content/www/us/en/dev
         python ../thirdparty/itt_collector/runtool/sea_runtool.py --bindir ${OPENVINO_LIBRARY_DIR} -o ${MY_MODEL_RESULT} ! sde -$cpu -- ./benchmark_app -niter 1 -nireq 1 -m ${MY_MODEL}.xml
     done
 
-Considered that JIT kernels chosen maybe affected by L2/L3 cache size and cpu core's number, there also is a simple method to emulate L2/L3 cache size and cpu core's number.
+Considered that JIT kernels chosen maybe affected by L1/L2/L3 cache size and cpu core's number, there also is a simple method to emulate L2/L3 cache size and cpu core's number.
 
 - L2/L3 cache emulation
 
@@ -163,7 +171,7 @@ Such work can be done in a single machine as below:
         export OV_CC_L3_CACHE_SIZE=<L3 cache size>
         python thirdparty/itt_collector/runtool/sea_runtool.py --bindir ${OPENVINO_LIBRARY_DIR} -o ${MY_MODEL_RESULT} ! sde -spr -- numactl -C 0-$core_num ./benchmark_app -niter 1 -nireq 1 -m ${MY_MODEL}.xml
 
-Do above steps for each SKUs to collect all generated statistics csv files together, and provide them to build resulting OpenVINO package.
+Do above steps for each SKUs information(CPUID, L1/L2/L3 cache size, core number) to collect all generated statistics csv files together, and provide them to build resulting OpenVINO package.
 
     .. code-block:: sh
 
@@ -207,6 +215,11 @@ Stage 1: Selective build analyzed stage
         cd %OPENVINO_HOME%\cc_data
         python3 ..\thirdparty\itt_collector\runtool\sea_runtool.py --bindir ..\bin\intel64\Debug -o %OPENVINO_HOME%\cc_data\data ! ..\bin\intel64\Debug\benchmark_app.exe -niter 1 -nireq 1 -m <your_model.xml>
 
+.. note::
+
+    This stage is for profiling data, so build with Debug or Release will be up to you.
+
+
 Stage 2: build resulting OpenVINO package
 +++++++++++++++++++++++++++++++++++++++++
 
@@ -222,5 +235,9 @@ Generate final optimal binaries size of OpenVINO package
 
         cmake --build . --config Release
 
+
+.. tip::
+
+    ``-DSELECTIVE_BUILD=ON`` and ``-DSELECTIVE_BUILD_STAT=%OPENVINO_HOME%\cc_data\*.csv`` is must, and ``-DBUILD_SHARED_LIBS=OFF`` is recommended.
 
 @endsphinxdirective
