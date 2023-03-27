@@ -95,12 +95,13 @@ OutputVector stft(const Node& node) {
                 window_node_provided
                     ? std::make_shared<default_opset::Multiply>(
                           flatten_slice,
-                          is_complex(flatten_slice) ? std::make_shared<default_opset::Broadcast>( // align window shape with signal shape
-                                                          std::make_shared<default_opset::Unsqueeze>(
-                                                              ng_inputs[2],
-                                                              default_opset::Constant::create(element::i64, {1}, {1})),
-                                                          std::make_shared<default_opset::ShapeOf>(flatten_slice))
-                                                    : ng_inputs[2])
+                          is_complex(flatten_slice)
+                              ? std::make_shared<default_opset::Broadcast>(  // align window shape with signal shape
+                                    std::make_shared<default_opset::Unsqueeze>(
+                                        ng_inputs[2],
+                                        default_opset::Constant::create(element::i64, {1}, {1})),
+                                    std::make_shared<default_opset::ShapeOf>(flatten_slice))
+                              : ng_inputs[2])
                     : flatten_slice,
                 dft_length_provided ? ng_inputs[3] : std::make_shared<NullNode>(),
                 0,
