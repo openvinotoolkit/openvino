@@ -80,11 +80,11 @@ void Config::readProperties(const std::map<std::string, std::string> &prop) {
             perfHintsConfig.SetConfig(key, val);
         } else if (key == ov::hint::use_hyper_threading.name()) {
             if (val == PluginConfigParams::YES) {
-                use_ht_value = true;
-                use_ht_changed = true;
+                useHyperThreading = true;
+                changedHyperThreading = true;
             } else if (val == PluginConfigParams::NO) {
-                use_ht_value = false;
-                use_ht_changed = true;
+                useHyperThreading = false;
+                changedHyperThreading = true;
             } else {
                 IE_THROW() << "Wrong value " << val << "for property key " << ov::hint::use_hyper_threading.name()
                            << ". Expected only true/false." << std::endl;
