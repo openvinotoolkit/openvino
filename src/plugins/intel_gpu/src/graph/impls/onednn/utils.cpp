@@ -68,22 +68,25 @@ dnnl::memory::dims convert_tensor(cldnn::tensor t, size_t dims, bool is_grouped)
 dnnl::memory::dims convert_gemm_tensor(cldnn::tensor t, size_t dims, bool batched_dims_can_be_removed) {
     auto sizes = t.sizes(default_fmt_for_dims(dims, false));
     dnnl::memory::dims res(sizes.begin(), sizes.end());
-    if (dims > 3) {
-        for (size_t i = 0; i < dims - 3; i++) {
+    if (dims > 4) {
+        for (size_t i = 0; i < dims - 4; i++) {
             res[i + 1] *= res[i];
         }
-        res.erase(res.begin(), res.begin() + dims - 3);
+        res.erase(res.begin(), res.begin() + dims - 4);
     }
-    if (res.size() == 3 && batched_dims_can_be_removed) {
+    if (res.size() == 4 && batched_dims_can_be_removed) {
         res.erase(res.begin());
     }
     return res;
 }
 
 dnnl::memory::format_tag convert_gemm_data_format(dnnl::memory::dims dims) {
-    if (dims.size() > 3)
-        throw std::runtime_error("[clDNN] Unsupported dims size for onednn gemm: should be <= 3");
-    return dims.size() == 3 ? dnnl::memory::format_tag::abc : dnnl::memory::format_tag::ab;
+    switch (dims.size()) {
+    case 2: return dnnl::memory::format_tag::ab;
+    case 3: return dnnl::memory::format_tag::abc;
+    case 4: return dnnl::memory::format_tag::abcd;
+    default: throw std::invalid_argument("[clDNN] Unsupported conversion from "+ std::to_string(dims.size()) + " to onednn format_tag");
+    }
 }
 
 

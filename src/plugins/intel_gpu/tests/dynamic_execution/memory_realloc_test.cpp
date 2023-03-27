@@ -6,6 +6,7 @@
 
 #include <intel_gpu/primitives/input_layout.hpp>
 #include <intel_gpu/primitives/softmax.hpp>
+#include <intel_gpu/primitives/reorder.hpp>
 #include <intel_gpu/primitives/data.hpp>
 
 #include "softmax_inst.h"
@@ -19,6 +20,106 @@ using namespace cldnn;
 using namespace ::tests;
 
 namespace memory_realloc_tests {
+TEST(memory_reuse_realloc_reset_test, basic_conv_with_padding) {
+    auto& engine = get_test_engine();
+
+    layout weight_layout = layout{ov::PartialShape{1, 3, 3, 3}, data_types::f16, format::bfyx};
+
+    auto weights = engine.allocate_memory(weight_layout);
+    set_values<FLOAT16>(weights, {
+            1.0f, 1.0f, 1.0f,
+            1.0f, 1.0f, 1.0f,
+            1.0f, 1.0f, 1.0f,
+            //
+            2.0f, 2.0f, 2.0f,
+            2.0f, 2.0f, 2.0f,
+            2.0f, 2.0f, 2.0f,
+            //
+            3.0f, 3.0f, 3.0f,
+            3.0f, 3.0f, 3.0f,
+            3.0f, 3.0f, 3.0f,
+    });
+
+    layout input_layout_1 = layout{ov::PartialShape{1, 3, 5, 5}, data_types::f32, format::bfyx};
+    auto input_mem_1 = engine.allocate_memory(input_layout_1);
+    set_values(input_mem_1, {
+                         1.0f, 2.0f, 3.0f, 4.0f, 5.0f,
+                         1.0f, 2.0f, 3.0f, 4.0f, 5.0f,
+                         1.0f, 2.0f, 3.0f, 4.0f, 5.0f,
+                         1.0f, 2.0f, 3.0f, 4.0f, 5.0f,
+                         1.0f, 2.0f, 3.0f, 4.0f, 5.0f,
+                         //
+                         1.0f, 2.0f, 3.0f, 4.0f, 5.0f,
+                         1.0f, 2.0f, 3.0f, 4.0f, 5.0f,
+                         1.0f, 2.0f, 3.0f, 4.0f, 5.0f,
+                         1.0f, 2.0f, 3.0f, 4.0f, 5.0f,
+                         1.0f, 2.0f, 3.0f, 4.0f, 5.0f,
+                         //
+                         1.0f, 2.0f, 3.0f, 4.0f, 5.0f,
+                         1.0f, 2.0f, 3.0f, 4.0f, 5.0f,
+                         1.0f, 2.0f, 3.0f, 4.0f, 5.0f,
+                         1.0f, 2.0f, 3.0f, 4.0f, 5.0f,
+                         1.0f, 2.0f, 3.0f, 4.0f, 5.0f,
+                        });
+
+    std::vector<float> ref_output_1 = {6,   18,  36, 54,  72,  54,  30,  12,  36, 72, 108, 144, 108,
+                                       60,  18,  54, 108, 162, 216, 162, 90,  18, 54, 108, 162, 216,
+                                       162, 90,  18, 54,  108, 162, 216, 162, 90, 12, 36,  72,  108,
+                                       144, 108, 60, 6,   18,  36,  54,  72,  54, 30};
+
+    layout input_layout_2 = layout{ov::PartialShape{1, 3, 2, 2}, data_types::f32, format::bfyx};
+    auto input_mem_2 = engine.allocate_memory(input_layout_2);
+    set_values(input_mem_2, {11.0f,  11.0f, 11.0f, 11.0f,
+                             11.0f,  11.0f, 11.0f, 11.0f,
+                             11.0f,  11.0f, 11.0f, 11.0f});
+    std::vector<float> ref_output_2 = { 66, 132, 132, 66, 132, 264, 264, 132, 132, 264, 264, 132, 66, 132, 132, 66};
+     std::vector<float> values_to_subtract = {};
+    auto input_l = layout{ov::PartialShape::dynamic(4), data_types::f32, format::bfyx};
+    topology topology(input_layout("input", input_l),
+                      data("weights", weights),
+                      reorder("reorder", input_info("input"), format::bfyx, data_types::f16, 
+                      values_to_subtract, reorder_mean_mode::subtract, padding{{0, 0, 2, 2}, 0}),
+                      convolution("conv",
+                                  input_info("reorder"),
+                                  {"weights"},
+                                  {},     /*bias*/
+                                  {1, 1}, /*stride*/
+                                  {2, 2}, /*pad*/
+                                  {1, 1}, /*dilation*/
+                                  {2, 2},  /*pad_above*/
+                                  {2, 2},  /*pad_below*/
+                                  padding{{0, 0, 0, 0}, 0}),
+                      reorder("output", input_info("conv"), format::bfyx, data_types::f32)); /*output padding*/
+
+    ExecutionConfig config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+
+    network network(engine, topology, config);
+    network.set_input_data("input", input_mem_1);
+    auto outputs_1 = network.execute();
+    network.set_input_data("input", input_mem_2);
+    auto outputs_2 = network.execute();
+    auto output_mem_2 = outputs_2.begin()->second.get_memory();
+    cldnn::mem_lock<float> output_mem_2_ptr(output_mem_2, get_test_stream());
+    for (size_t i = 0; i < output_mem_2->get_layout().get_buffer_size().count(); ++i) {
+        ASSERT_EQ(output_mem_2_ptr[i], ref_output_2[i]);
+    }
+    // check padding of second run of reorder
+    // 0, 0, 0,  0,  0, 0,  
+    // 0, 0, 0,  0,  0, 0, 
+    // 0, 0, 11, 11, 0, 0, 
+    // 0, 0, 11, 11, 0, 0, 
+    // 0, 0,"0","0","0","0", // !! check pad_after
+    // 0, 0,"0","0","0","0", // !! check pad_after
+    auto reorder_mem = network.get_primitive("reorder")->output_memory_ptr();
+    cldnn::mem_lock<FLOAT16, mem_lock_type::read> reorder_mem_ptr(reorder_mem, get_test_stream());
+    for (size_t i = 26; i < 29; ++i) {
+        ASSERT_EQ((float)reorder_mem_ptr[i], 0.f);
+    }
+    for (size_t i = 32; i < 35; ++i) {
+        ASSERT_EQ((float)reorder_mem_ptr[i], 0.f);
+    }
+}
 
 TEST(softmax_gpu_dynamic_f32_test_upper_bound, input_same_values) {
     static const int32_t
