@@ -80,11 +80,11 @@ void Config::readProperties(const std::map<std::string, std::string> &prop) {
             perfHintsConfig.SetConfig(key, val);
         } else if (key == ov::hint::use_cpu_pinning.name()) {
             if (val == PluginConfigParams::YES) {
-                use_pin_value = true;
-                use_pin_changed = true;
+                useCpuPinning = true;
+                changedCpuPinning = true;
             } else if (val == PluginConfigParams::NO) {
-                use_pin_value = false;
-                use_pin_changed = true;
+                useCpuPinning = false;
+                changedCpuPinning = true;
             } else {
                 IE_THROW() << "Wrong value " << val << "for property key " << ov::hint::use_cpu_pinning.name()
                            << ". Expected only true/false." << std::endl;

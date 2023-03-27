@@ -515,7 +515,7 @@ Parameter Engine::GetConfig(const std::string& name, const std::map<std::string,
         const auto perfHint = ov::util::from_string(engConfig.perfHintsConfig.ovPerfHint, ov::hint::performance_mode);
         return perfHint;
     } else if (name == ov::hint::use_cpu_pinning) {
-        const bool pin_value = engConfig.use_pin_value;
+        const bool pin_value = engConfig.useCpuPinning;
         return decltype(ov::hint::use_cpu_pinning)::value_type(pin_value);
     } else if (name == ov::hint::num_requests) {
         const auto perfHintNumRequests = engConfig.perfHintsConfig.ovPerfHintNumRequests;

@@ -350,7 +350,7 @@ InferenceEngine::Parameter ExecNetwork::GetMetric(const std::string &name) const
         const auto perfHint = ov::util::from_string(config.perfHintsConfig.ovPerfHint, ov::hint::performance_mode);
         return perfHint;
     } else if (name == ov::hint::use_cpu_pinning.name()) {
-        const bool use_pin = config.use_pin_value;
+        const bool use_pin = config.useCpuPinning;
         return decltype(ov::hint::use_cpu_pinning)::value_type(use_pin);
     } else if (name == ov::hint::num_requests) {
         const auto perfHintNumRequests = config.perfHintsConfig.ovPerfHintNumRequests;
