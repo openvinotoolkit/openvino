@@ -40,10 +40,11 @@ class CommonLayerTest:
         os.environ['MO_ENABLED_TRANSFORMS'] = enabled_transforms
         os.environ['MO_DISABLED_TRANSFORMS'] = disabled_transforms
 
+        compress_to_fp16 = False if precision == 'FP32' else True
         mo_params = {self.input_model_key: model_path,
                      "output_dir": temp_dir,
-                     "data_type": precision, "model_name": 'model'
-                     }
+                     "compress_to_fp16": compress_to_fp16,
+                     "model_name": 'model'}
 
         if 'input_shapes' in kwargs and len(kwargs['input_shapes']):
             input_shapes_str = []
