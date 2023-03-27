@@ -2,7 +2,9 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "crash_handler.hpp"
+#include "functional_test_utils/summary/op_summary.hpp"
+
+#include "functional_test_utils/crash_handler.hpp"
 #include <limits.h>
 
 namespace CommonTestUtils {
@@ -10,6 +12,7 @@ namespace CommonTestUtils {
 // enviroment to restore in case of crash
 jmp_buf env;
 unsigned int CrashHandler::MAX_TEST_WORK_TIME = UINT_MAX;
+bool CrashHandler::IGNORE_CRASH = false;
 
 CrashHandler::CrashHandler() {
     // setup default value for timeout in 15 minutes
@@ -30,6 +33,12 @@ CrashHandler::CrashHandler() {
         signal(SIGFPE, SIG_DFL);
         signal(SIGALRM, SIG_DFL);
 #endif
+
+        if (!CrashHandler::IGNORE_CRASH) {
+            auto &s = ov::test::utils::OpSummary::getInstance();
+            s.saveReport();
+            std::abort();
+        }
 
 #ifdef _WIN32
         longjmp(env, JMP_STATUS::anyError);
@@ -82,6 +91,10 @@ void CrashHandler::StartTimer() {
 
 void CrashHandler::SetUpTimeout(unsigned int timeout) {
     MAX_TEST_WORK_TIME = timeout;
+}
+
+void CrashHandler::SetUpPipelineAfterCrash(bool ignore_crash) {
+    IGNORE_CRASH = ignore_crash;
 }
 
 }  // namespace CommonTestUtils
