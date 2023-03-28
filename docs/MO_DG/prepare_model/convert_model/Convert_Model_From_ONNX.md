@@ -31,6 +31,7 @@ Additional Resources
 ####################
 
 See the :doc:`Model Conversion Tutorials <openvino_docs_MO_DG_prepare_model_convert_model_tutorials>` page for a set of tutorials providing step-by-step instructions for converting specific ONNX models. Here are some examples:
+
 * :doc:`Convert ONNX Faster R-CNN Model <openvino_docs_MO_DG_prepare_model_convert_model_onnx_specific_Convert_Faster_RCNN>`
 * :doc:`Convert ONNX GPT-2 Model <openvino_docs_MO_DG_prepare_model_convert_model_onnx_specific_Convert_GPT2>`
 * :doc:`Convert ONNX Mask R-CNN Model <openvino_docs_MO_DG_prepare_model_convert_model_onnx_specific_Convert_Mask_RCNN>`

@@ -2,7 +2,7 @@
 
 @sphinxdirective
 
-To convert an MXNet model, run Model Optimizer with the path to the ``*.params*`` file of the input model:
+To convert an MXNet model, run Model Optimizer with the path to the ``.params`` file of the input model:
 
 .. code-block:: sh
 
@@ -67,6 +67,7 @@ Additional Resources
 ####################
 
 See the :doc:`Model Conversion Tutorials <openvino_docs_MO_DG_prepare_model_convert_model_tutorials>` page for a set of tutorials providing step-by-step instructions for converting specific MXNet models. Here are some examples:
+
 * :doc:`Convert MXNet GluonCV Model <openvino_docs_MO_DG_prepare_model_convert_model_mxnet_specific_Convert_GluonCV_Models>`
 * :doc:`Convert MXNet Style Transfer Model <openvino_docs_MO_DG_prepare_model_convert_model_mxnet_specific_Convert_Style_Transfer_From_MXNet>`
 

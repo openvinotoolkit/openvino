@@ -34,14 +34,14 @@ To export a PyTorch model, you need to obtain the model as an instance of ``torc
 Known Issues
 ############
 
-* As of version 1.8.1, not all PyTorch operations can be exported to ONNX opset 9 which is used by default.
-It is recommended to export models to opset 11 or higher when export to default opset 9 is not working. In that case, use ``opset_version``.
-option of the `torch.onnx.export`. For more information about ONNX opset, refer to the `Operator Schemas <https://github.com/onnx/onnx/blob/master/docs/Operators.md>`__ page.
+As of version 1.8.1, not all PyTorch operations can be exported to ONNX opset 9 which is used by default.
+It is recommended to export models to opset 11 or higher when export to default opset 9 is not working. In that case, use ``opset_version`` option of the ``torch.onnx.export``. For more information about ONNX opset, refer to the `Operator Schemas <https://github.com/onnx/onnx/blob/master/docs/Operators.md>`__ page.
 
 Additional Resources
 ####################
 
 See the :doc:`Model Conversion Tutorials <openvino_docs_MO_DG_prepare_model_convert_model_tutorials>` page for a set of tutorials providing step-by-step instructions for converting specific PyTorch models. Here are some examples:
+
 * :doc:`Convert PyTorch BERT-NER Model <openvino_docs_MO_DG_prepare_model_convert_model_pytorch_specific_Convert_Bert_ner>`
 * :doc:`Convert PyTorch RCAN Model <openvino_docs_MO_DG_prepare_model_convert_model_pytorch_specific_Convert_RCAN>`
 * :doc:`Convert PyTorch YOLACT Model <openvino_docs_MO_DG_prepare_model_convert_model_pytorch_specific_Convert_YOLACT>`

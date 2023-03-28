@@ -79,10 +79,7 @@ To be able to use such graph with Model Optimizer, it should be frozen and dumpe
 Where:
 
 * ``sess`` is the instance of the TensorFlow Session object where the network topology is defined.
-* ``["name_of_the_output_node"]`` is the list of output node names in the graph; ``frozen`` graph will
-    include only those nodes from the original ``sess.graph_def`` that are directly or indirectly used
-    to compute given output nodes. The ``'name_of_the_output_node'`` is an example of a possible output
-    node name. You should derive the names based on your own graph.
+* ``["name_of_the_output_node"]`` is the list of output node names in the graph; ``frozen`` graph will include only those nodes from the original ``sess.graph_def`` that are directly or indirectly used to compute given output nodes. The ``'name_of_the_output_node'`` is an example of a possible output node name. You should derive the names based on your own graph.
 * ``./`` is the directory where the inference graph file should be generated.
 * ``inference_graph.pb`` is the name of the generated inference graph file.
 * ``as_text`` specifies whether the generated file should be in human readable text format or binary.
@@ -164,8 +161,7 @@ Command-Line Interface (CLI) Examples Using TensorFlow-Specific Parameters
    mo --input_model inception_v1.pb -b 1 --tensorboard_logdir /tmp/log_dir
 
 
-* Launching the Model Optimizer for BERT model in the SavedModel format, with three inputs. Specify explicitly the input shapes
-where the batch size and the sequence length equal 2 and 30 respectively.
+* Launching the Model Optimizer for BERT model in the SavedModel format, with three inputs. Specify explicitly the input shapes where the batch size and the sequence length equal 2 and 30 respectively.
 
 .. code-block:: sh
 
@@ -196,6 +192,7 @@ Additional Resources
 ####################
 
 See the :doc:`Model Conversion Tutorials <openvino_docs_MO_DG_prepare_model_convert_model_tutorials>` page for a set of tutorials providing step-by-step instructions for converting specific TensorFlow models. Here are some examples:
+
 * :doc:`Convert TensorFlow EfficientDet Models <openvino_docs_MO_DG_prepare_model_convert_model_tf_specific_Convert_EfficientDet_Models>`
 * :doc:`Convert TensorFlow FaceNet Models <openvino_docs_MO_DG_prepare_model_convert_model_tf_specific_Convert_FaceNet_From_Tensorflow>`
 * :doc:`Convert TensorFlow Object Detection API Models <openvino_docs_MO_DG_prepare_model_convert_model_tf_specific_Convert_Object_Detection_API_Models>`
