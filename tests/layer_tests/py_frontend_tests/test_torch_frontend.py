@@ -86,20 +86,11 @@ def test_conversion_extension():
             gelu = torch.nn.functional.gelu(elu, approximate="none")
             gelu2 = torch.nn.functional.gelu(gelu, approximate="tanh")
             softmax = torch.nn.functional.softmax(gelu2, dim=-1)
-            return softmax
+            vn = torch.linalg.vector_norm(softmax, ord=math.inf, dim=None)
+            return vn
 
     model = Model()
     decoder = TorchScriptPythonDecoder(get_scripted_model(model))
-
-    fem = FrontEndManager()
-    fe = fem.load_by_framework(framework="pytorch")
-    assert fe
-
-    input_model = fe.load(decoder)
-    assert input_model
-    converted_model = fe.convert(input_model)
-    assert converted_model
-    assert [n.get_type_name() for n in converted_model.get_ordered_ops()] == ["Parameter", "Elu", "Gelu", "Gelu", "Softmax", "Result"]
 
     def convert_elu(node: NodeContext):
         inp = node.get_input(0)
@@ -115,7 +106,7 @@ def test_conversion_extension():
 
     def convert_gelu(node: NodeContext):
         inp = node.get_input(0)
-        approximate = node.const_input_as_any(1)
+        approximate = node.get_values_from_const_input(1)
         if approximate == "none":
             f = ops.erf(ops.divide(inp, ops.constant(np.array([math.sqrt(2.0)], dtype=np.float32))))
         elif approximate == "tanh":
@@ -128,7 +119,7 @@ def test_conversion_extension():
 
     def convert_softmax(node: NodeContext):
         inp = node.get_input(0)
-        dim = node.const_input_as_any(1, dtype=np.int32)
+        dim = node.get_values_from_const_input(1, dtype=np.int32)
         dim_const = ops.constant(np.array([dim], dtype=np.int32))
         reduce_max = ops.reduce_max(inp, dim_const, True)
         sub = ops.subtract(inp, reduce_max)
@@ -138,12 +129,34 @@ def test_conversion_extension():
         return div.outputs()
 
 
+    def convert_vector_norm(node: NodeContext):
+        try:
+            inp = node.get_input(0)
+            ord = node.get_values_from_const_input(1)
+            assert ord == math.inf
+            dim = node.get_values_from_const_input(2)
+            if dim is None:
+                inp = ops.reshape(inp, ops.constant(np.array([-1])), False)
+                reduce_axes = np.array([0])
+            else:
+                reduce_axes = np.array(dim)
+            rm = ops.reduce_max(ops.abs(inp), reduce_axes, False)
+            return rm.outputs()
+        except Exception as e:
+            print(e)
+
+
+    fem = FrontEndManager()
+    fe = fem.load_by_framework(framework="pytorch")
+    assert fe
     fe.add_extension(ConversionExtension("aten::elu", convert_elu))
     fe.add_extension(ConversionExtension("aten::gelu", convert_gelu))
     fe.add_extension(ConversionExtension("aten::softmax", convert_softmax))
+    fe.add_extension(ConversionExtension("aten::linalg_vector_norm", convert_vector_norm))
+    input_model = fe.load(decoder)
+    assert input_model
     converted_model = fe.convert(input_model)
     assert converted_model
-
     assert [n.get_type_name() for n in converted_model.get_ordered_ops()] == ["Parameter", "Constant", "Constant",
                                                                               "Constant", "Greater", "Exp",
                                                                               "Constant", "Subtract", "Constant",
@@ -155,7 +168,9 @@ def test_conversion_extension():
                                                                               "Multiply", "Add", "Multiply",
                                                                               "Tanh", "Add", "Multiply",
                                                                               "Constant", "ReduceMax", "Subtract",
-                                                                              "Exp", "ReduceSum", "Divide", "Result"]
+                                                                              "Exp", "ReduceSum", "Divide",
+                                                                              "Constant", "Reshape", "Abs",
+                                                                              "Constant", "ReduceMax", "Result"]
 
 
 def get_builtin_extensions_path():

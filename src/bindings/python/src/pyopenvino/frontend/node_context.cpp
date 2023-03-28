@@ -58,6 +58,7 @@ void regclass_frontend_NodeContext(py::module m) {
         CAST_TO_PY(any, dtype, int64_t);
         CAST_TO_PY(any, dtype, bool);
         CAST_TO_PY(any, dtype, std::string);
+        CAST_TO_PY(any, dtype, float);
         CAST_TO_PY(any, dtype, double);
         CAST_TO_PY(any, dtype, ov::element::Type);
         CAST_TO_PY(any, dtype, ov::PartialShape);
@@ -69,6 +70,7 @@ void regclass_frontend_NodeContext(py::module m) {
         CAST_VEC_TO_PY(any, dtype, std::vector<bool>);
 #endif
         CAST_VEC_TO_PY(any, dtype, std::vector<std::string>);
+        CAST_VEC_TO_PY(any, dtype, std::vector<float>);
         CAST_VEC_TO_PY(any, dtype, std::vector<double>);
         CAST_VEC_TO_PY(any, dtype, std::vector<ov::element::Type>);
         CAST_VEC_TO_PY(any, dtype, std::vector<ov::PartialShape>);
@@ -117,9 +119,12 @@ void regclass_frontend_NodeContext(py::module m) {
     });
 
     ext.def(
-        "const_input_as_any",
+        "get_values_from_const_input",
         [=](NodeContext& self, int idx, const py::object& default_value, const py::object& dtype) -> py::object {
-            auto any = self.const_input_as_any(idx);
+            auto any = self.get_values_from_const_input(idx);
+            if (any.empty())
+                return py::none();
+
             auto casted = cast_attribute(any, dtype);
             if (!casted.is_none())
                 return casted;

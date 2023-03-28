@@ -229,28 +229,25 @@ public:
 
     void on_adapter(const std::string& name, ValueAccessor<void>& adapter) override {
         auto p_value = m_attr_values_map.find(name);
+        auto p_name = m_attr_names_map.find(name);
+        bool is_value_found = p_value != m_attr_values_map.end();
+        bool is_name_mapping_found = p_name != m_attr_names_map.end();
+        OPENVINO_ASSERT(!(is_value_found && is_name_mapping_found),
+                        "For attribute " + name +
+                            " both name mapping and value mapping are provided."
+                            " The behavior for this case is undefined. Please leave only one mapping.");
 
-        if (p_value != m_attr_values_map.end()) {
+        if (is_value_found) {
             adapter.set_as_any(p_value->second);
+        } else if (is_name_mapping_found) {
+            auto a = m_context.get_values_from_const_input(static_cast<int>(p_name->second));
+            adapter.set_as_any(a);
         } else {
-            auto it = m_attr_names_map.find(name);
-            OPENVINO_ASSERT(it != m_attr_names_map.end(),
+            OPENVINO_ASSERT(false,
                             "\nValue for attribute \"",
                             name,
                             "\" is not set or mapping between "
                             "framework and openvino node attributes is incorrect.");
-            try {
-                auto a = m_context.const_input_as_any(static_cast<int>(it->second));
-                adapter.set_as_any(a);
-            } catch (::ov::AssertFailure& ex) {
-                OPENVINO_ASSERT(false,
-                                ex.what(),
-                                "\nValue for attribute \"",
-                                "\nMapping between ",
-                                "framework and openvino node for attribute \"",
-                                name,
-                                "\" is incorrect.");
-            }
         }
     }
 

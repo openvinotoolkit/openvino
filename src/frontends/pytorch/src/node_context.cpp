@@ -192,8 +192,13 @@ Any get_constant_data(const std::shared_ptr<opset10::Constant>& constant) {
 }
 }  // namespace
 
-Any NodeContext::const_input_as_any(int index) const {
-    FRONT_END_GENERAL_CHECK(!input_is_none(index), "Input with index: ", index, " is none.");
+Any NodeContext::get_values_from_const_input(int index) const {
+    FRONT_END_GENERAL_CHECK(index < get_input_size(), "Input with index: ", index, " does not exist.");
+
+    if (input_is_none(index)) {
+        return {};
+    }
+
     auto input_node = get_input_from_visible_context(index).get_node_shared_ptr();
     if (auto constant = as_type_ptr<opset10::Constant>(input_node)) {
         switch (constant->get_element_type()) {
@@ -221,7 +226,14 @@ Any NodeContext::const_input_as_any(int index) const {
             FRONT_END_GENERAL_CHECK(false, "Input with index: ", index, " has unsupported type.");
         }
     } else if (auto input = std::dynamic_pointer_cast<PtFrameworkNode>(input_node)) {
-        return input->get_decoder()->as_string();
+        const auto& attrs = input->get_attrs();
+        if (attrs.find("none_value") != attrs.end()) {
+            return {};
+        }
+        auto it = attrs.find("string_value");
+        if (it != attrs.end()) {
+            return it->second;
+        }
     }
 
     FRONT_END_GENERAL_CHECK(false, "Input node with index ", index, " cannot be interpreted as constant", input_node);
