@@ -89,7 +89,6 @@ void kernels_cache::get_program_source(const kernels_code& kernels_source_code, 
     OV_ITT_SCOPED_TASK(ov::intel_gpu::itt::domains::intel_gpu_plugin, "KernelsCache::BuildAll::GetProgramSource");
     std::map<std::string, std::tuple<int32_t, std::vector<batch_program>>> program_buckets;
 
-    std::vector<std::string> entry_points;
     for (const auto& k : kernels_source_code) {
         auto& code = k.second;
         bool dump_custom_program = code.dump_custom_program;
@@ -126,13 +125,10 @@ void kernels_cache::get_program_source(const kernels_code& kernels_source_code, 
             // Create new kernels batch when the limit is reached
             // and current kernel's entry_point is duplicated in this kernels batch
             if (current_bucket.back().kernels_counter >= get_max_kernels_per_batch()
-                || std::find(entry_points.begin(), entry_points.end(), entry_point) != entry_points.end()) {
+                || current_bucket.back().entry_point_to_id.find(entry_point) != current_bucket.back().entry_point_to_id.end()) {
                 const auto& batch_id = static_cast<int32_t>(current_bucket.size());
                 current_bucket.push_back(batch_program(bucket_id, batch_id, options, batch_header_str));
-                entry_points.clear();
             }
-
-            entry_points.push_back(entry_point);
 
             auto& current_batch = current_bucket.back();
             current_batch.dump_custom_program = dump_custom_program;
