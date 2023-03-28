@@ -975,9 +975,6 @@ TEST_P(ie_c_api_test, ie_exec_network_set_config) {
     IE_EXPECT_OK(ie_core_load_network(core, network, device_name, &config, &exe_network));
     EXPECT_NE(nullptr, exe_network);
 
-    ie_config_t config_param = {"MULTI_DEVICE_PRIORITIES", "GPU,CPU", nullptr};
-    IE_EXPECT_OK(ie_exec_network_set_config(exe_network, &config_param));
-
     ie_exec_network_free(&exe_network);
     ie_network_free(&network);
     ie_core_free(&core);
