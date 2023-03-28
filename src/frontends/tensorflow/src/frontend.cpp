@@ -77,8 +77,10 @@ FrontEnd::FrontEnd() : m_op_translators(tensorflow::op::get_supported_ops()) {}
 
 /// \brief Check if FrontEndTensorflow can recognize model from given parts
 bool FrontEnd::supported_impl(const std::vector<ov::Any>& variants) const {
+    // Last boolean flag in `variants` (if presented) is reserved for FE configuration
+    size_t extra_variants_num = variants.size() > 0 && variants[variants.size() - 1].is<bool>() ? 1 : 0;
     // TODO: Support other TensorFlow formats: SavedModel, .meta, checkpoint, pbtxt
-    if (variants.size() != 1)
+    if (variants.size() != 1 + extra_variants_num)
         return false;
 
     if (variants[0].is<std::string>()) {
@@ -115,7 +117,10 @@ bool FrontEnd::supported_impl(const std::vector<ov::Any>& variants) const {
 
 ov::frontend::InputModel::Ptr FrontEnd::load_impl(const std::vector<ov::Any>& variants) const {
     // TODO: Support other TensorFlow formats: SavedModel, .meta, checkpoint, pbtxt
-    FRONT_END_GENERAL_CHECK(variants.size() == 1,
+
+    // Last boolean flag in `variants` (if presented) is reserved for FE configuration
+    size_t extra_variants_num = variants.size() > 0 && variants[variants.size() - 1].is<bool>() ? 1 : 0;
+    FRONT_END_GENERAL_CHECK(variants.size() == 1 + extra_variants_num,
                             "[TensorFlow Frontend] Internal error or inconsistent input model: the frontend supports "
                             "only frozen binary protobuf format.");
 

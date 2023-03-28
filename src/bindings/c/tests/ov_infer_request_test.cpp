@@ -164,6 +164,7 @@ protected:
         OV_EXPECT_OK(ov_preprocess_input_model_info_set_layout(input_model, model_layout));
         ov_layout_free(model_layout);
 
+        ov_model_free(model);  // clean before assigning built model
         OV_EXPECT_OK(ov_preprocess_prepostprocessor_build(preprocess, &model));
         EXPECT_NE(nullptr, model);
 
