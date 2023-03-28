@@ -60,6 +60,7 @@ struct Config {
     // default precision of GNA hardware model
     ov::element::Type inference_precision = ov::element::undefined;
     InferenceEngine::Precision gnaPrecision = InferenceEngine::Precision::I16;
+    ov::hint::ExecutionMode execution_mode = ov::hint::ExecutionMode::ACCURACY;
 
     std::string embedded_export_path;
 

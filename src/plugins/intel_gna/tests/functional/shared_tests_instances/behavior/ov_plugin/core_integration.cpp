@@ -140,9 +140,8 @@ TEST(OVClassBasicTest, smoke_SetConfigAfterCreatedPrecisionHint) {
     OV_ASSERT_NO_THROW(precision = core.get_property("GNA", ov::inference_precision));
     ASSERT_EQ(ov::element::i16, precision);
 
-    ASSERT_THROW(
-        core.set_property("GNA", {ov::inference_precision(ov::element::i8), {GNA_CONFIG_KEY(PRECISION), "I16"}}),
-        ov::Exception);
+    OV_ASSERT_NO_THROW(
+        core.set_property("GNA", {ov::inference_precision(ov::element::i8), {GNA_CONFIG_KEY(PRECISION), "I16"}}));
     ASSERT_THROW(core.set_property("GNA", ov::inference_precision(ov::element::i32)), ov::Exception);
     ASSERT_THROW(core.set_property("GNA", ov::inference_precision(ov::element::undefined)), ov::Exception);
     ASSERT_THROW(core.set_property("GNA", {{ov::inference_precision.name(), "ABC"}}), ov::Exception);
