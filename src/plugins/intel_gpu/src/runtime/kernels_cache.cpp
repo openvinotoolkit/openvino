@@ -471,7 +471,6 @@ std::string kernels_cache::get_cached_kernel_id(kernel::ptr kernel) const {
     auto program = ocl_kernel->get_handle().getInfo<CL_KERNEL_PROGRAM>();
     cl::vector<unsigned char> program_binaries = getProgramBinaries(program);
 
-    std::lock_guard<std::mutex> lock(_mutex);
     auto iter = _cached_binaries.find(program_binaries);
     OPENVINO_ASSERT(iter != _cached_binaries.end(), "[GPU] Not found cached kernel binaries");
 
@@ -491,18 +490,17 @@ std::vector<std::string> kernels_cache::get_cached_kernel_ids(const std::vector<
 
 void kernels_cache::add_to_cached_kernels(const std::vector<kernel::ptr>& kernels) {
     static std::atomic<uint32_t> id_gen{0};
-    std::lock_guard<std::mutex> lock(_mutex);
 
     for (auto& kernel : kernels) {
         auto ocl_kernel = std::static_pointer_cast<cldnn::ocl::ocl_kernel>(kernel);
         auto program = ocl_kernel->get_handle().getInfo<CL_KERNEL_PROGRAM>();
         cl::vector<unsigned char> program_binaries = getProgramBinaries(program);
 
+        std::lock_guard<std::mutex> lock(_mutex);
         auto iter = _cached_binaries.find(program_binaries);
         if (iter == _cached_binaries.end()) {
             _cached_binaries[program_binaries] = id_gen++;
         }
-
         auto key = get_cached_kernel_id(kernel);
 
         if (_cached_kernels.find(key) == _cached_kernels.end()) {
