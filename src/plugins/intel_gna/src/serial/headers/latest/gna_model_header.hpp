@@ -4,14 +4,14 @@
 
 #pragma once
 
-#include "serial/headers/2dot8/gna_model_header.hpp"
+#include "serial/headers/2dot9/gna_model_header.hpp"
 
 namespace ov {
 namespace intel_gna {
 namespace header_latest {
 
-using ModelHeader = header_2_dot_8::ModelHeader;
-using RuntimeEndPoint = header_2_dot_8::RuntimeEndPoint;
+using ModelHeader = header_2_dot_9::ModelHeader;
+using RuntimeEndPoint = header_2_dot_9::RuntimeEndPoint;
 
 template <typename A, typename B>
 bool IsFirstVersionLower(const A& first, const B& second) {

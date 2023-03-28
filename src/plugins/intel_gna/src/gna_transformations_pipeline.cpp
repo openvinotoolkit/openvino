@@ -57,7 +57,8 @@
 namespace ov {
 namespace intel_gna {
 
-void TransformationsPipeline::apply(const std::shared_ptr<ov::Model>& model) {
+void TransformationsPipeline::apply(const std::shared_ptr<ov::Model>& model,
+                                    ov::intel_gna::PrePostProcessModels* subgraph_cpu_map) {
     OV_ITT_SCOPED_TASK(itt::domains::GNAPlugin, "TransformationsPipeline::apply");
 
     fake_quantized = ov::op::util::has_op_with_type<ngraph::op::FakeQuantize>(model);
