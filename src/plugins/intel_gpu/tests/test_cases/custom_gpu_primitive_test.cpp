@@ -438,7 +438,7 @@ TEST(custom_gpu_primitive_f32, two_kernels_with_same_entry_point_basic_in2x2x2x2
         R"__krnl(
             __kernel void add_kernel(const __global float* input0, __global float* output)
             {
-                const unsigned idx = get_global_id(0);
+                const uint idx = get_global_id(0);
                 output[idx] = input0[idx] + SCALAR;
             }
         )__krnl";
@@ -447,8 +447,8 @@ TEST(custom_gpu_primitive_f32, two_kernels_with_same_entry_point_basic_in2x2x2x2
         R"__krnl(
             __kernel void add_kernel(const __global float* input0, __global float* output)
             {
-                const unsigned idx = get_global_id(0);
-                output[idx] = input0[idx] + 2*SCALAR;
+                const uint idx = get_global_id(0);
+                output[idx] = input0[idx] + SCALAR;
             }
         )__krnl";
     std::string entry_point = "add_kernel";
@@ -472,7 +472,7 @@ TEST(custom_gpu_primitive_f32, two_kernels_with_same_entry_point_basic_in2x2x2x2
         { kernel_code2 },
         entry_point,
         parameters,
-        "-cl-mad-enable -DSCALAR=3",
+        "-cl-mad-enable -DSCALAR=6",
         output_layout,
         gws));
 
