@@ -151,7 +151,7 @@ check_python_version () {
     fi
 }
 
-python_version_to_check="$PYTHON_VERSION_MAJOR"
+python_version_to_check="$python_version"
 if [ -z "$python_version" ]; then
     python_version_to_check="3"
 fi
