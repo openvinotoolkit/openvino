@@ -58,6 +58,7 @@ protected:
     static bool RunPipelineTask(IE::Task& inferPipelineTask, NotBusyPriorityWorkerRequests& idleWorkerRequests,
                                 const DeviceName& preferred_device);
     DeviceMap<NotBusyPriorityWorkerRequests> _idleWorkerRequests;
+    AutoScheduleContext::Ptr                 _autoSContext;
 
 private:
     /**
@@ -78,7 +79,6 @@ private:
     std::promise<void>                       _firstLoadPromise;
     bool                                     _exitFlag = {false};
     size_t                                   _cpuHelpInferCount = 0;
-    AutoScheduleContext::Ptr                 _autoSContext;
     size_t                                   _nCTputDeviceNums;
 };
 

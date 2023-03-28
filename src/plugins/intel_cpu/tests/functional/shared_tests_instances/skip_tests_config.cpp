@@ -92,11 +92,6 @@ std::vector<std::string> disabledTestPatterns() {
         R"(.*Behavior.*ExecutableNetworkBaseTest.*canSetConfigToExecNetWithIncorrectConfig.*)",
         R"(.*Hetero.*Behavior.*ExecutableNetworkBaseTest.*ExecGraphInfo.*)",
         R"(.*Hetero.*Behavior.*ExecutableNetworkBaseTest.*CanCreateTwoExeNetworksAndCheckFunction.*)",
-        R"(.*Hetero.*Behavior.*ExecutableNetworkBaseTest.*canLoadCorrectNetworkToGetMetricAndCheckConfig.*)",
-        // AutoExcutableNetwork does not support GetConfig
-        R"(.*(Auto|Multi).*Behavior.*ExecutableNetworkBaseTest.*canLoadCorrectNetworkToGetExecutableAndCheckConfig.*)",
-        // AutoExcutableNetwork GetMetric does not support key ov::num_streams
-        R"(.*smoke_CPU.*OVClassLoadNetworkAndCheckSecondaryProperties.*LoadNetworkAndCheckSecondaryPropertiesTest.*)",
 
         // CPU does not support dynamic rank
         // Issue: CVS-66778
