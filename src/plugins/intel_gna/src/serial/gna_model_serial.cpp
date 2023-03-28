@@ -16,18 +16,19 @@
 #    include <malloc.h>
 #else
 #    include <mm_malloc.h>
-
-#    include <serial/headers/2dot2/gna_model_header.hpp>
-#    include <serial/headers/2dot5/gna_model_header.hpp>
-#    include <serial/headers/2dot7/gna_model_header.hpp>
-#    include <serial/headers/2dot8/gna_model_header.hpp>
-
 #endif
 
 #include "common/versioning.hpp"
 #include "gna2_model_helper.hpp"
 #include "gna_model_serial.hpp"
 #include "gna_plugin.hpp"
+#include "openvino/pass/serialize.hpp"
+#include "openvino/runtime/core.hpp"
+#include "serial/headers/2dot2/gna_model_header.hpp"
+#include "serial/headers/2dot5/gna_model_header.hpp"
+#include "serial/headers/2dot7/gna_model_header.hpp"
+#include "serial/headers/2dot8/gna_model_header.hpp"
+#include "serial/headers/2dot9/gna_model_header.hpp"
 #include "serial/headers/latest/gna_model_header.hpp"
 
 using namespace ov::intel_gna;
@@ -46,6 +47,25 @@ inline void writeString(const std::string& str, std::ostream& os) {
     const size_t str_len = strlen(c_str) + 1;
     writeBits(static_cast<uint32_t>(str_len), os);
     writeNBytes(c_str, str_len, os);
+}
+
+inline void write_pre_processing_model(const std::shared_ptr<ov::Model>& model, std::ostream& os) {
+    // allocate buffer for ir.xml
+    std::ostringstream xml_buf;
+    // allocate buffer for ir.bin
+    std::ostringstream bin_buf;
+
+    // serialize IR to stream buffer (.xml + .bin)
+    ov::pass::Serialize serializer(xml_buf, bin_buf);
+    serializer.run_on_model(model);
+
+    // write IR
+    writeString(xml_buf.str(), os);
+
+    // write BIN
+    size_t ir_bin_size = bin_buf.str().size();
+    writeBits(ir_bin_size, os);
+    writeNBytes(bin_buf.str().c_str(), ir_bin_size, os);
 }
 
 template <class T>
@@ -168,11 +188,12 @@ header_latest::ModelHeader GNAModelSerial::ReadHeader(std::istream& is) {
         case 6:
         case 7:
         case 8:
+        case 9:
             readNBytes(&header, sizeof(header_latest::ModelHeader), is);
             break;
         default:
             THROW_GNA_EXCEPTION
-                << "Imported file unsupported. minor version should have values in range 1 to 8 and is: "
+                << "Imported file unsupported. minor version should have values in range 1 to 9 and is: "
                 << header.version.minor;
         }
         break;
@@ -217,11 +238,12 @@ header_latest::RuntimeEndPoint GNAModelSerial::ReadEndPoint(std::istream& is) {
             break;
         }
         case 8:
+        case 9:
             readNBytes(&endPoint, sizeof(header_latest::RuntimeEndPoint), is);
             break;
         default:
             THROW_GNA_EXCEPTION
-                << "Imported file unsupported. minor version should have values in range 1 to 8 and is: "
+                << "Imported file unsupported. minor version should have values in range 1 to 9 and is: "
                 << model_header_.version.minor;
         }
         break;
@@ -269,7 +291,8 @@ void GNAModelSerial::Import(void* basePointer,
                 (model_header_.version.minor >= 3) ? readString(is) : std::string("input" + std::to_string(inputIndex));
             inputs[name] = InputDesc(name);
         }
-        if (model_header_.version.minor >= 5) {
+        // Plugin uses ngraph pre/post-processing function to transpose inputs/outputs starting from version 2.9
+        if (model_header_.version.minor >= 5 && model_header_.version.minor <= 8) {
             // 3. Read transposition input info
             for (int inputIx = 0; inputIx < model_header_.nTransposeInputs; ++inputIx) {
                 std::string inputName;
@@ -287,7 +310,7 @@ void GNAModelSerial::Import(void* basePointer,
         }
     }
     // 5. Read Inputs endpoints
-    ImportInputs(is, basePointer, inputs);
+    ImportNodes(is, basePointer, inputs);
     // 6. Read output names
     if (model_header_.version.major == 2) {
         for (auto outputIndex = 0; outputIndex < model_header_.nOutputs; outputIndex++) {
@@ -297,7 +320,7 @@ void GNAModelSerial::Import(void* basePointer,
         }
     }
     // 7. Read outputs
-    ImportOutputs(is, basePointer, outputs);
+    ImportNodes(is, basePointer, outputs);
 
     for (auto operation = gna2model_->Operations; operation != gna2model_->Operations + gna2model_->NumberOfOperations;
          ++operation) {
@@ -463,10 +486,8 @@ void GNAModelSerial::Export(const GnaAllocations& allocations, std::ostream& os)
         // Write the input name
         writeString(input.name, os);
     }
-    // 3. Write transposition input info
-    ExportTranspositionInfo(os, inputs_transpose_info_);
-    // 4. Write transposition output info
-    ExportTranspositionInfo(os, outputs_transpose_info_);
+    // 3. Write transposition input info - removed in v.2.9
+    // 4. Write transposition output info - removed in v.2.9
     // 5. Write input endpoints and tensor names
     for (const auto& input : inputs_.Get()) {
         // write RuntimeEndPoint
@@ -474,6 +495,13 @@ void GNAModelSerial::Export(const GnaAllocations& allocations, std::ostream& os)
         // write the input tensor names
         for (const auto& tname : input.tensor_names) {
             writeString(tname, os);
+        }
+        // write pre-processing model
+        if (input.pre_post_process_model) {
+            write_pre_processing_model(input.pre_post_process_model, os);
+        } else {
+            // write empty string to detect  that model is absent during the import
+            writeString("", os);
         }
     }
     // 6. Write outputs names
@@ -488,6 +516,14 @@ void GNAModelSerial::Export(const GnaAllocations& allocations, std::ostream& os)
         // write the output tensor names
         for (auto& tname : output.tensor_names) {
             writeString(tname, os);
+        }
+
+        // write post-processing model
+        if (output.pre_post_process_model) {
+            write_pre_processing_model(output.pre_post_process_model, os);
+        } else {
+            // write empty string to detect  that model is absent during the import
+            writeString("", os);
         }
     }
     // 8. Write layers
@@ -563,61 +599,49 @@ void GNAModelSerial::Export(const GnaAllocations& allocations, std::ostream& os)
     version_.Export(os);
 }
 
-void GNAModelSerial::ImportInputs(std::istream& is, void* basePtr, GnaInputs& inputs) {
-    for (auto& input : inputs.Get()) {
+template <class T>
+void GNAModelSerial::ImportNodes(std::istream& is, void* base_ptr, T& nodes) {
+    for (auto& node : nodes.Get()) {
         header_latest::RuntimeEndPoint ep = ReadEndPoint(is);
 
-        input.ptrs.push_back(reinterpret_cast<float*>(reinterpret_cast<uint8_t*>(basePtr) + ep.descriptor_offset));
-        input.orientation = ep.orientation;
-        input.num_elements = ep.elements_count;
-        input.scale_factor = ep.scaleFactor;
-        input.model_precision =
+        node.ptrs.push_back(reinterpret_cast<float*>(reinterpret_cast<uint8_t*>(base_ptr) + ep.descriptor_offset));
+        node.orientation = ep.orientation;
+        node.num_elements = ep.elements_count;
+        node.scale_factor = ep.scaleFactor;
+        node.model_precision =
             InferenceEngine::Precision(static_cast<InferenceEngine::Precision::ePrecision>(ep.precision));
-        input.set_precision(ep.element_size);
-        input.model_layout = static_cast<InferenceEngine::Layout>(ep.layout);
-        input.allocated_size = input.get_required_size();
+        node.set_precision(ep.element_size);
+        node.model_layout = static_cast<InferenceEngine::Layout>(ep.layout);
+        node.allocated_size = node.get_required_size();
 
         auto inputDims = InferenceEngine::SizeVector();
         for (auto i = 0; i < ep.shape.NumberOfDimensions; ++i) {
             inputDims.push_back(ep.shape.Dimensions[i]);
         }
-        input.dims = inputDims;
+        node.dims = inputDims;
 
         // read tensor names
         for (uint8_t tId = 0; tId < ep.tensor_names_count; ++tId) {
-            input.tensor_names.insert(readString(is));
+            node.tensor_names.insert(readString(is));
         }
+        AppendTensorNameIfNeeded(node);
 
-        AppendTensorNameIfNeeded(input);
-    }
-}
+        // read pre-sprocessing model
+        if (model_header_.version.major == 2 && model_header_.version.minor >= 9) {
+            std::string ir_xml_str = readString(is);
+            if (!ir_xml_str.empty()) {
+                // read IR bin
+                size_t ir_bin_size = 0;
+                readBits(ir_bin_size, is);
 
-void GNAModelSerial::ImportOutputs(std::istream& is, void* basePtr, GnaOutputs& outputs) {
-    for (auto& output : outputs.Get()) {
-        header_latest::RuntimeEndPoint ep = ReadEndPoint(is);
+                ov::Tensor ir_bin_tensor(ov::element::u8, ov::Shape({ir_bin_size}));
+                readNBytes(ir_bin_tensor.data(), ir_bin_size, is);
 
-        output.ptrs.push_back(reinterpret_cast<float*>(reinterpret_cast<uint8_t*>(basePtr) + ep.descriptor_offset));
-        output.orientation = ep.orientation;
-        output.num_elements = ep.elements_count;
-        output.scale_factor = ep.scaleFactor;
-        output.set_precision(ep.element_size);
-        output.model_precision =
-            InferenceEngine::Precision(static_cast<InferenceEngine::Precision::ePrecision>(ep.precision));
-        output.model_layout = static_cast<InferenceEngine::Layout>(ep.layout);
-        output.allocated_size = output.get_required_size();
-
-        auto outputDims = InferenceEngine::SizeVector();
-        for (auto i = 0; i < ep.shape.NumberOfDimensions; ++i) {
-            outputDims.push_back(ep.shape.Dimensions[i]);
+                // restore model
+                ov::Core core;
+                node.pre_post_process_model = core.read_model(ir_xml_str, ir_bin_tensor);
+            }
         }
-        output.dims = outputDims;
-
-        // read tensor names
-        for (uint8_t tId = 0; tId < ep.tensor_names_count; ++tId) {
-            output.tensor_names.insert(readString(is));
-        }
-
-        AppendTensorNameIfNeeded(output);
     }
 }
 
@@ -634,19 +658,6 @@ void GNAModelSerial::ImportTranspositionInfo(std::istream& is,
         TranspositionInfo fragmentTranspositionInfo;
         readNBytes(&fragmentTranspositionInfo, sizeof(TranspositionInfo), is);
         transpositionInfo.push_back(fragmentTranspositionInfo);
-    }
-}
-
-void GNAModelSerial::ExportTranspositionInfo(std::ostream& os, const TranspositionInfoMap& transpositionInfoMap) const {
-    for (const auto& transpositionInfo : transpositionInfoMap) {
-        auto nameSize = strlen(transpositionInfo.first.c_str());
-        writeBits(static_cast<uint32_t>(nameSize), os);
-        writeNBytes(transpositionInfo.first.c_str(), nameSize, os);
-        auto fragmentsNum = transpositionInfo.second.size();
-        writeBits(static_cast<uint32_t>(fragmentsNum), os);
-        for (const auto& transposeFragmentInfo : transpositionInfo.second) {
-            writeNBytes(&transposeFragmentInfo, sizeof(TranspositionInfo), os);
-        }
     }
 }
 

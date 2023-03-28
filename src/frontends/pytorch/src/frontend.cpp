@@ -141,15 +141,19 @@ void FrontEnd::add_extension(const std::shared_ptr<ov::Extension>& extension) {
 }
 
 bool FrontEnd::supported_impl(const std::vector<ov::Any>& variants) const {
+    // Last boolean flag in `variants` (if presented) is reserved for FE configuration
+    size_t extra_variants_num = variants.size() > 0 && variants[variants.size() - 1].is<bool>() ? 1 : 0;
     // Currently PyTorch FrontEnd only support TorchDecoder as input
-    if (variants.size() != 1 || !variants[0].is<std::shared_ptr<IDecoder>>())
+    if (variants.size() != 1 + extra_variants_num || !variants[0].is<std::shared_ptr<IDecoder>>())
         return false;
     auto decoder = variants[0].as<std::shared_ptr<IDecoder>>();
     return decoder && std::dynamic_pointer_cast<TorchDecoder>(decoder);
 }
 
 ov::frontend::InputModel::Ptr FrontEnd::load_impl(const std::vector<ov::Any>& variants) const {
-    FRONT_END_GENERAL_CHECK(variants.size() == 1,
+    // Last boolean flag in `variants` (if presented) is reserved for FE configuration
+    size_t extra_variants_num = variants.size() > 0 && variants[variants.size() - 1].is<bool>() ? 1 : 0;
+    FRONT_END_GENERAL_CHECK(variants.size() == 1 + extra_variants_num,
                             "PyTorch Frontend supports exactly one parameter in model representation, got ",
                             std::to_string(variants.size()),
                             " instead.");
