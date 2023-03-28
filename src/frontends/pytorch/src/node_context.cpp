@@ -196,7 +196,7 @@ Any get_constant_data(const std::shared_ptr<opset10::Constant>& constant) {
 }  // namespace
 
 Any NodeContext::get_values_from_const_input(int index) const {
-    FRONT_END_GENERAL_CHECK(index < get_input_size(), "Input with index: ", index, " does not exist.");
+    FRONT_END_GENERAL_CHECK(static_cast<size_t>(index) < get_input_size(), "Input with index: ", index, " does not exist.");
 
     if (input_is_none(index)) {
         return {};
