@@ -58,11 +58,11 @@ INSTANTIATE_TEST_SUITE_P(smoke_cpuCompileModelBehaviorTests,
                                             ::testing::ValuesIn(cpu_compileModel_properties)),
                          OVSetPropComplieModleGetPropTests::getTestCaseName);
 
-const std::vector<ov::AnyMap> auto_multi_setcore_properties = {
+const std::vector<ov::AnyMap> multi_setcore_properties = {
     {ov::device::priorities(CommonTestUtils::DEVICE_CPU),
      ov::hint::performance_mode(ov::hint::PerformanceMode::LATENCY),
      ov::hint::model_priority(ov::hint::Priority::HIGH)}};
-const std::vector<ov::AnyMap> auto_multi_compileModel_properties = {
+const std::vector<ov::AnyMap> multi_compileModel_properties = {
     {ov::device::priorities(CommonTestUtils::DEVICE_CPU),
      ov::hint::performance_mode(ov::hint::PerformanceMode::THROUGHPUT),
      ov::hint::model_priority(ov::hint::Priority::MEDIUM)}};
@@ -70,15 +70,36 @@ const std::vector<ov::AnyMap> auto_multi_compileModel_properties = {
 INSTANTIATE_TEST_SUITE_P(smoke_MultiCompileModelBehaviorTests,
                          OVSetPropComplieModleGetPropTests,
                          ::testing::Combine(::testing::Values(CommonTestUtils::DEVICE_MULTI),
-                                            ::testing::ValuesIn(auto_multi_setcore_properties),
-                                            ::testing::ValuesIn(auto_multi_compileModel_properties)),
+                                            ::testing::ValuesIn(multi_setcore_properties),
+                                            ::testing::ValuesIn(multi_compileModel_properties)),
                          OVSetPropComplieModleGetPropTests::getTestCaseName);
 
+const std::vector<ov::AnyMap> auto_setcore_properties = {
+    {ov::device::priorities(CommonTestUtils::DEVICE_CPU),
+     ov::hint::performance_mode(ov::hint::PerformanceMode::THROUGHPUT),
+     ov::hint::model_priority(ov::hint::Priority::HIGH)},
+    {ov::device::priorities(CommonTestUtils::DEVICE_CPU),
+     ov::hint::performance_mode(ov::hint::PerformanceMode::LATENCY),
+     ov::hint::model_priority(ov::hint::Priority::HIGH)},
+    {ov::device::priorities(CommonTestUtils::DEVICE_CPU),
+     ov::hint::performance_mode(ov::hint::PerformanceMode::CUMULATIVE_THROUGHPUT),
+     ov::hint::model_priority(ov::hint::Priority::HIGH)},
+};
+const std::vector<ov::AnyMap> auto_compileModel_properties = {
+    {ov::device::priorities(CommonTestUtils::DEVICE_CPU),
+     ov::hint::performance_mode(ov::hint::PerformanceMode::LATENCY),
+     ov::hint::model_priority(ov::hint::Priority::MEDIUM)},
+    {ov::device::priorities(CommonTestUtils::DEVICE_CPU),
+     ov::hint::performance_mode(ov::hint::PerformanceMode::CUMULATIVE_THROUGHPUT),
+     ov::hint::model_priority(ov::hint::Priority::MEDIUM)},
+    {ov::device::priorities(CommonTestUtils::DEVICE_CPU),
+     ov::hint::performance_mode(ov::hint::PerformanceMode::THROUGHPUT),
+     ov::hint::model_priority(ov::hint::Priority::MEDIUM)}};
 INSTANTIATE_TEST_SUITE_P(smoke_AutoCompileModelBehaviorTests,
                          OVSetPropComplieModleGetPropTests,
                          ::testing::Combine(::testing::Values(CommonTestUtils::DEVICE_AUTO),
-                                            ::testing::ValuesIn(auto_multi_setcore_properties),
-                                            ::testing::ValuesIn(auto_multi_compileModel_properties)),
+                                            ::testing::ValuesIn(auto_setcore_properties),
+                                            ::testing::ValuesIn(auto_compileModel_properties)),
                          OVSetPropComplieModleGetPropTests::getTestCaseName);
 
 const std::vector<ov::AnyMap> default_properties = {
