@@ -101,7 +101,7 @@ class TRANSFORMATIONS_API SoftmaxFusion;
  *   - ReduceMax and ReduceSum axes must be scalar constants and they have to point to the same axis
  */
 
-class ov::pass::SoftmaxFusion : public ov::pass::GraphRewrite {
+class ov::pass::SoftmaxFusion : public ov::pass::MatcherPass {
 public:
     OPENVINO_RTTI("SoftmaxFusion", "0");
     SoftmaxFusion();

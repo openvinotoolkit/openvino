@@ -5,7 +5,6 @@
 #include <gtest/gtest.h>
 
 #include <ngraph/function.hpp>
-#include <ngraph/opsets/opset10.hpp>
 #include <ngraph/opsets/opset6.hpp>
 #include <ngraph/pass/manager.hpp>
 #include <openvino/pass/serialize.hpp>
@@ -75,11 +74,11 @@ TEST_P(SoftmaxFusionSimplePatternFixture, SoftmaxFusionSimplePatternTest) {
     auto reduce_axis_val = std::get<0>(params);
     std::shared_ptr<Function> f(nullptr), f_ref(nullptr);
     {
-        auto data = std::make_shared<opset10::Parameter>(element::f32, shape);
-        auto exp = std::make_shared<opset10::Exp>(data);
-        auto reduce_axis = opset10::Constant::create(element::i64, Shape{}, {reduce_axis_val});
-        auto reduce_sum = std::make_shared<opset10::ReduceSum>(exp, reduce_axis, true);
-        auto div = std::make_shared<opset10::Divide>(exp, reduce_sum);
+        auto data = std::make_shared<opset6::Parameter>(element::f32, shape);
+        auto exp = std::make_shared<opset6::Exp>(data);
+        auto reduce_axis = opset6::Constant::create(element::i64, Shape{}, {reduce_axis_val});
+        auto reduce_sum = std::make_shared<opset6::ReduceSum>(exp, reduce_axis, true);
+        auto div = std::make_shared<opset6::Divide>(exp, reduce_sum);
         f = std::make_shared<Function>(NodeVector{div}, ParameterVector{data});
 
         auto unh = std::make_shared<ngraph::pass::UniqueNamesHolder>();
@@ -92,8 +91,10 @@ TEST_P(SoftmaxFusionSimplePatternFixture, SoftmaxFusionSimplePatternTest) {
         ASSERT_NO_THROW(check_rt_info(f));
     }
     {
-        auto data = std::make_shared<opset10::Parameter>(element::f32, shape);
-        auto softmax = std::make_shared<opset10::Softmax>(data, reduce_axis_val);
+        auto data = std::make_shared<opset6::Parameter>(element::f32, shape);
+        if (reduce_axis_val < 0)
+            reduce_axis_val += shape.size();
+        auto softmax = std::make_shared<opset6::Softmax>(data, reduce_axis_val);
         f_ref = std::make_shared<Function>(NodeVector{softmax}, ParameterVector{data});
     }
 
