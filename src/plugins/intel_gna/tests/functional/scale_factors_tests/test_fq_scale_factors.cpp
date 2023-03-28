@@ -14,8 +14,8 @@
 #include "ngraph_functions/builders.hpp"
 #include "ngraph_functions/pass/convert_prc.hpp"
 #include "ngraph_functions/utils/ngraph_helpers.hpp"
-#include "shared_test_classes/base/layer_test_utils.hpp"
 #include "openvino/opsets/opset10.hpp"
+#include "shared_test_classes/base/layer_test_utils.hpp"
 
 using namespace ov::opset10;
 
@@ -23,8 +23,7 @@ enum NonFunctionalLayer { RESHAPE, SQUEEZE, UNSQUEEZE, TRANSPOSE, NONE };
 
 namespace std {
 inline std::ostream& operator<<(std::ostream& os, NonFunctionalLayer layer_type) {
-    switch (layer_type)
-    {
+    switch (layer_type) {
     case NonFunctionalLayer::RESHAPE:
         os << "RESHAPE";
         break;
@@ -43,7 +42,7 @@ inline std::ostream& operator<<(std::ostream& os, NonFunctionalLayer layer_type)
     }
     return os;
 }
-}
+}  // namespace std
 
 typedef std::tuple<InferenceEngine::Precision,          // Network Precision
                    std::string,                         // Target Device
@@ -90,8 +89,7 @@ protected:
         const ngraph::Shape shape = {1, 1, 128};
         auto params = ngraph::builder::makeParams(ngPrc, {shape});
         std::shared_ptr<ov::Node> test_node = params[0];
-        switch (m_non_func_layer)
-        {
+        switch (m_non_func_layer) {
         case NonFunctionalLayer::RESHAPE:
             test_node = AddReshapeNode(test_node);
             break;
@@ -135,7 +133,8 @@ protected:
 
     std::shared_ptr<ov::Node> AddReshapeNode(std::shared_ptr<ov::Node> node) {
         const ov::Shape reshape_pattern = {1, 128};
-        auto reshape_const = std::make_shared<Constant>(ov::element::i32, ov::Shape{reshape_pattern.size()}, reshape_pattern);
+        auto reshape_const =
+            std::make_shared<Constant>(ov::element::i32, ov::Shape{reshape_pattern.size()}, reshape_pattern);
         auto reshape = std::make_shared<Reshape>(node, reshape_const, false);
         return reshape;
     }
@@ -156,11 +155,11 @@ protected:
 
     std::shared_ptr<ov::Node> AddTransposeNode(std::shared_ptr<ov::Node> node) {
         const ov::Shape transpose_axes = {0, 2, 1};
-        auto transpose_const = std::make_shared<Constant>(ov::element::i32, ov::Shape{transpose_axes.size()}, transpose_axes);
+        auto transpose_const =
+            std::make_shared<Constant>(ov::element::i32, ov::Shape{transpose_axes.size()}, transpose_axes);
         auto transpose = std::make_shared<Transpose>(node, transpose_const);
         return transpose;
     }
-
 
     NonFunctionalLayer m_non_func_layer = NonFunctionalLayer::NONE;
     float inputDataMax = 1.0;
