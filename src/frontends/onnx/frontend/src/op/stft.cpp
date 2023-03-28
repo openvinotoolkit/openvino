@@ -66,7 +66,7 @@ OutputVector stft(const Node& node) {
         CHECK_VALID_NODE(node, !is_complex(signal), "If attribute onesided==1, signal input can NOT be complex.");
     }
     const int64_t batch_size = signal_param_shape[0].get_length();
-    const int64_t nstfts =
+    const auto nstfts =
         static_cast<int64_t>((signal_param_shape[axis].get_length() - frame_length) / frame_step) + 1;
     const auto axis_const = default_opset::Constant::create(element::i64, {}, {axis});
     const auto zero_const = default_opset::Constant::create(element::i64, {}, {0});
