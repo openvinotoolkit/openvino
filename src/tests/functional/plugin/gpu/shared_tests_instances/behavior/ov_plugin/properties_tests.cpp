@@ -110,11 +110,11 @@ INSTANTIATE_TEST_SUITE_P(smoke_gpuCompileModelBehaviorTests,
                          OVSetPropComplieModleGetPropTests::getTestCaseName);
 
 const std::vector<ov::AnyMap> multi_setcore_properties = {
-    {ov::device::priorities(CommonTestUtils::DEVICE_CPU),
-     ov::hint::performance_mode(ov::hint::PerformanceMode::LATENCY),
+    {ov::device::priorities(CommonTestUtils::DEVICE_GPU),
+     ov::hint::performance_mode(ov::hint::PerformanceMode::THROUGHPUT),
      ov::hint::model_priority(ov::hint::Priority::HIGH)}};
 const std::vector<ov::AnyMap> multi_compileModel_properties = {
-    {ov::device::priorities(CommonTestUtils::DEVICE_CPU),
+    {ov::device::priorities(CommonTestUtils::DEVICE_GPU),
      ov::hint::performance_mode(ov::hint::PerformanceMode::THROUGHPUT),
      ov::hint::model_priority(ov::hint::Priority::MEDIUM)}};
 
