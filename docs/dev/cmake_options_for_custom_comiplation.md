@@ -96,6 +96,8 @@ This document provides description and default values for CMake options that can
 > * Hybrid architecture to separate Performance / Efficiency cores and schedule tasks in the optimal way.
 
 > **Note:** if you build OpenVINO runtime with [oneTBB] support where TBBBind 2.5 is automatically loaded by TBB in runtime, then set `ENABLE_TBBBIND_2_5` to `OFF`
+> * make sure libtbbbind.so is in the same folder as libtbb.so. For example, oneTBB package on Ubuntu 22.04 has libtbbbind missed. https://bugs.launchpad.net/ubuntu/+source/onetbb/+bug/2006898
+> * oneTBB relies on higher version hwloc to recognize hybrid CPU core types correctly, on some machines, they require higher hwloc version to work correctly. Check if hwloc-info --version returns hwloc version >= 2.7.0, Ubuntu 20.04 with hwloc 2.1.0
 
 * `ENABLE_SSE42` enables SSE4.2 optimizations:
     * `ON` is default for x86 platforms; not available for other platforms.
@@ -132,6 +134,7 @@ cmake ...
 In this case OpenVINO CMake scripts take `TBBROOT` environment variable into account and provided TBB will be used.
 
 **Note:** if you are building TBB from source files, please install TBB after and use `TBBROOT` to point to installation root. 
+**Note:** reference to oneTBB Note in [Options affecting binary size](#options-affecting-binary-size)
 
 ## Test capabilities
 
