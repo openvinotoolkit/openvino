@@ -113,11 +113,17 @@ def main():
             supported_properties = benchmark.core.get_property(device, properties.supported_properties())
             if properties.hint.performance_mode() in supported_properties:
                 if is_flag_set_in_command_line('hint'):
-                    if args.perf_hint=='none':
-                        logger.warning(f"No device {device} performance hint is set.")
+                    if args.perf_hint == "throughput" or args.perf_hint == "tput":
+                        perf_hint = properties.hint.PerformanceMode.THROUGHPUT
+                    elif args.perf_hint == "latency":
+                        perf_hint = properties.hint.PerformanceMode.LATENCY
+                    elif args.perf_hint == "cumulative_throughput" or args.perf_hint == "ctput":
+                        perf_hint = properties.hint.PerformanceMode.CUMULATIVE_THROUGHPUT
+                    elif args.perf_hint=='none':
                         perf_hint = properties.hint.PerformanceMode.UNDEFINED
                     else:
-                        perf_hint = properties.hint.PerformanceMode(args.perf_hint.upper())
+                        raise RuntimeError("Incorrect performance hint. Please set -hint option to"
+                            "`throughput`(tput), `latency', 'cumulative_throughput'(ctput) value or 'none'.")
                 else:
                     perf_hint = properties.hint.PerformanceMode.THROUGHPUT if benchmark.api_type == "async" else properties.hint.PerformanceMode.LATENCY
                     logger.warning(f"Performance hint was not explicitly specified in command line. " +

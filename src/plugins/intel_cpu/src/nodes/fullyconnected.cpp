@@ -232,29 +232,29 @@ void FullyConnected::getSupportedDescriptors() {
     auto inputDataType = DnnlExtensionUtils::IEPrecisionToDataType(getOriginalInputPrecisionAtPort(DATA_ID));
     outputDataType = DnnlExtensionUtils::IEPrecisionToDataType(getOriginalOutputPrecisionAtPort(DATA_ID));
 
-    if (inputDataType == memory::data_type::f32) {
-        outputDataType = memory::data_type::f32;
-    }
-
     if (!fusedWith.empty()) {
         outputDataType = DnnlExtensionUtils::IEPrecisionToDataType(fusedWith[fusedWith.size() - 1]->getOriginalOutputPrecisionAtPort(0));
     }
     auto weightsDataType = DnnlExtensionUtils::IEPrecisionToDataType(getOriginalInputPrecisionAtPort(WEIGHTS_ID));
 
-    //  We have to extend gemm_x8s8s32x_inner_product_fwd_t from oneDNN to support BF16 output data type
-    if ((!one_of(inputDataType , memory::data_type::u8, memory::data_type::s8) || weightsDataType != memory::data_type::s8)
-            && inputDataType != memory::data_type::bf16) {
-        inputDataType = outputDataType = memory::data_type::f32;
-    }
-
-    if (one_of(inputDataType , memory::data_type::u8, memory::data_type::s8)
-        && outputDataType == memory::data_type::bf16) {
+    // revert back outputDataType on special cases
+    if (inputDataType == memory::data_type::f32) {
+        // oneDNN only support f32 output when input is f32, even if FQ is fused
         outputDataType = memory::data_type::f32;
-    }
-
-    if (inputDataType == memory::data_type::bf16
-        && one_of(outputDataType , memory::data_type::u8, memory::data_type::s8)) {
-        outputDataType = memory::data_type::bf16;
+    } else if (inputDataType == memory::data_type::bf16) {
+        // bf16 input only supports bf16/f32 output, even if FQ is fused as post-ops
+        if (one_of(outputDataType , memory::data_type::u8, memory::data_type::s8)) {
+            outputDataType = memory::data_type::bf16;
+        }
+    } else if (one_of(inputDataType, memory::data_type::u8, memory::data_type::s8)) {
+        if (weightsDataType != memory::data_type::s8) {
+            // weight has to be s8 for INT8 mode, otherwise fallback to
+            // f32 mode
+            inputDataType = outputDataType = memory::data_type::f32;
+        }
+    } else {
+        // s32/u32/... unsupported input data types, fallback to f32
+        inputDataType = outputDataType = memory::data_type::f32;
     }
 
     inDims = isDynamicNode() ? makeDummyInputDims() : getInputShapeAtPort(DATA_ID).getStaticDims();
@@ -311,7 +311,7 @@ void FullyConnected::prepareParams() {
                  implementationTypeIP,
                  useConv1x1};
 
-    auto engine = getEngine();
+    auto& engine = getEngine();
 
     auto builder = [&engine](const FCKey& key) -> executorPtr {
         executorPtr execPtr = nullptr;
@@ -333,7 +333,7 @@ void FullyConnected::prepareParams() {
             }
 
             if (prim_desc) {
-                execPtr = std::make_shared<ExecutorConv1x1>(prim_desc);
+                execPtr = std::make_shared<DnnlExecutor>(prim_desc);
             }
         }
         // fallback
@@ -388,7 +388,7 @@ void FullyConnected::prepareParams() {
                 }
             }
 
-            execPtr = std::make_shared<ExecutorInnerProduct>(prim_desc);
+            execPtr = std::make_shared<DnnlExecutor>(prim_desc);
         }
         return execPtr;
     };
@@ -404,26 +404,20 @@ void FullyConnected::prepareParams() {
     execPtr = result.first;
 
     if (execPtr) {
-        // no executor yet or shapes changed
-        if (!prevExecPtr || prevExecPtr->getSrcDesc() != execPtr->getSrcDesc()) {
-            auto oldMem = srcMemPtr->GetPrimitive();
-            // fast path: wanted is same with parent node output, typical is static shape with inner product
-            if (execPtr->getSrcDesc() == inDesc->getDnnlDesc()) {
-                primArgs[DNNL_ARG_SRC] = std::move(oldMem);
-            } else {
-                primArgs[DNNL_ARG_SRC] = dnnl::memory(execPtr->getSrcDesc(), oldMem.get_engine(), oldMem.get_data_handle());
-            }
+        if (execPtr->getSrcDesc()->isCompatible(*inDesc)) {
+            primArgs[DNNL_ARG_SRC] = srcMemPtr->GetPrimitive();
+        } else {
+            primArgs[DNNL_ARG_SRC] = dnnl::memory(execPtr->getDnnlSrcDesc(), engine, srcMemPtr->GetData());
         }
-        if (!prevExecPtr || prevExecPtr->getDstDesc() != execPtr->getDstDesc()) {
-            auto oldMem = dstMemPtr->GetPrimitive();
-            if (execPtr->getDstDesc() == outDesc->getDnnlDesc()) {
-                primArgs[DNNL_ARG_DST] = std::move(oldMem);
-            } else {
-                primArgs[DNNL_ARG_DST] = dnnl::memory(execPtr->getDstDesc(), oldMem.get_engine(), oldMem.get_data_handle());
-            }
+
+        if (execPtr->getDstDesc()->isCompatible(*outDesc)) {
+            primArgs[DNNL_ARG_DST] = dstMemPtr->GetPrimitive();
+        } else {
+            primArgs[DNNL_ARG_DST] = dnnl::memory(execPtr->getDnnlDstDesc(), engine, dstMemPtr->GetData());
         }
-        if (!prevExecPtr || prevExecPtr->getWeightDesc() != execPtr->getWeightDesc()) {
-            primArgs[DNNL_ARG_WEIGHTS] = prepareWeightMemory(DnnlExtensionUtils::makeDescriptor(execPtr->getWeightDesc()))->GetPrimitive();
+
+        if (!prevExecPtr || !execPtr->getWeightDesc()->isCompatible(*(prevExecPtr->getWeightDesc()))) {
+            primArgs[DNNL_ARG_WEIGHTS] = prepareWeightMemory(execPtr->getWeightDesc())->GetPrimitive();
         }
         // changed shapes may also cause the kernel type changed
         selected_pd->setImplementationType(execPtr->getImplementationType());
@@ -438,12 +432,12 @@ void FullyConnected::prepareParams() {
             primArgs[DNNL_ARG_BIAS] = biasMemPtr->GetPrimitive();
         }
 
-        auto pd = execPtr->getPrimitiveDesc();
-        auto scratchpadMem = getScratchPadMem(pd);
-        primArgs[DNNL_ARG_SCRATCHPAD] = scratchpadMem->GetPrimitive();
+        auto schratchpadMem = getScratchPadMem(execPtr->getScratchPadDesc());
+        primArgs[DNNL_ARG_SCRATCHPAD] = schratchpadMem->GetPrimitive();
 #ifdef CPU_DEBUG_CAPS
         if (result.second == CacheEntryBase::LookUpStatus::Miss) {
-            DEBUG_LOG("verbose##", getName(), "##", pd->info(), "\n");
+            auto pd = execPtr->getPrimitiveDesc();
+            DEBUG_LOG("verbose##", getName(), "##", DnnlExtensionUtils::query_pd_info(pd), "\n");
         }
 #endif
     } else {
@@ -917,14 +911,6 @@ bool FullyConnected::canBeExecutedInConv1x1() const {
     }
 
     return retVal;
-}
-
-FullyConnected::ExecutorInnerProduct::ExecutorInnerProduct(const dnnl::inner_product_forward::primitive_desc& pd) {
-    execPrim = dnnl::inner_product_forward(pd);
-}
-
-FullyConnected::ExecutorConv1x1::ExecutorConv1x1(const dnnl::convolution_forward::primitive_desc& pd) {
-    execPrim = dnnl::convolution_forward(pd);
 }
 
 MemoryPtr FullyConnected::prepareWeightMemory(DnnlMemoryDescPtr weightDesc) {

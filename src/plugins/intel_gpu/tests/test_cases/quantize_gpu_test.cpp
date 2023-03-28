@@ -84,7 +84,7 @@ TEST(quantize_gpu, quantize_levels_2_output_broadcast_inputs_1) {
         quantize("quantize", input_info("input"), input_info("input_low"), input_info("input_high"), input_info("output_low"), input_info("output_high"), 2, data_types::f32)
     );
 
-    network network(engine, topology);
+    network network(engine, topology, get_test_default_config(engine));
     network.set_input_data("input", input);
     auto outputs = network.execute();
 
@@ -148,7 +148,7 @@ TEST(quantize_gpu, quantize_levels_2_output_broadcast_inputs_1_ch8) {
         quantize("quantize", input_info("input"), input_info("input_low"), input_info("input_high"), input_info("output_low"), input_info("output_high"), 2, data_types::f32)
     );
 
-    network network(engine, topology);
+    network network(engine, topology, get_test_default_config(engine));
     network.set_input_data("input", input);
     auto outputs = network.execute();
 
@@ -212,7 +212,7 @@ TEST(quantize_gpu, quantize_levels_2_output_broadcast_inputs_1_ch8_binary_pack) 
         reorder("reorder", input_info("quantize"), layout{data_types::f32, format::bfyx, tensor{1,8,2,2}})
     );
 
-    ExecutionConfig config;
+    ExecutionConfig config = get_test_default_config(engine);
     config.set_property(ov::intel_gpu::optimize_data(true));
     network network(engine, topology, config);
     network.set_input_data("input", input);
@@ -292,7 +292,7 @@ TEST(quantize_gpu, quantize_levels_2_output_broadcast_inputs_2) {
         quantize("quantize", input_info("input"), input_info("input_low"), input_info("input_high"), input_info("output_low"), input_info("output_high"), 2, data_types::f32)
     );
 
-    network network(engine, topology);
+    network network(engine, topology, get_test_default_config(engine));
     network.set_input_data("input", input);
     auto outputs = network.execute();
 
@@ -381,7 +381,7 @@ TEST(quantize_gpu, quantize_levels_3) {
         quantize("quantize", input_info("input"), input_info("input_low"), input_info("input_high"), input_info("output_low"), input_info("output_high"), 3, data_types::f32)
     );
 
-    network network(engine, topology);
+    network network(engine, topology, get_test_default_config(engine));
     network.set_input_data("input", input);
     auto outputs = network.execute();
 
@@ -472,7 +472,7 @@ TEST(quantize_gpu, quantize_levels_256_2d_unsigned) {
         quantize("quantize", input_info("input"), input_info("input_low"), input_info("input_high"), input_info("output_low"), input_info("output_high"), 256, data_types::u8)
     );
 
-    network network(engine, topology);
+    network network(engine, topology, get_test_default_config(engine));
     network.set_input_data("input", input);
     auto outputs = network.execute();
 
@@ -564,7 +564,7 @@ TEST(quantize_gpu, quantize_levels_256_3d_unsigned) {
         reorder("out", input_info("quantize"), format::bfzyx, data_types::u8)
     );
 
-    network network(engine, topology);
+    network network(engine, topology, get_test_default_config(engine));
     network.set_input_data("input", input);
     auto outputs = network.execute();
 
@@ -658,7 +658,7 @@ TEST(quantize_gpu, dynamic) {
         quantize("quantize", input_info("input"), input_info("input_low"), input_info("input_high"), input_info("output_low"), input_info("output_high"), 2, data_types::f32)
     );
 
-    ExecutionConfig config;
+    ExecutionConfig config = get_test_default_config(engine);
     config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
     network network(engine, topology, config);
     network.set_input_data("input", input);
@@ -837,7 +837,7 @@ struct quantize_random_test : testing::TestWithParam<quantize_random_test_params
             FAIL() << "Not supported inputs number: " << params.inputs_num;
         }
 
-        ExecutionConfig config;
+        ExecutionConfig config = get_test_default_config(engine);
         config.set_property(ov::intel_gpu::custom_outputs(std::vector<std::string>{"quantize"}));
 
         cldnn::network::ptr net = get_network(engine, topo, config, get_test_stream_ptr(), is_caching_test);
@@ -877,7 +877,7 @@ struct quantize_random_test : testing::TestWithParam<quantize_random_test_params
         }
 
 
-        network net_opt(engine, topo_opt, ExecutionConfig{});
+        network net_opt(engine, topo_opt, get_test_default_config(engine));
         net_opt.set_input_data("input_opt", input_opt);
 
         auto result_opt = net_opt.execute();
