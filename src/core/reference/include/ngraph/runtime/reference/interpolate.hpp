@@ -601,7 +601,7 @@ void InterpolateEval<T>::multidim_pil_func(const T* input_data, T* out, const in
     auto in_matrix_elem_size = h_dim_in * w_dim_in;
     auto out_matrix_elem_size = h_dim_out * w_dim_out;
 
-    auto box = std::vector<float>{0.f, 0.f, (float)w_dim_in, (float)h_dim_in};
+    auto box = std::vector<float>{0.f, 0.f, static_cast<float>(w_dim_in), static_cast<float>(h_dim_in)};
 
     if (shape_size(m_input_data_shape) == in_matrix_elem_size) {
         // Input data is 2D or ND with other dimensions equal 1
