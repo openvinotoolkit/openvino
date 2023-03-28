@@ -1913,7 +1913,8 @@ INSTANTIATE_TEST_SUITE_P(, permute_bfzyx_to_bfyxz,
     ::testing::ValuesIn(std::vector<TiledPermuteParam> {
             {{1, 3, 85, 20, 20}, format::bfzyx},
             {{1, 3, 85, 40, 40}, format::bfzyx},
-            {{1, 3, 85, 80, 80}, format::bfzyx}
+            {{1, 3, 85, 80, 80}, format::bfzyx},
+            {{1, 192, 2, 64, 33}, format::bfzyx}
         }));
 
 TEST_P(permute_bfzyx_to_bfyxz, combined) {

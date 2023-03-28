@@ -102,7 +102,7 @@ KERNEL (permute_bfzyx_to_bfyxz)(
     }
 #endif
 #if defined(X_REMAINDER_ITEM) && defined(Z_REMAINDER_ITEM)
-     else if (f == Z_REMAINDER_ITEM && x == X_REMAINDER_ITEM) {
+     else if (z == Z_REMAINDER_ITEM && x == X_REMAINDER_ITEM) {
         // point by point
         for (int lh = 0; lh < Z_REMAINDER_SIZE; ++lh) {
             // read
