@@ -295,7 +295,6 @@ std::pair<ov::Tensor, ov::Tensor> ov::evaluate_both_bounds(const Output<Node>& o
     const auto& output_tensor = output.get_tensor();
     if (output_tensor.get_lower_value() && output_tensor.get_upper_value())
         return {output_tensor.get_lower_value(), output_tensor.get_upper_value()};
-
     std::vector<Node*> order;
     if (could_propagate(output, order)) {
         for (const auto& node : order) {
@@ -306,38 +305,30 @@ std::pair<ov::Tensor, ov::Tensor> ov::evaluate_both_bounds(const Output<Node>& o
                 outputs_upper.push_back(util::wrap_tensor(out));
                 OPENVINO_SUPPRESS_DEPRECATED_END
             }
-
-            if (!node->evaluate_lower(outputs_lower) || !node->evaluate_upper(outputs_upper)) {
+            if (!node->evaluate_lower(outputs_lower) || !node->evaluate_upper(outputs_upper))
                 break;
-            }
             auto input_values = node->input_values();
             bool same_inputs = std::all_of(input_values.begin(), input_values.end(), [](const Output<Node>& input) {
                 auto& t = input.get_tensor();
                 return t.has_and_set_bound() || are_equal(t.get_lower_value(), t.get_upper_value());
             });
-
+            TensorLabelVector output_labels(node->get_output_size());
+            bool labels_evaluated = node->evaluate_label(output_labels);
             for (size_t i = 0; i < node->get_output_size(); ++i) {
                 auto& out_tensor = node->get_output_tensor(i);
                 out_tensor.set_lower_value(outputs_lower[i]);
                 out_tensor.set_upper_value(outputs_upper[i]);
-                if (same_inputs || are_equal(outputs_lower[i], outputs_upper[i])) {
+                if (same_inputs || are_equal(outputs_lower[i], outputs_upper[i]))
                     out_tensor.set_upper_value(outputs_lower[i]);
-                }
-            }
-            TensorLabelVector output_labels(node->get_output_size());
-            if (node->evaluate_label(output_labels))
-                for (size_t i = 0; i < output_labels.size(); ++i)
+                if (labels_evaluated)
                     node->get_output_tensor(i).set_value_label(output_labels[i]);
-
+            }
             for (const auto& input : node->input_values()) {
                 auto& tensor = input.get_tensor();
-                bool should_invalidate = false;
                 const auto& lower = tensor.get_lower_value();
                 const auto& upper = tensor.get_upper_value();
-                if (lower && shape_size(lower.get_shape()) > 10)
-                    should_invalidate |= true;
-                if (upper && shape_size(upper.get_shape()) > 10)
-                    should_invalidate |= true;
+                const auto should_invalidate =
+                    (lower && shape_size(lower.get_shape()) > 10) || (upper && shape_size(upper.get_shape()) > 10);
                 if (should_invalidate && input.get_target_inputs().size() == 1)
                     tensor.invalidate_values();
             }
