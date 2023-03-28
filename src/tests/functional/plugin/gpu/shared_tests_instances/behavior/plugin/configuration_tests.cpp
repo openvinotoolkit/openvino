@@ -305,12 +305,12 @@ namespace {
     }};
 
     const std::vector<std::map<std::string, std::string>> auto_multi_prop_config = {
-        {{InferenceEngine::MultiDeviceConfigParams::KEY_MULTI_DEVICE_PRIORITIES, CommonTestUtils::DEVICE_CPU},
+        {{InferenceEngine::MultiDeviceConfigParams::KEY_MULTI_DEVICE_PRIORITIES, CommonTestUtils::DEVICE_GPU},
          {InferenceEngine::PluginConfigParams::KEY_PERFORMANCE_HINT, InferenceEngine::PluginConfigParams::LATENCY},
          {ov::hint::model_priority.name(), InferenceEngine::PluginConfigParams::MODEL_PRIORITY_MED}}};
 
     const std::vector<std::map<std::string, std::string>> auto_multi_loadNetWork_config = {
-        {{InferenceEngine::MultiDeviceConfigParams::KEY_MULTI_DEVICE_PRIORITIES, CommonTestUtils::DEVICE_CPU},
+        {{InferenceEngine::MultiDeviceConfigParams::KEY_MULTI_DEVICE_PRIORITIES, CommonTestUtils::DEVICE_GPU},
          {InferenceEngine::PluginConfigParams::KEY_PERFORMANCE_HINT, InferenceEngine::PluginConfigParams::THROUGHPUT},
          {ov::hint::model_priority.name(), InferenceEngine::PluginConfigParams::MODEL_PRIORITY_HIGH}}};
 
