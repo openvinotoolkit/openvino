@@ -58,6 +58,11 @@ void regmodule_properties(py::module m) {
         .value("THROUGHPUT", ov::hint::PerformanceMode::THROUGHPUT)
         .value("CUMULATIVE_THROUGHPUT", ov::hint::PerformanceMode::CUMULATIVE_THROUGHPUT);
 
+    py::enum_<ov::hint::SchedulingCoreType>(m_hint, "SchedulingCoreType", py::arithmetic())
+        .value("ANY_CORE", ov::hint::SchedulingCoreType::ANY_CORE)
+        .value("PCORE_ONLY", ov::hint::SchedulingCoreType::PCORE_ONLY)
+        .value("ECORE_ONLY", ov::hint::SchedulingCoreType::ECORE_ONLY);
+
     py::enum_<ov::hint::ExecutionMode>(m_hint, "ExecutionMode", py::arithmetic())
         .value("UNDEFINED", ov::hint::ExecutionMode::UNDEFINED)
         .value("PERFORMANCE", ov::hint::ExecutionMode::PERFORMANCE)
@@ -67,6 +72,7 @@ void regmodule_properties(py::module m) {
     wrap_property_RW(m_hint, ov::hint::inference_precision, "inference_precision");
     wrap_property_RW(m_hint, ov::hint::model_priority, "model_priority");
     wrap_property_RW(m_hint, ov::hint::performance_mode, "performance_mode");
+    wrap_property_RW(m_hint, ov::hint::scheduling_core_type, "scheduling_core_type");
     wrap_property_RW(m_hint, ov::hint::use_hyper_threading, "use_hyper_threading");
     wrap_property_RW(m_hint, ov::hint::execution_mode, "execution_mode");
     wrap_property_RW(m_hint, ov::hint::num_requests, "num_requests");

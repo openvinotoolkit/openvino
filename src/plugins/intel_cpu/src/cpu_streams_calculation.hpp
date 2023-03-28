@@ -11,6 +11,7 @@
 
 #include <vector>
 
+#include "openvino/runtime/properties.hpp"
 namespace ov {
 namespace intel_cpu {
 
