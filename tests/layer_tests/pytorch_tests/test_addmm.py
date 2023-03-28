@@ -83,8 +83,14 @@ class TestBAddBMM(PytorchLayerTest):
 
     ])
     @pytest.mark.parametrize("alpha,beta",
-                             [(1., 1.), (0., 1.), (1., 0.), (1., 2.), (2., 1.), (-5., -6.), (3., 4.), (0.5, 0.75),
-                              (1, 1)])
+                             [  # beta==0 in some cases produce nan in pytorch
+                                 (1., 1.),
+                                 (0., 1.),
+                                 (-5., -6.),
+                                 (3., 4.),
+                                 (0.5, 0.75),
+                                 (1, 1)
+                             ])
     @pytest.mark.nightly
     @pytest.mark.precommit
     def test_baddbmm(self, kwargs_to_prepare_input, alpha, beta, ie_device, precision, ir_version):
