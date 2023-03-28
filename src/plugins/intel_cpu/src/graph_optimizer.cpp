@@ -61,7 +61,7 @@ namespace intel_cpu {
 GraphOptimizer::GraphOptimizer() {}
 
 void GraphOptimizer::ApplyCommonGraphOptimizations(Graph &graph) {
-    FuseConvMatmulDeconvAndDQScales(graph);
+    FuseConvMatmulFCDeconvAndDQScales(graph);
     graph.RemoveDroppedNodes();
 
     OV_ITT_SCOPE_CHAIN(FIRST_INFERENCE, taskChain, itt::domains::intel_cpu_LT, "ApplyCommonGraphOptimizations", "FuseConvolutionAndBias");
@@ -180,7 +180,7 @@ void GraphOptimizer::ApplyImplSpecificGraphOptimizations(Graph &graph) {
     graph.RemoveDroppedEdges();
 }
 
-void GraphOptimizer::FuseConvMatmulDeconvAndDQScales(Graph &graph) {
+void GraphOptimizer::FuseConvMatmulFCDeconvAndDQScales(Graph &graph) {
     auto& graphNodes = graph.GetNodes();
 
     auto isSuitableMultiply = [](NodePtr node) {
@@ -193,7 +193,8 @@ void GraphOptimizer::FuseConvMatmulDeconvAndDQScales(Graph &graph) {
             return false;
         return ((parentNode->getType() == Type::Convolution
                         || parentNode->getType() == Type::MatMul
-                        || parentNode->getType() == Type::Deconvolution)
+                        || parentNode->getType() == Type::Deconvolution
+                        || parentNode->getType() == Type::FullyConnected)
                         && scaleNode->isConstant());
     };
 
@@ -201,8 +202,9 @@ void GraphOptimizer::FuseConvMatmulDeconvAndDQScales(Graph &graph) {
         auto nodeType = node->getType();
         if (nodeType != Type::Convolution
                     && nodeType != Type::MatMul
-                    && nodeType != Type::Deconvolution)
-            IE_THROW() << "Cannot get convolution node " << node->getName();
+                    && nodeType != Type::Deconvolution
+                    && nodeType != Type::FullyConnected)
+            IE_THROW() << "Unexpected DQ scale init from node" << node->getName() << " , type: "<< NameFromType(nodeType);
 
         const auto channelAxis = node->getFusingAxis();
         auto OC = node->getOutputShapeAtPort(0).getDims()[channelAxis];
@@ -245,7 +247,7 @@ void GraphOptimizer::FuseConvMatmulDeconvAndDQScales(Graph &graph) {
         auto mul = graphNodes[i];
         if (!isSuitableMultiply(mul)) continue;
 
-        CPU_GRAPH_OPTIMIZER_SCOPE(FuseConvMatmulDeconvAndDQScales);
+        CPU_GRAPH_OPTIMIZER_SCOPE(FuseConvMatmulFCDeconvAndDQScales);
 
         auto node = mul->getParentEdgesAtPort(0)[0]->getParent();
         auto scales = mul->getParentEdgesAtPort(1)[0]->getParent();
