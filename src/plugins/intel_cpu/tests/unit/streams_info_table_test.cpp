@@ -16,6 +16,72 @@ using namespace ov;
 
 namespace {
 
+struct SchedulingCoreTypeTestCase {
+    ov::hint::SchedulingCoreType input_type;
+    std::vector<std::vector<int>> proc_type_table;
+    std::vector<std::vector<int>> result_table;
+};
+
+class SchedulingCoreTypeTests : public CommonTestUtils::TestsCommon,
+                                public testing::WithParamInterface<std::tuple<SchedulingCoreTypeTestCase>> {
+public:
+    void SetUp() override {
+        const auto& test_data = std::get<0>(GetParam());
+
+        std::vector<std::vector<int>> test_result_table =
+            ov::apply_scheduling_core_type(test_data.input_type, test_data.proc_type_table);
+
+        ASSERT_EQ(test_data.result_table, test_result_table);
+    }
+};
+
+SchedulingCoreTypeTestCase _2sockets_ALL = {
+    ov::hint::SchedulingCoreType::ANY_CORE,
+    {{208, 104, 0, 104}, {104, 52, 0, 52}, {104, 52, 0, 52}},
+    {{208, 104, 0, 104}, {104, 52, 0, 52}, {104, 52, 0, 52}},
+};
+
+SchedulingCoreTypeTestCase _2sockets_P_CORE_ONLY = {
+    ov::hint::SchedulingCoreType::PCORE_ONLY,
+    {{208, 104, 0, 104}, {104, 52, 0, 52}, {104, 52, 0, 52}},
+    {{208, 104, 0, 104}, {104, 52, 0, 52}, {104, 52, 0, 52}},
+};
+
+SchedulingCoreTypeTestCase _2sockets_E_CORE_ONLY = {
+    ov::hint::SchedulingCoreType::ECORE_ONLY,
+    {{208, 104, 0, 104}, {104, 52, 0, 52}, {104, 52, 0, 52}},
+    {{208, 104, 0, 104}, {104, 52, 0, 52}, {104, 52, 0, 52}},
+};
+
+SchedulingCoreTypeTestCase _1sockets_ALL = {
+    ov::hint::SchedulingCoreType::ANY_CORE,
+    {{20, 6, 8, 6}},
+    {{20, 6, 8, 6}},
+};
+
+SchedulingCoreTypeTestCase _1sockets_P_CORE_ONLY = {
+    ov::hint::SchedulingCoreType::PCORE_ONLY,
+    {{20, 6, 8, 6}},
+    {{12, 6, 0, 6}},
+};
+
+SchedulingCoreTypeTestCase _1sockets_E_CORE_ONLY = {
+    ov::hint::SchedulingCoreType::ECORE_ONLY,
+    {{20, 6, 8, 6}},
+    {{8, 0, 8, 0}},
+};
+
+TEST_P(SchedulingCoreTypeTests, SchedulingCoreType) {}
+
+INSTANTIATE_TEST_SUITE_P(SchedulingCoreTypeTable,
+                         SchedulingCoreTypeTests,
+                         testing::Values(_2sockets_ALL,
+                                         _2sockets_P_CORE_ONLY,
+                                         _2sockets_E_CORE_ONLY,
+                                         _1sockets_ALL,
+                                         _1sockets_P_CORE_ONLY,
+                                         _1sockets_E_CORE_ONLY));
+
 struct UseHTTestCase {
     bool use_ht_value;
     bool use_ht_changed;
@@ -29,9 +95,7 @@ public:
         const auto& test_data = std::get<0>(GetParam());
 
         std::vector<std::vector<int>> test_result_table =
-            ov::apply_hyper_threading(test_data.use_ht_value,
-                                                 test_data.use_ht_changed,
-                                                 test_data.proc_type_table);
+            ov::apply_hyper_threading(test_data.use_ht_value, test_data.use_ht_changed, test_data.proc_type_table);
 
         ASSERT_EQ(test_data.result_table, test_result_table);
     }
