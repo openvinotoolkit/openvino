@@ -38,8 +38,100 @@ struct generic_layer : public primitive_base<generic_layer> {
 
     size_t hash() const override {
         size_t seed = primitive::hash();
-        seed = hash_combine(seed, id);
+        seed = hash_combine(seed, generic_params.engine);
+
+        if (generic_params.cpuKernel != nullptr) {
+            auto& cpuKernel = generic_params.cpuKernel;
+            seed = hash_combine(seed, cpuKernel->GetExpectedInputLayout());
+            seed = hash_combine(seed, cpuKernel->GetExpectedInputType());
+        }
+
+        if (generic_params.clKernel != nullptr) {
+            auto& clKernel = generic_params.clKernel;
+            seed = hash_combine(seed, clKernel->skip_execution);
+
+            auto& gws = clKernel->params.workGroups.global;
+            seed = hash_range(seed, gws.begin(), gws.end());
+
+            auto& lws = clKernel->params.workGroups.local;
+            seed = hash_range(seed, lws.begin(), lws.end());
+
+            auto& arguments = clKernel->params.arguments;
+            for (auto& args : arguments) {
+                seed = hash_combine(seed, args.index);
+                seed = hash_combine(seed, args.t);
+            }
+
+            auto& scalars = clKernel->params.scalars;
+            for (auto& s : scalars) {
+                seed = hash_combine(seed, s.t);
+            }
+
+            seed = hash_combine(seed, clKernel->code.kernelString->get_hash());
+        }
         return seed;
+    }
+
+    bool operator==(const primitive& rhs) const override {
+        if (!compare_common_params(rhs))
+            return false;
+
+        auto rhs_casted = downcast<const generic_layer>(rhs);
+
+        if (generic_params.engine != rhs_casted.generic_params.engine)
+            return false;
+
+        if (generic_params.cpuKernel != nullptr) {
+            if (generic_params.cpuKernel->GetExpectedInputLayout() != rhs_casted.generic_params.cpuKernel->GetExpectedInputLayout())
+                return false;
+
+            if (generic_params.cpuKernel->GetExpectedInputType() != rhs_casted.generic_params.cpuKernel->GetExpectedInputType())
+                return false;
+        }
+
+        if (generic_params.clKernel != nullptr) {
+            auto& clKernel = generic_params.clKernel;
+            auto& clKernel_rhs = rhs_casted.generic_params.clKernel;
+            if (clKernel->skip_execution != clKernel_rhs->skip_execution)
+                return false;
+
+            auto& gws       = clKernel->params.workGroups.global;
+            auto& gws_rhs   = clKernel_rhs->params.workGroups.global;
+            if (gws != gws_rhs)
+                return false;
+
+            auto& lws       = clKernel->params.workGroups.local;
+            auto& lws_rhs   = clKernel_rhs->params.workGroups.local;
+            if (lws != lws_rhs)
+                return false;
+
+            auto& arguments     = clKernel->params.arguments;
+            auto& arguments_rhs = clKernel_rhs->params.arguments;
+            if (arguments.size() != arguments_rhs.size())
+                return false;
+
+            for (size_t idx = 0; idx < arguments.size(); idx++) {
+                if (arguments[idx].index != arguments_rhs[idx].index)
+                    return false;
+
+                if (arguments[idx].t != arguments_rhs[idx].t)
+                    return false;
+            }
+
+            auto& scalars     = clKernel->params.scalars;
+            auto& scalars_rhs = clKernel_rhs->params.scalars;
+            if (scalars.size() != scalars_rhs.size())
+                return false;
+
+            for (size_t idx = 0; idx < scalars.size(); idx++) {
+                if (scalars[idx].t != scalars_rhs[idx].t)
+                    return false;
+            }
+
+            if (clKernel->code.kernelString->get_str() != clKernel_rhs->code.kernelString->get_str())
+                return false;
+        }
+        return true;
     }
 
 protected:
