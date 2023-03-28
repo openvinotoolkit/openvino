@@ -359,11 +359,11 @@ bool program_node::is_dynamic() {
 }
 
 bool program_node::is_dynamic_output_layout(size_t idx) const {
-    return (output_layouts[idx].is_dynamic()) ||  (output_layouts[idx].get_partial_shape().size() == 0);
+    return output_layouts[idx].is_dynamic();
 }
 
 bool program_node::is_dynamic_output_layout(size_t idx) {
-    return (output_layouts[idx].is_dynamic()) ||  (output_layouts[idx].get_partial_shape().size() == 0);
+    return output_layouts[idx].is_dynamic();
 }
 
 bool program_node::has_padded_dependency() {
