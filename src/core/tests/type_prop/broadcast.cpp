@@ -1274,7 +1274,7 @@ TEST(type_prop, broadcast_v3_bidirectional_tricky_partial_value_case_and_equal_p
         equal = make_shared<op::v1::Equal>(concat, op::v0::Constant::create(element::i64, {3}, {11, 1, 4}));
         auto constant = ov::get_constant_from_source(equal->output(0));
         EXPECT_TRUE(constant != nullptr);
-        std::vector<bool> expected{false, false, false}, calculated = constant->get_vector<bool>();
+        std::vector<bool> expected{false, true, true}, calculated = constant->get_vector<bool>();
         EXPECT_EQ(calculated, expected);
     }
 }

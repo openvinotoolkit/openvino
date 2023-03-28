@@ -8,9 +8,9 @@
 #include "itt.hpp"
 #include "ngraph/op/constant.hpp"
 #include "ngraph/op/less_eq.hpp"
-#include "openvino/op/ops.hpp"
 #include "ngraph/runtime/host_tensor.hpp"
 #include "ngraph/runtime/reference/equal.hpp"
+#include "openvino/op/ops.hpp"
 
 using namespace std;
 using namespace ngraph;
@@ -79,17 +79,20 @@ ov::Tensor less_equal_tensor(const ov::Tensor& lhs, const ov::Tensor& rhs) {
 }
 
 ov::Tensor and_tensor(const ov::Tensor& lhs, const ov::Tensor& rhs) {
-    auto logical_and = ov::op::v1::LogicalAnd(std::make_shared<op::v0::Parameter>(lhs.get_element_type(), lhs.get_shape()),
-                                          std::make_shared<op::v0::Parameter>(rhs.get_element_type(), rhs.get_shape()),
-                                          op::AutoBroadcastType::NUMPY);
+    auto logical_and =
+        ov::op::v1::LogicalAnd(std::make_shared<op::v0::Parameter>(lhs.get_element_type(), lhs.get_shape()),
+                               std::make_shared<op::v0::Parameter>(rhs.get_element_type(), rhs.get_shape()),
+                               op::AutoBroadcastType::NUMPY);
     auto outs = ov::TensorVector{{logical_and.get_output_element_type(0), logical_and.get_output_shape(0)}};
     logical_and.evaluate(outs, ov::TensorVector{lhs, rhs});
     return outs.front();
 }
+
 ov::Tensor or_tensor(const ov::Tensor& lhs, const ov::Tensor& rhs) {
-    auto logical_or = ov::op::v1::LogicalOr(std::make_shared<op::v0::Parameter>(lhs.get_element_type(), lhs.get_shape()),
-                                          std::make_shared<op::v0::Parameter>(rhs.get_element_type(), rhs.get_shape()),
-                                          op::AutoBroadcastType::NUMPY);
+    auto logical_or =
+        ov::op::v1::LogicalOr(std::make_shared<op::v0::Parameter>(lhs.get_element_type(), lhs.get_shape()),
+                              std::make_shared<op::v0::Parameter>(rhs.get_element_type(), rhs.get_shape()),
+                              op::AutoBroadcastType::NUMPY);
     auto outs = ov::TensorVector{{logical_or.get_output_element_type(0), logical_or.get_output_shape(0)}};
     logical_or.evaluate(outs, ov::TensorVector{lhs, rhs});
     return outs.front();
@@ -107,7 +110,7 @@ void all_equal(const ov::TensorVector tensors, ov::Tensor& output_value) {
 ov::Tensor within_interval(const ov::Tensor& lower, const ov::Tensor& upper, const ov::Tensor& subject_to_check) {
     auto lower_check = less_equal_tensor(lower, subject_to_check);
     auto upper_check = less_equal_tensor(subject_to_check, upper);
-    return or_tensor(lower_check, upper_check);
+    return and_tensor(lower_check, upper_check);
 }
 
 }  // namespace
