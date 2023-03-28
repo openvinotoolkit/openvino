@@ -153,13 +153,9 @@ bool ov::runtime::interpreter::INTExecutable::call(std::vector<ov::Tensor>& outp
             results_map.emplace(output, output_count);
     }
 
-    for (const auto& op : m_nodes) {
-        std::cout << "[Before] " << op->get_type_name() << " is dynamic: " << op->is_dynamic() << std::endl;
-    }
-
     std::vector<TemporaryOverrideOutputs> overrider_vec = {};
     for (const auto& param : m_model->get_parameters()) {
-        overrider_vec.emplate_back(TemporaryOverrideOutputs(param, {tensor_map.at(param->output(0).get_tensor_ptr())}));
+        overrider_vec.push_back(TemporaryOverrideOutputs(param, {tensor_map.at(param->output(0).get_tensor_ptr())}));
     }
 
     // for each ordered op in the graph
