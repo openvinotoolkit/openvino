@@ -61,7 +61,7 @@ void CreateGatherOpBase(Program& p, const std::shared_ptr<T>& op, const int64_t 
                 new_axis += op->get_input_shape(0).size();
             }
             out_shape.push_back(1);
-            for (int i = out_shape.size() - 1; i > new_axis ; i--) {
+            for (int i = static_cast<int>(out_shape.size()) - 1; i > new_axis ; i--) {
                 out_shape[i] = out_shape[i-1];
             }
             out_shape[new_axis] = 1;
