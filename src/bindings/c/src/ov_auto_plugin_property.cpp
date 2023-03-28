@@ -2,7 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 #include "openvino/c/auto/auto_plugin_properties.h"
-
 #include "common.h"
 
 // Read-write property key

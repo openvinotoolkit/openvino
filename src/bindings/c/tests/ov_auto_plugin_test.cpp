@@ -3,7 +3,6 @@
 //
 
 #include "ov_test.hpp"
-#include "openvino/c/auto/auto_plugin_properties.h"
 
 class ov_auto_plugin_test : public ov_capi_test_base {
 public:
