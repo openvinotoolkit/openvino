@@ -53,7 +53,7 @@ std::vector<std::vector<int>> apply_hyper_threading(bool input_value,
         }
         input_value = false;
     }
-    
+
     return result_table;
 }
 
