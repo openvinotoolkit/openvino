@@ -158,15 +158,8 @@ bool ov::runtime::interpreter::INTExecutable::call(std::vector<ov::Tensor>& outp
     }
 
     std::vector<TemporaryOverrideOutputs> overrider_vec = {};
-    for (const auto& op : m_nodes) {
-        if (std::string("Parameter") == op->get_type_name()) {
-            std::vector<ov::Tensor> op_inputs;
-            for (auto input : op->inputs()) {
-                auto tensor = input.get_tensor_ptr();
-                op_inputs.push_back(tensor_map.at(tensor));
-            }
-            overrider_vec.push_back(TemporaryOverrideOutputs(op, op_inputs));
-        }
+    for (const auto& param : m_model->get_parameters()) {
+        overrider_vec.emplate_back(TemporaryOverrideOutputs(param, {tensor_map.at(param->output(0).get_tensor_ptr())}));
     }
 
     // for each ordered op in the graph
