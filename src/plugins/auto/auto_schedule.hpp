@@ -60,7 +60,12 @@ protected:
     DeviceMap<NotBusyPriorityWorkerRequests> _idleWorkerRequests;
 
 private:
-    void WaitFirstNetworkReady();
+    /**
+     * @brief wait for one of the executable network to finish loading.
+     * @return An SoPtr object hold an available executable network loaded to HW device.
+     * @note An exception will be thrown if all loading of network to hw device fails.
+     */
+    SoExecNetwork WaitFirstNetworkReady();
     void TryToLoadNetWork(AutoLoadContext& context, const std::string& modelPath, const IE::CNNNetwork& network, bool isCumulative);
     bool selectOtherDevice(const std::string& currentDeviceName);
     IE::Task releaseActualdeviceTask;
