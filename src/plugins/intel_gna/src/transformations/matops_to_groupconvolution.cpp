@@ -24,14 +24,13 @@ static bool IsFuseable(std::shared_ptr<ov::Node> node, const Output<Node>& input
     if (nullptr != std::dynamic_pointer_cast<ngraph::opset8::MatMul>(parent.get_node()->shared_from_this())) {
         if ((bias_shape.front() == 1) || (bias_shape.back() == 1))
             return true;
-        else
-            return false;
     }
+
     if (nullptr != std::dynamic_pointer_cast<ngraph::opset8::GroupConvolution>(parent.get_node()->shared_from_this()) ||
-        nullptr != std::dynamic_pointer_cast<ngraph::opset8::Convolution>(parent.get_node()->shared_from_this()))
-        if ((bias_shape[0] != 1) || (bias_shape[2] != 1) || (bias_shape[3] != 1))
-            return false;
-        return true;
+        nullptr != std::dynamic_pointer_cast<ngraph::opset8::Convolution>(parent.get_node()->shared_from_this())) {
+        if ((bias_shape[0] == 1) && (bias_shape[2] == 1) && (bias_shape[3] == 1))
+            return true;
+    }
     return false;
 }
 
