@@ -91,8 +91,9 @@ bool InsertTailLoop::run(LoweredExprIR& linear_ir) {
             return ov::is_type<op::Buffer>(parent_expr->get_node());
         };
         auto is_buffer_output = [&linear_ir](const TensorDescriptorPtr& output) {
-            const auto child_exprs_inputs = linear_ir.get_exprs_by_input(output);
-            return ov::is_type<op::Buffer>((*child_exprs_inputs.begin()).expr->get_node());
+            const auto& child_exprs_inputs = linear_ir.get_exprs_by_input(output);
+            return std::any_of(child_exprs_inputs.begin(), child_exprs_inputs.end(),
+                               [](const LoweredExprPort& lp) {return ov::is_type<op::Buffer>(lp.expr->get_node());});
         };
 
         const auto loop_end_expr = linear_ir.get_expr_by_node(loop_end);
