@@ -1,11 +1,11 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 /**
  * @brief This is a specified header file for auto plugin's properties
  *
- * @file auto_plugin_properties.h
+ * @file properties.h
  */
 
 #pragma once

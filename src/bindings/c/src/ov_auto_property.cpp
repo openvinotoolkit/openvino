@@ -1,8 +1,8 @@
 // Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
-#include "openvino/c/auto/auto_plugin_properties.h"
-#include "common.h"
+
+#include "openvino/c/auto/properties.h"
 
 // Read-write property key
 const char* ov_property_key_intel_auto_device_bind_buffer = "DEVICE_BIND_BUFFER";

@@ -30,4 +30,4 @@
 #include "openvino/c/ov_remote_context.h"
 #include "openvino/c/ov_shape.h"
 #include "openvino/c/ov_tensor.h"
-#include "openvino/c/auto/auto_plugin_properties.h"
+#include "openvino/c/auto/properties.h"
