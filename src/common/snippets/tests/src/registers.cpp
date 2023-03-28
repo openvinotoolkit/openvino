@@ -13,6 +13,7 @@
 #include <transformations/init_node_info.hpp>
 
 #include "common_test_utils/ngraph_test_utils.hpp"
+#include "lowering_utils.hpp"
 
 using namespace testing;
 using namespace ngraph;
@@ -20,6 +21,7 @@ using namespace ngraph;
 //  todo: Rewrite this test using Snippets test infrastructure. See ./include/canonicalization.hpp for example
 
 TEST(TransformationTests, AssignRegisters) {
+    const auto generator = std::make_shared<ov::test::snippets::DummyGenerator>();
     std::shared_ptr<Function> f(nullptr);
     {
         auto p0 = std::make_shared<opset1::Parameter>(element::f32, Shape(1));
@@ -37,7 +39,12 @@ TEST(TransformationTests, AssignRegisters) {
 
         pass::Manager m;
         m.register_pass<ov::pass::InitNodeInfo>();
-        m.register_pass<snippets::pass::AssignRegisters>();
+        std::function<snippets::Generator::opRegType(const std::shared_ptr<Node>& op)> reg_type_mapper =
+            [=](const std::shared_ptr<Node>& op) -> snippets::Generator::opRegType {
+            return generator->get_op_reg_type(op);
+        };
+        m.register_pass<snippets::pass::AssignRegisters>(reg_type_mapper);
+
         m.run_passes(f);
         ASSERT_NO_THROW(check_rt_info(f));
     }
@@ -73,6 +80,7 @@ TEST(TransformationTests, AssignRegisters) {
 }
 
 TEST(TransformationTests, AssignRegisters2) {
+    const auto generator = std::make_shared<ov::test::snippets::DummyGenerator>();
     std::shared_ptr<Function> f(nullptr);
     {
         auto p0 = std::make_shared<opset1::Parameter>(ngraph::element::f32, Shape());
@@ -126,7 +134,11 @@ TEST(TransformationTests, AssignRegisters2) {
 
         pass::Manager m;
         m.register_pass<ov::pass::InitNodeInfo>();
-        m.register_pass<snippets::pass::AssignRegisters>();
+        std::function<snippets::Generator::opRegType(const std::shared_ptr<Node>& op)> reg_type_mapper =
+            [=](const std::shared_ptr<Node>& op) -> snippets::Generator::opRegType {
+            return generator->get_op_reg_type(op);
+        };
+        m.register_pass<snippets::pass::AssignRegisters>(reg_type_mapper);
         m.run_passes(f);
         ASSERT_NO_THROW(check_rt_info(f));
     }

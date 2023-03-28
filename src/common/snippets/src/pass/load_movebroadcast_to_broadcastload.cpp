@@ -24,20 +24,20 @@ ngraph::snippets::pass::LoadMoveBroadcastToBroadcastLoad::LoadMoveBroadcastToBro
             auto root = m.get_match_root();
 
             const auto &pm = m.get_pattern_value_map();
-            const auto input = pm.at(load_pattern).get_node_shared_ptr();
+            const auto load =  ov::as_type_ptr<snippets::op::Load>(pm.at(load_pattern).get_node_shared_ptr());
             const auto param = pm.at(param_pattern).get_node_shared_ptr();
 
             // Cannot rewrite Broadcast + Load if load has more than 1 user
             // or more than one input, or if Broadcast has several inputs
-            if (input->output(0).get_target_inputs().size() != 1 ||
-                root->inputs().size() != 1 || input->inputs().size() != 1) {
+            if (load->output(0).get_target_inputs().size() != 1 ||
+                root->inputs().size() != 1 || load->inputs().size() != 1) {
                 return false;
             }
 
             auto inshape = root->input(0).get_partial_shape();
             auto outshape = root->output(0).get_partial_shape();
 
-            auto broadcastload = std::make_shared<snippets::op::BroadcastLoad>(param, outshape, ov::as_type_ptr<snippets::op::Load>(input)->get_offset());
+            auto broadcastload = std::make_shared<snippets::op::BroadcastLoad>(param, outshape, load->get_offset());
             ngraph::copy_runtime_info(root, broadcastload);
             ngraph::replace_node(root, broadcastload);
 

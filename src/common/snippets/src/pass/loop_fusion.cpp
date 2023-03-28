@@ -73,7 +73,6 @@ auto get_buffer_and_loop_end(const std::shared_ptr<ngraph::snippets::op::LoopBeg
         buffer = ov::as_type_ptr<ngraph::snippets::op::Buffer>(parent_shared);
         if (buffer) {
             if (buffer->output(0).get_target_inputs().size() == 0 ||
-                buffer->get_input_size() != 1 ||
                 buffer->get_input_source_output(0).get_target_inputs().size() != 1)
                 return false;
 

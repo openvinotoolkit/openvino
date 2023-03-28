@@ -79,10 +79,9 @@ ngraph::snippets::pass::ResetBufferState::ResetBufferState() {
 
         // If after Loop there is immediately Buffer, we should reset the Buffer ptr for the next calculations
         for (size_t i = 0; i < o_size; ++i) {
-            const auto result_shape = body_shapes[i_size + i].get_shape();
             // check for first target input is enough for Buffer searching because operations can have only single Buffer per each output port as op
             const auto consumer = loop_end->output(i).get_target_inputs().begin()->get_node();
-            if (ov::is_type<ngraph::snippets::op::Buffer>(consumer)) {
+            if (const auto buffer = ov::as_type_ptr<ngraph::snippets::op::Buffer>(consumer->shared_from_this())) {
                 // To calculate finalization offset we should know index of nesting Loop
                 auto loop_index = 0lu;
                 auto loop = loop_end->input_value(i).get_node_shared_ptr();
@@ -93,7 +92,8 @@ ngraph::snippets::pass::ResetBufferState::ResetBufferState() {
                     port_idx = source_output.get_index();
                     loop_index++;
                 }
-
+                const auto result_shape = buffer->get_allocation_shape();
+                NGRAPH_CHECK(loop_index < result_shape.size(), "Buffer has invalid Loop index and allocation shape rank");
                 const auto work_amount = std::accumulate(result_shape.rbegin(), result_shape.rbegin() + loop_index + 1, size_t(1), std::multiplies<size_t>());
                 finalization_offsets[i_size + i] =
                         calculate_required_finalization_offsets(work_amount, *(result_shape.rbegin() + loop_index));

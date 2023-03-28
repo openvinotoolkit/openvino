@@ -18,7 +18,8 @@
 #include "snippets_transformations/op/load_convert.hpp"
 #include "snippets_transformations/op/store_convert.hpp"
 #include "snippets_transformations/op/fused_mul_add.hpp"
-#include "snippets/op/brgemm.hpp"
+#include "snippets_transformations/op/brgemm_copy_b.hpp"
+#include "snippets_transformations/op/brgemm_cpu.hpp"
 #include "ngraph_transformations/op/swish_cpu.hpp"
 
 #include <ngraph/opsets/opset5.hpp>
@@ -144,7 +145,8 @@ ov::intel_cpu::CPUTargetMachine::CPUTargetMachine(dnnl::impl::cpu::x64::cpu_isa_
     jitters[ngraph::snippets::op::Kernel::get_type_info_static()] = CREATE_EMITTER(KernelEmitter);
     jitters[ngraph::snippets::op::LoopBegin::get_type_info_static()] = CREATE_EMITTER(LoopBeginEmitter);
     jitters[ngraph::snippets::op::LoopEnd::get_type_info_static()] = CREATE_EMITTER(LoopEndEmitter);
-    jitters[ngraph::snippets::op::Brgemm::get_type_info_static()] = CREATE_EMITTER(BrgemmEmitter);
+    jitters[ov::intel_cpu::BrgemmCPU::get_type_info_static()] = CREATE_EMITTER(BrgemmEmitter);
+    jitters[ov::intel_cpu::BrgemmCopyB::get_type_info_static()] = CREATE_EMITTER(BrgemmCopyBEmitter);
 }
 
 size_t ov::intel_cpu::CPUTargetMachine::get_lanes() const {
@@ -168,4 +170,16 @@ code ov::intel_cpu::CPUTargetMachine::get_snippet() const {
 }
 
 ov::intel_cpu::CPUGenerator::CPUGenerator(dnnl::impl::cpu::x64::cpu_isa_t isa_) : Generator(std::make_shared<CPUTargetMachine>(isa_)) {
+}
+
+ngraph::snippets::Generator::opRegType ov::intel_cpu::CPUGenerator::get_specific_op_reg_type(const std::shared_ptr<ov::Node>& op) const {
+    if (std::dynamic_pointer_cast<ov::intel_cpu::BrgemmCPU>(op) ||
+        std::dynamic_pointer_cast<ov::intel_cpu::BrgemmCopyB>(op))
+        return gpr2gpr;
+    else if (
+        std::dynamic_pointer_cast<ov::intel_cpu::FusedMulAdd>(op) ||
+        std::dynamic_pointer_cast<ov::intel_cpu::SwishNode>(op))
+        return vec2vec;
+    else
+        throw ov::Exception("Register type of the operation " + std::string(op->get_type_name()) + " isn't determined!");
 }

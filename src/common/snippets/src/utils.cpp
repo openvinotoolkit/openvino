@@ -115,6 +115,17 @@ ov::PartialShape get_port_planar_shape(const Output<Node>& out) {
     return get_reordered_planar_shape(tensor_shape, layout);
 }
 
+void set_transpose_output_layout(const ov::Output<Node>& port, const std::shared_ptr<opset1::Transpose>& node) {
+    const auto& const_order = as_type_ptr<opset1::Constant>(node->get_input_node_shared_ptr(1));
+    OPENVINO_ASSERT(const_order != nullptr, "Transpose order must be Constant to set layout!");
+    set_output_layout(port, const_order->cast_vector<size_t>());
+}
+
+void set_output_layout(const ov::Output<Node>& port, const std::vector<size_t>& layout) {
+    auto& rt_info = port.get_node_shared_ptr()->get_rt_info();
+    rt_info["Layout"] = layout;
+}
+
 } // namespace utils
 } // namespace snippets
 } // namespace ngraph

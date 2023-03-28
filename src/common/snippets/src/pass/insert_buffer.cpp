@@ -31,7 +31,7 @@ ngraph::snippets::pass::InsertBuffer::InsertBuffer(const int32_t allocation_rank
                 if (!ov::is_type<ngraph::snippets::op::Buffer>(input_node) &&
                     !ov::is_type<ngraph::op::v0::Parameter>(input_node) &&
                     !ov::is_type<ngraph::op::v0::Constant>(input_node)) {
-                    const auto buffer = std::make_shared<ngraph::snippets::op::Buffer>(input_node, allocation_rank);
+                    const auto buffer = std::make_shared<op::Buffer>(input_node, allocation_rank);
                     root->set_argument(input.get_index(), buffer);
                     rewritten |= true;
                 }
@@ -68,7 +68,7 @@ ngraph::snippets::pass::InsertBuffer::InsertBuffer(const int32_t allocation_rank
                     }
                 }
 
-                const auto buffer = std::make_shared<ngraph::snippets::op::Buffer>(output, allocation_rank);
+                const auto buffer = std::make_shared<op::Buffer>(output, allocation_rank);
                 for (const auto& consumer : output.get_target_inputs()) {
                     const auto output_node = consumer.get_node()->shared_from_this();
                     if (output_node != buffer &&

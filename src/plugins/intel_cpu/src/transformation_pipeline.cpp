@@ -556,7 +556,7 @@ void Transformations::PostLpt() {
 
 void Transformations::MainSnippets(void) {
     if (snippetsMode == Config::SnippetsMode::Disable ||
-        !dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx2)) // snippets are implemeted only for relevant platforms (avx2+ extentions)
+        !dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx2)) // snippets are implemented only for relevant platforms (avx2+ extensions)
         return;
 
     ngraph::pass::Manager snippetsManager;
