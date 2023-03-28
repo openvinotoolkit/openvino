@@ -316,8 +316,6 @@ const auto bf16_if_can_be_emulated = InferenceEngine::with_cpu_x86_avx512_core()
 using ExpectedModeAndType = std::pair<ov::hint::ExecutionMode, ov::element::Type>;
 
 const std::map<ov::hint::ExecutionMode, ExpectedModeAndType> exectedTypeByMode {
-    {ov::hint::ExecutionMode::UNDEFINED  , {ov::hint::ExecutionMode::PERFORMANCE,
-                                            bf16_if_supported}},
     {ov::hint::ExecutionMode::PERFORMANCE, {ov::hint::ExecutionMode::PERFORMANCE,
                                             bf16_if_supported}},
     {ov::hint::ExecutionMode::ACCURACY,    {ov::hint::ExecutionMode::ACCURACY,
@@ -328,7 +326,7 @@ TEST(OVClassBasicTest, smoke_SetConfigExecutionModeExpectCorrespondingInferenceP
     ov::Core ie;
     const auto inference_precision_default = bf16_if_supported;
     const auto execution_mode_default = ov::hint::ExecutionMode::PERFORMANCE;
-    auto execution_mode_value = ov::hint::ExecutionMode::UNDEFINED;
+    auto execution_mode_value = ov::hint::ExecutionMode::PERFORMANCE;
     auto inference_precision_value = ov::element::undefined;
 
     // check default values
@@ -357,7 +355,7 @@ TEST(OVClassBasicTest, smoke_SetConfigExecutionModeAndInferencePrecision) {
     const auto execution_mode_default = ov::hint::ExecutionMode::PERFORMANCE;
 
     auto expect_execution_mode = [&](const ov::hint::ExecutionMode expected_value) {
-        auto execution_mode_value = ov::hint::ExecutionMode::UNDEFINED;
+        auto execution_mode_value = ov::hint::ExecutionMode::ACCURACY;
         OV_ASSERT_NO_THROW(execution_mode_value = ie.get_property("CPU", ov::hint::execution_mode));
         ASSERT_EQ(execution_mode_value, expected_value);
     };

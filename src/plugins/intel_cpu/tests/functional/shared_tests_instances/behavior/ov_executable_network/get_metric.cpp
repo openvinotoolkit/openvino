@@ -159,7 +159,7 @@ TEST_F(OVClassConfigTestCPU, smoke_CheckModelInferencePrecisionHasHigherPriority
 
 TEST_F(OVClassConfigTestCPU, smoke_CheckCoreInferencePrecisionHasHigherPriorityThanModelPerformanceExecutionMode) {
     ov::Core ie;
-    auto execution_mode_value = ov::hint::ExecutionMode::UNDEFINED;
+    auto execution_mode_value = ov::hint::ExecutionMode::ACCURACY;
     auto inference_precision_value = ov::element::undefined;
 
     OV_ASSERT_NO_THROW(ie.set_property("CPU", ov::inference_precision(ov::element::f32)));
@@ -177,7 +177,7 @@ TEST_F(OVClassConfigTestCPU, smoke_CheckCoreInferencePrecisionHasHigherPriorityT
 
 TEST_F(OVClassConfigTestCPU, smoke_CheckModelInferencePrecisionHasHigherPriorityThanCorePerformanceExecutionMode) {
     ov::Core ie;
-    auto execution_mode_value = ov::hint::ExecutionMode::UNDEFINED;
+    auto execution_mode_value = ov::hint::ExecutionMode::PERFORMANCE;
     auto inference_precision_value = ov::element::undefined;
     const auto inference_precision_expected = bf16_if_can_be_emulated;
 

@@ -224,10 +224,13 @@ void Config::readProperties(const std::map<std::string, std::string> &prop) {
                 IE_THROW() << "Wrong value for property key " << PluginConfigInternalParams::KEY_SNIPPETS_MODE
                             << ". Expected values: ENABLE/DISABLE/IGNORE_CALLBACK";
         } else if (key == ov::hint::execution_mode.name()) {
-            if (val == "PERFORMANCE" || val == "UNDEFINED") {
+            if (val == "PERFORMANCE") {
                 executionMode = ov::hint::ExecutionMode::PERFORMANCE;
-            } else {
+            } else if (val == "ACCURACY") {
                 executionMode = ov::hint::ExecutionMode::ACCURACY;
+            } else {
+                IE_THROW() << "Wrong value for property key " << ov::hint::execution_mode.name()
+                    << ". Supported values: PERFORMANCE, ACCURACY";
             }
         } else {
             IE_THROW(NotFound) << "Unsupported property " << key << " by CPU plugin";
