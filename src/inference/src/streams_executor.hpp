@@ -10,24 +10,26 @@
 
 #include <string>
 #include <vector>
+#include <mutex>
 
 namespace ov {
 
-/**
- * @brief      Get CPU mapping table
- * @ingroup    ie_dev_api_system_conf
- * @param[in]  _processors total number for processors in system.
- * @param[out] _sockets total number for sockets in system
- * @param[out] _cores total number for physical CPU cores in system
- * @param[out] _proc_type_table summary table of number of processors per type
- * @param[out] _cpu_mapping_table CPU mapping table for each processor
- * @return
- */
-void init_cpu(int& _processors,
-              int& _sockets,
-              int& _cores,
-              std::vector<std::vector<int>>& _proc_type_table,
-              std::vector<std::vector<int>>& _cpu_mapping_table);
+struct CPU {
+    int _processors = 0;
+    int _sockets = 0;
+    int _cores = 0;
+    std::vector<std::vector<int>> _proc_type_table;
+    std::vector<std::vector<int>> _cpu_mapping_table;
+    std::mutex _cpu_mutex;
+    std::mutex _task_mutex;
+    int _plugin_status = PLUGIN_USED_START;
+    int _socket_idx = 0;
+
+    CPU() {
+        init_cpu(*this);
+    }
+    void init_cpu(CPU& cpu);
+};
 
 #ifdef __linux__
 /**

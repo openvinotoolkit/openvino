@@ -178,25 +178,10 @@ std::vector<int> reserve_available_cpus(const ColumnOfProcessorTypeTable core_ty
 std::vector<int> get_logic_cores(const std::vector<int> cpu_ids) {
     return {};
 }
-void set_cpu_used(const std::vector<int>& cpu_ids, int used) {}
+void set_cpu_used(std::vector<int>& cpu_ids, int used) {}
 
 #else
 
-struct CPU {
-    int _processors = 0;
-    int _sockets = 0;
-    int _cores = 0;
-    std::vector<std::vector<int>> _proc_type_table;
-    std::vector<std::vector<int>> _cpu_mapping_table;
-    std::mutex _cpu_mutex;
-    std::mutex _task_mutex;
-    int _plugin_status = PLUGIN_USED_START;
-    int _socket_idx = 0;
-
-    CPU() {
-        init_cpu(_processors, _sockets, _cores, _proc_type_table, _cpu_mapping_table);
-    }
-};
 static CPU cpu;
 
 #    ifndef _WIN32
@@ -302,7 +287,7 @@ std::vector<int> get_logic_cores(const std::vector<int> cpu_ids) {
     return logic_cores;
 }
 
-void set_cpu_used(const std::vector<int>& cpu_ids, int used) {
+void set_cpu_used(std::vector<int>& cpu_ids, int used) {
     const auto cpu_size = static_cast<int>(cpu_ids.size());
     for (int i = 0; i < cpu_size; i++) {
         if (cpu_ids[i] < cpu._processors) {

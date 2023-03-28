@@ -18,18 +18,14 @@
 
 namespace ov {
 
-void init_cpu(int& _processors,
-              int& _sockets,
-              int& _cores,
-              std::vector<std::vector<int>>& _proc_type_table,
-              std::vector<std::vector<int>>& _cpu_mapping_table) {
+void CPU::init_cpu(CPU& cpu) {
     std::vector<std::vector<std::string>> system_info_table;
 
     auto GetCatchInfoLinux = [&]() {
-        _processors = sysconf(_SC_NPROCESSORS_ONLN);
-        system_info_table.resize(_processors, std::vector<std::string>(3));
+        cpu._processors = sysconf(_SC_NPROCESSORS_ONLN);
+        system_info_table.resize(cpu._processors, std::vector<std::string>(3));
 
-        for (int n = 0; n < _processors; n++) {
+        for (int n = 0; n < cpu._processors; n++) {
             for (int m = 0; m < 3; m++) {
                 int Ln = (m == 0) ? m : m + 1;
 
@@ -47,12 +43,12 @@ void init_cpu(int& _processors,
     };
 
     if (!GetCatchInfoLinux()) {
-        parse_processor_info_linux(_processors,
+        parse_processor_info_linux(cpu._processors,
                                    system_info_table,
-                                   _sockets,
-                                   _cores,
-                                   _proc_type_table,
-                                   _cpu_mapping_table);
+                                   cpu._sockets,
+                                   cpu._cores,
+                                   cpu._proc_type_table,
+                                   cpu._cpu_mapping_table);
     } else {
         /*Previous CPU resource based on calculation*/
         std::ifstream cpuinfo("/proc/cpuinfo");
@@ -77,13 +73,13 @@ void init_cpu(int& _processors,
                 sockets[socketId] = std::stoi(value);
             }
         }
-        _processors = processors.size();
-        _sockets = sockets.size();
+        cpu._processors = processors.size();
+        cpu._sockets = sockets.size();
         for (auto&& socket : sockets) {
-            _cores += socket.second;
+            cpu._cores += socket.second;
         }
-        if (_cores == 0) {
-            _cores = _processors;
+        if (cpu._cores == 0) {
+            cpu._cores = cpu._processors;
         }
     }
     std::vector<std::vector<std::string>>().swap(system_info_table);
