@@ -16,6 +16,7 @@ namespace tensorflow {
 
 class OpPlace;
 class TensorPlace;
+class SavedModelVariablesIndex;
 
 class InputModel : public ov::frontend::InputModel {
     friend class TranslateSession;
@@ -31,7 +32,10 @@ class InputModel : public ov::frontend::InputModel {
 
 public:
     explicit InputModel(const GraphIterator::Ptr& graph_iterator,
-                        const std::shared_ptr<TelemetryExtension>& telemetry = {});
+                        const std::shared_ptr<TelemetryExtension>& telemetry = {},
+                        const std::shared_ptr<SavedModelVariablesIndex>& variables_index = {},
+                        const std::shared_ptr<std::map<std::string, std::string>> saved_model_input_names = nullptr,
+                        const std::shared_ptr<std::map<std::string, std::string>> saved_model_output_names = nullptr);
 
     std::vector<ov::frontend::Place::Ptr> get_inputs() const override;
     std::vector<ov::frontend::Place::Ptr> get_outputs() const override;
@@ -45,6 +49,9 @@ public:
     void set_element_type(const ov::frontend::Place::Ptr& place, const ov::element::Type&) override;
     ov::element::Type get_element_type(const ov::frontend::Place::Ptr& place) const override;
     void set_tensor_value(const ov::frontend::Place::Ptr& place, const void* value) override;
+    std::shared_ptr<SavedModelVariablesIndex> get_variables_index();
+    std::shared_ptr<std::map<std::string, std::string>> get_saved_model_input_names() const;
+    std::shared_ptr<std::map<std::string, std::string>> get_saved_model_output_names() const;
 };
 
 }  // namespace tensorflow
