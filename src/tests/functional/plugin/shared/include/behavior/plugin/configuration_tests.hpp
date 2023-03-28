@@ -250,6 +250,5 @@ using IncorrectConfigAPITests = CorrectConfigTests;
 using CorrectConfigCheck = CorrectConfigTests;
 using DefaultValuesConfigTests = CorrectConfigTests;
 using ExclusiveAsyncReqTests = CorrectConfigTests;
-using SetConfigGetConfigLoadNetWorkGetMetricTests = SetPropLoadNetWorkGetPropTests;
 
 } // namespace BehaviorTestsDefinitions

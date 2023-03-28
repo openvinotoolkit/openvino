@@ -298,16 +298,16 @@ namespace {
                              SetPropLoadNetWorkGetPropTests::getTestCaseName);
 
     INSTANTIATE_TEST_SUITE_P(smoke_Multi_BehaviorTests,
-                             SetConfigGetConfigLoadNetWorkGetMetricTests,
+                             SetPropLoadNetWorkGetPropTests,
                              ::testing::Combine(::testing::Values(CommonTestUtils::DEVICE_MULTI),
                                                 ::testing::ValuesIn(auto_multi_prop_config),
                                                 ::testing::ValuesIn(auto_multi_loadNetWork_config)),
-                             SetConfigGetConfigLoadNetWorkGetMetricTests::getTestCaseName);
+                             SetPropLoadNetWorkGetPropTests::getTestCaseName);
 
     INSTANTIATE_TEST_SUITE_P(smoke_Auto_BehaviorTests,
-                             SetConfigGetConfigLoadNetWorkGetMetricTests,
+                             SetPropLoadNetWorkGetPropTests,
                              ::testing::Combine(::testing::Values(CommonTestUtils::DEVICE_AUTO),
                                                 ::testing::ValuesIn(auto_multi_prop_config),
                                                 ::testing::ValuesIn(auto_multi_loadNetWork_config)),
-                             SetConfigGetConfigLoadNetWorkGetMetricTests::getTestCaseName);
+                             SetPropLoadNetWorkGetPropTests::getTestCaseName);
 } // namespace
