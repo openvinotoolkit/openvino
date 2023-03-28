@@ -78,6 +78,29 @@ void Config::readProperties(const std::map<std::string, std::string> &prop) {
             streamExecutorConfig.SetConfig(key, val);
         } else if (hintsConfigKeys.end() != std::find(hintsConfigKeys.begin(), hintsConfigKeys.end(), key)) {
             perfHintsConfig.SetConfig(key, val);
+        } else if (key == ov::hint::scheduling_core_type.name()) {
+            const auto core_type = ov::util::from_string(val, ov::hint::scheduling_core_type);
+            if (core_type == ov::hint::SchedulingCoreType::ANY_CORE ||
+                core_type == ov::hint::SchedulingCoreType::PCORE_ONLY ||
+                core_type == ov::hint::SchedulingCoreType::ECORE_ONLY) {
+                schedulingCoreType = core_type;
+            } else {
+                IE_THROW() << "Wrong value " << val << "for property key " << ov::hint::scheduling_core_type.name()
+                           << ". Expected only " << ov::hint::SchedulingCoreType::ANY_CORE << "/"
+                           << ov::hint::SchedulingCoreType::PCORE_ONLY << "/"
+                           << ov::hint::SchedulingCoreType::ECORE_ONLY << std::endl;
+            }
+        } else if (key == ov::hint::use_hyper_threading.name()) {
+            if (val == PluginConfigParams::YES) {
+                useHyperThreading = true;
+                changedHyperThreading = true;
+            } else if (val == PluginConfigParams::NO) {
+                useHyperThreading = false;
+                changedHyperThreading = true;
+            } else {
+                IE_THROW() << "Wrong value " << val << "for property key " << ov::hint::use_hyper_threading.name()
+                           << ". Expected only true/false." << std::endl;
+            }
         } else if (key == PluginConfigParams::KEY_DYN_BATCH_LIMIT) {
             int val_i = -1;
             try {
