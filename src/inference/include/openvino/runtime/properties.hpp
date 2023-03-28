@@ -408,11 +408,11 @@ inline std::istream& operator>>(std::istream& is, SchedulingCoreType& core_type)
 static constexpr Property<SchedulingCoreType> scheduling_core_type{"SCHEDULING_CORE_TYPE"};
 
 /**
- * @brief This property allows hyper threading during inference.
+ * @brief This property allows CPU threads pinning during inference.
  * @ingroup ov_runtime_cpp_prop_api
  *
- * Developer can use this property to use or not use hyper threading during inference. If user does not explicitly set
- * value for this property, OpenVINO may choose any desired value based on internal logic.
+ * Developer can use this property to use or not use CPU threads pinning during inference. If user does not explicitly
+ * set value for this property, OpenVINO may choose any desired value based on internal logic.
  *
  * The following code is example to use this property.
  *

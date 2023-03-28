@@ -230,6 +230,12 @@ def test_properties_ro(ov_property_ro, expected_value):
         (
             properties.hint.use_cpu_pinning,
             "USE_CPU_PINNING",
+            (
+                (True, True),
+                (False, False),
+                (1, True),
+                (0, False),
+            ),
         ),
         (
             properties.hint.scheduling_core_type,

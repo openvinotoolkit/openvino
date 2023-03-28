@@ -623,10 +623,12 @@ TEST_P(OVClassSetUseCpuPinningHintConfigTest, SetConfigNoThrow) {
     ASSERT_NO_THROW(defaultMode = ie.get_property(target_device, ov::hint::use_cpu_pinning));
     (void)defaultMode;
 
-    ie.set_property(target_device, ov::hint::use_cpu_pinning(true));
     ASSERT_EQ(true, ie.get_property(target_device, ov::hint::use_cpu_pinning));
+
     ie.set_property(target_device, ov::hint::use_cpu_pinning(false));
     ASSERT_EQ(false, ie.get_property(target_device, ov::hint::use_cpu_pinning));
+    ie.set_property(target_device, ov::hint::use_cpu_pinning(true));
+    ASSERT_EQ(true, ie.get_property(target_device, ov::hint::use_cpu_pinning));
 }
 
 TEST_P(OVClassSetSchedulingCoreTypeHintConfigTest, SetConfigNoThrow) {
