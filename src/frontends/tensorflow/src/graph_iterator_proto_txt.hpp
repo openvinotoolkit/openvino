@@ -34,9 +34,14 @@ public:
     template <typename T>
     static bool is_supported(const std::basic_string<T>& path) {
         std::ifstream pbtxt_stream(path, std::ios::in);
-        FRONT_END_GENERAL_CHECK(pbtxt_stream && pbtxt_stream.is_open(), "Model file does not exist");
+        bool model_exists = (pbtxt_stream && pbtxt_stream.is_open());
+        if (!model_exists) {
+            return false;
+        }
         auto input_stream = std::make_shared<::google::protobuf::io::IstreamInputStream>(&pbtxt_stream);
-        FRONT_END_GENERAL_CHECK(input_stream, "Model cannot be read");
+        if (!input_stream) {
+            return false;
+        }
         auto graph_def = std::make_shared<::tensorflow::GraphDef>();
         auto is_parsed = ::google::protobuf::TextFormat::Parse(input_stream.get(), graph_def.get());
         return is_parsed;
