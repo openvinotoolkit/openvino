@@ -22,7 +22,8 @@ if gen_script.endswith('.py'):
 elif gen_script.endswith('.pbtxt'):
     model_pbtxt = gen_script
     model_name = os.path.basename(model_pbtxt).split('.')[0]
-    dest_path = os.path.join(sys.argv[2], model_name, model_pbtxt)
+    dest_path = os.path.join(out_folder, model_name, model_name + '.pbtxt')
+    os.makedirs(os.path.dirname(dest_path), exist_ok=True)
     try:
         shutil.copy(model_pbtxt, dest_path)
     except shutil.SameFileError:
