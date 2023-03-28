@@ -29,6 +29,10 @@ struct custom_gpu_primitive : public primitive_base<custom_gpu_primitive> {
     struct arg_desc {
         arg_type type;
         arg_index index;
+
+        bool operator==(const arg_desc& rhs) const {
+            return (type == rhs.type && index == rhs.index);
+        }
     };
 
     /// @brief Constructs custom_gpu_primitive primitive
@@ -77,7 +81,14 @@ struct custom_gpu_primitive : public primitive_base<custom_gpu_primitive> {
     size_t hash() const override {
         size_t seed = primitive::hash();
         seed = hash_combine(seed, kernel_entry_point);
-        seed = hash_combine(seed, kernels_code.size());
+        for (auto& args : kernel_arguments) {
+            seed = hash_combine(seed, args.index);
+            seed = hash_combine(seed, args.type);
+        }
+        seed = hash_combine(seed, build_options);
+        seed = hash_range(seed, kernels_code.begin(), kernels_code.end());
+        seed = hash_range(seed, gws.begin(), gws.end());
+        seed = hash_range(seed, lws.begin(), lws.end());
         return seed;
     }
 
@@ -87,9 +98,25 @@ struct custom_gpu_primitive : public primitive_base<custom_gpu_primitive> {
 
         auto rhs_casted = downcast<const custom_gpu_primitive>(rhs);
 
-        return kernel_entry_point == rhs_casted.kernel_entry_point &&
-               build_options == rhs_casted.build_options &&
-               kernels_code.size() == rhs_casted.kernels_code.size();
+        if (kernel_entry_point != rhs_casted.kernel_entry_point)
+            return false;
+
+        if (build_options != rhs_casted.build_options)
+            return false;
+
+        if (kernel_arguments != rhs_casted.kernel_arguments)
+            return false;
+
+        if (kernels_code != rhs_casted.kernels_code)
+            return false;
+
+        if (gws != rhs_casted.gws)
+            return false;
+
+        if (lws != rhs_casted.lws)
+            return false;
+
+        return true;
     }
 };
 }  // namespace cldnn

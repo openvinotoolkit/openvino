@@ -531,7 +531,8 @@ struct layout {
 
         auto pshape = get_partial_shape();
         for (size_t idx = 0; idx < pshape.size(); idx++) {
-            seed = hash_combine(seed, pshape[idx].get_length());
+            auto v = pshape[idx].is_dynamic() ? -1 : pshape[idx].get_length();
+            seed = hash_combine(seed, v);
         }
         return seed;
     }

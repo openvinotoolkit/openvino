@@ -229,14 +229,6 @@ std::shared_ptr<InferenceEngine::CPUStreamsExecutor> program::make_task_executor
     return std::make_shared<InferenceEngine::CPUStreamsExecutor>(task_executor_config);
 }
 
-kernel_id program::add_kernel(const std::shared_ptr<kernel_string>& kernelSring) {
-    return _kernels_cache->set_kernel_source(kernelSring, false);
-}
-
-kernel::ptr program::get_kernel(kernel_id id) {
-    return _kernels_cache->get_kernel(id);
-}
-
 kernels_cache& program::get_kernels_cache() const {
     return *_kernels_cache;
 }
@@ -1638,10 +1630,6 @@ std::pair<int64_t, int64_t> program::get_estimated_device_mem_usage() {
     }
 
     return std::make_pair(const_sum, get_engine().get_used_device_memory(allocation_type::usm_device));
-}
-
-void program::remove_kernel(kernel_id id) {
-    _kernels_cache->remove_kernel(id);
 }
 
 void program::cancel_compilation_context() {

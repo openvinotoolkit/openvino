@@ -23,8 +23,8 @@ public:
             "[GPU] Failed to write " + std::to_string(size) + " bytes to stream! Wrote " + std::to_string(written_size));
     }
 
-    void setKernlImplParams(void* impl_params) { _impl_params = impl_params; }
-    void* getKernlImplParams() const { return _impl_params; }
+    void setKernelImplParams(void* impl_params) { _impl_params = impl_params; }
+    void* getKernelImplParams() const { return _impl_params; }
 
 private:
     std::ostream& stream;
@@ -42,8 +42,8 @@ public:
             "[GPU] Failed to read " + std::to_string(size) + " bytes from stream! Read " + std::to_string(read_size));
     }
 
-    void setKernlImplParams(void* impl_params) { _impl_params = impl_params; }
-    void* getKernlImplParams() const { return _impl_params; }
+    void setKernelImplParams(void* impl_params) { _impl_params = impl_params; }
+    void* getKernelImplParams() const { return _impl_params; }
     void setNetwork(void* network) { _network = network; }
     void* getNetwork() const { return _network; }
 

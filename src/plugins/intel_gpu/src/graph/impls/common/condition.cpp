@@ -54,7 +54,7 @@ struct condition_impl : typed_primitive_impl<condition> {
         return make_unique<condition_impl>(arg);
     }
 
-    void init_kernels(const kernels_cache&) override {}
+    void init_kernels(const kernels_cache& , const kernel_impl_params&) override {}
 
 private:
     primitive_id _node_id;

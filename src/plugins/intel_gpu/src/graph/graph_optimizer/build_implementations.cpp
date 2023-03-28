@@ -16,11 +16,18 @@ void build_implementations::run(program& p) {
     }
 
     auto& cache = p.get_kernels_cache();
+    for (auto& n : p.get_processing_order()) {
+        if (auto impl = n->get_selected_impl()) {
+            auto params = n->get_kernel_impl_params();
+            cache.add_kernels_source(*params, impl->get_kernels_source());
+        }
+    }
     cache.build_all();
     for (auto& n : p.get_processing_order()) {
-        if (n->get_selected_impl()) {
-            n->get_selected_impl()->init_kernels(cache);
-            n->get_selected_impl()->reset_kernels_source();
+        if (auto impl = n->get_selected_impl()) {
+            auto params = n->get_kernel_impl_params();
+            impl->init_kernels(cache, *params);
+            impl->reset_kernels_source();
         }
     }
     cache.reset();

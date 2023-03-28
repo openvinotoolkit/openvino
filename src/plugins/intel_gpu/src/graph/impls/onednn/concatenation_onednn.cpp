@@ -78,7 +78,7 @@ public:
 
         parent::save(ob);
 
-        const kernel_impl_params* impl_params = reinterpret_cast<kernel_impl_params*>(ob.getKernlImplParams());
+        const kernel_impl_params* impl_params = reinterpret_cast<kernel_impl_params*>(ob.getKernelImplParams());
         auto prim = impl_params->typed_desc<concatenation>();
         ob << prim->axis;
 
@@ -101,7 +101,7 @@ public:
         int64_t prim_axis;
         ib >> prim_axis;
 
-        const kernel_impl_params* impl_params = reinterpret_cast<kernel_impl_params*>(ib.getKernlImplParams());
+        const kernel_impl_params* impl_params = reinterpret_cast<kernel_impl_params*>(ib.getKernelImplParams());
         auto prim_desc = get_concatenation_primitive_descriptor(*impl_params, ib.get_engine(), *_attrs, prim_axis);
         _pd = *prim_desc;
 

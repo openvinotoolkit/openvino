@@ -23,7 +23,7 @@ struct loop_impl : typed_primitive_impl<loop> {
         return make_unique<loop_impl>(*this);
     }
 
-    void init_kernels(const kernels_cache&) override {}
+    void init_kernels(const kernels_cache& , const kernel_impl_params&) override {}
 
     loop_impl() : parent() {}
 
