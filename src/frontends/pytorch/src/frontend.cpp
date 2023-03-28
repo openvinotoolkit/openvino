@@ -6,10 +6,12 @@
 
 #include "input_model.hpp"
 #include "op_table.hpp"
+#include "openvino/frontend/pytorch/extension/conversion.hpp"
 #include "openvino/op/util/multi_subgraph_base.hpp"
 #include "openvino/pass/constant_folding.hpp"
 #include "openvino/util/log.hpp"
 #include "pt_framework_node.hpp"
+#include "so_extension.hpp"
 #include "transformations/common_optimizations/push_constant_to_subgraph.hpp"
 #include "transformations/common_optimizations/remove_multi_subgraph_op_dangling_params.hpp"
 #include "transformations/common_optimizations/reverse_shape_and_type_infer.hpp"
@@ -135,7 +137,20 @@ void FrontEnd::normalize(const std::shared_ptr<ov::Model>& model) const {
 }
 
 void FrontEnd::add_extension(const std::shared_ptr<ov::Extension>& extension) {
-    if (const auto& telemetry = std::dynamic_pointer_cast<TelemetryExtension>(extension)) {
+    if (auto conv_ext = std::dynamic_pointer_cast<ov::frontend::ConversionExtension>(extension)) {
+        m_conversion_extensions.push_back(conv_ext);
+        m_op_translators[conv_ext->get_op_type()] = [=](const NodeContext& context) {
+            return conv_ext->get_converter()(context);
+        };
+    } else if (auto conv_ext = std::dynamic_pointer_cast<ov::frontend::pytorch::ConversionExtension>(extension)) {
+        m_conversion_extensions.push_back(conv_ext);
+        m_op_translators[conv_ext->get_op_type()] = [=](const NodeContext& context) {
+            return conv_ext->get_converter()(context);
+        };
+    } else if (const auto& so_ext = std::dynamic_pointer_cast<ov::detail::SOExtension>(extension)) {
+        add_extension(so_ext->extension());
+        m_extensions.push_back(so_ext);
+    } else if (const auto& telemetry = std::dynamic_pointer_cast<TelemetryExtension>(extension)) {
         m_telemetry = telemetry;
     }
 }
