@@ -72,7 +72,11 @@ TEST_P(ExecutableNetworkBaseTest, canLoadCorrectNetworkToGetExecutableAndCheckCo
     auto execNet = ie->LoadNetwork(cnnNet, target_device, configuration);
     for (const auto& configItem : configuration) {
         InferenceEngine::Parameter param;
-        ASSERT_NO_THROW(param = execNet.GetConfig(configItem.first));
+        try {
+            param = execNet.GetConfig(configItem.first);
+        } catch (InferenceEngine::Exception&) {
+            ASSERT_NO_THROW(param = execNet.GetMetric(configItem.first));
+        }
         ASSERT_FALSE(param.empty());
         ASSERT_EQ(param, InferenceEngine::Parameter(configItem.second));
     }
@@ -292,16 +296,6 @@ TEST_P(ExecutableNetworkBaseTest, pluginDoesNotChangeOriginalNetwork) {
     // compare 2 networks
     auto referenceNetwork = ngraph::builder::subgraph::makeConvPoolRelu();
     compare_functions(cnnNet.getFunction(), referenceNetwork);
-}
-
-TEST_P(ExecutableNetworkBaseTest, canLoadCorrectNetworkToGetMetricAndCheckConfig) {
-    auto execNet = ie->LoadNetwork(cnnNet, target_device, configuration);
-    for (const auto& configItem : configuration) {
-        InferenceEngine::Parameter param;
-        ASSERT_NO_THROW(param = execNet.GetMetric(configItem.first));
-        ASSERT_FALSE(param.empty());
-        ASSERT_EQ(param, InferenceEngine::Parameter(configItem.second));
-    }
 }
 
 class ExecNetSetPrecision : public BehaviorTestsUtils::BehaviorTestsBasicBase,
