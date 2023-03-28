@@ -30,7 +30,7 @@ public:
         auto optional_params = get_default_optional_params<kernel_selector::eltwise_optional_params>(impl_param.get_program());
 
         params.operations.push_back({{kernel_selector::eltwise_params::InputType::Buffer(0)}, kernel_selector::eltwise_mode::ASSIGN});
-        if (impl_param.get_program().get_node(primitive->id).is_dynamic()) {
+        if (impl_param.is_dynamic() || is_shape_agnostic) {
             // WA to always match compiled dynamic kernel with dispatch data
             // W/O enforcing this option we may generate kernel for "broadcast" scneario due to umatched tensor dimensions
             // but in runtime dispatch data will be generated for non-broadcast case as shapes are actually same.
