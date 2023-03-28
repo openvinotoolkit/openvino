@@ -30,8 +30,9 @@ public:
                         const VectorDims& outputDims,
                         int indexOfOutputChannelDim,
                         bool isINT8,
-                        const int weightScaleMaskPerChannel,
-                        const std::vector<float>& ScalesBeforeBias);
+                        int weiScaleMaskPerChannel,
+                        const std::vector<float>& DQScales,
+                        bool hasBias);
 
     void appendBinary(const dnnl::algorithm alg, const std::vector<float>& data);
     void appendEltwise(const dnnl::algorithm alg, float alpha, float beta);
@@ -54,12 +55,13 @@ private:
     int idxOC;
     const bool isINT8;  // only INT8 primitive support output scale
     const int weightScaleMaskPerChannel;
-    const bool weightScaleAvailable;
+    const bool withBias;
+    bool weightScaleAvailable = false;
 
     VectorDims dimsPerTensor;
     VectorDims dimsPerOC;
     Dim OC;
-    int wei_scale_mask;
+    int wei_scale_mask = -1;
     std::vector<float> wei_scale_values;
     float dst_scale_val;
 

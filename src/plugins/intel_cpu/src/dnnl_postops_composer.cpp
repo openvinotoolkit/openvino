@@ -12,14 +12,15 @@ namespace ov {
 namespace intel_cpu {
 
 DnnlPostOpsComposer::DnnlPostOpsComposer(const dnnl::engine& engine,
-                                         dnnl::primitive_attr& attr,
-                                         dnnl::post_ops& ops,
-                                         std::unordered_map<int, MemoryPtr>& args,
-                                         const VectorDims& outputDims,
-                                         int indexOfOutputChannelDim,
-                                         bool isI8,
-                                         const int weightScaleMaskPerChannel,
-                                         const std::vector<float>& scalesBeforeBias)
+                                        dnnl::primitive_attr& attr,
+                                        dnnl::post_ops& ops,
+                                        std::unordered_map<int, MemoryPtr>& args,
+                                        const VectorDims& outputDims,
+                                        int indexOfOutputChannelDim,
+                                        bool isI8,
+                                        const int weiScaleMaskPerChannel,
+                                        const std::vector<float>& DQScales,
+                                        bool hasBias)
     : engine(engine),
       attr(attr),
       ops(ops),
@@ -27,27 +28,26 @@ DnnlPostOpsComposer::DnnlPostOpsComposer(const dnnl::engine& engine,
       outputDims(outputDims),
       idxOC(indexOfOutputChannelDim),
       isINT8(isI8),
-      weightScaleMaskPerChannel(weightScaleMaskPerChannel),
-      weightScaleAvailable(isI8 && scalesBeforeBias.empty()) {
+      weightScaleMaskPerChannel(weiScaleMaskPerChannel),
+      withBias(hasBias) {
     IE_ASSERT(idxOC >= 0 && idxOC < outputDims.size());
-    if (!isINT8 && !scalesBeforeBias.empty()) {
-        IE_THROW() << "weight scale attribute can only set on INT8";
+    if (!isINT8 && !DQScales.empty()) {
+        IE_THROW() << "DQScales is set on non I8 precision.";
     }
     OC = outputDims[idxOC];
     dimsPerOC = dimsPerTensor = VectorDims(outputDims.size(), 1);
     dimsPerOC[idxOC] = OC;
-    wei_scale_mask = 0;
-    wei_scale_values = {1.0f};
-    dst_scale_val = 1.0;
-    if (!scalesBeforeBias.empty()) {
-        DEBUG_LOG("Set scales mask ", "DNNL_ARG: ", DNNL_ARG_WEIGHTS, " mask: ", wei_scale_mask);
-        const auto wei_mask = scalesBeforeBias.size() == 1 ? 0 : weightScaleMaskPerChannel;
-        attr.set_scales_mask(DNNL_ARG_WEIGHTS, wei_mask);
-        DnnlBlockedMemoryDesc memoryDesc(InferenceEngine::Precision::FP32, Shape({scalesBeforeBias.size()}));
-        auto mem = std::make_shared<Memory>(engine);
-        mem->Create(memoryDesc);
-        memcpy(mem->GetPtr(), scalesBeforeBias.data(), scalesBeforeBias.size() * sizeof(float));
-        args[DNNL_ARG_ATTR_SCALES | DNNL_ARG_WEIGHTS] = mem;
+
+    if (isINT8) {
+        wei_scale_values = DQScales.empty() ? std::vector<float>{1.0} : DQScales;
+        wei_scale_mask = wei_scale_values.size() > 1 ? weiScaleMaskPerChannel : 0;
+        dst_scale_val = 1.0;
+
+        //set the DQscale into attr weight scale before appending any post-ops.
+        updateWeiScales();
+        //If having the bias, attr weight scale can't be applied to further post-ops fusing.
+        //ONEDNN 3.x limitation for U8: Conv * DQScale + Bias
+        weightScaleAvailable = !hasBias;
     }
 }
 
@@ -66,8 +66,8 @@ void DnnlPostOpsComposer::updateWeiScales() {
 }
 
 void DnnlPostOpsComposer::updateDestScales() {
-    if (args.count(DNNL_ARG_ATTR_SCALES | DNNL_ARG_DST))
-        IE_THROW() << "BUG: Dest scale is set for multiple times.";
+    // if (args.count(DNNL_ARG_ATTR_SCALES | DNNL_ARG_DST))
+    //     IE_THROW() << "BUG: Dest scale is set for multiple times.";
     if (dst_scale_val == 1.0f)
         return;
 
@@ -113,6 +113,7 @@ bool DnnlPostOpsComposer::appendScale(const std::vector<float>& scale, bool isLa
     IE_ASSERT(scale.size() == OC || scale.size() == 1);
 
     bool fuseIntoWeiScale = false;
+    //
     if ((isINT8 && isLastPostOp && scale.size() == 1)) {
         dst_scale_val = 1.0 / scale[0];
         updateDestScales();
@@ -179,27 +180,6 @@ bool DnnlPostOpsComposer::appendScale(const std::vector<float>& scale, bool isLa
         updateWeiScales();
         return true;
     }
-
-    // // (eltwise(x, scale, alpha, beta) + dst[:])*s = (eltwise(x, scale*s, alpha, beta) + s*dst[:])
-    // if (scale.size() == 1 && ops.len() > 1) {
-    //     auto N = ops.len();
-    //     auto& cur_op = ops.get()->entry_[N-1];
-    //     auto& prev_op = ops.get()->entry_[N-2];
-    //     if (cur_op.kind == dnnl::impl::primitive_kind::sum && prev_op.is_eltwise()) {
-    //         cur_op.sum.scale *= scale[0];
-    //         prev_op.eltwise.scale *= scale[0];
-    //         return true;
-    //     }
-    // }
-
-    // // eltwise(x, scale, alpha, beta)*s = eltwise(x, (scale*s), alpha, beta)
-    // if (scale.size() == 1 && ops.len() > 0) {
-    //     auto& cur_op = ops.get()->entry_.back();
-    //     if (cur_op.kind == dnnl::impl::primitive_kind::eltwise) {
-    //         cur_op.eltwise.scale *= scale[0];
-    //         return true;
-    //     }
-    // }
 
     // final fallback
     if (scale.size() == 1) {

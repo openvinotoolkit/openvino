@@ -1683,6 +1683,8 @@ void Node::initializeDQScales(const float* scaleData, const size_t scaleSize) {
         if (scaleData[i] != scaleData[0])
             DQScalesType = scalesType::PerChannel;
     }
+    if (DQScalesType == scalesType::PerTensor)
+        DQScales.resize(1);
 }
 
 
