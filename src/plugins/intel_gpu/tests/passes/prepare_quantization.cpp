@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -33,7 +33,6 @@ TEST(prepare_quantization, program_replace_check_num_of_nodes) {
     topology.add(quantize("quantize", input_info("input"), input_info("input_low"), input_info("input_high"), input_info("input_low"), input_info("input_high"), 256, data_types::f32));
 
     ExecutionConfig config;
-    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
     config.set_property(ov::intel_gpu::optimize_data(true));
     auto prog = program::build_program(engine, topology, config, false, true);
 
