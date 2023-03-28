@@ -46,7 +46,10 @@ void NodeContext::mutate_input(size_t index, Output<Node> ov_output) const {
     FRONT_END_GENERAL_CHECK(!m_decoder->input_is_none(index), "Input is none with index: ", index);
     auto input_id = m_decoder_inputs.at(index);
     FRONT_END_GENERAL_CHECK(m_tensor_map->count(input_id), "No tensor corresponding input: ", input_id, " exist.");
-    m_translate_session->encode_tensor_name(ov_output, input_id, m_decoder->get_input_debug_name(index));
+    m_translate_session->encode_tensor_name(
+        ov_output,
+        input_id,
+        {m_decoder->get_input_debug_name(index), m_decoder->get_input_signature_name(index)});
     (*m_tensor_map)[input_id] = ov_output;
     m_mutated_tensors->insert(input_id);
 }

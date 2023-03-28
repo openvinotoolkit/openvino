@@ -65,6 +65,8 @@ private:
     float m_nmsEta = 0.0f;
     bool m_normalized = true;
 
+    bool m_outStaticShape = false;
+
     std::string m_errorPrefix;
 
     std::vector<std::vector<size_t>> m_numFiltBox; // number of rois after nms for each class in each image
