@@ -60,132 +60,132 @@ struct jit_uni_binarization_kernel : public jit_uni_quantize_kernel, public jit_
     };
 
     void generate() override {
-        // this->preamble();
+        this->preamble();
 
-        // mov(reg_from, ptr[param + GET_OFF(from)]);
-        // mov(reg_to, ptr[param + GET_OFF(to)]);
-        // mov(reg_thresholds, ptr[param + GET_OFF(thresholds)]);
-        // mov(reg_output_mask, ptr[param + GET_OFF(output_mask)]);
-        // mov(reg_work_amount, ptr[param + GET_OFF(work_amount)]);
+        mov(reg_from, ptr[param + GET_OFF(from)]);
+        mov(reg_to, ptr[param + GET_OFF(to)]);
+        mov(reg_thresholds, ptr[param + GET_OFF(thresholds)]);
+        mov(reg_output_mask, ptr[param + GET_OFF(output_mask)]);
+        mov(reg_work_amount, ptr[param + GET_OFF(work_amount)]);
 
-        // const int nbits = 8;
-        // int simd_w = isa == avx512_core ? 16 : 8;
-        // const int C = jqp_.c;
-        // const int tail_size = C % simd_w;
+        const int nbits = 8;
+        int simd_w = isa == avx512_core ? 16 : 8;
+        const int C = jqp_.c;
+        const int tail_size = C % simd_w;
 
-        // Label unrolled_loop_label;
-        // Label main_loop_label;
-        // Label tail_label;
-        // Label exit_label;
+        Label unrolled_loop_label;
+        Label main_loop_label;
+        Label tail_label;
+        Label exit_label;
 
-        // L(unrolled_loop_label); {
-        //     int step = isa == cpu::x64::sse41 ? nbits / 2 : isa == cpu::x64::avx2 ? nbits : 2 * nbits;
-        //     const int ur_ch = isa == cpu::x64::sse41 ? nbits : isa == cpu::x64::avx2 ? nbits / 2 : nbits / 4;
-        //     const int unrolled_loop_step = ur_ch * step;
+        L(unrolled_loop_label); {
+            int step = isa == cpu::x64::sse41 ? nbits / 2 : isa == cpu::x64::avx2 ? nbits : 2 * nbits;
+            const int ur_ch = isa == cpu::x64::sse41 ? nbits : isa == cpu::x64::avx2 ? nbits / 2 : nbits / 4;
+            const int unrolled_loop_step = ur_ch * step;
 
-        //     cmp(reg_work_amount, unrolled_loop_step);
-        //     jl(main_loop_label, T_NEAR);
+            cmp(reg_work_amount, unrolled_loop_step);
+            jl(main_loop_label, T_NEAR);
 
-        //     xor_(reg_bin_32, reg_bin_32);
-        //     for (int ch = 0; ch < ur_ch; ch++) {
-        //         uni_vmovups(vmm_src(0), ptr[reg_from + ch*step*sizeof(float)]);
-        //         uni_vmovups(vmm_wei(0), ptr[reg_thresholds + ch*step*sizeof(float)]);
-        //         uni_vmovups(vmm_mask(0), ptr[reg_output_mask + ch*step*sizeof(float)]);
-        //         if (isa == avx512_core) {
-        //             vcmpps(k_mask0, vmm_src(0), vmm_wei(0), _cmp_gt_os);
-        //             vptestmd(k_mask1, vmm_mask(0), vmm_mask(0));
-        //             kxnorw(k_mask0, k_mask0, k_mask1);
-        //             kmovw(reg_src_32, k_mask0);
-        //         } else {
-        //             uni_vcmpgtps(vmm_src(0), vmm_src(0), vmm_wei(0));
-        //             uni_vpcmpeqd(vmm_src(0), vmm_src(0), vmm_mask(0));
-        //             uni_vmovmskps(reg_src_32, vmm_src(0));
-        //         }
-        //         shl(reg_src_32, ch * step);
-        //         or_(reg_bin_32, reg_src_32);
-        //     }
-        //     mov(ptr[reg_to], reg_bin_32);
+            xor_(reg_bin_32, reg_bin_32);
+            for (int ch = 0; ch < ur_ch; ch++) {
+                uni_vmovups(vmm_src(0), ptr[reg_from + ch*step*sizeof(float)]);
+                uni_vmovups(vmm_wei(0), ptr[reg_thresholds + ch*step*sizeof(float)]);
+                uni_vmovups(vmm_mask(0), ptr[reg_output_mask + ch*step*sizeof(float)]);
+                if (isa == avx512_core) {
+                    vcmpps(k_mask0, vmm_src(0), vmm_wei(0), _cmp_gt_os);
+                    vptestmd(k_mask1, vmm_mask(0), vmm_mask(0));
+                    kxnorw(k_mask0, k_mask0, k_mask1);
+                    kmovw(reg_src_32, k_mask0);
+                } else {
+                    uni_vcmpgtps(vmm_src(0), vmm_src(0), vmm_wei(0));
+                    uni_vpcmpeqd(vmm_src(0), vmm_src(0), vmm_mask(0));
+                    uni_vmovmskps(reg_src_32, vmm_src(0));
+                }
+                shl(reg_src_32, ch * step);
+                or_(reg_bin_32, reg_src_32);
+            }
+            mov(ptr[reg_to], reg_bin_32);
 
-        //     add(reg_from, unrolled_loop_step*sizeof(float));
-        //     add(reg_thresholds, unrolled_loop_step*sizeof(float));
-        //     add(reg_output_mask, unrolled_loop_step*sizeof(float));
-        //     add(reg_to, sizeof(uint32_t));
-        //     sub(reg_work_amount, unrolled_loop_step);
+            add(reg_from, unrolled_loop_step*sizeof(float));
+            add(reg_thresholds, unrolled_loop_step*sizeof(float));
+            add(reg_output_mask, unrolled_loop_step*sizeof(float));
+            add(reg_to, sizeof(uint32_t));
+            sub(reg_work_amount, unrolled_loop_step);
 
-        //     jmp(unrolled_loop_label, T_NEAR);
-        // }
+            jmp(unrolled_loop_label, T_NEAR);
+        }
 
-        // L(main_loop_label); {
-        //     int repeats = isa == cpu::x64::sse41 ? 2 : 1;
-        //     int step = isa == cpu::x64::sse41 ? nbits / 2 : isa == cpu::x64::avx2 ? nbits : nbits * 2;
-        //     const int main_loop_step = step * repeats;
+        L(main_loop_label); {
+            int repeats = isa == cpu::x64::sse41 ? 2 : 1;
+            int step = isa == cpu::x64::sse41 ? nbits / 2 : isa == cpu::x64::avx2 ? nbits : nbits * 2;
+            const int main_loop_step = step * repeats;
 
-        //     cmp(reg_work_amount, main_loop_step);
-        //     jl(tail_label, T_NEAR);
+            cmp(reg_work_amount, main_loop_step);
+            jl(tail_label, T_NEAR);
 
-        //     xor_(reg_bin_32, reg_bin_32);
-        //     for (int i = 0; i < repeats; i++) {
-        //         uni_vmovups(vmm_src(0), ptr[reg_from + i*step*sizeof(float)]);
-        //         uni_vmovups(vmm_wei(0), ptr[reg_thresholds + i*step*sizeof(float)]);
-        //         uni_vmovups(vmm_mask(0), ptr[reg_output_mask + i*step*sizeof(float)]);
-        //         if (isa == avx512_core) {
-        //             vcmpps(k_mask0, vmm_src(0), vmm_wei(0), _cmp_gt_os);
-        //             vptestmd(k_mask1, vmm_mask(0), vmm_mask(0));
-        //             kxnorw(k_mask0, k_mask0, k_mask1);
-        //             kmovw(reg_src_32, k_mask0);
-        //         } else {
-        //             uni_vcmpgtps(vmm_src(0), vmm_src(0), vmm_wei(0));
-        //             uni_vpcmpeqd(vmm_src(0), vmm_src(0), vmm_mask(0));
-        //             uni_vmovmskps(reg_src_32, vmm_src(0));
-        //         }
-        //         shl(reg_src_32, i * step);
-        //         or_(reg_bin_32, reg_src_32);
-        //     }
-        //     if (isa == avx512_core)
-        //         mov(ptr[reg_to], reg_bin_16);
-        //     else
-        //         mov(ptr[reg_to], reg_bin_8);
+            xor_(reg_bin_32, reg_bin_32);
+            for (int i = 0; i < repeats; i++) {
+                uni_vmovups(vmm_src(0), ptr[reg_from + i*step*sizeof(float)]);
+                uni_vmovups(vmm_wei(0), ptr[reg_thresholds + i*step*sizeof(float)]);
+                uni_vmovups(vmm_mask(0), ptr[reg_output_mask + i*step*sizeof(float)]);
+                if (isa == avx512_core) {
+                    vcmpps(k_mask0, vmm_src(0), vmm_wei(0), _cmp_gt_os);
+                    vptestmd(k_mask1, vmm_mask(0), vmm_mask(0));
+                    kxnorw(k_mask0, k_mask0, k_mask1);
+                    kmovw(reg_src_32, k_mask0);
+                } else {
+                    uni_vcmpgtps(vmm_src(0), vmm_src(0), vmm_wei(0));
+                    uni_vpcmpeqd(vmm_src(0), vmm_src(0), vmm_mask(0));
+                    uni_vmovmskps(reg_src_32, vmm_src(0));
+                }
+                shl(reg_src_32, i * step);
+                or_(reg_bin_32, reg_src_32);
+            }
+            if (isa == avx512_core)
+                mov(ptr[reg_to], reg_bin_16);
+            else
+                mov(ptr[reg_to], reg_bin_8);
 
-        //     add(reg_from, main_loop_step*sizeof(float));
-        //     add(reg_thresholds, main_loop_step*sizeof(float));
-        //     add(reg_output_mask, main_loop_step*sizeof(float));
-        //     add(reg_to, isa == avx512_core ? sizeof(uint16_t) : sizeof(uint8_t));
-        //     sub(reg_work_amount, main_loop_step);
+            add(reg_from, main_loop_step*sizeof(float));
+            add(reg_thresholds, main_loop_step*sizeof(float));
+            add(reg_output_mask, main_loop_step*sizeof(float));
+            add(reg_to, isa == avx512_core ? sizeof(uint16_t) : sizeof(uint8_t));
+            sub(reg_work_amount, main_loop_step);
 
-        //     jmp(main_loop_label, T_NEAR);
-        // }
+            jmp(main_loop_label, T_NEAR);
+        }
 
-        // L(tail_label); {
-        //     if (tail_size != 0) {
-        //         xor_(reg_bin_32, reg_bin_32);
-        //         mov(reg_mask, 1);
-        //         for (int c = 0; c < tail_size; c++) {
-        //             uni_vpxor(xmm_src(0), xmm_src(0), xmm_src(0));
-        //             uni_vpxor(xmm_wei(0), xmm_wei(0), xmm_wei(0));
-        //             uni_vpxor(xmm_mask(0), xmm_mask(0), xmm_mask(0));
+        L(tail_label); {
+            if (tail_size != 0) {
+                xor_(reg_bin_32, reg_bin_32);
+                mov(reg_mask, 1);
+                for (int c = 0; c < tail_size; c++) {
+                uni_vpxor(xmm_src(0), xmm_src(0), xmm_src(0));
+                uni_vpxor(xmm_wei(0), xmm_wei(0), xmm_wei(0));
+                uni_vpxor(xmm_mask(0), xmm_mask(0), xmm_mask(0));
 
-        //             uni_vmovss(xmm_src(0), ptr[reg_from + c * sizeof(float)]);
-        //             uni_vmovss(xmm_wei(0), ptr[reg_thresholds + c * sizeof(float)]);
-        //             uni_vmovss(xmm_mask(0), ptr[reg_output_mask + c * sizeof(float)]);
-        //             uni_vcmpgtps(xmm_src(0), xmm_src(0), xmm_wei(0));
-        //             uni_vpcmpeqd(xmm_src(0), xmm_src(0), xmm_mask(0));
-        //             uni_vmovmskps(reg_src_32, xmm_src(0));
+                uni_vmovss(xmm_src(0), ptr[reg_from + c * sizeof(float)]);
+                uni_vmovss(xmm_wei(0), ptr[reg_thresholds + c * sizeof(float)]);
+                uni_vmovss(xmm_mask(0), ptr[reg_output_mask + c * sizeof(float)]);
+                uni_vcmpgtps(xmm_src(0), xmm_src(0), xmm_wei(0));
+                uni_vpcmpeqd(xmm_src(0), xmm_src(0), xmm_mask(0));
+                uni_vmovmskps(reg_src_32, xmm_src(0));
 
-        //             shl(reg_src_32, c);
-        //             and_(reg_src_32, reg_mask);
-        //             or_(reg_bin_32, reg_src_32);
-        //             shl(reg_mask, 1);
-        //         }
-        //         if (isa == avx512_core && tail_size > nbits)
-        //             mov(ptr[reg_to], reg_bin_16);
-        //         else
-        //             mov(ptr[reg_to], reg_bin_8);
-        //     }
-        // }
+                shl(reg_src_32, c);
+                and_(reg_src_32, reg_mask);
+                or_(reg_bin_32, reg_src_32);
+                shl(reg_mask, 1);
+            }
+            if (isa == avx512_core && tail_size > nbits)
+                mov(ptr[reg_to], reg_bin_16);
+            else
+                mov(ptr[reg_to], reg_bin_8);
+        }
+        }
 
-        // L(exit_label);
+        L(exit_label);
 
-        // this->postamble();
+        this->postamble();
     }
 
 private:
@@ -281,7 +281,6 @@ private:
     Reg64 reg_dst_step = rsi;
     Reg64 reg_block_size = r11;
     Reg64 reg_work_amount = r12;
-    Reg64 reg_channel_size = reg_block_size;
 
     Reg8 reg_tmp_8 = r9b;
     Reg32 reg_tmp_32 = r9d;
@@ -296,6 +295,43 @@ private:
 
     bool do_rounding = true;
     bool do_dequantization = true;
+
+    inline void load_broadcasted_vectors_only(size_t idx) {
+        const auto &broadcasted = jqp_.broadcasted;
+        if (broadcasted[CROP_LOW]) uni_vbroadcastss(vmm_crop_low(idx), ptr[reg_crop_low]);
+        if (broadcasted[CROP_HIGH]) uni_vbroadcastss(vmm_crop_high(idx), ptr[reg_crop_high]);
+        if (broadcasted[INPUT_SCALE]) uni_vbroadcastss(vmm_input_scale(idx), ptr[reg_input_scale]);
+        if (broadcasted[INPUT_SHIFT]) uni_vbroadcastss(vmm_input_shift(idx), ptr[reg_input_shift]);
+        if (do_dequantization) {
+            if (broadcasted[OUTPUT_SCALE]) uni_vbroadcastss(vmm_output_scale(idx), ptr[reg_output_scale]);
+            if (broadcasted[OUTPUT_SHIFT]) uni_vbroadcastss(vmm_output_shift(idx), ptr[reg_output_shift]);
+        }
+    }
+
+    template <typename T>
+    inline void load_not_broadcasted_vectors_only(size_t idx, size_t offset) {
+        const auto &broadcasted = jqp_.broadcasted;
+        if (!broadcasted[CROP_LOW]) uni_vmovups(T(vmm_crop_low(idx).getIdx()), ptr[reg_crop_low + offset]);
+        if (!broadcasted[CROP_HIGH]) uni_vmovups(T(vmm_crop_high(idx).getIdx()), ptr[reg_crop_high + offset]);
+        if (!broadcasted[INPUT_SCALE]) uni_vmovups(T(vmm_input_scale(idx).getIdx()), ptr[reg_input_scale + offset]);
+        if (!broadcasted[INPUT_SHIFT]) uni_vmovups(T(vmm_input_shift(idx).getIdx()), ptr[reg_input_shift + offset]);
+        if (do_dequantization) {
+            if (!broadcasted[OUTPUT_SCALE]) uni_vmovups(T(vmm_output_scale(idx).getIdx()), ptr[reg_output_scale + offset]);
+            if (!broadcasted[OUTPUT_SHIFT]) uni_vmovups(T(vmm_output_shift(idx).getIdx()), ptr[reg_output_shift + offset]);
+        }
+    }
+
+    inline void increase_ptrs_if_not_broadcasted(size_t offset) {
+        const auto &broadcasted = jqp_.broadcasted;
+        if (!broadcasted[CROP_LOW]) add(reg_crop_low, offset);
+        if (!broadcasted[CROP_HIGH]) add(reg_crop_high, offset);
+        if (!broadcasted[INPUT_SCALE]) add(reg_input_scale, offset);
+        if (!broadcasted[INPUT_SHIFT]) add(reg_input_shift, offset);
+        if (do_dequantization) {
+            if (!broadcasted[OUTPUT_SCALE]) add(reg_output_scale, offset);
+            if (!broadcasted[OUTPUT_SHIFT]) add(reg_output_shift, offset);
+        }
+    }
 
     inline void compute_planar() {
         int src_type_size = jqp_.src_prc.size();
@@ -432,9 +468,9 @@ private:
         if (isa == cpu::x64::avx512_core)
             uni_vpxor(vmm_zero, vmm_zero, vmm_zero);
 
+        constexpr unsigned simd_w = isa == cpu::x64::avx512_core ? 16 : 8;
         constexpr unsigned tail8_simd_w = 8;
         constexpr unsigned tail4_simd_w = 4;
-        constexpr unsigned simd_w = isa == cpu::x64::avx512_core ? 16 : 8;
         constexpr unsigned repeats = isa == cpu::x64::sse41 ? 2 : 1;
 
         Label main_loop_label;
@@ -448,18 +484,15 @@ private:
         Label tail_loop_label;
         Label exit_label;
 
+        for (int i = 0; i < repeats; i++) {
+            load_broadcasted_vectors_only(i);
+        }
+
         cmp(reg_block_size, simd_w);
         jl(simd_w == 16 ? tail_blk8_label : tail_blk4_label, T_NEAR);
 
         for (int i = 0; i < repeats; i++) {
-            uni_vmovups(vmm_crop_low(i), ptr[reg_crop_low + i * (simd_w / 2) * sizeof(float)]);
-            uni_vmovups(vmm_crop_high(i), ptr[reg_crop_high + i * (simd_w / 2) * sizeof(float)]);
-            uni_vmovups(vmm_input_scale(i), ptr[reg_input_scale + i * (simd_w / 2) * sizeof(float)]);
-            uni_vmovups(vmm_input_shift(i), ptr[reg_input_shift + i * (simd_w / 2) * sizeof(float)]);
-            if (do_dequantization) {
-                uni_vmovups(vmm_output_scale(i), ptr[reg_output_scale + i * (simd_w / 2) * sizeof(float)]);
-                uni_vmovups(vmm_output_shift(i), ptr[reg_output_shift + i * (simd_w / 2) * sizeof(float)]);
-            }
+            load_not_broadcasted_vectors_only<Vmm>(i, i * (simd_w / 2) * sizeof(float));
         }
 
         L(main_loop_label); {
@@ -495,14 +528,7 @@ private:
             mov(aux_reg_from, reg_from);
             mov(reg_work_amount, ptr[param + GET_OFF(work_amount)]);
 
-            uni_vmovups(ymm_crop_low(0), ptr[reg_crop_low]);
-            uni_vmovups(ymm_crop_high(0), ptr[reg_crop_high]);
-            uni_vmovups(ymm_input_scale(0), ptr[reg_input_scale]);
-            uni_vmovups(ymm_input_shift(0), ptr[reg_input_shift]);
-            if (do_dequantization) {
-                uni_vmovups(ymm_output_scale(0), ptr[reg_output_scale]);
-                uni_vmovups(ymm_output_shift(0), ptr[reg_output_shift]);
-            }
+            load_not_broadcasted_vectors_only<Ymm>(0, 0);
 
             L(tail_blk8_loop_label); {
                 cmp(reg_work_amount, 0);
@@ -529,14 +555,7 @@ private:
 
             add(reg_from, tail8_simd_w * src_type_size);
             add(reg_to, tail8_simd_w * dst_type_size);
-            add(reg_crop_low, tail8_simd_w * wei_type_size);
-            add(reg_crop_high, tail8_simd_w * wei_type_size);
-            add(reg_input_scale, tail8_simd_w * wei_type_size);
-            add(reg_input_shift, tail8_simd_w * wei_type_size);
-            if (do_dequantization) {
-                add(reg_output_scale, tail8_simd_w * wei_type_size);
-                add(reg_output_shift, tail8_simd_w * wei_type_size);
-            }
+            increase_ptrs_if_not_broadcasted(tail8_simd_w * wei_type_size);
             sub(reg_block_size, tail8_simd_w);
         }
 
@@ -549,14 +568,7 @@ private:
         mov(aux_reg_from, reg_from);
         mov(reg_work_amount, ptr[param + GET_OFF(work_amount)]);
 
-        uni_vmovups(xmm_crop_low(0), ptr[reg_crop_low]);
-        uni_vmovups(xmm_crop_high(0), ptr[reg_crop_high]);
-        uni_vmovups(xmm_input_scale(0), ptr[reg_input_scale]);
-        uni_vmovups(xmm_input_shift(0), ptr[reg_input_shift]);
-        if (do_dequantization) {
-            uni_vmovups(xmm_output_scale(0), ptr[reg_output_scale]);
-            uni_vmovups(xmm_output_shift(0), ptr[reg_output_shift]);
-        }
+        load_not_broadcasted_vectors_only<Xmm>(0, 0);
 
         L(tail_blk4_loop_label); {
             cmp(reg_work_amount, 0);
@@ -583,14 +595,8 @@ private:
 
         add(reg_from, tail4_simd_w * src_type_size);
         add(reg_to, tail4_simd_w * dst_type_size);
-        add(reg_crop_low, tail4_simd_w * wei_type_size);
-        add(reg_crop_high, tail4_simd_w * wei_type_size);
-        add(reg_input_scale, tail4_simd_w * wei_type_size);
-        add(reg_input_shift, tail4_simd_w * wei_type_size);
-        if (do_dequantization) {
-            add(reg_output_scale, tail4_simd_w * wei_type_size);
-            add(reg_output_shift, tail4_simd_w * wei_type_size);
-        }
+        increase_ptrs_if_not_broadcasted(tail4_simd_w * wei_type_size);
+        sub(reg_block_size, tail4_simd_w);
 
         L(tail_label);
 
@@ -605,18 +611,17 @@ private:
             cmp(reg_work_amount, 0);
             jle(exit_label, T_NEAR);
             Label end_unroll;
-            mov(reg_channel_size, ptr[param + GET_OFF(channel_size)]);
-            and_(reg_channel_size, tail4_simd_w - 1); // reg_channel_size % tail4_simd_w == reg_channel_size & (tail4_simd_w - 1)
 
             auto tail_unroll = [&](size_t iter) {
+                const auto &broadcasted = jqp_.broadcasted;
                 for (int i = 0; i < iter; i++) {
-                    uni_vmovss(xmm_crop_low(0), ptr[reg_crop_low + i * wei_type_size]);
-                    uni_vmovss(xmm_crop_high(0), ptr[reg_crop_high + i * wei_type_size]);
-                    uni_vmovss(xmm_input_scale(0), ptr[reg_input_scale + i * wei_type_size]);
-                    uni_vmovss(xmm_input_shift(0), ptr[reg_input_shift + i * wei_type_size]);
+                    if (!broadcasted[CROP_LOW]) uni_vmovss(xmm_crop_low(0), ptr[reg_crop_low + i * wei_type_size]);
+                    if (!broadcasted[CROP_HIGH]) uni_vmovss(xmm_crop_high(0), ptr[reg_crop_high + i * wei_type_size]);
+                    if (!broadcasted[INPUT_SCALE]) uni_vmovss(xmm_input_scale(0), ptr[reg_input_scale + i * wei_type_size]);
+                    if (!broadcasted[INPUT_SHIFT]) uni_vmovss(xmm_input_shift(0), ptr[reg_input_shift + i * wei_type_size]);
                     if (do_dequantization) {
-                        uni_vmovss(xmm_output_scale(0), ptr[reg_output_scale + i * wei_type_size]);
-                        uni_vmovss(xmm_output_shift(0), ptr[reg_output_shift + i * wei_type_size]);
+                        if (!broadcasted[OUTPUT_SCALE]) uni_vmovss(xmm_output_scale(0), ptr[reg_output_scale + i * wei_type_size]);
+                        if (!broadcasted[OUTPUT_SHIFT]) uni_vmovss(xmm_output_shift(0), ptr[reg_output_shift + i * wei_type_size]);
                     }
 
                     load_scalar(xmm_val(0), ptr[aux_reg_from + i * src_type_size], jqp_.src_prc);
@@ -628,16 +633,14 @@ private:
                     if (do_dequantization) uni_vfmadd213ps(xmm_val(0), xmm_output_scale(0), xmm_output_shift(0));
 
                     store_scalar(ptr[aux_reg_to + i * dst_type_size], xmm_val(0), jqp_.dst_prc);
-                    jmp(end_unroll, T_NEAR);
                 }
+                jmp(end_unroll, T_NEAR);
             };
 
             std::array<Label, tail4_simd_w> unroll_labels;
-            cmp(reg_channel_size, 0);
-            je(end_unroll);
             for (size_t i = 1; i < tail4_simd_w; ++i) {
-                cmp(reg_channel_size, i);
-                je(unroll_labels[i]);
+                cmp(reg_block_size, i);
+                je(unroll_labels[i], T_NEAR);
             }
 
             for (size_t i = 1; i < tail4_simd_w; ++i) {
@@ -918,12 +921,18 @@ namespace {
 struct FakeQuantKey {
     jit_quantize_params jqp;
     size_t hash() const {
+        using namespace dnnl::impl::primitive_hashing;
         size_t seed = 0;
         seed = hash_combine(seed, jqp.is_planar);
         seed = hash_combine(seed, jqp.src_prc.getPrecVal());
         seed = hash_combine(seed, jqp.wei_prc.getPrecVal());
         seed = hash_combine(seed, jqp.dst_prc.getPrecVal());
         seed = hash_combine(seed, jqp.op_type);
+        if (jqp.op_type ==  Algorithm::FQBinarization) {
+            seed = hash_combine(seed, jqp.c);
+        } else {
+            seed = get_vector_hash(seed, jqp.broadcasted);
+        }
         return seed;
     }
 
@@ -931,6 +940,13 @@ struct FakeQuantKey {
         bool result = jqp.is_planar == rhs.jqp.is_planar && jqp.src_prc == rhs.jqp.src_prc &&
                       jqp.wei_prc == rhs.jqp.wei_prc && jqp.dst_prc == rhs.jqp.dst_prc &&
                       jqp.op_type == rhs.jqp.op_type;
+        if (result) {
+            if (jqp.op_type == Algorithm::FQBinarization) {
+                result = result && jqp.c == rhs.jqp.c;
+            } else {
+                result = result && jqp.broadcasted == rhs.jqp.broadcasted;
+            }
+        }
         return result;
     }
 };
@@ -1115,6 +1131,20 @@ FakeQuantize::FakeQuantize(const std::shared_ptr<ngraph::Node>& op, const GraphC
             inputShiftSize = inputShift.size();
             outputScaleSize = outputScale.size();
             outputShiftSize = outputShift.size();
+
+
+            broadcasted.resize(FQ_ADD_INPUTS);
+            broadcasted[CROP_LOW] = cropLowSize == 1 ? 1 : 0;
+            broadcasted[CROP_HIGH] = cropHighSize == 1 ? 1 : 0;
+            broadcasted[INPUT_SCALE] = inputScaleSize == 1 ? 1 : 0;
+            broadcasted[INPUT_SHIFT] = inputShiftSize == 1 ? 1 : 0;
+            broadcasted[OUTPUT_SCALE] = outputScaleSize == 1 ? 1 : 0;
+            broadcasted[OUTPUT_SHIFT] = outputShiftSize == 1 ? 1 : 0;
+
+            broadcastFactor.resize(FQ_ADD_INPUTS);
+            for (size_t i = 0; i < FQ_ADD_INPUTS; i++) {
+                broadcastFactor[i] = broadcasted[i] ? 0 : 1;
+            }
 
             if (everyone_is(1u, cropLowSize, cropHighSize, inputScaleSize, inputShiftSize, outputScaleSize, outputShiftSize))
                 broadcastingPolicy = PerTensor;
@@ -1305,7 +1335,15 @@ void FakeQuantize::initSupportedPrimitiveDescriptors() {
         }
     }
 
-    for (auto& fmt : getDataFormats()) {
+    std::vector<LayoutType> dataFormats;
+    // [av] reference implementation supports only planar format
+    if (impl_type == impl_desc_type::ref) {
+        dataFormats.push_back(LayoutType::ncsp);
+    } else {
+        dataFormats = getDataFormats();
+    }
+
+    for (auto& fmt : dataFormats) {
         NodeConfig config;
         config.dynBatchSupport = true;
         for (size_t i = 0; i < getParentEdges().size(); i++) {
@@ -1335,32 +1373,33 @@ void FakeQuantize::initSupportedPrimitiveDescriptors() {
 }
 
 bool FakeQuantize::needPrepareParams() const {
-    auto selectedPrimitiveDescriptor = getSelectedPrimitiveDescriptor();
-    if (!selectedPrimitiveDescriptor)
-        IE_THROW() << "CPU quantize node with name '" << getName() << "' doesn't have primitive descriptors.";
+    if (isBinarization()) {
+        auto selectedPrimitiveDescriptor = getSelectedPrimitiveDescriptor();
+        if (!selectedPrimitiveDescriptor)
+            IE_THROW() << "CPU quantize node with name '" << getName() << "' doesn't have primitive descriptors.";
 
-    if (internalBlobMemory.empty()) {
-        return true;
+        if (internalBlobMemory.empty() || (selectedPrimitiveDescriptor->getImplementationType() != impl_desc_type::ref && inputShapesModified())) {
+            return true;
+        }
+
+        const auto axisSize = getParentEdgesAtPort(0)[0]->getMemory().getStaticDims()[getAxis()];
+        const auto newPaddedSize = rnd_up(axisSize, 16);
+        const auto currPaddedSize = rnd_up(currentAxisSize, 16);
+
+        return newPaddedSize != currPaddedSize || ((isInputLowBroadcasted || isOutputHighBroadcasted) && axisSize != currentAxisSize);
     }
-
-    const auto axisSize = getParentEdgeAt(0)->getMemory().getStaticDims()[getAxis()];
-    const auto newPaddedSize = rnd_up(axisSize, 16);
-    const auto currPaddedSize = rnd_up(currentAxisSize, 16);
-
-    return newPaddedSize != currPaddedSize || (isBinarization() && (isInputLowBroadcasted || isOutputHighBroadcasted) &&
-                                                 axisSize != currentAxisSize);
+    return false;
 }
 
 void FakeQuantize::prepareParams() {
-    const size_t axisSize = getParentEdgeAt(0)->getMemory().GetShape().getStaticDims()[getAxis()];
-    const size_t newPaddedSize = rnd_up(axisSize, 16);
-    IE_ASSERT(newPaddedSize != 0);
+    if (isBinarization()) {
+        const size_t axisSize = getParentEdgeAt(0)->getMemory().GetShape().getStaticDims()[getAxis()];
+        const size_t newPaddedSize = rnd_up(axisSize, 16);
+        IE_ASSERT(newPaddedSize != 0);
 
-    if (internalBlobMemory.empty() || newPaddedSize != rnd_up(currentAxisSize, 16) ||
-            (isBinarization() && (isInputLowBroadcasted || isOutputHighBroadcasted) && axisSize != currentAxisSize)) {
-        DnnlBlockedMemoryDesc weightsDataDesc(Shape(VectorDims{newPaddedSize}), memory::data_type::f32, memory::format_tag::x);
-
-        if (isBinarization()) {
+        if (internalBlobMemory.empty() || newPaddedSize != rnd_up(currentAxisSize, 16) ||
+                ((isInputLowBroadcasted || isOutputHighBroadcasted) && axisSize != currentAxisSize)) {
+            DnnlBlockedMemoryDesc weightsDataDesc(Shape(VectorDims{newPaddedSize}), memory::data_type::f32, memory::format_tag::x);
             constexpr size_t numBinFqIntBlob = 2;
             bool needUpdThr = false, needUpdMask = false;
             if (isInputLowBroadcasted && axisSize != currentAxisSize) {
@@ -1396,43 +1435,9 @@ void FakeQuantize::prepareParams() {
                     internalBlobMemory[1] = binarizationMaskDataMem;
                 }
             }
-        } else if (levels != 2) {
-            constexpr size_t numFqIntBlob = 6;
-
-            auto pushInternalBlob = [&](std::vector<float>& data, size_t idx) {
-                auto memory = std::make_shared<Memory>(getEngine());
-                bool needOverwrite = getInputShapeAtPort(0).getDims()[getAxis()] == Shape::UNDEFINED_DIM && data.size() == 1;
-                if (needOverwrite) {
-                    memory->Create(weightsDataDesc);
-                    float *ptr = reinterpret_cast<float *>(memory->GetPtr());
-                    std::fill(ptr, ptr + newPaddedSize, data[0]);
-                } else {
-                    if (data.size() == 1) {
-                        data.resize(newPaddedSize, data[0]);
-                    } else {
-                        data.resize(newPaddedSize);
-                    }
-                    memory->Create(weightsDataDesc, &data[0]);
-                }
-
-                if (internalBlobMemory.size() != numFqIntBlob) {
-                    internalBlobMemory.push_back(memory);
-                } else if (needOverwrite) {
-                    internalBlobMemory[idx] = memory;
-                }
-            };
-
-            pushInternalBlob(cropLow, 0);
-            pushInternalBlob(cropHigh, 1);
-            pushInternalBlob(inputScale, 2);
-            pushInternalBlob(inputShift, 3);
-            pushInternalBlob(outputScale, 4);
-            pushInternalBlob(outputShift, 5);
-        } else {
-            IE_THROW() << "Can't fill internal blob for FakeQuantize node with name: " << getName();
         }
+        currentAxisSize = axisSize;
     }
-    currentAxisSize = axisSize;
 }
 
 void FakeQuantize::createPrimitive() {
@@ -1449,10 +1454,29 @@ void FakeQuantize::createPrimitive() {
         key.jqp.wei_prc = Precision::FP32;
         key.jqp.dst_prc = config.outConfs[0].getMemDesc()->getPrecision();
 
-        auto& srcDesc = getParentEdgeAt(0)->getMemory().getDesc();
+        const auto &srcMemory = getParentEdgeAt(0)->getMemory();
+        const auto &srcDesc = srcMemory.getDesc();
 
         key.jqp.is_planar = srcDesc.hasLayoutType(LayoutType::ncsp) && one_of(srcDesc.getShape().getRank(), 3, 4, 5);
         key.jqp.op_type = getAlgorithm();
+
+        if (isBinarization()) {
+            const auto &inDims = srcMemory.getStaticDims();
+            key.jqp.c = inDims.size() > 1 ? inDims[1] : 1;
+        } else {
+             // in case of blocked layout we need to extend vectors to prevent read from unallocated memory
+            size_t paddedSize = srcDesc.hasLayoutType(LayoutType::nCsp16c) ? 16 : srcDesc.hasLayoutType(LayoutType::nCsp8c) ? 8 : 1;
+            if (paddedSize != 1) {
+                if (!broadcasted[CROP_LOW]) cropLow.resize(rnd_up(cropLow.size(), paddedSize));
+                if (!broadcasted[CROP_HIGH]) cropHigh.resize(rnd_up(cropHigh.size(), paddedSize));
+                if (!broadcasted[INPUT_SCALE]) inputScale.resize(rnd_up(inputScale.size(), paddedSize));
+                if (!broadcasted[INPUT_SHIFT]) inputShift.resize(rnd_up(inputShift.size(), paddedSize));
+                if (!broadcasted[OUTPUT_SCALE]) outputScale.resize(rnd_up(outputScale.size(), paddedSize));
+                if (!broadcasted[OUTPUT_SHIFT]) outputShift.resize(rnd_up(outputShift.size(), paddedSize));
+            }
+
+            key.jqp.broadcasted = broadcasted;
+        }
 
         auto cache = context->getParamsCache();
         auto buildExecutor = [](const FakeQuantKey& key) {
@@ -1532,13 +1556,6 @@ void FakeQuantize::executeReference() {
     } else {
         auto dst = reinterpret_cast<float *>(dstMemory->GetPtr());
 
-        auto crop_low = reinterpret_cast<const float*>(internalBlobMemory[0]->GetData());
-        auto crop_high = reinterpret_cast<const float*>(internalBlobMemory[1]->GetData());
-        auto input_scale = reinterpret_cast<const float*>(internalBlobMemory[2]->GetData());
-        auto input_shift = reinterpret_cast<const float*>(internalBlobMemory[3]->GetData());
-        auto output_scale = reinterpret_cast<const float*>(internalBlobMemory[4]->GetData());
-        auto output_shift = reinterpret_cast<const float*>(internalBlobMemory[5]->GetData());
-
         parallel_nd(N, C, D, H, W, [&](dim_t n, dim_t c, dim_t d, dim_t h, dim_t w) {
             size_t src_off = srcDims.size() == 5 ?
                                 n * s_str[0] + c * s_str[1] + d * s_str[2] + h * s_str[3] + w * s_str[4] :
@@ -1553,12 +1570,12 @@ void FakeQuantize::executeReference() {
             float src_val = src[src_off];
 
             int wei_idx = getAxis() == 0 ? n : c;
-            float cl = crop_low[wei_idx];
-            float ch = crop_high[wei_idx];
-            float isc = input_scale[wei_idx];
-            float ish = input_shift[wei_idx];
-            float osc = output_scale[wei_idx];
-            float osh = output_shift[wei_idx];
+            float cl = cropLow[wei_idx * broadcastFactor[CROP_LOW]];
+            float ch = cropHigh[wei_idx * broadcastFactor[CROP_HIGH]];
+            float isc = inputScale[wei_idx * broadcastFactor[INPUT_SCALE]];
+            float ish = inputShift[wei_idx * broadcastFactor[INPUT_SHIFT]];
+            float osc = outputScale[wei_idx * broadcastFactor[OUTPUT_SCALE]];
+            float osh = outputShift[wei_idx * broadcastFactor[OUTPUT_SHIFT]];
 
             float dst_val = nstl::min(ch, nstl::max(cl, src_val));
             dst_val = dst_val * isc + ish;
@@ -1581,7 +1598,7 @@ void FakeQuantize::executeReference() {
 }
 
 void FakeQuantize::executeBinarization(const std::unique_ptr<jit_uni_quantize_kernel> &pKernel) const {
-    auto &srcMemory = getParentEdgeAt(0)->getMemoryPtr();
+    const auto &srcMemory = getParentEdgeAt(0)->getMemoryPtr();
     auto &dstMemory = getChildEdgeAt(0)->getMemoryPtr();
 
     auto src = reinterpret_cast<const uint8_t *>(srcMemory->GetPtr());
@@ -1627,13 +1644,6 @@ void FakeQuantize::executeQuantization(const std::unique_ptr<jit_uni_quantize_ke
     auto src = reinterpret_cast<const uint8_t *>(srcMemory->GetPtr());
     auto dst = reinterpret_cast<uint8_t *>(dstMemory->GetPtr());
 
-    auto crop_low = reinterpret_cast<const float*>(internalBlobMemory[0]->GetData());
-    auto crop_high = reinterpret_cast<const float*>(internalBlobMemory[1]->GetData());
-    auto input_scale = reinterpret_cast<const float*>(internalBlobMemory[2]->GetData());
-    auto input_shift = reinterpret_cast<const float*>(internalBlobMemory[3]->GetData());
-    auto output_scale = reinterpret_cast<const float*>(internalBlobMemory[4]->GetData());
-    auto output_shift = reinterpret_cast<const float*>(internalBlobMemory[5]->GetData());
-
     auto& srcDesc = srcMemory->getDesc();
     auto srcDims = srcDesc.getShape().getStaticDims();
 
@@ -1677,12 +1687,12 @@ void FakeQuantize::executeQuantization(const std::unique_ptr<jit_uni_quantize_ke
 
             arg.from = &src[data_off * src_type_size];
             arg.to = &dst[data_off * dst_type_size];
-            arg.crop_low = &crop_low[c];
-            arg.crop_high = &crop_high[c];
-            arg.input_scale = &input_scale[c];
-            arg.input_shift = &input_shift[c];
-            arg.output_scale = &output_scale[c];
-            arg.output_shift = &output_shift[c];
+            arg.crop_low = &cropLow[c * broadcastFactor[CROP_LOW]];
+            arg.crop_high = &cropHigh[c * broadcastFactor[CROP_HIGH]];
+            arg.input_scale = &inputScale[c * broadcastFactor[INPUT_SCALE]];
+            arg.input_shift = &inputShift[c * broadcastFactor[INPUT_SHIFT]];
+            arg.output_scale = &outputScale[c * broadcastFactor[OUTPUT_SCALE]];
+            arg.output_shift = &outputShift[c * broadcastFactor[OUTPUT_SHIFT]];
 
             arg.src_step = (size_t) blk_size * src_type_size;
             arg.dst_step = (size_t) blk_size * dst_type_size;
@@ -1707,12 +1717,12 @@ void FakeQuantize::executeQuantization(const std::unique_ptr<jit_uni_quantize_ke
 
             arg.from = &src[data_off * src_type_size];
             arg.to = &dst[data_off * dst_type_size];
-            arg.crop_low = &crop_low[c];
-            arg.crop_high = &crop_high[c];
-            arg.input_scale = &input_scale[c];
-            arg.input_shift = &input_shift[c];
-            arg.output_scale = &output_scale[c];
-            arg.output_shift = &output_shift[c];
+            arg.crop_low = &cropLow[c * broadcastFactor[CROP_LOW]];
+            arg.crop_high = &cropHigh[c * broadcastFactor[CROP_HIGH]];
+            arg.input_scale = &inputScale[c * broadcastFactor[INPUT_SCALE]];
+            arg.input_shift = &inputShift[c * broadcastFactor[INPUT_SHIFT]];
+            arg.output_scale = &outputScale[c * broadcastFactor[OUTPUT_SCALE]];
+            arg.output_shift = &outputShift[c * broadcastFactor[OUTPUT_SHIFT]];
 
             arg.src_step = is_blk_format ? (size_t) blk_size * src_type_size : (size_t) C * src_type_size;
             arg.dst_step = is_blk_format ? (size_t) blk_size * dst_type_size : (size_t) C * dst_type_size;
@@ -1735,12 +1745,12 @@ void FakeQuantize::executeQuantization(const std::unique_ptr<jit_uni_quantize_ke
 
             arg.from = &src[data_off * src_type_size];
             arg.to = &dst[data_off * dst_type_size];
-            arg.crop_low = &crop_low[c];
-            arg.crop_high = &crop_high[c];
-            arg.input_scale = &input_scale[c];
-            arg.input_shift = &input_shift[c];
-            arg.output_scale = &output_scale[c];
-            arg.output_shift = &output_shift[c];
+            arg.crop_low = &cropLow[c * broadcastFactor[CROP_LOW]];
+            arg.crop_high = &cropHigh[c * broadcastFactor[CROP_HIGH]];
+            arg.input_scale = &inputScale[c * broadcastFactor[INPUT_SCALE]];
+            arg.input_shift = &inputShift[c * broadcastFactor[INPUT_SHIFT]];
+            arg.output_scale = &outputScale[c * broadcastFactor[OUTPUT_SCALE]];
+            arg.output_shift = &outputShift[c * broadcastFactor[OUTPUT_SHIFT]];
 
             arg.src_step = is_blk_format ? (size_t) blk_size * src_type_size : (size_t) C * src_type_size;
             arg.dst_step = is_blk_format ? (size_t) blk_size * dst_type_size : (size_t) C * dst_type_size;
@@ -1757,11 +1767,7 @@ void FakeQuantize::executeDynamicImpl(dnnl::stream strm) {
 }
 
 void FakeQuantize::execute(dnnl::stream strm) {
-    auto selectedPrimitiveDescriptor = getSelectedPrimitiveDescriptor();
-    if (!selectedPrimitiveDescriptor)
-        IE_THROW() << "CPU quantize node with name '" << getName() << "' doesn't have primitive descriptors.";
-
-    if (selectedPrimitiveDescriptor->getImplementationType() != impl_desc_type::ref) {
+    if (getSelectedPrimitiveDescriptor()->getImplementationType() != impl_desc_type::ref) {
         execPtr->exec(*this);
     } else {
         executeReference();

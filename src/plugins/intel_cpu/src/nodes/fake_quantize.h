@@ -17,6 +17,17 @@ namespace ov {
 namespace intel_cpu {
 namespace node {
 
+#define FQ_ADD_INPUTS 6
+
+enum fq_add_input_type {
+    CROP_LOW = 0,
+    CROP_HIGH = 1,
+    INPUT_SCALE = 2,
+    INPUT_SHIFT = 3,
+    OUTPUT_SCALE = 4,
+    OUTPUT_SHIFT = 5
+};
+
 struct jit_quantize_params {
     bool is_planar;
 
@@ -25,6 +36,9 @@ struct jit_quantize_params {
     InferenceEngine::Precision dst_prc;
 
     Algorithm op_type;
+
+    int c; // need only for binarization
+    std::vector<size_t> broadcasted; // need only for quantization
 };
 
 struct jit_quantize_call_args {
@@ -44,7 +58,6 @@ struct jit_quantize_call_args {
     size_t dst_step;
     size_t block_size;
     size_t work_amount;
-    size_t channel_size;
 };
 
 struct jit_uni_quantize_kernel {
@@ -237,6 +250,9 @@ private:
     size_t inputShiftSize;
     size_t outputScaleSize;
     size_t outputShiftSize;
+
+    std::vector<size_t> broadcasted;
+    std::vector<size_t> broadcastFactor;
 
     std::vector<float> fqScales;
 
