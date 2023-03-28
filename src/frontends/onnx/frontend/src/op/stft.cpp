@@ -31,8 +31,7 @@ OutputVector stft(const Node& node) {
         ov::as_type_ptr<default_opset::Constant>(frame_step_node.get_node_shared_ptr())->cast_vector<int64_t>()[0];
     const auto signal_param_shape = signal.get_partial_shape();
     CHECK_VALID_NODE(node,
-                     signal_param_shape.rank().is_static() && signal_param_shape.rank().get_length() == 3 &&
-                         signal_param_shape.is_static(),
+                     signal_param_shape.is_static() && signal_param_shape.size() == 3,
                      "Shape of signal input must be static with the rank equal to 3.");
 
     int64_t frame_length = signal_param_shape[axis].get_length() / frame_step;  // default value
@@ -55,7 +54,7 @@ OutputVector stft(const Node& node) {
             if (ng_inputs[2].get_partial_shape()[0].is_static()) {
                 CHECK_VALID_NODE(node,
                                  ng_inputs[2].get_partial_shape()[0].get_length() == frame_length,
-                                 "The rank of window input must be 1D.");
+                                 "The length of window input must be equal to frame_length.");
             }
         }
     }
@@ -67,7 +66,8 @@ OutputVector stft(const Node& node) {
         CHECK_VALID_NODE(node, !is_complex(signal), "If attribute onesided==1, signal input can NOT be complex.");
     }
     const int64_t batch_size = signal_param_shape[0].get_length();
-    const int64_t nstfts = std::floor((signal_param_shape[axis].get_length() - frame_length) / frame_step) + 1;
+    const int64_t nstfts =
+        static_cast<int64_t>((signal_param_shape[axis].get_length() - frame_length) / frame_step) + 1;
     const auto axis_const = default_opset::Constant::create(element::i64, {}, {axis});
     const auto zero_const = default_opset::Constant::create(element::i64, {}, {0});
     const auto step = default_opset::Constant::create(element::i64, Shape{2}, {1, 1});
