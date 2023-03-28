@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -9,13 +9,13 @@
 
 #include "backend/dnn_types.hpp"
 #include "gna_data_types.hpp"
-#include "serial/headers/2dot7/gna_model_header.hpp"
+#include "serial/headers/2dot8/gna_model_header.hpp"
 
 #pragma pack(push, 1)
 
 namespace ov {
 namespace intel_gna {
-namespace header_2_dot_8 {
+namespace header_2_dot_9 {
 
 /**
  Maximal number of supported shape dimensions.
@@ -23,7 +23,7 @@ namespace header_2_dot_8 {
 #define GNA_SHAPE_MAXIMUM_NUMBER_OF_DIMENSIONS 8
 
 /**
- * @brief Header version 2.8
+ * @brief Header version 2.9
  */
 struct ModelHeader {
     /**
@@ -46,7 +46,7 @@ struct ModelHeader {
          * @details Version of Format Minor – unsigned int,  corresponding to build revision for example
          * changes in minor version are not affected layout of model
          */
-        uint32_t minor = 8u;
+        uint32_t minor = 9u;
     } version;
     /**
      * @brief Memory required to be allocated using GNAAlloc()
@@ -173,10 +173,16 @@ struct RuntimeEndPoint {
     // support of previous versions
     RuntimeEndPoint(const header_2_dot_6::RuntimeEndPoint& old, uint32_t ngroup) {
         header_2_dot_7::RuntimeEndPoint ep_v7 = header_2_dot_7::RuntimeEndPoint(old, ngroup);
-        *this = header_2_dot_8::RuntimeEndPoint(ep_v7);
+        *this = header_2_dot_9::RuntimeEndPoint(ep_v7);
     }
 
+    // support of previous versions
     RuntimeEndPoint(const header_2_dot_7::RuntimeEndPoint& old) {
+        header_2_dot_8::RuntimeEndPoint ep_v8 = header_2_dot_8::RuntimeEndPoint(old);
+        *this = header_2_dot_9::RuntimeEndPoint(ep_v8);
+    }
+
+    RuntimeEndPoint(header_2_dot_8::RuntimeEndPoint& old) {
         scaleFactor = old.scaleFactor;
         descriptor_ptr = old.descriptor_ptr;
         element_size = old.element_size;
@@ -212,6 +218,6 @@ struct RuntimeEndPoint {
           orientation(orientation) {}
 };
 
-}  // namespace header_2_dot_8
+}  // namespace header_2_dot_9
 }  // namespace intel_gna
 }  // namespace ov
