@@ -160,6 +160,7 @@ public:
     std::mutex                  _confMutex;
     std::mutex                  _fallbackMutex;
     MultiDeviceInferencePlugin* _plugin;
+    SoExecNetwork               _hwExecutableNetwork;
     virtual ~AutoScheduleContext() = default;
 };
 

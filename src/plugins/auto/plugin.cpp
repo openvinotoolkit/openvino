@@ -425,27 +425,32 @@ IExecutableNetworkInternal::Ptr MultiDeviceInferencePlugin::LoadNetworkImpl(cons
     auto supportDevices = supportDevicesByConfig;
     CNNNetwork clonedNetwork;
     std::string clonedModelPath = modelPath;
-    if (modelPath.empty()) {
-        // if network is valid
-        LOG_INFO_TAG("load with CNN network");
-        supportDevices = FilterDeviceByNetwork(supportDevicesByConfig, network);
-        // clone the network, in case of reshape conflict
-        clonedNetwork = InferenceEngine::details::cloneNetwork(network);
-    } else {
-        // model path, enable model load with single device situation
-        if (supportDevices.size() > 1 && GetName() != "MULTI") {
-            clonedNetwork = GetCore()->ReadNetwork(modelPath, std::string());
-            // do we really need to disable model path?
-            clonedModelPath = "";
-            LOG_INFO_TAG("load with CNN network");
-        } else {
-            LOG_INFO_TAG("load with model path");
-        }
-    }
     // reset the strDevices to support devices
     strDevices = "";
     // calling GetValidDevices() to get a prioritized list of devices
-    auto devicesWithPriority = GetValidDevice(supportDevices, networkPrecision);
+    bool isCumulative =
+        (autoSContext->_performanceHint == IE::PluginConfigParams::CUMULATIVE_THROUGHPUT) ? true : false;
+    std::list<DeviceInformation> devicesWithPriority(supportDevices.begin(), supportDevices.end());
+    if (!isCumulative) {
+        if (modelPath.empty()) {
+            // if network is valid
+            LOG_INFO_TAG("load with CNN network");
+            supportDevices = FilterDeviceByNetwork(supportDevicesByConfig, network);
+            // clone the network, in case of reshape conflict
+            clonedNetwork = InferenceEngine::details::cloneNetwork(network);
+        } else {
+            // model path, enable model load with single device situation
+            if (supportDevices.size() > 1) {
+                clonedNetwork = GetCore()->ReadNetwork(modelPath, std::string());
+                // do we really need to disable model path?
+                clonedModelPath = "";
+                LOG_INFO_TAG("load with CNN network");
+            } else {
+                LOG_INFO_TAG("load with model path");
+            }
+        }
+        devicesWithPriority = GetValidDevice(supportDevices, networkPrecision);
+    }
     for (auto iter = devicesWithPriority.begin(); iter != devicesWithPriority.end(); iter++) {
         strDevices += iter->deviceName;
         strDevices += ",";
@@ -487,6 +492,13 @@ IExecutableNetworkInternal::Ptr MultiDeviceInferencePlugin::LoadNetworkImpl(cons
         impl = std::make_shared<AutoExecutableNetwork>(autoSContext, std::make_shared<BinderMultiSchedule>());
     } else {
         impl = std::make_shared<AutoExecutableNetwork>(autoSContext, std::make_shared<AutoSchedule>());
+    }
+    if (!modelPath.empty()) {
+        SetExeNetworkInfo(impl,
+                          autoSContext->_hwExecutableNetwork->GetInputsInfo(),
+                          autoSContext->_hwExecutableNetwork->GetOutputsInfo());
+        impl->setInputs(autoSContext->_hwExecutableNetwork->getInputs());
+        impl->setOutputs(autoSContext->_hwExecutableNetwork->getOutputs());
     }
     return impl;
 }
