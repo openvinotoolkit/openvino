@@ -59,7 +59,7 @@ bool evaluate_cosh(const HostTensorPtr& arg0, const HostTensorPtr& out, const si
 bool op::Cosh::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const {
     OV_OP_SCOPE(v0_Cosh_evaluate);
     NGRAPH_CHECK(validate_host_tensor_vector(outputs, 1) && validate_host_tensor_vector(inputs, 1));
-    return coshop::evaluate_cosh(inputs[0], outputs[0], shape_size(get_output_shape(0)));
+    return coshop::evaluate_cosh(inputs[0], outputs[0], shape_size(inputs[0]->get_shape()));
 }
 
 bool op::Cosh::has_evaluate() const {
