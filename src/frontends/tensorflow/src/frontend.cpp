@@ -93,7 +93,6 @@ bool FrontEnd::supported_impl(const std::vector<ov::Any>& variants) const {
             return true;
         } else if (GraphIteratorSavedModel::is_supported(model_path)) {
             return true;
-        }
         } else if (GraphIteratorProtoTxt::is_supported(model_path)) {
             // handle text protobuf format
             return true;
