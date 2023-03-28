@@ -63,11 +63,14 @@ Generator::LoweringResult Generator::generate(std::shared_ptr<ov::Model>& m, con
     };
     for (const auto& transform : transformation_pipeline) {
         std::string name = transform->get_type_name();
-        transform->run(linear_ir);
-        if (name == "CleanupBrgemmLoadStore") {
+        if (name == "CleanupBrgemmLoadStore" ||
+            name == "CleanupLoopOffsets" ||
+            name == "AssignRegisters") {
             linear_ir.debug_print(true);
-            linear_ir.serialize("snsdebug_linear.xml", "snsdebug_linear.bin");
+            std::cerr << "\n=======================\n";
+//            linear_ir.serialize("snsdebug_linear.xml", "snsdebug_linear.bin");
         }
+        transform->run(linear_ir);
     }
     linear_ir.debug_print(true);
     linear_ir.serialize("snsdebug_linear.xml", "snsdebug_linear.bin");
