@@ -12,10 +12,13 @@ namespace intel_cpu {
 /**
  * The operation flattens embedding tensor of token vectors and traverse it by a sliding window of size times the original embedding sizes.
  * Inputs:
- *     1. Embedding vectors - shape [N, m], where N - number of tokens, m - embedding size
- *     2. Indices - shape [N, 2]. Contains pairs <batch_idx;idx> for the corresponding tokens. This op uses only batch indices.
+ *     1. Embedding vectors of type T1 - shape [N, m], where N - number of tokens, m - embedding size. Required
+ *     2. Indices of type T2 - shape [N, 2]. Contains pairs <batch_idx;idx> for the corresponding tokens. This op uses only batch indices. Required
  * Outputs:
- *     1. New embedding vector of shape [N, m * k], where k - operation attribute.
+ *     1. New embedding vector of type T1 and of shape [N, m * k], where k - operation attribute.
+ * Types:
+ *     T1 - only FP32 is supported
+ *     T2 - I32 and I64 are supported
  */
 class NgramNode : public ov::op::Op {
 public:

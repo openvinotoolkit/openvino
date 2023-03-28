@@ -86,8 +86,13 @@ void Ngram::initSupportedPrimitiveDescriptors() {
     if (!supportedPrimitiveDescriptors.empty())
         return;
 
+    idcesPrecision = getOriginalInputPrecisionAtPort(1);
+    if (idcesPrecision != InferenceEngine::Precision::I32 && idcesPrecision != InferenceEngine::Precision::I64) {
+        idcesPrecision = InferenceEngine::Precision::I32;
+    }
+
     addSupportedPrimDesc({{LayoutType::ncsp, InferenceEngine::Precision::FP32},
-                          {LayoutType::ncsp, InferenceEngine::Precision::I32}},
+                          {LayoutType::ncsp, idcesPrecision}},
                          {{LayoutType::ncsp, InferenceEngine::Precision::FP32}},
                          ref_any,
                          isDynamicNode());
@@ -96,8 +101,10 @@ void Ngram::initSupportedPrimitiveDescriptors() {
 void Ngram::prepareParams() {
     const auto& srcDataDims = getParentEdgeAt(0)->getMemoryPtr()->getStaticDims();
     const auto& srcIndicesDims = getParentEdgeAt(1)->getMemoryPtr()->getStaticDims();
+    const auto& outDims = getChildEdgeAt(0)->getMemoryPtr()->getStaticDims();;
 
     idcesShapeSize = std::accumulate(srcIndicesDims.begin(), srcIndicesDims.end(), 1, std::multiplies<size_t>());
+    numOutElems = std::accumulate(outDims.begin(), outDims.end(), 1, std::multiplies<size_t>());
     idcesStride = getParentEdgeAt(1)->getMemoryPtr()->GetDescWithType<BlockedMemoryDesc>()->getStrides()[0];
     numIdces = srcIndicesDims[0];
 
@@ -107,10 +114,9 @@ void Ngram::prepareParams() {
     rightPaddingSize = windowStride * rightPad;
 }
 
-void Ngram::execute(dnnl::stream strm) {
-    auto* srcData = reinterpret_cast<const float*>(getParentEdgeAt(0)->getMemoryPtr()->GetPtr());
-    auto* srcIndices = reinterpret_cast<const int*>(getParentEdgeAt(1)->getMemoryPtr()->GetPtr());
-    auto* dstData = reinterpret_cast<float*>(getChildEdgeAt(0)->getMemoryPtr()->GetPtr());
+template <typename idces_type>
+std::vector<size_t> Ngram::computeBatchLenghts() {
+    auto* srcIndices = reinterpret_cast<const idces_type*>(getParentEdgeAt(1)->getMemoryPtr()->GetPtr());
 
     std::vector<size_t> batchLenghts{0};
     batchLenghts.reserve(numIdces + 1);
@@ -121,10 +127,27 @@ void Ngram::execute(dnnl::stream strm) {
     }
     batchLenghts.push_back(idcesShapeSize / idcesStride);
 
+    return batchLenghts;
+}
+
+void Ngram::execute(dnnl::stream strm) {
+    auto* srcData = reinterpret_cast<const float*>(getParentEdgeAt(0)->getMemoryPtr()->GetPtr());
+    auto* dstData = reinterpret_cast<float*>(getChildEdgeAt(0)->getMemoryPtr()->GetPtr());
+
+    std::vector<size_t> batchLenghts;
+    if (idcesPrecision == InferenceEngine::Precision::I32) {
+        batchLenghts = computeBatchLenghts<std::int32_t>();
+    } else if (idcesPrecision == InferenceEngine::Precision::I64) {
+        batchLenghts = computeBatchLenghts<std::int64_t>();
+    } else {
+        IE_THROW() << "Unsupported idces precision: " << idcesPrecision;
+    }
+
     /* The following procedure applied to each batch:
        1. Pad both corners of current embedding with zeros. Left/Right pad are computed depending on k.
        2. Apply sliding window of windowSize with a step windowStride and form k new embedding vectors for the embedding
     */
+    memset(dstData, 0, numOutElems * sizeof(float));
     parallel_for(batchLenghts.size() - 1, [&](const size_t batchIdx) {
         size_t srcWindowBias = 0;
         size_t dstWindowBias = 0;
@@ -135,18 +158,13 @@ void Ngram::execute(dnnl::stream strm) {
         for (size_t i = 0; i < niter; ++i) {
             const size_t curLeftPad = leftPad >= i ? leftPaddingSize - i * windowStride : 0;
             const size_t curRightPad = rightPad >= niter - 1 - i ? rightPaddingSize - (niter - 1 - i) * windowStride : 0;
-
-            memset(dstData + dstBatchBias + dstWindowBias, 0, curLeftPad * sizeof(float));
-            dstWindowBias += curLeftPad;
-
             const size_t dataSize = windowSize - curLeftPad - curRightPad;
+
+            dstWindowBias += curLeftPad;
             cpu_memcpy(dstData + dstBatchBias + dstWindowBias, srcData + srcBatchBias + srcWindowBias, dataSize * sizeof(float));
-            dstWindowBias += dataSize;
+            dstWindowBias += dataSize + curRightPad;
             if (curLeftPad == 0)
                 srcWindowBias += windowStride;
-
-            memset(dstData + dstBatchBias + dstWindowBias, 0, curRightPad * sizeof(float));
-            dstWindowBias += curRightPad;
         }
     });
 }

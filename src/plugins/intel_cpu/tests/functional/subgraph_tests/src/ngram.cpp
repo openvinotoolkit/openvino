@@ -27,16 +27,16 @@ typedef std::tuple<
     size_t
 > NgramTestParams;
 
-static std::shared_ptr<ov::Node> getStridedSlice(const std::shared_ptr<ov::Node> data,
-                                                 const std::shared_ptr<ov::Node> begin,
-                                                 const std::shared_ptr<ov::Node> end,
+static std::shared_ptr<ov::Node> getStridedSlice(const std::shared_ptr<ov::Node>& data,
+                                                 const std::shared_ptr<ov::Node>& begin,
+                                                 const std::shared_ptr<ov::Node>& end,
                                                  const std::vector<int64_t>& shrink_axis_mask = {}) {
     std::vector<int64_t> default_mask(begin->get_shape()[0], 0);
     return std::make_shared<ov::opset1::StridedSlice>(data, begin, end, default_mask, default_mask,
                                                       std::vector<int64_t>{}, shrink_axis_mask);
 }
 
-static std::shared_ptr<ov::Node> getReshape(const std::shared_ptr<ov::Node> data,
+static std::shared_ptr<ov::Node> getReshape(const std::shared_ptr<ov::Node>& data,
                                             const std::vector<int64_t>& requested_shape,
                                             const ov::element::Type& prc) {
     auto requested_shape_node = ov::opset1::Constant::create(prc, {requested_shape.size()}, requested_shape);
@@ -180,8 +180,15 @@ public:
         const size_t batch_size = data_shape[0];
         auto indices_tensor = ov::test::utils::create_and_fill_tensor(indices_et, indices_shape, batch_size, 0);
 
-        auto* indices_data = indices_tensor.data<int32_t>();
-        std::sort(indices_data, indices_data + indices_tensor.get_size());
+        if (indices_et == ov::element::i32) {
+            auto* indices_data = indices_tensor.data<int32_t>();
+            std::sort(indices_data, indices_data + indices_tensor.get_size());
+        } else if (indices_et == ov::element::i64) {
+            auto* indices_data = indices_tensor.data<int64_t>();
+            std::sort(indices_data, indices_data + indices_tensor.get_size());
+        } else {
+            IE_THROW() << "Unexpected indices precision: " << indices_et;
+        }
         inputs.insert({model_inputs[1].get_node_shared_ptr(), indices_tensor});
     }
 
@@ -221,11 +228,12 @@ std::vector<std::vector<InputShape>> inputShapes = {
 };
 
 std::vector<size_t> k_values = {2, 3, 5, 7};
+std::vector<ElementType> idces_precisions = {ElementType::i32, ElementType::i64};
 
 INSTANTIATE_TEST_SUITE_P(smoke_Ngram, NgramCPUTest,
                         ::testing::Combine(::testing::ValuesIn(inputShapes),
                                            ::testing::Values(ElementType::f32),
-                                           ::testing::Values(ElementType::i32),
+                                           ::testing::ValuesIn(idces_precisions),
                                            ::testing::ValuesIn(k_values)),
                         NgramCPUTest::getTestCaseName);
 } // namespace

@@ -30,6 +30,9 @@ protected:
     void prepareParams() override;
 
 private:
+    template <typename idces_type>
+    std::vector<size_t> computeBatchLenghts();
+
     size_t k = 0;
     size_t windowSize = 0;
     size_t windowStride = 0;
@@ -42,6 +45,9 @@ private:
     size_t idcesShapeSize = 0;
     size_t idcesStride = 0;
     size_t numIdces = 0;
+    size_t numOutElems = 0;
+
+    InferenceEngine::Precision idcesPrecision;
 };
 
 }   // namespace node
