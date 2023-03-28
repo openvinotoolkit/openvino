@@ -2,9 +2,10 @@
 
 @sphinxdirective
 
-The Automatic Batching Execution mode (or Auto-batching for short) performs automatic batching on-the-fly to improve device utilization by grouping inference requests together, with no programming effort from the user.
+The Automatic Batching Execution mode (or Auto-batching for short) performs automatic batching on-the-fly to improve device utilization by grouping inference requests together, without programming effort from the user.
 With Automatic Batching, gathering the input and scattering the output from the individual inference requests required for the batch happen transparently, without affecting the application code. 
-Auto Batching can be used **directly as a virtual device** or as an **option for inference on CPU/GPU/VPU** (by means of configuration/hint).
+
+Auto Batching can be used :ref:`directly as a virtual device <auto-batching-as-device>` or as an :ref:`option for inference on CPU/GPU/VPU <auto-batching-as-option>` (by means of configuration/hint). These 2 ways are provided for the user to enable the BACTH devices **explicitly** or **implicitly**, with the underlying logic remaining the same. An example of the difference is that the CPU device doesn’t support implicitly to enable BATCH plugin, commands such as ``./benchmark_app -m <model> -d CPU -hint tput`` will not apply BATCH device **implicitly**, but ``./benchmark_app -m <model> -d "BATCH:CPU(16)`` can **explicitly** load BATCH plugin.
 
 Auto-batching primarily targets the existing code written for inferencing many requests, each instance with the batch size 1. To get corresponding performance improvements, the application **must be running multiple inference requests simultaneously**. 
 Auto-batching can also be used via a particular *virtual* device.       
@@ -61,33 +62,6 @@ How Automatic Batching Works
                :fragment: [compile_model_no_auto_batching]
 
 
-Automatic Batching as an explicit device
-++++++++++++++++++++++++++++++++++++++++
-
-The below examples show how AUTO Batching can be used in the form of device that the user can apply to perform inference directly:
-
-.. code-block:: sh
-
-   ./benchmark_app -m <model> -d "BATCH:GPU"
-   ./benchmark_app -m <model> -d "BATCH:GPU(16)"
-   ./benchmark_app -m <model> -d "BATCH:CPU(16)"
-
-Automatic Batching as underlying device configured to other devices
-+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-
-In thie following examples, BATCH device will be configured to another device in case of ``tput/ctput mode``.
-
-.. code-block:: sh
-
-   ./benchmark_app -m <model> -d GPU -hint tput
-   ./benchmark_app -m <model> -d AUTO -hint tput
-   ./benchmark_app -m <model> -d AUTO -hint ctput  
-   ./benchmark_app -m <model> -d AUTO:GPU -hint ctput
-
-.. note::
-   If you run ``./benchmark_app``, do not set ``batch_size`` by ``-b <batch_size>``, otherwise AUTO mode will not be applied.
-
-
 Configuring Automatic Batching
 ++++++++++++++++++++++++++++++
 
@@ -124,6 +98,41 @@ This "automatic batch size selection" works on the presumption that the applicat
       .. doxygensnippet:: docs/snippets/ov_auto_batching.py
          :language: Python
          :fragment: [query_optimal_num_requests]
+
+
+.. _auto-batching-as-device:
+
+Automatic Batching as an explicit device
+++++++++++++++++++++++++++++++++++++++++
+
+The below examples show how AUTO Batching can be used in the form of device that the user can apply to perform inference directly:
+
+.. code-block:: sh
+
+   ./benchmark_app -m <model> -d "BATCH:GPU"
+   ./benchmark_app -m <model> -d "BATCH:GPU(16)"
+   ./benchmark_app -m <model> -d "BATCH:CPU(16)"
+
+
+* ``BATCH`` -- load BATCH plugin explicitly, 
+* ``:GPU(16)`` -- BATCH plugin’s configuration, which tell BATCH plugin to apply GPU plugin with batch size = 16.
+
+.. _auto-batching-as-option:
+
+Automatic Batching as underlying device configured to other devices
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
+In the following example, BATCH device will be configured to another device in case of ``tput/ctput mode``.
+
+.. code-block:: sh
+
+   ./benchmark_app -m <model> -d GPU -hint tput
+   ./benchmark_app -m <model> -d AUTO -hint tput
+   ./benchmark_app -m <model> -d AUTO -hint ctput  
+   ./benchmark_app -m <model> -d AUTO:GPU -hint ctput
+
+.. note::
+   If you run ``./benchmark_app``, do not set ``batch_size`` by ``-b <batch_size>``, otherwise AUTO mode will not be applied.
 
 
 Optimizing Performance by Limiting Batch Size
@@ -170,16 +179,13 @@ Limitations
 
 The following are limitations of the current AUTO Batching implementations:
 
-- ``BATCH`` device:
-
-  - Does not support the dynamic model.
-  - Can only support ``tput/ctput mode``, ``latency/none mode`` is not supported.
-  - Only supports models with ``batch dimension = 1``.
-  - The input/output tensor should come from ``inferRequest``, otherwise the user-created tensor will trigger a memory copying.
-  - The ``OPTIMAL_BATCH_SIZE`` should be greater than ``2``, if not -- specify a batch size which depends on model and device (CPU does not support this property).
-  - GPU is supported by default, while CPU will not trigger ``auto_batch`` in tput mode.
-  - ``AUTO_BATCH`` will bring much more compilation latency.
-
+- The dynamic model is not supported by ``BATCH`` device.
+- ``BATCH`` device can only support ``tput/ctput mode``. The ``latency/none mode`` is not supported.
+- Supported are only models with ``batch dimension = 1``.
+- The input/output tensor should come from ``inferRequest``, otherwise the user-created tensor will trigger a memory copying.
+- The ``OPTIMAL_BATCH_SIZE`` should be greater than ``2``. In case it's not, user needs to specify a batch size which depends on model and device (CPU does not support this property).
+- ``BATCH`` device supports GPU by default, while CPU will not trigger ``auto_batch`` in ``tput`` mode.
+- ``AUTO_BATCH`` will bring much more compilation latency.
 - Although it is less critical for the throughput-oriented scenarios, the load time with Auto-batching increases by almost double.
 - Certain networks are not safely reshapable by the "batching" dimension (specified as ``N`` in the layout terms). Besides, if the batching dimension is not zeroth, Auto-batching will not be triggered "implicitly" by the throughput hint.
 -  The "explicit" notion, for example, ``BATCH:GPU``, using the relaxed dimensions tracking, often makes Auto-batching possible. For example, this method unlocks most **detection networks**.
