@@ -75,11 +75,11 @@ public:
         for (size_t i = 0; i < inputShapeSize; ++i) {
             inputProduct *= inputShape[i];
         }
-        if (outputProduct != 0 && inputProduct != 0 && minusOneIdx >= 0) {
+        if (outputProduct != 0 && minusOneIdx >= 0) {
             outputShape[minusOneIdx] = inputProduct / outputProduct;
             outputProduct *= outputShape[minusOneIdx];
         }
-        if (minusOneCount > 1  || inputProduct != outputProduct || (outputProduct == 0 && minusOneCount > 0)) {
+        if (minusOneCount > 1  || inputProduct != outputProduct) {
             IE_THROW(Unexpected) << "[cpu]reshape: the shape of input data conflicts with the reshape pattern";
         }
         return {{std::move(outputShape)}, ShapeInferStatus::success};
