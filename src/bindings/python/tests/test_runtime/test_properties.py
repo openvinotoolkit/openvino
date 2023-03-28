@@ -61,6 +61,14 @@ def test_properties_rw_base():
             ),
         ),
         (
+            properties.hint.SchedulingCoreType,
+            (
+                (properties.hint.SchedulingCoreType.ANY_CORE, "SchedulingCoreType.ANY_CORE", 0),
+                (properties.hint.SchedulingCoreType.PCORE_ONLY, "SchedulingCoreType.PCORE_ONLY", 1),
+                (properties.hint.SchedulingCoreType.ECORE_ONLY, "SchedulingCoreType.ECORE_ONLY", 2),
+            ),
+        ),
+        (
             properties.hint.ExecutionMode,
             (
                 (properties.hint.ExecutionMode.UNDEFINED, "ExecutionMode.UNDEFINED", -1),
@@ -222,6 +230,15 @@ def test_properties_ro(ov_property_ro, expected_value):
         (
             properties.hint.use_cpu_pinning,
             "USE_CPU_PINNING",
+        ),
+        (
+            properties.hint.scheduling_core_type,
+            "SCHEDULING_CORE_TYPE",
+            ((properties.hint.SchedulingCoreType.PCORE_ONLY, properties.hint.SchedulingCoreType.PCORE_ONLY),),
+        ),
+        (
+            properties.hint.use_hyper_threading,
+            "USE_HYPER_THREADING",
             (
                 (True, True),
                 (False, False),
@@ -410,6 +427,8 @@ def test_single_property_setting(device):
                 properties.inference_precision(Type.f32),
                 properties.hint.performance_mode(properties.hint.PerformanceMode.LATENCY),
                 properties.hint.use_cpu_pinning(True),
+                properties.hint.scheduling_core_type(properties.hint.SchedulingCoreType.PCORE_ONLY),
+                properties.hint.use_hyper_threading(True),
                 properties.hint.num_requests(12),
                 properties.streams.num(5),
             ],
@@ -423,6 +442,8 @@ def test_single_property_setting(device):
             properties.inference_precision(): Type.f32,
             properties.hint.performance_mode(): properties.hint.PerformanceMode.LATENCY,
             properties.hint.use_cpu_pinning(): True,
+            properties.hint.scheduling_core_type(): properties.hint.SchedulingCoreType.PCORE_ONLY,
+            properties.hint.use_hyper_threading(): True,
             properties.hint.num_requests(): 12,
             properties.streams.num(): 5,
         },
@@ -434,6 +455,7 @@ def test_single_property_setting(device):
             properties.affinity(): "NONE",
             "INFERENCE_PRECISION_HINT": Type.f32,
             properties.hint.performance_mode(): properties.hint.PerformanceMode.LATENCY,
+            properties.hint.scheduling_core_type(): properties.hint.SchedulingCoreType.PCORE_ONLY,
             properties.hint.num_requests(): 12,
             "NUM_STREAMS": properties.streams.Num(5),
         },

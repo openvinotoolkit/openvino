@@ -128,11 +128,25 @@ OPENVINO_C_VAR(const char*)
 ov_property_key_hint_use_cpu_pinning;
 
 /**
+ * @brief Read-write property, it is high-level OpenVINO hint for using hyper threading processors during CPU inference
+ * @ingroup ov_property_c_api
+ */
+OPENVINO_C_VAR(const char*)
+ov_property_key_hint_use_hyper_threading;
+
+/**
  * @brief Read-write property, it is high-level OpenVINO Performance Hints
  * @ingroup ov_property_c_api
  */
 OPENVINO_C_VAR(const char*)
 ov_property_key_hint_performance_mode;
+
+/**
+ * @brief Read-write property, it is high-level OpenVINO Hints for the type of CPU core used during inference
+ * @ingroup ov_property_c_api
+ */
+OPENVINO_C_VAR(const char*)
+ov_property_key_hint_scheduling_core_type;
 
 /**
  * @brief Read-write property<ov_element_type_e> to set the hint for device to use specified precision for inference.

@@ -7,6 +7,7 @@
 #include <threading/ie_istreams_executor.hpp>
 #include <ie_performance_hints.hpp>
 #include <ie/ie_common.h>
+#include <openvino/runtime/properties.hpp>
 #include <openvino/util/common_util.hpp>
 #include "utils/debug_caps_config.h"
 
@@ -51,6 +52,9 @@ struct Config {
     InferenceEngine::PerfHintsConfig  perfHintsConfig;
     bool useCpuPinning = true;
     bool changedCpuPinning = false;
+    ov::hint::SchedulingCoreType schedulingCoreType = ov::hint::SchedulingCoreType::ANY_CORE;
+    bool useHyperThreading = true;
+    bool changedHyperThreading = false;
 #if defined(OPENVINO_ARCH_X86) || defined(OPENVINO_ARCH_X86_64)
     LPTransformsMode lpTransformsMode = LPTransformsMode::On;
     bool enforceBF16 = true;
