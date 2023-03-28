@@ -165,7 +165,7 @@ OPENVINO_RUNTIME_API std::vector<int> get_logic_cores(const std::vector<int> cpu
 
 /**
  * @enum       ColumnOfProcessorTypeTable
- * @brief      This enum contains defination of each columns in processor type table which bases on cpu core types. Will
+ * @brief      This enum contains definition of each columns in processor type table which bases on cpu core types. Will
  * extend to support other CPU core type like ARM.
  *
  * The following are two example of processor type table.
@@ -191,7 +191,7 @@ enum ColumnOfProcessorTypeTable {
 
 /**
  * @enum       ProcessorUseStatus
- * @brief      Defination of CPU_MAP_USED_FLAG column in CPU mapping table.
+ * @brief      Definition of CPU_MAP_USED_FLAG column in CPU mapping table.
  */
 enum ProcessorUseStatus {
     NOT_USED = -1,           //!< Processor is not bound to thread
@@ -225,7 +225,7 @@ OPENVINO_RUNTIME_API void set_cpu_used(const std::vector<int>& cpu_ids, int used
 
 /**
  * @enum       ColumnOfCPUMappingTable
- * @brief      This enum contains defination of each columns in CPU mapping table which use processor id as index.
+ * @brief      This enum contains definition of each columns in CPU mapping table which use processor id as index.
  *
  * GROUP_ID is generated according to the following rules.
  *  1. If one MAIN_CORE_PROC and one HYPER_THREADING_PROC are based on same Performance-cores, they are in one group.
