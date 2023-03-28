@@ -100,6 +100,37 @@ This "automatic batch size selection" works on the presumption that the applicat
          :fragment: [query_optimal_num_requests]
 
 
+.. _limiting-batch-size:
+
+Optimizing Performance by Limiting Batch Size
+---------------------------------------------
+
+If not enough inputs were collected, the ``timeout`` value makes the transparent execution fall back to the execution of individual requests. This value can be configured via the ``AUTO_BATCH_TIMEOUT`` property.
+The timeout, which adds itself to the execution time of the requests, heavily penalizes the performance. To avoid this, when your parallel slack is bounded, provide OpenVINO with an additional hint.
+
+For example, when the application processes only 4 video streams, there is no need to use a batch larger than 4. The most future-proof way to communicate the limitations on the parallelism is to equip the performance hint with the optional ``ov::hint::num_requests`` configuration key set to 4. This will limit the batch size for the GPU and the number of inference streams for the CPU, hence each device uses ``ov::hint::num_requests`` while converting the hint to the actual device configuration options:
+
+
+.. tab-set::
+   
+   .. tab-item:: C++
+      :sync: cpp
+         
+      .. doxygensnippet:: docs/snippets/ov_auto_batching.cpp
+         :language: cpp
+         :fragment: [hint_num_requests]
+
+   .. tab-item:: Python
+      :sync: py
+
+      .. doxygensnippet:: docs/snippets/ov_auto_batching.py
+         :language: Python
+         :fragment: [hint_num_requests]
+
+
+For the *explicit* usage, you can limit the batch size by using ``BATCH:GPU(4)``, where 4 is the number of requests running in parallel.
+
+
 .. _auto-batching-as-device:
 
 Automatic Batching as an explicit device
@@ -134,45 +165,16 @@ In the following example, BATCH device will be configured to another device in c
 .. note::
    If you run ``./benchmark_app``, do not set ``batch_size`` by ``-b <batch_size>``, otherwise AUTO mode will not be applied.
 
-
-Optimizing Performance by Limiting Batch Size
----------------------------------------------
-
-If not enough inputs were collected, the ``timeout`` value makes the transparent execution fall back to the execution of individual requests. This value can be configured via the ``AUTO_BATCH_TIMEOUT`` property.
-The timeout, which adds itself to the execution time of the requests, heavily penalizes the performance. To avoid this, when your parallel slack is bounded, provide OpenVINO with an additional hint.
-
-For example, when the application processes only 4 video streams, there is no need to use a batch larger than 4. The most future-proof way to communicate the limitations on the parallelism is to equip the performance hint with the optional ``ov::hint::num_requests`` configuration key set to 4. This will limit the batch size for the GPU and the number of inference streams for the CPU, hence each device uses ``ov::hint::num_requests`` while converting the hint to the actual device configuration options:
-
-.. tab-set::
-   
-   .. tab-item:: C++
-      :sync: cpp
-         
-      .. doxygensnippet:: docs/snippets/ov_auto_batching.cpp
-         :language: cpp
-         :fragment: [hint_num_requests]
-
-   .. tab-item:: Python
-      :sync: py
-
-      .. doxygensnippet:: docs/snippets/ov_auto_batching.py
-         :language: Python
-         :fragment: [hint_num_requests]
-
-
-For the *explicit* usage, you can limit the batch size by using ``BATCH:GPU(4)``, where 4 is the number of requests running in parallel.
-
 Other Performance Considerations
 ################################
 
 To achieve the best performance with Automatic Batching, the application should:
 
-- Operate inference requests of the number that represents the multiple of the batch size. In the example above, for batch size 4, the application should operate 4, 8, 12, 16, etc. requests.
+- Operate inference requests of the number that represents the multiple of the batch size. In the example from :ref:`Optimizing Performance by Limiting Batch Size section <limiting-batch-size>` -- for batch size 4, the application should operate 4, 8, 12, 16, etc. requests.
 - Use the requests that are grouped by the batch size together. For example, the first 4 requests are inferred, while the second group of the requests is being populated. Essentially, Automatic Batching shifts the asynchronicity from the individual requests to the groups of requests that constitute the batches.
-  
-  - Balance the ``timeout`` value vs. the batch size. For example, in many cases, having a smaller ``timeout`` value/batch size may yield better performance than having a larger batch size with a ``timeout`` value that is not large enough to accommodate the full number of the required requests.
-  - When Automatic Batching is enabled, the ``timeout`` property of ``ov::CompiledModel`` can be changed anytime, even after the loading/compilation of the model. For example, setting the value to 0 disables Auto-batching effectively, as the collection of requests would be omitted.
-  - Carefully apply Auto-batching to the pipelines. For example, in the conventional "video-sources -> detection -> classification" flow, it is most beneficial to do Auto-batching over the inputs to the detection stage. The resulting number of detections is usually fluent, which makes Auto-batching less applicable for the classification stage.
+- Balance the ``timeout`` value vs. the batch size. For example, in many cases, having a smaller ``timeout`` value/batch size may yield better performance than having a larger batch size with a ``timeout`` value that is not large enough to accommodate the full number of the required requests.
+- When Automatic Batching is enabled, the ``timeout`` property of ``ov::CompiledModel`` can be changed anytime, even after the loading/compilation of the model. For example, setting the value to 0 disables Auto-batching effectively, as the collection of requests would be omitted.
+- Carefully apply Auto-batching to the pipelines. For example, in the conventional "video-sources -> detection -> classification" flow, it is most beneficial to do Auto-batching over the inputs to the detection stage. The resulting number of detections is usually fluent, which makes Auto-batching less applicable for the classification stage.
 
 Limitations
 +++++++++++
