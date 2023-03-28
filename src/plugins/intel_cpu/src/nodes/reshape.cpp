@@ -118,7 +118,7 @@ public:
                 if (outPattern[i] < 0) {
                     outPattern[i] = inputShapeSize + outPattern[i];
                 }
-                if (outPattern[i] >= 0 && outPattern[i] < inputShapeSize) {
+                if (outPattern[i] >= 0 && outPattern[i] < static_cast<int64_t>(inputShapeSize)) {
                     removeMask[outPattern[i]] = true;
                 } else {
                     existError = true;
@@ -174,7 +174,7 @@ public:
             if (outPattern[i] < 0) {
                 outPattern[i] = outputShapeSize + outPattern[i];
             }
-            if (outPattern[i] >= 0 && outPattern[i] < outputShapeSize) {
+            if (outPattern[i] >= 0 && outPattern[i] < static_cast<int64_t>(outputShapeSize)) {
                 outputShape[outPattern[i]] = 1;
             } else {
                 existError = true;
