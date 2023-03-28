@@ -5,7 +5,7 @@
 The Automatic Batching Execution mode (or Auto-batching for short) performs automatic batching on-the-fly to improve device utilization by grouping inference requests together, without programming effort from the user.
 With Automatic Batching, gathering the input and scattering the output from the individual inference requests required for the batch happen transparently, without affecting the application code. 
 
-Auto Batching can be used :ref:`directly as a virtual device <auto-batching-as-device>` or as an :ref:`option for inference on CPU/GPU/VPU <auto-batching-as-option>` (by means of configuration/hint). These 2 ways are provided for the user to enable the BACTH devices **explicitly** or **implicitly**, with the underlying logic remaining the same. An example of the difference is that the CPU device doesn’t support implicitly to enable BATCH plugin, commands such as ``./benchmark_app -m <model> -d CPU -hint tput`` will not apply BATCH device **implicitly**, but ``./benchmark_app -m <model> -d "BATCH:CPU(16)`` can **explicitly** load BATCH plugin.
+Auto Batching can be used :ref:`directly as a virtual device <auto-batching-as-device>` or as an :ref:`option for inference on CPU/GPU/VPU <auto-batching-as-option>` (by means of configuration/hint). These 2 ways are provided for the user to enable the BATCH devices **explicitly** or **implicitly**, with the underlying logic remaining the same. An example of the difference is that the CPU device doesn’t support implicitly to enable BATCH device, commands such as ``./benchmark_app -m <model> -d CPU -hint tput`` will not apply BATCH device **implicitly**, but ``./benchmark_app -m <model> -d "BATCH:CPU(16)`` can **explicitly** load BATCH device.
 
 Auto-batching primarily targets the existing code written for inferencing many requests, each instance with the batch size 1. To get corresponding performance improvements, the application **must be running multiple inference requests simultaneously**. 
 Auto-batching can also be used via a particular *virtual* device.       
@@ -114,8 +114,8 @@ The below examples show how AUTO Batching can be used in the form of device that
    ./benchmark_app -m <model> -d "BATCH:CPU(16)"
 
 
-* ``BATCH`` -- load BATCH plugin explicitly, 
-* ``:GPU(16)`` -- BATCH plugin’s configuration, which tell BATCH plugin to apply GPU plugin with batch size = 16.
+* ``BATCH`` -- load BATCH device explicitly, 
+* ``:GPU(16)`` -- BATCH devices configuration, which tell BATCH device to apply GPU device with batch size = 16.
 
 .. _auto-batching-as-option:
 
