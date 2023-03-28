@@ -52,15 +52,8 @@ class PytorchLayerTest:
                 inp, np.ndarray) else inp for inp in inputs]
             trace_model = kwargs.get('trace_model', False)
             freeze_model = kwargs.get('freeze_model', True)
-            use_mo_convert = kwargs.get("use_mo_convert", True)
-            if not freeze_model or not use_mo_convert:
-                model, converted_model = self.convert_directly_via_frontend(
-                    model, torch_inputs, trace_model, dynamic_shapes, inputs, freeze_model)
-            else:
-                model, converted_model = self.convert_via_mo(
-                    model, torch_inputs, trace_model, dynamic_shapes, inputs)
+            model, converted_model = self.convert_directly_via_frontend(model, torch_inputs, trace_model, dynamic_shapes, inputs, freeze_model)
             graph = model.inlined_graph
-            print(graph)
 
             if kind is not None and not isinstance(kind, (tuple, list)):
                 kind = [kind]
@@ -181,6 +174,7 @@ class PytorchLayerTest:
                 model = torch.jit.trace(model, example_input)
             else:
                 model = torch.jit.script(model)
+        print(model.inlined_graph)
         decoder = TorchScriptPythonDecoder(model, freeze=freeze_model)
         im = fe.load(decoder)
         om = fe.convert(im)

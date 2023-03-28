@@ -158,6 +158,9 @@ In this case OpenVINO CMake scripts take `TBBROOT` environment variable into acc
 * `ENABLE_INTEGRITYCHECK` builds DLLs with [/INTEGRITYCHECK] flag:
     * `OFF` is default.
     * Available on MSVC compiler only.
+* `ENABLE_QSPECTRE` builds with [/Qspectre] flag:
+    * `OFF` is default.
+    * Available on MSVC compiler only.
 
 ## Additional Resources
 
@@ -172,6 +175,7 @@ In this case OpenVINO CMake scripts take `TBBROOT` environment variable into acc
 [precompiled headers]:https://cmake.org/cmake/help/git-stage/command/target_precompile_headers.html
 [unity build]:https://cmake.org/cmake/help/latest/prop_tgt/UNITY_BUILD.html
 [/INTEGRITYCHECK]:https://docs.microsoft.com/en-us/cpp/build/reference/integritycheck-require-signature-check?view=msvc-160
+[/Qspectre]:https://learn.microsoft.com/en-us/cpp/build/reference/qspectre?view=msvc-170
 [Intel TBB]:https://software.intel.com/content/www/us/en/develop/tools/threading-building-blocks.html
 [Python]:https://www.python.org/
 [Java]:https://www.java.com/ru/
