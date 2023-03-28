@@ -285,9 +285,8 @@ namespace {
 
     const std::vector<std::map<std::string, std::string>> auto_multi_loadNetWork_config = {
         {{InferenceEngine::MultiDeviceConfigParams::KEY_MULTI_DEVICE_PRIORITIES, CommonTestUtils::DEVICE_CPU},
-         {InferenceEngine::PluginConfigParams::KEY_PERFORMANCE_HINT, InferenceEngine::PluginConfigParams::LATENCY},
+         {InferenceEngine::PluginConfigParams::KEY_PERFORMANCE_HINT, InferenceEngine::PluginConfigParams::THROUGHPUT},
          {InferenceEngine::PluginConfigParams::KEY_MODEL_PRIORITY, InferenceEngine::PluginConfigParams::MODEL_PRIORITY_HIGH}}};
-    };
 
     INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests,
                              SetPropLoadNetWorkGetPropTests,
