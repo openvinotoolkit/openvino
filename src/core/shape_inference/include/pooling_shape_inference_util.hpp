@@ -12,35 +12,6 @@ namespace op {
 namespace pooling {
 constexpr size_t spatial_dim_offset = 2;
 
-/**
- * @brief Calculate dimension padding required by filter/kernel properties.
- *
- * Provides pair of padding values as left padding is total value of required padding divided by 2 and right as
- * total required padding minus left padding.
- *
- * @param dim          input dimension to calculate its padding.
- * @param filter_size  Kernel size for input dimension.
- * @param dilation     Kernel dilation.
- * @param stride       Kernel stride.
- * @return Pair of left, right padding values for input dimension.
- */
-template <class TDim, class T = typename TDim::value_type>
-inline std::pair<T, T> dim_padding(const TDim& dim, const int64_t kernel_size, const int64_t dilation, int64_t stride) {
-    if (dim.is_static()) {
-        const auto dim_size = static_cast<int64_t>(dim.get_length());
-        const auto dilated_kernel = ov::util::dim::dilated(kernel_size, dilation);
-        const int64_t tmp = (dim_size + stride - 1) / stride;
-
-        const auto padding = std::max<int64_t>(0, (tmp - 1) * stride + dilated_kernel - dim_size);
-        const auto left_padding = padding / 2;
-        return {left_padding, padding - left_padding};
-    } else {
-        // If input dimension is infinite or interval the padding will be set to 0
-        // as operator cannot store paddings for both bounds.
-        return {0, 0};
-    }
-}
-
 template <class TOp, class TShape>
 void update_and_validate_attributes(TOp* op, const TShape& data_shape, const Strides& dilations) {
     const auto& data_rank = data_shape.rank();
@@ -97,7 +68,8 @@ void update_and_validate_attributes(TOp* op, const TShape& data_shape, const Str
             auto& pad_right = auto_pad == PadType::SAME_UPPER ? pad_end_ins : pad_begin_ins;
 
             for (size_t i = 0; i < num_spatial; ++i, ++pad_left, ++pad_right, ++data_dim) {
-                std::tie(*pad_left, *pad_right) = dim_padding(*data_dim, kernel[i], dilations[i], strides[i]);
+                using namespace ov::util;
+                std::tie(*pad_left, *pad_right) = dim::padding(*data_dim, kernel[i], dilations[i], strides[i]);
             }
 
             op->set_pads_begin(pads_begin);

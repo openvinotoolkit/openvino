@@ -53,6 +53,7 @@ public:
                           const int64_t deformable_group = 1);
 
     std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& new_args) const override;
+    void validate_and_infer_types() override;
 };
 }  // namespace v1
 
