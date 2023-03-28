@@ -10,7 +10,6 @@
 
 #include "openvino/core/node_vector.hpp"
 #include "openvino/frontend/node_context.hpp"
-#include "openvino_conversions.hpp"
 #include "utils.hpp"
 
 #define TENSORFLOW_OP_VALIDATION(node_context, ...)                                        \
