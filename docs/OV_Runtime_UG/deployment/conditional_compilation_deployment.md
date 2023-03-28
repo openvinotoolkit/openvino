@@ -57,11 +57,57 @@ Stage 1: collecting statistics information about code usage
         If you want to run other application rather than benchmark_app to get statistics data, please make sure to limit inference request number and iterations to avoid too long profiling time and too large statistics data.
 
 
-    You can run this `script <https://github.com/openvinotoolkit/openvino/blob/master/src/common/conditional_compilation/scripts/ccheader.py>`__ to get the generated header file from csv files, and to confirm whether the statistics is correct.
+    You can run this `script <https://github.com/openvinotoolkit/openvino/blob/master/src/common/conditional_compilation/scripts/ccheader.py>`__ to get the generated header file from csv files, and to confirm whether the statistics is correct. (This step will be implicitly done in stage 2 of conditional compilation, you don't do it if you have no intersts in its contents.)
 
-    ..code-block:: sh
+    .. code-block:: sh
 
         python3.8 ../../src/common/conditional_compilation/scripts/ccheader.py --stat ${csv_files} --out conditional_compilation_gen.h
+
+    The conditional_compilation_gen.h looks like this:
+
+    .. code-block:: cpp
+
+            #pragma once
+
+            #define tbb_bind_TBBbindSystemTopology 1
+            #define tbb_bind_task_arena_initialize 1
+
+            #define ov_opset_opset1_Parameter 1
+            #define ov_opset_opset1_Constant 1
+            #define ov_opset_opset1_Convolution 1
+            #define ov_opset_opset1_Add 1
+            #define ov_opset_opset1_Relu 1
+            #define ov_opset_opset1_GroupConvolution 1
+            #define ov_opset_opset3_ShapeOf 1
+            #define ov_opset_opset1_Squeeze 1
+            #define ov_opset_opset4_Range 1
+            #define ov_opset_opset1_ReduceMean 1
+            #define ov_opset_opset1_Softmax 1
+            #define ov_opset_opset1_Result 1
+
+            #define ov_op_v0_Parameter_visit_attributes 1
+            #define ov_op_v0_Parameter_validate_and_infer_types 1
+            #define ov_op_v0_Parameter_clone_with_new_inputs 1
+            #define ov_op_v0_Constant_visit_attributes 1
+            #define ov_op_v0_Constant_clone_with_new_inputs 1
+            #define ov_op_v1_Convolution_visit_attributes 1
+            #define ov_op_v1_Convolution_validate_and_infer_types 1
+            #define ov_op_v1_Convolution_clone_with_new_inputs 1
+            #define ov_op_v0_util_BinaryElementwiseArithmetic_visit_attributes 1
+            #define ov_op_v1_Add_visit_attributes 1
+            #define ov_op_v0_util_BinaryElementwiseArithmetic_validate_and_infer_types 1
+            #define ov_op_v1_Add_clone_with_new_inputs 1
+            #define ov_op_v0_Relu_visit_attributes 1
+            #define ov_op_util_UnaryElementwiseArithmetic_validate_and_infer_types 1
+            #define ov_op_v0_Relu_clone_with_new_inputs 1
+            #define ov_op_v1_GroupConvolution_visit_attributes 1
+            #define ov_op_v1_GroupConvolution_validate_and_infer_types 1
+            #define ov_op_v1_GroupConvolution_clone_with_new_inputs 1
+            #define ov_op_v3_ShapeOf_visit_attributes 1
+            #define ov_op_v3_ShapeOf_validate_and_infer_types 1
+            #define ov_op_v3_ShapeOf_clone_with_new_inputs 1
+            #define ov_op_v0_Squeeze_visit_attributes 1
+            ...
 
 
 Stage 2: build resulting OpenVINO package
