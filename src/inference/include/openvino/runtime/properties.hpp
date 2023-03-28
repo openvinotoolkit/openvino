@@ -407,6 +407,7 @@ inline std::istream& operator>>(std::istream& is, SchedulingCoreType& core_type)
  */
 static constexpr Property<SchedulingCoreType> scheduling_core_type{"SCHEDULING_CORE_TYPE"};
 
+/**
  * @brief This property allows hyper threading during inference.
  * @ingroup ov_runtime_cpp_prop_api
  *

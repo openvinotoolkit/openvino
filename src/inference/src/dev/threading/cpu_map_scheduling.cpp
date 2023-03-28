@@ -9,7 +9,7 @@
 namespace ov {
 
 std::vector<std::vector<int>> apply_scheduling_core_type(const ov::hint::SchedulingCoreType input_type,
-                                                         const std::vector<std::vector<int>> proc_type_table) {
+                                                         const std::vector<std::vector<int>>& proc_type_table) {
     std::vector<std::vector<int>> result_table = proc_type_table;
 
     switch (input_type) {
@@ -35,10 +35,14 @@ std::vector<std::vector<int>> apply_scheduling_core_type(const ov::hint::Schedul
         break;
     default:
         throw ov::Exception{"Unsupported core type!"};
+    }
+
+    return result_table;
+}
 
 std::vector<std::vector<int>> apply_hyper_threading(bool input_value,
                                                     const bool input_changed,
-                                                    const std::vector<std::vector<int>> proc_type_table) {
+                                                    const std::vector<std::vector<int>>& proc_type_table) {
     std::vector<std::vector<int>> result_table = proc_type_table;
 
     if ((proc_type_table[0][HYPER_THREADING_PROC] > 0) &&
@@ -49,7 +53,7 @@ std::vector<std::vector<int>> apply_hyper_threading(bool input_value,
         }
         input_value = false;
     }
-
+    
     return result_table;
 }
 

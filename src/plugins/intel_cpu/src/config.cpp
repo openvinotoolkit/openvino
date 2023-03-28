@@ -89,6 +89,7 @@ void Config::readProperties(const std::map<std::string, std::string> &prop) {
                            << ". Expected only " << ov::hint::SchedulingCoreType::ANY_CORE << "/"
                            << ov::hint::SchedulingCoreType::PCORE_ONLY << "/"
                            << ov::hint::SchedulingCoreType::ECORE_ONLY << std::endl;
+            }
         } else if (key == ov::hint::use_hyper_threading.name()) {
             if (val == PluginConfigParams::YES) {
                 useHyperThreading = true;
