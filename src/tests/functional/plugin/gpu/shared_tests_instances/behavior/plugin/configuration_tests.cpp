@@ -304,28 +304,15 @@ namespace {
         {InferenceEngine::PluginConfigParams::KEY_PERF_COUNT, InferenceEngine::PluginConfigParams::YES},
     }};
 
-    auto auto_multi_prop_config = []() {
-        return std::vector<std::map<std::string, std::string>>{
-            {{InferenceEngine::MultiDeviceConfigParams::KEY_MULTI_DEVICE_PRIORITIES, CommonTestUtils::DEVICE_GPU},
-             {InferenceEngine::PluginConfigParams::KEY_PERFORMANCE_HINT,
-              InferenceEngine::PluginConfigParams::THROUGHPUT},
-             {InferenceEngine::PluginConfigParams::KEY_EXCLUSIVE_ASYNC_REQUESTS,
-              InferenceEngine::PluginConfigParams::YES},
-             {InferenceEngine::PluginConfigParams::KEY_PERFORMANCE_HINT_NUM_REQUESTS, "2"},
-             {InferenceEngine::PluginConfigParams::KEY_ALLOW_AUTO_BATCHING, InferenceEngine::PluginConfigParams::NO},
-             {InferenceEngine::PluginConfigParams::KEY_PERF_COUNT, InferenceEngine::PluginConfigParams::NO}}};
-    };
+    const std::vector<std::map<std::string, std::string>> auto_multi_prop_config = {
+        {{InferenceEngine::MultiDeviceConfigParams::KEY_MULTI_DEVICE_PRIORITIES, CommonTestUtils::DEVICE_CPU},
+         {InferenceEngine::PluginConfigParams::KEY_PERFORMANCE_HINT, InferenceEngine::PluginConfigParams::LATENCY},
+         {ov::hint::model_priority.name(), InferenceEngine::PluginConfigParams::MODEL_PRIORITY_MED}}};
 
-    auto auto_multi_loadNetWork_config = []() {
-        return std::vector<std::map<std::string, std::string>>{
-            {{InferenceEngine::MultiDeviceConfigParams::KEY_MULTI_DEVICE_PRIORITIES, CommonTestUtils::DEVICE_GPU},
-             {InferenceEngine::PluginConfigParams::KEY_PERFORMANCE_HINT, InferenceEngine::PluginConfigParams::LATENCY},
-             {InferenceEngine::PluginConfigParams::KEY_EXCLUSIVE_ASYNC_REQUESTS,
-              InferenceEngine::PluginConfigParams::NO},
-             {InferenceEngine::PluginConfigParams::KEY_PERFORMANCE_HINT_NUM_REQUESTS, "10"},
-             {InferenceEngine::PluginConfigParams::KEY_ALLOW_AUTO_BATCHING, InferenceEngine::PluginConfigParams::YES},
-             {InferenceEngine::PluginConfigParams::KEY_PERF_COUNT, InferenceEngine::PluginConfigParams::YES}}};
-    };
+    const std::vector<std::map<std::string, std::string>> auto_multi_loadNetWork_config = {
+        {{InferenceEngine::MultiDeviceConfigParams::KEY_MULTI_DEVICE_PRIORITIES, CommonTestUtils::DEVICE_CPU},
+         {InferenceEngine::PluginConfigParams::KEY_PERFORMANCE_HINT, InferenceEngine::PluginConfigParams::THROUGHPUT},
+         {ov::hint::model_priority.name(), InferenceEngine::PluginConfigParams::MODEL_PRIORITY_HIGH}}};
 
     INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests,
                              SetPropLoadNetWorkGetPropTests,
@@ -335,16 +322,16 @@ namespace {
                              SetPropLoadNetWorkGetPropTests::getTestCaseName);
 
     INSTANTIATE_TEST_SUITE_P(smoke_Multi_BehaviorTests,
-                             SetPropLoadNetWorkGetPropTests,
+                             SetConfigGetConfigLoadNetWorkGetMetricTests,
                              ::testing::Combine(::testing::Values(CommonTestUtils::DEVICE_MULTI),
-                                                ::testing::ValuesIn(auto_multi_prop_config()),
-                                                ::testing::ValuesIn(auto_multi_loadNetWork_config())),
-                             SetPropLoadNetWorkGetPropTests::getTestCaseName);
+                                                ::testing::ValuesIn(auto_multi_prop_config),
+                                                ::testing::ValuesIn(auto_multi_loadNetWork_config)),
+                             SetConfigGetConfigLoadNetWorkGetMetricTests::getTestCaseName);
 
     INSTANTIATE_TEST_SUITE_P(smoke_Auto_BehaviorTests,
-                             SetPropLoadNetWorkGetPropTests,
+                             SetConfigGetConfigLoadNetWorkGetMetricTests,
                              ::testing::Combine(::testing::Values(CommonTestUtils::DEVICE_AUTO),
-                                                ::testing::ValuesIn(auto_multi_prop_config()),
-                                                ::testing::ValuesIn(auto_multi_loadNetWork_config())),
-                             SetPropLoadNetWorkGetPropTests::getTestCaseName);
+                                                ::testing::ValuesIn(auto_multi_prop_config),
+                                                ::testing::ValuesIn(auto_multi_loadNetWork_config)),
+                             SetConfigGetConfigLoadNetWorkGetMetricTests::getTestCaseName);
 } // namespace

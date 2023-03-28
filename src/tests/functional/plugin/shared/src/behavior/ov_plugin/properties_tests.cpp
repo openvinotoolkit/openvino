@@ -178,8 +178,6 @@ TEST_P(OVSetPropComplieModleGetPropTests, SetPropertyComplieModelGetProperty) {
 
     ov::CompiledModel exeNetWork;
     OV_ASSERT_NO_THROW(exeNetWork = core->compile_model(model, target_device, compileModelProperties));
-    if (target_device == CommonTestUtils::DEVICE_AUTO || target_device == CommonTestUtils::DEVICE_MULTI)
-        GTEST_SKIP();
 
     for (const auto& property_item : compileModelProperties) {
         Any exeNetProperty;

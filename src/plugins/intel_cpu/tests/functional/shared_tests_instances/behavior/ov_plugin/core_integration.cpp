@@ -252,6 +252,10 @@ TEST(OVClassBasicTest, smoke_SetConfigAffinity) {
     }
 #else
     auto defaultBindThreadParameter = ov::Affinity::CORE;
+    auto coreTypes = InferenceEngine::getAvailableCoresTypes();
+    if (coreTypes.size() > 1) {
+        defaultBindThreadParameter = ov::Affinity::HYBRID_AWARE;
+    }
 #endif
     OV_ASSERT_NO_THROW(value = ie.get_property("CPU", ov::affinity));
     ASSERT_EQ(defaultBindThreadParameter, value);
@@ -350,7 +354,7 @@ const std::vector<ov::AnyMap> default_auto_properties = {
     {ov::hint::performance_mode(ov::hint::PerformanceMode::THROUGHPUT)},
     {ov::hint::performance_mode(ov::hint::PerformanceMode::UNDEFINED)}};
 // For MULIT, User sets perf_hint or Affinity or num_streams or infer_num_threads, MULTI's perf_hint should
-// not return default value THROUGHPUT
+// return default value THROUGHPUT
 // For Secondary property test about default hint is in auto_load_network_properties_test.cpp
 const std::vector<ov::AnyMap> default_multi_properties = {
     {ov::hint::performance_mode(ov::hint::PerformanceMode::LATENCY)},
