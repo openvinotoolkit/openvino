@@ -111,21 +111,23 @@ class TaskManager:
         if len(self._command_list) <= self._idx:
             logger.warning(f"Skip worker initialiazation. Command list lenght <= worker index")
             return
-        log_file_name = self._log_filename.replace(LOG_NAME_REPLACE_STR, str(self._idx + self._prev_run_cmd_length))
-        with open(log_file_name, "w") as log_file:
-            args = self._command_list[self._idx]
-            if self._device_cnt > 1:
-                args = args.replace(self._device, self._available_devices[self._idx % self._device_cnt])
-            if not constants.IS_WIN:
-                args = shlex.split(self._command_list[self._idx])
-            worker = self.__create_thread(
-                self._process_list.append(Popen(args, shell=constants.IS_WIN, stdout=log_file, stderr=log_file)))
-            self._workers.append(worker)
-            worker.join()
-            self._timers.append(datetime.datetime.now())
-            log_file.close()
-        # logger.info(f"{self._idx}/{len(self._command_list)} is started")
-        self._idx += 1
+        if self._device_cnt == 0:
+            logger.error(f"Empty available devices! Check your device!")
+            exit(-1)
+        for target_device in self._available_devices:
+            log_file_name = self._log_filename.replace(LOG_NAME_REPLACE_STR, str(self._idx + self._prev_run_cmd_length))
+            with open(log_file_name, "w") as log_file:
+                args = self._command_list[self._idx].replace(self._device, target_device)
+                if not constants.IS_WIN:
+                    args = shlex.split(args)
+                worker = self.__create_thread(
+                    self._process_list.append(Popen(args, shell=constants.IS_WIN, stdout=log_file, stderr=log_file)))
+                self._workers.append(worker)
+                worker.join()
+                self._timers.append(datetime.datetime.now())
+                log_file.close()
+            # logger.info(f"{self._idx}/{len(self._command_list)} is started")
+            self._idx += 1
     
     def __find_free_process(self):
         while True:
@@ -136,18 +138,15 @@ class TaskManager:
                         self._process_list[pid].kill()
                     self._process_list[pid].wait(timeout=0)
                     device = get_device_by_args(self._process_list[pid].args)
-                    logger.warning(f"DEBUG {device}")
                     # logger.info(f"{self._idx}/{len(self._command_list)} is started")
                     return pid, device
                 except TimeoutExpired:
                     continue
 
     def __update_process(self, pid:int, log_file, device):
-        args = self._command_list[self._idx]
-        if self._device_cnt > 1:
-            args = args.replace(self._device, device)
+        args = self._command_list[self._idx].replace(self._device, device)
         if not constants.IS_WIN:
-            args = shlex.split(self._command_list[self._idx])
+            args = shlex.split(args)
         self._process_list[pid] = Popen(args, shell=constants.IS_WIN, stdout=log_file, stderr=log_file)
 
     def update_worker(self):
