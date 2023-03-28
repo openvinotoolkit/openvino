@@ -2169,7 +2169,6 @@ TEST_P(CachingTest, LoadAUTO_OneDeviceNoImportExport) {
 // Test that it is safe to load multiple devices sharing same cache
 // In case of sporadic failures - increase 'TEST_DURATION_MS' 100x times for better reproducibility
 TEST_P(CachingTest, LoadMulti_race) {
-    GTEST_SKIP();
     const auto TEST_DURATION_MS = 2000;
     const auto TEST_DEVICE_MAX_COUNT = 10;
     EXPECT_CALL(*mockPlugin, GetMetric(_, _)).Times(AnyNumber());
@@ -2211,7 +2210,6 @@ TEST_P(CachingTest, LoadMulti_race) {
 // Test that it is safe to load multiple devices through loadNetwork
 // In case of sporadic failures - increase 'TEST_DURATION_MS' 100x times for better reproducibility
 TEST_P(CachingTest, LoadMultiWithConfig_race) {
-    GTEST_SKIP();
     const auto TEST_DURATION_MS = 2000;
     const auto TEST_DEVICE_MAX_COUNT = 10;
     EXPECT_CALL(*mockPlugin, GetMetric(_, _)).Times(AnyNumber());
@@ -2252,7 +2250,6 @@ TEST_P(CachingTest, LoadMultiWithConfig_race) {
 // Test loading of devices with different architectures
 // In case of sporadic failures - increase 'TEST_DEVICE_MAX_COUNT' 100x times for better reproducibility
 TEST_P(CachingTest, LoadMulti_Archs) {
-    GTEST_SKIP();
     const auto TEST_DEVICE_MAX_COUNT = 30;  // Shall be >= 2
     EXPECT_CALL(*mockPlugin, GetMetric(_, _)).Times(AnyNumber());
     EXPECT_CALL(*mockPlugin, QueryNetwork(_, _)).Times(AnyNumber());
@@ -2303,7 +2300,6 @@ TEST_P(CachingTest, LoadMulti_Archs) {
 // Test loading of devices which don't support caching
 // In case of sporadic failures - increase 'TEST_DEVICE_MAX_COUNT' 100x times for better reproducibility
 TEST_P(CachingTest, LoadMulti_NoCachingOnDevice) {
-    GTEST_SKIP();
     const auto TEST_DEVICE_MAX_COUNT = 100;  // Looks enough to catch potential race conditions
     EXPECT_CALL(*mockPlugin, GetMetric(_, _)).Times(AnyNumber());
     EXPECT_CALL(*mockPlugin, GetMetric(METRIC_KEY(IMPORT_EXPORT_SUPPORT), _))

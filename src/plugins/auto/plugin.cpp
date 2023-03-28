@@ -431,24 +431,24 @@ IExecutableNetworkInternal::Ptr MultiDeviceInferencePlugin::LoadNetworkImpl(cons
     bool isCumulative =
         (autoSContext->_performanceHint == IE::PluginConfigParams::CUMULATIVE_THROUGHPUT) ? true : false;
     std::list<DeviceInformation> devicesWithPriority(supportDevices.begin(), supportDevices.end());
-    if (!isCumulative) {
-        if (modelPath.empty()) {
-            // if network is valid
+    if (modelPath.empty()) {
+        // if network is valid
+        LOG_INFO_TAG("load with CNN network");
+        supportDevices = FilterDeviceByNetwork(supportDevicesByConfig, network);
+        clonedNetwork = InferenceEngine::details::cloneNetwork(network);
+        // clone the network, in case of reshape conflict
+    } else {
+        // model path, enable model load with single device situation
+        if (supportDevices.size() > 1 && !isCumulative) {
+            clonedNetwork = GetCore()->ReadNetwork(modelPath, std::string());
+            // do we really need to disable model path?
+            clonedModelPath = "";
             LOG_INFO_TAG("load with CNN network");
-            supportDevices = FilterDeviceByNetwork(supportDevicesByConfig, network);
-            // clone the network, in case of reshape conflict
-            clonedNetwork = InferenceEngine::details::cloneNetwork(network);
         } else {
-            // model path, enable model load with single device situation
-            if (supportDevices.size() > 1) {
-                clonedNetwork = GetCore()->ReadNetwork(modelPath, std::string());
-                // do we really need to disable model path?
-                clonedModelPath = "";
-                LOG_INFO_TAG("load with CNN network");
-            } else {
-                LOG_INFO_TAG("load with model path");
-            }
+            LOG_INFO_TAG("load with model path");
         }
+    }
+    if (!isCumulative) {
         devicesWithPriority = GetValidDevice(supportDevices, networkPrecision);
     }
     for (auto iter = devicesWithPriority.begin(); iter != devicesWithPriority.end(); iter++) {
