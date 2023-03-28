@@ -151,8 +151,12 @@ check_python_version () {
     fi
 }
 
-py_version_to_check=$(echo $python_version| cut -d. -f1)
-if [ ! command -v python"$py_version_to_check" > /dev/null 2>&1 ] | [ -z "$python_version" ]; then
+python_version_to_check="$PYTHON_VERSION_MAJOR"
+if [ -z "$python_version" ]; then
+    python_version_to_check="3"
+fi
+
+if ! command -v python"$python_version_to_check" > /dev/null 2>&1; then
     echo "[setupvars.sh] WARNING: Python is not installed. Please install one of Python" \
     "${PYTHON_VERSION_MAJOR}.${MIN_REQUIRED_PYTHON_VERSION_MINOR} -" \
     "${PYTHON_VERSION_MAJOR}.${MAX_SUPPORTED_PYTHON_VERSION_MINOR} (64-bit) from https://www.python.org/downloads/"
