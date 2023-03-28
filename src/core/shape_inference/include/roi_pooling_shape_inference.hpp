@@ -12,8 +12,16 @@
 
 namespace ov {
 namespace op {
-namespace pooling {
+namespace roi_pooling {
 namespace validate {
+template <class TROIPooling, class TShape>
+void feat_intput_shape(const TROIPooling* op, const TShape& feat_shape) {
+    NODE_VALIDATION_CHECK(op,
+                          feat_shape.rank().compatible(4),
+                          "Expected a 4D tensor for the feature maps input. Got: ",
+                          feat_shape);
+}
+
 template <class TROIPooling, class TShape>
 void rois_input_shape(const TROIPooling* op, const TShape rois_shape) {
     if (rois_shape.rank().is_static()) {
@@ -66,7 +74,7 @@ void method_attr(const TROIPooling* op) {
                           method);
 }
 }  // namespace validate
-}  // namespace pooling
+}  // namespace roi_pooling
 
 namespace v0 {
 template <class TShape>
@@ -78,15 +86,11 @@ std::vector<TShape> shape_infer(const ROIPooling* op, const std::vector<TShape>&
     const auto& rois_shape = input_shapes[1];
     const auto& feat_rank = feat_shape.rank();
 
-    NODE_VALIDATION_CHECK(op,
-                          feat_rank.compatible(4),
-                          "Expected a 4D tensor for the feature maps input. Got: ",
-                          feat_shape);
-
-    pooling::validate::rois_input_shape(op, rois_shape);
-    pooling::validate::output_roi_attr(op);
-    pooling::validate::scale_attr(op);
-    pooling::validate::method_attr(op);
+    roi_pooling::validate::feat_intput_shape(op, feat_shape);
+    roi_pooling::validate::rois_input_shape(op, rois_shape);
+    roi_pooling::validate::output_roi_attr(op);
+    roi_pooling::validate::scale_attr(op);
+    roi_pooling::validate::method_attr(op);
 
     TShape out_shape;
     out_shape.reserve(4);
