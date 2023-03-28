@@ -621,9 +621,9 @@ static void addPair(std::map<std::string, std::string>& keyValues, const std::st
         }
     }
     // Parse IR for opName and hash
-    if (key == "IR" && (dPos = value.find('_')) != std::string::npos) {
-        keyValues["hashXml"] = value.substr(dPos + 1);
-        keyValues["pathXml"] = value;
+    if (key == "IR") {
+        keyValues["hashXml"] = value;
+        keyValues["pathXml"] = value + ".xml";
         return;
     }
     // Parse Function for opName and opSet
@@ -633,8 +633,20 @@ static void addPair(std::map<std::string, std::string>& keyValues, const std::st
         return;
     }
     // Normalize target devices
-    if (key == "target_device" || key == "TargetDevice" || key == "Device") {
+    if (key == "target_device" || key == "TargetDevice" || key == "Device" || key == "targetDevice") {
+#if defined(__arm__) || defined(_M_ARM) || defined(__aarch64__) || defined(_M_ARM64)
+        std::cerr << "ARM Debug: " << key << " = " << value;
+        if (value == "CPU") {
+            keyValues["targetDevice"] = "CPU_ARM";
+            std::cerr << " replaced\n";
+        } else {
+            keyValues["targetDevice"] = value;
+            std::cerr << " left\n";
+        }
+#else
         keyValues["targetDevice"] = value;
+        std::cerr << "No an ARM\n";
+#endif
         return;
     }
     std::string lKey = key;
@@ -1168,8 +1180,8 @@ class PostgreSQLEventListener : public ::testing::EmptyTestEventListener {
                     if (extQuery != ExtTestQueries.end()) {
                         std::string query;
                         if (compileString(extQuery->second, testDictionary, query)) {
-                            auto pgresult =
-                                connectionKeeper->Query((std::string("CALL ON_REFUSE_") + query).c_str(), PGRES_COMMAND_OK);
+                            auto pgresult = connectionKeeper->Query((std::string("CALL ON_REFUSE_") + query).c_str(),
+                                                                    PGRES_COMMAND_OK);
                             CHECK_PGRESULT(pgresult, "Cannot remove extended waste results", /* no return */);
                         } else {
                             std::cerr << PG_WRN

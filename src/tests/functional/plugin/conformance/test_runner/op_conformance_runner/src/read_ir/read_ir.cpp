@@ -234,7 +234,19 @@ void ReadIRTest::SetUp() {
     // Updating data in runtime. Should be set before possible call of a first GTEST status
     auto pgLink = this->GetPGLink();
     if (pgLink) {
-        pgLink->SetCustomField("targetDevice", this->targetDevice);
+#    if defined(__arm__) || defined(_M_ARM) || defined(__aarch64__) || defined(_M_ARM64)
+        std::cerr << "ARM way in IR " << this->targetDevice;
+        if (this->targetDevice == "CPU") {
+            std::cerr << " replaced\n";
+            pgLink->SetCustomField("targetDevice", "CPU_ARM", true);
+        } else {
+            std::cerr << " left\n";
+            pgLink->SetCustomField("targetDevice", this->targetDevice, true);
+        }
+#    else
+        std::cerr << "Non-ARM way in IR\n";
+        pgLink->SetCustomField("targetDevice", this->targetDevice, true);
+#    endif
         pgLink->SetCustomField("caseType", hasDynamic ? "dynamic" : "static");
 
         // Do not store waste results
