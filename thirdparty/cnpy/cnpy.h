@@ -22,7 +22,7 @@
     #define NOMINMAX
     #include <windows.h>
 #else
-    #include <sys/sysinfo.h>
+    #include <unistd.h>
 #endif
 
 namespace cnpy {
@@ -35,10 +35,9 @@ namespace cnpy {
             GlobalMemoryStatusEx(&status);
             return status.ullAvailPhys;
 #else
-            struct sysinfo info{};
-            if (sysinfo(&info))
-                return 0;
-            return info.freeram;
+            long pages = sysconf(_SC_AVPHYS_PAGES);
+            long page_size = sysconf(_SC_PAGE_SIZE);
+            return pages * page_size;
 #endif
         }
 
