@@ -13,6 +13,7 @@
 #include <vector>
 
 #include "graph.h"
+#include "openvino/runtime/properties.hpp"
 
 namespace ov {
 namespace intel_cpu {

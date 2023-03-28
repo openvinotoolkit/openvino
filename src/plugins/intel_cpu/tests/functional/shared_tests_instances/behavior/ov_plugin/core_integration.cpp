@@ -52,6 +52,10 @@ INSTANTIATE_TEST_SUITE_P(smoke_OVClassSetConfigTest,
                          OVClassSetUseHyperThreadingHintConfigTest,
                          ::testing::Values("CPU"));
 
+INSTANTIATE_TEST_SUITE_P(smoke_OVClassSetConfigTest,
+                         OVClassSetSchedulingCoreTypeHintConfigTest,
+                         ::testing::Values("CPU"));
+
 INSTANTIATE_TEST_SUITE_P(
         smoke_OVClassGetMetricTest, OVClassGetMetricTest_OPTIMIZATION_CAPABILITIES,
         ::testing::Values("CPU"));
