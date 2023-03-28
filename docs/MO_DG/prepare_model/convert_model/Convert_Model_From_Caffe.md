@@ -40,42 +40,42 @@ CLI Examples Using Caffe-Specific Parameters
 
 * Launching Model Optimizer for `bvlc_alexnet.caffemodel <https://github.com/BVLC/caffe/tree/master/models/bvlc_alexnet>`__ with a specified `prototxt` file. This is needed when the name of the Caffe model and the `.prototxt` file are different or are placed in different directories. Otherwise, it is enough to provide only the path to the input `model.caffemodel` file.
   
-   .. code-block:: sh
+  .. code-block:: sh
       
-      mo --input_model bvlc_alexnet.caffemodel --input_proto bvlc_alexnet.prototxt
+    mo --input_model bvlc_alexnet.caffemodel --input_proto bvlc_alexnet.prototxt
    
 * Launching Model Optimizer for `bvlc_alexnet.caffemodel <https://github.com/BVLC/caffe/tree/master/models/bvlc_alexnet>`__ with a specified `CustomLayersMapping` file. This is the legacy method of quickly enabling model conversion if your model has custom layers. This requires the Caffe system on the computer. Example of ``CustomLayersMapping.xml`` can be found in ``<OPENVINO_INSTALLATION_DIR>/mo/front/caffe/CustomLayersMapping.xml.example``. The optional parameters without default values and not specified by the user in the ``.prototxt`` file are removed from the Intermediate Representation, and nested parameters are flattened:
 
-   .. code-block:: sh
+  .. code-block:: sh
 
-      mo --input_model bvlc_alexnet.caffemodel -k CustomLayersMapping.xml --disable_omitting_optional --enable_flattening_nested_params
+    mo --input_model bvlc_alexnet.caffemodel -k CustomLayersMapping.xml --disable_omitting_optional --enable_flattening_nested_params
    
    This example shows a multi-input model with input layers: ``data``, ``rois``
 
-   .. code-block:: sh
+  .. code-block:: sh
 
-     layer {
-       name: "data"
-       type: "Input"
-       top: "data"
-       input_param {
-         shape { dim: 1 dim: 3 dim: 224 dim: 224 }
-       }
-     }
-     layer {
-       name: "rois"
-       type: "Input"
-       top: "rois"
-       input_param {
-         shape { dim: 1 dim: 5 dim: 1 dim: 1 }
-       }
-     }
+    layer {
+      name: "data"
+      type: "Input"
+      top: "data"
+      input_param {
+        shape { dim: 1 dim: 3 dim: 224 dim: 224 }
+      }
+    }
+    layer {
+      name: "rois"
+      type: "Input"
+      top: "rois"
+      input_param {
+        shape { dim: 1 dim: 5 dim: 1 dim: 1 }
+      }
+    }
 
 * Launching the Model Optimizer for a multi-input model with two inputs and providing a new shape for each input in the order they are passed to the Model Optimizer. In particular, for data, set the shape to ``1,3,227,227``. For rois, set the shape to ``1,6,1,1``:
 
-   .. code-block:: sh
-   
-      mo --input_model /path-to/your-model.caffemodel --input data,rois --input_shape (1,3,227,227),[1,6,1,1]
+  .. code-block:: sh
+
+    mo --input_model /path-to/your-model.caffemodel --input data,rois --input_shape (1,3,227,227),[1,6,1,1]
 
 Custom Layer Definition
 ########################
