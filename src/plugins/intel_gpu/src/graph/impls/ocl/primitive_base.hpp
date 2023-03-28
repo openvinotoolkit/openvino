@@ -294,7 +294,7 @@ protected:
         if (is_cpu())
             return;
 
-        size_t total_kernels_num = std::accumulate(kernels.begin(), kernels.end(), 0,
+        size_t total_kernels_num = std::accumulate(kernels.begin(), kernels.end(), static_cast<size_t>(0),
             [](size_t val, cldnn::kernels_cache::compiled_kernels::value_type& p) {
                 return (val + p.second.size());
             });
