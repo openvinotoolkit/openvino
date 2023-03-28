@@ -8,25 +8,25 @@ The sample works with Kaldi ARK or Numpy* uncompressed NPZ files, so it does not
 
 The following C++ API is used in the application:
 
-+-------------------------+-------------------------------------------------------------------------------------------------------------+------------------------------------------------------------------------------+
-| Feature                 | API                                                                                                         | Description                                                                  |
-+=========================+=============================================================================================================+==============================================================================+
-| Available Devices       | ``ov::Core::get_available_devices``, ``ov::Core::get_property``                                             | Get information of the devices for inference                                 |
-+-------------------------+-------------------------------------------------------------------------------------------------------------+------------------------------------------------------------------------------+
-| Import/Export Model     | ``ov::Core::import_model``, ``ov::CompiledModel::export_model``                                             | The GNA plugin supports loading and saving of the GNA-optimized model        |
-+-------------------------+-------------------------------------------------------------------------------------------------------------+------------------------------------------------------------------------------+
-| Model Operations        | ``ov::set_batch``, ``ov::Model::add_output``, ``ov::CompiledModel::inputs``, ``ov::CompiledModel::outputs`` | Managing of model: configure batch_size, input and output tensors            |
-+-------------------------+-------------------------------------------------------------------------------------------------------------+------------------------------------------------------------------------------+
-| Node Operations         | ``ov::OutputVector::size``, ``ov::Output::get_shape``                                                       | Get node shape                                                               |
-+-------------------------+-------------------------------------------------------------------------------------------------------------+------------------------------------------------------------------------------+
-| Asynchronous Infer      | ``ov::InferRequest::start_async``, ``ov::InferRequest::wait``                                               | Do asynchronous inference and waits until inference result becomes available |
-+-------------------------+-------------------------------------------------------------------------------------------------------------+------------------------------------------------------------------------------+
-| InferRequest Operations | ``ov::InferRequest::query_state``, ``ov::VariableState::reset``                                             | Gets and resets CompiledModel state control                                  |
-+-------------------------+-------------------------------------------------------------------------------------------------------------+------------------------------------------------------------------------------+
-| Tensor Operations       | ``ov::Tensor::get_size``, ``ov::Tensor::data``, ``ov::InferRequest::get_tensor``                            | Get a tensor, its size and data                                              |
-+-------------------------+-------------------------------------------------------------------------------------------------------------+------------------------------------------------------------------------------+
-| Profiling               | ``ov::InferRequest::get_profiling_info``                                                                    | Get infer request profiling info                                             |
-+-------------------------+-------------------------------------------------------------------------------------------------------------+------------------------------------------------------------------------------+
++-------------------------------------------------------------+-------------------------------------------------------------------------------------------------------------+------------------------------------------------------------------------------+
+| Feature                                                     | API                                                                                                         | Description                                                                  |
++=============================================================+=============================================================================================================+==============================================================================+
+| Available Devices                                           | ``ov::Core::get_available_devices``, ``ov::Core::get_property``                                             | Get information of the devices for inference                                 |
++-------------------------------------------------------------+-------------------------------------------------------------------------------------------------------------+------------------------------------------------------------------------------+
+| Import/Export Model                                         | ``ov::Core::import_model``, ``ov::CompiledModel::export_model``                                             | The GNA plugin supports loading and saving of the GNA-optimized model        |
++-------------------------------------------------------------+-------------------------------------------------------------------------------------------------------------+------------------------------------------------------------------------------+
+| Model Operations                                            | ``ov::set_batch``, ``ov::Model::add_output``, ``ov::CompiledModel::inputs``, ``ov::CompiledModel::outputs`` | Managing of model: configure batch_size, input and output tensors            |
++-------------------------------------------------------------+-------------------------------------------------------------------------------------------------------------+------------------------------------------------------------------------------+
+| Node Operations                                             | ``ov::OutputVector::size``, ``ov::Output::get_shape``                                                       | Get node shape                                                               |
++-------------------------------------------------------------+-------------------------------------------------------------------------------------------------------------+------------------------------------------------------------------------------+
+| Asynchronous Infer                                          | ``ov::InferRequest::start_async``, ``ov::InferRequest::wait``                                               | Do asynchronous inference and waits until inference result becomes available |
++-------------------------------------------------------------+-------------------------------------------------------------------------------------------------------------+------------------------------------------------------------------------------+
+| InferRequest Operations                                     | ``ov::InferRequest::query_state``, ``ov::VariableState::reset``                                             | Gets and resets CompiledModel state control                                  |
++-------------------------------------------------------------+-------------------------------------------------------------------------------------------------------------+------------------------------------------------------------------------------+
+| Tensor Operations                                           | ``ov::Tensor::get_size``, ``ov::Tensor::data``, ``ov::InferRequest::get_tensor``                            | Get a tensor, its size and data                                              |
++-------------------------------------------------------------+-------------------------------------------------------------------------------------------------------------+------------------------------------------------------------------------------+
+| Profiling                                                   | ``ov::InferRequest::get_profiling_info``                                                                    | Get infer request profiling info                                             |
++-------------------------------------------------------------+-------------------------------------------------------------------------------------------------------------+------------------------------------------------------------------------------+
 
 
 Basic OpenVINO™ Runtime API is covered by :doc:`Hello Classification C++ sample <openvino_inference_engine_samples_hello_classification_README>`.
@@ -69,6 +69,7 @@ network.
 .. note::
 
    It is not always possible to use 8-bit weights due to GNA hardware limitations. For example, convolutional layers always use 16-bit weights (GNA hardware version 1 and 2). This limitation will be removed in GNA hardware version 3 and higher.
+
 
 .. _execution-modes-speech:
 
@@ -155,7 +156,7 @@ Model Preparation
 
 You can use the following model optimizer command to convert a Kaldi nnet1 or nnet2 neural model to OpenVINO™ toolkit Intermediate Representation format:
 
-.. code-block::
+.. code-block:: sh
    
    mo --framework kaldi --input_model wsj_dnn5b.nnet --counts wsj_dnn5b.counts --remove_output_softmax --output_dir <OUTPUT_MODEL_DIR>
 
@@ -172,7 +173,7 @@ Speech Inference
 
 Once the IR is created, you can do inference on Intel® Processors with the GNA co-processor (or emulation library):
 
-.. code-block::
+.. code-block:: sh
    
    speech_sample -m wsj_dnn5b.xml -i dev93_10.ark -r dev93_scores_10.ark -d GNA_AUTO -o result.ark
 
@@ -189,7 +190,7 @@ Sample Output
 
 The sample application logs each step in a standard output stream.
 
-.. code-block::
+.. code-block:: sh
    
    [ INFO ] OpenVINO runtime: OpenVINO Runtime version ......... 2022.1.0
    [ INFO ] Build ........... 2022.1.0-6311-a90bb1ff017
@@ -254,13 +255,13 @@ Kaldi's nnet-forward command. Since the ``speech_sample`` does not yet use pipes
 
 3. Run the Kaldi decoder to produce n-best text hypotheses and select most likely text given the WFST (``HCLG.fst``), vocabulary (``words.txt``), and TID/PID mapping (``final.mdl``):
    
-   .. code-block::
+   .. code-block:: sh
       
       latgen-faster-mapped --max-active=7000 --max-mem=50000000 --beam=13.0 --lattice-beam=6.0 --acoustic-scale=0.0833 --allow-partial=true    --word-symbol-table=words.txt final.mdl HCLG.fst ark:scores.ark ark:-| lattice-scale --inv-acoustic-scale=13 ark:- ark:- | lattice-best-path    --word-symbol-table=words.txt ark:- ark,t:-  > out.txt &
 
 4. Run the word error rate tool to check accuracy given the vocabulary (``words.txt``) and reference transcript (``test_filt.txt``):
 
-   .. code-block::
+   .. code-block:: sh
       
       cat out.txt | utils/int2sym.pl -f 2- words.txt | sed s:\<UNK\>::g | compute-wer --text --mode=present ark:test_filt.txt ark,p:-
 
