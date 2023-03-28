@@ -23,7 +23,10 @@ elif gen_script.endswith('.pbtxt'):
     model_pbtxt = gen_script
     model_name = os.path.basename(model_pbtxt).split('.')[0]
     dest_path = os.path.join(sys.argv[2], model_name, model_pbtxt)
-    shutil.copy(model_pbtxt, dest_path)
+    try:
+        shutil.copy(model_pbtxt, dest_path)
+    except shutil.SameFileError:
+        pass
 
 # Create mark file indicating that script was executed
 with open(mark_file, "w") as fp:
