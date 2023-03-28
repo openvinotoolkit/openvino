@@ -517,6 +517,9 @@ Parameter Engine::GetConfig(const std::string& name, const std::map<std::string,
     } else if (name == ov::hint::scheduling_core_type) {
         const auto core_type = engConfig.schedulingCoreType;
         return core_type;
+    } else if (name == ov::hint::use_hyper_threading) {
+        const bool ht_value = engConfig.useHyperThreading;
+        return decltype(ov::hint::use_hyper_threading)::value_type(ht_value);
     } else if (name == ov::hint::num_requests) {
         const auto perfHintNumRequests = engConfig.perfHintsConfig.ovPerfHintNumRequests;
         return decltype(ov::hint::num_requests)::value_type(perfHintNumRequests);
@@ -606,6 +609,7 @@ Parameter Engine::GetMetric(const std::string& name, const std::map<std::string,
                                                     RW_property(ov::hint::performance_mode.name()),
                                                     RW_property(ov::hint::num_requests.name()),
                                                     RW_property(ov::hint::scheduling_core_type.name()),
+                                                    RW_property(ov::hint::use_hyper_threading.name()),
                                                     RW_property(ov::device::id.name()),
         };
 

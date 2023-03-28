@@ -49,6 +49,10 @@ INSTANTIATE_TEST_SUITE_P(
         ::testing::Values("CPU", "MULTI", "HETERO", "AUTO"));
 
 INSTANTIATE_TEST_SUITE_P(smoke_OVClassSetConfigTest,
+                         OVClassSetUseHyperThreadingHintConfigTest,
+                         ::testing::Values("CPU"));
+
+INSTANTIATE_TEST_SUITE_P(smoke_OVClassSetConfigTest,
                          OVClassSetSchedulingCoreTypeHintConfigTest,
                          ::testing::Values("CPU"));
 
