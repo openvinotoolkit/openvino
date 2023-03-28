@@ -88,6 +88,21 @@ bool is_any_user_cpu(const std::list<const program_node*>& users) {
     }
     return false;
 }
+
+kernel_impl_params primitive_impl::static_canonicalize_shapes(const kernel_impl_params& impl_params) {
+    auto updated_impl_params = canonicalize_fused_shapes(impl_params);
+
+    for (auto& input_layout : updated_impl_params.input_layouts) {
+        input_layout.set_partial_shape(extend_shape_to_rank_from_end(input_layout.get_partial_shape()));
+    }
+
+    for (auto& output_layout : updated_impl_params.output_layouts) {
+        output_layout.set_partial_shape(extend_shape_to_rank_from_end(output_layout.get_partial_shape()));
+    }
+
+    return updated_impl_params;
+}
+
 uint32_t primitive_inst::get_network_id() const { return _network.get_id(); }
 
 void primitive_inst::check_memory_to_set(const memory& mem, const layout& layout) const {
@@ -242,11 +257,11 @@ void primitive_inst::update_shape() {
     }
 }
 
-void primitive_inst::realloc_if_needed() {
+event::ptr primitive_inst::realloc_if_needed() {
     GPU_DEBUG_GET_INSTANCE(debug_config);
     GPU_DEBUG_PROFILED_STAGE(instrumentation::pipeline_stage::memory_allocation);
 
-
+    event::ptr ev = nullptr;
     // Update param if fake_alignment is available
     auto updated_params = _node->type()->get_fake_aligned_params(*_impl_params);
     auto actual_layout = updated_params.get_output_layout();
@@ -254,28 +269,31 @@ void primitive_inst::realloc_if_needed() {
 
     // input_layout node is supposed to always use external memory in dynamic case
     if (_node->is_type<input_layout>())
-        return;
+        return ev;
 
     bool can_reuse_buffer = _outputs[0] && actual_layout.count() <= max_output_layout_size;
 
     if (can_reuse_buffer) {
         GPU_DEBUG_TRACE_DETAIL << id() << ": reuse previously allocated output buffer" << std::endl;
         _outputs[0] = _network.get_engine().reinterpret_buffer(*_outputs[0], actual_layout);
+        if (need_reset_output_memory()) {
+            ev = _outputs[0]->fill(_network.get_stream());
+        }
     } else {
         GPU_DEBUG_TRACE_DETAIL << id() << ": realloc output memory. "
                                <<  " Current buffer_size=" << max_output_layout_size
                                <<  " Requested buffer_size=" << actual_layout.count() << std::endl;
-        _outputs = allocate_outputs(&updated_params);
+        _outputs = allocate_outputs(&updated_params, need_reset_output_memory());
         // TODO : need to handle multiple outputs
         max_output_layout_size = updated_params.output_layouts[0].count();
     }
     // intermediate memory allocation is required for primitives consisting of multiple kernels in dynamic case
     {
         if (_impl == nullptr)
-            return;
+            return ev;
         const auto& ibuf_layouts = _impl->get_internal_buffer_layouts();
         if (ibuf_layouts.empty())
-            return;
+            return ev;
 
         for (size_t i = 0; i < ibuf_layouts.size(); ++i) {
             if (i < _intermediates_memory.size() && ibuf_layouts[i].bytes_count() <= max_intermediates_memory_sizes[i]) {
@@ -293,6 +311,7 @@ void primitive_inst::realloc_if_needed() {
             }
         }
     }
+    return ev;
 }
 
 bool primitive_inst::update_impl() {
@@ -304,7 +323,11 @@ bool primitive_inst::update_impl() {
         size_t offset = 0;
         for (size_t i = 0; i < _node->get_dependencies().size(); i++) {
             if (_node->get_dependency(i).get_output_layout().is_dynamic()) {
-                auto input_shape = _node->type()->extend_input_shape_to_6d(params, static_cast<uint32_t>(i));
+                auto pshape = params.get_input_layout(i).get_partial_shape();
+                auto input_shape = layout::transform(pshape,
+                                                     format::get_default_format(pshape.size()),
+                                                     format::bfwzyx).to_shape();
+
                 for (size_t j = 0; j < input_shape.size(); j++)
                     lock[offset++] = static_cast<int32_t>(input_shape[j]);
             }
@@ -312,7 +335,11 @@ bool primitive_inst::update_impl() {
 
         for (size_t i = 0; i < _node->get_output_layouts().size(); i++) {
             if (_node->get_output_layout(i).is_dynamic()) {
-                auto output_shape = _node->type()->extend_output_shape_to_6d(params, static_cast<uint32_t>(i));
+                auto pshape = params.get_output_layout(i).get_partial_shape();
+                auto output_shape = layout::transform(pshape,
+                                                      format::get_default_format(pshape.size()),
+                                                      format::bfwzyx).to_shape();
+
                 for (size_t j = 0; j < output_shape.size(); j++)
                     lock[offset++] = static_cast<int32_t>(output_shape[j]);
             }
@@ -361,9 +388,10 @@ bool primitive_inst::update_impl() {
                     cache.add(updated_params, impl->clone());
                 });
                 _impl = _dynamic_impl->clone();
-                _impl->update_dispatch_data(*_impl_params);
+                auto new_impl_params = _impl->canonicalize_shapes(*_impl_params);
+                _impl->update_dispatch_data(new_impl_params);
 
-                update_shape_info(*_impl_params);
+                update_shape_info(new_impl_params);
             } else {
                 _impl = _node->type()->choose_impl(*_node, updated_params);
                 auto& kernels_cache = get_network().get_program()->get_kernels_cache();
@@ -431,7 +459,9 @@ event::ptr primitive_inst::execute(const std::vector<event::ptr>& events) {
                 auto ev = update_weights();
                 if (ev)
                     dependencies.push_back(ev);
-                realloc_if_needed();
+                auto ev_reset = realloc_if_needed();
+                if (ev_reset)
+                    dependencies.push_back(ev_reset);
             }
         }
     }
@@ -763,15 +793,15 @@ static bool user_requesting_mem_reuse_false(const program_node& node) {
 }
 
 memory::ptr primitive_inst::allocate_output(engine& _engine, memory_pool& pool, const program_node& _node, const kernel_impl_params& impl_params,
-                                            uint32_t net_id, bool is_internal, size_t idx) {
+                                            uint32_t net_id, bool is_internal, size_t idx, bool reset) {
     auto get_memory_from_pool = [&](engine& _engine, const layout& layout, const primitive_id id, std::set<primitive_id> dependencies,
-            allocation_type type, bool reusable) {
+            allocation_type type, bool reusable, bool reset = true) {
         OPENVINO_ASSERT(!layout.is_dynamic() || layout.has_upper_bound(), "[GPU] Can't allocate output for dynamic layout without upper bound");
         // Use layout with max tensor for dynamic shape with upper bound
         auto static_layout = cldnn::layout(layout.data_type, layout.format, layout.get_tensor(), layout.data_padding);
         if (_node.get_program().get_config().get_property(ov::intel_gpu::enable_memory_pool))
-            return pool.get_memory(static_layout, id, net_id, dependencies, type, reusable);
-        return pool.get_memory(static_layout, type);
+            return pool.get_memory(static_layout, id, net_id, dependencies, type, reusable, reset);
+        return pool.get_memory(static_layout, type, reset);
     };
 
 
@@ -817,7 +847,8 @@ memory::ptr primitive_inst::allocate_output(engine& _engine, memory_pool& pool, 
                 _node.id(),
                 _node.get_memory_dependencies(),
                 alloc_type,
-                false);
+                false,
+                reset);
     } else if (is_internal && _node.is_output() && _node.is_type<generic_layer>() &&
             _engine.supports_allocation(allocation_type::usm_device) && usm_device_allocatable) {
         GPU_DEBUG_LOG << "[" << _node.id() << ": output]" << std::endl;
@@ -829,23 +860,24 @@ memory::ptr primitive_inst::allocate_output(engine& _engine, memory_pool& pool, 
         return _engine.allocate_memory(layout, alloc_type, false);
     } else if (is_internal || (!_node.can_share_buffer()) || _node.can_be_optimized() || _node.is_output()) {
         GPU_DEBUG_LOG << "[" << _node.id() << ": output]" << std::endl;
-        return _engine.allocate_memory(layout, alloc_type);
+        return _engine.allocate_memory(layout, alloc_type, reset);
     } else {
         return get_memory_from_pool(_engine,
                 layout,
                 _node.id(),
                 _node.get_memory_dependencies(),
                 alloc_type,
-                true);
+                true,
+                reset);
     }
 }
 
-std::vector<memory::ptr> primitive_inst::allocate_outputs(kernel_impl_params* updated_params) {
+std::vector<memory::ptr> primitive_inst::allocate_outputs(kernel_impl_params* updated_params, bool reset_mem) {
     std::vector<memory::ptr> outputs;
     for (size_t i = 0; i < get_node().get_outputs_count() ; ++i) {
         outputs.push_back(allocate_output(get_network().get_engine(), _network.get_memory_pool(),
                          *_node, (updated_params != nullptr) ? *updated_params : *_impl_params,
-                         get_network_id(), _network.is_internal(), i));
+                         get_network_id(), _network.is_internal(), i, reset_mem));
     }
     return outputs;
 }
