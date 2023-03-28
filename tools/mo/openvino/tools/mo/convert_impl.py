@@ -39,7 +39,7 @@ from openvino.tools.mo.utils.guess_framework import deduce_legacy_frontend_by_na
 from openvino.tools.mo.utils.logger import init_logger, progress_printer
 from openvino.tools.mo.utils.utils import refer_to_faq_msg
 from openvino.tools.mo.utils.telemetry_utils import send_params_info, send_framework_info
-from openvino.tools.mo.utils.version import get_simplified_mo_version, get_simplified_ie_version, get_version
+from openvino.tools.mo.utils.version import get_simplified_mo_version, get_simplified_ie_version, get_version, simplify_version
 from openvino.tools.mo.utils.versions_checker import check_requirements  # pylint: disable=no-name-in-module
 from openvino.tools.mo.utils.telemetry_utils import get_tid
 from openvino.tools.mo.moc_frontend.check_config import legacy_extensions_used
@@ -743,9 +743,11 @@ def _convert(cli_parser: argparse.ArgumentParser, framework, args):
         show_mo_convert_help()
         return None, None
 
-    telemetry = tm.Telemetry(tid=get_tid(), app_name='Model Optimizer', app_version=get_simplified_mo_version())
+    version = get_version()
+    simplified_mo_version = simplify_version(version)
+    telemetry = tm.Telemetry(tid=get_tid(), app_name='Model Optimizer', app_version=simplified_mo_version)
     telemetry.start_session('mo')
-    telemetry.send_event('mo', 'version', get_simplified_mo_version())
+    telemetry.send_event('mo', 'version', simplified_mo_version)
     # Initialize logger with 'ERROR' as default level to be able to form nice messages
     # before arg parser deliver log_level requested by user
     init_logger('ERROR', False)
@@ -799,7 +801,7 @@ def _convert(cli_parser: argparse.ArgumentParser, framework, args):
         ov_model, legacy_path = driver(argv, {"conversion_parameters": non_default_params})
 
         # add MO meta data to model
-        ov_model.set_rt_info(get_version(), "MO_version")
+        ov_model.set_rt_info(version, "MO_version")
         ov_model.set_rt_info(get_rt_version(), "Runtime_version")
         ov_model.set_rt_info(str(legacy_path), "legacy_frontend")
         for key, value in non_default_params.items():
