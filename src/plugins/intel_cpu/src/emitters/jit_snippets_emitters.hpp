@@ -356,9 +356,6 @@ private:
         float beta;
     };
     void initBrgemm(brgemmCtx& ctx, std::unique_ptr<dnnl::impl::cpu::x64::brgemm_kernel_t>& brgKernel, bool use_amx) const;
-    template <dnnl::impl::cpu::x64::cpu_isa_t isa>
-    void callBrgemm(brgemmCtx& ctx, std::unique_ptr<dnnl::impl::cpu::x64::brgemm_kernel_t>& brgKernel,
-                    const void* pin0, const void* pin1, void* pout, void* wsp) const;
     size_t getBrgIdx(size_t kIdx, size_t nIdx) const;
     template <dnnl::impl::cpu::x64::cpu_isa_t isa>
     void emit_brgemm_kernel_call(const dnnl::impl::cpu::x64::brgemm_kernel_t *brg_kernel, int bs,
@@ -366,12 +363,11 @@ private:
                                  const dnnl::impl::cpu::x64::brgemm_batch_element_t *batch, Xbyak::Reg64 addr_C, void *scratch,
                                  const size_t in0_kernel_offset, const size_t in1_kernel_offset, const size_t out0_kernel_offset) const;
     static void kernel_execute(const dnnl::impl::cpu::x64::brgemm_kernel_t *brg_kernel, const void *A, const void *B, void *C);
-    static constexpr size_t BRGEMM_KERNELS_NUM = 8;
-    static constexpr size_t matmulOptimalM = 32;
+    static constexpr size_t BRGEMM_KERNELS_NUM = 4;
     brgemmCtx brgCtxs0[BRGEMM_KERNELS_NUM];
     std::unique_ptr<dnnl::impl::cpu::x64::brgemm_kernel_t> brgKernels0[BRGEMM_KERNELS_NUM];
 
-    size_t M, M_blk, M_tail;
+    size_t M;
     size_t K, K_blk, K_tail;
     size_t N, N_blk, N_tail;
     size_t brg0VnniFactor;

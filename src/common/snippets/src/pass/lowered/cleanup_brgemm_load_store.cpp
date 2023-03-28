@@ -28,6 +28,7 @@ bool CleanupBrgemmLoadStore::run(LoweredExprIR& linear_ir) {
             for (size_t port = 0; port < brgemm_ins.size(); port++) {
                 const auto& in_expr = linear_ir.get_expr_by_output(brgemm_ins[port]).expr;
                 if (is_type<op::Load>(in_expr->get_node())) {
+                    // zero ptr increments and finalization offsets on non-zero input port
                     if (port != 0) {
                         const auto& load_input_consumers = linear_ir.get_exprs_by_input(in_expr->get_inputs()[0]);
                         for (const auto& expr_port : load_input_consumers) {
@@ -35,6 +36,9 @@ bool CleanupBrgemmLoadStore::run(LoweredExprIR& linear_ir) {
                                 auto ptr_incr = loop_end->get_ptr_increments();
                                 ptr_incr[expr_port.port] = 0;
                                 loop_end->set_ptr_increments(ptr_incr);
+                                auto fin_off = loop_end->get_finalization_offsets();
+                                fin_off[expr_port.port] = 0;
+                                loop_end->set_finalization_offsets(fin_off);
                             }
                         }
                     }

@@ -62,12 +62,13 @@ bool LoopMarkup::run(LoweredExprIR& linear_ir) {
             // If the next expr isn't real customer of prev expr we should finish Loop
             const auto& ins = loop_end_pos->get()->get_inputs();
             auto connected = [&](const TensorDescriptorPtr& td) {return linear_ir.get_expr_by_output(td).expr == prev_expr;};
+            auto compatible = [&](const TensorDescriptorPtr& td) {return  td->get_layout() == loop_inner_layout &&
+                                                                        td->get_layout() == loop_inner_subtensor;};
             if (std::none_of(ins.begin(), ins.end(), connected))
                 break;
 
-            const auto& layout = ins.front()->get_layout();
-            const auto& subtensor = ins.front()->get_subtensor();
-            is_inside &= layout == loop_inner_layout && subtensor == loop_inner_subtensor;
+            is_inside &= std::any_of(ins.begin(), ins.end(), connected) &&
+                         std::all_of(ins.begin(), ins.end(), compatible);
         } while (is_inside);
 
         loop_manager->mark_loop(linear_ir, loop_begin_pos, loop_end_pos, loop_depth, m_vector_size);

@@ -766,7 +766,7 @@ BrgemmEmitter::BrgemmEmitter(dnnl::impl::cpu::x64::jit_generator* h, dnnl::impl:
 
     K = A_shape[A_layout[3]];
     const auto& brgemm_td = ngraph::snippets::get_tensor_descriptor_ptr(brgemm_node);
-    M_blk = std::min(brgemm_node->get_count(), brgemm_td->get_subtensor().front());
+    M = std::min(brgemm_node->get_count(), brgemm_td->get_subtensor().front());
     N = C_shape[C_layout[3]];
 
     auto brg0Prc = InferenceEngine::details::convertPrecision(brgemm_node->get_input_element_type(0));
@@ -782,12 +782,11 @@ BrgemmEmitter::BrgemmEmitter(dnnl::impl::cpu::x64::jit_generator* h, dnnl::impl:
                          : K;
     K_tail = K % K_blk;
 
-    size_t brg0BaseIdx = -1;
     for (size_t k = 0; k < 2; k++) {
         for (size_t n = 0; n < 2; n++) {
             auto& brgemmCtx = brgCtxs0[getBrgIdx(k, n)];
 
-            auto M_ = M_blk;
+            auto M_ = M;
             auto N_ = n ? N_tail : N - N_tail;
             auto K_ = k ? K_tail : K - K_tail;
             auto beta = k && brgCtxs0[getBrgIdx(0, n)].K != 0 ? 1.0f : 0.0f;
@@ -804,8 +803,6 @@ BrgemmEmitter::BrgemmEmitter(dnnl::impl::cpu::x64::jit_generator* h, dnnl::impl:
 
             // don't create brgemm kernels for empty tiles
             if (M_ != 0 && K_ != 0 && N_ != 0) {
-                if (brg0BaseIdx == -1)
-                    brg0BaseIdx = getBrgIdx(k, n);
                 initBrgemm(brgemmCtx, brgKernels0[getBrgIdx(k, n)], brg0WithAMX);
             }
         }
@@ -856,16 +853,16 @@ void BrgemmEmitter::emit_brgemm_kernel_call(const brgemm_kernel_t *brgKernel, in
                                             const size_t in0_kernel_offset, const size_t in1_kernel_offset, const size_t out0_kernel_offset) const {
     using Vmm = typename dnnl::impl::utils::conditional3<isa == cpu::x64::sse41, Xmm, isa == cpu::x64::avx2, Ymm, Zmm>::type;
     size_t gpr_size = 8;
-    Xbyak::Operand gprs_to_save[] = {h->r8, h->r9, h->r10, h->r11, h->rax,
+    std::vector<Xbyak::Operand> gprs_to_save {h->r8, h->r9, h->r10, h->r11, h->rax,
                                      h->rcx, h->rdx, h->rdi, h->rsi, h->rbp, h->rbx};
-    size_t n_gprs_to_save = sizeof(gprs_to_save) / sizeof(gprs_to_save[0]);
+    int n_gprs_to_save = static_cast<int>(gprs_to_save.size());
 
     h->sub(h->rsp, n_gprs_to_save * gpr_size);
     for (size_t i = 0; i < n_gprs_to_save; ++i)
         h->mov(h->ptr[h->rsp + i * gpr_size], gprs_to_save[i]);
 
     // caller obligation to save k-regs as callee may use them
-    size_t n_k_regs_to_save = 8;
+    int n_k_regs_to_save = 8;
     if (isa == cpu::x64::avx512_core) {
         h->sub(h->rsp, n_k_regs_to_save * k_mask_size);
         for (size_t i = 0; i < n_k_regs_to_save; ++i) {
