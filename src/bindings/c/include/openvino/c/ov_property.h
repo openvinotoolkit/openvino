@@ -120,6 +120,13 @@ OPENVINO_C_VAR(const char*)
 ov_property_key_inference_num_threads;
 
 /**
+ * @brief Read-write property, it is high-level OpenVINO hint for using hyper threading processors during CPU inference
+ * @ingroup ov_property_c_api
+ */
+OPENVINO_C_VAR(const char*)
+ov_property_key_hint_use_hyper_threading;
+
+/**
  * @brief Read-write property, it is high-level OpenVINO Performance Hints
  * @ingroup ov_property_c_api
  */
