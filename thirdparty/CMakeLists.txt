@@ -419,27 +419,46 @@ endif()
 #
 # Snappy Compression
 #
-if(ENABLE_SNAPPY_COMPRESSION)
-    function(tf_build_snappy)
-        set(BUILD_SHARED_LIBS OFF)
-        set(SNAPPY_BUILD_BENCHMARKS OFF)
-        set(SNAPPY_BUILD_TESTS OFF)
-        set(INSTALL_GTEST OFF)
-        set(CMAKE_COMPILE_WARNING_AS_ERROR OFF)
-        set(CMAKE_CXX_STANDARD 14)
-        if(NOT CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
-            # Removes 3rd party errors which may affect OpenVINO CI
-            if(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
-                if(NOT CMAKE_CXX_FLAGS MATCHES "-Werror=return-type")
-                    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Werror=return-type")
-                endif()
-            endif()
-        endif()
-        add_subdirectory(snappy EXCLUDE_FROM_ALL)
-    endfunction()
 
-    tf_build_snappy()
-    ov_install_static_lib(snappy ${OV_CPACK_COMP_CORE})
+if(ENABLE_SNAPPY_COMPRESSION)
+    if(ENABLE_SYSTEM_SNAPPY)
+        find_package(Snappy REQUIRED)
+        set_target_properties(Snappy::snappy PROPERTIES IMPORTED_GLOBAL ON)
+    endif()
+
+    if(NOT TARGET Snappy::snappy)
+        function(tf_build_snappy)
+            set(BUILD_SHARED_LIBS OFF)
+            set(SNAPPY_BUILD_BENCHMARKS OFF)
+            set(SNAPPY_BUILD_TESTS OFF)
+            set(INSTALL_GTEST OFF)
+            set(CMAKE_CXX_STANDARD 14)
+            if(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
+                # '<': signed/unsigned mismatch
+                ie_add_compiler_flags(/wd4018)
+                # conditional expression is constant
+                ie_add_compiler_flags(/wd4127)
+                # 'conversion' conversion from 'type1' to 'type2', possible loss of data
+                ie_add_compiler_flags(/wd4244)
+                # 'conversion' : conversion from 'type1' to 'type2', signed/unsigned mismatch
+                ie_add_compiler_flags(/wd4245)
+                # 'var' : conversion from 'size_t' to 'type', possible loss of data
+                ie_add_compiler_flags(/wd4267)
+            elseif(CMAKE_COMPILER_IS_GNUCXX OR OV_COMPILER_IS_CLANG)
+                # we need to pass -Wextra first, then -Wno-sign-compare
+                # otherwise, snappy's CMakeLists.txt will do it for us
+                ie_add_compiler_flags(-Wextra)
+                ie_add_compiler_flags(-Wno-sign-compare)
+            endif()
+
+            add_subdirectory(snappy EXCLUDE_FROM_ALL)
+            # need to create alias Snappy::snappy
+            add_library(Snappy::snappy ALIAS snappy)
+        endfunction()
+
+        tf_build_snappy()
+        ov_install_static_lib(snappy ${OV_CPACK_COMP_CORE})
+    endif()
 endif()
 
 #
