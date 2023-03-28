@@ -173,28 +173,6 @@ OPENVINO_C_VAR(const char*)
 ov_property_key_device_priorities;
 
 /**
- * @brief Read-write property<string> for setting that enables performance improvement by binding
- * buffer to hw infer request
- * @ingroup ov_property_c_api
- */
-OPENVINO_C_VAR(const char*)
-ov_property_key_intel_auto_device_bind_buffer;
-
-/**
- * @brief Read-write property<string> to enable/disable CPU as accelerator (or helper device) at the beginning
- * @ingroup ov_property_c_api
- */
-OPENVINO_C_VAR(const char*)
-ov_property_key_intel_auto_enable_startup_fallback;
-
-/**
- * @brief Read-write property<string> to enable/disable runtime fallback to other devices when infer fails
- * @ingroup ov_property_c_api
- */
-OPENVINO_C_VAR(const char*)
-ov_property_key_intel_auto_enable_runtime_fallback;
-
-/**
  * @brief Read-write property<string> for high-level OpenVINO Execution hint
  * unlike low-level properties that are individual (per-device), the hints are something that every device accepts
  * and turns into device-specific settings
