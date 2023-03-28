@@ -3,7 +3,7 @@
 //
 // The implementation for BILINEAR_PILLOW and BICUBIC_PILLOW is based on the
 // Pillow library code from:
-// https://github.com/python-pillow/Pillow/blob/main/src/libImaging/Resample.c
+// https://github.com/python-pillow/Pillow/blob/9.4.0/src/libImaging/Resample.c
 
 // The Python Imaging Library (PIL) is
 
