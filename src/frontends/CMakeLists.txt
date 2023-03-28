@@ -32,10 +32,6 @@ if (ENABLE_OV_TF_LITE_FRONTEND)
     add_subdirectory(tensorflow_lite)
 endif()
 
-if(OV_COMPILER_IS_CLANG)
-    ie_add_compiler_flags(-Wno-delete-non-abstract-non-virtual-dtor)
-endif()
-
 if(ENABLE_OV_PADDLE_FRONTEND)
     add_subdirectory(paddle)
 endif()
