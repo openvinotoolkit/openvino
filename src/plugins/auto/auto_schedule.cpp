@@ -397,12 +397,12 @@ void AutoSchedule::init(const ScheduleContext::Ptr& sContext) {
     std::vector<Task> otherDevicesloads;
     std::vector<Task> cpuLoads;
     if (_pCTPUTLoadContext) {
-        for (size_t i = 0; i < _autoSContext->_devicePriorities.size(); i++) {
+        for (size_t i = 0; i < _nCTputDeviceNums; i++) {
             auto* contextPtr = &_pCTPUTLoadContext[i];
             auto modelPath = _autoSContext->_modelPath;
             auto network = _autoSContext->_network;
             _pCTPUTLoadContext[i].task = std::bind(loadDeviceTask, contextPtr, modelPath, network, isCumulative);
-            if (i == _autoSContext->_devicePriorities.size() - 1 &&
+            if (i == _nCTputDeviceNums - 1 &&
                 _pCTPUTLoadContext[i].deviceInfo.deviceName.find("CPU") != std::string::npos) {
                 cpuLoads.push_back(_pCTPUTLoadContext[i].task);
             } else {
@@ -793,7 +793,6 @@ IInferPtr AutoSchedule::CreateInferRequest() {
             so = _passthroughExeNet._so;
         syncRequestImpl->setPointerToSo(so);
     } else if (std::static_pointer_cast<MultiDeviceInferRequest>(syncRequestImpl)->GetSharedRequest()) {
-        // cumulative case, load to MULTI:*
         auto sharedMultiRequest = std::static_pointer_cast<MultiDeviceInferRequest>(syncRequestImpl)->GetSharedRequest();
         if (sharedMultiRequest._ptr->getPointerToSo())
             syncRequestImpl->setPointerToSo(sharedMultiRequest._ptr->getPointerToSo());

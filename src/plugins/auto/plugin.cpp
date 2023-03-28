@@ -476,10 +476,19 @@ IExecutableNetworkInternal::Ptr MultiDeviceInferencePlugin::LoadNetworkImpl(cons
     autoSContext->_plugin = this;
     autoSContext->_core = GetCore();
     autoSContext->_LogTag = _LogTag;
-    autoSContext->_bindBuffer = loadConfig.get_property(ov::intel_auto::device_bind_buffer);
     autoSContext->_startupfallback = loadConfig.get_property(ov::intel_auto::enable_startup_fallback);
     autoSContext->_runtimeFallback = loadConfig.get_property(ov::intel_auto::enable_runtime_fallback);
-    return std::make_shared<AutoExecutableNetwork>(autoSContext, std::make_shared<AutoSchedule>());
+    IExecutableNetworkInternal::Ptr impl;
+    // enable bind only in cumulative_throughput mode
+    if (loadConfig.get_property(ov::intel_auto::device_bind_buffer) &&
+        autoSContext->_performanceHint == "CUMULATIVE_THROUGHPUT") {
+        LOG_INFO_TAG("runtime fallback set to disabled in binder mode");
+        autoSContext->_runtimeFallback = false;
+        impl = std::make_shared<AutoExecutableNetwork>(autoSContext, std::make_shared<BinderMultiSchedule>());
+    } else {
+        impl = std::make_shared<AutoExecutableNetwork>(autoSContext, std::make_shared<AutoSchedule>());
+    }
+    return impl;
 }
 
 QueryNetworkResult MultiDeviceInferencePlugin::QueryNetwork(const CNNNetwork&                         network,

@@ -64,7 +64,6 @@ TEST_P(MultiDevice_Test, cannotInferRemoteBlobIfNotInitializedForDevice) {
 }
 
 TEST_P(MultiDevice_Bind_oversubsciption_test, oversubsciptionOfInferRequest) {
-    GTEST_SKIP();
     InferenceEngine::CNNNetwork net(fn_ptr);
     auto ie = PluginCache::get().ie();
     // load a network to the GPU to make sure we have a remote context
