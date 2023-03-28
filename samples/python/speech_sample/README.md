@@ -55,9 +55,9 @@ model.
 
 Several execution modes are supported via the `-d` flag:
 
-- `CPU` - All calculation are performed on CPU device using CPU Plugin.
-- `GPU` - All calculation are performed on GPU device using GPU Plugin.
-- `VPUX` - All calculation are performed on VPUX device using VPUX Plugin.
+- `CPU` - All calculations are performed on CPU device using CPU Plugin.
+- `GPU` - All calculations are performed on GPU device using GPU Plugin.
+- `VPUX` - All calculations are performed on VPUX device using VPUX Plugin.
 - `GNA_AUTO` - GNA hardware is used if available and the driver is installed. Otherwise, the GNA device is emulated in fast-but-not-bit-exact mode.
 - `GNA_HW` - GNA hardware is used if available and the driver is installed. Otherwise, an error will occur.
 - `GNA_SW` - Deprecated. The GNA device is emulated in fast-but-not-bit-exact mode.
@@ -102,11 +102,17 @@ optional arguments:
 Options:
   -h, --help            Show this help message and exit.
   -i INPUT, --input INPUT
-                        Required. Path to an input file (.ark or .npz).
+                        Required. Path(s) to input file(s).
+                        Usage for a single file/layer: <input_file.ark> or <input_file.npz>.
+                        Example of usage for several files/layers: <layer1>:<port_num1>=<input_file1.ark>,<layer2>:<port_num2>=<input_file2.ark>.
   -o OUTPUT, --output OUTPUT
-                        Optional. Output file name to save inference results (.ark or .npz).
+                        Optional. Output file name(s) to save scores (inference results).
+                        Usage for a single file/layer: <output_file.ark> or <output_file.npz>.
+                        Example of usage for several files/layers: <layer1>:<port_num1>=<output_file1.ark>,<layer2>:<port_num2>=<output_file2.ark>.
   -r REFERENCE, --reference REFERENCE
-                        Optional. Read reference score file and compare scores.
+                        Read reference score file(s) and compare inference results with reference scores.
+                        Usage for a single file/layer: <reference_file.ark> or <reference_file.npz>.
+                        Example of usage for several files/layers: <layer1>:<port_num1>=<reference_file1.ark>,<layer2>:<port_num2>=<reference_file2.ark>.
   -d DEVICE, --device DEVICE
                         Optional. Specify a target device to infer on. CPU, GPU, VPUX, GNA_AUTO, GNA_HW, GNA_SW_FP32,   
                         GNA_SW_EXACT and HETERO with combination of GNA as the primary device and CPU as a secondary (e.g.   
@@ -117,10 +123,11 @@ Options:
   -layout LAYOUT        Optional. Custom layout in format: "input0[value0],input1[value1]" or "[value]" (applied to all      
                         inputs)
   -qb [8, 16], --quantization_bits [8, 16]
-                        Optional. Weight bits for quantization: 8 or 16 (default 16).
+                        Optional. Weight resolution in bits for GNA quantization: 8 or 16 (default 16).
   -sf SCALE_FACTOR, --scale_factor SCALE_FACTOR
-                        Optional. The user-specified input scale factor for quantization. If the model contains multiple     
-                        inputs, provide scale factors by separating them with commas.
+                        Optional. User-specified input scale factor for GNA quantization.
+                        If the model contains multiple inputs, provide scale factors by separating them with commas.
+                        For example: <layer1>:<sf1>,<layer2>:<sf2> or just <sf> to be applied to all inputs.
   -wg EXPORT_GNA_MODEL, --export_gna_model EXPORT_GNA_MODEL
                         Optional. Write GNA model to file using path/filename provided.
   -we EXPORT_EMBEDDED_GNA_MODEL, --export_embedded_gna_model EXPORT_EMBEDDED_GNA_MODEL
@@ -135,12 +142,6 @@ Options:
                         Optional. Enables performance report (specify -a to ensure arch accurate results).
   -a [CORE, ATOM], --arch [CORE, ATOM]
                         Optional. Specify architecture. CORE, ATOM with the combination of -pc.
-  -iname INPUT_LAYERS, --input_layers INPUT_LAYERS
-                        Optional. Layer names for input blobs. The names are separated with ",". Allows to change the order  
-                        of input layers for -i flag. Example: Input1,Input2
-  -oname OUTPUT_LAYERS, --output_layers OUTPUT_LAYERS
-                        Optional. Layer names for output blobs. The names are separated with ",". Allows to change the       
-                        order of output layers for -o flag. Example: Output1:port,Output2:port.
   -cw_l CONTEXT_WINDOW_LEFT, --context_window_left CONTEXT_WINDOW_LEFT
                         Optional. Number of frames for left context windows (default is 0). Works only with context window   
                         models. If you use the cw_l or cw_r flag, then batch size argument is ignored.

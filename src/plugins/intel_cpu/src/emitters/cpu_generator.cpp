@@ -26,8 +26,14 @@
 using namespace std;
 using namespace ngraph::snippets;
 
-#define CREATE_EMITTER(e_type) [this](const std::shared_ptr<ngraph::Node>& n) \
-    -> std::shared_ptr<ngraph::snippets::Emitter> {return std::make_shared<e_type>(h.get(), isa, n);};
+#define CREATE_EMITTER(e_type) { \
+    [this](const std::shared_ptr<ngraph::Node>& n) -> std::shared_ptr<ngraph::snippets::Emitter> { \
+        return std::make_shared<e_type>(h.get(), isa, n); \
+    }, \
+    [](const std::shared_ptr<ngraph::Node>& n) -> std::set<std::vector<element::Type>> { \
+        return e_type::get_supported_precisions(n); \
+    } \
+};
 
 class jit_snippet : public dnnl::impl::cpu::x64::jit_generator {
 public:
@@ -155,7 +161,7 @@ bool ov::intel_cpu::CPUTargetMachine::is_supported() const {
 }
 
 code ov::intel_cpu::CPUTargetMachine::get_snippet() const {
-    if (h->create_kernel() != status::success) {
+    if (h->create_kernel() != dnnl::impl::status::success) {
         IE_THROW() << "Failed to create jit_kernel in get_snippet()";
     }
     return h->jit_ker();

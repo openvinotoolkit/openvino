@@ -9,6 +9,8 @@
 #include <intel_gpu/primitives/input_layout.hpp>
 #include <intel_gpu/primitives/mutable_data.hpp>
 
+#include <arg_max_min_inst.h>
+
 #include "test_utils.h"
 
 using namespace cldnn;
@@ -83,7 +85,7 @@ TYPED_TEST(argmax_gpu_test, base) {
                                     /*b1f3*/ 4.f,  0.5f,  8.f,   8.2f};
     set_values(input, this->getTypedVector(input_vec));
 
-    network network(engine, topology);
+    network network(engine, topology, get_test_default_config(engine));
 
     network.set_input_data("input", input);
     auto outputs = network.execute();
@@ -127,7 +129,7 @@ TEST(arg_max_gpu_min_axis_batch_bfzyx, i32) {
 
     set_values(input, input_vec);
 
-    network network(engine, topology);
+    network network(engine, topology, get_test_default_config(engine));
 
     network.set_input_data("input", input);
     auto outputs = network.execute();
@@ -194,7 +196,7 @@ TEST(arg_max_gpu_min_axis_y_yxfb, f32) {
 
     set_values(input, input_vec);
 
-    network network(engine, topology);
+    network network(engine, topology, get_test_default_config(engine));
 
     network.set_input_data("input", input);
     auto outputs = network.execute();
@@ -259,7 +261,7 @@ TEST(arg_max_gpu_min_axis_batch_yxfb, f32) {
 
     set_values(input, input_vec);
 
-    network network(engine, topology);
+    network network(engine, topology, get_test_default_config(engine));
 
     network.set_input_data("input", input);
     auto outputs = network.execute();
@@ -316,7 +318,7 @@ TEST(arg_max_gpu_min_axis_y_yxfb_topk_2, f32) {
 
     set_values(input, input_vec);
 
-    network network(engine, topology);
+    network network(engine, topology, get_test_default_config(engine));
 
     network.set_input_data("input", input);
     auto outputs = network.execute();
@@ -360,7 +362,7 @@ TEST(top_k_layer_tests, second_output) {
                                     /*b1f3*/ 4.f,  0.5f,  8.f,   8.2f};
     set_values(input, input_vec);
 
-    network network(engine, topology);
+    network network(engine, topology, get_test_default_config(engine));
 
     network.set_input_data("input", input);
     auto outputs = network.execute();
@@ -454,7 +456,7 @@ TEST(top_k_layer_tests, second_output2) {
 
     set_values(input, input_vec);
 
-    network network(engine, topology);
+    network network(engine, topology, get_test_default_config(engine));
 
     network.set_input_data("input", input);
     auto outputs = network.execute();
@@ -539,7 +541,7 @@ TEST(top_k_layer_tests, multiple_outputs) {
 
     set_values(input, input_vec);
 
-    ExecutionConfig config;
+    ExecutionConfig config = get_test_default_config(engine);
     config.set_property(ov::intel_gpu::optimize_data(true));
     config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
 
@@ -601,7 +603,7 @@ TEST(arg_max_gpu_min_axis_y_yxfb_topk_2, sort_by_values) {
 
     set_values(input, input_vec);
 
-    network network(engine, topology);
+    network network(engine, topology, get_test_default_config(engine));
 
     network.set_input_data("input", input);
     auto outputs = network.execute();
@@ -658,7 +660,7 @@ TEST(arg_max_gpu_min_axis_y_yxfb_topk_2, sort_by_indices) {
 
     set_values(input, input_vec);
 
-    network network(engine, topology);
+    network network(engine, topology, get_test_default_config(engine));
 
     network.set_input_data("input", input);
     auto outputs = network.execute();
@@ -701,7 +703,7 @@ void test_top_k_layer_tests_sort_probabilities_by_indices(bool is_caching_test) 
 
     set_values(input, input_vec);
 
-    cldnn::network::ptr network = get_network(engine, topology, ExecutionConfig(), get_test_stream_ptr(), is_caching_test);
+    cldnn::network::ptr network = get_network(engine, topology, get_test_default_config(engine), get_test_stream_ptr(), is_caching_test);
 
     network->set_input_data("input", input);
     auto outputs = network->execute();
@@ -851,7 +853,7 @@ void test_top_k_layer_md_sync(bool is_caching_test) {
                              true));
     topology.add(mutable_data("arg_max.1", { input_info("arg_max.0") }, shared_memory));
 
-    cldnn::network::ptr network = get_network(engine, topology, ExecutionConfig(), get_test_stream_ptr(), is_caching_test);
+    cldnn::network::ptr network = get_network(engine, topology, get_test_default_config(engine), get_test_stream_ptr(), is_caching_test);
 
     network->set_input_data("input1", input1);
     auto outputs = network->execute();
@@ -869,4 +871,53 @@ TEST(top_k_layer_tests, md_sync) {
 
 TEST(export_import_top_k_layer_tests, md_sync) {
     test_top_k_layer_md_sync<int>(true);
+}
+
+TEST(arg_max_min_gpu, dynamic) {
+    static const int32_t x_size = 2, y_size = 2, feature_num = 4, batch_num = 2;
+    auto& engine = get_test_engine();
+    const int top_k = 2;
+    auto input_layout_dynamic = layout{ov::PartialShape::dynamic(4), data_types::f32, format::bfyx};
+    auto input_layout_static = layout{ov::PartialShape{batch_num, feature_num, y_size, x_size}, data_types::f32, format::bfyx};
+    auto input = engine.allocate_memory(input_layout_static);
+
+    topology topology;
+    topology.add(input_layout("input", input_layout_dynamic));
+    topology.add(arg_max_min("arg_max", { input_info("input") }, ov::op::TopKMode::MIN, top_k, 0));
+
+    std::vector<float> input_vec = {// y0x0 y0x1 y1x0 y1x1
+                                    /*b0f0*/ 0.1f, -0.1f, 0.9f, 1.5f,
+                                    /*b0f1*/ 0.2f, 0.2f, -10.f, 5.2f,
+                                    /*b0f2*/ 0.2f, 0.2f, -10.f, 5.2f,
+                                    /*b0f3*/ 0.2f, 0.2f, -10.f, 4.2f,
+
+                                    /*b1f0*/ 3.f,  0.5f, 7.f, 10.f,
+                                    /*b1f1*/ 4.f,  0.5f, 8.f, 8.2f,
+                                    /*b1f2*/ 0.2f, 0.2f, -10.f, 5.2f,
+                                    /*b1f3*/ 4.f,  0.5f, 8.f, 8.2f};
+
+    set_values(input, input_vec);
+
+    ExecutionConfig config;
+    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+    network network(engine, topology, config);
+    network.set_input_data("input", input);
+
+    auto inst = network.get_primitive("arg_max");
+    auto impl = inst->get_impl();
+    ASSERT_TRUE(impl != nullptr);
+    ASSERT_TRUE(impl->is_dynamic());
+
+    auto outputs = network.execute();
+    ASSERT_EQ(outputs.size(), size_t(1));
+    ASSERT_EQ(outputs.begin()->first, "arg_max");
+
+    const int out_size = y_size * feature_num * x_size * top_k;
+    auto output = outputs.at("arg_max").get_memory();
+    cldnn::mem_lock<float> output_ptr(output, get_test_stream());
+
+    ASSERT_EQ(output_ptr.size(), out_size);
+    for (uint32_t i = 0; i < out_size; i++) {
+        ASSERT_FLOAT_EQ(output_ptr[i], i < (out_size / 2) ? 0 : 1);
+    }
 }

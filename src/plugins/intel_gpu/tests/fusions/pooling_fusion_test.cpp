@@ -35,8 +35,9 @@ public:
     void execute(pooling_test_params& p) {
         if (engine.get_device_info().supports_immad)
             p.expected_fused_primitives = p.expected_fused_primitives_onednn;
+
         auto input_prim = get_mem(get_input_layout(p));
-        ExecutionConfig config;
+        ExecutionConfig config = get_test_default_config(engine);
         config.set_property(ov::intel_gpu::optimize_data(true));
         if (!p.kernel_name.empty()) {
             ov::intel_gpu::ImplementationDesc impl = { p.input_format, p.kernel_name };
@@ -540,12 +541,14 @@ public:
         ov::intel_gpu::ImplementationDesc onednn_impl = { p.input_format, "", impl_types::onednn };
         ov::intel_gpu::ImplementationDesc cldnn_impl = { p.input_format, "", impl_types::ocl };
 
-        ExecutionConfig cldnn_cfg{ov::intel_gpu::queue_type(QueueTypes::in_order),
+        ExecutionConfig cldnn_cfg = get_test_default_config(engine,
+                                  {ov::intel_gpu::queue_type(QueueTypes::in_order),
                                   ov::intel_gpu::optimize_data(true),
-                                  ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ { "pooling", cldnn_impl } })};
-        ExecutionConfig onednn_cfg{ov::intel_gpu::queue_type(QueueTypes::in_order),
+                                  ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ { "pooling", cldnn_impl } })});
+        ExecutionConfig onednn_cfg = get_test_default_config(engine,
+                                   {ov::intel_gpu::queue_type(QueueTypes::in_order),
                                    ov::intel_gpu::optimize_data(true),
-                                   ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ { "pooling", onednn_impl } })};
+                                   ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ { "pooling", onednn_impl } })});
 
         // for onednn fusing test, topology_non_fused means cldnn, topology_fused is onednn
         network network_fused_cldnn(this->engine, this->topology_non_fused, cldnn_cfg);

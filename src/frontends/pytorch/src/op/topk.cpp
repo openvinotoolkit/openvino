@@ -15,7 +15,7 @@ namespace op {
 
 using namespace ov::op;
 
-OutputVector translate_topk(NodeContext& context) {
+OutputVector translate_topk(const NodeContext& context) {
     num_inputs_check(context, 5, 5);
     const auto input_tensor = context.get_input(0);
     const auto largest = context.const_input<bool>(3);

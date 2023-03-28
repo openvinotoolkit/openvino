@@ -255,11 +255,6 @@ class XmlSerializer : public ov::AttributeVisitor {
             }
         }
 
-        if (ir_version < 11) {
-            // ops for serialized body function are provided in reversed order
-            std::reverse(output.begin(), output.end());
-        }
-
         return output;
     }
 
@@ -836,7 +831,10 @@ void ngfunction_2_ir(pugi::xml_node& netXml,
     const bool exec_graph = is_exec_graph(model);
 
     auto sorted_ops = model.get_ordered_ops();
-    if (version >= 11) {
+
+    // get_ordered_ops() returns operations after a topological sort. The topological sort reverses order of Parameters
+    // and Results. So we need to put them into sorted_ops separately to ensure correct order of inputs and outputs.
+    {
         std::vector<std::shared_ptr<ov::Node>> result;
         result.reserve(sorted_ops.size());
         for (const auto& param : model.get_parameters()) {
@@ -1004,11 +1002,9 @@ void ngfunction_2_ir(pugi::xml_node& netXml,
         // WA for LSTMCellv0, peephole input shall not be serialized
         if (e.to_port == 6) {
             const auto& type_info = ordered_ops[e.to_layer]->get_type_info();
-            OPENVINO_SUPPRESS_DEPRECATED_START
-            if (!strcmp(type_info.name, "LSTMCell") && type_info.version == 0) {
+            if (!strcmp(type_info.name, "LSTMCell")) {
                 continue;
             }
-            OPENVINO_SUPPRESS_DEPRECATED_END
         }
         pugi::xml_node edge = edges.append_child("edge");
         edge.append_attribute("from-layer").set_value(e.from_layer);

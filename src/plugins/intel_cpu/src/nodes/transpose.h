@@ -48,6 +48,7 @@ private:
     };
     using executorPtr = std::shared_ptr<TransposeExecutor>;
     executorPtr execPtr = nullptr;
+    dnnl::primitive prim;
 
     struct TransposeJitExecutor : public TransposeExecutor {
         TransposeJitExecutor(const PermuteParams& params);

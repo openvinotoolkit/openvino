@@ -132,7 +132,6 @@ _OPENVINO_OP_REG(Asinh, ov::op::v3)
 _OPENVINO_OP_REG(Atanh, ov::op::v3)
 _OPENVINO_OP_REG(CTCLoss, ov::op::v4)
 _OPENVINO_OP_REG(HSwish, ov::op::v4)
-_OPENVINO_OP_REG(Interpolate, ov::op::v4)
 _OPENVINO_OP_REG(Mish, ov::op::v4)
 _OPENVINO_OP_REG(ReduceL1, ov::op::v4)
 _OPENVINO_OP_REG(ReduceL2, ov::op::v4)
@@ -203,4 +202,5 @@ _OPENVINO_OP_REG(IsNaN, ov::op::v10)
 _OPENVINO_OP_REG(Unique, ov::op::v10)
 
 // New operations added in opset11
+_OPENVINO_OP_REG(Interpolate, ov::op::v11)
 _OPENVINO_OP_REG(TopK, ov::op::v11)

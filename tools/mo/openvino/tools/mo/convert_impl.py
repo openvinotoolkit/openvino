@@ -444,6 +444,8 @@ def prepare_ir(argv: argparse.Namespace):
                     f"The detailed reason why fallback was executed: not supported {reasons_message} were used. "
                     "You can specify --use_new_frontend flag to force using the Frontend MO path to avoid additional checks. " +
                     refer_to_faq_msg(105))
+        assert not hasattr(argv, 'is_fallback'), '`is_fallback` argument must not exist.'
+        argv.is_fallback = True
 
     t.send_event("mo", "conversion_method", "mo_legacy")
     graph = unified_pipeline(argv)
@@ -763,10 +765,9 @@ def _convert(cli_parser: argparse.ArgumentParser, framework, args):
                     args.pop("use_legacy_frontend")
                     return convert_pytorch_via_onnx(args, example_inputs, cli_parser, framework, _convert)
 
-                decoder, input_signature  = get_pytorch_decoder(args['input_model'], parse_input_shapes(args), example_inputs)
+                decoder = get_pytorch_decoder(args['input_model'], parse_input_shapes(args), example_inputs)
                 args['input_model'] = decoder
                 args["framework"] = "pytorch"
-                args["input_signature"] = input_signature
 
         argv = pack_params_to_args_namespace(args, cli_parser)
 

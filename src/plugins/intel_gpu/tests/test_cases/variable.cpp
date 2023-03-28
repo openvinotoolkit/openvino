@@ -35,7 +35,7 @@ struct variable_test : public ::testing::TestWithParam<VariableParams<T>> {
         topology.add(eltwise{"sum", { input_info("input"), input_info("read_value") }, eltwise_mode::sum, {}, variable_layout.data_type});
         topology.add(assign{"assign", { input_info("sum") }, "v0", variable_layout});
 
-        cldnn::network::ptr network = get_network(engine, topology, ExecutionConfig(), get_test_stream_ptr(), is_caching_test);
+        cldnn::network::ptr network = get_network(engine, topology, get_test_default_config(engine), get_test_stream_ptr(), is_caching_test);
 
         network->assign_variables_memories({ { "v0", std::make_shared<network::VariableState>(engine.allocate_memory(variable_layout)) } });
         network->set_input_data("input", input_data);
@@ -123,7 +123,7 @@ void test_exception_on_wrong_layout(bool is_caching_test) {
     topology.add(input_layout("wrong_input", wrong_input_data->get_layout()));
     topology.add(assign{"assign", { input_info("wrong_input") }, "v0", wrong_layout});
 
-    cldnn::network::ptr network = get_network(engine, topology, ExecutionConfig(), get_test_stream_ptr(), is_caching_test);
+    cldnn::network::ptr network = get_network(engine, topology, get_test_default_config(engine), get_test_stream_ptr(), is_caching_test);
 
     network->assign_variables_memories({ { "v0", std::make_shared<network::VariableState>(engine.allocate_memory(variable_layout)) } });
     network->set_input_data("input", input_data);
@@ -179,7 +179,7 @@ void test_variables_are_preserved_across_inferences(bool is_caching_test) {
     topology.add(data("dummy2", dummy2));
     topology.add(read_value{"read_result", { input_info("dummy2") }, "v_result", variable_layout});
 
-    cldnn::network::ptr network = get_network(engine, topology, ExecutionConfig(), get_test_stream_ptr(), is_caching_test);
+    cldnn::network::ptr network = get_network(engine, topology, get_test_default_config(engine), get_test_stream_ptr(), is_caching_test);
 
     network->assign_variables_memories({
         { "v1", std::make_shared<network::VariableState>(engine.allocate_memory(variable_layout)) },

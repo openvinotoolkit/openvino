@@ -53,6 +53,7 @@
 #include "one_hot_shape_inference.hpp"
 #include "pad_shape_inference.hpp"
 #include "proposal_shape_inference.hpp"
+#include "psroi_pooling_shape_inference.hpp"
 #include "range_shape_inference.hpp"
 #include "rdft_shape_inference.hpp"
 #include "read_value_shape_inference.hpp"
@@ -62,6 +63,7 @@
 #include "reverse_sequence_shape_inference.hpp"
 #include "reverse_shape_inference.hpp"
 #include "roi_align_shape_inference.hpp"
+#include "roi_pooling_shape_inference.hpp"
 #include "roll_shape_inference.hpp"
 #include "scatter_elements_update_shape_inference.hpp"
 #include "scatter_nd_base_shape_inference.hpp"
@@ -125,9 +127,8 @@ public:
 
     IShapeInferCommon::Result
     infer(const std::vector<StaticShape>& input_shapes, const std::map<size_t, HostTensorPtr>& constant_data) override {
-        auto op = static_cast<OP*>(node.get());
-        std::vector<StaticShape> output_shapes(op->get_output_size());
-        shape_infer(op, input_shapes, output_shapes);
+        std::vector<StaticShape> output_shapes(node->get_output_size());
+        shape_infer(static_cast<OP*>(node.get()), input_shapes, output_shapes);
         return {std::move(output_shapes), ShapeInferStatus::success};
     }
 };
@@ -589,6 +590,7 @@ const IShapeInferCommonFactory::TRegistry IShapeInferCommonFactory::registry{
     _OV_OP_SHAPE_INFER_REG(ov::op::internal::AUGRUSequence, entryIO),
     _OV_OP_SHAPE_INFER_REG(Pad, entryIOC),
     _OV_OP_SHAPE_INFER_REG(Proposal, entryIO),
+    _OV_OP_SHAPE_INFER_REG(PSROIPooling, entryIO),
     _OV_OP_SHAPE_INFER_REG(Range, entryIOC),
     _OV_OP_SHAPE_INFER_REG(RDFT, entryIOC),
     _OV_OP_SHAPE_INFER_REG(ReadValue, entryIO),
@@ -597,6 +599,7 @@ const IShapeInferCommonFactory::TRegistry IShapeInferCommonFactory::registry{
     _OV_OP_SHAPE_INFER_REG(Reshape, entryIOC),
     _OV_OP_SHAPE_INFER_REG(ReverseSequence, entryIO),
     _OV_OP_SHAPE_INFER_REG(ROIAlign, entryIO),
+    _OV_OP_SHAPE_INFER_REG(ROIPooling, entryIO),
     _OV_OP_SHAPE_INFER_REG(Roll, entryIOC),
     _OV_OP_SHAPE_INFER_REG(ScatterElementsUpdate, entryIOC),
     _OV_OP_SHAPE_INFER_REG(ScatterNDUpdate, entryIO),
