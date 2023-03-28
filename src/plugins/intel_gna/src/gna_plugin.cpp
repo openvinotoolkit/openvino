@@ -1180,7 +1180,7 @@ uint32_t GNAPlugin::QueueInference(const InferenceEngine::BlobMap& inputs, Infer
 
         // Perform pre-processing on CPU.
         // When we need to perform pre-processing on CPU using ngraph model we copy user input to the buffer,
-        // then directly use prerocessing output as gna input.
+        // then set preprocessing output blob as gna input blob.
         std::shared_ptr<ov::Model> model = inputs_ptr_->at(input_name).pre_post_process_model;
         Blob::Ptr buff_blob = nullptr;
         TensorDesc buff_tensor_desc(input.second->getTensorDesc());
