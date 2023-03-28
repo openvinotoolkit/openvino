@@ -86,7 +86,7 @@ std::vector<std::vector<int>> get_streams_info_table(const int input_streams,
                         (n_threads_per_stream < proc_type_table[0][MAIN_CORE_PROC] * 2)) {
                         n_threads_per_stream = proc_type_table[0][MAIN_CORE_PROC];
                     } else if (n_threads_per_stream < proc_type_table[0][MAIN_CORE_PROC]) {
-                        n_threads_per_stream = int(
+                        n_threads_per_stream = static_cast<int>(
                             proc_type_table[0][MAIN_CORE_PROC] /
                             ((proc_type_table[0][MAIN_CORE_PROC] + n_threads_per_stream - 1) / n_threads_per_stream));
                     }
