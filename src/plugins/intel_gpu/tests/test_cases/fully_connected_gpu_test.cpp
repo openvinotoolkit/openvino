@@ -2174,7 +2174,8 @@ struct dynamic_fully_connected_gpu : ::testing::TestWithParam<fully_connected_dy
             if (engine.get_device_info().supports_immad) {
                 for (int b = 0; b < batch_size; b++) {
                     for (int ofm = 0; ofm < output_f; ofm++) {
-                        EXPECT_NEAR(ref_result[b * output_f + ofm], output_ptr[b * output_f + ofm], 0.5);
+                        EXPECT_NEAR(ref_result[b * output_f + ofm], output_ptr[b * output_f + ofm],
+                                    default_tolerance(input_dt));
                     }
                 }
             } else {
