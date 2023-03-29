@@ -169,7 +169,7 @@ protected:
 
 TEST_F(GNAExportImportTest, ExportImportI16) {
     const ov::AnyMap gna_config = {ov::intel_gna::execution_mode(ov::intel_gna::ExecutionMode::SW_EXACT),
-                                   ov::inference_precision(ngraph::element::i16)};
+                                   ov::hint::inference_precision(ngraph::element::i16)};
     exported_file_name = "export_test.bin";
     ExportModel(exported_file_name, gna_config);
     ImportModel(exported_file_name, gna_config);
@@ -177,7 +177,7 @@ TEST_F(GNAExportImportTest, ExportImportI16) {
 
 TEST_F(GNAExportImportTest, ExportImportI8) {
     const ov::AnyMap gna_config = {ov::intel_gna::execution_mode(ov::intel_gna::ExecutionMode::SW_EXACT),
-                                   ov::inference_precision(ngraph::element::i8)};
+                                   ov::hint::inference_precision(ngraph::element::i8)};
     exported_file_name = "export_test.bin";
     ExportModel(exported_file_name, gna_config);
     ImportModel(exported_file_name, gna_config);
