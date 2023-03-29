@@ -5,6 +5,9 @@
 
 #include "eltwise.h"
 
+#include <map>
+#include <set>
+
 #include <ie_parallel.hpp>
 
 #include "cpu_types.h"
@@ -157,7 +160,157 @@ public:
     }
 };
 
+void set_intersection(const std::set<std::vector<element::Type>>& precisions1,
+                      const std::set<std::vector<element::Type>>& precisions2,
+                      std::set<std::vector<element::Type>>& intersection) {
+    std::map<element::Type, size_t> intersection_types;
+
+    for (auto it1 = precisions1.begin(); it1 != precisions1.end(); ++it1) {
+        for (auto it2 = precisions2.begin(); it2 != precisions2.end(); ++it2) {
+            const auto& it1_precisions = *it1;
+            // all element types are equal
+            if (it1_precisions[0] == (*it2)[0]) {
+                // first precisions size is used
+                intersection_types.emplace(it1_precisions[0], it1_precisions.size());
+            }
+        }
+    }
+
+    for (auto it = intersection_types.begin(); it != intersection_types.end(); ++it) {
+        intersection.insert(std::vector<element::Type>(it->second, it->first));
+    }
+}
+
 }   // namespace
+
+
+InferenceEngine::Precision eltwise_precision_helper::get_precision(const size_t inputs_number,
+                                                                   const InferenceEngine::Precision(&src_prc)[MAX_ELTWISE_INPUTS],
+                                                                   const std::vector<Eltwise::EltwiseData>& eltwise_data) {
+    Precision exec_prc = Precision::UNSPECIFIED;
+
+    std::set<std::vector<element::Type>> supported_precision_intersection = get_supported_precisions(eltwise_data.front().algo);
+
+    // for element-wise operations all inputs must to have the same precisions
+    assert(std::all_of(
+        supported_precision_intersection.begin(),
+        supported_precision_intersection.end(),
+        [&supported_precision_intersection](const std::vector<element::Type>& precisions) {
+            return std::all_of(
+                precisions.begin(),
+                precisions.end(),
+                [&precisions](const element::Type precision) { return precision == precisions[0]; });
+        }));
+
+    for (size_t i = 1; i < eltwise_data.size(); ++i) {
+        std::set<std::vector<element::Type>> prcs = get_supported_precisions(eltwise_data[i].algo);
+        std::set<std::vector<element::Type>> prcs_intersect = {};
+
+        OPENVINO_ASSERT(std::all_of(
+            prcs.begin(),
+            prcs.end(),
+            [](const std::vector<element::Type>& precisions) {
+                return std::all_of(
+                    precisions.begin(),
+                    precisions.end(),
+                    [&precisions](const element::Type& precision) { return precision == precisions[0]; });
+            }),
+            "for element-wise nodes all precisions have to be equal");
+
+        set_intersection(supported_precision_intersection, prcs, prcs_intersect);
+
+        supported_precision_intersection = prcs_intersect;
+    }
+
+    static const element::Type exec_precisions_priority[] = {
+            element::u8,
+            element::i8,
+            element::u16,
+            element::i16,
+            element::bf16,
+            element::i32,
+            element::f32
+    };
+
+    for (const auto prc : exec_precisions_priority) {
+        if (std::any_of(
+            supported_precision_intersection.begin(),
+            supported_precision_intersection.end(),
+            [&prc](const std::vector<element::Type>& precisions) { return std::find(precisions.begin(), precisions.end(), prc) != precisions.end(); })) {
+            exec_prc = InferenceEngine::details::convertPrecision(prc);
+            break;
+        }
+    }
+
+    for (int i = 0; i < inputs_number; i++) {
+        if (src_prc[i] != exec_prc) {
+            exec_prc = Precision::FP32;
+            break;
+        }
+    }
+
+    if (exec_prc == Precision::UNSPECIFIED) {
+        IE_THROW() << "Eltwise jitter failed to specify execution precision for Eltwise node";
+    }
+
+    return exec_prc;
+}
+
+std::set<std::vector<element::Type>> eltwise_precision_helper::get_supported_precisions(const Algorithm& algo) {
+    std::set<std::vector<element::Type>> precisions;
+
+    OV_SWITCH(intel_cpu, SupportedPrecisions, precisions, algo,
+        OV_CASE(Algorithm::EltwiseRelu, jit_dnnl_aux_emitter),
+        OV_CASE(Algorithm::EltwiseGelu, jit_dnnl_aux_emitter),
+        OV_CASE(Algorithm::EltwiseElu, jit_dnnl_aux_emitter),
+        OV_CASE(Algorithm::EltwiseTanh, jit_dnnl_aux_emitter),
+        OV_CASE(Algorithm::EltwiseSigmoid, jit_dnnl_aux_emitter),
+        OV_CASE(Algorithm::EltwiseAbs, jit_dnnl_aux_emitter),
+        OV_CASE(Algorithm::EltwiseSqrt, jit_dnnl_aux_emitter),
+        OV_CASE(Algorithm::EltwiseSoftRelu, jit_dnnl_aux_emitter),
+        OV_CASE(Algorithm::EltwiseExp, jit_dnnl_aux_emitter),
+        OV_CASE(Algorithm::EltwiseClamp, jit_dnnl_aux_emitter),
+        OV_CASE(Algorithm::EltwiseSwish, jit_dnnl_aux_emitter),
+        OV_CASE(Algorithm::EltwiseHswish, jit_dnnl_aux_emitter),
+        OV_CASE(Algorithm::EltwiseMish, jit_dnnl_aux_emitter),
+        OV_CASE(Algorithm::EltwiseHsigmoid, jit_dnnl_aux_emitter),
+        OV_CASE(Algorithm::EltwiseRoundHalfToEven, jit_dnnl_aux_emitter),
+        OV_CASE(Algorithm::EltwiseRoundHalfAwayFromZero, jit_dnnl_aux_emitter),
+        OV_CASE(Algorithm::EltwiseAdd, jit_add_emitter),
+        OV_CASE(Algorithm::EltwiseMulAdd, jit_mul_add_emitter),
+        OV_CASE(Algorithm::EltwiseSubtract, jit_subtract_emitter),
+        OV_CASE(Algorithm::EltwiseMultiply, jit_multiply_emitter),
+        OV_CASE(Algorithm::EltwiseDivide, jit_divide_emitter),
+        OV_CASE(Algorithm::EltwiseFloorMod, jit_floor_mod_emitter),
+        OV_CASE(Algorithm::EltwiseMod, jit_mod_emitter),
+        OV_CASE(Algorithm::EltwiseMaximum, jit_maximum_emitter),
+        OV_CASE(Algorithm::EltwiseMinimum, jit_minimum_emitter),
+        OV_CASE(Algorithm::EltwiseSquaredDifference, jit_squared_difference_emitter),
+        OV_CASE(Algorithm::EltwisePowerDynamic, jit_power_dynamic_emitter),
+        OV_CASE(Algorithm::EltwiseEqual, jit_equal_emitter),
+        OV_CASE(Algorithm::EltwiseNotEqual, jit_not_equal_emitter),
+        OV_CASE(Algorithm::EltwiseGreater, jit_greater_emitter),
+        OV_CASE(Algorithm::EltwiseGreaterEqual, jit_greater_equal_emitter),
+        OV_CASE(Algorithm::EltwiseLess, jit_less_emitter),
+        OV_CASE(Algorithm::EltwiseLessEqual, jit_less_equal_emitter),
+        OV_CASE(Algorithm::EltwiseLogicalAnd, jit_logical_and_emitter),
+        OV_CASE(Algorithm::EltwiseLogicalOr, jit_logical_or_emitter),
+        OV_CASE(Algorithm::EltwiseLogicalXor, jit_logical_xor_emitter),
+        OV_CASE(Algorithm::EltwiseLogicalNot, jit_logical_not_emitter),
+        OV_CASE(Algorithm::EltwisePowerStatic, jit_power_static_emitter),
+        OV_CASE(Algorithm::EltwisePrelu, jit_prelu_emitter),
+        OV_CASE(Algorithm::EltwiseErf, jit_erf_emitter),
+        OV_CASE(Algorithm::EltwiseSoftSign, jit_soft_sign_emitter),
+        OV_CASE(Algorithm::EltwiseIsFinite, jit_is_finite_emitter),
+        OV_CASE(Algorithm::EltwiseIsInf, jit_is_inf_emitter),
+        OV_CASE(Algorithm::EltwiseIsNaN, jit_is_nan_emitter),
+        OV_CASE(Algorithm::EltwiseSelect, jit_select_emitter));
+
+    if (precisions.empty())
+        IE_THROW() << "Unsupported operation type for Eltwise emitter";
+
+    return precisions;
+}
 
 template <cpu_isa_t isa>
 struct jit_uni_eltwise_generic : public jit_uni_eltwise_kernel, public jit_generator {
@@ -175,70 +328,7 @@ struct jit_uni_eltwise_generic : public jit_uni_eltwise_kernel, public jit_gener
     }
 
     void generate() override {
-        Precision exec_prc = Precision::UNSPECIFIED;
-
-        std::set<std::vector<element::Type>> supported_precision_intersection = get_supported_precisions(eltwise_data_.front().algo);
-
-        // for element-wise operations all inputs must to have the same precisions
-        assert(std::all_of(
-            supported_precision_intersection.begin(),
-            supported_precision_intersection.end(),
-            [&supported_precision_intersection](const std::vector<element::Type>& precisions) {
-                return std::all_of(
-                    precisions.begin(),
-                    precisions.end(),
-                    [&precisions](const element::Type precision) { return precision == precisions[0]; });
-            }));
-
-        for (size_t i = 1; i < eltwise_data_.size(); ++i) {
-            std::set<std::vector<element::Type>> prcs = get_supported_precisions(eltwise_data_[i].algo);
-            std::set<std::vector<element::Type>> prcs_intersect = {};
-
-            // to support previous functionality
-            if (!std::all_of(
-                prcs.begin(),
-                prcs.end(),
-                [&supported_precision_intersection](const std::vector<element::Type>& types) {
-                    return types.size() == supported_precision_intersection.size(); })) {
-                continue;
-            }
-
-            std::set_intersection(supported_precision_intersection.begin(), supported_precision_intersection.end(),
-                                  prcs.begin(), prcs.end(), std::inserter(prcs_intersect, prcs_intersect.begin()));
-
-            supported_precision_intersection = prcs_intersect;
-        }
-
-        static const element::Type exec_precisions_priority[] = {
-                element::u8,
-                element::i8,
-                element::u16,
-                element::i16,
-                element::bf16,
-                element::i32,
-                element::f32
-        };
-
-        for (const auto prc : exec_precisions_priority) {
-            if (std::any_of(
-                supported_precision_intersection.begin(),
-                supported_precision_intersection.end(),
-                [&prc](const std::vector<element::Type>& precisions) { return std::find(precisions.begin(), precisions.end(), prc) != precisions.end(); })) {
-                exec_prc = InferenceEngine::details::convertPrecision(prc);
-                break;
-            }
-        }
-
-        for (int i = 0; i < jep_.inputs_number; i++) {
-            if (jep_.src_prc[i] != exec_prc) {
-                exec_prc = Precision::FP32;
-                break;
-            }
-        }
-
-        if (exec_prc == Precision::UNSPECIFIED) {
-            IE_THROW() << "Eltwise jitter failed to specify execution precision for Eltwise node";
-        }
+        auto const exec_prc = eltwise_precision_helper::get_precision(jep_.inputs_number, jep_.src_prc, eltwise_data_);
 
         eltwise_emitter = create_eltwise_emitter(eltwise_data_.front(), exec_prc);
         for (size_t i = 1; i < eltwise_data_.size(); ++i) {
@@ -506,62 +596,6 @@ private:
     const std::vector<Eltwise::EltwiseData>& eltwise_data_;
     const std::vector<ov::intel_cpu::Type>& ops_list_;
     const dnnl::post_ops& post_ops_;
-
-    std::set<std::vector<element::Type>> get_supported_precisions(Algorithm algo) {
-        std::set<std::vector<element::Type>> precisions;
-
-        OV_SWITCH(intel_cpu, SupportedPrecisions, precisions, algo,
-        OV_CASE(Algorithm::EltwiseRelu, jit_dnnl_aux_emitter),
-        OV_CASE(Algorithm::EltwiseGelu, jit_dnnl_aux_emitter),
-        OV_CASE(Algorithm::EltwiseElu, jit_dnnl_aux_emitter),
-        OV_CASE(Algorithm::EltwiseTanh, jit_dnnl_aux_emitter),
-        OV_CASE(Algorithm::EltwiseSigmoid, jit_dnnl_aux_emitter),
-        OV_CASE(Algorithm::EltwiseAbs, jit_dnnl_aux_emitter),
-        OV_CASE(Algorithm::EltwiseSqrt, jit_dnnl_aux_emitter),
-        OV_CASE(Algorithm::EltwiseSoftRelu, jit_dnnl_aux_emitter),
-        OV_CASE(Algorithm::EltwiseExp, jit_dnnl_aux_emitter),
-        OV_CASE(Algorithm::EltwiseClamp, jit_dnnl_aux_emitter),
-        OV_CASE(Algorithm::EltwiseSwish, jit_dnnl_aux_emitter),
-        OV_CASE(Algorithm::EltwiseHswish, jit_dnnl_aux_emitter),
-        OV_CASE(Algorithm::EltwiseMish, jit_dnnl_aux_emitter),
-        OV_CASE(Algorithm::EltwiseHsigmoid, jit_dnnl_aux_emitter),
-        OV_CASE(Algorithm::EltwiseRoundHalfToEven, jit_dnnl_aux_emitter),
-        OV_CASE(Algorithm::EltwiseRoundHalfAwayFromZero, jit_dnnl_aux_emitter),
-        OV_CASE(Algorithm::EltwiseAdd, jit_add_emitter),
-        OV_CASE(Algorithm::EltwiseMulAdd, jit_mul_add_emitter),
-        OV_CASE(Algorithm::EltwiseSubtract, jit_subtract_emitter),
-        OV_CASE(Algorithm::EltwiseMultiply, jit_multiply_emitter),
-        OV_CASE(Algorithm::EltwiseDivide, jit_divide_emitter),
-        OV_CASE(Algorithm::EltwiseFloorMod, jit_floor_mod_emitter),
-        OV_CASE(Algorithm::EltwiseMod, jit_mod_emitter),
-        OV_CASE(Algorithm::EltwiseMaximum, jit_maximum_emitter),
-        OV_CASE(Algorithm::EltwiseMinimum, jit_minimum_emitter),
-        OV_CASE(Algorithm::EltwiseSquaredDifference, jit_squared_difference_emitter),
-        OV_CASE(Algorithm::EltwisePowerDynamic, jit_power_dynamic_emitter),
-        OV_CASE(Algorithm::EltwiseEqual, jit_equal_emitter),
-        OV_CASE(Algorithm::EltwiseNotEqual, jit_not_equal_emitter),
-        OV_CASE(Algorithm::EltwiseGreater, jit_greater_emitter),
-        OV_CASE(Algorithm::EltwiseGreaterEqual, jit_greater_equal_emitter),
-        OV_CASE(Algorithm::EltwiseLess, jit_less_emitter),
-        OV_CASE(Algorithm::EltwiseLessEqual, jit_less_equal_emitter),
-        OV_CASE(Algorithm::EltwiseLogicalAnd, jit_logical_and_emitter),
-        OV_CASE(Algorithm::EltwiseLogicalOr, jit_logical_or_emitter),
-        OV_CASE(Algorithm::EltwiseLogicalXor, jit_logical_xor_emitter),
-        OV_CASE(Algorithm::EltwiseLogicalNot, jit_logical_not_emitter),
-        OV_CASE(Algorithm::EltwisePowerStatic, jit_power_static_emitter),
-        OV_CASE(Algorithm::EltwisePrelu, jit_prelu_emitter),
-        OV_CASE(Algorithm::EltwiseErf, jit_erf_emitter),
-        OV_CASE(Algorithm::EltwiseSoftSign, jit_soft_sign_emitter),
-        OV_CASE(Algorithm::EltwiseIsFinite, jit_is_finite_emitter),
-        OV_CASE(Algorithm::EltwiseIsInf, jit_is_inf_emitter),
-        OV_CASE(Algorithm::EltwiseIsNaN, jit_is_nan_emitter),
-        OV_CASE(Algorithm::EltwiseSelect, jit_select_emitter));
-
-        if (precisions.empty())
-            IE_THROW() << "Unsupported operation type for Eltwise emitter";
-
-        return precisions;
-    }
 
     std::shared_ptr<jit_emitter> create_eltwise_emitter(const Eltwise::EltwiseData& data, Precision exec_prec) {
         EltwiseEmitterContext ctx = {
