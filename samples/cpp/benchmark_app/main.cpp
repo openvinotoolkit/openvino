@@ -487,17 +487,17 @@ int main(int argc, char* argv[]) {
                 auto it_device_infer_precision = device_infer_precision.find(device);
                 if (it_device_infer_precision != device_infer_precision.end()) {
                     // set to user defined value
-                    if (supported(ov::inference_precision.name())) {
-                        device_config.emplace(ov::inference_precision(it_device_infer_precision->second));
+                    if (supported(ov::hint::inference_precision.name())) {
+                        device_config.emplace(ov::hint::inference_precision(it_device_infer_precision->second));
                     } else if (is_virtual_device(device)) {
                         update_device_config_for_virtual_device(it_device_infer_precision->second,
                                                                 device_config,
-                                                                ov::inference_precision,
+                                                                ov::hint::inference_precision,
                                                                 is_dev_set_property,
                                                                 is_load_config);
                     } else {
                         throw std::logic_error("Device " + device + " doesn't support config key '" +
-                                               ov::inference_precision.name() + "'! " +
+                                               ov::hint::inference_precision.name() + "'! " +
                                                "Please specify -infer_precision for correct devices in format  "
                                                "<dev1>:<infer_precision1>,<dev2>:<infer_precision2>" +
                                                " or via configuration file.");
