@@ -30,7 +30,6 @@ struct fully_connected_test_params {
     format default_format;
     size_t expected_fused_primitives;
     size_t expected_not_fused_primitives;
-    std::string ocl_kernel_name;            // for onednn test
 };
 
 class FullyConnectedFusingTest : public ::BaseFusingTest<fully_connected_test_params> {
@@ -93,18 +92,8 @@ public:
 
         ov::intel_gpu::ImplementationDesc fc_impl = { forcing_format, "", impl_types::onednn };
         cfg_fused.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ { "fc_prim", fc_impl } }));
-
-        if (!p.ocl_kernel_name.empty()) {
-            auto ocl_impl_forcing = cfg_not_fused.get_property(ov::intel_gpu::force_implementations);
-            auto ocl_forcing_format = p.input_format;
-            for (auto& forcing : ocl_impl_forcing)
-                if (forcing.first == "fc_prim")
-                    ocl_forcing_format = forcing.second.output_format;
-            ov::intel_gpu::ImplementationDesc fc_ocl_impl = { ocl_forcing_format, p.ocl_kernel_name /*fully_connected_gpu_bfyx_ref*/};
-            cfg_not_fused.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ { "fc_prim", fc_ocl_impl } }));
-        }
-        cfg_not_fused.set_property(ov::intel_gpu::allow_new_shape_infer(is_dynamic));
         cfg_fused.set_property(ov::intel_gpu::allow_new_shape_infer(is_dynamic));
+
         network::ptr network_not_fused = get_network(this->engine, this->topology_non_fused, cfg_not_fused, get_test_stream_ptr(), is_caching_test);
         network::ptr network_fused = get_network(this->engine, this->topology_fused, cfg_fused, get_test_stream_ptr(), is_caching_test);
         network_fused->set_input_data("input", input_prim);
@@ -487,17 +476,15 @@ TEST_P(fc_fp16_eltwise_add, basic) {
 }
 
 INSTANTIATE_TEST_SUITE_P(fusings_gpu, fc_fp16_eltwise_add, ::testing::ValuesIn(std::vector<fully_connected_test_params>{
-    // fully_connected_test_params{ CASE_FC_FP16_1, 2, 3, "fully_connected_gpu_bs_f_bsv16_b1"}, // TODO check a failure in fully_connected_gpu_bs_f_bsv16_b1 + eltwise in iGPU
-    // fully_connected_test_params{ CASE_FC_FP16_3D_3, 2, 3, "fully_connected_gpu_bfyx_ref"},   // TODO check onednn failure
-    fully_connected_test_params{ CASE_FC_FP16_1, 2, 3, "fully_connected_gpu_bfyx_ref" },
-    fully_connected_test_params{ CASE_FC_FP16_2, 2, 3, "fully_connected_gpu_bfyx_ref" },
-    fully_connected_test_params{ CASE_FC_FP16_3, 2, 3, "fully_connected_gpu_bfyx_ref" },
-    fully_connected_test_params{ CASE_FC_FP16_4, 2, 3, "fully_connected_gpu_bfyx_ref" },
-    fully_connected_test_params{ CASE_FC_FP16_5, 2, 3, "fully_connected_gpu_bfyx_ref" },
-    fully_connected_test_params{ CASE_FC_FP16_6, 2, 3, "fully_connected_gpu_bfyx_ref" },
-    fully_connected_test_params{ CASE_FC_FP16_7, 2, 3, "fully_connected_gpu_bfyx_ref" },
-    fully_connected_test_params{ CASE_FC_FP16_3D_1, 2, 3, "fully_connected_gpu_bfyx_ref" },
-    fully_connected_test_params{ CASE_FC_FP16_3D_2, 2, 3, "fully_connected_gpu_bfyx_ref" },
+    fully_connected_test_params{ CASE_FC_FP16_1, 2, 3 },
+    fully_connected_test_params{ CASE_FC_FP16_2, 2, 3 },
+    fully_connected_test_params{ CASE_FC_FP16_3, 2, 3 },
+    fully_connected_test_params{ CASE_FC_FP16_4, 2, 3 },
+    fully_connected_test_params{ CASE_FC_FP16_5, 2, 3 },
+    fully_connected_test_params{ CASE_FC_FP16_6, 2, 3 },
+    fully_connected_test_params{ CASE_FC_FP16_7, 2, 3 },
+    fully_connected_test_params{ CASE_FC_FP16_3D_1, 2, 3 },
+    fully_connected_test_params{ CASE_FC_FP16_3D_2, 2, 3 },
 }));
 
 class fc_fp16_eltwise_add_dynamic : public FullyConnectedFusingTestOneDNN {};
@@ -542,11 +529,11 @@ TEST_P(fc_fp16_eltwise_sub, basic) {
 }
 
 INSTANTIATE_TEST_SUITE_P(fusings_gpu, fc_fp16_eltwise_sub, ::testing::ValuesIn(std::vector<fully_connected_test_params>{
-    fully_connected_test_params{ CASE_FC_FP16_1, 2, 3, "fully_connected_gpu_bfyx_ref" },
-    fully_connected_test_params{ CASE_FC_FP16_2, 2, 3, "fully_connected_gpu_bfyx_ref" },
-    fully_connected_test_params{ CASE_FC_FP16_3, 2, 3, "fully_connected_gpu_bfyx_ref" },
-    fully_connected_test_params{ CASE_FC_FP16_3D_1, 2, 3, "fully_connected_gpu_bfyx_ref" },
-    fully_connected_test_params{ CASE_FC_FP16_3D_2, 2, 3, "fully_connected_gpu_bfyx_ref" },
+    fully_connected_test_params{ CASE_FC_FP16_1, 2, 3 },
+    fully_connected_test_params{ CASE_FC_FP16_2, 2, 3 },
+    fully_connected_test_params{ CASE_FC_FP16_3, 2, 3 },
+    fully_connected_test_params{ CASE_FC_FP16_3D_1, 2, 3 },
+    fully_connected_test_params{ CASE_FC_FP16_3D_2, 2, 3 },
 }));
 
 class fc_fp16_eltwise_prod : public FullyConnectedFusingTestOneDNN {};
@@ -567,11 +554,11 @@ TEST_P(fc_fp16_eltwise_prod, basic) {
 }
 
 INSTANTIATE_TEST_SUITE_P(fusings_gpu, fc_fp16_eltwise_prod, ::testing::ValuesIn(std::vector<fully_connected_test_params>{
-    fully_connected_test_params{ CASE_FC_FP16_1, 2, 3, "fully_connected_gpu_bfyx_ref" },
-    fully_connected_test_params{ CASE_FC_FP16_2, 2, 3, "fully_connected_gpu_bfyx_ref" },
-    fully_connected_test_params{ CASE_FC_FP16_3, 2, 3, "fully_connected_gpu_bfyx_ref" },
-    fully_connected_test_params{ CASE_FC_FP16_3D_1, 2, 3, "fully_connected_gpu_bfyx_ref" },
-    fully_connected_test_params{ CASE_FC_FP16_3D_2, 2, 3, "fully_connected_gpu_bfyx_ref" },
+    fully_connected_test_params{ CASE_FC_FP16_1, 2, 3 },
+    fully_connected_test_params{ CASE_FC_FP16_2, 2, 3 },
+    fully_connected_test_params{ CASE_FC_FP16_3, 2, 3 },
+    fully_connected_test_params{ CASE_FC_FP16_3D_1, 2, 3 },
+    fully_connected_test_params{ CASE_FC_FP16_3D_2, 2, 3 },
 }));
 
 
