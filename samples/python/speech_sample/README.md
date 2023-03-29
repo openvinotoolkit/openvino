@@ -102,13 +102,13 @@ Running
 
 Run the application with the ``-h`` option to see the usage message:
 
-.. code-block:: sh
+.. code-block:: bash
    
    python speech_sample.py -h
 
 Usage message:
 
-.. code-block:: sh
+.. code-block:: console
    
    usage: speech_sample.py [-h] (-m MODEL | -rg IMPORT_GNA_MODEL) -i INPUT [-o OUTPUT] [-r REFERENCE] [-d DEVICE] [-bs [1-8]]
                            [-layout LAYOUT] [-qb [8, 16]] [-sf SCALE_FACTOR] [-wg EXPORT_GNA_MODEL]
