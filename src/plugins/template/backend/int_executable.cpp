@@ -95,8 +95,9 @@ public:
     }
 };
 
-ov::runtime::interpreter::INTExecutable::INTExecutable(const std::shared_ptr<ov::Model>& model) : m_is_compiled{true} {
-    m_model = model->clone();
+ov::runtime::interpreter::INTExecutable::INTExecutable(const std::shared_ptr<ov::Model>& model)
+                                                         : m_is_compiled{true},
+                                                           m_model(model) {
     for (auto node : m_model->get_ordered_ops()) {
         m_nodes.push_back(node);
     }
