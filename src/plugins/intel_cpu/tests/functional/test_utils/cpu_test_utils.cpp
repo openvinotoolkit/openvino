@@ -142,6 +142,7 @@ void CPUTestsBase::CheckPluginRelatedResults(const ov::CompiledModel &execNet, c
 
 void CPUTestsBase::CheckPluginRelatedResultsImpl(const std::shared_ptr<const ov::Model>& function, const std::set<std::string>& nodeType) const {
     ASSERT_NE(nullptr, function);
+    bool nodeFound = false;
     for (const auto &node : function->get_ops()) {
         const auto & rtInfo = node->get_rt_info();
         auto getExecValue = [&rtInfo](const std::string & paramName) -> std::string {
@@ -168,6 +169,7 @@ void CPUTestsBase::CheckPluginRelatedResultsImpl(const std::shared_ptr<const ov:
         };
 
         if (nodeType.count(getExecValue(ExecGraphInfoSerialization::LAYER_TYPE))) {
+            nodeFound = true;
             ASSERT_LE(inFmts.size(), node->get_input_size());
             ASSERT_LE(outFmts.size(), node->get_output_size());
             for (int i = 0; i < inFmts.size(); i++) {
@@ -226,6 +228,7 @@ void CPUTestsBase::CheckPluginRelatedResultsImpl(const std::shared_ptr<const ov:
             ASSERT_TRUE(primTypeCheck(primType)) << "primType is unexpected: " << primType << " Expected: " << selectedType;
         }
     }
+    ASSERT_TRUE(nodeFound);
 }
 
 bool CPUTestsBase::primTypeCheck(std::string primType) const {
