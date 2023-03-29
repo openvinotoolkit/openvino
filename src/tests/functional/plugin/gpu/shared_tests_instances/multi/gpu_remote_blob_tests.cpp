@@ -109,9 +109,9 @@ auto device_names_and_support_for_remote_blobs2 = []() {
 #ifdef ENABLE_INTEL_CPU
         //{{CPU}, {}},  // stand-alone CPU via MULTI (no GPU), no OCL context
         {{CPU, "GPU.1"},
-         {ov::intel_auto::device_bind_buffer(true)}},  // stand-alone CPU via MULTI, no OCL context
+         {ov::intel_auto::device_bind_buffer(true)}},  // CPU,GPU.1 via MULTI, no OCL context
         {{CPU, "GPU.1"},
-         {ov::intel_auto::device_bind_buffer(false)}},  // stand-alone CPU via MULTI, no OCL conte
+         {ov::intel_auto::device_bind_buffer(false)}},  // CPU,GPU.1 via MULTI, no OCL context
 #endif
         {{"GPU.1"}, {}},  // another GPU (the test will test its presence), different OCL contexts
         {{"GPU.1"},
