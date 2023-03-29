@@ -2,17 +2,16 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "transformations/remove_pre_post_processing.hpp"
+#include "transformations/remove_in_out_processing.hpp"
 
-#include <openvino/cc/ngraph/itt.hpp>
-#include <openvino/opsets/opset1.hpp>
-#include <openvino/opsets/opset10.hpp>
-#include <openvino/opsets/opset7.hpp>
-#include <openvino/opsets/opset8.hpp>
-#include <openvino/pass/manager.hpp>
-#include <openvino/pass/pattern/op/wrap_type.hpp>
-
+#include "openvino/cc/pass/itt.hpp"
+#include "openvino/opsets/opset1.hpp"
+#include "openvino/opsets/opset10.hpp"
+#include "openvino/opsets/opset7.hpp"
+#include "openvino/opsets/opset8.hpp"
+#include "openvino/pass/manager.hpp"
 #include "openvino/pass/pass.hpp"
+#include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "transformations/utils/transformation_helper.hpp"
 
 using namespace ov::opset10;
@@ -20,7 +19,7 @@ using namespace ov::intel_gna::pass;
 
 namespace {
 
-inline bool is_preprocessing_layer_suppported(std::shared_ptr<ov::Node>& layer) {
+inline bool is_preprocessing_layer_not_supported(std::shared_ptr<ov::Node>& layer) {
     // Gather layer is not supported by GNA and have to be executed on CPU
     if (std::dynamic_pointer_cast<ov::opset1::Gather>(layer) || std::dynamic_pointer_cast<ov::opset7::Gather>(layer) ||
         std::dynamic_pointer_cast<ov::opset8::Gather>(layer)) {
@@ -38,7 +37,6 @@ inline bool is_preprocessing_layer_suppported(std::shared_ptr<ov::Node>& layer) 
         } else if (min_input_dim > 8) {
             return true;
         } else if (ALIGN(max_input_dim, limitations::noOfInputsDivisor) != max_input_dim) {
-            // TODO: need to test gna_config.gnaFlags.input_low_precision
             return true;
         }
     }
@@ -46,7 +44,7 @@ inline bool is_preprocessing_layer_suppported(std::shared_ptr<ov::Node>& layer) 
     return false;
 }
 /*
-  Support only one data node as 0 input
+  Support only one data node as input 0
  */
 inline std::shared_ptr<ov::Model> copy_single_input_node(std::shared_ptr<ov::Node> node) {
     const ov::element::Type& input_type = node->get_input_element_type(0);
@@ -66,16 +64,16 @@ inline std::shared_ptr<ov::Model> copy_single_input_node(std::shared_ptr<ov::Nod
 }  // namespace
 
 bool RemoveInputsProcessing::run_on_model(const std::shared_ptr<ov::Model>& model) {
-    RUN_ON_FUNCTION_SCOPE(RemoveInputsProcessing);
+    RUN_ON_MODEL_SCOPE(RemoveInputsProcessing);
     bool result = false;
     for (const auto& param_node : model->inputs()) {
         for (auto& param_target : param_node.get_target_inputs()) {
             auto target_node = param_target.get_node()->shared_from_this();
             // Parameter -> Transpose, Parameter -> Gather
-            if (is_preprocessing_layer_suppported(target_node)) {
-                if (m_subgraph_cpu_map) {
-                    m_subgraph_cpu_map->emplace(param_node.get_node_shared_ptr()->get_friendly_name(),
-                                                copy_single_input_node(target_node));
+            if (is_preprocessing_layer_not_supported(target_node)) {
+                if (m_input_subgraphs) {
+                    m_input_subgraphs->emplace(param_node.get_node_shared_ptr()->get_friendly_name(),
+                                               copy_single_input_node(target_node));
                 }
                 pass::helper::remove_single_input_node(target_node);
                 result = true;
@@ -86,15 +84,15 @@ bool RemoveInputsProcessing::run_on_model(const std::shared_ptr<ov::Model>& mode
 }
 
 bool RemoveOutputsProcessing::run_on_model(const std::shared_ptr<ov::Model>& model) {
-    RUN_ON_FUNCTION_SCOPE(RemoveOutputsProcessing);
+    RUN_ON_MODEL_SCOPE(RemoveOutputsProcessing);
     bool result = false;
     for (std::shared_ptr<ov::Node> r_node : model->get_results()) {
         for (auto& r_input : r_node->input_values()) {
             auto r_input_node = r_input.get_node_shared_ptr();
             // Transpose -> Result, Gather -> Result
-            if (is_preprocessing_layer_suppported(r_input_node)) {
-                if (m_subgraph_cpu_map) {
-                    m_subgraph_cpu_map->emplace(r_input_node->get_friendly_name(),
+            if (is_preprocessing_layer_not_supported(r_input_node)) {
+                if (m_output_subgraphs) {
+                    m_output_subgraphs->emplace(r_input_node->get_friendly_name(),
                                                 copy_single_input_node(r_input_node));
                 }
                 pass::helper::remove_single_input_node(r_input_node);

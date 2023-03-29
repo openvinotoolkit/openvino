@@ -95,23 +95,23 @@ std::shared_ptr<ngraph::Node> InsertFQLayer(const std::shared_ptr<ngraph::opset7
                                             std::shared_ptr<ngraph::Node> last_node);
 
 /**
- * @brief removes single node from the function and insert Reshape if input and outpur shapes are different
- * @param node the node to be deleted
+ * @brief removes single node from the function and inserts Reshape if input and output shapes differ
+ * @param node the node to be removed
  * @return void
  */
 void remove_single_input_node(std::shared_ptr<ov::Node> node);
 
 /**
- * @brief remove all 1 dimentions from the shape vector
- * @param shape original tensor shape
- * @return shape without 1 dimentions
+ * @brief remove all dimensions equal to 1 from the tensor shape vector
+ * @param shape original tensor shape vector
+ * @return modified shape
  */
 ov::Shape squeeze_shape(const ov::Shape& shape);
 
 /**
  * @brief Transpose shape
  * @param shape the shape to be transposed
- * @param order the permutation to apply to the axes of the input shape
+ * @param order the permutation array to apply to the input shape
  * @return transposed shape
  */
 ov::Shape transpose_shape(const ov::Shape& shape, std::vector<size_t> order);
