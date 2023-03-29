@@ -678,23 +678,23 @@ void AutoSchedule::WaitActualNetworkReady() const {
 bool AutoSchedule::ScheduleToWorkerInferRequest(IE::Task inferPipelineTask, DeviceName preferred_device) {
     std::vector<DeviceInformation> devices;
     // AUTO work mode
+    // Devices that fail infer will be removed from the priority list in the callback, need lock here
+    std::unique_lock<std::mutex> lock(_autoSContext->_fallbackMutex);
     if (!preferred_device.empty()) {
-        if (_pCTPUTLoadContext) {
-            std::lock_guard<std::mutex> lock(_autoSContext->_fallbackMutex);
+        if (_pCTPUTLoadContext) {    
             devices = _autoSContext->_devicePriorities;
         } else {
             // if the device needed by customer is not ready, need to wait for it
             WaitActualNetworkReady();
             // the preferred_device should be the selected device in AUTO work mode
+            // or, if fallback enabled, the fallback device will not fit in the remote tensor as well
             if (preferred_device != _loadContext[ACTUALDEVICE].deviceInfo.deviceName) {
                 IE_THROW(NotFound) << "The preferred device should be the selected device";
             }
             devices.push_back(_loadContext[ACTUALDEVICE].deviceInfo);
         }
     } else {
-        if (_pCTPUTLoadContext) {
-            // Devices that fail infer will be removed from the priority list in the callback, need lock here
-            std::lock_guard<std::mutex> lock(_autoSContext->_fallbackMutex);
+        if (_pCTPUTLoadContext) {    
             for (size_t i = 0; i < _autoSContext->_devicePriorities.size(); i++) {
                 devices.push_back(_autoSContext->_devicePriorities[i]);
             }
@@ -715,6 +715,7 @@ bool AutoSchedule::ScheduleToWorkerInferRequest(IE::Task inferPipelineTask, Devi
             }
         }
     }
+    lock.unlock();
     if (devices.size() == 0) {
         IE_THROW(GeneralError) << "No device to run pipeline task";
     }
