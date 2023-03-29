@@ -17,9 +17,11 @@
 
 #ifdef ENABLE_OV_PADDLE_FRONTEND
 #    include <openvino/frontend/paddle/extension/conversion.hpp>
-#    define PADDLE_EXT                                                                                        \
-        std::make_shared<ov::frontend::paddle::ConversionExtension>("NewCustomOp_4", CustomTranslatorPaddle), \
-            std::make_shared<ov::frontend::paddle::ConversionExtension>("relu", ReluToSwishTranslatorPDPD),
+#    define PADDLE_EXT                                                                                            \
+        std::make_shared<ov::frontend::paddle::ConversionExtension>("NewCustomOp_4", CustomTranslatorPaddle),     \
+            std::make_shared<ov::frontend::paddle::ConversionExtension>("relu", ReluToSwishTranslatorPDPD),       \
+            std::make_shared<ov::frontend::paddle::ConversionExtension>("NewCustomOp_4", CustomTranslatorPaddle), \
+            std::make_shared<ov::frontend::paddle::ConversionExtension>("relu6", Relu6ToReluTranslatorPaddle),
 #else
 #    define PADDLE_EXT
 #endif
@@ -69,6 +71,13 @@ std::map<std::string, ov::OutputVector> ReluToSwishTranslatorPDPD(const ov::fron
 
 std::map<std::string, ov::OutputVector> CustomTranslatorPaddle(const ov::frontend::NodeContext& node) {
     return std::map<std::string, ov::OutputVector>();
+}
+
+std::map<std::string, ov::OutputVector> Relu6ToReluTranslatorPaddle(const ov::frontend::NodeContext& node) {
+    auto relu = std::make_shared<ov::opset8::Relu>(node.get_input("X"));
+    std::map<std::string, ov::OutputVector> ret;
+    ret["Out"] = {relu};
+    return ret;
 }
 
 class CustomElu : public ov::op::Op {

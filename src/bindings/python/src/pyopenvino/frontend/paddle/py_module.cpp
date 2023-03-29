@@ -12,4 +12,5 @@ namespace py = pybind11;
 
 PYBIND11_MODULE(py_paddle_frontend, m) {
     regclass_frontend_paddle_ConversionExtension(m);
+    regclass_frontend_paddle_OpExtension(m);
 }
