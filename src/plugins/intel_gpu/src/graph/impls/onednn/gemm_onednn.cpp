@@ -178,7 +178,7 @@ public:
 #ifdef ONEDNN_PRIMITIVE_SERIALIZATION
         parent::save(ob);
 
-        const kernel_impl_params* impl_params = reinterpret_cast<kernel_impl_params*>(ob.getKernlImplParams());
+        const kernel_impl_params* impl_params = reinterpret_cast<kernel_impl_params*>(ob.getKernelImplParams());
         auto prim = impl_params->typed_desc<gemm>();
         bool gemm_with_bias = prim->dependencies().size() == 3;
 

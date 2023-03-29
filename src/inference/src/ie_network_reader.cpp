@@ -457,6 +457,7 @@ CNNNetwork details::ReadNetwork(const std::string& modelPath,
 #endif
         params.emplace_back(weights_path);
     }
+    params.emplace_back(/*use_ir_frontend_map_allocator=*/true);
 
     FE = manager.load_by_model(params);
     if (FE) {
