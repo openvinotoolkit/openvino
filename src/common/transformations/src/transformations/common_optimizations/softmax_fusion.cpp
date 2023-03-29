@@ -8,6 +8,7 @@
 #include <ngraph/pattern/op/wrap_type.hpp>
 #include <ngraph/rt_info.hpp>
 #include <openvino/opsets/opset6.hpp>
+#include <openvino/pass/pattern/op/or.hpp>
 #include <vector>
 
 #include "itt.hpp"
@@ -21,7 +22,7 @@ ov::pass::SoftmaxFusion::SoftmaxFusion() {
     auto reduce_max_pattern = ngraph::pattern::wrap_type<opset6::ReduceMax>({data_pattern, reduce_max_axes_pattern});
     auto sub_pattern = ngraph::pattern::wrap_type<opset6::Subtract>({data_pattern, reduce_max_pattern});
 
-    auto exp_input = std::make_shared<pass::pattern::op::Or>(OutputVector{sub_pattern, data_pattern});
+    auto exp_input = std::make_shared<pattern::op::Or>(OutputVector{sub_pattern, data_pattern});
     auto exp_pattern = ngraph::pattern::wrap_type<opset6::Exp>({exp_input});
 
     auto reduce_sum_axes_pattern = ngraph::pattern::wrap_type<opset6::Constant>();
