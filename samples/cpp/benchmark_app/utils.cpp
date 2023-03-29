@@ -200,7 +200,7 @@ void update_device_config_for_virtual_device(const std::string& value,
             const auto& device_value = it.second;
             if (device_config.find(ov::device::properties.name()) == device_config.end() ||
                 (is_load_config && is_dev_set_property[device_name])) {
-                // Create ov::device::properties with ov::num_stream/ov::inference_precision and
+                // Create ov::device::properties with ov::num_stream/ov::hint::inference_precision and
                 // 1. Insert this ov::device::properties into device config if this
                 // ov::device::properties isn't existed. Otherwise,
                 // 2. Replace the existed ov::device::properties within device config.
