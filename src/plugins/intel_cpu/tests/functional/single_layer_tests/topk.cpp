@@ -119,29 +119,29 @@ protected:
         auto params = ngraph::builder::makeDynamicParams(netPrecision, {inputDynamicShapes[0]});
 
         // static shape need specific const k to test different sorting algorithms, dynamic shape tests random param k
-        std::shared_ptr<ngraph::opset11::TopK> topk;
+        std::shared_ptr<ov::op::v11::TopK> topk;
         if (staticShape) {
-            auto k = std::make_shared<ngraph::opset11::Constant>(ElementType::i64, ngraph::Shape{}, &keepK);
-            topk = std::dynamic_pointer_cast<ngraph::opset11::TopK>(
-                    std::make_shared<ngraph::opset11::TopK>(params[0], k, axis, mode, sort, ElementType::i32, stable));
+            auto k = std::make_shared<ov::op::v0::Constant>(ElementType::i64, ov::Shape{}, &keepK);
+            topk = std::dynamic_pointer_cast<ov::op::v11::TopK>(
+                    std::make_shared<ov::op::v11::TopK>(params[0], k, axis, mode, sort, ElementType::i32, stable));
         } else {
-            auto k = std::make_shared<ngraph::opset11::Parameter>(ElementType::i64, inputDynamicShapes[1]);
+            auto k = std::make_shared<ov::op::v0::Parameter>(ElementType::i64, inputDynamicShapes[1]);
             params.push_back(k);
-            topk = std::dynamic_pointer_cast<ngraph::opset11::TopK>(
-                    std::make_shared<ngraph::opset11::TopK>(params[0], k, axis, mode, sort, ElementType::i32, stable));
+            topk = std::dynamic_pointer_cast<ov::op::v11::TopK>(
+                    std::make_shared<ov::op::v11::TopK>(params[0], k, axis, mode, sort, ElementType::i32, stable));
         }
 
         topk->get_rt_info() = getCPUInfo();
 
         ngraph::ResultVector results;
         for (size_t i = 0; i < topk->get_output_size(); i++) {
-            results.push_back(std::make_shared<ngraph::opset11::Result>(topk->output(i)));
+            results.push_back(std::make_shared<ov::op::v0::Result>(topk->output(i)));
         }
 
         function = std::make_shared<ngraph::Function>(results, params, "TopK");
     }
 
-    void generate_inputs(const std::vector<ngraph::Shape>& targetInputStaticShapes) override {
+    void generate_inputs(const std::vector<ov::Shape>& targetInputStaticShapes) override {
         inputs.clear();
         const auto& funcInputs = function->inputs();
 
@@ -190,7 +190,7 @@ protected:
             if (O * A * I != size)
                 FAIL() << "Incorrect blob shape " << shape;
 
-            auto *rawBlobDataPtr = static_cast<ngraph::bfloat16 *>(tensor.data());
+            auto *rawBlobDataPtr = static_cast<ov::bfloat16 *>(tensor.data());
             for (size_t o = 0; o < O; o++) {
                 for (size_t i = 0; i < I; i++) {
                     std::vector<int> data(A);
@@ -200,7 +200,7 @@ protected:
                     std::mt19937 gen(seed);
                     std::shuffle(data.begin(), data.end(), gen);
                     for (size_t a = 0; a < A; a++) {
-                        rawBlobDataPtr[o * A * I + a * I + i] = static_cast<ngraph::bfloat16>(data[a]);
+                        rawBlobDataPtr[o * A * I + a * I + i] = static_cast<ov::bfloat16>(data[a]);
                     }
                 }
             }
@@ -216,7 +216,7 @@ protected:
 
 private:
     void generate_dynamic_k(const std::vector<ov::Output<ov::Node>>& funcInputs,
-                            const std::vector<ngraph::Shape>& targetInputStaticShapes) {
+                            const std::vector<ov::Shape>& targetInputStaticShapes) {
         const auto& kPrecision = funcInputs[1].get_element_type();
         const auto& kShape = targetInputStaticShapes[1];
 
