@@ -163,7 +163,7 @@ public:
 void set_intersection(const std::set<std::vector<element::Type>>& precisions1,
                       const std::set<std::vector<element::Type>>& precisions2,
                       std::set<std::vector<element::Type>>& intersection) {
-                      std::map<element::Type, size_t> intersection_types;
+    std::map<element::Type, size_t> intersection_types;
 
     for (auto it1 = precisions1.begin(); it1 != precisions1.end(); ++it1) {
         for (auto it2 = precisions2.begin(); it2 != precisions2.end(); ++it2) {
@@ -206,8 +206,7 @@ InferenceEngine::Precision eltwise_precision_helper::get_precision(const size_t 
         std::set<std::vector<element::Type>> prcs = get_supported_precisions(eltwise_data[i].algo);
         std::set<std::vector<element::Type>> prcs_intersect = {};
 
-        // for element-wise nodes all precisions have to be equal
-        assert(std::all_of(
+        OPENVINO_ASSERT(std::all_of(
             prcs.begin(),
             prcs.end(),
             [](const std::vector<element::Type>& precisions) {
@@ -215,7 +214,8 @@ InferenceEngine::Precision eltwise_precision_helper::get_precision(const size_t 
                     precisions.begin(),
                     precisions.end(),
                     [&precisions](const element::Type& precision) { return precision == precisions[0]; });
-            }));
+            }),
+            "for element-wise nodes all precisions have to be equal");
 
         set_intersection(supported_precision_intersection, prcs, prcs_intersect);
 
