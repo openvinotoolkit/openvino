@@ -34,9 +34,10 @@ void compile_graph::run(program& p) {
     std::exception_ptr exception;
     for (size_t idx = 0; idx < proc_order.size(); idx++) {
         auto& node = *(std::next(proc_order.begin(), idx));
+        bool use_shape_agnostic_impl = !p.get_config().get_property(ov::intel_gpu::use_only_static_kernels_for_dynamic_shape);
         bool can_select_impl = !node->is_type<data>() &&
                                !(node->is_type<mutable_data>() && node->get_dependencies().empty()) &&
-                               (!node->is_dynamic() || node->type()->does_dynamic_implementation_exist(*node));
+                               (!node->is_dynamic() || (use_shape_agnostic_impl && node->type()->does_dynamic_implementation_exist(*node)));
 
         // TODO: Remove this WA once we have shape agnostic reshape kernel
         if (node->is_type<reshape>() && node->is_dynamic() && !node->can_be_optimized())
@@ -65,13 +66,9 @@ void compile_graph::run(program& p) {
             can_select_impl = false;
 
         if (can_select_impl) {
-            tasks.push_back([node, &p, &exception] {
+            tasks.push_back([node, &exception] {
                 try {
                     node->selected_impl = node->type()->choose_impl(*node);
-                    if (node->selected_impl) {
-                        auto kernel_ids = p.get_kernels_cache().add_kernels_source(node->selected_impl->get_kernels_source());
-                        node->selected_impl->set_kernel_ids(kernel_ids);
-                    }
                 } catch(...) {
                     exception = std::current_exception();
                 }
