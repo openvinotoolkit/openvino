@@ -134,7 +134,9 @@ public:
     }
 
     bool supported_impl(const std::vector<ov::Any>& variants) const override {
-        if (variants.size() == 1 && variants[0].is<std::string>()) {
+        // Last boolean flag in `variants` (if presented) is reserved for FE configuration
+        size_t extra_variants_num = variants.size() > 0 && variants[variants.size() - 1].is<bool>() ? 1 : 0;
+        if (variants.size() == 1 + extra_variants_num && variants[0].is<std::string>()) {
             std::string command = variants[0].as<std::string>();
             FRONT_END_GENERAL_CHECK(command != "throw_now", "Test exception");
         }
@@ -146,8 +148,10 @@ public:
     }
 
     InputModel::Ptr load_impl(const std::vector<ov::Any>& variants) const override {
+        // Last boolean flag in `variants` (if presented) is reserved for FE configuration
+        size_t extra_variants_num = variants.size() > 0 && variants[variants.size() - 1].is<bool>() ? 1 : 0;
         auto input_model = std::make_shared<InputModelMock>();
-        if (variants.size() == 1 && variants[0].is<std::string>()) {
+        if (variants.size() == 1 + extra_variants_num && variants[0].is<std::string>()) {
             std::string command = variants[0].as<std::string>();
             if (command == "throw_now") {
                 OPENVINO_THROW("Test throw load input model");

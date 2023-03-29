@@ -7,6 +7,7 @@
 #include "mutable_data_inst.h"
 #include "reshape_inst.h"
 #include "quantize_inst.h"
+#include "arg_max_min_inst.h"
 #include "program_node.h"
 #include "intel_gpu/runtime/engine.hpp"
 #include "intel_gpu/runtime/itt.hpp"
@@ -51,6 +52,11 @@ void compile_graph::run(program& p) {
         if (node->is_type<fully_connected>() && node->is_dynamic() && node->get_output_layout().get_partial_shape().size() > 3)
             can_select_impl = false;
 
+        // TODO: Remove this WA once we have shape agnostic arg_max_min_axis kernel with non-const k input
+        if (node->is_type<arg_max_min>() && node->is_dynamic() && node->as<arg_max_min>().get_primitive()->top_k == 0) {
+            can_select_impl = false;
+        }
+
         bool is_planar = node->get_output_layout().format == format::bfyx ||
                          node->get_output_layout().format == format::bfzyx ||
                          node->get_output_layout().format == format::bfwzyx;
@@ -59,13 +65,9 @@ void compile_graph::run(program& p) {
             can_select_impl = false;
 
         if (can_select_impl) {
-            tasks.push_back([node, &p, &exception] {
+            tasks.push_back([node, &exception] {
                 try {
                     node->selected_impl = node->type()->choose_impl(*node);
-                    if (node->selected_impl) {
-                        auto kernel_ids = p.get_kernels_cache().add_kernels_source(node->selected_impl->get_kernels_source());
-                        node->selected_impl->set_kernel_ids(kernel_ids);
-                    }
                 } catch(...) {
                     exception = std::current_exception();
                 }
