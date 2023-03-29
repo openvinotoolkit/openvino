@@ -6,7 +6,10 @@
 
 #include <onnx/onnx_pb.h>
 
-#include "core/sparse_tensor.hpp"
+#include "core/type/bfloat16.hpp"
+#include "core/partial_shape.hpp"
+#include "core/node.hpp"
+#include "core/node_output.hpp"
 #include "core/tensor.hpp"
 #include "ngraph/except.hpp"
 
