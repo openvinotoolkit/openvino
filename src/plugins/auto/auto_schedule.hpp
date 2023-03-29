@@ -51,6 +51,7 @@ public:
 public:
     AutoLoadContext                           _loadContext[CONTEXTNUM];
     std::unique_ptr<AutoLoadContext[]>        _pCTPUTLoadContext = nullptr;
+    size_t                                    _nCTputDeviceNums;
 
 protected:
     void GenerateWorkers(const std::string& device, const SoExecNetwork& executableNetwork) override;
@@ -79,7 +80,6 @@ private:
     std::promise<void>                       _firstLoadPromise;
     bool                                     _exitFlag = {false};
     size_t                                   _cpuHelpInferCount = 0;
-    size_t                                   _nCTputDeviceNums;
 };
 
 }  // namespace MultiDevicePlugin
