@@ -825,7 +825,8 @@ static bool is_node_for_onednn(deconvolution_node const& node) {
 
 static bool is_node_for_onednn(fully_connected_node const& node) {
     auto fc_prim = node.get_primitive();
-    auto ps = node.get_output_layout().get_partial_shape();
+    auto output_layout = node.get_output_layout();
+    auto ps = output_layout.get_partial_shape();
     size_t non_spatial_count = 2 + (fc_prim->input_size == 3 ? 1 : 0);
     size_t rank = ps.size();
 
@@ -1178,6 +1179,9 @@ bool layout_optimizer::are_data_types_suitable_for_onednn(program_node& node) {
     if (in_dt == data_types::f32 && (!node.is_type<fully_connected>() && !node.is_type<convolution>()))
         return false;
 
+    if (in_dt == data_types::i64 || out_dt == data_types::i64)
+        return false;
+
     if (node.is_type<pooling>()) {
         if (!data_type_traits::is_floating_point(in_dt) && in_dt != out_dt)
             return false;
@@ -1257,6 +1261,16 @@ bool layout_optimizer::are_layouts_suitable_for_onednn(program_node& node) {
         return (no_spatial_padding && no_batch_padding);
     }
     return true;
+}
+
+bool layout_optimizer::is_primitive_implemented_for_onednn(program_node& node) {
+    if (node.is_type<fully_connected>() || node.is_type<gemm>() || node.is_type<pooling>() ||
+        node.is_type<convolution>() || node.is_type<deconvolution>() ||
+        node.is_type<reduce>() || node.is_type<reorder>() || node.is_type<concatenation>()) {
+            return true;
+    }
+
+    return false;
 }
 
 impl_types layout_optimizer::get_forced_impl_type_by_config(program_node& node) {
@@ -1416,6 +1430,10 @@ impl_types layout_optimizer::get_preferred_impl_type(program_node& node, format 
 
         // onednn reorder doesn't support different number of dimensions in input and output layouts
         if (input_fmt.dimension() != output_fmt.dimension()) {
+            preferred_impl = impl_types::ocl;
+        }
+
+        if (!are_data_types_suitable_for_onednn(node)) {
             preferred_impl = impl_types::ocl;
         }
 
