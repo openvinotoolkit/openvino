@@ -18,10 +18,10 @@ OutputVector translate_reverse_sequence_op(const NodeContext& node) {
     auto seq_lengths = node.get_input(1);
 
     // retrieve attributes
-    auto seq_axis = node.get_attribute<int64_t>("seq_dim");
-    auto batch_axis = node.get_attribute<int64_t>("batch_dim", 0);
+    auto seq_dim = node.get_attribute<int64_t>("seq_dim");
+    auto batch_dim = node.get_attribute<int64_t>("batch_dim", 0);
 
-    auto reverse_sequence = make_shared<ReverseSequence>(input, seq_lengths, batch_axis, seq_axis);
+    auto reverse_sequence = make_shared<ReverseSequence>(input, seq_lengths, batch_dim, seq_dim);
     set_node_name(node.get_name(), reverse_sequence);
     return {reverse_sequence};
 }

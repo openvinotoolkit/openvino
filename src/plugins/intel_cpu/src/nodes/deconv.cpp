@@ -577,8 +577,11 @@ VectorDims Deconvolution::shapeInferInternal(const VectorDims &inDims, std::vect
         }
     }
 
-    auto outputShapes = shapeInference->infer(inputShapesRefs, inputValues);
-    return outputShapes.back();
+    auto result = shapeInference->infer(inputShapesRefs, inputValues);
+    if (ShapeInferStatus::success != result.status) {
+        IE_THROW(Unexpected) << "Unexpected shape inference result status in node of type " << getTypeStr() << " with name " << getName();
+    }
+    return std::move(result.dims.back());
 }
 
 void Deconvolution::setDynamicBatchLim(int lim) {
@@ -1045,7 +1048,7 @@ Deconvolution::DeconvExecutorDefault::DeconvExecutorDefault(const dnnl::convolut
                                                                       const dnnl::memory::desc& weightMemDesc,
                                                                       const dnnl::memory::desc& outMemDesc,
                                                                       const dnnl::engine& engine) {
-    execPrim.reset(new dnnl::convolution_backward_data(pd));
+    execPrim = dnnl::convolution_backward_data(pd);
 
     if (inMemDesc != pd.diff_dst_desc()) {
         inputReorders.insert({DNNL_ARG_DIFF_DST, IntermReorder(inMemDesc, pd.diff_dst_desc(), engine)});
@@ -1065,7 +1068,7 @@ Deconvolution::DeconvExecutorInt8::DeconvExecutorInt8(const dnnl::deconvolution_
                                                                 const dnnl::memory::desc& weightMemDesc,
                                                                 const dnnl::memory::desc& outMemDesc,
                                                                 const dnnl::engine& engine) {
-    execPrim.reset(new dnnl::deconvolution_forward(pd));
+    execPrim = dnnl::deconvolution_forward(pd);
 
     if (inMemDesc != pd.src_desc()) {
         inputReorders.insert({DNNL_ARG_SRC, IntermReorder(inMemDesc, pd.src_desc(), engine)});

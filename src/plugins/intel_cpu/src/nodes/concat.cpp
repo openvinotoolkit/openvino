@@ -62,7 +62,7 @@ Concat::Concat(const std::shared_ptr<ngraph::Node>& op, const GraphContext::CPtr
     if (axis < 0) {
         axis += inRank;
     }
-    if (axis >= inRank || axis < 0) {
+    if (axis >= static_cast<int64_t>(inRank) || axis < 0) {
         IE_THROW() << "Concat node with name '" << getName() << "' has invalid value of axis parameter: " << axis;
     }
     this->axis = axis;
@@ -426,7 +426,7 @@ void Concat::prepareParams() {
         }
 
         auto primitive_desc = concat::primitive_desc(desc, static_cast<int>(axis), srcs_d, getEngine());
-        prim.reset(new concat(primitive_desc));
+        prim = concat(primitive_desc);
     }
 }
 
@@ -557,7 +557,7 @@ void Concat::execute(dnnl::stream strm) {
             mem_ags[DNNL_ARG_MULTIPLE_SRC + nonZeroInShapes] = srcMem.GetPrimitive();
             nonZeroInShapes++;
         }
-        (*prim).execute(strm, mem_ags);
+        prim.execute(strm, mem_ags);
     }
 }
 

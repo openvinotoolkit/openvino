@@ -9,6 +9,8 @@
 #include <string>
 #include <vector>
 
+#include "compilation_context.hpp"
+
 namespace InferenceEngine {
 namespace Serialization {
 
@@ -18,8 +20,7 @@ namespace Serialization {
  * @param binPath   Path to BIN file
  * @param network   network to be serialized
  */
-void Serialize(const std::string& xmlPath, const std::string& binPath,
-               const InferenceEngine::CNNNetwork& network);
+void Serialize(const std::string& xmlPath, const std::string& binPath, const InferenceEngine::CNNNetwork& network);
 
 }  // namespace Serialization
 }  // namespace InferenceEngine

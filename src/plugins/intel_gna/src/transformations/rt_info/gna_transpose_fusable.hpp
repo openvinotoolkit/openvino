@@ -33,6 +33,6 @@ public:
         return false;
     }
 };
-} // namespace rt_info
-} // namespace intel_gna
-} // namespace ov
+}  // namespace rt_info
+}  // namespace intel_gna
+}  // namespace ov

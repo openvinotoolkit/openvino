@@ -1216,7 +1216,7 @@ static void generic_average_wo_padding_test(format fmt, tensor output, tensor in
 
     tensor off(0);
     for (size_t i = 0; i < offset.size(); i++) {
-        off.spatial[i] = offset[offset.size() - i - 1];
+        off.spatial[i] = static_cast<tensor::value_type>(offset[offset.size() - i - 1]);
     }
 
     auto pool_in = "in";
@@ -1933,11 +1933,12 @@ public:
         return "pool";
     }
 
-    virtual void run_expect(const VVVVVF<output_t>& expected) {
+    virtual void run_expect(const VVVVVF<output_t>& expected, bool is_caching_test) {
         auto& eng = get_test_engine();
         auto topo = build_topology(eng);
         ExecutionConfig config(ov::intel_gpu::optimize_data(true));
-        cldnn::network net(eng, topo, config);
+
+        cldnn::network::ptr net = get_network(eng, topo, config, get_test_stream_ptr(), is_caching_test);
 
         auto input_size = tensor(batch(batch_num()), feature(input_features()), spatial(input_x(), input_y(), input_z()));
         auto input_lay = layout(input_type(),
@@ -1956,20 +1957,22 @@ public:
                         }
         set_values(input_mem, input_flat);
 
-        net.set_input_data("input", input_mem);
-        auto result = net.execute();
+        net->set_input_data("input", input_mem);
+        auto result = net->execute();
         auto out_mem = result.at(output_id()).get_memory();
         auto out_lay = out_mem->get_layout();
         cldnn::mem_lock<output_t> out_ptr(out_mem, get_test_stream());
 
-        std::string kernel;
-        for (auto i : net.get_primitives_info()) {
-            if (i.original_id == "pool") {
-                kernel = i.kernel_id;
+        if (!is_caching_test) {
+            std::string kernel;
+            for (auto i : net->get_primitives_info()) {
+                if (i.original_id == "pool") {
+                    kernel = i.kernel_id;
+                }
             }
+            std::cout << kernel << std::endl;
+            SCOPED_TRACE("\nkernel: " + kernel);
         }
-        std::cout << kernel << std::endl;
-        SCOPED_TRACE("\nkernel: " + kernel);
 
         ASSERT_EQ(out_lay.data_type, output_type());
         ASSERT_EQ(out_lay.batch(), expected.size());
@@ -2078,15 +2081,15 @@ public:
             for (size_t fi = 0; fi < this->input_features(); ++fi) {
                 reference[bi][fi] = reference_pooling<InputT, Mode>(
                     this->_input[bi][fi],
-                    this->pool_x(),
-                    this->pool_y(),
-                    this->pool_z(),
-                    this->stride_x(),
-                    this->stride_y(),
-                    this->stride_z(),
-                    this->offset_x(),
-                    this->offset_y(),
-                    this->offset_z());
+                    static_cast<int>(this->pool_x()),
+                    static_cast<int>(this->pool_y()),
+                    static_cast<int>(this->pool_z()),
+                    static_cast<int>(this->stride_x()),
+                    static_cast<int>(this->stride_y()),
+                    static_cast<int>(this->stride_z()),
+                    static_cast<int>(this->offset_x()),
+                    static_cast<int>(this->offset_y()),
+                    static_cast<int>(this->offset_z()));
             }
         }
         return reference;
@@ -2115,10 +2118,10 @@ public:
         this->set_offsets(o_x, o_y, o_z);
     }
 
-    void run_random(const pooling_random_test_params& params) {
+    void run_random(const pooling_random_test_params& params, bool is_caching_test) {
         param_set_up(params);
         auto reference = calculate_reference();
-        ASSERT_NO_FATAL_FAILURE(this->run_expect(reference));
+        ASSERT_NO_FATAL_FAILURE(this->run_expect(reference, is_caching_test));
     }
 };
 
@@ -2131,22 +2134,22 @@ struct pooling_random_test : public testing::TestWithParam<pooling_random_test_p
 
 TEST_P(pooling_random_test, max_i8) {
     auto test_case = max_pooling_i8_random_test();
-    ASSERT_NO_FATAL_FAILURE(test_case.run_random(GetParam()));
+    ASSERT_NO_FATAL_FAILURE(test_case.run_random(GetParam(), false));
 }
 
 TEST_P(pooling_random_test, max_u8) {
     auto test_case = max_pooling_u8_random_test();
-    ASSERT_NO_FATAL_FAILURE(test_case.run_random(GetParam()));
+    ASSERT_NO_FATAL_FAILURE(test_case.run_random(GetParam(), false));
 }
 
 TEST_P(pooling_random_test, avg_i8) {
     auto test_case = avg_pooling_i8_random_test();
-    ASSERT_NO_FATAL_FAILURE(test_case.run_random(GetParam()));
+    ASSERT_NO_FATAL_FAILURE(test_case.run_random(GetParam(), false));
 }
 
 TEST_P(pooling_random_test, avg_u8) {
     auto test_case = avg_pooling_u8_random_test();
-    ASSERT_NO_FATAL_FAILURE(test_case.run_random(GetParam()));
+    ASSERT_NO_FATAL_FAILURE(test_case.run_random(GetParam(), false));
 }
 
 INSTANTIATE_TEST_SUITE_P(
@@ -2243,22 +2246,22 @@ using pooling_random_test_fp16_fp32 = pooling_random_test;
 
 TEST_P(pooling_random_test_fp16_fp32, avg_fp16) {
     auto test_case = pooling_random_test_base<FLOAT16, pooling_mode::average>();
-    ASSERT_NO_FATAL_FAILURE(test_case.run_random(GetParam()));
+    ASSERT_NO_FATAL_FAILURE(test_case.run_random(GetParam(), false));
 }
 
 TEST_P(pooling_random_test_fp16_fp32, max_fp16) {
     auto test_case = pooling_random_test_base<FLOAT16, pooling_mode::max>();
-    ASSERT_NO_FATAL_FAILURE(test_case.run_random(GetParam()));
+    ASSERT_NO_FATAL_FAILURE(test_case.run_random(GetParam(), false));
 }
 
 TEST_P(pooling_random_test_fp16_fp32, avg_fp32) {
     auto test_case = pooling_random_test_base<float, pooling_mode::average>();
-    ASSERT_NO_FATAL_FAILURE(test_case.run_random(GetParam()));
+    ASSERT_NO_FATAL_FAILURE(test_case.run_random(GetParam(), false));
 }
 
 TEST_P(pooling_random_test_fp16_fp32, max_fp32) {
     auto test_case = pooling_random_test_base<float, pooling_mode::max>();
-    ASSERT_NO_FATAL_FAILURE(test_case.run_random(GetParam()));
+    ASSERT_NO_FATAL_FAILURE(test_case.run_random(GetParam(), false));
 }
 
 INSTANTIATE_TEST_SUITE_P(
@@ -3005,14 +3008,14 @@ public:
 
         cldnn::pooling_mode pooling_mode = pooling->mode;
 
-        int pad_width = pooling->pads_begin[1];
-        int pad_height = pooling->pads_begin[0];
+        int pad_width = static_cast<int>(pooling->pads_begin[1]);
+        int pad_height = static_cast<int>(pooling->pads_begin[0]);
 
-        int kernel_width = pooling->size[1];
-        int kernel_height = pooling->size[0];
+        int kernel_width = static_cast<int>(pooling->size[1]);
+        int kernel_height = static_cast<int>(pooling->size[0]);
 
-        int stride_width = pooling->stride[1];
-        int stride_height = pooling->stride[0];
+        int stride_width = static_cast<int>(pooling->stride[1]);
+        int stride_height = static_cast<int>(pooling->stride[0]);
 
         auto output_tensor = get_expected_output_tensor();
 
@@ -3057,9 +3060,9 @@ public:
 
                                 const size_t output_index = get_linear_index(output->get_layout(), b, f, h, w, output_desc);
 
-                                for (int y = pad_y_start; y < pad_y_end; y++)
+                                for (auto y = pad_y_start; y < pad_y_end; y++)
                                 {
-                                    for (int x = pad_x_start; x < pad_x_end; x++)
+                                    for (auto x = pad_x_start; x < pad_x_end; x++)
                                     {
                                         const size_t input_index = get_linear_index(inputs[0]->get_layout(), b, f, y, x, input_desc);
 
@@ -3078,10 +3081,12 @@ public:
             case cldnn::pooling_mode::average:
             case cldnn::pooling_mode::average_no_padding:
             {
-                int pool_size_w = pooling->size[1];
-                int pool_size_h = pooling->size[0];
-                auto dynamic_mode = (((output_tensor.spatial[0] - 1) * stride_width) + pool_size_w) > -2 * pad_width + width ||
-                                    (((output_tensor.spatial[1] - 1) * stride_height) + pool_size_h) > -2 * pad_height + height;
+                auto pool_size_w = pooling->size[1];
+                auto pool_size_h = pooling->size[0];
+                auto dynamic_mode = static_cast<int>(((output_tensor.spatial[0] - 1) * stride_width) + pool_size_w) >
+                                        -2 * pad_width + width ||
+                                    static_cast<int>(((output_tensor.spatial[1] - 1) * stride_height) + pool_size_h) >
+                                        -2 * pad_height + height;
 
                 auto divider = [=](int actual_x, int actual_y) {
                     auto x = kernel_width;
@@ -3249,3 +3254,44 @@ TEST(pooling_forward_gpu_onednn, basic_max_pooling_int8) {
 }
 
 #endif   // ENABLE_ONEDNN_FOR_GPU
+
+#ifdef RUN_ALL_MODEL_CACHING_TESTS
+TEST_P(pooling_random_test, max_i8_cached) {
+    auto test_case = max_pooling_i8_random_test();
+    ASSERT_NO_FATAL_FAILURE(test_case.run_random(GetParam(), true));
+}
+
+TEST_P(pooling_random_test, max_u8_cached) {
+    auto test_case = max_pooling_u8_random_test();
+    ASSERT_NO_FATAL_FAILURE(test_case.run_random(GetParam(), true));
+}
+
+TEST_P(pooling_random_test, avg_i8_cached) {
+    auto test_case = avg_pooling_i8_random_test();
+    ASSERT_NO_FATAL_FAILURE(test_case.run_random(GetParam(), true));
+}
+
+TEST_P(pooling_random_test, avg_u8_cached) {
+    auto test_case = avg_pooling_u8_random_test();
+    ASSERT_NO_FATAL_FAILURE(test_case.run_random(GetParam(), true));
+}
+
+TEST_P(pooling_random_test_fp16_fp32, avg_fp16_cached) {
+    auto test_case = pooling_random_test_base<FLOAT16, pooling_mode::average>();
+    ASSERT_NO_FATAL_FAILURE(test_case.run_random(GetParam(), true));
+}
+
+TEST_P(pooling_random_test_fp16_fp32, max_fp16_cached) {
+    auto test_case = pooling_random_test_base<FLOAT16, pooling_mode::max>();
+    ASSERT_NO_FATAL_FAILURE(test_case.run_random(GetParam(), true));
+}
+
+TEST_P(pooling_random_test_fp16_fp32, avg_fp32_cached) {
+    auto test_case = pooling_random_test_base<float, pooling_mode::average>();
+    ASSERT_NO_FATAL_FAILURE(test_case.run_random(GetParam(), true));
+}
+#endif  // RUN_ALL_MODEL_CACHING_TESTS
+TEST_P(pooling_random_test_fp16_fp32, max_fp32_cached) {
+    auto test_case = pooling_random_test_base<float, pooling_mode::max>();
+    ASSERT_NO_FATAL_FAILURE(test_case.run_random(GetParam(), true));
+}

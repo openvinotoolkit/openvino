@@ -290,21 +290,21 @@ template<typename T>
 struct reorg_yolo_test
         : public ::testing::TestWithParam<ReorgYoloParamsWithLayout<T> > {
 public:
-    void test() {
+    void test(bool is_caching_test) {
         ReorgYoloParams<T> params;
         format::type target_format;
         bool should_fail;
         std::tie(params, target_format, should_fail) = this->GetParam();
 
         if (should_fail) {
-            ASSERT_ANY_THROW(run_test(params, target_format));
+            ASSERT_ANY_THROW(run_test(params, target_format, is_caching_test));
         } else {
-            ASSERT_NO_FATAL_FAILURE(run_test(params, target_format));
+            ASSERT_NO_FATAL_FAILURE(run_test(params, target_format, is_caching_test));
         }
     }
 
 private:
-    void run_test(const ReorgYoloParams<T>& params, const format::type target_format) {
+    void run_test(const ReorgYoloParams<T>& params, const format::type target_format, bool is_caching_test) {
         const auto data_type = type_to_data_type<T>::value;
         const format::type plain_format = format::bfyx;
 
@@ -320,9 +320,9 @@ private:
         topology.add(reorg_yolo("reorg_yolo", input_info("input_reordered"), params.stride));
         topology.add(reorder("reorg_yolo_reordered", input_info("reorg_yolo"), plain_format, data_type));
 
-        network network(engine, topology);
-        network.set_input_data("input", input);
-        const auto result = network.execute();
+        cldnn::network::ptr network = get_network(engine, topology, ExecutionConfig(), get_test_stream_ptr(), is_caching_test);
+        network->set_input_data("input", input);
+        const auto result = network->execute();
 
         auto out_mem = result.at("reorg_yolo_reordered").get_memory();
         cldnn::mem_lock<T> out_ptr(out_mem, get_test_stream());
@@ -339,11 +339,11 @@ using test_f32 = reorg_yolo_test<float>;
 using test_f16 = reorg_yolo_test<half_t>;
 
 TEST_P(test_f32, basic) {
-    test();
+    test(false);
 }
 
 TEST_P(test_f16, basic) {
-    test();
+    test(false);
 }
 
 
@@ -371,3 +371,12 @@ INSTANTIATE_TEST_SUITE_P(reorg_yolo_invalid_input,
                                  ::testing::Values(format::bfyx),
                                  ::testing::Values(true)),
                          PrintToStringParamName());
+
+#ifdef RUN_ALL_MODEL_CACHING_TESTS
+TEST_P(test_f32, basic_cached) {
+    test(true);
+}
+#endif
+TEST_P(test_f16, basic_cached) {
+    test(true);
+}

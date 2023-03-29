@@ -14,11 +14,15 @@ ie_option (ENABLE_COMPILE_TOOL "Enables compile_tool" ON)
 
 ie_option (ENABLE_STRICT_DEPENDENCIES "Skip configuring \"convinient\" dependencies for efficient parallel builds" ON)
 
-ie_dependent_option (ENABLE_CLDNN "clDnn based plugin for OpenVINO Runtime" ON "X86_64;NOT APPLE;NOT MINGW;NOT WINDOWS_STORE;NOT WINDOWS_PHONE" OFF)
-ie_dependent_option (ENABLE_INTEL_GPU "GPU plugin for OpenVINO Runtime on Intel GPU" ON "ENABLE_CLDNN" OFF)
+if(X86_64)
+    set(ENABLE_INTEL_GPU_DEFAULT ON)
+else()
+    set(ENABLE_INTEL_GPU_DEFAULT OFF)
+endif()
 
-if (NOT ENABLE_CLDNN OR ANDROID OR
-    (CMAKE_COMPILER_IS_GNUCXX AND CMAKE_CXX_COMPILER_VERSION VERSION_LESS 7.0))
+ie_dependent_option (ENABLE_INTEL_GPU "GPU OpenCL-based plugin for OpenVINO Runtime" ${ENABLE_INTEL_GPU_DEFAULT} "X86_64 OR AARCH64;NOT APPLE;NOT MINGW;NOT WINDOWS_STORE;NOT WINDOWS_PHONE" OFF)
+
+if (ANDROID OR (CMAKE_COMPILER_IS_GNUCXX AND CMAKE_CXX_COMPILER_VERSION VERSION_LESS 7.0))
     # oneDNN doesn't support old compilers and android builds for now, so we'll
     # build GPU plugin without oneDNN
     set(ENABLE_ONEDNN_FOR_GPU_DEFAULT OFF)
@@ -26,7 +30,7 @@ else()
     set(ENABLE_ONEDNN_FOR_GPU_DEFAULT ON)
 endif()
 
-ie_option (ENABLE_ONEDNN_FOR_GPU "Enable oneDNN with GPU support" ${ENABLE_ONEDNN_FOR_GPU_DEFAULT})
+ie_dependent_option (ENABLE_ONEDNN_FOR_GPU "Enable oneDNN with GPU support" ${ENABLE_ONEDNN_FOR_GPU_DEFAULT} "ENABLE_INTEL_GPU" OFF)
 
 ie_option (ENABLE_PROFILING_ITT "Build with ITT tracing. Optionally configure pre-built ittnotify library though INTEL_VTUNE_DIR variable." OFF)
 
@@ -42,8 +46,6 @@ ie_option_enum(SELECTIVE_BUILD "Enable OpenVINO conditional compilation or stati
 In case SELECTIVE_BUILD is enabled, the SELECTIVE_BUILD_STAT variable should contain the path to the collected InelSEAPI statistics. \
 Usage: -DSELECTIVE_BUILD=ON -DSELECTIVE_BUILD_STAT=/path/*.csv" OFF
                ALLOWED_VALUES ON OFF COLLECT)
-
-ie_option(ENABLE_ERROR_HIGHLIGHT "Highlight errors and warnings during compile time" ON)
 
 ie_option (ENABLE_DOCS "Build docs using Doxygen" OFF)
 
@@ -112,7 +114,7 @@ ie_dependent_option(ENABLE_TBB_RELEASE_ONLY "Only Release TBB libraries are link
 
 if(CMAKE_HOST_LINUX AND LINUX)
     # Debian packages are enabled on Ubuntu systems
-    # so, system TBB / pugixml can be tried for usage
+    # so, system TBB / pugixml / OpenCL can be tried for usage
     set(ENABLE_SYSTEM_LIBS_DEFAULT ON)
 else()
     set(ENABLE_SYSTEM_LIBS_DEFAULT OFF)
@@ -125,6 +127,7 @@ else()
     set(ENABLE_SYSTEM_TBB_DEFAULT ${ENABLE_SYSTEM_LIBS_DEFAULT})
 endif()
 
+# users wants to use his own TBB version, specific either via env vars or cmake options
 if(DEFINED ENV{TBBROOT} OR DEFINED ENV{TBB_DIR} OR DEFINED TBB_DIR OR DEFINED TBBROOT)
     set(ENABLE_SYSTEM_TBB_DEFAULT OFF)
 endif()
@@ -133,6 +136,8 @@ endif()
 ie_dependent_option (ENABLE_SYSTEM_PUGIXML "use the system copy of pugixml" ${ENABLE_SYSTEM_LIBS_DEFAULT} "BUILD_SHARED_LIBS" OFF)
 
 ie_dependent_option (ENABLE_SYSTEM_TBB  "use the system version of TBB" ${ENABLE_SYSTEM_TBB_DEFAULT} "THREADING MATCHES TBB" OFF)
+
+ie_dependent_option (ENABLE_SYSTEM_OPENCL "Use the system version of OpenCL" ${ENABLE_SYSTEM_LIBS_DEFAULT} "BUILD_SHARED_LIBS;ENABLE_INTEL_GPU" OFF)
 
 ie_option (ENABLE_DEBUG_CAPS "enable OpenVINO debug capabilities at runtime" OFF)
 

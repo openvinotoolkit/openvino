@@ -34,6 +34,9 @@ void jit_dft_kernel_f32<isa>::generate() {
         input_type_size = complex_type_size<float>();
         output_type_size = type_size;
         break;
+    default:
+        output_type_size = 1;
+        break;
     }
     int simd_size = vlen / output_type_size;
     if (kernel_type_ == complex_to_complex)

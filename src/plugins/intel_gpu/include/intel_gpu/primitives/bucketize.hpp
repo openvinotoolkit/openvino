@@ -31,6 +31,15 @@ struct bucketize : primitive_base<bucketize> {
         seed = hash_combine(seed, with_right_bound);
         return seed;
     }
+
+    bool operator==(const primitive& rhs) const override {
+        if (!compare_common_params(rhs))
+            return false;
+
+        auto rhs_casted = downcast<const bucketize>(rhs);
+
+        return with_right_bound == rhs_casted.with_right_bound;
+    }
 };
 
 }  // namespace cldnn

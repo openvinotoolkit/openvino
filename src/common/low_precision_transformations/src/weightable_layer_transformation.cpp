@@ -262,8 +262,8 @@ bool WeightableLayerTransformation::isQuantizedStatic(const std::shared_ptr<cons
             return true;
     };
 
-    if (dequantizationOnWeights.subtract && !checkConstShape(dequantizationOnWeights.subtractConstant) ||
-        dequantizationOnWeights.multiply && !checkConstShape(dequantizationOnWeights.multiplyConstant)) {
+    if ((dequantizationOnWeights.subtract && !checkConstShape(dequantizationOnWeights.subtractConstant)) ||
+        (dequantizationOnWeights.multiply && !checkConstShape(dequantizationOnWeights.multiplyConstant))) {
         return false;
     }
 

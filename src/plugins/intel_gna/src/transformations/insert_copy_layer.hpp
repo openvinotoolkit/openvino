@@ -153,13 +153,10 @@ public:
     bool run_on_model(const std::shared_ptr<ngraph::Function>& f) override;
 };
 
-
 /**
- * @brief Matches the Reshape/Trivial transpose/Squeeze/Unsqueeze (Non-functional), Crop, Split and passes the rt_info to inputs nodes
- * to identify the subgraph which contains only layers mentioned above. If find the parameter with non-functional rt_info,
- * then inserts copy layer in subgraph:
- * [Parameter]         [Parameter]
- *     |                    |
+ * @brief Matches the Reshape/Trivial transpose/Squeeze/Unsqueeze (Non-functional), Crop, Split and passes the rt_info
+ * to inputs nodes to identify the subgraph which contains only layers mentioned above. If find the parameter with
+ * non-functional rt_info, then inserts copy layer in subgraph: [Parameter]         [Parameter] |                    |
  *     |                  [Copy]
  *  [Reshape]    =>         |
  *     |                [Reshape]
@@ -184,7 +181,8 @@ public:
 };
 
 /**
- * @brief Runs MatchNonComputationalLayers transformation in reverse order to passthru rt_info and identify the non-computational subgraphs.
+ * @brief Runs MatchNonComputationalLayers transformation in reverse order to passthru rt_info and identify the
+ * non-computational subgraphs.
  */
 class HandleNonFunctionalSubgraphs : public ngraph::pass::BackwardGraphRewrite {
 public:
@@ -194,6 +192,6 @@ public:
     }
 };
 
-} // namespace pass
-} // namespace intel_gna
-} // namespace ov
+}  // namespace pass
+}  // namespace intel_gna
+}  // namespace ov

@@ -509,6 +509,17 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_expand_context_dependent_function) {
     test_case.run();
 }
 
+NGRAPH_TEST(${BACKEND_NAME}, onnx_expand_function_with_initializers) {
+    const auto function =
+        onnx_import::import_onnx_model(file_util::path_join(CommonTestUtils::getExecutableDirectory(),
+                                                            SERIALIZED_ZOO,
+                                                            "onnx/transformations/celu_with_initializers.onnx"));
+
+    auto test_case = test::TestCase(function, s_device);
+    test_case.add_expected_output<float>({0.5, 1.0, 1.5, 2.0});
+    test_case.run();
+}
+
 // ############################################################################ OPERATOR TESTS
 NGRAPH_TEST(${BACKEND_NAME}, onnx_model_addmul_abc) {
     auto function = onnx_import::import_onnx_model(
@@ -2594,6 +2605,61 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_top_k_opset_11_const_k_smallest_negative_axis)
 
     test_case.add_expected_output<float>(Shape{3, 3}, {0, 1, 2, 4, 5, 6, 8, 9, 10});        // values
     test_case.add_expected_output<std::int64_t>(Shape{3, 3}, {0, 1, 2, 0, 1, 2, 3, 2, 1});  // indices
+    test_case.run();
+}
+
+NGRAPH_TEST(${BACKEND_NAME}, onnx_model_top_k_repeating_1D) {
+    auto function = onnx_import::import_onnx_model(file_util::path_join(CommonTestUtils::getExecutableDirectory(),
+                                                                        SERIALIZED_ZOO,
+                                                                        "onnx/top_k_repeating_1D.onnx"));
+
+    auto test_case = test::TestCase(function, s_device);
+    test_case.add_input<int32_t>({1, 1, 2, 0, 2, 100});
+    test_case.add_input<int64_t>({5});
+
+    test_case.add_expected_output<int32_t>(Shape{5}, {100, 2, 2, 1, 1});
+    test_case.add_expected_output<int64_t>(Shape{5}, {5, 2, 4, 0, 1});
+    test_case.run();
+}
+
+NGRAPH_TEST(${BACKEND_NAME}, onnx_model_top_k_repeating) {
+    auto function = onnx_import::import_onnx_model(
+        file_util::path_join(CommonTestUtils::getExecutableDirectory(), SERIALIZED_ZOO, "onnx/top_k_repeating.onnx"));
+
+    auto test_case = test::TestCase(function, s_device);
+    test_case.add_input<int32_t>(Shape{3, 6}, {100, 1, 1, 2, 0, 2, 1, 2, 3, 4, 5, 6, 100, 1, 1, 2, 0, 2});
+    test_case.add_input<int64_t>({3});
+
+    test_case.add_expected_output<int32_t>(Shape{3, 3}, {100, 2, 2, 6, 5, 4, 7, 2, 2});
+    test_case.add_expected_output<int64_t>(Shape{3, 3}, {0, 3, 5, 5, 4, 3, 0, 2, 4});
+    test_case.run();
+}
+
+NGRAPH_TEST(${BACKEND_NAME}, onnx_model_top_k_repeating_axis_0) {
+    auto function = onnx_import::import_onnx_model(file_util::path_join(CommonTestUtils::getExecutableDirectory(),
+                                                                        SERIALIZED_ZOO,
+                                                                        "onnx/top_k_repeating_axis_0.onnx"));
+
+    auto test_case = test::TestCase(function, s_device);
+    test_case.add_input<int32_t>(Shape{3, 6}, {100, 1, 1, 2, 0, 2, 1, 2, 3, 4, 5, 6, 7, 1, 2, 0, 2, 1});
+    test_case.add_input<int64_t>({2});
+
+    test_case.add_expected_output<int32_t>(Shape{2, 6}, {100, 2, 3, 4, 5, 6, 7, 1, 2, 2, 2, 2});
+    test_case.add_expected_output<int64_t>(Shape{2, 6}, {0, 1, 1, 1, 1, 1, 2, 0, 2, 0, 2, 0});
+    test_case.run();
+}
+
+NGRAPH_TEST(${BACKEND_NAME}, onnx_model_top_k_repeating_unsorted) {
+    auto function = onnx_import::import_onnx_model(file_util::path_join(CommonTestUtils::getExecutableDirectory(),
+                                                                        SERIALIZED_ZOO,
+                                                                        "onnx/top_k_repeating_unsorted.onnx"));
+
+    auto test_case = test::TestCase(function, s_device);
+    test_case.add_input<int32_t>(Shape{3, 6}, {100, 1, 1, 2, 0, 2, 1, 2, 3, 4, 5, 6, 7, 1, 2, 0, 2, 1});
+    test_case.add_input<int64_t>({3});
+
+    test_case.add_expected_output<int32_t>(Shape{3, 3}, {1, 1, 0, 3, 2, 1, 1, 1, 0});
+    test_case.add_expected_output<int64_t>(Shape{3, 3}, {2, 1, 4, 2, 1, 0, 5, 1, 3});
     test_case.run();
 }
 

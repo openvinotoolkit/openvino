@@ -66,6 +66,7 @@ namespace ov {
  */
 template <class T, class TResult = std::vector<T>, class UnaryOperation>
 TResult get_raw_data_as(const element::Type_t et, const void* const ptr, const size_t size, UnaryOperation&& func) {
+    OPENVINO_ASSERT(!!ptr, "ptr is Null");
     TResult out;
     auto out_it = std::inserter(out, out.end());
 
@@ -330,6 +331,50 @@ std::unique_ptr<TShape> get_input_const_data_as_shape(const ov::Node* op,
     }
     return {};
 }
+
+/**
+ * \brief Get the input bounds from constant input (constant map) or evaluate bunds
+ *  and return them as vector of pairs (lower, upper).
+ *
+ * \tparam TShape        Shape type.
+ * \tparam TData         Bound value type.
+ *
+ * \param op             Operator pointer.
+ * \param idx            Input index.
+ * \param constant_data  Map with constant data.
+ *
+ * \return Return vector of bounds as pair lower, upper.
+ */
+template <class TShape, class TData, class TResult = std::vector<std::pair<TData, TData>>>
+std::unique_ptr<TResult> get_input_bounds(const ov::Node* op,
+                                          size_t idx,
+                                          const std::map<size_t, HostTensorPtr>& constant_data) {
+    const auto make_bound = [](TData lb, TData ub) -> typename TResult::value_type {
+        return {lb, ub};
+    };
+
+    if (auto lowers = op::get_input_const_data_as<TShape, TData>(op, idx, constant_data)) {
+        auto out = std::unique_ptr<TResult>(new TResult);
+        out->reserve(lowers->size());
+        std::transform(lowers->begin(), lowers->end(), lowers->begin(), std::back_inserter(*out), make_bound);
+        return out;
+    } else {
+        auto bounds = ov::evaluate_both_bounds(op->get_input_source_output(idx));
+
+        if (bounds.first && bounds.second) {
+            constexpr auto cast = ov::util::Cast<TData>();
+            auto lowers = get_tensor_data_as<TData>(bounds.first, cast);
+            auto uppers = get_tensor_data_as<TData>(bounds.second, cast);
+
+            auto out = std::unique_ptr<TResult>(new TResult);
+            out->reserve(lowers.size());
+            std::transform(lowers.begin(), lowers.end(), uppers.begin(), std::back_inserter(*out), make_bound);
+            return out;
+        }
+    }
+    return {};
+}
+
 }  // namespace op
 }  // namespace ov
 
@@ -418,17 +463,29 @@ inline bool get_data_as_shape<ov::PartialShape>(
     }
 }
 
-template <class T>
+/**
+ * @brief Check for valid quotient of dimension division.
+ *
+ * If quotient is not valid (quotient * divisor != dividend) throw NodeValidationFailure exception.
+ *
+ * @tparam TDim     Type of dimension.
+ *
+ * @param op        Pointer to operator.
+ * @param quotient  Dimension result after division.
+ * @param dividend  Original dimension.
+ * @param divisor   Dimension divide value.
+ */
+template <class TDim>
 inline void check_divided_result(const ov::Node* op,
-                                 const T& res,
-                                 const T& divided,
-                                 const typename T::value_type& divisor) {
+                                 const TDim& quotient,
+                                 const TDim& dividend,
+                                 const typename TDim::value_type& divisor) {
     NODE_VALIDATION_CHECK(op,
-                          res != T{},
+                          quotient != TDim{},
                           "Dimension value: [ ",
-                          divided.get_min_length(),
+                          dividend.get_min_length(),
                           ", ",
-                          divided.get_max_length(),
+                          dividend.get_max_length(),
                           "]",
                           " must be a multiple of divisor: ",
                           divisor);
@@ -436,15 +493,15 @@ inline void check_divided_result(const ov::Node* op,
 
 template <>
 inline void check_divided_result<ov::Dimension>(const ov::Node* op,
-                                                const ov::Dimension& res,
-                                                const ov::Dimension& divided,
+                                                const ov::Dimension& quotient,
+                                                const ov::Dimension& dividend,
                                                 const typename ov::Dimension::value_type& divisor) {
     NODE_VALIDATION_CHECK(op,
-                          !res.get_interval().empty(),
+                          !quotient.get_interval().empty(),
                           "Dimension value: [ ",
-                          divided.get_min_length(),
+                          dividend.get_min_length(),
                           ", ",
-                          divided.get_max_length(),
+                          dividend.get_max_length(),
                           "]",
                           " must be a multiple of divisor: ",
                           divisor);

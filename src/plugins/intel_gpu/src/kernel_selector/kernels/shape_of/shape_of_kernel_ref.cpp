@@ -41,7 +41,7 @@ KernelsData ShapeOfKernelRef::GetKernelsData(const Params &params, const optiona
     auto jit = CreateJit(kernelName, jit_constants, entry_point);
     auto &clKernelData = kernel_data.kernels[0];
 
-    kernel_data.update_dispatch_data_func = [this](const Params& params, KernelData& kd) {
+    kernel_data.update_dispatch_data_func = [](const Params& params, KernelData& kd) {
         const auto& prim_params = static_cast<const shape_of_params&>(params);
         auto dispatchData = SetDefault(prim_params);
         OPENVINO_ASSERT(kd.kernels.size() == 1, "[GPU] Invalid kernels size for update dispatch data func");

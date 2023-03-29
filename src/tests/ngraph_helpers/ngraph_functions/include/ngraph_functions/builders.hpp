@@ -250,7 +250,7 @@ std::shared_ptr<ngraph::Node> makeSplit(const ngraph::Output<Node> &in,
 
 std::shared_ptr<ngraph::Node> makeVariadicSplit(const ngraph::Output<Node> &in,
                                                 const std::vector<size_t> numSplits,
-                                                size_t axis);
+                                                int64_t axis);
 
 std::shared_ptr<ngraph::Node> makeActivation(const ngraph::Output<Node> &in,
                                              const element::Type &type,
@@ -505,6 +505,12 @@ std::shared_ptr<ngraph::Node> makePad(const ngraph::Output<Node>& data,
                                       const std::vector<int64_t>& padsEnd,
                                       float argPadValue,
                                       ngraph::helpers::PadMode padMode);
+
+std::shared_ptr<ov::Node> makePad(const ov::Output<Node>& in,
+                                  const ov::Output<Node>& beginNode,
+                                  const ov::Output<Node>& endNode,
+                                  const ov::Output<Node>& valueNode,
+                                  ngraph::helpers::PadMode padMode);
 
 std::shared_ptr<ngraph::Node> makeBatchNormInference(const ngraph::Output<Node>& data,
                                                      double epsilon);

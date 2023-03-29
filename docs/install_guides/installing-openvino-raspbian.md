@@ -6,7 +6,7 @@
 
    * These steps apply to Raspbian OS (the official OS for Raspberry Pi boards).
    * These steps have been validated with Raspberry Pi 3.
-   * There is also an open-source version of OpenVINO™ that can be compiled for arch64 (see `build instructions <https://github.com/openvinotoolkit/openvino/wiki/BuildingForRaspbianStretchOS>`_).
+   * There is also an open-source version of OpenVINO™ that can be compiled for arch64 (see `build instructions <https://github.com/openvinotoolkit/openvino/blob/master/docs/dev/build_raspbian.md>`_).
 
 @endsphinxdirective
 
@@ -152,7 +152,7 @@ If you want to use your model for inference, the model must be converted to the 
 
 * Download public and Intel's pre-trained models from the `Open Model Zoo <https://github.com/openvinotoolkit/open_model_zoo>`_ using :doc:`Model Downloader tool <omz_tools_downloader>`. For more information on pre-trained models, see :doc:`Pre-Trained Models Documentation <omz_models_group_intel>`.
 
-  * OpenCV is necessary to run demos from Open Model Zoo (OMZ). Some OpenVINO samples can also extend their capabilities when compiled with OpenCV as a dependency. To install OpenCV for OpenVINO, see the `instructions on Github <https://github.com/opencv/opencv/wiki/BuildOpenCV4OpenVINO)`_.
+  * OpenCV is necessary to run demos from Open Model Zoo (OMZ). Some OpenVINO samples can also extend their capabilities when compiled with OpenCV as a dependency. To install OpenCV for OpenVINO, see the `instructions on Github <https://github.com/opencv/opencv/wiki/BuildOpenCV4OpenVINO)>`_.
 
 * Convert the models using the Model Optimizer. Model Optimizer is provided with OpenVINO Development Tools.
 
@@ -209,6 +209,8 @@ To uninstall the toolkit, follow the steps on the :doc:`Uninstalling page <openv
 * Sample applications: :ref:`OpenVINO™ Toolkit Samples Overview <code samples>`
 * Pre-trained deep learning models: :ref:`Overview of OpenVINO™ Toolkit Pre-Trained Models <model zoo>`
 * IoT libraries and code samples in the GitHUB repository: `Intel® IoT Developer Kit`_ 
+* :ref:`OpenVINO Installation Selector Tool <https://www.intel.com/content/www/us/en/developer/tools/openvino-toolkit/download.html>`
+
 .. _Intel® IoT Developer Kit: https://github.com/intel-iot-devkit
 
 @endsphinxdirective

@@ -2,23 +2,19 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "concatenation_inst.h"
 #include "primitive_base.hpp"
-#include "impls/implementation_map.hpp"
-#include "intel_gpu/runtime/error_handler.hpp"
-#include "kernel_selector_helper.h"
+
+#include "concatenation_inst.h"
 #include "concatenation/concatenation_kernel_selector.h"
 #include "concatenation/concatenation_kernel_base.h"
-
-#include <initializer_list>
 
 namespace cldnn {
 namespace ocl {
 
 namespace {
 kernel_selector::concat_axis convert_axis(int64_t axis, size_t rank) {
-    unsigned cldnn_axis = axis >= 0 ? axis : axis + static_cast<int64_t>(rank);
-    if (cldnn_axis >= rank)
+    auto cldnn_axis = axis >= 0 ? axis : axis + static_cast<int64_t>(rank);
+    if (cldnn_axis >= static_cast<int64_t>(rank))
         IE_THROW() << "Concatenation axis exceeds number of dimensions";
 
     // Difference in dimension ordering between IE and GPU plugin,
@@ -58,9 +54,9 @@ struct concatenation_impl : typed_primitive_impl_ocl<concatenation> {
     }
 
 public:
-    static kernel_params_t get_kernel_params(const kernel_impl_params& impl_param) {
+    static kernel_params_t get_kernel_params(const kernel_impl_params& impl_param, bool is_shape_agnostic = false) {
         const auto& primitive = impl_param.typed_desc<concatenation>();
-        auto params = get_default_params<kernel_selector::concatenation_params>(impl_param);
+        auto params = get_default_params<kernel_selector::concatenation_params>(impl_param, is_shape_agnostic);
         auto optional_params = get_default_optional_params<kernel_selector::concatenation_optional_params>(impl_param.get_program());
         auto axis = primitive->axis;
 
@@ -76,11 +72,38 @@ public:
 
         return {params, optional_params};
     }
+
+    void update_dispatch_data(const kernel_impl_params& impl_param) override {
+        auto kernel_params = get_kernel_params(impl_param, true);
+        (_kernel_data.update_dispatch_data_func)(kernel_params.first, _kernel_data);
+        update_kernels_list_to_skip();
+    }
 };
 
 namespace detail {
 
 attach_concatenation_impl::attach_concatenation_impl() {
+    auto dyn_types = {
+        data_types::i8,
+        data_types::u8,
+        data_types::f16,
+        data_types::f32,
+        data_types::i32,
+        data_types::i64
+    };
+
+    auto dyn_formats = {
+        format::bfyx,
+        format::bfzyx,
+        format::bfwzyx
+    };
+
+    implementation_map<concatenation>::add(impl_types::ocl,
+                                           shape_types::dynamic_shape,
+                                           typed_primitive_impl_ocl<concatenation>::create<concatenation_impl>,
+                                           dyn_types,
+                                           dyn_formats);
+
     implementation_map<concatenation>::add(impl_types::ocl, typed_primitive_impl_ocl<concatenation>::create<concatenation_impl>, {
         std::make_tuple(data_types::f32, format::yxfb),
         std::make_tuple(data_types::f16, format::yxfb),

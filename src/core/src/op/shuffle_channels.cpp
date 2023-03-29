@@ -15,6 +15,7 @@
 #include "ngraph/runtime/reference/shuffle_channels.hpp"
 #include "ngraph/type/element_type.hpp"
 #include "ngraph/type/element_type_traits.hpp"
+#include "openvino/core/validation_util.hpp"
 
 using namespace std;
 using namespace ngraph;
@@ -34,34 +35,24 @@ bool ngraph::op::v0::ShuffleChannels::visit_attributes(AttributeVisitor& visitor
 }
 
 size_t op::ShuffleChannels::get_zero_based_axis() const {
-    if (m_axis >= 0) {
-        return m_axis;
+    const auto input_rank = get_input_partial_shape(0).rank();
+    if (input_rank.is_static()) {
+        return ov::normalize_axis(this, m_axis, input_rank);
     } else {
-        if (!get_input_partial_shape(0).rank().is_dynamic()) {
-            return m_axis + get_input_partial_shape(0).rank().get_length();
-        } else {
-            throw ngraph_error("Cannot request zero-based axis with a input of unknown rank");
-        }
+        throw ngraph_error("Cannot request zero-based axis with a input of unknown rank");
     }
 }
 
 void op::ShuffleChannels::validate_and_infer_types() {
     OV_OP_SCOPE(v0_ShuffleChannels_validate_and_infer_types);
 
-    const auto& data_type = get_input_element_type(0);
-    std::vector<ov::PartialShape> output_shapes = {ov::PartialShape{}};
-    const std::vector<ov::PartialShape> input_shapes = {get_input_partial_shape(0)};
-    shape_infer(this, input_shapes, output_shapes);
-    set_output_type(0, data_type, output_shapes[0]);
+    const auto output_shape = shape_infer(this, get_node_input_partial_shapes(*this)).front();
+    set_output_type(0, get_input_element_type(0), output_shape);
 }
 
 shared_ptr<Node> op::ShuffleChannels::clone_with_new_inputs(const OutputVector& new_args) const {
     OV_OP_SCOPE(v0_ShuffleChannels_clone_with_new_inputs);
-    if (new_args.size() != 1) {
-        throw ngraph_error("Expected 1 element in new_args for the ShuffleChannels op but got " +
-                           std::to_string(new_args.size()));
-    }
-
+    check_new_args_count(this, new_args);
     return make_shared<ShuffleChannels>(new_args.at(0), m_axis, m_group);
 }
 
@@ -87,4 +78,12 @@ bool op::ShuffleChannels::evaluate(const HostTensorVector& outputs, const HostTe
 bool op::ShuffleChannels::has_evaluate() const {
     OV_OP_SCOPE(v0_ShuffleChannels_has_evaluate);
     return true;
+}
+
+void op::v0::ShuffleChannels::set_axis(int64_t axis) {
+    m_axis = axis;
+}
+
+void op::v0::ShuffleChannels::set_group(int64_t group) {
+    m_group = group;
 }

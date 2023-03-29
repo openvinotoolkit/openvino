@@ -1,4 +1,4 @@
-# Install OpenVINO™ Runtime on Linux Using YUM Repository {#openvino_docs_install_guides_installing_openvino_yum}
+# Install OpenVINO™ Runtime on Linux From YUM Repository {#openvino_docs_install_guides_installing_openvino_yum}
 
 @sphinxdirective
 
@@ -22,18 +22,22 @@ Installing OpenVINO Runtime from YUM is recommended for C++ developers. If you a
    | Full requirement listing is available in:
    | `System Requirements Page <https://www.intel.com/content/www/us/en/developer/tools/openvino-toolkit/system-requirements.html>`_
 
+   .. note::
+
+      Installing OpenVINO from YUM is only supported on RHEL 8.2 and higher versions. CentOS 7 is not supported for this installation method.
+
 .. tab:: Processor Notes
 
-  Processor graphics are not included in all processors.
-  See `Product Specifications`_ for information about your processor.
+   Processor graphics are not included in all processors.
+   See `Product Specifications`_ for information about your processor.
 
-  .. _Product Specifications: https://ark.intel.com/
+   .. _Product Specifications: https://ark.intel.com/
 
 .. tab:: Software
 
-  * `CMake 3.13 or higher, 64-bit <https://cmake.org/download/>`_
-  * GCC 8.2.0
-  * `Python 3.7 - 3.10, 64-bit <https://www.python.org/downloads/>`_
+   * `CMake 3.13 or higher, 64-bit <https://cmake.org/download/>`_
+   * GCC 8.2.0
+   * `Python 3.7 - 3.10, 64-bit <https://www.python.org/downloads/>`_
 
 @endsphinxdirective
 
@@ -41,36 +45,42 @@ Installing OpenVINO Runtime from YUM is recommended for C++ developers. If you a
 
 ### Step 1: Set Up the Repository
 
-1. Create the `openvino-2022.repo` YUM repo file in the `/tmp` directory as a normal user:
-   ```
-   tee > /tmp/openvino-2022.repo << EOF
-   [OpenVINO]
-   name=Intel(R) Distribution of OpenVINO 2022
-   baseurl=https://yum.repos.intel.com/openvino/2022
-   enabled=1
-   gpgcheck=1
-   repo_gpgcheck=1
-   gpgkey=https://yum.repos.intel.com/intel-gpg-keys/GPG-PUB-KEY-INTEL-SW-PRODUCTS.PUB
-   EOF
-   ```
-2.	Move the new `openvino-2022.repo` file to the YUM configuration directory `/etc/yum.repos.d`:
-   ```sh
-   sudo mv /tmp/openvino-2022.repo /etc/yum.repos.d
-   ```
-3.	Verify that the new repo is properly setup by running the following command:
-   ```sh
-   yum repolist | grep -i openvino
-   ```
-    You will see the available list of packages.
+@sphinxdirective
+
+1. Create a YUM repository file (`openvino-2022.repo`) in the `/tmp` directory as a normal user:
+
+   .. code-block:: sh
+
+      tee > /tmp/openvino-2022.repo << EOF
+      [OpenVINO]
+      name=Intel(R) Distribution of OpenVINO 2022
+      baseurl=https://yum.repos.intel.com/openvino/2022
+      enabled=1
+      gpgcheck=1
+      repo_gpgcheck=1
+      gpgkey=https://yum.repos.intel.com/intel-gpg-keys/GPG-PUB-KEY-INTEL-SW-PRODUCTS.PUB
+      EOF
+
+2. Move the new `openvino-2022.repo` file to the YUM configuration directory, i.e. `/etc/yum.repos.d`:
+   
+   .. code-block:: sh
+
+      sudo mv /tmp/openvino-2022.repo /etc/yum.repos.d
+
+3. Verify that the new repository is set up properly.
+
+   .. code-block:: sh
+
+      yum repolist | grep -i openvino
+
+   You will see the available list of packages.
 
 
 To list available OpenVINO packages, use the following command:
 
-@sphinxdirective
+.. code-block:: sh
 
-   .. code-block:: sh
-
-      yum list 'openvino*'
+   yum list 'openvino*'
 
 @endsphinxdirective
 
@@ -88,7 +98,7 @@ To list available OpenVINO packages, use the following command:
 
       sudo yum install openvino
 
-.. tab::  A Specific Version
+.. tab:: A Specific Version
 
    Run the following command:
 
@@ -106,13 +116,13 @@ To list available OpenVINO packages, use the following command:
 
 #### Check for Installed Packages and Version
 
-Run the following command:
-
 @sphinxdirective
 
-   .. code-block:: sh
+Run the following command:
 
-      yum list installed 'openvino*'
+.. code-block:: sh
+
+   yum list installed 'openvino*'
 
 .. _intall additional components yum:
 
@@ -135,9 +145,9 @@ To enable the toolkit components to use processor graphics (GPU) on your system,
 
 ### Step 5: Build Samples
 
-To build the C++ or C sample applications for Linux, run the `build_samples.sh` script:
-
 @sphinxdirective
+
+To build the C++ or C sample applications for Linux, run the `build_samples.sh` script:
 
 .. tab:: C++
 
@@ -195,8 +205,8 @@ Now that you've installed OpenVINO Runtime, you're ready to run your own machine
 
 * Visit the :ref:`Samples <code samples>` page for other C++ example applications to get you started with OpenVINO, such as:
 
-   * `Basic object detection with the Hello Reshape SSD C++ sample <openvino_inference_engine_samples_hello_reshape_ssd_README.html>`_
-   * `Automatic speech recognition C++ sample <openvino_inference_engine_samples_speech_sample_README.html>`_
+  * `Basic object detection with the Hello Reshape SSD C++ sample <openvino_inference_engine_samples_hello_reshape_ssd_README.html>`_
+  * `Automatic speech recognition C++ sample <openvino_inference_engine_samples_speech_sample_README.html>`_
 
 You can also try the following things:
 
@@ -208,3 +218,7 @@ You can also try the following things:
 * Take a glance at the OpenVINO product home page: https://software.intel.com/en-us/openvino-toolkit.
 
 @endsphinxdirective
+
+## Additional Resources
+
+- [OpenVINO Installation Selector Tool](https://www.intel.com/content/www/us/en/developer/tools/openvino-toolkit/download.html)

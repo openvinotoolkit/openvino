@@ -894,7 +894,7 @@ public:
 
     bool visit_attributes(ov::AttributeVisitor& visitor) override {
         // FIXME: Serialization only, there is no deserialization
-        std::string m_res_type_str = m_res_type->to_string();
+        std::string m_res_type_str =m_res_type.as<std::string>();
         visitor.on_attribute("res_type", m_res_type_str);
         visitor.on_attribute("res_shape", m_res_shape);
         return true;

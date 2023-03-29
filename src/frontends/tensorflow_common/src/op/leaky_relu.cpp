@@ -13,12 +13,13 @@ namespace frontend {
 namespace tensorflow {
 namespace op {
 ov::OutputVector translate_leaky_relu_op(const NodeContext& node) {
-    auto in = node.get_input(0);
-    auto alpha_attr = node.get_attribute<float>("alpha", 0.f);
-    auto alpha_const = make_shared<Constant>(element::f32, Shape{1}, alpha_attr);
-
-    auto leaky_relu = make_shared<PRelu>(in, alpha_const);
-    return leaky_relu->outputs();
+    default_op_checks(node, 1, {"LeakyRelu", "LEAKY_RELU"});
+    auto features = node.get_input(0);
+    auto alpha = node.get_attribute<float>("alpha", 0.2f);
+    auto alpha_const = make_shared<Constant>(element::f32, Shape{1}, alpha);
+    auto leaky_relu = make_shared<PRelu>(features, alpha_const);
+    set_node_name(node.get_name(), leaky_relu);
+    return {leaky_relu};
 }
 }  // namespace op
 }  // namespace tensorflow

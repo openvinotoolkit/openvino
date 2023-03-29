@@ -29,7 +29,6 @@ add_library(openvino::runtime ALIAS ${TARGET_NAME})
 set_target_properties(${TARGET_NAME} PROPERTIES EXPORT_NAME runtime)
 
 ie_add_vs_version_file(NAME ${TARGET_NAME} FILEDESCRIPTION "OpenVINO runtime library")
-ie_add_api_validator_post_build_step(TARGET ${TARGET_NAME})
 
 target_include_directories(${TARGET_NAME} PUBLIC
     $<BUILD_INTERFACE:${OpenVINO_SOURCE_DIR}/src/core/include>
@@ -64,6 +63,9 @@ endif()
 
 set_ie_threading_interface_for(${TARGET_NAME})
 ie_mark_target_as_cc(${TARGET_NAME})
+
+# must be called after all target_link_libraries
+ie_add_api_validator_post_build_step(TARGET ${TARGET_NAME} EXTRA ${TBB_IMPORTED_TARGETS})
 
 # LTO
 set_target_properties(${TARGET_NAME} PROPERTIES INTERPROCEDURAL_OPTIMIZATION_RELEASE ${ENABLE_LTO})

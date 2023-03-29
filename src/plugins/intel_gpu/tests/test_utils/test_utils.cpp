@@ -21,7 +21,7 @@ generic_test::generic_test()
     , max_ulps_diff_allowed(4)
     , random_values(true) { }
 
-void generic_test::run_single_test() {
+void generic_test::run_single_test(bool is_caching_test) {
     assert((generic_params->data_type == data_types::f32) || (generic_params->data_type == data_types::f16));
     topology topology;
     topology.add_primitive(layer_params);
@@ -91,13 +91,13 @@ void generic_test::run_single_test() {
 
     prepare_input_for_test(input_mems);
 
-    network network(engine, topology, generic_params->network_config);
+    cldnn::network::ptr network = get_network(engine, topology, generic_params->network_config, get_test_stream_ptr(), is_caching_test);
 
     for (size_t i = 0 ; i < input_layouts_names.size() ; i++) {
-        network.set_input_data(input_layouts_names[i], input_mems[i]);
+        network->set_input_data(input_layouts_names[i], input_mems[i]);
     }
 
-    auto outputs = network.execute();
+    auto outputs = network->execute();
     ASSERT_EQ(outputs.size(), size_t(1));
 
     auto output = outputs.begin()->second.get_memory();
@@ -287,7 +287,12 @@ std::vector<std::shared_ptr<test_params>> generic_test::generate_generic_test_pa
 }
 
 std::shared_ptr<cldnn::engine> create_test_engine() {
-    return cldnn::engine::create(engine_types::ocl, runtime_types::ocl);
+    auto ret = cldnn::engine::create(engine_types::ocl, runtime_types::ocl);
+#ifdef ENABLE_ONEDNN_FOR_GPU
+    if(ret->get_device_info().supports_immad)
+        ret->create_onednn_engine({});
+#endif
+    return ret;
 }
 
 cldnn::engine& get_test_engine() {

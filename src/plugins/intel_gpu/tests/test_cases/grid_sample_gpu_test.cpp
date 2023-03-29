@@ -7,6 +7,12 @@
 #include "intel_gpu/primitives/grid_sample.hpp"
 #include "test_utils/test_utils.h"
 
+#ifdef RUN_ALL_MODEL_CACHING_TESTS
+    #define RUN_CACHING_TEST false, true
+#else
+    #define RUN_CACHING_TEST false
+#endif
+
 using namespace cldnn;
 using namespace tests;
 
@@ -24,7 +30,7 @@ struct grid_sample_test_inputs {
 };
 
 template <class TD, class TG>
-using grid_sample_test_params = std::tuple<grid_sample_test_inputs<TD, TG>, format::type>;
+using grid_sample_test_params = std::tuple<grid_sample_test_inputs<TD, TG>, format::type, bool>;
 
 template <class T>
 float getError();
@@ -45,7 +51,8 @@ public:
     void test() {
         format::type fmt;
         grid_sample_test_inputs<TD, TG> p;
-        std::tie(p, fmt) = testing::TestWithParam<grid_sample_test_params<TD, TG>>::GetParam();
+        bool is_caching_test;
+        std::tie(p, fmt, is_caching_test) = testing::TestWithParam<grid_sample_test_params<TD, TG>>::GetParam();
 
         auto& engine = get_test_engine();
         const auto data_data_type = type_to_data_type<TD>::value;
@@ -68,10 +75,10 @@ public:
         topology.add(grid_sample("grid_sample", { input_info("reordered_data"), input_info("reordered_grid") }, p.attributes));
         topology.add(reorder("plane_grid_sample", input_info("grid_sample"), plane_format, data_data_type));
 
-        network network(engine, topology);
-        network.set_input_data("data", data);
-        network.set_input_data("grid", grid);
-        const auto outputs = network.execute();
+        cldnn::network::ptr network = get_network(engine, topology, ExecutionConfig(), get_test_stream_ptr(), is_caching_test);
+        network->set_input_data("data", data);
+        network->set_input_data("grid", grid);
+        const auto outputs = network->execute();
 
         ASSERT_EQ(outputs.size(), std::size_t(1));
         ASSERT_EQ(outputs.begin()->first, "plane_grid_sample");
@@ -88,11 +95,13 @@ public:
     static std::string PrintToStringParamName(const testing::TestParamInfo<grid_sample_test_params<TD, TG>>& info) {
         format::type fmt;
         grid_sample_test_inputs<TD, TG> p;
-        std::tie(p, fmt) = info.param;
+        bool is_caching_test;
+        std::tie(p, fmt, is_caching_test) = info.param;
 
         std::ostringstream result;
         result << "TestName=" << p.test_name << ";";
-        result << "Format=" << fmt_to_str(fmt);
+        result << "Format=" << fmt_to_str(fmt) << ";";
+        result << "Cached=" << bool_to_str(is_caching_test) << ";";
         return result.str();
     }
 };
@@ -673,13 +682,23 @@ TEST_P(grid_sample_gpu_test_FLOAT16_FLOAT16, test) {
 INSTANTIATE_TEST_SUITE_P(smoke_grid_sample_gpu_test_float_float,
                          grid_sample_gpu_test_float_float,
                          testing::Combine(testing::ValuesIn(getParamsToCheckLayouts<float, float>()),
-                                          testing::ValuesIn(layout_formats)),
+                                          testing::ValuesIn(layout_formats),
+                                          testing::Values(RUN_CACHING_TEST)),
                          grid_sample_gpu_test_float_float::PrintToStringParamName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_grid_sample_gpu_test_FLOAT16_FLOAT16,
                          grid_sample_gpu_test_FLOAT16_FLOAT16,
                          testing::Combine(testing::ValuesIn(getParamsToCheckLogic<FLOAT16, FLOAT16>()),
-                                          testing::Values(format::bfyx)),
+                                          testing::Values(format::bfyx),
+                                          testing::Values(RUN_CACHING_TEST)),
                          grid_sample_gpu_test_FLOAT16_FLOAT16::PrintToStringParamName);
 
+#ifndef RUN_ALL_MODEL_CACHING_TESTS
+INSTANTIATE_TEST_SUITE_P(smoke_grid_sample_gpu_test_FLOAT16_FLOAT16_cached,
+                         grid_sample_gpu_test_FLOAT16_FLOAT16,
+                         testing::Combine(testing::ValuesIn(getNearestParamsOddDimensionsOuterGrids<FLOAT16, FLOAT16>()),
+                                          testing::Values(format::bfyx),
+                                          testing::Values(true)),
+                         grid_sample_gpu_test_FLOAT16_FLOAT16::PrintToStringParamName);
+#endif
 }  // namespace

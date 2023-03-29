@@ -28,18 +28,19 @@ namespace LayerTestsDefinitions {
 class Elt_x3 : public BasicBF16Test  {
 protected:
     std::shared_ptr<ngraph::Function> createGraph(InferenceEngine::Precision netPrecision) override {
-//                       Power (FP32)
-//                    /    |          \
-//            Conv(BF16)   Conv(BF16)  Conv(BF16)
-//                /        |          /
-// ----------------------------------------------
-//    Eltwise(MAX)(FP32)  Eltwise(Mul) (FP32)
-//             |            |
-//            Conv(BF16)   Conv(BF16)
-//             \           /
-//            Eltwise (SUM)(BF16)
-//                |
-//            Conv (BF16)
+        /*                       Power (FP32)
+         *                    /    |          \
+         *            Conv(BF16)   Conv(BF16)  Conv(BF16)
+         *                /        |          /
+         * ----------------------------------------------
+         *    Eltwise(MAX)(FP32)  Eltwise(Mul) (FP32)
+         *             |            |
+         *            Conv(BF16)   Conv(BF16)
+         *             \           /
+         *            Eltwise (SUM)(BF16)
+         *                |
+         *            Conv (BF16)
+         */
 
         auto channelsCount = inputShapes[1];
 

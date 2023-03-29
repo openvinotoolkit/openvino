@@ -17,7 +17,7 @@ using namespace ::tests;
 
 template <class T>
 int get_not_one_dim(const T& a) {
-    int ret = a.size();
+    int ret = static_cast<int>(a.size());
     while (ret - 1 >= 0 && a[ret - 1] == 1)
         ret--;
     return ret;
@@ -1938,24 +1938,7 @@ void test_gather_gpu_u8_322_axisF(bool is_caching_test) {
     topology.add(
         gather("gather", input_info("InputDictionary"), input_info("InputText"), axis, ov::Shape{3, 2, 2, 1}));
 
-    cldnn::network::ptr network;
-
-    if (is_caching_test) {
-        membuf mem_buf;
-        {
-            cldnn::network _network(engine, topology);
-            std::ostream out_mem(&mem_buf);
-            BinaryOutputBuffer ob = BinaryOutputBuffer(out_mem);
-            _network.save(ob);
-        }
-        {
-            std::istream in_mem(&mem_buf);
-            BinaryInputBuffer ib = BinaryInputBuffer(in_mem, engine);
-            network = std::make_shared<cldnn::network>(ib, get_test_stream_ptr(), engine);
-        }
-    } else {
-        network = std::make_shared<cldnn::network>(engine, topology);
-    }
+    cldnn::network::ptr network = get_network(engine, topology, ExecutionConfig(), get_test_stream_ptr(), is_caching_test);
 
     network->set_input_data("InputDictionary", input1);
     network->set_input_data("InputText", input2);

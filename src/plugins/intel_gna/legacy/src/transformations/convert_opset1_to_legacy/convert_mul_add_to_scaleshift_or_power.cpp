@@ -4,21 +4,20 @@
 
 #include "legacy/transformations/convert_opset1_to_legacy/convert_mul_add_to_scaleshift_or_power.hpp"
 
-#include <memory>
-#include <vector>
 #include <algorithm>
-
+#include <memory>
 #include <ngraph/opsets/opset1.hpp>
 #include <ngraph/rt_info.hpp>
-
-#include "transformations/utils/utils.hpp"
+#include <vector>
 
 #include "legacy/ngraph_ops/power.hpp"
 #include "legacy/ngraph_ops/scaleshift.hpp"
+#include "transformations/utils/utils.hpp"
 
 CONVERSION_RESULT check_constant(const std::shared_ptr<ngraph::opset1::Constant>& constant,
                                  const ngraph::PartialShape& shape) {
-    if (!constant || shape.rank().is_dynamic()) return CONVERSION_RESULT::NONE;
+    if (!constant || shape.rank().is_dynamic())
+        return CONVERSION_RESULT::NONE;
 
     auto const_shape = constant->get_shape();
     std::vector<ngraph::Dimension> input_shape(shape);
@@ -30,12 +29,15 @@ CONVERSION_RESULT check_constant(const std::shared_ptr<ngraph::opset1::Constant>
 
     // Align shapes
     size_t max_shape_len = std::max(input_shape.size(), const_shape.size());
-    while (const_shape.size() < max_shape_len) const_shape.insert(const_shape.begin(), 1);
-    while (input_shape.size() < max_shape_len) input_shape.insert(input_shape.begin(), 1);
+    while (const_shape.size() < max_shape_len)
+        const_shape.insert(const_shape.begin(), 1);
+    while (input_shape.size() < max_shape_len)
+        input_shape.insert(input_shape.begin(), 1);
 
     // This is feature dimension index from right side (ex. for NCDHW it's equal to 3).
     const size_t feature_index = input_shape.size() - 2;
-    if (const_shape.size() < feature_index) return CONVERSION_RESULT::NONE;
+    if (const_shape.size() < feature_index)
+        return CONVERSION_RESULT::NONE;
 
     bool is_power = false;
     auto in_it = const_shape.rbegin();
@@ -47,7 +49,8 @@ CONVERSION_RESULT check_constant(const std::shared_ptr<ngraph::opset1::Constant>
 
         if (idx == feature_index && *in_it == 1) {
             is_power = true;
-        } else if (idx == feature_index && (out_it->is_dynamic() || static_cast<int64_t>(*in_it) != out_it->get_length())) {
+        } else if (idx == feature_index &&
+                   (out_it->is_dynamic() || static_cast<int64_t>(*in_it) != out_it->get_length())) {
             return CONVERSION_RESULT::NONE;
         }
     }
@@ -56,10 +59,10 @@ CONVERSION_RESULT check_constant(const std::shared_ptr<ngraph::opset1::Constant>
 }
 
 ngraph::pass::ConvertMulAddToScaleShiftOrPower::ConvertMulAddToScaleShiftOrPower() {
-    auto data_batch = std::make_shared<pattern::op::Label>(element::f32, Shape {1});
+    auto data_batch = std::make_shared<pattern::op::Label>(element::f32, Shape{1});
 
-    auto weights = std::make_shared<ngraph::opset1::Constant>(element::f32, Shape {1}, std::vector<float> {0});
-    auto bias = std::make_shared<ngraph::opset1::Constant>(element::f32, Shape {1}, std::vector<float> {0});
+    auto weights = std::make_shared<ngraph::opset1::Constant>(element::f32, Shape{1}, std::vector<float>{0});
+    auto bias = std::make_shared<ngraph::opset1::Constant>(element::f32, Shape{1}, std::vector<float>{0});
 
     auto mul = std::make_shared<ngraph::opset1::Multiply>(data_batch, weights);
     auto add = std::make_shared<ngraph::opset1::Add>(mul, bias);
@@ -112,7 +115,7 @@ ngraph::pass::ConvertMulAddToScaleShiftOrPower::ConvertMulAddToScaleShiftOrPower
         if (ov::op::util::constantIsEqualTo(const_weights_node, 1) &&
             ov::op::util::constantIsEqualTo(const_bias_node, 0)) {
             bool has_result_output = false;
-            for (const auto & output : add_node->output(0).get_target_inputs()) {
+            for (const auto& output : add_node->output(0).get_target_inputs()) {
                 if (dynamic_cast<ngraph::opset1::Result*>(output.get_node())) {
                     has_result_output = true;
                 }
@@ -120,7 +123,7 @@ ngraph::pass::ConvertMulAddToScaleShiftOrPower::ConvertMulAddToScaleShiftOrPower
 
             auto parent = data_node.get_node_shared_ptr();
             size_t consumers_count = 0;
-            for (const auto &output : parent->outputs()) {
+            for (const auto& output : parent->outputs()) {
                 consumers_count += output.get_target_inputs().size();
             }
 
@@ -128,9 +131,9 @@ ngraph::pass::ConvertMulAddToScaleShiftOrPower::ConvertMulAddToScaleShiftOrPower
                 if (!std::dynamic_pointer_cast<ngraph::opset1::Parameter>(parent)) {
                     parent->set_friendly_name(add_node->get_friendly_name());
                 }
-                // TODO: due to ngraph::replace_node function limitations we have to reconnect output port consumers to the new input
-                // using replace_source_output method
-                for (auto &input : add_node->output(0).get_target_inputs()) {
+                // TODO: due to ngraph::replace_node function limitations we have to reconnect output port consumers to
+                // the new input using replace_source_output method
+                for (auto& input : add_node->output(0).get_target_inputs()) {
                     input.replace_source_output(data_node);
                 }
                 return true;
@@ -144,7 +147,8 @@ ngraph::pass::ConvertMulAddToScaleShiftOrPower::ConvertMulAddToScaleShiftOrPower
         const auto output_shape_rank = output_shape.rank().get_length();
 
         if (res1 == CONVERSION_RESULT::NONE || res2 == CONVERSION_RESULT::NONE ||
-            ((res1 == CONVERSION_RESULT::SCALE_SHIFT || res2 == CONVERSION_RESULT::SCALE_SHIFT) && output_shape_rank < 4)) {
+            ((res1 == CONVERSION_RESULT::SCALE_SHIFT || res2 == CONVERSION_RESULT::SCALE_SHIFT) &&
+             output_shape_rank < 4)) {
             return false;
         }
 

@@ -5,8 +5,10 @@
 #pragma once
 
 #include "openvino/core/model.hpp"
+#include "utils/debug_capabilities.h"
 #include "low_precision/low_precision.hpp"
 #include "config.h"
+#include "transformations/convert_precision.hpp"
 
 #include "itt.h"
 
@@ -33,7 +35,9 @@ public:
           enableBF16(enableBF16),
           isLegacyApi(isLegacyApi),
           snippetsMode(snippetsMode),
-          config(config) {}
+          config(config) {
+            CPU_DEBUG_CAPS_MAYBE_UNUSED(this->config);
+          }
 
     void UpToCpuSpecificOpSet();
     void CpuSpecificOpSet(void);
@@ -43,8 +47,8 @@ private:
     const bool    enableLpt;
     const bool    enableBF16;
     const bool    isLegacyApi;
-    const Config& config;
     const Config::SnippetsMode snippetsMode;
+    const Config& config;
 
     void PreLpt(const std::vector<ov::element::Type>& defaultPrecisions, const bool isLegacyApi);
 
@@ -58,7 +62,7 @@ private:
 
     void Snippets(void);
 
-    static bool fuse_type_to_convert(const std::shared_ptr<ngraph::Node>& node, ov::element::Type to, size_t idx);
+    static bool fuse_type_to_convert(const std::shared_ptr<ngraph::Node>& node, const precisions_map& precisions);
 };
 
 }   // namespace intel_cpu

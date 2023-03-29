@@ -53,6 +53,13 @@ std::shared_ptr<ov::opset8::Transpose> make_transpose(const ov::Output<ov::Node>
     return transpose;
 }
 
+std::shared_ptr<ov::opset8::Reshape> make_reshape(const ov::Output<ov::Node>& arg,
+                                                  const std::vector<int64_t>& new_shape) {
+    auto new_shape_node = std::make_shared<ov::opset8::Constant>(element::i64, Shape{new_shape.size()}, new_shape);
+    auto reshape = std::make_shared<ov::opset8::Reshape>(arg, new_shape_node, true);
+    return reshape;
+}
+
 }  // namespace tensorflow
 }  // namespace frontend
 }  // namespace ov

@@ -360,7 +360,9 @@ TEST_F(OVExtensionTests, load_old_extension) {
 TEST_F(OVExtensionTests, load_incorrect_extension) {
     EXPECT_THROW(core.add_extension(getIncorrectExtensionPath()), ov::Exception);
 }
+
 TEST_F(OVExtensionTests, load_relative) {
     EXPECT_NO_THROW(core.add_extension(getRelativeOVExtensionPath()));
 }
+
 #endif  // defined(ENABLE_OV_IR_FRONTEND)

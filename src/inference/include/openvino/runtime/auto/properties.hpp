@@ -18,5 +18,10 @@ namespace intel_auto {
  */
 static constexpr Property<bool> device_bind_buffer{"DEVICE_BIND_BUFFER"};
 
+/**
+ * @brief auto/multi device setting that enable/disable CPU as acceleration (or helper device) at the beginning
+ */
+static constexpr Property<bool> enable_startup_fallback{"ENABLE_STARTUP_FALLBACK"};
+
 }  // namespace intel_auto
 }  // namespace ov

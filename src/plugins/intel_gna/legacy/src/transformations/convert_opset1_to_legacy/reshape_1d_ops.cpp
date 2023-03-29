@@ -5,11 +5,10 @@
 #include "legacy/transformations/convert_opset1_to_legacy/reshape_1d_ops.hpp"
 
 #include <memory>
-#include <vector>
-
 #include <ngraph/opsets/opset1.hpp>
-#include <ngraph/rt_info.hpp>
 #include <ngraph/pattern/op/wrap_type.hpp>
+#include <ngraph/rt_info.hpp>
+#include <vector>
 
 #include "legacy/ngraph_ops/convolution_ie.hpp"
 #include "transformations/utils/utils.hpp"
@@ -19,10 +18,10 @@ using namespace ngraph;
 namespace {
 
 template <class T>
-std::shared_ptr<Node> convert(const Output<Node> & data, std::shared_ptr<T> node, NodeVector & new_ops);
+std::shared_ptr<Node> convert(const Output<Node>& data, std::shared_ptr<T> node, NodeVector& new_ops);
 
 template <>
-std::shared_ptr<Node> convert(const Output<Node> & data, std::shared_ptr<op::ConvolutionIE> node, NodeVector & new_ops) {
+std::shared_ptr<Node> convert(const Output<Node>& data, std::shared_ptr<op::ConvolutionIE> node, NodeVector& new_ops) {
     // Update Convolution attributes with additional dimension
     auto new_strides = node->get_strides();
     auto new_dilations = node->get_dilations();
@@ -64,7 +63,7 @@ std::shared_ptr<Node> convert(const Output<Node> & data, std::shared_ptr<op::Con
 }
 
 template <>
-std::shared_ptr<Node> convert(const Output<Node> & data, std::shared_ptr<opset1::MaxPool> node, NodeVector & new_ops) {
+std::shared_ptr<Node> convert(const Output<Node>& data, std::shared_ptr<opset1::MaxPool> node, NodeVector& new_ops) {
     // Update Pooling attributes with additional dimension
     auto new_strides = node->get_strides();
     auto new_pads_begin = node->get_pads_begin();
@@ -86,7 +85,7 @@ std::shared_ptr<Node> convert(const Output<Node> & data, std::shared_ptr<opset1:
 }
 
 template <>
-std::shared_ptr<Node> convert(const Output<Node> & data, std::shared_ptr<opset1::AvgPool> node, NodeVector & new_ops) {
+std::shared_ptr<Node> convert(const Output<Node>& data, std::shared_ptr<opset1::AvgPool> node, NodeVector& new_ops) {
     // Update Pooling attributes with additional dimension
     auto new_strides = node->get_strides();
     auto new_pads_begin = node->get_pads_begin();
@@ -151,7 +150,7 @@ matcher_pass_callback get_callback() {
     };
 }
 
-} // namespace
+}  // namespace
 
 ngraph::pass::Reshape1DConvolution::Reshape1DConvolution() {
     auto conv = ngraph::pattern::wrap_type<op::ConvolutionIE>(pattern::has_static_shape());
@@ -170,4 +169,3 @@ ngraph::pass::Reshape1DMaxPool::Reshape1DMaxPool() {
     auto m = std::make_shared<ngraph::pattern::Matcher>(pool, "Reshape1DMaxPool");
     this->register_matcher(m, get_callback());
 }
-

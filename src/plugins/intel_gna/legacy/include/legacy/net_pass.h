@@ -40,7 +40,7 @@ std::vector<CNNLayerPtr> TIBodySortTopologically(const TensorIterator::Body& bod
  * @param layer to check
  * @return true if layer has subnet
  */
-bool HasInternalSubnet(const CNNLayerPtr &layer);
+bool HasInternalSubnet(const CNNLayerPtr& layer);
 
 /**
  * Extract internal subnet from layer
@@ -51,7 +51,7 @@ bool HasInternalSubnet(const CNNLayerPtr &layer);
  * @param layer to proceed
  * @return internal subnet
  */
-details::CNNSubnet GetInternalSubnet(const CNNLayerPtr &layer);
+details::CNNSubnet GetInternalSubnet(const CNNLayerPtr& layer);
 
 /**
  * Unroll all present Tensor Iterators

@@ -2,17 +2,11 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "intel_gpu/primitives/experimental_detectron_prior_grid_generator.hpp"
-
-#include <ed_pgg/prior_grid_generator_kernel_ref.h>
-#include <ed_pgg/prior_grid_generator_kernel_selector.h>
-#include <experimental_detectron_prior_grid_generator_inst.h>
-#include <kernel_selector_helper.h>
-
-#include <impls/implementation_map.hpp>
-#include <intel_gpu/runtime/error_handler.hpp>
-
 #include "primitive_base.hpp"
+
+#include "experimental_detectron_prior_grid_generator_inst.h"
+#include "ed_pgg/prior_grid_generator_kernel_ref.h"
+#include "ed_pgg/prior_grid_generator_kernel_selector.h"
 
 namespace cldnn {
 namespace ocl {

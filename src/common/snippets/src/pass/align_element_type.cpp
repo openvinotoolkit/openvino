@@ -55,7 +55,7 @@ bool ngraph::snippets::pass::AlignElementType::run_on_model(const std::shared_pt
         }
 
         if (op_supports_only_exec_type(op)) {
-            for (auto i = 0; i < op->inputs().size(); i++) {
+            for (size_t i = 0; i < op->inputs().size(); i++) {
                 auto shared_input = op->get_input_node_shared_ptr(i);
                 auto existing_convert = ov::as_type_ptr<ov::op::v0::Convert>(shared_input);
                 // We should insert Convert before Ops, which supports only exec element type, only when:
@@ -75,7 +75,7 @@ bool ngraph::snippets::pass::AlignElementType::run_on_model(const std::shared_pt
                 rewritten |= true;
             }
         } else {  // branch for Movement ops, MatMul ops in the future and for the Convert, Result
-            for (auto i = 0; i < op->inputs().size(); i++) {
+            for (size_t i = 0; i < op->inputs().size(); i++) {
                 auto shared_input = op->get_input_node_shared_ptr(i);
                 // it's original element type because we don't use validate_and_infer_type() anywhere
                 const auto original_eltype = op->input(i).get_element_type();

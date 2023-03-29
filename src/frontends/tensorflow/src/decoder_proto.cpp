@@ -17,21 +17,6 @@ namespace frontend {
 namespace tensorflow {
 
 namespace {
-const std::map<::tensorflow::DataType, ov::element::Type>& TYPE_MAP() {
-    static const std::map<::tensorflow::DataType, ov::element::Type> type_map{
-        {::tensorflow::DataType::DT_BOOL, ov::element::boolean},
-        {::tensorflow::DataType::DT_INT16, ov::element::i16},
-        {::tensorflow::DataType::DT_INT32, ov::element::i32},
-        {::tensorflow::DataType::DT_INT64, ov::element::i64},
-        {::tensorflow::DataType::DT_HALF, ov::element::f16},
-        {::tensorflow::DataType::DT_FLOAT, ov::element::f32},
-        {::tensorflow::DataType::DT_DOUBLE, ov::element::f64},
-        {::tensorflow::DataType::DT_UINT8, ov::element::u8},
-        {::tensorflow::DataType::DT_INT8, ov::element::i8},
-        {::tensorflow::DataType::DT_BFLOAT16, ov::element::bf16},
-        {::tensorflow::DataType::DT_STRING, ov::element::string}};
-    return type_map;
-}
 
 template <
         typename T,
@@ -61,6 +46,11 @@ void extract_tensor_content(const std::string& tensor_content, ov::Tensor* value
     *values->data<std::string>() = tensor_content;
 }
 
+#if defined(_MSC_VER)
+#    pragma warning(push)
+#    pragma warning(disable : 4244)  // possible loss of data
+#    pragma warning(disable : 4267)  // possible loss of data
+#endif
 template <
         typename T,
         typename std::enable_if<!std::is_same<T, std::string>::value, bool>::type = true>
@@ -69,10 +59,10 @@ void extract_compressed_tensor_content(const ::tensorflow::TensorProto& tensor_p
                                        ov::Tensor* values) {
     auto val_lastsaved = static_cast<T>(0);
     auto values_data = values->data<T>();
-    for (auto i = 0; i < values->get_size(); i++) {
+    for (size_t i = 0; i < values->get_size(); i++) {
         if (val_size == 0) {
             values_data[i] = static_cast<T>(0);
-        } else if (i < val_size) {
+        } else if (static_cast<int64_t>(i) < val_size) {
             auto val_i = static_cast<T>(0);
             switch (values->get_element_type()) {
             // TODO: there are more element types to support here
@@ -104,7 +94,9 @@ void extract_compressed_tensor_content(const ::tensorflow::TensorProto& tensor_p
         }
     }
 }
-
+#if defined(_MSC_VER)
+#    pragma warning(pop)
+#endif
 
 // FIXME: make it more specialized by avoiding mentioning T because it is always std::string
 template <
@@ -147,6 +139,26 @@ void extract_compressed_tensor_content(const ::tensorflow::TensorProto& tensor_p
 }
 }  // namespace
 
+ov::element::Type get_ov_type(const ::tensorflow::DataType& type) {
+    static const std::map<::tensorflow::DataType, ov::element::Type> type_map{
+        {::tensorflow::DataType::DT_BOOL, ov::element::boolean},
+        {::tensorflow::DataType::DT_INT16, ov::element::i16},
+        {::tensorflow::DataType::DT_INT32, ov::element::i32},
+        {::tensorflow::DataType::DT_INT64, ov::element::i64},
+        {::tensorflow::DataType::DT_HALF, ov::element::f16},
+        {::tensorflow::DataType::DT_FLOAT, ov::element::f32},
+        {::tensorflow::DataType::DT_DOUBLE, ov::element::f64},
+        {::tensorflow::DataType::DT_UINT8, ov::element::u8},
+        {::tensorflow::DataType::DT_INT8, ov::element::i8},
+        {::tensorflow::DataType::DT_BFLOAT16, ov::element::bf16},
+        {::tensorflow::DataType::DT_STRING, ov::element::string}};
+
+    auto it = type_map.find(type);
+
+    // for all unsupported types return dynamic type
+    return it == type_map.end() ? ov::element::dynamic : it->second;
+}
+
 ov::Any DecoderProto::get_attribute(const std::string& name) const {
     std::cerr << "[ INFO ] Trying to decode attribute " << name << "\n";
     auto attrs = decode_attribute_helper(name);
@@ -178,21 +190,7 @@ ov::Any DecoderProto::get_attribute(const std::string& name) const {
     }
 
     case ::tensorflow::AttrValue::ValueCase::kType: {
-        if (TYPE_MAP().count(attrs[0].type())) {
-            return TYPE_MAP().at(attrs[0].type());
-        } else {
-            // for all unsupported types return undefined type
-            if (true) {
-                // New behaviour: also recognize some types that cannot
-                // be represented as OV core ov::element::Type
-                // In this case they are returned as Any
-
-                std::cerr << "[ INFO TF FE ] Unsupported type: " << attrs[0].type() << "\n";
-                return ov::element::StructuralType::Str();
-            } else {
-                return ov::element::dynamic;
-            }
-        }
+        return get_ov_type(attrs[0].type());
     }
 
     case ::tensorflow::AttrValue::ValueCase::kList: {
@@ -232,7 +230,7 @@ ov::Any DecoderProto::get_attribute(const std::string& name) const {
         if (list.type_size()) {
             std::vector<ov::element::Type> res;
             for (int idx = 0; idx < list.type_size(); ++idx) {
-                res.emplace_back(TYPE_MAP().at(list.type(idx)));
+                res.emplace_back(get_ov_type(list.type(idx)));
             }
             return res;
         }
@@ -259,39 +257,42 @@ ov::Any DecoderProto::get_attribute(const std::string& name) const {
         FRONT_END_GENERAL_CHECK(pshape.is_static(), "Dynamic shapes are not supported for Tensor attribute.");
         const auto& tf_type = tensor_proto.dtype();
         std::cerr << "[ BEFORE ]\n";
-        #if 1  // TODO: change to 0 if raw string tensors are required
-        if(tf_type == ::tensorflow::DT_STRING) {
-            std::cerr << "[ PROCESS STR CONSTANT ]\n";
-            auto tensor_content = tensor_proto.tensor_content();
-            if (!tensor_content.empty() && tensor_proto.has_tensor_shape()) {
-                std::cerr << "[ FIRST IF ]\n";
-                ov::Tensor res(element::u8, Shape{tensor_content.length()});
-                if(pshape.get_shape().size() == 0) {    // TODO: it works for scalars only
-                    extract_tensor_content<uint8_t>(tensor_content, &res);
-                    throw StructuralTypeWA(ov::element::StructuralType::Str(), res);
-                }
-            } else {
-                if(pshape.get_shape().size() == 0) {   // FIXME: it works for scalars only
-                    std::cerr << "[ COMPRESSED TENSOR ]\n";
-                    auto tensor_content = tensor_proto.string_val()[0];
+        if (true) {
+            // true -- don't use element::string, represent string as u8 or i32/i32/u8 tensors depending on rank
+            // false -- use native ov::Tensor with element::string element type
+
+            if(tf_type == ::tensorflow::DT_STRING) {
+                std::cerr << "[ PROCESS STR CONSTANT ]\n";
+                auto tensor_content = tensor_proto.tensor_content();
+                if (!tensor_content.empty() && tensor_proto.has_tensor_shape()) {
+                    std::cerr << "[ FIRST IF ]\n";
                     ov::Tensor res(element::u8, Shape{tensor_content.length()});
-                    extract_tensor_content<uint8_t>(tensor_content, &res);
-                    throw StructuralTypeWA(ov::element::StructuralType::Str(), res);
+                    if(pshape.get_shape().size() == 0) {    // TODO: it works for scalars only
+                        extract_tensor_content<uint8_t>(tensor_content, &res);
+                        throw StructuralTypeWA(ov::element::StructuralType::Str(), res);
+                    }
+                } else {
+                    if(pshape.get_shape().size() == 0) {   // FIXME: it works for scalars only
+                        std::cerr << "[ COMPRESSED TENSOR ]\n";
+                        auto tensor_content = tensor_proto.string_val()[0];
+                        ov::Tensor res(element::u8, Shape{tensor_content.length()});
+                        extract_tensor_content<uint8_t>(tensor_content, &res);
+                        throw StructuralTypeWA(ov::element::StructuralType::Str(), res);
+                    }
                 }
+                std::cerr << "[ FAILED TO PROCESS STR CONSTANT ]\n";
             }
-            std::cerr << "[ FAILED TO PROCESS STR CONSTANT ]\n";
         }
-        #endif
+        auto ov_type = get_ov_type(tf_type);
         FRONT_END_GENERAL_CHECK(
-            TYPE_MAP().count(tf_type),
+            ov_type.is_static(),
             "Encountered unknown element type " + DataType_Name(tf_type) + " on an empty tensor_proto");
-        std::cerr << "[ AFTER ]\n";
-        auto ov_type = TYPE_MAP().at(tf_type);
-        if(ov_type == element::string)std::cerr << "HHHHHHHHHHHH\n";
+        if(ov_type == element::string)
+            std::cerr << "String tensor value detected, will try to represent as a natural string tensor";
         ov::Tensor res(ov_type, pshape.get_shape());
-        if(ov_type == element::string)std::cerr << "VVVVVVVVVVVV\n";
+        //if(ov_type == element::string)std::cerr << "VVVVVVVVVVVV\n";
         auto tensor_content = tensor_proto.tensor_content();
-        if(ov_type == element::string)std::cerr << "XXXXXXXXXXXX\n";
+        //if(ov_type == element::string)std::cerr << "XXXXXXXXXXXX\n";
         if (!tensor_content.empty() && tensor_proto.has_tensor_shape()) {
             std::cerr << "[ FIRST IF ]\n";
             switch (ov_type) {
@@ -388,16 +389,53 @@ size_t DecoderProto::get_input_size() const {
     return m_node_def->input_size();
 }
 
-void DecoderProto::get_input_node(size_t input_port_idx,
-                                  std::string& producer_name,
-                                  size_t& producer_output_port_index) const {
-    // Body graph nodes may have two colons `:`, for example,
-    // producer_name:z:2 means that producer operation name is `producer_name`
-    // and output port is 2
-    std::string producer_port_name = m_node_def->input(static_cast<int>(input_port_idx));
+void parse_producer_name(const std::string& producer_port_name,
+                         std::string& producer_name,
+                         size_t& producer_output_port_index,
+                         const DecoderBase::OpTypeByName& op_type_by_name) {
+    using OutputPortIdxMax = std::unordered_map<std::string, int>;
+    // create a table of operation type and its output ports
+    // for which we specify output port indices manually
+    // it is mainly affects multiple output operations
+    // extract this information from tensorflow/core/ops/*.cc files
+    const OutputPortIdxMax output_port_idx_map = {
+        {"TopK:indices", 1},
+        {"TopKV2:indices", 1},
+        {"CTCGreedyDecoder:decoded_values", 1},
+        {"CTCGreedyDecoder:decoded_shape", 2},
+        {"CTCGreedyDecoder:log_probability", 3},
+        {"CTCGreedyDecoder:log_probability", 3},
+        {"FusedBatchNorm:batch_mean", 1},
+        {"FusedBatchNorm:batch_variance", 2},
+        {"FusedBatchNormV2:batch_mean", 1},
+        {"FusedBatchNormV2:batch_variance", 2},
+        {"FusedBatchNormV3:batch_mean", 1},
+        {"FusedBatchNormV3:batch_variance", 2},
+    };
+    // Body graph nodes may have two colons `:` input names, for example,
+    // `TopKV2Name:indices:0` means that producer operation name is `TopKV2Name`
+    // the middle name is output port name of the producer `indices` that means
+    // the second output port of TopKV2 is used.
+    // The first output port of TopKV2 is described as `TopKV2Name:values:0`
     auto first_colon = producer_port_name.find_first_of(":");
     auto last_colon = producer_port_name.find_last_of(":");
-    if (first_colon != std::string::npos && last_colon != std::string::npos) {
+    if (first_colon != std::string::npos && first_colon < last_colon) {
+        // we have at least two colons producer_name:output_port_name:port_idx
+        producer_name = producer_port_name.substr(0, first_colon);
+        auto port_id = producer_port_name.substr(last_colon + 1);
+        auto port_name = producer_port_name.substr(first_colon + 1, last_colon - first_colon - 1);
+        FRONT_END_GENERAL_CHECK(!port_id.empty() && std::all_of(port_id.begin(), port_id.end(), ::isdigit),
+                                "Port id is not specified or not a number. Value: ",
+                                port_id);
+        producer_output_port_index = std::stoi(port_id);
+        auto producer_op_type =
+            (op_type_by_name.count(producer_name) > 0) ? op_type_by_name.at(producer_name) : "Unknown";
+        auto producer_key = producer_op_type + ":" + port_name;
+        producer_output_port_index = output_port_idx_map.count(producer_key) > 0 ? output_port_idx_map.at(producer_key)
+                                                                                 : producer_output_port_index;
+        return;
+    } else if (first_colon != std::string::npos) {
+        // just one colon case
         producer_name = producer_port_name.substr(0, first_colon);
         auto port_id = producer_port_name.substr(last_colon + 1);
         FRONT_END_GENERAL_CHECK(!port_id.empty() && std::all_of(port_id.begin(), port_id.end(), ::isdigit),
@@ -408,6 +446,21 @@ void DecoderProto::get_input_node(size_t input_port_idx,
     }
     producer_name = producer_port_name;
     producer_output_port_index = 0;
+}
+
+void DecoderProto::get_input_node(size_t input_port_idx,
+                                  std::string& producer_name,
+                                  size_t& producer_output_port_index) const {
+    const std::string producer_port_name = m_node_def->input(static_cast<int>(input_port_idx));
+    parse_producer_name(producer_port_name, producer_name, producer_output_port_index, {});
+}
+
+void DecoderProto::get_input_node(size_t input_port_idx,
+                                  std::string& producer_name,
+                                  size_t& producer_output_port_index,
+                                  const OpTypeByName& op_type_by_name) const {
+    const std::string producer_port_name = m_node_def->input(static_cast<int>(input_port_idx));
+    parse_producer_name(producer_port_name, producer_name, producer_output_port_index, op_type_by_name);
 }
 
 const std::string& DecoderProto::get_op_type() const {

@@ -36,7 +36,7 @@ elif machine == "X86" or machine == "i686":
     ARCH = "ia32"
 elif machine == "arm" or machine == "armv7l":
     ARCH = "arm"
-elif machine == "aarch64" or machine == "arm64":
+elif machine == "aarch64" or machine == "arm64" or machine == "ARM64":
     ARCH = "arm64"
 
 # The following variables can be defined in environment or .env file

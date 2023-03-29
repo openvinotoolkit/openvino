@@ -66,7 +66,8 @@ struct roi_align_test : public testing::Test {
 
     void execute(const std::vector<TD>& expected_output,
                  roi_align::PoolingMode pooling_mode,
-                 roi_align::AlignedMode aligned_mode) const {
+                 roi_align::AlignedMode aligned_mode,
+                 bool is_caching_test) const {
         auto& engine = get_test_engine();
 
         auto input = get_memory(engine, input_lt, input_data);
@@ -90,12 +91,13 @@ struct roi_align_test : public testing::Test {
                                aligned_mode));
         topology.add(reorder("out", input_info("roi_align"), plain_format, device_data_type));
 
-        network network(engine, topology);
-        network.set_input_data("input", input);
-        network.set_input_data("coords", coords);
-        network.set_input_data("roi_ind", roi_ind);
+        cldnn::network::ptr network = get_network(engine, topology, ExecutionConfig(), get_test_stream_ptr(), is_caching_test);
 
-        auto outputs = network.execute();
+        network->set_input_data("input", input);
+        network->set_input_data("coords", coords);
+        network->set_input_data("roi_ind", roi_ind);
+
+        auto outputs = network->execute();
 
         auto output = outputs.at("out").get_memory();
         cldnn::mem_lock<TD> output_ptr(output, get_test_stream());
@@ -158,19 +160,41 @@ TYPED_TEST(roi_align_test, avg_asymmetric) {
     using TD = typename TypeParam::DataType;
     const std::vector<TD>
         expected_output{TD(3.f), TD(3.75f), TD(4.75f), TD(5.f), TD(3.f), TD(5.5f), TD(2.75f), TD(3.75f)};
-    this->execute(expected_output, roi_align::PoolingMode::avg, roi_align::AlignedMode::asymmetric);
+    this->execute(expected_output, roi_align::PoolingMode::avg, roi_align::AlignedMode::asymmetric, false);
 }
 
 TYPED_TEST(roi_align_test, avg_half_pixel_for_nn) {
     using TD = typename TypeParam::DataType;
     const std::vector<TD> expected_output =
         {TD(3.14f), TD(2.16f), TD(2.86f), TD(5.03f), TD(1.83f), TD(5.84f), TD(2.77f), TD(3.44f)};
-    this->execute(expected_output, roi_align::PoolingMode::avg, roi_align::AlignedMode::half_pixel_for_nn);
+    this->execute(expected_output, roi_align::PoolingMode::avg, roi_align::AlignedMode::half_pixel_for_nn, false);
 }
 
 TYPED_TEST(roi_align_test, max_half_pixel) {
     using TD = typename TypeParam::DataType;
     const std::vector<TD> expected_output =
         {TD(4.375f), TD(4.9375f), TD(5.6875f), TD(5.625f), TD(4.625f), TD(7.125f), TD(3.3125f), TD(4.3125f)};
-    this->execute(expected_output, roi_align::PoolingMode::max, roi_align::AlignedMode::half_pixel);
+    this->execute(expected_output, roi_align::PoolingMode::max, roi_align::AlignedMode::half_pixel, false);
+}
+
+#ifdef RUN_ALL_MODEL_CACHING_TESTS
+TYPED_TEST(roi_align_test, avg_asymmetric_cached) {
+    using TD = typename TypeParam::DataType;
+    const std::vector<TD>
+        expected_output{TD(3.f), TD(3.75f), TD(4.75f), TD(5.f), TD(3.f), TD(5.5f), TD(2.75f), TD(3.75f)};
+    this->execute(expected_output, roi_align::PoolingMode::avg, roi_align::AlignedMode::asymmetric, true);
+}
+
+TYPED_TEST(roi_align_test, avg_half_pixel_for_nn_cached) {
+    using TD = typename TypeParam::DataType;
+    const std::vector<TD> expected_output =
+        {TD(3.14f), TD(2.16f), TD(2.86f), TD(5.03f), TD(1.83f), TD(5.84f), TD(2.77f), TD(3.44f)};
+    this->execute(expected_output, roi_align::PoolingMode::avg, roi_align::AlignedMode::half_pixel_for_nn, true);
+}
+#endif
+TYPED_TEST(roi_align_test, max_half_pixel_cached) {
+    using TD = typename TypeParam::DataType;
+    const std::vector<TD> expected_output =
+        {TD(4.375f), TD(4.9375f), TD(5.6875f), TD(5.625f), TD(4.625f), TD(7.125f), TD(3.3125f), TD(4.3125f)};
+    this->execute(expected_output, roi_align::PoolingMode::max, roi_align::AlignedMode::half_pixel, true);
 }

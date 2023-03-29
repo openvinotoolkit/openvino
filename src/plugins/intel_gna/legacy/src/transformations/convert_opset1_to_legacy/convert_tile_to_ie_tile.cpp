@@ -4,33 +4,34 @@
 
 #include "legacy/transformations/convert_opset1_to_legacy/convert_tile_to_ie_tile.hpp"
 
+#include <legacy/ngraph_ops/tile_ie.hpp>
 #include <memory>
-#include <vector>
-
 #include <ngraph/opsets/opset1.hpp>
 #include <ngraph/pattern/op/wrap_type.hpp>
-
-#include <legacy/ngraph_ops/tile_ie.hpp>
 #include <ngraph/rt_info.hpp>
+#include <vector>
 
 ngraph::pass::ConvertTileToLegacyMatcher::ConvertTileToLegacyMatcher() {
-    auto tile = pattern::wrap_type<ngraph::opset1::Tile>({pattern::any_input(pattern::has_static_rank()),
-                                                          pattern::wrap_type<opset1::Constant>()});
+    auto tile = pattern::wrap_type<ngraph::opset1::Tile>(
+        {pattern::any_input(pattern::has_static_rank()), pattern::wrap_type<opset1::Constant>()});
 
     ngraph::matcher_pass_callback callback = [](pattern::Matcher& m) {
-        auto tile = std::dynamic_pointer_cast<ngraph::opset1::Tile> (m.get_match_root());
+        auto tile = std::dynamic_pointer_cast<ngraph::opset1::Tile>(m.get_match_root());
         if (!tile) {
             return false;
         }
 
-        auto tiles_node = std::dynamic_pointer_cast<ngraph::opset1::Constant> (tile->input_value(1).get_node_shared_ptr());
-        if (!tiles_node) return false;
+        auto tiles_node =
+            std::dynamic_pointer_cast<ngraph::opset1::Constant>(tile->input_value(1).get_node_shared_ptr());
+        if (!tiles_node)
+            return false;
 
         auto tiles = tiles_node->cast_vector<int64_t>();
         auto input_shape_rank = tile->get_input_partial_shape(0).rank().get_length();
         int64_t cur_dim_id = tiles.size() - 1;
 
-        if (static_cast<int64_t>(tiles.size()) != input_shape_rank) return false;
+        if (static_cast<int64_t>(tiles.size()) != input_shape_rank)
+            return false;
 
         // IE Tile operations supports only one axis to be tiled
         // bool already_set = false;

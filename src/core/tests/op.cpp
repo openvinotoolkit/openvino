@@ -13,7 +13,6 @@
 #include "ngraph/graph_util.hpp"
 #include "ngraph/ngraph.hpp"
 #include "ngraph/opsets/opset.hpp"
-#include "ngraph/variant.hpp"
 
 NGRAPH_SUPPRESS_DEPRECATED_START
 

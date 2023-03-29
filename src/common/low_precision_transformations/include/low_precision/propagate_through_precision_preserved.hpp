@@ -10,7 +10,6 @@
 #include <ngraph/node.hpp>
 #include <ngraph/pass/graph_rewrite.hpp>
 #include <ngraph/pattern/op/wrap_type.hpp>
-#include <ngraph/variant.hpp>
 
 #include "low_precision/lpt_visibility.hpp"
 #include "low_precision/network_helper.hpp"
@@ -63,7 +62,7 @@ public:
                 std::vector<ov::Any> toMerge = parentRestrictions;
                 // TODO: LPT: handle pointer on itself in IntervalsAlignmentAttribute::merge and remove erase, task #59498
                 toMerge.erase(toMerge.begin());
-                const_cast<AttributeType&>(resultAttribute).merge(toMerge);
+                const_cast<AttributeType&>(resultAttribute).merge_attributes(toMerge);
 
                 for (size_t index = 1ul; index < parentRestrictions.size(); index++) {
                     auto& attributes = parentRestrictions[index].template as<AttributeType>().attribute->sharedValue->getAttributes();

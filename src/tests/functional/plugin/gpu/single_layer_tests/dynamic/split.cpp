@@ -16,7 +16,7 @@ namespace GPULayerTestsDefinitions {
 
 typedef std::tuple<
         size_t,                    // Num splits
-        size_t,                    // Axis
+        int64_t,                   // Axis
         ElementType,               // Net precision
         InputShape,                // Input shapes
         std::vector<size_t>        // Used outputs indices
@@ -52,7 +52,8 @@ public:
 protected:
     void SetUp() override {
         targetDevice = CommonTestUtils::DEVICE_GPU;
-        size_t axis, numSplits;
+        int64_t axis;
+        size_t numSplits;
         InputShape inputShape;
         std::vector<size_t> outIndices;
         ElementType netPrecision;
@@ -127,7 +128,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_SplitsCheck6D, SplitLayerGPUDynamicTest,
                         SplitLayerGPUDynamicTest::getTestCaseName);
 
 typedef std::tuple<
-        size_t,                    // Axis
+        int64_t,                   // Axis
         std::vector<int32_t>,      // SplitLength
         ElementType,               // Net precision
         InputShape                // Input shapes
@@ -138,7 +139,7 @@ class VariadicSplitLayerGPUDynamicTest : public testing::WithParamInterface<varS
 public:
     static std::string getTestCaseName(testing::TestParamInfo<varSplitDynamicGPUTestParams> obj) {
         std::ostringstream result;
-        size_t axis;
+        int64_t axis;
         std::vector<int32_t> splitLength;
         ElementType netPrecision;
         InputShape inputShape;
@@ -159,7 +160,7 @@ public:
 protected:
     void SetUp() override {
         targetDevice = CommonTestUtils::DEVICE_GPU;
-        size_t axis;
+        int64_t axis;
         InputShape inputShape;
         std::vector<int32_t> splitLength;
         ElementType netPrecision;

@@ -25,10 +25,11 @@ ParamsKey TileKernelRef::GetSupportedKey() const {
     k.EnableTensorOffset();
     k.EnableTensorPitches();
     k.EnableBatching();
+    k.EnableDynamicShapesSupport();
     return k;
 }
 
-CommonDispatchData TileKernelRef::SetDefault(const tile_params& params, const optional_params&) const {
+CommonDispatchData TileKernelRef::SetDefault(const tile_params& params) const {
     CommonDispatchData dispatchData;
     auto in_layout = params.inputs[0].GetLayout();
     auto out_layout = params.outputs[0].GetLayout();
@@ -55,14 +56,23 @@ KernelsData TileKernelRef::GetKernelsData(const Params& params, const optional_p
     KernelData kd = KernelData::Default<tile_params>(params);
     tile_params& newParams = *static_cast<tile_params*>(kd.params.get());
 
-    auto dispatchData = SetDefault(newParams, options);
+    auto dispatchData = SetDefault(newParams);
     auto entry_point = GetEntryPoint(kernelName, newParams.layerID, params, options);
     auto cldnn_jit = GetJitConstants(newParams);
     auto jit = CreateJit(kernelName, cldnn_jit, entry_point);
 
+    kd.update_dispatch_data_func = [this](const Params& params, KernelData& kd) {
+        const auto& prim_params = static_cast<const tile_params&>(params);
+        auto dispatchData = SetDefault(prim_params);
+        OPENVINO_ASSERT(kd.kernels.size() == 1, "[GPU] Invalid kernels size for update dispatch data func");
+        kd.kernels[0].params.workGroups.global = dispatchData.gws;
+        kd.kernels[0].params.workGroups.local = dispatchData.lws;
+    };
+
     auto& kernel = kd.kernels[0];
 
-    FillCLKernelData(kernel, dispatchData, params.engineInfo, kernelName, jit, entry_point);
+    FillCLKernelData(kernel, dispatchData, params.engineInfo, kernelName, jit, entry_point,
+                     EXE_MODE_DEFAULT, false, false, 1, 0, 1, newParams.has_dynamic_tensors());
 
     return {kd};
 }

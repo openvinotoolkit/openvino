@@ -8,7 +8,6 @@
 #include <vector>
 
 #include <ngraph/node.hpp>
-#include <ngraph/variant.hpp>
 #include <ngraph/pattern/op/wrap_type.hpp>
 
 #include <low_precision/lpt_visibility.hpp>
@@ -96,7 +95,7 @@ public:
                             res_attr = parentAttribute;
                         } else {
                             std::vector<ov::Any> toMerge = {parentAttribute};
-                            res_attr.template as<AttributeType>().merge(toMerge);
+                            res_attr.template as<AttributeType>().merge_attributes(toMerge);
 
                             auto& attributes =
                                 parentAttribute.template as<AttributeType>().attribute->sharedValue->getAttributes();

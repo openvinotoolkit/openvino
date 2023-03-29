@@ -162,25 +162,7 @@ public:
             result_id = reorder_result_id;
         }
 
-        cldnn::network::ptr network;
-
-        if (is_caching_test) {
-            membuf mem_buf;
-            {
-                cldnn::network _network(engine, topology);
-
-                std::ostream out_mem(&mem_buf);
-                BinaryOutputBuffer ob = BinaryOutputBuffer(out_mem);
-                _network.save(ob);
-            }
-            {
-                std::istream in_mem(&mem_buf);
-                BinaryInputBuffer ib = BinaryInputBuffer(in_mem, engine);
-                network = std::make_shared<cldnn::network>(ib, get_test_stream_ptr(), engine);
-            }
-        } else {
-            network = std::make_shared<cldnn::network>(engine, topology);
-        }
+        cldnn::network::ptr network = get_network(engine, topology, ExecutionConfig(), get_test_stream_ptr(), is_caching_test);
 
         network->set_input_data(input_data_id, input_mem);
 
@@ -200,8 +182,8 @@ public:
             return;
 
         const auto block_sizes = format::traits(target_layout).block_sizes;
-        const auto index_offset = std::accumulate(block_sizes.begin(), block_sizes.end(), 1u,
-                                                  [](size_t total, const std::pair<size_t, int>& b) {
+        const auto index_offset = std::accumulate(block_sizes.begin(), block_sizes.end(), 1,
+                                                  [](int total, const std::pair<size_t, int>& b) {
                                                       return total * b.second;
                                                   }
         );

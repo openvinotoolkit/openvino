@@ -4,6 +4,7 @@
 
 #include "transpose.h"
 #include "ie_parallel.hpp"
+#include "nodes/common/reorder_prim.h"
 
 #include <algorithm>
 #include <string>
@@ -16,31 +17,6 @@ using namespace InferenceEngine;
 namespace ov {
 namespace intel_cpu {
 namespace node {
-namespace {
-struct TransposeAsReorderKey {
-    dnnl::memory::desc src;
-    dnnl::memory::desc dest;
-    size_t hash() const;
-    bool operator==(const TransposeAsReorderKey& rhs) const;
-};
-
-size_t TransposeAsReorderKey::hash() const {
-    using namespace dnnl::impl;
-    using namespace dnnl::impl::primitive_hashing;
-
-    size_t seed = 0;
-    seed = hash_combine(seed, get_md_hash(src.data));
-    seed = hash_combine(seed, get_md_hash(dest.data));
-
-    return seed;
-}
-
-bool TransposeAsReorderKey::operator==(const TransposeAsReorderKey& rhs) const {
-    bool retVal = true;
-    retVal = src == rhs.src && dest == rhs.dest;
-    return retVal;
-}
-}  // namespace
 
 bool Transpose::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept {
     try {
@@ -61,8 +37,70 @@ bool Transpose::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, 
     return true;
 }
 
+class TransposeDynShapeInfer : public ShapeInferEmptyPads {
+public:
+    TransposeDynShapeInfer() = default;
+    Result infer(
+        const std::vector<std::reference_wrapper<const VectorDims>>& input_shapes,
+        const std::unordered_map<size_t, MemoryPtr>& data_dependency) override {
+        IE_THROW(NotImplemented) << "TODO: Support parameterized Order input for dynamic shapes.";
+    }
+    port_mask_t get_port_mask() const override {
+        return EMPTY_PORT_MASK;
+    }
+private:
+};
+
+class TransposeShapeInfer : public ShapeInferEmptyPads {
+public:
+    TransposeShapeInfer(const size_t& out_rank, const std::vector<size_t>& axes_vec)
+    : m_out_rank(out_rank), m_axes_vec(axes_vec), m_outputShape(out_rank, 1), m_needReverse(axes_vec.empty()) {}
+
+    Result infer(
+        const std::vector<std::reference_wrapper<const VectorDims>>& input_shapes,
+        const std::unordered_map<size_t, MemoryPtr>& data_dependency) override {
+        const VectorDims& shapeIn = input_shapes[0].get();
+        if (m_needReverse) {
+            for (auto i = 0; i < m_out_rank; ++i) {
+                m_outputShape[i] = shapeIn[m_out_rank - 1 - i];
+            }
+        } else {
+            for (auto i = 0; i < m_out_rank; ++i) {
+                m_outputShape[i] = shapeIn[m_axes_vec[i]];
+            }
+        }
+        return {{m_outputShape}, ShapeInferStatus::success};
+    }
+
+    port_mask_t get_port_mask() const override {
+        return EMPTY_PORT_MASK;
+    }
+
+private:
+    const size_t m_out_rank;
+    const std::vector<size_t> m_axes_vec;
+    VectorDims m_outputShape;
+    const bool m_needReverse;
+};
+
+class TransposeShapeInferFactory : public ShapeInferFactory {
+public:
+    TransposeShapeInferFactory(const std::shared_ptr<ov::Node>& op) : m_op(op) {}
+    ShapeInferPtr makeShapeInfer() const override {
+        if (const auto order = ov::as_type_ptr<const ov::op::v0::Constant>(m_op->get_input_node_shared_ptr(ov::op::v1::Transpose::ORDER))) {
+            const auto axes_vec = order->cast_vector<size_t>();
+            return std::make_shared<TransposeShapeInfer>(m_op->get_output_partial_shape(0).rank().get_length(), axes_vec);
+        } else {
+            return std::make_shared<TransposeDynShapeInfer>();
+        }
+    }
+
+private:
+    const std::shared_ptr<ov::Node> m_op;
+};
+
 Transpose::Transpose(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context)
-        : Node(op, context, NgraphShapeInferFactory(op, EMPTY_PORT_MASK)) {
+        : Node(op, context, TransposeShapeInferFactory(op)) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
         IE_THROW(NotImplemented) << errorMessage;
@@ -147,48 +185,21 @@ bool Transpose::needPrepareParams() const {
 
 void Transpose::prepareParams() {
     if (performAsReorder) {
-        dnnl::primitive_attr attr;
-        const auto engine = getEngine();
-        auto& dstMemPtr = getChildEdgeAt(0)->getMemoryPtr();
+        //  Transpose(order={0,3,1,2}) can be performed as Reorder(acdb=>abcd)
         auto& srcMemPtr = getParentEdgeAt(INPUT_DATA_IDX)->getMemoryPtr();
-        MemoryPtr src_blocked = std::make_shared<Memory>(engine);
-        MemoryPtr dst_blocked = std::make_shared<Memory>(engine);
-
-        dst_blocked->Create(
-            DnnlExtensionUtils::makeDescriptor(dstMemPtr->GetDescWithType<DnnlMemoryDesc>()->getDnnlDesc()),
-            dstMemPtr->GetData(), false);
-
-        const auto newDims = dst_blocked->getStaticDims();
-        auto newDesc = dnnl::memory::desc(DnnlExtensionUtils::convertToDnnlDims(newDims),
-                                            dst_blocked->GetDataType(),
-                                            memory::format_tag::acdb);
-        src_blocked->Create(DnnlExtensionUtils::makeDescriptor(newDesc), srcMemPtr->GetData(), false);
-
-        impl_desc_type impl_type = getSelectedPrimitiveDescriptor()->getImplementationType();
-        TransposeAsReorderKey key = {src_blocked->GetPrimitive().get_desc(), dst_blocked->GetPrimitive().get_desc()};
-        auto builder = [&engine, &impl_type](const TransposeAsReorderKey& key) -> std::shared_ptr<dnnl::primitive> {
-            dnnl::primitive_attr attr;
-            reorder::primitive_desc pd = dnnl::reorder::primitive_desc(engine, key.src, engine, key.dest, attr, true);
-
-            if (!pd)
-                return nullptr;
-            auto info = pd.impl_info_str();
-            impl_type = parse_impl_name(info);
-            return std::make_shared<dnnl::reorder>(pd);
-        };
-
-        auto cache = context->getParamsCache();
-        auto result = cache->getOrCreate(key, builder);
-
-        if (!result.first) {
+        auto& dstMemPtr = getChildEdgeAt(0)->getMemoryPtr();
+        auto dstDesc = dstMemPtr->GetDescWithType<DnnlMemoryDesc>()->getDnnlDesc();
+        auto srcDesc = dnnl::memory::desc(dstDesc.dims(), dstDesc.data_type(), memory::format_tag::acdb);
+        auto result = getReorderPrim(context->getParamsCache(), getEngine(), srcDesc, dstDesc);
+        if (!result) {
             IE_THROW() << "Reorder primitive descriptor was not found for Transpose node " << getName() << ".";
         }
+        prim = result;
 
-        prim = result.first;
+        getSelectedPrimitiveDescriptor()->setImplementationType(
+            parse_impl_name(DnnlExtensionUtils::query_impl_info_str(prim.get_primitive_desc())));
 
-        supportedPrimitiveDescriptors[0].setImplementationType(impl_type);
-        primArgs = {{DNNL_ARG_SRC, getParentEdgesAtPort(INPUT_DATA_IDX)[0]->getMemoryPtr()->GetPrimitive()},
-                    {DNNL_ARG_DST, getChildEdgesAtPort(0)[0]->getMemoryPtr()->GetPrimitive()}};
+        primArgs = {{DNNL_ARG_SRC, srcMemPtr->GetPrimitive()}, {DNNL_ARG_DST, dstMemPtr->GetPrimitive()}};
         return;
     }
 
@@ -204,7 +215,7 @@ void Transpose::prepareParams() {
     }
 
     auto engine = getEngine();
-    auto builder = [&engine](const PermuteParams& key) -> std::shared_ptr<TransposeJitExecutor> {
+    auto builder = [](const PermuteParams& key) -> std::shared_ptr<TransposeJitExecutor> {
         return std::make_shared<TransposeJitExecutor>(key);
     };
 
@@ -358,7 +369,7 @@ void Transpose::optimizedExecute(const int MB, const MemoryPtr& srcMemPtr, Memor
 
 void Transpose::execute(dnnl::stream strm) {
     if (prim) {
-        (*prim).execute(strm, primArgs);
+        prim.execute(strm, primArgs);
     } else if (execPtr) {
         auto &dstMemPtr = getChildEdgeAt(0)->getMemoryPtr();
         auto &srcMemPtr = getParentEdgeAt(INPUT_DATA_IDX)->getMemoryPtr();

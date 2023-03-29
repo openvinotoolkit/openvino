@@ -131,7 +131,7 @@ ov::Any IntervalsAlignmentAttribute::create(
     }
 }
 
-void IntervalsAlignmentAttribute::merge(
+void IntervalsAlignmentAttribute::merge_attributes(
     std::vector<ov::Any>& attributes) {
     for (const auto& attributeWrapper : attributes) {
         auto attribute = attributeWrapper.as<IntervalsAlignmentAttribute>().attribute;

@@ -106,7 +106,7 @@ protected:
 
         auto exp_labels = in_labels;
         for (const auto& axis : no_label_axes) {
-            if (axis < exp_labels.size()) {
+            if (axis < static_cast<int64_t>(exp_labels.size())) {
                 exp_labels.insert(exp_labels.begin() + axis, ov::no_label);
             } else {
                 exp_labels.push_back(ov::no_label);

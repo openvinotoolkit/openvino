@@ -408,7 +408,7 @@ TEST(TransposeSinkingTest, SinkingThroughPreLUWithScalarSlope) {
                                make_shared<Constant>(ov::element::i64, ov::Shape{4}, std::vector<int64_t>{0, 2, 3, 1}));
 
     auto prelu = make_shared<PRelu>(transpose_before,
-                                    make_shared<Constant>(ov::element::f32, ov::Shape{1}, std::vector<float>{0.8}));
+                                    make_shared<Constant>(ov::element::f32, ov::Shape{1}, std::vector<float>{0.8f}));
     auto transpose_after =
         make_shared<Transpose>(prelu,
                                make_shared<Constant>(ov::element::i64, ov::Shape{4}, std::vector<int64_t>{0, 3, 1, 2}));
@@ -434,7 +434,7 @@ TEST(TransposeSinkingTest, SinkingThroughPreLUWithNonScalarSlope) {
 
     auto prelu =
         make_shared<PRelu>(transpose_before,
-                           make_shared<Constant>(ov::element::f32, ov::Shape{3}, std::vector<float>{0.8, 0.7, 0.1}));
+                           make_shared<Constant>(ov::element::f32, ov::Shape{3}, std::vector<float>{0.8f, 0.7f, 0.1f}));
     auto transpose_after =
         make_shared<Transpose>(prelu,
                                make_shared<Constant>(ov::element::i64, ov::Shape{4}, std::vector<int64_t>{0, 3, 1, 2}));
@@ -453,26 +453,27 @@ TEST(TransposeSinkingTest, SinkingThroughPreLUWithNonScalarSlope) {
     EXPECT_EQ(after_count, 2);
 }
 
-//            X (NCHW)
-//            |
-//         Transpose1
-//            |
-//         Split (NHWC)
-//           /  \
-//          /    \
-//   Transpose2 Transpose3 (NCHW)
-//       |        |
-// Const |        |   Const (NCHW)
-//  \    |        |   /
-//   \   |        |  /
-//    \  |        | /
-//     Add        Add (NCHW)
-//        \       /
-//         \     /
-//          \   /
-//           Add (NCHW)
-//            |
-//          Result (NCHW)
+/*            X (NCHW)
+ *            |
+ *         Transpose1
+ *            |
+ *         Split (NHWC)
+ *           /  \
+ *          /    \
+ *   Transpose2 Transpose3 (NCHW)
+ *       |        |
+ * Const |        |   Const (NCHW)
+ *  \    |        |   /
+ *   \   |        |  /
+ *    \  |        | /
+ *     Add        Add (NCHW)
+ *        \       /
+ *         \     /
+ *          \   /
+ *           Add (NCHW)
+ *            |
+ *          Result (NCHW)
+ */
 TEST(TransposeSinkingTest, MultiOutput) {
     ngraph::Shape shape_nhwc{1, 4, 4, 1};
     ngraph::Shape shape_nchw{1, 1, 4, 6};
@@ -514,34 +515,35 @@ TEST(TransposeSinkingTest, MultiOutput) {
     ASSERT_EQ(new_transpose->get_output_shape(0), (ngraph::Shape{1, 1, 4, 3}));
 }
 
-//            X (NHWC)
-//            |
-//        Transpose (NCHW)
-//            |
-//         AvgPool0
-//            |
-//        Transpose0 (NHWC)
-//            |
-//          Split (NHWC)
-//           /  \
-//          /    \
-//   Transpose1 Transpose2 (NCHW)
-//       |         |
-//     AvgPool1  AvgPool2
-//       |         |
-//   Transpose3 Transpose4 (NHWC)
-//        \       /
-//         \     /
-//          \   /
-//          Concat (NHWC)
-// Const      /
-//   \       /
-//    \     /
-//     \   /
-//      \ /
-//      Add (NHWC)
-//       |
-//     Result
+/*            X (NHWC)
+ *            |
+ *        Transpose (NCHW)
+ *            |
+ *         AvgPool0
+ *            |
+ *        Transpose0 (NHWC)
+ *            |
+ *          Split (NHWC)
+ *           /  \
+ *          /    \
+ *   Transpose1 Transpose2 (NCHW)
+ *       |         |
+ *     AvgPool1  AvgPool2
+ *       |         |
+ *   Transpose3 Transpose4 (NHWC)
+ *        \       /
+ *         \     /
+ *          \   /
+ *          Concat (NHWC)
+ * Const      /
+ *   \       /
+ *    \     /
+ *     \   /
+ *      \ /
+ *      Add (NHWC)
+ *       |
+ *     Result
+ */
 TEST(TransposeSinkingTest, AlexnetPattern) {
     ngraph::Shape shape_nhwc{1, 55, 55, 96};
     ngraph::Shape shape_nchw{1, 96, 55, 55};
@@ -618,4 +620,26 @@ TEST(TransposeSinkingTest, AlexnetPattern) {
         ngraph::as_type_ptr<Transpose>(func->get_results().at(0)->input_value(0).get_node_shared_ptr());
     ASSERT_TRUE(new_transpose);
     ASSERT_EQ(new_transpose->get_output_shape(0), (ngraph::Shape{1, 55, 55, 96}));
+}
+
+Output<Node> make_transpose(const Output<Node>& input, const vector<int64_t>& order) {
+    return std::make_shared<opset8::Transpose>(input, opset8::Constant::create(element::i64, {order.size()}, order));
+}
+
+TEST(TransposeSinkingTest, BinarySubTrickyShapes) {
+    auto a = make_shared<Parameter>(ngraph::element::i32, ngraph::Shape{1, 17});
+    auto a_t = make_transpose(a, {0, 1});
+    auto b = make_shared<Parameter>(ngraph::element::i32, ngraph::Shape{48, 48, 17});
+    auto b_t = make_transpose(b, {0, 1, 2});
+    auto binary = make_shared<Subtract>(a, b);
+
+    auto res = make_shared<Result>(binary);
+    auto func = make_shared<ngraph::Function>(ngraph::OutputVector{res}, ngraph::ParameterVector{a, b});
+
+    ov::pass::Manager pass_manager;
+    pass_manager.register_pass<TransposeSinking>();
+    pass_manager.run_passes(func);
+
+    size_t transpose_cnt = count_ops_of_type<Transpose>(func);
+    EXPECT_EQ(transpose_cnt, 0);
 }

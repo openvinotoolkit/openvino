@@ -27,8 +27,8 @@ constexpr char LayerTransformation::originalLayerPostfix[];
 LayerTransformation::LayerTransformation(const Params& params) :
     updatePrecisions(params.updatePrecisions),
     deqPrecision(params.deqPrecision),
-    reshapeIgnorePerTensorQuantizationCheck(params.reshapeIgnorePerTensorQuantizationCheck),
     defaultPrecisions(params.defaultPrecisions),
+    reshapeIgnorePerTensorQuantizationCheck(params.reshapeIgnorePerTensorQuantizationCheck),
     context(nullptr) {}
 
 void LayerTransformation::setContext(TransformationContext* context) noexcept {

@@ -30,6 +30,7 @@ using namespace dnnl::impl::cpu;
 class RegistersPool {
 public:
     using Ptr = std::shared_ptr<RegistersPool>;
+    using WeakPtr = std::weak_ptr<RegistersPool>;
     static constexpr int anyIdx = -1;
 
     /**
@@ -65,12 +66,12 @@ public:
             return lhs.operator Xbyak::RegExp() + rhs;
         }
         void release() {
-            if (regPool) {
-                regPool->returnToPool(reg);
+            if (auto pool = regPool.lock()) {
+                pool->returnToPool(reg);
                 regPool.reset();
             }
         }
-        bool isInitialized() const { return static_cast<bool>(regPool); }
+        bool isInitialized() const { return !regPool.expired(); }
 
     private:
         void ensureValid() const {
@@ -91,7 +92,7 @@ public:
 
     private:
         TReg reg;
-        RegistersPool::Ptr regPool;
+        RegistersPool::WeakPtr regPool;
     };
 
     virtual ~RegistersPool() {
@@ -124,7 +125,7 @@ protected:
     public:
         PhysicalSet(int size) : isFreeIndexVector(size, true) {}
 
-        void setAsUsed(int regIdx) {
+        void setAsUsed(size_t regIdx) {
             if (regIdx >= isFreeIndexVector.size() || regIdx < 0) {
                 IE_THROW() << "regIdx is out of bounds in RegistersPool::PhysicalSet::setAsUsed()";
             }
@@ -134,7 +135,7 @@ protected:
             isFreeIndexVector[regIdx] = false;
         }
 
-        void setAsUnused(int regIdx) {
+        void setAsUnused(size_t regIdx) {
             if (regIdx >= isFreeIndexVector.size() || regIdx < 0) {
                 IE_THROW() << "regIdx is out of bounds in RegistersPool::PhysicalSet::setAsUsed()";
             }
@@ -144,7 +145,7 @@ protected:
             isFreeIndexVector[regIdx] = true;
         }
 
-        int getUnused(int requestedIdx) {
+        size_t getUnused(size_t requestedIdx) {
             if (requestedIdx == anyIdx) {
                 return getFirstFreeIndex();
             } else {
@@ -173,8 +174,8 @@ protected:
         }
 
     private:
-        int getFirstFreeIndex() {
-            for (int c = 0; c < isFreeIndexVector.size(); ++c) {
+        size_t getFirstFreeIndex() {
+            for (size_t c = 0; c < isFreeIndexVector.size(); ++c) {
                 if (isFreeIndexVector[c]) {
                     return c;
                 }

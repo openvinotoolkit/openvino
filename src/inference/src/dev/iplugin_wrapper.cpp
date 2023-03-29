@@ -9,6 +9,7 @@
 #include "any_copy.hpp"
 #include "dev/converter_utils.hpp"
 #include "ie_icore.hpp"
+#include "threading/ie_executor_manager.hpp"
 
 namespace InferenceEngine {
 
@@ -20,7 +21,7 @@ IPluginWrapper::IPluginWrapper(const std::shared_ptr<InferenceEngine::IInference
     m_plugin_name = m_old_plugin->GetName();
     m_is_new_api = m_old_plugin->IsNewAPI();
     m_core = m_old_plugin->GetCore();
-    m_executor_manager = m_old_plugin->executorManager();
+    m_executor_manager = m_old_plugin->executorManager()->get_ov_manager();
 }
 
 const std::shared_ptr<InferenceEngine::IExecutableNetworkInternal>& IPluginWrapper::update_exec_network(
@@ -87,9 +88,7 @@ std::shared_ptr<ov::ICompiledModel> IPluginWrapper::import_model(std::istream& m
 ov::SupportedOpsMap IPluginWrapper::query_model(const std::shared_ptr<const ov::Model>& model,
                                                 const ov::AnyMap& properties) const {
     auto res = m_old_plugin->QueryNetwork(ov::legacy_convert::convert_model(model, is_new_api()), any_copy(properties));
-    if (res.rc != InferenceEngine::OK) {
-        throw ov::Exception(res.resp.msg);
-    }
+    OPENVINO_ASSERT(res.rc == InferenceEngine::OK, res.resp.msg);
     return res.supportedLayersMap;
 }
 

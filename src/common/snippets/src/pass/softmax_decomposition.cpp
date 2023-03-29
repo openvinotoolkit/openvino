@@ -57,25 +57,26 @@ ngraph::snippets::pass::SoftmaxDecomposition::SoftmaxDecomposition(const size_t 
 
         /* ====== ReduceMax decomposition ====== */
 
-        // We have to have fake edge Data -> Loop[ReduceMax] -> Loop[Sub + Exp + ReduceSum] because ReduceMax is
-        // accumulator which finds maximum of elements and save it to vector register. Loop works only with GPR (data) but ReduceMax Loop
-        // doesn't save maximum to data. Seems like, LoopEnd shouldn't have outputs:
-        //                     Data
-        //  VectorBuffer   LoopBegin   \
-        //         \         Load    \  |
-        //           Maximum         /  |
-        //              /   LoopEnd     |
-        //       HorizonMax            /
-        //             \   LoopBegin[Sub + Exp + ReduceSum]
-        // But nGraph doesn't allow to have 0 outputs for Node (at least 1 output).
-        // Thus, we propagate data through Loop[ReduceMax] using fake edge because of that Loop[ReduceMax] has two inputs "Data"
-        //                    Data
-        //  VectorBuffer    LoopBegin
-        //         \          Load |  \
-        //           Maximum       |  /
-        //              /    LoopEnd
-        //       HorizonMax     |
-        //             \   LoopBegin[Sub + Exp + ReduceSum]
+        /* We have to have fake edge Data -> Loop[ReduceMax] -> Loop[Sub + Exp + ReduceSum] because ReduceMax is
+         * accumulator which finds maximum of elements and save it to vector register. Loop works only with GPR (data) but ReduceMax Loop
+         * doesn't save maximum to data. Seems like, LoopEnd shouldn't have outputs:
+         *                     Data
+         *  VectorBuffer   LoopBegin   \
+         *         \         Load    \  |
+         *           Maximum         /  |
+         *              /   LoopEnd     |
+         *       HorizonMax            /
+         *             \   LoopBegin[Sub + Exp + ReduceSum]
+         * But nGraph doesn't allow to have 0 outputs for Node (at least 1 output).
+         * Thus, we propagate data through Loop[ReduceMax] using fake edge because of that Loop[ReduceMax] has two inputs "Data"
+         *                    Data
+         *  VectorBuffer    LoopBegin
+         *         \          Load |  \
+         *           Maximum       |  /
+         *              /    LoopEnd
+         *       HorizonMax     |
+         *             \   LoopBegin[Sub + Exp + ReduceSum]
+         */
         const auto vector_buffer_max = std::make_shared<ngraph::snippets::op::VectorBuffer>();
         const auto loop_max_begin = ngraph::snippets::op::insertLoopBegin(ngraph::OutputVector{data, data});
 

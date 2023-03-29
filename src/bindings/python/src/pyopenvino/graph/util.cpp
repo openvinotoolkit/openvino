@@ -6,9 +6,12 @@
 
 #include <pybind11/numpy.h>
 
+#include <openvino/core/node_output.hpp>
+
 #include "openvino/core/graph_util.hpp"
 #include "openvino/core/validation_util.hpp"
 #include "openvino/pass/manager.hpp"
+#include "pyopenvino/graph/ops/constant.hpp"
 #include "pyopenvino/utils/utils.hpp"
 
 namespace py = pybind11;
@@ -40,7 +43,7 @@ void regmodule_graph_util(py::module m) {
     mod.def(
         "clone_model",
         [](ov::Model& model) {
-            return ov::clone_model(model);
+            return model.clone();
         },
         py::arg("model"),
         R"(

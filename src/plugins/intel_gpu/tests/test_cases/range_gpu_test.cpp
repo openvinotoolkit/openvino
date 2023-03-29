@@ -8,6 +8,8 @@
 #include <intel_gpu/primitives/range.hpp>
 #include <intel_gpu/primitives/select.hpp>
 #include <intel_gpu/primitives/data.hpp>
+#include "range_inst.h"
+
 using namespace ::tests;
 using namespace testing;
 
@@ -162,19 +164,19 @@ struct range_test_param_generator : std::vector<range_test_params> {
     }
 };
 
-std::vector<data_types> signed_types    = {data_types::i8};
-std::vector<data_types> general_types   = {data_types::u8, data_types::i32, data_types::i32, data_types::f16, data_types::f32};
-std::vector<data_types> float_types     = {data_types::f16, data_types::f32};
+std::vector<data_types> signed_types  = {data_types::i8};
+std::vector<data_types> general_types = {data_types::u8, data_types::i32, data_types::i32, data_types::f16, data_types::f32};
+std::vector<data_types> float_types   = {data_types::f16, data_types::f32};
 
 INSTANTIATE_TEST_SUITE_P(range_gpu_test,
                         smoke_range_test,
                         testing::ValuesIn(
                             range_test_param_generator()
-                            .simple_params(general_types,   2,  23,     3)
-                            .simple_params(general_types,   1,  21,     2)
-                            .simple_params(float_types,     1,  2.5f,   0.5f)
-                            .simple_params(signed_types,    23, 2,      -3)
-                            .simple_params(signed_types,    4,  0,      -1)
+                            .simple_params(general_types,   2,  23,   3)
+                            .simple_params(general_types,   1,  21,   2)
+                            .simple_params(float_types,     1,  2.5f, 0.5f)
+                            .simple_params(signed_types,    23, 2,    -3)
+                            .simple_params(signed_types,    4,  0,    -1)
                         ));
 
 TEST(range_gpu_test, range_with_select) {
@@ -184,22 +186,20 @@ TEST(range_gpu_test, range_with_select) {
     int32_t step_val = 1;
     int32_t expected_dim = 25;
 
-
-    auto select_input1  = engine.allocate_memory({ { 1 }, data_types::u8,  format::bfyx });
-    auto select_input2  = engine.allocate_memory({ { }, data_types::i32, format::bfyx });
-    auto select_mask    = engine.allocate_memory({ { 1 }, data_types::i32, format::bfyx });
-    auto input0         = engine.allocate_memory({ { }, data_types::i32, format::bfyx });
-    auto input2         = engine.allocate_memory({ { }, data_types::i32, format::bfyx });
+    auto select_input1 = engine.allocate_memory({ {1}, data_types::u8,  format::bfyx });
+    auto select_input2 = engine.allocate_memory({ { }, data_types::i32, format::bfyx });
+    auto select_mask   = engine.allocate_memory({ {1}, data_types::i32, format::bfyx });
+    auto input0        = engine.allocate_memory({ { }, data_types::i32, format::bfyx });
+    auto input2        = engine.allocate_memory({ { }, data_types::i32, format::bfyx });
 
     topology topology;
-    topology.add(data("select_input1",  select_input1));
-    topology.add(data("select_input2",  select_input2));
-    topology.add(data("select_mask",    select_mask));
-    topology.add(data("input0",  input0));
-    topology.add(data("input2",  input2));
+    topology.add(data("select_input1", select_input1));
+    topology.add(data("select_input2", select_input2));
+    topology.add(data("select_mask",   select_mask));
+    topology.add(data("input0", input0));
+    topology.add(data("input2", input2));
     topology.add(cldnn::select("select", input_info("select_input1"), input_info("select_input2"), input_info("select_mask")));
-    topology.add(range { "range", { input_info("input0"), input_info("select"), input_info("input2") }, { data_types::i32, format::bfyx, tensor{batch(expected_dim)} } });
-
+    topology.add(range{ "range", { input_info("input0"), input_info("select"), input_info("input2") }, data_types::i32 });
 
     set_values<uint8_t>(select_input1, {0});
     set_values<int32_t>(select_input2, {384});
@@ -221,5 +221,132 @@ TEST(range_gpu_test, range_with_select) {
         ASSERT_EQ(start_val + i * step_val, output_ptr[i]);
     }
 }
+
+TEST(range_gpu_test, constant_folding) {
+    auto& engine = get_test_engine();
+
+    int32_t start_val = 0;
+    int32_t step_val = 1;
+    int32_t expected_dim = 25;
+
+    auto input0 = engine.allocate_memory({ ov::PartialShape::dynamic(0), data_types::i32, format::bfyx });
+    auto input1 = engine.allocate_memory({ ov::PartialShape::dynamic(0), data_types::i32, format::bfyx });
+    auto input2 = engine.allocate_memory({ ov::PartialShape::dynamic(0), data_types::i32, format::bfyx });
+
+    set_values<int32_t>(input0, { start_val });
+    set_values<int32_t>(input1, { expected_dim });
+    set_values<int32_t>(input2, { step_val });
+
+    topology topology;
+    topology.add(data("input0", input0));
+    topology.add(data("input1", input1));
+    topology.add(data("input2", input2));
+    topology.add(range{ "range", { input_info("input0"), input_info("input1"), input_info("input2") }, data_types::i32});
+
+    ExecutionConfig config;
+    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+
+    network network(engine, topology, config);
+
+    auto outputs = network.execute();
+    auto output = outputs.at("range").get_memory();
+
+    mem_lock<int32_t> output_ptr(output, tests::get_test_stream());
+
+    for (size_t i = 0; i < static_cast<size_t>(expected_dim); ++i) {
+        ASSERT_EQ(start_val + i * step_val, output_ptr[i]);
+    }
+}
+
+TEST(range_gpu_test, dynamic_all) {
+    auto& engine = get_test_engine();
+
+    int32_t start_val = 0;
+    int32_t step_val = 1;
+    int32_t expected_dim = 25;
+
+    auto dynamic_input_layout = layout{ ov::PartialShape::dynamic(0), data_types::i32, format::bfyx };
+
+    auto input0 = engine.allocate_memory({ {}, data_types::i32, format::bfyx });
+    auto input1 = engine.allocate_memory({ {}, data_types::i32, format::bfyx });
+    auto input2 = engine.allocate_memory({ {}, data_types::i32, format::bfyx });
+
+    set_values<int32_t>(input0, { start_val });
+    set_values<int32_t>(input1, { expected_dim });
+    set_values<int32_t>(input2, { step_val });
+
+    topology topology;
+    topology.add(input_layout("input0", dynamic_input_layout));
+    topology.add(input_layout("input1", dynamic_input_layout));
+    topology.add(input_layout("input2", dynamic_input_layout));
+    topology.add(range{ "range", { input_info("input0"), input_info("input1"), input_info("input2") }, data_types::i32});
+
+    ExecutionConfig config;
+    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+
+    network network(engine, topology, config);
+    network.set_input_data("input0", input0);
+    network.set_input_data("input1", input1);
+    network.set_input_data("input2", input2);
+
+    auto inst = network.get_primitive("range");
+    auto impl = inst->get_impl();
+    ASSERT_TRUE(impl != nullptr);
+    ASSERT_TRUE(impl->is_dynamic());
+
+    auto outputs = network.execute();
+    auto output = outputs.at("range").get_memory();
+
+    mem_lock<int32_t> output_ptr(output, tests::get_test_stream());
+
+    for (size_t i = 0; i < static_cast<size_t>(expected_dim); ++i) {
+        ASSERT_EQ(start_val + i * step_val, output_ptr[i]);
+    }
+}
+
+TEST(range_gpu_test, dynamic_stop) {
+    auto& engine = get_test_engine();
+
+    int32_t start_val = 0;
+    int32_t step_val = 1;
+    int32_t expected_dim = 25;
+
+    auto dynamic_input_layout = layout{ ov::PartialShape::dynamic(0), data_types::i32, format::bfyx };
+
+    auto input0 = engine.allocate_memory({ {}, data_types::i32, format::bfyx });
+    auto input1 = engine.allocate_memory({ {}, data_types::i32, format::bfyx });
+    auto input2 = engine.allocate_memory({ {}, data_types::i32, format::bfyx });
+
+    set_values<int32_t>(input0, { start_val });
+    set_values<int32_t>(input1, { expected_dim });
+    set_values<int32_t>(input2, { step_val });
+
+    topology topology;
+    topology.add(data("input0", input0));
+    topology.add(input_layout("input1", dynamic_input_layout));
+    topology.add(data("input2", input2));
+    topology.add(range{ "range", { input_info("input0"), input_info("input1"), input_info("input2") }, data_types::i32});
+
+    ExecutionConfig config;
+    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+
+    network network(engine, topology, config);
+    network.set_input_data("input1", input1);
+
+    auto inst = network.get_primitive("range");
+    auto impl = inst->get_impl();
+    ASSERT_TRUE(impl != nullptr);
+    ASSERT_TRUE(impl->is_dynamic());
+
+    auto outputs = network.execute();
+    auto output = outputs.at("range").get_memory();
+
+    mem_lock<int32_t> output_ptr(output, tests::get_test_stream());
+
+    for (size_t i = 0; i < static_cast<size_t>(expected_dim); ++i) {
+        ASSERT_EQ(start_val + i * step_val, output_ptr[i]);
+    }
+}
+
 }  // namespace
 }  // namespace cldnn

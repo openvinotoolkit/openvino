@@ -326,7 +326,7 @@ public:
         variable res(base::_kernel);
         res = base::reg();
         res += rhs;
-        return std::move(res);
+        return res;
     }
     const variable & operator += (arithmetic_type rhs) const {
         base::_kernel.add(base::reg(), rhs);
@@ -336,7 +336,7 @@ public:
         variable res(base::_kernel);
         res = base::reg();
         res += rhs;
-        return std::move(res);
+        return res;
     }
     const variable & operator -= (reg_type & rhs) const {
         base::_kernel.sub(base::reg(), rhs);
@@ -346,7 +346,7 @@ public:
         variable res(base::_kernel);
         res = base::reg();
         res -= rhs;
-        return std::move(res);
+        return res;
     }
     const variable & operator -= (arithmetic_type rhs) const {
         base::_kernel.sub(base::reg(), rhs);
@@ -356,7 +356,7 @@ public:
         variable res(base::_kernel);
         res = base::reg();
         res -= rhs;
-        return std::move(res);
+        return res;
     }
     const variable & operator *= (reg_type & rhs) const {
         base::_kernel.imul(base::reg(), rhs);
@@ -366,7 +366,7 @@ public:
         variable res(base::_kernel);
         res = base::reg();
         res *= rhs;
-        return std::move(res);
+        return res;
     }
     const variable & operator *= (arithmetic_type rhs) const {
         base::_kernel.imul(base::reg(), base::reg(), static_cast<int>(rhs));
@@ -376,7 +376,7 @@ public:
         variable res(base::_kernel);
         res = base::reg();
         res *= rhs;
-        return std::move(res);
+        return res;
     }
     const variable & operator &= (reg_type & rhs) const {
         base::_kernel.and_(base::reg(), rhs);
@@ -386,7 +386,7 @@ public:
         variable res(base::_kernel);
         res = base::reg();
         res &= rhs;
-        return std::move(res);
+        return res;
     }
     const variable & operator &= (T rhs) const {
         base::_kernel.and_(base::reg(), rhs);
@@ -396,7 +396,7 @@ public:
         variable res(base::_kernel);
         res = base::reg();
         res &= rhs;
-        return std::move(res);
+        return res;
     }
     const variable & operator |= (reg_type & rhs) const {
         base::_kernel.or_(base::reg(), rhs);
@@ -406,7 +406,7 @@ public:
         variable res(base::_kernel);
         res = base::reg();
         res |= rhs;
-        return std::move(res);
+        return res;
     }
     const variable & operator |= (T rhs) const {
         base::_kernel.or_(base::reg(), rhs);
@@ -416,7 +416,7 @@ public:
         variable res(base::_kernel);
         res = base::reg();
         res |= rhs;
-        return std::move(res);
+        return res;
     }
     const variable & operator >>= (size_t rhs) const {
         base::_kernel.shr(base::reg(), rhs);
@@ -426,7 +426,7 @@ public:
         variable res(base::_kernel);
         res = base::reg();
         res >>= rhs;
-        return std::move(res);
+        return res;
     }
     const variable & operator <<= (size_t rhs) const {
         base::_kernel.shl(base::reg(), rhs);
@@ -436,7 +436,7 @@ public:
         variable res(base::_kernel);
         res = base::reg();
         res <<= rhs;
-        return std::move(res);
+        return res;
     }
 
     boolean_expression<T> operator == (const variable & rhs) const {
@@ -852,7 +852,7 @@ jit_kernel::variable<T> jit_kernel::var(const T & val) {
     const auto & reg = reserve<reg_type>();
     variable<T> res(*this, internal::make_shared(reg, *this));
     res = val;
-    return std::move(res);
+    return res;
 }
 
 template<typename T>
@@ -884,7 +884,7 @@ shared_reg<Reg> make_shared(Reg & reg, jit_kernel & kernel) {
             kernel.free(*preg);
         } catch(...) {}
     });
-    return std::move(ptr);
+    return ptr;
 }
 
 // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~

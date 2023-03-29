@@ -4,6 +4,7 @@
 
 #include "openvino/frontend/pytorch/node_context.hpp"
 #include "openvino/opsets/opset10.hpp"
+#include "utils.hpp"
 
 using namespace ov::opset10;
 
@@ -13,6 +14,7 @@ namespace pytorch {
 namespace op {
 
 OutputVector translate_unfold(NodeContext& context) {
+    num_inputs_check(context, 4, 4);
     // constants
     auto const_0 = context.mark_node(Constant::create(element::i32, Shape{}, {0}));
     auto const_1 = context.mark_node(Constant::create(element::i32, Shape{}, {1}));
@@ -22,8 +24,9 @@ OutputVector translate_unfold(NodeContext& context) {
 
     // get inputs and prepare auxiliary nodes
     auto input = context.get_input(0);
-    auto input_shape = context.mark_node(std::make_shared<ShapeOf>(input, element::i32));
-    auto input_rank = context.mark_node(std::make_shared<ShapeOf>(input_shape, element::i32));
+    Output<Node> input_shape;
+    Output<Node> input_rank;
+    std::tie(input_shape, input_rank) = get_shape_rank(context, input);
 
     auto dimension = context.mark_node(std::make_shared<Unsqueeze>(context.get_input(1), const_0));
     auto dimension_plus_1 = context.mark_node(std::make_shared<Add>(dimension, const_1_list));

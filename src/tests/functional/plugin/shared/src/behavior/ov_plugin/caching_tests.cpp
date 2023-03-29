@@ -8,6 +8,8 @@
 
 #include "behavior/ov_plugin/caching_tests.hpp"
 
+#include "openvino/pass/manager.hpp"
+
 #include "common_test_utils/file_utils.hpp"
 #include "functional_test_utils/skip_tests_config.hpp"
 #include "functional_test_utils/summary/api_summary.hpp"
@@ -289,7 +291,7 @@ void CompileModelLoadFromFileTestBase::SetUp() {
     }
     m_cacheFolderName = ss.str();
     core->set_property(ov::cache_dir());
-    ngraph::pass::Manager manager;
+    ov::pass::Manager manager;
     manager.register_pass<ov::pass::Serialize>(m_modelName, m_weightsName);
     manager.run_passes(ngraph::builder::subgraph::makeConvPoolRelu(
             {1, 3, 227, 227}, InferenceEngine::details::convertPrecision(InferenceEngine::Precision::FP32)));
@@ -372,7 +374,7 @@ void CompileModelLoadFromMemoryTestBase::SetUp() {
     }
     m_cacheFolderName = ss.str();
     core->set_property(ov::cache_dir());
-    ngraph::pass::Manager manager;
+    ov::pass::Manager manager;
     manager.register_pass<ov::pass::Serialize>(m_modelName, m_weightsName);
     manager.run_passes(ngraph::builder::subgraph::makeConvPoolRelu(
         {1, 3, 227, 227},
@@ -455,7 +457,7 @@ TEST_P(CompileModelLoadFromMemoryTestBase, CanLoadFromMemoryWithoutExecption) {
 }
 
 TEST_P(CompileModelLoadFromMemoryTestBase, CanLoadFromMemoryWithoutWeightsANdExecption) {
-    ngraph::pass::Manager manager;
+    ov::pass::Manager manager;
     std::shared_ptr<ov::Model> model;
     {
         auto data = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{3, 1, 2});

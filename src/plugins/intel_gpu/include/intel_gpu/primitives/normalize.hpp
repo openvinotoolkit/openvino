@@ -62,6 +62,16 @@ struct normalize : public primitive_base<normalize> {
         return seed;
     }
 
+    bool operator==(const primitive& rhs) const override {
+        if (!compare_common_params(rhs))
+            return false;
+
+        auto rhs_casted = downcast<const normalize>(rhs);
+
+        return across_spatial == rhs_casted.across_spatial &&
+               epsilon == rhs_casted.epsilon;
+    }
+
 protected:
     std::vector<std::reference_wrapper<const primitive_id>> get_dependencies() const override { return {scale_input}; }
 };

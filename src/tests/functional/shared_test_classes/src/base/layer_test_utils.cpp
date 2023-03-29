@@ -11,8 +11,6 @@
 
 #include <openvino/pass/serialize.hpp>
 #include <ngraph/opsets/opset.hpp>
-
-#include "ngraph/variant.hpp"
 #include "shared_test_classes/base/layer_test_utils.hpp"
 #include "common_test_utils/file_utils.hpp"
 #include "functional_test_utils/core_config.hpp"
@@ -365,6 +363,16 @@ void LayerTestsCommon::LoadNetwork() {
     CoreConfiguration(this);
     ConfigureNetwork();
     executableNetwork = core->LoadNetwork(cnnNetwork, targetDevice, configuration);
+}
+
+void LayerTestsCommon::ExpectLoadNetworkToThrow(const std::string& msg) {
+    std::string what;
+    try {
+        LoadNetwork();
+    } catch (const std::exception& e) {
+        what.assign(e.what());
+    }
+    EXPECT_STR_CONTAINS(what.c_str(), msg.c_str());
 }
 
 void LayerTestsCommon::GenerateInputs() {

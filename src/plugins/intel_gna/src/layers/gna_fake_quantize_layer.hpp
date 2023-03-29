@@ -4,11 +4,11 @@
 
 #pragma once
 
-#include "gna_layer_info.hpp"
-#include "gna_layer_helpers.hpp"
-#include "frontend/weights_converter.hpp"
-
 #include <ie_algorithm.hpp>
+
+#include "frontend/weights_converter.hpp"
+#include "gna_layer_helpers.hpp"
+#include "gna_layer_info.hpp"
 
 using ov::intel_gna::frontend::make_fp32_blob;
 

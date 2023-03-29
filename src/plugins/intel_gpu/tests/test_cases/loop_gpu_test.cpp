@@ -73,24 +73,7 @@ void test_loop_gpu_basic_no_concat(bool is_caching_test)
              input_primitive_maps, output_primitive_maps, back_edges, 8)
     );
 
-    cldnn::network::ptr network;
-
-    if (is_caching_test) {
-        membuf mem_buf;
-        {
-            cldnn::network _network(engine, topology);
-            std::ostream out_mem(&mem_buf);
-            BinaryOutputBuffer ob = BinaryOutputBuffer(out_mem);
-            _network.save(ob);
-        }
-        {
-            std::istream in_mem(&mem_buf);
-            BinaryInputBuffer ib = BinaryInputBuffer(in_mem, engine);
-            network = std::make_shared<cldnn::network>(ib, get_test_stream_ptr(), engine);
-        }
-    } else {
-        network = std::make_shared<cldnn::network>(engine, topology);
-    }
+    cldnn::network::ptr network = get_network(engine, topology, ExecutionConfig(), get_test_stream_ptr(), is_caching_test);
 
     network->set_input_data("input", input_mem);
     network->set_input_data("trip_count", trip_count_mem);
@@ -143,10 +126,6 @@ TEST(loop_gpu, basic_no_concat) {
     test_loop_gpu_basic_no_concat<float>(false);
 }
 
-TEST(export_import_loop_gpu, basic_no_concat) {
-    test_loop_gpu_basic_no_concat<float>(true);
-}
-
 template <typename T>
 void test_loop_gpu_basic_concat(bool is_caching_test)
 {
@@ -195,25 +174,7 @@ void test_loop_gpu_basic_concat(bool is_caching_test)
              input_primitive_maps, output_primitive_maps, back_edges, trip_count)
     );
 
-    cldnn::network::ptr network;
-
-    if (is_caching_test) {
-        membuf mem_buf;
-        {
-            cldnn::network _network(engine, topology);
-            std::ostream out_mem(&mem_buf);
-            BinaryOutputBuffer ob = BinaryOutputBuffer(out_mem);
-            _network.save(ob);
-        }
-        {
-            std::istream in_mem(&mem_buf);
-            BinaryInputBuffer ib = BinaryInputBuffer(in_mem, engine);
-            network = std::make_shared<cldnn::network>(ib, get_test_stream_ptr(), engine);
-        }
-    } else {
-        network = std::make_shared<cldnn::network>(engine, topology);
-    }
-
+    cldnn::network::ptr network = get_network(engine, topology, ExecutionConfig(), get_test_stream_ptr(), is_caching_test);
     network->set_input_data("input", input_mem);
     network->set_input_data("trip_count", trip_count_mem);
     network->set_input_data("initial_condition", initial_condition_mem);
@@ -261,10 +222,6 @@ void test_loop_gpu_basic_concat(bool is_caching_test)
 
 TEST(loop_gpu, basic_concat) {
     test_loop_gpu_basic_concat<float>(false);
-}
-
-TEST(export_import_loop_gpu, basic_concat) {
-    test_loop_gpu_basic_concat<float>(true);
 }
 
 template <typename T>
@@ -357,25 +314,7 @@ void test_loop_gpu_basic_concat_nested(bool is_caching_test)
     /////////////////////////////////
     // network execution
     /////////////////////////////////
-    cldnn::network::ptr network;
-
-    if (is_caching_test) {
-        membuf mem_buf;
-        {
-            cldnn::network _network(engine, main_topology);
-            std::ostream out_mem(&mem_buf);
-            BinaryOutputBuffer ob = BinaryOutputBuffer(out_mem);
-            _network.save(ob);
-        }
-        {
-            std::istream in_mem(&mem_buf);
-            BinaryInputBuffer ib = BinaryInputBuffer(in_mem, engine);
-            network = std::make_shared<cldnn::network>(ib, get_test_stream_ptr(), engine);
-        }
-    } else {
-        network = std::make_shared<cldnn::network>(engine, main_topology);
-    }
-
+    cldnn::network::ptr network = get_network(engine, main_topology, ExecutionConfig(), get_test_stream_ptr(), is_caching_test);
     network->set_input_data("input", input_mem);
     network->set_input_data("trip_count", trip_count_mem);
     network->set_input_data("initial_condition", initial_condition_mem);
@@ -443,7 +382,15 @@ void test_loop_gpu_basic_concat_nested(bool is_caching_test)
 TEST(loop_gpu, basic_concat_nested) {
     test_loop_gpu_basic_concat_nested<float>(false);
 }
+#ifdef RUN_ALL_MODEL_CACHING_TESTS
+TEST(loop_gpu, basic_no_concat_cached) {
+    test_loop_gpu_basic_no_concat<float>(true);
+}
 
-TEST(export_import_loop_gpu, basic_concat_nested) {
+TEST(loop_gpu, basic_concat_cached) {
+    test_loop_gpu_basic_concat<float>(true);
+}
+#endif // RUN_ALL_MODEL_CACHING_TESTS
+TEST(loop_gpu, basic_concat_nested_cached) {
     test_loop_gpu_basic_concat_nested<float>(true);
 }

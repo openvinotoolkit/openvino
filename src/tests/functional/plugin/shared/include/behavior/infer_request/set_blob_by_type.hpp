@@ -58,14 +58,14 @@ protected:
             case FuncTestUtils::BlobType::NV12:
                 return false;
             case FuncTestUtils::BlobType::Batched: {
-                std::vector<std::string> supported_metrics = ie->GetMetric(target_device, METRIC_KEY(SUPPORTED_METRICS));
+                auto supported_metrics = ie->GetMetric(target_device, METRIC_KEY(SUPPORTED_METRICS)).as<std::vector<std::string>>();
                 if (std::find(supported_metrics.begin(), supported_metrics.end(),
                               METRIC_KEY(OPTIMIZATION_CAPABILITIES)) == supported_metrics.end()) {
                     return false;
                 }
 
-                std::vector<std::string> optimization_caps =
-                        ie->GetMetric(target_device, METRIC_KEY(OPTIMIZATION_CAPABILITIES));
+               auto optimization_caps =
+                        ie->GetMetric(target_device, METRIC_KEY(OPTIMIZATION_CAPABILITIES)).as<std::vector<std::string>>();
                 return std::find(optimization_caps.begin(), optimization_caps.end(),
                                  METRIC_VALUE(BATCHED_BLOB)) != optimization_caps.end();
             }

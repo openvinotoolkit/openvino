@@ -83,7 +83,7 @@ INSTANTIATE_TEST_SUITE_P(smoke, concatenation_test,
                 layout{ov::PartialShape{2, 2}, data_types::f32, format::bfyx},
             },
             0,
-            layout{ov::PartialShape::dynamic(2), data_types::f32, format::bfyx}
+            layout{ov::PartialShape{ov::Dimension(5, -1), ov::Dimension(2, 2)}, data_types::f32, format::bfyx}
         },
     }));
 

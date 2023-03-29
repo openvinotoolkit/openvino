@@ -20,8 +20,8 @@ public:
                const std::map<std::string, ov::Any>& attrs,
                bool empty_name = false)
         : ov::frontend::DecoderBase(),
-          m_decoder(std::move(decoder)),
           m_attrs(attrs),
+          m_decoder(std::move(decoder)),
           m_empty_name(empty_name) {}
 
     DecoderMap(std::shared_ptr<ov::frontend::DecoderBase> decoder,
@@ -29,8 +29,8 @@ public:
                std::string type,
                bool empty_name = false)
         : ov::frontend::DecoderBase(),
-          m_decoder(std::move(decoder)),
           m_attrs(attrs),
+          m_decoder(std::move(decoder)),
           m_type(type),
           m_empty_name(empty_name) {}
 
@@ -39,8 +39,10 @@ public:
     /// \param name Attribute name
     /// \return Shared pointer to appropriate value converted to openvino data type if it exists, 'nullptr' otherwise
     ov::Any get_attribute(const std::string& name) const override {
-        FRONT_END_GENERAL_CHECK(m_attrs.count(name), "DecoderMap was requested attribute that doesn't exist: ", name);
-        return m_attrs.at(name);
+        if (m_attrs.count(name))
+            return m_attrs.at(name);
+        else
+            return {};
     }
 
     /// \brief Get a number of inputs
@@ -57,6 +59,19 @@ public:
                         std::string& producer_name,
                         size_t& producer_output_port_index) const override {
         m_decoder->get_input_node(input_port_idx, producer_name, producer_output_port_index);
+    }
+
+    /// \brief Get a producer name and its output port index
+    ///
+    /// \param input_port_idx              Input port index by which data is consumed
+    /// \param producer_name               A producer name
+    /// \param producer_output_port_index  Output port index from which data is generated
+    /// \param op_type_by_name             Map of operation name to their types
+    void get_input_node(size_t input_port_idx,
+                        std::string& producer_name,
+                        size_t& producer_output_port_index,
+                        const OpTypeByName& op_type_by_name) const override {
+        FRONT_END_NOT_IMPLEMENTED("get_input_node method with op_type_by_name map is not implemented for TFL FE.");
     }
 
     /// \brief Get operation type

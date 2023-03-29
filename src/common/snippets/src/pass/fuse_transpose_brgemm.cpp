@@ -65,7 +65,7 @@ FuseTransposeBrgemm::FuseTransposeBrgemm() {
                 in.replace_source_output(brgemm->output(0));
             set_layout_from_order(as_type_ptr<opset1::Transpose>(transpose_out.get_node_shared_ptr()), brgemm_out);
         }
-        for (int i = 0; i < brgemm->get_input_size(); i++) {
+        for (size_t i = 0; i < brgemm->get_input_size(); i++) {
             const auto& in_value = brgemm->input_value(i);
             if (transpose_matcher->match(in_value)) {
                 const auto& transpose = as_type_ptr<opset1::Transpose>(in_value.get_node_shared_ptr());

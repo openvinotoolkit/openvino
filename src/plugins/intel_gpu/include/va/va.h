@@ -4,3 +4,4 @@
 
 typedef cl_uint VASurfaceID;
 typedef void* VADisplay;
+typedef void* VAImageFormat;

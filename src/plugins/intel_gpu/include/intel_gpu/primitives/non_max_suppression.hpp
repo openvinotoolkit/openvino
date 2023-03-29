@@ -4,6 +4,7 @@
 
 #pragma once
 #include "primitive.hpp"
+#include "intel_gpu/graph/serialization/string_serializer.hpp"
 
 #include <vector>
 
@@ -15,6 +16,10 @@ namespace cldnn {
 /// filtered out. This filtering happens per class.
 struct non_max_suppression : public primitive_base<non_max_suppression> {
     CLDNN_DECLARE_PRIMITIVE(non_max_suppression)
+
+    non_max_suppression() : primitive_base("", {}) {}
+
+    DECLARE_OBJECT_TYPE_SERIALIZATION
 
     /// @brief Creates non max supression primitive.
     /// @param id This primitive id.
@@ -76,6 +81,25 @@ struct non_max_suppression : public primitive_base<non_max_suppression> {
         return seed;
     }
 
+    bool operator==(const primitive& rhs) const override {
+        if (!compare_common_params(rhs))
+            return false;
+
+        auto rhs_casted = downcast<const non_max_suppression>(rhs);
+
+        #define cmp_fields(name) name == rhs_casted.name
+        return cmp_fields(selected_indices_num) &&
+               cmp_fields(center_point_box) &&
+               cmp_fields(sort_result_descending) &&
+               cmp_fields(num_select_per_class.empty()) &&
+               cmp_fields(iou_threshold.empty()) &&
+               cmp_fields(score_threshold.empty()) &&
+               cmp_fields(soft_nms_sigma.empty()) &&
+               cmp_fields(second_output.empty()) &&
+               cmp_fields(third_output.empty());
+        #undef cmp_fields
+    }
+
     std::vector<std::reference_wrapper<const primitive_id>> get_dependencies() const override {
         std::vector<std::reference_wrapper<const primitive_id>> ret;
         if (!num_select_per_class.empty())
@@ -92,6 +116,30 @@ struct non_max_suppression : public primitive_base<non_max_suppression> {
             ret.push_back(third_output);
 
         return ret;
+    }
+
+    void save(BinaryOutputBuffer& ob) const override {
+        ob << selected_indices_num;
+        ob << center_point_box;
+        ob << sort_result_descending;
+        ob << num_select_per_class;
+        ob << iou_threshold;
+        ob << score_threshold;
+        ob << soft_nms_sigma;
+        ob << second_output;
+        ob << third_output;
+    }
+
+    void load(BinaryInputBuffer& ib) override {
+        ib >> selected_indices_num;
+        ib >> center_point_box;
+        ib >> sort_result_descending;
+        ib >> num_select_per_class;
+        ib >> iou_threshold;
+        ib >> score_threshold;
+        ib >> soft_nms_sigma;
+        ib >> second_output;
+        ib >> third_output;
     }
 };
 }  // namespace cldnn

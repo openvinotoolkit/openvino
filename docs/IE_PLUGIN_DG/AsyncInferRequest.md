@@ -12,7 +12,7 @@ OpenVINO Runtime Plugin API provides the base InferenceEngine::AsyncInferRequest
 
 OpenVINO Runtime Plugin API provides the base InferenceEngine::AsyncInferRequestThreadSafeDefault class for a custom asynchronous inference request implementation:
 
-@snippet src/template_async_infer_request.hpp async_infer_request:header
+@snippet src/async_infer_request.hpp async_infer_request:header
 
 #### Class Fields
 
@@ -30,7 +30,7 @@ The main goal of the `AsyncInferRequest` constructor is to define a device pipel
 - `waitPipeline` is a CPU non-compute task that waits for a response from a remote device.
 - `inferPostprocess` is a CPU compute task.
 
-@snippet src/template_async_infer_request.cpp async_infer_request:ctor
+@snippet src/async_infer_request.cpp async_infer_request:ctor
 
 The stages are distributed among two task executors in the following way:
 
@@ -46,4 +46,4 @@ Inference request stages are also profiled using IE_PROFILING_AUTO_SCOPE, which 
 
 In the asynchronous request destructor, it is necessary to wait for a pipeline to finish. It can be done using the InferenceEngine::AsyncInferRequestThreadSafeDefault::StopAndWait method of the base class.
 
-@snippet src/template_async_infer_request.cpp async_infer_request:dtor
+@snippet src/async_infer_request.cpp async_infer_request:dtor

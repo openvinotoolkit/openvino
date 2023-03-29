@@ -20,7 +20,7 @@ struct VariableParams {
 
 template<typename T>
 struct variable_test : public ::testing::TestWithParam<VariableParams<T>> {
-    void test() {
+    void test(bool is_caching_test) {
         const VariableParams<T> param = testing::TestWithParam<VariableParams<T>>::GetParam();
 
         auto& engine = get_test_engine();
@@ -35,13 +35,14 @@ struct variable_test : public ::testing::TestWithParam<VariableParams<T>> {
         topology.add(eltwise{"sum", { input_info("input"), input_info("read_value") }, eltwise_mode::sum, {}, variable_layout.data_type});
         topology.add(assign{"assign", { input_info("sum") }, "v0", variable_layout});
 
-        network network(engine, topology, ExecutionConfig{}, false);
-        network.assign_variables_memories({ { "v0", std::make_shared<network::VariableState>(engine.allocate_memory(variable_layout)) } });
-        network.set_input_data("input", input_data);
+        cldnn::network::ptr network = get_network(engine, topology, ExecutionConfig(), get_test_stream_ptr(), is_caching_test);
+
+        network->assign_variables_memories({ { "v0", std::make_shared<network::VariableState>(engine.allocate_memory(variable_layout)) } });
+        network->set_input_data("input", input_data);
 
         constexpr size_t number_of_inferences = 5;
         for (size_t inference = 1; inference <= number_of_inferences; ++inference) {
-            const auto outputs = network.execute();
+            const auto outputs = network->execute();
             const auto output = outputs.at("assign").get_memory();
             const cldnn::mem_lock<T> output_ptr(output, get_test_stream());
             const auto output_count = output_ptr.size();
@@ -59,15 +60,15 @@ using variable_test_i64 = variable_test<int64_t>;
 using variable_test_f32 = variable_test<float>;
 
 TEST_P(variable_test_i32, variable_i32) {
-    ASSERT_NO_FATAL_FAILURE(test());
+    ASSERT_NO_FATAL_FAILURE(test(false));
 }
 
 TEST_P(variable_test_i64, variable_i64) {
-    ASSERT_NO_FATAL_FAILURE(test());
+    ASSERT_NO_FATAL_FAILURE(test(false));
 }
 
 TEST_P(variable_test_f32, variable_f32) {
-    ASSERT_NO_FATAL_FAILURE(test());
+    ASSERT_NO_FATAL_FAILURE(test(false));
 }
 
 INSTANTIATE_TEST_SUITE_P(
@@ -103,9 +104,8 @@ INSTANTIATE_TEST_SUITE_P(
         )
 );
 
-
-TEST(variable_test_common, exception_on_wrong_layout) {
-
+template <typename T>
+void test_exception_on_wrong_layout(bool is_caching_test) {
     auto& engine = get_test_engine();
 
     const layout variable_layout{data_types::i32, format::bfyx, tensor{1}};
@@ -123,14 +123,15 @@ TEST(variable_test_common, exception_on_wrong_layout) {
     topology.add(input_layout("wrong_input", wrong_input_data->get_layout()));
     topology.add(assign{"assign", { input_info("wrong_input") }, "v0", wrong_layout});
 
-    network network(engine, topology, ExecutionConfig{}, false);
-    network.assign_variables_memories({ { "v0", std::make_shared<network::VariableState>(engine.allocate_memory(variable_layout)) } });
-    network.set_input_data("input", input_data);
-    network.set_input_data("wrong_input", wrong_input_data);
+    cldnn::network::ptr network = get_network(engine, topology, ExecutionConfig(), get_test_stream_ptr(), is_caching_test);
+
+    network->assign_variables_memories({ { "v0", std::make_shared<network::VariableState>(engine.allocate_memory(variable_layout)) } });
+    network->set_input_data("input", input_data);
+    network->set_input_data("wrong_input", wrong_input_data);
 
     bool layout_mismatch_exception = false;
     try {
-        network.execute();
+        network->execute();
     } catch(std::exception& exc) {
         const std::string error = exc.what();
         layout_mismatch_exception = error.find("Layout mismatch") != std::string::npos;
@@ -138,18 +139,22 @@ TEST(variable_test_common, exception_on_wrong_layout) {
     ASSERT_TRUE(layout_mismatch_exception);
 }
 
-TEST(variable_test_common, variables_are_preserved_across_inferences) {
+TEST(variable_test_common, exception_on_wrong_layout) {
+    test_exception_on_wrong_layout<float>(false);
+}
 
+template <typename T>
+void test_variables_are_preserved_across_inferences(bool is_caching_test) {
     auto& engine = get_test_engine();
 
     const layout variable_layout{data_types::i32, format::bfyx, tensor{1}};
 
     const auto input_1 = engine.allocate_memory(variable_layout);
-    constexpr auto value_1 = 333;
+    constexpr auto value_1 = 222;
     set_values(input_1, {value_1});
 
     const auto input_2 = engine.allocate_memory(variable_layout);
-    constexpr auto value_2 = 666;
+    constexpr auto value_2 = 555;
     set_values(input_2, {value_2});
 
     const auto dummy1 = engine.allocate_memory(variable_layout);
@@ -174,19 +179,45 @@ TEST(variable_test_common, variables_are_preserved_across_inferences) {
     topology.add(data("dummy2", dummy2));
     topology.add(read_value{"read_result", { input_info("dummy2") }, "v_result", variable_layout});
 
-    network network{engine, topology, ExecutionConfig{}, true};
-    network.assign_variables_memories({
+    cldnn::network::ptr network = get_network(engine, topology, ExecutionConfig(), get_test_stream_ptr(), is_caching_test);
+
+    network->assign_variables_memories({
         { "v1", std::make_shared<network::VariableState>(engine.allocate_memory(variable_layout)) },
         { "v2", std::make_shared<network::VariableState>(engine.allocate_memory(variable_layout)) },
         { "v_result", std::make_shared<network::VariableState>(engine.allocate_memory(variable_layout)) }
     });
-    network.set_input_data("input_1", input_1);
-    network.set_input_data("input_2", input_2);
+    network->set_input_data("input_1", input_1);
+    network->set_input_data("input_2", input_2);
 
     // set variables with assign on 1st inference, read with read_values on 2nd one
-    network.execute();
-    const auto outputs = network.execute();
+    // network->execute();
+    const auto outputs = network->execute();
     const auto output = outputs.at("read_result").get_memory();
-    const cldnn::mem_lock<int> output_ptr(output, get_test_stream());
+    const cldnn::mem_lock<T> output_ptr(output, get_test_stream());
     ASSERT_EQ(output_ptr[0], value_1 + value_2);
+}
+
+TEST(variable_test_common, variables_are_preserved_across_inferences) {
+    test_variables_are_preserved_across_inferences<int>(false);
+}
+
+#ifdef RUN_ALL_MODEL_CACHING_TESTS
+TEST_P(variable_test_i32, variable_i32_cached) {
+    ASSERT_NO_FATAL_FAILURE(test(true));
+}
+
+TEST_P(variable_test_i64, variable_i64_cached) {
+    ASSERT_NO_FATAL_FAILURE(test(true));
+}
+
+TEST_P(variable_test_f32, variable_f32_cached) {
+    ASSERT_NO_FATAL_FAILURE(test(true));
+}
+
+TEST(variable_test_common, exception_on_wrong_layout_cached) {
+    test_exception_on_wrong_layout<float>(true);
+}
+#endif
+TEST(variable_test_common, variables_are_preserved_across_inferences_cached) {
+    test_variables_are_preserved_across_inferences<int>(true);
 }

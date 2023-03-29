@@ -22,7 +22,15 @@ Typically, human expertise is required to get more "throughput" out of the devic
 
 > **NOTE**: [OpenVINO performance hints](../OV_Runtime_UG/performance_hints.md) is a recommended way for performance configuration, which is both device-agnostic and future-proof.
 
-When multiple models are to be used simultaneously, consider running inference on separate devices for each of them. Finally, when multiple models are executed in parallel on a device, using additional `ov::hint::model_priority` may help to define relative priorities of the models. Refer to the documentation on the [matrix features support for OpenVINO devices](@ref features_support_matrix) to check if your device supports the feature.
+
+@sphinxdirective
+* feature support by device 
+
+
+When multiple models are to be used simultaneously, consider running inference on separate devices for each of them. Finally, when multiple models are executed in parallel on a device, using additional ``ov::hint::model_priority`` may help to define relative priorities of the models. Refer to the documentation on the :ref:`OpenVINO feature support for devices <devicesupport-feature-support-matrix>` to check if your device supports the feature.
+
+@endsphinxdirective
+
 
 **First-Inference Latency and Model Load/Compile Time**
 

@@ -28,7 +28,7 @@ const std::vector<bool> normalizeVariance = {
 };
 
 const std::vector<float> epsilon = {
-        0.000000001
+        0.000000001f
 };
 
 const std::vector<std::string> epsMode = {

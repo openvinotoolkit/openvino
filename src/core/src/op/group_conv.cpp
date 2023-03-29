@@ -18,10 +18,6 @@ using namespace ngraph;
 //                        v1::GroupConvolution
 //------------------------------------------------------------------------------
 
-shared_ptr<Node> op::v1::GroupConvolution::get_default_value() const {
-    return op::v0::Constant::create(get_element_type(), get_shape(), {0});
-}
-
 op::v1::GroupConvolution::GroupConvolution(const Output<Node>& data_batch,
                                            const Output<Node>& filters,
                                            const Strides& strides,
@@ -46,21 +42,6 @@ bool ngraph::op::v1::GroupConvolution::visit_attributes(AttributeVisitor& visito
     visitor.on_attribute("dilations", m_dilations);
     visitor.on_attribute("auto_pad", m_auto_pad);
     return true;
-}
-
-static Dimension infer_group_from_input_shapes(const ov::PartialShape& data_pshape,
-                                               const ov::PartialShape& filters_pshape) {
-    Dimension group_dim = Dimension();
-    if (data_pshape.rank().is_static() && data_pshape[1].is_static() && filters_pshape.rank().is_static() &&
-        filters_pshape[2].is_static()) {
-        auto n_data_channels = data_pshape[1].get_length();
-        auto input_channels = filters_pshape[2].get_length();
-
-        NGRAPH_CHECK((n_data_channels % input_channels) == 0);
-        auto groups = n_data_channels / input_channels;
-        group_dim = Dimension(groups);
-    }
-    return group_dim;
 }
 
 void op::v1::GroupConvolution::validate_and_infer_types() {
@@ -196,21 +177,6 @@ bool op::v1::GroupConvolutionBackpropData::is_dynamic() const {
         return !has_and_set_equal_bounds(input_value(2));
     }
     return is_dynamic;
-}
-
-static Dimension infer_backprop_group_from_input_shapes(const ov::PartialShape& data_pshape,
-                                                        const ov::PartialShape& filters_pshape) {
-    Dimension group_dim = Dimension();
-    if (data_pshape.rank().is_static() && data_pshape[1].is_static() && filters_pshape.rank().is_static() &&
-        filters_pshape[1].is_static()) {
-        auto n_data_channels = data_pshape[1].get_length();
-        auto input_channels = filters_pshape[1].get_length();
-
-        NGRAPH_CHECK((n_data_channels % input_channels) == 0);
-        auto groups = n_data_channels / input_channels;
-        group_dim = Dimension(groups);
-    }
-    return group_dim;
 }
 
 const ov::PartialShape op::v1::GroupConvolutionBackpropData::get_convolution_output_shape() const {

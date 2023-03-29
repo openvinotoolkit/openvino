@@ -2,17 +2,11 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "ctc_greedy_decoder_inst.h"
 #include "primitive_base.hpp"
-#include "impls/implementation_map.hpp"
-#include "intel_gpu/runtime/error_handler.hpp"
-#include "kernel_selector_helper.h"
+
+#include "ctc_greedy_decoder_inst.h"
 #include "ctc_greedy_decoder/ctc_greedy_decoder_kernel_selector.h"
 #include "ctc_greedy_decoder/ctc_greedy_decoder_kernel_base.h"
-
-#include <algorithm>
-
-using namespace cldnn;
 
 namespace cldnn {
 namespace ocl {

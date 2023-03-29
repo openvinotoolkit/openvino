@@ -2,20 +2,19 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <gtest/gtest.h>
 #include <gmock/gmock.h>
+#include <gtest/gtest.h>
 
 // to suppress deprecated definition errors
 #define IMPLEMENT_INFERENCE_ENGINE_PLUGIN
-#include "gna_model_serial.hpp"
 #include "common/versioning.hpp"
+#include "gna_model_serial.hpp"
 
 using namespace testing;
 
-class IstreamMock final: public std::streambuf {
+class IstreamMock final : public std::streambuf {
 public:
-    MOCK_METHOD3(seekoff, std::streampos(std::streamoff, std::ios_base::seekdir,
-                            std::ios_base::openmode));
+    MOCK_METHOD3(seekoff, std::streampos(std::streamoff, std::ios_base::seekdir, std::ios_base::openmode));
 };
 
 TEST(GNAModelSerialTest, TestErrorOnTellg) {

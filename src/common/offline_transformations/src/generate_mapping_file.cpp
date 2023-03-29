@@ -35,7 +35,6 @@ bool ngraph::pass::GenerateMappingFile::run_on_model(const std::shared_ptr<ngrap
 
     for (auto&& node : f->get_ordered_ops()) {
         uint64_t ie_port_index{node->inputs().size()};
-        uint64_t ng_port_index{0};
         if (std::dynamic_pointer_cast<ov::op::v0::Result>(node))
             continue;
         for (auto&& output : node->outputs()) {
@@ -52,7 +51,6 @@ bool ngraph::pass::GenerateMappingFile::run_on_model(const std::shared_ptr<ngrap
                 }
             }
             ++ie_port_index;
-            ++ng_port_index;
         }
     }
 

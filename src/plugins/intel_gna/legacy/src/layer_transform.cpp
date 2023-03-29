@@ -3,10 +3,8 @@
 //
 
 #include <legacy/layer_transform.hpp>
-
-#include <utility>
 #include <tuple>
-
+#include <utility>
 
 namespace InferenceEngine {
 
@@ -36,7 +34,9 @@ struct is_base_of_any< IBase, IDerived, Tuple,
 
 // for matches any->after last
 template <size_t IBase, size_t IDerived, class Tuple>
-struct is_base_of_any<IBase, IDerived, Tuple,
+struct is_base_of_any<IBase,
+                      IDerived,
+                      Tuple,
                       typename std::enable_if<IBase >= std::tuple_size<Tuple>::value, void>::type>
     : public std::false_type {};
 
@@ -48,14 +48,18 @@ struct is_types_ordered_from_child_to_base {};
 
 template <size_t P, class Tuple>
 struct is_types_ordered_from_child_to_base<
-    P, Tuple, typename std::enable_if<P != std::tuple_size<Tuple>::value - 2, void>::type> {
+    P,
+    Tuple,
+    typename std::enable_if<P != std::tuple_size<Tuple>::value - 2, void>::type> {
     static constexpr bool value =
         is_base_of_any<P + 1, P, Tuple>::value && is_types_ordered_from_child_to_base<P + 1, Tuple>::value;
 };
 
 template <size_t P, class Tuple>
 struct is_types_ordered_from_child_to_base<
-    P, Tuple, typename std::enable_if<P == std::tuple_size<Tuple>::value - 2, void>::type> {
+    P,
+    Tuple,
+    typename std::enable_if<P == std::tuple_size<Tuple>::value - 2, void>::type> {
     static constexpr bool value = is_base_of_any<P + 1, P, Tuple>::value;
 };
 

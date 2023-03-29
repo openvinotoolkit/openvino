@@ -14,11 +14,12 @@ namespace tensorflow {
 namespace op {
 
 OutputVector translate_expand_dims_op(const NodeContext& node) {
+    default_op_checks(node, 2, {"ExpandDims"});
     auto input = node.get_input(0);
-    auto dims = node.get_input(1);
-    auto res = make_shared<Unsqueeze>(input, dims);
-    set_node_name(node.get_name(), res);
-    return res->outputs();
+    auto axis = node.get_input(1);
+    auto unsqueeze = make_shared<Unsqueeze>(input, axis);
+    set_node_name(node.get_name(), unsqueeze);
+    return {unsqueeze};
 }
 }  // namespace op
 }  // namespace tensorflow

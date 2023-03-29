@@ -48,7 +48,7 @@ std::shared_ptr<Node> op::internal::ConditionalBlock::clone_with_new_inputs(cons
         return make_shared<ConditionalBlock>(new_args.at(0), m_is_scalar_condition, m_sub_block_index, m_output_infos);
     } else {
         OutputVector inputs_args;
-        for (auto i = 0; i < new_args.size() - 1; i++) {
+        for (size_t i = 0; i < new_args.size() - 1; i++) {
             inputs_args.push_back(new_args[i]);
         }
         return make_shared<ConditionalBlock>(inputs_args,
@@ -66,7 +66,7 @@ bool op::internal::ConditionalBlock::visit_attributes(AttributeVisitor& visitor)
 }
 
 void op::internal::ConditionalBlock::validate_and_infer_types() {
-    for (auto i = 0; i < m_output_infos.size(); i++) {
+    for (size_t i = 0; i < m_output_infos.size(); i++) {
         set_output_type(i, m_output_infos[i].first, m_output_infos[i].second);
     }
 }

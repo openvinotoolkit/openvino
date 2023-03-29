@@ -5,18 +5,19 @@
 #pragma once
 
 #include <cpp/ie_cnn_network.h>
+#include <ie_api.h>
 #include <ie_iextension.h>
+
 #include <istream>
 #include <string>
 #include <vector>
-#include <ie_api.h>
 
 namespace InferenceEngine {
 
 /**
  * @brief IReader an abstract interface for Inference Engine readers
  */
-class IReader: public std::enable_shared_from_this<IReader> {
+class IReader : public std::enable_shared_from_this<IReader> {
 public:
     /**
      * @brief Checks that reader supports format of the model
@@ -40,7 +41,9 @@ public:
      *
      * @return CNNNetwork
      */
-    virtual CNNNetwork read(std::istream& model, const Blob::CPtr& weights, const std::vector<IExtensionPtr>& exts) const = 0;
+    virtual CNNNetwork read(std::istream& model,
+                            const Blob::CPtr& weights,
+                            const std::vector<IExtensionPtr>& exts) const = 0;
 
     /**
      * @brief Returns all supported extensions for data files

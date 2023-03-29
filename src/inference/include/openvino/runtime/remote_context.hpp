@@ -31,6 +31,7 @@ class Core;
 class CoreImpl;
 class Plugin;
 class IPlugin;
+class ISyncInferRequest;
 class IInferencePluginWrapper;
 class IExecutableNetworkWrapper;
 class CompiledModel;
@@ -62,6 +63,7 @@ protected:
     friend class ov::CoreImpl;
     friend class ov::Plugin;
     friend class ov::IPlugin;
+    friend class ov::ISyncInferRequest;
     friend class ov::IInferencePluginWrapper;
     friend class ov::IExecutableNetworkWrapper;
     friend class ov::CompiledModel;

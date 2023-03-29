@@ -2,14 +2,11 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "broadcast_inst.h"
-
 #include "primitive_base.hpp"
-#include "impls/implementation_map.hpp"
-#include "kernel_selector_helper.h"
+
+#include "broadcast_inst.h"
 #include "broadcast/broadcast_kernel_selector.h"
 #include "broadcast/broadcast_kernel_base.h"
-#include "intel_gpu/runtime/error_handler.hpp"
 
 namespace cldnn {
 namespace ocl {
@@ -26,9 +23,9 @@ struct broadcast_impl : typed_primitive_impl_ocl<broadcast> {
         return make_unique<broadcast_impl>(*this);
     }
 
-    static kernel_params_t get_kernel_params(const kernel_impl_params& impl_param) {
+    static kernel_params_t get_kernel_params(const kernel_impl_params& impl_param, bool is_shape_agnostic = false) {
         const auto& primitive = impl_param.typed_desc<broadcast>();
-        auto params = get_default_params<kernel_selector::broadcast_params>(impl_param);
+        auto params = get_default_params<kernel_selector::broadcast_params>(impl_param, is_shape_agnostic);
         auto optional_params = get_default_optional_params<kernel_selector::broadcast_optional_params>(impl_param.get_program());
 
         const auto format = impl_param.get_output_layout().format;
@@ -151,8 +148,9 @@ struct broadcast_impl : typed_primitive_impl_ocl<broadcast> {
     }
 
     void update_dispatch_data(const kernel_impl_params& impl_param) override {
-        auto kernel_params = get_kernel_params(impl_param);
+        auto kernel_params = get_kernel_params(impl_param, true);
         (_kernel_data.update_dispatch_data_func)(kernel_params.first, _kernel_data);
+        update_kernels_list_to_skip();
     }
 };
 

@@ -128,7 +128,7 @@ void AutoSchedule::init(const ScheduleContext::Ptr& sContext) {
         if (validDevices.size() == 1) {
             // When the hint is ctput and there is only one device, the single-device logic is used instead of
             // the MULTI logic
-            _autoSContext->_performanceHint = IE::PluginConfigParams::THROUGHPUT;
+            // can not change _autoSContext->_performanceHint to THROUGHPUT, because GetMetric needs to return CTPUT
             _loadContext[ACTUALDEVICE].deviceInfo = validDevices.front();
             _loadContext[ACTUALDEVICE].deviceInfo.config[CONFIG_KEY(PERFORMANCE_HINT)] =
                 IE::PluginConfigParams::THROUGHPUT;
@@ -160,7 +160,7 @@ void AutoSchedule::init(const ScheduleContext::Ptr& sContext) {
     bool isActualDevCPU =
         _loadContext[ACTUALDEVICE].deviceInfo.deviceName.find("CPU") !=std::string::npos && !isCumulative;
     // if Actual device is CPU or perf_hint is cumulative, disabled _loadContext[CPU], only use _loadContext[ACTUALDEVICE]
-    if (isActualDevCPU || isCumulative) {
+    if (isActualDevCPU || isCumulative || !_autoSContext->_startupfallback) {
         _loadContext[CPU].isEnabled = false;
     } else {
         const auto CPUIter = std::find_if(_autoSContext->_devicePriorities.begin(), _autoSContext->_devicePriorities.end(),
@@ -212,7 +212,7 @@ void AutoSchedule::init(const ScheduleContext::Ptr& sContext) {
                                         deviceName.c_str(),
                                         cfg.c_str(),
                                         contextPtr->executableNetwork->GetConfig(cfg).as<std::string>().c_str());
-                                } catch (...) {
+                                } catch (const IE::Exception&) {
                                 }
                             }
                         });
@@ -322,15 +322,15 @@ void AutoSchedule::TryToLoadNetWork(AutoLoadContext& context, const std::string&
             // limit the threads num for compiling
             int maxNumThreads = 0;
             try {
-                maxNumThreads = _autoSContext->_core->GetConfig(device, GPU_CONFIG_KEY(MAX_NUM_THREADS)).as<int>();
-            } catch (...) {
+                maxNumThreads = _autoSContext->_core->GetConfig(device, ov::compilation_num_threads.name()).as<int>();
+            } catch (const IE::Exception&) {
                 LOG_DEBUG_TAG("cannot get MAX_NUM_THREADS from GPU");
             }
             if (maxNumThreads == static_cast<int>(std::thread::hardware_concurrency())) {
                 int threadNum = maxNumThreads / 2;
-                deviceConfig[GPU_CONFIG_KEY(MAX_NUM_THREADS)] = std::to_string(threadNum).c_str();
+                deviceConfig[ov::compilation_num_threads.name()] = std::to_string(threadNum).c_str();
                 LOG_DEBUG_TAG("gpu streams number for compiling: %s",
-                          deviceConfig[GPU_CONFIG_KEY(MAX_NUM_THREADS)].c_str());
+                          deviceConfig[ov::compilation_num_threads.name()].c_str());
             } else {
                 // user set the compiling threads num
                 // use the user's val anyway
@@ -532,12 +532,15 @@ IInferPtr AutoSchedule::CreateInferRequest() {
         syncRequestImpl = CreateInferRequestImpl(execNetwork->_networkInputs, execNetwork->_networkOutputs);
     syncRequestImpl->setPointerToExecutableNetworkInternal(execNetwork);
     bool isCumulative = (_autoSContext->_performanceHint == IE::PluginConfigParams::CUMULATIVE_THROUGHPUT) ? true : false;
-    if (_passthroughExeNet && !isCumulative) {
+    bool isCTPUTSingleDevice =
+        isCumulative && _loadContext[ACTUALDEVICE].deviceInfo.deviceName.find("MULTI:") == std::string::npos ? true
+                                                                                                            : false;
+    if ((_passthroughExeNet && !isCumulative) || isCTPUTSingleDevice) {
         std::string perfmode;
         try {
             perfmode = _passthroughExeNet->GetConfig(
                                 CONFIG_KEY(PERFORMANCE_HINT)).as<std::string>();
-        } catch(...) {
+        } catch (const IE::Exception&) {
             LOG_INFO("query perf hint from passthrough network failed");
         }
         if (_autoSContext->_batchingDisabled || perfmode != CONFIG_VALUE(THROUGHPUT)) {

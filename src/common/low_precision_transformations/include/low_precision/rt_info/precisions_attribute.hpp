@@ -11,7 +11,6 @@
 
 #include <ngraph/node.hpp>
 #include <ngraph/pass/graph_rewrite.hpp>
-#include <ngraph/variant.hpp>
 
 #include "low_precision/lpt_visibility.hpp"
 #include "low_precision/rt_info/attribute_parameters.hpp"
@@ -34,7 +33,7 @@ public:
         const std::shared_ptr<ngraph::Node>& node,
         const AttributeParameters& params);
     // merge attribute instances which can be got from different sources: node, input port or output port
-    void merge(std::vector<ov::Any>& attributes);
+    void merge_attributes(std::vector<ov::Any>& attributes);
     // vizualize shared attributes details in VizualizeTree pass
     std::string to_string() const override;
 };

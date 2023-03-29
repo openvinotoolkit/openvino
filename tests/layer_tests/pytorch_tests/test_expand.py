@@ -32,6 +32,30 @@ class TestExpand(PytorchLayerTest):
     def test_expand(self, dims, ie_device, precision, ir_version):
         self._test(*self.create_model(dims), ie_device, precision, ir_version)
 
+class TestExpandList(PytorchLayerTest):
+    def _prepare_input(self, broadcast_shape):
+        import numpy as np
+        return (np.random.randn(1, 3).astype(np.float32), np.random.randn(*broadcast_shape).astype(np.float32))
+
+    def create_model(self):
+        import torch
+
+        class aten_expand(torch.nn.Module):
+
+            def forward(self, x, y):
+                y_shape = y.shape
+                return x.expand([y_shape[0], y_shape[1]])
+
+        ref_net = None
+
+        return aten_expand(), ref_net, ["aten::expand", "prim::ListConstruct"]
+
+    @pytest.mark.parametrize("dims", [(3, 3), (2, 3), (1, 3), [4, 3]])
+    @pytest.mark.nightly
+    @pytest.mark.precommit
+    def test_expand(self, dims, ie_device, precision, ir_version):
+        self._test(*self.create_model(), ie_device, precision, ir_version, kwargs_to_prepare_input={"broadcast_shape": dims})
+
 
 class TestExpandAs(PytorchLayerTest):
     def _prepare_input(self, input_shape, broadcast_shape):

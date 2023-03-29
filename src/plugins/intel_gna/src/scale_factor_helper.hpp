@@ -12,7 +12,7 @@
 namespace ov {
 namespace intel_gna {
 
-class Config;
+struct Config;
 
 /**
  * @namespace helpers contains helpers tools for gna plugin.

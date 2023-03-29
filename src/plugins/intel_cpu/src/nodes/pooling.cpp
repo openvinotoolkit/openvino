@@ -352,7 +352,7 @@ void Pooling::prepareParams() {
                       alg,
                       selected_pd->getImplementationType()};
     auto engine = getEngine();
-    auto builder = [&engine](const PoolingKey& key) -> std::shared_ptr<dnnl::primitive> {
+    auto builder = [&engine](const PoolingKey& key) -> dnnl::primitive {
         auto desc_ptr = createDescriptorHelper(key.inp->getDnnlDesc(),
                                                key.out->getDnnlDesc(),
                                                key.alg,
@@ -375,7 +375,7 @@ void Pooling::prepareParams() {
             if (!itpd.next_impl())
                 break;
         }
-        return std::make_shared<pooling_v2_forward>(prim_desc);
+        return pooling_v2_forward(prim_desc);
     };
 
     auto cache = context->getParamsCache();
@@ -387,7 +387,7 @@ void Pooling::prepareParams() {
 
     prim = result.first;
 
-    auto pd = (*prim).get_primitive_desc();
+    auto pd = prim.get_primitive_desc();
     auto scratchpadMem = getScratchPadMem(pd);
     auto src = getParentEdgesAtPort(0)[0]->getMemoryPtr()->GetPrimitive();
     auto dst = getChildEdgesAtPort(0)[0]->getMemoryPtr()->GetPrimitive();

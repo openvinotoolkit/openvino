@@ -149,7 +149,7 @@ void SoftMax::prepareParams() {
 
     SoftmaxKey key = {inpDesc, selected_pd->getImplementationType(), axis};
     auto engine = getEngine();
-    auto builder = [&engine](const SoftmaxKey& key) -> std::shared_ptr<dnnl::primitive> {
+    auto builder = [&engine](const SoftmaxKey& key) -> dnnl::primitive {
         softmax_forward::primitive_desc prim_desc;
         DnnlDesriptor desc(std::shared_ptr<softmax_forward::desc>(
             new softmax_forward::desc(prop_kind::forward_scoring, key.inp0->getDnnlDesc(), key.axis)));
@@ -169,9 +169,9 @@ void SoftMax::prepareParams() {
                 break;
             }
             if (!itpd.next_impl())
-                return nullptr;
+                return softmax_forward();
         }
-        return std::make_shared<softmax_forward>(prim_desc);
+        return softmax_forward(prim_desc);
     };
 
     auto cache = context->getParamsCache();
@@ -183,7 +183,7 @@ void SoftMax::prepareParams() {
 
     prim = result.first;
 
-    auto pd = (*prim).get_primitive_desc();
+    auto pd = prim.get_primitive_desc();
     auto scratchpadMem = getScratchPadMem(pd);
 
     auto src = getParentEdgesAtPort(0)[0]->getMemoryPtr()->GetPrimitive();

@@ -7,6 +7,7 @@
 #include <inference_engine.hpp>
 #include <openvino/openvino.hpp>
 #include <limits>
+#include <random>
 
 
 /**
@@ -88,8 +89,18 @@ ov::Tensor fillTensorRandom(T &input) {
     ov::Tensor tensor{input.get_element_type(), input.get_shape()};
     std::vector<U> values(ov::shape_size(input.get_shape()));
 
-    for (size_t i = 0; i < values.size(); ++i)
-        values[i] = 1 + static_cast<U> (rand()) / (static_cast<U> (RAND_MAX / (std::numeric_limits<U>::max() - 1)));
+    std::random_device rd;
+    std::mt19937 gen(rd());
+
+    if (std::is_floating_point<U>::value == true) {
+        std::uniform_real_distribution<> distrib_f = std::uniform_real_distribution<>(0, std::numeric_limits<U>::max());
+        for (size_t i = 0; i < values.size(); ++i)
+            values[i] = distrib_f(gen);
+    } else {
+        std::uniform_int_distribution<> distrib_i = std::uniform_int_distribution<>(0, std::numeric_limits<U>::max());
+        for (size_t i = 0; i < values.size(); ++i)
+            values[i] = distrib_i(gen);
+    }
 
     std::memcpy(tensor.data(), values.data(), sizeof(U) * values.size());
 

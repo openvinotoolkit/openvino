@@ -11,10 +11,6 @@
 # define NOMINMAX
 #endif
 
-#ifndef OV_GPU_USE_OPENCL_HPP
-# define OV_GPU_USE_OPENCL_HPP
-#endif
-
 #ifdef _WIN32
 # include <gpu/gpu_context_api_dx.hpp>
 #elif defined ENABLE_LIBVA

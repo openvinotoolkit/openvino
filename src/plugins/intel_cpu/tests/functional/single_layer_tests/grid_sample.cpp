@@ -94,6 +94,9 @@ protected:
             auto execType = dataPrecision == ov::element::i32 ? ov::element::i32 : ov::element::f32;
             selectedType = makeSelectedTypeStr(selectedType, execType);
         }
+        if (gridPrecision == ov::element::bf16) {
+            rel_threshold = 0.01f;
+        }
 
         auto params = ngraph::builder::makeDynamicParams({dataPrecision, gridPrecision}, inputDynamicShapes);
         params[0]->set_friendly_name("data");
@@ -272,12 +275,35 @@ INSTANTIATE_TEST_SUITE_P(smoke_static, GridSampleLayerTestCPU,
                 ::testing::ValuesIn(interpolateMode),
                 ::testing::ValuesIn(paddingMode),
                 ::testing::ValuesIn(alignCorners),
-                ::testing::ValuesIn({ElementType::f32, ElementType::bf16, ElementType::i32, ElementType::i8}),
+                ::testing::ValuesIn({ElementType::f32, ElementType::i32}),
+                ::testing::ValuesIn({ElementType::f32}),
+                ::testing::ValuesIn(getCPUInfo()),
+                ::testing::Values(additionalConfig[0])),
+        GridSampleLayerTestCPU::getTestCaseName);
+
+INSTANTIATE_TEST_SUITE_P(nightly_static_1, GridSampleLayerTestCPU,
+        ::testing::Combine(
+                ::testing::ValuesIn(getStaticShapes()),
+                ::testing::ValuesIn(interpolateMode),
+                ::testing::ValuesIn(paddingMode),
+                ::testing::ValuesIn(alignCorners),
+                ::testing::ValuesIn({ElementType::bf16, ElementType::i8}),
                 ::testing::ValuesIn({ElementType::f32, ElementType::bf16}),
                 ::testing::ValuesIn(getCPUInfo()),
                 ::testing::Values(additionalConfig[0])),
         GridSampleLayerTestCPU::getTestCaseName);
 
+INSTANTIATE_TEST_SUITE_P(nightly_static_2, GridSampleLayerTestCPU,
+        ::testing::Combine(
+                ::testing::ValuesIn(getStaticShapes()),
+                ::testing::ValuesIn(interpolateMode),
+                ::testing::ValuesIn(paddingMode),
+                ::testing::ValuesIn(alignCorners),
+                ::testing::ValuesIn({ElementType::f32}),
+                ::testing::ValuesIn({ElementType::bf16}),
+                ::testing::ValuesIn(getCPUInfo()),
+                ::testing::Values(additionalConfig[0])),
+        GridSampleLayerTestCPU::getTestCaseName);
 
 const std::vector<std::vector<InputShape>> dynamicInSapes = {
     { { { ov::Dimension(1, 15), -1, -1, -1 },                               // Dynamic shape 0

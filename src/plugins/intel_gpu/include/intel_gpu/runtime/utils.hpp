@@ -47,6 +47,13 @@ struct all : public std::true_type {};
 template <bool Val, bool... Values>
 struct all<Val, Values...> : public std::integral_constant<bool, Val && all<Values...>::value> {};
 
+template <class T>
+struct is_primitive
+    : public std::integral_constant<bool,
+                                    std::is_base_of<primitive, T>::value &&
+                                        !std::is_same<primitive, typename std::remove_cv<T>::type>::value &&
+                                        std::is_same<T, typename std::remove_cv<T>::type>::value> {};
+
 }  // namespace meta
 
 /// @cond CPP_HELPERS
@@ -140,7 +147,7 @@ inline derived_type& downcast(base_type& base) {
     } catch (std::bad_cast& /* ex */) {
         throw std::runtime_error("Unable to cast reference from base to derived type");
     }
-    throw std::runtime_error("downcast failed with unhadnled exception");
+    throw std::runtime_error("downcast failed with unhandled exception");
 }
 
 template <typename T>
@@ -171,6 +178,11 @@ inline bool any_not_one(const std::vector<T> vec) {
 template <typename T>
 inline bool any_not_zero(const std::vector<T> vec) {
     return std::any_of(vec.begin(), vec.end(), [](const T& val) { return val != 0; });
+}
+
+template <typename T>
+inline bool one_of(const T& val, const std::vector<T>& vec) {
+    return std::any_of(vec.begin(), vec.end(), [&val](const T& v) { return v == val; });
 }
 
 // Helpers to get string for types that have operator<< defined

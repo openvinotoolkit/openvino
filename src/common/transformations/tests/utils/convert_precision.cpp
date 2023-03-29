@@ -21,11 +21,11 @@
 #include <vector>
 
 #include "common_test_utils/ngraph_test_utils.hpp"
-#include "transformations/common_optimizations/mark_precision_sensitive_shapeof_subgraphs.hpp"
 #include "transformations/rt_info/disable_fp16_compression.hpp"
 
 using namespace testing;
 using namespace ov;
+using namespace std;
 
 template <element::Type_t T>
 bool has_type(std::shared_ptr<Model> f) {
@@ -64,7 +64,7 @@ TEST(TransformationTests, ConvertPrecision_NMS3) {
 
         pass::Manager manager;
 
-        static const precisions_array precisions = {{element::i64, element::i32}, {element::f16, element::f32}};
+        static const precisions_map precisions = {{element::i64, element::i32}, {element::f16, element::f32}};
 
         manager.register_pass<pass::ConvertPrecision>(precisions);
         manager.run_passes(f);
@@ -94,7 +94,7 @@ TEST(TransformationTests, ConvertPrecision_NMS4) {
 
         pass::Manager manager;
 
-        static const precisions_array precisions = {{element::i64, element::i32}, {element::f16, element::f32}};
+        static const precisions_map precisions = {{element::i64, element::i32}, {element::f16, element::f32}};
 
         manager.register_pass<pass::ConvertPrecision>(precisions);
         manager.run_passes(f);
@@ -127,7 +127,7 @@ TEST(TransformationTests, ConvertPrecision_NMS5) {
     }
 
     pass::Manager manager;
-    static const precisions_array precisions = {{element::i64, element::i32}, {element::f32, element::f16}};
+    static const precisions_map precisions = {{element::i64, element::i32}, {element::f32, element::f16}};
     manager.register_pass<pass::ConvertPrecision>(precisions);
     manager.run_passes(f);
     ASSERT_FALSE(has_type<element::Type_t::i64>(f));
@@ -150,7 +150,7 @@ TEST(TransformationTests, ConvertPrecision_MatrixNms) {
     }
 
     pass::Manager manager;
-    static const precisions_array precisions = {{element::i64, element::i32}, {element::f16, element::f32}};
+    static const precisions_map precisions = {{element::i64, element::i32}, {element::f16, element::f32}};
     manager.register_pass<pass::ConvertPrecision>(precisions);
     manager.run_passes(f);
     ASSERT_FALSE(has_type<element::Type_t::i64>(f));
@@ -173,7 +173,7 @@ TEST(TransformationTests, ConvertPrecision_MulticlassNms) {
     }
 
     pass::Manager manager;
-    static const precisions_array precisions = {{element::i64, element::i32}, {element::f16, element::f32}};
+    static const precisions_map precisions = {{element::i64, element::i32}, {element::f16, element::f32}};
     manager.register_pass<pass::ConvertPrecision>(precisions);
     manager.run_passes(f);
     ASSERT_FALSE(has_type<element::Type_t::i64>(f));
@@ -190,7 +190,7 @@ TEST(TransformationTests, ConvertPrecision_ShapeOf) {
 
         pass::Manager manager;
 
-        static const precisions_array precisions = {{element::i64, element::i32}, {element::f16, element::f32}};
+        static const precisions_map precisions = {{element::i64, element::i32}, {element::f16, element::f32}};
 
         manager.register_pass<pass::ConvertPrecision>(precisions);
         manager.run_passes(f);
@@ -212,7 +212,7 @@ TEST(TransformationTests, ConvertPrecision_Range) {
 
         pass::Manager manager;
 
-        static const precisions_array precisions = {{element::i64, element::i32}, {element::f16, element::f32}};
+        static const precisions_map precisions = {{element::i64, element::i32}, {element::f16, element::f32}};
 
         manager.register_pass<pass::ConvertPrecision>(precisions);
         manager.run_passes(f);
@@ -233,7 +233,7 @@ TEST(TransformationTests, ConvertPrecision_ConstantRelu) {
 
         pass::Manager manager;
 
-        static const precisions_array precisions = {{element::f16, element::f32}};
+        static const precisions_map precisions = {{element::f16, element::f32}};
 
         manager.register_pass<pass::ConvertPrecision>(precisions);
         manager.run_passes(f);
@@ -253,7 +253,7 @@ TEST(TransformationTests, ConvertPrecision_Convert) {
 
         pass::Manager manager;
 
-        static const precisions_array precisions = {{element::i64, element::i32}, {element::f16, element::f32}};
+        static const precisions_map precisions = {{element::i64, element::i32}, {element::f16, element::f32}};
 
         manager.register_pass<pass::ConvertPrecision>(precisions);
         manager.run_passes(f);
@@ -273,7 +273,7 @@ TEST(TransformationTests, ConvertPrecision_ConvertElimination) {
         f = std::make_shared<Model>(NodeVector{convert}, ParameterVector{input});
 
         pass::Manager manager;
-        manager.register_pass<pass::ConvertPrecision>(precisions_array{{element::f16, element::f32}});
+        manager.register_pass<pass::ConvertPrecision>(precisions_map{{element::f16, element::f32}});
         manager.run_passes(f);
         ASSERT_FALSE(has_type<element::Type_t::f16>(f));
     }
@@ -300,7 +300,7 @@ TEST(TransformationTests, ConvertPrecision_TopK) {
 
         pass::Manager manager;
 
-        static const precisions_array precisions = {{element::i64, element::i32}, {element::f16, element::f32}};
+        static const precisions_map precisions = {{element::i64, element::i32}, {element::f16, element::f32}};
 
         manager.register_pass<pass::ConvertPrecision>(precisions);
         manager.run_passes(f);
@@ -320,7 +320,7 @@ TEST(TransformationTests, ConvertPrecision_Unique10) {
 
         pass::Manager manager;
 
-        static const precisions_array precisions = {{element::i64, element::i32}, {element::f16, element::f32}};
+        static const precisions_map precisions = {{element::i64, element::i32}, {element::f16, element::f32}};
 
         manager.register_pass<ov::pass::ConvertPrecision>(precisions);
         manager.run_passes(model);
@@ -348,7 +348,7 @@ TEST(TransformationTests, ConvertPrecision_NonZero) {
 
         pass::Manager manager;
 
-        static const precisions_array precisions = {{element::i64, element::i32}, {element::f16, element::f32}};
+        static const precisions_map precisions = {{element::i64, element::i32}, {element::f16, element::f32}};
 
         manager.register_pass<pass::ConvertPrecision>(precisions);
         manager.run_passes(f);
@@ -369,7 +369,7 @@ TEST(TransformationTests, ConvertPrecision_Bucketize) {
 
         pass::Manager manager;
 
-        static const precisions_array precisions = {{element::i64, element::i32}, {element::f16, element::f32}};
+        static const precisions_map precisions = {{element::i64, element::i32}, {element::f16, element::f32}};
 
         manager.register_pass<pass::ConvertPrecision>(precisions);
         manager.run_passes(f);
@@ -399,7 +399,7 @@ TEST(TransformationTests, ConvertPrecision_Roundings) {
 
         pass::Manager manager;
 
-        static const precisions_array precisions = {{element::i64, element::i32}, {element::f16, element::f32}};
+        static const precisions_map precisions = {{element::i64, element::i32}, {element::f16, element::f32}};
 
         manager.register_pass<pass::ConvertPrecision>(precisions);
         manager.run_passes(f);
@@ -456,7 +456,7 @@ TEST(TransformationTests, ConvertPrecision_TIBody) {
 
         pass::Manager manager;
 
-        static const precisions_array precisions = {{element::i64, element::i32}, {element::f16, element::f32}};
+        static const precisions_map precisions = {{element::i64, element::i32}, {element::f16, element::f32}};
 
         manager.register_pass<pass::ConvertPrecision>(precisions);
         manager.run_passes(f);
@@ -479,7 +479,7 @@ TEST(TransformationTests, ConvertPrecision_Equal) {
 
         pass::Manager manager;
 
-        static const precisions_array precisions = {{element::boolean, element::u8}, {element::f16, element::f32}};
+        static const precisions_map precisions = {{element::boolean, element::u8}, {element::f16, element::f32}};
 
         manager.register_pass<pass::ConvertPrecision>(precisions);
         manager.run_passes(f);
@@ -501,7 +501,7 @@ TEST(TransformationTests, ConvertPrecision_NotEqual) {
 
         pass::Manager manager;
 
-        static const precisions_array precisions = {{element::boolean, element::u8}, {element::f16, element::f32}};
+        static const precisions_map precisions = {{element::boolean, element::u8}, {element::f16, element::f32}};
 
         manager.register_pass<pass::ConvertPrecision>(precisions);
         manager.run_passes(f);
@@ -523,7 +523,7 @@ TEST(TransformationTests, ConvertPrecision_Greater) {
 
         pass::Manager manager;
 
-        static const precisions_array precisions = {{element::boolean, element::u8}, {element::f16, element::f32}};
+        static const precisions_map precisions = {{element::boolean, element::u8}, {element::f16, element::f32}};
 
         manager.register_pass<pass::ConvertPrecision>(precisions);
         manager.run_passes(f);
@@ -545,7 +545,7 @@ TEST(TransformationTests, ConvertPrecision_GreaterEqual) {
 
         pass::Manager manager;
 
-        static const precisions_array precisions = {{element::boolean, element::u8}, {element::f16, element::f32}};
+        static const precisions_map precisions = {{element::boolean, element::u8}, {element::f16, element::f32}};
 
         manager.register_pass<pass::ConvertPrecision>(precisions);
         manager.run_passes(f);
@@ -567,7 +567,7 @@ TEST(TransformationTests, ConvertPrecision_Less) {
 
         pass::Manager manager;
 
-        static const precisions_array precisions = {{element::boolean, element::u8}, {element::f16, element::f32}};
+        static const precisions_map precisions = {{element::boolean, element::u8}, {element::f16, element::f32}};
 
         manager.register_pass<pass::ConvertPrecision>(precisions);
         manager.run_passes(f);
@@ -589,7 +589,7 @@ TEST(TransformationTests, ConvertPrecision_LessEqual) {
 
         pass::Manager manager;
 
-        static const precisions_array precisions = {{element::boolean, element::u8}, {element::f16, element::f32}};
+        static const precisions_map precisions = {{element::boolean, element::u8}, {element::f16, element::f32}};
 
         manager.register_pass<pass::ConvertPrecision>(precisions);
         manager.run_passes(f);
@@ -610,7 +610,7 @@ TEST(TransformationTests, ConvertPrecision_LogicalAnd) {
         f = std::make_shared<Model>(OutputVector{node}, ParameterVector{input1, input2});
 
         pass::Manager manager;
-        manager.register_pass<pass::ConvertPrecision>(precisions_array{{element::boolean, element::u8}});
+        manager.register_pass<pass::ConvertPrecision>(precisions_map{{element::boolean, element::u8}});
         manager.run_passes(f);
     }
 
@@ -628,7 +628,7 @@ TEST(TransformationTests, ConvertPrecision_LogicalOr) {
         f = std::make_shared<Model>(OutputVector{node}, ParameterVector{input1, input2});
 
         pass::Manager manager;
-        manager.register_pass<pass::ConvertPrecision>(precisions_array{{element::boolean, element::u8}});
+        manager.register_pass<pass::ConvertPrecision>(precisions_map{{element::boolean, element::u8}});
         manager.run_passes(f);
     }
 
@@ -646,7 +646,7 @@ TEST(TransformationTests, ConvertPrecision_LogicalXor) {
         f = std::make_shared<Model>(OutputVector{node}, ParameterVector{input1, input2});
 
         pass::Manager manager;
-        manager.register_pass<pass::ConvertPrecision>(precisions_array{{element::boolean, element::u8}});
+        manager.register_pass<pass::ConvertPrecision>(precisions_map{{element::boolean, element::u8}});
         manager.run_passes(f);
     }
 
@@ -663,7 +663,7 @@ TEST(TransformationTests, ConvertPrecision_LogicalNot) {
         f = std::make_shared<Model>(OutputVector{node}, ParameterVector{input1});
 
         pass::Manager manager;
-        manager.register_pass<pass::ConvertPrecision>(precisions_array{{element::boolean, element::u8}});
+        manager.register_pass<pass::ConvertPrecision>(precisions_map{{element::boolean, element::u8}});
         manager.run_passes(f);
     }
 
@@ -681,7 +681,7 @@ TEST(TransformationTests, ConvertPrecision_Select) {
         f = std::make_shared<Model>(OutputVector{select}, ParameterVector{input1});
 
         pass::Manager manager;
-        manager.register_pass<pass::ConvertPrecision>(precisions_array{{element::boolean, element::u8}});
+        manager.register_pass<pass::ConvertPrecision>(precisions_map{{element::boolean, element::u8}});
         manager.run_passes(f);
     }
 
@@ -699,8 +699,8 @@ TEST(TransformationTests, ConvertPrecision_TypeRelaxedWithSelect) {
         f = std::make_shared<Model>(OutputVector{select}, ParameterVector{input1});
 
         pass::Manager manager;
-        manager.register_pass<pass::ConvertPrecision>(precisions_array{{element::boolean, element::i32}});
-        manager.register_pass<pass::ConvertPrecision>(precisions_array{{element::i32, element::i64}});
+        manager.register_pass<pass::ConvertPrecision>(precisions_map{{element::boolean, element::i32}});
+        manager.register_pass<pass::ConvertPrecision>(precisions_map{{element::i32, element::i64}});
         manager.run_passes(f);
     }
 
@@ -721,8 +721,8 @@ TEST(TransformationTests, ConvertPrecision_TypeRelaxed) {
         f = std::make_shared<Model>(OutputVector{type_relaxed}, ParameterVector{input1});
 
         pass::Manager manager;
-        manager.register_pass<pass::ConvertPrecision>(precisions_array{{element::boolean, element::i32}});
-        manager.register_pass<pass::ConvertPrecision>(precisions_array{{element::i32, element::i64}});
+        manager.register_pass<pass::ConvertPrecision>(precisions_map{{element::boolean, element::i32}});
+        manager.register_pass<pass::ConvertPrecision>(precisions_map{{element::i32, element::i64}});
         manager.run_passes(f);
 
         ASSERT_FALSE(has_type<element::Type_t::boolean>(f));
@@ -747,7 +747,7 @@ TEST(TransformationTests, ConvertPrecision_Variables) {
         f = std::make_shared<Model>(NodeVector{mul}, ParameterVector{inp});
 
         pass::Manager manager;
-        manager.register_pass<pass::ConvertPrecision>(precisions_array{{element::f16, element::f32}});
+        manager.register_pass<pass::ConvertPrecision>(precisions_map{{element::f16, element::f32}});
         manager.run_passes(f);
     }
 
@@ -776,10 +776,9 @@ TEST(TransformationTests, ConvertPrecision_skip_precision_sensitive) {
         model = std::make_shared<Model>(NodeVector{interpolate}, ParameterVector{input});
 
         pass::Manager manager;
-        manager.register_pass<pass::MarkPrecisionSensitiveShapeOfSubgraphs>();
         type_to_fuse_map empty_type_to_fuse_map = {};
         bool keep_precision_sensitive_in_fp32 = true;
-        manager.register_pass<pass::ConvertPrecision>(precisions_array{{element::f32, element::f16}},
+        manager.register_pass<pass::ConvertPrecision>(precisions_map{{element::f32, element::f16}},
                                                       empty_type_to_fuse_map,
                                                       keep_precision_sensitive_in_fp32);
         manager.run_passes(model);
@@ -811,10 +810,9 @@ TEST(TransformationTests, ConvertPrecision_without_keep_precision_sensitive_in_f
         interpolate = std::make_shared<opset10::Interpolate>(input, sizes, scales, attrs);
         model = std::make_shared<Model>(NodeVector{interpolate}, ParameterVector{input});
         pass::Manager manager;
-        manager.register_pass<pass::MarkPrecisionSensitiveShapeOfSubgraphs>();
         type_to_fuse_map empty_type_to_fuse_map = {};
         bool keep_precision_sensitive_in_fp32 = false;
-        manager.register_pass<pass::ConvertPrecision>(precisions_array{{element::f32, element::f16}},
+        manager.register_pass<pass::ConvertPrecision>(precisions_map{{element::f32, element::f16}},
                                                       empty_type_to_fuse_map,
                                                       keep_precision_sensitive_in_fp32);
         manager.run_passes(model);
@@ -834,10 +832,9 @@ TEST(TransformationTests, ConvertPrecision_check_marking_does_not_leak_in_trivia
         model = std::make_shared<Model>(NodeVector{reshape}, ParameterVector{input_1, input_2});
 
         pass::Manager manager;
-        manager.register_pass<pass::MarkPrecisionSensitiveShapeOfSubgraphs>();
         type_to_fuse_map empty_type_to_fuse_map = {};
         bool keep_precision_sensitive_in_fp32 = true;
-        manager.register_pass<pass::ConvertPrecision>(precisions_array{{element::f32, element::f16}},
+        manager.register_pass<pass::ConvertPrecision>(precisions_map{{element::f32, element::f16}},
                                                       empty_type_to_fuse_map,
                                                       keep_precision_sensitive_in_fp32);
         manager.run_passes(model);
@@ -874,10 +871,9 @@ TEST(TransformationTests, ConvertPrecision_whole_shape_subgraph_is_marked_1) {
         model = std::make_shared<Model>(NodeVector{reshape}, ParameterVector{input_1, input_2});
 
         pass::Manager manager;
-        manager.register_pass<pass::MarkPrecisionSensitiveShapeOfSubgraphs>();
         type_to_fuse_map empty_type_to_fuse_map = {};
         bool keep_precision_sensitive_in_fp32 = true;
-        manager.register_pass<pass::ConvertPrecision>(precisions_array{{element::f32, element::f16}},
+        manager.register_pass<pass::ConvertPrecision>(precisions_map{{element::f32, element::f16}},
                                                       empty_type_to_fuse_map,
                                                       keep_precision_sensitive_in_fp32);
         manager.run_passes(model);
@@ -928,10 +924,9 @@ TEST(TransformationTests, ConvertPrecision_whole_shape_subgraph_is_marked_2) {
         model = std::make_shared<Model>(NodeVector{result}, ParameterVector{input_1});
 
         pass::Manager manager;
-        manager.register_pass<pass::MarkPrecisionSensitiveShapeOfSubgraphs>();
         type_to_fuse_map empty_type_to_fuse_map = {};
         bool keep_precision_sensitive_in_fp32 = true;
-        manager.register_pass<pass::ConvertPrecision>(precisions_array{{element::f32, element::f16}},
+        manager.register_pass<pass::ConvertPrecision>(precisions_map{{element::f32, element::f16}},
                                                       empty_type_to_fuse_map,
                                                       keep_precision_sensitive_in_fp32);
         manager.run_passes(model);
@@ -1008,10 +1003,9 @@ TEST(TransformationTests, ConvertPrecision_whole_shape_subgraph_is_marked_3) {
         model = std::make_shared<Model>(NodeVector{result_1, result_2}, ParameterVector{input_1, input_2});
 
         pass::Manager manager;
-        manager.register_pass<pass::MarkPrecisionSensitiveShapeOfSubgraphs>();
         type_to_fuse_map empty_type_to_fuse_map = {};
         bool keep_precision_sensitive_in_fp32 = true;
-        manager.register_pass<pass::ConvertPrecision>(precisions_array{{element::f32, element::f16}},
+        manager.register_pass<pass::ConvertPrecision>(precisions_map{{element::f32, element::f16}},
                                                       empty_type_to_fuse_map,
                                                       keep_precision_sensitive_in_fp32);
         manager.run_passes(model);
@@ -1087,10 +1081,9 @@ TEST(TransformationTests, ConvertCompressedToMixedPrecission_do_not_keep_in_fp32
         model = std::make_shared<Model>(NodeVector{interpolate}, ParameterVector{input});
 
         pass::Manager manager;
-        manager.register_pass<pass::MarkPrecisionSensitiveShapeOfSubgraphs>();
         type_to_fuse_map empty_type_to_fuse_map = {};
         bool keep_precision_sensitive_in_fp32 = false;  // didn't keep in FP32 intentionally
-        manager.register_pass<pass::ConvertPrecision>(precisions_array{{element::f32, element::f16}},
+        manager.register_pass<pass::ConvertPrecision>(precisions_map{{element::f32, element::f16}},
                                                       empty_type_to_fuse_map,
                                                       keep_precision_sensitive_in_fp32);
         manager.run_passes(model);
@@ -1115,7 +1108,7 @@ void constant_convert_test(element::Type type_from,
         f = std::make_shared<Model>(NodeVector{c}, ParameterVector{});
 
         pass::Manager manager;
-        manager.register_pass<pass::ConvertPrecision>(precisions_array{{type_from, type_to}});
+        manager.register_pass<pass::ConvertPrecision>(precisions_map{{type_from, type_to}});
         manager.run_passes(f);
     }
     auto ops = f->get_ordered_ops();
@@ -1145,7 +1138,7 @@ void constant_convert_test(element::Type_t type_from, element::Type_t type_to, F
         f = std::make_shared<Model>(NodeVector{c}, ParameterVector{});
 
         pass::Manager manager;
-        manager.register_pass<pass::ConvertPrecision>(precisions_array{{type_from, type_to}});
+        manager.register_pass<pass::ConvertPrecision>(precisions_map{{type_from, type_to}});
         manager.run_passes(f);
     }
     auto ops = f->get_ordered_ops();
@@ -1322,4 +1315,475 @@ TEST(TransformationTests, ConvertPrecision_ConstantConversion_U1ToU4) {
                                             element::u4,
                                             std::vector<uint8_t>{171},
                                             {1, 0, 1, 0, 1, 0, 1, 1});
+}
+
+TEST(TransformationTests, ConvertPrecision_keep_precission_sensitive_fp32_with_exp) {
+    shared_ptr<Model> model, model_ref;
+    pass::Manager manager;
+    {
+        auto input_1 = make_shared<opset10::Parameter>(element::f32, Shape{1, 3, 224, 224});
+        auto exp_1 = make_shared<opset10::Exp>(input_1);
+        auto input_2 = make_shared<opset10::Parameter>(element::f32, Shape{1, 3, 224, 224});
+        auto reduction_axes = opset10::Constant::create(element::i64, Shape{1}, {-1});
+        auto reduce_sum_1 = make_shared<opset10::ReduceSum>(exp_1, reduction_axes);
+
+        auto factor_const = opset10::Constant::create(element::f16, Shape{1}, {-1});
+        auto factor_const_decompressed = make_shared<opset10::Convert>(factor_const, element::f32);
+        auto mul_1 = make_shared<opset10::Multiply>(reduce_sum_1, factor_const_decompressed);
+        auto matmul_1 = make_shared<opset10::MatMul>(mul_1, input_2);
+
+        model = make_shared<Model>(NodeVector{matmul_1}, ParameterVector{input_1, input_2});
+
+        type_to_fuse_map empty_type_to_fuse_map = {};
+        bool keep_precision_sensitive_in_fp32 = true;
+        manager.register_pass<pass::ConvertPrecision>(precisions_map{{element::f32, element::f16}},
+                                                      empty_type_to_fuse_map,
+                                                      keep_precision_sensitive_in_fp32);
+        manager.run_passes(model);
+    }
+
+    {
+        auto input_1 = make_shared<opset10::Parameter>(element::f16, Shape{1, 3, 224, 224});
+        auto input_1_decompressed = make_shared<opset10::Convert>(input_1, element::f32);
+        auto exp_1 = make_shared<opset10::Exp>(input_1_decompressed);
+        auto input_2 = make_shared<opset10::Parameter>(element::f16, Shape{1, 3, 224, 224});
+        auto reduction_axes = opset10::Constant::create(element::i64, Shape{1}, {-1});
+        auto reduce_sum_1 = make_shared<opset10::ReduceSum>(exp_1, reduction_axes);
+
+        auto factor_const = opset10::Constant::create(element::f16, Shape{1}, {-1});
+        auto factor_const_decompressed = make_shared<opset10::Convert>(factor_const, element::f32);
+        auto mul_1 = make_shared<opset10::Multiply>(reduce_sum_1, factor_const_decompressed);
+        auto mul_1_compressed = make_shared<opset10::Convert>(mul_1, element::f16);
+        auto matmul_1 = make_shared<opset10::MatMul>(mul_1_compressed, input_2);
+
+        model_ref = make_shared<Model>(NodeVector{matmul_1}, ParameterVector{input_1, input_2});
+    }
+
+    const FunctionsComparator func_comparator = FunctionsComparator::with_default();
+    FunctionsComparator::Result result = func_comparator(model_ref, model);
+    ASSERT_TRUE(result.valid) << result.message;
+}
+
+TEST(TransformationTests, ConvertPrecision_keep_precission_sensitive_fp32_with_reducemean) {
+    shared_ptr<Model> model, model_ref;
+    pass::Manager manager;
+    {
+        auto input_1 = make_shared<opset10::Parameter>(element::f32, Shape{1, 3, 224, 224});
+        auto exp_1 = make_shared<opset10::Exp>(input_1);
+        auto input_2 = make_shared<opset10::Parameter>(element::f32, Shape{1, 3, 224, 224});
+        auto reduction_axes = opset10::Constant::create(element::i64, Shape{1}, {-1});
+        auto reduce_sum_1 = make_shared<opset10::ReduceSum>(exp_1, reduction_axes);
+
+        auto factor_const = opset10::Constant::create(element::f16, Shape{1}, {-1});
+        auto factor_const_decompressed = make_shared<opset10::Convert>(factor_const, element::f32);
+        auto mul_1 = make_shared<opset10::Multiply>(reduce_sum_1, factor_const_decompressed);
+        auto matmul_1 = make_shared<opset10::MatMul>(mul_1, input_2);
+
+        model = make_shared<Model>(NodeVector{matmul_1}, ParameterVector{input_1, input_2});
+
+        type_to_fuse_map empty_type_to_fuse_map = {};
+        bool keep_precision_sensitive_in_fp32 = true;
+        manager.register_pass<pass::ConvertPrecision>(precisions_map{{element::f32, element::f16}},
+                                                      empty_type_to_fuse_map,
+                                                      keep_precision_sensitive_in_fp32);
+        manager.run_passes(model);
+    }
+
+    {
+        auto input_1 = make_shared<opset10::Parameter>(element::f16, Shape{1, 3, 224, 224});
+        auto input_1_decompressed = make_shared<opset10::Convert>(input_1, element::f32);
+        auto exp_1 = make_shared<opset10::Exp>(input_1_decompressed);
+        auto input_2 = make_shared<opset10::Parameter>(element::f16, Shape{1, 3, 224, 224});
+        auto reduction_axes = opset10::Constant::create(element::i64, Shape{1}, {-1});
+        auto reduce_mean_1 = make_shared<opset10::ReduceMean>(exp_1, reduction_axes);
+
+        auto factor_const = opset10::Constant::create(element::f16, Shape{1}, {-1});
+        auto factor_const_decompressed = make_shared<opset10::Convert>(factor_const, element::f32);
+        auto mul_1 = make_shared<opset10::Multiply>(reduce_mean_1, factor_const_decompressed);
+        auto mul_1_compressed = make_shared<opset10::Convert>(mul_1, element::f16);
+        auto matmul_1 = make_shared<opset10::MatMul>(mul_1_compressed, input_2);
+
+        model_ref = make_shared<Model>(NodeVector{matmul_1}, ParameterVector{input_1, input_2});
+    }
+
+    const FunctionsComparator func_comparator = FunctionsComparator::with_default();
+    FunctionsComparator::Result result = func_comparator(model_ref, model);
+    ASSERT_TRUE(result.valid) << result.message;
+}
+
+TEST(TransformationTests, ConvertPrecision_reducesum_without_exp) {
+    // ReduceSum without Exp is not a precision sensitive case, the whole Model should be cast into f16,
+    // no nodes should be marked and no Converts should be added
+    shared_ptr<Model> model, model_ref;
+    pass::Manager manager;
+
+    {
+        auto input_1 = make_shared<opset10::Parameter>(element::f32, Shape{1, 3, 224, 224});
+        auto input_2 = make_shared<opset10::Parameter>(element::f32, Shape{1, 3, 224, 224});
+        auto reduction_axes = opset10::Constant::create(element::i64, Shape{1}, {-1});
+        auto reduce_sum_1 = make_shared<opset10::ReduceSum>(input_1, reduction_axes);
+
+        auto factor_const = opset10::Constant::create(element::f32, Shape{1}, {-1});
+        auto mul_1 = make_shared<opset10::Multiply>(reduce_sum_1, factor_const);
+        auto matmul_1 = make_shared<opset10::MatMul>(mul_1, input_2);
+
+        model = make_shared<Model>(NodeVector{matmul_1}, ParameterVector{input_1, input_2});
+
+        type_to_fuse_map empty_type_to_fuse_map = {};
+        bool keep_precision_sensitive_in_fp32 = true;
+        manager.register_pass<pass::ConvertPrecision>(precisions_map{{element::f32, element::f16}},
+                                                      empty_type_to_fuse_map,
+                                                      keep_precision_sensitive_in_fp32);
+        manager.run_passes(model);
+    }
+
+    {
+        auto input_1 = make_shared<opset10::Parameter>(element::f16, Shape{1, 3, 224, 224});
+        auto input_2 = make_shared<opset10::Parameter>(element::f16, Shape{1, 3, 224, 224});
+        auto reduction_axes = opset10::Constant::create(element::i64, Shape{1}, {-1});
+        auto reduce_sum_1 = make_shared<opset10::ReduceSum>(input_1, reduction_axes);
+
+        auto factor_const = opset10::Constant::create(element::f16, Shape{1}, {-1});
+        auto mul_1 = make_shared<opset10::Multiply>(reduce_sum_1, factor_const);
+        auto matmul_1 = make_shared<opset10::MatMul>(mul_1, input_2);
+
+        model_ref = make_shared<Model>(NodeVector{matmul_1}, ParameterVector{input_1, input_2});
+    }
+
+    const FunctionsComparator func_comparator = FunctionsComparator::with_default();
+    FunctionsComparator::Result result = func_comparator(model_ref, model);
+    ASSERT_TRUE(result.valid) << result.message;
+}
+
+TEST(TransformationTests, ConvertPrecision_MarkNormalizationOps_1) {
+    shared_ptr<Model> model, model_ref;
+    pass::Manager manager;
+
+    {
+        auto input_1 = make_shared<opset10::Parameter>(element::f32, Shape{1, 3, 224, 224});
+        auto input_2 = make_shared<opset10::Parameter>(element::f32, Shape{1, 3, 224, 224});
+        auto reduction_axes = opset10::Constant::create(element::i64, Shape{1}, {-1});
+        auto mvn_1 = make_shared<opset10::MVN>(input_1, reduction_axes, true, 1.0e-8f, op::MVNEpsMode::INSIDE_SQRT);
+        auto matmul_1 = make_shared<opset10::MatMul>(mvn_1, input_2);
+
+        model = make_shared<Model>(NodeVector{matmul_1}, ParameterVector{input_1, input_2});
+
+        type_to_fuse_map empty_type_to_fuse_map = {};
+        bool keep_precision_sensitive_in_fp32 = true;
+        manager.register_pass<pass::ConvertPrecision>(precisions_map{{element::f32, element::f16}},
+                                                      empty_type_to_fuse_map,
+                                                      keep_precision_sensitive_in_fp32);
+        manager.run_passes(model);
+    }
+
+    {
+        auto input_1 = make_shared<opset10::Parameter>(element::f16, Shape{1, 3, 224, 224});
+        auto input_1_decompressed = make_shared<opset10::Convert>(input_1, element::f32);
+        auto input_2 = make_shared<opset10::Parameter>(element::f16, Shape{1, 3, 224, 224});
+        auto reduction_axes = opset10::Constant::create(element::i64, Shape{1}, {-1});
+        auto mvn_1 =
+            make_shared<opset10::MVN>(input_1_decompressed, reduction_axes, true, 1.0e-8f, op::MVNEpsMode::INSIDE_SQRT);
+        auto mvn_compressed = make_shared<opset10::Convert>(mvn_1, element::f16);
+        auto matmul_1 = make_shared<opset10::MatMul>(mvn_compressed, input_2);
+
+        model_ref = make_shared<Model>(NodeVector{matmul_1}, ParameterVector{input_1, input_2});
+    }
+
+    const FunctionsComparator func_comparator = FunctionsComparator::with_default();
+    FunctionsComparator::Result result = func_comparator(model_ref, model);
+    ASSERT_TRUE(result.valid) << result.message;
+}
+
+TEST(TransformationTests, ConvertPrecision_MarkNormalizationOps_2) {
+    shared_ptr<Model> model, model_ref;
+    pass::Manager manager;
+
+    {
+        auto input_1 = make_shared<opset10::Parameter>(element::f32, Shape{1, 3, 224, 224});
+        auto input_2 = make_shared<opset10::Parameter>(element::f32, Shape{1, 3, 224, 224});
+        auto reduction_axes = opset10::Constant::create(element::i64, Shape{1}, {-1});
+        auto normalizel2_1 = make_shared<opset10::NormalizeL2>(input_1, reduction_axes, 1.0e-8f, ov::op::EpsMode::MAX);
+        auto matmul_1 = make_shared<opset10::MatMul>(normalizel2_1, input_2);
+
+        model = make_shared<Model>(NodeVector{matmul_1}, ParameterVector{input_1, input_2});
+
+        type_to_fuse_map empty_type_to_fuse_map = {};
+        bool keep_precision_sensitive_in_fp32 = true;
+        manager.register_pass<pass::ConvertPrecision>(precisions_map{{element::f32, element::f16}},
+                                                      empty_type_to_fuse_map,
+                                                      keep_precision_sensitive_in_fp32);
+        manager.run_passes(model);
+    }
+
+    {
+        auto input_1 = make_shared<opset10::Parameter>(element::f16, Shape{1, 3, 224, 224});
+        auto input_1_decompressed = make_shared<opset10::Convert>(input_1, element::f32);
+        auto input_2 = make_shared<opset10::Parameter>(element::f16, Shape{1, 3, 224, 224});
+        auto reduction_axes = opset10::Constant::create(element::i64, Shape{1}, {-1});
+        auto normalizel2_1 =
+            make_shared<opset10::NormalizeL2>(input_1_decompressed, reduction_axes, 1.0e-8f, ov::op::EpsMode::MAX);
+        auto normalizel2_compressed = make_shared<opset10::Convert>(normalizel2_1, element::f16);
+        auto matmul_1 = make_shared<opset10::MatMul>(normalizel2_compressed, input_2);
+
+        model_ref = make_shared<Model>(NodeVector{matmul_1}, ParameterVector{input_1, input_2});
+    }
+
+    const FunctionsComparator func_comparator = FunctionsComparator::with_default();
+    FunctionsComparator::Result result = func_comparator(model_ref, model);
+    ASSERT_TRUE(result.valid) << result.message;
+}
+
+TEST(TransformationTests, ConvertPrecision_keep_precission_sensitive_fp32_t2t_subgraph) {
+    shared_ptr<Model> model, model_ref;
+    pass::Manager manager;
+    // subgraph from t2t-vit-7
+    {
+        auto input_1 = make_shared<opset10::Parameter>(element::f32, Shape{1, 3136, 32});
+        auto input_2 = make_shared<opset10::Parameter>(element::f32, Shape{1, 3136, 32});
+        auto input_3 = make_shared<opset10::Parameter>(element::f32, Shape{1, 3136, 64, 1});
+        auto input_4 = make_shared<opset10::Parameter>(element::f32, Shape{128, 64});
+        auto exp_1 = make_shared<opset10::Exp>(input_1);
+        auto exp_2 = make_shared<opset10::Exp>(input_2);
+
+        auto factor_1 = opset10::Constant::create(element::f32, Shape{1}, {0.5});  // add decompression
+        auto mul_1 = make_shared<opset10::Multiply>(exp_1, factor_1);
+        auto factor_2 = opset10::Constant::create(element::f32, Shape{1}, {0.5});
+        auto mul_2 = make_shared<opset10::Multiply>(exp_2, factor_2);
+
+        auto const_unsqueeze_1 = opset10::Constant::create(element::i64, Shape{4}, {1, 3136, 1, 32});
+        auto unsqueeze_1 = make_shared<opset10::Reshape>(mul_1, const_unsqueeze_1, false);
+
+        auto const_unsqueeze_2 = opset10::Constant::create(element::i64, Shape{4}, {1, 3136, 1, 32});
+        auto unsqueeze_2 = make_shared<opset10::Reshape>(mul_2, const_unsqueeze_1, false);
+        auto reduction_axes_1 = opset10::Constant::create(element::i64, Shape{1}, {1});
+        auto reduce_sum_1 = make_shared<opset10::ReduceSum>(mul_2, reduction_axes_1, true);
+        auto mul_3 = make_shared<opset10::Multiply>(reduce_sum_1, mul_1);
+        auto mul_4 = make_shared<opset10::Multiply>(input_3, unsqueeze_2);
+
+        auto reduction_axes_2 = opset10::Constant::create(element::i64, Shape{1}, {1});
+        auto reduce_sum_2 = make_shared<opset10::ReduceSum>(mul_4, reduction_axes_2);
+        auto reduction_axes_3 = opset10::Constant::create(element::i64, Shape{1}, {2});
+        auto reduce_sum_3 = make_shared<opset10::ReduceSum>(mul_3, reduction_axes_3, true);
+
+        auto broadcast_to_shape = opset10::Constant::create(element::i64, Shape{3}, {1, 1, 1});
+        auto broadcast =
+            make_shared<opset10::Broadcast>(reduce_sum_3, broadcast_to_shape, ov::op::BroadcastType::BIDIRECTIONAL);
+        auto tile_shape = opset10::Constant::create(element::i64, Shape{3}, {1, 1, 64});
+        auto tile = make_shared<opset10::Tile>(broadcast, tile_shape);
+        auto eps_const = opset10::Constant::create(element::f32, Shape{1}, {1.e-10});
+        auto add_1 = make_shared<opset10::Add>(tile, eps_const);
+
+        auto const_unsqueeze_3 = opset10::Constant::create(element::i64, Shape{4}, {1, 1, 64, 32});
+        auto unsqueeze_3 = make_shared<opset10::Reshape>(reduce_sum_2, const_unsqueeze_3, false);
+        auto mul_5 = make_shared<opset10::Multiply>(unsqueeze_1, unsqueeze_3);
+
+        auto reduction_axes_4 = opset10::Constant::create(element::i64, Shape{1}, {-1});
+        auto reduce_sum_4 = make_shared<opset10::ReduceSum>(mul_5, reduction_axes_4);
+
+        auto div_1 = make_shared<opset10::Divide>(reduce_sum_4, add_1);
+        auto matmul_1 = make_shared<opset10::MatMul>(div_1, input_4, false, true);
+
+        model = make_shared<Model>(NodeVector{matmul_1}, ParameterVector{input_1, input_2, input_3, input_4});
+
+        type_to_fuse_map empty_type_to_fuse_map = {};
+        bool keep_precision_sensitive_in_fp32 = true;
+        manager.register_pass<pass::ConvertPrecision>(precisions_map{{element::f32, element::f16}},
+                                                      empty_type_to_fuse_map,
+                                                      keep_precision_sensitive_in_fp32);
+        manager.run_passes(model);
+    }
+
+    {
+        auto input_1 = make_shared<opset10::Parameter>(element::f16, Shape{1, 3136, 32});
+        auto input_2 = make_shared<opset10::Parameter>(element::f16, Shape{1, 3136, 32});
+        auto input_3 = make_shared<opset10::Parameter>(element::f16, Shape{1, 3136, 64, 1});
+        auto input_4 = make_shared<opset10::Parameter>(element::f16, Shape{128, 64});
+        auto input_1_decompressed = make_shared<opset10::Convert>(input_1, element::f32);
+        auto input_2_decompressed = make_shared<opset10::Convert>(input_2, element::f32);
+        auto input_3_decompressed = make_shared<opset10::Convert>(input_3, element::f32);
+
+        auto exp_1 = make_shared<opset10::Exp>(input_1_decompressed);
+        auto exp_2 = make_shared<opset10::Exp>(input_2_decompressed);
+
+        auto factor_1 = opset10::Constant::create(element::f32, Shape{1}, {0.5});
+        auto mul_1 = make_shared<opset10::Multiply>(exp_1, factor_1);
+        auto factor_2 = opset10::Constant::create(element::f32, Shape{1}, {0.5});
+        auto mul_2 = make_shared<opset10::Multiply>(exp_2, factor_2);
+
+        auto const_unsqueeze_1 = opset10::Constant::create(element::i64, Shape{4}, {1, 3136, 1, 32});
+        auto unsqueeze_1 = make_shared<opset10::Reshape>(mul_1, const_unsqueeze_1, false);
+
+        auto const_unsqueeze_2 = opset10::Constant::create(element::i64, Shape{4}, {1, 3136, 1, 32});
+        auto unsqueeze_2 = make_shared<opset10::Reshape>(mul_2, const_unsqueeze_2, false);
+        auto reduction_axes_1 = opset10::Constant::create(element::i64, Shape{1}, {1});
+        auto reduce_sum_1 = make_shared<opset10::ReduceSum>(mul_2, reduction_axes_1, true);
+        auto mul_3 = make_shared<opset10::Multiply>(reduce_sum_1, mul_1);
+        auto mul_4 = make_shared<opset10::Multiply>(input_3_decompressed, unsqueeze_2);
+
+        auto reduction_axes_2 = opset10::Constant::create(element::i64, Shape{1}, {1});
+        auto reduce_sum_2 = make_shared<opset10::ReduceSum>(mul_4, reduction_axes_2);
+        auto reduction_axes_3 = opset10::Constant::create(element::i64, Shape{1}, {2});
+        auto reduce_sum_3 = make_shared<opset10::ReduceSum>(mul_3, reduction_axes_3, true);
+
+        auto broadcast_to_shape = opset10::Constant::create(element::i64, Shape{3}, {1, 1, 1});
+        auto broadcast =
+            make_shared<opset10::Broadcast>(reduce_sum_3, broadcast_to_shape, ov::op::BroadcastType::BIDIRECTIONAL);
+        auto tile_shape = opset10::Constant::create(element::i64, Shape{3}, {1, 1, 64});
+        auto tile = make_shared<opset10::Tile>(broadcast, tile_shape);
+        auto eps_const = opset10::Constant::create(element::f32, Shape{1}, {1.e-10});
+        auto add_1 = make_shared<opset10::Add>(tile, eps_const);
+
+        auto const_unsqueeze_3 = opset10::Constant::create(element::i64, Shape{4}, {1, 1, 64, 32});
+        auto unsqueeze_3 = make_shared<opset10::Reshape>(reduce_sum_2, const_unsqueeze_3, false);
+        auto mul_5 = make_shared<opset10::Multiply>(unsqueeze_1, unsqueeze_3);
+
+        auto reduction_axes_4 = opset10::Constant::create(element::i64, Shape{1}, {-1});
+        auto reduce_sum_4 = make_shared<opset10::ReduceSum>(mul_5, reduction_axes_4);
+
+        auto div_1 = make_shared<opset10::Divide>(reduce_sum_4, add_1);
+        auto div_compressed = make_shared<opset10::Convert>(div_1, element::f16);
+        auto matmul_1 = make_shared<opset10::MatMul>(div_compressed, input_4, false, true);
+
+        model_ref = make_shared<Model>(NodeVector{matmul_1}, ParameterVector{input_1, input_2, input_3, input_4});
+    }
+
+    const FunctionsComparator func_comparator = FunctionsComparator::with_default();
+    FunctionsComparator::Result result = func_comparator(model_ref, model);
+    ASSERT_TRUE(result.valid) << result.message;
+}
+
+TEST(TransformationTests, ConvertPrecision_DivisionByZeroMinimalPattern) {
+    shared_ptr<Model> model, model_ref;
+    pass::Manager manager;
+
+    const float eps_value = 1.0e-12f;
+    {
+        auto input_1 = std::make_shared<opset10::Parameter>(element::f32, PartialShape::dynamic(3));
+        auto input_2 = std::make_shared<opset10::Parameter>(element::f32, PartialShape::dynamic(3));
+        auto eps_const = opset10::Constant::create(element::f32, Shape{1}, {eps_value});
+        auto add = std::make_shared<opset10::Add>(input_2, eps_const);
+        auto divide = std::make_shared<opset10::Divide>(input_1, add);
+        model = std::make_shared<Model>(NodeVector{divide}, ParameterVector{input_1, input_2});
+
+        type_to_fuse_map empty_type_to_fuse_map = {};
+        bool keep_precision_sensitive_in_fp32 = true;
+        manager.register_pass<pass::ConvertPrecision>(precisions_map{{element::f32, element::f16}},
+                                                      empty_type_to_fuse_map,
+                                                      keep_precision_sensitive_in_fp32);
+        manager.run_passes(model);
+    }
+
+    {
+        auto input_1 = std::make_shared<opset10::Parameter>(element::f16, PartialShape::dynamic(3));
+        auto input_2 = std::make_shared<opset10::Parameter>(element::f16, PartialShape::dynamic(3));
+        auto input_1_decompressed = make_shared<opset10::Convert>(input_1, element::f32);
+        auto input_2_decompressed = make_shared<opset10::Convert>(input_2, element::f32);
+
+        auto eps_const = opset10::Constant::create(element::f32, Shape{1}, {eps_value});
+        auto add = std::make_shared<opset10::Add>(input_2_decompressed, eps_const);
+        auto divide = std::make_shared<opset10::Divide>(input_1_decompressed, add);
+
+        model_ref = std::make_shared<Model>(NodeVector{divide}, ParameterVector{input_1, input_2});
+    }
+
+    const FunctionsComparator func_comparator = FunctionsComparator::with_default();
+    FunctionsComparator::Result result = func_comparator(model_ref, model);
+    ASSERT_TRUE(result.valid) << result.message;
+}
+
+TEST(TransformationTests, ConvertPrecision_PowWithNegativeExponent) {
+    shared_ptr<Model> model, model_ref;
+    pass::Manager manager;
+    const float eps_value = 1.0e-12f;
+    {
+        auto input_1 = std::make_shared<opset10::Parameter>(element::f32, PartialShape::dynamic(3));
+        auto input_2 = std::make_shared<opset10::Parameter>(element::f32, PartialShape::dynamic(3));
+        auto eps_const = opset10::Constant::create(element::f32, Shape{1}, {eps_value});
+        auto add = std::make_shared<opset10::Add>(input_2, eps_const);
+        auto pow_exp_const = opset10::Constant::create(element::f32, Shape{1}, {-1.77});
+        auto pow = std::make_shared<opset10::Power>(add, pow_exp_const);
+        auto mul = std::make_shared<opset10::Multiply>(input_1, pow);
+
+        model = std::make_shared<Model>(NodeVector{mul}, ParameterVector{input_1, input_2});
+
+        type_to_fuse_map empty_type_to_fuse_map = {};
+        bool keep_precision_sensitive_in_fp32 = true;
+        manager.register_pass<pass::ConvertPrecision>(precisions_map{{element::f32, element::f16}},
+                                                      empty_type_to_fuse_map,
+                                                      keep_precision_sensitive_in_fp32);
+        manager.run_passes(model);
+    }
+
+    {
+        auto input_1 = std::make_shared<opset10::Parameter>(element::f16, PartialShape::dynamic(3));
+        auto input_2 = std::make_shared<opset10::Parameter>(element::f16, PartialShape::dynamic(3));
+        auto input_1_decompressed = make_shared<opset10::Convert>(input_1, element::f32);
+        auto input_2_decompressed = make_shared<opset10::Convert>(input_2, element::f32);
+
+        auto eps_const = opset10::Constant::create(element::f32, Shape{1}, {eps_value});
+        auto add = std::make_shared<opset10::Add>(input_2_decompressed, eps_const);
+        auto pow_exp_const = opset10::Constant::create(element::f32, Shape{1}, {-1.77});
+        auto pow = std::make_shared<opset10::Power>(add, pow_exp_const);
+        auto mul = std::make_shared<opset10::Multiply>(input_1_decompressed, pow);
+
+        model_ref = std::make_shared<Model>(NodeVector{mul}, ParameterVector{input_1, input_2});
+    }
+
+    const FunctionsComparator func_comparator = FunctionsComparator::with_default();
+    FunctionsComparator::Result result = func_comparator(model_ref, model);
+    ASSERT_TRUE(result.valid) << result.message;
+}
+
+TEST(TransformationTests, ConvertPrecision_exp_through_unsqueeze) {
+    shared_ptr<Model> model, model_ref;
+    pass::Manager manager;
+    {
+        auto input_1 = make_shared<opset10::Parameter>(element::f32, Shape{1, 3, 224, 224});
+        auto exp_1 = make_shared<opset10::Exp>(input_1);
+        auto input_2 = make_shared<opset10::Parameter>(element::f32, Shape{1, 3, 224, 224});
+        auto reduction_axes = opset10::Constant::create(element::i64, Shape{1}, {-1});
+
+        auto unsqueeze_axes = opset10::Constant::create(element::i64, Shape{1}, {1});
+        auto unsqueeze_1 = make_shared<opset10::Unsqueeze>(exp_1, unsqueeze_axes);
+        auto reduce_sum_1 = make_shared<opset10::ReduceSum>(unsqueeze_1, reduction_axes);
+
+        auto factor_const = opset10::Constant::create(element::f16, Shape{1}, {-1});
+        auto factor_const_decompressed = make_shared<opset10::Convert>(factor_const, element::f32);
+        auto mul_1 = make_shared<opset10::Multiply>(reduce_sum_1, factor_const_decompressed);
+        auto matmul_1 = make_shared<opset10::MatMul>(mul_1, input_2);
+
+        model = make_shared<Model>(NodeVector{matmul_1}, ParameterVector{input_1, input_2});
+
+        type_to_fuse_map empty_type_to_fuse_map = {};
+        bool keep_precision_sensitive_in_fp32 = true;
+        manager.register_pass<pass::ConvertPrecision>(precisions_map{{element::f32, element::f16}},
+                                                      empty_type_to_fuse_map,
+                                                      keep_precision_sensitive_in_fp32);
+        manager.run_passes(model);
+    }
+
+    {
+        auto input_1 = make_shared<opset10::Parameter>(element::f16, Shape{1, 3, 224, 224});
+        auto input_1_decompressed = make_shared<opset10::Convert>(input_1, element::f32);
+        auto exp_1 = make_shared<opset10::Exp>(input_1_decompressed);
+        auto input_2 = make_shared<opset10::Parameter>(element::f16, Shape{1, 3, 224, 224});
+
+        auto reduction_axes = opset10::Constant::create(element::i64, Shape{1}, {-1});
+
+        auto unsqueeze_axes = opset10::Constant::create(element::i64, Shape{1}, {1});
+        auto unsqueeze_1 = make_shared<opset10::Unsqueeze>(exp_1, unsqueeze_axes);
+        auto reduce_sum_1 = make_shared<opset10::ReduceSum>(unsqueeze_1, reduction_axes);
+
+        auto factor_const = opset10::Constant::create(element::f16, Shape{1}, {-1});
+        auto factor_const_decompressed = make_shared<opset10::Convert>(factor_const, element::f32);
+        auto mul_1 = make_shared<opset10::Multiply>(reduce_sum_1, factor_const_decompressed);
+        auto mul_1_compressed = make_shared<opset10::Convert>(mul_1, element::f16);
+        auto matmul_1 = make_shared<opset10::MatMul>(mul_1_compressed, input_2);
+
+        model_ref = make_shared<Model>(NodeVector{matmul_1}, ParameterVector{input_1, input_2});
+    }
+
+    const FunctionsComparator func_comparator = FunctionsComparator::with_default();
+    FunctionsComparator::Result result = func_comparator(model_ref, model);
+    ASSERT_TRUE(result.valid) << result.message;
 }

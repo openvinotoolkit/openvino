@@ -60,13 +60,8 @@ void op::v1::BatchToSpace::validate_and_infer_types() {
                           "block_shape and crops inputs must have integer element type. Got: ",
                           inputs_integer_et);
 
-    std::vector<ov::PartialShape> output_shapes = {ov::PartialShape{}};
-    const std::vector<ov::PartialShape> input_shapes = {get_input_partial_shape(0),
-                                                        get_input_partial_shape(1),
-                                                        get_input_partial_shape(2),
-                                                        get_input_partial_shape(3)};
-    shape_infer(this, input_shapes, output_shapes);
-    set_output_type(0, data_et, output_shapes[0]);
+    const auto output_shape = shape_infer(this, get_node_input_partial_shapes(*this)).front();
+    set_output_type(0, data_et, output_shape);
 }
 
 std::shared_ptr<ngraph::Node> ngraph::op::v1::BatchToSpace::clone_with_new_inputs(const OutputVector& new_args) const {

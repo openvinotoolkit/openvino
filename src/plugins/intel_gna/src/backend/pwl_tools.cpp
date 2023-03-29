@@ -4,8 +4,8 @@
 
 #include "pwl_tools.hpp"
 
-#include "gna_slope_scale.hpp"
 #include "common/numerical_utils.hpp"
+#include "gna_slope_scale.hpp"
 #include "runtime/pwl.h"
 
 namespace ov {

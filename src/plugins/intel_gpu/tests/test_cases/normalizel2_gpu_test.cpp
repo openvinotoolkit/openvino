@@ -54,6 +54,57 @@ struct normalize_basic : public testing::Test {
         return inputVals;
     }
 
+    void execute(bool is_caching_test) {
+        //  Input  : 1x2x3x3
+        //  Output : 1x2x3x3
+        auto& engine = get_test_engine();
+        const unsigned b = 1;
+        const unsigned f = 2;
+        const unsigned y = 3;
+        const unsigned x = 3;
+
+        auto input = engine.allocate_memory({this->data_type, format::bfyx, {b, f, y, x}});
+        auto weights = engine.allocate_memory({data_types::f32, format::bfyx, {1, f, 1, 1}});
+
+        auto inputVals = this->get_input_values(b, f, y, x);
+        std::vector<float> weightVals(f);
+        for (auto& it : weightVals) {
+            it = 1.f;
+        }
+
+        set_values(input, inputVals);
+        set_values(weights, weightVals);
+
+        topology topology;
+        topology.add(input_layout("Input0", input->get_layout()));
+        topology.add(data("Input1", weights));
+        topology.add(reorder("reordered_Input0", input_info("Input0"), this->format, this->data_type));
+        topology.add(reorder("reordered_Input1", input_info("Input1"), this->format, data_types::f32));
+        topology.add(normalize("normalize2", input_info("reordered_Input0"), "reordered_Input1", this->across_spatial));
+        topology.add(reorder("plane_normalize2", input_info("normalize2"), format::bfyx, this->output_data_type));
+
+        cldnn::network::ptr network = get_network(engine, topology, ExecutionConfig(), get_test_stream_ptr(), is_caching_test);
+
+        network->set_input_data("Input0", input);
+
+        auto outputs = network->execute();
+
+        auto output = outputs.at("plane_normalize2").get_memory();
+        if (this->data_type == data_types::f16) {
+            cldnn::mem_lock<half_t> output_ptr(output, get_test_stream());
+            auto expected_results = this->get_expected_result();
+            for (size_t i = 0; i < expected_results.size(); ++i) {
+                ASSERT_NEAR(expected_results[i], output_ptr[i], 0.001);
+            }
+        } else {
+            cldnn::mem_lock<float> output_ptr(output, get_test_stream());
+            auto expected_results = this->get_expected_result();
+            for (size_t i = 0; i < expected_results.size(); ++i) {
+                ASSERT_TRUE(are_equal(expected_results[i], output_ptr[i]));
+            }
+        }
+    }
+
 private:
     static const std::vector<output_type> get_expected_result(std::true_type) {
         static const std::vector<float> result = {0.f,
@@ -144,52 +195,23 @@ using format_types = testing::Types<normalize_input_types<format::bfyx, float, f
 TYPED_TEST_SUITE(normalize_basic, format_types);
 
 TYPED_TEST(normalize_basic, basic) {
-    //  Input  : 1x2x3x3
-    //  Output : 1x2x3x3
-    auto& engine = get_test_engine();
-    const unsigned b = 1;
-    const unsigned f = 2;
-    const unsigned y = 3;
-    const unsigned x = 3;
-
-    auto input = engine.allocate_memory({this->data_type, format::bfyx, {b, f, y, x}});
-    auto weights = engine.allocate_memory({data_types::f32, format::bfyx, {1, f, 1, 1}});
-
-    auto inputVals = this->get_input_values(b, f, y, x);
-    std::vector<float> weightVals(f);
-    for (auto& it : weightVals) {
-        it = 1.f;
-    }
-
-    set_values(input, inputVals);
-    set_values(weights, weightVals);
-
-    topology topology;
-    topology.add(input_layout("Input0", input->get_layout()));
-    topology.add(data("Input1", weights));
-    topology.add(reorder("reordered_Input0", input_info("Input0"), this->format, this->data_type));
-    topology.add(reorder("reordered_Input1", input_info("Input1"), this->format, data_types::f32));
-    topology.add(normalize("normalize2", input_info("reordered_Input0"), "reordered_Input1", this->across_spatial));
-    topology.add(reorder("plane_normalize2", input_info("normalize2"), format::bfyx, this->output_data_type));
-
-    network network(engine, topology);
-
-    network.set_input_data("Input0", input);
-
-    auto outputs = network.execute();
-
-    auto output = outputs.at("plane_normalize2").get_memory();
-    if (this->data_type == data_types::f16) {
-        cldnn::mem_lock<half_t> output_ptr(output, get_test_stream());
-        auto expected_results = this->get_expected_result();
-        for (size_t i = 0; i < expected_results.size(); ++i) {
-            ASSERT_NEAR(expected_results[i], output_ptr[i], 0.001);
-        }
-    } else {
-        cldnn::mem_lock<float> output_ptr(output, get_test_stream());
-        auto expected_results = this->get_expected_result();
-        for (size_t i = 0; i < expected_results.size(); ++i) {
-            ASSERT_TRUE(are_equal(expected_results[i], output_ptr[i]));
-        }
-    }
+    this->execute(false);
 }
+
+#ifdef RUN_ALL_MODEL_CACHING_TESTS
+TYPED_TEST(normalize_basic, basic_cached) {
+    this->execute(true);
+}
+#else
+template <typename NormalizeInput>
+struct normalize_basic_cached : public normalize_basic<NormalizeInput> {
+};
+
+using format_types_cached = testing::Types<normalize_input_types<format::bfyx, float, false>>;
+
+TYPED_TEST_SUITE(normalize_basic_cached, format_types_cached);
+
+TYPED_TEST(normalize_basic_cached, basic) {
+    this->execute(true);
+}
+#endif

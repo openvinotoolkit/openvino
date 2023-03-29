@@ -8,6 +8,7 @@
 #include "intel_gpu/primitives/data.hpp"
 #include "intel_gpu/primitives/mutable_data.hpp"
 #include "intel_gpu/graph/serialization/loop_serializer.hpp"
+#include "intel_gpu/runtime/error_handler.hpp"
 #include <string>
 #include <exception>
 #include <algorithm>

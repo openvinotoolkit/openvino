@@ -10,11 +10,10 @@
 #pragma once
 
 #include <caseless.hpp>
+#include <legacy/cnn_network_impl.hpp>
 #include <map>
 #include <string>
 #include <vector>
-
-#include <legacy/cnn_network_impl.hpp>
 
 namespace InferenceEngine {
 
@@ -36,7 +35,7 @@ public:
     void fullTrim();
 
 protected:
-    ConstTransformer(std::vector<DataPtr> &_inputs, std::vector<DataPtr> &_outputs);
+    ConstTransformer(std::vector<DataPtr>& _inputs, std::vector<DataPtr>& _outputs);
 
     /**
      * @brief collect all const layers with marking if it defines shape (1 - for shape, 0 - otherwise)
@@ -59,8 +58,7 @@ protected:
     /**
      * @brief TBD
      */
-    virtual void trimShapeInputs(const std::vector<CNNLayerPtr>& constLayers,
-                                 std::vector<CNNLayerPtr>& allLayers);
+    virtual void trimShapeInputs(const std::vector<CNNLayerPtr>& constLayers, std::vector<CNNLayerPtr>& allLayers);
 
     /**
      * @brief TBD

@@ -28,7 +28,7 @@ OutputVector translate_const_op(const NodeContext& node) {
             std::cerr << "----------------------------- CANNOT BE ------------------------------\n";
         }
         std::shared_ptr<Node> const_node;
-        if (ov_type == element::undefined) {
+        if (ov_type == element::dynamic) {
             const_node = std::make_shared<UnsupportedConstant>();
         } else {
             auto tensor = node.get_attribute<Tensor>("value");
