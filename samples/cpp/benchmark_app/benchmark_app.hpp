@@ -327,7 +327,7 @@ DEFINE_string(nstreams, "", infer_num_streams_message);
 /// @brief Define flag for inference only mode <br>
 DEFINE_bool(inference_only, true, inference_only_message);
 
-/// @brief Define flag for inference precision
+/// @brief Define flag for inference precision hint
 DEFINE_string(infer_precision, "", inference_precision_message);
 
 /// @brief Specify precision for all input layers of the network

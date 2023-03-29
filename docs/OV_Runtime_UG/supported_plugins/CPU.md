@@ -105,14 +105,14 @@ to query ``ov::device::capabilities`` property, which should contain ``BF16`` in
          :fragment: [part0]
 
 
-If the model has been converted to ``bf16``, the ``ov::inference_precision`` is set to ``ov::element::bf16`` and can be checked via 
+If the model has been converted to ``bf16``, the ``ov::hint::inference_precision`` is set to ``ov::element::bf16`` and can be checked via 
 the ``ov::CompiledModel::get_property`` call. The code below demonstrates how to get the element type:
 
 .. doxygensnippet:: snippets/cpu/Bfloat16Inference1.cpp
    :language: py
    :fragment: [part1]
 
-To infer the model in ``f32`` precision instead of ``bf16`` on targets with native ``bf16`` support, set the ``ov::inference_precision`` to ``ov::element::f32``.
+To infer the model in ``f32`` precision instead of ``bf16`` on targets with native ``bf16`` support, set the ``ov::hint::inference_precision`` to ``ov::element::f32``.
 
 
 .. tab-set::
@@ -134,11 +134,11 @@ To infer the model in ``f32`` precision instead of ``bf16`` on targets with nati
 
 The ``Bfloat16`` software simulation mode is available on CPUs with Intel® AVX-512 instruction set that do not support the 
 native ``avx512_bf16`` instruction. This mode is used for development purposes and it does not guarantee good performance.
-To enable the simulation, the ``ov::inference_precision`` has to be explicitly set to ``ov::element::bf16``.
+To enable the simulation, the ``ov::hint::inference_precision`` has to be explicitly set to ``ov::element::bf16``.
 
 .. note:: 
    
-   If ``ov::inference_precision`` is set to ``ov::element::bf16`` on a CPU without native bfloat16 support or bfloat16 simulation mode, an exception is thrown.
+   If ``ov::hint::inference_precision`` is set to ``ov::element::bf16`` on a CPU without native bfloat16 support or bfloat16 simulation mode, an exception is thrown.
 
 .. note:: 
    
@@ -292,7 +292,7 @@ Read-write Properties
 All parameters must be set before calling ``ov::Core::compile_model()`` in order to take effect or passed as additional argument to ``ov::Core::compile_model()``
 
 - ``ov::enable_profiling``
-- ``ov::inference_precision``
+- ``ov::hint::inference_precision``
 - ``ov::hint::performance_mode``
 - ``ov::hint::num_request``
 - ``ov::num_streams``

@@ -327,7 +327,7 @@ All parameters must be set before calling ``ov::Core::compile_model()`` in order
 - ov::hint::performance_mode
 - ov::hint::execution_mode
 - ov::hint::num_requests
-- ov::inference_precision
+- ov::hint::inference_precision
 - ov::num_streams
 - ov::compilation_num_threads
 - ov::device::id

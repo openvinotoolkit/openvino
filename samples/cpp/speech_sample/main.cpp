@@ -220,7 +220,7 @@ int main(int argc, char* argv[]) {
                 gnaPluginConfig[ov::intel_gna::scale_factors_per_input.name()] = scale_factors_per_input;
             }
         }
-        gnaPluginConfig[ov::inference_precision.name()] = (FLAGS_qb == 8) ? ov::element::i8 : ov::element::i16;
+        gnaPluginConfig[ov::hint::inference_precision.name()] = (FLAGS_qb == 8) ? ov::element::i8 : ov::element::i16;
         const std::unordered_map<std::string, ov::intel_gna::HWGeneration> StringHWGenerationMap{
             {"GNA_TARGET_1_0", ov::intel_gna::HWGeneration::GNA_1_0},
             {"GNA_TARGET_2_0", ov::intel_gna::HWGeneration::GNA_2_0},
