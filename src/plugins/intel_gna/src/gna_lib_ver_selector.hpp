@@ -26,6 +26,7 @@
  * Used for calculating memory sizes of GNA data arrays
  */
 #define ALIGN64(number) ALIGN(number, 64)
+#define ALIGN16(number) ALIGN(number, 16)
 
 namespace ov {
 namespace intel_gna {
