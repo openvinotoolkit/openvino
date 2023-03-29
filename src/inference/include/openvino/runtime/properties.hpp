@@ -299,16 +299,20 @@ static constexpr Property<Priority> model_priority{"MODEL_PRIORITY"};
  * @ingroup ov_runtime_cpp_prop_api
  */
 enum class PerformanceMode {
+    UNDEFINED OPENVINO_ENUM_DEPRECATED("Please use actual value instead. Will be removed in 2024.0") =
+        -1,                     //!<  Undefined value, performance setting may vary from device to device
     LATENCY = 1,                //!<  Optimize for latency
     THROUGHPUT = 2,             //!<  Optimize for throughput
     CUMULATIVE_THROUGHPUT = 3,  //!<  Optimize for cumulative throughput
-    UNDEFINED OPENVINO_ENUM_DEPRECATED("Please use actual value instead. Will be removed in 2024.0") =
-        LATENCY,  //!<  Undefined value, performance setting may vary from device to device
 };
 
 /** @cond INTERNAL */
 inline std::ostream& operator<<(std::ostream& os, const PerformanceMode& performance_mode) {
     switch (performance_mode) {
+        OPENVINO_SUPPRESS_DEPRECATED_START
+    case PerformanceMode::UNDEFINED:
+        return os << "UNDEFINED";
+        OPENVINO_SUPPRESS_DEPRECATED_END
     case PerformanceMode::LATENCY:
         return os << "LATENCY";
     case PerformanceMode::THROUGHPUT:
@@ -330,7 +334,9 @@ inline std::istream& operator>>(std::istream& is, PerformanceMode& performance_m
     } else if (str == "CUMULATIVE_THROUGHPUT") {
         performance_mode = PerformanceMode::CUMULATIVE_THROUGHPUT;
     } else if (str == "UNDEFINED") {
-        performance_mode = PerformanceMode::LATENCY;
+        OPENVINO_SUPPRESS_DEPRECATED_START
+        performance_mode = PerformanceMode::UNDEFINED;
+        OPENVINO_SUPPRESS_DEPRECATED_END
     } else {
         OPENVINO_THROW("Unsupported performance mode: ", str);
     }

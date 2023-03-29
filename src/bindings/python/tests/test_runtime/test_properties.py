@@ -54,7 +54,7 @@ def test_properties_rw_base():
         (
             properties.hint.PerformanceMode,
             (
-                (properties.hint.PerformanceMode.UNDEFINED, "PerformanceMode.LATENCY", 1),
+                (properties.hint.PerformanceMode.UNDEFINED, "PerformanceMode.UNDEFINED", -1),
                 (properties.hint.PerformanceMode.LATENCY, "PerformanceMode.LATENCY", 1),
                 (properties.hint.PerformanceMode.THROUGHPUT, "PerformanceMode.THROUGHPUT", 2),
                 (properties.hint.PerformanceMode.CUMULATIVE_THROUGHPUT, "PerformanceMode.CUMULATIVE_THROUGHPUT", 3),
