@@ -114,9 +114,7 @@ auto device_names_and_support_for_remote_blobs2 = []() {
          {ov::intel_auto::device_bind_buffer(false)}},  // CPU,GPU.1 via MULTI, no OCL context
 #endif
         {{"GPU.1"}, {}},  // another GPU (the test will test its presence), different OCL contexts
-        {{"GPU.1"},
-         {ov::intel_auto::device_bind_buffer(
-             true)}},  // another GPU (the test will test its presence), different OCL contexts
+        {{"GPU.1"}, {ov::intel_auto::device_bind_buffer(true)}},  // another GPU (the test will test its presence), different OCL contexts
     };
 };
 
