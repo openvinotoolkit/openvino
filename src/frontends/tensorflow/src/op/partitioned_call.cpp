@@ -37,8 +37,6 @@ OutputVector translate_partitioned_call_op(const NodeContext& node) {
     // inject the body graph into the parent graph
     OutputVector ov_outputs;
     translate_session->inject_body_model(body_model, operation_type, ov_inputs, ov_outputs);
-    //std::cerr << "After inject_body_model in partition_call_op\n";
-    //ov::serialize(body_model, "statefull_op_after_inject.xml");
 
     // set output tensor names
     for (size_t idx = 0; idx < ov_outputs.size(); ++idx) {

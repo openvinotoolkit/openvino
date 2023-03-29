@@ -432,9 +432,6 @@ void TranslateSession::translate_graph(const ov::frontend::InputModel::Ptr& inpu
     ov::ResultVector ordered_results = reorder_ops_by_names(output_names, results);
 
     ov_model = std::make_shared<ov::Model>(ordered_results, ordered_params, m_model_name);
-    //std::cerr << "Dumping partial_model.xml\n";
-    //ov::serialize(ov_model, "partial_model.xml");
-    //std::cerr << "After serialize\n";
 }
 
 std::shared_ptr<ov::Model> TranslateSession::get_body_ov_model(const std::string& body_graph_name) {

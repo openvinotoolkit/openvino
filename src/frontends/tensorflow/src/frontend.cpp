@@ -188,8 +188,6 @@ std::shared_ptr<ov::Model> FrontEnd::convert(const ov::frontend::InputModel::Ptr
             m_telemetry->send_event("error_cause", "tf_" + unsupported_operation);
         }
     }
-    //std::cerr << "Partial conversion done\n";
-    //ov::serialize(f, "partially_supported.xml");
     FRONT_END_OP_CONVERSION_CHECK(
         unsupported_operations.size() == 0,
         "[TensorFlow Frontend] Internal error: No translator found for " + unsupported_operations[0] + " node.");
