@@ -1,25 +1,5 @@
 name: Code coverage
-on:
-  push:
-    branches:
-      - master
-      - releases/*
-    paths-ignore:
-      - docs/
-      - /**/docs/*
-      - /**/*.md
-      - README.md
-      - /**/layer_tests_summary/**
-  pull_request:
-    branches:
-      - master
-      - releases/*
-    paths-ignore:
-      - docs/
-      - /**/docs/*
-      - /**/*.md
-      - README.md
-      - /**/layer_tests_summary/**
+on: workflow_dispatch
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -39,16 +19,6 @@ jobs:
         uses: actions/checkout@v3
         with:
           submodules: recursive
-      
-      # - name: Setup Python
-      #   uses: actions/setup-python@v4
-      #   with:
-      #     python-version: '3.10'
-
-      #- name: Setup GNinja
-      #  uses: ashutoshvarma/setup-ninja@master
-      #  with:
-      #    version: 1.10.2
       
       - name: Setup ccache
         uses: hendrikmuhs/ccache-action@v1.2
@@ -74,12 +44,6 @@ jobs:
      #     pip install -r ${{ github.workspace }}/src/bindings/python/requirements.txt
      #     pip install -r ${{ github.workspace }}/tools/mo/requirements.txt
      #     pip install -r ${{ github.workspace }}/tools/mo/requirements_dev.txt
-
-     # - name: ls all
-     #   run: |
-     #     ls -laR .
-     #     echo $GITHUB_WORKSPACE
-     #     echo ${{ github.workspace }}
       
       - name: Get number of CPU cores
         uses: SimenB/github-actions-cpu-cores@v1
