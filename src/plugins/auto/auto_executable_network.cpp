@@ -86,8 +86,6 @@ IE::Parameter AutoExecutableNetwork::GetMetric(const std::string& name) const {
             all_devices[context.deviceInfo.deviceName] = device_properties;
         };
         if (_autoSchedule->_pCTPUTLoadContext) {
-            // need lock for inference failure
-            std::lock_guard<std::mutex> lock(_autoSContext->_fallbackMutex);
             for (size_t i = 0; i < _autoSchedule->_nCTputDeviceNums; i++) {
                 if (_autoSchedule->_pCTPUTLoadContext[i].isAlready) {
                     get_device_supported_metrics(_autoSchedule->_pCTPUTLoadContext[i]);
