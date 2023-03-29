@@ -316,7 +316,7 @@ public:
 
 protected:
     IInferencePlugin();
-    ~IInferencePlugin() = default;
+    virtual ~IInferencePlugin() = default;
 
     /**
      * @brief Creates an executable network from a parsed network object, users can create as many networks as they need
