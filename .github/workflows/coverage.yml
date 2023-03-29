@@ -93,8 +93,8 @@ jobs:
           ctest-options: -V
           parallel: ${{ steps.cpu-cores.outputs.count }}
       
-      - name: Run tests
-        run: ctest -V
+     # - name: Run tests
+     #   run: ctest -V
       
 #      - name: Run OV core unit tests
 #        run: ${{ github.workspace }}/bin/intel64/Release/ov_core_unit_tests
