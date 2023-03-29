@@ -15,10 +15,39 @@ a general changelog and the schedule for all versions for the current year.
    * Introduced to allow early testing and get early feedback from the community.
  
 
-.. dropdown:: OpenVINO Toolkit 2023.0.0.dev20230217
+
+.. dropdown:: OpenVINO Toolkit 2023.0.0.dev20230229
    :open:
    :animate: fade-in-slide-down
    :color: primary
+
+   * Added remote tensor support (accepting tensor located in graph memory) in C API 2.0
+   * Introduced model caching on GPU. Model Caching which reduces First Inference Latency (FIL) is 
+     extended to work as a single method on both CPU and GPU plug-ins.
+   * Added the post-training Accuracy-Aware Quantization mechanism for OpenVINO IR. By using this mechanism 
+     the user can define the accuracy drop criteria and NNCF will consider it during the quantization.
+   * CPU plugin migrated to OneDNN 3.1.
+   * AUTO supports fall-back to CPU device in case of run-time failure of networks on accelerator devices. 
+   * AUTO supports the option to disable CPU as the initial acceleration device to speed up first-inference latency.
+   * Implementing a parameter enabling network inference independently of IR precision. The default mode will be FP16 
+     with FP32 as an option to increase accuracy. General hints (performance vs accuracy) to be provided.
+   * Adding support for new model use cases or optimizing the existing support (better accuracy or performance).
+   * Performance on dGPU optimized with Intel oneDNN v3.1, especially for transformer models. 
+   * Dynamic shapes supported on iGPU and dGPU for Transformer(NLP) models. Not all dynamic models are supported but model coverage will be expanded in future releases.
+   * Performance improvement for Transformer models for NLP pipelines on CPU. 
+   * Models:
+
+     * Enabled MLPerf RNN-T model.
+     * Enabled Detectron2 MaskRCNN.
+     * Enabled OpenSeeFace models.
+     * Enabled Clip model.
+     * Optimized WeNet model.
+
+
+
+.. dropdown:: OpenVINO Toolkit 2023.0.0.dev20230217
+   :animate: fade-in-slide-down
+   :color: secondary
 
    OpenVINO™ repository tag: `2023.0.0.dev20230217 <https://github.com/openvinotoolkit/openvino/releases/tag/2023.0.0.dev20230217>`__
 
