@@ -924,22 +924,31 @@ TEST(pre_post_process, resize_no_model_layout) {
 }
 
 TEST(pre_post_process, resize_with_bilinear_pillow) {
-    const auto f = create_simple_function(element::f32, Shape{1, 3, 100, 100});
+    const auto f = create_simple_function(element::f32, PartialShape{1, 3, 224, 224});
+
     auto p = PrePostProcessor(f);
-    p.input().tensor().set_layout("NCHW");
+    // make the model accept images with spatial dimensions different than the original model's dims
+    p.input().tensor().set_shape({1, 3, 100, 150}).set_layout("NCHW");
+    // resize the incoming images to the original model's dims (deduced by PPP)
     p.input().preprocess().resize(ResizeAlgorithm::RESIZE_BILINEAR_PILLOW);
-    EXPECT_NO_THROW(p.build());
-    EXPECT_EQ(f->output().get_partial_shape(), (Shape{1, 3, 100, 100}));
+    p.build();
+
+    EXPECT_EQ(f->input().get_partial_shape(), (PartialShape{1, 3, 100, 150}));
+    EXPECT_EQ(f->output().get_partial_shape(), (PartialShape{1, 3, 224, 224}));
 }
 
 TEST(pre_post_process, resize_with_bicubic_pillow) {
-    const auto f = create_simple_function(element::f32, Shape{1, 3, 100, 100});
+    const auto f = create_simple_function(element::f32, PartialShape{1, 3, 100, 100});
+
     auto p = PrePostProcessor(f);
-    p.input().tensor().set_layout("NCHW");
-    p.input().preprocess().resize(ResizeAlgorithm::RESIZE_BICUBIC_PILLOW, 200, 200);
-    p.input().preprocess().resize(ResizeAlgorithm::RESIZE_BICUBIC_PILLOW);
-    EXPECT_NO_THROW(p.build());
-    EXPECT_EQ(f->output().get_partial_shape(), (Shape{1, 3, 100, 100}));
+    // make the model accept images with any spatial dimensions
+    p.input().tensor().set_shape({1, 3, -1, -1}).set_layout("NCHW");
+    // resize the incoming images to the original model's dims (specified manually)
+    p.input().preprocess().resize(ResizeAlgorithm::RESIZE_BICUBIC_PILLOW, 100, 100);
+    p.build();
+
+    EXPECT_EQ(f->input().get_partial_shape(), (PartialShape{1, 3, -1, -1}));
+    EXPECT_EQ(f->output().get_partial_shape(), (PartialShape{1, 3, 100, 100}));
 }
 
 // Error cases for 'resize'
@@ -2070,7 +2079,7 @@ TEST(pre_post_process, dump_preprocess) {
     EXPECT_TRUE(dump.find("convert type") != std::string::npos) << dump;
     EXPECT_TRUE(dump.find("convert layout (3,2,1,0):") != std::string::npos) << dump;
     EXPECT_TRUE(dump.find("resize to (480, 640):") != std::string::npos) << dump;
-    EXPECT_TRUE(dump.find("resize to model's width/height:") != std::string::npos) << dump;
+    EXPECT_TRUE(dump.find("resize to model width/height:") != std::string::npos) << dump;
     EXPECT_TRUE(dump.find("custom:") != std::string::npos) << dump;
     EXPECT_TRUE(dump.find("Implicit pre-processing steps (1):") != std::string::npos) << dump;
     EXPECT_TRUE(dump.find("convert layout") != std::string::npos) << dump;

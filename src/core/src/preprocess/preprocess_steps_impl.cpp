@@ -147,7 +147,7 @@ void PreStepsList::add_resize_impl(ResizeAlgorithm alg, int dst_height, int dst_
     if (dst_width > 0 && dst_height > 0) {
         name = "resize to (" + std::to_string(dst_height) + ", " + std::to_string(dst_width) + ")";
     } else {
-        name = "resize to model's width/height";
+        name = "resize to model width/height";
     }
     m_actions.emplace_back(
         [alg, dst_width, dst_height](const std::vector<Output<Node>>& nodes,
