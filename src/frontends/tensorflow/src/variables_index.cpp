@@ -405,32 +405,49 @@ void VariablesIndex::map_assignvariable(const std::shared_ptr<::tensorflow::Grap
     }
 
     for (const auto& node : nodes) {
-        if (node.second->op() != "AssignVariableOp") {
-            continue;
+        if (node.second->op() == "AssignVariableOp") {
+            // TODO: assets reading
+
+            std::vector<PtrNode*> restorev2_nodes;
+            std::vector<PtrNode*> varhandle_nodes;
+
+            node.second->find_parent_by_op("RestoreV2", restorev2_nodes);
+            node.second->find_parent_by_op("VarHandleOp", varhandle_nodes);
+
+            if (restorev2_nodes.size() == 1 && varhandle_nodes.size() == 1) {
+                std::vector<std::string> restore_output;
+                // Expected path is: RestoreV2 -(output_index)-(0)-> Identity -(0)-(1)-> AssignVariableOp
+                PtrNode::parse_node_name(node.second->inputs[1]->node->input(0), restore_output);
+
+                int output_index = std::atoi(restore_output[restore_output.size() - 1].c_str());
+
+                // Expected path is: Const(tensor_names) -(0)-(1)-> RestoreV2
+                const auto& variable_name =
+                    restorev2_nodes[0]->inputs[1]->node->attr().at("value").tensor().string_val(output_index);
+
+                variables_map[varhandle_nodes[0]->node->name()] = variable_name;
+            }
+        } else if (node.second->op() == "Assign") {
+            std::vector<PtrNode*> restorev2_nodes;
+            std::vector<PtrNode*> variablev2_nodes;
+
+            node.second->find_parent_by_op("RestoreV2", restorev2_nodes);
+            node.second->find_parent_by_op("VariableV2", variablev2_nodes);
+
+            if (restorev2_nodes.size() == 1 && variablev2_nodes.size() == 1) {
+                std::vector<std::string> restore_output;
+                // Expected path is: RestoreV2 -(output_index)-(0)-> Assign
+                PtrNode::parse_node_name(node.second->node->input(1), restore_output);
+
+                int output_index = std::atoi(restore_output[restore_output.size() - 1].c_str());
+
+                // Expected path is: Const(tensor_names) -(0)-(1)-> RestoreV2
+                const auto& variable_name =
+                    restorev2_nodes[0]->inputs[1]->node->attr().at("value").tensor().string_val(output_index);
+
+                variables_map[variablev2_nodes[0]->node->name()] = variable_name;
+            }
         }
-
-        // TODO: assets reading
-
-        std::vector<PtrNode*> restorev2_nodes;
-        std::vector<PtrNode*> varhandle_nodes;
-
-        node.second->find_parent_by_op("RestoreV2", restorev2_nodes);
-        node.second->find_parent_by_op("VarHandleOp", varhandle_nodes);
-
-        FRONT_END_GENERAL_CHECK(restorev2_nodes.size() == 1, "Found unexpected amount of RestoreV2 nodes");
-        FRONT_END_GENERAL_CHECK(varhandle_nodes.size() == 1, "Found unexpected amount of VarHandleOp nodes");
-
-        std::vector<std::string> restore_output;
-        // Expected path is: RestoreV2 -(output_index)-(0)-> Identity -(0)-(1)-> AssignVariableOp
-        PtrNode::parse_node_name(node.second->inputs[1]->node->input(0), restore_output);
-
-        int output_index = std::atoi(restore_output[restore_output.size() - 1].c_str());
-
-        // Expected path is: Const(tensor_names) -(0)-(1)-> RestoreV2
-        const auto& variable_name =
-            restorev2_nodes[0]->inputs[1]->node->attr().at("value").tensor().string_val(output_index);
-
-        variables_map[varhandle_nodes[0]->node->name()] = variable_name;
     }
 
     nodes.clear();
