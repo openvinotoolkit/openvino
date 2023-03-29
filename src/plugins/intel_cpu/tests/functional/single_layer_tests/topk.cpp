@@ -142,22 +142,11 @@ protected:
     }
 
     void generate_inputs(const std::vector<ngraph::Shape>& targetInputStaticShapes) override {
-        if (sort == SortType::SORT_VALUES && stable) {
-            SubgraphBaseTest::generate_inputs(targetInputStaticShapes);
-
-            if (!staticShape) {
-                const auto& funcInputs = function->inputs();
-                inputs.erase(funcInputs[1].get_node_shared_ptr());
-                generate_dynamic_k(funcInputs, targetInputStaticShapes);
-            }
-            return;
-        }
-
         inputs.clear();
         const auto& funcInputs = function->inputs();
 
-        // For unstable sorting, generate unreapeated input data to avoid a. and b. While for stable sorting,
-        // no such constraints will be imposed on input data.
+        // For unstable sorting, generate unrepeated input data to avoid a. and b. While for stable sorting,
+        // repeating values are explicitly set.
         // a. Skip comparing of index results, because an element in actual index tensor can be different with
         //    its counterpart in expected index tensor
         // b. If SortType is SORT_INDICES or NONE, the test program still needs to apply std::sort for all pairs
@@ -172,7 +161,11 @@ protected:
 
             // For int32, deliberately set big numbers which are not accurately representable in fp32
             int start = netPrecision == ElementType::i32 ? pow(2, 30) + 1 : - static_cast<int>(size / 2);
-            std::iota(data.begin(), data.end(), start);
+            size_t set_size = sort == SortType::SORT_VALUES && stable ? size / 2 : size;
+            std::iota(data.begin(), data.begin() + set_size, start);
+            if (sort == SortType::SORT_VALUES && stable) {
+                std::copy(data.begin(), data.begin() + set_size, data.begin() + set_size);
+            }
             std::mt19937 gen(0);
             std::shuffle(data.begin(), data.end(), gen);
 
