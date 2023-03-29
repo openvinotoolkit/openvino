@@ -681,7 +681,7 @@ bool AutoSchedule::ScheduleToWorkerInferRequest(IE::Task inferPipelineTask, Devi
     // Devices that fail infer will be removed from the priority list in the callback, need lock here
     std::unique_lock<std::mutex> lock(_autoSContext->_fallbackMutex);
     if (!preferred_device.empty()) {
-        if (_pCTPUTLoadContext) {    
+        if (_pCTPUTLoadContext) {
             devices = _autoSContext->_devicePriorities;
         } else {
             // if the device needed by customer is not ready, need to wait for it
@@ -694,7 +694,7 @@ bool AutoSchedule::ScheduleToWorkerInferRequest(IE::Task inferPipelineTask, Devi
             devices.push_back(_loadContext[ACTUALDEVICE].deviceInfo);
         }
     } else {
-        if (_pCTPUTLoadContext) {    
+        if (_pCTPUTLoadContext) {
             for (size_t i = 0; i < _autoSContext->_devicePriorities.size(); i++) {
                 devices.push_back(_autoSContext->_devicePriorities[i]);
             }
