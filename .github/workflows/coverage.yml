@@ -1,5 +1,25 @@
 name: Code coverage
-on: workflow_dispatch
+on:
+  push:
+    branches:
+      - master
+      - releases/*
+    paths-ignore:
+      - docs/
+      - /**/docs/*
+      - /**/*.md
+      - README.md
+      - /**/layer_tests_summary/**
+  pull_request:
+    branches:
+      - master
+      - releases/*
+    paths-ignore:
+      - docs/
+      - /**/docs/*
+      - /**/*.md
+      - README.md
+      - /**/layer_tests_summary/**
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -55,7 +75,6 @@ jobs:
           cc: ${{ matrix.config.cc }}
           cxx: ${{ matrix.config.cxx }}
           configure-options: >
-            -GNinja
             -DENABLE_PYTHON=ON
             -DCMAKE_VERBOSE_MAKEFILE=ON
             -DENABLE_STRICT_DEPENDENCIES=OFF
@@ -71,32 +90,35 @@ jobs:
           build-type: Release
           parallel: ${{ steps.cpu-cores.outputs.count }}
       
-      - name: Run OV core unit tests
-        run: ${{ github.workspace }}/bin/intel64/Release/ov_core_unit_tests
+      - name: Run tests
+        run: ctest -V
       
-      - name: Run IR frontend tests
-        run: ${{ github.workspace }}/bin/intel64/Release/ov_ir_frontend_tests
+#      - name: Run OV core unit tests
+#        run: ${{ github.workspace }}/bin/intel64/Release/ov_core_unit_tests
+      
+#      - name: Run IR frontend tests
+#        run: ${{ github.workspace }}/bin/intel64/Release/ov_ir_frontend_tests
       
       #- name: Run ONNX frontend tests
       #  run: ${{ github.workspace }}/bin/intel64/Release/ov_onnx_frontend_tests
       
-      - name: Run Paddle frontend unit tests
-        run: ${{ github.workspace }}/bin/intel64/Release/paddle_tests
+#      - name: Run Paddle frontend unit tests
+#        run: ${{ github.workspace }}/bin/intel64/Release/paddle_tests
       
       #- name: Run TensorFlow frontend unit tests
       #  run: ${{ github.workspace }}/bin/intel64/Release/ov_tensorflow_frontend_tests
       
-      - name: Run IR frontend tests
-        run: ${{ github.workspace }}/bin/intel64/Release/ov_ir_frontend_tests
+#      - name: Run IR frontend tests
+#        run: ${{ github.workspace }}/bin/intel64/Release/ov_ir_frontend_tests
       
       #- name: Run IE unit tests
       #  run: ${{ github.workspace }}/bin/intel64/Release/ieUnitTests
       
-      - name: Run Intel CPU unit tests
-        run: ${{ github.workspace }}/bin/intel64/Release/ov_cpu_unit_tests
+#      - name: Run Intel CPU unit tests
+#        run: ${{ github.workspace }}/bin/intel64/Release/ov_cpu_unit_tests
       
-      - name: Run GNA unit tests
-        run: ${{ github.workspace }}/bin/intel64/Release/ov_gna_unit_tests
+#      - name: Run GNA unit tests
+#        run: ${{ github.workspace }}/bin/intel64/Release/ov_gna_unit_tests
       
       #- name: Run VPU unit tests
       #  run: ${{ github.workspace }}/bin/intel64/Release/vpuUnitTests
@@ -104,20 +126,20 @@ jobs:
       #- name: XLink tests
       #  run: ${{ github.workspace }}/bin/intel64/Release/XLinkTests
       
-      - name: Multi unit tests
-        run: ${{ github.workspace }}/bin/intel64/Release/ieMultiPluginUnitTests
+#      - name: Multi unit tests
+#        run: ${{ github.workspace }}/bin/intel64/Release/ieMultiPluginUnitTests
       
-      - name: TEMPLATE FuncTests
-        run: ${{ github.workspace }}/bin/intel64/Release/ov_template_func_tests
+#      - name: TEMPLATE FuncTests
+#        run: ${{ github.workspace }}/bin/intel64/Release/ov_template_func_tests
       
       #- name: CPU FuncTests
       #  run: ${{ github.workspace }}/bin/intel64/Release/ov_cpu_func_tests
       
-      - name: IE CAPITests
-        run: ${{ github.workspace }}/bin/intel64/Release/InferenceEngineCAPITests
+#      - name: IE CAPITests
+#        run: ${{ github.workspace }}/bin/intel64/Release/InferenceEngineCAPITests
       
-      - name: OV CAPITests
-        run: ${{ github.workspace }}/bin/intel64/Release/ov_capi_test
+#      - name: OV CAPITests
+#        run: ${{ github.workspace }}/bin/intel64/Release/ov_capi_test
 
       - name: Build coverage with CMake
         uses: ashutoshvarma/action-cmake-build@master
