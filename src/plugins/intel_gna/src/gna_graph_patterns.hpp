@@ -12,9 +12,12 @@
 #include "layers/gna_layer_info.hpp"
 #include "log/debug.hpp"
 #include "ops/util/util.hpp"
+#include "pre_post_process/transposition_info.hpp"
 
 namespace ov {
 namespace intel_gna {
+
+using TranspositionInfo = pre_post_processing::TranspositionInfo;
 
 /**
  * @brief checks if it's a reshape from 4d to 3d tensor

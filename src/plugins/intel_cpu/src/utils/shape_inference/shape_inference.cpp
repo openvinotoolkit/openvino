@@ -58,6 +58,7 @@
 #include "one_hot_shape_inference.hpp"
 #include "pad_shape_inference.hpp"
 #include "proposal_shape_inference.hpp"
+#include "psroi_pooling_shape_inference.hpp"
 #include "range_shape_inference.hpp"
 #include "rdft_shape_inference.hpp"
 #include "read_value_shape_inference.hpp"
@@ -528,6 +529,7 @@ const IShapeInferCommonFactory::TRegistry IShapeInferCommonFactory::registry{
     _OV_OP_SHAPE_INFER_REG(ov::op::internal::AUGRUSequence, entryIO),
     _OV_OP_SHAPE_INFER_REG(Pad, entryIOC),
     _OV_OP_SHAPE_INFER_REG(Proposal, entryIO),
+    _OV_OP_SHAPE_INFER_REG(PSROIPooling, entryIO),
     _OV_OP_SHAPE_INFER_REG(Range, entryIOC),
     _OV_OP_SHAPE_INFER_REG(RDFT, entryIOC),
     _OV_OP_SHAPE_INFER_REG(ReadValue, entryIO),
@@ -577,7 +579,7 @@ const IShapeInferCommonFactory::TRegistry IShapeInferCommonFactory::registry{
     _OV_OP_NON_TEMPLATE_SHAPE_INFER_REG(opset1::BatchNormInference, entryFirstPassthrough),
     _OV_OP_NON_TEMPLATE_SHAPE_INFER_REG(opset1::Softmax, entryCopy),
     _OV_OP_SHAPE_INFER_REG(opset1::Broadcast, entryIOC),
-    _OV_OP_SHAPE_INFER_REG(opset1::DeformableConvolution, entryFallbackWithPadding),
+    _OV_OP_SHAPE_INFER_REG(opset1::DeformableConvolution, ShapeInferWithPadding),
     _OV_OP_SHAPE_INFER_REG(opset1::DetectionOutput, entryIO),
     _OV_OP_SHAPE_INFER_REG(opset1::Interpolate, entryIOC),
     _OV_OP_SHAPE_INFER_REG(opset1::LSTMCell, entryIO),
