@@ -1291,22 +1291,35 @@ TEST(crop_gpu, dynamic_i32_in2x3x2x2_crop_offsets) {
     set_values(input, input_vec);
     ExecutionConfig config = get_test_default_config(engine);
     config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
-    network network(engine, topology, config);
-
-    network.set_input_data("input", input);
-
-    auto outputs = network.execute();
-
-    auto output = outputs.at("crop").get_memory();
-    cldnn::mem_lock<int32_t> output_ptr(output, get_test_stream());
-
+    network network1(engine, topology, config); // run with shape agnostic kernel
+    network1.set_input_data("input", input);
+    auto outputs1 = network1.execute();
+    auto output1 = outputs1.at("crop").get_memory();
+    cldnn::mem_lock<int32_t> output1_ptr(output1, get_test_stream());
     for (int b = 0; b < crop_batch_num; ++b) { //B
         for (int f = 0; f < crop_feature_num; ++f) { //F
             for (int y = 0; y < crop_y_size; ++y) { //Y
                 for (int x = 0; x < crop_x_size; ++x) { //X
                     int linear_id = (b + batch_offset) * (feature_num * y_size * x_size) + (f + feature_offset) * (y_size * x_size) + (y + y_offset) * x_size + (x + x_offset);
                     int output_linear_id = b * (crop_feature_num * crop_y_size * crop_x_size) + f * (crop_y_size * crop_x_size) + y * crop_x_size + x;
-                    ASSERT_EQ(output_ptr[output_linear_id], input_vec[linear_id]);
+                    ASSERT_EQ(output1_ptr[output_linear_id], input_vec[linear_id]);
+                }
+            }
+        }
+    }
+    config.set_property(ov::intel_gpu::use_only_static_kernels_for_dynamic_shape(true));
+    network network2(engine, topology, config); // run with static kernel
+    network2.set_input_data("input", input);
+    auto outputs2 = network2.execute();
+    auto output2 = outputs2.at("crop").get_memory();
+    cldnn::mem_lock<int32_t> output2_ptr(output2, get_test_stream());
+    for (int b = 0; b < crop_batch_num; ++b) { //B
+        for (int f = 0; f < crop_feature_num; ++f) { //F
+            for (int y = 0; y < crop_y_size; ++y) { //Y
+                for (int x = 0; x < crop_x_size; ++x) { //X
+                    int linear_id = (b + batch_offset) * (feature_num * y_size * x_size) + (f + feature_offset) * (y_size * x_size) + (y + y_offset) * x_size + (x + x_offset);
+                    int output_linear_id = b * (crop_feature_num * crop_y_size * crop_x_size) + f * (crop_y_size * crop_x_size) + y * crop_x_size + x;
+                    ASSERT_EQ(output2_ptr[output_linear_id], input_vec[linear_id]);
                 }
             }
         }
