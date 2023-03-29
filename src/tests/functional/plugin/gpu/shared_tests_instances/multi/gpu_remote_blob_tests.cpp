@@ -106,8 +106,17 @@ TEST_P(MultiDevice_Bind_oversubsciption_test, oversubsciptionOfInferRequest) {
 
 auto device_names_and_support_for_remote_blobs2 = []() {
     return std::vector<DevicesNamseAndProperties>{
+#ifdef ENABLE_INTEL_CPU
+        //{{CPU}, {}},  // stand-alone CPU via MULTI (no GPU), no OCL context
+        {{CPU, "GPU.1"},
+         {ov::intel_auto::device_bind_buffer(true)}},  // stand-alone CPU via MULTI (no GPU), no OCL context
+        {{CPU, "GPU.1"},
+         {ov::intel_auto::device_bind_buffer(false)}},  // stand-alone CPU via MULTI (no GPU), no OCL conte
+#endif
         {{"GPU.1"}, {}},  // another GPU (the test will test its presence), different OCL contexts
-        {{"GPU.1"}, {ov::intel_auto::device_bind_buffer(true)}},  // another GPU (the test will test its presence), different OCL contexts
+        {{"GPU.1"},
+         {ov::intel_auto::device_bind_buffer(
+             true)}},  // another GPU (the test will test its presence), different OCL contexts
     };
 };
 
