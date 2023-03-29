@@ -88,7 +88,7 @@ DEFINE_string(s, "", statistics_path_message);
 /// It is a non-required parameter
 DEFINE_string(ip, "", input_precision);
 
-/// @brief Define parameter for changing input precision <br>
+/// @brief Define parameter for changing output precision <br>
 /// It is a non-required parameter
 DEFINE_string(op, "", output_precision);
 
