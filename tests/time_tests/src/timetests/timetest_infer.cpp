@@ -15,11 +15,10 @@
  * handling it by itself.
  */
 int runPipeline(const std::string &model, const std::string &device, const bool isCacheEnabled,
-                const std::string &inputPrecision, const std::string &outputPrecision,
+                const std::string &, const std::string &,
                 std::map<std::string, ov::PartialShape> reshapeShapes,
                 std::map<std::string, std::vector<size_t>> dataShapes) {
     auto pipeline = [](const std::string &model, const std::string &device, const bool isCacheEnabled,
-                       const std::string &inputPrecision, const std::string &outputPrecision,
                        std::map<std::string, ov::PartialShape> reshapeShapes,
                        std::map<std::string, std::vector<size_t>> dataShapes) {
         InferenceEngine::Core ie;
@@ -81,7 +80,7 @@ int runPipeline(const std::string &model, const std::string &device, const bool 
     };
 
     try {
-        pipeline(model, device, isCacheEnabled, inputPrecision, outputPrecision, reshapeShapes, dataShapes);
+        pipeline(model, device, isCacheEnabled, reshapeShapes, dataShapes);
     } catch (const InferenceEngine::Exception &iex) {
         std::cerr
                 << "Inference Engine pipeline failed with Inference Engine exception:\n"
