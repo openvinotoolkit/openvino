@@ -161,6 +161,7 @@
 #include "op/split.hpp"
 #include "op/sqrt.hpp"
 #include "op/squeeze.hpp"
+#include "op/stft.hpp"
 #include "op/sub.hpp"
 #include "op/sum.hpp"
 #include "op/tan.hpp"
@@ -479,6 +480,10 @@ OperatorsBridge::OperatorsBridge() {
     REGISTER_OPERATOR("SpaceToDepth", 1, space_to_depth);
     REGISTER_OPERATOR("Split", 1, split);
     REGISTER_OPERATOR("Split", 13, split);
+    register_operator("STFT",
+                      VersionRange::single_version_for_all_opsets(),
+                      op::set_17::stft,
+                      "frame_step and frame_length inputs must be constants; signal shape must be static;");
     REGISTER_OPERATOR("Sqrt", 1, sqrt);
     REGISTER_OPERATOR("Squeeze", 1, squeeze);
     REGISTER_OPERATOR("Squeeze", 13, squeeze);
