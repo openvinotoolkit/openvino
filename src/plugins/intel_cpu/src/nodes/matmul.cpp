@@ -593,7 +593,7 @@ void MatMul::prepareParams() {
 
     auto engine = getEngine();
 
-    auto builder = [&engine](const MatMulKey& key) -> dnnl::primitive {
+    auto builder = [&engine](const MatMulKey& key) -> executorPtr {
         dnnl::matmul::primitive_desc matmul_desc;
 
         if (key.bias) {
@@ -633,22 +633,20 @@ void MatMul::prepareParams() {
                 break;
             }
         }
-        return matmul(prim_desc);
+        return std::make_shared<DnnlExecutor>(prim_desc);
     };
 
     auto cache = context->getParamsCache();
     auto result = cache->getOrCreate(key, builder);
 
-    if (!result.first) {
+    execPtr = result.first;
+    if (!execPtr) {
         IE_THROW() << "Primitive descriptor was not found for node " << getName() << ".";
     }
 
-    prim = result.first;
+    auto schratchpadMem = getScratchPadMem(execPtr->getScratchPadDesc());
 
-    auto pd = prim.get_primitive_desc();
-    auto scratchpadMem = getScratchPadMem(pd);
-
-    primArgs[DNNL_ARG_SCRATCHPAD] = scratchpadMem->GetPrimitive();
+    primArgs[DNNL_ARG_SCRATCHPAD] = schratchpadMem->GetPrimitive();
     primArgs[DNNL_ARG_SRC_0] = src0MemPtr->GetPrimitive();
     primArgs[DNNL_ARG_WEIGHTS_0] = src1MemPtr->GetPrimitive();
     primArgs[DNNL_ARG_DST] = dstMemPtr->GetPrimitive();
@@ -656,6 +654,20 @@ void MatMul::prepareParams() {
         primArgs[DNNL_ARG_BIAS] = getParentEdgeAt(2)->getMemoryPtr()->GetPrimitive();
 
     appendPostOpArgs(*attr, primArgs, postOpsArgs);
+#ifdef CPU_DEBUG_CAPS
+    if (result.second == CacheEntryBase::LookUpStatus::Miss) {
+        auto pd = execPtr->getPrimitiveDesc();
+        DEBUG_LOG("verbose##", getName(), "##", DnnlExtensionUtils::query_pd_info(pd), "\n");
+    }
+#endif
+}
+
+void MatMul::execute(dnnl::stream strm) {
+    if (execPtr) {
+        execPtr->exec(primArgs, strm);
+    } else {
+        IE_THROW() << errorPrefix << " doesn't have an initialized executor";
+    }
 }
 
 void MatMul::executeDynamicImpl(dnnl::stream strm) {

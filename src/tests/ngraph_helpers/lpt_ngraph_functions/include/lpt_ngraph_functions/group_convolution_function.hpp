@@ -49,7 +49,8 @@ public:
         const ngraph::builder::subgraph::DequantizationOperations& dequantizationOnWeights,
         const ngraph::element::Type precisionAfterOperation,
         const ngraph::builder::subgraph::DequantizationOperations& dequantizationAfter,
-        const ngraph::element::Type precisionAfterDequantization);
+        const ngraph::element::Type precisionAfterDequantization,
+        const bool addReshape);
 };
 
 }  // namespace subgraph
