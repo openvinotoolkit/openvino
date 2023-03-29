@@ -201,3 +201,38 @@ ov::pass::PReluFusionAbsSubMulMulAdd::PReluFusionAbsSubMulMulAdd() {
     auto m = make_shared<pattern::Matcher>(add, matcher_name);
     register_matcher(m, callback);
 }
+
+ov::pass::PReluFusionNegReluMulAdd::PReluFusionNegReluMulAdd() {
+    MATCHER_SCOPE(PReluFusionNegReluMulAdd);
+
+    using namespace std;
+    using namespace ov;
+    using namespace ov::opset10;
+
+    const auto input = pass::pattern::any_input();
+    const auto relu_pos = pattern::wrap_type<Relu>({input});
+    const auto neg1 = pattern::wrap_type<Negative>({input});
+    const auto relu_neg = pattern::wrap_type<Relu>({neg1});
+    const auto mul_constant = pattern::wrap_type<Constant>();
+    const auto mul = pattern::wrap_type<Multiply>({relu_neg, mul_constant});
+    const auto add = pattern::wrap_type<Add>({relu_pos, mul});
+
+    matcher_pass_callback callback = [=](pattern::Matcher& m) {
+        const auto& pattern_to_output = m.get_pattern_value_map();
+        const auto input_output = pattern_to_output.at(input);
+        const auto add_node = pattern_to_output.at(add).get_node_shared_ptr();
+        const auto slope = op::util::make_try_fold<Negative>(pattern_to_output.at(mul_constant));
+        const auto prelu = make_shared<PRelu>(input_output, slope);
+        prelu->set_friendly_name(m.get_match_root()->get_friendly_name());
+        NodeVector copy_from = {pattern_to_output.at(relu_pos).get_node_shared_ptr(),
+                                pattern_to_output.at(neg1).get_node_shared_ptr(),
+                                pattern_to_output.at(relu_neg).get_node_shared_ptr(),
+                                pattern_to_output.at(mul).get_node_shared_ptr(),
+                                pattern_to_output.at(add).get_node_shared_ptr()};
+        copy_runtime_info(copy_from, prelu);
+        replace_node(add_node, prelu);
+        return true;
+    };
+    auto matcher = make_shared<pattern::Matcher>(add, matcher_name);
+    register_matcher(matcher, callback);
+}
