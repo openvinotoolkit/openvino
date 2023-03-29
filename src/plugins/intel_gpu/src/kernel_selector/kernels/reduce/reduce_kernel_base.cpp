@@ -52,7 +52,7 @@ JitConstants ReduceKernelBase::GetJitConstants(const reduce_params& params) cons
             if (axis < 2) {
                 res.push_back(axis);
             } else {
-                res.push_back(sz + 1 - axis);
+                res.push_back(static_cast<int32_t>(sz + 1 - axis));
             }
         }
         return res;

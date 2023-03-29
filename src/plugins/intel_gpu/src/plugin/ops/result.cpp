@@ -63,7 +63,7 @@ static void CreateResultOp(Program& p, const std::shared_ptr<ngraph::op::v0::Res
     std::vector<size_t> default_order(out_rank);
     std::iota(default_order.begin(), default_order.end(), 0);
     // For legacy API we need to handle NHWC as well, so check non default order
-    if (outputDesc.getBlockingDesc().getOrder() != default_order) {
+    if (outputlayout == NHWC) {
         out_format = FormatFromLayout(outputlayout);
     }
 
