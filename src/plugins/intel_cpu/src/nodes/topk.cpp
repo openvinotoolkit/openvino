@@ -2019,8 +2019,9 @@ void TopK::prepareParams() {
         // [case 1]: if 2 * (top_k + 1) + 2 <= count_xmm, thus top_k is small enough that the vector registers are sufficient
         //           to keep all necessary data for sorting, no need to load and store frequently, use inplace bubble sort;
         //           (horizotal sorting cases not included)
-        // [case 2]: if stable sorting is required, bubble sort will be applied currently, because among the implemented sorting
-        //           algorithms, bubbel sort is the only stable one;
+        // [case 2]: if stable sorting is required, bubble sort(topk_bubble_vector/topk_bubble_BLK_on_channel_verti) will be
+        //           applied currently, because among the implemented sorting algorithms, these bubble sort implementations
+        //           are the only stable ones;
         // [case 3]: only when topk is imposed on innermost dimsension of planar(ncsp/nspc) layout, should heap sort be used;
         // [case 4]: by default, use bitonic sort when alg_cost_bitonic < alg_cost_bubble, otherwise use bubble sort.
         //           alg_cost_bitonic = (N / 4) * logN * (logN + 1)
