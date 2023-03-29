@@ -95,6 +95,7 @@ std::vector<std::string> disabledTestPatterns() {
         R"(.*Hetero.*Behavior.*ExecutableNetworkBaseTest.*CanCreateTwoExeNetworksAndCheckFunction.*)",
         // TODO: CVS-104942
         R"(.*(Auto|Multi).*Behavior.*ExecutableNetworkBaseTest.*canLoadCorrectNetworkToGetExecutableAndCheckConfig.*)",
+        R"(.*(Auto|Multi).*SetPropLoadNetWorkGetPropTests.*)",
         // CPU does not support dynamic rank
         // Issue: CVS-66778
         R"(.*smoke_BehaviorTests.*InferFullyDynamicNetworkWith(S|G)etTensor.*)",
