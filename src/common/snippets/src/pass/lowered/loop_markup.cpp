@@ -63,9 +63,7 @@ bool LoopMarkup::run(LoweredExprIR& linear_ir) {
             const auto& ins = loop_end_pos->get()->get_inputs();
             auto connected = [&](const TensorDescriptorPtr& td) {return linear_ir.get_expr_by_output(td).expr == prev_expr;};
             auto compatible = [&](const TensorDescriptorPtr& td) {return  td->get_layout() == loop_inner_layout &&
-                                                                        td->get_layout() == loop_inner_subtensor;};
-            if (std::none_of(ins.begin(), ins.end(), connected))
-                break;
+                                                                        td->get_subtensor() == loop_inner_subtensor;};
 
             is_inside &= std::any_of(ins.begin(), ins.end(), connected) &&
                          std::all_of(ins.begin(), ins.end(), compatible);
