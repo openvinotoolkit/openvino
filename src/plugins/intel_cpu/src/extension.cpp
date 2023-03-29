@@ -11,6 +11,8 @@
 #include "ngraph_transformations/op/mha.hpp"
 #include "snippets_transformations/op/load_convert.hpp"
 #include "snippets_transformations/op/store_convert.hpp"
+#include "snippets_transformations/op/brgemm_cpu.hpp"
+#include "snippets_transformations/op/brgemm_copy_b.hpp"
 
 #include <ngraph/ngraph.hpp>
 #include <ov_ops/augru_cell.hpp>
@@ -54,6 +56,8 @@ std::map<std::string, ngraph::OpSet> Extension::getOpSets() {
         NGRAPH_OP(LoadConvertTruncation, ov::intel_cpu)
         NGRAPH_OP(StoreConvertSaturation, ov::intel_cpu)
         NGRAPH_OP(StoreConvertTruncation, ov::intel_cpu)
+        NGRAPH_OP(BrgemmCPU, ov::intel_cpu)
+        NGRAPH_OP(BrgemmCopyB, ov::intel_cpu)
 #undef NGRAPH_OP
 
         return opset;
@@ -132,9 +136,9 @@ std::map<std::string, ngraph::OpSet> Extension::getOpSets() {
 
 #define NGRAPH_OP(NAME, NAMESPACE) opset.insert<NAMESPACE::NAME>();
         NGRAPH_OP(Brgemm, ngraph::snippets::op)
+        NGRAPH_OP(Buffer, ngraph::snippets::op)
         NGRAPH_OP(BroadcastLoad, ngraph::snippets::op)
         NGRAPH_OP(BroadcastMove, ngraph::snippets::op)
-        NGRAPH_OP(Buffer, ngraph::snippets::op)
         NGRAPH_OP(ConvertSaturation, ngraph::snippets::op)
         NGRAPH_OP(ConvertTruncation, ngraph::snippets::op)
         NGRAPH_OP(Fill, ngraph::snippets::op)
