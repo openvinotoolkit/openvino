@@ -48,14 +48,17 @@ void InsertTailLoop::tail_transformations(LoweredExprIR& linear_ir,
                 }
             }
         } else if (const auto memory_access = std::dynamic_pointer_cast<ngraph::snippets::op::MemoryAccess>(op)) {
-            for (size_t i = 0; i < memory_access->get_input_port_count(); ++i) {
-                if (memory_access->get_input_count(i) > 1) {
-                    memory_access->set_input_count(tail_size, i);
+            // FIXME: C++17 const auto& [port, desc] : memory_access->get_memory_access_input_ports()
+            for (const auto p : memory_access->get_memory_access_input_ports()) {
+                const auto port = p.first;
+                if (memory_access->is_memory_access_input_port(port) && memory_access->get_input_count(port) > 1) {
+                    memory_access->set_input_count(tail_size, port);
                 }
             }
-            for (size_t i = 0; i < memory_access->get_output_port_count(); ++i) {
-                if (memory_access->get_output_count(i) > 1) {
-                    memory_access->set_output_count(tail_size, i);
+            for (const auto p : memory_access->get_memory_access_output_ports()) {
+                const auto port = p.first;
+                if (memory_access->is_memory_access_output_port(port) && memory_access->get_output_count(port) > 1) {
+                    memory_access->set_output_count(tail_size, port);
                 }
             }
         }
@@ -95,8 +98,9 @@ bool InsertTailLoop::run(LoweredExprIR& linear_ir) {
             return ov::is_type<op::Buffer>(parent_expr->get_node());
         };
         auto is_buffer_output = [&linear_ir](const TensorDescriptorPtr& output) {
-            const auto child_exprs_inputs = linear_ir.get_exprs_by_input(output);
-            return ov::is_type<op::Buffer>((*child_exprs_inputs.begin()).expr->get_node());
+            const auto& child_exprs_inputs = linear_ir.get_exprs_by_input(output);
+            return std::any_of(child_exprs_inputs.begin(), child_exprs_inputs.end(),
+                               [](const LoweredExprPort& lp) {return ov::is_type<op::Buffer>(lp.expr->get_node());});
         };
 
         const auto loop_end_expr = linear_ir.get_expr_by_node(loop_end);

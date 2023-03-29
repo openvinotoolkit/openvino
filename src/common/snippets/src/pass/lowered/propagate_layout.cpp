@@ -33,7 +33,7 @@ bool PropagateLayout::run(LoweredExprIR& linear_ir) {
                 for (const auto& child_input : child_exprs_inputs) {
                     const auto child = child_input.expr;
                     const auto& n = child->get_node();
-                    if (is_type<op::MemoryAccess>(n) || is_type<op::BroadcastLoad>(n)) {
+                    if (is_type<op::Load>(n) || is_type<op::BroadcastLoad>(n)) {
                         // Note: this limitation could be relaxed to multiple ops,
                         // but all of them must have the same shape and layout
                         if (!child_layout.empty() && child->get_outputs().front()->get_layout() != child_layout)

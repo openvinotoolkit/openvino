@@ -1,12 +1,11 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "snippets/itt.hpp"
 #include "brgemm_cpu.hpp"
-#include "ngraph/runtime/host_tensor.hpp"
-#include "openvino/core/rt_info.hpp"
+#include "snippets/itt.hpp"
 #include "snippets/utils.hpp"
+#include "snippets/tensor_descriptor.hpp"
 #include "utils/general_utils.h"
 
 
@@ -19,8 +18,7 @@ BrgemmCPU::BrgemmCPU(const Output<Node>& A, const Output<Node>& B, const Type ty
     // We call default ctor of Brgemm class to avoid incorrect shape infer in constructor_validate_and_type_infer() call
     set_arguments({A, B});
     set_output_size(1);
-    m_input_ports.resize(get_input_size());
-    m_output_ports.resize(get_output_size());
+    ctor_initialize(std::set<size_t>{0, 1}, std::set<size_t>{0});
     set_input_port_descriptor({0, offset_a}, 0);
     set_input_port_descriptor({0, offset_b}, 1);
     set_output_port_descriptor({0, offset_c}, 0);
@@ -32,8 +30,7 @@ BrgemmCPU::BrgemmCPU(const Output<Node>& A, const Output<Node>& B, const Output<
     : Brgemm(), m_type(type) {
     set_arguments({A, B, scratch});
     set_output_size(1);
-    m_input_ports.resize(get_input_size());
-    m_output_ports.resize(get_output_size());
+    ctor_initialize(std::set<size_t>{0, 1, 2}, std::set<size_t>{0});
     set_input_port_descriptor({0, offset_a}, 0);
     set_input_port_descriptor({0, offset_b}, 1);
     set_output_port_descriptor({0, offset_c}, 0);
@@ -53,16 +50,9 @@ void BrgemmCPU::validate_and_infer_types() {
                     "BrgemmCPU expects 3 inputs with input precisions i8|i8 and bf16|bf16 on AMX system");
 
     const auto brgemm_copy = is_with_data_repacking() ? get_brgemm_copy() : nullptr;
-    std::vector<ov::PartialShape> planar_input_shapes = {
-            ngraph::snippets::utils::get_port_planar_shape(input_value(0)),
-            ngraph::snippets::utils::get_port_planar_shape(brgemm_copy ? brgemm_copy->input_value(0) : input_value(1))
-    };
-
+    const auto planar_input_shapes = get_planar_input_shapes({input_value(0), brgemm_copy ? brgemm_copy->input_value(0) : input_value(1)});
     auto output_shape = get_output_partial_shape(planar_input_shapes);
-    const auto& output_layout = ngraph::snippets::utils::get_node_output_layout(this);
-    set_output_type(0,
-                    get_output_type(),
-                    ngraph::snippets::utils::get_reordered_planar_shape(output_shape, output_layout));
+    set_output_type(0, get_output_type(), get_planar_output_shape(output_shape));
 
     //Additional check for 3rd input
     if (one_of(m_type, Type::WithCompensations, Type::AMX)) {

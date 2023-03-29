@@ -33,6 +33,9 @@ public:
 
     void validate_and_infer_types() override;
     std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& new_args) const override;
+
+protected:
+    void validate_memory_access_params() const;
 };
 
 /**

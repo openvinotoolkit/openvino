@@ -13,11 +13,11 @@ namespace snippets {
 namespace op {
 
 Brgemm::Brgemm(const Output<Node>& A, const Output<Node>& B,
-               const size_t offset_a, const size_t offset_b, const size_t offset_c) : MemoryAccess({A, B}, 2, 1) {
+               const size_t offset_a, const size_t offset_b, const size_t offset_c) : MemoryAccess({A, B}, std::set<size_t>{0, 1}, std::set<size_t>{0}) {
     set_output_size(1);
     set_input_offset(offset_a, 0);
     set_input_offset(offset_b, 1);
-    set_output_offset(offset_a, 0);
+    set_output_offset(offset_c, 0);
     constructor_validate_and_infer_types();
 }
 
@@ -27,21 +27,9 @@ void Brgemm::validate_and_infer_types() {
     NODE_VALIDATION_CHECK(this, get_input_partial_shape(0).is_static() && get_input_partial_shape(1).is_static(),
                           "Brgemm currently supports only static shapes.");
 
-    std::vector<ov::PartialShape> planar_input_shapes;
-    for (const auto& in : input_values()) {
-        const auto& td = ngraph::snippets::get_tensor_descriptor_ptr(in);
-        const auto& planar_shape = utils::get_reordered_planar_shape(ov::Shape{td->get_tensor()}, td->get_layout());
-        planar_input_shapes.emplace_back(planar_shape);
-    }
-
+    const auto planar_input_shapes = get_planar_input_shapes(input_values());
     auto output_shape = get_output_partial_shape(planar_input_shapes);
-    const auto& rt_info = get_rt_info();
-    auto it = rt_info.find(TensorDescriptorPtrVectorAttribute::get_type_info_static());
-    if (it != rt_info.end()) {
-        const auto& td = it->second.as<TensorDescriptorPtrVectorAttribute>().m_value[0];
-        output_shape = utils::get_reordered_planar_shape(output_shape, td->get_layout());
-    }
-    set_output_type(0, get_output_type(), output_shape);
+    set_output_type(0, get_output_type(), get_planar_output_shape(output_shape));
 }
 
 std::shared_ptr<Node> Brgemm::clone_with_new_inputs(const OutputVector& new_args) const {
@@ -66,6 +54,22 @@ ov::element::Type Brgemm::get_output_type() const {
                             " and " +
                             element_type_b.get_type_name());
     }
+}
+
+std::vector<ov::PartialShape> Brgemm::get_planar_input_shapes(const std::vector<ov::Output<ov::Node>>& inputs) const {
+    OPENVINO_ASSERT(inputs.size() == 2, "Brgemm::get_planar_input_shapes() expects 2 inputs");
+    return { utils::get_port_planar_shape(inputs[0]), utils::get_port_planar_shape(inputs[1]) };
+}
+
+ov::PartialShape Brgemm::get_planar_output_shape(const ov::PartialShape& output_shape) const {
+    // This method can be safely called from validate_and_infer_types() before output creation
+    const auto& rt_info = get_rt_info();
+    auto it = rt_info.find(TensorDescriptorPtrVectorAttribute::get_type_info_static());
+    if (it != rt_info.end()) {
+        const auto& td = it->second.as<TensorDescriptorPtrVectorAttribute>().m_value[0];
+        return utils::get_reordered_planar_shape(output_shape, td->get_layout());
+    }
+    return output_shape;
 }
 
 ov::PartialShape Brgemm::get_output_partial_shape(const std::vector<ov::PartialShape>& input_shapes) const {

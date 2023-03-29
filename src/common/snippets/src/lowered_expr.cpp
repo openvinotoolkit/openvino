@@ -3,13 +3,12 @@
 //
 
 #include "snippets/lowered_expr.hpp"
-#include "snippets/pass/assign_registers.hpp"
-#include "snippets/pass/vector_to_scalar.hpp"
 #include "snippets/op/loop.hpp"
 #include "snippets/op/subgraph.hpp"
 #include <snippets/itt.hpp>
 #include <snippets/op/serialization_node.hpp>
 #include "snippets/tensor_descriptor.hpp"
+#include "snippets/utils.hpp"
 
 #include <openvino/core/graph_util.hpp>
 #include <openvino/core/type.hpp>
@@ -24,6 +23,7 @@ LoweredExpr::LoweredExpr(const std::shared_ptr<Node>& n) : m_source_node{n}, m_e
         m_inputs.emplace_back(get_tensor_descriptor_ptr(in.get_source_output()));
     for (const auto& out : n->outputs())
         m_outputs.emplace_back(get_tensor_descriptor_ptr(out));
+    m_is_outside_loop = utils::get_outside_loop_value(n);
 }
 
 LoweredExpr::LoweredExpr(const std::shared_ptr<Node>& n, std::vector<TensorDescriptorPtr> inputs, std::vector<TensorDescriptorPtr> outputs)
@@ -31,6 +31,7 @@ LoweredExpr::LoweredExpr(const std::shared_ptr<Node>& n, std::vector<TensorDescr
     if (m_outputs.empty())
         for (const auto& out : n->outputs())
             m_outputs.emplace_back(get_tensor_descriptor_ptr(out));
+    m_is_outside_loop = utils::get_outside_loop_value(n);
 }
 
 std::shared_ptr<Node> LoweredExpr::get_node() const {
@@ -113,7 +114,8 @@ bool operator!=(const LoweredExprPort& lhs, const LoweredExprPort& rhs) {
 
 bool operator<(const LoweredExprPort& lhs, const LoweredExprPort& rhs) {
     OPENVINO_ASSERT(lhs.type == rhs.type, "Incorrect comparison: Ports are from different types!");
-    return (lhs.expr < rhs.expr) || (lhs.expr == rhs.expr && lhs.port < rhs.port);
+    // Firstly ports
+    return (lhs.port < rhs.port) || (lhs.port == rhs.port && lhs.expr < rhs.expr);
 }
 
 LoweredExprIR::LoweredExprIR(const std::shared_ptr<ov::Model>& model, LoweringConfig config)

@@ -59,8 +59,9 @@ bool LoadStoreInsertion::insert_load(LoweredExprIR& linear_ir, const LoweredExpr
         const auto& consumer_expr = consumer_input.expr;
         const auto port = consumer_input.port;
         const auto& consumer = consumer_expr->get_node();
-        if (ov::is_type<op::Load>(consumer) || ov::is_type<op::Brgemm>(consumer))
-            continue;
+        const auto ma = ov::as_type_ptr<op::MemoryAccess>(consumer);
+        if (ma && ma->is_memory_access_input_port(port))
+            return false;
 
         // Find Inner Loop
         const auto& loop_ids = consumer_expr->get_loop_ids();
@@ -97,7 +98,8 @@ bool LoadStoreInsertion::insert_store(LoweredExprIR& linear_ir, const LoweredExp
     const auto& parent_expr = parent_output.expr;
     const auto port = parent_output.port;
     const auto& parent = parent_expr->get_node();
-    if (ov::is_type<op::Store>(parent) || ov::is_type<op::Brgemm>(parent))
+    const auto ma = ov::as_type_ptr<op::MemoryAccess>(parent);
+    if (ma && ma->is_memory_access_output_port(port))
         return false;
 
     // Find Inner Loop

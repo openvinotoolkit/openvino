@@ -60,19 +60,22 @@ pass::BrgemmToBrgemmCPU::BrgemmToBrgemmCPU() {
             brgemm_cpu = std::make_shared<BrgemmCPU>(brgemm->input_value(0), brgemm->input_value(1), BrgemmCPU::Type::Floating,
                                                      offset_a, offset_b, offset_c);
         } else {
-            const auto layoutIn1 = ngraph::snippets::utils::get_node_output_layout(brgemm->input_value(1).get_node_shared_ptr());
             const auto copy_b_type = with_comp ? BrgemmCopyB::WithCompensations : BrgemmCopyB::OnlyRepacking;
             const auto brgemmRepackIn1 = std::make_shared<BrgemmCopyB>(brgemm->input_value(1), element_type_a, copy_b_type, offset_b);
             const auto buffer = std::make_shared<ngraph::snippets::op::Buffer>(brgemmRepackIn1->output(0));
+            ngraph::snippets::utils::set_outside_loop_value(brgemmRepackIn1, true);
+            ngraph::snippets::utils::set_outside_loop_value(buffer, true);
 
             if (with_amx) {
                 const auto scratch = std::make_shared<ngraph::snippets::op::Buffer>(ov::Shape{BrgemmCPU::SCRATCH_BYTE_SIZE});
                 brgemm_cpu = std::make_shared<BrgemmCPU>(brgemm->input_value(0), buffer, scratch, BrgemmCPU::Type::AMX,
                                                          offset_a, offset_b, offset_c);
+                ngraph::snippets::utils::set_outside_loop_value(scratch, true);
             } else if (with_comp) {
                 const auto scratch = std::make_shared<ngraph::snippets::op::Buffer>(brgemmRepackIn1->output(1));
                 brgemm_cpu = std::make_shared<BrgemmCPU>(brgemm->input_value(0), buffer, scratch, BrgemmCPU::Type::WithCompensations,
                                                          offset_a, offset_b, offset_c);
+                ngraph::snippets::utils::set_outside_loop_value(scratch, true);
             } else if (one_of(element_type_a, ov::element::u8, ov::element::bf16)) {
                 brgemm_cpu = std::make_shared<BrgemmCPU>(brgemm->input_value(0), buffer, BrgemmCPU::Type::WithDataRepacking,
                                                          offset_a, offset_b, offset_c);
@@ -82,9 +85,10 @@ pass::BrgemmToBrgemmCPU::BrgemmToBrgemmCPU() {
         }
 
         brgemm_cpu->set_friendly_name(brgemm->get_friendly_name());
-        ngraph::snippets::utils::set_output_layout(brgemm_cpu->output(0), ngraph::snippets::utils::get_node_output_layout(brgemm));
-        ngraph::copy_runtime_info(brgemm, brgemm_cpu);
+        ngraph::copy_runtime_info(brgemm, brgemm_cpu); // Copy output layout inside as well
         ngraph::replace_node(brgemm, brgemm_cpu);
+        // TODO: At the moment Brgemm is executed outside Loop. When Blocking is supported, remove it
+        ngraph::snippets::utils::set_outside_loop_value(brgemm_cpu, true);
 
         return true;
     };

@@ -15,9 +15,7 @@ using namespace ov;
 intel_cpu::BrgemmCopyB::BrgemmCopyB(const Output<Node>& x, const element::Type src_type, const Type type,
                                     const size_t offset_in, const size_t offset_out0, const size_t offset_out1)
     : ngraph::snippets::op::MemoryAccess({x}, 1, type == Type::WithCompensations ? 2 : 1), m_type(type), m_src_type(src_type) {
-    set_output_size(get_output_port_count());
-    m_input_ports.resize(get_input_size());
-    m_output_ports.resize(get_output_size());
+    set_output_size(type == Type::WithCompensations ? 2 : 1);
     set_input_port_descriptor({0, offset_in}, 0);
     set_output_port_descriptor({0, offset_out0}, 0);
     if (is_with_compensations()) {

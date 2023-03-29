@@ -19,13 +19,8 @@ bool AssignRegisters::run(LoweredExprIR& linear_ir) {
     using Reg = size_t;
     using tensor = snippets::TensorDescriptorPtr;
     auto& expressions = linear_ir.get_ops();
-    // Note that currently there are 3 types of ops:
-    //  * gpr->gpr: (Parameter, Result, LoopBegin, LoopEnd) will also be Buffer?
-    //  * gpr->vec: or vec->gpr Load/LoadConvert, Store/StoreConvert, BroadcastLoad etc.
-    //  * vec->vec: all other "normal" operations that perform calculations on vector registers: Add, BroadcastMove, Power, etc.
-    enum op_reg_type {gpr2gpr, gpr2vec, vec2gpr, vec2vec};
 
-    std::vector<std::pair<op_reg_type, LoweredExprPtr>> typed_ops;
+    std::vector<std::pair<Generator::opRegType, LoweredExprPtr>> typed_ops;
     NodeVector ops;
     Reg num_parameters = 0;
     Reg num_results = 0;
@@ -57,8 +52,10 @@ bool AssignRegisters::run(LoweredExprIR& linear_ir) {
                 throw ngraph_error("Unsupported io_type detected");
         } else if (const auto& buffer = ov::as_type_ptr<op::Buffer>(op)) {
             // All buffers have one common data pointer
-            manually_assigned_gprs[expr->get_inputs()[0]] =
-                    static_cast<Reg>(num_results + num_parameters);
+            if (buffer->is_intermediate_memory()) {
+                manually_assigned_gprs[expr->get_inputs()[0]] =
+                        static_cast<Reg>(num_results + num_parameters);
+            }
             manually_assigned_gprs[expr->get_outputs()[0]] =
                     static_cast<Reg>(num_results + num_parameters);
         } else if (ov::is_type<op::HorizonMax>(op) || ov::is_type<op::HorizonSum>(op)) {
@@ -102,12 +99,12 @@ bool AssignRegisters::run(LoweredExprIR& linear_ir) {
     };
     for (const auto& t_op : typed_ops) {
         switch (t_op.first) {
-            case vec2vec:
-            case gpr2vec:
+            case Generator::opRegType::vec2vec:
+            case Generator::opRegType::gpr2vec:
                 enumerate_out_tensors(t_op.second, regs_vec, manually_assigned_vecs, counter_vec);
                 break;
-            case gpr2gpr:
-            case vec2gpr:
+            case Generator::opRegType::gpr2gpr:
+            case Generator::opRegType::vec2gpr:
                 enumerate_out_tensors(t_op.second, regs_gpr, manually_assigned_gprs, counter_gpr);
                 break;
         }
@@ -137,19 +134,19 @@ bool AssignRegisters::run(LoweredExprIR& linear_ir) {
         for (const auto& out : t_op.second->get_outputs())
             defined_tensors.push_back(out);
         switch (t_op.first) {
-            case vec2vec:
+            case Generator::opRegType::vec2vec:
                 used_vec[i] = tensor2reg(used_tensors, regs_vec);
                 defined_vec[i] = tensor2reg(defined_tensors, regs_vec);
                 break;
-            case gpr2gpr:
+            case Generator::opRegType::gpr2gpr:
                 used_gpr[i] = tensor2reg(used_tensors, regs_gpr);
                 defined_gpr[i] = tensor2reg(defined_tensors, regs_gpr);
                 break;
-            case gpr2vec:
+            case Generator::opRegType::gpr2vec:
                 used_gpr[i] = tensor2reg(used_tensors, regs_gpr);
                 defined_vec[i] = tensor2reg(defined_tensors, regs_vec);
                 break;
-            case vec2gpr:
+            case Generator::opRegType::vec2gpr:
                 used_vec[i] = tensor2reg(used_tensors, regs_vec);
                 defined_gpr[i] = tensor2reg(defined_tensors, regs_gpr);
                 break;
@@ -193,12 +190,12 @@ bool AssignRegisters::run(LoweredExprIR& linear_ir) {
                     if (k == typed_ops.size())
                         OPENVINO_THROW("assign registers can't find target op in the body");
                     switch (typed_ops[k].first) {
-                        case vec2vec:
-                        case vec2gpr:
+                        case Generator::opRegType::vec2vec:
+                        case Generator::opRegType::vec2gpr:
                             life_out_vec[n].insert(life_in_vec[k].begin(), life_in_vec[k].end());
                             break;
-                        case gpr2gpr:
-                        case gpr2vec:
+                        case Generator::opRegType::gpr2gpr:
+                        case Generator::opRegType::gpr2vec:
                             life_out_gpr[n].insert(life_in_gpr[k].begin(), life_in_gpr[k].end());
                             break;
                     }

@@ -2,18 +2,18 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "snippets/pass/lowered/buffer_propagate_offset_and_reset.hpp"
+#include "snippets/pass/lowered/buffer_allocation.hpp"
 #include "snippets/itt.hpp"
+#include "snippets/lowered_expr.hpp"
 
 namespace ngraph {
 namespace snippets {
 namespace pass {
 namespace lowered {
 
-void PropagateOffsetAndResetBuffer::propagate_offset(const LoweredExprIR& linear_ir, const LoweredExprPtr& buffer_expr, const size_t offset) {
-    // If Buffer has offset We set this offset in the next Load and Store ops
+void BufferAllocation::propagate_offset(const LoweredExprIR& linear_ir, const LoweredExprPtr& buffer_expr, const size_t offset) {
+    // If Buffer has offset We set this offset in the connected MemoryAccess ops
     // to correctly read and write data because all buffers have the one register
-    // Also if user sets offset to a Buffer It means that the Buffer has the corresponding Load and Store ops
 
     const auto buffer = ov::as_type_ptr<op::Buffer>(buffer_expr->get_node());
 
@@ -25,7 +25,8 @@ void PropagateOffsetAndResetBuffer::propagate_offset(const LoweredExprIR& linear
             const auto& parent_expr = parent_output.expr;
             const auto port = parent_output.port;
             const auto& parent_node = parent_expr->get_node();
-            if (auto memory_access = ov::as_type_ptr<ngraph::snippets::op::MemoryAccess>(parent_node)) {
+            auto memory_access = ov::as_type_ptr<ngraph::snippets::op::MemoryAccess>(parent_node);
+            if (memory_access && memory_access->is_memory_access_output_port(port)) {
                 memory_access->set_output_offset(offset, port);
             } else {
                 throw ngraph_error(
@@ -33,14 +34,18 @@ void PropagateOffsetAndResetBuffer::propagate_offset(const LoweredExprIR& linear
             }
         }
     }
-    // Propagate to down: in Load. Buffer can have several Load and Loops after himself. We should go through all target inputs
+    // Propagate to down: in Load. Buffer can have several Load
     const auto& buffer_out = buffer_expr->get_outputs()[0];
     for (const auto& child_expr_input : linear_ir.get_exprs_by_input(buffer_out)) {
         const auto& child_expr = child_expr_input.expr;
         const auto port = child_expr_input.port;
         const auto& child_node = child_expr->get_node();
-        if (auto memory_access = ov::as_type_ptr<ngraph::snippets::op::MemoryAccess>(child_node)) {
+        auto memory_access = ov::as_type_ptr<ngraph::snippets::op::MemoryAccess>(child_node);
+        if (memory_access && memory_access->is_memory_access_input_port(port)) {
             memory_access->set_input_offset(offset, port);
+        } else if (ov::is_type<op::LoopEnd>(child_node)) {
+            // After Loop initialization, Buffer can be connected to LoopEnd - it's ok
+            continue;
         } else {
             throw ngraph_error(
                     "Buffer::set_offset() was called when Buffer didn't have the corresponding MemoryAccess op for offset propagation");
@@ -49,9 +54,9 @@ void PropagateOffsetAndResetBuffer::propagate_offset(const LoweredExprIR& linear
 }
 
 
-bool PropagateOffsetAndResetBuffer::run(LoweredExprIR& linear_ir) {
-    OV_ITT_SCOPED_TASK(ngraph::pass::itt::domains::SnippetsTransform, "Snippets::buffer_propagate_offset_and_reset")
-    std::vector<LoweredExprIR::container::iterator> exprs_to_del;
+bool BufferAllocation::run(LoweredExprIR& linear_ir) {
+    OV_ITT_SCOPED_TASK(ngraph::pass::itt::domains::SnippetsTransform, "Snippets::BufferAllocation");
+
     bool modified = false;
     size_t offset = 0;
     for (auto expr_it = linear_ir.begin(); expr_it != linear_ir.end(); expr_it++) {
@@ -66,8 +71,10 @@ bool PropagateOffsetAndResetBuffer::run(LoweredExprIR& linear_ir) {
             if (buffer->is_intermediate_memory()) {
                 const auto& parent_expr = linear_ir.get_expr_by_output(expr_it->get()->get_inputs()[0]).expr;
                 const auto& parent_node = parent_expr->get_node();
-                // Brgemm is a special case, since it doesn't allow memory reuse
-                if (ov::is_type<op::Brgemm>(parent_node)) {
+                // Full MemoryAccess ops need new memory. Previous logic is to check for parent isn't Loop
+                // TODO: It should be unified in MemoryManager with memory reuse in the near future
+                const auto ma = ov::as_type_ptr<op::MemoryAccess>(parent_node);
+                if (ma && ma->is_full_memory_access_op()) {
                     offset = m_buffer_scratchpad_size;
                     buffer->set_offset(static_cast<int64_t>(offset));
                     propagate_offset(linear_ir, *expr_it, offset);
@@ -88,36 +95,6 @@ bool PropagateOffsetAndResetBuffer::run(LoweredExprIR& linear_ir) {
                 m_buffer_scratchpad_size += buffer_size;
             }
             modified = true;
-        } else if (auto loop_end = as_type_ptr<op::LoopEnd>(expr_it->get()->get_node())) {
-            // Note: Buffer always employ inplace logics by default. It means that if a loop has both
-            // an input and an output connected to Buffers, the corresponding register should nevertheless be
-            // incremented only once (because when the input reg is incremented, output incremented automatically).
-            // This condition should be removed when Buffers stop being inplace by default.
-            const auto& ins = expr_it->get()->get_inputs();
-            std::vector<int> buffer_idx{};
-            for (int i = 0; i < static_cast<int>(ins.size()) - 1; i++) {
-                const auto& in = ins[i];
-                // If producer of the input expr is buffer: this covers Buffer->Load patterns
-                if (ov::is_type<op::Buffer>(linear_ir.get_expr_by_output(in).expr->get_node()))
-                    buffer_idx.push_back(i);
-                // If consumer of the input is buffer: Store->Buffer patterns
-                for (const auto& consumer : linear_ir.get_exprs_by_input(in)) {
-                    if (ov::is_type<op::Buffer>(consumer.expr->get_node()))
-                        buffer_idx.push_back(i);
-                }
-            }
-
-            if (buffer_idx.size() > 1) {
-                auto ptr_increments = loop_end->get_ptr_increments();
-                auto fin_offsets = loop_end->get_finalization_offsets();
-                for (size_t i = 0; i < buffer_idx.size() - 1; i++) {
-                    const auto idx_to_drop = buffer_idx[i];
-                    ptr_increments[idx_to_drop] = 0;
-                    fin_offsets[idx_to_drop] = 0;
-                }
-                loop_end->set_ptr_increments(ptr_increments);
-                loop_end->set_finalization_offsets(fin_offsets);
-            }
         }
     }
     return modified;

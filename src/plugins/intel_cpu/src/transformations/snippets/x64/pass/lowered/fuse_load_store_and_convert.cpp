@@ -23,7 +23,9 @@ bool ov::intel_cpu::pass::FuseLoadStoreConvert::fuse_load_convert(ngraph::snippe
     const auto& load_output = linear_ir.get_expr_by_output(input_td);
     const auto& load_expr = load_output.expr;
     const auto load = ov::as_type_ptr<ngraph::snippets::op::Load>(load_expr->get_node());
-    if (!load || load_expr->get_node()->get_type_info() != ngraph::snippets::op::Load::get_type_info_static())
+    if (!load ||
+        ov::is_type<ngraph::snippets::op::LoadReshape>(load_expr->get_node()) ||
+        ov::is_type<ngraph::snippets::op::BroadcastLoad>(load_expr->get_node()))
         return false;
 
     const auto consumers = linear_ir.get_exprs_by_input(input_td);

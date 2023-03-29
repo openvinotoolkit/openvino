@@ -7,6 +7,7 @@
 #include "snippets/pass/matmul_to_brgemm.hpp"
 
 #include "snippets/snippets_isa.hpp"
+#include "snippets/utils.hpp"
 
 #include "ngraph/opsets/opset1.hpp"
 #include "ngraph/rt_info.hpp"
@@ -41,6 +42,8 @@ MatMulToBrgemm::MatMulToBrgemm() {
         const std::vector<size_t> tensor = brgemm->get_output_shape(0);
         const std::vector<size_t> subtensor = {tensor[tensor.size() - 2], tensor[tensor.size() - 1]};
         ngraph::snippets::set_tensor_descriptor_ptr(brgemm->output(0), std::make_shared<TensorDescriptor>(tensor, subtensor));
+        // TODO: At the moment Brgemm is executed outside Loop. When Blocking is supported, remove it
+        utils::set_outside_loop_value(brgemm, true);
         return true;
     };
 

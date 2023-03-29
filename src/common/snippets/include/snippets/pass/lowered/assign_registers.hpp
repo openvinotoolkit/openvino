@@ -5,6 +5,7 @@
 #pragma once
 
 #include "linear_IR_transformation.hpp"
+#include "snippets/generator.hpp"
 
 namespace ngraph {
 namespace snippets {

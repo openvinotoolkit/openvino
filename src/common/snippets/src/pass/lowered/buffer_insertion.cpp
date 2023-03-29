@@ -17,12 +17,6 @@ BufferInsertion::BufferInsertion(int32_t buffer_allocation_rank)
 
 LoweredExprIR::constExprIt BufferInsertion::insertion_position(const LoweredExprIR& linear_ir, const LoweredExprIR::LoweredLoopManagerPtr& loop_manager,
                                                                const LoweredExprPtr& up_expr, const LoweredExprPtr& down_expr) {
-    if (ov::is_type<op::Brgemm>(up_expr->get_node())) {
-        return std::next(std::find(linear_ir.begin(), linear_ir.end(), up_expr));
-    } else if (ov::is_type<op::Brgemm>(down_expr->get_node())) {
-        return std::find(linear_ir.begin(), linear_ir.end(), down_expr);
-    }
-
     const auto up_loops = up_expr->get_loop_ids();
     const auto down_loops = down_expr->get_loop_ids();
     OPENVINO_ASSERT(up_loops.size() == down_loops.size(), "The Loop IDs must be normalized!");
@@ -31,12 +25,33 @@ LoweredExprIR::constExprIt BufferInsertion::insertion_position(const LoweredExpr
         if (up_loops[loop_idx] != down_loops[loop_idx])
             break;
     }
-    OPENVINO_ASSERT(loop_idx != up_loops.size(), "A Buffer must be inserted only between Loops!");
-    const auto loop_id = up_loops[loop_idx];
-    const auto loop_info = loop_manager->get_loop_info(loop_id);
-    LoweredExprIR::constExprIt loop_begin_pos, loop_end_pos;
-    loop_manager->get_loop_bounds(linear_ir, loop_id, loop_begin_pos, loop_end_pos);
-    return loop_end_pos;
+
+    // If loop_ids of expressions are equal and don't contain LOOP_NULL_ID, it's attempt to insert Buffer between expressions from the same Loop!
+    if (loop_idx == up_loops.size() && std::none_of(up_loops.begin(), up_loops.end(), [](const size_t id) { return id == LoweredExpr::LOOP_NULL_ID; }))
+        throw ov::Exception("Buffer isn't supported in Inner Loop at the moment!");
+
+    // If the both expressions are outside Loops, insert Buffer explicitly after first Expression
+    if (loop_idx == up_loops.size()) {
+        return std::next(std::find(linear_ir.begin(), linear_ir.end(), up_expr));
+    }
+
+    const auto up_loop_id = up_loops[loop_idx];
+    const auto down_loop_id = down_loops[loop_idx];
+    if (up_loop_id != LoweredExpr::LOOP_NULL_ID) {
+        // If upper expression is inside Loop, we should insert Buffer after this Loop
+        const auto loop_info = loop_manager->get_loop_info(up_loop_id);
+        LoweredExprIR::constExprIt loop_begin_pos, loop_end_pos;
+        loop_manager->get_loop_bounds(linear_ir, up_loop_id, loop_begin_pos, loop_end_pos);
+        return loop_end_pos;
+    } else if (down_loop_id != LoweredExpr::LOOP_NULL_ID) {
+        // If lower expression is inside Loop, we should insert Buffer before this Loop
+        const auto loop_info = loop_manager->get_loop_info(down_loop_id);
+        LoweredExprIR::constExprIt loop_begin_pos, loop_end_pos;
+        loop_manager->get_loop_bounds(linear_ir, down_loop_id, loop_begin_pos, loop_end_pos);
+        return loop_begin_pos;
+    } else {
+        throw ov::Exception("Incorrect configuration for Buffer insertion!");
+    }
 }
 
 void BufferInsertion::insertion(LoweredExprIR& linear_ir, const LoweredExprIR::LoweredLoopManagerPtr& loop_manager, size_t loop_id,
@@ -56,8 +71,11 @@ void BufferInsertion::insertion(LoweredExprIR& linear_ir, const LoweredExprIR::L
             ov::is_type<opset1::Constant>(parent))
             continue;
 
-        // TODO: Need to cover Brgemm is more pretty
-        bool is_buffer_needed = ov::is_type<op::Brgemm>(parent) || ov::is_type<op::Brgemm>(node);
+        // Each MemoryAccess op needs Buffer
+        const auto parent_ma = ov::as_type_ptr<op::MemoryAccess>(parent);
+        const auto node_ma = ov::as_type_ptr<op::MemoryAccess>(node);
+        bool is_buffer_needed = (parent_ma && parent_ma->is_memory_access_output_port(parent_port)) ||
+                                (node_ma && node_ma->is_memory_access_input_port(port));
         if (!is_buffer_needed) {
             const auto current_loops = expr->get_loop_ids();
             const auto parent_loops = parent_expr->get_loop_ids();
@@ -107,15 +125,20 @@ void BufferInsertion::insertion(LoweredExprIR& linear_ir, const LoweredExprIR::L
         std::set<LoweredExprPtr> buffers;
         const auto current_loop_lvl = std::distance(current_loops.begin(), std::find(current_loops.begin(), current_loops.end(), loop_id));
         for (const auto& child_expr_input : child_exprs_inputs) {
-            const auto child_expr = child_expr_input.expr;
-            const auto child = child_expr->get_node();
+            const auto& child_expr = child_expr_input.expr;
+            const auto child_port = child_expr_input.port;
+            const auto& child = child_expr->get_node();
             if (ov::is_type<opset1::Result>(child))
                 continue;
             if (ov::is_type<op::Buffer>(child)) {
                 buffers.insert(child_expr);
                 continue;
             }
-            if (ov::is_type<op::Brgemm>(child) || ov::is_type<op::Brgemm>(node)) {
+            // Each MemoryAccess op needs Buffer
+            const auto child_ma = ov::as_type_ptr<op::MemoryAccess>(child);
+            const auto node_ma = ov::as_type_ptr<op::MemoryAccess>(node);
+            if ((child_ma && child_ma->is_memory_access_input_port(child_port)) ||
+                (node_ma && node_ma->is_memory_access_output_port(port))) {
                 potential_consumers.insert(child_expr_input);
                 continue;
             }
@@ -199,12 +222,20 @@ bool BufferInsertion::run(LoweredExprIR& linear_ir) {
     for (auto expr_it = linear_ir.begin(); expr_it != linear_ir.end(); expr_it++) {
         const auto expr = *expr_it;
         const auto node = (*expr_it)->get_node();
-        if (!ov::is_type<op::Brgemm>(node))
+        const auto ma = ov::as_type_ptr<op::MemoryAccess>(node);
+        if (!ma)
             continue;
 
-        std::vector<LoweredExprPort> loop_entries = {LoweredExprPort::make_input(expr, 0),
-                                                     LoweredExprPort::make_input(expr, 1)};
-        std::vector<LoweredExprPort> loop_exits = {LoweredExprPort::make_output(expr, 0)};
+        const auto input_ports = ma->get_memory_access_input_ports();
+        const auto output_ports = ma->get_memory_access_output_ports();
+        std::vector<LoweredExprPort> loop_entries(input_ports.size()), loop_exits(output_ports.size());
+        // C++17: for (auto const& [loop_id, loop_info] : loop_data_map)
+        for (const auto& p : input_ports) {
+            loop_entries[p.first] = LoweredExprPort::make_input(expr, p.first);
+        }
+        for (const auto& p : output_ports) {
+            loop_exits[p.first] = LoweredExprPort::make_output(expr, p.first);
+        }
 
         insertion(linear_ir, loop_manager, LoweredExpr::LOOP_NULL_ID, loop_entries, loop_exits);
     }

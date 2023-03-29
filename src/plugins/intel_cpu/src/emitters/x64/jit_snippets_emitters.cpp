@@ -1114,7 +1114,7 @@ BrgemmCopyBEmitter::BrgemmCopyBEmitter(dnnl::impl::cpu::x64::jit_generator* h, d
     if (m_with_comp)
         m_comp_offset = brgemm_repack->get_offset_compensations();
 
-    auto layout = ngraph::snippets::utils::get_node_output_layout(brgemm_repack->get_input_node_shared_ptr(0));
+    const auto& layout = ngraph::snippets::get_tensor_descriptor_ptr(brgemm_repack->get_input_node_shared_ptr(0))->get_layout();
     const auto& original_shape = brgemm_repack->get_input_shape(0);
     auto transposed_shape = original_shape;
     size_t leading_dimension = *(original_shape.rbegin());

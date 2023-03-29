@@ -34,7 +34,6 @@ private:
                                                   const LoweredExprIR::LoweredLoopManagerPtr& loop_manager,
                                                   const LoweredExprPtr& up_expr, const LoweredExprPtr& down_expr);
 
-
     int32_t m_buffer_allocation_rank;
 };
 

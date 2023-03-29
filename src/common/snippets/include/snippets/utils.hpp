@@ -24,13 +24,15 @@ inline auto is_scalar_constant(const std::shared_ptr<ngraph::Node>& source_outpu
     return ngraph::is_type<ngraph::opset1::Constant>(source_output_node) && ngraph::shape_size(source_output_node->get_shape()) == 1;
 }
 
-
 ov::PartialShape get_port_planar_shape(const Output<Node>& out);
 ov::PartialShape get_reordered_planar_shape(const ov::PartialShape& shape, const std::vector<size_t>& layout);
 std::vector<size_t> get_node_output_layout(const std::shared_ptr<Node>& node);
 std::vector<size_t> get_node_output_layout(const Node* node);
 void set_transpose_output_layout(const ov::Output<Node>& port, const std::shared_ptr<opset1::Transpose>& node);
 void set_output_layout(const ov::Output<Node>& port, const std::vector<size_t>& layout);
+
+bool get_outside_loop_value(const std::shared_ptr<Node>& node);
+void set_outside_loop_value(const std::shared_ptr<Node>& node, bool is_outside = true);
 
 inline ov::Dimension get_inner_dim(const ov::PartialShape &shape) { return *(shape.rbegin()); }
 inline ov::Dimension get_outer_dim(const ov::PartialShape &shape) { return *(shape.rbegin() + 1); }
