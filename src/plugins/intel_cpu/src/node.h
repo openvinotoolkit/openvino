@@ -619,6 +619,8 @@ protected:
     void prepareMemory(const std::vector<DnnlMemoryDescPtr>& intDescs);
     void prepareMemory(dnnl::primitive_desc_iterator& itpd);
 
+    MemoryPtr prepareWeightMemory(DnnlMemoryDescPtr weightDesc);
+
     bool isDynamic = false;
 
     bool isInputTensorAtPortEmpty(size_t port) const;
@@ -686,6 +688,14 @@ private:
 
     enum LOOK { LOOK_UP = 1, LOOK_DOWN = 2 };
     ConstantType checkConstant(LOOK look, std::vector<NodePtr>& checkNodes);
+
+    // we cannot rely on per-NUMA weightCache for caching weights because:
+    //   1.it may not exist(in single stream configuration)
+    //   2.it only holds weak references, the life-cycle of cached item
+    //     is still under control of strong references outside of cache.
+    // privateWeightCache is for holding strong references to constant weight
+    // copies of same content with different layouts.
+    std::unordered_map<std::string, MemoryPtr> privateWeightCache;
 
 #ifdef CPU_DEBUG_CAPS
     friend class Verbose;
