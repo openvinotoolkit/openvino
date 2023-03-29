@@ -59,7 +59,8 @@ jobs:
           pip install -r ${{ github.workspace }}/src/bindings/python/wheel/requirements-dev.txt
           pip install -r ${{ github.workspace }}/src/frontends/onnx/tests/requirements.txt
           pip install -r ${{ github.workspace }}/src/frontends/paddle/tests/requirements.txt
-     #     pip install -r ${{ github.workspace }}/src/frontends/tensorflow/tests/requirements.txt
+          pip install -r ${{ github.workspace }}/src/frontends/tensorflow/tests/requirements.txt
+          pip install -r ${{ github.workspace }}/src/frontends/paddle/tests/requirements.txt
      #     pip install -r ${{ github.workspace }}/src/frontends/tensorflow/tests/requirements.txt
      #     pip install -r ${{ github.workspace }}/src/bindings/python/requirements.txt
      #     pip install -r ${{ github.workspace }}/tools/mo/requirements.txt
