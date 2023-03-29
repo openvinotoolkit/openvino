@@ -261,32 +261,6 @@ public:
     }
 };
 
-static inline ov::CoordinateDiff convertPadding(const ov::CoordinateDiff& newPads) {
-    return newPads;
-}
-
-template <typename OP>
-class entryFallbackWithPadding : public entryFallback {
-public:
-    using entryFallback::entryFallback;
-
-    ov::CoordinateDiff pads_begin, pads_end;
-
-    const ov::CoordinateDiff& get_pads_begin() override {
-        return pads_begin;
-    }
-    const ov::CoordinateDiff& get_pads_end() override {
-        return pads_end;
-    }
-
-    void post_validate_and_infer_types(const std::shared_ptr<ov::Node>& local_op) override {
-        auto node = dynamic_cast<OP*>(local_op.get());
-        OPENVINO_ASSERT(node);
-        pads_begin = convertPadding(node->get_pads_begin());
-        pads_end = convertPadding(node->get_pads_end());
-    }
-};
-
 template <typename OP>
 class entryInterpolate : public entryBase {
 public:
