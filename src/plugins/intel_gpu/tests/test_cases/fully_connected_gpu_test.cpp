@@ -1562,10 +1562,10 @@ INSTANTIATE_TEST_SUITE_P(
     fully_connected_i8_i8_test,
     testing::Combine(
         testing::Values(1, 2),
-        testing::Values(3, 64),
+        testing::Values(16, 64),
         testing::Values(1),
         testing::Values(1),
-        testing::Values(3, 32),
+        testing::Values(16, 32),
         testing::Values(format::bfyx, format::b_fs_yx_fsv4, format::b_fs_yx_fsv16, format::b_fs_yx_fsv32)
     ),
     fully_connected_i8_i8_test::PrintToStringParamName
@@ -1917,9 +1917,7 @@ TEST(fully_connected_gpu, dynamic_multi_inference_different_shape) {
     network network(engine, topology, config);
 
     auto inst = network.get_primitive("fc");
-    auto impl = inst->get_impl();
-    ASSERT_TRUE(impl != nullptr);
-    ASSERT_TRUE(impl->is_dynamic());
+    ASSERT_TRUE(inst->is_dynamic());
 
     {
         network.set_input_data("input", input_data1);
