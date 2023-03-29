@@ -455,14 +455,6 @@ else()
     endif()
 endif()
 
-# if(OV_COMPILER_IS_CLANG)
-#     ie_add_compiler_flags(-Wshorten-64-to-32)
-# endif()
-# TODO
-if(OV_COMPILER_IS_CLANG)
-    ie_add_compiler_flags(-Wno-delete-non-abstract-non-virtual-dtor)
-endif()
-
 check_cxx_compiler_flag("-Wsuggest-override" SUGGEST_OVERRIDE_SUPPORTED)
 if(SUGGEST_OVERRIDE_SUPPORTED)
     set(CMAKE_CXX_FLAGS "-Wsuggest-override ${CMAKE_CXX_FLAGS}")

@@ -496,7 +496,7 @@ class OPENVINO_API Any {
         }
 
     protected:
-        ~Base() = default;
+        virtual ~Base() = default;
     };
 
     template <class T, typename = void>

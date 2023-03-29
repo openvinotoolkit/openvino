@@ -227,6 +227,9 @@ public:
         _isNewAPI = plugin->is_new_api();
         _executorManager = InferenceEngine::create_old_manager(plugin->get_executor_manager());
     }
+
+    virtual ~IInferencePluginWrapper() = default;
+
     std::string GetName() const noexcept override {
         return m_plugin->get_device_name();
     }
@@ -840,6 +843,7 @@ private:
 
 public:
     IRemoteContextWrapper(const std::shared_ptr<InferenceEngine::RemoteContext>& context) : m_context(context) {}
+    virtual ~IRemoteContextWrapper() = default;
     const std::shared_ptr<InferenceEngine::RemoteContext>& get_context() {
         return m_context;
     }

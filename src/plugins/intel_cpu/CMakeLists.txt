@@ -16,6 +16,8 @@ elseif(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
     ie_add_compiler_flags(/wd4244)
     # mkldnn headers: '<<': result of 32-bit shift implicitly converted to 64 bits
     ie_add_compiler_flags(/wd4334)
+elseif(OV_COMPILER_IS_CLANG)
+    ie_add_compiler_flags(-Wno-delete-non-abstract-non-virtual-dtor)
 endif()
 
 if (WIN32)
