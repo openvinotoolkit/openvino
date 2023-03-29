@@ -171,6 +171,9 @@ std::vector<std::string> disabledTestPatterns() {
         // The kernel does not have such garbage. The diff 0.000000745 is taken into account in calculations and affects further type conversion.
         // Reorder->GridSample->Reorder also does not work here. Potential fix is to use nearest conversion instead of truncation.
         R"(.*GridSampleLayerTestCPU.*(BILINEAR|BICUBIC).*(i32|i8).*)",
+        // Issue: 107085
+        R"(nightly_dynamic_bf16/RNNSequenceCPUTest.*activations=\(relu\).*)",
+        R"(smoke_dynamic_BatchSizeOne/RNNSequenceCPUTest.*IS=\(\[1\.\?\.10\]_\[1\.1\.10\]_\[\?\]_\)_TS=\{\(1\.2\.10\)_\(1\.1\.10\)_\(1\)\}_\{\(1\.4\.10\)_\(1\.1\.10\)_\(1\)\}_\{\(1\.8\.10\)_\(1\.1\.10\)_\(1\)\}_seqMode=PURE_SEQ_activations=\(relu\)_clip=0_direction=forward_netPrec=f32__inFmts=ncw\.ntc_outFmts=ncw\.ncw_primitive=ref_any)", // NOLINT
         // 98151. Not valid sorting for slices in reference.
         R"(.*UniqueLayerTestCPU.*axis.*True.*)",
         // Issue: 104402. Incorrect broadcasting in FQ reference implentation
