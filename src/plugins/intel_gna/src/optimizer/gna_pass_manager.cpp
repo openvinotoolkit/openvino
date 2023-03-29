@@ -2706,6 +2706,7 @@ void FuseFullyConnectedWithEltwisePass::run() {
     }
 }
 
+#define ENABLE_V7_SERIALIZE
 int PassManager::run(int index) {
 #if defined PLOT || defined ENABLE_V7_SERIALIZE
     auto dumpNetworkAfterPass = [&index, this](std::shared_ptr<Pass> pass) {
