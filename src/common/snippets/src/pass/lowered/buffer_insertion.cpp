@@ -58,7 +58,7 @@ void BufferInsertion::insertion(LoweredExprIR& linear_ir, const LoweredExprIR::L
             continue;
 
         // TODO: Need to cover Brgemm is more pretty
-        bool is_buffer_needed = ov::is_type<op::Brgemm>(parent) || ov::is_type<op::Brgemm>(node);
+        bool is_buffer_needed = false; //ov::is_type<op::Brgemm>(parent) || ov::is_type<op::Brgemm>(node);
         if (!is_buffer_needed) {
             const auto current_loops = expr->get_loop_ids();
             const auto parent_loops = parent_expr->get_loop_ids();
@@ -116,10 +116,10 @@ void BufferInsertion::insertion(LoweredExprIR& linear_ir, const LoweredExprIR::L
                 buffers.insert(child_expr);
                 continue;
             }
-            if (ov::is_type<op::Brgemm>(child) || ov::is_type<op::Brgemm>(node)) {
-                potential_consumers.insert(child_expr_input);
-                continue;
-            }
+//            if (ov::is_type<op::Brgemm>(child) || ov::is_type<op::Brgemm>(node)) {
+//                potential_consumers.insert(child_expr_input);
+//                continue;
+//            }
 
             const auto child_loops = child_expr->get_loop_ids();
             const auto child_loop_count = child_loops.size();
