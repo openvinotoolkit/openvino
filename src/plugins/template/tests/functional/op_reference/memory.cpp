@@ -5,11 +5,11 @@
 #include <gtest/gtest.h>
 
 #include "base_reference_test.hpp"
+#include "functional_test_utils/ov_plugin_cache.hpp"
+#include "openvino/op/add.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/read_value.hpp"
-#include "openvino/op/add.hpp"
 #include "openvino/op/util/variable.hpp"
-#include "functional_test_utils/ov_plugin_cache.hpp"
 
 using namespace ov;
 using namespace reference_tests;
@@ -153,7 +153,13 @@ std::vector<ReadValueAssignParams> generateParamsForReadValueAssignBoolean() {
     using T = typename element_type_traits<IN_ET>::value_type;
 
     std::vector<ReadValueAssignParams> params{
-        ReadValueAssignParams(ov::Shape{1}, ov::Shape{1}, IN_ET, IN_ET, std::vector<T>{true}, std::vector<T>{true}, "v0"),
+        ReadValueAssignParams(ov::Shape{1},
+                              ov::Shape{1},
+                              IN_ET,
+                              IN_ET,
+                              std::vector<T>{true},
+                              std::vector<T>{true},
+                              "v0"),
         ReadValueAssignParams(ov::Shape{2, 2},
                               ov::Shape{2, 2},
                               IN_ET,
@@ -208,22 +214,20 @@ INSTANTIATE_TEST_SUITE_P(smoke_ReadValue_Assign_With_Hardcoded_Refs,
                          ::testing::ValuesIn(generateCombinedParamsForReadValueAssign()),
                          ReferenceReadValueAssignV6LayerTest::getTestCaseName);
 
-
-
 }  // namespace
 
 namespace {
 struct MemoryTestParams {
     template <class IT>
     MemoryTestParams(const ov::Shape& input_shape,
-                          const ov::Shape& output_shape,
-                          const ov::element::Type& input_type,
-                          const ov::element::Type& ouput_type,
-                          const std::vector<IT>& input_values,
-                          const std::vector<std::vector<IT>>& output_values,
-                          const size_t& count_runs,
-                          const std::vector<std::string>& variable_id,
-                          const size_t& reset_on_run = 0)
+                     const ov::Shape& output_shape,
+                     const ov::element::Type& input_type,
+                     const ov::element::Type& ouput_type,
+                     const std::vector<IT>& input_values,
+                     const std::vector<std::vector<IT>>& output_values,
+                     const size_t& count_runs,
+                     const std::vector<std::string>& variable_id,
+                     const size_t& reset_on_run = 0)
         : m_input_shape(input_shape),
           m_output_shape(output_shape),
           m_input_type(input_type),
@@ -268,11 +272,7 @@ protected:
     ov::CompiledModel executableNetwork;
     ov::InferRequest inferRequest;
 
-    ReferenceMemoryTest()
-        : targetDevice("TEMPLATE"),
-          function(),
-          executableNetwork(),
-          inferRequest() {
+    ReferenceMemoryTest() : targetDevice("TEMPLATE"), function(), executableNetwork(), inferRequest() {
         core = ov::test::utils::PluginCache::get().core(targetDevice);
     };
 
@@ -294,21 +294,27 @@ protected:
             }
             inferRequest.infer();
             auto actualOutData = inferRequest.get_tensor(executableNetwork.output(0));
-            reference_tests::CommonReferenceTest::ValidateBlobs(params.m_expected_data_vector[i], actualOutData, i, 1e-2f, -1.f, 0);
+            reference_tests::CommonReferenceTest::ValidateBlobs(params.m_expected_data_vector[i],
+                                                                actualOutData,
+                                                                i,
+                                                                1e-2f,
+                                                                -1.f,
+                                                                0);
         }
     }
 
     virtual std::shared_ptr<ov::Model> CreateFunction(const ov::Shape& input_shape,
-                                                 const ov::element::Type& input_type,
-                                                 const std::vector<std::string>& variable_id) = 0;
+                                                      const ov::element::Type& input_type,
+                                                      const std::vector<std::string>& variable_id) = 0;
 };
 
 std::shared_ptr<ov::Model> CreateFunction_ReadValueAssingAdd(const ov::Shape& input_shape,
-                                                                const ov::element::Type& input_type,
-                                                                const std::vector<std::string>& variable_id) {
+                                                             const ov::element::Type& input_type,
+                                                             const std::vector<std::string>& variable_id) {
     auto in = std::make_shared<ov::op::v0::Parameter>(input_type, input_shape);
     auto c = std::make_shared<ov::op::v0::Constant>(input_type, input_shape, 0);
-    auto variable = std::make_shared<ov::op::util::Variable>(ov::op::util::VariableInfo{ov::PartialShape::dynamic(), ov::element::dynamic, variable_id[0]});
+    auto variable = std::make_shared<ov::op::util::Variable>(
+        ov::op::util::VariableInfo{ov::PartialShape::dynamic(), ov::element::dynamic, variable_id[0]});
     auto read_value = std::make_shared<ov::op::v6::ReadValue>(c, variable);
     auto add = std::make_shared<ov::op::v1::Add>(in, read_value);
     auto assign = std::make_shared<ov::op::v6::Assign>(add, variable);
@@ -318,17 +324,19 @@ std::shared_ptr<ov::Model> CreateFunction_ReadValueAssingAdd(const ov::Shape& in
 }
 
 std::shared_ptr<ov::Model> CreateFunction_ReadValueAssingAddMultiVariable(const ov::Shape& input_shape,
-                                                                            const ov::element::Type& input_type,
-                                                                            const std::vector<std::string>& variable_id) {
-        auto in = std::make_shared<ov::op::v0::Parameter>(input_type, input_shape);
-        auto variable1 = std::make_shared<ov::op::util::Variable>(ov::op::util::VariableInfo{ov::PartialShape::dynamic(), ov::element::dynamic, variable_id[0]});
-        auto variable2 = std::make_shared<ov::op::util::Variable>(ov::op::util::VariableInfo{ov::PartialShape::dynamic(), ov::element::dynamic, variable_id[1]});
-        auto read_value1 = std::make_shared<ov::op::v6::ReadValue>(in, variable1);
-        auto read_value2 = std::make_shared<ov::op::v6::ReadValue>(in, variable2);
-        auto add = std::make_shared<ov::op::v1::Add>(read_value1, read_value2);
-        auto assign1 = std::make_shared<ov::op::v6::Assign>(add, variable1);
-        auto assign2 = std::make_shared<ov::op::v6::Assign>(in, variable2);
-        return std::make_shared<ov::Model>(ov::OutputVector{assign1},
+                                                                          const ov::element::Type& input_type,
+                                                                          const std::vector<std::string>& variable_id) {
+    auto in = std::make_shared<ov::op::v0::Parameter>(input_type, input_shape);
+    auto variable1 = std::make_shared<ov::op::util::Variable>(
+        ov::op::util::VariableInfo{ov::PartialShape::dynamic(), ov::element::dynamic, variable_id[0]});
+    auto variable2 = std::make_shared<ov::op::util::Variable>(
+        ov::op::util::VariableInfo{ov::PartialShape::dynamic(), ov::element::dynamic, variable_id[1]});
+    auto read_value1 = std::make_shared<ov::op::v6::ReadValue>(in, variable1);
+    auto read_value2 = std::make_shared<ov::op::v6::ReadValue>(in, variable2);
+    auto add = std::make_shared<ov::op::v1::Add>(read_value1, read_value2);
+    auto assign1 = std::make_shared<ov::op::v6::Assign>(add, variable1);
+    auto assign2 = std::make_shared<ov::op::v6::Assign>(in, variable2);
+    return std::make_shared<ov::Model>(ov::OutputVector{assign1},
                                        ov::SinkVector{assign2},
                                        ov::ParameterVector{in},
                                        ov::op::util::VariableVector{variable1, variable2});
@@ -337,8 +345,8 @@ std::shared_ptr<ov::Model> CreateFunction_ReadValueAssingAddMultiVariable(const 
 class ReferenceReadValueAssignAddLayerTest : public ReferenceMemoryTest {
 protected:
     std::shared_ptr<ov::Model> CreateFunction(const ov::Shape& input_shape,
-                                                 const ov::element::Type& input_type,
-                                                 const std::vector<std::string>& variable_id) override {
+                                              const ov::element::Type& input_type,
+                                              const std::vector<std::string>& variable_id) override {
         return CreateFunction_ReadValueAssingAdd(input_shape, input_type, variable_id);
     }
 };
@@ -365,32 +373,50 @@ std::vector<MemoryTestParams> generateParamsForReadValueAssignAdd() {
     std::vector<std::vector<T>> result_shape123;
 
     for (size_t i = 0; i < count_runs; i++) {
-        std::transform(new_result_shape1.begin(), new_result_shape1.end(), first_result_shape1.begin(), new_result_shape1.begin(), std::plus<T>());
-        std::transform(new_result_shape22.begin(), new_result_shape22.end(), first_result_shape22.begin(), new_result_shape22.begin(), std::plus<T>());
-        std::transform(new_result_shape123.begin(), new_result_shape123.end(), first_result_shape123.begin(), new_result_shape123.begin(), std::plus<T>());
+        std::transform(new_result_shape1.begin(),
+                       new_result_shape1.end(),
+                       first_result_shape1.begin(),
+                       new_result_shape1.begin(),
+                       std::plus<T>());
+        std::transform(new_result_shape22.begin(),
+                       new_result_shape22.end(),
+                       first_result_shape22.begin(),
+                       new_result_shape22.begin(),
+                       std::plus<T>());
+        std::transform(new_result_shape123.begin(),
+                       new_result_shape123.end(),
+                       first_result_shape123.begin(),
+                       new_result_shape123.begin(),
+                       std::plus<T>());
         result_shape1.push_back(new_result_shape1);
         result_shape22.push_back(new_result_shape22);
         result_shape123.push_back(new_result_shape123);
     }
 
-    std::vector<MemoryTestParams> params{
-        MemoryTestParams(ov::Shape{1}, ov::Shape{1}, IN_ET, IN_ET, std::vector<T>{1}, result_shape1, count_runs, {"v0"}),
-        MemoryTestParams(ov::Shape{2, 2},
-                              ov::Shape{2, 2},
-                              IN_ET,
-                              IN_ET,
-                              std::vector<T>{1, 2, 3, 4},
-                              result_shape22,
-                              count_runs,
-                              {"v0"}),
-        MemoryTestParams(ov::Shape{1, 2, 3},
-                              ov::Shape{1, 2, 3},
-                              IN_ET,
-                              IN_ET,
-                              std::vector<T>{1, 2, 3, 4, 5, 6},
-                              result_shape123,
-                              count_runs,
-                              {"v0"})};
+    std::vector<MemoryTestParams> params{MemoryTestParams(ov::Shape{1},
+                                                          ov::Shape{1},
+                                                          IN_ET,
+                                                          IN_ET,
+                                                          std::vector<T>{1},
+                                                          result_shape1,
+                                                          count_runs,
+                                                          {"v0"}),
+                                         MemoryTestParams(ov::Shape{2, 2},
+                                                          ov::Shape{2, 2},
+                                                          IN_ET,
+                                                          IN_ET,
+                                                          std::vector<T>{1, 2, 3, 4},
+                                                          result_shape22,
+                                                          count_runs,
+                                                          {"v0"}),
+                                         MemoryTestParams(ov::Shape{1, 2, 3},
+                                                          ov::Shape{1, 2, 3},
+                                                          IN_ET,
+                                                          IN_ET,
+                                                          std::vector<T>{1, 2, 3, 4, 5, 6},
+                                                          result_shape123,
+                                                          count_runs,
+                                                          {"v0"})};
     return params;
 }
 
@@ -422,12 +448,11 @@ INSTANTIATE_TEST_SUITE_P(smoke_Memory_With_Hardcoded_Refs,
                          ::testing::ValuesIn(generateCombinedParamsForReadValueAssignAdd()),
                          ReferenceReadValueAssignAddLayerTest::getTestCaseName);
 
-
 class ReferenceReadValueAssignAddMultiVariableLayerTest : public ReferenceMemoryTest {
 protected:
     std::shared_ptr<ov::Model> CreateFunction(const ov::Shape& input_shape,
-                                                 const ov::element::Type& input_type,
-                                                 const std::vector<std::string>& variable_id) override {
+                                              const ov::element::Type& input_type,
+                                              const std::vector<std::string>& variable_id) override {
         return CreateFunction_ReadValueAssingAddMultiVariable(input_shape, input_type, variable_id);
     }
 };
@@ -454,33 +479,50 @@ std::vector<MemoryTestParams> ReadValueAssignAddMultiVariableLayer() {
     std::vector<std::vector<T>> result_shape123;
 
     for (size_t i = 0; i < count_runs; i++) {
-        std::transform(new_result_shape1.begin(), new_result_shape1.end(), first_result_shape1.begin(), new_result_shape1.begin(), std::plus<T>());
-        std::transform(new_result_shape22.begin(), new_result_shape22.end(), first_result_shape22.begin(), new_result_shape22.begin(), std::plus<T>());
-        std::transform(new_result_shape123.begin(), new_result_shape123.end(), first_result_shape123.begin(), new_result_shape123.begin(), std::plus<T>());
+        std::transform(new_result_shape1.begin(),
+                       new_result_shape1.end(),
+                       first_result_shape1.begin(),
+                       new_result_shape1.begin(),
+                       std::plus<T>());
+        std::transform(new_result_shape22.begin(),
+                       new_result_shape22.end(),
+                       first_result_shape22.begin(),
+                       new_result_shape22.begin(),
+                       std::plus<T>());
+        std::transform(new_result_shape123.begin(),
+                       new_result_shape123.end(),
+                       first_result_shape123.begin(),
+                       new_result_shape123.begin(),
+                       std::plus<T>());
         result_shape1.push_back(new_result_shape1);
         result_shape22.push_back(new_result_shape22);
         result_shape123.push_back(new_result_shape123);
     }
 
-
-    std::vector<MemoryTestParams> params{
-        MemoryTestParams(ov::Shape{1}, ov::Shape{1}, IN_ET, IN_ET, std::vector<T>{1}, result_shape1, count_runs, {"v0", "v1"}),
-        MemoryTestParams(ov::Shape{2, 2},
-                              ov::Shape{2, 2},
-                              IN_ET,
-                              IN_ET,
-                              std::vector<T>{1, 2, 3, 4},
-                              result_shape22,
-                              count_runs,
-                              {"v0", "v1"}),
-        MemoryTestParams(ov::Shape{1, 2, 3},
-                              ov::Shape{1, 2, 3},
-                              IN_ET,
-                              IN_ET,
-                              std::vector<T>{1, 2, 3, 4, 5, 6},
-                              result_shape123,
-                              count_runs,
-                              {"v0", "v1"})};
+    std::vector<MemoryTestParams> params{MemoryTestParams(ov::Shape{1},
+                                                          ov::Shape{1},
+                                                          IN_ET,
+                                                          IN_ET,
+                                                          std::vector<T>{1},
+                                                          result_shape1,
+                                                          count_runs,
+                                                          {"v0", "v1"}),
+                                         MemoryTestParams(ov::Shape{2, 2},
+                                                          ov::Shape{2, 2},
+                                                          IN_ET,
+                                                          IN_ET,
+                                                          std::vector<T>{1, 2, 3, 4},
+                                                          result_shape22,
+                                                          count_runs,
+                                                          {"v0", "v1"}),
+                                         MemoryTestParams(ov::Shape{1, 2, 3},
+                                                          ov::Shape{1, 2, 3},
+                                                          IN_ET,
+                                                          IN_ET,
+                                                          std::vector<T>{1, 2, 3, 4, 5, 6},
+                                                          result_shape123,
+                                                          count_runs,
+                                                          {"v0", "v1"})};
     return params;
 }
 
@@ -512,13 +554,11 @@ INSTANTIATE_TEST_SUITE_P(smoke_Memory_With_Hardcoded_Refs,
                          ::testing::ValuesIn(generateCombinedParamsForReadValueAssignAddMultiVariableLayer()),
                          ReferenceReadValueAssignAddMultiVariableLayerTest::getTestCaseName);
 
-
-
 class ReferenceReadValueAssignAddResetLayerTest : public ReferenceMemoryTest {
 protected:
     std::shared_ptr<ov::Model> CreateFunction(const ov::Shape& input_shape,
-                                                 const ov::element::Type& input_type,
-                                                 const std::vector<std::string>& variable_id) override {
+                                              const ov::element::Type& input_type,
+                                              const std::vector<std::string>& variable_id) override {
         return CreateFunction_ReadValueAssingAdd(input_shape, input_type, variable_id);
     }
 };
@@ -556,9 +596,21 @@ std::vector<MemoryTestParams> generateParamsForReadValueAssignAddReset() {
     std::vector<std::vector<T>> result_shape123;
 
     for (size_t i = 0; i < count_runs - reset_on_run; i++) {
-        std::transform(new_result_shape1.begin(), new_result_shape1.end(), first_result_shape1.begin(), new_result_shape1.begin(), std::plus<T>());
-        std::transform(new_result_shape22.begin(), new_result_shape22.end(), first_result_shape22.begin(), new_result_shape22.begin(), std::plus<T>());
-        std::transform(new_result_shape123.begin(), new_result_shape123.end(), first_result_shape123.begin(), new_result_shape123.begin(), std::plus<T>());
+        std::transform(new_result_shape1.begin(),
+                       new_result_shape1.end(),
+                       first_result_shape1.begin(),
+                       new_result_shape1.begin(),
+                       std::plus<T>());
+        std::transform(new_result_shape22.begin(),
+                       new_result_shape22.end(),
+                       first_result_shape22.begin(),
+                       new_result_shape22.begin(),
+                       std::plus<T>());
+        std::transform(new_result_shape123.begin(),
+                       new_result_shape123.end(),
+                       first_result_shape123.begin(),
+                       new_result_shape123.begin(),
+                       std::plus<T>());
         result_shape1.push_back(new_result_shape1);
         result_shape22.push_back(new_result_shape22);
         result_shape123.push_back(new_result_shape123);
@@ -569,34 +621,53 @@ std::vector<MemoryTestParams> generateParamsForReadValueAssignAddReset() {
     new_result_shape123 = std::vector<T>(6, T(0));
 
     for (size_t i = count_runs - reset_on_run; i < count_runs; i++) {
-        std::transform(new_result_shape1.begin(), new_result_shape1.end(), first_result_shape1.begin(), new_result_shape1.begin(), std::plus<T>());
-        std::transform(new_result_shape22.begin(), new_result_shape22.end(), first_result_shape22.begin(), new_result_shape22.begin(), std::plus<T>());
-        std::transform(new_result_shape123.begin(), new_result_shape123.end(), first_result_shape123.begin(), new_result_shape123.begin(), std::plus<T>());
+        std::transform(new_result_shape1.begin(),
+                       new_result_shape1.end(),
+                       first_result_shape1.begin(),
+                       new_result_shape1.begin(),
+                       std::plus<T>());
+        std::transform(new_result_shape22.begin(),
+                       new_result_shape22.end(),
+                       first_result_shape22.begin(),
+                       new_result_shape22.begin(),
+                       std::plus<T>());
+        std::transform(new_result_shape123.begin(),
+                       new_result_shape123.end(),
+                       first_result_shape123.begin(),
+                       new_result_shape123.begin(),
+                       std::plus<T>());
         result_shape1.push_back(new_result_shape1);
         result_shape22.push_back(new_result_shape22);
         result_shape123.push_back(new_result_shape123);
     }
 
-    std::vector<MemoryTestParams> params{
-        MemoryTestParams(ov::Shape{1}, ov::Shape{1}, IN_ET, IN_ET, std::vector<T>{1}, result_shape1, count_runs, {"v0"}, reset_on_run),
-        MemoryTestParams(ov::Shape{2, 2},
-                              ov::Shape{2, 2},
-                              IN_ET,
-                              IN_ET,
-                              std::vector<T>{1, 2, 3, 4},
-                              result_shape22,
-                              count_runs,
-                              {"v0"},
-                              reset_on_run),
-        MemoryTestParams(ov::Shape{1, 2, 3},
-                              ov::Shape{1, 2, 3},
-                              IN_ET,
-                              IN_ET,
-                              std::vector<T>{1, 2, 3, 4, 5, 6},
-                              result_shape123,
-                              count_runs,
-                              {"v0"},
-                              reset_on_run)};
+    std::vector<MemoryTestParams> params{MemoryTestParams(ov::Shape{1},
+                                                          ov::Shape{1},
+                                                          IN_ET,
+                                                          IN_ET,
+                                                          std::vector<T>{1},
+                                                          result_shape1,
+                                                          count_runs,
+                                                          {"v0"},
+                                                          reset_on_run),
+                                         MemoryTestParams(ov::Shape{2, 2},
+                                                          ov::Shape{2, 2},
+                                                          IN_ET,
+                                                          IN_ET,
+                                                          std::vector<T>{1, 2, 3, 4},
+                                                          result_shape22,
+                                                          count_runs,
+                                                          {"v0"},
+                                                          reset_on_run),
+                                         MemoryTestParams(ov::Shape{1, 2, 3},
+                                                          ov::Shape{1, 2, 3},
+                                                          IN_ET,
+                                                          IN_ET,
+                                                          std::vector<T>{1, 2, 3, 4, 5, 6},
+                                                          result_shape123,
+                                                          count_runs,
+                                                          {"v0"},
+                                                          reset_on_run)};
     return params;
 }
 
@@ -628,15 +699,14 @@ INSTANTIATE_TEST_SUITE_P(smoke_Memory_With_Hardcoded_Refs,
                          ::testing::ValuesIn(generateCombinedParamsForReadValueAssignAddReset()),
                          ReferenceReadValueAssignAddResetLayerTest::getTestCaseName);
 
-
-//Next tests are disabled due to bug in ov::IVariableState::set_state
-//It changes tensor ptr only in VariableState but not in VariableValue
+// Next tests are disabled due to bug in ov::IVariableState::set_state
+// It changes tensor ptr only in VariableState but not in VariableValue
 
 class ReferenceReadValueAssignAddModifyLayerTest : public ReferenceMemoryTest {
 protected:
     std::shared_ptr<ov::Model> CreateFunction(const ov::Shape& input_shape,
-                                                 const ov::element::Type& input_type,
-                                                 const std::vector<std::string>& variable_id) override {
+                                              const ov::element::Type& input_type,
+                                              const std::vector<std::string>& variable_id) override {
         return CreateFunction_ReadValueAssingAdd(input_shape, input_type, variable_id);
     }
 };
@@ -674,9 +744,21 @@ std::vector<MemoryTestParams> generateParamsForReadValueAssignAddModify() {
     std::vector<std::vector<T>> result_shape123;
 
     for (size_t i = 0; i < count_runs - reset_on_run; i++) {
-        std::transform(new_result_shape1.begin(), new_result_shape1.end(), first_result_shape1.begin(), new_result_shape1.begin(), std::plus<T>());
-        std::transform(new_result_shape22.begin(), new_result_shape22.end(), first_result_shape22.begin(), new_result_shape22.begin(), std::plus<T>());
-        std::transform(new_result_shape123.begin(), new_result_shape123.end(), first_result_shape123.begin(), new_result_shape123.begin(), std::plus<T>());
+        std::transform(new_result_shape1.begin(),
+                       new_result_shape1.end(),
+                       first_result_shape1.begin(),
+                       new_result_shape1.begin(),
+                       std::plus<T>());
+        std::transform(new_result_shape22.begin(),
+                       new_result_shape22.end(),
+                       first_result_shape22.begin(),
+                       new_result_shape22.begin(),
+                       std::plus<T>());
+        std::transform(new_result_shape123.begin(),
+                       new_result_shape123.end(),
+                       first_result_shape123.begin(),
+                       new_result_shape123.begin(),
+                       std::plus<T>());
         result_shape1.push_back(new_result_shape1);
         result_shape22.push_back(new_result_shape22);
         result_shape123.push_back(new_result_shape123);
@@ -686,39 +768,70 @@ std::vector<MemoryTestParams> generateParamsForReadValueAssignAddModify() {
     new_result_shape22 = std::vector<T>(4, T(0));
     new_result_shape123 = std::vector<T>(6, T(0));
 
-    std::transform(new_result_shape1.begin(), new_result_shape1.end(), first_result_shape1.begin(), new_result_shape1.begin(), std::plus<T>());
-    std::transform(new_result_shape22.begin(), new_result_shape22.end(), first_result_shape22.begin(), new_result_shape22.begin(), std::plus<T>());
-    std::transform(new_result_shape123.begin(), new_result_shape123.end(), first_result_shape123.begin(), new_result_shape123.begin(), std::plus<T>());
+    std::transform(new_result_shape1.begin(),
+                   new_result_shape1.end(),
+                   first_result_shape1.begin(),
+                   new_result_shape1.begin(),
+                   std::plus<T>());
+    std::transform(new_result_shape22.begin(),
+                   new_result_shape22.end(),
+                   first_result_shape22.begin(),
+                   new_result_shape22.begin(),
+                   std::plus<T>());
+    std::transform(new_result_shape123.begin(),
+                   new_result_shape123.end(),
+                   first_result_shape123.begin(),
+                   new_result_shape123.begin(),
+                   std::plus<T>());
 
     for (size_t i = count_runs - reset_on_run; i < count_runs; i++) {
-        std::transform(new_result_shape1.begin(), new_result_shape1.end(), first_result_shape1.begin(), new_result_shape1.begin(), std::plus<T>());
-        std::transform(new_result_shape22.begin(), new_result_shape22.end(), first_result_shape22.begin(), new_result_shape22.begin(), std::plus<T>());
-        std::transform(new_result_shape123.begin(), new_result_shape123.end(), first_result_shape123.begin(), new_result_shape123.begin(), std::plus<T>());
+        std::transform(new_result_shape1.begin(),
+                       new_result_shape1.end(),
+                       first_result_shape1.begin(),
+                       new_result_shape1.begin(),
+                       std::plus<T>());
+        std::transform(new_result_shape22.begin(),
+                       new_result_shape22.end(),
+                       first_result_shape22.begin(),
+                       new_result_shape22.begin(),
+                       std::plus<T>());
+        std::transform(new_result_shape123.begin(),
+                       new_result_shape123.end(),
+                       first_result_shape123.begin(),
+                       new_result_shape123.begin(),
+                       std::plus<T>());
         result_shape1.push_back(new_result_shape1);
         result_shape22.push_back(new_result_shape22);
         result_shape123.push_back(new_result_shape123);
     }
 
-    std::vector<MemoryTestParams> params{
-        MemoryTestParams(ov::Shape{1}, ov::Shape{1}, IN_ET, IN_ET, std::vector<T>{1}, result_shape1, count_runs, {"v0"}, reset_on_run),
-        MemoryTestParams(ov::Shape{2, 2},
-                              ov::Shape{2, 2},
-                              IN_ET,
-                              IN_ET,
-                              std::vector<T>{1, 2, 3, 4},
-                              result_shape22,
-                              count_runs,
-                              {"v0"},
-                              reset_on_run),
-        MemoryTestParams(ov::Shape{1, 2, 3},
-                              ov::Shape{1, 2, 3},
-                              IN_ET,
-                              IN_ET,
-                              std::vector<T>{1, 2, 3, 4, 5, 6},
-                              result_shape123,
-                              count_runs,
-                              {"v0"},
-                              reset_on_run)};
+    std::vector<MemoryTestParams> params{MemoryTestParams(ov::Shape{1},
+                                                          ov::Shape{1},
+                                                          IN_ET,
+                                                          IN_ET,
+                                                          std::vector<T>{1},
+                                                          result_shape1,
+                                                          count_runs,
+                                                          {"v0"},
+                                                          reset_on_run),
+                                         MemoryTestParams(ov::Shape{2, 2},
+                                                          ov::Shape{2, 2},
+                                                          IN_ET,
+                                                          IN_ET,
+                                                          std::vector<T>{1, 2, 3, 4},
+                                                          result_shape22,
+                                                          count_runs,
+                                                          {"v0"},
+                                                          reset_on_run),
+                                         MemoryTestParams(ov::Shape{1, 2, 3},
+                                                          ov::Shape{1, 2, 3},
+                                                          IN_ET,
+                                                          IN_ET,
+                                                          std::vector<T>{1, 2, 3, 4, 5, 6},
+                                                          result_shape123,
+                                                          count_runs,
+                                                          {"v0"},
+                                                          reset_on_run)};
     return params;
 }
 
@@ -749,4 +862,4 @@ INSTANTIATE_TEST_SUITE_P(smoke_Memory_With_Hardcoded_Refs,
                          ReferenceReadValueAssignAddModifyLayerTest,
                          ::testing::ValuesIn(generateCombinedParamsForReadValueAssignAddModify()),
                          ReferenceReadValueAssignAddModifyLayerTest::getTestCaseName);
-} //namespace
+}  // namespace
