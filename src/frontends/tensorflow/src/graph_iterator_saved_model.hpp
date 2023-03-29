@@ -128,7 +128,7 @@ private:
 
             // Update variables map using information by resolving AssignVariableOp graph nodes
             std::map<std::string, std::string> var_map;
-            map_assignvariable(m_graph_def, var_map);
+            VariablesIndex::map_assignvariable(m_graph_def, var_map);
             for (auto var : var_map) {
                 m_variables_index->map_variable(var.first, var.second);
             }
@@ -154,15 +154,6 @@ private:
 
         return false;
     }
-
-    /// \brief Reads relationship between VarHandleOp - RestoreV2 - AssignVariableOp and
-    /// stores this information in a provided key=value map. Where key - name of VarHandleOp,
-    /// value - long variable name which is stored in RestoreV2.
-    /// It needs to map VarHandleOp to right place in .index file.
-    /// \param[in] graph_def GraphDef object for analysis
-    /// \param[out] variables_map Map of variables found in graph_def
-    void map_assignvariable(const std::shared_ptr<::tensorflow::GraphDef> graph_def,
-                            std::map<std::string, std::string>& variables_map) const;
 };  // GraphIteratorSavedModel
 
 }  // namespace tensorflow

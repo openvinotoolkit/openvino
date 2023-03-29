@@ -31,14 +31,16 @@ public:
     /// \brief Reads variables from opened variable index file. Can cause an asserts in case of issues.
     /// \param vi_stream Opened stream file, file pointer doesn't matter, it will be rewind internally.
     /// \param path A path to file with variables data
+    /// \param is_saved_model Flag shows variables index is a part of Saved Model format
     /// \returns Returns true in case of everything loads successfully, false otherwise
-    bool read_variables(std::ifstream& vi_stream, const std::string& path);
+    bool read_variables(std::ifstream& vi_stream, const std::string& path, const bool is_saved_model = true);
 #if defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
     /// \brief Reads variables from opened variable index file. Can cause an asserts in case of issues.
     /// \param vi_stream Opened stream file, file pointer doesn't matter, it will be rewind internally.
     /// \param path A path to file with variables data
+    /// \param is_saved_model Flag shows variables index is a part of Saved Model format
     /// \returns Returns true in case of everything loads successfully, false otherwise
-    bool read_variables(std::ifstream& vi_stream, const std::wstring& path);
+    bool read_variables(std::ifstream& vi_stream, const std::wstring& path, const bool is_saved_model = true);
 #endif
 
     /// \brief Returns data and size of data of stored variable
@@ -102,6 +104,15 @@ public:
         m_variables_map[var_name] = map_name;
         return true;
     }
+
+    /// \brief Reads relationship between VarHandleOp - RestoreV2 - AssignVariableOp and
+    /// stores this information in a provided key=value map. Where key - name of VarHandleOp,
+    /// value - long variable name which is stored in RestoreV2.
+    /// It needs to map VarHandleOp to right place in .index file.
+    /// \param[in] graph_def GraphDef object for analysis
+    /// \param[out] variables_map Map of variables found in graph_def
+    static void map_assignvariable(const std::shared_ptr<::tensorflow::GraphDef> graph_def,
+                                   std::map<std::string, std::string>& variables_map);
 
 private:
     /// \brief Reads block structure of .index file

@@ -7,7 +7,7 @@
 #include <fstream>
 #include <string>
 
-#include "graph_iterator_saved_model.hpp"
+#include "graph_iterator_meta.hpp"
 #include "openvino/core/type/element_type.hpp"
 #include "tensor_bundle.pb.h"
 #include "trackable_object_graph.pb.h"
@@ -20,7 +20,7 @@ namespace ov {
 namespace frontend {
 namespace tensorflow {
 
-bool GraphIteratorSavedModel::is_valid_signature(const ::tensorflow::SignatureDef& signature) const {
+bool GraphIteratorMeta::is_valid_signature(const ::tensorflow::SignatureDef& signature) const {
     const std::map<::tensorflow::DataType, ov::element::Type> types{
         {::tensorflow::DataType::DT_BOOL, ov::element::boolean},
         {::tensorflow::DataType::DT_INT16, ov::element::i16},
@@ -45,33 +45,29 @@ bool GraphIteratorSavedModel::is_valid_signature(const ::tensorflow::SignatureDe
     return true;
 }
 
-bool GraphIteratorSavedModel::is_supported(const std::string& path) {
-    return ov::util::directory_exists(path) && ov::util::file_exists(ov::util::path_join({path, "saved_model.pb"}));
+bool GraphIteratorMeta::is_supported(const std::string& path) {
+    std::ifstream mg_stream(path, std::ios::in | std::ifstream::binary);
+    auto metagraph_def = std::make_shared<::tensorflow::MetaGraphDef>();
+    return mg_stream && mg_stream.is_open() && metagraph_def->ParsePartialFromIstream(&mg_stream);
 }
 
 #if defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
-bool GraphIteratorSavedModel::is_supported(const std::wstring& path) {
-    return ov::util::directory_exists(path) && ov::util::file_exists(ov::util::path_join_w({path, L"saved_model.pb"}));
+bool GraphIteratorMeta::is_supported(const std::wstring& path) {
+    std::ifstream mg_stream(path, std::ios::in | std::ifstream::binary);
+    auto metagraph_def = std::make_shared<::tensorflow::MetaGraphDef>();
+    return mg_stream && mg_stream.is_open() && metagraph_def->ParsePartialFromIstream(&mg_stream);
 }
 #endif
 
 template <>
-std::basic_string<char> get_saved_model_name<char>() {
-    return "/saved_model.pb";
-}
-template <>
-std::basic_string<char> get_variables_index_name<char>() {
-    return "/variables/variables.index";
+std::basic_string<char> get_variables_index_name<char>(const std::string name) {
+    return name + ".index";
 }
 
 #if defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
 template <>
-std::basic_string<wchar_t> get_saved_model_name<wchar_t>() {
-    return L"/saved_model.pb";
-}
-template <>
-std::basic_string<wchar_t> get_variables_index_name<wchar_t>() {
-    return L"/variables/variables.index";
+std::basic_string<wchar_t> get_variables_index_name<wchar_t>(const std::wstring name) {
+    return name + L".index";
 }
 #endif
 
