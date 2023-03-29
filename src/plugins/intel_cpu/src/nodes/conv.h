@@ -94,8 +94,10 @@ private:
                                 const dnnl::memory::desc& inMemDesc,
                                 const dnnl::memory::desc& weightMemDesc,
                                 const dnnl::memory::desc& outMemDesc,
-                                const dnnl::engine& engine);
+                                const dnnl::engine& engine,
+                                bool constWeight);
     };
+    bool pendingConstWeightReorder = false;
 
     void prepareParams() override;
     void execute(dnnl::stream strm) override;
