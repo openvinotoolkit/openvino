@@ -45,6 +45,7 @@
 #include "transformations/pwl_approximation.hpp"
 #include "transformations/remove_converts.hpp"
 #include "transformations/remove_extra_reshapes.hpp"
+#include "transformations/remove_pre_post_processing.hpp"
 #include "transformations/remove_single_input_concat.hpp"
 #include "transformations/reorder_activation_and_pooling.hpp"
 #include "transformations/split_convolution_with_large_buffer_size.hpp"
@@ -111,6 +112,8 @@ void TransformationsPipeline::apply(const std::shared_ptr<ov::Model>& model,
     manager.register_pass<ov::intel_gna::pass::RemoveSingleInputConcat>();
     manager.register_pass<ov::intel_gna::pass::SubstituteSoftsign>();
     manager.register_pass<ov::intel_gna::pass::InsertCopyBeforeLayerToBeEliminated>();
+    manager.register_pass<ov::intel_gna::pass::RemoveInputsProcessing>(subgraph_cpu_map);
+    manager.register_pass<ov::intel_gna::pass::RemoveOutputsProcessing>(subgraph_cpu_map);
     manager.register_pass<ov::pass::ConvertOpSet3ToOpSet2>();
     manager.register_pass<ov::pass::ConvertOpSet2ToOpSet1>();
     manager.register_pass<ngraph::pass::ConvertOpSet1ToLegacy>();
