@@ -4,3 +4,4 @@ torch
 torchvision
 paddlepaddle
 pytest
+tensorflow-addons
