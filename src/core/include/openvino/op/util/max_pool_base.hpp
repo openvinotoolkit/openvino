@@ -86,8 +86,6 @@ protected:
     Shape m_pads_end;
     PadType m_auto_pad;
     op::RoundingType m_rounding_type;
-
-    void resize_attributes(size_t num_spatial) {}
 };
 }  // namespace util
 }  // namespace op
