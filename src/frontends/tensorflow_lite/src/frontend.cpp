@@ -48,7 +48,9 @@ FrontEnd::FrontEnd() {
 
 /// \brief Check if FrontEndTensorflowLite can recognize model from given parts
 bool FrontEnd::supported_impl(const std::vector<ov::Any>& variants) const {
-    if (variants.size() != 1)
+    // Last boolean flag in `variants` (if presented) is reserved for FE configuration
+    size_t extra_variants_num = variants.size() > 0 && variants[variants.size() - 1].is<bool>() ? 1 : 0;
+    if (variants.size() != 1 + extra_variants_num)
         return false;
 
     if (variants[0].is<std::string>()) {
@@ -71,7 +73,9 @@ bool FrontEnd::supported_impl(const std::vector<ov::Any>& variants) const {
 }
 
 ov::frontend::InputModel::Ptr FrontEnd::load_impl(const std::vector<ov::Any>& variants) const {
-    if (variants.size() == 1) {
+    // Last boolean flag in `variants` (if presented) is reserved for FE configuration
+    size_t extra_variants_num = variants.size() > 0 && variants[variants.size() - 1].is<bool>() ? 1 : 0;
+    if (variants.size() == 1 + extra_variants_num) {
         if (variants[0].is<std::string>()) {
             std::string suffix = ".tflite";
             std::string model_path = variants[0].as<std::string>();
