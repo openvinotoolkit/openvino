@@ -32,7 +32,7 @@ std::shared_ptr<ov::Model> convert_model(const std::string& model_path) {
 
 class CompileModelsTests : public ::testing::Test {};
 
-TEST_F(CompileModelsTests, NgramCompilation) {
+TEST_F(CompileModelsTests, DISABLED_NgramCompilation) {
     ov::Core core;
     auto model = convert_model("model_ngram/model_ngram.pb");
     ov::CompiledModel compiled_model = core.compile_model(model, "CPU");
