@@ -209,18 +209,19 @@ Learn more about how to integrate a model in OpenVINO applications by trying out
 
 
 .. tab:: Get started with Python
-
-   Try the :doc:`Python Quick Start Example <notebooks/201-vision-monodepth-with-output>`
+   
+   Try the `Python Quick Start Example <https://docs.openvino.ai/nightly/notebooks/201-vision-monodepth-with-output.html>`_
    to estimate depth in a scene using an OpenVINO monodepth model in a Jupyter Notebook inside your web browser.
    
    .. image:: https://user-images.githubusercontent.com/15709723/127752390-f6aa371f-31b5-4846-84b9-18dd4f662406.gif
       :width: 400
-
+   
    Visit the :doc:`Tutorials <tutorials>` page for more Jupyter Notebooks to get you started with OpenVINO, such as:
    
-   * :doc:`OpenVINO Python API Tutorial <notebooks/002-openvino-api-with-output>`
-   * :doc:`Basic image classification program with Hello Image Classification <notebooks/001-hello-world-with-output>`
-   * :doc:`Convert a PyTorch model and use it for image background removal <notebooks/205-vision-background-removal-with-output>`
+   * `OpenVINO Python API Tutorial <https://docs.openvino.ai/nightly/notebooks/002-openvino-api-with-output.html>`_
+   * `Basic image classification program with Hello Image Classification <https://docs.openvino.ai/nightly/notebooks/001-hello-world-with-output.html>`_
+   * `Convert a PyTorch model and use it for image background removal <https://docs.openvino.ai/nightly/notebooks/205-vision-background-removal-with-output.html>`_
+
 
 .. tab:: Get started with C++
 
@@ -234,6 +235,7 @@ Learn more about how to integrate a model in OpenVINO applications by trying out
    
    * `Basic object detection with the Hello Reshape SSD C++ sample <openvino_inference_engine_samples_hello_reshape_ssd_README.html>`__
    * `Automatic speech recognition C++ sample <openvino_inference_engine_samples_speech_sample_README.html>`__
+
 
 
 Uninstalling the Intel® Distribution of OpenVINO™ Toolkit
