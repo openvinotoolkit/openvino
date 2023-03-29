@@ -32,25 +32,25 @@ Examples of CLI Commands
    
    .. code-block:: sh
 
-   mo --input_model wsj_dnn5b_smbr.nnet
+      mo --input_model wsj_dnn5b_smbr.nnet
   
 
 * To launch Model Optimizer for the ``wsj_dnn5b_smbr`` model with the existing file that contains counts for the last layer with biases:
 
    .. code-block:: sh
 
-   mo --input_model wsj_dnn5b_smbr.nnet --counts wsj_dnn5b_smbr.counts
+      mo --input_model wsj_dnn5b_smbr.nnet --counts wsj_dnn5b_smbr.counts
    
 
    * The Model Optimizer normalizes сounts in the following way:
     
    .. math::
     
-   S = \frac{1}{\sum_{j = 0}^{|C|}C_{j}}
+      S = \frac{1}{\sum_{j = 0}^{|C|}C_{j}}
     
    .. math::
     
-   C_{i}=log(S\*C_{i})
+      C_{i}=log(S\*C_{i})
     
    where :math:`C` - the counts array, :math:`C_{i} - i^{th}` element of the counts array, :math:`|C|` - number of elements in the counts array;
 
@@ -58,20 +58,20 @@ Examples of CLI Commands
   
    .. note::  
 
-   Model Optimizer will show a warning if a model contains values of counts and the `--counts` option is not used.
+      Model Optimizer will show a warning if a model contains values of counts and the `--counts` option is not used.
 
 * If you want to remove the last SoftMax layer in the topology, launch the Model Optimizer with the `--remove_output_softmax` flag:
 
    .. code-block:: sh
 
-   mo --input_model wsj_dnn5b_smbr.nnet --counts wsj_dnn5b_smbr.counts --remove_output_softmax
+      mo --input_model wsj_dnn5b_smbr.nnet --counts wsj_dnn5b_smbr.counts --remove_output_softmax
    
 
    The Model Optimizer finds the last layer of the topology and removes this layer only if it is a SoftMax layer.
 
    .. note:: 
 
-   Model Optimizer can remove SoftMax layer only if the topology has one output.
+      Model Optimizer can remove SoftMax layer only if the topology has one output.
 
 * You can use the *OpenVINO Speech Recognition* sample application for the sample inference of Kaldi models. This sample supports models with only one output. If your model has several outputs, specify the desired one with the ``--output`` option.
 
