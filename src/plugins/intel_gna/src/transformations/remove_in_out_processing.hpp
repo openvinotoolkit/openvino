@@ -12,7 +12,7 @@ namespace intel_gna {
 namespace pass {
 
 /**
- * @brief Remove Transpose/Gater layers connected to Inputs and create pre-processing model
+ * @brief Remove Transpose/Gather layers connected to Inputs and create pre-processing model
  * to support input pre-processing on CPU.
  * Inserts Reshape layer instead of Transpose/Gater layer to avoid changing of the shapes.
  * @param output_subgraphs Map where pre-processing model for each input will be saved
@@ -24,7 +24,7 @@ namespace pass {
  *           |
  *        Any layer
  *
- *    And transforms to
+ *   and transforms it to
  *     Any input layer
  *           |
  *        Reshape
@@ -43,7 +43,7 @@ private:
 };
 
 /**
- * @brief Remove Transpose/Gater layers connected to Outputs and create post-processing model
+ * @brief Remove Transpose/Gather layers connected to Outputs and create post-processing model
  * to support input pre-processing on CPU.
  * Inserts Reshape layer instead of Transpose/Gater layer to avoid changing of the shapes.
  * @param output_subgraphs Map where post-processing model for each output will be saved
@@ -55,7 +55,7 @@ private:
  *           |
  *        Result
  *
- *    And transforms to
+ *   and transforms it to
  *     Any input layer
  *           |
  *        Reshape
