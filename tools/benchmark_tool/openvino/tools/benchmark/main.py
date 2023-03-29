@@ -71,15 +71,12 @@ def main():
         device_name = args.target_device
 
         devices = parse_devices(device_name)
-        is_dev_set_property = {device: True for device in devices}
         device_number_streams = parse_value_per_device(devices, args.number_streams, "nstreams")
         device_infer_precision = parse_value_per_device(devices, args.infer_precision, "infer_precision")
 
         config = {}
-        is_load_config = False
         if args.load_config:
             load_config(args.load_config, config)
-            is_load_config = True
 
         if is_network_compiled:
             logger.info("Model is compiled")
@@ -199,14 +196,6 @@ def main():
             ## insert or append property into hw device properties list
             def update_configs(hw_device, property_name, property_value):
                 (key, value) = properties.device.properties({hw_device:{property_name:property_value}})
-                is_set_streams_auto = property_name == properties.num_streams() and property_value == properties.streams.Num.AUTO
-                if not is_set_streams_auto and is_load_config and is_dev_set_property[hw_device] and hw_device in config[device].keys():
-                    # overwrite the device properties loaded from configuration file if
-                    # 1. not setting 'NUM_STREAMS' to default value 'AUTO',
-                    # 2. enable loading device properties from configuration file,
-                    # 3. device properties in config[device] is loaded from configuration file, and never setting device properties before
-                    is_dev_set_property[hw_device] = False
-                    del config[device][key]
                 # add property into hw device properties list.
                 if key not in config[device].keys():
                     config[device][key] = value

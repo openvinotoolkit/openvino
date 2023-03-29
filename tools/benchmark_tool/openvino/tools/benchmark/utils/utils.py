@@ -4,7 +4,7 @@
 from collections import defaultdict
 from datetime import timedelta
 import enum
-from openvino.runtime import Core, Model, PartialShape, Dimension, Layout, Type, serialize, properties
+from openvino.runtime import Core, Model, PartialShape, Dimension, Layout, Type, serialize, properties, OVAny
 from openvino.preprocess import PrePostProcessor
 
 from .constants import DEVICE_DURATION_IN_SECS, UNKNOWN_DEVICE_TYPE, \
@@ -757,6 +757,43 @@ def get_network_batch_size(inputs_info):
 def show_available_devices():
     print("\nAvailable target devices:  ", ("  ".join(Core().available_devices)))
 
+def dict2string(config):
+    ret = "{"
+    for k, v in config.items():
+        if isinstance(v, dict):
+            sub_str = "{"
+            for sk, sv in v.items():
+                if isinstance(sv, bool):
+                    sv = str(sv).capitalize()
+                sub_str += "{0}:{1},".format(sk, sv)
+            sub_str = sub_str[:-1]
+            sub_str += "}"
+            ret += "{0}:{1},".format(k, sub_str)
+        else:
+            ret += "{0}:{1},".format(k, v)
+    ret = ret[:-1]
+    ret += "}"
+    return ret
+
+def string2dict(device_properties_str):
+    config = {}
+    if not device_properties_str:
+        return config
+    if device_properties_str[0] != '{' or device_properties_str[-1] != '}':
+        raise Exception(
+            "Can't deterimine batch size: batch is different for different inputs!")
+    pattern = r'(\w+):({.+?}|[^,}]+)'
+    pairs = re.findall(pattern, device_properties_str)
+    for key, value in pairs:
+        if value.startswith("{") and value.endswith("}"):
+            value = value[1:-1]
+            nested_pairs = re.findall(pattern, value)
+            nested_dict = {}
+            for nested_key, nested_value in nested_pairs:
+                nested_dict[nested_key] = nested_value
+            value = nested_dict
+        config[key] = value
+    return config
 
 def dump_config(filename, config):
     json_config = {}
@@ -764,11 +801,12 @@ def dump_config(filename, config):
         json_config[device_name] = {}
         for key, value in device_config.items():
             value_string = value.name if isinstance(value, properties.hint.PerformanceMode) else str(value)
+            if key == properties.device.properties():
+                value_string = dict2string(value.get())
             json_config[device_name][key] = value_string
 
     with open(filename, 'w') as f:
         json.dump(json_config, f, indent=4)
-
 
 def load_config(filename, config):
     with open(filename) as f:
@@ -776,4 +814,8 @@ def load_config(filename, config):
     for device in original_config:
         config[device] = {}
         for property_name in original_config[device]:
-            config[device][property_name] = original_config[device][property_name]
+            if property_name == properties.device.properties():
+                properties_str = original_config[device][property_name]
+                config[device][property_name] = OVAny(string2dict(properties_str))
+            else:
+                config[device][property_name] = original_config[device][property_name]
