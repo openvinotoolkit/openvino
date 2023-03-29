@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "ie_core.hpp"
 #include "test_utils.h"
 
 #include <intel_gpu/primitives/input_layout.hpp>
@@ -18,6 +19,7 @@
 
 using namespace cldnn;
 using namespace ::tests;
+using namespace InferenceEngine;
 
 namespace memory_realloc_tests {
 TEST(memory_reuse_realloc_reset_test, basic_conv_with_padding) {

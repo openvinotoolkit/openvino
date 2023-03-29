@@ -5,6 +5,8 @@
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 #pragma once
 #include "schedule.hpp"
+#include <cpp_interfaces/interface/ie_iexecutable_network_internal.hpp>
+#include <ie_icore.hpp>
 
 #ifdef  MULTIUNITTEST
 #define MOCKTESTMACRO virtual

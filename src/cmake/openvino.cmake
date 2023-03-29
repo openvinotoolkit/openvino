@@ -56,7 +56,7 @@ if(NOT BUILD_SHARED_LIBS)
         target_link_libraries(${TARGET_NAME} PRIVATE inference_engine_ir_v7_reader)
     endif()
 else()
-    target_compile_definitions(${TARGET_NAME} PUBLIC IMPLEMENT_INFERENCE_ENGINE_API)
+    target_compile_definitions(${TARGET_NAME} PUBLIC IMPLEMENT_OPENVINO_API)
 endif()
 
 if(WIN32)
