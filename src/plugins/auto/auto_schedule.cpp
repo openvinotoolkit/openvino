@@ -391,6 +391,8 @@ void AutoSchedule::init(const ScheduleContext::Ptr& sContext) {
                             _cpuHelpFps = cpuHelpAllStartTimes.size() * 1000 / durtation.count();
                         }
                     });
+                    LOG_INFO_TAG("CPU_HELP:infer:%ld", _cpuHelpInferCount);
+                    LOG_INFO_TAG("CPU_HELP:fps:%lf", _cpuHelpFps);
                     LOG_INFO_TAG("release all work requests of CPU_HELP");
                     _workerRequests["CPU_HELP"].clear();
                     _loadContext[CPU].executableNetwork._ptr.reset();
