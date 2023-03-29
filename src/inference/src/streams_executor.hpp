@@ -8,10 +8,28 @@
  */
 #pragma once
 
+#include <mutex>
 #include <string>
 #include <vector>
 
 namespace ov {
+
+struct CPU {
+    int _processors = 0;
+    int _sockets = 0;
+    int _cores = 0;
+    std::vector<std::vector<int>> _proc_type_table;
+    std::vector<std::vector<int>> _cpu_mapping_table;
+    std::mutex _cpu_mutex;
+    std::mutex _task_mutex;
+    int _plugin_status = PLUGIN_USED_START;
+    int _socket_idx = 0;
+
+    CPU() {
+        init_cpu(*this);
+    }
+    void init_cpu(CPU& cpu);
+};
 
 #ifdef __linux__
 /**
@@ -31,6 +49,7 @@ void parse_processor_info_linux(const int _processors,
                                 int& _cores,
                                 std::vector<std::vector<int>>& _proc_type_table,
                                 std::vector<std::vector<int>>& _cpu_mapping_table);
+
 #endif
 
 #if (defined(_WIN32) || defined(_WIN64))

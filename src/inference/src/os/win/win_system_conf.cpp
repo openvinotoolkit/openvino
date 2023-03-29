@@ -17,33 +17,28 @@
 
 namespace ov {
 
-struct CPU {
-    int _processors = 0;
-    int _sockets = 0;
-    int _cores = 0;
-
-    std::vector<std::vector<int>> _proc_type_table;
-    std::vector<std::vector<int>> _cpu_mapping_table;
-
-    CPU() {
-        DWORD len = 0;
-        if (GetLogicalProcessorInformationEx(RelationAll, nullptr, &len) ||
-            GetLastError() != ERROR_INSUFFICIENT_BUFFER) {
-            return;
-        }
-
-        std::shared_ptr<char> base_shared_ptr(new char[len]);
-        char* base_ptr = base_shared_ptr.get();
-        if (!GetLogicalProcessorInformationEx(RelationAll, (PSYSTEM_LOGICAL_PROCESSOR_INFORMATION_EX)base_ptr, &len)) {
-            return;
-        }
-
-        _processors = GetMaximumProcessorCount(ALL_PROCESSOR_GROUPS);
-
-        parse_processor_info_win(base_ptr, len, _processors, _sockets, _cores, _proc_type_table, _cpu_mapping_table);
+void CPU::init_cpu(CPU& cpu) {
+    DWORD len = 0;
+    if (GetLogicalProcessorInformationEx(RelationAll, nullptr, &len) || GetLastError() != ERROR_INSUFFICIENT_BUFFER) {
+        return;
     }
-};
-static CPU cpu;
+
+    std::shared_ptr<char> base_shared_ptr(new char[len]);
+    char* base_ptr = base_shared_ptr.get();
+    if (!GetLogicalProcessorInformationEx(RelationAll, (PSYSTEM_LOGICAL_PROCESSOR_INFORMATION_EX)base_ptr, &len)) {
+        return;
+    }
+
+    cpu._processors = GetMaximumProcessorCount(ALL_PROCESSOR_GROUPS);
+
+    parse_processor_info_win(base_ptr,
+                             len,
+                             cpu._processors,
+                             cpu._sockets,
+                             cpu._cores,
+                             cpu._proc_type_table,
+                             cpu._cpu_mapping_table);
+}
 
 void parse_processor_info_win(const char* base_ptr,
                               const unsigned long len,
