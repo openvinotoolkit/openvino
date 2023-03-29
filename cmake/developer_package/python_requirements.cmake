@@ -97,7 +97,11 @@ function(ov_check_pip_packages)
 
     if(PYTHONINTERP_FOUND)
         execute_process(
-            COMMAND ${PYTHON_EXECUTABLE} -c "import pkg_resources ; pkg_resources.require(open('${ARG_REQUIREMENTS_FILE}', mode='r'))"
+            COMMAND ${PYTHON_EXECUTABLE} -c "
+from check_python_requirements import check_python_requirements ;
+check_python_requirements('${ARG_REQUIREMENTS_FILE}') ;
+            "
+            WORKING_DIRECTORY "${IEDevScripts_DIR}"
             RESULT_VARIABLE EXIT_CODE
             OUTPUT_VARIABLE OUTPUT_TEXT
             ERROR_VARIABLE ERROR_TEXT)

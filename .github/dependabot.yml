@@ -6,7 +6,7 @@ updates:
   # Python product dependencies
   #
 
-  # Python API requirements
+  # Python API, Frontends
   - package-ecosystem: pip
     directory: "/src/bindings/python/"
     schedule:
@@ -17,12 +17,33 @@ updates:
     assignees:
       - "jiwaszki"
       - "p-wysocki"
+      - "akuporos"
+      - "rkazants"
+      - "ceciliapeng2011"
+      - "meiyang-intel"
+      - "mbencer"
+      - "tomdol"
+      - "jane-intel"
+    versioning-strategy: increase-if-necessary
+
+  # Tests
+  - package-ecosystem: pip
+    directory: "/tests"
+    schedule:
+      interval: "daily"
+      time: "09:00"
+      timezone: "Poland"
+    open-pull-requests-limit: 3
+    assignees:
+      - "jiwaszki"
+      - "p-wysocki"
+      - "akuporos"
       - "rkazants"
     versioning-strategy: increase-if-necessary
 
-  # Model Optimizer requirements
+  # Model Optimizer, openvino_dev and Benchmark tool
   - package-ecosystem: pip
-    directory: "/tools/mo"
+    directory: "/tools"
     schedule:
       interval: "daily"
       time: "09:00"
@@ -33,6 +54,8 @@ updates:
       - "andrei-kochin"
       - "jiwaszki"
       - "p-wysocki"
+      - "akuporos"
+      - "Wovchena"
     allow:
       - dependency-name: "*"
         dependency-type: "production"
@@ -51,87 +74,8 @@ updates:
       - "KodiaqQ"
       - "jiwaszki"
       - "p-wysocki"
+      - "akuporos"
       - "rkazants"
-    versioning-strategy: increase-if-necessary
-
-  # benchmark_tool requirements
-  - package-ecosystem: pip
-    directory: "/tools/benchmark_tool"
-    schedule:
-      interval: "daily"
-      time: "09:00"
-      timezone: "Asia/Dubai"
-    open-pull-requests-limit: 3
-    assignees:
-      - "Wovchena"
-      - "jiwaszki"
-      - "p-wysocki"
-      - "rkazants"
-    versioning-strategy: increase-if-necessary
-
-  #
-  # Tests requirements for frontends
-  #
-
-  # PaddlePaddle FE tests requirements
-  - package-ecosystem: pip
-    directory: "/src/frontends/paddle/tests/"
-    schedule:
-      interval: "daily"
-      time: "09:00"
-      timezone: "Asia/Shanghai"
-    open-pull-requests-limit: 3
-    assignees:
-      - "ceciliapeng2011"
-      - "meiyang-intel"
-      - "jiwaszki"
-      - "p-wysocki"
-      - "rkazants"
-    versioning-strategy: increase-if-necessary
-
-  # ONNX FE tests requirements
-  - package-ecosystem: pip
-    directory: "/src/frontends/onnx/tests/"
-    schedule:
-      interval: "daily"
-      time: "09:00"
-      timezone: "Poland"
-    open-pull-requests-limit: 3
-    assignees:
-      - "mbencer"
-      - "tomdol"
-      - "jiwaszki"
-      - "p-wysocki"
-      - "rkazants"
-    versioning-strategy: increase-if-necessary
-
-  # TensorFlow FE tests requirements
-  - package-ecosystem: pip
-    directory: "/src/frontends/tensorflow/tests/"
-    schedule:
-      interval: "daily"
-      time: "09:00"
-      timezone: "Asia/Dubai"
-    open-pull-requests-limit: 3
-    assignees:
-      - "rkazants"
-      - "jiwaszki"
-      - "p-wysocki"
-    versioning-strategy: increase-if-necessary
-
-  # TensorFlow Lite FE tests requirements
-  - package-ecosystem: pip
-    directory: "/src/frontends/tensorflow_lite/tests/"
-    schedule:
-      interval: "daily"
-      time: "09:00"
-      timezone: "Asia/Dubai"
-    open-pull-requests-limit: 3
-    assignees:
-      - "jane-intel"
-      - "rkazants"
-      - "jiwaszki"
-      - "p-wysocki"
     versioning-strategy: increase-if-necessary
 
   #
@@ -149,6 +93,7 @@ updates:
       - "Wovchena"
       - "jiwaszki"
       - "p-wysocki"
+      - "akuporos"
       - "rkazants"
     versioning-strategy: increase-if-necessary
 
@@ -163,6 +108,7 @@ updates:
       - "Wovchena"
       - "jiwaszki"
       - "p-wysocki"
+      - "akuporos"
       - "rkazants"
     versioning-strategy: increase-if-necessary
 
@@ -177,6 +123,7 @@ updates:
       - "Wovchena"
       - "jiwaszki"
       - "p-wysocki"
+      - "akuporos"
       - "rkazants"
     versioning-strategy: increase-if-necessary
 
@@ -191,6 +138,7 @@ updates:
       - "Wovchena"
       - "jiwaszki"
       - "p-wysocki"
+      - "akuporos"
       - "rkazants"
     versioning-strategy: increase-if-necessary
 
