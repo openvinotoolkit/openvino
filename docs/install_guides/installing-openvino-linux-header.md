@@ -13,14 +13,19 @@
    Using HomeBrew <openvino_docs_install_guides_installing_openvino_brew>
    Using Docker <openvino_docs_install_guides_installing_openvino_docker_linux>
 
+
+If you want to install OpenVINO™ Runtime on your Linux machine, these are your options: 
+
+* `Install OpenVINO Runtime from an Archive File <openvino_docs_install_guides_installing_openvino_from_archive_linux>`
+* `Install OpenVINO from PyPI <openvino_docs_install_guides_installing_openvino_pip>`
+* `Install OpenVINO Runtime from APT <openvino_docs_install_guides_installing_openvino_apt>`
+* `Install OpenVINO Runtime from YUM <openvino_docs_install_guides_installing_openvino_yum>`
+* `Install OpenVINO Runtime using HomeBrew <openvino_docs_install_guides_installing_openvino_brew>`
+* `Install OpenVINO with Docker Using Docker <openvino_docs_install_guides_installing_openvino_docker_linux>`
+
+For a full selection of distribution channels, see the 
+`OpenVINO Installation Selector Tool <https://www.intel.com/content/www/us/en/developer/tools/openvino-toolkit/download.html>`__
+
+
 @endsphinxdirective
 
-If you want to install OpenVINO™ Runtime on your Linux machine, there are a few ways to accomplish this. We prepared the following options for you: 
-
-* [Install OpenVINO Runtime from an Archive File](installing-openvino-from-archive-linux.md)
-* [Install OpenVINO from PyPI](installing-openvino-pip.md)
-* [Install OpenVINO Runtime from APT](installing-openvino-apt.md)
-* [Install OpenVINO Runtime from YUM](installing-openvino-yum.md)
-* [Install OpenVINO with Docker](installing-openvino-docker-linux.md)
-
-For a full selection of distribution channels, see the [OpenVINO Installation Selector Tool](https://www.intel.com/content/www/us/en/developer/tools/openvino-toolkit/download.html)
