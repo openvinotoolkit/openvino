@@ -325,11 +325,11 @@ void generate_proposals(const std::vector<float>& im_info,
                         std::vector<float>& output_scores,
                         std::vector<int64_t>& num_rois) {
     const auto im_info_size =
-        std::accumulate(im_info_shape.begin() + 1, im_info_shape.end(), 1, std::multiplies<size_t>());
+        std::accumulate(im_info_shape.begin() + 1, im_info_shape.end(), size_t(1), std::multiplies<size_t>());
     const auto deltas_size =
-        std::accumulate(deltas_shape.begin() + 1, deltas_shape.end(), 1, std::multiplies<size_t>());
+        std::accumulate(deltas_shape.begin() + 1, deltas_shape.end(), size_t(1), std::multiplies<size_t>());
     const auto scores_size =
-        std::accumulate(scores_shape.begin() + 1, scores_shape.end(), 1, std::multiplies<size_t>());
+        std::accumulate(scores_shape.begin() + 1, scores_shape.end(), size_t(1), std::multiplies<size_t>());
     for (size_t i = 0; i < im_info_shape[0]; i++) {
         std::vector<float> cur_im_info(im_info.begin() + i * im_info_size,
                                        im_info.begin() + i * im_info_size + im_info_size);

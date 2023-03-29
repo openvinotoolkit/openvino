@@ -88,6 +88,21 @@ bool is_any_user_cpu(const std::list<const program_node*>& users) {
     }
     return false;
 }
+
+kernel_impl_params primitive_impl::static_canonicalize_shapes(const kernel_impl_params& impl_params) {
+    auto updated_impl_params = canonicalize_fused_shapes(impl_params);
+
+    for (auto& input_layout : updated_impl_params.input_layouts) {
+        input_layout.set_partial_shape(extend_shape_to_rank_from_end(input_layout.get_partial_shape()));
+    }
+
+    for (auto& output_layout : updated_impl_params.output_layouts) {
+        output_layout.set_partial_shape(extend_shape_to_rank_from_end(output_layout.get_partial_shape()));
+    }
+
+    return updated_impl_params;
+}
+
 uint32_t primitive_inst::get_network_id() const { return _network.get_id(); }
 
 void primitive_inst::check_memory_to_set(const memory& mem, const layout& layout) const {
@@ -308,7 +323,11 @@ bool primitive_inst::update_impl() {
         size_t offset = 0;
         for (size_t i = 0; i < _node->get_dependencies().size(); i++) {
             if (_node->get_dependency(i).get_output_layout().is_dynamic()) {
-                auto input_shape = _node->type()->extend_input_shape_to_6d(params, static_cast<uint32_t>(i));
+                auto pshape = params.get_input_layout(i).get_partial_shape();
+                auto input_shape = layout::transform(pshape,
+                                                     format::get_default_format(pshape.size()),
+                                                     format::bfwzyx).to_shape();
+
                 for (size_t j = 0; j < input_shape.size(); j++)
                     lock[offset++] = static_cast<int32_t>(input_shape[j]);
             }
@@ -316,7 +335,11 @@ bool primitive_inst::update_impl() {
 
         for (size_t i = 0; i < _node->get_output_layouts().size(); i++) {
             if (_node->get_output_layout(i).is_dynamic()) {
-                auto output_shape = _node->type()->extend_output_shape_to_6d(params, static_cast<uint32_t>(i));
+                auto pshape = params.get_output_layout(i).get_partial_shape();
+                auto output_shape = layout::transform(pshape,
+                                                      format::get_default_format(pshape.size()),
+                                                      format::bfwzyx).to_shape();
+
                 for (size_t j = 0; j < output_shape.size(); j++)
                     lock[offset++] = static_cast<int32_t>(output_shape[j]);
             }
@@ -360,18 +383,19 @@ bool primitive_inst::update_impl() {
                     }
 
                     auto impl = _node->type()->choose_impl(*_node, updated_params);
-                    auto kernels = _program->get_kernels_cache().compile(impl->get_kernels_source());
+                    auto kernels = _program->get_kernels_cache().compile(updated_params, impl->get_kernels_source());
                     impl->set_kernels(kernels);
                     cache.add(updated_params, impl->clone());
                 });
                 _impl = _dynamic_impl->clone();
-                _impl->update_dispatch_data(*_impl_params);
+                auto new_impl_params = _impl->canonicalize_shapes(*_impl_params);
+                _impl->update_dispatch_data(new_impl_params);
 
-                update_shape_info(*_impl_params);
+                update_shape_info(new_impl_params);
             } else {
                 _impl = _node->type()->choose_impl(*_node, updated_params);
                 auto& kernels_cache = get_network().get_program()->get_kernels_cache();
-                auto kernels = kernels_cache.compile(_impl->get_kernels_source());
+                auto kernels = kernels_cache.compile(updated_params, _impl->get_kernels_source());
                 _impl->set_kernels(kernels);
                 cache.add(updated_params, _impl->clone());
 
@@ -712,9 +736,9 @@ event::ptr primitive_inst::update_weights() {
             GPU_DEBUG_TRACE_DETAIL << id() << ": reorder weights from " << original_layout.to_short_string()
                                     << " to " << expected_layout.to_short_string() << std::endl;
             auto& kernels_cache = get_network().get_program()->get_kernels_cache();
-            auto kernels = kernels_cache.compile({weights_params.clKernel->code.kernelString});
+            auto kernels = kernels_cache.compile(*_impl_params, {weights_params.clKernel->code.kernelString});
             OPENVINO_ASSERT(kernels.size() == 1, "The output of kernel compile has issue");
-            kernel = kernels.begin()->second;
+            kernel = (kernels.begin()->second)[0];
             cache.add(kernel_key, kernel);
         }
 
@@ -1072,7 +1096,7 @@ static primitive_id find_dep_by_mem(const cldnn::primitive_inst* p_inst, memory&
 //     [ intermediate memory information ]
 void primitive_inst::save(cldnn::BinaryOutputBuffer& ob) const {
     _impl_params->save(ob);
-    ob.setKernlImplParams(_impl_params.get());
+    ob.setKernelImplParams(_impl_params.get());
 
     ob << _node_output_layout;
     ob << has_mutable_input();
@@ -1145,6 +1169,7 @@ void primitive_inst::save(cldnn::BinaryOutputBuffer& ob) const {
 
     if (_impl != nullptr) {
         ob << true;
+        _impl->set_cached_kernel_ids(_network.get_program()->get_kernels_cache());
         ob << _impl;
     } else {
         ob << false;
@@ -1162,7 +1187,7 @@ int32_t primitive_inst::get_index_in_deps(memory::cptr arg) const {
 
 void primitive_inst::load(cldnn::BinaryInputBuffer& ib) {
     _impl_params->load(ib);
-    ib.setKernlImplParams(_impl_params.get());
+    ib.setKernelImplParams(_impl_params.get());
 
     ib >> _node_output_layout;
     ib >> _has_mutable_input;
