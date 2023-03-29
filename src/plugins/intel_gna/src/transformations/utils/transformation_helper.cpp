@@ -150,6 +150,9 @@ void remove_single_input_node(std::shared_ptr<ov::Node> node) {
     const ov::Shape output_node_shape = node->get_output_shape(0);
 
     std::shared_ptr<ov::Node> node_parent = node->get_input_node_shared_ptr(0);
+    if(!node_parent) {
+        THROW_GNA_EXCEPTION << "The removing node has no the parrent node";
+    }
     if (!std::equal(input_node_shape.begin(), input_node_shape.end(), output_node_shape.begin())) {
         auto reshape_const_node =
             std::make_shared<Constant>(ov::element::i64, ov::Shape{output_node_shape.size()}, output_node_shape);
