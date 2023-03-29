@@ -240,7 +240,13 @@ However, if your model contains more than one input, Model Optimizer is able to 
 
 **A** : This error occurs when an incorrect combination of the `--input` and `--input_shape` command line options is used. Using both `--input` and `--input_shape` is valid only if `--input` points to the `Placeholder` node, a node with one input port or `--input` has the form `PORT:NODE`, where `PORT` is an integer port index of input for node `NODE`. Otherwise, the combination of `--input` and `--input_shape` is incorrect.
 
-@anchor FAQ30
+@sphinxdirective
+
+.. _faq-30:
+
+@endsphinxdirective
+
+
 #### Q30. What does the message "Input port > 0 in --input is not supported if --input_shape is not provided. Node: NAME_OF_THE_NODE. Omit port index and all input ports will be replaced by placeholders. Or provide --input_shape" mean?
 
 **A** : When using the `PORT:NODE` notation for the `--input` command line argument and `PORT` > 0, you should specify `--input_shape` for this input. This is a limitation of the current Model Optimizer implementation.
