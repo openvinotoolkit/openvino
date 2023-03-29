@@ -81,8 +81,7 @@ class ConvertToPBTests(unittest.TestCase):
                             "The test model in frozen text format must exist")
             # test convert_to_pb
             path_to_pb = convert_to_pb(self.argv)
-            self.assertTrue(os.path.exists(path_to_pb), "The auxiliary .pb is not generated")
-            self.assertTrue(os.path.getsize(path_to_pb) != 0, "The auxiliary .pb is empty")
+            self.assertTrue(path_to_pb is None, "Auxiliary .pb must not be generated for .pbtxt")
 
     def test_binary_frozen_format(self):
         try:

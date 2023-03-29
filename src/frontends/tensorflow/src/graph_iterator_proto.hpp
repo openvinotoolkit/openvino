@@ -34,6 +34,24 @@ protected:
           m_func_def(nullptr),
           m_library_map() {}
 
+    void initialize_decoders_and_library() {
+        FRONT_END_GENERAL_CHECK(m_graph_def, "GraphDef is not initialized.");
+
+        auto nodes_size = m_graph_def->node_size();
+        m_decoders.resize(static_cast<size_t>(nodes_size));
+        for (int node_ind = 0; node_ind < nodes_size; ++node_ind) {
+            m_decoders[node_ind] = std::make_shared<DecoderProto>(&m_graph_def->node(node_ind), m_graph_def);
+        }
+
+        // initialize a library map
+        auto num_funcs = m_graph_def->library().function_size();
+        for (int func_ind = 0; func_ind < num_funcs; ++func_ind) {
+            auto func = m_graph_def->library().function(func_ind);
+            auto func_name = func.signature().name();
+            m_library_map.insert(std::pair<std::string, int>(func_name, func_ind));
+        }
+    }
+
 public:
     GraphIteratorProto(const std::shared_ptr<::tensorflow::GraphDef>& graph_def,
                        const std::shared_ptr<::tensorflow::FunctionDef>& func_def,
@@ -82,19 +100,7 @@ public:
         FRONT_END_GENERAL_CHECK(pb_stream && pb_stream.is_open(), "Model file does not exist");
         FRONT_END_GENERAL_CHECK(m_graph_def->ParseFromIstream(&pb_stream), "Model cannot be parsed");
 
-        auto nodes_size = m_graph_def->node_size();
-        m_decoders.resize(static_cast<size_t>(nodes_size));
-        for (int node_ind = 0; node_ind < nodes_size; ++node_ind) {
-            m_decoders[node_ind] = std::make_shared<DecoderProto>(&m_graph_def->node(node_ind), m_graph_def);
-        }
-
-        // initialize a library map
-        auto num_funcs = m_graph_def->library().function_size();
-        for (int func_ind = 0; func_ind < num_funcs; ++func_ind) {
-            auto func = m_graph_def->library().function(func_ind);
-            auto func_name = func.signature().name();
-            m_library_map.insert(std::pair<std::string, int>(func_name, func_ind));
-        }
+        initialize_decoders_and_library();
     }
 
     /// \brief Check if the input file is supported

@@ -2,6 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import os
+import shutil
 import subprocess
 import sys
 
@@ -19,16 +20,14 @@ mark_file = sys.argv[3]
 if gen_script.endswith('.py'):
     subprocess.run([sys.executable, gen_script, out_folder], env=os.environ)
 elif gen_script.endswith('.pbtxt'):
-    import tensorflow.compat.v1 as tf
-    from google.protobuf import text_format
-
     model_pbtxt = gen_script
-    with open(model_pbtxt, "r") as f:
-        model_name = os.path.basename(model_pbtxt).split('.')[0]
-        graph_def = tf.GraphDef()
-        text_format.Merge(f.read(), graph_def)
-        tf.import_graph_def(graph_def, name='')
-        tf.io.write_graph(graph_def, os.path.join(sys.argv[2], model_name), model_name + '.pb', False)
+    model_name = os.path.basename(model_pbtxt).split('.')[0]
+    dest_path = os.path.join(out_folder, model_name, model_name + '.pbtxt')
+    os.makedirs(os.path.dirname(dest_path), exist_ok=True)
+    try:
+        shutil.copy(model_pbtxt, dest_path)
+    except shutil.SameFileError:
+        pass
 
 # Create mark file indicating that script was executed
 with open(mark_file, "w") as fp:

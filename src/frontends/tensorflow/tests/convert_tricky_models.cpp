@@ -77,7 +77,7 @@ ov::OutputVector fake_translator_ragged_tensor_to_sparse(const ov::frontend::Nod
 TEST(FrontEndConvertTrickyModels, undefined_input_shape) {
     shared_ptr<Model> model;
     try {
-        model = convert_model("undefined_input_shape/undefined_input_shape.pb");
+        model = convert_model("undefined_input_shape/undefined_input_shape.pbtxt");
     } catch (std::exception& ex) {
         ASSERT_TRUE(false) << ex.what();
     }
@@ -96,7 +96,7 @@ TEST(FrontEndConvertTrickyModels, undefined_input_shape) {
 TEST(FrontEndConvertTrickyModels, simple_wide_and_deep) {
     shared_ptr<Model> model;
     try {
-        model = convert_model("simple_wide_and_deep/simple_wide_and_deep.pb");
+        model = convert_model("simple_wide_and_deep/simple_wide_and_deep.pbtxt");
     } catch (std::exception& ex) {
         ASSERT_TRUE(false) << ex.what();
     }
@@ -114,7 +114,7 @@ TEST(FrontEndConvertTrickyModels, simple_wide_and_deep) {
 TEST(FrontEndConvertTrickyModels, model_with_output_shapes) {
     shared_ptr<Model> model;
     try {
-        model = convert_model("model_with_output_shapes_attr/model_with_output_shapes_attr.pb");
+        model = convert_model("model_with_output_shapes_attr/model_with_output_shapes_attr.pbtxt");
     } catch (std::exception& ex) {
         ASSERT_TRUE(false) << ex.what();
     }
@@ -130,7 +130,7 @@ TEST(FrontEndConvertTrickyModels, model_with_output_shapes) {
 
 TEST_F(TransformationTestsF, AssertAndStringTensors) {
     {
-        model = convert_model("string_tensors_model/string_tensors_model.pb");
+        model = convert_model("string_tensors_model/string_tensors_model.pbtxt");
         // TODO: investigate - why we have redundant nodes after the conversion
         manager.register_pass<pass::MOCTransformations>(false);
     }
@@ -145,13 +145,13 @@ TEST_F(TransformationTestsF, AssertAndStringTensors) {
 }
 
 TEST_F(TransformationTestsF, UnsortedNodes) {
-    { model = convert_model("forward_edge_model_unsorted/forward_edge_model_unsorted.pb"); }
-    { model_ref = convert_model("forward_edge_model/forward_edge_model.pb"); }
+    { model = convert_model("forward_edge_model_unsorted/forward_edge_model_unsorted.pbtxt"); }
+    { model_ref = convert_model("forward_edge_model/forward_edge_model.pbtxt"); }
 }
 
 TEST_F(TransformationTestsF, ModelWithSwishF32BodyGraph) {
     {
-        model = convert_model("swish_f32/swish_f32.pb");
+        model = convert_model("swish_f32/swish_f32.pbtxt");
         // need to call shape inference since body graphs can be injected with undefined shapes
         model->validate_nodes_and_infer_types();
     }
@@ -169,7 +169,7 @@ TEST_F(TransformationTestsF, ModelWithSwishF32BodyGraph) {
 
 TEST_F(TransformationTestsF, PartitionedCall) {
     {
-        model = convert_model("partitioned_call/partitioned_call.pb");
+        model = convert_model("partitioned_call/partitioned_call.pbtxt");
         // need to call shape inference since body graphs can be injected with undefined shapes
         model->validate_nodes_and_infer_types();
     }
@@ -185,7 +185,7 @@ TEST_F(TransformationTestsF, PartitionedCall) {
 }
 
 TEST_F(TransformationTestsF, ModelWithIf) {
-    { model = convert_model("model_with_if/model_with_if.pb"); }
+    { model = convert_model("model_with_if/model_with_if.pbtxt"); }
     {
         // create then branch body graph
         auto then_x = make_shared<Parameter>(i32, Shape{2});
@@ -219,7 +219,7 @@ TEST_F(TransformationTestsF, ModelWithIf) {
 
 TEST_F(TransformationTestsF, InjectedBodyAndIf) {
     {
-        model = convert_model("injected_body_and_if/injected_body_and_if.pb");
+        model = convert_model("injected_body_and_if/injected_body_and_if.pbtxt");
         // need to call shape inference since body graphs can be injected with undefined shapes
         model->validate_nodes_and_infer_types();
     }
@@ -258,7 +258,7 @@ TEST_F(TransformationTestsF, InjectedBodyAndIf) {
 
 TEST_F(TransformationTestsF, ModelWithDilatedGroupConvolution) {
     {
-        model = convert_model("dilated_gconv_model/dilated_gconv_model.pb");
+        model = convert_model("dilated_gconv_model/dilated_gconv_model.pbtxt");
         // need to call MOC to fuse BatchToSpace/SpaceToBatch with GroupConvolution
         manager.register_pass<pass::MOCTransformations>(false);
     }
@@ -282,7 +282,7 @@ TEST_F(TransformationTestsF, ModelWithDilatedGroupConvolution) {
 
 TEST_F(TransformationTestsF, ModelWithSaveV2) {
     {
-        model = convert_model("model_savev2/model_savev2.pb");
+        model = convert_model("model_savev2/model_savev2.pbtxt");
         // need to call shape inference since body graphs can be injected with undefined shapes
         model->validate_nodes_and_infer_types();
     }
@@ -297,7 +297,7 @@ TEST_F(TransformationTestsF, ModelWithSaveV2) {
 }
 
 TEST_F(TransformationTestsF, ModelWithConstResultSubgraphs) {
-    { model = convert_model("model_with_const_result/model_with_const_result.pb"); }
+    { model = convert_model("model_with_const_result/model_with_const_result.pbtxt"); }
     {
         // create a reference graph
         auto x = make_shared<Parameter>(element::f32, PartialShape{Dimension::dynamic(), 60, 60, 1});
@@ -320,7 +320,7 @@ TEST_F(TransformationTestsF, ModelWithConstResultSubgraphs) {
 }
 
 TEST_F(TransformationTestsF, ModelWithIteratorGetNext) {
-    { model = convert_model("model_with_iterator_get_next/model_with_iterator_get_next.pb"); }
+    { model = convert_model("model_with_iterator_get_next/model_with_iterator_get_next.pbtxt"); }
     {
         // create a reference graph
         auto x = make_shared<Parameter>(element::f32, Shape{2, 3});
@@ -332,7 +332,7 @@ TEST_F(TransformationTestsF, ModelWithIteratorGetNext) {
 }
 
 TEST_F(TransformationTestsF, ModelWithQueueOperations) {
-    { model = convert_model("model_with_queue_ops/model_with_queue_ops.pb"); }
+    { model = convert_model("model_with_queue_ops/model_with_queue_ops.pbtxt"); }
     {
         // create a reference graph
         auto x = make_shared<Parameter>(element::f32, PartialShape{Dimension::dynamic(), 160, 160, 3});
@@ -344,7 +344,7 @@ TEST_F(TransformationTestsF, ModelWithQueueOperations) {
 }
 
 TEST_F(TransformationTestsF, ModelWithQueueOperations2) {
-    { model = convert_model("model_with_queue_ops2/model_with_queue_ops2.pb"); }
+    { model = convert_model("model_with_queue_ops2/model_with_queue_ops2.pbtxt"); }
     {
         // create a reference graph
         auto x = make_shared<Parameter>(element::f32, PartialShape{1, Dimension::dynamic(), Dimension::dynamic(), 3});
@@ -358,7 +358,7 @@ TEST_F(TransformationTestsF, ModelWithQueueOperations2) {
 }
 
 TEST_F(TransformationTestsF, ModelWithLookupTableOperations) {
-    { model = convert_model("model_with_lookup_table/model_with_lookup_table.pb"); }
+    { model = convert_model("model_with_lookup_table/model_with_lookup_table.pbtxt"); }
     {
         // create a reference graph
         auto x = make_shared<Parameter>(element::f32, Shape{2});
@@ -382,7 +382,7 @@ TEST_F(TransformationTestsF, ModelWithIteratorGetNextAndUnsupportedOp) {
 }
 
 TEST_F(TransformationTestsF, ModelWithMultioutputBodyGraphNode) {
-    { model = convert_model("partitioned_call2/partitioned_call2.pb"); }
+    { model = convert_model("partitioned_call2/partitioned_call2.pbtxt"); }
     {
         auto x = make_shared<Parameter>(i32, Shape{5});
         auto y = make_shared<Parameter>(i32, Shape{5});

@@ -110,7 +110,7 @@ TEST(FrontEndConvertModelTest, test_unsupported_tf1_while) {
     ASSERT_NO_THROW(frontEnd = fem.load_by_framework(TF_FE));
     ASSERT_NE(frontEnd, nullptr);
     auto model_filename = FrontEndTestUtils::make_model_path(string(TEST_TENSORFLOW_MODELS_DIRNAME) +
-                                                             string("model_tf1_while/model_tf1_while.pb"));
+                                                             string("model_tf1_while/model_tf1_while.pbtxt"));
     ASSERT_NO_THROW(inputModel = frontEnd->load(model_filename));
     ASSERT_NE(inputModel, nullptr);
     shared_ptr<ov::Model> model;
