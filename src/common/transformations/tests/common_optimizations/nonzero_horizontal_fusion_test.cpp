@@ -71,7 +71,8 @@ struct NonZeroHorizontalFusionBuilder {
     std::vector<NonZeroType> branch_props;
 };
 
-class NonZeroHorizontalFusionTests : public testing::WithParamInterface<std::vector<NonZeroType>>, public TransformationTestsF {
+class NonZeroHorizontalFusionTests : public testing::WithParamInterface<std::vector<NonZeroType>>,
+                                     public TransformationTestsF {
 public:
     NonZeroHorizontalFusionTests() : TransformationTestsF() {
         comparator.enable(FunctionsComparator::CONSUMERS_COUNT);
