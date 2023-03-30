@@ -3,6 +3,7 @@
 @sphinxdirective
 
 This sample demonstrates how to do synchronous inference of object detection models using :doc:`Shape Inference feature <openvino_docs_OV_UG_ShapeInference>`.  
+
 Models with only 1 input and output are supported.
 
 The following Python API is used in the application:
