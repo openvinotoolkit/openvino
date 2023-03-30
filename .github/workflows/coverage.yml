@@ -53,14 +53,26 @@ jobs:
       
       - name: Install python dependencies
         run: |
-          pip install --upgrade pip
-          pip install -r ${{ github.workspace }}/src/frontends/tensorflow_lite/tests/requirements.txt
-          pip install -r ${{ github.workspace }}/src/bindings/python/src/compatibility/openvino/requirements-dev.txt
-          pip install -r ${{ github.workspace }}/src/bindings/python/wheel/requirements-dev.txt
-          pip install -r ${{ github.workspace }}/src/frontends/onnx/tests/requirements.txt
-          pip install -r ${{ github.workspace }}/src/frontends/paddle/tests/requirements.txt
-          pip install -r ${{ github.workspace }}/src/frontends/tensorflow/tests/requirements.txt
-          pip install -r ${{ github.workspace }}/src/frontends/paddle/tests/requirements.txt
+          python3 -m pip install --upgrade pip
+          python3 -m pip install -r ${{ github.workspace }}/src/bindings/python/src/compatibility/openvino/requirements.txt
+          python3 -m pip install -r ${{ github.workspace }}/src/bindings/python/wheel/requirements-dev.txt
+          python3 -m pip install -r ${{ github.workspace }}/src/bindings/python/requirements.txt
+          # For running Python API tests
+          python3 -m pip install -r ${{ github.workspace }}/src/bindings/python/src/compatibility/openvino/requirements-dev.txt
+          # For running Paddle frontend unit tests
+          python3 -m pip install -r ${{ github.workspace }}/src/frontends/paddle/tests/requirements.txt
+          # For running ONNX frontend unit tests
+          python3 -m pip install -r ${{ github.workspace }}/src/frontends/onnx/tests/requirements.txt
+          # For MO unit tests
+          python3 -m pip install -r ${{ github.workspace }}/tools/mo/requirements.txt
+          python3 -m pip install -r ${{ github.workspace }}/tools/mo/requirements_dev.txt
+     #     pip install -r ${{ github.workspace }}/src/frontends/tensorflow_lite/tests/requirements.txt
+     #     pip install -r ${{ github.workspace }}/src/bindings/python/src/compatibility/openvino/requirements-dev.txt
+     #     pip install -r ${{ github.workspace }}/src/bindings/python/wheel/requirements-dev.txt
+     #     pip install -r ${{ github.workspace }}/src/frontends/onnx/tests/requirements.txt
+     #     pip install -r ${{ github.workspace }}/src/frontends/paddle/tests/requirements.txt
+     #     pip install -r ${{ github.workspace }}/src/frontends/tensorflow/tests/requirements.txt
+     #     pip install -r ${{ github.workspace }}/src/frontends/paddle/tests/requirements.txt
      #     pip install -r ${{ github.workspace }}/src/frontends/tensorflow/tests/requirements.txt
      #     pip install -r ${{ github.workspace }}/src/bindings/python/requirements.txt
      #     pip install -r ${{ github.workspace }}/tools/mo/requirements.txt
