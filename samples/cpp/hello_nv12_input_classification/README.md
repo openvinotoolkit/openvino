@@ -56,6 +56,7 @@ Running
    hello_nv12_input_classification <path_to_model> <path_to_image> <image_size> <device_name>
 
 To run the sample, you need to specify a model and image:
+
 - You can use :doc:`public <omz_models_group_public>` or :doc:`Intel's <omz_models_group_intel>` pre-trained models from the Open Model Zoo. The models can be downloaded using the :doc:`Model Downloader <omz_tools_downloader>`.
 - You can use images from the media files collection available at `the storage <https://storage.openvinotoolkit.org/data/test_data>`__.
 
