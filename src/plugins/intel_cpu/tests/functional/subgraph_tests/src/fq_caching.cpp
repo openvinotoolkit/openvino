@@ -2,6 +2,31 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+// Motivation:
+// In a dynamic scenario, depending on the input shapes for the current node, we can either generate a new jit kernel or get an existing one from the cache.
+// But the current single layer tests do not allow checking the case when the same kernel can be used for different nodes.
+// This subgraph test contains 2 FQ nodes and allows us to check this case.
+
+//  ------------------------------------    ------------------------------------
+//  |             Input 0              |    |             Input 1              |
+//  ------------------------------------    ------------------------------------
+//                   |                                       |
+//  ------------------------------------    ------------------------------------
+//  |          FakeQuantize 0          |    |          FakeQuantize 1          |
+//  ------------------------------------    ------------------------------------
+//                   |                                       |
+//                   |                      ------------------------------------
+//                   |                      |Reshape (if !reshapeShape.empty())|
+//                   |                      ------------------------------------
+//                   |                                       |
+//  ----------------------------------------------------------------------------
+//  |                                 Concat                                   |
+//  ----------------------------------------------------------------------------
+//                                       |
+//                                   --------
+//                                   |Output|
+//                                   --------
+
 #include <tuple>
 #include <string>
 #include <vector>
