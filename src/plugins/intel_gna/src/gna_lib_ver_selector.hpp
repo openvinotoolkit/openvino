@@ -19,6 +19,7 @@
  *                      the number to the lowest possible value divisible by "significance".
  * @return Rounded integer value.
  */
+// zamienic na stdexpr
 #define ALIGN(number, significance) ((((number) + (significance)-1) / (significance)) * (significance))
 
 /**

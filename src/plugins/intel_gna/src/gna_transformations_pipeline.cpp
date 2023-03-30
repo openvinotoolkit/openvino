@@ -130,7 +130,9 @@ void TransformationsPipeline::apply(const std::shared_ptr<ov::Model>& model) {
         SplitEltwise has dependency on BroadcastAddMultiplyConst for case when spliting of Constant
         input is doing
     */
+    manager.register_pass<ov::pass::Serialize>("SplitEltwise_begin.xml", "SplitEltwise_begin.bin");
     manager.register_pass<ov::intel_gna::pass::SplitEltwise>();
+    manager.register_pass<ov::pass::Serialize>("SplitEltwise_end.xml", "SplitEltwise_end.bin");
     /* The following transformations perform insertion of Identity layer in 3 steps:
         1. Mark inputs with rt_info attribute where precision change from i32 to i16/i8 is happened
         2. Insert Identity after operation which have consumers marked with precision change
