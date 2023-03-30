@@ -243,7 +243,7 @@ void Read<AnyMap>::operator()(std::istream& is, AnyMap& map) const {
 
             value += c;  // accumulate current value
         }
-        map.emplace(std::move(key), std::move(value));
+        map.emplace(key, value);
     }
 
     OPENVINO_ASSERT(c == '}', "Failed to parse ov::AnyMap. Ending symbols is not '}', it's ", c);
