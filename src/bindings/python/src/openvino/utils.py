@@ -34,8 +34,9 @@ def add_openvino_libs_to_path() -> None:
                 # On Windows, with Python >= 3.8, DLLs are no longer imported from the PATH.
                 if (3, 8) <= sys.version_info:
                     os.add_dll_directory(os.path.abspath(lib_path))
-                else:
-                    os.environ["PATH"] = os.path.abspath(lib_path) + ";" + os.environ["PATH"]
+                # need to have it out of else-statement when
+                # openvino is imported as a subpackage
+                os.environ["PATH"] = os.path.abspath(lib_path) + ";" + os.environ["PATH"]
 
 
 def deprecated(version: str = "", message: str = "") -> Callable[..., Any]:
