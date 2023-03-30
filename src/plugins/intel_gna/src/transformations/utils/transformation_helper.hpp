@@ -95,7 +95,7 @@ std::shared_ptr<ngraph::Node> InsertFQLayer(const std::shared_ptr<ngraph::opset7
                                             std::shared_ptr<ngraph::Node> last_node);
 
 /**
- * @brief removes single node and inserts Reshape if it's input and output shapes differ
+ * @brief removes single node and inserts Reshape if its input and output shapes differ
  * @param node the node to be removed
  * @return void
  */
