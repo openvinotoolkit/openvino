@@ -45,10 +45,7 @@ void AutoSchedule::GenerateWorkers(const std::string& device,
     } else {
         realDeviceName = device;
     }
-    auto itNumRequests = std::find_if(_autoSContext->_devicePriorities.cbegin(), _autoSContext->_devicePriorities.cend(),
-                                      [&realDeviceName](const DeviceInformation & d) {
-                                          return d.deviceName == realDeviceName;
-                                      });
+    auto itNumRequests = deviceChecker().checkAndReturnIfDeviceInList<DeviceInformation>(realDeviceName, _autoSContext->_devicePriorities, true);
     unsigned int optimalNum = 0;
     try {
         optimalNum = executableNetwork->GetMetric(METRIC_KEY(OPTIMAL_NUMBER_OF_INFER_REQUESTS)).as<unsigned int>();
@@ -139,9 +136,7 @@ bool AutoSchedule::selectOtherDevice(const std::string& currentDeviceName) {
             } else {
                 realDeviceName = deviceName;
             }
-            const auto CurrentDeviceIter = std::find_if(_autoSContext->_devicePriorities.begin(), _autoSContext->_devicePriorities.end(),
-                                                [=](const DeviceInformation& d) -> bool {
-                                                return d.deviceName.find(realDeviceName) != std::string::npos;});
+            const auto CurrentDeviceIter = deviceChecker().checkAndReturnIfDeviceInList<DeviceInformation>(realDeviceName, _autoSContext->_devicePriorities);
             if (CurrentDeviceIter != _autoSContext->_devicePriorities.end()) {
                 if (_autoSContext->_devicePriorities.size() == 1) {
                     LOG_INFO_TAG("No other devices in _devicePriorities");
@@ -186,11 +181,7 @@ bool AutoSchedule::selectOtherDevice(const std::string& currentDeviceName) {
         auto removeInferFailDevice = [&](const std::string& deviceName) {
             if (_autoSContext->_devicePriorities.size() > 1) {
                 const auto CurrentDeviceIter =
-                    std::find_if(_autoSContext->_devicePriorities.begin(),
-                                 _autoSContext->_devicePriorities.end(),
-                                 [=](const DeviceInformation& d) -> bool {
-                                     return d.deviceName.find(deviceName) != std::string::npos;
-                                 });
+                    deviceChecker().checkAndReturnIfDeviceInList<DeviceInformation>(deviceName, _autoSContext->_devicePriorities);
                 if (CurrentDeviceIter != _autoSContext->_devicePriorities.end()) {
                     _autoSContext->_devicePriorities.erase(CurrentDeviceIter);
                     return true;
@@ -319,12 +310,7 @@ void AutoSchedule::init(const ScheduleContext::Ptr& sContext) {
         if (isCumulative && !contextPtr->isLoadSuccess) {
             std::string failedDeviceName = contextPtr->deviceInfo.deviceName;
             std::lock_guard<std::mutex> lock(_autoSContext->_confMutex);
-            const auto DeviceIter =
-                std::find_if(_autoSContext->_devicePriorities.begin(),
-                             _autoSContext->_devicePriorities.end(),
-                             [&](const DeviceInformation& d) -> bool {
-                                 return d.deviceName.find(failedDeviceName) != std::string::npos;
-                             });
+            const auto DeviceIter = deviceChecker().checkAndReturnIfDeviceInList(failedDeviceName, _autoSContext->_devicePriorities);
             // Remove failed device from _devicePriorities
             if (DeviceIter != _autoSContext->_devicePriorities.end()) {
                 _autoSContext->_devicePriorities.erase(DeviceIter);
@@ -358,11 +344,7 @@ void AutoSchedule::init(const ScheduleContext::Ptr& sContext) {
         if (isActualDevCPU || !_autoSContext->_startupfallback) {
             _loadContext[CPU].isEnabled = false;
         } else {
-            const auto CPUIter = std::find_if(_autoSContext->_devicePriorities.begin(),
-                                              _autoSContext->_devicePriorities.end(),
-                                              [](const DeviceInformation& d) -> bool {
-                                                  return d.deviceName.find("CPU") != std::string::npos;
-                                              });
+            const auto CPUIter = deviceChecker().checkAndReturnIfDeviceInList("CPU", _autoSContext->_devicePriorities);
             // if have CPU Device,  enable _loadContext[CPU]
             if (CPUIter != _autoSContext->_devicePriorities.end()) {
                 _loadContext[CPU].isEnabled = true;
@@ -574,11 +556,9 @@ void AutoSchedule::TryToLoadNetWork(AutoLoadContext& context, const std::string&
     // maybe 0 is loaded to VPUX, 1 is loaded to iGPU
     _autoSContext->_plugin->UnregisterPriority(_autoSContext->_modelPriority, context.deviceInfo.uniqueName);
     // remove the current device from deviceList
-    auto eraseDevice = std::find_if(deviceList.begin(), deviceList.end(),
-                                    [device](DeviceInformation & d) {
-                                        return d.deviceName == device;
-                                    });
-    deviceList.erase(eraseDevice);
+    auto eraseDevice = deviceChecker().checkAndReturnIfDeviceInList(device, deviceList, true);
+    if (eraseDevice != deviceList.end())
+        deviceList.erase(eraseDevice);
     if (deviceList.empty()) {
         return;
     }
@@ -686,12 +666,11 @@ bool AutoSchedule::ScheduleToWorkerInferRequest(IE::Task inferPipelineTask, Devi
         } else {
             // if the device needed by customer is not ready, need to wait for it
             WaitActualNetworkReady();
-            // the preferred_device should be the selected device in AUTO work mode
-            // or, if fallback enabled, the fallback device will not fit in the remote tensor as well
-            if (preferred_device != _loadContext[ACTUALDEVICE].deviceInfo.deviceName) {
-                IE_THROW(NotFound) << "The preferred device should be the selected device";
-            }
             devices.push_back(_loadContext[ACTUALDEVICE].deviceInfo);
+        }
+        if (!deviceChecker().checkIfDeviceInList<DeviceInformation>(preferred_device, devices)) {
+            lock.unlock();
+            IE_THROW(NotFound) << "The preferred device should be the selected device";
         }
     } else {
         if (_pCTPUTLoadContext) {
@@ -716,9 +695,6 @@ bool AutoSchedule::ScheduleToWorkerInferRequest(IE::Task inferPipelineTask, Devi
         }
     }
     lock.unlock();
-    if (devices.size() == 0) {
-        IE_THROW(GeneralError) << "No device to run pipeline task";
-    }
     for (auto&& device : devices) {
         if (!preferred_device.empty() && (device.deviceName != preferred_device)) {
             continue;
