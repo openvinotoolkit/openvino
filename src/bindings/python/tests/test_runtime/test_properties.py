@@ -215,7 +215,6 @@ def test_properties_ro(ov_property_ro, expected_value):
             ((properties.Affinity.NONE, properties.Affinity.NONE),),
         ),
         (properties.force_tbb_terminate, "FORCE_TBB_TERMINATE", ((True, True),)),
-        (properties.inference_precision, "INFERENCE_PRECISION_HINT", ((Type.f32, Type.f32),)),
         (properties.hint.inference_precision, "INFERENCE_PRECISION_HINT", ((Type.f32, Type.f32),)),
         (
             properties.hint.model_priority,
@@ -342,12 +341,12 @@ def test_properties_device_properties():
           {"CPU": {"NUM_STREAMS": 2}})
     check({"CPU": make_dict(properties.streams.num(2))},
           {"CPU": {"NUM_STREAMS": properties.streams.Num(2)}})
-    check({"GPU": make_dict(properties.inference_precision(Type.f32))},
+    check({"GPU": make_dict(properties.hint.inference_precision(Type.f32))},
           {"GPU": {"INFERENCE_PRECISION_HINT": Type.f32}})
-    check({"CPU": make_dict(properties.streams.num(2), properties.inference_precision(Type.f32))},
+    check({"CPU": make_dict(properties.streams.num(2), properties.hint.inference_precision(Type.f32))},
           {"CPU": {"INFERENCE_PRECISION_HINT": Type.f32, "NUM_STREAMS": properties.streams.Num(2)}})
-    check({"CPU": make_dict(properties.streams.num(2), properties.inference_precision(Type.f32)),
-           "GPU": make_dict(properties.streams.num(1), properties.inference_precision(Type.f16))},
+    check({"CPU": make_dict(properties.streams.num(2), properties.hint.inference_precision(Type.f32)),
+           "GPU": make_dict(properties.streams.num(1), properties.hint.inference_precision(Type.f16))},
           {"CPU": {"INFERENCE_PRECISION_HINT": Type.f32, "NUM_STREAMS": properties.streams.Num(2)},
            "GPU": {"INFERENCE_PRECISION_HINT": Type.f16, "NUM_STREAMS": properties.streams.Num(1)}})
 
@@ -420,7 +419,7 @@ def test_single_property_setting(device):
                 properties.cache_dir("./"),
                 properties.inference_num_threads(9),
                 properties.affinity(properties.Affinity.NONE),
-                properties.inference_precision(Type.f32),
+                properties.hint.inference_precision(Type.f32),
                 properties.hint.performance_mode(properties.hint.PerformanceMode.LATENCY),
                 properties.hint.scheduling_core_type(properties.hint.SchedulingCoreType.PCORE_ONLY),
                 properties.hint.use_hyper_threading(True),
@@ -434,7 +433,7 @@ def test_single_property_setting(device):
             properties.cache_dir(): "./",
             properties.inference_num_threads(): 9,
             properties.affinity(): properties.Affinity.NONE,
-            properties.inference_precision(): Type.f32,
+            properties.hint.inference_precision(): Type.f32,
             properties.hint.performance_mode(): properties.hint.PerformanceMode.LATENCY,
             properties.hint.scheduling_core_type(): properties.hint.SchedulingCoreType.PCORE_ONLY,
             properties.hint.use_hyper_threading(): True,
