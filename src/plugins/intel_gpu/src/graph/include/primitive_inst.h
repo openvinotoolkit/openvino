@@ -59,15 +59,13 @@ struct primitive_impl {
     kernel_selector::weights_reorder_params _weights_reorder_params;
     // class typed_primitive_gpu_impl override this with return false;
     virtual bool is_cpu() const { return true; }
-    virtual void init_kernels(const kernels_cache&) = 0;
+    virtual void init_kernels(const kernels_cache& kernels_cache, const kernel_impl_params& params) = 0;
+    virtual void init_by_cached_kernels(const kernels_cache&) {}
+    virtual void set_cached_kernel_ids(const kernels_cache&) {}
     virtual std::unique_ptr<primitive_impl> clone() const = 0;
-    virtual std::vector<std::string> get_kernel_ids() const {
-        return {};
-    }
     virtual std::vector<std::shared_ptr<cldnn::kernel_string>> get_kernels_source() { return {}; }
     virtual void reset_kernels_source() {}
     virtual std::vector<kernel::ptr> get_kernels() const { return {}; }
-    virtual void set_kernel_ids(std::vector<kernel_id> kernel_ids) {}
     virtual void save(cldnn::BinaryOutputBuffer& ob) const {}
     virtual void load(cldnn::BinaryInputBuffer& ib) {}
 
@@ -88,7 +86,8 @@ struct primitive_impl {
         return primitive_impl::static_canonicalize_shapes(impl_params);
     }
 
-    virtual void set_kernels(std::map<const std::string, kernel::ptr>& kernels) {}
+    virtual void set_kernels(cldnn::kernels_cache::compiled_kernels kernels) {}
+    virtual std::vector<kernel::ptr> get_kernels() { return {}; }
 
 protected:
     std::string _kernel_name;
@@ -163,8 +162,13 @@ public:
 
     event::ptr execute(const std::vector<event::ptr>& events);
     void init_kernels(const kernels_cache& kernels_cache) {
-        _impl->init_kernels(kernels_cache);
+        _impl->init_kernels(kernels_cache, *_impl_params);
     }
+
+    void init_by_cached_kernels(const kernels_cache& kernels_cache) {
+        _impl->init_by_cached_kernels(kernels_cache);
+    }
+
     void set_arguments();
 
     void validate() const {

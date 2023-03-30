@@ -172,7 +172,7 @@ TEST_P(activation_eltwise_activation_quantize_u8, basic) {
         data("out_low", get_mem(get_single_element_layout(p), -127)),
         data("out_high", get_mem(get_single_element_layout(p), 127)),
         eltwise("eltwise", { input_info("act"), input_info("eltwise_data") }, eltwise_mode::prod, p.default_type),
-        activation("act2", input_info("eltwise"), activation_func::softsign),
+        activation("act2", input_info("eltwise"), activation_func::swish),
         quantize("quant", input_info("act2"), input_info("in_low"), input_info("in_high"),
                  input_info("out_low"), input_info("out_high"), 256, data_types::u8),
         reorder("reorder_bfyx", input_info("quant"), p.default_format, data_types::f32)
@@ -193,7 +193,7 @@ TEST_P(activation_eltwise_activation_quantize_u8, per_channel) {
         data("out_low", get_mem(get_single_element_layout(p), -127)),
         data("out_high", get_mem(get_single_element_layout(p), 127)),
         eltwise("eltwise", { input_info("act"), input_info("eltwise_data") }, eltwise_mode::prod, p.default_type),
-        activation("act2", input_info("eltwise"), activation_func::softsign),
+        activation("act2", input_info("eltwise"), activation_func::pow),
         quantize("quant", input_info("act2"), input_info("in_low"), input_info("in_high"),
                  input_info("out_low"), input_info("out_high"), 256, data_types::u8),
         reorder("reorder_bfyx", input_info("quant"), p.default_format, data_types::f32)
@@ -221,6 +221,42 @@ INSTANTIATE_TEST_SUITE_P(fusings_gpu, activation_eltwise_activation_quantize_u8,
     activation_test_params{ CASE_ACTIVATION_3D_F32_0, 3, 5, "activation_ref" },
     activation_test_params{ CASE_ACTIVATION_3D_F32_1, 3, 5, "activation_ref" },
     activation_test_params{ CASE_ACTIVATION_3D_F32_2, 3, 5, "activation_ref" },
+}));
+
+class activation_eltwise_activation_quantize_u8_onendnn : public ActivationFusingTest {};
+TEST_P(activation_eltwise_activation_quantize_u8_onendnn, same_behavior) {
+    // Case : activation function is NOT supported on oneDNN and an input primitive selects clDNN execution
+    auto p = GetParam();
+    create_topologies(
+        input_layout("input", get_input_layout(p)),
+        activation("act", input_info("input"), activation_func::relu),
+        data("eltwise_data", get_mem(get_single_element_layout(p), 1.0f / 255)),
+        data("in_low", get_mem(get_single_element_layout(p), 0)),
+        data("in_high", get_mem(get_single_element_layout(p), 1, max_random)),
+        data("out_low", get_mem(get_single_element_layout(p), -127)),
+        data("out_high", get_mem(get_single_element_layout(p), 127)),
+        eltwise("eltwise", { input_info("act"), input_info("eltwise_data") }, eltwise_mode::prod, p.default_type),
+        activation("act2", input_info("eltwise"), activation_func::softsign),
+        quantize("quant", input_info("act2"), input_info("in_low"), input_info("in_high"),
+                 input_info("out_low"), input_info("out_high"), 256, data_types::u8),
+        reorder("reorder_bfyx", input_info("quant"), p.default_format, data_types::f32)
+    );
+
+    tolerance = 1.f;
+    execute(p);
+}
+
+INSTANTIATE_TEST_SUITE_P(fusings_gpu, activation_eltwise_activation_quantize_u8_onendnn, ::testing::ValuesIn(std::vector<activation_test_params>{
+    // InputDataType = FP32
+    activation_test_params{ CASE_ACTIVATION_F32_0, 3, 5, "activation_opt" },
+    activation_test_params{ CASE_ACTIVATION_F32_1, 3, 5, "activation_opt" },
+    activation_test_params{ CASE_ACTIVATION_3D_F32_0, 3, 5, "activation_opt" },
+    activation_test_params{ CASE_ACTIVATION_3D_F32_1, 3, 5, "activation_opt" },
+
+    activation_test_params{ CASE_ACTIVATION_F32_0, 3, 5, "activation_ref" },
+    activation_test_params{ CASE_ACTIVATION_F32_1, 3, 5, "activation_ref" },
+    activation_test_params{ CASE_ACTIVATION_3D_F32_0, 3, 5, "activation_ref" },
+    activation_test_params{ CASE_ACTIVATION_3D_F32_1, 3, 5, "activation_ref" },
 }));
 
 INSTANTIATE_TEST_SUITE_P(DISABLED_fusings_gpu, activation_eltwise_activation_quantize_u8, ::testing::ValuesIn(std::vector<activation_test_params>{

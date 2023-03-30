@@ -15,7 +15,9 @@
 namespace cldnn {
 
 size_t kernel_impl_params::hash() const {
-    size_t seed = desc->hash();
+    size_t seed = 0;
+    if (desc != nullptr)
+        seed = desc->hash();
     const size_t prime_number = 2654435761; // magic number to reduce hash collision rate.
     for (auto& in : input_layouts) {
         seed = hash_combine(seed, in.hash() * prime_number);
@@ -32,7 +34,10 @@ size_t kernel_impl_params::hash() const {
 }
 
 bool kernel_impl_params::operator==(const kernel_impl_params& rhs) const {
-    if (*desc != *rhs.desc)
+    if ((desc != nullptr && rhs.desc == nullptr) || (desc == nullptr && rhs.desc != nullptr))
+        return false;
+
+    if ((desc != nullptr && rhs.desc != nullptr) && *desc != *rhs.desc)
         return false;
 
     if (rhs.input_layouts.size() != input_layouts.size())

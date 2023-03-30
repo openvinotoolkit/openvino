@@ -143,7 +143,48 @@ using ov::with_cpu_x86_avx512_core_amx_bf16;
 using ov::with_cpu_x86_avx512_core_amx;
 
 /**
- * @brief      This enum contains defination of each columns in processor type table which bases on cpu core types. Will
+ * @brief      Checks whether CPU mapping Available
+ * @ingroup    ie_dev_api_system_conf
+ * @return     `True` is CPU mapping is available, `false` otherwise
+ */
+using ov::is_cpu_map_available;
+
+/**
+ * @brief      Set flag bit 'Used' of CPU
+ * @ingroup    ie_dev_api_system_conf
+ * @param[in]  cpu_ids cpus in cup_mapping.
+ * @param[in]  used flag bit
+ */
+using ov::set_cpu_used;
+
+/**
+ * @brief      Returns number of CPU cores on Linux/Windows
+ * @ingroup    ie_dev_api_system_conf
+ * @param[in]  plugin_task plugin task.
+ * @return     Number of CPU cores with core_type.
+ */
+using ov::get_num_available_cpu_cores;
+
+/**
+ * @brief      Returns corresponding logical cores
+ * @ingroup    ie_dev_api_system_conf
+ * @param[in]  cpu_ids physical cores
+ * @return     logical cores corresponding to physical core.
+ */
+using ov::get_logic_cores;
+
+/**
+ * @brief      Returns available cpu ids
+ * @ingroup    ie_dev_api_system_conf
+ * @param[in]  core_type core type.
+ * @param[in]  num_cpus number of cpus.
+ * @param[in]  cpu_task is cpu task, not other plugin tasks
+ * @return     Array of available cpu ids.
+ */
+using ov::reserve_available_cpus;
+
+/**
+ * @brief      This enum contains definition of each columns in processor type table which bases on cpu core types. Will
  * extend to support other CPU core type like ARM.
  *
  * The following are two example of processor type table.
@@ -162,7 +203,7 @@ using ov::with_cpu_x86_avx512_core_amx;
 using ov::ColumnOfProcessorTypeTable;
 
 /**
- * @brief      This enum contains defination of each columns in CPU mapping table which use processor id as index.
+ * @brief      This enum contains definition of each columns in CPU mapping table which use processor id as index.
  *
  * GROUP_ID is generated according to the following rules.
  *  1. If one MAIN_CORE_PROC and one HYPER_THREADING_PROC are based on same Performance-cores, they are in one group.
@@ -184,5 +225,10 @@ using ov::ColumnOfProcessorTypeTable;
  *       7             0          5          2          2        0
  */
 using ov::ColumnOfCPUMappingTable;
+
+/**
+ * @brief      definition of CPU_MAP_USED_FLAG column in CPU mapping table.
+ */
+using ov::ProcessorUseStatus;
 
 }  // namespace InferenceEngine
