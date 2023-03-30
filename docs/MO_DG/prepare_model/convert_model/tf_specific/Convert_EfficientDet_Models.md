@@ -1,5 +1,7 @@
 # Converting TensorFlow EfficientDet Models {#openvino_docs_MO_DG_prepare_model_convert_model_tf_specific_Convert_EfficientDet_Models}
 
+@sphinxdirective
+
 This tutorial explains how to convert EfficientDet public object detection models to the Intermediate Representation (IR).
 
 .. _efficientdet-to-ir:
