@@ -2,11 +2,12 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "transformations/transpose_sinking/ts_squeeze.hpp"
+
 #include "common_test_utils/ngraph_test_utils.hpp"
 #include "gtest/gtest.h"
 #include "openvino/opsets/opset10.hpp"
 #include "openvino/pass/manager.hpp"
-#include "transformations/transpose_sinking/ts_squeeze.hpp"
 #include "ts_test_case.hpp"
 #include "ts_test_utils.hpp"
 
@@ -88,7 +89,7 @@ auto test_forward_squeeze = [](const SqueezeForwardArguments& test_arguments) {
     return wrapper(test_case);
 };
 
-vector<SqueezeForwardArguments> tests_arguments {
+vector<SqueezeForwardArguments> tests_arguments{
     {{parameter(f32, {1, 2}), constant<int64_t>(i32, {1}, {1})}, constant<int64_t>(i32, {1}, {0})},
     {{parameter(f32, {1, 2, 1}), constant<int64_t>(i32, {2}, {0, 2})}, constant<int64_t>(i32, {2}, {2, 0})},
     {{parameter(f32, {1, 1, 2, 1}), constant<int64_t>(i32, {3}, {0, 2, 3})}, constant<int64_t>(i32, {3}, {3, 1, 0})},
@@ -102,6 +103,6 @@ INSTANTIATE_TEST_SUITE_P(TSCommonSqueezeForward_2, TSTestFixture, test_forward_s
 INSTANTIATE_TEST_SUITE_P(TSCommonSqueezeForward_3, TSTestFixture, test_forward_squeeze(tests_arguments[3]));
 INSTANTIATE_TEST_SUITE_P(TSCommonSqueezeForward_4, TSTestFixture, test_forward_squeeze(tests_arguments[4]));
 
-}  // namespace common
+}  // namespace squeeze
 }  // namespace testing
 }  // namespace transpose_sinking

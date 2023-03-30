@@ -402,7 +402,7 @@ struct ThrowNow final {
     [[noreturn]] void operator<<=(const std::ostream& ostream) {
         std::ostringstream stream;
         stream << ostream.rdbuf();
-        throw ExceptionType{stream.str()};
+        // throw ExceptionType{stream.str()};
     }
 };
 

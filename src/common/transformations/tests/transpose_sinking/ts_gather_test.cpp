@@ -2,11 +2,12 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "transformations/transpose_sinking/ts_gather.hpp"
+
 #include "common_test_utils/ngraph_test_utils.hpp"
 #include "gtest/gtest.h"
 #include "openvino/opsets/opset10.hpp"
 #include "openvino/pass/manager.hpp"
-#include "transformations/transpose_sinking/ts_gather.hpp"
 #include "ts_test_case.hpp"
 #include "ts_test_utils.hpp"
 
@@ -91,12 +92,11 @@ auto test_forward_gather = [](const GatherForwardArguments& test_arguments) {
     return wrapper(test_case);
 };
 
-vector<GatherForwardArguments> tests_arguments_fw {
-    {{{parameter(f32, {3, 4, 5, 6}), constant<int>(i32, {2}, {0, 2}), constant<int>(i32, {1}, {2})}}, constant<int>(i32, {1}, {1})}
-};
+vector<GatherForwardArguments> tests_arguments_fw{
+    {{{parameter(f32, {3, 4, 5, 6}), constant<int>(i32, {2}, {0, 2}), constant<int>(i32, {1}, {2})}},
+     constant<int>(i32, {1}, {1})}};
 
 INSTANTIATE_TEST_SUITE_P(TSCommonGatherForward_0, TSTestFixture, test_forward_gather(tests_arguments_fw[0]));
-
 
 struct GatherBackwardArguments {
     OutputVector inputs_to_main;
@@ -116,7 +116,6 @@ auto test_backward_gather = [](const GatherBackwardArguments& test_arguments) {
     test_case.model.preprocess_outputs_of_main = {{set_transpose_for}, {{0}}};
     test_case.model.model_template = create_model;
 
-
     // Reference model description:
     auto new_constant = [&](const vector<size_t>& idxs, const OutputVector& out_vec) -> OutputVector {
         OutputVector new_out_vec(out_vec.size());
@@ -132,12 +131,12 @@ auto test_backward_gather = [](const GatherBackwardArguments& test_arguments) {
     return wrapper(test_case);
 };
 
-vector<GatherBackwardArguments> tests_arguments_bw {
-    {{{parameter(f32, {3, 4, 5, 6}), constant<int>(i32, {2}, {0, 2}), constant<int>(i32, {1}, {2})}}, constant<int>(i32, {1}, {1})}
-};
+vector<GatherBackwardArguments> tests_arguments_bw{
+    {{{parameter(f32, {3, 4, 5, 6}), constant<int>(i32, {2}, {0, 2}), constant<int>(i32, {1}, {2})}},
+     constant<int>(i32, {1}, {1})}};
 
 INSTANTIATE_TEST_SUITE_P(TSCommonGatherBackward_0, TSTestFixture, test_backward_gather(tests_arguments_bw[0]));
 
-}  // namespace common
+}  // namespace gather
 }  // namespace testing
 }  // namespace transpose_sinking

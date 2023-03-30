@@ -68,8 +68,8 @@ using PassFactoryPtr = std::shared_ptr<IPassFactory>;
 struct TestCase;
 struct ModelDescription;
 using TestParams = std::tuple<size_t /* idx num_main_ops */, size_t /* idx main_op */, TestCase>;
-using CreateGraphF =
-        std::function<std::shared_ptr<ov::Model>(size_t main_op_idx, const ModelDescription&, size_t, const ov::OutputVector&)>;
+using CreateGraphF = std::function<
+    std::shared_ptr<ov::Model>(size_t main_op_idx, const ModelDescription&, size_t, const ov::OutputVector&)>;
 
 // Describes a model to test.
 // Expects to be used in such a scenario:
@@ -105,11 +105,14 @@ public:
     static std::string get_test_name(const ::testing::TestParamInfo<TestParams>& obj);
 };
 
-::testing::internal::CartesianProductHolder
-    <::testing::internal::ParamGenerator<unsigned long>,
-     ::testing::internal::ParamGenerator<unsigned long>,
-     ::testing::internal::ValueArray<TestCase>>
-    wrapper(const TestCase& test_case);
+auto wrapper = [](const TestCase& test_case) {
+    OPENVINO_ASSERT(test_case.model.main_op.size() == test_case.model_ref.main_op.size(),
+                    "The number of main op (testing op) creator have to be the same for the testing model and for"
+                    "the reference model.");
+    return ::testing::Combine(::testing::Range<size_t>(0, test_case.num_main_ops.size()),
+                              ::testing::Range<size_t>(0, test_case.model.main_op.size()),
+                              ::testing::Values(test_case));
+};
 
-}
-}
+}  // namespace testing
+}  // namespace transpose_sinking

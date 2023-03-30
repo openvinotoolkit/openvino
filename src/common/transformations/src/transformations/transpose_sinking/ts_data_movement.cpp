@@ -21,9 +21,7 @@ using namespace ov::pass::transpose_sinking::utils;
 namespace {
 
 std::vector<size_t> get_indices_by_op_type(const std::shared_ptr<Node>& main_node) {
-    if (as_type_ptr<ReverseSequence>(main_node)) {
-        return {1};
-    } else if (as_type_ptr<Pad>(main_node)) {
+    if (as_type_ptr<Pad>(main_node)) {
         return {1, 2};
     } else if (as_type_ptr<BatchToSpace>(main_node) || as_type_ptr<SpaceToBatch>(main_node)) {
         return {1, 2, 3};
@@ -74,8 +72,8 @@ TSDataMovementForward::TSDataMovementForward() {
         }
 
         if (auto reverse_seq = as_type_ptr<ReverseSequence>(main_node)) {
-            reverse_seq->set_batch_axis(reversed_transpose_order[reverse_seq->get_batch_axis()]);
-            reverse_seq->set_sequence_axis(reversed_transpose_order[reverse_seq->get_sequence_axis()]);
+            reverse_seq->set_batch_axis(transpose_axis_order[reverse_seq->get_batch_axis()]);
+            reverse_seq->set_sequence_axis(transpose_axis_order[reverse_seq->get_sequence_axis()]);
         }
         main_node->validate_and_infer_types();
         TransposeInputsInfo transpose_input_info = {transpose, transpose_const, 0};
@@ -124,6 +122,7 @@ TSDataMovementBackward::TSDataMovementBackward() {
         RemoveSingleOutputConsumers(main_node);
         SwapNames(main_node, transpose);
         const auto transpose_axis_order = transpose_const->get_axis_vector_val();
+        const auto reversed_transpose_order = ReverseTransposeOrder(transpose_axis_order);
         auto axis = std::make_shared<Constant>(element::i32, Shape{}, 0);
         const auto& indices = get_indices_by_op_type(main_node);
         for (const auto& idx : indices) {
@@ -132,8 +131,8 @@ TSDataMovementBackward::TSDataMovementBackward() {
         }
 
         if (auto reverse_seq = as_type_ptr<ReverseSequence>(main_node)) {
-            reverse_seq->set_batch_axis(transpose_axis_order[reverse_seq->get_batch_axis()]);
-            reverse_seq->set_sequence_axis(transpose_axis_order[reverse_seq->get_sequence_axis()]);
+            reverse_seq->set_batch_axis(reversed_transpose_order[reverse_seq->get_batch_axis()]);
+            reverse_seq->set_sequence_axis(reversed_transpose_order[reverse_seq->get_sequence_axis()]);
         }
         main_node->validate_and_infer_types();
         return true;
