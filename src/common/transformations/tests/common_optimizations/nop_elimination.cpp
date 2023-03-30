@@ -1310,3 +1310,20 @@ TEST(SplitConcatElimination, no_sequence_found) {
     EXPECT_EQ(count_ops_of_type<ov::opset9::Split>(model), 1) << "SplitConcatElimination transformation has failed. "
                                                                  "The number of Split ops is not 1";
 }
+
+TEST(nop_elimination, gather_to_squeeze) {
+    auto generate_func = []() {
+        auto arg = std::make_shared<op::Parameter>(element::f32, PartialShape{1, 3, 4, 4});
+        auto indices = op::Constant::create(element::i64, Shape{}, vector<int64_t>{0});
+        auto axis = op::Constant::create(element::i64, Shape{}, vector<int64_t>{0});
+        auto gather = std::make_shared<op::v8::Gather>(arg, indices, axis);
+        return std::make_shared<Function>(NodeVector{gather}, ParameterVector{arg});
+    };
+
+    auto func = generate_func();
+    pass::Manager pass_manager;
+    pass_manager.register_pass<ov::pass::NopElimination>();
+    pass_manager.run_passes(func);
+    ASSERT_TRUE(count_ops_of_type<op::v8::Gather>(func) == 0);
+    ASSERT_TRUE(count_ops_of_type<op::v0::Squeeze>(func) == 1);
+}
