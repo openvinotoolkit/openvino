@@ -63,9 +63,9 @@ Examples of CLI Commands
 
    mo --input_model wsj_dnn5b_smbr.nnet --counts wsj_dnn5b_smbr.counts --remove_output_softmax
 
-    The Model Optimizer finds the last layer of the topology and removes this layer only if it is a SoftMax layer.
+The Model Optimizer finds the last layer of the topology and removes this layer only if it is a SoftMax layer.
 
-    .. note:: Model Optimizer can remove SoftMax layer only if the topology has one output.
+.. note:: Model Optimizer can remove SoftMax layer only if the topology has one output.
 
 * You can use the *OpenVINO Speech Recognition* sample application for the sample inference of Kaldi models. This sample supports models with only one output. If your model has several outputs, specify the desired one with the ``--output`` option.
 
