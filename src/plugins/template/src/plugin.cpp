@@ -6,12 +6,14 @@
 
 #include <memory>
 
+#include "cpp_interfaces/interface/ie_internal_plugin_config.hpp"
 #include "cpp_interfaces/interface/ie_iplugin_internal.hpp"
 #include "ie_plugin_config.hpp"
 #include "itt.hpp"
 #include "openvino/pass/manager.hpp"
 #include "openvino/runtime/properties.hpp"
-#include "template/config.hpp"
+#include "remote_context.hpp"
+#include "template/properties.hpp"
 #include "transformations/common_optimizations/common_optimizations.hpp"
 #include "transformations/common_optimizations/convert_compression_only_to_legacy.hpp"
 #include "transformations/control_flow/unroll_if.hpp"
@@ -48,14 +50,16 @@ ov::template_plugin::Plugin::~Plugin() {
 // ! [plugin:dtor]
 
 // ! [plugin:create_context]
-ov::RemoteContext ov::template_plugin::Plugin::create_context(const ov::AnyMap& remote_properties) const {
-    OPENVINO_NOT_IMPLEMENTED;
+std::shared_ptr<ov::IRemoteContext> ov::template_plugin::Plugin::create_context(
+    const ov::AnyMap& remote_properties) const {
+    return std::make_shared<ov::template_plugin::RemoteContext>();
 }
 // ! [plugin:create_context]
 
 // ! [plugin:get_default_context]
-ov::RemoteContext ov::template_plugin::Plugin::get_default_context(const ov::AnyMap& remote_properties) const {
-    OPENVINO_NOT_IMPLEMENTED;
+std::shared_ptr<ov::IRemoteContext> ov::template_plugin::Plugin::get_default_context(
+    const ov::AnyMap& remote_properties) const {
+    return std::make_shared<ov::template_plugin::RemoteContext>();
 }
 // ! [plugin:get_default_context]
 
@@ -88,6 +92,15 @@ void transform_model(const std::shared_ptr<ov::Model>& model) {
 std::shared_ptr<ov::ICompiledModel> ov::template_plugin::Plugin::compile_model(
     const std::shared_ptr<const ov::Model>& model,
     const ov::AnyMap& properties) const {
+    return compile_model(model, properties, {});
+}
+// ! [plugin:compile_model]
+
+// ! [plugin:compile_model_with_remote]
+std::shared_ptr<ov::ICompiledModel> ov::template_plugin::Plugin::compile_model(
+    const std::shared_ptr<const ov::Model>& model,
+    const ov::AnyMap& properties,
+    const ov::RemoteContext& context) const {
     OV_ITT_SCOPED_TASK(itt::domains::TemplatePlugin, "Plugin::compile_model");
 
     auto fullConfig = Configuration{properties, m_cfg};
@@ -97,23 +110,23 @@ std::shared_ptr<ov::ICompiledModel> ov::template_plugin::Plugin::compile_model(
     auto compiled_model =
         std::make_shared<CompiledModel>(model->clone(),
                                         shared_from_this(),
-                                        nullptr, // FIXME: Revert back get_executor_manager()->get_idle_cpu_streams_executor(streamsExecutorConfig) instead of nullptr
+                                        context,
+                                        nullptr, // FIXME: Revert back get_executor_manager()->get_idle_cpu_streams_executor(streamsExecutorConfig),
                                         fullConfig);
     return compiled_model;
-}
-// ! [plugin:compile_model]
-
-// ! [plugin:compile_model_with_remote]
-std::shared_ptr<ov::ICompiledModel> ov::template_plugin::Plugin::compile_model(
-    const std::shared_ptr<const ov::Model>& model,
-    const ov::AnyMap& properties,
-    const ov::RemoteContext& context) const {
-    OPENVINO_NOT_IMPLEMENTED;
 }
 // ! [plugin:compile_model_with_remote]
 
 // ! [plugin:import_model]
 std::shared_ptr<ov::ICompiledModel> ov::template_plugin::Plugin::import_model(std::istream& model,
+                                                                              const ov::AnyMap& properties) const {
+    return import_model(model, {}, properties);
+}
+// ! [plugin:import_model]
+
+// ! [plugin:import_model_with_remote]
+std::shared_ptr<ov::ICompiledModel> ov::template_plugin::Plugin::import_model(std::istream& model,
+                                                                              const ov::RemoteContext& context,
                                                                               const ov::AnyMap& properties) const {
     OV_ITT_SCOPED_TASK(itt::domains::TemplatePlugin, "Plugin::import_model");
 
@@ -140,17 +153,11 @@ std::shared_ptr<ov::ICompiledModel> ov::template_plugin::Plugin::import_model(st
     auto compiled_model =
         std::make_shared<CompiledModel>(ov_model,
                                         shared_from_this(),
+                                        context,
                                         get_executor_manager()->get_idle_cpu_streams_executor(streamsExecutorConfig),
-                                        fullConfig);
+                                        fullConfig,
+                                        true);
     return compiled_model;
-}
-// ! [plugin:import_model]
-
-// ! [plugin:import_model_with_remote]
-std::shared_ptr<ov::ICompiledModel> ov::template_plugin::Plugin::import_model(std::istream& model,
-                                                                              const ov::RemoteContext& context,
-                                                                              const ov::AnyMap& properties) const {
-    OPENVINO_NOT_IMPLEMENTED;
 }
 // ! [plugin:import_model_with_remote]
 
@@ -166,6 +173,9 @@ ov::SupportedOpsMap ov::template_plugin::Plugin::query_model(const std::shared_p
     auto supported = ov::get_supported_nodes(
         model,
         [&](std::shared_ptr<ov::Model>& model) {
+            // skip transformations in case of user config
+            if (fullConfig.disable_transformations)
+                return;
             // 1. It is needed to apply all transformations as it is done in compile_model
             transform_model(model);
         },
@@ -216,6 +226,7 @@ ov::Any ov::template_plugin::Plugin::get_property(const std::string& name, const
                                                     ov::device::full_name,
                                                     ov::device::architecture,
                                                     ov::device::capabilities,
+                                                    ov::caching_properties,
                                                     ov::range_for_async_infer_requests};
         return ro_properties;
     };
@@ -223,7 +234,7 @@ ov::Any ov::template_plugin::Plugin::get_property(const std::string& name, const
         std::vector<ov::PropertyName> rw_properties{ov::device::id,
                                                     ov::enable_profiling,
                                                     ov::hint::performance_mode,
-                                                    ov::template_plugin::throughput_streams};
+                                                    ov::template_plugin::disable_transformations};
         return rw_properties;
     };
     const auto& to_string_vector = [](const std::vector<ov::PropertyName>& properties) {
@@ -273,6 +284,9 @@ ov::Any ov::template_plugin::Plugin::get_property(const std::string& name, const
         // TODO: return device architecture for device specified by DEVICE_ID config
         std::string arch = "TEMPLATE";
         return decltype(ov::device::architecture)::value_type(arch);
+    } else if (ov::caching_properties == name) {
+        std::vector<ov::PropertyName> caching_properties = {ov::device::architecture};
+        return decltype(ov::caching_properties)::value_type(caching_properties);
     } else if (ov::device::capabilities == name) {
         // TODO: fill actual list of supported capabilities: e.g. Template device supports only FP32 and EXPORT_IMPORT
         std::vector<std::string> capabilities = {ov::device::capability::FP32, ov::device::capability::EXPORT_IMPORT};

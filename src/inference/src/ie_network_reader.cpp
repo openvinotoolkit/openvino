@@ -47,7 +47,7 @@ public:
         : m_ext(ext),
           m_opset_name(opset),
           m_type(name),
-          m_ext_type(m_type.c_str(), 0, m_opset_name.c_str()) {}
+          m_ext_type(m_type.c_str(), m_opset_name.c_str()) {}
 
     const ov::DiscreteTypeInfo& get_type_info() const override {
         return m_ext_type;
@@ -159,7 +159,7 @@ void registerReaders() {
 }
 
 void assertIfIRv7LikeModel(std::istream& modelStream) {
-    auto irVersion = details::GetIRVersion(modelStream);
+    auto irVersion = details::get_ir_version(modelStream);
     bool isIRv7 = irVersion > 1 && irVersion <= 7;
 
     if (!isIRv7 || reader_irv7)
@@ -457,6 +457,7 @@ CNNNetwork details::ReadNetwork(const std::string& modelPath,
 #endif
         params.emplace_back(weights_path);
     }
+    params.emplace_back(/*use_ir_frontend_map_allocator=*/true);
 
     FE = manager.load_by_model(params);
     if (FE) {

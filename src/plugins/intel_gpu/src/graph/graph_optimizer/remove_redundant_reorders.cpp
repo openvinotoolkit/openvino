@@ -23,7 +23,6 @@ using namespace cldnn;
 #define LOG_NODE_REMOVAL(id)      GPU_DEBUG_LOG_PASS << "Remove node: " << (id) << std::endl;
 #define LOG_NODE_REPLACEMENT(id)  GPU_DEBUG_LOG_PASS << "Replace node: " << (id) << std::endl;
 
-
 remove_redundant_reorders::remove_redundant_reorders(layout_optimizer& lo_ref, bool enable_reorder_fusing, bool update_implementations,
     bool remove_output_reorders)
     : base_pass("remove_redundant_reorders"), lo(lo_ref), enable_reorder_fusing(enable_reorder_fusing), update_implementations(update_implementations),
@@ -37,8 +36,8 @@ void remove_redundant_reorders::run(program& p) {
         node.set_unique_id();
         node.set_selected_impl(node.type()->choose_impl(node));
         if (auto impl = node.get_selected_impl()) {
-            auto kernel_ids = p.get_kernels_cache().add_kernels_source(impl->get_kernels_source());
-            impl->set_kernel_ids(kernel_ids);
+            auto params = node.get_kernel_impl_params();
+            p.get_kernels_cache().add_kernels_source(*params, impl->get_kernels_source());
         }
     };
 

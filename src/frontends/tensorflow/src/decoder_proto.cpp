@@ -15,20 +15,6 @@ namespace frontend {
 namespace tensorflow {
 
 namespace {
-const std::map<::tensorflow::DataType, ov::element::Type>& TYPE_MAP() {
-    static const std::map<::tensorflow::DataType, ov::element::Type> type_map{
-        {::tensorflow::DataType::DT_BOOL, ov::element::boolean},
-        {::tensorflow::DataType::DT_INT16, ov::element::i16},
-        {::tensorflow::DataType::DT_INT32, ov::element::i32},
-        {::tensorflow::DataType::DT_INT64, ov::element::i64},
-        {::tensorflow::DataType::DT_HALF, ov::element::f16},
-        {::tensorflow::DataType::DT_FLOAT, ov::element::f32},
-        {::tensorflow::DataType::DT_DOUBLE, ov::element::f64},
-        {::tensorflow::DataType::DT_UINT8, ov::element::u8},
-        {::tensorflow::DataType::DT_INT8, ov::element::i8},
-        {::tensorflow::DataType::DT_BFLOAT16, ov::element::bf16}};
-    return type_map;
-}
 
 template <typename T>
 void extract_tensor_content(const std::string& tensor_content, ov::Tensor* values) {
@@ -96,6 +82,24 @@ void extract_compressed_tensor_content(const ::tensorflow::TensorProto& tensor_p
 #endif
 }  // namespace
 
+ov::element::Type get_ov_type(const ::tensorflow::DataType& type) {
+    static const std::map<::tensorflow::DataType, ov::element::Type> type_map{
+        {::tensorflow::DataType::DT_BOOL, ov::element::boolean},
+        {::tensorflow::DataType::DT_INT16, ov::element::i16},
+        {::tensorflow::DataType::DT_INT32, ov::element::i32},
+        {::tensorflow::DataType::DT_INT64, ov::element::i64},
+        {::tensorflow::DataType::DT_HALF, ov::element::f16},
+        {::tensorflow::DataType::DT_FLOAT, ov::element::f32},
+        {::tensorflow::DataType::DT_DOUBLE, ov::element::f64},
+        {::tensorflow::DataType::DT_UINT8, ov::element::u8},
+        {::tensorflow::DataType::DT_INT8, ov::element::i8},
+        {::tensorflow::DataType::DT_BFLOAT16, ov::element::bf16}};
+
+    auto it = type_map.find(type);
+    // for all unsupported types return dynamic type
+    return it == type_map.end() ? ov::element::dynamic : it->second;
+}
+
 ov::Any DecoderProto::get_attribute(const std::string& name) const {
     auto attrs = decode_attribute_helper(name);
     if (attrs.empty()) {
@@ -125,11 +129,11 @@ ov::Any DecoderProto::get_attribute(const std::string& name) const {
     }
 
     case ::tensorflow::AttrValue::ValueCase::kType: {
-        if (TYPE_MAP().count(attrs[0].type())) {
-            return TYPE_MAP().at(attrs[0].type());
+        auto atype = attrs[0].type();
+        if (atype != ::tensorflow::DT_STRING) {
+            return get_ov_type(attrs[0].type());
         } else {
-            // for all unsupported types return undefined type
-            return ov::element::undefined;
+            return ov::Any("DT_STRING");
         }
     }
 
@@ -169,7 +173,11 @@ ov::Any DecoderProto::get_attribute(const std::string& name) const {
         if (list.type_size()) {
             std::vector<ov::element::Type> res;
             for (int idx = 0; idx < list.type_size(); ++idx) {
-                res.emplace_back(TYPE_MAP().at(list.type(idx)));
+                if (list.type(idx) != ::tensorflow::DataType::DT_STRING) {
+                    res.emplace_back(get_ov_type(list.type(idx)));
+                } else {
+                    res.emplace_back(ov::element::undefined);
+                }
             }
             return res;
         }
@@ -194,10 +202,23 @@ ov::Any DecoderProto::get_attribute(const std::string& name) const {
         }
         FRONT_END_GENERAL_CHECK(pshape.is_static(), "Dynamic shapes are not supported for Tensor attribute.");
         const auto& tf_type = tensor_proto.dtype();
-        FRONT_END_GENERAL_CHECK(
-            TYPE_MAP().count(tf_type),
-            "Encountered unknown element type " + DataType_Name(tf_type) + " on an empty tensor_proto");
-        auto ov_type = TYPE_MAP().at(tf_type);
+        auto ov_type = get_ov_type(tf_type);
+        if (tf_type != ::tensorflow::DataType::DT_STRING) {
+            FRONT_END_GENERAL_CHECK(
+                ov_type.is_static(),
+                "Encountered unknown element type " + DataType_Name(tf_type) + " on an empty tensor_proto");
+        } else {
+            ov_type = ov::element::u64;
+            pshape.resize(0);
+            pshape.push_back(tensor_proto.string_val_size());
+        }
+        if (tf_type == ::tensorflow::DataType::DT_STRING) {
+            auto data = std::vector<std::string>();
+            for (auto& item : tensor_proto.string_val()) {
+                data.push_back(item);
+            }
+            return data;
+        }
         ov::Tensor res(ov_type, pshape.get_shape());
         auto tensor_content = tensor_proto.tensor_content();
         if (!tensor_content.empty() && tensor_proto.has_tensor_shape()) {
@@ -307,6 +328,11 @@ void parse_producer_name(const std::string& producer_port_name,
         {"FusedBatchNormV2:batch_variance", 2},
         {"FusedBatchNormV3:batch_mean", 1},
         {"FusedBatchNormV3:batch_variance", 2},
+        {"Unique:y", 0},
+        {"Unique:idx", 1},
+        {"RaggedTensorToSparse:sparse_indices", 0},
+        {"RaggedTensorToSparse:sparse_values", 1},
+        {"RaggedTensorToSparse:sparse_dense_shape", 2},
     };
     // Body graph nodes may have two colons `:` input names, for example,
     // `TopKV2Name:indices:0` means that producer operation name is `TopKV2Name`

@@ -26,13 +26,20 @@ TF_OP_CONVERTER(translate_gru_block_cell_op);
 TF_OP_CONVERTER(translate_hash_table_op);
 TF_OP_CONVERTER(translate_iterator_get_next_op);
 TF_OP_CONVERTER(translate_iterator_op);
-TF_OP_CONVERTER(translate_lookup_table_insert_op);
 TF_OP_CONVERTER(translate_partitioned_call_op);
 TF_OP_CONVERTER(translate_queue_dequeue_op);
 TF_OP_CONVERTER(translate_queue_dequeue_many_op);
 TF_OP_CONVERTER(translate_sparse_fill_empty_rows_op);
 TF_OP_CONVERTER(translate_sparse_reshape_op);
 TF_OP_CONVERTER(translate_sparse_segment_sum_op);
+TF_OP_CONVERTER(translate_varisinitialized_op);
+TF_OP_CONVERTER(translate_readvariable_op);
+TF_OP_CONVERTER(translate_assignvariable_op);
+TF_OP_CONVERTER(translate_varhandle_op);
+TF_OP_CONVERTER(translate_restorev2_op);
+TF_OP_CONVERTER(translate_staticregexfullmatch_op);
+TF_OP_CONVERTER(translate_stringjoin_op);
+TF_OP_CONVERTER(translate_mergev2checkpoint_op);
 TF_OP_CONVERTER(translate_while_op);
 
 const std::map<std::string, CreatorFunction> get_supported_ops() {
@@ -105,7 +112,7 @@ const std::map<std::string, CreatorFunction> get_supported_ops() {
         {"AddN", translate_add_n_op},
         {"ArgMax", translate_arg_max_op},
         {"ArgMin", translate_arg_min_op},
-        {"Assert", translate_assert_op},
+        {"Assert", translate_no_op},
         {"AvgPool", translate_avg_pool_op},
         {"AvgPool3D", translate_avg_pool_op},
         {"BatchMatMul", translate_batch_mat_mul_op},
@@ -164,8 +171,8 @@ const std::map<std::string, CreatorFunction> get_supported_ops() {
         {"ListDiff", translate_list_diff_op},
         {"LogSoftmax", translate_log_softmax_op},
         {"Log1p", translate_log_1p_op},
-        {"LookupTableInsert", translate_lookup_table_insert_op},
-        {"LookupTableInsertV2", translate_lookup_table_insert_op},
+        {"LookupTableInsert", translate_no_op},
+        {"LookupTableInsertV2", translate_no_op},
         {"LRN", translate_lrn_op},
         {"MatMul", translate_mat_mul_op},
         {"MatrixDiag", translate_matrix_diag_op},
@@ -247,6 +254,15 @@ const std::map<std::string, CreatorFunction> get_supported_ops() {
         {"TopK", translate_top_k_op},
         {"TopKV2", translate_top_k_v2_op},
         {"Transpose", translate_transpose_op},
+        {"ReadVariableOp", translate_readvariable_op},
+        {"AssignVariableOp", translate_assignvariable_op},
+        {"VarIsInitializedOp", translate_varisinitialized_op},
+        {"VarHandleOp", translate_varhandle_op},
+        {"RestoreV2", translate_restorev2_op},
+        {"StaticRegexFullMatch", translate_staticregexfullmatch_op},
+        {"StringJoin", translate_stringjoin_op},
+        {"ShardedFilename", translate_identity_op},
+        {"MergeV2Checkpoints", translate_identity_op},
         {"Unpack", translate_unpack_op},
         {"While", translate_while_op},
         {"Where", translate_where_op},

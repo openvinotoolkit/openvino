@@ -234,21 +234,15 @@ static constexpr Property<uint32_t, PropertyMutability::RO> optimal_number_of_in
     "OPTIMAL_NUMBER_OF_INFER_REQUESTS"};
 
 /**
- * @brief Hint for device to use specified precision for inference
- * @ingroup ov_runtime_cpp_prop_api
- */
-static constexpr Property<element::Type, PropertyMutability::RW> inference_precision{"INFERENCE_PRECISION_HINT"};
-
-/**
  * @brief Namespace with hint properties
  */
 namespace hint {
 
 /**
- * @brief An alias for inference_precision property for backward compatibility
+ * @brief Hint for device to use specified precision for inference
  * @ingroup ov_runtime_cpp_prop_api
  */
-using ov::inference_precision;
+static constexpr Property<element::Type, PropertyMutability::RW> inference_precision{"INFERENCE_PRECISION_HINT"};
 
 /**
  * @brief Enum to define possible priorities hints
@@ -271,7 +265,7 @@ inline std::ostream& operator<<(std::ostream& os, const Priority& priority) {
     case Priority::HIGH:
         return os << "HIGH";
     default:
-        OPENVINO_UNREACHABLE("Unsupported performance measure hint");
+        OPENVINO_THROW("Unsupported model priority value");
     }
 }
 
@@ -284,8 +278,10 @@ inline std::istream& operator>>(std::istream& is, Priority& priority) {
         priority = Priority::MEDIUM;
     } else if (str == "HIGH") {
         priority = Priority::HIGH;
+    } else if (str == "DEFAULT") {
+        priority = Priority::DEFAULT;
     } else {
-        OPENVINO_UNREACHABLE("Unsupported model priority: ", str);
+        OPENVINO_THROW("Unsupported model priority: ", str);
     }
     return is;
 }
@@ -303,7 +299,8 @@ static constexpr Property<Priority> model_priority{"MODEL_PRIORITY"};
  * @ingroup ov_runtime_cpp_prop_api
  */
 enum class PerformanceMode {
-    UNDEFINED = -1,             //!<  Undefined value, performance setting may vary from device to device
+    UNDEFINED OPENVINO_ENUM_DEPRECATED("Please use actual value instead. Will be removed in 2024.0") =
+        -1,                     //!<  Undefined value, performance setting may vary from device to device
     LATENCY = 1,                //!<  Optimize for latency
     THROUGHPUT = 2,             //!<  Optimize for throughput
     CUMULATIVE_THROUGHPUT = 3,  //!<  Optimize for cumulative throughput
@@ -312,8 +309,10 @@ enum class PerformanceMode {
 /** @cond INTERNAL */
 inline std::ostream& operator<<(std::ostream& os, const PerformanceMode& performance_mode) {
     switch (performance_mode) {
+        OPENVINO_SUPPRESS_DEPRECATED_START
     case PerformanceMode::UNDEFINED:
         return os << "UNDEFINED";
+        OPENVINO_SUPPRESS_DEPRECATED_END
     case PerformanceMode::LATENCY:
         return os << "LATENCY";
     case PerformanceMode::THROUGHPUT:
@@ -321,7 +320,7 @@ inline std::ostream& operator<<(std::ostream& os, const PerformanceMode& perform
     case PerformanceMode::CUMULATIVE_THROUGHPUT:
         return os << "CUMULATIVE_THROUGHPUT";
     default:
-        OPENVINO_UNREACHABLE("Unsupported performance mode hint");
+        OPENVINO_THROW("Unsupported performance mode hint");
     }
 }
 
@@ -335,9 +334,11 @@ inline std::istream& operator>>(std::istream& is, PerformanceMode& performance_m
     } else if (str == "CUMULATIVE_THROUGHPUT") {
         performance_mode = PerformanceMode::CUMULATIVE_THROUGHPUT;
     } else if (str == "UNDEFINED") {
+        OPENVINO_SUPPRESS_DEPRECATED_START
         performance_mode = PerformanceMode::UNDEFINED;
+        OPENVINO_SUPPRESS_DEPRECATED_END
     } else {
-        OPENVINO_UNREACHABLE("Unsupported performance mode: ", str);
+        OPENVINO_THROW("Unsupported performance mode: ", str);
     }
     return is;
 }
@@ -350,6 +351,78 @@ inline std::istream& operator>>(std::istream& is, PerformanceMode& performance_m
  * @ingroup ov_runtime_cpp_prop_api
  */
 static constexpr Property<PerformanceMode> performance_mode{"PERFORMANCE_HINT"};
+
+/**
+ * @enum       SchedulingCoreType
+ * @brief      This enum contains definition of core type can be used for CPU tasks on different devices.
+ */
+enum class SchedulingCoreType {
+    ANY_CORE = 0,    //!<  Any processors can be used.
+    PCORE_ONLY = 1,  //!<  Only processors of performance-cores can be used.
+    ECORE_ONLY = 2,  //!<  Only processors of efficient-cores can be used.
+};
+
+/** @cond INTERNAL */
+inline std::ostream& operator<<(std::ostream& os, const SchedulingCoreType& core_type) {
+    switch (core_type) {
+    case SchedulingCoreType::ANY_CORE:
+        return os << "ANY_CORE";
+    case SchedulingCoreType::PCORE_ONLY:
+        return os << "PCORE_ONLY";
+    case SchedulingCoreType::ECORE_ONLY:
+        return os << "ECORE_ONLY";
+    default:
+        throw ov::Exception{"Unsupported core type!"};
+    }
+}
+
+inline std::istream& operator>>(std::istream& is, SchedulingCoreType& core_type) {
+    std::string str;
+    is >> str;
+    if (str == "ANY_CORE") {
+        core_type = SchedulingCoreType::ANY_CORE;
+    } else if (str == "PCORE_ONLY") {
+        core_type = SchedulingCoreType::PCORE_ONLY;
+    } else if (str == "ECORE_ONLY") {
+        core_type = SchedulingCoreType::ECORE_ONLY;
+    } else {
+        throw ov::Exception{"Unsupported core type: " + str};
+    }
+    return is;
+}
+/** @endcond */
+
+/**
+ * @brief This property defines CPU core type which can be used during inference.
+ * @ingroup ov_runtime_cpp_prop_api
+ *
+ * Developer can use this property to select specific CPU cores for inference. Please refer SchedulingCoreType for
+ * all definition of core type.
+ *
+ * The following code is an example to only use efficient-cores for inference on hybrid CPU. If user sets this
+ * configuration on a platform with only performance-cores, CPU inference will still run on the performance-cores.
+ *
+ * @code
+ * ie.set_property(ov::hint::scheduling_core_type(ov::hint::SchedulingCoreType::ECORE_ONLY));
+ * @endcode
+ */
+static constexpr Property<SchedulingCoreType> scheduling_core_type{"SCHEDULING_CORE_TYPE"};
+
+/**
+ * @brief This property allows hyper threading during inference.
+ * @ingroup ov_runtime_cpp_prop_api
+ *
+ * Developer can use this property to use or not use hyper threading during inference. If user does not explicitly set
+ * value for this property, OpenVINO may choose any desired value based on internal logic.
+ *
+ * The following code is example to use this property.
+ *
+ * @code
+ * ie.set_property(ov::hint::use_hyper_threading(true));
+ * ie.set_property(ov::hint::use_hyper_threading(false));
+ * @endcode
+ */
+static constexpr Property<bool> use_hyper_threading{"USE_HYPER_THREADING"};
 
 /**
  * @brief (Optional) property that backs the (above) Performance Hints
@@ -377,22 +450,19 @@ static constexpr Property<bool, PropertyMutability::RW> allow_auto_batching{"ALL
  * @ingroup ov_runtime_cpp_prop_api
  */
 enum class ExecutionMode {
-    UNDEFINED = -1,   //!<  Undefined value, settings may vary from device to device
-    PERFORMANCE = 1,  //!<  Optimize for max performance
+    PERFORMANCE = 1,  //!<  Optimize for max performance, may apply properties which slightly affect accuracy
     ACCURACY = 2,     //!<  Optimize for max accuracy
 };
 
 /** @cond INTERNAL */
 inline std::ostream& operator<<(std::ostream& os, const ExecutionMode& mode) {
     switch (mode) {
-    case ExecutionMode::UNDEFINED:
-        return os << "UNDEFINED";
     case ExecutionMode::PERFORMANCE:
         return os << "PERFORMANCE";
     case ExecutionMode::ACCURACY:
         return os << "ACCURACY";
     default:
-        OPENVINO_UNREACHABLE("Unsupported execution mode hint");
+        OPENVINO_THROW("Unsupported execution mode hint");
     }
 }
 
@@ -403,10 +473,8 @@ inline std::istream& operator>>(std::istream& is, ExecutionMode& mode) {
         mode = ExecutionMode::PERFORMANCE;
     } else if (str == "ACCURACY") {
         mode = ExecutionMode::ACCURACY;
-    } else if (str == "UNDEFINED") {
-        mode = ExecutionMode::UNDEFINED;
     } else {
-        OPENVINO_UNREACHABLE("Unsupported execution mode: ", str);
+        OPENVINO_THROW("Unsupported execution mode: ", str);
     }
     return is;
 }
@@ -468,7 +536,7 @@ inline std::ostream& operator<<(std::ostream& os, const Level& level) {
     case Level::TRACE:
         return os << "LOG_TRACE";
     default:
-        OPENVINO_UNREACHABLE("Unsupported log level");
+        OPENVINO_THROW("Unsupported log level");
     }
 }
 
@@ -488,7 +556,7 @@ inline std::istream& operator>>(std::istream& is, Level& level) {
     } else if (str == "LOG_TRACE") {
         level = Level::TRACE;
     } else {
-        OPENVINO_UNREACHABLE("Unsupported log level: ", str);
+        OPENVINO_THROW("Unsupported log level: ", str);
     }
     return is;
 }
@@ -647,7 +715,19 @@ static constexpr Priorities priorities{"MULTI_DEVICE_PRIORITIES"};
  * @brief Type for property to pass set of properties to specified device
  * @ingroup ov_runtime_cpp_prop_api
  */
-struct Properties {
+
+struct Properties : public Property<std::map<std::string, std::map<std::string, Any>>> {
+    using Property<std::map<std::string, std::map<std::string, Any>>>::Property;
+
+    /**
+     * @brief Constructs property
+     * @param configs set of property values with names
+     * @return Pair of string key representation and type erased property value.
+     */
+    inline std::pair<std::string, Any> operator()(const AnyMap& config) const {
+        return {name(), config};
+    }
+
     /**
      * @brief Constructs property
      * @param device_name device plugin alias
@@ -655,7 +735,7 @@ struct Properties {
      * @return Pair of string key representation and type erased property value.
      */
     inline std::pair<std::string, Any> operator()(const std::string& device_name, const AnyMap& config) const {
-        return {device_name, config};
+        return {name() + std::string("_") + device_name, config};
     }
 
     /**
@@ -669,7 +749,7 @@ struct Properties {
     inline util::EnableIfAllStringAny<std::pair<std::string, Any>, Properties...> operator()(
         const std::string& device_name,
         Properties&&... configs) const {
-        return {device_name, AnyMap{std::pair<std::string, Any>{configs}...}};
+        return {name() + std::string("_") + device_name, AnyMap{std::pair<std::string, Any>{configs}...}};
     }
 };
 
@@ -684,7 +764,7 @@ struct Properties {
  *     ov::device::properties("GPU", ov::enable_profiling(false)));
  * @endcode
  */
-static constexpr Properties properties;
+static constexpr Properties properties{"DEVICE_PROPERTIES"};
 
 /**
  * @brief Read-only property to get a std::string value representing a full device name.
@@ -754,7 +834,7 @@ inline std::ostream& operator<<(std::ostream& os, const Type& device_type) {
     case Type::INTEGRATED:
         return os << "integrated";
     default:
-        OPENVINO_UNREACHABLE("Unsupported device type");
+        OPENVINO_THROW("Unsupported device type");
     }
 }
 
@@ -766,7 +846,7 @@ inline std::istream& operator>>(std::istream& is, Type& device_type) {
     } else if (str == "integrated") {
         device_type = Type::INTEGRATED;
     } else {
-        OPENVINO_UNREACHABLE("Unsupported device type: ", str);
+        OPENVINO_THROW("Unsupported device type: ", str);
     }
     return is;
 }
@@ -881,7 +961,7 @@ inline std::istream& operator>>(std::istream& is, Num& num_val) {
         try {
             num_val = {std::stoi(str)};
         } catch (const std::exception& e) {
-            OPENVINO_UNREACHABLE("Could not read number of streams from str: ", str, "; ", e.what());
+            OPENVINO_THROW("Could not read number of streams from str: ", str, "; ", e.what());
         }
     }
     return is;
@@ -932,7 +1012,7 @@ inline std::ostream& operator<<(std::ostream& os, const Affinity& affinity) {
     case Affinity::HYBRID_AWARE:
         return os << "HYBRID_AWARE";
     default:
-        OPENVINO_UNREACHABLE("Unsupported affinity pattern");
+        OPENVINO_THROW("Unsupported affinity pattern");
     }
 }
 
@@ -948,7 +1028,7 @@ inline std::istream& operator>>(std::istream& is, Affinity& affinity) {
     } else if (str == "HYBRID_AWARE") {
         affinity = Affinity::HYBRID_AWARE;
     } else {
-        OPENVINO_UNREACHABLE("Unsupported affinity pattern: ", str);
+        OPENVINO_THROW("Unsupported affinity pattern: ", str);
     }
     return is;
 }

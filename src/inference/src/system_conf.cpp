@@ -6,10 +6,17 @@
 
 #include <cstdlib>
 #include <cstring>
+#include <fstream>
+#include <iostream>
+#include <map>
+#include <mutex>
+#include <numeric>
 #include <vector>
 
 #include "dev/threading/parallel_custom_arena.hpp"
+#include "ie_common.h"
 #include "openvino/core/visibility.hpp"
+#include "streams_executor.hpp"
 
 #define XBYAK_NO_OP_NAMES
 #define XBYAK_UNDEF_JNL
@@ -155,7 +162,161 @@ std::vector<int> get_available_numa_nodes() {
 int get_number_of_logical_cpu_cores(bool) {
     return parallel_get_max_threads();
 }
+std::vector<std::vector<int>> get_num_available_cpu_cores() {
+    return {{-1}};
+}
+bool is_cpu_map_available() {
+    return false;
+}
+std::vector<int> reserve_available_cpus(const ColumnOfProcessorTypeTable core_type,
+                                        const int num_cpus,
+                                        const int seek_status,
+                                        const int reset_status,
+                                        const bool reserve_logic_core) {
+    return {};
+}
+std::vector<int> get_logic_cores(const std::vector<int> cpu_ids) {
+    return {};
+}
+void set_cpu_used(std::vector<int>& cpu_ids, int used) {}
+
 #else
+
+static CPU cpu;
+
+#    ifndef _WIN32
+int get_number_of_cpu_cores(bool bigCoresOnly) {
+    unsigned numberOfProcessors = cpu._processors;
+    unsigned totalNumberOfCpuCores = cpu._cores;
+    IE_ASSERT(totalNumberOfCpuCores != 0);
+    cpu_set_t usedCoreSet, currentCoreSet, currentCpuSet;
+    CPU_ZERO(&currentCpuSet);
+    CPU_ZERO(&usedCoreSet);
+    CPU_ZERO(&currentCoreSet);
+
+    sched_getaffinity(0, sizeof(currentCpuSet), &currentCpuSet);
+
+    for (unsigned processorId = 0u; processorId < numberOfProcessors; processorId++) {
+        if (CPU_ISSET(processorId, &currentCpuSet)) {
+            unsigned coreId = processorId % totalNumberOfCpuCores;
+            if (!CPU_ISSET(coreId, &usedCoreSet)) {
+                CPU_SET(coreId, &usedCoreSet);
+                CPU_SET(processorId, &currentCoreSet);
+            }
+        }
+    }
+    int phys_cores = CPU_COUNT(&currentCoreSet);
+#        if (OV_THREAD == OV_THREAD_TBB || OV_THREAD == OV_THREAD_TBB_AUTO)
+    auto core_types = custom::info::core_types();
+    if (bigCoresOnly && core_types.size() > 1) /*Hybrid CPU*/ {
+        phys_cores = custom::info::default_concurrency(
+            custom::task_arena::constraints{}.set_core_type(core_types.back()).set_max_threads_per_core(1));
+    }
+#        endif
+    return phys_cores;
+}
+
+#        if !((OV_THREAD == OV_THREAD_TBB || OV_THREAD == OV_THREAD_TBB_AUTO))
+std::vector<int> get_available_numa_nodes() {
+    std::vector<int> nodes((0 == cpu._sockets) ? 1 : cpu._sockets);
+    std::iota(std::begin(nodes), std::end(nodes), 0);
+    return nodes;
+}
+#        endif
+#    endif
+
+std::vector<std::vector<int>> get_num_available_cpu_cores() {
+    return cpu._proc_type_table;
+}
+
+bool is_cpu_map_available() {
+    return cpu._cpu_mapping_table.size() > 0;
+}
+
+std::vector<int> reserve_available_cpus(const ColumnOfProcessorTypeTable core_type,
+                                        const int num_cpus,
+                                        const int seek_status,
+                                        const int reset_status,
+                                        const bool reserve_logic_core) {
+    std::lock_guard<std::mutex> lock{cpu._cpu_mutex};
+    std::vector<int> cpu_ids;
+    int socket = -1;
+    if (reset_status >= PLUGIN_USED_START && cpu._sockets > 1) {
+        socket = cpu._socket_idx;
+        cpu._socket_idx = (cpu._socket_idx + 1) % cpu._sockets;
+    }
+    if (core_type < PROC_TYPE_TABLE_SIZE && core_type >= ALL_PROC) {
+        for (int i = 0; i < cpu._processors; i++) {
+            if (cpu._cpu_mapping_table[i][CPU_MAP_CORE_TYPE] == core_type &&
+                cpu._cpu_mapping_table[i][CPU_MAP_USED_FLAG] == seek_status &&
+                (socket < 0 || (socket >= 0 && cpu._cpu_mapping_table[i][CPU_MAP_SOCKET_ID] == socket))) {
+                cpu_ids.push_back(cpu._cpu_mapping_table[i][CPU_MAP_PROCESSOR_ID]);
+            }
+            if (static_cast<int>(cpu_ids.size()) == num_cpus) {
+                break;
+            }
+        }
+        if (reserve_logic_core) {
+            auto logic_ids = get_logic_cores(cpu_ids);
+            cpu_ids.insert(cpu_ids.end(), logic_ids.begin(), logic_ids.end());
+        }
+        set_cpu_used(cpu_ids, reset_status);
+    } else {
+        IE_THROW() << "Wrong value for core_type " << core_type;
+    }
+    return cpu_ids;
+}
+
+std::vector<int> get_logic_cores(const std::vector<int> cpu_ids) {
+    std::vector<int> logic_cores;
+    if (cpu._proc_type_table[0][HYPER_THREADING_PROC] > 0) {
+        int cpu_size = static_cast<int>(cpu_ids.size());
+        for (int i = 0; i < cpu._processors; i++) {
+            for (int j = 0; j < cpu_size; j++) {
+                if (cpu._cpu_mapping_table[i][CPU_MAP_CORE_ID] == cpu._cpu_mapping_table[cpu_ids[j]][CPU_MAP_CORE_ID] &&
+                    cpu._cpu_mapping_table[i][CPU_MAP_CORE_TYPE] == HYPER_THREADING_PROC) {
+                    logic_cores.push_back(cpu._cpu_mapping_table[i][CPU_MAP_PROCESSOR_ID]);
+                }
+            }
+            if (cpu_ids.size() == logic_cores.size()) {
+                break;
+            }
+        }
+    }
+
+    return logic_cores;
+}
+
+void set_cpu_used(std::vector<int>& cpu_ids, int used) {
+    const auto cpu_size = static_cast<int>(cpu_ids.size());
+    for (int i = 0; i < cpu_size; i++) {
+        if (cpu_ids[i] < cpu._processors) {
+            cpu._cpu_mapping_table[cpu_ids[i]][CPU_MAP_USED_FLAG] = used;
+        }
+    }
+    // update _proc_type_table
+    if (used == NOT_USED || used >= PLUGIN_USED_START) {
+        std::vector<int> all_table;
+        int start = cpu._sockets > 1 ? 1 : 0;
+        if (is_cpu_map_available()) {
+            cpu._proc_type_table.assign(cpu._proc_type_table.size(), std::vector<int>(PROC_TYPE_TABLE_SIZE, 0));
+            all_table.resize(PROC_TYPE_TABLE_SIZE, 0);
+            for (int i = 0; i < cpu._processors; i++) {
+                if (cpu._cpu_mapping_table[i][CPU_MAP_USED_FLAG] < PLUGIN_USED_START) {
+                    cpu._proc_type_table[cpu._cpu_mapping_table[i][CPU_MAP_SOCKET_ID] + start]
+                                        [cpu._cpu_mapping_table[i][CPU_MAP_CORE_TYPE]]++;
+                    cpu._proc_type_table[cpu._cpu_mapping_table[i][CPU_MAP_SOCKET_ID] + start][ALL_PROC]++;
+                    all_table[cpu._cpu_mapping_table[i][CPU_MAP_CORE_TYPE]]++;
+                    all_table[ALL_PROC]++;
+                }
+            }
+            if (cpu._sockets > 1) {
+                cpu._proc_type_table[0] = all_table;
+            }
+        }
+    }
+}
+
 int get_number_of_logical_cpu_cores(bool bigCoresOnly) {
     int logical_cores = parallel_get_max_threads();
 #    if (OV_THREAD == OV_THREAD_TBB || OV_THREAD == OV_THREAD_TBB_AUTO)

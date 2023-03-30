@@ -40,10 +40,16 @@ ov::OutputVector translate_random_uniform_int_op(const NodeContext& node) {
     auto seed2 = node.get_attribute<int64_t>("seed2", 0);
 
     auto output_type = minval.get_element_type();
-    auto random = std::make_shared<RandomUniform>(shape, minval, maxval, output_type, seed, seed2);
+    Output<Node> random;
+    if (output_type.is_static()) {
+        random = std::make_shared<RandomUniform>(shape, minval, maxval, output_type, seed, seed2);
+    } else {
+        random = std::make_shared<RandomUniform>(shape, minval, maxval, element::i64, seed, seed2);
+        random = make_shared<ConvertLike>(random, minval);
+    }
 
-    set_node_name(node.get_name(), random);
-    return random->outputs();
+    set_node_name(node.get_name(), random.get_node_shared_ptr());
+    return {random};
 }
 }  // namespace op
 }  // namespace tensorflow
