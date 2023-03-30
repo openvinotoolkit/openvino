@@ -62,7 +62,6 @@ public:
         for (size_t i = 0; i < outputPatternSize; ++i) {
             if (outPattern[i] == 0 && m_specialZero && i < inputShapeSize) {
                 outputShape[i] = inputShape[i];
-                outputProduct *= outputShape[i];
             } else if (outPattern[i] == -1) {
                 minusOneIdx = i;
                 minusOneCount++;
@@ -73,11 +72,17 @@ public:
         }
         size_t inputProduct(1);
         for (size_t i = 0; i < inputShapeSize; ++i) {
+            if (i < outputPatternSize && outPattern[i] == 0)
+                continue;
             inputProduct *= inputShape[i];
         }
-        if (outputProduct != 0 && minusOneIdx >= 0) {
-            outputShape[minusOneIdx] = inputProduct / outputProduct;
-            outputProduct *= outputShape[minusOneIdx];
+        if (minusOneIdx >= 0) {
+            if (outputProduct != 0) {
+                outputShape[minusOneIdx] = inputProduct / outputProduct;
+                outputProduct *= outputShape[minusOneIdx];
+            } else {
+                outputShape[minusOneIdx] = 0;
+            }
         }
         if (minusOneCount > 1  || inputProduct != outputProduct) {
             IE_THROW(Unexpected) << "[cpu]reshape: the shape of input data conflicts with the reshape pattern";
