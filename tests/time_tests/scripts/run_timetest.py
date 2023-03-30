@@ -61,8 +61,10 @@ def prepare_executable_cmd(args: dict):
         str(args["executable"].resolve(strict=True)),
         "-m", str(args["model"].resolve(strict=True)),
         "-d", args["device"],
-        "-ip", args["input_precision"],
-        "-op", args["output_precision"],
+        "-ip", args["input_precision"] if "input_precision" in args.keys(
+        ) and args["input_precision"] else "",
+        "-op", args["output_precision"] if "output_precision" in args.keys(
+        ) and args["output_precision"] else "",
         "-c" if args["model_cache"] else ""
     ]
 
