@@ -5,8 +5,10 @@
 This tutorial explains how to convert Neural Collaborative Filtering (NCF) model to the OpenVINO Intermediate Representation.
 
 `Public TensorFlow NCF model <https://github.com/tensorflow/models/tree/master/official/recommendation>`__ does not contain pre-trained weights. To convert this model to the IR:
- 1. Use `the instructions <https://github.com/tensorflow/models/tree/master/official/recommendation#train-and-evaluate-model>`__ from this repository to train the model.
- 2. Freeze the inference graph you get in the previous step in ``model_dir``, following
+
+1. Use `the instructions <https://github.com/tensorflow/models/tree/master/official/recommendation#train-and-evaluate-model>`__ from this repository to train the model.
+
+2. Freeze the inference graph you get in the previous step in ``model_dir``, following
 the instructions from the **Freezing Custom Models in Python** section of the
 :doc:`Converting a TensorFlow Model <openvino_docs_MO_DG_prepare_model_convert_model_Convert_Model_From_TensorFlow>` guide.
 
@@ -27,12 +29,12 @@ Run the following commands:
 
 where ``rating/BiasAdd`` is an output node.
 
- 3. Convert the model to the OpenVINO format. If you look at your frozen model, you can see that
+3. Convert the model to the OpenVINO format. If you look at your frozen model, you can see that
 it has one input that is split into four ``ResourceGather`` layers. (Click image to zoom in.)
 
 .. image:: docs/_static/images/NCF_start.svg
 
- However, as the Model Optimizer does not support such data feeding, you should skip it. Cut
+However, as the Model Optimizer does not support such data feeding, you should skip it. Cut
 the edges incoming in ``ResourceGather`` port 1:
 
 .. code-block:: shell

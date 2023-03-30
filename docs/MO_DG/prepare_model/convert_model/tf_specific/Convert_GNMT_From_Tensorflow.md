@@ -197,7 +197,7 @@ For the GNMT model, the training graph and the inference graph have different de
       --path_to_dump /path/to/dump/model/
 
 
-If you use different checkpoints, use the corresponding values for the ``src``,``tgt``,``ckpt``,``hparams_path``, and ``vocab_prefix`` parameters.
+If you use different checkpoints, use the corresponding values for the ``src``, ``tgt``, ``ckpt``, ``hparams_path``, and ``vocab_prefix`` parameters.
 Inference checkpoint ``inference_GNMT_graph`` and frozen inference graph ``frozen_GNMT_inference_graph.pb`` will appear in the ``/path/to/dump/model/`` folder.
 
 To generate ``vocab.bpe.32000``, execute the ``nmt/scripts/wmt16_en_de.sh`` script. If you face an issue of a size mismatch between the checkpoint graph's embedding layer and vocabulary (both src and target), make sure you add the following code to the ``nmt.py`` file to the ``extend_hparams`` function after the line 508 (after initialization of the ``src_vocab_size`` and ``tgt_vocab_size`` variables):
@@ -242,11 +242,9 @@ Using a GNMT Model
 
 Inputs of the model:
 
-* ``IteratorGetNext/placeholder_out_port_0`` input with shape ``[batch_size, max_sequence_length]`` contains ``batch_size`` decoded input sentences.
- Every sentence is decoded the same way as indices of sentence elements in vocabulary and padded with index of ``eos`` (end of sentence symbol). If the length of the sentence is less than ``max_sequence_length``, remaining elements are filled with index of ``eos`` token.
+* ``IteratorGetNext/placeholder_out_port_0`` input with shape ``[batch_size, max_sequence_length]`` contains ``batch_size`` decoded input sentences. Every sentence is decoded the same way as indices of sentence elements in vocabulary and padded with index of ``eos`` (end of sentence symbol). If the length of the sentence is less than ``max_sequence_length``, remaining elements are filled with index of ``eos`` token.
 
-* ``IteratorGetNext/placeholder_out_port_1`` input with shape ``[batch_size]`` contains sequence lengths for every sentence from the first input.
- For example, if ``max_sequence_length = 50``, ``batch_size = 1`` and the sentence has only 30 elements, then the input tensor for ``IteratorGetNext/placeholder_out_port_1`` should be ``[30]``.
+* ``IteratorGetNext/placeholder_out_port_1`` input with shape ``[batch_size]`` contains sequence lengths for every sentence from the first input. For example, if ``max_sequence_length = 50``, ``batch_size = 1`` and the sentence has only 30 elements, then the input tensor for ``IteratorGetNext/placeholder_out_port_1`` should be ``[30]``.
 
 
 Outputs of the model:
@@ -301,6 +299,6 @@ Running GNMT IR
    result_ie = exec_net.infer(input_data)
 
 
-For more information about Python API, refer to the `OpenVINO Runtime Python API <ie_python_api/api.html>`__ guide.
+For more information about Python API, refer to the :doc:`OpenVINO Runtime Python API <_api_reference>` guide.
 
 @endsphinxdirective

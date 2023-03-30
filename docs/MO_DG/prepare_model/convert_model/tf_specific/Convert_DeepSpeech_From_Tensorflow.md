@@ -94,6 +94,6 @@ Where:
 
 * ``input_lengths->[16]`` Replaces the input node with name "input_lengths" with a constant tensor of shape [1] with a single integer value of 16. This means that the model now can consume input sequences of length 16 only.
 * ``input_node[1 16 19 26],previous_state_h[1 2048],previous_state_c[1 2048]`` replaces the variables with a placeholder.
-* ``--output ".../GatherNd_1,.../GatherNd,logits" `` output node names.
+* ``--output ".../GatherNd_1,.../GatherNd,logits"`` output node names.
 
 @endsphinxdirective

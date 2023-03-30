@@ -12,19 +12,19 @@ If you have another implementation of CRNN model, it can be converted to OpenVIN
 
 **Step 1.** Clone this GitHub repository and check out the commit:
 
-    1. Clone the repository:
+1. Clone the repository:
 
 .. code-block:: python
 
    git clone https://github.com/MaybeShewill-CV/CRNN_Tensorflow.git
 
-    2. Go to the ``CRNN_Tensorflow`` directory of the cloned repository:
+2. Go to the ``CRNN_Tensorflow`` directory of the cloned repository:
 
 .. code-block:: python
    
    cd path/to/CRNN_Tensorflow
 
-    3. Check out the necessary commit:
+3. Check out the necessary commit:
 
 .. code-block:: python
    
@@ -33,17 +33,18 @@ If you have another implementation of CRNN model, it can be converted to OpenVIN
 **Step 2.** Train the model using the framework or the pretrained checkpoint provided in this repository.
 
 **Step 3.** Create an inference graph:
-    1. Add the ``CRNN_Tensorflow`` folder to ``PYTHONPATH``.
+   
+1. Add the ``CRNN_Tensorflow`` folder to ``PYTHONPATH``.
 
-       * For Linux:
+   * For Linux:
 
-.. code-block:: python
+   .. code-block:: python
 
-   export PYTHONPATH="${PYTHONPATH}:/path/to/CRNN_Tensorflow/"
+      export PYTHONPATH="${PYTHONPATH}:/path/to/CRNN_Tensorflow/"
 
-       * For  Windows, add ``/path/to/CRNN_Tensorflow/`` to the ``PYTHONPATH`` environment variable in settings.
+   * For  Windows, add ``/path/to/CRNN_Tensorflow/`` to the ``PYTHONPATH`` environment variable in settings.
 
-    2. Edit the ``tools/demo_shadownet.py`` script. After ``saver.restore(sess=sess, save_path=weights_path)`` line, add the following code:
+2. Edit the ``tools/demo_shadownet.py`` script. After ``saver.restore(sess=sess, save_path=weights_path)`` line, add the following code:
 
 .. code-block:: python
 
@@ -51,7 +52,7 @@ If you have another implementation of CRNN model, it can be converted to OpenVIN
    frozen = tf.graph_util.convert_variables_to_constants(sess, sess.graph_def, ['shadow/LSTMLayers/transpose_time_major'])
    graph_io.write_graph(frozen, '.', 'frozen_graph.pb', as_text=False)
 
-    3. Run the demo with the following command:
+3. Run the demo with the following command:
 
 .. code-block:: python
 
@@ -59,7 +60,7 @@ If you have another implementation of CRNN model, it can be converted to OpenVIN
 
    If you want to use your checkpoint, replace the path in the ``--weights_path`` parameter with a path to your checkpoint.
    
-   4. In the ``CRNN_Tensorflow`` directory, you will find the inference CRNN graph ``frozen_graph.pb``. You can use this graph with OpenVINO to convert the model to IR and then run inference.
+4. In the ``CRNN_Tensorflow`` directory, you will find the inference CRNN graph ``frozen_graph.pb``. You can use this graph with OpenVINO to convert the model to IR and then run inference.
 
 **Step 4.** Convert the model to IR:
 

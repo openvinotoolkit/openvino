@@ -55,7 +55,8 @@ Converting a Reshapable TensorFlow BERT Model to OpenVINO IR
 
 Follow these steps to make a pretrained TensorFlow BERT model reshapable over batch dimension:
 
-1. Download a pretrained BERT model you want to use from the `Supported Models list <#supported_models>`__
+1. Download a pretrained BERT model you want to use from the `Supported Models list <#supported_models>`__.
+
 2. Clone google-research/bert git repository:
 
 .. code-block:: python
@@ -76,13 +77,15 @@ Follow these steps to make a pretrained TensorFlow BERT model reshapable over ba
 
 5. Download script to load GLUE data:
 
-    * For UNIX-like systems, run the following command:
-.. code-block:: python
+   * For UNIX-like systems, run the following command:
 
-   wget https://gist.githubusercontent.com/W4ngatang/60c2bdb54d156a41194446737ce03e2e/raw/17b8dd0d724281ed7c3b2aeeda662b92809aadd5/download_glue_data.py
+   .. code-block:: python
 
-    * For Windows systems:<br>
-        Download the `Python script <https://gist.githubusercontent.com/W4ngatang/60c2bdb54d156a41194446737ce03e2e/raw/17b8dd0d724281ed7c3b2aeeda662b92809aadd5/download_glue_data.py>`__ to the current working directory.
+      wget https://gist.githubusercontent.com/W4ngatang/60c2bdb54d156a41194446737ce03e2e/raw/17b8dd0d724281ed7c3b2aeeda662b92809aadd5/download_glue_data.py
+
+   * For Windows systems:
+
+      Download the `Python script <https://gist.githubusercontent.com/W4ngatang/60c2bdb54d156a41194446737ce03e2e/raw/17b8dd0d724281ed7c3b2aeeda662b92809aadd5/download_glue_data.py>`__ to the current working directory.
 
 6. Download GLUE data by running:
 
@@ -91,10 +94,12 @@ Follow these steps to make a pretrained TensorFlow BERT model reshapable over ba
    python3 download_glue_data.py --tasks MRPC
 
 7. Open the file ``modeling.py`` in the text editor and delete lines 923-924. They should look like this:
-```python
+
+.. code-block:: python
+
     if not non_static_indexes:
         return shape
-```
+
 8. Open the file ``run_classifier.py`` and insert the following code after the line 645:
 
 .. code-block:: python
@@ -121,7 +126,7 @@ Lines before the inserted code should look like this:
         num_labels, use_one_hot_embeddings)
 
 
-9. Set environment variables `BERT_BASE_DIR`, `BERT_REPO_DIR` and run the script ``run_classifier.py`` to create ``inference_graph.pb`` file in the root of the cloned BERT repository.
+9. Set environment variables ``BERT_BASE_DIR``, ``BERT_REPO_DIR`` and run the script ``run_classifier.py`` to create ``inference_graph.pb`` file in the root of the cloned BERT repository.
 
 .. code-block:: python
 

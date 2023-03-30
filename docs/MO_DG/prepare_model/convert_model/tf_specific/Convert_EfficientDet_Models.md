@@ -66,6 +66,7 @@ Converting an EfficientDet TensorFlow Model to the IR
 +++++++++++++++++++++++++++++++++++++++++++++++++++++
 
 To generate the IR of the EfficientDet TensorFlow model, run:
+
 .. code-block:: python
 
    mo \
@@ -77,7 +78,7 @@ To generate the IR of the EfficientDet TensorFlow model, run:
 
 Where ``$IMAGE_SIZE`` is the size that the input image of the original TensorFlow model will be resized to. Different
 EfficientDet models were trained with different input image sizes. To determine the right one, refer to the ``efficientdet_model_param_dict``
-dictionary in the <https://github.com/google/automl/blob/96e1fee/efficientdet/hparams_config.py#L304>`__ file.
+dictionary in the `hparams_config.py <https://github.com/google/automl/blob/96e1fee/efficientdet/hparams_config.py#L304>`__ file.
 The attribute ``image_size`` specifies the shape to be defined for the model conversion.
 
 The ``transformations_config`` command line parameter specifies the configuration json file containing hints for the Model Optimizer on how to convert the model and trigger transformations implemented in the ``<PYTHON_SITE_PACKAGES>/openvino/tools/mo/front/tf/AutomlEfficientDet.py``. The json file contains some parameters which must be changed if you
@@ -86,7 +87,7 @@ The attribute names are self-explanatory or match the name in the ``hparams_conf
 
 .. note::
 
-    The color channel order (RGB or BGR) of an input data should match the channel order of the model training dataset. If they are different, perform the `RGB<->BGR` conversion specifying the command-line parameter: `--reverse_input_channels``. Otherwise, inference results may be incorrect. For more information about the parameter, refer to the **When to Reverse Input Channels** section of the :doc:`Converting a Model to Intermediate Representation (IR) <openvino_docs_MO_DG_prepare_model_convert_model_Converting_Model>` guide.
+    The color channel order (RGB or BGR) of an input data should match the channel order of the model training dataset. If they are different, perform the ``RGB<->BGR`` conversion specifying the command-line parameter: ``--reverse_input_channels``. Otherwise, inference results may be incorrect. For more information about the parameter, refer to the **When to Reverse Input Channels** section of the :doc:`Converting a Model to Intermediate Representation (IR) <openvino_docs_MO_DG_prepare_model_convert_model_Converting_Model>` guide.
 
 OpenVINO toolkit provides samples that can be used to infer EfficientDet model. 
 For more information, refer to the :doc:`Open Model Zoo Demos <omz_demos>`.
@@ -94,21 +95,21 @@ For more information, refer to the :doc:`Open Model Zoo Demos <omz_demos>`.
 Interpreting Results of the TensorFlow Model and the IR
 #######################################################
 
-The TensorFlow model produces as output a list of 7-element tuples: `[image_id, y_min, x_min, y_max, x_max, confidence, class_id]`, where:
+The TensorFlow model produces as output a list of 7-element tuples: ``[image_id, y_min, x_min, y_max, x_max, confidence, class_id]``, where:
 
 * ``image_id`` -- image batch index.
 * ``y_min`` -- absolute ``y`` coordinate of the lower left corner of the detected object.
 * ``x_min`` -- absolute ``x`` coordinate of the lower left corner of the detected object.
 * ``y_max`` -- absolute ``y`` coordinate of the upper right corner of the detected object.
 * ``x_max`` -- absolute ``x`` coordinate of the upper right corner of the detected object.
-* ``confidence`` -- is the confidence of the detected object.
-* ``class_id`` -- is the id of the detected object class counted from 1.
+* ``confidence`` -- the confidence of the detected object.
+* ``class_id`` -- the id of the detected object class counted from 1.
 
 The output of the IR is a list of 7-element tuples: ``[image_id, class_id, confidence, x_min, y_min, x_max, y_max]``, where:
 
 * ``image_id`` -- image batch index.
-* ``class_id`` -- is the id of the detected object class counted from 0.
-* ``confidence`` -- is the confidence of the detected object.
+* ``class_id`` -- the id of the detected object class counted from 0.
+* ``confidence`` -- the confidence of the detected object.
 * ``x_min`` -- normalized ``x`` coordinate of the lower left corner of the detected object.
 * ``y_min`` -- normalized ``y`` coordinate of the lower left corner of the detected object.
 * ``x_max`` -- normalized ``x`` coordinate of the upper right corner of the detected object.
