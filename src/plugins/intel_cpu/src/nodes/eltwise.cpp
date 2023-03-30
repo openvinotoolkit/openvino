@@ -1229,7 +1229,7 @@ struct EltwiseKey {
             seed = hash_combine_eltwiseData(seed, item);
         });
         seed = get_vector_hash(seed, ops_list);
-        if (implType == optimizedShapeAgnostic) {
+        if (implType == EltwiseImplType::optimizedShapeAgnostic) {
             seed = hash_combine(seed, outBlkDims.back() == 1);
             for (auto&& item : inpDims) {
                 seed = hash_combine(seed, item.back() == 1);
@@ -1265,9 +1265,9 @@ struct EltwiseKey {
                       implType == rhs.implType;
 
         if (result) {
-            if (implType == optimizedShapeAgnostic) {
+            if (implType == EltwiseImplType::optimizedShapeAgnostic) {
                 bool broadcast, rhsBroadcast;
-                for (size_t i = 0; i < inpDims.size() && result; ++i) {
+                for (size_t i = 0; i < inpDims.size(); ++i) {
                     broadcast = (inpDims[i].back() == 1);
                     rhsBroadcast = (rhs.inpDims[i].back() == 1);
                     if (broadcast != rhsBroadcast)
@@ -1756,7 +1756,7 @@ bool Eltwise::EltwiseData::operator==(const EltwiseData &rhs) const noexcept {
 
 static Eltwise::executorPtr buildExecutor(const EltwiseKey& key) {
     Eltwise::executorPtr execPtr;
-    if (key.implType != reference) {
+    if (key.implType != EltwiseImplType::reference) {
         execPtr = std::make_shared<EltwiseJitExecutor>(key.eltwise_data,
                                                        key.ops_list,
                                                        key.outBlkDims,
@@ -1766,7 +1766,7 @@ static Eltwise::executorPtr buildExecutor(const EltwiseKey& key) {
                                                        key.outPrc,
                                                        key.postOps,
                                                        key.useDynBatch,
-                                                       key.implType == optimizedShapeAgnostic);
+                                                       key.implType == EltwiseImplType::optimizedShapeAgnostic);
     } else {
         execPtr = std::make_shared<EltwiseRefExecutor>(key.eltwise_data.front(),
                                                        key.outBlkDims,
@@ -1936,7 +1936,8 @@ void Eltwise::initSupportedPrimitiveDescriptors() {
             canUseOptimizedShapeAgnosticImpl = false;
         }
     }
-    implType = canUseOptimizedShapeAgnosticImpl ? optimizedShapeAgnostic : canUseOptimizedImpl ? optimized : reference;
+    implType = canUseOptimizedShapeAgnosticImpl ? EltwiseImplType::optimizedShapeAgnostic :
+            canUseOptimizedImpl ? EltwiseImplType::optimized : EltwiseImplType::reference;
 
     if (inputPrecisions.size() != getParentEdges().size())
         IE_THROW() << "Eltwise node with name `" << getName() << "` has invalid input precisions configuration.";
@@ -1957,7 +1958,7 @@ void Eltwise::initSupportedPrimitiveDescriptors() {
     }
 
     auto filterPrecision = [&](Precision& prc) {
-        if (implType == reference) {
+        if (implType == EltwiseImplType::reference) {
             return Precision(Precision::FP32);
         } else if (std::find(supportedPrecisions.begin(), supportedPrecisions.end(), prc) == supportedPrecisions.end()) {
             if (prc == Precision::U32 || prc == Precision::I64 || prc == Precision::U64) {
@@ -2179,7 +2180,7 @@ void Eltwise::prepareParams() {
     // last input dim == 1 means broadcasted (also if output dim == 1)
     // last input dim != 1 means not broadcasted
     bool canSkipSearchInCache = false;
-    if (implType == optimizedShapeAgnostic) {
+    if (implType == EltwiseImplType::optimizedShapeAgnostic) {
         if (execPtr) {
             canSkipSearchInCache = true;
             // check broadcast policy
@@ -2222,7 +2223,7 @@ void Eltwise::prepareParams() {
     }
 
     // update execParams for shape agnostic kernel
-    if (implType == optimizedShapeAgnostic) {
+    if (implType == EltwiseImplType::optimizedShapeAgnostic) {
         auto &outDims = execParams.outDims;
         auto &inOffsets = execParams.inOffsets;
         auto &outOffsets = execParams.outOffsets;
@@ -2283,7 +2284,7 @@ void Eltwise::selectOptimalPrimitiveDescriptor() {
 void Eltwise::execute(dnnl::stream strm) {
     if (execPtr) {
         jit_eltwise_call_args_ptrs args_ptrs = {};
-        VectorDims dims_out = implType == optimizedShapeAgnostic ? execParams.outDims : execPtr->getOutDims();
+        VectorDims dims_out = implType == EltwiseImplType::optimizedShapeAgnostic ? execParams.outDims : execPtr->getOutDims();
         for (int i = 0; i < memPtrs.size() - 1; i++)
             args_ptrs.src_ptr[i] = reinterpret_cast<const uint8_t*>(memPtrs[i]->GetData()) + start_offset_in[i];
         args_ptrs.dst_ptr = reinterpret_cast<uint8_t*>(memPtrs.back()->GetData()) + start_offset_out;
@@ -2299,7 +2300,7 @@ void Eltwise::execute(dnnl::stream strm) {
         args_ptrs.post_op_data = fqDataPtrs.data();
 
         // shape agnostic kernel: offsets and work amount initialization
-        if (implType == optimizedShapeAgnostic) {
+        if (implType == EltwiseImplType::optimizedShapeAgnostic) {
             args_ptrs.work_amount = dims_out.back();
             for (int i = 0; i < execParams.inOffsets.size(); i++) {
                 args_ptrs.src_offsets[i] = execParams.inOffsets[i].data();

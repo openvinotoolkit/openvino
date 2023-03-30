@@ -72,7 +72,7 @@ struct jit_uni_eltwise_kernel {
     jit_eltwise_params jep_;
 };
 
-enum EltwiseImplType {
+enum class EltwiseImplType {
     reference = 0,
     optimized = 1,
     optimizedShapeAgnostic = 2
@@ -150,7 +150,7 @@ private:
 
     dnnl::algorithm onednnAlgorithm = dnnl::algorithm::undef;
 
-    EltwiseImplType implType = reference;
+    EltwiseImplType implType = EltwiseImplType::reference;
     std::vector<bool> broadcastPolicy;
     bool isDynBatchEnabled = false;
     bool specialConvolutionAddFusing = false;
