@@ -2,6 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "behavior/ov_plugin/core_integration.hpp"
+
 #include <gna/gna_config.hpp>
 
 #include "behavior/compiled_model/properties.hpp"

@@ -2,8 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "common/graph_utils.hpp"
-
 #include <gtest/gtest.h>
 
 #include <cstdint>
@@ -11,6 +9,7 @@
 #include <thread>
 #include <vector>
 
+#include "common/graph_utils.hpp"
 #include "openvino/opsets/opset9.hpp"
 
 using namespace ov::intel_gna::graph_utils;
