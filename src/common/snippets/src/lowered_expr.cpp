@@ -231,13 +231,18 @@ void LoweredExprIR::debug_print(bool tds_as_pointers) const {
         const auto& node = expr->get_node();
         std::cerr << counter++ << " : " <<
                      node->get_friendly_name() << " :  ";
+        for (const auto id : expr->get_loop_ids())
+            std::cerr << id << " ";
+        std::cerr << ": ";
         if (tds_as_pointers) {
             for (const auto& in : expr->get_inputs()) {
                 if (td2int.count(in) == 0)
                     throw ngraph_error("Undefined input descriptor for op");
                 std::cerr << td2int.at(in) << ", ";
             }
-            std::cerr << "\b\b => ";
+            if (!expr->get_inputs().empty())
+                std::cerr << "\b\b";
+            std::cerr << " => ";
             for (const auto& out : expr->get_outputs()) {
                 if (td2int.count(out) == 0)
                     td2int.insert({out, td_counter++});
@@ -246,11 +251,14 @@ void LoweredExprIR::debug_print(bool tds_as_pointers) const {
         } else {
             for (const auto& in : expr->get_inputs())
                 std::cerr << *in << ", ";
-            std::cerr << "\b\b => ";
+            if (!expr->get_inputs().empty())
+                std::cerr << "\b\b";
+            std::cerr << " => ";
             for (const auto& out : expr->get_outputs())
                     std::cerr << *out << ", ";
         }
-        std::cerr << "\b\b";
+        if (!expr->get_inputs().empty())
+            std::cerr << "\b\b";
         const auto& rinfo = expr->get_reg_info();
         if (!rinfo.first.empty() || !rinfo.second.empty())
             print_rinfo(expr->get_reg_info());
