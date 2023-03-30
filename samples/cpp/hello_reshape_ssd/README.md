@@ -29,7 +29,7 @@ Basic OpenVINO™ Runtime API is covered by :doc:`Hello Classification C++ sampl
 +----------------------------------+---------------------------------------------------------------------------------------------+
 | Options                          | Values                                                                                      |
 +==================================+=============================================================================================+
-| Validated Models                 | `person-detection-retail-0013 <omz_models_model_person_detection_retail_0013>`__            |
+| Validated Models                 | :doc:`person-detection-retail-0013 <omz_models_model_person_detection_retail_0013>`         |
 +----------------------------------+---------------------------------------------------------------------------------------------+
 | Model Format                     | OpenVINO™ toolkit Intermediate Representation (\*.xml + \*.bin), ONNX (\*.onnx)             |
 +----------------------------------+---------------------------------------------------------------------------------------------+
