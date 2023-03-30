@@ -15,6 +15,7 @@
  * handling it by itself.
  */
 int runPipeline(const std::string &model, const std::string &device, const bool isCacheEnabled,
+                const std::string &, const std::string &,
                 std::map<std::string, ov::PartialShape> reshapeShapes,
                 std::map<std::string, std::vector<size_t>> dataShapes) {
     auto pipeline = [](const std::string &model, const std::string &device, const bool isCacheEnabled,

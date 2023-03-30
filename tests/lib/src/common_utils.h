@@ -176,3 +176,9 @@ void fillTensors(ov::InferRequest &infer_request, std::vector<T> &inputs) {
 void fillBlobs(InferenceEngine::InferRequest inferRequest,
                const InferenceEngine::ConstInputsDataMap &inputsInfo,
                const size_t &batchSize);
+
+
+/**
+ * @brief Get input/output precision (OV API 2)
+ */
+ov::element::Type getType(const std::string &value);
