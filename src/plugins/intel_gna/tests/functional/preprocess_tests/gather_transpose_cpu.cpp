@@ -3,32 +3,50 @@
 //
 #include <map>
 #include <numeric>
+#include <ostream>
 #include <string>
 #include <vector>
 
 #include "common_test_utils/common_utils.hpp"
 #include "ngraph_functions/builders.hpp"
-#include "ngraph_functions/utils/ngraph_helpers.hpp"
-#include "openvino/opsets/opset9.hpp"
+#include "openvino/opsets/opset10.hpp"
 #include "shared_test_classes/base/layer_test_utils.hpp"
 #include "shared_test_classes/base/ov_subgraph.hpp"
 
-using namespace InferenceEngine;
-using namespace ov::opset9;
+using namespace ov::opset10;
 using namespace ov::test;
+
+enum PrePostLayer { NONE, GATHER, TRANSPOSE };
+
+namespace std {
+inline std::ostream& operator<<(std::ostream& os, PrePostLayer layer_type) {
+    switch (layer_type) {
+    case PrePostLayer::GATHER:
+        os << "GATHER";
+        break;
+    case PrePostLayer::TRANSPOSE:
+        os << "TRANSPOSE";
+        break;
+    default:
+        os << "NONE";
+        break;
+    }
+    return os;
+}
+}  // namespace std
 
 namespace LayerTestsDefinitions {
 
 namespace {
 
-std::vector<size_t> MakeIndexes(size_t size) {
+inline std::vector<size_t> make_indexes(size_t size) {
     std::vector<size_t> indexes(size);
     std::iota(indexes.begin(), indexes.end(), 0);
     std::reverse(indexes.begin(), indexes.end());
     return indexes;
 }
 
-std::vector<size_t> MakeTransposeOrder(const std::vector<size_t>& input_shape) {
+inline std::vector<size_t> make_transpose_order(const std::vector<size_t>& input_shape) {
     std::vector<size_t> transpose_order;
     switch (input_shape.size()) {
     case 2:
@@ -49,23 +67,30 @@ std::vector<size_t> MakeTransposeOrder(const std::vector<size_t>& input_shape) {
 
 }  // namespace
 
-typedef std::tuple<std::vector<size_t>,                // Input shape
-                   ov::element::Type,                  // Net precision
-                   std::string,                        // Device name
-                   std::map<std::string, std::string>  // Configuration
+typedef std::tuple<std::vector<size_t>,                 // Input shape
+                   ov::element::Type,                   // Net precision
+                   std::string,                         // Device name
+                   std::map<std::string, std::string>,  // Configuration
+                   std::map<std::string, std::string>,  // Additional Configuration
+                   PrePostLayer,                        // Pre-processing layer
+                   PrePostLayer                         // Post-processing layer
                    >
     preprocessTestParamsSet;
 
-class PreprocessBaseTest : public testing::WithParamInterface<preprocessTestParamsSet>,
-                           virtual public SubgraphBaseTest {
+class PrePostProcessBaseTest : public testing::WithParamInterface<preprocessTestParamsSet>,
+                               virtual public SubgraphBaseTest {
 public:
-    static std::string getTestCaseName(const testing::TestParamInfo<preprocessTestParamsSet>& obj) {
+    static std::string get_test_case_name(const testing::TestParamInfo<preprocessTestParamsSet>& obj) {
         std::vector<size_t> input_shape;
         ov::element::Type net_type, in_type, out_type;
         std::string target_device;
-        std::map<std::string, std::string> conf;
+        std::map<std::string, std::string> conf, conf_ext;
+        PrePostLayer pre_layer, post_layer;
 
-        std::tie(input_shape, net_type, target_device, conf) = obj.param;
+        std::tie(input_shape, net_type, target_device, conf, conf_ext, pre_layer, post_layer) = obj.param;
+        for (auto& conf_item : conf_ext) {
+            conf[conf_item.first] = conf_item.second;
+        }
 
         std::ostringstream result;
         result << "Shape=" << CommonTestUtils::vec2str(input_shape) << "_";
@@ -74,167 +99,109 @@ public:
         for (auto const& conf_i : conf) {
             result << "_configItem=" << conf_i.first.c_str() << "_" << conf_i.second.c_str();
         }
+        result << "_pre_layer=" << pre_layer;
+        result << "_post_layer=" << post_layer;
         return result.str();
     }
 
 protected:
-    void InitTestModel();
     void SetUp() override {
         abs_threshold = std::numeric_limits<int32_t>::max();
         rel_threshold = std::numeric_limits<int32_t>::max();
-        std::tie(m_input_shape, m_net_type, targetDevice, m_conf) = this->GetParam();
+        std::map<std::string, std::string> conf, conf_ext;
+        std::tie(m_input_shape, m_net_type, targetDevice, conf, conf_ext, m_pre_layer, m_post_layer) = this->GetParam();
 
         std::vector<InputShape> input_shapes = static_shapes_to_test_representation({m_input_shape, m_input_shape});
-        configuration.insert(m_conf.begin(), m_conf.end());
-
+        configuration.insert(conf.begin(), conf.end());
+        for (auto& conf_item : conf_ext) {
+            configuration[conf_item.first] = conf_item.second;
+        }
         init_input_shapes(input_shapes);
+    }
+
+    void init_test_model() {
+        auto params = ngraph::builder::makeParams(m_net_type, {m_input_shape});
+        const size_t input_shape_size = ov::shape_size(params[0]->get_shape());
+
+        std::shared_ptr<ov::Node> pre_node = params[0];
+        switch (m_pre_layer) {
+        case PrePostLayer::GATHER:
+            pre_node = make_gather_node(pre_node);
+            break;
+        case PrePostLayer::TRANSPOSE:
+            pre_node = make_transpose_node(pre_node);
+            break;
+        default:
+            break;
+        }
+
+        auto mul_input_const = Constant::create(m_net_type,
+                                                pre_node->get_shape(),
+                                                CommonTestUtils::generate_float_numbers(input_shape_size, -0.2f, 0.2f));
+        auto matmul_node = std::make_shared<Multiply>(pre_node, mul_input_const);
+
+        auto add_input_const = Constant::create(m_net_type,
+                                                pre_node->get_shape(),
+                                                CommonTestUtils::generate_float_numbers(input_shape_size, -0.2f, 0.2f));
+        auto add_node = std::make_shared<Add>(matmul_node, add_input_const);
+
+        std::shared_ptr<ov::Node> post_node = add_node;
+        switch (m_post_layer) {
+        case PrePostLayer::GATHER:
+            pre_node = make_gather_node(post_node);
+            break;
+        case PrePostLayer::TRANSPOSE:
+            pre_node = make_transpose_node(post_node);
+            break;
+        default:
+            break;
+        }
+
+        ov::ResultVector results{std::make_shared<Result>(post_node)};
+        function = std::make_shared<ov::Model>(results, params, "concat");
+    }
+
+    std::shared_ptr<ov::Node> make_gather_node(std::shared_ptr<ov::Node> node) {
+        const std::vector<size_t> indexes = make_indexes(ov::shape_size(m_input_shape));
+        auto gather_indexes = Constant::create(ov::element::i64, ov::Shape{indexes.size()}, indexes);
+        const size_t gather_axis = m_input_shape.size() - 1;
+        auto gather_axis_const = Constant::create(ov::element::i64, ov::Shape{}, {gather_axis});
+        auto gather_node = std::make_shared<Gather>(node, gather_indexes, gather_axis_const);
+
+        return gather_node;
+    }
+
+    std::shared_ptr<ov::Node> make_transpose_node(std::shared_ptr<ov::Node> node) {
+        std::vector<size_t> transpose_order = make_transpose_order(m_input_shape);
+        ov::Shape transpose_shape;
+        for (size_t i : transpose_order) {
+            transpose_shape.push_back(m_input_shape[i]);
+        }
+
+        auto transpose_const =
+            std::make_shared<Constant>(ov::element::i8, ov::Shape{transpose_order.size()}, transpose_order);
+        auto transpose_node = std::make_shared<Transpose>(node, transpose_const);
+
+        return transpose_node;
     }
 
     ov::element::Type m_net_type;
     std::vector<size_t> m_input_shape;
-    std::map<std::string, std::string> m_conf;
+    PrePostLayer m_pre_layer = PrePostLayer::NONE;
+    PrePostLayer m_post_layer = PrePostLayer::NONE;
 };
 
-class RemoveGatherInput : public PreprocessBaseTest {
-protected:
-    void InitTestModel() {
-        auto params = ngraph::builder::makeParams(m_net_type, {m_input_shape});
-        const size_t input_shape_size = ov::shape_size(params[0]->get_shape());
-
-        const std::vector<size_t> indexes = MakeIndexes(input_shape_size);
-        auto gather_indexes = Constant::create(ov::element::i64, ov::Shape{indexes.size()}, indexes);
-        const size_t gather_axis = m_input_shape.size() - 1;
-        auto gather_axis_const = Constant::create(ov::element::i64, ov::Shape{}, {gather_axis});
-        auto gather_node = std::make_shared<Gather>(params[0], gather_indexes, gather_axis_const);
-
-        auto mul_input_const = Constant::create(m_net_type,
-                                                m_input_shape,
-                                                CommonTestUtils::generate_float_numbers(input_shape_size, -0.2f, 0.2f));
-        auto matmul_node = std::make_shared<Multiply>(gather_node, mul_input_const);
-
-        auto add_input_const = Constant::create(m_net_type,
-                                                m_input_shape,
-                                                CommonTestUtils::generate_float_numbers(input_shape_size, -0.2f, 0.2f));
-        auto add_node = std::make_shared<Add>(matmul_node, add_input_const);
-
-        ov::ResultVector results{std::make_shared<Result>(add_node)};
-        function = std::make_shared<ov::Model>(results, params, "concat");
-    }
-};
-
-class RemoveGatherOutput : public PreprocessBaseTest {
-protected:
-    void InitTestModel() {
-        auto params = ngraph::builder::makeParams(m_net_type, {m_input_shape});
-
-        const size_t input_shape_size = ov::shape_size(params[0]->get_shape());
-
-        auto mul_input_const = Constant::create(m_net_type,
-                                                m_input_shape,
-                                                CommonTestUtils::generate_float_numbers(input_shape_size, -0.2f, 0.2f));
-        auto matmul_node = std::make_shared<Multiply>(params[0], mul_input_const);
-
-        auto add_input_const = Constant::create(m_net_type,
-                                                m_input_shape,
-                                                CommonTestUtils::generate_float_numbers(input_shape_size, -0.2f, 0.2f));
-        auto add_node = std::make_shared<Add>(matmul_node, add_input_const);
-
-        const std::vector<size_t> indexes = MakeIndexes(input_shape_size);
-        auto gather_indexes = Constant::create(ov::element::i64, ov::Shape{indexes.size()}, indexes);
-        const size_t gather_axis = m_input_shape.size() - 1;
-        auto gather_axis_const = Constant::create(ov::element::i64, ov::Shape{}, {gather_axis});
-        auto gather_node = std::make_shared<Gather>(add_node, gather_indexes, gather_axis_const);
-
-        ov::ResultVector results{std::make_shared<Result>(gather_node)};
-        function = std::make_shared<ov::Model>(results, params, "concat");
-    }
-};
-
-class RemoveTransposeInput : public PreprocessBaseTest {
-protected:
-    void InitTestModel() {
-        std::vector<size_t> transpose_order = MakeTransposeOrder(m_input_shape);
-        std::vector<size_t> transpose_shape;
-        for (size_t i : transpose_order) {
-            transpose_shape.push_back(m_input_shape[i]);
-        }
-
-        auto params = ngraph::builder::makeParams(m_net_type, {m_input_shape});
-        const size_t input_shape_size = ov::shape_size(params[0]->get_shape());
-
-        auto transpose_const =
-            std::make_shared<Constant>(ov::element::i8, ov::Shape{transpose_order.size()}, transpose_order);
-        auto transpose_node = std::make_shared<Transpose>(params[0], transpose_const);
-
-        auto mul_input_const = Constant::create(m_net_type,
-                                                transpose_shape,
-                                                CommonTestUtils::generate_float_numbers(input_shape_size, -0.2f, 0.2f));
-        auto matmul_node = std::make_shared<Multiply>(transpose_node, mul_input_const);
-
-        auto add_input_const = Constant::create(m_net_type,
-                                                transpose_shape,
-                                                CommonTestUtils::generate_float_numbers(input_shape_size, -0.2f, 0.2f));
-        auto add_node = std::make_shared<Add>(matmul_node, add_input_const);
-
-        ov::ResultVector results{std::make_shared<Result>(add_node)};
-        function = std::make_shared<ov::Model>(results, params, "concat");
-    }
-};
-
-class RemoveTransposeOutput : public PreprocessBaseTest {
-protected:
-    void InitTestModel() {
-        std::vector<size_t> transpose_order = MakeTransposeOrder(m_input_shape);
-        std::vector<size_t> transpose_shape;
-        for (size_t i : transpose_order) {
-            transpose_shape.push_back(m_input_shape[i]);
-        }
-
-        auto params = ngraph::builder::makeParams(m_net_type, {m_input_shape});
-
-        const size_t input_shape_size = ov::shape_size(params[0]->get_shape());
-
-        auto mul_input_const = Constant::create(m_net_type,
-                                                m_input_shape,
-                                                CommonTestUtils::generate_float_numbers(input_shape_size, -0.2f, 0.2f));
-        auto matmul_node = std::make_shared<Multiply>(params[0], mul_input_const);
-
-        auto add_input_const = Constant::create(m_net_type,
-                                                m_input_shape,
-                                                CommonTestUtils::generate_float_numbers(input_shape_size, -0.2f, 0.2f));
-        auto add_node = std::make_shared<Add>(matmul_node, add_input_const);
-
-        auto transpose_const =
-            std::make_shared<Constant>(ov::element::i8, ov::Shape{transpose_order.size()}, transpose_order);
-        auto transpose_node = std::make_shared<Transpose>(add_node, transpose_const);
-
-        ov::ResultVector results{std::make_shared<Result>(transpose_node)};
-        function = std::make_shared<ov::Model>(results, params, "concat");
-    }
-};
-
-TEST_P(RemoveTransposeInput, CompareWithRefs) {
-    InitTestModel();
+TEST_P(PrePostProcessBaseTest, CompareWithRefs) {
+    init_test_model();
     run();
 }
 
-TEST_P(RemoveTransposeOutput, CompareWithRefs) {
-    InitTestModel();
-    run();
-}
+std::vector<std::map<std::string, std::string>> configs = {{{"GNA_DEVICE_MODE", "GNA_SW_EXACT"}}};
 
-TEST_P(RemoveGatherInput, CompareWithRefs) {
-    InitTestModel();
-    run();
-}
-
-TEST_P(RemoveGatherOutput, CompareWithRefs) {
-    InitTestModel();
-    run();
-}
-
-std::vector<std::map<std::string, std::string>> configs = {{{"GNA_DEVICE_MODE", "GNA_SW_EXACT"}},
-                                                           {{"GNA_DEVICE_MODE", "GNA_SW_FP32"}}};
+std::vector<std::map<std::string, std::string>> target_configs = {{{"GNA_DEVICE_MODE", "GNA_SW_FP32"}},
+                                                                  {{"GNA_EXEC_TARGET", "GNA_TARGET_2_0"}},
+                                                                  {{"GNA_EXEC_TARGET", "GNA_TARGET_3_0"}},
+                                                                  {{"GNA_EXEC_TARGET", "GNA_TARGET_3_5"}}};
 
 const std::vector<std::vector<size_t>> input_shapes_transpose = {{2, 64}, {1, 2, 64}, {1, 2, 4, 16}};
 
@@ -242,36 +209,26 @@ const std::vector<std::vector<size_t>> input_shapes_gather = {{1, 128}};
 
 const ov::element::TypeVector input_precisions = {ov::element::f32};
 
-INSTANTIATE_TEST_SUITE_P(smoke_preprocess,
-                         RemoveGatherInput,
+INSTANTIATE_TEST_SUITE_P(smoke_preprocess_gather,
+                         PrePostProcessBaseTest,
                          ::testing::Combine(::testing::ValuesIn(input_shapes_gather),
                                             ::testing::ValuesIn(input_precisions),
                                             ::testing::Values(CommonTestUtils::DEVICE_GNA),
-                                            ::testing::ValuesIn(configs)),
-                         RemoveGatherInput::getTestCaseName);
+                                            ::testing::ValuesIn(configs),
+                                            ::testing::ValuesIn(target_configs),
+                                            ::testing::ValuesIn({PrePostLayer::NONE, PrePostLayer::GATHER}),
+                                            ::testing::ValuesIn({PrePostLayer::NONE, PrePostLayer::GATHER})),
+                         PrePostProcessBaseTest::get_test_case_name);
 
-INSTANTIATE_TEST_SUITE_P(smoke_preprocess,
-                         RemoveGatherOutput,
-                         ::testing::Combine(::testing::ValuesIn(input_shapes_gather),
-                                            ::testing::ValuesIn(input_precisions),
-                                            ::testing::Values(CommonTestUtils::DEVICE_GNA),
-                                            ::testing::ValuesIn(configs)),
-                         RemoveGatherInput::getTestCaseName);
-
-INSTANTIATE_TEST_SUITE_P(smoke_preprocess,
-                         RemoveTransposeInput,
+INSTANTIATE_TEST_SUITE_P(smoke_preprocess_transpose,
+                         PrePostProcessBaseTest,
                          ::testing::Combine(::testing::ValuesIn(input_shapes_transpose),
                                             ::testing::ValuesIn(input_precisions),
                                             ::testing::Values(CommonTestUtils::DEVICE_GNA),
-                                            ::testing::ValuesIn(configs)),
-                         RemoveTransposeInput::getTestCaseName);
-
-INSTANTIATE_TEST_SUITE_P(smoke_preprocess,
-                         RemoveTransposeOutput,
-                         ::testing::Combine(::testing::ValuesIn(input_shapes_transpose),
-                                            ::testing::ValuesIn(input_precisions),
-                                            ::testing::Values(CommonTestUtils::DEVICE_GNA),
-                                            ::testing::ValuesIn(configs)),
-                         RemoveTransposeOutput::getTestCaseName);
+                                            ::testing::ValuesIn(configs),
+                                            ::testing::ValuesIn(target_configs),
+                                            ::testing::ValuesIn({PrePostLayer::NONE, PrePostLayer::TRANSPOSE}),
+                                            ::testing::ValuesIn({PrePostLayer::NONE, PrePostLayer::TRANSPOSE})),
+                         PrePostProcessBaseTest::get_test_case_name);
 
 }  // namespace LayerTestsDefinitions
