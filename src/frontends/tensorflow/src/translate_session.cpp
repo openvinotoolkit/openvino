@@ -6,6 +6,7 @@
 
 #include "input_model.hpp"
 #include "openvino/opsets/opset10.hpp"
+#include "openvino/opsets/opset8.hpp"
 #include "tf_framework_node.hpp"
 #include "utils.hpp"
 
