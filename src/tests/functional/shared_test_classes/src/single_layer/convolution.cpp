@@ -59,6 +59,7 @@ void ConvolutionLayerTest::SetUp() {
         auto filter_size = std::accumulate(std::begin(kernel), std::end(kernel), 1, std::multiplies<size_t>());
         filter_weights = CommonTestUtils::generate_float_numbers(convOutChannels * inputShape[1] * filter_size,
                                                                  -0.5f, 0.5f);
+        configuration = {{"GNA_DEVICE_MODE", "GNA_SW_EXACT"}, {"GNA_EXEC_TARGET", "GNA_TARGET_3_5"}};
     }
     auto conv = std::dynamic_pointer_cast<ngraph::opset1::Convolution>(
             ngraph::builder::makeConvolution(paramOuts[0], ngPrc, kernel, stride, padBegin,
