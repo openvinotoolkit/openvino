@@ -22,6 +22,7 @@ public:
         std::ifstream pbtxt_stream(path, std::ios::in);
         FRONT_END_GENERAL_CHECK(pbtxt_stream && pbtxt_stream.is_open(), "Model file does not exist");
         auto input_stream = std::make_shared<::google::protobuf::io::IstreamInputStream>(&pbtxt_stream);
+        FRONT_END_GENERAL_CHECK(input_stream, "Model cannot be read");
         auto is_parsed = ::google::protobuf::TextFormat::Parse(input_stream.get(), m_graph_def.get());
         FRONT_END_GENERAL_CHECK(
             is_parsed,
