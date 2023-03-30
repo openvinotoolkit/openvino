@@ -30,7 +30,9 @@ If you have another implementation of CRNN model, it can be converted to OpenVIN
    
    git checkout 64f1f1867bffaacfeacc7a80eebf5834a5726122
 
+
 **Step 2.** Train the model using the framework or the pretrained checkpoint provided in this repository.
+
 
 **Step 3.** Create an inference graph:
    
@@ -42,7 +44,9 @@ If you have another implementation of CRNN model, it can be converted to OpenVIN
 
       export PYTHONPATH="${PYTHONPATH}:/path/to/CRNN_Tensorflow/"
 
+
    * For  Windows, add ``/path/to/CRNN_Tensorflow/`` to the ``PYTHONPATH`` environment variable in settings.
+
 
 2. Edit the ``tools/demo_shadownet.py`` script. After ``saver.restore(sess=sess, save_path=weights_path)`` line, add the following code:
 
