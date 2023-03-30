@@ -82,10 +82,11 @@ std::vector<layout> strided_slice_inst::calc_output_layouts(strided_slice_node c
         auto begin_mem = constant_mem.at(1);
         auto end_mem = constant_mem.at(2);
         auto strides_mem = constant_mem.at(3);
+        const auto& stream = impl_param.net != nullptr ? impl_param.net->get_stream() : impl_param.prog->get_stream();
 
-        cldnn::mem_lock<uint8_t, mem_lock_type::read> lock1(begin_mem, impl_param.prog->get_stream());
-        cldnn::mem_lock<uint8_t, mem_lock_type::read> lock2(end_mem, impl_param.prog->get_stream());
-        cldnn::mem_lock<uint8_t, mem_lock_type::read> lock3(strides_mem, impl_param.prog->get_stream());
+        cldnn::mem_lock<uint8_t, mem_lock_type::read> lock1(begin_mem, stream);
+        cldnn::mem_lock<uint8_t, mem_lock_type::read> lock2(end_mem, stream);
+        cldnn::mem_lock<uint8_t, mem_lock_type::read> lock3(strides_mem, stream);
 
         auto begin_tensor = make_host_tensor(begin_mem->get_layout(), lock1.data());
         auto end_tensor = make_host_tensor(end_mem->get_layout(), lock2.data());

@@ -631,7 +631,7 @@ primitive_inst::primitive_inst(network& network, program_node const& node, bool 
             _shape_info_memory = _network.get_engine().allocate_memory(layout{{shape_elements}, data_types::i32, format::bfyx});
         }
     }
-
+    _impl_params->net = &_network;
     if (_outputs[0])
         max_output_layout_size = _outputs[0]->get_layout().get_tensor().count();
 }

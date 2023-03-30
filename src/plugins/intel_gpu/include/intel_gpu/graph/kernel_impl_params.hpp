@@ -21,6 +21,7 @@
 namespace cldnn {
 
 struct program;
+struct network;
 
 
 struct kernel_impl_params {
@@ -118,6 +119,10 @@ struct kernel_impl_params {
     const program& get_program() const {
         OPENVINO_ASSERT(prog != nullptr, "[GPU] Program pointer in kernel_impl_params in not initialized");
         return *prog;
+    }
+    network& get_network() const {
+        OPENVINO_ASSERT(net != nullptr, "[GPU] Network pointer in kernel_impl_params in not initialized");
+        return *net;
     }
 
     size_t hash() const;

@@ -57,7 +57,8 @@ layout gather_nonzero_inst::calc_output_layout(gather_nonzero_node const& node, 
     assert(static_cast<bool>(node.get_primitive()->output_data_types[0]) == false &&
            "Output data type forcing is not supported for gather_nonzero_node!");
     if (impl_param.memory_deps.count(1)) {
-        auto out_size = read_vector<int64_t>(impl_param.memory_deps.at(1), impl_param.prog->get_stream());
+        const auto& stream = impl_param.net != nullptr ? impl_param.net->get_stream() : impl_param.prog->get_stream();
+        auto out_size = read_vector<int64_t>(impl_param.memory_deps.at(1), stream);
         ov::Shape output_shape(out_size.begin(), out_size.end());
         ov::PartialShape output_pshape(output_shape);
         return layout{output_pshape, cldnn::data_types::i32, cldnn::format::bfyx};
@@ -72,7 +73,8 @@ std::vector<layout> gather_nonzero_inst::calc_output_layouts(gather_nonzero_node
     assert(static_cast<bool>(desc->output_data_types[0]) == false &&
            "Output data type forcing is not supported for gather_nonzero_node!");
     if (impl_param.memory_deps.count(1)) {
-        auto out_size = read_vector<int64_t>(impl_param.memory_deps.at(1), impl_param.prog->get_stream());
+        const auto& stream = impl_param.net != nullptr ? impl_param.net->get_stream() : impl_param.prog->get_stream();
+        auto out_size = read_vector<int64_t>(impl_param.memory_deps.at(1), stream);
         // output shape of nonzero is [input_rank, count_non_zero]
         auto rank = static_cast<size_t>(impl_param.get_input_layout(0).get<ShapeType>().rank().get_length());
         auto count = static_cast<size_t>(out_size[0]);
