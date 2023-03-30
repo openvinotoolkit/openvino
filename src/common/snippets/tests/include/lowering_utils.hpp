@@ -36,6 +36,9 @@ class DummyGenerator : public ngraph::snippets::Generator {
 public:
     DummyGenerator() : ngraph::snippets::Generator(std::make_shared<DummyTargetMachine>()) {}
     DummyGenerator(const std::shared_ptr<ngraph::snippets::TargetMachine>& t) : ngraph::snippets::Generator(t) {}
+
+protected:
+    opRegType get_specific_op_reg_type(const std::shared_ptr<ov::Node>& op) const override { return vec2vec; };
 };
 
 class LoweringTests : public TransformationTestsF {

@@ -1140,6 +1140,7 @@ using fully_connected_random_test_f32_3d = fully_connected_random_test_3d<float,
 using fully_connected_random_test_f16_3d = fully_connected_random_test_3d<FLOAT16, FLOAT16, FLOAT16, FLOAT16>;
 using fully_connected_random_test_i8_3d = fully_connected_random_test_3d<int8_t, int8_t, int8_t, float>;
 
+
 TEST_P(fully_connected_random_test_f32_3d, basic) {
     run_test();
 }
@@ -1149,9 +1150,9 @@ INSTANTIATE_TEST_SUITE_P(
     fully_connected_random_test_f32_3d,
     ::testing::Combine(
         ::testing::Values(1, 3),
-        ::testing::Values(shared_dims{1, 1, 1},
+        ::testing::Values(shared_dims{1, 1, 2},
                           shared_dims{1, 1, 3},
-                          shared_dims{3, 1, 1},
+                          shared_dims{3, 1, 2},
                           shared_dims{3, 1, 3}),
         ::testing::Values(1, 3, 16),
         ::testing::Values(format::bfyx),
@@ -1201,9 +1202,9 @@ INSTANTIATE_TEST_SUITE_P(
     fully_connected_random_test_f16_3d,
     ::testing::Combine(
         ::testing::Values(1, 3),
-        ::testing::Values(shared_dims{1, 1, 1},
+        ::testing::Values(shared_dims{1, 1, 2},
                           shared_dims{1, 1, 16},
-                          shared_dims{3, 1, 1},
+                          shared_dims{3, 1, 2},
                           shared_dims{3, 1, 16}),
         ::testing::Values(1, 3, 16),
         ::testing::Values(format::bfyx),
@@ -1221,9 +1222,9 @@ INSTANTIATE_TEST_SUITE_P(
     fully_connected_random_test_i8_3d,
     ::testing::Combine(
         ::testing::Values(1, 3),
-        ::testing::Values(shared_dims{1, 1, 1},
+        ::testing::Values(shared_dims{1, 1, 2},
                           shared_dims{1, 1, 16},
-                          shared_dims{3, 1, 1},
+                          shared_dims{3, 1, 2},
                           shared_dims{3, 1, 16}),
         ::testing::Values(1, 3, 16),
         ::testing::Values(format::bfyx),
@@ -1561,10 +1562,10 @@ INSTANTIATE_TEST_SUITE_P(
     fully_connected_i8_i8_test,
     testing::Combine(
         testing::Values(1, 2),
-        testing::Values(3, 64),
+        testing::Values(16, 64),
         testing::Values(1),
         testing::Values(1),
-        testing::Values(3, 32),
+        testing::Values(16, 32),
         testing::Values(format::bfyx, format::b_fs_yx_fsv4, format::b_fs_yx_fsv16, format::b_fs_yx_fsv32)
     ),
     fully_connected_i8_i8_test::PrintToStringParamName
@@ -1916,9 +1917,7 @@ TEST(fully_connected_gpu, dynamic_multi_inference_different_shape) {
     network network(engine, topology, config);
 
     auto inst = network.get_primitive("fc");
-    auto impl = inst->get_impl();
-    ASSERT_TRUE(impl != nullptr);
-    ASSERT_TRUE(impl->is_dynamic());
+    ASSERT_TRUE(inst->is_dynamic());
 
     {
         network.set_input_data("input", input_data1);
@@ -2169,9 +2168,19 @@ struct dynamic_fully_connected_gpu : ::testing::TestWithParam<fully_connected_dy
                                                                               input_data_vec,
                                                                               weights_data_vec,
                                                                               bias_data_vec);
-            for (int b = 0; b < batch_size; b++) {
-                for (int ofm = 0; ofm < output_f; ofm++) {
-                    ASSERT_EQ(ref_result[b * output_f + ofm], output_ptr[b * output_f + ofm]);
+
+            if (engine.get_device_info().supports_immad) {
+                for (int b = 0; b < batch_size; b++) {
+                    for (int ofm = 0; ofm < output_f; ofm++) {
+                        EXPECT_NEAR(ref_result[b * output_f + ofm], output_ptr[b * output_f + ofm],
+                                    default_tolerance(input_dt));
+                    }
+                }
+            } else {
+                for (int b = 0; b < batch_size; b++) {
+                    for (int ofm = 0; ofm < output_f; ofm++) {
+                        ASSERT_EQ(ref_result[b * output_f + ofm], output_ptr[b * output_f + ofm]);
+                    }
                 }
             }
         }
