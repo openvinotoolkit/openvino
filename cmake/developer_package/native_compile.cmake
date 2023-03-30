@@ -72,6 +72,15 @@ function(ov_native_compile_external_project)
         list(APPEND ARG_CMAKE_ARGS "-DCMAKE_BUILD_TYPE=${CMAKE_BUILD_TYPE}")
     endif()
 
+    if(CMAKE_VERSION VERSION_GREATER_EQUAL 3.21)
+        if(DEFINED CMAKE_CXX_LINKER_LAUNCHER)
+            list(APPEND ARG_CMAKE_ARGS "-DCMAKE_CXX_LINKER_LAUNCHER=${CMAKE_CXX_LINKER_LAUNCHER}")
+        endif()
+        if(DEFINED CMAKE_C_LINKER_LAUNCHER)
+            list(APPEND ARG_CMAKE_ARGS "-DCMAKE_C_LINKER_LAUNCHER=${CMAKE_C_LINKER_LAUNCHER}")
+        endif()
+    endif()
+
     ExternalProject_Add(${ARG_TARGET_NAME}
         # Directory Options
         SOURCE_DIR "${CMAKE_CURRENT_SOURCE_DIR}"
@@ -84,8 +93,6 @@ function(ov_native_compile_external_project)
         CMAKE_ARGS
             "-DCMAKE_CXX_COMPILER_LAUNCHER=${CMAKE_CXX_COMPILER_LAUNCHER}"
             "-DCMAKE_C_COMPILER_LAUNCHER=${CMAKE_C_COMPILER_LAUNCHER}"
-            "-DCMAKE_CXX_LINKER_LAUNCHER=${CMAKE_CXX_LINKER_LAUNCHER}"
-            "-DCMAKE_C_LINKER_LAUNCHER=${CMAKE_C_LINKER_LAUNCHER}"
             "-DCMAKE_CXX_FLAGS=${compile_flags}"
             "-DCMAKE_C_FLAGS=${compile_flags}"
             "-DCMAKE_POLICY_DEFAULT_CMP0069=NEW"

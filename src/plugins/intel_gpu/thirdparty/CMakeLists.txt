@@ -52,6 +52,19 @@ if(ENABLE_ONEDNN_FOR_GPU)
             list(APPEND cmake_extra_args "-DCMAKE_BUILD_TYPE=${CMAKE_BUILD_TYPE}")
         endif()
 
+        if(CMAKE_VERSION VERSION_GREATER_EQUAL 3.21)
+            if(DEFINED CMAKE_CXX_LINKER_LAUNCHER)
+                list(APPEND cmake_extra_args "-DCMAKE_CXX_LINKER_LAUNCHER=${CMAKE_CXX_LINKER_LAUNCHER}")
+            endif()
+            if(DEFINED CMAKE_C_LINKER_LAUNCHER)
+                list(APPEND cmake_extra_args "-DCMAKE_C_LINKER_LAUNCHER=${CMAKE_C_LINKER_LAUNCHER}")
+            endif()
+        endif()
+
+        if(CMAKE_VERSION VERSION_GREATER_EQUAL 3.15 AND DEFINED CMAKE_MSVC_RUNTIME_LIBRARY)
+            list(APPEND cmake_extra_args "-DCMAKE_MSVC_RUNTIME_LIBRARY=${CMAKE_MSVC_RUNTIME_LIBRARY}")
+        endif()
+
         ExternalProject_Add(onednn_gpu_build
             SOURCE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/onednn_gpu"
             BINARY_DIR "${ONEDNN_BUILD_DIR}"
@@ -70,13 +83,10 @@ if(ENABLE_ONEDNN_FOR_GPU)
                 "-DCMAKE_C_COMPILER=${CMAKE_C_COMPILER}"
                 "-DCMAKE_CXX_COMPILER_LAUNCHER=${CMAKE_CXX_COMPILER_LAUNCHER}"
                 "-DCMAKE_C_COMPILER_LAUNCHER=${CMAKE_C_COMPILER_LAUNCHER}"
-                "-DCMAKE_CXX_LINKER_LAUNCHER=${CMAKE_CXX_LINKER_LAUNCHER}"
-                "-DCMAKE_C_LINKER_LAUNCHER=${CMAKE_C_LINKER_LAUNCHER}"
                 "-DCMAKE_CXX_FLAGS=${CMAKE_CXX_FLAGS}"
                 "-DCMAKE_C_FLAGS=${CMAKE_C_FLAGS}"
                 "-DCMAKE_INTERPROCEDURAL_OPTIMIZATION_RELEASE=${ENABLE_LTO}"
                 "-DCMAKE_POLICY_DEFAULT_CMP0069=NEW"
-                "-DCMAKE_MSVC_RUNTIME_LIBRARY=${CMAKE_MSVC_RUNTIME_LIBRARY}"
                 "-DDNNL_CPU_RUNTIME=NONE"
                 "-DDNNL_GPU_RUNTIME=OCL"
                 "-DDNNL_LIBRARY_NAME=onednn_gpu"
