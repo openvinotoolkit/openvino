@@ -21,7 +21,7 @@ using namespace ov::intel_gna::pass;
 namespace {
 
 inline bool is_preprocessing_layer_not_supported(std::shared_ptr<ov::Node>& layer) {
-    // Gather layer is not supported by GNA and have to be executed on CPU
+    // Gather layer is not supported by GNA and has to be executed on CPU
     if (std::dynamic_pointer_cast<ov::opset1::Gather>(layer) || std::dynamic_pointer_cast<ov::opset7::Gather>(layer) ||
         std::dynamic_pointer_cast<ov::opset8::Gather>(layer)) {
         return true;
