@@ -144,57 +144,6 @@ std::vector<int64_t> LoopInit::init_element_type_sizes(const std::vector<Lowered
     return element_types;
 }
 
-void LoopInit::reuse_buffer_increments(std::vector<int64_t>& ptr_increments,
-                                       std::vector<int64_t>& finalization_offsets,
-                                       const LoweredExprIR& linear_ir,
-                                       const std::vector<LoweredExprPort>& loop_inputs,
-                                       const std::vector<LoweredExprPort>& loop_outputs) {
-    // Note: Buffer always employ inplace logics by default. It means that if a loop has both
-    // an input and an output connected to Buffers, the corresponding register should nevertheless be
-    // incremented only once (because when the input reg is incremented, output incremented automatically).
-    // This condition should be removed when Buffers stop being inplace by default.
-    std::vector<size_t> buffer_idx{};
-    const auto input_count = loop_inputs.size();
-    const auto output_count = loop_outputs.size();
-    for (size_t i = 0; i < input_count; ++i) {
-        const auto& loop_input = loop_inputs[i];
-        const auto& expr = loop_input.expr;
-        const auto port = loop_input.port;
-        const auto parent_output = linear_ir.get_expr_by_output(expr->get_inputs()[port]);
-        if (ov::is_type<op::Buffer>(parent_output.expr->get_node()))
-            buffer_idx.push_back(i);
-    }
-    for (size_t i = 0; i < output_count; ++i) {
-        const auto& loop_output = loop_outputs[i];
-        const auto& expr = loop_output.expr;
-        const auto port = loop_output.port;
-        const auto consumer_inputs = linear_ir.get_exprs_by_input(expr->get_outputs()[port]);
-        size_t buffer_count = 0;
-        size_t loop_count = 0;
-        for (const auto& consumer_input : consumer_inputs) {
-            const auto& child_node = consumer_input.expr->get_node();
-            if (ov::is_type<op::Buffer>(child_node)) {
-                buffer_count++;
-                buffer_idx.push_back(input_count + i);
-            } else if (ov::is_type<op::LoopEnd>(child_node)) {
-                loop_count++;
-            }
-        }
-        if (buffer_count > 0) {
-            OPENVINO_ASSERT((buffer_count == 1) && (buffer_count + loop_count == consumer_inputs.size()),
-                            "Loop output must have not more than 1 Buffer");
-        }
-    }
-
-    if (buffer_idx.size() > 1) {
-        for (size_t i = 0; i < buffer_idx.size() - 1; i++) {
-            const auto idx_to_drop = buffer_idx[i];
-            ptr_increments[idx_to_drop] = 0;
-            finalization_offsets[idx_to_drop] = 0;
-        }
-    }
-}
-
 bool LoopInit::insertion(LoweredExprIR& linear_ir, const LoweredExprIR::LoweredLoopManager::LoweredLoopInfoPtr& loop_info,
                          size_t loop_id, size_t dim_idx, bool has_outer_loop) {
     auto loop_entries = loop_info->entry_exprs;
@@ -209,7 +158,6 @@ bool LoopInit::insertion(LoweredExprIR& linear_ir, const LoweredExprIR::LoweredL
 
     auto ptr_increments = init_ptr_increments(loop_entries, loop_exits, dim_idx);
     auto finalization_offsets = init_finalization_offsets(ptr_increments, work_amount);
-    reuse_buffer_increments(ptr_increments, finalization_offsets, linear_ir, loop_entries, loop_exits);
     const auto io_data_sizes = init_element_type_sizes(loop_entries, loop_exits);
 
     const auto& loop_begin = std::make_shared<op::LoopBegin>();

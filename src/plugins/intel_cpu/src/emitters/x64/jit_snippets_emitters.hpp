@@ -86,13 +86,13 @@ private:
                             const std::vector<size_t> &out) const override;
     void emit_impl(const std::vector<size_t>& in,
                    const std::vector<size_t>& out) const override;
-    void init_data_pointers(size_t, size_t, bool, const Xbyak::Reg64&, const Xbyak::Reg64&, const std::vector<Xbyak::Reg64>&) const;
+    void init_data_pointers(size_t, size_t, size_t, const Xbyak::Reg64&, const Xbyak::Reg64&, const std::vector<Xbyak::Reg64>&) const;
 
     jit_snippets_compile_args jcp;
     std::vector<size_t> gp_regs_pool;
     size_t num_inputs;
     size_t num_outputs;
-    bool is_buffer_needed;
+    size_t num_unique_buffer;
     // Vector of indices (lenght = input tensor rank) per every input and output that describes in which order
     // corresponding tensor dimensions are accessed (default: consecutive dense, e.g. 0,1,2,3 for 4D tensor).
     // Needed to calc i/o offsets.

@@ -51,13 +51,14 @@ bool AssignRegisters::run(LoweredExprIR& linear_ir) {
             else
                 throw ngraph_error("Unsupported io_type detected");
         } else if (const auto& buffer = ov::as_type_ptr<op::Buffer>(op)) {
+            const auto buffer_id = buffer->get_id();
             // All buffers have one common data pointer
             if (buffer->is_intermediate_memory()) {
                 manually_assigned_gprs[expr->get_inputs()[0]] =
-                        static_cast<Reg>(num_results + num_parameters);
+                        static_cast<Reg>(num_results + num_parameters + buffer_id);
             }
             manually_assigned_gprs[expr->get_outputs()[0]] =
-                    static_cast<Reg>(num_results + num_parameters);
+                    static_cast<Reg>(num_results + num_parameters + buffer_id);
         } else if (ov::is_type<op::HorizonMax>(op) || ov::is_type<op::HorizonSum>(op)) {
             // Only in SoftmaxDecomposition ReduceMax and ReduceSum use HorizonMax/HorizonSum and VectorBuffer.
             // We should manually set the one vector register for VectorBuffer and Max/Sum output to simulate a accumulator
@@ -79,6 +80,17 @@ bool AssignRegisters::run(LoweredExprIR& linear_ir) {
                             static_cast<Reg>(accumulator_reg);
                 }
             }
+
+            // TODO: Fix via common pipeline using LoopEnd:
+            //       All operations `outside loop` after Horizon ops should have the same register to avoid using it in the next Loop
+            const auto current_loops_ids = expr->get_loop_ids();
+            auto next_expr = linear_ir.get_exprs_by_input(output_td).begin()->expr;
+            while (next_expr->get_loop_ids() == current_loops_ids) {
+                manually_assigned_vecs[next_expr->get_outputs()[0]] =
+                        static_cast<Reg>(accumulator_reg);
+                next_expr = linear_ir.get_exprs_by_input(next_expr->get_outputs()[0]).begin()->expr;
+            }
+
             accumulator_reg++;
         }
     }

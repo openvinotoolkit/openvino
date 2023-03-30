@@ -163,19 +163,25 @@ KernelEmitter::KernelEmitter(dnnl::impl::cpu::x64::jit_generator* h, dnnl::impl:
     mapping_info vec_map_pool({}, vec_regs_pool);
     ngraph::snippets::LoweredExprIR::container mem_access_exprs;
     ngraph::snippets::LoweredExprIR::container general_exprs;
-    is_buffer_needed = false;
+    std::set<size_t> unique_buffers;
+
     for (const auto& expr : body) {
         // Brgemm is a special case since it incorporates input and output (we use onednn kernel)
         // Just like Load & Store it requires offsets calculation
         if (std::dynamic_pointer_cast<ngraph::snippets::IOLoweredExpr>(expr)) {
             mem_access_exprs.emplace_back(expr);
-        } else if (!is_buffer_needed && ov::is_type<ngraph::snippets::op::Buffer>(expr->get_node())) {
-            mem_access_exprs.push_back(expr);
-            is_buffer_needed = true;
+        } else if (const auto buffer = ov::as_type_ptr<ngraph::snippets::op::Buffer>(expr->get_node())) {
+            const auto buffer_id = buffer->get_id();
+            if (unique_buffers.count(buffer_id) == 0) {
+                mem_access_exprs.push_back(expr);
+                unique_buffers.insert(buffer_id);
+            }
         } else {
             general_exprs.emplace_back(expr);
         }
     }
+    num_unique_buffer = unique_buffers.size();
+
     // Note that we can't use reg_indexes_idx or reg_const_params_idx to store data pointers because these two
     // regs are used to calculate offsets for the data pointers
     map_abstract_registers(gpr_map_pool, vec_map_pool, mem_access_exprs);
@@ -200,14 +206,14 @@ void KernelEmitter::validate_arguments(const std::vector<size_t> &in,
         IE_THROW() << "KernelEmitter got invalid number of inputs. Expected 0, got " << in.size();
     if (!out.empty())
         IE_THROW() << "KernelEmitter got invalid number of outputs. Expected 0, got " << out.size();
-    const auto num_params = num_inputs + num_outputs + static_cast<size_t>(is_buffer_needed);
+    const auto num_params = num_inputs + num_outputs + num_unique_buffer;
     // The number of used gpr may be >= num_params since LoopBegin+LoopEnd could also use gpr to store work_amount
     if (data_ptr_regs_idx.size() != num_params)
         IE_THROW() << "KernelEmitter: number of inputs and outputs is inconsisnent with the number of allocated registers"
         << num_params << " data_ptr_regs_idx.size() = " << data_ptr_regs_idx.size();
 }
 
-void KernelEmitter::init_data_pointers(size_t num_inputs, size_t num_params, bool is_buffer_needed,
+void KernelEmitter::init_data_pointers(size_t num_inputs, size_t num_params, size_t num_buffer,
                                        const Reg64& reg_indexes, const Reg64& reg_const_params, const std::vector<Reg64>& data_ptr_regs) const {
     // Note that we don't need offset for the last dim, since it's handled directly by Tile emitter
     const size_t offset_rank = jcp.master_shape.size() - 1;
@@ -271,8 +277,8 @@ void KernelEmitter::init_data_pointers(size_t num_inputs, size_t num_params, boo
     // Vector "data_ptr_regs" is sorted by abstract regs.
     // It means that the vector contains the physical registers in order [src, .., src, dst, .., dst, buffer]
     // So we can initialize buffer register firstly as last value of vector "data_ptr_regs"
-    if (is_buffer_needed) {
-        h->mov(data_ptr_regs[num_params], h->ptr[reg_const_params + GET_OFF(buffer_scratchpad_ptr)]);
+    for (size_t i = 0; i < num_buffer; ++i) {
+        h->mov(data_ptr_regs[num_params + i], h->ptr[reg_const_params + GET_OFF(buffer_scratchpad_ptr)]);
     }
     size_t i = 0;
     for (; i < num_params - last_iter_explicitly; i++) {
@@ -303,7 +309,7 @@ void KernelEmitter::emit_impl(const std::vector<size_t>& in,
     std::vector<Reg64> data_ptr_regs;
     transform_idxs_to_regs(data_ptr_regs_idx, data_ptr_regs);
 
-    init_data_pointers(num_inputs, num_inputs + num_outputs, is_buffer_needed, reg_indexes, reg_const_params, data_ptr_regs);
+    init_data_pointers(num_inputs, num_inputs + num_outputs, num_unique_buffer, reg_indexes, reg_const_params, data_ptr_regs);
     for (const auto& lowered_code : body) {
         const auto& emitter = lowered_code->get_emitter();
         std::vector<size_t> in_regs, out_regs;

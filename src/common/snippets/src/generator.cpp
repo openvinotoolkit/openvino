@@ -22,6 +22,8 @@
 #include "snippets/pass/lowered/softmax_decomposition.hpp"
 #include "snippets/pass/lowered/move_scalar_to_consumer.hpp"
 #include "snippets/pass/lowered/move_result_out_of_loop.hpp"
+#include "snippets/pass/lowered/buffer_reset.hpp"
+#include "snippets/pass/lowered/buffer_identification.hpp"
 #include "snippets/tensor_descriptor.hpp"
 
 namespace ngraph {
@@ -40,7 +42,6 @@ Generator::LoweringResult Generator::generate(std::shared_ptr<ov::Model>& m, con
     // Note: The pass LoopInit uses LoopInfo that contains entry and exit points of the corresponding Loop.
     //       To avoid the Loop information corruption, we should call the passes with Load/Store work
     //       (for example, LoadMoveBroadcastToBroadcastLoad()) after explicit Loop insertion (LoopInit())
-    const auto buffer_allocation_pass = std::make_shared<pass::lowered::BufferAllocation>();
     pass::lowered::LinearIRTransformationPipeline common_pipeline;
     common_pipeline.register_transformation<pass::lowered::LoopMarkup>(vector_size);
     common_pipeline.register_transformation<pass::lowered::SoftmaxDecomposition>(vector_size);
@@ -52,9 +53,7 @@ Generator::LoweringResult Generator::generate(std::shared_ptr<ov::Model>& m, con
     common_pipeline.register_transformation<pass::lowered::LoopInit>();
     common_pipeline.register_transformation<pass::lowered::MoveScalarToConsumer>();
     common_pipeline.register_transformation<pass::lowered::LoadMoveBroadcastToBroadcastLoad>();
-    common_pipeline.register_transformation<pass::lowered::PropagateLayout>();
-    common_pipeline.register_transformation(buffer_allocation_pass);
-    common_pipeline.register_transformation<pass::lowered::CleanupLoopOffsets>();
+    common_pipeline.register_transformation<pass::lowered::PropagateLayout>();  // or should be in final?
     common_pipeline.run(linear_ir);
 
     pass::lowered::LinearIRTransformationPipeline target_pipeline = target_specific_transformations();
@@ -64,7 +63,15 @@ Generator::LoweringResult Generator::generate(std::shared_ptr<ov::Model>& m, con
         return get_op_reg_type(op);
     };
 
+    const auto buffer_allocation_pass = std::make_shared<pass::lowered::BufferAllocation>();
+    pass::lowered::LinearIRTransformationPipeline buffer_pipeline;
+    buffer_pipeline.register_transformation<pass::lowered::BufferIdentification>();
+    buffer_pipeline.register_transformation<pass::lowered::BufferReset>();
+    buffer_pipeline.register_transformation(buffer_allocation_pass);
+    buffer_pipeline.run(linear_ir);
+
     pass::lowered::LinearIRTransformationPipeline final_pipeline;
+    final_pipeline.register_transformation<pass::lowered::CleanupLoopOffsets>();
     final_pipeline.register_transformation<pass::lowered::AssignRegisters>(reg_type_mapper);
     final_pipeline.register_transformation<pass::lowered::InsertTailLoop>();
     final_pipeline.run(linear_ir);

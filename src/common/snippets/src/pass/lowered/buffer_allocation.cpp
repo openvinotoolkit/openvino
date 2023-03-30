@@ -13,7 +13,7 @@ namespace lowered {
 
 void BufferAllocation::propagate_offset(const LoweredExprIR& linear_ir, const LoweredExprPtr& buffer_expr, const size_t offset) {
     // If Buffer has offset We set this offset in the connected MemoryAccess ops
-    // to correctly read and write data because all buffers have the one register
+    // to correctly read and write data because all Buffers has the common data pointer on buffer scratchpad
 
     const auto buffer = ov::as_type_ptr<op::Buffer>(buffer_expr->get_node());
 

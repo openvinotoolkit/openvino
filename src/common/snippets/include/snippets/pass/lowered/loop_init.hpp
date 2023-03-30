@@ -31,11 +31,6 @@ private:
     std::vector<int64_t> init_finalization_offsets(const std::vector<int64_t>& finalization_offsets, size_t work_amount) const;
     std::vector<int64_t> init_element_type_sizes(const std::vector<LoweredExprPort>& loop_inputs,
                                                  const std::vector<LoweredExprPort>& loop_outputs);
-    void reuse_buffer_increments(std::vector<int64_t>& ptr_increments,
-                                 std::vector<int64_t>& finalization_offsets,
-                                 const LoweredExprIR& linear_ir,
-                                 const std::vector<LoweredExprPort>& loop_inputs,
-                                 const std::vector<LoweredExprPort>& loop_outputs);
 };
 
 } // namespace lowered
