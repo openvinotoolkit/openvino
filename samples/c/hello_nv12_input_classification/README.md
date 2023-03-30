@@ -54,7 +54,7 @@ Running
 To run the sample, you need specify a model and image:
 
 - You can use :doc:`public <omz_models_group_public>` or :doc:`Intel's <omz_models_group_intel>` pre-trained models from the Open Model Zoo. The models can be downloaded using the :doc:`Model Downloader <omz_tools_downloader>`.
-- You can use images from the media files collection available at `the storage <https://storage.openvinotoolkit.org/data/test_data.`__.
+- You can use images from the media files collection available at `the storage <https://storage.openvinotoolkit.org/data/test_data>`__.
 
 The sample accepts an uncompressed image in the NV12 color format. To run the sample, you need to convert your BGR/RGB image to NV12. To do this, you can use one of the widely available tools such as FFmpeg\* or GStreamer\*. The following command shows how to convert an ordinary image into an uncompressed NV12 image using FFmpeg:
 
