@@ -2,6 +2,36 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+// Motivation:
+// In a dynamic scenario, depending on the input shapes for the current node, we can either generate a new jit kernel or get an existing one from the cache.
+// But the current single layer tests do not allow checking the case when the same kernel can be used for different nodes.
+// This subgraph test contains 2 eltwise nodes and allows us to check this case.
+// This subgraph can also contain the FakeQuantize nodes, because their shapes affect the result of caching and cache lookups (post op for Eltwise).
+
+//  -----------              -----------    -----------              -----------
+//  |input 0.0|              |input 0.1|    |input 1.0|              |input 1.1|
+//  -----------              -----------    -----------              -----------
+//       |                        |              |                        |
+//  ------------------------------------    ------------------------------------
+//  |            eltwise 0             |    |            eltwise 1             |
+//  ------------------------------------    ------------------------------------
+//                   |                                       |
+//  ------------------------------------    ------------------------------------
+//  |FQ 0 (if withQuantization == true)|    |FQ 1 (if withQuantization == true)|
+//  ------------------------------------    ------------------------------------
+//                   |                                       |
+//                   |                      ------------------------------------
+//                   |                      | reshape (if needReshape == true) |
+//                   |                      ------------------------------------
+//                   |                                       |
+//  ----------------------------------------------------------------------------
+//  |                                 concat                                   |
+//  ----------------------------------------------------------------------------
+//                                       |
+//                                   --------
+//                                   |output|
+//                                   --------
+
 #include <tuple>
 #include <string>
 #include <vector>
