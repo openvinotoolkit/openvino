@@ -39,7 +39,7 @@ namespace LayerTestsDefinitions {
         ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
 
         if (transformation == ngraph::helpers::MemoryTransformation::NONE) {
-            CreateCommonFunc();
+            SetUpTransformNone();
         } else {
             CreateTIFunc();
             ApplyLowLatency();
@@ -52,6 +52,9 @@ namespace LayerTestsDefinitions {
         eval_context["VariableContext"] = variable_context;
     }
 
+    void MemoryTest::SetUpTransformNone() {
+        CreateCommonFunc();
+    }
 
     void MemoryTest::Run() {
         functionRefs = ngraph::clone_function(*function);
@@ -208,6 +211,10 @@ namespace LayerTestsDefinitions {
             cnnNetwork = InferenceEngine::CNNNetwork{function};
             InferenceEngine::lowLatency2(cnnNetwork, iteration_count);
         }
+    }
+
+    InferenceEngine::Blob::Ptr MemoryTest::GenerateInput(const InferenceEngine::InputInfo& info) const {
+        return FuncTestUtils::createAndFillBlob(info.getTensorDesc(), 5, 5);
     }
 
 }  // namespace LayerTestsDefinitions

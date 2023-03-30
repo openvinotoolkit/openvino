@@ -28,6 +28,7 @@ class MemoryTest : public testing::WithParamInterface<MemoryTestParams>, virtual
 public:
     static std::string getTestCaseName(const testing::TestParamInfo<MemoryTestParams> &obj);
     void Run() override;
+    InferenceEngine::Blob::Ptr GenerateInput(const InferenceEngine::InputInfo& inputInfo) const override;
 
 protected:
     std::vector<std::pair<ngraph::element::Type, std::vector<std::uint8_t>>> CalculateRefs() override;
@@ -42,6 +43,11 @@ protected:
         return std::make_shared<ngraph::opset6::Assign>(value, variable);
     }
 
+    virtual void SetUpTransformNone();
+
+    ngraph::element::Type ngPrc;
+    InferenceEngine::SizeVector inputShape;
+
 private:
     void CreateTIFunc();
     void CreateCommonFunc();
@@ -52,8 +58,6 @@ private:
     ngraph::helpers::MemoryTransformation transformation;
 
     int64_t iteration_count;
-    ngraph::element::Type ngPrc;
-    InferenceEngine::SizeVector inputShape;
 };
 
 class MemoryTestV3 : public MemoryTest {

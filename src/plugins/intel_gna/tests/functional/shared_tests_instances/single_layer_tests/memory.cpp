@@ -6,7 +6,12 @@
 
 #include <vector>
 
+#include "ngraph_functions/builders.hpp"
+#include "openvino/op/util/variable.hpp"
+
 using namespace LayerTestsDefinitions;
+using namespace ngraph;
+using namespace opset7;
 
 namespace {
 
@@ -14,13 +19,37 @@ class MemoryTestGna : public MemoryTest {
     using Super = MemoryTest;
 
 protected:
-    void SetUp() override {
-        // 'smoke_MemoryTest' suite does not fit well to GNA quantization.
-        // Here input values get multiplied for each iteration present in test.
-        // This makes scale computation impossible based on first layer.
-        // Manual setting for relative threshold has thus been used.
-        threshold = 0.936032;
-        Super::SetUp();
+    void SetUpTransformNone() override {
+        auto param = builder::makeParams(ngPrc, {inputShape});
+        const auto variable_info = targetDevice == CommonTestUtils::DEVICE_GPU
+                                       ? VariableInfo{Shape{inputShape}, ngPrc, "v0"}
+                                       : VariableInfo{PartialShape::dynamic(), element::dynamic, "v0"};
+        auto variable = std::make_shared<Variable>(variable_info);
+
+        auto min55 = ngraph::builder::makeConstant<float>(ngPrc, {}, {-55.001678466796875f});
+        auto max55 = ngraph::builder::makeConstant<float>(ngPrc, {}, {55.0f});
+
+        auto min270 = ngraph::builder::makeConstant<float>(ngPrc, {}, {-270.00823974609375f});
+        auto max270 = ngraph::builder::makeConstant<float>(ngPrc, {}, {270.0f});
+
+        auto min325 = ngraph::builder::makeConstant<float>(ngPrc, {}, {-325.0099182128906f});
+        auto max325 = ngraph::builder::makeConstant<float>(ngPrc, {}, {325.0f});
+
+        auto fq_from_Par225 = std::make_shared<opset9::FakeQuantize>(param.at(0), min55, max55, min55, max55, 65536);
+
+        auto read_value = CreateReadValueOp(fq_from_Par225, variable);
+
+        auto fq_from_ReadVal =
+            std::make_shared<opset9::FakeQuantize>(read_value, min270, max270, min270, max270, 65536);
+
+        auto add = std::make_shared<Add>(fq_from_ReadVal, fq_from_Par225);
+
+        auto fq_from_add = std::make_shared<opset9::FakeQuantize>(add, min325, max325, min325, max325, 65536);
+
+        auto assign = CreateAssignOp(fq_from_add, variable);
+        auto res = std::make_shared<Result>(fq_from_add);
+
+        function = std::make_shared<Function>(ResultVector{res}, SinkVector{assign}, param, "TestMemory");
     }
 };
 

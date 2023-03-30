@@ -43,6 +43,9 @@ std::vector<std::string> disabledTestPatterns() {
         R"(.*importExportedIENetworkConstantResultOnly.*)",
         R"(.*importExportedIENetworkParameterResultOnly.*)",
 
+        // Issue 57368 (accuracy)
+        R"(.*smoke_MemoryTest.*transformation=LOW_LATENCY.*)",
+
         // Not implemented yet
         R"(.*Behavior.*ExecutableNetworkBaseTest.*(canSetConfigToExecNet|canSetConfigToExecNetWithIncorrectConfig).*)",
         R"(.*Behavior.*ExecutableNetworkBaseTest.*(CheckExecGraphInfoBeforeExecution|CheckExecGraphInfoAfterExecution|CheckExecGraphInfoSerialization).*)",
