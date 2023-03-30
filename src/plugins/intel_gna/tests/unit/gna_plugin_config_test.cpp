@@ -31,7 +31,7 @@ const std::map<std::string, std::string> supportedConfigKeysWithDefaults = {
     {GNA_CONFIG_KEY(LIB_N_THREADS), "1"},
     {CONFIG_KEY(SINGLE_THREAD), CONFIG_VALUE(YES)},
     {CONFIG_KEY(LOG_LEVEL), PluginConfigParams::LOG_NONE},
-    {CONFIG_KEY(PERFORMANCE_HINT), "UNDEFINED"},
+    {CONFIG_KEY(PERFORMANCE_HINT), "LATENCY"},
     {CONFIG_KEY(PERFORMANCE_HINT_NUM_REQUESTS), "1"},
     {ov::hint::execution_mode.name(), ov::util::to_string<ov::hint::ExecutionMode>(ov::hint::ExecutionMode::ACCURACY)}};
 IE_SUPPRESS_DEPRECATED_END

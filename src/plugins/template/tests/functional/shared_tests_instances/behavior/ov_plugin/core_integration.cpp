@@ -85,8 +85,8 @@ TEST(OVClassBasicTest, smoke_TEMPLATEGetSetConfigNoThrow) {
             std::cout << ov::enable_profiling.name() << " : " << core.get_property(device_name, ov::enable_profiling) << std::endl;
         } else if (ov::hint::performance_mode == property) {
             std::cout << "Default " << ov::hint::performance_mode.name() << " : " << core.get_property(device_name, ov::hint::performance_mode) << std::endl;
-            core.set_property(device_name, ov::hint::performance_mode(ov::hint::PerformanceMode::UNDEFINED));
-            ASSERT_EQ(ov::hint::PerformanceMode::UNDEFINED, core.get_property(device_name, ov::hint::performance_mode));
+            core.set_property(device_name, ov::hint::performance_mode(ov::hint::PerformanceMode::LATENCY));
+            ASSERT_EQ(ov::hint::PerformanceMode::LATENCY, core.get_property(device_name, ov::hint::performance_mode));
             core.set_property(device_name, ov::hint::performance_mode(ov::hint::PerformanceMode::THROUGHPUT));
             ASSERT_EQ(ov::hint::PerformanceMode::THROUGHPUT, core.get_property(device_name, ov::hint::performance_mode));
         }

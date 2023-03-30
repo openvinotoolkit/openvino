@@ -320,8 +320,6 @@ TEST_P(OVClassGetPropertyTest_GPU, GetAndSetPerformanceModeNoThrow) {
 
     std::cout << "Default PERFORMANCE_HINT: \"" << defaultMode << "\"" << std::endl;
 
-    ie.set_property(target_device, ov::hint::performance_mode(ov::hint::PerformanceMode::UNDEFINED));
-    ASSERT_EQ(ov::hint::PerformanceMode::UNDEFINED, ie.get_property(target_device, ov::hint::performance_mode));
     ie.set_property(target_device, ov::hint::performance_mode(ov::hint::PerformanceMode::LATENCY));
     ASSERT_EQ(ov::hint::PerformanceMode::LATENCY, ie.get_property(target_device, ov::hint::performance_mode));
     ie.set_property(target_device, ov::hint::performance_mode(ov::hint::PerformanceMode::THROUGHPUT));

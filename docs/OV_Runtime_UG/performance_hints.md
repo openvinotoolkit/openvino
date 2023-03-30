@@ -17,7 +17,6 @@ As discussed in the :doc:`Optimization Guide <openvino_docs_deployment_optimizat
 Throughput and latency are some of the most widely used metrics that measure the overall performance of an application.
 
 Therefore, in order to ease the configuration of the device, OpenVINO offers two dedicated hints, namely `ov::hint::PerformanceMode::THROUGHPUT <enumov_1_1hint_1_1PerformanceMode.html#doxid-group-ov-runtime-cpp-prop-api-1gga032aa530efa40760b79af14913d48d73a50f9b1f40c078d242af7ec323ace44b3>`__ and `ov::hint::PerformanceMode::LATENCY <enumov_1_1hint_1_1PerformanceMode.html#doxid-group-ov-runtime-cpp-prop-api-1gga032aa530efa40760b79af14913d48d73a501069dd75f76384ba18f133fdce99c2>`__.
-A special `ov::hint::PerformanceMode::UNDEFINED <enumov_1_1hint_1_1PerformanceMode.html#doxid-group-ov-runtime-cpp-prop-api-1gga032aa530efa40760b79af14913d48d73a0db45d2a4141101bdfe48e3314cfbca3>`__ hint acts the same as specifying no hint.
 
 For more information on conducting performance measurements with the ``benchmark_app``, refer to the last section in this document.
 

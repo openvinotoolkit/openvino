@@ -225,7 +225,6 @@ INSTANTIATE_TEST_SUITE_P(
                           ov::hint::inference_precision(ov::element::i16),
                           ov::hint::performance_mode(ov::hint::PerformanceMode::LATENCY),
                           ov::hint::performance_mode(ov::hint::PerformanceMode::THROUGHPUT),
-                          ov::hint::performance_mode(ov::hint::PerformanceMode::UNDEFINED),
                           ov::hint::num_requests(1),
                           ov::intel_gna::execution_target(ov::intel_gna::HWGeneration::GNA_2_0),
                           ov::intel_gna::execution_target(ov::intel_gna::HWGeneration::GNA_3_0),

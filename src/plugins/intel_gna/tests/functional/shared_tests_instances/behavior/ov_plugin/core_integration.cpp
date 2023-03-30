@@ -151,9 +151,6 @@ TEST(OVClassBasicTest, smoke_SetConfigAfterCreatedPerformanceHint) {
     ov::Core core;
     ov::hint::PerformanceMode mode;
 
-    OV_ASSERT_NO_THROW(mode = core.get_property("GNA", ov::hint::performance_mode));
-    ASSERT_EQ(ov::hint::PerformanceMode::UNDEFINED, mode);
-
     OV_ASSERT_NO_THROW(core.set_property("GNA", ov::hint::performance_mode(ov::hint::PerformanceMode::LATENCY)));
     OV_ASSERT_NO_THROW(mode = core.get_property("GNA", ov::hint::performance_mode));
     ASSERT_EQ(ov::hint::PerformanceMode::LATENCY, mode);
