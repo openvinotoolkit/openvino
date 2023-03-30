@@ -85,10 +85,10 @@ struct deviceChecker {
         template <typename T,
           typename std::enable_if<std::is_same<typename std::decay<T>::type, std::string>::value, bool>::type = true,
           typename U = typename std::vector<T>::const_iterator>
-        U checkAndReturnIfDeviceInList(const std::string& target, std::vector<T>& deviceList, bool exactMatch = false) {
+        U checkAndReturnIfDeviceInList(const std::string& target, const std::vector<T>& deviceList, bool exactMatch = false) {
             if (exactMatch) {
                 return std::find_if(deviceList.begin(), deviceList.end(),
-                        [&target](T& d) { return d == target; });
+                        [&target](const T& d) { return d == target; });
             }
             return std::find_if(deviceList.begin(), deviceList.end(),
                             [&target](const T & d) {
@@ -97,38 +97,38 @@ struct deviceChecker {
         }
         template <typename T,
           typename std::enable_if<std::is_same<typename std::decay<T>::type, std::string>::value, bool>::type = true>
-        bool checkIfDeviceInList(const std::string& target, std::vector<T>& deviceList, bool exactMatch = false) {
+        bool checkIfDeviceInList(const std::string& target, const std::vector<T>& deviceList, bool exactMatch = false) {
             if (exactMatch) {
                 return std::find_if(deviceList.begin(), deviceList.end(),
-                                    [&target](T& d) { return d == target; }) != deviceList.cend();
+                                    [&target](const T& d) { return d == target; }) != deviceList.cend();
             }
             return std::find_if(deviceList.begin(), deviceList.end(),
-                            [&target](const T & d) {
+                            [&target](const T& d) {
                                 return d.find(target) != std::string::npos;
                             }) != deviceList.end();
         }
         template <typename T,
           typename std::enable_if<std::is_same<typename std::decay<T>::type, DeviceInformation>::value, bool>::type = true,
           typename U = typename std::vector<T>::const_iterator>
-        U checkAndReturnIfDeviceInList(const std::string& target, std::vector<T>& deviceList, bool exactMatch = false) {
+        U checkAndReturnIfDeviceInList(const std::string& target, const std::vector<T>& deviceList, bool exactMatch = false) {
             if (exactMatch) {
                 return std::find_if(deviceList.begin(), deviceList.end(),
-                        [&target](T& d) { return d.deviceName == target; });
+                        [&target](const T& d) { return d.deviceName == target; });
             }
             return std::find_if(deviceList.begin(), deviceList.end(),
-                            [&target](const T & d) {
+                            [&target](const T& d) {
                                 return d.deviceName.find(target) != std::string::npos;
                             });
         }
         template <typename T,
           typename std::enable_if<std::is_same<typename std::decay<T>::type, DeviceInformation>::value, bool>::type = true>
-        bool checkIfDeviceInList(const std::string& target, std::vector<T>& deviceList, bool exactMatch = false) {
+        bool checkIfDeviceInList(const std::string& target, const std::vector<T>& deviceList, bool exactMatch = false) {
             if (exactMatch) {
                 return std::find_if(deviceList.begin(), deviceList.end(),
-                                    [&target](T& d) { return d.deviceName == target; }) != deviceList.end();
+                                    [&target](const T& d) { return d.deviceName == target; }) != deviceList.end();
             }
             return std::find_if(deviceList.begin(), deviceList.end(),
-                            [&target](const T & d) {
+                            [&target](const T& d) {
                                 return d.deviceName.find(target) != std::string::npos;
                             }) != deviceList.end();
         }
