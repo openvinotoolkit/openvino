@@ -845,7 +845,7 @@ public:
         return ev;
     }
 
-    void init_kernels(const kernels_cache&) override {}
+    void init_kernels(const kernels_cache& , const kernel_impl_params&) override {}
 
     static std::unique_ptr<primitive_impl> create(const detection_output_node& arg, const kernel_impl_params&) {
         return make_unique<detection_output_impl>(arg);

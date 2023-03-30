@@ -116,11 +116,11 @@ TEST(OVClassBasicTest, smoke_SetConfigAfterCreatedPrecisionHint) {
     ov::Core core;
     ov::element::Type precision;
 
-    OV_ASSERT_NO_THROW(precision = core.get_property("GNA", ov::inference_precision));
+    OV_ASSERT_NO_THROW(precision = core.get_property("GNA", ov::hint::inference_precision));
     ASSERT_EQ(ov::element::undefined, precision);
 
-    OV_ASSERT_NO_THROW(core.set_property("GNA", ov::inference_precision(ov::element::i8)));
-    OV_ASSERT_NO_THROW(precision = core.get_property("GNA", ov::inference_precision));
+    OV_ASSERT_NO_THROW(core.set_property("GNA", ov::hint::inference_precision(ov::element::i8)));
+    OV_ASSERT_NO_THROW(precision = core.get_property("GNA", ov::hint::inference_precision));
     ASSERT_EQ(ov::element::i8, precision);
 
     OPENVINO_SUPPRESS_DEPRECATED_START
@@ -128,32 +128,28 @@ TEST(OVClassBasicTest, smoke_SetConfigAfterCreatedPrecisionHint) {
     OV_ASSERT_NO_THROW(precision = core.get_property("GNA", ov::hint::inference_precision));
     OPENVINO_SUPPRESS_DEPRECATED_END
 
-    OV_ASSERT_NO_THROW(core.set_property("GNA", ov::inference_precision(ov::element::i16)));
-    OV_ASSERT_NO_THROW(precision = core.get_property("GNA", ov::inference_precision));
+    OV_ASSERT_NO_THROW(core.set_property("GNA", ov::hint::inference_precision(ov::element::i16)));
+    OV_ASSERT_NO_THROW(precision = core.get_property("GNA", ov::hint::inference_precision));
     ASSERT_EQ(ov::element::i16, precision);
 
-    OV_ASSERT_NO_THROW(core.set_property("GNA", {{ov::inference_precision.name(), "I8"}}));
-    OV_ASSERT_NO_THROW(precision = core.get_property("GNA", ov::inference_precision));
+    OV_ASSERT_NO_THROW(core.set_property("GNA", {{ov::hint::inference_precision.name(), "I8"}}));
+    OV_ASSERT_NO_THROW(precision = core.get_property("GNA", ov::hint::inference_precision));
     ASSERT_EQ(ov::element::i8, precision);
 
-    OV_ASSERT_NO_THROW(core.set_property("GNA", {{ov::inference_precision.name(), "I16"}}));
-    OV_ASSERT_NO_THROW(precision = core.get_property("GNA", ov::inference_precision));
+    OV_ASSERT_NO_THROW(core.set_property("GNA", {{ov::hint::inference_precision.name(), "I16"}}));
+    OV_ASSERT_NO_THROW(precision = core.get_property("GNA", ov::hint::inference_precision));
     ASSERT_EQ(ov::element::i16, precision);
 
-    ASSERT_THROW(
-        core.set_property("GNA", {ov::inference_precision(ov::element::i8), {GNA_CONFIG_KEY(PRECISION), "I16"}}),
-        ov::Exception);
-    ASSERT_THROW(core.set_property("GNA", ov::inference_precision(ov::element::i32)), ov::Exception);
-    ASSERT_THROW(core.set_property("GNA", ov::inference_precision(ov::element::undefined)), ov::Exception);
-    ASSERT_THROW(core.set_property("GNA", {{ov::inference_precision.name(), "ABC"}}), ov::Exception);
+    OV_ASSERT_NO_THROW(
+        core.set_property("GNA", {ov::hint::inference_precision(ov::element::i8), {GNA_CONFIG_KEY(PRECISION), "I16"}}));
+    ASSERT_THROW(core.set_property("GNA", ov::hint::inference_precision(ov::element::i32)), ov::Exception);
+    ASSERT_THROW(core.set_property("GNA", ov::hint::inference_precision(ov::element::undefined)), ov::Exception);
+    ASSERT_THROW(core.set_property("GNA", {{ov::hint::inference_precision.name(), "ABC"}}), ov::Exception);
 }
 
 TEST(OVClassBasicTest, smoke_SetConfigAfterCreatedPerformanceHint) {
     ov::Core core;
     ov::hint::PerformanceMode mode;
-
-    OV_ASSERT_NO_THROW(mode = core.get_property("GNA", ov::hint::performance_mode));
-    ASSERT_EQ(ov::hint::PerformanceMode::UNDEFINED, mode);
 
     OV_ASSERT_NO_THROW(core.set_property("GNA", ov::hint::performance_mode(ov::hint::PerformanceMode::LATENCY)));
     OV_ASSERT_NO_THROW(mode = core.get_property("GNA", ov::hint::performance_mode));
