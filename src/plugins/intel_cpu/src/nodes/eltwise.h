@@ -177,6 +177,16 @@ private:
     void appendMemory(const std::vector<float> &data, MemoryPtr &memPtr, std::vector<const void*>& postOpsMem);
 };
 
+class eltwise_precision_helper {
+public:
+    static InferenceEngine::Precision get_precision(const size_t inputs_number,
+                                                    const InferenceEngine::Precision (&src_prc)[MAX_ELTWISE_INPUTS],
+                                                    const std::vector<Eltwise::EltwiseData>& eltwise_data);
+
+private:
+    static std::set<std::vector<element::Type>> get_supported_precisions(const Algorithm& algo);
+};
+
 }   // namespace node
 }   // namespace intel_cpu
 }   // namespace ov
