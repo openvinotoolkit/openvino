@@ -48,12 +48,13 @@ static bool simplify_gather(shared_ptr<Node> node) {
                 return false;
             // case_3: if input_shape is (1,3,5,5) and axis = 0, indices = 0, then gather is just a Squeeze
             const auto const_indices = constant_indices->cast_vector<int64_t>();
-            if (axis == 0 && data.get_shape()[axis] == 1 && const_indices.size() == 1 && const_indices[0] == 0) {
+            if (data.get_shape()[axis] == 1 && const_indices.size() == 1 && const_indices[0] == 0) {
                 auto squeeze = std::make_shared<opset8::Squeeze>(gather->input_value(0), gather->input_value(2));
+                squeeze->set_friendly_name(gather->get_friendly_name());
+                ov::copy_runtime_info(gather, squeeze);
                 ov::replace_node(gather, squeeze);
                 return true;
             }
-            // if rank of data and gather output don't match, we will skip
             return false;
         }
 
