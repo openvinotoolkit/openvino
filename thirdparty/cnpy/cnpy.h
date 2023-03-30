@@ -18,11 +18,12 @@
 #include<memory>
 #include<stdint.h>
 #include<numeric>
+
 #if defined(_WIN32)
-    #define NOMINMAX
-    #include <windows.h>
+#define NOMINMAX
+#include <windows.h>
 #else
-    #include <unistd.h>
+#include <unistd.h>
 #endif
 
 namespace cnpy {
@@ -34,6 +35,8 @@ namespace cnpy {
             status.dwLength = sizeof(status);
             GlobalMemoryStatusEx(&status);
             return status.ullAvailPhys;
+#elif defined(__APPLE__)
+            return std::numeric_limits<unsigned long long>::max();
 #else
             long pages = sysconf(_SC_AVPHYS_PAGES);
             long page_size = sysconf(_SC_PAGE_SIZE);
@@ -51,8 +54,14 @@ namespace cnpy {
                 throw std::length_error("NpyArray of " + std::to_string(num_vals) +
                                         "*" + std::to_string(word_size) +
                                         " elements is too big.");
-            data_holder = std::shared_ptr<std::vector<char>>(
-                new std::vector<char>(num_vals * word_size));
+            try {
+                data_holder = std::shared_ptr<std::vector<char>>(
+                    new std::vector<char>(num_vals * word_size));
+            } catch (std::bad_alloc const &) {
+                throw std::length_error("NpyArray of " + std::to_string(num_vals) +
+                                        "*" + std::to_string(word_size) +
+                                        " elements is too big.");
+            }
         }
 
         NpyArray() : shape(0), word_size(0), fortran_order(0), num_vals(0) { }
