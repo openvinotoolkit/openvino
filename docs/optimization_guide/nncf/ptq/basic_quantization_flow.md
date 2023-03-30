@@ -1,4 +1,4 @@
-# Basic Quantization Flow {#basic_qauntization_flow}
+# Basic Quantization Flow {#basic_quantization_flow}
 
 @sphinxdirective
 

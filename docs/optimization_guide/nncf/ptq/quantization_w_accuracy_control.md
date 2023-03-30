@@ -5,12 +5,12 @@
 Introduction
 ####################
 
-This is the advanced quantization flow that allows to apply 8-bit quantization to the model with control of accuracy metric. This is achieved by keeping the most impactful operations within the model in the original precision. The flow is based on the :doc:`Basic 8-bit quantization <basic_qauntization_flow>` and has the following differences:
+This is the advanced quantization flow that allows to apply 8-bit quantization to the model with control of accuracy metric. This is achieved by keeping the most impactful operations within the model in the original precision. The flow is based on the :doc:`Basic 8-bit quantization <basic_quantization_flow>` and has the following differences:
 
 * Beside the calibration dataset, a **validation dataset** is required to compute accuracy metric. They can refer to the same data in the simplest case.
 * **Validation function**, used to compute accuracy metric is required. It can be a function that is already available in the source framework or a custom function.
-* Since accuracy validation is run several times during the quantization process, quantization with accuracy control can take more time than the [Basic 8-bit quantization](@ref basic_qauntization_flow) flow.
-* The resulted model can provide smaller performance improvement than the :doc:`Basic 8-bit quantization <basic_qauntization_flow>` flow because some of the operations are kept in the original precision.
+* Since accuracy validation is run several times during the quantization process, quantization with accuracy control can take more time than the [Basic 8-bit quantization](@ref basic_quantization_flow) flow.
+* The resulted model can provide smaller performance improvement than the :doc:`Basic 8-bit quantization <basic_quantization_flow>` flow because some of the operations are kept in the original precision.
 
 .. note:: Currently, this flow is available only for models in OpenVINO representation.
 
@@ -19,7 +19,7 @@ The steps for the quantization with accuracy control are described below.
 Prepare datasets
 ####################
 
-This step is similar to the :doc:`Basic 8-bit quantization <basic_qauntization_flow>` flow. The only difference is that two datasets, calibration and validation, are required.
+This step is similar to the :doc:`Basic 8-bit quantization <basic_quantization_flow>` flow. The only difference is that two datasets, calibration and validation, are required.
 
 .. tab:: OpenVINO
 
