@@ -175,8 +175,7 @@ ov::element::Type::Type(size_t bitwidth,
     }
 }
 
-ov::element::Type::Type(const std::string& type): Type(type_from_string(type)) {
-}
+ov::element::Type::Type(const std::string& type) : Type(type_from_string(type)) {}
 
 std::string ov::element::Type::c_type_string() const {
     return get_type_info(m_type).m_cname;
