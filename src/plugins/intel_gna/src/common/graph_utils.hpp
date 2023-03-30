@@ -279,7 +279,7 @@ inline bool has_32bit_input(const std::shared_ptr<ngraph::Node>& node) {
 }
 
 /**
- * @brief remove all dimensions equal to 1 from the tensor shape vector
+ * @brief Remove all dimensions equal to 1 from the tensor shape vector
  * @param shape original tensor shape vector
  * @return modified shape
  */
