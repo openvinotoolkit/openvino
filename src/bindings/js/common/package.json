@@ -13,6 +13,6 @@
   "main": "./dist/index.js",
   "types": "./types/index.d.ts",
   "scripts": {
-    "postinstall": "tsc & ln -sf ../../../../../bin/ia32/Release/openvino_wasm.js ./dist/ & ln -sf ../../../../../bin/ia32/Release/openvino_wasm.wasm ./dist/"
+    "postinstall": "tsc & ln -sf ../../../../../bin/ia32/openvino_wasm.js ./dist/ & ln -sf ../../../../../bin/ia32/openvino_wasm.wasm ./dist/"
   }
 }
