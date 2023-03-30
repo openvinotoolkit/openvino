@@ -501,9 +501,7 @@ auto test_forward_batch_to_space = []() {
     return wrapper(test_case);
 };
 
-INSTANTIATE_TEST_SUITE_P(TransposeSinkingCommonBatchToSpaceForward,
-                         TSTestFixture,
-                         test_forward_batch_to_space());
+INSTANTIATE_TEST_SUITE_P(TransposeSinkingCommonBatchToSpaceForward, TSTestFixture, test_forward_batch_to_space());
 
 auto test_forward_space_to_batch = []() {
     TestCase test_case;
@@ -532,9 +530,7 @@ auto test_forward_space_to_batch = []() {
     return wrapper(test_case);
 };
 
-INSTANTIATE_TEST_SUITE_P(TransposeSinkingCommonSpaceToBatchForward,
-                         TSTestFixture,
-                         test_forward_space_to_batch());
+INSTANTIATE_TEST_SUITE_P(TransposeSinkingCommonSpaceToBatchForward, TSTestFixture, test_forward_space_to_batch());
 
 auto test_forward_reduction = []() {
     TestCase test_case;
@@ -611,9 +607,7 @@ auto test_forward_interpolate = []() {
     return wrapper(test_case);
 };
 
-INSTANTIATE_TEST_SUITE_P(TransposeSinkingCommonInterpolateForward,
-                         TSTestFixture,
-                         test_forward_interpolate());
+INSTANTIATE_TEST_SUITE_P(TransposeSinkingCommonInterpolateForward, TSTestFixture, test_forward_interpolate());
 
 auto test_forward_squeeze = []() {
     TestCase test_case;
@@ -766,9 +760,7 @@ auto test_forward_reshape_squeeze = []() {
     return wrapper(test_case);
 };
 
-INSTANTIATE_TEST_SUITE_P(TransposeSinkingCommonReshapeSqueezeForward,
-                         TSTestFixture,
-                         test_forward_reshape_squeeze());
+INSTANTIATE_TEST_SUITE_P(TransposeSinkingCommonReshapeSqueezeForward, TSTestFixture, test_forward_reshape_squeeze());
 
 auto test_forward_reshape_unsqueeze = []() {
     TestCase test_case;
@@ -978,9 +970,7 @@ auto test_backward_batch_to_space = []() {
     return wrapper(test_case);
 };
 
-INSTANTIATE_TEST_SUITE_P(TransposeSinkingCommonBatchToSpaceBackward,
-                         TSTestFixture,
-                         test_backward_batch_to_space());
+INSTANTIATE_TEST_SUITE_P(TransposeSinkingCommonBatchToSpaceBackward, TSTestFixture, test_backward_batch_to_space());
 
 auto test_backward_space_to_batch = []() {
     TestCase test_case;
@@ -1007,9 +997,7 @@ auto test_backward_space_to_batch = []() {
     return wrapper(test_case);
 };
 
-INSTANTIATE_TEST_SUITE_P(TransposeSinkingCommonSpaceToBatchBackward,
-                         TSTestFixture,
-                         test_backward_space_to_batch());
+INSTANTIATE_TEST_SUITE_P(TransposeSinkingCommonSpaceToBatchBackward, TSTestFixture, test_backward_space_to_batch());
 
 auto test_backward_reduction = []() {
     TestCase test_case;
@@ -1042,9 +1030,7 @@ auto test_backward_reduction = []() {
     return wrapper(test_case);
 };
 
-INSTANTIATE_TEST_SUITE_P(TransposeSinkingCommonReductionBackward,
-                         TSTestFixture,
-                         test_backward_reduction());
+INSTANTIATE_TEST_SUITE_P(TransposeSinkingCommonReductionBackward, TSTestFixture, test_backward_reduction());
 
 auto test_backward_interpolate = []() {
     TestCase test_case;
@@ -1086,9 +1072,7 @@ auto test_backward_interpolate = []() {
     return wrapper(test_case);
 };
 
-INSTANTIATE_TEST_SUITE_P(TransposeSinkingCommonInterpolateBackward,
-                         TSTestFixture,
-                         test_backward_interpolate());
+INSTANTIATE_TEST_SUITE_P(TransposeSinkingCommonInterpolateBackward, TSTestFixture, test_backward_interpolate());
 
 auto test_backward_squeeze = []() {
     TestCase test_case;
@@ -1154,9 +1138,7 @@ auto test_backward_unsqueeze = []() {
     return wrapper(test_case);
 };
 
-INSTANTIATE_TEST_SUITE_P(TransposeSinkingCommonUnsqueezeBackward,
-                         TSTestFixture,
-                         test_backward_unsqueeze());
+INSTANTIATE_TEST_SUITE_P(TransposeSinkingCommonUnsqueezeBackward, TSTestFixture, test_backward_unsqueeze());
 
 auto test_backward_slice = []() {
     TestCase test_case;
@@ -1238,9 +1220,7 @@ auto test_backward_reshape_squeeze = []() {
     return wrapper(test_case);
 };
 
-INSTANTIATE_TEST_SUITE_P(TransposeSinkingCommonReshapeSqueezeBackward,
-                         TSTestFixture,
-                         test_backward_reshape_squeeze());
+INSTANTIATE_TEST_SUITE_P(TransposeSinkingCommonReshapeSqueezeBackward, TSTestFixture, test_backward_reshape_squeeze());
 
 auto test_backward_reshape_unsqueeze = []() {
     TestCase test_case;

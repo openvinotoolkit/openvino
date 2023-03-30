@@ -10,11 +10,11 @@
 #include "itt.hpp"
 #include "openvino/core/validation_util.hpp"
 #include "openvino/opsets/opset10.hpp"
+#include "openvino/pass/pattern/op/or.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "transformations/rt_info/transpose_sinking_attr.hpp"
 #include "transformations/transpose_sinking/ts_utils.hpp"
 #include "transformations/utils/utils.hpp"
-#include "openvino/pass/pattern/op/or.hpp"
 
 using namespace ov;
 using namespace opset10;
@@ -108,7 +108,7 @@ TSSqueezeForward::TSSqueezeForward() {
     auto pattern = std::make_shared<pattern::op::Or>(OutputVector{squeeze_with_1_input, squeeze_label});
 
     ov::matcher_pass_callback matcher_pass_callback = [=](Matcher& m) {
-        const auto &pattern_to_output = m.get_pattern_map();
+        const auto& pattern_to_output = m.get_pattern_map();
 
         auto transpose = as_type_ptr<Transpose>(pattern_to_output.at(transpose_label));
         std::shared_ptr<Node> main_node;
@@ -142,7 +142,7 @@ TSSqueezeForward::TSSqueezeForward() {
             } else {
                 auto rank = main_node->get_input_partial_shape(0).rank();
                 non_negative_axes =
-                        normalize_axes(main_node->get_friendly_name(), squeeze_axes->cast_vector<int64_t>(), rank);
+                    normalize_axes(main_node->get_friendly_name(), squeeze_axes->cast_vector<int64_t>(), rank);
             }
         }
 
