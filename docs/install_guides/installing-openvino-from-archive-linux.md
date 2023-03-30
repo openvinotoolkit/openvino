@@ -126,13 +126,14 @@ Step 1: Download and Install the OpenVINO Core Components
    
    .. code-block:: sh
    
-      cd /opt/intel/openvino_2022.3.0/
+      cd /opt/intel/openvino_2022.3.0
       sudo -E ./install_dependencies/install_openvino_dependencies.sh 
 
 6. For simplicity, it is useful to create a symbolic link as below:
    
    .. code-block:: sh
    
+      cd /opt/intel
       sudo ln -s openvino_2022.3.0 openvino_2022
   
    .. note::
