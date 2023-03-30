@@ -468,7 +468,7 @@ int main(int argc, char* argv[]) {
                     } else if (is_virtual_device(device)) {
                         update_device_config_for_virtual_device(it_device_infer_precision->second,
                                                                 device_config,
-                                                                ov::inference_precision);
+                                                                ov::hint::inference_precision);
                     } else {
                         throw std::logic_error("Device " + device + " doesn't support config key '" +
                                                ov::hint::inference_precision.name() + "'! " +
