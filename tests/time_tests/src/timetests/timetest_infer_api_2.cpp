@@ -82,13 +82,13 @@ int runPipeline(const std::string &model, const std::string &device, const bool 
                                 if (ip) {
                                     const auto inputs = cnnNetwork->inputs();
                                     for (size_t i = 0; i < inputs.size(); i++) {
-                                        preprocessor.input(i).tensor().set_element_type(inputPrecision);
+                                        preprocessor.input(i).tensor().set_element_type(ov::element::Type(inputPrecision));
                                     }
                                 }
                                 if (op) {
                                     const auto outputs = cnnNetwork->outputs();
                                     for (size_t i = 0; i < outputs.size(); i++) {
-                                        preprocessor.output(i).tensor().set_element_type(outputPrecision);
+                                        preprocessor.output(i).tensor().set_element_type(ov::element::Type(outputPrecision));
                                     }
                                 }
                                 cnnNetwork = preprocessor.build();
