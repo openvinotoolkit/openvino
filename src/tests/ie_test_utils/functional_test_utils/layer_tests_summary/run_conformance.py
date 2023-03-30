@@ -19,12 +19,12 @@ from utils.conformance_utils import get_logger
 from utils import file_utils
 
 logger = get_logger('conformance_runner')
-is_hash = True
+has_python_api = True
 try:
     from rename_conformance_ir import create_hash
 except:
     logger.warning("Please set the above env variable to get the same conformance ir names run by run!")
-    is_hash = False
+    has_python_api = False
 
 API_CONFORMANCE_BIN_NAME = "apiConformanceTests"
 OP_CONFORMANCE_BIN_NAME = "conformanceTests"
@@ -135,7 +135,7 @@ class Conformance:
             logger.error("Process failed on step: 'Subgraph dumping'")
             exit(-1)
         self._model_path = conformance_ir_path
-        if is_hash:
+        if has_python_api:
             create_hash(Path(self._model_path))
             logger.info(f"All conformance IRs in {self._ov_bin_path} were renamed based on hash")
         else:
@@ -173,7 +173,7 @@ class Conformance:
 
         final_report_name = f'report_{self._type.lower()}'
         # API Conformance contains both report type
-        merge_xml([parallel_report_dir], report_dir, final_report_name, self._type)
+        merge_xml([parallel_report_dir], report_dir, final_report_name, self._type, True)
         if self._type == constants.API_CONFORMANCE:
             final_op_report_name = f'report_{constants.OP_CONFORMANCE.lower()}'
             merge_xml([parallel_report_dir], report_dir, final_op_report_name, constants.OP_CONFORMANCE.lower())
