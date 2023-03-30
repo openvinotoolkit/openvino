@@ -8,8 +8,8 @@
 
 #include "openvino/core/type/bfloat16.hpp"
 #include "openvino/core/partial_shape.hpp"
-#include "openvion/core/node.hpp"
-#include "openvion/core/node_output.hpp"
+#include "openvino/core/node.hpp"
+#include "openvino/core/node_output.hpp"
 #include "core/tensor.hpp"
 #include "ngraph/except.hpp"
 
