@@ -1,23 +1,29 @@
 # Converting a PaddlePaddle Model {#openvino_docs_MO_DG_prepare_model_convert_model_Convert_Model_From_Paddle}
 
-To convert a PaddlePaddle model, use the `mo` script and specify the path to the input `.pdmodel` model file:
+@sphinxdirective
 
-```sh
- mo --input_model <INPUT_MODEL>.pdmodel
-```
+To convert a PaddlePaddle model, use the ``mo`` script and specify the path to the input ``.pdmodel`` model file:
+
+.. code-block:: sh
+
+  mo --input_model <INPUT_MODEL>.pdmodel
+
 **For example,** this command converts a yolo v3 PaddlePaddle network to OpenVINO IR network:
 
-```sh
- mo --input_model=yolov3.pdmodel --input=image,im_shape,scale_factor --input_shape=[1,3,608,608],[1,2],[1,2] --reverse_input_channels --output=save_infer_model/scale_0.tmp_1,save_infer_model/scale_1.tmp_1
-```
+.. code-block:: sh
 
-## Supported PaddlePaddle Layers
-For the list of supported standard layers, refer to the [Supported Framework Layers](@ref openvino_docs_MO_DG_prepare_model_Supported_Frameworks_Layers) page.
+  mo --input_model=yolov3.pdmodel --input=image,im_shape,scale_factor --input_shape=[1,3,608,608],[1,2],[1,2] --reverse_input_channels --output=save_infer_model/scale_0.tmp_1,save_infer_model/scale_1.tmp_1
 
-## Officially Supported PaddlePaddle Models
+Supported PaddlePaddle Layers
+#############################
+
+For the list of supported standard layers, refer to the :doc:`Supported Framework Layers <openvino_docs_MO_DG_prepare_model_Supported_Frameworks_Layers>` page.
+
+Officially Supported PaddlePaddle Models
+########################################
+
 The following PaddlePaddle models have been officially validated and confirmed to work (as of OpenVINO 2022.1):
 
-@sphinxdirective
 .. list-table::
    :widths: 20 25 55
    :header-rows: 1
@@ -67,10 +73,16 @@ The following PaddlePaddle models have been officially validated and confirmed t
    * - BERT
      - language representation
      -  Models are exported from `PaddleNLP <https://github.com/PaddlePaddle/PaddleNLP/tree/v2.1.1>`_. Refer to `README.md <https://github.com/PaddlePaddle/PaddleNLP/tree/develop/examples/language_model/bert#readme>`_.   
+
+Frequently Asked Questions (FAQ)
+################################
+
+When Model Optimizer is unable to run to completion due to typographical errors, incorrectly used options, or other issues, it provides explanatory messages. They describe the potential cause of the problem and give a link to the :doc:`Model Optimizer FAQ <openvino_docs_MO_DG_prepare_model_Model_Optimizer_FAQ>`, which provides instructions on how to resolve most issues. The FAQ also includes links to relevant sections in the Model Optimizer Developer Guide to help you understand what went wrong.
+
+Additional Resources
+####################
+
+See the :doc:`Model Conversion Tutorials <openvino_docs_MO_DG_prepare_model_convert_model_tutorials>` page for a set of tutorials providing step-by-step instructions for converting specific PaddlePaddle models.
+
 @endsphinxdirective
 
-## Frequently Asked Questions (FAQ)
-When Model Optimizer is unable to run to completion due to typographical errors, incorrectly used options, or other issues, it provides explanatory messages. They describe the potential cause of the problem and give a link to the [Model Optimizer FAQ](@ref openvino_docs_MO_DG_prepare_model_Model_Optimizer_FAQ), which provides instructions on how to resolve most issues. The FAQ also includes links to relevant sections in the Model Optimizer Developer Guide to help you understand what went wrong.
-
-## Additional Resources
-See the [Model Conversion Tutorials](@ref openvino_docs_MO_DG_prepare_model_convert_model_tutorials) page for a set of tutorials providing step-by-step instructions for converting specific PaddlePaddle models.
