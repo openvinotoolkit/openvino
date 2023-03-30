@@ -216,4 +216,6 @@ INSTANTIATE_TEST_SUITE_P(smoke, layout_cmp_test,
          layout{ov::PartialShape{1, 32, 4, 4}, data_types::f32, format::b_fs_yx_fsv32, padding({0, 0, 0, 0}, 0)}, false, false},
         {layout{ov::PartialShape{1, 32, 4, 4}, data_types::f32, format::b_fs_yx_fsv32, padding({0, 0, 1, 1}, 0)},
          layout{ov::PartialShape{1, 32, 4, 4}, data_types::f32, format::b_fs_yx_fsv32, padding({0, 0, 1, 1}, 0)}, true, true},
+        {layout{ov::PartialShape{1, 2, 3, 4}, data_types::f16, format::bfyx},
+         layout{ov::PartialShape{1, 2, 3, 4}, data_types::f16, format::oiyx}, false, true},
     }));
