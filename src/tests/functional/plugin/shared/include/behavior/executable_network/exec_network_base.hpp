@@ -72,11 +72,7 @@ TEST_P(ExecutableNetworkBaseTest, canLoadCorrectNetworkToGetExecutableAndCheckCo
     auto execNet = ie->LoadNetwork(cnnNet, target_device, configuration);
     for (const auto& configItem : configuration) {
         InferenceEngine::Parameter param;
-        try {
-            param = execNet.GetConfig(configItem.first);
-        } catch (InferenceEngine::Exception&) {
-            ASSERT_NO_THROW(param = execNet.GetMetric(configItem.first));
-        }
+        ASSERT_NO_THROW(param = execNet.GetConfig(configItem.first));
         ASSERT_FALSE(param.empty());
         ASSERT_EQ(param, InferenceEngine::Parameter(configItem.second));
     }
