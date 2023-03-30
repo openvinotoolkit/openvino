@@ -1,6 +1,6 @@
 # PaddlePaddle - generate test models
 -c ../../../../src/bindings/python/constraints.txt
-protobuf>=3.18.1,<4.0.0
+protobuf
 numpy
 six
 paddlepaddle
