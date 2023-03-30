@@ -1,8 +1,3 @@
-# EXCEPTIONS
-# some package versions need to be specified in respective requirements.txt
-# files because the version differs between them:
-# TODO
-
 # used in multiple components
 onnx==1.13.1  # Python bindings, ONNX Frontend
 numpy>=1.16.6,<1.25  # Python bindings, frontends
