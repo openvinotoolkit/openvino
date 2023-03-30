@@ -9,6 +9,7 @@
 #include "transformations/transpose_sinking/ts_binary.hpp"
 #include "transformations/transpose_sinking/ts_concat.hpp"
 #include "transformations/transpose_sinking/ts_data_movement.hpp"
+#include "transformations/transpose_sinking/ts_gather.hpp"
 #include "transformations/transpose_sinking/ts_interpolate.hpp"
 #include "transformations/transpose_sinking/ts_reduction.hpp"
 #include "transformations/transpose_sinking/ts_slice.hpp"
@@ -214,6 +215,18 @@ public:
 FactoryPtr CreateReshapeFactory(const std::string& type_name) {
     return std::make_shared<ReshapeFactory>(type_name);
 }
+
+class GatherFactory : public IFactory {
+public:
+    explicit GatherFactory(const std::string& type_name) : IFactory(type_name) {}
+    NodePtr create(const OutputVector& parent_nodes) const override {
+        return std::make_shared<Gather>(parent_nodes[0], parent_nodes[1], parent_nodes[2], 0);
+    }
+};
+
+FactoryPtr CreateGatherFactory(const std::string& type_name) {
+    return std::make_shared<GatherFactory>(type_name);
+}
 // ----------------------------------------------------------------------------
 
 #undef CREATE_UNARY_FACTORY
@@ -251,6 +264,9 @@ FactoryPtr CreateReshapeFactory(const std::string& type_name) {
 
 #undef CREATE_RESHAPE_FACTORY
 #define CREATE_RESHAPE_FACTORY(type_name) CreateReshapeFactory(#type_name)
+
+#undef CREATE_GATHER_FACTORY
+#define CREATE_GATHER_FACTORY(type_name) CreateGatherFactory(#type_name)
 // ----------------------------------------------------------------------------
 
 struct Preprocessing {
@@ -881,6 +897,51 @@ auto test_forward_reshape_unsqueeze = []() {
 INSTANTIATE_TEST_SUITE_P(TransposeSinkingCommonReshapeUnsqueezeForward,
                          TransposeSinkingTestFixture,
                          test_forward_reshape_unsqueeze());
+
+auto test_forward_gather = []() {
+    TestCase test_case;
+
+    // Initialize common attributes
+    test_case.transformation = CREATE_PASS_FACTORY(TSGatherForward);
+    test_case.num_main_ops = {1};
+    test_case.inputs_to_main = {
+        parameter(element::f32, {3, 4, 5, 6}),
+        constant<int>(element::i32, {2}, {0, 2}),
+        constant<int>(element::i32, {1}, {2})
+    };
+
+    // Test model description:
+    test_case.model.preprocess_inputs_to_main = {{set_transpose_for}, {{0}}};
+    test_case.model.main_op = {CREATE_GATHER_FACTORY(Gather)};
+    test_case.model.model_template = create_model;
+
+    // Reference model description:
+    auto new_transpose = [](const vector<size_t>& idxs, const OutputVector& out_vec) -> OutputVector {
+        OutputVector new_out_vec(out_vec.size());
+        auto order = make_shared<Constant>(element::i32, Shape{4}, std::vector<int64_t>{3, 2, 1, 0});
+        new_out_vec[0] = make_shared<Transpose>(out_vec[0], order);
+        return new_out_vec;
+    };
+    auto new_constant = [](const vector<size_t>& idxs, const OutputVector& out_vec) -> OutputVector {
+        OutputVector new_out_vec(out_vec.size());
+        new_out_vec[0] = out_vec[0];
+        new_out_vec[1] = out_vec[1];
+        new_out_vec[2] = make_shared<Constant>(out_vec[2].get_element_type(),
+                                               out_vec[2].get_shape(),
+                                               std::vector<int64_t>{1});
+        return new_out_vec;
+    };
+    test_case.model_ref.preprocess_inputs_to_main = {{new_constant}, {{2}}};
+    test_case.model_ref.main_op = {CREATE_GATHER_FACTORY(Gather)};
+    test_case.model_ref.preprocess_outputs_of_main = {{new_transpose}, {{0}}};
+    test_case.model_ref.model_template = create_model;
+
+    return wrapper(test_case);
+};
+
+INSTANTIATE_TEST_SUITE_P(TransposeSinkingCommonGatherForward,
+                         TransposeSinkingTestFixture,
+                         test_forward_gather());
 // ------------------ BACKWARD --------------------
 
 auto test_backward_unary = []() {
@@ -1345,6 +1406,51 @@ auto test_backward_reshape_unsqueeze = []() {
 INSTANTIATE_TEST_SUITE_P(TransposeSinkingCommonReshapeUnsqueezeBackward,
                          TransposeSinkingTestFixture,
                          test_backward_reshape_unsqueeze());
+
+auto test_backward_gather = []() {
+    TestCase test_case;
+
+    // Initialize common attributes
+    test_case.transformation = CREATE_PASS_FACTORY(TSGatherBackward);
+    test_case.num_main_ops = {1};
+    test_case.inputs_to_main = {
+            parameter(element::f32, {3, 4, 5, 6}),
+            constant<int>(element::i32, {2}, {0, 2}),
+            constant<int>(element::i32, {1}, {2})
+    };
+
+    // Test model description:
+    test_case.model.main_op = {CREATE_GATHER_FACTORY(Gather)};
+    test_case.model.preprocess_outputs_of_main = {{set_transpose_for}, {{0}}};
+    test_case.model.model_template = create_model;
+
+
+    // Reference model description:
+    auto new_transpose = [](const vector<size_t>& idxs, const OutputVector& out_vec) -> OutputVector {
+        OutputVector new_out_vec(out_vec.size());
+        auto order = make_shared<Constant>(element::i32, Shape{4}, std::vector<int64_t>{3, 2, 1, 0});
+        new_out_vec[0] = make_shared<Transpose>(out_vec[0], order);
+        return new_out_vec;
+    };
+    auto new_constant = [](const vector<size_t>& idxs, const OutputVector& out_vec) -> OutputVector {
+        OutputVector new_out_vec(out_vec.size());
+        new_out_vec[0] = out_vec[0];
+        new_out_vec[1] = out_vec[1];
+        new_out_vec[2] = make_shared<Constant>(out_vec[2].get_element_type(),
+                                               out_vec[2].get_shape(),
+                                               std::vector<int64_t>{1});
+        return new_out_vec;
+    };
+    test_case.model_ref.preprocess_inputs_to_main = {{set_transpose_for, new_constant}, {{0}, {2}}};
+    test_case.model_ref.main_op = {CREATE_GATHER_FACTORY(Gather)};
+    test_case.model_ref.model_template = create_model;
+
+    return wrapper(test_case);
+};
+
+INSTANTIATE_TEST_SUITE_P(TransposeSinkingCommonGatherBackward,
+                         TransposeSinkingTestFixture,
+                         test_backward_gather());
 }  // namespace common
 }  // namespace testing
 }  // namespace transpose_sinking

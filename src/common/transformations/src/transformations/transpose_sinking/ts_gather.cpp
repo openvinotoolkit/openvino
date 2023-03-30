@@ -27,8 +27,8 @@ TSGatherForward::TSGatherForward() {
         const auto& pattern_to_output = m.get_pattern_map();
 
         auto transpose = as_type_ptr<Transpose>(pattern_to_output.at(transpose_label));
-        auto main_node = pattern_to_output.at(gather_label);
-        if (transformation_callback(main_node)) {
+        auto main_node = as_type_ptr<Gather>(pattern_to_output.at(gather_label));
+        if (transformation_callback(main_node) || !main_node) {
             return false;
         }
 
@@ -37,6 +37,7 @@ TSGatherForward::TSGatherForward() {
         if (!transpose || !transpose_order || !gather_axis) {
             return false;
         }
+
         const auto& axes = gather_axis->cast_vector<int64_t>();
         if (axes.size() != 1) {
             return false;
@@ -48,22 +49,44 @@ TSGatherForward::TSGatherForward() {
         }
 
         const auto& order_val = transpose_order->cast_vector<int64_t>();
-        const auto& axis = order_val[axes[0]];
-        const auto& indices_rank_val = indices_rank.get_length();
-        std::vector<int64_t> new_transpose_order(order_val.size() + indices_rank_val - 1);
-        for (size_t i = 0; i < new_transpose_order.size(); ++i) {
-            if (i == axis) {
-
+        auto batch_dims = main_node->get_batch_dims();
+        for (int64_t i = 0; i < batch_dims; ++i) {
+            // transpose changes the order of batch dims
+            if (order_val[i] != i) {
+                return false;
             }
         }
 
-/*
+        const auto& axis = axes[0];
+        const auto& indices_rank_val = indices_rank.get_length();
+        std::vector<size_t> new_transpose_order(order_val.size() + indices_rank_val - 1);
+        for (size_t i = 0, j = 0; i < new_transpose_order.size(); ++i) {
+            if (i > axis && i < (axis + indices_rank_val)) {
+                new_transpose_order[i] = new_transpose_order[j-1] + 1;
+            } else if (order_val[i] > axis) {
+                new_transpose_order[i] = order_val[j] + indices_rank_val - 1;
+                j++;
+            } else {
+                new_transpose_order[i] = order_val[j];
+                j++;
+            }
+        }
+
+        auto new_order_const = Constant::create(transpose_order->get_element_type(), {new_transpose_order.size()}, new_transpose_order);
+        TransposeInputsInfo transpose_input_info = {transpose, new_order_const, 0};
+        // deletes Transpose from 0 input
+        auto success = sink_forward::UpdateInputTransposes(main_node, transpose_input_info, {0});
+        if (!success) {
+            return false;
+        }
+        auto new_axis = Constant::create(gather_axis->get_element_type(), gather_axis->get_shape(), {order_val[axis]});
+        main_node->input(2).replace_source_output(new_axis);
+        copy_runtime_info(gather_axis, new_axis);
         main_node->validate_and_infer_types();
         for (auto& new_node : sink_forward::InsertOutputTransposes(main_node, transpose_input_info)) {
             register_new_node(new_node);
             UpdateForwardSinkingAbility(new_node);
         }
-*/
 
         return true;
     };
@@ -84,32 +107,73 @@ TSGatherBackward::TSGatherBackward() {
     ov::matcher_pass_callback matcher_pass_callback = [=](pattern::Matcher& m) {
         const auto& pattern_to_output = m.get_pattern_map();
 
-        auto transpose = pattern_to_output.at(transpose_label);
-        auto main_node = pattern_to_output.at(gather_label);
-        if (transformation_callback(main_node)) {
+        auto transpose = as_type_ptr<Transpose>(pattern_to_output.at(transpose_label));
+        auto main_node = as_type_ptr<Gather>(pattern_to_output.at(gather_label));
+        if (transformation_callback(main_node) || !main_node) {
             return false;
         }
 
         auto transpose_order = as_type_ptr<Constant>(transpose->get_input_node_shared_ptr(1));
-        if (!transpose_order) {
+        auto gather_axis = as_type_ptr<Constant>(main_node->get_input_node_shared_ptr(2));
+        if (!transpose || !transpose_order || !gather_axis) {
             return false;
         }
 
-        for (auto& new_node : sink_backward::InsertTransposeBeforeNode(main_node,
-                                                                       transpose_order,
-                                                                       /* input_indexes= */ {0, 1})) {
-            register_new_node(new_node);
+        const auto& axes = gather_axis->cast_vector<int64_t>();
+        if (axes.size() != 1) {
+            return false;
+        }
+
+        const auto& indices_rank = main_node->get_input_partial_shape(1).rank();
+        if (indices_rank.is_dynamic()) {
+            return false;
+        }
+
+        const auto& order_val = transpose_order->get_axis_vector_val();
+        auto batch_dims = main_node->get_batch_dims();
+        for (int64_t i = 0; i < batch_dims; ++i) {
+            // transpose changes the order of batch dims
+            if (order_val[i] != i) {
+                return false;
+            }
         }
 
         RemoveSingleOutputConsumers(main_node);
         SwapNames(main_node, transpose);
 
-        const auto transpose_axis_order = transpose_order->get_axis_vector_val();
-        const auto reversed_transpose_order = ReverseTransposeOrder(transpose_axis_order);
-        auto axis = std::make_shared<Constant>(element::i32, Shape{}, std::vector<int32_t>{0});
-        auto new_axes = ChangeAxes(main_node->input_value(3), reversed_transpose_order, axis);
-
-        main_node->input(3).replace_source_output(new_axes);
+        const auto& axis = axes[0];
+        const auto& indices_rank_val = indices_rank.get_length();
+        std::vector<size_t> new_transpose_order(order_val.size() - indices_rank_val + 1);
+        for (size_t i = 0, j = 0; i < order_val.size(); ++j) {
+            if (order_val[i] < axis) {
+                new_transpose_order[j] = order_val[i];
+                ++i;
+            } else if (order_val[i] > axis) {
+                new_transpose_order[j] = order_val[i] - indices_rank_val + 1;
+                ++i;
+            } else {
+                // the next `indices_rank_val` values have to be in ascending order
+                // these values will be replaced with a single axis
+                new_transpose_order[j] = order_val[i];
+                size_t prev_idx = i;
+                for (size_t k = 0; i < order_val.size() && k < indices_rank_val; ++i, ++k) {
+                    if (order_val[i] != order_val[prev_idx]) {
+                        return false;
+                    }
+                    prev_idx = i;
+                }
+            }
+        }
+        const auto reversed_transpose_order = ReverseTransposeOrder(order_val);
+        const auto& transpose_const = Constant::create(transpose_order->get_element_type(), {new_transpose_order.size()}, new_transpose_order);
+        for (auto& new_node : sink_backward::InsertTransposeBeforeNode(main_node,
+                                                                       transpose_const,
+                /* input_indexes= */ {0})) {
+            register_new_node(new_node);
+        }
+        auto new_axis = std::make_shared<Constant>(element::i32, Shape{1}, reversed_transpose_order[axis]);
+        copy_runtime_info(gather_axis, new_axis);
+        main_node->input(2).replace_source_output(new_axis);
         main_node->validate_and_infer_types();
         return true;
     };

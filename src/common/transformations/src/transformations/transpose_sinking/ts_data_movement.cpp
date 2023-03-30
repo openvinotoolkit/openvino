@@ -65,7 +65,7 @@ TSDataMovementForward::TSDataMovementForward() {
 
         const auto transpose_axis_order = transpose_const->get_axis_vector_val();
         const auto reversed_transpose_order = ReverseTransposeOrder(transpose_axis_order);
-        auto axis = std::make_shared<Constant>(element::i32, Shape{}, std::vector<int32_t>{0});
+        auto axis = std::make_shared<Constant>(element::i32, Shape{}, 0);
 
         const auto& indices = get_indices_by_op_type(main_node);
         for (const auto& idx : indices) {
@@ -124,7 +124,7 @@ TSDataMovementBackward::TSDataMovementBackward() {
         RemoveSingleOutputConsumers(main_node);
         SwapNames(main_node, transpose);
         const auto transpose_axis_order = transpose_const->get_axis_vector_val();
-        auto axis = std::make_shared<Constant>(element::i32, Shape{}, std::vector<int32_t>{0});
+        auto axis = std::make_shared<Constant>(element::i32, Shape{}, 0);
         const auto& indices = get_indices_by_op_type(main_node);
         for (const auto& idx : indices) {
             main_node->input(idx).replace_source_output(

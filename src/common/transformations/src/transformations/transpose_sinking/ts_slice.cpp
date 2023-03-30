@@ -47,7 +47,7 @@ TSSliceForward::TSSliceForward() {
         auto transpose_parent = main_node->input_value(0).get_node()->input_value(0);
         main_node->input(0).replace_source_output(transpose_parent);
 
-        auto axis = std::make_shared<Constant>(element::i32, Shape{}, std::vector<int32_t>{0});
+        auto axis = std::make_shared<Constant>(element::i32, Shape{}, 0);
 
         auto new_axes = ChangeAxes(main_node->input_value(4), transpose_const, axis);
         main_node->input(4).replace_source_output(new_axes);
@@ -99,7 +99,7 @@ TSSliceBackward::TSSliceBackward() {
         SwapNames(main_node, transpose);
         const auto transpose_axis_order = transpose_const->get_axis_vector_val();
         const auto reversed_transpose_order = ReverseTransposeOrder(transpose_axis_order);
-        auto axis = std::make_shared<Constant>(element::i32, Shape{}, std::vector<int32_t>{0});
+        auto axis = std::make_shared<Constant>(element::i32, Shape{}, 0);
 
         auto new_axes = ChangeAxes(main_node->input_value(4), reversed_transpose_order, axis);
         main_node->input(4).replace_source_output(new_axes);

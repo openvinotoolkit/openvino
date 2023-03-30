@@ -48,7 +48,7 @@ TSInterpolateForward::TSInterpolateForward() {
         main_node->input(0).replace_source_output(transpose_parent);
 
         const auto transpose_axis_order = transpose_const->get_axis_vector_val();
-        auto axis = std::make_shared<Constant>(element::i32, Shape{}, std::vector<int32_t>{0});
+        auto axis = std::make_shared<Constant>(element::i32, Shape{}, 0);
 
         const auto& interpolate = std::dynamic_pointer_cast<Interpolate>(main_node);
         const auto& new_axes = ChangeAxes(main_node->input_value(3), transpose_axis_order, axis);
@@ -118,7 +118,7 @@ TSInterpolateBackward::TSInterpolateBackward() {
         SwapNames(main_node, transpose);
         const auto transpose_axis_order = transpose_const->get_axis_vector_val();
         const auto reversed_transpose_order = ReverseTransposeOrder(transpose_axis_order);
-        auto axis = std::make_shared<Constant>(element::i32, Shape{}, std::vector<int32_t>{0});
+        auto axis = std::make_shared<Constant>(element::i32, Shape{}, 0);
         auto new_axes = ChangeAxes(main_node->input_value(3), reversed_transpose_order, axis);
         main_node->input(3).replace_source_output(new_axes);
 
