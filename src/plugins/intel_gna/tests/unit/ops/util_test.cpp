@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "ops/util/util.hpp"
+#include "common/graph_utils.hpp"
 
 #include <gtest/gtest.h>
 
@@ -13,7 +13,7 @@
 
 #include "openvino/opsets/opset9.hpp"
 
-using namespace ov::intel_gna::ngraph_util;
+using namespace ov::intel_gna::graph_utils;
 using namespace ov::opset9;
 
 namespace test {

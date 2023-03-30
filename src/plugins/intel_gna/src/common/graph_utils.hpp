@@ -29,7 +29,7 @@
 
 namespace ov {
 namespace intel_gna {
-namespace ngraph_util {
+namespace graph_utils {
 
 template <typename T>
 inline bool get_constant_value(const std::shared_ptr<ngraph::opset8::Constant>& constant, std::vector<double>& values) {
@@ -277,6 +277,43 @@ inline bool has_32bit_output(const std::shared_ptr<ngraph::Node>& node) {
 inline bool has_32bit_input(const std::shared_ptr<ngraph::Node>& node) {
     return is_activation(node) || is_pooling(node);
 }
-}  // namespace ngraph_util
+
+/**
+ * @brief remove all dimensions equal to 1 from the tensor shape vector
+ * @param shape original tensor shape vector
+ * @return modified shape
+ */
+inline ov::Shape squeeze_shape(const ov::Shape& shape) {
+    auto comp = [](size_t x) {
+        return x != 1;
+    };
+
+    auto start_it = std::find_if(shape.begin(), shape.end(), comp);
+    auto end_it = std::find_if(shape.rbegin(), shape.rend(), comp);
+    if (start_it == shape.end() || end_it == shape.rend()) {
+        return ov::Shape(shape.begin(), shape.end());
+    }
+    return ov::Shape(start_it, end_it.base());
+}
+
+/**
+ * @brief Transpose shape
+ * @param shape the shape to be transposed
+ * @param order the permutation array to apply to the input shape
+ * @return transposed shape
+ */
+inline ov::Shape transpose_shape(const ov::Shape& shape, std::vector<size_t> order) {
+    if (shape.size() != order.size()) {
+        THROW_GNA_EXCEPTION << "Sizes of the shape " << shape.size() << " and transpose axis " << order.size()
+                            << " are different";
+    }
+    ov::Shape transposed(shape.size());
+    for (size_t i = 0; i < shape.size(); ++i) {
+        transposed[i] = shape[order[i]];
+    }
+    return transposed;
+}
+
+}  // namespace graph_utils
 }  // namespace intel_gna
 }  // namespace ov

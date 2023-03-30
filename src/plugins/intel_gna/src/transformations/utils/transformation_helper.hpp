@@ -101,21 +101,6 @@ std::shared_ptr<ngraph::Node> InsertFQLayer(const std::shared_ptr<ngraph::opset7
  */
 void remove_single_input_node(std::shared_ptr<ov::Node> node);
 
-/**
- * @brief remove all dimensions equal to 1 from the tensor shape vector
- * @param shape original tensor shape vector
- * @return modified shape
- */
-ov::Shape squeeze_shape(const ov::Shape& shape);
-
-/**
- * @brief Transpose shape
- * @param shape the shape to be transposed
- * @param order the permutation array to apply to the input shape
- * @return transposed shape
- */
-ov::Shape transpose_shape(const ov::Shape& shape, std::vector<size_t> order);
-
 }  // namespace helper
 }  // namespace pass
 }  // namespace intel_gna

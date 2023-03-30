@@ -55,7 +55,7 @@
 #include "scale_factor_helper.hpp"
 #include "serial/gna_model_serial.hpp"
 
-using namespace ov::intel_gna::ngraph_util;
+using namespace ov::intel_gna::graph_utils;
 
 inline uint32_t ToByteSize(const Gna2DataType type) {
     switch (type) {

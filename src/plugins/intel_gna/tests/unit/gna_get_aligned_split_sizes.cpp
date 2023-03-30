@@ -9,7 +9,7 @@
 #define IMPLEMENT_INFERENCE_ENGINE_PLUGIN
 #include "layers/gna_split_layer.hpp"
 #include "ngraph/opsets/opset9.hpp"
-#include "ops/util/util.hpp"
+#include "common/graph_utils.hpp"
 
 namespace {
 

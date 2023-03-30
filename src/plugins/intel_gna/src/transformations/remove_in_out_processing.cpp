@@ -4,6 +4,7 @@
 
 #include "transformations/remove_in_out_processing.hpp"
 
+#include "common/graph_utils.hpp"
 #include "openvino/cc/pass/itt.hpp"
 #include "openvino/opsets/opset1.hpp"
 #include "openvino/opsets/opset10.hpp"
@@ -28,7 +29,7 @@ inline bool is_preprocessing_layer_not_supported(std::shared_ptr<ov::Node>& laye
 
     // Verify that transpose layer cannot be executed on GNA
     if (std::dynamic_pointer_cast<ov::opset1::Transpose>(layer)) {
-        const ov::Shape squeezed_shape = pass::helper::squeeze_shape(layer->get_shape());
+        const ov::Shape squeezed_shape = graph_utils::squeeze_shape(layer->get_shape());
         const size_t min_input_dim = std::min(squeezed_shape[0], squeezed_shape[1]);
         const size_t max_input_dim = std::max(squeezed_shape[0], squeezed_shape[1]);
 
