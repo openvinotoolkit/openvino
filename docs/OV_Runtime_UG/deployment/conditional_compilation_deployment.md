@@ -2,27 +2,27 @@
 
 @sphinxdirective
 
-Conditional compilation can significantly reduce the binary size of OpenVINO™ package by excluding unnecessary components for inference of particular models, which makes the application benefit the optimal binary size.
+Conditional compilation can significantly reduce the binary size of OpenVINO™ package by excluding unnecessary components for inference of particular models, this is particularly useful for edge and client deployment scenarios, where reducing the size of application binary is important.
 
 .. important::
 
-    The cost is OpenVINO runtime will only run inference for these particular models and the device for which was applied in conditional compilation.
+    The tradeoff of conditional compilation is that the produced OpenVINO runtime can only run inference for the model(s) and platform(s) where conditional compilation was applied.
 
 
 More details can be found `conditional_compilation_guide <https://github.com/openvinotoolkit/openvino/blob/master/docs/dev/conditional_compilation.md>`__ and `conditional_compilation_developer_guide <https://github.com/openvinotoolkit/openvino/blob/master/src/common/conditional_compilation/docs/develop_cc_for_new_component.md>`__
 
-There are mainly 2 stages to get optimal binary size of OpenVINO package size with conditional compilation:
+There are two steps to reduce binary size of OpenVINO runtime library with conditional compilation:
 
 - Apply ``SELECTIVE_BUILD=COLLECT`` and ``DENABLE_PROFILING_ITT=ON`` build options to enable analysis mode of conditional compilation to collect statistics data using ``itt``.
 
-- Apply ``SELECTIVE_BUILD=ON`` and ``SELECTIVE_BUILD_STAT=<statistics_data.csv>`` build options to exclude inactive code region with the help of previous statistics data to get the final OpenVINO package.
+- Apply ``SELECTIVE_BUILD=ON`` and ``SELECTIVE_BUILD_STAT=<statistics_data.csv>`` build options to exclude inactive code region with the help of previous statistics data and get the final OpenVINO package.
 
 .. note::
 
     Need install ``Python`` to help collect statistics data.
 
 
-Conditional compilation for different models
+Conditional compilation for multiple models
 ############################################
 
 Stage 1: collecting statistics information about code usage
@@ -44,7 +44,7 @@ Stage 1: collecting statistics information about code usage
 
         cmake --build . --target sea_itt_lib
 
-- Run the target application under the ITT collector for code usage analysis for each models
+- Run the target application under the ITT collector for code usage analysis of each model
 
     .. code-block:: sh
 
