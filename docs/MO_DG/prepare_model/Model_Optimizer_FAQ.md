@@ -242,7 +242,7 @@ However, if your model contains more than one input, Model Optimizer is able to 
 
 @sphinxdirective
 
-.. _faq-30:
+.. _question-30:
 
 @endsphinxdirective
 

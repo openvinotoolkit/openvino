@@ -442,7 +442,7 @@ Different behavior occurs when ``--input_shape`` is also used as an attempt to o
    mo --input_model inception_v1.pb--input=InceptionV1/InceptionV1/Conv2d_1a_7x7/convolution --input_shape [1,224,224,3]  --output_dir <OUTPUT_MODEL_DIR>
 
 
-An error occurs (for more information, see the :ref:`Model Optimizer FAQ <faq-30>`):
+An error occurs (for more information, see the :ref:`Model Optimizer FAQ <question-30>`):
 
 .. code-block:: sh
 
