@@ -333,9 +333,10 @@ std::shared_ptr<ov::Model> CreateFunction_ReadValueAssingAddMultiVariable(const 
         ov::op::util::VariableInfo{ov::PartialShape::dynamic(), ov::element::dynamic, variable_id[1]});
     auto read_value1 = std::make_shared<ov::op::v6::ReadValue>(in, variable1);
     auto read_value2 = std::make_shared<ov::op::v6::ReadValue>(in, variable2);
-    auto add = std::make_shared<ov::op::v1::Add>(read_value1, read_value2);
-    auto assign1 = std::make_shared<ov::op::v6::Assign>(add, variable1);
-    auto assign2 = std::make_shared<ov::op::v6::Assign>(in, variable2);
+    auto add1 = std::make_shared<ov::op::v1::Add>(read_value1, read_value2);
+    auto add2 = std::make_shared<ov::op::v1::Add>(in, add1);
+    auto assign1 = std::make_shared<ov::op::v6::Assign>(add2, variable1);
+    auto assign2 = std::make_shared<ov::op::v6::Assign>(read_value2, variable2);
     return std::make_shared<ov::Model>(ov::OutputVector{assign1},
                                        ov::SinkVector{assign2},
                                        ov::ParameterVector{in},
@@ -699,8 +700,6 @@ INSTANTIATE_TEST_SUITE_P(smoke_Memory_With_Hardcoded_Refs,
                          ::testing::ValuesIn(generateCombinedParamsForReadValueAssignAddReset()),
                          ReferenceReadValueAssignAddResetLayerTest::getTestCaseName);
 
-// Next tests are disabled due to bug in ov::IVariableState::set_state
-// It changes tensor ptr only in VariableState but not in VariableValue
 
 class ReferenceReadValueAssignAddModifyLayerTest : public ReferenceMemoryTest {
 protected:
@@ -711,7 +710,7 @@ protected:
     }
 };
 
-TEST_P(ReferenceReadValueAssignAddModifyLayerTest, DISABLED_MemoryResetWithHardcodedRefs) {
+TEST_P(ReferenceReadValueAssignAddModifyLayerTest, MemoryResetWithHardcodedRefs) {
     auto params = GetParam();
 
     auto reset_var = [&](size_t iter, ov::InferRequest& inferRequest) {
@@ -862,4 +861,160 @@ INSTANTIATE_TEST_SUITE_P(smoke_Memory_With_Hardcoded_Refs,
                          ReferenceReadValueAssignAddModifyLayerTest,
                          ::testing::ValuesIn(generateCombinedParamsForReadValueAssignAddModify()),
                          ReferenceReadValueAssignAddModifyLayerTest::getTestCaseName);
+
+
+class ReferenceReadValueAssignAddMultiVariableModifyLayerTest : public ReferenceMemoryTest {
+protected:
+    std::shared_ptr<ov::Model> CreateFunction(const ov::Shape& input_shape,
+                                              const ov::element::Type& input_type,
+                                              const std::vector<std::string>& variable_id) override {
+        return CreateFunction_ReadValueAssingAddMultiVariable(input_shape, input_type, variable_id);
+    }
+};
+
+TEST_P(ReferenceReadValueAssignAddMultiVariableModifyLayerTest, MemoryResetWithHardcodedRefs) {
+    auto params = GetParam();
+
+    auto reset_var = [&](size_t iter, ov::InferRequest& inferRequest) {
+        if (params.m_reset_on_run == iter) {
+            auto vars = inferRequest.query_state();
+            vars[1].set_state(params.m_input_data);
+        }
+    };
+    CommonTestSteps(reset_var);
+}
+
+template <ov::element::Type_t IN_ET>
+std::vector<MemoryTestParams> generateParamsForReadValueAssignAddMultiVariableModify() {
+    using T = typename ov::element_type_traits<IN_ET>::value_type;
+    size_t count_runs = 10;
+    size_t reset_on_run = 5;
+
+    std::vector<T> first_result_shape1 = {1};
+    std::vector<T> first_result_shape22 = {1, 2, 3, 4};
+    std::vector<T> first_result_shape123 = {1, 2, 3, 4, 5, 6};
+
+    std::vector<T> new_result_shape1(1, T(0));
+    std::vector<T> new_result_shape22(4, T(0));
+    std::vector<T> new_result_shape123(6, T(0));
+
+    std::vector<std::vector<T>> result_shape1;
+    std::vector<std::vector<T>> result_shape22;
+    std::vector<std::vector<T>> result_shape123;
+
+    for (size_t i = 0; i < count_runs - reset_on_run; i++) {
+        std::transform(new_result_shape1.begin(),
+                       new_result_shape1.end(),
+                       first_result_shape1.begin(),
+                       new_result_shape1.begin(),
+                       std::plus<T>());
+        std::transform(new_result_shape22.begin(),
+                       new_result_shape22.end(),
+                       first_result_shape22.begin(),
+                       new_result_shape22.begin(),
+                       std::plus<T>());
+        std::transform(new_result_shape123.begin(),
+                       new_result_shape123.end(),
+                       first_result_shape123.begin(),
+                       new_result_shape123.begin(),
+                       std::plus<T>());
+        result_shape1.push_back(new_result_shape1);
+        result_shape22.push_back(new_result_shape22);
+        result_shape123.push_back(new_result_shape123);
+    }
+
+    std::transform(first_result_shape1.begin(),
+                first_result_shape1.end(),
+                first_result_shape1.begin(),
+                first_result_shape1.begin(),
+                std::plus<T>());
+    std::transform(first_result_shape22.begin(),
+                first_result_shape22.end(),
+                first_result_shape22.begin(),
+                first_result_shape22.begin(),
+                std::plus<T>());
+    std::transform(first_result_shape123.begin(),
+                first_result_shape123.end(),
+                first_result_shape123.begin(),
+                first_result_shape123.begin(),
+                std::plus<T>());
+
+    for (size_t i = count_runs - reset_on_run; i < count_runs; i++) {
+        std::transform(new_result_shape1.begin(),
+                       new_result_shape1.end(),
+                       first_result_shape1.begin(),
+                       new_result_shape1.begin(),
+                       std::plus<T>());
+        std::transform(new_result_shape22.begin(),
+                       new_result_shape22.end(),
+                       first_result_shape22.begin(),
+                       new_result_shape22.begin(),
+                       std::plus<T>());
+        std::transform(new_result_shape123.begin(),
+                       new_result_shape123.end(),
+                       first_result_shape123.begin(),
+                       new_result_shape123.begin(),
+                       std::plus<T>());
+        result_shape1.push_back(new_result_shape1);
+        result_shape22.push_back(new_result_shape22);
+        result_shape123.push_back(new_result_shape123);
+    }
+
+    std::vector<MemoryTestParams> params{MemoryTestParams(ov::Shape{1},
+                                                          ov::Shape{1},
+                                                          IN_ET,
+                                                          IN_ET,
+                                                          std::vector<T>{1},
+                                                          result_shape1,
+                                                          count_runs,
+                                                          {"v0", "v1"},
+                                                          reset_on_run),
+                                         MemoryTestParams(ov::Shape{2, 2},
+                                                          ov::Shape{2, 2},
+                                                          IN_ET,
+                                                          IN_ET,
+                                                          std::vector<T>{1, 2, 3, 4},
+                                                          result_shape22,
+                                                          count_runs,
+                                                          {"v0", "v1"},
+                                                          reset_on_run),
+                                         MemoryTestParams(ov::Shape{1, 2, 3},
+                                                          ov::Shape{1, 2, 3},
+                                                          IN_ET,
+                                                          IN_ET,
+                                                          std::vector<T>{1, 2, 3, 4, 5, 6},
+                                                          result_shape123,
+                                                          count_runs,
+                                                          {"v0", "v1"},
+                                                          reset_on_run)};
+    return params;
+}
+
+std::vector<MemoryTestParams> generateCombinedParamsForReadValueAssignAddMultiVariableModify() {
+    const std::vector<std::vector<MemoryTestParams>> allTypeParams{
+        generateParamsForReadValueAssignAddMultiVariableModify<ov::element::Type_t::f32>(),
+        generateParamsForReadValueAssignAddMultiVariableModify<ov::element::Type_t::f16>(),
+        generateParamsForReadValueAssignAddMultiVariableModify<ov::element::Type_t::bf16>(),
+        generateParamsForReadValueAssignAddMultiVariableModify<ov::element::Type_t::i64>(),
+        generateParamsForReadValueAssignAddMultiVariableModify<ov::element::Type_t::i32>(),
+        generateParamsForReadValueAssignAddMultiVariableModify<ov::element::Type_t::i16>(),
+        generateParamsForReadValueAssignAddMultiVariableModify<ov::element::Type_t::i8>(),
+        generateParamsForReadValueAssignAddMultiVariableModify<ov::element::Type_t::u64>(),
+        generateParamsForReadValueAssignAddMultiVariableModify<ov::element::Type_t::u32>(),
+        generateParamsForReadValueAssignAddMultiVariableModify<ov::element::Type_t::u16>(),
+        generateParamsForReadValueAssignAddMultiVariableModify<ov::element::Type_t::u8>()};
+
+    std::vector<MemoryTestParams> combinedParams;
+
+    for (const auto& params : allTypeParams) {
+        combinedParams.insert(combinedParams.end(), params.begin(), params.end());
+    }
+
+    return combinedParams;
+}
+
+INSTANTIATE_TEST_SUITE_P(smoke_Memory_With_Hardcoded_Refs,
+                         ReferenceReadValueAssignAddMultiVariableModifyLayerTest,
+                         ::testing::ValuesIn(generateCombinedParamsForReadValueAssignAddMultiVariableModify()),
+                         ReferenceReadValueAssignAddMultiVariableModifyLayerTest::getTestCaseName);
 }  // namespace
