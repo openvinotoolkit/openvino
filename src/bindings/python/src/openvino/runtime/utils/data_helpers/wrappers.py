@@ -12,7 +12,7 @@ except ImportError:
     from singledispatchmethod import singledispatchmethod  # type: ignore[no-redef]
 
 from collections.abc import Mapping
-from typing import Union, Dict, List, Tuple, Iterator
+from typing import Dict, Set, Tuple, Union, Iterator
 from typing import KeysView, ItemsView, ValuesView
 
 from openvino._pyopenvino import Tensor, ConstOutput
@@ -86,7 +86,7 @@ class OVDict(Mapping):
     def __get_names(self) -> Dict[ConstOutput, str]:
         """Return names of every output key.
 
-        Throws RuntimeError if any of ConstOutput keys has no name.
+        Inserts empty set if key has no name.
         """
         return {key: key.get_names() for key in self._dict.keys()}
 
@@ -129,10 +129,10 @@ class OVDict(Mapping):
     def items(self) -> ItemsView[ConstOutput, np.ndarray]:
         return self._dict.items()
 
-    def names(self) -> Tuple[str]:
+    def names(self) -> Tuple[Set[str]]:
         """Return names of every output key.
 
-        Throws RuntimeError if any of ConstOutput keys has no name.
+        Inserts empty set if key has no name.
         """
         if self._names is None:
             self._names = self.__get_names()
