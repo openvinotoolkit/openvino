@@ -192,7 +192,7 @@ TEST_P(ExclusiveAsyncReqTests, excluAsyncReqTests) {
     ASSERT_NO_THROW(ie->LoadNetwork(cnnNet, target_device, configuration));
 }
 
-TEST_P(SetPropLoadNetWorkGetPropTests, ieSetGetConfigAndLoadNetWorkSetGetPropertyTest) {
+TEST_P(SetPropLoadNetWorkGetPropTests, SetPropLoadNetWorkGetProperty) {
     ASSERT_NO_THROW(ie->SetConfig(configuration, target_device));
 
     InferenceEngine::ExecutableNetwork exeNetWork;
@@ -201,11 +201,7 @@ TEST_P(SetPropLoadNetWorkGetPropTests, ieSetGetConfigAndLoadNetWorkSetGetPropert
     //ie's setConfig and LoadNetwork should not affect each other, for config settings
     for (const auto& property_item : loadNetWorkConfig) {
         InferenceEngine::Parameter exeNetProperty;
-        try {
-            exeNetProperty = exeNetWork.GetConfig(property_item.first);
-        } catch (InferenceEngine::Exception&) {
-            ASSERT_NO_THROW(exeNetProperty = exeNetWork.GetMetric(property_item.first));
-        }
+        ASSERT_NO_THROW(exeNetProperty = exeNetWork.GetConfig(property_item.first));
         ASSERT_EQ(property_item.second, exeNetProperty.as<std::string>());
     }
 

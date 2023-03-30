@@ -45,6 +45,7 @@ using shapeOpsParams = std::tuple<
     ngraph::helpers::InputLayerType,   // second input type
     shapeNodeType,                     // node type
     Precision,                         // precision
+    ngraph::element::Type_t,           // second input precision
     bool>;                             // special zero
 
 class ShapeOpsCPUTest : public testing::WithParamInterface<shapeOpsParams>, virtual public SubgraphBaseTest, public CPUTestsBase {
@@ -55,7 +56,8 @@ public:
         shapeNodeType nodeType;
         Precision prc;
         bool specialZero;
-        std::tie(inpDesc, secondType, nodeType, prc, specialZero) = obj.param;
+        element::Type_t tmpSecondInPrc;
+        std::tie(inpDesc, secondType, nodeType, prc, tmpSecondInPrc, specialZero) = obj.param;
 
         std::ostringstream result;
         result << nodeType << "_";
@@ -72,6 +74,7 @@ public:
         }
         result << "PRC=" << prc << "_";
         result << "specialZero=" << specialZero;
+        result << "_secondInPrc=" << tmpSecondInPrc;
 
         return result.str();
     }
@@ -84,10 +87,21 @@ protected:
             const auto& funcInput = funcInputs[i];
             ov::runtime::Tensor tensor;
             if (i == 1) {
-                tensor = ov::runtime::Tensor{ov::element::i32, targetInputStaticShapes[i]};
-                auto inputData = tensor.data<ov::element_type_traits<ov::element::i32>::value_type>();
-                for (size_t j = 0lu; j < data[idx].size(); ++j) {
-                    inputData[j] =  data[idx][j];
+#define RESHAPE_TEST_CASE(INT_TYPE) \
+        case ov::element::Type_t::INT_TYPE: { \
+                    tensor = ov::runtime::Tensor{ov::element::INT_TYPE, targetInputStaticShapes[i]}; \
+                    auto inputData = tensor.data<ov::element_type_traits<ov::element::INT_TYPE>::value_type>(); \
+                    for (size_t j = 0lu; j < data[idx].size(); ++j) { \
+                            inputData[j] =  data[idx][j]; \
+                    } \
+                    break; \
+             }
+                switch (secondInPrc) {
+                    RESHAPE_TEST_CASE(i64)
+                    RESHAPE_TEST_CASE(i32)
+                    default:
+                          FAIL() << "We shouldn't get here.";
+#undef RESHAPE_TEST_CASE
                 }
             } else {
                 if (funcInput.get_element_type().is_real()) {
@@ -110,7 +124,7 @@ protected:
         shapeNodeType nodeType;
         Precision prc;
         bool specialZero;
-        std::tie(inpDesc, secondType, nodeType, prc, specialZero) = this->GetParam();
+        std::tie(inpDesc, secondType, nodeType, prc, secondInPrc, specialZero) = this->GetParam();
 
         selectedType = std::string("unknown_") + prc.name();
 
@@ -123,7 +137,6 @@ protected:
         init_input_shapes(inputShapes);
 
         auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(prc);
-        const auto secondInPrc = ngraph::element::Type_t::i32;
         auto inputs = ngraph::builder::makeDynamicParams(ngPrc, {inputDynamicShapes.front()});
         auto dataInput = inputs.front();
         dataInput->set_friendly_name("param_1");
@@ -158,6 +171,7 @@ protected:
 private:
     std::vector<std::vector<int>> data;
     size_t idx;
+    element::Type_t secondInPrc;
 };
 
 TEST_P(ShapeOpsCPUTest, CompareWithRefs) {
@@ -166,6 +180,7 @@ TEST_P(ShapeOpsCPUTest, CompareWithRefs) {
 }
 
 namespace reshapeTest {
+const std::vector<ov::element::Type_t> secondInPrcs{ov::element::Type_t::i64, ov::element::Type_t::i32};
 
 inputDescription noBounds{{{-1, -1, -1, -1},
                            {ngraph::Shape{2, 5, 7, 3}, ngraph::Shape{10, 6, 10, 5}, ngraph::Shape{10, 6, 10, 5}, ngraph::Shape{1, 2, 5, 5}}},
@@ -175,6 +190,7 @@ const auto params = ::testing::Combine(::testing::Values(noBounds),
                                        ::testing::Values(ngraph::helpers::InputLayerType::PARAMETER),
                                        ::testing::Values(shapeNodeType::Reshape),
                                        ::testing::Values(Precision::FP32),
+                                       ::testing::ValuesIn(secondInPrcs),
                                        ::testing::Values(true));
 
 INSTANTIATE_TEST_SUITE_P(smoke_CompareWithRefs_dynamic, ShapeOpsCPUTest, params, ShapeOpsCPUTest::getTestCaseName);
@@ -187,6 +203,7 @@ const auto params_const = ::testing::Combine(::testing::Values(noBounds_const),
                                              ::testing::Values(ngraph::helpers::InputLayerType::CONSTANT),
                                              ::testing::Values(shapeNodeType::Reshape),
                                              ::testing::Values(Precision::FP32),
+                                             ::testing::ValuesIn(secondInPrcs),
                                              ::testing::Values(true));
 
 INSTANTIATE_TEST_SUITE_P(smoke_CompareWithRefs_dynamic_const, ShapeOpsCPUTest, params_const, ShapeOpsCPUTest::getTestCaseName);
@@ -199,6 +216,7 @@ const auto params_dynBatch = ::testing::Combine(::testing::Values(shape_dynBatch
                                                 ::testing::Values(ngraph::helpers::InputLayerType::CONSTANT),
                                                 ::testing::Values(shapeNodeType::Reshape),
                                                 ::testing::Values(Precision::FP32),
+                                                ::testing::ValuesIn(secondInPrcs),
                                                 ::testing::Values(true));
 
 INSTANTIATE_TEST_SUITE_P(smoke_CompareWithRefs_dynBatch, ShapeOpsCPUTest, params_dynBatch, ShapeOpsCPUTest::getTestCaseName);
@@ -206,7 +224,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_CompareWithRefs_dynBatch, ShapeOpsCPUTest, params
 } // namespace reshapeTest
 
 namespace squeezeTest {
-
+const std::vector<ov::element::Type_t> secondInPrcs{ov::element::Type_t::i64, ov::element::Type_t::i32};
 inputDescription noBounds{{{-1, -1, -1, -1, -1, -1},
                            {
                                 ngraph::Shape{2, 5, 1, 7, 3, 1},
@@ -220,6 +238,7 @@ const auto params = ::testing::Combine(::testing::Values(noBounds),
                                        ::testing::Values(ngraph::helpers::InputLayerType::PARAMETER),
                                        ::testing::Values(shapeNodeType::Squeeze),
                                        ::testing::Values(Precision::FP32),
+                                       ::testing::ValuesIn(secondInPrcs),
                                        ::testing::Values(true));
 
 // at this momemnt squeze produce dynamic output rank, if second input is not constant
@@ -234,6 +253,7 @@ const auto params_const = ::testing::Combine(::testing::Values(noBounds_const),
                                              ::testing::Values(ngraph::helpers::InputLayerType::CONSTANT),
                                              ::testing::Values(shapeNodeType::Squeeze),
                                              ::testing::Values(Precision::FP32),
+                                             ::testing::ValuesIn(secondInPrcs),
                                              ::testing::Values(true));
 
 INSTANTIATE_TEST_SUITE_P(smoke_CompareWithRefs_dynamic_const, ShapeOpsCPUTest, params_const, ShapeOpsCPUTest::getTestCaseName);
@@ -241,7 +261,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_CompareWithRefs_dynamic_const, ShapeOpsCPUTest, p
 } // namespace squeezeTest
 
 namespace unsqueezeTest {
-
+const std::vector<ov::element::Type_t> secondInPrcs{ov::element::Type_t::i64, ov::element::Type_t::i32};
 inputDescription noBounds{{{-1, -1, -1, -1},
                            {ngraph::Shape{2, 5, 7, 3}, ngraph::Shape{10, 6, 10, 5}, ngraph::Shape{10, 6, 10, 5}, ngraph::Shape{5, 1, 5}}},
                            {std::vector<int>{2, 5}, std::vector<int>{1, 2}, std::vector<int>{4, 5}, std::vector<int>{0, 1}}};
@@ -250,6 +270,7 @@ const auto params = ::testing::Combine(::testing::Values(noBounds),
                                        ::testing::Values(ngraph::helpers::InputLayerType::PARAMETER),
                                        ::testing::Values(shapeNodeType::Unsqueeze),
                                        ::testing::Values(Precision::FP32),
+                                       ::testing::ValuesIn(secondInPrcs),
                                        ::testing::Values(true));
 
 // at this momemnt unsqueze produce dynamic output rank, if second input is not constant
@@ -264,6 +285,7 @@ const auto params_const = ::testing::Combine(::testing::Values(noBounds_const),
                                              ::testing::Values(ngraph::helpers::InputLayerType::CONSTANT),
                                              ::testing::Values(shapeNodeType::Unsqueeze),
                                              ::testing::Values(Precision::FP32),
+                                             ::testing::ValuesIn(secondInPrcs),
                                              ::testing::Values(true));
 
 INSTANTIATE_TEST_SUITE_P(smoke_CompareWithRefs_dynamic_const, ShapeOpsCPUTest, params_const, ShapeOpsCPUTest::getTestCaseName);
