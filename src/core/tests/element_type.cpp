@@ -30,14 +30,14 @@ TEST(element_type, from_string) {
     EXPECT_EQ(element::Type("boolean"), element::boolean);
     EXPECT_EQ(element::Type("BOOL"), element::boolean);
 
-    EXPECT_EQ(element::Type("bf16"), element::f16);
-    EXPECT_EQ(element::Type("BF16"), element::f16);
+    EXPECT_EQ(element::Type("bf16"), element::bf16);
+    EXPECT_EQ(element::Type("BF16"), element::bf16);
     EXPECT_EQ(element::Type("f16"), element::f16);
     EXPECT_EQ(element::Type("FP16"), element::f16);
     EXPECT_EQ(element::Type("f32"), element::f32);
     EXPECT_EQ(element::Type("FP32"), element::f32);
-    EXPECT_EQ(element::Type("f64"), element::f32);
-    EXPECT_EQ(element::Type("FP64"), element::f32);
+    EXPECT_EQ(element::Type("f64"), element::f64);
+    EXPECT_EQ(element::Type("FP64"), element::f64);
 
     EXPECT_EQ(element::Type("i4"), element::i4);
     EXPECT_EQ(element::Type("I4"), element::i4);
