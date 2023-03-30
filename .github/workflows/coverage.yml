@@ -89,11 +89,13 @@ jobs:
           cxx: ${{ matrix.config.cxx }}
           configure-options: >
             -DENABLE_PYTHON=ON
+            -DBUILD_SHARED_LIBS=ON
+            -DENABLE_ONEDNN_FOR_GPU=ON
             -DCMAKE_VERBOSE_MAKEFILE=ON
             -DENABLE_STRICT_DEPENDENCIES=OFF
             -DENABLE_REQUIREMENTS_INSTALL=OFF
             -DENABLE_FASTER_BUILD=ON
-            -DENABLE_OV_ONNX_FRONTEND=OFF
+            -DENABLE_OV_ONNX_FRONTEND=ON
             -DENABLE_TESTS=ON
             -DENABLE_COVERAGE=ON
             -DCMAKE_C_COMPILER_LAUNCHER=ccache
