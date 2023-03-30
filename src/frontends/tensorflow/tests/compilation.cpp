@@ -34,7 +34,7 @@ class CompileModelsTests : public ::testing::Test {};
 
 TEST_F(CompileModelsTests, NgramCompilation) {
     ov::Core core;
-    auto model = convert_model("model_ngram/model_ngram.pb");
+    auto model = convert_model("model_ngram/model_ngram.pbtxt");
     ov::CompiledModel compiled_model = core.compile_model(model, "CPU");
     const auto runtime_model = compiled_model.get_runtime_model();
 
