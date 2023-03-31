@@ -183,7 +183,7 @@ For the GNMT model, the training graph and the inference graph have different de
 
 2. Run the NMT framework to dump the inference model:
 
-.. code-block:: python
+.. code-block:: py
 
    python -m nmt.nmt
       --src=de
@@ -202,7 +202,7 @@ Inference checkpoint ``inference_GNMT_graph`` and frozen inference graph ``froze
 
 To generate ``vocab.bpe.32000``, execute the ``nmt/scripts/wmt16_en_de.sh`` script. If you face an issue of a size mismatch between the checkpoint graph's embedding layer and vocabulary (both src and target), make sure you add the following code to the ``nmt.py`` file to the ``extend_hparams`` function after the line 508 (after initialization of the ``src_vocab_size`` and ``tgt_vocab_size`` variables):
 
-.. code-block:: python
+.. code-block:: py
 
    src_vocab_size -= 1
    tgt_vocab_size -= 1
@@ -210,7 +210,7 @@ To generate ``vocab.bpe.32000``, execute the ``nmt/scripts/wmt16_en_de.sh`` scri
 
 **Step 4**. Convert the model to the IR:
 
-.. code-block:: python
+.. code-block:: py
 
    mo
    --input_model /path/to/dump/model/frozen_GNMT_inference_graph.pb
@@ -261,7 +261,7 @@ Running GNMT IR
 
 1. With benchmark app:
 
-.. code-block:: python
+.. code-block:: py
 
    benchmark_app -m <path to the generated GNMT IR> -d CPU
 
@@ -272,7 +272,7 @@ Running GNMT IR
 
    Before running the example, insert a path to your GNMT ``.xml`` and ``.bin`` files into ``MODEL_PATH`` and ``WEIGHTS_PATH``, and fill ``input_data_tensor`` and ``seq_lengths`` tensors according to your input data.
 
-.. code-block:: python
+.. code-block:: py
 
    from openvino.inference_engine import IENetwork, IECore
 
@@ -299,6 +299,6 @@ Running GNMT IR
    result_ie = exec_net.infer(input_data)
 
 
-For more information about Python API, refer to the :doc:`OpenVINO Runtime Python API <ie_python_api/api>` guide.
+For more information about Python API, refer to the `OpenVINO Runtime Python API <https://docs.openvino.ai/2022.3/api/ie_python_api/api.html>`__  guide.
 
 @endsphinxdirective

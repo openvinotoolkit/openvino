@@ -14,7 +14,7 @@ the instructions from the **Freezing Custom Models in Python** section of the
 
 Run the following commands:
 
-.. code-block:: python
+.. code-block:: py
 
     import tensorflow as tf
     from tensorflow.python.framework import graph_io

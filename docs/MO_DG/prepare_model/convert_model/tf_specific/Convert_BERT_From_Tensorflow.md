@@ -59,19 +59,19 @@ Follow these steps to make a pretrained TensorFlow BERT model reshapable over ba
 
 2. Clone google-research/bert git repository:
 
-.. code-block:: python
+.. code-block:: py
 
    https://github.com/google-research/bert.git
 
 3. Go to the root directory of the cloned repository:
 
-.. code-block:: python
+.. code-block:: py
 
    cd bert
 
 4. (Optional) Checkout to the commit that the conversion was tested on:
 
-.. code-block:: python
+.. code-block:: py
 
    git checkout eedf5716c
 
@@ -79,30 +79,30 @@ Follow these steps to make a pretrained TensorFlow BERT model reshapable over ba
 
    * For UNIX-like systems, run the following command:
 
-   .. code-block:: python
+   .. code-block:: py
 
       wget https://gist.githubusercontent.com/W4ngatang/60c2bdb54d156a41194446737ce03e2e/raw/17b8dd0d724281ed7c3b2aeeda662b92809aadd5/download_glue_data.py
 
    * For Windows systems:
 
-    Download the `Python script <https://gist.githubusercontent.com/W4ngatang/60c2bdb54d156a41194446737ce03e2e/raw/17b8dd0d724281ed7c3b2aeeda662b92809aadd5/download_glue_data.py>`__ to the current working directory.
+      Download the `Python script <https://gist.githubusercontent.com/W4ngatang/60c2bdb54d156a41194446737ce03e2e/raw/17b8dd0d724281ed7c3b2aeeda662b92809aadd5/download_glue_data.py>`__ to the current working directory.
 
 6. Download GLUE data by running:
 
-.. code-block:: python
+.. code-block:: py
 
    python3 download_glue_data.py --tasks MRPC
 
 7. Open the file ``modeling.py`` in the text editor and delete lines 923-924. They should look like this:
 
-.. code-block:: python
+.. code-block:: py
 
     if not non_static_indexes:
         return shape
 
 8. Open the file ``run_classifier.py`` and insert the following code after the line 645:
 
-.. code-block:: python
+.. code-block:: py
 
     import os, sys
     import tensorflow as tf
@@ -119,7 +119,7 @@ Follow these steps to make a pretrained TensorFlow BERT model reshapable over ba
 
 Lines before the inserted code should look like this:
 
-.. code-block:: python
+.. code-block:: py
 
     (total_loss, per_example_loss, logits, probabilities) = create_model(
         bert_config, is_training, input_ids, input_mask, segment_ids, label_ids,
@@ -128,7 +128,7 @@ Lines before the inserted code should look like this:
 
 9. Set environment variables ``BERT_BASE_DIR``, ``BERT_REPO_DIR`` and run the script ``run_classifier.py`` to create ``inference_graph.pb`` file in the root of the cloned BERT repository.
 
-.. code-block:: python
+.. code-block:: py
 
    export BERT_BASE_DIR=/path/to/bert/uncased_L-12_H-768_A-12
    export BERT_REPO_DIR=/current/working/directory
@@ -144,7 +144,7 @@ Lines before the inserted code should look like this:
 
 Run Model Optimizer with the following command line parameters to generate reshape-able BERT Intermediate Representation (IR):
 
-.. code-block:: python
+.. code-block:: py
 
     mo \
    --input_model inference_graph.pb \

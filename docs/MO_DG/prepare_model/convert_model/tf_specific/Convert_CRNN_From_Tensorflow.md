@@ -14,19 +14,19 @@ If you have another implementation of CRNN model, it can be converted to OpenVIN
 
 1. Clone the repository:
 
-.. code-block:: python
+.. code-block:: py
 
    git clone https://github.com/MaybeShewill-CV/CRNN_Tensorflow.git
 
 2. Go to the ``CRNN_Tensorflow`` directory of the cloned repository:
 
-.. code-block:: python
+.. code-block:: py
    
    cd path/to/CRNN_Tensorflow
 
 3. Check out the necessary commit:
 
-.. code-block:: python
+.. code-block:: py
    
    git checkout 64f1f1867bffaacfeacc7a80eebf5834a5726122
 
@@ -40,7 +40,7 @@ If you have another implementation of CRNN model, it can be converted to OpenVIN
 
    * For Linux:
 
-   .. code-block:: python
+   .. code-block:: py
 
       export PYTHONPATH="${PYTHONPATH}:/path/to/CRNN_Tensorflow/"
 
@@ -48,9 +48,10 @@ If you have another implementation of CRNN model, it can be converted to OpenVIN
    * For  Windows, add ``/path/to/CRNN_Tensorflow/`` to the ``PYTHONPATH`` environment variable in settings.
 
 
+
 2. Edit the ``tools/demo_shadownet.py`` script. After ``saver.restore(sess=sess, save_path=weights_path)`` line, add the following code:
 
-.. code-block:: python
+.. code-block:: py
 
    from tensorflow.python.framework import graph_io
    frozen = tf.graph_util.convert_variables_to_constants(sess, sess.graph_def, ['shadow/LSTMLayers/transpose_time_major'])
@@ -58,7 +59,7 @@ If you have another implementation of CRNN model, it can be converted to OpenVIN
 
 3. Run the demo with the following command:
 
-.. code-block:: python
+.. code-block:: py
 
    python tools/demo_shadownet.py --image_path data/test_images/test_01.jpg --weights_path model/shadownet/shadownet_2017-10-17-11-47-46.ckpt-199999
 
@@ -68,7 +69,7 @@ If you have another implementation of CRNN model, it can be converted to OpenVIN
 
 **Step 4.** Convert the model to IR:
 
-.. code-block:: python
+.. code-block:: py
 
    mo --input_model path/to/your/CRNN_Tensorflow/frozen_graph.pb
 

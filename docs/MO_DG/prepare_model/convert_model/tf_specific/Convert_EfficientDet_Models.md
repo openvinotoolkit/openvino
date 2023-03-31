@@ -19,20 +19,20 @@ Follow the instructions below to get frozen TensorFlow EfficientDet model. Effic
 
 1. Clone the repository:
 
-.. code-block:: python
+.. code-block:: py
 
    git clone https://github.com/google/automl
    cd automl/efficientdet
 
 2. (Optional) Checkout to the commit that the conversion was tested on:
 
-.. code-block:: python
+.. code-block:: py
 
    git checkout 96e1fee
 
 3. Install required dependencies:
 
-.. code-block:: python
+.. code-block:: py
 
    python3 -m pip install --upgrade pip
    python3 -m pip install -r requirements.txt
@@ -41,14 +41,14 @@ Follow the instructions below to get frozen TensorFlow EfficientDet model. Effic
 4. Download and extract the model checkpoint `efficientdet-d4.tar.gz <https://storage.googleapis.com/cloud-tpu-checkpoints/efficientdet/coco2/efficientdet-d4.tar.gz>`__
 referenced in the **"Pretrained EfficientDet Checkpoints"** section of the model repository:
 
-.. code-block:: python
+.. code-block:: py
 
    wget https://storage.googleapis.com/cloud-tpu-checkpoints/efficientdet/coco2/efficientdet-d4.tar.gz
    tar zxvf efficientdet-d4.tar.gz
 
 5. Freeze the model:
 
-.. code-block:: python
+.. code-block:: py
 
     mo --runmode=saved_model --model_name=efficientdet-d4  --ckpt_path=efficientdet-d4 --saved_model_dir=savedmodeldir
 
@@ -67,7 +67,7 @@ Converting an EfficientDet TensorFlow Model to the IR
 
 To generate the IR of the EfficientDet TensorFlow model, run:
 
-.. code-block:: python
+.. code-block:: py
 
    mo \
    --input_model savedmodeldir/efficientdet-d4_frozen.pb \
