@@ -86,7 +86,7 @@ class OVDict(Mapping):
     def __get_names(self) -> Dict[ConstOutput, str]:
         """Return names of every output key.
 
-        Inserts empty set if key has no name.
+        Insert empty set if key has no name.
         """
         return {key: key.get_names() for key in self._dict.keys()}
 
@@ -95,7 +95,7 @@ class OVDict(Mapping):
 
     @singledispatchmethod
     def __getitem_impl(self, key: Union[ConstOutput, int, str]) -> np.ndarray:
-        raise TypeError("Unknown key type!")
+        raise TypeError("Unknown key type: {}", type(key))
 
     @__getitem_impl.register
     def _(self, key: ConstOutput) -> np.ndarray:
@@ -112,9 +112,9 @@ class OVDict(Mapping):
     def _(self, key: str) -> np.ndarray:
         if self._names is None:
             self._names = self.__get_names()
-        for k, v in self._names.items():
-            if key in v:
-                return self._dict[k]
+        for port, port_names in self._names.items():
+            if key in port_names:
+                return self._dict[port]
         raise KeyError(key)
 
     def __getitem__(self, key: Union[ConstOutput, int, str]) -> np.ndarray:
@@ -132,7 +132,7 @@ class OVDict(Mapping):
     def names(self) -> Tuple[Set[str]]:
         """Return names of every output key.
 
-        Inserts empty set if key has no name.
+        Insert empty set if key has no name.
         """
         if self._names is None:
             self._names = self.__get_names()
