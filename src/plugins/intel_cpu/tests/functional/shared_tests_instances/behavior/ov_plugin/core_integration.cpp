@@ -52,6 +52,10 @@ INSTANTIATE_TEST_SUITE_P(smoke_OVClassSetConfigTest,
                          OVClassSetUseHyperThreadingHintConfigTest,
                          ::testing::Values("CPU"));
 
+INSTANTIATE_TEST_SUITE_P(smoke_OVClassSetConfigTest,
+                         OVClassSetSchedulingCoreTypeHintConfigTest,
+                         ::testing::Values("CPU"));
+
 INSTANTIATE_TEST_SUITE_P(
         smoke_OVClassGetMetricTest, OVClassGetMetricTest_OPTIMIZATION_CAPABILITIES,
         ::testing::Values("CPU"));
@@ -275,13 +279,13 @@ TEST(OVClassBasicTest, smoke_SetConfigHintInferencePrecision) {
     auto value = ov::element::f32;
     const auto precision = InferenceEngine::with_cpu_x86_bfloat16() ? ov::element::bf16 : ov::element::f32;
 
-    OV_ASSERT_NO_THROW(value = ie.get_property("CPU", ov::inference_precision));
+    OV_ASSERT_NO_THROW(value = ie.get_property("CPU", ov::hint::inference_precision));
     ASSERT_EQ(precision, value);
 
     const auto forcedPrecision = ov::element::f32;
 
-    OV_ASSERT_NO_THROW(ie.set_property("CPU", ov::inference_precision(forcedPrecision)));
-    OV_ASSERT_NO_THROW(value = ie.get_property("CPU", ov::inference_precision));
+    OV_ASSERT_NO_THROW(ie.set_property("CPU", ov::hint::inference_precision(forcedPrecision)));
+    OV_ASSERT_NO_THROW(value = ie.get_property("CPU", ov::hint::inference_precision));
     ASSERT_EQ(value, forcedPrecision);
 
     OPENVINO_SUPPRESS_DEPRECATED_START
@@ -355,14 +359,12 @@ INSTANTIATE_TEST_SUITE_P(smoke_AUTO_MULTI_ReturnDefaultHintTest,
                                             ::testing::ValuesIn(auto_multi_default_properties)));
 // For AUTO, User sets perf_hint, AUTO's perf_hint should not return default value LATENCY
 const std::vector<ov::AnyMap> default_auto_properties = {
-    {ov::hint::performance_mode(ov::hint::PerformanceMode::THROUGHPUT)},
-    {ov::hint::performance_mode(ov::hint::PerformanceMode::UNDEFINED)}};
-// For MULIT, User sets perf_hint or Affinity or num_streams or infer_num_threads, MULTI's perf_hint should
+    {ov::hint::performance_mode(ov::hint::PerformanceMode::THROUGHPUT)}};
+// For MULTI, User sets perf_hint or Affinity or num_streams or infer_num_threads, MULTI's perf_hint should
 // not return default value THROUGHPUT
 // For Secondary property test about default hint is in auto_load_network_properties_test.cpp
 const std::vector<ov::AnyMap> default_multi_properties = {
     {ov::hint::performance_mode(ov::hint::PerformanceMode::LATENCY)},
-    {ov::hint::performance_mode(ov::hint::PerformanceMode::UNDEFINED)},
     {ov::affinity(ov::Affinity::NONE)},
     {ov::num_streams(ov::streams::AUTO)},
     {ov::inference_num_threads(1)}};
