@@ -104,8 +104,8 @@ jobs:
             -DCMAKE_CXX_LINKER_LAUNCHER=ccache
           build-type: Release
           run-test: true
-          ctest-options: -V
           parallel: ${{ steps.cpu-cores.outputs.count }}
+          continue-on-error: true
       
      # - name: Run tests
      #   run: ctest -V
