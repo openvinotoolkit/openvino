@@ -34,7 +34,7 @@ jobs:
       fail-fast: false
       matrix:
         config:
-          - { name: "Ubuntu gcc", os: ubuntu-latest-16-cores, cc: "gcc", cxx: "g++" }
+          - { name: "Ubuntu gcc", cc: "gcc", cxx: "g++" }
 
     steps:
       - name: Clone OpenVINO
@@ -42,6 +42,27 @@ jobs:
         with:
           submodules: recursive
       
+      - name: System info
+        run: |
+          whoami
+          uname -a
+          printenv
+          echo ${{ github.workspace }}
+      
+      - name: Set proxy
+        run: |
+          export http_proxy="http://proxy-dmz.intel.com:911"
+          export https_proxy="http://proxy-dmz.intel.com:912"
+          export no_proxy="localhost,127.0.0.1,intel.com,.intel.com"
+          export HTTP_PROXY="http://proxy-dmz.intel.com:911"
+          export HTTPS_PROXY="http://proxy-dmz.intel.com:912"
+          export NO_PROXY="localhost,127.0.0.1,intel.com,.intel.com"
+      - name: System info
+        run: |
+          whoami
+          uname -a
+          printenv
+          echo ${{ github.workspace }}
       #- name: Setup ccache
       #  uses: hendrikmuhs/ccache-action@v1.2
       #  with:
