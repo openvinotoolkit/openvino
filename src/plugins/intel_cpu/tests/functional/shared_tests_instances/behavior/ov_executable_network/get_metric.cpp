@@ -147,13 +147,13 @@ TEST_F(OVClassConfigTestCPU, smoke_CheckModelInferencePrecisionHasHigherPriority
     ov::Core ie;
     auto inference_precision_value = ov::element::undefined;
 
-    OV_ASSERT_NO_THROW(ie.set_property("CPU", ov::inference_precision(ov::element::f32)));
+    OV_ASSERT_NO_THROW(ie.set_property("CPU", ov::hint::inference_precision(ov::element::f32)));
 
     ov::AnyMap config;
-    config[ov::inference_precision.name()] = bf16_if_can_be_emulated;
+    config[ov::hint::inference_precision.name()] = bf16_if_can_be_emulated;
     ov::CompiledModel compiledModel = ie.compile_model(model, deviceName, config);
 
-    ASSERT_NO_THROW(inference_precision_value = compiledModel.get_property(ov::inference_precision));
+    ASSERT_NO_THROW(inference_precision_value = compiledModel.get_property(ov::hint::inference_precision));
     ASSERT_EQ(inference_precision_value, bf16_if_can_be_emulated);
 }
 
@@ -162,7 +162,7 @@ TEST_F(OVClassConfigTestCPU, smoke_CheckCoreInferencePrecisionHasHigherPriorityT
     auto execution_mode_value = ov::hint::ExecutionMode::ACCURACY;
     auto inference_precision_value = ov::element::undefined;
 
-    OV_ASSERT_NO_THROW(ie.set_property("CPU", ov::inference_precision(ov::element::f32)));
+    OV_ASSERT_NO_THROW(ie.set_property("CPU", ov::hint::inference_precision(ov::element::f32)));
 
     ov::AnyMap config;
     config[ov::hint::execution_mode.name()] = ov::hint::ExecutionMode::PERFORMANCE;
@@ -171,7 +171,7 @@ TEST_F(OVClassConfigTestCPU, smoke_CheckCoreInferencePrecisionHasHigherPriorityT
     ASSERT_NO_THROW(execution_mode_value = compiledModel.get_property(ov::hint::execution_mode));
     ASSERT_EQ(execution_mode_value, ov::hint::ExecutionMode::PERFORMANCE);
 
-    ASSERT_NO_THROW(inference_precision_value = compiledModel.get_property(ov::inference_precision));
+    ASSERT_NO_THROW(inference_precision_value = compiledModel.get_property(ov::hint::inference_precision));
     ASSERT_EQ(inference_precision_value, ov::element::f32);
 }
 
@@ -184,13 +184,13 @@ TEST_F(OVClassConfigTestCPU, smoke_CheckModelInferencePrecisionHasHigherPriority
     OV_ASSERT_NO_THROW(ie.set_property("CPU", ov::hint::execution_mode(ov::hint::ExecutionMode::ACCURACY)));
 
     ov::AnyMap config;
-    config[ov::inference_precision.name()] = inference_precision_expected;
+    config[ov::hint::inference_precision.name()] = inference_precision_expected;
     ov::CompiledModel compiledModel = ie.compile_model(model, deviceName, config);
 
     ASSERT_NO_THROW(execution_mode_value = compiledModel.get_property(ov::hint::execution_mode));
     ASSERT_EQ(execution_mode_value, ov::hint::ExecutionMode::ACCURACY);
 
-    ASSERT_NO_THROW(inference_precision_value = compiledModel.get_property(ov::inference_precision));
+    ASSERT_NO_THROW(inference_precision_value = compiledModel.get_property(ov::hint::inference_precision));
     ASSERT_EQ(inference_precision_value, inference_precision_expected);
 }
 

@@ -330,7 +330,7 @@ TEST(OVClassBasicTest, smoke_SetConfigExecutionModeExpectCorrespondingInferenceP
     auto inference_precision_value = ov::element::undefined;
 
     // check default values
-    OV_ASSERT_NO_THROW(inference_precision_value = ie.get_property("CPU", ov::inference_precision));
+    OV_ASSERT_NO_THROW(inference_precision_value = ie.get_property("CPU", ov::hint::inference_precision));
     ASSERT_EQ(inference_precision_value, inference_precision_default);
     OV_ASSERT_NO_THROW(execution_mode_value = ie.get_property("CPU", ov::hint::execution_mode));
     ASSERT_EQ(execution_mode_value, execution_mode_default);
@@ -344,7 +344,7 @@ TEST(OVClassBasicTest, smoke_SetConfigExecutionModeExpectCorrespondingInferenceP
         OV_ASSERT_NO_THROW(execution_mode_value = ie.get_property("CPU", ov::hint::execution_mode));
         ASSERT_EQ(execution_mode_value, execution_mode_exected);
 
-        OV_ASSERT_NO_THROW(inference_precision_value = ie.get_property("CPU", ov::inference_precision));
+        OV_ASSERT_NO_THROW(inference_precision_value = ie.get_property("CPU", ov::hint::inference_precision));
         ASSERT_EQ(inference_precision_value, inference_precision_exected);
     }
 }
@@ -362,7 +362,7 @@ TEST(OVClassBasicTest, smoke_SetConfigExecutionModeAndInferencePrecision) {
 
     auto expect_inference_precision = [&](const ov::element::Type expected_value) {
         auto inference_precision_value = ov::element::undefined;;
-        OV_ASSERT_NO_THROW(inference_precision_value = ie.get_property("CPU", ov::inference_precision));
+        OV_ASSERT_NO_THROW(inference_precision_value = ie.get_property("CPU", ov::hint::inference_precision));
         ASSERT_EQ(inference_precision_value, expected_value);
     };
 
@@ -371,12 +371,12 @@ TEST(OVClassBasicTest, smoke_SetConfigExecutionModeAndInferencePrecision) {
     expect_inference_precision(inference_precision_default);
     // verify that conflicting property values work as expect
     OV_ASSERT_NO_THROW(ie.set_property("CPU", ov::hint::execution_mode(ov::hint::ExecutionMode::PERFORMANCE)));
-    OV_ASSERT_NO_THROW(ie.set_property("CPU", ov::inference_precision(ov::element::f32)));
+    OV_ASSERT_NO_THROW(ie.set_property("CPU", ov::hint::inference_precision(ov::element::f32)));
     expect_execution_mode(ov::hint::ExecutionMode::PERFORMANCE); // inference_preicision does not affect execution_mode property itself
     expect_inference_precision(ov::element::f32); // inference_preicision has more priority than performance mode
 
     OV_ASSERT_NO_THROW(ie.set_property("CPU", ov::hint::execution_mode(ov::hint::ExecutionMode::ACCURACY)));
-    OV_ASSERT_NO_THROW(ie.set_property("CPU", ov::inference_precision(bf16_if_can_be_emulated)));
+    OV_ASSERT_NO_THROW(ie.set_property("CPU", ov::hint::inference_precision(bf16_if_can_be_emulated)));
     expect_execution_mode(ov::hint::ExecutionMode::ACCURACY);
     expect_inference_precision(bf16_if_can_be_emulated);
 }
