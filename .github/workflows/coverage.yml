@@ -62,9 +62,9 @@ jobs:
           export HTTP_PROXY="http://proxy-dmz.intel.com:911"
           export HTTPS_PROXY="http://proxy-dmz.intel.com:912"
           export NO_PROXY="localhost,127.0.0.1,intel.com,.intel.com"
-          sudo -E apt --assume-yes update
-          sudo -E ${{ github.workspace }}/install_build_dependencies.sh
-          sudo -E apt --assume-yes install lcov
+          sudo apt --assume-yes update
+          sudo . ${{ github.workspace }}/install_build_dependencies.sh
+          sudo apt --assume-yes install lcov
           sudo mkdir ${{ github.workspace }}/testdata
       
       - name: Install python dependencies
