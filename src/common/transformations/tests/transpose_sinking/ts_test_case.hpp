@@ -105,14 +105,5 @@ public:
     static std::string get_test_name(const ::testing::TestParamInfo<TestParams>& obj);
 };
 
-auto wrapper = [](const TestCase& test_case) {
-    OPENVINO_ASSERT(test_case.model.main_op.size() == test_case.model_ref.main_op.size(),
-                    "The number of main op (testing op) creator have to be the same for the testing model and for"
-                    "the reference model.");
-    return ::testing::Combine(::testing::Range<size_t>(0, test_case.num_main_ops.size()),
-                              ::testing::Range<size_t>(0, test_case.model.main_op.size()),
-                              ::testing::Values(test_case));
-};
-
 }  // namespace testing
 }  // namespace transpose_sinking

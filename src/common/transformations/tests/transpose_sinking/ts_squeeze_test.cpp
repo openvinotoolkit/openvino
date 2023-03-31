@@ -54,6 +54,15 @@ shared_ptr<ov::Model> create_model(size_t main_node_idx,
     return make_shared<ov::Model>(outputs, filter_parameters(inputs_to_main));
 }
 
+auto wrapper = [](const TestCase& test_case) {
+    OPENVINO_ASSERT(test_case.model.main_op.size() == test_case.model_ref.main_op.size(),
+                    "The number of main op (testing op) creator have to be the same for the testing model and for"
+                    "the reference model.");
+    return ::testing::Combine(::testing::Range<size_t>(0, test_case.num_main_ops.size()),
+                              ::testing::Range<size_t>(0, test_case.model.main_op.size()),
+                              ::testing::Values(test_case));
+};
+
 struct SqueezeForwardArguments {
     OutputVector inputs_to_main;
     Output<Node> new_input_to_squeeze_1;

@@ -166,7 +166,7 @@ AxisVector AlignTransposeOrder(const Output<Node>& output, const TransposeInputs
 
 bool UpdateInputTransposes(const NodePtr& main_node,
                            const TransposeInputsInfo& transpose_input_info,
-                           std::vector<int> input_indexes) {
+                           std::vector<size_t> input_indexes) {
     if (input_indexes.empty()) {
         input_indexes.resize(main_node->get_input_size());
         std::iota(input_indexes.begin(), input_indexes.end(), 0);
@@ -250,7 +250,7 @@ namespace sink_backward {
 
 NodeVector InsertTransposeBeforeNode(const NodePtr& main_node,
                                      const std::shared_ptr<Constant>& transpose_const,
-                                     std::vector<int> input_indexes) {
+                                     std::vector<size_t> input_indexes) {
     if (input_indexes.empty()) {
         input_indexes.resize(main_node->get_input_size());
         std::iota(input_indexes.begin(), input_indexes.end(), 0);
