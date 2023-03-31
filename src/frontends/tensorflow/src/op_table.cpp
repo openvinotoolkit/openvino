@@ -6,6 +6,7 @@
 
 #include "common_op_table.hpp"
 #include "openvino/opsets/opset10.hpp"
+#include "openvino/opsets/opset8.hpp"
 #include "openvino/opsets/opset9.hpp"
 
 using namespace std;

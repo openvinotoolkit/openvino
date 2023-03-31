@@ -5,6 +5,7 @@
 #include "openvino/frontend/tensorflow/frontend.hpp"
 
 #include "graph_iterator_proto.hpp"
+#include "graph_iterator_proto_txt.hpp"
 #include "graph_iterator_saved_model.hpp"
 #include "helper_transforms/block_lstm_replacer.hpp"
 #include "helper_transforms/const_to_result_remover.hpp"
@@ -92,6 +93,9 @@ bool FrontEnd::supported_impl(const std::vector<ov::Any>& variants) const {
             return true;
         } else if (GraphIteratorSavedModel::is_supported(model_path)) {
             return true;
+        } else if (GraphIteratorProtoTxt::is_supported(model_path)) {
+            // handle text protobuf format
+            return true;
         }
     }
 #if defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
@@ -105,6 +109,9 @@ bool FrontEnd::supported_impl(const std::vector<ov::Any>& variants) const {
             return true;
         } else if (GraphIteratorSavedModel::is_supported(model_path)) {
             return true;
+        } else if (GraphIteratorProtoTxt::is_supported(model_path)) {
+            // handle text protobuf format
+            return true;
         }
     }
 #endif
@@ -116,7 +123,7 @@ bool FrontEnd::supported_impl(const std::vector<ov::Any>& variants) const {
 }
 
 ov::frontend::InputModel::Ptr FrontEnd::load_impl(const std::vector<ov::Any>& variants) const {
-    // TODO: Support other TensorFlow formats: SavedModel, .meta, checkpoint, pbtxt
+    // TODO: Support other TensorFlow formats: SavedModel, .meta, checkpoint
 
     // Last boolean flag in `variants` (if presented) is reserved for FE configuration
     size_t extra_variants_num = variants.size() > 0 && variants[variants.size() - 1].is<bool>() ? 1 : 0;
@@ -141,6 +148,9 @@ ov::frontend::InputModel::Ptr FrontEnd::load_impl(const std::vector<ov::Any>& va
                                                 graph_iterator->get_variables_index(),
                                                 graph_iterator->get_saved_model_input_names(),
                                                 graph_iterator->get_saved_model_output_names());
+        } else if (GraphIteratorProtoTxt::is_supported(model_path)) {
+            // handle text protobuf format
+            return std::make_shared<InputModel>(std::make_shared<GraphIteratorProtoTxt>(model_path), m_telemetry);
         }
     }
 #if defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
@@ -163,6 +173,9 @@ ov::frontend::InputModel::Ptr FrontEnd::load_impl(const std::vector<ov::Any>& va
                                                 graph_iterator->get_variables_index(),
                                                 graph_iterator->get_saved_model_input_names(),
                                                 graph_iterator->get_saved_model_output_names());
+        } else if (GraphIteratorProtoTxt::is_supported(model_path)) {
+            // handle text protobuf format with a path in Unicode
+            return std::make_shared<InputModel>(std::make_shared<GraphIteratorProtoTxt>(model_path), m_telemetry);
         }
     }
 #endif
