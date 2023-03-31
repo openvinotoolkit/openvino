@@ -3,6 +3,7 @@
 
 import numpy as np
 import pytest
+import sys
 from common.layer_test_class import check_ir_version
 from common.tf_layer_test_class import CommonTFLayerTest
 from common.utils.tf_utils import permute_nchw_to_nhwc
@@ -135,6 +136,7 @@ class TestUnaryOps(CommonTFLayerTest):
 
     test_data_precommit = [dict(shape=[4, 6, 8, 10, 12])]
 
+    @pytest.mark.skipif(sys.version_info > (3, 10), reason="tensorflow_addons package is not available for Python 3.11 and higher")
     @pytest.mark.parametrize("params", test_data_precommit)
     @pytest.mark.parametrize("op_type", ['Elu',
                                          'Sigmoid',

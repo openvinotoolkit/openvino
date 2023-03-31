@@ -486,8 +486,6 @@ jobs:
       export PYTHONPATH=$(REPO_DIR)/tools/mo/:$(LAYER_TESTS_DIR):$PYTHONPATH
       export TEST_DEVICE=CPU
       $(RUN_PREFIX) python3 -m pytest $(LAYER_TESTS_DIR)/pytorch_tests/ -m precommit --junitxml=$(INSTALL_TEST_DIR)/TEST-pytorch.xmlTEST
-      cat $(LAYER_TESTS_DIR)/requirements.txt
-      cat $(LAYER_TESTS_DIR)/../constraints.txt
     displayName: 'PyTorch Layer Tests'
 
   - script: |
