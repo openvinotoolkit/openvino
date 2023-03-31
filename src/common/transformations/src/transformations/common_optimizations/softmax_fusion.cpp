@@ -66,18 +66,15 @@ ov::pass::SoftmaxFusion::SoftmaxFusion() {
         auto div = pattern_map.at(div_pattern).get_node_shared_ptr();
         softmax->set_friendly_name(div->get_friendly_name());
 
-        copy_runtime_info(
-            {
-                pattern_map.at(exp_pattern).get_node_shared_ptr(),
-                pattern_map.at(reduce_sum_pattern).get_node_shared_ptr(),
-                div,
-            },
-            softmax);
+        NodeVector fused_nodes;
+        fused_nodes.push_back(pattern_map.at(exp_pattern).get_node_shared_ptr());
+        fused_nodes.push_back(pattern_map.at(reduce_sum_pattern).get_node_shared_ptr());
+        fused_nodes.push_back(div);
         if (exp_input_is_subtract) {
-            copy_runtime_info({pattern_map.at(reduce_max_pattern).get_node_shared_ptr(),
-                               pattern_map.at(sub_pattern).get_node_shared_ptr()},
-                              softmax);
+            fused_nodes.push_back(pattern_map.at(reduce_max_pattern).get_node_shared_ptr());
+            fused_nodes.push_back(pattern_map.at(sub_pattern).get_node_shared_ptr());
         }
+        copy_runtime_info(fused_nodes, softmax);
 
         replace_node(div, softmax);
 
