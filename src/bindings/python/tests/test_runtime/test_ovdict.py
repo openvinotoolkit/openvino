@@ -125,6 +125,15 @@ def test_ovdict_single_output_basic(device, is_direct):
 
 
 @pytest.mark.parametrize("is_direct", [True, False])
+def test_ovdict_wrong_key_type(device, is_direct):
+    result, _ = _get_ovdict(device, multi_output=False, direct_infer=is_direct)
+
+    with pytest.raises(TypeError) as e:
+        _ = result[2.0]
+    assert "Unknown key type: <class 'float'>" in str(e.value)
+
+
+@pytest.mark.parametrize("is_direct", [True, False])
 def test_ovdict_single_output_noname(device, is_direct):
     result, obj = _get_ovdict(
         device,

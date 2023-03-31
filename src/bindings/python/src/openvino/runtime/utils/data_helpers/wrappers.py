@@ -12,7 +12,7 @@ except ImportError:
     from singledispatchmethod import singledispatchmethod  # type: ignore[no-redef]
 
 from collections.abc import Mapping
-from typing import Dict, Set, Tuple, Union, Iterator
+from typing import Dict, Set, Tuple, Union, Iterator, Optional
 from typing import KeysView, ItemsView, ValuesView
 
 from openvino._pyopenvino import Tensor, ConstOutput
@@ -72,7 +72,7 @@ class OVDict(Mapping):
     """
     def __init__(self, _dict: Dict[ConstOutput, np.ndarray]) -> None:
         self._dict = _dict
-        self._names = None
+        self._names: Optional[Dict[ConstOutput, Set[str]]] = None
 
     def __iter__(self) -> Iterator:
         return self._dict.__iter__()
@@ -83,7 +83,7 @@ class OVDict(Mapping):
     def __repr__(self) -> str:
         return self._dict.__repr__()
 
-    def __get_names(self) -> Dict[ConstOutput, str]:
+    def __get_names(self) -> Dict[ConstOutput, Set[str]]:
         """Return names of every output key.
 
         Insert empty set if key has no name.
@@ -95,7 +95,7 @@ class OVDict(Mapping):
 
     @singledispatchmethod
     def __getitem_impl(self, key: Union[ConstOutput, int, str]) -> np.ndarray:
-        raise TypeError("Unknown key type: {}", type(key))
+        raise TypeError(f"Unknown key type: {type(key)}")
 
     @__getitem_impl.register
     def _(self, key: ConstOutput) -> np.ndarray:
@@ -129,7 +129,7 @@ class OVDict(Mapping):
     def items(self) -> ItemsView[ConstOutput, np.ndarray]:
         return self._dict.items()
 
-    def names(self) -> Tuple[Set[str]]:
+    def names(self) -> Tuple[Set[str], ...]:
         """Return names of every output key.
 
         Insert empty set if key has no name.
