@@ -109,7 +109,7 @@ void regclass_frontend_Place(py::module m) {
         "get_target_tensor",
         [](const ov::frontend::Place& self, py::object outputName, py::object outputPortIndex) {
             if (outputName.is(py::none())) {
-                if (outputPortIndex .is(py::none())) {
+                if (outputPortIndex.is(py::none())) {
                     return self.get_target_tensor();
                 } else {
                     return self.get_target_tensor(py::cast<int>(outputPortIndex));
