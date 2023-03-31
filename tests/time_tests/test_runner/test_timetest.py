@@ -34,13 +34,16 @@ from scripts.run_timetest import run_timetest
 REFS_FACTOR = 1.2      # 120%
 
 
-def test_timetest(instance, executable, niter, cl_cache_dir, model_cache, model_cache_dir,
-                  test_info, temp_dir, validate_test_case, prepare_db_info):
+def test_timetest(instance, executable, niter, input_precision, output_precision,
+                  cl_cache_dir, model_cache, model_cache_dir, test_info, temp_dir,
+                  validate_test_case, prepare_db_info):
     """Parameterized test.
 
     :param instance: test instance. Should not be changed during test run
     :param executable: timetest executable to run
     :param niter: number of times to run executable
+    :param input_precision: change input model precision
+    :param output_precision: change output model precision
     :param cl_cache_dir: directory to store OpenCL cache
     :param cpu_cache: flag to enable model CPU cache
     :param vpu_compiler: flag to change VPUX compiler type
@@ -67,6 +70,8 @@ def test_timetest(instance, executable, niter, cl_cache_dir, model_cache, model_
         "model": Path(model_path),
         "device": instance["device"]["name"],
         "niter": niter,
+        "input_precision": input_precision,
+        "output_precision": output_precision,
         "model_cache": model_cache,
     }
     logging.info("Run timetest once to generate any cache")
