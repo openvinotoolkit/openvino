@@ -51,12 +51,12 @@ jobs:
       
       - name: Set proxy
         run: |
-          export http_proxy="http://proxy-dmz.intel.com:911"
-          export https_proxy="http://proxy-dmz.intel.com:912"
-          export no_proxy="localhost,127.0.0.1,intel.com,.intel.com"
-          export HTTP_PROXY="http://proxy-dmz.intel.com:911"
-          export HTTPS_PROXY="http://proxy-dmz.intel.com:912"
-          export NO_PROXY="localhost,127.0.0.1,intel.com,.intel.com"
+          sudo export http_proxy="http://proxy-dmz.intel.com:911"
+          sudo export https_proxy="http://proxy-dmz.intel.com:912"
+          sudo export no_proxy="localhost,127.0.0.1,intel.com,.intel.com"
+          sudo export HTTP_PROXY="http://proxy-dmz.intel.com:911"
+          sudo export HTTPS_PROXY="http://proxy-dmz.intel.com:912"
+          sudo export NO_PROXY="localhost,127.0.0.1,intel.com,.intel.com"
       - name: System info
         run: |
           whoami
@@ -70,6 +70,12 @@ jobs:
 
       - name: Install build dependencies
         run: |
+          sudo export http_proxy="http://proxy-dmz.intel.com:911"
+          sudo export https_proxy="http://proxy-dmz.intel.com:912"
+          sudo export no_proxy="localhost,127.0.0.1,intel.com,.intel.com"
+          sudo export HTTP_PROXY="http://proxy-dmz.intel.com:911"
+          sudo export HTTPS_PROXY="http://proxy-dmz.intel.com:912"
+          sudo export NO_PROXY="localhost,127.0.0.1,intel.com,.intel.com"
           sudo apt --assume-yes update
           sudo -E ${{ github.workspace }}/install_build_dependencies.sh
           sudo apt --assume-yes install lcov
@@ -77,6 +83,7 @@ jobs:
       
       - name: Install python dependencies
         run: |
+        
           python3 -m pip install --upgrade pip
           python3 -m pip install -r ${{ github.workspace }}/src/bindings/python/src/compatibility/openvino/requirements-dev.txt
           python3 -m pip install -r ${{ github.workspace }}/src/bindings/python/wheel/requirements-dev.txt
