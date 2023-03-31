@@ -2,7 +2,8 @@
 
 @sphinxdirective
 
-This sample demonstrates how to do inference of image classification models using Synchronous Inference Request API.  
+This sample demonstrates how to do inference of image classification models using Synchronous Inference Request API. 
+
 Models with only 1 input and output are supported.
 
 The following Python API is used in the application:
@@ -33,8 +34,11 @@ The following Python API is used in the application:
 | Options                           | Values                                                                                                                                                            |
 +===================================+===================================================================================================================================================================+
 | Validated Models                  | :doc:`alexnet <omz_models_model_alexnet>`, :doc:`googlenet-v1 <omz_models_model_googlenet_v1>`                                                                    |
++-----------------------------------+-------------------------------------------------------------------------------------------------------------------------------------------------------------------+
 | Model Format                      | OpenVINO™ toolkit Intermediate Representation (.xml + .bin), ONNX (.onnx)                                                                                         |
++-----------------------------------+-------------------------------------------------------------------------------------------------------------------------------------------------------------------+
 | Supported devices                 | :doc:`All <openvino_docs_OV_UG_supported_plugins_Supported_Devices>`                                                                                              |
++-----------------------------------+-------------------------------------------------------------------------------------------------------------------------------------------------------------------+
 | Other language realization        | :doc:`C++ <openvino_inference_engine_samples_hello_classification_README>`, :doc:`C <openvino_inference_engine_ie_bridges_c_samples_hello_classification_README>` |
 +-----------------------------------+-------------------------------------------------------------------------------------------------------------------------------------------------------------------+
 
