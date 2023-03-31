@@ -160,27 +160,27 @@ struct jit_uni_binarization_kernel : public jit_uni_quantize_kernel, public jit_
                 xor_(reg_bin_32, reg_bin_32);
                 mov(reg_mask, 1);
                 for (int c = 0; c < tail_size; c++) {
-                uni_vpxor(xmm_src(0), xmm_src(0), xmm_src(0));
-                uni_vpxor(xmm_wei(0), xmm_wei(0), xmm_wei(0));
-                uni_vpxor(xmm_mask(0), xmm_mask(0), xmm_mask(0));
+                    uni_vpxor(xmm_src(0), xmm_src(0), xmm_src(0));
+                    uni_vpxor(xmm_wei(0), xmm_wei(0), xmm_wei(0));
+                    uni_vpxor(xmm_mask(0), xmm_mask(0), xmm_mask(0));
 
-                uni_vmovss(xmm_src(0), ptr[reg_from + c * sizeof(float)]);
-                uni_vmovss(xmm_wei(0), ptr[reg_thresholds + c * sizeof(float)]);
-                uni_vmovss(xmm_mask(0), ptr[reg_output_mask + c * sizeof(float)]);
-                uni_vcmpgtps(xmm_src(0), xmm_src(0), xmm_wei(0));
-                uni_vpcmpeqd(xmm_src(0), xmm_src(0), xmm_mask(0));
-                uni_vmovmskps(reg_src_32, xmm_src(0));
+                    uni_vmovss(xmm_src(0), ptr[reg_from + c * sizeof(float)]);
+                    uni_vmovss(xmm_wei(0), ptr[reg_thresholds + c * sizeof(float)]);
+                    uni_vmovss(xmm_mask(0), ptr[reg_output_mask + c * sizeof(float)]);
+                    uni_vcmpgtps(xmm_src(0), xmm_src(0), xmm_wei(0));
+                    uni_vpcmpeqd(xmm_src(0), xmm_src(0), xmm_mask(0));
+                    uni_vmovmskps(reg_src_32, xmm_src(0));
 
-                shl(reg_src_32, c);
-                and_(reg_src_32, reg_mask);
-                or_(reg_bin_32, reg_src_32);
-                shl(reg_mask, 1);
+                    shl(reg_src_32, c);
+                    and_(reg_src_32, reg_mask);
+                    or_(reg_bin_32, reg_src_32);
+                    shl(reg_mask, 1);
+                }
+                if (isa == avx512_core && tail_size > nbits)
+                    mov(ptr[reg_to], reg_bin_16);
+                else
+                    mov(ptr[reg_to], reg_bin_8);
             }
-            if (isa == avx512_core && tail_size > nbits)
-                mov(ptr[reg_to], reg_bin_16);
-            else
-                mov(ptr[reg_to], reg_bin_8);
-        }
         }
 
         L(exit_label);
@@ -298,38 +298,40 @@ private:
 
     inline void load_broadcasted_vectors_only(size_t idx) {
         const auto &broadcasted = jqp_.broadcasted;
-        if (broadcasted[CROP_LOW]) uni_vbroadcastss(vmm_crop_low(idx), ptr[reg_crop_low]);
-        if (broadcasted[CROP_HIGH]) uni_vbroadcastss(vmm_crop_high(idx), ptr[reg_crop_high]);
-        if (broadcasted[INPUT_SCALE]) uni_vbroadcastss(vmm_input_scale(idx), ptr[reg_input_scale]);
-        if (broadcasted[INPUT_SHIFT]) uni_vbroadcastss(vmm_input_shift(idx), ptr[reg_input_shift]);
+        if (broadcasted[static_cast<size_t>(FQ_add_input_type::CROP_LOW)]) uni_vbroadcastss(vmm_crop_low(idx), ptr[reg_crop_low]);
+        if (broadcasted[static_cast<size_t>(FQ_add_input_type::CROP_HIGH)]) uni_vbroadcastss(vmm_crop_high(idx), ptr[reg_crop_high]);
+        if (broadcasted[static_cast<size_t>(FQ_add_input_type::INPUT_SCALE)]) uni_vbroadcastss(vmm_input_scale(idx), ptr[reg_input_scale]);
+        if (broadcasted[static_cast<size_t>(FQ_add_input_type::INPUT_SHIFT)]) uni_vbroadcastss(vmm_input_shift(idx), ptr[reg_input_shift]);
         if (do_dequantization) {
-            if (broadcasted[OUTPUT_SCALE]) uni_vbroadcastss(vmm_output_scale(idx), ptr[reg_output_scale]);
-            if (broadcasted[OUTPUT_SHIFT]) uni_vbroadcastss(vmm_output_shift(idx), ptr[reg_output_shift]);
+            if (broadcasted[static_cast<size_t>(FQ_add_input_type::OUTPUT_SCALE)]) uni_vbroadcastss(vmm_output_scale(idx), ptr[reg_output_scale]);
+            if (broadcasted[static_cast<size_t>(FQ_add_input_type::OUTPUT_SHIFT)]) uni_vbroadcastss(vmm_output_shift(idx), ptr[reg_output_shift]);
         }
     }
 
     template <typename T>
     inline void load_not_broadcasted_vectors_only(size_t idx, size_t offset) {
         const auto &broadcasted = jqp_.broadcasted;
-        if (!broadcasted[CROP_LOW]) uni_vmovups(T(vmm_crop_low(idx).getIdx()), ptr[reg_crop_low + offset]);
-        if (!broadcasted[CROP_HIGH]) uni_vmovups(T(vmm_crop_high(idx).getIdx()), ptr[reg_crop_high + offset]);
-        if (!broadcasted[INPUT_SCALE]) uni_vmovups(T(vmm_input_scale(idx).getIdx()), ptr[reg_input_scale + offset]);
-        if (!broadcasted[INPUT_SHIFT]) uni_vmovups(T(vmm_input_shift(idx).getIdx()), ptr[reg_input_shift + offset]);
+        if (!broadcasted[static_cast<size_t>(FQ_add_input_type::CROP_LOW)]) uni_vmovups(T(vmm_crop_low(idx).getIdx()), ptr[reg_crop_low + offset]);
+        if (!broadcasted[static_cast<size_t>(FQ_add_input_type::CROP_HIGH)]) uni_vmovups(T(vmm_crop_high(idx).getIdx()), ptr[reg_crop_high + offset]);
+        if (!broadcasted[static_cast<size_t>(FQ_add_input_type::INPUT_SCALE)]) uni_vmovups(T(vmm_input_scale(idx).getIdx()), ptr[reg_input_scale + offset]);
+        if (!broadcasted[static_cast<size_t>(FQ_add_input_type::INPUT_SHIFT)]) uni_vmovups(T(vmm_input_shift(idx).getIdx()), ptr[reg_input_shift + offset]);
         if (do_dequantization) {
-            if (!broadcasted[OUTPUT_SCALE]) uni_vmovups(T(vmm_output_scale(idx).getIdx()), ptr[reg_output_scale + offset]);
-            if (!broadcasted[OUTPUT_SHIFT]) uni_vmovups(T(vmm_output_shift(idx).getIdx()), ptr[reg_output_shift + offset]);
+            if (!broadcasted[static_cast<size_t>(FQ_add_input_type::OUTPUT_SCALE)])
+                uni_vmovups(T(vmm_output_scale(idx).getIdx()), ptr[reg_output_scale + offset]);
+            if (!broadcasted[static_cast<size_t>(FQ_add_input_type::OUTPUT_SHIFT)])
+                uni_vmovups(T(vmm_output_shift(idx).getIdx()), ptr[reg_output_shift + offset]);
         }
     }
 
     inline void increase_ptrs_if_not_broadcasted(size_t offset) {
         const auto &broadcasted = jqp_.broadcasted;
-        if (!broadcasted[CROP_LOW]) add(reg_crop_low, offset);
-        if (!broadcasted[CROP_HIGH]) add(reg_crop_high, offset);
-        if (!broadcasted[INPUT_SCALE]) add(reg_input_scale, offset);
-        if (!broadcasted[INPUT_SHIFT]) add(reg_input_shift, offset);
+        if (!broadcasted[static_cast<size_t>(FQ_add_input_type::CROP_LOW)]) add(reg_crop_low, offset);
+        if (!broadcasted[static_cast<size_t>(FQ_add_input_type::CROP_HIGH)]) add(reg_crop_high, offset);
+        if (!broadcasted[static_cast<size_t>(FQ_add_input_type::INPUT_SCALE)]) add(reg_input_scale, offset);
+        if (!broadcasted[static_cast<size_t>(FQ_add_input_type::INPUT_SHIFT)]) add(reg_input_shift, offset);
         if (do_dequantization) {
-            if (!broadcasted[OUTPUT_SCALE]) add(reg_output_scale, offset);
-            if (!broadcasted[OUTPUT_SHIFT]) add(reg_output_shift, offset);
+            if (!broadcasted[static_cast<size_t>(FQ_add_input_type::OUTPUT_SCALE)]) add(reg_output_scale, offset);
+            if (!broadcasted[static_cast<size_t>(FQ_add_input_type::OUTPUT_SHIFT)]) add(reg_output_shift, offset);
         }
     }
 
@@ -615,13 +617,19 @@ private:
             auto tail_unroll = [&](size_t iter) {
                 const auto &broadcasted = jqp_.broadcasted;
                 for (int i = 0; i < iter; i++) {
-                    if (!broadcasted[CROP_LOW]) uni_vmovss(xmm_crop_low(0), ptr[reg_crop_low + i * wei_type_size]);
-                    if (!broadcasted[CROP_HIGH]) uni_vmovss(xmm_crop_high(0), ptr[reg_crop_high + i * wei_type_size]);
-                    if (!broadcasted[INPUT_SCALE]) uni_vmovss(xmm_input_scale(0), ptr[reg_input_scale + i * wei_type_size]);
-                    if (!broadcasted[INPUT_SHIFT]) uni_vmovss(xmm_input_shift(0), ptr[reg_input_shift + i * wei_type_size]);
+                    if (!broadcasted[static_cast<size_t>(FQ_add_input_type::CROP_LOW)])
+                        uni_vmovss(xmm_crop_low(0), ptr[reg_crop_low + i * wei_type_size]);
+                    if (!broadcasted[static_cast<size_t>(FQ_add_input_type::CROP_HIGH)])
+                        uni_vmovss(xmm_crop_high(0), ptr[reg_crop_high + i * wei_type_size]);
+                    if (!broadcasted[static_cast<size_t>(FQ_add_input_type::INPUT_SCALE)])
+                        uni_vmovss(xmm_input_scale(0), ptr[reg_input_scale + i * wei_type_size]);
+                    if (!broadcasted[static_cast<size_t>(FQ_add_input_type::INPUT_SHIFT)])
+                        uni_vmovss(xmm_input_shift(0), ptr[reg_input_shift + i * wei_type_size]);
                     if (do_dequantization) {
-                        if (!broadcasted[OUTPUT_SCALE]) uni_vmovss(xmm_output_scale(0), ptr[reg_output_scale + i * wei_type_size]);
-                        if (!broadcasted[OUTPUT_SHIFT]) uni_vmovss(xmm_output_shift(0), ptr[reg_output_shift + i * wei_type_size]);
+                        if (!broadcasted[static_cast<size_t>(FQ_add_input_type::OUTPUT_SCALE)])
+                            uni_vmovss(xmm_output_scale(0), ptr[reg_output_scale + i * wei_type_size]);
+                        if (!broadcasted[static_cast<size_t>(FQ_add_input_type::OUTPUT_SHIFT)])
+                            uni_vmovss(xmm_output_shift(0), ptr[reg_output_shift + i * wei_type_size]);
                     }
 
                     load_scalar(xmm_val(0), ptr[aux_reg_from + i * src_type_size], jqp_.src_prc);
@@ -931,7 +939,7 @@ struct FakeQuantKey {
         if (jqp.op_type ==  Algorithm::FQBinarization) {
             seed = hash_combine(seed, jqp.c);
         } else {
-            seed = get_vector_hash(seed, jqp.broadcasted);
+            seed = hash_combine(seed, jqp.broadcasted);
         }
         return seed;
     }
@@ -1132,19 +1140,12 @@ FakeQuantize::FakeQuantize(const std::shared_ptr<ngraph::Node>& op, const GraphC
             outputScaleSize = outputScale.size();
             outputShiftSize = outputShift.size();
 
-
-            broadcasted.resize(FQ_ADD_INPUTS);
-            broadcasted[CROP_LOW] = cropLowSize == 1 ? 1 : 0;
-            broadcasted[CROP_HIGH] = cropHighSize == 1 ? 1 : 0;
-            broadcasted[INPUT_SCALE] = inputScaleSize == 1 ? 1 : 0;
-            broadcasted[INPUT_SHIFT] = inputShiftSize == 1 ? 1 : 0;
-            broadcasted[OUTPUT_SCALE] = outputScaleSize == 1 ? 1 : 0;
-            broadcasted[OUTPUT_SHIFT] = outputShiftSize == 1 ? 1 : 0;
-
-            broadcastFactor.resize(FQ_ADD_INPUTS);
-            for (size_t i = 0; i < FQ_ADD_INPUTS; i++) {
-                broadcastFactor[i] = broadcasted[i] ? 0 : 1;
-            }
+            broadcasted[static_cast<size_t>(FQ_add_input_type::CROP_LOW)] = cropLowSize == 1;
+            broadcasted[static_cast<size_t>(FQ_add_input_type::CROP_HIGH)] = cropHighSize == 1;
+            broadcasted[static_cast<size_t>(FQ_add_input_type::INPUT_SCALE)] = inputScaleSize == 1;
+            broadcasted[static_cast<size_t>(FQ_add_input_type::INPUT_SHIFT)] = inputShiftSize == 1;
+            broadcasted[static_cast<size_t>(FQ_add_input_type::OUTPUT_SCALE)] = outputScaleSize == 1;
+            broadcasted[static_cast<size_t>(FQ_add_input_type::OUTPUT_SHIFT)] = outputShiftSize == 1;
 
             if (everyone_is(1u, cropLowSize, cropHighSize, inputScaleSize, inputShiftSize, outputScaleSize, outputShiftSize))
                 broadcastingPolicy = PerTensor;
@@ -1336,7 +1337,7 @@ void FakeQuantize::initSupportedPrimitiveDescriptors() {
     }
 
     std::vector<LayoutType> dataFormats;
-    // [av] reference implementation supports only planar format
+    // reference implementation supports only planar format
     if (impl_type == impl_desc_type::ref) {
         dataFormats.push_back(LayoutType::ncsp);
     } else {
@@ -1467,12 +1468,12 @@ void FakeQuantize::createPrimitive() {
              // in case of blocked layout we need to extend vectors to prevent read from unallocated memory
             size_t paddedSize = srcDesc.hasLayoutType(LayoutType::nCsp16c) ? 16 : srcDesc.hasLayoutType(LayoutType::nCsp8c) ? 8 : 1;
             if (paddedSize != 1) {
-                if (!broadcasted[CROP_LOW]) cropLow.resize(rnd_up(cropLow.size(), paddedSize));
-                if (!broadcasted[CROP_HIGH]) cropHigh.resize(rnd_up(cropHigh.size(), paddedSize));
-                if (!broadcasted[INPUT_SCALE]) inputScale.resize(rnd_up(inputScale.size(), paddedSize));
-                if (!broadcasted[INPUT_SHIFT]) inputShift.resize(rnd_up(inputShift.size(), paddedSize));
-                if (!broadcasted[OUTPUT_SCALE]) outputScale.resize(rnd_up(outputScale.size(), paddedSize));
-                if (!broadcasted[OUTPUT_SHIFT]) outputShift.resize(rnd_up(outputShift.size(), paddedSize));
+                if (!broadcasted[static_cast<size_t>(FQ_add_input_type::CROP_LOW)]) cropLow.resize(rnd_up(cropLow.size(), paddedSize));
+                if (!broadcasted[static_cast<size_t>(FQ_add_input_type::CROP_HIGH)]) cropHigh.resize(rnd_up(cropHigh.size(), paddedSize));
+                if (!broadcasted[static_cast<size_t>(FQ_add_input_type::INPUT_SCALE)]) inputScale.resize(rnd_up(inputScale.size(), paddedSize));
+                if (!broadcasted[static_cast<size_t>(FQ_add_input_type::INPUT_SHIFT)]) inputShift.resize(rnd_up(inputShift.size(), paddedSize));
+                if (!broadcasted[static_cast<size_t>(FQ_add_input_type::OUTPUT_SCALE)]) outputScale.resize(rnd_up(outputScale.size(), paddedSize));
+                if (!broadcasted[static_cast<size_t>(FQ_add_input_type::OUTPUT_SHIFT)]) outputShift.resize(rnd_up(outputShift.size(), paddedSize));
             }
 
             key.jqp.broadcasted = broadcasted;
@@ -1570,12 +1571,12 @@ void FakeQuantize::executeReference() {
             float src_val = src[src_off];
 
             int wei_idx = getAxis() == 0 ? n : c;
-            float cl = cropLow[wei_idx * broadcastFactor[CROP_LOW]];
-            float ch = cropHigh[wei_idx * broadcastFactor[CROP_HIGH]];
-            float isc = inputScale[wei_idx * broadcastFactor[INPUT_SCALE]];
-            float ish = inputShift[wei_idx * broadcastFactor[INPUT_SHIFT]];
-            float osc = outputScale[wei_idx * broadcastFactor[OUTPUT_SCALE]];
-            float osh = outputShift[wei_idx * broadcastFactor[OUTPUT_SHIFT]];
+            float cl = broadcasted[static_cast<size_t>(FQ_add_input_type::CROP_LOW)] ? cropLow[0] : cropLow[wei_idx];
+            float ch = broadcasted[static_cast<size_t>(FQ_add_input_type::CROP_HIGH)] ? cropHigh[0] : cropHigh[wei_idx];
+            float isc = broadcasted[static_cast<size_t>(FQ_add_input_type::INPUT_SCALE)] ? inputScale[0] : inputScale[wei_idx];
+            float ish = broadcasted[static_cast<size_t>(FQ_add_input_type::INPUT_SHIFT)] ? inputShift[0] : inputShift[wei_idx];
+            float osc = broadcasted[static_cast<size_t>(FQ_add_input_type::OUTPUT_SCALE)] ? outputScale[0] : outputScale[wei_idx];
+            float osh = broadcasted[static_cast<size_t>(FQ_add_input_type::OUTPUT_SHIFT)] ? outputShift[0] : outputShift[wei_idx];
 
             float dst_val = nstl::min(ch, nstl::max(cl, src_val));
             dst_val = dst_val * isc + ish;
@@ -1687,12 +1688,12 @@ void FakeQuantize::executeQuantization(const std::unique_ptr<jit_uni_quantize_ke
 
             arg.from = &src[data_off * src_type_size];
             arg.to = &dst[data_off * dst_type_size];
-            arg.crop_low = &cropLow[c * broadcastFactor[CROP_LOW]];
-            arg.crop_high = &cropHigh[c * broadcastFactor[CROP_HIGH]];
-            arg.input_scale = &inputScale[c * broadcastFactor[INPUT_SCALE]];
-            arg.input_shift = &inputShift[c * broadcastFactor[INPUT_SHIFT]];
-            arg.output_scale = &outputScale[c * broadcastFactor[OUTPUT_SCALE]];
-            arg.output_shift = &outputShift[c * broadcastFactor[OUTPUT_SHIFT]];
+            arg.crop_low = broadcasted[static_cast<size_t>(FQ_add_input_type::CROP_LOW)] ? &cropLow[0] : &cropLow[c];
+            arg.crop_high = broadcasted[static_cast<size_t>(FQ_add_input_type::CROP_HIGH)] ? &cropHigh[0] : &cropHigh[c];
+            arg.input_scale = broadcasted[static_cast<size_t>(FQ_add_input_type::INPUT_SCALE)] ? &inputScale[0] : &inputScale[c];
+            arg.input_shift = broadcasted[static_cast<size_t>(FQ_add_input_type::INPUT_SHIFT)] ? &inputShift[0] : &inputShift[c];
+            arg.output_scale = broadcasted[static_cast<size_t>(FQ_add_input_type::OUTPUT_SCALE)] ? &outputScale[0] : &outputScale[c];
+            arg.output_shift = broadcasted[static_cast<size_t>(FQ_add_input_type::OUTPUT_SHIFT)] ? &outputShift[0] : &outputShift[c];
 
             arg.src_step = (size_t) blk_size * src_type_size;
             arg.dst_step = (size_t) blk_size * dst_type_size;
@@ -1717,12 +1718,12 @@ void FakeQuantize::executeQuantization(const std::unique_ptr<jit_uni_quantize_ke
 
             arg.from = &src[data_off * src_type_size];
             arg.to = &dst[data_off * dst_type_size];
-            arg.crop_low = &cropLow[c * broadcastFactor[CROP_LOW]];
-            arg.crop_high = &cropHigh[c * broadcastFactor[CROP_HIGH]];
-            arg.input_scale = &inputScale[c * broadcastFactor[INPUT_SCALE]];
-            arg.input_shift = &inputShift[c * broadcastFactor[INPUT_SHIFT]];
-            arg.output_scale = &outputScale[c * broadcastFactor[OUTPUT_SCALE]];
-            arg.output_shift = &outputShift[c * broadcastFactor[OUTPUT_SHIFT]];
+            arg.crop_low = broadcasted[static_cast<size_t>(FQ_add_input_type::CROP_LOW)] ? &cropLow[0] : &cropLow[c];
+            arg.crop_high = broadcasted[static_cast<size_t>(FQ_add_input_type::CROP_HIGH)] ? &cropHigh[0] : &cropHigh[c];
+            arg.input_scale = broadcasted[static_cast<size_t>(FQ_add_input_type::INPUT_SCALE)] ? &inputScale[0] : &inputScale[c];
+            arg.input_shift = broadcasted[static_cast<size_t>(FQ_add_input_type::INPUT_SHIFT)] ? &inputShift[0] : &inputShift[c];
+            arg.output_scale = broadcasted[static_cast<size_t>(FQ_add_input_type::OUTPUT_SCALE)] ? &outputScale[0] : &outputScale[c];
+            arg.output_shift = broadcasted[static_cast<size_t>(FQ_add_input_type::OUTPUT_SHIFT)] ? &outputShift[0] : &outputShift[c];
 
             arg.src_step = is_blk_format ? (size_t) blk_size * src_type_size : (size_t) C * src_type_size;
             arg.dst_step = is_blk_format ? (size_t) blk_size * dst_type_size : (size_t) C * dst_type_size;
@@ -1745,12 +1746,12 @@ void FakeQuantize::executeQuantization(const std::unique_ptr<jit_uni_quantize_ke
 
             arg.from = &src[data_off * src_type_size];
             arg.to = &dst[data_off * dst_type_size];
-            arg.crop_low = &cropLow[c * broadcastFactor[CROP_LOW]];
-            arg.crop_high = &cropHigh[c * broadcastFactor[CROP_HIGH]];
-            arg.input_scale = &inputScale[c * broadcastFactor[INPUT_SCALE]];
-            arg.input_shift = &inputShift[c * broadcastFactor[INPUT_SHIFT]];
-            arg.output_scale = &outputScale[c * broadcastFactor[OUTPUT_SCALE]];
-            arg.output_shift = &outputShift[c * broadcastFactor[OUTPUT_SHIFT]];
+            arg.crop_low = broadcasted[static_cast<size_t>(FQ_add_input_type::CROP_LOW)] ? &cropLow[0] : &cropLow[c];
+            arg.crop_high = broadcasted[static_cast<size_t>(FQ_add_input_type::CROP_HIGH)] ? &cropHigh[0] : &cropHigh[c];
+            arg.input_scale = broadcasted[static_cast<size_t>(FQ_add_input_type::INPUT_SCALE)] ? &inputScale[0] : &inputScale[c];
+            arg.input_shift = broadcasted[static_cast<size_t>(FQ_add_input_type::INPUT_SHIFT)] ? &inputShift[0] : &inputShift[c];
+            arg.output_scale = broadcasted[static_cast<size_t>(FQ_add_input_type::OUTPUT_SCALE)] ? &outputScale[0] : &outputScale[c];
+            arg.output_shift = broadcasted[static_cast<size_t>(FQ_add_input_type::OUTPUT_SHIFT)] ? &outputShift[0] : &outputShift[c];
 
             arg.src_step = is_blk_format ? (size_t) blk_size * src_type_size : (size_t) C * src_type_size;
             arg.dst_step = is_blk_format ? (size_t) blk_size * dst_type_size : (size_t) C * dst_type_size;

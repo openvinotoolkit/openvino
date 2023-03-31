@@ -17,15 +17,14 @@ namespace ov {
 namespace intel_cpu {
 namespace node {
 
-#define FQ_ADD_INPUTS 6
-
-enum fq_add_input_type {
-    CROP_LOW = 0,
-    CROP_HIGH = 1,
-    INPUT_SCALE = 2,
-    INPUT_SHIFT = 3,
-    OUTPUT_SCALE = 4,
-    OUTPUT_SHIFT = 5
+enum class FQ_add_input_type {
+    CROP_LOW,
+    CROP_HIGH,
+    INPUT_SCALE,
+    INPUT_SHIFT,
+    OUTPUT_SCALE,
+    OUTPUT_SHIFT,
+    INPUTS_SIZE
 };
 
 struct jit_quantize_params {
@@ -38,7 +37,7 @@ struct jit_quantize_params {
     Algorithm op_type;
 
     int c; // need only for binarization
-    std::vector<size_t> broadcasted; // need only for quantization
+    std::bitset<static_cast<size_t>(FQ_add_input_type::INPUTS_SIZE)> broadcasted; // need only for quantization
 };
 
 struct jit_quantize_call_args {
@@ -251,8 +250,7 @@ private:
     size_t outputScaleSize;
     size_t outputShiftSize;
 
-    std::vector<size_t> broadcasted;
-    std::vector<size_t> broadcastFactor;
+    std::bitset<static_cast<size_t>(FQ_add_input_type::INPUTS_SIZE)> broadcasted;
 
     std::vector<float> fqScales;
 
