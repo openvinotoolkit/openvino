@@ -105,7 +105,7 @@ jobs:
           build-type: Release
           run-test: true
           parallel: ${{ steps.cpu-cores.outputs.count }}
-          continue-on-error: true
+        continue-on-error: true
       
      # - name: Run tests
      #   run: ctest -V
