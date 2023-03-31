@@ -32,6 +32,7 @@ struct jit_topk_config_params {
     bool sort_index;         // sort by value or index. true: index; false: value
     bool topk_innermost;     // if topk sorting is applied on innermost dimension or other dimension
     bool bubble_inplace;     // all the elements in sorting is right in the register, no need to load and store for each comparison
+    bool stable;             // if require stable sorting
     TopKLayoutType layout;   // memory layout
     TopKAlgorithm algorithm; // topk sorting algorithm
     InferenceEngine::Precision precision; // precision
@@ -115,6 +116,7 @@ private:
     bool topk_innermost;
     bool jit_mode;
     bool sort_index;
+    bool stable;
     bool mode_max;
     int axis;
     static const size_t TOPK_DATA = 0;
