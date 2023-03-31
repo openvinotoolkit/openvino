@@ -19,6 +19,7 @@ Downloading the Pretrained Base XLNet Model
 Download and unzip an archive with the `XLNet-Base, Cased <https://storage.googleapis.com/xlnet/released_models/cased_L-12_H-768_A-12.zip>`__.
 
 After the archive is unzipped, the directory ``cased_L-12_H-768_A-12`` is created and contains the following files:
+
 * TensorFlow checkpoint (``xlnet_model.ckpt``), containing the pretrained weights (which is actually 3 files)
 * sentence piece model (``spiece.model``) used for (de)tokenization
 * config file (``xlnet_config.json``), which specifies the hyperparameters of the model
@@ -27,7 +28,8 @@ To get pb-file from the archive contents, you need to do the following.
 
 1. Run commands
 
-   .. code-block:: py
+   .. code-block:: sh
+   
       cd ~
       mkdir XLNet-Base
       cd XLNet-Base
@@ -41,7 +43,7 @@ To get pb-file from the archive contents, you need to do the following.
 
    .. note:: The original model repository has been tested with TensorFlow 1.13.1 under Python2.
 
-   .. code-block:: py
+   .. code-block:: python
 
       from collections import namedtuple
       
@@ -111,7 +113,7 @@ To get ``pb-file`` from the archive contents, follow the instructions below:
 
 1. Run commands
 
-   .. code-block:: py
+   .. code-block:: sh
 
       cd ~
       mkdir XLNet-Large
@@ -124,7 +126,7 @@ To get ``pb-file`` from the archive contents, follow the instructions below:
 
 2. Save and run the following Python script in ``~/XLNet-Large/xlnet``:
 
-   .. code-block:: py
+   .. code-block:: python
 
       from collections import namedtuple
       
@@ -187,7 +189,7 @@ Converting a frozen TensorFlow XLNet Model to IR
 
 To generate the XLNet Intermediate Representation (IR) of the model, run Model Optimizer with the following parameters:
 
-.. code-block:: py
+.. code-block:: sh
 
    mo --input_model path-to-model/model_frozen.pb \
       --input "input_mask[50,1],input_ids[50,1],seg_ids[50,1]"

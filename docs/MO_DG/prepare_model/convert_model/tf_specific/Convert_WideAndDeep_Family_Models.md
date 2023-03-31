@@ -30,7 +30,7 @@ Preparing an Example of Wide and Deep Model
 
 **Step 1**. Clone the GitHub repository with TensorFlow models and move to the directory with an example of Wide and Deep model:
 
-.. code-block:: cpp
+.. code-block:: sh
 
    git clone https://github.com/tensorflow/models.git --branch r2.2.0;
    cd official/r1/wide_deep
@@ -44,7 +44,7 @@ The Wide and Deep model is no longer in the master branch of the repository but 
 As the OpenVINO&trade; toolkit does not support the categorical with hash and crossed features, such feature types must be switched off in the model
 by changing the ``build_model_columns()`` function in `census_dataset.py` as follows:
 
-.. code-block:: py
+.. code-block:: python
 
     def build_model_columns():
     """Builds a set of wide and deep feature columns."""
@@ -100,7 +100,7 @@ by changing the ``build_model_columns()`` function in `census_dataset.py` as fol
 
 After that, start training with the following command:
 
-.. code-block:: py
+.. code-block:: sh
 
    python census_main.py
 
@@ -110,7 +110,7 @@ Converting the Wide and Deep Model to IR
 
 Use the following command line to convert the saved model file with the checkpoint:
 
-.. code-block:: py
+.. code-block:: sh
 
     mo
     --input_checkpoint checkpoint --input_meta_graph model.ckpt.meta

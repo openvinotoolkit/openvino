@@ -9,7 +9,7 @@ Downloading the Pretrained DeepSpeech Model
 
 Create a directory where model and metagraph with pretrained weights will be stored:
 
-.. code-block:: cpp
+.. code-block:: sh
 
    mkdir deepspeech
    cd deepspeech
@@ -19,7 +19,7 @@ To download the model, follow the instruction below:
 
 * For UNIX-like systems, run the following command:
 
-.. code-block:: cpp
+.. code-block:: sh
 
    wget -O - https://github.com/mozilla/DeepSpeech/archive/v0.8.2.tar.gz | tar xvfz -
    wget -O - https://github.com/mozilla/DeepSpeech/releases/download/v0.8.2/deepspeech-0.8.2-checkpoint.tar.gz | tar xvfz -
@@ -37,7 +37,7 @@ After unpacking the archives above, you have to freeze the model. This requires
 TensorFlow version 1, which is not available under Python 3.8, so you need Python 3.7 or lower.
 Before freezing, deploy a virtual environment and install the required packages:
 
-.. code-block:: py
+.. code-block:: sh
 
    virtualenv --python=python3.7 venv-deep-speech
    source venv-deep-speech/bin/activate
@@ -46,7 +46,7 @@ Before freezing, deploy a virtual environment and install the required packages:
 
 Freeze the model with the following command:
 
-.. code-block:: py
+.. code-block:: sh
 
    python3 DeepSpeech.py --checkpoint_dir ../deepspeech-0.8.2-checkpoint --export_dir ../
 
@@ -82,7 +82,7 @@ There are certain limitations for the model conversion:
 
 To generate the IR, run Model Optimizer with the following parameters:
 
-.. code-block:: py
+.. code-block:: sh
 
   mo                             \
   --input_model output_graph.pb  \

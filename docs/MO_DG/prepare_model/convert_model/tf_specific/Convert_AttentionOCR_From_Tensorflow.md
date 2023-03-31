@@ -9,13 +9,13 @@ Extracting a Model from ``aocr`` Library
 
 To get an AOCR model, download ``aocr`` Python library:
 
-.. code-block:: cpp
+.. code-block:: sh
 
    pip install git+https://github.com/emedvedev/attention-ocr.git@master#egg=aocr
 
 This library contains a pretrained model and allows training and running AOCR, using the command line. After installation of `aocr`, extract the model:
 
-.. code-block:: cpp
+.. code-block:: sh
 
    aocr export --format=frozengraph model/path/
 
@@ -31,7 +31,7 @@ The original AOCR model includes the preprocessing data, which contains:
 
 The resized image is sent to the convolution neural network (CNN). Because Model Optimizer does not support image decoding, the preprocessing part of the model should be cut off, using the ``--input`` command-line parameter.
 
-.. code-block:: cpp
+.. code-block:: sh
 
    mo \
    --input_model=model/path/frozen_graph.pb \

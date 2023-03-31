@@ -16,7 +16,7 @@ Converting a TensorFlow FaceNet Model to the IR
 
 To generate a FaceNet OpenVINO model, feed a TensorFlow FaceNet model to Model Optimizer with the following parameters:
 
-.. code-block:: py
+.. code-block:: sh
 
     mo
    --input_model path_to_model/model_name.pb       \

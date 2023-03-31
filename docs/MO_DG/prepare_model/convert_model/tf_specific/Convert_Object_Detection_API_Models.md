@@ -59,7 +59,7 @@ Additionally to the mandatory parameters listed above you can use optional conve
 
 For example, if you downloaded the pre-trained `SSD InceptionV2 topology <http://download.tensorflow.org/models/object_detection/ssd_inception_v2_coco_2018_01_28.tar.gz>`__ and extracted archive to the directory ``/tmp/ssd_inception_v2_coco_2018_01_28``, the sample command line to convert the model looks as follows:
 
-.. code-block:: cpp
+.. code-block:: sh
 
   mo --input_model=/tmp/ssd_inception_v2_coco_2018_01_28/frozen_inference_graph.pb --transformations_config front/tf/ssd_v2_support.json --tensorflow_object_detection_api_pipeline_config /tmp/ssd_inception_v2_coco_2018_01_28/pipeline.config --reverse_input_channels
 
@@ -95,7 +95,7 @@ Model Optimizer handles the command line parameter ``--input_shape`` for TensorF
 
 * ``fixed_shape_resizer`` --- *Stretches* input image to the specific height and width. The ``pipeline.config`` snippet below shows a ``fixed_shape_resizer`` sample definition:
 
-.. code-block:: cpp
+.. code-block:: sh
 
   image_resizer {
     fixed_shape_resizer {
@@ -106,7 +106,7 @@ Model Optimizer handles the command line parameter ``--input_shape`` for TensorF
 
 * ``keep_aspect_ratio_resizer`` --- Resizes the input image *keeping aspect ratio* to satisfy the minimum and maximum size constraints. The ``pipeline.config`` snippet below shows a ``keep_aspect_ratio_resizer`` sample definition:
 
-.. code-block:: cpp
+.. code-block:: sh
 
   image_resizer {
     keep_aspect_ratio_resizer {

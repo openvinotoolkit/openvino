@@ -18,28 +18,28 @@ This example demonstrates how to convert the model on Linux OSes, but it could b
 
 **Step 1**. Create a new directory to clone the TensorFlow-Slim git repository to:
 
-.. code-block:: cpp
+.. code-block:: sh
 
    mkdir tf_models
 
-.. code-block:: cpp
+.. code-block:: sh
 
    git clone https://github.com/tensorflow/models.git tf_models
 
 
 **Step 2**. Download and unpack the `Inception V1 model checkpoint file <http://download.tensorflow.org/models/inception_v1_2016_08_28.tar.gz>`__:
 
-.. code-block:: cpp
+.. code-block:: sh
 
    wget http://download.tensorflow.org/models/inception_v1_2016_08_28.tar.gz
 
-.. code-block:: cpp
+.. code-block:: sh
 
    tar xzvf inception_v1_2016_08_28.tar.gz
 
 **Step 3**. Export the inference graph --- the protobuf file (``.pb``) containing the architecture of the topology. This file *does not* contain the neural network weights and cannot be used for inference.
 
-.. code-block:: py
+.. code-block:: sh
 
   python3 tf_models/research/slim/export_inference_graph.py \
       --model_name inception_v1 \
@@ -48,13 +48,13 @@ This example demonstrates how to convert the model on Linux OSes, but it could b
 
 Model Optimizer comes with the summarize graph utility, which identifies graph input and output nodes. Run the utility to determine input/output nodes of the Inception V1 model:
 
-.. code-block:: py
+.. code-block:: sh
 
   python3 <PYTHON_SITE_PACKAGES>/openvino/tools/mo/utils/summarize_graph.py --input_model ./inception_v1_inference_graph.pb
 
 The output looks as follows:
 
-.. code-block:: py
+.. code-block:: sh
 
   1 input(s) detected:
   Name: input, type: float32, shape: (-1,224,224,3)
@@ -65,7 +65,7 @@ The tool finds one input node with name ``input``, type ``float32``, fixed image
 
 **Step 4**. Convert the model with the Model Optimizer:
 
-.. code-block:: py
+.. code-block:: sh
 
   mo --input_model ./inception_v1_inference_graph.pb --input_checkpoint ./inception_v1.ckpt -b 1 --mean_value [127.5,127.5,127.5] --scale 127.5
 
@@ -83,7 +83,7 @@ The file `preprocessing_factory.py <https://github.com/tensorflow/models/blob/ma
 
 The `inception_preprocessing.py <https://github.com/tensorflow/models/blob/master/research/slim/preprocessing/inception_preprocessing.py>`__ file defines the pre-processing function for the Inception models. The ``preprocess_for_eval`` function contains the following code:
 
-.. code-block:: py
+.. code-block:: python
 
     ...
     import tensorflow as tf

@@ -151,13 +151,13 @@ Converting a GNMT Model to the IR
 
 1. Clone the NMT reposirory:
 
-.. code-block:: cpp
+.. code-block:: sh
 
    git clone https://github.com/tensorflow/nmt.git
 
 2. Check out the necessary commit:
 
-.. code-block:: cpp
+.. code-block:: sh
 
    git checkout b278487980832417ad8ac701c672b5c3dc7fa553
 
@@ -176,14 +176,14 @@ For the GNMT model, the training graph and the inference graph have different de
 
 1. Apply the ``GNMT_inference.patch`` patch to the repository. `Create a Patch File <#Creating-a-Patch-File>`__ instructions if you do not have it:
 
-.. code-block:: cpp
+.. code-block:: sh
 
    git apply /path/to/patch/GNMT_inference.patch
 
 
 2. Run the NMT framework to dump the inference model:
 
-.. code-block:: py
+.. code-block:: sh
 
    python -m nmt.nmt
       --src=de
@@ -210,7 +210,7 @@ To generate ``vocab.bpe.32000``, execute the ``nmt/scripts/wmt16_en_de.sh`` scri
 
 **Step 4**. Convert the model to the IR:
 
-.. code-block:: py
+.. code-block:: sh
 
    mo
    --input_model /path/to/dump/model/frozen_GNMT_inference_graph.pb
@@ -261,7 +261,7 @@ Running GNMT IR
 
 1. With benchmark app:
 
-.. code-block:: py
+.. code-block:: sh
 
    benchmark_app -m <path to the generated GNMT IR> -d CPU
 
