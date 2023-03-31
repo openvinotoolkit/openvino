@@ -171,7 +171,6 @@ std::vector<layout> deconvolution_inst::calc_output_layouts(deconvolution_node c
     // already swapped when creating constant op. So we need to swap I/O dimensions according to the original
     // dimension order for shape inference.
     auto weights_pshape = weights_layout.get_partial_shape();
-    const auto& stream = impl_param.net != nullptr ? impl_param.net->get_stream() : impl_param.prog->get_stream();
     if (desc->groups > 1) {
         ov::op::v1::GroupConvolutionBackpropData op;
         op.set_strides(strides);
@@ -186,7 +185,7 @@ std::vector<layout> deconvolution_inst::calc_output_layouts(deconvolution_node c
             output_shapes = ov::op::v1::shape_infer(&op, input_shapes, pads_begin, pads_end);
         } else if (memory_deps.count(2)) {
             auto mem = memory_deps.at(2);
-            auto dims = read_vector<int64_t>(mem, stream);
+            auto dims = read_vector<int64_t>(mem, impl_param.get_stream());
             auto dims_shape = ov::Shape{dims.size()};
             input_shapes.push_back(dims_shape);
             output_shapes = ov::op::v1::shape_infer(
@@ -212,7 +211,7 @@ std::vector<layout> deconvolution_inst::calc_output_layouts(deconvolution_node c
             output_shapes = ov::op::v1::shape_infer(&op, input_shapes, pads_begin, pads_end);
         } else if (memory_deps.count(2)) {
             auto mem = memory_deps.at(2);
-            auto dims = read_vector<int64_t>(mem, stream);
+            auto dims = read_vector<int64_t>(mem, impl_param.get_stream());
             auto dims_shape = ov::Shape{dims.size()};
             input_shapes.push_back(dims_shape);
             output_shapes = ov::op::v1::shape_infer(

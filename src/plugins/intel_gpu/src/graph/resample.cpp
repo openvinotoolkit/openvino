@@ -76,7 +76,6 @@ std::vector<layout> resample_inst::calc_output_layouts(resample_node const& /*no
     auto pads_begin = desc->pads_begin;
     auto pads_end = desc->pads_end;
     ov::op::util::correct_pads_attr(&op, pads_begin, pads_end, input_shapes);
-    const auto& stream = impl_param.net != nullptr ? impl_param.net->get_stream() : impl_param.prog->get_stream();
 
     if (sizes_calc_mod) {
         if (!sizes_data.empty()) {
@@ -85,7 +84,7 @@ std::vector<layout> resample_inst::calc_output_layouts(resample_node const& /*no
             ov::op::v4::shape_infer(&op, pads_begin, pads_end, input_shapes, output_shapes, {const_data});
         } else {
             auto sizes_mem = memory_deps.at(1);
-            cldnn::mem_lock<uint8_t, mem_lock_type::read> lock(sizes_mem, stream);
+            cldnn::mem_lock<uint8_t, mem_lock_type::read> lock(sizes_mem, impl_param.get_stream());
             auto sizes_tensor = make_host_tensor(sizes_mem->get_layout(), lock.data());
             const_data.emplace(1, sizes_tensor);
             ov::op::v4::shape_infer(&op, pads_begin, pads_end, input_shapes, output_shapes, {const_data});
@@ -97,7 +96,7 @@ std::vector<layout> resample_inst::calc_output_layouts(resample_node const& /*no
             ov::op::v4::shape_infer(&op, pads_begin, pads_end, input_shapes, output_shapes, {const_data});
         } else {
             auto scales_mem = memory_deps.at(2);
-            cldnn::mem_lock<uint8_t, mem_lock_type::read> lock(scales_mem, stream);
+            cldnn::mem_lock<uint8_t, mem_lock_type::read> lock(scales_mem, impl_param.get_stream());
             auto scales_tensor = make_host_tensor(scales_mem->get_layout(), lock.data());
             const_data.emplace(2, scales_tensor);
             ov::op::v4::shape_infer(&op, pads_begin, pads_end, input_shapes, output_shapes, {const_data});
