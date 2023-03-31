@@ -95,9 +95,8 @@ public:
     }
 };
 
-ov::runtime::interpreter::INTExecutable::INTExecutable(const std::shared_ptr<ov::Model>& model)
-    : m_is_compiled{true},
-      m_model(model) {
+ov::runtime::interpreter::INTExecutable::INTExecutable(const std::shared_ptr<ov::Model>& model) : m_is_compiled{true} {
+    m_model = model->clone();
     for (auto node : m_model->get_ordered_ops()) {
         m_nodes.push_back(node);
     }
@@ -274,4 +273,8 @@ bool ov::runtime::interpreter::INTExecutable::evaluate_node(const std::shared_pt
                                      node->get_type_info().name);
     }
     return res;
+}
+
+std::shared_ptr<ov::Model> ov::runtime::interpreter::INTExecutable::get_model() const {
+    return m_model;
 }

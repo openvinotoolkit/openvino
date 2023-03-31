@@ -53,8 +53,7 @@ ov::template_plugin::InferRequest::InferRequest(const std::shared_ptr<const ov::
                               "_WaitPipline"),
     };
 
-    auto clonned_model = get_template_model()->m_model->clone();
-    m_executable = get_template_model()->get_template_plugin()->m_backend->compile(clonned_model);
+    m_executable = get_template_model()->get_template_plugin()->m_backend->compile(get_template_model()->m_model);
 
     // Allocate plugin backend specific memory handles
     m_backend_input_tensors.resize(get_inputs().size());
@@ -80,8 +79,7 @@ ov::template_plugin::InferRequest::InferRequest(const std::shared_ptr<const ov::
 
     // Save variable states
     ov::op::util::VariableContext variable_context;
-    for (const auto& variable : clonned_model->get_variables()) {
-        auto value = std::make_shared<ov::op::util::VariableValue>();
+    for (const auto& variable : m_executable->get_model()->get_variables()) {
         if (!variable_context.get_variable_value(variable)) {
             auto shape = variable->get_info().data_shape.is_dynamic() ? ov::Shape{0}
                                                                       : variable->get_info().data_shape.to_shape();
