@@ -178,12 +178,13 @@ bool is_fc_supported(const std::shared_ptr<ngraph::op::FullyConnected>& fully_co
 }
 
 bool is_split_supported(const std::shared_ptr<ov::Node>& node, bool is_exception_allowed) {
-    OPENVINO_ASSERT(node, "Split node is empty!");
-    bool is_aligned = true;
+    OPENVINO_ASSERT(node, "Split node is empty!");    
     for (size_t i = 0; i < node->get_output_size(); i++) {
-        is_aligned &= ov::intel_gna::ngraph_util::is_aligned_split(node, i);
+        if (!ov::intel_gna::ngraph_util::is_aligned_split(node, i)) {
+            return false;
+        }
     }
-    return is_aligned;
+    return true;
 }
 
 bool is_op_supported(const std::shared_ptr<ov::Node>& node,

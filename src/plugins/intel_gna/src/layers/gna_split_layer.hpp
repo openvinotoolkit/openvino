@@ -76,20 +76,21 @@ inline std::pair<int64_t, std::vector<uint32_t>> AlignedSplitSizesPerAxis(Infere
     auto alignment = limitations::inputByteAlignment;
 
     // Split output size should be multiple by 64 to avoid align filters insertion,
-    // but we need to check if our input size to split exceeds 64; if not we can always
-    // split if the remaining size is aligned
-    if (splittedElementsSize <= alignment) {
+    // but we need to check if our input size to split exceeds alignment size,
+    // if not we can always split if the remaining size is aligned
+    auto max_split_size = limitations::bufferMaxSize * splittedElementsSize / totalElementsSize;
+
+    if (splittedElementsSize <= alignment || max_split_size < alignment) {
         if ((totalElementsSize / splittedElementsSize) % alignment == 0) {
             alignment = 1;
         } else {
             return {splittedDimIx, splitSizes};
         }
     }
-    splitSizes = GetAlignedSplitSizes(splittedElementsSize,
-                                      limitations::bufferMaxSize * splittedElementsSize / totalElementsSize,
-                                      alignment);
+
+    splitSizes = GetAlignedSplitSizes(splittedElementsSize, max_split_size, alignment);
     return {splittedDimIx, splitSizes};
-}
+}  // namespace intel_gna
 
 }  // namespace intel_gna
 }  // namespace ov
