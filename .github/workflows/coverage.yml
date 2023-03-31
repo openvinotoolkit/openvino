@@ -32,7 +32,7 @@ jobs:
       fail-fast: false
       matrix:
         config:
-          - { name: "Ubuntu gcc", os: ov-work-104, cc: "gcc", cxx: "g++" }
+          - { name: "Ubuntu gcc", os: ubuntu-latest-16-cores, cc: "gcc", cxx: "g++" }
 
     steps:
       - name: Clone OpenVINO
