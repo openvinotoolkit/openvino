@@ -11,6 +11,7 @@
 #include "openvino/core/node.hpp"
 #include "openvino/core/node_output.hpp"
 #include "core/tensor.hpp"
+#include "core/sparse_tensor.hpp"
 #include "ngraph/except.hpp"
 
 namespace ngraph {
