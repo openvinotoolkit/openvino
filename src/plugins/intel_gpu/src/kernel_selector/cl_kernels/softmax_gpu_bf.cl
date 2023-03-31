@@ -91,13 +91,15 @@ KERNEL (softmax_gpu_continuous_bfyx)(
         my_maximum = max(my_maximum, tmp);
         my_chunk[items_num] = tmp;
     }
-
-    lg_storage[in_data_set_idx] = my_maximum;
+    my_maximum = sub_group_reduce_max(my_maximum);
+    
+    if (get_sub_group_local_id() == 0)
+        lg_storage[get_sub_group_id()] = my_maximum;
 
     barrier(CLK_LOCAL_MEM_FENCE);
     if (in_data_set_idx == 0)
     {
-        for (uint i=1; i<LWS; ++i)
+        for (uint i=1; i<get_num_sub_groups(); ++i)
             my_maximum = max(my_maximum, lg_storage[i]);
 
         lg_storage[0] = my_maximum;
@@ -122,13 +124,16 @@ KERNEL (softmax_gpu_continuous_bfyx)(
         my_sum += tmp;
         my_chunk[items_num] = tmp;
     }
+    
+    my_sum = sub_group_reduce_add(my_sum);
 
-    lg_storage[in_data_set_idx] = my_sum;
+    if (get_sub_group_local_id() == 0)
+        lg_storage[get_sub_group_id()] = my_sum;
 
     barrier(CLK_LOCAL_MEM_FENCE);
     if (in_data_set_idx == 0)
     {
-        for (uint i=1; i<LWS; ++i)
+        for (uint i=1; i<get_num_sub_groups(); ++i)
             my_sum += lg_storage[i];
 
         lg_storage[0] = my_sum;
