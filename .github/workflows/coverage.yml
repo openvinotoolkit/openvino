@@ -65,7 +65,7 @@ jobs:
           version: 1.11.1
         
       - name: Setup gcc
-        run: sudo apt --assume-yes g++ gcc
+        run: sudo apt --assume-yes install g++ gcc
        
      # - name: Install build dependencies
      #   run: |
