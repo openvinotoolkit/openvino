@@ -8,6 +8,7 @@
 #include <ngraph/runtime/reference/convert.hpp>
 #include <openvino/opsets/opset1.hpp>
 #include <openvino/opsets/opset10.hpp>
+#include <openvino/opsets/opset11.hpp>
 #include <openvino/opsets/opset3.hpp>
 #include <openvino/opsets/opset4.hpp>
 #include <openvino/opsets/opset5.hpp>
@@ -341,7 +342,9 @@ bool ov::pass::ConvertPrecision::run_on_model(const std::shared_ptr<ngraph::Func
         {opset9::MulticlassNms::get_type_info_static(), fuse_type_to_multiclass_nms},
         {opset9::GenerateProposals::get_type_info_static(), fuse_type_to_generate_proposals},
         {opset6::CTCGreedyDecoderSeqLen::get_type_info_static(), fuse_type_to_ctc_greedy_decoder_seq_len},
+        {opset1::TopK::get_type_info_static(), fuse_type_to_topk},
         {opset4::TopK::get_type_info_static(), fuse_type_to_topk},
+        {opset11::TopK::get_type_info_static(), fuse_type_to_topk},
         {opset8::MaxPool::get_type_info_static(), fuse_type_to_maxpool},
         {opset4::NonZero::get_type_info_static(), fuse_type_to_nonzero},
         {opset4::Bucketize::get_type_info_static(), fuse_type_to_bucketize},
@@ -660,7 +663,7 @@ bool fuse_type_to_generate_proposals(const std::shared_ptr<ngraph::Node>& node, 
 }
 
 bool fuse_type_to_topk(const std::shared_ptr<ngraph::Node>& node, const precisions_map& precisions) {
-    if (auto topk = ov::as_type_ptr<opset4::TopK>(node)) {
+    if (auto topk = ov::as_type_ptr<ov::op::util::TopKBase>(node)) {
         return update_type(1, node, precisions, [&](const element::Type& to) {
             topk->set_index_element_type(to);
         });

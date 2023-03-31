@@ -47,10 +47,6 @@
 #include "so_extension.hpp"
 #include "xml_parse_utils.h"
 
-#ifdef OPENVINO_STATIC_LIBRARY
-#    include "ie_plugins.hpp"
-#endif
-
 using namespace InferenceEngine::PluginConfigParams;
 using namespace InferenceEngine;
 using namespace std::placeholders;
@@ -91,13 +87,12 @@ public:
 Core::Core(const std::string& xmlConfigFile) {
     _impl = std::make_shared<Impl>();
 
-#ifdef OPENVINO_STATIC_LIBRARY
-    _impl->register_plugins_in_registry(::getStaticPluginsRegistry());
-#else
-    // If XML is default, load default plugins by absolute paths
-    auto loadByAbsPath = xmlConfigFile.empty();
-    _impl->register_plugins_in_registry(ov::findPluginXML(xmlConfigFile), loadByAbsPath);
-#endif
+    std::string xmlConfigFile_ = ov::findPluginXML(xmlConfigFile);
+    if (!xmlConfigFile_.empty())
+        // If XML is default, load default plugins by absolute paths
+        _impl->register_plugins_in_registry(xmlConfigFile_, xmlConfigFile.empty());
+    // Load plugins from pre-compiled list
+    _impl->register_compile_time_plugins();
 }
 
 std::map<std::string, Version> Core::GetVersions(const std::string& deviceName) const {
