@@ -29,6 +29,8 @@ inline uint FUNC(get_input_index)(uint g, uint o, uint i, uint z, uint y, uint x
     return GET_FILTER_OS_IYX_OSV_INDEX(INPUT0, o, i, y, x, 16);
 #elif defined INPUT0_LAYOUT_OS_I_OSV8__AI8
     return GET_FILTER_OS_IYX_OSV_INDEX(INPUT0, o, i, y, x, 8);
+#elif defined INPUT0_LAYOUT_OS_IYX_OSV32
+    return GET_FILTER_OS_IYX_OSV_INDEX(INPUT0, o, i, y, x, 32);
 #elif defined INPUT0_LAYOUT_IYX_OSV32
     return GET_FILTER_OS_IYX_OSV_INDEX(INPUT0, o, i, y, x, 32);
 #elif defined INPUT0_LAYOUT_OS_IYX_OSV32__AI32
