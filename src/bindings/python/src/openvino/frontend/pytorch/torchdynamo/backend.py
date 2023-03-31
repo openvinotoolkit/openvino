@@ -72,7 +72,7 @@ def fx_openvino(subgraph, example_inputs):
         compiled_model = partitioner.make_partitions(model)
     
         def _call(*args):
-            res = execute(compiled_model, *example_inputs, executor="openvino")
+            res = execute(compiled_model, *args, executor="openvino")
             return res
         return _call
     except Exception as e:
