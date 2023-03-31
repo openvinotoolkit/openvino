@@ -32,36 +32,36 @@ namespace pass {
  * Separate matchers are required for different last nodes. They should be registered in the order from the longest
  * to the shortest pattern.
  **/
-class SwapInputMatMul: public ngraph::pass::MatcherPass {
+class SwapInputMatMul : public ngraph::pass::MatcherPass {
 public:
     OPENVINO_RTTI("SwapInputMatMul", "0");
     SwapInputMatMul();
 };
 
-class SwapInputMatMulWithBias: public ngraph::pass::MatcherPass {
+class SwapInputMatMulWithBias : public ngraph::pass::MatcherPass {
 public:
     OPENVINO_RTTI("SwapInputMatMulWithBias", "0");
     SwapInputMatMulWithBias();
 };
 
-class SwapInputMatMulWithFq: public ngraph::pass::MatcherPass {
+class SwapInputMatMulWithFq : public ngraph::pass::MatcherPass {
 public:
     OPENVINO_RTTI("SwapInputMatMulWithFq", "0");
     SwapInputMatMulWithFq();
 };
 
-class SwapInputMatMulWithAct: public ngraph::pass::MatcherPass {
+class SwapInputMatMulWithAct : public ngraph::pass::MatcherPass {
 public:
     OPENVINO_RTTI("SwapInputMatMulWithAct", "0");
     SwapInputMatMulWithAct();
 };
 
-class SwapInputMatMulWithTrailingTranspose: public ngraph::pass::MatcherPass {
+class SwapInputMatMulWithTrailingTranspose : public ngraph::pass::MatcherPass {
 public:
     OPENVINO_RTTI("SwapInputMatMulWithTrailingTranspose", "0");
     SwapInputMatMulWithTrailingTranspose();
 };
-} // namespace pass
-} // namespace intel_gna
-} // namespace ov
-#endif // SWAP_INPUT_MATMUL_GNA_HPP
+}  // namespace pass
+}  // namespace intel_gna
+}  // namespace ov
+#endif  // SWAP_INPUT_MATMUL_GNA_HPP

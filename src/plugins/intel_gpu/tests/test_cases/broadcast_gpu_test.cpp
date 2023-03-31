@@ -64,7 +64,8 @@ void start_broadcast_test(format cldnn_format, data_types cldnn_data_type, std::
 
     set_values(input, input_data);
 
-    network network(engine, topology);
+    ExecutionConfig cfg = get_test_default_config(engine);
+    network network(engine, topology, cfg);
     network.set_input_data("input", input);
     auto outputs = network.execute();
 
@@ -133,11 +134,14 @@ void start_broadcast_test_dynamic(format input_format,
         topology.add(
             broadcast("broadcast", input_info("reorder"), input_info("target_shape"), ov::AxisSet(broadcast_axes)));
         topology.add(reorder("output", input_info("broadcast"), fmt, input_data_type));
-        std::vector<int32_t> target_shape_data(output_shape.begin(), output_shape.end());
+        std::vector<int32_t> target_shape_data;
+        for (auto out_shape : output_shape) {
+            target_shape_data.push_back(static_cast<int32_t>(out_shape));
+        }
         set_values<int32_t>(target_shape_mem, target_shape_data);
     }
 
-    ExecutionConfig config;
+    ExecutionConfig config = get_test_default_config(engine);
     config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
 
     set_values(input, input_data);
@@ -212,24 +216,7 @@ void start_broadcast_test_5d(format cldnn_format, data_types cldnn_data_type, st
 
     set_values(input, input_data);
 
-    cldnn::network::ptr network;
-
-    if (is_caching_test) {
-        membuf mem_buf;
-        {
-            cldnn::network _network(engine, topology);
-            std::ostream out_mem(&mem_buf);
-            BinaryOutputBuffer ob = BinaryOutputBuffer(out_mem);
-            _network.save(ob);
-        }
-        {
-            std::istream in_mem(&mem_buf);
-            BinaryInputBuffer ib = BinaryInputBuffer(in_mem, engine);
-            network = std::make_shared<cldnn::network>(ib, get_test_stream_ptr(), engine);
-        }
-    } else {
-        network = std::make_shared<cldnn::network>(engine, topology);
-    }
+    cldnn::network::ptr network = get_network(engine, topology, get_test_default_config(engine), get_test_stream_ptr(), is_caching_test);
 
     network->set_input_data("input", input);
     auto outputs = network->execute();

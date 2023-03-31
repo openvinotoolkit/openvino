@@ -58,6 +58,17 @@ struct adaptive_pooling : public primitive_base<adaptive_pooling> {
         return seed;
     }
 
+    bool operator==(const primitive& rhs) const override {
+        if (!compare_common_params(rhs))
+            return false;
+
+        auto rhs_casted = downcast<const adaptive_pooling>(rhs);
+
+        return mode == rhs_casted.mode &&
+               indices_output == rhs_casted.indices_output &&
+               index_element_type == rhs_casted.index_element_type;
+    }
+
 protected:
     std::vector<std::reference_wrapper<const primitive_id>> get_dependencies() const override {
         std::vector<std::reference_wrapper<const primitive_id>> ret;

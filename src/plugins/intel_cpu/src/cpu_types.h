@@ -75,7 +75,6 @@ enum class Type {
     GridSample,
     OneHot,
     RegionYolo,
-    Select,
     Roll,
     Reference,
     ShuffleChannels,
@@ -111,7 +110,8 @@ enum class Type {
     PriorBoxClustered,
     Interaction,
     MHA,
-    Unique
+    Unique,
+    Ngram
 };
 
 enum class Algorithm {
@@ -165,6 +165,7 @@ enum class Algorithm {
     EltwiseTanh,
     EltwiseSigmoid,
     EltwiseAbs,
+    EltwiseSelect,
     EltwiseSqrt,
     EltwiseSoftRelu,
     EltwiseExp,

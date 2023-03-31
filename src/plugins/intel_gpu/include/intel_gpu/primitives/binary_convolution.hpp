@@ -76,6 +76,20 @@ struct binary_convolution : public primitive_base<binary_convolution> {
         return seed;
     }
 
+    bool operator==(const primitive& rhs) const override {
+        if (!compare_common_params(rhs))
+            return false;
+
+        auto rhs_casted = downcast<const binary_convolution>(rhs);
+
+        return pad == rhs_casted.pad &&
+               stride == rhs_casted.stride &&
+               dilation == rhs_casted.dilation &&
+               groups == rhs_casted.groups &&
+               pad_value == rhs_casted.pad_value &&
+               weights.size() == rhs_casted.weights.size();
+    }
+
     std::vector<std::reference_wrapper<const primitive_id>> get_dependencies() const override {
         std::vector<std::reference_wrapper<const primitive_id>> ret;
         ret.reserve(weights.size());

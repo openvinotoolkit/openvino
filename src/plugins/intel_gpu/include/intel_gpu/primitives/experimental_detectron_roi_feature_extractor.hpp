@@ -51,6 +51,20 @@ struct experimental_detectron_roi_feature_extractor : public primitive_base<expe
         seed = hash_combine(seed, aligned);
         return seed;
     }
+
+    bool operator==(const primitive& rhs) const override {
+        if (!compare_common_params(rhs))
+            return false;
+
+        auto rhs_casted = downcast<const experimental_detectron_roi_feature_extractor>(rhs);
+
+        return output_dim == rhs_casted.output_dim &&
+               pooled_height == rhs_casted.pooled_height &&
+               pooled_width == rhs_casted.pooled_width &&
+               pyramid_scales == rhs_casted.pyramid_scales &&
+               sampling_ratio == rhs_casted.sampling_ratio &&
+               aligned == rhs_casted.aligned;
+    }
 };
 
 }  // namespace cldnn

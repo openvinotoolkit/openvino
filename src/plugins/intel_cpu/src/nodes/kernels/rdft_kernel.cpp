@@ -5,6 +5,9 @@
 #include "rdft_kernel.hpp"
 #include <ie_common.h>
 
+using namespace dnnl::impl;
+using namespace dnnl::impl::cpu::x64;
+
 namespace ov {
 namespace intel_cpu {
 
@@ -33,6 +36,9 @@ void jit_dft_kernel_f32<isa>::generate() {
     case complex_to_real:
         input_type_size = complex_type_size<float>();
         output_type_size = type_size;
+        break;
+    default:
+        output_type_size = 1;
         break;
     }
     int simd_size = vlen / output_type_size;

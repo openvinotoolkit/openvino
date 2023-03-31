@@ -57,6 +57,15 @@ struct split : public primitive_base<split> {
         return seed;
     }
 
+    bool operator==(const primitive& rhs) const override {
+        if (!compare_common_params(rhs))
+            return false;
+
+        auto rhs_casted = downcast<const split>(rhs);
+
+        return output_offsets == rhs_casted.output_offsets;
+    }
+
 protected:
     static std::vector<primitive_id> extract_primitive_vector(
         const std::vector<std::pair<primitive_id, tensor> >& stor) {

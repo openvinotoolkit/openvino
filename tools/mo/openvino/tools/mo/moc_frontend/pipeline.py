@@ -74,9 +74,10 @@ def moc_pipeline(argv: argparse.Namespace, moc_front_end: FrontEnd):
         # a model is not processed further in json analysis mode
         sys.exit(0)
 
+    model_inputs = input_model.get_inputs()
     inputs_equal = True
     if user_shapes:
-        inputs_equal = check_places_are_same(input_model.get_inputs(), user_shapes)
+        inputs_equal = check_places_are_same(model_inputs, user_shapes)
 
     outputs_equal = True
     if outputs:
@@ -157,9 +158,9 @@ def moc_pipeline(argv: argparse.Namespace, moc_front_end: FrontEnd):
                 except NotImplementedFailure:
                     raise Error("Please specify type for value freezing {} node explicitly "
                                 "because the frontend does not support automatic type detection.".format(name))
-                # in case of cutting graph (or using custom inputs) and unspecified type,
+                # in case of cutting graph (or using custom inputs) and unspecified or dynamic type,
                 # the default type is fp32
-                if ov_type == Type.undefined:
+                if ov_type == Type.undefined or ov_type == Type.dynamic:
                     ov_type = Type.f32
                 dtype = get_numpy_ctype(ov_type)
 
@@ -195,7 +196,7 @@ def moc_pipeline(argv: argparse.Namespace, moc_front_end: FrontEnd):
     # Set batch size
     if argv.batch is not None and argv.batch > 0:
         log.debug('Setting batch size to {}'.format(argv.batch))
-        for place in input_model.get_inputs():
+        for place in model_inputs:
             old_partial_shape = input_model.get_partial_shape(place)
             old_shape_array = shape_to_array(old_partial_shape) if old_partial_shape.rank.is_static else []
             joined_name = ' '.join(place.get_names())

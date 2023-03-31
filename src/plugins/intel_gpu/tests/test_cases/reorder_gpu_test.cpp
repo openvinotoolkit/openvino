@@ -41,8 +41,17 @@ static void compare_result(std::map<cldnn::primitive_id, cldnn::network_output> 
 static void compare_bfyx2blocked_with_ref(const std::string& kernel_name,
     const data_types input_data_type, const data_types output_data_type,
     cldnn::format input_format, cldnn::format output_format,
-    int32_t b_in, int32_t f_in, int32_t x_in, int32_t y_in, int32_t z_in = 0, int32_t w_in = 0) {
+    int32_t b_in, int32_t f_in, int32_t x_in, int32_t y_in, int32_t z_in, int32_t w_in,
+    bool is_caching_test) {
     auto& engine = get_test_engine();
+    ExecutionConfig cfg = get_test_default_config(engine);
+    cfg.set_property(ov::intel_gpu::queue_type(QueueTypes::out_of_order));
+    if (engine.get_device_info().supports_immad) {
+        // Onednn currently does NOT support out_of_order : skip this test
+        return;
+    }
+
+    auto stream = std::shared_ptr<cldnn::stream>(engine.create_stream(cfg));
 
     tensor ts;
     if (input_format.dimension() == 4) {
@@ -59,7 +68,7 @@ static void compare_bfyx2blocked_with_ref(const std::string& kernel_name,
     layout output_layout(output_data_type, output_format, ts);
 
     if (input_data_type == data_types::i8) {
-        mem_lock<uint8_t> input_ptr{input, get_test_stream()};
+        mem_lock<uint8_t> input_ptr{input, *stream};
         unsigned char i = 1;
         for (auto it = input_ptr.begin(); it != input_ptr.end(); ++it)
         {
@@ -69,7 +78,7 @@ static void compare_bfyx2blocked_with_ref(const std::string& kernel_name,
             }
         }
     } else {
-        mem_lock<float> input_ptr{input, get_test_stream()};
+        mem_lock<float> input_ptr{input, *stream};
         float i = 1.f;
         for (auto it = input_ptr.begin(); it != input_ptr.end(); ++it)
         {
@@ -83,26 +92,28 @@ static void compare_bfyx2blocked_with_ref(const std::string& kernel_name,
         reorder("reorder", input_info("input"), output_layout));
 
     // run on reference(reorder_data) kernel
-    ov::intel_gpu::ExecutionConfig config_ref;
+    ov::intel_gpu::ExecutionConfig config_ref = get_test_default_config(engine);
     ov::intel_gpu::ImplementationDesc reorder_ref = { output_format, "reorder_data" };
     config_ref.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ {"reorder", reorder_ref} }));
 
-    network network_ref(engine, topology, config_ref);
-    network_ref.set_input_data("input", input);
+    cldnn::network::ptr network_ref = get_network(engine, topology, config_ref, stream, is_caching_test);
 
-    auto outputs_ref = network_ref.execute();
+    network_ref->set_input_data("input", input);
+
+    auto outputs_ref = network_ref->execute();
     cldnn::event::ptr e1 = outputs_ref.at("reorder").get_event();
     e1->wait();
 
     // run on optimized kernel
-    ov::intel_gpu::ExecutionConfig config;
+    ov::intel_gpu::ExecutionConfig config = get_test_default_config(engine);
     ov::intel_gpu::ImplementationDesc reorder_optimized = { output_format, kernel_name };
     config.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ {"reorder", reorder_optimized} }));
 
-    network network(engine, topology, config);
-    network.set_input_data("input", input);
+    cldnn::network::ptr network = get_network(engine, topology, config, stream, is_caching_test);
 
-    auto outputs = network.execute();
+    network->set_input_data("input", input);
+
+    auto outputs = network->execute();
     cldnn::event::ptr e2 = outputs.at("reorder").get_event();
     e2->wait();
 
@@ -123,124 +134,124 @@ static void compare_bfyx2blocked_with_ref(const std::string& kernel_name,
 
 TEST(reorder_gpu_optimization, compare_with_ref__b_fs_yx_fsv32_to_bfyx_f32) {
     // b_fs_yx_fsv32 -> bfyx
-    compare_bfyx2blocked_with_ref("reorder_data_b_fs_yx_fsv16_fsv32_to_bfyx", data_types::f32, data_types::f32, format::b_fs_yx_fsv32, format::bfyx, 3, 64 + 5, 16 + 11, 3);
-    compare_bfyx2blocked_with_ref("reorder_data_b_fs_yx_fsv16_fsv32_to_bfyx", data_types::f32, data_types::f32, format::b_fs_yx_fsv32, format::bfyx, 3, 96 - 12, 16 + 4, 3);
+    compare_bfyx2blocked_with_ref("reorder_data_b_fs_yx_fsv16_fsv32_to_bfyx", data_types::f32, data_types::f32, format::b_fs_yx_fsv32, format::bfyx, 3, 64 + 5, 16 + 11, 3, 0, 0, false);
+    compare_bfyx2blocked_with_ref("reorder_data_b_fs_yx_fsv16_fsv32_to_bfyx", data_types::f32, data_types::f32, format::b_fs_yx_fsv32, format::bfyx, 3, 96 - 12, 16 + 4, 3, 0, 0, false);
     // b_fs_zyx_fsv32 -> bfzyx
-    compare_bfyx2blocked_with_ref("reorder_data_b_fs_yx_fsv16_fsv32_to_bfyx", data_types::f32, data_types::f32, format::b_fs_yx_fsv32, format::bfzyx, 3, 64 + 9, 16 - 1, 2, 8);
-    compare_bfyx2blocked_with_ref("reorder_data_b_fs_yx_fsv16_fsv32_to_bfyx", data_types::f32, data_types::f32, format::b_fs_yx_fsv32, format::bfzyx, 2, 64 + 30, 16 + 1, 3, 4);
+    compare_bfyx2blocked_with_ref("reorder_data_b_fs_yx_fsv16_fsv32_to_bfyx", data_types::f32, data_types::f32, format::b_fs_yx_fsv32, format::bfzyx, 3, 64 + 9, 16 - 1, 2, 8, 0, false);
+    compare_bfyx2blocked_with_ref("reorder_data_b_fs_yx_fsv16_fsv32_to_bfyx", data_types::f32, data_types::f32, format::b_fs_yx_fsv32, format::bfzyx, 2, 64 + 30, 16 + 1, 3, 4, 0, false);
     // incremental dims
-    compare_bfyx2blocked_with_ref("reorder_data_b_fs_yx_fsv16_fsv32_to_bfyx", data_types::f32, data_types::f32, format::b_fs_yx_fsv32, format::bfzyx, 2, 64 + 4, 24 - 1, 3);
-    compare_bfyx2blocked_with_ref("reorder_data_b_fs_yx_fsv16_fsv32_to_bfyx", data_types::f32, data_types::f32, format::b_fs_yx_fsv32, format::bfwzyx, 2, 64 + 2, 32 - 3, 4);
-    compare_bfyx2blocked_with_ref("reorder_data_b_fs_yx_fsv16_fsv32_to_bfyx", data_types::f32, data_types::f32, format::b_fs_zyx_fsv32, format::bfwzyx, 1, 96 + 10, 32 - 3, 4, 3);
+    compare_bfyx2blocked_with_ref("reorder_data_b_fs_yx_fsv16_fsv32_to_bfyx", data_types::f32, data_types::f32, format::b_fs_yx_fsv32, format::bfzyx, 2, 64 + 4, 24 - 1, 3, 0, 0, false);
+    compare_bfyx2blocked_with_ref("reorder_data_b_fs_yx_fsv16_fsv32_to_bfyx", data_types::f32, data_types::f32, format::b_fs_yx_fsv32, format::bfwzyx, 2, 64 + 2, 32 - 3, 4, 0, 0, false);
+    compare_bfyx2blocked_with_ref("reorder_data_b_fs_yx_fsv16_fsv32_to_bfyx", data_types::f32, data_types::f32, format::b_fs_zyx_fsv32, format::bfwzyx, 1, 96 + 10, 32 - 3, 4, 3, 0, false);
 }
 
 TEST(reorder_gpu_optimization, compare_with_ref__b_fs_yx_fsv32_to_bfyx_different_datatype) {
     // f32 -> other types
-    compare_bfyx2blocked_with_ref("reorder_data_b_fs_yx_fsv16_fsv32_to_bfyx", data_types::f32, data_types::u8, format::b_fs_yx_fsv32, format::bfyx, 2, 64, 8 + 7, 2);
-    compare_bfyx2blocked_with_ref("reorder_data_b_fs_yx_fsv16_fsv32_to_bfyx", data_types::f32, data_types::i64, format::b_fs_yx_fsv32, format::bfyx, 2, 64, 16 + 2, 2);
-    compare_bfyx2blocked_with_ref("reorder_data_b_fs_yx_fsv16_fsv32_to_bfyx", data_types::f32, data_types::f16, format::b_fs_yx_fsv32, format::bfyx, 1, 64, 16 + 1, 2);
+    compare_bfyx2blocked_with_ref("reorder_data_b_fs_yx_fsv16_fsv32_to_bfyx", data_types::f32, data_types::u8, format::b_fs_yx_fsv32, format::bfyx, 2, 64, 8 + 7, 2, 0, 0, false);
+    compare_bfyx2blocked_with_ref("reorder_data_b_fs_yx_fsv16_fsv32_to_bfyx", data_types::f32, data_types::i64, format::b_fs_yx_fsv32, format::bfyx, 2, 64, 16 + 2, 2, 0, 0, false);
+    compare_bfyx2blocked_with_ref("reorder_data_b_fs_yx_fsv16_fsv32_to_bfyx", data_types::f32, data_types::f16, format::b_fs_yx_fsv32, format::bfyx, 1, 64, 16 + 1, 2, 0, 0, false);
     // i32 -> other types
-    compare_bfyx2blocked_with_ref("reorder_data_b_fs_yx_fsv16_fsv32_to_bfyx", data_types::i32, data_types::i8, format::b_fs_yx_fsv32, format::bfyx, 2, 64, 8 + 7, 2);
-    compare_bfyx2blocked_with_ref("reorder_data_b_fs_yx_fsv16_fsv32_to_bfyx", data_types::i32, data_types::i64, format::b_fs_yx_fsv32, format::bfyx, 2, 64, 16 + 2, 2);
-    compare_bfyx2blocked_with_ref("reorder_data_b_fs_yx_fsv16_fsv32_to_bfyx", data_types::i32, data_types::f16, format::b_fs_yx_fsv32, format::bfyx, 1, 64, 16 + 1, 2);
+    compare_bfyx2blocked_with_ref("reorder_data_b_fs_yx_fsv16_fsv32_to_bfyx", data_types::i32, data_types::i8, format::b_fs_yx_fsv32, format::bfyx, 2, 64, 8 + 7, 2, 0, 0, false);
+    compare_bfyx2blocked_with_ref("reorder_data_b_fs_yx_fsv16_fsv32_to_bfyx", data_types::i32, data_types::i64, format::b_fs_yx_fsv32, format::bfyx, 2, 64, 16 + 2, 2, 0, 0, false);
+    compare_bfyx2blocked_with_ref("reorder_data_b_fs_yx_fsv16_fsv32_to_bfyx", data_types::i32, data_types::f16, format::b_fs_yx_fsv32, format::bfyx, 1, 64, 16 + 1, 2, 0, 0, false);
 }
 
 TEST(reorder_gpu_optimization, compare_with_ref__b_fs_yx_fsv16_to_bfyx_f32) {
     // u-net
-    compare_bfyx2blocked_with_ref("reorder_data_b_fs_yx_fsv16_fsv32_to_bfyx", data_types::f32, data_types::f32, format::b_fs_yx_fsv16, format::bfyx, 1, 64, 388, 388);
+    compare_bfyx2blocked_with_ref("reorder_data_b_fs_yx_fsv16_fsv32_to_bfyx", data_types::f32, data_types::f32, format::b_fs_yx_fsv16, format::bfyx, 1, 64, 388, 388, 0, 0, false);
     // b_fs_yx_fsv16 -> bfyx
-    compare_bfyx2blocked_with_ref("reorder_data_b_fs_yx_fsv16_fsv32_to_bfyx", data_types::f32, data_types::f32, format::b_fs_yx_fsv16, format::bfyx, 3, 48 + 1, 16, 3);
-    compare_bfyx2blocked_with_ref("reorder_data_b_fs_yx_fsv16_fsv32_to_bfyx", data_types::f32, data_types::f32, format::b_fs_yx_fsv16, format::bfyx, 2, 32 - 1, 24 - 1, 3);
+    compare_bfyx2blocked_with_ref("reorder_data_b_fs_yx_fsv16_fsv32_to_bfyx", data_types::f32, data_types::f32, format::b_fs_yx_fsv16, format::bfyx, 3, 48 + 1, 16, 3, 0, 0, false);
+    compare_bfyx2blocked_with_ref("reorder_data_b_fs_yx_fsv16_fsv32_to_bfyx", data_types::f32, data_types::f32, format::b_fs_yx_fsv16, format::bfyx, 2, 32 - 1, 24 - 1, 3, 0, 0, false);
     // b_fs_zyx_fsv16 -> bfzyx
-    compare_bfyx2blocked_with_ref("reorder_data_b_fs_yx_fsv16_fsv32_to_bfyx", data_types::f32, data_types::f32, format::b_fs_zyx_fsv16, format::bfzyx, 5, 48 - 1, 16, 3, 8);
-    compare_bfyx2blocked_with_ref("reorder_data_b_fs_yx_fsv16_fsv32_to_bfyx", data_types::f32, data_types::f32, format::b_fs_zyx_fsv16, format::bfzyx, 2, 32 + 1, 24 - 1, 3, 17);
+    compare_bfyx2blocked_with_ref("reorder_data_b_fs_yx_fsv16_fsv32_to_bfyx", data_types::f32, data_types::f32, format::b_fs_zyx_fsv16, format::bfzyx, 5, 48 - 1, 16, 3, 8, 0, false);
+    compare_bfyx2blocked_with_ref("reorder_data_b_fs_yx_fsv16_fsv32_to_bfyx", data_types::f32, data_types::f32, format::b_fs_zyx_fsv16, format::bfzyx, 2, 32 + 1, 24 - 1, 3, 17, 0, false);
     // incremental dims
-    compare_bfyx2blocked_with_ref("reorder_data_b_fs_yx_fsv16_fsv32_to_bfyx", data_types::f32, data_types::f32, format::b_fs_yx_fsv16, format::bfzyx, 3, 32 - 1, 24 - 1, 3);
-    compare_bfyx2blocked_with_ref("reorder_data_b_fs_yx_fsv16_fsv32_to_bfyx", data_types::f32, data_types::f32, format::b_fs_yx_fsv16, format::bfwzyx, 4, 16 + 1, 32 - 3, 4);
-    compare_bfyx2blocked_with_ref("reorder_data_b_fs_yx_fsv16_fsv32_to_bfyx", data_types::f32, data_types::f32, format::b_fs_zyx_fsv16, format::bfwzyx, 3, 16 + 2, 32 - 3, 4, 9);
+    compare_bfyx2blocked_with_ref("reorder_data_b_fs_yx_fsv16_fsv32_to_bfyx", data_types::f32, data_types::f32, format::b_fs_yx_fsv16, format::bfzyx, 3, 32 - 1, 24 - 1, 3, 0, 0, false);
+    compare_bfyx2blocked_with_ref("reorder_data_b_fs_yx_fsv16_fsv32_to_bfyx", data_types::f32, data_types::f32, format::b_fs_yx_fsv16, format::bfwzyx, 4, 16 + 1, 32 - 3, 4, 0, 0, false);
+    compare_bfyx2blocked_with_ref("reorder_data_b_fs_yx_fsv16_fsv32_to_bfyx", data_types::f32, data_types::f32, format::b_fs_zyx_fsv16, format::bfwzyx, 3, 16 + 2, 32 - 3, 4, 9, 0, false);
 }
 
 TEST(reorder_gpu_optimization, compare_with_ref__b_fs_yx_fsv16_to_bfyx_different_datatype) {
     // f32 -> other types
-    compare_bfyx2blocked_with_ref("reorder_data_b_fs_yx_fsv16_fsv32_to_bfyx", data_types::f32, data_types::u8, format::b_fs_yx_fsv16, format::bfyx, 2, 32, 16 + 7, 2);
-    compare_bfyx2blocked_with_ref("reorder_data_b_fs_yx_fsv16_fsv32_to_bfyx", data_types::f32, data_types::i8, format::b_fs_yx_fsv16, format::bfyx, 2, 32, 16 + 7, 2);
-    compare_bfyx2blocked_with_ref("reorder_data_b_fs_yx_fsv16_fsv32_to_bfyx", data_types::f32, data_types::i32, format::b_fs_yx_fsv16, format::bfyx, 2, 32, 16 + 7, 2);
-    compare_bfyx2blocked_with_ref("reorder_data_b_fs_yx_fsv16_fsv32_to_bfyx", data_types::f32, data_types::i64, format::b_fs_yx_fsv16, format::bfyx, 2, 32, 16 + 7, 2);
-    compare_bfyx2blocked_with_ref("reorder_data_b_fs_yx_fsv16_fsv32_to_bfyx", data_types::f32, data_types::f16, format::b_fs_yx_fsv16, format::bfyx, 2, 32, 16 + 7, 2);
+    compare_bfyx2blocked_with_ref("reorder_data_b_fs_yx_fsv16_fsv32_to_bfyx", data_types::f32, data_types::u8, format::b_fs_yx_fsv16, format::bfyx, 2, 32, 16 + 7, 2, 0, 0, false);
+    compare_bfyx2blocked_with_ref("reorder_data_b_fs_yx_fsv16_fsv32_to_bfyx", data_types::f32, data_types::i8, format::b_fs_yx_fsv16, format::bfyx, 2, 32, 16 + 7, 2, 0, 0, false);
+    compare_bfyx2blocked_with_ref("reorder_data_b_fs_yx_fsv16_fsv32_to_bfyx", data_types::f32, data_types::i32, format::b_fs_yx_fsv16, format::bfyx, 2, 32, 16 + 7, 2, 0, 0, false);
+    compare_bfyx2blocked_with_ref("reorder_data_b_fs_yx_fsv16_fsv32_to_bfyx", data_types::f32, data_types::i64, format::b_fs_yx_fsv16, format::bfyx, 2, 32, 16 + 7, 2, 0, 0, false);
+    compare_bfyx2blocked_with_ref("reorder_data_b_fs_yx_fsv16_fsv32_to_bfyx", data_types::f32, data_types::f16, format::b_fs_yx_fsv16, format::bfyx, 2, 32, 16 + 7, 2, 0, 0, false);
     // i32 -> other types
-    compare_bfyx2blocked_with_ref("reorder_data_b_fs_yx_fsv16_fsv32_to_bfyx", data_types::i32, data_types::u8, format::b_fs_yx_fsv16, format::bfyx, 2, 32, 16 + 7, 2);
-    compare_bfyx2blocked_with_ref("reorder_data_b_fs_yx_fsv16_fsv32_to_bfyx", data_types::i32, data_types::i8, format::b_fs_yx_fsv16, format::bfyx, 2, 32, 16 + 7, 2);
-    compare_bfyx2blocked_with_ref("reorder_data_b_fs_yx_fsv16_fsv32_to_bfyx", data_types::i32, data_types::i64, format::b_fs_yx_fsv16, format::bfyx, 2, 32, 16 + 7, 2);
-    compare_bfyx2blocked_with_ref("reorder_data_b_fs_yx_fsv16_fsv32_to_bfyx", data_types::i32, data_types::f16, format::b_fs_yx_fsv16, format::bfyx, 2, 32, 16 + 7, 2);
-    compare_bfyx2blocked_with_ref("reorder_data_b_fs_yx_fsv16_fsv32_to_bfyx", data_types::i32, data_types::f32, format::b_fs_yx_fsv16, format::bfyx, 2, 32, 16 + 7, 2);
+    compare_bfyx2blocked_with_ref("reorder_data_b_fs_yx_fsv16_fsv32_to_bfyx", data_types::i32, data_types::u8, format::b_fs_yx_fsv16, format::bfyx, 2, 32, 16 + 7, 2, 0, 0, false);
+    compare_bfyx2blocked_with_ref("reorder_data_b_fs_yx_fsv16_fsv32_to_bfyx", data_types::i32, data_types::i8, format::b_fs_yx_fsv16, format::bfyx, 2, 32, 16 + 7, 2, 0, 0, false);
+    compare_bfyx2blocked_with_ref("reorder_data_b_fs_yx_fsv16_fsv32_to_bfyx", data_types::i32, data_types::i64, format::b_fs_yx_fsv16, format::bfyx, 2, 32, 16 + 7, 2, 0, 0, false);
+    compare_bfyx2blocked_with_ref("reorder_data_b_fs_yx_fsv16_fsv32_to_bfyx", data_types::i32, data_types::f16, format::b_fs_yx_fsv16, format::bfyx, 2, 32, 16 + 7, 2, 0, 0, false);
+    compare_bfyx2blocked_with_ref("reorder_data_b_fs_yx_fsv16_fsv32_to_bfyx", data_types::i32, data_types::f32, format::b_fs_yx_fsv16, format::bfyx, 2, 32, 16 + 7, 2, 0, 0, false);
 }
 
 TEST(reorder_gpu_optimization, compare_with_ref__bfyx_to_blocked_f32) {
     // bfyx_to_b_fs_yx_fsv4
-    compare_bfyx2blocked_with_ref("reorder_data_bfyx_to_blocked_format", data_types::f32, data_types::f32, format::bfyx, format::b_fs_yx_fsv4, 4, 32, 16, 4);
-    compare_bfyx2blocked_with_ref("reorder_data_bfyx_to_blocked_format", data_types::f32, data_types::f32, format::bfyx, format::b_fs_yx_fsv4, 3, 32 + 2, 32 + 3, 4);
+    compare_bfyx2blocked_with_ref("reorder_data_bfyx_to_blocked_format", data_types::f32, data_types::f32, format::bfyx, format::b_fs_yx_fsv4, 4, 32, 16, 4, 0, 0, false);
+    compare_bfyx2blocked_with_ref("reorder_data_bfyx_to_blocked_format", data_types::f32, data_types::f32, format::bfyx, format::b_fs_yx_fsv4, 3, 32 + 2, 32 + 3, 4, 0, 0, false);
     // bfyx_to_b_fs_yx_fsv16
-    compare_bfyx2blocked_with_ref("reorder_data_bfyx_to_blocked_format", data_types::f32, data_types::f32, format::bfyx, format::b_fs_yx_fsv16, 2, 48, 8, 4);
-    compare_bfyx2blocked_with_ref("reorder_data_bfyx_to_blocked_format", data_types::f32, data_types::f32, format::bfyx, format::b_fs_yx_fsv16, 3, 32 + 4, 16 + 7, 2);
+    compare_bfyx2blocked_with_ref("reorder_data_bfyx_to_blocked_format", data_types::f32, data_types::f32, format::bfyx, format::b_fs_yx_fsv16, 2, 48, 8, 4, 0, 0, false);
+    compare_bfyx2blocked_with_ref("reorder_data_bfyx_to_blocked_format", data_types::f32, data_types::f32, format::bfyx, format::b_fs_yx_fsv16, 3, 32 + 4, 16 + 7, 2, 0, 0, false);
     // bfyx to b_fs_yx_fsv32
-    compare_bfyx2blocked_with_ref("reorder_data_bfyx_to_blocked_format", data_types::f32, data_types::f32, format::bfyx, format::b_fs_yx_fsv32, 2, 64, 64, 4);
-    compare_bfyx2blocked_with_ref("reorder_data_bfyx_to_blocked_format", data_types::f32, data_types::f32, format::bfyx, format::b_fs_yx_fsv32, 4, 32 + 6, 96 - 4, 2);
+    compare_bfyx2blocked_with_ref("reorder_data_bfyx_to_blocked_format", data_types::f32, data_types::f32, format::bfyx, format::b_fs_yx_fsv32, 2, 64, 64, 4, 0, 0, false);
+    compare_bfyx2blocked_with_ref("reorder_data_bfyx_to_blocked_format", data_types::f32, data_types::f32, format::bfyx, format::b_fs_yx_fsv32, 4, 32 + 6, 96 - 4, 2, 0, 0, false);
     // bfyx to fs_b_yx_fsv32
-    compare_bfyx2blocked_with_ref("reorder_data_bfyx_to_blocked_format", data_types::f32, data_types::f32, format::bfyx, format::fs_b_yx_fsv32, 2, 64, 8, 4);
-    compare_bfyx2blocked_with_ref("reorder_data_bfyx_to_blocked_format", data_types::f32, data_types::f32, format::bfyx, format::fs_b_yx_fsv32, 3, 64 + 5, 8 + 7, 2);
+    compare_bfyx2blocked_with_ref("reorder_data_bfyx_to_blocked_format", data_types::f32, data_types::f32, format::bfyx, format::fs_b_yx_fsv32, 2, 64, 8, 4, 0, 0, false);
+    compare_bfyx2blocked_with_ref("reorder_data_bfyx_to_blocked_format", data_types::f32, data_types::f32, format::bfyx, format::fs_b_yx_fsv32, 3, 64 + 5, 8 + 7, 2, 0, 0, false);
     // bfzyx to b_fs_zyx_fsv16
-    compare_bfyx2blocked_with_ref("reorder_data_bfyx_to_blocked_format", data_types::f32, data_types::f32, format::bfzyx, format::b_fs_zyx_fsv16, 2, 48, 8, 4, 4);
-    compare_bfyx2blocked_with_ref("reorder_data_bfyx_to_blocked_format", data_types::f32, data_types::f32, format::bfzyx, format::b_fs_zyx_fsv16, 3, 32 + 5, 16 + 7, 2, 2);
+    compare_bfyx2blocked_with_ref("reorder_data_bfyx_to_blocked_format", data_types::f32, data_types::f32, format::bfzyx, format::b_fs_zyx_fsv16, 2, 48, 8, 4, 4, 0, false);
+    compare_bfyx2blocked_with_ref("reorder_data_bfyx_to_blocked_format", data_types::f32, data_types::f32, format::bfzyx, format::b_fs_zyx_fsv16, 3, 32 + 5, 16 + 7, 2, 2, 0, false);
     // bfzyx to b_fs_zyx_fsv32
-    compare_bfyx2blocked_with_ref("reorder_data_bfyx_to_blocked_format", data_types::f32, data_types::f32, format::bfzyx, format::b_fs_zyx_fsv32, 2, 64, 8, 4, 4);
-    compare_bfyx2blocked_with_ref("reorder_data_bfyx_to_blocked_format", data_types::f32, data_types::f32, format::bfzyx, format::b_fs_zyx_fsv32, 3, 64 + 5, 8 + 7, 2, 2);
+    compare_bfyx2blocked_with_ref("reorder_data_bfyx_to_blocked_format", data_types::f32, data_types::f32, format::bfzyx, format::b_fs_zyx_fsv32, 2, 64, 8, 4, 4, 0, false);
+    compare_bfyx2blocked_with_ref("reorder_data_bfyx_to_blocked_format", data_types::f32, data_types::f32, format::bfzyx, format::b_fs_zyx_fsv32, 3, 64 + 5, 8 + 7, 2, 2, 0, false);
 }
 
 TEST(reorder_gpu_optimization, compare_with_ref__bfyx_to_double_blocked_f32) {
     // bfyx to double blocked format (bs_fs_yx_bsv16_fsv16)
-    compare_bfyx2blocked_with_ref("reorder_data_bfyx_to_blocked_format", data_types::f32, data_types::f32, format::bfyx, format::bs_fs_yx_bsv16_fsv16, 32, 48, 8, 4);                    // no
-    compare_bfyx2blocked_with_ref("reorder_data_bfyx_to_blocked_format", data_types::f32, data_types::f32, format::bfyx, format::bs_fs_yx_bsv16_fsv16, 32 + 2, 48, 16, 4);               // b
-    compare_bfyx2blocked_with_ref("reorder_data_bfyx_to_blocked_format", data_types::f32, data_types::f32, format::bfyx, format::bs_fs_yx_bsv16_fsv16, 32, 48 + 5, 16, 4);               // f
-    compare_bfyx2blocked_with_ref("reorder_data_bfyx_to_blocked_format", data_types::f32, data_types::f32, format::bfyx, format::bs_fs_yx_bsv16_fsv16, 32, 48, 48 + 3, 4);               // x
-    compare_bfyx2blocked_with_ref("reorder_data_bfyx_to_blocked_format", data_types::f32, data_types::f32, format::bfyx, format::bs_fs_yx_bsv16_fsv16, 32 + 2, 48 + 3, 16 + 1, 4);       // b-f-x
+    compare_bfyx2blocked_with_ref("reorder_data_bfyx_to_blocked_format", data_types::f32, data_types::f32, format::bfyx, format::bs_fs_yx_bsv16_fsv16, 32, 48, 8, 4, 0, 0, false);
+    compare_bfyx2blocked_with_ref("reorder_data_bfyx_to_blocked_format", data_types::f32, data_types::f32, format::bfyx, format::bs_fs_yx_bsv16_fsv16, 32 + 2, 48, 16, 4, 0, 0, false);
+    compare_bfyx2blocked_with_ref("reorder_data_bfyx_to_blocked_format", data_types::f32, data_types::f32, format::bfyx, format::bs_fs_yx_bsv16_fsv16, 32, 48 + 5, 16, 4, 0, 0, false);
+    compare_bfyx2blocked_with_ref("reorder_data_bfyx_to_blocked_format", data_types::f32, data_types::f32, format::bfyx, format::bs_fs_yx_bsv16_fsv16, 32, 48, 48 + 3, 4, 0, 0, false);
+    compare_bfyx2blocked_with_ref("reorder_data_bfyx_to_blocked_format", data_types::f32, data_types::f32, format::bfyx, format::bs_fs_yx_bsv16_fsv16, 32 + 2, 48 + 3, 16 + 1, 4, 0, 0, false);
     // bfzyx to double blocked format (bs_fs_zyx_bsv16_fsv16)
-    compare_bfyx2blocked_with_ref("reorder_data_bfyx_to_blocked_format", data_types::f32, data_types::f32, format::bfzyx, format::bs_fs_zyx_bsv16_fsv16, 32, 48, 8, 4, 16);              // no
-    compare_bfyx2blocked_with_ref("reorder_data_bfyx_to_blocked_format", data_types::f32, data_types::f32, format::bfzyx, format::bs_fs_zyx_bsv16_fsv16, 32 + 2, 48, 16, 4, 2);          // b
-    compare_bfyx2blocked_with_ref("reorder_data_bfyx_to_blocked_format", data_types::f32, data_types::f32, format::bfzyx, format::bs_fs_zyx_bsv16_fsv16, 32, 48 + 5, 16, 4, 3);          // f
-    compare_bfyx2blocked_with_ref("reorder_data_bfyx_to_blocked_format", data_types::f32, data_types::f32, format::bfzyx, format::bs_fs_zyx_bsv16_fsv16, 32, 48, 48 + 3, 4, 4);          // x
-    compare_bfyx2blocked_with_ref("reorder_data_bfyx_to_blocked_format", data_types::f32, data_types::f32, format::bfzyx, format::bs_fs_zyx_bsv16_fsv16, 32 + 2, 48 + 3, 16 + 1, 4, 2);  // b-f-x
+    compare_bfyx2blocked_with_ref("reorder_data_bfyx_to_blocked_format", data_types::f32, data_types::f32, format::bfzyx, format::bs_fs_zyx_bsv16_fsv16, 32, 48, 8, 4, 16, 0, false);
+    compare_bfyx2blocked_with_ref("reorder_data_bfyx_to_blocked_format", data_types::f32, data_types::f32, format::bfzyx, format::bs_fs_zyx_bsv16_fsv16, 32 + 2, 48, 16, 4, 2, 0, false);
+    compare_bfyx2blocked_with_ref("reorder_data_bfyx_to_blocked_format", data_types::f32, data_types::f32, format::bfzyx, format::bs_fs_zyx_bsv16_fsv16, 32, 48 + 5, 16, 4, 3, 0, false);
+    compare_bfyx2blocked_with_ref("reorder_data_bfyx_to_blocked_format", data_types::f32, data_types::f32, format::bfzyx, format::bs_fs_zyx_bsv16_fsv16, 32, 48, 48 + 3, 4, 4, 0, false);
+    compare_bfyx2blocked_with_ref("reorder_data_bfyx_to_blocked_format", data_types::f32, data_types::f32, format::bfzyx, format::bs_fs_zyx_bsv16_fsv16, 32 + 2, 48 + 3, 16 + 1, 4, 2, 0, false);
 }
 
 TEST(reorder_gpu_optimization, compare_with_ref__bfyx_to_double_blocked_f32_bsv16_fsv32) {
-    compare_bfyx2blocked_with_ref("reorder_data_bfyx_to_blocked_format", data_types::f32, data_types::f32, format::bfzyx, format::bs_fs_zyx_bsv16_fsv32, 3, 16, 4, 5, 7);
-    compare_bfyx2blocked_with_ref("reorder_data_bfyx_to_blocked_format", data_types::f32, data_types::f32, format::bfzyx, format::bs_fs_zyx_bsv16_fsv32, 1, 1, 1, 1, 1);
-    compare_bfyx2blocked_with_ref("reorder_data_bfyx_to_blocked_format", data_types::f32, data_types::f32, format::bfzyx, format::bs_fs_zyx_bsv16_fsv32, 32 + 2, 48, 16, 4, 2);
-    compare_bfyx2blocked_with_ref("reorder_data_bfyx_to_blocked_format", data_types::f32, data_types::f32, format::bfzyx, format::bs_fs_zyx_bsv16_fsv32, 32 + 1, 1, 1, 1, 1);
-    compare_bfyx2blocked_with_ref("reorder_data_bfyx_to_blocked_format", data_types::f32, data_types::f32, format::bfzyx, format::bs_fs_zyx_bsv16_fsv32, 32, 48 + 5, 16, 4, 3);
-    compare_bfyx2blocked_with_ref("reorder_data_bfyx_to_blocked_format", data_types::f32, data_types::f32, format::bfzyx, format::bs_fs_zyx_bsv16_fsv32, 32, 48, 48 + 3, 4, 4);
-    compare_bfyx2blocked_with_ref("reorder_data_bfyx_to_blocked_format", data_types::f32, data_types::f32, format::bfzyx, format::bs_fs_zyx_bsv16_fsv32, 32 + 2, 48 + 3, 16 + 1, 4, 2);
+    compare_bfyx2blocked_with_ref("reorder_data_bfyx_to_blocked_format", data_types::f32, data_types::f32, format::bfzyx, format::bs_fs_zyx_bsv16_fsv32, 3, 16, 4, 5, 7, 0, false);
+    compare_bfyx2blocked_with_ref("reorder_data_bfyx_to_blocked_format", data_types::f32, data_types::f32, format::bfzyx, format::bs_fs_zyx_bsv16_fsv32, 1, 1, 1, 1, 1, 0, false);
+    compare_bfyx2blocked_with_ref("reorder_data_bfyx_to_blocked_format", data_types::f32, data_types::f32, format::bfzyx, format::bs_fs_zyx_bsv16_fsv32, 32 + 2, 48, 16, 4, 2, 0, false);
+    compare_bfyx2blocked_with_ref("reorder_data_bfyx_to_blocked_format", data_types::f32, data_types::f32, format::bfzyx, format::bs_fs_zyx_bsv16_fsv32, 32 + 1, 1, 1, 1, 1, 0, false);
+    compare_bfyx2blocked_with_ref("reorder_data_bfyx_to_blocked_format", data_types::f32, data_types::f32, format::bfzyx, format::bs_fs_zyx_bsv16_fsv32, 32, 48 + 5, 16, 4, 3, 0, false);
+    compare_bfyx2blocked_with_ref("reorder_data_bfyx_to_blocked_format", data_types::f32, data_types::f32, format::bfzyx, format::bs_fs_zyx_bsv16_fsv32, 32, 48, 48 + 3, 4, 4, 0, false);
+    compare_bfyx2blocked_with_ref("reorder_data_bfyx_to_blocked_format", data_types::f32, data_types::f32, format::bfzyx, format::bs_fs_zyx_bsv16_fsv32, 32 + 2, 48 + 3, 16 + 1, 4, 2, 0, false);
 }
 
 TEST(reorder_gpu_optimization, compare_with_ref__bfyx_to_double_blocked_f32_bsv32_fsv16) {
-    compare_bfyx2blocked_with_ref("reorder_data_bfyx_to_blocked_format", data_types::f32, data_types::f32, format::bfzyx, format::bs_fs_zyx_bsv32_fsv16, 1, 1, 1, 1, 1);
-    compare_bfyx2blocked_with_ref("reorder_data_bfyx_to_blocked_format", data_types::f32, data_types::f32, format::bfzyx, format::bs_fs_zyx_bsv32_fsv16, 32 + 2, 48, 16, 4, 2);
-    compare_bfyx2blocked_with_ref("reorder_data_bfyx_to_blocked_format", data_types::f32, data_types::f32, format::bfzyx, format::bs_fs_zyx_bsv32_fsv16, 32, 48 + 5, 16, 4, 3);
-    compare_bfyx2blocked_with_ref("reorder_data_bfyx_to_blocked_format", data_types::f32, data_types::f32, format::bfzyx, format::bs_fs_zyx_bsv32_fsv16, 32, 48, 48 + 3, 4, 4);
-    compare_bfyx2blocked_with_ref("reorder_data_bfyx_to_blocked_format", data_types::f32, data_types::f32, format::bfzyx, format::bs_fs_zyx_bsv32_fsv16, 32 + 2, 48 + 3, 16 + 1, 4, 2);
+    compare_bfyx2blocked_with_ref("reorder_data_bfyx_to_blocked_format", data_types::f32, data_types::f32, format::bfzyx, format::bs_fs_zyx_bsv32_fsv16, 1, 1, 1, 1, 1, 0, false);
+    compare_bfyx2blocked_with_ref("reorder_data_bfyx_to_blocked_format", data_types::f32, data_types::f32, format::bfzyx, format::bs_fs_zyx_bsv32_fsv16, 32 + 2, 48, 16, 4, 2, 0, false);
+    compare_bfyx2blocked_with_ref("reorder_data_bfyx_to_blocked_format", data_types::f32, data_types::f32, format::bfzyx, format::bs_fs_zyx_bsv32_fsv16, 32, 48 + 5, 16, 4, 3, 0, false);
+    compare_bfyx2blocked_with_ref("reorder_data_bfyx_to_blocked_format", data_types::f32, data_types::f32, format::bfzyx, format::bs_fs_zyx_bsv32_fsv16, 32, 48, 48 + 3, 4, 4, 0, false);
+    compare_bfyx2blocked_with_ref("reorder_data_bfyx_to_blocked_format", data_types::f32, data_types::f32, format::bfzyx, format::bs_fs_zyx_bsv32_fsv16, 32 + 2, 48 + 3, 16 + 1, 4, 2, 0, false);
 }
 
 TEST(reorder_gpu_optimization, compare_with_ref__bfyx_to_double_blocked_f32_bsv32_fsv32) {
-    compare_bfyx2blocked_with_ref("reorder_data_bfyx_to_blocked_format", data_types::f32, data_types::f32, format::bfzyx, format::bs_fs_zyx_bsv32_fsv32, 1, 1, 1, 1, 1);
-    compare_bfyx2blocked_with_ref("reorder_data_bfyx_to_blocked_format", data_types::f32, data_types::f32, format::bfzyx, format::bs_fs_zyx_bsv32_fsv32, 32 + 2, 48, 16, 4, 2);
-    compare_bfyx2blocked_with_ref("reorder_data_bfyx_to_blocked_format", data_types::f32, data_types::f32, format::bfzyx, format::bs_fs_zyx_bsv32_fsv32, 32, 48 + 5, 16, 4, 3);
-    compare_bfyx2blocked_with_ref("reorder_data_bfyx_to_blocked_format", data_types::f32, data_types::f32, format::bfzyx, format::bs_fs_zyx_bsv32_fsv32, 32, 48, 48 + 3, 4, 4);
-    compare_bfyx2blocked_with_ref("reorder_data_bfyx_to_blocked_format", data_types::f32, data_types::f32, format::bfzyx, format::bs_fs_zyx_bsv32_fsv32, 32 + 2, 48 + 3, 16 + 1, 4, 2);
+    compare_bfyx2blocked_with_ref("reorder_data_bfyx_to_blocked_format", data_types::f32, data_types::f32, format::bfzyx, format::bs_fs_zyx_bsv32_fsv32, 1, 1, 1, 1, 1, 0, false);
+    compare_bfyx2blocked_with_ref("reorder_data_bfyx_to_blocked_format", data_types::f32, data_types::f32, format::bfzyx, format::bs_fs_zyx_bsv32_fsv32, 32 + 2, 48, 16, 4, 2, 0, false);
+    compare_bfyx2blocked_with_ref("reorder_data_bfyx_to_blocked_format", data_types::f32, data_types::f32, format::bfzyx, format::bs_fs_zyx_bsv32_fsv32, 32, 48 + 5, 16, 4, 3, 0, false);
+    compare_bfyx2blocked_with_ref("reorder_data_bfyx_to_blocked_format", data_types::f32, data_types::f32, format::bfzyx, format::bs_fs_zyx_bsv32_fsv32, 32, 48, 48 + 3, 4, 4, 0, false);
+    compare_bfyx2blocked_with_ref("reorder_data_bfyx_to_blocked_format", data_types::f32, data_types::f32, format::bfzyx, format::bs_fs_zyx_bsv32_fsv32, 32 + 2, 48 + 3, 16 + 1, 4, 2, 0, false);
 }
 
 TEST(reorder_gpu_optimization, compare_with_ref__bfyx_to_blocked_format_different_datatype) {
-    compare_bfyx2blocked_with_ref("reorder_data_bfyx_to_blocked_format", data_types::f32, data_types::f16, format::bfyx, format::b_fs_yx_fsv16, 3, 32 + 4, 16 + 7, 2);
-    compare_bfyx2blocked_with_ref("reorder_data_bfyx_to_blocked_format", data_types::i8, data_types::f32, format::bfyx, format::b_fs_yx_fsv16, 3, 32 + 4, 16 + 7, 2);
-    compare_bfyx2blocked_with_ref("reorder_data_bfyx_to_blocked_format", data_types::i64, data_types::f32, format::bfyx, format::b_fs_yx_fsv16, 3, 32 + 4, 16 + 7, 2);
+    compare_bfyx2blocked_with_ref("reorder_data_bfyx_to_blocked_format", data_types::f32, data_types::f16, format::bfyx, format::b_fs_yx_fsv16, 3, 32 + 4, 16 + 7, 2, 0, 0, false);
+    compare_bfyx2blocked_with_ref("reorder_data_bfyx_to_blocked_format", data_types::i8, data_types::f32, format::bfyx, format::b_fs_yx_fsv16, 3, 32 + 4, 16 + 7, 2, 0, 0, false);
+    compare_bfyx2blocked_with_ref("reorder_data_bfyx_to_blocked_format", data_types::i64, data_types::f32, format::bfyx, format::b_fs_yx_fsv16, 3, 32 + 4, 16 + 7, 2, 0, 0, false);
 }
 
 TEST(reorder_gpu_optimization, bfyx_to_fsv16_without_f_remainder) {
@@ -265,7 +276,7 @@ TEST(reorder_gpu_optimization, bfyx_to_fsv16_without_f_remainder) {
         input_layout("input", input->get_layout()),
         reorder("reorder", input_info("input"), output_layout));
 
-    network network(engine, topology);
+    network network(engine, topology, get_test_default_config(engine));
     network.set_input_data("input", input);
 
     auto outputs = network.execute();
@@ -352,7 +363,7 @@ TEST(reorder_gpu_f32, basic) {
         input_layout("input", input->get_layout()),
         reorder("reorder", input_info("input"), output_layout));
 
-    network network(engine, topology);
+    network network(engine, topology, get_test_default_config(engine));
     network.set_input_data("input", input);
 
     auto outputs = network.execute();
@@ -444,7 +455,7 @@ TEST(reorder_gpu_f32, basic_subtract) {
         input_layout("subtract", subtract->get_layout()),
         reorder("reorder", input_info("input"), output_layout, "subtract"));
 
-    network network(engine, topology);
+    network network(engine, topology, get_test_default_config(engine));
     network.set_input_data("input", input);
     network.set_input_data("subtract", subtract);
 
@@ -526,7 +537,7 @@ TEST(reorder_gpu_f32, basic_subtract_value) {
     topology topology;
     topology.add(input_layout("input", input->get_layout()), reorder("reorder", input_info("input"), output_layout, subtract_val));
 
-    network network(engine, topology);
+    network network(engine, topology, get_test_default_config(engine));
     network.set_input_data("input", input);
 
     auto outputs = network.execute();
@@ -624,7 +635,7 @@ TEST(reorder_gpu_f16, basic_subtract_f32_output_f32) {
     topology.add(data("subtract", subtract));
     topology.add(reorder("reorder", input_info("input"), output_layout, "subtract"));
 
-    network network(engine, topology);
+    network network(engine, topology, get_test_default_config(engine));
     network.set_input_data("input", input);
 
     auto outputs = network.execute();
@@ -712,7 +723,7 @@ TEST(reorder_gpu_f16, basic_subtract_value) {
     topology.add(input_layout("input", input->get_layout()));
     topology.add(reorder("reorder", input_info("input"), output_layout, subtract_val));
 
-    network network(engine, topology);
+    network network(engine, topology, get_test_default_config(engine));
     network.set_input_data("input", input);
 
     auto outputs = network.execute();
@@ -785,12 +796,9 @@ TEST(reorder_gpu, basic_convert_f16_f32_f16) {
     topology.add(reorder("reorder_f16_f32", input_info("input"), interm_layout));
     topology.add(reorder("reorder_f32_f16", input_info("reorder_f16_f32"), output_layout));
 
-    network network(
-        engine,
-        topology,
-        ExecutionConfig{
-            ov::intel_gpu::custom_outputs(std::vector<std::string>{"reorder_f16_f32", "reorder_f32_f16"})
-        });
+    ExecutionConfig cfg = get_test_default_config(engine);
+    cfg.set_property(ov::intel_gpu::custom_outputs(std::vector<std::string>{"reorder_f16_f32", "reorder_f32_f16"}));
+    network network(engine, topology, cfg);
 
     network.set_input_data("input", input);
 
@@ -856,12 +864,9 @@ TEST(reorder_gpu, basic_convert_int8) {
         reorder("reorder2", input_info("reorder_input"), in_layout)
     );
 
-    network network(
-        engine,
-        topology,
-        ExecutionConfig{
-            ov::intel_gpu::custom_outputs(std::vector<std::string>{ "reorder_input", "reorder2"})
-        });
+    ExecutionConfig cfg = get_test_default_config(engine);
+    cfg.set_property(ov::intel_gpu::custom_outputs(std::vector<std::string>{ "reorder_input", "reorder2"}));
+    network network(engine, topology, cfg);
 
     network.set_input_data("input", input_memory);
 
@@ -903,12 +908,9 @@ TEST(reorder_gpu, basic_convert_uint8) {
         reorder("reorder2", input_info("reorder_input"), in_layout)
     );
 
-    network network(
-        engine,
-        topology,
-        ExecutionConfig{
-            ov::intel_gpu::custom_outputs(std::vector<std::string>{ "reorder_input", "reorder2" })
-        });
+    ExecutionConfig cfg = get_test_default_config(engine);
+    cfg.set_property(ov::intel_gpu::custom_outputs(std::vector<std::string>{ "reorder_input", "reorder2" }));
+    network network(engine, topology, cfg);
 
     network.set_input_data("input", input_memory);
 
@@ -985,12 +987,9 @@ TEST(reorder_gpu, basic_convert_uint8rgbabyxf_to_fp32_bfyx) {
             )
     );
 
-    network network(
-        engine,
-        topology,
-        ExecutionConfig{
-            ov::intel_gpu::custom_outputs(std::vector<std::string>{ "reorder_input", "crop" })
-        });
+    ExecutionConfig cfg = get_test_default_config(engine);
+    cfg.set_property(ov::intel_gpu::custom_outputs(std::vector<std::string>{ "reorder_input", "crop" }));
+    network network(engine, topology, cfg);
 
     network.set_input_data("input", input_memory);
 
@@ -1088,7 +1087,7 @@ TEST(reorder_gpu_f32, basic_yxfb_to_bfyx_input_padding)
         reorder("reorder", input_info("input"), input->get_layout().format, input->get_layout().data_type, "", reorder_mean_mode::subtract, padding{ { 0, 0, 1, 2 }, 0 }),
         reorder("reorder2", input_info("reorder"), output_layout));
 
-    network network(engine, topology);
+    network network(engine, topology, get_test_default_config(engine));
     network.set_input_data("input", input);
 
     auto outputs = network.execute();
@@ -1167,7 +1166,7 @@ TEST(reorder_gpu_f32, basic_bfyx_to_yxfb_input_padding)
         reorder("reorder", input_info("input"), input->get_layout().format, input->get_layout().data_type, "", reorder_mean_mode::subtract, padding{ { 0, 0, 2, 1 }, 0 }),
         reorder("reorder2", input_info("reorder"), output_layout));
 
-    network network(engine, topology);
+    network network(engine, topology, get_test_default_config(engine));
     network.set_input_data("input", input);
 
     auto outputs = network.execute();
@@ -1226,7 +1225,7 @@ TEST(reorder_gpu_f32, basic_bfyx_to_bfzyx)
         input_layout("input", input->get_layout()),
         reorder("reorder", input_info("input"), format::bfzyx, data_types::f32));
 
-    network network(engine, topology);
+    network network(engine, topology, get_test_default_config(engine));
     network.set_input_data("input", input);
 
     auto outputs = network.execute();
@@ -1288,7 +1287,7 @@ TEST(reorder_gpu_f32, dynamic_bfyx_to_bfzyx) {
         input_layout("input", in_layout),
         reorder("reorder", input_info("input"), format::bfzyx, data_types::f32));
 
-    ExecutionConfig config;
+    ExecutionConfig config = get_test_default_config(engine);
     config.set_property(ov::intel_gpu::optimize_data(true));
     config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
     network network(engine, topology, config);
@@ -1357,7 +1356,7 @@ TEST(reorder_gpu_f32, basic_yxfb_to_bfzyx)
         input_layout("input", input->get_layout()),
         reorder("reorder", input_info("input"), format::bfzyx, data_types::f32));
 
-    network network(engine, topology);
+    network network(engine, topology, get_test_default_config(engine));
     network.set_input_data("input", input);
 
     auto outputs = network.execute();
@@ -1433,7 +1432,7 @@ TEST(reorder_gpu_f32, basic_bfzyx_to_bfyx)
         input_layout("input", input->get_layout()),
         reorder("reorder", input_info("input"), format::bfyx, data_types::f32));
 
-    network network(engine, topology);
+    network network(engine, topology, get_test_default_config(engine));
     network.set_input_data("input", input);
 
     auto outputs = network.execute();
@@ -1493,7 +1492,7 @@ TEST(reorder_gpu_opt, basic_remove_redundant)
         reorder("r2", input_info("r1"), format::yxfb, data_types::f32)
     };
 
-    ExecutionConfig config;
+    ExecutionConfig config = get_test_default_config(engine);
     config.set_property(ov::intel_gpu::optimize_data(true));
 
     network net(engine, tpl, config);
@@ -1522,7 +1521,7 @@ TEST(reorder_gpu_opt, remove_redundant_activation_fuse)
         eltwise("output", { input_info("relu"), input_info("scale_data") }, eltwise_mode::prod)
     };
 
-    ExecutionConfig config;
+    ExecutionConfig config = get_test_default_config(engine);
     config.set_property(ov::intel_gpu::optimize_data(true));
 
     network net(engine, tpl, config);
@@ -1546,7 +1545,7 @@ TEST(reorder_gpu_opt, basic_remove_redundant_output_due_to_implicit_reorders)
         reorder("r1", input_info("conv"), format::bfyx, data_types::f32) //optimize data should add conversion from yxfb to bfyx and 'conv' should output data in bfyx as well (IE case)
     };
 
-    ExecutionConfig config;
+    ExecutionConfig config = get_test_default_config(engine);
 
     //we need to check if r1 will be successfully opimized and still we should be able to query for r1's output which should point to conv's output (note conv cannot be marked as output in this case)
     config.set_property(ov::intel_gpu::custom_outputs(std::vector<std::string>{ "r1" }));
@@ -1575,7 +1574,7 @@ TEST(reorder_gpu_opt, basic_remove_redundant_due_to_implicit_reorders)
         softmax("output", input_info("r1"))
     };
 
-    ExecutionConfig config;
+    ExecutionConfig config = get_test_default_config(engine);
     config.set_property(ov::intel_gpu::optimize_data(true));
 
     network net(engine, tpl, config);
@@ -1600,7 +1599,7 @@ TEST(reorder_gpu_opt, non_trivial_remove_redundant)
         reorder("r1", input_info("in"), format::bfyx, data_types::f32)
     };
 
-    ExecutionConfig config;
+    ExecutionConfig config = get_test_default_config(engine);
 
     config.set_property(ov::intel_gpu::optimize_data(true));
 
@@ -1638,7 +1637,7 @@ TEST(reorder_gpu_opt, mean_mul)
     };
 
     float answers[] = { 0.5f, 5.0f, -15.0f, 17.2f, 6.0f, -21.0f };
-    ExecutionConfig config;
+    ExecutionConfig config = get_test_default_config(engine);
     config.set_property(ov::intel_gpu::optimize_data(true));
     network net(engine, tpl, config);
     net.set_input_data("in", in);
@@ -1673,7 +1672,7 @@ TEST(reorder_gpu_opt, mean_div)
     };
 
     float answers[] = { 2.0f, 1.0f, -1.0f, 0.5f, 4.0f, -2.0f };
-    ExecutionConfig config;
+    ExecutionConfig config = get_test_default_config(engine);
     config.set_property(ov::intel_gpu::optimize_data(true));
     network net(engine, tpl, config);
     net.set_input_data("in", in);
@@ -1704,7 +1703,7 @@ TEST(reorder_gpu_opt, mean_mul_val)
     };
 
     float answers[] = { 2.0f, 4.0f, 1.5f, 2.0f, 50.0f, 600.0f };
-    ExecutionConfig config;
+    ExecutionConfig config = get_test_default_config(engine);
     config.set_property(ov::intel_gpu::optimize_data(true));
     network net(engine, tpl, config);
     net.set_input_data("in", in);
@@ -1734,7 +1733,7 @@ TEST(reorder_gpu_opt, mean_mul_val_float_to_int)
     };
 
     char answers[] = { 0, 2, 1, 2, 25, 127 };
-    ExecutionConfig config;
+    ExecutionConfig config = get_test_default_config(engine);
     config.set_property(ov::intel_gpu::optimize_data(true));
     network net(engine, tpl, config);
     net.set_input_data("in", in);
@@ -1766,7 +1765,7 @@ TEST(reorder_gpu_i32, basic)
         input_layout("input", input->get_layout()),
         reorder("reorder", input_info("input"), output_layout));
 
-    network network(engine, topology);
+    network network(engine, topology, get_test_default_config(engine));
     network.set_input_data("input", input);
 
     auto outputs = network.execute();
@@ -1807,7 +1806,7 @@ TEST(reorder_gpu_i64, basic)
         input_layout("input", input->get_layout()),
         reorder("reorder", input_info("input"), output_layout));
 
-    network network(engine, topology);
+    network network(engine, topology, get_test_default_config(engine));
     network.set_input_data("input", input);
 
     auto outputs = network.execute();
@@ -1833,7 +1832,7 @@ TEST(reorder_gpu_binary, binary_output)
 {
     auto& engine = get_test_engine();
 
-    ov::intel_gpu::ExecutionConfig config;
+    ov::intel_gpu::ExecutionConfig config = get_test_default_config(engine);
     config.set_property(ov::intel_gpu::optimize_data(true));
 
     auto input = engine.allocate_memory({ data_types::f32, format::bfyx,{ 2, 2, 2, 2 } });
@@ -1852,7 +1851,7 @@ TEST(reorder_gpu_binary, binary_output)
         input_layout("input", input->get_layout()),
         reorder("reorder", input_info("input"), output_layout));
 
-    network network(engine, topology);
+    network network(engine, topology, get_test_default_config(engine));
     network.set_input_data("input", input);
 
     auto outputs = network.execute();
@@ -1881,7 +1880,7 @@ TEST(reorder_gpu_binary, binary_input)
 {
     auto& engine = get_test_engine();
 
-    ov::intel_gpu::ExecutionConfig config;
+    ov::intel_gpu::ExecutionConfig config = get_test_default_config(engine);
     config.set_property(ov::intel_gpu::optimize_data(true));
 
     auto input = engine.allocate_memory({ data_types::bin, format::b_fs_yx_32fp,{ 2, 2, 2, 2 } });
@@ -1903,7 +1902,7 @@ TEST(reorder_gpu_binary, binary_input)
         input_layout("input", input->get_layout()),
         reorder("reorder", input_info("input"), output_layout));
 
-    network network(engine, topology);
+    network network(engine, topology, get_test_default_config(engine));
     network.set_input_data("input", input);
 
     auto outputs = network.execute();
@@ -1973,7 +1972,7 @@ TEST(reorder_gpu_f32, bfwzyx_bfyx_chain)
         reorder("reorder3", input_info("reshape3"), format::bfyx, data_types::f32, sub_bfyx),
         reorder("out_reorder", input_info("reorder3"), format::bfwzyx, data_types::f32)
         );
-    ExecutionConfig config;
+    ExecutionConfig config = get_test_default_config(engine);
     config.set_property(ov::intel_gpu::optimize_data(true));
     network network(engine, topology, config);
     network.set_input_data("input", input);
@@ -2018,7 +2017,7 @@ TEST(reorder_gpu_f32, bfzyx_to_bsv16_fsv16)
             input_layout("input", input->get_layout()),
             reorder("reorder", input_info("input"), output_layout));
 
-    network network(engine, topology);
+    network network(engine, topology, get_test_default_config(engine));
     network.set_input_data("input", input);
 
     auto outputs = network.execute();
@@ -2100,7 +2099,7 @@ TEST(reorder_gpu_f32, bfzyx_to_bsv16_fsv16_padded)
             input_layout("input", input->get_layout()),
             reorder("reorder", input_info("input"), output_layout.with_padding(padding({ 0, 0, x_pad, y_pad, 0 }, 0.f))));
 
-    network network(engine, topology);
+    network network(engine, topology, get_test_default_config(engine));
     network.set_input_data("input", input);
 
     auto outputs = network.execute();
@@ -2175,7 +2174,7 @@ TEST(reorder_gpu_f32, b_fs_yx_fsv16_to_bfyx_opt_allowed)
             reorder(reorder_name, input_info("first_activation"), format::bfyx, data_types::f32),
             activation("second_activation", input_info(reorder_name), activation_func::abs));
 
-    ExecutionConfig config;
+    ExecutionConfig config = get_test_default_config(engine);
     config.set_property(ov::intel_gpu::optimize_data(true));
     network network(engine, topology, config);
     network.set_input_data("input", input);
@@ -2222,7 +2221,7 @@ TEST(reorder_gpu_f32, b_fs_yx_fsv16_to_bfyx_opt_not_allowed)
             reorder(reorder_name, input_info("input"), format::bfyx, data_types::f32),
             convolution("convolution", input_info(reorder_name), {"weights"}, { 1, 1 }, { 1, 1 }, { 1, 1 }));
 
-    ExecutionConfig config;
+    ExecutionConfig config = get_test_default_config(engine);
     config.set_property(ov::intel_gpu::optimize_data(true));
     network network(engine, topology, config);
     network.set_input_data("input", input);
@@ -2278,7 +2277,7 @@ TEST(reorder_gpu_f32, b_fs_yx_fsv16_to_bfyx_opt_padded)
         reorder(reorder_name, input_info("input"), format::bfyx, data_types::f32),
         activation("activation", input_info(reorder_name), activation_func::abs));
 
-    ExecutionConfig config;
+    ExecutionConfig config = get_test_default_config(engine);
     config.set_property(ov::intel_gpu::optimize_data(true));
     network network(engine, topology, config);
     network.set_input_data("input", input);
@@ -2314,7 +2313,7 @@ TEST(reorder_gpu, any_format) {
     topo.add(input_layout("in", input->get_layout()));
     topo.add(reorder("out", input_info("in"), format::any, data_types::f32));
 
-    network net(engine, topo);
+    network net(engine, topo, get_test_default_config(engine));
 
     auto data = generate_random_1d<float>(input->count(), -1, 1);
     set_values(input, data);
@@ -2347,7 +2346,7 @@ TEST(reorder_image2d_rgba_to_bfyx_gpu, basic)
         input_layout("input", input->get_layout()),
         reorder("reorder", input_info("input"), output_layout));
 
-    network network(engine, topology);
+    network network(engine, topology, get_test_default_config(engine));
     network.set_input_data("input", input);
 
     auto outputs = network.execute();
@@ -2397,7 +2396,7 @@ TEST(reorder_bfyx_to_image2d_rgba_gpu, basic)
         input_layout("input", input->get_layout()),
         reorder("reorder", input_info("input"), output_layout));
 
-    network network(engine, topology);
+    network network(engine, topology, get_test_default_config(engine));
     network.set_input_data("input", input);
 
     auto outputs = network.execute();
@@ -2549,8 +2548,6 @@ INSTANTIATE_TEST_SUITE_P(DISABLED_REORDER,
                         tests::generic_test::custom_param_name_functor());
 
 
-
-
 struct reorder_test_param {
     tensor in_shape;
     tensor out_shape;
@@ -2570,17 +2567,31 @@ class ReorderTest : public ::testing::TestWithParam<T> {
 public:
     cldnn::engine& engine = get_test_engine();
     cldnn::topology topology_test;
-    ExecutionConfig config;
+    ExecutionConfig config = get_test_default_config(engine);
     static const int min_random = -200;
     static const int max_random = 200;
     std::vector<primitive_id> executed_prims;
 
-    void execute(T& p) {
+    void execute(T& p, bool is_caching_test) {
         auto input_prim = this->get_mem(get_input_layout(p));
-        network network_test(this->engine, this->topology_test, this->config);
-        network_test.set_input_data("input", input_prim);
 
-        executed_prims = network_test.get_executed_primitive_ids();
+        cldnn::network::ptr network_test = get_network(this->engine, this->topology_test, this->config, get_test_stream_ptr(), is_caching_test);
+
+        network_test->set_input_data("input", input_prim);
+
+        executed_prims = network_test->get_executed_primitive_ids();
+    }
+
+    std::shared_ptr<primitive_inst> execute_and_query(T& p, primitive_id prim_id) {
+        auto input_prim = this->get_mem(get_input_layout(p));
+
+        cldnn::network::ptr network_test = get_network(this->engine, this->topology_test, this->config, get_test_stream_ptr(), false);
+
+        network_test->set_input_data("input", input_prim);
+
+        executed_prims = network_test->get_executed_primitive_ids();
+
+        return network_test->get_primitive(prim_id);
     }
 
     bool check_optimized_out(T& p, primitive_id target_id) {
@@ -2659,7 +2670,7 @@ TEST_P(testing_removal_reorder, removal_reorder_1d_along_f) {
                 reorder("reorder_bfyx", input_info("add_bias1"), p.default_format, data_types::f16)
     );
 
-    execute(p);
+    execute(p, false);
 
     ASSERT_EQ(check_optimized_out(p, "reorder_bias1"), true);
 }
@@ -2682,7 +2693,7 @@ TEST_P(testing_removal_reorder, only_remove_reorder_shallow_depth_input) {
         reorder("reorder_output", input_info("resample"), p.default_format, data_types::f32)
     );
 
-    execute(p);
+    execute(p, false);
 
     ASSERT_EQ(check_optimized_out(p, "reorder_conv"), false);
 }
@@ -2706,14 +2717,13 @@ TEST_P(testing_removal_reorder, removal_no_padded_reorder) {
     );
 
     ov::intel_gpu::ImplementationDesc impl = { format::b_fs_yx_fsv16, std::string(""), impl_types::ocl };
-    ExecutionConfig config{ov::intel_gpu::queue_type(QueueTypes::in_order),
-                            ov::intel_gpu::optimize_data(true),
-                            ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ {"conv_output", impl} })
-    };
+    ExecutionConfig config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::optimize_data(true));
+    config.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ {"conv_output", impl} }));
 
     setup_with_build_ops(config);
 
-    execute(p);
+    execute(p, false);
 
     ASSERT_EQ(check_optimized_out(p, "reorder_conv"), true);
 }
@@ -2736,14 +2746,13 @@ TEST_P(testing_removal_reorder, removal_padded_reorder) {
     );
 
     ov::intel_gpu::ImplementationDesc impl = { format::b_fs_yx_fsv16, std::string(""), impl_types::ocl };
-    ExecutionConfig config{ov::intel_gpu::queue_type(QueueTypes::in_order),
-                            ov::intel_gpu::optimize_data(true),
-                            ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ {"conv_output", impl} })
-    };
+    ExecutionConfig config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::optimize_data(true));
+    config.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ {"conv_output", impl} }));
 
     setup_with_build_ops(config);
 
-    execute(p);
+    execute(p, false);
 
     ASSERT_EQ(check_optimized_out(p, "reorder_conv"), false);
 }
@@ -2755,6 +2764,129 @@ INSTANTIATE_TEST_SUITE_P(reorder_gpu_testing, testing_removal_reorder,
                                                                 data_types::f16, format::bfyx, data_types::f16, format::goiyx, data_types::f16, format::b_fs_yx_fsv16},
                                             }));
 
+
+struct redundant_reorder_test_param {
+    tensor in_shape;
+    tensor out_shape;
+    tensor kernel;
+    ov::Strides stride;
+    ov::CoordinateDiff pad;
+    data_types data_type;
+    format input_format;
+    data_types weights_type;
+    format weights_format;
+    data_types default_type;
+    format default_format;
+    bool opt_out;
+};
+
+class testing_removal_1d_reorder : public ReorderTest<redundant_reorder_test_param> {};
+TEST_P(testing_removal_1d_reorder, removal_reorder_1d_along_f_mixed_format) {
+    auto p = GetParam();
+
+    std::vector<int> pad = { 0, 0, static_cast<int>(p.pad[1]), static_cast<int>(p.pad[0]) };
+    layout in_layout{ p.data_type, p.input_format, p.in_shape, padding{pad} };
+
+    create_topologies(input_layout("input", in_layout),
+                data("weights", get_mem(get_weights_layout(p))),
+                data("bias1", get_mem(get_bias_layout(p))),
+                reorder("reorder_bias1", input_info("bias1"), format::b_fs_yx_fsv32, data_types::f16),
+                convolution("conv_prim", input_info("input"), {"weights"}, std::vector<primitive_id>{}, 1, p.stride, p.pad),
+                reorder("reorder_conv", input_info("conv_prim"), format::b_fs_yx_fsv32, data_types::f16),
+                eltwise("add_bias1", { input_info("reorder_conv"), input_info("reorder_bias1") }, eltwise_mode::sum),
+                reorder("reorder_bfyx", input_info("add_bias1"), p.default_format, data_types::f16)
+    );
+
+    const auto& target_reorder = execute_and_query(p, "reorder_conv");
+    ASSERT_EQ(check_optimized_out(p, "reorder_conv"), false);
+    ASSERT_EQ(target_reorder->can_be_optimized(), true);
+}
+
+// Negative : reorder is padded
+TEST_P(testing_removal_1d_reorder, padded_reorder_1d_along_f_mixed_format) {
+    auto p = GetParam();
+
+    std::vector<int> pad = { 0, 0, static_cast<int>(p.pad[1]), static_cast<int>(p.pad[0]) };
+    layout in_layout{ p.data_type, p.input_format, p.in_shape, padding{pad} };
+
+    layout reorder_layout(data_types::f16, format::b_fs_yx_fsv32, p.out_shape, padding({0, 0, 1, 1}, 0));
+
+    create_topologies(input_layout("input", in_layout),
+                data("weights", get_mem(get_weights_layout(p))),
+                data("bias1", get_mem(get_bias_layout(p))),
+                reorder("reorder_bias1", input_info("bias1"), format::b_fs_yx_fsv32, data_types::f16),
+                convolution("conv_prim", input_info("input"), {"weights"}, std::vector<primitive_id>{}, 1, p.stride, p.pad),
+                reorder("reorder_conv", input_info("conv_prim"), reorder_layout),
+                eltwise("add_bias1", { input_info("reorder_conv"), input_info("reorder_bias1") }, eltwise_mode::sum),
+                reorder("reorder_bfyx", input_info("add_bias1"), p.default_format, data_types::f16)
+    );
+
+    const auto& target_reorder = execute_and_query(p, "reorder_conv");
+    ASSERT_EQ(check_optimized_out(p, "reorder_conv"), false);
+    ASSERT_EQ(target_reorder->can_be_optimized(), false);
+}
+
+INSTANTIATE_TEST_SUITE_P(reorder_gpu_testing_1d_removal, testing_removal_1d_reorder,
+                        ::testing::ValuesIn(std::vector<redundant_reorder_test_param>{
+                                            redundant_reorder_test_param{{1, 32, 1, 1}, {1, 32, 1, 1}, {1, 1, 1, 1}, {1, 1}, {0, 0},
+                                                                data_types::f16, format::b_fs_yx_fsv16, data_types::f16, format::goiyx, data_types::f16, format::b_fs_yx_fsv16, false},
+                                            }));
+
+class testing_removal_feature_aligned_reorder : public ReorderTest<redundant_reorder_test_param> {};
+TEST_P(testing_removal_feature_aligned_reorder, removal_reorder_aligned_mixed_format) {
+    auto p = GetParam();
+
+    std::vector<int> pad = { 0, 0, static_cast<int>(p.pad[1]), static_cast<int>(p.pad[0]) };
+    layout in_layout{ p.data_type, p.input_format, p.in_shape, padding{pad} };
+
+    create_topologies(input_layout("input", in_layout),
+                data("bias1", get_mem(get_bias_layout(p))),
+                reorder("reorder_bias1", input_info("bias1"), format::b_fs_yx_fsv32, data_types::f16),
+                reorder("reorder_input", input_info("input"), format::b_fs_yx_fsv32, data_types::f16),
+                eltwise("add_bias1", { input_info("reorder_input"), input_info("reorder_bias1") }, eltwise_mode::sum),
+                reorder("reorder_bfyx", input_info("add_bias1"), p.default_format, data_types::f16)
+    );
+
+    const auto& target_reorder = execute_and_query(p, "reorder_input");
+    ASSERT_EQ(check_optimized_out(p, "reorder_input"), false);
+    ASSERT_EQ(target_reorder->can_be_optimized(), p.opt_out);
+}
+
+// Negative : reorder is padded
+TEST_P(testing_removal_feature_aligned_reorder, padded_reorder_aligned_mixed_format) {
+    auto p = GetParam();
+
+    std::vector<int> pad = { 0, 0, static_cast<int>(p.pad[1]), static_cast<int>(p.pad[0]) };
+    layout in_layout{ p.data_type, p.input_format, p.in_shape, padding{pad} };
+
+    layout reorder_layout(data_types::f16, format::b_fs_yx_fsv32, p.out_shape, padding({0, 0, 1, 1}, 0));
+
+    create_topologies(input_layout("input", in_layout),
+                data("bias1", get_mem(get_bias_layout(p))),
+                reorder("reorder_bias1", input_info("bias1"), format::b_fs_yx_fsv32, data_types::f16),
+                reorder("reorder_input", input_info("input"), reorder_layout),
+                eltwise("add_bias1", { input_info("reorder_input"), input_info("reorder_bias1") }, eltwise_mode::sum),
+                reorder("reorder_bfyx", input_info("add_bias1"), p.default_format, data_types::f16)
+    );
+
+    const auto& target_reorder = execute_and_query(p, "reorder_input");
+    ASSERT_EQ(check_optimized_out(p, "reorder_input"), false);
+    ASSERT_EQ(target_reorder->can_be_optimized(), false);
+}
+
+INSTANTIATE_TEST_SUITE_P(reorder_gpu_testing_1d_removal, testing_removal_feature_aligned_reorder,
+                        ::testing::ValuesIn(std::vector<redundant_reorder_test_param>{
+                                            redundant_reorder_test_param{{1, 32, 8, 8}, {1, 32, 8, 8}, {1, 1, 1, 1}, {1, 1}, {0, 0},
+                                                                data_types::f16, format::byxf, data_types::f16, format::goiyx, data_types::f16, format::b_fs_yx_fsv16, true},
+                                            redundant_reorder_test_param{{1, 32, 1, 1}, {1, 32, 1, 1}, {1, 1, 1, 1}, {1, 1}, {0, 0},
+                                                                data_types::f16, format::byxf, data_types::f16, format::goiyx, data_types::f16, format::b_fs_yx_fsv16, true},
+                                            redundant_reorder_test_param{{1, 64, 8, 8}, {1, 64, 8, 8}, {1, 1, 1, 1}, {1, 1}, {0, 0},
+                                                                data_types::f16, format::byxf, data_types::f16, format::goiyx, data_types::f16, format::b_fs_yx_fsv16, false},
+                                            redundant_reorder_test_param{{1, 1, 1, 32}, {1, 1, 1, 32}, {1, 1, 1, 1}, {1, 1}, {0, 0},
+                                                                data_types::f16, format::byxf, data_types::f16, format::goiyx, data_types::f16, format::b_fs_yx_fsv16, false},
+                                            redundant_reorder_test_param{{1, 1, 1, 32}, {1, 1, 1, 32}, {1, 1, 1, 1}, {1, 1}, {0, 0},
+                                                                data_types::f16, format::b_fs_yx_fsv16, data_types::f16, format::goiyx, data_types::f16, format::b_fs_yx_fsv16, false},
+                                            }));
 
 #ifdef ENABLE_ONEDNN_FOR_GPU
 TEST(reorder_onednn_gpu, basic_convert_int8) {
@@ -2787,10 +2919,9 @@ TEST(reorder_onednn_gpu, basic_convert_int8) {
     );
 
     ov::intel_gpu::ImplementationDesc impl = { format::bfyx, std::string(""), impl_types::onednn };
-    ExecutionConfig cfg{ov::intel_gpu::queue_type(QueueTypes::in_order),
-                        ov::intel_gpu::custom_outputs(std::vector<std::string>{ "reorder_input", "reorder2"}),
-                        ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{{ "reorder_input", impl }}),
-    };
+    ExecutionConfig cfg = get_test_default_config(engine);
+    cfg.set_property(ov::intel_gpu::custom_outputs(std::vector<std::string>{ "reorder_input", "reorder2"}));
+    cfg.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{{ "reorder_input", impl }}));
 
     network network(
         engine,
@@ -2810,3 +2941,167 @@ TEST(reorder_onednn_gpu, basic_convert_int8) {
     }
 }
 #endif // ENABLE_ONEDNN_FOR_GPU
+
+#ifdef RUN_ALL_MODEL_CACHING_TESTS
+TEST(reorder_gpu_optimization, compare_with_ref__b_fs_yx_fsv32_to_bfyx_f32_cached) {
+    // b_fs_yx_fsv32 -> bfyx
+    compare_bfyx2blocked_with_ref("reorder_data_b_fs_yx_fsv16_fsv32_to_bfyx", data_types::f32, data_types::f32, format::b_fs_yx_fsv32, format::bfyx, 3, 64 + 5, 16 + 11, 3, 0, 0, true);
+    compare_bfyx2blocked_with_ref("reorder_data_b_fs_yx_fsv16_fsv32_to_bfyx", data_types::f32, data_types::f32, format::b_fs_yx_fsv32, format::bfyx, 3, 96 - 12, 16 + 4, 3, 0, 0, true);
+    // b_fs_zyx_fsv32 -> bfzyx
+    compare_bfyx2blocked_with_ref("reorder_data_b_fs_yx_fsv16_fsv32_to_bfyx", data_types::f32, data_types::f32, format::b_fs_yx_fsv32, format::bfzyx, 3, 64 + 9, 16 - 1, 2, 8, 0, true);
+    compare_bfyx2blocked_with_ref("reorder_data_b_fs_yx_fsv16_fsv32_to_bfyx", data_types::f32, data_types::f32, format::b_fs_yx_fsv32, format::bfzyx, 2, 64 + 30, 16 + 1, 3, 4, 0, true);
+    // incremental dims
+    compare_bfyx2blocked_with_ref("reorder_data_b_fs_yx_fsv16_fsv32_to_bfyx", data_types::f32, data_types::f32, format::b_fs_yx_fsv32, format::bfzyx, 2, 64 + 4, 24 - 1, 3, 0, 0, true);
+    compare_bfyx2blocked_with_ref("reorder_data_b_fs_yx_fsv16_fsv32_to_bfyx", data_types::f32, data_types::f32, format::b_fs_yx_fsv32, format::bfwzyx, 2, 64 + 2, 32 - 3, 4, 0, 0, true);
+    compare_bfyx2blocked_with_ref("reorder_data_b_fs_yx_fsv16_fsv32_to_bfyx", data_types::f32, data_types::f32, format::b_fs_zyx_fsv32, format::bfwzyx, 1, 96 + 10, 32 - 3, 4, 3, 0, true);
+}
+
+TEST(reorder_gpu_optimization, compare_with_ref__b_fs_yx_fsv32_to_bfyx_different_datatype_cached) {
+    // f32 -> other types
+    compare_bfyx2blocked_with_ref("reorder_data_b_fs_yx_fsv16_fsv32_to_bfyx", data_types::f32, data_types::u8, format::b_fs_yx_fsv32, format::bfyx, 2, 64, 8 + 7, 2, 0, 0, true);
+    compare_bfyx2blocked_with_ref("reorder_data_b_fs_yx_fsv16_fsv32_to_bfyx", data_types::f32, data_types::i64, format::b_fs_yx_fsv32, format::bfyx, 2, 64, 16 + 2, 2, 0, 0, true);
+    compare_bfyx2blocked_with_ref("reorder_data_b_fs_yx_fsv16_fsv32_to_bfyx", data_types::f32, data_types::f16, format::b_fs_yx_fsv32, format::bfyx, 1, 64, 16 + 1, 2, 0, 0, true);
+    // i32 -> other types
+    compare_bfyx2blocked_with_ref("reorder_data_b_fs_yx_fsv16_fsv32_to_bfyx", data_types::i32, data_types::i8, format::b_fs_yx_fsv32, format::bfyx, 2, 64, 8 + 7, 2, 0, 0, true);
+    compare_bfyx2blocked_with_ref("reorder_data_b_fs_yx_fsv16_fsv32_to_bfyx", data_types::i32, data_types::i64, format::b_fs_yx_fsv32, format::bfyx, 2, 64, 16 + 2, 2, 0, 0, true);
+    compare_bfyx2blocked_with_ref("reorder_data_b_fs_yx_fsv16_fsv32_to_bfyx", data_types::i32, data_types::f16, format::b_fs_yx_fsv32, format::bfyx, 1, 64, 16 + 1, 2, 0, 0, true);
+}
+
+TEST(reorder_gpu_optimization, compare_with_ref__b_fs_yx_fsv16_to_bfyx_f32_cached) {
+    // u-net
+    compare_bfyx2blocked_with_ref("reorder_data_b_fs_yx_fsv16_fsv32_to_bfyx", data_types::f32, data_types::f32, format::b_fs_yx_fsv16, format::bfyx, 1, 64, 388, 388, 0, 0, true);
+    // b_fs_yx_fsv16 -> bfyx
+    compare_bfyx2blocked_with_ref("reorder_data_b_fs_yx_fsv16_fsv32_to_bfyx", data_types::f32, data_types::f32, format::b_fs_yx_fsv16, format::bfyx, 3, 48 + 1, 16, 3, 0, 0, true);
+    compare_bfyx2blocked_with_ref("reorder_data_b_fs_yx_fsv16_fsv32_to_bfyx", data_types::f32, data_types::f32, format::b_fs_yx_fsv16, format::bfyx, 2, 32 - 1, 24 - 1, 3, 0, 0, true);
+    // b_fs_zyx_fsv16 -> bfzyx
+    compare_bfyx2blocked_with_ref("reorder_data_b_fs_yx_fsv16_fsv32_to_bfyx", data_types::f32, data_types::f32, format::b_fs_zyx_fsv16, format::bfzyx, 5, 48 - 1, 16, 3, 8, 0, true);
+    compare_bfyx2blocked_with_ref("reorder_data_b_fs_yx_fsv16_fsv32_to_bfyx", data_types::f32, data_types::f32, format::b_fs_zyx_fsv16, format::bfzyx, 2, 32 + 1, 24 - 1, 3, 17, 0, true);
+    // incremental dims
+    compare_bfyx2blocked_with_ref("reorder_data_b_fs_yx_fsv16_fsv32_to_bfyx", data_types::f32, data_types::f32, format::b_fs_yx_fsv16, format::bfzyx, 3, 32 - 1, 24 - 1, 3, 0, 0, true);
+    compare_bfyx2blocked_with_ref("reorder_data_b_fs_yx_fsv16_fsv32_to_bfyx", data_types::f32, data_types::f32, format::b_fs_yx_fsv16, format::bfwzyx, 4, 16 + 1, 32 - 3, 4, 0, 0, true);
+    compare_bfyx2blocked_with_ref("reorder_data_b_fs_yx_fsv16_fsv32_to_bfyx", data_types::f32, data_types::f32, format::b_fs_zyx_fsv16, format::bfwzyx, 3, 16 + 2, 32 - 3, 4, 9, 0, true);
+}
+
+TEST(reorder_gpu_optimization, compare_with_ref__b_fs_yx_fsv16_to_bfyx_different_datatype_cached) {
+    // f32 -> other types
+    compare_bfyx2blocked_with_ref("reorder_data_b_fs_yx_fsv16_fsv32_to_bfyx", data_types::f32, data_types::u8, format::b_fs_yx_fsv16, format::bfyx, 2, 32, 16 + 7, 2, 0, 0, true);
+    compare_bfyx2blocked_with_ref("reorder_data_b_fs_yx_fsv16_fsv32_to_bfyx", data_types::f32, data_types::i8, format::b_fs_yx_fsv16, format::bfyx, 2, 32, 16 + 7, 2, 0, 0, true);
+    compare_bfyx2blocked_with_ref("reorder_data_b_fs_yx_fsv16_fsv32_to_bfyx", data_types::f32, data_types::i32, format::b_fs_yx_fsv16, format::bfyx, 2, 32, 16 + 7, 2, 0, 0, true);
+    compare_bfyx2blocked_with_ref("reorder_data_b_fs_yx_fsv16_fsv32_to_bfyx", data_types::f32, data_types::i64, format::b_fs_yx_fsv16, format::bfyx, 2, 32, 16 + 7, 2, 0, 0, true);
+    compare_bfyx2blocked_with_ref("reorder_data_b_fs_yx_fsv16_fsv32_to_bfyx", data_types::f32, data_types::f16, format::b_fs_yx_fsv16, format::bfyx, 2, 32, 16 + 7, 2, 0, 0, true);
+    // i32 -> other types
+    compare_bfyx2blocked_with_ref("reorder_data_b_fs_yx_fsv16_fsv32_to_bfyx", data_types::i32, data_types::u8, format::b_fs_yx_fsv16, format::bfyx, 2, 32, 16 + 7, 2, 0, 0, true);
+    compare_bfyx2blocked_with_ref("reorder_data_b_fs_yx_fsv16_fsv32_to_bfyx", data_types::i32, data_types::i8, format::b_fs_yx_fsv16, format::bfyx, 2, 32, 16 + 7, 2, 0, 0, true);
+    compare_bfyx2blocked_with_ref("reorder_data_b_fs_yx_fsv16_fsv32_to_bfyx", data_types::i32, data_types::i64, format::b_fs_yx_fsv16, format::bfyx, 2, 32, 16 + 7, 2, 0, 0, true);
+    compare_bfyx2blocked_with_ref("reorder_data_b_fs_yx_fsv16_fsv32_to_bfyx", data_types::i32, data_types::f16, format::b_fs_yx_fsv16, format::bfyx, 2, 32, 16 + 7, 2, 0, 0, true);
+    compare_bfyx2blocked_with_ref("reorder_data_b_fs_yx_fsv16_fsv32_to_bfyx", data_types::i32, data_types::f32, format::b_fs_yx_fsv16, format::bfyx, 2, 32, 16 + 7, 2, 0, 0, true);
+}
+
+TEST(reorder_gpu_optimization, compare_with_ref__bfyx_to_blocked_f32_cached) {
+    // bfyx_to_b_fs_yx_fsv4
+    compare_bfyx2blocked_with_ref("reorder_data_bfyx_to_blocked_format", data_types::f32, data_types::f32, format::bfyx, format::b_fs_yx_fsv4, 4, 32, 16, 4, 0, 0, true);
+    compare_bfyx2blocked_with_ref("reorder_data_bfyx_to_blocked_format", data_types::f32, data_types::f32, format::bfyx, format::b_fs_yx_fsv4, 3, 32 + 2, 32 + 3, 4, 0, 0, true);
+    // bfyx_to_b_fs_yx_fsv16
+    compare_bfyx2blocked_with_ref("reorder_data_bfyx_to_blocked_format", data_types::f32, data_types::f32, format::bfyx, format::b_fs_yx_fsv16, 2, 48, 8, 4, 0, 0, true);
+    compare_bfyx2blocked_with_ref("reorder_data_bfyx_to_blocked_format", data_types::f32, data_types::f32, format::bfyx, format::b_fs_yx_fsv16, 3, 32 + 4, 16 + 7, 2, 0, 0, true);
+    // bfyx to b_fs_yx_fsv32
+    compare_bfyx2blocked_with_ref("reorder_data_bfyx_to_blocked_format", data_types::f32, data_types::f32, format::bfyx, format::b_fs_yx_fsv32, 2, 64, 64, 4, 0, 0, true);
+    compare_bfyx2blocked_with_ref("reorder_data_bfyx_to_blocked_format", data_types::f32, data_types::f32, format::bfyx, format::b_fs_yx_fsv32, 4, 32 + 6, 96 - 4, 2, 0, 0, true);
+    // bfyx to fs_b_yx_fsv32
+    compare_bfyx2blocked_with_ref("reorder_data_bfyx_to_blocked_format", data_types::f32, data_types::f32, format::bfyx, format::fs_b_yx_fsv32, 2, 64, 8, 4, 0, 0, true);
+    compare_bfyx2blocked_with_ref("reorder_data_bfyx_to_blocked_format", data_types::f32, data_types::f32, format::bfyx, format::fs_b_yx_fsv32, 3, 64 + 5, 8 + 7, 2, 0, 0, true);
+    // bfzyx to b_fs_zyx_fsv16
+    compare_bfyx2blocked_with_ref("reorder_data_bfyx_to_blocked_format", data_types::f32, data_types::f32, format::bfzyx, format::b_fs_zyx_fsv16, 2, 48, 8, 4, 4, 0, true);
+    compare_bfyx2blocked_with_ref("reorder_data_bfyx_to_blocked_format", data_types::f32, data_types::f32, format::bfzyx, format::b_fs_zyx_fsv16, 3, 32 + 5, 16 + 7, 2, 2, 0, true);
+    // bfzyx to b_fs_zyx_fsv32
+    compare_bfyx2blocked_with_ref("reorder_data_bfyx_to_blocked_format", data_types::f32, data_types::f32, format::bfzyx, format::b_fs_zyx_fsv32, 2, 64, 8, 4, 4, 0, true);
+    compare_bfyx2blocked_with_ref("reorder_data_bfyx_to_blocked_format", data_types::f32, data_types::f32, format::bfzyx, format::b_fs_zyx_fsv32, 3, 64 + 5, 8 + 7, 2, 2, 0, true);
+}
+
+TEST(reorder_gpu_optimization, compare_with_ref__bfyx_to_double_blocked_f32_cached) {
+    // bfyx to double blocked format (bs_fs_yx_bsv16_fsv16)
+    compare_bfyx2blocked_with_ref("reorder_data_bfyx_to_blocked_format", data_types::f32, data_types::f32, format::bfyx, format::bs_fs_yx_bsv16_fsv16, 32, 48, 8, 4, 0, 0, true);
+    compare_bfyx2blocked_with_ref("reorder_data_bfyx_to_blocked_format", data_types::f32, data_types::f32, format::bfyx, format::bs_fs_yx_bsv16_fsv16, 32 + 2, 48, 16, 4, 0, 0, true);
+    compare_bfyx2blocked_with_ref("reorder_data_bfyx_to_blocked_format", data_types::f32, data_types::f32, format::bfyx, format::bs_fs_yx_bsv16_fsv16, 32, 48 + 5, 16, 4, 0, 0, true);
+    compare_bfyx2blocked_with_ref("reorder_data_bfyx_to_blocked_format", data_types::f32, data_types::f32, format::bfyx, format::bs_fs_yx_bsv16_fsv16, 32, 48, 48 + 3, 4, 0, 0, true);
+    compare_bfyx2blocked_with_ref("reorder_data_bfyx_to_blocked_format", data_types::f32, data_types::f32, format::bfyx, format::bs_fs_yx_bsv16_fsv16, 32 + 2, 48 + 3, 16 + 1, 4, 0, 0, true);
+    // bfzyx to double blocked format (bs_fs_zyx_bsv16_fsv16)
+    compare_bfyx2blocked_with_ref("reorder_data_bfyx_to_blocked_format", data_types::f32, data_types::f32, format::bfzyx, format::bs_fs_zyx_bsv16_fsv16, 32, 48, 8, 4, 16, 0, true);
+    compare_bfyx2blocked_with_ref("reorder_data_bfyx_to_blocked_format", data_types::f32, data_types::f32, format::bfzyx, format::bs_fs_zyx_bsv16_fsv16, 32 + 2, 48, 16, 4, 2, 0, true);
+    compare_bfyx2blocked_with_ref("reorder_data_bfyx_to_blocked_format", data_types::f32, data_types::f32, format::bfzyx, format::bs_fs_zyx_bsv16_fsv16, 32, 48 + 5, 16, 4, 3, 0, true);
+    compare_bfyx2blocked_with_ref("reorder_data_bfyx_to_blocked_format", data_types::f32, data_types::f32, format::bfzyx, format::bs_fs_zyx_bsv16_fsv16, 32, 48, 48 + 3, 4, 4, 0, true);
+    compare_bfyx2blocked_with_ref("reorder_data_bfyx_to_blocked_format", data_types::f32, data_types::f32, format::bfzyx, format::bs_fs_zyx_bsv16_fsv16, 32 + 2, 48 + 3, 16 + 1, 4, 2, 0, true);
+}
+
+TEST(reorder_gpu_optimization, compare_with_ref__bfyx_to_double_blocked_f32_bsv16_fsv32_cached) {
+    compare_bfyx2blocked_with_ref("reorder_data_bfyx_to_blocked_format", data_types::f32, data_types::f32, format::bfzyx, format::bs_fs_zyx_bsv16_fsv32, 3, 16, 4, 5, 7, 0, true);
+    compare_bfyx2blocked_with_ref("reorder_data_bfyx_to_blocked_format", data_types::f32, data_types::f32, format::bfzyx, format::bs_fs_zyx_bsv16_fsv32, 1, 1, 1, 1, 1, 0, true);
+    compare_bfyx2blocked_with_ref("reorder_data_bfyx_to_blocked_format", data_types::f32, data_types::f32, format::bfzyx, format::bs_fs_zyx_bsv16_fsv32, 32 + 2, 48, 16, 4, 2, 0, true);
+    compare_bfyx2blocked_with_ref("reorder_data_bfyx_to_blocked_format", data_types::f32, data_types::f32, format::bfzyx, format::bs_fs_zyx_bsv16_fsv32, 32 + 1, 1, 1, 1, 1, 0, true);
+    compare_bfyx2blocked_with_ref("reorder_data_bfyx_to_blocked_format", data_types::f32, data_types::f32, format::bfzyx, format::bs_fs_zyx_bsv16_fsv32, 32, 48 + 5, 16, 4, 3, 0, true);
+    compare_bfyx2blocked_with_ref("reorder_data_bfyx_to_blocked_format", data_types::f32, data_types::f32, format::bfzyx, format::bs_fs_zyx_bsv16_fsv32, 32, 48, 48 + 3, 4, 4, 0, true);
+    compare_bfyx2blocked_with_ref("reorder_data_bfyx_to_blocked_format", data_types::f32, data_types::f32, format::bfzyx, format::bs_fs_zyx_bsv16_fsv32, 32 + 2, 48 + 3, 16 + 1, 4, 2, 0, true);
+}
+
+TEST(reorder_gpu_optimization, compare_with_ref__bfyx_to_double_blocked_f32_bsv32_fsv16_cached) {
+    compare_bfyx2blocked_with_ref("reorder_data_bfyx_to_blocked_format", data_types::f32, data_types::f32, format::bfzyx, format::bs_fs_zyx_bsv32_fsv16, 1, 1, 1, 1, 1, 0, true);
+    compare_bfyx2blocked_with_ref("reorder_data_bfyx_to_blocked_format", data_types::f32, data_types::f32, format::bfzyx, format::bs_fs_zyx_bsv32_fsv16, 32 + 2, 48, 16, 4, 2, 0, true);
+    compare_bfyx2blocked_with_ref("reorder_data_bfyx_to_blocked_format", data_types::f32, data_types::f32, format::bfzyx, format::bs_fs_zyx_bsv32_fsv16, 32, 48 + 5, 16, 4, 3, 0, true);
+    compare_bfyx2blocked_with_ref("reorder_data_bfyx_to_blocked_format", data_types::f32, data_types::f32, format::bfzyx, format::bs_fs_zyx_bsv32_fsv16, 32, 48, 48 + 3, 4, 4, 0, true);
+    compare_bfyx2blocked_with_ref("reorder_data_bfyx_to_blocked_format", data_types::f32, data_types::f32, format::bfzyx, format::bs_fs_zyx_bsv32_fsv16, 32 + 2, 48 + 3, 16 + 1, 4, 2, 0, true);
+}
+
+TEST(reorder_gpu_optimization, compare_with_ref__bfyx_to_double_blocked_f32_bsv32_fsv32_cached) {
+    compare_bfyx2blocked_with_ref("reorder_data_bfyx_to_blocked_format", data_types::f32, data_types::f32, format::bfzyx, format::bs_fs_zyx_bsv32_fsv32, 1, 1, 1, 1, 1, 0, true);
+    compare_bfyx2blocked_with_ref("reorder_data_bfyx_to_blocked_format", data_types::f32, data_types::f32, format::bfzyx, format::bs_fs_zyx_bsv32_fsv32, 32 + 2, 48, 16, 4, 2, 0, true);
+    compare_bfyx2blocked_with_ref("reorder_data_bfyx_to_blocked_format", data_types::f32, data_types::f32, format::bfzyx, format::bs_fs_zyx_bsv32_fsv32, 32, 48 + 5, 16, 4, 3, 0, true);
+    compare_bfyx2blocked_with_ref("reorder_data_bfyx_to_blocked_format", data_types::f32, data_types::f32, format::bfzyx, format::bs_fs_zyx_bsv32_fsv32, 32, 48, 48 + 3, 4, 4, 0, true);
+    compare_bfyx2blocked_with_ref("reorder_data_bfyx_to_blocked_format", data_types::f32, data_types::f32, format::bfzyx, format::bs_fs_zyx_bsv32_fsv32, 32 + 2, 48 + 3, 16 + 1, 4, 2, 0, true);
+}
+
+TEST(reorder_gpu_optimization, compare_with_ref__bfyx_to_blocked_format_different_datatype_cached) {
+    compare_bfyx2blocked_with_ref("reorder_data_bfyx_to_blocked_format", data_types::f32, data_types::f16, format::bfyx, format::b_fs_yx_fsv16, 3, 32 + 4, 16 + 7, 2, 0, 0, true);
+    compare_bfyx2blocked_with_ref("reorder_data_bfyx_to_blocked_format", data_types::i8, data_types::f32, format::bfyx, format::b_fs_yx_fsv16, 3, 32 + 4, 16 + 7, 2, 0, 0, true);
+    compare_bfyx2blocked_with_ref("reorder_data_bfyx_to_blocked_format", data_types::i64, data_types::f32, format::bfyx, format::b_fs_yx_fsv16, 3, 32 + 4, 16 + 7, 2, 0, 0, true);
+}
+
+TEST_P(testing_removal_reorder, removal_reorder_1d_along_f_cached) {
+    auto p = GetParam();
+    create_topologies(input_layout("input", get_input_layout(p)),
+                reorder("reorder_input", input_info("input"), format::b_fs_yx_fsv16, data_types::f16),
+                data("weights", get_mem(get_weights_layout(p))),
+                data("bias1", get_mem(get_bias_layout(p))),
+                reorder("reorder_bias1", input_info("bias1"), format::b_fs_yx_fsv16, data_types::f16),
+                convolution("conv_prim", input_info("reorder_input"), {"weights"}, std::vector<primitive_id>{}, 1, p.stride, p.pad),
+                reorder("reorder_conv", input_info("conv_prim"), format::b_fs_yx_fsv16, data_types::f16),
+                eltwise("add_bias1", { input_info("reorder_conv"), input_info("reorder_bias1") }, eltwise_mode::sum),
+                reorder("reorder_bfyx", input_info("add_bias1"), p.default_format, data_types::f16)
+    );
+
+    execute(p, true);
+
+    ASSERT_EQ(check_optimized_out(p, "reorder_bias1"), true);
+}
+#endif
+
+TEST_P(testing_removal_reorder, only_remove_reorder_shallow_depth_input_cached) {
+    auto p = GetParam();
+    layout reorder_layout(data_types::u8, format::b_fs_yx_fsv32, p.in_shape, padding({0, }, 0));
+
+    create_topologies(input_layout("input", get_input_layout(p)),
+        data("weights", get_mem(get_weights_layout(p))),
+        data("bias", get_mem(get_bias_layout(p))),
+        data("weights_sec", get_mem(get_weights_layout(p))),
+        reorder("reorder_fp32", input_info("input"), format::bfyx, data_types::f32),
+        convolution("conv_prim", input_info("reorder_fp32"), { "weights" }, { "bias" }, 1, p.stride, p.pad, {1, 1}, p.in_shape, data_types::u8, false),
+        reorder("reorder_conv", input_info("conv_prim"), reorder_layout),
+        convolution("conv_output", input_info("reorder_conv"), { "weights_sec" }, 1, p.stride, p.pad),
+        reorder("reorder_bfyx", input_info("conv_output"), format::b_fs_yx_fsv32, data_types::f32),
+        resample("resample", input_info("reorder_bfyx"), p.out_shape, 1),
+        reorder("reorder_output", input_info("resample"), p.default_format, data_types::f32)
+    );
+
+    execute(p, true);
+
+    ASSERT_EQ(check_optimized_out(p, "reorder_conv"), false);
+}

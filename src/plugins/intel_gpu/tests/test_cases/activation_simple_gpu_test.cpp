@@ -8,6 +8,7 @@
 #include <intel_gpu/primitives/activation.hpp>
 #include <intel_gpu/primitives/data.hpp>
 #include <intel_gpu/primitives/reorder.hpp>
+#include "activation_inst.h"
 
 #include <cmath>
 #include <algorithm>
@@ -15,9 +16,84 @@
 using namespace cldnn;
 using namespace ::tests;
 
+TEST(activation_f32_fw_gpu, dynamic) {
+    auto& engine = get_test_engine();
+
+    ov::PartialShape in_shape  = { 1, 1, 4, 2 };
+    layout in_layout { ov::PartialShape::dynamic(in_shape.size()), data_types::f32, format::bfyx };
+
+    auto input = engine.allocate_memory({ in_shape, data_types::f32, format::bfyx });
+    set_values(input, { -0.12f, 0.56f, 0.45f, -0.789f, 42.f, 0.999f, 0.7899f, 0.f});
+
+    std::vector<activation_func> funcs = {
+        activation_func::gelu,
+        activation_func::relu,
+        activation_func::hyperbolic_tan,
+        activation_func::sqrt
+    };
+
+    for (auto func : funcs) {
+        topology topology(input_layout("input", in_layout));
+        topology.add(activation("activation", input_info("input"), func));
+
+        ExecutionConfig config = get_test_default_config(engine);
+        config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+        network network(engine, topology, config);
+
+        network.set_input_data("input", input);
+
+        auto inst = network.get_primitive("activation");
+        auto impl = inst->get_impl();
+        ASSERT_TRUE(impl != nullptr);
+        ASSERT_TRUE(impl->is_dynamic());
+
+        auto outputs = network.execute();
+        ASSERT_EQ(outputs.size(), size_t(1));
+        ASSERT_EQ(outputs.begin()->first, "activation");
+
+        auto output_memory = outputs.at("activation").get_memory();
+        auto output_layout = output_memory->get_layout();
+        cldnn::mem_lock<float> output_ptr(output_memory, get_test_stream());
+        cldnn::mem_lock<float> input_ptr(input, get_test_stream());
+
+        int y_size = output_layout.spatial(1);
+        int x_size = output_layout.spatial(0);
+        int f_size = output_layout.feature();
+        int b_size = output_layout.batch();
+
+        ASSERT_EQ(output_layout.format, format::bfyx);
+        ASSERT_EQ(y_size, 4);
+        ASSERT_EQ(x_size, 2);
+        ASSERT_EQ(f_size, 1);
+        ASSERT_EQ(b_size, 1);
+
+        for (size_t i = 0; i < output_layout.get_linear_size(); ++i) {
+            switch (func) {
+            case activation_func::gelu:
+                ASSERT_NEAR(0.5f * static_cast<float>(input_ptr[i]) * (1.f + std::erf(static_cast<float>((input_ptr[i])) / std::sqrt(2.0f))),
+                            output_ptr[i], 1e-5f);
+                break;
+            case activation_func::relu:
+                ASSERT_EQ(std::max(input_ptr[i], static_cast<float>(0)), output_ptr[i]);
+                break;
+            case activation_func::hyperbolic_tan:
+                    ASSERT_FLOAT_EQ(std::tanh(static_cast<float>(input_ptr[i])), output_ptr[i]);
+                break;
+            case activation_func::sqrt:
+                    if (input_ptr[i] >= 0) {
+                        ASSERT_FLOAT_EQ(std::sqrt(static_cast<float>(input_ptr[i])), output_ptr[i]);
+                    }
+                    break;
+            default:
+                break;
+            }
+        }
+    }
+}
+
 TEST(activation_f32_fw_gpu, not_basic_yxfb) {
     //  Input:
-    //  1 0 -3  4  5
+    //  1  0 -3  4  5
     //  0  2  3  4 -6
     //  3 -3  3  0  1
     //  1  1  1 -1  0
@@ -45,7 +121,7 @@ TEST(activation_f32_fw_gpu, not_basic_yxfb) {
     topology topology(
         input_layout("input", input->get_layout()),
         activation("not", input_info("input"), activation_func::negation));
-    network network(engine, topology);
+    network network(engine, topology, get_test_default_config(engine));
     network.set_input_data("input", input);
     auto outputs = network.execute();
     ASSERT_EQ(outputs.size(), size_t(1));
@@ -89,7 +165,7 @@ TEST(activation_f32_fw_gpu, erf_basic_yxfb) {
     topology topology(
             input_layout("input", input->get_layout()),
             activation("not", input_info("input"), activation_func::erf));
-    network network(engine, topology);
+    network network(engine, topology, get_test_default_config(engine));
     network.set_input_data("input", input);
     auto outputs = network.execute();
     ASSERT_EQ(outputs.size(), size_t(1));
@@ -135,7 +211,7 @@ TEST(activation_f32_fw_gpu, hard_sigmoid_basic_yxfb) {
     topology topology(
             input_layout("input", input->get_layout()),
             activation("not", input_info("input"), activation_func::hard_sigmoid, params));
-    network network(engine, topology);
+    network network(engine, topology, get_test_default_config(engine));
     network.set_input_data("input", input);
     auto outputs = network.execute();
     ASSERT_EQ(outputs.size(), size_t(1));
@@ -181,7 +257,7 @@ TEST(activation_f32_fw_gpu, reciprocal_basic_yxfb) {
     topology topology(
             input_layout("input", input->get_layout()),
             activation("not", input_info("input"), activation_func::reciprocal));
-    network network(engine, topology);
+    network network(engine, topology, get_test_default_config(engine));
     network.set_input_data("input", input);
     auto outputs = network.execute();
     ASSERT_EQ(outputs.size(), size_t(1));
@@ -228,7 +304,7 @@ TEST(activation_f32_fw_gpu, selu_basic_yxfb) {
     topology topology(
             input_layout("input", input->get_layout()),
             activation("not", input_info("input"), activation_func::selu, params));
-    network network(engine, topology);
+    network network(engine, topology, get_test_default_config(engine));
     network.set_input_data("input", input);
     auto outputs = network.execute();
     ASSERT_EQ(outputs.size(), size_t(1));
@@ -275,7 +351,7 @@ TEST(activation_f32_fw_gpu, softplus_basic_yxfb) {
     topology topology(
             input_layout("input", input->get_layout()),
             activation("not", input_info("input"), activation_func::softplus));
-    network network(engine, topology);
+    network network(engine, topology, get_test_default_config(engine));
     network.set_input_data("input", input);
     auto outputs = network.execute();
     ASSERT_EQ(outputs.size(), size_t(1));
@@ -321,7 +397,7 @@ TEST(activation_f32_fw_gpu, softsign_basic_yxfb) {
     topology topology(
             input_layout("input", input->get_layout()),
             activation("not", input_info("input"), activation_func::softsign));
-    network network(engine, topology);
+    network network(engine, topology, get_test_default_config(engine));
     network.set_input_data("input", input);
     auto outputs = network.execute();
     ASSERT_EQ(outputs.size(), size_t(1));
@@ -357,7 +433,7 @@ TEST(activation_f16_fw_gpu, softsign_basic_yxfb) {
 
     topology topology(input_layout("input", input->get_layout()),
                       activation("not", input_info("input"), activation_func::softsign));
-    network network(engine, topology);
+    network network(engine, topology, get_test_default_config(engine));
     network.set_input_data("input", input);
     auto outputs = network.execute();
     ASSERT_EQ(outputs.size(), size_t(1));
@@ -402,7 +478,7 @@ TEST(activation_f32_fw_gpu, sign_basic_yxfb) {
     topology topology(
             input_layout("input", input->get_layout()),
             activation("not", input_info("input"), activation_func::sign));
-    network network(engine, topology);
+    network network(engine, topology, get_test_default_config(engine));
     network.set_input_data("input", input);
     auto outputs = network.execute();
     ASSERT_EQ(outputs.size(), size_t(1));
@@ -440,7 +516,7 @@ TEST(activation_f32_fw_gpu, pow_basic_yxfb) {
     topology topology(
         input_layout("input", input->get_layout()),
         activation("pow", input_info("input"), activation_func::pow, { 2.0f, 0.0f }));
-    network network(engine, topology);
+    network network(engine, topology, get_test_default_config(engine));
     network.set_input_data("input", input);
     auto outputs = network.execute();
     ASSERT_EQ(outputs.size(), size_t(1));
@@ -476,7 +552,7 @@ TEST(activation_f16_fw_gpu, pow_basic_yxfb) {
     topology topology(
         input_layout("input", input->get_layout()),
         activation("pow", input_info("input"), activation_func::pow, { FLOAT16(3.0f), FLOAT16(0.0f) }));
-    network network(engine, topology);
+    network network(engine, topology, get_test_default_config(engine));
     network.set_input_data("input", input);
     auto outputs = network.execute();
     ASSERT_EQ(outputs.size(), size_t(1));
@@ -533,7 +609,7 @@ TEST(activation_f32_fw_gpu, relu_basic_yxfb) {
     topology topology(
         input_layout("input", input->get_layout()),
         activation("relu", input_info("input"), activation_func::relu_negative_slope, { 0.5f, 0.f }, padding{ { 0, 0, 0, 0 }, 0 }));
-    network network(engine, topology);
+    network network(engine, topology, get_test_default_config(engine));
     network.set_input_data("input", input);
     auto outputs = network.execute();
     ASSERT_EQ(outputs.size(), size_t(1));
@@ -609,7 +685,7 @@ TEST(activation_f32_fw_gpu, relu_basic_bfzyx) {
     topology topology(
         input_layout("input", input->get_layout()),
         activation("relu", input_info("input"), activation_func::relu_negative_slope, { 0.5f, 0.f }, padding{ { 0, 0, 0, 0, 0 }, 0 }));
-    network network(engine, topology);
+    network network(engine, topology, get_test_default_config(engine));
     network.set_input_data("input", input);
     auto outputs = network.execute();
     ASSERT_EQ(outputs.size(), size_t(1));
@@ -706,7 +782,7 @@ TEST(activation_f32_fw_gpu, basic_yxfb_all_functions)
                 topology.add(activation("activation", input_info("input"), "input_params", func));
             }
 
-            network network(engine, topology);
+            network network(engine, topology, get_test_default_config(engine));
             network.set_input_data("input", input);
             auto outputs = network.execute();
             ASSERT_EQ(outputs.size(), size_t(1));
@@ -856,7 +932,7 @@ TEST(activation_f16_fw_gpu, basic_bfyx_all_functions)
                 topology.add(activation("activation", input_info("input"), "input_params", func));
             }
 
-            network network(engine, topology);
+            network network(engine, topology, get_test_default_config(engine));
             network.set_input_data("input", input);
             auto outputs = network.execute();
             ASSERT_EQ(outputs.size(), size_t(1));
@@ -934,7 +1010,7 @@ TEST(activation_f32_fw_gpu, basic_yxfb_asin_acos_log_atan)
         topology topology(input_layout("input", input->get_layout()));
         topology.add(activation("activation", input_info("input"), func));
 
-        network network(engine, topology);
+        network network(engine, topology, get_test_default_config(engine));
         network.set_input_data("input", input);
         auto outputs = network.execute();
         ASSERT_EQ(outputs.size(), size_t(1));
@@ -1020,7 +1096,7 @@ TEST(activation_f32_fw_gpu, relu_basic_acosh_yxfb) {
             input_layout("input", input->get_layout()),
             reorder("reorder", input_info("input"), input->get_layout().with_padding(padding{ { 0, 0, 2, 1 }, 0 })),
             activation("relu", input_info("reorder"), activation_func::acosh, {0.5f, 0.f}, padding{ { 0, 0, 0, 0 }, 0 }));
-    network network(engine, topology);
+    network network(engine, topology, get_test_default_config(engine));
     network.set_input_data("input", input);
     auto outputs = network.execute();
     ASSERT_EQ(outputs.begin()->first, "relu");
@@ -1086,7 +1162,7 @@ TEST(activation_f32_fw_gpu, relu_basic_input_padding_yxfb) {
         input_layout("input", input->get_layout()),
         reorder("reorder", input_info("input"), input->get_layout().with_padding(padding{ { 0, 0, 2, 1 }, 0 })),
         activation("relu", input_info("reorder"), activation_func::relu_negative_slope, { 0.5f, 0.f }, padding{ { 0, 0, 0, 0 }, 0 }));
-    network network(engine, topology);
+    network network(engine, topology, get_test_default_config(engine));
     network.set_input_data("input", input);
     auto outputs = network.execute();
     ASSERT_EQ(outputs.begin()->first, "relu");
@@ -1173,7 +1249,7 @@ TEST(activation_f32_fw_gpu, relu_basic_input_padding_bfzyx) {
         input_layout("input", input->get_layout()),
         reorder("reorder", input_info("input"), input->get_layout().with_padding(padding{ { 0, 0, 2, 1, 0 }, 0 })),
         activation("relu", input_info("reorder"), activation_func::relu_negative_slope, { 0.5f, 0.f }, padding{ { 0, 0, 0, 0, 0 }, 0 }));
-    network network(engine, topology);
+    network network(engine, topology, get_test_default_config(engine));
     network.set_input_data("input", input);
     auto outputs = network.execute();
     ASSERT_EQ(outputs.begin()->first, "relu");
@@ -1246,7 +1322,7 @@ TEST(activation_f32_fw_gpu, relu_basic_output_padding_yxfb) {
     topology topology(
         input_layout("input", input->get_layout()),
         activation("relu", input_info("input"), activation_func::relu_negative_slope, { 0.5f, 0.f }, padding{ { 0, 0, 3, 3 }, 0 }));
-    network network(engine, topology);
+    network network(engine, topology, get_test_default_config(engine));
     network.set_input_data("input", input);
     auto outputs = network.execute();
     ASSERT_EQ(outputs.size(), size_t(1));
@@ -1289,7 +1365,7 @@ TEST(activation_f32_fw_gpu, basic_yxfb_floor_ceil)
         topology topology(input_layout("input", input->get_layout()));
         topology.add(activation("activation", input_info("input"), func));
 
-        network network(engine, topology);
+        network network(engine, topology, get_test_default_config(engine));
         network.set_input_data("input", input);
         auto outputs = network.execute();
         ASSERT_EQ(outputs.size(), size_t(1));
@@ -1353,7 +1429,7 @@ TEST(activation_i8_fw_gpu, basic_yxfb_all_funcs)
         topology.add(input_layout("input", input->get_layout()));
         topology.add(activation("activation", input_info("input"), func));
 
-        network network(engine, topology);
+        network network(engine, topology, get_test_default_config(engine));
         network.set_input_data("input", input);
         auto outputs = network.execute();
 
@@ -1411,7 +1487,7 @@ TEST(activation_i32_fw_gpu, basic_yxfb_i32_funcs) {
         topology.add(input_layout("input", input->get_layout()));
         topology.add(activation("activation", input_info("input"), func, params));
 
-        network network(engine, topology);
+        network network(engine, topology, get_test_default_config(engine));
         network.set_input_data("input", input);
         auto outputs = network.execute();
 
@@ -1477,7 +1553,7 @@ TEST(activation_f32_fw_gpu, b_fs_yx_fsv16_prelu) {
         cldnn::reorder("out", input_info("actv"), cldnn::format::bfyx, cldnn::data_types::f32)
     );
 
-    cldnn::network net(eng, topo);
+    cldnn::network net(eng, topo, get_test_default_config(eng));
     set_values(in_mem, flatten_4d(format::bfyx, in_data));
     net.set_input_data("in", in_mem);
 
@@ -1617,26 +1693,10 @@ struct activation_random_test : testing::TestWithParam<activation_random_test_pa
         prim.additional_params = additional_params;
         topo.add(prim);
 
-        ExecutionConfig config{ov::intel_gpu::custom_outputs(std::vector<std::string>{"activation"})};
+        ExecutionConfig config = get_test_default_config(engine,
+                                    ov::intel_gpu::custom_outputs(std::vector<std::string>{"activation"}));
 
-        std::shared_ptr<cldnn::network> net;
-
-        if (is_caching_test) {
-            membuf mem_buf;
-            {
-                cldnn::network _network(engine, topo, config);
-                std::ostream out_mem(&mem_buf);
-                BinaryOutputBuffer ob = BinaryOutputBuffer(out_mem);
-                _network.save(ob);
-            }
-            {
-                std::istream in_mem(&mem_buf);
-                BinaryInputBuffer ib = BinaryInputBuffer(in_mem, engine);
-                net = std::make_shared<cldnn::network>(ib, config, get_test_stream_ptr(), engine);
-            }
-        } else {
-            net = std::make_shared<cldnn::network>(engine, topo, config);
-        }
+        cldnn::network::ptr net = get_network(engine, topo, config, get_test_stream_ptr(), is_caching_test);
 
         net->set_input_data("in", in_mem);
 
@@ -1655,10 +1715,9 @@ struct activation_random_test : testing::TestWithParam<activation_random_test_pa
 
         auto activation_impl_desc = ov::intel_gpu::ImplementationDesc();
         activation_impl_desc.output_format = input_format;
-        ExecutionConfig config_opt{
-            ov::intel_gpu::custom_outputs(std::vector<std::string>{"activation_blocked", "res_to_input_format"}),
-            ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{{"activation_blocked", {input_format, "activation_ref"}}})
-        };
+        ExecutionConfig config_opt = get_test_default_config(engine,
+                                        {ov::intel_gpu::custom_outputs(std::vector<std::string>{"activation_blocked", "res_to_input_format"}),
+                                        ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{{"activation_blocked", {input_format, "activation_ref"}}})});
 
         network net_opt(engine, topo_opt, config_opt);
 

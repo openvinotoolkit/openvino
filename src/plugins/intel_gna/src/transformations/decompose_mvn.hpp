@@ -10,7 +10,6 @@ namespace ov {
 namespace intel_gna {
 namespace pass {
 
-
 /**
  * @brief Decompose MVN operation
  * See official OpenVINO documentation for the MVN formula
@@ -24,6 +23,6 @@ public:
     DecomposeMVN();
 };
 
-} // namespace pass
-} // namespace intel_gna
-} // namespace ov
+}  // namespace pass
+}  // namespace intel_gna
+}  // namespace ov

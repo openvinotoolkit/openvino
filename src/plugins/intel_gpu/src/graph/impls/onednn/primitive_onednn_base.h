@@ -8,7 +8,6 @@
 
 #include "primitive_inst.h"
 #include "intel_gpu/graph/serialization/binary_buffer.hpp"
-#include "intel_gpu/runtime/error_handler.hpp"
 #include "intel_gpu/runtime/memory.hpp"
 #include "to_string_utils.h"
 #include "register.hpp"
@@ -42,25 +41,33 @@ struct typed_primitive_onednn_impl : public typed_primitive_impl<PType> {
     bool _enable_profiling = false;
 
     typed_primitive_onednn_impl(const engine& engine,
-                                const ExecutionConfig& config,
-                                std::shared_ptr<dnnl::primitive_attr> attrs,
-                                const PrimDescType& pd,
-                                kernel_selector::WeightsReorderParams weights_reorder = {})
+            const ExecutionConfig& config,
+            std::shared_ptr<dnnl::primitive_attr> attrs,
+            const PrimDescType& pd,
+            kernel_selector::WeightsReorderParams weights_reorder = {})
         : typed_primitive_impl<PType>(weights_reorder, pd.impl_info_str()),
-          _engine(&engine),
-          _attrs(attrs),
-          _pd(pd),
-          _enable_profiling(config.get_property(ov::enable_profiling)) {
+        _engine(&engine),
+        _attrs(attrs),
+        _pd(pd) {
+            _enable_profiling = config.get_property(ov::enable_profiling);
+            GPU_DEBUG_GET_INSTANCE(debug_config);
+            GPU_DEBUG_IF(!debug_config->dump_profiling_data.empty()) {
+                _enable_profiling = true;
+            }
             build_primitive(config);
         }
 
     typed_primitive_onednn_impl(const engine& engine, const ExecutionConfig& config = {})
         : typed_primitive_impl<PType>({}, "undef"),
-          _engine(&engine),
-          _pd(),
-          _prim(),
-          _enable_profiling(config.get_property(ov::enable_profiling)) {
-    }
+        _engine(&engine),
+        _pd(),
+        _prim() {
+            _enable_profiling = config.get_property(ov::enable_profiling);
+            GPU_DEBUG_GET_INSTANCE(debug_config);
+            GPU_DEBUG_IF(!debug_config->dump_profiling_data.empty()) {
+                _enable_profiling = true;
+            }
+        }
 
     typed_primitive_onednn_impl()
         : typed_primitive_impl<PType>({}, "undef"),
@@ -193,7 +200,7 @@ struct typed_primitive_onednn_impl : public typed_primitive_impl<PType> {
                 _attrs->set_fpmath_mode(_fmath_mode);
             }
             {
-                const kernel_impl_params* impl_params = reinterpret_cast<kernel_impl_params*>(ib.getKernlImplParams());
+                const kernel_impl_params* impl_params = reinterpret_cast<kernel_impl_params*>(ib.getKernelImplParams());
                 const std::vector<cldnn::fused_primitive_desc_onednn>& fused_desc = impl_params->fused_desc_onednn;
                 dnnl::post_ops _post_ops;
                 int post_ops_len;
@@ -288,6 +295,8 @@ struct typed_primitive_onednn_impl : public typed_primitive_impl<PType> {
     }
 
 private:
+    using primitive_impl::get_arguments;
+
     std::string get_cache_directory(const ExecutionConfig& config) const {
         auto path = config.get_property(ov::cache_dir);
         if (path.empty()) {
@@ -314,10 +323,8 @@ private:
     void build_primitive(const ExecutionConfig& config) {
         auto cache_outpath = get_cache_directory(config);
 
-        if (const char* env_p = std::getenv("OV_GPU_CACHE_MODEL")) {
-            if (env_p[0] == '1') {
-                cache_outpath = "";
-            }
+        if (!config.get_property(ov::intel_gpu::allow_new_shape_infer)) {
+            cache_outpath = "";
         }
 
         if (cache_outpath.empty()) {
@@ -370,6 +377,7 @@ protected:
                 case onednn_post_op_type::eltwise_clip:
                 case onednn_post_op_type::eltwise_linear:
                 case onednn_post_op_type::eltwise_round:
+                case onednn_post_op_type::eltwise_hardsigmoid:
                 {
                     // onednn elwise doesn't need any data from memory buffers
                     break;
@@ -443,7 +451,7 @@ protected:
         return args;
     }
 
-    void init_kernels(const kernels_cache&) override { }
+    void init_kernels(const kernels_cache&, const kernel_impl_params&) override { }
 
     event::ptr aggregate_events(const std::vector<event::ptr>& events, stream& stream, bool group = false, bool is_output = false) const {
         if (events.size() == 1 && !is_output)

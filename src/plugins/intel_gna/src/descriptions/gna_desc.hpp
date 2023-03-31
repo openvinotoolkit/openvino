@@ -4,17 +4,16 @@
 
 #pragma once
 
-#include <vector>
-#include <numeric>
 #include <functional>
+#include <numeric>
 #include <unordered_set>
-
-#include "ie_precision.hpp"
-#include "ie_input_info.hpp"
-#include "ie_algorithm.hpp"
+#include <vector>
 
 #include "backend/dnn_types.hpp"
 #include "gna_plugin_config.hpp"
+#include "ie_algorithm.hpp"
+#include "ie_input_info.hpp"
+#include "ie_precision.hpp"
 
 namespace ov {
 namespace intel_gna {
@@ -37,6 +36,9 @@ struct GnaDesc {
     uint32_t num_elements = 0;
     uint32_t allocated_size = 0;
     std::vector<void*> ptrs = {};  // ptr per each infer request
+
+    // pre/post processing model
+    std::shared_ptr<ov::Model> pre_post_process_model = nullptr;
 
     // help methods
     uint32_t get_required_size() const {

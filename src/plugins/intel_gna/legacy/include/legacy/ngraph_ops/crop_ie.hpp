@@ -4,10 +4,10 @@
 
 #pragma once
 
+#include <ie_api.h>
+
 #include <memory>
 #include <vector>
-
-#include <ie_api.h>
 
 #include "ngraph/op/op.hpp"
 
@@ -18,12 +18,9 @@ class CropIE : public Op {
 public:
     OPENVINO_OP("CropIE", "legacy");
 
-    CropIE(const Output<Node>& data1,
-           std::vector<int64_t> axes,
-           std::vector<int64_t> dim,
-           std::vector<int64_t> offset);
+    CropIE(const Output<Node>& data1, std::vector<int64_t> axes, std::vector<int64_t> dim, std::vector<int64_t> offset);
 
-    bool visit_attributes(AttributeVisitor &visitor) override;
+    bool visit_attributes(AttributeVisitor& visitor) override;
 
     void validate_and_infer_types() override;
 

@@ -227,7 +227,11 @@ inline std::string replaceExt(std::string file, const std::string& newExt) {
     std::string::size_type i = file.rfind('.', file.length());
 
     if (i != std::string::npos) {
-        file.replace(i + 1, newExt.length(), newExt);
+        if (newExt == "") {
+            file = file.substr(0, i);
+        } else {
+            file.replace(i + 1, newExt.length(), newExt);
+        }
     }
     return file;
 }

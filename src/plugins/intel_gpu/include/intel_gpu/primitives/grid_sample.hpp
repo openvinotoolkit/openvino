@@ -38,6 +38,17 @@ struct grid_sample : primitive_base<grid_sample> {
         seed = hash_combine(seed, attributes.padding_mode);
         return seed;
     }
+
+    bool operator==(const primitive& rhs) const override {
+        if (!compare_common_params(rhs))
+            return false;
+
+        auto rhs_casted = downcast<const grid_sample>(rhs);
+
+        return attributes.align_corners == rhs_casted.attributes.align_corners &&
+               attributes.mode == rhs_casted.attributes.mode &&
+               attributes.padding_mode == rhs_casted.attributes.padding_mode;
+    }
 };
 
 }  // namespace cldnn

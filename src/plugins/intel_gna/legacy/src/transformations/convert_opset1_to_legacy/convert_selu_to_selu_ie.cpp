@@ -4,14 +4,12 @@
 
 #include "legacy/transformations/convert_opset1_to_legacy/convert_selu_to_selu_ie.hpp"
 
-#include <memory>
-#include <vector>
-
-#include <ngraph/opsets/opset1.hpp>
-
 #include <legacy/ngraph_ops/selu_ie.hpp>
-#include <transformations/utils/utils.hpp>
+#include <memory>
+#include <ngraph/opsets/opset1.hpp>
 #include <ngraph/rt_info.hpp>
+#include <transformations/utils/utils.hpp>
+#include <vector>
 
 ngraph::pass::ConvertSeluToSeluIEMatcher::ConvertSeluToSeluIEMatcher() {
     auto input_0 = std::make_shared<pattern::op::Label>(element::f32, Shape{1});
@@ -20,7 +18,7 @@ ngraph::pass::ConvertSeluToSeluIEMatcher::ConvertSeluToSeluIEMatcher() {
     auto selu = std::make_shared<ngraph::opset1::Selu>(input_0, input_1, input_2);
 
     ngraph::matcher_pass_callback callback = [](pattern::Matcher& m) {
-        auto selu = std::dynamic_pointer_cast<ngraph::opset1::Selu> (m.get_match_root());
+        auto selu = std::dynamic_pointer_cast<ngraph::opset1::Selu>(m.get_match_root());
         if (!selu) {
             return false;
         }

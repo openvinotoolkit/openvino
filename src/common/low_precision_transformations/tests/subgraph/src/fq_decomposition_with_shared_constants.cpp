@@ -87,9 +87,10 @@ TEST_P(FQDecompositionWithSharedConstants, FQDecompositionWithSharedConstants) {
     ASSERT_TRUE(res.valid) << res.message;
 
     // additional check: FQ constants after transformation mustn't be shared
-    for (const auto n : actualFunction->get_ordered_ops()) {
-        if (ov::is_type<opset1::Constant>(n))
+    for (const auto& n : actualFunction->get_ordered_ops()) {
+        if (ov::is_type<opset1::Constant>(n)) {
             EXPECT_EQ(n->get_output_target_inputs(0).size(), 1);
+        }
     }
 }
 namespace {

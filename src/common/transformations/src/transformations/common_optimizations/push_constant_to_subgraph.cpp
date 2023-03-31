@@ -46,12 +46,12 @@ static void replace_body_parameter(const std::shared_ptr<ov::Model>& body,
 }
 
 static void update_multi_sub_graph_op_inputs(const std::shared_ptr<MultiSubGraphOp>& multi_sub_graph_op,
-                                             int remove_inputs_mask) {
+                                             const std::vector<bool>& remove_inputs_mask) {
     int num_subgraphs = static_cast<int>(multi_sub_graph_op->get_internal_subgraphs_size());
     auto inputs = multi_sub_graph_op->input_values();
     for (size_t i = multi_sub_graph_op->get_input_size(); i > 0; i--) {
         const auto input_index = i - 1;
-        if ((remove_inputs_mask & (1 << input_index)) != 0) {
+        if (remove_inputs_mask[input_index]) {
             // remove MultiSubGraphOp's input if it was marked to be removed
             // (meaning it was constfolded and pushed to inner subgraph)
             inputs.erase(inputs.begin() + input_index);
@@ -83,7 +83,7 @@ bool ov::pass::PushConstantToSubgraph::run_on_model(const std::shared_ptr<Model>
         // cache for already constant folded inputs
         std::unordered_map<size_t, std::shared_ptr<op::v0::Constant>> cache;
         // bitmask describing which MultiSubGraphOp's input to remove
-        int remove_inputs_mask = 0;
+        std::vector<bool> remove_inputs_mask(multi_sub_graph_op->get_input_size(), false);
         int num_subgraphs = static_cast<int>(multi_sub_graph_op->get_internal_subgraphs_size());
 
         for (int body_idx = 0; body_idx < num_subgraphs; body_idx++) {
@@ -95,7 +95,7 @@ bool ov::pass::PushConstantToSubgraph::run_on_model(const std::shared_ptr<Model>
                 const auto input_index = desc->m_input_index;
                 const auto constant = try_constantfold_input(multi_sub_graph_op, desc, cache);
                 if (!constant) {
-                    remove_inputs_mask &= ~(1 << input_index);
+                    remove_inputs_mask[input_index] = false;
                     desc_it++;
                     continue;
                 }
@@ -103,12 +103,12 @@ bool ov::pass::PushConstantToSubgraph::run_on_model(const std::shared_ptr<Model>
                 desc_it = descriptions.erase(desc_it);
                 auto& body_param = body_params[body_parameter_index];
                 replace_body_parameter(body, body_param, body_parameter_index, constant, descriptions);
-                remove_inputs_mask |= 1 << input_index;
+                remove_inputs_mask[input_index] = true;
                 result = true;
             }
         }
 
-        if (remove_inputs_mask > 0) {
+        if (result) {
             update_multi_sub_graph_op_inputs(multi_sub_graph_op, remove_inputs_mask);
         }
 

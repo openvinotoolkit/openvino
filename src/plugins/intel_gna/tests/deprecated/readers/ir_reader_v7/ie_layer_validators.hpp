@@ -4,6 +4,8 @@
 
 #pragma once
 
+#include <legacy/ie_layers.h>
+
 #include <map>
 #include <memory>
 #include <string>
@@ -11,22 +13,21 @@
 
 #include "caseless.hpp"
 #include "ie_common.h"
-#include <legacy/ie_layers.h>
 
 namespace InferenceEngine {
 namespace details {
 
-void validateLayer(const CNNLayer * layer);
+void validateLayer(const CNNLayer* layer);
 
 }  // namespace details
 }  // namespace InferenceEngine
 
 namespace {
 
-using InferenceEngine::CNNLayer;
-using InferenceEngine::SizeVector;
 using InferenceEngine::Blob;
+using InferenceEngine::CNNLayer;
 using InferenceEngine::RNNSequenceLayer;
+using InferenceEngine::SizeVector;
 
 struct InOutDims {
     std::vector<std::vector<size_t>> inDims;
@@ -40,7 +41,7 @@ class LayerValidator {
 public:
     using Ptr = std::shared_ptr<LayerValidator>;
 
-    explicit LayerValidator(const std::string& _type): _type(_type) {}
+    explicit LayerValidator(const std::string& _type) : _type(_type) {}
     virtual ~LayerValidator() = default;
 
     /**
@@ -62,7 +63,8 @@ public:
      * @note: This function doesn't touch ins and out Data of the layer.
      * Throws exception if the check fails
      */
-    virtual void checkCorrespondence(const CNNLayer* layer, const std::map<std::string, Blob::Ptr>& blobs,
+    virtual void checkCorrespondence(const CNNLayer* layer,
+                                     const std::map<std::string, Blob::Ptr>& blobs,
                                      const std::vector<SizeVector>& inShapes) const {}
 
 protected:
@@ -118,7 +120,8 @@ public:
 
     explicit ConvolutionValidator(const std::string& _type);
 
-    void checkCorrespondence(const CNNLayer* layer, const std::map<std::string, Blob::Ptr>& blobs,
+    void checkCorrespondence(const CNNLayer* layer,
+                             const std::map<std::string, Blob::Ptr>& blobs,
                              const std::vector<SizeVector>& inShapes) const override;
 
     void checkShapes(const CNNLayer* layer, const std::vector<SizeVector>& inShapes) const override;
@@ -130,7 +133,8 @@ public:
 
     explicit DeconvolutionValidator(const std::string& _type);
 
-    void checkCorrespondence(const CNNLayer* layer, const std::map<std::string, Blob::Ptr>& blobs,
+    void checkCorrespondence(const CNNLayer* layer,
+                             const std::map<std::string, Blob::Ptr>& blobs,
                              const std::vector<SizeVector>& inShapes) const override;
 
     void checkShapes(const CNNLayer* layer, const std::vector<SizeVector>& inShapes) const override;
@@ -142,7 +146,8 @@ public:
 
     explicit DeformableConvolutionValidator(const std::string& _type);
 
-    void checkCorrespondence(const CNNLayer* layer, const std::map<std::string, Blob::Ptr>& blobs,
+    void checkCorrespondence(const CNNLayer* layer,
+                             const std::map<std::string, Blob::Ptr>& blobs,
                              const std::vector<SizeVector>& inShapes) const override;
 
     void checkShapes(const CNNLayer* layer, const std::vector<SizeVector>& inShapes) const override;
@@ -163,7 +168,8 @@ public:
 
     void checkParams(const CNNLayer* layer) override;
 
-    void checkCorrespondence(const CNNLayer* layer, const std::map<std::string, Blob::Ptr>& blobs,
+    void checkCorrespondence(const CNNLayer* layer,
+                             const std::map<std::string, Blob::Ptr>& blobs,
                              const std::vector<SizeVector>& inShapes) const override;
 
     void checkShapes(const CNNLayer* layer, const std::vector<SizeVector>& inShapes) const override;
@@ -495,7 +501,8 @@ public:
 
     void checkParams(const CNNLayer* layer) override;
 
-    void checkCorrespondence(const CNNLayer* layer, const std::map<std::string, Blob::Ptr>& blobs,
+    void checkCorrespondence(const CNNLayer* layer,
+                             const std::map<std::string, Blob::Ptr>& blobs,
                              const std::vector<SizeVector>& inShapes) const override;
 
 protected:
@@ -798,7 +805,8 @@ public:
 
     explicit BinaryConvolutionValidator(const std::string& _type);
 
-    void checkCorrespondence(const CNNLayer* layer, const std::map<std::string, Blob::Ptr>& blobs,
+    void checkCorrespondence(const CNNLayer* layer,
+                             const std::map<std::string, Blob::Ptr>& blobs,
                              const std::vector<SizeVector>& inShapes) const override;
 
     void checkShapes(const CNNLayer* layer, const std::vector<SizeVector>& inShapes) const override;

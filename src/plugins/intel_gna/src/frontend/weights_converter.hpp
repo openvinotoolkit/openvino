@@ -4,8 +4,8 @@
 
 #pragma once
 
-#include "precision_utils.h"
 #include "layers/gna_layer_info.hpp"
+#include "precision_utils.h"
 
 namespace ov {
 namespace intel_gna {

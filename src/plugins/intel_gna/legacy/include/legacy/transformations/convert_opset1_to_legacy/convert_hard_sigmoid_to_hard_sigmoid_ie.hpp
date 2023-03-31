@@ -4,13 +4,12 @@
 
 #pragma once
 
-#include <vector>
-#include <memory>
-#include <string>
-
 #include <ie_api.h>
 
+#include <memory>
 #include <ngraph/pass/graph_rewrite.hpp>
+#include <string>
+#include <vector>
 
 namespace ngraph {
 namespace pass {

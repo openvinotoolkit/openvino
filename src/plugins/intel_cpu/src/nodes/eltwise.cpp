@@ -1,13 +1,18 @@
+
 // Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "eltwise.h"
 
+#include <map>
+#include <set>
+
 #include <ie_parallel.hpp>
 
 #include "cpu_types.h"
 #include "utils/bfloat16.hpp"
+#include "ie_ngraph_utils.hpp"
 #include <cpu/x64/injectors/jit_uni_quantization_injector.hpp>
 #include <cpu/ref_eltwise.hpp>
 
@@ -57,7 +62,7 @@ namespace {
 
 template<typename T>
 struct SupportedPrecisions {
-    void operator()(std::set<Precision> &precisions) {
+    void operator()(std::set<std::vector<element::Type>> &precisions) {
         precisions = T::get_supported_precisions();
     }
 };
@@ -104,11 +109,11 @@ struct EltwiseEmitter<jit_is_inf_emitter> {
 /**
  * Implements Eltwise shape inference algorithm. The algorithm is based on broadcasting all the input shapes
  * according to the NUMPY broadcast rule. This implementation is more lightweight than the ngraph one.
- * 
+ *
  */
 class EltwiseShapeInfer : public ShapeInferEmptyPads {
 public:
-    std::vector<VectorDims> infer(
+    Result infer(
         const std::vector<std::reference_wrapper<const VectorDims>>& input_shapes,
         const std::unordered_map<size_t, MemoryPtr>& data_dependency) override {
         size_t max_rank = 0;
@@ -141,7 +146,7 @@ public:
                 }
             }
         }
-        return { output_shape };
+        return { { std::move(output_shape) }, ShapeInferStatus::success };
     }
     port_mask_t get_port_mask() const override {
         return EMPTY_PORT_MASK;
@@ -155,7 +160,157 @@ public:
     }
 };
 
+void set_intersection(const std::set<std::vector<element::Type>>& precisions1,
+                      const std::set<std::vector<element::Type>>& precisions2,
+                      std::set<std::vector<element::Type>>& intersection) {
+    std::map<element::Type, size_t> intersection_types;
+
+    for (auto it1 = precisions1.begin(); it1 != precisions1.end(); ++it1) {
+        for (auto it2 = precisions2.begin(); it2 != precisions2.end(); ++it2) {
+            const auto& it1_precisions = *it1;
+            // all element types are equal
+            if (it1_precisions[0] == (*it2)[0]) {
+                // first precisions size is used
+                intersection_types.emplace(it1_precisions[0], it1_precisions.size());
+            }
+        }
+    }
+
+    for (auto it = intersection_types.begin(); it != intersection_types.end(); ++it) {
+        intersection.insert(std::vector<element::Type>(it->second, it->first));
+    }
+}
+
 }   // namespace
+
+
+InferenceEngine::Precision eltwise_precision_helper::get_precision(const size_t inputs_number,
+                                                                   const InferenceEngine::Precision(&src_prc)[MAX_ELTWISE_INPUTS],
+                                                                   const std::vector<Eltwise::EltwiseData>& eltwise_data) {
+    Precision exec_prc = Precision::UNSPECIFIED;
+
+    std::set<std::vector<element::Type>> supported_precision_intersection = get_supported_precisions(eltwise_data.front().algo);
+
+    // for element-wise operations all inputs must to have the same precisions
+    assert(std::all_of(
+        supported_precision_intersection.begin(),
+        supported_precision_intersection.end(),
+        [&supported_precision_intersection](const std::vector<element::Type>& precisions) {
+            return std::all_of(
+                precisions.begin(),
+                precisions.end(),
+                [&precisions](const element::Type precision) { return precision == precisions[0]; });
+        }));
+
+    for (size_t i = 1; i < eltwise_data.size(); ++i) {
+        std::set<std::vector<element::Type>> prcs = get_supported_precisions(eltwise_data[i].algo);
+        std::set<std::vector<element::Type>> prcs_intersect = {};
+
+        OPENVINO_ASSERT(std::all_of(
+            prcs.begin(),
+            prcs.end(),
+            [](const std::vector<element::Type>& precisions) {
+                return std::all_of(
+                    precisions.begin(),
+                    precisions.end(),
+                    [&precisions](const element::Type& precision) { return precision == precisions[0]; });
+            }),
+            "for element-wise nodes all precisions have to be equal");
+
+        set_intersection(supported_precision_intersection, prcs, prcs_intersect);
+
+        supported_precision_intersection = prcs_intersect;
+    }
+
+    static const element::Type exec_precisions_priority[] = {
+            element::u8,
+            element::i8,
+            element::u16,
+            element::i16,
+            element::bf16,
+            element::i32,
+            element::f32
+    };
+
+    for (const auto prc : exec_precisions_priority) {
+        if (std::any_of(
+            supported_precision_intersection.begin(),
+            supported_precision_intersection.end(),
+            [&prc](const std::vector<element::Type>& precisions) { return std::find(precisions.begin(), precisions.end(), prc) != precisions.end(); })) {
+            exec_prc = InferenceEngine::details::convertPrecision(prc);
+            break;
+        }
+    }
+
+    for (int i = 0; i < inputs_number; i++) {
+        if (src_prc[i] != exec_prc) {
+            exec_prc = Precision::FP32;
+            break;
+        }
+    }
+
+    if (exec_prc == Precision::UNSPECIFIED) {
+        IE_THROW() << "Eltwise jitter failed to specify execution precision for Eltwise node";
+    }
+
+    return exec_prc;
+}
+
+std::set<std::vector<element::Type>> eltwise_precision_helper::get_supported_precisions(const Algorithm& algo) {
+    std::set<std::vector<element::Type>> precisions;
+
+    OV_SWITCH(intel_cpu, SupportedPrecisions, precisions, algo,
+        OV_CASE(Algorithm::EltwiseRelu, jit_dnnl_aux_emitter),
+        OV_CASE(Algorithm::EltwiseGelu, jit_dnnl_aux_emitter),
+        OV_CASE(Algorithm::EltwiseElu, jit_dnnl_aux_emitter),
+        OV_CASE(Algorithm::EltwiseTanh, jit_dnnl_aux_emitter),
+        OV_CASE(Algorithm::EltwiseSigmoid, jit_dnnl_aux_emitter),
+        OV_CASE(Algorithm::EltwiseAbs, jit_dnnl_aux_emitter),
+        OV_CASE(Algorithm::EltwiseSqrt, jit_dnnl_aux_emitter),
+        OV_CASE(Algorithm::EltwiseSoftRelu, jit_dnnl_aux_emitter),
+        OV_CASE(Algorithm::EltwiseExp, jit_dnnl_aux_emitter),
+        OV_CASE(Algorithm::EltwiseClamp, jit_dnnl_aux_emitter),
+        OV_CASE(Algorithm::EltwiseSwish, jit_dnnl_aux_emitter),
+        OV_CASE(Algorithm::EltwiseHswish, jit_dnnl_aux_emitter),
+        OV_CASE(Algorithm::EltwiseMish, jit_dnnl_aux_emitter),
+        OV_CASE(Algorithm::EltwiseHsigmoid, jit_dnnl_aux_emitter),
+        OV_CASE(Algorithm::EltwiseRoundHalfToEven, jit_dnnl_aux_emitter),
+        OV_CASE(Algorithm::EltwiseRoundHalfAwayFromZero, jit_dnnl_aux_emitter),
+        OV_CASE(Algorithm::EltwiseAdd, jit_add_emitter),
+        OV_CASE(Algorithm::EltwiseMulAdd, jit_mul_add_emitter),
+        OV_CASE(Algorithm::EltwiseSubtract, jit_subtract_emitter),
+        OV_CASE(Algorithm::EltwiseMultiply, jit_multiply_emitter),
+        OV_CASE(Algorithm::EltwiseDivide, jit_divide_emitter),
+        OV_CASE(Algorithm::EltwiseFloorMod, jit_floor_mod_emitter),
+        OV_CASE(Algorithm::EltwiseMod, jit_mod_emitter),
+        OV_CASE(Algorithm::EltwiseMaximum, jit_maximum_emitter),
+        OV_CASE(Algorithm::EltwiseMinimum, jit_minimum_emitter),
+        OV_CASE(Algorithm::EltwiseSquaredDifference, jit_squared_difference_emitter),
+        OV_CASE(Algorithm::EltwisePowerDynamic, jit_power_dynamic_emitter),
+        OV_CASE(Algorithm::EltwiseEqual, jit_equal_emitter),
+        OV_CASE(Algorithm::EltwiseNotEqual, jit_not_equal_emitter),
+        OV_CASE(Algorithm::EltwiseGreater, jit_greater_emitter),
+        OV_CASE(Algorithm::EltwiseGreaterEqual, jit_greater_equal_emitter),
+        OV_CASE(Algorithm::EltwiseLess, jit_less_emitter),
+        OV_CASE(Algorithm::EltwiseLessEqual, jit_less_equal_emitter),
+        OV_CASE(Algorithm::EltwiseLogicalAnd, jit_logical_and_emitter),
+        OV_CASE(Algorithm::EltwiseLogicalOr, jit_logical_or_emitter),
+        OV_CASE(Algorithm::EltwiseLogicalXor, jit_logical_xor_emitter),
+        OV_CASE(Algorithm::EltwiseLogicalNot, jit_logical_not_emitter),
+        OV_CASE(Algorithm::EltwisePowerStatic, jit_power_static_emitter),
+        OV_CASE(Algorithm::EltwisePrelu, jit_prelu_emitter),
+        OV_CASE(Algorithm::EltwiseErf, jit_erf_emitter),
+        OV_CASE(Algorithm::EltwiseSoftSign, jit_soft_sign_emitter),
+        OV_CASE(Algorithm::EltwiseIsFinite, jit_is_finite_emitter),
+        OV_CASE(Algorithm::EltwiseIsInf, jit_is_inf_emitter),
+        OV_CASE(Algorithm::EltwiseIsNaN, jit_is_nan_emitter),
+        OV_CASE(Algorithm::EltwiseSelect, jit_select_emitter));
+
+    if (precisions.empty())
+        IE_THROW() << "Unsupported operation type for Eltwise emitter";
+
+    return precisions;
+}
 
 template <cpu_isa_t isa>
 struct jit_uni_eltwise_generic : public jit_uni_eltwise_kernel, public jit_generator {
@@ -173,46 +328,7 @@ struct jit_uni_eltwise_generic : public jit_uni_eltwise_kernel, public jit_gener
     }
 
     void generate() override {
-        Precision exec_prc = Precision::UNSPECIFIED;
-
-        std::set<Precision> supported_precision_intersection = get_supported_precisions(eltwise_data_.front().algo);
-        for (size_t i = 1; i < eltwise_data_.size(); ++i) {
-            std::set<Precision> prcs = get_supported_precisions(eltwise_data_[i].algo);
-            std::set<Precision> prcs_intersect = {};
-
-            std::set_intersection(supported_precision_intersection.begin(), supported_precision_intersection.end(),
-                                  prcs.begin(), prcs.end(), std::inserter(prcs_intersect, prcs_intersect.begin()));
-
-            supported_precision_intersection = prcs_intersect;
-        }
-
-        static const Precision exec_precisions_priority[] = {
-                Precision::U8,
-                Precision::I8,
-                Precision::U16,
-                Precision::I16,
-                Precision::BF16,
-                Precision::I32,
-                Precision::FP32
-        };
-
-        for (auto prc : exec_precisions_priority) {
-            if (std::find(supported_precision_intersection.begin(), supported_precision_intersection.end(), prc) != supported_precision_intersection.end()) {
-                exec_prc = prc;
-                break;
-            }
-        }
-
-        for (int i = 0; i < jep_.inputs_number; i++) {
-            if (jep_.src_prc[i] != exec_prc) {
-                exec_prc = Precision::FP32;
-                break;
-            }
-        }
-
-        if (exec_prc == Precision::UNSPECIFIED) {
-            IE_THROW() << "Eltwise jitter failed to specify execution precision for Eltwise node";
-        }
+        auto const exec_prc = eltwise_precision_helper::get_precision(jep_.inputs_number, jep_.src_prc, eltwise_data_);
 
         eltwise_emitter = create_eltwise_emitter(eltwise_data_.front(), exec_prc);
         for (size_t i = 1; i < eltwise_data_.size(); ++i) {
@@ -481,61 +597,6 @@ private:
     const std::vector<ov::intel_cpu::Type>& ops_list_;
     const dnnl::post_ops& post_ops_;
 
-    std::set<Precision> get_supported_precisions(Algorithm algo) {
-        std::set<Precision> precisions;
-
-        OV_SWITCH(intel_cpu, SupportedPrecisions, precisions, algo,
-        OV_CASE(Algorithm::EltwiseRelu, jit_dnnl_aux_emitter),
-        OV_CASE(Algorithm::EltwiseGelu, jit_dnnl_aux_emitter),
-        OV_CASE(Algorithm::EltwiseElu, jit_dnnl_aux_emitter),
-        OV_CASE(Algorithm::EltwiseTanh, jit_dnnl_aux_emitter),
-        OV_CASE(Algorithm::EltwiseSigmoid, jit_dnnl_aux_emitter),
-        OV_CASE(Algorithm::EltwiseAbs, jit_dnnl_aux_emitter),
-        OV_CASE(Algorithm::EltwiseSqrt, jit_dnnl_aux_emitter),
-        OV_CASE(Algorithm::EltwiseSoftRelu, jit_dnnl_aux_emitter),
-        OV_CASE(Algorithm::EltwiseExp, jit_dnnl_aux_emitter),
-        OV_CASE(Algorithm::EltwiseClamp, jit_dnnl_aux_emitter),
-        OV_CASE(Algorithm::EltwiseSwish, jit_dnnl_aux_emitter),
-        OV_CASE(Algorithm::EltwiseHswish, jit_dnnl_aux_emitter),
-        OV_CASE(Algorithm::EltwiseMish, jit_dnnl_aux_emitter),
-        OV_CASE(Algorithm::EltwiseHsigmoid, jit_dnnl_aux_emitter),
-        OV_CASE(Algorithm::EltwiseRoundHalfToEven, jit_dnnl_aux_emitter),
-        OV_CASE(Algorithm::EltwiseRoundHalfAwayFromZero, jit_dnnl_aux_emitter),
-        OV_CASE(Algorithm::EltwiseAdd, jit_add_emitter),
-        OV_CASE(Algorithm::EltwiseMulAdd, jit_mul_add_emitter),
-        OV_CASE(Algorithm::EltwiseSubtract, jit_subtract_emitter),
-        OV_CASE(Algorithm::EltwiseMultiply, jit_multiply_emitter),
-        OV_CASE(Algorithm::EltwiseDivide, jit_divide_emitter),
-        OV_CASE(Algorithm::EltwiseFloorMod, jit_floor_mod_emitter),
-        OV_CASE(Algorithm::EltwiseMod, jit_mod_emitter),
-        OV_CASE(Algorithm::EltwiseMaximum, jit_maximum_emitter),
-        OV_CASE(Algorithm::EltwiseMinimum, jit_minimum_emitter),
-        OV_CASE(Algorithm::EltwiseSquaredDifference, jit_squared_difference_emitter),
-        OV_CASE(Algorithm::EltwisePowerDynamic, jit_power_dynamic_emitter),
-        OV_CASE(Algorithm::EltwiseEqual, jit_equal_emitter),
-        OV_CASE(Algorithm::EltwiseNotEqual, jit_not_equal_emitter),
-        OV_CASE(Algorithm::EltwiseGreater, jit_greater_emitter),
-        OV_CASE(Algorithm::EltwiseGreaterEqual, jit_greater_equal_emitter),
-        OV_CASE(Algorithm::EltwiseLess, jit_less_emitter),
-        OV_CASE(Algorithm::EltwiseLessEqual, jit_less_equal_emitter),
-        OV_CASE(Algorithm::EltwiseLogicalAnd, jit_logical_and_emitter),
-        OV_CASE(Algorithm::EltwiseLogicalOr, jit_logical_or_emitter),
-        OV_CASE(Algorithm::EltwiseLogicalXor, jit_logical_xor_emitter),
-        OV_CASE(Algorithm::EltwiseLogicalNot, jit_logical_not_emitter),
-        OV_CASE(Algorithm::EltwisePowerStatic, jit_power_static_emitter),
-        OV_CASE(Algorithm::EltwisePrelu, jit_prelu_emitter),
-        OV_CASE(Algorithm::EltwiseErf, jit_erf_emitter),
-        OV_CASE(Algorithm::EltwiseSoftSign, jit_soft_sign_emitter),
-        OV_CASE(Algorithm::EltwiseIsFinite, jit_is_finite_emitter),
-        OV_CASE(Algorithm::EltwiseIsInf, jit_is_inf_emitter),
-        OV_CASE(Algorithm::EltwiseIsNaN, jit_is_nan_emitter));
-
-        if (precisions.empty())
-            IE_THROW() << "Unsupported operation type for Eltwise emitter";
-
-        return precisions;
-    }
-
     std::shared_ptr<jit_emitter> create_eltwise_emitter(const Eltwise::EltwiseData& data, Precision exec_prec) {
         EltwiseEmitterContext ctx = {
             nullptr,
@@ -589,7 +650,8 @@ private:
         OV_CASE(Algorithm::EltwiseSoftSign, jit_soft_sign_emitter),
         OV_CASE(Algorithm::EltwiseIsFinite, jit_is_finite_emitter),
         OV_CASE(Algorithm::EltwiseIsInf, jit_is_inf_emitter),
-        OV_CASE(Algorithm::EltwiseIsNaN, jit_is_nan_emitter));
+        OV_CASE(Algorithm::EltwiseIsNaN, jit_is_nan_emitter),
+        OV_CASE(Algorithm::EltwiseSelect, jit_select_emitter));
 
         if (!ctx.emitter)
             IE_THROW() << "Unsupported operation type for Eltwise emitter";
@@ -886,8 +948,8 @@ private:
 };
 
 Eltwise::BroadcastingPolicy Eltwise::determineBroadcastingPolicy(const std::shared_ptr<ngraph::Node>& op) {
-    const auto const1 = std::dynamic_pointer_cast<ngraph::opset1::Constant>(op->get_input_node_shared_ptr(0));
-    const auto const2 = std::dynamic_pointer_cast<ngraph::opset1::Constant>(op->get_input_node_shared_ptr(1));
+    const auto const1 = ov::as_type_ptr<ngraph::opset1::Constant>(op->get_input_node_shared_ptr(0));
+    const auto const2 = ov::as_type_ptr<ngraph::opset1::Constant>(op->get_input_node_shared_ptr(1));
     int constPort = -1;
     if (const2) {
         constPort = 1;
@@ -1064,6 +1126,9 @@ const std::map<const ngraph::DiscreteTypeInfo, Eltwise::Initializer> Eltwise::in
         node.alpha = swishOp->get_alpha();
     }},
     {ngraph::op::v4::HSwish::get_type_info_static(), [](const std::shared_ptr<ngraph::Node>& op, Eltwise& node) {
+        // since v3.0 version, oneDNN has flexible implementation of hardswish, ov still uses the one with hardcoded alpha and beta
+        node.alpha = 1.f / 6.f;
+        node.beta = 0.5f;
         node.algorithm = Algorithm::EltwiseHswish;
         node.onednnAlgorithm = dnnl::algorithm::eltwise_hardswish;
     }},
@@ -1098,10 +1163,14 @@ const std::map<const ngraph::DiscreteTypeInfo, Eltwise::Initializer> Eltwise::in
     }},
     {ngraph::op::v4::SoftPlus::get_type_info_static(), [](const std::shared_ptr<ngraph::Node>& op, Eltwise& node) {
         node.algorithm = Algorithm::EltwiseSoftRelu;
+        node.alpha = 1.f;
         node.onednnAlgorithm = dnnl::algorithm::eltwise_soft_relu;
     }},
     {ngraph::op::v9::SoftSign::get_type_info_static(), [](const std::shared_ptr<ngraph::Node>& op, Eltwise& node) {
         node.algorithm = Algorithm::EltwiseSoftSign;
+    }},
+    {ngraph::op::v1::Select::get_type_info_static(), [](const std::shared_ptr<ngraph::Node>& op, Eltwise& node) {
+        node.algorithm = Algorithm::EltwiseSelect;
     }},
 };
 
@@ -1589,10 +1658,11 @@ public:
                     case Algorithm::EltwiseSoftSign:          *dst_ptr_f = src_f[0] / (1 + std::fabs(src_f[0])); break;
                     case Algorithm::EltwiseIsFinite:          *dst_ptr_f = std::isfinite(src_f[0]); break;
                     case Algorithm::EltwiseIsInf:
-                        *dst_ptr_f = _opData.alpha && (src_f[0] == -std::numeric_limits<float>::infinity()) ||
-                                     _opData.beta  && (src_f[0] == std::numeric_limits<float>::infinity());
+                        *dst_ptr_f = (_opData.alpha && (src_f[0] == -std::numeric_limits<float>::infinity())) ||
+                                     (_opData.beta  && (src_f[0] == std::numeric_limits<float>::infinity()));
                         break;
                     case Algorithm::EltwiseIsNaN:             *dst_ptr_f = std::isnan(src_f[0]); break;
+                    case Algorithm::EltwiseSelect:            *dst_ptr_f = src_f[0] ? src_f[1] : src_f[2]; break;
                     default: IE_THROW() << "Unsupported operation type for Eltwise executor";
                 }
             }
@@ -1653,10 +1723,17 @@ bool Eltwise::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op
             errorMessage = "Doesn't support Eltwise algorithm: " +  std::string(op->get_type_name());
             return false;
         }
-        if (const auto binOp = std::dynamic_pointer_cast<const ov::op::util::BinaryElementwiseArithmetic>(op)) {
+        if (const auto binOp = ov::as_type_ptr<const ov::op::util::BinaryElementwiseArithmetic>(op)) {
             if (binOp->get_autob().m_type != ngraph::op::AutoBroadcastType::NONE &&
                 binOp->get_autob().m_type != ngraph::op::AutoBroadcastType::NUMPY) {
                 errorMessage = "Doesn't support broadcast type: " + ngraph::as_string(binOp->get_autob().m_type);
+                return false;
+            }
+        }
+        if (const auto select = ov::as_type_ptr<const ov::op::v1::Select>(op)) {
+            if (select->get_auto_broadcast().m_type != ngraph::op::AutoBroadcastType::NONE &&
+                select->get_auto_broadcast().m_type != ngraph::op::AutoBroadcastType::NUMPY) {
+                errorMessage = "Doesn't support broadcast type: " + ngraph::as_string(select->get_autob().m_type);
                 return false;
             }
         }
@@ -1723,6 +1800,7 @@ size_t Eltwise::getOpInputsNum() const {
         case Algorithm::EltwisePrelu:
             return 2;
         case Algorithm::EltwiseMulAdd:
+        case Algorithm::EltwiseSelect:
             return 3;
         default: IE_THROW() << "Unsupported operation for Eltwise node with name `" << getName() << "`.";
     }
@@ -1944,18 +2022,18 @@ void Eltwise::initSupportedPrimitiveDescriptors() {
         return {config, impl_type};
     };
 
-    bool isChannelsFirstApplicable = one_of(getOutputShapeAtPort(0).getRank(), 1, 2, 3, 4, 5);
+    bool isChannelsFirstApplicable = one_of(getOutputShapeAtPort(0).getRank(), 1u, 2u, 3u, 4u, 5u);
     for (size_t i = 0; i < getParentEdges().size(); i++) {
-        isChannelsFirstApplicable = isChannelsFirstApplicable && one_of(getInputShapeAtPort(i).getRank(), 1, 2, 3, 4, 5);
+        isChannelsFirstApplicable = isChannelsFirstApplicable && one_of(getInputShapeAtPort(i).getRank(), 1u, 2u, 3u, 4u, 5u);
         isChannelsFirstApplicable = isChannelsFirstApplicable && implication(getInputShapeAtPort(i).getRank() != 1,
                                                                              getOutputShapeAtPort(0).getRank() ==
                                                                                      getInputShapeAtPort(i).getRank());
     }
 
-    bool isBlockedApplicable = one_of(getOutputShapeAtPort(0).getRank(), 1, 3, 4, 5);
+    bool isBlockedApplicable = one_of(getOutputShapeAtPort(0).getRank(), 1u, 3u, 4u, 5u);
     for (size_t i = 0; i < getParentEdges().size(); i++) {
         const auto &inShape = getInputShapeAtPort(i);
-        isBlockedApplicable = isBlockedApplicable && one_of(inShape.getRank(), 1, 3, 4, 5);
+        isBlockedApplicable = isBlockedApplicable && one_of(inShape.getRank(), 1u, 3u, 4u, 5u);
         isBlockedApplicable = isBlockedApplicable && implication(inShape.getRank() != 1,
                                                                  getOutputShapeAtPort(0).getRank() ==
                                                                  inShape.getRank());
@@ -2181,7 +2259,6 @@ void Eltwise::appendPostOpsImpl(dnnl::post_ops& ops, const VectorDims &postOpDim
         case dnnl::algorithm::eltwise_abs:
         case dnnl::algorithm::eltwise_sqrt:
         case dnnl::algorithm::eltwise_linear:
-        case dnnl::algorithm::eltwise_bounded_relu:
         case dnnl::algorithm::eltwise_soft_relu:
         case dnnl::algorithm::eltwise_logistic:
         case dnnl::algorithm::eltwise_exp:
@@ -2194,7 +2271,7 @@ void Eltwise::appendPostOpsImpl(dnnl::post_ops& ops, const VectorDims &postOpDim
         case dnnl::algorithm::eltwise_hsigmoid:
         case dnnl::algorithm::eltwise_round_half_to_even:
         case dnnl::algorithm::eltwise_round_half_away_from_zero:
-            ops.append_eltwise(1.0, getOneDnnAlgorithm(), getAlpha(), getBeta());
+            ops.append_eltwise(getOneDnnAlgorithm(), getAlpha(), getBeta());
             break;
         default: IE_THROW() << errorPrefix << "as post operation is not supported";
         }
@@ -2202,10 +2279,10 @@ void Eltwise::appendPostOpsImpl(dnnl::post_ops& ops, const VectorDims &postOpDim
         // per-tensor EltwisePowerStatic can be implemented with more well-supported eltwise postOps
         if (getAlgorithm() == Algorithm::EltwisePowerStatic) {
             // d = s*beta + gamma
-            ops.append_eltwise(1.0, dnnl::algorithm::eltwise_linear, getBeta(), getGamma());
+            ops.append_eltwise(dnnl::algorithm::eltwise_linear, getBeta(), getGamma());
             if (getAlpha() != 1.0f) {
                 // d = 1 * s^alpha
-                ops.append_eltwise(1.0, dnnl::algorithm::eltwise_pow, 1.0f, getAlpha());
+                ops.append_eltwise(dnnl::algorithm::eltwise_pow, 1.0f, getAlpha());
             }
             return;
         }
@@ -2297,7 +2374,6 @@ bool Eltwise::appendAttrPostOps(DnnlPostOpsComposer& dnnlpoc, bool isLastPostOp,
         case dnnl::algorithm::eltwise_square:
         case dnnl::algorithm::eltwise_abs:
         case dnnl::algorithm::eltwise_sqrt:
-        case dnnl::algorithm::eltwise_bounded_relu:
         case dnnl::algorithm::eltwise_soft_relu:
         case dnnl::algorithm::eltwise_logistic:
         case dnnl::algorithm::eltwise_exp:
@@ -2310,11 +2386,11 @@ bool Eltwise::appendAttrPostOps(DnnlPostOpsComposer& dnnlpoc, bool isLastPostOp,
         case dnnl::algorithm::eltwise_hsigmoid:
         case dnnl::algorithm::eltwise_round_half_to_even:
         case dnnl::algorithm::eltwise_round_half_away_from_zero:
-            dnnlpoc.appendEltwise(1.0, getOneDnnAlgorithm(), getAlpha(), getBeta());
+            dnnlpoc.appendEltwise(getOneDnnAlgorithm(), getAlpha(), getBeta());
             break;
         case dnnl::algorithm::eltwise_linear:
             // call dnnlpoc's specialized API to generate optimized postOps sequence
-            dnnlpoc.appendLinear({getAlpha()}, {getBeta()});
+            dnnlpoc.appendLinear({getAlpha()}, {getBeta()}, isLastPostOp);
             break;
         default: IE_THROW() << errorPrefix << "as post operation is not supported";
         }
@@ -2325,14 +2401,14 @@ bool Eltwise::appendAttrPostOps(DnnlPostOpsComposer& dnnlpoc, bool isLastPostOp,
             return dnnlpoc.appendShift(shifts, allowBinary);
         case Algorithm::EltwiseDivide:
         case Algorithm::EltwiseMultiply:
-            return dnnlpoc.appendScale(scales, allowBinary);
+            return dnnlpoc.appendScale(scales, isLastPostOp, allowBinary);
         case Algorithm::EltwiseMulAdd:
-            return dnnlpoc.appendLinear(scales, shifts, allowBinary);
+            return dnnlpoc.appendLinear(scales, shifts, isLastPostOp, allowBinary);
         case Algorithm::EltwisePowerStatic:
             if (beta != 1.0f && gamma != 0.0f) {
-                return dnnlpoc.appendLinear(scales, shifts, allowBinary);
+                return dnnlpoc.appendLinear(scales, shifts, isLastPostOp, allowBinary);
             } else if (beta != 1.0f) {// Multiply if has scales
-                return dnnlpoc.appendScale(scales, allowBinary);
+                return dnnlpoc.appendScale(scales, isLastPostOp, allowBinary);
             } else if (gamma != 0.0f) {// Add only if has shifts
                 return dnnlpoc.appendShift(shifts, allowBinary);
             }
@@ -2350,7 +2426,7 @@ bool Eltwise::appendAttrPostOps(DnnlPostOpsComposer& dnnlpoc, bool isLastPostOp,
 }
 
 bool Eltwise::canFuse(const NodePtr& node) const {
-    auto isIntegerComputeSupported = [this](const Node* node) {
+    auto isIntegerComputeSupported = [](const Node* node) {
         if (!one_of(node->getAlgorithm(), Algorithm::EltwiseAdd,
                                           Algorithm::EltwiseMultiply,
                                           Algorithm::EltwiseMulAdd,
@@ -2388,8 +2464,8 @@ bool Eltwise::canFuse(const NodePtr& node) const {
         // [TODO] We need to rewrite support for different precisions at all to avoid implicit conversions to FP32
         // (all should be handled via explicit convert operations)
         bool isIntegerFusingNode = isIntegerComputeSupported(node.get());
-        if (isIntegerNode && !isIntegerFusingNode ||
-                !isIntegerNode && isIntegerFusingNode) {
+        if ((isIntegerNode && !isIntegerFusingNode) ||
+                (!isIntegerNode && isIntegerFusingNode)) {
             return false;
         }
 
@@ -2404,7 +2480,8 @@ bool Eltwise::canFuse(const NodePtr& node) const {
                                              Algorithm::EltwiseGreaterEqual,
                                              Algorithm::EltwiseLess,
                                              Algorithm::EltwiseLessEqual,
-                                             Algorithm::EltwiseMulAdd)) {
+                                             Algorithm::EltwiseMulAdd,
+                                             Algorithm::EltwiseSelect)) {
                 return false;
             }
 

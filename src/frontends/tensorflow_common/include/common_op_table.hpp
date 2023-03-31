@@ -10,7 +10,6 @@
 
 #include "openvino/core/node_vector.hpp"
 #include "openvino/frontend/node_context.hpp"
-#include "openvino_conversions.hpp"
 #include "utils.hpp"
 
 #define TENSORFLOW_OP_VALIDATION(node_context, ...)                                        \
@@ -34,7 +33,6 @@ OP_T_CONVERTER(translate_direct_reduce_op);
 OP_CONVERTER(translate_add_n_op);
 OP_CONVERTER(translate_arg_max_op);
 OP_CONVERTER(translate_arg_min_op);
-OP_CONVERTER(translate_assert_op);
 OP_CONVERTER(translate_avg_pool_op);
 OP_CONVERTER(translate_batch_mat_mul_op);
 OP_CONVERTER(translate_batch_to_space_nd_op);
@@ -88,7 +86,6 @@ OP_CONVERTER(translate_matrix_diag_op);
 OP_CONVERTER(translate_max_pool_op);
 OP_CONVERTER(translate_mirror_pad_op);
 OP_CONVERTER(translate_non_max_suppression_op);
-OP_CONVERTER(translate_normalize_l2_op);
 OP_CONVERTER(translate_parallel_dynamic_stitch_op);
 OP_CONVERTER(translate_placeholder_op);
 OP_CONVERTER(translate_placeholder_with_default_op);
@@ -128,6 +125,12 @@ OP_CONVERTER(translate_square_op);
 OP_CONVERTER(translate_squeeze_op);
 OP_CONVERTER(translate_strided_slice_op);
 OP_CONVERTER(translate_sqrt_op);
+OP_CONVERTER(translate_tensor_list_from_tensor_op);
+OP_CONVERTER(translate_tensor_list_get_item_op);
+OP_CONVERTER(translate_tensor_list_push_back_op);
+OP_CONVERTER(translate_tensor_list_reserve_op);
+OP_CONVERTER(translate_tensor_list_set_item_op);
+OP_CONVERTER(translate_tensor_list_stack_op);
 OP_CONVERTER(translate_tile_op);
 OP_CONVERTER(translate_top_k_op);
 OP_CONVERTER(translate_top_k_v2_op);

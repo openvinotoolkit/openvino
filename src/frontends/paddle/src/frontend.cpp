@@ -15,6 +15,7 @@
 #include "default_opset.hpp"
 #include "framework.pb.h"
 #include "input_model.hpp"
+#include "internal/pass/transform_fakequantize.hpp"
 #include "internal/pass/transform_if.hpp"
 #include "internal/pass/transform_tensorarray.hpp"
 #include "internal/pass/transform_while.hpp"
@@ -275,14 +276,14 @@ std::map<int32_t, std::shared_ptr<ov::Model>> FrontEnd::convert_each_node_recurs
                     // TODO: figure a way to safely handle unused outputs
                     if (named_outputs.count(port.parameter())) {
                         const auto& ng_outputs = named_outputs.at(port.parameter());
-                        FRONT_END_OP_CONVERSION_CHECK(ng_outputs.size() == port.arguments_size(),
+                        FRONT_END_OP_CONVERSION_CHECK(ng_outputs.size() == (size_t)port.arguments_size(),
                                                       "The number of output tensors must be equal to "
                                                       "the number of outputs of the OV node.");
                         for (size_t idx = 0; idx < ng_outputs.size(); ++idx) {
                             const auto& var_name = port.arguments()[static_cast<int>(idx)];
                             ng_outputs[idx].get_tensor().set_names({var_name});
                             // if nodes_dict already has node mapped to this tensor name it
-                            // usually means that it was overwritten using setTensorValue
+                            // usually means that it was overwritten using set_tensor_value
                             nodes_dict[var_name] = ng_outputs[idx];
                         }
                     }
@@ -336,9 +337,23 @@ void FrontEnd::try_remove_internal_ops(const std::vector<std::shared_ptr<Model>>
     }
 }
 
+void FrontEnd::fuse_fakequantize_ops(const std::vector<std::shared_ptr<Model>>& models) const {
+    for (auto& model : models) {
+        ov::pass::Manager manager;
+        manager.register_pass<ov::frontend::paddle::pass::TransformFakeQuantize>();
+        manager.run_passes(model);
+    }
+    if (models.size() > 0) {
+        // revalidate as child models are transformed after parent models.
+        models[0]->validate_nodes_and_infer_types();
+    }
+}
+
 bool FrontEnd::supported_impl(const std::vector<ov::Any>& variants) const {
+    // Last boolean flag in `variants` (if presented) is reserved for FE configuration
+    size_t extra_variants_num = variants.size() > 0 && variants[variants.size() - 1].is<bool>() ? 1 : 0;
     // FrontEnd can only load model specified by one path, one file or two files.
-    if (variants.empty() || variants.size() > 2)
+    if (variants.empty() || variants.size() > 2 + extra_variants_num)
         return false;
 
     // Validating first path, it must contain a model
@@ -376,7 +391,9 @@ bool FrontEnd::supported_impl(const std::vector<ov::Any>& variants) const {
 }
 
 InputModel::Ptr FrontEnd::load_impl(const std::vector<ov::Any>& variants) const {
-    if (variants.size() == 1) {
+    // Last boolean flag in `variants` (if presented) is reserved for FE configuration
+    size_t extra_variants_num = variants.size() > 0 && variants[variants.size() - 1].is<bool>() ? 1 : 0;
+    if (variants.size() == 1 + extra_variants_num) {
         // The case when folder with __model__ and weight files is provided or .pdmodel file
         if (variants[0].is<std::string>()) {
             std::string m_path = variants[0].as<std::string>();
@@ -394,7 +411,7 @@ InputModel::Ptr FrontEnd::load_impl(const std::vector<ov::Any>& variants) const 
             auto p_model_stream = variants[0].as<std::istream*>();
             return std::make_shared<InputModel>(std::vector<std::istream*>{p_model_stream}, m_telemetry);
         }
-    } else if (variants.size() == 2) {
+    } else if (variants.size() == 2 + extra_variants_num) {
         // The case when .pdmodel and .pdparams files are provided
         std::ifstream model_stream;
         std::ifstream weights_stream;
@@ -430,6 +447,7 @@ std::shared_ptr<ov::Model> FrontEnd::convert(const InputModel::Ptr& model) const
             return paddle::make_ng_node(nodes_dict, op_place, m_op_translators);
         });
 
+    fuse_fakequantize_ops(f);
     try_remove_internal_ops(f);
     return f[0];
 }
@@ -444,6 +462,7 @@ void FrontEnd::convert(const std::shared_ptr<ov::Model>& partiallyConverted) con
         result->validate_and_infer_types();
     }
 
+    fuse_fakequantize_ops({partiallyConverted});
     try_remove_internal_ops({partiallyConverted});
 }
 
@@ -475,6 +494,7 @@ std::shared_ptr<ov::Model> FrontEnd::convert_partially(const InputModel::Ptr& mo
             return named_outputs;
         });
 
+    fuse_fakequantize_ops(f);
     try_remove_internal_ops(f);
 
     return f[0];
@@ -518,11 +538,11 @@ void FrontEnd::add_extension(const std::shared_ptr<ov::Extension>& extension) {
 }  // namespace frontend
 }  // namespace ov
 
-PADDLE_C_API FrontEndVersion GetAPIVersion() {
+PADDLE_C_API FrontEndVersion get_api_version() {
     return OV_FRONTEND_API_VERSION;
 }
 
-PADDLE_C_API void* GetFrontEndData() {
+PADDLE_C_API void* get_front_end_data() {
     FrontEndPluginInfo* res = new FrontEndPluginInfo();
     res->m_name = "paddle";
     res->m_creator = []() {

@@ -328,7 +328,7 @@ class TestMoConvertTF(CommonMOConvertTest):
         # TF2
         create_keras_model,
         create_keras_layer,
-        create_tf_function,
+        #create_tf_function,  # skip, ticket 106247
         create_tf_module,
         create_tf_checkpoint,
         create_tf_saved_model,
@@ -359,7 +359,6 @@ class TestMoConvertTF(CommonMOConvertTest):
     @pytest.mark.nightly
     @pytest.mark.precommit_tf_fe
     @pytest.mark.precommit
-    @pytest.mark.xfail(reason="99426")
     def test_mo_import_from_memory_tf_fe(self, create_model, ie_device, precision, ir_version,
                                          temp_dir):
         fw_model, graph_ref, mo_params = create_model(temp_dir)

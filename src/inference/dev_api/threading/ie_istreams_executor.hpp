@@ -14,6 +14,7 @@
 #include <vector>
 
 #include "ie_parameter.hpp"
+#include "openvino/runtime/threading/istreams_executor.hpp"
 #include "threading/ie_itask_executor.hpp"
 
 namespace InferenceEngine {
@@ -28,7 +29,7 @@ namespace InferenceEngine {
  * @par NUMA
  *        On NUMA hosts GetNumaNodeId() method can be used to define the NUMA node of current stream
  */
-class INFERENCE_ENGINE_API_CLASS(IStreamsExecutor) : public ITaskExecutor {
+class INFERENCE_ENGINE_API_CLASS(IStreamsExecutor) : public ITaskExecutor, public ov::threading::IStreamsExecutor {
 public:
     /**
      * A shared pointer to IStreamsExecutor interface
@@ -36,22 +37,9 @@ public:
     using Ptr = std::shared_ptr<IStreamsExecutor>;
 
     /**
-     * @brief Defines inference thread binding type
-     */
-    enum ThreadBindingType : std::uint8_t {
-        NONE,   //!< Don't bind the inference threads
-        CORES,  //!< Bind inference threads to the CPU cores (round-robin)
-        // the following modes are implemented only for the TBB code-path:
-        NUMA,  //!< Bind to the NUMA nodes (default mode for the non-hybrid CPUs on the Win/MacOS, where the 'CORES' is
-               //!< not implemeneted)
-        HYBRID_AWARE  //!< Let the runtime bind the inference threads depending on the cores type (default mode for the
-                      //!< hybrid CPUs)
-    };
-
-    /**
      * @brief Defines IStreamsExecutor configuration
      */
-    struct INFERENCE_ENGINE_API_CLASS(Config) {
+    struct INFERENCE_ENGINE_API_CLASS(Config) : public ov::threading::IStreamsExecutor::Config {
         /**
          * @brief Supported Configuration keys
          * @return vector of supported configuration keys
@@ -87,33 +75,6 @@ public:
         static int GetHybridNumStreams(std::map<std::string, std::string>& config, const int stream_mode);
         static void UpdateHybridCustomThreads(Config& config);
 
-        std::string _name;          //!< Used by `ITT` to name executor threads
-        int _streams = 1;           //!< Number of streams.
-        int _threadsPerStream = 0;  //!< Number of threads per stream that executes `ie_parallel` calls
-        ThreadBindingType _threadBindingType = ThreadBindingType::NONE;  //!< Thread binding to hardware resource type.
-                                                                         //!< No binding by default
-        int _threadBindingStep = 1;                                      //!< In case of @ref CORES binding offset type
-                                                                         //!< thread binded to cores with defined step
-        int _threadBindingOffset = 0;       //!< In case of @ref CORES binding offset type thread binded to cores
-                                            //!< starting from offset
-        int _threads = 0;                   //!< Number of threads distributed between streams.
-                                            //!< Reserved. Should not be used.
-        int _big_core_streams = 0;          //!< Number of streams in Performance-core(big core)
-        int _small_core_streams = 0;        //!< Number of streams in Efficient-core(small core)
-        int _threads_per_stream_big = 0;    //!< Threads per stream in big cores
-        int _threads_per_stream_small = 0;  //!< Threads per stream in small cores
-        int _small_core_offset = 0;         //!< Calculate small core start offset when binding cpu cores
-        bool _enable_hyper_thread = true;   //!< enable hyper thread
-        enum StreamMode { DEFAULT, AGGRESSIVE, LESSAGGRESSIVE };
-        enum PreferredCoreType {
-            ANY,
-            LITTLE,
-            BIG,
-            ROUND_ROBIN  // used w/multiple streams to populate the Big cores first, then the Little, then wrap around
-                         // (for large #streams)
-        } _threadPreferredCoreType =
-            PreferredCoreType::ANY;  //!< In case of @ref HYBRID_AWARE hints the TBB to affinitize
-
         /**
          * @brief      A constructor with arguments
          *
@@ -134,14 +95,17 @@ public:
                int threadBindingOffset = 0,
                int threads = 0,
                PreferredCoreType threadPreferredCoreType = PreferredCoreType::ANY)
-            : _name{name},
-              _streams{streams},
-              _threadsPerStream{threadsPerStream},
-              _threadBindingType{threadBindingType},
-              _threadBindingStep{threadBindingStep},
-              _threadBindingOffset{threadBindingOffset},
-              _threads{threads},
-              _threadPreferredCoreType(threadPreferredCoreType) {}
+            : ov::threading::IStreamsExecutor::Config(name,
+                                                      streams,
+                                                      threadsPerStream,
+                                                      threadBindingType,
+                                                      threadBindingStep,
+                                                      threadBindingOffset,
+                                                      threads,
+                                                      threadPreferredCoreType) {}
+
+        Config(const ov::threading::IStreamsExecutor::Config& config)
+            : ov::threading::IStreamsExecutor::Config(config) {}
     };
 
     /**
@@ -166,6 +130,18 @@ public:
      * @param task A task to start
      */
     virtual void Execute(Task task) = 0;
+
+    int get_stream_id() override {
+        return GetStreamId();
+    }
+
+    int get_numa_node_id() override {
+        return GetNumaNodeId();
+    }
+
+    void execute(Task task) override {
+        Execute(task);
+    }
 };
 
 }  // namespace InferenceEngine

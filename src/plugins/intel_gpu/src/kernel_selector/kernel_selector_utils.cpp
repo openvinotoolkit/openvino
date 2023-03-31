@@ -240,7 +240,7 @@ std::vector<size_t> GetOptimalLocalWorkGroupSizes(std::vector<size_t> gws, const
                 if (axis_by_gws[layout_order[axis_idx]] != unused_axis) {
                     bool is_already_exists = false;
                     if (axis_idx > 0) {
-                        for (int i = axis_idx - 1; i >= 0; i--) {
+                        for (int i = static_cast<int>(axis_idx) - 1; i >= 0; i--) {
                             if (axis_by_gws[layout_order[axis_idx]] == axis_by_gws[layout_order[i]]) {
                                 is_already_exists = true;
                                 break;
@@ -270,6 +270,7 @@ std::vector<size_t> GetOptimalLocalWorkGroupSizes(std::vector<size_t> gws, const
     auto blocked_bsv_fsv_layout = output_layout == DataLayout::bs_fs_yx_bsv16_fsv2 || output_layout == DataLayout::bs_fs_zyx_bsv16_fsv2 ||
                                   output_layout == DataLayout::bs_fs_yx_bsv16_fsv4 || output_layout == DataLayout::bs_fs_zyx_bsv16_fsv4 ||
                                   output_layout == DataLayout::bs_fs_yx_bsv16_fsv16 || output_layout == DataLayout::bs_fs_yx_bsv16_fsv32 ||
+                                  output_layout == DataLayout::bs_fs_yx_bsv32_fsv16 || output_layout == DataLayout::bs_fs_yx_bsv32_fsv32 ||
                                   output_layout == DataLayout::bs_fs_zyx_bsv16_fsv16 || output_layout == DataLayout::bs_fs_zyx_bsv16_fsv32 ||
                                   output_layout == DataLayout::bs_fs_zyx_bsv32_fsv16 || output_layout == DataLayout::bs_fs_zyx_bsv32_fsv32;
 
@@ -388,6 +389,9 @@ std::vector<size_t> GetOptimalLocalWorkGroupSizes(std::vector<size_t> gws, const
             } else if ((output_layout == DataLayout::bs_fs_yx_bsv16_fsv16 || output_layout == DataLayout::bs_fs_zyx_bsv16_fsv16) &&
                        (axis_by_gws[b] != axis_by_gws[f]) && (axis_by_gws[b] != unused_axis)) {
                 max_optimal_lws0_value = 16;
+            } else if ((output_layout == DataLayout::bs_fs_yx_bsv32_fsv32 || output_layout == DataLayout::bs_fs_zyx_bsv32_fsv32) &&
+                       (axis_by_gws[b] != axis_by_gws[f]) && (axis_by_gws[b] != unused_axis)) {
+                max_optimal_lws0_value = 32;
             }
         }
 

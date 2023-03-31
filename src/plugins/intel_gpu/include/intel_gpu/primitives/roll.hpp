@@ -32,6 +32,15 @@ struct roll : primitive_base<roll> {
         seed = hash_combine(seed, shift.hash());
         return seed;
     }
+
+    bool operator==(const primitive& rhs) const override {
+        if (!compare_common_params(rhs))
+            return false;
+
+        auto rhs_casted = downcast<const roll>(rhs);
+
+        return shift == rhs_casted.shift;
+    }
 };
 
 }  // namespace cldnn

@@ -37,7 +37,7 @@ TEST(depth_to_space_fp16_gpu, d1411_bs2) {
         depth_to_space("depth_to_space", input_info("Input0"), block_size, depth_to_space_mode::blocks_first)
     );
 
-    network network(engine, topology);
+    network network(engine, topology, get_test_default_config(engine));
 
     network.set_input_data("Input0", input1);
 
@@ -79,7 +79,7 @@ TEST(depth_to_space_fp16_gpu, d1421_bs2) {
         depth_to_space("depth_to_space", input_info("Input0"), block_size, depth_to_space_mode::blocks_first)
     );
 
-    network network(engine, topology);
+    network network(engine, topology, get_test_default_config(engine));
 
     network.set_input_data("Input0", input1);
 
@@ -134,7 +134,7 @@ TEST(depth_to_space_fp16_gpu, d1933_bs3) {
             depth_to_space("depth_to_space", input_info("Input0"), block_size, depth_to_space_mode::blocks_first)
     );
 
-    network network(engine, topology);
+    network network(engine, topology, get_test_default_config(engine));
 
     network.set_input_data("Input0", input1);
 
@@ -181,7 +181,7 @@ TEST(depth_to_space_fp32_gpu, d1411_bs2) {
         depth_to_space("depth_to_space", input_info("Input0"), block_size, depth_to_space_mode::blocks_first)
     );
 
-    network network(engine, topology);
+    network network(engine, topology, get_test_default_config(engine));
 
     network.set_input_data("Input0", input1);
 
@@ -220,7 +220,7 @@ TEST(depth_to_space_fp32_gpu, d112960540_bs2) {
         depth_to_space("depth_to_space", input_info("Input0"), block_size, depth_to_space_mode::blocks_first)
     );
 
-    network network_act(engine, topology_act);
+    network network_act(engine, topology_act, get_test_default_config(engine));
 
     network_act.set_input_data("Input0", input1);
 
@@ -288,7 +288,7 @@ TEST(depth_to_space_fp32_gpu, d1933_bs3) {
         depth_to_space("depth_to_space", input_info("Input0"), block_size, depth_to_space_mode::blocks_first)
     );
 
-    network network(engine, topology);
+    network network(engine, topology, get_test_default_config(engine));
 
     network.set_input_data("Input0", input1);
 
@@ -343,7 +343,7 @@ TEST(depth_to_space_fp32_gpu, d1822_bs2_blocks_first) {
         depth_to_space("depth_to_space", input_info("Input0"), block_size, depth_to_space_mode::blocks_first)
     );
 
-    network network(engine, topology);
+    network network(engine, topology, get_test_default_config(engine));
 
     network.set_input_data("Input0", input1);
 
@@ -393,24 +393,7 @@ void test_depth_to_space_fp32_gpu_d1822_bs2_depth_first(bool is_caching_test) {
         depth_to_space("depth_to_space", input_info("Input0"), block_size, depth_to_space_mode::depth_first)
     );
 
-    cldnn::network::ptr network;
-
-    if (is_caching_test) {
-        membuf mem_buf;
-        {
-            cldnn::network _network(engine, topology);
-            std::ostream out_mem(&mem_buf);
-            BinaryOutputBuffer ob = BinaryOutputBuffer(out_mem);
-            _network.save(ob);
-        }
-        {
-            std::istream in_mem(&mem_buf);
-            BinaryInputBuffer ib = BinaryInputBuffer(in_mem, engine);
-            network = std::make_shared<cldnn::network>(ib, get_test_stream_ptr(), engine);
-        }
-    } else {
-        network = std::make_shared<cldnn::network>(engine, topology);
-    }
+    cldnn::network::ptr network = get_network(engine, topology, get_test_default_config(engine), get_test_stream_ptr(), is_caching_test);
 
     network->set_input_data("Input0", input1);
 

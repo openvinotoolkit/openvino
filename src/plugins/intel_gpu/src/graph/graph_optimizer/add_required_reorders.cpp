@@ -13,6 +13,8 @@
 #include <vector>
 #include <stdexcept>
 
+using namespace cldnn;
+
 /*
 This pass checks if data formats (layouts) of output/input in hidden layers match.
 If not than required reorder is added to the network.

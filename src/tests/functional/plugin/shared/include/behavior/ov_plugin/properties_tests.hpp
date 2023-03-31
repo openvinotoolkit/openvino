@@ -45,8 +45,8 @@ public:
 
 using OVPropertiesIncorrectTests = OVPropertiesTests;
 using OVPropertiesDefaultTests = OVPropertiesTests;
-using OVSetSupportPropComplieModleWithoutConfigTests = OVPropertiesTests;
-using OVSetUnsupportPropComplieModleWithoutConfigTests = OVPropertiesTests;
+using OVSetSupportPropCompileModelWithoutConfigTests = OVPropertiesTests;
+using OVSetUnsupportPropCompileModelWithoutConfigTests = OVPropertiesTests;
 
 using CompileModelPropertiesParams = std::tuple<std::string, AnyMap, AnyMap>;
 class OVSetPropComplieModleGetPropTests : public testing::WithParamInterface<CompileModelPropertiesParams>,
@@ -59,7 +59,7 @@ public:
     AnyMap compileModelProperties;
 };
 
-using OVSetPropComplieModleWihtIncorrectPropTests = OVSetPropComplieModleGetPropTests;
+using OVSetPropCompileModelWithIncorrectPropTests = OVSetPropComplieModleGetPropTests;
 
 class OVPropertiesTestsWithComplieModelProps : public testing::WithParamInterface<PropertiesParams>,
                                                public OVPropertiesBase {

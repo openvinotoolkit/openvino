@@ -35,8 +35,9 @@ public:
     void execute(pooling_test_params& p) {
         if (engine.get_device_info().supports_immad)
             p.expected_fused_primitives = p.expected_fused_primitives_onednn;
+
         auto input_prim = get_mem(get_input_layout(p));
-        ExecutionConfig config;
+        ExecutionConfig config = get_test_default_config(engine);
         config.set_property(ov::intel_gpu::optimize_data(true));
         if (!p.kernel_name.empty()) {
             ov::intel_gpu::ImplementationDesc impl = { p.input_format, p.kernel_name };
@@ -161,7 +162,7 @@ TEST_P(pooling_f32_activation, basic) {
         reorder("output_reorder", input_info("act"), format::bfyx, data_types::f32)
     );
 
-    tolerance = 1e-05f;
+    tolerance = default_tolerance(p.data_type);
     execute(p);
 }
 
@@ -200,7 +201,7 @@ TEST_P(pooling_f32_scale, basic) {
         reorder("output_reorder", input_info("scale"), format::bfyx, data_types::f32)
     );
 
-    tolerance = 1e-05f;
+    tolerance = default_tolerance(p.data_type);
     execute(p);
 }
 
@@ -221,7 +222,7 @@ TEST_P(pooling_f32_scale, fp16_scale_out) {
         reorder("output_reorder", input_info("scale"), format::bfyx, data_types::f32)
     );
 
-    tolerance = 1e-5f;
+    tolerance = default_tolerance(p.data_type);
     execute(p);
 }
 
@@ -265,7 +266,7 @@ TEST_P(pooling_scale_activation_quantize, basic) {
         reorder("output_reorder", input_info("quantize"), p.default_format, data_types::f32)
     );
 
-    tolerance = 1.0f;
+    tolerance = default_tolerance(data_types::u8);
     execute(p);
 }
 
@@ -293,7 +294,7 @@ TEST_P(pooling_scale_activation_quantize, i8_output_data_type) {
         reorder("output_reorder", input_info("quantize"), p.default_format, data_types::f32)
     );
 
-    tolerance = 1.0f;
+    tolerance = default_tolerance(data_types::i8);
     execute(p);
 }
 
@@ -321,7 +322,7 @@ TEST_P(pooling_scale_activation_quantize, per_channel) {
         reorder("output_reorder", input_info("quantize"), p.default_format, data_types::f32)
     );
 
-    tolerance = 1.0f;
+    tolerance = default_tolerance(data_types::u8);
     execute(p);
 }
 
@@ -386,7 +387,7 @@ TEST_P(pooling_scale_activation, basic) {
         reorder("output_reorder", input_info("activation"), p.default_format, data_types::f32)
     );
 
-    tolerance = 1e-05f;
+    tolerance = default_tolerance(p.data_type);
     execute(p);
 }
 
@@ -408,7 +409,7 @@ TEST_P(pooling_scale_activation, eltwise_mul) {
         reorder("output_reorder", input_info("activation"), p.default_format, data_types::f32)
     );
 
-    tolerance = 1e-05f;
+    tolerance = default_tolerance(p.data_type);
     execute(p);
 }
 
@@ -540,12 +541,14 @@ public:
         ov::intel_gpu::ImplementationDesc onednn_impl = { p.input_format, "", impl_types::onednn };
         ov::intel_gpu::ImplementationDesc cldnn_impl = { p.input_format, "", impl_types::ocl };
 
-        ExecutionConfig cldnn_cfg{ov::intel_gpu::queue_type(QueueTypes::in_order),
+        ExecutionConfig cldnn_cfg = get_test_default_config(engine,
+                                  {ov::intel_gpu::queue_type(QueueTypes::in_order),
                                   ov::intel_gpu::optimize_data(true),
-                                  ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ { "pooling", cldnn_impl } })};
-        ExecutionConfig onednn_cfg{ov::intel_gpu::queue_type(QueueTypes::in_order),
+                                  ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ { "pooling", cldnn_impl } })});
+        ExecutionConfig onednn_cfg = get_test_default_config(engine,
+                                   {ov::intel_gpu::queue_type(QueueTypes::in_order),
                                    ov::intel_gpu::optimize_data(true),
-                                   ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ { "pooling", onednn_impl } })};
+                                   ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ { "pooling", onednn_impl } })});
 
         // for onednn fusing test, topology_non_fused means cldnn, topology_fused is onednn
         network network_fused_cldnn(this->engine, this->topology_non_fused, cldnn_cfg);
@@ -600,7 +603,7 @@ TEST_P(pooling_onednn_activation1, basic) {
         reorder("output_reorder", input_info("act"), format::bfyx, data_types::f32)
     );
 
-    tolerance = 1e-05f;
+    tolerance = default_tolerance(p.data_type);
     execute(p);
 }
 
@@ -621,7 +624,7 @@ TEST_P(pooling_onednn_activation2, basic) {
         reorder("output_reorder", input_info("act"), format::bfyx, data_types::f32)
     );
 
-    tolerance = 1e-05f;
+    tolerance = default_tolerance(p.data_type);
     execute(p);
 }
 

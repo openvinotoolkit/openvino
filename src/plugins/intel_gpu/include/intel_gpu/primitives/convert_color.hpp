@@ -58,5 +58,17 @@ struct convert_color : public primitive_base<convert_color> {
         seed = hash_combine(seed, mem_type);
         return seed;
     }
+
+    bool operator==(const primitive& rhs) const override {
+        if (!compare_common_params(rhs))
+            return false;
+
+        auto rhs_casted = downcast<const convert_color>(rhs);
+
+        return input_color_format == rhs_casted.input_color_format &&
+               output_color_format == rhs_casted.output_color_format &&
+               mem_type == rhs_casted.mem_type &&
+               output_layout == rhs_casted.output_layout;
+    }
 };
 }  // namespace cldnn

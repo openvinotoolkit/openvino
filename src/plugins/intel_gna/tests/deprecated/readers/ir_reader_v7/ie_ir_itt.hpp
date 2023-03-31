@@ -14,7 +14,7 @@
 namespace InferenceEngine {
 namespace itt {
 namespace domains {
-    OV_ITT_DOMAIN(V7Reader);
+OV_ITT_DOMAIN(V7Reader);
 }
-}
-}
+}  // namespace itt
+}  // namespace InferenceEngine

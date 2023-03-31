@@ -2,6 +2,13 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 
+# Android toolchain does not provide pkg-config file. So, cmake mistakenly uses
+# build system pkg-config executable, which finds packages on build system. Such
+# libraries cannot be linked into Android binaries.
+if(NOT ANDROID)
+    find_package(PkgConfig QUIET)
+endif()
+
 if(SUGGEST_OVERRIDE_SUPPORTED)
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-suggest-override")
 endif()
@@ -19,29 +26,113 @@ if(ENABLE_SAMPLES OR ENABLE_TESTS)
     add_subdirectory(cnpy EXCLUDE_FROM_ALL)
 endif()
 
-if(ENABLE_INTEL_GPU)
-    add_subdirectory(ocl)
-endif()
-
 add_subdirectory(xbyak EXCLUDE_FROM_ALL)
 openvino_developer_export_targets(COMPONENT openvino_common TARGETS xbyak)
 ov_install_static_lib(xbyak ${OV_CPACK_COMP_CORE})
+
+#
+# OpenCL
+#
+
+if(ENABLE_INTEL_GPU)
+    if(ENABLE_SYSTEM_OPENCL)
+        # try to find system OpenCL (installed via 'brew install opencl-icd-loader')
+        find_package(OpenCLICDLoader QUIET)
+
+        if(OpenCLICDLoader_FOUND)
+            # 'brew install opencl-headers'
+            find_package(OpenCLHeaders QUIET)
+            if(NOT OpenCLHeaders_FOUND)
+                message(FATAL_ERROR "OpenCLHeaders not found, but OpenCLICDLoader is installed. Please, install OpenCL headers")
+            else()
+                set_target_properties(OpenCL::Headers PROPERTIES IMPORTED_GLOBAL ON)
+            endif()
+        else()
+            # try to find system OpenCL:
+            # - 'sudo -E apt-get install opencl-headers ocl-icd-opencl-dev'
+            # - 'sudo -E yum install ocl-icd-devel opencl-headers'
+            # - 'conda install khronos-opencl-icd-loader -c conda-forge'
+            find_package(OpenCL QUIET)
+        endif()
+    endif()
+
+    if(TARGET OpenCL::OpenCL)
+        set_target_properties(OpenCL::OpenCL PROPERTIES IMPORTED_GLOBAL ON)
+
+        # try to find CL/opencl.hpp
+        find_file(OpenCL_HPP
+                  NAMES CL/opencl.hpp OpenCL/opencl.hpp
+                  HINTS ${OpenCL_INCLUDE_DIRS}
+                  DOC "Path to CL/opencl.hpp")
+
+        # add definition to select proper header and suppress warnings
+        if(OpenCL_HPP)
+            set_target_properties(OpenCL::OpenCL PROPERTIES
+                INTERFACE_COMPILE_DEFINITIONS OV_GPU_USE_OPENCL_HPP)
+
+            # check whether CL/opencl.hpp contains C++ wrapper for property CL_DEVICE_UUID_KHR
+            file(STRINGS "${OpenCL_HPP}" CL_DEVICE_UUID_KHR_CPP REGEX ".*CL_DEVICE_UUID_KHR.*")
+            if(CL_DEVICE_UUID_KHR_CPP)
+                set_target_properties(OpenCL::OpenCL PROPERTIES
+                    INTERFACE_COMPILE_DEFINITIONS OV_GPU_OPENCL_HPP_HAS_UUID)
+            endif()
+        endif()
+
+        # set variables for onednn_gpu
+        if(OpenCLHeaders_FOUND)
+            set(OpenCL_INCLUDE_DIR "$<TARGET_PROPERTY:OpenCL::Headers,INTERFACE_INCLUDE_DIRECTORIES>" PARENT_SCOPE)
+            set(OpenCL_LIBRARY "$<TARGET_PROPERTY:OpenCL::OpenCL,IMPORTED_LOCATION_RELEASE>" PARENT_SCOPE)
+        elseif(OpenCL_FOUND)
+            # find_package(OpenCL) already defines OpenCL_INCLUDE_DIR and OpenCL_LIBRARY
+            # see https://cmake.org/cmake/help/latest/module/FindOpenCL.html
+            message(STATUS "Found OpenCL (ver. ${OpenCL_VERSION_STRING}, include dirs ${OpenCL_INCLUDE_DIRS})")
+        else()
+            message(FATAL_ERROR "Internal error: cannot find OpenCL headers")
+        endif()
+    else()
+        add_subdirectory(ocl)
+
+        set(OpenCL_INCLUDE_DIR "${OpenCL_INCLUDE_DIR}" PARENT_SCOPE)
+        set(OpenCL_LIBRARY "${OpenCL_LIBRARY}" PARENT_SCOPE)
+        set(opencl_root_hints "${opencl_root_hints}" PARENT_SCOPE)
+    endif()
+
+    # cmake cannot set properties for imported targets
+    get_target_property(opencl_target OpenCL::OpenCL ALIASED_TARGET)
+    if(NOT TARGET ${opencl_target})
+        set(opencl_target OpenCL::OpenCL)
+    endif()
+
+    if(SUGGEST_OVERRIDE_SUPPORTED)
+        set_target_properties(${opencl_target} PROPERTIES INTERFACE_COMPILE_OPTIONS
+            $<$<COMPILE_LANGUAGE:CXX>:-Wno-suggest-override>)
+    endif()
+
+    # used in tests
+    add_library(opencl_new_headers INTERFACE)
+    add_library(OpenCL::NewHeaders ALIAS opencl_new_headers)
+    foreach(opencl_dir "${CMAKE_CURRENT_SOURCE_DIR}/ocl/clhpp_headers/include" "${CMAKE_CURRENT_SOURCE_DIR}/ocl/cl_headers")
+        if(EXISTS "${opencl_dir}")
+            set_property(TARGET opencl_new_headers APPEND PROPERTY INTERFACE_INCLUDE_DIRECTORIES
+                $<BUILD_INTERFACE:${opencl_dir}>)
+            set_target_properties(opencl_new_headers PROPERTIES
+                INTERFACE_COMPILE_DEFINITIONS OV_GPU_USE_OPENCL_HPP)
+        endif()
+    endforeach()
+endif()
 
 #
 # zlib
 #
 
 if(ENABLE_SAMPLES OR ENABLE_TESTS)
-    if(NOT ANDROID)
-        find_package(PkgConfig QUIET)
-        if(PkgConfig_FOUND)
-            pkg_search_module(zlib QUIET
-                              IMPORTED_TARGET GLOBAL
-                              zlib)
-            if(zlib_FOUND)
-                add_library(zlib::zlib ALIAS PkgConfig::zlib)
-                message(STATUS "${PKG_CONFIG_EXECUTABLE}: zlib (${zlib_VERSION}) is found at ${zlib_PREFIX}")
-            endif()
+    if(PkgConfig_FOUND)
+        pkg_search_module(zlib QUIET
+                          IMPORTED_TARGET GLOBAL
+                          zlib)
+        if(zlib_FOUND)
+            add_library(zlib::zlib ALIAS PkgConfig::zlib)
+            message(STATUS "${PKG_CONFIG_EXECUTABLE}: zlib (${zlib_VERSION}) is found at ${zlib_PREFIX}")
         endif()
     endif()
 
@@ -55,7 +146,6 @@ endif()
 #
 
 if(ENABLE_SYSTEM_PUGIXML)
-    find_package(PkgConfig QUIET)
     # try system pugixml first
     find_package(PugiXML QUIET)
     if(PugiXML_FOUND)
@@ -79,7 +169,7 @@ if(ENABLE_SYSTEM_PUGIXML)
         endif()
         # to property generate OpenVINO Developer packages files
         set(PugiXML_FOUND ${PugiXML_FOUND} CACHE BOOL "" FORCE)
-    elseif(PkgConfig_FOUND AND NOT ANDROID)
+    elseif(PkgConfig_FOUND)
         # U18 case when cmake interface is not available
         pkg_search_module(pugixml QUIET
                           IMPORTED_TARGET GLOBAL
@@ -170,8 +260,11 @@ if(ENABLE_GAPI_PREPROCESSING)
     add_subdirectory(ade EXCLUDE_FROM_ALL)
     add_subdirectory(fluid/modules/gapi EXCLUDE_FROM_ALL)
 
-    if(CMAKE_COMPILER_IS_GNUCXX AND CMAKE_CXX_COMPILER_VERSION VERSION_GREATER_EQUAL 11 AND NOT OV_COMPILER_IS_CLANG)
+    if(CMAKE_COMPILER_IS_GNUCXX AND CMAKE_CXX_COMPILER_VERSION VERSION_GREATER_EQUAL 11)
         target_compile_options(fluid PRIVATE "-Wno-maybe-uninitialized")
+    endif()
+    if(UNUSED_BUT_SET_VARIABLE_SUPPORTED)
+        target_compile_options(fluid PRIVATE "-Wno-unused-but-set-variable")
     endif()
 
     set_target_properties(ade fluid PROPERTIES FOLDER thirdparty)
@@ -253,7 +346,7 @@ if(ENABLE_OV_PADDLE_FRONTEND OR ENABLE_OV_ONNX_FRONTEND OR ENABLE_OV_TF_FRONTEND
         if(CMAKE_VERBOSE_MAKEFILE)
             set(Protobuf_DEBUG ON)
         endif()
-        find_package(Protobuf 3.18.2 REQUIRED)
+        find_package(Protobuf 3.20.3 REQUIRED)
         set(Protobuf_LITE_LIBRARIES protobuf::libprotobuf-lite)
         set(Protobuf_LIBRARIES protobuf::libprotobuf)
         set(PROTOC_EXECUTABLE protobuf::protoc)
@@ -321,6 +414,51 @@ if(ENABLE_OV_TF_LITE_FRONTEND)
     set(flatbuffers_INCLUDE_DIRECTORIES $<TARGET_PROPERTY:${flatbuffers_LIBRARY},INTERFACE_INCLUDE_DIRECTORIES> PARENT_SCOPE)
     set(flatbuffers_COMPILER ${flatbuffers_COMPILER} PARENT_SCOPE)
     set(flatbuffers_DEPENDENCY ${flatbuffers_DEPENDENCY} PARENT_SCOPE)
+endif()
+
+#
+# Snappy Compression
+#
+
+if(ENABLE_SNAPPY_COMPRESSION)
+    if(ENABLE_SYSTEM_SNAPPY)
+        find_package(Snappy REQUIRED)
+        set_target_properties(Snappy::snappy PROPERTIES IMPORTED_GLOBAL ON)
+    endif()
+
+    if(NOT TARGET Snappy::snappy)
+        function(tf_build_snappy)
+            set(BUILD_SHARED_LIBS OFF)
+            set(SNAPPY_BUILD_BENCHMARKS OFF)
+            set(SNAPPY_BUILD_TESTS OFF)
+            set(INSTALL_GTEST OFF)
+            set(CMAKE_CXX_STANDARD 14)
+            if(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
+                # '<': signed/unsigned mismatch
+                ie_add_compiler_flags(/wd4018)
+                # conditional expression is constant
+                ie_add_compiler_flags(/wd4127)
+                # 'conversion' conversion from 'type1' to 'type2', possible loss of data
+                ie_add_compiler_flags(/wd4244)
+                # 'conversion' : conversion from 'type1' to 'type2', signed/unsigned mismatch
+                ie_add_compiler_flags(/wd4245)
+                # 'var' : conversion from 'size_t' to 'type', possible loss of data
+                ie_add_compiler_flags(/wd4267)
+            elseif(CMAKE_COMPILER_IS_GNUCXX OR OV_COMPILER_IS_CLANG)
+                # we need to pass -Wextra first, then -Wno-sign-compare
+                # otherwise, snappy's CMakeLists.txt will do it for us
+                ie_add_compiler_flags(-Wextra)
+                ie_add_compiler_flags(-Wno-sign-compare)
+            endif()
+
+            add_subdirectory(snappy EXCLUDE_FROM_ALL)
+            # need to create alias Snappy::snappy
+            add_library(Snappy::snappy ALIAS snappy)
+        endfunction()
+
+        tf_build_snappy()
+        ov_install_static_lib(snappy ${OV_CPACK_COMP_CORE})
+    endif()
 endif()
 
 #

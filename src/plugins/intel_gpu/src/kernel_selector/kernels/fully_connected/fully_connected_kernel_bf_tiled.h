@@ -16,6 +16,7 @@ public:
     FullyConnected_bf_tiled();
 
     KernelsData GetKernelsData(const Params& params, const optional_params& options) const override;
+    using FullyConnectedKernelBase::GetTunedKernelsDataByIndex;
     KernelsData GetTunedKernelsDataByIndex(const Params &params,
                                            const optional_params &options,
                                            const int autoTuneIndex = -1) const override;

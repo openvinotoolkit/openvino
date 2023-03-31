@@ -4,13 +4,12 @@
 
 #pragma once
 
-#include <vector>
-#include <memory>
-#include <string>
-
 #include <ie_api.h>
 
+#include <memory>
 #include <ngraph/pass/graph_rewrite.hpp>
+#include <string>
+#include <vector>
 
 namespace ngraph {
 namespace pass {
@@ -18,7 +17,7 @@ class ConvertSwishToSwishIEMatcher;
 }  // namespace pass
 }  // namespace ngraph
 
-class ngraph::pass::ConvertSwishToSwishIEMatcher: public ngraph::pass::MatcherPass {
+class ngraph::pass::ConvertSwishToSwishIEMatcher : public ngraph::pass::MatcherPass {
 public:
     OPENVINO_RTTI("ConvertSwishToSwishIEMatcher", "0");
     ConvertSwishToSwishIEMatcher();

@@ -1,0 +1,41 @@
+{
+    "modeMap" : {
+        "checkOutput" : "CheckOutputMode",
+        "bmPerf" : "BenchmarkAppPerformanceMode",
+        "compareBlobs" : "CompareBlobsMode"
+    },
+    "traversalMap" : {
+        "firstFailedVersion" : "FirstFailedVersion",
+        "firstFixedVersion" : "FirstFixedVersion",
+        "allBreaks" : "AllBreakVersions",
+        "checkCommitSet" : "IterateOverSuspiciousCommits",
+        "bruteForce" : "BruteForce"
+    },
+    "commandList" : [
+        {"cmd" : "git checkout -- .", "path" : "{gitPath}"},
+        {"cmd" : "git clean -fxd", "path" : "{gitPath}", "tag" : "clean"},
+        {"cmd" : "mkdir -p build", "path" : "{gitPath}"},
+        {"cmd" : "git checkout {commit}", "catchMsg" : "error", "path" : "{gitPath}"},
+        {"cmd" : "git submodule init", "path" : "{gitPath}"},
+        {"cmd" : "git submodule update --recursive", "path" : "{buildPath}"},
+        {"cmd" : "{makeCmd}", "catchMsg" : "CMake Error", "path" : "{buildPath}"},
+        {"cmd" : "make --jobs=4", "path" : "{buildPath}"},
+        {"cmd" : "git checkout -- .", "path" : "{gitPath}"}
+    ],
+    "makeCmd" : "cmake ..",
+    "returnCmd" : "git checkout master",
+    "gitPath" : "../../../../../",
+    "appPath" : "../../../../../bin/intel64/Release/",
+    "buildPath" : "../../../../../build/",
+    "cachePath" : "{workPath}/slider_cache/",
+    "logPath" : "{workPath}/log/",
+    "workPath" : "/tmp/commit_slider_tool",
+    "clearCache" : false,
+    "noCleanInterval" : 10,
+    "checkIfBordersDiffer" : false,
+    "printCSV" : false,
+    "usePrevRunCache" : false,
+    "serviceConfig" : {
+        "comment" : "For inner purpose. Data will be overwritten during script running."
+    }
+}

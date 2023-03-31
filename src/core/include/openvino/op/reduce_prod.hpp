@@ -15,7 +15,7 @@ namespace v1 {
 /// \ingroup ov_ops_cpp_api
 class OPENVINO_API ReduceProd : public util::ArithmeticReductionKeepDims {
 public:
-    OPENVINO_OP("ReduceProd", "opset1", util::ArithmeticReductionKeepDims, 1);
+    OPENVINO_OP("ReduceProd", "opset1", util::ArithmeticReductionKeepDims);
     /// \brief Constructs a product reduction operation.
     ReduceProd() = default;
     /// \brief Constructs a product reduction operation.
@@ -24,11 +24,6 @@ public:
     /// \param reduction_axes The axis positions (0-based) to be eliminated.
     /// \param keep_dims If set to true it holds axes that are used for reduction.
     ReduceProd(const Output<Node>& arg, const Output<Node>& reduction_axes, bool keep_dims = false);
-
-    /// \return The default value for Product.
-    OPENVINO_SUPPRESS_DEPRECATED_START
-    std::shared_ptr<Node> get_default_value() const override;
-    OPENVINO_SUPPRESS_DEPRECATED_END
 
     std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& new_args) const override;
 

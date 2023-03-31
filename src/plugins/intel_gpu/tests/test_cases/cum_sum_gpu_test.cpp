@@ -185,24 +185,7 @@ public:
         topology.add(input_layout("Input0", input->get_layout()));
         topology.add(cum_sum("cum_sum", input_info("Input0"), axis, exclusive, reverse));
 
-        cldnn::network::ptr network;
-
-        if (is_caching_test) {
-            membuf mem_buf;
-            {
-                cldnn::network _network(engine, topology);
-                std::ostream out_mem(&mem_buf);
-                BinaryOutputBuffer ob = BinaryOutputBuffer(out_mem);
-                _network.save(ob);
-            }
-            {
-                std::istream in_mem(&mem_buf);
-                BinaryInputBuffer ib = BinaryInputBuffer(in_mem, engine);
-                network = std::make_shared<cldnn::network>(ib, get_test_stream_ptr(), engine);
-            }
-        } else {
-            network = std::make_shared<cldnn::network>(engine, topology);
-        }
+        cldnn::network::ptr network = get_network(engine, topology, get_test_default_config(engine), get_test_stream_ptr(), is_caching_test);
 
         network->set_input_data("Input0", input);
 
@@ -299,7 +282,7 @@ TEST(cum_sum_gpu_f16, DISABLED_basic_1d) {
     topology.add(input_layout("Input0", input->get_layout()));
     topology.add(cum_sum("cum_sum", input_info("Input0")));
 
-    network network(engine, topology);
+    network network(engine, topology, get_test_default_config(engine));
 
     network.set_input_data("Input0", input);
 
@@ -334,7 +317,7 @@ TEST(cum_sum_gpu_fp32, dynamic) {
     topology.add(input_layout("input", in_layout));
     topology.add(cum_sum("cum_sum", input_info("input")));
 
-    ExecutionConfig config;
+    ExecutionConfig config = get_test_default_config(engine);
     config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
     network network(engine, topology, config);
     network.set_input_data("input", input);

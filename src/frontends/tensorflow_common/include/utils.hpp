@@ -6,7 +6,7 @@
 
 #include "openvino/core/validation_util.hpp"
 #include "openvino/frontend/node_context.hpp"
-#include "openvino/opsets/opset8.hpp"
+#include "openvino/opsets/opset10.hpp"
 #include "openvino/pass/graph_rewrite.hpp"
 
 #ifndef TENSORFLOW_OP_VALIDATION
@@ -31,6 +31,31 @@ void set_out_name(const std::string& out_name, const Output<Node>& output);
 void set_node_name(const std::string& node_name, const std::shared_ptr<Node>& node);
 
 bool is_conditional_edge(const std::string& input_tensor_name);
+
+template <typename T>
+ov::Output<ov::Node> create_same_type_const_scalar(const ov::Output<ov::Node>& same_type_output, const T& value) {
+    if (same_type_output.get_element_type().is_static()) {
+        return std::make_shared<ov::opset10::Constant>(same_type_output.get_element_type(), ov::Shape{}, value);
+    } else {
+        ov::Output<ov::Node> const_res =
+            std::make_shared<ov::opset10::Constant>(ov::element::from<T>(), ov::Shape{}, value);
+        const_res = std::make_shared<ov::opset10::ConvertLike>(const_res, same_type_output);
+        return const_res;
+    }
+}
+
+template <typename T>
+ov::Output<ov::Node> create_same_type_const(const ov::Output<ov::Node>& same_type_output,
+                                            const std::vector<T>& value,
+                                            const ov::Shape& shape) {
+    if (same_type_output.get_element_type().is_static()) {
+        return std::make_shared<ov::opset10::Constant>(same_type_output.get_element_type(), shape, value);
+    } else {
+        ov::Output<ov::Node> const_res = std::make_shared<ov::opset10::Constant>(ov::element::from<T>(), shape, value);
+        const_res = std::make_shared<ov::opset10::ConvertLike>(const_res, same_type_output);
+        return const_res;
+    }
+}
 
 template <typename T>
 void get_const_input(const NodeContext& node, int input_index, std::vector<T>* vector) {
@@ -61,7 +86,7 @@ void fill_explicit_pads_vectors(const NodeContext& node,
                                 ov::CoordinateDiff& pads_begin,
                                 ov::CoordinateDiff& pads_end);
 
-void default_op_checks(const NodeContext& node, int min_input_size, const std::vector<std::string>& supported_ops);
+void default_op_checks(const NodeContext& node, size_t min_input_size, const std::vector<std::string>& supported_ops);
 
 ov::Output<Node> get_elements_number_1d(const Output<Node>& output,
                                         ov::element::Type output_type,
@@ -72,6 +97,56 @@ ov::op::PadMode convert_padding_mode(const NodeContext& node, const std::string&
 Output<Node> compute_subgraph_scalar_rank(const Output<Node>& output,
                                           element::Type output_type,
                                           bool as_scalar = false);
+
+std::shared_ptr<ov::opset10::Transpose> make_transpose(const ov::Output<ov::Node>& arg,
+                                                       const ov::AxisVector& input_order);
+
+std::shared_ptr<ov::opset10::Reshape> make_reshape(const ov::Output<ov::Node>& arg,
+                                                   const std::vector<int64_t>& new_shape);
+
+template <typename T>
+void convert_nhwc_to_hw(const std::vector<T>& src, std::vector<size_t>& dst) {
+    if (dst.size() >= 2) {
+        FRONT_END_GENERAL_CHECK(src.size() > 2,
+                                "[TensorFlow Frontend] Internal error: source vector size must be greater than 2.");
+        dst[0] = src[1];
+        dst[1] = src[2];
+    }
+    if (dst.size() >= 3) {
+        FRONT_END_GENERAL_CHECK(src.size() > 3,
+                                "[TensorFlow Frontend] Internal error: source vector size must be greater than 3.");
+        dst[2] = src[3];
+    }
+}
+
+template <typename T>
+void convert_nchw_to_hw(const std::vector<T>& src, std::vector<size_t>& dst) {
+    if (dst.size() >= 2) {
+        FRONT_END_GENERAL_CHECK(src.size() > 3,
+                                "[TensorFlow Frontend] Internal error: source vector size must be greater than 3.");
+        dst[0] = src[2];
+        dst[1] = src[3];
+    }
+    if (dst.size() >= 3) {
+        FRONT_END_GENERAL_CHECK(src.size() > 4,
+                                "[TensorFlow Frontend] Internal error: source vector size must be greater than 4.");
+        dst[2] = src[4];
+    }
+}
+
+void convert_nhwc_to_nchw(bool need_convert, ov::Output<ov::Node>& node, ov::Rank input_rank = ov::Rank::dynamic());
+
+void convert_nchw_to_nhwc(bool need_convert, ov::Output<ov::Node>& node, ov::Rank input_rank = ov::Rank::dynamic());
+
+template <typename T>
+void convert_nhwc_to_hw(bool is_nhwc, const std::vector<T>& src, std::vector<size_t>& dst) {
+    if (is_nhwc) {
+        convert_nhwc_to_hw(src, dst);
+    } else {
+        convert_nchw_to_hw(src, dst);
+    }
+}
+
 }  // namespace tensorflow
 }  // namespace frontend
 }  // namespace ov

@@ -24,13 +24,16 @@ public:
     bool created() const override;
 
     void prepareParams() override;
-
+    bool needShapeInfer() const override;
     bool isExecutable() const override;
+    bool needPrepareParams() const override;
 
 protected:
     void executeDynamicImpl(dnnl::stream strm) override;
 
 private:
+    using VectorIdxs = std::vector<int32_t>;
+
     enum PadMode {
         CONSTANT = 0,
         EDGE = 1,
@@ -41,15 +44,19 @@ private:
     struct PadAttrs {
         PadMode padMode = CONSTANT;
         float padValue = 0.f;
-        std::vector<unsigned int> padsBegin;
-        std::vector<unsigned int> padsEnd;
+        VectorIdxs padsBegin;
+        VectorIdxs padsEnd;
         int beginPadIdx = 0;
         int endPadIdx = 0;
         InferenceEngine::Precision prc;
+        bool constPadValue = false;
     } attrs;
 
     struct PadExecutor {
-        PadExecutor(const PadAttrs& params, const VectorDims& srcDims, const VectorDims& dstDims);
+        PadExecutor(const PadAttrs& attrs,
+                    const std::vector<MemoryCPtr>& srcMemory,
+                    const std::vector<MemoryCPtr>& dstMemory,
+                    const std::string& errorPrefix);
         void exec(MemoryPtr& srcMemPtr, MemoryPtr& dstMemPtr);
         ~PadExecutor() = default;
 
@@ -59,8 +66,12 @@ private:
         void padConstantZero(MemoryPtr& srcMemPtr, MemoryPtr& dstMemPtr);
         void padEdge(MemoryPtr& srcMemPtr, MemoryPtr& dstMemPtr);
         void padReflectOrSymmetric(MemoryPtr& srcMemPtr, MemoryPtr& dstMemPtr, const bool isSymmetric = false);
-
-        inline void getDstIdx(const VectorDims& indexes, size_t& dstIdx) const;
+        void paramsInitialization(const PadAttrs& attrs,
+                                  const std::vector<MemoryCPtr>& srcMemory,
+                                  const std::vector<MemoryCPtr>& dstMemory);
+        void workPartition();
+        void innerParamsInitialization();
+        inline void getDstIdx(const VectorIdxs& indexes, size_t& dstIdx) const;
 
         struct PadContext {
             PadExecutor* executor;
@@ -91,8 +102,15 @@ private:
             size_t lastDstDim = 1lu;
             size_t shift = 0lu;
             size_t dataSize = 1lu;
+            size_t innerBeginShift = 0lu;
+            size_t innerEndShift = 0lu;
+            size_t innerSrcShift = 0lu;
+            size_t innerCopySize = 0lu;
+            size_t innerBeginPadCount = 0lu;
+            size_t innerEndPadCount = 0lu;
             PadMode padMode;
         } params;
+        const std::string errorPrefix;
     };
 
     static constexpr size_t DATA_ID = 0lu;
@@ -104,6 +122,10 @@ private:
 
     using executorPtr = std::shared_ptr<PadExecutor>;
     executorPtr execPtr = nullptr;
+    std::vector<MemoryCPtr> srcMemory;
+    std::vector<MemoryCPtr> dstMemory;
+    std::string errorPrefix;
+    bool shapeHasDataDependency = false;
 };
 
 }   // namespace node

@@ -123,29 +123,6 @@ void apply_reverse_input_channels(std::shared_ptr<Function> f, std::vector<std::
     p.build();
 }
 
-void apply_mean_value(std::shared_ptr<Function> f,
-                      std::vector<std::pair<int64_t, std::string>> data,
-                      std::vector<float> values) {
-    using namespace ov::preprocess;
-    PrePostProcessor p(f);
-    for (auto item : data) {
-        p.input(item.first).tensor().set_layout(ov::Layout(item.second));
-        p.input(item.first).preprocess().mean(values);
-    }
-    p.build();
-}
-
-void apply_scale_value(std::shared_ptr<Function> f,
-                       std::vector<std::pair<int64_t, std::string>> data,
-                       std::vector<float> values) {
-    using namespace ov::preprocess;
-    PrePostProcessor p(f);
-    for (auto item : data) {
-        p.input(item.first).tensor().set_layout(ov::Layout(item.second));
-        p.input(item.first).preprocess().scale(values);
-    }
-    p.build();
-}
 }  // namespace
 
 TEST_F(TransformationTestsF, RICFusionSimple) {

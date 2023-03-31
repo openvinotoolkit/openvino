@@ -12,7 +12,8 @@
 using namespace cldnn;
 using namespace ::tests;
 
-TEST(shuffle_channels_fp32_gpu, d1_15_2_2_ax1_g5) {
+template <typename T>
+void test_d1_15_2_2_ax1_g5(bool is_caching_test) {
     auto& engine = get_test_engine();
 
     auto input0 = engine.allocate_memory({ data_types::f32, format::bfyx, { 1, 15, 2, 2 } });
@@ -34,16 +35,16 @@ TEST(shuffle_channels_fp32_gpu, d1_15_2_2_ax1_g5) {
             shuffle_channels("shuffle_channels", input_info("Input0"), group, axis)
     );
 
-    network network(engine, topology);
+    cldnn::network::ptr network = get_network(engine, topology, get_test_default_config(engine), get_test_stream_ptr(), is_caching_test);
 
-    network.set_input_data("Input0", input0);
+    network->set_input_data("Input0", input0);
 
-    auto outputs = network.execute();
+    auto outputs = network->execute();
 
     auto output = outputs.at("shuffle_channels").get_memory();
-    cldnn::mem_lock<float> output_ptr(output, get_test_stream());
+    cldnn::mem_lock<T> output_ptr(output, get_test_stream());
 
-    std::vector<float> expected_results = {
+    std::vector<T> expected_results = {
             0.f, 1.f, 2.f, 3.f, 12.f, 13.f, 14.f, 15.f, 24.f, 25.f, 26.f, 27.f, 36.f, 37.f, 38.f, 39.f, 48.f, 49.f, 50.f, 51.f,
             4.f, 5.f, 6.f, 7.f, 16.f, 17.f, 18.f, 19.f, 28.f, 29.f, 30.f, 31.f, 40.f, 41.f, 42.f, 43.f, 52.f, 53.f, 54.f, 55.f,
             8.f, 9.f, 10.f, 11.f, 20.f, 21.f, 22.f, 23.f, 32.f, 33.f, 34.f, 35.f, 44.f, 45.f, 46.f, 47.f, 56.f, 57.f, 58.f, 59.f
@@ -52,6 +53,10 @@ TEST(shuffle_channels_fp32_gpu, d1_15_2_2_ax1_g5) {
     for (size_t i = 0; i < expected_results.size(); ++i) {
         ASSERT_EQ(expected_results[i], output_ptr[i]);
     }
+}
+
+TEST(shuffle_channels_fp32_gpu, d1_15_2_2_ax1_g5) {
+        test_d1_15_2_2_ax1_g5<float>(false);
 }
 
 TEST(shuffle_channels_fp32_gpu, d1_15_2_2_axm3_g5) {
@@ -76,7 +81,7 @@ TEST(shuffle_channels_fp32_gpu, d1_15_2_2_axm3_g5) {
             shuffle_channels("shuffle_channels", input_info("Input0"), group, axis)
     );
 
-    network network(engine, topology);
+    network network(engine, topology, get_test_default_config(engine));
 
     network.set_input_data("Input0", input0);
 
@@ -118,7 +123,7 @@ TEST(shuffle_channels_fp32_gpu, d15_2_2_ax0_g5) {
             shuffle_channels("shuffle_channels", input_info("Input0"), group, axis)
     );
 
-    network network(engine, topology);
+    network network(engine, topology, get_test_default_config(engine));
 
     network.set_input_data("Input0", input0);
 
@@ -160,7 +165,7 @@ TEST(shuffle_channels_fp32_gpu, d15_2_2_axm4_g5) {
             shuffle_channels("shuffle_channels", input_info("Input0"), group, axis)
     );
 
-    network network(engine, topology);
+    network network(engine, topology, get_test_default_config(engine));
 
     network.set_input_data("Input0", input0);
 
@@ -199,7 +204,7 @@ TEST(shuffle_channels_fp32_gpu, d2_2_6_axm2_g3) {
             shuffle_channels("shuffle_channels", input_info("Input0"), group, axis)
     );
 
-    network network(engine, topology);
+    network network(engine, topology, get_test_default_config(engine));
 
     network.set_input_data("Input0", input0);
 
@@ -237,7 +242,7 @@ TEST(shuffle_channels_fp32_gpu, d2_6_2_axm3_g3) {
             shuffle_channels("shuffle_channels", input_info("Input0"), group, axis)
     );
 
-    network network(engine, topology);
+    network network(engine, topology, get_test_default_config(engine));
 
     network.set_input_data("Input0", input0);
 
@@ -275,7 +280,7 @@ TEST(shuffle_channels_fp32_gpu, d2_2_6_axm2_g2) {
             shuffle_channels("shuffle_channels", input_info("Input0"), group, axis)
     );
 
-    network network(engine, topology);
+    network network(engine, topology, get_test_default_config(engine));
 
     network.set_input_data("Input0", input0);
 
@@ -313,7 +318,7 @@ TEST(shuffle_channels_fp32_gpu, d2_6_2_axm3_g2) {
             shuffle_channels("shuffle_channels", input_info("Input0"), group, axis)
     );
 
-    network network(engine, topology);
+    network network(engine, topology, get_test_default_config(engine));
 
     network.set_input_data("Input0", input0);
 
@@ -349,7 +354,7 @@ TEST(shuffle_channels_fp32_gpu, d6_axm0_g2) {
             shuffle_channels("shuffle_channels", input_info("Input0"), group, axis)
     );
 
-    network network(engine, topology);
+    network network(engine, topology, get_test_default_config(engine));
 
     network.set_input_data("Input0", input0);
 
@@ -365,4 +370,8 @@ TEST(shuffle_channels_fp32_gpu, d6_axm0_g2) {
     for (size_t i = 0; i < expected_results.size(); ++i) {
         ASSERT_EQ(expected_results[i], output_ptr[i]);
     }
+}
+
+TEST(shuffle_channels_fp32_gpu, d1_15_2_2_ax1_g5_cached) {
+    test_d1_15_2_2_ax1_g5<float>(true);
 }

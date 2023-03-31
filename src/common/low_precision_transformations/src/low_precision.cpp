@@ -5,7 +5,6 @@
 #include "low_precision/low_precision.hpp"
 
 #include <memory>
-
 #include <ngraph/ngraph.hpp>
 #include <ngraph/pass/manager.hpp>
 #include <ngraph/pass/constant_folding.hpp>
@@ -69,6 +68,7 @@
 #include "low_precision/shuffle_channels.hpp"
 #include "low_precision/strided_slice.hpp"
 #include "low_precision/transpose.hpp"
+#include "low_precision/gather.hpp"
 #include "low_precision/unsqueeze.hpp"
 #include "low_precision/variadic_split.hpp"
 #include "low_precision/move_fake_quantize.hpp"
@@ -133,9 +133,24 @@ void make_matcher_type_relaxed(ngraph::pass::GraphRewrite* transformation) {
     };
 
     auto m = std::make_shared<ngraph::pattern::Matcher>(p_node, matcher_name);
-    NGRAPH_SUPPRESS_DEPRECATED_START
-    transformation->add_matcher(m, callback, ngraph::pass::PassProperty::CHANGE_DYNAMIC_STATE);
-    NGRAPH_SUPPRESS_DEPRECATED_END
+    auto match_pass = std::make_shared<ov::pass::MatcherPass>(
+            m->get_name(),
+            m,
+            [m, callback](const std::shared_ptr<Node>& node) -> bool {
+                NGRAPH_DEBUG << "Running matcher " << m->get_name() << " on " << node;
+                if (std::dynamic_pointer_cast<ov::pass::pattern::Matcher>(m)->match(node->output(0))) {
+                    NGRAPH_DEBUG << "Matcher " << m->get_name() << " matched " << node;
+                    OV_PASS_CALLBACK(m);
+                    bool status = callback(*m.get());
+                    // explicitly clear Matcher state because it holds pointers to matched nodes
+                    m->clear_state();
+                    return status;
+                }
+            m->clear_state();
+            return false;
+             },
+            ov::pass::PassProperty::CHANGE_DYNAMIC_STATE);
+    transformation->add_matcher(match_pass);
 }
 
 ngraph::pass::low_precision::TypeRelaxedReplacer::TypeRelaxedReplacer() {
@@ -246,6 +261,7 @@ bool ngraph::pass::low_precision::LowPrecision::run_on_model(const std::shared_p
     ADD_MATCHER(common, SplitTransformation, params)
     ADD_MATCHER(common, StridedSliceTransformation, params)
     ADD_MATCHER(common, TransposeTransformation, params)
+    ADD_MATCHER(common, GatherTransformation, params)
     ADD_MATCHER(common, UnsqueezeTransformation, params)
     ADD_MATCHER(common, VariadicSplitTransformation, params)
 
@@ -271,7 +287,7 @@ bool ngraph::pass::low_precision::LowPrecision::run_on_model(const std::shared_p
 bool ngraph::pass::low_precision::LowPrecision::isFunctionQuantized(const std::shared_ptr<const ngraph::Function>& function) {
     std::set<std::shared_ptr<ngraph::Node>> handledNodes;
     std::deque<std::shared_ptr<ngraph::Node>> nodes;
-    for (const auto result : function->get_results()) {
+    for (const auto& result : function->get_results()) {
         nodes.push_front(result);
     }
 
@@ -292,7 +308,7 @@ bool ngraph::pass::low_precision::LowPrecision::isFunctionQuantized(const std::s
                 }
             } else if (const auto multiSubGraph = ov::as_type_ptr<ngraph::op::util::MultiSubGraphOp>(parent)) {
                 // Look inside subraph operations, such as TensorIterator, Loop, If, etc
-                for (int i = 0; i < multiSubGraph->get_internal_subgraphs_size(); i++) {
+                for (size_t i = 0; i < multiSubGraph->get_internal_subgraphs_size(); i++) {
                     if (isFunctionQuantized(multiSubGraph->get_function(i))) {
                         return true;
                     }

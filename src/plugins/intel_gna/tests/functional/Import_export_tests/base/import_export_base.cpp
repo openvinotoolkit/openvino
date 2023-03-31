@@ -85,7 +85,8 @@ void ImportNetworkTestBase::TestRun(bool isModelChanged) {
 
     for (const auto& next_input : importedExecNetwork.GetInputsInfo()) {
         ASSERT_NO_THROW(compiledExecNetwork.GetInputsInfo()[next_input.first]);
-        Compare(next_input.second->getTensorDesc(), compiledExecNetwork.GetInputsInfo()[next_input.first]->getTensorDesc());
+        Compare(next_input.second->getTensorDesc(),
+                compiledExecNetwork.GetInputsInfo()[next_input.first]->getTensorDesc());
     }
     for (const auto& next_output : importedExecNetwork.GetOutputsInfo()) {
         ASSERT_NO_THROW(compiledExecNetwork.GetOutputsInfo()[next_output.first]);
@@ -100,4 +101,4 @@ void ImportNetworkTestBase::TestRun(bool isModelChanged) {
     }
 }
 
-} // namespace FuncTestUtils
+}  // namespace FuncTestUtils

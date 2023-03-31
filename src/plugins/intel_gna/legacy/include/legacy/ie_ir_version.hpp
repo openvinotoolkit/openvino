@@ -2,15 +2,16 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <fstream>
 #include <xml_parse_utils.h>
+
 #include <array>
+#include <fstream>
 
 namespace InferenceEngine {
 namespace details {
 
-inline size_t GetIRVersion(pugi::xml_node& root) {
-    return XMLParseUtils::GetUIntAttr(root, "version", 0);
+inline size_t get_ir_version(pugi::xml_node& root) {
+    return pugixml::utils::GetUIntAttr(root, "version", 0);
 }
 
 /**
@@ -18,7 +19,7 @@ inline size_t GetIRVersion(pugi::xml_node& root) {
  * @param model Models stream
  * @return IR version, 0 if model does represent IR
  */
-inline size_t GetIRVersion(std::istream& model) {
+inline size_t get_ir_version(std::istream& model) {
     std::array<char, 512> header = {};
 
     model.seekg(0, model.beg);
@@ -27,7 +28,8 @@ inline size_t GetIRVersion(std::istream& model) {
     model.seekg(0, model.beg);
 
     pugi::xml_document doc;
-    auto res = doc.load_buffer(header.data(), header.size(), pugi::parse_default | pugi::parse_fragment, pugi::encoding_utf8);
+    auto res =
+        doc.load_buffer(header.data(), header.size(), pugi::parse_default | pugi::parse_fragment, pugi::encoding_utf8);
 
     if (res == pugi::status_ok) {
         pugi::xml_node root = doc.document_element();
@@ -36,7 +38,7 @@ inline size_t GetIRVersion(std::istream& model) {
         std::transform(node_name.begin(), node_name.end(), node_name.begin(), ::tolower);
 
         if (node_name == "net") {
-            return GetIRVersion(root);
+            return get_ir_version(root);
         }
     }
 

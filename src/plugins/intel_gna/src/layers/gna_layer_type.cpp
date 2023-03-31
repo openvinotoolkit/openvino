@@ -2,10 +2,12 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "gna_layer_type.hpp"
+
+#include <legacy/graph_tools.hpp>
 #include <string>
 #include <unordered_set>
-#include <legacy/graph_tools.hpp>
-#include "gna_layer_type.hpp"
+
 #include "gna_layer_info.hpp"
 
 namespace ov {

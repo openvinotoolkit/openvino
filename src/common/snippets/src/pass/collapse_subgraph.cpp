@@ -40,7 +40,7 @@ auto outputs_are_not_broadcastable(const std::shared_ptr<const Node>& node) -> b
         return false;
     ov::PartialShape ref_shape = outputs.front().get_partial_shape();
     bool success = true;
-    for (int i = 1; i < outputs.size() && success; i++) {
+    for (size_t i = 1; i < outputs.size() && success; i++) {
         success &= ov::PartialShape::broadcast_merge_into(ref_shape, outputs[i].get_partial_shape(), ov::op::AutoBroadcastType::NUMPY);
     }
     return !success;
@@ -49,9 +49,16 @@ auto outputs_are_not_broadcastable(const std::shared_ptr<const Node>& node) -> b
 auto is_supported_op(const std::shared_ptr<const Node> &n) -> bool {
     OV_ITT_SCOPED_TASK(ngraph::pass::itt::domains::SnippetsTransform, "Snippets::is_supported_op")
     auto is_supported_matmul = [](const std::shared_ptr<const Node>& n) -> bool {
-        const auto& matmul = is_type<const opset1::MatMul>(n);
+        const auto& matmul = ov::as_type_ptr<const opset1::MatMul>(n);
         const auto& out_shape = n->get_output_partial_shape(0);
-        return matmul && out_shape.is_static() && out_shape.size() == 4;
+        if (!matmul || out_shape.is_dynamic() || out_shape.size() != 4)
+            return false;
+        const auto intype_0 = matmul->get_input_element_type(0);
+        const auto intype_1 = matmul->get_input_element_type(1);
+        const bool is_f32 = intype_0 == element::f32 && intype_1 == element::f32;
+        const bool is_int8 = (intype_0 == element::i8 || intype_0 == element::u8) && (intype_1 == element::i8);
+        const bool is_bf16 = intype_0 == element::bf16 && intype_1 == element::bf16;
+        return is_f32 || is_bf16 || is_int8;
     };
     auto is_supported_transpose = [](const std::shared_ptr<const Node>& n) -> bool {
         const auto& transpose = as_type_ptr<const opset1::Transpose>(n);
@@ -74,7 +81,9 @@ auto is_supported_op(const std::shared_ptr<const Node> &n) -> bool {
                is_type<opset1::Constant>(n->get_input_node_shared_ptr(1)) &&
                is_type<opset1::Constant>(n->get_input_node_shared_ptr(2)) &&
                is_type<opset1::Constant>(n->get_input_node_shared_ptr(3)) &&
-               is_type<opset1::Constant>(n->get_input_node_shared_ptr(4));
+               is_type<opset1::Constant>(n->get_input_node_shared_ptr(4)) &&
+               (fq->get_auto_broadcast() == ov::op::AutoBroadcastType::NUMPY ||
+                fq->get_auto_broadcast() == ov::op::AutoBroadcastType::NONE);
     };
 
     auto is_supported_ternary_eltwise_op = [](const std::shared_ptr<const Node> &n) -> bool {
@@ -210,7 +219,11 @@ const std::set<ngraph::element::Type> ngraph::snippets::pass::TokenizeSnippets::
         { ngraph::element::f32, ngraph::element::bf16, ngraph::element::i8, ngraph::element::u8 };
 
 bool TokenizeSnippets::AppropriateForSubgraph(const std::shared_ptr<const Node> &node) {
-    return is_supported_op(node) && has_supported_in_out(node) && node->get_control_dependencies().empty();
+    return
+        is_supported_op(node) &&
+        has_supported_in_out(node) &&
+        node->get_control_dependencies().empty() &&
+        snippets::op::Subgraph::check_broadcast(node);
 }
 
 TokenizeSnippets::TokenizeSnippets() {
@@ -324,7 +337,7 @@ TokenizeSnippets::TokenizeSnippets() {
         for (const auto &input_node : ngraph::as_node_vector(input_values)) {
             if (auto subgraph = ov::as_type_ptr<op::Subgraph>(input_node)) {
                 if (!clones.count(input_node)) {
-                    auto f = ov::clone_model(subgraph->body());
+                    auto f = subgraph->body().clone();
                     f->set_friendly_name(subgraph->body_ptr()->get_friendly_name());
                     clones[input_node] = f;
                 }

@@ -47,32 +47,35 @@ DECLARE_CONFIG_KEY(LP_TRANSFORMS_MODE);
 DECLARE_CONFIG_KEY(CPU_THREADS_PER_STREAM);
 
 /**
- * @brief Number of streams in Performance-core(big core) in HYBRID_AWARE and throughput
- *        The value is calculated in loadExeNetwork and is used by CPU Executor Streams to execute `parallel_for` calls
+ * @brief Number of streams in Performance-core(big core)
  * @ingroup ie_dev_api_plugin_api
  * @brief Shortcut for defining internal configuration values
  */
 DECLARE_CONFIG_KEY(BIG_CORE_STREAMS);
 
 /**
- * @brief Number of streams in Efficient-core(small core) in HYBRID_AWARE and throughput
- *        The value is calculated in loadExeNetwork and is used by CPU Executor Streams to execute `parallel_for` calls
+ * @brief Number of streams in Performance-logical core(big core)
+ * @ingroup ie_dev_api_plugin_api
+ * @brief Shortcut for defining internal configuration values
+ */
+DECLARE_CONFIG_KEY(BIG_CORE_LOGIC_STREAMS);
+
+/**
+ * @brief Number of streams in Efficient-core(small core) on hybrid cores machine
  * @ingroup ie_dev_api_plugin_api
  * @brief Shortcut for defining internal configuration values
  */
 DECLARE_CONFIG_KEY(SMALL_CORE_STREAMS);
 
 /**
- * @brief Threads per stream in big cores in HYBRID_AWARE and throughput
- *        The value is calculated in loadExeNetwork and is used by CPU Executor Streams to execute `parallel_for` calls
+ * @brief Number of threads per stream in big cores
  * @ingroup ie_dev_api_plugin_api
  * @brief Shortcut for defining internal configuration values
  */
 DECLARE_CONFIG_KEY(THREADS_PER_STREAM_BIG);
 
 /**
- * @brief Threads per stream in small cores in HYBRID_AWARE and throughput
- *        The value is calculated in loadExeNetwork and is used by CPU Executor Streams to execute `parallel_for` calls
+ * @brief Number of threads per stream in small cores on hybrid cores machine
  * @ingroup ie_dev_api_plugin_api
  * @brief Shortcut for defining internal configuration values
  */
@@ -91,13 +94,6 @@ DECLARE_CONFIG_KEY(SMALL_CORE_OFFSET);
  * @ingroup ie_dev_api_plugin_api
  */
 DECLARE_CONFIG_KEY(CPU_RUNTIME_CACHE_CAPACITY);
-
-/**
- * @brief This key should be used to force disable export while loading network even if global cache dir is defined
- *        Used by HETERO plugin to disable automatic caching of subnetworks (set value to YES)
- * @ingroup ie_dev_api_plugin_api
- */
-DECLARE_CONFIG_KEY(FORCE_DISABLE_CACHE);
 
 /**
  * @brief Internal device id for particular device (like GPU.0, GPU.1 etc)

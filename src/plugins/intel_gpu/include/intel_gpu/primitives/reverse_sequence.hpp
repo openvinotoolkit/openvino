@@ -58,5 +58,15 @@ struct reverse_sequence : public primitive_base<reverse_sequence> {
         seed = hash_combine(seed, batch_axis);
         return seed;
     }
+
+    bool operator==(const primitive& rhs) const override {
+        if (!compare_common_params(rhs))
+            return false;
+
+        auto rhs_casted = downcast<const reverse_sequence>(rhs);
+
+        return seq_axis == rhs_casted.seq_axis &&
+               batch_axis == rhs_casted.batch_axis;
+    }
 };
 }  // namespace cldnn

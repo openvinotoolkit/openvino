@@ -3,19 +3,19 @@
 //
 
 #include "legacy/transformations/convert_opset1_to_legacy/convert_mul_or_add_finally.hpp"
-#include "legacy/transformations/convert_opset1_to_legacy/convert_mul_add_to_scaleshift_or_power.hpp"
-
-#include "legacy/ngraph_ops/scaleshift.hpp"
-#include "legacy/ngraph_ops/eltwise.hpp"
-#include "legacy/ngraph_ops/power.hpp"
-#include "transformations/utils/utils.hpp"
 
 #include <ngraph/opsets/opset1.hpp>
 #include <ngraph/pattern/op/wrap_type.hpp>
 #include <ngraph/rt_info.hpp>
 
+#include "legacy/ngraph_ops/eltwise.hpp"
+#include "legacy/ngraph_ops/power.hpp"
+#include "legacy/ngraph_ops/scaleshift.hpp"
+#include "legacy/transformations/convert_opset1_to_legacy/convert_mul_add_to_scaleshift_or_power.hpp"
+#include "transformations/utils/utils.hpp"
+
 template <typename T>
-bool convert_to_eltwise(std::shared_ptr<T> & node,
+bool convert_to_eltwise(std::shared_ptr<T>& node,
                         ngraph::Output<ngraph::Node> data1,
                         ngraph::Output<ngraph::Node> data2) {
     ELTWISE_TYPE et;
@@ -39,10 +39,11 @@ bool convert_to_eltwise(std::shared_ptr<T> & node,
 template <typename T>
 ngraph::matcher_pass_callback get_callback() {
     ngraph::matcher_pass_callback callback = [](ngraph::pattern::Matcher& m) {
-        static_assert(std::is_same<T, ngraph::opset1::Add>() || std::is_same<T, ngraph::opset1::Subtract>() || std::is_same<T, ngraph::opset1::Multiply>(),
+        static_assert(std::is_same<T, ngraph::opset1::Add>() || std::is_same<T, ngraph::opset1::Subtract>() ||
+                          std::is_same<T, ngraph::opset1::Multiply>(),
                       "Unsupported template parameter. Only Add or Multiply allowed!");
 
-        auto lin_op = std::dynamic_pointer_cast<T> (m.get_match_root());
+        auto lin_op = std::dynamic_pointer_cast<T>(m.get_match_root());
         if (!lin_op || lin_op->output(0).get_partial_shape().rank().is_dynamic()) {
             return false;
         }
@@ -50,8 +51,8 @@ ngraph::matcher_pass_callback get_callback() {
         const auto output_shape = lin_op->output(0).get_partial_shape();
         const auto output_shape_rank = output_shape.rank().get_length();
 
-        const auto intInputs = !lin_op->get_input_element_type(0).is_real() &&
-                               !lin_op->get_input_element_type(1).is_real();
+        const auto intInputs =
+            !lin_op->get_input_element_type(0).is_real() && !lin_op->get_input_element_type(1).is_real();
 
         if (!lin_op->get_element_type().is_real() || intInputs) {
             return convert_to_eltwise<T>(lin_op,
@@ -60,10 +61,11 @@ ngraph::matcher_pass_callback get_callback() {
         }
 
         std::shared_ptr<ngraph::opset1::Constant> const_node = std::dynamic_pointer_cast<ngraph::opset1::Constant>(
-                lin_op->input(0).get_source_output().get_node_shared_ptr());
+            lin_op->input(0).get_source_output().get_node_shared_ptr());
         auto data_node = lin_op->input(1).get_source_output();
         if (!const_node) {
-            const_node = std::dynamic_pointer_cast<ngraph::opset1::Constant> (lin_op->input(1).get_source_output().get_node_shared_ptr());
+            const_node = std::dynamic_pointer_cast<ngraph::opset1::Constant>(
+                lin_op->input(1).get_source_output().get_node_shared_ptr());
             data_node = lin_op->input(0).get_source_output();
             if (!const_node) {
                 return convert_to_eltwise<T>(lin_op,
@@ -76,10 +78,13 @@ ngraph::matcher_pass_callback get_callback() {
            For example:
                 1. data_shape{1, 64, 64} and const_shape{64, 1, 1} - constant broadcasts data_shape zero dimension
                 2. data_shape{DYN, 64, 64} and const_shape{1, 1, 64} - constant do not broadcasts data_shape
-                3. data_shape{64, 64} and const_shape{1, 1, 1} - constant broadcasts data_shape with additional dimension
+                3. data_shape{64, 64} and const_shape{1, 1, 1} - constant broadcasts data_shape with additional
+           dimension
         */
-        auto constant_broadcast_output = [](const ngraph::PartialShape & data_pshape, const ngraph::Shape & const_shape) -> bool {
-            if (data_pshape.rank().is_dynamic() || const_shape.size() > static_cast<size_t>(data_pshape.rank().get_length())) {
+        auto constant_broadcast_output = [](const ngraph::PartialShape& data_pshape,
+                                            const ngraph::Shape& const_shape) -> bool {
+            if (data_pshape.rank().is_dynamic() ||
+                const_shape.size() > static_cast<size_t>(data_pshape.rank().get_length())) {
                 return true;
             }
 
@@ -113,7 +118,7 @@ ngraph::matcher_pass_callback get_callback() {
 
         // Check that eltwise is not useless and do not broadcast output otherwise we remove it
         if (((std::is_same<T, ngraph::opset1::Add>() && ov::op::util::constantIsEqualTo(const_node, 0)) ||
-            (std::is_same<T, ngraph::opset1::Multiply>() && ov::op::util::constantIsEqualTo(const_node, 1))) &&
+             (std::is_same<T, ngraph::opset1::Multiply>() && ov::op::util::constantIsEqualTo(const_node, 1))) &&
             !constant_broadcast_output(data_node.get_partial_shape(), const_node->get_shape())) {
             bool ret_status = ngraph::replace_output_update_name(lin_op->output(0), data_node);
             if (ret_status) {
@@ -144,7 +149,7 @@ ngraph::matcher_pass_callback get_callback() {
             } else if (std::is_same<T, ngraph::opset1::Subtract>()) {
                 std::shared_ptr<ngraph::Node> new_const_node = std::make_shared<ngraph::opset1::Multiply>(
                     ov::op::util::normalize_constant(const_node, output_shape),
-                    ngraph::opset1::Constant::create(weights_et, ngraph::Shape{ 1 }, { -1 }));
+                    ngraph::opset1::Constant::create(weights_et, ngraph::Shape{1}, {-1}));
 
                 auto weights = ngraph::opset1::Constant::create(weights_et, weights_shape, {1});
                 auto weights_in = ov::op::util::normalize_constant(weights, output_shape);
@@ -171,11 +176,23 @@ ngraph::matcher_pass_callback get_callback() {
             // In case Add we create fake scale equal to 1, in case of Multiply we create fake shift equal to 0
             std::shared_ptr<ngraph::op::PowerIE> power;
             if (std::is_same<T, ngraph::opset1::Add>()) {
-                power = std::make_shared<ngraph::op::PowerIE>(data_node, 1.0f, 1.0f, value, lin_op->get_output_element_type(0));
+                power = std::make_shared<ngraph::op::PowerIE>(data_node,
+                                                              1.0f,
+                                                              1.0f,
+                                                              value,
+                                                              lin_op->get_output_element_type(0));
             } else if (std::is_same<T, ngraph::opset1::Multiply>()) {
-                power = std::make_shared<ngraph::op::PowerIE>(data_node, 1.0f, value, 0.0f, lin_op->get_output_element_type(0));
+                power = std::make_shared<ngraph::op::PowerIE>(data_node,
+                                                              1.0f,
+                                                              value,
+                                                              0.0f,
+                                                              lin_op->get_output_element_type(0));
             } else if (std::is_same<T, ngraph::opset1::Subtract>()) {
-                power = std::make_shared<ngraph::op::PowerIE>(data_node, 1.0f, 1.0f, -value, lin_op->get_output_element_type(0));
+                power = std::make_shared<ngraph::op::PowerIE>(data_node,
+                                                              1.0f,
+                                                              1.0f,
+                                                              -value,
+                                                              lin_op->get_output_element_type(0));
             } else {
                 return false;
             }
@@ -189,7 +206,7 @@ ngraph::matcher_pass_callback get_callback() {
     return callback;
 }
 
-class ConvertAdd: public ngraph::pass::MatcherPass {
+class ConvertAdd : public ngraph::pass::MatcherPass {
 public:
     ConvertAdd() {
         auto m = std::make_shared<ngraph::pattern::Matcher>(ngraph::pattern::wrap_type<ngraph::opset1::Add>());
@@ -197,7 +214,7 @@ public:
     }
 };
 
-class ConvertSub: public ngraph::pass::MatcherPass {
+class ConvertSub : public ngraph::pass::MatcherPass {
 public:
     ConvertSub() {
         auto m = std::make_shared<ngraph::pattern::Matcher>(ngraph::pattern::wrap_type<ngraph::opset1::Subtract>());
@@ -205,7 +222,7 @@ public:
     }
 };
 
-class ConvertMul: public ngraph::pass::MatcherPass {
+class ConvertMul : public ngraph::pass::MatcherPass {
 public:
     ConvertMul() {
         auto m = std::make_shared<ngraph::pattern::Matcher>(ngraph::pattern::wrap_type<ngraph::opset1::Multiply>());

@@ -23,14 +23,14 @@ op::ConvolutionIE::ConvolutionIE(const Output<Node>& data_batch,
                                  const element::Type output_type,
                                  const size_t& group,
                                  const PadType& auto_pad)
-        : Op({data_batch, filters})
-        , m_strides(strides)
-        , m_dilations(dilations)
-        , m_pads_begin(pads_begin)
-        , m_pads_end(pads_end)
-        , m_auto_pad(auto_pad)
-        , m_group(group)
-        , m_output_type(output_type) {
+    : Op({data_batch, filters}),
+      m_strides(strides),
+      m_dilations(dilations),
+      m_pads_begin(pads_begin),
+      m_pads_end(pads_end),
+      m_auto_pad(auto_pad),
+      m_group(group),
+      m_output_type(output_type) {
     constructor_validate_and_infer_types();
 }
 
@@ -44,14 +44,14 @@ op::ConvolutionIE::ConvolutionIE(const Output<Node>& data_batch,
                                  const element::Type output_type,
                                  const size_t& group,
                                  const PadType& auto_pad)
-        : Op({data_batch, filters, bias})
-        , m_strides(strides)
-        , m_dilations(dilations)
-        , m_pads_begin(pads_begin)
-        , m_pads_end(pads_end)
-        , m_auto_pad(auto_pad)
-        , m_group(group)
-        , m_output_type(output_type) {
+    : Op({data_batch, filters, bias}),
+      m_strides(strides),
+      m_dilations(dilations),
+      m_pads_begin(pads_begin),
+      m_pads_end(pads_end),
+      m_auto_pad(auto_pad),
+      m_group(group),
+      m_output_type(output_type) {
     constructor_validate_and_infer_types();
 }
 
@@ -64,14 +64,14 @@ op::ConvolutionIE::ConvolutionIE(const Output<Node>& data_batch,
                                  const CoordinateDiff& pads_end,
                                  const size_t& group,
                                  const PadType& auto_pad)
-        : Op({data_batch, filters})
-        , m_strides(strides)
-        , m_dilations(dilations)
-        , m_pads_begin(pads_begin)
-        , m_pads_end(pads_end)
-        , m_auto_pad(auto_pad)
-        , m_group(group)
-        , m_output_type(element::undefined) {
+    : Op({data_batch, filters}),
+      m_strides(strides),
+      m_dilations(dilations),
+      m_pads_begin(pads_begin),
+      m_pads_end(pads_end),
+      m_auto_pad(auto_pad),
+      m_group(group),
+      m_output_type(element::undefined) {
     constructor_validate_and_infer_types();
 }
 
@@ -85,14 +85,14 @@ op::ConvolutionIE::ConvolutionIE(const Output<Node>& data_batch,
                                  const CoordinateDiff& pads_end,
                                  const size_t& group,
                                  const PadType& auto_pad)
-        : Op({data_batch, filters, bias})
-        , m_strides(strides)
-        , m_dilations(dilations)
-        , m_pads_begin(pads_begin)
-        , m_pads_end(pads_end)
-        , m_auto_pad(auto_pad)
-        , m_group(group)
-        , m_output_type(element::undefined) {
+    : Op({data_batch, filters, bias}),
+      m_strides(strides),
+      m_dilations(dilations),
+      m_pads_begin(pads_begin),
+      m_pads_end(pads_end),
+      m_auto_pad(auto_pad),
+      m_group(group),
+      m_output_type(element::undefined) {
     constructor_validate_and_infer_types();
 }
 
@@ -119,7 +119,7 @@ void op::ConvolutionIE::validate_and_infer_types() {
             m_pads_begin.clear();
             m_pads_end.clear();
             auto filter_shape = filters_shape.to_shape();
-            filter_shape.erase(filter_shape.begin(), filter_shape.begin() + 2); // Remove {O,I}
+            filter_shape.erase(filter_shape.begin(), filter_shape.begin() + 2);  // Remove {O,I}
             infer_auto_padding(data_batch_shape.to_shape(),
                                filter_shape,
                                m_strides,
@@ -132,7 +132,7 @@ void op::ConvolutionIE::validate_and_infer_types() {
 
     result_shape = infer_convolution_forward(this,
                                              data_batch_shape,
-                                             Strides(m_strides.size(), 1), // dummy data dilations
+                                             Strides(m_strides.size(), 1),  // dummy data dilations
                                              m_pads_begin,
                                              m_pads_end,
                                              filters_shape,
@@ -142,7 +142,7 @@ void op::ConvolutionIE::validate_and_infer_types() {
     set_output_type(0, m_output_type, result_shape);
 }
 
-shared_ptr<Node> op::ConvolutionIE::clone_with_new_inputs(const ngraph::OutputVector & new_args) const {
+shared_ptr<Node> op::ConvolutionIE::clone_with_new_inputs(const ngraph::OutputVector& new_args) const {
     if (new_args.size() == 2) {
         return make_shared<ConvolutionIE>(new_args.at(0),
                                           new_args.at(1),

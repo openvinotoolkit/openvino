@@ -144,18 +144,18 @@ std::shared_ptr<Node> BroadcastCreator::CreateLayer(const Output<Node>& input, c
     auto targtet_shape = config.extra_arg;
 
     if (IsContainingNonFunctional()) {
-        auto shape_pattern = Constant::create(i32, Shape{{input_shape.size()}}, input_shape);
+        auto shape_pattern = Constant::create(i32, Shape{input_shape.size()}, input_shape);
         broadcast_input = std::make_shared<Reshape>(input, shape_pattern, false);
     }
 
-    auto target_shape_const = Constant::create(i32, Shape{{targtet_shape.size()}}, targtet_shape);
+    auto target_shape_const = Constant::create(i32, Shape{targtet_shape.size()}, targtet_shape);
 
     if (config.use_axes_mapping) {
         std::vector<size_t> axes;
         for (int i = 1; i <= input_shape.size(); ++i) {
             axes.push_back(i);
         }
-        auto axes_mapping = Constant::create(i32, Shape{{axes.size()}}, axes);
+        auto axes_mapping = Constant::create(i32, Shape{axes.size()}, axes);
 
         return std::make_shared<Broadcast>(broadcast_input, target_shape_const, axes_mapping);
     }
@@ -178,10 +178,10 @@ std::shared_ptr<Node> TileCreator::CreateLayer(const Output<Node>& input, const 
     auto input_shape = config.input_shape;
 
     auto repeats = config.extra_arg;
-    auto repeats_const = Constant::create(i32, Shape{{repeats.size()}}, repeats);
+    auto repeats_const = Constant::create(i32, Shape{repeats.size()}, repeats);
 
     if (IsContainingNonFunctional()) {
-        auto shape_pattern = Constant::create(i32, Shape{{input_shape.size()}}, input_shape);
+        auto shape_pattern = Constant::create(i32, Shape{input_shape.size()}, input_shape);
         tile_input = std::make_shared<Reshape>(input, shape_pattern, false);
     }
 

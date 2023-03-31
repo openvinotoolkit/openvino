@@ -202,9 +202,9 @@ public:
         abs_threshold = 1.001f;
         using ngraph::pass::ConvertPrecision;
         ConcatConvSumInPlaceTest::SetUp();
-        functionRefs = ov::clone_model(*function);
-        ngraph::pass::ConvertPrecision<ngraph::element::Type_t::i8, ngraph::element::Type_t::f32>().run_on_function(functionRefs);
-        ngraph::pass::ConvertPrecision<ngraph::element::Type_t::u8, ngraph::element::Type_t::f32>().run_on_function(functionRefs);
+        functionRefs = function->clone();
+        ngraph::pass::ConvertPrecision<ngraph::element::Type_t::i8, ngraph::element::Type_t::f32>().run_on_model(functionRefs);
+        ngraph::pass::ConvertPrecision<ngraph::element::Type_t::u8, ngraph::element::Type_t::f32>().run_on_model(functionRefs);
         functionRefs->validate_nodes_and_infer_types();
     }
 };

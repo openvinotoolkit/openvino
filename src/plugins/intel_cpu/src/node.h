@@ -6,6 +6,7 @@
 
 #include <ie_api.h>
 #include <memory>
+#include <oneapi/dnnl/dnnl.hpp>
 #include <vector>
 #include <string>
 #include <cassert>
@@ -13,12 +14,10 @@
 #include <caseless.hpp>
 #include "cpu_memory.h"
 #include "edge.h"
-#include "dnnl_descriptor.h"
 #include "selective_build.h"
 #include "onednn/dnnl.h"
 #include "onednn/iml_type_mapper.h"
 #include "extension_mngr.h"
-#include "primitive.h"
 #include "weights_cache.hpp"
 #include "dnnl_scratch_pad.h"
 #include <openvino/itt.hpp>
@@ -197,7 +196,7 @@ public:
 
     virtual void fuseInto(NodePtr& parentNode) {
         // The graph supports fusing only of consecutive nodes and some graph logic requires to know through which input port a node was fused into parent one.
-        for (int i = 0; i < getParentEdges().size(); i++) {
+        for (size_t i = 0; i < getParentEdges().size(); i++) {
             if (getParentEdgesAtPort(i)[0]->getParent().get() == parentNode.get()) {
                 setFusingPort(i);
                 break;
@@ -206,7 +205,7 @@ public:
 
         auto parentFusedNodes = parentNode->getFusedWith();
         if (getFusingPort() < 0 && !parentFusedNodes.empty()) {
-            for (int i = 0; i < getParentEdges().size(); i++) {
+            for (size_t i = 0; i < getParentEdges().size(); i++) {
                 if (getParentEdgesAtPort(i)[0]->getParent().get() == parentFusedNodes[parentFusedNodes.size() - 1].get()) {
                     setFusingPort(i);
                     break;
@@ -266,14 +265,14 @@ public:
 
     inline const NodeDesc* getSelectedPrimitiveDescriptor() const {
         if (selectedPrimitiveDescriptorIndex < 0 ||
-            selectedPrimitiveDescriptorIndex >= supportedPrimitiveDescriptors.size())
+            static_cast<size_t>(selectedPrimitiveDescriptorIndex) >= supportedPrimitiveDescriptors.size())
             return nullptr;
         return &supportedPrimitiveDescriptors[selectedPrimitiveDescriptorIndex];
     }
 
     inline NodeDesc* getSelectedPrimitiveDescriptor() {
         if (selectedPrimitiveDescriptorIndex < 0 ||
-            selectedPrimitiveDescriptorIndex >= supportedPrimitiveDescriptors.size())
+            static_cast<size_t>(selectedPrimitiveDescriptorIndex) >= supportedPrimitiveDescriptors.size())
             return nullptr;
         return &supportedPrimitiveDescriptors[selectedPrimitiveDescriptorIndex];
     }
@@ -317,7 +316,7 @@ public:
     std::shared_ptr<T> getOutputMemDescAtPort(size_t portNum) const;
 
     void selectPrimitiveDescriptorByIndex(int index) {
-        if (index < 0 || index >= supportedPrimitiveDescriptors.size())
+        if (index < 0 || static_cast<size_t>(index) >= supportedPrimitiveDescriptors.size())
             selectedPrimitiveDescriptorIndex = -1;
         else
             selectedPrimitiveDescriptorIndex = index;
@@ -335,7 +334,7 @@ public:
 
     void resolveInPlaceEdges();
 
-    virtual void execute(dnnl::stream strm);
+    virtual void execute(dnnl::stream strm) = 0;
     void updateShapes();
     void updateDynamicParams();
     void executeDynamic(dnnl::stream strm);
@@ -371,54 +370,6 @@ public:
      */
     virtual void init() {}
 
-    template <class PD, class D, typename FPD = bool>
-    PD createPrimitiveDescriptor(const dnnl::primitive_attr &attr = dnnl::primitive_attr()) {
-        auto descsCompatible = [](const std::vector<MemoryDescPtr>& srcDescs,
-                               const std::vector<PortConfig>& selectedDescs) {
-            if (srcDescs.empty() && selectedDescs.empty())
-                return true;
-            if (srcDescs.empty() || selectedDescs.empty())
-                return false;
-            for (size_t i = 0; i < srcDescs.size() && i < selectedDescs.size(); i++) {
-                if (!srcDescs[i]->isCompatible(*selectedDescs[i].getMemDesc()))
-                    return false;
-            }
-            return true;
-        };
-
-        const NodeDesc *selected_pd = getSelectedPrimitiveDescriptor();
-        if (selected_pd == nullptr)
-            IE_THROW() << "Preferable primitive descriptor is not set for node " << getName() << ".";
-
-        for (const auto& desc : descs) {
-            auto itpd = desc.createPrimitiveDescriptorIterator(engine, attr);
-
-            while (static_cast<bool>(itpd))  {
-                std::vector<MemoryDescPtr> srcDescs;
-                for (size_t i = 0; i < descInputNumbers(desc); i++)
-                    srcDescs.push_back(getSrcMemDesc(itpd, i));
-
-                std::vector<MemoryDescPtr> dstDescs;
-                for (size_t i = 0; i < descOutputNumbers(desc); i++)
-                    dstDescs.push_back(getDstMemDesc(itpd, i));
-
-                impl_desc_type impl_type = parse_impl_name(itpd.impl_info_str());
-
-                if (impl_type == selected_pd->getImplementationType() &&
-                    descsCompatible(srcDescs, selected_pd->getConfig().inConfs) &&
-                    descsCompatible(dstDescs, selected_pd->getConfig().outConfs)) {
-                    prepareMemory(itpd);
-                    PD prim_desc = createPd<PD, D, FPD>(desc);
-                    return {itpd.get()};
-                }
-                if (!itpd.next_impl())
-                    break;
-            }
-        }
-
-        IE_THROW() << "Primitive descriptor was not found for node " << getName() << " with type " << NameFromType(getType()) << ".";
-    }
-
     int getExecIndex() const {
         return execIndex;
     }
@@ -431,12 +382,12 @@ public:
         this->typeStr = typeStr;
     }
 
-    virtual size_t descInputNumbers(DnnlDesriptor desc) {
-        return desc.inputNumbers();
+    virtual size_t descInputNumbers() {
+        return 1;
     }
 
-    virtual size_t descOutputNumbers(DnnlDesriptor desc) {
-        return desc.outputNumbers();
+    virtual size_t descOutputNumbers() {
+        return 1;
     }
 
     const PerfCounters & perfCounters() const {
@@ -627,8 +578,7 @@ protected:
     std::vector<NodeDesc> supportedPrimitiveDescriptors;
     std::unordered_map<int, dnnl::memory> primArgs;
     std::unordered_map<int, MemoryPtr> postOpsArgs;
-    Primitive prim;
-    std::vector<DnnlDesriptor> descs;
+    std::vector<dnnl::primitive_desc> descs;
 
     const GraphContext::CPtr context;
 
@@ -669,6 +619,8 @@ protected:
     void prepareMemory(const std::vector<DnnlMemoryDescPtr>& intDescs);
     void prepareMemory(dnnl::primitive_desc_iterator& itpd);
 
+    MemoryPtr prepareWeightMemory(DnnlMemoryDescPtr weightDesc);
+
     bool isDynamic = false;
 
     bool isInputTensorAtPortEmpty(size_t port) const;
@@ -685,7 +637,7 @@ protected:
     bool inputShapesModified() const;
     virtual bool needShapeInfer() const;
     std::vector<VectorDims> shapeInferGeneric(const std::vector<Shape>& inputDims) const;
-    virtual std::vector<VectorDims> shapeInfer() const;
+    IShapeInfer::Result shapeInfer() const;
     // TODO [DS] : make pure after all nodes will be support dynamic shapes
     virtual void executeDynamicImpl(dnnl::stream strm) {
         IE_THROW(NotImplemented) << "[DS] executeDynamicImpl not implemented for node with type: " << getTypeStr();
@@ -698,9 +650,10 @@ protected:
         IE_THROW(NotImplemented) << "[DS] prapareParams not implemented for node with type " << NameFromType(getType());
     }
 
-    MemoryPtr getScratchPadMem(const const_dnnl_primitive_desc_t& pd) {
-        auto scratchpadMemoryDesc = DnnlExtensionUtils::query_md(pd, dnnl::query::scratchpad_md);
-        scratchpadMem = context->getScratchPad()->createScratchPadMem(scratchpadMemoryDesc);
+    MemoryPtr getScratchPadMem(const DnnlMemoryDescPtr& desc) {
+        if (!scratchpadMem || !scratchpadMem->getDesc().isCompatible(*desc)) {
+            scratchpadMem = context->getScratchPad()->createScratchPadMem(desc);
+        }
         return scratchpadMem;
     }
 
@@ -733,23 +686,16 @@ private:
 
     bool isEdgesEmpty(const std::vector<EdgeWeakPtr>& edges) const;
 
-    template <class PD, class D, typename FPD>
-    typename std::enable_if<!std::is_same<FPD, bool>::value, PD>::type
-    createPd(DnnlDesriptor desc) {
-        std::shared_ptr<D> selected_desc_ptr = desc;
-        std::shared_ptr<FPD> backward_prim_desc_ptr = desc;
-        return PD(*selected_desc_ptr, engine, *backward_prim_desc_ptr);
-    }
-
-    template <class PD, class D, typename FPD>
-    typename std::enable_if<std::is_same<FPD, bool>::value, PD>::type
-    createPd(DnnlDesriptor desc) {
-        std::shared_ptr<D> selected_desc_ptr = desc;
-        return PD(*selected_desc_ptr, engine);
-    }
-
     enum LOOK { LOOK_UP = 1, LOOK_DOWN = 2 };
     ConstantType checkConstant(LOOK look, std::vector<NodePtr>& checkNodes);
+
+    // we cannot rely on per-NUMA weightCache for caching weights because:
+    //   1.it may not exist(in single stream configuration)
+    //   2.it only holds weak references, the life-cycle of cached item
+    //     is still under control of strong references outside of cache.
+    // privateWeightCache is for holding strong references to constant weight
+    // copies of same content with different layouts.
+    std::unordered_map<std::string, MemoryPtr> privateWeightCache;
 
 #ifdef CPU_DEBUG_CAPS
     friend class Verbose;

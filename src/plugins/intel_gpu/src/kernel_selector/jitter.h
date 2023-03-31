@@ -72,6 +72,17 @@ inline std::string GetTypeName<double>() {
 std::string toCLType(WeightsType wType);
 std::string toCLType(Datatype dType);
 std::string getMeanOpString(MeanOp op);
+inline std::string toVectorMulString(const std::vector<std::string>& vec) {
+    std::stringstream ss;
+    ss << "(";
+    for (size_t i = 0; i < vec.size(); i++) {
+        ss << vec[i];
+        if (i != vec.size() - 1)
+            ss << "*";
+    }
+    ss << ")";
+    return ss.str();
+}
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // ToCodeString functions

@@ -13,6 +13,7 @@ TEST_STATUS = {
 RUN = "[ RUN      ]"
 GTEST_FILTER = "Google Test filter = "
 DISABLED_PREFIX = "DISABLED_"
+REF_COEF = "[ CONFORMANCE ] Influence coefficient: "
 
 IS_WIN = "windows" in platform or "win32" in platform
 
@@ -21,7 +22,7 @@ OS_BIN_FILE_EXT = ".exe" if IS_WIN else ""
 ENV_SEPARATOR = ";" if IS_WIN else ":"
 PYTHON_NAME = "python" if IS_WIN else "python3"
 PIP_NAME = "pip" if IS_WIN else "pip3"
-LD_LIB_PATH_NAME = "PATH" if IS_WIN or platform == "darwin" else "LD_LIBRARY_PATH"
+LD_LIB_PATH_NAME = "PATH" if IS_WIN else "LD_LIBRARY_PATH"
 
 OPENVINO_NAME = 'openvino'
 PY_OPENVINO = "python_api"

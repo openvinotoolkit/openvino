@@ -2,17 +2,12 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "strided_slice_inst.h"
 #include "primitive_base.hpp"
-#include "impls/implementation_map.hpp"
-#include "kernel_selector_helper.h"
+
+#include "strided_slice_inst.h"
+#include "data_inst.h"
 #include "strided_slice/strided_slice_kernel_ref.h"
 #include "strided_slice/strided_slice_kernel_selector.h"
-#include "intel_gpu/runtime/error_handler.hpp"
-#include "data_inst.h"
-#include <vector>
-
-using namespace cldnn;
 
 namespace {
 template <typename T, typename DT, typename = typename std::enable_if<std::is_convertible<DT, T>::value>::type>
@@ -58,22 +53,23 @@ struct strided_slice_impl : typed_primitive_impl_ocl<strided_slice> {
     }
 
 public:
-    static std::unique_ptr<primitive_impl> create(const strided_slice_node& arg, const kernel_impl_params& impl_param) {
+    static kernel_params_t get_kernel_params(const kernel_impl_params& impl_param, bool is_shape_agnostic = false) {
         const auto& prim = impl_param.typed_desc<strided_slice>();
-        auto params = get_default_params<kernel_selector::strided_slice_params>(impl_param);
+        auto params = get_default_params<kernel_selector::strided_slice_params>(impl_param, is_shape_agnostic);
         auto op_params = get_default_optional_params<kernel_selector::strided_slice_optional_params>(impl_param.get_program());
         const size_t dims_num = params.inputs[0].Dimentions();
 
         std::vector<int32_t> begin(prim->begin.begin(), prim->begin.end());
         std::vector<int32_t> end(prim->end.begin(), prim->end.end());
         std::vector<int32_t> strides(prim->strides.begin(), prim->strides.end());
+
         // Getting data from constant inputs. There are 3 args: Begin, End, Stride
-        if (!begin.empty()) {
+        if (!begin.empty() && !params.has_dynamic_tensors()) {
             pad_vector_to_size(begin, dims_num, 0);
-            params.begin_type = kernel_selector::StridedSliceArgType::Constant;
+            params.begin_type = kernel_selector::base_params::ArgType::Constant;
             params.striding_params.push_back(begin);
         } else {
-            params.begin_type = kernel_selector::StridedSliceArgType::Input;
+            params.begin_type = kernel_selector::base_params::ArgType::Input;
             auto begin_layout = impl_param.get_input_layout(1);
             params.inputs.push_back(convert_data_tensor(begin_layout));
             params.begin_dims = begin_layout.count();
@@ -81,16 +77,16 @@ public:
 
         auto get_index_end = [&]() {
             size_t offset = 1;
-            if (begin.empty() && params.begin_type == kernel_selector::StridedSliceArgType::Input)
+            if ((begin.empty() || params.has_dynamic_tensors()) && params.begin_type == kernel_selector::base_params::ArgType::Input)
                 offset++;
             return offset;
         };
-        if (!end.empty()) {
+        if (!end.empty() && !params.has_dynamic_tensors()) {
             pad_vector_to_size(end, dims_num, 1);
-            params.end_type = kernel_selector::StridedSliceArgType::Constant;
+            params.end_type = kernel_selector::base_params::ArgType::Constant;
             params.striding_params.push_back(end);
         } else {
-            params.end_type = kernel_selector::StridedSliceArgType::Input;
+            params.end_type = kernel_selector::base_params::ArgType::Input;
             auto end_layout = impl_param.get_input_layout(get_index_end());
             params.inputs.push_back(convert_data_tensor(end_layout));
             params.end_dims = end_layout.count();
@@ -98,16 +94,16 @@ public:
 
         auto get_index_stride = [&]() {
             size_t offset = get_index_end();
-            if (end.empty() && params.end_type == kernel_selector::StridedSliceArgType::Input)
+            if ((end.empty() || params.has_dynamic_tensors()) && params.end_type == kernel_selector::base_params::ArgType::Input)
                 offset++;
             return offset;
         };
-        if (!strides.empty()) {
+        if (!strides.empty() && !params.has_dynamic_tensors()) {
             pad_vector_to_size(strides, dims_num, 1);
-            params.stride_type = kernel_selector::StridedSliceArgType::Constant;
+            params.stride_type = kernel_selector::base_params::ArgType::Constant;
             params.striding_params.push_back(strides);
         } else {
-            params.stride_type = kernel_selector::StridedSliceArgType::Input;
+            params.stride_type = kernel_selector::base_params::ArgType::Input;
             auto stride_layout = impl_param.get_input_layout(get_index_stride());
             params.inputs.push_back(convert_data_tensor(stride_layout));
             params.stride_dims = stride_layout.count();
@@ -183,32 +179,44 @@ public:
                 }
             }
         }
+        return {params, op_params};
+    }
 
-        auto& kernel_selector = kernel_selector::strided_slice_kernel_selector::Instance();
-        auto best_kernel = kernel_selector.get_best_kernel(params, op_params);
-
-        return make_unique<strided_slice_impl>(best_kernel);
+    void update_dispatch_data(const kernel_impl_params& impl_param) override {
+        auto kernel_params = get_kernel_params(impl_param, true);
+        (_kernel_data.update_dispatch_data_func)(kernel_params.first, _kernel_data);
+        update_kernels_list_to_skip();
     }
 };
 
 namespace detail {
 
 attach_strided_slice_impl::attach_strided_slice_impl() {
-    implementation_map<strided_slice>::add(impl_types::ocl, strided_slice_impl::create, {
-        std::make_tuple(data_types::f32, format::bfyx),
-        std::make_tuple(data_types::f16, format::bfyx),
-        std::make_tuple(data_types::i32, format::bfyx),
-        std::make_tuple(data_types::i64, format::bfyx),
-        std::make_tuple(data_types::i8, format::bfyx),
-        std::make_tuple(data_types::u8, format::bfyx),
+    auto types = {
+        data_types::f32,
+        data_types::f16,
+        data_types::i8,
+        data_types::u8,
+        data_types::i32,
+        data_types::i64
+    };
 
-        std::make_tuple(data_types::f32, format::bfzyx),
-        std::make_tuple(data_types::f16, format::bfzyx),
-        std::make_tuple(data_types::i32, format::bfzyx),
-        std::make_tuple(data_types::i64, format::bfzyx),
-        std::make_tuple(data_types::i8, format::bfzyx),
-        std::make_tuple(data_types::u8, format::bfzyx),
-    });
+    auto formats = {
+        format::bfyx,
+        format::bfzyx
+    };
+
+    implementation_map<strided_slice>::add(impl_types::ocl,
+                                           shape_types::static_shape,
+                                           typed_primitive_impl_ocl<strided_slice>::create<strided_slice_impl>,
+                                           types,
+                                           formats);
+
+    implementation_map<strided_slice>::add(impl_types::ocl,
+                                           shape_types::dynamic_shape,
+                                           typed_primitive_impl_ocl<strided_slice>::create<strided_slice_impl>,
+                                           types,
+                                           formats);
 }
 
 }  // namespace detail

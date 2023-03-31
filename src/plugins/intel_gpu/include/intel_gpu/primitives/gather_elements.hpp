@@ -49,5 +49,15 @@ struct gather_elements : public primitive_base<gather_elements> {
         seed = hash_combine(seed, axis);
         return seed;
     }
+
+    bool operator==(const primitive& rhs) const override {
+        if (!compare_common_params(rhs))
+            return false;
+
+        auto rhs_casted = downcast<const gather_elements>(rhs);
+
+        return output_format == rhs_casted.output_format &&
+               axis == rhs_casted.axis;
+    }
 };
 }  // namespace cldnn

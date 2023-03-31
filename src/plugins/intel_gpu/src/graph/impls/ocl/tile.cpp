@@ -2,15 +2,11 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "tile_inst.h"
 #include "primitive_base.hpp"
-#include "impls/implementation_map.hpp"
-#include "kernel_selector_helper.h"
+
+#include "tile_inst.h"
 #include "tile/tile_kernel_selector.h"
 #include "tile/tile_kernel_ref.h"
-#include "intel_gpu/runtime/error_handler.hpp"
-
-using namespace cldnn;
 
 namespace cldnn {
 namespace ocl {
@@ -28,9 +24,9 @@ struct tile_impl : typed_primitive_impl_ocl<tile> {
     }
 
 public:
-    static kernel_params_t get_kernel_params(const kernel_impl_params& impl_param) {
+    static kernel_params_t get_kernel_params(const kernel_impl_params& impl_param, bool is_shape_agnostic = false) {
         const auto& primitive = impl_param.typed_desc<tile>();
-        auto params = get_default_params<kernel_selector::tile_params>(impl_param);
+        auto params = get_default_params<kernel_selector::tile_params>(impl_param, is_shape_agnostic);
         auto optional_params = get_default_optional_params<kernel_selector::tile_optional_params>(impl_param.get_program());
 
         auto repeats = primitive->repeats;
@@ -46,13 +42,19 @@ public:
 
         return {params, optional_params};
     }
+
+    void update_dispatch_data(const kernel_impl_params& impl_param) override {
+        auto kernel_params = get_kernel_params(impl_param, true);
+        (_kernel_data.update_dispatch_data_func)(kernel_params.first, _kernel_data);
+        update_kernels_list_to_skip();
+    }
 };
 
 namespace detail {
 
 attach_tile_impl::attach_tile_impl() {
     auto types = {data_types::i8, data_types::u8, data_types::i32, data_types::f16, data_types::f32};
-    auto formats = {
+    auto static_formats = {
         format::bfyx,
         format::bfzyx,
         format::bfwzyx,
@@ -69,7 +71,23 @@ attach_tile_impl::attach_tile_impl() {
         format::bs_fs_zyx_bsv32_fsv16
     };
 
-    implementation_map<tile>::add(impl_types::ocl, typed_primitive_impl_ocl<tile>::create<tile_impl>, types, formats);
+    implementation_map<tile>::add(impl_types::ocl,
+                                  shape_types::static_shape,
+                                  typed_primitive_impl_ocl<tile>::create<tile_impl>,
+                                  types,
+                                  static_formats);
+
+    auto dynamic_formats = {
+        format::bfyx,
+        format::bfzyx,
+        format::bfwzyx
+    };
+
+    implementation_map<tile>::add(impl_types::ocl,
+                                  shape_types::dynamic_shape,
+                                  typed_primitive_impl_ocl<tile>::create<tile_impl>,
+                                  types,
+                                  dynamic_formats);
 }
 
 }  // namespace detail

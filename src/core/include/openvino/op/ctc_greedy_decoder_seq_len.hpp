@@ -14,7 +14,7 @@ namespace v6 {
 /// \ingroup ov_ops_cpp_api
 class OPENVINO_API CTCGreedyDecoderSeqLen : public Op {
 public:
-    OPENVINO_OP("CTCGreedyDecoderSeqLen", "opset6", op::Op, 6);
+    OPENVINO_OP("CTCGreedyDecoderSeqLen", "opset6", op::Op);
     CTCGreedyDecoderSeqLen() = default;
     /// \brief Constructs a CTCGreedyDecoderSeqLen operation
     ///
@@ -58,6 +58,14 @@ public:
     bool get_merge_repeated() const {
         return m_merge_repeated;
     }
+    /// \brief Set merge_repeated attribute
+    ///
+    /// \param merge_repeated A new value for the attribute
+    ///
+    void set_merge_repeated(bool merge_repeated) {
+        m_merge_repeated = merge_repeated;
+    }
+
     /// \brief Get classes_index_type attribute
     ///
     /// \return Current value of classes_index_type attribute

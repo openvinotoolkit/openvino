@@ -2,87 +2,165 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "dimension_tracker.hpp"
 #include "gtest/gtest.h"
 #include "ngraph/ngraph.hpp"
 #include "util/type_prop.hpp"
 
 using namespace std;
 using namespace ngraph;
+using namespace testing;
+
+TEST(type_prop, ctc_greedy_decoder_default_constructor) {
+    PartialShape data_shape{100, 3, 1200};
+    PartialShape seq_mask_shape{100, 3};
+    PartialShape expected_shape{3, 100, 1, 1};
+
+    auto op = make_shared<op::CTCGreedyDecoder>();
+
+    auto data = make_shared<op::Parameter>(element::f32, data_shape);
+    auto seq_mask = make_shared<op::Parameter>(element::f32, seq_mask_shape);
+    op->set_arguments(OutputVector{data, seq_mask});
+
+    op->set_ctc_merge_repeated(false);
+    EXPECT_EQ(op->get_ctc_merge_repeated(), false);
+
+    op->set_ctc_merge_repeated(true);
+    EXPECT_EQ(op->get_ctc_merge_repeated(), true);
+
+    op->validate_and_infer_types();
+
+    EXPECT_EQ(op->get_element_type(), element::f32);
+    EXPECT_EQ(op->get_output_partial_shape(0), expected_shape);
+}
 
 TEST(type_prop, ctc_greedy_decoder_static_shapes) {
     PartialShape logits_shape{100, 3, 1200};
     PartialShape seq_mask_shape{100, 3};
     Shape out_shape{3, 100, 1, 1};
-    auto P = make_shared<op::Parameter>(element::f32, logits_shape);
-    auto I = make_shared<op::Parameter>(element::f32, seq_mask_shape);
-    auto G = make_shared<op::CTCGreedyDecoder>(P, I, false);
-    ASSERT_EQ(G->get_element_type(), element::f32);
-    ASSERT_EQ(G->get_shape(), out_shape);
+    auto data = make_shared<op::Parameter>(element::f32, logits_shape);
+    auto seq_mask = make_shared<op::Parameter>(element::f32, seq_mask_shape);
+    auto op = make_shared<op::CTCGreedyDecoder>(data, seq_mask, false);
+    EXPECT_EQ(op->get_element_type(), element::f32);
+    EXPECT_EQ(op->get_shape(), out_shape);
+}
+
+TEST(type_prop, ctc_greedy_decoder_interval_labeled_dims_all) {
+    PartialShape data_shape{{1, 100}, {2, 6}, {600, 1200}};
+    PartialShape seq_mask_shape{{10, 1000}, {4, 8}};
+    PartialShape expected_shape{{4, 6}, {10, 100}, 1, 1};
+
+    set_shape_labels(data_shape, 10);
+    set_shape_labels(seq_mask_shape, 20);
+
+    auto data = make_shared<op::Parameter>(element::f32, data_shape);
+    auto seq_mask = make_shared<op::Parameter>(element::f32, seq_mask_shape);
+    auto op = make_shared<op::CTCGreedyDecoder>(data, seq_mask, false);
+
+    const auto& out_shape = op->get_output_partial_shape(0);
+    EXPECT_EQ(op->get_element_type(), element::f32);
+    EXPECT_EQ(out_shape, expected_shape);
+    EXPECT_THAT(get_shape_labels(out_shape), ElementsAre(21, 20, ov::no_label, ov::no_label));
+}
+
+TEST(type_prop, ctc_greedy_decoder_interval_labeled_dims_data) {
+    PartialShape data_shape{{1, 100}, {2, 6}, {600, 1200}};
+    PartialShape seq_mask_shape{{10, 1000}, {4, 8}};
+    PartialShape expected_shape{{4, 6}, {10, 100}, 1, 1};
+
+    set_shape_labels(data_shape, 10);
+
+    auto data = make_shared<op::Parameter>(element::f32, data_shape);
+    auto seq_mask = make_shared<op::Parameter>(element::f32, seq_mask_shape);
+    auto op = make_shared<op::CTCGreedyDecoder>(data, seq_mask, false);
+
+    const auto& out_shape = op->get_output_partial_shape(0);
+    EXPECT_EQ(op->get_element_type(), element::f32);
+    EXPECT_EQ(out_shape, expected_shape);
+    EXPECT_THAT(get_shape_labels(out_shape), ElementsAre(11, 10, ov::no_label, ov::no_label));
+}
+
+TEST(type_prop, ctc_greedy_decoder_interval_labeled_dims_mask) {
+    PartialShape data_shape{{1, 100}, {2, 6}, {600, 1200}};
+    PartialShape seq_mask_shape{{10, 1000}, {4, 8}};
+    PartialShape expected_shape{{4, 6}, {10, 100}, 1, 1};
+
+    set_shape_labels(seq_mask_shape, 20);
+
+    auto data = make_shared<op::Parameter>(element::f32, data_shape);
+    auto seq_mask = make_shared<op::Parameter>(element::f32, seq_mask_shape);
+    auto op = make_shared<op::CTCGreedyDecoder>(data, seq_mask, false);
+
+    const auto& out_shape = op->get_output_partial_shape(0);
+    EXPECT_EQ(op->get_output_element_type(0), element::f32);
+    EXPECT_EQ(out_shape, expected_shape);
+    EXPECT_THAT(get_shape_labels(out_shape), ElementsAre(21, 20, ov::no_label, ov::no_label));
 }
 
 TEST(type_prop, ctc_greedy_decoder_output_static_shape1) {
     PartialShape logits_shape{Dimension::dynamic(), 3, 1200};
     PartialShape seq_mask_shape{100, 3};
     Shape out_shape{3, 100, 1, 1};
-    auto P = make_shared<op::Parameter>(element::f32, logits_shape);
-    auto I = make_shared<op::Parameter>(element::f32, seq_mask_shape);
-    auto G = make_shared<op::CTCGreedyDecoder>(P, I, false);
-    ASSERT_EQ(G->get_element_type(), element::f32);
-    ASSERT_EQ(G->get_shape(), out_shape);
+    auto data = make_shared<op::Parameter>(element::f32, logits_shape);
+    auto seq_mask = make_shared<op::Parameter>(element::f32, seq_mask_shape);
+    auto op = make_shared<op::CTCGreedyDecoder>(data, seq_mask, false);
+
+    EXPECT_EQ(op->get_output_element_type(0), element::f32);
+    EXPECT_EQ(op->get_shape(), out_shape);
 }
 
 TEST(type_prop, ctc_greedy_decoder_output_static_shape2) {
     PartialShape logits_shape{Dimension::dynamic(), 3, 1200};
     PartialShape seq_mask_shape{100, Dimension::dynamic()};
     Shape out_shape{3, 100, 1, 1};
-    auto P = make_shared<op::Parameter>(element::f32, logits_shape);
-    auto I = make_shared<op::Parameter>(element::f32, seq_mask_shape);
-    auto G = make_shared<op::CTCGreedyDecoder>(P, I, false);
-    ASSERT_EQ(G->get_element_type(), element::f32);
-    ASSERT_EQ(G->get_shape(), out_shape);
+    auto data = make_shared<op::Parameter>(element::f32, logits_shape);
+    auto seq_mask = make_shared<op::Parameter>(element::f32, seq_mask_shape);
+    auto op = make_shared<op::CTCGreedyDecoder>(data, seq_mask, false);
+    EXPECT_EQ(op->get_element_type(), element::f32);
+    EXPECT_EQ(op->get_shape(), out_shape);
 }
 
 TEST(type_prop, ctc_greedy_decoder_dynamic_shapes) {
     PartialShape logits_shape{Dimension::dynamic(), Dimension::dynamic(), 1200};
     PartialShape seq_mask_shape{Dimension::dynamic(), Dimension::dynamic()};
     PartialShape out_shape{Dimension::dynamic(), Dimension::dynamic(), 1, 1};
-    auto P = make_shared<op::Parameter>(element::f32, logits_shape);
-    auto I = make_shared<op::Parameter>(element::f32, seq_mask_shape);
-    auto G = make_shared<op::CTCGreedyDecoder>(P, I, false);
-    ASSERT_EQ(G->get_element_type(), element::f32);
-    ASSERT_TRUE(G->get_output_partial_shape(0).same_scheme(out_shape));
+    auto data = make_shared<op::Parameter>(element::f32, logits_shape);
+    auto seq_mask = make_shared<op::Parameter>(element::f32, seq_mask_shape);
+    auto op = make_shared<op::CTCGreedyDecoder>(data, seq_mask, false);
+    EXPECT_EQ(op->get_element_type(), element::f32);
+    ASSERT_TRUE(op->get_output_partial_shape(0).same_scheme(out_shape));
 }
 
 TEST(type_prop, ctc_greedy_decoder_dynamic_ranks1) {
     PartialShape logits_shape = PartialShape::dynamic();
     PartialShape seq_mask_shape{100, Dimension::dynamic()};
     PartialShape out_shape{Dimension::dynamic(), 100, 1, 1};
-    auto P = make_shared<op::Parameter>(element::f32, logits_shape);
-    auto I = make_shared<op::Parameter>(element::f32, seq_mask_shape);
-    auto G = make_shared<op::CTCGreedyDecoder>(P, I, false);
-    ASSERT_EQ(G->get_element_type(), element::f32);
-    ASSERT_TRUE(G->get_output_partial_shape(0).same_scheme(out_shape));
+    auto data = make_shared<op::Parameter>(element::f32, logits_shape);
+    auto seq_mask = make_shared<op::Parameter>(element::f32, seq_mask_shape);
+    auto op = make_shared<op::CTCGreedyDecoder>(data, seq_mask, false);
+    EXPECT_EQ(op->get_element_type(), element::f32);
+    ASSERT_TRUE(op->get_output_partial_shape(0).same_scheme(out_shape));
 }
 
 TEST(type_prop, ctc_greedy_decoder_dynamic_ranks2) {
     PartialShape logits_shape = PartialShape::dynamic();
     PartialShape seq_mask_shape = PartialShape::dynamic();
     PartialShape out_shape{Dimension::dynamic(), Dimension::dynamic(), 1, 1};
-    auto P = make_shared<op::Parameter>(element::f32, logits_shape);
-    auto I = make_shared<op::Parameter>(element::f32, seq_mask_shape);
-    auto G = make_shared<op::CTCGreedyDecoder>(P, I, false);
-    ASSERT_EQ(G->get_element_type(), element::f32);
-    ASSERT_TRUE(G->get_output_partial_shape(0).same_scheme(out_shape));
+    auto data = make_shared<op::Parameter>(element::f32, logits_shape);
+    auto seq_mask = make_shared<op::Parameter>(element::f32, seq_mask_shape);
+    auto op = make_shared<op::CTCGreedyDecoder>(data, seq_mask, false);
+    EXPECT_EQ(op->get_element_type(), element::f32);
+    ASSERT_TRUE(op->get_output_partial_shape(0).same_scheme(out_shape));
 }
 
 TEST(type_prop, ctc_greedy_decoder_incorrect_rank) {
     PartialShape logits_shape{Dimension::dynamic(), 3, 1200, 5};
     PartialShape seq_mask_shape{100, 3};
-    auto P = make_shared<op::Parameter>(element::f32, logits_shape);
-    auto I = make_shared<op::Parameter>(element::f32, seq_mask_shape);
+    auto data = make_shared<op::Parameter>(element::f32, logits_shape);
+    auto seq_mask = make_shared<op::Parameter>(element::f32, seq_mask_shape);
 
     try {
-        auto G = make_shared<op::CTCGreedyDecoder>(P, I, false);
+        auto op = make_shared<op::CTCGreedyDecoder>(data, seq_mask, false);
         // Should have thrown, so fail if it didn't
         FAIL() << "Incorrect indices rank";
     } catch (const NodeValidationFailure& error) {
@@ -95,11 +173,11 @@ TEST(type_prop, ctc_greedy_decoder_incorrect_rank) {
 TEST(type_prop, ctc_greedy_decoder_incorrect_rank2) {
     PartialShape logits_shape{Dimension::dynamic(), 3, 1200};
     PartialShape seq_mask_shape{100, 3, 2};
-    auto P = make_shared<op::Parameter>(element::f32, logits_shape);
-    auto I = make_shared<op::Parameter>(element::f32, seq_mask_shape);
+    auto data = make_shared<op::Parameter>(element::f32, logits_shape);
+    auto seq_mask = make_shared<op::Parameter>(element::f32, seq_mask_shape);
 
     try {
-        auto G = make_shared<op::CTCGreedyDecoder>(P, I, false);
+        auto op = make_shared<op::CTCGreedyDecoder>(data, seq_mask, false);
         // Should have thrown, so fail if it didn't
         FAIL() << "Incorrect indices rank";
     } catch (const NodeValidationFailure& error) {
@@ -112,11 +190,11 @@ TEST(type_prop, ctc_greedy_decoder_incorrect_rank2) {
 TEST(type_prop, ctc_greedy_decoder_mismatched_dim1) {
     PartialShape logits_shape{100, 4, 1200};
     PartialShape seq_mask_shape{100, 3};
-    auto P = make_shared<op::Parameter>(element::f32, logits_shape);
-    auto I = make_shared<op::Parameter>(element::f32, seq_mask_shape);
+    auto data = make_shared<op::Parameter>(element::f32, logits_shape);
+    auto seq_mask = make_shared<op::Parameter>(element::f32, seq_mask_shape);
 
     try {
-        auto G = make_shared<op::CTCGreedyDecoder>(P, I, false);
+        auto op = make_shared<op::CTCGreedyDecoder>(data, seq_mask, false);
         // Should have thrown, so fail if it didn't
         FAIL() << "Incorrect indices rank";
     } catch (const NodeValidationFailure& error) {
@@ -129,11 +207,11 @@ TEST(type_prop, ctc_greedy_decoder_mismatched_dim1) {
 TEST(type_prop, ctc_greedy_decoder_mismatched_dim2) {
     PartialShape logits_shape{101, 3, 1200};
     PartialShape seq_mask_shape{100, 3};
-    auto P = make_shared<op::Parameter>(element::f32, logits_shape);
-    auto I = make_shared<op::Parameter>(element::f32, seq_mask_shape);
+    auto data = make_shared<op::Parameter>(element::f32, logits_shape);
+    auto seq_mask = make_shared<op::Parameter>(element::f32, seq_mask_shape);
 
     try {
-        auto G = make_shared<op::CTCGreedyDecoder>(P, I, false);
+        auto op = make_shared<op::CTCGreedyDecoder>(data, seq_mask, false);
         // Should have thrown, so fail if it didn't
         FAIL() << "Incorrect indices rank";
     } catch (const NodeValidationFailure& error) {

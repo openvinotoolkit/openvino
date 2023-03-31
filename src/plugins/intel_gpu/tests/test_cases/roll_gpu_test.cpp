@@ -37,7 +37,7 @@ using roll_test_params = std::tuple<roll_test_input<T>, format::type>;
 
 template <class T>
 struct roll_test : testing::TestWithParam<roll_test_params<T>> {
-    void test() {
+    void test(bool is_caching_test) {
         roll_test_input<T> p;
         format::type input_format;
         std::tie(p, input_format) = testing::TestWithParam<roll_test_params<T>>::GetParam();
@@ -54,9 +54,9 @@ struct roll_test : testing::TestWithParam<roll_test_params<T>> {
         topology.add(roll("roll", input_info("reordered_input"), tensor(input_format, p.shift)));
         topology.add(reorder("reordered_roll", input_info("roll"), plane_format, type_to_data_type<T>::value));
 
-        network network(engine, topology);
-        network.set_input_data("input", input);
-        const auto outputs = network.execute();
+        cldnn::network::ptr network = get_network(engine, topology, get_test_default_config(engine), get_test_stream_ptr(), is_caching_test);
+        network->set_input_data("input", input);
+        const auto outputs = network->execute();
 
         auto output = outputs.at("reordered_roll").get_memory();
         cldnn::mem_lock<T> output_ptr(output, get_test_stream());
@@ -226,7 +226,7 @@ std::vector<format::type> formats6d = {format::bfwzyx};
 #define INSTANTIATE_ROLL_TEST_SUITE(type, func, formats)                                                    \
     class roll_test_##type##func : public roll_test<type> {};                                               \
     TEST_P(roll_test_##type##func, roll_##type##func) {                                                     \
-        test();                                                                                             \
+        test(false);                                                                                        \
     }                                                                                                       \
     INSTANTIATE_TEST_SUITE_P(roll_smoke_##type##func,                                                       \
                              roll_test_##type##func,                                                        \
@@ -257,4 +257,33 @@ INSTANTIATE_ROLL_TEST_SUITE(float, getRollFloatingPointAdditionalLogic, {format:
 
 #undef INSTANTIATE_ROLL_TEST_SUITE
 
+#define INSTANTIATE_ROLL_TEST_SUITE_CACHED(type, func)           \
+    TEST_P(roll_test_##type##func, roll_##type##func##_cached) { \
+        test(true);                                              \
+    }
+
+#ifdef RUN_ALL_MODEL_CACHING_TESTS
+INSTANTIATE_ROLL_TEST_SUITE_CACHED(int8_t, getRollParamsToCheckLogic)
+INSTANTIATE_ROLL_TEST_SUITE_CACHED(uint8_t, getRollParamsToCheckLogic)
+INSTANTIATE_ROLL_TEST_SUITE_CACHED(int32_t, getRollParamsToCheckLogic)
+INSTANTIATE_ROLL_TEST_SUITE_CACHED(int64_t, getRollParamsToCheckLogic)
+INSTANTIATE_ROLL_TEST_SUITE_CACHED(int8_t, getRollParamsToCheckLayouts)
+INSTANTIATE_ROLL_TEST_SUITE_CACHED(uint8_t, getRollParamsToCheckLayouts)
+INSTANTIATE_ROLL_TEST_SUITE_CACHED(int32_t, getRollParamsToCheckLayouts)
+INSTANTIATE_ROLL_TEST_SUITE_CACHED(int64_t, getRollParamsToCheckLayouts)
+INSTANTIATE_ROLL_TEST_SUITE_CACHED(int8_t, getRollParams5D)
+INSTANTIATE_ROLL_TEST_SUITE_CACHED(uint8_t, getRollParams5D)
+INSTANTIATE_ROLL_TEST_SUITE_CACHED(int32_t, getRollParams5D)
+INSTANTIATE_ROLL_TEST_SUITE_CACHED(int64_t, getRollParams5D)
+INSTANTIATE_ROLL_TEST_SUITE_CACHED(int8_t, getRollParams6D)
+INSTANTIATE_ROLL_TEST_SUITE_CACHED(uint8_t, getRollParams6D)
+INSTANTIATE_ROLL_TEST_SUITE_CACHED(int32_t, getRollParams6D)
+INSTANTIATE_ROLL_TEST_SUITE_CACHED(int64_t, getRollParams6D)
+INSTANTIATE_ROLL_TEST_SUITE_CACHED(FLOAT16, getRollFloatingPointParams)
+INSTANTIATE_ROLL_TEST_SUITE_CACHED(float, getRollFloatingPointParams)
+INSTANTIATE_ROLL_TEST_SUITE_CACHED(FLOAT16, getRollFloatingPointAdditionalLogic)
+#endif
+INSTANTIATE_ROLL_TEST_SUITE_CACHED(float, getRollFloatingPointAdditionalLogic)
+
+#undef INSTANTIATE_ROLL_TEST_SUITE_CACHED
 }  // namespace

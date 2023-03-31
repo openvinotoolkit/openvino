@@ -4,9 +4,9 @@
 
 #pragma once
 
-#include <memory>
-
 #include <ie_api.h>
+
+#include <memory>
 
 #include "ngraph/node.hpp"
 #include "ngraph/op/op.hpp"
@@ -24,21 +24,25 @@ public:
     /// \param A Matrix A
     /// \param B Matrix B
     /// \param C Matrix C
-    FullyConnected(const Output<Node> & A,
-                   const Output<Node> & B,
-                   const Output<Node> & C,
-                   const Shape & output_shape,
+    FullyConnected(const Output<Node>& A,
+                   const Output<Node>& B,
+                   const Output<Node>& C,
+                   const Shape& output_shape,
                    const element::Type output_type = element::undefined);
 
-    bool visit_attributes(AttributeVisitor &visitor) override;
+    bool visit_attributes(AttributeVisitor& visitor) override;
 
     void validate_and_infer_types() override;
 
     std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& new_args) const override;
 
-    size_t get_out_size() const { return m_output_size; }
+    size_t get_out_size() const {
+        return m_output_size;
+    }
 
-    element::Type get_output_type() const { return m_output_type; }
+    element::Type get_output_type() const {
+        return m_output_type;
+    }
 
 private:
     size_t m_output_size = 0;

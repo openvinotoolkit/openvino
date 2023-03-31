@@ -6,6 +6,7 @@
 
 #include <intel_gpu/primitives/input_layout.hpp>
 #include <intel_gpu/primitives/tile.hpp>
+#include "tile_inst.h"
 
 #include <iostream>
 
@@ -54,197 +55,270 @@ void tile_ref(const memory::ptr input, memory::ptr output, int64_t axis, int num
     }
 }
 
-TEST(tile_gpu, basic_in1x2x2x2_axis_b) {
-    auto& engine = get_test_engine();
+class tile_gpu: public ::testing::Test {
+public:
+    void test_basic_in1x2x2x2_axis_b(bool is_caching_test) {
+        auto& engine = get_test_engine();
 
-    auto input = engine.allocate_memory({ data_types::f32, format::bfyx, { 1, 2, 2, 2 } });
-    auto output_ref = engine.allocate_memory({ data_types::f32, format::bfyx, { 2, 2, 2, 2 } });
+        auto input = engine.allocate_memory({ data_types::f32, format::bfyx, { 1, 2, 2, 2 } });
+        auto output_ref = engine.allocate_memory({ data_types::f32, format::bfyx, { 2, 2, 2, 2 } });
 
-    topology topology;
-    topology.add(input_layout("input", input->get_layout()));
-    topology.add(tile("tile", input_info("input"), std::vector<int64_t>{ 2, 1, 1, 1 }));
+        topology topology;
+        topology.add(input_layout("input", input->get_layout()));
+        topology.add(tile("tile", input_info("input"), std::vector<int64_t>{ 2, 1, 1, 1 }));
 
-    std::vector<float> input_vec = { 1.f, 0.f, 5.f, 1.5f,
-                                     2.f, 0.f, 6.f, 5.2f };
-    set_values(input, input_vec);
-    tile_ref<float>(input, output_ref, 0, 2);
+        std::vector<float> input_vec = { 1.f, 0.f, 5.f, 1.5f,
+                                        2.f, 0.f, 6.f, 5.2f };
+        set_values(input, input_vec);
+        tile_ref<float>(input, output_ref, 0, 2);
 
-    network network(engine, topology);
-    network.set_input_data("input", input);
+        cldnn::network::ptr network = get_network(engine, topology, get_test_default_config(engine), get_test_stream_ptr(), is_caching_test);
+        network->set_input_data("input", input);
 
-    auto outputs = network.execute();
+        auto outputs = network->execute();
 
-    auto output = outputs.at("tile").get_memory();
-    cldnn::mem_lock<float> output_ptr(output, get_test_stream());
-    cldnn::mem_lock<float> output_ref_ptr(output_ref, get_test_stream());
+        auto output = outputs.at("tile").get_memory();
+        cldnn::mem_lock<float> output_ptr(output, get_test_stream());
+        cldnn::mem_lock<float> output_ref_ptr(output_ref, get_test_stream());
 
-    for (unsigned int i = 0; i < output_ref->count(); ++i) {
-        ASSERT_EQ(output_ptr[i], output_ref_ptr[i]) << "Index=" << i;
+        for (unsigned int i = 0; i < output_ref->count(); ++i) {
+            ASSERT_EQ(output_ptr[i], output_ref_ptr[i]) << "Index=" << i;
+        }
     }
+
+    void test_basic_in1x2x2x2_axis_f(bool is_caching_test) {
+        auto& engine = get_test_engine();
+
+        auto input = engine.allocate_memory({ data_types::f32, format::bfyx, { 1, 2, 2, 2 } });
+        auto output_ref = engine.allocate_memory({ data_types::f32, format::bfyx, { 1, 4, 2, 2 } });
+
+        topology topology;
+        topology.add(input_layout("input", input->get_layout()));
+        topology.add(tile("tile", input_info("input"), std::vector<int64_t>{ 1, 2, 1, 1 }));
+
+        std::vector<float> input_vec = { 1.f, 0.f,
+                                        5.f, 1.5f,
+
+                                        2.f, 0.f,
+                                        6.f, 5.2f };
+        set_values(input, input_vec);
+        tile_ref<float>(input, output_ref, 1, 2);
+
+        cldnn::network::ptr network = get_network(engine, topology, get_test_default_config(engine), get_test_stream_ptr(), is_caching_test);
+        network->set_input_data("input", input);
+
+        auto outputs = network->execute();
+
+        auto output = outputs.at("tile").get_memory();
+        cldnn::mem_lock<float> output_ptr(output, get_test_stream());
+        cldnn::mem_lock<float> output_ref_ptr(output_ref, get_test_stream());
+
+        for (unsigned int i = 0; i < output_ref->count(); ++i) {
+            ASSERT_EQ(output_ptr[i], output_ref_ptr[i]) << "Index=" << i;
+        }
+    }
+
+    void test_basic_in1x2x2x2_axis_y(bool is_caching_test) {
+        auto& engine = get_test_engine();
+
+        auto input = engine.allocate_memory({ data_types::f32, format::bfyx, { 1, 2, 3, 4 } });
+        auto output_ref = engine.allocate_memory({ data_types::f32, format::bfyx, { 1, 2, 3, 8 } });
+
+        topology topology;
+        topology.add(input_layout("input", input->get_layout()));
+        topology.add(tile("tile", input_info("input"), std::vector<int64_t>{ 1, 1, 2, 1 }));
+
+        std::vector<float> input_vec = { 0.f, 1.f, 2.f,
+                                        3.f, 4.f, 5.f,
+                                        6.f, 7.f, 8.f,
+                                        9.f, 10.f, 11.f,
+
+                                        12.f, 13.f, 14.f,
+                                        15.f, 16.f, 17.f,
+                                        18.f, 19.f, 20.f,
+                                        21.f, 22.f, 23.f };
+        set_values(input, input_vec);
+        tile_ref<float>(input, output_ref, 2, 2);
+
+        cldnn::network::ptr network = get_network(engine, topology, get_test_default_config(engine), get_test_stream_ptr(), is_caching_test);
+        network->set_input_data("input", input);
+
+        auto outputs = network->execute();
+
+        auto output = outputs.at("tile").get_memory();
+        cldnn::mem_lock<float> output_ptr(output, get_test_stream());
+        cldnn::mem_lock<float> output_ref_ptr(output_ref, get_test_stream());
+
+        for (unsigned int i = 0; i < output_ref->count(); ++i) {
+            ASSERT_EQ(output_ptr[i], output_ref_ptr[i]) << "Index=" << i;
+        }
+    }
+
+    void test_basic_in1x2x2x2_axis_x(bool is_caching_test) {
+        auto& engine = get_test_engine();
+
+        auto input = engine.allocate_memory({ data_types::f32, format::bfyx, { 1, 2, 2, 2 } });
+        auto output_ref = engine.allocate_memory({ data_types::f32, format::bfyx, { 1, 2, 4, 2 } });
+
+        topology topology;
+        topology.add(input_layout("input", input->get_layout()));
+        topology.add(tile("tile", input_info("input"), std::vector<int64_t>{ 1, 1, 1, 2 }));
+
+        std::vector<float> input_vec = { 0.f, 1.f,
+                                        2.f, 3.f,
+
+                                        4.f, 5.f,
+                                        6.f, 7.f };
+        set_values(input, input_vec);
+        tile_ref<float>(input, output_ref, 3, 2);
+
+        cldnn::network::ptr network = get_network(engine, topology, get_test_default_config(engine), get_test_stream_ptr(), is_caching_test);
+        network->set_input_data("input", input);
+
+        auto outputs = network->execute();
+
+        auto output = outputs.at("tile").get_memory();
+        cldnn::mem_lock<float> output_ptr(output, get_test_stream());
+        cldnn::mem_lock<float> output_ref_ptr(output_ref, get_test_stream());
+
+        for (unsigned int i = 0; i < output_ref->count(); ++i) {
+            ASSERT_EQ(output_ptr[i], output_ref_ptr[i]) << "Index=" << i;
+        }
+    }
+
+    void test_basic_in1x2x2x2_axis_x_dense(bool is_caching_test) {
+        auto& engine = get_test_engine();
+
+        auto input = engine.allocate_memory({ data_types::f32, format::bfyx, { 1, 2, 1, 2 } });
+        auto output_ref = engine.allocate_memory({ data_types::f32, format::bfyx, { 1, 2, 4, 2 } });
+
+        topology topology;
+        topology.add(input_layout("input", input->get_layout()));
+        topology.add(tile("tile", input_info("input"), std::vector<int64_t>{ 1, 1, 1, 4 }));
+
+        std::vector<float> input_vec = { 1.f, 0.f, 5.f, 1.5f };
+        set_values(input, input_vec);
+        tile_ref<float>(input, output_ref, 3, 4);
+
+        cldnn::network::ptr network = get_network(engine, topology, get_test_default_config(engine), get_test_stream_ptr(), is_caching_test);
+        network->set_input_data("input", input);
+
+        auto outputs = network->execute();
+
+        auto output = outputs.at("tile").get_memory();
+        cldnn::mem_lock<float> output_ptr(output, get_test_stream());
+        cldnn::mem_lock<float> output_ref_ptr(output_ref, get_test_stream());
+
+        for (unsigned int i = 0; i < output_ref->count(); ++i) {
+            ASSERT_EQ(output_ptr[i], output_ref_ptr[i]) << "Index=" << i;
+        }
+    }
+
+    void test_basic_in1x2x2x2_axis_z(bool is_caching_test) {
+        auto& engine = get_test_engine();
+
+        auto input = engine.allocate_memory({ data_types::f32, format::bfzyx,{ 1, 2, 2, 2, 2 } });
+        auto output_ref = engine.allocate_memory({ data_types::f32, format::bfzyx,{ 1, 2, 2, 2, 4 } });
+
+        topology topology;
+        topology.add(input_layout("input", input->get_layout()));
+        topology.add(tile("tile", input_info("input"), std::vector<int64_t>{ 1, 1, 2, 1, 1 }));
+
+        std::vector<float> input_vec = {
+            1.f, 0.f,
+            5.f, 1.5f,
+            2.f, 0.f,
+            6.f, 5.2f,
+            1.f, 0.f,
+            5.f, 1.5f,
+            2.f, 0.f,
+            6.f, 5.2f
+        };
+        set_values(input, input_vec);
+        tile_ref<float>(input, output_ref, 2, 2);
+
+        cldnn::network::ptr network = get_network(engine, topology, get_test_default_config(engine), get_test_stream_ptr(), is_caching_test);
+        network->set_input_data("input", input);
+
+        auto outputs = network->execute();
+
+        auto output = outputs.at("tile").get_memory();
+        cldnn::mem_lock<float> output_ptr(output, get_test_stream());
+        cldnn::mem_lock<float> output_ref_ptr(output_ref, get_test_stream());
+
+        for (unsigned int i = 0; i < output_ref->count(); ++i) {
+            ASSERT_EQ(output_ptr[i], output_ref_ptr[i]) << "Index=" << i;
+        }
+    }
+};
+
+TEST_F(tile_gpu, basic_in1x2x2x2_axis_b) {
+    this->test_basic_in1x2x2x2_axis_b(false);
 }
 
-TEST(tile_gpu, basic_in1x2x2x2_axis_f) {
+TEST_F(tile_gpu, basic_in1x2x2x2_axis_f) {
+    this->test_basic_in1x2x2x2_axis_f(false);
+}
+
+TEST_F(tile_gpu, basic_in1x2x2x2_axis_y) {
+    this->test_basic_in1x2x2x2_axis_y(false);
+}
+
+TEST_F(tile_gpu, basic_in1x2x2x2_axis_x) {
+    this->test_basic_in1x2x2x2_axis_x(false);
+}
+
+TEST_F(tile_gpu, basic_in1x2x2x2_axis_x_dense) {
+    this->test_basic_in1x2x2x2_axis_x_dense(false);
+}
+
+TEST_F(tile_gpu, basic_in1x2x2x2_axis_z) {
+    this->test_basic_in1x2x2x2_axis_z(false);
+}
+
+TEST_F(tile_gpu, dynamic) {
     auto& engine = get_test_engine();
 
-    auto input = engine.allocate_memory({ data_types::f32, format::bfyx, { 1, 2, 2, 2 } });
-    auto output_ref = engine.allocate_memory({ data_types::f32, format::bfyx, { 1, 4, 2, 2 } });
+    ov::Shape input_shape = { 1, 2, 2, 2 };
+    auto input_dyn_layout = layout{ ov::PartialShape::dynamic(input_shape.size()), data_types::f32, format::bfyx };
+    auto input = engine.allocate_memory({ input_shape, data_types::f32, format::bfyx });
+
+    set_values(input, { 1.f, 0.f,
+                        5.f, 1.5f,
+                        2.f, 0.f,
+                        6.f, 5.2f });
 
     topology topology;
-    topology.add(input_layout("input", input->get_layout()));
+    topology.add(input_layout("input", input_dyn_layout));
     topology.add(tile("tile", input_info("input"), std::vector<int64_t>{ 1, 2, 1, 1 }));
 
-    std::vector<float> input_vec = { 1.f, 0.f,
-                                     5.f, 1.5f,
-
-                                     2.f, 0.f,
-                                     6.f, 5.2f };
-    set_values(input, input_vec);
-    tile_ref<float>(input, output_ref, 1, 2);
-
-    network network(engine, topology);
+    ExecutionConfig config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+    network network(engine, topology, config);
     network.set_input_data("input", input);
+
+    auto inst = network.get_primitive("tile");
+    auto impl = inst->get_impl();
+    ASSERT_TRUE(impl != nullptr);
+    ASSERT_TRUE(impl->is_dynamic());
 
     auto outputs = network.execute();
 
     auto output = outputs.at("tile").get_memory();
     cldnn::mem_lock<float> output_ptr(output, get_test_stream());
-    cldnn::mem_lock<float> output_ref_ptr(output_ref, get_test_stream());
 
-    for (unsigned int i = 0; i < output_ref->count(); ++i) {
-        ASSERT_EQ(output_ptr[i], output_ref_ptr[i]) << "Index=" << i;
-    }
-}
+    std::vector<float> ref_data = { 1.f, 0.f,
+                                    5.f, 1.5f,
+                                    2.f, 0.f,
+                                    6.f, 5.2f,
 
-TEST(tile_gpu, basic_in1x2x2x2_axis_y) {
-    auto& engine = get_test_engine();
+                                    1.f, 0.f,
+                                    5.f, 1.5f,
+                                    2.f, 0.f,
+                                    6.f, 5.2f };
 
-    auto input = engine.allocate_memory({ data_types::f32, format::bfyx, { 1, 2, 3, 4 } });
-    auto output_ref = engine.allocate_memory({ data_types::f32, format::bfyx, { 1, 2, 3, 8 } });
-
-    topology topology;
-    topology.add(input_layout("input", input->get_layout()));
-    topology.add(tile("tile", input_info("input"), std::vector<int64_t>{ 1, 1, 2, 1 }));
-
-    std::vector<float> input_vec = { 0.f, 1.f, 2.f,
-                                     3.f, 4.f, 5.f,
-                                     6.f, 7.f, 8.f,
-                                     9.f, 10.f, 11.f,
-
-                                     12.f, 13.f, 14.f,
-                                     15.f, 16.f, 17.f,
-                                     18.f, 19.f, 20.f,
-                                     21.f, 22.f, 23.f };
-    set_values(input, input_vec);
-    tile_ref<float>(input, output_ref, 2, 2);
-
-    network network(engine, topology);
-    network.set_input_data("input", input);
-
-    auto outputs = network.execute();
-
-    auto output = outputs.at("tile").get_memory();
-    cldnn::mem_lock<float> output_ptr(output, get_test_stream());
-    cldnn::mem_lock<float> output_ref_ptr(output_ref, get_test_stream());
-
-    for (unsigned int i = 0; i < output_ref->count(); ++i) {
-        ASSERT_EQ(output_ptr[i], output_ref_ptr[i]) << "Index=" << i;
-    }
-}
-
-TEST(tile_gpu, basic_in1x2x2x2_axis_x) {
-    auto& engine = get_test_engine();
-
-    auto input = engine.allocate_memory({ data_types::f32, format::bfyx, { 1, 2, 2, 2 } });
-    auto output_ref = engine.allocate_memory({ data_types::f32, format::bfyx, { 1, 2, 4, 2 } });
-
-    topology topology;
-    topology.add(input_layout("input", input->get_layout()));
-    topology.add(tile("tile", input_info("input"), std::vector<int64_t>{ 1, 1, 1, 2 }));
-
-    std::vector<float> input_vec = { 0.f, 1.f,
-                                     2.f, 3.f,
-
-                                     4.f, 5.f,
-                                     6.f, 7.f };
-    set_values(input, input_vec);
-    tile_ref<float>(input, output_ref, 3, 2);
-
-    network network(engine, topology);
-    network.set_input_data("input", input);
-
-    auto outputs = network.execute();
-
-    auto output = outputs.at("tile").get_memory();
-    cldnn::mem_lock<float> output_ptr(output, get_test_stream());
-    cldnn::mem_lock<float> output_ref_ptr(output_ref, get_test_stream());
-
-    for (unsigned int i = 0; i < output_ref->count(); ++i) {
-        ASSERT_EQ(output_ptr[i], output_ref_ptr[i]) << "Index=" << i;
-    }
-}
-
-TEST(tile_gpu, basic_in1x2x2x2_axis_x_dense) {
-    auto& engine = get_test_engine();
-
-    auto input = engine.allocate_memory({ data_types::f32, format::bfyx, { 1, 2, 1, 2 } });
-    auto output_ref = engine.allocate_memory({ data_types::f32, format::bfyx, { 1, 2, 4, 2 } });
-
-    topology topology;
-    topology.add(input_layout("input", input->get_layout()));
-    topology.add(tile("tile", input_info("input"), std::vector<int64_t>{ 1, 1, 1, 4 }));
-
-    std::vector<float> input_vec = { 1.f, 0.f, 5.f, 1.5f };
-    set_values(input, input_vec);
-    tile_ref<float>(input, output_ref, 3, 4);
-
-    network network(engine, topology);
-    network.set_input_data("input", input);
-
-    auto outputs = network.execute();
-
-    auto output = outputs.at("tile").get_memory();
-    cldnn::mem_lock<float> output_ptr(output, get_test_stream());
-    cldnn::mem_lock<float> output_ref_ptr(output_ref, get_test_stream());
-
-    for (unsigned int i = 0; i < output_ref->count(); ++i) {
-        ASSERT_EQ(output_ptr[i], output_ref_ptr[i]) << "Index=" << i;
-    }
-}
-
-TEST(tile_gpu, basic_in1x2x2x2_axis_z) {
-    auto& engine = get_test_engine();
-
-    auto input = engine.allocate_memory({ data_types::f32, format::bfzyx,{ 1, 2, 2, 2, 2 } });
-    auto output_ref = engine.allocate_memory({ data_types::f32, format::bfzyx,{ 1, 2, 2, 2, 4 } });
-
-    topology topology;
-    topology.add(input_layout("input", input->get_layout()));
-    topology.add(tile("tile", input_info("input"), std::vector<int64_t>{ 1, 1, 2, 1, 1 }));
-
-    std::vector<float> input_vec = {
-        1.f, 0.f,
-        5.f, 1.5f,
-        2.f, 0.f,
-        6.f, 5.2f,
-        1.f, 0.f,
-        5.f, 1.5f,
-        2.f, 0.f,
-        6.f, 5.2f
-    };
-    set_values(input, input_vec);
-    tile_ref<float>(input, output_ref, 2, 2);
-
-    network network(engine, topology);
-    network.set_input_data("input", input);
-
-    auto outputs = network.execute();
-
-    auto output = outputs.at("tile").get_memory();
-    cldnn::mem_lock<float> output_ptr(output, get_test_stream());
-    cldnn::mem_lock<float> output_ref_ptr(output_ref, get_test_stream());
-
-    for (unsigned int i = 0; i < output_ref->count(); ++i) {
-        ASSERT_EQ(output_ptr[i], output_ref_ptr[i]) << "Index=" << i;
+    for (size_t i = 0; i < ref_data.size(); ++i) {
+        ASSERT_EQ(output_ptr[i], ref_data[i]) << "Index=" << i;
     }
 }
 
@@ -561,7 +635,7 @@ template<typename T>
 struct tile_test
     : public ::testing::TestWithParam<ParamsWithLayout<T> > {
 public:
-    void test() {
+    void test(bool is_caching_test) {
         const auto data_type = type_to_data_type<T>::value;
         Params<T> params;
         format::type plain_layout;
@@ -598,11 +672,11 @@ public:
             result_id = reorder_result_id;
         }
 
-        network network(engine, topology);
+        cldnn::network::ptr network = get_network(engine, topology, get_test_default_config(engine), get_test_stream_ptr(), is_caching_test);
 
-        network.set_input_data(input_data_id, input);
+        network->set_input_data(input_data_id, input);
 
-        auto result = network.execute();
+        auto result = network->execute();
 
         auto out_mem = result.at(result_id).get_memory();
         cldnn::mem_lock<T> out_ptr(out_mem, get_test_stream());
@@ -619,11 +693,11 @@ using tile_test_f32 = tile_test<float>;
 using tile_test_f16 = tile_test<half_t>;
 
 TEST_P(tile_test_f32, test_case) {
-    ASSERT_NO_FATAL_FAILURE(test());
+    ASSERT_NO_FATAL_FAILURE(test(false));
 }
 
 TEST_P(tile_test_f16, test_case) {
-    ASSERT_NO_FATAL_FAILURE(test());
+    ASSERT_NO_FATAL_FAILURE(test(false));
 }
 
 INSTANTIATE_TEST_SUITE_P(tile_gpu_2D,
@@ -657,3 +731,36 @@ INSTANTIATE_TEST_SUITE_P(tile_gpu_3D,
                              ::testing::Values(format::bfzyx),
                              ::testing::ValuesIn(layouts_3d)),
                          PrintToStringParamName());
+
+#ifdef RUN_ALL_MODEL_CACHING_TESTS
+TEST_F(tile_gpu, basic_in1x2x2x2_axis_b_cached) {
+    this->test_basic_in1x2x2x2_axis_b(true);
+}
+
+TEST_F(tile_gpu, basic_in1x2x2x2_axis_f_cached) {
+    this->test_basic_in1x2x2x2_axis_f(true);
+}
+
+TEST_F(tile_gpu, basic_in1x2x2x2_axis_y_cached) {
+    this->test_basic_in1x2x2x2_axis_y(true);
+}
+
+TEST_F(tile_gpu, basic_in1x2x2x2_axis_x_cached) {
+    this->test_basic_in1x2x2x2_axis_x(true);
+}
+
+TEST_F(tile_gpu, basic_in1x2x2x2_axis_x_dense_cached) {
+    this->test_basic_in1x2x2x2_axis_x_dense(true);
+}
+
+TEST_P(tile_test_f32, test_case_cached) {
+    ASSERT_NO_FATAL_FAILURE(test(true));
+}
+
+TEST_P(tile_test_f16, test_case_cached) {
+    ASSERT_NO_FATAL_FAILURE(test(true));
+}
+#endif
+TEST_F(tile_gpu, basic_in1x2x2x2_axis_z_cached) {
+    this->test_basic_in1x2x2x2_axis_z(true);
+}

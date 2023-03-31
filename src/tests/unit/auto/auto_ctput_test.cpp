@@ -18,6 +18,7 @@ using ::testing::MatcherCast;
 using ::testing::NiceMock;
 using ::testing::Return;
 using ::testing::StrEq;
+using ::testing::Throw;
 
 using namespace MockMultiDevice;
 using Config = std::map<std::string, std::string>;
@@ -199,12 +200,6 @@ TEST_P(LoadNetworkWithCTPUTMockTest, CTPUTSingleDevLogicTest) {
                                 ::testing::Matcher<const std::map<std::string, std::string>&>(
                                     ComparePerfHint(InferenceEngine::PluginConfigParams::THROUGHPUT))))
             .Times(1);
-        // no MULTI logic to be called
-        EXPECT_CALL(*core,
-                    LoadNetwork(::testing::Matcher<const InferenceEngine::CNNNetwork&>(_),
-                                ::testing::Matcher<const std::string&>("MULTI:" + targetDevice),
-                                ::testing::Matcher<const std::map<std::string, std::string>&>(_)))
-            .Times(0);
         // if target device only has GPU, no CPU helper to be called
         if (targetDevice.find("GPU") != std::string::npos) {
             EXPECT_CALL(*core,
@@ -219,14 +214,14 @@ TEST_P(LoadNetworkWithCTPUTMockTest, CTPUTSingleDevLogicTest) {
         for (auto& deviceName : targetDevices) {
             targetDev += deviceName;
             targetDev += ((deviceName == targetDevices.back()) ? "" : ",");
+            EXPECT_CALL(*core,
+                        LoadNetwork(::testing::Matcher<const InferenceEngine::CNNNetwork&>(_),
+                                    ::testing::Matcher<const std::string&>(deviceName),
+                                    ::testing::Matcher<const std::map<std::string, std::string>&>(
+                                        ComparePerfHint(InferenceEngine::PluginConfigParams::THROUGHPUT))))
+                .Times(1);
         }
         config.insert({InferenceEngine::MultiDeviceConfigParams::KEY_MULTI_DEVICE_PRIORITIES, targetDev});
-        // Call MULTI logic
-        EXPECT_CALL(*core,
-                    LoadNetwork(::testing::Matcher<const InferenceEngine::CNNNetwork&>(_),
-                                ::testing::Matcher<const std::string&>("MULTI:" + targetDev),
-                                ::testing::Matcher<const std::map<std::string, std::string>&>(_)))
-            .Times(1);
         // no CPU helper to be called
         EXPECT_CALL(*core,
                     LoadNetwork(::testing::Matcher<const InferenceEngine::CNNNetwork&>(_),
@@ -237,6 +232,27 @@ TEST_P(LoadNetworkWithCTPUTMockTest, CTPUTSingleDevLogicTest) {
     }
 
     ASSERT_NO_THROW(plugin->LoadExeNetworkImpl(simpleCnnNetwork, config));
+}
+
+using LoadNetworkWithCTPUTMockTestExeDevice = LoadNetworkWithCTPUTMockTest;
+TEST_P(LoadNetworkWithCTPUTMockTestExeDevice, CTPUTSingleDevExecutionDevie) {
+    std::vector<std::string> targetDevices;
+    Config config;
+    std::shared_ptr<InferenceEngine::IExecutableNetworkInternal> exeNetwork;
+    std::tie(targetDevices) = this->GetParam();
+
+    plugin->SetName("AUTO");
+    config.insert({{CONFIG_KEY(PERFORMANCE_HINT), InferenceEngine::PluginConfigParams::CUMULATIVE_THROUGHPUT}});
+
+    std::string targetDevice = targetDevices[0];
+    config.insert({InferenceEngine::MultiDeviceConfigParams::KEY_MULTI_DEVICE_PRIORITIES, targetDevices[0]});
+    // Call single device logic and performance hint is THROUGHPUT
+
+    ON_CALL(*cpuMockIExeNet.get(), GetMetric(StrEq(ov::execution_devices.name())))
+        .WillByDefault(Throw(InferenceEngine::GeneralError{""}));
+
+    ASSERT_NO_THROW(exeNetwork = plugin->LoadExeNetworkImpl(simpleCnnNetwork, config));
+    EXPECT_EQ(exeNetwork->GetMetric(ov::execution_devices.name()).as<std::string>(), CommonTestUtils::DEVICE_CPU);
 }
 
 const std::vector<ConfigParams> testConfigs = {
@@ -250,3 +266,12 @@ INSTANTIATE_TEST_SUITE_P(smoke_AutoMock_CTPUTSingleDevLogicTest,
                          LoadNetworkWithCTPUTMockTest,
                          ::testing::ValuesIn(testConfigs),
                          LoadNetworkWithCTPUTMockTest::getTestCaseName);
+
+const std::vector<ConfigParams> executionDevieTestConfigs = {
+    ConfigParams{{"CPU"}},
+};
+
+INSTANTIATE_TEST_SUITE_P(smoke_AutoCTPUTExecutionDevice,
+                         LoadNetworkWithCTPUTMockTestExeDevice,
+                         ::testing::ValuesIn(executionDevieTestConfigs),
+                         LoadNetworkWithCTPUTMockTestExeDevice::getTestCaseName);

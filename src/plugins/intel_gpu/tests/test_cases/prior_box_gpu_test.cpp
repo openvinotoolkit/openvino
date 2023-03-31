@@ -40,7 +40,7 @@ using prior_box_param = std::tuple<format,                       // Input and ou
 template <class InputType, class OutputType>
 class PriorBoxGPUTest : public ::testing::TestWithParam<prior_box_param<InputType, OutputType>> {
 public:
-    void SetUp() override {
+    void execute(bool is_caching_test) {
         const auto input_data_type = type_to_data_type<InputType>::value;
         const auto output_data_type = type_to_data_type<OutputType>::value;
         const auto plain_format = format::bfyx;
@@ -90,10 +90,12 @@ public:
         topo.add(prior_box);
         topo.add(reorder("prior_box", input_info("blocked_prior_box"), plain_format, output_data_type));
 
-        ExecutionConfig config;
+        ExecutionConfig config = get_test_default_config(engine);
         config.set_property(ov::intel_gpu::optimize_data(false));
-        network network(engine, topo, config);
-        const auto outputs = network.execute();
+
+        cldnn::network::ptr network = get_network(engine, topo, config, get_test_stream_ptr(), is_caching_test);
+
+        const auto outputs = network->execute();
         const auto output = outputs.at("prior_box").get_memory();
 
         cldnn::mem_lock<OutputType> output_ptr(output, get_test_stream());
@@ -107,7 +109,9 @@ public:
 };
 
 using prior_box_test_i32_f32 = PriorBoxGPUTest<int32_t, float>;
-TEST_P(prior_box_test_i32_f32, prior_box_test_i32_f32) {}
+TEST_P(prior_box_test_i32_f32, prior_box_test_i32_f32) {
+    this->execute(false);
+}
 
 INSTANTIATE_TEST_SUITE_P(
         prior_box_test_all_formats,
@@ -261,4 +265,37 @@ INSTANTIATE_TEST_SUITE_P(
             0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1,
             0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1
         })));
+
+#ifdef RUN_ALL_MODEL_CACHING_TESTS
+TEST_P(prior_box_test_i32_f32, prior_box_test_i32_f32_cached) {
+    this->execute(true);
+}
+#else
+using prior_box_test_i32_f32_cached = PriorBoxGPUTest<int32_t, float>;
+TEST_P(prior_box_test_i32_f32_cached, prior_box_test_i32_f32) {
+    this->execute(true);
+}
+
+INSTANTIATE_TEST_SUITE_P(
+        prior_box_test_four_variances,
+        prior_box_test_i32_f32_cached,
+        testing::Combine(
+        testing::Values(format::bfyx),
+        testing::Values(std::vector<int32_t>{2, 2}),
+        testing::Values(std::vector<int32_t>{10, 10}),
+        testing::Values(
+            prior_box_attributes{{2.0f}, {5.0f}, {1.5f}, {}, {}, {}, false, false, 0.0f, 0.0f, {0.1, 0.2, 0.3, 0.4}, true, true}),
+        testing::Values(std::vector<float>{
+            0.15, 0.15, 0.35, 0.35, 0.0918861, 0.0918861, 0.408114, 0.408114, 0.127526, 0.16835, 0.372474, 0.33165,
+            0.65, 0.15, 0.85, 0.35,
+            0.591886, 0.0918861, 0.908114, 0.408114, 0.627526, 0.16835, 0.872474, 0.33165, 0.15, 0.65, 0.35, 0.85,
+            0.0918861, 0.591886, 0.408114, 0.908114,
+            0.127526, 0.66835, 0.372474, 0.83165, 0.65, 0.65, 0.85, 0.85, 0.591886, 0.591886, 0.908114, 0.908114,
+            0.627526, 0.66835, 0.872474, 0.83165,
+            0.1, 0.2, 0.3, 0.4, 0.1, 0.2, 0.3, 0.4, 0.1, 0.2, 0.3, 0.4,
+            0.1, 0.2, 0.3, 0.4, 0.1, 0.2, 0.3, 0.4, 0.1, 0.2, 0.3, 0.4,
+            0.1, 0.2, 0.3, 0.4, 0.1, 0.2, 0.3, 0.4, 0.1, 0.2, 0.3, 0.4,
+            0.1, 0.2, 0.3, 0.4, 0.1, 0.2, 0.3, 0.4, 0.1, 0.2, 0.3, 0.4
+        })));
+#endif
 }  // namespace

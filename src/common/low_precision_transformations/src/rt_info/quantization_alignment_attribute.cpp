@@ -65,7 +65,7 @@ ov::Any QuantizationAlignmentAttribute::create(
     return {};
 }
 
-void QuantizationAlignmentAttribute::merge(std::vector<ov::Any>& attributes) {
+void QuantizationAlignmentAttribute::merge_attributes(std::vector<ov::Any>& attributes) {
     for (const auto& other_attribute : attributes) {
         value() = value() || other_attribute.as<QuantizationAlignmentAttribute>().value();
     }

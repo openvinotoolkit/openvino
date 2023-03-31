@@ -98,7 +98,7 @@ const std::vector<LayerTestsDefinitions::ConvolutionTransformationParam> params 
         true,
         {
             255ul, ngraph::Shape { 6, 1, 1, 1 }, { -0.6f }, { 0.6f },
-            { -1.52806e-39f, -0.2, -0.3, -0.3, -0.2, -0.1 }, { 1.52806e-39f, 0.2, 0.3, 0.3, 0.2, 0.1 }
+            { -1.52806e-39f, -0.2f, -0.3f, -0.3f, -0.2f, -0.1f }, { 1.52806e-39f, 0.2f, 0.3f, 0.3f, 0.2f, 0.1f }
         },
         false,
         "Convolution",

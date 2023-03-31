@@ -29,6 +29,7 @@ Parameters of the Default Quantization algorithm with basic settings are present
                                  # the quantization scheme. For the CPU: 
                                  # performance - symmetric quantization  of weights and activations.
                                  # mixed - symmetric weights and asymmetric activations.
+                                 # accuracy - the same as "mixed" for CPU, GPU, and GNA devices; asymmetric weights and activations for VPU device.
         "stat_subset_size": 300  # Size of subset to calculate activations statistics that can be used
                                  # for quantization parameters calculation.
     }

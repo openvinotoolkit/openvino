@@ -47,10 +47,10 @@ def generate_image(shape: Tuple = (1, 3, 32, 32), dtype: Union[str, np.dtype] = 
     return np.random.rand(*shape).astype(dtype)
 
 
-def get_relu_model(input_shape: List[int] = None) -> openvino.runtime.Model:
+def get_relu_model(input_shape: List[int] = None, input_dtype=np.float32) -> openvino.runtime.Model:
     if input_shape is None:
         input_shape = [1, 3, 32, 32]
-    param = ops.parameter(input_shape, np.float32, name="data")
+    param = ops.parameter(input_shape, input_dtype, name="data")
     relu = ops.relu(param, name="relu")
     model = Model([relu], [param], "test_model")
     model.get_ordered_ops()[2].friendly_name = "friendly"
@@ -59,10 +59,14 @@ def get_relu_model(input_shape: List[int] = None) -> openvino.runtime.Model:
     return model
 
 
-def generate_relu_compiled_model(device, input_shape: List[int] = None) -> openvino.runtime.CompiledModel:
+def generate_relu_compiled_model(
+    device,
+    input_shape: List[int] = None,
+    input_dtype=np.float32,
+) -> openvino.runtime.CompiledModel:
     if input_shape is None:
         input_shape = [1, 3, 32, 32]
-    model = get_relu_model(input_shape)
+    model = get_relu_model(input_shape, input_dtype)
     core = Core()
     return core.compile_model(model, device, {})
 
@@ -118,6 +122,8 @@ def create_filename_for_test(test_name, tmp_path, is_xml_path=False, is_bin_path
     python_version = str(sys.version_info.major) + "_" + str(sys.version_info.minor)
     filename = test_name.replace("test_", "").replace("[", "_").replace("]", "_")
     filename = filename + "_" + python_version
-    _xml = tmp_path / Path(filename + ".xml") if is_xml_path else tmp_path / Path(filename + ".xml")
-    _bin = tmp_path / Path(filename + ".bin") if is_bin_path else tmp_path / Path(filename + ".bin")
+    path_to_xml = tmp_path / Path(filename + ".xml")
+    path_to_bin = tmp_path / Path(filename + ".bin")
+    _xml = path_to_xml if is_xml_path else str(path_to_xml)
+    _bin = path_to_bin if is_bin_path else str(path_to_bin)
     return (_xml, _bin)

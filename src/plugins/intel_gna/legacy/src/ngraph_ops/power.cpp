@@ -12,8 +12,16 @@
 using namespace std;
 using namespace ngraph;
 
-op::PowerIE::PowerIE(const Output<ngraph::Node>& data_batch, const float power, const float scale, const float shift, const element::Type output_type)
-    : Op({data_batch}), scale(scale), power(power), shift(shift), m_output_type(output_type) {
+op::PowerIE::PowerIE(const Output<ngraph::Node>& data_batch,
+                     const float power,
+                     const float scale,
+                     const float shift,
+                     const element::Type output_type)
+    : Op({data_batch}),
+      scale(scale),
+      power(power),
+      shift(shift),
+      m_output_type(output_type) {
     constructor_validate_and_infer_types();
 }
 
@@ -26,7 +34,9 @@ std::shared_ptr<Node> op::PowerIE::clone_with_new_inputs(const OutputVector& new
 }
 
 void op::PowerIE::validate_and_infer_types() {
-    set_output_type(0, m_output_type == element::undefined ? get_input_element_type(0) : m_output_type, get_input_partial_shape(0));
+    set_output_type(0,
+                    m_output_type == element::undefined ? get_input_element_type(0) : m_output_type,
+                    get_input_partial_shape(0));
 }
 
 bool op::PowerIE::visit_attributes(AttributeVisitor& visitor) {
