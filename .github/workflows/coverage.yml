@@ -42,10 +42,10 @@ jobs:
         with:
           submodules: recursive
       
-      - name: Setup ccache
-        uses: hendrikmuhs/ccache-action@v1.2
-        with:
-          max-size: 50G
+      #- name: Setup ccache
+      #  uses: hendrikmuhs/ccache-action@v1.2
+      #  with:
+      #    max-size: 50G
 
       - name: Install build dependencies
         run: |
