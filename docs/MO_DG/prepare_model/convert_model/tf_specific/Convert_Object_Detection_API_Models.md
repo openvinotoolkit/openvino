@@ -49,7 +49,7 @@ To convert a TensorFlow Object Detection API model, run the ``mo`` command with 
   * ``rfcn_support_api_v1.14.json`` - for RFCN topology from the models zoo frozen with TensorFlow version 1.14.0 or higher
 
 * ``--tensorflow_object_detection_api_pipeline_config <path_to_pipeline.config>`` - A special configuration file that describes the topology hyper-parameters and structure of the TensorFlow Object Detection API model. For the models downloaded from the TensorFlow Object Detection API zoo, the configuration file is named ``pipeline.config``. If you plan to train a model yourself, you can find templates for these files in the `models repository <https://github.com/tensorflow/models/tree/master/research/object_detection/samples/configs>`__.
-* ``--input_shape`` (optional) - A custom input image shape. For more information how the ``--input_shape`` parameter is handled for the TensorFlow Object Detection API models, refer to the :doc:`Custom Input Shape <custom-input-shape>` guide.
+* ``--input_shape`` (optional) - A custom input image shape. For more information how the ``--input_shape`` parameter is handled for the TensorFlow Object Detection API models, refer to the `Custom Input Shape <#Custom-Input-Shape>`__  guide.
 
 .. note::
 
@@ -73,7 +73,7 @@ based on deep learning in various tasks, including Image Classification, Visual 
 Speech Recognition, Natural Language Processing and others. Refer to the links below for more details.
 
 * :doc:`OpenVINO Samples <openvino_docs_OV_UG_Samples_Overview>`
-* :doc:`Open Model Zoo Demos <omz_demos>`
+* :doc:`Open Model Zoo Demos <model_zoo>`
 
 Feeding Input Images to the Samples
 ###################################

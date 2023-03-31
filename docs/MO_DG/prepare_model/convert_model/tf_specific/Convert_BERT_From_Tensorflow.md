@@ -91,7 +91,7 @@ Follow these steps to make a pretrained TensorFlow BERT model reshapable over ba
 
 .. code-block:: py
 
-   python3 download_glue_data.py --tasks MRPC
+   git stat3 download_glue_data.py --tasks MRPC
 
 7. Open the file ``modeling.py`` in the text editor and delete lines 923-924. They should look like this:
 

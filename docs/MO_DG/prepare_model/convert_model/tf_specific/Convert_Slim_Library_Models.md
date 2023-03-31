@@ -84,6 +84,7 @@ The file `preprocessing_factory.py <https://github.com/tensorflow/models/blob/ma
 The `inception_preprocessing.py <https://github.com/tensorflow/models/blob/master/research/slim/preprocessing/inception_preprocessing.py>`__ file defines the pre-processing function for the Inception models. The ``preprocess_for_eval`` function contains the following code:
 
 .. code-block:: py
+
     ...
     import tensorflow as tf
     if image.dtype != tf.float32:
