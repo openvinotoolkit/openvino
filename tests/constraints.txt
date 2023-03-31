@@ -10,7 +10,7 @@ scipy~=1.7; python_version == '3.7'
 wheel>=0.38.1
 defusedxml>=0.7.1
 fastjsonschema~=2.15.1
-test-generator==0.1.1
+test-generator==0.1.2
 requests>=2.25.1
 opencv-python>=4.5
 py>=1.9.0
