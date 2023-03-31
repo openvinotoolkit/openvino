@@ -61,10 +61,8 @@ def prepare_executable_cmd(args: dict):
         str(args["executable"].resolve(strict=True)),
         "-m", str(args["model"].resolve(strict=True)),
         "-d", args["device"],
-        "-ip", args["input_precision"] if "input_precision" in args.keys(
-        ) and args["input_precision"] else "",
-        "-op", args["output_precision"] if "output_precision" in args.keys(
-        ) and args["output_precision"] else "",
+        "-ip", args.get("input_precision", ""),
+        "-op", args.get("output_precision", ""),
         "-c" if args["model_cache"] else ""
     ]
 
@@ -148,10 +146,12 @@ def cli_parser():
                         action="store_true",
                         help="Enable model cache usage")
     parser.add_argument("-ip",
+                        default="",
                         dest="input_precision",
                         type=str,
                         help="Model input precision")
     parser.add_argument("-op",
+                        default="",
                         dest="output_precision",
                         type=str,
                         help="Model output precision")
