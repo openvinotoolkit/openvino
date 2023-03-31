@@ -63,6 +63,13 @@ jobs:
         uses: ashutoshvarma/setup-ninja@master
         with:
           version: 1.11.1
+        
+      - name: Setup gcc
+        uses: egor-tensin/setup-gcc@v1
+        with:
+          version: latest
+          platform: x64
+       
      # - name: Install build dependencies
      #   run: |
      #     export http_proxy="http://proxy-dmz.intel.com:911"
