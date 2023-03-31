@@ -9,6 +9,7 @@
    - Run cmake 
    ```
    emcmake cmake \
+      -DCMAKE_BUILD_TYPE=Release \
       -DENABLE_INTEL_CPU=OFF \
       -DENABLE_OV_TF_FRONTEND=OFF \
       -DENABLE_OV_TF_LITE_FRONTEND=OFF \
