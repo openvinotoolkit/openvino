@@ -305,9 +305,7 @@ std::pair<ov::Tensor, ov::Tensor> ov::evaluate_both_bounds(const Output<Node>& o
                 outputs_upper.push_back(util::wrap_tensor(out));
                 OPENVINO_SUPPRESS_DEPRECATED_END
             }
-            std::cout << "Eval: " << node << std::endl;
             if (!node->evaluate_lower(outputs_lower) || !node->evaluate_upper(outputs_upper)) {
-                std::cout << "Failed to evaluate " << node << std::endl;
                 break;
             }
             auto input_values = node->input_values();
@@ -325,18 +323,6 @@ std::pair<ov::Tensor, ov::Tensor> ov::evaluate_both_bounds(const Output<Node>& o
                     out_tensor.set_upper_value(outputs_lower[i]);
                 if (labels_evaluated)
                     node->get_output_tensor(i).set_value_label(output_labels[i]);
-
-                if (out_tensor.has_and_set_bound())
-                    std::cout << "Equal bounds -- constant value:" << std::endl;
-                auto lower_const = std::make_shared<ov::op::v0::Constant>(outputs_lower[i])->cast_vector<int64_t>();
-                auto upper_const = std::make_shared<ov::op::v0::Constant>(outputs_upper[i])->cast_vector<int64_t>();
-                std::cout << "LOW: ";
-                for (auto low : lower_const)
-                    std::cout << low << ", ";
-                std::cout << std::endl << "UPP: ";
-                for (auto low : upper_const)
-                    std::cout << low << ", ";
-                std::cout << std::endl;
             }
             for (const auto& input : node->input_values()) {
                 auto& tensor = input.get_tensor();

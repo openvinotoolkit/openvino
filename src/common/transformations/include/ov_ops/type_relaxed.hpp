@@ -314,8 +314,6 @@ bool OPENVINO_API convert_outputs_to_fake_type(ov::TensorVector& outputs,
 
 template <typename BaseOp>
 bool TypeRelaxed<BaseOp>::evaluate_bound(TensorVector& outputs, bool is_upper) const {
-    // convert outputs to fake type
-    std::cout << "Processing " << (is_upper ? "upper" : "lower") << " bound: " << this << std::endl;
     auto inputs = Op::input_values();
     const auto& original_inputs = convert_input_types(inputs, m_input_data_types);
     auto original_outputs = get_output_tensors_of_original_type(outputs, m_original_output_data_types);
