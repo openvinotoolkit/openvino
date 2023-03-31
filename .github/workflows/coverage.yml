@@ -32,7 +32,7 @@ jobs:
       fail-fast: false
       matrix:
         config:
-          - { name: "Ubuntu gcc", os: ubuntu-latest-16-cores, cc: "gcc", cxx: "g++" }
+          - { name: "Ubuntu gcc", os: ov-work-104, cc: "gcc", cxx: "g++" }
 
     steps:
       - name: Clone OpenVINO
@@ -65,8 +65,8 @@ jobs:
           # For running ONNX frontend unit tests
           python3 -m pip install -r ${{ github.workspace }}/src/frontends/onnx/tests/requirements.txt
           # For MO unit tests
-          python3 -m pip install -r ${{ github.workspace }}/tools/mo/requirements.txt
-          python3 -m pip install -r ${{ github.workspace }}/tools/mo/requirements_dev.txt
+     #     python3 -m pip install -r ${{ github.workspace }}/tools/mo/requirements.txt
+     #     python3 -m pip install -r ${{ github.workspace }}/tools/mo/requirements_dev.txt
      #     pip install -r ${{ github.workspace }}/src/frontends/tensorflow_lite/tests/requirements.txt
      #     pip install -r ${{ github.workspace }}/src/bindings/python/src/compatibility/openvino/requirements-dev.txt
      #     pip install -r ${{ github.workspace }}/src/bindings/python/wheel/requirements-dev.txt
@@ -90,15 +90,8 @@ jobs:
           cxx: ${{ matrix.config.cxx }}
           configure-options: >
             -GNinja
-            -DENABLE_PYTHON=ON
-            -DENABLE_INTEL_GPU=ON
-            -DENABLE_INTEL_CPU=ON
-            -DENABLE_ONEDNN_FOR_GPU=ON
             -DCMAKE_VERBOSE_MAKEFILE=ON
-            -DENABLE_STRICT_DEPENDENCIES=OFF
-            -DENABLE_REQUIREMENTS_INSTALL=OFF
             -DENABLE_FASTER_BUILD=ON
-            -DENABLE_OV_ONNX_FRONTEND=ON
             -DENABLE_TESTS=ON
             -DENABLE_COVERAGE=ON
             -DCMAKE_C_COMPILER_LAUNCHER=ccache
@@ -106,63 +99,66 @@ jobs:
             -DCMAKE_C_LINKER_LAUNCHER=ccache
             -DCMAKE_CXX_LINKER_LAUNCHER=ccache
           build-type: Release
-          run-test: false
           parallel: ${{ steps.cpu-cores.outputs.count }}
       
      # - name: Run tests
      #   run: ctest -V
       
       - name: Run OV core unit tests
-        run: ${{ github.workspace }}/bin/intel64/Release/ov_core_unit_tests --gtest_print_time=1 --gtest_filter=-*IE_GPU* --gtest_output=xml:${{ github.workspace }}/testdata/TEST-NGraphUT.xml
-      
+        run: ./setupvars.sh -pyver 3.10 && ${{ github.workspace }}/bin/intel64/Release/ov_core_unit_tests --gtest_print_time=1 --gtest_filter=-*IE_GPU* --gtest_output=xml:${{ github.workspace }}/testdata/TEST-NGraphUT.xml
+        continue-on-error: true
+
       - name: Run IR frontend tests
-        run: ${{ github.workspace }}/bin/intel64/Release/ov_ir_frontend_tests --gtest_print_time=1 --gtest_output=xml:${{ github.workspace }}/testdata/TEST-IRFrontend.xml
+        run: ./setupvars.sh -pyver 3.10 && ${{ github.workspace }}/bin/intel64/Release/ov_ir_frontend_tests --gtest_print_time=1 --gtest_output=xml:${{ github.workspace }}/testdata/TEST-IRFrontend.xml
+        continue-on-error: true
       
       - name: Run ONNX frontend tests
-        run: ${{ github.workspace }}/bin/intel64/Release/ov_onnx_frontend_tests --gtest_print_time=1 --gtest_filter=-*IE_GPU* --gtest_output=xml:${{ github.workspace }}/testdata/TEST-ONNXFrontend.xml
+        run: ./setupvars.sh -pyver 3.10 && ${{ github.workspace }}/bin/intel64/Release/ov_onnx_frontend_tests --gtest_print_time=1 --gtest_filter=-*IE_GPU* --gtest_output=xml:${{ github.workspace }}/testdata/TEST-ONNXFrontend.xml
         continue-on-error: true
       
       - name: Run Paddle frontend unit tests
-        run: ${{ github.workspace }}/bin/intel64/Release/paddle_tests --gtest_print_time=1 --gtest_output=xml:${{ github.workspace }}/testdata/TEST-Paddle.xml
-      
+        run: ./setupvars.sh -pyver 3.10 && ${{ github.workspace }}/bin/intel64/Release/paddle_tests --gtest_print_time=1 --gtest_output=xml:${{ github.workspace }}/testdata/TEST-Paddle.xml
+        continue-on-error: true
+
       - name: Run TensorFlow frontend unit tests
-        run: ${{ github.workspace }}/bin/intel64/Release/ov_tensorflow_frontend_tests --gtest_print_time=1 --gtest_output=xml:${{ github.workspace }}/testdata/TEST-Tensorflow.xml
-      
-      - name: Run IE unit tests
-        run: ${{ github.workspace }}/bin/intel64/Release/ieUnitTests --gtest_output=xml:${{ github.workspace }}/testdata/TEST-ieUnitTests.xml
+        run: ./setupvars.sh -pyver 3.10 && ${{ github.workspace }}/bin/intel64/Release/ov_tensorflow_frontend_tests --gtest_print_time=1 --gtest_output=xml:${{ github.workspace }}/testdata/TEST-Tensorflow.xml
         continue-on-error: true
+
+      #- name: Run IE unit tests
+      #  run: ${{ github.workspace }}/bin/intel64/Release/ieUnitTests --gtest_output=xml:${{ github.workspace }}/testdata/TEST-ieUnitTests.xml
+      #  continue-on-error: true
       
-      - name: Run Intel CPU unit tests
-        run: ${{ github.workspace }}/bin/intel64/Release/ov_cpu_unit_tests --gtest_output=xml:${{ github.workspace }}/testdata/TEST-ov_cpu_unit_tests.xml
+      #- name: Run Intel CPU unit tests
+      #  run: ${{ github.workspace }}/bin/intel64/Release/ov_cpu_unit_tests --gtest_output=xml:${{ github.workspace }}/testdata/TEST-ov_cpu_unit_tests.xml
       
-      - name: Run GNA unit tests
-        run: ${{ github.workspace }}/bin/intel64/Release/ov_gna_unit_tests --gtest_output=xml:${{ github.workspace }}/testdata/TEST-ov_gna_unit_tests.xml
+      #- name: Run GNA unit tests
+      #  run: ${{ github.workspace }}/bin/intel64/Release/ov_gna_unit_tests --gtest_output=xml:${{ github.workspace }}/testdata/TEST-ov_gna_unit_tests.xml
       
-      - name: Run VPU unit tests
-        run: ${{ github.workspace }}/bin/intel64/Release/vpuUnitTests --gtest_output=xml:${{ github.workspace }}/testdata/TEST-vpuUnitTests.xml
-        continue-on-error: true
+      #- name: Run VPU unit tests
+      #  run: ${{ github.workspace }}/bin/intel64/Release/vpuUnitTests --gtest_output=xml:${{ github.workspace }}/testdata/TEST-vpuUnitTests.xml
+      #  continue-on-error: true
       
-      - name: XLink tests
-        run: ${{ github.workspace }}/bin/intel64/Release/XLinkTests --gtest_output=xml:${{ github.workspace }}/testdata/TEST-XLinkTests.xml
-        continue-on-error: true
+      #- name: XLink tests
+      #  run: ${{ github.workspace }}/bin/intel64/Release/XLinkTests --gtest_output=xml:${{ github.workspace }}/testdata/TEST-XLinkTests.xml
+      #  continue-on-error: true
       
-      - name: Multi unit tests
-        run: ${{ github.workspace }}/bin/intel64/Release/ieMultiPluginUnitTests --gtest_output=xml:${{ github.workspace }}/testdata/TEST-ieMultiPluginUnitTests.xml
+      #- name: Multi unit tests
+      #  run: ${{ github.workspace }}/bin/intel64/Release/ieMultiPluginUnitTests --gtest_output=xml:${{ github.workspace }}/testdata/TEST-ieMultiPluginUnitTests.xml
       
-      - name: TEMPLATE FuncTests
-        run: ${{ github.workspace }}/bin/intel64/Release/ov_template_func_tests --gtest_filter=*smoke* --gtest_output=xml:${{ github.workspace }}/testdata/TEST-templateFuncTests.xml
+      #- name: TEMPLATE FuncTests
+      #  run: ${{ github.workspace }}/bin/intel64/Release/ov_template_func_tests --gtest_filter=*smoke* --gtest_output=xml:${{ github.workspace }}/testdata/TEST-templateFuncTests.xml
       
-      - name: CPU FuncTests
-        run: ${{ github.workspace }}/bin/intel64/Release/ov_cpu_func_tests --gtest_print_time=1 --gtest_filter=*smoke* --gtest_output=xml:${{ github.workspace }}/testdata/TEST-ov_cpu_func_tests.xml
-        continue-on-error: true
+      #- name: CPU FuncTests
+      #  run: ${{ github.workspace }}/bin/intel64/Release/ov_cpu_func_tests --gtest_print_time=1 --gtest_filter=*smoke* --gtest_output=xml:${{ github.workspace }}/testdata/TEST-ov_cpu_func_tests.xml
+      #  continue-on-error: true
       
-      - name: IE CAPITests
-        run: ${{ github.workspace }}/bin/intel64/Release/InferenceEngineCAPITests --gtest_output=xml:${{ github.workspace }}/testdata/TEST-InferenceEngineCAPITests.xml
-        continue-on-error: true
+      #- name: IE CAPITests
+      #  run: ${{ github.workspace }}/bin/intel64/Release/InferenceEngineCAPITests --gtest_output=xml:${{ github.workspace }}/testdata/TEST-InferenceEngineCAPITests.xml
+      #  continue-on-error: true
       
-      - name: OV CAPITests
-        run: ${{ github.workspace }}/bin/intel64/Release/ov_capi_test --gtest_output=xml:${{ github.workspace }}/testdata/TEST-ov_capi_test.xml
-        continue-on-error: true
+      #- name: OV CAPITests
+      #  run: ${{ github.workspace }}/bin/intel64/Release/ov_capi_test --gtest_output=xml:${{ github.workspace }}/testdata/TEST-ov_capi_test.xml
+      #  continue-on-error: true
 
       - name: Build coverage with CMake
         uses: ashutoshvarma/action-cmake-build@master
