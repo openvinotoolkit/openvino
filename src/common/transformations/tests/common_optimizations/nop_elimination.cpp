@@ -1313,7 +1313,7 @@ TEST(SplitConcatElimination, no_sequence_found) {
 
 TEST(nop_elimination, gather_to_squeeze) {
     auto generate_func = [](int64_t gather_axis) {
-        ov::Shape shape{3,3,4,4};
+        ov::Shape shape{3, 3, 4, 4};
         shape[gather_axis] = 1;
         auto arg = std::make_shared<op::Parameter>(element::f32, shape);
         auto indices = op::Constant::create(element::i64, Shape{}, vector<int64_t>{0});
@@ -1330,8 +1330,8 @@ TEST(nop_elimination, gather_to_squeeze) {
     pass_manager.register_pass<ov::pass::NopElimination>();
     auto run_and_check = [&](std::shared_ptr<Function>& func) {
         pass_manager.run_passes(func);
-        ASSERT_TRUE(count_ops_of_type<op::v8::Gather>(func) == 0);
-        ASSERT_TRUE(count_ops_of_type<op::v0::Squeeze>(func) == 1);
+        EXPECT_EQ(count_ops_of_type<op::v8::Gather>(func), 0);
+        EXPECT_EQ(count_ops_of_type<op::v0::Squeeze>(func), 1);
     };
     run_and_check(func_axis_0);
     run_and_check(func_axis_1);
