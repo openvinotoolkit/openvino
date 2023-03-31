@@ -347,3 +347,21 @@ class TestMoFreezePlaceholderTFFE(unittest.TestCase):
             self.basic(".", None, None, None, None,
                        only_conversion=True, input_model_is_text=False, use_new_frontend=True,
                        use_legacy_frontend=False)
+
+    @generate(
+        *[
+            (
+                    {"x": np.array([1, 2], dtype=np.int32), "y": np.array([4], dtype=np.int32)},
+                    np.array([-3, -2], dtype=np.int32),
+                    np.int32,
+            ),
+            (
+                    {"x": np.array([20, 25], dtype=np.int32), "y": np.array([10], dtype=np.int32)},
+                    np.array([30, 35], dtype=np.int32),
+                    np.int32,
+            )
+        ],
+    )
+    def test_conversion_pbtxt_model_with_inference(self, inputs, expected, dtype):
+        self.basic("model_with_if.pbtxt", None, inputs, dtype, expected, only_conversion=False,
+                   input_model_is_text=False, use_new_frontend=True, use_legacy_frontend=False)
