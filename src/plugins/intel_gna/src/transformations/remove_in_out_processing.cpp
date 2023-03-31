@@ -49,7 +49,7 @@ inline bool is_preprocessing_layer_not_supported(std::shared_ptr<ov::Node>& laye
     return false;
 }
 /*
-  Support only one data node as input 0
+  Support only one input node as input 0
  */
 inline std::shared_ptr<ov::Model> copy_single_input_node(std::shared_ptr<ov::Node> node) {
     const ov::element::Type& input_type = node->get_input_element_type(0);
@@ -62,6 +62,11 @@ inline std::shared_ptr<ov::Model> copy_single_input_node(std::shared_ptr<ov::Nod
     auto result = std::make_shared<Result>(node_copy);
     std::shared_ptr<ov::Model> model =
         std::make_shared<ov::Model>(ov::ResultVector{result}, ov::ParameterVector{param});
+
+    ov::pass::Manager manager;
+    manager.register_pass<ov::pass::Serialize>("pre_model_" + model->get_friendly_name() + ".xml",
+                                               "pre_model_" + model->get_friendly_name() + ".bin");
+    manager.run_passes(model);
 
     return model;
 }

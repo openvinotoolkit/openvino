@@ -63,6 +63,7 @@ void TransformationsPipeline::apply(const std::shared_ptr<ov::Model>& model,
     OV_ITT_SCOPED_TASK(itt::domains::GNAPlugin, "TransformationsPipeline::apply");
 
     fake_quantized = ov::op::util::has_op_with_type<ngraph::op::FakeQuantize>(model);
+    const bool has_convolution = ov::op::util::has_op_with_type<ngraph::opset7::Convolution>(model);
 
     ov::pass::Manager manager;
     manager.register_pass<ov::pass::InitNodeInfo>();
@@ -86,7 +87,7 @@ void TransformationsPipeline::apply(const std::shared_ptr<ov::Model>& model,
                                                                                   config.gnaPrecision);
     manager.register_pass<ov::intel_gna::pass::Decompose2DConv>(effective_compile_target, config.gnaPrecision);
     // TODO enable this transformation for networks with convolutions
-    if (!ov::op::util::has_op_with_type<ngraph::opset7::Convolution>(model)) {
+    if (!has_convolution) {
         manager.register_pass<ov::intel_gna::pass::ConvertMatmulWithFqToPointWiseConvolution>();
         manager.register_pass<ov::intel_gna::pass::ConvertMatmulWithBiasToPointWiseConvolution>();
         manager.register_pass<ov::intel_gna::pass::ConvertMatmulToPointWiseConvolution>();
@@ -112,8 +113,11 @@ void TransformationsPipeline::apply(const std::shared_ptr<ov::Model>& model,
     manager.register_pass<ov::intel_gna::pass::RemoveSingleInputConcat>();
     manager.register_pass<ov::intel_gna::pass::SubstituteSoftsign>();
     manager.register_pass<ov::intel_gna::pass::InsertCopyBeforeLayerToBeEliminated>();
-    manager.register_pass<ov::intel_gna::pass::RemoveInputsProcessing>(input_output_subgraphs);
-    manager.register_pass<ov::intel_gna::pass::RemoveOutputsProcessing>(input_output_subgraphs);
+    if (!has_convolution) {
+        // TODO: Remove this condition when the legacy laouyt transformation (NCHW->HHWC) is disabled
+        manager.register_pass<ov::intel_gna::pass::RemoveInputsProcessing>(input_output_subgraphs);
+        manager.register_pass<ov::intel_gna::pass::RemoveOutputsProcessing>(input_output_subgraphs);
+    }
     manager.register_pass<ov::pass::ConvertOpSet3ToOpSet2>();
     manager.register_pass<ov::pass::ConvertOpSet2ToOpSet1>();
     manager.register_pass<ngraph::pass::ConvertOpSet1ToLegacy>();
