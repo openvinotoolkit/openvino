@@ -34,16 +34,13 @@ from scripts.run_timetest import run_timetest
 REFS_FACTOR = 1.2      # 120%
 
 
-def test_timetest(instance, executable, niter, input_precision, output_precision,
-                  cl_cache_dir, model_cache, model_cache_dir, test_info, temp_dir,
-                  validate_test_case, prepare_db_info):
+def test_timetest(instance, executable, niter, cl_cache_dir, model_cache, model_cache_dir,
+                  test_info, temp_dir, validate_test_case, prepare_db_info):
     """Parameterized test.
 
     :param instance: test instance. Should not be changed during test run
     :param executable: timetest executable to run
     :param niter: number of times to run executable
-    :param input_precision: change input model precision
-    :param output_precision: change output model precision
     :param cl_cache_dir: directory to store OpenCL cache
     :param cpu_cache: flag to enable model CPU cache
     :param vpu_compiler: flag to change VPUX compiler type
@@ -58,6 +55,12 @@ def test_timetest(instance, executable, niter, input_precision, output_precision
     model_path = instance["model"].get("path")
     assert model_path, "Model path is empty"
     model_path = Path(expand_env_vars(model_path))
+
+    # Prepare input precision from model configuration
+    input_precision = instance["model"].get("input_precision")
+
+    # Prepare output precision from model configuration
+    output_precision = instance["model"].get("output_precision")
 
     # Copy model to a local temporary directory
     model_dir = temp_dir / "model"

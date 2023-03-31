@@ -60,18 +60,6 @@ def pytest_addoption(parser):
         default=3
     )
     test_args_parser.addoption(
-        "--input_precision",
-        type=str,
-        help="Change input model precision",
-        default=""
-    )
-    test_args_parser.addoption(
-        "--output_precision",
-        type=str,
-        help="Change output model precision",
-        default=""
-    )
-    test_args_parser.addoption(
         "--model_cache",
         action='store_true',
         help="Enable model cache usage",
@@ -136,17 +124,6 @@ def niter(request):
     """Fixture function for command-line option."""
     return request.config.getoption('niter')
 
-
-@pytest.fixture(scope="session")
-def input_precision(request):
-    """Fixture function for command-line option."""
-    return request.config.getoption('input_precision')
-
-
-@pytest.fixture(scope="session")
-def output_precision(request):
-    """Fixture function for command-line option."""
-    return request.config.getoption('output_precision')
 
 @pytest.fixture(scope="session")
 def model_cache(request):
