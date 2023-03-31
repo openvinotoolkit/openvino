@@ -8,6 +8,7 @@
 
 namespace ov {
 namespace intel_gna {
+namespace pre_post_processing {
 
 void ConvertToInt16(int16_t* ptr_dst,
                     const float* ptr_src,
@@ -36,5 +37,6 @@ inline void UnscaleAndCast(T2* ptr_dst,
     }
 }
 
+}  // namespace pre_post_processing
 }  // namespace intel_gna
 }  // namespace ov

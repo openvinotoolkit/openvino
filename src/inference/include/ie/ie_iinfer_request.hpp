@@ -202,7 +202,7 @@ public:
     virtual InferenceEngine::StatusCode SetBatch(int batch_size, ResponseDesc* resp) noexcept = 0;
 
 protected:
-    ~IInferRequest() = default;
+    virtual ~IInferRequest() = default;
 };
 
 _IE_SUPPRESS_DEPRECATED_END_GCC
