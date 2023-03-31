@@ -34,7 +34,7 @@ jobs:
       fail-fast: false
       matrix:
         config:
-          - { name: "Ubuntu gcc", cc: "cc", cxx: "c++" }
+          - { name: "Ubuntu gcc", cc: "gcc", cxx: "g++" }
 
     steps:
       - name: Clone OpenVINO
@@ -65,10 +65,7 @@ jobs:
           version: 1.11.1
         
       - name: Setup gcc
-        uses: egor-tensin/setup-clang@v1
-        with:
-          version: latest
-          platform: x64
+        run: sudo apt --assume-yes g++ gcc
        
      # - name: Install build dependencies
      #   run: |
