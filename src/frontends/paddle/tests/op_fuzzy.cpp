@@ -4,8 +4,6 @@
 
 #include "op_fuzzy.hpp"
 
-#include <cnpy.h>
-
 #include <fstream>
 
 #include "engines_util/test_engines.hpp"

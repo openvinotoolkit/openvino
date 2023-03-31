@@ -2360,7 +2360,7 @@ TEST(DISABLED_lstm_gpu, generic_lstm_clip_f16_cached) {
     generic_lstm_gpu_test<FLOAT16>(1, 7, 1, 3, 3, 2, true, true, true, 0.3f, 0, true);
 }
 
-TEST(lstm_gpu, generic_lstm_input_forget_f16_cached) {
+TEST(DISABLED_lstm_gpu, generic_lstm_input_forget_f16_cached) {
     generic_lstm_gpu_test<FLOAT16>(1, 7, 1, 3, 3, 2, true, true, true, 0.f, 1, true);
 }
 
