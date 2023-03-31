@@ -40,7 +40,7 @@ ov::pass::SoftmaxFusion::SoftmaxFusion() {
         if (!reduce_sum_axes || shape_size(reduce_sum_axes->get_shape()) != 1)
             return false;
         int64_t reduce_sum_axis = reduce_sum_axes->cast_vector<int64_t>()[0];
-        if (reduce_sum_axis < 0){
+        if (reduce_sum_axis < 0) {
             const auto& rank = pattern_map.at(data_pattern).get_partial_shape().rank().get_length();
             reduce_sum_axis += rank;
         }
@@ -53,7 +53,7 @@ ov::pass::SoftmaxFusion::SoftmaxFusion() {
                 return false;
             int64_t reduce_max_axis = reduce_max_axes->cast_vector<int64_t>()[0];
 
-            if (reduce_max_axis < 0){
+            if (reduce_max_axis < 0) {
                 const auto& rank = pattern_map.at(data_pattern).get_partial_shape().rank().get_length();
                 reduce_max_axis += rank;
             }
