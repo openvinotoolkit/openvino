@@ -54,33 +54,33 @@ jobs:
       #  with:
       #    max-size: 50G
 
-      - name: Install build dependencies
-        run: |
-          export http_proxy="http://proxy-dmz.intel.com:911"
-          export https_proxy="http://proxy-dmz.intel.com:912"
-          export no_proxy="localhost,127.0.0.1,intel.com,.intel.com"
-          export HTTP_PROXY="http://proxy-dmz.intel.com:911"
-          export HTTPS_PROXY="http://proxy-dmz.intel.com:912"
-          export NO_PROXY="localhost,127.0.0.1,intel.com,.intel.com"
-          sudo apt --assume-yes update
-          sudo . ${{ github.workspace }}/install_build_dependencies.sh
-          sudo apt --assume-yes install lcov
-          sudo mkdir ${{ github.workspace }}/testdata
+     # - name: Install build dependencies
+     #   run: |
+     #     export http_proxy="http://proxy-dmz.intel.com:911"
+     #     export https_proxy="http://proxy-dmz.intel.com:912"
+     #     export no_proxy="localhost,127.0.0.1,intel.com,.intel.com"
+     #     export HTTP_PROXY="http://proxy-dmz.intel.com:911"
+     #     export HTTPS_PROXY="http://proxy-dmz.intel.com:912"
+     #     export NO_PROXY="localhost,127.0.0.1,intel.com,.intel.com"
+     #     sudo apt --assume-yes update
+     #     sudo . ${{ github.workspace }}/install_build_dependencies.sh
+     #     sudo apt --assume-yes install lcov
+     #     sudo mkdir ${{ github.workspace }}/testdata
       
-      - name: Install python dependencies
-        run: |
-        
-          python3 -m pip install --upgrade pip
-          python3 -m pip install -r ${{ github.workspace }}/src/bindings/python/src/compatibility/openvino/requirements-dev.txt
-          python3 -m pip install -r ${{ github.workspace }}/src/bindings/python/wheel/requirements-dev.txt
-          python3 -m pip install -r ${{ github.workspace }}/src/bindings/python/requirements.txt
-          # For running Python API tests
-          python3 -m pip install -r ${{ github.workspace }}/src/bindings/python/src/compatibility/openvino/requirements-dev.txt
-          # For running Paddle frontend unit tests
-          python3 -m pip install -r ${{ github.workspace }}/src/frontends/paddle/tests/requirements.txt
-          # For running ONNX frontend unit tests
-          python3 -m pip install -r ${{ github.workspace }}/src/frontends/onnx/tests/requirements.txt
-          # For MO unit tests
+     # - name: Install python dependencies
+     #   run: |
+     #   
+     #     python3 -m pip install --upgrade pip
+     #     python3 -m pip install -r ${{ github.workspace }}/src/bindings/python/src/compatibility/openvino/requirements-dev.txt
+     #     python3 -m pip install -r ${{ github.workspace }}/src/bindings/python/wheel/requirements-dev.txt
+     #     python3 -m pip install -r ${{ github.workspace }}/src/bindings/python/requirements.txt
+     #     # For running Python API tests
+     #     python3 -m pip install -r ${{ github.workspace }}/src/bindings/python/src/compatibility/openvino/requirements-dev.txt
+     #     # For running Paddle frontend unit tests
+     #     python3 -m pip install -r ${{ github.workspace }}/src/frontends/paddle/tests/requirements.txt
+     #     # For running ONNX frontend unit tests
+     #     python3 -m pip install -r ${{ github.workspace }}/src/frontends/onnx/tests/requirements.txt
+     #     # For MO unit tests
      #     python3 -m pip install -r ${{ github.workspace }}/tools/mo/requirements.txt
      #     python3 -m pip install -r ${{ github.workspace }}/tools/mo/requirements_dev.txt
      #     pip install -r ${{ github.workspace }}/src/frontends/tensorflow_lite/tests/requirements.txt
