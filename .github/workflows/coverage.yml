@@ -91,7 +91,6 @@ jobs:
           configure-options: >
             -GNinja
             -DENABLE_PYTHON=ON
-            -DBUILD_SHARED_LIBS=ON
             -DENABLE_INTEL_GPU=ON
             -DENABLE_INTEL_CPU=ON
             -DENABLE_ONEDNN_FOR_GPU=ON
