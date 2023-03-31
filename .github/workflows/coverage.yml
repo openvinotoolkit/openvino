@@ -54,6 +54,15 @@ jobs:
       #  with:
       #    max-size: 50G
 
+      - name: Setup cmake
+        uses: jwlawson/actions-setup-cmake@v1.13
+        with:
+          cmake-version: latest
+       
+      - name: Setup ninja
+        uses: ashutoshvarma/setup-ninja@master
+        with:
+          version: 1.11.1
      # - name: Install build dependencies
      #   run: |
      #     export http_proxy="http://proxy-dmz.intel.com:911"
