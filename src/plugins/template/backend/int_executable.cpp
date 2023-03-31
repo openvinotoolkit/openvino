@@ -274,3 +274,7 @@ bool ov::runtime::interpreter::INTExecutable::evaluate_node(const std::shared_pt
     }
     return res;
 }
+
+std::shared_ptr<ov::Model> ov::runtime::interpreter::INTExecutable::get_model() const {
+    return m_model;
+}
