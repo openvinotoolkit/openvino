@@ -49,20 +49,6 @@ jobs:
           printenv
           echo ${{ github.workspace }}
       
-      - name: Set proxy
-        run: |
-          sudo export http_proxy="http://proxy-dmz.intel.com:911"
-          sudo export https_proxy="http://proxy-dmz.intel.com:912"
-          sudo export no_proxy="localhost,127.0.0.1,intel.com,.intel.com"
-          sudo export HTTP_PROXY="http://proxy-dmz.intel.com:911"
-          sudo export HTTPS_PROXY="http://proxy-dmz.intel.com:912"
-          sudo export NO_PROXY="localhost,127.0.0.1,intel.com,.intel.com"
-      - name: System info
-        run: |
-          whoami
-          uname -a
-          printenv
-          echo ${{ github.workspace }}
       #- name: Setup ccache
       #  uses: hendrikmuhs/ccache-action@v1.2
       #  with:
@@ -70,15 +56,15 @@ jobs:
 
       - name: Install build dependencies
         run: |
-          sudo export http_proxy="http://proxy-dmz.intel.com:911"
-          sudo export https_proxy="http://proxy-dmz.intel.com:912"
-          sudo export no_proxy="localhost,127.0.0.1,intel.com,.intel.com"
-          sudo export HTTP_PROXY="http://proxy-dmz.intel.com:911"
-          sudo export HTTPS_PROXY="http://proxy-dmz.intel.com:912"
-          sudo export NO_PROXY="localhost,127.0.0.1,intel.com,.intel.com"
-          sudo apt --assume-yes update
+          export http_proxy="http://proxy-dmz.intel.com:911"
+          export https_proxy="http://proxy-dmz.intel.com:912"
+          export no_proxy="localhost,127.0.0.1,intel.com,.intel.com"
+          export HTTP_PROXY="http://proxy-dmz.intel.com:911"
+          export HTTPS_PROXY="http://proxy-dmz.intel.com:912"
+          export NO_PROXY="localhost,127.0.0.1,intel.com,.intel.com"
+          sudo -E apt --assume-yes update
           sudo -E ${{ github.workspace }}/install_build_dependencies.sh
-          sudo apt --assume-yes install lcov
+          sudo -E apt --assume-yes install lcov
           sudo mkdir ${{ github.workspace }}/testdata
       
       - name: Install python dependencies
