@@ -45,6 +45,11 @@ public:
     ov::SoPtr<IExecutableNetworkInternal> cpuMockExeNetwork;
     NiceMock<MockIInferencePlugin>* cpuMockIPlugin;
     std::shared_ptr<InferenceEngine::IInferencePlugin> cpuMockPlugin;
+    // mock gpu exeNetwork
+    std::shared_ptr<NiceMock<MockIExecutableNetworkInternal>> gpuMockIExeNet;
+    ov::SoPtr<IExecutableNetworkInternal> gpuMockExeNetwork;
+    NiceMock<MockIInferencePlugin>* gpuMockIPlugin;
+    std::shared_ptr<InferenceEngine::IInferencePlugin> gpuMockPlugin;
     std::shared_ptr<NiceMock<MockIInferRequestInternal>> inferReqInternal;
 
 public:
@@ -85,6 +90,16 @@ public:
         EXPECT_CALL(*cpuMockIPluginPtr, LoadNetwork(MatcherCast<const CNNNetwork&>(_), _)).Times(1);
         cpuMockExeNetwork = ov::SoPtr<InferenceEngine::IExecutableNetworkInternal>(cpuMockPlugin->LoadNetwork(CNNNetwork{}, {}), {});
 
+        // prepare gpuMockExeNetwork
+        gpuMockIExeNet = std::make_shared<NiceMock<MockIExecutableNetworkInternal>>();
+        auto gpuMockIPluginPtr = std::make_shared<NiceMock<MockIInferencePlugin>>();
+        ON_CALL(*gpuMockIPluginPtr, LoadNetwork(MatcherCast<const CNNNetwork&>(_), _))
+            .WillByDefault(Return(gpuMockIExeNet));
+        gpuMockPlugin = gpuMockIPluginPtr;
+        // remove annoying ON CALL message
+        EXPECT_CALL(*gpuMockIPluginPtr, LoadNetwork(MatcherCast<const CNNNetwork&>(_), _)).Times(1);
+        gpuMockExeNetwork = ov::SoPtr<InferenceEngine::IExecutableNetworkInternal>(gpuMockPlugin->LoadNetwork(CNNNetwork{}, {}), {});
+
         // prepare mockicore and cnnNetwork for loading
         core = std::shared_ptr<NiceMock<MockICore>>(new NiceMock<MockICore>());
         auto* origin_plugin = new NiceMock<MockMultiPluginForLoadNetworkWithPropertiesTest>();
@@ -94,6 +109,9 @@ public:
         inferReqInternal = std::make_shared<NiceMock<MockIInferRequestInternal>>();
         ON_CALL(*cpuMockIExeNet.get(), CreateInferRequest()).WillByDefault(Return(inferReqInternal));
         ON_CALL(*cpuMockIExeNet.get(), GetMetric(StrEq(METRIC_KEY(OPTIMAL_NUMBER_OF_INFER_REQUESTS))))
+            .WillByDefault(Return("0"));
+        ON_CALL(*gpuMockIExeNet.get(), CreateInferRequest()).WillByDefault(Return(inferReqInternal));
+        ON_CALL(*gpuMockIExeNet.get(), GetMetric(StrEq(METRIC_KEY(OPTIMAL_NUMBER_OF_INFER_REQUESTS))))
             .WillByDefault(Return("0"));
 
         std::vector<std::string> availableDevs = {"CPU", "GPU"};
@@ -161,58 +179,53 @@ public:
                 LoadNetwork(::testing::Matcher<const InferenceEngine::CNNNetwork&>(_),
                             ::testing::Matcher<const std::string&>(StrEq("GPU")),
                             ::testing::Matcher<const std::map<std::string, std::string>&>(_)))
-            .WillByDefault(Throw(InferenceEngine::GeneralError{""}));
+            .WillByDefault(Return(gpuMockExeNetwork));
+
         std::shared_ptr<ngraph::Function> simpleNetwork = ngraph::builder::subgraph::makeSingleConv();
         ASSERT_NO_THROW(simpleCnnNetwork = InferenceEngine::CNNNetwork(simpleNetwork));
     }
 };
 
-TEST_P(AutoCTPUTCallMulti, CTPUTDevicesLogicTest) {
+TEST_P(AutoCTPUTCallMulti, CTPUTDeviceLoadFailedNoExceptionThrowTest) {
     std::vector<std::string> targetDevices;
     std::string targetDev;
     bool AutoCallMulti;
     Config config;
     std::tie(AutoCallMulti, targetDevices) = this->GetParam();
+    std::string loadFailedDevice = targetDevices.size() > 0 ? targetDevices[0] : "";
+    std::string secondDevice = targetDevices.size() > 1 ? targetDevices[1] : "";
     plugin->SetName("MULTI");
     for (auto& deviceName : targetDevices) {
         targetDev += deviceName;
         targetDev += ((deviceName == targetDevices.back()) ? "" : ",");
     }
-    if (AutoCallMulti) {
-        std::shared_ptr<InferenceEngine::IExecutableNetworkInternal> exeNetwork;
-        config.insert({{CONFIG_KEY(PERFORMANCE_HINT), InferenceEngine::PluginConfigParams::CUMULATIVE_THROUGHPUT}});
-        config.insert({InferenceEngine::MultiDeviceConfigParams::KEY_MULTI_DEVICE_PRIORITIES, targetDev});
+    std::shared_ptr<InferenceEngine::IExecutableNetworkInternal> exeNetwork;
+    config.insert({{CONFIG_KEY(PERFORMANCE_HINT), InferenceEngine::PluginConfigParams::CUMULATIVE_THROUGHPUT}});
+    config.insert({InferenceEngine::MultiDeviceConfigParams::KEY_MULTI_DEVICE_PRIORITIES, targetDev});
+    ON_CALL(*core,
+            LoadNetwork(::testing::Matcher<const InferenceEngine::CNNNetwork&>(_),
+                        ::testing::Matcher<const std::string&>(StrEq(loadFailedDevice)),
+                        ::testing::Matcher<const std::map<std::string, std::string>&>(_)))
+        .WillByDefault(Throw(InferenceEngine::GeneralError{""}));
+    if (loadFailedDevice != CommonTestUtils::DEVICE_CPU) {
         EXPECT_CALL(*core,
                     LoadNetwork(::testing::Matcher<const InferenceEngine::CNNNetwork&>(_),
                                 ::testing::Matcher<const std::string&>(CommonTestUtils::DEVICE_CPU),
                                 ::testing::Matcher<const std::map<std::string, std::string>&>(_)))
             .Times(1);
-        EXPECT_CALL(*core,
-                    LoadNetwork(::testing::Matcher<const InferenceEngine::CNNNetwork&>(_),
-                                ::testing::Matcher<const std::string&>(CommonTestUtils::DEVICE_GPU),
-                                ::testing::Matcher<const std::map<std::string, std::string>&>(_)))
-            .Times(1);
-        ASSERT_NO_THROW(exeNetwork = plugin->LoadExeNetworkImpl(simpleCnnNetwork, config));
-        EXPECT_EQ(exeNetwork->GetMetric(ov::execution_devices.name()).as<std::string>(), CommonTestUtils::DEVICE_CPU);
-    } else {
-        config.insert({InferenceEngine::MultiDeviceConfigParams::KEY_MULTI_DEVICE_PRIORITIES, targetDev});
-        EXPECT_CALL(*core,
-                    LoadNetwork(::testing::Matcher<const InferenceEngine::CNNNetwork&>(_),
-                                ::testing::Matcher<const std::string&>(CommonTestUtils::DEVICE_CPU),
-                                ::testing::Matcher<const std::map<std::string, std::string>&>(_)))
-            .Times(0);
-        EXPECT_CALL(*core,
-                    LoadNetwork(::testing::Matcher<const InferenceEngine::CNNNetwork&>(_),
-                                ::testing::Matcher<const std::string&>(CommonTestUtils::DEVICE_GPU),
-                                ::testing::Matcher<const std::map<std::string, std::string>&>(_)))
-            .Times(1);
-        EXPECT_THROW(plugin->LoadExeNetworkImpl(simpleCnnNetwork, config), IE::Exception);
     }
+    if (loadFailedDevice != CommonTestUtils::DEVICE_GPU) {
+        EXPECT_CALL(*core,
+                    LoadNetwork(::testing::Matcher<const InferenceEngine::CNNNetwork&>(_),
+                                ::testing::Matcher<const std::string&>(CommonTestUtils::DEVICE_GPU),
+                                ::testing::Matcher<const std::map<std::string, std::string>&>(_)))
+            .Times(1);
+    }
+    ASSERT_NO_THROW(exeNetwork = plugin->LoadExeNetworkImpl(simpleCnnNetwork, config));
+    EXPECT_EQ(exeNetwork->GetMetric(ov::execution_devices.name()).as<std::string>(), secondDevice);
 }
 
 const std::vector<ConfigParams> testConfigs = {
-    ConfigParams{false, {"CPU", "GPU"}},
-    ConfigParams{false, {"GPU", "CPU"}},
     ConfigParams{true, {"CPU", "GPU"}},
     ConfigParams{true, {"GPU", "CPU"}},
 };

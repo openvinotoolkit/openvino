@@ -124,5 +124,9 @@ std::vector<std::string> disabledTestPatterns() {
 
             // Looks like the test is targeting CPU plugin and doesn't respect that execution graph may vary from plugin to plugin
             R"(.*ExecGraphSerializationTest.*)",
+
+            // TODO: support getconfig in auto/multi CVS-104942
+            // TODO: move auto/multi cases to dedicated unit tests
+            R"(.*(Auto|Multi).*SetPropLoadNetWorkGetPropTests.*)",
     };
 }

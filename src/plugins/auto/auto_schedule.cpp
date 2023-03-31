@@ -234,9 +234,7 @@ void AutoSchedule::init(const ScheduleContext::Ptr& sContext) {
     bool isCumulative =
         (_autoSContext->_performanceHint == IE::PluginConfigParams::CUMULATIVE_THROUGHPUT) ? true : false;
     if (isCumulative) {
-        std::list<DeviceInformation> validDevices =
-            _autoSContext->_plugin->GetValidDevice(_autoSContext->_devicePriorities,
-                                                   _loadContext[ACTUALDEVICE].networkPrecision);
+        const auto& validDevices = _autoSContext->_devicePriorities;
         // When the hint is ctput and there is only one device, the single-device logic is used
         if (validDevices.size() == 1) {
             _loadContext[ACTUALDEVICE].deviceInfo = validDevices.front();
@@ -244,14 +242,10 @@ void AutoSchedule::init(const ScheduleContext::Ptr& sContext) {
                 IE::PluginConfigParams::THROUGHPUT;
         } else if (validDevices.size() > 1) {
             _loadContext[ACTUALDEVICE].isEnabled = false;
-            _autoSContext->_devicePriorities.clear();
-            std::copy(std::begin(validDevices),
-                      std::end(validDevices),
-                      std::back_inserter(_autoSContext->_devicePriorities));
             // Total number of devices in CTPUT
-            auto nCTputDeviceNums = validDevices.size();
+            _nCTputDeviceNums = validDevices.size();
             // Generate contexts for loading each device
-            _pCTPUTLoadContext.reset(new AutoLoadContext[nCTputDeviceNums]);
+            _pCTPUTLoadContext.reset(new AutoLoadContext[_nCTputDeviceNums]);
             int idx = 0;
             DeviceInformation cpuDeviceInformation;
             for (auto& device : validDevices) {
@@ -271,6 +265,10 @@ void AutoSchedule::init(const ScheduleContext::Ptr& sContext) {
                 _pCTPUTLoadContext[idx].deviceInfo.config[CONFIG_KEY(PERFORMANCE_HINT)] =
                     IE::PluginConfigParams::THROUGHPUT;
             }
+        }
+        if (_autoSContext->_LogTag == "MULTI") {
+            // MULTI's performance hint always is tput
+            _autoSContext->_performanceHint = IE::PluginConfigParams::THROUGHPUT;
         }
     } else {
         _loadContext[ACTUALDEVICE].deviceInfo =
@@ -388,12 +386,12 @@ void AutoSchedule::init(const ScheduleContext::Ptr& sContext) {
     std::vector<Task> otherDevicesloads;
     std::vector<Task> cpuLoads;
     if (_pCTPUTLoadContext) {
-        for (size_t i = 0; i < _autoSContext->_devicePriorities.size(); i++) {
+        for (size_t i = 0; i < _nCTputDeviceNums; i++) {
             auto* contextPtr = &_pCTPUTLoadContext[i];
             auto modelPath = _autoSContext->_modelPath;
             auto network = _autoSContext->_network;
             _pCTPUTLoadContext[i].task = std::bind(loadDeviceTask, contextPtr, modelPath, network, isCumulative);
-            if (i == _autoSContext->_devicePriorities.size() - 1 &&
+            if (i == _nCTputDeviceNums - 1 &&
                 _pCTPUTLoadContext[i].deviceInfo.deviceName.find("CPU") != std::string::npos) {
                 cpuLoads.push_back(_pCTPUTLoadContext[i].task);
             } else {
@@ -518,7 +516,7 @@ void AutoSchedule::init(const ScheduleContext::Ptr& sContext) {
             _passthroughExeNet = _loadContext[ACTUALDEVICE].executableNetwork;
         }
     }
-    WaitFirstNetworkReady();
+    _autoSContext->_hwExecutableNetwork = WaitFirstNetworkReady();
 }
 
 void AutoSchedule::TryToLoadNetWork(AutoLoadContext& context, const std::string& modelPath, const IE::CNNNetwork& network, bool isCumulative) {
@@ -618,7 +616,7 @@ void AutoSchedule::TryToLoadNetWork(AutoLoadContext& context, const std::string&
     TryToLoadNetWork(context, modelPath, network, isCumulative);
 }
 
-void AutoSchedule::WaitFirstNetworkReady() {
+SoExecNetwork AutoSchedule::WaitFirstNetworkReady() {
     if (_firstLoadFuture.valid()) {
         // wait for the first loading finished
         _firstLoadFuture.wait();
@@ -626,7 +624,7 @@ void AutoSchedule::WaitFirstNetworkReady() {
     // check if there is any device that have loaded network successfully
     for (int i = CONTEXTNUM - 2; i >= 0; i--) {
         if (_loadContext[i].isEnabled && _loadContext[i].isAlready) {
-            return;
+            return _loadContext[i].executableNetwork;
         }
     }
     // the first loading is failed, wait for another loading
@@ -635,7 +633,7 @@ void AutoSchedule::WaitFirstNetworkReady() {
             _loadContext[i].future.wait();
             // check if loading is successful
             if (_loadContext[i].isAlready) {
-                return;
+                return _loadContext[i].executableNetwork;
             }
         }
     }
@@ -646,17 +644,21 @@ void AutoSchedule::WaitFirstNetworkReady() {
         }
     }
     // devices loaded successfully in CTPUT
+    SoExecNetwork execNetwork;
     if (_pCTPUTLoadContext) {
         int nLoadSucNums = 0;
-        for (size_t i = 0; i < _autoSContext->_devicePriorities.size(); i++) {
+        for (size_t i = 0; i < _nCTputDeviceNums; i++) {
             // check if device loaded successfully
             if (_pCTPUTLoadContext[i].isAlready) {
+                if (!execNetwork) {
+                    execNetwork = _pCTPUTLoadContext[i].executableNetwork;
+                }
                 nLoadSucNums++;
             }
         }
         // one or more devices loaded successfully
         if (nLoadSucNums > 0) {
-            return;
+            return execNetwork;
         }
     }
     IE_THROW() << GetLogTag() << "load all devices failed";
@@ -784,7 +786,6 @@ IInferPtr AutoSchedule::CreateInferRequest() {
             so = _passthroughExeNet._so;
         syncRequestImpl->setPointerToSo(so);
     } else if (std::static_pointer_cast<MultiDeviceInferRequest>(syncRequestImpl)->GetSharedRequest()) {
-        // cumulative case, load to MULTI:*
         auto sharedMultiRequest = std::static_pointer_cast<MultiDeviceInferRequest>(syncRequestImpl)->GetSharedRequest();
         if (sharedMultiRequest._ptr->getPointerToSo())
             syncRequestImpl->setPointerToSo(sharedMultiRequest._ptr->getPointerToSo());

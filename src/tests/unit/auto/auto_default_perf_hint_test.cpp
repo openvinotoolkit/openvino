@@ -180,13 +180,13 @@ public:
         testConfigs.push_back(ConfigParams{
             "MULTI:CPU,GPU",
             {"CPU", "GPU"},
-            {{"DEVICE_PROPERTIES", "{GPU:{PERFORMANCE_HINT:LATENCY}}"},
-             {"MULTI_DEVICE_PRIORITIES", "CPU,GPU"}}});  // CPU: get default_hint:tput  GPU: get perf_hint:latency
+            {{"DEVICE_PROPERTIES", "{GPU:{PERFORMANCE_HINT:THROUGHPUT}}"},
+             {"MULTI_DEVICE_PRIORITIES", "CPU,GPU"}}});  // CPU: get default_hint:tput  GPU: get perf_hint:tput
         testConfigs.push_back(ConfigParams{
             "MULTI:CPU,GPU",
             {"CPU", "GPU"},
-            {{"DEVICE_PROPERTIES", "{CPU:{PERFORMANCE_HINT:LATENCY},GPU:{PERFORMANCE_HINT:LATENCY}}"},
-             {"MULTI_DEVICE_PRIORITIES", "CPU,GPU"}}});  // CPU: get perf_hint:lantency  GPU: get perf_hint:lantency
+            {{"DEVICE_PROPERTIES", "{CPU:{PERFORMANCE_HINT:THROUGHPUT},GPU:{PERFORMANCE_HINT:THROUGHPUT}}"},
+             {"MULTI_DEVICE_PRIORITIES", "CPU,GPU"}}});  // CPU: get perf_hint:tput  GPU: get perf_hint:tput
         return testConfigs;
     }
 
@@ -221,17 +221,17 @@ public:
             "MULTI:CPU,GPU",
             {"CPU", "GPU"},
             {{"CPU", "{ALLOW_AUTO_BATCHING:FALSE}"},
-             {"MULTI_DEVICE_PRIORITIES", "CPU,GPU"}}});  // CPU: no perf_hint  GPU: get default_hint:tput
+             {"MULTI_DEVICE_PRIORITIES", "CPU,GPU"}}});  // CPU: get default_hint:tput  GPU: get default_hint:tput
         testConfigs.push_back(ConfigParams{
             "MULTI:CPU,GPU",
             {"CPU", "GPU"},
             {{"DEVICE_PROPERTIES", "GPU:{ALLOW_AUTO_BATCHING:FALSE}}"},
-             {"MULTI_DEVICE_PRIORITIES", "CPU,GPU"}}});  // CPU: get default_hint:tput  GPU: no perf_hint
+             {"MULTI_DEVICE_PRIORITIES", "CPU,GPU"}}});  // CPU: get default_hint:tput  GPU: get default_hint:tput
         testConfigs.push_back(ConfigParams{
             "MULTI:CPU,GPU",
             {"CPU", "GPU"},
             {{"DEVICE_PROPERTIES", "CPU:{ALLOW_AUTO_BATCHING:TRUE},GPU:{ALLOW_AUTO_BATCHING:FALSE}}"},
-             {"MULTI_DEVICE_PRIORITIES", "CPU,GPU"}}});  // CPU: no perf_hint GPU: no perf_hint
+             {"MULTI_DEVICE_PRIORITIES", "CPU,GPU"}}});  // CPU: no perf_hint GPU: get default_hint:tput
         return testConfigs;
     }
 
@@ -498,11 +498,6 @@ TEST_P(SecPropAndDefaultPerfHintMockTest, SecPropAndDefaultPerfHintTest) {
         } else {
             // HW default perf_hint
             HW_PerfHint = bIsAuto ? "LATENCY" : "THROUGHPUT";
-        }
-        auto item = config.find(deviceName);
-        if (item != config.end() && !isCPUHelper) {
-            // do not pass default perf_hint to HW
-            HW_PerfHint = "No PERFORMANCE_HINT";
         }
 
         EXPECT_CALL(
