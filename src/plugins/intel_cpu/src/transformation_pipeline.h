@@ -28,7 +28,7 @@ public:
                     const bool                        enableLpt,
                     const bool                        enableBF16,
                     const bool                        isLegacyApi,
-                    Config::SnippetsMode&             snippetsMode,
+                    const Config::SnippetsMode&       snippetsMode,
                     const Config&                     config)
         : model(initialModel),
           enableLpt(enableLpt),
@@ -40,7 +40,7 @@ public:
           }
 
     void UpToCpuSpecificOpSet();
-    void CpuSpecificOpSet(void);
+    void CpuSpecificOpSet();
 
 private:
     std::shared_ptr<ov::Model> model;
