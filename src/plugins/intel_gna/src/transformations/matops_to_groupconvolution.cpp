@@ -280,44 +280,27 @@ static bool Decompose(std::shared_ptr<ov::Node> math_node) {
     return true;
 }
 
-AddDecomposition::AddDecomposition() {
-    MATCHER_SCOPE(AddDecomposition);
+MathOptoGroupConvolutionDecomposition::MathOptoGroupConvolutionDecomposition() {
+    MATCHER_SCOPE(MathOptoGroupConvolutionDecomposition);
     auto add = ngraph::pattern::wrap_type<ngraph::opset8::Add>();
-
-    ov::matcher_pass_callback callback = [](ngraph::pattern::Matcher& m) {
-        auto add = std::dynamic_pointer_cast<ngraph::opset8::Add>(m.get_match_root());
-        return Decompose(add);
-    };
-
-    auto m = std::make_shared<ngraph::pattern::Matcher>(add, matcher_name);
-    this->register_matcher(m, callback);
-}
-
-SubDecomposition::SubDecomposition() {
-    MATCHER_SCOPE(SubDecomposition);
     auto sub = ngraph::pattern::wrap_type<ngraph::opset8::Subtract>();
-
-    ov::matcher_pass_callback callback = [](ngraph::pattern::Matcher& m) {
-        auto sub = std::dynamic_pointer_cast<ngraph::opset8::Subtract>(m.get_match_root());
-
-        return Decompose(sub);
-    };
-
-    auto m = std::make_shared<ngraph::pattern::Matcher>(sub, matcher_name);
-    this->register_matcher(m, callback);
-}
-
-MulDecomposition::MulDecomposition() {
-    MATCHER_SCOPE(MulDecomposition);
     auto mul = ngraph::pattern::wrap_type<ngraph::opset8::Multiply>();
+    const auto mathOp = std::make_shared<ngraph::pattern::op::Or>(ngraph::OutputVector{add, sub, mul});
 
     ov::matcher_pass_callback callback = [](ngraph::pattern::Matcher& m) {
-        auto mul = std::dynamic_pointer_cast<ngraph::opset8::Multiply>(m.get_match_root());
-
-        return Decompose(mul);
+        auto node = m.get_match_root();
+        if (auto add = std::dynamic_pointer_cast<ngraph::opset8::Add>(node)) {
+            return Decompose(add);
+        } else if (auto sub = std::dynamic_pointer_cast<ngraph::opset8::Subtract>(node)) {
+            return Decompose(sub);
+        } else if (auto mul = std::dynamic_pointer_cast<ngraph::opset8::Multiply>(node)) {
+            return Decompose(mul);
+        } else { 
+            throw ngraph::ngraph_error("MathOptoGroupConvolutionDecomposition: op type is not supported"); 
+        }
     };
 
-    auto m = std::make_shared<ngraph::pattern::Matcher>(mul, matcher_name);
+    auto m = std::make_shared<ngraph::pattern::Matcher>(mathOp, matcher_name);
     this->register_matcher(m, callback);
 }
 

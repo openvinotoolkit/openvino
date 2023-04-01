@@ -38,11 +38,6 @@ namespace pass {
  *                                                  
  *                                      
  */
-class AddDecomposition : public ngraph::pass::MatcherPass {
-public:
-    OPENVINO_RTTI("AddDecomposition", "0");
-    AddDecomposition();
-};
 
 /**
  * @brief Convert a Subtract operation a Group convolution followed by Add with NCHW layout:
@@ -70,12 +65,6 @@ public:
  *
  *
  */
-class SubDecomposition : public ngraph::pass::MatcherPass {
-public:
-    OPENVINO_RTTI("SubDecomposition", "0");
-    SubDecomposition();
-};
-
 
 /**
  * @brief Convert a Multiply operation to a Group convolution with NCHW layout:
@@ -98,10 +87,11 @@ public:
  *
  *
  */
-class MulDecomposition : public ngraph::pass::MatcherPass {
+
+class MathOptoGroupConvolutionDecomposition : public ngraph::pass::MatcherPass {
 public:
-    OPENVINO_RTTI("MulDecomposition", "0");
-    MulDecomposition();
+    OPENVINO_RTTI("MathOptoGroupConvolutionDecomposition", "0");
+    MathOptoGroupConvolutionDecomposition();
 };
 
 }  // namespace pass
