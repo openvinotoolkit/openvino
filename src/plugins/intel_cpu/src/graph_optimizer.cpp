@@ -191,6 +191,10 @@ void GraphOptimizer::FuseConvMatmulFCDeconvAndDQScales(Graph &graph) {
         auto scaleNode = node->getParentEdgesAtPort(1)[0]->getParent();
         if (parentNode->getOriginalInputPrecisionAtPort(0) != Precision::U8 && parentNode->getOriginalInputPrecisionAtPort(0) != Precision::I8)
             return false;
+        //Deconv has some heuristic limitation to use INT8 besides input precision.
+        auto deconv = std::dynamic_pointer_cast<Deconvolution>(parentNode);
+        if (deconv && !deconv->canBeExecutedInInt8())
+            return false;
         return ((parentNode->getType() == Type::Convolution
                         || parentNode->getType() == Type::MatMul
                         || parentNode->getType() == Type::Deconvolution
