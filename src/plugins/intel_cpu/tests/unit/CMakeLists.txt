@@ -44,7 +44,10 @@ addIeTargetTest(
 )
 
 target_include_directories(${TARGET_NAME} SYSTEM PRIVATE
-    $<TARGET_PROPERTY:dnnl,INCLUDE_DIRECTORIES>)
+    $<TARGET_PROPERTY:dnnl,INCLUDE_DIRECTORIES>
+    $<TARGET_PROPERTY:dnnl,SOURCE_DIR>/src/common
+    $<TARGET_PROPERTY:dnnl,SOURCE_DIR>/src/cpu
+    $<TARGET_PROPERTY:dnnl,SOURCE_DIR>/include)
 
 if (WIN32)
     # Prevents defining min/max as macros
@@ -55,7 +58,5 @@ ie_faster_build(${TARGET_NAME}
     UNITY
 )
 
-target_include_directories(${TARGET_NAME} SYSTEM PRIVATE
-    $<TARGET_PROPERTY:dnnl,SOURCE_DIR>/src/common
-    $<TARGET_PROPERTY:dnnl,SOURCE_DIR>/src/cpu
-    $<TARGET_PROPERTY:dnnl,SOURCE_DIR>/include)
+# LTO
+set_target_properties(${TARGET_NAME} PROPERTIES INTERPROCEDURAL_OPTIMIZATION_RELEASE ${ENABLE_LTO})
