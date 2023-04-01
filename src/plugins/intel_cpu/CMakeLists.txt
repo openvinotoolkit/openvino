@@ -54,8 +54,7 @@ ie_mark_target_as_cc(${TARGET_NAME})
 target_link_libraries(${TARGET_NAME} PRIVATE dnnl
                                              ov_shape_inference
                                              openvino::pugixml
-                                             inference_engine_snippets
-                                             inference_engine)
+                                             inference_engine_snippets)
 
 target_compile_definitions(${TARGET_NAME} PRIVATE IMPLEMENT_INFERENCE_EXTENSION_API)
 target_include_directories(${TARGET_NAME} PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/src)
