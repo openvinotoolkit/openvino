@@ -153,19 +153,6 @@ void IStreamsExecutor::Config::set_property(const ov::AnyMap& property) {
                            << ". Expected only non negative numbers (#streams)";
             }
             _big_core_streams = val_i;
-        } else if (key == CONFIG_KEY_INTERNAL(BIG_CORE_LOGIC_STREAMS)) {
-            int val_i;
-            try {
-                val_i = value.as<int>();
-            } catch (const std::exception&) {
-                IE_THROW() << "Wrong value for HYBRID_AWARE key " << CONFIG_KEY_INTERNAL(BIG_CORE_LOGIC_STREAMS)
-                           << ". Expected only non negative numbers (#streams)";
-            }
-            if (val_i < 0) {
-                IE_THROW() << "Wrong value for HYBRID_AWARE key " << CONFIG_KEY_INTERNAL(BIG_CORE_LOGIC_STREAMS)
-                           << ". Expected only non negative numbers (#streams)";
-            }
-            _big_core_logic_streams = val_i;
         } else if (key == CONFIG_KEY_INTERNAL(SMALL_CORE_STREAMS)) {
             int val_i;
             try {
@@ -240,7 +227,6 @@ ov::Any IStreamsExecutor::Config::get_property(const std::string& key) const {
             CONFIG_KEY(CPU_THREADS_NUM),
             CONFIG_KEY_INTERNAL(CPU_THREADS_PER_STREAM),
             CONFIG_KEY_INTERNAL(BIG_CORE_STREAMS),
-            CONFIG_KEY_INTERNAL(BIG_CORE_LOGIC_STREAMS),
             CONFIG_KEY_INTERNAL(SMALL_CORE_STREAMS),
             CONFIG_KEY_INTERNAL(THREADS_PER_STREAM_BIG),
             CONFIG_KEY_INTERNAL(THREADS_PER_STREAM_SMALL),
@@ -285,8 +271,6 @@ ov::Any IStreamsExecutor::Config::get_property(const std::string& key) const {
         return {std::to_string(_threadsPerStream)};
     } else if (key == CONFIG_KEY_INTERNAL(BIG_CORE_STREAMS)) {
         return {std::to_string(_big_core_streams)};
-    } else if (key == CONFIG_KEY_INTERNAL(BIG_CORE_LOGIC_STREAMS)) {
-        return {std::to_string(_big_core_logic_streams)};
     } else if (key == CONFIG_KEY_INTERNAL(SMALL_CORE_STREAMS)) {
         return {std::to_string(_small_core_streams)};
     } else if (key == CONFIG_KEY_INTERNAL(THREADS_PER_STREAM_BIG)) {

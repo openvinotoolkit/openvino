@@ -26,9 +26,9 @@ struct CPU {
     int _socket_idx = 0;
 
     CPU() {
-        init_cpu(*this);
+        init_cpu();
     }
-    void init_cpu(CPU& cpu);
+    void init_cpu();
 };
 
 #ifdef __linux__

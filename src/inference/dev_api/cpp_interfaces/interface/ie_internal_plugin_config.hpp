@@ -54,13 +54,6 @@ DECLARE_CONFIG_KEY(CPU_THREADS_PER_STREAM);
 DECLARE_CONFIG_KEY(BIG_CORE_STREAMS);
 
 /**
- * @brief Number of streams in Performance-logical core(big core)
- * @ingroup ie_dev_api_plugin_api
- * @brief Shortcut for defining internal configuration values
- */
-DECLARE_CONFIG_KEY(BIG_CORE_LOGIC_STREAMS);
-
-/**
  * @brief Number of streams in Efficient-core(small core) on hybrid cores machine
  * @ingroup ie_dev_api_plugin_api
  * @brief Shortcut for defining internal configuration values

@@ -161,7 +161,7 @@ OPENVINO_RUNTIME_API std::vector<std::vector<int>> get_num_available_cpu_cores()
  * @param[in]  cpu_ids physical cores
  * @return     logical cores corresponding to physical core.
  */
-OPENVINO_RUNTIME_API std::vector<int> get_logic_cores(const std::vector<int> cpu_ids);
+OPENVINO_RUNTIME_API std::vector<int> get_logical_cores(const std::vector<int> cpu_ids);
 
 /**
  * @enum       ColumnOfProcessorTypeTable

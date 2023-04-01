@@ -17,7 +17,7 @@
 
 namespace ov {
 
-void CPU::init_cpu(CPU& cpu) {
+void CPU::init_cpu() {
     DWORD len = 0;
     if (GetLogicalProcessorInformationEx(RelationAll, nullptr, &len) || GetLastError() != ERROR_INSUFFICIENT_BUFFER) {
         return;
@@ -29,15 +29,15 @@ void CPU::init_cpu(CPU& cpu) {
         return;
     }
 
-    cpu._processors = GetMaximumProcessorCount(ALL_PROCESSOR_GROUPS);
+    _processors = GetMaximumProcessorCount(ALL_PROCESSOR_GROUPS);
 
     parse_processor_info_win(base_ptr,
                              len,
-                             cpu._processors,
-                             cpu._sockets,
-                             cpu._cores,
-                             cpu._proc_type_table,
-                             cpu._cpu_mapping_table);
+                             _processors,
+                             _sockets,
+                             _cores,
+                             _proc_type_table,
+                             _cpu_mapping_table);
 }
 
 void parse_processor_info_win(const char* base_ptr,

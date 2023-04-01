@@ -271,7 +271,7 @@ void Engine::ApplyPerformanceHints(std::map<std::string, std::string> &config, c
 }
 
 void Engine::GetPerformanceStreams(std::map<std::string, std::string>& config,
-                                   const std::shared_ptr<ngraph::Function>& ngraphFunc) const {
+                                   const std::shared_ptr<ngraph::Function>& ngraphFunc) {
     auto getPerfHintName = [&]() {
         const bool streamsExplicitlySetForModel = streamsSet(config);
         // checking streams (to avoid overriding what user might explicitly set in the incoming config or previously via
@@ -309,18 +309,7 @@ void Engine::GetPerformanceStreams(std::map<std::string, std::string>& config,
         infer_requests = engConfig.perfHintsConfig.ovPerfHintNumRequests;
     }
 
-    const auto common_hints = get_num_streams(streams, infer_requests, ngraphFunc, engConfig.streamExecutorConfig);
-
-    config[CONFIG_KEY(CPU_THROUGHPUT_STREAMS)] = common_hints.first;
-    config[ov::num_streams.name()] = common_hints.first;
-    config[CONFIG_KEY(CPU_THREADS_NUM)] = std::to_string(common_hints.second.num_threads);
-    config[CONFIG_KEY_INTERNAL(BIG_CORE_STREAMS)] = std::to_string(common_hints.second.big_core_streams);
-    config[CONFIG_KEY_INTERNAL(BIG_CORE_LOGIC_STREAMS)] = std::to_string(common_hints.second.big_core_logic_streams);
-    config[CONFIG_KEY_INTERNAL(SMALL_CORE_STREAMS)] = std::to_string(common_hints.second.small_core_streams);
-    config[CONFIG_KEY_INTERNAL(THREADS_PER_STREAM_BIG)] = std::to_string(common_hints.second.threads_per_stream_big);
-    config[CONFIG_KEY_INTERNAL(THREADS_PER_STREAM_SMALL)] =
-        std::to_string(common_hints.second.threads_per_stream_small);
-    config[CONFIG_KEY_INTERNAL(SMALL_CORE_OFFSET)] = std::to_string(common_hints.second.small_core_offset);
+    get_num_streams(streams, infer_requests, ngraphFunc, engConfig);
 }
 
 StreamCfg Engine::GetNumStreams(InferenceEngine::IStreamsExecutor::ThreadBindingType thread_binding_type,
@@ -483,7 +472,7 @@ Engine::LoadExeNetworkImpl(const InferenceEngine::CNNNetwork &network, const std
     }
 
     if (is_cpu_map_available()) {
-        SetStreamtoConfig(config);
+        engConfig.readProperties(config);
         GetPerformanceStreams(config, nGraphFunc);
     } else {
         ApplyPerformanceHints(config, nGraphFunc);
@@ -520,15 +509,6 @@ void Engine::SetConfig(const std::map<std::string, std::string> &config) {
     streamsExplicitlySetForEngine = streamsSet(config);
 
     engConfig.readProperties(config);
-}
-
-void Engine::SetStreamtoConfig(const std::map<std::string, std::string>& config) {
-    auto set_enable = config.count(PluginConfigParams::KEY_CPU_THROUGHPUT_STREAMS) ||
-                      config.count(ov::num_streams.name()) || config.count(CONFIG_KEY(CPU_THREADS_NUM)) ||
-                      config.count(ov::inference_num_threads.name());
-    if (set_enable && is_cpu_map_available()) {
-        engConfig.readProperties(config);
-    }
 }
 
 bool Engine::isLegacyAPI() const {

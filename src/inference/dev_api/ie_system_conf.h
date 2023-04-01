@@ -171,7 +171,7 @@ using ov::get_num_available_cpu_cores;
  * @param[in]  cpu_ids physical cores
  * @return     logical cores corresponding to physical core.
  */
-using ov::get_logic_cores;
+using ov::get_logical_cores;
 
 /**
  * @brief      Returns available cpu ids

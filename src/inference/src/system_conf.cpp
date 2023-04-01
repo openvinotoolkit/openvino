@@ -175,7 +175,7 @@ std::vector<int> reserve_available_cpus(const ColumnOfProcessorTypeTable core_ty
                                         const bool reserve_logic_core) {
     return {};
 }
-std::vector<int> get_logic_cores(const std::vector<int> cpu_ids) {
+std::vector<int> get_logical_cores(const std::vector<int> cpu_ids) {
     return {};
 }
 void set_cpu_used(std::vector<int>& cpu_ids, int used) {}
@@ -257,7 +257,7 @@ std::vector<int> reserve_available_cpus(const ColumnOfProcessorTypeTable core_ty
             }
         }
         if (reserve_logic_core) {
-            auto logic_ids = get_logic_cores(cpu_ids);
+            auto logic_ids = get_logical_cores(cpu_ids);
             cpu_ids.insert(cpu_ids.end(), logic_ids.begin(), logic_ids.end());
         }
         set_cpu_used(cpu_ids, reset_status);
@@ -267,7 +267,7 @@ std::vector<int> reserve_available_cpus(const ColumnOfProcessorTypeTable core_ty
     return cpu_ids;
 }
 
-std::vector<int> get_logic_cores(const std::vector<int> cpu_ids) {
+std::vector<int> get_logical_cores(const std::vector<int> cpu_ids) {
     std::vector<int> logic_cores;
     if (cpu._proc_type_table[0][HYPER_THREADING_PROC] > 0) {
         int cpu_size = static_cast<int>(cpu_ids.size());
