@@ -29,6 +29,9 @@ public:
     INTExecutable(const std::shared_ptr<ov::Model>& model);
 
     bool call(std::vector<ov::Tensor>& outputs, const std::vector<ov::Tensor>& inputs) override;
+    bool call(std::vector<ov::Tensor>& outputs,
+              const std::vector<ov::Tensor>& inputs,
+              const ov::EvaluationContext& context) override;
 
     ov::Tensor create_input_tensor(size_t input_index) override;
 
@@ -37,6 +40,8 @@ public:
     std::vector<ov::Tensor> create_input_tensor(size_t input_index, size_t pipeline_depth) override;
 
     std::vector<ov::Tensor> create_output_tensor(size_t output_index, size_t pipeline_depth) override;
+
+    std::shared_ptr<ov::Model> get_model() const override;
 
 protected:
     std::shared_ptr<ov::op::v0::Parameter> get_parameter(size_t index) const;

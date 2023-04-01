@@ -346,7 +346,7 @@ if(ENABLE_OV_PADDLE_FRONTEND OR ENABLE_OV_ONNX_FRONTEND OR ENABLE_OV_TF_FRONTEND
         if(CMAKE_VERBOSE_MAKEFILE)
             set(Protobuf_DEBUG ON)
         endif()
-        find_package(Protobuf 3.18.2 REQUIRED)
+        find_package(Protobuf 3.20.3 REQUIRED)
         set(Protobuf_LITE_LIBRARIES protobuf::libprotobuf-lite)
         set(Protobuf_LIBRARIES protobuf::libprotobuf)
         set(PROTOC_EXECUTABLE protobuf::protoc)
@@ -414,6 +414,51 @@ if(ENABLE_OV_TF_LITE_FRONTEND)
     set(flatbuffers_INCLUDE_DIRECTORIES $<TARGET_PROPERTY:${flatbuffers_LIBRARY},INTERFACE_INCLUDE_DIRECTORIES> PARENT_SCOPE)
     set(flatbuffers_COMPILER ${flatbuffers_COMPILER} PARENT_SCOPE)
     set(flatbuffers_DEPENDENCY ${flatbuffers_DEPENDENCY} PARENT_SCOPE)
+endif()
+
+#
+# Snappy Compression
+#
+
+if(ENABLE_SNAPPY_COMPRESSION)
+    if(ENABLE_SYSTEM_SNAPPY)
+        find_package(Snappy REQUIRED)
+        set_target_properties(Snappy::snappy PROPERTIES IMPORTED_GLOBAL ON)
+    endif()
+
+    if(NOT TARGET Snappy::snappy)
+        function(tf_build_snappy)
+            set(BUILD_SHARED_LIBS OFF)
+            set(SNAPPY_BUILD_BENCHMARKS OFF)
+            set(SNAPPY_BUILD_TESTS OFF)
+            set(INSTALL_GTEST OFF)
+            set(CMAKE_CXX_STANDARD 14)
+            if(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
+                # '<': signed/unsigned mismatch
+                ie_add_compiler_flags(/wd4018)
+                # conditional expression is constant
+                ie_add_compiler_flags(/wd4127)
+                # 'conversion' conversion from 'type1' to 'type2', possible loss of data
+                ie_add_compiler_flags(/wd4244)
+                # 'conversion' : conversion from 'type1' to 'type2', signed/unsigned mismatch
+                ie_add_compiler_flags(/wd4245)
+                # 'var' : conversion from 'size_t' to 'type', possible loss of data
+                ie_add_compiler_flags(/wd4267)
+            elseif(CMAKE_COMPILER_IS_GNUCXX OR OV_COMPILER_IS_CLANG)
+                # we need to pass -Wextra first, then -Wno-sign-compare
+                # otherwise, snappy's CMakeLists.txt will do it for us
+                ie_add_compiler_flags(-Wextra)
+                ie_add_compiler_flags(-Wno-sign-compare)
+            endif()
+
+            add_subdirectory(snappy EXCLUDE_FROM_ALL)
+            # need to create alias Snappy::snappy
+            add_library(Snappy::snappy ALIAS snappy)
+        endfunction()
+
+        tf_build_snappy()
+        ov_install_static_lib(snappy ${OV_CPACK_COMP_CORE})
+    endif()
 endif()
 
 #

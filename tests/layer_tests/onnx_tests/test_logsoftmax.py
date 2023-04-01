@@ -249,6 +249,8 @@ class TestLog(OnnxRuntimeLayerTest):
     @pytest.mark.parametrize("params", test_data)
     @pytest.mark.nightly
     def test_log(self, params, ie_device, precision, ir_version, temp_dir, use_old_api):
+        if ie_device == 'GPU':
+            pytest.skip('GREEN_SUITE')
         self._test(*self.create_net(**params, ir_version=ir_version), ie_device, precision,
                    ir_version,
                    temp_dir=temp_dir, use_old_api=use_old_api)

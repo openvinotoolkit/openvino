@@ -354,14 +354,14 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
                         auto axesVal = axesNode->cast_vector<int>();
                         auto& mvnShape = mvn->get_output_partial_shape(0);
                         for (int32_t& axis : axesVal)
-                            axis = axis < 0 ? axis + mvnShape.size() : axis;
+                            axis = axis < 0 ? axis + static_cast<int>(mvnShape.size()) : axis;
                         std::sort(axesVal.begin(), axesVal.end());
                         if (mvnShape.size() == 1)
                             return false;
                         if (mvnShape.size() > 5 || (mvnShape.size() != axesVal.size() + 1 && mvnShape.size() != axesVal.size() + 2))
                             return false;
-                        int value = mvnShape.size() - 1;
-                        for (int i = axesVal.size() - 1; i >= 0; i--, value--) {
+                        int value = static_cast<int>(mvnShape.size()) - 1;
+                        for (int i = static_cast<int>(axesVal.size()) - 1; i >= 0; i--, value--) {
                             if (axesVal[i] != value)
                                 return false;
                         }
@@ -421,8 +421,10 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
         pass_config->disable<ov::pass::WeightsDequantizeToFakeQuantize>();
         pass_config->disable<ov::pass::SimplifyCTCGreedyDecoderSeqLen>();
         pass_config->disable<ov::pass::ConvertSoftMax8ToSoftMax1>();
-        pass_config->enable<ov::pass::ConvertGather8ToGather7>();
         pass_config->disable<ov::pass::ConvertShapeOf3>();
+        pass_config->disable<ov::pass::ConvertGather8ToGather7>();
+        pass_config->disable<ov::pass::ConvertGather7ToGather1>();
+
         pass_config->enable<ov::pass::ConvertInterpolate1ToInterpolate4>();
 
         if (enableInt8) {

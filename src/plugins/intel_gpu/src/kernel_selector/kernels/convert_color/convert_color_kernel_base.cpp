@@ -88,7 +88,7 @@ KernelsData ConvertColorKernelBase::GetCommonKernelsData(const Params& params, c
     auto jit = CreateJit(kernelName, cldnn_jit, entry_point);
 
     auto& kernel = kd.kernels[0];
-    size_t number_of_inputs = prim_params.inputs.size();
+    uint32_t number_of_inputs = static_cast<uint32_t>(prim_params.inputs.size());
     FillCLKernelData(kernel, dispatchData, params.engineInfo, kernelName, jit, entry_point,
                      "", false, false, number_of_inputs);
 

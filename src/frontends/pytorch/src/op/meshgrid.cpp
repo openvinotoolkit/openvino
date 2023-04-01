@@ -10,7 +10,7 @@ namespace frontend {
 namespace pytorch {
 namespace op {
 
-OutputVector translate_meshgrid(NodeContext& context) {
+OutputVector translate_meshgrid(const NodeContext& context) {
     std::string indexing = "ij";
     if (!context.input_is_none(1)) {
         indexing = context.const_input<std::string>(1);

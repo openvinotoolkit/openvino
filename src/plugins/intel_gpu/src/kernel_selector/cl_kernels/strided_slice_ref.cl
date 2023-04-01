@@ -10,17 +10,15 @@ inline void FUNC(get_slice_step)(OPTIONAL_SHAPE_INFO_ARG
                                  int* step_batch, int* step_feature,
                                  int* step_z, int* step_y, int* step_x)
 {
+    const uint batch_index = 0;
+    const uint feature_index = 1;
 #ifdef OUTPUT_LAYOUT_BFYX
-    const uint batch_index = STRIDE_GET_INDEX(0, 0, 0, 0);
-    const uint feature_index = STRIDE_GET_INDEX(1, 0, 0, 0);
-    const uint y_index = STRIDE_GET_INDEX(2, 0, 0, 0);
-    const uint x_index = STRIDE_GET_INDEX(3, 0, 0, 0);
+    const uint y_index = 2;
+    const uint x_index = 3;
 #elif OUTPUT_LAYOUT_BFZYX
-    const uint batch_index = STRIDE_GET_INDEX(0, 0, 0, 0, 0);
-    const uint feature_index = STRIDE_GET_INDEX(1, 0, 0, 0, 0);
-    const uint z_index = STRIDE_GET_INDEX(2, 0, 0, 0, 0);
-    const uint y_index = STRIDE_GET_INDEX(3, 0, 0, 0, 0);
-    const uint x_index = STRIDE_GET_INDEX(4, 0, 0, 0, 0);
+    const uint z_index = 2;
+    const uint y_index = 3;
+    const uint x_index = 4;
 #endif
 
     *step_batch = batch_index < STRIDE_DIMS ? stride[batch_index] : 1;
@@ -59,17 +57,15 @@ inline void FUNC(get_slice_end)(OPTIONAL_SHAPE_INFO_ARG
     const uint out_z_num = INPUT0_SIZE_Z;
     const uint out_y_num = INPUT0_SIZE_Y;
     const uint out_x_num = INPUT0_SIZE_X;
+    const uint batch_index = 0;
+    const uint feature_index = 1;
 #ifdef OUTPUT_LAYOUT_BFYX
-    const uint batch_index = END_GET_INDEX(0, 0, 0, 0);
-    const uint feature_index = END_GET_INDEX(1, 0, 0, 0);
-    const uint y_index = END_GET_INDEX(2, 0, 0, 0);
-    const uint x_index = END_GET_INDEX(3, 0, 0, 0);
+    const uint y_index = 2;
+    const uint x_index = 3;
 #elif OUTPUT_LAYOUT_BFZYX
-    const uint batch_index = END_GET_INDEX(0, 0, 0, 0, 0);
-    const uint feature_index = END_GET_INDEX(1, 0, 0, 0, 0);
-    const uint z_index = END_GET_INDEX(2, 0, 0, 0, 0);
-    const uint y_index = END_GET_INDEX(3, 0, 0, 0, 0);
-    const uint x_index = END_GET_INDEX(4, 0, 0, 0, 0);
+    const uint z_index = 2;
+    const uint y_index = 3;
+    const uint x_index = 4;
 #endif
     END_TYPE batch = batch_index < END_DIMS ? end[batch_index] : 0;
     END_TYPE feature = feature_index < END_DIMS ? end[feature_index] : 0;
@@ -176,17 +172,15 @@ inline void FUNC(get_slice_begin)(OPTIONAL_SHAPE_INFO_ARG
     const uint out_z_num = INPUT0_SIZE_Z;
     const uint out_y_num = INPUT0_SIZE_Y;
     const uint out_x_num = INPUT0_SIZE_X;
+    const uint batch_index = 0;
+    const uint feature_index = 1;
 #ifdef OUTPUT_LAYOUT_BFYX
-    const uint batch_index = STRIDE_GET_INDEX(0, 0, 0, 0);
-    const uint feature_index = STRIDE_GET_INDEX(1, 0, 0, 0);
-    const uint y_index = STRIDE_GET_INDEX(2, 0, 0, 0);
-    const uint x_index = STRIDE_GET_INDEX(3, 0, 0, 0);
+    const uint y_index = 2;
+    const uint x_index = 3;
 #elif OUTPUT_LAYOUT_BFZYX
-    const uint batch_index = STRIDE_GET_INDEX(0, 0, 0, 0, 0);
-    const uint feature_index = STRIDE_GET_INDEX(1, 0, 0, 0, 0);
-    const uint z_index = STRIDE_GET_INDEX(2, 0, 0, 0, 0);
-    const uint y_index = STRIDE_GET_INDEX(3, 0, 0, 0, 0);
-    const uint x_index = STRIDE_GET_INDEX(4, 0, 0, 0, 0);
+    const uint z_index = 2;
+    const uint y_index = 3;
+    const uint x_index = 4;
 #endif
     BEGIN_TYPE batch = batch_index < BEGIN_DIMS ? begin[batch_index] : 0;
     BEGIN_TYPE feature = feature_index < BEGIN_DIMS ? begin[feature_index] : 0;

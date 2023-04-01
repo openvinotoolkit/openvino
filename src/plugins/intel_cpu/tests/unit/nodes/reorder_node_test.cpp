@@ -30,8 +30,8 @@ inline void checkReorder(const ov::intel_cpu::Memory& inputMemory,
     auto mdInput = inputMemory.GetDescWithType<DnnlMemoryDesc>()->getDnnlDesc();
     auto mdOutput = outputMemory.GetDescWithType<DnnlMemoryDesc>()->getDnnlDesc();
 
-    const dnnl::impl::memory_desc_wrapper mdwInput(mdInput.data);
-    const dnnl::impl::memory_desc_wrapper mdwOutput(mdOutput.data);
+    const dnnl::impl::memory_desc_wrapper mdwInput(mdInput.get());
+    const dnnl::impl::memory_desc_wrapper mdwOutput(mdOutput.get());
     auto nelems = mdwInput.nelems();
 
     for (dnnl::impl::dim_t i = 0; i < nelems; ++i) {
@@ -70,7 +70,7 @@ inline std::string layoutName(const LayoutType& layout) {
 
 inline void fillData(const ov::intel_cpu::Memory& inputMemory, const InferenceEngine::Precision& prec) {
     ov::intel_cpu::DnnlMemoryDescPtr dnnlMdInput = inputMemory.GetDescWithType<DnnlMemoryDesc>();
-    const dnnl::impl::memory_desc_wrapper mdInput{dnnlMdInput->getDnnlDesc().data};
+    const dnnl::impl::memory_desc_wrapper mdInput{dnnlMdInput->getDnnlDesc().get()};
     auto elemNum = mdInput.nelems();
     auto inputReorderData = inputMemory.GetData();
     switch (prec) {

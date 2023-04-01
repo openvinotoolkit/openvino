@@ -24,7 +24,7 @@ inline std::vector<uint16_t> convert_permute_order(const std::vector<uint16_t>& 
     // 1. Switch permute order values for spatial dims
     for (auto const& o : ie_order_aligned) {
         if (o >= 2)
-            cldnn_order.push_back(1 + ie_order_aligned.size() - o);
+            cldnn_order.push_back(1 + static_cast<uint16_t>(ie_order_aligned.size()) - o);
         else
             cldnn_order.push_back(o);
     }
