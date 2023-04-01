@@ -12,7 +12,7 @@
 #include "itt.hpp"
 #include "ngraph/attribute_visitor.hpp"
 #include "ngraph/runtime/reference/concat.hpp"
-#include "ngraph/validation_util.hpp"
+#include "validation_util.hpp"
 
 using namespace std;
 using namespace ngraph;
@@ -115,7 +115,7 @@ bool op::Concat::evaluate(ov::TensorVector& outputs, const ov::TensorVector& inp
     OPENVINO_ASSERT(!inputs.empty());
     OPENVINO_ASSERT(outputs.size() == 1);
 
-    auto concat_axis = ov::normalize(get_axis(), inputs.front().get_shape().size());
+    auto concat_axis = ov::util::normalize(get_axis(), inputs.front().get_shape().size());
 
     std::vector<const char*> arg_bufs;
     std::vector<ov::Shape> arg_shapes;
