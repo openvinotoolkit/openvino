@@ -157,10 +157,7 @@ std::vector<std::string> disabledTestPatterns() {
         R"(.*CompileModelCacheTestBase.*CompareWithRefImpl.*Nms.*)",
         // Issue: 76980
         R"(.*smoke_Auto_BehaviorTests.*InferDynamicNetwork/.*)",
-        // enable after other plugins support nms9 as setup with nms5 in
-        // tests/functional/shared_test_classes/include/shared_test_classes/single_layer/non_max_suppression.hpp
-        // is shared across plugins
-        // passed local test and cpu has specific test cases with nms9 to cover
+        // Issue: 105838
         R"(smoke_NmsLayerTest.*)",
         // Issue: 95590
         R"(.*CachingSupportCase.*CompileModelCacheTestBase.*(TIwithLSTMcell1|MatMulBias|2InputSubtract)_(u|i).*)",
@@ -209,6 +206,10 @@ std::vector<std::string> disabledTestPatterns() {
         // Disabled Snippets MHA tests as well because MHA pattern contains MatMul
         retVector.emplace_back(R"(.*Snippets.*MHA.*)");
         retVector.emplace_back(R"(.*Snippets.*(MatMul|Matmul).*)");
+    }
+    if (!InferenceEngine::with_cpu_x86_avx512_core_vnni() && !InferenceEngine::with_cpu_x86_avx512_core_amx_int8()) {
+        // MatMul in Snippets uses BRGEMM that supports i8 only on platforms with VNNI or AMX instructions
+        retVector.emplace_back(R"(.*Snippets.*MatMulFQ.*)");
     }
     if (!InferenceEngine::with_cpu_x86_avx512_core_amx_int8())
         //TODO: Issue 92895
