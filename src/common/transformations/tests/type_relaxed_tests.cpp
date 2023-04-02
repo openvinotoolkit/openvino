@@ -404,7 +404,7 @@ TEST_F(TypeRelaxedTests, ConstantFoldingCheck3) {
 }
 
 /* copied from CPU plugin to provide the same experience here */
-bool fuse_type_to_convert(const std::shared_ptr<ov::Node>& node, const precisions_map& precisions) {
+bool fuse_type_to_convert_cpu(const std::shared_ptr<ov::Node>& node, const precisions_map& precisions) {
     const auto& from = node->get_output_element_type(0);
     auto it = precisions.find(from);
     if (it == precisions.end())
@@ -458,7 +458,7 @@ TEST_F(TypeRelaxedTests, PartialValuePropagation) {
         ov::pass::Manager manager;
         manager.register_pass<ov::pass::ConvertPrecision>(
             map,
-            type_to_fuse_map{{ov::opset1::Convert::get_type_info_static(), fuse_type_to_convert}});
+            type_to_fuse_map{{ov::opset1::Convert::get_type_info_static(), fuse_type_to_convert_cpu}});
         ASSERT_NO_THROW(manager.run_passes(model));
         EXPECT_EQ(model->get_result()->get_output_partial_shape(0), ov::PartialShape({1, 768, -1}));
     }
@@ -500,7 +500,7 @@ TEST_F(TypeRelaxedTests, PartialValuePropagation2) {
         ov::pass::Manager manager;
         manager.register_pass<ov::pass::ConvertPrecision>(
             map,
-            type_to_fuse_map{{ov::opset1::Convert::get_type_info_static(), fuse_type_to_convert}});
+            type_to_fuse_map{{ov::opset1::Convert::get_type_info_static(), fuse_type_to_convert_cpu}});
         ASSERT_NO_THROW(manager.run_passes(model));
         EXPECT_EQ(model->get_result()->get_output_partial_shape(0), ov::PartialShape({-1, 1, -1, -1}));
     }
