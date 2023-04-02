@@ -265,7 +265,7 @@ void FrontEnd::convert(const std::shared_ptr<ov::Model>& partiallyConverted) con
 }
 
 void FrontEnd::normalize(const std::shared_ptr<ov::Model>& model) const {
-    try {
+    {
         // run transformations to convert sub-graphs with intermediate (or FrameworkNode) operations
         // into sub-graphs with only OpenVINO operations
         ov::pass::Manager manager;
@@ -275,10 +275,6 @@ void FrontEnd::normalize(const std::shared_ptr<ov::Model>& model) const {
         manager.register_pass<pass::GRUBlockCellReplacer>();
         manager.register_pass<pass::ConstToResultRemover>();
         manager.run_passes(model);
-    } catch (...) {
-        //std::cerr << "Failed transformations with exception\nDumping not completely transformed graph as partially_converted.tf.normalize.xml\n";
-        //ov::serialize(model, "partially_converted.tf.normalize.xml");
-        throw;
     }
 
     // TODO: TSGeneral can fail on models with Framework nodes (not converted to OV opset)
@@ -322,7 +318,6 @@ void FrontEnd::add_extension(const std::shared_ptr<ov::Extension>& extension) {
         }
     } else if (const auto& tensorflow_conv_ext = std::dynamic_pointer_cast<ov::frontend::tensorflow::ConversionExtension>(extension)) {
         m_conversion_extensions.push_back(tensorflow_conv_ext);
-        // TODO: Should modify like it is done for common conversion extension?
         m_op_translators[tensorflow_conv_ext->get_op_type()] = tensorflow_conv_ext->get_converter();
     }
 }

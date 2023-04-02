@@ -26,7 +26,8 @@ ov::element::Type get_ov_type(const ::tensorflow::DataType& type);
 
 void parse_producer_name(const std::string& producer_port_name,
                          std::string& producer_name,
-                         std::string& producer_output_port_name,                         size_t& producer_output_port_index);
+                         std::string& producer_output_port_name,
+                         size_t& producer_output_port_index);
 
 class DecoderProto : public ov::frontend::tensorflow::DecoderBase {
 public:

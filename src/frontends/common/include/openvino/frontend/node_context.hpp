@@ -119,7 +119,6 @@ private:
 
 struct NamedOutput {
 
-    //NamedOutput(std::shared_ptr<Node> node) : NamedOutput(Output<Node>(node)) {}
     NamedOutput(const Output<Node>& _port) : port(_port) {}
     NamedOutput(const std::string& _name, const Output<Node>& _port) : name(_name), port(_port) {}
 
