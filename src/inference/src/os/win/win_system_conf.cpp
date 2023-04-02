@@ -17,7 +17,7 @@
 
 namespace ov {
 
-void CPU::init_cpu() {
+CPU::CPU() {
     DWORD len = 0;
     if (GetLogicalProcessorInformationEx(RelationAll, nullptr, &len) || GetLastError() != ERROR_INSUFFICIENT_BUFFER) {
         return;

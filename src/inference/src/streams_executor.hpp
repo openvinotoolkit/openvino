@@ -14,7 +14,10 @@
 
 namespace ov {
 
-struct CPU {
+class CPU {
+public:
+    CPU();
+    ~CPU(){};
     int _processors = 0;
     int _sockets = 0;
     int _cores = 0;
@@ -24,11 +27,6 @@ struct CPU {
     std::mutex _task_mutex;
     int _plugin_status = PLUGIN_USED_START;
     int _socket_idx = 0;
-
-    CPU() {
-        init_cpu();
-    }
-    void init_cpu();
 };
 
 #ifdef __linux__

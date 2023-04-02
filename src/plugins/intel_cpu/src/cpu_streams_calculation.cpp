@@ -245,6 +245,7 @@ void get_num_streams(const int streams,
                      const std::shared_ptr<ngraph::Function>& ngraphFunc,
                      Config& config) {
     InferenceEngine::IStreamsExecutor::Config& executor_config = config.streamExecutorConfig;
+    std::vector<int> stream_ids;
     std::string log = "[ streams info ]";
     std::vector<std::string> core_type_str = {" Any core: ", " PCore: ", " ECore: ", " Logical core: "};
 
@@ -261,13 +262,12 @@ void get_num_streams(const int streams,
         executor_config._streams += executor_config._streams_info_table[i][NUMBER_OF_STREAMS];
         executor_config._threads += executor_config._streams_info_table[i][NUMBER_OF_STREAMS] *
                                     executor_config._streams_info_table[i][THREADS_PER_STREAM];
-        executor_config._stream_ids.insert(executor_config._stream_ids.end(),
-                                           executor_config._streams_info_table[i][NUMBER_OF_STREAMS],
-                                           i);
+        stream_ids.insert(stream_ids.end(), executor_config._streams_info_table[i][NUMBER_OF_STREAMS], i);
         log += core_type_str[executor_config._streams_info_table[i][PROC_TYPE]] +
                std::to_string(executor_config._streams_info_table[i][NUMBER_OF_STREAMS]) + "(" +
                std::to_string(executor_config._streams_info_table[i][THREADS_PER_STREAM]) + ")";
     }
+    executor_config._stream_ids = stream_ids;
     log +=
         "  Total: " + std::to_string(executor_config._streams) + "(" + std::to_string(executor_config._threads) + ")";
     DEBUG_LOG(log);

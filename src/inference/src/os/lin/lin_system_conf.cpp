@@ -18,7 +18,7 @@
 
 namespace ov {
 
-void CPU::init_cpu() {
+CPU::CPU() {
     std::vector<std::vector<std::string>> system_info_table;
 
     auto GetCatchInfoLinux = [&]() {
