@@ -7,7 +7,6 @@
 #include "openvino/core/validation_util.hpp"
 #include "openvino/frontend/node_context.hpp"
 #include "openvino/opsets/opset10.hpp"
-#include "openvino/opsets/opset8.hpp"
 #include "openvino/pass/graph_rewrite.hpp"
 
 #ifndef TENSORFLOW_OP_VALIDATION
@@ -99,11 +98,11 @@ Output<Node> compute_subgraph_scalar_rank(const Output<Node>& output,
                                           element::Type output_type,
                                           bool as_scalar = false);
 
-std::shared_ptr<ov::opset8::Transpose> make_transpose(const ov::Output<ov::Node>& arg,
-                                                      const ov::AxisVector& input_order);
+std::shared_ptr<ov::opset10::Transpose> make_transpose(const ov::Output<ov::Node>& arg,
+                                                       const ov::AxisVector& input_order);
 
-std::shared_ptr<ov::opset8::Reshape> make_reshape(const ov::Output<ov::Node>& arg,
-                                                  const std::vector<int64_t>& new_shape);
+std::shared_ptr<ov::opset10::Reshape> make_reshape(const ov::Output<ov::Node>& arg,
+                                                   const std::vector<int64_t>& new_shape);
 
 template <typename T>
 void convert_nhwc_to_hw(const std::vector<T>& src, std::vector<size_t>& dst) {
