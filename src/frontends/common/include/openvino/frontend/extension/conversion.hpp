@@ -56,7 +56,6 @@ public:
     ~ConversionExtension() override;
 
 private:
-    // FIXME: Should carry a single target only
     CreatorFunction m_converter;
     CreatorFunctionNamed m_converter_named;
     CreatorFunctionNamedAndIndexed m_converter_named_and_indexed;

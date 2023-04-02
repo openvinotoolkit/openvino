@@ -9,9 +9,6 @@
 #include "tf_framework_node.hpp"
 #include "utils.hpp"
 
-// FIXME: remove direct dependency on proto decoder after appropriate uplifting of input node decoding capabilities
-#include "decoder_proto.hpp"
-
 using namespace ov::frontend::tensorflow;
 
 namespace {
@@ -60,20 +57,12 @@ static bool apply_saved_model_names(std::shared_ptr<ov::Node> node,
 }
 
 void decode_input_port(std::shared_ptr<DecoderBase> node,
-                        size_t input_port_idx,
-                        std::string& producer_name,
-                        std::string& producer_output_port_name,
-                        size_t& producer_output_port_index,
-                        const DecoderBase::OpTypeByName& op_type_by_name) {
-    auto proto_decoder = std::dynamic_pointer_cast<DecoderProto>(node);
-    if (proto_decoder) {
-        proto_decoder->get_input_node_named_port(input_port_idx, producer_name, producer_output_port_index, op_type_by_name, producer_output_port_name);
-    } else {
-        node->get_input_node(input_port_idx, producer_name, producer_output_port_index, op_type_by_name);
-        // TODO: eliminate this branch by appropriate lifting of the name decoding capability to Decoder base classes
-    }
+                       size_t input_port_idx,
+                       std::string& producer_name,
+                       std::string& producer_output_port_name,
+                       size_t& producer_output_port_index) {
+    node->get_input_node(input_port_idx, producer_name, producer_output_port_name, producer_output_port_index);
 }
-
 }  // namespace
 
 TranslateSession::TranslateSession(const ov::frontend::InputModel::Ptr& input_model,
@@ -122,7 +111,6 @@ void TranslateSession::inject_body_model(std::shared_ptr<ov::Model> body_model,
 
 void TranslateSession::translate_graph(const ov::frontend::InputModel::Ptr& input_model,
                                        std::shared_ptr<ov::Model>& ov_model) {
-    DecoderBase::OpTypeByName op_type_by_name;
     OpMap ng_op_map;
     ov::ParameterVector params;
     ov::ResultVector results;
@@ -176,7 +164,6 @@ void TranslateSession::translate_graph(const ov::frontend::InputModel::Ptr& inpu
     for (const auto& operation_place : operation_places) {
         auto operation_decoder = operation_place->get_decoder();
         auto operation_name = operation_place->get_names()[0];
-        op_type_by_name[operation_name] = operation_decoder->get_op_type();
         // output for parameter nodes has been already generated
         if (ng_op_map.count(operation_name)) {
             continue;
@@ -199,7 +186,7 @@ void TranslateSession::translate_graph(const ov::frontend::InputModel::Ptr& inpu
             size_t producer_port_idx;
             try {
                 std::string producer_port_name;
-                decode_input_port(operation_decoder, input_port_idx, producer_name, producer_port_name, producer_port_idx, op_type_by_name);
+                decode_input_port(operation_decoder, input_port_idx, producer_name, producer_port_name, producer_port_idx);
                 if(!producer_port_name.empty()) {
                     producer_port_idx = get_flat_index_by_name_and_id(ng_op_map[producer_name], producer_port_name, producer_port_idx);
                 }
@@ -276,16 +263,14 @@ void TranslateSession::translate_graph(const ov::frontend::InputModel::Ptr& inpu
                 ov_outputs = named_from_indexed(fw_node->outputs());
             }
         } else if (auto body_ov_model = get_body_ov_model(operation_type)) {
-            //std::cerr << "Before inject_body_model\n";
-            auto indexed_ov_outputs = indexed_from_named(ov_outputs);
+            OutputVector indexed_ov_outputs;
             inject_body_model(body_ov_model, operation_type, ov_inputs, indexed_ov_outputs);
-            //std::cerr << "Dumping after_inject_body_model.xml\n";
-            //ov::serialize(body_ov_model, "after_inject_body_model.xml");
 
             // set output tensor names
-            for (size_t idx = 0; idx < ov_outputs.size(); ++idx) {
+            for (size_t idx = 0; idx < indexed_ov_outputs.size(); ++idx) {
                 indexed_ov_outputs[idx].get_tensor().set_names({operation_name + ":" + std::to_string(idx)});
             }
+            ov_outputs = named_from_indexed(indexed_ov_outputs);
         } else {
             // continue translation by replacing with FrameworkNode
             // for example, it helps auto-pruning to be triggered on later nodes
@@ -374,12 +359,11 @@ void TranslateSession::translate_graph(const ov::frontend::InputModel::Ptr& inpu
                 auto operation_decoder = operation_place->get_decoder();
 
                 // get to know a producer node and by which its output port data is generated
-                // TODO: handle named output ports here correctly
                 std::string producer_name;
+                std::string producer_port_name;
                 size_t producer_port_idx;
                 try {
-                    std::string producer_port_name;
-                    decode_input_port(operation_decoder, port_index, producer_name, producer_port_name, producer_port_idx, op_type_by_name);
+                    decode_input_port(operation_decoder, port_index, producer_name, producer_port_name, producer_port_idx);
                     if(!producer_port_name.empty()) {
                         producer_port_idx = get_flat_index_by_name_and_id(ng_op_map[producer_name], producer_port_name, producer_port_idx);
                     }

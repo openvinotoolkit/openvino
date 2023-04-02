@@ -100,3 +100,13 @@ void ov::frontend::tensorflow_lite::dequantize_inputs(OutputVector& deq_inputs) 
         deq_input = std::make_shared<opset10::Convert>(deq_input, element::f32);
     }
 }
+
+template <>
+OutputVector frontend::tensorflow_lite::get_indexed_outputs(const OutputVector& outputs) {
+    return outputs;
+};
+
+template <>
+OutputVector frontend::tensorflow_lite::get_indexed_outputs(const NamedOutputVector& outputs) {
+    return indexed_from_named(outputs);
+};

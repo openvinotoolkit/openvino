@@ -150,11 +150,6 @@ inline size_t get_flat_index_by_name_and_id (const NamedOutputVector& outputs, c
         return it - outputs.begin() + id;
     } else {
         // There are no named ports in the producer node, so reference by name wouldn't work
-        // Allow it when only a single output port exists in the producer
-
-        // FIXME: The following check is desired, but it doesn't pass for multi-output nodes like StatefulPartitionCall
-        // FIXME: Define names for output for such system-level nodes and restore the check
-        //FRONT_END_GENERAL_CHECK(outputs.size() == 1, "Ambiguous reference to output port";
         return id;
     }
 }

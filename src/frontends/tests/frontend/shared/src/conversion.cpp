@@ -89,6 +89,7 @@ TEST_P(FrontEndConversionExtensionTest, TestConversionExtensionViaSO) {
     const auto& lib_path = get_lib_path("test_builtin_extensions");
     frontend->add_extension(lib_path);
     std::shared_ptr<InputModel> input_model;
+    std::cout << m_param.m_modelName << std::endl;
     ASSERT_NO_THROW(input_model = frontend->load(m_param.m_modelName));
     ASSERT_NE(input_model, nullptr);
     std::shared_ptr<ov::Model> model;

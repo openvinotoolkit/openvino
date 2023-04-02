@@ -43,7 +43,7 @@ shared_ptr<Model> convert_model(const string& model_path, const ConversionExtens
     return model;
 }
 
-ov::OutputVector fake_translator_ragged_tensor_to_sparse(const ov::frontend::NodeContext& node) {
+NamedOutputVector fake_translator_ragged_tensor_to_sparse(const NodeContext& node) {
     // NOTE: pay attention that this is a fake translator for RaggedTensorToSparse
     // only serves for testing purposes
     FRONT_END_GENERAL_CHECK(node.get_input_size() > 1, "RaggedTensorToSparse expects at least two inputs.");
@@ -70,7 +70,7 @@ ov::OutputVector fake_translator_ragged_tensor_to_sparse(const ov::frontend::Nod
     add.get_tensor().add_names({node_name + ":1"});
     sub.get_tensor().add_names({node_name + ":2"});
 
-    return {mul, add, sub};
+    return {{"sparse_indices", mul}, {"sparse_values", add}, {"sparse_dense_shape", sub}};
 }
 }  // namespace
 

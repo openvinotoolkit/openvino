@@ -23,6 +23,11 @@ std::shared_ptr<QuantizationInfo> get_quantization(const tflite::QuantizationPar
 void apply_quantization(ov::Output<ov::Node>& output, ov::element::Type type);
 void dequantize_inputs(OutputVector& deq_inputs);
 
+template <typename T>
+OutputVector get_indexed_outputs(const T& outputs) {
+    FRONT_END_NOT_IMPLEMENTED(get_indexed_outputs);
+};
+
 }  // namespace tensorflow_lite
 }  // namespace frontend
 }  // namespace ov
