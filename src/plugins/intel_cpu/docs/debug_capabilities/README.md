@@ -1,10 +1,8 @@
-# OpenVINO CPU plugin
-Development documentation of OpenVINO CPU plugin
+# Debug capabilities
+Debug capabilities are the set of useful debug features, controlled by environment variables.
 
-## Compilation options
-See [Compilation options](compilation_options.md)
+They can be activated at runtime and might be used for analyzing issues, getting more context, comparing execution results, etc.
 
-## Debug capabilities
 Use the following cmake option to enable debug capabilities:
 
 `-DENABLE_DEBUG_CAPS=ON`
