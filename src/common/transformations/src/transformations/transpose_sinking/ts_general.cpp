@@ -62,14 +62,12 @@ bool TSGeneral::run_on_model(const std::shared_ptr<ov::Model>& f) {
     {
         Manager manager(get_pass_config());
         manager.register_pass<TSGeneralForward>();
-        manager.register_pass<ConstantFolding>();
         manager.run_passes(f);
     }
 
     {
         Manager manager(get_pass_config());
         manager.register_pass<TSGeneralBackward>();
-        manager.register_pass<ConstantFolding>();
         manager.run_passes(f);
     }
 
