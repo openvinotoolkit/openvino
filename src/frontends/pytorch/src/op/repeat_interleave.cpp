@@ -34,7 +34,7 @@ OutputVector generate_indices_from_repeats_tensor(const NodeContext& context, co
 };
 }  // namespace
 
-OutputVector translate_repeat_interleave(NodeContext& context) {
+OutputVector translate_repeat_interleave(const NodeContext& context) {
     num_inputs_check(context, 2, 3);
     // constants
     auto const_0 = context.mark_node(v0::Constant::create(element::i32, Shape{}, {0}));

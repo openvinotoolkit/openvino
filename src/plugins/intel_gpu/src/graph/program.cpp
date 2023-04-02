@@ -229,29 +229,6 @@ std::shared_ptr<InferenceEngine::CPUStreamsExecutor> program::make_task_executor
     return std::make_shared<InferenceEngine::CPUStreamsExecutor>(task_executor_config);
 }
 
-void program::compile() {
-    GPU_DEBUG_DEFINE_MEM_LOGGER("compile");
-    _kernels_cache->build_all();
-}
-
-void program::init_kernels() {
-    GPU_DEBUG_DEFINE_MEM_LOGGER("init_kernels");
-    for (auto& n : get_processing_order()) {
-        if (n->get_selected_impl()) {
-            n->get_selected_impl()->init_kernels(*_kernels_cache);
-            n->get_selected_impl()->reset_kernels_source();
-        }
-    }
-}
-
-kernel_id program::add_kernel(const std::shared_ptr<kernel_string>& kernelSring) {
-    return _kernels_cache->set_kernel_source(kernelSring, false);
-}
-
-kernel::ptr program::get_kernel(kernel_id id) {
-    return _kernels_cache->get_kernel(id);
-}
-
 kernels_cache& program::get_kernels_cache() const {
     return *_kernels_cache;
 }
@@ -379,7 +356,7 @@ bool program::analyze_output_size_handling_need() {
 
             tensor size(1);
             for (size_t i = 0; i < prim->size.size(); i++) {
-                size.spatial[i] = prim->size[prim->size.size() - i - 1];
+                size.spatial[i] = static_cast<tensor::value_type>(prim->size[prim->size.size() - i - 1]);
             }
             // TODO: Check compatibility of output size calculation (with caffe).
             auto primInputSize = prim_node.input().get_output_layout().get_tensor();
@@ -501,6 +478,11 @@ void program::set_options() {
     if (!_config.get_property(ov::intel_gpu::force_implementations).empty()) {
         _config.set_property(ov::intel_gpu::optimize_data(true));
     }
+
+    GPU_DEBUG_GET_INSTANCE(debug_config);
+    GPU_DEBUG_IF(!debug_config->dump_graphs.empty()) {
+        _config.set_property(ov::intel_gpu::dump_graphs(debug_config->dump_graphs));
+    }
 }
 
 void program::build_program(bool is_internal) {
@@ -516,13 +498,7 @@ void program::build_program(bool is_internal) {
     {
 #endif
         prepare_memory_dependencies();
-
-        if (_config.get_property(ov::intel_gpu::partial_build_program)) {
-            return;
-        }
-
-        compile();
-        init_kernels();
+        apply_opt_pass<build_implementations>();
     }
 
     if (!is_internal) {
@@ -530,12 +506,10 @@ void program::build_program(bool is_internal) {
         if (get_engine().get_device_info().dev_type == device_type::discrete_gpu)
             transfer_memory_to_device();
     }
-
-    cleanup();
 }
 
 void program::init_graph() {
-    OV_ITT_SCOPED_TASK(ov::intel_gpu::itt::domains::intel_gpu_plugin, "ProgramImpl::InitGraph");
+    OV_ITT_SCOPED_TASK(ov::intel_gpu::itt::domains::intel_gpu_plugin, "Program::init_graph");
     apply_opt_pass<graph_initializations>();
 
     apply_opt_pass<calculate_prior_boxes>();
@@ -546,7 +520,7 @@ void program::init_graph() {
 void program::run_graph_compilation() { apply_opt_pass<compile_graph>(); }
 
 void program::pre_optimize_graph(bool is_internal) {
-    OV_ITT_SCOPED_TASK(ov::intel_gpu::itt::domains::intel_gpu_plugin, "ProgramImpl::PreOptimizeGraph");
+    OV_ITT_SCOPED_TASK(ov::intel_gpu::itt::domains::intel_gpu_plugin, "Program::pre_optimize_graph");
 
     // trim to outputs
     apply_opt_pass<trim_to_outputs>();  // ToDo remove hidden dependencies from trimm pass
@@ -626,7 +600,7 @@ void program::pre_optimize_graph(bool is_internal) {
 }
 
 void program::post_optimize_graph(bool is_internal) {
-    OV_ITT_SCOPED_TASK(ov::intel_gpu::itt::domains::intel_gpu_plugin, "ProgramImpl::PostOptimizeGraph");
+    OV_ITT_SCOPED_TASK(ov::intel_gpu::itt::domains::intel_gpu_plugin, "Program::post_optimize_graph");
     // input reorder for fully connected if necessary
     apply_opt_pass<post_input_reorder>();
 
@@ -689,7 +663,7 @@ void program::mark_if_data_flow(program_node& node) {
 
 void program::transfer_memory_to_device() {
     GPU_DEBUG_DEFINE_MEM_LOGGER("transfer_memory_to_device");
-    OV_ITT_SCOPED_TASK(ov::intel_gpu::itt::domains::intel_gpu_plugin, "ProgramImpl::TransferMemory");
+    OV_ITT_SCOPED_TASK(ov::intel_gpu::itt::domains::intel_gpu_plugin, "Program::transfer_memory_to_device");
     if (!get_engine().supports_allocation(allocation_type::usm_device))
         return;
 
@@ -722,14 +696,6 @@ void program::transfer_memory_to_device() {
             }
         }
     }
-}
-
-void program::cleanup() {
-    GPU_DEBUG_DEFINE_MEM_LOGGER("cleanup");
-    for (auto& node : processing_order)
-        node->get_output_layout();
-
-    _kernels_cache->reset();
 }
 
 void program::add_split_outputs() {
@@ -965,9 +931,13 @@ void program::replace(program_node& old_node, program_node& new_node) {
     new_node.valid_output_layouts = old_node.valid_output_layouts;
 
     // copy old's dependencies
+    // First copy them from old node to new node
+    for (auto& dependency : old_node.dependencies) {
+        add_connection(*dependency.first, new_node);
+    }
+    // Second delete them from old node
     while (!old_node.dependencies.empty()) {
         auto& dep = old_node.dependencies.front().first;
-        add_connection(*dep, new_node);
         remove_connection(*dep, old_node);
     }
 
@@ -1664,10 +1634,6 @@ std::pair<int64_t, int64_t> program::get_estimated_device_mem_usage() {
     }
 
     return std::make_pair(const_sum, get_engine().get_used_device_memory(allocation_type::usm_device));
-}
-
-void program::remove_kernel(kernel_id id) {
-    _kernels_cache->remove_kernel(id);
 }
 
 void program::cancel_compilation_context() {

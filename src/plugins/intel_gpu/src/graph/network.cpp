@@ -385,7 +385,7 @@ network::network(cldnn::BinaryInputBuffer& ib, const ExecutionConfig& config, st
         _primitives[_primitive_id] = new_primitive_inst;
     }
 
-    int exec_order_size;
+    size_t exec_order_size;
     ib >> exec_order_size;
     _exec_order.clear();
 
@@ -405,7 +405,7 @@ network::network(cldnn::BinaryInputBuffer& ib, const ExecutionConfig& config, st
         ib >> *p_inst;
         _primitives[p_inst->id()] = p_inst;
         if (p_inst->get_impl() != nullptr)
-            p_inst->init_kernels(kernels_cache);
+            p_inst->init_by_cached_kernels(kernels_cache);
     }
 
     for (auto& item : _primitives) {
@@ -515,10 +515,12 @@ network::~network() {
 //     [ executable primitive_inst ]
 //     [ memory reuse information ]
 void network::save(cldnn::BinaryOutputBuffer& ob) {
-    kernels_cache kernels_cache(get_engine(), _config, 0, nullptr, {""});
+    auto& kernels_cache = _program->get_kernels_cache();
+    kernels_cache.reset();
     for (const auto& p_inst : _exec_order) {
-        if (p_inst->get_impl() != nullptr)
-            kernels_cache.add_kernels(p_inst->get_impl()->get_kernel_ids(), p_inst->get_impl()->get_kernels());
+        if (p_inst->get_impl() != nullptr) {
+            kernels_cache.add_to_cached_kernels(p_inst->get_impl()->get_kernels());
+        }
     }
     ob << kernels_cache;
 
@@ -540,8 +542,7 @@ void network::save(cldnn::BinaryOutputBuffer& ob) {
         }
     }
 
-    int exec_order_size;
-    exec_order_size = _exec_order.size();
+    size_t exec_order_size = _exec_order.size();
     ob << exec_order_size;
 
     for (const auto& p_inst : _exec_order) {
@@ -598,6 +599,7 @@ void network::save(cldnn::BinaryOutputBuffer& ob) {
     }
 
     ob << get_ext_id_mapping();
+    kernels_cache.reset();
 }
 
 network::ptr network::allocate_network(stream::ptr stream, program::ptr program, bool is_internal, bool is_primary_stream) {
@@ -1321,16 +1323,6 @@ void network::transfer_memory_to_device(std::shared_ptr<primitive_inst> instance
         _memory_pool->release_memory(&inst_mem, node.id(), get_id());
         instance->set_output_memory(device_mem);
     }
-}
-
-memory::ptr network::get_memory_from_pool(const layout& layout,
-                                               primitive_id id,
-                                               std::set<primitive_id> dependencies,
-                                               allocation_type type,
-                                               bool reusable) {
-    if (_config.get_property(ov::intel_gpu::enable_memory_pool))
-        return _memory_pool->get_memory(layout, id, get_id(), dependencies, type, reusable);
-    return _memory_pool->get_memory(layout, type);
 }
 
 network::VariableState& network::get_variable_memory(const std::string &variable_id) {

@@ -48,7 +48,7 @@ The table below demonstrates support of key features by OpenVINO device plugins.
   :doc:`Dynamic shapes <openvino_docs_OV_UG_DynamicShapes>`                                 Yes             Partial         No              No                      
   :doc:`Import/Export <openvino_inference_engine_tools_compile_tool_README>`                Yes             No              Yes             No                      
   :doc:`Preprocessing acceleration <openvino_docs_OV_UG_Preprocessing_Overview>`            Yes             Yes             No              Partial                 
-  :doc:`Stateful models <openvino_docs_OV_UG_network_state_intro>`                          Yes             No              Yes             No                      
+  :doc:`Stateful models <openvino_docs_OV_UG_model_state_intro>`                            Yes             No              Yes             No                      
   :doc:`Extensibility <openvino_docs_Extensibility_UG_Intro>`                               Yes             Yes             No              No                      
  ========================================================================================= =============== =============== =============== ======================== 
 

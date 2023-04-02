@@ -200,7 +200,7 @@ struct typed_primitive_onednn_impl : public typed_primitive_impl<PType> {
                 _attrs->set_fpmath_mode(_fmath_mode);
             }
             {
-                const kernel_impl_params* impl_params = reinterpret_cast<kernel_impl_params*>(ib.getKernlImplParams());
+                const kernel_impl_params* impl_params = reinterpret_cast<kernel_impl_params*>(ib.getKernelImplParams());
                 const std::vector<cldnn::fused_primitive_desc_onednn>& fused_desc = impl_params->fused_desc_onednn;
                 dnnl::post_ops _post_ops;
                 int post_ops_len;
@@ -451,7 +451,7 @@ protected:
         return args;
     }
 
-    void init_kernels(const kernels_cache&) override { }
+    void init_kernels(const kernels_cache&, const kernel_impl_params&) override { }
 
     event::ptr aggregate_events(const std::vector<event::ptr>& events, stream& stream, bool group = false, bool is_output = false) const {
         if (events.size() == 1 && !is_output)

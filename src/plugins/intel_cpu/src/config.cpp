@@ -78,6 +78,29 @@ void Config::readProperties(const std::map<std::string, std::string> &prop) {
             streamExecutorConfig.SetConfig(key, val);
         } else if (hintsConfigKeys.end() != std::find(hintsConfigKeys.begin(), hintsConfigKeys.end(), key)) {
             perfHintsConfig.SetConfig(key, val);
+        } else if (key == ov::hint::scheduling_core_type.name()) {
+            const auto core_type = ov::util::from_string(val, ov::hint::scheduling_core_type);
+            if (core_type == ov::hint::SchedulingCoreType::ANY_CORE ||
+                core_type == ov::hint::SchedulingCoreType::PCORE_ONLY ||
+                core_type == ov::hint::SchedulingCoreType::ECORE_ONLY) {
+                schedulingCoreType = core_type;
+            } else {
+                IE_THROW() << "Wrong value " << val << "for property key " << ov::hint::scheduling_core_type.name()
+                           << ". Expected only " << ov::hint::SchedulingCoreType::ANY_CORE << "/"
+                           << ov::hint::SchedulingCoreType::PCORE_ONLY << "/"
+                           << ov::hint::SchedulingCoreType::ECORE_ONLY << std::endl;
+            }
+        } else if (key == ov::hint::use_hyper_threading.name()) {
+            if (val == PluginConfigParams::YES) {
+                useHyperThreading = true;
+                changedHyperThreading = true;
+            } else if (val == PluginConfigParams::NO) {
+                useHyperThreading = false;
+                changedHyperThreading = true;
+            } else {
+                IE_THROW() << "Wrong value " << val << "for property key " << ov::hint::use_hyper_threading.name()
+                           << ". Expected only true/false." << std::endl;
+            }
         } else if (key == PluginConfigParams::KEY_DYN_BATCH_LIMIT) {
             int val_i = -1;
             try {
@@ -139,30 +162,31 @@ void Config::readProperties(const std::map<std::string, std::string> &prop) {
             if (val == PluginConfigParams::YES) {
                 if (dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core)) {
                     enforceBF16 = true;
-                    manualEnforceBF16 = true;
                 } else {
                     IE_THROW() << "Platform doesn't support BF16 format";
                 }
             } else if (val == PluginConfigParams::NO) {
                 enforceBF16 = false;
-                manualEnforceBF16 = false;
             } else {
                 IE_THROW() << "Wrong value for property key " << PluginConfigParams::KEY_ENFORCE_BF16
                     << ". Expected only YES/NO";
             }
-        } else if (key == ov::inference_precision.name()) {
+        } else if (key == ov::device::id.name()) {
+            device_id = val;
+            if (!device_id.empty()) {
+                IE_THROW() << "CPU plugin supports only '' as device id";
+            }
+        } else if (key == ov::hint::inference_precision.name()) {
             if (val == "bf16") {
                 if (dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core)) {
                     enforceBF16 = true;
-                    manualEnforceBF16 = true;
                 } else {
                     IE_THROW() << "Platform doesn't support BF16 format";
                 }
             } else if (val == "f32") {
                 enforceBF16 = false;
-                manualEnforceBF16 = false;
             } else {
-                IE_THROW() << "Wrong value for property key " << ov::inference_precision.name()
+                IE_THROW() << "Wrong value for property key " << ov::hint::inference_precision.name()
                     << ". Supported values: bf16, f32";
             }
         } else if (PluginConfigInternalParams::KEY_CPU_RUNTIME_CACHE_CAPACITY == key) {
@@ -247,6 +271,8 @@ void Config::updateProperties() {
     _config.insert({ PluginConfigParams::KEY_CPU_THROUGHPUT_STREAMS, std::to_string(streamExecutorConfig._streams) });
 
     _config.insert({ PluginConfigParams::KEY_CPU_THREADS_NUM, std::to_string(streamExecutorConfig._threads) });
+
+    _config.insert({ PluginConfigParams::KEY_DEVICE_ID, device_id });
 
     IE_SUPPRESS_DEPRECATED_START
         _config.insert({ PluginConfigParams::KEY_DUMP_EXEC_GRAPH_AS_DOT, dumpToDot });

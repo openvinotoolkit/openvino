@@ -213,9 +213,10 @@ void graph_topological_sort(GraphProto* graph) {
         std::multimap<std::string, const NodeProto*> output_name_to_node;
         GraphProto result;
 
-        for (int i = 0; i < graph->node().size(); ++i) {
+        const auto nodes_number = static_cast<int>(graph->node().size());
+        for (int i = 0; i < nodes_number; ++i) {
             for (const auto& output_name : graph->node(i).output()) {
-                output_name_to_node.emplace(output_name, graph->mutable_node(static_cast<int>(i)));
+                output_name_to_node.emplace(output_name, graph->mutable_node(i));
             }
         }
         auto get_node_by_out_name = [&output_name_to_node](const std::string& out_name) -> const NodeProto* {
@@ -433,7 +434,7 @@ PartialShape onnx_editor::ONNXModelEditor::get_tensor_shape(const std::string& t
     } else if (tensor) {
         return PartialShape{Shape{tensor->dims().cbegin(), tensor->dims().cend()}};
     } else {
-        OPENVINO_UNREACHABLE("The tensor: ", tensor_name, " was not found in the graph");
+        OPENVINO_THROW("The tensor: ", tensor_name, " was not found in the graph");
     }
 }
 

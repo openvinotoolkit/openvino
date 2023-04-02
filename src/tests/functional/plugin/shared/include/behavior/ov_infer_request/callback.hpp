@@ -75,7 +75,7 @@ TEST_P(OVInferRequestCallbackTests, returnGeneralErrorIfCallbackThrowException) 
     ov::InferRequest req;
     OV_ASSERT_NO_THROW(req = execNet.create_infer_request());
     OV_ASSERT_NO_THROW(req.set_callback([] (std::exception_ptr) {
-        OPENVINO_UNREACHABLE("Throw");
+        OPENVINO_THROW("Throw");
     }));
     OV_ASSERT_NO_THROW(req.start_async());
     ASSERT_THROW(req.wait(), ov::Exception);

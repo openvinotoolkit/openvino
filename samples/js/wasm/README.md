@@ -6,15 +6,20 @@
    - From repository root: `mkdir build`
    - Run emscripten compiler `docker run -it --rm -v $(pwd):/openvino emscripten/emsdk`
    - From docker `cd /openvino/build`
-   - Run compilation 
+   - Run cmake 
    ```
    emcmake cmake \
+      -DCMAKE_BUILD_TYPE=Release \
       -DENABLE_INTEL_CPU=OFF \
       -DENABLE_OV_TF_FRONTEND=OFF \
       -DENABLE_OV_TF_LITE_FRONTEND=OFF \
       -DENABLE_OV_ONNX_FRONTEND=OFF \
       -DENABLE_OV_PADDLE_FRONTEND=OFF \
       ..
+   ```
+   - Run compilation by run **openvino_wasm** job 
+   ```
+   emmake make -j4 openvino_wasm
    ```
    - After finish compilation, enter `exit` to exit from container
    - Directory *./bin/ia32/Release/* should contain `openvino_wasm.js` and `openvino_wasm.wasm` files

@@ -15,7 +15,6 @@
 
 #include "format_reader_ptr.h"
 #include "samples/slog.hpp"
-#include "shared_tensor_allocator.hpp"
 #include "utils.hpp"
 
 template <typename T>
@@ -31,10 +30,8 @@ ov::Tensor create_tensor_from_image(const std::vector<std::string>& files,
                                     const benchmark_app::InputInfo& inputInfo,
                                     const std::string& inputName,
                                     std::string* filenames_used = nullptr) {
-    size_t tensor_size =
-        std::accumulate(inputInfo.dataShape.begin(), inputInfo.dataShape.end(), 1, std::multiplies<size_t>());
-    auto allocator = std::make_shared<SharedTensorAllocator>(tensor_size * sizeof(T));
-    auto data = reinterpret_cast<T*>(allocator->get_buffer());
+    auto tensor = ov::Tensor(inputInfo.type, inputInfo.dataShape);
+    auto data = tensor.data<T>();
 
     /** Collect images data ptrs **/
     std::vector<std::shared_ptr<uint8_t>> vreader;
@@ -90,7 +87,6 @@ ov::Tensor create_tensor_from_image(const std::vector<std::string>& files,
         }
     }
 
-    auto tensor = ov::Tensor(inputInfo.type, inputInfo.dataShape, ov::Allocator(allocator));
     return tensor;
 }
 
@@ -103,8 +99,8 @@ ov::Tensor create_tensor_from_numpy(const std::vector<std::string>& files,
                                     std::string* filenames_used = nullptr) {
     size_t tensor_size =
         std::accumulate(inputInfo.dataShape.begin(), inputInfo.dataShape.end(), 1, std::multiplies<size_t>());
-    auto allocator = std::make_shared<SharedTensorAllocator>(tensor_size * sizeof(T));
-    auto data = reinterpret_cast<T*>(allocator->get_buffer());
+    auto tensor = ov::Tensor(inputInfo.type, inputInfo.dataShape);
+    auto data = tensor.data<T>();
 
     std::vector<std::shared_ptr<unsigned char>> numpy_array_pointers;
     numpy_array_pointers.reserve(batchSize);
@@ -150,7 +146,7 @@ ov::Tensor create_tensor_from_numpy(const std::vector<std::string>& files,
         }
     }
 
-    return ov::Tensor(inputInfo.type, inputInfo.dataShape, ov::Allocator(allocator));
+    return tensor;
 }
 
 template <typename T>
@@ -160,8 +156,8 @@ ov::Tensor create_tensor_im_info(const std::pair<size_t, size_t>& image_size,
                                  const std::string& inputName) {
     size_t tensor_size =
         std::accumulate(inputInfo.dataShape.begin(), inputInfo.dataShape.end(), 1, std::multiplies<size_t>());
-    auto allocator = std::make_shared<SharedTensorAllocator>(tensor_size * sizeof(T));
-    auto data = reinterpret_cast<T*>(allocator->get_buffer());
+    auto tensor = ov::Tensor(inputInfo.type, inputInfo.dataShape);
+    char* data = static_cast<char*>(tensor.data());
 
     size_t infoBatchSize = 1;
     if (!inputInfo.layout.empty() && ov::layout::has_batch(inputInfo.layout)) {
@@ -176,15 +172,14 @@ ov::Tensor create_tensor_im_info(const std::pair<size_t, size_t>& image_size,
         for (size_t i = 0; i < iminfoSize; i++) {
             size_t index = b * iminfoSize + i;
             if (0 == i)
-                data[index] = static_cast<T>(image_size.first);
+                data[index] = static_cast<char>(image_size.first);
             else if (1 == i)
-                data[index] = static_cast<T>(image_size.second);
+                data[index] = static_cast<char>(image_size.second);
             else
-                data[index] = 1;
+                data[index] = static_cast<char>(1);
         }
     }
 
-    auto tensor = ov::Tensor(inputInfo.type, inputInfo.dataShape, ov::Allocator(allocator));
     return tensor;
 }
 
@@ -197,8 +192,8 @@ ov::Tensor create_tensor_from_binary(const std::vector<std::string>& files,
                                      std::string* filenames_used = nullptr) {
     size_t tensor_size =
         std::accumulate(inputInfo.dataShape.begin(), inputInfo.dataShape.end(), 1, std::multiplies<size_t>());
-    auto allocator = std::make_shared<SharedTensorAllocator>(tensor_size * sizeof(T));
-    char* data = allocator->get_buffer();
+    auto tensor = ov::Tensor(inputInfo.type, inputInfo.dataShape);
+    char* data = static_cast<char*>(tensor.data());
     size_t binaryBatchSize = 1;
     if (!inputInfo.layout.empty() && ov::layout::has_batch(inputInfo.layout)) {
         binaryBatchSize = batchSize;
@@ -229,7 +224,7 @@ ov::Tensor create_tensor_from_binary(const std::vector<std::string>& files,
                             " bytes, but the model expects ",
                             inputSize);
         } else {
-            throw ov::Exception("Unsupported binary file type: " + extension);
+            OPENVINO_THROW("Unsupported binary file type: " + extension);
         }
 
         if (inputInfo.layout != "CN") {
@@ -245,7 +240,6 @@ ov::Tensor create_tensor_from_binary(const std::vector<std::string>& files,
         }
     }
 
-    auto tensor = ov::Tensor(inputInfo.type, inputInfo.dataShape, ov::Allocator(allocator));
     return tensor;
 }
 
@@ -255,8 +249,8 @@ ov::Tensor create_tensor_random(const benchmark_app::InputInfo& inputInfo,
                                 T rand_max = std::numeric_limits<uint8_t>::max()) {
     size_t tensor_size =
         std::accumulate(inputInfo.dataShape.begin(), inputInfo.dataShape.end(), 1, std::multiplies<size_t>());
-    auto allocator = std::make_shared<SharedTensorAllocator>(tensor_size * sizeof(T));
-    auto data = reinterpret_cast<T*>(allocator->get_buffer());
+    auto tensor = ov::Tensor(inputInfo.type, inputInfo.dataShape);
+    auto data = tensor.data<T>();
 
     std::mt19937 gen(0);
     uniformDistribution<T2> distribution(rand_min, rand_max);
@@ -264,7 +258,6 @@ ov::Tensor create_tensor_random(const benchmark_app::InputInfo& inputInfo,
         data[i] = static_cast<T>(distribution(gen));
     }
 
-    auto tensor = ov::Tensor(inputInfo.type, inputInfo.dataShape, ov::Allocator(allocator));
     return tensor;
 }
 
@@ -352,7 +345,7 @@ ov::Tensor get_image_tensor(const std::vector<std::string>& files,
                                                   inputInfo.first,
                                                   filenames_used);
     } else {
-        throw ov::Exception("Input type is not supported for " + inputInfo.first);
+        OPENVINO_THROW("Input type is not supported for " + inputInfo.first);
     }
 }
 
@@ -383,7 +376,7 @@ ov::Tensor get_im_info_tensor(const std::pair<size_t, size_t>& image_size,
     } else if (type == ov::element::u64) {
         return create_tensor_im_info<uint64_t>(image_size, batchSize, inputInfo.second, inputInfo.first);
     } else {
-        throw ov::Exception("Input type is not supported for " + inputInfo.first);
+        OPENVINO_THROW("Input type is not supported for " + inputInfo.first);
     }
 }
 
@@ -471,7 +464,7 @@ ov::Tensor get_numpy_tensor(const std::vector<std::string>& files,
                                                   inputInfo.first,
                                                   filenames_used);
     } else {
-        throw ov::Exception("Input type is not supported for " + inputInfo.first);
+        OPENVINO_THROW("Input type is not supported for " + inputInfo.first);
     }
 }
 
@@ -559,7 +552,7 @@ ov::Tensor get_binary_tensor(const std::vector<std::string>& files,
                                                    inputInfo.first,
                                                    filenames_used);
     } else {
-        throw ov::Exception("Input type is not supported for " + inputInfo.first);
+        OPENVINO_THROW("Input type is not supported for " + inputInfo.first);
     }
 }
 
@@ -570,7 +563,7 @@ ov::Tensor get_random_tensor(const std::pair<std::string, benchmark_app::InputIn
     } else if (type == ov::element::f64) {
         return create_tensor_random<double, double>(inputInfo.second);
     } else if (type == ov::element::f16) {
-        return create_tensor_random<short, short>(inputInfo.second);
+        return create_tensor_random<ov::float16, float>(inputInfo.second);
     } else if (type == ov::element::i32) {
         return create_tensor_random<int32_t, int32_t>(inputInfo.second);
     } else if (type == ov::element::i64) {
@@ -592,7 +585,7 @@ ov::Tensor get_random_tensor(const std::pair<std::string, benchmark_app::InputIn
     } else if (type == ov::element::boolean) {
         return create_tensor_random<uint8_t, uint32_t>(inputInfo.second, 0, 1);
     } else {
-        throw ov::Exception("Input type is not supported for " + inputInfo.first);
+        OPENVINO_THROW("Input type is not supported for " + inputInfo.first);
     }
 }
 

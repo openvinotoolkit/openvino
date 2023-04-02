@@ -39,7 +39,7 @@ void FakeQuantizeAndMaxPoolTransformation::SetUp() {
         inputShape,
         fakeQuantize);
 
-    ov::pass::InitNodeInfo().run_on_function(function);
+    ov::pass::InitNodeInfo().run_on_model(function);
 }
 
 TEST_P(FakeQuantizeAndMaxPoolTransformation, CompareWithRefImpl) {
