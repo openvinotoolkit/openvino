@@ -8,8 +8,12 @@
 #include <cstdio>
 #include <iostream>
 #include <numeric>
+#include <transformations/utils/utils.hpp>
 
+#include "graph.h"
 #include "ie_system_conf.h"
+#include "openvino/runtime/threading/istreams_executor.hpp"
+#include "performance_heuristics.hpp"
 #include "threading/ie_cpu_streams_info.hpp"
 
 using namespace InferenceEngine;
