@@ -187,12 +187,18 @@ void TranslateSession::translate_graph(const ov::frontend::InputModel::Ptr& inpu
             size_t producer_port_idx;
             try {
                 std::string producer_port_name;
-                decode_input_port(operation_decoder, input_port_idx, producer_name, producer_port_name, producer_port_idx);
-                if(!producer_port_name.empty()) {
-                    producer_port_idx = get_flat_index_by_name_and_id(ng_op_map[producer_name], producer_port_name, producer_port_idx);
+                decode_input_port(operation_decoder,
+                                  input_port_idx,
+                                  producer_name,
+                                  producer_port_name,
+                                  producer_port_idx);
+                if (!producer_port_name.empty()) {
+                    producer_port_idx =
+                        get_flat_index_by_name_and_id(ng_op_map[producer_name], producer_port_name, producer_port_idx);
                 }
-                //std::cerr << "for consumer: " << operation_decoder->get_op_name() << "\n";
-                //std::cerr << "producer_name = " << producer_name << ", producer_port_idx = " << producer_port_idx << "\n";
+                // std::cerr << "for consumer: " << operation_decoder->get_op_name() << "\n";
+                // std::cerr << "producer_name = " << producer_name << ", producer_port_idx = " << producer_port_idx <<
+                // "\n";
             } catch (const std::exception&) {
                 FRONT_END_THROW("[ ERROR ] Exception happened when preparing input " + std::to_string(input_port_idx) +
                                 " for op '" + operation_decoder->get_op_name() + "', expected input name: '" +
@@ -364,9 +370,15 @@ void TranslateSession::translate_graph(const ov::frontend::InputModel::Ptr& inpu
                 std::string producer_port_name;
                 size_t producer_port_idx;
                 try {
-                    decode_input_port(operation_decoder, port_index, producer_name, producer_port_name, producer_port_idx);
-                    if(!producer_port_name.empty()) {
-                        producer_port_idx = get_flat_index_by_name_and_id(ng_op_map[producer_name], producer_port_name, producer_port_idx);
+                    decode_input_port(operation_decoder,
+                                      port_index,
+                                      producer_name,
+                                      producer_port_name,
+                                      producer_port_idx);
+                    if (!producer_port_name.empty()) {
+                        producer_port_idx = get_flat_index_by_name_and_id(ng_op_map[producer_name],
+                                                                          producer_port_name,
+                                                                          producer_port_idx);
                     }
                 } catch (const std::exception&) {
                     FRONT_END_THROW("[ ERROR ] Exception happened when preparing input " + std::to_string(port_index) +

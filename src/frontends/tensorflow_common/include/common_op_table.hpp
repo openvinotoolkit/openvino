@@ -21,7 +21,7 @@ namespace ov {
 namespace frontend {
 namespace tensorflow {
 namespace op {
-#define OP_CONVERTER(op) OutputVector op(const ov::frontend::NodeContext& node)
+#define OP_CONVERTER(op)       OutputVector op(const ov::frontend::NodeContext& node)
 #define OP_CONVERTER_NAMED(op) NamedOutputVector op(const ov::frontend::NodeContext& node)
 #define OP_T_CONVERTER(op) \
     template <class T>     \

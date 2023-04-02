@@ -72,13 +72,12 @@ using CreatorFunctionIndexed = std::function<ov::OutputVector(const ov::frontend
 using CreatorFunctionNamedAndIndexed = std::function<NamedOutputVector(const ov::frontend::tensorflow::NodeContext&)>;
 
 struct CreatorFunction {
-
     CreatorFunction() = default;
-    CreatorFunction(CreatorFunctionIndexed _func): func(_func) {}
-    CreatorFunction(CreatorFunctionNamedAndIndexed _func): func(_func) {}
+    CreatorFunction(CreatorFunctionIndexed _func) : func(_func) {}
+    CreatorFunction(CreatorFunctionNamedAndIndexed _func) : func(_func) {}
 
-    NamedOutputVector operator() (const ov::frontend::tensorflow::NodeContext& node) const {
-        if(func.is<CreatorFunctionIndexed>()) {
+    NamedOutputVector operator()(const ov::frontend::tensorflow::NodeContext& node) const {
+        if (func.is<CreatorFunctionIndexed>()) {
             auto outputs = func.as<CreatorFunctionIndexed>()(node);
             return NamedOutputVector(outputs.begin(), outputs.end());
         } else {

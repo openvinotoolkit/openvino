@@ -177,7 +177,10 @@ void Core::add_extension(const std::string& library_path) {
             add_extension(extension_ptr);
             OPENVINO_SUPPRESS_DEPRECATED_END
         } catch (const std::runtime_error& e) {
-            OPENVINO_THROW(std::string("Cannot add extension. Cannot find entry point to the extension library. This error happened: ") + e.what());
+            OPENVINO_THROW(
+                std::string(
+                    "Cannot add extension. Cannot find entry point to the extension library. This error happened: ") +
+                e.what());
         }
     }
 }

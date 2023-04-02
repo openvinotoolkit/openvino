@@ -28,7 +28,7 @@ NamedOutputVector translate_unique_op(const NodeContext& node) {
     set_out_name(node_name + ":0", unique->output(0));
     set_out_name(node_name + ":1", unique->output(2));
 
-    return { {"y", unique->output(0)}, {"idx", unique->output(2)} };
+    return {{"y", unique->output(0)}, {"idx", unique->output(2)}};
 }
 
 }  // namespace op

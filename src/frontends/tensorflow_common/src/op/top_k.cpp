@@ -12,7 +12,9 @@ namespace ov {
 namespace frontend {
 namespace tensorflow {
 namespace op {
-NamedOutputVector translate_top_k_base_op(const NodeContext& node, const ov::Output<ov::Node>& k_input, int min_input_size) {
+NamedOutputVector translate_top_k_base_op(const NodeContext& node,
+                                          const ov::Output<ov::Node>& k_input,
+                                          int min_input_size) {
     default_op_checks(node, min_input_size, {"TopK", "TopKV2"});
     auto input = node.get_input(0);
 

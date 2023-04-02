@@ -23,8 +23,8 @@ public:
         : ConversionExtensionBase(op_type),
           m_converter(converter) {}
 
-
-    ConversionExtension(const std::string& op_type, const ov::frontend::tensorflow::CreatorFunctionNamedAndIndexed& converter)
+    ConversionExtension(const std::string& op_type,
+                        const ov::frontend::tensorflow::CreatorFunctionNamedAndIndexed& converter)
         : ConversionExtensionBase(op_type),
           m_converter(converter) {}
 
