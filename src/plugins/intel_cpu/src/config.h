@@ -10,6 +10,7 @@
 #include <openvino/runtime/properties.hpp>
 #include <openvino/util/common_util.hpp>
 #include "utils/debug_caps_config.h"
+#include "openvino/runtime/properties.hpp"
 
 #include <bitset>
 #include <string>
@@ -63,6 +64,8 @@ struct Config {
     LPTransformsMode lpTransformsMode = LPTransformsMode::Off;
     bool enforceBF16 = false;
 #endif
+    bool inferencePrecisionSetExplicitly = false;
+    ov::hint::ExecutionMode executionMode = ov::hint::ExecutionMode::PERFORMANCE;
 
     DenormalsOptMode denormalsOptMode = DenormalsOptMode::DO_Keep;
 

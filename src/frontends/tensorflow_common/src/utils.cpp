@@ -8,7 +8,6 @@
 
 #include "common_op_table.hpp"
 #include "openvino/opsets/opset10.hpp"
-#include "openvino/opsets/opset8.hpp"
 
 using namespace ov;
 using namespace ov::op;
@@ -35,7 +34,7 @@ void set_out_name(const string& out_name, const Output<Node>& output) {
     output.get_tensor().add_names({out_name});
 }
 
-PadType convert_tf_padding(const ov::frontend::NodeContext& node, const string& tf_padding) {
+PadType convert_tf_padding(const frontend::NodeContext& node, const string& tf_padding) {
     set<string> supported_ops = {"Conv2D",
                                  "Conv2DBackpropInput",
                                  "Conv3D",
@@ -82,7 +81,7 @@ PadType convert_tf_padding(const ov::frontend::NodeContext& node, const string& 
     return PadType::EXPLICIT;
 }
 
-void fill_explicit_pads_vectors(const ov::frontend::NodeContext& node,
+void fill_explicit_pads_vectors(const frontend::NodeContext& node,
                                 bool is_nhwc,
                                 size_t spatial_dims_num,
                                 const vector<int64_t>& tf_explicit_paddings,
@@ -130,7 +129,7 @@ void fill_explicit_pads_vectors(const ov::frontend::NodeContext& node,
     }
 }
 
-OutputVector translate_convolution_op(const ov::frontend::NodeContext& node, size_t spatial_dims_num) {
+OutputVector translate_convolution_op(const frontend::NodeContext& node, size_t spatial_dims_num) {
     TENSORFLOW_OP_VALIDATION(node,
                              spatial_dims_num == 2 || spatial_dims_num == 3,
                              "Conv2D or Conv3D are supported only.");
@@ -240,9 +239,7 @@ OutputVector translate_convolution_op(const ov::frontend::NodeContext& node, siz
     return {conv};
 }
 
-void default_op_checks(const ov::frontend::NodeContext& node,
-                       size_t min_input_size,
-                       const vector<string>& supported_ops) {
+void default_op_checks(const frontend::NodeContext& node, size_t min_input_size, const vector<string>& supported_ops) {
     auto op_type = node.get_op_type();
     TENSORFLOW_OP_VALIDATION(node,
                              find(supported_ops.begin(), supported_ops.end(), op_type) != supported_ops.end(),
@@ -291,17 +288,17 @@ PadMode convert_padding_mode(const NodeContext& node, const string& padding_mode
 }
 
 Output<Node> compute_subgraph_scalar_rank(const Output<Node>& output, element::Type output_type, bool as_scalar) {
-    auto shape_of = make_shared<opset10::ShapeOf>(output, output_type);
-    auto rank_of = make_shared<opset10::ShapeOf>(shape_of, output_type);
+    auto shape_of = make_shared<ShapeOf>(output, output_type);
+    auto rank_of = make_shared<ShapeOf>(shape_of, output_type);
 
     if (as_scalar) {
-        auto const_zero = make_shared<opset10::Constant>(element::i32, Shape{}, 0);
-        return make_shared<opset10::Squeeze>(rank_of, const_zero);
+        auto const_zero = make_shared<Constant>(element::i32, Shape{}, 0);
+        return make_shared<Squeeze>(rank_of, const_zero);
     }
     return rank_of;
 }
 
-void convert_nhwc_to_nchw(bool need_convert, ov::Output<ov::Node>& node, ov::Rank input_rank) {
+void convert_nhwc_to_nchw(bool need_convert, Output<Node>& node, Rank input_rank) {
     if (need_convert) {
         if (input_rank.is_dynamic()) {
             // TODO: use ShapeOf sub-graph to generate permutation vector
@@ -319,7 +316,7 @@ void convert_nhwc_to_nchw(bool need_convert, ov::Output<ov::Node>& node, ov::Ran
     }
 }
 
-void convert_nchw_to_nhwc(bool need_convert, ov::Output<ov::Node>& node, ov::Rank input_rank) {
+void convert_nchw_to_nhwc(bool need_convert, Output<Node>& node, Rank input_rank) {
     if (need_convert) {
         if (input_rank.is_dynamic()) {
             // TODO: use ShapeOf sub-graph to generate permutation vector
@@ -337,17 +334,15 @@ void convert_nchw_to_nhwc(bool need_convert, ov::Output<ov::Node>& node, ov::Ran
     }
 }
 
-std::shared_ptr<ov::opset8::Transpose> make_transpose(const ov::Output<ov::Node>& arg,
-                                                      const ov::AxisVector& input_order) {
-    auto order = std::make_shared<ov::opset8::Constant>(element::i64, Shape{input_order.size()}, input_order);
-    auto transpose = std::make_shared<ov::opset8::Transpose>(arg, order);
+shared_ptr<Transpose> make_transpose(const Output<Node>& arg, const AxisVector& input_order) {
+    auto order = make_shared<Constant>(element::i64, Shape{input_order.size()}, input_order);
+    auto transpose = make_shared<Transpose>(arg, order);
     return transpose;
 }
 
-std::shared_ptr<ov::opset8::Reshape> make_reshape(const ov::Output<ov::Node>& arg,
-                                                  const std::vector<int64_t>& new_shape) {
-    auto new_shape_node = std::make_shared<ov::opset8::Constant>(element::i64, Shape{new_shape.size()}, new_shape);
-    auto reshape = std::make_shared<ov::opset8::Reshape>(arg, new_shape_node, true);
+shared_ptr<Reshape> make_reshape(const Output<Node>& arg, const vector<int64_t>& new_shape) {
+    auto new_shape_node = make_shared<Constant>(element::i64, Shape{new_shape.size()}, new_shape);
+    auto reshape = make_shared<Reshape>(arg, new_shape_node, true);
     return reshape;
 }
 
