@@ -36,8 +36,6 @@ namespace {
 void get_unsupported_operations_and_failures(const std::shared_ptr<Model>& model,
                                              std::vector<std::string>& unsupported_operations,
                                              std::unordered_map<std::string, std::string>& failures) {
-    unsupported_operations.clear();
-    failures.clear();
     for (const auto& node : model->get_ordered_ops()) {
         if (const auto& fw_node = ov::as_type_ptr<FrameworkNode>(node)) {
             auto op_type = fw_node->get_decoder()->get_op_type();
@@ -216,13 +214,14 @@ std::shared_ptr<ov::Model> FrontEnd::convert(const ov::frontend::InputModel::Ptr
                              " operation with a message:\n" + failure.second + "\n";
     }
 
-    // append unsupported operations
-    for (const auto& unsupported_operation : unsupported_operations) {
-        if (m_telemetry) {
+    if (m_telemetry) {
+        for (const auto& unsupported_operation : unsupported_operations) {
             m_telemetry->send_event("error_cause", "tf_" + unsupported_operation);
         }
-        // TODO 107500: report the full list of unsupported operations
     }
+    // TODO 107500: report the full list of unsupported operations
+    // also, communicate with MO for the fallback to the legacy FE
+    // via OpConversionFailure exception that will store all failures and unsupported_operations
     exception_message = (unsupported_operations.size() > 0
                              ? exception_message + "[TensorFlow Frontend] Internal error: No translator found for " +
                                    unsupported_operations[0] + " node."
