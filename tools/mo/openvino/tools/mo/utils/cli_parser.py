@@ -25,7 +25,7 @@ from openvino.tools.mo.middle.passes.convert_data_type import np_data_type_to_de
 from openvino.tools.mo.utils.error import Error
 from openvino.tools.mo.utils.utils import refer_to_faq_msg, get_mo_root_dir
 from openvino.tools.mo.utils.version import get_version
-from openvino.tools.mo.utils.cli_tool_specific_descriptions import get_cli_tool_specific_descriptions
+from openvino.tools.mo.utils.help import get_convert_model_help_specifics, get_to_string_methods_for_params
 
 
 def extension_path_to_str_or_extensions_class(extension):
@@ -454,24 +454,10 @@ def get_mo_convert_params():
             group = group_name
 
     # TODO: remove this when internal converting of params to string is removed
-    params_converted_to_string = {
-        'input_model': path_to_str_or_object,
-        'input_shape': input_shape_to_str,
-        'input': input_to_str,
-        'output': str_list_to_str,
-        'mean_values': mean_scale_value_to_str,
-        'scale_values': mean_scale_value_to_str,
-        'source_layout': source_target_layout_to_str,
-        'target_layout': source_target_layout_to_str,
-        'layout': layout_param_to_str,
-        'transform': transform_param_to_str,
-        'extensions': extensions_to_str_or_extensions_class,
-        'batch': batch_to_int,
-        'transformations_config': transformations_config_to_str,
-        'saved_model_tags': str_list_to_str
-    }
+    params_converted_to_string = get_to_string_methods_for_params()
+
     params_with_paths = get_params_with_paths_list()
-    cli_tool_specific_descriptions = get_cli_tool_specific_descriptions()
+    cli_tool_specific_descriptions = get_convert_model_help_specifics()
 
     for group_name, param_group in mo_convert_params.items():
         for param_name, d in param_group.items():
@@ -730,26 +716,24 @@ def writable_dir(path: str):
 def add_args_by_description(args_group, params_description):
     signature = inspect.signature(openvino.tools.mo.convert_model)
     filepath_args = get_params_with_paths_list()
-
-    special_actions = {'transformations_config': CanonicalizeTransformationPathCheckExistenceAction,
-                       'input_model': CanonicalizePathCheckExistenceAction,
-                       'extensions': CanonicalizeExtensionsPathCheckExistenceAction,
-                       'counts': CanonicalizePathCheckExistenceIfNeededAction,
-                       'version': 'version'}
-    special_types = {'input_model': readable_file_or_dir, 'scale': float, 'extensions': readable_dirs_or_files_or_empty, 'batch': check_positive}
-    param_aliases = {'input_model': {'-w', '-m'}, 'scale': {'-s'}, 'batch': {'-b'}, 'input_proto': {'-d'}}
-
-    cli_tool_specific_descriptions = get_cli_tool_specific_descriptions()
+    cli_tool_specific_descriptions = get_convert_model_help_specifics()
     for param_name, param_description in params_description.items():
         if param_name == 'help':
             continue
         cli_param_name = "--"+param_name
         if cli_param_name not in args_group._option_string_actions:
-            help_text = cli_tool_specific_descriptions[param_name] if param_name in cli_tool_specific_descriptions \
+            # Get parameter specifics
+            param_specifics = cli_tool_specific_descriptions[param_name] if param_name in \
+                                                                            cli_tool_specific_descriptions else {}
+            help_text = param_specifics['description'] if 'description' in param_specifics \
                 else param_description.description
-            action = special_actions[param_name] if param_name in special_actions else None
-            param_type = special_types[param_name] if param_name in special_types else None
-            param_alias = param_aliases[param_name] if param_name in param_aliases else {}
+            action = param_specifics['action'] if 'action' in param_specifics else None
+            param_type = param_specifics['type'] if 'type' in param_specifics else None
+            param_alias = param_specifics['aliases'] if 'aliases' in param_specifics else {}
+            param_version = param_specifics['version'] if 'version' in param_specifics else None
+            param_choices = param_specifics['choices'] if 'choices' in param_specifics else None
+
+            # Bool params common setting
             if signature.parameters[param_name].annotation == bool and param_name != 'version':
                 args_group.add_argument(
                     cli_param_name, *param_alias,
@@ -758,6 +742,7 @@ def add_args_by_description(args_group, params_description):
                     const=True,
                     help=help_text,
                     default=signature.parameters[param_name].default)
+            # File paths common setting
             elif param_name in filepath_args:
                 action = action if action is not None else CanonicalizePathCheckExistenceAction
                 args_group.add_argument(
@@ -766,14 +751,15 @@ def add_args_by_description(args_group, params_description):
                     action=action,
                     help=help_text,
                     default=signature.parameters[param_name].default)
+            # Other params
             else:
                 additional_params = {}
-                if param_name == 'version':
-                    additional_params['version'] = 'Version of Model Optimizer is: {}'.format(get_version())
+                if param_version is not None:
+                    additional_params['version'] = param_version
                 if param_type is not None:
                     additional_params['type'] = param_type
-                if param_name == 'log_level':
-                    additional_params['choices'] = ['CRITICAL', 'ERROR', 'WARN', 'WARNING', 'INFO', 'DEBUG', 'NOTSET']
+                if param_choices is not None:
+                    additional_params['choices'] = param_choices
                 args_group.add_argument(
                     cli_param_name, *param_alias,
                     help=help_text,
