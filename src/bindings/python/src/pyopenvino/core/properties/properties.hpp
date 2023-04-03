@@ -10,6 +10,7 @@
 #include "openvino/runtime/properties.hpp"
 #include "openvino/runtime/intel_cpu/properties.hpp"
 #include "openvino/runtime/intel_gpu/properties.hpp"
+#include "openvino/runtime/auto/properties.hpp"
 #include "pyopenvino/core/properties/properties.hpp"
 
 namespace py = pybind11;
