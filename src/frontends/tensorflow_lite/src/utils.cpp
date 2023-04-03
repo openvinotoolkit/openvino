@@ -102,11 +102,11 @@ void ov::frontend::tensorflow_lite::dequantize_inputs(OutputVector& deq_inputs) 
 }
 
 template <>
-OutputVector frontend::tensorflow_lite::get_indexed_outputs(const OutputVector& outputs) {
+OutputVector ov::frontend::tensorflow_lite::get_indexed_outputs(const OutputVector& outputs) {
     return outputs;
 };
 
 template <>
-OutputVector frontend::tensorflow_lite::get_indexed_outputs(const NamedOutputVector& outputs) {
+OutputVector ov::frontend::tensorflow_lite::get_indexed_outputs(const frontend::NamedOutputVector& outputs) {
     return indexed_from_named(outputs);
 };
