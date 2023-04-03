@@ -32,8 +32,14 @@ std::vector<std::vector<int>> get_streams_info_table(const int input_streams,
     if (1 == input_streams) {
         stream_info[NUMBER_OF_STREAMS] = 1;
         int limit_threads = (input_threads == 0) ? model_prefer_threads : input_threads;
-        if ((proc_type_table[0][EFFICIENT_CORE_PROC] > 0) &&
-            ((limit_threads == 0) || (limit_threads > proc_type_table[0][MAIN_CORE_PROC]))) {
+        if (proc_type_table[0][ALL_PROC] == proc_type_table[0][EFFICIENT_CORE_PROC]) {
+            stream_info[PROC_TYPE] = EFFICIENT_CORE_PROC;
+            stream_info[THREADS_PER_STREAM] = (input_threads == 0)
+                                                  ? proc_type_table[0][EFFICIENT_CORE_PROC]
+                                                  : std::min(proc_type_table[0][EFFICIENT_CORE_PROC], limit_threads);
+            streams_info_table.push_back(stream_info);
+        } else if ((proc_type_table[0][EFFICIENT_CORE_PROC] > 0) &&
+                   ((limit_threads == 0) || (limit_threads > proc_type_table[0][MAIN_CORE_PROC]))) {
             stream_info[PROC_TYPE] = ALL_PROC;
             int n_threads = std::accumulate(proc_type_table[0].begin() + MAIN_CORE_PROC,
                                             proc_type_table[0].begin() + HYPER_THREADING_PROC,
@@ -69,6 +75,7 @@ std::vector<std::vector<int>> get_streams_info_table(const int input_streams,
         int n_streams = 0;
         int n_threads = 0;
         int n_threads_per_stream = 0;
+        int base_type = MAIN_CORE_PROC;
 
         if (proc_type_table.size() == 1) {
             n_threads = (0 == input_threads) ? proc_type_table[0][ALL_PROC]
@@ -79,26 +86,28 @@ std::vector<std::vector<int>> get_streams_info_table(const int input_streams,
         }
 
         if (0 != input_streams) {
+            base_type = (proc_type_table[0][MAIN_CORE_PROC] == 0) ? EFFICIENT_CORE_PROC : MAIN_CORE_PROC;
             n_streams = (input_infer_requests > 0) ? std::min(input_streams, input_infer_requests) : input_streams;
             if (n_streams >= n_threads) {
                 n_streams = n_threads;
                 n_threads_per_stream = 1;
             } else {
-                n_threads_per_stream = std::min(std::max(1, n_threads / n_streams), proc_type_table[0][MAIN_CORE_PROC]);
+                n_threads_per_stream = std::min(std::max(1, n_threads / n_streams), proc_type_table[0][base_type]);
                 if (proc_type_table.size() == 1) {
-                    if ((n_threads_per_stream > proc_type_table[0][MAIN_CORE_PROC]) &&
-                        (n_threads_per_stream < proc_type_table[0][MAIN_CORE_PROC] * 2)) {
-                        n_threads_per_stream = proc_type_table[0][MAIN_CORE_PROC];
-                    } else if (n_threads_per_stream < proc_type_table[0][MAIN_CORE_PROC]) {
+                    if ((n_threads_per_stream > proc_type_table[0][base_type]) &&
+                        (n_threads_per_stream < proc_type_table[0][base_type] * 2)) {
+                        n_threads_per_stream = proc_type_table[0][base_type];
+                    } else if (n_threads_per_stream < proc_type_table[0][base_type]) {
                         n_threads_per_stream = static_cast<int>(
-                            proc_type_table[0][MAIN_CORE_PROC] /
-                            ((proc_type_table[0][MAIN_CORE_PROC] + n_threads_per_stream - 1) / n_threads_per_stream));
+                            proc_type_table[0][base_type] /
+                            ((proc_type_table[0][base_type] + n_threads_per_stream - 1) / n_threads_per_stream));
                     }
                 }
             }
         } else {
+            base_type = (proc_type_table[0][MAIN_CORE_PROC] == 0) ? EFFICIENT_CORE_PROC : MAIN_CORE_PROC;
             if (0 == model_prefer_threads) {
-                int n_proc = std::min(n_threads, proc_type_table[0][MAIN_CORE_PROC]);
+                int n_proc = std::min(n_threads, proc_type_table[0][base_type]);
                 if (0 == n_proc % 4) {
                     n_threads_per_stream = 4;
                 } else if (0 == n_proc % 5) {
@@ -114,17 +123,16 @@ std::vector<std::vector<int>> get_streams_info_table(const int input_streams,
                 if ((input_infer_requests > 0) && (n_streams > input_infer_requests)) {
                     n_streams = input_infer_requests;
                     n_threads_per_stream =
-                        std::min(static_cast<int>(n_threads / n_streams), proc_type_table[0][MAIN_CORE_PROC]);
+                        std::min(static_cast<int>(n_threads / n_streams), proc_type_table[0][base_type]);
                 } else {
                     while (n_streams < n_threads_per_stream) {
                         if (1 == n_threads_per_stream) {
                             break;
                         } else {
                             n_threads_per_stream = static_cast<int>((n_threads_per_stream * 2 - 1) / 2);
-                            n_threads_per_stream =
-                                static_cast<int>(proc_type_table[0][MAIN_CORE_PROC] /
-                                                 ((proc_type_table[0][MAIN_CORE_PROC] + n_threads_per_stream - 1) /
-                                                  n_threads_per_stream));
+                            n_threads_per_stream = static_cast<int>(
+                                proc_type_table[0][base_type] /
+                                ((proc_type_table[0][base_type] + n_threads_per_stream - 1) / n_threads_per_stream));
                             n_streams = static_cast<int>(n_threads / n_threads_per_stream);
                         }
                     }
@@ -132,8 +140,7 @@ std::vector<std::vector<int>> get_streams_info_table(const int input_streams,
             } else {
                 n_streams = ((n_threads + model_prefer_threads - 1) / model_prefer_threads);
                 n_streams = (input_infer_requests > 0) ? std::min(n_streams, input_infer_requests) : n_streams;
-                n_threads_per_stream =
-                    std::min(static_cast<int>(n_threads / n_streams), proc_type_table[0][MAIN_CORE_PROC]);
+                n_threads_per_stream = std::min(static_cast<int>(n_threads / n_streams), proc_type_table[0][base_type]);
             }
         }
 
