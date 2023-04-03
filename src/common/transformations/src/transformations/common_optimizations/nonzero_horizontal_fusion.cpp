@@ -24,9 +24,9 @@ ov::pass::NonZeroHorizontalFusion::NonZeroHorizontalFusion() {
 
         bool status = false;
         auto replace_if_nodes_match = [&](const ov::Input<ov::Node>& in) {
-            auto in_node = in.get_node()->shared_from_this();
-            auto cur_nonzero = ov::as_type_ptr<ov::opset10::NonZero>(in_node);
-            if (in_node.get() != nonzero.get() && cur_nonzero && cur_nonzero->get_output_type() == out_prc) {
+            auto in_node = in.get_node();
+            auto cur_nonzero = ov::as_type<ov::opset10::NonZero>(in_node);
+            if (in_node != nonzero.get() && cur_nonzero && cur_nonzero->get_output_type() == out_prc) {
                 status |= ov::replace_output_update_name(cur_nonzero->output(0), nonzero->output(0));
             }
         };
