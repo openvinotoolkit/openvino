@@ -6,7 +6,15 @@
 
 #include <pybind11/pybind11.h>
 
+#ifdef _MSC_VER
+    // TODO: Explain
+    #pragma warning( push )
+    #pragma warning( disable: 4996 )
+#endif
 #include "openvino/core/any.hpp"
+#ifdef _MSC_VER
+    #pragma warning( pop )
+#endif
 #include "openvino/core/type/element_type.hpp"
 #include "openvino/runtime/properties.hpp"
 #include "openvino/pass/serialize.hpp"
