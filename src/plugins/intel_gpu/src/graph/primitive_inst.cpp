@@ -326,7 +326,7 @@ bool primitive_inst::update_impl() {
                 auto pshape = params.get_input_layout(i).get_partial_shape();
                 auto input_shape = layout::transform(pshape,
                                                      format::get_default_format(pshape.size()),
-                                                     format::bfwzyx).to_shape();
+                                                     format::get_default_format(layout::max_rank())).to_shape();
 
                 for (size_t j = 0; j < input_shape.size(); j++)
                     lock[offset++] = static_cast<int32_t>(input_shape[j]);
@@ -338,7 +338,7 @@ bool primitive_inst::update_impl() {
                 auto pshape = params.get_output_layout(i).get_partial_shape();
                 auto output_shape = layout::transform(pshape,
                                                       format::get_default_format(pshape.size()),
-                                                      format::bfwzyx).to_shape();
+                                                      format::get_default_format(layout::max_rank())).to_shape();
 
                 for (size_t j = 0; j < output_shape.size(); j++)
                     lock[offset++] = static_cast<int32_t>(output_shape[j]);
@@ -625,10 +625,9 @@ primitive_inst::primitive_inst(network& network, program_node const& node, bool 
             _dynamic_impl = _impl->clone();
             // Actual shape info layout is the following:
             // input_0 -> input_1, ..., fused_dep_0, fused_dep1, ..., output_0, output_1, ...
-            // For each tensor we save 6 dimensions if [bfwzyx] order
+            // For each tensor we save max_rank dimensions in [bfvuwzyx] order
             const int64_t buffers_count = _node->get_dependencies().size() + _node->get_outputs_count();
-            const size_t tensor_dims_count = 6;
-            const int64_t shape_elements = buffers_count * tensor_dims_count;
+            const int64_t shape_elements = buffers_count * layout::max_rank();
             _shape_info_memory = _network.get_engine().allocate_memory(layout{{shape_elements}, data_types::i32, format::bfyx});
         }
     }

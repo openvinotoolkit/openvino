@@ -64,9 +64,7 @@ void compile_graph::run(program& p) {
             can_select_impl = false;
         }
 
-        bool is_planar = node->get_output_layout().format == format::bfyx ||
-                         node->get_output_layout().format == format::bfzyx ||
-                         node->get_output_layout().format == format::bfwzyx;
+        bool is_planar = format::is_default_format(node->get_output_layout().format);
 
         if (node->is_dynamic() && !is_planar)
             can_select_impl = false;

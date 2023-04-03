@@ -330,6 +330,7 @@ struct format {
     }
 
     static format get_default_format(size_t rank, bool is_weights = false, bool is_grouped = false);
+    static bool is_default_format(type fmt);
 
     static format adjust_to_rank(format fmt, size_t new_rank);
 
