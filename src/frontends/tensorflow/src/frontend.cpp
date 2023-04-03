@@ -325,13 +325,9 @@ void FrontEnd::add_extension(const std::shared_ptr<ov::Extension>& extension) {
                 ov::frontend::tensorflow::CreatorFunctionNamedAndIndexed([=](const tensorflow::NodeContext& context) {
                     return common_conv_ext->get_converter_named_and_indexed()(context);
                 });
-        } else {
-            // TODO: fix extension .so test and remove this else condition
-            m_op_translators[common_conv_ext->get_op_type()] =
-                ov::frontend::tensorflow::CreatorFunctionIndexed([=](const NodeContext& context) {
-                    return common_conv_ext->get_converter()(context);
-                });
         }
+        // Ignore other types of extensions in particular CreatorFunctionNamed which cannot be used with tensorflow
+        // frontend
     } else if (const auto& tensorflow_conv_ext =
                    std::dynamic_pointer_cast<ov::frontend::tensorflow::ConversionExtension>(extension)) {
         m_conversion_extensions.push_back(tensorflow_conv_ext);
