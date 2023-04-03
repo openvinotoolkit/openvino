@@ -147,7 +147,7 @@ private:
             if (inf_loop_history.empty()) {
                 inf_loop_count++;
             } else {
-                if (inf_loop_count > 0 &&
+                if ((inf_loop_count > 0) &&
                     ((inf_loop_pattern.size() > 0) && (inf_loop_history.size() % inf_loop_pattern.size() == 0) ||
                      sf.allLayersProcessed())) {
                     int32_t history_shift = 0;
