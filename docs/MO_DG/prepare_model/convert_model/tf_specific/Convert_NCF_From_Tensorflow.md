@@ -8,9 +8,7 @@ This tutorial explains how to convert Neural Collaborative Filtering (NCF) model
 
 1. Use `the instructions <https://github.com/tensorflow/models/tree/master/official/recommendation#train-and-evaluate-model>`__ from this repository to train the model.
 
-2. Freeze the inference graph you get in the previous step in ``model_dir``, following
-the instructions from the **Freezing Custom Models in Python** section of the
-:doc:`Converting a TensorFlow Model <openvino_docs_MO_DG_prepare_model_convert_model_Convert_Model_From_TensorFlow>` guide.
+2. Freeze the inference graph you get in the previous step in ``model_dir``, following the instructions from the **Freezing Custom Models in Python** section of the :doc:`Converting a TensorFlow Model <openvino_docs_MO_DG_prepare_model_convert_model_Convert_Model_From_TensorFlow>` guide.
 
 Run the following commands:
 
