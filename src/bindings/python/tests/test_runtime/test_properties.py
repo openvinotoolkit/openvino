@@ -226,6 +226,16 @@ def test_properties_ro(ov_property_ro, expected_value):
             ((properties.hint.PerformanceMode.UNDEFINED, properties.hint.PerformanceMode.UNDEFINED),),
         ),
         (
+            properties.hint.use_cpu_pinning,
+            "USE_CPU_PINNING",
+            (
+                (True, True),
+                (False, False),
+                (1, True),
+                (0, False),
+            ),
+        ),
+        (
             properties.hint.scheduling_core_type,
             "SCHEDULING_CORE_TYPE",
             ((properties.hint.SchedulingCoreType.PCORE_ONLY, properties.hint.SchedulingCoreType.PCORE_ONLY),),
@@ -266,6 +276,36 @@ def test_properties_ro(ov_property_ro, expected_value):
             (
                 (0.1, np.float32(0.1)),
                 (2.0, 2.0),
+            ),
+        ),
+        (
+            properties.intel_auto.device_bind_buffer,
+            "DEVICE_BIND_BUFFER",
+            (
+                (True, True),
+                (False, False),
+                (1, True),
+                (0, False),
+            ),
+        ),
+        (
+            properties.intel_auto.enable_startup_fallback,
+            "ENABLE_STARTUP_FALLBACK",
+            (
+                (True, True),
+                (False, False),
+                (1, True),
+                (0, False),
+            ),
+        ),
+        (
+            properties.intel_auto.enable_runtime_fallback,
+            "ENABLE_RUNTIME_FALLBACK",
+            (
+                (True, True),
+                (False, False),
+                (1, True),
+                (0, False),
             ),
         ),
         (properties.device.id, "DEVICE_ID", (("0", "0"),)),
@@ -420,6 +460,7 @@ def test_single_property_setting(device):
                 properties.affinity(properties.Affinity.NONE),
                 properties.hint.inference_precision(Type.f32),
                 properties.hint.performance_mode(properties.hint.PerformanceMode.LATENCY),
+                properties.hint.use_cpu_pinning(True),
                 properties.hint.scheduling_core_type(properties.hint.SchedulingCoreType.PCORE_ONLY),
                 properties.hint.use_hyper_threading(True),
                 properties.hint.num_requests(12),
@@ -434,6 +475,7 @@ def test_single_property_setting(device):
             properties.affinity(): properties.Affinity.NONE,
             properties.hint.inference_precision(): Type.f32,
             properties.hint.performance_mode(): properties.hint.PerformanceMode.LATENCY,
+            properties.hint.use_cpu_pinning(): True,
             properties.hint.scheduling_core_type(): properties.hint.SchedulingCoreType.PCORE_ONLY,
             properties.hint.use_hyper_threading(): True,
             properties.hint.num_requests(): 12,

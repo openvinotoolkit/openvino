@@ -55,7 +55,7 @@ private:
 
     Config engConfig;
     ExtensionManager::Ptr extensionManager = std::make_shared<ExtensionManager>();
-    /* Explicily configured streams have higher priority even than performance hints.
+    /* Explicily configured streams have higher priority than performance hints.
        So track if streams is set explicitly (not auto-configured) */
     bool streamsExplicitlySetForEngine = false;
     const std::string deviceFullName;
