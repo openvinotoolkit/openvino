@@ -213,14 +213,8 @@ public:
     bool is_internal() const { return _internal; }
     bool is_primary_stream() const { return _is_primary_stream; }
     bool is_dynamic() const { return _is_dynamic; }
+    size_t get_weights_cache_capacity() const { return _weights_cache_capacity; }
 
-    /// Create memory object with specified @p layout and allocation @p type for primitive with @p id
-    /// Underlying memory handle can be reused with other primitives from memory pool based on @p dependencies
-    memory_ptr get_memory_from_pool(const layout& layout,
-                                    primitive_id id,
-                                    std::set<primitive_id> dependencies,
-                                    allocation_type type,
-                                    bool reusable = true);
     memory_pool& get_memory_pool() {
         return *_memory_pool;
     }
@@ -261,6 +255,7 @@ private:
     std::vector<std::shared_ptr<primitive_inst>> _variable_state_primitives;
     program::primitives_info _prims_info;
     std::map<primitive_id, primitive_id> _ext_id_mapping;
+    size_t _weights_cache_capacity = 1;
 
     std::unordered_map<primitive_id, event::ptr> _events;
     output_chains_map _output_chains;
@@ -275,6 +270,7 @@ private:
     std::shared_ptr<primitive_inst> find_primitive(const primitive_id& id) const;
     void check_names();
     void add_default_output_chains();
+    void calculate_weights_cache_capacity();
     output_chains_map::iterator add_output_chain(std::shared_ptr<primitive_inst>& p_inst);
 
     // Move from cldnn::program to cldnn::network for multi-threads issue.

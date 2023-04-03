@@ -450,11 +450,19 @@ void Graph::InitDescriptors() {
         node->filterSupportedPrimitiveDescriptors();
 
 #ifdef CPU_DEBUG_CAPS
-        DEBUG_LOG("==================");
-        for (auto & pd : node->getSupportedPrimitiveDescriptors())
-            DEBUG_LOG("#", node->getExecIndex(),
-                      " ", node->getName(),
-                      "  SupportedPrimitiveDescriptor:\n", pd);
+        const auto& SPDs = node->getSupportedPrimitiveDescriptors();
+        for (int i = 0; i < SPDs.size(); i++) {
+            DEBUG_LOG("#",
+                      node->getExecIndex(),
+                      " ",
+                      node->getName(),
+                      "  SupportedPrimitiveDescriptors [",
+                      i,
+                      "/",
+                      SPDs.size(),
+                      "]: \n",
+                      SPDs[i]);
+        }
 #endif
     }
 
@@ -883,13 +891,6 @@ void Graph::CreatePrimitives() {
         OV_ITT_SCOPE(FIRST_INFERENCE, itt::domains::intel_cpu_LT, node->profiling.createPrimitive);
         DEBUG_LOG(*node);
         node->createPrimitive();
-#ifdef CPU_DEBUG_CAPS
-        if (node->prim) {
-            auto pd_c = node->prim.get_primitive_desc();
-            auto* pd = reinterpret_cast<const dnnl_primitive_desc*>(pd_c);
-            DEBUG_LOG("verbose##", node->getName(), "##", pd->info(), "\n");
-        }
-#endif
     }
 }
 
@@ -1506,11 +1507,6 @@ bool Graph::InsertNode(NodePtr parent, NodePtr child, NodePtr node, int parentPo
 
 // Set all non const data paths precision to BF16
 void Graph::EnforceBF16() {
-    // Floating point parts of FP32 + INT8 or FP32 + BIN mixed precision models will be executed in BF16 precision
-    // only if enforceBF16 flag was set manually because current performance is not good enough to enable it by default
-    if (!implication(context->isGraphQuantized(), getConfig().manualEnforceBF16))
-        return;
-
     std::function<void(const NodePtr&, std::unordered_set<NodePtr>& skipNodes)> searchForNodesToSkip;
     searchForNodesToSkip = [&](const NodePtr& node, std::unordered_set<NodePtr>& skipNodes) -> void {
         for (size_t i = 0; i < node->getParentEdges().size(); i++) {

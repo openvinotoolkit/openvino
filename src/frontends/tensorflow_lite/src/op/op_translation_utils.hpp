@@ -13,7 +13,7 @@
 #include "openvino/core/node_vector.hpp"
 #include "openvino/frontend/tensorflow_lite/node_context.hpp"
 #include "openvino/opsets/opset10.hpp"
-#include "openvino_conversions.hpp"
+#include "openvino/opsets/opset8.hpp"
 #include "utils.hpp"
 
 namespace ov {
