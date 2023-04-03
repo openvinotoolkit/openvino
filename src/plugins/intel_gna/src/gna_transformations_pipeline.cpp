@@ -53,7 +53,6 @@
 #include "transformations/swap_input_matmul_gna.hpp"
 #include "transformations/unfuse_reshape_and_transpose.hpp"
 #include "transformations/utils/utils.hpp"
-#include "openvino/pass/serialize.hpp"
 
 namespace ov {
 namespace intel_gna {
@@ -68,7 +67,6 @@ void TransformationsPipeline::apply(const std::shared_ptr<ov::Model>& model) {
 
     // In OV API 2.0(IRv10) default convertion to fp32 (inputs, outputs and weights) is disabled
     // and we need to run the ConvertPrecision transformation to support old networks.
-    manager.register_pass<ov::pass::Serialize>("ngraph_pass_begin.xml", "ngraph_pass_begin.bin");
     manager.register_pass<ov::pass::ConvertPrecision>(precisions_map{{ngraph::element::f16, ngraph::element::f32}});
     manager.register_pass<ov::pass::ConvertMVN1ToMVN6>();
     manager.register_pass<ov::intel_gna::pass::DecomposeMVN>();
@@ -173,8 +171,6 @@ void TransformationsPipeline::apply(const std::shared_ptr<ov::Model>& model) {
     pass_config->disable<ov::pass::TransposeReduction>();
     // Operations Max and Min aren't supported
     pass_config->disable<ov::pass::ConcatReduceFusion>();
-
-    manager.register_pass<ov::pass::Serialize>("ngraph_pass_end.xml", "ngraph_pass_end.bin");
 
     manager.run_passes(model);
 
