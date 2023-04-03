@@ -43,14 +43,13 @@ protected:
         return std::make_shared<ngraph::opset6::Assign>(value, variable);
     }
 
-    virtual void SetUpTransformNone();
+    virtual void CreateCommonFunc();
 
     ngraph::element::Type ngPrc;
     InferenceEngine::SizeVector inputShape;
 
 private:
     void CreateTIFunc();
-    void CreateCommonFunc();
     void ApplyLowLatency();
 
     InferenceEngine::Precision netPrecision;

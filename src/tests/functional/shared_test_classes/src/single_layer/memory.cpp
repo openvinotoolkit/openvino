@@ -39,7 +39,7 @@ namespace LayerTestsDefinitions {
         ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
 
         if (transformation == ngraph::helpers::MemoryTransformation::NONE) {
-            SetUpTransformNone();
+            CreateCommonFunc();
         } else {
             CreateTIFunc();
             ApplyLowLatency();
@@ -50,10 +50,6 @@ namespace LayerTestsDefinitions {
         auto variable_value = std::make_shared<VariableValue>(hostTensor);
         variable_context.set_variable_value(function->get_variable_by_id("v0"), variable_value);
         eval_context["VariableContext"] = variable_context;
-    }
-
-    void MemoryTest::SetUpTransformNone() {
-        CreateCommonFunc();
     }
 
     void MemoryTest::Run() {

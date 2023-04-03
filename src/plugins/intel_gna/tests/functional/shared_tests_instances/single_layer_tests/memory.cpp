@@ -6,12 +6,13 @@
 
 #include <vector>
 
+#include "ngraph/opsets/opset11.hpp"
 #include "ngraph_functions/builders.hpp"
 #include "openvino/op/util/variable.hpp"
 
 using namespace LayerTestsDefinitions;
 using namespace ngraph;
-using namespace opset7;
+using namespace opset11;
 
 namespace {
 
@@ -19,7 +20,7 @@ class MemoryTestGna : public MemoryTest {
     using Super = MemoryTest;
 
 protected:
-    void SetUpTransformNone() override {
+    void CreateCommonFunc() override {
         auto param = builder::makeParams(ngPrc, {inputShape});
         const auto variable_info = targetDevice == CommonTestUtils::DEVICE_GPU
                                        ? VariableInfo{Shape{inputShape}, ngPrc, "v0"}
@@ -35,16 +36,15 @@ protected:
         auto min325 = ngraph::builder::makeConstant<float>(ngPrc, {}, {-325.0099182128906f});
         auto max325 = ngraph::builder::makeConstant<float>(ngPrc, {}, {325.0f});
 
-        auto fq_from_Par225 = std::make_shared<opset9::FakeQuantize>(param.at(0), min55, max55, min55, max55, 65536);
+        auto fq_from_Par225 = std::make_shared<FakeQuantize>(param.at(0), min55, max55, min55, max55, 65536);
 
         auto read_value = CreateReadValueOp(fq_from_Par225, variable);
 
-        auto fq_from_ReadVal =
-            std::make_shared<opset9::FakeQuantize>(read_value, min270, max270, min270, max270, 65536);
+        auto fq_from_ReadVal = std::make_shared<FakeQuantize>(read_value, min270, max270, min270, max270, 65536);
 
         auto add = std::make_shared<Add>(fq_from_ReadVal, fq_from_Par225);
 
-        auto fq_from_add = std::make_shared<opset9::FakeQuantize>(add, min325, max325, min325, max325, 65536);
+        auto fq_from_add = std::make_shared<FakeQuantize>(add, min325, max325, min325, max325, 65536);
 
         auto assign = CreateAssignOp(fq_from_add, variable);
         auto res = std::make_shared<Result>(fq_from_add);
