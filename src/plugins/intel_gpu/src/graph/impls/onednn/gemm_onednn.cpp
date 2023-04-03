@@ -75,7 +75,7 @@ protected:
             in_layouts.emplace_back(impl_params.get_input_layout(2));
         }
 
-        in_layouts = gemm_inst::transform_input_layouts(prim, in_layouts, out_l);
+        in_layouts = gemm_inst::transform_input_layouts(prim, in_layouts);
         out_l = gemm_inst::transform_output_layout(prim, in_layouts, out_l);
 
         const auto& in0_l = in_layouts[0];
@@ -178,7 +178,7 @@ public:
 #ifdef ONEDNN_PRIMITIVE_SERIALIZATION
         parent::save(ob);
 
-        const kernel_impl_params* impl_params = reinterpret_cast<kernel_impl_params*>(ob.getKernlImplParams());
+        const kernel_impl_params* impl_params = reinterpret_cast<kernel_impl_params*>(ob.getKernelImplParams());
         auto prim = impl_params->typed_desc<gemm>();
         bool gemm_with_bias = prim->dependencies().size() == 3;
 

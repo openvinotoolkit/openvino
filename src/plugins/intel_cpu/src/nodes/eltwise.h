@@ -35,6 +35,7 @@ struct jit_eltwise_params {
     size_t oc_size;
 
     size_t work_amount;
+    bool use_runtime_ptrs;
 };
 
 struct jit_eltwise_call_args_ptrs {
@@ -42,6 +43,11 @@ struct jit_eltwise_call_args_ptrs {
     void *dst_ptr;
     //ptr to array of post op inputs pointers (flat list)
     const void** post_op_data;
+
+    // shape agnostic kernel
+    size_t work_amount;
+    const void *src_offsets[MAX_ELTWISE_INPUTS];
+    const void *dst_offsets;
 };
 
 struct jit_eltwise_call_args_indexes {
@@ -64,6 +70,12 @@ struct jit_uni_eltwise_kernel {
     virtual void create_ker() = 0;
 
     jit_eltwise_params jep_;
+};
+
+enum class EltwiseImplType {
+    reference = 0,
+    optimized = 1,
+    optimizedShapeAgnostic = 2
 };
 
 class Eltwise : public Node {
@@ -116,6 +128,7 @@ public:
 
     bool needPrepareParams() const override;
     void prepareParams() override;
+    void createPrimitive() override;
 
     void executeDynamicImpl(dnnl::stream strm) override;
 
@@ -137,15 +150,26 @@ private:
 
     dnnl::algorithm onednnAlgorithm = dnnl::algorithm::undef;
 
-    bool canUseOptimizedImpl = false;
+    EltwiseImplType implType = EltwiseImplType::reference;
+    std::vector<bool> broadcastPolicy;
     bool isDynBatchEnabled = false;
     bool specialConvolutionAddFusing = false;
     size_t inputNum = 0;
     std::vector<ptrdiff_t> start_offset_in = {};
     ptrdiff_t start_offset_out = 0;
 
+    std::vector<InferenceEngine::Precision> inpPrc;
+    InferenceEngine::Precision outPrc;
+
     // blocked dims for which kernel compiled and params prepared
     std::vector<VectorDims> currentInBlkDims = {};
+
+    // shape agnostic kernel
+    struct {
+        VectorDims outDims;
+        std::vector<VectorDims> inOffsets;
+        VectorDims outOffsets;
+    } execParams;
 
     float alpha = 0;
     float beta = 0;
@@ -175,6 +199,16 @@ private:
 
     void appendMemory(const std::vector<float> &data, MemoryPtr &memPtr, std::vector<MemoryPtr>& postOpsMem);
     void appendMemory(const std::vector<float> &data, MemoryPtr &memPtr, std::vector<const void*>& postOpsMem);
+};
+
+class eltwise_precision_helper {
+public:
+    static InferenceEngine::Precision get_precision(const size_t inputs_number,
+                                                    const InferenceEngine::Precision (&src_prc)[MAX_ELTWISE_INPUTS],
+                                                    const std::vector<Eltwise::EltwiseData>& eltwise_data);
+
+private:
+    static std::set<std::vector<element::Type>> get_supported_precisions(const Algorithm& algo);
 };
 
 }   // namespace node
