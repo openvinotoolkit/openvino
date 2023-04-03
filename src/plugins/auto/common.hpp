@@ -196,7 +196,6 @@ public:
     std::mutex                                     _mutex;
     bool                                           _needPerfCounters;
     bool                                           _batchingDisabled = {false};
-    bool                                           _bindBuffer = false;
     bool                                           _startupfallback = true;
     bool                                           _runtimeFallback = true;
     virtual ~MultiScheduleContext() = default;
@@ -214,6 +213,7 @@ public:
     std::mutex                  _confMutex;
     std::mutex                  _fallbackMutex;
     MultiDeviceInferencePlugin* _plugin;
+    SoExecNetwork               _hwExecutableNetwork;
     virtual ~AutoScheduleContext() = default;
 };
 

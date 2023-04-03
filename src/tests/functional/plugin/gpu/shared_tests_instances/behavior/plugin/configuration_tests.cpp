@@ -309,22 +309,16 @@ namespace {
             {{InferenceEngine::MultiDeviceConfigParams::KEY_MULTI_DEVICE_PRIORITIES, CommonTestUtils::DEVICE_GPU},
              {InferenceEngine::PluginConfigParams::KEY_PERFORMANCE_HINT,
               InferenceEngine::PluginConfigParams::THROUGHPUT},
-             {InferenceEngine::PluginConfigParams::KEY_EXCLUSIVE_ASYNC_REQUESTS,
-              InferenceEngine::PluginConfigParams::YES},
-             {InferenceEngine::PluginConfigParams::KEY_PERFORMANCE_HINT_NUM_REQUESTS, "2"},
-             {InferenceEngine::PluginConfigParams::KEY_ALLOW_AUTO_BATCHING, InferenceEngine::PluginConfigParams::NO},
-             {InferenceEngine::PluginConfigParams::KEY_PERF_COUNT, InferenceEngine::PluginConfigParams::NO}}};
+             {InferenceEngine::PluginConfigParams::KEY_MODEL_PRIORITY,
+              InferenceEngine::PluginConfigParams::MODEL_PRIORITY_MED}}};
     };
 
     auto auto_multi_loadNetWork_config = []() {
         return std::vector<std::map<std::string, std::string>>{
             {{InferenceEngine::MultiDeviceConfigParams::KEY_MULTI_DEVICE_PRIORITIES, CommonTestUtils::DEVICE_GPU},
-             {InferenceEngine::PluginConfigParams::KEY_PERFORMANCE_HINT, InferenceEngine::PluginConfigParams::LATENCY},
-             {InferenceEngine::PluginConfigParams::KEY_EXCLUSIVE_ASYNC_REQUESTS,
-              InferenceEngine::PluginConfigParams::NO},
-             {InferenceEngine::PluginConfigParams::KEY_PERFORMANCE_HINT_NUM_REQUESTS, "10"},
-             {InferenceEngine::PluginConfigParams::KEY_ALLOW_AUTO_BATCHING, InferenceEngine::PluginConfigParams::YES},
-             {InferenceEngine::PluginConfigParams::KEY_PERF_COUNT, InferenceEngine::PluginConfigParams::YES}}};
+             {InferenceEngine::PluginConfigParams::KEY_PERFORMANCE_HINT, InferenceEngine::PluginConfigParams::THROUGHPUT},
+             {InferenceEngine::PluginConfigParams::KEY_MODEL_PRIORITY,
+              InferenceEngine::PluginConfigParams::MODEL_PRIORITY_HIGH}}};
     };
 
     INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests,
