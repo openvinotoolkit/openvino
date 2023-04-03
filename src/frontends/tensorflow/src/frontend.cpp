@@ -207,13 +207,13 @@ std::shared_ptr<ov::Model> FrontEnd::convert(const ov::frontend::InputModel::Ptr
     std::vector<std::string> unsupported_operations;
     get_unsupported_operations_and_failures(f, unsupported_operations, failures);
 
-    std::string exception_message;
+    std::stringstream exception_message;
     for (const auto& failure : failures) {
         if (m_telemetry) {
             // TODO: 105173 support anonymization of exception message in order to send to telemetry
         }
-        exception_message += "[TensorFlow Frontend] Internal error: conversion is failed for " + failure.first +
-                             " operation with a message:\n" + failure.second + "\n";
+        exception_message << "[TensorFlow Frontend] Internal error: conversion is failed for " + failure.first +
+                                 " operation with a message:\n" + failure.second + "\n";
     }
 
     if (m_telemetry) {
@@ -224,13 +224,13 @@ std::shared_ptr<ov::Model> FrontEnd::convert(const ov::frontend::InputModel::Ptr
     // TODO 107500: report the full list of unsupported operations
     // also, communicate with MO for the fallback to the legacy FE
     // via OpConversionFailure exception that will store all failures and unsupported_operations
-    exception_message = (unsupported_operations.size() > 0
-                             ? exception_message + "[TensorFlow Frontend] Internal error: No translator found for " +
-                                   unsupported_operations[0] + " node."
-                             : exception_message);
+    if (unsupported_operations.size() > 0) {
+        exception_message << "[TensorFlow Frontend] Internal error: No translator found for " +
+                                 unsupported_operations[0] + " node.";
+    }
 
     bool is_conversion_successful = ((unsupported_operations.size() == 0) && (failures.size() == 0));
-    FRONT_END_OP_CONVERSION_CHECK(is_conversion_successful, exception_message);
+    FRONT_END_OP_CONVERSION_CHECK(is_conversion_successful, exception_message.str());
 
     return f;
 }

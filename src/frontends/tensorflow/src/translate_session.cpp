@@ -244,9 +244,9 @@ void TranslateSession::translate_graph(const ov::frontend::InputModel::Ptr& inpu
                 NodeContext node_context(operation_decoder, ov_inputs, this);
                 ov_outputs = translator(node_context);
             } catch (const std::exception& ex) {
-                // remember the root-cause about why the translation was failed
+                // save the root-cause of the translation failure
                 ov::op::util::FrameworkNodeAttrs attrs;
-                attrs[FrameworkNode::failed_conversion_key] = ex.what();
+                attrs[FrameworkNode::failed_conversion_key] = exception.what();
                 auto fw_node = std::make_shared<FrameworkNode>(operation_decoder,
                                                                ov_inputs,
                                                                operation_place->get_output_ports().size());
@@ -254,7 +254,7 @@ void TranslateSession::translate_graph(const ov::frontend::InputModel::Ptr& inpu
                 set_node_name(operation_name, fw_node);
                 ov_outputs = fw_node->outputs();
             } catch (...) {
-                // also, saves unknown exception type
+                // save unknown exception type
                 ov::op::util::FrameworkNodeAttrs attrs;
                 attrs[FrameworkNode::failed_conversion_key] = "Unknown exception type";
                 auto fw_node = std::make_shared<FrameworkNode>(operation_decoder,
