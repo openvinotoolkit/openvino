@@ -23,6 +23,30 @@ using namespace ov::opset10;
 namespace ov {
 namespace pass {
 
+void mark_reduceop_path(const std::shared_ptr<Node>& node) {
+    node->get_rt_info().emplace("reduceop_path", true);
+}
+bool is_reduceop_path(const std::shared_ptr<const Node>& node) {
+    return node->get_rt_info().count("reduceop_path");
+}
+
+void erase_reduceop_path(const std::shared_ptr<Node>& node) {
+    auto& rt_info = node->get_rt_info();
+    rt_info.erase("reduceop_path");
+}
+
+void mark_int8_path(const std::shared_ptr<Node>& node) {
+    node->get_rt_info().emplace("int8_path", true);
+}
+bool is_int8_path(const std::shared_ptr<const Node>& node) {
+    return node->get_rt_info().count("int8_path");
+}
+
+void erase_int8_path(const std::shared_ptr<Node>& node) {
+    auto& rt_info = node->get_rt_info();
+    rt_info.erase("int8_path");
+}
+
 /*
  * MarkNormalizationOps marks MVN and NormalizeL2 to be kept in f32 precision.
  */
@@ -38,6 +62,14 @@ public:
             const auto& node = m.get_match_root();
             if (!node)
                 return false;
+
+            for (const auto& input_val : node->input_values()) {
+                auto is_input_fq = dynamic_pointer_cast<FakeQuantize>(input_val.get_node_shared_ptr());
+                if (is_int8_path(input_val.get_node_shared_ptr()) || is_input_fq) {
+                    enable_fp16_compression(node);
+                    return true;
+                }
+            }
 
             disable_fp16_compression(node);
             return true;
@@ -138,6 +170,11 @@ public:
             for (const auto& in_node : node->input_values()) {
                 if (!in_node.get_element_type().is_real())
                     continue;
+                if (is_int8_path(in_node.get_node_shared_ptr())) {
+                    enable_fp16_compression(node);
+                    return true;
+                }
+
                 if (fp16_compression_is_disabled(in_node.get_node_shared_ptr())) {
                     disable_fp16_compression(node);
                     is_changed = true;
@@ -150,18 +187,6 @@ public:
         register_matcher(m, callback);
     }
 };
-
-void mark_reduceop_path(const std::shared_ptr<Node>& node) {
-    node->get_rt_info().emplace("reduceop_path", true);
-}
-bool is_reduceop_path(const std::shared_ptr<const Node>& node) {
-    return node->get_rt_info().count("reduceop_path");
-}
-
-void erase_reduceop_path(const std::shared_ptr<Node>& node) {
-    auto& rt_info = node->get_rt_info();
-    rt_info.erase("reduceop_path");
-}
 
 class InitMarkReduceOpPath : public pass::MatcherPass {
 public:
@@ -331,6 +356,49 @@ public:
     }
 };
 
+class PropagateDownDisableSensitivityForQuantized : public pass::MatcherPass {
+public:
+    OPENVINO_RTTI("DisableMarkingForQuantizedNodes", "0");
+    PropagateDownDisableSensitivityForQuantized() {
+        MATCHER_SCOPE(PropagateDownDisableSensitivityForQuantized);
+
+        // through this nodes
+        std::shared_ptr<Node> quantization_propagating_nodes = pattern::wrap_type<Squeeze,
+                                                                                  Unsqueeze,
+                                                                                  Reshape,
+                                                                                  op::util::BroadcastBase,
+                                                                                  StridedSlice,
+                                                                                  Slice,
+                                                                                  VariadicSplit,
+                                                                                  Split,
+                                                                                  op::util::GatherBase,
+                                                                                  Concat,
+                                                                                  Tile>();
+
+        matcher_pass_callback callback = [=](pattern::Matcher& m) {
+            const auto& node = m.get_match_root();
+            if (!node)
+                return false;
+
+            bool is_changed = false;
+
+            for (const auto& in_node_output : node->input_values()) {
+                auto input_node = in_node_output.get_node_shared_ptr();
+                auto is_quantize = dynamic_pointer_cast<FakeQuantize>(input_node);
+                if (is_quantize || is_int8_path(input_node)) {
+                    mark_int8_path(node);
+                    enable_fp16_compression(node);
+                    is_changed = true;
+                }
+            }
+
+            return is_changed;
+        };
+        auto m = make_shared<pattern::Matcher>(quantization_propagating_nodes, matcher_name);
+        register_matcher(m, callback);
+    }
+};
+
 bool MarkSugraphsToKeepInMixedPrecision::run_on_model(const shared_ptr<ov::Model>& m) {
     RUN_ON_MODEL_SCOPE(MarkSugraphsToKeepInMixedPrecision);
 
@@ -338,6 +406,7 @@ bool MarkSugraphsToKeepInMixedPrecision::run_on_model(const shared_ptr<ov::Model
     // Mark root of Division with eps pattern to keep in FP32
     REGISTER_PASS(manager, MarkDivWithEps)
     REGISTER_PASS(manager, MarkExpInReduceOpPath)
+    REGISTER_PASS(manager, PropagateDownDisableSensitivityForQuantized)
 
     // both Up and Down propagations are needed.
     // Why both of them are needed is explained in comments in passes declarations.
@@ -353,6 +422,7 @@ bool MarkSugraphsToKeepInMixedPrecision::run_on_model(const shared_ptr<ov::Model
 
     for (auto& node : m->get_ops()) {
         erase_reduceop_path(node);
+        erase_int8_path(node);
     }
 
     return false;  // no need to revalidate
