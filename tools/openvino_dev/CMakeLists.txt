@@ -67,6 +67,10 @@ set(openvino_wheels_output_dir "${CMAKE_BINARY_DIR}/wheels")
 set(openvino_wheel_path "${openvino_wheels_output_dir}/${openvino_wheel_name}")
 
 add_custom_command(OUTPUT ${openvino_wheel_path}
+    COMMAND ${CMAKE_COMMAND} -E copy "${OpenVINO_SOURCE_DIR}/thirdparty/open_model_zoo/licensing/omz-third-party-programs.txt" "${CMAKE_CURRENT_BINARY_DIR}"
+    COMMAND ${CMAKE_COMMAND} -E copy "${OpenVINO_SOURCE_DIR}/licensing/dev-third-party-programs.txt" "${CMAKE_CURRENT_BINARY_DIR}"
+    COMMAND ${CMAKE_COMMAND} -E copy "${OpenVINO_SOURCE_DIR}/LICENSE" "${CMAKE_CURRENT_BINARY_DIR}"
+    COMMAND ${CMAKE_COMMAND} -E copy "${CMAKE_CURRENT_SOURCE_DIR}/readme.txt" "${CMAKE_CURRENT_BINARY_DIR}"
     COMMAND ${CMAKE_COMMAND} -E copy "${CMAKE_CURRENT_SOURCE_DIR}/setup.cfg" "${CMAKE_CURRENT_BINARY_DIR}"
     COMMAND ${CMAKE_COMMAND} -E env OPENVINO_VERSION=${WHEEL_VERSION}
         ${PYTHON_EXECUTABLE} ${SETUP_PY} bdist_wheel

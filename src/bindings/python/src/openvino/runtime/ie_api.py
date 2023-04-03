@@ -149,7 +149,7 @@ class InferRequest(InferRequestBase):
         # If inputs are list or tuple, enumarate inputs and save them as dictionary.
         # It is an extension of above branch with dict inputs.
         elif isinstance(inputs, (list, tuple)):
-            return super().infer(normalize_inputs(self, {index: input for index, input in enumerate(inputs)}))
+            return super().infer(normalize_inputs(self, dict(enumerate(inputs))))
         # If inputs are Tensor, call infer method directly.
         elif isinstance(inputs, Tensor):
             return super().infer(inputs)
@@ -202,7 +202,7 @@ class InferRequest(InferRequestBase):
         elif isinstance(inputs, dict):
             super().start_async(normalize_inputs(self, inputs), userdata)
         elif isinstance(inputs, (list, tuple)):
-            super().start_async(normalize_inputs(self, {index: input for index, input in enumerate(inputs)}), userdata)
+            super().start_async(normalize_inputs(self, dict(enumerate(inputs))), userdata)
         elif isinstance(inputs, Tensor):
             super().start_async(inputs, userdata)
         elif isinstance(inputs, (np.ndarray, np.number, int, float)):
@@ -338,7 +338,7 @@ class AsyncInferQueue(AsyncInferQueueBase):
             super().start_async(
                 normalize_inputs(
                     self[self.get_idle_request_id()],
-                    {index: input for index, input in enumerate(inputs)},
+                    dict(enumerate(inputs)),
                 ),
                 userdata,
             )

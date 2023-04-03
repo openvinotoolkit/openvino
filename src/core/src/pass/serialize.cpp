@@ -255,11 +255,6 @@ class XmlSerializer : public ngraph::AttributeVisitor {
             }
         }
 
-        if (ir_version < 11) {
-            // ops for serialized body function are provided in reversed order
-            std::reverse(output.begin(), output.end());
-        }
-
         return output;
     }
 
@@ -804,7 +799,9 @@ void ngfunction_2_ir(pugi::xml_node& netXml,
     const bool exec_graph = is_exec_graph(f);
 
     auto sorted_ops = f.get_ordered_ops();
-    if (version >= 11) {
+    // get_ordered_ops() returns operations after a topological sort. The topological sort reverses order of Parameters
+    // and Results. So we need to put them into sorted_ops separately to ensure correct order of inputs and outputs.
+    {
         std::vector<std::shared_ptr<ov::Node>> result;
         result.reserve(sorted_ops.size());
         for (const auto& param : f.get_parameters()) {
