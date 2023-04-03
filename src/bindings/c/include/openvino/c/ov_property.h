@@ -200,7 +200,6 @@ ov_property_key_device_priorities;
  * and turns into device-specific settings
  * Execution mode hint controls preferred optimization targets (performance or accuracy) for given model
  * It can be set to be below value:
- *   "UNDEFINED"     //!<  Undefined value, settings may vary from device to device
  *   "PERFORMANCE",  //!<  Optimize for max performance
  *   "ACCURACY",     //!<  Optimize for max accuracy
  * @ingroup ov_property_c_api
