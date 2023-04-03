@@ -782,8 +782,8 @@ def python_api_params_parsing(argv: argparse.Namespace):
                     data_type_dict[inp.name] = inp.type.to_dtype().type
                 else:
                     data_type_dict[inp.name] = inp.type
-        argv.placeholder_shapes = shape_dict if len(shape_dict) > 0 else None
-        argv.placeholder_data_types = data_type_dict if len(data_type_dict) > 0 else {}
+        argv.placeholder_shapes = shape_dict if shape_dict else None
+        argv.placeholder_data_types = data_type_dict if data_type_dict else {}
     else:
         # Unnamed inputs case
         shape_list = []
@@ -800,8 +800,8 @@ def python_api_params_parsing(argv: argparse.Namespace):
                     data_type_list.append(inp.type.to_dtype().type)
                 else:
                     data_type_list.append(inp.type)
-        argv.placeholder_shapes = shape_list if len(shape_list) > 0 else None
-        argv.placeholder_data_types = data_type_list if len(data_type_list) > 0 else {}
+        argv.placeholder_shapes = shape_list if shape_list else None
+        argv.placeholder_data_types = data_type_list if data_type_list else {}
 
 
 def pack_params_to_args_namespace(args: dict, cli_parser: argparse.ArgumentParser):

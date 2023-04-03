@@ -140,8 +140,8 @@ class TestComplexParams(CommonMOConvertTest):
                                          [Dimension(), 3, Dimension(4, -1), Dimension(-1, 5)]],
                          'input':['Input1', 'Input2', 'Relu3']},
          'params_ref': {'input_shape': "[?,1..3,4..,..5],[?,1..3,4,..5],[?,3,4..,..5]", 'input': 'Input1,Input2,Relu3'}},
-        {'params_test': {'input': [InputCutInfo("Relu1", Shape([3, 2]), Type(np.int32), None),
-                                   InputCutInfo("Relu2", PartialShape([Dimension(3, 10), Dimension(2, -1)]), np.int32, None),
+        {'params_test': {'input': [InputCutInfo("Relu1", Shape([3, 2]), Type(np.int32)),
+                                   InputCutInfo("Relu2", PartialShape([Dimension(3, 10), Dimension(2, -1)]), np.int32),
                                    InputCutInfo("Relu3", [3, 2], Type(np.int32), [1, 2, 3, 4, 5, 6])]},
          'params_ref': {'input': "Relu1[3 2]{i32},Relu2[3..10 2..]{i32},Relu3[3 2]{i32}->[1 2 3 4 5 6]"}},
         {'params_test': {'input': [("Relu1", Shape([3, 2]), Type(np.int32)),
@@ -175,9 +175,9 @@ class TestComplexParams(CommonMOConvertTest):
          'params_ref': {'input_shape': "[2,3,4],[2,3,4],[2,3,4]", 'input': 'Input1,Input2,Input3'}},
         {'params_test': {'input': [np.int32, Type(np.int32), np.int32]},
          'params_ref': {'input': 'Input1{i32},Input2{i32},Input3{i32}'}},
-        {'params_test': {'input': [InputCutInfo(None, [1], np.int32, [10]),
-                                   InputCutInfo(None, [1], np.int32, [20]),
-                                   InputCutInfo(None, [1], np.int32, [30])]},
+        {'params_test': {'input': [InputCutInfo(shape=[1], type=np.int32, value=[10]),
+                                   InputCutInfo(shape=[1], type=np.int32, value=[20]),
+                                   InputCutInfo(shape=[1], type=np.int32, value=[30])]},
          'params_ref': {'input': 'Input1[1]{i32}->[10],Input2[1]{i32}->[20],Input3[1]{i32}->[30]'}}
     ]
 
@@ -263,7 +263,7 @@ class TestComplexParams(CommonMOConvertTest):
          'params_ref': {'input': "Input[?,10]"}},
         {'params_test': {'input': np.int32},
          'params_ref': {'input': "Input{i32}"}},
-        {'params_test': {'input': InputCutInfo(None, [1], np.int32, [10])},
+        {'params_test': {'input': InputCutInfo(shape=[1], type=np.int32, value=[10])},
          'params_ref': {'input': "Input[1]{i32}->[10]"}},
         {'params_test': {'input': (np.int32, [1, 2, 3])},
          'params_ref': {'input': "Input[1,2,3]{i32}"}},
