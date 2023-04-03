@@ -1,6 +1,5 @@
 # Converting TensorFlow YOLO Models {#openvino_docs_MO_DG_prepare_model_convert_model_tf_specific_Convert_YOLO_From_Tensorflow}
 
-@sphinxdirective
 
 This document explains how to convert real-time object detection YOLOv1, YOLOv2, YOLOv3 and YOLOv4 public models to the Intermediate Representation (IR). All YOLO models are originally implemented in the DarkNet framework and consist of two files:
 
@@ -298,4 +297,4 @@ For other applicable parameters, refer to the :doc:`Convert Model from TensorFlo
 
 .. note:: The color channel order (RGB or BGR) of an input data should match the channel order of the model training dataset. If they are different, perform the ``RGB<->BGR`` conversion specifying the command-line parameter: ``--reverse_input_channels``. Otherwise, inference results may be incorrect. For more information about the parameter, refer to the **When to Reverse Input Channels** section of the  :doc:`Converting a Model to Intermediate Representation (IR) <openvino_docs_MO_DG_prepare_model_convert_model_Converting_Model>` guide.
 
-@endsphinxdirective
+
