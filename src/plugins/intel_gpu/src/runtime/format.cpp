@@ -249,6 +249,10 @@ format format::get_default_format(size_t rank, bool is_weights, bool is_grouped)
     return default_fmt;
 }
 
+bool format::is_default_format(type fmt) {
+    return fmt == get_default_format(dimension(fmt));
+}
+
 format format::adjust_to_rank(format fmt, size_t new_rank) {
     // TODO: remove as soon as rank extension is not needed anymore
     new_rank = std::max<size_t>(new_rank, 4);

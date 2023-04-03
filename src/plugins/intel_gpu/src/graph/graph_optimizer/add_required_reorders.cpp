@@ -219,17 +219,12 @@ void add_required_reorders::run(program& p) {
                 max_in_dims = std::max(cldnn::format::dimension(node.first->get_output_layout().format), max_in_dims);
             }
             // This list of preferred layouts has been selected arbitrary due to developers' experience
+            preferred_layout_formats = { cldnn::format::get_default_format(max_in_dims) };
             if (max_in_dims == 5) {
-                preferred_layout_formats = {
-                    cldnn::format::bfzyx,
-                    cldnn::format::bzyxf,
-                };
+                preferred_layout_formats.push_back(cldnn::format::bzyxf);
             } else if (max_in_dims == 4) {
-                preferred_layout_formats = {
-                    cldnn::format::bfyx,
-                    cldnn::format::yxfb,
-                    cldnn::format::byxf,
-                };
+                preferred_layout_formats.push_back(cldnn::format::yxfb);
+                preferred_layout_formats.push_back(cldnn::format::byxf);
             }
 
             if (original_layout.is_dynamic() && usr->type()->does_dynamic_implementation_exist(*usr)) {

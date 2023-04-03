@@ -45,7 +45,7 @@ static std::string GetInputBlockND(const broadcast_params& params) {
         for (int idx = (rank - 1); idx >= 0; idx--) {
             int shape_info_idx = idx;
             if (idx >= 2) {
-                shape_info_idx += (6 - rank);
+                shape_info_idx += (static_cast<int>(DataTensor::max_rank()) - rank);
             }
             block_nd_s[idx] = "(" + toCodeString(input.GetDims()[rank - idx - 1], shape_info_idx) + " * " + block_nd_s[idx + 1] + ")";
         }

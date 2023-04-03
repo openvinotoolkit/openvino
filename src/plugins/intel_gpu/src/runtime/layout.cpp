@@ -35,9 +35,8 @@ std::pair<bool, bool> are_layouts_identical(layout const& l1, layout const& l2) 
         return {false, false};
     // Reorders between bfyx, bfzyx, bfwzyx can pe reinterpeted as reshape when
     // there is no padding and both hold same number of elements.
-    if ((l1.format == format::bfyx || l1.format == format::bfzyx || l1.format == format::bfwzyx) &&
-        (l2.format == format::bfyx || l2.format == format::bfzyx || l2.format == format::bfwzyx) && !l1_pad &&
-        !l2_pad && l1.get_linear_size() == l2.get_linear_size())
+    if (format::is_default_format(l1.format) && format::is_default_format(l2.format) &&
+        !l1_pad && !l2_pad && l1.get_linear_size() == l2.get_linear_size())
         return {false, true};
     if (l1_size != l2_size)
         return {false, false};
