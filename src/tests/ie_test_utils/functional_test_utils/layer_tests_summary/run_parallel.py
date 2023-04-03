@@ -202,6 +202,8 @@ class TestParallelRunner:
         self._total_test_cnt = 0
         self._available_devices = None
         self._device = get_device_by_args(self._command.split())
+        if self._device is None:
+            self._device = "NOT_AFFECTED_BY_DEVICE"
         if has_python_api:
             self._available_devices = get_available_devices(self._device)
         else:
@@ -294,7 +296,7 @@ class TestParallelRunner:
         cached_test_list = list()
         runtime_test_test = list()
         cached_test_list_names = list()
-        it = 0
+
         for test in test_list_cache:
             if test._name in test_list_runtime:
                 cached_test_list.append(test)
@@ -320,10 +322,16 @@ class TestParallelRunner:
         
         # Run crashed tests in a separed thread
         if idx < len(proved_test_list):
-            while proved_test_list[idx]._time == -1 :
-                proved_test_list.pop(idx)
+            while proved_test_list[idx]._time == -1:
+                test = proved_test_list.pop(idx)
+                res_test_filters.append(test._name)
                 if idx >= len(proved_test_list):
                     break
+
+        longest_device = ""
+        for device in self._available_devices:
+            if len(device) > len(longest_device):
+                longest_device = device
 
         # prepare gtest filters per worker according command line length limitation
         while len(proved_test_list) > 0:
@@ -331,22 +339,25 @@ class TestParallelRunner:
             is_not_full = True
             worker_test_filters = list()
 
-            for _ in range(self._worker_num):
+            real_worker_num = self._worker_num * len(self._available_devices)
+
+            for _ in range(real_worker_num):
                 if len(proved_test_list) == 0:
                     break
                 worker_test_filters.append(f'"{self.__replace_restricted_symbols(proved_test_list[0]._name)}":')
-                test_times.append(proved_test_list[0]._time)
-                proved_test_list.pop(0)
+                test = proved_test_list.pop(0)
+                test_times.append(test._time)
             while is_not_full and len(proved_test_list) > 0:
-                for i in range(self._worker_num):
+                for i in range(real_worker_num):
                     if i >= len(proved_test_list):
                         break
                     if i == 0:
                         continue
                     while test_times[0] > test_times[i] + proved_test_list[len(proved_test_list) - 1]._time:
                         final_pos = len(proved_test_list) - 1
-                        if len(worker_test_filters[i]) + def_length + len(proved_test_list[final_pos]._name) < MAX_LENGHT:
-                            worker_test_filters[i] += f'"{self.__replace_restricted_symbols(proved_test_list[final_pos]._name)}":'
+                        filter = proved_test_list[final_pos]._name
+                        if len(worker_test_filters[i]) + def_length + len(filter.replace(self._device, longest_device)) < MAX_LENGHT:
+                            worker_test_filters[i] += f'"{self.__replace_restricted_symbols(filter)}":'
                             test_times[i] += proved_test_list[final_pos]._time
                             proved_test_list.pop(final_pos)
                         else:
@@ -355,17 +366,22 @@ class TestParallelRunner:
                         if len(proved_test_list) == 0:
                             break
                 if is_not_full and len(proved_test_list) > 0:
-                    worker_test_filters[0] += f'"{self.__replace_restricted_symbols(proved_test_list[0]._name)}":'
-                    test_times[0] += proved_test_list[0]._time
-                    proved_test_list.pop(0)
+                    filter = proved_test_list[0]._name
+                    if len(worker_test_filters[0]) + def_length + len(filter.replace(self._device, longest_device)) < MAX_LENGHT:
+                        worker_test_filters[0] += f'"{self.__replace_restricted_symbols(filter)}":'
+                        test_times[0] += proved_test_list[0]._time
+                        proved_test_list.pop(0)
+                    else:
+                        is_not_full = False
             for filter in worker_test_filters:
                 res_test_filters.append(filter)
             is_not_full = True
         # logging for debug
-        # for i in range(len(res_test_filters)):
-        #     filter = res_test_filters[i]
-        #     cnt = filter.count('\":')
-        #     logger.info(f"Number of tests in job_{i}: {cnt}")
+        for i in range(len(res_test_filters)):
+            filter = res_test_filters[i]
+            cnt = filter.count('\":')
+            self._total_test_cnt += cnt
+            # logger.info(f"Number of tests in job_{i}: {cnt}")
         return res_test_filters
             
     def __get_filters(self):
@@ -380,11 +396,11 @@ class TestParallelRunner:
 
         if len(cached_test_list) > 0:
             self._is_save_cache = False
-            self._total_test_cnt += len(cached_test_list)
             cached_test_list = self.__prepare_smart_filters(cached_test_list)
         if len(runtime_test_list) > 0:
             self._is_save_cache = True
-            self._total_test_cnt += len(runtime_test_list)
+            runtime_test_cnt = len(runtime_test_list)
+            self._total_test_cnt += runtime_test_cnt
             runtime_test_list.reverse()
         logger.info(f"Total test counter is {self._total_test_cnt}")
         return cached_test_list, runtime_test_list
