@@ -72,6 +72,7 @@ void regmodule_properties(py::module m) {
     wrap_property_RW(m_hint, ov::hint::inference_precision, "inference_precision");
     wrap_property_RW(m_hint, ov::hint::model_priority, "model_priority");
     wrap_property_RW(m_hint, ov::hint::performance_mode, "performance_mode");
+    wrap_property_RW(m_hint, ov::hint::use_cpu_pinning, "use_cpu_pinning");
     wrap_property_RW(m_hint, ov::hint::scheduling_core_type, "scheduling_core_type");
     wrap_property_RW(m_hint, ov::hint::use_hyper_threading, "use_hyper_threading");
     wrap_property_RW(m_hint, ov::hint::execution_mode, "execution_mode");

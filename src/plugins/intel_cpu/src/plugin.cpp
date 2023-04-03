@@ -596,6 +596,9 @@ Parameter Engine::GetConfig(const std::string& name, const std::map<std::string,
     } else if (name == ov::hint::performance_mode) {
         const auto perfHint = ov::util::from_string(engConfig.perfHintsConfig.ovPerfHint, ov::hint::performance_mode);
         return perfHint;
+    } else if (name == ov::hint::use_cpu_pinning) {
+        const bool pin_value = engConfig.useCpuPinning;
+        return decltype(ov::hint::use_cpu_pinning)::value_type(pin_value);
     } else if (name == ov::hint::scheduling_core_type) {
         const auto core_type = engConfig.schedulingCoreType;
         return core_type;
@@ -693,6 +696,7 @@ Parameter Engine::GetMetric(const std::string& name, const std::map<std::string,
                                                     RW_property(ov::hint::performance_mode.name()),
                                                     RW_property(ov::hint::execution_mode.name()),
                                                     RW_property(ov::hint::num_requests.name()),
+                                                    RW_property(ov::hint::use_cpu_pinning.name()),
                                                     RW_property(ov::hint::scheduling_core_type.name()),
                                                     RW_property(ov::hint::use_hyper_threading.name()),
                                                     RW_property(ov::device::id.name()),

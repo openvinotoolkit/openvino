@@ -79,6 +79,17 @@ void Config::readProperties(const std::map<std::string, std::string> &prop) {
             streamExecutorConfig.SetConfig(key, val);
         } else if (hintsConfigKeys.end() != std::find(hintsConfigKeys.begin(), hintsConfigKeys.end(), key)) {
             perfHintsConfig.SetConfig(key, val);
+        } else if (key == ov::hint::use_cpu_pinning.name()) {
+            if (val == PluginConfigParams::YES) {
+                useCpuPinning = true;
+                changedCpuPinning = true;
+            } else if (val == PluginConfigParams::NO) {
+                useCpuPinning = false;
+                changedCpuPinning = true;
+            } else {
+                IE_THROW() << "Wrong value " << val << "for property key " << ov::hint::use_cpu_pinning.name()
+                           << ". Expected only true/false." << std::endl;
+            }
         } else if (key == ov::hint::scheduling_core_type.name()) {
             const auto core_type = ov::util::from_string(val, ov::hint::scheduling_core_type);
             if (core_type == ov::hint::SchedulingCoreType::ANY_CORE ||
