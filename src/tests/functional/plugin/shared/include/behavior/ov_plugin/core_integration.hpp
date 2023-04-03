@@ -1355,6 +1355,7 @@ TEST_P(OVClassLoadNetworkAndCheckSecondaryPropertiesTest, LoadNetworkAndCheckSec
     ASSERT_TRUE(property.count(ov::num_streams.name()));
     auto actual = property.at(ov::num_streams.name()).as<int32_t>();
     ov::Any value;
+    //AutoExcutableNetwork GetMetric() does not support key ov::num_streams
     OV_ASSERT_NO_THROW(value = model.get_property(ov::num_streams.name()));
     int32_t expect = value.as<int32_t>();
     ASSERT_EQ(actual, expect);
@@ -1382,7 +1383,7 @@ TEST_P(OVClassLoadNetWorkDoNotReturnDefaultHintTest, LoadNetworkDoNotReturnDefau
     if (target_device.find("AUTO") != std::string::npos) {
         ASSERT_NE(value, ov::hint::PerformanceMode::LATENCY);
     } else {
-        ASSERT_NE(value, ov::hint::PerformanceMode::THROUGHPUT);
+        ASSERT_EQ(value, ov::hint::PerformanceMode::THROUGHPUT);
     }
 }
 
