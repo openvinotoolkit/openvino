@@ -253,6 +253,16 @@ void TranslateSession::translate_graph(const ov::frontend::InputModel::Ptr& inpu
                 fw_node->set_attrs(attrs);
                 set_node_name(operation_name, fw_node);
                 ov_outputs = fw_node->outputs();
+            } catch (...) {
+                // also, saves unknown exception type
+                ov::op::util::FrameworkNodeAttrs attrs;
+                attrs[FrameworkNode::failed_conversion_key] = "Unknown exception type";
+                auto fw_node = std::make_shared<FrameworkNode>(operation_decoder,
+                                                               ov_inputs,
+                                                               operation_place->get_output_ports().size());
+                fw_node->set_attrs(attrs);
+                set_node_name(operation_name, fw_node);
+                ov_outputs = fw_node->outputs();
             }
         } else if (auto body_ov_model = get_body_ov_model(operation_type)) {
             inject_body_model(body_ov_model, operation_type, ov_inputs, ov_outputs);
