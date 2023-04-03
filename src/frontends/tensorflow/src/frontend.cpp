@@ -316,9 +316,11 @@ void FrontEnd::normalize(const std::shared_ptr<ov::Model>& model) const {
         manager.run_passes(model);
     }
 
-    // TODO: TSGeneral can fail on models with Framework nodes (not converted to OV opset)
-    auto unsupported_ops = get_unconverted_types_from_model(model);
-    if (unsupported_ops.size() > 0) {
+    // TODO 107554: TSGeneral can fail on models with Framework nodes (not converted to OV opset)
+    std::unordered_map<std::string, std::string> failures;
+    std::vector<std::string> unsupported_operations;
+    get_unsupported_operations_and_failures(model, unsupported_operations, failures);
+    if (unsupported_operations.size() > 0 || failures.size() > 0) {
         return;
     }
 
