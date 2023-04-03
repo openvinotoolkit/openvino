@@ -4,7 +4,10 @@
 
 #include <openvino/frontend/decoder.hpp>
 #include <openvino/frontend/exception.hpp>
+#include <openvino/frontend/extension.hpp>
 #include <openvino/frontend/manager.hpp>
+#include <openvino/frontend/node_context.hpp>
+#include <openvino/frontend/tensorflow/exception.hpp>
 #include <openvino/op/util/framework_node.hpp>
 #include <openvino/opsets/opset10.hpp>
 
@@ -75,6 +78,15 @@ shared_ptr<Model> convert_model_partially(const string& model_path) {
 
     return model;
 }
+
+ov::OutputVector incorrect_less_translator(const ov::frontend::NodeContext& node) {
+    // NOTE: pay attention that this is a fake translator for Less operation
+    // only serves for testing purposes
+    // FRONT_END_GENERAL_CHECK(false, "Less expects at least ten inputs.");
+    TENSORFLOW_OP_VALIDATION(node, false, "Less expects ten inputs.");
+    return {};
+}
+
 }  // namespace
 
 TEST(FrontEndConvertModelTest, test_unsupported_op) {
@@ -143,5 +155,39 @@ TEST_F(TransformationTestsF, ModelWithDynamicType) {
         auto log1p_node = make_shared<Log>(input_plus_one);
         ASSERT_EQ(log1p_node->get_output_element_type(0), ov::element::dynamic);
         model_ref = make_shared<Model>(OutputVector{log1p_node}, ParameterVector{x});
+    }
+}
+
+TEST(FrontEndConvertModelTest, test_unsupported_tf1_while_and_incorrect_less_translator) {
+    FrontEndManager fem;
+    FrontEnd::Ptr front_end;
+    InputModel::Ptr input_model;
+    ASSERT_NO_THROW(front_end = fem.load_by_framework(TF_FE));
+    ASSERT_NE(front_end, nullptr);
+
+    // register fake translator for Less operation
+    auto conv_ext = std::make_shared<ov::frontend::ConversionExtension>("Less", incorrect_less_translator);
+    front_end->add_extension(conv_ext);
+
+    auto model_filename = FrontEndTestUtils::make_model_path(string(TEST_TENSORFLOW_MODELS_DIRNAME) +
+                                                             string("model_tf1_while/model_tf1_while.pbtxt"));
+    ASSERT_NO_THROW(input_model = front_end->load(model_filename));
+    ASSERT_NE(input_model, nullptr);
+    shared_ptr<ov::Model> model;
+
+    try {
+        model = front_end->convert(input_model);
+        FAIL() << "TensorFlow 1 While is not supported and the fake translator registered in TF FE but conversion "
+                  "passed without errors. "
+                  "OpConversionFailure is expected.";
+    } catch (const OpConversionFailure& error) {
+        string error_message = error.what();
+        string ref_message = "Less expects ten inputs.\n"
+                             "\n"
+                             "[TensorFlow Frontend] Internal error: No translator found for Enter node.";
+        ASSERT_TRUE(error_message.find(ref_message) != string::npos);
+        ASSERT_EQ(model, nullptr);
+    } catch (...) {
+        FAIL() << "Conversion of TensorFlow 1 While failed by wrong reason.";
     }
 }
