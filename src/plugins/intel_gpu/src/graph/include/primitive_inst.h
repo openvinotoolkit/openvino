@@ -7,6 +7,7 @@
 #include "intel_gpu/primitives/concatenation.hpp"
 #include "intel_gpu/runtime/event.hpp"
 #include "intel_gpu/runtime/memory.hpp"
+#include "intel_gpu/runtime/lru_cache.hpp"
 #include "intel_gpu/graph/network.hpp"
 #include "intel_gpu/runtime/utils.hpp"
 #include "program_node.h"
@@ -59,15 +60,13 @@ struct primitive_impl {
     kernel_selector::weights_reorder_params _weights_reorder_params;
     // class typed_primitive_gpu_impl override this with return false;
     virtual bool is_cpu() const { return true; }
-    virtual void init_kernels(const kernels_cache&) = 0;
+    virtual void init_kernels(const kernels_cache& kernels_cache, const kernel_impl_params& params) = 0;
+    virtual void init_by_cached_kernels(const kernels_cache&) {}
+    virtual void set_cached_kernel_ids(const kernels_cache&) {}
     virtual std::unique_ptr<primitive_impl> clone() const = 0;
-    virtual std::vector<std::string> get_kernel_ids() const {
-        return {};
-    }
     virtual std::vector<std::shared_ptr<cldnn::kernel_string>> get_kernels_source() { return {}; }
     virtual void reset_kernels_source() {}
     virtual std::vector<kernel::ptr> get_kernels() const { return {}; }
-    virtual void set_kernel_ids(std::vector<kernel_id> kernel_ids) {}
     virtual void save(cldnn::BinaryOutputBuffer& ob) const {}
     virtual void load(cldnn::BinaryInputBuffer& ib) {}
 
@@ -82,7 +81,14 @@ struct primitive_impl {
         OPENVINO_ASSERT(false, "[GPU] update_dispatch_data is not implemented for dynamic implemenation ", _kernel_name);
     }
 
-    virtual void set_kernels(std::map<const std::string, kernel::ptr>& kernels) {}
+    static kernel_impl_params static_canonicalize_shapes(const kernel_impl_params& impl_params);
+
+    virtual kernel_impl_params canonicalize_shapes(const kernel_impl_params& impl_params) const {
+        return primitive_impl::static_canonicalize_shapes(impl_params);
+    }
+
+    virtual void set_kernels(cldnn::kernels_cache::compiled_kernels kernels) {}
+    virtual std::vector<kernel::ptr> get_kernels() { return {}; }
 
 protected:
     std::string _kernel_name;
@@ -157,8 +163,13 @@ public:
 
     event::ptr execute(const std::vector<event::ptr>& events);
     void init_kernels(const kernels_cache& kernels_cache) {
-        _impl->init_kernels(kernels_cache);
+        _impl->init_kernels(kernels_cache, *_impl_params);
     }
+
+    void init_by_cached_kernels(const kernels_cache& kernels_cache) {
+        _impl->init_by_cached_kernels(kernels_cache);
+    }
+
     void set_arguments();
 
     void validate() const {
@@ -256,6 +267,8 @@ protected:
     std::vector<memory::ptr> _outputs;
 
     std::vector<memory::cptr> _intermediates_memory;
+
+    mutable LruCache<layout, memory::ptr, layout::Hasher> _reordered_weights_cache;
 
     // Buffer to store actual shapes of dynamic tensor which is automatically asigned as 1st argument to shape agnostic kernels
     memory::ptr _shape_info_memory = nullptr;
@@ -422,26 +435,6 @@ public:
 
     static kernel_impl_params get_fake_aligned_params(kernel_impl_params const& orig_impl_param) {
         return std::move(orig_impl_param);
-    }
-
-    static std::vector<size_t> extend_input_shape_to_6d(kernel_impl_params const& orig_impl_param, int32_t input_idx) {
-        ov::PartialShape ps = orig_impl_param.get_input_layout(input_idx).get_partial_shape();
-
-        if (ps.size() < 4) {
-            ps.insert(ps.end(), 4 - ps.size(), ov::Dimension(1));
-        }
-        layout l(ps, data_types::i32, format::get_default_format(ps.size()));
-        return l.transform(format::bfwzyx).to_shape();
-    }
-
-    static std::vector<size_t> extend_output_shape_to_6d(kernel_impl_params const& orig_impl_param, int32_t output_idx) {
-        ov::PartialShape ps = orig_impl_param.get_output_layout(output_idx).get_partial_shape();
-
-        if (ps.size() < 4) {
-            ps.insert(ps.end(), 4 - ps.size(), ov::Dimension(1));
-        }
-        layout l(ps, data_types::i32, format::get_default_format(ps.size()));
-        return l.transform(format::bfwzyx).to_shape();
     }
 
     typed_primitive_inst_base(network& network, typed_node const& node)

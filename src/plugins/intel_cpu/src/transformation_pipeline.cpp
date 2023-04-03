@@ -71,6 +71,8 @@
 #include "transformations/op_conversions/softsign_decomposition.hpp"
 #include "transformations/op_conversions/softmax_decomposition.hpp"
 #include "transformations/op_conversions/unique_decomposition.hpp"
+#include "transformations/op_conversions/convert_topk3.hpp"
+#include "transformations/op_conversions/convert_topk11_downgrade.hpp"
 #include "transformations/opset_conversions/convert_opset2_to_opset1.hpp"
 #include "transformations/opset_conversions/convert_opset3_to_opset2.hpp"
 #include "transformations/smart_reshape/matmul_sr.hpp"
@@ -398,6 +400,8 @@ void Transformations::PreLpt(const std::vector<ov::element::Type>& defaultPrecis
     pass_config->disable<ov::pass::ConvertROIAlign9To3>();
     pass_config->disable<ov::pass::SoftSignDecomposition>();
     pass_config->disable<ov::pass::UniqueDecomposition>();
+    pass_config->disable<ov::pass::ConvertTopK3>();
+    pass_config->disable<ov::pass::ConvertTopK11ToTopK3>();
 
     pass_config->enable<ov::pass::NormalizeL2Decomposition>();
     pass_config->enable<ov::pass::ConvertInterpolate1ToInterpolate4>();
@@ -556,7 +560,7 @@ void Transformations::PostLpt() {
 
 void Transformations::MainSnippets(void) {
     if (snippetsMode == Config::SnippetsMode::Disable ||
-        !dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx2)) // snippets are implemeted only for relevant platforms (avx2+ extentions)
+        !dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx2)) // snippets are implemented only for relevant platforms (avx2+ extensions)
         return;
 
     ngraph::pass::Manager snippetsManager;
