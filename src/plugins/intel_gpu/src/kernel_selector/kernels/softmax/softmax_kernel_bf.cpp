@@ -31,6 +31,7 @@ SoftmaxKernel_bf::Parent::DispatchData SoftmaxKernel_bf::SetDefault(const softma
     auto dispatchData = Parent::SetDefault(params);
 
     dispatchData.normIndex = 0;
+
     // We have two units of data per work item in current implementation.
     auto local_mem_per_wi = 2 * BytesPerElement(params.inputs[0].GetDType());
     // Combining device execution and local memory restrictions to compute maximum possible LWS.
@@ -50,12 +51,23 @@ SoftmaxKernel_bf::Parent::DispatchData SoftmaxKernel_bf::SetDefault(const softma
             dispatchData.itemsNum /= 2;
         }
 
+        if (dispatchData.itemsNum >> 3)
+            dispatchData.subgroupBlockSize = 8;
+        else if (dispatchData.itemsNum >> 2)
+            dispatchData.subgroupBlockSize = 4;
+        else if (dispatchData.itemsNum >> 1)
+            dispatchData.subgroupBlockSize = 2;
+        else
+            dispatchData.subgroupBlockSize = 1;
+
         assert((dispatchData.itemsNum + 1) * dispatchData.lws[0] >= dispatchData.dataSetSize && "More than 'lws[0]' items per batch remains! Lws too small?");
 
         dispatchData.gws[0] = dispatchData.lws[0];
         dispatchData.leftovers = dispatchData.dataSetSize % dispatchData.lws[0];
 
         assert(dispatchData.itemsNum > 0 && dispatchData.lws[0] && dispatchData.gws[0] > 0);
+    } else {
+        dispatchData.subgroupBlockSize = 1;
     }
     return dispatchData;
 }
@@ -106,6 +118,7 @@ JitConstants SoftmaxKernel_bf::GetJitConstants(const softmax_params& params, Dis
             MakeJitConstant("DATA_SETS_COUNT", data_set_count),
             MakeJitConstant("DATA_SET_SIZE", data_set_size),
             MakeJitConstant("STACK_SIZE", stack_size),
+            MakeJitConstant("SUBGROUP_BLOCK_SIZE", dispatchData.subgroupBlockSize),
         });
     } else {
         jit.AddConstants({
@@ -116,6 +129,7 @@ JitConstants SoftmaxKernel_bf::GetJitConstants(const softmax_params& params, Dis
             MakeJitConstant("DATA_SET_SIZE", dispatchData.dataSetSize),
             MakeJitConstant("LEFTOVERS", dispatchData.leftovers),
             MakeJitConstant("STACK_SIZE", dispatchData.itemsNum + 1),
+            MakeJitConstant("SUBGROUP_BLOCK_SIZE", dispatchData.subgroupBlockSize),
         });
     }
     auto activation_dt = GetActivationType(params);

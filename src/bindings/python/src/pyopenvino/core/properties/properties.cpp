@@ -271,4 +271,13 @@ void regmodule_properties(py::module m) {
     m_streams.def("num", [](const int32_t value) {
         return ov::streams::num(ov::streams::Num(value));
     });
+
+    // Submodule auto
+    py::module m_intel_auto =
+        m_properties.def_submodule("intel_auto",
+                                   "openvino.runtime.properties.intel_auto submodule that simulates ov::intel_auto");
+
+    wrap_property_RW(m_intel_auto, ov::intel_auto::device_bind_buffer, "device_bind_buffer");
+    wrap_property_RW(m_intel_auto, ov::intel_auto::enable_startup_fallback, "enable_startup_fallback");
+    wrap_property_RW(m_intel_auto, ov::intel_auto::enable_runtime_fallback, "enable_runtime_fallback");
 }
