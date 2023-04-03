@@ -11,21 +11,6 @@ namespace ov {
 namespace util {
 
 /**
- * \brief Trnsform tensor data by cast them to type T
- *
- * \tparam T Type of returned value.
- */
-template <class T>
-struct Cast {
-    constexpr Cast() = default;
-
-    template <class U>
-    constexpr T operator()(const U u) const {
-        return static_cast<T>(u);
-    }
-};
-
-/**
  * \brief Check if input data is in [T::min(), T::max()] and then cast it to T.
  *
  * \tparam T Type of returned value and used to specified min, max of valid value range.
@@ -44,6 +29,15 @@ struct InTypeRange {
         OPENVINO_ASSERT(cmp::le(m_min, u) && cmp::le(u, m_max), "Value ", u, " not in range [", m_min, ":", m_max, "]");
         return static_cast<T>(u);
     }
+};
+
+/** * \brief Trnsform tensor data by cast them to type T
+ *
+ * \tparam T Type of returned value.
+ */
+template <class T>
+struct Cast : InTypeRange<T> {
+    constexpr Cast() = default;
 };
 
 }  // namespace util
