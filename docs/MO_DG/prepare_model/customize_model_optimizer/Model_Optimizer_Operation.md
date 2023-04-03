@@ -4,7 +4,7 @@
 
 .. warning::
    
-   OpenVINO will move TensorFlow conversion from legacy python-based FrontEnd to new C++ based FrontEnd, therefore this extension guide won't be a recommended way for TensorFlow extension in Model Optimizer and will be marked as a deprecated solution.
+   OpenVINO will move TensorFlow conversion from legacy python-based frontend to new C++ based frontend, therefore this extension guide won't be a recommended way for TensorFlow extension in Model Optimizer and will be marked as a deprecated solution. For details in regard of new frontend, see the :doc:`Frontend Extensions <openvino_docs_Extensibility_UG_Frontend_Extensions>` article.
 
 Model Optimizer defines a ``mo.ops.Op`` class (``Op`` will be used later in the document to be short), which is a base class
 for an operation used in the Model Optimizer. The instance of the ``Op`` class serves several purposes:
