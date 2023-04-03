@@ -246,7 +246,7 @@ void TranslateSession::translate_graph(const ov::frontend::InputModel::Ptr& inpu
             } catch (const std::exception& ex) {
                 // save the root-cause of the translation failure
                 ov::op::util::FrameworkNodeAttrs attrs;
-                attrs[FrameworkNode::failed_conversion_key] = exception.what();
+                attrs[FrameworkNode::failed_conversion_key] = ex.what();
                 auto fw_node = std::make_shared<FrameworkNode>(operation_decoder,
                                                                ov_inputs,
                                                                operation_place->get_output_ports().size());
