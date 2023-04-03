@@ -1087,28 +1087,17 @@ void RNN::prepareParams() {
     scratchpadMem = getScratchPadMem(execPtr->getScratchPadDesc());
 
     auto pd = execPtr->getPrimitiveDesc();
-    auto query_weights_md = [&](int idx = 0) -> dnnl::memory::desc {
-        auto what = dnnl::convert_to_c(dnnl::query::weights_md);
-        const_dnnl_memory_desc_t cdesc = dnnl_primitive_desc_query_md(pd, what, idx);
-        if (!cdesc)
-            IE_THROW() << "query_weights_md failed for node " << getName() << " idx " << idx << ".";
-        dnnl_memory_desc_t cloned_md = nullptr;
-        dnnl_memory_desc_clone(&cloned_md, cdesc);
-
-        return dnnl::memory::desc(cloned_md);
-    };
-
     // to determine if need to prepare weights memory again.
-    if (DnnlExtensionUtils::makeDescriptor(query_weights_md(1))->getFormatKind() == dnnl::memory::format_kind::opaque) {
+    if (DnnlExtensionUtils::query_md(pd, dnnl::query::weights_md, 1)->getFormatKind() == dnnl::memory::format_kind::opaque) {
         // Need to update its weights memory format of rnn_packed as the primitive gets updated.
         wFormatWasChanged = true;
     }
 
     if (!wasMemoryPrepared || wFormatWasChanged) {
         std::vector<DnnlMemoryDescPtr> intDescs {
-            DnnlExtensionUtils::makeDescriptor(query_weights_md(0)),
-            DnnlExtensionUtils::makeDescriptor(query_weights_md(1)),
-            DnnlExtensionUtils::makeDescriptor(query_weights_md(2))
+            DnnlExtensionUtils::query_md(pd, dnnl::query::weights_md, 0),
+            DnnlExtensionUtils::query_md(pd, dnnl::query::weights_md, 1),
+            DnnlExtensionUtils::query_md(pd, dnnl::query::weights_md, 2)
         };
         prepareMemory(intDescs);
         wasMemoryPrepared = true;
