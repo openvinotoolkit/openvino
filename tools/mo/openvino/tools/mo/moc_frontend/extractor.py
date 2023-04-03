@@ -330,6 +330,30 @@ def fe_output_user_data_repack(input_model: InputModel, outputs: list, framework
     return _outputs
 
 
+def find_first_unused_input(model_inputs: list, freeze_placeholder: dict, param_dict: dict, param_name: str):
+    """
+    Finds first input in model_inputs, which is not present in freeze_placeholder dictionary or param_dict.
+
+    :param model_inputs: list of model inputs
+    :param freeze_placeholder: dictionary where key is input name, value is input value for freezing.
+    :param param_dict: dictionary where key is input name, value is parameter value (shape or type).
+    :param param_name: name of parameter used in exception message.
+
+    :return: first input name, which is not present in freeze_placeholder dictionary or param_dict.
+    """
+    for inp in model_inputs:
+        input_names = inp.get_names()
+        name_found = False
+        for input_name in input_names:
+            if input_name in freeze_placeholder or input_name in param_dict:
+                name_found = True
+                break
+        if name_found:
+            continue
+        return input_names[0]
+    raise Error("Could not set {}, as model does not have enough inputs.".format(param_name))
+
+
 def convert_params_lists_to_dicts(input_model,
                                   input_user_shapes: [list, dict],
                                   input_user_data_types: [list, dict],
@@ -357,28 +381,12 @@ def convert_params_lists_to_dicts(input_model,
     # input_user_shapes is list only if unnamed inputs were used
     if isinstance(input_user_shapes, list):
 
-        # check shapes types
-        for shape in input_user_shapes:
-            assert isinstance(shape, PartialShape), "Got incorrect format of input shapes {}.".format(type(shape))
-
         # this cycle adds each unnamed shape to dictionary using name from model_inputs
         for idx, shape in enumerate(input_user_shapes):
-            shape_set = False
-            for inp in model_inputs:
-                input_names = inp.get_names()
-                name_found = False
-                for input_name in input_names:
-                    # check that input was not used in freeze_placeholder parameter
-                    if input_name in freeze_placeholder or input_name in input_user_shapes_dict:
-                        name_found = True
-                        break
-                if name_found:
-                    continue
-                input_user_shapes_dict[input_names[0]] = shape
-                shape_set = True
-                break
-            if not shape_set:
-                raise Error("Could not set shape, as model does not have enough inputs.")
+            assert isinstance(shape, PartialShape), "Got incorrect format of input shapes {}.".format(type(shape))
+
+            inp_name = find_first_unused_input(model_inputs, freeze_placeholder, input_user_shapes_dict, "shape")
+            input_user_shapes_dict[inp_name] = shape
     else:
         input_user_shapes_dict = input_user_shapes
 
@@ -389,64 +397,28 @@ def convert_params_lists_to_dicts(input_model,
         if input_user_shapes_dict is None:
             input_user_shapes_dict = {}
 
-        # check types of input_user_data_types
-        for node_type in input_user_data_types:
+        # this cycle adds each unnamed type to dictionary using name from model_inputs
+        for idx, node_type in enumerate(input_user_data_types):
             assert isinstance(node_type, (type, Type)), "Got incorrect format of input types. " \
                                                         "Expected numpy type or openvino.runtime.Type, " \
                                                         "got {}.".format(type(node_type))
 
-        # this cycle adds each unnamed type to dictionary using name from model_inputs
-        for idx, node_type in enumerate(input_user_data_types):
-            type_set = False
-            for inp in model_inputs:
-                input_names = inp.get_names()
-                name_found = False
-                for input_name in input_names:
-                    # check that input was not used in freeze_placeholder parameter
-                    if input_name in freeze_placeholder or input_name in input_user_data_types_dict:
-                        name_found = True
-                        break
-                if name_found:
-                    continue
-                input_user_data_types_dict[input_names[0]] = node_type
-
-                # FE postprocessing expects input_user_shapes_dict to always have shapes for corresponding types.
-                # If shape is not set it is expected to have None shape in input_user_shapes_dict dictionary.
-                if input_names[0] not in input_user_shapes_dict:
-                    input_user_shapes_dict[input_names[0]] = None
-                type_set = True
-                break
-            if not type_set:
-                raise Error("Could not set type, as model does not have enough inputs.")
+            inp_name = find_first_unused_input(model_inputs, freeze_placeholder, input_user_data_types_dict, "type")
+            input_user_data_types_dict[inp_name] = node_type
+            # FE postprocessing expects input_user_shapes_dict to always have shapes for corresponding types.
+            # If shape is not set it is expected to have None shape in input_user_shapes_dict dictionary.
+            if inp_name not in input_user_shapes_dict:
+                input_user_shapes_dict[inp_name] = None
     else:
         input_user_data_types_dict = input_user_data_types
 
     # unnamed_freeze_placeholders is always list, it is not empty only if unnamed inputs were used.
     for value in unnamed_freeze_placeholders:
-        # check types of unnamed_freeze_placeholders
-        for node_value in unnamed_freeze_placeholders:
-            assert isinstance(node_value, list), "Got incorrect format of input values. " \
-                                                "Expected list, " \
-                                                "got {}.".format(type(node_value))
-
-        # this cycle adds each unnamed value to freeze_placeholder dictionary using name from model_inputs
-        value_set = False
-        for inp in model_inputs:
-            input_names = inp.get_names()
-            name_found = False
-            for input_name in input_names:
-                # check that input was not used in freeze_placeholder_with_value.
-                # It can happen if both --freeze_placeholder_with_value was used and --input with unnamed inputs.
-                if input_name in freeze_placeholder:
-                    name_found = True
-                    break
-            if name_found:
-                continue
-            freeze_placeholder[input_names[0]] = value
-            value_set = True
-            break
-        if not value_set:
-            raise Error("Could not freeze placeholder, as model does not have enough inputs.")
+        assert isinstance(value, list), "Got incorrect format of input values. " \
+                                            "Expected list, " \
+                                            "got {}.".format(type(value))
+        inp_name = find_first_unused_input(model_inputs, freeze_placeholder, {}, "input value")
+        freeze_placeholder[inp_name] = value
 
     return input_user_shapes_dict, input_user_data_types_dict, freeze_placeholder
 
