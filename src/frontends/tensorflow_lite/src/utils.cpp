@@ -101,12 +101,15 @@ void ov::frontend::tensorflow_lite::dequantize_inputs(OutputVector& deq_inputs) 
     }
 }
 
+namespace ov {
+// ov namespace required by gcc to specify template
 template <>
-OutputVector ov::frontend::tensorflow_lite::get_indexed_outputs(const OutputVector& outputs) {
+OutputVector frontend::tensorflow_lite::get_indexed_outputs(const OutputVector& outputs) {
     return outputs;
 };
 
 template <>
-OutputVector ov::frontend::tensorflow_lite::get_indexed_outputs(const frontend::NamedOutputVector& outputs) {
+OutputVector frontend::tensorflow_lite::get_indexed_outputs(const frontend::NamedOutputVector& outputs) {
     return indexed_from_named(outputs);
 };
+}  // namespace ov
