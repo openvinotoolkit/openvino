@@ -40,7 +40,9 @@ void get_unsupported_operations_and_failures(const std::shared_ptr<Model>& model
         if (const auto& fw_node = ov::as_type_ptr<FrameworkNode>(node)) {
             auto op_type = fw_node->get_decoder()->get_op_type();
             auto fw_node_attrs = fw_node->get_attrs();
-            if (fw_node_attrs.find(FrameworkNode::failed_conversion_key) != fw_node_attrs.end()) {
+            if (fw_node_attrs.find(FrameworkNode::failed_conversion_key) != fw_node_attrs.end() &&
+                failures.count(op_type) == 0) {
+                // save only the first encountered failure that is more improtant for developer
                 // that means the translator is found but the conversion is failed
                 failures[op_type] = fw_node_attrs.at(FrameworkNode::failed_conversion_key);
             } else if (std::find(unsupported_operations.begin(), unsupported_operations.end(), op_type) ==
