@@ -618,8 +618,6 @@ class DeprecatedCanonicalizePathCheckExistenceAction(CanonicalizePathCheckExiste
     def __call__(self, parser, namespace, values, option_string=None):
         dep_msg = "Use of deprecated cli option {} detected. Option use in the following releases will be fatal. ".format(
             option_string)
-        if 'tensorflow_use_custom_operations_config' in option_string:
-            dep_msg += 'Please use --transformations_config cli option instead'
         log.error(dep_msg, extra={'is_warning': True})
         super().__call__(parser, namespace, values, option_string)
 
@@ -805,15 +803,6 @@ def get_common_cli_parser(parser: argparse.ArgumentParser = None):
                               type=writable_dir)
 
     # Deprecated params
-    # TODO: isn't it a weights precision type
-    common_group.add_argument('--data_type',
-                              help='[DEPRECATED] Data type for model weights and biases. '
-                                   'If original model has FP32 weights or biases and --data_type=FP16 is specified, '
-                                   'FP32 model weights and biases are compressed to FP16. '
-                                   'All intermediate data is kept in original precision.',
-                              choices=["FP16", "FP32", "half", "float"],
-                              default='FP16',
-                              action=DeprecatedOptionCommon)
     common_group.add_argument('--freeze_placeholder_with_value',
                               help='Replaces input layer with constant node with '
                                    'provided value, for example: "node_name->True". '
@@ -856,7 +845,6 @@ def get_common_cli_options(model_name):
     d['mean_values'] = ['- Mean values', lambda x: x if x else 'Not specified']
     d['scale_values'] = ['- Scale values', lambda x: x if x else 'Not specified']
     d['scale'] = ['- Scale factor', lambda x: x if x else 'Not specified']
-    d['data_type'] = ['- Precision of IR', lambda x: 'FP32' if x == 'float' else 'FP16' if x == 'half' else x]
     d['transform'] = ['- User transformations', lambda x: x if x else 'Not specified']
     d['reverse_input_channels'] = '- Reverse input channels'
     d['static_shape'] = '- Enable IR generation for fixed input shape'
@@ -885,7 +873,6 @@ def get_tf_cli_options():
     d = {
         'input_model_is_text': '- Input model in text protobuf format',
         'tensorflow_custom_operations_config_update': '- Update the configuration file with input/output node names',
-        'tensorflow_use_custom_operations_config': '- Use the config file',
         'tensorflow_object_detection_api_pipeline_config': '- Use configuration file used to generate the model with '
                                                            'Object Detection API',
         'tensorflow_custom_layer_libraries': '- List of shared libraries with TensorFlow custom layers implementation',
@@ -929,7 +916,7 @@ def get_params_with_paths_list():
             'input_checkpoint', 'input_meta_graph', 'input_proto', 'input_symbol',
             'pretrained_model_name', 'saved_model_dir', 'tensorboard_logdir',
             'tensorflow_custom_layer_libraries', 'tensorflow_custom_operations_config_update',
-            'tensorflow_object_detection_api_pipeline_config', 'tensorflow_use_custom_operations_config',
+            'tensorflow_object_detection_api_pipeline_config',
             'transformations_config']
 
 
@@ -965,10 +952,6 @@ def get_tf_cli_parser(parser: argparse.ArgumentParser = None):
     mo_convert_params_tf = get_mo_convert_params()['TensorFlow*-specific parameters:']
 
     tf_group = parser.add_argument_group('TensorFlow*-specific parameters')
-    tf_group.add_argument('--disable_nhwc_to_nchw',
-                          help='[DEPRECATED] Disables the default translation from NHWC to NCHW. Since 2022.1 this option '
-                               'is deprecated and used only to maintain backward compatibility with previous releases.',
-                          action=DeprecatedStoreTrue, default=False)
     add_args_by_description(tf_group, mo_convert_params_tf)
     return parser
 

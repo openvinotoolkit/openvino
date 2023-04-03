@@ -6,7 +6,7 @@
 
 #include <string>
 #include <vector>
-
+#include <thread>
 #include "shared_test_classes/base/layer_test_utils.hpp"
 #include "ngraph/function.hpp"
 #include "ngraph_functions/subgraph_builders.hpp"
@@ -90,9 +90,11 @@ protected:
         } else {
             m_extList.push_back(ext);
         }
-        std::replace(test_name.begin(), test_name.end(), '/', '_');
-        std::replace(test_name.begin(), test_name.end(), '\\', '_');
-        cache_path = "LoadNetwork" + test_name + "_cache";
+        auto hash = std::hash<std::string>()(test_name);
+        std::stringstream ss;
+        ss << std::this_thread::get_id();
+        cache_path = "LoadNetwork" + std::to_string(hash) + "_"
+                + ss.str() + "_" + GetTimestamp() + "_cache";
     }
     void TearDown() override {
         APIBaseTest::TearDown();

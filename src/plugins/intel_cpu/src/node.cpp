@@ -569,13 +569,6 @@ void Node::updateDynamicParams() {
             DEBUG_LOG(" prepareParams() on #", getExecIndex(), " ", getTypeStr(), " ", algToString(getAlgorithm()),
                       " ", getName(), " ", getOriginalLayers());
             prepareParams();
-#ifdef CPU_DEBUG_CAPS
-            if (prim) {
-                auto pd_c = prim.get_primitive_desc();
-                auto* pd = reinterpret_cast<const dnnl_primitive_desc*>(pd_c);
-                DEBUG_LOG("verbose##", getName(), "##", pd->info(), "\n");
-            }
-#endif
         }
     }
 }
@@ -828,6 +821,51 @@ void Node::prepareMemory(dnnl::primitive_desc_iterator& itpd) {
     Node::prepareMemory(intDescs);
 }
 
+MemoryPtr Node::prepareWeightMemory(DnnlMemoryDescPtr weightDesc) {
+    if (!getParentEdgeAt(1)->getParent()->isConstant())
+        IE_THROW() << "Weight input is not const for node " << getName() << ".";
+    auto edgeMem = getParentEdgeAt(1)->getMemoryPtr();
+    if (!edgeMem)
+        IE_THROW() << "Cannot get const weights edgeMem for node " << getName() << ".";
+
+    auto constDnnlMemOutDesc = edgeMem->GetDescWithType<DnnlMemoryDesc>();
+    auto weightSrcDesc = constDnnlMemOutDesc->getDnnlDesc();
+    weightSrcDesc = weightSrcDesc.reshape(weightDesc->getDnnlDesc().get_dims());
+    auto create = [&] () {
+        auto newSrcDesc = DnnlExtensionUtils::makeDescriptor(weightSrcDesc);
+
+        Memory srcMemory{ getEngine() };
+        srcMemory.Create(newSrcDesc, edgeMem->GetData());
+
+        MemoryPtr _ptr = std::make_shared<Memory>(getEngine());
+        _ptr->Create(weightDesc);
+        node::Reorder::reorderData(srcMemory, *_ptr, context->getParamsCache());
+
+        return _ptr;
+    };
+
+    MemoryPtr ptr;
+    const auto& format = weightDesc->serializeFormat();
+    auto itr = privateWeightCache.find(format);
+    if (privateWeightCache.end() != itr) {
+        ptr = itr->second;
+    } else {
+        auto weightCache = context->getWeightsCache();
+        if (weightCache != nullptr) {
+            const std::string string_hash = getName() + "_" + format
+                                            + "_" + std::to_string(edgeMem->GetSize())
+                                            + "_" + std::to_string(reinterpret_cast<uint64_t>(edgeMem->GetData()));
+
+            ptr = *weightCache->findOrCreate(string_hash, create);
+        } else {
+            ptr = create();
+        }
+        privateWeightCache[format] = ptr;
+    }
+
+    return ptr;
+}
+
 bool Node::isInPlace() {
     if (inplace == InPlaceType::Unknown) {
         auto selected_pd = getSelectedPrimitiveDescriptor();
@@ -1050,28 +1088,27 @@ void Node::initOptimalPrimitiveDescriptor() {
         IE_THROW() << "Preferable primitive descriptor is not set.";
 
     auto config = selected_pd->getConfig();
-    if (isDynamicNode()) {
-        // it is assumed that the nodes will define dense tensors on output edges
-        // if it is not the case the implementation must redefine this behaviour
-        for (size_t i = 0; i < config.outConfs.size(); i++) {
-            auto outMemDesc = config.outConfs[i].getMemDesc();
-            if (outMemDesc && (outMemDesc->getType() & Blocked)) {
-                config.outConfs[i].setMemDesc(std::dynamic_pointer_cast<BlockedMemoryDesc>(outMemDesc), BLOCKED_DESC_FULL_MASK);
-            }
-        }
-    } else {
-        for (size_t i = 0; i < config.inConfs.size(); i++) {
+    for (size_t i = 0; i < config.inConfs.size(); i++) {
+        if (!isDynamicNode() || config.inConfs[i].getMemDesc()->isDefined()) {
             auto inpPortDesc = getConsistentInputDesc(config, i);
             DEBUG_LOG(getName(), ": input PortDesc before: ", *inpPortDesc->getMemDesc());
             config.inConfs[i].setMemDesc(inpPortDesc->getMemDesc());
             DEBUG_LOG(getName(), ": input PortDesc after: ", *config.inConfs[i].getMemDesc());
         }
+    }
 
-        for (size_t i = 0; i < config.outConfs.size(); i++) {
+    for (size_t i = 0; i < config.outConfs.size(); i++) {
+        auto outMemDesc = config.outConfs[i].getMemDesc();
+        if (!isDynamicNode() || outMemDesc->isDefined()) {
             auto outPortDesc = getConsistentOutputDesc(config, i);
             DEBUG_LOG(getName(), ": output PortDesc before: ", *outPortDesc->getMemDesc());
             config.outConfs[i].setMemDesc(outPortDesc->getMemDesc());
-            DEBUG_LOG(getName(), ": output PortDesc after: ", *config.outConfs[i].getMemDesc());
+        } else {
+            // it is assumed that the nodes will define dense tensors on output edges
+            // if it is not the case the implementation must redefine this behaviour
+            if (outMemDesc->getType() & Blocked) {
+                config.outConfs[i].setMemDesc(std::dynamic_pointer_cast<BlockedMemoryDesc>(outMemDesc), BLOCKED_DESC_FULL_MASK);
+            }
         }
     }
 

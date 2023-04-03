@@ -126,7 +126,7 @@ ngraph::snippets::pass::SoftmaxDecomposition::SoftmaxDecomposition(const size_t 
             apply_increments_sum, finalization_offsets_sum);
 
         const auto horizon_sum = std::make_shared<ngraph::snippets::op::HorizonSum>(sum);
-        const auto buffer_exp = std::make_shared<ngraph::snippets::op::Buffer>(loop_sum_end->output(0), buffer_allocation_rank);
+        const auto buffer_exp = std::make_shared<op::Buffer>(loop_sum_end->output(0), buffer_allocation_rank);
 
         /* =========================================== */
 
