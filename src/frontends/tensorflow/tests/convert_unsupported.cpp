@@ -82,7 +82,6 @@ shared_ptr<Model> convert_model_partially(const string& model_path) {
 ov::OutputVector incorrect_less_translator(const ov::frontend::NodeContext& node) {
     // NOTE: pay attention that this is a fake translator for Less operation
     // only serves for testing purposes
-    // FRONT_END_GENERAL_CHECK(false, "Less expects at least ten inputs.");
     TENSORFLOW_OP_VALIDATION(node, false, "Less expects ten inputs.");
     return {};
 }
