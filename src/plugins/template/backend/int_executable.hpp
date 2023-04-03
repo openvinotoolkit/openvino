@@ -41,6 +41,8 @@ public:
 
     std::vector<ov::Tensor> create_output_tensor(size_t output_index, size_t pipeline_depth) override;
 
+    std::shared_ptr<ov::Model> get_model() const override;
+
 protected:
     std::shared_ptr<ov::op::v0::Parameter> get_parameter(size_t index) const;
     std::shared_ptr<ov::op::v0::Result> get_result(size_t index) const;
