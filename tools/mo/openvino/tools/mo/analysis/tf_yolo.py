@@ -47,7 +47,7 @@ YOLO_CONFIGS = {'YOLOV2Full': ['openvino/tools/mo/front/tf/yolo_v2.json', 'openv
 def get_YOLO_params_by_flavor(flavor: str):
     result = dict()
     result['flavor'] = flavor
-    result['mandatory_parameters'] = {'tensorflow_use_custom_operations_config': YOLO_CONFIGS[flavor]}
+    result['mandatory_parameters'] = {'transformations_config': YOLO_CONFIGS[flavor]}
     return result
 
 
@@ -72,7 +72,7 @@ class TensorFlowYOLOV1V2Analysis(AnalyzeAction):
                       "To generate the IR, provide TensorFlow YOLOv1 or YOLOv2 Model to the Model Optimizer with the following parameters:\n" \
                       "\t--input_model <path_to_model>/<model_name>.pb\n" \
                       "\t--batch 1\n" \
-                      "\t--tensorflow_use_custom_operations_config <PYTHON_SITE_PACKAGES>/openvino/tools/mo/front/tf/<yolo_config>.json\n" \
+                      "\t--transformations_config <PYTHON_SITE_PACKAGES>/openvino/tools/mo/front/tf/<yolo_config>.json\n" \
                       "All detailed information about conversion of this model can be found at\n" \
                       "https://docs.openvino.ai/latest/_docs_MO_DG_prepare_model_convert_model_tf_specific_Convert_YOLO_From_Tensorflow.html"
             return {'model_type': {'YOLO': get_YOLO_params_by_flavor(flavor)}}, message
@@ -99,7 +99,7 @@ class TensorFlowYOLOV3Analysis(AnalyzeAction):
                       "To generate the IR, provide TensorFlow YOLOv3 Model to the Model Optimizer with the following parameters:\n" \
                       "\t--input_model <path_to_model>/yolo_v3.pb\n" \
                       "\t--batch 1\n" \
-                      "\t--tensorflow_use_custom_operations_config <PYTHON_SITE_PACKAGES>/openvino/tools/mo/front/tf/yolo_v3.json\n" \
+                      "\t--transformations_config <PYTHON_SITE_PACKAGES>/openvino/tools/mo/front/tf/yolo_v3.json\n" \
                       "Detailed information about conversion of this model can be found at\n" \
                       "https://docs.openvino.ai/latest/_docs_MO_DG_prepare_model_convert_model_tf_specific_Convert_YOLO_From_Tensorflow.html"
             return {'model_type': {'YOLO': get_YOLO_params_by_flavor(flavor)}}, message
