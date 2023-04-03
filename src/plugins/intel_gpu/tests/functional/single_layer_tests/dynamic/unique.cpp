@@ -84,7 +84,12 @@ protected:
                 sorted);
         }
 
-        ngraph::ResultVector results = {std::make_shared<ngraph::opset1::Result>(uniqueNode)};
+        // Need to create results for all outputs
+        ngraph::ResultVector results;
+        for (auto i = 0U; i < uniqueNode->get_output_size(); ++i) {
+            results.push_back(std::make_shared<ngraph::opset1::Result>(uniqueNode->output(i)));
+        }
+
         function = std::make_shared<ngraph::Function>(results, params, "Unique");
     }
 
