@@ -27,14 +27,12 @@ concurrency:
 
 jobs:
   Coverage:
-    runs-on:
-      group: org/openvino_runners
-      labels: [self-hosted, coverage]
+    runs-on: ${{ matrix.config.os }}
     strategy:
       fail-fast: false
       matrix:
         config:
-          - { name: "Ubuntu gcc", cc: "gcc", cxx: "g++" }
+          - { name: "Ubuntu gcc", os: ubuntu-latest-16-cores, cc: "gcc", cxx: "g++" }
 
     steps:
       - name: Clone OpenVINO
@@ -42,54 +40,33 @@ jobs:
         with:
           submodules: recursive
       
-      
-      #- name: Setup ccache
-      #  uses: hendrikmuhs/ccache-action@v1.2
-      #  with:
-      #    max-size: 50G
+      - name: Setup ccache
+        uses: hendrikmuhs/ccache-action@v1.2
+        with:
+          max-size: 50G
 
-      - name: Setup cmake
-        uses: jwlawson/actions-setup-cmake@v1.13
-        with:
-          cmake-version: latest
-       
-      - name: Setup ninja
-        uses: ashutoshvarma/setup-ninja@master
-        with:
-          version: 1.11.1
-        
-     # - name: Setup gcc
-     #   run: . ${{ github.workspace }}/scripts/setupvars/setupvars.sh && sudo -E apt --assume-yes install g++ gcc
-       
-     # - name: Install build dependencies
-     #   run: |
-     #     export http_proxy="http://proxy-dmz.intel.com:911"
-     #     export https_proxy="http://proxy-dmz.intel.com:912"
-     #     export no_proxy="localhost,127.0.0.1,intel.com,.intel.com"
-     #     export HTTP_PROXY="http://proxy-dmz.intel.com:911"
-     #     export HTTPS_PROXY="http://proxy-dmz.intel.com:912"
-     #     export NO_PROXY="localhost,127.0.0.1,intel.com,.intel.com"
-     #     sudo apt --assume-yes update
-     #     sudo . ${{ github.workspace }}/install_build_dependencies.sh
-     #     sudo apt --assume-yes install lcov
-     #     sudo mkdir ${{ github.workspace }}/testdata
+      - name: Install build dependencies
+        run: |
+          sudo apt --assume-yes update
+          sudo -E ${{ github.workspace }}/install_build_dependencies.sh
+          sudo apt --assume-yes install lcov
+          sudo mkdir ${{ github.workspace }}/testdata
       
-     # - name: Install python dependencies
-     #   run: |
-     #   
-     #     python3 -m pip install --upgrade pip
-     #     python3 -m pip install -r ${{ github.workspace }}/src/bindings/python/src/compatibility/openvino/requirements-dev.txt
-     #     python3 -m pip install -r ${{ github.workspace }}/src/bindings/python/wheel/requirements-dev.txt
-     #     python3 -m pip install -r ${{ github.workspace }}/src/bindings/python/requirements.txt
-     #     # For running Python API tests
-     #     python3 -m pip install -r ${{ github.workspace }}/src/bindings/python/src/compatibility/openvino/requirements-dev.txt
-     #     # For running Paddle frontend unit tests
-     #     python3 -m pip install -r ${{ github.workspace }}/src/frontends/paddle/tests/requirements.txt
-     #     # For running ONNX frontend unit tests
-     #     python3 -m pip install -r ${{ github.workspace }}/src/frontends/onnx/tests/requirements.txt
-     #     # For MO unit tests
-     #     python3 -m pip install -r ${{ github.workspace }}/tools/mo/requirements.txt
-     #     python3 -m pip install -r ${{ github.workspace }}/tools/mo/requirements_dev.txt
+      - name: Install python dependencies
+        run: |
+          python3 -m pip install --upgrade pip
+          python3 -m pip install -r ${{ github.workspace }}/src/bindings/python/src/compatibility/openvino/requirements-dev.txt
+          python3 -m pip install -r ${{ github.workspace }}/src/bindings/python/wheel/requirements-dev.txt
+          python3 -m pip install -r ${{ github.workspace }}/src/bindings/python/requirements.txt
+          # For running Python API tests
+          python3 -m pip install -r ${{ github.workspace }}/src/bindings/python/src/compatibility/openvino/requirements-dev.txt
+          # For running Paddle frontend unit tests
+          python3 -m pip install -r ${{ github.workspace }}/src/frontends/paddle/tests/requirements.txt
+          # For running ONNX frontend unit tests
+          python3 -m pip install -r ${{ github.workspace }}/src/frontends/onnx/tests/requirements.txt
+          # For MO unit tests
+          python3 -m pip install -r ${{ github.workspace }}/tools/mo/requirements.txt
+          python3 -m pip install -r ${{ github.workspace }}/tools/mo/requirements_dev.txt
      #     pip install -r ${{ github.workspace }}/src/frontends/tensorflow_lite/tests/requirements.txt
      #     pip install -r ${{ github.workspace }}/src/bindings/python/src/compatibility/openvino/requirements-dev.txt
      #     pip install -r ${{ github.workspace }}/src/bindings/python/wheel/requirements-dev.txt
@@ -105,13 +82,7 @@ jobs:
       - name: Get number of CPU cores
         uses: SimenB/github-actions-cpu-cores@v1
         id: cpu-cores
-      - name: System info
-        run: |
-          apt list --installed
-          whoami
-          uname -a
-          printenv
-          echo ${{ github.workspace }}
+
       - name: Build OpenVINO with CMake
         uses: ashutoshvarma/action-cmake-build@master
         with:
@@ -128,10 +99,8 @@ jobs:
             -DCMAKE_C_LINKER_LAUNCHER=ccache
             -DCMAKE_CXX_LINKER_LAUNCHER=ccache
           build-type: Release
+          run-test: false
           parallel: ${{ steps.cpu-cores.outputs.count }}
-      
-     # - name: Run tests
-     #   run: ctest -V
       
       - name: Run OV core unit tests
         run: . ${{ github.workspace }}/setupvars.sh -pyver 3.10 && ${{ github.workspace }}/bin/intel64/Release/ov_core_unit_tests --gtest_print_time=1 --gtest_filter=-*IE_GPU* --gtest_output=xml:${{ github.workspace }}/testdata/TEST-NGraphUT.xml
@@ -153,42 +122,6 @@ jobs:
         run: . ${{ github.workspace }}/setupvars.sh -pyver 3.10 && ${{ github.workspace }}/bin/intel64/Release/ov_tensorflow_frontend_tests --gtest_print_time=1 --gtest_output=xml:${{ github.workspace }}/testdata/TEST-Tensorflow.xml
         continue-on-error: true
 
-      #- name: Run IE unit tests
-      #  run: ${{ github.workspace }}/bin/intel64/Release/ieUnitTests --gtest_output=xml:${{ github.workspace }}/testdata/TEST-ieUnitTests.xml
-      #  continue-on-error: true
-      
-      #- name: Run Intel CPU unit tests
-      #  run: ${{ github.workspace }}/bin/intel64/Release/ov_cpu_unit_tests --gtest_output=xml:${{ github.workspace }}/testdata/TEST-ov_cpu_unit_tests.xml
-      
-      #- name: Run GNA unit tests
-      #  run: ${{ github.workspace }}/bin/intel64/Release/ov_gna_unit_tests --gtest_output=xml:${{ github.workspace }}/testdata/TEST-ov_gna_unit_tests.xml
-      
-      #- name: Run VPU unit tests
-      #  run: ${{ github.workspace }}/bin/intel64/Release/vpuUnitTests --gtest_output=xml:${{ github.workspace }}/testdata/TEST-vpuUnitTests.xml
-      #  continue-on-error: true
-      
-      #- name: XLink tests
-      #  run: ${{ github.workspace }}/bin/intel64/Release/XLinkTests --gtest_output=xml:${{ github.workspace }}/testdata/TEST-XLinkTests.xml
-      #  continue-on-error: true
-      
-      #- name: Multi unit tests
-      #  run: ${{ github.workspace }}/bin/intel64/Release/ieMultiPluginUnitTests --gtest_output=xml:${{ github.workspace }}/testdata/TEST-ieMultiPluginUnitTests.xml
-      
-      #- name: TEMPLATE FuncTests
-      #  run: ${{ github.workspace }}/bin/intel64/Release/ov_template_func_tests --gtest_filter=*smoke* --gtest_output=xml:${{ github.workspace }}/testdata/TEST-templateFuncTests.xml
-      
-      #- name: CPU FuncTests
-      #  run: ${{ github.workspace }}/bin/intel64/Release/ov_cpu_func_tests --gtest_print_time=1 --gtest_filter=*smoke* --gtest_output=xml:${{ github.workspace }}/testdata/TEST-ov_cpu_func_tests.xml
-      #  continue-on-error: true
-      
-      #- name: IE CAPITests
-      #  run: ${{ github.workspace }}/bin/intel64/Release/InferenceEngineCAPITests --gtest_output=xml:${{ github.workspace }}/testdata/TEST-InferenceEngineCAPITests.xml
-      #  continue-on-error: true
-      
-      #- name: OV CAPITests
-      #  run: ${{ github.workspace }}/bin/intel64/Release/ov_capi_test --gtest_output=xml:${{ github.workspace }}/testdata/TEST-ov_capi_test.xml
-      #  continue-on-error: true
-
       - name: Build coverage with CMake
         uses: ashutoshvarma/action-cmake-build@master
         with:
@@ -208,12 +141,10 @@ jobs:
         run: |
           ls -laR
           pwd
-
       - name: Generate raport
         run: |
           lcov --capture --directory ${{ github.workspace }}/../. --output-file coverage.info
           genhtml coverage.info --output-directory coverage-report
-
       - name: Collect coverage
         uses: codecov/codecov-action@v3
         with:
