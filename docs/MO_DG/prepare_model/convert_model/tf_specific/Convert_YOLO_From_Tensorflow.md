@@ -195,7 +195,9 @@ where:
 * ``--batch`` defines shape of model input. In the example, ``--batch`` is equal to 1, but you can also specify other integers larger than 1.
 * ``--transformations_config`` adds missing ``Region`` layers to the model. In the IR, the ``Region`` layer has name ``RegionYolo``.
 
-.. note:: The color channel order (RGB or BGR) of an input data should match the channel order of the model training dataset. If they are different, perform the ``RGB<->BGR`` conversion specifying the command-line parameter: ``--reverse_input_channels``. Otherwise, inference results may be incorrect. For more information about the parameter, refer to the **When to Reverse Input Channels** section of the :doc:`Converting a Model to Intermediate Representation <openvino_docs_MO_DG_prepare_model_convert_model_Converting_Model>` guide.
+.. note:: 
+
+   The color channel order (RGB or BGR) of an input data should match the channel order of the model training dataset. If they are different, perform the ``RGB<->BGR`` conversion specifying the command-line parameter: ``--reverse_input_channels``. Otherwise, inference results may be incorrect. For more information about the parameter, refer to the **When to Reverse Input Channels** section of the :doc:`Converting a Model to Intermediate Representation <openvino_docs_MO_DG_prepare_model_convert_model_Converting_Model>` guide.
 
 OpenVINO toolkit provides a demo that uses YOLOv3 model. Refer to the :doc:`Object Detection C++ Demo <omz_demos_object_detection_demo_cpp>` for more information.
 
@@ -205,13 +207,13 @@ Converting YOLOv1 and YOLOv2 Models to the IR
 Before converting, choose a YOLOv1 or YOLOv2 model version that best suits your task. Download model configuration file and corresponding weight file:
 
 * From `DarkFlow repository <https://github.com/thtrieu/darkflow>`__: configuration files are stored in the ``cfg`` directory, links to weight files are given in the ``README.md`` file. The files from this repository are adapted for conversion to TensorFlow using DarkFlow.
-* From DarkNet website and repository: configuration files are stored in the ``cfg`` directory of the [repository](https://github.com/pjreddie/darknet), links to weight files are given on the [YOLOv1](https://pjreddie.com/darknet/yolov1/) and [YOLOv2](https://pjreddie.com/darknet/yolov2/) websites.
+* From DarkNet website and repository: configuration files are stored in the ``cfg`` directory of the `repository <https://github.com/pjreddie/darknet>`__, links to weight files are given on the  `repository <https://github.com/pjreddie/darknet>`__, links to weight files are given on the `YOLOv1 <https://pjreddie.com/darknet/yolov1/>`__ and `YOLOv2 <https://pjreddie.com/darknet/yolov2/>`__ websites.
 
 To convert DarkNet YOLOv1 and YOLOv2 models to the OpenVINO format, follow these steps:
 
 1. `Install DarkFlow  <#installing-darkflow>`__
 2. `Convert DarkNet YOLOv1 or YOLOv2 model to TensorFlow <#Converting-a-DarkNet-YOLOv1-or-YOLOv2-Model-to-TensorFlow>`__ using DarkFlow
-3. `Convert TensorFlow YOLOv1 or YOLOv2 model to IR <#Converting-a-TensorFlow-YOLOv1-or-YOLOv2-Model-to-the-IR`__
+3. `Convert TensorFlow YOLOv1 or YOLOv2 model to IR <#Converting-a-TensorFlow-YOLOv1-or-YOLOv2-Model-to-the-IR`>__
 
 
 Installing DarkFlow
@@ -261,7 +263,7 @@ General conversion command is:
 
   python3 flow --model <path_to_model>/<model_name>.cfg --load <path_to_model>/<model_name>.weights --labels <path_to_dataset_labels_file> --savepb
 
-For YOLOv1,  the ``--labels`` argument can be skipped. If the model was successfully converted, you can find the ``<model_name>.meta`` and ``<model_name>.pb`` files in ``built_graph``  subdirectory of the cloned DarkFlow repository.
+For YOLOv1,  the ``--labels`` argument can be skipped. If the model was successfully converted, you can find the ``<model_name>.meta`` and ``<model_name>.pb`` files in ``built_graph`` subdirectory of the cloned DarkFlow repository.
 
 File ``<model_name>.pb`` is a TensorFlow representation of the YOLO model.
 
@@ -294,9 +296,6 @@ The model was trained with input values in the range ``[0,1]``. OpenVINO toolkit
 * ``--transformations_config`` adds missing ``Region`` layers to the model. In the IR, the ``Region`` layer has name ``RegionYolo``.
 For other applicable parameters, refer to the :doc:`Convert Model from TensorFlow <openvino_docs_MO_DG_prepare_model_convert_model_Convert_Model_From_TensorFlow>` guide.
 
-.. note:: 
-
-   The color channel order (RGB or BGR) of an input data should match the channel order of the model training dataset. If they are different, perform the ``RGB<->BGR`` conversion specifying the command-line parameter: ``--reverse_input_channels``. Otherwise, inference results may be incorrect. For more information about the parameter, refer to the **When to Reverse Input Channels** section of the  :doc:`Converting a Model to Intermediate Representation (IR) <openvino_docs_MO_DG_prepare_model_convert_model_Converting_Model>` guide.
-
+.. note:: The color channel order (RGB or BGR) of an input data should match the channel order of the model training dataset. If they are different, perform the ``RGB<->BGR`` conversion specifying the command-line parameter: ``--reverse_input_channels``. Otherwise, inference results may be incorrect. For more information about the parameter, refer to the **When to Reverse Input Channels** section of the  :doc:`Converting a Model to Intermediate Representation (IR) <openvino_docs_MO_DG_prepare_model_convert_model_Converting_Model>` guide.
 
 @endsphinxdirective
