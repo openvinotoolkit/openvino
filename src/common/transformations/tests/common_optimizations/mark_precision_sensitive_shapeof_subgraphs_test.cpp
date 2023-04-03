@@ -322,3 +322,5 @@ TEST_F(TransformationTestsF, MarkConstantsInShapeSubgraphs_only_consts_marked_2)
         model_ref = std::make_shared<Model>(NodeVector{result}, ParameterVector{input_1});
     }
 }
+
+// TODO: add for quantized nodes
