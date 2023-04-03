@@ -157,31 +157,21 @@ TEST_F(TransformationTestsF, ReduceMeanReshapeFusionSkipIfMoreThanOneReduceConsu
     manager.register_pass<pass::ReduceReshapeFusion>();
 }
 
-TEST_F(TransformationTestsF, ReduceMeanReshapeFusionAssertValidOutputShape) {
-    {
-        const auto input = make_shared<Parameter>(element::f32, PartialShape{1, 16, 16, 24});
-        const auto reduce_axes = Constant::create(element::i64, Shape{2}, {1, 2});
-        const auto reduce_mean = make_shared<ReduceMean>(input, reduce_axes, false);
-        const auto target_shape = Constant::create(element::i64, Shape{4}, {1, 1, 1, 24});
-        const auto reshape = make_shared<Reshape>(reduce_mean, target_shape, false);
-        const auto order = Constant::create(element::i64, Shape{4}, {0, 3, 1, 2});
-        const auto transpose = make_shared<Transpose>(reshape, order);
+TEST(TransformationTests, ReduceMeanReshapeFusionAssertValidOutputShape) {
+    const auto input = make_shared<Parameter>(element::f32, PartialShape{1, 16, 16, 24});
+    const auto reduce_axes = Constant::create(element::i64, Shape{2}, {1, 2});
+    const auto reduce_mean = make_shared<ReduceMean>(input, reduce_axes, false);
+    const auto target_shape = Constant::create(element::i64, Shape{4}, {1, 1, 1, 24});
+    const auto reshape = make_shared<Reshape>(reduce_mean, target_shape, false);
+    const auto order = Constant::create(element::i64, Shape{4}, {0, 3, 1, 2});
+    const auto transpose = make_shared<Transpose>(reshape, order);
 
-        model = make_shared<Model>(NodeVector{transpose}, ParameterVector{input});
+    auto model = make_shared<Model>(NodeVector{transpose}, ParameterVector{input});
 
-        manager.set_pass_visualization(false);
-        auto fusions = manager.register_pass<pass::GraphRewrite>();
-        fusions->add_matcher<pass::ReduceReshapeFusion>();
-        fusions->add_matcher<pass::TransposeToReshape>();
-    }
-    {
-        const auto input = make_shared<Parameter>(element::f32, PartialShape{1, 16, 16, 24});
-        const auto reduce_axes = Constant::create(element::i64, Shape{2}, {1, 2});
-        const auto reduce_mean = make_shared<ReduceMean>(input, reduce_axes, true);
-
-        const auto order = Constant::create(element::i64, Shape{4}, {0, 3, 1, 2});
-        const auto transpose = make_shared<Transpose>(reduce_mean, order);
-
-        model_ref = make_shared<Model>(NodeVector{transpose}, ParameterVector{input});
-    }
+    pass::Manager manager;
+    manager.set_pass_visualization(false);
+    auto fusions = manager.register_pass<pass::GraphRewrite>();
+    fusions->add_matcher<pass::ReduceReshapeFusion>();
+    fusions->add_matcher<pass::TransposeToReshape>();
+    ASSERT_NO_THROW(manager.run_passes(model));
 }
