@@ -204,6 +204,10 @@ MatMul::MatMul(const std::shared_ptr<ngraph::Node>& op, const GraphContext::CPtr
 }
 
 bool MatMul::canFuse(const NodePtr& node) const {
+    if (node->getType() == Type::FakeQuantize && one_of(node->getOriginalOutputPrecisionAtPort(0), Precision::I8, Precision::U8) &&
+        !canBeExecutedInInt8(getOriginalInputPrecisionAtPort(0), getOriginalInputPrecisionAtPort(1)) &&
+        getOriginalInputPrecisionAtPort(0) == InferenceEngine::Precision::FP32 )
+        return false;
     return canFuseSimpleOperation(node);
 }
 
