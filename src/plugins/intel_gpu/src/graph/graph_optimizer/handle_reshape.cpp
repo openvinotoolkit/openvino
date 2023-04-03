@@ -124,11 +124,7 @@ void handle_reshape::run(program& p) {
                     auto& reorder_reshape_node = reorder_reshape_nodes[reshape_reorder_id];
                     auto reshape_in_layout = reorder_node->get_output_layout();
                     auto dims = cldnn::format::dimension(reshape_in_layout.format);
-                    auto format = cldnn::format::bfyx;
-                    if (dims == 5)
-                        format = cldnn::format::bfzyx;
-                    else if (dims == 6)
-                        format = cldnn::format::bfwzyx;
+                    auto format = cldnn::format::get_default_format(dims);
                     auto reshape_input = std::make_shared<reorder>(
                         "reorder:_reshape_input_" + reorder_node->id() + "_" + reorder_reshape_node->id(),
                         input_node.id(),

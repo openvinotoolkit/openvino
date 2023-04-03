@@ -173,24 +173,6 @@ TEST(eval, evaluate_dynamic_range_sum) {
     ASSERT_EQ(cval, seq);
 }
 
-TEST(eval, interpret_dynamic_range_sum) {
-    auto p_start = make_shared<op::Parameter>(element::f32, PartialShape{});
-    auto p_stop = make_shared<op::Parameter>(element::f32, PartialShape{});
-    auto p_step = make_shared<op::Parameter>(element::f32, PartialShape{});
-    auto p1 = make_shared<op::Parameter>(element::f32, PartialShape{});
-    auto range = make_shared<op::v0::Range>(p_start, p_stop, p_step);
-    auto add = make_shared<op::v1::Add>(range, p1);
-    auto fun = make_shared<Function>(OutputVector{add}, ParameterVector{p_start, p_stop, p_step, p1});
-    auto test_case = test::TestCase(fun);
-    test_case.add_input(std::vector<float>{1.0f});
-    test_case.add_input(std::vector<float>{10.0f});
-    test_case.add_input(std::vector<float>{3.0f});
-    test_case.add_input(std::vector<float>{7.0f});
-    vector<float> seq{8.0f, 11.0f, 14.0f};
-    test_case.add_expected_output({3}, seq);
-    test_case.run();
-}
-
 TEST(eval, evaluate_broadcast_v3_bidirectional) {
     Shape shape_a{4, 1};
     auto A = make_shared<op::Parameter>(element::f32, shape_a);

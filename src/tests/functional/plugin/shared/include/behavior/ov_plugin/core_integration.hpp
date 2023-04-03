@@ -121,6 +121,7 @@ using OVClassLoadNetworkTest = OVClassQueryNetworkTest;
 using OVClassSetGlobalConfigTest = OVClassBaseTestP;
 using OVClassSetModelPriorityConfigTest = OVClassBaseTestP;
 using OVClassSetExecutionModeHintConfigTest = OVClassBaseTestP;
+using OVClassSetUseCpuPinningHintConfigTest = OVClassBaseTestP;
 using OVClassSetSchedulingCoreTypeHintConfigTest = OVClassBaseTestP;
 using OVClassSetUseHyperThreadingHintConfigTest = OVClassBaseTestP;
 using OVClassSetTBBForceTerminatePropertyTest = OVClassBaseTestP;
@@ -609,6 +610,23 @@ TEST_P(OVClassSetExecutionModeHintConfigTest, SetConfigNoThrow) {
     ASSERT_EQ(ov::hint::ExecutionMode::ACCURACY, ie.get_property(target_device, ov::hint::execution_mode));
     ie.set_property(target_device, ov::hint::execution_mode(ov::hint::ExecutionMode::PERFORMANCE));
     ASSERT_EQ(ov::hint::ExecutionMode::PERFORMANCE, ie.get_property(target_device, ov::hint::execution_mode));
+}
+
+TEST_P(OVClassSetUseCpuPinningHintConfigTest, SetConfigNoThrow) {
+    ov::Core ie = createCoreWithTemplate();
+
+    OV_ASSERT_PROPERTY_SUPPORTED(ov::hint::use_cpu_pinning);
+
+    bool defaultMode{};
+    ASSERT_NO_THROW(defaultMode = ie.get_property(target_device, ov::hint::use_cpu_pinning));
+    (void)defaultMode;
+
+    ASSERT_EQ(true, ie.get_property(target_device, ov::hint::use_cpu_pinning));
+
+    ie.set_property(target_device, ov::hint::use_cpu_pinning(false));
+    ASSERT_EQ(false, ie.get_property(target_device, ov::hint::use_cpu_pinning));
+    ie.set_property(target_device, ov::hint::use_cpu_pinning(true));
+    ASSERT_EQ(true, ie.get_property(target_device, ov::hint::use_cpu_pinning));
 }
 
 TEST_P(OVClassSetSchedulingCoreTypeHintConfigTest, SetConfigNoThrow) {
@@ -1355,6 +1373,7 @@ TEST_P(OVClassLoadNetworkAndCheckSecondaryPropertiesTest, LoadNetworkAndCheckSec
     ASSERT_TRUE(property.count(ov::num_streams.name()));
     auto actual = property.at(ov::num_streams.name()).as<int32_t>();
     ov::Any value;
+    //AutoExcutableNetwork GetMetric() does not support key ov::num_streams
     OV_ASSERT_NO_THROW(value = model.get_property(ov::num_streams.name()));
     int32_t expect = value.as<int32_t>();
     ASSERT_EQ(actual, expect);
@@ -1382,7 +1401,7 @@ TEST_P(OVClassLoadNetWorkDoNotReturnDefaultHintTest, LoadNetworkDoNotReturnDefau
     if (target_device.find("AUTO") != std::string::npos) {
         ASSERT_NE(value, ov::hint::PerformanceMode::LATENCY);
     } else {
-        ASSERT_NE(value, ov::hint::PerformanceMode::THROUGHPUT);
+        ASSERT_EQ(value, ov::hint::PerformanceMode::THROUGHPUT);
     }
 }
 
