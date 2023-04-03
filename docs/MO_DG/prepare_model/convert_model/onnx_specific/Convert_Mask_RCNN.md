@@ -2,7 +2,7 @@
 
 @sphinxdirective
 
-The instructions below are applicable **only** to the Mask R-CNN model converted to the ONNX file format from the  `maskrcnn-benchmark model <https://github.com/facebookresearch/maskrcnn-benchmark>`__.
+The instructions below are applicable **only** to the Mask R-CNN model converted to the ONNX file format from the `maskrcnn-benchmark model <https://github.com/facebookresearch/maskrcnn-benchmark>`__.
 
 1. Download the pretrained model file from `onnx/models <https://github.com/onnx/models/tree/master/vision/object_detection_segmentation/mask-rcnn>` (commit-SHA: 8883e49e68de7b43e263d56b9ed156dfa1e03117).
 

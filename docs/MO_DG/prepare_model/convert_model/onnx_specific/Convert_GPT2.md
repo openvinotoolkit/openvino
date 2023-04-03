@@ -21,4 +21,5 @@ Generate the Intermediate Representation of the model GPT-2 by running Model Opt
 
     mo --input_model gpt2-10.onnx --input_shape [X,Y,Z] --output_dir <OUTPUT_MODEL_DIR>
 
+
 @endsphinxdirective
