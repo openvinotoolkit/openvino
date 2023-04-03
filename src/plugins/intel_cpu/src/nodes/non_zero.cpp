@@ -82,16 +82,6 @@ std::vector<size_t> NonZero::getNonZeroElementsCount(const T* src, const Shape& 
         counts.push_back(count);
         break;
     }
-    case 1: {
-        size_t count = 0;
-        for (size_t i = 0; i < inSize; i++) {
-            if (src[i] != zero) {
-                count++;
-            }
-        }
-        counts.push_back(count);
-        break;
-    }
     default: {
         threadsCount = parallel_get_num_threads();
         if (inSize < blockSize * threadsCount)
@@ -174,13 +164,16 @@ void NonZero::executeSpecified() {
         dst[0] = 0;
         break;
     case 1: {
-        size_t outputIndex = 0;
-        for (int i = 0; i < srcDims[0]; ++i) {
-            if (src[i] != zero) {
-                dst[outputIndex] = i;
-                outputIndex++;
-            }
-        }
+        //if nonZeroCounts.size() > 1, then the 2nd round scan could run in parallel.
+        parallel_nt(threadsCount, [&](int ithr, int nthr){
+            size_t outputIndex = std::accumulate(nonZeroCounts.begin(), nonZeroCounts.begin() + ithr, 0);
+            for_1d(ithr, nthr, inShape.getElementsCount(), [&](size_t i) {
+                if (src[i] != zero) {
+                    dst[outputIndex] = i;
+                    outputIndex++;
+                }
+            });
+        });
         break;
     }
     case 2: {
