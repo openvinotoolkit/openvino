@@ -169,9 +169,8 @@ TEST(TransformationTests, ReduceMeanReshapeFusionAssertValidOutputShape) {
     auto model = make_shared<Model>(NodeVector{transpose}, ParameterVector{input});
 
     pass::Manager manager;
-    manager.set_pass_visualization(false);
-    auto fusions = manager.register_pass<pass::GraphRewrite>();
-    fusions->add_matcher<pass::ReduceReshapeFusion>();
-    fusions->add_matcher<pass::TransposeToReshape>();
+    manager.set_per_pass_validation(false);
+    manager.register_pass<pass::ReduceReshapeFusion>();
+    manager.register_pass<pass::TransposeToReshape>();
     ASSERT_NO_THROW(manager.run_passes(model));
 }
