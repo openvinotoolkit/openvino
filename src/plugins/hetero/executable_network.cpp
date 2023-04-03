@@ -592,9 +592,10 @@ HeteroExecutableNetwork::HeteroExecutableNetwork(std::istream& heteroModel,
         }
 
         std::shared_ptr<ov::Node> node = std::make_shared<ov::op::v0::Parameter>(elementType, partialShape);
+        // For result operation_name is name of previous operation
+        node->set_friendly_name(operation_name);
         if (!is_param)
             node = std::make_shared<ov::op::v0::Result>(node);
-        node->set_friendly_name(operation_name);
         node->output(0).get_tensor().add_names(tensorNames);
 
         return node;
