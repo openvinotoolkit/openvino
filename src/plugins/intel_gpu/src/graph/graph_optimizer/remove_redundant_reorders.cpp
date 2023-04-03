@@ -36,8 +36,8 @@ void remove_redundant_reorders::run(program& p) {
         node.set_unique_id();
         node.set_selected_impl(node.type()->choose_impl(node));
         if (auto impl = node.get_selected_impl()) {
-            auto kernel_ids = p.get_kernels_cache().add_kernels_source(impl->get_kernels_source());
-            impl->set_kernel_ids(kernel_ids);
+            auto params = node.get_kernel_impl_params();
+            p.get_kernels_cache().add_kernels_source(*params, impl->get_kernels_source());
         }
     };
 

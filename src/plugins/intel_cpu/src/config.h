@@ -10,6 +10,7 @@
 #include <openvino/runtime/properties.hpp>
 #include <openvino/util/common_util.hpp>
 #include "utils/debug_caps_config.h"
+#include "openvino/runtime/properties.hpp"
 
 #include <bitset>
 #include <string>
@@ -50,6 +51,8 @@ struct Config {
     size_t rtCacheCapacity = 5000ul;
     InferenceEngine::IStreamsExecutor::Config streamExecutorConfig;
     InferenceEngine::PerfHintsConfig  perfHintsConfig;
+    bool useCpuPinning = true;
+    bool changedCpuPinning = false;
     ov::hint::SchedulingCoreType schedulingCoreType = ov::hint::SchedulingCoreType::ANY_CORE;
     bool useHyperThreading = true;
     bool changedHyperThreading = false;
@@ -61,6 +64,8 @@ struct Config {
     LPTransformsMode lpTransformsMode = LPTransformsMode::Off;
     bool enforceBF16 = false;
 #endif
+    bool inferencePrecisionSetExplicitly = false;
+    ov::hint::ExecutionMode executionMode = ov::hint::ExecutionMode::PERFORMANCE;
 
     DenormalsOptMode denormalsOptMode = DenormalsOptMode::DO_Keep;
 

@@ -147,7 +147,6 @@ int main() {
     ov_infer_request_free(infer_request);
     ov_compiled_model_free(compiled_model);
     ov_model_free(model);
-    ov_model_free(new_model);
     ov_remote_context_free(shared_va_context);
     ov_core_free(core);
 

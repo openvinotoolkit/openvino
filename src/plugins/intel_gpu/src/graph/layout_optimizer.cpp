@@ -825,7 +825,8 @@ static bool is_node_for_onednn(deconvolution_node const& node) {
 
 static bool is_node_for_onednn(fully_connected_node const& node) {
     auto fc_prim = node.get_primitive();
-    auto ps = node.get_output_layout().get_partial_shape();
+    auto output_layout = node.get_output_layout();
+    auto ps = output_layout.get_partial_shape();
     size_t non_spatial_count = 2 + (fc_prim->input_size == 3 ? 1 : 0);
     size_t rank = ps.size();
 
@@ -1178,6 +1179,9 @@ bool layout_optimizer::are_data_types_suitable_for_onednn(program_node& node) {
     if (in_dt == data_types::f32 && (!node.is_type<fully_connected>() && !node.is_type<convolution>()))
         return false;
 
+    if (in_dt == data_types::i64 || out_dt == data_types::i64)
+        return false;
+
     if (node.is_type<pooling>()) {
         if (!data_type_traits::is_floating_point(in_dt) && in_dt != out_dt)
             return false;
@@ -1257,6 +1261,16 @@ bool layout_optimizer::are_layouts_suitable_for_onednn(program_node& node) {
         return (no_spatial_padding && no_batch_padding);
     }
     return true;
+}
+
+bool layout_optimizer::is_primitive_implemented_for_onednn(program_node& node) {
+    if (node.is_type<fully_connected>() || node.is_type<gemm>() || node.is_type<pooling>() ||
+        node.is_type<convolution>() || node.is_type<deconvolution>() ||
+        node.is_type<reduce>() || node.is_type<reorder>() || node.is_type<concatenation>()) {
+            return true;
+    }
+
+    return false;
 }
 
 impl_types layout_optimizer::get_forced_impl_type_by_config(program_node& node) {
@@ -1416,6 +1430,10 @@ impl_types layout_optimizer::get_preferred_impl_type(program_node& node, format 
 
         // onednn reorder doesn't support different number of dimensions in input and output layouts
         if (input_fmt.dimension() != output_fmt.dimension()) {
+            preferred_impl = impl_types::ocl;
+        }
+
+        if (!are_data_types_suitable_for_onednn(node)) {
             preferred_impl = impl_types::ocl;
         }
 
@@ -1611,13 +1629,7 @@ format layout_optimizer::get_preferred_format(program_node& node) {
             }
         } else if (only_gemm_users(node)) {
             // TODO: Gemm is not supporting fsv layouts
-            if (node.get_output_layout().format.dimension() == 6) {
-                expected = format::bfwzyx;
-            } else if (node.get_output_layout().format.dimension() == 5) {
-                expected = format::bfzyx;
-            } else if (node.get_output_layout().format.dimension() == 4) {
-                expected = format::bfyx;
-            }
+            expected = format::get_default_format(node.get_output_layout().format.dimension());
             // TODO: check other types for first conv
         } else if (layout.is_static() && layout.format.spatial_num() == 2 &&
                   (layout.data_type == data_types::i8 || layout.data_type == data_types::u8) &&
@@ -1659,13 +1671,7 @@ format layout_optimizer::get_preferred_format(program_node& node) {
             expected = node.get_output_layout().format;
         }
     } else if (node.is_type<reshape>()) {
-        if (node.get_output_layout().format.dimension() == 6) {
-            expected = format::bfwzyx;
-        } else if (node.get_output_layout().format.dimension() == 5) {
-            expected = format::bfzyx;
-        } else if (node.get_output_layout().format.dimension() == 4) {
-            expected = format::bfyx;
-        }
+        expected = format::get_default_format(node.get_output_layout().format.dimension());
     } else if (node.is_type<deconvolution>()) {
         auto& deconv_node = node.as<deconvolution>();
         auto weights_layout = deconv_node.weights().get_output_layout().convert_to_weights_layout(deconv_node.get_primitive()->grouped_weights_shape);
@@ -1699,10 +1705,8 @@ format layout_optimizer::get_preferred_format(program_node& node) {
         auto& reduce_node = node.as<reduce>();
         auto input_layout = reduce_node.input().get_output_layout();
         if (!use_onednn_impls && input_layout.is_dynamic()) {
-            if (input_layout.format.dimension() == 6) {
-                expected = format::bfwzyx;
-            } else if (input_layout.format.dimension() == 5) {
-                expected = format::bfzyx;
+            if (input_layout.format.dimension() > 4) {
+                expected = format::get_default_format(input_layout.format.dimension());
             } else if (input_layout.format.dimension() == 4) {
                 expected = format::any;
             }

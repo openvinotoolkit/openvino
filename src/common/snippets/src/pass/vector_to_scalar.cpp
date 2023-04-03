@@ -24,7 +24,7 @@ ngraph::snippets::pass::SetScalarCountForLoad::SetScalarCountForLoad() {
             if (!load)
                 return false;
 
-            load->set_count(1lu);
+            load->set_input_count(1lu, 0);
             return true;
         });
 }
@@ -43,7 +43,7 @@ ngraph::snippets::pass::SetScalarCountForStore::SetScalarCountForStore() {
             if (!store)
                 return false;
 
-            store->set_count(1lu);
+            store->set_output_count(1lu, 0);
             return true;
         });
 }
