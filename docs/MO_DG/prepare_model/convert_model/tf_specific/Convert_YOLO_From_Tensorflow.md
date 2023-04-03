@@ -1,5 +1,6 @@
 # Converting TensorFlow YOLO Models {#openvino_docs_MO_DG_prepare_model_convert_model_tf_specific_Convert_YOLO_From_Tensorflow}
 
+@sphinxdirective
 
 This document explains how to convert real-time object detection YOLOv1, YOLOv2, YOLOv3 and YOLOv4 public models to the Intermediate Representation (IR). All YOLO models are originally implemented in the DarkNet framework and consist of two files:
 
@@ -139,20 +140,20 @@ It consists of several attributes:
 
 .. code-block:: sh
 
-  [
-    {
-      "id": "TFYOLOV3",
-      "match_kind": "general",
-      "custom_attributes": {
-        "classes": 80,
-        "anchors": [10, 13, 16, 30, 33, 23, 30, 61, 62, 45, 59, 119, 116, 90, 156, 198, 373, 326],
-        "coords": 4,
-        "num": 9,
-        "masks":[[6, 7, 8], [3, 4, 5], [0, 1, 2]],
-        "entry_points": ["detector/yolo-v3/Reshape", "detector/yolo-v3/Reshape_4", "detector/yolo-v3/Reshape_8"]
+   [
+      {
+         "id": "TFYOLOV3",
+         "match_kind": "general",
+         "custom_attributes": {
+         "classes": 80,
+         "anchors": [10, 13, 16, 30, 33, 23, 30, 61, 62, 45, 59, 119, 116, 90, 156, 198, 373, 326],
+         "coords": 4,
+         "num": 9,
+         "masks":[[6, 7, 8], [3, 4, 5], [0, 1, 2]],
+         "entry_points": ["detector/yolo-v3/Reshape", "detector/yolo-v3/Reshape_4", "detector/yolo-v3/Reshape_8"]
+         }
       }
-    }
-]
+   ]
 
 where:
 
@@ -214,7 +215,6 @@ To convert DarkNet YOLOv1 and YOLOv2 models to the OpenVINO format, follow these
 2. `Convert DarkNet YOLOv1 or YOLOv2 model to TensorFlow <#Converting-a-DarkNet-YOLOv1-or-YOLOv2-Model-to-TensorFlow>`__ using DarkFlow
 3. `Convert TensorFlow YOLOv1 or YOLOv2 model to IR <#Converting-a-TensorFlow-YOLOv1-or-YOLOv2-Model-to-the-IR`>__
 
-
 Installing DarkFlow
 --------------------
 
@@ -244,7 +244,6 @@ To convert YOLOv1 or YOLOv2 model to TensorFlow, go to the root directory of the
 .. code-block:: sh
 
    python3 flow --model yolov1.cfg --load yolov1.weights --savepb
-
 
 * For YOLOv2 with VOC dataset ``--labels`` argument should be specified and additional changes in the original exporting script are required.
 In the `file <https://github.com/thtrieu/darkflow/blob/b187c65630f9aa1bb8b809c33ec67c8cc5d60124/darkflow/utils/loader.py#L121>`__
@@ -295,6 +294,8 @@ The model was trained with input values in the range ``[0,1]``. OpenVINO toolkit
 * ``--transformations_config`` adds missing ``Region`` layers to the model. In the IR, the ``Region`` layer has name ``RegionYolo``.
 For other applicable parameters, refer to the :doc:`Convert Model from TensorFlow <openvino_docs_MO_DG_prepare_model_convert_model_Convert_Model_From_TensorFlow>` guide.
 
-.. note:: The color channel order (RGB or BGR) of an input data should match the channel order of the model training dataset. If they are different, perform the ``RGB<->BGR`` conversion specifying the command-line parameter: ``--reverse_input_channels``. Otherwise, inference results may be incorrect. For more information about the parameter, refer to the **When to Reverse Input Channels** section of the  :doc:`Converting a Model to Intermediate Representation (IR) <openvino_docs_MO_DG_prepare_model_convert_model_Converting_Model>` guide.
+.. note:: 
 
+   The color channel order (RGB or BGR) of an input data should match the channel order of the model training dataset. If they are different, perform the ``RGB<->BGR`` conversion specifying the command-line parameter: ``--reverse_input_channels``. Otherwise, inference results may be incorrect. For more information about the parameter, refer to the **When to Reverse Input Channels** section of the  :doc:`Converting a Model to Intermediate Representation (IR) <openvino_docs_MO_DG_prepare_model_convert_model_Converting_Model>` guide.
 
+@endsphinxdirective
