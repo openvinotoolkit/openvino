@@ -15,6 +15,7 @@
 #include <transformations/common_optimizations/conv_to_binary_conv.hpp>
 #include <transformations/common_optimizations/convert_nms_gather_path_to_unsigned.hpp>
 #include <transformations/common_optimizations/convert_quantize_dequantize.hpp>
+#include <transformations/common_optimizations/convolution_to_group_convolution_fusion.hpp>
 #include <transformations/common_optimizations/depth_to_space_fusion.hpp>
 #include <transformations/common_optimizations/dilated_convolution_converter.hpp>
 #include <transformations/common_optimizations/disable_random_uniform_constant_folding.hpp>
@@ -189,6 +190,7 @@ bool ov::pass::MOCTransformations::run_on_model(const std::shared_ptr<ngraph::Fu
     ADD_MATCHER(common_fusions, RandomUniformFusion)
     ADD_MATCHER(common_fusions, ConvertTensorIteratorToSequence)
     ADD_MATCHER(common_fusions, SplitConcatPairToInterpolateFusion, m_use_shapes)
+    ADD_MATCHER(common_fusions, ConvolutionToGroupConvolutionFusion)
     if (m_use_shapes) {
         ADD_MATCHER(common_fusions, NearestNeighborUpsamplingFusion)
     }
