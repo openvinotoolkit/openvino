@@ -79,10 +79,29 @@ else()
 endif()
 
 target_include_directories(${PROJECT_NAME} PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/..")
-target_link_libraries(${PROJECT_NAME} PRIVATE openvino::runtime::dev openvino::runtime ${OFFLINE_TRANSFORMATIONS_LIB})
-set_target_properties(${PROJECT_NAME} PROPERTIES INTERPROCEDURAL_OPTIMIZATION_RELEASE ${ENABLE_LTO} OUTPUT_NAME "_pyopenvino")
+target_link_libraries(${PROJECT_NAME} PRIVATE
+    openvino::runtime::dev openvino::runtime ${OFFLINE_TRANSFORMATIONS_LIB})
+set_target_properties(${PROJECT_NAME} PROPERTIES
+    INTERPROCEDURAL_OPTIMIZATION_RELEASE ${ENABLE_LTO}
+    OUTPUT_NAME "_pyopenvino")
 
 addVersionDefines(pyopenvino.cpp CI_BUILD_NUMBER)
+
+if(OV_GENERATOR_MULTI_CONFIG)
+    string(APPEND _cmd_echo
+        "$<$<CONFIG:Debug>:"
+            "${CMAKE_COMMAND};-E;cmake_echo_color;--red;\"OpenVINO;Python;API;cannot;be;built;for;'Debug'\""
+        ">")
+    string(APPEND cmd_error
+        "$<$<CONFIG:Debug>:"
+            "${CMAKE_COMMAND};-E;false"
+        ">")
+
+    add_custom_command(TARGET ${PROJECT_NAME} PRE_BUILD
+        COMMAND "${_cmd_echo}"
+        COMMAND "${cmd_error}"
+        COMMAND_EXPAND_LISTS)
+endif()
 
 # perform copy
 if(OpenVINO_SOURCE_DIR)

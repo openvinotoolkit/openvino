@@ -48,7 +48,7 @@ public:
     virtual void isApplicable(const Blob::Ptr &src, const Blob::Ptr &dst) = 0;
 
 protected:
-    ~IPreProcessData() = default;
+    virtual ~IPreProcessData() = default;
 };
 
 OPENVINO_PLUGIN_API void CreatePreProcessData(std::shared_ptr<IPreProcessData>& data);

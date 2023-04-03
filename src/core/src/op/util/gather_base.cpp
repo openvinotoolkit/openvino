@@ -40,8 +40,7 @@ void ov::op::util::GatherBase::validate_and_infer_types() {
 
 int64_t ov::op::util::GatherBase::get_axis() const {
     const auto& const_op = get_constant_from_source(input_value(2));
-    if (!const_op)
-        throw ov::Exception("axis value is not set");
+    OPENVINO_ASSERT(const_op, "axis value is not set");
 
     int64_t axis = const_op->cast_vector<int64_t>()[0];
     if (axis < 0) {
@@ -105,8 +104,7 @@ bool evaluate(const ngraph::HostTensorPtr& arg0,
                                                        axis,
                                                        batch_dims);
     } else {
-        throw ov::Exception(std::string("Unexpected type ") + arg1->get_element_type().c_type_string() +
-                            " for Gather evaluate method.");
+        OPENVINO_THROW("Unexpected type ", arg1->get_element_type().c_type_string(), " for Gather evaluate method.");
     }
 
     return true;
@@ -224,7 +222,7 @@ bool ov::op::util::GatherBase::evaluate(const HostTensorVector& outputs, const H
         axis = inputs[2]->get_data_ptr<element::Type_t::u64>()[0];
         break;
     default:
-        throw ov::Exception("axis must be of integral data type.");
+        OPENVINO_THROW("axis must be of integral data type.");
     }
 
     if (axis < 0) {

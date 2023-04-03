@@ -36,8 +36,7 @@ struct Config {
         inference_precision = r.inference_precision;
         gnaPrecision = r.gnaPrecision;
         embedded_export_path = r.embedded_export_path;
-        dumpXNNGeneration = r.dumpXNNGeneration;
-        target = std::make_shared<common::Target>();
+        target = std::make_shared<target::Target>();
         if (r.target) {
             *target = *r.target;
         }
@@ -48,7 +47,6 @@ struct Config {
         gnaFlags = r.gnaFlags;
         std::lock_guard<std::mutex> lock(r.mtx4keyConfigMap);
         keyConfigMap = r.keyConfigMap;
-        cacheDir = r.cacheDir;
     }
     void UpdateFromMap(const std::map<std::string, std::string>& configMap);
     void AdjustKeyMapValues();
@@ -57,16 +55,16 @@ struct Config {
     static const InferenceEngine::Parameter GetImpactingModelCompilationProperties(bool compiled);
     static const InferenceEngine::Parameter GetSupportedProperties(bool compiled = false);
 
-    ov::hint::PerformanceMode performance_mode = ov::hint::PerformanceMode::UNDEFINED;
+    ov::hint::PerformanceMode performance_mode = ov::hint::PerformanceMode::LATENCY;
 
     // default precision of GNA hardware model
     ov::element::Type inference_precision = ov::element::undefined;
     InferenceEngine::Precision gnaPrecision = InferenceEngine::Precision::I16;
+    ov::hint::ExecutionMode execution_mode = ov::hint::ExecutionMode::ACCURACY;
 
     std::string embedded_export_path;
-    std::string dumpXNNGeneration;
 
-    std::shared_ptr<common::Target> target = std::make_shared<common::Target>();
+    std::shared_ptr<target::Target> target = std::make_shared<target::Target>();
 
     Gna2AccelerationMode pluginGna2AccMode = Gna2AccelerationModeSoftware;
     bool swExactMode = true;
@@ -78,7 +76,6 @@ struct Config {
     mutable std::mutex mtx4keyConfigMap;
     std::map<std::string, std::string> keyConfigMap;
     static const uint8_t max_num_requests = 127;
-    std::string cacheDir;
 };
 
 }  // namespace intel_gna

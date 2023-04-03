@@ -339,7 +339,7 @@ ov::runtime::Tensor generate(const std::shared_ptr<ov::op::v0::ROIPooling>& node
         CASE(ov::element::Type_t::u1)
         CASE(ov::element::Type_t::i4)
         CASE(ov::element::Type_t::u4)
-        default: OPENVINO_UNREACHABLE("Unsupported element type: ", elemType);
+        default: OPENVINO_THROW("Unsupported element type: ", elemType);
     }
 #undef CASE
         return tensor;
@@ -705,7 +705,7 @@ ov::runtime::Tensor generate(const std::shared_ptr<ngraph::op::v3::EmbeddingSegm
                 return tensor;
             }
             default:
-                OPENVINO_UNREACHABLE("Unsupported element type for segment_ids: ", elemType);
+                OPENVINO_THROW("Unsupported element type for segment_ids: ", elemType);
         }
     }
     return generate(std::dynamic_pointer_cast<ov::Node>(node), port, elemType, targetShape);
@@ -788,7 +788,7 @@ ov::runtime::Tensor generate(const std::shared_ptr<ngraph::op::v6::ExperimentalD
             case element::Type_t::f32:
                 return generate_unique_possibilities<element::Type_t::f32>(targetShape);
             default:
-                OPENVINO_UNREACHABLE("Unsupported element type: ", elemType);
+                OPENVINO_THROW("Unsupported element type: ", elemType);
         }
     }
     return generate(std::dynamic_pointer_cast<ov::Node>(node), port, elemType, targetShape);
@@ -835,6 +835,7 @@ InputsMap getInputMap() {
 #include "openvino/opsets/opset8_tbl.hpp"
 #include "openvino/opsets/opset9_tbl.hpp"
 #include "openvino/opsets/opset10_tbl.hpp"
+#include "openvino/opsets/opset11_tbl.hpp"
 
 #include "ov_ops/opset_private_tbl.hpp"
 #undef _OPENVINO_OP_REG

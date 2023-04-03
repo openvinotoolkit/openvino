@@ -5,6 +5,9 @@
 #pragma once
 
 #include "intel_gpu/graph/serialization/binary_buffer.hpp"
+#include "intel_gpu/graph/kernel_impl_params.hpp"
+#include "intel_gpu/graph/fused_primitive_desc.hpp"
+#include "intel_gpu/graph/program.hpp"
 #include "intel_gpu/runtime/engine.hpp"
 #include "intel_gpu/runtime/utils.hpp"
 #include "intel_gpu/runtime/tensor.hpp"
@@ -15,9 +18,7 @@
 
 #include "kernel_selector_params.h"
 #include "kernel_selector_common.h"
-#include "kernel_impl_params.hpp"
 #include "tensor_type.h"
-#include "fused_primitive_desc.h"
 
 #include <cstdint>
 #include <string>
@@ -239,4 +240,109 @@ template <typename optional_params_t>
 inline optional_params_t get_default_weights_bias_optional_params(const program& program) {
     return get_default_optional_params<optional_params_t>(program);
 }
+
+inline kernel_selector::eltwise_mode convert_to_eltwise_mode(eltwise_mode mode) {
+switch (mode) {
+        case eltwise_mode::sum:
+            return kernel_selector::eltwise_mode::ADD;
+        case eltwise_mode::sub:
+            return kernel_selector::eltwise_mode::SUB;
+        case eltwise_mode::max:
+            return kernel_selector::eltwise_mode::MAX;
+        case eltwise_mode::prod:
+            return kernel_selector::eltwise_mode::MUL;
+        case eltwise_mode::div:
+            return kernel_selector::eltwise_mode::DIV;
+        case eltwise_mode::min:
+            return kernel_selector::eltwise_mode::MIN;
+        case eltwise_mode::pow:
+            return kernel_selector::eltwise_mode::POW;
+        case eltwise_mode::mod:
+            return kernel_selector::eltwise_mode::MODULU;
+        case eltwise_mode::eq:
+            return kernel_selector::eltwise_mode::EQ;
+        case eltwise_mode::ne:
+            return kernel_selector::eltwise_mode::NE;
+        case eltwise_mode::lt:
+            return kernel_selector::eltwise_mode::LT;
+        case eltwise_mode::le:
+            return kernel_selector::eltwise_mode::LE;
+        case eltwise_mode::gt:
+            return kernel_selector::eltwise_mode::GT;
+        case eltwise_mode::ge:
+            return kernel_selector::eltwise_mode::GE;
+        case eltwise_mode::logic_and:
+            return kernel_selector::eltwise_mode::LOGIC_AND;
+        case eltwise_mode::logic_or:
+            return kernel_selector::eltwise_mode::LOGIC_OR;
+        case eltwise_mode::logic_xor:
+            return kernel_selector::eltwise_mode::LOGIC_XOR;
+        case eltwise_mode::squared_diff:
+            return kernel_selector::eltwise_mode::SQUARED_DIFF;
+        case eltwise_mode::floor_mod:
+            return kernel_selector::eltwise_mode::FLOOR_MOD;
+        case eltwise_mode::is_finite:
+            return kernel_selector::eltwise_mode::IS_FINITE;
+        case eltwise_mode::is_inf:
+            return kernel_selector::eltwise_mode::IS_INF;
+        case eltwise_mode::is_nan:
+            return kernel_selector::eltwise_mode::IS_NAN;
+        default:
+            return kernel_selector::eltwise_mode::ADD;
+    }
+}
+
+inline ov::PartialShape extend_shape_to_rank_from_end(ov::PartialShape pshape, size_t rank = 4) {
+    if (pshape.size() >= rank) {
+        return pshape;
+    }
+    pshape.insert(pshape.end(), rank - pshape.size(), ov::Dimension(1));
+    return pshape;
+}
+
+inline ov::PartialShape extend_shape_to_rank_from_begin(ov::PartialShape pshape, size_t rank = 4) {
+    if (pshape.size() >= rank) {
+        return pshape;
+    }
+    ov::PartialShape extended_pshape(std::vector<int64_t>(rank - pshape.size(), 1));
+    extended_pshape.insert(extended_pshape.end(), pshape.begin(), pshape.end());
+    return extended_pshape;
+}
+
+inline kernel_impl_params canonicalize_fused_shapes(const kernel_impl_params& impl_params) {
+    auto updated_impl_params = impl_params;
+    bool use_new_shape_infer = impl_params.prog->get_config().get_property(ov::intel_gpu::allow_new_shape_infer);
+
+    auto broadcastable = [use_new_shape_infer](const ov::PartialShape& first_pshape, const ov::PartialShape& second_pshape) {
+        if (first_pshape.is_dynamic() || second_pshape.is_dynamic()) {
+            return false;
+        }
+        if (first_pshape.size() != second_pshape.size() && use_new_shape_infer) {
+            return false;
+        }
+        size_t min_size = std::min(first_pshape.size(), second_pshape.size());
+
+        for (size_t i = 0; i < min_size; ++i) {
+            if (!(first_pshape[i] == 1 || second_pshape[i] == 1 || first_pshape[i] == second_pshape[i])) {
+                return false;
+            }
+        }
+        return true;
+    };
+
+    for (auto& fd : updated_impl_params.fused_desc) {
+        if (fd.is_type<eltwise>() && fd.total_num_deps == 2) {
+            auto out_pshape = updated_impl_params.output_layouts[0].get_partial_shape();
+
+            auto& dep_layout = updated_impl_params.input_layouts[fd.dep_start_idx];
+            auto dep_shape = dep_layout.get_partial_shape();
+
+            if (!broadcastable(dep_shape, out_pshape)) {
+                dep_layout.set_partial_shape(extend_shape_to_rank_from_begin(dep_shape, out_pshape.size()));
+            }
+        }
+    }
+    return updated_impl_params;
+}
+
 }  // namespace cldnn

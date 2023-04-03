@@ -36,23 +36,27 @@ public:
 
         auto params = get_default_params<kernel_selector::eltwise_params>(impl_param, is_shape_agnostic);
         auto optional_params = get_default_optional_params<kernel_selector::eltwise_optional_params>(impl_param.get_program());
+        const auto mode = convert_to_eltwise_mode(primitive->mode);
 
         for (size_t i = 1; i < inputs_count; i++) {
             params.inputs.push_back(convert_data_tensor(impl_param.input_layouts[i]));
         }
 
-        params.operations.push_back({{kernel_selector::eltwise_params::InputType::Buffer(0), kernel_selector::eltwise_params::InputType::Buffer(1)},
-                                     convert_to_eltwise_mode(primitive->mode)});
+        if (inputs_count == 1) {
+            params.operations.push_back({{kernel_selector::eltwise_params::InputType::Buffer(0)}, mode});
+        } else {
+            params.operations.push_back({{kernel_selector::eltwise_params::InputType::Buffer(0),
+                                          kernel_selector::eltwise_params::InputType::Buffer(1)},
+                                         mode});
+        }
 
         for (uint32_t i = 2; i < static_cast<uint32_t>(inputs_count); i++) {
             params.operations.push_back({{kernel_selector::eltwise_params::InputType::Intermediate(i - 2),
                                           kernel_selector::eltwise_params::InputType::Buffer(i)},
-                                          convert_to_eltwise_mode(primitive->mode)});
+                                         mode});
         }
 
-        if (primitive->mode == eltwise_mode::sum) {
-            params.coefficients = primitive->coefficients;
-        }
+        params.coefficients = primitive->coefficients;
 
         // WA to always match compiled dynamic kernel with dispatch data
         // W/O enforcing this option we may generate kernel for "broadcast" scneario due to umatched tensor dimensions
@@ -113,6 +117,46 @@ public:
         params.int8_quantization = quantization;
 
         return {params, optional_params};
+    }
+
+    static kernel_impl_params static_canonicalize_shapes(const kernel_impl_params& impl_params) {
+        auto updated_impl_params = canonicalize_fused_shapes(impl_params);
+        bool use_new_shape_infer = impl_params.prog->get_config().get_property(ov::intel_gpu::allow_new_shape_infer);
+
+        auto broadcastable = [use_new_shape_infer](const ov::PartialShape& first_pshape, const ov::PartialShape& second_pshape) {
+            if (first_pshape.is_dynamic() || second_pshape.is_dynamic()) {
+                return false;
+            }
+            if (first_pshape.size() != second_pshape.size() && use_new_shape_infer) {
+                return false;
+            }
+            size_t min_size = std::min(first_pshape.size(), second_pshape.size());
+
+            for (size_t i = 0; i < min_size; ++i) {
+                if (!(first_pshape[i] == 1 || second_pshape[i] == 1 || first_pshape[i] == second_pshape[i])) {
+                    return false;
+                }
+            }
+            return true;
+        };
+
+        auto& output_layout = updated_impl_params.output_layouts[0];
+        auto out_pshape = output_layout.get_partial_shape();
+        output_layout.set_partial_shape(extend_shape_to_rank_from_end(out_pshape));
+
+        for (auto& input_layout : updated_impl_params.input_layouts) {
+            auto input_pshape = input_layout.get_partial_shape();
+            if (!broadcastable(input_pshape, out_pshape)) {
+                input_pshape = extend_shape_to_rank_from_begin(input_pshape, out_pshape.size());
+            }
+            input_layout.set_partial_shape(extend_shape_to_rank_from_end(input_pshape));
+        }
+
+        return updated_impl_params;
+    }
+
+    kernel_impl_params canonicalize_shapes(const kernel_impl_params& impl_params) const override {
+        return static_canonicalize_shapes(impl_params);
     }
 
     void update_dispatch_data(const kernel_impl_params& impl_param) override {

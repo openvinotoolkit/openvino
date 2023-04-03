@@ -1054,6 +1054,7 @@ openvino/tools/mo/utils/ir_reader/extenders/deformable_convolution_extender.py
 openvino/tools/mo/utils/ir_reader/extenders/einsum_extender.py
 openvino/tools/mo/utils/ir_reader/extenders/experimental_extender.py
 openvino/tools/mo/utils/ir_reader/extenders/ExtractImagePatches_extender.py
+openvino/tools/mo/utils/ir_reader/extenders/eye_extender.py
 openvino/tools/mo/utils/ir_reader/extenders/fakequantize_extender.py
 openvino/tools/mo/utils/ir_reader/extenders/GRUCell_extender.py
 openvino/tools/mo/utils/ir_reader/extenders/GRUSequence_extender.py

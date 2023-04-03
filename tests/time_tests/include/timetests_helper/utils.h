@@ -26,7 +26,7 @@ std::string fileExt(const std::string &filename) {
  * @brief Function that enables Latency performance hint for specified device (OV API 1)
  */
 void setPerformanceConfig(InferenceEngine::Core ie, const std::string &device) {
-    std::vector<std::string> supported_config_keys = ie.GetMetric(device, METRIC_KEY(SUPPORTED_CONFIG_KEYS));
+    auto supported_config_keys = ie.GetMetric(device, METRIC_KEY(SUPPORTED_CONFIG_KEYS)).as<std::vector<std::string>>();
 
     if (std::find(supported_config_keys.begin(), supported_config_keys.end(), "PERFORMANCE_HINT") ==
         supported_config_keys.end()) {
@@ -41,7 +41,7 @@ void setPerformanceConfig(InferenceEngine::Core ie, const std::string &device) {
  * @brief Function that enables Latency performance hint for specified device (OV API 2)
  */
 void setPerformanceConfig(ov::Core ie, const std::string &device) {
-    std::vector<std::string> supported_config_keys = ie.get_property(device, METRIC_KEY(SUPPORTED_CONFIG_KEYS));
+    auto supported_config_keys = ie.get_property(device, METRIC_KEY(SUPPORTED_CONFIG_KEYS)).as<std::vector<std::string>>();
 
     if (std::find(supported_config_keys.begin(), supported_config_keys.end(), "PERFORMANCE_HINT") ==
         supported_config_keys.end()) {

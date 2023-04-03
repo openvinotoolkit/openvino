@@ -8,6 +8,7 @@
 #include "utils/debug_capabilities.h"
 #include "low_precision/low_precision.hpp"
 #include "config.h"
+#include "transformations/convert_precision.hpp"
 
 #include "itt.h"
 
@@ -27,7 +28,7 @@ public:
                     const bool                        enableLpt,
                     const bool                        enableBF16,
                     const bool                        isLegacyApi,
-                    Config::SnippetsMode&             snippetsMode,
+                    const Config::SnippetsMode&       snippetsMode,
                     const Config&                     config)
         : model(initialModel),
           enableLpt(enableLpt),
@@ -39,7 +40,7 @@ public:
           }
 
     void UpToCpuSpecificOpSet();
-    void CpuSpecificOpSet(void);
+    void CpuSpecificOpSet();
 
 private:
     std::shared_ptr<ov::Model> model;
@@ -61,7 +62,7 @@ private:
 
     void Snippets(void);
 
-    static bool fuse_type_to_convert(const std::shared_ptr<ngraph::Node>& node, ov::element::Type to, size_t idx);
+    static bool fuse_type_to_convert(const std::shared_ptr<ngraph::Node>& node, const precisions_map& precisions);
 };
 
 }   // namespace intel_cpu

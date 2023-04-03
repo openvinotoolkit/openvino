@@ -9,8 +9,6 @@
 
 std::vector<std::string> disabledTestPatterns() {
     return {
-            //TODO: Issue: 34748
-            R"(.*(ComparisonLayerTest).*)",
             // TODO: Issue: 39612
             R"(.*Interpolate.*cubic.*tf_half_pixel_for_nn.*FP16.*)",
             // TODO: Issue: 43794
@@ -60,8 +58,6 @@ std::vector<std::string> disabledTestPatterns() {
             R"(.*Behavior.*OVInferRequestIOTensorTest.*canInferAfterIOBlobReallocation.*)",
             R"(.*Behavior.*OVInferRequestDynamicTests.*InferUpperBoundNetworkAfterIOTensorsReshaping.*)",
             R"(.*(Auto|Multi).*Behavior.*IncorrectConfigTests.*CanNotLoadNetworkWithIncorrectConfig.*)",
-            // TODO: until issue is xxx-59670 is resolved
-            R"(.*Gather8LayerTest.*)",
             // Not implemented yet:
             R"(.*Behavior.*ExecutableNetworkBaseTest.*canSetConfigToExecNet.*)",
             R"(.*Behavior.*ExecutableNetworkBaseTest.*canExport.*)",
@@ -128,5 +124,9 @@ std::vector<std::string> disabledTestPatterns() {
 
             // Looks like the test is targeting CPU plugin and doesn't respect that execution graph may vary from plugin to plugin
             R"(.*ExecGraphSerializationTest.*)",
+
+            // TODO: support getconfig in auto/multi CVS-104942
+            // TODO: move auto/multi cases to dedicated unit tests
+            R"(.*(Auto|Multi).*SetPropLoadNetWorkGetPropTests.*)",
     };
 }

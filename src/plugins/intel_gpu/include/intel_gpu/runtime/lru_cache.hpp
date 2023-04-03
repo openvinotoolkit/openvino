@@ -18,7 +18,7 @@ namespace cldnn {
 struct primitive_impl;
 
 /// @brief LRU cache which remove the least recently used data when cache is full.
-template<typename Key, typename Value>
+template<typename Key, typename Value, typename KeyHasher = std::hash<Key>>
 class LruCache {
 public:
     using data_type = std::pair<Key, Value>;
@@ -34,7 +34,7 @@ public:
     /**
      * @brief Get the least recently used element with key and value pair in the cache
      *
-     * @return Value
+     * @return std::pair<Key, Value>
      */
     std::pair<Key, Value> get_lru_element() const {
         if (_lru_data_list.size()) {
@@ -49,7 +49,7 @@ public:
      *
      * @param key if same key is existed in the cache, the value of key is updated new entry.
      * @param value
-     * @return true, if cache is full and lease recently used entry are removed to add new entry.
+     * @return true, if cache is full and least recently used entry are removed to add new entry.
      * @return false Otherwise
      */
     bool add(const Key& key, const Value& value) {
@@ -124,6 +124,15 @@ public:
     }
 
     /**
+     * @brief Return whether the cache is full or not
+     *
+     * @return true, if cache is full, false otherwise
+     */
+    size_t is_full() const {
+        return _lru_data_list.size() == _capacity;
+    }
+
+    /**
      * @brief Get the all keys object
      *
      * @return std::vector<Key>
@@ -141,7 +150,7 @@ private:
     using lru_data_list_iter = typename lru_data_list_type::iterator;
 
     std::list<data_type> _lru_data_list;
-    std::unordered_map<Key, lru_data_list_iter> _key_map;
+    std::unordered_map<Key, lru_data_list_iter, KeyHasher> _key_map;
     const size_t _capacity;
 
     /**
@@ -154,7 +163,7 @@ private:
     }
 
     /**
-     * @brief Pop n lease recently used cache data.
+     * @brief Pop n least recently used cache data.
      *
      * @param n number of data to be popped
      */
@@ -168,11 +177,13 @@ private:
 
 using KernelsCache = cldnn::LruCache<size_t, cldnn::kernel::ptr>;
 
-template<typename Key, typename Value>
-class LruCacheThreadSafe : LruCache<Key, Value> {
+template<typename Key, typename Value, typename KeyHasher = std::hash<Key>>
+class LruCacheThreadSafe : public LruCache<Key, Value, KeyHasher> {
 public:
-    using parent = LruCache<Key, Value>;
-    using FuncRemoveItem = std::function<void(std::pair<Key, Value>&)>;
+    using parent = LruCache<Key, Value, KeyHasher>;
+    using ItemType = std::pair<Key, Value>;
+    using FuncRemoveItem = std::function<void(ItemType&)>;
+    using parent::parent;
 
     explicit LruCacheThreadSafe(size_t caps) : parent(caps) { }
 
@@ -204,8 +215,5 @@ private:
     FuncRemoveItem _remove_popped_item;
     mutable std::mutex _mutex;
 };
-
-
-using ImplementationsCache = cldnn::LruCacheThreadSafe<size_t, std::shared_ptr<primitive_impl>>;
 
 }  // namespace cldnn

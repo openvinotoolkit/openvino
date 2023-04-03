@@ -57,7 +57,8 @@
 namespace ov {
 namespace intel_gna {
 
-void TransformationsPipeline::apply(const std::shared_ptr<ov::Model>& model) {
+void TransformationsPipeline::apply(const std::shared_ptr<ov::Model>& model,
+                                    ov::intel_gna::PrePostProcessModels* subgraph_cpu_map) {
     OV_ITT_SCOPED_TASK(itt::domains::GNAPlugin, "TransformationsPipeline::apply");
 
     fake_quantized = ov::op::util::has_op_with_type<ngraph::op::FakeQuantize>(model);
@@ -67,7 +68,7 @@ void TransformationsPipeline::apply(const std::shared_ptr<ov::Model>& model) {
 
     // In OV API 2.0(IRv10) default convertion to fp32 (inputs, outputs and weights) is disabled
     // and we need to run the ConvertPrecision transformation to support old networks.
-    manager.register_pass<ov::pass::ConvertPrecision>(precisions_array{{ngraph::element::f16, ngraph::element::f32}});
+    manager.register_pass<ov::pass::ConvertPrecision>(precisions_map{{ngraph::element::f16, ngraph::element::f32}});
     manager.register_pass<ov::pass::ConvertMVN1ToMVN6>();
     manager.register_pass<ov::intel_gna::pass::DecomposeMVN>();
     manager.register_pass<ov::pass::CommonOptimizations>();
@@ -148,9 +149,9 @@ void TransformationsPipeline::apply(const std::shared_ptr<ov::Model>& model) {
     manager.register_pass<ov::intel_gna::pass::InsertCopyBeforeConcatLayer>();
     manager.register_pass<ov::intel_gna::pass::HandleMultiConnectedLayerToConcatAndMemory>();
     manager.register_pass<ov::intel_gna::pass::HandleNonFunctionalSubgraphs>();
-    manager.register_pass<ov::pass::ConvertPrecision>(precisions_array{{ov::element::i64, ov::element::i32},
-                                                                       {ov::element::u64, ov::element::i32},
-                                                                       {ov::element::u32, ov::element::i32}});
+    manager.register_pass<ov::pass::ConvertPrecision>(precisions_map{{ov::element::i64, ov::element::i32},
+                                                                     {ov::element::u64, ov::element::i32},
+                                                                     {ov::element::u32, ov::element::i32}});
     const auto& pass_config = manager.get_pass_config();
 
     // Allowing FP16 Converts to be folded and FP16 constants to upgrade to FP32 data type

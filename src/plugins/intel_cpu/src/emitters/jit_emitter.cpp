@@ -3,8 +3,8 @@
 //
 
 #include "jit_emitter.hpp"
-#include "utils/general_utils.h"
 #include <vector>
+#include "utils/general_utils.h"
 
 using namespace dnnl::impl::cpu;
 using namespace dnnl::impl;
@@ -55,8 +55,8 @@ size_t jit_emitter::aux_gprs_count() const {
     return entry_map_.empty() ? 0 : 1;
 }
 
-std::set<InferenceEngine::Precision> jit_emitter::get_supported_precisions() {
-    return {InferenceEngine::Precision::FP32};
+std::set<std::vector<element::Type>> jit_emitter::get_supported_precisions(const std::shared_ptr<ngraph::Node>& node) {
+    return {};
 }
 
 void jit_emitter::emitter_preamble(const std::vector<size_t> &in_idxs, const std::vector<size_t> &out_idxs,
@@ -208,17 +208,7 @@ void jit_emitter::emit_code(const std::vector<size_t> &in_idxs, const std::vecto
                             const std::vector<size_t> &pool_vec_idxs, const std::vector<size_t> &pool_gpr_idxs) const {
     emitter_preamble(in_idxs, out_idxs, pool_vec_idxs, pool_gpr_idxs);
 
-    emit_impl(in_idxs, out_idxs, pool_vec_idxs, pool_gpr_idxs, nullptr);
-
-    emitter_postamble();
-}
-
-void jit_emitter::emit_code(const std::vector<size_t> &in_idxs, const std::vector<size_t> &out_idxs,
-                            const std::shared_ptr<const emitter_context> &emit_context,
-                            const std::vector<size_t> &pool_vec_idxs, const std::vector<size_t> &pool_gpr_idxs) {
-    emitter_preamble(in_idxs, out_idxs, pool_vec_idxs, pool_gpr_idxs);
-
-    emit_impl(in_idxs, out_idxs, pool_vec_idxs, pool_gpr_idxs, emit_context.get());
+    emit_impl(in_idxs, out_idxs);
 
     emitter_postamble();
 }

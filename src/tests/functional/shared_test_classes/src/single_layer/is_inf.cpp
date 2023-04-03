@@ -71,6 +71,29 @@ void IsInfLayerTest::SetUp() {
     function = std::make_shared<ov::Model>(results, parameters, "IsInf");
 }
 
+namespace {
+
+template <typename T>
+void fill_tensor(ov::Tensor& tensor, int32_t range, T startFrom) {
+    auto pointer = tensor.data<T>();
+    testing::internal::Random random(1);
+    for (size_t i = 0; i < range; i++) {
+        if (i % 7 == 0) {
+            pointer[i] = std::numeric_limits<T>::infinity();
+        } else if (i % 7 == 1) {
+            pointer[i] = std::numeric_limits<T>::quiet_NaN();
+        } else if (i % 7 == 3) {
+            pointer[i] = -std::numeric_limits<T>::infinity();
+        } else if (i % 7 == 5) {
+            pointer[i] = -std::numeric_limits<T>::quiet_NaN();
+        } else {
+            pointer[i] = startFrom + static_cast<T>(random.Generate(range));
+        }
+    }
+}
+
+}  // namespace
+
 void IsInfLayerTest::generate_inputs(const std::vector<ov::Shape>& targetInputStaticShapes) {
     inputs.clear();
     const auto& funcInputs = function->inputs();
@@ -80,21 +103,10 @@ void IsInfLayerTest::generate_inputs(const std::vector<ov::Shape>& targetInputSt
     float startFrom = -static_cast<float>(range) / 2.f;
     auto tensor = ov::Tensor{ input.get_element_type(), targetInputStaticShapes[0]};
 
-    auto pointer = tensor.data<element_type_traits<ov::element::Type_t::f32>::value_type>();
-    testing::internal::Random random(1);
-
-    for (size_t i = 0; i < range; i++) {
-        if (i % 7 == 0) {
-            pointer[i] = std::numeric_limits<float>::infinity();
-        } else if (i % 7 == 1) {
-           pointer[i] = std::numeric_limits<double>::quiet_NaN();
-        } else if (i % 7 == 3) {
-            pointer[i] = -std::numeric_limits<float>::infinity();
-        } else if (i % 7 == 5) {
-            pointer[i] = -std::numeric_limits<double>::quiet_NaN();
-        } else {
-            pointer[i] = startFrom + static_cast<float>(random.Generate(range));
-        }
+    if (input.get_element_type() == ov::element::f16) {
+        fill_tensor<ov::float16>(tensor, range, startFrom);
+    } else {
+        fill_tensor<float>(tensor, range, startFrom);
     }
 
     inputs.insert({input.get_node_shared_ptr(), tensor});

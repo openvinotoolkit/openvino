@@ -2,11 +2,15 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "openvino/op/interpolate.hpp"
+
+#include "common_test_utils/test_assertions.hpp"
 #include "gtest/gtest.h"
 #include "ngraph/ngraph.hpp"
 #include "util/type_prop.hpp"
 
 using namespace ngraph;
+using namespace testing;
 
 using InterpolateMode = op::v4::Interpolate::InterpolateMode;
 using CoordinateTransformMode = op::v4::Interpolate::CoordinateTransformMode;
@@ -208,4 +212,86 @@ TEST(type_prop, interpolate_v4_interval_logic) {
 
     EXPECT_EQ(interp->get_element_type(), element::f32);
     ASSERT_TRUE(interp->get_output_partial_shape(0).same_scheme(out_shape));
+}
+
+TEST(type_prop, interpolate_v4_incorrect_mode) {
+    const auto image = std::make_shared<op::Parameter>(element::f32, Shape{1, 3, 30, 60});
+    const auto target_shape = std::make_shared<op::Parameter>(element::i32, Shape{2});
+    const auto scales = op::Constant::create<float>(element::f32, Shape{2}, {6.f, 12.f});
+    const auto axes = op::Constant::create<int64_t>(element::i64, Shape{2}, {2, 3});
+
+    ov::op::util::InterpolateBase::InterpolateAttrs attrs;
+    attrs.shape_calculation_mode = ov::op::util::InterpolateBase::ShapeCalcMode::SCALES;
+    attrs.mode = ov::op::util::InterpolateBase::InterpolateMode::BICUBIC_PILLOW;
+    attrs.pads_begin = {0, 0, 0, 0};
+    attrs.pads_end = {0, 0, 0, 0};
+
+    OV_EXPECT_THROW(auto interp = std::make_shared<ov::op::v4::Interpolate>(image, target_shape, scales, axes, attrs),
+                    ov::NodeValidationFailure,
+                    HasSubstr("Unsupported interpolation mode used with version 4 of the Interpolate op"));
+
+    attrs.mode = ov::op::util::InterpolateBase::InterpolateMode::BILINEAR_PILLOW;
+    OV_EXPECT_THROW(auto interp = std::make_shared<ov::op::v4::Interpolate>(image, target_shape, scales, axes, attrs),
+                    ov::NodeValidationFailure,
+                    HasSubstr("Unsupported interpolation mode used with version 4 of the Interpolate op"));
+}
+
+TEST(type_prop, interpolate_v11_scales) {
+    const auto image = std::make_shared<op::Parameter>(element::f32, Shape{1, 3, 30, 60});
+    const auto scales = op::Constant::create<float>(element::f32, Shape{2}, {0.2f, 0.2f});
+    const auto axes = op::Constant::create<int64_t>(element::i64, Shape{2}, {2, 3});
+
+    ov::op::util::InterpolateBase::InterpolateAttrs attrs;
+    attrs.shape_calculation_mode = ov::op::util::InterpolateBase::ShapeCalcMode::SCALES;
+    attrs.pads_begin = {0, 0, 0, 0};
+    attrs.pads_end = {0, 0, 0, 0};
+    auto interp = std::make_shared<ov::op::v11::Interpolate>(image, scales, axes, attrs);
+
+    EXPECT_EQ(interp->get_element_type(), element::f32);
+    EXPECT_EQ(interp->get_shape(), (Shape{1, 3, 6, 12}));
+}
+
+TEST(type_prop, interpolate_v11_sizes) {
+    const auto image = std::make_shared<op::Parameter>(element::f32, Shape{1, 3, 30, 60});
+    const auto sizes = op::Constant::create<int32_t>(element::i32, Shape{2}, {6, 12});
+    const auto axes = op::Constant::create<int64_t>(element::i64, Shape{2}, {2, 3});
+
+    ov::op::util::InterpolateBase::InterpolateAttrs attrs;
+    attrs.shape_calculation_mode = ov::op::util::InterpolateBase::ShapeCalcMode::SIZES;
+    attrs.pads_begin = {0, 0, 0, 0};
+    attrs.pads_end = {0, 0, 0, 0};
+    auto interp = std::make_shared<ov::op::v11::Interpolate>(image, sizes, axes, attrs);
+
+    EXPECT_EQ(interp->get_element_type(), element::f32);
+    EXPECT_EQ(interp->get_shape(), (Shape{1, 3, 6, 12}));
+}
+
+TEST(type_prop, interpolate_v11_scales_incorrect_et) {
+    const auto image = std::make_shared<op::Parameter>(element::f32, Shape{1, 3, 30, 60});
+    const auto scales = op::Constant::create<int64_t>(element::i64, Shape{2}, {2, 2});
+    const auto axes = op::Constant::create<int64_t>(element::i64, Shape{2}, {2, 3});
+
+    ov::op::util::InterpolateBase::InterpolateAttrs attrs;
+    attrs.shape_calculation_mode = ov::op::util::InterpolateBase::ShapeCalcMode::SCALES;
+    attrs.pads_begin = {0, 0, 0, 0};
+    attrs.pads_end = {0, 0, 0, 0};
+
+    OV_EXPECT_THROW(auto interp = std::make_shared<ov::op::v11::Interpolate>(image, scales, axes, attrs),
+                    ov::NodeValidationFailure,
+                    HasSubstr("Scales element type must be f32, f16 or bf16"));
+}
+
+TEST(type_prop, interpolate_v11_sizes_incorrect_et) {
+    const auto image = std::make_shared<op::Parameter>(element::f32, Shape{1, 3, 30, 60});
+    const auto sizes = op::Constant::create<float>(element::f32, Shape{2}, {6.f, 12.f});
+    const auto axes = op::Constant::create<int64_t>(element::i64, Shape{2}, {2, 3});
+
+    ov::op::util::InterpolateBase::InterpolateAttrs attrs;
+    attrs.shape_calculation_mode = ov::op::util::InterpolateBase::ShapeCalcMode::SIZES;
+    attrs.pads_begin = {0, 0, 0, 0};
+    attrs.pads_end = {0, 0, 0, 0};
+    ;
+    OV_EXPECT_THROW(auto interp = std::make_shared<ov::op::v11::Interpolate>(image, sizes, axes, attrs),
+                    ov::NodeValidationFailure,
+                    HasSubstr("Sizes element type must be i32, i64, u32 or u64"));
 }

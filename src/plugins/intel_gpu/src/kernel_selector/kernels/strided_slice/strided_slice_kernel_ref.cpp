@@ -128,7 +128,7 @@ inline std::string GetInputIndexStr(uint32_t idx) {
 JitConstants StridedSliceKernelRef::GetJitConstants(const strided_slice_params& params) const {
     JitConstants jit = MakeBaseParamsJitConstants(params);
 
-    if (params.begin_type == StridedSliceArgType::Input || params.has_dynamic_tensors()) {
+    if (params.begin_type == base_params::ArgType::Input || params.has_dynamic_tensors()) {
         jit.AddConstant(MakeJitConstant("BEGIN_TYPE", GetInputTypeStr(params.GetIndexBegin())));
         jit.AddConstant(MakeJitConstant("TO_BEGIN_TYPE", GetToInputTypeStr(params.GetIndexBegin())));
         jit.AddConstant(MakeJitConstant("BEGIN_GET_INDEX", GetInputIndexStr(params.GetIndexBegin())));
@@ -137,7 +137,7 @@ JitConstants StridedSliceKernelRef::GetJitConstants(const strided_slice_params& 
     } else {
         makeJitConstForParam(jit, "SLICE_BEGIN", params.striding_params[0]);
     }
-    if (params.end_type == StridedSliceArgType::Input || params.has_dynamic_tensors()) {
+    if (params.end_type == base_params::ArgType::Input || params.has_dynamic_tensors()) {
         jit.AddConstant(MakeJitConstant("END_TYPE", GetInputTypeStr(params.GetIndexEnd())));
         jit.AddConstant(MakeJitConstant("TO_END_TYPE", GetToInputTypeStr(params.GetIndexEnd())));
         jit.AddConstant(MakeJitConstant("END_GET_INDEX", GetInputIndexStr(params.GetIndexEnd())));
@@ -146,7 +146,7 @@ JitConstants StridedSliceKernelRef::GetJitConstants(const strided_slice_params& 
     } else {
         makeJitConstForParam(jit, "SLICE_END", params.striding_params[1]);
     }
-    if (params.stride_type == StridedSliceArgType::Input || params.has_dynamic_tensors()) {
+    if (params.stride_type == base_params::ArgType::Input || params.has_dynamic_tensors()) {
         jit.AddConstant(MakeJitConstant("STRIDE_TYPE", GetInputTypeStr(params.GetIndexStride())));
         jit.AddConstant(MakeJitConstant("STRIDE_GET_INDEX", GetInputIndexStr(params.GetIndexStride())));
         jit.AddConstant(MakeJitConstant("STRIDE_DIMS", params.stride_dims));
