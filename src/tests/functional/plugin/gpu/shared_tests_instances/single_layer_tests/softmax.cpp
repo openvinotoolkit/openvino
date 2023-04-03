@@ -84,6 +84,18 @@ INSTANTIATE_TEST_SUITE_P(
                      testing::Values(ov::AnyMap())),
     SoftMax8LayerTest::getTestCaseName);
 
+INSTANTIATE_TEST_SUITE_P(
+    smoke_SoftMaxStableDiffusion,
+    SoftMax8LayerTest,
+    testing::Combine(testing::ValuesIn(netPrecisions),
+                     ::testing::Values(ov::element::undefined),
+                     ::testing::Values(ov::element::undefined),
+                     ::testing::ValuesIn(ov::test::static_shapes_to_test_representation({{16, 4096, 4096}})),
+                     testing::Values(-1),
+                     testing::Values(CommonTestUtils::DEVICE_GPU),
+                     testing::Values(ov::AnyMap())),
+    SoftMax8LayerTest::getTestCaseName);
+
 const std::vector<ov::Shape> inputShapes5D = {
     {1, 100, 1, 1, 1},
     {1, 3, 4, 3, 4},
