@@ -1,4 +1,5 @@
 import { Session, Shape } from './node_modules/openvinojs/dist/index.mjs';
+import openvinojs from './node_modules/openvinojs/dist/openvino_wasm.mjs';
 
 import { default as imagenetClassesMap } from './assets/imagenet_classes_map.mjs';
 
@@ -19,7 +20,7 @@ const WAITING_INPUT_STATUS_TXT = 'OpenVINO initialized. Model loaded. Select ima
 run();
 
 async function run() {
-  const session = await Session.init(Module);
+  const session = await Session.init(openvinojs);
 
   statusElement.innerText = 'OpenVINO successfully initialized. Model loading...';
 
