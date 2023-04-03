@@ -27,11 +27,12 @@ void CreateUniqueOp(Program& p, const std::shared_ptr<ngraph::op::v10::Unique>& 
         flattened = false;
     }
 
-    const std::vector<cldnn::padding> output_paddings(4);
+    const std::vector<cldnn::padding> output_paddings(5);
     std::vector<cldnn::optional_data_type> output_data_types;
     output_data_types.emplace_back(cldnn::element_type_to_data_type(op->get_input_element_type(0)));
     output_data_types.emplace_back(cldnn::element_type_to_data_type(op->get_index_element_type()));
     output_data_types.emplace_back(cldnn::element_type_to_data_type(op->get_index_element_type()));
+    output_data_types.emplace_back(cldnn::element_type_to_data_type(op->get_count_element_type()));
     output_data_types.emplace_back(cldnn::element_type_to_data_type(op->get_count_element_type()));
 
     const cldnn::unique unique_prim(layer_type_name_ID(op),
@@ -39,9 +40,10 @@ void CreateUniqueOp(Program& p, const std::shared_ptr<ngraph::op::v10::Unique>& 
                                     flattened,
                                     axis,
                                     op->get_sorted(),
+                                    true,
                                     output_paddings,
-                                    output_data_types);
-
+                                    output_data_types,
+                                    5);
     p.add_primitive(*op, unique_prim);
 }
 

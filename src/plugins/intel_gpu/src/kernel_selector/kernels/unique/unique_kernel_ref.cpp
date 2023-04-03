@@ -59,7 +59,7 @@ bool UniqueKernelRef::Validate(const Params& params, const optional_params& opti
     if (kernel_params.inputs.size() != 1) {
         return false;
     }
-    if (kernel_params.outputs.size() != 4) {
+    if (kernel_params.outputs.size() != 4 && kernel_params.outputs.size() != 5) {
         return false;
     }
 
