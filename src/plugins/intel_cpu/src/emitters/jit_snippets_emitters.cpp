@@ -110,6 +110,7 @@ KernelEmitter::KernelEmitter(dnnl::impl::cpu::x64::jit_generator* h, dnnl::impl:
     const auto& io_exprs = body.get_IO_ops();
     num_inputs = 0;
     num_outputs = 0;
+    std::vector<std::vector<size_t>> node_shapes;
     for (const auto& expr : io_exprs) {
         TensorDescriptorPtr td {};
         element::Type etype;
@@ -129,9 +130,25 @@ KernelEmitter::KernelEmitter(dnnl::impl::cpu::x64::jit_generator* h, dnnl::impl:
                 IE_THROW() << "Kernel detected unsupported io_type";
             }
         }
+        node_shapes.push_back(expr->get_node()->get_shape());
         io_shapes.push_back(td->get_tensor());
         io_data_layouts.push_back(td->get_layout());
         io_data_sizes.push_back(etype.size());
+    }
+    // Todo: create a ticket and add a number
+    // Note: Currently TensorDescriptor and Node's shape ranks could be different only in case of Blocking
+    // Blocking supports only planar i/o layouts. In this case we can safely adopt the Node's shape and remove
+    // last dim from layout.
+    for (size_t i = 0; i < num_inputs + num_outputs; i++) {
+        if (node_shapes[i].size() != io_shapes[i].size()) {
+            io_shapes[i] = node_shapes[i];
+            auto& orig_layout = io_data_layouts[i];
+            for (size_t j = 1; j < orig_layout.size() - 1; j++)
+                if (orig_layout[j] - orig_layout[j - 1] != 1)
+                    IE_THROW() << "Tensor descriptor and Node shapes mismatch "
+                               << "supported only for blocking of planar layouts";
+            orig_layout.pop_back();
+        }
     }
 
     // Initialize pools of gp and vec registers

@@ -90,6 +90,7 @@ bool LoopSplitting::run(LoweredExprIR& linear_ir) {
                             std::vector<size_t> split_tensor(tensor);
                             split_tensor[dim_idx] = loop_info->work_amount;
                             split_tensor.insert(split_tensor.begin() + dim_idx, split_loop->work_amount / loop_info->work_amount);
+                            //split_tensor.insert(split_tensor.begin() + dim_idx, 1);
                             std::vector<size_t> split_layout(layout);
                             for (auto &d : split_layout) {
                                 if (d > split_layout[dim_idx])
@@ -115,6 +116,7 @@ bool LoopSplitting::run(LoweredExprIR& linear_ir) {
                     std::vector<size_t> split_tensor(tensor);
                     split_tensor[dim_idx] = loop_info->work_amount;
                     split_tensor.insert(split_tensor.begin() + dim_idx, split_loop->work_amount / loop_info->work_amount);
+                    //split_tensor.insert(split_tensor.begin() + dim_idx, 1);
                     std::vector<size_t> split_layout(layout);
                     for (auto &d : split_layout) {
                         if (d > split_layout[dim_idx])

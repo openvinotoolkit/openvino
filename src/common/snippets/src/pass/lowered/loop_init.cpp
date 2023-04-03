@@ -76,7 +76,7 @@ std::vector<int64_t> LoopInit::init_ptr_increments(const std::vector<LoweredExpr
     size_t max_relevant_dim_size = 0;
     for (const auto& loop_input : loop_inputs) {
         const auto& expr = loop_input.expr;
-        int fake_loop_correction = expr->get_loop_ids().back() == LoweredExpr::LOOP_FAKE_ID ? -1 : 1;
+        int fake_loop_correction = expr->get_loop_ids().back() == LoweredExpr::LOOP_FAKE_ID ? -1 : 0;
         const auto out_td = expr->get_outputs().front();
         const auto& layout = out_td->get_layout();
         const auto& tensor = out_td->get_tensor();
@@ -85,38 +85,39 @@ std::vector<int64_t> LoopInit::init_ptr_increments(const std::vector<LoweredExpr
     }
     for (const auto& loop_output : loop_outputs) {
         const auto& expr = loop_output.expr;
-        int fake_loop_correction = expr->get_loop_ids().back() == LoweredExpr::LOOP_FAKE_ID ? -1 : 1;
+        bool has_fake_loop = expr->get_loop_ids().back() == LoweredExpr::LOOP_FAKE_ID;
         const auto in_td = expr->get_inputs().front();
         const auto& layout = in_td->get_layout();
         const auto& tensor = in_td->get_tensor();
-        const auto& dim = *(layout.rbegin() + dim_idx + fake_loop_correction);
+        const auto& dim = *(layout.rbegin() + dim_idx - has_fake_loop);
         max_relevant_dim_size = std::max(tensor[dim], max_relevant_dim_size);
     }
     for (const auto& loop_input : loop_inputs) {
         const auto& expr = loop_input.expr;
-        int fake_loop_correction = expr->get_loop_ids().back() == LoweredExpr::LOOP_FAKE_ID ? -1 : 1;
+        bool has_fake_loop = expr->get_loop_ids().back() == LoweredExpr::LOOP_FAKE_ID;
         const auto out_td = expr->get_outputs().front();
         const auto& layout = out_td->get_layout();
         const auto& tensor = out_td->get_tensor();
-        const auto& dim = *(layout.rbegin() + dim_idx + fake_loop_correction);
+        const auto& dim = *(layout.rbegin() + dim_idx - has_fake_loop);
         int64_t ptr_increment = 0;
         // If relevant dim is not broadcasted, then ptr_increment is the dim stride in the new layout
         if (!(tensor[dim] == 1 && max_relevant_dim_size != 1))
-            ptr_increment = get_dim_stride(dim, loop_layout, tensor);
+            ptr_increment = get_dim_stride(dim, has_fake_loop ? loop_layout : layout, tensor);
         ptr_increments.push_back(ptr_increment);
     }
     // Note: Le already accounted for loop_input vs inside loops layout mismatch. So we need non-dense output
     // ptr_increments only if loop_input_layout doesn't match loop_output_layout
     for (const auto& loop_output : loop_outputs) {
         const auto& expr = loop_output.expr;
+        bool has_fake_loop = expr->get_loop_ids().back() == LoweredExpr::LOOP_FAKE_ID;;
         const auto in_td = expr->get_inputs().front();
         const auto& layout = in_td->get_layout();
         const auto& tensor = in_td->get_tensor();
-        const auto& dim = *(layout.rbegin() + dim_idx);
+        const auto& dim = *(layout.rbegin() + dim_idx - has_fake_loop);
         int64_t ptr_increment = 0;
         // If relevant dim is not broadcasted, then ptr_increment is the dim stride in the new layout
         if (!(tensor[dim] == 1 && max_relevant_dim_size != 1))
-            ptr_increment = get_dim_stride(dim, layout, tensor);
+            ptr_increment = get_dim_stride(dim, has_fake_loop ? loop_layout : layout, tensor);
         ptr_increments.push_back(ptr_increment);
     }
 
