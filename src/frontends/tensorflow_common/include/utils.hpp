@@ -67,7 +67,9 @@ void get_const_input(const NodeContext& node, int input_index, std::vector<T>* v
                                 std::to_string(input_size) + " inputs, but requested input port index to be " +
                                 std::to_string(input_size));
     auto ov_input = node.get_input(input_index);
+    OPENVINO_SUPPRESS_DEPRECATED_START
     if (auto constant = get_constant_from_source(ov_input)) {
+    OPENVINO_SUPPRESS_DEPRECATED_END
         *vector = constant->cast_vector<T>();
         return;
     }

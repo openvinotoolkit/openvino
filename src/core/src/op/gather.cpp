@@ -18,7 +18,9 @@ op::v1::Gather::Gather(const Output<Node>& params, const Output<Node>& indices, 
 }
 
 int64_t ngraph::op::v1::Gather::get_axis() const {
+    OPENVINO_SUPPRESS_DEPRECATED_START
     if (!get_constant_from_source(input_value(2)))
+    OPENVINO_SUPPRESS_DEPRECATED_END
         return AXIS_NOT_SET_VALUE;
     return GatherBase::get_axis();
 }
