@@ -37,7 +37,7 @@ public:
 
 protected:
     bool Validate(const Params& params, const optional_params& options) const override;
-    JitConstants GetJitConstants(const unique_params& kernel_params, const CommonDispatchData& dispatch_data) const;
+    JitConstants GetJitConstants(const unique_params& kernel_params) const;
     static CommonDispatchData SetDefault(const unique_params& kernel_params);
 };
 

@@ -17,7 +17,7 @@ KernelsData UniqueKernelRef::GetKernelsData(const Params& params, const optional
     const auto& kernel_params = dynamic_cast<const unique_params&>(*kernel_data.params);
     const auto dispatch_data = SetDefault(kernel_params);
     const auto entry_point = GetEntryPoint(kernelName, kernel_params.layerID, params, options);
-    const auto jit_constants = GetJitConstants(kernel_params, dispatch_data);
+    const auto jit_constants = GetJitConstants(kernel_params);
     const auto jit = CreateJit(kernelName, jit_constants, entry_point);
     auto& kernel = kernel_data.kernels.front();
 
@@ -66,15 +66,13 @@ bool UniqueKernelRef::Validate(const Params& params, const optional_params& opti
     return true;
 }
 
-JitConstants UniqueKernelRef::GetJitConstants(const unique_params& kernel_params,
-                                              const CommonDispatchData& dispatch_data) const {
+JitConstants UniqueKernelRef::GetJitConstants(const unique_params& kernel_params) const {
     auto jit_constants = MakeBaseParamsJitConstants(kernel_params);
 
     jit_constants.AddConstants({
         MakeJitConstant("FLATTENED", kernel_params.flattened),
         MakeJitConstant("AXIS", kernel_params.axis),
         MakeJitConstant("SORTED", kernel_params.sorted),
-        MakeJitConstant("LOCAL_SIZE", dispatch_data.lws.at(0)),
     });
 
     return jit_constants;
@@ -83,9 +81,12 @@ JitConstants UniqueKernelRef::GetJitConstants(const unique_params& kernel_params
 CommonDispatchData UniqueKernelRef::SetDefault(const unique_params& kernel_params) {
     CommonDispatchData dispatch_data;
 
-    // TODO: Hardcoded for now
-    dispatch_data.gws = {3, 1, 1};
-    dispatch_data.lws = {3, 1, 1};
+    if (kernel_params.flattened) {
+        // For now we run flattened case only in one thread
+        // TODO: Parallelize flattened case
+        dispatch_data.gws = {1, 1, 1};
+        dispatch_data.lws = {1, 1, 1};
+    }
 
     return dispatch_data;
 }
