@@ -139,21 +139,32 @@ def value_to_str(value, separator):
     raise Exception("Incorrect value type. Expected np.ndarray or list, got {}".format(type(value)))
 
 
-def single_input_to_input_cut_info(input):
+def single_input_to_input_cut_info(input: [str, tuple, list, PartialShape, Type, type]):
+    """
+    Parses parameters of single input to InputCutInfo.
+    :param input: input cut parameters of single input
+    :return: InputCutInfo
+    """
     if isinstance(input, str):
+        # Parse params from string
         node_name, shape, value, data_type = parse_input_value(input)
         return openvino.tools.mo.InputCutInfo(node_name,
                                               PartialShape(shape) if shape is not None else None,
                                               data_type,
                                               value)
     if isinstance(input, openvino.tools.mo.InputCutInfo):
+        # Wrap input.shape to PartialShape if possible and wrap to InputCutInfo
         return openvino.tools.mo.InputCutInfo(input.name,
                                               PartialShape(input.shape) if input.shape is not None else None,
                                               input.type,
                                               input.value)
     if isinstance(input, (tuple, list, PartialShape)):
+        # If input represents list with shape, wrap it to list. Single PartialShape also goes to this condition.
+        # Check of all dimensions will be in is_shape_type(val) method below
         if len(input) > 0 and isinstance(input[0], (int, Dimension)):
             input = [input]
+
+        # Check values of tuple or list and collect to InputCutInfo
         name = None
         inp_type = None
         shape = None
@@ -177,19 +188,31 @@ def single_input_to_input_cut_info(input):
                                               PartialShape(shape) if shape is not None else None,
                                               inp_type,
                                               None)
+    # Case when only type is set
     if isinstance(input, (type, Type)):
         return openvino.tools.mo.InputCutInfo(None, None, input, None)
+
+    # We don't expect here single unnamed value. If list of int is set it is considered as shape.
+    # Setting of value is expected only using InputCutInfo or string analog.
 
     raise Exception("Unexpected object provided for input. Expected openvino.tools.mo.InputCutInfo "
                     "or tuple or str. Got {}".format(type(input)))
 
 
-def input_to_input_cut_info(input):
+def input_to_input_cut_info(input: [str, tuple, list]):
+    """
+    Parses 'input' to list of InputCutInfo.
+    :param input: input cut parameters passed by user
+    :return: list of InputCutInfo with input cut parameters
+    """
     if input is None:
         return []
     if isinstance(input, str):
         inputs = []
+        # Split to list of string
         for input_value in split_inputs(input):
+
+            # Parse string with parameters for single input
             node_name, shape, value, data_type = parse_input_value(input_value)
             inputs.append(openvino.tools.mo.InputCutInfo(node_name,
                                                          PartialShape(shape) if shape is not None else None,
@@ -197,29 +220,43 @@ def input_to_input_cut_info(input):
                                                          value))
         return inputs
     if isinstance(input, openvino.tools.mo.InputCutInfo):
-        return [single_input_to_input_cut_info(input)]
+        # Wrap to list and return
+        return [input]
     if isinstance(input, tuple):
+        # Case when input is single shape set in tuple
         if len(input) > 0 and isinstance(input[0], (int, Dimension)):
             input = [input]
+        # Case when input is set as tuple. Expected that it is always single input.
         return [single_input_to_input_cut_info(input)]
     if isinstance(input, list):
+        # Case when input is single shape set in list
         if len(input) > 0 and isinstance(input[0], (int, Dimension)):
             input = [input]
         inputs = []
+        # Case when input is set as list. Expected that it is list of params for different inputs.
         for inp in input:
             inputs.append(single_input_to_input_cut_info(inp))
         return inputs
+    # Case when single type or value is set, or unknown object
     return [single_input_to_input_cut_info(input)]
 
 
-def input_shape_to_input_cut_info(input_shape, inputs):
+def input_shape_to_input_cut_info(input_shape: [str, Shape, PartialShape, list, tuple], inputs: list):
+    """
+    Parses 'input_shape' to list of PartialShape and updates 'inputs'.
+    :param input_shape: input shapes passed by user
+    :param inputs: list of InputCutInfo with information from 'input' parameter
+    """
     if input_shape is None:
         return
     if isinstance(input_shape, str):
+        # Split input_shape to list of string
         input_shape = split_inputs(input_shape)
     if isinstance(input_shape, (Shape, PartialShape)):
+        # Whap single shape to list
         input_shape = [input_shape]
     if isinstance(input_shape, (list, tuple)):
+        # Check case when single shape is passed as list or tuple
         if len(input_shape) > 0 and isinstance(input_shape[0], (int, Dimension)):
             input_shape = [input_shape]
 
@@ -227,6 +264,7 @@ def input_shape_to_input_cut_info(input_shape, inputs):
             assert len(inputs) == len(input_shape), "Different numbers of inputs were specified in --input parameter " \
                     "and --input_shapes. --input has {} items, --input_shape has {} item.".format(len(inputs), len(input_shape))
 
+        # Update inputs with information from 'input_shape'
         if len(inputs) > 0:
             for idx, shape in enumerate(input_shape):
                 shape = PartialShape(shape)
@@ -244,21 +282,35 @@ def input_shape_to_input_cut_info(input_shape, inputs):
 
 
 def freeze_placeholder_to_input_cut_info(argv_freeze_placeholder_with_value: str, inputs: list):
+    """
+    Parses 'argv_freeze_placeholder_with_value' to dictionary and collects unnamed inputs from 'inputs' to list.
+    :param argv_freeze_placeholder_with_value: string set by user.
+    As it was planned to be deprecated no Python analogs were made.
+    :param inputs: list of InputCutInfo with information from 'input' parameter
+    :returns (placeholder_values, unnamed_placeholder_values), where
+    placeholder_values - dictionary where key is node name, value is node value,
+    unnamed_placeholder_values - list with unnamed node values
+    """
+    # Parse argv_freeze_placeholder_with_value to dictionary with names and values
     placeholder_values = parse_freeze_placeholder_values(argv_freeze_placeholder_with_value)
     unnamed_placeholder_values = []
+
+    # Collect values for freezing from 'inputs'
     if inputs is not None and len(inputs) > 0:
-        # walkthrough all input values and save values for freezing
         for input in inputs:
             node_name = input.name
             value = input.value
             if value is None:
                 continue
+            # Check for value conflict
             if node_name in placeholder_values and placeholder_values[node_name] != value:
                 raise Error("Overriding replacement value of the placeholder with name '{}': old value = {}, new value = {}"
                             ".".format(node_name, placeholder_values[node_name], value))
             if node_name is not None:
+                # Named input case, add to dictionary
                 placeholder_values[node_name] = value
             else:
+                # Unnamed input case, add to list
                 unnamed_placeholder_values.append(value)
 
     return placeholder_values, unnamed_placeholder_values
@@ -1730,7 +1782,12 @@ def get_layout_values(argv_layout: str = '', argv_source_layout: str = '', argv_
         return res_list
 
 
-def parse_freeze_placeholder_values(argv_freeze_placeholder_with_value):
+def parse_freeze_placeholder_values(argv_freeze_placeholder_with_value: str):
+    """
+    Parses parse_freeze_placeholder_values string.
+    :param argv_freeze_placeholder_with_value: string information on freezing placeholders
+    :return: dictionary where key is node name, value is node value.
+    """
     placeholder_values = {}
     if argv_freeze_placeholder_with_value is not None:
         for plh_with_value in argv_freeze_placeholder_with_value.split(','):

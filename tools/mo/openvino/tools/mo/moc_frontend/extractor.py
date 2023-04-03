@@ -330,30 +330,46 @@ def fe_output_user_data_repack(input_model: InputModel, outputs: list, framework
     return _outputs
 
 
-def convert_params_lists_to_dicts(input_model, input_user_shapes, input_user_data_types, freeze_placeholder, unnamed_freeze_placeholders):
+def convert_params_lists_to_dicts(input_model,
+                                  input_user_shapes: [list, dict],
+                                  input_user_data_types: [list, dict],
+                                  freeze_placeholder: dict,
+                                  unnamed_freeze_placeholders: list):
+    """
+    Convert lists of unnamed params to dicts using input names from input_model.
+
+    :param input_model: openvino.runtime.InputModel
+    :param input_user_shapes: list of input shapes or dictionary where key is input name, value is input shape from user.
+    :param input_user_data_types: list of input types or dictionary where key is input name, value is input type from user.
+    :param freeze_placeholder: dictionary where key is input name, value is input value from user.
+    :param unnamed_freeze_placeholders: list of unnamed input values from user.
+
+    :return: (input_user_shapes_dict, input_user_data_types_dict, freeze_placeholder), where
+    input_user_shapes_dict - dictionary where key is input name, value is shape from user;
+    input_user_data_types_dict - dictionary where key is input name, value is type from user;
+    freeze_placeholder - dictionary where key is input name, value is input value from user;
+    """
     from openvino.runtime import PartialShape
     model_inputs = input_model.get_inputs()
-    freeze_placeholder_dict = freeze_placeholder
     input_user_data_types_dict = {}
     input_user_shapes_dict = {}
-    input_user_shapes = input_user_shapes if input_user_shapes is not None else {}
 
+    # input_user_shapes is list only if unnamed inputs were used
     if isinstance(input_user_shapes, list):
+
+        # check shapes types
         for shape in input_user_shapes:
             assert isinstance(shape, PartialShape), "Got incorrect format of input shapes {}.".format(type(shape))
-        # assert len(model_inputs) == len(input_user_shapes) + len(freeze_placeholder) + \
-        #        len(unnamed_freeze_placeholders), "Got incorrect number of input shapes or frozen values. " \
-        #                                          "Model has {} inputs, got {} input shapes and frozen values. {} {}".format(
-        #     len(model_inputs), len(input_user_shapes) + len(freeze_placeholder) + len(unnamed_freeze_placeholders),
-        #     freeze_placeholder, input_user_shapes
-        # )
+
+        # this cycle adds each unnamed shape to dictionary using name from model_inputs
         for idx, shape in enumerate(input_user_shapes):
             shape_set = False
             for inp in model_inputs:
                 input_names = inp.get_names()
                 name_found = False
                 for input_name in input_names:
-                    if input_name in freeze_placeholder_dict or input_name in input_user_shapes_dict:
+                    # check that input was not used in freeze_placeholder parameter
+                    if input_name in freeze_placeholder or input_name in input_user_shapes_dict:
                         name_found = True
                         break
                 if name_found:
@@ -366,25 +382,36 @@ def convert_params_lists_to_dicts(input_model, input_user_shapes, input_user_dat
     else:
         input_user_shapes_dict = input_user_shapes
 
+    # input_user_data_types is list only if unnamed inputs were used
     if isinstance(input_user_data_types, list):
         from openvino.runtime import Type
+
+        if input_user_shapes_dict is None:
+            input_user_shapes_dict = {}
+
+        # check types of input_user_data_types
         for node_type in input_user_data_types:
             assert isinstance(node_type, (type, Type)), "Got incorrect format of input types. " \
                                                         "Expected numpy type or openvino.runtime.Type, " \
                                                         "got {}.".format(type(node_type))
 
+        # this cycle adds each unnamed type to dictionary using name from model_inputs
         for idx, node_type in enumerate(input_user_data_types):
             type_set = False
             for inp in model_inputs:
                 input_names = inp.get_names()
                 name_found = False
                 for input_name in input_names:
-                    if input_name in freeze_placeholder_dict or input_name in input_user_data_types_dict:
+                    # check that input was not used in freeze_placeholder parameter
+                    if input_name in freeze_placeholder or input_name in input_user_data_types_dict:
                         name_found = True
                         break
                 if name_found:
                     continue
                 input_user_data_types_dict[input_names[0]] = node_type
+
+                # FE postprocessing expects input_user_shapes_dict to always have shapes for corresponding types.
+                # If shape is not set it is expected to have None shape in input_user_shapes_dict dictionary.
                 if input_names[0] not in input_user_shapes_dict:
                     input_user_shapes_dict[input_names[0]] = None
                 type_set = True
@@ -394,24 +421,34 @@ def convert_params_lists_to_dicts(input_model, input_user_shapes, input_user_dat
     else:
         input_user_data_types_dict = input_user_data_types
 
+    # unnamed_freeze_placeholders is always list, it is not empty only if unnamed inputs were used.
     for value in unnamed_freeze_placeholders:
+        # check types of unnamed_freeze_placeholders
+        for node_value in unnamed_freeze_placeholders:
+            assert isinstance(node_value, list), "Got incorrect format of input values. " \
+                                                "Expected list, " \
+                                                "got {}.".format(type(node_value))
+
+        # this cycle adds each unnamed value to freeze_placeholder dictionary using name from model_inputs
         value_set = False
         for inp in model_inputs:
             input_names = inp.get_names()
             name_found = False
             for input_name in input_names:
-                if input_name in freeze_placeholder_dict:
+                # check that input was not used in freeze_placeholder_with_value.
+                # It can happen if both --freeze_placeholder_with_value was used and --input with unnamed inputs.
+                if input_name in freeze_placeholder:
                     name_found = True
                     break
             if name_found:
                 continue
-            freeze_placeholder_dict[input_names[0]] = value
+            freeze_placeholder[input_names[0]] = value
             value_set = True
             break
         if not value_set:
             raise Error("Could not freeze placeholder, as model does not have enough inputs.")
 
-    return input_user_shapes_dict, input_user_data_types_dict, freeze_placeholder_dict
+    return input_user_shapes_dict, input_user_data_types_dict, freeze_placeholder
 
 
 def fe_user_data_repack(

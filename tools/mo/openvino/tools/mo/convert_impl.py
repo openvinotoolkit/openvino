@@ -719,9 +719,30 @@ def input_model_is_object(argv):
     return True
 
 
-def python_api_params_parsing(argv):
+def python_api_params_parsing(argv: argparse.Namespace):
+    """
+    Parses params passed to convert_model and wraps resulting values into dictionaries or lists.
+    After working of this method following values are set in argv:
+
+    argv.input, argv.inputs_list - list of input names. Both values are used in some parts of MO.
+    Could be good to refactor it and use only one of these values.
+
+    argv.placeholder_shapes - dictionary where key is node name, value is PartialShape,
+    or list of PartialShape if node names were not set.
+
+    argv.placeholder_data_types - dictionary where key is node name, value is node np.type,
+    or list of np.types if node names were not set.
+
+    argv.freeze_placeholder_with_value - dictionary where key is node name, value is np.ndarray
+
+    argv.unnamed_freeze_placeholder_with_value - list with np.ndarray
+
+    :param argv: MO arguments
+    """
+    # Parse input to list of InputCutInfo
     inputs = input_to_input_cut_info(argv.input)
 
+    # Make list of input names
     input_names_list = []
     for inp in inputs:
         if inp.name is not None:
@@ -733,19 +754,28 @@ def python_api_params_parsing(argv):
     argv.inputs_list = input_names_list
     argv.input = input_names_list
 
+    # Parse input_shape param and update InputCutInfo list
     input_shape_to_input_cut_info(argv.input_shape, inputs)
+
+    # Parse freeze_placeholder_with_value.
+    # values for freezing can be set both by named and unnamed approach if
+    # 'input' was used without names and 'freeze_placeholder_with_value' was used with names.
+    # So named and unnamed values are stored separately.
     argv.freeze_placeholder_with_value, argv.unnamed_freeze_placeholder_with_value = \
         freeze_placeholder_to_input_cut_info(argv.freeze_placeholder_with_value, inputs)
+
     if len(input_names_list) > 0:
-        # named inputs case
+        # Named inputs case
         shape_dict = {}
         data_type_dict = {}
         for inp in inputs:
             if inp.shape is not None:
+                # Wrap shape to PartialShape for uniformity of stored values
                 shape_dict[inp.name] = PartialShape(inp.shape)
             else:
                 shape_dict[inp.name] = None
             if inp.type is not None:
+                # Convert type to numpy type for uniformity of stored values
                 if isinstance(inp.type, str):
                     data_type_dict[inp.name] = destination_type_to_np_data_type(inp.type)
                 elif isinstance(inp.type, Type):
@@ -755,13 +785,15 @@ def python_api_params_parsing(argv):
         argv.placeholder_shapes = shape_dict if len(shape_dict) > 0 else None
         argv.placeholder_data_types = data_type_dict if len(data_type_dict) > 0 else {}
     else:
-        # unnamed inputs case
+        # Unnamed inputs case
         shape_list = []
         data_type_list = []
         for inp in inputs:
             if inp.shape is not None:
+                # Wrap shape to PartialShape for uniformity of stored values
                 shape_list.append(PartialShape(inp.shape))
             if inp.type is not None:
+                # Convert type to numpy type for uniformity of stored values
                 if isinstance(inp.type, str):
                     data_type_list.append(destination_type_to_np_data_type(inp.type))
                 elif isinstance(inp.type, Type):
