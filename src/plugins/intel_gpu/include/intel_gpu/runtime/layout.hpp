@@ -359,6 +359,12 @@ private:
 /// @brief Describes memory layout.
 /// @details Contains information about data stored in @ref memory.
 struct layout {
+    struct Hasher {
+        size_t operator()(const layout &l) const {
+            return l.hash();
+        }
+    };
+
     /// Constructs layout based on @p data_type and @p size information described by @ref tensor
     layout(data_types data_type, cldnn::format fmt, tensor size, padding apadding = padding())
         : data_type(data_type)
@@ -531,7 +537,8 @@ struct layout {
 
         auto pshape = get_partial_shape();
         for (size_t idx = 0; idx < pshape.size(); idx++) {
-            seed = hash_combine(seed, pshape[idx].get_length());
+            auto v = pshape[idx].is_dynamic() ? -1 : pshape[idx].get_length();
+            seed = hash_combine(seed, v);
         }
         return seed;
     }
