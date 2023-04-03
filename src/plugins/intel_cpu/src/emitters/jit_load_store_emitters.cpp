@@ -15,8 +15,14 @@ using namespace dnnl::impl::cpu::x64;
 using namespace Xbyak;
 using namespace Xbyak::util;
 
-#define STORE_KEEP_SOURCE(is_updated, instruction, data_reg, data_reg_new, ...) \
-    if (is_updated) { \
+// This macro is to enable instruction keep values in source vector unchanged after execution.
+// An auxiliary vector reg(data_reg_new) is used as destination vector for source pollution instructions,
+// after updated, processed with new vector and no more need to update as source is preserved.
+// e.g. with STORE_KEEP_SOURCE(data_reg_updated, vextractf128, xmm, Xmm(aux_src_idx), ymm, 1);
+//      if ymm is already updated, will call h->instruction(Xmm(ymm.getIdx()), ymm, 1), which change ymm values
+//      if ymm is not updated, will call h->instruction(Xmm(aux_src_idx), ymm, 1), which keep ymm values unchanged
+#define STORE_KEEP_SOURCE(data_reg_updated, instruction, data_reg, data_reg_new, ...) \
+    if (data_reg_updated) { \
         h->instruction(data_reg, __VA_ARGS__); \
     } else { \
         h->instruction(data_reg_new, __VA_ARGS__); \
