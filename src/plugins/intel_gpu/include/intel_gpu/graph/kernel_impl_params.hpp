@@ -124,6 +124,7 @@ struct kernel_impl_params {
         return *prog;
     }
     stream& get_stream() const { return *strm; }
+    stream::ptr get_stream_ptr() const { return strm; }
 
     size_t hash() const;
     bool operator==(const kernel_impl_params& rhs) const;
