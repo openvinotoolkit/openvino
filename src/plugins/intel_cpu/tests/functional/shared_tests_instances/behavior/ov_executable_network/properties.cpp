@@ -3,7 +3,6 @@
 //
 
 #include "behavior/ov_executable_network/properties.hpp"
-
 #include "ie_system_conf.h"
 #include "openvino/runtime/properties.hpp"
 
