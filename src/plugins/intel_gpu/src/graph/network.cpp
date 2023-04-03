@@ -21,6 +21,9 @@
 
 #include "primitive_inst.h"
 #include "input_layout_inst.h"
+#include "fully_connected_inst.h"
+#include "convolution_inst.h"
+#include "deconvolution_inst.h"
 #include "mutable_data_inst.h"
 #include "condition_inst.h"
 #include "loop_inst.h"
@@ -323,6 +326,7 @@ network::network(program::ptr program, const ExecutionConfig& config, stream::pt
         wait_for_the_turn();
     }
 
+    calculate_weights_cache_capacity();
     allocate_primitives();
     configure_primitives_second_output();
     check_names();
@@ -405,7 +409,7 @@ network::network(cldnn::BinaryInputBuffer& ib, const ExecutionConfig& config, st
         ib >> *p_inst;
         _primitives[p_inst->id()] = p_inst;
         if (p_inst->get_impl() != nullptr)
-            p_inst->init_kernels(kernels_cache);
+            p_inst->init_by_cached_kernels(kernels_cache);
     }
 
     for (auto& item : _primitives) {
@@ -515,10 +519,12 @@ network::~network() {
 //     [ executable primitive_inst ]
 //     [ memory reuse information ]
 void network::save(cldnn::BinaryOutputBuffer& ob) {
-    kernels_cache kernels_cache(get_engine(), _config, 0, nullptr, {""});
+    auto& kernels_cache = _program->get_kernels_cache();
+    kernels_cache.reset();
     for (const auto& p_inst : _exec_order) {
-        if (p_inst->get_impl() != nullptr)
-            kernels_cache.add_kernels(p_inst->get_impl()->get_kernel_ids(), p_inst->get_impl()->get_kernels());
+        if (p_inst->get_impl() != nullptr) {
+            kernels_cache.add_to_cached_kernels(p_inst->get_impl()->get_kernels());
+        }
     }
     ob << kernels_cache;
 
@@ -597,6 +603,7 @@ void network::save(cldnn::BinaryOutputBuffer& ob) {
     }
 
     ob << get_ext_id_mapping();
+    kernels_cache.reset();
 }
 
 network::ptr network::allocate_network(stream::ptr stream, program::ptr program, bool is_internal, bool is_primary_stream) {
@@ -685,6 +692,52 @@ void network::add_default_output_chains() {
     GPU_DEBUG_DEFINE_MEM_LOGGER("add_default_output_chains");
     for (auto& output : _outputs) {
         add_output_chain(output);
+    }
+}
+
+void network::calculate_weights_cache_capacity() {
+    auto get_buffer_size = [](const program_node& node) {
+        size_t weights_size = 0;
+        auto get_size = [](const layout& layout) {
+            return layout.is_dynamic() ? 0 : layout.bytes_count();
+        };
+
+        #define is_weightable(T) node.is_type<T>() && node.as<T>().weights().is_constant()
+        if (node.is_type<data>())
+            weights_size = get_size(node.get_output_layout());
+        else if (is_weightable(fully_connected))
+            weights_size = get_size(node.as<fully_connected>().weights().get_output_layout());
+        else if (is_weightable(convolution))
+            weights_size = get_size(node.as<convolution>().weights().get_output_layout());
+        else if (is_weightable(deconvolution))
+            weights_size = get_size(node.as<deconvolution>().weights().get_output_layout());
+        #undef is_weightable
+
+        return weights_size;
+    };
+
+    size_t total_const_size = 0;
+    size_t weights_const_size = 0;
+    size_t required_mem_size = 0;
+    for (auto node : _program->get_processing_order()) {
+        if (node->is_type<fully_connected>() || node->is_type<convolution>() || node->is_type<deconvolution>())
+            weights_const_size += get_buffer_size(*node);
+        else if (node->is_type<data>())
+            total_const_size += get_buffer_size(*node);
+    }
+
+    // Sum all weights constants for each stream
+    required_mem_size += weights_const_size * _config.get_property(ov::streams::num);
+    // Add all other constants (shared between streams)
+    required_mem_size += total_const_size - weights_const_size;
+
+    if (required_mem_size != 0) {
+        const size_t required_weights_cache_capacity = 3;
+        const size_t max_device_mem_size = _engine.get_device_info().max_global_mem_size;
+        const size_t max_weights_cache_capacity = max_device_mem_size / required_mem_size;
+
+        if (max_weights_cache_capacity > 1)
+            _weights_cache_capacity = std::min(max_weights_cache_capacity, required_weights_cache_capacity);
     }
 }
 

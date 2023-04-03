@@ -118,7 +118,7 @@ TEST_P(lrn_fp32_quantize_u8_eltwise_activation, basic) {
         quantize("quantize", input_info("lrn_norm"), input_info("in_lo"), input_info("in_hi"),
                  input_info("out_lo"), input_info("out_hi"), 256, data_types::u8),
         eltwise("eltwise", { input_info("quantize"), input_info("eltwise_data") }, eltwise_mode::prod),
-        activation("activation", input_info("eltwise"), activation_func::floor),
+        activation("activation", input_info("eltwise"), activation_func::relu),
         reorder("reorder", input_info("activation"), p.default_format, data_types::f32)
     );
 
@@ -173,6 +173,47 @@ INSTANTIATE_TEST_SUITE_P(fusings_gpu, lrn_fp32_quantize_u8_eltwise_activation, :
     lrn_test_params{ CASE_LRN_FP32_TO_FP16_1, 2, 5, lrn_norm_region_within_channel, "lrn_gpu_within_channel" },
     lrn_test_params{ CASE_LRN_FP32_TO_FP16_3, 2, 5, lrn_norm_region_across_channel, "lrn_gpu_across_channel_yxfb_b8_opt" },
     lrn_test_params{ CASE_LRN_FP32_TO_FP16_4, 2, 5, lrn_norm_region_across_channel, "lrn_gpu_across_channel_multiple_features" },
+    lrn_test_params{ CASE_LRN_FP32_TO_FP16_5, 2, 5, lrn_norm_region_across_channel, "lrn_gpu_across_channel_multiple_features_fsv16" },
+}));
+
+class lrn_fp32_quantize_u8_eltwise_activation_onednn : public LrnFusingTest {};
+TEST_P(lrn_fp32_quantize_u8_eltwise_activation_onednn, same_behavior) {
+    // Case : activation function is NOT supported on oneDNN and an input primitive selects clDNN execution
+    auto p = GetParam();
+    uint32_t size = 5;
+    float k = 1.0f;
+    float alpha = (float)9.9e-05;
+    float beta = 0.75;
+
+    create_topologies(
+        input_layout("input", get_input_layout(p)),
+        data("in_lo", get_mem(get_single_element_layout(p), min_random, 0)),
+        data("in_hi", get_mem(get_single_element_layout(p), 1, max_random)),
+        data("out_lo", get_mem(get_single_element_layout(p), 0)),
+        data("out_hi", get_mem(get_single_element_layout(p), 255)),
+        data("eltwise_data", get_mem(get_single_element_layout(p), 1.0f / 255)),
+        lrn("lrn_norm", input_info("input"), size, k, alpha, beta, p.lrn_type),
+        quantize("quantize", input_info("lrn_norm"), input_info("in_lo"), input_info("in_hi"),
+                 input_info("out_lo"), input_info("out_hi"), 256, data_types::u8),
+        eltwise("eltwise", { input_info("quantize"), input_info("eltwise_data") }, eltwise_mode::prod),
+        activation("activation", input_info("eltwise"), activation_func::floor),
+        reorder("reorder", input_info("activation"), p.default_format, data_types::f32)
+    );
+
+    tolerance = default_tolerance(data_types::u8);
+    execute(p);
+}
+
+INSTANTIATE_TEST_SUITE_P(fusings_gpu, lrn_fp32_quantize_u8_eltwise_activation_onednn, ::testing::ValuesIn(std::vector<lrn_test_params>{
+    // InputDataType = FP32   OutputDataType = FP32
+    lrn_test_params{ CASE_LRN_FP32_1, 2, 5, lrn_norm_region_across_channel, "lrn_ref" },
+    lrn_test_params{ CASE_LRN_FP32_1, 2, 5, lrn_norm_region_within_channel, "lrn_gpu_within_channel_opt" },
+    lrn_test_params{ CASE_LRN_FP32_1, 2, 5, lrn_norm_region_within_channel, "lrn_gpu_within_channel" },
+
+    // InputDataType = FP32   OutputDataType = FP16
+    lrn_test_params{ CASE_LRN_FP32_TO_FP16_1, 2, 5, lrn_norm_region_across_channel, "lrn_ref" },
+    lrn_test_params{ CASE_LRN_FP32_TO_FP16_1, 2, 5, lrn_norm_region_within_channel, "lrn_gpu_within_channel_opt" },
+    lrn_test_params{ CASE_LRN_FP32_TO_FP16_3, 2, 5, lrn_norm_region_across_channel, "lrn_gpu_across_channel_yxfb_b8_opt" },
     lrn_test_params{ CASE_LRN_FP32_TO_FP16_5, 2, 5, lrn_norm_region_across_channel, "lrn_gpu_across_channel_multiple_features_fsv16" },
 }));
 
