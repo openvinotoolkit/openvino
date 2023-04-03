@@ -1,6 +1,10 @@
-# [Legacy] Graph Transformation Extensions {#openvino_docs_MO_DG_prepare_model_customize_model_optimizer_Model_Optimizer_Extensions_Model_Optimizer_Transformation_Extensions}
+# [DEPRECATED] Graph Transformation Extensions {#openvino_docs_MO_DG_prepare_model_customize_model_optimizer_Model_Optimizer_Extensions_Model_Optimizer_Transformation_Extensions}
 
 @sphinxdirective
+
+.. warning::
+   
+   OpenVINO will move TensorFlow conversion from legacy python-based FrontEnd to new C++ based FrontEnd, therefore this extension guide won't be a recommended way for TensorFlow extension in Model Optimizer and will be marked as a deprecated solution.
 
 Model Optimizer provides various base classes to implement :ref:`Front Phase Transformations <mo_front_phase_transformations>`,
 :ref:`Middle Phase Transformations <mo_middle_phase_transformations>`, and :ref:`Back Phase Transformations <mo_back_phase_transformations>`.

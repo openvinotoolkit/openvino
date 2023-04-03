@@ -1,6 +1,10 @@
-# [Legacy] Graph Traversal and Modification {#openvino_docs_MO_DG_prepare_model_customize_model_optimizer_Customize_Model_Optimizer_Model_Optimizer_Ports_Connections}
+# [DEPRECATED] Graph Traversal and Modification {#openvino_docs_MO_DG_prepare_model_customize_model_optimizer_Customize_Model_Optimizer_Model_Optimizer_Ports_Connections}
 
 @sphinxdirective
+
+.. warning::
+   
+   OpenVINO will move TensorFlow conversion from legacy python-based FrontEnd to new C++ based FrontEnd, therefore this extension guide won't be a recommended way for TensorFlow extension in Model Optimizer and will be marked as a deprecated solution.
 
 There are three APIs for a graph traversal and transformation used in the Model Optimizer:
 

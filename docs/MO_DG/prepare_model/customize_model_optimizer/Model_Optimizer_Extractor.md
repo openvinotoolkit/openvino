@@ -1,6 +1,10 @@
-# [Legacy] Operation Extractor {#openvino_docs_MO_DG_prepare_model_customize_model_optimizer_Model_Optimizer_Extensions_Model_Optimizer_Extractor}
+# [DEPRECATED] Operation Extractor {#openvino_docs_MO_DG_prepare_model_customize_model_optimizer_Model_Optimizer_Extensions_Model_Optimizer_Extractor}
 
 @sphinxdirective
+
+.. warning::
+   
+   OpenVINO will move TensorFlow conversion from legacy python-based FrontEnd to new C++ based FrontEnd, therefore this extension guide won't be a recommended way for TensorFlow extension in Model Optimizer and will be marked as a deprecated solution.
 
 Model Optimizer runs specific extractor for each operation in the model during the model loading.
 

@@ -1,6 +1,10 @@
-# [Legacy] Extending Model Optimizer with Caffe Python Layers {#openvino_docs_MO_DG_prepare_model_customize_model_optimizer_Extending_Model_Optimizer_With_Caffe_Python_Layers}
+# [DEPRECATED] Extending Model Optimizer with Caffe Python Layers {#openvino_docs_MO_DG_prepare_model_customize_model_optimizer_Extending_Model_Optimizer_With_Caffe_Python_Layers}
 
 @sphinxdirective
+
+.. warning::
+   
+   OpenVINO will move TensorFlow conversion from legacy python-based FrontEnd to new C++ based FrontEnd, therefore this extension guide won't be a recommended way for TensorFlow extension in Model Optimizer and will be marked as a deprecated solution.
 
 This article provides instructions on how to support a custom Caffe operation written only in Python. For example, the
 `Faster-R-CNN model <https://dl.dropboxusercontent.com/s/o6ii098bu51d139/faster_rcnn_models.tgz?dl=0>`__ implemented in

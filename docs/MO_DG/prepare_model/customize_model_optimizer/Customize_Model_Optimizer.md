@@ -1,4 +1,4 @@
-# [Legacy] Model Optimizer Extensibility {#openvino_docs_MO_DG_prepare_model_customize_model_optimizer_Customize_Model_Optimizer}
+# [DEPRECATED] Model Optimizer Extensibility {#openvino_docs_MO_DG_prepare_model_customize_model_optimizer_Customize_Model_Optimizer}
 
 @sphinxdirective
 
@@ -9,6 +9,10 @@
    openvino_docs_MO_DG_prepare_model_customize_model_optimizer_Customize_Model_Optimizer_Model_Optimizer_Ports_Connections
    openvino_docs_MO_DG_prepare_model_customize_model_optimizer_Model_Optimizer_Extensions
    openvino_docs_MO_DG_prepare_model_customize_model_optimizer_Extending_Model_Optimizer_With_Caffe_Python_Layers
+
+.. warning::
+   
+   OpenVINO will move TensorFlow conversion from legacy python-based FrontEnd to new C++ based FrontEnd, therefore this extension guide won't be a recommended way for TensorFlow extension in Model Optimizer and will be marked as a deprecated solution.
 
 This article describes Model Optimizer internals. Altering them may result in application instability, and in case of future changes to the API, lack of backward compatibility.
 
