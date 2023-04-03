@@ -71,7 +71,6 @@ def test_properties_rw_base():
         (
             properties.hint.ExecutionMode,
             (
-                (properties.hint.ExecutionMode.UNDEFINED, "ExecutionMode.UNDEFINED", -1),
                 (properties.hint.ExecutionMode.PERFORMANCE, "ExecutionMode.PERFORMANCE", 1),
                 (properties.hint.ExecutionMode.ACCURACY, "ExecutionMode.ACCURACY", 2),
             ),
@@ -244,7 +243,7 @@ def test_properties_ro(ov_property_ro, expected_value):
         (
             properties.hint.execution_mode,
             "EXECUTION_MODE_HINT",
-            ((properties.hint.ExecutionMode.UNDEFINED, properties.hint.ExecutionMode.UNDEFINED),),
+            ((properties.hint.ExecutionMode.PERFORMANCE, properties.hint.ExecutionMode.PERFORMANCE),),
         ),
         (
             properties.hint.num_requests,
@@ -267,6 +266,36 @@ def test_properties_ro(ov_property_ro, expected_value):
             (
                 (0.1, np.float32(0.1)),
                 (2.0, 2.0),
+            ),
+        ),
+        (
+            properties.intel_auto.device_bind_buffer,
+            "DEVICE_BIND_BUFFER",
+            (
+                (True, True),
+                (False, False),
+                (1, True),
+                (0, False),
+            ),
+        ),
+        (
+            properties.intel_auto.enable_startup_fallback,
+            "ENABLE_STARTUP_FALLBACK",
+            (
+                (True, True),
+                (False, False),
+                (1, True),
+                (0, False),
+            ),
+        ),
+        (
+            properties.intel_auto.enable_runtime_fallback,
+            "ENABLE_RUNTIME_FALLBACK",
+            (
+                (True, True),
+                (False, False),
+                (1, True),
+                (0, False),
             ),
         ),
         (properties.device.id, "DEVICE_ID", (("0", "0"),)),
