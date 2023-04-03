@@ -129,7 +129,12 @@ ov::Any DecoderProto::get_attribute(const std::string& name) const {
     }
 
     case ::tensorflow::AttrValue::ValueCase::kType: {
-        return get_ov_type(attrs[0].type());
+        auto atype = attrs[0].type();
+        if (atype != ::tensorflow::DT_STRING) {
+            return get_ov_type(attrs[0].type());
+        } else {
+            return ov::Any("DT_STRING");
+        }
     }
 
     case ::tensorflow::AttrValue::ValueCase::kList: {
@@ -168,7 +173,11 @@ ov::Any DecoderProto::get_attribute(const std::string& name) const {
         if (list.type_size()) {
             std::vector<ov::element::Type> res;
             for (int idx = 0; idx < list.type_size(); ++idx) {
-                res.emplace_back(get_ov_type(list.type(idx)));
+                if (list.type(idx) != ::tensorflow::DataType::DT_STRING) {
+                    res.emplace_back(get_ov_type(list.type(idx)));
+                } else {
+                    res.emplace_back(ov::element::undefined);
+                }
             }
             return res;
         }
@@ -194,9 +203,22 @@ ov::Any DecoderProto::get_attribute(const std::string& name) const {
         FRONT_END_GENERAL_CHECK(pshape.is_static(), "Dynamic shapes are not supported for Tensor attribute.");
         const auto& tf_type = tensor_proto.dtype();
         auto ov_type = get_ov_type(tf_type);
-        FRONT_END_GENERAL_CHECK(
-            ov_type.is_static(),
-            "Encountered unknown element type " + DataType_Name(tf_type) + " on an empty tensor_proto");
+        if (tf_type != ::tensorflow::DataType::DT_STRING) {
+            FRONT_END_GENERAL_CHECK(
+                ov_type.is_static(),
+                "Encountered unknown element type " + DataType_Name(tf_type) + " on an empty tensor_proto");
+        } else {
+            ov_type = ov::element::u64;
+            pshape.resize(0);
+            pshape.push_back(tensor_proto.string_val_size());
+        }
+        if (tf_type == ::tensorflow::DataType::DT_STRING) {
+            auto data = std::vector<std::string>();
+            for (auto& item : tensor_proto.string_val()) {
+                data.push_back(item);
+            }
+            return data;
+        }
         ov::Tensor res(ov_type, pshape.get_shape());
         auto tensor_content = tensor_proto.tensor_content();
         if (!tensor_content.empty() && tensor_proto.has_tensor_shape()) {
@@ -306,6 +328,11 @@ void parse_producer_name(const std::string& producer_port_name,
         {"FusedBatchNormV2:batch_variance", 2},
         {"FusedBatchNormV3:batch_mean", 1},
         {"FusedBatchNormV3:batch_variance", 2},
+        {"Unique:y", 0},
+        {"Unique:idx", 1},
+        {"RaggedTensorToSparse:sparse_indices", 0},
+        {"RaggedTensorToSparse:sparse_values", 1},
+        {"RaggedTensorToSparse:sparse_dense_shape", 2},
     };
     // Body graph nodes may have two colons `:` input names, for example,
     // `TopKV2Name:indices:0` means that producer operation name is `TopKV2Name`

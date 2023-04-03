@@ -37,7 +37,7 @@ public:
 
     void set_property(const ov::AnyMap& properties) override;
 
-    virtual ov::Any get_property(const std::string& name) const override;
+    ov::Any get_property(const std::string& name) const override;
 
     std::shared_ptr<ov::IAsyncInferRequest> create_infer_request() const override;
 

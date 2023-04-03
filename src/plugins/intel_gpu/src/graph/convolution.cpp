@@ -1,14 +1,16 @@
 // Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
-#include "pass_manager.h"
+#include <string>
+
 #include "convolution_inst.h"
-#include "primitive_type_base.h"
 #include "convolution_shape_inference.hpp"
-#include "sliding_window_utils.hpp"
+#include "group_convolution_shape_inference.hpp"
 #include "intel_gpu/runtime/error_handler.hpp"
 #include "json_object.h"
-#include <string>
+#include "pass_manager.h"
+#include "primitive_type_base.h"
+#include "sliding_window_utils.hpp"
 
 using namespace ov::intel_gpu;
 
@@ -413,29 +415,27 @@ std::vector<layout> convolution_inst::calc_output_layouts(convolution_node const
         input_layout.get<ShapeType>(),
         weights_layout.get<ShapeType>()
     };
-    std::vector<ShapeType> output_shapes = {ShapeType()};
+    std::vector<ShapeType> output_shapes;
+    auto pads_begin = desc->padding_above;
+    auto pads_end = desc->padding_below;
 
     if (desc->groups > 1) {
         ov::op::v1::GroupConvolution op;
         op.set_dilations(desc->dilation);
         op.set_strides(desc->stride);
         op.set_auto_pad(ov::op::PadType::EXPLICIT);
-        auto pad_begin = desc->padding_above;
-        auto pad_end = desc->padding_below;
         if (input_shapes[1].size() == 4 && input_shapes[0].size() == 3) {
             // 3D
             input_shapes[1][3] = input_shapes[1][2];
             input_shapes[1][2] = input_shapes[0][1].get_length()/input_shapes[1][0].get_length();
         }
-        ov::op::v1::shape_infer(&op, pad_begin, pad_end, input_shapes, output_shapes);
+        output_shapes = ov::op::v1::shape_infer(&op, input_shapes, pads_begin, pads_end);
     } else {
         ov::op::v1::Convolution op;
         op.set_dilations(desc->dilation);
         op.set_strides(desc->stride);
         op.set_auto_pad(ov::op::PadType::EXPLICIT);
-        auto pad_begin = desc->padding_above;
-        auto pad_end = desc->padding_below;
-        ov::op::v1::shape_infer(&op, pad_begin, pad_end, input_shapes, output_shapes);
+        output_shapes = ov::op::v1::shape_infer(&op, input_shapes, pads_begin, pads_end);
     }
     format::type output_format = input_layout.format.value;
     return {layout{output_shapes[0], output_type, output_format}};
