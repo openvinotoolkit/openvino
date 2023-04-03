@@ -63,7 +63,7 @@ void op::v5::Loop::validate_and_infer_types() {
     }
     OPENVINO_SUPPRESS_DEPRECATED_START
     if (const auto& cond_value = get_constant_from_source(loop_execution_condition)) {
-    OPENVINO_SUPPRESS_DEPRECATED_END
+        OPENVINO_SUPPRESS_DEPRECATED_END
         auto val = cond_value->cast_vector<bool>();
         NODE_VALIDATION_CHECK(this,
                               val.size() == 1,
@@ -89,7 +89,7 @@ void op::v5::Loop::validate_and_infer_types() {
     }
     OPENVINO_SUPPRESS_DEPRECATED_START
     if (const auto& cond_value = get_constant_from_source(body_execution_condition)) {
-    OPENVINO_SUPPRESS_DEPRECATED_END
+        OPENVINO_SUPPRESS_DEPRECATED_END
         auto val = cond_value->cast_vector<bool>();
         NODE_VALIDATION_CHECK(this,
                               val.size() == 1,
@@ -107,7 +107,7 @@ void op::v5::Loop::validate_and_infer_types() {
             if (m_bodies[0]->get_parameters().at(desc->m_body_parameter_index) == cond_param) {
                 OPENVINO_SUPPRESS_DEPRECATED_START
                 if (const auto& cond_value = get_constant_from_source(input_value(desc->m_input_index))) {
-                OPENVINO_SUPPRESS_DEPRECATED_END
+                    OPENVINO_SUPPRESS_DEPRECATED_END
                     auto val = cond_value->cast_vector<bool>();
                     NODE_VALIDATION_CHECK(this,
                                           val.size() == 1,
@@ -132,7 +132,7 @@ void op::v5::Loop::validate_and_infer_types() {
     }
     OPENVINO_SUPPRESS_DEPRECATED_START
     if (const auto& trip_count_val = get_constant_from_source(trip_count)) {
-    OPENVINO_SUPPRESS_DEPRECATED_END
+        OPENVINO_SUPPRESS_DEPRECATED_END
         auto val = trip_count_val->cast_vector<int64_t>();
         NODE_VALIDATION_CHECK(this,
                               val.size() == 1,

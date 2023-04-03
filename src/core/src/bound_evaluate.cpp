@@ -445,7 +445,7 @@ bool ov::default_label_evaluator(const Node* node,
             auto labels = node->get_input_tensor(i).get_value_label();
             OPENVINO_SUPPRESS_DEPRECATED_START
             if (!has_no_labels(labels) && !has_any_input_labels) {
-            OPENVINO_SUPPRESS_DEPRECATED_END
+                OPENVINO_SUPPRESS_DEPRECATED_END
                 has_any_input_labels = true;
             }
 

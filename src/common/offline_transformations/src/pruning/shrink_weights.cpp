@@ -320,7 +320,7 @@ bool ngraph::pass::ShrinkWeights::run_on_model(const std::shared_ptr<ngraph::Fun
             // Trying to fold sequence of Gather ops to avoid additional constant folding.
             OPENVINO_SUPPRESS_DEPRECATED_START
             if (auto folded_const = ngraph::get_constant_from_source(last_output)) {
-            OPENVINO_SUPPRESS_DEPRECATED_END
+                OPENVINO_SUPPRESS_DEPRECATED_END
                 last_output = folded_const;
             }
             // as we insert Gather operations after Constant we need to reconnect all

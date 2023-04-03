@@ -68,7 +68,7 @@ AxisSet op::v0::NormalizeL2::get_reduction_axes() const {
     AxisSet axes;
     OPENVINO_SUPPRESS_DEPRECATED_START
     if (auto const_op = get_constant_from_source(input_value(1))) {
-    OPENVINO_SUPPRESS_DEPRECATED_END
+        OPENVINO_SUPPRESS_DEPRECATED_END
         const auto const_data = const_op->cast_vector<int64_t>();
         const auto input_data_rank = get_input_partial_shape(0).rank();
         OPENVINO_SUPPRESS_DEPRECATED_START

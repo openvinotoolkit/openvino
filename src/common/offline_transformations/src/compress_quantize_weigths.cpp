@@ -72,7 +72,7 @@ ngraph::pass::CompressQuantizeWeights::CompressQuantizeWeights() {
             auto& first_convert = fq_users[0];
             OPENVINO_SUPPRESS_DEPRECATED_START
             if (auto new_weights = ov::get_constant_from_source(first_convert)) {
-            OPENVINO_SUPPRESS_DEPRECATED_END
+                OPENVINO_SUPPRESS_DEPRECATED_END
                 new_weights->set_friendly_name(first_convert->get_friendly_name());
                 replace_node(first_convert, new_weights);
                 copy_runtime_info(first_convert, new_weights);
@@ -112,7 +112,7 @@ ngraph::pass::CompressQuantizeWeights::CompressQuantizeWeights() {
             // Constant fold quantized weights
             OPENVINO_SUPPRESS_DEPRECATED_START
             if (auto constant = ov::get_constant_from_source(new_weights)) {
-            OPENVINO_SUPPRESS_DEPRECATED_END
+                OPENVINO_SUPPRESS_DEPRECATED_END
                 new_weights = constant;
             } else {
                 return false;
@@ -152,8 +152,8 @@ ngraph::pass::CompressQuantizeWeights::CompressQuantizeWeights() {
             std::shared_ptr<Node> shift = std::make_shared<opset8::Subtract>(new_output_low, descaled_output_low);
             OPENVINO_SUPPRESS_DEPRECATED_START
             if (auto constant = ov::get_constant_from_source(scale))
-            OPENVINO_SUPPRESS_DEPRECATED_END
-                scale = constant;
+                OPENVINO_SUPPRESS_DEPRECATED_END
+            scale = constant;
             auto zero = op::Constant::create(input_type, Shape{}, {0});
             auto scale_eq_zero = std::make_shared<opset8::Equal>(scale, zero);
             // shift equals to input_low - output_low / scale
@@ -161,12 +161,12 @@ ngraph::pass::CompressQuantizeWeights::CompressQuantizeWeights() {
             std::shared_ptr<Node> zero_point = std::make_shared<opset8::Select>(scale_eq_zero, zero, shift);
             OPENVINO_SUPPRESS_DEPRECATED_START
             if (auto constant = ov::get_constant_from_source(zero_point))
-            OPENVINO_SUPPRESS_DEPRECATED_END
-                zero_point = constant;
+                OPENVINO_SUPPRESS_DEPRECATED_END
+            zero_point = constant;
             OPENVINO_SUPPRESS_DEPRECATED_START
             if (auto constant = ov::get_constant_from_source(scale))
-            OPENVINO_SUPPRESS_DEPRECATED_END
-                scale = constant;
+                OPENVINO_SUPPRESS_DEPRECATED_END
+            scale = constant;
             auto convert_to_high_prec = std::make_shared<opset8::Convert>(new_weights, input_type);
             auto sub = register_new_node<opset8::Subtract>(convert_to_high_prec, zero_point);
             auto mul = register_new_node<opset8::Multiply>(sub, scale);
@@ -249,10 +249,9 @@ ngraph::pass::ZeroPointOptimizer::ZeroPointOptimizer() {
         std::shared_ptr<Node> new_weights = std::make_shared<opset8::Subtract>(weights, int8_zero_point);
         OPENVINO_SUPPRESS_DEPRECATED_START
         if (auto constant = ov::get_constant_from_source(new_weights))
-        OPENVINO_SUPPRESS_DEPRECATED_END
-            new_weights = constant;
-        else
-            return false;
+            OPENVINO_SUPPRESS_DEPRECATED_END
+        new_weights = constant;
+        else return false;
         new_weights->set_friendly_name(weights->get_friendly_name());
         replace_node(weights, new_weights);
 

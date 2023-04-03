@@ -54,7 +54,7 @@ public:
             ov::PartialShape num_segments_value;
             OPENVINO_SUPPRESS_DEPRECATED_START
             if (output_rank.is_static() && ov::evaluate_as_partial_shape(input_value(3), num_segments_value)) {
-            OPENVINO_SUPPRESS_DEPRECATED_END
+                OPENVINO_SUPPRESS_DEPRECATED_END
                 FRONT_END_OP_CONVERSION_CHECK(output_rank.get_length() >= 1,
                                               "Data input of SparseSegmentSum must be of rank >= 1.");
                 output_shape[0] = num_segments_value[0];

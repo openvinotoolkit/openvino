@@ -133,7 +133,7 @@ const ov::PartialShape op::v1::ConvolutionBackpropData::get_output_shape() const
 
     OPENVINO_SUPPRESS_DEPRECATED_START
     if (get_input_size() < 3 || !evaluate_as_partial_shape(input_value(2), shape)) {
-    OPENVINO_SUPPRESS_DEPRECATED_END
+        OPENVINO_SUPPRESS_DEPRECATED_END
         const auto& data_rank = get_input_partial_shape(0).rank();
         const auto& filter_rank = get_input_partial_shape(1).rank();
 

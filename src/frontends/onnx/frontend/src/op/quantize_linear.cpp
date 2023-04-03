@@ -90,15 +90,15 @@ std::tuple<std::shared_ptr<ngraph::Node>, std::shared_ptr<ngraph::Node>> get_inp
                                                   std::make_shared<default_opset::Subtract>(output_low, zero_point));
     OPENVINO_SUPPRESS_DEPRECATED_START
     if (auto constant = ov::get_constant_from_source(input_low))
-    OPENVINO_SUPPRESS_DEPRECATED_END
-        input_low = constant;
+        OPENVINO_SUPPRESS_DEPRECATED_END
+    input_low = constant;
     input_high =
         std::make_shared<default_opset::Multiply>(y_scale,
                                                   std::make_shared<default_opset::Subtract>(output_high, zero_point));
     OPENVINO_SUPPRESS_DEPRECATED_START
     if (auto constant = ov::get_constant_from_source(input_high))
-    OPENVINO_SUPPRESS_DEPRECATED_END
-        input_high = constant;
+        OPENVINO_SUPPRESS_DEPRECATED_END
+    input_high = constant;
 
     return std::make_tuple(input_low, input_high);
 }
