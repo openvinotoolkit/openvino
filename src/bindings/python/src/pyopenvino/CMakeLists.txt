@@ -26,11 +26,8 @@ endif()
 
 # compile options
 
-if(CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
-    add_compile_options(-Wno-deprecated-register -Wno-range-loop-analysis)
-elseif(OV_COMPILER_IS_APPLECLANG)
+if(OV_COMPILER_IS_APPLECLANG)
     add_link_options(-stdlib=libc++)
-    add_compile_options(-Wno-unused-value -Wno-range-loop-analysis)
 elseif(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
     # WA for GCC 7.5 "PYBIND11_NOINLINE inline" warning
     add_compile_options(-Wno-error=attributes)
