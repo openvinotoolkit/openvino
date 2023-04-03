@@ -312,14 +312,12 @@ TEST_P(ov_core_test, ov_core_set_and_get_property_enum) {
     OV_EXPECT_OK(ov_core_create(&core));
     EXPECT_NE(nullptr, core);
 
-    std::map<const char *, const char*> properties = {
-        {ov_property_key_hint_performance_mode, "LATENCY"},
-        {ov_property_key_hint_scheduling_core_type, "PCORE_ONLY"},
-        {ov_property_key_hint_enable_hyper_threading, "YES"},
-        {ov_property_key_enable_profiling, "YES"}
-    };
+    std::map<const char*, const char*> properties = {{ov_property_key_hint_performance_mode, "LATENCY"},
+                                                     {ov_property_key_hint_scheduling_core_type, "PCORE_ONLY"},
+                                                     {ov_property_key_hint_enable_hyper_threading, "YES"},
+                                                     {ov_property_key_enable_profiling, "YES"}};
 
-    for (const auto & property : properties) {
+    for (const auto& property : properties) {
         OV_EXPECT_OK(ov_core_set_property(core, device_name.c_str(), property.first, property.second));
         char* ret = nullptr;
         OV_EXPECT_OK(ov_core_get_property(core, device_name.c_str(), property.first, &ret));
@@ -335,12 +333,10 @@ TEST_F(ov_core_test, ov_core_set_and_get_property_no_device) {
     OV_EXPECT_OK(ov_core_create(&core));
     EXPECT_NE(nullptr, core);
 
-    std::map<const char *, const char*> properties = {
-        {ov_property_key_force_tbb_terminate, "YES"},
-        {ov_property_key_enable_mmap, "NO"}
-    };
+    std::map<const char*, const char*> properties = {{ov_property_key_force_tbb_terminate, "YES"},
+                                                     {ov_property_key_enable_mmap, "NO"}};
 
-    for (const auto & property : properties) {
+    for (const auto& property : properties) {
         OV_EXPECT_OK(ov_core_set_property(core, "", property.first, property.second));
         char* ret = nullptr;
         OV_EXPECT_OK(ov_core_get_property(core, "", property.first, &ret));
