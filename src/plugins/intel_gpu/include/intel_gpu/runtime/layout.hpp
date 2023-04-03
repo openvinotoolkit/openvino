@@ -527,6 +527,7 @@ struct layout {
     // for smaller buffer which, currently, should always be performed
     bool identical(const layout& other) const;
 
+    static size_t max_rank() { return 6; }
     static ov::PartialShape transform(const ov::PartialShape& pshape, cldnn::format old_fmt, cldnn::format new_fmt);
 
     size_t hash() const {
