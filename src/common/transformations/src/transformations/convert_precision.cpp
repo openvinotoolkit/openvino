@@ -313,13 +313,6 @@ bool ov::pass::ConvertPrecision::run_on_model(const std::shared_ptr<ngraph::Func
         return false;
 
     bool has_fp16_compression = m_precisions.count(element::f32) > 0 && m_precisions[element::f32] == element::f16;
-    bool has_quantize_nodes = false;
-    for (const auto& op : f->get_ops()) {
-        if (std::dynamic_pointer_cast<opset8::FakeQuantize>(op)) {
-            has_quantize_nodes = true;
-            break;
-        }
-    }
 
     if (m_keep_precision_sensitive_in_fp32 && has_fp16_compression) {
         pass::Manager manager(get_pass_config());

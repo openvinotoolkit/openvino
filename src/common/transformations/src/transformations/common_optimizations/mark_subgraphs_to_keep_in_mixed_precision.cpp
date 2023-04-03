@@ -64,7 +64,7 @@ public:
                 return false;
 
             for (const auto& input_val : node->input_values()) {
-                auto is_input_fq = dynamic_pointer_cast<FakeQuantize>(input_val.get_node_shared_ptr());
+                auto is_input_fq = as_type_ptr<FakeQuantize>(input_val.get_node_shared_ptr());
                 if (is_int8_path(input_val.get_node_shared_ptr()) || is_input_fq) {
                     enable_fp16_compression(node);
                     return true;
@@ -128,11 +128,11 @@ public:
             if (!has_marked_output)
                 return false;
 
-            auto convert_node = dynamic_pointer_cast<Convert>(node);
+            auto convert_node = as_type_ptr<Convert>(node);
             if (convert_node) {
                 // if during propagating up there is a Convert it must go to Const,
                 // otherwise interrupt propagation
-                auto const_node = dynamic_pointer_cast<Constant>(node->input_value(0).get_node_shared_ptr());
+                auto const_node = as_type_ptr<Constant>(node->input_value(0).get_node_shared_ptr());
                 if (!const_node)
                     return false;
             }
@@ -162,7 +162,7 @@ public:
                 return false;
 
             // on convert down propagation should be interrupted
-            auto convert_node = dynamic_pointer_cast<Convert>(node);
+            auto convert_node = as_type_ptr<Convert>(node);
             if (convert_node)
                 return false;
 
@@ -316,11 +316,11 @@ public:
             if (!m.get_match_root())
                 return false;
 
-            const auto mul = std::dynamic_pointer_cast<Multiply>(m.get_match_root());
+            const auto mul = as_type_ptr<Multiply>(m.get_match_root());
             // if pattern input_1*Pow(Maximum(input_2, eps), z) or input_1*Pow(Add(input_2, eps), z) is matched
             // need to check that power is negative
             if (mul) {
-                const auto pow_const = std::dynamic_pointer_cast<Constant>(pattern_to_output.at(pow_exp));
+                const auto pow_const = as_type_ptr<Constant>(pattern_to_output.at(pow_exp));
                 if (pow_const) {
                     // continue only if exponent is negative (z < 0)
                     if (pow_const->get_element_type() == element::f16) {
@@ -335,7 +335,7 @@ public:
                 }
             }
 
-            const auto eps_const = std::dynamic_pointer_cast<Constant>(pattern_to_output.at(eps_const_pattern));
+            const auto eps_const = as_type_ptr<Constant>(pattern_to_output.at(eps_const_pattern));
             if (!eps_const)
                 return false;
             if (eps_const->get_element_type() == element::f32) {
@@ -384,7 +384,7 @@ public:
 
             for (const auto& in_node_output : node->input_values()) {
                 auto input_node = in_node_output.get_node_shared_ptr();
-                auto is_quantize = dynamic_pointer_cast<FakeQuantize>(input_node);
+                auto is_quantize = as_type_ptr<FakeQuantize>(input_node);
                 if (is_quantize || is_int8_path(input_node)) {
                     mark_int8_path(node);
                     enable_fp16_compression(node);
