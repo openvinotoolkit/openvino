@@ -17,12 +17,21 @@ AutoExecutableNetwork::AutoExecutableNetwork(AutoScheduleContext::Ptr& context, 
 }
 
 std::shared_ptr<IE::RemoteContext> AutoExecutableNetwork::GetContext() const {
-    std::lock_guard<std::mutex> lock(_autoSContext->_fallbackMutex);
-    if (_autoSchedule->_loadContext[FALLBACKDEVICE].isAlready) {
-        return _autoSchedule->_loadContext[FALLBACKDEVICE].executableNetwork->GetContext();
+    if (_autoSchedule->_pCTPUTLoadContext) {
+        for (size_t i = 0; i < _autoSchedule->_nCTputDeviceNums; i++) {
+            if (_autoSchedule->_pCTPUTLoadContext[i].isAlready) {
+                return _autoSchedule->_pCTPUTLoadContext[i].executableNetwork->GetContext();
+            }
+        }
+        return nullptr;
     } else {
-        _autoSchedule->WaitActualNetworkReady();
-        return _autoSchedule->_loadContext[ACTUALDEVICE].executableNetwork->GetContext();
+        std::lock_guard<std::mutex> lock(_autoSContext->_fallbackMutex);
+        if (_autoSchedule->_loadContext[FALLBACKDEVICE].isAlready) {
+            return _autoSchedule->_loadContext[FALLBACKDEVICE].executableNetwork->GetContext();
+        } else {
+            _autoSchedule->WaitActualNetworkReady();
+            return _autoSchedule->_loadContext[ACTUALDEVICE].executableNetwork->GetContext();
+        }
     }
 }
 
@@ -51,14 +60,19 @@ IE::Parameter AutoExecutableNetwork::GetMetric(const std::string& name) const {
         auto value = _autoSContext->_performanceHint;
         if (!_autoSContext->_core->isNewAPI())
             return value;
-        if (value == InferenceEngine::PluginConfigParams::THROUGHPUT)
+        if (value == InferenceEngine::PluginConfigParams::THROUGHPUT) {
             return ov::hint::PerformanceMode::THROUGHPUT;
-        else if (value == InferenceEngine::PluginConfigParams::LATENCY)
+        } else if (value == InferenceEngine::PluginConfigParams::LATENCY) {
             return ov::hint::PerformanceMode::LATENCY;
-        else if (value == InferenceEngine::PluginConfigParams::CUMULATIVE_THROUGHPUT)
+        } else if (value == InferenceEngine::PluginConfigParams::CUMULATIVE_THROUGHPUT) {
             return ov::hint::PerformanceMode::CUMULATIVE_THROUGHPUT;
-        else
+        } else if (value == "UNDEFINED") {
+            OPENVINO_SUPPRESS_DEPRECATED_START
             return ov::hint::PerformanceMode::UNDEFINED;
+            OPENVINO_SUPPRESS_DEPRECATED_END
+        } else {
+            OPENVINO_THROW("Unsupported value of ov::hint::PerformanceMode");
+        }
     } else if (name == ov::device::priorities) {
         auto value = _autoSContext->_config.find(ov::device::priorities.name());
         return decltype(ov::device::priorities)::value_type {value->second.as<std::string>()};
@@ -77,11 +91,11 @@ IE::Parameter AutoExecutableNetwork::GetMetric(const std::string& name) const {
             all_devices[context.deviceInfo.deviceName] = device_properties;
         };
         if (_autoSchedule->_pCTPUTLoadContext) {
-            // need lock for inference failure
-            std::lock_guard<std::mutex> lock(_autoSContext->_fallbackMutex);
-            auto load_count = _autoSContext->_devicePriorities.size();
-            for (size_t i = 0; i < load_count; i++)
-                get_device_supported_metrics(_autoSchedule->_pCTPUTLoadContext[i]);
+            for (size_t i = 0; i < _autoSchedule->_nCTputDeviceNums; i++) {
+                if (_autoSchedule->_pCTPUTLoadContext[i].isAlready) {
+                    get_device_supported_metrics(_autoSchedule->_pCTPUTLoadContext[i]);
+                }
+            }
         } else {
             {
                 std::lock_guard<std::mutex> lock(_autoSContext->_fallbackMutex);
@@ -113,11 +127,13 @@ IE::Parameter AutoExecutableNetwork::GetMetric(const std::string& name) const {
         if (_autoSchedule->_pCTPUTLoadContext) {
             std::lock_guard<std::mutex> lock(_autoSContext->_fallbackMutex);
             unsigned int res = 0u;
-            auto load_count = _autoSContext->_devicePriorities.size();
-            for (size_t i = 0; i < load_count; i++) {
+            for (size_t i = 0; i < _autoSchedule->_nCTputDeviceNums; i++) {
                 try {
-                    res += (_autoSchedule->_pCTPUTLoadContext[i]).executableNetwork->GetMetric(
-                        METRIC_KEY(OPTIMAL_NUMBER_OF_INFER_REQUESTS)).as<unsigned int>();
+                    if (_autoSchedule->_pCTPUTLoadContext[i].isAlready) {
+                        res += (_autoSchedule->_pCTPUTLoadContext[i])
+                                   .executableNetwork->GetMetric(METRIC_KEY(OPTIMAL_NUMBER_OF_INFER_REQUESTS))
+                                   .as<unsigned int>();
+                    }
                 } catch (const IE::Exception& iie) {
                     IE_THROW()
                         << "Every device used in cumulative mode should "

@@ -4,11 +4,10 @@
 
 #pragma once
 
-#include <ngraph/validation_util.hpp>
-#include <openvino/op/constant.hpp>
-
+#include "openvino/op/constant.hpp"
 #include "sequnce_generator.hpp"
 #include "utils.hpp"
+#include "validation_util.hpp"
 
 namespace ov {
 namespace internal {
@@ -161,8 +160,8 @@ inline int64_t get_sliced_value(const int64_t& dim, const int64_t& start, const 
         }
         lb = min_bound;
     } else {
-        lb = clip(normalize(start, norm_dim), min_bound, lower_max);
-        ub = clip(normalize(stop, norm_dim), upper_min, norm_dim);
+        lb = ov::util::clip(ov::util::normalize(start, norm_dim), min_bound, lower_max);
+        ub = ov::util::clip(ov::util::normalize(stop, norm_dim), upper_min, norm_dim);
     }
 
     // Calculate sliced value from bounds and step.

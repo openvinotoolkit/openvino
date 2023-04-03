@@ -311,7 +311,9 @@ InferenceEngine::Parameter ExecNetwork::GetMetric(const std::string &name) const
             RO_property(ov::enable_profiling.name()),
             RO_property(ov::hint::inference_precision.name()),
             RO_property(ov::hint::performance_mode.name()),
+            RO_property(ov::hint::execution_mode.name()),
             RO_property(ov::hint::num_requests.name()),
+            RO_property(ov::hint::use_cpu_pinning.name()),
             RO_property(ov::hint::scheduling_core_type.name()),
             RO_property(ov::hint::use_hyper_threading.name()),
             RO_property(ov::execution_devices.name()),
@@ -354,12 +356,17 @@ InferenceEngine::Parameter ExecNetwork::GetMetric(const std::string &name) const
     } else if (name == ov::hint::performance_mode) {
         const auto perfHint = ov::util::from_string(config.perfHintsConfig.ovPerfHint, ov::hint::performance_mode);
         return perfHint;
+    } else if (name == ov::hint::use_cpu_pinning.name()) {
+        const bool use_pin = config.useCpuPinning;
+        return decltype(ov::hint::use_cpu_pinning)::value_type(use_pin);
     } else if (name == ov::hint::scheduling_core_type) {
         const auto core_type = config.schedulingCoreType;
         return core_type;
     } else if (name == ov::hint::use_hyper_threading.name()) {
         const bool use_ht = config.useHyperThreading;
         return decltype(ov::hint::use_hyper_threading)::value_type(use_ht);
+    } else if (name == ov::hint::execution_mode) {
+        return config.executionMode;
     } else if (name == ov::hint::num_requests) {
         const auto perfHintNumRequests = config.perfHintsConfig.ovPerfHintNumRequests;
         return decltype(ov::hint::num_requests)::value_type(perfHintNumRequests);
