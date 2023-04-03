@@ -23,7 +23,7 @@
 #include "ngraph_functions/utils/ngraph_helpers.hpp"
 
 #include "common_test_utils/file_utils.hpp"
-#include "common_test_utils/crash_handler.hpp"
+#include "functional_test_utils/crash_handler.hpp"
 #include "common_test_utils/ov_tensor_utils.hpp"
 #include "functional_test_utils/skip_tests_config.hpp"
 
@@ -226,7 +226,7 @@ void SubgraphBaseTest::compile_model() {
                 break;
             }
         }
-        configuration.insert({ov::inference_precision.name(), hint});
+        configuration.insert({ov::hint::inference_precision.name(), hint});
     }
 
     compiledModel = core->compile_model(function, targetDevice, configuration);
