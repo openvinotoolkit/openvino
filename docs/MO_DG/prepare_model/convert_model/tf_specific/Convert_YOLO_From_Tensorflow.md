@@ -49,9 +49,7 @@ This section explains how to convert the YOLOv4 Keras model from the `repository
 
 4. Run Model Optimizer to converter the model from the TensorFlow 2 format to an IR:
 
-.. note:: 
-   
-   Before you run the conversion, make sure you have installed all the Model Optimizer dependencies for TensorFlow 2.
+.. note:: Before you run the conversion, make sure you have installed all the Model Optimizer dependencies for TensorFlow 2.
 
 
 .. code-block:: sh
@@ -63,7 +61,7 @@ Converting YOLOv3 Model to the OpenVINO format
 ##############################################
 
 There are several public versions of TensorFlow YOLOv3 model implementation available on GitHub. This section explains how to convert YOLOv3 model from
-the `repository <https://github.com/mystic123/tensorflow-yolo-v3>`__ (commit ed60b90) to an IR , but the process is similar for other versions of TensorFlow YOLOv3 model.
+the `repository <https://github.com/mystic123/tensorflow-yolo-v3>`__ (commit ed60b90) to an IR, but the process is similar for other versions of TensorFlow YOLOv3 model.
 
 Overview of YOLOv3 Model Architecture
 #####################################
@@ -104,9 +102,7 @@ To dump TensorFlow model out of `GitHub repository <https://github.com/mystic123
 
 6. Run a converter:
 
-.. note:: 
-
-   This converter works with TensorFlow 1.x and numpy 1.19 or lower.
+.. note:: This converter works with TensorFlow 1.x and numpy 1.19 or lower.
 
 
 * For YOLO-v3:
@@ -176,22 +172,22 @@ To generate an IR of the YOLOv3 TensorFlow model, run:
 
 .. code-block:: sh
 
-  mo                                                   \
-  --input_model /path/to/yolo_v3.pb                                  \
-  --transformations_config front/tf/yolo_v3.json \
-  --batch 1                                                          \
-  --output_dir <OUTPUT_MODEL_DIR>
-  ```
+   mo                                                   \
+   --input_model /path/to/yolo_v3.pb                                  \
+   --transformations_config front/tf/yolo_v3.json \
+   --batch 1                                                          \
+   --output_dir <OUTPUT_MODEL_DIR>
+   ```
 
 To generate an IR of the YOLOv3-tiny TensorFlow model, run:
 
 .. code-block:: sh
 
-  mo                                                        \
-  --input_model /path/to/yolo_v3_tiny.pb                                  \
-  --transformations_config front/tf/yolo_v3_tiny.json \
-  --batch 1                                                               \
-  --output_dir <OUTPUT_MODEL_DIR>
+   mo                                                        \
+   --input_model /path/to/yolo_v3_tiny.pb                                  \
+   --transformations_config front/tf/yolo_v3_tiny.json \
+   --batch 1                                                               \
+   --output_dir <OUTPUT_MODEL_DIR>
 
 
 where:
@@ -199,9 +195,7 @@ where:
 * ``--batch`` defines shape of model input. In the example, ``--batch`` is equal to 1, but you can also specify other integers larger than 1.
 * ``--transformations_config`` adds missing ``Region`` layers to the model. In the IR, the ``Region`` layer has name ``RegionYolo``.
 
-.. note:: 
-
-   The color channel order (RGB or BGR) of an input data should match the channel order of the model training dataset. If they are different, perform the ``RGB<->BGR`` conversion specifying the command-line parameter: ``--reverse_input_channels``. Otherwise, inference results may be incorrect. For more information about the parameter, refer to the **When to Reverse Input Channels** section of the :doc:`Converting a Model to Intermediate Representation <openvino_docs_MO_DG_prepare_model_convert_model_Converting_Model>` guide.
+.. note:: The color channel order (RGB or BGR) of an input data should match the channel order of the model training dataset. If they are different, perform the ``RGB<->BGR`` conversion specifying the command-line parameter: ``--reverse_input_channels``. Otherwise, inference results may be incorrect. For more information about the parameter, refer to the **When to Reverse Input Channels** section of the :doc:`Converting a Model to Intermediate Representation <openvino_docs_MO_DG_prepare_model_convert_model_Converting_Model>` guide.
 
 
 OpenVINO toolkit provides a demo that uses YOLOv3 model. Refer to the :doc:`Object Detection C++ Demo <omz_demos_object_detection_demo_cpp>` for more information.
@@ -246,18 +240,17 @@ To convert YOLOv1 or YOLOv2 model to TensorFlow, go to the root directory of the
 
 * For YOLOv1:
 
-.. code-block:: sh
+   .. code-block:: sh
 
       python3 flow --model yolov1.cfg --load yolov1.weights --savepb
 
 
 * For YOLOv2 with VOC dataset ``--labels`` argument should be specified and additional changes in the original exporting script are required.
-In the `file <https://github.com/thtrieu/darkflow/blob/b187c65630f9aa1bb8b809c33ec67c8cc5d60124/darkflow/utils/loader.py#L121>`__
-change line 121 from ``self.offset = 16`` to ``self.offset = 20``. Then run:
+In the `file <https://github.com/thtrieu/darkflow/blob/b187c65630f9aa1bb8b809c33ec67c8cc5d60124/darkflow/utils/loader.py#L121>`__ change line 121 from ``self.offset = 16`` to ``self.offset = 20``. Then run:
 
-.. code-block:: sh
+   .. code-block:: sh
 
-   python3 flow --model yolov2-voc.cfg --load yolov2-voc.weights --labels voc-labels.txt --savepb
+      python3 flow --model yolov2-voc.cfg --load yolov2-voc.weights --labels voc-labels.txt --savepb
 
 
 VOC labels can be found on the following `link <https://raw.githubusercontent.com/szaza/android-yolo-v2/master/assets/tiny-yolo-voc-labels.txt>`__.
@@ -288,11 +281,11 @@ To generate the IR of the YOLOv1 model, provide TensorFlow YOLOv1 or YOLOv2 mode
 
 .. code-block:: sh
 
-  mo
-  --input_model <path_to_model>/<model_name>.pb       \
-  --batch 1                                       \
-  --scale 255 \
-  --transformations_config front/tf/<yolo_config>.json
+   mo
+   --input_model <path_to_model>/<model_name>.pb       \
+   --batch 1                                       \
+   --scale 255 \
+   --transformations_config front/tf/<yolo_config>.json
 
 
 where:
@@ -303,18 +296,9 @@ The model was trained with input values in the range ``[0,1]``. OpenVINO toolkit
 * ``--transformations_config`` adds missing ``Region`` layers to the model. In the IR, the ``Region`` layer has name ``RegionYolo``.
 For other applicable parameters, refer to the :doc:`Convert Model from TensorFlow <openvino_docs_MO_DG_prepare_model_convert_model_Convert_Model_From_TensorFlow>` guide.
 
-.. note:: 
-
-   The color channel order (RGB or BGR) of an input data should match the channel order of the model training dataset. If they are different, perform the ``RGB<->BGR`` conversion specifying the command-line parameter: ``--reverse_input_channels``. Otherwise, inference results may be incorrect. For more information about the parameter, refer to the **When to Reverse Input Channels** section of the  :doc:`Converting a Model to Intermediate Representation (IR) <openvino_docs_MO_DG_prepare_model_convert_model_Converting_Model>` guide.
-
 
 .. note::  The color channel order (RGB or BGR) of an input data should match the channel order of the model training dataset. If they are different, perform the ``RGB<->BGR`` conversion specifying the command-line parameter: ``--reverse_input_channels``. Otherwise, inference results may be incorrect. For more information about the parameter, refer to the **When to Reverse Input Channels** section of the  :doc:`Converting a Model to Intermediate Representation (IR) <openvino_docs_MO_DG_prepare_model_convert_model_Converting_Model>` guide.
 
-.. note:: 
-
-      The color channel order (RGB or BGR) of an input data should match the channel order of the model training dataset. If they are different, perform the ``RGB<->BGR`` conversion specifying the command-line parameter: ``--reverse_input_channels``. Otherwise, inference results may be incorrect. For more information about the parameter, refer to the **When to Reverse Input Channels** section of the  :doc:`Converting a Model to Intermediate Representation (IR) <openvino_docs_MO_DG_prepare_model_convert_model_Converting_Model>` guide.
-
-The color channel order (RGB or BGR) of an input data should match the channel order of the model training dataset. If they are different, perform the ``RGB<->BGR`` conversion specifying the command-line parameter: ``--reverse_input_channels``. Otherwise, inference results may be incorrect. For more information about the parameter, refer to the **When to Reverse Input Channels** section of the  :doc:`Converting a Model to Intermediate Representation (IR) <openvino_docs_MO_DG_prepare_model_convert_model_Converting_Model>` guide.
 
 @endsphinxdirective
 
