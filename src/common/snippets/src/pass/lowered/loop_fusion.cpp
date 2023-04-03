@@ -243,11 +243,15 @@ bool LoopFusion::run(LoweredExprIR& linear_ir) {
                     break;
             }
         }
-
+//        size_t num_fake_loops = 0;
         for (size_t dim_idx = diff_idx; dim_idx < loop_depth; ++dim_idx) {
             const auto loop_id = expr_loops[dim_idx];
-            if (loop_id == LoweredExpr::LOOP_NULL_ID)
+            if (loop_id >= LoweredExpr::LOOP_NULL_ID)
                 continue;
+//            if (loop_id == LoweredExpr::LOOP_FAKE_ID) {
+//                num_fake_loops++;
+//                continue;
+//            }
 
             const auto loop_info = loop_manager->get_loop_info(loop_id);
             LoweredExprIR::constExprIt loop_begin_pos, loop_end_pos;
@@ -283,7 +287,7 @@ bool LoopFusion::run(LoweredExprIR& linear_ir) {
                     const auto loop_id_target = loop_ids_target[dim_idx];
                     OPENVINO_ASSERT(loop_id != loop_id_target,
                                     "Loops cannot have parents of entry points with the same identifier");
-                    if (loop_id_target == LoweredExpr::LOOP_NULL_ID)
+                    if (loop_id_target >= LoweredExpr::LOOP_NULL_ID)
                         continue;
                     const auto loop_info_target = loop_manager->get_loop_info(loop_id_target);
 
@@ -325,7 +329,7 @@ bool LoopFusion::run(LoweredExprIR& linear_ir) {
                         // The exit point of Loop can have several consumers where some of them can be in this Loop as well
                         // So we skip this consumer.
                         const auto loop_id_target = loop_ids_target[dim_idx];
-                        if (loop_id == loop_id_target || loop_id_target == LoweredExpr::LOOP_NULL_ID)
+                        if (loop_id == loop_id_target || loop_id_target >= LoweredExpr::LOOP_NULL_ID)
                             continue;
 
                         const auto loop_info_target = loop_manager->get_loop_info(loop_id_target);

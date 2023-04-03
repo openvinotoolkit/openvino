@@ -11,6 +11,7 @@
 #include "snippets/pass/lowered/assign_registers.hpp"
 #include "snippets/pass/lowered/insert_tail_loop.hpp"
 #include "snippets/pass/lowered/loop_markup.hpp"
+#include "snippets/pass/lowered/loop_splitting.hpp"
 #include "snippets/pass/lowered/loop_fusion.hpp"
 #include "snippets/pass/lowered/loop_init.hpp"
 #include "snippets/pass/lowered/buffer_insertion.hpp"
@@ -46,6 +47,7 @@ Generator::LoweringResult Generator::generate(std::shared_ptr<ov::Model>& m, con
     std::vector<std::shared_ptr<pass::lowered::LinearIRTransformation>> transformation_pipeline {
             std::make_shared<pass::lowered::LoopMarkup>(vector_size),
             std::make_shared<pass::lowered::SoftmaxDecomposition>(vector_size),
+            std::make_shared<pass::lowered::LoopSplitting>(),
             std::make_shared<pass::lowered::LoopFusion>(),
             std::make_shared<pass::lowered::BufferInsertion>(buffer_allocation_rank),
             std::make_shared<pass::lowered::LoadStoreInsertion>(vector_size),
@@ -61,18 +63,39 @@ Generator::LoweringResult Generator::generate(std::shared_ptr<ov::Model>& m, con
             std::make_shared<pass::lowered::AssignRegisters>(),
             std::make_shared<pass::lowered::InsertTailLoop>()
     };
+//    std::cerr << "Initial : \n";
+//    linear_ir.debug_print(true);
+//    std::cerr << "\n=======================\n";
     for (const auto& transform : transformation_pipeline) {
         std::string name = transform->get_type_name();
-        if (name == "CleanupBrgemmLoadStore" ||
-            name == "CleanupLoopOffsets" ||
-            name == "AssignRegisters") {
+        transform->run(linear_ir);
+        if (name == "LoopFusion" ||
+            name == "SetScalarCountForLoadStore" ||
+            name == "LoopInit") {
+            std::cerr << name << ": \n";
             linear_ir.debug_print(true);
             std::cerr << "\n=======================\n";
-//            linear_ir.serialize("snsdebug_linear.xml", "snsdebug_linear.bin");
+            linear_ir.debug_print(false);
+            std::cerr << "\n=======================\n";
+            linear_ir.serialize("snsdebug_linear.xml", "snsdebug_linear.bin");
+            const auto& loop_manager = linear_ir.get_loop_manager();
+            for (const auto& p : loop_manager->get_map()) {
+                const auto& info = p.second;
+                std::cerr << p.first << " : " << info->work_amount << " : " << info->increment << " : ";
+                std::cerr << "(";
+                for (const auto& e : info->entry_exprs)
+                    std::cerr << e.expr->get_node()->get_friendly_name() << " #" << e.port << ", ";
+                std::cerr << ") : ";
+                std::cerr << "(";
+                for (const auto& e : info->exit_exprs)
+                    std::cerr << e.expr->get_node()->get_friendly_name() << " #" << e.port << ", ";
+                std::cerr << ")\n" << std::flush;
+            }
+            std::cerr << "\n=======================\n";
+//            throw std::runtime_error("FINITA");
         }
-        transform->run(linear_ir);
     }
-    linear_ir.debug_print(true);
+    linear_ir.debug_print(false);
     linear_ir.serialize("snsdebug_linear.xml", "snsdebug_linear.bin");
 //    throw std::runtime_error("FINITA");
 

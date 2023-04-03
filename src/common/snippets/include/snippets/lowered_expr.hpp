@@ -40,6 +40,7 @@ class LoweredExpr {
 
 public:
     static size_t LOOP_NULL_ID;
+    static size_t LOOP_FAKE_ID;
 
     explicit LoweredExpr(const std::shared_ptr<Node>& n);
     explicit LoweredExpr(const std::shared_ptr<Node>& n, std::vector<TensorDescriptorPtr> inputs, std::vector<TensorDescriptorPtr> outputs = {});

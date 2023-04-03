@@ -28,23 +28,23 @@ std::vector<element::Type> precisions{element::f32};
 //                             ::testing::Values(CommonTestUtils::DEVICE_CPU)),
 //                         MatMul::getTestCaseName);
 //
-//INSTANTIATE_TEST_SUITE_P(smoke_Snippets_MatMulBias, MatMulBias,
-//                         ::testing::Combine(
-//                                 ::testing::Values(std::vector<ov::PartialShape>{{1, 2, 69, 43}, {2, 1, 43, 49}, {1, 1, 69, 49}}),
-//                                 ::testing::ValuesIn(precisions),
-//                                 ::testing::Values(1), // Subgraph;
-//                                 ::testing::Values(1), // Tokenized MatMul+Bias
-//                                 ::testing::Values(CommonTestUtils::DEVICE_CPU)),
-//                         MatMul::getTestCaseName);
-
-INSTANTIATE_TEST_SUITE_P(smoke_Snippets_ExplicitTransposeMatMul, ExplicitTransposeMatMul,
+INSTANTIATE_TEST_SUITE_P(smoke_Snippets_MatMulBias, MatMulBias,
                          ::testing::Combine(
-                                 ::testing::Values(std::vector<ov::PartialShape>{{1, 2, 69, 43}, {2, 49, 2, 43}}),
+                                 ::testing::Values(std::vector<ov::PartialShape>{{1, 1, 128, 43}, {1, 1, 43, 64}, {1, 1, 128, 64}}),
                                  ::testing::ValuesIn(precisions),
                                  ::testing::Values(1), // Subgraph;
                                  ::testing::Values(1), // Tokenized MatMul+Bias
                                  ::testing::Values(CommonTestUtils::DEVICE_CPU)),
-                         ExplicitTransposeMatMul::getTestCaseName);
+                         MatMul::getTestCaseName);
+
+//INSTANTIATE_TEST_SUITE_P(smoke_Snippets_ExplicitTransposeMatMul, ExplicitTransposeMatMul,
+//                         ::testing::Combine(
+//                                 ::testing::Values(std::vector<ov::PartialShape>{{1, 2, 69, 43}, {2, 49, 2, 43}}),
+//                                 ::testing::ValuesIn(precisions),
+//                                 ::testing::Values(1), // Subgraph;
+//                                 ::testing::Values(1), // Tokenized MatMul+Bias
+//                                 ::testing::Values(CommonTestUtils::DEVICE_CPU)),
+//                         ExplicitTransposeMatMul::getTestCaseName);
 
 //INSTANTIATE_TEST_SUITE_P(smoke_Snippets_TransposeMatMulBias, ExplicitTransposeMatMulBias,
 //                         ::testing::Combine(

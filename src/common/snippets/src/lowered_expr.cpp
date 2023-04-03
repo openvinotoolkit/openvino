@@ -17,7 +17,8 @@
 namespace ngraph {
 namespace snippets {
 
-size_t LoweredExpr::LOOP_NULL_ID = SIZE_MAX;
+size_t LoweredExpr::LOOP_NULL_ID = SIZE_MAX - 1;
+size_t LoweredExpr::LOOP_FAKE_ID = SIZE_MAX;
 
 LoweredExpr::LoweredExpr(const std::shared_ptr<Node>& n) : m_source_node{n}, m_emitter{nullptr}, m_reg_info{{}, {}} {
     for (const auto& in : n->inputs())
