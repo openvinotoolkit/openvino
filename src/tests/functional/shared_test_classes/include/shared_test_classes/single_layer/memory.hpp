@@ -28,7 +28,6 @@ class MemoryTest : public testing::WithParamInterface<MemoryTestParams>, virtual
 public:
     static std::string getTestCaseName(const testing::TestParamInfo<MemoryTestParams> &obj);
     void Run() override;
-    InferenceEngine::Blob::Ptr GenerateInput(const InferenceEngine::InputInfo& inputInfo) const override;
 
 protected:
     std::vector<std::pair<ngraph::element::Type, std::vector<std::uint8_t>>> CalculateRefs() override;

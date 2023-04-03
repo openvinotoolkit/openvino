@@ -19,6 +19,13 @@ namespace {
 class MemoryTestGna : public MemoryTest {
     using Super = MemoryTest;
 
+public:
+    InferenceEngine::Blob::Ptr GenerateInput(const InferenceEngine::InputInfo& info) const override {
+        // data comparison against relative threshold works correct when input data is shifted away from 0.
+        // This happens also when POT generated FQ layers are added (see below) to original model.
+        return FuncTestUtils::createAndFillBlob(info.getTensorDesc(), 5, 5);
+    }
+
 protected:
     void CreateCommonFunc() override {
         auto param = builder::makeParams(ngPrc, {inputShape});

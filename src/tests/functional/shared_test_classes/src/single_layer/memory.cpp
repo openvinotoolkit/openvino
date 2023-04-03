@@ -209,9 +209,5 @@ namespace LayerTestsDefinitions {
         }
     }
 
-    InferenceEngine::Blob::Ptr MemoryTest::GenerateInput(const InferenceEngine::InputInfo& info) const {
-        return FuncTestUtils::createAndFillBlob(info.getTensorDesc(), 5, 5);
-    }
-
 }  // namespace LayerTestsDefinitions
 
