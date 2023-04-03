@@ -65,6 +65,11 @@ static const char cache_dir_message[] = "Optional. Enables caching of loaded mod
 static const char load_from_file_message[] = "Optional. Loads model from file directly without read_model."
                                              " All CNNNetwork options (like re-shape) will be ignored";
 
+/// @brief message for run frequency
+static const char run_frequency_message[] =
+    "Execute at a fixed frequency. Note if the targeted rate per second cannot be reached, "
+    "the benchmark would start the next run immediately, trying its best to catch up.";
+
 /// @brief message for execution time
 static const char execution_time_message[] = "Optional. Time in seconds to execute topology.";
 
@@ -307,6 +312,9 @@ DEFINE_string(api, "async", api_message);
 /// @brief Number of infer requests in parallel
 DEFINE_uint64(nireq, 0, infer_requests_count_message);
 
+/// @brief Execute infer requests at a fixed frequency
+DEFINE_double(rfreq, 0, run_frequency_message);
+
 /// @brief Number of streams to use for inference on the CPU (also affects Hetero cases)
 DEFINE_string(nstreams, "", infer_num_streams_message);
 
@@ -388,6 +396,7 @@ static void show_usage() {
     std::cout << "    -hint  <performance hint> (latency or throughput or cumulative_throughput or none)   "
               << hint_message << std::endl;
     std::cout << "    -niter  <integer>             " << iterations_count_message << std::endl;
+    std::cout << "    -rfreq \"<float>\"            " << run_frequency_message << std::endl;
     std::cout << "    -t                            " << execution_time_message << std::endl;
     std::cout << std::endl;
     std::cout << "Input shapes" << std::endl;
