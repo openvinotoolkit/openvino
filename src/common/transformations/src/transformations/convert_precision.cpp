@@ -321,7 +321,7 @@ bool ov::pass::ConvertPrecision::run_on_model(const std::shared_ptr<ngraph::Func
         }
     }
 
-    if (m_keep_precision_sensitive_in_fp32 && has_fp16_compression && !has_quantize_nodes) {
+    if (m_keep_precision_sensitive_in_fp32 && has_fp16_compression) {
         pass::Manager manager(get_pass_config());
         // Mark subgraphs with disable_fp16_compression to keep them in FP32
         manager.register_pass<pass::MarkSugraphsToKeepInMixedPrecision>();
@@ -390,6 +390,7 @@ bool ov::pass::ConvertPrecision::run_on_model(const std::shared_ptr<ngraph::Func
         pass::Manager manager(get_pass_config());
         manager.register_pass<pass::EnableDecompressionConvertConstantFolding>();
         manager.register_pass<pass::ConstantFolding>();
+        manager.run_passes(f);
     }
 
     (void)is_changed;  // ignored
