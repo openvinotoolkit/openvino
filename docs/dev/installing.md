@@ -182,7 +182,7 @@ cd ~/openvino_cpp_samples_build/intel64/Release
 Windows:
 
 ```bat
-cd  %USERPROFILE%\Documents\Intel\OpenVINO\inference_engine_samples_build\intel64\Release
+cd  %USERPROFILE%\Documents\Intel\OpenVINO\openvino_cpp_samples_build\intel64\Release
 .\classification_sample_async.exe -i %USERPROFILE%\Downloads\dog.bmp -m %USERPROFILE%\Documents\ir\googlenet-v1.xml -d CPU
 ```
 
