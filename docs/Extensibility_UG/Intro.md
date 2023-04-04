@@ -18,9 +18,7 @@
    openvino_docs_transformations
    OpenVINO Plugin Developer Guide <openvino_docs_ie_plugin_dg_overview>
 
-The Intel® Distribution of OpenVINO™ toolkit supports neural network models trained with various frameworks, including
-TensorFlow, PyTorch, ONNX, PaddlePaddle, Apache MXNet, Caffe, and Kaldi. The list of supported operations is different for
-each of the supported frameworks. To see the operations supported by your framework, refer to :doc:`Supported Framework Operations <openvino_docs_MO_DG_prepare_model_Supported_Frameworks_Layers>`.
+The Intel® Distribution of OpenVINO™ toolkit supports neural network models trained with various frameworks, including TensorFlow, PyTorch, ONNX, PaddlePaddle, Apache MXNet, Caffe, and Kaldi. The list of supported operations is different for each of the supported frameworks. To see the operations supported by your framework, refer to :doc:`Supported Framework Operations <openvino_docs_MO_DG_prepare_model_Supported_Frameworks_Layers>`.
 
 Custom operations, which are not included in the list, are not recognized by OpenVINO out-of-the-box. The need for custom operation may appear in two cases:
 

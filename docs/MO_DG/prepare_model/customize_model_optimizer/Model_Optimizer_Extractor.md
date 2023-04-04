@@ -4,21 +4,16 @@
 
 .. warning::
    
-   OpenVINO will move TensorFlow conversion from legacy python-based frontend to new C++ based frontend, therefore this extension guide won't be a recommended way for TensorFlow extension in Model Optimizer and will be marked as a deprecated solution. For details in regard of new frontend, see the :doc:`Frontend Extensions <openvino_docs_Extensibility_UG_Frontend_Extensions>` article.
+   OpenVINO will move TensorFlow conversion from legacy python-based frontend to new C++ based frontend, therefore this extension guide won't be a recommended way for TensorFlow extension in Model Optimizer and will be marked as a deprecated solution. For details on the new frontend, see the :doc:`Frontend Extensions <openvino_docs_Extensibility_UG_Frontend_Extensions>` article.
 
 Model Optimizer runs specific extractor for each operation in the model during the model loading.
 
 There are several types of Model Optimizer extractor extensions:
+
 1. The generic one, which is described in this article.
 2. The special extractor for Caffe models with Python layers. This kind of extractor is described in the :doc:`Extending Model Optimizer with Caffe Python Layers <openvino_docs_MO_DG_prepare_model_customize_model_optimizer_Extending_Model_Optimizer_With_Caffe_Python_Layers>` guide.
 
-Generic extension provides a generic mechanism for the operation extractor applicable for
-all frameworks. Model Optimizer provides the ``mo.front.extractor.FrontExtractorOp`` class as a base class to implement the
-extractor. It has the ``extract`` class method, which gets the only parameter ``Node``, which corresponds to the graph node to
-extract data from. The operation description in the original framework format is stored in the attribute ``pb`` of the
-node. The extractor goal is to parse this attribute and save necessary attributes to the corresponding node of the
-graph. Consider the extractor for the ``Const`` TensorFlow operation (refer to the
-``extensions/front/tf/const_ext.py`` file):
+Generic extension provides a generic mechanism for the operation extractor applicable for all frameworks. Model Optimizer provides the ``mo.front.extractor.FrontExtractorOp`` class as a base class to implement the extractor. It has the ``extract`` class method, which gets the only parameter ``Node``, which corresponds to the graph node to extract data from. The operation description in the original framework format is stored in the attribute ``pb`` of the node. The extractor goal is to parse this attribute and save necessary attributes to the corresponding node of the graph. Consider the extractor for the ``Const`` TensorFlow operation (refer to the ``extensions/front/tf/const_ext.py`` file):
 
 .. code-block:: py
 
@@ -54,8 +49,7 @@ graph. Consider the extractor for the ``Const`` TensorFlow operation (refer to t
            Const.update_node_stat(node, attrs)
            return cls.enabled
 
-Consider another example with an extractor of the ``Constant`` ONNX operation (refer to the
-``extensions/front/onnx/const_ext.py`` file):
+Consider another example with an extractor of the ``Constant`` ONNX operation (refer to the ``extensions/front/onnx/const_ext.py`` file):
 
 .. code-block:: py
 
@@ -88,11 +82,9 @@ Consider another example with an extractor of the ``Constant`` ONNX operation (r
            Const.update_node_stat(node, attrs)
            return cls.enabled
 
-The extractors for operations from different frameworks work similarly. The only difference is in the helper methods
-used to parse operation attributes encoded with a framework-specific representation.
+The extractors for operations from different frameworks work similarly. The only difference is in the helper methods used to parse operation attributes encoded with a framework-specific representation.
 
-A common practice is to use ``update_node_stat()`` method of the dedicated ``Op`` class to update the node attributes. This
-method does the following:
+A common practice is to use ``update_node_stat()`` method of the dedicated ``Op`` class to update the node attributes. This method does the following:
 
 1. Sets values for common attributes like ``op``, ``type``, ``infer``, ``in_ports_count``, ``out_ports_count``, ``version`` to values specific to the dedicated operation (``Const`` operation in this case).
 2. Uses ``supported_attrs()`` and ``backend_attrs()`` methods, defined in the ``Op`` class to update specific node attribute ``IE``. The IR emitter uses the value stored in the ``IE`` attribute to pre-process attribute values and save them to IR.

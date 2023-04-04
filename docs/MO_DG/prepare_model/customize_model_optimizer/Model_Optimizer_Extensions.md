@@ -12,7 +12,7 @@
 
 .. warning::
    
-   OpenVINO will move TensorFlow conversion from legacy python-based frontend to new C++ based frontend, therefore this extension guide won't be a recommended way for TensorFlow extension in Model Optimizer and will be marked as a deprecated solution. For details in regard of new frontend, see the :doc:`Frontend Extensions <openvino_docs_Extensibility_UG_Frontend_Extensions>` article.
+   OpenVINO will move TensorFlow conversion from legacy python-based frontend to new C++ based frontend, therefore this extension guide won't be a recommended way for TensorFlow extension in Model Optimizer and will be marked as a deprecated solution. For details on the new frontend, see the :doc:`Frontend Extensions <openvino_docs_Extensibility_UG_Frontend_Extensions>` article.
 
 Model Optimizer extensions enable you to inject some logic to the model conversion pipeline without changing the Model
 Optimizer core code. There are three types of the Model Optimizer extensions:
