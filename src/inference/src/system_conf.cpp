@@ -230,6 +230,7 @@ std::vector<std::vector<int>> get_num_available_cpu_cores() {
 }
 
 bool is_cpu_map_available() {
+    std::cout << "cpu._cpu_mapping_table.size(): " << cpu._cpu_mapping_table.size() << "\n";
     return cpu._cpu_mapping_table.size() > 0;
 }
 
@@ -299,6 +300,7 @@ void set_cpu_used(std::vector<int>& cpu_ids, int used) {
         std::vector<int> all_table;
         int start = cpu._sockets > 1 ? 1 : 0;
         if (is_cpu_map_available()) {
+            std::cout << "cpu._proc_type_table.size()-----" << cpu._proc_type_table.size() << "\n";
             cpu._proc_type_table.assign(cpu._proc_type_table.size(), std::vector<int>(PROC_TYPE_TABLE_SIZE, 0));
             all_table.resize(PROC_TYPE_TABLE_SIZE, 0);
             for (int i = 0; i < cpu._processors; i++) {

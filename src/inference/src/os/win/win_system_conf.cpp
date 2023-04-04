@@ -10,6 +10,7 @@
 
 #include <memory>
 #include <vector>
+#include <iostream>
 
 #include "dev/threading/parallel_custom_arena.hpp"
 #include "openvino/runtime/system_conf.hpp"
@@ -38,6 +39,7 @@ void CPU::init_cpu(CPU& cpu) {
                              cpu._cores,
                              cpu._proc_type_table,
                              cpu._cpu_mapping_table);
+    std::cout << "_proc_type_table-----" << cpu._proc_type_table.size() << "\n";
 }
 
 void parse_processor_info_win(const char* base_ptr,

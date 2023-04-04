@@ -83,6 +83,7 @@ void CPU::init_cpu(CPU& cpu) {
         }
     }
     std::vector<std::vector<std::string>>().swap(system_info_table);
+    std::cout << "_proc_type_table-----" << cpu._proc_type_table.size() << "\n";
 }
 
 void parse_processor_info_linux(const int _processors,
