@@ -325,9 +325,7 @@ void prepare_buffer_fusing::run(program& p) {
     */
     auto can_optimize = [](const program_node* node) {
         bool is_dynamic = node->get_output_layout().is_dynamic();
-        bool is_planar = node->get_output_layout().format == format::bfyx ||
-                         node->get_output_layout().format == format::bfzyx ||
-                         node->get_output_layout().format == format::bfwzyx;
+        bool is_planar = format::is_default_format(node->get_output_layout().format);
         bool no_pad = !node->get_output_layout().data_padding && !node->get_input_layouts().empty() && !node->get_input_layouts()[0].data_padding;
         // The condition below check only output layout as cases like
         // (dyn_shape) -> reshape -> (static_shape) -> some_static_primitive
