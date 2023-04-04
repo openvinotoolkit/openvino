@@ -630,6 +630,10 @@ def input_user_data_repack(graph: Graph, input_user_shapes: [None, list, dict, n
                     {'direction': direction, 'port': port, 'name': placeholder_name, 'id': new_placeholder_id,
                      'value': value})
 
+    if isinstance(input_user_shapes, list):
+        if len(input_user_shapes) == 1 and isinstance(input_user_shapes[0], PartialShape):
+            input_user_shapes = input_user_shapes[0]
+
     # input user shapes restructure
     if input_user_shapes is None:
         # None User did not provide neither --input nor --input_shape keys
