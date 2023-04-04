@@ -352,20 +352,8 @@ function(ov_generate_plugins_hpp)
     add_custom_target(_ov_plugins_hpp DEPENDS ${ov_plugins_hpp})
     add_dependencies(inference_engine_obj _ov_plugins_hpp)
 
-    # add dependency for object files
-    get_target_property(sources inference_engine_obj SOURCES)
-    foreach(source IN LISTS sources)
-        if("${source}" MATCHES "\\$\\<TARGET_OBJECTS\\:([A-Za-z0-9_]*)\\>")
-            # object library
-            set(obj_library ${CMAKE_MATCH_1})
-            get_target_property(obj_sources ${obj_library} SOURCES)
-            list(APPEND all_sources ${obj_sources})
-        else()
-            # usual source
-            list(APPEND all_sources ${source})
-        endif()
-    endforeach()
-
-    # add dependency on header file generation for all inference_engine source files
-    set_source_files_properties(${all_sources} PROPERTIES OBJECT_DEPENDS ${ov_plugins_hpp})
+    # add dependency on header file generation for openvino source files which includes this header
+    set(dependent_sources
+        ${OpenVINO_SOURCE_DIR}/src/inference/src/dev/core_impl.cpp)
+    set_source_files_properties(${dependent_sources} PROPERTIES OBJECT_DEPENDS ${ov_plugins_hpp})
 endfunction()
