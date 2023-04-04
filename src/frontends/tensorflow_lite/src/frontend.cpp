@@ -10,7 +10,6 @@
 #include "op_table.hpp"
 #include "openvino/frontend/tensorflow_lite/extension/op.hpp"
 #include "openvino/util/common_util.hpp"
-#include "pass/transpose_sinking.hpp"
 #include "so_extension.hpp"
 #include "tensor_lite_place.hpp"
 #include "tf_framework_node.hpp"
