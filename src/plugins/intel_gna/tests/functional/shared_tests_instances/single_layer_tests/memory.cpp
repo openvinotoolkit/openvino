@@ -17,7 +17,6 @@ using namespace opset11;
 namespace {
 
 class MemoryTestGna : public MemoryTest {
-
 public:
     InferenceEngine::Blob::Ptr GenerateInput(const InferenceEngine::InputInfo& info) const override {
         // data comparison against relative threshold works correct when input data is shifted away from 0.
