@@ -103,23 +103,23 @@ jobs:
           parallel: ${{ steps.cpu-cores.outputs.count }}
       
       - name: Run OV core unit tests
-        run: . ${{ github.workspace }}/setupvars.sh -pyver 3.10 && ${{ github.workspace }}/bin/intel64/Release/ov_core_unit_tests --gtest_print_time=1 --gtest_filter=-*IE_GPU* --gtest_output=xml:${{ github.workspace }}/testdata/TEST-NGraphUT.xml
+        run: . ${{ github.workspace }}/scripts/setupvars/setupvars.sh -pyver 3.10 && ${{ github.workspace }}/bin/intel64/Release/ov_core_unit_tests --gtest_print_time=1 --gtest_filter=-*IE_GPU* --gtest_output=xml:${{ github.workspace }}/testdata/TEST-NGraphUT.xml
         continue-on-error: true
 
       - name: Run IR frontend tests
-        run: . ${{ github.workspace }}/setupvars.sh -pyver 3.10 && ${{ github.workspace }}/bin/intel64/Release/ov_ir_frontend_tests --gtest_print_time=1 --gtest_output=xml:${{ github.workspace }}/testdata/TEST-IRFrontend.xml
+        run: . ${{ github.workspace }}/scripts/setupvars/setupvars.sh -pyver 3.10 && ${{ github.workspace }}/bin/intel64/Release/ov_ir_frontend_tests --gtest_print_time=1 --gtest_output=xml:${{ github.workspace }}/testdata/TEST-IRFrontend.xml
         continue-on-error: true
       
       - name: Run ONNX frontend tests
-        run: . ${{ github.workspace }}/setupvars.sh -pyver 3.10 && ${{ github.workspace }}/bin/intel64/Release/ov_onnx_frontend_tests --gtest_print_time=1 --gtest_filter=-*IE_GPU* --gtest_output=xml:${{ github.workspace }}/testdata/TEST-ONNXFrontend.xml
+        run: . ${{ github.workspace }}/scripts/setupvars/setupvars.sh -pyver 3.10 && ${{ github.workspace }}/bin/intel64/Release/ov_onnx_frontend_tests --gtest_print_time=1 --gtest_filter=-*IE_GPU* --gtest_output=xml:${{ github.workspace }}/testdata/TEST-ONNXFrontend.xml
         continue-on-error: true
       
       - name: Run Paddle frontend unit tests
-        run: . ${{ github.workspace }}/setupvars.sh -pyver 3.10 && ${{ github.workspace }}/bin/intel64/Release/paddle_tests --gtest_print_time=1 --gtest_output=xml:${{ github.workspace }}/testdata/TEST-Paddle.xml
+        run: . ${{ github.workspace }}/scripts/setupvars/setupvars.sh -pyver 3.10 && ${{ github.workspace }}/bin/intel64/Release/paddle_tests --gtest_print_time=1 --gtest_output=xml:${{ github.workspace }}/testdata/TEST-Paddle.xml
         continue-on-error: true
 
       - name: Run TensorFlow frontend unit tests
-        run: . ${{ github.workspace }}/setupvars.sh -pyver 3.10 && ${{ github.workspace }}/bin/intel64/Release/ov_tensorflow_frontend_tests --gtest_print_time=1 --gtest_output=xml:${{ github.workspace }}/testdata/TEST-Tensorflow.xml
+        run: . ${{ github.workspace }}/scripts/setupvars/setupvars.sh -pyver 3.10 && ${{ github.workspace }}/bin/intel64/Release/ov_tensorflow_frontend_tests --gtest_print_time=1 --gtest_output=xml:${{ github.workspace }}/testdata/TEST-Tensorflow.xml
         continue-on-error: true
 
       - name: Build coverage with CMake
