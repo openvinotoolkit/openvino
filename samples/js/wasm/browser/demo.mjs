@@ -1,4 +1,5 @@
 import makeInference from './make_inference.mjs';
+import openvinojs from './node_modules/openvinojs/dist/openvino_wasm.mjs';
 
 const statusElement = document.getElementById('status');
 
@@ -27,7 +28,7 @@ const inferenceParametersFaceDetection = {
   layout: 'NCHW',
 };
 
-makeInference(Module, 'browser', inferenceParametersMobilenetV3, events);
+makeInference(openvinojs, 'browser', inferenceParametersMobilenetV3, events);
 
 function setStatus(txt) {
   return () => statusElement.innerText = txt;

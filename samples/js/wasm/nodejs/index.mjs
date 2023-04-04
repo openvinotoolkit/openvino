@@ -1,4 +1,4 @@
-import openvinojs from '../node_modules/openvinojs/dist/openvino_wasm.js';
+import openvinojs from '../node_modules/openvinojs/dist/openvino_wasm.mjs';
 import makeInference from '../make_inference.mjs';
 
 const inferenceParametersFaceDetection = { 
