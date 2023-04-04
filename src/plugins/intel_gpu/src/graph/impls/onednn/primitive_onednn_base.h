@@ -488,7 +488,18 @@ protected:
         }
 
         if (!instance.can_be_optimized()) {
-            _prim.execute(stream.get_onednn_stream(), _args[net_id]);
+            try {
+                _prim.execute(stream.get_onednn_stream(), _args[net_id]);
+            } catch (dnnl::error& err) {
+                /// WA: Force exit. Any opencl api call can be hang after CL_OUT_OF_RESOURCES.
+                if (err.status == dnnl_status_t::dnnl_out_of_memory) {
+                    std::cerr << "[GPU] WA: Force exit. CL_OUT_OF_RESOURCES is returned from call OpenCL API." << std::endl
+                              << "      It could occur hang issue." << std::endl
+                              << "      Please use smaller batches or streams." << std::endl;
+                    std::_Exit(-1);
+                }
+                throw;    // rethrowing dnnl::error if not out_of_memory
+            }
         }
 
         if (_enable_profiling) {
