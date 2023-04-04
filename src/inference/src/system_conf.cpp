@@ -230,7 +230,10 @@ std::vector<std::vector<int>> get_num_available_cpu_cores() {
 }
 
 bool is_cpu_map_available() {
-    return cpu._cpu_mapping_table.size() > 0;
+    if (cpu._proc_type_table.size() > 0 && cpu._num_threads == cpu._proc_type_table[0][ALL_PROC]) {
+        return true;
+    }
+    return false;
 }
 
 std::vector<int> reserve_available_cpus(const ColumnOfProcessorTypeTable core_type,
