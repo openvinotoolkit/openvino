@@ -80,7 +80,7 @@ if(BUILD_SHARED_LIBS)
     add_library(${TARGET_NAME}_obj OBJECT ${SOURCES} ${HEADERS})
     link_system_libraries(${TARGET_NAME}_obj PUBLIC dnnl openvino::pugixml)
 
-    ov_add_version_defines(src/plugin.cpp ${TARGET_NAME})
+    ov_add_version_defines(src/plugin.cpp ${TARGET_NAME}_obj)
 
     target_include_directories(${TARGET_NAME}_obj
         PRIVATE
