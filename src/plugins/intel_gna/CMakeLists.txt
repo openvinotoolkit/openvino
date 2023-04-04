@@ -78,6 +78,8 @@ ie_add_api_validator_post_build_step(TARGET ${TARGET_NAME})
 
 add_library(${TARGET_NAME}_test_static STATIC EXCLUDE_FROM_ALL ${SOURCES} ${HEADERS})
 
+ov_add_version_defines(src/gna_plugin_entry_points.cpp ${TARGET_NAME}_test_static)
+
 target_compile_definitions(${TARGET_NAME}_test_static
         PRIVATE
             _NO_MKL_

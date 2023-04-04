@@ -64,7 +64,7 @@ function(ie_add_plugin)
         add_library(${IE_PLUGIN_NAME} ${library_type} ${input_files})
 
         if(IE_PLUGIN_VERSION_DEFINES_FOR)
-            ov_add_version_defines(${IE_PLUGIN_VERSION_DEFINES_FOR} ${IE_PLUGIN_NAME} CI_BUILD_NUMBER)
+            ov_add_version_defines(${IE_PLUGIN_VERSION_DEFINES_FOR} ${IE_PLUGIN_NAME})
         endif()
 
         target_compile_definitions(${IE_PLUGIN_NAME} PRIVATE IMPLEMENT_INFERENCE_ENGINE_PLUGIN)
@@ -351,9 +351,4 @@ function(ov_generate_plugins_hpp)
     # so, we have to use explicit target and make it dependency for inference_engine
     add_custom_target(_ov_plugins_hpp DEPENDS ${ov_plugins_hpp})
     add_dependencies(inference_engine_obj _ov_plugins_hpp)
-
-    # add dependency on header file generation for openvino source files which includes this header
-    set(dependent_sources
-        ${OpenVINO_SOURCE_DIR}/src/inference/src/dev/core_impl.cpp)
-    set_source_files_properties(${dependent_sources} PROPERTIES OBJECT_DEPENDS ${ov_plugins_hpp})
 endfunction()

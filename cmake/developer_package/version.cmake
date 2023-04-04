@@ -193,11 +193,6 @@ macro (ov_add_version_defines FILE TARGET)
     if(NOT EXISTS ${__version_file})
         message(FATAL_ERROR "${FILE} does not exists in current source directory")
     endif()
-    foreach (VAR ${ARGN})
-        if (DEFINED ${VAR} AND NOT "${${VAR}}" STREQUAL "")
-            list(APPEND all_defines "${VAR}=\"${${VAR}}\"")
-        endif()
-    endforeach()
     _remove_source_from_target(${TARGET} ${__version_file})
     if (BUILD_SHARED_LIBS)
         add_library(${TARGET}_version OBJECT ${__version_file})
@@ -205,8 +200,9 @@ macro (ov_add_version_defines FILE TARGET)
         add_library(${TARGET}_version STATIC ${__version_file})
     endif()
     target_compile_definitions(${TARGET}_version PRIVATE
-        ${all_defines}
-        $<TARGET_PROPERTY:${TARGET},INTERFACE_COMPILE_DEFINITIONS>)
+        CI_BUILD_NUMBER=\"${CI_BUILD_NUMBER}\"
+        $<TARGET_PROPERTY:${TARGET},INTERFACE_COMPILE_DEFINITIONS>
+        $<TARGET_PROPERTY:${TARGET},COMPILE_DEFINITIONS>)
     target_include_directories(${TARGET}_version PRIVATE
         $<TARGET_PROPERTY:${TARGET},INTERFACE_INCLUDE_DIRECTORIES>
         $<TARGET_PROPERTY:${TARGET},INCLUDE_DIRECTORIES>)
