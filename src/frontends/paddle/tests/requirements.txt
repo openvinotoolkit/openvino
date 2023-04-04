@@ -3,4 +3,4 @@
 protobuf
 numpy
 six
-paddlepaddle
+paddlepaddle; python_version<'3.11'
