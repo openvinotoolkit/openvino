@@ -14,7 +14,7 @@
 
 #include "itt.hpp"
 
-ov::intel_cpu::FullyConnectedBiasFusionWithoutMultiply::FullyConnectedBiasFusionWithoutMultiply() {
+ov::intel_cpu::NonQuantizedFullyConnectedBiasFusion::NonQuantizedFullyConnectedBiasFusion() {
     MATCHER_SCOPE(FullyConnectedBiasFusion);
     auto input = ngraph::pattern::any_input();
     auto weights = ngraph::pattern::any_input(ngraph::pattern::has_static_shape());
@@ -76,7 +76,7 @@ ov::intel_cpu::FullyConnectedBiasFusionWithoutMultiply::FullyConnectedBiasFusion
     this->register_matcher(m, callback);
 }
 
-ov::intel_cpu::FullyConnectedDQBiasFusion::FullyConnectedDQBiasFusion() {
+ov::intel_cpu::QuantizedFullyConnectedBiasFusion::QuantizedFullyConnectedBiasFusion() {
     MATCHER_SCOPE(FullyConnectedBiasFusion);
     auto input = ngraph::pattern::any_input();
     auto weights = ngraph::pattern::any_input(ngraph::pattern::has_static_shape());
@@ -100,9 +100,9 @@ ov::intel_cpu::FullyConnectedDQBiasFusion::FullyConnectedDQBiasFusion() {
         if (!fc || transformation_callback(fc)) {
             return false;
         }
-        //Only fuse the bias in FC+DQ+Bias pattern.
-        auto rt_info = add->get_rt_info();
-        if (rt_info.find(ov::BiasAttribute::get_type_info_static()) == rt_info.end())
+        //If the add is marked as BiasAttribute by LPT in FC + Multiply + add pattern,
+        //try fusing bias into FC.
+        if (!marked_as_bias(add))
             return false;
         if (!std::dynamic_pointer_cast<ngraph::opset1::Constant>(bias)) {
             return false;
@@ -140,9 +140,9 @@ ov::intel_cpu::FullyConnectedDQBiasFusion::FullyConnectedDQBiasFusion() {
         auto new_mul = std::make_shared<ngraph::opset1::Multiply>(new_fc, final_scale, mul->get_autob());
         new_ops.push_back(new_mul);
 
-        new_fc->set_friendly_name(add->get_friendly_name());
+        new_mul->set_friendly_name(add->get_friendly_name());
         ngraph::copy_runtime_info({fc, mul, add}, new_ops);
-        ngraph::replace_node(add, new_fc);
+        ngraph::replace_node(add, new_mul);
         return true;
     };
 

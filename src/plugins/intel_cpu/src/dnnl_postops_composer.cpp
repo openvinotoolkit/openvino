@@ -28,9 +28,9 @@ DnnlPostOpsComposer::DnnlPostOpsComposer(const dnnl::engine& engine,
       outputDims(outputDims),
       idxOC(indexOfOutputChannelDim),
       isINT8(isI8),
-      weightScaleMaskPerChannel(weiScaleMaskPerChannel),
-      withBias(hasBias) {
+      weightScaleMaskPerChannel(weiScaleMaskPerChannel) {
     IE_ASSERT(idxOC >= 0 && idxOC < outputDims.size());
+    //Dequantization scales should only be set for int8 precision primitive.
     if (!isINT8 && !DQScales.empty()) {
         IE_THROW() << "DQScales is set on non I8 precision.";
     }
@@ -45,8 +45,8 @@ DnnlPostOpsComposer::DnnlPostOpsComposer(const dnnl::engine& engine,
 
         //set the DQscale into attr weight scale before appending any post-ops.
         updateWeiScales();
-        //If having the bias, attr weight scale can't be applied to further post-ops fusing.
-        //ONEDNN 3.x limitation for U8: Conv * DQScale + Bias
+        //If having the bias, attr weight scale can't be updated for further ops-ops optimization.
+        //ONEDNN 3.x quantization for scheme: QuantizedInput * QuantizedWeight * DQScale + Bias.
         weightScaleAvailable = !hasBias;
     }
 }
@@ -55,7 +55,7 @@ void DnnlPostOpsComposer::updateWeiScales() {
     if (wei_scale_mask == 0 && wei_scale_values[0] == 1.0f)
         return;
 
-    DEBUG_LOG("Set scales mask ", "DNNL_ARG: ", DNNL_ARG_WEIGHTS, " mask: ", wei_scale_mask);
+    DEBUG_LOG("Set weight scales mask ", "DNNL_ARG: ", DNNL_ARG_WEIGHTS, " mask: ", wei_scale_mask);
     attr.set_scales_mask(DNNL_ARG_WEIGHTS, wei_scale_mask);
 
     DnnlBlockedMemoryDesc memoryDesc(InferenceEngine::Precision::FP32, Shape({wei_scale_values.size()}));
@@ -66,12 +66,10 @@ void DnnlPostOpsComposer::updateWeiScales() {
 }
 
 void DnnlPostOpsComposer::updateDestScales() {
-    // if (args.count(DNNL_ARG_ATTR_SCALES | DNNL_ARG_DST))
-    //     IE_THROW() << "BUG: Dest scale is set for multiple times.";
     if (dst_scale_val == 1.0f)
         return;
 
-    DEBUG_LOG("Set scales mask ", "DNNL_ARG: ", DNNL_ARG_DST, " mask: ", 0);
+    DEBUG_LOG("Set dest scale mask ", "DNNL_ARG: ", DNNL_ARG_DST, " mask: ", 0);
     attr.set_scales_mask(DNNL_ARG_DST, 0);
 
     DnnlBlockedMemoryDesc memoryDesc(InferenceEngine::Precision::FP32, Shape({1}));
@@ -113,15 +111,14 @@ bool DnnlPostOpsComposer::appendScale(const std::vector<float>& scale, bool isLa
     IE_ASSERT(scale.size() == OC || scale.size() == 1);
 
     bool fuseIntoWeiScale = false;
-    //
+    // Use dest scale when last post-ops is per-tensor quantization.
     if ((isINT8 && isLastPostOp && scale.size() == 1)) {
         dst_scale_val = 1.0 / scale[0];
         updateDestScales();
         return true;
     }
     if (weightScaleAvailable) {
-        //oneDNN v3.* weight scale can be the same with oscale before ONEDNN 3.0 only when there is no dequantization before bias.
-
+        //oneDNN v3.* weight scale can also be used in the further optimization patterns.
         // there are so many possible optimizations can be done, for example:
         //
         // we can switch the existing postOps's order to take

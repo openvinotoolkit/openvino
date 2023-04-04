@@ -58,6 +58,10 @@ public:
 
     void setDynamicBatchLim(int lim) override;
 
+    bool withBiasFused() const {
+        return withBiases;
+    }
+
 private:
     void createDescriptorInternal(const dnnl::memory::desc &inputDesc,
                                   const dnnl::memory::desc &outputDesc);

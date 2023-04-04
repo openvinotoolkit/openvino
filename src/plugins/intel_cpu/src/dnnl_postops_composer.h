@@ -53,9 +53,8 @@ private:
     std::unordered_map<int, MemoryPtr>& args;
     const VectorDims outputDims;
     int idxOC;
-    const bool isINT8;  // only INT8 primitive support output scale
+    const bool isINT8;  // only INT8 primitive support scales
     const int weightScaleMaskPerChannel;
-    const bool withBias;
     bool weightScaleAvailable = false;
 
     VectorDims dimsPerTensor;
