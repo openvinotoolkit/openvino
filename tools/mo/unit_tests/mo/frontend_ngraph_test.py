@@ -115,6 +115,10 @@ def test_mo_fallback_test():
             os.path.join(os.path.dirname(__file__), 'utils/mo_fallback_test_actual.py'), '-s']
 
     status = subprocess.run(args, env=os.environ)
+    print("STDOUT:")
+    print(status.stdout)
+    print("STDERR:")
+    print(status.stderr)
     assert not status.returncode
 
 
