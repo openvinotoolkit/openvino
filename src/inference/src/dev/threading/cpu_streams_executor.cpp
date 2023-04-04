@@ -10,6 +10,7 @@
 #include <queue>
 #include <thread>
 #include <vector>
+#include <iostream>
 
 #include "dev/threading/parallel_custom_arena.hpp"
 #include "dev/threading/thread_affinity.hpp"
@@ -134,11 +135,20 @@ struct CPUStreamsExecutor::Impl {
                     : (stream_id < _impl->_config._big_core_streams + _impl->_config._big_core_logic_streams
                            ? _impl->_config._threads_per_stream_big
                            : _impl->_config._threads_per_stream_small);
+            if (stream_id == 0) {
+                std::cout << "---streams info--- _streams:" << _impl->_config._streams
+                          << " _threads:" << _impl->_config._threads
+                          << " big_core_streams: " << _impl->_config._big_core_streams
+                          << " threads_per_stream_big:" << _impl->_config._threads_per_stream_big
+                          << " bind_cores:" << _impl->bind_cores << "\n";
+            }
+            std::cout << "init_stream------stream_id:" << stream_id << " concurrency:" << concurrency
+                      << " _numaNodeId:" << _numaNodeId << " BindingType:" << _impl->_config._threadBindingType << "\n";
             if (concurrency > 0 && (ThreadBindingType::CORES == _impl->_config._threadBindingType ||
                                     ThreadBindingType::NONE == _impl->_config._threadBindingType || _impl->any_cores ||
                                     _streamId >= _impl->_config._streams)) {
                 _taskArena.reset(new custom::task_arena{concurrency});
-            } else if (ThreadBindingType::NUMA == _impl->_config._threadBindingType) {
+            } else if (concurrency > 0 && ThreadBindingType::NUMA == _impl->_config._threadBindingType) {
                 _taskArena.reset(new custom::task_arena{custom::task_arena::constraints{_numaNodeId, concurrency}});
             } else if (ThreadBindingType::HYBRID_AWARE == _impl->_config._threadBindingType) {
                 const auto selected_core_type =
