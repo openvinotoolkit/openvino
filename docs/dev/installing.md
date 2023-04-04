@@ -175,7 +175,7 @@ The following commands run the Image Classification Code Sample using the [`dog.
 Linux and macOS:
 
 ```sh
-cd ~/inference_engine_cpp_samples_build/intel64/Release
+cd ~/openvino_cpp_samples_build/intel64/Release
 ./classification_sample_async -i ~/Downloads/dog.bmp -m ~/ir/googlenet-v1.xml -d CPU
 ```
 
