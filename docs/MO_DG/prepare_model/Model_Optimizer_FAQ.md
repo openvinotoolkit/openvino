@@ -45,7 +45,7 @@ For example, to add the description of the ``CustomReshape`` layer, which is an 
 
 3. Now, Model Optimizer is able to load the model into memory and start working with your extensions if there are any.
 
-   However, since your model has custom layers, you must register them as custom. To learn more about it, refer to :doc:`Custom Layers in Model Optimizer    <openvino_docs_MO_DG_prepare_model_customize_model_optimizer_Customize_Model_Optimizer>`.
+   However, since your model has custom layers, you must register them as custom. To learn more about it, refer to the :doc:`[Legacy] Custom Layers in Model Optimizer    <openvino_docs_MO_DG_prepare_model_customize_model_optimizer_Customize_Model_Optimizer>`.
 
 .. _question-2:
 
@@ -69,7 +69,7 @@ Q3. What does the message "[ ERROR ]: Unable to create ports for node with id" m
 
 **A:** Most likely, Model Optimizer does not know how to infer output shapes of some layers in the given topology.
 To lessen the scope, compile the list of layers that are custom for Model Optimizer: present in the topology,
-absent in the :doc:`list of supported layers <openvino_docs_MO_DG_prepare_model_Supported_Frameworks_Layers>` for the target framework. Then, refer to available options in the corresponding section in the  :doc:`Custom Layers in Model Optimizer <openvino_docs_MO_DG_prepare_model_customize_model_optimizer_Customize_Model_Optimizer>` page.
+absent in the :doc:`list of supported layers <openvino_docs_MO_DG_prepare_model_Supported_Frameworks_Layers>` for the target framework. Then, refer to available options in the corresponding section in the :doc:`[Legacy] Custom Layers in Model Optimizer <openvino_docs_MO_DG_prepare_model_customize_model_optimizer_Customize_Model_Optimizer>` page.
 
 .. _question-4:
 
@@ -238,7 +238,7 @@ Q12. What does the message "Error happened while constructing caffe.Net in the C
 Q13. What does the message "Cannot infer shapes due to exception in Caffe" mean?
 #####################################################################################################################################################
 
-**A:** Model Optimizer tried to infer a custom layer via the Caffe framework, but the model could not be inferred using Caffe. This might happen if you try to convert the model with some noise weights and biases, which conflict with layers that have dynamic shapes. You should write your own extension for every custom layer your topology might have. For more details, refer to the :doc:`Model Optimizer Extensibility <openvino_docs_MO_DG_prepare_model_customize_model_optimizer_Customize_Model_Optimizer>` page.
+**A:** Model Optimizer tried to infer a custom layer via the Caffe framework, but the model could not be inferred using Caffe. This might happen if you try to convert the model with some noise weights and biases, which conflict with layers that have dynamic shapes. You should write your own extension for every custom layer your topology might have. For more details, refer to the :doc:`[Legacy] Model Optimizer Extensibility <openvino_docs_MO_DG_prepare_model_customize_model_optimizer_Customize_Model_Optimizer>` page.
 
 .. _question-14:
 
@@ -388,7 +388,7 @@ Q33. What does the message "Output node for port has already been specified" mea
 Q34. What does the message "Unsupported match kind.... Match kinds "points" or "scope" are supported only" mean?
 #####################################################################################################################################################
 
-**A:** While using configuration file to implement a TensorFlow front replacement extension, an incorrect match kind was used. Only ``points`` or ``scope`` match kinds are supported.  For more details, refer to the :doc:`Model Optimizer Extensibility <openvino_docs_MO_DG_prepare_model_customize_model_optimizer_Customize_Model_Optimizer>` guide.
+**A:** While using configuration file to implement a TensorFlow front replacement extension, an incorrect match kind was used. Only ``points`` or ``scope`` match kinds are supported.  For more details, refer to the :doc:`[Legacy] Model Optimizer Extensibility <openvino_docs_MO_DG_prepare_model_customize_model_optimizer_Customize_Model_Optimizer>` guide.
 
 .. _question-35:
 
@@ -626,7 +626,7 @@ Q64. What does the message "No class registered for match kind ... Supported mat
 Q65. What does the message "No instance(s) is(are) defined for the custom replacement" mean?
 #####################################################################################################################################################
 
-**A:** A replacement defined in the configuration file for sub-graph replacement, using node names patterns or start/end nodes, has the ``instances`` attribute. This attribute is mandatory. This error will occur if the attribute is missing. For more details, refer to the **Graph Transformation Extensions** section in the :doc:`Model Optimizer Extensibility <openvino_docs_MO_DG_prepare_model_customize_model_optimizer_Customize_Model_Optimizer>` guide.
+**A:** A replacement defined in the configuration file for sub-graph replacement, using node names patterns or start/end nodes, has the ``instances`` attribute. This attribute is mandatory. This error will occur if the attribute is missing. For more details, refer to the **Graph Transformation Extensions** section in the :doc:`[Legacy] Model Optimizer Extensibility <openvino_docs_MO_DG_prepare_model_customize_model_optimizer_Customize_Model_Optimizer>` guide.
 
 .. _question-66:
 
@@ -910,6 +910,7 @@ For all frameworks:
 2. See :doc:`OpenVINO Extensibility Mechanism <openvino_docs_Extensibility_UG_Intro>`
 
 or
+
 * Edit the model in its original framework to exclude cycle.
 
 .. _question-94:
