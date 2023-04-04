@@ -939,7 +939,7 @@ void MHA::prepareParams() {
 
     accPrecision0 = brg0Prc == Precision::I8 ? Precision::I32 : Precision::FP32;
 
-    size_t brg0BaseIdx = -1;
+    int64_t brg0BaseIdx = -1;
     for (size_t m = 0; m < 2; m++) {
         for (size_t k = 0; k < 2; k++) {
             for (size_t n = 0; n < 2; n++) {
@@ -963,7 +963,7 @@ void MHA::prepareParams() {
 
                 // don't create brgemm kernels for empty tiles
                 if (M_ != 0 && K_ != 0 && N_ != 0) {
-                    if (brg0BaseIdx == static_cast<size_t>(-1))
+                    if (brg0BaseIdx == -1)
                         brg0BaseIdx = getBrgIdx(m, k, n);
                     init_brgemm(brgemmCtx, brgKernels0[getBrgIdx(m, k, n)], brg0WithAMX);
                 }

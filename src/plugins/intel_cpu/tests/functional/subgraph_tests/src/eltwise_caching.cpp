@@ -108,10 +108,10 @@ public:
             results << CommonTestUtils::vec2str(reshapeShape) << "_";
         }
         results << ")_";
-        for (int i = 0; i < inputPrecisions.size(); i++) {
+        for (size_t i = 0; i < inputPrecisions.size(); i++) {
             results << "InPRC" << std::to_string(i) << "=" << inputPrecisions[i] << "_";
         }
-        for (int i = 0; i < eltwiseOpTypes.size(); i++) {
+        for (size_t i = 0; i < eltwiseOpTypes.size(); i++) {
             results << "Op" << std::to_string(i) << "=" << eltwiseOpTypes[i] << "_";
         }
         results << "WithQuant=" << withQuantization << "_";
@@ -125,7 +125,7 @@ public:
     void generate_inputs(const std::vector<ngraph::Shape>& targetInputStaticShapes) override {
         inputs.clear();
         const auto& funcInputs = function->inputs();
-        for (int i = 0; i < funcInputs.size(); ++i) {
+        for (size_t i = 0; i < funcInputs.size(); ++i) {
             const auto& funcInput = funcInputs[i];
             ov::Tensor tensor;
             tensor = ov::test::utils::create_and_fill_tensor(funcInput.get_element_type(), targetInputStaticShapes[i], 10, 1, 1);
