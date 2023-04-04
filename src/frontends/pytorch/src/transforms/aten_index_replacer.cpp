@@ -111,7 +111,7 @@ AtenIndexToSelect::AtenIndexToSelect() {
                 auto id_dtype = ids[i].get_element_type();
                 if (id_dtype == element::boolean || id_dtype == element::u8) {
                     auto idx = std::make_shared<v0::Convert>(ids[i], element::u8);
-                    Output<ov::Node> nonzero = std::make_shared<v3::NonZero>(idx, element::i32);
+                    auto nonzero = std::make_shared<v3::NonZero>(idx, element::i32);
                     auto input_order = v0::Constant::create(element::i32, Shape{2}, {1, 0});
                     auto masked_id = std::make_shared<v1::Transpose>(nonzero, input_order);
                     masked_indicies.push_back(masked_id);
