@@ -251,7 +251,7 @@ def input_shape_to_input_cut_info(input_shape: [str, Shape, PartialShape, list, 
         return
     if isinstance(input_shape, str):
         # Split input_shape to list of string
-        input_shape = split_inputs(input_shape)
+        input_shape = split_shapes(input_shape)
     if isinstance(input_shape, (Shape, PartialShape)):
         # Whap single shape to list
         input_shape = [input_shape]
@@ -2067,12 +2067,7 @@ def get_mean_scale_dictionary(mean_values, scale_values, argv_input: list):
     res = {}
     # collect input names
     if argv_input:
-        if isinstance(argv_input, str):
-            inputs = [get_node_name_with_port_from_input_value(input_value) for input_value in split_inputs(argv_input)]
-        elif isinstance(argv_input, list):
-            inputs = argv_input
-        else:
-            raise Error("Unexpected input type. Expected string of list, got {}".format(type(argv_input)))
+        inputs = [get_node_name_with_port_from_input_value(input_value) for input_value in split_inputs(argv_input)]
     else:
         inputs = []
         if type(mean_values) is dict:

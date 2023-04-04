@@ -739,7 +739,7 @@ def python_api_params_parsing(argv: argparse.Namespace):
                                                      "Please either set names for all inputs, " \
                                                      "or do not set names for all inputs."
     argv.inputs_list = input_names_list
-    argv.input = input_names_list
+    argv.input = ','.join(input_names_list)
 
     # Parse input_shape param and update InputCutInfo list
     input_shape_to_input_cut_info(argv.input_shape, inputs)
