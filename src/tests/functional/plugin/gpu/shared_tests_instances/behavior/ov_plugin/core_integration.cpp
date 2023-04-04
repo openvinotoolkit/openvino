@@ -320,8 +320,6 @@ TEST_P(OVClassGetPropertyTest_GPU, GetAndSetPerformanceModeNoThrow) {
 
     std::cout << "Default PERFORMANCE_HINT: \"" << defaultMode << "\"" << std::endl;
 
-    ie.set_property(target_device, ov::hint::performance_mode(ov::hint::PerformanceMode::UNDEFINED));
-    ASSERT_EQ(ov::hint::PerformanceMode::UNDEFINED, ie.get_property(target_device, ov::hint::performance_mode));
     ie.set_property(target_device, ov::hint::performance_mode(ov::hint::PerformanceMode::LATENCY));
     ASSERT_EQ(ov::hint::PerformanceMode::LATENCY, ie.get_property(target_device, ov::hint::performance_mode));
     ie.set_property(target_device, ov::hint::performance_mode(ov::hint::PerformanceMode::THROUGHPUT));
@@ -350,13 +348,13 @@ TEST_P(OVClassGetPropertyTest_GPU, GetAndSetInferencePrecisionNoThrow) {
     auto value = ov::element::undefined;
     const auto expected_default_precision = ov::element::f16;
 
-    OV_ASSERT_NO_THROW(value = ie.get_property(target_device, ov::inference_precision));
+    OV_ASSERT_NO_THROW(value = ie.get_property(target_device, ov::hint::inference_precision));
     ASSERT_EQ(expected_default_precision, value);
 
     const auto forced_precision = ov::element::f32;
 
-    OV_ASSERT_NO_THROW(ie.set_property(target_device, ov::inference_precision(forced_precision)));
-    OV_ASSERT_NO_THROW(value = ie.get_property(target_device, ov::inference_precision));
+    OV_ASSERT_NO_THROW(ie.set_property(target_device, ov::hint::inference_precision(forced_precision)));
+    OV_ASSERT_NO_THROW(value = ie.get_property(target_device, ov::hint::inference_precision));
     ASSERT_EQ(value, forced_precision);
 
     OPENVINO_SUPPRESS_DEPRECATED_START
@@ -728,7 +726,7 @@ auto gpuCorrectConfigsWithSecondaryProperties = []() {
     return std::vector<ov::AnyMap>{
         {ov::device::properties(CommonTestUtils::DEVICE_GPU,
                                 ov::hint::execution_mode(ov::hint::ExecutionMode::PERFORMANCE),
-                                ov::inference_precision(ov::element::f32))},
+                                ov::hint::inference_precision(ov::element::f32))},
         {ov::device::properties(CommonTestUtils::DEVICE_GPU,
                                 ov::hint::performance_mode(ov::hint::PerformanceMode::THROUGHPUT),
                                 ov::hint::allow_auto_batching(false))},
@@ -821,7 +819,7 @@ TEST_P(OVClassGetMetricTest_CACHING_PROPERTIES, GetMetricAndPrintNoThrow) {
         ov::device::architecture.name(),
         ov::intel_gpu::execution_units_count.name(),
         ov::intel_gpu::driver_version.name(),
-        ov::inference_precision.name(),
+        ov::hint::inference_precision.name(),
         ov::hint::execution_mode.name(),
     };
 
