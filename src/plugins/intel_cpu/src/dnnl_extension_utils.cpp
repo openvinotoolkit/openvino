@@ -3,12 +3,15 @@
 //
 
 #include "dnnl_extension_utils.h"
+
 #include "utils/general_utils.h"
-#include <vector>
+#include <oneapi/dnnl/dnnl.hpp>
 #include "memory_desc/dnnl_blocked_memory_desc.h"
 #include "onednn/iml_type_mapper.h"
 #include <common/primitive_desc.hpp>
 #include <common/primitive_desc_iface.hpp>
+
+#include <vector>
 
 using namespace dnnl;
 
@@ -176,7 +179,7 @@ std::string DnnlExtensionUtils::query_impl_info_str(const const_dnnl_primitive_d
     return std::string(res);
 }
 
-bool DnnlExtensionUtils::hasProperImplementationType(dnnl::primitive_desc& desc, impl_desc_type implType) {
+bool DnnlExtensionUtils::find_implementation(dnnl::primitive_desc& desc, impl_desc_type implType) {
     primitive_desc_iterator& itpd = desc;
 
     while (itpd) {

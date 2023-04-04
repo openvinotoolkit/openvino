@@ -171,8 +171,7 @@ void SoftMax::prepareParams() {
     auto engine = getEngine();
 
     auto builder = [&engine](const SoftmaxKey& key) -> executorPtr {
-        softmax_forward::primitive_desc prim_desc;
-        auto desc = std::make_shared<softmax_forward::primitive_desc>(
+        auto prim_desc = softmax_forward::primitive_desc(
             engine,
             prop_kind::forward_inference,
             algorithm::softmax_accurate,
@@ -182,7 +181,7 @@ void SoftMax::prepareParams() {
             key.attr,
             true);
 
-        primitive_desc_iterator itpd = *desc;
+        primitive_desc_iterator itpd = prim_desc;
 
         auto itpd_first = itpd;
         while (itpd) {
