@@ -220,6 +220,7 @@ class TestReduceL1L2(OnnxRuntimeLayerTest):
     @pytest.mark.parametrize("keep_dims", [True, False])
     @pytest.mark.parametrize("reduce_p", [1, 2])
     @pytest.mark.precommit
+    @pytest.mark.skip(reason='ONNX Runtime error: Error Unrecognized attribute: axes for operator ReduceL1/ReduceL2, ticket: 107652')
     def test_reduce_lp_precommit(self, params, keep_dims, reduce_p, ie_device, precision,
                                  ir_version, temp_dir, use_old_api):
         self._test(*self.create_reduce_lp(**params, keep_dims=keep_dims, reduce_p=reduce_p,
@@ -230,6 +231,7 @@ class TestReduceL1L2(OnnxRuntimeLayerTest):
     @pytest.mark.parametrize("keep_dims", [True, False])
     @pytest.mark.parametrize("reduce_p", [1, 2])
     @pytest.mark.nightly
+    @pytest.mark.skip(reason='ONNX Runtime error: Error Unrecognized attribute: axes for operator ReduceL1/ReduceL2, ticket: 107652')
     def test_reduce_lp(self, params, keep_dims, reduce_p, ie_device, precision, ir_version,
                        temp_dir, use_old_api):
         if ie_device == 'GPU':
@@ -242,6 +244,7 @@ class TestReduceL1L2(OnnxRuntimeLayerTest):
     @pytest.mark.parametrize("keep_dims", [True, False])
     @pytest.mark.parametrize("reduce_p", [1, 2])
     @pytest.mark.precommit
+    @pytest.mark.skip(reason='ONNX Runtime error: Error Unrecognized attribute: axes for operator ReduceL1/ReduceL2, ticket: 107652')
     def test_reduce_lp_const_precommit(self, params, keep_dims, reduce_p, ie_device, precision,
                                        ir_version, temp_dir, use_old_api):
         self._test(
