@@ -51,7 +51,7 @@ class Unique(Op):
 
     @staticmethod
     def infer(node: Node):
-        version = node["version"]
+        version = node.soft_get("version", "experimental")
         if version == "opset10":
             Unique.infer_10(node)
         else:
