@@ -66,7 +66,23 @@ struct broadcast_impl : typed_primitive_impl_ocl<broadcast> {
             if (use_new_shape_infer) {
                 input_pshape = extend_shape_to_rank_from_begin(input_pshape, output_rank);
             } else {
-                input_pshape = extend_shape_to_rank_from_end(input_pshape, output_rank);
+                auto broadcastable = [&](layout a, layout b) {
+                    auto dims_a = a.get_dims();
+                    auto dims_b = b.get_dims();
+                    size_t min_size = (dims_a.size() < dims_b.size()) ? dims_a.size(): dims_b.size();
+
+                    for (size_t i = 0; i < min_size; i++) {
+                        if (!(dims_a[i] == 1 || dims_b[i] == 1 || dims_a[i] == dims_b[i])) {
+                            return false;
+                        }
+                    }
+                    return true;
+                };
+                if (!broadcastable(i_layout, o_layout)) {
+                    input_pshape = extend_shape_to_rank_from_begin(input_pshape, output_rank);
+                } else {
+                    input_pshape = extend_shape_to_rank_from_end(input_pshape, output_rank);
+                }
             }
         } else {
             if (i_layout.is_static() && o_layout.is_static()) {

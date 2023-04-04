@@ -507,8 +507,8 @@ TEST_P(fc_fp16_eltwise_add_dynamic, basic) {
 }
 
 INSTANTIATE_TEST_SUITE_P(fusings_gpu, fc_fp16_eltwise_add_dynamic, ::testing::ValuesIn(std::vector<fully_connected_test_params>{
-    fully_connected_test_params{ CASE_FC_FP16_3, 2, 3, "fully_connected_gpu_bfyx_ref" },
-    fully_connected_test_params{ CASE_FC_FP16_4, 2, 3, "fully_connected_gpu_bfyx_ref" },
+    fully_connected_test_params{ CASE_FC_FP16_3, 2, 3 },
+    fully_connected_test_params{ CASE_FC_FP16_4, 2, 3 },
 }));
 
 class fc_fp16_eltwise_sub : public FullyConnectedFusingTestOneDNN {};
