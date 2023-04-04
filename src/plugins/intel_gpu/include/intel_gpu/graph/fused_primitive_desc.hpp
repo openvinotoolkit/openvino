@@ -120,6 +120,8 @@ struct fused_primitive_desc_onednn {
     size_t mem_dep;              // memory dependency for working with fused node
     dnnl::memory::format_tag tag;
     bool flatten;
+    dnnl::memory::dims dims;
+    dnnl::memory::data_type dt;
 };
 #endif // ENABLE_ONEDNN_FOR_GPU
 } // namespace cldnn
