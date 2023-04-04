@@ -34,7 +34,12 @@ def moc_pipeline(argv: argparse.Namespace, moc_front_end: FrontEnd):
         raise Exception("ONNX frontend does not support input model as BytesIO object. "
                         "Please use use_legacy_frontend=True to convert the model.")
     else:
-        input_model = moc_front_end.load(argv.input_model)
+        if argv.input_model:
+            input_model = moc_front_end.load(argv.input_model)
+        elif argv.saved_model_dir:
+            input_model = moc_front_end.load(argv.saved_model_dir)
+        elif argv.input_meta_graph:
+            input_model = moc_front_end.load(argv.input_meta_graph)
 
     argv.placeholder_shapes, argv.placeholder_data_types, argv.freeze_placeholder_with_value = convert_params_lists_to_dicts(
         input_model, argv.placeholder_shapes, argv.placeholder_data_types,

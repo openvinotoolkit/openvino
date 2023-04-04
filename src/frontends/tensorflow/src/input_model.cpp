@@ -402,6 +402,35 @@ ov::frontend::Place::Ptr InputModel::InputModelTFImpl::get_place_by_tensor_name(
     size_t port_idx;
     std::string port_type;
     tensorflow::extract_operation_name_and_port(tensorName, operation_name, port_idx, port_type);
+
+    if (m_saved_model_input_names.get()) {
+        for (const auto& alt_name : *m_saved_model_input_names) {
+            if (alt_name.second == operation_name) {
+                auto pos = alt_name.first.find_first_of(':');
+                if (pos != std::string::npos) {
+                    operation_name = alt_name.first.substr(0, pos);
+                } else {
+                    operation_name = alt_name.first;
+                }
+                break;
+            }
+        }
+    }
+
+    if (m_saved_model_output_names.get()) {
+        for (const auto& alt_name : *m_saved_model_output_names) {
+            if (alt_name.second == operation_name) {
+                auto pos = alt_name.first.find_first_of(':');
+                if (pos != std::string::npos) {
+                    operation_name = alt_name.first.substr(0, pos);
+                } else {
+                    operation_name = alt_name.first;
+                }
+                break;
+            }
+        }
+    }
+
     if (m_op_places_map.find(operation_name) != m_op_places_map.end()) {
         // new Tensor places must be constructed of dynamic rank and type
         std::vector<std::string> names = {tensorName};
