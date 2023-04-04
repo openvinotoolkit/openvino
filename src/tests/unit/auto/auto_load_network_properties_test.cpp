@@ -303,12 +303,15 @@ TEST_P(AutoLoadExeNetworkFailedTest, checkLoadFailMassage) {
     } else if (device == "AUTO:GPU") {
         EXPECT_THROW_WITH_MESSAGE(plugin->LoadExeNetworkImpl(simpleCnnNetwork, config), InferenceEngine::Exception,
                                 "[AUTO] Load network failed, GPU:Mock GPU Load Failed");
-    } else if (device == "MULTI" || device == "MULTI:GPU") {
+    } else if (device == "MULTI") {
         EXPECT_THROW_WITH_MESSAGE(plugin->LoadExeNetworkImpl(simpleCnnNetwork, config), InferenceEngine::Exception,
-                                "Failed to load network to device: GPU with error:Mock GPU Load Failed");
+                                "[MULTI] Load network failed, GPU:Mock GPU Load Failed; CPU:Mock CPU Load Failed");
     } else if (device == "MULTI:CPU") {
         EXPECT_THROW_WITH_MESSAGE(plugin->LoadExeNetworkImpl(simpleCnnNetwork, config), InferenceEngine::Exception,
-                                "Failed to load network to device: CPU with error:Mock CPU Load Failed");
+                                "[MULTI] Load network failed, CPU:Mock CPU Load Failed");
+    } else if (device == "MULTI:GPU") {
+        EXPECT_THROW_WITH_MESSAGE(plugin->LoadExeNetworkImpl(simpleCnnNetwork, config), InferenceEngine::Exception,
+                                "[MULTI] Load network failed, GPU:Mock GPU Load Failed");
     }
 }
 

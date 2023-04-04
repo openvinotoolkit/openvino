@@ -658,6 +658,9 @@ SoExecNetwork AutoSchedule::WaitFirstNetworkReady() {
                     execNetwork = _pCTPUTLoadContext[i].executableNetwork;
                 }
                 nLoadSucNums++;
+            } else {
+                result << _pCTPUTLoadContext[i].errMessage.c_str();
+                result << "; ";
             }
         }
         // one or more devices loaded successfully
