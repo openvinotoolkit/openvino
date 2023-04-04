@@ -156,6 +156,8 @@ class OperatorSupport(OperatorSupport):
             "torch.ops.aten.add_.Tensor": None,
             "torch.ops.aten.mean.dim": None,
             "torch.ops.aten.view.default": None,
+            "torch.ops.aten.sigmoid.default": None,
+            "torch.ops.aten.silu_.default": None,
         }
 
         super().__init__(support_dict)
