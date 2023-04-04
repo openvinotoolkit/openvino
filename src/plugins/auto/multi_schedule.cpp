@@ -244,7 +244,17 @@ MultiSchedule::~MultiSchedule() {
             IE_ASSERT(count == reqAllEndTimes.size());
             reqAllStartTimes.sort(std::less<Time>());
             reqAllEndTimes.sort(std::less<Time>());
-            if (_workerRequest.first != "CPU_HELP") {
+            if (_workerRequest.first == "CPU_HELP") {
+                if (_cpuHelpFps > 0.0) {
+                    LOG_INFO_TAG("CPU_HELP:infer:%ld", _cpuHelpInferCount);
+                    LOG_INFO_TAG("CPU_HELP:fps:%lf", _cpuHelpFps);
+                } else if (count >= 1) {
+                    std::chrono::duration<double, std::milli> durtation =
+                        reqAllEndTimes.back() - reqAllStartTimes.front();
+                    LOG_INFO_TAG("CPU_HELP:infer:%ld", count);
+                    LOG_INFO_TAG("CPU_HELP:fps:%lf", count * 1000 / durtation.count());
+                }
+            } else {
                 LOG_INFO_TAG("%s:infer:%ld", _workerRequest.first.c_str(), count);
                 auto n = reqAllStartTimes.size();
                 Time time;
