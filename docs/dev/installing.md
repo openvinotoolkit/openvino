@@ -186,7 +186,7 @@ Windows:
 cd  %USERPROFILE%\Documents\Intel\OpenVINO\openvino_cpp_samples_build\<architecture>\Release
 .\classification_sample_async.exe -i %USERPROFILE%\Downloads\dog.bmp -m %USERPROFILE%\Documents\ir\googlenet-v1.xml -d CPU
 ```
-where the <architecture> is the output of ``uname -m``, for example, ``intel64``, ``armhf``, or ``aarch64``.
+where the <architecture> is either ``intel64`` or ``aarch64`` depending on the platform architecture.
 
 When the sample application is complete, you see the label and confidence data for the top 10 categories on the display:
 
