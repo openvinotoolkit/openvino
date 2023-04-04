@@ -91,7 +91,7 @@ is a separate loader for each supported framework. These loaders are implemented
 ``extensions/load/<FRAMEWORK>/loader.py`` files of Model Optimizer.
 
 .. note:: 
-   Model Optimizer uses a special parser for Caffe models built on top of the ``caffe.proto`` file. In the case of a model loading failure, Model Optimizer throws an error and requests preparation of the parser that can read the model. For more information on how to prepare the custom Caffe parser, refer to the :ref:`question #1 <mo_question_1>` in the :doc:`Model Optimizer FAQ <openvino_docs_MO_DG_prepare_model_Model_Optimizer_FAQ>`.
+   Model Optimizer uses a special parser for Caffe models built on top of the ``caffe.proto`` file. In the case of a model loading failure, Model Optimizer throws an error and requests preparation of the parser that can read the model. For more information on how to prepare the custom Caffe parser, refer to the :ref:`question #1 <question-1>` in the :doc:`Model Optimizer FAQ <openvino_docs_MO_DG_prepare_model_Model_Optimizer_FAQ>`.
 
 The result of a model loading step is a ``Graph`` object, which can be depicted like in the following example:
 
