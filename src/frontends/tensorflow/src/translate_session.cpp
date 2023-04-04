@@ -45,13 +45,27 @@ std::vector<T> reorder_ops_by_names(const std::vector<std::string>& names, const
 /// \returns True if node was updated, false otherwise
 static bool apply_saved_model_names(std::shared_ptr<ov::Node> node,
                                     const std::shared_ptr<std::map<std::string, std::string>>& saved_model_names) {
-    for (size_t i = 0; i < node->get_output_size(); ++i) {
-        const auto& node_names = node->get_output_tensor(i).get_names();
-        for (const auto& name : node_names) {
-            const auto& saved_model_name = saved_model_names->find(name);
-            if (saved_model_name != saved_model_names->end()) {
-                set_node_name(saved_model_name->second, node);
-                return true;
+    if (std::dynamic_pointer_cast<ov::opset8::Parameter>(node)) {
+        for (size_t i = 0; i < node->get_output_size(); ++i) {
+            const auto& node_names = node->get_output_tensor(i).get_names();
+            for (const auto& name : node_names) {
+                const auto& saved_model_name = saved_model_names->find(name);
+                if (saved_model_name != saved_model_names->end()) {
+                    set_node_name(saved_model_name->second, node);
+                    return true;
+                }
+            }
+        }
+    } else if (std::dynamic_pointer_cast<ov::opset10::Result>(node)) {
+        for (size_t i = 0; i < node->get_input_size(); ++i) {
+            const auto& node_names = node->get_input_tensor(i).get_names();
+            for (const auto& name : node_names) {
+                const auto& saved_model_name = saved_model_names->find(name);
+                if (saved_model_name != saved_model_names->end()) {
+                    node->set_friendly_name(saved_model_name->second);
+                    node->get_input_tensor(i).add_names({saved_model_name->second});
+                    return true;
+                }
             }
         }
     }
@@ -179,11 +193,6 @@ void TranslateSession::translate_graph(const ov::frontend::InputModel::Ptr& inpu
 
         auto param = std::make_shared<ov::opset8::Parameter>(input_type, input_shape);
         set_node_name(input_name, param);
-        if (saved_model_inputs.get() && saved_model_inputs->size() > 0) {
-            if (!apply_saved_model_names(param, saved_model_inputs)) {
-                param->get_output_tensor(0).add_names({"saved_model_unused"});
-            }
-        }
         params.push_back(param);
         ng_op_map[input_name] = {NamedOutput(param)};
     }
@@ -348,31 +357,10 @@ void TranslateSession::translate_graph(const ov::frontend::InputModel::Ptr& inpu
             if (port_type == "none") {
                 for (const auto& node_output : indexed_from_named(ng_op_map[operation_name])) {
                     auto result_node = std::make_shared<ov::opset8::Result>(node_output);
-                    // Customize output name in case we have mapping from Saved Model format
-                    if (saved_model_outputs.get() && saved_model_outputs->size() > 0) {
-                        bool isUsed = true;
-                        for (const auto& name : model_output_tensor_place->get_names()) {
-                            auto saved_model_name = saved_model_outputs->find(name);
-                            if (saved_model_name == saved_model_outputs->end()) {
-                                saved_model_name = saved_model_outputs->find(name + ":0");
-                            }
-                            if (saved_model_name != saved_model_outputs->end()) {
-                                result_node->set_friendly_name(saved_model_name->second);
-                                results.push_back(result_node);
-                                result_node->get_input_tensor(0).add_names({saved_model_name->second});
-                                isUsed = false;
-                                break;
-                            }
-                            if (!isUsed) {
-                                result_node->get_input_tensor(0).add_names({"saved_model_unused"});
-                            }
-                        }
-                    } else {
-                        // to be aligned with Legacy Frontend we set a name along with output port index
-                        // though, the Result name is not used in the OV API 2.0 but it is checked in MO args tests
-                        result_node->set_friendly_name(model_output_name + ":0");
-                        results.push_back(result_node);
-                    }
+                    // to be aligned with Legacy Frontend we set a name along with output port index
+                    // though, the Result name is not used in the OV API 2.0 but it is checked in MO args tests
+                    result_node->set_friendly_name(model_output_name + ":0");
+                    results.push_back(result_node);
                 }
             } else if (port_type == "out") {
                 const auto& node_outputs = indexed_from_named(ng_op_map[operation_name]);
@@ -445,6 +433,22 @@ void TranslateSession::translate_graph(const ov::frontend::InputModel::Ptr& inpu
         }
     }
 
+    if (saved_model_inputs.get() && saved_model_inputs->size() > 0) {
+        for (auto param : params) {
+            if (!apply_saved_model_names(param, saved_model_inputs)) {
+                param->get_output_tensor(0).add_names({"saved_model_unused"});
+            }
+        }
+    }
+
+    if (saved_model_outputs.get() && saved_model_outputs->size() > 0) {
+        for (auto result : results) {
+            if (!apply_saved_model_names(result, saved_model_outputs)) {
+                result->get_input_tensor(0).add_names({"saved_model_unused"});
+            }
+        }
+    }
+
     // reorder Parameter and Result nodes according to the requested order
     // of input and output names from the original model
     // during translation and topologically sorting this order could be lost
@@ -456,7 +460,7 @@ void TranslateSession::translate_graph(const ov::frontend::InputModel::Ptr& inpu
     ov_model = std::make_shared<ov::Model>(ordered_results, ordered_params, m_model_name);
 }
 
-std::shared_ptr<ov::Model> TranslateSession::get_body_ov_model(const std::string& body_graph_name) {
+std::shared_ptr<ov::Model> TranslateSession::get_body_ov_model(const std::string& body_graph_name, bool clear_names) {
     std::shared_ptr<ov::Model> body_model = nullptr;
     auto input_model = std::dynamic_pointer_cast<InputModel>(m_input_model);
     if (m_cached_body_models->count(body_graph_name)) {
@@ -475,9 +479,11 @@ std::shared_ptr<ov::Model> TranslateSession::get_body_ov_model(const std::string
 
         // before caching, erase tensor names from the body graph
         // otherwise, it can lead tensor names conflicts
-        for (const auto& op : body_model->get_ordered_ops()) {
-            for (size_t ind = 0; ind < op->get_output_size(); ++ind) {
-                op->get_output_tensor(ind).set_names({});
+        if (clear_names) {
+            for (const auto& op : body_model->get_ordered_ops()) {
+                for (size_t ind = 0; ind < op->get_output_size(); ++ind) {
+                    op->get_output_tensor(ind).set_names({});
+                }
             }
         }
 
