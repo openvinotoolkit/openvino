@@ -77,7 +77,8 @@ struct CPUStreamsExecutor::Impl {
                                                           _impl->_usedNumaNodes.size()))
                               : _impl->_usedNumaNodes.at(_streamId % _impl->_usedNumaNodes.size());
 #if OV_THREAD == OV_THREAD_TBB || OV_THREAD == OV_THREAD_TBB_AUTO
-            if (is_cpu_map_available()) {
+            if (is_cpu_map_available() &&
+                (_impl->_config._threads_per_stream_big + _impl->_config._threads_per_stream_small > 0)) {
                 init_stream();
             } else {
                 init_stream_legacy();
@@ -145,12 +146,11 @@ struct CPUStreamsExecutor::Impl {
             std::cout << "init_stream------stream_id:" << stream_id << " concurrency:" << concurrency
                       << " _numaNodeId:" << _numaNodeId
                       << " BindingType:" << std::to_string(_impl->_config._threadBindingType) << "\n";
-            std::cout << "any_cores: " << _impl->any_cores << std::endl;
             if (concurrency > 0 && (ThreadBindingType::CORES == _impl->_config._threadBindingType ||
                                     ThreadBindingType::NONE == _impl->_config._threadBindingType || _impl->any_cores ||
                                     _streamId >= _impl->_config._streams)) {
                 _taskArena.reset(new custom::task_arena{concurrency});
-            } else if (concurrency > 0 && ThreadBindingType::NUMA == _impl->_config._threadBindingType) {
+            } else if (ThreadBindingType::NUMA == _impl->_config._threadBindingType) {
                 _taskArena.reset(new custom::task_arena{custom::task_arena::constraints{_numaNodeId, concurrency}});
             } else if (ThreadBindingType::HYBRID_AWARE == _impl->_config._threadBindingType) {
                 const auto selected_core_type =
@@ -379,21 +379,6 @@ struct CPUStreamsExecutor::Impl {
                 // (notice that the map keeps the elements in the descending order, so the big cores are populated
                 // first)
                 total_streams_on_core_types.push_back({type, sum});
-            }
-        }
-        if (!any_cores && _config._streams > 0 && _config._big_core_streams == 0 && _config._small_core_streams == 0) {
-            if (_config._threadPreferredCoreType == Config::PreferredCoreType::LITTLE) {
-                _config._small_core_streams = _config._streams;
-                _config._threads_per_stream_small =
-                    _config._threadsPerStream > 0
-                        ? _config._threadsPerStream
-                        : (_config._threads == 0 ? _config._streams : _config._threads / _config._streams);
-            } else {
-                _config._big_core_streams = _config._streams;
-                _config._threads_per_stream_big =
-                    _config._threadsPerStream > 0
-                        ? _config._threadsPerStream
-                        : (_config._threads == 0 ? _config._streams : _config._threads / _config._streams);
             }
         }
 #endif
