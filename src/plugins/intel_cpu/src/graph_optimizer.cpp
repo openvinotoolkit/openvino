@@ -12,6 +12,7 @@
 #include "nodes/reorder.h"
 #include "nodes/conv.h"
 #include "nodes/deconv.h"
+#include "nodes/fullyconnected.h"
 #include "nodes/bin_conv.h"
 #include "nodes/fake_quantize.h"
 #include "nodes/mvn.h"
@@ -216,9 +217,13 @@ void GraphOptimizer::FuseConvMatmulFCDeconvAndDQScales(Graph &graph) {
             return false;
         if (!node->getFusedWith().empty() || !scales->getFusedWith().empty())
             return false;
-        if (node->getParentEdges().size() != 2)
-            return false;
-
+        const auto parentNodeInputEdges = node->getParentEdges().size();
+        if (parentNodeInputEdges != 2) {
+            auto fcNode = std::dynamic_pointer_cast<FullyConnected>(node);
+            //Consider  bias has been fused into FC in transformation phase.
+            if (!(parentNodeInputEdges == 3 && fcNode && fcNode->withBiasFused()))
+                return false;
+        }
         auto scalesDims = scales->getOutputShapeAtPort(0).getDims();
         if (scalesDims.size() > 1) {
             if (scalesDims[0] != 1 || !dimsEqualStrong(scalesDims[1], OC))
