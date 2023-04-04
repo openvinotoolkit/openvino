@@ -7,7 +7,7 @@ import os
 import sys
 import platform
 import subprocess # nosec
-
+from openvino.tools.mo.utils.version import get_version, simplify_version, get_simplified_ie_version
 lib_env_key = "PATH" if platform.system() == "Windows" else "LD_LIBRARY_PATH"
 if lib_env_key not in os.environ:
     os.environ[lib_env_key] = ""
@@ -18,6 +18,26 @@ if python_path_key not in os.environ:
 
 lib_path_orig = os.environ[lib_env_key]
 python_path_orig = os.environ[python_path_key]
+
+
+class SingletonMetaClass(type):
+    def __init__(self, cls_name, super_classes, dic):
+        self.__single_instance = None
+        super().__init__(cls_name, super_classes, dic)
+
+    def __call__(cls, *args, **kwargs):
+        if cls.__single_instance is None:
+            cls.__single_instance = super(SingletonMetaClass, cls).__call__(*args, **kwargs)
+        return cls.__single_instance
+
+
+class VersionChecker(metaclass=SingletonMetaClass):
+    def __init__(self, silent=True):
+        if not find_ie_version(silent=silent):
+            exit(1)
+        self.mo_version = get_version()
+        self.mo_simplified_version = simplify_version(self.mo_version)
+        self.ie_simplified_version = get_simplified_ie_version(env=os.environ)
 
 
 def setup_env(module="", libs=[]):
