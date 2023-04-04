@@ -5,6 +5,7 @@
 #pragma once
 
 #include <fstream>
+#include <vector>
 
 #include "decoder_argdef.hpp"
 #include "decoder_proto.hpp"
@@ -18,6 +19,7 @@ namespace frontend {
 namespace tensorflow {
 
 class GraphIteratorProto : public GraphIterator {
+protected:
     std::shared_ptr<::tensorflow::GraphDef> m_graph_def;
     std::shared_ptr<::tensorflow::FunctionDef> m_func_def;
 
@@ -26,6 +28,29 @@ class GraphIteratorProto : public GraphIterator {
     std::unordered_map<std::string, int> m_library_map;
     std::vector<std::string> m_input_names;
     std::vector<std::string> m_output_names;
+
+    GraphIteratorProto()
+        : m_graph_def(std::make_shared<::tensorflow::GraphDef>()),
+          m_func_def(nullptr),
+          m_library_map() {}
+
+    void initialize_decoders_and_library() {
+        FRONT_END_GENERAL_CHECK(m_graph_def, "GraphDef is not initialized.");
+
+        auto nodes_size = m_graph_def->node_size();
+        m_decoders.resize(static_cast<size_t>(nodes_size));
+        for (int node_ind = 0; node_ind < nodes_size; ++node_ind) {
+            m_decoders[node_ind] = std::make_shared<DecoderProto>(&m_graph_def->node(node_ind), m_graph_def);
+        }
+
+        // initialize a library map
+        auto num_funcs = m_graph_def->library().function_size();
+        for (int func_ind = 0; func_ind < num_funcs; ++func_ind) {
+            auto func = m_graph_def->library().function(func_ind);
+            auto func_name = func.signature().name();
+            m_library_map.insert(std::pair<std::string, int>(func_name, func_ind));
+        }
+    }
 
 public:
     GraphIteratorProto(const std::shared_ptr<::tensorflow::GraphDef>& graph_def,
@@ -75,19 +100,7 @@ public:
         FRONT_END_GENERAL_CHECK(pb_stream && pb_stream.is_open(), "Model file does not exist");
         FRONT_END_GENERAL_CHECK(m_graph_def->ParseFromIstream(&pb_stream), "Model cannot be parsed");
 
-        auto nodes_size = m_graph_def->node_size();
-        m_decoders.resize(static_cast<size_t>(nodes_size));
-        for (int node_ind = 0; node_ind < nodes_size; ++node_ind) {
-            m_decoders[node_ind] = std::make_shared<DecoderProto>(&m_graph_def->node(node_ind), m_graph_def);
-        }
-
-        // initialize a library map
-        auto num_funcs = m_graph_def->library().function_size();
-        for (int func_ind = 0; func_ind < num_funcs; ++func_ind) {
-            auto func = m_graph_def->library().function(func_ind);
-            auto func_name = func.signature().name();
-            m_library_map.insert(std::pair<std::string, int>(func_name, func_ind));
-        }
+        initialize_decoders_and_library();
     }
 
     /// \brief Check if the input file is supported
@@ -150,6 +163,7 @@ public:
         return m_output_names;
     }
 };
+
 }  // namespace tensorflow
 }  // namespace frontend
 }  // namespace ov

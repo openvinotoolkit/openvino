@@ -120,11 +120,33 @@ OPENVINO_C_VAR(const char*)
 ov_property_key_inference_num_threads;
 
 /**
+ * @brief Read-write property, it is high-level OpenVINO hint for using CPU pinning to bind CPU threads to processors
+ * during inference
+ * @ingroup ov_property_c_api
+ */
+OPENVINO_C_VAR(const char*)
+ov_property_key_hint_use_cpu_pinning;
+
+/**
+ * @brief Read-write property, it is high-level OpenVINO hint for using hyper threading processors during CPU inference
+ * @ingroup ov_property_c_api
+ */
+OPENVINO_C_VAR(const char*)
+ov_property_key_hint_use_hyper_threading;
+
+/**
  * @brief Read-write property, it is high-level OpenVINO Performance Hints
  * @ingroup ov_property_c_api
  */
 OPENVINO_C_VAR(const char*)
 ov_property_key_hint_performance_mode;
+
+/**
+ * @brief Read-write property, it is high-level OpenVINO Hints for the type of CPU core used during inference
+ * @ingroup ov_property_c_api
+ */
+OPENVINO_C_VAR(const char*)
+ov_property_key_hint_scheduling_core_type;
 
 /**
  * @brief Read-write property<ov_element_type_e> to set the hint for device to use specified precision for inference.
@@ -178,7 +200,6 @@ ov_property_key_device_priorities;
  * and turns into device-specific settings
  * Execution mode hint controls preferred optimization targets (performance or accuracy) for given model
  * It can be set to be below value:
- *   "UNDEFINED"     //!<  Undefined value, settings may vary from device to device
  *   "PERFORMANCE",  //!<  Optimize for max performance
  *   "ACCURACY",     //!<  Optimize for max accuracy
  * @ingroup ov_property_c_api

@@ -71,6 +71,8 @@
 #include "transformations/op_conversions/softsign_decomposition.hpp"
 #include "transformations/op_conversions/softmax_decomposition.hpp"
 #include "transformations/op_conversions/unique_decomposition.hpp"
+#include "transformations/op_conversions/convert_topk3.hpp"
+#include "transformations/op_conversions/convert_topk11_downgrade.hpp"
 #include "transformations/opset_conversions/convert_opset2_to_opset1.hpp"
 #include "transformations/opset_conversions/convert_opset3_to_opset2.hpp"
 #include "transformations/smart_reshape/matmul_sr.hpp"
@@ -358,23 +360,14 @@ void Transformations::PreLpt(const std::vector<ov::element::Type>& defaultPrecis
                 return node->input_value(0).get_partial_shape().rank().get_length() <= 5;
             });
 
-    if (!isLegacyApi) {
-        auto nmsCallback = [](const_node_ptr &node) -> bool {
-            for (size_t i = 0; i < node->get_output_size(); i++) {
-                const auto outputs = node->get_output_target_inputs(i);
-                for (const auto &out : outputs) {
-                    if (!ov::op::util::is_output(out.get_node())) {
-                        return false;
-                    }
-                }
-            }
-            return true;
-        };
-
-        pass_config->set_callback<ov::pass::ConvertNMS9ToNMSIEInternal>(nmsCallback);
-        pass_config->set_callback<ov::pass::ConvertMulticlassNmsToMulticlassNmsIE>(nmsCallback);
-        pass_config->set_callback<ov::pass::ConvertMatrixNmsToMatrixNmsIE>(nmsCallback);
-    }
+    // NMS-alike nodes are always transformed to NMSIEInternal node in case of legacy api, for compatibility.
+    // And on the other hand in case of api 2.0, keep them internal dynamic for better performance and functionality.
+    auto nmsCallback = [isLegacyApi](const_node_ptr &node) -> bool {
+        return isLegacyApi ?  false : true;
+    };
+    pass_config->set_callback<ov::pass::ConvertNMS9ToNMSIEInternal>(nmsCallback);
+    pass_config->set_callback<ov::pass::ConvertMulticlassNmsToMulticlassNmsIE>(nmsCallback);
+    pass_config->set_callback<ov::pass::ConvertMatrixNmsToMatrixNmsIE>(nmsCallback);
 
     // List of enabled/disabled transformations
 
@@ -407,6 +400,8 @@ void Transformations::PreLpt(const std::vector<ov::element::Type>& defaultPrecis
     pass_config->disable<ov::pass::ConvertROIAlign9To3>();
     pass_config->disable<ov::pass::SoftSignDecomposition>();
     pass_config->disable<ov::pass::UniqueDecomposition>();
+    pass_config->disable<ov::pass::ConvertTopK3>();
+    pass_config->disable<ov::pass::ConvertTopK11ToTopK3>();
 
     pass_config->enable<ov::pass::NormalizeL2Decomposition>();
     pass_config->enable<ov::pass::ConvertInterpolate1ToInterpolate4>();
@@ -565,7 +560,7 @@ void Transformations::PostLpt() {
 
 void Transformations::MainSnippets(void) {
     if (snippetsMode == Config::SnippetsMode::Disable ||
-        !dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx2)) // snippets are implemeted only for relevant platforms (avx2+ extentions)
+        !dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx2)) // snippets are implemented only for relevant platforms (avx2+ extensions)
         return;
 
     ngraph::pass::Manager snippetsManager;

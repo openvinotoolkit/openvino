@@ -18,7 +18,7 @@ namespace v1 {
 /// \ingroup ov_ops_cpp_api
 class OPENVINO_API StridedSlice : public Op {
 public:
-    OPENVINO_OP("StridedSlice", "opset1", op::Op, 1);
+    OPENVINO_OP("StridedSlice", "opset1", op::Op);
 
     StridedSlice() = default;
 

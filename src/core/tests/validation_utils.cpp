@@ -4,10 +4,11 @@
 
 #include <gtest/gtest.h>
 
-#include <openvino/core/type.hpp>
-#include <openvino/core/validation_util.hpp>
-#include <openvino/opsets/opset8.hpp>
-#include <openvino/util/common_util.hpp>
+#include "openvino/core/type.hpp"
+#include "openvino/core/validation_util.hpp"
+#include "openvino/opsets/opset8.hpp"
+#include "openvino/util/common_util.hpp"
+#include "validation_util.hpp"
 
 TEST(get_constant_from_source, invalidation_check) {
     auto a = ov::opset8::Constant::create(ov::element::i64, {100}, {123});
@@ -61,7 +62,7 @@ TEST(constantfold_subgraph, split) {
     auto axis = ov::opset8::Constant::create(ov::element::i64, ov::Shape{}, {0});
     auto split = std::make_shared<ov::opset8::VariadicSplit>(mul, axis, lenghts);
     std::vector<float> expected(std::next(input.begin(), input.size() / 2), input.end());
-    auto ret = ov::constantfold_subgraph(split->output(1));
+    auto ret = ov::util::constantfold_subgraph(split->output(1));
     ASSERT_NE(ret, nullptr);
     auto actual = ret->cast_vector<float>();
     ASSERT_EQ(expected, actual);

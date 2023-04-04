@@ -49,13 +49,8 @@ FuseTransposeBrgemm::FuseTransposeBrgemm() {
 
     auto callback = [=](pattern::Matcher& m) {
         OV_ITT_SCOPED_TASK(ngraph::pass::itt::domains::SnippetsTransform, "FuseTransposeBrgemm")
-        auto set_layout_from_order = [](const std::shared_ptr<opset1::Transpose>& node, const ov::Output<Node>& port) {
-            const auto& const_order = as_type_ptr<opset1::Constant>(node->get_input_node_shared_ptr(1));
-            std::vector<size_t> layout = const_order->cast_vector<size_t>();
-            auto& rt_info = port.get_node_shared_ptr()->get_rt_info();
-            rt_info["Layout"] = layout;
-        };
         auto brgemm = as_type_ptr<op::Brgemm>(m.get_match_root());
+
         // Transpose on the Brgemm's output
         if (!brgemm) {
             brgemm = as_type_ptr<op::Brgemm>(m.get_match_root()->get_input_node_shared_ptr(0));
@@ -63,13 +58,13 @@ FuseTransposeBrgemm::FuseTransposeBrgemm() {
             const auto& transpose_out = m.get_match_value();
             for (const auto& in : transpose_out.get_target_inputs())
                 in.replace_source_output(brgemm->output(0));
-            set_layout_from_order(as_type_ptr<opset1::Transpose>(transpose_out.get_node_shared_ptr()), brgemm_out);
+            utils::set_transpose_output_layout(brgemm_out, as_type_ptr<opset1::Transpose>(transpose_out.get_node_shared_ptr()));
         }
         for (size_t i = 0; i < brgemm->get_input_size(); i++) {
             const auto& in_value = brgemm->input_value(i);
             if (transpose_matcher->match(in_value)) {
                 const auto& transpose = as_type_ptr<opset1::Transpose>(in_value.get_node_shared_ptr());
-                set_layout_from_order(transpose, transpose->input_value(0));
+                utils::set_transpose_output_layout(transpose->input_value(0), transpose);
                 brgemm->set_argument(i, transpose->input_value(0));
             }
         }
