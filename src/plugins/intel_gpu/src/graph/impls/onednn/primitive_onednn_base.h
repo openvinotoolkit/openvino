@@ -249,11 +249,16 @@ struct typed_primitive_onednn_impl : public typed_primitive_impl<PType> {
                         dnnl::algorithm aalgorithm = dnnl::algorithm::undef;
                         ib >> make_data(&aalgorithm, sizeof(dnnl::algorithm));
 
-                        dnnl::memory::desc md = onednn::layout_to_memory_desc(
-                                                        impl_params->get_input_layout(fused_desc.at(idx).mem_dep),
-                                                        fused_desc.at(idx).tag, fused_desc.at(idx).flatten);
+                        if (fused_desc.at(idx).dims.size() > 0) {
+                            _post_ops.append_binary(aalgorithm,
+                                dnnl::memory::desc(fused_desc.at(idx).dims, fused_desc.at(idx).dt, fused_desc.at(idx).tag));
+                        } else {
+                            dnnl::memory::desc md = onednn::layout_to_memory_desc(
+                                                            impl_params->get_input_layout(fused_desc.at(idx).mem_dep),
+                                                            fused_desc.at(idx).tag, fused_desc.at(idx).flatten);
 
-                        _post_ops.append_binary(aalgorithm, md);
+                            _post_ops.append_binary(aalgorithm, md);
+                        }
                     } else if (_kind == dnnl::primitive::kind::prelu) {
                         int mask;
                         ib >> mask;
