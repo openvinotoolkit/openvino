@@ -1322,7 +1322,7 @@ void network::allocate_primitive_instance(program_node const& node) {
                     return true;
             }
             if (dep.first->can_be_optimized()) {
-                if (is_mutable_input(*dep.first)) {
+                if (is_mutable_input(*dep.first) || dep.first->is_dynamic()) {
                     return true;
                 }
             }

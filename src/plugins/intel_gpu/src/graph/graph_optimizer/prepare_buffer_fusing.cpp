@@ -327,9 +327,6 @@ void prepare_buffer_fusing::run(program& p) {
         bool is_dynamic = node->is_dynamic();
         bool is_planar = format::is_default_format(node->get_output_layout().format);
         bool no_pad = !node->get_output_layout().data_padding && !node->get_input_layouts().empty() && !node->get_input_layouts()[0].data_padding;
-        // The condition below check only output layout as cases like
-        // (dyn_shape) -> reshape -> (static_shape) -> some_static_primitive
-        // may have invalid set_arguments call as output memory of reshape won't be available until reshape primitive is executed
         if (node->is_type<reshape>() && is_dynamic && is_planar && no_pad && !node->is_output() && !node->has_fused_primitives()) {
             return true;
         }
