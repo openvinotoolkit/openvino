@@ -11,10 +11,18 @@ from openvino.tools.mo.graph.graph import Node, Graph
 from openvino.tools.mo.graph.perm_inputs import PermuteInputs
 from openvino.tools.mo.ops.op import Op, PermuteAttrs
 
-
-def infer_for_opset4(node: Node):
-    assert len([p for p in node.in_ports().values() if not p.disconnected()]) in [3, 4], \
-        "Interpolate-4 node {} must have 3 or 4 inputs".format(node.soft_get(node.name, node.id))
+def infer_for_opsetX(node: Node, opset: str):
+    if opset == "opset4":
+        inputs = [3, 4]
+        scales_port = 2
+    elif opset == "opset11":
+        inputs = [2, 3]
+        scales_port = 1
+    else:
+        raise f"Unknown opset {opset}"
+    axes_port = inputs[0]
+    assert len([p for p in node.in_ports().values() if not p.disconnected()]) in inputs, \
+        "Interpolate node {} must have at lease 2 inputs".format(node.soft_get(node.name, node.id))
     assert node.has_valid('mode')
     assert node.has_valid('shape_calculation_mode')
     src_shape = node.in_port(0).data.get_shape()
@@ -27,12 +35,12 @@ def infer_for_opset4(node: Node):
     node['pads_begin'] = pads_begin
     node['pads_end'] = pads_end
 
-    if len(node.in_ports()) == 3:
+    if len(node.in_ports()) == axes_port:
         axes = list(range(0, input_rank))
     else:
-        axes = node.in_port(3).get_source().data.get_value()
+        axes = node.in_port(axes_port).get_source().data.get_value()
         assert axes is not None, \
-            "Interpolate-4 node with name {} has None as 'axes' input".format(node.soft_get('name', node.id))
+            "Interpolate node with name {} has None as 'axes' input".format(node.soft_get('name', node.id))
 
     axes = int64_array(axes)
     output_shape = src_shape + pads_begin + pads_end
@@ -43,7 +51,7 @@ def infer_for_opset4(node: Node):
         for i, axis in enumerate(axes):
             output_shape[axis] = dst_shape[i]
     else:
-        scales = node.in_port(2).data.get_value()
+        scales = node.in_port(scales_port).data.get_value()
         assert scales is not None
         for i, axis in enumerate(axes):
             if output_shape[axis] is not dynamic_dimension and scales[i] is not dynamic_dimension:
@@ -51,8 +59,8 @@ def infer_for_opset4(node: Node):
             else:
                 output_shape[axis] = dynamic_dimension_value
 
-    if node.is_in_port_connected(3):
-        PermuteInputs().set_input_permutation(node.in_node(3), node, 'input:0', 'axis')
+    if node.is_in_port_connected(axes_port):
+        PermuteInputs().set_input_permutation(node.in_node(axes_port), node, 'input:0', 'axis')
 
     node.out_port(0).data.set_shape(output_shape)
 
@@ -105,7 +113,8 @@ class Interpolate(Op):
     enabled = False
     infers = {
         'opset1': infer_for_opset1,
-        'opset4': infer_for_opset4
+        'opset4': lambda node: infer_for_opsetX(node, "opset4"),
+        'opset11': lambda node: infer_for_opsetX(node, "opset11")
     }
 
     def __init__(self, graph: Graph, attrs: dict):
