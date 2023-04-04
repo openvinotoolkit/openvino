@@ -671,7 +671,7 @@ Parameter Plugin::GetMetric(const std::string& name, const std::map<std::string,
         cachingProperties.push_back(ov::PropertyName(ov::device::architecture.name(), PropertyMutability::RO));
         cachingProperties.push_back(ov::PropertyName(ov::intel_gpu::execution_units_count.name(), PropertyMutability::RO));
         cachingProperties.push_back(ov::PropertyName(ov::intel_gpu::driver_version.name(), PropertyMutability::RO));
-        cachingProperties.push_back(ov::PropertyName(ov::inference_precision.name(), PropertyMutability::RW));
+        cachingProperties.push_back(ov::PropertyName(ov::hint::inference_precision.name(), PropertyMutability::RW));
         cachingProperties.push_back(ov::PropertyName(ov::hint::execution_mode.name(), PropertyMutability::RW));
         return decltype(ov::caching_properties)::value_type(cachingProperties);
     } else if (name == ov::intel_gpu::driver_version) {
@@ -730,7 +730,7 @@ std::vector<ov::PropertyName> Plugin::get_supported_properties() const {
         ov::PropertyName{ov::compilation_num_threads.name(), PropertyMutability::RW},
         ov::PropertyName{ov::num_streams.name(), PropertyMutability::RW},
         ov::PropertyName{ov::hint::num_requests.name(), PropertyMutability::RW},
-        ov::PropertyName{ov::inference_precision.name(), PropertyMutability::RW},
+        ov::PropertyName{ov::hint::inference_precision.name(), PropertyMutability::RW},
         ov::PropertyName{ov::device::id.name(), PropertyMutability::RW},
     };
 

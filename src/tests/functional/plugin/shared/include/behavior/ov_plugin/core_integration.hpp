@@ -17,6 +17,7 @@
 #    define GTEST_COUT std::cerr << "[          ] [ INFO ] "
 #    include <codecvt>
 #    include <functional_test_utils/skip_tests_config.hpp>
+#    include "openvino/pass/manager.hpp"
 #endif
 
 namespace ov {
@@ -120,6 +121,9 @@ using OVClassLoadNetworkTest = OVClassQueryNetworkTest;
 using OVClassSetGlobalConfigTest = OVClassBaseTestP;
 using OVClassSetModelPriorityConfigTest = OVClassBaseTestP;
 using OVClassSetExecutionModeHintConfigTest = OVClassBaseTestP;
+using OVClassSetEnableCpuPinningHintConfigTest = OVClassBaseTestP;
+using OVClassSetSchedulingCoreTypeHintConfigTest = OVClassBaseTestP;
+using OVClassSetEnableHyperThreadingHintConfigTest = OVClassBaseTestP;
 using OVClassSetTBBForceTerminatePropertyTest = OVClassBaseTestP;
 using OVClassSetLogLevelConfigTest = OVClassBaseTestP;
 using OVClassSpecificDeviceTestSetConfig = OVClassBaseTestP;
@@ -203,6 +207,185 @@ TEST(OVClassBasicTest, smoke_createMockEngineConfigThrows) {
 }
 
 #ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
+inline void generateModelFile() {
+    ov::pass::Manager manager;
+    manager.register_pass<ov::pass::Serialize>("test_model.xml", "test_model.bin");
+    auto function = ngraph::builder::subgraph::makeConvPoolReluNoReshapes({1, 3, 227, 227});
+    manager.run_passes(function);
+}
+
+TEST(OVClassBasicTest, compile_model_no_property_unicode) {
+    std::string model_xml_name = "test_model.xml";
+    std::string model_bin_name = "test_model.bin";
+    generateModelFile();
+    for (std::size_t testIndex = 0; testIndex < CommonTestUtils::test_unicode_postfix_vector.size(); testIndex++) {
+        std::wstring postfix = L"_" + CommonTestUtils::test_unicode_postfix_vector[testIndex];
+        std::wstring modelXmlPathW = CommonTestUtils::addUnicodePostfixToPath(model_xml_name, postfix);
+        std::wstring modelBinPathW = CommonTestUtils::addUnicodePostfixToPath(model_bin_name, postfix);
+        GTEST_COUT << testIndex << ": " << ::ov::util::wstring_to_string(modelXmlPathW) << std::endl;
+
+        try {
+            bool is_copy_successfully;
+            is_copy_successfully = CommonTestUtils::copyFile(model_xml_name, modelXmlPathW);
+            if (!is_copy_successfully) {
+                FAIL() << "Unable to copy from '" << model_xml_name << "' to '"
+                       << ::ov::util::wstring_to_string(modelXmlPathW) << "'";
+            }
+
+            is_copy_successfully = CommonTestUtils::copyFile(model_bin_name, modelBinPathW);
+            if (!is_copy_successfully) {
+                FAIL() << "Unable to copy from '" << model_bin_name << "' to '"
+                       << ::ov::util::wstring_to_string(modelBinPathW) << "'";
+            }
+
+            ov::Core core = createCoreWithTemplate();
+
+            OV_ASSERT_NO_THROW(core.compile_model(modelXmlPathW));
+            CommonTestUtils::removeFile(modelXmlPathW);
+            CommonTestUtils::removeFile(modelBinPathW);
+            GTEST_COUT << "OK" << std::endl;
+        } catch (const ov::Exception& e_next) {
+            CommonTestUtils::removeFile(modelXmlPathW);
+            CommonTestUtils::removeFile(modelBinPathW);
+            CommonTestUtils::removeFile(model_xml_name);
+            CommonTestUtils::removeFile(model_bin_name);
+            FAIL() << e_next.what();
+        }
+    }
+    CommonTestUtils::removeFile(model_xml_name);
+    CommonTestUtils::removeFile(model_bin_name);
+}
+
+TEST(OVClassBasicTest, compile_model_with_property_unicode) {
+    std::string model_xml_name = "test_model.xml";
+    std::string model_bin_name = "test_model.bin";
+    generateModelFile();
+    for (std::size_t testIndex = 0; testIndex < CommonTestUtils::test_unicode_postfix_vector.size(); testIndex++) {
+        std::wstring postfix = L"_" + CommonTestUtils::test_unicode_postfix_vector[testIndex];
+        std::wstring modelXmlPathW = CommonTestUtils::addUnicodePostfixToPath(model_xml_name, postfix);
+        std::wstring modelBinPathW = CommonTestUtils::addUnicodePostfixToPath(model_bin_name, postfix);
+        GTEST_COUT << testIndex << ": " << ::ov::util::wstring_to_string(modelXmlPathW) << std::endl;
+
+        try {
+            bool is_copy_successfully;
+            is_copy_successfully = CommonTestUtils::copyFile(model_xml_name, modelXmlPathW);
+            if (!is_copy_successfully) {
+                FAIL() << "Unable to copy from '" << model_xml_name << "' to '"
+                       << ::ov::util::wstring_to_string(modelXmlPathW) << "'";
+            }
+
+            is_copy_successfully = CommonTestUtils::copyFile(model_bin_name, modelBinPathW);
+            if (!is_copy_successfully) {
+                FAIL() << "Unable to copy from '" << model_bin_name << "' to '"
+                       << ::ov::util::wstring_to_string(modelBinPathW) << "'";
+            }
+
+            ov::Core core = createCoreWithTemplate();
+
+            OV_ASSERT_NO_THROW(
+                core.compile_model(modelXmlPathW, ov::hint::performance_mode(ov::hint::PerformanceMode::LATENCY)));
+            CommonTestUtils::removeFile(modelXmlPathW);
+            CommonTestUtils::removeFile(modelBinPathW);
+            GTEST_COUT << "OK" << std::endl;
+        } catch (const ov::Exception& e_next) {
+            CommonTestUtils::removeFile(modelXmlPathW);
+            CommonTestUtils::removeFile(modelBinPathW);
+            CommonTestUtils::removeFile(model_xml_name);
+            CommonTestUtils::removeFile(model_bin_name);
+            FAIL() << e_next.what();
+        }
+    }
+    CommonTestUtils::removeFile(model_xml_name);
+    CommonTestUtils::removeFile(model_bin_name);
+}
+
+TEST_P(OVClassBasicTestP, compile_model_with_device_no_property_unicode) {
+    std::string model_xml_name = "test_model.xml";
+    std::string model_bin_name = "test_model.bin";
+    generateModelFile();
+    for (std::size_t testIndex = 0; testIndex < CommonTestUtils::test_unicode_postfix_vector.size(); testIndex++) {
+        std::wstring postfix = L"_" + CommonTestUtils::test_unicode_postfix_vector[testIndex];
+        std::wstring modelXmlPathW = CommonTestUtils::addUnicodePostfixToPath(model_xml_name, postfix);
+        std::wstring modelBinPathW = CommonTestUtils::addUnicodePostfixToPath(model_bin_name, postfix);
+        GTEST_COUT << testIndex << ": " << ::ov::util::wstring_to_string(modelXmlPathW) << std::endl;
+        try {
+            bool is_copy_successfully;
+            is_copy_successfully = CommonTestUtils::copyFile(model_xml_name, modelXmlPathW);
+            if (!is_copy_successfully) {
+                FAIL() << "Unable to copy from '" << model_xml_name << "' to '"
+                       << ::ov::util::wstring_to_string(modelXmlPathW) << "'";
+            }
+
+            is_copy_successfully = CommonTestUtils::copyFile(model_bin_name, modelBinPathW);
+            if (!is_copy_successfully) {
+                FAIL() << "Unable to copy from '" << model_bin_name << "' to '"
+                       << ::ov::util::wstring_to_string(modelBinPathW) << "'";
+            }
+
+            ov::Core core = createCoreWithTemplate();
+
+            OV_ASSERT_NO_THROW(core.compile_model(modelXmlPathW, target_device));
+            CommonTestUtils::removeFile(modelXmlPathW);
+            CommonTestUtils::removeFile(modelBinPathW);
+            GTEST_COUT << "OK" << std::endl;
+        } catch (const ov::Exception& e_next) {
+            CommonTestUtils::removeFile(modelXmlPathW);
+            CommonTestUtils::removeFile(modelBinPathW);
+            CommonTestUtils::removeFile(model_xml_name);
+            CommonTestUtils::removeFile(model_bin_name);
+            FAIL() << e_next.what();
+        }
+    }
+    CommonTestUtils::removeFile(model_xml_name);
+    CommonTestUtils::removeFile(model_bin_name);
+}
+
+TEST_P(OVClassBasicTestP, compile_model_with_device_with_property_unicode) {
+    std::string model_xml_name = "test_model.xml";
+    std::string model_bin_name = "test_model.bin";
+    generateModelFile();
+    for (std::size_t testIndex = 0; testIndex < CommonTestUtils::test_unicode_postfix_vector.size(); testIndex++) {
+        std::wstring postfix = L"_" + CommonTestUtils::test_unicode_postfix_vector[testIndex];
+        std::wstring modelXmlPathW = CommonTestUtils::addUnicodePostfixToPath(model_xml_name, postfix);
+        std::wstring modelBinPathW = CommonTestUtils::addUnicodePostfixToPath(model_bin_name, postfix);
+        GTEST_COUT << testIndex << ": " << ::ov::util::wstring_to_string(modelXmlPathW) << std::endl;
+
+        try {
+            bool is_copy_successfully;
+            is_copy_successfully = CommonTestUtils::copyFile(model_xml_name, modelXmlPathW);
+            if (!is_copy_successfully) {
+                FAIL() << "Unable to copy from '" << model_xml_name << "' to '"
+                       << ::ov::util::wstring_to_string(modelXmlPathW) << "'";
+            }
+
+            is_copy_successfully = CommonTestUtils::copyFile(model_bin_name, modelBinPathW);
+            if (!is_copy_successfully) {
+                FAIL() << "Unable to copy from '" << model_bin_name << "' to '"
+                       << ::ov::util::wstring_to_string(modelBinPathW) << "'";
+            }
+
+            ov::Core core = createCoreWithTemplate();
+
+            OV_ASSERT_NO_THROW(core.compile_model(modelXmlPathW,
+                                                  target_device,
+                                                  ov::hint::performance_mode(ov::hint::PerformanceMode::LATENCY)));
+            CommonTestUtils::removeFile(modelXmlPathW);
+            CommonTestUtils::removeFile(modelBinPathW);
+            GTEST_COUT << "OK" << std::endl;
+        } catch (const ov::Exception& e_next) {
+            CommonTestUtils::removeFile(modelXmlPathW);
+            CommonTestUtils::removeFile(modelBinPathW);
+            CommonTestUtils::removeFile(model_xml_name);
+            CommonTestUtils::removeFile(model_bin_name);
+            FAIL() << e_next.what();
+        }
+    }
+    CommonTestUtils::removeFile(model_xml_name);
+    CommonTestUtils::removeFile(model_bin_name);
+}
+#endif
+
+#ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPOR
 TEST_P(OVClassBasicTestP, smoke_registerPluginsXMLUnicodePath) {
     const std::string pluginXML = getPluginFile();
 
@@ -423,12 +606,63 @@ TEST_P(OVClassSetExecutionModeHintConfigTest, SetConfigNoThrow) {
     ASSERT_NO_THROW(defaultMode = ie.get_property(target_device, ov::hint::execution_mode));
     (void)defaultMode;
 
-    ie.set_property(target_device, ov::hint::execution_mode(ov::hint::ExecutionMode::UNDEFINED));
-    ASSERT_EQ(ov::hint::ExecutionMode::UNDEFINED, ie.get_property(target_device, ov::hint::execution_mode));
     ie.set_property(target_device, ov::hint::execution_mode(ov::hint::ExecutionMode::ACCURACY));
     ASSERT_EQ(ov::hint::ExecutionMode::ACCURACY, ie.get_property(target_device, ov::hint::execution_mode));
     ie.set_property(target_device, ov::hint::execution_mode(ov::hint::ExecutionMode::PERFORMANCE));
     ASSERT_EQ(ov::hint::ExecutionMode::PERFORMANCE, ie.get_property(target_device, ov::hint::execution_mode));
+}
+
+TEST_P(OVClassSetEnableCpuPinningHintConfigTest, SetConfigNoThrow) {
+    ov::Core ie = createCoreWithTemplate();
+
+    OV_ASSERT_PROPERTY_SUPPORTED(ov::hint::enable_cpu_pinning);
+
+    bool defaultMode{};
+    ASSERT_NO_THROW(defaultMode = ie.get_property(target_device, ov::hint::enable_cpu_pinning));
+    (void)defaultMode;
+
+    ASSERT_EQ(true, ie.get_property(target_device, ov::hint::enable_cpu_pinning));
+
+    ie.set_property(target_device, ov::hint::enable_cpu_pinning(false));
+    ASSERT_EQ(false, ie.get_property(target_device, ov::hint::enable_cpu_pinning));
+    ie.set_property(target_device, ov::hint::enable_cpu_pinning(true));
+    ASSERT_EQ(true, ie.get_property(target_device, ov::hint::enable_cpu_pinning));
+}
+
+TEST_P(OVClassSetSchedulingCoreTypeHintConfigTest, SetConfigNoThrow) {
+    ov::Core ie = createCoreWithTemplate();
+
+    OV_ASSERT_PROPERTY_SUPPORTED(ov::hint::scheduling_core_type);
+
+    ov::hint::SchedulingCoreType defaultMode{};
+    ASSERT_NO_THROW(defaultMode = ie.get_property(target_device, ov::hint::scheduling_core_type));
+    (void)defaultMode;
+
+    ASSERT_EQ(ov::hint::SchedulingCoreType::ANY_CORE, ie.get_property(target_device, ov::hint::scheduling_core_type));
+
+    ie.set_property(target_device, ov::hint::scheduling_core_type(ov::hint::SchedulingCoreType::PCORE_ONLY));
+    ASSERT_EQ(ov::hint::SchedulingCoreType::PCORE_ONLY, ie.get_property(target_device, ov::hint::scheduling_core_type));
+    ie.set_property(target_device, ov::hint::scheduling_core_type(ov::hint::SchedulingCoreType::ECORE_ONLY));
+    ASSERT_EQ(ov::hint::SchedulingCoreType::ECORE_ONLY, ie.get_property(target_device, ov::hint::scheduling_core_type));
+    ie.set_property(target_device, ov::hint::scheduling_core_type(ov::hint::SchedulingCoreType::ANY_CORE));
+    ASSERT_EQ(ov::hint::SchedulingCoreType::ANY_CORE, ie.get_property(target_device, ov::hint::scheduling_core_type));
+}
+
+TEST_P(OVClassSetEnableHyperThreadingHintConfigTest, SetConfigNoThrow) {
+    ov::Core ie = createCoreWithTemplate();
+
+    OV_ASSERT_PROPERTY_SUPPORTED(ov::hint::enable_hyper_threading);
+
+    bool defaultMode{};
+    ASSERT_NO_THROW(defaultMode = ie.get_property(target_device, ov::hint::enable_hyper_threading));
+    (void)defaultMode;
+
+    ASSERT_EQ(true, ie.get_property(target_device, ov::hint::enable_hyper_threading));
+
+    ie.set_property(target_device, ov::hint::enable_hyper_threading(false));
+    ASSERT_EQ(false, ie.get_property(target_device, ov::hint::enable_hyper_threading));
+    ie.set_property(target_device, ov::hint::enable_hyper_threading(true));
+    ASSERT_EQ(true, ie.get_property(target_device, ov::hint::enable_hyper_threading));
 }
 
 TEST_P(OVClassSetDevicePriorityConfigTest, SetConfigAndCheckGetConfigNoThrow) {
@@ -1139,6 +1373,7 @@ TEST_P(OVClassLoadNetworkAndCheckSecondaryPropertiesTest, LoadNetworkAndCheckSec
     ASSERT_TRUE(property.count(ov::num_streams.name()));
     auto actual = property.at(ov::num_streams.name()).as<int32_t>();
     ov::Any value;
+    //AutoExcutableNetwork GetMetric() does not support key ov::num_streams
     OV_ASSERT_NO_THROW(value = model.get_property(ov::num_streams.name()));
     int32_t expect = value.as<int32_t>();
     ASSERT_EQ(actual, expect);
@@ -1166,7 +1401,7 @@ TEST_P(OVClassLoadNetWorkDoNotReturnDefaultHintTest, LoadNetworkDoNotReturnDefau
     if (target_device.find("AUTO") != std::string::npos) {
         ASSERT_NE(value, ov::hint::PerformanceMode::LATENCY);
     } else {
-        ASSERT_NE(value, ov::hint::PerformanceMode::THROUGHPUT);
+        ASSERT_EQ(value, ov::hint::PerformanceMode::THROUGHPUT);
     }
 }
 

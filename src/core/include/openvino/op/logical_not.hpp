@@ -13,7 +13,7 @@ namespace v1 {
 /// \ingroup ov_ops_cpp_api
 class OPENVINO_API LogicalNot : public Op {
 public:
-    OPENVINO_OP("LogicalNot", "opset1", op::Op, 1);
+    OPENVINO_OP("LogicalNot", "opset1", op::Op);
     /// \brief Constructs a logical negation operation.
     LogicalNot() = default;
     /// \brief Constructs a logical negation operation.
