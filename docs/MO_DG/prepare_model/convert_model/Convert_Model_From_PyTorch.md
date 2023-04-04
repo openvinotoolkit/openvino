@@ -4,10 +4,10 @@
 
 The PyTorch framework is supported through export to the ONNX format. In order to optimize and deploy a model that was trained with it:
 
-1. `Export a PyTorch model to ONNX <#Exporting-a-PyTorch-Model-to-ONNX-Format>`__.
+1. `Export a PyTorch model to ONNX <#exporting-a-pytorch-model-to-onnx-format>`__.
 2. :doc:`Convert the ONNX model <openvino_docs_MO_DG_prepare_model_convert_model_Convert_Model_From_ONNX>` to produce an optimized :doc:`Intermediate Representation <openvino_docs_MO_DG_IR_and_opsets>` of the model based on the trained network topology, weights, and biases values.
 
-Exporting a PyTorch Model to ONNX Format 
+Exporting a PyTorch Model to ONNX Format
 ########################################
 
 PyTorch models are defined in Python. To export them, use the ``torch.onnx.export()`` method. The code to
@@ -17,7 +17,7 @@ For more information, refer to the `Exporting PyTorch models to ONNX format <htt
 
 To export a PyTorch model, you need to obtain the model as an instance of ``torch.nn.Module`` class and call the ``export`` function.
 
-.. code-block:: python
+.. code-block:: py
 
    import torch
 
@@ -32,7 +32,7 @@ To export a PyTorch model, you need to obtain the model as an instance of ``torc
 
 
 Known Issues
-############
+####################
 
 As of version 1.8.1, not all PyTorch operations can be exported to ONNX opset 9 which is used by default.
 It is recommended to export models to opset 11 or higher when export to default opset 9 is not working. In that case, use ``opset_version`` option of the ``torch.onnx.export``. For more information about ONNX opset, refer to the `Operator Schemas <https://github.com/onnx/onnx/blob/master/docs/Operators.md>`__ page.
