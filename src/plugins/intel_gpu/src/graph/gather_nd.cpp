@@ -59,15 +59,7 @@ layout gather_nd_inst::calc_output_layout(gather_nd_node const& node, kernel_imp
         }
     }
 
-    auto output_format = cldnn::format::any;
-    if (final_output_sizes.size() <= 4) {
-        output_format = cldnn::format::bfyx;
-    } else if (final_output_sizes.size() == 5) {
-        output_format = cldnn::format::bfzyx;
-    } else {
-        output_format = cldnn::format::bfwzyx;
-    }
-
+    auto output_format = format::get_default_format(final_output_sizes.size());
     auto output_sizes_tensor = tensor(tensor(final_output_sizes).sizes(output_format));
     auto padding = op->output_paddings[0];
 

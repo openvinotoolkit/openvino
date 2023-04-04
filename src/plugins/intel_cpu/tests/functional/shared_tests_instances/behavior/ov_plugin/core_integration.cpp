@@ -80,6 +80,8 @@ INSTANTIATE_TEST_SUITE_P(
         smoke_OVClassGetAvailableDevices, OVClassGetAvailableDevices,
         ::testing::Values("CPU"));
 
+INSTANTIATE_TEST_SUITE_P(smoke_OVClassSetConfigTest, OVClassSetUseCpuPinningHintConfigTest, ::testing::Values("CPU"));
+
 INSTANTIATE_TEST_SUITE_P(
         smoke_OVClassSetModelPriorityConfigTest, OVClassSetModelPriorityConfigTest,
         ::testing::Values("MULTI", "AUTO"));
