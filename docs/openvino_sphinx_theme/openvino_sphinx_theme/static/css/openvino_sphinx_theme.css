@@ -60,6 +60,7 @@ body {
 .scrollbox {
     overflow-y:scroll;
     height:300px;
+    margin-bottom: 20px;
 }
 
 /* Syntax Highlighting */
