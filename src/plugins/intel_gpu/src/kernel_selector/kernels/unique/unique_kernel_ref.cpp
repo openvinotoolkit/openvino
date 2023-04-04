@@ -8,6 +8,74 @@
 
 namespace kernel_selector {
 
+namespace {
+
+JitConstants MakeAxisJitConstants(const unique_params& kernel_params) {
+    const std::map<char, std::string> dimensions_sizes_map = {
+        {'b', "INPUT0_BATCH_NUM"},
+        {'f', "INPUT0_FEATURE_NUM"},
+        {'w', "INPUT0_SIZE_W"},
+        {'z', "INPUT0_SIZE_Z"},
+        {'y', "INPUT0_SIZE_Y"},
+        {'x', "INPUT0_SIZE_X"},
+    };
+
+    const auto in_rank = kernel_params.inputs.front().Dimentions();
+    auto dimensions = [in_rank]() -> std::vector<char> {
+        switch (in_rank) {
+        case 4:
+            return {'b', 'f', 'y', 'x'};
+        case 5:
+            return {'b', 'f', 'z', 'y', 'x'};
+        case 6:
+            return {'b', 'f', 'w', 'z', 'y', 'x'};
+        }
+        throw std::invalid_argument("Unsupported input rank for unique primitive");
+    }();
+    auto& axis_dimension = dimensions.at(kernel_params.axis);
+
+    const auto axis_length_name = "AXIS_LENGTH";
+    const auto axis_length_val = dimensions_sizes_map.at(axis_dimension);
+
+    // Mark axis dimension as 'i' for indexing
+    axis_dimension = 'i';
+
+    const auto get_index_name = "GET_INDEX(prefix, i)";
+    const auto get_index_val = [&dimensions]() {
+        std::string str = "CAT(prefix, _GET_INDEX)";
+        str += '(';
+        for (auto ch : dimensions) {
+            str += ch;
+            str += ',';
+        }
+        str.back() = ')';
+        return str;
+    }();
+
+    const auto iterate_name = "ITERATE(body)";
+    const auto iterate_val = [&dimensions, &dimensions_sizes_map]() {
+        std::stringstream ss;
+        for (auto ch : dimensions) {
+            // No need to iterate through axis index
+            if (ch == 'i') {
+                continue;
+            }
+            ss << "for (uint " << ch << " = 0; " << ch << " < " << dimensions_sizes_map.at(ch) << "; ++" << ch << ") {";
+        }
+        ss << "body";
+        // Note size - 1 here as we don't iterate through axis index
+        for (auto i = 0U; i < dimensions.size() - 1; ++i) {
+            ss << '}';
+        }
+        return ss.str();
+    }();
+
+    return {MakeJitConstant(axis_length_name, axis_length_val),
+            MakeJitConstant(get_index_name, get_index_val),
+            MakeJitConstant(iterate_name, iterate_val)};
+}
+}  // namespace
+
 KernelsData UniqueKernelRef::GetKernelsData(const Params& params, const optional_params& options) const {
     if (!Validate(params, options)) {
         return {};
@@ -71,22 +139,23 @@ JitConstants UniqueKernelRef::GetJitConstants(const unique_params& kernel_params
 
     jit_constants.AddConstants({
         MakeJitConstant("FLATTENED", kernel_params.flattened),
-        MakeJitConstant("AXIS", kernel_params.axis),
         MakeJitConstant("SORTED", kernel_params.sorted),
     });
+
+    if (!kernel_params.flattened) {
+        jit_constants.Merge(MakeAxisJitConstants(kernel_params));
+    }
 
     return jit_constants;
 }
 
-CommonDispatchData UniqueKernelRef::SetDefault(const unique_params& kernel_params) {
+CommonDispatchData UniqueKernelRef::SetDefault(const unique_params& /* kernel_params */) {
     CommonDispatchData dispatch_data;
 
-    if (kernel_params.flattened) {
-        // For now we run flattened case only in one thread
-        // TODO: Parallelize flattened case
-        dispatch_data.gws = {1, 1, 1};
-        dispatch_data.lws = {1, 1, 1};
-    }
+    // For now we run only in one thread
+    // TODO: Parallelize
+    dispatch_data.gws = {1, 1, 1};
+    dispatch_data.lws = {1, 1, 1};
 
     return dispatch_data;
 }

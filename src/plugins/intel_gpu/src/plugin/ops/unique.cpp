@@ -24,6 +24,7 @@ void CreateUniqueOp(Program& p, const std::shared_ptr<ngraph::op::v10::Unique>& 
                        << op->get_type_name() << ")";
         }
         axis = axis_constant->cast_vector<int64_t>().at(0);
+        axis = ov::normalize_axis(op.get(), axis, op->get_input_partial_shape(0).rank());
         flattened = false;
     }
 
