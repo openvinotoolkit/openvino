@@ -1237,7 +1237,8 @@ TEST(partial_shape, infer_windowed_reduction_rank_static_dynamic_rank_static_dyn
     Strides window_dilation{1, 1, 1, 1};
     bool is_window_all_in_padding_allowed = true;
 
-    OPENVINO_SUPPRESS_DEPRECATED_START ASSERT_THROW(
+    OPENVINO_SUPPRESS_DEPRECATED_START
+    ASSERT_THROW(
         {
             PartialShape result_shape = infer_windowed_reduction_output_shape(node.get(),
                                                                               data_shape,

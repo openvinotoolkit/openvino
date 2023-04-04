@@ -210,10 +210,11 @@ bool squeezes_perform_the_same(std::shared_ptr<ov::opset5::Squeeze> lhs, std::sh
         return false;
     const auto l_axes = std::dynamic_pointer_cast<ov::opset5::Constant>(lhs->get_input_node_shared_ptr(1));
     const auto r_axes = std::dynamic_pointer_cast<ov::opset5::Constant>(rhs->get_input_node_shared_ptr(1));
-    if (l_axes && r_axes)
+    if (l_axes && r_axes) {
         OPENVINO_SUPPRESS_DEPRECATED_START
-    return ngraph::normalize_axes(lhs->description(), l_axes->cast_vector<int64_t>(), rank) ==
-           ngraph::normalize_axes(rhs->description(), r_axes->cast_vector<int64_t>(), rank);
+        return ngraph::normalize_axes(lhs->description(), l_axes->cast_vector<int64_t>(), rank) ==
+               ngraph::normalize_axes(rhs->description(), r_axes->cast_vector<int64_t>(), rank);
+    }
     OPENVINO_SUPPRESS_DEPRECATED_END
     return false;
 }

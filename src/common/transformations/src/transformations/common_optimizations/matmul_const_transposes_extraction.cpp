@@ -35,9 +35,10 @@ ov::pass::MatMulConstTransposesExtraction::MatMulConstTransposesExtraction() {
             opset8::Constant::create(element::i32, {transpose_order.size()}, transpose_order));
         if (ov::is_type<opset8::Constant>(weights.get_node())) {
             OPENVINO_SUPPRESS_DEPRECATED_START
-            if (auto constant = get_constant_from_source(transpose))
+            if (auto constant = get_constant_from_source(transpose)) {
                 OPENVINO_SUPPRESS_DEPRECATED_END
-            transpose = constant;
+                transpose = constant;
+            }
         }
         auto new_matmul = std::make_shared<opset8::MatMul>(pattern_value_map.at(data_pattern),
                                                            transpose,

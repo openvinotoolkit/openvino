@@ -78,12 +78,13 @@ void fuse_zp_to_weights(ov::Output<ov::Node>& output, std::vector<int64_t>& zero
 
     auto check_in_bounds = [&](ov::Output<ov::Node>& value) -> bool {
         shared_ptr<ov::opset10::Constant> constant;
-        if (rank == 0)
+        if (rank == 0) {
             constant = ov::as_type_ptr<ov::opset10::Constant>(output.get_node_shared_ptr());
-        else
+        } else {
             OPENVINO_SUPPRESS_DEPRECATED_START
-        constant = ov::get_constant_from_source(value);
-        OPENVINO_SUPPRESS_DEPRECATED_END
+            constant = ov::get_constant_from_source(value);
+            OPENVINO_SUPPRESS_DEPRECATED_END
+        }
         if (!constant)
             return false;
         auto weight = constant->cast_vector<int64_t>()[0];
