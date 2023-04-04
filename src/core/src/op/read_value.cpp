@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -12,9 +12,6 @@
 
 using namespace std;
 using namespace ngraph;
-
-BWDCMP_RTTI_DEFINITION(ov::op::v3::ReadValue);
-BWDCMP_RTTI_DEFINITION(ov::op::v6::ReadValue);
 
 op::v3::ReadValue::ReadValue(const Output<Node>& init_value, const std::string& variable_id)
     : ReadValueBase({init_value}),
@@ -111,7 +108,9 @@ bool op::v6::ReadValue::evaluate(const HostTensorVector& outputs,
     // initial value (inputs[0]) is not supported, use zeros
     auto zero_const = make_shared<v0::Constant>(inputs[0]->get_element_type(), inputs[0]->get_shape(), 0);
     auto zero_tensor = make_shared<HostTensor>(zero_const);
+    OPENVINO_SUPPRESS_DEPRECATED_START
     const auto& input_tensor = use_context ? var_value->second->get_value() : zero_tensor;
+    OPENVINO_SUPPRESS_DEPRECATED_END
     outputs[0]->set_unary(input_tensor);
 
     void* input = input_tensor->get_data_ptr();

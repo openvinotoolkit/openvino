@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -15,7 +15,7 @@ namespace intel_gpu {
 
 static void CreateCumSumOp(Program& p, const std::shared_ptr<ngraph::op::v0::CumSum>& op) {
     validate_inputs_count(op, {1, 2});
-    auto inputPrimitives = p.GetInputPrimitiveIDs(op);
+    auto inputs = p.GetInputInfo(op);
     std::string layerName = layer_type_name_ID(op);
 
     auto exclusive = op->is_exclusive();
@@ -32,7 +32,7 @@ static void CreateCumSumOp(Program& p, const std::shared_ptr<ngraph::op::v0::Cum
     axis = ov::normalize_axis(op.get(), axis, op->get_input_partial_shape(0).rank());
 
     auto primitive = cldnn::cum_sum(layerName,
-                                    inputPrimitives[0],
+                                    inputs[0],
                                     axis,
                                     exclusive,
                                     reverse);

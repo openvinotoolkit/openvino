@@ -6,7 +6,7 @@
 
 #include "common_test_utils/ngraph_test_utils.hpp"
 #include "snippets/pass/fq_decomposition.hpp"
-#include "snippets/pass/collapse_subgraph.hpp"
+#include "snippets/pass/tokenization.hpp"
 #include "fake_quantize_function.hpp"
 #include "snippets/op/subgraph.hpp"
 #include "ngraph_transformations/snippets_mark_skipped.hpp"
@@ -31,10 +31,10 @@ public:
         TransformationTestsF::TearDown();
 
         auto subgraph = FunctionHelper::getSubgraph(function);
-        auto body = subgraph == nullptr ? nullptr : std::dynamic_pointer_cast<ngraph::snippets::op::Subgraph>(subgraph)->get_body();
+        auto body = subgraph == nullptr ? nullptr : std::dynamic_pointer_cast<ngraph::snippets::op::Subgraph>(subgraph)->body_ptr();
 
         auto subgraph_ref = FunctionHelper::getSubgraph(function_ref);
-        auto body_ref = subgraph_ref == nullptr ? nullptr : std::dynamic_pointer_cast<ngraph::snippets::op::Subgraph>(subgraph_ref)->get_body();
+        auto body_ref = subgraph_ref == nullptr ? nullptr : std::dynamic_pointer_cast<ngraph::snippets::op::Subgraph>(subgraph_ref)->body_ptr();
 
         if ((body != nullptr) && (body_ref != nullptr)) {
             auto res = comparator.compare(body, body_ref);

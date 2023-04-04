@@ -1,12 +1,13 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "functional_test_utils/core_config.hpp"
+
+#include <ie_ngraph_utils.hpp>
 #include <string>
 
-#include "functional_test_utils/core_config.hpp"
 #include "functional_test_utils/blob_utils.hpp"
-#include <ie_ngraph_utils.hpp>
 
 void CoreConfiguration(LayerTestsUtils::LayerTestsCommon* test) {
     const float MAX_VAL_2B_FEAT = 16384.0f;
@@ -21,8 +22,9 @@ void CoreConfiguration(LayerTestsUtils::LayerTestsCommon* test) {
         auto elementType = inputParameters[i]->get_element_type();
         auto shape = inputParameters[i]->get_shape();
         auto precision = InferenceEngine::details::convertPrecision(elementType);
-        precision = (precision.getPrecVal() == InferenceEngine::Precision::FP16) ?
-            InferenceEngine::Precision(InferenceEngine::Precision::FP32) : precision;
+        precision = (precision.getPrecVal() == InferenceEngine::Precision::FP16)
+                        ? InferenceEngine::Precision(InferenceEngine::Precision::FP32)
+                        : precision;
 
         InferenceEngine::SizeVector size(shape);
         InferenceEngine::TensorDesc tensor(precision, size, InferenceEngine::Layout::ANY);

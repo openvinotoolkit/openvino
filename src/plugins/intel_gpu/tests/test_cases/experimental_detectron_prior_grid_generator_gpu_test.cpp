@@ -51,7 +51,7 @@ public:
 
         cldnn::layout outLayout{data_type, cldnn::format::bfyx, params.outputTensor};
         topology.add(experimental_detectron_prior_grid_generator(experimental_detectron_prior_grid_generator_id,
-                                                                 {priors_id},
+                                                                 { input_info(priors_id) },
                                                                  params.flatten,
                                                                  params.h,
                                                                  params.w,
@@ -62,24 +62,7 @@ public:
                                                                  params.imageShape.first,
                                                                  params.imageShape.second));
 
-        cldnn::network::ptr network;
-
-        if (params.is_caching_test) {
-            membuf mem_buf;
-            {
-                cldnn::network _network(engine, topology);
-                std::ostream out_mem(&mem_buf);
-                BinaryOutputBuffer ob = BinaryOutputBuffer(out_mem);
-                _network.save(ob);
-            }
-            {
-                std::istream in_mem(&mem_buf);
-                BinaryInputBuffer ib = BinaryInputBuffer(in_mem, engine);
-                network = std::make_shared<cldnn::network>(ib, get_test_stream_ptr(), engine);
-            }
-        } else {
-            network = std::make_shared<cldnn::network>(engine, topology);
-        }
+        cldnn::network::ptr network = get_network(engine, topology, get_test_default_config(engine), get_test_stream_ptr(), params.is_caching_test);
 
         network->set_input_data(priors_id, prior_input);
 
@@ -90,7 +73,7 @@ public:
 
         ASSERT_EQ(params.outputTensor.count(), out_ptr.size());
         for (size_t i = 0; i < params.expectedOutput.size(); ++i) {
-            EXPECT_NEAR(params.expectedOutput[i], out_ptr[i], 0.0001) << "at i = " << i;
+            ASSERT_NEAR(params.expectedOutput[i], out_ptr[i], 0.0001) << "at i = " << i;
         }
     }
 };

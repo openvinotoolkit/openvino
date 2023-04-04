@@ -1,14 +1,14 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
-
-///////////////////////////////////////////////////////////////////////////////////////////////////
 
 #include "test_utils.h"
 
 #include <intel_gpu/primitives/input_layout.hpp>
 #include <intel_gpu/primitives/cum_sum.hpp>
 #include <intel_gpu/primitives/data.hpp>
+
+#include "cum_sum_inst.h"
 
 #include <algorithm>
 #include <fstream>
@@ -183,33 +183,16 @@ public:
 
         topology topology;
         topology.add(input_layout("Input0", input->get_layout()));
-        topology.add(cum_sum("cum_sum", "Input0", axis, exclusive, reverse));
+        topology.add(cum_sum("cum_sum", input_info("Input0"), axis, exclusive, reverse));
 
-        cldnn::network::ptr network;
-
-        if (is_caching_test) {
-            membuf mem_buf;
-            {
-                cldnn::network _network(engine, topology);
-                std::ostream out_mem(&mem_buf);
-                BinaryOutputBuffer ob = BinaryOutputBuffer(out_mem);
-                _network.save(ob);
-            }
-            {
-                std::istream in_mem(&mem_buf);
-                BinaryInputBuffer ib = BinaryInputBuffer(in_mem, engine);
-                network = std::make_shared<cldnn::network>(ib, get_test_stream_ptr(), engine);
-            }
-        } else {
-            network = std::make_shared<cldnn::network>(engine, topology);
-        }
+        cldnn::network::ptr network = get_network(engine, topology, get_test_default_config(engine), get_test_stream_ptr(), is_caching_test);
 
         network->set_input_data("Input0", input);
 
         auto outputs = network->execute();
 
-        EXPECT_EQ(outputs.size(), size_t(1));
-        EXPECT_EQ(outputs.begin()->first, "cum_sum");
+        ASSERT_EQ(outputs.size(), size_t(1));
+        ASSERT_EQ(outputs.begin()->first, "cum_sum");
 
         auto output = outputs.at("cum_sum").get_memory();
         cldnn::mem_lock<output_type> output_ptr(output, get_test_stream());
@@ -217,7 +200,7 @@ public:
         auto answers = cumsum<output_type>(inputVals, in_out_format, { b, f, w, z, y, x }, axis, exclusive, reverse);
         ASSERT_EQ(output_ptr.size(), answers.size());
         for (size_t i = 0; i < answers.size(); ++i) {
-            EXPECT_TRUE(are_equal(answers[i], output_ptr[i])) << i;
+            ASSERT_TRUE(are_equal(answers[i], output_ptr[i])) << i;
         }
     }
 };
@@ -297,16 +280,16 @@ TEST(cum_sum_gpu_f16, DISABLED_basic_1d) {
 
     topology topology;
     topology.add(input_layout("Input0", input->get_layout()));
-    topology.add(cum_sum("cum_sum", "Input0"));
+    topology.add(cum_sum("cum_sum", input_info("Input0")));
 
-    network network(engine, topology);
+    network network(engine, topology, get_test_default_config(engine));
 
     network.set_input_data("Input0", input);
 
     auto outputs = network.execute();
 
-    EXPECT_EQ(outputs.size(), size_t(1));
-    EXPECT_EQ(outputs.begin()->first, "cum_sum");
+    ASSERT_EQ(outputs.size(), size_t(1));
+    ASSERT_EQ(outputs.begin()->first, "cum_sum");
 
     auto output = outputs.at("cum_sum").get_memory();
     cldnn::mem_lock<uint16_t> output_ptr(output, get_test_stream());
@@ -315,6 +298,47 @@ TEST(cum_sum_gpu_f16, DISABLED_basic_1d) {
 
     ASSERT_EQ(output->count(), answers.size());
     for (size_t i = 0; i < answers.size(); ++i) {
-        EXPECT_TRUE(are_equal(answers[i], half_to_float(output_ptr[i]))) << i;
+        ASSERT_TRUE(are_equal(answers[i], half_to_float(output_ptr[i]))) << i;
+    }
+}
+
+TEST(cum_sum_gpu_fp32, dynamic) {
+    auto& engine = get_test_engine();
+    ov::Shape shape = { 5, 1, 1, 1 };
+    auto in_layout = layout{ov::PartialShape::dynamic(shape.size()), data_types::f32, format::bfyx};
+    std::vector<float> input_data = {
+        1.0f, 2.0f, 3.0f, 4.0f, 5.0f
+    };
+    auto input = engine.allocate_memory(layout{ov::PartialShape(shape), data_types::f32, format::bfyx});
+
+    set_values(input, input_data);
+
+    topology topology;
+    topology.add(input_layout("input", in_layout));
+    topology.add(cum_sum("cum_sum", input_info("input")));
+
+    ExecutionConfig config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+    network network(engine, topology, config);
+    network.set_input_data("input", input);
+
+    auto inst = network.get_primitive("cum_sum");
+    auto impl = inst->get_impl();
+    ASSERT_TRUE(impl != nullptr);
+    ASSERT_TRUE(impl->is_dynamic());
+
+    auto outputs = network.execute();
+
+    ASSERT_EQ(outputs.size(), size_t(1));
+    ASSERT_EQ(outputs.begin()->first, "cum_sum");
+
+    auto output = outputs.at("cum_sum").get_memory();
+    cldnn::mem_lock<float> output_ptr(output, get_test_stream());
+
+    auto answers = cumsum(input_data, format::bfyx, { 5, 1, 1, 1, 1, 1 });
+
+    ASSERT_EQ(output->count(), answers.size());
+    for (size_t i = 0; i < answers.size(); ++i) {
+        ASSERT_TRUE(are_equal(answers[i], output_ptr[i])) << i;
     }
 }

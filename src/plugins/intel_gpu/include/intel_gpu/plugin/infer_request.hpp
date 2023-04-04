@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -59,6 +59,7 @@ public:
 private:
     // This blob is used for outputs processing if output data type convertion or padding handling is needed
     InferenceEngine::Blob::Ptr intermediate_output_blob = nullptr;
+    InferenceEngine::BlobMap users_blobs_matching;
     InferenceEngine::BlobMap _deviceOutputs;
     std::map<std::string, cldnn::primitive_id> inputsMap;
     std::map<std::string, cldnn::primitive_id> outputsMap;
@@ -69,6 +70,7 @@ private:
     bool m_useStreams = false;
     bool m_useExternalQueue = false;
     std::shared_ptr<Graph> m_graph;
+    InferenceEngine::gpu::ClContext::Ptr m_context = nullptr;
 
     InferenceEngine::IStreamsExecutor* streamExecutor = nullptr;
 
@@ -76,7 +78,8 @@ private:
                        std::vector<cldnn::event::ptr>& dependencies);
     void prepare_output(const cldnn::primitive_id& outputName, InferenceEngine::Blob::Ptr& outputBlob);
     void allocate_dev_mem_if_needed(InferenceEngine::BlobMap& device_mems, InferenceEngine::Blob::Ptr& user_blob,
-                                    const cldnn::primitive_id& blob_name, const cldnn::layout& layout);
+                                    const cldnn::primitive_id& blob_name, const cldnn::layout& layout,
+                                    const bool need_lockable_mem = false);
 
     InferenceEngine::Blob::Ptr create_host_blob(const InferenceEngine::TensorDesc& desc, bool is_dynamic);
     InferenceEngine::Blob::Ptr create_device_blob(const InferenceEngine::TensorDesc& desc);
@@ -85,6 +88,10 @@ private:
     void copy_input_data(std::shared_ptr<cldnn::network> network, const cldnn::primitive_id& inputName,
                          const cldnn::layout& inputLayout, const InferenceEngine::Blob &inputBlob);
 
+    template<typename RemoteBlobType, typename = typename std::enable_if<std::is_same<RemoteBlobType, RemoteCLbuffer>::value ||
+                                                                         std::is_same<RemoteBlobType, RemoteUSMbuffer>::value>::type>
+    InferenceEngine::Blob::Ptr create_remote_blob(const InferenceEngine::TensorDesc& desc, const cldnn::layout& layout,
+                                                  const BlobType mem_type, void* mem_ptr = nullptr);
     InferenceEngine::Blob::Ptr create_shared_device_blob(const InferenceEngine::TensorDesc& desc, const cldnn::layout& layout, void* usm_host_mem);
     void allocate_inputs();
     void allocate_outputs();

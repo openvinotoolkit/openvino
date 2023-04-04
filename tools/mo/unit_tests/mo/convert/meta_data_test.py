@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2022 Intel Corporation
+# Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import os
@@ -76,16 +76,16 @@ class MetaDataTest(UnitTestWithMockedTelemetry):
             for key, value in ref_meta.items():
                 if key == 'conversion_parameters':
                     for param_name, param_value in value.items():
-                        val = ov_model.get_rt_info([key, param_name])
+                        val = ov_model.get_rt_info([key, param_name]).astype(str)
                         if param_name in ['extensions', 'caffe_parser_path', 'input_model', 'k', 'output_dir']:
                             val = Path(val)
                         assert val == param_value, \
                             "Runtime info attribute with name {} does not match. Expected: {}, " \
                             "got {}".format(param_name, param_value, val)
                     continue
-                assert str(ov_model.get_rt_info(key)) == value, \
+                assert ov_model.get_rt_info(key).astype(str) == value, \
                     "Runtime info attribute with name {} does not match. Expected: {}, " \
-                    "got {}".format(key, value, ov_model.get_rt_info(key))
+                    "got {}".format(key, value, ov_model.get_rt_info(key).astype(str))
 
         with tempfile.TemporaryDirectory(dir=self.test_directory) as tmpdir:
 

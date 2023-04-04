@@ -1,10 +1,10 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
-///////////////////////////////////////////////////////////////////////////////////////////////////
 #pragma once
 #include "intel_gpu/primitives/proposal.hpp"
+#include "intel_gpu/graph/serialization/binary_buffer.hpp"
 #include "primitive_inst.h"
 
 #include <string>
@@ -44,6 +44,14 @@ public:
             end_x = e_x;
             end_y = e_y;
         }
+
+        void save(BinaryOutputBuffer& ob) const {
+            ob << start_x << start_y << end_x << end_y;
+        }
+
+        void load(BinaryInputBuffer& ib) {
+            ib >> start_x >> start_y >> end_x >> end_y;
+        }
     };
 
     // indices of the memory objects used by the layer
@@ -67,10 +75,11 @@ public:
     static layout calc_output_layout(proposal_node const& node, kernel_impl_params const& impl_param);
     static std::string to_string(proposal_node const& node);
 
-public:
     typed_primitive_inst(network& network, proposal_node const& desc);
 
     const std::vector<anchor>& get_anchors() const { return _anchors; }
+    void save(BinaryOutputBuffer& ob) const override;
+    void load(BinaryInputBuffer& ib) override;
 
 private:
     std::vector<anchor> _anchors;

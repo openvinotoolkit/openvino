@@ -1,6 +1,8 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
+
+#include "transformations/op_conversions/eye_decomposition.hpp"
 
 #include <memory>
 #include <string>
@@ -11,7 +13,6 @@
 #include "openvino/op/constant.hpp"
 #include "openvino/op/parameter.hpp"
 #include "openvino/opsets/opset9.hpp"
-#include "transformations/op_conversions/eye_decomposition.hpp"
 
 using namespace testing;
 
@@ -99,7 +100,7 @@ public:
         } else if (new_args.size() == 4) {
             return std::make_shared<FakeEye>(new_args[0], new_args[1], new_args[2], new_args[3], ov::element::f32);
         } else {
-            throw ov::Exception("FakeEye has incorrect input number: " + std::to_string(new_args.size()));
+            OPENVINO_THROW("FakeEye has incorrect input number: ", new_args.size());
         }
     }
 };

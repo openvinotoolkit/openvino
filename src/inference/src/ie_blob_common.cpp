@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -85,7 +85,7 @@ Blob::Ptr make_shared_blob(const Blob::Ptr& inputBlob,
 Blob::~Blob() {}
 MemoryBlob::~MemoryBlob() {}
 
-#ifndef WIN32
+#ifndef _WIN32
 template class TBlob<float>;
 template class TBlob<double>;
 template class TBlob<int8_t>;

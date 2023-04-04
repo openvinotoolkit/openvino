@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2018-2022 Intel Corporation
+﻿// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -16,6 +16,10 @@ struct border_params : public base_params {
     DimTensor<> rb_sizes;
     BorderType b_type;
     float border_value;
+
+    ArgType begin_type;
+    ArgType end_type;
+    ArgType pad_value_type;
 
     border_params() : base_params(KernelType::BORDER), b_type(BorderType::CONSTANT), border_value(0.0f) {}
 

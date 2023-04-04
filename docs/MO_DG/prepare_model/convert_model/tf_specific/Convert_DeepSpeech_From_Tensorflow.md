@@ -70,7 +70,7 @@ To generate the IR, run Model Optimizer with the following parameters:
 ```sh
 mo                             \
 --input_model output_graph.pb  \
---input "input_lengths->[16],input_node[1 16 19 26],previous_state_h[1 2048],previous_state_c[1 2048]"   \
+--input "input_lengths->[16],input_node[1,16,19,26],previous_state_h[1,2048],previous_state_c[1,2048]"   \
 --output "cudnn_lstm/rnn/multi_rnn_cell/cell_0/cudnn_compatible_lstm_cell/GatherNd_1,cudnn_lstm/rnn/multi_rnn_cell/cell_0/cudnn_compatible_lstm_cell/GatherNd,logits"
 ```
 

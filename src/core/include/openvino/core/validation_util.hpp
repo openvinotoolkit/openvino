@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -172,4 +172,5 @@ OPENVINO_API std::vector<PartialShape> get_node_input_partial_shapes(const ov::N
 ///
 /// \return True if rank compatible to any from ranks, otherwise false.
 OPENVINO_API bool is_rank_compatible_any_of(const ov::Rank& rank, const std::vector<ov::Rank>& ranks);
+
 }  // namespace ov

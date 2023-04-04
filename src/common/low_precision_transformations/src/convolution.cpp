@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2018-2022 Intel Corporation
+﻿// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -175,23 +175,23 @@ bool ConvolutionTransformation::transform(TransformationContext &context, ngraph
         auto conv = ov::as_type_ptr<opset1::Convolution>(copyNode);
         std::shared_ptr<Node> relaxedNewConvolution;
         if (conv) {
-            relaxedNewConvolution = std::make_shared<op::TypeRelaxed<opset1::Convolution>>(
+            relaxedNewConvolution = std::make_shared<ov::op::TypeRelaxed<opset1::Convolution>>(
                     *conv,
                     std::vector<element::Type>{deqPrecision, deqPrecision},
                     std::vector<element::Type>{deqPrecision});
         } else {
-            relaxedNewConvolution = std::make_shared<op::TypeRelaxed<opset1::GroupConvolution>>(
+            relaxedNewConvolution = std::make_shared<ov::op::TypeRelaxed<opset1::GroupConvolution>>(
                     *ov::as_type_ptr<opset1::GroupConvolution>(copyNode),
                     std::vector<element::Type>{deqPrecision, deqPrecision},
                     std::vector<element::Type>{deqPrecision});
         }
         NetworkHelper::copyInfo(convolution, relaxedNewConvolution);
 
-        newMultiplyAfter = std::make_shared<op::TypeRelaxed<opset1::Multiply>>(
+        newMultiplyAfter = std::make_shared<ov::op::TypeRelaxed<opset1::Multiply>>(
             std::vector<element::Type>{ deqPrecision, deqPrecision },
             std::vector<element::Type>{ dequantization.multiply->get_output_element_type(0) },
-            ngraph::op::TemporaryReplaceOutputType(relaxedNewConvolution, deqPrecision).get(),
-            ngraph::op::TemporaryReplaceOutputType(newMultiplyAfterConst, deqPrecision).get());
+            ov::op::TemporaryReplaceOutputType(relaxedNewConvolution, deqPrecision).get(),
+            ov::op::TemporaryReplaceOutputType(newMultiplyAfterConst, deqPrecision).get());
 
         NetworkHelper::insertDequantizationAfter(convolution, newMultiplyAfter, relaxedNewConvolution);
         convolution = newMultiplyAfter->input_value(0).get_node_shared_ptr();
@@ -237,8 +237,15 @@ bool ConvolutionTransformation::transform(TransformationContext &context, ngraph
             Shape newScaleShape = newScalePShape.to_shape();
 
             if (!newScaleShape.empty()) {
-                // that's all we need: [C, 1, 1, 1] => [C, 1, 1]
-                newScaleShape.pop_back();
+                const auto input_shape = convolution->get_input_partial_shape(0);
+                const auto diff = newScaleShape.size() - input_shape.size();
+                OPENVINO_ASSERT(
+                    newScaleShape.empty() || ((0 <= diff) && (diff <= 2ull)),
+                    "unexpected shape size on weights");
+
+                for (size_t i = 0; i <= diff; ++i) {
+                    newScaleShape.pop_back();
+                }
             }
 
             if (reshapeFromWeights != nullptr) {
@@ -282,7 +289,12 @@ bool ConvolutionTransformation::transform(TransformationContext &context, ngraph
 
                 const size_t weightsRankValue = weightsPShape.rank().get_length();
                 Shape zeroPointShape(weightsRankValue, 1ul);
+                // output channel or group
                 zeroPointShape[0] = static_cast<size_t>(weightsPShape[0].get_length());
+                if ((reshapeFromWeights == nullptr) && (weightsRankValue == 5ull)) {
+                    // output channel
+                    zeroPointShape[1] = static_cast<size_t>(weightsPShape[1].get_length());
+                }
 
                 auto zeroPointConstant = fold<opset1::Broadcast>(
                     subtractFromWeights->input_value(1),

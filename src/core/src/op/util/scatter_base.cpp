@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -10,8 +10,6 @@
 #include "ngraph/validation_util.hpp"
 
 using namespace std;
-
-BWDCMP_RTTI_DEFINITION(ov::op::util::ScatterBase);
 
 ov::op::util::ScatterBase::ScatterBase(const Output<Node>& data,
                                        const Output<Node>& indices,

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -44,10 +44,6 @@ void eltwise_shrinking::run(program& p) {
                     }
 
                     const auto conv = std::static_pointer_cast<const convolution>(user->get_primitive());
-                    if (conv->weights.size() != 1) {
-                        can_shrink = false;
-                        break;
-                    }
 
                     // Check that eltwise is not an input of operation fused to convolution
                     if (user->get_dependency(0).id() != eltw->id) {

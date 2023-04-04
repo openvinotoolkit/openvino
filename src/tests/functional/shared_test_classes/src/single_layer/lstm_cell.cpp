@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -63,7 +63,7 @@ void LSTMCellTest::SetUp() {
     function = std::make_shared<ngraph::Function>(results, params, "lstm_cell");
     if (should_decompose) {
         ngraph::pass::Manager m;
-        m.register_pass<ngraph::pass::LSTMCellDecomposition>();
+        m.register_pass<ov::pass::LSTMCellDecomposition>();
         m.run_passes(function);
     }
 }

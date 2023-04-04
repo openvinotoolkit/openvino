@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -16,7 +16,7 @@ public:
     MOCK_METHOD1(AddExtension, void(InferenceEngine::IExtensionPtr));
     MOCK_METHOD2(LoadNetwork, std::shared_ptr<InferenceEngine::IExecutableNetworkInternal>(
                 const InferenceEngine::CNNNetwork&, const std::map<std::string, std::string>&));
-    MOCK_METHOD2(LoadNetwork, std::shared_ptr<InferenceEngine::IExecutableNetworkInternal>(
+    MOCK_METHOD2(LoadNetwork, ov::SoPtr<InferenceEngine::IExecutableNetworkInternal>(
                 const std::string&, const std::map<std::string, std::string>&));
     MOCK_METHOD2(ImportNetwork, std::shared_ptr<InferenceEngine::IExecutableNetworkInternal>(
                 const std::string&, const std::map<std::string, std::string>&));

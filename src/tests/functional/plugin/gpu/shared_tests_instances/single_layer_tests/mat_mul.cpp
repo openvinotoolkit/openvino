@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -31,6 +31,7 @@ const std::vector<ShapeRelatedParams> shapeRelatedParams = {
         { { {2, 1, 2, 3}, true }, { {3, 2, 4}, false } },
         { { {2, 1, 3, 2}, false }, { {3, 4, 2}, true } },
         { { {2, 1, 2, 3}, true }, { {3, 4, 2}, true } },
+        { { {1, 64, 80}, false }, { {1, 77, 80}, true } },
         { { {3}, false }, { {2, 2, 3, 1}, false } },
         { { {2, 2, 1, 3}, false }, { {3}, false } },
         { { {65, 100}, false }, { {73, 100}, true } },

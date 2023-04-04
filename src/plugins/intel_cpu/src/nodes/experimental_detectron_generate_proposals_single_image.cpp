@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -285,9 +285,10 @@ bool ExperimentalDetectronGenerateProposalsSingleImage::isSupportedOperation
     return true;
 }
 
-ExperimentalDetectronGenerateProposalsSingleImage::ExperimentalDetectronGenerateProposalsSingleImage
-        (const std::shared_ptr<ngraph::Node>& op, const dnnl::engine& eng,
-                WeightsSharing::Ptr &cache) : Node(op, eng, cache) {
+ExperimentalDetectronGenerateProposalsSingleImage::ExperimentalDetectronGenerateProposalsSingleImage(
+    const std::shared_ptr<ngraph::Node>& op,
+    const GraphContext::CPtr context)
+    : Node(op, context, NgraphShapeInferFactory(op, EMPTY_PORT_MASK)) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
         IE_THROW(NotImplemented) << errorMessage;
@@ -403,7 +404,7 @@ void ExperimentalDetectronGenerateProposalsSingleImage::execute(dnnl::stream str
                            reinterpret_cast<float *>(&proposals_[0]), anchors_num, bottom_H,
                            bottom_W, img_H, img_W,
                            min_box_H, min_box_W,
-                           static_cast<const float>(log(1000. / 16.)),
+                           static_cast<const float>(std::log(1000. / 16.)),
                            1.0f);
             std::partial_sort(proposals_.begin(), proposals_.begin() + pre_nms_topn, proposals_.end(),
                               [](const ProposalBox &struct1, const ProposalBox &struct2) {

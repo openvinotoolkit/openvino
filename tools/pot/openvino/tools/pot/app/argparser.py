@@ -110,7 +110,7 @@ def get_common_argument_parser():
         '--keep-uncompressed-weights',
         action='store_true',
         default=False,
-        help='Keep Convolution, Deconvolution and FullyConnected weights uncompressed')
+        help='Keep Convolution, ConvolutionBackpropData and MatMul weights uncompressed')
 
     parser.add_argument(
         '--data-source',

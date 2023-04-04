@@ -1,11 +1,10 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #pragma once
 
 #include <memory>
-#include <ngraph/ngraph.hpp>
 #include <openvino/pass/graph_rewrite.hpp>
 #include <transformations_visibility.hpp>
 #include <vector>
@@ -28,9 +27,3 @@ public:
     OPENVINO_RTTI("NearestNeighborUpsamplingFusion", "0");
     NearestNeighborUpsamplingFusion();
 };
-
-namespace ngraph {
-namespace pass {
-using ov::pass::NearestNeighborUpsamplingFusion;
-}  // namespace pass
-}  // namespace ngraph

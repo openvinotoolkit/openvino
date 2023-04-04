@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -201,7 +201,7 @@ TEST(TransformationTests, CompareFunctoinsTINegative) {
     const auto fc = FunctionsComparator::with_default().enable(FunctionsComparator::ATTRIBUTES);
     auto res = fc(f, f_ref);
     EXPECT_FALSE(res.valid);
-    EXPECT_THAT(res.message, HasSubstr("LSTMCell/4 != Relu/0"));
+    EXPECT_THAT(res.message, HasSubstr("LSTMCell/opset4 != Relu/opset1"));
 }
 
 TEST(TransformationTests, CompareFunctoinsTINegativeDifferentElementTypeBetweenSubGraphsInputs) {
@@ -514,7 +514,7 @@ public:
     DummyConstant& operator=(const DummyConstant&) = delete;
 
     const NodeTypeInfo& get_type_info() const override {
-        static const NodeTypeInfo type_info{typeid(this).name(), static_cast<uint64_t>(0)};
+        static const NodeTypeInfo type_info{typeid(this).name(), "0"};
         return type_info;
     }
 
@@ -609,15 +609,8 @@ public:
     AttributeAdapter(TestDummyDataTypeTransformationTests_NO_NGRAPH_NAME_COLISION& value)
         : DirectValueAccessor<TestDummyDataTypeTransformationTests_NO_NGRAPH_NAME_COLISION>(value) {}
 
-    static constexpr DiscreteTypeInfo type_info{"TestDummyDataTypeTransformationTests_NO_NGRAPH_NAME_COLISION", static_cast<uint64_t>(0)};
-
-    const DiscreteTypeInfo& get_type_info() const override {
-        return type_info;
-    }
+    OPENVINO_RTTI("TestDummyDataTypeTransformationTests_NO_NGRAPH_NAME_COLISION");
 };
-
-constexpr DiscreteTypeInfo AttributeAdapter<TestDummyDataTypeTransformationTests_NO_NGRAPH_NAME_COLISION>::type_info;
-
 }  // namespace ov
 
 TEST(TransformationTests, DummyOpNegativeNotSupportedType) {
@@ -651,8 +644,8 @@ TEST(TransformationTests, DifferentPrecisionVersusAttributes) {
 
     {  // check precision only
         const auto fc = FunctionsComparator::no_default()
-                .enable(FunctionsComparator::NODES)
-                .enable(FunctionsComparator::PRECISIONS);
+                            .enable(FunctionsComparator::NODES)
+                            .enable(FunctionsComparator::PRECISIONS);
         const auto res = fc.compare(f1, f2);
         EXPECT_FALSE(res.valid);
         EXPECT_THAT(res.message, HasSubstr("Different element type detected"));

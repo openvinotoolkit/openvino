@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -21,9 +21,9 @@
 using namespace std;
 using namespace ngraph;
 
-BWDCMP_RTTI_DEFINITION(op::v3::ShapeOf);
-
-op::v3::ShapeOf::ShapeOf(const Output<Node>& arg, element::Type output_type) : Op({arg}), m_output_type(output_type) {
+op::v3::ShapeOf::ShapeOf(const Output<Node>& arg, element::Type output_type)
+    : ShapeOfBase({arg}),
+      m_output_type(output_type) {
     constructor_validate_and_infer_types();
 }
 
@@ -58,6 +58,12 @@ inline bool evaluate(const ov::Shape& shape, const HostTensorPtr& output_value) 
     return true;
 }
 
+template <element::Type_t ET>
+inline bool evaluate(const ov::Shape& shape, ov::Tensor& output_value) {
+    runtime::reference::shape_of(shape, output_value.data<fundamental_type_for<ET>>());
+    return true;
+}
+
 bool evaluate_shape_of(const HostTensorPtr& output_value, const HostTensorPtr& input_value) {
     bool rc = true;
     ov::Shape shape = input_value->get_shape();
@@ -67,6 +73,21 @@ bool evaluate_shape_of(const HostTensorPtr& output_value, const HostTensorPtr& i
         NGRAPH_TYPE_CASE(evaluate_shape_of, i64, shape, output_value);
         NGRAPH_TYPE_CASE(evaluate_shape_of, u32, shape, output_value);
         NGRAPH_TYPE_CASE(evaluate_shape_of, u64, shape, output_value);
+    default:
+        rc = false;
+        break;
+    }
+    return rc;
+}
+
+bool evaluate_shape_of(ov::Tensor& output_value, const Shape& input_shape) {
+    bool rc;
+    output_value.set_shape(ov::Shape{input_shape.size()});
+    switch (output_value.get_element_type()) {
+        NGRAPH_TYPE_CASE(evaluate_shape_of, i32, input_shape, output_value);
+        NGRAPH_TYPE_CASE(evaluate_shape_of, i64, input_shape, output_value);
+        NGRAPH_TYPE_CASE(evaluate_shape_of, u32, input_shape, output_value);
+        NGRAPH_TYPE_CASE(evaluate_shape_of, u64, input_shape, output_value);
     default:
         rc = false;
         break;
@@ -89,8 +110,8 @@ bool constant_fold_shape_of(Node* shape_of_node, Output<Node>& replacement, cons
     return false;
 }
 
-bool evaluate_bound_shape(const Node* shape_of_node, const HostTensorVector& output_values, bool is_upper) {
-    NGRAPH_CHECK(shape_of_node, validate_host_tensor_vector(output_values, 1));
+bool evaluate_bound_shape(const Node* shape_of_node, ov::TensorVector& output_values, bool is_upper) {
+    NGRAPH_CHECK(shape_of_node, output_values.size() == 1);
     const auto& input_partial_shape = shape_of_node->get_input_partial_shape(0);
     if (input_partial_shape.rank().is_dynamic())
         return false;
@@ -103,49 +124,33 @@ bool evaluate_bound_shape(const Node* shape_of_node, const HostTensorVector& out
                                                                       : interval.get_max_val();
     }
     NGRAPH_CHECK(pshape_up.is_static() && pshape_low.is_static());
-    const auto input_et = shape_of_node->get_input_element_type(0);
     const auto output_et = shape_of_node->get_output_element_type(0);
+
     if (pshape_low.to_shape() == pshape_up.to_shape()) {
-        OPENVINO_SUPPRESS_DEPRECATED_START
-        shape_of_node->evaluate(output_values, {std::make_shared<HostTensor>(input_et, pshape_low)});
-        OPENVINO_SUPPRESS_DEPRECATED_END
+        shape_of::evaluate_shape_of(output_values[0], pshape_low.to_shape());
         shape_of_node->get_output_tensor(0).set_lower_value(output_values[0]);
         shape_of_node->get_output_tensor(0).set_upper_value(output_values[0]);
     } else {
-        HostTensorVector upper =
-            is_upper ? output_values
-                     : HostTensorVector{
-                           std::make_shared<HostTensor>(output_et, ov::PartialShape{pshape_up.rank().get_length()})};
-        OPENVINO_SUPPRESS_DEPRECATED_START
-        shape_of_node->evaluate(upper, {std::make_shared<HostTensor>(input_et, pshape_up)});
-        OPENVINO_SUPPRESS_DEPRECATED_END
+        auto&& upper = is_upper ? output_values : ov::TensorVector{{output_et, Shape{pshape_up.to_shape().size()}}};
+        shape_of::evaluate_shape_of(upper[0], pshape_up.to_shape());
         shape_of_node->get_output_tensor(0).set_upper_value(upper[0]);
 
-        HostTensorVector lower =
-            !is_upper ? output_values
-                      : HostTensorVector{
-                            std::make_shared<HostTensor>(output_et, ov::PartialShape{pshape_low.rank().get_length()})};
-        OPENVINO_SUPPRESS_DEPRECATED_START
-        shape_of_node->evaluate(lower, {std::make_shared<HostTensor>(input_et, pshape_low)});
-        OPENVINO_SUPPRESS_DEPRECATED_END
+        auto&& lower = is_upper ? ov::TensorVector{{output_et, Shape{pshape_low.to_shape().size()}}} : output_values;
+        shape_of::evaluate_shape_of(lower[0], pshape_low.to_shape());
         shape_of_node->get_output_tensor(0).set_lower_value(lower[0]);
 
-        vector<bool> dynamic_mask;  // true if dimension is dynamic
+        vector<char> dynamic_mask;  // true if dimension is dynamic
         for (const auto& i : input_partial_shape)
-            dynamic_mask.push_back(Dimension(i.get_interval().get_max_val()).is_dynamic());
-        auto mask_const = ngraph::op::Constant::create(element::boolean, {dynamic_mask.size()}, dynamic_mask);
-        auto dynamic_min_const = ngraph::op::Constant::create(output_et, {}, {0});
-        auto dynamic_max_const = ngraph::op::Constant::create(
-            output_et,
-            {},
-            {output_et == element::i64 ? std::numeric_limits<int64_t>::max() : std::numeric_limits<int32_t>::max()});
+            dynamic_mask.push_back(static_cast<char>(Dimension(i.get_interval().get_max_val()).is_dynamic()));
 
-        op::v1::Select().evaluate(
-            lower,
-            {std::make_shared<HostTensor>(mask_const), std::make_shared<HostTensor>(dynamic_min_const), lower[0]});
-        op::v1::Select().evaluate(
-            upper,
-            {std::make_shared<HostTensor>(mask_const), std::make_shared<HostTensor>(dynamic_max_const), upper[0]});
+        const auto mask_const = ov::Tensor(element::boolean, Shape{dynamic_mask.size()}, dynamic_mask.data());
+
+        auto&& min = output_et == element::i64 ? static_cast<int64_t>(0) : static_cast<int32_t>(0);
+        auto&& max =
+            output_et == element::i64 ? std::numeric_limits<int64_t>::max() : std::numeric_limits<int32_t>::max();
+
+        op::v1::Select().evaluate(lower, {mask_const, {output_et, Shape{}, &min}, lower.front()});
+        op::v1::Select().evaluate(upper, {mask_const, {output_et, Shape{}, &max}, upper.front()});
     }
     return true;
 }
@@ -173,6 +178,14 @@ bool op::v3::ShapeOf::evaluate(const HostTensorVector& output_values, const Host
     return shape_of::evaluate_shape_of(output_values[0], input_values[0]);
 }
 
+bool op::v3::ShapeOf::evaluate(ov::TensorVector& output_values, const ov::TensorVector& input_values) const {
+    OV_OP_SCOPE(v0_ShapeOf_evaluate);
+    OPENVINO_ASSERT(input_values.size() == 1);
+    OPENVINO_ASSERT(output_values.size() == 1);
+
+    return shape_of::evaluate_shape_of(output_values[0], input_values[0].get_shape());
+}
+
 bool op::v3::ShapeOf::has_evaluate() const {
     OV_OP_SCOPE(v3_ShapeOf_has_evaluate);
     switch (get_output_element_type(0)) {
@@ -187,11 +200,11 @@ bool op::v3::ShapeOf::has_evaluate() const {
     return false;
 }
 
-bool op::v3::ShapeOf::evaluate_lower(const HostTensorVector& output_values) const {
+bool op::v3::ShapeOf::evaluate_lower(ov::TensorVector& output_values) const {
     return shape_of::evaluate_bound_shape(this, output_values, false);
 }
 
-bool op::v3::ShapeOf::evaluate_upper(const HostTensorVector& output_values) const {
+bool op::v3::ShapeOf::evaluate_upper(ov::TensorVector& output_values) const {
     return shape_of::evaluate_bound_shape(this, output_values, true);
 }
 
@@ -208,9 +221,7 @@ bool op::v3::ShapeOf::constant_fold(OutputVector& output_values, const OutputVec
 }
 
 // op::v0::ShapeOf
-BWDCMP_RTTI_DEFINITION(op::v0::ShapeOf);
-
-op::v0::ShapeOf::ShapeOf(const Output<Node>& arg) : Op({arg}) {
+op::v0::ShapeOf::ShapeOf(const Output<Node>& arg) : ShapeOfBase({arg}) {
     constructor_validate_and_infer_types();
 }
 
@@ -245,6 +256,14 @@ bool op::v0::ShapeOf::evaluate(const HostTensorVector& output_values, const Host
     return shape_of::evaluate_shape_of(output_values[0], input_values[0]);
 }
 
+bool op::v0::ShapeOf::evaluate(ov::TensorVector& output_values, const ov::TensorVector& input_values) const {
+    OV_OP_SCOPE(v0_ShapeOf_evaluate);
+    OPENVINO_ASSERT(input_values.size() == 1);
+    OPENVINO_ASSERT(output_values.size() == 1);
+
+    return shape_of::evaluate_shape_of(output_values[0], input_values[0].get_shape());
+}
+
 bool op::v0::ShapeOf::has_evaluate() const {
     OV_OP_SCOPE(v0_ShapeOf_has_evaluate);
     switch (get_output_element_type(0)) {
@@ -267,11 +286,11 @@ bool op::v0::ShapeOf::constant_fold(OutputVector& output_values, const OutputVec
     return shape_of::constant_fold_shape_of(this, output_values[0], input_values[0]);
 }
 
-bool op::v0::ShapeOf::evaluate_lower(const HostTensorVector& output_values) const {
+bool op::v0::ShapeOf::evaluate_lower(ov::TensorVector& output_values) const {
     return shape_of::evaluate_bound_shape(this, output_values, false);
 }
 
-bool op::v0::ShapeOf::evaluate_upper(const HostTensorVector& output_values) const {
+bool op::v0::ShapeOf::evaluate_upper(ov::TensorVector& output_values) const {
     return shape_of::evaluate_bound_shape(this, output_values, true);
 }
 

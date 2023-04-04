@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -22,7 +22,8 @@
 namespace ov {
 namespace frontend {
 namespace paddle {
-extern std::map<::paddle::framework::proto::VarType_Type, ov::element::Type> TYPE_MAP;
+
+ov::element::Type get_ov_type(const ::paddle::framework::proto::VarType_Type& type);
 
 class DecoderProto : public paddle::DecoderBase {
 public:
@@ -56,7 +57,14 @@ public:
 
 private:
     std::vector<::paddle::framework::proto::OpDesc_Attr> decode_attribute_helper(const std::string& name) const;
-    std::shared_ptr<OpPlace> op_place;
+    std::weak_ptr<OpPlace> op_place;
+
+    const std::shared_ptr<OpPlace> get_place() const {
+        auto place = op_place.lock();
+        if (!place)
+            FRONT_END_THROW("This proto decoder contains empty op place.");
+        return place;
+    }
 };
 
 }  // namespace paddle

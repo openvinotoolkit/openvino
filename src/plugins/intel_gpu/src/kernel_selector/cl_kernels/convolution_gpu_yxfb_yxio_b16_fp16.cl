@@ -1,21 +1,23 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "include/batch_headers/data_types.cl"
+#include "include/batch_headers/sub_group_block_read.cl"
+#include "include/batch_headers/sub_group_block_write.cl"
+#include "include/batch_headers/sub_group_shuffle.cl"
 #include "include/batch_headers/fetch_data.cl"
 #include "include/sub_group.cl"
 
-__attribute__((intel_reqd_sub_group_size(16)))
+REQD_SUB_GROUP_SIZE(16)
 __attribute__((reqd_work_group_size(16, 1, 1)))
 KERNEL(convolution_gpu_yxfb_yxio_b16)(
     const __global UNIT_TYPE* input,
     __global UNIT_TYPE* output,
-    const __global UNIT_TYPE* filter,
+    const __global UNIT_TYPE* filter
 #if BIAS_TERM
-    const __global UNIT_TYPE* bias,
+    , const __global UNIT_TYPE* bias
 #endif
-    uint split_idx)
+)
 {
     // get_global_size(0) -> Number of work items needed to compute all features and all batches for single output spatial position
     //                       (single (x, y) point in output).
@@ -40,7 +42,7 @@ KERNEL(convolution_gpu_yxfb_yxio_b16)(
     const uint g = of / (FILTER_OFM_NUM / OFM_PER_WORK_ITEM);
     const uint f = of % (FILTER_OFM_NUM / OFM_PER_WORK_ITEM);
 #else
-    const uint g = split_idx;
+    const uint g = 0;
     const uint f = of;
 #endif
     const uint global_id = (f + linear_id_xy * (output_f_size / OFM_PER_WORK_ITEM)) * WORK_ITEMS_PER_SINGLE_BATCHES_ELEMENTS;
@@ -94,7 +96,7 @@ KERNEL(convolution_gpu_yxfb_yxio_b16)(
                     for (uint h = 0; h < FILTER_IFM_NUM; h++)
                     {
 #if defined(USE_BLOCK_READ_2)
-                        half4 _input = as_half4(intel_sub_group_block_read2((const __global uint*)(input + input_idx)));
+                        half4 _input = as_half4(_sub_group_block_read2((const __global uint*)(input + input_idx)));
                         uint filter_val_pair = *(const __global uint*)(filter + filter_idx);
                         half16 filter_transp = TRANSPOSE_BLOCK_16_FP16(filter_val_pair);
                         _data[0] = fma(_input.s0, filter_transp, _data[0]);
@@ -103,7 +105,7 @@ KERNEL(convolution_gpu_yxfb_yxio_b16)(
                         _data[3] = fma(_input.s3, filter_transp, _data[3]);
                         input_idx += INPUT0_FEATURE_PITCH;
 #elif defined(USE_BLOCK_READ_1)
-                        half2 _input = as_half2(intel_sub_group_block_read((const __global uint*)(input + input_idx)));
+                        half2 _input = as_half2(_sub_group_block_read((const __global uint*)(input + input_idx)));
                         uint filter_val_pair = *(const __global uint*)(filter + filter_idx);
                         half16 filter_transp = TRANSPOSE_BLOCK_16_FP16(filter_val_pair);
                         _data[0] = fma(_input.s0, filter_transp, _data[0]);

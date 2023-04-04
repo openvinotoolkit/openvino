@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2022 Intel Corporation
+# Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import numpy as np
@@ -23,7 +23,7 @@ def generate_input(op_type, size):
         upper = 16
 
     if op_type in logical_type:
-        return np.random.randint(0, 1, size).astype(np.bool)
+        return np.random.randint(0, 1, size).astype(bool)
     elif op_type in narrow_borders:
         return np.random.uniform(lower, upper, size).astype(np.float32)
     else:
@@ -83,7 +83,7 @@ class TestBinaryOps(CommonTFLayerTest):
 
         type = np.float32
         if op_type in ["LogicalAnd", "LogicalOr", "LogicalXor"]:
-            type = np.bool
+            type = bool
         tf.compat.v1.reset_default_graph()
         # Create the graph and model
         with tf.compat.v1.Session() as sess:

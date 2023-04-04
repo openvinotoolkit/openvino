@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -9,13 +9,13 @@
 
 #include <thread>
 
+#include "openvino/runtime/device_id_parser.hpp"
 #include <openvino/pass/serialize.hpp>
 #include <ngraph/opsets/opset.hpp>
-
-#include "ngraph/variant.hpp"
 #include "shared_test_classes/base/layer_test_utils.hpp"
 #include "common_test_utils/file_utils.hpp"
 #include "functional_test_utils/core_config.hpp"
+#include "ie_icore.hpp"
 
 namespace LayerTestsUtils {
 
@@ -78,7 +78,7 @@ void LayerTestsCommon::Run() {
 void LayerTestsCommon::Serialize(ngraph::pass::Serialize::Version ir_version) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED();
 
-    std::string output_name = GetTestName().substr(0, CommonTestUtils::maxFileNameLength) + "_" + GetTimestamp();
+    std::string output_name = CommonTestUtils::generateTestFilePrefix();
 
     std::string out_xml_path = output_name + ".xml";
     std::string out_bin_path = output_name + ".bin";
@@ -122,7 +122,7 @@ void LayerTestsCommon::QueryNetwork() {
             ASSERT_EQ(res.second, ctx->getDeviceName());
         } catch (...) {
             // otherwise, compare with originally used device name
-            ASSERT_EQ(res.second, targetDevice);
+            ASSERT_EQ(ov::DeviceIDParser(res.second).get_device_name(), targetDevice);
         }
         actual.insert(res.first);
     }
@@ -366,6 +366,16 @@ void LayerTestsCommon::LoadNetwork() {
     executableNetwork = core->LoadNetwork(cnnNetwork, targetDevice, configuration);
 }
 
+void LayerTestsCommon::ExpectLoadNetworkToThrow(const std::string& msg) {
+    std::string what;
+    try {
+        LoadNetwork();
+    } catch (const std::exception& e) {
+        what.assign(e.what());
+    }
+    EXPECT_STR_CONTAINS(what.c_str(), msg.c_str());
+}
+
 void LayerTestsCommon::GenerateInputs() {
     inputs.clear();
     const auto& inputsInfo = executableNetwork.GetInputsInfo();
@@ -408,8 +418,8 @@ void LayerTestsCommon::Infer() {
 }
 
 void LayerTestsCommon::ConvertRefsParams() {
-    ngraph::pass::ConvertPrecision<ngraph::element::Type_t::f16, ngraph::element::Type_t::f32>().run_on_function(functionRefs);
-    ngraph::pass::ConvertPrecision<ngraph::element::Type_t::bf16, ngraph::element::Type_t::f32>().run_on_function(functionRefs);
+    ngraph::pass::ConvertPrecision<ngraph::element::Type_t::f16, ngraph::element::Type_t::f32>().run_on_model(functionRefs);
+    ngraph::pass::ConvertPrecision<ngraph::element::Type_t::bf16, ngraph::element::Type_t::f32>().run_on_model(functionRefs);
 }
 
 std::vector<std::pair<ngraph::element::Type, std::vector<std::uint8_t>>> LayerTestsCommon::CalculateRefs() {

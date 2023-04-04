@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -109,12 +109,12 @@ bool check_input_reshape(const std::shared_ptr<ov::opset1::Reshape>& reshape,
 
 ov::pass::TransposeReshapeEliminationForMatmul::TransposeReshapeEliminationForMatmul() {
     MATCHER_SCOPE(TransposeReshapeEliminationForMatmul);
-    auto input_1_pattern = ngraph::pattern::any_input([](const Output<Node>& node) -> bool {
+    auto input_1_pattern = pass::pattern::any_input([](const Output<Node>& node) -> bool {
         const auto& shape = node.get_partial_shape();
         const auto& rank = shape.rank();
         return rank.is_static() && rank.get_length() == 2 && shape.is_static();
     });
-    auto input_2_pattern = ngraph::pattern::any_input([](const Output<Node>& node) -> bool {
+    auto input_2_pattern = pass::pattern::any_input([](const Output<Node>& node) -> bool {
         return node.get_partial_shape().is_static();
     });
 

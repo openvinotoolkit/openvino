@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -43,7 +43,7 @@ public:
     /// \param model_path Path to the file containing the model. This information can be used
     ///                   for ONNX external weights feature support.
     ONNXModelEditor(std::istream& model_stream,
-                    const std::string& path = "",
+                    const std::string& path = {},
                     frontend::ExtensionHolder extensions = {});
 
     /// \brief Modifies the in-memory representation of the model by setting

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -243,6 +243,11 @@ REGISTER_FACTORY(v9, ROIAlign);
 REGISTER_FACTORY(v9, RDFT);
 REGISTER_FACTORY(v9, IRDFT);
 REGISTER_FACTORY(v9, Eye);
+
+// ------------------------------ Supported v10 ops ----------------------------- //
+REGISTER_FACTORY(v10, IsFinite);
+REGISTER_FACTORY(v10, IsInf);
+REGISTER_FACTORY(v10, IsNaN);
 
 // --------------------------- Supported internal ops --------------------------- //
 REGISTER_FACTORY(internal, NonMaxSuppressionIEInternal);

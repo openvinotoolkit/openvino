@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -24,8 +24,7 @@ namespace v3 {
 /// \ingroup ov_ops_cpp_api
 class OPENVINO_API GRUCell : public util::RNNCellBase {
 public:
-    OPENVINO_OP("GRUCell", "opset3", op::util::RNNCellBase, 3);
-    BWDCMP_RTTI_DECLARATION;
+    OPENVINO_OP("GRUCell", "opset3", op::util::RNNCellBase);
     GRUCell();
     ///
     /// \brief      Constructs GRUCell node.

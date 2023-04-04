@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -18,7 +18,17 @@
 #include "threading/ie_istreams_executor.hpp"
 #include "threading/ie_itask_executor.hpp"
 
+namespace ov {
+namespace threading {
+
+class ExecutorManager;
+
+}
+}  // namespace ov
+
 namespace InferenceEngine {
+
+class IPluginWrapper;
 
 /**
  * @interface ExecutorManager
@@ -76,8 +86,15 @@ public:
      */
     virtual void setTbbFlag(bool flag) = 0;
     virtual bool getTbbFlag() = 0;
+
+private:
+    virtual std::shared_ptr<ov::threading::ExecutorManager> get_ov_manager() const = 0;
+    friend class IPluginWrapper;
 };
 
 INFERENCE_ENGINE_API_CPP(ExecutorManager::Ptr) executorManager();
+
+std::shared_ptr<InferenceEngine::ExecutorManager> create_old_manager(
+    const std::shared_ptr<ov::threading::ExecutorManager>& manager);
 
 }  // namespace InferenceEngine

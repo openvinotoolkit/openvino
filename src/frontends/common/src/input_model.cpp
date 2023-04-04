@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -138,6 +138,11 @@ PartialShape InputModel::get_partial_shape(const Place::Ptr& place) const {
 void InputModel::set_element_type(const Place::Ptr& place, const element::Type& type) {
     FRONT_END_CHECK_IMPLEMENTED(m_actual, set_element_type);
     FRONTEND_CALL_STATEMENT("set_element_type", m_actual->set_element_type(place, type))
+}
+
+element::Type InputModel::get_element_type(const Place::Ptr& place) const {
+    FRONT_END_CHECK_IMPLEMENTED(m_actual, get_element_type);
+    FRONTEND_RETURN_STATEMENT("get_element_type", m_actual->get_element_type(place))
 }
 
 void InputModel::set_tensor_value(const Place::Ptr& place, const void* value) {

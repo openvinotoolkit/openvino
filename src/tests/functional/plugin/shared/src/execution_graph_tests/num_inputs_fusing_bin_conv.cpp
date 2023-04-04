@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -8,7 +8,6 @@
 #include <exec_graph_info.hpp>
 
 #include <ngraph/function.hpp>
-#include <ngraph/variant.hpp>
 
 #include "functional_test_utils/plugin_cache.hpp"
 #include "shared_test_classes/base/layer_test_utils.hpp"

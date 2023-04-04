@@ -1,15 +1,27 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 #include "ov_test.hpp"
 
-TEST(ov_model, ov_model_const_input) {
+class ov_model_test : public ov_capi_test_base {
+    void SetUp() override {
+        ov_capi_test_base::SetUp();
+    }
+
+    void TearDown() override {
+        ov_capi_test_base::TearDown();
+    }
+};
+
+INSTANTIATE_TEST_SUITE_P(device_name, ov_model_test, ::testing::Values(""));
+
+TEST_P(ov_model_test, ov_model_const_input) {
     ov_core_t* core = nullptr;
     OV_EXPECT_OK(ov_core_create(&core));
     EXPECT_NE(nullptr, core);
 
     ov_model_t* model = nullptr;
-    OV_EXPECT_OK(ov_core_read_model(core, xml, bin, &model));
+    OV_EXPECT_OK(ov_core_read_model(core, xml_file_name.c_str(), bin_file_name.c_str(), &model));
     EXPECT_NE(nullptr, model);
 
     ov_output_const_port_t* input_port = nullptr;
@@ -21,13 +33,13 @@ TEST(ov_model, ov_model_const_input) {
     ov_core_free(core);
 }
 
-TEST(ov_model, ov_model_const_input_by_name) {
+TEST_P(ov_model_test, ov_model_const_input_by_name) {
     ov_core_t* core = nullptr;
     OV_EXPECT_OK(ov_core_create(&core));
     EXPECT_NE(nullptr, core);
 
     ov_model_t* model = nullptr;
-    OV_EXPECT_OK(ov_core_read_model(core, xml, bin, &model));
+    OV_EXPECT_OK(ov_core_read_model(core, xml_file_name.c_str(), bin_file_name.c_str(), &model));
     EXPECT_NE(nullptr, model);
 
     ov_output_const_port_t* input_port = nullptr;
@@ -43,13 +55,13 @@ TEST(ov_model, ov_model_const_input_by_name) {
     ov_core_free(core);
 }
 
-TEST(ov_model, ov_model_const_input_by_index) {
+TEST_P(ov_model_test, ov_model_const_input_by_index) {
     ov_core_t* core = nullptr;
     OV_EXPECT_OK(ov_core_create(&core));
     EXPECT_NE(nullptr, core);
 
     ov_model_t* model = nullptr;
-    OV_EXPECT_OK(ov_core_read_model(core, xml, bin, &model));
+    OV_EXPECT_OK(ov_core_read_model(core, xml_file_name.c_str(), bin_file_name.c_str(), &model));
     EXPECT_NE(nullptr, model);
 
     ov_output_const_port_t* input_port = nullptr;
@@ -65,13 +77,13 @@ TEST(ov_model, ov_model_const_input_by_index) {
     ov_core_free(core);
 }
 
-TEST(ov_model, ov_model_input) {
+TEST_P(ov_model_test, ov_model_input) {
     ov_core_t* core = nullptr;
     OV_EXPECT_OK(ov_core_create(&core));
     EXPECT_NE(nullptr, core);
 
     ov_model_t* model = nullptr;
-    OV_EXPECT_OK(ov_core_read_model(core, xml, bin, &model));
+    OV_EXPECT_OK(ov_core_read_model(core, xml_file_name.c_str(), bin_file_name.c_str(), &model));
     EXPECT_NE(nullptr, model);
 
     ov_output_port_t* input_port = nullptr;
@@ -83,13 +95,13 @@ TEST(ov_model, ov_model_input) {
     ov_core_free(core);
 }
 
-TEST(ov_model, ov_model_input_by_name) {
+TEST_P(ov_model_test, ov_model_input_by_name) {
     ov_core_t* core = nullptr;
     OV_EXPECT_OK(ov_core_create(&core));
     EXPECT_NE(nullptr, core);
 
     ov_model_t* model = nullptr;
-    OV_EXPECT_OK(ov_core_read_model(core, xml, bin, &model));
+    OV_EXPECT_OK(ov_core_read_model(core, xml_file_name.c_str(), bin_file_name.c_str(), &model));
     EXPECT_NE(nullptr, model);
 
     ov_output_port_t* input_port = nullptr;
@@ -105,13 +117,13 @@ TEST(ov_model, ov_model_input_by_name) {
     ov_core_free(core);
 }
 
-TEST(ov_model, ov_model_input_by_index) {
+TEST_P(ov_model_test, ov_model_input_by_index) {
     ov_core_t* core = nullptr;
     OV_EXPECT_OK(ov_core_create(&core));
     EXPECT_NE(nullptr, core);
 
     ov_model_t* model = nullptr;
-    OV_EXPECT_OK(ov_core_read_model(core, xml, bin, &model));
+    OV_EXPECT_OK(ov_core_read_model(core, xml_file_name.c_str(), bin_file_name.c_str(), &model));
     EXPECT_NE(nullptr, model);
 
     ov_output_port_t* input_port = nullptr;
@@ -127,13 +139,13 @@ TEST(ov_model, ov_model_input_by_index) {
     ov_core_free(core);
 }
 
-TEST(ov_model, ov_model_const_output) {
+TEST_P(ov_model_test, ov_model_const_output) {
     ov_core_t* core = nullptr;
     OV_EXPECT_OK(ov_core_create(&core));
     EXPECT_NE(nullptr, core);
 
     ov_model_t* model = nullptr;
-    OV_EXPECT_OK(ov_core_read_model(core, xml, bin, &model));
+    OV_EXPECT_OK(ov_core_read_model(core, xml_file_name.c_str(), bin_file_name.c_str(), &model));
     EXPECT_NE(nullptr, model);
 
     ov_output_const_port_t* output_port = nullptr;
@@ -145,13 +157,13 @@ TEST(ov_model, ov_model_const_output) {
     ov_core_free(core);
 }
 
-TEST(ov_model, ov_model_const_output_by_index) {
+TEST_P(ov_model_test, ov_model_const_output_by_index) {
     ov_core_t* core = nullptr;
     OV_EXPECT_OK(ov_core_create(&core));
     EXPECT_NE(nullptr, core);
 
     ov_model_t* model = nullptr;
-    OV_EXPECT_OK(ov_core_read_model(core, xml, bin, &model));
+    OV_EXPECT_OK(ov_core_read_model(core, xml_file_name.c_str(), bin_file_name.c_str(), &model));
     EXPECT_NE(nullptr, model);
 
     ov_output_const_port_t* output_port = nullptr;
@@ -167,17 +179,17 @@ TEST(ov_model, ov_model_const_output_by_index) {
     ov_core_free(core);
 }
 
-TEST(ov_model, ov_model_const_output_by_name) {
+TEST_P(ov_model_test, ov_model_const_output_by_name) {
     ov_core_t* core = nullptr;
     OV_EXPECT_OK(ov_core_create(&core));
     EXPECT_NE(nullptr, core);
 
     ov_model_t* model = nullptr;
-    OV_EXPECT_OK(ov_core_read_model(core, xml, bin, &model));
+    OV_EXPECT_OK(ov_core_read_model(core, xml_file_name.c_str(), bin_file_name.c_str(), &model));
     EXPECT_NE(nullptr, model);
 
     ov_output_const_port_t* output_port = nullptr;
-    OV_EXPECT_OK(ov_model_const_output_by_name(model, "fc_out", &output_port));
+    OV_EXPECT_OK(ov_model_const_output_by_name(model, "relu", &output_port));
     EXPECT_NE(nullptr, output_port);
 
     ov_shape_t shape;
@@ -189,13 +201,13 @@ TEST(ov_model, ov_model_const_output_by_name) {
     ov_core_free(core);
 }
 
-TEST(ov_model, ov_model_output) {
+TEST_P(ov_model_test, ov_model_output) {
     ov_core_t* core = nullptr;
     OV_EXPECT_OK(ov_core_create(&core));
     EXPECT_NE(nullptr, core);
 
     ov_model_t* model = nullptr;
-    OV_EXPECT_OK(ov_core_read_model(core, xml, bin, &model));
+    OV_EXPECT_OK(ov_core_read_model(core, xml_file_name.c_str(), bin_file_name.c_str(), &model));
     EXPECT_NE(nullptr, model);
 
     ov_output_port_t* output_port = nullptr;
@@ -207,13 +219,13 @@ TEST(ov_model, ov_model_output) {
     ov_core_free(core);
 }
 
-TEST(ov_model, ov_model_output_by_index) {
+TEST_P(ov_model_test, ov_model_output_by_index) {
     ov_core_t* core = nullptr;
     OV_EXPECT_OK(ov_core_create(&core));
     EXPECT_NE(nullptr, core);
 
     ov_model_t* model = nullptr;
-    OV_EXPECT_OK(ov_core_read_model(core, xml, bin, &model));
+    OV_EXPECT_OK(ov_core_read_model(core, xml_file_name.c_str(), bin_file_name.c_str(), &model));
     EXPECT_NE(nullptr, model);
 
     ov_output_port_t* output_port = nullptr;
@@ -229,17 +241,17 @@ TEST(ov_model, ov_model_output_by_index) {
     ov_core_free(core);
 }
 
-TEST(ov_model, ov_model_output_by_name) {
+TEST_P(ov_model_test, ov_model_output_by_name) {
     ov_core_t* core = nullptr;
     OV_EXPECT_OK(ov_core_create(&core));
     EXPECT_NE(nullptr, core);
 
     ov_model_t* model = nullptr;
-    OV_EXPECT_OK(ov_core_read_model(core, xml, bin, &model));
+    OV_EXPECT_OK(ov_core_read_model(core, xml_file_name.c_str(), bin_file_name.c_str(), &model));
     EXPECT_NE(nullptr, model);
 
     ov_output_port_t* output_port = nullptr;
-    OV_EXPECT_OK(ov_model_output_by_name(model, "fc_out", &output_port));
+    OV_EXPECT_OK(ov_model_output_by_name(model, "relu", &output_port));
     EXPECT_NE(nullptr, output_port);
 
     ov_shape_t shape;
@@ -251,13 +263,13 @@ TEST(ov_model, ov_model_output_by_name) {
     ov_core_free(core);
 }
 
-TEST(ov_model, ov_model_inputs_size) {
+TEST_P(ov_model_test, ov_model_inputs_size) {
     ov_core_t* core = nullptr;
     OV_EXPECT_OK(ov_core_create(&core));
     EXPECT_NE(nullptr, core);
 
     ov_model_t* model = nullptr;
-    OV_EXPECT_OK(ov_core_read_model(core, xml, bin, &model));
+    OV_EXPECT_OK(ov_core_read_model(core, xml_file_name.c_str(), bin_file_name.c_str(), &model));
     EXPECT_NE(nullptr, model);
 
     size_t input_size;
@@ -268,13 +280,13 @@ TEST(ov_model, ov_model_inputs_size) {
     ov_core_free(core);
 }
 
-TEST(ov_model, ov_model_outputs_size) {
+TEST_P(ov_model_test, ov_model_outputs_size) {
     ov_core_t* core = nullptr;
     OV_EXPECT_OK(ov_core_create(&core));
     EXPECT_NE(nullptr, core);
 
     ov_model_t* model = nullptr;
-    OV_EXPECT_OK(ov_core_read_model(core, xml, bin, &model));
+    OV_EXPECT_OK(ov_core_read_model(core, xml_file_name.c_str(), bin_file_name.c_str(), &model));
     EXPECT_NE(nullptr, model);
 
     size_t output_size;
@@ -285,13 +297,13 @@ TEST(ov_model, ov_model_outputs_size) {
     ov_core_free(core);
 }
 
-TEST(ov_model, ov_model_is_dynamic) {
+TEST_P(ov_model_test, ov_model_is_dynamic) {
     ov_core_t* core = nullptr;
     OV_EXPECT_OK(ov_core_create(&core));
     EXPECT_NE(nullptr, core);
 
     ov_model_t* model = nullptr;
-    OV_EXPECT_OK(ov_core_read_model(core, xml, bin, &model));
+    OV_EXPECT_OK(ov_core_read_model(core, xml_file_name.c_str(), bin_file_name.c_str(), &model));
     EXPECT_NE(nullptr, model);
 
     EXPECT_NO_THROW(ov_model_is_dynamic(model));
@@ -300,13 +312,13 @@ TEST(ov_model, ov_model_is_dynamic) {
     ov_core_free(core);
 }
 
-TEST(ov_model, ov_model_reshape_input_by_name) {
+TEST_P(ov_model_test, ov_model_reshape_input_by_name) {
     ov_core_t* core = nullptr;
     OV_EXPECT_OK(ov_core_create(&core));
     EXPECT_NE(nullptr, core);
 
     ov_model_t* model = nullptr;
-    OV_EXPECT_OK(ov_core_read_model(core, xml, bin, &model));
+    OV_EXPECT_OK(ov_core_read_model(core, xml_file_name.c_str(), bin_file_name.c_str(), &model));
     EXPECT_NE(nullptr, model);
 
     ov_output_const_port_t* input_port_1 = nullptr;
@@ -339,13 +351,13 @@ TEST(ov_model, ov_model_reshape_input_by_name) {
     ov_core_free(core);
 }
 
-TEST(ov_model, ov_model_reshape) {
+TEST_P(ov_model_test, ov_model_reshape) {
     ov_core_t* core = nullptr;
     OV_EXPECT_OK(ov_core_create(&core));
     EXPECT_NE(nullptr, core);
 
     ov_model_t* model = nullptr;
-    OV_EXPECT_OK(ov_core_read_model(core, xml, bin, &model));
+    OV_EXPECT_OK(ov_core_read_model(core, xml_file_name.c_str(), bin_file_name.c_str(), &model));
     EXPECT_NE(nullptr, model);
 
     ov_output_const_port_t* input_port_1 = nullptr;
@@ -379,13 +391,13 @@ TEST(ov_model, ov_model_reshape) {
     ov_core_free(core);
 }
 
-TEST(ov_model, ov_model_reshape_by_port_indexes) {
+TEST_P(ov_model_test, ov_model_reshape_by_port_indexes) {
     ov_core_t* core = nullptr;
     OV_EXPECT_OK(ov_core_create(&core));
     EXPECT_NE(nullptr, core);
 
     ov_model_t* model = nullptr;
-    OV_EXPECT_OK(ov_core_read_model(core, xml, bin, &model));
+    OV_EXPECT_OK(ov_core_read_model(core, xml_file_name.c_str(), bin_file_name.c_str(), &model));
     EXPECT_NE(nullptr, model);
 
     size_t port_indexs[] = {0};
@@ -409,13 +421,13 @@ TEST(ov_model, ov_model_reshape_by_port_indexes) {
     ov_core_free(core);
 }
 
-TEST(ov_model, ov_model_reshape_single_input) {
+TEST_P(ov_model_test, ov_model_reshape_single_input) {
     ov_core_t* core = nullptr;
     OV_EXPECT_OK(ov_core_create(&core));
     EXPECT_NE(nullptr, core);
 
     ov_model_t* model = nullptr;
-    OV_EXPECT_OK(ov_core_read_model(core, xml, bin, &model));
+    OV_EXPECT_OK(ov_core_read_model(core, xml_file_name.c_str(), bin_file_name.c_str(), &model));
     EXPECT_NE(nullptr, model);
 
     ov_shape_t shape = {0, nullptr};
@@ -437,13 +449,13 @@ TEST(ov_model, ov_model_reshape_single_input) {
     ov_core_free(core);
 }
 
-TEST(ov_model, ov_model_reshape_by_ports) {
+TEST_P(ov_model_test, ov_model_reshape_by_ports) {
     ov_core_t* core = nullptr;
     OV_EXPECT_OK(ov_core_create(&core));
     EXPECT_NE(nullptr, core);
 
     ov_model_t* model = nullptr;
-    OV_EXPECT_OK(ov_core_read_model(core, xml, bin, &model));
+    OV_EXPECT_OK(ov_core_read_model(core, xml_file_name.c_str(), bin_file_name.c_str(), &model));
     EXPECT_NE(nullptr, model);
 
     ov_output_port_t* input_port_1 = nullptr;
@@ -471,13 +483,13 @@ TEST(ov_model, ov_model_reshape_by_ports) {
     ov_core_free(core);
 }
 
-TEST(ov_model, ov_model_get_friendly_name) {
+TEST_P(ov_model_test, ov_model_get_friendly_name) {
     ov_core_t* core = nullptr;
     OV_EXPECT_OK(ov_core_create(&core));
     EXPECT_NE(nullptr, core);
 
     ov_model_t* model = nullptr;
-    OV_EXPECT_OK(ov_core_read_model(core, xml, bin, &model));
+    OV_EXPECT_OK(ov_core_read_model(core, xml_file_name.c_str(), bin_file_name.c_str(), &model));
     EXPECT_NE(nullptr, model);
 
     char* friendly_name = nullptr;

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -480,6 +480,14 @@ void regclass_graph_Model(py::module m) {
                     :return: ParameterVector containing model parameters.
                     :rtype: ParameterVector
                  )");
+    model.def_property_readonly("parameters",
+                                &ov::Model::get_parameters,
+                                R"(
+                                        Return the model parameters.
+                                        
+                                        :return: ParameterVector containing model parameters.
+                                        :rtype: ParameterVector
+                                    )");
     model.def("get_results",
               &ov::Model::get_results,
               R"(
@@ -488,6 +496,14 @@ void regclass_graph_Model(py::module m) {
                     :return: ResultVector containing model parameters.
                     :rtype: ResultVector
                  )");
+    model.def_property_readonly("results",
+                                &ov::Model::get_results,
+                                R"(
+                                        Return a list of model outputs.
+
+                                        :return: ResultVector containing model parameters.
+                                        :rtype: ResultVector
+                                    )");
     model.def("get_result",
               &ov::Model::get_result,
               R"(
@@ -496,6 +512,14 @@ void regclass_graph_Model(py::module m) {
                     :return: Node object representing result.
                     :rtype: openvino.runtime.Node
                  )");
+    model.def_property_readonly("result",
+                                &ov::Model::get_result,
+                                R"(
+                                        Return single result.
+
+                                        :return: Node object representing result.
+                                        :rtype: openvino.runtime.Node
+                                    )");
     model.def("get_result_index",
               (int64_t(ov::Model::*)(const ov::Output<ov::Node>&) const) & ov::Model::get_result_index,
               py::arg("value"),
@@ -561,6 +585,14 @@ void regclass_graph_Model(py::module m) {
 
                     :rtype: bool
                  )");
+    model.def_property_readonly("dynamic",
+                                &ov::Model::is_dynamic,
+                                R"(
+                                        Returns true if any of the op's defined in the model
+                                        contains partial shape.
+
+                                        :rtype: bool
+                                    )");
     model.def("input", (ov::Output<ov::Node>(ov::Model::*)()) & ov::Model::input);
 
     model.def("input", (ov::Output<ov::Node>(ov::Model::*)(size_t)) & ov::Model::input, py::arg("index"));
@@ -706,6 +738,26 @@ void regclass_graph_Model(py::module m) {
         return "<" + class_name + ": '" + self.get_friendly_name() + "'\ninputs[\n" + inputs_str + "\n]\noutputs[\n" +
                outputs_str + "\n]>";
     });
+
+    model.def("__copy__", [](ov::Model& self) {
+        auto error_message =
+            py::detail::c_str(std::string("cannot copy 'openvino.runtime.Model. Please, use deepcopy instead."));
+        PyErr_SetString(PyExc_TypeError, error_message);
+        throw py::error_already_set();
+    });
+
+    model.def(
+        "__deepcopy__",
+        [](ov::Model& self, py::dict) {
+            return self.clone();
+        },
+        R"(
+        Returns a deepcopy of Model.
+
+        :return: A copy of Model.
+        :rtype: openvino.runtime.Model
+    )");
+
     model.def("get_rt_info",
               (PyRTMap & (ov::Model::*)()) & ov::Model::get_rt_info,
               py::return_value_policy::reference_internal,
@@ -722,32 +774,32 @@ void regclass_graph_Model(py::module m) {
             for (size_t i = 0; i < path.size(); i++) {
                 cpp_args[i] = path[i].cast<std::string>();
             }
-            return Common::utils::from_ov_any(self.get_rt_info<ov::Any>(cpp_args));
+            return py::cast(self.get_rt_info<ov::Any>(cpp_args));
         },
         py::arg("path"),
         R"(
-                Returns runtime attribute.
+                Returns runtime attribute as a OVAny object.
 
                 :param path: List of strings which defines a path to runtime info.
                 :type path: List[str]
 
                 :return: A runtime attribute.
-                :rtype: Any
+                :rtype: openvino.runtime.OVAny
              )");
     model.def(
         "get_rt_info",
         [](const ov::Model& self, const py::str& path) -> py::object {
-            return Common::utils::from_ov_any(self.get_rt_info<ov::Any>(path.cast<std::string>()));
+            return py::cast(self.get_rt_info<ov::Any>(path.cast<std::string>()));
         },
         py::arg("path"),
         R"(
-                Returns runtime attribute.
+                Returns runtime attribute as a OVAny object.
 
                 :param path: List of strings which defines a path to runtime info.
                 :type path: str
 
                 :return: A runtime attribute.
-                :rtype: Any
+                :rtype: openvino.runtime.OVAny
              )");
     model.def(
         "has_rt_info",
@@ -790,7 +842,7 @@ void regclass_graph_Model(py::module m) {
             for (size_t i = 0; i < path.size(); i++) {
                 cpp_args[i] = path[i].cast<std::string>();
             }
-            self.set_rt_info<ov::Any>(py_object_to_any(obj), cpp_args);
+            self.set_rt_info<ov::Any>(Common::utils::py_object_to_any(obj), cpp_args);
         },
         py::arg("obj"),
         py::arg("path"),
@@ -805,7 +857,7 @@ void regclass_graph_Model(py::module m) {
     model.def(
         "set_rt_info",
         [](ov::Model& self, const py::object& obj, const py::str& path) -> void {
-            self.set_rt_info<ov::Any>(py_object_to_any(obj), path.cast<std::string>());
+            self.set_rt_info<ov::Any>(Common::utils::py_object_to_any(obj), path.cast<std::string>());
         },
         py::arg("obj"),
         py::arg("path"),

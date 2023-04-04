@@ -1,9 +1,10 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "include/batch_headers/fetch_data.cl"
-#include "include/batch_headers/data_types.cl"
+#include "include/batch_headers/sub_group_block_read.cl"
+#include "include/batch_headers/sub_group_block_write.cl"
 
 #define WORK_GROUP_SIZE 16
 #define IC_BLOCK 16
@@ -21,10 +22,8 @@
 #   define TILE_F 1
 #endif
 
-#define CEIL_DIV(a, b) (((a) + (b) - 1) / (b))
-
 __attribute__((reqd_work_group_size(1, WORK_GROUP_SIZE, 1)))
-__attribute__((intel_reqd_sub_group_size(WORK_GROUP_SIZE)))
+REQD_SUB_GROUP_SIZE(WORK_GROUP_SIZE)
 KERNEL (concatenation_gpu_blocked)(
     __global INPUT0_TYPE* input,
     __global OUTPUT_TYPE* output,
@@ -52,8 +51,7 @@ KERNEL (concatenation_gpu_blocked)(
         OUTPUT_BLOCK_WRITE(output, dst_index, res);
     } else {
         if (lid < INPUT0_FEATURE_NUM % IC_BLOCK) {
-            __attribute__((opencl_unroll_hint))
-            for (uint tx = 0; tx < TILE_XY; ++tx) {
+            unroll_for(uint tx = 0; tx < TILE_XY; ++tx) {
                 OUTPUT_TYPE res = TO_OUTPUT_TYPE(ACTIVATION(((INPUT0_TYPE*)&src)[tx], ACTIVATION_PARAMS));
                 output[dst_index + tx * IC_BLOCK + lid] = res;
             }
@@ -78,12 +76,11 @@ KERNEL (concatenation_gpu_blocked)(
         INPUT_VEC_TYPE src_al1 = 0;
         INPUT_VEC_TYPE src_al2 = 0;
     #endif
-        __attribute__((opencl_unroll_hint))
-        for (uint tx = 0; tx < TILE_XY; ++tx) {
-            ((INPUT0_TYPE*)&src_al0)[tx] = intel_sub_group_shuffle_down(((INPUT0_TYPE*)&src0)[tx], ((INPUT0_TYPE*)&src1)[tx], (IC_BLOCK - MISALIGNMENT));
+        unroll_for(uint tx = 0; tx < TILE_XY; ++tx) {
+            ((INPUT0_TYPE*)&src_al0)[tx] = _sub_group_shuffle_down(((INPUT0_TYPE*)&src0)[tx], ((INPUT0_TYPE*)&src1)[tx], (IC_BLOCK - MISALIGNMENT));
     #if TILE_F == 4
-            ((INPUT0_TYPE*)&src_al1)[tx] = intel_sub_group_shuffle_down(((INPUT0_TYPE*)&src1)[tx], ((INPUT0_TYPE*)&src2)[tx], (IC_BLOCK - MISALIGNMENT));
-            ((INPUT0_TYPE*)&src_al2)[tx] = intel_sub_group_shuffle_down(((INPUT0_TYPE*)&src2)[tx], ((INPUT0_TYPE*)&src3)[tx], (IC_BLOCK - MISALIGNMENT));
+            ((INPUT0_TYPE*)&src_al1)[tx] = _sub_group_shuffle_down(((INPUT0_TYPE*)&src1)[tx], ((INPUT0_TYPE*)&src2)[tx], (IC_BLOCK - MISALIGNMENT));
+            ((INPUT0_TYPE*)&src_al2)[tx] = _sub_group_shuffle_down(((INPUT0_TYPE*)&src2)[tx], ((INPUT0_TYPE*)&src3)[tx], (IC_BLOCK - MISALIGNMENT));
     #endif
         }
         OUTPUT_VEC_TYPE res_al0 = TO_OUTPUT_VEC_TYPE(ACTIVATION(src_al0, ACTIVATION_PARAMS));
@@ -105,8 +102,7 @@ KERNEL (concatenation_gpu_blocked)(
     #endif
 
         dst_index = OUTPUT_GET_INDEX(b, (f_block*IC_BLOCK + lid_f_offset + output_offset_in_concat_axis), y, x);
-        __attribute__((opencl_unroll_hint))
-        for (uint tx = 0; tx < TILE_XY; ++tx) {
+        unroll_for(uint tx = 0; tx < TILE_XY; ++tx) {
             OUTPUT_TYPE res_unal = TO_OUTPUT_TYPE(ACTIVATION(((INPUT0_TYPE*)&src_unal)[tx], ACTIVATION_PARAMS));
             output[dst_index + tx * IC_BLOCK] = res_unal;
         }
@@ -115,15 +111,13 @@ KERNEL (concatenation_gpu_blocked)(
     {
         const uint dst_index = OUTPUT_GET_INDEX(b, (f_block*IC_BLOCK + lid + output_offset_in_concat_axis), y, x);
 
-        __attribute__((opencl_unroll_hint))
-        for (uint fw = 0; fw < TILE_F; ++fw) {
+        unroll_for(uint fw = 0; fw < TILE_F; ++fw) {
             if (TILE_F != 1 && CEIL_DIV(INPUT0_FEATURE_NUM, IC_BLOCK) % TILE_F != 0 && CEIL_DIV(INPUT0_FEATURE_NUM, IC_BLOCK) % TILE_F == fw)
                 break;
 
             bool do_leftover_write = INPUT0_FEATURE_NUM % IC_BLOCK == 0 || f_block * IC_BLOCK + fw * IC_BLOCK + lid < INPUT0_FEATURE_NUM;
             if (do_leftover_write) {
-                __attribute__((opencl_unroll_hint))
-                for (uint tx = 0; tx < TILE_XY; ++tx) {
+                unroll_for(uint tx = 0; tx < TILE_XY; ++tx) {
                     INPUT0_TYPE src = input[input_offset + lid + tx * IC_BLOCK + fw * INPUT0_FEATURE_PITCH * IC_BLOCK];
                     OUTPUT_TYPE res = TO_OUTPUT_TYPE(ACTIVATION(src, ACTIVATION_PARAMS));
                     output[dst_index + tx * IC_BLOCK + fw * OUTPUT_FEATURE_PITCH * IC_BLOCK] = res;
@@ -144,4 +138,3 @@ KERNEL (concatenation_gpu_blocked)(
 #undef OUTPUT_BLOCK_WRITE
 
 #undef TILE_F
-#undef CEIL_DIV

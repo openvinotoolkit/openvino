@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -6,15 +6,21 @@
 
 #include <fstream>
 
+#include "common_test_utils/common_utils.hpp"
 #include "openvino/opsets/opset8.hpp"
 #include "openvino/pass/serialize.hpp"
 #include "util/test_common.hpp"
 
 class SerializatioConstantCompressionTest : public ov::test::TestsCommon {
 protected:
-    std::string test_name = GetTestName();
-    std::string m_out_xml_path_1 = test_name + "1" + ".xml";
-    std::string m_out_bin_path_1 = test_name + "1" + ".bin";
+    std::string m_out_xml_path_1;
+    std::string m_out_bin_path_1;
+
+    void SetUp() override {
+        std::string filePrefix = CommonTestUtils::generateTestFilePrefix();
+        m_out_xml_path_1 = filePrefix + ".xml";
+        m_out_bin_path_1 = filePrefix + ".bin";
+    }
 
     void TearDown() override {
         std::remove(m_out_xml_path_1.c_str());

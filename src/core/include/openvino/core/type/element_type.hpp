@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -16,7 +16,6 @@
 
 #include "openvino/core/attribute_adapter.hpp"
 #include "openvino/core/core_visibility.hpp"
-#include "openvino/core/deprecated.hpp"
 #include "openvino/core/except.hpp"
 #include "openvino/core/rtti.hpp"
 #include "openvino/core/type/bfloat16.hpp"
@@ -62,6 +61,7 @@ public:
     Type(const Type&) = default;
     constexpr Type(const Type_t t) : m_type{t} {}
     Type(size_t bitwidth, bool is_real, bool is_signed, bool is_quantized, const std::string& cname);
+    explicit Type(const std::string& type);
     Type& operator=(const Type&) = default;
     std::string c_type_string() const;
     size_t size() const;
@@ -224,14 +224,12 @@ public:
     AttributeAdapter(ov::element::Type_t& value) : EnumAttributeAdapterBase<ov::element::Type_t>(value) {}
 
     OPENVINO_RTTI("AttributeAdapter<ov::element::Type_t>");
-    BWDCMP_RTTI_DECLARATION;
 };
 
 template <>
 class OPENVINO_API AttributeAdapter<ov::element::Type> : public ValueAccessor<std::string> {
 public:
     OPENVINO_RTTI("AttributeAdapter<ov::element::Type>");
-    BWDCMP_RTTI_DECLARATION;
     AttributeAdapter(ov::element::Type& value) : m_ref(value) {}
 
     const std::string& get() override;
@@ -249,7 +247,6 @@ template <>
 class OPENVINO_API AttributeAdapter<ov::element::TypeVector> : public DirectValueAccessor<ov::element::TypeVector> {
 public:
     OPENVINO_RTTI("AttributeAdapter<ov::element::TypeVector>");
-    BWDCMP_RTTI_DECLARATION;
     AttributeAdapter(ov::element::TypeVector& value) : DirectValueAccessor<ov::element::TypeVector>(value) {}
 };
 

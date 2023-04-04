@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -10,7 +10,7 @@
 
 #include "itt.hpp"
 
-NGRAPH_RTTI_DEFINITION(ov::intel_cpu::SwapConvertTranspose, "SwapConvertTranspose", 0);
+NGRAPH_RTTI_DEFINITION(ov::intel_cpu::SwapConvertTranspose, "SwapConvertTranspose");
 
 ov::intel_cpu::SwapConvertTranspose::SwapConvertTranspose() {
     MATCHER_SCOPE(SwapConvertTranspose);

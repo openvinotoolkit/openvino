@@ -37,7 +37,7 @@ TEST_P(reshape_test_two_inputs, shape_infer) {
 
     auto input_prim = std::make_shared<input_layout>("input", p.in_layout);
     auto pattern_prim = std::make_shared<input_layout>("pattern", p.pattern_layout);
-    auto reshape_prim = std::make_shared<reshape>("output", "input", "pattern", p.special_zero, p.output_partial_shape);
+    auto reshape_prim = std::make_shared<reshape>("output", input_info("input"), input_info("pattern"), p.special_zero, p.output_partial_shape);
 
     cldnn::program prog(engine);
 
@@ -95,7 +95,7 @@ TEST_P(reshape_test_single_input, shape_infer) {
     auto& engine = get_test_engine();
 
     auto input_prim = std::make_shared<input_layout>("input", p.in_layout);
-    auto reshape_prim = std::make_shared<reshape>("output", "input", p.special_zero, p.pattern_data, p.output_partial_shape);
+    auto reshape_prim = std::make_shared<reshape>("output", input_info("input"), p.special_zero, p.pattern_data, p.output_partial_shape);
 
     cldnn::program prog(engine);
 
@@ -158,7 +158,7 @@ TEST_P(squeeze_test, shape_infer) {
 
     auto input_prim = std::make_shared<input_layout>("input", p.in_layout);
     auto indices_prim = std::make_shared<input_layout>("pattern", p.indices_layout);
-    auto squeeze_prim = std::make_shared<reshape>("output", "input", "pattern",
+    auto squeeze_prim = std::make_shared<reshape>("output", input_info("input"), input_info("pattern"),
                                                   false, p.output_partial_shape,
                                                   reshape::reshape_mode::squeeze);
     cldnn::program prog(engine);
@@ -208,7 +208,7 @@ TEST_P(unsqueeze_test, shape_infer) {
 
     auto input_prim = std::make_shared<input_layout>("input", p.in_layout);
     auto indices_prim = std::make_shared<input_layout>("pattern", p.indices_layout);
-    auto unsqueeze_prim = std::make_shared<reshape>("output", "input", "pattern",
+    auto unsqueeze_prim = std::make_shared<reshape>("output", input_info("input"), input_info("pattern"),
                                                     false, p.output_partial_shape,
                                                     reshape::reshape_mode::unsqueeze);
     cldnn::program prog(engine);

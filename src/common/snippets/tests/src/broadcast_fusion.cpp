@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -32,7 +32,7 @@ TEST(TransformationTests, FuseLoadWithBroadcastMoveByX) {
         f = std::make_shared<Function>(NodeVector{store}, ParameterVector{data0, data1});
 
         pass::Manager m;
-        m.register_pass<pass::InitNodeInfo>();
+        m.register_pass<ov::pass::InitNodeInfo>();
         m.register_pass<snippets::pass::LoadMoveBroadcastToBroadcastLoad>();
         m.run_passes(f);
         ASSERT_NO_THROW(check_rt_info(f));
@@ -73,7 +73,7 @@ TEST(TransformationTests, NoFuseLoadWithBroadcastMoveMultipleUsers) {
         f = std::make_shared<Function>(NodeVector{store0, store1}, ParameterVector{data0, data1, data2});
 
         pass::Manager m;
-        m.register_pass<pass::InitNodeInfo>();
+        m.register_pass<ov::pass::InitNodeInfo>();
         m.register_pass<snippets::pass::LoadMoveBroadcastToBroadcastLoad>();
         m.run_passes(f);
         ASSERT_NO_THROW(check_rt_info(f));

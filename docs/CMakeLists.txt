@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2022 Intel Corporation
+# Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -126,8 +126,8 @@ function(build_docs)
         get_filename_component(OVMS_DOCS_DIR "${OVMS_DOCS_DIR}" ABSOLUTE)
 
         list(APPEND commands COMMAND ${PYTHON_EXECUTABLE} ${DOXY_MD_FILTER}
-        --input_dir=${OVMS_DOCS_DIR}
-        --output_dir=${DOCS_BUILD_DIR}/ovms)
+            --input_dir=${OVMS_DOCS_DIR}
+            --output_dir=${DOCS_BUILD_DIR}/ovms)
     endif()
 
     add_custom_target(preprocess_docs

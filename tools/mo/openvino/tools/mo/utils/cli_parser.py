@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2022 Intel Corporation
+# Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import argparse
@@ -464,7 +464,7 @@ mo_convert_params = {
         'value. When a list of inputs is overridden by the --input ' +
         'parameter, this scale ' +
         'is not applied for any input that does not match with ' +
-        'the original input of the model.' +
+        'the original input of the model. ' +
         'If both --mean_values and --scale  are specified, ' +
         'the mean is subtracted first and then scale is applied ' +
         'regardless of the order of options in command line.', '', '', None),
@@ -526,7 +526,7 @@ mo_convert_params = {
         'Can be defined for desired input of the model, for example: ' +
         '"--scale_values data[255,255,255],info[255,255,255]". ' +
         'The exact meaning and order ' +
-        'of channels depend on how the original model was trained.' +
+        'of channels depend on how the original model was trained. ' +
         'If both --mean_values and --scale_values are specified, ' +
         'the mean is subtracted first and then scale is applied ' +
         'regardless of the order of options in command line.', '',
@@ -559,7 +559,9 @@ mo_convert_params = {
         ' used to fuse dimensions, for example "[n,c,...]->[n*c,...]".', '', '', layout_param_to_str),
     'compress_to_fp16': ParamDescription(
         'If the original model has FP32 weights or biases, they are compressed to FP16. '
-        'All intermediate data is kept in original precision.', '', '', None),
+        'All intermediate data is kept in original precision. Option can be specified alone as "--compress_to_fp16", '
+        'or explicit True/False values can be set, for example: "--compress_to_fp16=False", or "--compress_to_fp16=True"',
+        '', '', None),
     'transform': ParamDescription(
         'Apply additional transformations. {}' +
         '"--transform transformation_name1[args],transformation_name2..." ' +
@@ -704,7 +706,7 @@ mo_convert_params = {
     'example_input': ParamDescription('Sample of model input in original framework. '
                                        'For PyTorch it can be torch.Tensor.', '', '', None),
     'onnx_opset_version': ParamDescription('Version of ONNX opset that is used for converting from PyTorch to ONNX.',
-                                           '', '', None)
+                                           '', '', None),
     }
 }
 
@@ -723,9 +725,9 @@ class DeprecatedStoreTrue(argparse.Action):
 
 class DeprecatedOptionCommon(argparse.Action):
     def __call__(self, parser, args, values, option_string):
-       dep_msg = "Use of deprecated cli option {} detected. Option use in the following releases will be fatal. ".format(option_string)
-       log.error(dep_msg, extra={'is_warning': True})
-       setattr(args, self.dest, values)
+        dep_msg = "Use of deprecated cli option {} detected. Option use in the following releases will be fatal. ".format(option_string)
+        log.error(dep_msg, extra={'is_warning': True})
+        setattr(args, self.dest, values)
 
 
 class IgnoredAction(argparse.Action):
@@ -806,6 +808,19 @@ class CanonicalizePathCheckExistenceAction(argparse.Action):
         setattr(namespace, self.dest, ','.join(list_of_paths))
 
 
+class CanonicalizeExtensionsPathCheckExistenceAction(argparse.Action):
+    """
+    Expand user home directory paths and convert relative-paths to absolute and check specified file or directory
+    existence.
+    """
+
+    def __call__(self, parser, namespace, values, option_string=None):
+        list_of_paths = canonicalize_and_check_paths(values, param_name=option_string,
+                                                     try_mo_root=False, check_existance=True)
+        # Extensions paths are needed to be stored as list
+        setattr(namespace, self.dest, list_of_paths)
+
+
 class CanonicalizePathCheckExistenceIfNeededAction(CanonicalizePathCheckExistenceAction):
 
     def __call__(self, parser, namespace, values, option_string=None):
@@ -821,10 +836,6 @@ class DeprecatedCanonicalizePathCheckExistenceAction(CanonicalizePathCheckExiste
     def __call__(self, parser, namespace, values, option_string=None):
         dep_msg = "Use of deprecated cli option {} detected. Option use in the following releases will be fatal. ".format(
             option_string)
-        if 'tensorflow_use_custom_operations_config' in option_string:
-            dep_msg += 'Please use --transformations_config cli option instead'
-        if 'mean_file' in option_string or 'mean_offset' in option_string:
-            dep_msg += 'Please use --mean_values cli option instead.'
         log.error(dep_msg, extra={'is_warning': True})
         super().__call__(parser, namespace, values, option_string)
 
@@ -1008,44 +1019,22 @@ def get_common_cli_parser(parser: argparse.ArgumentParser = None):
                               help=mo_convert_params_common['layout'].description.format(
                                   mo_convert_params_common['layout'].possible_types_command_line),
                               default=())
-    # TODO: isn't it a weights precision type
-    common_group.add_argument('--data_type',
-                              help='[DEPRECATED] Data type for model weights and biases. '
-                                   'If original model has FP32 weights or biases and --data_type=FP16 is specified, '
-                                   'FP32 model weights and biases are compressed to FP16. '
-                                   'All intermediate data is kept in original precision.',
-                              choices=["FP16", "FP32", "half", "float"],
-                              default='float',
-                              action=DeprecatedOptionCommon)
     common_group.add_argument('--compress_to_fp16',
                               help=mo_convert_params_common['compress_to_fp16'].description,
                               type=check_bool,
                               nargs="?",
                               const=True,
-                              default=False)
+                              default=True)
     common_group.add_argument('--transform',
                               help=mo_convert_params_common['transform'].description.format(
                                   mo_convert_params_common['transform'].possible_types_command_line),
                               default="")
-    common_group.add_argument('--disable_fusing',
-                              help='[DEPRECATED] Turn off fusing of linear operations to Convolution.',
-                              action=DeprecatedStoreTrue)
-    common_group.add_argument('--disable_resnet_optimization',
-                              help='[DEPRECATED] Turn off ResNet optimization.',
-                              action=DeprecatedStoreTrue, default=False)
-    common_group.add_argument('--finegrain_fusing',
-                              help='[DEPRECATED] Regex for layers/operations that won\'t be fused. ' +
-                                   'Example: --finegrain_fusing Convolution1,.*Scale.*',
-                              action=DeprecatedOptionCommon)
-    common_group.add_argument('--enable_concat_optimization',
-                              help='[DEPRECATED] Turn on Concat optimization.',
-                              action=DeprecatedStoreTrue, default=False)
     # we use CanonicalizeDirCheckExistenceAction instead of readable_dirs to handle empty strings
     common_group.add_argument("--extensions",
                               help=mo_convert_params_common['extensions'].description.format(
                                   mo_convert_params_common['extensions'].possible_types_command_line),
                               default=[import_extensions.default_path()],
-                              action=CanonicalizePathCheckExistenceAction,
+                              action=CanonicalizeExtensionsPathCheckExistenceAction,
                               type=readable_dirs_or_files_or_empty)
     common_group.add_argument("--batch", "-b",
                               type=check_positive,
@@ -1069,9 +1058,6 @@ def get_common_cli_parser(parser: argparse.ArgumentParser = None):
     common_group.add_argument('--static_shape',
                               help=mo_convert_params_common['static_shape'].description,
                               action='store_true', default=False)
-    common_group.add_argument('--disable_weights_compression',
-                              help='[DEPRECATED] Disable compression and store weights with original precision.',
-                              action=DeprecatedStoreTrue, default=False)
     common_group.add_argument('--progress',
                               help=mo_convert_params_common['progress'].description,
                               action='store_true', default=False)
@@ -1107,8 +1093,6 @@ def get_common_cli_options(model_name):
     d['mean_values'] = ['- Mean values', lambda x: x if x else 'Not specified']
     d['scale_values'] = ['- Scale values', lambda x: x if x else 'Not specified']
     d['scale'] = ['- Scale factor', lambda x: x if x else 'Not specified']
-    d['data_type'] = ['- Precision of IR', lambda x: 'FP32' if x == 'float' else 'FP16' if x == 'half' else x]
-    d['disable_fusing'] = ['- Enable fusing', lambda x: not x]
     d['transform'] = ['- User transformations', lambda x: x if x else 'Not specified']
     d['reverse_input_channels'] = '- Reverse input channels'
     d['static_shape'] = '- Enable IR generation for fixed input shape'
@@ -1127,10 +1111,7 @@ def get_caffe_cli_options():
     d = {
         'input_proto': ['- Path to the Input prototxt', lambda x: x],
         'caffe_parser_path': ['- Path to Python Caffe* parser generated from caffe.proto', lambda x: x],
-        'mean_file': ['- Path to a mean file', lambda x: x if x else 'Not specified'],
-        'mean_file_offsets': ['- Offsets for a mean file', lambda x: x if x else 'Not specified'],
         'k': '- Path to CustomLayersMapping.xml',
-        'disable_resnet_optimization': ['- Enable resnet optimization', lambda x: not x],
     }
 
     return OrderedDict(sorted(d.items(), key=lambda t: t[0]))
@@ -1140,7 +1121,6 @@ def get_tf_cli_options():
     d = {
         'input_model_is_text': '- Input model in text protobuf format',
         'tensorflow_custom_operations_config_update': '- Update the configuration file with input/output node names',
-        'tensorflow_use_custom_operations_config': '- Use the config file',
         'tensorflow_object_detection_api_pipeline_config': '- Use configuration file used to generate the model with '
                                                            'Object Detection API',
         'tensorflow_custom_layer_libraries': '- List of shared libraries with TensorFlow custom layers implementation',
@@ -1181,10 +1161,10 @@ def get_onnx_cli_options():
 
 def get_params_with_paths_list():
     return ['input_model', 'output_dir', 'caffe_parser_path', 'extensions', 'k', 'output_dir',
-            'input_checkpoint', 'input_meta_graph', 'input_proto', 'input_symbol', 'mean_file',
-            'mean_file_offsets', 'pretrained_model_name', 'saved_model_dir', 'tensorboard_logdir',
+            'input_checkpoint', 'input_meta_graph', 'input_proto', 'input_symbol',
+            'pretrained_model_name', 'saved_model_dir', 'tensorboard_logdir',
             'tensorflow_custom_layer_libraries', 'tensorflow_custom_operations_config_update',
-            'tensorflow_object_detection_api_pipeline_config', 'tensorflow_use_custom_operations_config',
+            'tensorflow_object_detection_api_pipeline_config',
             'transformations_config']
 
 
@@ -1219,20 +1199,6 @@ def get_caffe_cli_parser(parser: argparse.ArgumentParser = None):
                                                   'front', 'caffe',
                                                   'CustomLayersMapping.xml'),
                              action=CanonicalizePathCheckExistenceAction)
-    caffe_group.add_argument('--mean_file', '-mf',
-                             help='[DEPRECATED] ' +
-                                  'Mean image to be used for the input. Should be a binaryproto file',
-                             default=None,
-                             action=DeprecatedCanonicalizePathCheckExistenceAction)
-    caffe_group.add_argument('--mean_file_offsets', '-mo',
-                             help='[DEPRECATED] ' +
-                                  'Mean image offsets to be used for the input binaryproto file. ' +
-                                  'When the mean image is bigger than the expected input, it is cropped. By default, centers ' +
-                                  'of the input image and the mean image are the same and the mean image is cropped by ' +
-                                  'dimensions of the input image. The format to pass this option is the following: "-mo (x,y)". In this ' +
-                                  'case, the mean file is cropped by dimensions of the input image with offset (x,y) ' +
-                                  'from the upper left corner of the mean image',
-                             default=None)
     caffe_group.add_argument('--disable_omitting_optional',
                              help=mo_convert_params_caffe['disable_omitting_optional'].description,
                              action='store_true',
@@ -1277,9 +1243,6 @@ def get_tf_cli_parser(parser: argparse.ArgumentParser = None):
     tf_group.add_argument('--tensorflow_custom_operations_config_update',
                           help=mo_convert_params_tf['tensorflow_custom_operations_config_update'].description,
                           action=CanonicalizePathCheckExistenceAction)
-    tf_group.add_argument('--tensorflow_use_custom_operations_config',
-                          help='Use the configuration file with custom operation description.',
-                          action=DeprecatedCanonicalizePathCheckExistenceAction)
     tf_group.add_argument('--tensorflow_object_detection_api_pipeline_config',
                           help=mo_convert_params_tf['tensorflow_object_detection_api_pipeline_config'].description,
                           action=CanonicalizePathCheckExistenceAction)
@@ -1291,10 +1254,6 @@ def get_tf_cli_parser(parser: argparse.ArgumentParser = None):
                           help=mo_convert_params_tf['tensorflow_custom_layer_libraries'].description,
                           default=None,
                           action=CanonicalizePathCheckExistenceAction)
-    tf_group.add_argument('--disable_nhwc_to_nchw',
-                          help='[DEPRECATED] Disables the default translation from NHWC to NCHW. Since 2022.1 this option '
-                               'is deprecated and used only to maintain backward compatibility with previous releases.',
-                          action=DeprecatedStoreTrue, default=False)
     return parser
 
 
@@ -1457,7 +1416,8 @@ def get_shape_from_input_value(input_value: str):
     if len(shape) == 0:
         shape = None
     elif len(shape) == 1 and shape[0] in ['', ' ']:
-        shape = ()
+        # this shape corresponds to scalar
+        shape = PartialShape([])
     elif len(shape) == 1:
         dims = re.split(r', *| +', shape[0])
         dims = list(filter(None, dims))
@@ -2026,7 +1986,7 @@ def get_mean_scale_dictionary(mean_values, scale_values, argv_input: str):
     res = {}
     # collect input names
     if argv_input:
-        inputs = argv_input.split(',')
+        inputs =  [get_node_name_with_port_from_input_value(input_value) for input_value in split_inputs(argv_input)]
     else:
         inputs = []
         if type(mean_values) is dict:

@@ -1,8 +1,10 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #pragma once
+
+#include "pass_manager.h"
 
 namespace cldnn
 {
@@ -26,19 +28,10 @@ namespace cldnn
         {
             p.run_graph_compilation();
         }
-        static void compile(program& p)
-        {
-            p.compile();
-        }
         static void build(program& p)
         {
             program_wrapper::run_graph_compilation(p);
-            program_wrapper::compile(p);
-            program_wrapper::init_kernels(p);
-        }
-        static void init_kernels(program& p)
-        {
-            p.init_kernels();
+            p.apply_opt_pass<build_implementations>();
         }
         static void prepare_memory_dependencies(program& p)
         {

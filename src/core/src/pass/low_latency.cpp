@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -11,7 +11,6 @@
 #include <ngraph/opsets/opset7.hpp>
 #include <ngraph/pattern/op/wrap_type.hpp>
 #include <ngraph/rt_info.hpp>
-#include <ngraph/variant.hpp>
 #include <openvino/cc/pass/itt.hpp>
 #include <openvino/op/util/variable.hpp>
 #include <openvino/opsets/opset1.hpp>
@@ -19,7 +18,7 @@
 #include <openvino/util/log.hpp>
 
 NGRAPH_SUPPRESS_DEPRECATED_START
-NGRAPH_RTTI_DEFINITION(ngraph::pass::LowLatency, "LowLatency", 0);
+NGRAPH_RTTI_DEFINITION(ngraph::pass::LowLatency, "LowLatency");
 
 using namespace std;
 
@@ -362,14 +361,14 @@ bool ov::pass::LowLatency2::run_on_model(const shared_ptr<Model>& f) {
                         }
                     }
 
-                    // insert ReadValue and Assign ops:
-                    //
-                    // Layers -> [new op: ReadValue] -> Subgraph operation
-                    //
-                    // Subgraph operation -> [new op: Assign]
-                    //                    \
-                    //                      ---> Layers -> ...
-                    //
+                    /** insert ReadValue and Assign ops:
+                     *
+                     * Layers -> [new op: ReadValue] -> Subgraph operation
+                     *
+                     * Subgraph operation -> [new op: Assign]
+                     *                    \
+                     *                     ---> Layers -> ...
+                     */
                     const auto& out_desc = sub_graph_op->get_output_descriptions();
                     bool is_output_exist = any_of(out_desc.begin(),
                                                   out_desc.end(),

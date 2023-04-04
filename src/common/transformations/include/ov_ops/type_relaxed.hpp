@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -189,10 +189,7 @@ OPENVINO_SUPPRESS_DEPRECATED_START
 template <typename BaseOp>
 class TypeRelaxed : public BaseOp, public TypeRelaxedBase {
 public:
-    OPENVINO_OP(BaseOp::get_type_info_static().name,
-                BaseOp::get_type_info_static().version_id,
-                BaseOp,
-                BaseOp::get_type_info_static().version);
+    OPENVINO_OP(BaseOp::get_type_info_static().name, BaseOp::get_type_info_static().version_id, BaseOp);
 
     using BaseOp::BaseOp;
 
@@ -337,11 +334,3 @@ OPENVINO_SUPPRESS_DEPRECATED_END
 
 }  // namespace op
 }  // namespace ov
-
-namespace ngraph {
-namespace op {
-using ov::op::TemporaryReplaceOutputType;
-using ov::op::TypeRelaxed;
-using ov::op::TypeRelaxedBase;
-}  // namespace op
-}  // namespace ngraph

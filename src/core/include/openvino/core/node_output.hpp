@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -103,6 +103,7 @@ public:
     bool operator>(const Output& other) const;
     bool operator<=(const Output& other) const;
     bool operator>=(const Output& other) const;
+    operator Output<const Node>() const;
 
 private:
     std::shared_ptr<Node> m_node;

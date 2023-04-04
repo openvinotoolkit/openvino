@@ -1,10 +1,11 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "include/batch_headers/fetch_data.cl"
 #include "include/batch_headers/fetch_weights.cl"
-#include "include/imad.cl"
+#include "include/batch_headers/imad.cl"
+#include "include/batch_headers/sub_group_shuffle.cl"
 #if QUANTIZATION_TERM
 #define ACCUMULATOR_TYPE int
 #define TO_ACCUMULATOR_TYPE(x) convert_int(x)
@@ -25,18 +26,18 @@
 
 // int8 conv_input and weights data is packed to int32 "batches",
 // int/uint pointers here instead of INPUT0_TYPE/FILTER_TYPE for convenience
-__attribute__((intel_reqd_sub_group_size(16)))
+REQD_SUB_GROUP_SIZE(16)
 KERNEL(convolution_gpu_imad_bs_fs_yx_bsv16_fsv16_3x3)(
     const __global INPUT0_TYPE *conv_input,
     __global OUTPUT_TYPE *output,
-    const __global FILTER_TYPE *weights,
+    const __global FILTER_TYPE *weights
 #if BIAS_TERM
-    const __global BIAS_TYPE *biases,
+    , const __global BIAS_TYPE *biases
 #endif
 #if HAS_FUSED_OPS_DECLS
-    FUSED_OPS_DECLS,
+    , FUSED_OPS_DECLS
 #endif
-uint split_idx)
+)
 {
     const uint out_x = (uint)get_global_id(0);
     const uint out_y = (uint)get_global_id(1);
@@ -68,10 +69,10 @@ uint split_idx)
 
                 __attribute__((opencl_unroll_hint(16)))
                 for (uint j = 0; j < 16; j++) {
-                    dotProd[j] = TO_ACCUMULATOR_TYPE(IMAD(dotProd[j], AS_INPUT0_TYPE_4(input_val0.s0), as_char4(intel_sub_group_shuffle(weights_val.s0, j))));
-                    dotProd[j] = TO_ACCUMULATOR_TYPE(IMAD(dotProd[j], AS_INPUT0_TYPE_4(input_val0.s1), as_char4(intel_sub_group_shuffle(weights_val.s1, j))));
-                    dotProd[j] = TO_ACCUMULATOR_TYPE(IMAD(dotProd[j], AS_INPUT0_TYPE_4(input_val0.s2), as_char4(intel_sub_group_shuffle(weights_val.s2, j))));
-                    dotProd[j] = TO_ACCUMULATOR_TYPE(IMAD(dotProd[j], AS_INPUT0_TYPE_4(input_val0.s3), as_char4(intel_sub_group_shuffle(weights_val.s3, j))));
+                    dotProd[j] = TO_ACCUMULATOR_TYPE(IMAD(dotProd[j], AS_INPUT0_TYPE_4(input_val0.s0), as_char4(_sub_group_shuffle(weights_val.s0, j))));
+                    dotProd[j] = TO_ACCUMULATOR_TYPE(IMAD(dotProd[j], AS_INPUT0_TYPE_4(input_val0.s1), as_char4(_sub_group_shuffle(weights_val.s1, j))));
+                    dotProd[j] = TO_ACCUMULATOR_TYPE(IMAD(dotProd[j], AS_INPUT0_TYPE_4(input_val0.s2), as_char4(_sub_group_shuffle(weights_val.s2, j))));
+                    dotProd[j] = TO_ACCUMULATOR_TYPE(IMAD(dotProd[j], AS_INPUT0_TYPE_4(input_val0.s3), as_char4(_sub_group_shuffle(weights_val.s3, j))));
                 }
                 filter_idx += weights_x_pitch;
                 input_idx += input_x_pitch;
@@ -93,7 +94,7 @@ uint split_idx)
     for (uint i = 0; i < 16; i++) {
         ACTIVATION_TYPE dequantized = (ACTIVATION_TYPE)0;
 #if BIAS_TERM
-        dequantized = (ACTIVATION_TYPE)dotProd[i] + intel_sub_group_shuffle(bias, i);
+        dequantized = (ACTIVATION_TYPE)dotProd[i] + _sub_group_shuffle(bias, i);
 #else
         dequantized = (ACTIVATION_TYPE)dotProd[i];
 #endif

@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# Copyright (C) 2018-2022 Intel Corporation
+# Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import numpy as np
@@ -8,8 +8,7 @@ from openvino.runtime import Shape, Type
 
 
 def test_log_softmax():
-    float_dtype = np.float32
-    data = ov.parameter(Shape([3, 10]), dtype=float_dtype, name="data")
+    data = ov.parameter(Shape([3, 10]), dtype=np.float32, name="data")
 
     node = ov.log_softmax(data, 1)
     assert node.get_type_name() == "LogSoftmax"

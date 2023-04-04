@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -75,13 +75,11 @@ private:
         const auto& s_opsets = ov::get_available_opsets();
 
         auto it = s_opsets.find(opset_ver);
-        if (it == s_opsets.end()) {
-            throw ov::Exception("Unsupported opset version requested.");
-        }
+        OPENVINO_ASSERT(it != s_opsets.end(), "Unsupported opset version requested.");
         return it->second();
     }
 
-    const ov::OpSet& m_opset = ov::get_opset10();
+    const ov::OpSet& m_opset = ov::get_opset11();
     std::unordered_map<std::string, std::shared_ptr<ov::op::util::Variable>> m_variables;
 };
 }  // namespace

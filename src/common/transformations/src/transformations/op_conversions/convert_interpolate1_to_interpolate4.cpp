@@ -20,7 +20,7 @@ ov::pass::ConvertInterpolate1ToInterpolate4::ConvertInterpolate1ToInterpolate4()
     MATCHER_SCOPE(ConvertInterpolate1ToInterpolate4);
     auto interpolate1 = ngraph::pattern::wrap_type<ov::opset1::Interpolate>(
         {pattern::any_input(pattern::has_static_rank()), pattern::any_input()});
-    matcher_pass_callback callback = [this](pattern::Matcher& m) {
+    matcher_pass_callback callback = [](pattern::Matcher& m) {
         auto interpolationV0 = std::dynamic_pointer_cast<ov::opset1::Interpolate>(m.get_match_root());
         if (!interpolationV0) {
             return false;
@@ -30,14 +30,13 @@ ov::pass::ConvertInterpolate1ToInterpolate4::ConvertInterpolate1ToInterpolate4()
         std::vector<size_t> axes{attrsV0.axes.begin(), attrsV0.axes.end()};
         const auto& out_dims = std::make_shared<opset1::Convert>(interpolationV0->input_value(1), element::f32);
         const auto& in_dims = std::make_shared<opset1::Convert>(
-            ngraph::op::util::node_to_get_shape_value_of_indices_from_shape_source(interpolationV0->input_value(0),
-                                                                                   axes),
+            ov::op::util::node_to_get_shape_value_of_indices_from_shape_source(interpolationV0->input_value(0), axes),
             element::f32);
 
         std::shared_ptr<Node> scales = std::make_shared<opset1::Divide>(out_dims, in_dims);
         if (const auto& constant = ov::get_constant_from_source(scales))
             scales = constant;
-        auto axisConstant = ngraph::op::Constant::create(ngraph::element::i64, {axes.size()}, axes);
+        auto axisConstant = opset1::Constant::create(ngraph::element::i64, {axes.size()}, axes);
 
         ov::opset4::Interpolate::InterpolateAttrs attrsV4;
         auto input_shape_rank = interpolationV0->get_input_partial_shape(0).rank().get_length();

@@ -1,19 +1,17 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include <gtest/gtest.h>
 
-#include <string>
 #include <memory>
-#include <queue>
-
 #include <ngraph/function.hpp>
 #include <ngraph/opsets/opset6.hpp>
+#include <queue>
+#include <string>
 #include <transformations/common_optimizations/reshape_sequence_fusion.hpp>
 
 #include "common_test_utils/ngraph_test_utils.hpp"
-
 
 using namespace testing;
 using namespace ngraph;
@@ -21,9 +19,10 @@ using namespace ngraph;
 namespace {
 Output<Node> reshape(Output<Node> input, std::vector<int64_t> values, bool special_zero = true) {
     return std::make_shared<opset6::Reshape>(input,
-                opset6::Constant::create(element::i64, Shape{values.size()}, values), special_zero);
+                                             opset6::Constant::create(element::i64, Shape{values.size()}, values),
+                                             special_zero);
 }
-}
+}  // namespace
 
 TEST_F(TransformationTestsF, ReshapeSequenceFusion1) {
     {
@@ -33,7 +32,7 @@ TEST_F(TransformationTestsF, ReshapeSequenceFusion1) {
         auto c = reshape(b, {6});
         function = std::make_shared<Function>(OutputVector{c}, ParameterVector{data});
 
-        manager.register_pass<pass::ReshapeSequenceFusion>();
+        manager.register_pass<ov::pass::ReshapeSequenceFusion>();
     }
 
     {
@@ -50,7 +49,7 @@ TEST_F(TransformationTestsF, ReshapeSequenceFusion2) {
         auto b = reshape(a, {6});
         function = std::make_shared<Function>(OutputVector{b}, ParameterVector{data});
 
-        manager.register_pass<pass::ReshapeSequenceFusion>();
+        manager.register_pass<ov::pass::ReshapeSequenceFusion>();
     }
 
     {
@@ -70,7 +69,7 @@ TEST_F(TransformationTestsF, ReshapeSequenceFusion3_special_zero_true) {
         auto reshape_b = std::make_shared<opset6::Reshape>(reshape_a, reshape_b_pattern, special_zero);
         function = std::make_shared<Function>(OutputVector{reshape_b}, ParameterVector{data, target_shape_param});
 
-        manager.register_pass<pass::ReshapeSequenceFusion>();
+        manager.register_pass<ov::pass::ReshapeSequenceFusion>();
     }
     {
         const bool special_zero = true;
@@ -92,7 +91,7 @@ TEST_F(TransformationTestsF, ReshapeSequenceFusion3_special_zero_false) {
         auto reshape_b = std::make_shared<opset6::Reshape>(reshape_a, reshape_b_pattern, special_zero);
         function = std::make_shared<Function>(OutputVector{reshape_b}, ParameterVector{data, target_shape_param});
 
-        manager.register_pass<pass::ReshapeSequenceFusion>();
+        manager.register_pass<ov::pass::ReshapeSequenceFusion>();
     }
     {
         const bool special_zero = false;
@@ -114,7 +113,7 @@ TEST_F(TransformationTestsF, ReshapeSequenceFusion4_i32_special_zero_true) {
         auto reshape_b = std::make_shared<opset6::Reshape>(reshape_a, reshape_b_pattern, special_zero);
         function = std::make_shared<Function>(OutputVector{reshape_b}, ParameterVector{data, target_shape_param});
 
-        manager.register_pass<pass::ReshapeSequenceFusion>();
+        manager.register_pass<ov::pass::ReshapeSequenceFusion>();
     }
     {
         const bool special_zero = true;
@@ -136,7 +135,7 @@ TEST_F(TransformationTestsF, ReshapeSequenceFusion4_i32_special_zero_false) {
         auto reshape_b = std::make_shared<opset6::Reshape>(reshape_a, reshape_b_pattern, special_zero);
         function = std::make_shared<Function>(OutputVector{reshape_b}, ParameterVector{data, target_shape_param});
 
-        manager.register_pass<pass::ReshapeSequenceFusion>();
+        manager.register_pass<ov::pass::ReshapeSequenceFusion>();
     }
     {
         const bool special_zero = false;
@@ -158,7 +157,7 @@ TEST_F(TransformationTestsF, ReshapeSequenceFusion4_i64_special_zero_true) {
         auto reshape_b = std::make_shared<opset6::Reshape>(reshape_a, reshape_b_pattern, special_zero);
         function = std::make_shared<Function>(OutputVector{reshape_b}, ParameterVector{data, target_shape_param});
 
-        manager.register_pass<pass::ReshapeSequenceFusion>();
+        manager.register_pass<ov::pass::ReshapeSequenceFusion>();
     }
     {
         const bool special_zero = true;
@@ -180,7 +179,7 @@ TEST_F(TransformationTestsF, ReshapeSequenceFusion4_i64_special_zero_false) {
         auto reshape_b = std::make_shared<opset6::Reshape>(reshape_a, reshape_b_pattern, special_zero);
         function = std::make_shared<Function>(OutputVector{reshape_b}, ParameterVector{data, target_shape_param});
 
-        manager.register_pass<pass::ReshapeSequenceFusion>();
+        manager.register_pass<ov::pass::ReshapeSequenceFusion>();
     }
     {
         const bool special_zero = false;
@@ -202,7 +201,7 @@ TEST_F(TransformationTestsF, ReshapeSequenceFusion5_special_zero_true) {
         auto reshape_b = std::make_shared<opset6::Reshape>(reshape_a, reshape_b_pattern, special_zero);
         function = std::make_shared<Function>(OutputVector{reshape_b}, ParameterVector{data, target_shape_param});
 
-        manager.register_pass<pass::ReshapeSequenceFusion>();
+        manager.register_pass<ov::pass::ReshapeSequenceFusion>();
     }
     {
         const bool special_zero = true;
@@ -224,7 +223,7 @@ TEST_F(TransformationTestsF, ReshapeSequenceFusion5_special_zero_false) {
         auto reshape_b = std::make_shared<opset6::Reshape>(reshape_a, reshape_b_pattern, special_zero);
         function = std::make_shared<Function>(OutputVector{reshape_b}, ParameterVector{data, target_shape_param});
 
-        manager.register_pass<pass::ReshapeSequenceFusion>();
+        manager.register_pass<ov::pass::ReshapeSequenceFusion>();
     }
     {
         const bool special_zero = false;
@@ -243,7 +242,7 @@ TEST_F(TransformationTestsF, ReshapeSequenceFusionNeg1) {
         auto b = reshape(a, {6});
         function = std::make_shared<Function>(OutputVector{b}, ParameterVector{data});
 
-        manager.register_pass<pass::ReshapeSequenceFusion>();
+        manager.register_pass<ov::pass::ReshapeSequenceFusion>();
     }
 }
 
@@ -254,7 +253,7 @@ TEST_F(TransformationTestsF, ReshapeSequenceFusionNeg2) {
         auto b = reshape(a, {6});
         function = std::make_shared<Function>(OutputVector{b}, ParameterVector{data});
 
-        manager.register_pass<pass::ReshapeSequenceFusion>();
+        manager.register_pass<ov::pass::ReshapeSequenceFusion>();
     }
 }
 
@@ -265,7 +264,7 @@ TEST_F(TransformationTestsF, ReshapeSequenceFusionNeg3) {
         auto b = reshape(a, {6});
         function = std::make_shared<Function>(OutputVector{a, b}, ParameterVector{data});
 
-        manager.register_pass<pass::ReshapeSequenceFusion>();
+        manager.register_pass<ov::pass::ReshapeSequenceFusion>();
     }
 }
 
@@ -276,7 +275,7 @@ TEST_F(TransformationTestsF, ReshapeSequenceFusionNeg4) {
         auto b = reshape(a, {0, 3});
         function = std::make_shared<Function>(OutputVector{b}, ParameterVector{data});
 
-        manager.register_pass<pass::ReshapeSequenceFusion>();
+        manager.register_pass<ov::pass::ReshapeSequenceFusion>();
     }
 }
 
@@ -289,7 +288,7 @@ TEST_F(TransformationTestsF, ReshapeSequenceFusionNeg5_special_zero_true) {
         auto reshape_b = std::make_shared<opset6::Reshape>(reshape_a, reshape_b_pattern, special_zero);
         function = std::make_shared<Function>(OutputVector{reshape_b}, ParameterVector{data, reshape_b_pattern});
 
-        manager.register_pass<pass::ReshapeSequenceFusion>();
+        manager.register_pass<ov::pass::ReshapeSequenceFusion>();
     }
 }
 
@@ -302,7 +301,7 @@ TEST_F(TransformationTestsF, ReshapeSequenceFusionNeg5_special_zero_false) {
         auto reshape_b = std::make_shared<opset6::Reshape>(reshape_a, reshape_b_pattern, special_zero);
         function = std::make_shared<Function>(OutputVector{reshape_b}, ParameterVector{data, reshape_b_pattern});
 
-        manager.register_pass<pass::ReshapeSequenceFusion>();
+        manager.register_pass<ov::pass::ReshapeSequenceFusion>();
     }
 }
 
@@ -314,7 +313,7 @@ TEST_F(TransformationTestsF, ReshapeSequenceFusionEliminate) {
         auto b = reshape(a, {1, 2, 3});
         function = std::make_shared<Function>(OutputVector{b}, ParameterVector{data});
 
-        manager.register_pass<pass::ReshapeSequenceFusion>();
+        manager.register_pass<ov::pass::ReshapeSequenceFusion>();
     }
 
     {

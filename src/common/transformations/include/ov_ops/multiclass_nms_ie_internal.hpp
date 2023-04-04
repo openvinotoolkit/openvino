@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -16,7 +16,6 @@ namespace internal {
 class TRANSFORMATIONS_API MulticlassNmsIEInternal : public opset9::MulticlassNms {
 public:
     OPENVINO_OP("MulticlassNmsIEInternal", "ie_internal_opset", opset9::MulticlassNms);
-    BWDCMP_RTTI_DECLARATION;
 
     MulticlassNmsIEInternal() = default;
 
@@ -36,11 +35,3 @@ public:
 }  // namespace internal
 }  // namespace op
 }  // namespace ov
-
-namespace ngraph {
-namespace op {
-namespace internal {
-using ov::op::internal::MulticlassNmsIEInternal;
-}  // namespace internal
-}  // namespace op
-}  // namespace ngraph

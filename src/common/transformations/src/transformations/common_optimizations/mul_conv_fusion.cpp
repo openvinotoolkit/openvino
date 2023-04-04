@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -21,7 +21,7 @@ ov::pass::MultiplyConvolutionFusion::MultiplyConvolutionFusion() {
     auto mul_const_pattern = ngraph::pattern::wrap_type<opset8::Constant>();
     auto mul_pattern =
         ngraph::pattern::wrap_type<opset8::Multiply>({input_pattern, mul_const_pattern}, pattern::consumers_count(1));
-    auto weights_pattern = ngraph::pattern::any_input(pattern::has_static_shape());
+    auto weights_pattern = pass::pattern::any_input(pattern::has_static_shape());
     auto conv_pattern = ngraph::pattern::wrap_type<opset8::Convolution>({mul_pattern, weights_pattern});
 
     matcher_pass_callback callback = [=](pattern::Matcher& m) -> bool {
@@ -72,7 +72,7 @@ ov::pass::MultiplyGroupConvolutionFusion::MultiplyGroupConvolutionFusion() {
     auto mul_const_pattern = ngraph::pattern::wrap_type<opset8::Constant>();
     auto mul_pattern =
         ngraph::pattern::wrap_type<opset8::Multiply>({input_pattern, mul_const_pattern}, pattern::consumers_count(1));
-    auto weights_pattern = ngraph::pattern::any_input(pattern::has_static_shape());
+    auto weights_pattern = pass::pattern::any_input(pattern::has_static_shape());
     auto conv_pattern = ngraph::pattern::wrap_type<opset8::GroupConvolution>({mul_pattern, weights_pattern});
 
     matcher_pass_callback callback = [=](pattern::Matcher& m) -> bool {
@@ -137,7 +137,7 @@ ov::pass::MultiplyConvolutionBackpropDataFusion::MultiplyConvolutionBackpropData
     auto mul_const_pattern = ngraph::pattern::wrap_type<opset8::Constant>();
     auto mul_pattern =
         ngraph::pattern::wrap_type<opset8::Multiply>({input_pattern, mul_const_pattern}, pattern::consumers_count(1));
-    auto weights_pattern = ngraph::pattern::any_input(pattern::has_static_shape());
+    auto weights_pattern = pass::pattern::any_input(pattern::has_static_shape());
     auto conv_pattern = ngraph::pattern::wrap_type<opset8::ConvolutionBackpropData>({mul_pattern, weights_pattern});
 
     matcher_pass_callback callback = [=](pattern::Matcher& m) -> bool {
@@ -204,7 +204,7 @@ ov::pass::MultiplyGroupConvolutionBackpropDataFusion::MultiplyGroupConvolutionBa
     auto mul_const_pattern = ngraph::pattern::wrap_type<opset8::Constant>();
     auto mul_pattern =
         ngraph::pattern::wrap_type<opset8::Multiply>({input_pattern, mul_const_pattern}, pattern::consumers_count(1));
-    auto weights_pattern = ngraph::pattern::any_input(pattern::has_static_shape());
+    auto weights_pattern = pass::pattern::any_input(pattern::has_static_shape());
     auto conv_pattern =
         ngraph::pattern::wrap_type<opset8::GroupConvolutionBackpropData>({mul_pattern, weights_pattern});
 

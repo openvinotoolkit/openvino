@@ -1,9 +1,8 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "include/batch_headers/common.cl"
-#include "include/batch_headers/data_types.cl"
 
 /****************************************************************************
  *                                                                          *
@@ -28,10 +27,6 @@
 //       precision in the coordinates, given a sufficiently large W or H.
 #define COORD_T float
 #define ACCUM_T float
-
-#define MIN(a,b) ((a) < (b) ? (a) : (b))
-#define MAX(a,b) ((a) > (b) ? (a) : (b))
-#define CLAMP(v,l,u) MAX((l),MIN((v),(u)))
 
 #if INPUT1_FEATURE_NUM != ROI_NUM_ELEMENTS
 #error - unknown ROI_POOLING kernel type

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -62,6 +62,7 @@ protected:
         InferenceEngine::IInferRequestInternal::Ptr syncRequestImpl;
         try {
             syncRequestImpl = this->CreateInferRequestImpl(_parameters, _results);
+        } catch (const ::ov::NotImplemented&) {
         } catch (const InferenceEngine::NotImplemented&) {
         }
         if (!syncRequestImpl) {

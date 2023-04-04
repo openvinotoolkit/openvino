@@ -43,9 +43,14 @@ ov::runtime::Tensor generate(const std::shared_ptr<ov::Node>& node,
 }
 
 namespace Activation {
+// todo: this is a bug fixed! Merge it separately.
+//  Default parameters InputGenerateData(10, 20, 32768, 1) lead to input generation according to 10 + x/32768,
+//  where x {0, 20}, so all generated values are in the range [10, 10 + 6.1e-4].
+//  Thus all the interval more-or-less fall within the uncertainty validation interval
+//  Fix let the range be at least 20x of resolution
 ov::runtime::Tensor generate(const ov::element::Type& elemType,
                              const ov::Shape& targetShape,
-                             InputGenerateData inGenData = InputGenerateData(10, 20, 32768, 1)) {
+                             InputGenerateData inGenData = InputGenerateData(-1, 2*32768, 32768, 1)) {
     if (!elemType.is_signed()) {
         inGenData.range = 15;
         inGenData.start_from = 0;
@@ -149,7 +154,7 @@ ov::runtime::Tensor generate(const std::shared_ptr<ngraph::op::v0::Exp>& node,
                              size_t port,
                              const ov::element::Type& elemType,
                              const ov::Shape& targetShape) {
-    return Activation::generate(elemType, targetShape);
+    return Activation::generate(elemType, targetShape, InputGenerateData(-10, 20, 32768, 1));
 }
 
 ov::runtime::Tensor generate(const std::shared_ptr<ngraph::op::v0::Floor>& node,
@@ -334,7 +339,7 @@ ov::runtime::Tensor generate(const std::shared_ptr<ov::op::v0::ROIPooling>& node
         CASE(ov::element::Type_t::u1)
         CASE(ov::element::Type_t::i4)
         CASE(ov::element::Type_t::u4)
-        default: OPENVINO_UNREACHABLE("Unsupported element type: ", elemType);
+        default: OPENVINO_THROW("Unsupported element type: ", elemType);
     }
 #undef CASE
         return tensor;
@@ -550,6 +555,16 @@ ov::runtime::Tensor generate(const std::shared_ptr<ngraph::op::v4::Proposal>& no
                              const ov::Shape& targetShape) {
     if (port == 1) {
         return ov::test::utils::create_and_fill_tensor_normal_distribution(elemType, targetShape, 0.0f, 0.2f, 7235346);
+    } else if (port == 2) {
+        ov::Tensor tensor = ov::Tensor(elemType, targetShape);
+
+        auto *dataPtr = tensor.data<float>();
+        dataPtr[0] = dataPtr[1] = 225.0f;
+        dataPtr[2] = 1.0f;
+        if (tensor.get_size() == 4)
+            dataPtr[3] = 1.0f;
+
+        return tensor;
     }
     return generate(std::dynamic_pointer_cast<ov::Node>(node), port, elemType, targetShape);
 }
@@ -658,6 +673,44 @@ ov::runtime::Tensor generate(const std::shared_ptr<ngraph::op::v9::NonMaxSuppres
     }
 }
 
+ov::runtime::Tensor generate(const std::shared_ptr<ngraph::op::v3::EmbeddingSegmentsSum>& node,
+                             size_t port,
+                             const ov::element::Type& elemType,
+                             const ov::Shape& targetShape) {
+    if (port == 2) {
+        ov::runtime::Tensor tensor = ov::runtime::Tensor(elemType, targetShape);
+
+        const auto &outputShape = node->get_output_shape(0);
+        const size_t range = outputShape[0] - 1; // values in segmentsIds should be less than num_segments
+        const size_t startFrom = 0;
+        const int seed = 1;
+        std::default_random_engine random(seed);
+        switch (elemType) {
+            case element::Type_t::i32: {
+                std::uniform_int_distribution<int32_t> distribution(startFrom, (startFrom + range));
+
+                auto *dataPtr = tensor.data<int32_t>();
+                for (size_t i = 0; i < tensor.get_size(); i++) {
+                    dataPtr[i] = distribution(random);
+                }
+                return tensor;
+            }
+            case element::Type_t::i64: {
+                std::uniform_int_distribution<int64_t> distribution(startFrom, (startFrom + range));
+
+                auto *dataPtr = tensor.data<int64_t>();
+                for (size_t i = 0; i < tensor.get_size(); i++) {
+                    dataPtr[i] = distribution(random);
+                }
+                return tensor;
+            }
+            default:
+                OPENVINO_THROW("Unsupported element type for segment_ids: ", elemType);
+        }
+    }
+    return generate(std::dynamic_pointer_cast<ov::Node>(node), port, elemType, targetShape);
+}
+
 ov::runtime::Tensor generate(const std::shared_ptr<ov::op::internal::AUGRUSequence>& node,
                              size_t port,
                              const ov::element::Type& elemType,
@@ -735,7 +788,7 @@ ov::runtime::Tensor generate(const std::shared_ptr<ngraph::op::v6::ExperimentalD
             case element::Type_t::f32:
                 return generate_unique_possibilities<element::Type_t::f32>(targetShape);
             default:
-                OPENVINO_UNREACHABLE("Unsupported element type: ", elemType);
+                OPENVINO_THROW("Unsupported element type: ", elemType);
         }
     }
     return generate(std::dynamic_pointer_cast<ov::Node>(node), port, elemType, targetShape);
@@ -757,6 +810,21 @@ ov::runtime::Tensor generate(const std::shared_ptr<ngraph::op::v5::Round>& node,
                              const ov::element::Type& elemType,
                              const ov::Shape& targetShape) {
     return Activation::generate(elemType, targetShape, InputGenerateData(-10, 20, 4));
+}
+
+ov::runtime::Tensor generate(const std::shared_ptr<ngraph::op::v8::Softmax>& node,
+                             size_t port,
+                             const ov::element::Type& elemType,
+                             const ov::Shape& targetShape) {
+    auto axis = node->get_axis();
+    axis = axis < 0 ? targetShape.size() + axis : axis;
+    unsigned datasetSize = std::accumulate(targetShape.begin() + axis, targetShape.end(), 1,
+        [](std::size_t a, size_t b) { return a * b; });
+    // Generate small negative values for datasets which exceed 2048 size
+    // to avoid NaN values in Softmax results for fp16 precision
+    if (datasetSize >= 2048 && static_cast<ov::element::Type_t>(elemType) == ov::element::Type_t::f16)
+        return ov::test::utils::create_and_fill_tensor_normal_distribution(elemType, targetShape, -5.f, 0.5f, 7235346);
+    return generate(std::dynamic_pointer_cast<ov::Node>(node), port, elemType, targetShape);
 }
 
 template<typename T>
@@ -782,6 +850,7 @@ InputsMap getInputMap() {
 #include "openvino/opsets/opset8_tbl.hpp"
 #include "openvino/opsets/opset9_tbl.hpp"
 #include "openvino/opsets/opset10_tbl.hpp"
+#include "openvino/opsets/opset11_tbl.hpp"
 
 #include "ov_ops/opset_private_tbl.hpp"
 #undef _OPENVINO_OP_REG

@@ -1,19 +1,19 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include <gtest/gtest.h>
-#include <inference_engine.hpp>
+
 #include <backend/am_intel_dnn.hpp>
+#include <inference_engine.hpp>
 
 using namespace testing;
 
 class GNA_AmIntelDnn_test : public ::testing::Test {
 protected:
-    GNAPluginNS::backend::AMIntelDNN amIntelDnn;
+    backend::AMIntelDNN amIntelDnn;
     Gna2Model desc = {};
 };
-
 
 TEST_F(GNA_AmIntelDnn_test, intel_nnet_type_tSecondInitNotAllowed) {
     desc.Operations = nullptr;

@@ -1,9 +1,10 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "ngraph/op/scatter_update.hpp"
 
+#include "bound_evaluate.hpp"
 #include "itt.hpp"
 #include "ngraph/runtime/reference/scatter_update.hpp"
 #include "ngraph/shape.hpp"
@@ -13,8 +14,6 @@
 
 using namespace std;
 using namespace ngraph;
-
-BWDCMP_RTTI_DEFINITION(op::v3::ScatterUpdate);
 
 op::v3::ScatterUpdate::ScatterUpdate(const Output<Node>& data,
                                      const Output<Node>& indices,
@@ -94,6 +93,18 @@ bool op::v3::ScatterUpdate::evaluate(const HostTensorVector& outputs, const Host
     return evaluate_scatter_update(outputs, inputs);
 }
 
+bool op::v3::ScatterUpdate::evaluate_lower(ov::TensorVector& outputs) const {
+    OV_OP_SCOPE(v3_ScatterUpdate_evaluate_lower);
+    return get_input_tensor(1).has_and_set_bound() && get_input_tensor(3).has_and_set_bound() &&
+           default_lower_bound_evaluator(this, outputs);
+}
+
+bool op::v3::ScatterUpdate::evaluate_upper(ov::TensorVector& outputs) const {
+    OV_OP_SCOPE(v3_ScatterUpdate_evaluate_upper);
+    return get_input_tensor(1).has_and_set_bound() && get_input_tensor(3).has_and_set_bound() &&
+           default_upper_bound_evaluator(this, outputs);
+}
+
 bool op::v3::ScatterUpdate::has_evaluate() const {
     OV_OP_SCOPE(v3_ScatterUpdate_has_evaluate);
 
@@ -111,4 +122,9 @@ bool op::v3::ScatterUpdate::has_evaluate() const {
         break;
     }
     return false;
+}
+
+bool op::v3::ScatterUpdate::evaluate_label(TensorLabelVector& output_labels) const {
+    OV_OP_SCOPE(v3_ScatterUpdate_evaluate_label);
+    return ov::default_label_evaluator(this, {0, 2}, output_labels);
 }

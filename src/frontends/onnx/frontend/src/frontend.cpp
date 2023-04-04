@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -25,11 +25,11 @@
 using namespace ov;
 using namespace ov::frontend::onnx;
 
-ONNX_FRONTEND_C_API ov::frontend::FrontEndVersion GetAPIVersion() {
+ONNX_FRONTEND_C_API ov::frontend::FrontEndVersion get_api_version() {
     return OV_FRONTEND_API_VERSION;
 }
 
-ONNX_FRONTEND_C_API void* GetFrontEndData() {
+ONNX_FRONTEND_C_API void* get_front_end_data() {
     ov::frontend::FrontEndPluginInfo* res = new ov::frontend::FrontEndPluginInfo();
     res->m_name = "onnx";
     res->m_creator = []() {

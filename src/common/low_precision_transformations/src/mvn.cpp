@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -166,7 +166,7 @@ bool MVNTransformation::transform(TransformationContext &context, ngraph::patter
     NetworkHelper::setOutDataPrecisionForTypeRelaxed(newMVN, deqPrecision);
     NetworkHelper::copyInfo(mvn, newMVN);
 
-    auto newMultiply = std::make_shared<op::TypeRelaxed<opset1::Multiply>>(
+    auto newMultiply = std::make_shared<ov::op::TypeRelaxed<opset1::Multiply>>(
         opset1::Multiply(newMVN, newScalesConst),
         mvn->get_output_element_type(0));
     ngraph::copy_runtime_info({ mvn, newMultiply }, newMultiply);

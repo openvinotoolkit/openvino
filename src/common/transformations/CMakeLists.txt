@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2022 Intel Corporation
+# Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -8,13 +8,6 @@ file(GLOB_RECURSE LIBRARY_SRC ${CMAKE_CURRENT_SOURCE_DIR}/src/*.cpp)
 file(GLOB_RECURSE PUBLIC_HEADERS ${CMAKE_CURRENT_SOURCE_DIR}/include/*.hpp)
 
 set(PUBLIC_HEADERS_DIR "${CMAKE_CURRENT_SOURCE_DIR}/include")
-
-if(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
-    ie_add_compiler_flags(/wd4018)
-    ie_add_compiler_flags(/wd4305)
-    ie_add_compiler_flags(/wd4267)
-endif()
-
 
 # Create named folders for the sources within the .vcproj
 # Empty name lists them directly under the .vcproj
@@ -63,7 +56,7 @@ set_target_properties(${TARGET_NAME}_obj PROPERTIES INTERPROCEDURAL_OPTIMIZATION
 
 openvino_developer_export_targets(COMPONENT core_legacy TARGETS ${TARGET_NAME})
 
-# temporary workaround for fatal error LNK1248: image size (1004722F6) exceeds maximum 
+# temporary workaround for fatal error LNK1248: image size (1004722F6) exceeds maximum
 # allowable size (FFFFFFFF)
 # the symbolic debugging information will be stored in a separate .pdb file.
 if(WIN32)

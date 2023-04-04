@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -38,7 +38,7 @@ private:
     size_t offset;
     size_t numResults;
     size_t outTotalSize;
-    size_t numClasses;
+    int numClasses;
 
     void GetLocPredictions(const dataType* locData, std::vector<LabelBBox>& locations) {
         locations.resize(numImages);
@@ -445,7 +445,7 @@ public:
         offset = _attrs.normalized ? 0 : 1;
         numPriors = priorsShape[2] / priorSize;
         priorsBatchSize = priorsShape[0];
-        numClasses = classPredShape[1] / numPriors;
+        numClasses = classPredShape[1] / static_cast<int>(numPriors);
         numLocClasses = _attrs.share_location ? 1 : numClasses;
         numResults = outShape[2];
         outTotalSize = shape_size(outShape);
@@ -481,7 +481,6 @@ public:
             DecodeBBoxesAll(locPreds, priorBboxes, priorVariances, decodeBboxes);
         }
 
-        int numKept = 0;
         std::vector<std::map<int, std::vector<int>>> allIndices;
         for (size_t i = 0; i < numImages; ++i) {
             const LabelBBox& decodeBboxesImage = decodeBboxes[i];
@@ -539,10 +538,8 @@ public:
                     newIndices[label].push_back(idx);
                 }
                 allIndices.push_back(newIndices);
-                numKept += attrs.top_k;
             } else {
                 allIndices.push_back(indices);
-                numKept += numDet;
             }
         }
 

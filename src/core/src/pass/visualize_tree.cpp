@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -18,7 +18,6 @@
 #include "ngraph/op/util/op_types.hpp"
 #include "ngraph/pass/pass.hpp"
 #include "ngraph/util.hpp"
-#include "ngraph/variant.hpp"
 
 using namespace ngraph;
 using namespace std;
@@ -504,7 +503,47 @@ string pass::VisualizeTree::get_node_name(shared_ptr<Node> node) {
     if (node->get_friendly_name() != node->get_name()) {
         rc += "\\n" + (nvtmn ? string("name: ") : "") + node->get_name();
     }
-    rc += "\\n" + (nvtmn ? string("type_name: ") : "") + std::string(node->get_type_name());
+    const auto type_info = node->get_type_info();
+    rc += "\\n" + (nvtmn ? string("type_name: ") : "") + std::string(type_info.version_id) +
+          "::" + std::string(type_info.name);
+
+    static const bool nvttn = getenv_bool("OV_VISUALIZE_TREE_TENSORS_NAME");
+    if (nvttn) {
+        auto to_string = [](const std::unordered_set<std::string>& names) {
+            std::stringstream ss;
+            size_t i = 0;
+            for (const auto& name : names) {
+                ss << (i == 0 ? "" : ", ") << name;
+                i++;
+            }
+            return ss.str();
+        };
+
+        if (node->get_input_size() != 0) {
+            rc += "\\n" + (nvtmn ? string("in_tensor_names: ") : "");
+            for (size_t i = 0; i < node->get_input_size(); ++i) {
+                const auto input = node->input(i);
+                const auto tensor_ptr = input.get_tensor_ptr();
+                rc += (i == 0 ? "" : "; ") + std::string("(") + std::to_string((size_t)tensor_ptr.get()) + ") ";
+                const auto str = to_string(node->input_value(0).get_names());
+                if (!str.empty()) {
+                    rc += str;
+                }
+            }
+        }
+        if (node->get_output_size() != 0) {
+            rc += "\\n" + (nvtmn ? string("out_tensor_names: ") : "");
+            for (size_t i = 0; i < node->get_output_size(); ++i) {
+                const auto output = node->output(i);
+                const auto tensor_ptr = output.get_tensor_ptr();
+                rc += (i == 0 ? "" : "; ") + std::string("(") + std::to_string((size_t)tensor_ptr.get()) + ") ";
+                const auto str = to_string(output.get_names());
+                if (!str.empty()) {
+                    rc += str;
+                }
+            }
+        }
+    }
 
     static const bool nvtrti = getenv_bool("OV_VISUALIZE_TREE_RUNTIME_INFO");
     if (nvtrti) {

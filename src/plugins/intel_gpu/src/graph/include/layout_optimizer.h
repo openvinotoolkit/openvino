@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -20,8 +20,8 @@
 #include "non_max_suppression_inst.h"
 #include "region_yolo_inst.h"
 
-#include "kernel_selector_common.h"
-#include "kernel_selector_helper.h"
+// TODO: add generic interface for weights_reorder_params and get rid of this dependency
+#include "impls/ocl/kernel_selector_helper.h"
 
 #include <vector>
 #include <memory>
@@ -86,7 +86,6 @@ private:
 class layout_optimizer {
 public:
     enum class optimization_attributes_type {
-        splitted_convolution,
         group_convolution,
         deformable_convolution,
         bfyx_only_layer,
@@ -99,7 +98,6 @@ public:
     };
 
     struct optimization_attributes {
-        int32_t splitted_convolution = 0;
         int32_t group_convolution = 0;
         int32_t deformable_convolution = 0;
         int32_t bfyx_only_layer = 0;
@@ -191,6 +189,7 @@ public:
     impl_types get_forced_impl_type_by_config(program_node& node);
     static bool are_data_types_suitable_for_onednn(program_node& node);
     bool are_layouts_suitable_for_onednn(program_node& node);
+    bool is_primitive_implemented_for_onednn(program_node& node);
     bool is_format_supported(program_node& node, format::type fmt);
 
     // Returns whether reorder between "prev" with format fmt_prev and "next" with format fmt_next
@@ -201,7 +200,7 @@ public:
     void set_optimization_attribute(optimization_attributes_type attribute, int32_t val);
     optimization_attributes get_optimization_attributes() { return _optimization_attributes; }
 
-    void set_implementation_forcing(const implementation_forcing_map& map);
+    void set_implementation_forcing(const ov::intel_gpu::ImplForcingMap& map);
 
     void update_formats_map(const convolution_node& node);
     bool is_format_optimized(const convolution_node& node, const format& format, bool use_weak_restrictions = false);
@@ -212,7 +211,7 @@ public:
     bool should_select_b_fs_yx_fsv16_layout(convolution_node const& node, layout const& output_or_weights_layout);
 
 #ifdef ENABLE_ONEDNN_FOR_GPU
-    void select_preferred_formats_for_onednn(program_node& node, dnnl::primitive_desc prim_desc);
+    void select_preferred_formats_for_onednn(program_node& node, dnnl::primitive_desc prim_desc = dnnl::primitive_desc());
 #endif
 };
 }  // namespace cldnn

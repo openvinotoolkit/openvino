@@ -36,7 +36,7 @@ TEST_P(tile_test_two_inputs, shape_infer) {
 
     auto data_layout_prim = std::make_shared<input_layout>("data", p.data_layout);
     auto repeats_layout_prim = std::make_shared<input_layout>("repeats", p.repeats_layout);
-    auto tile_prim = std::make_shared<tile>("output", "data", "repeats");
+    auto tile_prim = std::make_shared<tile>("output", input_info("data"), input_info("repeats"));
 
     cldnn::program prog(engine);
 
@@ -50,8 +50,15 @@ TEST_P(tile_test_two_inputs, shape_infer) {
     program_wrapper::add_connection(prog, repeats_node, tile_node);
 
     auto params = tile_node.get_kernel_impl_params();
-    params->memory_deps = {{1, repeats_mem}};
     auto res = tile_inst::calc_output_layouts<ov::PartialShape>(tile_node, *params);
+
+    auto expected_layout_dyn = p.expected_layout;
+    expected_layout_dyn.set_partial_shape(ov::PartialShape::dynamic(expected_layout_dyn.get_partial_shape().size()));
+    ASSERT_EQ(res.size(), 1);
+    ASSERT_EQ(res[0], expected_layout_dyn);
+
+    params->memory_deps = {{1, repeats_mem}};
+    res = tile_inst::calc_output_layouts<ov::PartialShape>(tile_node, *params);
 
     ASSERT_EQ(res.size(), 1);
     ASSERT_EQ(res[0], p.expected_layout);
@@ -79,7 +86,7 @@ TEST_P(tile_test_single_input, shape_infer) {
     auto& engine = get_test_engine();
 
     auto data_layout_prim = std::make_shared<input_layout>("data", p.data_layout);
-    auto tile_prim = std::make_shared<tile>("output", "data", p.repeats_data);
+    auto tile_prim = std::make_shared<tile>("output", input_info("data"), p.repeats_data);
 
     cldnn::program prog(engine);
 

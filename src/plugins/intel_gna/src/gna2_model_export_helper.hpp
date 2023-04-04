@@ -1,14 +1,8 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #pragma once
-
-#include "gna2-model-export-api.h"
-#include "gna2-common-api.h"
-#include "gna2-model-suecreek-header.h"
-
-#include "gna_device_allocation.hpp"
 
 #include <algorithm>
 #include <cstdint>
@@ -18,6 +12,14 @@
 #include <string>
 #include <utility>
 #include <vector>
+
+#include "common/gna_target.hpp"
+#include "gna2-model-export-api.h"
+#include "gna2-model-suecreek-header.h"
+#include "gna_device_allocation.hpp"
+
+namespace ov {
+namespace intel_gna {
 
 struct GnaEndpoint {
     std::string name;
@@ -66,17 +68,15 @@ std::vector<GnaEndpoint> GnaEndpoint::CreateFromDescriptorContainer(const T& con
     return result;
 }
 
-void * ExportSueLegacyUsingGnaApi2(
-    uint32_t modelId,
-    uint32_t deviceIndex,
-    Gna2ModelSueCreekHeader* modelHeader);
-
-Gna2DeviceVersion getEmbeddedTargetFromCompileTarget(const std::string compileTarget);
+void* ExportSueLegacyUsingGnaApi2(uint32_t modelId, uint32_t deviceIndex, Gna2ModelSueCreekHeader* modelHeader);
 
 void ExportTlvModel(uint32_t modelId,
-    uint32_t deviceIndex,
-    std::ostream& outStream,
-    std::string compileTarget,
-    const std::vector<GnaEndpoint>& inputs,
-    const std::vector<GnaEndpoint>& outputs,
-    const GnaAllocations& allAllocation);
+                    uint32_t deviceIndex,
+                    std::ostream& outStream,
+                    const target::DeviceVersion& compileTarget,
+                    const std::vector<GnaEndpoint>& inputs,
+                    const std::vector<GnaEndpoint>& outputs,
+                    const GnaAllocations& allAllocation);
+
+}  // namespace intel_gna
+}  // namespace ov

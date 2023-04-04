@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -10,8 +10,10 @@
 #include <description_buffer.hpp>
 #include "intel_gpu/plugin/infer_request_legacy.hpp"
 #include "intel_gpu/plugin/remote_context.hpp"
+#include "intel_gpu/plugin/remote_blob.hpp"
+#include "intel_gpu/plugin/remote_allocators.hpp"
 #include "intel_gpu/plugin/compiled_model.hpp"
-#include "intel_gpu/plugin/itt.hpp"
+#include "intel_gpu/runtime/itt.hpp"
 #include "intel_gpu/plugin/variable_state.hpp"
 #include "intel_gpu/runtime/debug_configuration.hpp"
 #include "openvino/core/preprocess/input_tensor_info.hpp"
@@ -125,7 +127,7 @@ void checkInputBlob(const Blob::Ptr &blob,
             checkAlloc(nv12_ptr->uv(), str_input_not_allocated);
         } else if (auto batched_ptr = blob->as<BatchedBlob>()) {
             for (size_t i = 0; i < batched_ptr->size(); i++) {
-                auto nv12_ptr = getNV12BlobOrException(batched_ptr, i);
+                auto nv12_ptr = getNV12BlobOrException(batched_ptr, static_cast<int>(i));
                 checkAlloc(nv12_ptr->y(), str_input_not_allocated);
                 checkAlloc(nv12_ptr->uv(), str_input_not_allocated);
             }
@@ -287,20 +289,20 @@ void InferRequestLegacy::SetBlob(const std::string& name, const Blob::Ptr& data)
             auto batched_ptr = data->as<BatchedBlob>();
             bool is_batched = batched_ptr != nullptr;
             bool is_nv12 = nv12_ptr != nullptr;
-            int expected_batch = is_batched ? desc.getDims()[0] : 1;
+            auto expected_batch = is_batched ? static_cast<int>(desc.getDims()[0]) : 1;
             if (ColorFormat::NV12 == foundInput->getPreProcess().getColorFormat() &&
-                m_graph->getConfig().nv12_two_inputs) {
+                m_graph->get_config().get_property(ov::intel_gpu::nv12_two_inputs)) {
                 // try extracting Y and UV remote blobs from it
                 // and put them into appropriate network inputs
                 // that should then go into biplanar NV12 reorder
 
                 if (is_nv12 || is_batched) {
-                    int num_blobs = is_batched ? batched_ptr->size() : 1;
+                    auto num_blobs = is_batched ? static_cast<int>(batched_ptr->size()) : 1;
                     for (auto i = 0; i < expected_batch; i++) {
                         std::string y_name = name + "_Y" + std::to_string(i);
                         std::string uv_name = name + "_UV" + std::to_string(i);
                         if (is_batched) {
-                            int idx = i < num_blobs ? i : num_blobs-1;
+                            int idx = i < num_blobs ? i : static_cast<int>(num_blobs)-1;
                             nv12_ptr = getNV12BlobOrException(batched_ptr, idx);
                         }
 
@@ -350,7 +352,7 @@ void InferRequestLegacy::SetBlob(const std::string& name, const Blob::Ptr& data)
                     if (m_graph->GetMaxDynamicBatchSize() > 1) {
                         const auto batch_idx = m_graph->GetInputDynBatchDims()[name].first;
                         if (batch_idx >= 0)
-                            SetBatch(blobDesc.getDims()[batch_idx]);
+                            SetBatch(static_cast<int>(blobDesc.getDims()[batch_idx]));
                     }
                 } else {
                     size_t blobSize = desc.getLayout() != SCALAR
@@ -500,7 +502,7 @@ void InferRequestLegacy::checkBlobs() {
         auto node = findInputByNodeName(input.first);
         bool is_dynamic = (node && node->get_output_partial_shape(0).is_dynamic());
         if (!is_dynamic)
-            checkInputBlob(input.second, input.first, foundInput, m_graph->getConfig().nv12_two_inputs);
+            checkInputBlob(input.second, input.first, foundInput, m_graph->get_config().get_property(ov::intel_gpu::nv12_two_inputs));
     }
     for (auto const &output : _outputs) {
         DataPtr foundOutput = nullptr;
@@ -529,7 +531,7 @@ void InferRequestLegacy::SetGraph(std::shared_ptr<Graph> graph) {
     }
 
     if (m_graph->GetMaxDynamicBatchSize() > 1) {
-        SetBatch(m_graph->GetMaxDynamicBatchSize());
+        SetBatch(static_cast<int>(m_graph->GetMaxDynamicBatchSize()));
         allocate_inputs_dynamic();
         allocate_outputs_dynamic();
     } else {
@@ -544,7 +546,7 @@ void InferRequestLegacy::SetBatch(int new_batch) {
     if (m_graph->GetMaxDynamicBatchSize() < 0)
         IE_THROW() << "Dynamic batch is not enabled.";
 
-    if (new_batch < 1 || new_batch > m_graph->GetMaxDynamicBatchSize()) {
+     if (new_batch < 1 || static_cast<size_t>(new_batch) > m_graph->GetMaxDynamicBatchSize()) {
         IE_THROW() << "Invalid dynamic batch size " << new_batch <<
             " for this request. Got: " << new_batch << ". Expected value in range [1;" << m_graph->GetMaxDynamicBatchSize() << "]";
     }
@@ -619,6 +621,8 @@ InferRequestLegacy::InferRequestLegacy(InputsDataMap networkInputs, OutputsDataM
         : IInferRequestInternal(networkInputs, networkOutputs) {
     IE_ASSERT(nullptr != execNetwork);
     streamExecutor = dynamic_cast<InferenceEngine::IStreamsExecutor*>(execNetwork->m_taskExecutor.get());
+    m_context = std::dynamic_pointer_cast<InferenceEngine::gpu::ClContext>(execNetwork->GetContext());
+    OPENVINO_ASSERT(m_context != nullptr, "[GPU] Can't initialize context of InferRequestLegacy: wrong context type");
 }
 
 InferRequestLegacy::InferRequestLegacy(const std::vector<std::shared_ptr<const ov::Node>>& inputs,
@@ -627,6 +631,8 @@ InferRequestLegacy::InferRequestLegacy(const std::vector<std::shared_ptr<const o
         : IInferRequestInternal(inputs, outputs) {
     IE_ASSERT(nullptr != execNetwork);
     streamExecutor = dynamic_cast<InferenceEngine::IStreamsExecutor*>(execNetwork->m_taskExecutor.get());
+    m_context = std::dynamic_pointer_cast<InferenceEngine::gpu::ClContext>(execNetwork->GetContext());
+    OPENVINO_ASSERT(m_context != nullptr, "[GPU] Can't initialize context of InferRequestLegacy: wrong context type");
 }
 
 // ----------------------------------------------------------------------------------------- //
@@ -698,7 +704,7 @@ void InferRequestLegacy::enqueue() {
                                      FormatFromTensorDesc(blobsDesc),
                                      tensor_from_dims(blobsDesc.getDims()));
 
-                auto mergedBlobs = std::make_shared<RemoteCLbuffer>(m_graph->GetContext(),
+                auto mergedBlobs = std::make_shared<RemoteCLbuffer>(m_context,
                                                                     m_graph->GetNetwork()->get_stream(),
                                                                     blobsDesc,
                                                                     layout);
@@ -729,9 +735,9 @@ void InferRequestLegacy::enqueue() {
         bool is_nv12 = nv12_ptr != nullptr;
 
         if (is_nv12 || is_batched) {
-            int num_blobs = is_batched ? batched_ptr->size() : 1;
+            int num_blobs = is_batched ? static_cast<int>(batched_ptr->size()) : 1;
             int expected_batch = is_batched
-                ? _networkInputs.at(inputName)->getTensorDesc().getDims()[0]
+                ? static_cast<int>(_networkInputs.at(inputName)->getTensorDesc().getDims()[0])
                 : 1;
             for (auto i = 0; i < expected_batch; i++) {
                 std::string y_name = inputName + "_Y" + std::to_string(i);
@@ -769,7 +775,7 @@ void InferRequestLegacy::enqueue() {
     // If dump layers path is set, only runs first inference.
     GPU_DEBUG_GET_INSTANCE(debug_config);
     GPU_DEBUG_IF(debug_config->dump_layers_path.length() > 0) {
-        GPU_DEBUG_COUT << "Only run first inference to dump layers." << std::endl;
+        GPU_DEBUG_INFO << "Only run first inference to dump layers." << std::endl;
         exit(0);
     }
 }
@@ -884,7 +890,7 @@ void InferRequestLegacy::setup_stream_graph() {
     auto& streamGraphs = static_cast<CompiledModel*>(_exeNetwork.get())->m_graphs;
     if (nullptr != streamExecutor) {
         streamID = streamExecutor->GetStreamId();
-        int numGraphs = streamGraphs.size();
+        auto numGraphs = streamGraphs.size();
         streamID = streamID % numGraphs;
     }
     m_graph = streamGraphs[streamID];
@@ -898,7 +904,7 @@ void InferRequestLegacy::setup_stream_graph() {
             // extract new batch size from blob
             const auto batch_idx = m_graph->GetInputDynBatchDims()[input.first].first;
             if (batch_idx >= 0) {
-                SetBatch(_inputs[input.first]->getTensorDesc().getDims()[batch_idx]);
+                SetBatch(static_cast<int>(_inputs[input.first]->getTensorDesc().getDims()[batch_idx]));
                 break;
             }
         }
@@ -914,14 +920,14 @@ Blob::Ptr InferRequestLegacy::create_host_blob(const TensorDesc& desc, std::shar
 }
 
 Blob::Ptr InferRequestLegacy::create_shared_device_blob(const InferenceEngine::TensorDesc& desc, const cldnn::layout& layout, void* usm_host_mem) {
-    auto blob = std::make_shared<RemoteUSMbuffer>(m_graph->GetContext(),
+    auto blob = std::make_shared<RemoteUSMbuffer>(m_context,
                                                   m_graph->GetNetwork()->get_stream(),
                                                   desc,
                                                   layout,
                                                   usm_host_mem,
                                                   0,
                                                   0,
-                                                  RemoteBlobImpl::BlobType::BT_USM_SHARED);
+                                                  BlobType::BT_USM_SHARED);
     if (!blob)
         IE_THROW(NotAllocated) << "Failed to allocate shared host <-> device blob";
     blob->allocate();
@@ -1009,7 +1015,7 @@ void InferRequestLegacy::allocate_inputs() {
         const TensorDesc& desc = ni.second->getTensorDesc();
 
         bool is_nv12_input = ColorFormat::NV12 == ni.second->getPreProcess().getColorFormat() &&
-                             m_graph->getConfig().nv12_two_inputs;
+                             m_graph->get_config().get_property(ov::intel_gpu::nv12_two_inputs);
 
         auto parameter = std::find_if(_parameters.begin(), _parameters.end(), [&](const std::shared_ptr<const ov::Node>& node) {
             return node->get_friendly_name() == name;
@@ -1031,10 +1037,7 @@ void InferRequestLegacy::allocate_inputs() {
                 IE_THROW() << "Input layout for " << name << " is not found";
             }
 
-            GPU_DEBUG_GET_INSTANCE(debug_config);
-            GPU_DEBUG_IF(debug_config->verbose >= 2) {
-                GPU_DEBUG_COUT << "[" << name << ": input blob]" << std::endl;
-            }
+            GPU_DEBUG_LOG << "[" << name << ": input blob]" << std::endl;
             if (desc.getPrecision() == Precision::I16 || desc.getPrecision() == Precision::U16) {
                 TensorDesc desc_fp32 = desc;
                 desc_fp32.setPrecision(Precision::FP32);
@@ -1043,10 +1046,10 @@ void InferRequestLegacy::allocate_inputs() {
                 Blob::Ptr inputBlob = create_host_blob(desc);
                 _inputs[name] = inputBlob;
             } else {
-                if (m_graph->GetEngine()->use_unified_shared_memory()) {
+                if (m_graph->get_engine().use_unified_shared_memory()) {
                     // For USM case we create host blob using custom USM host allocator
                     // and then create shared device blob on top of this buffer
-                    auto host_blob = create_host_blob(desc, std::make_shared<USMHostAllocator>(m_graph->GetContext().get()));
+                    auto host_blob = create_host_blob(desc, std::make_shared<USMHostAllocator>(m_context));
                     _inputs[name] = host_blob;
                     _deviceInputs[name] = create_shared_device_blob(desc, litr->second, host_blob->buffer().as<void*>());
                 } else {
@@ -1088,10 +1091,7 @@ void InferRequestLegacy::allocate_outputs() {
         // Can be removed once 76176 is resolved.
         desc.setDims(m_graph->GetOutputSize(no.first));
 
-        GPU_DEBUG_GET_INSTANCE(debug_config);
-        GPU_DEBUG_IF(debug_config->verbose >= 2) {
-            GPU_DEBUG_COUT << "[" << no.first << ": output blob]" << std::endl;
-        }
+        GPU_DEBUG_LOG << "[" << no.first << ": output blob]" << std::endl;
 
         outputsMap[no.first] = outputID;
         if (desc.getPrecision() == Precision::I16 || desc.getPrecision() == Precision::U16 ||
@@ -1109,10 +1109,10 @@ void InferRequestLegacy::allocate_outputs() {
             auto device_blob = create_device_blob(device_blob_desc, output_layout);
             _deviceOutputs[no.first] = device_blob;
         } else {
-            if (m_graph->GetEngine()->use_unified_shared_memory()) {
+            if (m_graph->get_engine().use_unified_shared_memory()) {
                 // For USM case we create host blob using custom USM host allocator
                 // and then create shared device blob on top of this buffer
-                auto host_blob = create_host_blob(desc, std::make_shared<USMHostAllocator>(m_graph->GetContext().get()));
+                auto host_blob = create_host_blob(desc, std::make_shared<USMHostAllocator>(m_context));
                 _outputs[no.first] = host_blob;
                 _deviceOutputs[no.first] = create_shared_device_blob(desc, output_layout, host_blob->buffer().as<void*>());
             } else {
@@ -1189,7 +1189,7 @@ void InferRequestLegacy::prepare_input(const cldnn::primitive_id& inputName, Blo
             if (!impl->is_allocated()) {
                 IE_THROW() << str_input_not_allocated;
             }
-            auto inputMem = impl->getMemory();
+            auto inputMem = impl->get_memory();
 
             auto input_layout = m_graph->GetInputLayouts().find(inputName);
             if (input_layout != m_graph->GetInputLayouts().end()) {
@@ -1247,25 +1247,25 @@ void InferRequestLegacy::prepare_output(const cldnn::primitive_id& outputName, B
     if (!impl->is_allocated()) {
         IE_THROW(NotAllocated) << str_output_not_allocated;
     }
-    auto outputMem = impl->getMemory();
+    auto outputMem = impl->get_memory();
     _nw_ptr->set_output_memory(internalName, outputMem);
 }
 
 InferenceEngine::Blob::Ptr InferRequestLegacy::create_device_blob(const InferenceEngine::TensorDesc& desc, const cldnn::layout& layout) {
-    if (m_graph->GetEngine()->use_unified_shared_memory()) {
-        auto blobPtr = std::make_shared<RemoteUSMbuffer>(m_graph->GetContext(),
+    if (m_graph->get_engine().use_unified_shared_memory()) {
+        auto blobPtr = std::make_shared<RemoteUSMbuffer>(m_context,
                                                          m_graph->GetNetwork()->get_stream(),
                                                          desc,
                                                          layout,
                                                          nullptr,
                                                          0,
                                                          0,
-                                                         RemoteBlobImpl::BlobType::BT_USM_HOST_INTERNAL);
+                                                         BlobType::BT_USM_HOST_INTERNAL);
         getBlobImpl(blobPtr.get())->allocate();
         checkAlloc(blobPtr, str_device_mem_not_allocated);
         return blobPtr;
     } else {
-        auto blobPtr = std::make_shared<RemoteCLbuffer>(m_graph->GetContext(),
+        auto blobPtr = std::make_shared<RemoteCLbuffer>(m_context,
                                                         m_graph->GetNetwork()->get_stream(),
                                                         desc,
                                                         layout);
@@ -1279,7 +1279,7 @@ std::vector<std::shared_ptr<InferenceEngine::IVariableStateInternal>> InferReque
     std::vector<std::shared_ptr<InferenceEngine::IVariableStateInternal>> ret{};
     ret.reserve(variables_states_.size());
     for (const auto& pair : variables_states_)
-        ret.push_back(std::make_shared<VariableState>(pair.first, pair.second, m_graph->GetEngine(), m_curBatch));
+        ret.push_back(std::make_shared<VariableState>(pair.first, pair.second, m_graph->get_engine(), m_curBatch));
     return ret;
 }
 

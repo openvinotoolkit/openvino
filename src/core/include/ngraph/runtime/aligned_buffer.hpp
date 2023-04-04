@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -74,7 +74,6 @@ public:
     AttributeAdapter(std::shared_ptr<ngraph::runtime::AlignedBuffer>& value);
 
     OPENVINO_RTTI("AttributeAdapter<std::shared_ptr<runtime::AlignedBuffer>");
-    BWDCMP_RTTI_DECLARATION;
 };
 
 }  // namespace ov

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -38,6 +38,7 @@ using MulticlassNmsParams = std::tuple<std::vector<InputShape>,                 
                                        ngraph::element::Type,                      // Output type
                                        ngraph::op::util::MulticlassNmsBase::SortResultType,  // SortResultType
                                        InputboolVar,                               // Sort result across batch, normalized
+                                       bool,                                       // make output shape static
                                        std::string>;
 
 class MulticlassNmsLayerTest : public testing::WithParamInterface<MulticlassNmsParams>,

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -15,6 +15,7 @@
 
 namespace ov {
 namespace frontend {
+class FrontEnd;
 /// \brief InputModel class represents an original, not yet converted model graph in a
 /// framework format given services to find places of interest in a graph or specialize/edit
 /// the model before conversion.
@@ -38,7 +39,7 @@ namespace frontend {
 class FRONTEND_API InputModel {
     std::shared_ptr<void> m_shared_object;
     std::shared_ptr<InputModel> m_actual;
-    friend class FrontEnd;
+    friend class ::ov::frontend::FrontEnd;
 
 public:
     using Ptr = std::shared_ptr<InputModel>;
@@ -194,6 +195,11 @@ public:
     /// \param place Model place
     /// \param type New element type
     virtual void set_element_type(const Place::Ptr& place, const ov::element::Type& type);
+
+    /// \brief Returns current element type used for this place
+    /// \param place Model place
+    /// \return Element type for this place
+    virtual ov::element::Type get_element_type(const Place::Ptr& place) const;
 
     /// \brief Freezes a tensor with statically defined value or replace existing value for
     /// already constant node or tensor

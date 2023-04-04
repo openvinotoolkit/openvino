@@ -15,7 +15,6 @@
 #include <string>
 #include <utility>
 #include <vector>
-#include <vpu/vpu_config.hpp>
 
 #include "benchmark_app.hpp"
 #include "infer_request_wrap.hpp"
@@ -28,11 +27,11 @@ using namespace InferenceEngine;
 
 static const size_t progressBarDefaultTotalCount = 1000;
 
-uint64_t getDurationInMilliseconds(uint32_t duration) {
+uint64_t getDurationInMilliseconds(uint64_t duration) {
     return duration * 1000LL;
 }
 
-uint64_t getDurationInNanoseconds(uint32_t duration) {
+uint64_t getDurationInNanoseconds(uint64_t duration) {
     return duration * 1000000000LL;
 }
 
@@ -228,7 +227,7 @@ int main(int argc, char* argv[]) {
                 const std::string key = device + "_THROUGHPUT_STREAMS";
                 if (device_nstreams.count(device)) {
                     // set to user defined value
-                    std::vector<std::string> supported_config_keys = ie.GetMetric(device, METRIC_KEY(SUPPORTED_CONFIG_KEYS));
+                    auto supported_config_keys = ie.GetMetric(device, METRIC_KEY(SUPPORTED_CONFIG_KEYS)).as<std::vector<std::string>>();
                     if (std::find(supported_config_keys.begin(), supported_config_keys.end(), key) == supported_config_keys.end()) {
                         throw std::logic_error("Device " + device + " doesn't support config key '" + key + "'! " +
                                                "Please specify -nstreams for correct devices in format  "
@@ -284,9 +283,6 @@ int main(int argc, char* argv[]) {
                                << slog::endl;
                     device_config[GPU_CONFIG_KEY(PLUGIN_THROTTLE)] = "1";
                 }
-            } else if (device == "MYRIAD") {
-                device_config[CONFIG_KEY(LOG_LEVEL)] = CONFIG_VALUE(LOG_WARNING);
-                setThroughputStreams();
             } else if (device == "GNA") {
                 if (FLAGS_qb == 8)
                     device_config[GNA_CONFIG_KEY(PRECISION)] = "I8";
@@ -296,7 +292,7 @@ int main(int argc, char* argv[]) {
                 if (isFlagSetInCommandLine("nthreads"))
                     device_config[GNA_CONFIG_KEY(LIB_N_THREADS)] = std::to_string(FLAGS_nthreads);
             } else {
-                std::vector<std::string> supported_config_keys = ie.GetMetric(device, METRIC_KEY(SUPPORTED_CONFIG_KEYS));
+                auto supported_config_keys = ie.GetMetric(device, METRIC_KEY(SUPPORTED_CONFIG_KEYS)).as<std::vector<std::string>>();
                 auto supported = [&](const std::string& key) {
                     return std::find(std::begin(supported_config_keys), std::end(supported_config_keys), key) != std::end(supported_config_keys);
                 };
@@ -454,7 +450,7 @@ int main(int argc, char* argv[]) {
         }
 
         // Number of requests
-        uint32_t nireq = FLAGS_nireq;
+        uint64_t nireq = FLAGS_nireq;
         if (nireq == 0) {
             if (FLAGS_api == "sync") {
                 nireq = 1;
@@ -472,7 +468,7 @@ int main(int argc, char* argv[]) {
         }
 
         // Iteration limit
-        uint32_t niter = FLAGS_niter;
+        uint64_t niter = FLAGS_niter;
         if ((niter > 0) && (FLAGS_api == "async")) {
             niter = ((niter + nireq - 1) / nireq) * nireq;
             if (FLAGS_niter != niter) {
@@ -482,7 +478,7 @@ int main(int argc, char* argv[]) {
         }
 
         // Time limit
-        uint32_t duration_seconds = 0;
+        uint64_t duration_seconds = 0;
         if (FLAGS_t != 0) {
             // time limit
             duration_seconds = FLAGS_t;

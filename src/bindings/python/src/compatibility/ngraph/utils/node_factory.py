@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2022 Intel Corporation
+# Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import logging as log
@@ -12,7 +12,7 @@ from ngraph.impl import Node, Output
 
 from ngraph.exceptions import UserInputError
 
-DEFAULT_OPSET = "opset10"
+DEFAULT_OPSET = "opset11"
 
 
 class NodeFactory(object):

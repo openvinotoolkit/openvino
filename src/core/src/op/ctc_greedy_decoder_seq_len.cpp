@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -10,8 +10,6 @@
 
 using namespace std;
 using namespace ngraph;
-
-BWDCMP_RTTI_DEFINITION(op::v6::CTCGreedyDecoderSeqLen);
 
 op::v6::CTCGreedyDecoderSeqLen::CTCGreedyDecoderSeqLen(const Output<Node>& input,
                                                        const Output<Node>& seq_len,
@@ -53,8 +51,8 @@ void op::v6::CTCGreedyDecoderSeqLen::validate_and_infer_types() {
         input_shapes.push_back(get_input_partial_shape(2));
     }
 
-    std::vector<ov::PartialShape> output_shapes = {ov::PartialShape{}, ov::PartialShape{}};
-    shape_infer(this, input_shapes, output_shapes);
+    const auto output_shapes = shape_infer(this, input_shapes);
+
     set_output_type(0, m_classes_index_type, output_shapes[0]);
     set_output_type(1, m_sequence_length_type, output_shapes[1]);
 }

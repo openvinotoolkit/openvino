@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2022 Intel Corporation
+# Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import pytest
@@ -98,7 +98,7 @@ def test_incompatible_input_precision():
 @pytest.mark.skip(reason="Test will enable when CPU fix will be merge")
 @pytest.mark.skipif(os.environ.get("TEST_DEVICE", "CPU") != "CPU", reason="Device dependent test")
 def test_buffer_values_after_add_outputs(device):
-    test_net_xml_fp16, test_net_bin_fp16 = model_path(is_myriad=True)
+    test_net_xml_fp16, test_net_bin_fp16 = model_path(is_fp16=True)
     ie_core = IECore()
     if device == "CPU":
         if ie_core.get_metric(device, "FULL_DEVICE_NAME") == "arm_compute::NEON":

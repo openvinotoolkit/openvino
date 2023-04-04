@@ -17,6 +17,9 @@
 
 #include "snippets_transformations/op/load_convert.hpp"
 #include "snippets_transformations/op/store_convert.hpp"
+#include "snippets_transformations/op/fused_mul_add.hpp"
+#include "snippets_transformations/op/brgemm_copy_b.hpp"
+#include "snippets_transformations/op/brgemm_cpu.hpp"
 #include "ngraph_transformations/op/swish_cpu.hpp"
 
 #include <ngraph/opsets/opset5.hpp>
@@ -24,8 +27,14 @@
 using namespace std;
 using namespace ngraph::snippets;
 
-#define CREATE_EMITTER(e_type) [this](const std::shared_ptr<ngraph::Node>& n) \
-    -> std::shared_ptr<ngraph::snippets::Emitter> {return std::make_shared<e_type>(h.get(), isa, n);};
+#define CREATE_EMITTER(e_type) { \
+    [this](const std::shared_ptr<ngraph::Node>& n) -> std::shared_ptr<ngraph::snippets::Emitter> { \
+        return std::make_shared<e_type>(h.get(), isa, n); \
+    }, \
+    [](const std::shared_ptr<ngraph::Node>& n) -> std::set<std::vector<element::Type>> { \
+        return e_type::get_supported_precisions(n); \
+    } \
+};
 
 class jit_snippet : public dnnl::impl::cpu::x64::jit_generator {
 public:
@@ -45,9 +54,12 @@ ov::intel_cpu::CPUTargetMachine::CPUTargetMachine(dnnl::impl::cpu::x64::cpu_isa_
     // data movement
     jitters[ngraph::opset1::Parameter::get_type_info_static()] = CREATE_EMITTER(NopEmitter);
     jitters[ngraph::opset1::Result::get_type_info_static()] = CREATE_EMITTER(NopEmitter);
+    jitters[ngraph::snippets::op::Buffer::get_type_info_static()] = CREATE_EMITTER(NopEmitter);
+    jitters[ngraph::snippets::op::VectorBuffer::get_type_info_static()] = CREATE_EMITTER(VectorBufferEmitter);
     // jitters[ngraph::opset1::Constant::get_type_info_static()] = CREATE_EMITTER(); // Not supported
 
     jitters[ngraph::snippets::op::Load::get_type_info_static()] = CREATE_EMITTER(LoadEmitter);
+    jitters[ngraph::snippets::op::LoadReshape::get_type_info_static()] = CREATE_EMITTER(LoadEmitter);
     jitters[ngraph::snippets::op::BroadcastLoad::get_type_info_static()] = CREATE_EMITTER(BroadcastLoadEmitter);
     jitters[ov::intel_cpu::LoadConvertSaturation::get_type_info_static()] = CREATE_EMITTER(LoadConvertEmitter);
     jitters[ov::intel_cpu::LoadConvertTruncation::get_type_info_static()] = CREATE_EMITTER(LoadConvertEmitter);
@@ -64,6 +76,10 @@ ov::intel_cpu::CPUTargetMachine::CPUTargetMachine(dnnl::impl::cpu::x64::cpu_isa_
     jitters[ngraph::snippets::op::ConvertTruncation::get_type_info_static()] = CREATE_EMITTER(ov::intel_cpu::jit_convert_truncation_emitter);
     jitters[ngraph::snippets::op::ConvertSaturation::get_type_info_static()] = CREATE_EMITTER(ov::intel_cpu::jit_convert_saturation_emitter);
     // jitters[ngraph::opset1::FakeQuantize::get_type_info_static()] = CREATE_EMITTER(); // not supported
+
+    // ternary
+    jitters[ngraph::opset1::Select::get_type_info_static()] = CREATE_EMITTER(ov::intel_cpu::jit_select_emitter);
+    jitters[ov::intel_cpu::FusedMulAdd::get_type_info_static()] = CREATE_EMITTER(ov::intel_cpu::jit_mul_add_emitter);
 
     // binary
     jitters[ngraph::opset1::Add::get_type_info_static()] = CREATE_EMITTER(ov::intel_cpu::jit_add_emitter);
@@ -121,10 +137,16 @@ ov::intel_cpu::CPUTargetMachine::CPUTargetMachine(dnnl::impl::cpu::x64::cpu_isa_
     // jitters[ngraph::opset1::Selu::get_type_info_static()] = CREATE_EMITTER(); // not supported
     jitters[ngraph::op::v0::Gelu::get_type_info_static()] = CREATE_EMITTER(ov::intel_cpu::jit_gelu_v0_emitter);
     jitters[ngraph::op::v7::Gelu::get_type_info_static()] = CREATE_EMITTER(ov::intel_cpu::jit_gelu_v7_emitter);
+    jitters[ngraph::snippets::op::Fill::get_type_info_static()] = CREATE_EMITTER(FillEmitter);
+
+    jitters[ngraph::snippets::op::HorizonMax::get_type_info_static()] = CREATE_EMITTER(HorizonMaxEmitter);
+    jitters[ngraph::snippets::op::HorizonSum::get_type_info_static()] = CREATE_EMITTER(HorizonSumEmitter);
 
     jitters[ngraph::snippets::op::Kernel::get_type_info_static()] = CREATE_EMITTER(KernelEmitter);
-    jitters[ngraph::snippets::op::Tile::get_type_info_static()] = CREATE_EMITTER(TileEmitter);
-    jitters[ngraph::snippets::op::TileScheduler::get_type_info_static()] = CREATE_EMITTER(TileSchedulerEmitter);
+    jitters[ngraph::snippets::op::LoopBegin::get_type_info_static()] = CREATE_EMITTER(LoopBeginEmitter);
+    jitters[ngraph::snippets::op::LoopEnd::get_type_info_static()] = CREATE_EMITTER(LoopEndEmitter);
+    jitters[ov::intel_cpu::BrgemmCPU::get_type_info_static()] = CREATE_EMITTER(BrgemmEmitter);
+    jitters[ov::intel_cpu::BrgemmCopyB::get_type_info_static()] = CREATE_EMITTER(BrgemmCopyBEmitter);
 }
 
 size_t ov::intel_cpu::CPUTargetMachine::get_lanes() const {
@@ -141,9 +163,23 @@ bool ov::intel_cpu::CPUTargetMachine::is_supported() const {
 }
 
 code ov::intel_cpu::CPUTargetMachine::get_snippet() const {
-    h->create_kernel();
+    if (h->create_kernel() != dnnl::impl::status::success) {
+        IE_THROW() << "Failed to create jit_kernel in get_snippet()";
+    }
     return h->jit_ker();
 }
 
 ov::intel_cpu::CPUGenerator::CPUGenerator(dnnl::impl::cpu::x64::cpu_isa_t isa_) : Generator(std::make_shared<CPUTargetMachine>(isa_)) {
+}
+
+ngraph::snippets::Generator::opRegType ov::intel_cpu::CPUGenerator::get_specific_op_reg_type(const std::shared_ptr<ov::Node>& op) const {
+    if (std::dynamic_pointer_cast<ov::intel_cpu::BrgemmCPU>(op) ||
+        std::dynamic_pointer_cast<ov::intel_cpu::BrgemmCopyB>(op))
+        return gpr2gpr;
+    else if (
+        std::dynamic_pointer_cast<ov::intel_cpu::FusedMulAdd>(op) ||
+        std::dynamic_pointer_cast<ov::intel_cpu::SwishNode>(op))
+        return vec2vec;
+    else
+        throw ov::Exception("Register type of the operation " + std::string(op->get_type_name()) + " isn't determined!");
 }

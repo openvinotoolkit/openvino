@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -8,15 +8,13 @@
 #include <functional>
 #include <set>
 
+#include "bound_evaluate.hpp"
 #include "itt.hpp"
 #include "ngraph/runtime/reference/copy.hpp"
-#include "ngraph/validation_util.hpp"
 #include "unsqueeze_shape_inference.hpp"
 
 using namespace std;
 using namespace ngraph;
-
-BWDCMP_RTTI_DEFINITION(op::v0::Unsqueeze);
 
 op::v0::Unsqueeze::Unsqueeze(const Output<Node>& data, const Output<Node>& axes) : Op({data, axes}) {
     constructor_validate_and_infer_types();
@@ -128,16 +126,12 @@ bool op::v0::Unsqueeze::has_evaluate() const {
     return false;
 }
 
-bool op::v0::Unsqueeze::evaluate_lower(const HostTensorVector& output_values) const {
-    if (!get_input_tensor(1).has_and_set_bound())
-        return false;
-    return default_lower_bound_evaluator(this, output_values);
+bool op::v0::Unsqueeze::evaluate_lower(ov::TensorVector& output_values) const {
+    return get_input_tensor(1).has_and_set_bound() && default_lower_bound_evaluator(this, output_values);
 }
 
-bool op::v0::Unsqueeze::evaluate_upper(const HostTensorVector& output_values) const {
-    if (!get_input_tensor(1).has_and_set_bound())
-        return false;
-    return default_upper_bound_evaluator(this, output_values);
+bool op::v0::Unsqueeze::evaluate_upper(ov::TensorVector& output_values) const {
+    return get_input_tensor(1).has_and_set_bound() && default_upper_bound_evaluator(this, output_values);
 }
 
 bool op::v0::Unsqueeze::evaluate_label(TensorLabelVector& output_labels) const {

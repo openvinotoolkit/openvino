@@ -1,12 +1,12 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
-
 #pragma once
 
 #include <ie_common.h>
 #include <node.h>
 #include <memory>
+#include <oneapi/dnnl/dnnl.hpp>
 #include <string>
 #include <vector>
 #include "common/dnnl_executor.h"
@@ -19,7 +19,7 @@ class Eltwise;
 
 class Convolution : public Node {
 public:
-    Convolution(const std::shared_ptr<ngraph::Node>& op, const dnnl::engine& eng, WeightsSharing::Ptr &cache);
+    Convolution(const std::shared_ptr<ngraph::Node>& op, const GraphContext::CPtr context);
 
     static bool isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept;
     void getSupportedDescriptors() override;
@@ -39,7 +39,7 @@ public:
     dnnl::memory getWeights() const;
     dnnl::memory getBias() const;
 
-    size_t descInputNumbers(DnnlDesriptor desc) override {
+    size_t descInputNumbers() override {
         return getOriginalInputsNumber();
     }
 
@@ -94,8 +94,10 @@ private:
                                 const dnnl::memory::desc& inMemDesc,
                                 const dnnl::memory::desc& weightMemDesc,
                                 const dnnl::memory::desc& outMemDesc,
-                                const dnnl::engine& engine);
+                                const dnnl::engine& engine,
+                                bool constWeight);
     };
+    bool pendingConstWeightReorder = false;
 
     void prepareParams() override;
     void execute(dnnl::stream strm) override;
@@ -105,14 +107,15 @@ private:
     void setPostOps(dnnl::primitive_attr &attr, const VectorDims &dims, bool useLegacyPostOps, bool initWeights = false);
     void SetPostOpsAndZeroPoints(std::vector<dnnl::primitive_attr> &attrs);
     void filterSupportedDescriptors();
-    bool isPossibleToSkipInitConfig(DnnlDesriptor &desc) const;
+    bool isPossibleToSkipInitConfig(const dnnl::primitive_desc &desc) const;
     bool isNspcAvailable() const;
     InferenceEngine::Blob::Ptr createInternalBlob(InferenceEngine::SizeVector dims, size_t edgeNum, bool isGrouped = false);
 
     void updatePadding();
     MemoryDescPtr getSumMemDesc(dnnl::primitive_desc_iterator &primitive_desc_it);
     MemoryPtr getOutputMemory() const;
-
+    VectorDims makeInputDummyShape(const Shape& inpShape) const;
+    VectorDims outputStaticShape() const;
     void appendLegacyZeroPointsArgs();
     void appendZeroPointsArgs();
     void initTryBrgconvFlag();
@@ -126,6 +129,8 @@ private:
     bool preferLegacyPostOps = false;
     bool preferLegacyZeroPoint = false;
     zpType inputZeroPointType = zpType::None;
+    // maps each supportedPrimitiveDescriptor to corresponding desc from descs
+    std::vector<size_t> descIdx;
 
     std::vector<size_t> stride;
     std::vector<ptrdiff_t> dilation;

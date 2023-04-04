@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -126,7 +126,7 @@ public:
      * The method is responsible to extract information
      * which affects executable network execution. The list of supported configuration values can be extracted via
      * ExecutableNetwork::GetMetric with the SUPPORTED_CONFIG_KEYS key, but some of these keys cannot be changed
-     * dymanically, e.g. DEVICE_ID cannot changed if an executable network has already been compiled for particular
+     * dynamically, e.g. DEVICE_ID cannot changed if an executable network has already been compiled for particular
      * device.
      *
      * @param name config key, can be found in ie_plugin_config.hpp
@@ -159,7 +159,7 @@ public:
     virtual StatusCode GetContext(RemoteContext::Ptr& pContext, ResponseDesc* resp) const noexcept = 0;
 
 protected:
-    ~IExecutableNetwork() = default;
+    virtual ~IExecutableNetwork() = default;
 };
 
 _IE_SUPPRESS_DEPRECATED_END_GCC

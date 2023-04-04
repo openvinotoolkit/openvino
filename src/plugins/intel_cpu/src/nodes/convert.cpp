@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -9,6 +9,7 @@
 #include <ngraph/opsets/opset1.hpp>
 #include <ie_ngraph_utils.hpp>
 #include <utils/ngraph_utils.hpp>
+#include <utils/shape_inference/shape_inference_pass_through.hpp>
 
 using namespace dnnl;
 using namespace InferenceEngine;
@@ -30,8 +31,8 @@ bool Convert::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op
     return true;
 }
 
-Convert::Convert(const std::shared_ptr<ngraph::Node>& op, const dnnl::engine& eng, WeightsSharing::Ptr &cache)
-        : Node(op, eng, cache) {
+Convert::Convert(const std::shared_ptr<ngraph::Node>& op, const GraphContext::CPtr context)
+        : Node(op, context, PassThroughShapeInferFactory()) {
     std::string errorMessage;
     if (isSupportedOperation(op, errorMessage)) {
         errorPrefix = "Convert node with name '" + getName() + "'";
@@ -43,13 +44,9 @@ Convert::Convert(const std::shared_ptr<ngraph::Node>& op, const dnnl::engine& en
     origPrc = details::convertPrecision(convert->get_destination_type());
 }
 
-std::vector<VectorDims> Convert::shapeInfer() const {
-    return std::vector<VectorDims>{getParentEdgesAtPort(0)[0]->getMemory().getStaticDims()};
-}
-
 Convert::Convert(const Shape &shape, const InferenceEngine::Precision &inPrc, const InferenceEngine::Precision &outPrc,
-                 const std::string &nodeName, const dnnl::engine& eng, WeightsSharing::Ptr &cache)
-        : Node("Convert", nodeName, eng, cache)
+                 const std::string &nodeName, const GraphContext::CPtr context)
+        : Node("Convert", nodeName, context)
         , origPrc(outPrc) {
     inputShapes.push_back(shape);
     addOriginalInputPrecision(inPrc);
@@ -57,6 +54,9 @@ Convert::Convert(const Shape &shape, const InferenceEngine::Precision &inPrc, co
     addOriginalOutputPrecision(outPrc);
 
     isDynamic = shape.isDynamic();
+    if (isDynamicNode()) {
+        shapeInference = std::make_shared<ShapeInferPassThrough>();
+    }
 
     errorPrefix = "Convert node with name '" + getName() + "'";
 }

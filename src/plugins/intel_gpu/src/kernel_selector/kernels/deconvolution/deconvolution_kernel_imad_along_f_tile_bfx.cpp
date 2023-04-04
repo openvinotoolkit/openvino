@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -53,6 +53,13 @@ ParamsKey DeconvolutionKernel_imad_along_f_tile_bfx::GetSupportedKey() const {
     k.EnableBiasPerFeature();
     k.EnableNonBiasTerm();
     k.EnableGroupedConvolution();
+
+    return k;
+}
+
+DeviceFeaturesKey DeconvolutionKernel_imad_along_f_tile_bfx::get_required_device_features_key(const Params& params, const optional_params& options) const {
+    auto k = get_common_subgroups_device_features_key(params, options);
+    k.requires_subgroup_shuffle();
 
     return k;
 }

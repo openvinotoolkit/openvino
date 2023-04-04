@@ -24,10 +24,10 @@ public:
         TransformationTestsF::TearDown();
 
         auto subgraph = FunctionHelper::getSubgraph(function);
-        auto body = subgraph == nullptr ? nullptr : std::dynamic_pointer_cast<ngraph::snippets::op::Subgraph>(subgraph)->get_body();
+        auto body = subgraph == nullptr ? nullptr : std::dynamic_pointer_cast<ngraph::snippets::op::Subgraph>(subgraph)->body_ptr();
 
         auto subgraph_ref = FunctionHelper::getSubgraph(function_ref);
-        auto body_ref = subgraph_ref == nullptr ? nullptr : std::dynamic_pointer_cast<ngraph::snippets::op::Subgraph>(subgraph_ref)->get_body();
+        auto body_ref = subgraph_ref == nullptr ? nullptr : std::dynamic_pointer_cast<ngraph::snippets::op::Subgraph>(subgraph_ref)->body_ptr();
 
         auto res = comparator.compare(body, body_ref);
         ASSERT_TRUE(res.valid) << res.message;

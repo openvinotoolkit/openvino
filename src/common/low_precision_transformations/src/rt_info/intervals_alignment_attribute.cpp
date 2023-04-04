@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -131,7 +131,7 @@ ov::Any IntervalsAlignmentAttribute::create(
     }
 }
 
-void IntervalsAlignmentAttribute::merge(
+void IntervalsAlignmentAttribute::merge_attributes(
     std::vector<ov::Any>& attributes) {
     for (const auto& attributeWrapper : attributes) {
         auto attribute = attributeWrapper.as<IntervalsAlignmentAttribute>().attribute;

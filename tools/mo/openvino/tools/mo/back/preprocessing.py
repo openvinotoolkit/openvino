@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2022 Intel Corporation
+# Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import argparse
@@ -29,6 +29,7 @@ def update_mean_scale_to_dict(input_nodes: list, mean_scale_val, scale):
         mean_scale_val = {}
         for idx, node in enumerate(input_nodes):
             names_list = list(node.get_tensor().get_names())
+            names_list.sort()
             if not names_list:
                 continue
             node_name = names_list[0]
@@ -44,6 +45,7 @@ def update_mean_scale_to_dict(input_nodes: list, mean_scale_val, scale):
     if scale:
         for node in input_nodes:
             names_list = list(node.get_tensor().get_names())
+            names_list.sort()
             if not names_list:
                 continue
             node_name = names_list[0]
@@ -349,6 +351,30 @@ def guess_source_layouts_for_reverse_channels(ov_function: Model, layout_values)
     return suitable_params
 
 
+def update_tensor_names_to_first_in_sorted_list(values_dict: dict, ov_function: Model):
+    if not isinstance(values_dict, dict):
+        return values_dict
+    updated_dict = {}
+    used_nodes = {}
+    for name, value in values_dict.items():
+        input_found = False
+        for input in ov_function.inputs:
+            tensor_names = list(input.names)
+            tensor_names.sort()
+            if not(name in tensor_names or name == input.node.get_friendly_name()):
+                continue
+            if input in used_nodes:
+                raise Error("Tensor names {} and {} refer to the same node.".format(name, used_nodes[input]))
+            used_nodes.update({input: name})
+            updated_dict[tensor_names[0]] = value
+            input_found = True
+            break
+        if not input_found:
+            raise Error('Input with name {} wasn\'t found! {}'.format(name, refer_to_faq_msg(83)))
+
+    return updated_dict
+
+
 def apply_preprocessing(ov_function: Model, argv: argparse.Namespace):
     """
     Applies pre-processing of model inputs by adding appropriate operations
@@ -378,6 +404,12 @@ def apply_preprocessing(ov_function: Model, argv: argparse.Namespace):
     else:
         mean_scale_values = {}
 
+    # mean_scale_values stores mean/scale values from command line with names which were set by user.
+    # For models with single input scale or mean may be unnamed, so name is set by first tensor name from
+    # names list. This may lead to different naming of preprocessing params for a single node and lead to error.
+    # To make naming for mean/scale values unified, names provided by user are renamed here
+    # by the first tensor name from sorted names list.
+    mean_scale_values = update_tensor_names_to_first_in_sorted_list(mean_scale_values, ov_function)
     mean_scale_values = update_mean_scale_to_dict(input_nodes=ov_function.inputs,
                                                   mean_scale_val=mean_scale_values,
                                                   scale=argv.scale)

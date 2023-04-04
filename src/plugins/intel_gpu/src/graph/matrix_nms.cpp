@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 
 #include <json_object.h>
@@ -65,6 +65,8 @@ std::string matrix_nms_inst::to_string(const matrix_nms_node& node) {
 }  // namespace cldnn
 
 namespace ov {
+using cldnn::matrix_nms;
+
 template <>
 EnumNames<matrix_nms::decay_function>& EnumNames<matrix_nms::decay_function>::get() {
     static auto enum_names = EnumNames<matrix_nms::decay_function>(

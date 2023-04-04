@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -28,7 +28,7 @@ namespace ngraph {
 class Mask : public std::vector<std::set<uint64_t>>, public std::enable_shared_from_this<Mask> {
 public:
     static const ::ov::DiscreteTypeInfo& get_type_info_static() {
-        static const ::ov::DiscreteTypeInfo type_info_static{"Mask", 0, "0"};
+        static const ::ov::DiscreteTypeInfo type_info_static{"Mask", "0"};
         return type_info_static;
     }
 
@@ -196,7 +196,7 @@ public:
         if (size() < mask->size())
             resize(mask->size());
         for (size_t i = 0; i < size(); i++) {
-            if (i == axis) {
+            if (static_cast<int64_t>(i) == axis) {
                 std::set<uint64_t> dst_set;
                 const auto& src_set = mask->at(i);
                 auto it = src_set.lower_bound(split_start);

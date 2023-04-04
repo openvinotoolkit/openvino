@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2022 Intel Corporation
+# Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -33,7 +33,7 @@ if (ENABLE_UB_SANITIZER)
     # https://github.com/KhronosGroup/OpenCL-CLHPP/issues/17
     # Mute -fsanitize=function Indirect call of a function through a function pointer of the wrong type.
     #   Sample cases:
-    #       call to function GetAPIVersion through pointer to incorrect function type 'void *(*)()'
+    #       call to function get_api_version through pointer to incorrect function type 'void *(*)()'
     # Mute -fsanitize=alignment Use of a misaligned pointer or creation of a misaligned reference. Also sanitizes assume_aligned-like attributes.
     #   Sample cases:
     #       VPU_FixedMaxHeapTest.DefaultConstructor test case load of misaligned address 0x62000000187f for type 'const DataType', which requires 4 byte alignment
@@ -76,11 +76,13 @@ if (DEFINED SANITIZER_COMPILER_FLAGS)
             set(SANITIZER_COMPILER_FLAGS "${SANITIZER_COMPILER_FLAGS} -fno-var-tracking-assignments")
         endif()
         # prevent unloading libraries at runtime, so sanitizer can resolve their symbols
-        set(SANITIZER_LINKER_FLAGS "${SANITIZER_LINKER_FLAGS} -Wl,-z,nodelete")
-
-        if(OV_COMPILER_IS_CLANG AND CMAKE_CXX_COMPILER_VERSION VERSION_GREATER_EQUAL 8.0)
-            set(SANITIZER_LINKER_FLAGS "${SANITIZER_LINKER_FLAGS} -fuse-ld=lld")
+        if (NOT CMAKE_CXX_COMPILER_ID STREQUAL "AppleClang")
+            set(SANITIZER_LINKER_FLAGS "${SANITIZER_LINKER_FLAGS} -Wl,-z,nodelete")
+            if(OV_COMPILER_IS_CLANG AND CMAKE_CXX_COMPILER_VERSION VERSION_GREATER_EQUAL 8.0)
+                set(SANITIZER_LINKER_FLAGS "${SANITIZER_LINKER_FLAGS} -fuse-ld=lld")
+            endif()
         endif()
+
     else()
         set(SANITIZER_COMPILER_FLAGS "${SANITIZER_COMPILER_FLAGS} /Oy-")
     endif()

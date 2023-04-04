@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2018-2022 Intel Corporation
+﻿// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -211,13 +211,8 @@ JitConstants PermuteKernelRef::GetJitConstants(const permute_params& params, con
     }
 
     if (!params.fused_ops.empty()) {
-        if (permute_out_idx.size() == 4) {
-            std::swap(permute_out_idx[2], permute_out_idx[3]);
-        } else if (permute_out_idx.size() == 5) {
-            std::swap(permute_out_idx[2], permute_out_idx[4]);
-        } else if (permute_out_idx.size() == 6) {
-            std::swap(permute_out_idx[2], permute_out_idx[5]);
-            std::swap(permute_out_idx[3], permute_out_idx[4]);
+        for (size_t i = 0; i < (permute_out_idx.size() - 2) / 2; i++) {
+            std::swap(permute_out_idx[2 + i], permute_out_idx[permute_out_idx.size() - 1 - i]);
         }
 
         if (reorder_to_different_dim) {

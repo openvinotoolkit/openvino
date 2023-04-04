@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -49,9 +49,7 @@ public:
                                    const std::shared_ptr<ngraph::Node>& n, InferenceEngine::Precision exec_prc = InferenceEngine::Precision::FP32);
 
 private:
-    void emit_impl(const std::vector<size_t>& in, const std::vector<size_t>& out,
-                   const std::vector<size_t>& pool, const std::vector<size_t>& gpr,
-                   const ov::intel_cpu::emitter_context *emit_context) const override;
+    void emit_impl(const std::vector<size_t>& in, const std::vector<size_t>& out) const override;
     template <dnnl::impl::cpu::x64::cpu_isa_t isa>
     void emit_isa(const std::vector<size_t> &in_vec_idxs, const std::vector<size_t> &out_vec_idxs) const;
 
@@ -72,9 +70,7 @@ public:
                                    const std::shared_ptr<ngraph::Node>& n, InferenceEngine::Precision exec_prc = InferenceEngine::Precision::FP32);
 
 private:
-    void emit_impl(const std::vector<size_t>& in, const std::vector<size_t>& out,
-                   const std::vector<size_t>& pool, const std::vector<size_t>& gpr,
-                   const ov::intel_cpu::emitter_context *emit_context) const override;
+    void emit_impl(const std::vector<size_t>& in, const std::vector<size_t>& out) const override;
     template <dnnl::impl::cpu::x64::cpu_isa_t isa>
     void emit_isa(const std::vector<size_t> &in_vec_idxs, const std::vector<size_t> &out_vec_idxs) const;
 

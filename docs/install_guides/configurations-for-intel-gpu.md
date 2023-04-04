@@ -5,76 +5,82 @@
 
 .. _gpu guide:
 
-@endsphinxdirective
 
+In case if you are intended to use OpenVINO GPU plugin and offload network inference to Intel® graphics processor, the Intel Graphics Driver should be properly configured on your system.
 
+If it is already installed, and you want to keep it, you can skip the installation steps.
 
-## Linux
+Linux
+#####
 
-If you have installed OpenVINO Runtime from the archive file, follow these steps to work with GPU:
+To install the latest available **Intel® Graphics Compute Runtime for OpenCL™** for your OS, see the `Install Guides <https://github.com/intel/compute-runtime/releases/latest>`__ .
 
-1. Go to the install_dependencies directory:
-   ```sh
-   cd <INSTALL_DIR>/install_dependencies/
-   ```
+.. note::
+   If you use RedHat 8 OS please install OpenCL library as prerequisite via following command line: ```sh rpm -ivh http://mirror.centos.org/centos/8-stream/AppStream/x86_64/os/Packages/ocl-icd-2.2.12-1.el8.x86_64.rpm```
 
-2. Install the **Intel® Graphics Compute Runtime for OpenCL™** driver components required to use the GPU plugin and write custom layers for Intel® Integrated Graphics. The drivers are not included in the package. To install it, run this script:
-   ```sh
-   sudo -E ./install_NEO_OCL_driver.sh
-   ```
-   > **NOTE**: To use the **Intel® Iris® Xe MAX Graphics**, see the [Intel® Iris® Xe MAX Graphics with Linux*](https://dgpu-docs.intel.com/devices/iris-xe-max-graphics/index.html) page for driver installation instructions.
-   
-   The script compares the driver version on the system to the current version. If the driver version on the system is higher or equal to the current version, the script does 
-   not install a new driver. If the version of the driver is lower than the current version, the script uninstalls the lower version and installs the current version with your permission:
-   ![](../img/NEO_check_agreement.png) 
+.. note::
+   For instructions specific to discrete graphics platforms, refer to `the dgpu guide <https://dgpu-docs.intel.com/installation-guides/index.html>`__ (Intel® Arc™ A-Series Graphics, Intel® Data Center GPU Flex Series, Intel® Data Center GPU MAX Series, Intel® processor graphics Gen12, and Intel® Iris Xe MAX codename DG1).
 
-   Higher hardware versions require a higher driver version, namely 20.35 instead of 19.41. If the script fails to uninstall the driver, uninstall it manually. During the script execution, you may see the following command line output:  
-   ```sh
-   Add OpenCL user to video group    
-   ```
-   Ignore this suggestion and continue.<br>
-   You can also find the most recent version of the driver, installation procedure and other information on the [Intel® software for general purpose GPU capabilities](https://dgpu-docs.intel.com/index.html) site.
+You may consider installing one of the earlier versions of the driver, based on your particular setup needs.
 
-3. **Optional:** Install header files to allow compilation of new code. You can find the header files at [Khronos OpenCL™ API Headers](https://github.com/KhronosGroup/OpenCL-Headers.git).
+It is recommended that you refer to the `Intel® Graphics Compute Runtime Github page <https://github.com/intel/compute-runtime/>`__ for instructions and recommendations on GPU driver installation specific to particular releases, including the list of supported hardware platforms.
 
-You've completed all required configuration steps to perform inference on processor graphics.
-@sphinxdirective
 
 .. _gpu guide windows:
 
-@endsphinxdirective
 
-## Windows
+Windows
+#######
 
-This section will help you check if you require driver installation. Install indicated version or higher.
-
-If your applications offload computation to **Intel® Integrated Graphics**, you must have the Intel Graphics Driver for Windows installed on your hardware.
-[Download and install the recommended version](https://downloadcenter.intel.com/download/30079/Intel-Graphics-Windows-10-DCH-Drivers). 
+To install the Intel Graphics Driver for Windows on your hardware, please proceed with the `instruction <https://www.intel.com/content/www/us/en/support/articles/000005629/graphics.html>`__ . 
 
 To check if you have this driver installed:
 
 1. Type **device manager** in your **Search Windows** box and press Enter. The **Device Manager** opens.
+2. Click the drop-down arrow to view the **Display adapters**. You can see the adapter that is installed in your computer:  
 
-2. Click the drop-down arrow to view the **Display adapters**. You can see the adapter that is installed in your computer:
-   ![](../img/DeviceManager.PNG)
+   .. image:: _static/images/DeviceManager.PNG
 
 3. Right-click the adapter name and select **Properties**.
+4. Click the **Driver** tab to see the driver version.  
 
-4. Click the **Driver** tab to see the driver version. 
-   ![](../img/DeviceDriverVersion.PNG)
+   .. image:: _static/images/DeviceDriverVersion.PNG
 
 You are done updating your device driver and are ready to use your GPU.
-## What’s Next?
+
+Additional info
+###############
+
+In the internal OpenVINO validation the following versions of Intel Graphics Driver were used:
+
++------------------+-------------------------------------------------------------------------------------+
+| Operation System | Driver version                                                                      |
++==================+=====================================================================================+
+| Ubuntu 20.04     | `22.35.24055 <https://github.com/intel/compute-runtime/releases/tag/22.35.24055>`__ |
+| Ubuntu 18.04     | `21.38.21026 <https://github.com/intel/compute-runtime/releases/tag/21.38.21026>`__ |
+| CentOS 7         | `19.41.14441 <https://github.com/intel/compute-runtime/releases/tag/19.41.14441>`__ |
+| RHEL 8           | `22.28.23726 <https://github.com/intel/compute-runtime/releases/tag/22.28.23726>`__ |
++------------------+-------------------------------------------------------------------------------------+
+
+
+What’s Next?
+############
 
 You can try out the toolkit with:
 
 Developing in Python:
-   * [Start with tensorflow models with OpenVINO™](https://docs.openvino.ai/latest/notebooks/101-tensorflow-to-openvino-with-output.html)
-   * [Start with ONNX and PyTorch models with OpenVINO™](https://docs.openvino.ai/latest/notebooks/102-pytorch-onnx-to-openvino-with-output.html)
-   * [Start with PaddlePaddle models with OpenVINO™](https://docs.openvino.ai/latest/notebooks/103-paddle-onnx-to-openvino-classification-with-output.html)
+
+* `Start with tensorflow models with OpenVINO™ <https://docs.openvino.ai/latest/notebooks/101-tensorflow-to-openvino-with-output.html>`__
+* `Start with ONNX and PyTorch models with OpenVINO™ <https://docs.openvino.ai/latest/notebooks/102-pytorch-onnx-to-openvino-with-output.html>`__
+* `Start with PaddlePaddle models with OpenVINO™ <https://docs.openvino.ai/latest/notebooks/103-paddle-onnx-to-openvino-classification-with-output.html>`__
 
 Developing in C++:
-   * [Image Classification Async C++ Sample](@ref openvino_inference_engine_samples_classification_sample_async_README)
-   * [Hello Classification C++ Sample](@ref openvino_inference_engine_samples_hello_classification_README)
-   * [Hello Reshape SSD C++ Sample](@ref openvino_inference_engine_samples_hello_reshape_ssd_README)
+
+* :doc:`Image Classification Async C++ Sample <openvino_inference_engine_samples_classification_sample_async_README>`
+* :doc:`Hello Classification C++ Sample <openvino_inference_engine_samples_hello_classification_README>`
+* :doc:`Hello Reshape SSD C++ Sample <openvino_inference_engine_samples_hello_reshape_ssd_README>`
+
+
+@endsphinxdirective
+
 

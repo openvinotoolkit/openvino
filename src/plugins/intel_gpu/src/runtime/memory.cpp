@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -21,12 +21,9 @@ memory::memory(engine* engine, const layout& layout, allocation_type type, bool 
     : _engine(engine), _layout(layout), _bytes_count(_layout.bytes_count()), _type(type), _reused(reused) {
     if (!_reused && _engine) {
         _engine->add_memory_used(_bytes_count, type);
-        GPU_DEBUG_GET_INSTANCE(debug_config);
-        GPU_DEBUG_IF(debug_config->verbose >= 1) {
-            GPU_DEBUG_COUT << "Allocate " << _bytes_count << " bytes of " << type << " allocation type"
-                           << " (current=" << _engine->get_used_device_memory(type) << ";"
-                           << " max=" << _engine->get_max_used_device_memory(type) << ")" << std::endl;
-        }
+        GPU_DEBUG_LOG << "Allocate " << _bytes_count << " bytes of " << type << " allocation type"
+                      << " (current=" << _engine->get_used_device_memory(type) << ";"
+                      << " max=" << _engine->get_max_used_device_memory(type) << ")" << std::endl;
     }
 }
 
@@ -35,12 +32,9 @@ memory::~memory() {
         try {
             _engine->subtract_memory_used(_bytes_count, _type);
         } catch (...) {}
-        GPU_DEBUG_GET_INSTANCE(debug_config);
-        GPU_DEBUG_IF(debug_config->verbose >= 1) {
-            GPU_DEBUG_COUT << "Free " << _bytes_count << " bytes of " << _type << " allocation type"
-                           << " (current=" << _engine->get_used_device_memory(_type) << ";"
-                           << " max=" << _engine->get_max_used_device_memory(_type) << ")" << std::endl;
-        }
+        GPU_DEBUG_LOG << "Free " << _bytes_count << " bytes of " << _type << " allocation type"
+                      << " (current=" << _engine->get_used_device_memory(_type) << ";"
+                      << " max=" << _engine->get_max_used_device_memory(_type) << ")" << std::endl;
     }
 }
 

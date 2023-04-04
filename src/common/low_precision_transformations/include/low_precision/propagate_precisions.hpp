@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -8,7 +8,6 @@
 #include <vector>
 
 #include <ngraph/node.hpp>
-#include <ngraph/variant.hpp>
 #include <ngraph/pass/graph_rewrite.hpp>
 #include <low_precision/lpt_visibility.hpp>
 #include "low_precision/rt_info/attribute_parameters.hpp"

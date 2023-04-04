@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -8,7 +8,7 @@
 #include "request/model_wrapper_factory.hpp"
 #include "request/worker_impl.hpp"
 
-using namespace GNAPluginNS;
+using namespace ov::intel_gna;
 using namespace request;
 using namespace testing;
 
@@ -18,7 +18,7 @@ TEST_F(GNA_Request_WorkerImplTest, initDeinit) {
     ASSERT_THROW(WorkerImpl(nullptr, {}), std::exception);
 
     std::vector<std::shared_ptr<Subrequest>> subrequests;
-    ASSERT_THROW(GNAPluginNS::request::WorkerImpl(nullptr, subrequests), std::exception);
+    ASSERT_THROW(WorkerImpl(nullptr, subrequests), std::exception);
     auto wrapper = ModelWrapperFactory::createTrivial();
     ASSERT_THROW(WorkerImpl(wrapper, {}), std::exception);
 
@@ -60,16 +60,40 @@ TEST_F(GNA_Request_WorkerImplTest, enqueueRequest) {
     subrequests.push_back(subrequestMock2);
     WorkerImpl worker(wrapper, subrequests);
 
-    // check if exception will be thrown if worker will be busy - at least one subrequest is pending.
+    // check if false will be returned if worker will be busy - at least one subrequest is pending.
     EXPECT_CALL(*subrequestMock1.get(), isPending()).Times(1).WillOnce(Return(false));
     EXPECT_CALL(*subrequestMock2.get(), isPending()).Times(1).WillOnce(Return(true));
-    EXPECT_THROW(worker.enqueueRequest(), std::exception);
+    EXPECT_FALSE(worker.enqueueRequest());
 
     EXPECT_CALL(*subrequestMock1.get(), isPending()).Times(1).WillOnce(Return(false));
     EXPECT_CALL(*subrequestMock2.get(), isPending()).Times(1).WillOnce(Return(false));
-    EXPECT_CALL(*subrequestMock1.get(), enqueue()).Times(1);
-    EXPECT_CALL(*subrequestMock2.get(), enqueue()).Times(1);
-    EXPECT_NO_THROW(worker.enqueueRequest());
+    EXPECT_CALL(*subrequestMock1.get(), enqueue()).Times(1).WillOnce(Return(true));
+    EXPECT_CALL(*subrequestMock2.get(), enqueue()).Times(1).WillOnce(Return(true));
+    EXPECT_TRUE(worker.enqueueRequest());
+}
+
+TEST_F(GNA_Request_WorkerImplTest, enqueueRequest_second_enque_failed) {
+    auto wrapper = ModelWrapperFactory::createTrivial();
+    std::vector<std::shared_ptr<Subrequest>> subrequests;
+
+    auto subrequestMock1 = std::make_shared<MockSubrequest>();
+    subrequests.push_back(subrequestMock1);
+    auto subrequestMock2 = std::make_shared<MockSubrequest>();
+    subrequests.push_back(subrequestMock2);
+    WorkerImpl worker(wrapper, subrequests);
+
+    // check if exception will be thrown if worker will be busy - at least one subrequest is pending.
+    EXPECT_CALL(*subrequestMock1.get(), isPending()).Times(1).WillOnce(Return(false));
+    EXPECT_CALL(*subrequestMock2.get(), isPending()).Times(1).WillOnce(Return(true));
+    EXPECT_FALSE(worker.enqueueRequest());
+
+    EXPECT_CALL(*subrequestMock1.get(), isPending()).Times(2).WillOnce(Return(false)).WillOnce(Return(true));
+    EXPECT_CALL(*subrequestMock2.get(), isPending()).Times(2).WillOnce(Return(false)).WillOnce(Return(false));
+    EXPECT_CALL(*subrequestMock1.get(), enqueue()).Times(1).WillOnce(Return(true));
+    EXPECT_CALL(*subrequestMock2.get(), enqueue()).Times(1).WillOnce(Return(false));
+    EXPECT_CALL(*subrequestMock1.get(), cleanup()).Times(1);
+    EXPECT_CALL(*subrequestMock2.get(), cleanup()).Times(0);
+    EXPECT_FALSE(worker.enqueueRequest());
 }
 
 TEST_F(GNA_Request_WorkerImplTest, wait) {
@@ -107,6 +131,13 @@ TEST_F(GNA_Request_WorkerImplTest, wait) {
     EXPECT_CALL(*subrequestMock1.get(), isPending()).Times(1).WillOnce(Return(false));
     EXPECT_CALL(*subrequestMock1.get(), isAborted()).Times(1).WillOnce(Return(true));
     EXPECT_EQ(RequestStatus::kAborted, worker.wait(referenceTimeout));
+
+    // subrequest enuqued and completed with error
+    EXPECT_CALL(*subrequestMock1.get(), isPending()).Times(2).WillOnce(Return(true)).WillOnce(Return(false));
+    EXPECT_CALL(*subrequestMock1.get(), wait(referenceTimeout))
+        .Times(1)
+        .WillOnce(Return(RequestStatus::kCompletedWithError));
+    EXPECT_EQ(RequestStatus::kCompletedWithError, worker.wait(referenceTimeout));
 }
 
 TEST_F(GNA_Request_WorkerImplTest, isFree) {

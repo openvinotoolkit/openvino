@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -15,6 +15,10 @@ const std::vector<ngraph::element::Type> netPrecisions = {
     //ngraph::element::f16
 };
 
+// If snippets fuse all operations into one subgraph node,
+// it's impossible to extract exec precision for the specific layer
+const auto precision_for_fused_cases = ov::element::undefined;
+
 const std::vector<LayerTestsDefinitions::MultiplyTestValues> params = {
     {
         false,
@@ -22,7 +26,7 @@ const std::vector<LayerTestsDefinitions::MultiplyTestValues> params = {
         false,
         { 256ul, ngraph::Shape {}, { -1.28f }, { 1.27f }, { -1.28f }, { 1.27f } },
         { 256ul, ngraph::Shape { 1, 1, 1, 1 }, { -1.28f }, { 1.27f }, { -1.28f }, { 1.27f } },
-        ngraph::element::f32,
+        precision_for_fused_cases,
         true
     },
     {
@@ -31,7 +35,7 @@ const std::vector<LayerTestsDefinitions::MultiplyTestValues> params = {
         false,
         { 256ul, ngraph::Shape { 1, 1, 1, 1 }, { -1.28f }, { 1.27f }, { -1.28f }, { 1.27f } },
         { 256ul, ngraph::Shape { 1, 1, 1, 1 }, { -1.28f }, { 1.27f }, { -1.28f }, { 1.27f } },
-        ngraph::element::i8,
+        precision_for_fused_cases,
         false
     },
     {
@@ -40,25 +44,25 @@ const std::vector<LayerTestsDefinitions::MultiplyTestValues> params = {
         false,
         { 256ul, ngraph::Shape { 1, 1, 1, 1 }, { 0.f }, { 2.55f }, { 0.f }, { 2.55f } },
         { 256ul, ngraph::Shape { 1, 1, 1, 1 }, { 0.f }, { 2.55f }, { 0.f }, { 2.55f } },
-        ngraph::element::u8,
-        false
-    },
-    {
-        true,
-        { 256ul, ngraph::Shape { 1, 1, 1, 1 }, { -1.28f }, { 1.27f }, { -1.28f }, { 1.27f } },
-        false,
-        { 256ul, ngraph::Shape { 1, 1, 1, 1 }, { 0.f }, { 2.55f }, { 0.f }, { 2.55f } },
-        { 256ul, ngraph::Shape { 1, 1, 1, 1 }, { 0.f }, { 2.55f }, { 0.f }, { 2.55f } },
-        ngraph::element::u8,
+        precision_for_fused_cases,
         false
     },
     {
         true,
+        { 256ul, ngraph::Shape { 1, 1, 1, 1 }, { -1.28f }, { 1.27f }, { -1.28f }, { 1.27f } },
+        false,
+        { 256ul, ngraph::Shape { 1, 1, 1, 1 }, { 0.f }, { 2.55f }, { 0.f }, { 2.55f } },
+        { 256ul, ngraph::Shape { 1, 1, 1, 1 }, { 0.f }, { 2.55f }, { 0.f }, { 2.55f } },
+        precision_for_fused_cases,
+        false
+    },
+    {
+        true,
         { 256ul, ngraph::Shape { 1, 1, 1, 1 }, { 0.f }, { 2.55f }, { 0.f }, { 2.55f } },
         false,
         { 256ul, ngraph::Shape { 1, 1, 1, 1 }, { -1.28f }, { 1.27f }, { -1.28f }, { 1.27f } },
         { 256ul, ngraph::Shape { 1, 1, 1, 1 }, { -1.28f }, { 1.27f }, { -1.28f }, { 1.27f } },
-        ngraph::element::i8,
+        precision_for_fused_cases,
         false
     },
     {
@@ -67,7 +71,7 @@ const std::vector<LayerTestsDefinitions::MultiplyTestValues> params = {
         true,
         { 256ul, ngraph::Shape { 1, 1, 1, 1 }, { 0.f }, { 2.55f }, { 0.f }, { 2.55f } },
         { 256ul, ngraph::Shape { 1, 1, 1, 1 }, { -1.28f }, { 1.27f }, { -1.28f }, { 1.27f } },
-        ngraph::element::i8,
+        precision_for_fused_cases,
         false
     },
     {
@@ -76,7 +80,7 @@ const std::vector<LayerTestsDefinitions::MultiplyTestValues> params = {
         false,
         { 256ul, ngraph::Shape { 1, 1, 1, 1 }, { 0.f }, { 2.55f }, { 0.f }, { 2.55f } },
         { 256ul, ngraph::Shape { 1, 1, 1, 1 }, { 0.f }, { 2.55f }, { 0.f }, { 2.55f } },
-        ngraph::element::u8,
+        precision_for_fused_cases,
         false
     },
     {
@@ -85,7 +89,7 @@ const std::vector<LayerTestsDefinitions::MultiplyTestValues> params = {
         true,
         { 256ul, ngraph::Shape { 1, 1, 1, 1 }, { -1.27f }, { 1.28f }, { -1.27f }, { 1.28f } },
         { 256ul, ngraph::Shape { 1, 1, 1, 1 }, { 0.f }, { 2.55f }, { 0.f }, { 2.55f } },
-        ngraph::element::u8,
+        precision_for_fused_cases,
         false
     },
     { false, {}, false, {}, {}, ngraph::element::f32, false },

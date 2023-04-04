@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -237,9 +237,9 @@ protected:
         std::tie(p_shape, axis, num_splits, exp_shape) = GetParam();
     }
 
-    std::pair<std::vector<size_t>, std::vector<size_t>> make_in_exp_labels() const {
-        std::vector<size_t> in_labels;
-        std::generate_n(std::back_inserter(in_labels), p_shape.size(), ov::SeqGen<size_t>(1));
+    std::pair<ov::TensorLabel, ov::TensorLabel> make_in_exp_labels() const {
+        ov::TensorLabel in_labels;
+        std::generate_n(std::back_inserter(in_labels), p_shape.size(), ov::SeqGen<ov::label_t>(1));
 
         auto exp_labels = in_labels;
         exp_labels[axis] = 0;
@@ -291,7 +291,7 @@ TEST_P(SplitTest, use_default_ctor) {
 }
 
 TEST_P(SplitTest, labels_propagation) {
-    std::vector<size_t> in_labels, exp_labels;
+    ov::TensorLabel in_labels, exp_labels;
     std::tie(in_labels, exp_labels) = make_in_exp_labels();
 
     set_shape_labels(p_shape, in_labels);
@@ -317,12 +317,12 @@ protected:
         std::tie(p_shape, num_of_splits, exp_shapes) = GetParam();
     }
 
-    std::pair<std::vector<size_t>, std::vector<std::vector<size_t>>> make_in_exp_labels() const {
-        std::vector<size_t> in_labels;
-        std::generate_n(std::back_inserter(in_labels), p_shape.size(), ov::SeqGen<size_t>(1));
+    std::pair<ov::TensorLabel, std::vector<ov::TensorLabel>> make_in_exp_labels() const {
+        ov::TensorLabel in_labels;
+        std::generate_n(std::back_inserter(in_labels), p_shape.size(), ov::SeqGen<ov::label_t>(1));
 
         auto split_size = in_labels.size() / num_of_splits;
-        std::vector<std::vector<size_t>> exp_labels;
+        std::vector<ov::TensorLabel> exp_labels;
         for (auto it = in_labels.begin(); it < in_labels.end(); it += split_size) {
             exp_labels.emplace_back(it, it + split_size);
         }
@@ -330,8 +330,8 @@ protected:
         return {in_labels, exp_labels};
     }
 
-    std::vector<size_t> in_labels;
-    std::vector<std::vector<size_t>> out_labels;
+    ov::TensorLabel in_labels;
+    std::vector<ov::TensorLabel> out_labels;
 
     PartialShape p_shape;
     size_t num_of_splits;

@@ -36,7 +36,7 @@ TEST_P(mvn_test, shape_infer) {
     auto& engine = get_test_engine();
 
     auto input_layout_prim = std::make_shared<input_layout>("input", p.input_layout);
-    auto mvn_prim = std::make_shared<mvn>("output", "input", p.normalize_variance, p.epsilon, p.eps_inside_sqrt, p.across_channels);
+    auto mvn_prim = std::make_shared<mvn>("output", input_info("input"), p.normalize_variance, p.epsilon, p.eps_inside_sqrt, p.across_channels);
 
     cldnn::program prog(engine);
 

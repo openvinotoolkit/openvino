@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -6,15 +6,21 @@
 
 #include <fstream>
 
+#include "common_test_utils/common_utils.hpp"
 #include "openvino/opsets/opset8.hpp"
 #include "openvino/pass/serialize.hpp"
 #include "util/test_common.hpp"
 
 class SerializationCleanupTest : public ov::test::TestsCommon {
 protected:
-    const std::string test_name = GetTestName() + "_" + GetTimestamp();
-    std::string m_out_xml_path = test_name + ".xml";
-    std::string m_out_bin_path = test_name + ".bin";
+    std::string m_out_xml_path;
+    std::string m_out_bin_path;
+
+    void SetUp() override {
+        std::string filePrefix = CommonTestUtils::generateTestFilePrefix();
+        m_out_xml_path = filePrefix + ".xml";
+        m_out_bin_path = filePrefix + ".bin";
+    }
 
     void TearDown() override {
         std::remove(m_out_xml_path.c_str());

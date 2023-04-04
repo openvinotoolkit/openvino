@@ -148,11 +148,11 @@ public:
         std::string input_id = input_data_id;
         if (need_reorder) {
             const std::string reorder_input_id = input_data_id + "_reordered";
-            topology.add(reorder(reorder_input_id, input_data_id, target_layout, data_type));
+            topology.add(reorder(reorder_input_id, input_info(input_data_id), target_layout, data_type));
             input_id = reorder_input_id;
         }
 
-        topology.add(adaptive_pooling(adaptive_max_pooling_id, input_id, params.outputTensor, indices_id,
+        topology.add(adaptive_pooling(adaptive_max_pooling_id, input_info(input_id), params.outputTensor, indices_id,
                                       data_types::i32));
 
         std::string result_id = adaptive_max_pooling_id;
@@ -162,25 +162,7 @@ public:
             result_id = reorder_result_id;
         }
 
-        cldnn::network::ptr network;
-
-        if (is_caching_test) {
-            membuf mem_buf;
-            {
-                cldnn::network _network(engine, topology);
-                
-                std::ostream out_mem(&mem_buf);
-                BinaryOutputBuffer ob = BinaryOutputBuffer(out_mem);
-                _network.save(ob);
-            }
-            {
-                std::istream in_mem(&mem_buf);
-                BinaryInputBuffer ib = BinaryInputBuffer(in_mem, engine);
-                network = std::make_shared<cldnn::network>(ib, get_test_stream_ptr(), engine);
-            }
-        } else {
-            network = std::make_shared<cldnn::network>(engine, topology);
-        }
+        cldnn::network::ptr network = get_network(engine, topology, get_test_default_config(engine), get_test_stream_ptr(), is_caching_test);
 
         network->set_input_data(input_data_id, input_mem);
 
@@ -192,7 +174,7 @@ public:
         ASSERT_EQ(params.outputTensor.count(), out_ptr.size());
         ASSERT_EQ(params.outputTensor.count(), expected.size());
         for (size_t i = 0; i < expected.size(); ++i) {
-            EXPECT_NEAR(expected[i], out_ptr[i], getError<T>())
+            ASSERT_NEAR(expected[i], out_ptr[i], getError<T>())
                 << "i = " << i << ", format=" << fmt_to_str(target_layout);
         }
 
@@ -200,8 +182,8 @@ public:
             return;
 
         const auto block_sizes = format::traits(target_layout).block_sizes;
-        const auto index_offset = std::accumulate(block_sizes.begin(), block_sizes.end(), 1u,
-                                                  [](size_t total, const std::pair<size_t, int>& b) {
+        const auto index_offset = std::accumulate(block_sizes.begin(), block_sizes.end(), 1,
+                                                  [](int total, const std::pair<size_t, int>& b) {
                                                       return total * b.second;
                                                   }
         );
@@ -209,8 +191,8 @@ public:
         const auto get_reordered_indices_mem = [&]() {
             cldnn::topology reorder_topology;
             reorder_topology.add(input_layout("indices", indices_layout));
-            reorder_topology.add(reorder("plane_indices", "indices", plain_layout, data_types::i32));
-            cldnn::network reorder_net{engine, reorder_topology};
+            reorder_topology.add(reorder("plane_indices", input_info("indices"), plain_layout, data_types::i32));
+            cldnn::network reorder_net{engine, reorder_topology, get_test_default_config(engine)};
             reorder_net.set_input_data("indices", indices_mem);
             const auto second_output_result = reorder_net.execute();
             const auto plane_indices_mem = second_output_result.at("plane_indices").get_memory();
@@ -221,7 +203,7 @@ public:
         ASSERT_EQ(params.outputTensor.count(), indices_ptr.size());
         ASSERT_EQ(params.outputTensor.count(), expected_indices.size());
         for (size_t i = 0; i < expected_indices.size(); ++i) {
-            EXPECT_EQ(index_offset * expected_indices[i], indices_ptr[i]) 
+            ASSERT_EQ(index_offset * expected_indices[i], indices_ptr[i])
                 << "i = " << i << ", format=" << fmt_to_str(target_layout);
         }
     }

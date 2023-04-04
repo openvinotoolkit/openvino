@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2022 Intel Corporation
+# Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import argparse
@@ -65,7 +65,7 @@ def apply_offline_transformations(func: Model, argv: argparse.Namespace):
     apply_moc_legacy_transformations(func, params_with_custom_types)
     apply_user_transformations(func, parse_transform(argv.transform))
 
-    if "compress_fp16" in argv and argv.compress_fp16:
+    if "compress_to_fp16" in argv and argv.compress_to_fp16:
         compress_model(func)
 
     apply_fused_names_cleanup(func)

@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2022 Intel Corporation
+# Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -38,10 +38,14 @@ addIeTargetTest(
             unitTestUtils
             ngraphFunctions
             snippetsNgraphFunctions
+            snippets_test_utils
         ADD_CPPLINT
         LABELS
             CPU
 )
+
+# LTO
+set_target_properties(${TARGET_NAME} PROPERTIES INTERPROCEDURAL_OPTIMIZATION_RELEASE ${ENABLE_LTO})
 
 target_include_directories(${TARGET_NAME} SYSTEM PRIVATE
     $<TARGET_PROPERTY:dnnl,INCLUDE_DIRECTORIES>)

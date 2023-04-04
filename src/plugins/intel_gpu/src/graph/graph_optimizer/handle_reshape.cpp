@@ -1,8 +1,6 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
-
-///////////////////////////////////////////////////////////////////////////////////////////////////
 
 #include "pass_manager.h"
 #include "program_helpers.h"
@@ -33,7 +31,6 @@ void handle_reshape::run(program& p) {
             auto output_lay = node.get_output_layout();
 
             if (!node.is_in_place() ||
-                !node.get_fused_activations_funcs().empty() ||
                 node.has_fused_primitives())
                 return;
 
@@ -57,7 +54,7 @@ void handle_reshape::run(program& p) {
     while (node_itr != p.get_processing_order().end()) {
         auto& node = (*node_itr++);
         program_helpers::do_for_types<reshape>(*node, [&p](reshape_node& node) {
-            if (node.is_output() || node.get_users().size() > 1 || !node.get_fused_activations_funcs().empty())
+            if (node.is_output() || node.get_users().size() > 1 || node.has_fused_primitives() || node.is_dynamic())
                 return;
 
             auto& out_node = node.get_users().front();
@@ -93,15 +90,15 @@ void handle_reshape::run(program& p) {
                 // vector for storing reshape nodes to connect to new reorder nodes (if needed)
                 std::vector<program_node*> reorder_reshape_nodes;
 
-                bool skip_first_user = false;
+                bool found_one = false;
                 auto reshape_users = node->get_users();
                 for (const auto& user : reshape_users) {
                     // reshape node for first user will be the orginal reshape from the graph
-                    if (!skip_first_user) {
-                        if (std::find(reorder_node_to_split.begin(), reorder_node_to_split.end(), user) !=
-                            reorder_node_to_split.end())
+                    if (!found_one) {
+                        if ((std::find(reorder_node_to_split.begin(), reorder_node_to_split.end(), user) !=
+                            reorder_node_to_split.end()) && (user->get_output_layout().get_rank() == node->get_output_layout().get_rank()))
                             reorder_reshape_nodes.push_back(node);
-                        skip_first_user = true;
+                        found_one = true;
                         continue;
                     }
 
@@ -118,17 +115,16 @@ void handle_reshape::run(program& p) {
                     }
                 }
 
+                if (reorder_reshape_nodes.size() == 0)
+                    continue;
+
                 // add new reorder nodes to proper reshape node
                 auto reshape_reorder_id = 0;
                 for (const auto& reorder_node : reorder_node_to_split) {
                     auto& reorder_reshape_node = reorder_reshape_nodes[reshape_reorder_id];
                     auto reshape_in_layout = reorder_node->get_output_layout();
                     auto dims = cldnn::format::dimension(reshape_in_layout.format);
-                    auto format = cldnn::format::bfyx;
-                    if (dims == 5)
-                        format = cldnn::format::bfzyx;
-                    else if (dims == 6)
-                        format = cldnn::format::bfwzyx;
+                    auto format = cldnn::format::get_default_format(dims);
                     auto reshape_input = std::make_shared<reorder>(
                         "reorder:_reshape_input_" + reorder_node->id() + "_" + reorder_reshape_node->id(),
                         input_node.id(),

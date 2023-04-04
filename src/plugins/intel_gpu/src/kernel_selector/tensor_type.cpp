@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -72,6 +72,7 @@ WeightsTensor::WeightsChannelArray WeightsTensor::weightsChannelArray {{
     { WeightsLayout::yxio,                                        {  2,  3, -1,   1,   0, -1 } },
     { WeightsLayout::os_iyx_osv16,                                {  0,  1, -1,   2,   3, -1 } },
     { WeightsLayout::os_iyx_osv32,                                {  0,  1, -1,   2,   3, -1 } },
+    { WeightsLayout::os_iyx_osv8,                                 {  0,  1, -1,   2,   3, -1 } },
     { WeightsLayout::os_iyx_osv32__ai32,                          {  0,  1, -1,   2,   3, -1 } },
     { WeightsLayout::os_iyx_osv64,                                {  0,  1, -1,   2,   3, -1 } },
     { WeightsLayout::os_iyx_osv16_rotate_180,                     {  0,  1, -1,   2,   3, -1 } },
@@ -550,6 +551,28 @@ DataTensor DataTensor::FlattenEverything() const {
     return res;
 }
 
+void DataTensor::SwapXY() {
+    DataLayout l = Tensor::bfyx;
+
+    auto x = X();
+    auto y = Y();
+
+    if (GetLayout() != DataLayout::bfyx)
+        throw std::runtime_error("Unsupported - unsupported layout.");
+    if (x.pad.Total() != 0 || x.v != 1)
+        throw std::runtime_error("Unsupported - unsupported shape.");
+
+    // Swap XY axes.
+    y.pitch = 1;
+    x.pitch = y.v + y.pad.Total();
+    std::vector<Dim> vec(ChannelsCount(l));
+    vec[Channelndex(l, DataChannelName::X)] = y;
+    vec[Channelndex(l, DataChannelName::Y)] = x;
+    vec[Channelndex(l, DataChannelName::FEATURE)] = Feature();
+    vec[Channelndex(l, DataChannelName::BATCH)] = Batch();
+    *this = {vec, dtype, l};
+}
+
 NDims WeightsTensor::GetSimpleDims(const std::vector<size_t>& d, WeightsLayout l) {
     std::vector<size_t> newDims = d;
 
@@ -568,6 +591,10 @@ NDims WeightsTensor::GetSimpleDims(const std::vector<size_t>& d, WeightsLayout l
         case os_iyx_osv32:
             assert(newDims.size() == 4);
             newDims[3] = RoundUp(newDims[3], 32);
+            break;
+        case os_iyx_osv8:
+            assert(newDims.size() == 4);
+            newDims[3] = RoundUp(newDims[3], 8);
             break;
         case os_iyx_osv32__ai32:
             assert(newDims.size() == 4);
@@ -1051,5 +1078,22 @@ WeightsTensor WeightsTensor::TransformIgnorePadding(WeightsLayout l, WeightsType
 
     return {vec, t, l};
 }
+
+void WeightsTensor::SwapXY() {
+    auto x = X();
+
+    if (x.pad.Total() != 0 || x.v != 1)
+        throw std::runtime_error("Unsupported - unsupported weight shape.");
+
+    std::vector<size_t> vec;
+    for (auto& d : dims) {
+        vec.push_back(d.v);
+    }
+    auto x_index = Channelndex(layout, WeightsChannelName::X);
+    auto y_index = Channelndex(layout, WeightsChannelName::Y);
+    std::swap(vec[x_index], vec[y_index]);
+    *this = {vec, dtype, layout};
+}
+
 }  // namespace Tensor
 }  // namespace kernel_selector

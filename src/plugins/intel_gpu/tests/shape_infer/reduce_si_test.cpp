@@ -36,7 +36,7 @@ TEST_P(reduce_test, shape_infer) {
     auto& engine = get_test_engine();
 
     auto input_prim = std::make_shared<input_layout>("input", p.input);
-    auto reduce_prim = std::make_shared<reduce>("output", "input", p.mode, p.axes, p.keep_dims);
+    auto reduce_prim = std::make_shared<reduce>("output", input_info("input"), p.mode, p.axes, p.keep_dims);
 
     cldnn::program prog(engine);
 
@@ -54,7 +54,7 @@ INSTANTIATE_TEST_SUITE_P(smoke, reduce_test,
         {
             layout{ov::PartialShape{1, 1, 1, 1}, data_types::f32, format::bfyx},
             reduce_mode::max, {1}, false,
-            layout{ov::PartialShape{1}, data_types::f32, format::bfyx}
+            layout{ov::PartialShape{1, 1, 1}, data_types::f32, format::bfyx}
         },
             {
             layout{ov::PartialShape{1, 1, 1, 1}, data_types::f32, format::bfyx},

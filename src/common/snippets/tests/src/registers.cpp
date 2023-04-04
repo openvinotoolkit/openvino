@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -6,7 +6,6 @@
 
 #include <ngraph/function.hpp>
 #include <ngraph/pass/manager.hpp>
-#include <ngraph/variant.hpp>
 
 #include <snippets/snippets_isa.hpp>
 #include <snippets/pass/assign_registers.hpp>
@@ -14,6 +13,7 @@
 #include <transformations/init_node_info.hpp>
 
 #include "common_test_utils/ngraph_test_utils.hpp"
+#include "lowering_utils.hpp"
 
 using namespace testing;
 using namespace ngraph;
@@ -21,6 +21,7 @@ using namespace ngraph;
 //  todo: Rewrite this test using Snippets test infrastructure. See ./include/canonicalization.hpp for example
 
 TEST(TransformationTests, AssignRegisters) {
+    const auto generator = std::make_shared<ov::test::snippets::DummyGenerator>();
     std::shared_ptr<Function> f(nullptr);
     {
         auto p0 = std::make_shared<opset1::Parameter>(element::f32, Shape(1));
@@ -33,10 +34,17 @@ TEST(TransformationTests, AssignRegisters) {
         auto s00 = std::make_shared<snippets::isa::Store>(y02); s00->set_friendly_name("y03");
         s00->set_friendly_name("s00");
         f = std::make_shared<Function>(NodeVector{s00}, ParameterVector{p0, p1});
+        // Note that testing the result is not strictly necessary, since the Result doesn't emit any code
+        f->get_result()->set_friendly_name("r00");
 
         pass::Manager m;
-        m.register_pass<pass::InitNodeInfo>();
-        m.register_pass<snippets::pass::AssignRegisters>();
+        m.register_pass<ov::pass::InitNodeInfo>();
+        std::function<snippets::Generator::opRegType(const std::shared_ptr<Node>& op)> reg_type_mapper =
+            [=](const std::shared_ptr<Node>& op) -> snippets::Generator::opRegType {
+            return generator->get_op_reg_type(op);
+        };
+        m.register_pass<snippets::pass::AssignRegisters>(reg_type_mapper);
+
         m.run_passes(f);
         ASSERT_NO_THROW(check_rt_info(f));
     }
@@ -52,18 +60,19 @@ TEST(TransformationTests, AssignRegisters) {
             {"y01", 1},
             {"y02", 2},
             {"s00", 2}, // gpr
+            {"r00", 2}  // gpr
         };
 
         auto total_ops = 0;
         for (auto& op : f->get_ordered_ops()) {
-            auto& rt = op->get_rt_info();
-
-            auto it_rinfo = rt.find("reginfo");
-            if (it_rinfo != rt.end()) {
-                auto reginfo = it_rinfo->second.as<std::vector<size_t>>();
-                auto reg = reginfo[0];
-                ASSERT_TRUE(ref_registers[op->get_friendly_name()] == reg);
-                total_ops++;
+            for (const auto& output : op->outputs()) {
+                const auto& rt = output.get_tensor_ptr()->get_rt_info();
+                auto it_rt = rt.find("reginfo");
+                if (it_rt != rt.end()) {
+                    auto reg = it_rt->second.as<size_t>();
+                    ASSERT_TRUE(ref_registers[op->get_friendly_name()] == reg);
+                    total_ops++;
+                }
             }
         }
         ASSERT_EQ(total_ops, ref_registers.size());
@@ -71,6 +80,7 @@ TEST(TransformationTests, AssignRegisters) {
 }
 
 TEST(TransformationTests, AssignRegisters2) {
+    const auto generator = std::make_shared<ov::test::snippets::DummyGenerator>();
     std::shared_ptr<Function> f(nullptr);
     {
         auto p0 = std::make_shared<opset1::Parameter>(ngraph::element::f32, Shape());
@@ -120,10 +130,15 @@ TEST(TransformationTests, AssignRegisters2) {
         s00->set_friendly_name("s00");
 
         f = std::make_shared<Function>(NodeVector{s00}, ParameterVector{p0, p1, p2, p3, p4, p5, p6, p7});
+        f->get_result()->set_friendly_name("res00");
 
         pass::Manager m;
-        m.register_pass<pass::InitNodeInfo>();
-        m.register_pass<snippets::pass::AssignRegisters>();
+        m.register_pass<ov::pass::InitNodeInfo>();
+        std::function<snippets::Generator::opRegType(const std::shared_ptr<Node>& op)> reg_type_mapper =
+            [=](const std::shared_ptr<Node>& op) -> snippets::Generator::opRegType {
+            return generator->get_op_reg_type(op);
+        };
+        m.register_pass<snippets::pass::AssignRegisters>(reg_type_mapper);
         m.run_passes(f);
         ASSERT_NO_THROW(check_rt_info(f));
     }
@@ -140,17 +155,19 @@ TEST(TransformationTests, AssignRegisters2) {
             {"r18", 0}, {"r19", 2}, {"r20", 4}, {"r21", 1}, {"r22", 0}, {"r23", 6},
             {"r24", 1},
             {"s00", 8},
+            {"res00", 8}
         };
 
         auto total_ops = 0;
         for (auto& op : f->get_ordered_ops()) {
-            auto& rt = op->get_rt_info();
-            auto it_rinfo = rt.find("reginfo");
-            if (it_rinfo != rt.end()) {
-                auto reginfo = it_rinfo->second.as<std::vector<size_t>>();
-                auto reg = reginfo[0];
-                ASSERT_TRUE(ref_registers[op->get_friendly_name()] == reg);
-                total_ops++;
+            for (const auto& output : op->outputs()) {
+                const auto& rt = output.get_tensor_ptr()->get_rt_info();
+                auto it_rt = rt.find("reginfo");
+                if (it_rt != rt.end()) {
+                    auto reg = it_rt->second.as<size_t>();
+                    ASSERT_TRUE(ref_registers[op->get_friendly_name()] == reg);
+                    total_ops++;
+                }
             }
         }
         ASSERT_EQ(total_ops, ref_registers.size());

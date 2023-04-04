@@ -1,9 +1,11 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "include/batch_headers/fetch_data.cl"
-#include "include/batch_headers/data_types.cl"
+#include "include/batch_headers/sub_group_block_read.cl"
+#include "include/batch_headers/sub_group_block_write.cl"
+#include "include/batch_headers/sub_group_shuffle.cl"
 
 #define INPUT_TYPE8  MAKE_VECTOR_TYPE(INPUT0_TYPE, 8)
 #define OUTPUT_TYPE8 MAKE_VECTOR_TYPE(OUTPUT_TYPE, 8)
@@ -27,20 +29,19 @@
 
 __attribute__((reqd_work_group_size(LWS_0, LWS_1, LWS_2))) // attr:no-format
 #if VER_16MB16C == 1 || VER_8OW16C == 1
-__attribute__((intel_reqd_sub_group_size(SUB_GROUP_SIZE))) // attr:no-format
+REQD_SUB_GROUP_SIZE(SUB_GROUP_SIZE) // attr:no-format
 #endif
 KERNEL(gen9_common_conv_bwd_data_kernel)(
         const  __global INPUT0_TYPE *diff_dst,
         __global OUTPUT_TYPE * restrict diff_src,
-        const __global FILTER_TYPE *wei,
+        const __global FILTER_TYPE *wei
 #if WITH_BIAS
-        const __global BIAS_TYPE *bias,
+        , const __global BIAS_TYPE *bias
 #endif
 #if HAS_FUSED_OPS_DECLS
-        FUSED_OPS_DECLS,
+        , FUSED_OPS_DECLS
 #endif
-        uint split_idx
-        )
+)
 {
     const int input_offset = (INPUT0_PAD_BEFORE_FEATURE_NUM / OC_BLOCK) * OD_FULL * OH_FULL * OW_FULL * OC_BLOCK * MB_BLOCK +
                              (INPUT0_PAD_BEFORE_SIZE_Z) * OH_FULL * OW_FULL * OC_BLOCK * MB_BLOCK +
@@ -157,17 +158,17 @@ KERNEL(gen9_common_conv_bwd_data_kernel)(
 
 #if DT_F32
 #define TRANSPOSE_8(_block, _col) \
-    (intel_sub_group_shuffle(_block, _col))
+    (_sub_group_shuffle(_block, _col))
 #else
 #define TRANSPOSE_8(_block, _col) \
-    (intel_sub_group_shuffle(_block[0], _col), \
-    intel_sub_group_shuffle(_block[1], _col), \
-    intel_sub_group_shuffle(_block[2], _col), \
-    intel_sub_group_shuffle(_block[3], _col), \
-    intel_sub_group_shuffle(_block[4], _col), \
-    intel_sub_group_shuffle(_block[5], _col), \
-    intel_sub_group_shuffle(_block[6], _col), \
-    intel_sub_group_shuffle(_block[7], _col))
+    (_sub_group_shuffle(_block[0], _col), \
+    _sub_group_shuffle(_block[1], _col), \
+    _sub_group_shuffle(_block[2], _col), \
+    _sub_group_shuffle(_block[3], _col), \
+    _sub_group_shuffle(_block[4], _col), \
+    _sub_group_shuffle(_block[5], _col), \
+    _sub_group_shuffle(_block[6], _col), \
+    _sub_group_shuffle(_block[7], _col))
 #endif
 
 #define FMA8(a, b, c) fma((FMA_ARG_TYPE8)(a), (FMA_ARG_TYPE8)b, (FMA_ARG_TYPE8)c)
@@ -338,7 +339,7 @@ KERNEL(gen9_common_conv_bwd_data_kernel)(
                 do {
 
 #define TRANSPOSE_1(_block, _col) \
-    (intel_sub_group_shuffle(_block, _col))
+    (_sub_group_shuffle(_block, _col))
 
 #define FMA1(a, b, c) fma((FMA_ARG_TYPE)(a), (FMA_ARG_TYPE)b, (FMA_ARG_TYPE)c)
 

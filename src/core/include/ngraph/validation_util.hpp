@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -16,6 +16,7 @@
 namespace ngraph {
 using ov::evaluate_as_partial_shape;
 using ov::get_constant_from_source;
+using ov::has_no_labels;
 using ov::infer_auto_padding;
 using ov::infer_convolution_forward;
 using ov::normalize_axes;
@@ -159,57 +160,6 @@ NGRAPH_API void evaluate_nodes(std::map<RawNodeOutput, HostTensorPtr>& value_map
                                const OutputVector& outputs,
                                const EvaluationContext& evaluation_context = EvaluationContext());
 
-/// \brief Evaluates lower value estimation of the output tensor. Traverses graph up to deduce
-/// estimation through it.
-/// \param Node output pointing to the tensor for estimation.
-/// \return HostTensorPtr to estimated value if can be determined, or nullptr.
-NGRAPH_API HostTensorPtr evaluate_lower_bound(const Output<Node>& output);
-
-/// \brief Evaluates lower value estimation of the output tensor. Traverses graph up to deduce
-/// estimation through it.
-/// \param output Tensor to be estimated.
-/// \return HostTensorPtr to estimated value if can be determined, or nullptr.
-NGRAPH_API HostTensorPtr evaluate_upper_bound(const Output<Node>& output);
-
-/// \brief Evaluates lower and upper value estimations of the output tensor. Traverses graph up
-/// to deduce estimation through it.
-/// \param output Node output pointing to the tensor for estimation.
-/// \return pair with HostTensorPtrs for lower and upper value estimation. Each object in pair
-/// could be HostTensorPtr to estimated value if particular bound can be determined, or nullptr.
-NGRAPH_API std::pair<HostTensorPtr, HostTensorPtr> evaluate_both_bounds(const Output<Node>& output);
-
-/// \brief Estimates upper bound for node output tensors using only upper bounds of the nodes
-/// inputs.
-/// \param node Operation to be performed
-/// \param output_values Vector of HostTensorPtrs representing resulting upper value estimations
-/// \return boolean status if value evaluation was successful.
-NGRAPH_API bool default_upper_bound_evaluator(const Node* node, const HostTensorVector& output_values);
-/// \brief Estimates lower bound for node output tensors using only lower bounds of the nodes
-/// inputs.
-/// \param node Operation to be performed
-/// \param output_values Vector of HostTensorPtrs representing resulting lower value estimations
-/// \return boolean status if value evaluation was successful.
-NGRAPH_API bool default_lower_bound_evaluator(const Node* node, const HostTensorVector& output_values);
-/// \brief Estimates both bounds for node output tensors using both bounds of inputs. Works for
-/// operations with two inputs (in_1 and in_2). Brute forces all the pairs of bounds for inputs
-/// and evaluates all of them: {in_1_lower, in_2 lower}, {in_1_lower, in_2 upper}, {in_1_upper,
-/// in_2_lower}, {in_1_upper, in_2_upper}. Lower and upper values are selected from all the
-/// outputs calculated using input pairs.
-/// \param node Operation to be performed
-/// \param output_values Vector of HostTensorPtrs representing resulting lower value estimations
-/// \return boolean status if value evaluation was successful.
-NGRAPH_API bool interval_bound_evaluator(const Node* node,
-                                         const HostTensorVector& lower_output_values,
-                                         const HostTensorVector& upper_output_values);
-
-/// \brief Checks if all the elements of the bound HostTensor are positive
-NGRAPH_API bool host_tensor_is_positive(const HostTensorPtr& bound);
-
-/// \brief Checks if lower and upper bounds of the corresponding tensor are set (not nullptr)
-/// and pointers are the same. It doesn't check if lower and upper values are the same relying
-/// only on pointers comparison.
-NGRAPH_API bool has_and_set_equal_bounds(const Output<Node>& source);
-
 /// \brief Returns a Constant storing scalar value equal to std::numeric_limits<t>::max()
 NGRAPH_API std::shared_ptr<op::Constant> get_constant_max_of_type(element::Type_t t);
 
@@ -222,8 +172,6 @@ NGRAPH_API std::shared_ptr<op::Constant> get_constant_lowest_of_type(element::Ty
 /// \brief Checks if size of HostTensorVector is the same as passed size attribute. Then checks
 /// that all the HostTensorPtrs are not equal to nullptr
 NGRAPH_API bool validate_host_tensor_vector(const HostTensorVector& v, const size_t& size);
-
-NGRAPH_API bool could_propagate(const Output<Node>& output, std::vector<Node*>& order);
 
 namespace opset1 {
 ///

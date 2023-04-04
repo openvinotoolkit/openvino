@@ -1,15 +1,14 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
-#include <openvino/cc/ngraph/itt.hpp>
-
 #include "transformations/insert_transpose_after_convolution_or_pooling.hpp"
-
-#include <numeric>
 
 #include <ngraph/opsets/opset7.hpp>
 #include <ngraph/pattern/op/wrap_type.hpp>
 #include <ngraph/rt_info.hpp>
+#include <numeric>
+#include <openvino/cc/ngraph/itt.hpp>
+
 #include "log/debug.hpp"
 #include "log/log.hpp"
 
@@ -35,8 +34,10 @@ bool InsertTransposeAfterConvOrPool::run_on_model(const std::shared_ptr<ngraph::
         while ((reshape_node != nullptr || transpose_node != nullptr) && next_node->get_output_size() == 1) {
             auto input_shape = next_node->get_input_shape(0);
             auto output_shape = next_node->get_output_shape(0);
-            if (input_shape[1] > 1 &&
-                output_shape.back() == std::accumulate(std::begin(output_shape), std::end(output_shape), size_t(1), std::multiplies<size_t>())) {
+            if (input_shape[1] > 1 && output_shape.back() == std::accumulate(std::begin(output_shape),
+                                                                             std::end(output_shape),
+                                                                             size_t(1),
+                                                                             std::multiplies<size_t>())) {
                 found_reshape_to_1d = true;
                 break;
             }
@@ -45,7 +46,8 @@ bool InsertTransposeAfterConvOrPool::run_on_model(const std::shared_ptr<ngraph::
             transpose_node = std::dynamic_pointer_cast<ngraph::opset7::Transpose>(next_node);
         }
 
-        if (!found_reshape_to_1d) continue;
+        if (!found_reshape_to_1d)
+            continue;
 
         // Search for a convolution after this reshape
         bool found_next_conv_or_pool = false;
@@ -60,11 +62,13 @@ bool InsertTransposeAfterConvOrPool::run_on_model(const std::shared_ptr<ngraph::
             }
         }
 
-        if (!found_next_conv_or_pool) continue;
+        if (!found_next_conv_or_pool)
+            continue;
 
         // check if transpose is supported by GNA
         auto output_shape = node->get_output_shape(0);
-        if (output_shape.size() < 3) continue;
+        if (output_shape.size() < 3)
+            continue;
         std::vector<size_t> transpose_ids;
         for (size_t ix = 0; ix < output_shape.size(); ++ix) {
             if (output_shape[ix] > 1) {
@@ -96,13 +100,15 @@ bool InsertTransposeAfterConvOrPool::run_on_model(const std::shared_ptr<ngraph::
                                                                              transposeInShape);
         auto reshapeBefore = std::make_shared<ngraph::opset7::Reshape>(node, reshapeConstBefore, false);
         reshapeBefore->set_friendly_name(node->get_friendly_name() + "/reshape_out");
-        ngraph::copy_runtime_info(node, reshapeBefore);
+        ngraph::copy_runtime_info(node, {reshapeBefore, reshapeConstBefore});
 
         auto transpose_order = transposeInShape.size() == 3 ? ngraph::Shape{0, 2, 1} : ngraph::Shape{0, 3, 1, 2};
-        auto transpose = std::make_shared<ngraph::opset7::Transpose>(reshapeBefore,
-            ngraph::opset7::Constant::create(ngraph::element::i64, ngraph::Shape{transpose_order.size()}, transpose_order));
+        auto transpose_order_const = ngraph::opset7::Constant::create(ngraph::element::i64,
+                                                                      ngraph::Shape{transpose_order.size()},
+                                                                      transpose_order);
+        auto transpose = std::make_shared<ngraph::opset7::Transpose>(reshapeBefore, transpose_order_const);
         transpose->set_friendly_name(node->get_friendly_name() + "/transpose_out");
-        ngraph::copy_runtime_info(node, transpose);
+        ngraph::copy_runtime_info(node, {transpose, transpose_order_const});
 
         for (auto& input : consumers) {
             input.replace_source_output(transpose);

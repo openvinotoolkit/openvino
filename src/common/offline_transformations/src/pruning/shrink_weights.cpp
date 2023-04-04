@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -33,6 +33,7 @@ static bool is_static_reshape_op(std::shared_ptr<ov::Node> node) {
 
     const auto input = reshape_node->input_value(0);
     const auto shape = reshape_node->input_value(1);
+
     if (input.get_partial_shape().is_dynamic() || shape.get_partial_shape().is_dynamic())
         return false;
 
@@ -40,13 +41,14 @@ static bool is_static_reshape_op(std::shared_ptr<ov::Node> node) {
     if (!output_shape_const_op)
         return false;
 
-    const auto input_shape = input.get_shape();
-    const auto output_shape = output_shape_const_op->cast_vector<int64_t>();
-    const auto input_elems = std::accumulate(input_shape.begin(), input_shape.end(), 1, std::multiplies<int64_t>());
-    const auto output_elems = std::accumulate(output_shape.begin(), output_shape.end(), 1, std::multiplies<int64_t>());
-    if (output_elems <= 0 || input_elems == output_elems)
-        return false;
-    return true;
+    const auto& input_shape = input.get_shape();
+    const auto& output_shape = output_shape_const_op->cast_vector<int64_t>();
+    // below casts are needed due to VC warning C4244, literals are not enough in this case
+    const int64_t input_elems =
+        std::accumulate(input_shape.begin(), input_shape.end(), static_cast<int64_t>(1), std::multiplies<int64_t>());
+    const auto output_elems =
+        std::accumulate(output_shape.begin(), output_shape.end(), static_cast<int64_t>(1), std::multiplies<int64_t>());
+    return input_elems != output_elems;
 }
 
 static bool maybe_adopt_reshape_node(std::shared_ptr<ov::Node> reshape, ngraph::Mask::Ptr mask) {
@@ -57,13 +59,30 @@ static bool maybe_adopt_reshape_node(std::shared_ptr<ov::Node> reshape, ngraph::
         return false;
     }
 
-    auto sub_const_vector = std::vector<int64_t>();
-    for (auto& dim : *mask.get())
-        sub_const_vector.push_back(dim.size());
+    const auto constant = get_constant_from_source(shape);
+    if (!constant) {
+        return false;
+    }
+    const auto new_shape = constant->cast_vector<int64_t>();
+    std::vector<int64_t> sub_const_vector;
+    sub_const_vector.reserve(mask->size());
+    bool all_zeros = true;
+    for (size_t i = 0; i < mask->size(); i++) {
+        if (new_shape[i] <= 0) {
+            sub_const_vector.push_back(0);
+        } else {
+            all_zeros = all_zeros && mask->at(i).size() == 0;
+            sub_const_vector.push_back(mask->at(i).size());
+        }
+    }
+
+    if (all_zeros)
+        return true;
 
     const auto sub_const = ngraph::opset6::Constant::create(shape.get_element_type(), {mask->size()}, sub_const_vector);
     const auto sub = std::make_shared<ngraph::opset6::Subtract>(shape, sub_const);
     consumers.begin()->replace_source_output(sub);
+    copy_runtime_info(shape.get_node_shared_ptr(), {sub_const, sub});
 
     NGRAPH_DEBUG << "Adopting values in (" << shape.get_node()->get_friendly_name() << ")"
                  << " by substracting " << vec_to_str(sub_const_vector);
@@ -115,6 +134,7 @@ static bool handle_variadic_split(const std::shared_ptr<ov::Node>& split) {
     const auto& split_lengths_type = split_lengths_node->get_output_element_type(0);
     const auto sub_const = ngraph::opset6::Constant::create(split_lengths_type, {sub_values.size()}, sub_values);
     const auto sub = std::make_shared<ngraph::opset6::Subtract>(split->input_value(2), sub_const);
+    copy_runtime_info(split->get_input_source_output(2).get_node_shared_ptr(), {sub_const, sub});
     split->input(2).replace_source_output(sub);
 
     return true;
@@ -178,7 +198,8 @@ bool ngraph::pass::ShrinkWeights::run_on_model(const std::shared_ptr<ngraph::Fun
         if (!mask && init_mask)
             NGRAPH_DEBUG << "Mask was ruined for node:" << node->get_friendly_name() << "\nInit mask: " << *init_mask;
 #endif
-        if (is_static_reshape_op(node) && not_empty_mask(mask))
+        if (is_static_reshape_op(node) && not_empty_mask(mask) &&
+            !ov::op::util::is_constant(node->get_input_node_ptr(1)))
             if (!maybe_adopt_reshape_node(node, mask))
                 continue;
 
@@ -256,6 +277,7 @@ bool ngraph::pass::ShrinkWeights::run_on_model(const std::shared_ptr<ngraph::Fun
             }
             auto new_const = opset6::Constant::create(const_node->get_element_type(), Shape{res.size()}, res);
             replace_node(const_node, new_const);
+            copy_runtime_info(const_node, new_const);
             NGRAPH_DEBUG << "Transform shape like (" << last_output.get_node()->get_friendly_name()
                          << "): " << const_node->get_shape_val() << " to " << new_const->get_shape_val() << std::endl;
             new_const->set_friendly_name(const_node->get_friendly_name());
@@ -300,6 +322,7 @@ bool ngraph::pass::ShrinkWeights::run_on_model(const std::shared_ptr<ngraph::Fun
             for (auto consumer : consumers) {
                 consumer.replace_source_output(last_output);
             }
+            copy_runtime_info(const_node, last_output.get_node_shared_ptr());
         }
     }
     NGRAPH_DEBUG << "[ INFO ]   TOTAL WEIGHTS: " << total_weights_count << std::endl;

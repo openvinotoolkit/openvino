@@ -62,7 +62,7 @@ lm_1b/
 ```
 
 
-![lm_1b model view](../../../img/lm_1b.png)
+![lm_1b model view](../../../img/lm_1b.svg)
 
 The frozen model still has two variables: `Variable` and `Variable_1`.
 It means that the model keeps training those variables at each inference.

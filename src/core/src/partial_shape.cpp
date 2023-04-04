@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -388,5 +388,3 @@ ov::Dimension& ov::PartialShape::operator[](size_t i) {
     m_shape_type = ShapeType::SHAPE_IS_UPDATED;  // We can't guarantee that the shape remains static or dynamic.
     return m_dimensions[i];
 }
-
-BWDCMP_RTTI_DEFINITION(ov::AttributeAdapter<ov::PartialShape>);

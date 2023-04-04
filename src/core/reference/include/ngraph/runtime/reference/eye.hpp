@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -20,7 +20,7 @@ void eye(T* data, const Shape& out_shape, const int64_t diagonal_index) {
     const int64_t matrix_size = num_rows * num_columns;
 
     // fill tensor by zero
-    std::memset(data, 0, num_matrices * num_columns * num_rows * sizeof(T));
+    std::fill(data, data + num_matrices * matrix_size, T(0));
 
     // set ones on diagonal
     const int64_t shift_by_columns = std::max(diagonal_index, int64_t(0));

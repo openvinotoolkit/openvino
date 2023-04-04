@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2022 Intel Corporation
+# Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import numpy as np
@@ -39,7 +39,7 @@ class TestUnaryOps(CommonTFLayerTest):
 
         for input in inputs_dict.keys():
             if self.current_op_type in logical_type:
-                inputs_dict[input] = np.random.randint(0, 1, inputs_dict[input]).astype(np.bool)
+                inputs_dict[input] = np.random.randint(0, 1, inputs_dict[input]).astype(bool)
             else:
                 inputs_dict[input] = np.random.uniform(lower, upper, inputs_dict[input]).astype(
                     np.float32)
@@ -54,6 +54,8 @@ class TestUnaryOps(CommonTFLayerTest):
 
         """
         import tensorflow as tf
+        import tensorflow_addons as tfa
+
         self.current_op_type = op_type
         op_type_to_tf = {
             'Abs': tf.math.abs,
@@ -72,6 +74,7 @@ class TestUnaryOps(CommonTFLayerTest):
             'Floor': tf.math.floor,
             'Log': tf.math.log,
             'LogicalNot': tf.math.logical_not,
+            'Mish': tfa.activations.mish,
             'Negative': tf.math.negative,
             'Sigmoid': tf.nn.sigmoid,
             'Sign': tf.math.sign,
@@ -95,7 +98,11 @@ class TestUnaryOps(CommonTFLayerTest):
             tf_x_shape = permute_nchw_to_nhwc(tf_x_shape, use_new_frontend)
 
             input = tf.compat.v1.placeholder(type, tf_x_shape, 'Input')
-            op_type_to_tf[self.current_op_type](input, name='Operation')
+            if self.current_op_type == 'Mish':
+                # Mish has no attribute name
+                op_type_to_tf[self.current_op_type](input)
+            else:
+                op_type_to_tf[self.current_op_type](input, name='Operation')
 
             tf.compat.v1.global_variables_initializer()
             tf_net = sess.graph_def
@@ -155,6 +162,7 @@ class TestUnaryOps(CommonTFLayerTest):
                                          'LogicalNot',
                                          'Square',
                                          'Erf',
+                                         'Mish',
                                          ])
     @pytest.mark.precommit
     def test_unary_op_precommit(self, params, ie_device, precision, ir_version, temp_dir, op_type,
@@ -198,6 +206,7 @@ class TestUnaryOps(CommonTFLayerTest):
                                          'Asinh',
                                          'Square',
                                          'Erf',
+                                         'Mish',
                                          ])
     @pytest.mark.nightly
     def test_unary_op(self, params, ie_device, precision, ir_version, temp_dir, op_type,

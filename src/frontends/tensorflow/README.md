@@ -45,6 +45,9 @@ The structure of OpenVINO TensorFlow Frontend sources includes the following dir
 * [src](./src/) folder contains the sources of the component.
 * [tests](./tests) cover internal transformations.
 
+Additionally, there is a shared [tensorflow common](../tensorflow_common) directory with same structure and purposes.
+Its content depend only on common FrontEnd APIs thus is free to use in other FrontEnds.
+
 ## Architecture
 
 OpenVINO TensorFlow Frontend uses [TensorFlow Protobuf files](./src/proto) to read and parse different TensorFlow model formats.
@@ -97,9 +100,9 @@ The next extension types are supported:
 ## How to implement support of a new TensorFlow operation
 
 TensorFlow conversion into the OpenVINO opset operation requires one pass or two passes:
-* One pass using [Loaders](./src/op/) directly transforms TF operation into a sub-graph of OpenVINO opset.
-* Two passes consist of [Loaders](./src/op/) and [Internal Transformations](./src/helper_transforms),
-where the first pass transforms a TF operation into a sub-graph with [Internal Operations](./src/helper_ops),
+* One pass using [Loaders](../tensorflow_common/src/op/) directly transforms TF operation into a sub-graph of OpenVINO opset.
+* Two passes consist of [Loaders](../tensorflow_common/src/op/) and [Internal Transformations](../tensorflow_common/include/helper_transforms),
+where the first pass transforms a TF operation into a sub-graph with [Internal Operations](../tensorflow_common/include/src/helper_ops),
 and the second pass avoids internal operations. Two transformation passes are used when a TensorFlow operation
 cannot be mapped into a sub-graph of the OpenVINO opset, and the conversion depends on the succeeding operations in the graph.
 
@@ -108,7 +111,7 @@ In most cases, it is sufficient to use just one pass for TensorFlow operation co
 ### One transformation pass using Loader
 
 Most TensorFlow operations can be converted by one transformation pass using `Loader`.
-The dictionary of `Loaders` is placed in the [op_table.cpp](./src/op_table.cpp) file and loaders are in the [op](./src/op) directory:
+The dictionary of `Loaders` is placed in the [op_table.cpp](./src/op_table.cpp) file and loaders are in the [op](../tensorflow_common/src/op/) directory:
 
 https://github.com/openvinotoolkit/openvino/blob/7f3c95c161bc78ab2aefa6eab8b008142fb945bc/src/frontends/tensorflow/src/op_table.cpp#L129-L134
 
@@ -119,7 +122,7 @@ https://github.com/openvinotoolkit/openvino/blob/7f3c95c161bc78ab2aefa6eab8b0081
 In this example, the loader checks the consistency of the operation by using `default_op_checks` and retrieves an attribute of the equation by using the `NodeContext::get_attribute()` method.
 The loader uses [OpenVINO Core API](../../core/README.md) for building the OpenVINO sub-graph to replace the TensorFlow operation.
 
-The support of a new TensorFlow operation requires implementing a new `Loader` in a separate file in the [op](./src/op) directory and registering it into the dictionary of `Loaders`.
+The support of a new TensorFlow operation requires implementing a new `Loader` in a separate file in the [op](../tensorflow_common/src/op/) directory and registering it into the dictionary of `Loaders`.
 
 The main rules for loaders implementation:
 1. Support dynamic shapes and ranks, undefined types, including for the future support of new types, such as strings and complex numbers.
@@ -132,7 +135,7 @@ The main rules for loaders implementation:
 ### Two transformation passes using Loader and Internal Transformation
 
 In rare cases, TensorFlow operation conversion requires two transformations (`Loader` and `Internal Transformation`).
-In the first step, `Loader` must convert a TF operation into [Internal Operation](./src/helper_ops) that is used temporarily by the conversion pipeline.
+In the first step, `Loader` must convert a TF operation into [Internal Operation](../tensorflow_common/helper_ops) that is used temporarily by the conversion pipeline.
 The internal operation implementation must also contain the `validate_and_infer_types()` method as similar to [OpenVINO Core](https://docs.openvino.ai/nightly/groupov_ops_cpp_api.html) operations.
 
 Here is an example of an implementation for the internal operation `SparseFillEmptyRows` used to convert Wide and Deep models.

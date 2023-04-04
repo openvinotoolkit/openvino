@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -20,7 +20,7 @@ std::string FuseFakeQuantizeTransformation::getTestCaseName(const testing::TestP
     std::tie(targetDevice, testValues) = obj.param;
 
     std::ostringstream result;
-    result << targetDevice << "_" <<
+    result << "targetDevice=" << targetDevice << "_" <<
         testValues.actual.precisionBeforeAdd << "_" <<
         testValues.actual.add.values.size() << "_" <<
         testValues.actual.add.outPrecision << "_" <<
@@ -46,7 +46,7 @@ void FuseFakeQuantizeTransformation::SetUp() {
         testValues.actual.precisionAfterDequantization,
         testValues.actual.fakeQuantizeOnData);
 
-    ngraph::pass::InitNodeInfo().run_on_function(function);
+    ov::pass::InitNodeInfo().run_on_model(function);
 }
 
 TEST_P(FuseFakeQuantizeTransformation, CompareWithRefImpl) {

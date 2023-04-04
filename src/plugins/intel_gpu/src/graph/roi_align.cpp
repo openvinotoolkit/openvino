@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -46,6 +46,8 @@ std::string roi_align_inst::to_string(roi_align_node const& node) {
 }  // namespace cldnn
 
 namespace ov {
+using cldnn::roi_align;
+
 template <> EnumNames<roi_align::PoolingMode>& EnumNames<roi_align::PoolingMode>::get() {
   static auto enum_names =
       EnumNames<roi_align::PoolingMode>("PoolingMode", {{"max", roi_align::PoolingMode::max},

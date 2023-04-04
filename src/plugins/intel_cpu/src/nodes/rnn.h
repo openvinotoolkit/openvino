@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -11,15 +11,19 @@
 #include <memory>
 #include <vector>
 
+#include "common/dnnl_executor.h"
+
 namespace ov {
 namespace intel_cpu {
 namespace node {
 
 class RNN : public Node {
 public:
-    RNN(const std::shared_ptr<ngraph::Node>& op, const dnnl::engine& eng, WeightsSharing::Ptr &cache);
+    RNN(const std::shared_ptr<ngraph::Node>& op, const GraphContext::CPtr context);
 
     static bool isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept;
+    static bool isCell(const std::shared_ptr<const ngraph::Node>& op);
+    static bool testNativeOrder(const std::shared_ptr<const ngraph::Node>& op);
     void getSupportedDescriptors() override;
     std::shared_ptr<MemoryDesc> getSrcMemDesc(dnnl::primitive_desc_iterator& primitive_desc_it, size_t idx) override;
     std::shared_ptr<MemoryDesc> getDstMemDesc(dnnl::primitive_desc_iterator& primitive_desc_it, size_t idx) override;
@@ -36,8 +40,14 @@ public:
 
     void cleanup() override;
 
+    enum InOutKind {
+        Layer       = 0,
+        HiddenState = 1,
+        CellState   = 2,
+        Attention   = 2
+    };
+
 protected:
-    std::vector<VectorDims> shapeInfer() const override;
     void prepareParams() override;
     void executeDynamicImpl(dnnl::stream strm) override;
 
@@ -58,6 +68,9 @@ private:
 
     void copyWeightsData();
 
+    using executorPtr = std::shared_ptr<DnnlExecutor>;
+    executorPtr execPtr = nullptr;
+
     /** Specify mode Cell or Seq. true - Cell, false - Seq */
     bool is_cell = false;
 
@@ -67,7 +80,7 @@ private:
     bool nativeOrder = true;
 
     /** Direction of iteration through sequence dimension */
-    dnnl::rnn_direction direction = dnnl::rnn_direction::unidirectional;
+    dnnl::rnn_direction direction = dnnl::rnn_direction::unidirectional_left2right;
 
     /** RNN Cell type (type/activation_alg/clip)*/
     dnnl::algorithm cell_type = dnnl::algorithm::undef;
@@ -110,13 +123,6 @@ private:
 
     std::vector<dnnl::memory::data_type> inDataTypes;
     std::vector<dnnl::memory::data_type> outDataTypes;
-
-    enum RNNInOutKind {
-        Layer       = 0,
-        HiddenState = 1,
-        CellState   = 2,
-        Attention   = 2
-    };
 
     const size_t xIdx = 0; // ov -> input X;              dnnl -> src_layer
     const size_t hIdx = 1; // ov -> initial_hidden_state; dnnl -> src_iter_h

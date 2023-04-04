@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -9,6 +9,8 @@
 #include <ngraph/validation_util.hpp>
 #include <openvino/opsets/opset5.hpp>
 #include <transformations/smart_reshape/strided_slice_squeeze.hpp>
+
+#include "transformations_visibility.hpp"
 
 ov::pass::StridedSliceSqueeze::StridedSliceSqueeze() {
     // TODO: enable conditional compile
@@ -212,7 +214,7 @@ bool squeezes_perform_the_same(std::shared_ptr<ov::opset5::Squeeze> lhs, std::sh
 
 }  // namespace
 
-bool ngraph::pass::SharedSqueeze::run_on_model(const std::shared_ptr<ngraph::Function>& f) {
+bool ov::pass::SharedSqueeze::run_on_model(const std::shared_ptr<ngraph::Function>& f) {
     RUN_ON_FUNCTION_SCOPE(SharedSqueeze);
 
     bool graph_rewritten = false;

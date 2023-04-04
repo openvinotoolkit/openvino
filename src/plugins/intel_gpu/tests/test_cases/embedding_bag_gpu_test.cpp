@@ -1,8 +1,6 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
-
-///////////////////////////////////////////////////////////////////////////////////////////////////
 
 #include "test_utils.h"
 
@@ -52,10 +50,10 @@ TEST(embedding_bag_fp16_gpu, packed_sum_basic) {
     topology.add(input_layout("Input1", indices->get_layout()));
     topology.add(data("Input2", per_sample_weights));
     topology.add(
-            embedding_bag("embedding_bag", {"Input0", "Input1", "Input2"}, type, output_shape)
+            embedding_bag("embedding_bag", { input_info("Input0"), input_info("Input1"), input_info("Input2") }, type, output_shape)
     );
 
-    network network(engine, topology);
+    network network(engine, topology, get_test_default_config(engine));
 
     network.set_input_data("Input0", emb_table);
     network.set_input_data("Input1", indices);
@@ -72,7 +70,7 @@ TEST(embedding_bag_fp16_gpu, packed_sum_basic) {
     };
 
     for (size_t i = 0; i < expected_results.size(); ++i) {
-        EXPECT_TRUE(are_equal(expected_results[i], half_to_float(output_ptr[i]))) << i;
+        ASSERT_TRUE(are_equal(expected_results[i], half_to_float(output_ptr[i]))) << i;
     }
 }
 
@@ -105,10 +103,10 @@ TEST(embedding_bag_fp16_gpu, packed_sum_basic_without_weights) {
     topology.add(input_layout("Input0", emb_table->get_layout()));
     topology.add(input_layout("Input1", indices->get_layout()));
     topology.add(
-            embedding_bag("embedding_bag", {"Input0", "Input1"}, type, output_shape)
+            embedding_bag("embedding_bag", { input_info("Input0"), input_info("Input1") }, type, output_shape)
     );
 
-    network network(engine, topology);
+    network network(engine, topology, get_test_default_config(engine));
 
     network.set_input_data("Input0", emb_table);
     network.set_input_data("Input1", indices);
@@ -125,7 +123,7 @@ TEST(embedding_bag_fp16_gpu, packed_sum_basic_without_weights) {
     };
 
     for (size_t i = 0; i < expected_results.size(); ++i) {
-        EXPECT_TRUE(are_equal(expected_results[i], half_to_float(output_ptr[i]))) << i;
+        ASSERT_TRUE(are_equal(expected_results[i], half_to_float(output_ptr[i]))) << i;
     }
 }
 
@@ -186,10 +184,10 @@ TEST(embedding_bag_fp16_gpu, packed_sum_dim2) {
     topology.add(input_layout("Input1", indices->get_layout()));
     topology.add(data("Input2", per_sample_weights));
     topology.add(
-            embedding_bag("embedding_bag", {"Input0", "Input1", "Input2"}, type, output_shape)
+            embedding_bag("embedding_bag", { input_info("Input0"), input_info("Input1"), input_info("Input2") }, type, output_shape)
     );
 
-    network network(engine, topology);
+    network network(engine, topology, get_test_default_config(engine));
 
     network.set_input_data("Input0", emb_table);
     network.set_input_data("Input1", indices);
@@ -219,7 +217,7 @@ TEST(embedding_bag_fp16_gpu, packed_sum_dim2) {
     };
 
     for (size_t i = 0; i < expected_results.size(); ++i) {
-        EXPECT_TRUE(are_equal(expected_results[i], half_to_float(output_ptr[i]), static_cast<float>(1e-2))) << i;
+        ASSERT_TRUE(are_equal(expected_results[i], half_to_float(output_ptr[i]), static_cast<float>(1e-2))) << i;
     }
 }
 
@@ -309,10 +307,10 @@ TEST(embedding_bag_fp16_gpu, packed_sum_dim3) {
     topology.add(input_layout("Input1", indices->get_layout()));
     topology.add(data("Input2", per_sample_weights));
     topology.add(
-            embedding_bag("embedding_bag", {"Input0", "Input1", "Input2"}, type, output_shape)
+            embedding_bag("embedding_bag", { input_info("Input0"), input_info("Input1"), input_info("Input2") }, type, output_shape)
     );
 
-    network network(engine, topology);
+    network network(engine, topology, get_test_default_config(engine));
 
     network.set_input_data("Input0", emb_table);
     network.set_input_data("Input1", indices);
@@ -360,7 +358,7 @@ TEST(embedding_bag_fp16_gpu, packed_sum_dim3) {
     };
 
     for (size_t i = 0; i < expected_results.size(); ++i) {
-        EXPECT_TRUE(are_equal(expected_results[i], half_to_float(output_ptr[i]), static_cast<float>(1e-2))) << i;
+        ASSERT_TRUE(are_equal(expected_results[i], half_to_float(output_ptr[i]), static_cast<float>(1e-2))) << i;
     }
 }
 
@@ -404,9 +402,9 @@ TEST(embedding_bag_fp16_gpu, offsets_sum_basic) {
     topology.add(input_layout("Input2", offsets->get_layout()));
     topology.add(data("Input3", per_sample_weights));
     topology.add(
-            embedding_bag("embedding_bag", {"Input0", "Input1", "Input2", "Input3"}, type, output_shape, 0)
+            embedding_bag("embedding_bag", { input_info("Input0"), input_info("Input1"), input_info("Input2"), input_info("Input3") }, type, output_shape, 0)
     );
-    network network(engine, topology);
+    network network(engine, topology, get_test_default_config(engine));
 
     network.set_input_data("Input0", emb_table);
     network.set_input_data("Input1", indices);
@@ -424,7 +422,7 @@ TEST(embedding_bag_fp16_gpu, offsets_sum_basic) {
     };
 
     for (size_t i = 0; i < expected_results.size(); ++i) {
-        EXPECT_TRUE(are_equal(expected_results[i], half_to_float(output_ptr[i]))) << i;
+        ASSERT_TRUE(are_equal(expected_results[i], half_to_float(output_ptr[i]))) << i;
     }
 }
 
@@ -468,10 +466,10 @@ TEST(embedding_bag_fp16_gpu, offsets_sum_basic_first_empty) {
     topology.add(input_layout("Input2", offsets->get_layout()));
     topology.add(data("Input3", per_sample_weights));
     topology.add(
-            embedding_bag("embedding_bag", {"Input0", "Input1", "Input2", "Input3"}, type, output_shape, 2)
+            embedding_bag("embedding_bag", { input_info("Input0"), input_info("Input1"), input_info("Input2"), input_info("Input3") }, type, output_shape, 2)
     );
 
-    network network(engine, topology);
+    network network(engine, topology, get_test_default_config(engine));
 
     network.set_input_data("Input0", emb_table);
     network.set_input_data("Input1", indices);
@@ -489,7 +487,7 @@ TEST(embedding_bag_fp16_gpu, offsets_sum_basic_first_empty) {
     };
 
     for (size_t i = 0; i < expected_results.size(); ++i) {
-        EXPECT_TRUE(are_equal(expected_results[i], half_to_float(output_ptr[i]))) << i;
+        ASSERT_TRUE(are_equal(expected_results[i], half_to_float(output_ptr[i]))) << i;
     }
 }
 
@@ -533,10 +531,10 @@ TEST(embedding_bag_fp16_gpu, offsets_sum_basic_last_empty) {
     topology.add(input_layout("Input2", offsets->get_layout()));
     topology.add(data("Input3", per_sample_weights));
     topology.add(
-            embedding_bag("embedding_bag", {"Input0", "Input1", "Input2", "Input3"}, type, output_shape, 2)
+            embedding_bag("embedding_bag", { input_info("Input0"), input_info("Input1"), input_info("Input2"), input_info("Input3") }, type, output_shape, 2)
     );
 
-    network network(engine, topology);
+    network network(engine, topology, get_test_default_config(engine));
 
     network.set_input_data("Input0", emb_table);
     network.set_input_data("Input1", indices);
@@ -554,7 +552,7 @@ TEST(embedding_bag_fp16_gpu, offsets_sum_basic_last_empty) {
     };
 
     for (size_t i = 0; i < expected_results.size(); ++i) {
-        EXPECT_TRUE(are_equal(expected_results[i], half_to_float(output_ptr[i]))) << i;
+        ASSERT_TRUE(are_equal(expected_results[i], half_to_float(output_ptr[i]))) << i;
     }
 }
 
@@ -591,10 +589,10 @@ TEST(embedding_bag_fp16_gpu, offsets_sum_without_weights_and_def_index) {
     topology.add(input_layout("Input1", indices->get_layout()));
     topology.add(input_layout("Input2", offsets->get_layout()));
     topology.add(
-            embedding_bag("embedding_bag", {"Input0", "Input1", "Input2"}, type, output_shape)
+            embedding_bag("embedding_bag", { input_info("Input0"), input_info("Input1"), input_info("Input2") }, type, output_shape)
     );
 
-    network network(engine, topology);
+    network network(engine, topology, get_test_default_config(engine));
 
     network.set_input_data("Input0", emb_table);
     network.set_input_data("Input1", indices);
@@ -612,7 +610,7 @@ TEST(embedding_bag_fp16_gpu, offsets_sum_without_weights_and_def_index) {
     };
 
     for (size_t i = 0; i < expected_results.size(); ++i) {
-        EXPECT_TRUE(are_equal(expected_results[i], half_to_float(output_ptr[i]))) << i;
+        ASSERT_TRUE(are_equal(expected_results[i], half_to_float(output_ptr[i]))) << i;
     }
 }
 
@@ -706,10 +704,10 @@ TEST(embedding_bag_fp16_gpu, offsets_sum_dim3) {
     topology.add(input_layout("Input2", offsets->get_layout()));
     topology.add(data("Input3", per_sample_weights));
     topology.add(
-            embedding_bag("embedding_bag", {"Input0", "Input1", "Input2", "Input3"}, type, output_shape, 0)
+            embedding_bag("embedding_bag", { input_info("Input0"), input_info("Input1"), input_info("Input2"), input_info("Input3") }, type, output_shape, 0)
     );
 
-    network network(engine, topology);
+    network network(engine, topology, get_test_default_config(engine));
 
     network.set_input_data("Input0", emb_table);
     network.set_input_data("Input1", indices);
@@ -758,7 +756,7 @@ TEST(embedding_bag_fp16_gpu, offsets_sum_dim3) {
     };
 
     for (size_t i = 0; i < expected_results.size(); ++i) {
-        EXPECT_TRUE(are_equal(expected_results[i], half_to_float(output_ptr[i]), static_cast<float>(1e-2))) << i;
+        ASSERT_TRUE(are_equal(expected_results[i], half_to_float(output_ptr[i]), static_cast<float>(1e-2))) << i;
     }
 }
 
@@ -802,10 +800,10 @@ TEST(embedding_bag_fp16_gpu, segments_sum_basic) {
     topology.add(input_layout("Input2", segment_ids->get_layout()));
     topology.add(data("Input3", per_sample_weights));
     topology.add(
-            embedding_bag("embedding_bag", {"Input0", "Input1", "Input2", "Input3"}, type, output_shape, 0)
+            embedding_bag("embedding_bag", { input_info("Input0"), input_info("Input1"), input_info("Input2"), input_info("Input3") }, type, output_shape, 0)
     );
 
-    network network(engine, topology);
+    network network(engine, topology, get_test_default_config(engine));
 
     network.set_input_data("Input0", emb_table);
     network.set_input_data("Input1", indices);
@@ -823,7 +821,7 @@ TEST(embedding_bag_fp16_gpu, segments_sum_basic) {
     };
 
     for (size_t i = 0; i < expected_results.size(); ++i) {
-        EXPECT_TRUE(are_equal(expected_results[i], half_to_float(output_ptr[i]))) << i;
+        ASSERT_TRUE(are_equal(expected_results[i], half_to_float(output_ptr[i]))) << i;
     }
 }
 
@@ -867,10 +865,10 @@ TEST(embedding_bag_fp16_gpu, segments_sum_basic_first_empty) {
     topology.add(input_layout("Input2", segment_ids->get_layout()));
     topology.add(data("Input3", per_sample_weights));
     topology.add(
-            embedding_bag("embedding_bag", {"Input0", "Input1", "Input2", "Input3"}, type, output_shape, 2)
+            embedding_bag("embedding_bag", { input_info("Input0"), input_info("Input1"), input_info("Input2"), input_info("Input3") }, type, output_shape, 2)
     );
 
-    network network(engine, topology);
+    network network(engine, topology, get_test_default_config(engine));
 
     network.set_input_data("Input0", emb_table);
     network.set_input_data("Input1", indices);
@@ -888,7 +886,7 @@ TEST(embedding_bag_fp16_gpu, segments_sum_basic_first_empty) {
     };
 
     for (size_t i = 0; i < expected_results.size(); ++i) {
-        EXPECT_TRUE(are_equal(expected_results[i], half_to_float(output_ptr[i]))) << i;
+        ASSERT_TRUE(are_equal(expected_results[i], half_to_float(output_ptr[i]))) << i;
     }
 }
 
@@ -932,10 +930,10 @@ TEST(embedding_bag_fp16_gpu, segments_sum_basic_last_empty) {
     topology.add(input_layout("Input2", segment_ids->get_layout()));
     topology.add(data("Input3", per_sample_weights));
     topology.add(
-            embedding_bag("embedding_bag", {"Input0", "Input1", "Input2", "Input3"}, type, output_shape, 2)
+            embedding_bag("embedding_bag", { input_info("Input0"), input_info("Input1"), input_info("Input2"), input_info("Input3") }, type, output_shape, 2)
     );
 
-    network network(engine, topology);
+    network network(engine, topology, get_test_default_config(engine));
 
     network.set_input_data("Input0", emb_table);
     network.set_input_data("Input1", indices);
@@ -953,7 +951,7 @@ TEST(embedding_bag_fp16_gpu, segments_sum_basic_last_empty) {
     };
 
     for (size_t i = 0; i < expected_results.size(); ++i) {
-        EXPECT_TRUE(are_equal(expected_results[i], half_to_float(output_ptr[i]))) << i;
+        ASSERT_TRUE(are_equal(expected_results[i], half_to_float(output_ptr[i]))) << i;
     }
 }
 
@@ -990,10 +988,10 @@ TEST(embedding_bag_fp16_gpu, segments_sum_without_weights_and_def_index) {
     topology.add(input_layout("Input1", indices->get_layout()));
     topology.add(input_layout("Input2", segment_ids->get_layout()));
     topology.add(
-            embedding_bag("embedding_bag", {"Input0", "Input1", "Input2"}, type, output_shape)
+            embedding_bag("embedding_bag", { input_info("Input0"), input_info("Input1"), input_info("Input2") }, type, output_shape)
     );
 
-    network network(engine, topology);
+    network network(engine, topology, get_test_default_config(engine));
 
     network.set_input_data("Input0", emb_table);
     network.set_input_data("Input1", indices);
@@ -1011,7 +1009,7 @@ TEST(embedding_bag_fp16_gpu, segments_sum_without_weights_and_def_index) {
     };
 
     for (size_t i = 0; i < expected_results.size(); ++i) {
-        EXPECT_TRUE(are_equal(expected_results[i], half_to_float(output_ptr[i]))) << i;
+        ASSERT_TRUE(are_equal(expected_results[i], half_to_float(output_ptr[i]))) << i;
     }
 }
 
@@ -1105,10 +1103,10 @@ TEST(embedding_bag_fp16_gpu, segments_sum_dim3) {
     topology.add(input_layout("Input2", segment_ids->get_layout()));
     topology.add(data("Input3", per_sample_weights));
     topology.add(
-            embedding_bag("embedding_bag", {"Input0", "Input1", "Input2", "Input3"}, type, output_shape, 0)
+            embedding_bag("embedding_bag", { input_info("Input0"), input_info("Input1"), input_info("Input2"), input_info("Input3") }, type, output_shape, 0)
     );
 
-    network network(engine, topology);
+    network network(engine, topology, get_test_default_config(engine));
 
     network.set_input_data("Input0", emb_table);
     network.set_input_data("Input1", indices);
@@ -1157,7 +1155,7 @@ TEST(embedding_bag_fp16_gpu, segments_sum_dim3) {
     };
 
     for (size_t i = 0; i < expected_results.size(); ++i) {
-        EXPECT_TRUE(are_equal(expected_results[i], half_to_float(output_ptr[i]), static_cast<float>(1e-2))) << i;
+        ASSERT_TRUE(are_equal(expected_results[i], half_to_float(output_ptr[i]), static_cast<float>(1e-2))) << i;
     }
 }
 
@@ -1198,10 +1196,10 @@ TEST(embedding_bag_fp32_gpu, packed_sum_basic) {
     topology.add(input_layout("Input1", indices->get_layout()));
     topology.add(data("Input2", per_sample_weights));
     topology.add(
-            embedding_bag("embedding_bag", {"Input0", "Input1", "Input2"}, type, output_shape)
+            embedding_bag("embedding_bag", { input_info("Input0"), input_info("Input1"), input_info("Input2") }, type, output_shape)
     );
 
-    network network(engine, topology);
+    network network(engine, topology, get_test_default_config(engine));
 
     network.set_input_data("Input0", emb_table);
     network.set_input_data("Input1", indices);
@@ -1218,7 +1216,7 @@ TEST(embedding_bag_fp32_gpu, packed_sum_basic) {
     };
 
     for (size_t i = 0; i < expected_results.size(); ++i) {
-        EXPECT_TRUE(are_equal(expected_results[i], output_ptr[i])) << i;
+        ASSERT_TRUE(are_equal(expected_results[i], output_ptr[i])) << i;
     }
 }
 
@@ -1308,10 +1306,10 @@ TEST(embedding_bag_fp32_gpu, packed_sum_dim3) {
     topology.add(input_layout("Input1", indices->get_layout()));
     topology.add(data("Input2", per_sample_weights));
     topology.add(
-            embedding_bag("embedding_bag", {"Input0", "Input1", "Input2"}, type, output_shape)
+            embedding_bag("embedding_bag", { input_info("Input0"), input_info("Input1"), input_info("Input2") }, type, output_shape)
     );
 
-    network network(engine, topology);
+    network network(engine, topology, get_test_default_config(engine));
 
     network.set_input_data("Input0", emb_table);
     network.set_input_data("Input1", indices);
@@ -1359,7 +1357,7 @@ TEST(embedding_bag_fp32_gpu, packed_sum_dim3) {
     };
 
     for (size_t i = 0; i < expected_results.size(); ++i) {
-        EXPECT_TRUE(are_equal(expected_results[i], output_ptr[i])) << i;
+        ASSERT_TRUE(are_equal(expected_results[i], output_ptr[i])) << i;
     }
 }
 
@@ -1393,27 +1391,10 @@ void test_embedding_bag_fp32_gpu_extended5_6(bool is_caching_test) {
     topology.add(input_layout("Input1", indices->get_layout()));
     topology.add(input_layout("Input2", segment_ids->get_layout()));
     topology.add(
-            embedding_bag("embedding_bag", {"Input0", "Input1", "Input2"}, type, output_shape)
+            embedding_bag("embedding_bag", { input_info("Input0"), input_info("Input1"), input_info("Input2") }, type, output_shape)
     );
 
-    cldnn::network::ptr network;
-
-    if (is_caching_test) {
-        membuf mem_buf;
-        {
-            cldnn::network _network(engine, topology);
-            std::ostream out_mem(&mem_buf);
-            BinaryOutputBuffer ob = BinaryOutputBuffer(out_mem);
-            _network.save(ob);
-        }
-        {
-            std::istream in_mem(&mem_buf);
-            BinaryInputBuffer ib = BinaryInputBuffer(in_mem, engine);
-            network = std::make_shared<cldnn::network>(ib, get_test_stream_ptr(), engine);
-        }
-    } else {
-        network = std::make_shared<cldnn::network>(engine, topology);
-    }
+    cldnn::network::ptr network = get_network(engine, topology, get_test_default_config(engine), get_test_stream_ptr(), is_caching_test);
 
     network->set_input_data("Input0", emb_table);
     network->set_input_data("Input1", indices);
@@ -1433,7 +1414,7 @@ void test_embedding_bag_fp32_gpu_extended5_6(bool is_caching_test) {
     };
 
     for (size_t i = 0; i < expected_results.size(); ++i) {
-        EXPECT_TRUE(are_equal(expected_results[i], output_ptr[i])) << i;
+        ASSERT_TRUE(are_equal(expected_results[i], output_ptr[i])) << i;
     }
 }
 

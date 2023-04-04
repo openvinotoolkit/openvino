@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -17,9 +17,16 @@
 
 namespace HeteroPlugin {
 
+using Configs = std::map<std::string, std::string>;
+
+template <typename T>
+struct ParsedConfig {
+    Configs hetero_config;
+    T device_config;
+};
+
 class Engine : public InferenceEngine::IInferencePlugin {
 public:
-    using Configs = std::map<std::string, std::string>;
     using DeviceMetaInformationMap = std::unordered_map<std::string, Configs>;
 
     Engine();
@@ -32,22 +39,25 @@ public:
     InferenceEngine::QueryNetworkResult QueryNetwork(const InferenceEngine::CNNNetwork& network,
                                                      const Configs& config) const override;
 
-    InferenceEngine::Parameter GetMetric(
-        const std::string& name,
-        const std::map<std::string, InferenceEngine::Parameter>& options) const override;
+    InferenceEngine::Parameter GetMetric(const std::string& name, const ov::AnyMap& options) const override;
 
-    InferenceEngine::Parameter GetConfig(
-        const std::string& name,
-        const std::map<std::string, InferenceEngine::Parameter>& options) const override;
+    InferenceEngine::Parameter GetConfig(const std::string& name, const ov::AnyMap& options) const override;
 
-    InferenceEngine::IExecutableNetworkInternal::Ptr ImportNetwork(
-        std::istream& heteroModel,
-        const std::map<std::string, std::string>& config) override;
+    InferenceEngine::IExecutableNetworkInternal::Ptr ImportNetwork(std::istream& heteroModel,
+                                                                   const Configs& config) override;
 
     DeviceMetaInformationMap GetDevicePlugins(const std::string& targetFallback, const Configs& localConfig) const;
 
+    std::string GetTargetFallback(const Configs& config, bool raise_exception = true) const;
+    std::string GetTargetFallback(const ov::AnyMap& config, bool raise_exception = true) const;
+
+    ParsedConfig<Configs> MergeConfigs(const Configs& user_config) const;
+    ParsedConfig<ov::AnyMap> MergeConfigs(const ov::AnyMap& user_config) const;
+
 private:
-    Configs GetSupportedConfig(const Configs& config, const std::string& deviceName) const;
-    std::string DeviceArchitecture(const std::string& targetFallback) const;
+    std::string DeviceCachingProperties(const std::string& targetFallback) const;
+
+    Configs _device_config;
 };
+
 }  // namespace HeteroPlugin

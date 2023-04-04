@@ -38,7 +38,7 @@ TEST_P(scatter_update_test, shape_infer) {
     auto data_layout_prim = std::make_shared<input_layout>("data", p.data_layout);
     auto indices_layout_prim = std::make_shared<input_layout>("indices", p.indices_layout);
     auto updates_layout_prim = std::make_shared<input_layout>("updates", p.updates_layout);
-    auto scatter_update_prim = std::make_shared<scatter_update>("output", "data", "indices", "updates", p.axis);
+    auto scatter_update_prim = std::make_shared<scatter_update>("output", input_info("data"), input_info("indices"), input_info("updates"), p.axis);
 
     cldnn::program prog(engine);
 

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -6,10 +6,13 @@
 
 #include "intel_gpu/runtime/engine.hpp"
 
+#include "intel_gpu/graph/network.hpp"
 #include "intel_gpu/graph/program.hpp"
 #include "data_inst.h"
 #include "eltwise_inst.h"
-#include "intel_gpu/graph/network.hpp"
+#include "reduce_inst.h"
+#include "reshape_inst.h"
+#include "gemm_inst.h"
 #include "pass_manager.h"
 #include "to_string_utils.h"
 
@@ -28,13 +31,13 @@ TEST(prepare_primitive_fusing, fuse_activation_to_fc_dyn) {
     topology topology;
     topology.add(data("weights", weights));
     topology.add(input_layout("input", in_layout));
-    topology.add(fully_connected("fc", "input", { "weights" }));
-    topology.add(activation("act", "fc", activation_func::relu));
-    topology.add(reorder("reorder", "act", format::bfyx, data_types::f32));
+    topology.add(fully_connected("fc", input_info("input"), { "weights" }));
+    topology.add(activation("act", input_info("fc"), activation_func::relu));
+    topology.add(reorder("reorder", input_info("act"), format::bfyx, data_types::f32));
 
-    build_options build_opts;
-    build_opts.set_option(build_option::allow_new_shape_infer(true));
-    auto prog = program::build_program(engine, topology, build_opts, false, true);
+    ExecutionConfig config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+    auto prog = program::build_program(engine, topology, config, false, true);
 
     layout_optimizer lo(true);
 
@@ -42,6 +45,32 @@ TEST(prepare_primitive_fusing, fuse_activation_to_fc_dyn) {
 
     ASSERT_NE(prog, nullptr);
     ASSERT_FALSE(has_node_with_type<activation>(*prog));
+}
+
+TEST(prepare_primitive_fusing, dont_fuse_incompatible_eltwise) {
+    auto& engine = get_test_engine();
+    auto in_layout = layout{ ov::PartialShape{-1, -1, 10}, data_types::f32, format::bfyx };
+    auto const_layout = layout{ ov::PartialShape{1, 1, 1}, data_types::f32, format::bfyx };
+    auto const_mem = engine.allocate_memory(const_layout);
+
+    topology topology;
+    topology.add(input_layout("input", in_layout));
+    topology.add(data("const", const_mem));
+    topology.add(eltwise("eltw_pre", { input_info("input"), input_info("const") }, eltwise_mode::sum));
+    topology.add(reduce("reduce", input_info("eltw_pre"), reduce_mode::max, {2}, true));
+    topology.add(eltwise("eltw", { input_info("input"), input_info("reduce") }, eltwise_mode::sum));
+    topology.add(reorder("reorder", input_info("eltw"), format::bfyx, data_types::f32));
+
+    ExecutionConfig config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+    auto prog = program::build_program(engine, topology, config, false, true);
+
+    layout_optimizer lo(true);
+
+    program_wrapper::apply_opt_pass<prepare_primitive_fusing>(*prog, lo);
+
+    ASSERT_NE(prog, nullptr);
+    ASSERT_TRUE(has_node(*prog, "eltw"));
 }
 
 TEST(prepare_primitive_fusing, fuse_eltwise_to_fc_dyn_legal) {
@@ -54,14 +83,14 @@ TEST(prepare_primitive_fusing, fuse_eltwise_to_fc_dyn_legal) {
     topology.add(data("weights", weights));
     topology.add(input_layout("input", in_layout));
     topology.add(input_layout("extra_input", in_eltw_layout));
-    topology.add(fully_connected("fc", "input", { "weights" }, "", data_types::f32));
-    topology.add(eltwise("eltw", {"fc", "extra_input"}, eltwise_mode::sum));
-    topology.add(reorder("reorder", "eltw", format::bfyx, data_types::f32));
+    topology.add(fully_connected("fc", input_info("input"), { "weights" }, "", data_types::f32));
+    topology.add(eltwise("eltw", { input_info("fc"), input_info("extra_input") }, eltwise_mode::sum));
+    topology.add(reorder("reorder", input_info("eltw"), format::bfyx, data_types::f32));
 
-    build_options build_opts;
-    build_opts.set_option(build_option::optimize_data(true));
-    build_opts.set_option(build_option::allow_new_shape_infer(true));
-    auto prog = program::build_program(engine, topology, build_opts, false, true);
+    ExecutionConfig config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::optimize_data(true));
+    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+    auto prog = program::build_program(engine, topology, config, false, true);
 
     layout_optimizer lo(true);
 
@@ -86,24 +115,24 @@ TEST(prepare_primitive_fusing, fuse_eltwise_to_fc_dyn_legal) {
 
 TEST(prepare_primitive_fusing, fuse_eltwise_to_fc_dyn_illegal) {
     auto& engine = get_test_engine();
-    auto weights = engine.allocate_memory({ ov::PartialShape{ 1, 10 }, data_types::u8, format::bfyx });
+    auto weights = engine.allocate_memory({ ov::PartialShape{ 2, 10 }, data_types::u8, format::bfyx });
     auto in_layout = layout{ ov::PartialShape::dynamic(2), data_types::u8, format::bfyx };
     auto in_eltw_layout = layout{ ov::PartialShape::dynamic(2), data_types::f32, format::bfyx };
 
-    set_values<uint8_t>(weights, {0, 1, 2, 3, 4, 5, 6, 7, 8, 9});
+    set_values<uint8_t>(weights, {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9});
 
     topology topology;
     topology.add(data("weights", weights));
     topology.add(input_layout("input", in_layout));
     topology.add(input_layout("extra_input", in_eltw_layout));
-    topology.add(fully_connected("fc", "input", { "weights" }, "", data_types::f32));
-    topology.add(eltwise("eltw", {"fc", "extra_input"}, eltwise_mode::sum));
-    topology.add(reorder("reorder", "eltw", format::bfyx, data_types::f32));
+    topology.add(fully_connected("fc", input_info("input"), { "weights" }, "", data_types::f32));
+    topology.add(eltwise("eltw", { input_info("fc"), input_info("extra_input")}, eltwise_mode::sum));
+    topology.add(reorder("reorder", input_info("eltw"), format::bfyx, data_types::f32));
 
-    build_options build_opts;
-    build_opts.set_option(build_option::optimize_data(true));
-    build_opts.set_option(build_option::allow_new_shape_infer(true));
-    auto prog = program::build_program(engine, topology, build_opts, false, true);
+    ExecutionConfig config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::optimize_data(true));
+    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+    auto prog = program::build_program(engine, topology, config, false, true);
 
     layout_optimizer lo(true);
 
@@ -140,11 +169,11 @@ TEST(prepare_primitive_fusing, fuse_eltwise_to_fc_dyn_illegal) {
 
 TEST(prepare_primitive_fusing, fuse_eltwise_to_fc_dyn_illegal_const) {
     auto& engine = get_test_engine();
-    auto weights = engine.allocate_memory({ ov::PartialShape{ 1, 10 }, data_types::u8, format::bfyx });
+    auto weights = engine.allocate_memory({ ov::PartialShape{ 2, 10 }, data_types::u8, format::bfyx });
     auto in_layout = layout{ ov::PartialShape::dynamic(2), data_types::u8, format::bfyx };
     auto in_eltw_layout = layout{ ov::PartialShape{2, 2}, data_types::f32, format::bfyx };
 
-    set_values<uint8_t>(weights, {0, 1, 2, 3, 4, 5, 6, 7, 8, 9});
+    set_values<uint8_t>(weights, {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9});
     auto extra_input_memory = engine.allocate_memory(in_eltw_layout);
     set_values<float>(extra_input_memory, {10, 20, 30, 40});
 
@@ -152,14 +181,14 @@ TEST(prepare_primitive_fusing, fuse_eltwise_to_fc_dyn_illegal_const) {
     topology.add(data("weights", weights));
     topology.add(input_layout("input", in_layout));
     topology.add(data("extra_input", extra_input_memory));
-    topology.add(fully_connected("fc", "input", { "weights" }, "", data_types::f32));
-    topology.add(eltwise("eltw", {"fc", "extra_input"}, eltwise_mode::sum));
-    topology.add(reorder("reorder", "eltw", format::bfyx, data_types::f32));
+    topology.add(fully_connected("fc", input_info("input"), { "weights" }, "", data_types::f32));
+    topology.add(eltwise("eltw", { input_info("fc"), input_info("extra_input") }, eltwise_mode::sum));
+    topology.add(reorder("reorder", input_info("eltw"), format::bfyx, data_types::f32));
 
-    build_options build_opts;
-    build_opts.set_option(build_option::optimize_data(true));
-    build_opts.set_option(build_option::allow_new_shape_infer(true));
-    auto prog = program::build_program(engine, topology, build_opts, false, true);
+    ExecutionConfig config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::optimize_data(true));
+    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+    auto prog = program::build_program(engine, topology, config, false, true);
 
     layout_optimizer lo(true);
 
@@ -206,14 +235,14 @@ TEST(prepare_primitive_fusing, fuse_eltwise_to_fc_dyn_legal_scalar_const_broadca
     topology.add(data("weights", weights));
     topology.add(input_layout("input", in_layout));
     topology.add(data("extra_input", extra_input_memory));
-    topology.add(fully_connected("fc", "input", { "weights" }, "", data_types::f32));
-    topology.add(eltwise("eltw", {"fc", "extra_input"}, eltwise_mode::sum));
-    topology.add(reorder("reorder", "eltw", format::bfyx, data_types::f32));
+    topology.add(fully_connected("fc", input_info("input"), { "weights" }, "", data_types::f32));
+    topology.add(eltwise("eltw", { input_info("fc"), input_info("extra_input") }, eltwise_mode::sum));
+    topology.add(reorder("reorder", input_info("eltw"), format::bfyx, data_types::f32));
 
-    build_options build_opts;
-    build_opts.set_option(build_option::optimize_data(true));
-    build_opts.set_option(build_option::allow_new_shape_infer(true));
-    auto prog = program::build_program(engine, topology, build_opts, false, true);
+    ExecutionConfig config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::optimize_data(true));
+    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+    auto prog = program::build_program(engine, topology, config, false, true);
 
     layout_optimizer lo(true);
 
@@ -245,11 +274,11 @@ TEST(prepare_primitive_fusing, fuse_eltwise_to_fc_dyn_legal_scalar_const_broadca
 
 TEST(prepare_primitive_fusing, fuse_eltwise_to_fc_dyn_illegal_1) {
     auto& engine = get_test_engine();
-    auto weights = engine.allocate_memory({ ov::PartialShape{ 1, 10 }, data_types::u8, format::bfyx });
+    auto weights = engine.allocate_memory({ ov::PartialShape{ 2, 10 }, data_types::u8, format::bfyx });
     auto in_layout = layout{ ov::PartialShape::dynamic(2), data_types::u8, format::bfyx };
     auto in_eltw_layout = layout{ ov::PartialShape::dynamic(2), data_types::f32, format::bfyx };
 
-    set_values<uint8_t>(weights, {0, 1, 2, 3, 4, 5, 6, 7, 8, 9});
+    set_values<uint8_t>(weights, {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9});
 
     // The topology below is intended to check the following tricky things:
     // 1. Cases where original eltw input is also optimized (act_e2 is fused into act_e1)
@@ -259,18 +288,18 @@ TEST(prepare_primitive_fusing, fuse_eltwise_to_fc_dyn_illegal_1) {
     topology.add(data("weights", weights));
     topology.add(input_layout("input", in_layout));
     topology.add(input_layout("extra_input", in_eltw_layout));
-    topology.add(activation("act_e1", "extra_input", activation_func::relu));
-    topology.add(activation("act_e2", "act_e1", activation_func::relu));
-    topology.add(fully_connected("fc", "input", { "weights" }, "", data_types::f32));
-    topology.add(activation("act_fc1", "fc", activation_func::relu));
-    topology.add(eltwise("eltw", {"act_e2", "act_fc1"}, eltwise_mode::sum));
-    topology.add(activation("act_fc2", "eltw", activation_func::relu));
-    topology.add(reorder("reorder", "act_fc2", format::bfyx, data_types::f32));
+    topology.add(activation("act_e1", input_info("extra_input"), activation_func::relu));
+    topology.add(activation("act_e2", input_info("act_e1"), activation_func::relu));
+    topology.add(fully_connected("fc", input_info("input"), { "weights" }, "", data_types::f32));
+    topology.add(activation("act_fc1", input_info("fc"), activation_func::relu));
+    topology.add(eltwise("eltw", { input_info("act_e2"), input_info("act_fc1")}, eltwise_mode::sum));
+    topology.add(activation("act_fc2", input_info("eltw"), activation_func::relu));
+    topology.add(reorder("reorder", input_info("act_fc2"), format::bfyx, data_types::f32));
 
-    build_options build_opts;
-    build_opts.set_option(build_option::optimize_data(true));
-    build_opts.set_option(build_option::allow_new_shape_infer(true));
-    auto prog = program::build_program(engine, topology, build_opts, false, true);
+    ExecutionConfig config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::optimize_data(true));
+    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+    auto prog = program::build_program(engine, topology, config, false, true);
 
     layout_optimizer lo(true);
 
@@ -308,12 +337,12 @@ TEST(prepare_primitive_fusing, fuse_eltwise_to_fc_dyn_illegal_1) {
 TEST(prepare_primitive_fusing, fuse_eltwise_to_fc_dyn_illegal_2) {
     auto& engine = get_test_engine();
     auto weights0 = engine.allocate_memory({ ov::PartialShape{ 2, 10 }, data_types::i8, format::bfyx });
-    auto weights1 = engine.allocate_memory({ ov::PartialShape{ 1, 2 }, data_types::i8, format::bfyx });
+    auto weights1 = engine.allocate_memory({ ov::PartialShape{ 4, 2 }, data_types::i8, format::bfyx });
     auto in_layout = layout{ ov::PartialShape::dynamic(2), data_types::i8, format::bfyx };
     auto in_eltw_layout = layout{ ov::PartialShape::dynamic(2), data_types::f32, format::bfyx };
 
     set_values<uint8_t>(weights0, {1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1});
-    set_values<uint8_t>(weights1, {1, 1});
+    set_values<uint8_t>(weights1, {1, 1, 1, 1, 1, 1, 1, 1});
 
 
     // The topology below is intended to check the following tricky things:
@@ -325,21 +354,21 @@ TEST(prepare_primitive_fusing, fuse_eltwise_to_fc_dyn_illegal_2) {
     topology.add(data("weights0", weights0));
     topology.add(data("weights1", weights1));
     topology.add(input_layout("input", in_layout));
-    topology.add(fully_connected("fc1", "input", { "weights0" }, "", data_types::i8));
-    topology.add(activation("act_fc1", "fc1", activation_func::relu));
-    topology.add(fully_connected("fc2", "act_fc1", { "weights1" }, "", data_types::i8));
-    topology.add(activation("act_fc2", "fc2", activation_func::relu));
+    topology.add(fully_connected("fc1", input_info("input"), { "weights0" }, "", data_types::i8));
+    topology.add(activation("act_fc1", input_info("fc1"), activation_func::relu));
+    topology.add(fully_connected("fc2", input_info("act_fc1"), { "weights1" }, "", data_types::i8));
+    topology.add(activation("act_fc2", input_info("fc2"), activation_func::relu));
     topology.add(input_layout("extra_input", in_eltw_layout));
-    topology.add(activation("act_e1", "extra_input", activation_func::abs));
-    topology.add(activation("act_e2", "act_e1", activation_func::relu));
-    topology.add(eltwise("eltw", {"act_fc2", "act_e2"}, eltwise_mode::sum));
-    topology.add(activation("act_fc3", "eltw", activation_func::relu));
-    topology.add(reorder("reorder", "act_fc3", format::bfyx, data_types::f32));
+    topology.add(activation("act_e1", input_info("extra_input"), activation_func::abs));
+    topology.add(activation("act_e2", input_info("act_e1"), activation_func::relu));
+    topology.add(eltwise("eltw", { input_info("act_fc2"), input_info("act_e2") }, eltwise_mode::sum));
+    topology.add(activation("act_fc3", input_info("eltw"), activation_func::relu));
+    topology.add(reorder("reorder", input_info("act_fc3"), format::bfyx, data_types::f32));
 
-    build_options build_opts;
-    build_opts.set_option(build_option::optimize_data(true));
-    build_opts.set_option(build_option::allow_new_shape_infer(true));
-    auto prog = program::build_program(engine, topology, build_opts, false, true);
+    ExecutionConfig config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::optimize_data(true));
+    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+    auto prog = program::build_program(engine, topology, config, false, true);
 
     layout_optimizer lo(true);
 
@@ -375,4 +404,39 @@ TEST(prepare_primitive_fusing, fuse_eltwise_to_fc_dyn_illegal_2) {
     ASSERT_EQ(lock[1], 92);
     ASSERT_EQ(lock[2], 93);
     ASSERT_EQ(lock[3], 94);
+}
+
+TEST(prepare_primitive_fusing, dont_remove_only_dep_reshape) {
+    // Topology:
+    // input -> reshape(w/ 2nd non-const input) -> reshape(w/ 2nd const input) -> gemm
+    //
+    // Expectation:
+    // If only the input size of depedency reshape is not 1 among the sequence of reshapes
+    // The current reshape alone should not be removed, and removing redundant reshapes is skipped
+
+    auto& engine = get_test_engine();
+    auto in_layout = layout{ ov::PartialShape::dynamic(4), data_types::f32, format::bfyx };
+    auto pattern_layout = layout{ ov::PartialShape{ 4 }, data_types::i64, format::bfyx };
+
+    std::vector<int64_t> output_pattern { 0, 1, -1, 0 };
+
+    topology topology;
+    topology.add(input_layout("input1", in_layout));
+    topology.add(input_layout("pattern1", pattern_layout));
+    topology.add(input_layout("input2", in_layout));
+    topology.add(reshape("reshape1", input_info("input1"), input_info("pattern1"), true, ov::PartialShape::dynamic(4)));
+    topology.add(reshape("reshape2", input_info("reshape1"), true, output_pattern, ov::PartialShape::dynamic(4)));
+    topology.add(gemm("gemm", { input_info("reshape2"), input_info("input2") }, data_types::f32, false, false));
+
+    ExecutionConfig config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::optimize_data(true));
+    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+    auto prog = program::build_program(engine, topology, config, false, true);
+
+    layout_optimizer lo(true);
+
+    program_wrapper::apply_opt_pass<prepare_primitive_fusing>(*prog, lo);
+
+    ASSERT_NE(prog, nullptr);
+    ASSERT_TRUE(has_node(*prog, "reshape2"));
 }

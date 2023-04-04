@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -57,7 +57,7 @@ std::shared_ptr<ngraph::Function> ReluFunction::getReference(
     if (quantizationOpBefore->get_output_element_type(0) == precisionAfterOperation) {
         relu = std::make_shared<ngraph::opset1::Relu>(quantizationOpBefore);
     } else {
-        relu = std::make_shared<op::TypeRelaxed<ngraph::opset1::Relu>>(quantizationOpBefore);
+        relu = std::make_shared<ov::op::TypeRelaxed<ngraph::opset1::Relu>>(quantizationOpBefore);
         ngraph::pass::low_precision::NetworkHelper::setOutDataPrecision(relu, precisionAfterOperation);
     }
     const std::shared_ptr<Node> quantizationOpAfter = makeDequantization(relu, dequantizationAfter);

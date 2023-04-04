@@ -1,16 +1,16 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
+#include <string>
 
-///////////////////////////////////////////////////////////////////////////////////////////////////
-#include "pass_manager.h"
 #include "convolution_inst.h"
-#include "primitive_type_base.h"
 #include "convolution_shape_inference.hpp"
-#include "sliding_window_utils.hpp"
+#include "group_convolution_shape_inference.hpp"
 #include "intel_gpu/runtime/error_handler.hpp"
 #include "json_object.h"
-#include <string>
+#include "pass_manager.h"
+#include "primitive_type_base.h"
+#include "sliding_window_utils.hpp"
 
 using namespace ov::intel_gpu;
 
@@ -27,7 +27,6 @@ layout convolution_inst::calc_output_layout(convolution_node const& node, kernel
     auto pad = desc->pad;
     auto stride = desc->stride;
     auto dilation = desc->dilation;
-    auto split = desc->weights.size();
 
     // compute how many outputs in rows and columns will be generate by filter.
     // outp <= (input_size + (2*pad) - kernel_size)/ stride
@@ -45,13 +44,13 @@ layout convolution_inst::calc_output_layout(convolution_node const& node, kernel
         output_type = data_types::f32;
     }
 
-    uint32_t stride_z = stride.size() >= 3 ? stride[stride.size() - 3] : 1;
-    uint32_t stride_y = stride.size() >= 2 ? stride[stride.size() - 2] : 1;
-    uint32_t stride_x = stride.size() >= 1 ? stride[stride.size() - 1] : 1;
+    auto stride_z = stride.size() >= 3 ? stride[stride.size() - 3] : 1;
+    auto stride_y = stride.size() >= 2 ? stride[stride.size() - 2] : 1;
+    auto stride_x = stride.size() >= 1 ? stride[stride.size() - 1] : 1;
 
-    uint32_t dilation_z = dilation.size() >= 3 ? dilation[dilation.size() - 3] : 1;
-    uint32_t dilation_y = dilation.size() >= 2 ? dilation[dilation.size() - 2] : 1;
-    uint32_t dilation_x = dilation.size() >= 1 ? dilation[dilation.size() - 1] : 1;
+    auto dilation_z = dilation.size() >= 3 ? dilation[dilation.size() - 3] : 1;
+    auto dilation_y = dilation.size() >= 2 ? dilation[dilation.size() - 2] : 1;
+    auto dilation_x = dilation.size() >= 1 ? dilation[dilation.size() - 1] : 1;
 
     // TODO: Consider moving general parameter verification to arguments constructor.
     CLDNN_ERROR_LESS_OR_EQUAL_THAN(desc->id,
@@ -105,12 +104,6 @@ layout convolution_inst::calc_output_layout(convolution_node const& node, kernel
             "Input for convolution should not be in winograd weights format - it is reserved for weights only");
 
     if (input_layout.format == format::winograd_2x3_s1_data) {
-        CLDNN_ERROR_NOT_EQUAL(desc->id,
-                              "convolution split",
-                              split,
-                              "expected value",
-                              1,
-                              "Convolution with winograd input only supports split == 1");
         CLDNN_ERROR_NOT_EQUAL(desc->id,
                               "stride spatial X",
                               stride_x,
@@ -245,7 +238,6 @@ std::vector<layout> convolution_inst::calc_output_layouts(convolution_node const
     auto pad = desc->pad;
     auto stride = desc->stride;
     auto dilation = desc->dilation;
-    auto split = desc->weights.size();
 
     auto input_type = input_layout.data_type;
 
@@ -259,13 +251,13 @@ std::vector<layout> convolution_inst::calc_output_layouts(convolution_node const
         output_type = data_types::f32;
     }
 
-    uint32_t stride_z = stride.size() >= 3 ? stride[stride.size() - 3] : 1;
-    uint32_t stride_y = stride.size() >= 2 ? stride[stride.size() - 2] : 1;
-    uint32_t stride_x = stride.size() >= 1 ? stride[stride.size() - 1] : 1;
+    auto stride_z = stride.size() >= 3 ? stride[stride.size() - 3] : 1;
+    auto stride_y = stride.size() >= 2 ? stride[stride.size() - 2] : 1;
+    auto stride_x = stride.size() >= 1 ? stride[stride.size() - 1] : 1;
 
-    uint32_t dilation_z = dilation.size() >= 3 ? dilation[dilation.size() - 3] : 1;
-    uint32_t dilation_y = dilation.size() >= 2 ? dilation[dilation.size() - 2] : 1;
-    uint32_t dilation_x = dilation.size() >= 1 ? dilation[dilation.size() - 1] : 1;
+    auto dilation_z = dilation.size() >= 3 ? dilation[dilation.size() - 3] : 1;
+    auto dilation_y = dilation.size() >= 2 ? dilation[dilation.size() - 2] : 1;
+    auto dilation_x = dilation.size() >= 1 ? dilation[dilation.size() - 1] : 1;
 
     // TODO: Consider moving general parameter verification to arguments constructor.
     CLDNN_ERROR_LESS_OR_EQUAL_THAN(desc->id,
@@ -319,12 +311,6 @@ std::vector<layout> convolution_inst::calc_output_layouts(convolution_node const
             "Input for convolution should not be in winograd weights format - it is reserved for weights only");
 
     if (input_layout.format == format::winograd_2x3_s1_data) {
-        CLDNN_ERROR_NOT_EQUAL(desc->id,
-                              "convolution split",
-                              split,
-                              "expected value",
-                              1,
-                              "Convolution with winograd input only supports split == 1");
         CLDNN_ERROR_NOT_EQUAL(desc->id,
                               "stride spatial X",
                               stride_x,
@@ -429,29 +415,27 @@ std::vector<layout> convolution_inst::calc_output_layouts(convolution_node const
         input_layout.get<ShapeType>(),
         weights_layout.get<ShapeType>()
     };
-    std::vector<ShapeType> output_shapes = {ShapeType()};
+    std::vector<ShapeType> output_shapes;
+    auto pads_begin = desc->padding_above;
+    auto pads_end = desc->padding_below;
 
     if (desc->groups > 1) {
         ov::op::v1::GroupConvolution op;
         op.set_dilations(desc->dilation);
         op.set_strides(desc->stride);
         op.set_auto_pad(ov::op::PadType::EXPLICIT);
-        auto pad_begin = desc->padding_above;
-        auto pad_end = desc->padding_below;
         if (input_shapes[1].size() == 4 && input_shapes[0].size() == 3) {
             // 3D
             input_shapes[1][3] = input_shapes[1][2];
             input_shapes[1][2] = input_shapes[0][1].get_length()/input_shapes[1][0].get_length();
         }
-        ov::op::v1::shape_infer(&op, pad_begin, pad_end, input_shapes, output_shapes);
+        output_shapes = ov::op::v1::shape_infer(&op, input_shapes, pads_begin, pads_end);
     } else {
         ov::op::v1::Convolution op;
         op.set_dilations(desc->dilation);
         op.set_strides(desc->stride);
         op.set_auto_pad(ov::op::PadType::EXPLICIT);
-        auto pad_begin = desc->padding_above;
-        auto pad_end = desc->padding_below;
-        ov::op::v1::shape_infer(&op, pad_begin, pad_end, input_shapes, output_shapes);
+        output_shapes = ov::op::v1::shape_infer(&op, input_shapes, pads_begin, pads_end);
     }
     format::type output_format = input_layout.format.value;
     return {layout{output_shapes[0], output_type, output_format}};
@@ -460,7 +444,6 @@ std::vector<layout> convolution_inst::calc_output_layouts(convolution_node const
 std::string convolution_inst::to_string(convolution_node const& node) {
     auto desc = node.get_primitive();
     auto strd = desc->stride;
-    auto split = node.get_split();
     auto groups = node.get_groups();
     auto dilation = desc->dilation;
     auto node_info = node.desc_to_json();
@@ -475,7 +458,6 @@ std::string convolution_inst::to_string(convolution_node const& node) {
     conv_info.add("pad", cldnn::to_string(desc->pad));
     conv_info.add("padding above", cldnn::to_string(desc->padding_above));
     conv_info.add("padding below", cldnn::to_string(desc->padding_below));
-    conv_info.add("split", split);
     conv_info.add("groups", groups);
     conv_info.add("dilation", cldnn::to_string(dilation));
     conv_info.add("deformable_groups", desc->deformable_groups);
@@ -497,8 +479,6 @@ std::string convolution_inst::to_string(convolution_node const& node) {
 
 convolution_inst::typed_primitive_inst(network& network, convolution_node const& node) :
     parent(network, node),
-    _groups(node.get_groups()),
-    _split(node.get_split()),
     _deform_conv_dep_offset(node.get_deform_conv_dep_offset()) {
     if (node.is_dynamic())
         return;
@@ -516,86 +496,77 @@ convolution_inst::typed_primitive_inst(network& network, convolution_node const&
                           output_layout.get_rank(),
                           "Input/output rank mismatch");
 
-    auto split = node.get_split();
-    for (decltype(split) j = 0; j < split; j++) {
-        auto filter_inst = node.weights(j).get_output_layout().convert_to_weights_layout(argument->grouped_weights_shape);
+    auto filter_inst = node.weights().get_output_layout().convert_to_weights_layout(argument->grouped_weights_shape);
 
-        if (bias_term()) {
-            auto bias_inst = node.bias(j).get_output_layout();
-            CLDNN_ERROR_NOT_EQUAL(node.id(),
-                                  "Bias batch[0]",
-                                  bias_inst.batch(),
-                                  "expected size of batch",
-                                  1,
-                                  "Biases isn't 1D vector.");
-            CLDNN_ERROR_NOT_EQUAL(node.id(),
-                                  "Bias feature[0]",
-                                  bias_inst.feature(),
-                                  "expected feature map number",
-                                  output_size.feature[0] / split,
-                                  "Bias/fm mismatch");
-            CLDNN_ERROR_NOT_EQUAL(node.id(),
-                                  "Bias spatial[2]",
-                                  bias_inst.spatial(2),
-                                  "expected size of spatial[2]",
-                                  1,
-                                  "Biases isn't 1D vector.");
-            CLDNN_ERROR_NOT_EQUAL(node.id(),
-                                  "Bias spatial[1]",
-                                  bias_inst.spatial(1),
-                                  "expected size of spatial[1]",
-                                  1,
-                                  "Biases isn't 1D vector.");
-            CLDNN_ERROR_NOT_EQUAL(node.id(),
-                                  "Bias spatial[0]",
-                                  bias_inst.spatial(0),
-                                  "expected size of spatial[0]",
-                                  1,
-                                  "Biases isn't 1D vector.");
-        }
-
-        auto pad = argument->pad;
-
+    if (bias_term()) {
+        auto bias_inst = node.bias().get_output_layout();
         CLDNN_ERROR_NOT_EQUAL(node.id(),
-                              "Convolution padding mode",
-                              node.get_output_layout().data_padding.filling_value(),
-                              "padding value",
-                              0.0f,
-                              "Unknown padding mode.");
+                                "Bias batch[0]",
+                                bias_inst.batch(),
+                                "expected size of batch",
+                                1,
+                                "Biases isn't 1D vector.");
         CLDNN_ERROR_NOT_EQUAL(node.id(),
-                              "Output feature size",
-                              output_size.feature.size(),
-                              "expected feature size",
-                              1,
-                              "Only one-dimensional features are supported");
+                                "Bias feature[0]",
+                                bias_inst.feature(),
+                                "expected feature map number",
+                                output_size.feature[0],
+                                "Bias/fm mismatch");
         CLDNN_ERROR_NOT_EQUAL(node.id(),
-                              "Output batch size",
-                              output_size.batch.size(),
-                              "expected output size",
-                              1,
-                              "Only one-dimensional batch size are supported");
+                                "Bias spatial[2]",
+                                bias_inst.spatial(2),
+                                "expected size of spatial[2]",
+                                1,
+                                "Biases isn't 1D vector.");
         CLDNN_ERROR_NOT_EQUAL(node.id(),
-                              "Weights feature maps number",
-                              filter_inst.ifm() * filter_inst.group(),
-                              "input feature maps number",
-                              input_layout.feature(),
-                              "Weights/ifm mismatch");
+                                "Bias spatial[1]",
+                                bias_inst.spatial(1),
+                                "expected size of spatial[1]",
+                                1,
+                                "Biases isn't 1D vector.");
+        CLDNN_ERROR_NOT_EQUAL(node.id(),
+                                "Bias spatial[0]",
+                                bias_inst.spatial(0),
+                                "expected size of spatial[0]",
+                                1,
+                                "Biases isn't 1D vector.");
     }
+
+    CLDNN_ERROR_NOT_EQUAL(node.id(),
+                            "Convolution padding mode",
+                            node.get_output_layout().data_padding.filling_value(),
+                            "padding value",
+                            0.0f,
+                            "Unknown padding mode.");
+    CLDNN_ERROR_NOT_EQUAL(node.id(),
+                            "Output feature size",
+                            output_size.feature.size(),
+                            "expected feature size",
+                            1,
+                            "Only one-dimensional features are supported");
+    CLDNN_ERROR_NOT_EQUAL(node.id(),
+                            "Output batch size",
+                            output_size.batch.size(),
+                            "expected output size",
+                            1,
+                            "Only one-dimensional batch size are supported");
+    CLDNN_ERROR_NOT_EQUAL(node.id(),
+                            "Weights feature maps number",
+                            filter_inst.ifm() * filter_inst.group(),
+                            "input feature maps number",
+                            input_layout.feature(),
+                            "Weights/ifm mismatch");
 }
 
 void convolution_inst::save(cldnn::BinaryOutputBuffer& ob) const {
     parent::save(ob);
 
-    ob << _groups;
-    ob << _split;
     ob << _deform_conv_dep_offset;
 }
 
 void convolution_inst::load(cldnn::BinaryInputBuffer& ib) {
     parent::load(ib);
 
-    ib >> _groups;
-    ib >> _split;
     ib >> _deform_conv_dep_offset;
 }
 }  // namespace cldnn

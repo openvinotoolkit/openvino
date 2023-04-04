@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -30,7 +30,7 @@ public:
     GatherKernelRef() : KernelBaseOpenCL("gather_ref") {}
     virtual ~GatherKernelRef() {}
     virtual JitConstants GetJitConstants(const gather_params& params) const;
-    virtual CommonDispatchData SetDefault(const gather_params& params, const optional_params&) const;
+    virtual CommonDispatchData SetDefault(const gather_params& params) const;
     KernelsData GetKernelsData(const Params& params, const optional_params& options) const override;
     KernelsPriority GetKernelsPriority(const Params& params, const optional_params& options) const override;
     ParamsKey GetSupportedKey() const override;

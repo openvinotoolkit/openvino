@@ -1,18 +1,16 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "ngraph/op/gather_tree.hpp"
 
-#include <gather_tree_shape_inference.hpp>
-
+#include "gather_tree_shape_inference.hpp"
 #include "itt.hpp"
 #include "ngraph/shape.hpp"
+#include "openvino/core/validation_util.hpp"
 
 using namespace std;
 using namespace ngraph;
-
-BWDCMP_RTTI_DEFINITION(op::v1::GatherTree);
 
 op::v1::GatherTree::GatherTree(const Output<Node>& step_ids,
                                const Output<Node>& parent_idx,
@@ -61,13 +59,6 @@ void op::v1::GatherTree::validate_and_infer_types() {
                           "Element type of inputs must be numeric. Got: ",
                           result_et);
 
-    const auto& step_ids_pshape = get_input_partial_shape(0);
-    const auto& parent_idx_pshape = get_input_partial_shape(1);
-    const auto& max_seq_len_pshape = get_input_partial_shape(2);
-    const auto& end_token_pshape = get_input_partial_shape(3);
-    std::vector<PartialShape> input_shapes = {step_ids_pshape, parent_idx_pshape, max_seq_len_pshape, end_token_pshape},
-                              output_shapes = {PartialShape{}};
-    shape_infer(this, input_shapes, output_shapes);
-
-    set_output_type(0, result_et, output_shapes[0]);
+    const auto output_shape = shape_infer(this, ov::get_node_input_partial_shapes(*this)).front();
+    set_output_type(0, result_et, output_shape);
 }

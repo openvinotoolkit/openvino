@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -43,7 +43,7 @@ std::string MatMulTest::getTestCaseName(const testing::TestParamInfo<MatMulLayer
     result << "inL=" << inLayout << "_";
     result << "trgDev=" << targetDevice;
     result << "config=(";
-    for (const auto configEntry : additionalConfig) {
+    for (const auto& configEntry : additionalConfig) {
         result << configEntry.first << ", " << configEntry.second << ";";
     }
     result << ")";

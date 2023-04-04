@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -14,8 +14,7 @@ namespace v1 {
 /// \ingroup ov_ops_cpp_api
 class OPENVINO_API ReduceMax : public util::ArithmeticReductionKeepDims {
 public:
-    OPENVINO_OP("ReduceMax", "opset1", util::ArithmeticReductionKeepDims, 1);
-    BWDCMP_RTTI_DECLARATION;
+    OPENVINO_OP("ReduceMax", "opset1", util::ArithmeticReductionKeepDims);
     /// \brief Constructs a summation operation.
     ReduceMax() = default;
     /// \brief Constructs a summation operation.

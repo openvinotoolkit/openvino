@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -12,7 +12,6 @@
 #include <ngraph_functions/subgraph_builders.hpp>
 #include <openvino/runtime/core.hpp>
 
-#include "cpp/ie_plugin.hpp"
 #include "mock_common.hpp"
 #include "plugin/mock_load_network_properties.hpp"
 #include "unit_test_utils/mocks/cpp_interfaces/impl/mock_inference_plugin_internal.hpp"
@@ -65,13 +64,13 @@ public:
     std::shared_ptr<NiceMock<MockIExecutableNetworkInternal>> cpuMockIExeNet;
     ov::SoPtr<IExecutableNetworkInternal> cpuMockExeNetwork;
     NiceMock<MockIInferencePlugin>* cpuMockIPlugin;
-    InferenceEngine::InferencePlugin cpuMockPlugin;
+    std::shared_ptr<InferenceEngine::IInferencePlugin> cpuMockPlugin;
 
     // mock gpu exeNetwork
     std::shared_ptr<NiceMock<MockIExecutableNetworkInternal>> gpuMockIExeNet;
     ov::SoPtr<IExecutableNetworkInternal> gpuMockExeNetwork;
     NiceMock<MockIInferencePlugin>* gpuMockIPlugin;
-    InferenceEngine::InferencePlugin gpuMockPlugin;
+    std::shared_ptr<InferenceEngine::IInferencePlugin> gpuMockPlugin;
     std::shared_ptr<NiceMock<MockIInferRequestInternal>> inferReqInternal;
 
 public:
@@ -86,42 +85,40 @@ public:
         for (auto& device : targetDevices) {
             result << device << "_";
         }
-        auto cpuConfig = deviceConfigs.find("CPU");
-        auto gpuConfig = deviceConfigs.find("GPU");
-        result << "device_properties_";
-        if (cpuConfig != deviceConfigs.end())
-            result << "CPU_" << cpuConfig->second << "_";
-        if (gpuConfig != deviceConfigs.end())
-            result << "GPU_" << gpuConfig->second;
-        return result.str();
+        for (auto& item : deviceConfigs) {
+            result << item.first << "_" << item.second << "_";
+        }
+        auto name = result.str();
+        name.pop_back();
+        return name;
     }
 
     static std::vector<ConfigParams> CreateConfigs() {
         testConfigs.clear();
         testConfigs.push_back(
-            ConfigParams{"AUTO", {"CPU"}, {{"CPU", "NUM_STREAMS 3"}, {"MULTI_DEVICE_PRIORITIES", "CPU,GPU"}}});
+            ConfigParams{"AUTO", {"CPU"}, {{"DEVICE_PROPERTIES", "{CPU:{NUM_STREAMS:3}}"}, {"MULTI_DEVICE_PRIORITIES", "CPU,GPU"}}});
         testConfigs.push_back(
-            ConfigParams{"AUTO", {"CPU", "GPU"}, {{"GPU", "NUM_STREAMS 3"}, {"MULTI_DEVICE_PRIORITIES", "GPU,CPU"}}});
+            ConfigParams{"AUTO", {"CPU", "GPU"}, {{"DEVICE_PROPERTIES", "{GPU:{NUM_STREAMS:3}}"}, {"MULTI_DEVICE_PRIORITIES", "GPU,CPU"}}});
         testConfigs.push_back(
-            ConfigParams{"AUTO:CPU", {"CPU"}, {{"CPU", "NUM_STREAMS 3"}, {"MULTI_DEVICE_PRIORITIES", "CPU"}}});
+            ConfigParams{"AUTO:CPU", {"CPU"}, {{"DEVICE_PROPERTIES", "{CPU:{NUM_STREAMS:3}}"}, {"MULTI_DEVICE_PRIORITIES", "CPU"}}});
         testConfigs.push_back(
-            ConfigParams{"AUTO:CPU,GPU", {"CPU"}, {{"CPU", "NUM_STREAMS 3"}, {"MULTI_DEVICE_PRIORITIES", "CPU,GPU"}}});
+            ConfigParams{"AUTO:CPU,GPU", {"CPU"}, {{"DEVICE_PROPERTIES", "{CPU:{NUM_STREAMS:3}}"}, {"MULTI_DEVICE_PRIORITIES", "CPU,GPU"}}});
         testConfigs.push_back(
-            ConfigParams{"AUTO:GPU", {"GPU"}, {{"GPU", "NUM_STREAMS 5"}, {"MULTI_DEVICE_PRIORITIES", "GPU"}}});
+            ConfigParams{"AUTO:GPU", {"GPU"}, {{"DEVICE_PROPERTIES", "{GPU:{NUM_STREAMS:5}}"}, {"MULTI_DEVICE_PRIORITIES", "GPU"}}});
         testConfigs.push_back(ConfigParams{"AUTO:GPU,CPU",
                                            {"CPU", "GPU"},
-                                           {{"GPU", "NUM_STREAMS 5"}, {"MULTI_DEVICE_PRIORITIES", "GPU,CPU"}}});
+                                           {{"DEVICE_PROPERTIES", "{GPU:{NUM_STREAMS:5}}"}, {"MULTI_DEVICE_PRIORITIES", "GPU,CPU"}}});
 
         testConfigs.push_back(
-            ConfigParams{"MULTI:CPU", {"CPU"}, {{"CPU", "NUM_STREAMS 3"}, {"MULTI_DEVICE_PRIORITIES", "CPU"}}});
+            ConfigParams{"MULTI:CPU", {"CPU"}, {{"DEVICE_PROPERTIES", "{CPU:{NUM_STREAMS:3}}"}, {"MULTI_DEVICE_PRIORITIES", "CPU"}}});
         testConfigs.push_back(ConfigParams{"MULTI:CPU,GPU",
                                            {"CPU", "GPU"},
-                                           {{"CPU", "NUM_STREAMS 3"}, {"MULTI_DEVICE_PRIORITIES", "CPU,GPU"}}});
+                                           {{"DEVICE_PROPERTIES", "{CPU:{NUM_STREAMS:3}}"}, {"MULTI_DEVICE_PRIORITIES", "CPU,GPU"}}});
         testConfigs.push_back(
-            ConfigParams{"MULTI:GPU", {"GPU"}, {{"GPU", "NUM_STREAMS 5"}, {"MULTI_DEVICE_PRIORITIES", "GPU"}}});
+            ConfigParams{"MULTI:GPU", {"GPU"}, {{"DEVICE_PROPERTIES", "{GPU:{NUM_STREAMS:5}}"}, {"MULTI_DEVICE_PRIORITIES", "GPU"}}});
         testConfigs.push_back(ConfigParams{"MULTI:GPU,CPU",
                                            {"CPU", "GPU"},
-                                           {{"GPU", "NUM_STREAMS 5"}, {"MULTI_DEVICE_PRIORITIES", "GPU,CPU"}}});
+                                           {{"DEVICE_PROPERTIES", "{GPU:{NUM_STREAMS:5}}"}, {"MULTI_DEVICE_PRIORITIES", "GPU,CPU"}}});
         return testConfigs;
     }
 
@@ -136,20 +133,20 @@ public:
         auto cpuMockIPluginPtr = std::make_shared<NiceMock<MockIInferencePlugin>>();
         ON_CALL(*cpuMockIPluginPtr, LoadNetwork(MatcherCast<const CNNNetwork&>(_), _))
             .WillByDefault(Return(cpuMockIExeNet));
-        cpuMockPlugin = InferenceEngine::InferencePlugin{cpuMockIPluginPtr, {}};
+        cpuMockPlugin = cpuMockIPluginPtr;
         // remove annoying ON CALL message
         EXPECT_CALL(*cpuMockIPluginPtr, LoadNetwork(MatcherCast<const CNNNetwork&>(_), _)).Times(1);
-        cpuMockExeNetwork = cpuMockPlugin.LoadNetwork(CNNNetwork{}, {});
+        cpuMockExeNetwork = ov::SoPtr<InferenceEngine::IExecutableNetworkInternal>(cpuMockPlugin->LoadNetwork(CNNNetwork{}, {}), {});
 
         // prepare gpuMockExeNetwork
         gpuMockIExeNet = std::make_shared<NiceMock<MockIExecutableNetworkInternal>>();
         auto gpuMockIPluginPtr = std::make_shared<NiceMock<MockIInferencePlugin>>();
         ON_CALL(*gpuMockIPluginPtr, LoadNetwork(MatcherCast<const CNNNetwork&>(_), _))
             .WillByDefault(Return(gpuMockIExeNet));
-        gpuMockPlugin = InferenceEngine::InferencePlugin{gpuMockIPluginPtr, {}};
+        gpuMockPlugin = gpuMockIPluginPtr;
         // remove annoying ON CALL message
         EXPECT_CALL(*gpuMockIPluginPtr, LoadNetwork(MatcherCast<const CNNNetwork&>(_), _)).Times(1);
-        gpuMockExeNetwork = gpuMockPlugin.LoadNetwork(CNNNetwork{}, {});
+        gpuMockExeNetwork = ov::SoPtr<InferenceEngine::IExecutableNetworkInternal>(gpuMockPlugin->LoadNetwork(CNNNetwork{}, {}), {});
 
         // prepare mockicore and cnnNetwork for loading
         core = std::shared_ptr<NiceMock<MockICore>>(new NiceMock<MockICore>());
@@ -174,6 +171,8 @@ public:
 
         std::vector<std::string> configKeys = {"SUPPORTED_CONFIG_KEYS", "NUM_STREAMS"};
         ON_CALL(*core, GetMetric(_, StrEq(METRIC_KEY(SUPPORTED_CONFIG_KEYS)), _)).WillByDefault(Return(configKeys));
+
+        ON_CALL(*core, GetConfig(_, StrEq(ov::compilation_num_threads.name()))).WillByDefault(Return(12));
 
         ON_CALL(*plugin, ParseMetaDevices)
             .WillByDefault(

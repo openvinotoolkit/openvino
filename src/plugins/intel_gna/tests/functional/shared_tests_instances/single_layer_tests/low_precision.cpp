@@ -1,12 +1,13 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "single_layer_tests/low_precision.hpp"
+
 #include <vector>
 
-#include "single_layer_tests/low_precision.hpp"
-#include "common_test_utils/test_constants.hpp"
 #include "../skip_tests_check.hpp"
+#include "common_test_utils/test_constants.hpp"
 
 using namespace LowPrecisionTestDefinitions;
 
@@ -27,10 +28,8 @@ TEST_P(GnaLowPrecisionTest, CompareWithRefs) {
     Run();
 }
 
-const std::vector<InferenceEngine::Precision> netPrecisions = {
-    InferenceEngine::Precision::FP32,
-    InferenceEngine::Precision::FP16
-};
+const std::vector<InferenceEngine::Precision> netPrecisions = {InferenceEngine::Precision::FP32,
+                                                               InferenceEngine::Precision::FP16};
 
 const std::map<std::string, std::string> config_fp32 = {
     {"GNA_DEVICE_MODE", "GNA_SW_FP32"},
@@ -54,10 +53,10 @@ const std::vector<std::pair<std::string, std::map<std::string, std::string>>> co
     {"sw_exact_i8", config_i8},
 };
 
-INSTANTIATE_TEST_SUITE_P(DISABLED_smoke_LowPrecision, GnaLowPrecisionTest,
-    ::testing::Combine(
-        ::testing::ValuesIn(netPrecisions),
-        ::testing::Values(CommonTestUtils::DEVICE_GNA),
-        ::testing::ValuesIn(configs)),
-    GnaLowPrecisionTest::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(DISABLED_smoke_LowPrecision,
+                         GnaLowPrecisionTest,
+                         ::testing::Combine(::testing::ValuesIn(netPrecisions),
+                                            ::testing::Values(CommonTestUtils::DEVICE_GNA),
+                                            ::testing::ValuesIn(configs)),
+                         GnaLowPrecisionTest::getTestCaseName);
 }  // namespace

@@ -4,7 +4,7 @@ This tutorial explains how to convert Google Neural Machine Translation (GNMT) m
 
 There are several public versions of TensorFlow GNMT model implementation available on GitHub. This tutorial explains how to convert the GNMT model from the [TensorFlow Neural Machine Translation (NMT) repository](https://github.com/tensorflow/nmt) to the IR.
 
-## Creating a Patch File <a name="patch-file"></a>
+## Creating a Patch File <a name="patch-file-gnmt"></a>
 
 Before converting the model, you need to create a patch file for the repository. The patch modifies the framework code by adding a special command-line argument to the framework options that enables inference graph dumping:
 
@@ -164,7 +164,7 @@ This tutorial assumes the use of the trained GNMT model from `wmt16_gnmt_4_layer
 The OpenVINO assumes that a model is used for inference only. Hence, before converting the model into the IR, you need to transform the training graph into the inference graph.
 For the GNMT model, the training graph and the inference graph have different decoders: the training graph uses a greedy search decoding algorithm, while the inference graph uses a beam search decoding algorithm.
 
-1. Apply the `GNMT_inference.patch` patch to the repository. Refer to the <a href="#patch-file">Create a Patch File</a> instructions if you do not have it:
+1. Apply the `GNMT_inference.patch` patch to the repository. Refer to the <a href="#patch-file-gnmt">Create a Patch File</a> instructions if you do not have it:
 ```sh
  git apply /path/to/patch/GNMT_inference.patch
 ```
@@ -198,7 +198,7 @@ tgt_vocab_size -= 1
 ```sh
 mo
 --input_model /path/to/dump/model/frozen_GNMT_inference_graph.pb
---input "IteratorGetNext:1{i32}[1],IteratorGetNext:0{i32}[1 50],dynamic_seq2seq/hash_table_Lookup_1:0[1]->[2],dynamic_seq2seq/hash_table_Lookup:0[1]->[1]"
+--input "IteratorGetNext:1{i32}[1],IteratorGetNext:0{i32}[1,50],dynamic_seq2seq/hash_table_Lookup_1:0[1]->[2],dynamic_seq2seq/hash_table_Lookup:0[1]->[1]"
 --output dynamic_seq2seq/decoder/decoder/GatherTree
 --output_dir /path/to/output/IR/
 ```
@@ -217,7 +217,7 @@ Output cutting:
 
 For more information about model cutting, refer to the [Cutting Off Parts of a Model](@ref openvino_docs_MO_DG_prepare_model_convert_model_Cutting_Model) guide.
 
-## Using a GNMT Model <a name="run_GNMT"></a>
+## Using a GNMT Model <a name="run_GNMT_model"></a>
 
 > **NOTE**: This step assumes you have converted a model to the Intermediate Representation.
 
@@ -273,4 +273,4 @@ exec_net = ie.load_network(network=net, device_name="CPU")
 result_ie = exec_net.infer(input_data)
 ```
 
-For more information about Python API, refer to the [OpenVINO Runtime Python API](https://docs.openvino.ai/2022.2/api/api_reference.html) guide.
+For more information about Python API, refer to the [OpenVINO Runtime Python API](https://docs.openvino.ai/latest/api/api_reference.html) guide.

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -9,6 +9,7 @@
 
 #include "graph.h"
 #include "extension_mngr.h"
+#include "graph_context.h"
 #include <threading/ie_thread_local.hpp>
 
 #include <vector>
@@ -37,8 +38,6 @@ public:
     ExecNetwork(const InferenceEngine::CNNNetwork &network, const Config &cfg,
                 const ExtensionManager::Ptr &extMgr,
                 const std::shared_ptr<InferenceEngine::IInferencePlugin>& plugin);
-
-    void setProperty(const std::map<std::string, std::string> &properties);
 
     InferenceEngine::Parameter GetConfig(const std::string &name) const override;
 

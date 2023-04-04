@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -68,5 +68,3 @@ std::string ov::Shape::to_string() const {
     shape_str_stream << *this;
     return shape_str_stream.str();
 }
-
-BWDCMP_RTTI_DEFINITION(ov::AttributeAdapter<ov::Shape>);

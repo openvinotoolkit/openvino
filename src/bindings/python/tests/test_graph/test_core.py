@@ -1,6 +1,8 @@
 # -*- coding: utf-8 -*-
-# Copyright (C) 2018-2022 Intel Corporation
+# Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
+
+import copy
 
 import numpy as np
 import pytest
@@ -217,6 +219,30 @@ def test_partial_shape():
     shape = Shape()
     assert len(shape) == 0
 
+    shape = PartialShape("[?, 3, ..224, 28..224, 25..]")
+    copied_shape = copy.copy(shape)
+    assert shape == copied_shape, "Copied shape {0} is not equal to original shape {1}.".format(copied_shape, shape)
+
+    shape = PartialShape("[...]")
+    copied_shape = copy.copy(shape)
+    assert shape == copied_shape, "Copied shape {0} is not equal to original shape {1}.".format(copied_shape, shape)
+
+    shape = PartialShape([Dimension(-1, 100), 25, -1])
+    copied_shape = copy.copy(shape)
+    assert shape == copied_shape, "Copied shape {0} is not equal to original shape {1}.".format(copied_shape, shape)
+
+    shape = PartialShape("[?, 3, ..224, 28..224, 25..]")
+    copied_shape = copy.deepcopy(shape)
+    assert shape == copied_shape, "Copied shape {0} is not equal to original shape {1}.".format(copied_shape, shape)
+
+    shape = PartialShape("[...]")
+    copied_shape = copy.deepcopy(shape)
+    assert shape == copied_shape, "Copied shape {0} is not equal to original shape {1}.".format(copied_shape, shape)
+
+    shape = PartialShape([Dimension(-1, 100), 25, -1])
+    copied_shape = copy.deepcopy(shape)
+    assert shape == copied_shape, "Copied shape {0} is not equal to original shape {1}.".format(copied_shape, shape)
+
 
 def test_partial_shape_compatible():
     ps1 = PartialShape.dynamic()
@@ -343,10 +369,10 @@ def test_discrete_type_info():
     assert n1.get_type_info().name == "TopK"
     assert n3.get_type_info().name == "Sin"
     assert n1.type_info.name == n2.type_info.name
-    assert n1.type_info.version == n2.type_info.version
+    assert n1.type_info.version_id == n2.type_info.version_id
     assert n1.type_info.parent == n2.type_info.parent
     assert n1.get_type_info().name == n2.get_type_info().name
-    assert n1.get_type_info().version == n2.get_type_info().version
+    assert n1.get_type_info().version_id == n2.get_type_info().version_id
     assert n1.get_type_info().parent == n2.get_type_info().parent
     assert n1.get_type_info().name != n3.get_type_info().name
     assert n1.get_type_info().name > n3.get_type_info().name

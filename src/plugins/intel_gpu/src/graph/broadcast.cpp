@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -16,7 +16,7 @@ namespace cldnn {
 GPU_DEFINE_PRIMITIVE_TYPE_ID(broadcast)
 
 layout broadcast_inst::calc_output_layout(broadcast_node const& node, kernel_impl_params const& impl_param) {
-    assert(static_cast<bool>(impl_param.desc->output_data_type) == false &&
+    assert(static_cast<bool>(impl_param.desc->output_data_types[0]) == false &&
            "Output data type forcing is not supported for broadcast_node!");
     auto input_layout = impl_param.get_input_layout();
     auto desc = impl_param.typed_desc<broadcast>();
@@ -82,10 +82,13 @@ std::vector<layout> broadcast_inst::calc_output_layouts(broadcast_node const& /*
                                                      static_cast<void*>(target_shape.data()));
         const_data.emplace(1, target_shape_tensor);
         ov::op::v3::shape_infer(&op, input_shapes, output_shapes, const_data);
-    } else {
-        // Pattern shape is set as second input. Even though the input is scalar, the shape should be propagaterd as dynamic
-        auto output_rank = input_shapes[0].size();
-        output_shapes[0] = ShapeType::dynamic(std::max(output_rank, static_cast<size_t>(1)));
+    } else if (impl_param.input_layouts.size() >= 2) {
+        auto input1 = impl_param.get_input_layout(1);
+        auto output_rank = input1.get<ShapeType>().size();
+        if (input1.is_static()) {
+            output_rank = input1.get_dim(0);    // target shape rank is set as second input.
+        }
+        output_shapes[0] = ShapeType::dynamic(std::max(static_cast<int>(output_rank), 1));
     }
 
     format output_format = format::adjust_to_rank(input0_layout.format, output_shapes[0].size());

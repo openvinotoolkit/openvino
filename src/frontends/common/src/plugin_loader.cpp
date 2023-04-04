@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -45,7 +45,9 @@ void load_static_plugins(std::vector<PluginInfo>& res) {
             {"ir", "ir"},
             {"onnx", "onnx"},
             {"tf", "tensorflow"},
+            {"tflite", "tensorflow_lite"},
             {"paddle", "paddle"},
+            {"pytorch", "pytorch"},
         };
         auto it = predefined_frontends.find(factory.m_name);
         if (it != predefined_frontends.end()) {
@@ -145,7 +147,7 @@ bool PluginInfo::load_internal() {
         return false;
     }
 
-    auto info_addr = reinterpret_cast<void* (*)()>(ov::util::get_symbol(so, "GetAPIVersion"));
+    auto info_addr = reinterpret_cast<void* (*)()>(ov::util::get_symbol(so, "get_api_version"));
     if (!info_addr) {
         OPENVINO_DEBUG << "Loaded FrontEnd [" << m_file_path << "] doesn't have API version" << std::endl;
         return false;
@@ -159,7 +161,7 @@ bool PluginInfo::load_internal() {
         return false;
     }
 
-    auto creator_addr = reinterpret_cast<void* (*)()>(ov::util::get_symbol(so, "GetFrontEndData"));
+    auto creator_addr = reinterpret_cast<void* (*)()>(ov::util::get_symbol(so, "get_front_end_data"));
     if (!creator_addr) {
         OPENVINO_DEBUG << "Loaded FrontEnd [" << m_file_path << "] doesn't have Frontend Data" << std::endl;
         return false;
