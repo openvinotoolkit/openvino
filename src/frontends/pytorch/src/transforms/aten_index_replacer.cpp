@@ -142,12 +142,16 @@ AtenIndexToSelect::AtenIndexToSelect() {
                 auto dim = v0::Constant::create(element::i32, Shape{}, {advanced_ids[0]});
                 auto gather = std::make_shared<v8::Gather>(input_node, index, dim);
                 copy_runtime_info({index_op, indicies}, gather);
+                gather->set_friendly_name(index_op->get_friendly_name());
                 replace_node(index_op, gather);
                 return true;
             }
             auto adv_idx_count = advanced_ids.size();
             auto rank = input_node.get_partial_shape().rank();
-            FRONT_END_CHECK_IMPLEMENTED(rank.is_static(), "indexing for tensor with dynamic rank is not implemented ");
+            // index transformation supports only tensors with static rank
+            if (rank.is_dynamic()) {
+                return false;
+            }
             auto input_shape = std::make_shared<v3::ShapeOf>(input_node, element::i32);
             auto zero = v0::Constant::create(element::i32, Shape{}, {0});
             auto input_dims = std::make_shared<v1::Split>(input_shape, zero, rank.get_length());
@@ -256,6 +260,7 @@ AtenIndexToSelect::AtenIndexToSelect() {
             auto gather = std::make_shared<v8::Gather>(input_node, indicies, dim);
             copy_runtime_info({index_op, indicies}, gather);
             replace_node(index_op, gather);
+            gather->set_friendly_name(index_op->get_friendly_name());
             return true;
         }
         return false;
