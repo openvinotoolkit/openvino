@@ -65,10 +65,10 @@ public:
 struct DeviceInformation {
     DeviceName deviceName;
     std::map<std::string, std::string> config;
-    int numRequestsPerDevices;
+    int numRequestsPerDevices = -1;
     std::string defaultDeviceID;
     DeviceName uniqueName;
-    unsigned int devicePriority;
+    unsigned int devicePriority = 0;
 };
 
 struct WorkerInferRequest {

@@ -108,7 +108,7 @@ IE::Parameter MultiExecutableNetwork::GetMetric(const std::string& name) const {
         };
     } else if (name == ov::device::properties) {
         ov::AnyMap all_devices = {};
-        for (auto network : _multiSContext->_networksPerDevice) {
+        for (auto & network : _multiSContext->_networksPerDevice) {
             ov::AnyMap device_properties = {};
             auto device_supported_metrics = network.second->GetMetric(METRIC_KEY(SUPPORTED_METRICS));
             for (auto&& property_name : device_supported_metrics.as<std::vector<std::string>>()) {
@@ -123,7 +123,7 @@ IE::Parameter MultiExecutableNetwork::GetMetric(const std::string& name) const {
         return all_devices;
     } else if (name == ov::optimal_number_of_infer_requests) {
         unsigned int res = 0u;
-        for (auto n : _multiSContext->_networksPerDevice) {
+        for (auto & n : _multiSContext->_networksPerDevice) {
             try {
                 res += n.second->GetMetric(METRIC_KEY(
                             OPTIMAL_NUMBER_OF_INFER_REQUESTS)).as<unsigned int>();
