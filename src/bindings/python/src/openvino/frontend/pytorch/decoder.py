@@ -109,6 +109,9 @@ class TorchScriptPythonDecoder (Decoder):
         if self._input_signature is not None and self.raw_inputs[0].debugName() == "self":
             self._input_signature.insert(0, "self")
 
+        if isinstance(self.graph_element, torch.Graph):
+            torch.onnx.utils._split_tensor_list_constants(self.graph_element, self.graph_element)
+
     def _get_scripted_model(self, pt_module, example_inputs=None, freeze=True):
         import torch
         import inspect
@@ -277,6 +280,7 @@ class TorchScriptPythonDecoder (Decoder):
         return decoder
 
     def get_op_type(self) -> str:
+        assert isinstance(self.graph_element, torch.Node)
         return self.graph_element.kind()
 
     def get_schema(self) -> str:
@@ -309,10 +313,11 @@ class TorchScriptPythonDecoder (Decoder):
             return []
 
     def as_constant(self):
+        if not isinstance(self.graph_element, torch.Node):
+            return None
         if not self.get_op_type() == "prim::Constant":
             return None
         pt_value = self._raw_output(0)
-
         pt_type = pt_value.type()
         if isinstance(pt_type, torch.TensorType):
             return ivalue_to_constant(pt_value.toIValue())

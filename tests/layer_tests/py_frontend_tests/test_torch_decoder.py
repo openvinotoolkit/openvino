@@ -513,3 +513,54 @@ def test_pytorch_decoder_can_convert_float_scalar_tensor():
     assert len(ov_const) == 1
     assert ov_const[0].get_element_type() == Type.f32
     assert ov_const[0].get_partial_shape() == PartialShape([])
+
+@pytest.mark.precommit
+def test_pytorch_decoder_can_convert_tensor_list():
+    from openvino.frontend.pytorch.decoder import TorchScriptPythonDecoder
+    from openvino.runtime import PartialShape, Type
+    from typing import List, Optional
+
+    class SomeTensor(torch.nn.Module):
+        def forward(self):
+            l = torch.jit.annotate(List[Optional[torch.Tensor]], [torch.ones((1, 3, 3), dtype=torch.float),])
+            return l
+
+    model = get_scripted_model(SomeTensor())
+    consts = [n for n in model.inlined_graph.nodes() if n.kind() ==
+            "prim::Constant"]
+    assert len(consts) > 0
+    nc_decoder = TorchScriptPythonDecoder(model)
+    converted_graph = list(nc_decoder.graph_element.nodes())
+    # Assert that replaced const is not used
+    assert not converted_graph[2].hasUses()
+    # Assert that prim::ListConstruct exist and has uses
+    assert converted_graph[1].kind() == "prim::ListConstruct"
+    assert converted_graph[1].hasUses()
+    assert len(list(converted_graph[1].inputs())) == 1
+    created_const = TorchScriptPythonDecoder(model, converted_graph[0]).as_constant()
+    assert created_const[0].get_element_type() == Type.f32
+    assert created_const[0].get_partial_shape() == PartialShape([1, 3, 3])
+
+@pytest.mark.precommit
+def test_pytorch_decoder_can_convert_tensor_list_empty():
+    from openvino.frontend.pytorch.decoder import TorchScriptPythonDecoder
+    from openvino.runtime import PartialShape, Type
+    from typing import List, Optional
+
+    class SomeTensor(torch.nn.Module):
+        def forward(self):
+            l = torch.jit.annotate(List[Optional[torch.Tensor]], [])
+            return l
+
+    model = get_scripted_model(SomeTensor())
+    consts = [n for n in model.inlined_graph.nodes() if n.kind() ==
+            "prim::Constant"]
+    assert len(consts) > 0
+    nc_decoder = TorchScriptPythonDecoder(model)
+    converted_graph = list(nc_decoder.graph_element.nodes())
+    # Assert that replaced const is not used
+    assert not converted_graph[1].hasUses()
+    # Assert that prim::ListConstruct exist and has uses
+    assert converted_graph[0].kind() == "prim::ListConstruct"
+    assert converted_graph[0].hasUses()
+    assert len(list(converted_graph[0].inputs())) == 0
