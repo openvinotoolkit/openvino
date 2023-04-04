@@ -143,7 +143,9 @@ struct CPUStreamsExecutor::Impl {
                           << " bind_cores:" << _impl->bind_cores << "\n";
             }
             std::cout << "init_stream------stream_id:" << stream_id << " concurrency:" << concurrency
-                      << " _numaNodeId:" << _numaNodeId << " BindingType:" << _impl->_config._threadBindingType << "\n";
+                      << " _numaNodeId:" << _numaNodeId
+                      << " BindingType:" << std::to_string(_impl->_config._threadBindingType) << "\n";
+            std::cout << "any_cores: " << _impl->any_cores << std::endl;
             if (concurrency > 0 && (ThreadBindingType::CORES == _impl->_config._threadBindingType ||
                                     ThreadBindingType::NONE == _impl->_config._threadBindingType || _impl->any_cores ||
                                     _streamId >= _impl->_config._streams)) {
@@ -377,6 +379,21 @@ struct CPUStreamsExecutor::Impl {
                 // (notice that the map keeps the elements in the descending order, so the big cores are populated
                 // first)
                 total_streams_on_core_types.push_back({type, sum});
+            }
+        }
+        if (!any_cores && _config._streams > 0 && _config._big_core_streams == 0 && _config._small_core_streams == 0) {
+            if (_config._threadPreferredCoreType == Config::PreferredCoreType::LITTLE) {
+                _config._small_core_streams = _config._streams;
+                _config._threads_per_stream_small =
+                    _config._threadsPerStream > 0
+                        ? _config._threadsPerStream
+                        : (_config._threads == 0 ? _config._streams : _config._threads / _config._streams);
+            } else {
+                _config._big_core_streams = _config._streams;
+                _config._threads_per_stream_big =
+                    _config._threadsPerStream > 0
+                        ? _config._threadsPerStream
+                        : (_config._threads == 0 ? _config._streams : _config._threads / _config._streams);
             }
         }
 #endif
