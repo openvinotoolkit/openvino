@@ -772,6 +772,87 @@ StreamsCalculationTestCase _1sockets_6cores_tput_4 = {
     {{6, MAIN_CORE_PROC, 1}, {6, HYPER_THREADING_PROC, 1}},
 };
 
+StreamsCalculationTestCase _1sockets_ecores_latency_1 = {
+    1,
+    0,
+    0,
+    0,
+    {{16, 0, 16, 0}},
+    {{1, EFFICIENT_CORE_PROC, 16}},
+};
+
+StreamsCalculationTestCase _1sockets_ecores_latency_2 = {
+    1,
+    4,
+    0,
+    0,
+    {{16, 0, 16, 0}},
+    {{1, EFFICIENT_CORE_PROC, 4}},
+};
+
+StreamsCalculationTestCase _1sockets_ecores_latency_3 = {
+    1,
+    0,
+    4,
+    0,
+    {{16, 0, 16, 0}},
+    {{1, EFFICIENT_CORE_PROC, 16}},
+};
+
+StreamsCalculationTestCase _1sockets_ecores_latency_4 = {
+    1,
+    0,
+    0,
+    4,
+    {{16, 0, 16, 0}},
+    {{1, EFFICIENT_CORE_PROC, 16}},
+};
+
+StreamsCalculationTestCase _1sockets_ecores_tput_1 = {
+    0,
+    0,
+    0,
+    1,
+    {{16, 0, 16, 0}},
+    {{16, EFFICIENT_CORE_PROC, 1}},
+};
+
+StreamsCalculationTestCase _1sockets_ecores_tput_2 = {
+    0,
+    0,
+    0,
+    4,
+    {{16, 0, 16, 0}},
+    {{4, EFFICIENT_CORE_PROC, 4}},
+};
+
+StreamsCalculationTestCase _1sockets_ecores_tput_3 = {
+    2,
+    0,
+    0,
+    0,
+    {{16, 0, 16, 0}},
+    {{2, EFFICIENT_CORE_PROC, 8}},
+};
+
+StreamsCalculationTestCase _1sockets_ecores_tput_4 = {
+    8,
+    0,
+    4,
+    0,
+    {{16, 0, 16, 0}},
+    {{4, EFFICIENT_CORE_PROC, 4}},
+};
+
+StreamsCalculationTestCase _1sockets_ecores_tput_5 = {
+    2,
+    0,
+    0,
+    4,
+    {{16, 0, 16, 0}},
+    {{2, EFFICIENT_CORE_PROC, 8}},
+};
+
 TEST_P(StreamsCalculationTests, StreamsCalculation) {}
 
 INSTANTIATE_TEST_SUITE_P(StreamsInfoTable,
@@ -839,6 +920,15 @@ INSTANTIATE_TEST_SUITE_P(StreamsInfoTable,
                                          _1sockets_6cores_tput_1,
                                          _1sockets_6cores_tput_2,
                                          _1sockets_6cores_tput_3,
-                                         _1sockets_6cores_tput_4));
+                                         _1sockets_6cores_tput_4,
+                                         _1sockets_ecores_latency_1,
+                                         _1sockets_ecores_latency_2,
+                                         _1sockets_ecores_latency_3,
+                                         _1sockets_ecores_latency_4,
+                                         _1sockets_ecores_tput_1,
+                                         _1sockets_ecores_tput_2,
+                                         _1sockets_ecores_tput_3,
+                                         _1sockets_ecores_tput_4,
+                                         _1sockets_ecores_tput_5));
 
 }  // namespace
