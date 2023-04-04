@@ -30,6 +30,7 @@ DEFAULT_OPENVINO_PYTHON_CONFIG = MappingProxyType(
 
 compiled_cache = {}
 max_openvino_partitions = 0
+partitioned_modules = {}
 
 def execute(
     gm: GraphModule,
@@ -118,6 +119,8 @@ def partition_graph(gm: GraphModule, use_python_fusion_cache: bool):
 
 def openvino_execute_partitioned(gm: GraphModule, *args, executor_parameters=None):
     executor_parameters = executor_parameters or DEFAULT_OPENVINO_PYTHON_CONFIG
+
+    global partitioned_modules
     
     allow_single_op_fusion = executor_parameters.get(
         "allow_single_op_fusion",
@@ -127,6 +130,11 @@ def openvino_execute_partitioned(gm: GraphModule, *args, executor_parameters=Non
         "use_python_fusion_cache",
         DEFAULT_OPENVINO_PYTHON_CONFIG["use_python_fusion_cache"],
     )
-    
-    gm = partition_graph(gm, use_python_fusion_cache=use_python_fusion_cache)
-    return gm(*args)
+
+    signature = str(id(gm))
+    for idx, input_data in enumerate(args):
+        signature = signature+"_"+str(idx)+":"+str(input_data.type())[6:]+":"+str(input_data.size())[11:-1].replace(" ","")
+
+    if signature not in partitioned_modules:
+        partitioned_modules[signature] = partition_graph(gm, use_python_fusion_cache=use_python_fusion_cache)
+    return partitioned_modules[signature](*args)
