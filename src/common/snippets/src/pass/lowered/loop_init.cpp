@@ -202,7 +202,6 @@ bool LoopInit::run(LoweredExprIR& linear_ir) {
         // Outer Loop ----> Inner Loop
         const auto expr_loops = expr->get_loop_ids();
         const auto loop_depth = expr_loops.size();
-        bool has_fake_loop = expr_loops.back() == LoweredExpr::LOOP_FAKE_ID;
         for (size_t i = 0; i < loop_depth; ++i) {
             const auto loop_id = expr_loops[i];
             if (loop_id >= LoweredExpr::LOOP_NULL_ID)

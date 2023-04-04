@@ -25,7 +25,10 @@ bool LoopSplitting::must_be_split(const LoweredExprIR::LoweredLoopManager::Lower
     auto target_increment = target->increment;
     // Note: work amounts must be the same, since work amount defines total pointer shift
     //       target increment must ve divisible by current increment, so the splitting wouldn't affect data access
-    return current_work_amount == target_work_amount && target_increment % current_increment == 0;
+    return current_work_amount == target_work_amount &&
+           target_increment != current_increment &&
+           current_increment != 1 &&
+           target_increment % current_increment == 0;
 }
 
 bool LoopSplitting::run(LoweredExprIR& linear_ir) {
