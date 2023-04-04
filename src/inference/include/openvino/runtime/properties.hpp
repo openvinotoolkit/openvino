@@ -418,11 +418,11 @@ static constexpr Property<SchedulingCoreType> scheduling_core_type{"SCHEDULING_C
  * The following code is example to use this property.
  *
  * @code
- * ie.set_property(ov::hint::use_cpu_pinning(true));
- * ie.set_property(ov::hint::use_cpu_pinning(false));
+ * ie.set_property(ov::hint::enable_cpu_pinning(true));
+ * ie.set_property(ov::hint::enable_cpu_pinning(false));
  * @endcode
  */
-static constexpr Property<bool> use_cpu_pinning{"USE_CPU_PINNING"};
+static constexpr Property<bool> enable_cpu_pinning{"ENABLE_CPU_PINNING"};
 
 /**
  * @brief This property define if using hyper threading during inference.
@@ -434,11 +434,11 @@ static constexpr Property<bool> use_cpu_pinning{"USE_CPU_PINNING"};
  * The following code is example to use this property.
  *
  * @code
- * ie.set_property(ov::hint::use_hyper_threading(true));
- * ie.set_property(ov::hint::use_hyper_threading(false));
+ * ie.set_property(ov::hint::enable_hyper_threading(true));
+ * ie.set_property(ov::hint::enable_hyper_threading(false));
  * @endcode
  */
-static constexpr Property<bool> use_hyper_threading{"USE_HYPER_THREADING"};
+static constexpr Property<bool> enable_hyper_threading{"ENABLE_HYPER_THREADING"};
 
 /**
  * @brief (Optional) property that backs the (above) Performance Hints

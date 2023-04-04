@@ -49,7 +49,7 @@ INSTANTIATE_TEST_SUITE_P(
         ::testing::Values("CPU", "MULTI", "HETERO", "AUTO"));
 
 INSTANTIATE_TEST_SUITE_P(smoke_OVClassSetConfigTest,
-                         OVClassSetUseHyperThreadingHintConfigTest,
+                         OVClassSetEnableHyperThreadingHintConfigTest,
                          ::testing::Values("CPU"));
 
 INSTANTIATE_TEST_SUITE_P(smoke_OVClassSetConfigTest,
@@ -80,7 +80,7 @@ INSTANTIATE_TEST_SUITE_P(
         smoke_OVClassGetAvailableDevices, OVClassGetAvailableDevices,
         ::testing::Values("CPU"));
 
-INSTANTIATE_TEST_SUITE_P(smoke_OVClassSetConfigTest, OVClassSetUseCpuPinningHintConfigTest, ::testing::Values("CPU"));
+INSTANTIATE_TEST_SUITE_P(smoke_OVClassSetConfigTest, OVClassSetEnableCpuPinningHintConfigTest, ::testing::Values("CPU"));
 
 INSTANTIATE_TEST_SUITE_P(
         smoke_OVClassSetModelPriorityConfigTest, OVClassSetModelPriorityConfigTest,
