@@ -49,10 +49,6 @@ function(ie_add_plugin)
     # create and configure target
 
     if(NOT IE_PLUGIN_PSEUDO_PLUGIN_FOR)
-        if(IE_PLUGIN_VERSION_DEFINES_FOR)
-            addVersionDefines(${IE_PLUGIN_VERSION_DEFINES_FOR} CI_BUILD_NUMBER)
-        endif()
-
         set(input_files ${IE_PLUGIN_SOURCES})
         foreach(obj_lib IN LISTS IE_PLUGIN_OBJECT_LIBRARIES)
             list(APPEND input_files $<TARGET_OBJECTS:${obj_lib}>)
@@ -66,6 +62,10 @@ function(ie_add_plugin)
         endif()
 
         add_library(${IE_PLUGIN_NAME} ${library_type} ${input_files})
+
+        if(IE_PLUGIN_VERSION_DEFINES_FOR)
+            ov_add_version_defines(${IE_PLUGIN_VERSION_DEFINES_FOR} ${IE_PLUGIN_NAME} CI_BUILD_NUMBER)
+        endif()
 
         target_compile_definitions(${IE_PLUGIN_NAME} PRIVATE IMPLEMENT_INFERENCE_ENGINE_PLUGIN)
         if(NOT BUILD_SHARED_LIBS)
