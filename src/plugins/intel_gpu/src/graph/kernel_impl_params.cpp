@@ -118,7 +118,13 @@ void kernel_impl_params::save(BinaryOutputBuffer& ob) const {
     size_t num_fused_prims = fused_desc_onednn.size();
     ob << num_fused_prims;
     for (auto fused_prim : fused_desc_onednn) {
-        ob << make_data(&fused_prim, sizeof(fused_primitive_desc_onednn));
+        ob << make_data(&fused_prim.op_type, sizeof(onednn_post_op_type));
+        ob << fused_prim.mem_offset;
+        ob << fused_prim.mem_dep;
+        ob << make_data(&fused_prim.tag, sizeof(dnnl::memory::format_tag));
+        ob << fused_prim.flatten;
+        ob << fused_prim.dims;
+        ob << make_data(&fused_prim.dt, sizeof(dnnl::memory::data_type));
     }
 #endif // ENABLE_ONEDNN_FOR_GPU
     ob << primary_input_idx;
@@ -187,7 +193,13 @@ void kernel_impl_params::load(BinaryInputBuffer& ib) {
     ib >> num_fused_prims;
     fused_desc_onednn.resize(num_fused_prims);
     for (size_t idx = 0; idx < num_fused_prims; ++idx) {
-        ib >> make_data(&fused_desc_onednn[idx], sizeof(fused_primitive_desc_onednn));
+        ib >> make_data(&fused_desc_onednn[idx].op_type, sizeof(onednn_post_op_type));
+        ib >> fused_desc_onednn[idx].mem_offset;
+        ib >> fused_desc_onednn[idx].mem_dep;
+        ib >> make_data(&fused_desc_onednn[idx].tag, sizeof(dnnl::memory::format_tag));
+        ib >> fused_desc_onednn[idx].flatten;
+        ib >> fused_desc_onednn[idx].dims;
+        ib >> make_data(&fused_desc_onednn[idx].dt, sizeof(dnnl::memory::data_type));
     }
 #endif // ENABLE_ONEDNN_FOR_GPU
     ib >> primary_input_idx;
