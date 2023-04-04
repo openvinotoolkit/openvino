@@ -199,7 +199,11 @@ macro (ov_add_version_defines FILE TARGET)
         endif()
     endforeach()
     _remove_source_from_target(${TARGET} ${__version_file})
-    add_library(${TARGET}_version OBJECT ${__version_file})
+    if (BUILD_SHARED_LIBS)
+        add_library(${TARGET}_version OBJECT ${__version_file})
+    else()
+        add_library(${TARGET}_version STATIC ${__version_file})
+    endif()
     target_compile_definitions(${TARGET}_version PRIVATE
         ${all_defines}
         $<TARGET_PROPERTY:${TARGET},INTERFACE_COMPILE_DEFINITIONS>)
