@@ -5,7 +5,8 @@ document.addEventListener('DOMContentLoaded', function () {
 function sortableTables() {
 
    var tablestosort = $('div.sort-table').find('table.table').addClass('table-sortable');
-   var sortables = $('table.table-sortable');
+   var tablestosortnext = $('div.sort-table').next('table.table').addClass('table-sortable');
+   var sortables = $('table.table-sortable').append(tablestosortnext);
    var tables = sortables.append(tablestosort);
    tables.each(function () {
        var table = $(this);
