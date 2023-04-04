@@ -4,7 +4,6 @@
 import unittest
 from unittest.mock import patch, Mock
 
-import openvino
 from openvino.tools.mo.convert_impl import prepare_ir
 from openvino.tools.mo.utils.error import Error
 from openvino.frontend import FrontEndManager, FrontEnd # pylint: disable=no-name-in-module,import-error
@@ -12,7 +11,7 @@ from onnx.helper import make_graph, make_model, make_tensor_value_info
 import argparse
 import os
 import onnx
-# import paddle  # ticket 95904
+import sys
 import numpy as np
 import shutil
 import pytest
@@ -22,6 +21,14 @@ try:
     import openvino_telemetry as tm
 except ImportError:
     import openvino.tools.mo.utils.telemetry_stub as tm
+
+# ticket 95904
+try:
+    import paddle
+except ModuleNotFoundError as e:
+    if sys.version_info < (3, 11):
+        raise
+
 
 def base_args_config(use_legacy_fe:bool=None, use_new_fe:bool=None):
     args = argparse.Namespace()
@@ -119,20 +126,20 @@ class TestMoFallback(unittest.TestCase):
             with open(file, 'w') as f:
                 f.write(content)
 
-        # Skipped: ticket 95904
-        #self.paddle_dir = "paddle_dir"
-        #paddle.enable_static()
-        #if not os.path.exists(self.paddle_dir):
-        #    os.mkdir(self.paddle_dir)
-        #x = np.array([-2, 0, 1]).astype('float32')
-        #node_x = paddle.static.data(name='x', shape=x.shape, dtype='float32')
-        #out = paddle.nn.functional.relu(node_x)
+        if sys.version_info < (3, 11):  # ticket 95904
+            self.paddle_dir = "paddle_dir"
+            paddle.enable_static()
+            if not os.path.exists(self.paddle_dir):
+                os.mkdir(self.paddle_dir)
+            x = np.array([-2, 0, 1]).astype('float32')
+            node_x = paddle.static.data(name='x', shape=x.shape, dtype='float32')
+            out = paddle.nn.functional.relu(node_x)
 
-        #cpu = paddle.static.cpu_places(1)
-        #exe = paddle.static.Executor(cpu[0])
-        #exe.run(paddle.static.default_startup_program())
+            cpu = paddle.static.cpu_places(1)
+            exe = paddle.static.Executor(cpu[0])
+            exe.run(paddle.static.default_startup_program())
 
-        #save_paddle_model("relu", exe, feedkeys=['x'], fetchlist=[out], target_dir=self.paddle_dir)
+            save_paddle_model("relu", exe, feedkeys=['x'], fetchlist=[out], target_dir=self.paddle_dir)
 
 
     def tearDown(self):
@@ -140,7 +147,8 @@ class TestMoFallback(unittest.TestCase):
             os.remove(name)
         for name in self.test_config_files:
             os.remove(name)
-        # shutil.rmtree(self.paddle_dir)  # ticket: 95904
+        if sys.version_info < (3, 11):  # ticket 95904
+            shutil.rmtree(self.paddle_dir)
 
 
     @generate(*[(['dir_to_extension'], None, None, 'mo_legacy', 'extensions'), # fallback
@@ -273,7 +281,7 @@ class TestMoFallback(unittest.TestCase):
                 tm.Telemetry.send_event.assert_any_call('mo', 'fallback_reason')
 
 
-    @pytest.mark.skip("Ticket: 95904")
+    @pytest.mark.skipif(sys.version_info > (3, 10), "Ticket: 95904")
     @generate(*[(True, None, None, 'paddle_frontend'),
                 (None, None, None, 'paddle_frontend'),
     ])
@@ -290,7 +298,7 @@ class TestMoFallback(unittest.TestCase):
             tm.Telemetry.send_event.assert_any_call('mo', 'fallback_reason')
 
 
-    @pytest.mark.skip("Ticket: 95904")
+    @pytest.mark.skipif(sys.version_info > (3, 10), "Ticket: 95904")
     def test_exception_if_old_extensions_used_for_pdpd(self):
         args = base_args_config()
         args.framework = 'paddle'

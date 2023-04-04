@@ -6,13 +6,18 @@ import os
 import glob
 import re
 
-import paddle
-from paddle.jit import to_static
-from paddle.static import InputSpec
+# ticket 95904
+try:
+    import paddle
+    from paddle.jit import to_static
+    from paddle.static import InputSpec
+except ModuleNotFoundError as e:
+    if sys.version_info < (3, 11):
+        raise
+
 import pytest
 
 import sys
-print(sys.path)
 
 from openvino.frontend import FrontEndManager
 from openvino.runtime import shutdown
@@ -59,6 +64,7 @@ def teardown_module():
     shutdown()
 
 
+@pytest.mark.skipif(sys.version_info > (3, 10), "Ticket: 95904")
 def test_paddle_conversion_extension():
     skip_if_paddle_frontend_is_disabled()
 
@@ -89,6 +95,7 @@ def test_paddle_conversion_extension():
     assert invoked
 
 
+@pytest.mark.skipif(sys.version_info > (3, 10), "Ticket: 95904")
 def test_op_extension_via_paddle_extension_set_attrs_values():
     skip_if_paddle_frontend_is_disabled()
 
@@ -109,6 +116,7 @@ def test_op_extension_via_paddle_extension_set_attrs_values():
     assert model
 
 
+@pytest.mark.skipif(sys.version_info > (3, 10), "Ticket: 95904")
 def test_op_extension_via_frontend_extension_set_attrs_values():
     skip_if_paddle_frontend_is_disabled()
 
@@ -142,6 +150,7 @@ def get_builtin_extensions_path():
     raise RuntimeError("Unable to find test_builtin_extensions")
 
 
+@pytest.mark.skipif(sys.version_info > (3, 10), "Ticket: 95904")
 def test_so_extension_via_frontend_convert_input_model():
     skip_if_paddle_frontend_is_disabled()
 
@@ -157,6 +166,7 @@ def test_so_extension_via_frontend_convert_input_model():
     assert all(op.get_type_name() != "Clamp" for op in model.get_ops())
 
 
+@pytest.mark.skipif(sys.version_info > (3, 10), "Ticket: 95904")
 def test_so_extension_via_frontend_decode_input_model():
     skip_if_paddle_frontend_is_disabled()
 
