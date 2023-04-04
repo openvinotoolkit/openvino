@@ -139,9 +139,9 @@ Following the OpenVINO™ naming convention, the Automatic Device Selection mode
 | |                                             | |       ``true``                                                     |
 | |                                             | |       ``false``                                                    |
 | |                                             | |                                                                    |
-| |                                             | | Enables/disables runtime fallback to other devices and performs the |
-| |                                             | | failed inference request again, if inference request fails on       |
-| |                                             | | the currently selected device.                                           |
+| |                                             | | Enables/disables runtime fallback to other devices and performs    |
+| |                                             | | the failed inference request again, if inference request fails on  |
+| |                                             | | the currently selected device.                                     |
 | |                                             | | The default value is ``true``.                                     |
 +-----------------------------------------------+----------------------------------------------------------------------+
 
