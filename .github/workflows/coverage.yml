@@ -1,5 +1,25 @@
 name: Code coverage
-on: push
+on:
+  push:
+    branches:
+      - master
+      - releases/*
+    paths-ignore:
+      - docs/
+      - /**/docs/*
+      - /**/*.md
+      - README.md
+      - /**/layer_tests_summary/**
+  pull_request:
+    branches:
+      - master
+      - releases/*
+    paths-ignore:
+      - docs/
+      - /**/docs/*
+      - /**/*.md
+      - README.md
+      - /**/layer_tests_summary/**
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
