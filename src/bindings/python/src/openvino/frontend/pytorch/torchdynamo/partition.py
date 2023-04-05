@@ -36,7 +36,6 @@ class Partitioner:
         # logger.debug("Compiling graph_module: ", graph_module.code)
         print("Compiling graph_module: ", graph_module.code)
         # FX graph based partitioning based on nvfuser supported ops
-        print("partitioner_cache miss!")
         partitioner = CapabilityBasedPartitioner(
             graph_module, self.supported_ops, allows_single_node_partition=True)
         fused_graph_module = partitioner.partition_and_fuse()
