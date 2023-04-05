@@ -11,6 +11,8 @@
 #include <intel_gpu/primitives/input_layout.hpp>
 #include <intel_gpu/primitives/eltwise.hpp>
 
+#include "reshape_inst.h"
+
 using namespace cldnn;
 using namespace ::tests;
 using namespace testing;
@@ -939,6 +941,54 @@ TEST(reshape_gpu_f32, basic_runtime_dynamic_shape_with_const_optimized_out) {
 
     for (size_t i = 0; i < input_data.size(); i++) {
         ASSERT_TRUE(are_equal(input_data[i], output_ptr[i]));
+    }
+}
+
+TEST(reshape_gpu_f32, basic_dynamic_shape_to_static_optimized_out) {
+    auto& engine = get_test_engine();
+
+    auto input = engine.allocate_memory(layout{ov::PartialShape{2, 10}, data_types::f32, format::bfyx});
+    topology topology;
+    topology.add(input_layout("input", layout{ov::PartialShape::dynamic(2), data_types::f32, format::bfyx}));
+    topology.add(reshape("reshape", input_info("input"), false, {2, 10}, {2, 10}));
+    topology.add(reduce("reduce", input_info("reshape"), reduce_mode::max, {1}, true));
+
+    // clang-format off
+    std::vector<float> input_data = {
+        0.0, 1.f, 2.f, 3.f, 4.f, 5.f, 6.f, 7.f, 8.f, 9.f,
+        0.0, 1.f, 2.f, 3.f, 4.f, 5.f, 6.f, 7.f, 8.f, 9.f,
+    };
+    // clang-format on
+
+    set_values(input, input_data);
+
+    ExecutionConfig config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+    config.set_property(ov::intel_gpu::optimize_data(true));
+    network network(engine, topology, config);
+    network.set_input_data("input", input);
+    auto outputs = network.execute();
+
+    ASSERT_TRUE(network.get_primitive("reshape")->can_be_optimized());
+
+    ASSERT_EQ(outputs.size(), size_t(1));
+    ASSERT_EQ(outputs.begin()->first, "reduce");
+
+    auto output = outputs.at("reduce").get_memory();
+
+    ASSERT_EQ(output->get_layout().data_type, input->get_layout().data_type);
+    ASSERT_EQ(output->get_layout().format, format::bfyx);
+    ASSERT_TRUE(output->get_layout().is_static());
+    ov::PartialShape expected_shape = {2, 1};
+    ASSERT_EQ(output->get_layout().get_partial_shape(), expected_shape);
+
+    cldnn::mem_lock<float> output_ptr(output, get_test_stream());
+    std::vector<float> expected_res = {9.f, 9.f};
+    ASSERT_EQ(output_ptr.size(), expected_res.size());
+
+
+    for (size_t i = 0; i < expected_res.size(); i++) {
+        ASSERT_EQ(expected_res[i], output_ptr[i]);
     }
 }
 

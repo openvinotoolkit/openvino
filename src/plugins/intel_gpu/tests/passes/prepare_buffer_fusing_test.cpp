@@ -85,7 +85,7 @@ TEST(prepare_buffer_fusing, static_node_after_optimized_out_dyn_reshape) {
     program_wrapper::apply_opt_pass<prepare_buffer_fusing>(*prog);
     program_wrapper::apply_opt_pass<compile_graph>(*prog);
     ASSERT_NO_THROW(prog->get_node("reshape"));
-    ASSERT_FALSE(prog->get_node("reshape").can_be_optimized());
+    ASSERT_TRUE(prog->get_node("reshape").can_be_optimized());
     program_wrapper::apply_opt_pass<build_implementations>(*prog);
 
     ASSERT_TRUE(has_node_with_type<reshape>(*prog));
