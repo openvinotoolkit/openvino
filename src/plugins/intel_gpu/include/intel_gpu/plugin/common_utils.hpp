@@ -156,5 +156,16 @@ inline InferenceEngine::Layout InferenceEngineLayoutFromOVLayout(ov::Layout l) {
     IE_THROW() << "The plugin does not support " << l.to_string() << " layout";
 }
 
+/// WA: Force exit. Any opencl api call can be hang after CL_OUT_OF_RESOURCES.
+inline void ForceExit() {
+    std::cerr << "[GPU] force exit.\n"
+              << "\tDue to the driver bug any subsequent OpenCL API call will cause application hang, "
+              << "so GPU plugin can't finish correctly.\n"
+              << "\tPlease try to update the driver or reduce memory consumption "
+              << "(use smaller batch size, less streams, lower precision, etc)"
+              << "to avoid CL_OUT_OF_RESOURCES exception" << std::endl;
+    std::_Exit(-1);
+}
+
 }  // namespace intel_gpu
 }  // namespace ov
