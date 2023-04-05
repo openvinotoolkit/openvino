@@ -642,8 +642,22 @@ void network::set_arguments() {
         return;
 
     for (auto const& prim : _exec_order) {
-        if (!prim->is_dynamic())
-            prim->set_arguments();
+        if (!prim->is_dynamic()) {
+            bool can_set_args = true;
+            for (auto& dep : prim->dependencies()) {
+                // Skip set args for nodes with dynamic & optimized_out dependency
+                // This is needed to handle dynamic -> static cases like
+                // (dynamic) -> reshape -> (static) -> some_op
+                // In that case some_op is static and we may want to set arguments once,
+                // but dynamic optimized out reshape means that output buffer of reshape is unavailable
+                // and attempt to set args will fail.
+                if (dep.first->can_be_optimized() && dep.first->is_dynamic())
+                    can_set_args = false;
+            }
+
+            if (can_set_args)
+                prim->set_arguments();
+        }
     }
     _reset_arguments = false;
 }
@@ -1308,7 +1322,7 @@ void network::allocate_primitive_instance(program_node const& node) {
                     return true;
             }
             if (dep.first->can_be_optimized()) {
-                if (is_mutable_input(*dep.first)) {
+                if (is_mutable_input(*dep.first) || dep.first->is_dynamic()) {
                     return true;
                 }
             }
