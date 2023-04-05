@@ -78,7 +78,13 @@ In the resulting converted OpenVINO model, “MyRelu” operation will be replac
 Attributes Mapping
 ++++++++++++++++++
 
-As described above, ``OpExtension`` is useful when attributes can be mapped one by one or initialized by a constant. If the set of attributes in framework representation and OpenVINO representation completely match by their names and types, nothing should be specified in OpExtension constructor parameters. The attributes are discovered and mapped automatically based on ``visit_attributes`` method that should be defined for any OpenVINO operation.
+As described above, ``OpExtension`` is useful when attributes can be mapped one by one or initialized by a constant.
+Attributes in OpenVINO operators are identified by their names, so for frameworks that also have named attributes (like Tensorflow, PaddlePaddle, ONNX), you can specify name to name mapping. For frameworks where OpenVINO operator's attributes can be mapped to one of the framework operator inputs (like Pytorch), there's a name to input index mapping.
+
+Named attributes mapping
+^^^^^^^^^^^^^^^^^^^^^^^^
+
+If the set of attributes in framework representation and OpenVINO representation completely match by their names and types, no attribute mapping has to be specified in OpExtension constructor parameters. The attributes are discovered and mapped automatically based on ``visit_attributes`` method that should be defined for any OpenVINO operation.
 
 Imagine you have CustomOperation class implementation that has two attributes with names ``attr1`` and ``attr2``:
 
@@ -86,17 +92,33 @@ Imagine you have CustomOperation class implementation that has two attributes wi
    :language: cpp
    :fragment: [frontend_extension_CustomOperation]
 
-And original model in framework representation also has operation with name “CustomOperatoin” with the same ``attr1`` and ``attr2`` attributes. Then with the following code:
+And original model in framework representation also has operation with name ``CustomOperation`` with the same ``attr1`` and ``attr2`` attributes. Then with the following code:
 
 .. doxygensnippet:: docs/snippets/ov_extensions.cpp
    :language: cpp
    :fragment: [frontend_extension_CustomOperation_as_is]
 
-both ``attr1`` and ``attr2`` are copied from framework representation to OpenVINO representation automatically. If for some reason names of attributes are different but values still can be copied “as-is” you can pass attribute names mapping in ``OpExtension`` constructor:
+both ``attr1`` and ``attr2`` are copied from framework representation to OpenVINO representation automatically.
+
+The code is slightly different, if you want to use ``OpExtension`` for PaddlePaddle model. PaddlePaddle operations have named inputs and outputs, so you need to pass their names in ``OpExtension`` constructor. For example, if ``CustomOperation`` has 3 inputs named "A", "B" and "C" and two outputs named "X" and "Y", then the code that registers the extension looks like following:
+
+.. doxygensnippet:: docs/snippets/ov_extensions.cpp
+   :language: cpp
+   :fragment: [frontend_extension_CustomOperation_as_is_paddle]
+
+
+If for some reason names of attributes are different but values still can be copied “as-is” you can pass attribute names mapping in ``OpExtension`` constructor:
 
 .. doxygensnippet:: docs/snippets/ov_extensions.cpp
    :language: cpp
    :fragment: [frontend_extension_CustomOperation_rename]
+
+and similarily if ``CustomOperation`` will be used in PaddlePaddle model:
+
+.. doxygensnippet:: docs/snippets/ov_extensions.cpp
+   :language: cpp
+   :fragment: [frontend_extension_CustomOperation_rename_paddle]
+
 
 Where ``fw_attr1`` and ``fw_attr2`` are names for corresponding attributes in framework operation representation.
 
@@ -106,6 +128,14 @@ If copying of an attribute is not what you need, ``OpExtension`` also can set at
    :language: cpp
    :fragment: [frontend_extension_CustomOperation_rename_set]
 
+
+and similarily with named inputs and outputs:
+
+.. doxygensnippet:: docs/snippets/ov_extensions.cpp
+   :language: cpp
+   :fragment: [frontend_extension_CustomOperation_rename_set_paddle]
+
+
 So the conclusion is that each attribute of target OpenVINO operation should be initialized either by
 
 1. Setting automatically due to name matching
@@ -114,34 +144,82 @@ So the conclusion is that each attribute of target OpenVINO operation should be 
 
 3. Set to a constant value
 
-This is achieved by specifying maps as arguments for `OpExtension` constructor.
+This is achieved by specifying maps as arguments for ``OpExtension`` constructor.
 
-### Mapping custom operations to frontends with OPENVINO_FRAMEWORK_MAP macro
 
-> **NOTE**: Below solution works only for ONNX and Tensorflow frontends.
+Mapping attributes from operation inputs
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-`OPENVINO_FRAMEWORK_MAP` is a macro that should be used inside OpenVINO operation's class definition and that lets you specify the mapping between this operation to a frontend operation.
+For models (like Pytorch models), where operations have attributes on the input list, you can specify name to input index mapping.
+For example, imagine you have created a custom OpenVINO operation that implements a variant of ELU activation function with two attributes ``alpha`` and ``beta``:
 
-Let's consider the following example. Imagine you have an ONNX model with `CustomOp` operation (and this operation has `mode` attribute) and a Tensorflow model with `CustomOpV3` operation (this operation has `axis` attribute) and both of them can be implemented with a single OpenVINO operation `CustomOp` like follows:
+.. math::
 
-@snippet ov_extensions.cpp frontend_extension_framework_map_macro_headers
-@snippet ov_extensions.cpp frontend_extension_framework_map_macro_CustomOp
+    CustomElu=\left\lbrace
+    \begin{array}{ll}
+    beta * x & \textrm{if x > 0} \newline
+    alpha * (exp(x) - 1) & \textrm{otherwise}
+    \end{array}
+    \right.
 
-Let's take a closer look at the parameters this macro takes:
-```cpp
-OPENVINO_FRAMEWORK_MAP(framework, name, attributes_map, attributes_values)
-```
-- `framework` - framework name.
-- `name` - the framework operation name. It's optional if the OpenVINO custom operation name (that is the name that is passed as the first parameter to `OPENVINO_OP` macro) is the same as the framework operation name and both `attributes_map` and `attributes_values` are not provided.
-- `attributes_map` - used to provide a mapping between OpenVINO operation attribute and framework operation attribute. Contains key-value pairs, where key is an OpenVINO operation attribute name and value is its corresponding framework operation attribute name. This parameter is optional if the number of OpenVINO operation attributes and their names match one-to-one with framework operation attributes.
-- `attributes_values` - used to provide default values for OpenVINO operation attributes that are not specified in `attributes_map`. Contains key-value pairs, where key is an OpenVINO operation attribute name and the value is this attribute value. This parameter cannot be provided if `attributes_map` contains all of OpenVINO operation attributes or if `attributes_map` is not provided.
+Below is a snippet of ``CustomElu`` class showing how to define its attributes: 
 
-In the example above, `OPENVINO_FRAMEWORK_MAP` is used twice.
-First, OpenVINO `CustomOp` is mapped to ONNX `CustomOp` operation, `m_mode` attribute is mapped to `mode` attribute, while `m_axis` attribute gets the default value `-1`.
-Secondly, OpenVINO `CustomOp` is mapped to Tensorflow `CustomOpV3` operation, `m_axis` attribute is mapped to `axis` attribute, while `m_mode` attribute gets the default value `"linear"`.
+.. doxygensnippet:: docs/snippets/ov_extensions.cpp
+   :language: cpp
+   :fragment: [frontend_extension_framework_map_CustomElu]
+
+Let's see an example of how you can map ``CustomElu`` to Pytorch `aten::elu <https://pytorch.org/docs/stable/generated/torch.nn.functional.elu.html>`_ (note that if ``beta`` is equal to ``1``, ``CustomElu`` works the same as ``aten::elu``).
+``aten::elu`` has ``alpha`` attribute second on the input list, but it doesn't have ``beta``. So in order to map it to ``CustomElu`` you can use the following:
+
+.. doxygensnippet:: docs/snippets/ov_extensions.cpp
+   :language: cpp
+   :fragment: [frontend_extension_framework_map_CustomElu_mapping]
+
+This will map ``alpha`` to the second input and map ``beta`` attribute to constant value ``1.0f``.
+
+Such created extension can be used, e.g. in dynamic library, please refer to :ref:`Create a library with extensions <create_a_library_with_extensions>`.
+
+Mapping custom operations to frontends with OPENVINO_FRAMEWORK_MAP macro
+########################################################################
+
+``OPENVINO_FRAMEWORK_MAP`` is a macro that should be used inside OpenVINO operation's class definition and that lets you specify the mapping between this operation to a frontend operation.
+
+Let's consider the following example. Imagine you have an ONNX model with ``CustomOp`` operation (and this operation has ``mode`` attribute), a Tensorflow model with ``CustomOpV3`` operation (this operation has ``axis`` attribute) and a PaddlePaddle model with ``CustomOp`` (with ``mode`` attribute) that has input named "X" and output named "Out" and all of them can be implemented with a single OpenVINO operation ``CustomOp`` like follows:
+
+.. doxygensnippet:: docs/snippets/ov_extensions.cpp
+   :language: cpp
+   :fragment: [frontend_extension_framework_map_macro_headers]
+
+.. doxygensnippet:: docs/snippets/ov_extensions.cpp
+   :language: cpp
+   :fragment: [frontend_extension_framework_map_macro_CustomOp]
+
+Let's take a closer look at the parameters this macro takes (note that there are two flavors - the second one is to map for PaddlePaddle operations where input and output names have to be specified):
+
+.. code-block:: cpp
+
+   OPENVINO_FRAMEWORK_MAP(framework, name, attributes_map, attributes_values)
+   OPENVINO_FRAMEWORK_MAP(framework, name, input_names, output_names, attributes_map, attributes_values)
+
+- ``framework`` - framework name.
+- ``name`` - the framework operation name. It's optional if the OpenVINO custom operation name (that is the name that is passed as the first parameter to ``OPENVINO_OP`` macro) is the same as the framework operation name and both ``attributes_map`` and ``attributes_values`` are not provided.
+- ``input_names`` - vector of strings that specify the names of inputs (needed to map PaddlePaddle to OpenVINO operations),
+- ``output_names`` - vector of strings that specify the names of outputs (needed to map PaddlePaddle to OpenVINO operations),
+- ``attributes_map`` - used to provide a mapping between OpenVINO operation attribute and framework operation attribute. Contains key-value pairs, where key is an OpenVINO operation attribute name and value is its corresponding framework operation attribute name. This parameter is optional if the number of OpenVINO operation attributes and their names match one-to-one with framework operation attributes.
+- ``attributes_values`` - used to provide default values for OpenVINO operation attributes that are not specified in ``attributes_map``. Contains key-value pairs, where key is an OpenVINO operation attribute name and the value is this attribute value. This parameter cannot be provided if ``attributes_map`` contains all of OpenVINO operation attributes or if ``attributes_map`` is not provided.
+
+In the example above, ``OPENVINO_FRAMEWORK_MAP`` is used three times.
+First, OpenVINO ``CustomOp`` is mapped to ONNX ``CustomOp`` operation, ``m_mode`` attribute is mapped to ``mode`` attribute, while ``m_axis`` attribute gets the default value ``-1``.
+Secondly, OpenVINO ``CustomOp`` is mapped to Tensorflow ``CustomOpV3`` operation, ``m_axis`` attribute is mapped to ``axis`` attribute, while ``m_mode`` attribute gets the default value ``"linear"``.
+Thirdly, OpenVINO ``CustomOp`` is mapped to PaddlePaddle ``CustomOp`` operation, ``m_mode`` attribute is mapped to ``mode`` attribute, while ``m_axis`` attribute gets the default value ``-1``. This mapping also specifies the input name "X" and output name "Out".
 
 The last step is to register this custom operation by following:
-@snippet ov_extensions.cpp frontend_extension_framework_map_macro_add_extension
+
+
+.. doxygensnippet:: docs/snippets/ov_extensions.cpp
+   :language: cpp
+   :fragment: [frontend_extension_framework_map_macro_add_extension]
+
 
 Mapping to Multiple Operations with ConversionExtension
 #######################################################
@@ -152,7 +230,7 @@ In case if one-to-one mapping is not possible, *decomposition to multiple operat
 
 ``ConversionExtension`` maps a single operation to a function which builds a graph using OpenVINO operation classes. Follow chapter :ref:`Build a Model in OpenVINO Runtime <ov_ug_build_model>` to learn how to use OpenVINO operation classes to build a fragment of model for replacement.
 
-The next example illustrates using ``ConversionExtension`` for conversion of “ThresholdedRelu” from ONNX according to the formula: ``ThresholdedRelu(x, alpha) -> Multiply(x, Convert(Greater(x, alpha), type=float))``.
+Below example illustrates using ``ConversionExtension`` for conversion of “ThresholdedRelu” from ONNX according to the formula: ``ThresholdedRelu(x, alpha) -> Multiply(x, Convert(Greater(x, alpha), type=float))``.
 
 .. note:: 
    ``ThresholdedRelu`` is one of the standard ONNX operators which is supported by ONNX frontend natively out-of-the-box. Here we are re-implementing it to illustrate how you can add a similar support for your custom operation instead of ``ThresholdedRelu``.
@@ -191,11 +269,21 @@ The next example illustrates using ``ConversionExtension`` for conversion of “
          :fragment: [py_frontend_extension_ThresholdedReLU]
 
 
-To access original framework operation attribute value and connect to inputs, ``node`` object of type ``NodeContext`` is used. It has two main methods:
+The next example shows how to use ``ConversionExtension`` to convert Pytorch `aten::hardtanh <https://pytorch.org/docs/stable/generated/torch.nn.functional.hardtanh.html>`_ to demonstrate how to use ``get_values_from_const_input`` function to fetch an attribute value from input:
+
+
+.. doxygensnippet:: docs/snippets/ov_extensions.py
+   :language: python
+   :fragment: [py_frontend_extension_aten_hardtanh]
+
+
+To access original framework operation attribute value and connect to inputs, ``node`` object of type ``NodeContext`` is used. It has three main methods:
 
 * ``NodeContext::get_input`` to get input with a given index,
 
-* ``NodeContext::get_attribute`` to get attribute value with a given name.
+* ``NodeContext::get_attribute`` to get attribute value with a given name,
+
+* ``NodeContext::get_values_from_const_input`` to get an attribute with a given input index.
 
 The conversion function should return a vector of node outputs that are mapped to corresponding outputs of the original framework operation in the same order.
 
