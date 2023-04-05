@@ -39,6 +39,8 @@ BuiltinFunctionGetItemReplacer::BuiltinFunctionGetItemReplacer() {
         axis = _axis[0];
 
         const auto&& tmp_inputs = get_list_as_outputs(getitem->get_input_source_output(0));
+        if (tmp_inputs.size() <= axis)
+            return false;
 
         auto getitem_idx = ov::op::v0::Constant::create(element::i32, Shape{1}, {0});
         auto zero = ov::op::v0::Constant::create(element::i32, Shape{}, {0});
