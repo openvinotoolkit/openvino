@@ -9,9 +9,12 @@ Check the versions of OpenVINO Runtime and Developement Tools
 
 * To check the version of OpenVINO Development Tools, use the following command:
    
+# cli tool 
   .. code-block:: sh
      
      mo --version
+# MO Python API
+ov_model = convert_model(version=True)
    
 * To check the version of OpenVINO Runtime, use the following code:
    

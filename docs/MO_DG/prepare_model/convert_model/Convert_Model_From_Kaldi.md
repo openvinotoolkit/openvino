@@ -5,7 +5,10 @@
 <a name="Convert_From_Kaldi"></a>To convert a Kaldi model, run Model Optimizer with the path to the input model `.nnet` or `.mdl` file:
 
 ```sh
+# cli tool 
  mo --input_model <INPUT_MODEL>.nnet
+# MO Python API
+ov_model = convert_model("<INPUT_MODEL>.nnet")
 ```
 
 ## Using Kaldi-Specific Conversion Parameters <a name="kaldi_specific_conversion_params"></a>
@@ -24,12 +27,20 @@ Kaldi-specific parameters:
 
 * To launch Model Optimizer for the `wsj_dnn5b_smbr` model with the specified `.nnet` file:
    ```sh
+# cli tool 
    mo --input_model wsj_dnn5b_smbr.nnet
+
+# MO Python API
+   ov_model = convert_model("wsj_dnn5b_smbr.nnet")
    ```
 
 * To launch Model Optimizer for the `wsj_dnn5b_smbr` model with the existing file that contains counts for the last layer with biases:
    ```sh
+   # cli tool 
    mo --input_model wsj_dnn5b_smbr.nnet --counts wsj_dnn5b_smbr.counts
+   
+   # MO Python API
+   ov_model = convert_model("wsj_dnn5b_smbr.nnet", counts="wsj_dnn5b_smbr.counts")
    ```
 
   * The Model Optimizer normalizes сounts in the following way:
@@ -48,7 +59,11 @@ Kaldi-specific parameters:
 * If you want to remove the last SoftMax layer in the topology, launch the Model Optimizer with the
 `--remove_output_softmax` flag:
    ```sh
+   # cli tool 
    mo --input_model wsj_dnn5b_smbr.nnet --counts wsj_dnn5b_smbr.counts --remove_output_softmax
+  
+   # MO Python API
+   ov_model = convert_model("wsj_dnn5b_smbr.nnet", counts="wsj_dnn5b_smbr.counts", remove_output_softmax=True)
    ```
 
    The Model Optimizer finds the last layer of the topology and removes this layer only if it is a SoftMax layer.

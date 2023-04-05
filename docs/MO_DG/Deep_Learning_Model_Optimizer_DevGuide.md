@@ -40,7 +40,11 @@ The OpenVINO IR can be additionally optimized for inference by [Post-training op
 To convert a model to IR, you can run Model Optimizer by using the following command:
 
 ```sh
+# cli tool 
 mo --input_model INPUT_MODEL
+
+# MO Python API
+ov_model = convert_model(INPUT_MODEL)
 ```
 
 If the out-of-the-box conversion (only the `--input_model` parameter is specified) is not successful, use the parameters mentioned below to override input shapes and cut the model:
@@ -61,7 +65,11 @@ The `--compress_to_fp16` compression parameter in Model Optimizer allows generat
 To get the full list of conversion parameters available in Model Optimizer, run the following command:
 
 ```sh
+# cli tool 
 mo --help
+
+# MO Python API
+ov_model = convert_model(help=True)
 ```
 
 ## Examples of CLI Commands
@@ -70,18 +78,30 @@ Below is a list of separate examples for different frameworks and Model Optimize
 
 1. Launch Model Optimizer for a TensorFlow MobileNet model in the binary protobuf format:
 ```sh
+# cli tool 
 mo --input_model MobileNet.pb
+
+# MO Python API
+ov_model = convert_model("MobileNet.pb")
 ```
 Launch Model Optimizer for a TensorFlow BERT model in the SavedModel format with three inputs. Specify input shapes explicitly
 where the batch size and the sequence length equal 2 and 30 respectively:
 ```sh
+# cli tool 
 mo --saved_model_dir BERT --input mask,word_ids,type_ids --input_shape [2,30],[2,30],[2,30]
+
+# MO Python API
+ov_model = convert_model(saved_model_dir="BERT", input=["mask", "word_ids", "type_ids"], input_shape=[[2,30],[2,30],[2,30]])
 ```
 For more information, refer to the [Converting a TensorFlow Model](prepare_model/convert_model/Convert_Model_From_TensorFlow.md) guide.
 
 2. Launch Model Optimizer for an ONNX OCR model and specify new output explicitly:
 ```sh
+# cli tool 
 mo --input_model ocr.onnx --output probabilities
+
+# MO Python API
+ov_model = convert_model("ocr.onnx", output="probabilities")
 ```
 For more information, refer to the [Converting an ONNX Model](prepare_model/convert_model/Convert_Model_From_ONNX.md) guide.
 
@@ -89,25 +109,41 @@ For more information, refer to the [Converting an ONNX Model](prepare_model/conv
 
 3. Launch Model Optimizer for a PaddlePaddle UNet model and apply mean-scale normalization to the input:
 ```sh
+# cli tool 
 mo --input_model unet.pdmodel --mean_values [123,117,104] --scale 255
+
+# MO Python API
+ov_model = convert_model("unet.pdmodel", mean_values=[123,117,104], scale=255)
 ```
 For more information, refer to the [Converting a PaddlePaddle Model](prepare_model/convert_model/Convert_Model_From_Paddle.md) guide.
 
 4. Launch Model Optimizer for an Apache MXNet SSD Inception V3 model and specify first-channel layout for the input:
 ```sh
+# cli tool 
 mo --input_model ssd_inception_v3-0000.params --layout NCHW
+
+# MO Python API
+ov_model = convert_model("ssd_inception_v3-0000.params", layout="NCHW")
 ```
 For more information, refer to the [Converting an Apache MXNet Model](prepare_model/convert_model/Convert_Model_From_MxNet.md) guide.
 
 5. Launch Model Optimizer for a Caffe AlexNet model with input channels in the RGB format which needs to be reversed:
 ```sh
+# cli tool 
 mo --input_model alexnet.caffemodel --reverse_input_channels
+
+# MO Python API
+ov_model = convert_model("alexnet.caffemodel", reverse_input_channels=True)
 ```
 For more information, refer to the [Converting a Caffe Model](prepare_model/convert_model/Convert_Model_From_Caffe.md) guide.
 
 6. Launch Model Optimizer for a Kaldi LibriSpeech nnet2 model:
 ```sh
+# cli tool 
 mo --input_model librispeech_nnet2.mdl --input_shape [1,140]
+
+# MO Python API
+ov_model = convert_model("librispeech_nnet2.mdl", input_shape=[1,140])
 ```
 For more information, refer to the [Converting a Kaldi Model](prepare_model/convert_model/Convert_Model_From_Kaldi.md) guide.
 

@@ -13,5 +13,9 @@ To download the model and sample test data, go to [this model](https://github.co
 
 Generate the Intermediate Representation of the model GPT-2 by running Model Optimizer with the following parameters:
 ```sh
+# cli tool 
 mo --input_model gpt2-10.onnx --input_shape [X,Y,Z] --output_dir <OUTPUT_MODEL_DIR>
+
+# MO Python API
+ov_model = convert_model("gpt2-10.onnx", input_shape=[X,Y,Z])
 ```

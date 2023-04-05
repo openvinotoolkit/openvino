@@ -147,13 +147,20 @@ omz_downloader --name googlenet-v1 --output_dir %USERPROFILE%\Documents\models
 
 Linux and macOS:
 ```sh
+# cli tool 
 mkdir ~/ir
-mo --input_model ~/models/public/googlenet-v1/googlenet-v1.caffemodel --data_type FP16 --output_dir ~/ir
+mo --input_model ~/models/public/googlenet-v1/googlenet-v1.caffemodel --output_dir ~/ir
+# MO Python API
+ov_model = convert_model("~/models/public/googlenet-v1/googlenet-v1.caffemodel")
 ```
 Windows:
 ```bat
+# cli tool 
 mkdir %USERPROFILE%\Documents\ir
-mo --input_model %USERPROFILE%\Documents\models\public\googlenet-v1\googlenet-v1.caffemodel --data_type FP16 --output_dir %USERPROFILE%\Documents\ir
+mo --input_model %USERPROFILE%\Documents\models\public\googlenet-v1\googlenet-v1.caffemodel --output_dir %USERPROFILE%\Documents\ir
+
+# MO Python API
+ov_model = convert_model("%USERPROFILE%\Documents\models\public\googlenet-v1\googlenet-v1.caffemodel")
 ```
 
 5. Run Inference on the Sample

@@ -162,7 +162,10 @@ python3 eval.py \
 
 **Step 4**. Convert the model to the IR:
 ```sh
+# cli tool 
 mo --input_model /path/to/yolact.onnx
+# MO Python API
+ov_model = convert_model("/path/to/yolact.onnx")
 ```
 
 **Step 4**. Embed input preprocessing into the IR:
@@ -171,17 +174,24 @@ To get performance gain by offloading to the OpenVINO application of mean/scale 
 
 * If the backbone of the model is Resnet50-FPN or Resnet101-FPN, use the following MO command line:
 ```sh
+# cli tool 
 mo \
     --input_model /path/to/yolact.onnx \
     --reverse_input_channels \
     --mean_values "[123.68, 116.78, 103.94]" \
     --scale_values "[58.40, 57.12, 57.38]"
+# MO Python API
+ov_model = convert_model("/path/to/yolact.onnx", reverse_input_channels=True, mean_values=[123.68, 116.78, 103.94], scale_values=[58.40, 57.12, 57.38])
 ```
 
 * If the backbone of the model is Darknet53-FPN, use the following MO command line:
 ```sh
+# cli tool 
 mo \
     --input_model /path/to/yolact.onnx \
     --reverse_input_channels \
     --scale 255
+
+# MO Python API
+ov_model = convert_model("/path/to/yolact.onnx", reverse_input_channels=True, scale=255)
 ```

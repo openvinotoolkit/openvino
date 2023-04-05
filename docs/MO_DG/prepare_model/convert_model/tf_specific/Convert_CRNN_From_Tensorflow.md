@@ -47,6 +47,9 @@ python tools/demo_shadownet.py --image_path data/test_images/test_01.jpg --weigh
 
 **Step 4.** Convert the model to IR:
 ```sh
+# cli tool
 mo --input_model path/to/your/CRNN_Tensorflow/frozen_graph.pb
+# MO Python API
+ov_model = convert_model("path/to/your/CRNN_Tensorflow/frozen_graph.pb")
 ```
 

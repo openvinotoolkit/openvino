@@ -192,7 +192,11 @@ To save disk space for your IR file, you can apply [weights compression to FP16]
 Generic Model Optimizer script:
 
 ``` sh
+# cli tool 
    mo --input_model <model_dir>/<model_file>
+
+# MO Python API
+ov_model = convert_model("<model_dir>/<model_file>")
 ```
 
 The IR files produced by the script are written to the `<ir_dir>` directory.
@@ -203,21 +207,31 @@ The command with most placeholders filled in and FP16 precision:
 
 .. tab:: Linux
 
+# cli tool 
    .. code-block:: sh
 
       mo --input_model ~/models/public/googlenet-v1/googlenet-v1.caffemodel --compress_to_fp16 --output_dir ~/ir
 
+# MO Python API
+ov_model = convert_model("~/models/public/googlenet-v1/googlenet-v1.caffemodel", compress_to_fp16=True)
+
 .. tab:: Windows
 
+# cli tool 
    .. code-block:: bat
 
       mo --input_model %USERPROFILE%\Documents\models\public\googlenet-v1\googlenet-v1.caffemodel --compress_to_fp16 --output_dir %USERPROFILE%\Documents\ir
 
+# MO Python API
+ov_model = convert_model("%USERPROFILE%\Documents\models\public\googlenet-v1\googlenet-v1.caffemodel", compress_to_fp16=True)
 .. tab:: macOS
 
+# cli tool 
    .. code-block:: sh
 
       mo --input_model ~/models/public/googlenet-v1/googlenet-v1.caffemodel --compress_to_fp16 --output_dir ~/ir
+# MO Python API
+ov_model = convert_model("~/models/public/googlenet-v1/googlenet-v1.caffemodel", compress_to_fp16=True)
 
 @endsphinxdirective
 

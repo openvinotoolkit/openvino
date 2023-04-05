@@ -353,15 +353,27 @@ However, if your model contains more than one input, Model Optimizer is able to 
 
 *
 ```shell
+# cli tool 
  mo --input_model <INPUT_MODEL>.caffemodel --input_shape (1,3,227,227)
+ 
+# MO Python API
+ov_model = convert_model("<INPUT_MODEL>.caffemodel", input_shape=[1,3,227,227])
 ```
 *
 ```shell
+# cli tool 
  mo --input_model <INPUT_MODEL>.caffemodel --input_shape [1,3,227,227]
+ 
+# MO Python API
+ov_model = convert_model("<INPUT_MODEL>.caffemodel", input_shape=[1,3,227,227])
 ```
 *   In case of multi input topology you should also specify inputs:
 ```shell
+# cli tool 
  mo --input_model /path-to/your-model.caffemodel --input data,rois --input_shape (1,3,227,227),(1,6,1,1)
+ 
+# MO Python API
+ov_model = convert_model("/path-to/your-model.caffemodel", input=["data","rois"], input_shape=[[1,3,227,227],[1,6,1,1])
 ```
 
 Keep in mind that there is no space between and inside the brackets for input shapes.

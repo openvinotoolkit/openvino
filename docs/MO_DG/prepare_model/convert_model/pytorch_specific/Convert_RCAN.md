@@ -26,5 +26,9 @@ The script generates the ONNX model file `RCAN.onnx`. More information about mod
 ## Converting an ONNX RCAN Model to IR
 
 ```sh
+# cli tool 
 mo --input_model RCAN.onnx
+
+# MO Python API
+ov_model = convert_model("RCAN.onnx")
 ```

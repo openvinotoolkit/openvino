@@ -7,7 +7,11 @@ But in case if accuracy drop is significant user can disable compression explici
 
 By default, models are compressed to `FP16`, but you can disable compression by specifying `--compress_to_fp16=False`:
 ```
+# cli tool 
 mo --input_model INPUT_MODEL --compress_to_fp16=False
+  
+# MO Python API
+ov_model = convert_model(INPUT_MODEL, compress_to_fp16=False)
 ```
 
 For details on how plugins handle compressed `FP16` models, see [Working with devices](../../OV_Runtime_UG/supported_plugins/Device_Plugins.md).

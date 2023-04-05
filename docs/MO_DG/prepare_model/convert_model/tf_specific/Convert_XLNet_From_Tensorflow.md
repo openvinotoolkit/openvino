@@ -183,7 +183,10 @@ The script should save into `~/XLNet-Large/xlnet`.
 To generate the XLNet Intermediate Representation (IR) of the model, run Model Optimizer with the following parameters:
 
 ```sh
+# cli tool 
 mo --input_model path-to-model/model_frozen.pb \
    --input "input_mask[50,1],input_ids[50,1],seg_ids[50,1]"
+# MO Python API
+ov_model = convert_model("path-to-model/model_frozen.pb", input=[("input_mask", [50,1]), ("input_ids", [50,1]), ("seg_ids", [50,1])])
 ```
 

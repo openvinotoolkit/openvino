@@ -7,7 +7,11 @@ for the ASpIRE Chain Time Delay Neural Network (TDNN) from the Kaldi project off
 
 Generate the Intermediate Representation of the model by running Model Optimizer with the following parameters:
 ```sh
+# cli tool 
  mo --input_model exp/chain/tdnn_7b/final.mdl --output output
+  
+# MO Python API
+ov_model = convert_model("exp/chain/tdnn_7b/final.mdl", output="output")
 ```
 
 The IR will have two inputs: `input` for data, and `ivector` for ivectors.

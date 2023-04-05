@@ -29,7 +29,11 @@ For example, run Model Optimizer for the TensorFlow MobileNet model with the sin
 and specify the input shape of `[2,300,300,3]`:
 
 ```sh
+# cli tool 
 mo --input_model MobileNet.pb --input_shape [2,300,300,3]
+ 
+# MO Python API
+ov_model = convert_model("MobileNet.pb", input_shape=[2,300,300,3])
 ```
 
 If a model has multiple inputs, `--input_shape` must be used in conjunction with `--input` parameter.
@@ -38,13 +42,21 @@ For example, launch Model Optimizer for the ONNX OCR model with a pair of inputs
 and specify shapes `[3,150,200,1]` and `[3]` for them:
 
 ```sh
+# cli tool 
 mo --input_model ocr.onnx --input data,seq_len --input_shape [3,150,200,1],[3]
+ 
+# MO Python API
+ov_model = convert_model("ocr.onnx", input=["data","seq_len"], input_shape=[[3,150,200,1],[3]])
 ```
 
 Alternatively, specify input shapes, using the `--input` parameter as follows:
 
 ```sh
+# cli tool 
 mo --input_model ocr.onnx --input data[3,150,200,1],seq_len[3]
+ 
+# MO Python API
+ov_model = convert_model("ocr.onnx", input=[("data",[3,150,200,1]),("seq_len",[3])])
 ```
 
 The `--input_shape` parameter allows overriding original input shapes to ones compatible with a given model.
@@ -53,7 +65,11 @@ The dynamic dimension can be marked in Model Optimizer command-line as `-1`* or 
 For example, launch Model Optimizer for the ONNX OCR model and specify dynamic batch dimension for inputs:
 
 ```sh
+# cli tool 
 mo --input_model ocr.onnx --input data,seq_len --input_shape [-1,150,200,1],[-1]
+ 
+# MO Python API
+ov_model = convert_model("ocr.onnx", input=["data","seq_len"], input_shape=[[-1,150,200,1],[-1]]
 ```
 
 To optimize memory consumption for models with undefined dimensions in run-time, Model Optimizer provides the capability to define boundaries of dimensions.
@@ -61,7 +77,12 @@ The boundaries of undefined dimension can be specified with ellipsis.
 For example, launch Model Optimizer for the ONNX OCR model and specify a boundary for the batch dimension:
 
 ```sh
+# cli tool 
 mo --input_model ocr.onnx --input data,seq_len --input_shape [1..3,150,200,1],[1..3]
+ 
+# MO Python API
+from openvino.runtime import Dimension
+ov_model = convert_model("ocr.onnx", input=["data","seq_len"], input_shape=[[Dimension(1,3),150,200,1],[Dimension(1,3)]]
 ```
 
 @sphinxdirective
@@ -83,7 +104,11 @@ It is worth noting that the `--input_shape` parameter does not affect reshapeabi
 For example, launch Model Optimizer for the ONNX OCR model using `--static_shape`:
 
 ```sh
+# cli tool 
 mo --input_model ocr.onnx --input data[3,150,200,1],seq_len[3] --static_shape
+ 
+# MO Python API
+ov_model = convert_model("ocr.onnx", input=[("data",[3,150,200,1]),("seq_len",[3])], static_shape=True)
 ```
 
 ## Additional Resources
