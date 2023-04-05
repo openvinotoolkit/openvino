@@ -26,7 +26,7 @@ std::vector<std::vector<int>> apply_scheduling_core_type(const ov::hint::Schedul
 
 /**
  * @brief      Limit available CPU resource in processors type table according to hyper threading property
- * @param[in]  input_type indicate value of property use_hyper_threading.
+ * @param[in]  input_type indicate value of property enable_hyper_threading.
  * @param[in]  input_changed indicate if value is set by user.
  * @param[in]  proc_type_table candidate processors available at this time
  * @return     updated proc_type_table which removed unmatched processors
