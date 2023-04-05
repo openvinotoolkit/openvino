@@ -379,7 +379,7 @@ protected:
         std::tie(netPrecision, target_device, configuration) = this->GetParam();
         SKIP_IF_CURRENT_TEST_IS_DISABLED()
         APIBaseTest::SetUp();
-        function = ov::test::behavior::getDefaultNGraphFunctionForTheDevice(target_device);
+        function = ov::test::behavior::getDefaultNGraphFunctionForTheDevice();
         cnnNet = InferenceEngine::CNNNetwork(function);
         execNet = ie->LoadNetwork(cnnNet, target_device, configuration);
     }
