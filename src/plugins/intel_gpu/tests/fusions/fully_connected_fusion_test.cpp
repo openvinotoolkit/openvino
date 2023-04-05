@@ -78,7 +78,7 @@ public:
 #ifdef ENABLE_ONEDNN_FOR_GPU
 class FullyConnectedFusingTestOneDNN : public BaseFusingTest<fully_connected_test_params> {
 public:
-    void execute(fully_connected_test_params& p) {
+    void execute(fully_connected_test_params& p, bool is_caching_test = false, bool is_dynamic = false) {
         // Onednn post operation has issue in a machine that does not support imad.
         if (!engine.get_device_info().supports_immad)
             return;
@@ -103,12 +103,14 @@ public:
             ov::intel_gpu::ImplementationDesc fc_ocl_impl = { ocl_forcing_format, p.ocl_kernel_name /*fully_connected_gpu_bfyx_ref*/};
             cfg_not_fused.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ { "fc_prim", fc_ocl_impl } }));
         }
-        network network_not_fused(this->engine, this->topology_non_fused, cfg_not_fused);
-        network network_fused(this->engine, this->topology_fused, cfg_fused);
-        network_fused.set_input_data("input", input_prim);
-        network_not_fused.set_input_data("input", input_prim);
+        cfg_not_fused.set_property(ov::intel_gpu::allow_new_shape_infer(is_dynamic));
+        cfg_fused.set_property(ov::intel_gpu::allow_new_shape_infer(is_dynamic));
+        network::ptr network_not_fused = get_network(this->engine, this->topology_non_fused, cfg_not_fused, get_test_stream_ptr(), is_caching_test);
+        network::ptr network_fused = get_network(this->engine, this->topology_fused, cfg_fused, get_test_stream_ptr(), is_caching_test);
+        network_fused->set_input_data("input", input_prim);
+        network_not_fused->set_input_data("input", input_prim);
 
-        compare(network_not_fused, network_fused, p);
+        compare(*network_not_fused, *network_fused, p);
     }
 
     layout get_input_layout(fully_connected_test_params& p) {
@@ -440,6 +442,25 @@ TEST_P(fc_int8_inputs_fused_fp32_sum, basic) {
     execute(p);
 }
 
+TEST_P(fc_int8_inputs_fused_fp32_sum, basic_cached) {
+    auto p = GetParam();
+    auto shift_layout = layout{ ov::PartialShape{p.weights_shape[0]}, p.default_type, p.default_format };
+
+    create_topologies(
+        input_layout("input", get_input_layout(p)),
+        data("weights", get_mem(get_weights_layout(p))),
+        data("bias", get_mem(get_bias_layout(p))),
+        data("shift_data", get_mem(shift_layout, 1)),
+        fully_connected("fc_prim", input_info("input"), "weights", "bias", cldnn::data_types::f32, padding(), get_output_dim_size(p), get_input_weights_rank(p)),
+        eltwise("shift", { input_info("fc_prim"), input_info("shift_data") }, eltwise_mode::sum, cldnn::data_types::f32),
+        crop("crop", input_info("shift"), get_output_layout(p).get_tensor(), { 0, 0, 0, 0 }),
+        reorder("reorder_bfyx", input_info("crop"), p.default_format, data_types::f32)
+    );
+
+    tolerance = 1.f;
+    execute(p, true);
+}
+
 INSTANTIATE_TEST_SUITE_P(fusings_gpu, fc_int8_inputs_fused_fp32_sum, ::testing::ValuesIn(std::vector<fully_connected_test_params>{
     // OneDNN has issue with small shapes - ticket 7064
     // fully_connected_test_params{ CASE_FC_U8S8_3D_1, 2, 4 },
@@ -477,6 +498,30 @@ INSTANTIATE_TEST_SUITE_P(fusings_gpu, fc_fp16_eltwise_add, ::testing::ValuesIn(s
     fully_connected_test_params{ CASE_FC_FP16_7, 2, 3, "fully_connected_gpu_bfyx_ref" },
     fully_connected_test_params{ CASE_FC_FP16_3D_1, 2, 3, "fully_connected_gpu_bfyx_ref" },
     fully_connected_test_params{ CASE_FC_FP16_3D_2, 2, 3, "fully_connected_gpu_bfyx_ref" },
+}));
+
+class fc_fp16_eltwise_add_dynamic : public FullyConnectedFusingTestOneDNN {};
+TEST_P(fc_fp16_eltwise_add_dynamic, basic) {
+    auto p = GetParam();
+    auto test_input_layout = get_input_layout(p);
+    auto dynamic_input_layout = layout{ov::PartialShape::dynamic(test_input_layout.get_partial_shape().size()), test_input_layout.data_type, test_input_layout.format};
+    create_topologies(
+        input_layout("input", dynamic_input_layout),
+        data("weights", get_mem(get_weights_layout(p))),
+        data("bias", get_mem(get_bias_layout(p))),
+        data("eltwise_data", get_mem(get_per_channel_layout(p), 1, 9)),
+        fully_connected("fc_prim", input_info("input"), "weights", "bias", padding(), get_output_dim_size(p)),
+        eltwise("eltwise", { input_info("fc_prim"), input_info("eltwise_data") }, eltwise_mode::sum),
+        reorder("reorder_bfyx", input_info("eltwise"), p.default_format, data_types::f32)
+    );
+
+    tolerance = 1e-2f;
+    execute(p, false, true);
+}
+
+INSTANTIATE_TEST_SUITE_P(fusings_gpu, fc_fp16_eltwise_add_dynamic, ::testing::ValuesIn(std::vector<fully_connected_test_params>{
+    fully_connected_test_params{ CASE_FC_FP16_3, 2, 3, "fully_connected_gpu_bfyx_ref" },
+    fully_connected_test_params{ CASE_FC_FP16_4, 2, 3, "fully_connected_gpu_bfyx_ref" },
 }));
 
 class fc_fp16_eltwise_sub : public FullyConnectedFusingTestOneDNN {};
