@@ -79,7 +79,7 @@ Attributes Mapping
 ++++++++++++++++++
 
 As described above, ``OpExtension`` is useful when attributes can be mapped one by one or initialized by a constant.
-Attributes in OpenVINO operators are identified by their names, so for frameworks that also have named attributes (like Tensorflow, PaddlePaddle, ONNX), you can specify name to name mapping. For frameworks where OpenVINO operator's attributes can be mapped to one of the framework operator inputs (like Pytorch), there's a name to input index mapping.
+Attributes in OpenVINO operators are identified by their names, so for frameworks that also have named attributes (like TensorFlow, PaddlePaddle, ONNX), you can specify name to name mapping. For frameworks where OpenVINO operator's attributes can be mapped to one of the framework operator inputs (like PyTorch), there's a name to input index mapping.
 
 Named attributes mapping
 ^^^^^^^^^^^^^^^^^^^^^^^^
@@ -150,7 +150,7 @@ This is achieved by specifying maps as arguments for ``OpExtension`` constructor
 Mapping attributes from operation inputs
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-For models (like Pytorch models), where operations have attributes on the input list, you can specify name to input index mapping.
+For models (like PyTorch models), where operations have attributes on the input list, you can specify name to input index mapping.
 For example, imagine you have created a custom OpenVINO operation that implements a variant of ELU activation function with two attributes ``alpha`` and ``beta``:
 
 .. math::
@@ -168,7 +168,7 @@ Below is a snippet of ``CustomElu`` class showing how to define its attributes:
    :language: cpp
    :fragment: [frontend_extension_framework_map_CustomElu]
 
-Let's see an example of how you can map ``CustomElu`` to Pytorch `aten::elu <https://pytorch.org/docs/stable/generated/torch.nn.functional.elu.html>`_ (note that if ``beta`` is equal to ``1``, ``CustomElu`` works the same as ``aten::elu``).
+Let's see an example of how you can map ``CustomElu`` to PyTorch `aten::elu <https://pytorch.org/docs/stable/generated/torch.nn.functional.elu.html>`_ (note that if ``beta`` is equal to ``1``, ``CustomElu`` works the same as ``aten::elu``).
 ``aten::elu`` has ``alpha`` attribute second on the input list, but it doesn't have ``beta``. So in order to map it to ``CustomElu`` you can use the following:
 
 .. doxygensnippet:: docs/snippets/ov_extensions.cpp
@@ -184,7 +184,7 @@ Mapping custom operations to frontends with OPENVINO_FRAMEWORK_MAP macro
 
 ``OPENVINO_FRAMEWORK_MAP`` is a macro that should be used inside OpenVINO operation's class definition and that lets you specify the mapping between this operation to a frontend operation.
 
-Let's consider the following example. Imagine you have an ONNX model with ``CustomOp`` operation (and this operation has ``mode`` attribute), a Tensorflow model with ``CustomOpV3`` operation (this operation has ``axis`` attribute) and a PaddlePaddle model with ``CustomOp`` (with ``mode`` attribute) that has input named "X" and output named "Out" and all of them can be implemented with a single OpenVINO operation ``CustomOp`` like follows:
+Let's consider the following example. Imagine you have an ONNX model with ``CustomOp`` operation (and this operation has ``mode`` attribute), a TensorFlow model with ``CustomOpV3`` operation (this operation has ``axis`` attribute) and a PaddlePaddle model with ``CustomOp`` (with ``mode`` attribute) that has input named "X" and output named "Out" and all of them can be implemented with a single OpenVINO operation ``CustomOp`` like follows:
 
 .. doxygensnippet:: docs/snippets/ov_extensions.cpp
    :language: cpp
@@ -210,7 +210,7 @@ Let's take a closer look at the parameters this macro takes (note that there are
 
 In the example above, ``OPENVINO_FRAMEWORK_MAP`` is used three times.
 First, OpenVINO ``CustomOp`` is mapped to ONNX ``CustomOp`` operation, ``m_mode`` attribute is mapped to ``mode`` attribute, while ``m_axis`` attribute gets the default value ``-1``.
-Secondly, OpenVINO ``CustomOp`` is mapped to Tensorflow ``CustomOpV3`` operation, ``m_axis`` attribute is mapped to ``axis`` attribute, while ``m_mode`` attribute gets the default value ``"linear"``.
+Secondly, OpenVINO ``CustomOp`` is mapped to TensorFlow ``CustomOpV3`` operation, ``m_axis`` attribute is mapped to ``axis`` attribute, while ``m_mode`` attribute gets the default value ``"linear"``.
 Thirdly, OpenVINO ``CustomOp`` is mapped to PaddlePaddle ``CustomOp`` operation, ``m_mode`` attribute is mapped to ``mode`` attribute, while ``m_axis`` attribute gets the default value ``-1``. This mapping also specifies the input name "X" and output name "Out".
 
 The last step is to register this custom operation by following:
@@ -269,7 +269,7 @@ Below example illustrates using ``ConversionExtension`` for conversion of “Thr
          :fragment: [py_frontend_extension_ThresholdedReLU]
 
 
-The next example shows how to use ``ConversionExtension`` to convert Pytorch `aten::hardtanh <https://pytorch.org/docs/stable/generated/torch.nn.functional.hardtanh.html>`_ to demonstrate how to use ``get_values_from_const_input`` function to fetch an attribute value from input:
+The next example shows how to use ``ConversionExtension`` to convert PyTorch `aten::hardtanh <https://pytorch.org/docs/stable/generated/torch.nn.functional.hardtanh.html>`_ to demonstrate how to use ``get_values_from_const_input`` function to fetch an attribute value from input:
 
 
 .. doxygensnippet:: docs/snippets/ov_extensions.py
