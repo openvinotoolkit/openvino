@@ -5,12 +5,12 @@
 #include "openvino/runtime/threading/cpu_streams_executor.hpp"
 
 #include <condition_variable>
+#include <iostream>
 #include <memory>
 #include <mutex>
 #include <queue>
 #include <thread>
 #include <vector>
-#include <iostream>
 
 #include "dev/threading/parallel_custom_arena.hpp"
 #include "dev/threading/thread_affinity.hpp"
