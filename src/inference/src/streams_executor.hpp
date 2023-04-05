@@ -27,6 +27,11 @@ struct CPU {
 
     CPU() {
         init_cpu(*this);
+        std::cout << "proc_type_table------\n";
+        for (int i = 0; i < _proc_type_table.size(); i++) {
+            std::cout << _proc_type_table[i][0] << " " << _proc_type_table[i][1] << " " << _proc_type_table[i][2] << " "
+                      << _proc_type_table[i][3] << "\n";
+        }
     }
     void init_cpu(CPU& cpu);
 };
