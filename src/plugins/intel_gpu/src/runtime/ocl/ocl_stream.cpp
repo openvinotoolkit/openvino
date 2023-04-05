@@ -6,6 +6,7 @@
 #include "ocl_event.hpp"
 #include "ocl_user_event.hpp"
 #include "ocl_command_queues_builder.hpp"
+#include "intel_gpu/plugin/common_utils.hpp"
 #include "intel_gpu/runtime/debug_configuration.hpp"
 #include "ocl_kernel.hpp"
 #include "ocl_common.hpp"
@@ -306,13 +307,7 @@ event::ptr ocl_stream::enqueue_kernel(kernel& kernel,
     } catch (cl::Error const& err) {
         /// WA: Force exit. Any opencl api call can be hang after CL_OUT_OF_RESOURCES.
         if (err.err() == CL_OUT_OF_RESOURCES) {
-            std::cerr << "[GPU Plugin] force exit.\n"
-                      << "\tDue to the driver bug any subsequent OpenCL API call will cause application hang, "
-                      << "so GPU plugin can't finish correctly.\n"
-                      << "\tPlease try to update the driver or reduce memory consumption "
-                      << "(use smaller batch size, less streams, lower precision, etc)"
-                      << "to avoid CL_OUT_OF_RESOURCES exception" << std::endl;
-            std::_Exit(-1);
+            ov::intel_gpu::ForceExit();
         }
         throw ocl_error(err);
     }

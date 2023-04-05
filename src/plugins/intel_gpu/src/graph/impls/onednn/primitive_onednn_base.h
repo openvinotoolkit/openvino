@@ -8,6 +8,7 @@
 
 #include "primitive_inst.h"
 #include "intel_gpu/graph/serialization/binary_buffer.hpp"
+#include "intel_gpu/plugin/common_utils.hpp"
 #include "intel_gpu/runtime/memory.hpp"
 #include "to_string_utils.h"
 #include "register.hpp"
@@ -493,13 +494,7 @@ protected:
             } catch (dnnl::error& err) {
                 /// WA: Force exit. Any opencl api call can be hang after CL_OUT_OF_RESOURCES.
                 if (err.status == dnnl_status_t::dnnl_out_of_memory) {
-                    std::cerr << "[GPU Plugin] force exit.\n"
-                              << "\tDue to the driver bug any subsequent OpenCL API call will cause application hang, "
-                              << "so GPU plugin can't finish correctly.\n"
-                              << "\tPlease try to update the driver or reduce memory consumption "
-                              << "(use smaller batch size, less streams, lower precision, etc)"
-                              << "to avoid CL_OUT_OF_RESOURCES exception" << std::endl;
-                    std::_Exit(-1);
+                    ov::intel_gpu::ForceExit();
                 }
                 throw;    // rethrowing dnnl::error if not out_of_memory
             }
