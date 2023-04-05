@@ -199,19 +199,7 @@ def arguments_post_parsing(argv: argparse.Namespace):
     if not argv.silent:
         print_argv(argv, is_caffe, is_tf, is_mxnet, is_kaldi, is_onnx, argv.model_name)
 
-    # This try-except is additional reinsurance that the IE
-    # dependency search does not break the MO pipeline
-    def raise_ie_not_found():
-        raise Error("Could not find the Inference Engine or nGraph Python API.\n"
-                    "Consider building the Inference Engine and nGraph Python APIs from sources or "
-                    "try to install OpenVINO (TM) Toolkit using pip \npip install openvino")
-
-    try:
-        if not VersionChecker():
-            raise_ie_not_found()
-    except Exception as e:
-        log.error(e)
-        raise_ie_not_found()
+    VersionChecker().check_runtime_dependencies(argv.silent)
 
     argv.data_type = 'FP32'  # if compression was enabled will be restored back to 'FP16' after apply_offline_transformations
 
@@ -502,11 +490,10 @@ def emit_ir(graph: Graph, argv: argparse.Namespace, non_default_params: dict):
         except Exception as e:
             return_code = "failed"
             log.error(e)
-
         message = str(dict({
             "platform": platform.system(),
-            "mo_version": VersionChecker().mo_simplified_version,
-            "ie_version": VersionChecker().ie_simplified_version,
+            "mo_version": VersionChecker().get_mo_simplified_version(),
+            "ie_version": VersionChecker().get_ie_simplified_version(),
             "python_version": sys.version,
             "return_code": return_code
         }))
@@ -728,8 +715,7 @@ def _convert(cli_parser: argparse.ArgumentParser, framework, args):
     if 'help' in args and args['help']:
         show_mo_convert_help()
         return None, None
-
-    simplified_mo_version = VersionChecker().mo_simplified_version
+    simplified_mo_version = VersionChecker().get_mo_simplified_version()
     telemetry = tm.Telemetry(tid=get_tid(), app_name='Model Optimizer', app_version=simplified_mo_version)
     telemetry.start_session('mo')
     telemetry.send_event('mo', 'version', simplified_mo_version)
@@ -786,7 +772,7 @@ def _convert(cli_parser: argparse.ArgumentParser, framework, args):
         ov_model, legacy_path = driver(argv, {"conversion_parameters": non_default_params})
 
         # add MO meta data to model
-        ov_model.set_rt_info(VersionChecker().mo_version, "MO_version")
+        ov_model.set_rt_info(VersionChecker().get_mo_version(), "MO_version")
         ov_model.set_rt_info(get_rt_version(), "Runtime_version")
         ov_model.set_rt_info(str(legacy_path), "legacy_frontend")
         for key, value in non_default_params.items():

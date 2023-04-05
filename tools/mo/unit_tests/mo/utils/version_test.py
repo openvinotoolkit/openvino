@@ -8,7 +8,10 @@ from unittest.mock import patch
 
 from openvino.tools.mo.utils.version import get_version, extract_release_version, get_simplified_ie_version, \
     get_simplified_mo_version, extract_hash_from_version, VersionChecker
-from openvino.runtime import get_version as get_ie_version
+import sys
+import os
+import subprocess
+from openvino.tools.mo.subprocess_main import setup_env
 
 
 class TestingVersion(unittest.TestCase):
@@ -107,26 +110,9 @@ class TestingVersion(unittest.TestCase):
                          "a90bb1f")
 
     def test_version_checker(self):
-        import datetime
-        import os
-        ref_mo_version = get_version()
-        ref_ie_version = get_ie_version()
-        ref_mo_simplified_version = get_simplified_mo_version()
-        ref_ie_simplified_version = get_simplified_ie_version(env=os.environ)
+        setup_env()
+        args = [sys.executable, '-m', 'pytest',
+                os.path.join(os.path.dirname(os.path.dirname(__file__)), 'convert/version_checker_test_actual.py'), '-s']
 
-        # first init of VersionChecker
-        start_time = datetime.datetime.now()
-        VersionChecker()
-        first_init_time = (datetime.datetime.now() - start_time).total_seconds()
-
-        # Loop with multiple usages of VersionChecker
-        start_time = datetime.datetime.now()
-        for _ in range(100):
-            assert VersionChecker().mo_version == ref_mo_version
-            assert VersionChecker().ie_version == ref_ie_version
-            assert VersionChecker().mo_simplified_version == ref_mo_simplified_version
-            assert VersionChecker().ie_simplified_version == ref_ie_simplified_version
-        loop_time = (datetime.datetime.now() - start_time).total_seconds()
-
-        # Check that time of loop is less than first init, so no actual initialization happens
-        assert loop_time < first_init_time
+        status = subprocess.run(args, env=os.environ, capture_output=True)
+        assert not status.returncode

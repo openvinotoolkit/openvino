@@ -1042,7 +1042,7 @@ def get_common_cli_parser(parser: argparse.ArgumentParser = None):
                               help=mo_convert_params_common['batch'].description)
     common_group.add_argument("--version",
                               action='version',
-                              version='Version of Model Optimizer is: {}'.format(VersionChecker().mo_version),
+                              version='Version of Model Optimizer is: {}'.format(VersionChecker().get_mo_version()),
                               help=mo_convert_params_common['version'].description)
 
     common_group.add_argument('--silent',
