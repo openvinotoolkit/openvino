@@ -215,7 +215,7 @@ std::string convert_path_to_string(const py::object& path) {
     py::object Path = py::module_::import("pathlib").attr("Path");
     // check if model path is either a string or pathlib.Path
     if (py::isinstance(path, Path) || py::isinstance<py::str>(path)) {
-        return path.str();
+        return py::str(path);
     }
     // Convert bytes to string
     if (py::isinstance<py::bytes>(path)) {
