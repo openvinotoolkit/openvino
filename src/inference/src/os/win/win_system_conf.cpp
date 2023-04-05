@@ -130,7 +130,7 @@ void parse_processor_info_win(const char* base_ptr,
                 proc_info[CPU_MAP_SOCKET_ID] = _sockets;
                 proc_info[CPU_MAP_CORE_ID] = _cores;
                 if ((_processors > group_start) && (_processors <= group_end)) {
-                    proc_info[CPU_MAP_CORE_TYPE] = EFFICIENT_CORE_PROC;
+                    proc_info[CPU_MAP_CORE_TYPE] = group_type;
                     proc_info[CPU_MAP_GROUP_ID] = group_id;
                     _proc_type_table[0][group_type]++;
                 }
