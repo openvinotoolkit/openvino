@@ -24,7 +24,6 @@ class TestIndex(PytorchLayerTest):
 
             def forward(self, x, idx):
                 return x.__getitem__(idx)
-        
 
         class aten_index_list_bool(torch.nn.Module):
 
@@ -52,13 +51,14 @@ class TestIndex(PytorchLayerTest):
     @pytest.mark.precommit
     @pytest.mark.parametrize("case", ["list", "getitem"])
     @pytest.mark.parametrize(("input_shape", "idx"), [
-        ((1,), np.array(0).astype(int)), 
-        ([2, 3], np.array(-1).astype(int)), 
-        ([4, 5, 6], np.array((1, 2)).astype(int)), 
-        ([7, 8, 9], np.array((-1,  2, -3)).astype(int)), 
+        ((1,), np.array(0).astype(int)),
+        ([2, 3], np.array(-1).astype(int)),
+        ([4, 5, 6], np.array((1, 2)).astype(int)),
+        ([7, 8, 9], np.array((-1,  2, -3)).astype(int)),
         ([2, 2, 3, 4], np.array((1,)).astype(int))])
     def test_index(self, input_shape, idx, case, ie_device, precision, ir_version):
-        self._test(*self.create_model(case), ie_device, precision, ir_version, kwargs_to_prepare_input={"input_shape": input_shape, "idx": idx})
+        self._test(*self.create_model(case), ie_device, precision, ir_version,
+                   kwargs_to_prepare_input={"input_shape": input_shape, "idx": idx})
 
     @pytest.mark.nightly
     @pytest.mark.precommit
@@ -68,6 +68,37 @@ class TestIndex(PytorchLayerTest):
         ((2, 2, 5), np.zeros([2, 2, 5]).astype(bool)),
         ((2, 2, 5), np.ones([2, 2, 5]).astype(bool)),
         ((2, 2, 5), np.random.rand(2, 2, 5) > 0)
-        ])
+    ])
     def test_index_bool(self, input_shape, idx, case, ie_device, precision, ir_version):
-        self._test(*self.create_model(case), ie_device, precision, ir_version, kwargs_to_prepare_input={"input_shape": input_shape, "idx": idx})
+        self._test(*self.create_model(case), ie_device, precision, ir_version,
+                   kwargs_to_prepare_input={"input_shape": input_shape, "idx": idx})
+
+
+class TestIndexRange(PytorchLayerTest):
+    def _prepare_input(self, input_shape, idx):
+        import numpy as np
+        return (np.random.randn(*input_shape).astype(np.float32), np.array(idx).astype(np.int32))
+
+    def create_model(self):
+        import torch
+
+        class aten_index_unsqueeze(torch.nn.Module):
+
+            def forward(self, x, y):
+                x = x.reshape(x.shape[0], -1)
+                return x[torch.arange(x.shape[0]), y]
+
+        ref_net = None
+
+        return aten_index_unsqueeze(), ref_net, "aten::index"
+
+    @pytest.mark.nightly
+    @pytest.mark.precommit
+    @pytest.mark.parametrize(("input_shape", "idx"), (
+        ((1, 1), [0]),
+        ([2, 3], [1, 2]),
+        ([7, 8, 9], [1]),
+        ([2, 2, 3, 4], [0])))
+    def test_index_range(self, input_shape, idx, ie_device, precision, ir_version):
+        self._test(*self.create_model(), ie_device, precision, ir_version, kwargs_to_prepare_input={
+                   "input_shape": input_shape, "idx": idx}, trace_model=True, dynamic_shapes=False)
