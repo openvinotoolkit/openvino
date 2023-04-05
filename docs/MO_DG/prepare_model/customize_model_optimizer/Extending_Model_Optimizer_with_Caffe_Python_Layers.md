@@ -1,4 +1,4 @@
-# [DEPRECATED] Extending Model Optimizer with Caffe Python Layers {#openvino_docs_MO_DG_prepare_model_customize_model_optimizer_Extending_Model_Optimizer_With_Caffe_Python_Layers}
+# [LEGACY] Extending Model Optimizer with Caffe Python Layers {#openvino_docs_MO_DG_prepare_model_customize_model_optimizer_Extending_Model_Optimizer_With_Caffe_Python_Layers}
 
 @sphinxdirective
 

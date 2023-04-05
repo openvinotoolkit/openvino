@@ -1,4 +1,4 @@
-# [DEPRECATED] Model Optimizer Extensibility {#openvino_docs_MO_DG_prepare_model_customize_model_optimizer_Customize_Model_Optimizer}
+# [LEGACY] Model Optimizer Extensibility {#openvino_docs_MO_DG_prepare_model_customize_model_optimizer_Customize_Model_Optimizer}
 
 @sphinxdirective
 
