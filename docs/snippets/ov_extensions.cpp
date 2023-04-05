@@ -179,12 +179,13 @@ core.add_extension(ov::frontend::OpExtension<CustomOperation>(
 ));
 //! [frontend_extension_CustomOperation_rename_set_paddle]
 
-
+{
 //! [frontend_extension_framework_map_CustomElu_mapping]
-std::make_shared<ov::frontend::OpExtension<CustomElu>>("aten::elu",
-                                                       std::map<std::string, size_t>{{"alpha", 1}},
-                                                       std::map<std::string, ov::Any>{{"beta", 1.0f}});
+auto extension = std::make_shared<ov::frontend::OpExtension<CustomElu>>("aten::elu",
+                                                                        std::map<std::string, size_t>{{"alpha", 1}},
+                                                                        std::map<std::string, ov::Any>{{"beta", 1.0f}});
 //! [frontend_extension_framework_map_CustomElu_mapping]
+}
 
 
 //! [frontend_extension_ThresholdedReLU]
