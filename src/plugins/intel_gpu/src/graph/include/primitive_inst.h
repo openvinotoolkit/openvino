@@ -87,7 +87,7 @@ struct primitive_impl {
         return primitive_impl::static_canonicalize_shapes(impl_params);
     }
 
-    virtual void set_kernels(cldnn::kernels_cache::compiled_kernels kernels) {}
+    virtual void set_kernels(std::vector<kernel::ptr>& kernels) {}
     virtual std::vector<kernel::ptr> get_kernels() { return {}; }
 
 protected:

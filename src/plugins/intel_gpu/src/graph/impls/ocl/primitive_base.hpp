@@ -290,21 +290,13 @@ protected:
         }
     }
 
-    void set_kernels(cldnn::kernels_cache::compiled_kernels kernels) override {
+    void set_kernels(std::vector<kernel::ptr>& kernels) override {
         if (is_cpu())
             return;
 
-        size_t total_kernels_num = std::accumulate(kernels.begin(), kernels.end(), static_cast<size_t>(0),
-            [](size_t val, cldnn::kernels_cache::compiled_kernels::value_type& p) {
-                return (val + p.second.size());
-            });
-
         _kernels.clear();
-        _kernels.reserve(total_kernels_num);
-
-        for (auto& k : kernels) {
-            _kernels.insert(_kernels.end(), k.second.begin(), k.second.end());
-        }
+        _kernels.reserve(kernels.size());
+        _kernels.insert(_kernels.end(), kernels.begin(), kernels.end());
     }
 
     std::vector<kernel::ptr> get_kernels() override {

@@ -767,7 +767,7 @@ event::ptr primitive_inst::update_weights() {
                 auto& kernels_cache = get_network().get_program()->get_kernels_cache();
                 auto kernels = kernels_cache.compile(*_impl_params, {weights_params.clKernel->code.kernelString});
                 OPENVINO_ASSERT(kernels.size() == 1, "The output of kernel compile has issue");
-                kernel = (kernels.begin()->second)[0];
+                kernel = kernels[0];
                 cache.add(kernel_key, kernel);
             }
 
