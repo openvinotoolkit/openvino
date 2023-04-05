@@ -786,6 +786,7 @@ def get_common_cli_parser(parser: argparse.ArgumentParser = None):
                               default=get_absolute_path('.'),
                               action=CanonicalizePathAction,
                               type=writable_dir)
+
     # Deprecated params
     common_group.add_argument('--freeze_placeholder_with_value',
                               help='Replaces input layer with constant node with '
