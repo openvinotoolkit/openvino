@@ -38,7 +38,7 @@ class UniqueInternal(Op):
               if axis:
                   out_shape = input_shape.copy()
                   out_shape[axis.item()] = dynamic_dimension
-                  node.out_port(0).data.set_shape(input_shape)
+                  node.out_port(0).data.set_shape(out_shape)
               else:
                 node.out_port(0).data.set_shape(
                 shape_array([dynamic_dimension] * len(input_shape)))

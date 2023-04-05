@@ -65,16 +65,18 @@ class TestOps(unittest.TestCase):
         data_shape = [6, 12, 10, 24]
         data_parameter = opset10.parameter(
             data_shape, name="Data", dtype=np.float32)
-        unique = opset10.unique(data_parameter, sorted=True, name="Unique_10")
-        res = opset10.result(unique.output(0), name="output")
-        model = Model(res, [data_parameter])
+        unique = opset10.unique(data_parameter, axis=np.int32(
+            [2]), sorted=True, name="Unique_10")
+        model = Model(unique, [data_parameter])
         with tempfile.TemporaryDirectory() as tmp:
             model_xml = Path(tmp) / 'unique_model.xml'
             model_bin = Path(tmp) / 'unique_model.bin'
             serialize(model, model_xml, model_bin)
             graph, _ = restore_graph_from_ir(model_xml, model_bin)
-            unique_node = graph.nodes()["Unique_10"]
+            unique_node = graph.get_op_nodes(op="Unique")[0]
             self.assertEqual(unique_node["version"], "opset10")
+            self.assertListEqual(unique_node.out_port(
+                0).data.get_shape().tolist(), [6, 12, None, 24])
             self.assertTrue(unique_node["sorted"])
 
     def test_is_finite(self):

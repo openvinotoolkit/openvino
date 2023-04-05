@@ -51,21 +51,6 @@ class Unique(Op):
 
     @staticmethod
     def infer(node: Node):
-        version = node.soft_get("version", "experimental")
-        if version == "opset10":
-            Unique.infer_10(node)
-        else:
-            Unique.infer_experimental(node)
-
-    @staticmethod
-    def infer_10(node: Node):
-        input_shape = node.in_port(0).data.get_shape()
-        for out_port in node.out_ports():
-            if node.is_out_port_connected(out_port):
-                node.out_port(out_port).data.set_shape(input_shape)
-
-    @staticmethod
-    def infer_experimental(node: Node):
         # check that all required attributes are set
         assert node.has('sorted') and node.sorted in ['true', 'false'], \
             "Unique does not have valid sorted attribute"
