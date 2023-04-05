@@ -208,6 +208,12 @@ macro (ov_add_version_defines FILE TARGET)
         $<TARGET_PROPERTY:${TARGET},INCLUDE_DIRECTORIES>)
     target_link_libraries(${TARGET}_version PRIVATE
         $<TARGET_PROPERTY:${TARGET},LINK_LIBRARIES>)
+    target_compile_options(${TARGET}_version PRIVATE
+        $<TARGET_PROPERTY:${TARGET},INTERFACE_COMPILE_OPTIONS>
+        $<TARGET_PROPERTY:${TARGET},COMPILE_OPTIONS>)
+    set_target_properties(${TARGET}_version
+        PROPERTIES INTERPROCEDURAL_OPTIMIZATION_RELEASE ${ENABLE_LTO})
+
     target_sources(${TARGET} PRIVATE $<TARGET_OBJECTS:${TARGET}_version>)
     unset(__version_file)
 endmacro()
