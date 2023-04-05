@@ -60,6 +60,7 @@ std::shared_ptr<ov::Model> create_v4_model(const bool with_axes,
     attributes.pads_end = {0, 0};
 
     const auto input = std::make_shared<ov::opset11::Parameter>(ov::element::i32, ov::Shape{1, 2, 10, 10});
+    const auto axes = std::make_shared<ov::opset4::Parameter>(ov::element::i32, ov::Shape{2});
     std::shared_ptr<ov::Node> output_shape;
     std::shared_ptr<ov::Node> scales;
     std::shared_ptr<ov::opset4::Interpolate> interpolate;
@@ -71,16 +72,21 @@ std::shared_ptr<ov::Model> create_v4_model(const bool with_axes,
     if (shape_calc_mode == ov::opset4::Interpolate::ShapeCalcMode::SCALES) {
         scales = std::make_shared<ov::opset4::Parameter>(ov::element::f32, ov::Shape{num_scales_or_sizes});
         model_params.push_back(std::dynamic_pointer_cast<ov::opset4::Parameter>(scales));
-        output_shape = ov::opset4::Constant::create(ov::element::i32, ov::Shape{2}, {1});
-
+        output_shape = ov::opset4::Constant::create(ov::element::i32, ov::Shape{1}, {1});
+        if (with_axes) {
+            output_shape =
+                std::make_shared<ov::opset4::Broadcast>(output_shape, std::make_shared<ov::opset4::ShapeOf>(axes));
+        }
     } else {
         output_shape = std::make_shared<ov::opset4::Parameter>(ov::element::i32, ov::Shape{num_scales_or_sizes});
         model_params.push_back(std::dynamic_pointer_cast<ov::opset4::Parameter>(output_shape));
-        scales = ov::opset4::Constant::create(ov::element::f32, ov::Shape{2}, {1.0f});
+        scales = ov::opset4::Constant::create(ov::element::f32, ov::Shape{1}, {1.0f});
+        if (with_axes) {
+            scales = std::make_shared<ov::opset4::Broadcast>(scales, std::make_shared<ov::opset4::ShapeOf>(axes));
+        }
     }
 
     if (with_axes) {
-        const auto axes = std::make_shared<ov::opset4::Parameter>(ov::element::i32, ov::Shape{2});
         model_params.push_back(axes);
         interpolate = std::make_shared<ov::opset4::Interpolate>(input, output_shape, scales, axes, attributes);
     } else {
