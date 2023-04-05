@@ -73,7 +73,7 @@ std::vector<layout> broadcast_inst::calc_output_layouts(broadcast_node const& /*
     auto& constant_mem = impl_param.memory_deps;
     if (constant_mem.count(1)) {
         auto target_shape_mem = constant_mem.at(1);
-        cldnn::mem_lock<uint8_t, mem_lock_type::read> target_shape_lock(target_shape_mem, impl_param.prog->get_stream());
+        cldnn::mem_lock<uint8_t, mem_lock_type::read> target_shape_lock(target_shape_mem, impl_param.get_stream());
         const_data.emplace(1, make_host_tensor(target_shape_mem->get_layout(), target_shape_lock.data()));
         ov::op::v3::shape_infer(&op, input_shapes, output_shapes, const_data);
     } else if (impl_param.input_layouts.size() == 1) {

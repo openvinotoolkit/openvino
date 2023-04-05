@@ -39,15 +39,15 @@ std::vector<layout> range_inst::calc_output_layouts(range_node const& /*node*/, 
 
     if (memory_deps.count(0) > 0 && memory_deps.count(1) > 0 && memory_deps.count(2) > 0) {
         auto start_mem = memory_deps.at(0);
-        cldnn::mem_lock<uint8_t, mem_lock_type::read> start_mem_lock(start_mem, impl_param.prog->get_stream());
+        cldnn::mem_lock<uint8_t, mem_lock_type::read> start_mem_lock(start_mem, impl_param.get_stream());
         const_data.emplace(0, make_host_tensor(start_mem->get_layout(), start_mem_lock.data()));
 
         auto stop_mem = memory_deps.at(1);
-        cldnn::mem_lock<uint8_t, mem_lock_type::read> stop_mem_lock(stop_mem, impl_param.prog->get_stream());
+        cldnn::mem_lock<uint8_t, mem_lock_type::read> stop_mem_lock(stop_mem, impl_param.get_stream());
         const_data.emplace(1, make_host_tensor(stop_mem->get_layout(), stop_mem_lock.data()));
 
         auto step_mem = memory_deps.at(2);
-        cldnn::mem_lock<uint8_t, mem_lock_type::read> step_mem_lock(step_mem, impl_param.prog->get_stream());
+        cldnn::mem_lock<uint8_t, mem_lock_type::read> step_mem_lock(step_mem, impl_param.get_stream());
         const_data.emplace(2, make_host_tensor(step_mem->get_layout(), step_mem_lock.data()));
 
         shape_infer(&op, input_shapes, output_shapes, const_data);

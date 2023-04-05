@@ -54,7 +54,7 @@ std::vector<layout> tile_inst::calc_output_layouts(tile_node const& /*node*/, co
     if (desc->input_size() == 2) {
         if (constant_mem.count(1)) {
             auto repeats_mem = constant_mem.at(1);
-            cldnn::mem_lock<uint8_t, mem_lock_type::read> repeats_lock(repeats_mem, impl_param.prog->get_stream());
+            cldnn::mem_lock<uint8_t, mem_lock_type::read> repeats_lock(repeats_mem, impl_param.get_stream());
             const auto& layout = repeats_mem->get_layout();
             const auto repeats_tensor =
                 ov::Tensor(data_type_to_element_type(layout.data_type), layout.get_shape(), repeats_lock.data());

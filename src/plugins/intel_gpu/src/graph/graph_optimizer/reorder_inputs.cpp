@@ -1021,6 +1021,9 @@ void reorder_inputs::run(program& p, layout_optimizer& lo, reorder_factory& rf) 
                     auto& data = node->get_dependency(fused_prim.dep_start_idx);
                     auto data_layout = data.get_output_layout();
 
+                    if (fc_layout.is_dynamic() || data_layout.is_dynamic())
+                        continue;
+
                     if ((fc_layout.batch() == 1 || fc_layout.feature() == 1) ||
                         (data_layout.batch() == 1 && data_layout.feature() == 1) ||
                         (fc_layout.count() == data_layout.count())) {
