@@ -55,6 +55,12 @@ void parse_processor_info_win(const char* base_ptr,
     int list_len = 0;
     int base_proc = 0;
     int group = 0;
+
+    int group_start = 0;
+    int group_end = 0;
+    int group_id = 0;
+    int group_type = 0;
+
     _processors = 0;
     _sockets = -1;
     _cores = 0;
@@ -123,6 +129,11 @@ void parse_processor_info_win(const char* base_ptr,
                 proc_info[CPU_MAP_PROCESSOR_ID] = list[0] + base_proc;
                 proc_info[CPU_MAP_SOCKET_ID] = _sockets;
                 proc_info[CPU_MAP_CORE_ID] = _cores;
+                if ((_processors > group_start) && (_processors <= group_end)) {
+                    proc_info[CPU_MAP_CORE_TYPE] = EFFICIENT_CORE_PROC;
+                    proc_info[CPU_MAP_GROUP_ID] = group_id;
+                    _proc_type_table[0][group_type]++;
+                }
                 _cpu_mapping_table.push_back(proc_info);
             }
             _proc_type_table[0][ALL_PROC] += list_len;
@@ -133,9 +144,15 @@ void parse_processor_info_win(const char* base_ptr,
             MaskToList(info->Cache.GroupMask.Mask);
 
             if (4 == list_len) {
-                for (int m = 0; m < list_len; m++) {
-                    _cpu_mapping_table[list[m] + base_proc][CPU_MAP_CORE_TYPE] = EFFICIENT_CORE_PROC;
-                    _cpu_mapping_table[list[m] + base_proc][CPU_MAP_GROUP_ID] = group;
+                if (_processors < list[list_len - 1] + base_proc) {
+                    group_start = list[0];
+                    group_end = list[list_len - 1];
+                    group_id = group;
+                    group_type = EFFICIENT_CORE_PROC;
+                }
+                for (int m = 0; m < _processors - list[0]; m++) {
+                    _cpu_mapping_table[list[0] + base_proc][CPU_MAP_CORE_TYPE] = EFFICIENT_CORE_PROC;
+                    _cpu_mapping_table[list[0] + base_proc][CPU_MAP_GROUP_ID] = group;
                     _proc_type_table[0][EFFICIENT_CORE_PROC]++;
                 }
                 group++;
