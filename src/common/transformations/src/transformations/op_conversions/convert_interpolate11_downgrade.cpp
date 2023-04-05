@@ -34,6 +34,7 @@ ov::pass::ConvertInterpolate11ToInterpolate4::ConvertInterpolate11ToInterpolate4
             return false;
         }
 
+        const bool with_axes_input = interpolate_v11->get_input_size() == 3;
         // downgrade only if the interpolation mode used to create v11 is supported by v4
         std::shared_ptr<ov::opset4::Interpolate> interpolate_v4;
         ov::Output<ov::Node> v4_input_output_shape;
@@ -42,15 +43,25 @@ ov::pass::ConvertInterpolate11ToInterpolate4::ConvertInterpolate11ToInterpolate4
         if (interpolate_v11->get_attrs().shape_calculation_mode ==
             ov::op::util::InterpolateBase::ShapeCalcMode::SCALES) {
             v4_input_scales = interpolate_v11->input_value(1);
-            v4_input_output_shape = opset4::Constant::create(element::i32, Shape{2}, {1});
+            v4_input_output_shape = opset4::Constant::create(element::i32, Shape{}, {1});
+            if (with_axes_input) {
+                v4_input_output_shape = std::make_shared<opset4::Broadcast>(
+                    v4_input_output_shape,
+                    std::make_shared<opset4::ShapeOf>(interpolate_v11->input_value(2)));
+            }
             copy_runtime_info(interpolate_v11, v4_input_output_shape.get_node_shared_ptr());
         } else {
             v4_input_output_shape = interpolate_v11->input_value(1);
-            v4_input_scales = opset4::Constant::create(element::f32, Shape{2}, {1.0f});
+            v4_input_scales = opset4::Constant::create(element::f32, Shape{}, {1.0f});
+            if (with_axes_input) {
+                v4_input_scales = std::make_shared<opset4::Broadcast>(
+                    v4_input_scales,
+                    std::make_shared<opset4::ShapeOf>(interpolate_v11->input_value(2)));
+            }
             copy_runtime_info(interpolate_v11, v4_input_scales.get_node_shared_ptr());
         }
 
-        if (interpolate_v11->get_input_size() == 3) {  // with axes input
+        if (with_axes_input) {  // with axes input
             interpolate_v4 = std::make_shared<ov::opset4::Interpolate>(interpolate_v11->input_value(0),
                                                                        v4_input_output_shape,
                                                                        v4_input_scales,
