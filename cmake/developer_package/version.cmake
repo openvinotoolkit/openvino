@@ -199,6 +199,11 @@ macro (ov_add_version_defines FILE TARGET)
     else()
         add_library(${TARGET}_version STATIC ${__version_file})
     endif()
+    if(SUGGEST_OVERRIDE_SUPPORTED)
+        set_source_files_properties(${__version_file}
+            PROPERTIES COMPILE_OPTIONS -Wno-suggest-override)
+    endif()
+
     target_compile_definitions(${TARGET}_version PRIVATE
         CI_BUILD_NUMBER=\"${CI_BUILD_NUMBER}\"
         $<TARGET_PROPERTY:${TARGET},INTERFACE_COMPILE_DEFINITIONS>
