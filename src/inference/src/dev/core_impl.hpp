@@ -85,6 +85,8 @@ private:
 
         bool get_allow_auto_batch() const;
 
+        bool get_enable_mmap() const;
+
         // Creating thread-safe copy of config including shared_ptr to ICacheManager
         // Passing empty or not-existing name will return global cache config
         CacheConfig get_cache_config_for_device(const ov::Plugin& plugin, ov::AnyMap& parsedConfig) const;
@@ -94,6 +96,7 @@ private:
         CacheConfig _cacheConfig;
         std::map<std::string, CacheConfig> _cacheConfigPerDevice;
         bool _flag_allow_auto_batching = true;
+        bool _flag_enable_mmap = true;
     };
 
     struct CacheContent {

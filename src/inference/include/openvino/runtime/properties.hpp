@@ -679,6 +679,17 @@ static constexpr Property<std::tuple<unsigned int, unsigned int, unsigned int>, 
 static constexpr Property<bool, PropertyMutability::RW> force_tbb_terminate{"FORCE_TBB_TERMINATE"};
 
 /**
+ * @brief Read-write property to configure `mmap()` use for model read. Enabled by default.
+ * For the moment only IR Frontend supports the property.
+ *
+ * value type: boolean
+ *   - True enable `mmap()` use and map model
+ *   - False disable `mmap()` use and read model
+ * @ingroup ov_runtime_cpp_prop_api
+ */
+static constexpr Property<bool, PropertyMutability::RW> enable_mmap{"ENABLE_MMAP"};
+
+/**
  * @brief Namespace with device properties
  */
 namespace device {

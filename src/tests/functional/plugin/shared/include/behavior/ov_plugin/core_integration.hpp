@@ -689,10 +689,22 @@ TEST(OVClassBasicTest, SetTBBForceTerminatePropertyCoreNoThrow) {
     bool value = true;
     OV_ASSERT_NO_THROW(ie.set_property(ov::force_tbb_terminate(false)));
     OV_ASSERT_NO_THROW(value = ie.get_property(ov::force_tbb_terminate.name()).as<bool>());
-    EXPECT_EQ(value, false);
+    EXPECT_FALSE(value);
     OV_ASSERT_NO_THROW(ie.set_property(ov::force_tbb_terminate(true)));
     OV_ASSERT_NO_THROW(value = ie.get_property(ov::force_tbb_terminate.name()).as<bool>());
-    EXPECT_EQ(value, true);
+    EXPECT_TRUE(value);
+}
+
+TEST(OVClassBasicTest, SetEnableMmapPropertyCoreNoThrow) {
+    ov::Core ie;
+
+    bool value = true;
+    OV_ASSERT_NO_THROW(ie.set_property(ov::enable_mmap(false)));
+    OV_ASSERT_NO_THROW(value = ie.get_property(ov::enable_mmap.name()).as<bool>());
+    EXPECT_FALSE(value);
+    OV_ASSERT_NO_THROW(ie.set_property(ov::enable_mmap(true)));
+    OV_ASSERT_NO_THROW(value = ie.get_property(ov::enable_mmap.name()).as<bool>());
+    EXPECT_TRUE(value);
 }
 
 TEST(OVClassBasicTest, GetUnsupportedPropertyCoreThrow) {

@@ -418,7 +418,8 @@ CNNNetwork details::ReadNetwork(const std::string& modelPath,
                                 const std::string& binPath,
                                 const std::vector<IExtensionPtr>& exts,
                                 const std::vector<ov::Extension::Ptr>& ov_exts,
-                                bool newAPI) {
+                                bool newAPI,
+                                bool enable_mmap) {
 #ifdef ENABLE_IR_V7_READER
     // IR v7 obsolete code
     {
@@ -457,7 +458,7 @@ CNNNetwork details::ReadNetwork(const std::string& modelPath,
 #endif
         params.emplace_back(weights_path);
     }
-    params.emplace_back(/*use_ir_frontend_map_allocator=*/true);
+    params.emplace_back(enable_mmap);
 
     FE = manager.load_by_model(params);
     if (FE) {
