@@ -1,17 +1,17 @@
 # Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
+import os
+import subprocess
+import sys
 import unittest
 import unittest.mock as mock
 from unittest.mock import mock_open
 from unittest.mock import patch
 
+from openvino.tools.mo.subprocess_main import setup_env
 from openvino.tools.mo.utils.version import get_version, extract_release_version, get_simplified_ie_version, \
     get_simplified_mo_version, extract_hash_from_version, VersionChecker
-import sys
-import os
-import subprocess
-from openvino.tools.mo.subprocess_main import setup_env
 
 
 class TestingVersion(unittest.TestCase):

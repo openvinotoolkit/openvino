@@ -2,7 +2,9 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import unittest
+
 from openvino.runtime import get_version as get_ie_version
+
 from openvino.tools.mo.utils.version import get_version, get_simplified_ie_version, \
     get_simplified_mo_version, VersionChecker
 
