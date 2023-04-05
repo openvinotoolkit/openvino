@@ -26,6 +26,11 @@ protected:
     void SetUp() override;
 };
 
+class TwoInputsAndOutputsWithReversedOutputs : public TwoInputsAndOutputs {
+protected:
+    void SetUp() override;
+};
+
 } // namespace snippets
 } // namespace test
 } // namespace ov
