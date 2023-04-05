@@ -248,7 +248,7 @@ TSSqueezeBackward::TSSqueezeBackward() {
             } else {
                 auto rank = main_node->get_input_partial_shape(0).rank();
                 non_negative_axes =
-                        normalize_axes(main_node->get_friendly_name(), squeeze_axes->cast_vector<int64_t>(), rank);
+                    normalize_axes(main_node->get_friendly_name(), squeeze_axes->cast_vector<int64_t>(), rank);
             }
         }
 
