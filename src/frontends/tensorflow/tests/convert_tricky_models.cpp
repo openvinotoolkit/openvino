@@ -465,3 +465,33 @@ TEST_F(TransformationTestsF, RaggedTensorToSparse) {
         model_ref = make_shared<Model>(OutputVector{concat}, ParameterVector{row_splits, strings});
     }
 }
+
+TEST_F(TransformationTestsF, SplitInFunction) {
+    {
+        // create FAKE conversion extension for Split using named ports, this is not required for Split, but it tests
+        // how named ports will work if there is one name and many outputs associated with it
+        auto conv_ext = std::make_shared<ov::frontend::ConversionExtension>("Split", [](const NodeContext& node) {
+            auto axis = node.get_input(0);
+            auto value = node.get_input(1);
+            auto num_split = node.get_attribute<int64_t>("num_split");
+
+            auto split = make_shared<Split>(value, axis, num_split);
+            NamedOutputVector res;
+            for (const auto& output : split->outputs()) {
+                res.push_back({"output", output});
+            }
+            return res;
+        });
+        model = convert_model("split_in_function/split_in_function.pbtxt", conv_ext);
+    }
+    {
+        auto x = make_shared<Parameter>(f32, PartialShape{3, 20});
+
+        auto const_zero = make_shared<Constant>(i32, Shape{}, 0);
+        auto split = make_shared<Split>(x, const_zero, 3);
+        auto add1 = make_shared<Add>(split->output(0), split->output(1));
+        auto add2 = make_shared<Add>(add1, split->output(2));
+
+        model_ref = make_shared<Model>(OutputVector{add2}, ParameterVector{x});
+    }
+}

@@ -57,13 +57,26 @@ static bool apply_saved_model_names(std::shared_ptr<ov::Node> node,
     return false;
 }
 
-void decode_input_port(std::shared_ptr<DecoderBase> node,
-                       size_t input_port_idx,
-                       std::string& producer_name,
-                       std::string& producer_output_port_name,
-                       size_t& producer_output_port_index) {
-    node->get_input_node(input_port_idx, producer_name, producer_output_port_name, producer_output_port_index);
+size_t get_flat_index_by_name_and_id(const ov::frontend::NamedOutputVector& outputs,
+                                     const std::string& name,
+                                     size_t idx) {
+    // Assume that if at least one output port has name, then all the ports should have names
+    if (!outputs.empty() && !outputs.front().name.empty()) {
+        // Producer has names in ports
+        auto it = std::find_if(outputs.begin(), outputs.end(), [&](const ov::frontend::NamedOutput& x) {
+            return name == x.name;
+        });
+        FRONT_END_GENERAL_CHECK(outputs.end() - it > ptrdiff_t(idx),
+                                "There is no output port specified by name and index");
+        FRONT_END_GENERAL_CHECK(it[idx].name == name,
+                                "There is no output port with specified index in a group with specified name");
+        return it - outputs.begin() + idx;
+    } else {
+        // There are no named ports in the producer node, so reference by name wouldn't work
+        return idx;
+    }
 }
+
 }  // namespace
 
 TranslateSession::TranslateSession(const ov::frontend::InputModel::Ptr& input_model,
@@ -187,18 +200,11 @@ void TranslateSession::translate_graph(const ov::frontend::InputModel::Ptr& inpu
             size_t producer_port_idx;
             try {
                 std::string producer_port_name;
-                decode_input_port(operation_decoder,
-                                  input_port_idx,
-                                  producer_name,
-                                  producer_port_name,
-                                  producer_port_idx);
+                operation_decoder->get_input_node(input_port_idx, producer_name, producer_port_name, producer_port_idx);
                 if (!producer_port_name.empty()) {
                     producer_port_idx =
                         get_flat_index_by_name_and_id(ng_op_map[producer_name], producer_port_name, producer_port_idx);
                 }
-                // std::cerr << "for consumer: " << operation_decoder->get_op_name() << "\n";
-                // std::cerr << "producer_name = " << producer_name << ", producer_port_idx = " << producer_port_idx <<
-                // "\n";
             } catch (const std::exception&) {
                 FRONT_END_THROW("[ ERROR ] Exception happened when preparing input " + std::to_string(input_port_idx) +
                                 " for op '" + operation_decoder->get_op_name() + "', expected input name: '" +
@@ -370,11 +376,7 @@ void TranslateSession::translate_graph(const ov::frontend::InputModel::Ptr& inpu
                 std::string producer_port_name;
                 size_t producer_port_idx;
                 try {
-                    decode_input_port(operation_decoder,
-                                      port_index,
-                                      producer_name,
-                                      producer_port_name,
-                                      producer_port_idx);
+                    operation_decoder->get_input_node(port_index, producer_name, producer_port_name, producer_port_idx);
                     if (!producer_port_name.empty()) {
                         producer_port_idx = get_flat_index_by_name_and_id(ng_op_map[producer_name],
                                                                           producer_port_name,

@@ -140,23 +140,6 @@ inline NamedOutputVector named_from_indexed(const OutputVector& outputs) {
     return NamedOutputVector(outputs.begin(), outputs.end());
 }
 
-inline size_t get_flat_index_by_name_and_id(const NamedOutputVector& outputs, const std::string& name, size_t id) {
-    // Assume that if at least one output port has name, then all the ports should have names
-    if (!outputs.empty() && !outputs.front().name.empty()) {
-        // Producer has names in ports
-        auto it = std::find_if(outputs.begin(), outputs.end(), [&](const NamedOutput& x) {
-            return name == x.name;
-        });
-        FRONT_END_GENERAL_CHECK(outputs.end() - it > ptrdiff_t(id), "There is no output port specified by name and id");
-        FRONT_END_GENERAL_CHECK(it[id].name == name,
-                                "There is no output port with specified index in a group with specified name");
-        return it - outputs.begin() + id;
-    } else {
-        // There are no named ports in the producer node, so reference by name wouldn't work
-        return id;
-    }
-}
-
 using CreatorFunction = std::function<OutputVector(const NodeContext&)>;
 using CreatorFunctionNamed = std::function<std::map<std::string, OutputVector>(const NodeContext&)>;
 using CreatorFunctionNamedAndIndexed = std::function<NamedOutputVector(const NodeContext&)>;
