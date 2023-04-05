@@ -5,6 +5,7 @@
 #include "translate_session.hpp"
 
 #include "input_model.hpp"
+#include "openvino/op/util/framework_node.hpp"
 #include "openvino/opsets/opset10.hpp"
 #include "openvino/opsets/opset8.hpp"
 #include "tf_framework_node.hpp"
@@ -55,6 +56,20 @@ static bool apply_saved_model_names(std::shared_ptr<ov::Node> node,
         }
     }
     return false;
+}
+
+// it creates framework node and saves exception message in the node attribute
+ov::OutputVector create_fw_node_with_exception(const std::shared_ptr<DecoderBase>& decoder,
+                                               const ov::OutputVector& inputs,
+                                               size_t num_outputs,
+                                               const std::string& operation_name,
+                                               const std::string& exception_message) {
+    ov::op::util::FrameworkNodeAttrs attrs;
+    attrs[FrameworkNode::failed_conversion_key] = exception_message;
+    auto fw_node = std::make_shared<FrameworkNode>(decoder, inputs, num_outputs);
+    fw_node->set_attrs(attrs);
+    set_node_name(operation_name, fw_node);
+    return fw_node->outputs();
 }
 }  // namespace
 
@@ -242,14 +257,20 @@ void TranslateSession::translate_graph(const ov::frontend::InputModel::Ptr& inpu
                 auto translator = m_translator_map->at(operation_decoder->get_op_type());
                 NodeContext node_context(operation_decoder, ov_inputs, this);
                 ov_outputs = translator(node_context);
-            } catch (const std::exception&) {
-                // continue translation by replacing with FrameworkNode
-                // in case of any failures in translators due to their limitation
-                auto fw_node = std::make_shared<FrameworkNode>(operation_decoder,
-                                                               ov_inputs,
-                                                               operation_place->get_output_ports().size());
-                set_node_name(operation_name, fw_node);
-                ov_outputs = fw_node->outputs();
+            } catch (const std::exception& ex) {
+                // save the root-cause of the translation failure
+                ov_outputs = create_fw_node_with_exception(operation_decoder,
+                                                           ov_inputs,
+                                                           operation_place->get_output_ports().size(),
+                                                           operation_name,
+                                                           ex.what());
+            } catch (...) {
+                // save unknown exception type
+                ov_outputs = create_fw_node_with_exception(operation_decoder,
+                                                           ov_inputs,
+                                                           operation_place->get_output_ports().size(),
+                                                           operation_name,
+                                                           "Unknown exception type");
             }
         } else if (auto body_ov_model = get_body_ov_model(operation_type)) {
             inject_body_model(body_ov_model, operation_type, ov_inputs, ov_outputs);
