@@ -1,6 +1,6 @@
 import { Session } from './node_modules/openvinojs/dist/index.mjs';
 
-import { default as imagenetClassesMap } from './assets/imagenet_classes_map.mjs';
+import { default as imagenetClassesMap } from '../assets/imagenet_classes_map.mjs';
 
 export default async function(openvinojs, env, { modelPath, imgPath, shape, layout }, events = {}) {
   events.onLibInitializing = events.onLibInitializing || (() => {});
