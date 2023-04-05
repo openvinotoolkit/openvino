@@ -473,7 +473,7 @@ class TestParallelRunner:
             worker_cnt = self.__execute_tests(filters_runtime, worker_cnt)
         not_runned_test_filter = self.__find_not_runned_tests()
         if len(not_runned_test_filter) > 0:
-            logger.info(f"Execute not runned tests")
+            logger.info(f"Execute not runned {len(not_runned_test_filter)} tests")
             worker_cnt = self.__execute_tests(not_runned_test_filter, worker_cnt)
 
         t_end = datetime.datetime.now()

@@ -22,7 +22,6 @@
 using namespace ov::test::conformance;
 
 int main(int argc, char* argv[]) {
-    // trigger linux build
     // Workaround for Gtest + Gflag
     std::vector<char*> argv_gflags_vec;
     int argc_gflags = 0;
