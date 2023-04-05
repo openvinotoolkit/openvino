@@ -151,8 +151,8 @@ void parse_processor_info_win(const char* base_ptr,
                     group_type = EFFICIENT_CORE_PROC;
                 }
                 for (int m = 0; m < _processors - list[0]; m++) {
-                    _cpu_mapping_table[list[0] + base_proc][CPU_MAP_CORE_TYPE] = EFFICIENT_CORE_PROC;
-                    _cpu_mapping_table[list[0] + base_proc][CPU_MAP_GROUP_ID] = group;
+                    _cpu_mapping_table[list[m] + base_proc][CPU_MAP_CORE_TYPE] = EFFICIENT_CORE_PROC;
+                    _cpu_mapping_table[list[m] + base_proc][CPU_MAP_GROUP_ID] = group;
                     _proc_type_table[0][EFFICIENT_CORE_PROC]++;
                 }
                 group++;
