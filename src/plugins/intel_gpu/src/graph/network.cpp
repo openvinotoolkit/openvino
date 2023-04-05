@@ -1108,7 +1108,7 @@ void network::execute_impl(const std::vector<event::ptr>& events) {
                 for (size_t i = 0; i < get_primitive(inst->id())->dependencies().size(); i++) {
                     log_memory_to_file(get_primitive(inst->id())->dep_memory_ptr(i),
                                        get_stream(),
-                                       "program" + std::to_string(get_program()->get_id()) +
+                                       "program" + std::to_string((get_program() != nullptr) ? get_program()->get_id() : 1) +
                                        "_network" + std::to_string(get_id()) +
                                        "_" + layer_name + "_src" + std::to_string(i),
                                        debug_config->dump_layers_raw);
@@ -1125,7 +1125,7 @@ void network::execute_impl(const std::vector<event::ptr>& events) {
                 for (size_t i = 0; i < get_primitive(inst->id())->outputs_memory_count(); i++) {
                     log_memory_to_file(get_primitive(inst->id())->output_memory_ptr(i),
                                        get_stream(),
-                                       "program" + std::to_string(get_program()->get_id()) +
+                                       "program" + std::to_string((get_program() != nullptr) ? get_program()->get_id() : 1) +
                                        "_network" + std::to_string(get_id()) +
                                        "_" + layer_name + "_dst" + std::to_string(i),
                                        debug_config->dump_layers_raw);
