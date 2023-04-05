@@ -12,6 +12,7 @@
 #include "openvino/pass/manager.hpp"
 #include "openvino/pass/pattern/op/or.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
+#include "openvino/pass/visualize_tree.hpp"
 #include "transformations/common_optimizations/mark_precision_sensitive_shapeof_subgraphs.hpp"
 #include "transformations/convert_precision.hpp"
 #include "transformations/rt_info/disable_fp16_compression.hpp"
@@ -56,7 +57,7 @@ public:
 
     MarkNormalizationOps() {
         MATCHER_SCOPE(MarkNormalizationOps);
-        auto ops_to_be_kept_fp32 = pattern::wrap_type<opset2::MVN, MVN, NormalizeL2>();
+        auto ops_to_be_kept_fp32 = pattern::wrap_type<opset2::MVN, opset10::MVN, NormalizeL2>();
 
         matcher_pass_callback callback = [=](pattern::Matcher& m) {
             const auto& node = m.get_match_root();
@@ -64,8 +65,7 @@ public:
                 return false;
 
             for (const auto& input_val : node->input_values()) {
-                auto is_input_fq = as_type_ptr<FakeQuantize>(input_val.get_node_shared_ptr());
-                if (is_int8_path(input_val.get_node_shared_ptr()) || is_input_fq) {
+                if (is_int8_path(input_val.get_node_shared_ptr())) {
                     enable_fp16_compression(node);
                     return true;
                 }
@@ -365,6 +365,7 @@ public:
         // through this nodes
         std::shared_ptr<Node> quantization_propagating_nodes = pattern::wrap_type<Squeeze,
                                                                                   Unsqueeze,
+                                                                                  FakeQuantize,
                                                                                   Reshape,
                                                                                   op::util::BroadcastBase,
                                                                                   StridedSlice,
@@ -379,6 +380,12 @@ public:
             const auto& node = m.get_match_root();
             if (!node)
                 return false;
+
+            auto is_quantize = as_type_ptr<FakeQuantize>(node);
+            if (is_quantize) {
+                mark_int8_path(node);
+                return true;
+            }
 
             bool is_changed = false;
 

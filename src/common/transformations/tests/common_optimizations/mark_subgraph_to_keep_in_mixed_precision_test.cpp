@@ -1412,3 +1412,127 @@ TEST(TransformationTests, MarkDivWithEpsToKeepInMixedPrecision_InL2NormWithSqrtA
     result = fc(model, model_ref);
     ASSERT_TRUE(result.valid) << result.message;
 }
+
+TEST(TransformationTests, MarkDivWithEpsToKeepInMixedPrecision_disable_for_quantized_nodes_1) {
+    shared_ptr<Model> model, model_ref;
+    pass::Manager manager;
+    // despite there are sensitive Exp->ReduceSum nodes, but because of the FQ they will
+    // be inferred in int8 therefore no need to mark them: model and model_red should match
+    {
+        auto input_1 = make_shared<opset10::Parameter>(element::f32, Shape{1, 3, 224, 224});
+        auto input_2 = make_shared<opset10::Parameter>(element::f32, Shape{1, 3, 224, 224});
+        auto exp_1 = make_shared<opset10::Exp>(input_1);
+
+        auto in_low = op::v0::Constant::create(element::f32, Shape{}, {0.f});
+        auto in_high = op::v0::Constant::create(element::f32, Shape{}, {5.f});
+        auto out_low = op::v0::Constant::create(element::f32, Shape{}, {2.f});
+        auto out_high = op::v0::Constant::create(element::f32, Shape{}, {4.f});
+        auto fq_1 = make_shared<opset10::FakeQuantize>(exp_1, in_low, in_high, out_low, out_high, 256);
+
+        auto reduction_axes = opset10::Constant::create(element::i64, Shape{1}, {-1});
+        auto reduce_sum_1 = make_shared<opset10::ReduceSum>(fq_1, reduction_axes);
+
+        auto fq_2 = make_shared<opset10::FakeQuantize>(reduce_sum_1, in_low, in_high, out_low, out_high, 256);
+        auto matmul_1 = make_shared<opset10::MatMul>(fq_2, input_2);
+
+        model = make_shared<Model>(NodeVector{matmul_1}, ParameterVector{input_1, input_2});
+
+        manager.register_pass<pass::MarkSugraphsToKeepInMixedPrecision>();
+        manager.run_passes(model);
+    }
+
+    {
+        auto input_1 = make_shared<opset10::Parameter>(element::f32, Shape{1, 3, 224, 224});
+        auto input_2 = make_shared<opset10::Parameter>(element::f32, Shape{1, 3, 224, 224});
+        auto exp_1 = make_shared<opset10::Exp>(input_1);
+
+        auto in_low = op::v0::Constant::create(element::f32, Shape{}, {0.f});
+        auto in_high = op::v0::Constant::create(element::f32, Shape{}, {5.f});
+        auto out_low = op::v0::Constant::create(element::f32, Shape{}, {2.f});
+        auto out_high = op::v0::Constant::create(element::f32, Shape{}, {4.f});
+        auto fq_1 = make_shared<opset10::FakeQuantize>(exp_1, in_low, in_high, out_low, out_high, 256);
+
+        auto reduction_axes = opset10::Constant::create(element::i64, Shape{1}, {-1});
+        auto reduce_sum_1 = make_shared<opset10::ReduceSum>(fq_1, reduction_axes);
+
+        auto fq_2 = make_shared<opset10::FakeQuantize>(reduce_sum_1, in_low, in_high, out_low, out_high, 256);
+        auto matmul_1 = make_shared<opset10::MatMul>(fq_2, input_2);
+
+        model_ref = make_shared<Model>(NodeVector{matmul_1}, ParameterVector{input_1, input_2});
+    }
+
+    const auto fc = FunctionsComparator::with_default()
+                        .enable(FunctionsComparator::PRECISIONS)
+                        .enable(FunctionsComparator::RUNTIME_KEYS)
+                        .enable(FunctionsComparator::CONST_VALUES);
+    // need to compare twice to ensure that no extra nodes are marked
+    FunctionsComparator::Result result = fc(model_ref, model);
+    ASSERT_TRUE(result.valid) << result.message;
+    result = fc(model, model_ref);
+    ASSERT_TRUE(result.valid) << result.message;
+}
+
+TEST(TransformationTests, MarkDivWithEpsToKeepInMixedPrecision_disable_for_quantized_nodes_2) {
+    shared_ptr<Model> model, model_ref;
+    pass::Manager manager;
+    // despite there are sensitive Exp->ReduceSum nodes, but because of the FQ they will
+    // be inferred in int8 therefore no need to mark them: model and model_red should match
+    {
+        auto input_1 = make_shared<opset10::Parameter>(element::f32, Shape{1, 3, 224, 224});
+        auto input_2 = make_shared<opset10::Parameter>(element::f32, Shape{1, 3, 224, 224});
+        auto exp_1 = make_shared<opset10::Exp>(input_1);
+
+        auto in_low = op::v0::Constant::create(element::f32, Shape{}, {0.f});
+        auto in_high = op::v0::Constant::create(element::f32, Shape{}, {5.f});
+        auto out_low = op::v0::Constant::create(element::f32, Shape{}, {2.f});
+        auto out_high = op::v0::Constant::create(element::f32, Shape{}, {4.f});
+        auto fq_1 = make_shared<opset10::FakeQuantize>(exp_1, in_low, in_high, out_low, out_high, 256);
+
+        auto unsqueeze_axes = opset10::Constant::create(element::i64, Shape{1}, {1});
+        auto unsqueeze_1 = make_shared<opset10::Unsqueeze>(fq_1, unsqueeze_axes);
+
+        auto reduction_axes = opset10::Constant::create(element::i64, Shape{1}, {-1});
+        auto reduce_sum_1 = make_shared<opset10::ReduceSum>(unsqueeze_1, reduction_axes);
+
+        auto fq_2 = make_shared<opset10::FakeQuantize>(reduce_sum_1, in_low, in_high, out_low, out_high, 256);
+        auto matmul_1 = make_shared<opset10::MatMul>(fq_2, input_2);
+
+        model = make_shared<Model>(NodeVector{matmul_1}, ParameterVector{input_1, input_2});
+
+        manager.register_pass<pass::MarkSugraphsToKeepInMixedPrecision>();
+        manager.run_passes(model);
+    }
+
+    {
+        auto input_1 = make_shared<opset10::Parameter>(element::f32, Shape{1, 3, 224, 224});
+        auto input_2 = make_shared<opset10::Parameter>(element::f32, Shape{1, 3, 224, 224});
+        auto exp_1 = make_shared<opset10::Exp>(input_1);
+
+        auto in_low = op::v0::Constant::create(element::f32, Shape{}, {0.f});
+        auto in_high = op::v0::Constant::create(element::f32, Shape{}, {5.f});
+        auto out_low = op::v0::Constant::create(element::f32, Shape{}, {2.f});
+        auto out_high = op::v0::Constant::create(element::f32, Shape{}, {4.f});
+        auto fq_1 = make_shared<opset10::FakeQuantize>(exp_1, in_low, in_high, out_low, out_high, 256);
+
+        auto unsqueeze_axes = opset10::Constant::create(element::i64, Shape{1}, {1});
+        auto unsqueeze_1 = make_shared<opset10::Unsqueeze>(fq_1, unsqueeze_axes);
+
+        auto reduction_axes = opset10::Constant::create(element::i64, Shape{1}, {-1});
+        auto reduce_sum_1 = make_shared<opset10::ReduceSum>(unsqueeze_1, reduction_axes);
+
+        auto fq_2 = make_shared<opset10::FakeQuantize>(reduce_sum_1, in_low, in_high, out_low, out_high, 256);
+        auto matmul_1 = make_shared<opset10::MatMul>(fq_2, input_2);
+
+        model_ref = make_shared<Model>(NodeVector{matmul_1}, ParameterVector{input_1, input_2});
+    }
+
+    const auto fc = FunctionsComparator::with_default()
+                        .enable(FunctionsComparator::PRECISIONS)
+                        .enable(FunctionsComparator::RUNTIME_KEYS)
+                        .enable(FunctionsComparator::CONST_VALUES);
+    // need to compare twice to ensure that no extra nodes are marked
+    FunctionsComparator::Result result = fc(model_ref, model);
+    ASSERT_TRUE(result.valid) << result.message;
+    result = fc(model, model_ref);
+    ASSERT_TRUE(result.valid) << result.message;
+}
