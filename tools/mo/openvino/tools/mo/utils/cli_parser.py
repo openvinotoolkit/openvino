@@ -24,7 +24,7 @@ from openvino.tools.mo.middle.passes.convert_data_type import np_data_type_to_de
 from openvino.tools.mo.utils import import_extensions
 from openvino.tools.mo.utils.error import Error
 from openvino.tools.mo.utils.utils import refer_to_faq_msg, get_mo_root_dir
-from openvino.tools.mo.utils.find_ie_version import VersionChecker
+from openvino.tools.mo.utils.version import VersionChecker
 
 
 def extension_path_to_str_or_extensions_class(extension):

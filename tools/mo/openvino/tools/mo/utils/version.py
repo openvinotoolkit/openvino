@@ -7,7 +7,8 @@ import subprocess # nosec
 import sys
 
 from openvino.tools.mo.utils.utils import get_mo_root_dir
-
+from openvino.tools.mo.utils.find_ie_version import find_ie_version
+from openvino.runtime import get_version as get_ie_version
 
 def get_version_file_path():
     return os.path.join(os.path.dirname(os.path.realpath(__file__)), os.pardir, "version.txt")
@@ -81,3 +82,24 @@ def extract_hash_from_version(full_version: str):
         return res[0]
     else:
         return None
+
+
+class SingletonMetaClass(type):
+    def __init__(self, cls_name, super_classes, dic):
+        self.__single_instance = None
+        super().__init__(cls_name, super_classes, dic)
+
+    def __call__(cls, *args, **kwargs):
+        if cls.__single_instance is None:
+            cls.__single_instance = super(SingletonMetaClass, cls).__call__(*args, **kwargs)
+        return cls.__single_instance
+
+
+class VersionChecker(metaclass=SingletonMetaClass):
+    def __init__(self, silent=True):
+        if not find_ie_version(silent=silent):
+            exit(1)
+        self.mo_version = get_version()
+        self.ie_version = get_ie_version()
+        self.mo_simplified_version = simplify_version(self.mo_version)
+        self.ie_simplified_version = get_simplified_ie_version(env=os.environ)

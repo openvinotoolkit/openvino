@@ -7,7 +7,8 @@ from unittest.mock import mock_open
 from unittest.mock import patch
 
 from openvino.tools.mo.utils.version import get_version, extract_release_version, get_simplified_ie_version, \
-    get_simplified_mo_version, extract_hash_from_version
+    get_simplified_mo_version, extract_hash_from_version, VersionChecker
+from openvino.runtime import get_version as get_ie_version
 
 
 class TestingVersion(unittest.TestCase):
@@ -17,6 +18,13 @@ class TestingVersion(unittest.TestCase):
         mock_isfile.return_value = True
         mock_open.return_value.__enter__ = mock_open
         self.assertEqual(get_version(), '2021.1.0-1028-55e4d5673a8')
+
+    @patch('os.path.isfile')
+    @mock.patch('builtins.open', new_callable=mock_open, create=True, read_data='2021.1.0-1028-55e4d5673a8')
+    def test_get_version_version_checker(self, mock_open, mock_isfile):
+        mock_isfile.return_value = True
+        mock_open.return_value.__enter__ = mock_open
+        self.assertEqual(VersionChecker().mo_version, '2021.1.0-1028-55e4d5673a8')
 
     @patch('os.path.isfile')
     @mock.patch('builtins.open', new_callable=mock_open, create=True, read_data='2021.1.0-1028-55e4d5673a8')
@@ -45,6 +53,13 @@ class TestingVersion(unittest.TestCase):
         mock_isfile.return_value = True
         mock_open.return_value.__enter__ = mock_open
         self.assertEqual(get_simplified_mo_version(), "2021.1")
+
+    @patch('os.path.isfile')
+    @mock.patch('builtins.open', new_callable=mock_open, create=True, read_data='custom_releases/2021/1_55e4d5673a8')
+    def test_simplify_mo_version_release_version_checker(self, mock_open, mock_isfile):
+        mock_isfile.return_value = True
+        mock_open.return_value.__enter__ = mock_open
+        self.assertEqual(VersionChecker().mo_simplified_version, "2021.1")
 
     @patch('os.path.isfile')
     @mock.patch('builtins.open', new_callable=mock_open, create=True, read_data='custom_my_branch/fix_55e4d5673a8')
@@ -90,3 +105,28 @@ class TestingVersion(unittest.TestCase):
     def test_extracting_version_hash_from_old_format(self):
         self.assertEqual(extract_hash_from_version(full_version="2022.1.0-6311-a90bb1f"),
                          "a90bb1f")
+
+    def test_version_checker(self):
+        import datetime
+        import os
+        ref_mo_version = get_version()
+        ref_ie_version = get_ie_version()
+        ref_mo_simplified_version = get_simplified_mo_version()
+        ref_ie_simplified_version = get_simplified_ie_version(env=os.environ)
+
+        # first init of VersionChecker
+        start_time = datetime.datetime.now()
+        VersionChecker()
+        first_init_time = (datetime.datetime.now() - start_time).total_seconds()
+
+        # Loop with multiple usages of VersionChecker
+        start_time = datetime.datetime.now()
+        for _ in range(100):
+            assert VersionChecker().mo_version == ref_mo_version
+            assert VersionChecker().ie_version == ref_ie_version
+            assert VersionChecker().mo_simplified_version == ref_mo_simplified_version
+            assert VersionChecker().ie_simplified_version == ref_ie_simplified_version
+        loop_time = (datetime.datetime.now() - start_time).total_seconds()
+
+        # Check that time of loop is less than first init, so no actual initialization happens
+        assert loop_time < first_init_time

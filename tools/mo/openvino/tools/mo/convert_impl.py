@@ -34,7 +34,7 @@ from openvino.tools.mo.utils.cli_parser import check_available_transforms, \
     mo_convert_params, get_model_name_from_args, depersonalize
 
 from openvino.tools.mo.utils.error import Error
-from openvino.tools.mo.utils.find_ie_version import VersionChecker
+from openvino.tools.mo.utils.version import VersionChecker
 from openvino.tools.mo.utils.guess_framework import deduce_legacy_frontend_by_namespace
 from openvino.tools.mo.utils.logger import init_logger, progress_printer
 from openvino.tools.mo.utils.utils import refer_to_faq_msg
