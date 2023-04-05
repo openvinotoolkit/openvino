@@ -571,7 +571,8 @@ void Transformations::MainSnippets(void) {
         snippetsManager.get_pass_config()->disable<ngraph::snippets::pass::TokenizeMHASnippets>();
     }
 
-    auto is_supported_matmul = [](const std::shared_ptr<const ov::op::v0::MatMul>& matmul) {
+    auto is_supported_matmul = [](const std::shared_ptr<const ov::Node>& n) {
+        const auto matmul = ov::as_type_ptr<const ov::op::v0::MatMul>(n);
         if (!matmul)
             return false;
         if (matmul->get_input_element_type(1) == ov::element::i8)
@@ -584,10 +585,10 @@ void Transformations::MainSnippets(void) {
 
     if (snippetsMode != Config::SnippetsMode::IgnoreCallback) {
         snippetsManager.get_pass_config()->set_callback<ngraph::snippets::pass::TokenizeMHASnippets>(
-                [this, is_supported_matmul](const std::shared_ptr<const ov::Node>& n) -> bool {
+                [&, is_supported_matmul](const std::shared_ptr<const ov::Node>& n) -> bool {
                     if (this->enableLpt) {
                         // Tranformation callback is called on MatMul1
-                        if (!is_supported_matmul(ov::as_type_ptr<const ov::op::v0::MatMul>(n)))
+                        if (!is_supported_matmul(n))
                             return true;
                         // Search for MatMul0
                         auto parent = n->get_input_node_shared_ptr(0);

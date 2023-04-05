@@ -77,12 +77,19 @@ void snippets::op::Subgraph::init_config() {
 auto snippets::op::Subgraph::get_estimated_buffer_count(const ov::NodeVector& ops) -> size_t {
     // The count of potential unique Buffers - it's hidden virtual ports as well
     // We should go through Subgraph and calculate potential non-inplace Buffers count.
-    // These Buffers can be only around Loops (for example, around MatMul they may be inplace). So we should
-    // check for element type size of nodes which are used Buffer to get rating from above for uniqe Buffer count.
+    // These Buffers can be only around Loops (for example, around MatMul without blocking (Loops around) they may be inplace).
+    // So we should check for element type size of nodes which are used Buffer to get rating from above for uniqe Buffer count.
     // The count is estimated because when we calculate this number we have only original graph representation
     // and where will be Loops - we can just predict.
     // Note: The ops that create Buffers: MatMul, Transpose and Softmax (always FP32)
     std::vector<size_t> used_precision_size;
+
+    auto push_prc_size = [&used_precision_size](size_t precision_size) {
+        if (used_precision_size.empty() || used_precision_size.back() != precision_size) {
+            used_precision_size.push_back(precision_size);
+        }
+    };
+
     for (const auto& op : ops) {
         if (const auto transpose = ov::as_type_ptr<ov::op::v1::Transpose>(op)) {
             // At the moment Transposes are supported only on Results and Parameters but
@@ -96,34 +103,23 @@ auto snippets::op::Subgraph::get_estimated_buffer_count(const ov::NodeVector& op
                                                            }) ||
                                               !ov::is_type<ov::op::v0::Parameter>(transpose->get_input_node_shared_ptr(0));
             if (are_prev_or_next_ops) {
-                const auto prc_size = transpose->get_element_type().size();
-                if (used_precision_size.empty() || used_precision_size.back() != prc_size) {
-                    used_precision_size.push_back(prc_size);
-                }
+                push_prc_size(transpose->get_element_type().size());
             }
         } else if (ov::is_type<ov::op::v1::Softmax>(op) || ov::is_type<ov::op::v8::Softmax>(op)) {
-            // Softmax always uses 2 FP32 Buffers
-            const auto prc_size = ov::element::f32.size();
-            if (used_precision_size.empty() || used_precision_size.back() != prc_size) {
-                used_precision_size.push_back(prc_size);
-            }
+            // Softmax always uses 2 FP32 Buffers after decomposition.
+            // They are inplace and the same so we can push precision size only once
+            push_prc_size(ov::element::f32.size());
         } else if (const auto matmul = ov::as_type_ptr<ov::op::v0::MatMul>(op)) {
             // First input check is enough because MatMul requires the same prc size on inputs
             if (!ov::is_type<ov::op::v0::Parameter>(matmul->get_input_node_shared_ptr(0)) ||
                 !ov::is_type<ov::op::v0::Parameter>(matmul->get_input_node_shared_ptr(1))) {
-                const auto prc_size = matmul->get_input_element_type(0).size();
-                if (used_precision_size.empty() || used_precision_size.back() != prc_size) {
-                    used_precision_size.push_back(prc_size);
-                }
+                push_prc_size(matmul->get_input_element_type(0).size());
             }
 
             const auto consumers = matmul->get_output_target_inputs(0);
             if (std::none_of(consumers.begin(), consumers.end(),
                              [](const ov::Input<ov::Node>& in) { return ov::is_type<ov::op::v0::Result>(in.get_node()); })) {
-                const auto prc_size = matmul->get_element_type().size();
-                if (used_precision_size.empty() || used_precision_size.back() != prc_size) {
-                    used_precision_size.push_back(prc_size);
-                }
+                push_prc_size(matmul->get_element_type().size());
             }
         }
     }

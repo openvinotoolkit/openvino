@@ -427,7 +427,7 @@ void MarkSubgraphOpAsSkipped(const std::shared_ptr<Node> &node) {
 bool isSuitableConvert(const std::shared_ptr<const Node>& node) {
     if (!ov::is_type<ngraph::op::Convert>(node))
         return false;
-    auto hasResult = [](const std::shared_ptr<const Node> &node) {
+    auto hasResult = [](const std::shared_ptr<const Node>& node) {
         auto consumers = node->output(0).get_target_inputs();
         bool findResult = false;
         if (consumers.size() == 1) {

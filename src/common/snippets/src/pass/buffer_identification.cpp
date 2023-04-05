@@ -1,4 +1,4 @@
-// Copyright (C) 2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -13,24 +13,24 @@ namespace snippets {
 namespace pass {
 
 namespace {
-using BufferSet = std::vector<std::shared_ptr<op::Buffer>>;
-
-auto is_intermediate_buffer(const std::shared_ptr<ov::Node>& op) -> std::shared_ptr<op::Buffer> {
+std::shared_ptr<op::Buffer> is_intermediate_buffer(const std::shared_ptr<ov::Node>& op) {
     const auto buffer = ov::as_type_ptr<op::Buffer>(op);
     return buffer && buffer->is_intermediate_memory() ? buffer : nullptr;
 }
 
-
+inline size_t index(size_t size, size_t row, size_t col) {
+    return col + row * size;
+}
 } // namespace
 
-auto create_adjacency_matrix(const BufferSet& buffers) -> std::vector<bool> {
+std::vector<bool> BufferIdentification::create_adjacency_matrix(const BufferIdentification::BufferSet& buffers) {
     // The sync point to check for adjency is Loop because only in Loop we increment pointers.
     // So if some Buffers in the one Loop have conflict (cannot be inplace: the same ptr increment and finalization offset)
     // they are called as adjacent
     const auto size = buffers.size();
     std::vector<bool> adj(size * size, false);
     for (size_t i = 0; i < size; ++i)
-        adj[i + i * size] = true;
+        adj[index(size, i, i)] = true;
 
     auto update_adj_matrix = [&](const std::shared_ptr<op::Buffer>& buffer, size_t buffer_index,
                                  const std::shared_ptr<op::Buffer>& neighbour_buffer) {
@@ -41,19 +41,19 @@ auto create_adjacency_matrix(const BufferSet& buffers) -> std::vector<bool> {
                 NGRAPH_CHECK(iter != buffers.cend(), "Buffer wasn't find in Buffer system of Subgraph");
 
                 const size_t adj_idx = std::distance(buffers.cbegin(), iter);
-                adj[buffer_index + adj_idx * size] = true;
+                adj[index(size, adj_idx, buffer_index)] = adj[index(size, buffer_index, adj_idx)] = true;
             }
         }
     };
 
     for (size_t i = 0; i < buffers.size(); ++i) {
-        const auto buffer = buffers[i];
+        const auto& buffer = buffers[i];
 
         auto port = buffer->input_value(0).get_index();
         auto parent = buffer->get_input_node_shared_ptr(0);
         // We iterate in While cycle to check nested Loops
         while (const auto loop_end = ov::as_type_ptr<op::LoopEnd>(parent)) {
-            const auto loop_begin = loop_end->get_loop_begin();
+            const auto& loop_begin = loop_end->get_loop_begin();
             for (const auto& input_value : loop_begin->input_values()) {
                 auto loop_in = input_value.get_node_shared_ptr();
                 auto port_idx = input_value.get_index();
@@ -69,7 +69,7 @@ auto create_adjacency_matrix(const BufferSet& buffers) -> std::vector<bool> {
             }
             for (const auto& output : loop_end->outputs()) {
                 // check for first target input is enough for Buffer searching because operations can have only single Buffer per each output port as op
-                const auto target_inputs = output.get_target_inputs();
+                const auto& target_inputs = output.get_target_inputs();
                 auto consumer_in = *target_inputs.begin();
                 auto port_idx = consumer_in.get_index();
                 auto consumer = consumer_in.get_node()->shared_from_this();
@@ -95,21 +95,35 @@ auto create_adjacency_matrix(const BufferSet& buffers) -> std::vector<bool> {
     return adj;
 }
 
-auto coloring(BufferSet& buffers, std::vector<bool>& adj) -> std::map<size_t, BufferSet> {
+std::map<size_t, BufferIdentification::BufferSet> BufferIdentification::coloring(BufferIdentification::BufferSet& buffers, std::vector<bool>& adj) {
     size_t color = 0;
-    std::map<size_t, BufferSet> color_groups;
+    std::map<size_t, BufferIdentification::BufferSet> color_groups;
     const auto size = buffers.size();
+    // If we have count of adjacent Buffers is equal to count of all Buffers,
+    // it mean that Buffers aren't adjacent between them (they just have loops)
+    if (static_cast<size_t>(std::count(adj.begin(), adj.end(), true)) == size) {
+        color_groups[color] = buffers;
+        return color_groups;
+    }
+
     for (size_t i = 0; i < size; i++) {
+        // The Buffer is already colored (visited) - skip
         if (!buffers[i])
             continue;
 
-        auto buffer = buffers[i];
+        const auto& buffer = buffers[i];
         color_groups[color].push_back(buffer); // Add to Color Group
         buffers[i] = nullptr;  // Remove from graph vertices
 
         // while Buffer i has not coloured non-neighbours
         // (row i contains 0)
         while (!std::accumulate(adj.begin() + i * size, adj.begin() + (i + 1) * size, true, std::logical_and<bool>())) {
+            // Find first non-adjacent and non-visited (non-colored) Buffer to color him to the same color
+            // NOTE: At the moment Snippets don't garantee that Buffer pointer won't be resetted after Loop execution.
+            //       So we cannot reuse Buffer pointer at second time and don't allow the following case:
+            //                   Buffer[0] -> ... -> Buffer[1] -> ... -> Buffer[0]
+            //       To cover this case, we make force break when find first adjacent not-visitted `vertex`
+            //       Notice, this case will be supported in new infrastructure with Linear IR
             size_t j = i + 1;
             bool force_break = false;
             for (; j < size; ++j) {
@@ -121,12 +135,19 @@ auto coloring(BufferSet& buffers, std::vector<bool>& adj) -> std::map<size_t, Bu
                     break;
             }
 
+            // If we have to make force break or we don't have the corresponding non-adjacent and non-colored Buffers,
+            // we should make break - all potential Buffers for the current color are already colored
             if (force_break || j == size)
                 break;
 
-            auto neighbour_buffer = buffers[j];
+            const auto& neighbour_buffer = buffers[j];
             color_groups[color].push_back(neighbour_buffer); // Add to Color Group
             buffers[j] = nullptr;  // Remove from graph vertices
+            // Unite adjacency links:
+            //    All the neighbors of Buffer `j` are added to the neighbors of Buffer `i` (the `vertices` are pulled together).
+            //    The result is an updated i-th row of the adjacency matrix,
+            //    in which 0 are only in columns with `vertex` numbers that are not adjacent to either the i-th or j-th `vertices`.
+            //    Mathematically, this can be replaced by the operation of OR of Boolean vectors representing strings i and j.
             std::transform(adj.begin() + i * size, adj.begin() + (i + 1) * size, adj.begin() + j * size,
                            adj.begin() + i * size, std::logical_or<bool>());
         }
@@ -142,7 +163,7 @@ bool BufferIdentification::run_on_model(const std::shared_ptr<ov::Model>& model)
     // Unite Buffers using Graph coloring algorithm.
     // Notes: We identify only Buffer with Intermediate memory because Buffers with new memory are used only in Brgemm case
     //        so these Buffers are always IntermediateBuffer nonadjacent
-    BufferSet buffers;
+    BufferIdentification::BufferSet buffers;
 
     const auto ops = model->get_ordered_ops();
     for (const auto& op : ops) {
@@ -157,10 +178,9 @@ bool BufferIdentification::run_on_model(const std::shared_ptr<ov::Model>& model)
     // Graph coloring algorithm
     const auto color_groups = coloring(buffers, adj);
 
-    // FIXME: use const auto& [color, united_buffers] when C++17 is available
     for (const auto& pair : color_groups) {
         const auto color = pair.first;
-        const auto united_buffers = pair.second;
+        const auto& united_buffers = pair.second;
         for (const auto& buffer : united_buffers) {
             buffer->set_id(color);
         }

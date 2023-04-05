@@ -99,8 +99,8 @@ bool ngraph::snippets::pass::AssignRegisters::run_on_model(const std::shared_ptr
     std::map<Tensor, Reg> manually_assigned_gprs, manually_assigned_vecs;
     manual_assigning(f, ops, manually_assigned_gprs, manually_assigned_vecs);
 
-    const auto IS_MANUALLY_ALLOCATED_REG = SIZE_MAX;
-    auto enumerate_out_tensors = [IS_MANUALLY_ALLOCATED_REG] (const std::shared_ptr<ov::Node>& op,
+    const auto IS_MANUALLY_ASSIGNED_REG = SIZE_MAX;
+    auto enumerate_out_tensors = [IS_MANUALLY_ASSIGNED_REG] (const std::shared_ptr<ov::Node>& op,
                                      decltype(regs_vec)& reg_map,
                                      const std::map<Tensor, Reg>& manually_assigned_regs,
                                      size_t& counter) {
@@ -109,7 +109,7 @@ bool ngraph::snippets::pass::AssignRegisters::run_on_model(const std::shared_ptr
             // Note that some ops might have identical input&output tensors (Result and Tile* for ex.)
             // so we have to check that the tensor has not been enumerated already
             if (reg_map.count(t) == 0) {
-                reg_map[t] = manually_assigned_regs.count(t) == 0 ? counter++ : IS_MANUALLY_ALLOCATED_REG;
+                reg_map[t] = manually_assigned_regs.count(t) == 0 ? counter++ : IS_MANUALLY_ASSIGNED_REG;
             }
         }
     };
@@ -131,13 +131,13 @@ bool ngraph::snippets::pass::AssignRegisters::run_on_model(const std::shared_ptr
     std::vector<std::set<Reg>> used_vec(ops.size(), std::set<Reg>());
     std::vector<std::set<Reg>> defined_vec(ops.size(), std::set<Reg>());
 
-    auto tensor2reg = [IS_MANUALLY_ALLOCATED_REG] (const std::vector<Tensor>& tensors, const std::map<Tensor, Reg>& reg_map) {
+    auto tensor2reg = [IS_MANUALLY_ASSIGNED_REG] (const std::vector<Tensor>& tensors, const std::map<Tensor, Reg>& reg_map) {
         std::set<Reg> result;
         for (const auto& t : tensors) {
             if (reg_map.count(t) == 0)
                 throw ngraph::ngraph_error("Assign registers: attempt to access not enumerated tensor");
             Reg reg_id = reg_map.at(t);
-            if (reg_id != IS_MANUALLY_ALLOCATED_REG)
+            if (reg_id != IS_MANUALLY_ASSIGNED_REG)
                 result.insert(reg_id);
         }
         return result;
@@ -298,10 +298,10 @@ bool ngraph::snippets::pass::AssignRegisters::run_on_model(const std::shared_ptr
 
     std::map<Tensor, Reg> assigned_regs(std::move(manually_assigned_gprs));
     assigned_regs.insert(manually_assigned_vecs.begin(), manually_assigned_vecs.end());
-    auto register_assigned_regs = [IS_MANUALLY_ALLOCATED_REG, &assigned_regs](const std::map<Tensor, Reg>& unique_regs,
+    auto register_assigned_regs = [IS_MANUALLY_ASSIGNED_REG, &assigned_regs](const std::map<Tensor, Reg>& unique_regs,
                                                    const std::map<Reg, Reg>& unique2reused) {
         for (const auto& reg : unique_regs) {
-            if (reg.second == IS_MANUALLY_ALLOCATED_REG)
+            if (reg.second == IS_MANUALLY_ASSIGNED_REG)
                 continue;
             if (unique2reused.count(reg.second) == 0)
                 throw ngraph::ngraph_error("Assign registers failed to allocate register for a tensor");

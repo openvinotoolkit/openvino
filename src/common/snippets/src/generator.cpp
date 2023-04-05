@@ -10,7 +10,6 @@
 #include "snippets/op/subgraph.hpp"
 #include "snippets/op/kernel.hpp"
 #include <snippets/itt.hpp>
-#include <snippets/snippets_isa.hpp>
 
 #include <ngraph/pass/manager.hpp>
 #include <openvino/core/type.hpp>

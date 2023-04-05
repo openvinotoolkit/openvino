@@ -18,11 +18,9 @@
 
 namespace {
 auto is_supported_tensor(const ngraph::descriptor::Tensor& t) -> bool {
-    // TODO: Add support of non-4D tensors
     return t.get_partial_shape().is_static() && t.get_shape().size() == 4;
 }
 
-// TODO: Add support of Reshape?
 auto is_supported_intermediate_op(const std::shared_ptr<ngraph::Node>& node) -> bool {
     const auto is_intermediate_op = [](const std::shared_ptr<ngraph::Node>& node) {
         return ngraph::is_type<ngraph::op::util::UnaryElementwiseArithmetic>(node) ||
@@ -128,7 +126,6 @@ auto get_potential_body_params(const std::shared_ptr<ov::Node>& op) -> size_t {
 
 auto update_intermediate_supported_ops(std::shared_ptr<ov::Node>& interm_op, ngraph::NodeVector& ordered_ops,
                                        size_t& hidden_virtual_ports_count, size_t& potential_body_params_count) -> bool {
-    // TODO: Add Reshape support
     while (is_supported_intermediate_op(interm_op)) {
         // All supported intermediate ops have only one output port
         if (interm_op->get_output_target_inputs(0).size() != 1)
@@ -334,8 +331,7 @@ ngraph::snippets::pass::TokenizeMHASnippets::TokenizeMHASnippets() {
             }
             potential_body_params_count += get_potential_body_params(parent);
             ordered_ops.insert(ordered_ops.begin(), parent);
-            // We think that sequence of ops goes through input port 0
-            // But can be Select here? If it can be, parent shouldn't be on input port 0. Need another way?
+            // [107731] To go always through 0-th port - is it safe?
             parent = parent->get_input_node_shared_ptr(0);
         }
 
@@ -369,8 +365,6 @@ ngraph::snippets::pass::TokenizeMHASnippets::TokenizeMHASnippets() {
             }
         }
 
-        // TODO: Add Reshape Support for all Transposes
-        //       Add 3D support for all Transposes
         const auto transpose0 = ngraph::as_type_ptr<ngraph::opset1::Transpose>(matmul0->get_input_node_shared_ptr(0));
         if (is_valid_transpose(transpose0, {0, 2, 1, 3})) {
             ordered_ops.insert(ordered_ops.begin(), transpose0);
@@ -399,8 +393,8 @@ ngraph::snippets::pass::TokenizeMHASnippets::TokenizeMHASnippets() {
             }
             potential_body_params_count += get_potential_body_params(child);
 
-            // TODO: move this plugin-specific constraint to the plugin callback
-            //       We cannot collapse op to Subgraph if count of potential Parameter and Result count is higher 12
+            // [75567]: move this plugin-specific constraint to the plugin callback
+            //          We cannot collapse op to Subgraph if count of potential Parameter and Result count is higher 12
             if (potential_body_params_count + child->get_output_target_inputs(0).size() + hidden_virtual_ports_count + buffer_count > 12) {
                 break;
             }
@@ -409,7 +403,7 @@ ngraph::snippets::pass::TokenizeMHASnippets::TokenizeMHASnippets() {
             child = child->get_output_target_inputs(0).begin()->get_node()->shared_from_this();
         }
 
-        // TODO: Add full support of Transpose to cover cases where there are nodes between MatMul2 and Transpose3:
+        // At the moment Snippets don't support nodes between MatMul2 and Transpose3 due to Loop and strided calculations limitations
         //     MatMul2
         //  <Supported ops>
         //    Transpose3
@@ -427,7 +421,7 @@ ngraph::snippets::pass::TokenizeMHASnippets::TokenizeMHASnippets() {
 
         /* ====== Subgraph creation ======= */
 
-        // TODO: move this plugin-specific constraint to the plugin callback
+        // [75567]: move this plugin-specific constraint to the plugin callback
         const auto last_node = ordered_ops.back();
         if (potential_body_params_count + last_node->get_output_size() + hidden_virtual_ports_count + buffer_count > 12) {
             return false;

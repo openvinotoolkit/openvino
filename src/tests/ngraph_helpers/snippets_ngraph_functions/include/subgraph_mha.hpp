@@ -46,6 +46,7 @@ public:
     explicit MHAFunction(const std::vector<PartialShape>& inputShapes, const std::vector<ov::element::Type>& precisions, bool with_mul = true)
         : SnippetsFunctionBase(inputShapes), with_mul(with_mul), precisions(precisions) {
         NGRAPH_CHECK(input_shapes.size() == 4, "Got invalid number of input shapes");
+        NGRAPH_CHECK(precisions.size() == 4, "Got invalid number of input precisions");
     }
 protected:
     std::shared_ptr<ov::Model> initOriginal() const override;
@@ -75,6 +76,7 @@ public:
     explicit MHAMatMul0TransposeFunction(const std::vector<PartialShape>& inputShapes, const std::vector<ov::element::Type>& precisions)
             : SnippetsFunctionBase(inputShapes), precisions(precisions) {
         NGRAPH_CHECK(input_shapes.size() == 4, "Got invalid number of input shapes");
+        NGRAPH_CHECK(precisions.size() == 4, "Got invalid number of input precisions");
     }
 protected:
     std::shared_ptr<ov::Model> initOriginal() const override;
@@ -103,6 +105,7 @@ public:
     explicit MHASelectFunction(const std::vector<PartialShape>& inputShapes, const std::vector<ov::element::Type>& precisions)
         : SnippetsFunctionBase(inputShapes), precisions(precisions) {
         NGRAPH_CHECK(input_shapes.size() == 6, "Got invalid number of input shapes");
+        NGRAPH_CHECK(precisions.size() == 6, "Got invalid number of input precisions");
     }
 protected:
     std::shared_ptr<ov::Model> initOriginal() const override;

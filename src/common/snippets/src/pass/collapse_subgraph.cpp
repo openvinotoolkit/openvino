@@ -529,15 +529,18 @@ TokenizeSnippets::TokenizeSnippets() {
         ResultVector body_results;
         std::vector<std::set<Input<Node>>> subgraph_result_inputs;
 
-        ov::NodeVector new_body_ops;
+        ov::NodeVector ops_for_buffer_count;
         for (auto subgraph : input_subgraphs) {
             // we should summurize additional needed data count (non-scalar Constants and Buffers) from all input subgraphs
             // because we will collapse them with our node and we should get total count
             const auto subgraph_ptr = ov::as_type_ptr<ngraph::snippets::op::Subgraph>(subgraph);
             hidden_data_count += subgraph_ptr->get_virtual_port_count();
+            // Buffers can be existed only in Subgraphs with domain sensetive ops which
+            // requires intermediate memory for data repacking
+            // To avoid load time regressions, we verify only these Subgraph with domain sensetive ops
             if (subgraph_ptr->has_domain_sensitive_ops()) {
                 const auto ops = subgraph_ptr->body_ptr()->get_ordered_ops();
-                new_body_ops.insert(new_body_ops.end(), ops.begin(), ops.end());
+                ops_for_buffer_count.insert(ops_for_buffer_count.end(), ops.begin(), ops.end());
             }
 
             for (auto output : subgraph->outputs()) {
@@ -570,7 +573,7 @@ TokenizeSnippets::TokenizeSnippets() {
         }
 
         if (op::Subgraph::is_domain_sensitive_op(node)) {
-            new_body_ops.push_back(node);
+            ops_for_buffer_count.push_back(node);
         }
 
         for (auto output : node->outputs()) {
@@ -583,7 +586,7 @@ TokenizeSnippets::TokenizeSnippets() {
         }
 
         // todo: move this plugin-specific constraint to the plugin callback
-        const auto unique_buffer_count = op::Subgraph::get_estimated_buffer_count(new_body_ops);
+        const auto unique_buffer_count = op::Subgraph::get_estimated_buffer_count(ops_for_buffer_count);
         if (body_parameters.size() + body_results.size() + hidden_data_count + unique_buffer_count > 12) {
             const std::string message_reset = "new subgraph is created. Impossible to schedule subgraph with " +
             std::to_string(body_parameters.size()) + " inputs, " + std::to_string(body_results.size()) + " outputs and " +
