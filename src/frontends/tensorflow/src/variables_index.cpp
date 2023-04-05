@@ -300,14 +300,20 @@ bool VariablesIndex::read_variables(std::ifstream& vi_stream, const std::wstring
 #endif
 
 struct PtrNode {
+    using SharedPtrNode = std::shared_ptr<PtrNode>;
+
     const ::tensorflow::NodeDef* node;
-    std::vector<PtrNode*> inputs;
-    std::vector<PtrNode*> outputs;
+    std::vector<SharedPtrNode> inputs;
+    std::vector<SharedPtrNode> outputs;
 
     PtrNode() : node(nullptr), inputs(), outputs() {}
 
-    PtrNode(const ::tensorflow::NodeDef& src_node, const std::map<std::string, PtrNode*>& node_dictionary) {
+    PtrNode(const ::tensorflow::NodeDef& src_node) {
         node = &src_node;
+    }
+
+    void associate_node(const SharedPtrNode shared_node, const std::map<std::string, SharedPtrNode>& node_dictionary) {
+        FRONT_END_GENERAL_CHECK(shared_node.get() == this, "Only current object is expected for association");
         std::vector<std::string> parsedName;
         for (const auto& input_name : node->input()) {
             parse_node_name(input_name, parsedName);
@@ -317,12 +323,12 @@ struct PtrNode {
                 continue;
             }
 
-            input_node->second->outputs.push_back(this);
+            input_node->second->outputs.push_back(shared_node);
             inputs.push_back(input_node->second);
         }
     }
 
-    void find_parent_by_op(const std::string& op, std::vector<PtrNode*>& result) const {
+    void find_parent_by_op(const std::string& op, std::vector<SharedPtrNode>& result) const {
         for (auto input : inputs) {
             if (input->op() == op) {
                 result.push_back(input);
@@ -354,7 +360,7 @@ struct PtrNode {
 
 static void read_stateful_partitioned_call(const std::shared_ptr<::tensorflow::GraphDef> graph_def,
                                            const ::tensorflow::NodeDef& partCall,
-                                           std::map<std::string, PtrNode*>& node_dictionary) {
+                                           std::map<std::string, PtrNode::SharedPtrNode>& node_dictionary) {
     FRONT_END_GENERAL_CHECK(partCall.op() == "StatefulPartitionedCall", "Passed node isn't StatefulPartitionedCall");
 
     std::string func_name = partCall.attr().at("f").func().name();
@@ -370,7 +376,7 @@ static void read_stateful_partitioned_call(const std::shared_ptr<::tensorflow::G
     FRONT_END_GENERAL_CHECK(func_def, "Function isn't found in the library");
     FRONT_END_GENERAL_CHECK(graph_def->has_library(), "GraphDef contains functions, but doesn't have the library");
 
-    std::map<std::string, PtrNode*> nodes;
+    std::map<std::string, PtrNode::SharedPtrNode> nodes;
 
     // Filling temporary input nodes for exact function
     for (int i = 0; i < func_def->signature().input_arg_size(); ++i) {
@@ -384,7 +390,9 @@ static void read_stateful_partitioned_call(const std::shared_ptr<::tensorflow::G
 
     // Parsing nodes and inline partitioned calls
     for (const auto& node : func_def->node_def()) {
-        nodes[node.name()] = new PtrNode(node, nodes);
+        auto shared_node = std::make_shared<PtrNode>(node);
+        shared_node->associate_node(shared_node, nodes);
+        nodes[node.name()] = shared_node;
 
         if (node.op() == "StatefulPartitionedCall") {
             read_stateful_partitioned_call(graph_def, node, nodes);
@@ -409,10 +417,12 @@ static void read_stateful_partitioned_call(const std::shared_ptr<::tensorflow::G
 
 void VariablesIndex::map_assignvariable(const std::shared_ptr<::tensorflow::GraphDef> graph_def,
                                         std::map<std::string, std::string>& variables_map) {
-    std::map<std::string, PtrNode*> nodes;
+    std::map<std::string, PtrNode::SharedPtrNode> nodes;
 
     for (const auto& node : graph_def->node()) {
-        nodes[node.name()] = new PtrNode(node, nodes);
+        auto shared_node = std::make_shared<PtrNode>(node);
+        shared_node->associate_node(shared_node, nodes);
+        nodes[node.name()] = shared_node;
 
         if (node.op() == "StatefulPartitionedCall") {
             read_stateful_partitioned_call(graph_def, node, nodes);
@@ -423,8 +433,8 @@ void VariablesIndex::map_assignvariable(const std::shared_ptr<::tensorflow::Grap
         if (node.second->op() == "AssignVariableOp") {
             // TODO: assets reading
 
-            std::vector<PtrNode*> restorev2_nodes;
-            std::vector<PtrNode*> varhandle_nodes;
+            std::vector<PtrNode::SharedPtrNode> restorev2_nodes;
+            std::vector<PtrNode::SharedPtrNode> varhandle_nodes;
 
             node.second->find_parent_by_op("RestoreV2", restorev2_nodes);
             node.second->find_parent_by_op("VarHandleOp", varhandle_nodes);
@@ -443,11 +453,16 @@ void VariablesIndex::map_assignvariable(const std::shared_ptr<::tensorflow::Grap
                 variables_map[varhandle_nodes[0]->node->name()] = variable_name;
             }
         } else if (node.second->op() == "Assign") {
-            std::vector<PtrNode*> restorev2_nodes;
-            std::vector<PtrNode*> variablev2_nodes;
+            std::vector<PtrNode::SharedPtrNode> restorev2_nodes;
+            std::vector<PtrNode::SharedPtrNode> variablev2_nodes;
 
             node.second->find_parent_by_op("RestoreV2", restorev2_nodes);
             node.second->find_parent_by_op("VariableV2", variablev2_nodes);
+
+            // Added support of Variable nodes in case no associated VariableV2 nodes found
+            if (variablev2_nodes.size() == 0) {
+                node.second->find_parent_by_op("Variable", variablev2_nodes);
+            }
 
             if (restorev2_nodes.size() == 1 && variablev2_nodes.size() == 1) {
                 std::vector<std::string> restore_output;
@@ -463,6 +478,12 @@ void VariablesIndex::map_assignvariable(const std::shared_ptr<::tensorflow::Grap
                 variables_map[variablev2_nodes[0]->node->name()] = variable_name;
             }
         }
+    }
+
+    // Removing cross-links, otherwise memory leak will be caused by lost shared pointers
+    for (auto node : nodes) {
+        node.second->inputs.clear();
+        node.second->outputs.clear();
     }
 
     nodes.clear();
