@@ -326,7 +326,7 @@ TEST_F(AnyTests, AnyDoesNotShareValues) {
     }
 }
 
-TEST_F(AnyTests, DISABLED_AnyMapSharesValues) {
+TEST_F(AnyTests, AnyMapSharesValues) {
     AnyMap map{
         {"1", 1},
         {"2", 2},

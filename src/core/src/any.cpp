@@ -73,6 +73,18 @@ Any::~Any() {
     _impl = {};
 }
 
+Any::Any(const Any& other) {
+    *this = other;
+};
+
+Any& Any::operator=(const Any& other) {
+    if (other._temp)
+        _temp = other._temp->copy();
+    if (other._impl)
+        _impl = other._impl->copy();
+    return *this;
+};
+
 Any::Any(const Any& other, const std::vector<std::shared_ptr<void>>& so) : _so{so}, _impl{other._impl} {}
 
 Any::Any(const char* str) : Any(std::string{str}) {}
