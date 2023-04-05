@@ -54,19 +54,24 @@ jobs:
       - name: Install python dependencies
         run: |
           python3 -m pip install --upgrade pip
-          python3 -m pip install -r ${{ github.workspace }}/src/bindings/python/src/compatibility/openvino/requirements-dev.txt
-          python3 -m pip install -r ${{ github.workspace }}/src/bindings/python/wheel/requirements-dev.txt
-          python3 -m pip install -r ${{ github.workspace }}/src/bindings/python/requirements.txt
-          # For running Python API tests
-          python3 -m pip install -r ${{ github.workspace }}/src/bindings/python/src/compatibility/openvino/requirements-dev.txt
-          # For running Paddle frontend unit tests
-          python3 -m pip install -r ${{ github.workspace }}/src/frontends/paddle/tests/requirements.txt
-          # For running ONNX frontend unit tests
-          python3 -m pip install -r ${{ github.workspace }}/src/frontends/onnx/tests/requirements.txt
-          # For MO unit tests
-          python3 -m pip install -r ${{ github.workspace }}/tools/mo/requirements.txt
-          python3 -m pip install -r ${{ github.workspace }}/tools/mo/requirements_dev.txt
-      
+         python3 -m pip install -r $(REPO_DIR)/src/bindings/python/wheel/requirements-dev.txt
+         python3 -m pip install -r $(REPO_DIR)/src/bindings/python/requirements.txt
+         # For running Python API tests
+         python3 -m pip install -r $(REPO_DIR)/src/bindings/python/src/compatibility/openvino/requirements-dev.txt
+         # For running Paddle frontend unit tests
+         python3 -m pip install -r $(REPO_DIR)/src/frontends/paddle/tests/requirements.txt
+         # For running ONNX frontend unit tests
+         python3 -m pip install -r $(REPO_DIR)/src/frontends/onnx/tests/requirements.txt
+         # For running TensorFlow frontend unit tests
+         python3 -m pip install -r $(REPO_DIR)/src/frontends/tensorflow/tests/requirements.txt
+         # For MO unit tests
+         python3 -m pip install -r $(REPO_DIR)/tools/mo/requirements_mxnet.txt
+         python3 -m pip install -r $(REPO_DIR)/tools/mo/requirements_caffe.txt
+         python3 -m pip install -r $(REPO_DIR)/tools/mo/requirements_kaldi.txt
+         python3 -m pip install -r $(REPO_DIR)/tools/mo/requirements_onnx.txt
+         python3 -m pip install -r $(REPO_DIR)/tools/mo/requirements_tf2.txt
+         python3 -m pip install -r $(REPO_DIR)/tools/mo/requirements_dev.txt
+          
       - name: Get number of CPU cores
         uses: SimenB/github-actions-cpu-cores@v1
         id: cpu-cores
