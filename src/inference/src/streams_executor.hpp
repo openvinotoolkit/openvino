@@ -48,6 +48,7 @@ void parse_processor_info_linux(const int _processors,
                                 int& _cores,
                                 std::vector<std::vector<int>>& _proc_type_table,
                                 std::vector<std::vector<int>>& _cpu_mapping_table);
+#endif
 
 #if (defined(_WIN32) || defined(_WIN64))
 /**
