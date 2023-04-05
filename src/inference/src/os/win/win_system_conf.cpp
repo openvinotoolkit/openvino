@@ -29,8 +29,6 @@ void CPU::init_cpu(CPU& cpu) {
         return;
     }
 
-    cpu._processors = GetMaximumProcessorCount(ALL_PROCESSOR_GROUPS);
-
     parse_processor_info_win(base_ptr,
                              len,
                              cpu._processors,
