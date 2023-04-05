@@ -118,15 +118,15 @@ def convert_model(
 
         :param input:
             Input can be set by passing a list of InputCutInfo objects or by a list
-            of tuples. Each tuple should contain input name and optionally input
+            of tuples. Each tuple can contain optionally input name, input
             type or input shape. Example: input=("op_name", PartialShape([-1,
             3, 100, 100]), Type(np.float32)). Alternatively input can be set by
             a string or list of strings of the following format. Quoted list of comma-separated
             input nodes names with shapes, data types, and values for freezing.
-            The order of inputs in converted model is the same as order of specified
-            operation names. The shape and value are specified as comma-separated
-            lists. The data type of input node is specified in braces and can have
-            one of the values: f64 (float64), f32 (float32), f16 (float16), i64
+            If operation names are specified, the order of inputs in converted
+            model will be the same as order of specified operation names (applicable for TF2, ONNX, MxNet).
+            The shape and value are specified as comma-separated lists. The data type of input node is specified
+            in braces and can have one of the values: f64 (float64), f32 (float32), f16 (float16), i64
             (int64), i32 (int32), u8 (uint8), boolean (bool). Data type is optional.
             If it's not specified explicitly then there are two options: if input
             node is a parameter, data type is taken from the original node dtype,
