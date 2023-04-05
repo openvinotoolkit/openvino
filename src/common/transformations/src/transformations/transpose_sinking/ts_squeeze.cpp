@@ -109,6 +109,9 @@ TSSqueezeForward::TSSqueezeForward() {
 
         auto transpose = pattern_to_output.at(transpose_label);
         auto squeeze = pattern_to_output.at(squeeze_label);
+        if (transformation_callback(squeeze)) {
+            return false;
+        }
 
         auto transpose_order = as_type_ptr<Constant>(transpose->get_input_node_shared_ptr(1));
         auto squeeze_axes = as_type_ptr<Constant>(squeeze->get_input_node_shared_ptr(1));
@@ -194,6 +197,9 @@ TSSqueezeBackward::TSSqueezeBackward() {
 
         auto transpose = pattern_to_output.at(transpose_label);
         auto squeeze = pattern_to_output.at(squeeze_label);
+        if (transformation_callback(squeeze)) {
+            return false;
+        }
 
         auto transpose_order = as_type_ptr<Constant>(transpose->get_input_node_shared_ptr(1));
         auto squeeze_axes = as_type_ptr<Constant>(squeeze->get_input_node_shared_ptr(1));
