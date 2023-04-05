@@ -199,7 +199,7 @@ Let's take a closer look at the parameters this macro takes (note that there are
 .. code-block:: cpp
 
    OPENVINO_FRAMEWORK_MAP(framework, name, attributes_map, attributes_values)
-   OPENVINO_FRAMEWORK_MAP(framework, name, input_names, output_names, attributes_map, attributes_values)
+   OPENVINO_FRAMEWORK_MAP(framework, input_names, output_names, name, attributes_map, attributes_values)
 
 - ``framework`` - framework name.
 - ``name`` - the framework operation name. It's optional if the OpenVINO custom operation name (that is the name that is passed as the first parameter to ``OPENVINO_OP`` macro) is the same as the framework operation name and both ``attributes_map`` and ``attributes_values`` are not provided.

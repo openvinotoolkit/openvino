@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 #include <openvino/openvino.hpp>
@@ -56,7 +56,7 @@ public:
     OPENVINO_OP("CustomOp");
     OPENVINO_FRAMEWORK_MAP(onnx, "CustomOp", { {"m_mode", "mode"} }, { {"m_axis", -1} });
     OPENVINO_FRAMEWORK_MAP(tensorflow, "CustomOpV3", { {"m_axis", "axis"} }, { {"m_mode", "linear"} });
-    OPENVINO_FRAMEWORK_MAP(paddle, "CustomOp", {"X"}, {"Out"}, { {"m_mode", "mode"} }, { {"m_axis", -1} });
+    OPENVINO_FRAMEWORK_MAP(paddle, {"X"}, {"Out"}, "CustomOp", { {"m_mode", "mode"} }, { {"m_axis", -1} });
 
     bool visit_attributes(ov::AttributeVisitor& visitor) override {
         visitor.on_attribute("m_mode", m_mode);
