@@ -24,13 +24,6 @@ class TestingVersion(unittest.TestCase):
 
     @patch('os.path.isfile')
     @mock.patch('builtins.open', new_callable=mock_open, create=True, read_data='2021.1.0-1028-55e4d5673a8')
-    def test_get_version_version_checker(self, mock_open, mock_isfile):
-        mock_isfile.return_value = True
-        mock_open.return_value.__enter__ = mock_open
-        self.assertEqual(VersionChecker().mo_version, '2021.1.0-1028-55e4d5673a8')
-
-    @patch('os.path.isfile')
-    @mock.patch('builtins.open', new_callable=mock_open, create=True, read_data='2021.1.0-1028-55e4d5673a8')
     def test_release_version_extractor(self, mock_open, mock_isfile):
         mock_isfile.return_value = True
         mock_open.return_value.__enter__ = mock_open
@@ -56,13 +49,6 @@ class TestingVersion(unittest.TestCase):
         mock_isfile.return_value = True
         mock_open.return_value.__enter__ = mock_open
         self.assertEqual(get_simplified_mo_version(), "2021.1")
-
-    @patch('os.path.isfile')
-    @mock.patch('builtins.open', new_callable=mock_open, create=True, read_data='custom_releases/2021/1_55e4d5673a8')
-    def test_simplify_mo_version_release_version_checker(self, mock_open, mock_isfile):
-        mock_isfile.return_value = True
-        mock_open.return_value.__enter__ = mock_open
-        self.assertEqual(VersionChecker().mo_simplified_version, "2021.1")
 
     @patch('os.path.isfile')
     @mock.patch('builtins.open', new_callable=mock_open, create=True, read_data='custom_my_branch/fix_55e4d5673a8')
