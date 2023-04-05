@@ -61,7 +61,7 @@ class Unique(Op):
     def infer_10(node: Node):
         input_shape = node.in_port(0).data.get_shape()
         for out_port in node.out_ports():
-            if not node.is_out_port_connected(out_port):
+            if node.is_out_port_connected(out_port):
                 node.out_port(out_port).data.set_shape(input_shape)
 
     @staticmethod

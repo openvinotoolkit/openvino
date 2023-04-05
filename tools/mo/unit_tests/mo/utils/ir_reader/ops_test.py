@@ -3,13 +3,13 @@
 
 import unittest
 import tempfile
-from pathlib import Path
 import numpy as np
-from openvino.tools.mo.utils.ir_reader.restore_graph import restore_graph_from_ir,save_restored_graph
+from pathlib import Path
+from openvino.tools.mo.utils.ir_reader.restore_graph import restore_graph_from_ir, save_restored_graph
 
 import openvino.runtime.opset11 as opset11
 import openvino.runtime.opset10 as opset10
-from openvino.runtime import Dimension, Model, PartialShape, Shape, serialize
+from openvino.runtime import Model, serialize
 
 
 class TestOps(unittest.TestCase):
@@ -28,8 +28,8 @@ class TestOps(unittest.TestCase):
             serialize(model, model_xml, model_bin)
             graph, _ = restore_graph_from_ir(model_xml, model_bin)
             topk_node = graph.nodes()["TopK_11"]
-            assert topk_node["version"] == "opset11"
-            assert topk_node["stable"] == True
+            self.assertEqual(topk_node["version"], "opset11")
+            self.assertTrue(topk_node["stable"])
 
     def test_interpolate_11(self):
         data_shape = [6, 12, 10, 24]
@@ -44,7 +44,7 @@ class TestOps(unittest.TestCase):
             serialize(model, model_xml, model_bin)
             graph, _ = restore_graph_from_ir(model_xml, model_bin)
             interpolate_node = graph.nodes()["Interpolate_11"]
-            assert interpolate_node["version"] == "opset11"
+            self.assertEqual(interpolate_node["version"], "opset11")
 
     def test_interpolate_4(self):
         data_shape = [6, 12, 10, 24]
@@ -59,21 +59,23 @@ class TestOps(unittest.TestCase):
             serialize(model, model_xml, model_bin)
             graph, _ = restore_graph_from_ir(model_xml, model_bin)
             interpolate_node = graph.nodes()["Interpolate_4"]
-            assert interpolate_node["version"] == "opset4"
+            self.assertEqual(interpolate_node["version"], "opset4")
 
     def test_unique(self):
         data_shape = [6, 12, 10, 24]
         data_parameter = opset10.parameter(
             data_shape, name="Data", dtype=np.float32)
         unique = opset10.unique(data_parameter, sorted=True, name="Unique_10")
-        model = Model(unique, [data_parameter])
+        res = opset10.result(unique.output(0), name="output")
+        model = Model(res, [data_parameter])
         with tempfile.TemporaryDirectory() as tmp:
             model_xml = Path(tmp) / 'unique_model.xml'
             model_bin = Path(tmp) / 'unique_model.bin'
             serialize(model, model_xml, model_bin)
             graph, _ = restore_graph_from_ir(model_xml, model_bin)
             unique_node = graph.nodes()["Unique_10"]
-            assert unique_node["version"] == "opset10"
+            self.assertEqual(unique_node["version"], "opset10")
+            self.assertTrue(unique_node["sorted"])
 
     def test_is_finite(self):
         data_shape = [6, 12, 10, 24]
@@ -87,7 +89,7 @@ class TestOps(unittest.TestCase):
             serialize(model, model_xml, model_bin)
             graph, meta = restore_graph_from_ir(model_xml, model_bin)
             is_finite_node = graph.nodes()["Is_finite_10"]
-            assert is_finite_node["version"] == "opset10"
+            self.assertEqual(is_finite_node["version"], "opset10")
             save_restored_graph(graph, tmp, meta, "is_finite_model_after")
 
     def test_is_inf(self):
@@ -102,7 +104,7 @@ class TestOps(unittest.TestCase):
             serialize(model, model_xml, model_bin)
             graph, meta = restore_graph_from_ir(model_xml, model_bin)
             is_inf_node = graph.nodes()["Is_inf_10"]
-            assert is_inf_node["version"] == "opset10"
+            self.assertEqual(is_inf_node["version"], "opset10")
             save_restored_graph(graph, tmp, meta, "is_inf_model_after")
 
     def test_is_nan(self):
@@ -117,5 +119,5 @@ class TestOps(unittest.TestCase):
             serialize(model, model_xml, model_bin)
             graph, meta = restore_graph_from_ir(model_xml, model_bin)
             is_nan_node = graph.nodes()["Is_nan_10"]
-            assert is_nan_node["version"] == "opset10"
+            self.assertEqual(is_nan_node["version"], "opset10")
             save_restored_graph(graph, tmp, meta, "is_nan_model_after")
