@@ -333,3 +333,16 @@ TEST_F(TransformationTestsF, BroadcastElementwiseFusionWithShapeOfNeg) {
         manager.register_pass<ov::pass::BroadcastElementwiseFusion>();
     }
 }
+
+TEST_F(TransformationTestsF, BroadcastElementwiseFusionDynShapesDifferentRanks) {
+    {
+        auto input = std::make_shared<ngraph::opset5::Parameter>(ngraph::element::f32, ov::PartialShape{-1, -1, -1, -1});
+        auto target_shape = std::make_shared<ngraph::opset5::Parameter>(ngraph::element::i32, ov::PartialShape{2});
+        auto constant = ngraph::opset5::Constant::create(ov::element::f32, {}, {1.f});
+        auto broadcast = std::make_shared<ngraph::opset5::Broadcast>(constant, target_shape);
+        auto elementwise = std::make_shared<ngraph::opset5::Add>(input, broadcast);
+        function = std::make_shared<ngraph::Function>(ngraph::NodeVector{elementwise}, ngraph::ParameterVector{input, target_shape});
+
+        manager.register_pass<ov::pass::BroadcastElementwiseFusion>();
+    }
+}
