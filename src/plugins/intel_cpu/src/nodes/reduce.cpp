@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -581,7 +581,7 @@ private:
     inline void pack_gathered_vector(Vmm vmm_val, Vmm vmm_index, int offset, memory::data_type src_dt) {
         sub(rsp, vlen);
         uni_vmovdqu(ptr[rsp], vmm_index);
-        int repeats = vlen / sizeof(float);
+        size_t repeats = vlen / sizeof(float);
         for (size_t i = 0; i < repeats; i++) {
             mov(reg_tmp_64.cvt32(), ptr[rsp + i * sizeof(int)]);
             Xbyak::Address table_idx = ptr[reg_src + offset + reg_tmp_64];
@@ -1738,8 +1738,8 @@ bool Reduce::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op,
     return true;
 }
 
-Reduce::Reduce(const std::shared_ptr<ngraph::Node>& op, const dnnl::engine& eng, WeightsSharing::Ptr &cache)
-        : Node(op, eng, cache) {
+Reduce::Reduce(const std::shared_ptr<ngraph::Node>& op, const GraphContext::CPtr context)
+        : Node(op, context, NgraphShapeInferFactory(op, PortMask(REDUCE_INDEXES))) {
     std::string errorMessage;
     if (isSupportedOperation(op, errorMessage)) {
         errorPrefix = "Reduce node with name '" + getName() + "'";
@@ -1881,10 +1881,6 @@ bool Reduce::isExecutable() const {
     return !isInputTensorAtPortEmpty(REDUCE_DATA);
 }
 
-std::vector<VectorDims> Reduce::shapeInfer() const {
-    return Node::shapeInferGeneric(PortMask(REDUCE_INDEXES));
-}
-
 void Reduce::prepareParams() {
     src_dims = getParentEdgesAtPort(REDUCE_DATA)[0]->getMemory().getDesc().getShape().getDims();
     std::vector<int> reduce_axes;
@@ -1922,7 +1918,7 @@ void Reduce::prepareParams() {
         setPostOps(attr, dst_dims, true);
 
         ReduceKey key = {jcp, attr.get_post_ops()};
-        auto cache = getRuntimeCache();
+        auto cache = context->getParamsCache();
         auto result = cache->getOrCreate(key, builder);
         if (!result.first) {
             IE_THROW() << errorPrefix << " has not found jit_uni_reduce_post_kernel_f32.";
@@ -2012,7 +2008,7 @@ void Reduce::execute(dnnl::stream strm) {
 
     if (jit_mode) {
         if (is_hybrid_layout) {
-            dst_data = reinterpret_cast<uint8_t *>(prc_mem->get_data_handle());
+            dst_data = reinterpret_cast<uint8_t *>(prc_mem.get_data_handle());
         }
         reduce_type(src_data, dst_data, dst_size);
     } else {
@@ -2151,22 +2147,24 @@ void Reduce::reduce_PLN(const uint8_t *in_ptr, uint8_t *out_ptr) {
             } else if (!ReduceC && ReduceD && ReduceH && !ReduceW) {
                 size_t IWB = IW / blk_size;
                 if (ReduceDH_opt) {
-                    // reduce parallelly in D dimension
-                    // step1: !ReduceD && ReduceH && !ReduceW
-                    uint8_t *prc_ptr_n = &vec_reduceDH_prc[0];
-                    init_dst_data(prc_ptr_n, prc_size);
-                    parallel_for2d(ID, IWB, [&](size_t id, size_t iwb){
-                        size_t pd = id, pwb = iwb;
-                        reduce_kernel_process(in_ptr_n + (id * IH * IW + iwb * blk_size) * src_data_size,
-                                              prc_ptr_n + (pd * PW + pwb * blk_size) * prc_data_size, blk_size, 0, IH);
-                    });
-                    // step2: ReduceD
-                    reduce_stride = PW;
-                    parallel_for(IWB, [&](size_t iwb){
-                        size_t pwb = iwb, owb = iwb;
-                        reduce_kernel_process(prc_ptr_n + pwb * blk_size * prc_data_size,
-                                              out_ptr_n + owb * blk_size * dst_data_size, blk_size, 0, ID);
-                    });
+                    if (IWB > 0) {
+                        // reduce parallelly in D dimension
+                        // step1: !ReduceD && ReduceH && !ReduceW
+                        uint8_t *prc_ptr_n = &vec_reduceDH_prc[0];
+                        init_dst_data(prc_ptr_n, prc_size);
+                        parallel_for2d(ID, IWB, [&](size_t id, size_t iwb){
+                            size_t pd = id, pwb = iwb;
+                            reduce_kernel_process(in_ptr_n + (id * IH * IW + iwb * blk_size) * src_data_size,
+                                                prc_ptr_n + (pd * PW + pwb * blk_size) * prc_data_size, blk_size, 0, IH);
+                        });
+                        // step2: ReduceD
+                        reduce_stride = PW;
+                        parallel_for(IWB, [&](size_t iwb){
+                            size_t pwb = iwb, owb = iwb;
+                            reduce_kernel_process(prc_ptr_n + pwb * blk_size * prc_data_size,
+                                                out_ptr_n + owb * blk_size * dst_data_size, blk_size, 0, ID);
+                        });
+                    }
                     // reduce tail
                     reduce_stride = IW;
                     size_t tail_start = IWB * blk_size;
@@ -2643,7 +2641,7 @@ inline void Reduce::create_working_memory() {
                                                      : (mayiuse(cpu::x64::avx512_core) ? memory::format_tag::nCdhw16c : memory::format_tag::nCdhw8c));
     auto prc_dims = rank == 4 ? std::vector<size_t>{OB, OC, OH, OW} : std::vector<size_t>{OB, OC, OD, OH, OW};
     auto desc = dnnl::memory::desc(DnnlExtensionUtils::convertToDnnlDims(prc_dims), DnnlExtensionUtils::IEPrecisionToDataType(output_prec), format);
-    prc_mem = std::make_shared<dnnl::memory>(desc, getEngine());
+    prc_mem = dnnl::memory(desc, getEngine());
     dst_size = desc.get_size();
 }
 
@@ -2744,7 +2742,7 @@ inline void Reduce::set_reduce_dim_flags() {
     ReduceH = IH != OH && OH == 1;
     ReduceW = IW != OW && OW == 1;
 
-    // must be done before the above dimension change
+    // must be done after the above dimension change
     create_DH_working_memory();
 
     // suit for parallel
@@ -2943,9 +2941,9 @@ std::vector<int> Reduce::update_src_dims() {
     int outer_end = reduce_axes[0];
     int inner_start = reduce_axes[reduce_axes.size() - 1];
     for (size_t i = 0; i < src_dims.size(); i++) {
-        if (i < outer_end) {
+        if (static_cast<int>(i) < outer_end) {
             outer_dim *= src_dims[i];
-        } else if (i > inner_start) {
+        } else if (static_cast<int>(i) > inner_start) {
             inner_dim *= src_dims[i];
         } else {
             axis_dim *= src_dims[i];

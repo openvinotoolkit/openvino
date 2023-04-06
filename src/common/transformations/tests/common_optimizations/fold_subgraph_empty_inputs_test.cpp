@@ -1,15 +1,14 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include <gtest/gtest.h>
 
-#include <string>
 #include <memory>
-
 #include <openvino/core/model.hpp>
 #include <openvino/opsets/opset8.hpp>
 #include <openvino/pass/manager.hpp>
+#include <string>
 #include <transformations/common_optimizations/fold_subgraph_empty_inputs.hpp>
 #include <transformations/init_node_info.hpp>
 #include <transformations/utils/utils.hpp>
@@ -40,7 +39,7 @@ TEST_F(TransformationTestsF, FoldLoopEmptyInputs) {
         auto loop_res = std::make_shared<Result>(loop->get_iter_value(abs));
         function = std::make_shared<Model>(OutputVector{loop_res}, ParameterVector{a});
 
-        manager.register_pass<pass::FoldSubgraphEmptyInputs>();
+        manager.register_pass<ov::pass::FoldSubgraphEmptyInputs>();
     }
     {
         auto body = std::make_shared<Model>(OutputVector{condition, abs}, ParameterVector{ai});
@@ -63,8 +62,8 @@ TEST_F(TransformationTestsF, FoldLoopManyEmptyInputs) {
     auto a_add = std::make_shared<Add>(a, a);
     auto ai = std::make_shared<Parameter>(element::f32, Shape{2, 0});
 
-    auto b =  std::make_shared<Parameter>(element::f32, Shape{2, 2});
-    auto bi =  std::make_shared<Parameter>(element::f32, Shape{2, 2});
+    auto b = std::make_shared<Parameter>(element::f32, Shape{2, 2});
+    auto bi = std::make_shared<Parameter>(element::f32, Shape{2, 2});
     auto b_add = std::make_shared<Add>(b, b);
 
     auto c = std::make_shared<Parameter>(element::f32, Shape{2, 0});
@@ -84,7 +83,7 @@ TEST_F(TransformationTestsF, FoldLoopManyEmptyInputs) {
         auto loop_res = std::make_shared<Result>(loop->get_iter_value(concat));
         function = std::make_shared<Model>(OutputVector{loop_res}, ParameterVector{a, b, c});
 
-        manager.register_pass<pass::FoldSubgraphEmptyInputs>();
+        manager.register_pass<ov::pass::FoldSubgraphEmptyInputs>();
     }
     {
         auto body = std::make_shared<Model>(OutputVector{condition, concat}, ParameterVector{ai, bi, ci});
@@ -120,7 +119,7 @@ TEST_F(TransformationTestsF, FoldLoopEmptyMergedInputs) {
         auto loop_res = std::make_shared<Result>(loop->get_iter_value(concat));
         function = std::make_shared<Model>(OutputVector{loop_res}, ParameterVector{x_init});
 
-        manager.register_pass<pass::FoldSubgraphEmptyInputs>();
+        manager.register_pass<ov::pass::FoldSubgraphEmptyInputs>();
     }
     {
         auto body = std::make_shared<Model>(OutputVector{condition, concat}, ParameterVector{xi});
@@ -153,7 +152,7 @@ TEST_F(TransformationTestsF, FoldLoopSkipEmptyConstants) {
     auto loop_res = std::make_shared<Result>(loop->get_iter_value(abs));
     function = std::make_shared<Model>(OutputVector{loop_res}, ParameterVector{});
 
-    manager.register_pass<pass::FoldSubgraphEmptyInputs>();
+    manager.register_pass<ov::pass::FoldSubgraphEmptyInputs>();
 }
 
 TEST_F(TransformationTestsF, FoldLoopSkipDynamicInputs) {
@@ -176,7 +175,7 @@ TEST_F(TransformationTestsF, FoldLoopSkipDynamicInputs) {
     auto loop_res = std::make_shared<Result>(loop->get_iter_value(abs));
     function = std::make_shared<Model>(OutputVector{loop_res}, ParameterVector{a});
 
-    manager.register_pass<pass::FoldSubgraphEmptyInputs>();
+    manager.register_pass<ov::pass::FoldSubgraphEmptyInputs>();
 }
 
 TEST_F(TransformationTestsF, FoldLoopSkipNonEmptyInputs) {
@@ -199,7 +198,7 @@ TEST_F(TransformationTestsF, FoldLoopSkipNonEmptyInputs) {
     auto loop_res = std::make_shared<Result>(loop->get_iter_value(abs));
     function = std::make_shared<Model>(OutputVector{loop_res}, ParameterVector{a});
 
-    manager.register_pass<pass::FoldSubgraphEmptyInputs>();
+    manager.register_pass<ov::pass::FoldSubgraphEmptyInputs>();
 }
 
 TEST_F(TransformationTestsF, FoldIfManyEmptyInputs) {
@@ -230,7 +229,7 @@ TEST_F(TransformationTestsF, FoldIfManyEmptyInputs) {
         auto res = if_op->set_output(then_op_res, else_op_res);
         function = std::make_shared<Model>(OutputVector{res}, ParameterVector{X, Z});
 
-        manager.register_pass<pass::FoldSubgraphEmptyInputs>();
+        manager.register_pass<ov::pass::FoldSubgraphEmptyInputs>();
     }
     {
         auto then_body = std::make_shared<Model>(OutputVector{then_op_res}, ParameterVector{Zt});

@@ -1,11 +1,10 @@
-# Copyright (C) 2018-2022 Intel Corporation
+# Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
 set(TARGET_NAME ieMultiPluginUnitTests)
 
 set(CI_BUILD_NUMBER "unittest")
-addVersionDefines(${OpenVINO_SOURCE_DIR}/src/plugins/auto/plugin.cpp CI_BUILD_NUMBER)
 add_definitions(-DMULTIUNITTEST)
 
 addIeTargetTest(
@@ -28,5 +27,6 @@ addIeTargetTest(
             Multi
             Auto
 )
+ov_add_version_defines(${OpenVINO_SOURCE_DIR}/src/plugins/auto/plugin.cpp ${TARGET_NAME})
 
 set_ie_threading_interface_for(${TARGET_NAME})

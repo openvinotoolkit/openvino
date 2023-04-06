@@ -1,8 +1,7 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
-///////////////////////////////////////////////////////////////////////////////////////////////////
 #pragma once
 #include "generic_layer.hpp"
 #include "primitive_inst.h"
@@ -37,7 +36,6 @@ public:
 
     static std::string to_string(generic_layer_node const& node);
 
-public:
     typed_primitive_inst(network& network, generic_layer_node const& node);
 };
 

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -14,8 +14,6 @@
 
 using namespace std;
 using namespace ngraph;
-
-BWDCMP_RTTI_DEFINITION(op::v0::PriorBox);
 
 op::v0::PriorBox::PriorBox(const Output<Node>& layer_shape,
                            const Output<Node>& image_shape,
@@ -52,7 +50,9 @@ void op::v0::PriorBox::validate_and_infer_types() {
     set_input_is_relevant_to_shape(0);
 
     PartialShape spatials;
+    OPENVINO_SUPPRESS_DEPRECATED_START
     if (evaluate_as_partial_shape(input_value(0), spatials)) {
+        OPENVINO_SUPPRESS_DEPRECATED_END
         NODE_VALIDATION_CHECK(this,
                               spatials.rank().is_static() && spatials.size() == 2,
                               "Layer shape must have rank 2",
@@ -204,9 +204,6 @@ bool op::v0::PriorBox::has_evaluate() const {
 }
 
 // ------------------------------ V8 ------------------------------
-
-BWDCMP_RTTI_DEFINITION(op::v8::PriorBox);
-
 op::v8::PriorBox::PriorBox(const Output<Node>& layer_shape,
                            const Output<Node>& image_shape,
                            const PriorBox::Attributes& attrs)
@@ -242,7 +239,9 @@ void op::v8::PriorBox::validate_and_infer_types() {
     set_input_is_relevant_to_shape(0);
 
     PartialShape spatials;
+    OPENVINO_SUPPRESS_DEPRECATED_START
     if (evaluate_as_partial_shape(input_value(0), spatials)) {
+        OPENVINO_SUPPRESS_DEPRECATED_END
         NODE_VALIDATION_CHECK(this,
                               spatials.rank().is_static() && spatials.size() == 2,
                               "Layer shape must have rank 2",

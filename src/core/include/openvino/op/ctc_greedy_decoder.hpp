@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -15,7 +15,6 @@ namespace v0 {
 class OPENVINO_API CTCGreedyDecoder : public Op {
 public:
     OPENVINO_OP("CTCGreedyDecoder", "opset1");
-    BWDCMP_RTTI_DECLARATION;
 
     CTCGreedyDecoder() = default;
     /// \brief Constructs a CTCGreedyDecoder operation
@@ -31,6 +30,10 @@ public:
 
     bool get_ctc_merge_repeated() const {
         return m_ctc_merge_repeated;
+    }
+
+    void set_ctc_merge_repeated(bool ctc_merge_repeated) {
+        m_ctc_merge_repeated = ctc_merge_repeated;
     }
 
 private:

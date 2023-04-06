@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -11,8 +11,6 @@
 
 using namespace std;
 using namespace ngraph;
-
-BWDCMP_RTTI_DEFINITION(op::v0::Negative);
 
 op::Negative::Negative(const Output<Node>& arg) : UnaryElementwiseArithmetic(arg) {
     constructor_validate_and_infer_types();
@@ -59,8 +57,10 @@ bool evaluate_negative(const HostTensorPtr& arg0, const HostTensorPtr& out, cons
 
 bool op::Negative::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const {
     OV_OP_SCOPE(v0_Negative_evaluate);
+    OPENVINO_SUPPRESS_DEPRECATED_START
     NGRAPH_CHECK(validate_host_tensor_vector(inputs, 1));
     NGRAPH_CHECK(validate_host_tensor_vector(outputs, 1));
+    OPENVINO_SUPPRESS_DEPRECATED_END
     return negativeop::evaluate_negative(inputs[0], outputs[0], shape_size(outputs[0]->get_shape()));
 }
 

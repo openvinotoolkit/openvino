@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -7,7 +7,6 @@
 
 #include "primitive_type_base.h"
 #include "intel_gpu/runtime/memory.hpp"
-#include "intel_gpu/runtime/error_handler.hpp"
 #include "intel_gpu/runtime/format.hpp"
 #include "json_object.h"
 #include <string>
@@ -16,7 +15,7 @@ namespace cldnn {
 GPU_DEFINE_PRIMITIVE_TYPE_ID(tile)
 
 layout tile_inst::calc_output_layout(tile_node const& node, kernel_impl_params const& impl_param) {
-    assert(static_cast<bool>(impl_param.desc->output_data_type) == false &&
+    assert(static_cast<bool>(impl_param.desc->output_data_types[0]) == false &&
            "Output data type forcing is not supported for tile_node!");
     auto desc = impl_param.typed_desc<tile>();
 
@@ -45,28 +44,33 @@ std::vector<layout> tile_inst::calc_output_layouts(tile_node const& /*node*/, co
     ShapeType repeats_shape = impl_param.input_layouts.size() == 2 ? impl_param.get_input_layout(1).get<ShapeType>()
                                                                    : ov::Shape{ desc->repeats.size() };
     ov::op::v0::Tile op;
-    std::vector<ShapeType> output_shapes = {ShapeType{}};
+    std::vector<ShapeType> output_shapes;
     std::vector<ShapeType> input_shapes = {
         input0_layout.get<ShapeType>(),
         repeats_shape
     };
 
     auto& constant_mem = impl_param.memory_deps;
-    if (constant_mem.count(1)) {
-        auto repeats_mem = constant_mem.at(1);
-        cldnn::mem_lock<uint8_t, mem_lock_type::read> repeats_lock(repeats_mem, impl_param.prog->get_stream());
-        std::map<size_t, ngraph::HostTensorPtr> const_data = {
-            {1, make_host_tensor(repeats_mem->get_layout(), repeats_lock.data())}
-        };
-        ov::op::v0::shape_infer(&op, input_shapes, output_shapes, const_data);
+    if (desc->input_size() == 2) {
+        if (constant_mem.count(1)) {
+            auto repeats_mem = constant_mem.at(1);
+            cldnn::mem_lock<uint8_t, mem_lock_type::read> repeats_lock(repeats_mem, impl_param.get_stream());
+            const auto& layout = repeats_mem->get_layout();
+            const auto repeats_tensor =
+                ov::Tensor(data_type_to_element_type(layout.data_type), layout.get_shape(), repeats_lock.data());
+            output_shapes = ov::op::v0::shape_infer(&op, input_shapes, {{1, repeats_tensor}});
+        } else if (repeats_shape.size() > 0 && repeats_shape[0].is_static()) {
+            output_shapes = { ov::PartialShape::dynamic(std::max<size_t>(input_shapes[0].size(), repeats_shape[0].get_length())) };
+        } else {
+            output_shapes = { ov::PartialShape::dynamic() };
+        }
     } else {
         auto repeats_data = desc->repeats;
-        auto repeats_tensor = make_host_tensor({repeats_shape, data_types::i64, format::bfyx}, static_cast<void*>(repeats_data.data()));
-        std::map<size_t, ngraph::HostTensorPtr> const_data = {
-            {1, repeats_tensor}
-        };
-        ov::op::v0::shape_infer(&op, input_shapes, output_shapes, const_data);
+        const auto repeats_tensor =
+            ov::Tensor(data_type_to_element_type(data_types::i64), repeats_shape.to_shape(), repeats_data.data());
+        output_shapes = ov::op::v0::shape_infer(&op, input_shapes, {{1, repeats_tensor}});
     }
+
     format output_format = format::adjust_to_rank(input0_layout.format, output_shapes[0].size());
 
     return { layout{output_shapes[0], output_type, output_format} };

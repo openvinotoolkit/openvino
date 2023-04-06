@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -123,8 +123,6 @@ protected:
 };
 
 TEST_P(ActivationLayerCPUTest, CompareWithRefs) {
-    SKIP_IF_CURRENT_TEST_IS_DISABLED()
-
     run();
     CheckPluginRelatedResults(compiledModel, "Eltwise");
 }
@@ -148,22 +146,22 @@ const std::map<ActivationTypes, std::vector<std::vector<float>>> activationTypes
         {PReLu,       {{-0.01f}}},
         {GeluErf,     {{}}},
         {GeluTanh,    {{}}},
-        {SoftSign,    {{}}}
+        {SoftSign,    {{}}},
+        {SoftPlus,    {{}}},
 };
 
-std::vector<Precision> netPrc = {
+const std::vector<Precision> netPrc = {
         Precision::BF16,
         Precision::FP32
 };
 
 /* ============= Activation (1D) ============= */
 std::vector<CPUSpecificParams> cpuParams_3D = {
-        CPUSpecificParams({nCw16c}, {nCw16c}, {}, {}),
         CPUSpecificParams({nwc}, {nwc}, {}, {}),
         CPUSpecificParams({ncw}, {ncw}, {}, {})
 };
 
-std::vector<std::vector<ov::Shape>> basic3D = {
+const std::vector<std::vector<ov::Shape>> basic3D = {
         {{2, 4, 4}},
         {{2, 17, 5}},
 };
@@ -178,7 +176,28 @@ const auto basicCases3D = ::testing::Combine(
         ::testing::ValuesIn(filterCPUSpecificParams(cpuParams_3D))
 );
 
-INSTANTIATE_TEST_SUITE_P(smoke_Activation3D_Eltwise_CPU_BF16, ActivationLayerCPUTest, basicCases3D, ActivationLayerCPUTest::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_Activation3D_Eltwise_CPU, ActivationLayerCPUTest, basicCases3D, ActivationLayerCPUTest::getTestCaseName);
+
+const std::map<ActivationTypes, std::vector<std::vector<float>>> activationTypes_blocked = {
+        {Mish,        {{}}},
+        {SoftSign,    {{}}}
+};
+
+std::vector<CPUSpecificParams> cpuParams_3D_blocked = {
+        CPUSpecificParams({nCw16c}, {nCw16c}, {}, {}),
+};
+
+const auto blockedCases3D = ::testing::Combine(
+        ::testing::ValuesIn(static_shapes_to_test_representation(basic3D)),
+        ::testing::Values(activationShapes),
+        ::testing::ValuesIn(CommonTestUtils::combineParams(activationTypes_blocked)),
+        ::testing::ValuesIn(netPrc),
+        ::testing::Values(Precision::FP32),
+        ::testing::Values(Precision::FP32),
+        ::testing::ValuesIn(filterCPUSpecificParams(cpuParams_3D_blocked))
+);
+
+INSTANTIATE_TEST_SUITE_P(smoke_Activation3D_Eltwise_CPU_Blocked, ActivationLayerCPUTest, blockedCases3D, ActivationLayerCPUTest::getTestCaseName);
 
 /* ============= Activation (2D) ============= */
 std::vector<CPUSpecificParams> cpuParams_4D = {
@@ -187,7 +206,7 @@ std::vector<CPUSpecificParams> cpuParams_4D = {
         CPUSpecificParams({nchw}, {nchw}, {}, {})
 };
 
-std::vector<std::vector<ov::Shape>> basic4D = {
+const std::vector<std::vector<ov::Shape>> basic4D = {
             {{2, 4, 4, 1}},
             {{2, 17, 5, 4}}
 };
@@ -203,7 +222,7 @@ const auto basicCases4D = ::testing::Combine(
             ::testing::ValuesIn(filterCPUSpecificParams(cpuParams_4D))
 );
 
-INSTANTIATE_TEST_SUITE_P(smoke_Activation4D_Eltwise_CPU_BF16, ActivationLayerCPUTest, basicCases4D, ActivationLayerCPUTest::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_Activation4D_Eltwise_CPU, ActivationLayerCPUTest, basicCases4D, ActivationLayerCPUTest::getTestCaseName);
 
 /* ============= Activation (3D) ============= */
 std::vector<CPUSpecificParams> cpuParams_5D = {
@@ -212,7 +231,7 @@ std::vector<CPUSpecificParams> cpuParams_5D = {
         CPUSpecificParams({ncdhw}, {ncdhw}, {}, {})
 };
 
-std::vector<std::vector<ov::Shape>> basic5D = {
+const std::vector<std::vector<ov::Shape>> basic5D = {
         {{2, 4, 3, 4, 1}},
         {{2, 17, 7, 5, 4}}
 };
@@ -227,7 +246,7 @@ const auto basicCases5D = ::testing::Combine(
         ::testing::ValuesIn(filterCPUSpecificParams(cpuParams_5D))
 );
 
-INSTANTIATE_TEST_SUITE_P(smoke_Activation5D_Eltwise_CPU_BF16, ActivationLayerCPUTest, basicCases5D, ActivationLayerCPUTest::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_Activation5D_Eltwise_CPU, ActivationLayerCPUTest, basicCases5D, ActivationLayerCPUTest::getTestCaseName);
 
 const std::map<ActivationTypes, std::vector<std::vector<float>>> activationTypesDynamicMath = {
         {Log,         {{}}},
@@ -247,7 +266,7 @@ const std::map<ActivationTypes, std::vector<std::vector<float>>> activationTypes
         {SoftSign,    {{}}}
 };
 
-const std::vector<InferenceEngine::Precision> netPrecisions = {
+const std::vector<Precision> netPrecisions = {
         InferenceEngine::Precision::FP32
 };
 
@@ -255,7 +274,7 @@ std::vector<CPUSpecificParams> cpuParamsDynamicMath = {
         CPUSpecificParams({}, {}, {}, {})
 };
 
-std::vector<std::vector<InputShape>> dynamicMathBasic = {
+const std::vector<std::vector<InputShape>> dynamicMathBasic = {
         {
                 {{{-1, -1}, {{1, 50}, {5, 128}, {3, 64}}}},
                 {{{-1, -1, -1, -1, -1, -1, -1, -1}, {{2, 2, 2, 2, 2, 2, 2, 2}, {2, 3, 2, 3, 2, 3, 2, 3}, {3, 3, 3, 3, 3, 3, 3, 3}}}},

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -10,8 +10,6 @@
 #include "rdft_shape_inference.hpp"
 
 using namespace std;
-
-BWDCMP_RTTI_DEFINITION(ov::op::v9::RDFT);
 
 ov::op::v9::RDFT::RDFT(const Output<Node>& data, const Output<Node>& axes) : FFTBase(data, axes) {
     constructor_validate_and_infer_types();
@@ -56,6 +54,6 @@ void ov::op::v9::RDFT::validate_and_infer_types() {
         input_shapes = {data, axes, signal_size};
     }
 
-    ov::op::util::rdft_shape_infer(this, input_shapes, output_shapes);
+    shape_infer(this, input_shapes, output_shapes);
     set_output_type(0, get_input_element_type(0), output_shapes[0]);
 }

@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2022 Intel Corporation
+# Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import math
@@ -102,10 +102,10 @@ class TestUpsample(OnnxRuntimeLayerTest):
     @pytest.mark.parametrize("params", test_data)
     @pytest.mark.parametrize("opset", [7, 9])
     @pytest.mark.nightly
-    @pytest.mark.xfail(
-        reason='Both onnxruntime and caffe2 calculate linear upsampling differently from IE')
     def test_upsample_linear(self, params, opset, ie_device, precision, ir_version, temp_dir,
                              use_old_api):
+        if ie_device == 'GPU':
+            pytest.skip('GREEN_SUITE')
         self._test(*self.create_net(**params, mode='linear', opset=opset, ir_version=ir_version),
                    ie_device, precision, ir_version, temp_dir=temp_dir, use_old_api=use_old_api)
 
@@ -186,6 +186,7 @@ class TestPytorchUpsample(PytorchLayerTest):
     @pytest.mark.parametrize("params", test_data)
     @pytest.mark.parametrize("mode", [None, 'nearest', 'bilinear'])
     @pytest.mark.nightly
+    @pytest.mark.skip(reason='GREEN_SUITE')
     def test_pytorch_upsample(self, params, mode, ie_device, precision, ir_version, temp_dir,
                               use_old_api):
         if ie_device == 'GPU' and mode == 'bilinear':

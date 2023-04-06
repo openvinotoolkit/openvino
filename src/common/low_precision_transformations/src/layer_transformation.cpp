@@ -1,10 +1,9 @@
-﻿// Copyright (C) 2018-2022 Intel Corporation
+﻿// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include <low_precision/layer_transformation.hpp>
 #include <low_precision/network_helper.hpp>
-
 
 #include <algorithm>
 #include <cmath>
@@ -27,8 +26,8 @@ constexpr char LayerTransformation::originalLayerPostfix[];
 LayerTransformation::LayerTransformation(const Params& params) :
     updatePrecisions(params.updatePrecisions),
     deqPrecision(params.deqPrecision),
-    reshapeIgnorePerTensorQuantizationCheck(params.reshapeIgnorePerTensorQuantizationCheck),
     defaultPrecisions(params.defaultPrecisions),
+    reshapeIgnorePerTensorQuantizationCheck(params.reshapeIgnorePerTensorQuantizationCheck),
     context(nullptr) {}
 
 void LayerTransformation::setContext(TransformationContext* context) noexcept {
@@ -53,11 +52,10 @@ bool LayerTransformation::canBeTransformed(const TransformationContext& context,
 
 bool LayerTransformation::canBeTransformedStatic(const std::shared_ptr<Node>& layer,
     const std::vector<ngraph::element::Type>& defaultPrecisions) {
-    for (const auto& output : layer->outputs()) {
-        const auto rank = output.get_partial_shape().rank();
-        if (rank.is_dynamic() || rank.get_length() < 2) {
-            return false;
-        }
+    const auto outputs = layer->outputs();
+    if (std::any_of(outputs.begin(), outputs.end(),
+        [](const Output<Node>& out) { return out.get_partial_shape().rank().is_dynamic(); })) {
+        return false;
     }
 
     const auto dequantization = NetworkHelper::getDequantization(layer, defaultPrecisions);
@@ -72,8 +70,7 @@ bool LayerTransformation::canBeTransformedStatic(const std::shared_ptr<Node>& la
                 return false;
             }
 
-            const auto dataShapeSize = static_cast<size_t>(rank.get_length());
-            if ((dataShapeSize - constShape.size()) == 1ul) {
+            if ((dataPShape.size() - constShape.size()) == 1ul) {
                 constShape.insert(constShape.begin(), 1ul);
             }
 
@@ -115,18 +112,10 @@ bool LayerTransformation::canBeTransformedSpatialDimension(const TransformationC
     if (!isQuantized(layer, defaultPrecisions)) {
         return false;
     }
-
-    for (const auto& output : layer->outputs()) {
-        const auto outPShape = output.get_partial_shape();
-        const auto rank = outPShape.rank();
-        if (rank.is_dynamic()) {
-            return false;
-        }
-
-        const auto size = rank.get_length();
-        if ((size < 2) || (size > 5)) {
-            return false;
-        }
+    const auto outputs = layer->outputs();
+    if (std::any_of(outputs.begin(), outputs.end(),
+        [](const Output<Node>& out) { return out.get_partial_shape().rank().is_dynamic(); })) {
+        return false;
     }
     return true;
 }
@@ -458,9 +447,24 @@ void LayerTransformation::addPattern(ngraph::pass::GraphRewrite& pass, Transform
     };
     // TODO: better name for matcher? required?
     auto m = std::make_shared<ngraph::pattern::Matcher>(patternRoot, matcher_name);
-    NGRAPH_SUPPRESS_DEPRECATED_START
-    pass.add_matcher(m, internal_callback, ngraph::pass::PassProperty::CHANGE_DYNAMIC_STATE);
-    NGRAPH_SUPPRESS_DEPRECATED_END
+    auto match_pass = std::make_shared<ov::pass::MatcherPass>(
+            m->get_name(),
+            m,
+            [m, internal_callback](const std::shared_ptr<Node>& node) -> bool {
+                NGRAPH_DEBUG << "Running matcher " << m->get_name() << " on " << node;
+                OV_PASS_CALLBACK(m);
+                if (std::dynamic_pointer_cast<ov::pass::pattern::Matcher>(m)->match(node->output(0))) {
+                    NGRAPH_DEBUG << "Matcher " << m->get_name() << " matched " << node;
+                    bool status = internal_callback(*m.get());
+                    // explicitly clear Matcher state because it holds pointers to matched nodes
+                    m->clear_state();
+                    return status;
+                }
+            m->clear_state();
+            return false;
+            },
+            ov::pass::PassProperty::CHANGE_DYNAMIC_STATE);
+    pass.add_matcher(match_pass);
 }
 
 }  // namespace low_precision

@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2022 Intel Corporation
+# Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 project (pyopenvino)
@@ -26,21 +26,14 @@ endif()
 
 # compile options
 
-if (CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
-    # disable warning: This operator was deprecated and will be removed with v0 operation.
-    add_compile_options(/wd4996)
-    add_compile_options(/wd4244)
-elseif(CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
-    add_compile_options(-Wno-deprecated-register -Wno-range-loop-analysis)
-elseif(CMAKE_CXX_COMPILER_ID STREQUAL "AppleClang")
+if(OV_COMPILER_IS_APPLECLANG)
     add_link_options(-stdlib=libc++)
-    add_compile_options(-Wno-unused-value -Wno-range-loop-analysis)
 elseif(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
     # WA for GCC 7.5 "PYBIND11_NOINLINE inline" warning
     add_compile_options(-Wno-error=attributes)
 endif()
 
-if(NOT CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
+if(CMAKE_COMPILER_IS_GNUCXX OR OV_COMPILER_IS_CLANG)
     # for proper fix need to update pybind to version which does not use PyEval_InitThreads()
     add_compile_options(-Wno-deprecated-declarations -Wno-undef)
 endif()
@@ -61,10 +54,14 @@ if(TARGET openvino::frontend::paddle)
     add_subdirectory(frontend/paddle)
 endif()
 
+if(TARGET openvino::frontend::pytorch)
+    add_subdirectory(frontend/pytorch)
+endif()
+
 # create target
 
-file(GLOB_RECURSE SOURCES core/*.cpp graph/*.cpp frontend/*.cpp utils/*cpp pyopenvino.cpp)
-list(FILTER SOURCES EXCLUDE REGEX frontend/onnx|tensorflow|paddle/* )
+file(GLOB_RECURSE SOURCES core/*.cpp graph/*.cpp frontend/*.cpp utils/*.cpp pyopenvino.cpp)
+list(FILTER SOURCES EXCLUDE REGEX frontend/onnx|tensorflow|paddle|pytorch/* )
 
 pybind11_add_module(${PROJECT_NAME} MODULE NO_EXTRAS ${SOURCES})
 
@@ -75,16 +72,37 @@ else()
 endif()
 
 target_include_directories(${PROJECT_NAME} PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/..")
-target_link_libraries(${PROJECT_NAME} PRIVATE openvino::runtime::dev openvino::runtime ${OFFLINE_TRANSFORMATIONS_LIB})
-set_target_properties(${PROJECT_NAME} PROPERTIES INTERPROCEDURAL_OPTIMIZATION_RELEASE ${ENABLE_LTO} OUTPUT_NAME "_pyopenvino")
+target_link_libraries(${PROJECT_NAME} PRIVATE
+    openvino::runtime::dev openvino::runtime ${OFFLINE_TRANSFORMATIONS_LIB})
+set_target_properties(${PROJECT_NAME} PROPERTIES
+    INTERPROCEDURAL_OPTIMIZATION_RELEASE ${ENABLE_LTO}
+    OUTPUT_NAME "_pyopenvino")
 
-addVersionDefines(pyopenvino.cpp CI_BUILD_NUMBER)
+ov_add_version_defines(pyopenvino.cpp ${PROJECT_NAME})
+
+if(OV_GENERATOR_MULTI_CONFIG)
+    string(APPEND _cmd_echo
+        "$<$<CONFIG:Debug>:"
+            "${CMAKE_COMMAND};-E;cmake_echo_color;--red;\"OpenVINO;Python;API;cannot;be;built;for;'Debug'\""
+        ">")
+    string(APPEND cmd_error
+        "$<$<CONFIG:Debug>:"
+            "${CMAKE_COMMAND};-E;false"
+        ">")
+
+    add_custom_command(TARGET ${PROJECT_NAME} PRE_BUILD
+        COMMAND "${_cmd_echo}"
+        COMMAND "${cmd_error}"
+        COMMAND_EXPAND_LISTS)
+endif()
 
 # perform copy
 if(OpenVINO_SOURCE_DIR)
     add_custom_command(TARGET ${PROJECT_NAME}
             POST_BUILD
-            COMMAND ${CMAKE_COMMAND} -E copy_directory ${CMAKE_CURRENT_SOURCE_DIR}/../openvino ${CMAKE_LIBRARY_OUTPUT_DIRECTORY}
+            COMMAND ${CMAKE_COMMAND} -E copy_directory ${OpenVINOPython_SOURCE_DIR}/src/openvino ${CMAKE_LIBRARY_OUTPUT_DIRECTORY}
+            COMMAND ${CMAKE_COMMAND} -E copy ${OpenVINOPython_SOURCE_DIR}/requirements.txt ${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/../requirements.txt
+            COMMAND ${CMAKE_COMMAND} -E copy ${OpenVINOPython_SOURCE_DIR}/requirements.txt ${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/../../requirements.txt
             )
 endif()
 
@@ -103,6 +121,10 @@ if(OpenVINO_SOURCE_DIR OR OpenVINODeveloperPackage_FOUND)
 
     install(TARGETS ${PROJECT_NAME}
             DESTINATION ${OV_CPACK_PYTHONDIR}/openvino
+            COMPONENT ${OV_CPACK_COMP_PYTHON_OPENVINO}_${pyversion})
+
+    install(FILES ${OpenVINOPython_SOURCE_DIR}/requirements.txt
+            DESTINATION ${OV_CPACK_PYTHONDIR}
             COMPONENT ${OV_CPACK_COMP_PYTHON_OPENVINO}_${pyversion})
 
     install(DIRECTORY ${OpenVINOPython_SOURCE_DIR}/tests

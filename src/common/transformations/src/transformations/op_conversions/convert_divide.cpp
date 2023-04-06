@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -29,7 +29,9 @@ bool convert_divide(std::shared_ptr<ngraph::Node> node) {
         ngraph::op::Constant::create(div->get_input_element_type(1), ngraph::Shape{}, {-1}));
 
     if (std::dynamic_pointer_cast<ngraph::op::Constant>(div->get_input_node_shared_ptr(1))) {
+        OPENVINO_SUPPRESS_DEPRECATED_START
         if (auto const_pow = ngraph::get_constant_from_source(pow)) {
+            OPENVINO_SUPPRESS_DEPRECATED_END
             pow = const_pow;
         } else {
             NGRAPH_DEBUG << "ConvertDivide has failed due to unsupported evaluate type in " << pow.get();
@@ -41,7 +43,7 @@ bool convert_divide(std::shared_ptr<ngraph::Node> node) {
 
     auto mul = std::make_shared<ov::opset1::Multiply>(div->input(0).get_source_output(), pow);
     // if Divide is an inverse, then we don't need the Multiply
-    if (ngraph::op::util::can_eliminate_eltwise_node(mul, mul->input_value(0), mul->input_value(1))) {
+    if (ov::op::util::can_eliminate_eltwise_node(mul, mul->input_value(0), mul->input_value(1))) {
         pow->set_friendly_name(div->get_friendly_name());
         ngraph::replace_node(div, pow);
     } else {

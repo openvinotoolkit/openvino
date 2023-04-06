@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2018-2022 Intel Corporation
+﻿// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -14,10 +14,13 @@ JitConstants FullyConnectedKernelBase::GetJitConstants(const fully_connected_par
                                                        const FullyConnectedKernelBase::DispatchData&) const {
     JitConstants jit = WeightBiasKernelBase::GetJitConstants(params);
     const auto& input = params.inputs[0];
-    const auto x_size = input.LogicalSize() / input.Batch().v;
-
-    jit.AddConstant(MakeJitConstant("INPUT0_ELEMENTS_COUNT", x_size));
-
+    if (input.is_dynamic()) {
+        DimensionAccessHelper dims(input, 0);
+        jit.AddConstant(MakeJitConstant("INPUT0_ELEMENTS_COUNT", toVectorMulString({dims.x, dims.y, dims.z, dims.w, dims.f})));
+    } else {
+        const auto x_size = input.LogicalSize() / input.Batch().v;
+        jit.AddConstant(MakeJitConstant("INPUT0_ELEMENTS_COUNT", x_size));
+    }
     return jit;
 }
 
@@ -49,7 +52,6 @@ KernelsData FullyConnectedKernelBase::GetCommonKernelsData(const Params &params,
     }
 
     const auto& orgParams = static_cast<const fully_connected_params&>(params);
-    const auto& orgOptParams = static_cast<const fully_connected_optional_params&>(options);
 
     bool bProperInput = orgParams.inputs[0].GetLayout() == dl;
     if (!bProperInput && !orgParams.inputs[0].PitchesDifferFromLogicalDims()) {
@@ -57,13 +59,14 @@ KernelsData FullyConnectedKernelBase::GetCommonKernelsData(const Params &params,
                        (dl == DataLayout::bf && orgParams.inputs[0].GetLayout() == DataLayout::bfyx);
     }
 
-    const bool bSupportedInput = orgOptParams.allowInputReordering || bProperInput;
-
-    if (!bSupportedInput) {
-        return KernelsData();
-    }
-
     KernelData kd = KernelData::Default<fully_connected_params>(params);
+    kd.update_dispatch_data_func = [this](const Params& params, KernelData& kd) {
+        const auto& prim_params = static_cast<const fully_connected_params&>(params);
+        auto dispatchData = SetDefault(prim_params);
+        OPENVINO_ASSERT(kd.kernels.size() == 1, "[GPU] Invalid kernels size for update dispatch data func");
+        kd.kernels[0].params.workGroups.global = dispatchData.gws;
+        kd.kernels[0].params.workGroups.local = dispatchData.lws;
+    };
     fully_connected_params& newParams = *static_cast<fully_connected_params*>(kd.params.get());
 
     if (!bProperInput) {
@@ -107,7 +110,9 @@ KernelsData FullyConnectedKernelBase::GetCommonKernelsData(const Params &params,
                      true,
                      !orgParams.bias.empty(),
                      1,
-                     fused_deps_total);
+                     fused_deps_total,
+                     1,
+                     orgParams.outputs[0].is_dynamic());
 
     // TODO Pass estimated time only through DispatchData
     kd.autoTuneIndex = autoTuneIndex;
@@ -119,7 +124,7 @@ std::string FullyConnectedKernelBase::GetAutoTuneOptions(int autoTuneIndex) cons
         return autoTuneOptions[autoTuneIndex];
     }
 
-    return DEFAULT;
+    return EXE_MODE_DEFAULT;
 }
 
 KernelsData FullyConnectedKernelBase::GetTunedKernelsDataByIndex(const Params &params,

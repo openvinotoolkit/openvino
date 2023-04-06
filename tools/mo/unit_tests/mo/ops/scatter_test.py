@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2022 Intel Corporation
+# Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import unittest
@@ -7,7 +7,7 @@ import numpy as np
 from generator import generator, generate
 
 from openvino.tools.mo.ops.scatter import ScatterElementsUpdate, ScatterUpdate
-from openvino.tools.mo.front.common.partial_infer.utils import int64_array
+from openvino.tools.mo.front.common.partial_infer.utils import int64_array, shape_array, dynamic_dimension_value
 from openvino.tools.mo.graph.graph import Node
 from unit_tests.utils.graph import build_graph, regular_op_with_empty_data, result, connect, valued_const_with_data
 
@@ -157,6 +157,13 @@ class ScatterUpdateInferTest(unittest.TestCase):
          # ref
          [[[7., 8., 9.], [6., 5., 4.], [3., 2., 1.]],
           [[7., 8., 9.], [6., 5., 4.], [3., 2., 1.]]]),
+
+        # dynamic updates
+        ([0, 0, 0],
+         [2],
+         shape_array([dynamic_dimension_value]),
+         0,
+         shape_array([0, 0, dynamic_dimension_value])),
     ])
     def test_scatter_update_value_infer(self, data, indices, updates, axis, ref_res):
         nodes = {

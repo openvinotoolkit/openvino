@@ -1,17 +1,18 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #pragma once
 
-#include <vector>
-#include <string>
-
 #include <caseless.hpp>
+#include <string>
+#include <vector>
 
-#include "backend/dnn_types.h"
+#include "backend/dnn_types.hpp"
 
-namespace GNAPluginNS {
+namespace ov {
+namespace intel_gna {
+
 enum class LayerType {
     Input,
     Convolution,
@@ -54,45 +55,47 @@ enum class LayerType {
     NO_TYPE
 };
 
-static const InferenceEngine::details::caseless_map<std::string, GNAPluginNS::LayerType> LayerNameToType = {
-        { "Input" , LayerType::Input },
-        { "Convolution" , LayerType::Convolution },
-        { "ReLU" , LayerType::ReLU },
-        { "Sigmoid" , LayerType::Sigmoid },
-        { "TanH" , LayerType::TanH },
-        { "Pooling" , LayerType::Pooling },
-        { "FullyConnected" , LayerType::FullyConnected },
-        { "InnerProduct" , LayerType::InnerProduct},
-        { "Split" , LayerType::Split },
-        { "Slice" , LayerType::Slice },
-        { "Eltwise" , LayerType::Eltwise },
-        { "Const" , LayerType::Const },
-        { "Reshape" , LayerType::Reshape },
-        { "Squeeze" , LayerType::Squeeze },
-        { "Unsqueeze" , LayerType::Unsqueeze },
-        { "ScaleShift" , LayerType::ScaleShift },
-        { "Clamp" , LayerType::Clamp },
-        { "Concat" , LayerType::Concat },
-        { "Copy", LayerType::Copy },
-        { "Permute" , LayerType::Permute },
-        { "Power" , LayerType::Power},
-        { "Memory" , LayerType::Memory },
-        { "Crop" , LayerType::Crop },
-        { "Exp", LayerType::Exp},
-        { "Log", LayerType::Log},
-        { "Sign", LayerType::Sign},
-        { "Abs", LayerType::Abs},
-        { "NegLog" , LayerType::NegLog },
-        { "NegHalfLog" , LayerType::NegHalfLog },
-        { "LSTMCell", LayerType::LSTMCell },
-        { "TensorIterator", LayerType::TensorIterator },
-        { "Abs", LayerType::Abs },
-        { "SoftSign", LayerType::SoftSign },
-        { "FakeQuantize", LayerType::FakeQuantize },
-        { "Pwl", LayerType::Pwl },
-        { "Identity", LayerType::Identity },
-        {"Gemm", LayerType::Gemm},
+static const InferenceEngine::details::caseless_map<std::string, LayerType> LayerNameToType = {
+    {"Input", LayerType::Input},
+    {"Convolution", LayerType::Convolution},
+    {"ReLU", LayerType::ReLU},
+    {"Sigmoid", LayerType::Sigmoid},
+    {"TanH", LayerType::TanH},
+    {"Pooling", LayerType::Pooling},
+    {"FullyConnected", LayerType::FullyConnected},
+    {"InnerProduct", LayerType::InnerProduct},
+    {"Split", LayerType::Split},
+    {"Slice", LayerType::Slice},
+    {"Eltwise", LayerType::Eltwise},
+    {"Const", LayerType::Const},
+    {"Reshape", LayerType::Reshape},
+    {"Squeeze", LayerType::Squeeze},
+    {"Unsqueeze", LayerType::Unsqueeze},
+    {"ScaleShift", LayerType::ScaleShift},
+    {"Clamp", LayerType::Clamp},
+    {"Concat", LayerType::Concat},
+    {"Copy", LayerType::Copy},
+    {"Permute", LayerType::Permute},
+    {"Power", LayerType::Power},
+    {"Memory", LayerType::Memory},
+    {"Crop", LayerType::Crop},
+    {"Exp", LayerType::Exp},
+    {"Log", LayerType::Log},
+    {"Sign", LayerType::Sign},
+    {"Abs", LayerType::Abs},
+    {"NegLog", LayerType::NegLog},
+    {"NegHalfLog", LayerType::NegHalfLog},
+    {"LSTMCell", LayerType::LSTMCell},
+    {"TensorIterator", LayerType::TensorIterator},
+    {"Abs", LayerType::Abs},
+    {"SoftSign", LayerType::SoftSign},
+    {"FakeQuantize", LayerType::FakeQuantize},
+    {"Pwl", LayerType::Pwl},
+    {"Identity", LayerType::Identity},
+    {"Gemm", LayerType::Gemm},
 };
 
-GNAPluginNS::LayerType LayerTypeFromStr(const std::string &str);
-}  // namespace GNAPluginNS
+LayerType LayerTypeFromStr(const std::string& str);
+
+}  // namespace intel_gna
+}  // namespace ov

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -18,6 +18,7 @@ struct AutoLoadContext {
     std::atomic<bool> isEnabled = {false};
     std::atomic<bool> isAlready = {false};
     std::atomic<bool> isLoadSuccess = {false};
+    std::atomic<bool> isReloadSuccess = {false};
     std::future<void> future;
     std::promise<void> promise;
     SoExecNetwork executableNetwork;
@@ -36,7 +37,8 @@ struct AutoLoadContext {
 enum AutoLoadContextIndex {
     CPU = 0,
     ACTUALDEVICE = 1,
-    CONTEXTNUM = 2
+    FALLBACKDEVICE = 2,
+    CONTEXTNUM = 3
 };
 class AutoSchedule : public MultiSchedule {
 public:
@@ -48,16 +50,27 @@ public:
 
 public:
     AutoLoadContext                           _loadContext[CONTEXTNUM];
+    std::unique_ptr<AutoLoadContext[]>        _pCTPUTLoadContext = nullptr;
+    size_t                                    _nCTputDeviceNums;
 
 protected:
     void GenerateWorkers(const std::string& device, const SoExecNetwork& executableNetwork) override;
     bool ScheduleToWorkerInferRequest(IE::Task, DeviceName preferred_device = "") override;
-    static bool RunPipelineTask(IE::Task& inferPipelineTask, NotBusyPriorityWorkerRequests& idleWorkerRequests, const DeviceName& preferred_device);
+    static bool RunPipelineTask(IE::Task& inferPipelineTask, NotBusyPriorityWorkerRequests& idleWorkerRequests,
+                                const DeviceName& preferred_device);
     DeviceMap<NotBusyPriorityWorkerRequests> _idleWorkerRequests;
+    AutoScheduleContext::Ptr                 _autoSContext;
 
 private:
-    void WaitFirstNetworkReady();
-    void TryToLoadNetWork(AutoLoadContext& context, const std::string& modelPath, const IE::CNNNetwork& network);
+    /**
+     * @brief wait for one of the executable network to finish loading.
+     * @return An SoPtr object hold an available executable network loaded to HW device.
+     * @note An exception will be thrown if all loading of network to hw device fails.
+     */
+    SoExecNetwork WaitFirstNetworkReady();
+    void TryToLoadNetWork(AutoLoadContext& context, const std::string& modelPath, const IE::CNNNetwork& network, bool isCumulative);
+    bool selectOtherDevice(const std::string& currentDeviceName);
+    IE::Task releaseActualdeviceTask;
 
 private:
     IE::IStreamsExecutor::Ptr                _executor;
@@ -67,8 +80,6 @@ private:
     std::promise<void>                       _firstLoadPromise;
     bool                                     _exitFlag = {false};
     size_t                                   _cpuHelpInferCount = 0;
-    std::atomic_size_t                       _numRequestsCreated = {0};
-    AutoScheduleContext::Ptr                 _autoSContext;
 };
 
 }  // namespace MultiDevicePlugin

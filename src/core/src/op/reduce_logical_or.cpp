@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -14,8 +14,6 @@
 
 using namespace ngraph;
 using namespace std;
-
-BWDCMP_RTTI_DEFINITION(op::v1::ReduceLogicalOr);
 
 op::v1::ReduceLogicalOr::ReduceLogicalOr(const Output<Node>& data,
                                          const Output<Node>& reduction_axes,
@@ -53,8 +51,11 @@ bool evaluate_reduce_logical_or(const HostTensorPtr& data,
 
 bool op::v1::ReduceLogicalOr::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const {
     OV_OP_SCOPE(v1_ReduceLogicalOr_evaluate);
+    OPENVINO_SUPPRESS_DEPRECATED_START
     NGRAPH_CHECK(validate_host_tensor_vector(inputs, 2));
     NGRAPH_CHECK(validate_host_tensor_vector(outputs, 1));
+    OPENVINO_SUPPRESS_DEPRECATED_END
+
     const auto& data = inputs[0];
     const auto& axes = inputs[1];
     const auto& out = outputs[0];

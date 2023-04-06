@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -32,7 +32,6 @@ namespace v0 {
 class OPENVINO_API LSTMSequence : public Op {
 public:
     OPENVINO_OP("LSTMSequence", "opset1");
-    BWDCMP_RTTI_DECLARATION;
     LSTMSequence();
 
     using direction = RecurrentSequenceDirection;
@@ -128,8 +127,7 @@ namespace v5 {
 /// \ingroup ov_ops_cpp_api
 class OPENVINO_API LSTMSequence : public util::RNNCellBase {
 public:
-    OPENVINO_OP("LSTMSequence", "opset5", util::RNNCellBase, 5);
-    BWDCMP_RTTI_DECLARATION;
+    OPENVINO_OP("LSTMSequence", "opset5", util::RNNCellBase);
     LSTMSequence() = default;
 
     using direction = RecurrentSequenceDirection;

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -23,7 +23,6 @@ namespace op {
 class OPENVINO_API Label : public Pattern {
 public:
     OPENVINO_RTTI("patternLabel");
-    BWDCMP_RTTI_DECLARATION;
     /// \brief creates a Label node containing a sub-pattern described by \sa type and
     ///        \sa shape.
     ///

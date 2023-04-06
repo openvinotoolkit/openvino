@@ -1,9 +1,11 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <common_test_utils/test_constants.hpp>
 #include "execution_graph_tests/add_output.hpp"
+
+#include <common_test_utils/test_constants.hpp>
+
 #include "functional_test_utils/plugin_cache.hpp"
 #include "ngraph_functions/builders.hpp"
 
@@ -21,14 +23,15 @@ InferenceEngine::CNNNetwork getTargetNetwork() {
     mem_w->add_control_dependency(mem_r);
     sigm->add_control_dependency(mem_w);
 
-    auto function = std::make_shared<ngraph::Function>(ngraph::NodeVector{sigm}, ngraph::ParameterVector{input}, "addOutput");
+    auto function =
+        std::make_shared<ngraph::Function>(ngraph::NodeVector{sigm}, ngraph::ParameterVector{input}, "addOutput");
     return InferenceEngine::CNNNetwork{function};
 }
 
 std::vector<addOutputsParams> testCases = {
-        addOutputsParams(getTargetNetwork(), {"Memory_1"}, CommonTestUtils::DEVICE_GNA)
-};
+    addOutputsParams(getTargetNetwork(), {"Memory_1"}, CommonTestUtils::DEVICE_GNA)};
 
-INSTANTIATE_TEST_SUITE_P(smoke_AddOutputBasic, AddOutputsTest,
-        ::testing::ValuesIn(testCases),
-        AddOutputsTest::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_AddOutputBasic,
+                         AddOutputsTest,
+                         ::testing::ValuesIn(testCases),
+                         AddOutputsTest::getTestCaseName);

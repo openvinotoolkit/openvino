@@ -1,4 +1,4 @@
-# QuantizationGranularity attribute {#openvino_docs_OV_UG_lpt_QuantizationGranularity}
+# QuantizationGranularity Attribute {#openvino_docs_OV_UG_lpt_QuantizationGranularity}
 
 ngraph::QuantizationAttribute class represents the `QuantizationGranularity` attribute.
 

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -9,8 +9,11 @@
 #include "ngraph_transformations/op/power_static.hpp"
 #include "ngraph_transformations/op/swish_cpu.hpp"
 #include "ngraph_transformations/op/mha.hpp"
+#include "ngraph_transformations/op/ngram.hpp"
 #include "snippets_transformations/op/load_convert.hpp"
 #include "snippets_transformations/op/store_convert.hpp"
+#include "snippets_transformations/op/brgemm_cpu.hpp"
+#include "snippets_transformations/op/brgemm_copy_b.hpp"
 
 #include <ngraph/ngraph.hpp>
 #include <ov_ops/augru_cell.hpp>
@@ -19,6 +22,8 @@
 #include <ov_ops/nms_ie_internal.hpp>
 #include <ov_ops/nms_static_shape_ie.hpp>
 #include <ov_ops/multiclass_nms_ie_internal.hpp>
+
+#include <snippets/op/subgraph.hpp>
 
 #include <mutex>
 
@@ -48,10 +53,13 @@ std::map<std::string, ngraph::OpSet> Extension::getOpSets() {
         NGRAPH_OP(PowerStaticNode, ov::intel_cpu)
         NGRAPH_OP(SwishNode, ov::intel_cpu)
         NGRAPH_OP(MHANode, ov::intel_cpu)
+        NGRAPH_OP(NgramNode, ov::intel_cpu)
         NGRAPH_OP(LoadConvertSaturation, ov::intel_cpu)
         NGRAPH_OP(LoadConvertTruncation, ov::intel_cpu)
         NGRAPH_OP(StoreConvertSaturation, ov::intel_cpu)
         NGRAPH_OP(StoreConvertTruncation, ov::intel_cpu)
+        NGRAPH_OP(BrgemmCPU, ov::intel_cpu)
+        NGRAPH_OP(BrgemmCopyB, ov::intel_cpu)
 #undef NGRAPH_OP
 
         return opset;
@@ -60,7 +68,7 @@ std::map<std::string, ngraph::OpSet> Extension::getOpSets() {
     auto type_relaxed_opset = []() {
         ngraph::OpSet opset;
 
-#define NGRAPH_OP(NAME, NAMESPACE) opset.insert<ngraph::op::TypeRelaxed<NAMESPACE::NAME>>();
+#define NGRAPH_OP(NAME, NAMESPACE) opset.insert<ov::op::TypeRelaxed<NAMESPACE::NAME>>();
         NGRAPH_OP(Add, ngraph::op::v1)
         NGRAPH_OP(AvgPool, ngraph::op::v1)
         NGRAPH_OP(Clamp, ngraph::op::v0)
@@ -115,11 +123,40 @@ std::map<std::string, ngraph::OpSet> Extension::getOpSets() {
         ngraph::OpSet opset;
 
 #define NGRAPH_OP(NAME, NAMESPACE) opset.insert<NAMESPACE::NAME>();
-        NGRAPH_OP(NonMaxSuppressionIEInternal, ngraph::op::internal)
-        NGRAPH_OP(MulticlassNmsIEInternal, ngraph::op::internal)
+        NGRAPH_OP(NonMaxSuppressionIEInternal, ov::op::internal)
+        NGRAPH_OP(MulticlassNmsIEInternal, ov::op::internal)
         NGRAPH_OP(AUGRUCell, ov::op::internal)
         NGRAPH_OP(AUGRUSequence, ov::op::internal)
-        NGRAPH_OP(NmsStaticShapeIE<ov::op::v8::MatrixNms>, ngraph::op::internal)
+        NGRAPH_OP(NmsStaticShapeIE<ov::op::v8::MatrixNms>, ov::op::internal)
+#undef NGRAPH_OP
+
+        return opset;
+    };
+
+    auto snippets_opset = []() {
+        ngraph::OpSet opset;
+
+#define NGRAPH_OP(NAME, NAMESPACE) opset.insert<NAMESPACE::NAME>();
+        NGRAPH_OP(Brgemm, ngraph::snippets::op)
+        NGRAPH_OP(Buffer, ngraph::snippets::op)
+        NGRAPH_OP(BroadcastLoad, ngraph::snippets::op)
+        NGRAPH_OP(BroadcastMove, ngraph::snippets::op)
+        NGRAPH_OP(ConvertSaturation, ngraph::snippets::op)
+        NGRAPH_OP(ConvertTruncation, ngraph::snippets::op)
+        NGRAPH_OP(Fill, ngraph::snippets::op)
+        NGRAPH_OP(HorizonMax, ngraph::snippets::op)
+        NGRAPH_OP(HorizonSum, ngraph::snippets::op)
+        NGRAPH_OP(Kernel, ngraph::snippets::op)
+        NGRAPH_OP(Load, ngraph::snippets::op)
+        NGRAPH_OP(LoadReshape, ngraph::snippets::op)
+        NGRAPH_OP(LoopBegin, ngraph::snippets::op)
+        NGRAPH_OP(LoopEnd, ngraph::snippets::op)
+        NGRAPH_OP(Nop, ngraph::snippets::op)
+        NGRAPH_OP(PowerStatic, ngraph::snippets::op)
+        NGRAPH_OP(Scalar, ngraph::snippets::op)
+        NGRAPH_OP(Store, ngraph::snippets::op)
+        NGRAPH_OP(Subgraph, ngraph::snippets::op)
+        NGRAPH_OP(VectorBuffer, ngraph::snippets::op)
 #undef NGRAPH_OP
 
         return opset;
@@ -129,6 +166,7 @@ std::map<std::string, ngraph::OpSet> Extension::getOpSets() {
         { "cpu_plugin_opset", cpu_plugin_opset() },
         { "type_relaxed_opset", type_relaxed_opset() },
         { "ie_internal_opset", ie_internal_opset() },
+        { "SnippetsOpset", snippets_opset() },
     };
 
     return opsets;

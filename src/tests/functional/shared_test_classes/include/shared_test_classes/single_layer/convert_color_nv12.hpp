@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -72,7 +72,7 @@ inline std::vector<uint8_t> color_test_image(size_t height, size_t width, int b_
                 int u_val = ((-38 * r - 74 * g + 112 * b + 128) / 256) + 128;
                 int v_val = ((112 * r - 94 * g + 18 * b + 128) / 256) + 128;
 
-                size_t b_offset = height * width * b / b_step;
+                size_t b_offset = height * width * b / b_step * 3 / 2;
                 size_t uv_index = b_offset + height * width + y * width + x * 2;
                 input_yuv[uv_index] = u_val;
                 input_yuv[uv_index + 1] = v_val;

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -12,14 +12,16 @@ TransformationTestsF::TransformationTestsF()
     comparator.enable(FunctionsComparator::CmpValues::NODES);
     comparator.enable(FunctionsComparator::CmpValues::PRECISIONS);
     comparator.enable(FunctionsComparator::CmpValues::RUNTIME_KEYS);
-    // TODO: enable attributes and constant values comparison by default XXX-68694
+    comparator.enable(FunctionsComparator::CmpValues::SUBGRAPH_DESCRIPTORS);
+    // TODO: enable attributes and constant values comparison by default XXX-98039
     // comparator.enable(FunctionsComparator::CmpValues::ATTRIBUTES);
     // comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
+    // comparator.enable(FunctionsComparator::CmpValues::NAMES);
 }
 
 void TransformationTestsF::SetUp() {
     manager.register_pass<ngraph::pass::InitUniqueNames>(m_unh);
-    manager.register_pass<ngraph::pass::InitNodeInfo>();
+    manager.register_pass<ov::pass::InitNodeInfo>();
 }
 
 void TransformationTestsF::TearDown() {
@@ -29,7 +31,7 @@ void TransformationTestsF::TearDown() {
         function_ref = cloned_function;
     }
 
-    manager.register_pass<ngraph::pass::CheckUniqueNames>(m_unh, m_soft_names_comparison);
+    manager.register_pass<ngraph::pass::CheckUniqueNames>(m_unh, m_soft_names_comparison, m_result_friendly_names_check);
     manager.run_passes(function);
     if (!m_disable_rt_info_check) {
     ASSERT_NO_THROW(check_rt_info(function));
@@ -52,6 +54,10 @@ void TransformationTestsF::disable_rt_info_check() {
 
 void TransformationTestsF::enable_soft_names_comparison() {
     m_soft_names_comparison = true;
+}
+
+void TransformationTestsF::disable_result_friendly_names_check() {
+    m_result_friendly_names_check = false;
 }
 
 void init_unique_names(std::shared_ptr<ngraph::Function> f, const std::shared_ptr<ngraph::pass::UniqueNamesHolder>& unh) {

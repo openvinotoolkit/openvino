@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -59,8 +59,6 @@ runtime::AlignedBuffer& runtime::AlignedBuffer::operator=(AlignedBuffer&& other)
 }
 
 namespace ov {
-BWDCMP_RTTI_DEFINITION(AttributeAdapter<std::shared_ptr<ngraph::runtime::AlignedBuffer>>);
-
 AttributeAdapter<shared_ptr<ngraph::runtime::AlignedBuffer>>::AttributeAdapter(
     shared_ptr<ngraph::runtime::AlignedBuffer>& value)
     : DirectValueAccessor<shared_ptr<ngraph::runtime::AlignedBuffer>>(value) {}

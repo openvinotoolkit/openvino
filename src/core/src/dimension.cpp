@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -19,25 +19,26 @@ namespace {
 /**
  * \brief Merges two labels.
  *
- *  | label_a | label_b | result  |
- *  |---------|---------|---------|
- *  | X       | X       | X       |
- *  | X       | 0       | X       |
- *  | 0       | X       | X       |
- *  | X       | Y       | Y       | (if merge_unequal == true)
- *  | X       | Y       | 0       | (if merge_unequal == false)
+ *  | label_a  | label_b  | result   |
+ *  |----------|----------|----------|
+ *  | X        | X        | X        |
+ *  | X        | no label | X        |
+ *  | no label | X        | X        |
+ *  | X        | Y        | Y        | (if merge_unequal == true)
+ *  | X        | Y        | no label | (if merge_unequal == false)
  *
- * \param label_a
- * \param label_b
- * \return size_t
+ * \param label_a  First input label.
+ * \param label_b  Second input label.
+ *
+ * \return ov::label_t Merged label value
  */
-size_t merge_labels(const size_t label_a, const size_t label_b, bool merge_unequal = true) {
-    if (label_a == label_b || label_b == 0)
+ov::label_t merge_labels(const ov::label_t label_a, const ov::label_t label_b, bool merge_unequal = true) {
+    if (label_a == label_b || label_b == ov::no_label)
         return label_a;
-    else if (merge_unequal || label_a == 0)
+    else if (merge_unequal || label_a == ov::no_label)
         return label_b;
     else
-        return 0;
+        return ov::no_label;
 }
 
 int64_t stringToInt64(const std::string& valStr) {
@@ -185,11 +186,16 @@ bool Dimension::same_scheme(const Dimension& dim) const {
 }
 
 bool Dimension::merge(Dimension& dst, const Dimension& d1, const Dimension& d2) {
-    auto result = d1.m_dimension & d2.m_dimension;
-    if (result.empty()) {
+    const auto result_interval = d1.m_dimension & d2.m_dimension;
+
+    if (result_interval.empty()) {
         return false;
+    } else if ((&dst == &d1) || (&dst == &d2)) {
+        // If dst is one of inputs object change interval only.
+        dst.m_dimension = result_interval;
+    } else {
+        dst = Dimension(result_interval);
     }
-    dst = result;
 
     if (auto& t = d1.m_table_of_equivalence)
         t->set_as_equal(d1, d2);

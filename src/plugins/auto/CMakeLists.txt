@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2022 Intel Corporation
+# Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 if(NOT ENABLE_AUTO AND NOT ENABLE_MULTI)
@@ -38,6 +38,7 @@ endif()
 
 set_ie_threading_interface_for(${TARGET_NAME})
 
+# must be called after all target_link_libraries
 ie_add_api_validator_post_build_step(TARGET ${TARGET_NAME})
 
 set_target_properties(${TARGET_NAME} PROPERTIES INTERPROCEDURAL_OPTIMIZATION_RELEASE ${ENABLE_LTO})

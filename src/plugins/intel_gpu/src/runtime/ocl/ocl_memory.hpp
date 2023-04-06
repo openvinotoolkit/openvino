@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -40,10 +40,10 @@ struct gpu_buffer : public lockable_gpu_mem, public memory {
         return _buffer;
     }
 
-    event::ptr copy_from(stream& stream, const memory& other) override;
-    event::ptr copy_from(stream& stream, const void* host_ptr) override;
+    event::ptr copy_from(stream& stream, const memory& other, bool blocking) override;
+    event::ptr copy_from(stream& stream, const void* host_ptr, bool blocking) override;
 
-    event::ptr copy_to(stream& /* stream */, void* /* other */) override;
+    event::ptr copy_to(stream& stream, void* other , bool blocking) override;
 
 #ifdef ENABLE_ONEDNN_FOR_GPU
     dnnl::memory get_onednn_memory(dnnl::memory::desc /* desc */, int64_t offset = 0) override;
@@ -67,11 +67,11 @@ struct gpu_image2d : public lockable_gpu_mem, public memory {
         return _buffer;
     }
 
-    event::ptr copy_from(stream& /* stream */, const memory& /* other */) override;
-    event::ptr copy_from(stream& /* stream */, const void* /* other */) override;
+    event::ptr copy_from(stream& stream, const memory& other, bool blocking) override;
+    event::ptr copy_from(stream& stream, const void* other, bool blocking) override;
 
-    event::ptr copy_to(stream& /* stream */, memory& /* other */) override;
-    event::ptr copy_to(stream& /* stream */, void* /* other */) override;
+    event::ptr copy_to(stream& stream, memory& other, bool blocking) override;
+    event::ptr copy_to(stream& stream, void* other, bool blocking) override;
 
 protected:
     cl::Image2D _buffer;
@@ -119,10 +119,10 @@ struct gpu_usm : public lockable_gpu_mem, public memory {
     event::ptr fill(stream& stream) override;
     shared_mem_params get_internal_params() const override;
 
-    event::ptr copy_from(stream& stream, const memory& other) override;
-    event::ptr copy_from(stream& stream, const void* host_ptr) override;
+    event::ptr copy_from(stream& stream, const memory& other, bool blocking) override;
+    event::ptr copy_from(stream& stream, const void* host_ptr, bool blocking) override;
 
-    event::ptr copy_to(stream& stream, void* host_ptr) override;
+    event::ptr copy_to(stream& stream, void* host_ptr, bool blocking) override;
 #ifdef ENABLE_ONEDNN_FOR_GPU
     dnnl::memory get_onednn_memory(dnnl::memory::desc /* desc */, int64_t offset = 0) override;
 #endif
@@ -142,7 +142,6 @@ struct ocl_surfaces_lock : public surfaces_lock {
     ~ocl_surfaces_lock() = default;
 private:
     std::vector<cl_mem> get_handles(std::vector<memory::ptr> mem) const;
-    const stream& _stream;
     std::vector<cl_mem> _handles;
     std::unique_ptr<cl::SharedSurfLock> _lock;
 };

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -95,7 +95,14 @@ struct jit_uni_interpolate_kernel {
 
 class Interpolate : public Node {
 public:
-    Interpolate(const std::shared_ptr<ngraph::Node>& op, const dnnl::engine& eng, WeightsSharing::Ptr &cache);
+    static constexpr size_t DATA_ID = 0;
+    static constexpr size_t TARGET_SHAPE_ID = 1;
+    static constexpr size_t SCALES_ID = 2;
+    static constexpr size_t AXES_ID = 3;
+    static constexpr int CUBIC_GRID_LEN = 4;
+
+public:
+    Interpolate(const std::shared_ptr<ngraph::Node>& op, const GraphContext::CPtr context);
 
     void getSupportedDescriptors() override;
     void initSupportedPrimitiveDescriptors() override;
@@ -111,7 +118,6 @@ public:
     static bool isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept;
 
     bool needShapeInfer() const override;
-    std::vector<VectorDims> shapeInfer() const override;
     bool needPrepareParams() const override;
     void prepareParams() override;
 
@@ -208,8 +214,9 @@ private:
             InterpolateRefExecutor(const InterpolateAttrs& interpAttrs,
                                    const VectorDims &srcDims,
                                    const VectorDims &dstDims,
-                                   const std::vector<float> &_dataScales) : dataScales(_dataScales), antialias(interpAttrs.antialias),
-                InterpolateExecutor(interpAttrs, srcDims, dstDims, _dataScales) {}
+                                   const std::vector<float> &_dataScales) :
+                InterpolateExecutor(interpAttrs, srcDims, dstDims, _dataScales),
+                antialias(interpAttrs.antialias), dataScales(_dataScales) {}
 
             void exec(const uint8_t *in_ptr_, uint8_t *out_ptr_, const void *post_ops_data_) override;
 
@@ -234,12 +241,6 @@ private:
     static SizeVector getPaddedInputShape(const VectorDims &srcDims, const std::vector<int> &padBegin, const std::vector<int> &padEnd);
     std::vector<float> getScales(const VectorDims &srcDimPad, const VectorDims &dstDim);
     static size_t getSpatialDimsNum(const Dim rank);
-
-    static constexpr size_t DATA_ID = 0;
-    static constexpr size_t TARGET_SHAPE_ID = 1;
-    static constexpr size_t SCALES_ID = 2;
-    static constexpr size_t AXES_ID = 3;
-    static constexpr int CUBIC_GRID_LEN = 4;
 
     bool hasPad = false;
     InterpolateShapeCalcMode shapeCalcMode;

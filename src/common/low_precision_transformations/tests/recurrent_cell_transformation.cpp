@@ -5,15 +5,16 @@
 #include <gtest/gtest.h>
 
 #include <low_precision/common/precisions_restriction.hpp>
-#include <low_precision/recurrent_cell.hpp>
 #include <low_precision/fold_convert.hpp>
 #include <low_precision/fuse_convert.hpp>
 #include <low_precision/fuse_multiply_to_fake_quantize.hpp>
 #include <low_precision/fuse_subtract_to_fake_quantize.hpp>
+#include <low_precision/recurrent_cell.hpp>
 #include <low_precision/rt_info/intervals_alignment_attribute.hpp>
 #include <low_precision/rt_info/precision_preserved_attribute.hpp>
 #include <low_precision/rt_info/quantization_alignment_attribute.hpp>
 #include <memory>
+#include <ngraph/opsets/opset5.hpp>
 #include <sstream>
 #include <vector>
 
@@ -23,7 +24,6 @@
 #include "lpt_ngraph_functions/common/fake_quantize_on_data.hpp"
 #include "lpt_ngraph_functions/recurrent_cell_function.hpp"
 #include "simple_low_precision_transformer.hpp"
-#include <ngraph/opsets/opset5.hpp>
 
 using namespace testing;
 using namespace ngraph;
@@ -51,21 +51,21 @@ public:
 };
 
 inline std::ostream& operator<<(std::ostream& out, const RecurrentCellTransformationValues& values) {
-    return out << "_" << values.fakeQuantize_X << "_" << values.convert_X << "_" << values.dequantization_X <<
-                  "_" << values.fakeQuantize_H << "_" << values.convert_H << "_" << values.dequantization_H <<
-                  "_" << values.fakeQuantize_W << "_" << values.convert_W << "_" << values.dequantization_W <<
-                  "_" << values.fakeQuantize_R << "_" << values.convert_R << "_" << values.dequantization_R;
+    return out << "_" << values.fakeQuantize_X << "_" << values.convert_X << "_" << values.dequantization_X << "_"
+               << values.fakeQuantize_H << "_" << values.convert_H << "_" << values.dequantization_H << "_"
+               << values.fakeQuantize_W << "_" << values.convert_W << "_" << values.dequantization_W << "_"
+               << values.fakeQuantize_R << "_" << values.convert_R << "_" << values.dequantization_R;
 }
 
 class RecurrentCellTransformationTestValues {
 public:
     RecurrentCellTransformationTestValues() = default;
     RecurrentCellTransformationTestValues(const TestTransformationParams& params,
-                                 const RecurrentCellFunction::RNNType type,
-                                 const RecurrentCellTransformationValues& actual,
-                                 const RecurrentCellTransformationValues& result,
-                                 const bool addNotPrecisionPreservedOperation = false,
-                                 const bool checkIntervalsAlignmentAttributes = true)
+                                          const RecurrentCellFunction::RNNType type,
+                                          const RecurrentCellTransformationValues& actual,
+                                          const RecurrentCellTransformationValues& result,
+                                          const bool addNotPrecisionPreservedOperation = false,
+                                          const bool checkIntervalsAlignmentAttributes = true)
         : params(params),
           type(type),
           actual(actual),
@@ -81,10 +81,14 @@ inline std::ostream& operator<<(std::ostream& out, const RecurrentCellTransforma
     return out << "_" << values.actual << "_" << values.result;
 }
 
-typedef std::tuple<ngraph::element::Type, std::vector<ngraph::PartialShape>, std::vector<ngraph::Shape>, RecurrentCellTransformationTestValues>
+typedef std::tuple<ngraph::element::Type,
+                   std::vector<ngraph::PartialShape>,
+                   std::vector<ngraph::Shape>,
+                   RecurrentCellTransformationTestValues>
     RecurrentCellTransformationParams;
 
-class RecurrentCellTransformation : public LayerTransformation, public testing::WithParamInterface<RecurrentCellTransformationParams> {
+class RecurrentCellTransformation : public LayerTransformation,
+                                    public testing::WithParamInterface<RecurrentCellTransformationParams> {
 public:
     void SetUp() override {
         const ngraph::element::Type precision = std::get<0>(GetParam());
@@ -93,27 +97,21 @@ public:
         RecurrentCellTransformationTestValues testValues = std::get<3>(GetParam());
 
         actualFunction = ngraph::builder::subgraph::RecurrentCellFunction::get(precision,
-                                                                      activations_shapes,
-                                                                      weights_shapes,
-                                                                      testValues.type,
-                                                                      {
-                                                                          testValues.actual.fakeQuantize_X,
-                                                                          testValues.actual.fakeQuantize_H,
-                                                                          testValues.actual.fakeQuantize_W,
-                                                                          testValues.actual.fakeQuantize_R
-                                                                      },
-                                                                      {
-                                                                          testValues.actual.convert_X,
-                                                                          testValues.actual.convert_H,
-                                                                          testValues.actual.convert_W,
-                                                                          testValues.actual.convert_R
-                                                                      },
-                                                                      {
-                                                                          testValues.actual.dequantization_X,
-                                                                          testValues.actual.dequantization_H,
-                                                                          testValues.actual.dequantization_W,
-                                                                          testValues.actual.dequantization_R
-                                                                      });
+                                                                               activations_shapes,
+                                                                               weights_shapes,
+                                                                               testValues.type,
+                                                                               {testValues.actual.fakeQuantize_X,
+                                                                                testValues.actual.fakeQuantize_H,
+                                                                                testValues.actual.fakeQuantize_W,
+                                                                                testValues.actual.fakeQuantize_R},
+                                                                               {testValues.actual.convert_X,
+                                                                                testValues.actual.convert_H,
+                                                                                testValues.actual.convert_W,
+                                                                                testValues.actual.convert_R},
+                                                                               {testValues.actual.dequantization_X,
+                                                                                testValues.actual.dequantization_H,
+                                                                                testValues.actual.dequantization_W,
+                                                                                testValues.actual.dequantization_R});
 
         const auto params = TestTransformationParams::toParams(testValues.params);
 
@@ -122,10 +120,14 @@ public:
         transformer.transform(actualFunction);
 
         SimpleLowPrecisionTransformer clenup_transformer;
-        clenup_transformer.commonGraphRewrite->add_matcher<ngraph::pass::low_precision::FoldConvertTransformation>(params);
-        clenup_transformer.commonGraphRewrite->add_matcher<ngraph::pass::low_precision::FuseConvertTransformation>(params);
-        clenup_transformer.commonGraphRewrite->add_matcher<ngraph::pass::low_precision::FuseSubtractToFakeQuantizeTransformation>(params);
-        clenup_transformer.commonGraphRewrite->add_matcher<ngraph::pass::low_precision::FuseMultiplyToFakeQuantizeTransformation>(params);
+        clenup_transformer.commonGraphRewrite->add_matcher<ngraph::pass::low_precision::FoldConvertTransformation>(
+            params);
+        clenup_transformer.commonGraphRewrite->add_matcher<ngraph::pass::low_precision::FuseConvertTransformation>(
+            params);
+        clenup_transformer.commonGraphRewrite
+            ->add_matcher<ngraph::pass::low_precision::FuseSubtractToFakeQuantizeTransformation>(params);
+        clenup_transformer.commonGraphRewrite
+            ->add_matcher<ngraph::pass::low_precision::FuseMultiplyToFakeQuantizeTransformation>(params);
         clenup_transformer.transform(actualFunction);
 
         // dequantization output precision depends on input precision
@@ -134,29 +136,22 @@ public:
             testValues.result.dequantizationAfter.multiply.outPrecision = precision;
         }
 
-        referenceFunction =
-            ngraph::builder::subgraph::RecurrentCellFunction::get(precision,
-                                                                         activations_shapes,
-                                                                         weights_shapes,
-                                                                         testValues.type,
-                                                                         {
-                                                                            testValues.result.fakeQuantize_X,
-                                                                            testValues.result.fakeQuantize_H,
-                                                                            testValues.result.fakeQuantize_W,
-                                                                            testValues.result.fakeQuantize_R
-                                                                         },
-                                                                         {
-                                                                            testValues.result.convert_X,
-                                                                            testValues.result.convert_H,
-                                                                            testValues.result.convert_W,
-                                                                            testValues.result.convert_R
-                                                                         },
-                                                                         {
-                                                                            testValues.result.dequantization_X,
-                                                                            testValues.result.dequantization_H,
-                                                                            testValues.result.dequantization_W,
-                                                                            testValues.result.dequantization_R
-                                                                         });
+        referenceFunction = ngraph::builder::subgraph::RecurrentCellFunction::get(precision,
+                                                                                  activations_shapes,
+                                                                                  weights_shapes,
+                                                                                  testValues.type,
+                                                                                  {testValues.result.fakeQuantize_X,
+                                                                                   testValues.result.fakeQuantize_H,
+                                                                                   testValues.result.fakeQuantize_W,
+                                                                                   testValues.result.fakeQuantize_R},
+                                                                                  {testValues.result.convert_X,
+                                                                                   testValues.result.convert_H,
+                                                                                   testValues.result.convert_W,
+                                                                                   testValues.result.convert_R},
+                                                                                  {testValues.result.dequantization_X,
+                                                                                   testValues.result.dequantization_H,
+                                                                                   testValues.result.dequantization_W,
+                                                                                   testValues.result.dequantization_R});
     }
 
     static std::string getTestCaseName(testing::TestParamInfo<RecurrentCellTransformationParams> obj) {
@@ -194,78 +189,67 @@ const std::vector<RecurrentCellTransformationTestValues> testValues = {
     // LSTM Sequence
     {LayerTransformation::createParamsU8I8(),
      RecurrentCellFunction::RNNType::LSTMSequence,
-    {
-        // X
-        {256ul, {}, {0.f}, {2.55f}, {0.f}, {255.f}},
-        {ngraph::element::u8},
-        {
-             {element::f32},
-             {},
-             {0.01f},
-        },
-        // H
-        {256ul, {}, {0.f}, {2.55f}, {0.f}, {255.f}},
-        {ngraph::element::u8},
-        {
-             {element::f32},
-             {},
-             {0.01f},
-        },
-        // W
-        {255ul, {}, {-1.27f}, {1.27f}, {-1.27f}, {1.27f}},
-        {},
-        {{}, {}, {}},
-        // R
-        {255ul, {}, {-1.27f}, {1.27f}, {-1.27f}, {1.27f}},
-        {},
-        {{}, {}, {}},
-    },
-    {
-        // X
-        {256ul, {}, {0.f}, {2.55f}, {0.f}, {255.f}},
-        {ngraph::element::u8},
+     {
+         // X
+         {256ul, {}, {0.f}, {2.55f}, {0.f}, {255.f}},
+         {ngraph::element::u8},
          {
              {element::f32},
              {},
              {0.01f},
-        },
-        // H
-        {256ul, {}, {0.f}, {2.55f}, {0.f}, {255.f}},
-        {ngraph::element::u8},
+         },
+         // H
+         {256ul, {}, {0.f}, {2.55f}, {0.f}, {255.f}},
+         {ngraph::element::u8},
          {
              {element::f32},
              {},
              {0.01f},
-        },
-        // W
-        {},
-        {},
-        {
-            {element::f32},
-            {},
-            {0.01f}
-        },
-        // R
-        {},
-        {},
-        {
-            {element::f32},
-            {},
-            {0.01f}
-        },
-    }
-    },
+         },
+         // W
+         {255ul, {}, {-1.27f}, {1.27f}, {-1.27f}, {1.27f}},
+         {},
+         {{}, {}, {}},
+         // R
+         {255ul, {}, {-1.27f}, {1.27f}, {-1.27f}, {1.27f}},
+         {},
+         {{}, {}, {}},
+     },
+     {
+         // X
+         {256ul, {}, {0.f}, {2.55f}, {0.f}, {255.f}},
+         {ngraph::element::u8},
+         {
+             {element::f32},
+             {},
+             {0.01f},
+         },
+         // H
+         {256ul, {}, {0.f}, {2.55f}, {0.f}, {255.f}},
+         {ngraph::element::u8},
+         {
+             {element::f32},
+             {},
+             {0.01f},
+         },
+         // W
+         {},
+         {},
+         {{element::f32}, {}, {0.01f}},
+         // R
+         {},
+         {},
+         {{element::f32}, {}, {0.01f}},
+     }},
 };
-INSTANTIATE_TEST_SUITE_P(
-    smoke_LPT,
-    RecurrentCellTransformation,
-    ::testing::Combine(
-        ::testing::ValuesIn(precisions),
-        ::testing::ValuesIn(activations_shapes),
-        ::testing::ValuesIn(weights_shapes),
-        ::testing::ValuesIn(testValues)),
-    RecurrentCellTransformation::getTestCaseName);
-} // namespace testValues2
+INSTANTIATE_TEST_SUITE_P(smoke_LPT,
+                         RecurrentCellTransformation,
+                         ::testing::Combine(::testing::ValuesIn(precisions),
+                                            ::testing::ValuesIn(activations_shapes),
+                                            ::testing::ValuesIn(weights_shapes),
+                                            ::testing::ValuesIn(testValues)),
+                         RecurrentCellTransformation::getTestCaseName);
+}  // namespace testValues2
 
 namespace testValues3 {
 const std::vector<std::vector<ngraph::PartialShape>> activations_shapes = {{{1, 2, 3}, {1, 1, 3}, {}}};
@@ -275,78 +259,66 @@ const std::vector<std::vector<ngraph::Shape>> weights_shapes = {{{1, 9, 3}, {1, 
 const std::vector<RecurrentCellTransformationTestValues> testValues = {
     // GRU
     {LayerTransformation::createParamsU8I8(),
-    RecurrentCellFunction::RNNType::GRUSequence,
-    {
-        // X
-        {256ul, {}, {0.f}, {2.55f}, {0.f}, {255.f}},
-        {ngraph::element::u8},
-        {
-             {element::f32},
-             {},
-             {0.01f},
-        },
-        // H
-        {256ul, {}, {0.f}, {2.55f}, {0.f}, {255.f}},
-        {ngraph::element::u8},
-        {
-             {element::f32},
-             {},
-             {0.01f},
-        },
-        // W
-        {255ul, {}, {-1.27f}, {1.27f}, {-1.27f}, {1.27f}},
-        {},
-        {{}, {}, {}},
-        // R
-        {255ul, {}, {-1.27f}, {1.27f}, {-1.27f}, {1.27f}},
-        {},
-        {{}, {}, {}},
-    },
-    {
-        // X
-        {256ul, {}, {0.f}, {2.55f}, {0.f}, {255.f}},
-        {ngraph::element::u8},
+     RecurrentCellFunction::RNNType::GRUSequence,
+     {
+         // X
+         {256ul, {}, {0.f}, {2.55f}, {0.f}, {255.f}},
+         {ngraph::element::u8},
          {
              {element::f32},
              {},
              {0.01f},
-        },
-        // H
-        {256ul, {}, {0.f}, {2.55f}, {0.f}, {255.f}},
-        {ngraph::element::u8},
+         },
+         // H
+         {256ul, {}, {0.f}, {2.55f}, {0.f}, {255.f}},
+         {ngraph::element::u8},
          {
              {element::f32},
              {},
              {0.01f},
-        },
-        // W
-        {},
-        {},
-        {
-            {element::f32},
-            {},
-            {0.01f}
-        },
-        // R
-        {},
-        {},
-        {
-            {element::f32},
-            {},
-            {0.01f}
-        },
-    }
-    }
-};
-INSTANTIATE_TEST_SUITE_P(
-    smoke_LPT,
-    RecurrentCellTransformation,
-    ::testing::Combine(
-        ::testing::ValuesIn(precisions),
-        ::testing::ValuesIn(activations_shapes),
-        ::testing::ValuesIn(weights_shapes),
-        ::testing::ValuesIn(testValues)),
-    RecurrentCellTransformation::getTestCaseName);
-} // namespace testValues3
+         },
+         // W
+         {255ul, {}, {-1.27f}, {1.27f}, {-1.27f}, {1.27f}},
+         {},
+         {{}, {}, {}},
+         // R
+         {255ul, {}, {-1.27f}, {1.27f}, {-1.27f}, {1.27f}},
+         {},
+         {{}, {}, {}},
+     },
+     {
+         // X
+         {256ul, {}, {0.f}, {2.55f}, {0.f}, {255.f}},
+         {ngraph::element::u8},
+         {
+             {element::f32},
+             {},
+             {0.01f},
+         },
+         // H
+         {256ul, {}, {0.f}, {2.55f}, {0.f}, {255.f}},
+         {ngraph::element::u8},
+         {
+             {element::f32},
+             {},
+             {0.01f},
+         },
+         // W
+         {},
+         {},
+         {{element::f32}, {}, {0.01f}},
+         // R
+         {},
+         {},
+         {{element::f32}, {}, {0.01f}},
+     }}};
+INSTANTIATE_TEST_SUITE_P(smoke_LPT,
+                         RecurrentCellTransformation,
+                         ::testing::Combine(::testing::ValuesIn(precisions),
+                                            ::testing::ValuesIn(activations_shapes),
+                                            ::testing::ValuesIn(weights_shapes),
+                                            ::testing::ValuesIn(testValues)),
+                         RecurrentCellTransformation::getTestCaseName);
+}  // namespace testValues3
 
-} // namespace
+}  // namespace

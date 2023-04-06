@@ -40,12 +40,10 @@ $(document).ready(function () {
     init_switchers();
     handleSwitcherParam();
     initViewerJS();
-    var TABLE_SORT = window.TABLE_SORT;
-    if (TABLE_SORT) {
-        addTableSort();
-    }
     addLegalNotice();
     updateSearchForm();
+    initBenchmarkPickers();   // included with the new benchmarks page 
+    initCollapsibleHeaders(); // included with the new benchmarks page
     createSphinxTabSets();
 });
 
@@ -132,76 +130,6 @@ function createVersions() {
 
 }
 
-
-function addTableSort() {
-    var tables = $('table.table');
-    tables.each(function () {
-        var table = $(this);
-        var headings = table.find('th');
-        headings.each(function () {
-            var th = $(this);
-            var index = th.index();
-            var sortBtn = $('<span class="sort-btn"></span>');
-            th.addClass('sort-header');
-            th.click(function () {
-                var counter = 0;
-                sortBtn.addClass('sort-active');
-                sortBy = sortBtn.data('sortby');
-                var trs = table.find('tbody tr');
-                sortBtn.toggleClass('ascending');
-                trs.sort(function (item1, item2) {
-
-                    if (sortBtn.hasClass('ascending')) {
-                        var text1 = $(item1).find('td').eq(index).text();
-                        var text2 = $(item2).find('td').eq(index).text();
-                    }
-                    else {
-                        var text1 = $(item2).find('td').eq(index).text();
-                        var text2 = $(item1).find('td').eq(index).text();
-                    }
-                    // try converting to num
-                    var _text1 = parseFloat(text1);
-                    var _text2 = parseFloat(text2);
-
-                    if (!isNaN(_text1) && !isNaN(_text2)) {
-                        text1 = _text1;
-                        text2 = _text2;
-                    }
-                    if (text1 > text2) {
-                        return 1;
-                    }
-                    else if (text1 < text2) {
-                        return -1;
-                    }
-                    else {
-                        return 0;
-                    }
-                }).map(function () {
-                    var row = $(this);
-                    if (counter % 2 === 0) {
-                        row.removeClass('row-odd');
-                        row.addClass('row-even');
-                    }
-                    else {
-                        row.removeClass('row-even');
-                        row.addClass('row-odd');
-                    }
-                    counter++;
-                    table.find('tbody').append(row);
-                });
-
-                headings.each(function () {
-                    if ($(this).index() !== index) {
-                        $(this).find('.sort-btn').removeClass('ascending');
-                        $(this).find('.sort-btn').removeClass('sort-active');
-                    }
-                });
-            });
-            th.find('p').append(sortBtn);
-        });
-    });
-}
-
 function initViewerJS() {
     try {
         var images = $('main img[src*="_images"]');
@@ -283,3 +211,37 @@ function init_switchers() {
     $('main').prepend(switcherPanel);
     switcherAnchors.remove();
 }
+
+// initBenchmarkPickers and initCollapsibleHeaders included with the new benchmarks page
+function initBenchmarkPickers() {
+    $('.picker-options .option').on('click', function(event) {
+      const selectedOption = $(this).data('option');
+      $('.picker-options .selectable').each(function() {
+        $(this).removeClass('selected');
+        const toSelect = this.classList.contains(selectedOption);
+        if(toSelect) {
+          $(this).addClass('selected');
+        }
+      });
+    });
+  }
+  
+  
+  function initCollapsibleHeaders() {
+    $('#performance-information-frequently-asked-questions section').on('click', function() {
+      console.log($(this).find('p, table').length);
+      if(!$(this).find('table, p').is(':visible')) {
+        resetCollapsibleHeaders();
+        $(this).find('table, p').css('display', 'block');
+        $(this).find('h2').addClass('expanded')
+        $(this).find('h2').get(0).scrollIntoView();
+      } else {
+        resetCollapsibleHeaders();
+      }
+    });
+  
+    function resetCollapsibleHeaders() {
+      $('#performance-information-frequently-asked-questions section').find('h2').removeClass('expanded');
+      $('#performance-information-frequently-asked-questions section p, #performance-information-frequently-asked-questions section table').hide();
+    }
+  }

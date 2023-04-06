@@ -1,18 +1,17 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include <gtest/gtest.h>
 
-#include <string>
 #include <memory>
-
 #include <ngraph/function.hpp>
 #include <ngraph/opsets/opset1.hpp>
 #include <ngraph/opsets/opset8.hpp>
 #include <ngraph/pass/manager.hpp>
-#include <transformations/op_conversions/convert_softmax_downgrade.hpp>
+#include <string>
 #include <transformations/init_node_info.hpp>
+#include <transformations/op_conversions/convert_softmax_downgrade.hpp>
 
 #include "common_test_utils/ngraph_test_utils.hpp"
 
@@ -25,7 +24,7 @@ TEST_F(TransformationTestsF, ConvertSoftMax8ToSoftMax1) {
         auto softmax_8 = std::make_shared<ngraph::opset8::Softmax>(data, axis);
 
         function = std::make_shared<ngraph::Function>(ngraph::NodeVector{softmax_8}, ngraph::ParameterVector{data});
-        manager.register_pass<ngraph::pass::ConvertSoftMax8ToSoftMax1>();
+        manager.register_pass<ov::pass::ConvertSoftMax8ToSoftMax1>();
     }
 
     {
@@ -44,7 +43,7 @@ TEST_F(TransformationTestsF, ConvertSoftMax8ToSoftMax1_negative_axis) {
         auto softmax_8 = std::make_shared<ngraph::opset8::Softmax>(data, axis);
 
         function = std::make_shared<ngraph::Function>(ngraph::NodeVector{softmax_8}, ngraph::ParameterVector{data});
-        manager.register_pass<ngraph::pass::ConvertSoftMax8ToSoftMax1>();
+        manager.register_pass<ov::pass::ConvertSoftMax8ToSoftMax1>();
     }
 
     {
@@ -63,7 +62,7 @@ TEST_F(TransformationTestsF, ConvertSoftMax8ToSoftMax1_input_rank_5) {
         auto softmax_8 = std::make_shared<ngraph::opset8::Softmax>(data, axis);
 
         function = std::make_shared<ngraph::Function>(ngraph::NodeVector{softmax_8}, ngraph::ParameterVector{data});
-        manager.register_pass<ngraph::pass::ConvertSoftMax8ToSoftMax1>();
+        manager.register_pass<ov::pass::ConvertSoftMax8ToSoftMax1>();
     }
 
     {
@@ -82,7 +81,7 @@ TEST_F(TransformationTestsF, negative_ConvertSoftMax8ToSoftMax1_dynamic_rank) {
         auto softmax_8 = std::make_shared<ngraph::opset8::Softmax>(data, axis);
 
         function = std::make_shared<ngraph::Function>(ngraph::NodeVector{softmax_8}, ngraph::ParameterVector{data});
-        manager.register_pass<ngraph::pass::ConvertSoftMax8ToSoftMax1>();
+        manager.register_pass<ov::pass::ConvertSoftMax8ToSoftMax1>();
     }
 
     {

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -34,8 +34,8 @@ TEST_P(data_layout_test, size_check) {
 
     auto l = layout(p.dt, p.fmt, tensor{default_fmt, p.size});
 
-    size_t expected_count = std::accumulate(p.size.begin(), p.size.end(), 1, std::multiplies<size_t>());
-    size_t expected_bytes_count = std::accumulate(p.expected_aligned_size.begin(), p.expected_aligned_size.end(), 1, std::multiplies<size_t>()) *
+    size_t expected_count = std::accumulate(p.size.begin(), p.size.end(), 1, std::multiplies<int>());
+    size_t expected_bytes_count = std::accumulate(p.expected_aligned_size.begin(), p.expected_aligned_size.end(), 1, std::multiplies<int>()) *
                                   data_type_traits::size_of(p.dt);
 
     ASSERT_EQ(l.bytes_count(), expected_bytes_count);
@@ -117,8 +117,11 @@ TEST_P(weights_layout_test, size_check) {
 
     auto l = layout(p.dt, p.fmt, tensor{default_fmt, p.size});
 
-    size_t expected_count = std::accumulate(p.size.begin(), p.size.end(), 1, std::multiplies<size_t>());
-    size_t expected_bytes_count = std::accumulate(p.expected_aligned_size.begin(), p.expected_aligned_size.end(), 1, std::multiplies<size_t>()) *
+    size_t expected_count = std::accumulate(p.size.begin(), p.size.end(), 1, std::multiplies<tensor::value_type>());
+    size_t expected_bytes_count = std::accumulate(p.expected_aligned_size.begin(),
+                                                  p.expected_aligned_size.end(),
+                                                  1,
+                                                  std::multiplies<tensor::value_type>()) *
                                   data_type_traits::size_of(p.dt);
 
     ASSERT_EQ(l.bytes_count(), expected_bytes_count);
@@ -193,8 +196,8 @@ class layout_cmp_test : public testing::TestWithParam<layouts_cmp_test_params> {
 TEST_P(layout_cmp_test, basic) {
     auto p = GetParam();
 
-    EXPECT_EQ(p.l1.identical(p.l2), p.is_identical);
-    EXPECT_EQ(p.l1.compatible(p.l2), p.is_compatible);
+    EXPECT_EQ(p.l1.identical(p.l2), p.is_identical) << p.l1.to_short_string() << " -> " << p.l2.to_short_string();
+    EXPECT_EQ(p.l1.compatible(p.l2), p.is_compatible) << p.l1.to_short_string() << " -> " << p.l2.to_short_string();
 }
 
 INSTANTIATE_TEST_SUITE_P(smoke, layout_cmp_test,
@@ -206,11 +209,35 @@ INSTANTIATE_TEST_SUITE_P(smoke, layout_cmp_test,
         {layout{ov::PartialShape{1, 2, 3, 4}, data_types::f32, format::bfyx},
          layout{ov::PartialShape{1, 2, 3, 4}, data_types::f16, format::bfyx}, false, false},
         {layout{ov::PartialShape{1, 2, 3, 4}, data_types::f16, format::bfyx},
-         layout{ov::PartialShape{1, 2, 3, 4, 1}, data_types::f16, format::bfzyx}, false, true},
+         layout{ov::PartialShape{1, 2, 1, 3, 4}, data_types::f16, format::bfzyx}, false, true},
         {layout{ov::PartialShape{1, 2, 3, 4}, data_types::f16, format::bfyx},
          layout{ov::PartialShape{1, 2, 3, 4, 1, 1}, data_types::f16, format::bfwzyx}, false, true},
+        {layout{ov::PartialShape{1, 2, 3, 4, 1, 1}, data_types::f16, format::bfwzyx},
+         layout{ov::PartialShape{1, 2, 3, 4}, data_types::f16, format::bfyx}, false, true},
+        {layout{ov::PartialShape{1, 2, 3, 4}, data_types::f16, format::bfyx},
+         layout{ov::PartialShape{1, 2, 1, 1, 3, 4}, data_types::f16, format::bfwzyx}, false, true},
         {layout{ov::PartialShape{1, 32, 4, 4}, data_types::f32, format::b_fs_yx_fsv32, padding({0, 0, 1, 1}, 0)},
          layout{ov::PartialShape{1, 32, 4, 4}, data_types::f32, format::b_fs_yx_fsv32, padding({0, 0, 0, 0}, 0)}, false, false},
         {layout{ov::PartialShape{1, 32, 4, 4}, data_types::f32, format::b_fs_yx_fsv32, padding({0, 0, 1, 1}, 0)},
          layout{ov::PartialShape{1, 32, 4, 4}, data_types::f32, format::b_fs_yx_fsv32, padding({0, 0, 1, 1}, 0)}, true, true},
+        {layout{ov::PartialShape{10, 20}, data_types::f16, format::bfyx},
+         layout{ov::PartialShape{10, 20}, data_types::f16, format::os_iyx_osv16}, false, false},
+        {layout{ov::PartialShape{1, 2, 3, 4}, data_types::f16, format::bfyx},
+         layout{ov::PartialShape{1, 2, 3, 4}, data_types::f16, format::oiyx}, false, true},
+        {layout{ov::PartialShape{128, 10}, data_types::f16, format::bfyx},
+         layout{ov::PartialShape{128, 10}, data_types::f16, format::os_iyx_osv32}, false, false},
+        {layout{ov::PartialShape{1, 2, 3, 4}, data_types::f16, format::bfyx},
+         layout{ov::PartialShape{1, 2, 3, 4}, data_types::f16, format::yxfb}, false, false},
+        {layout{ov::PartialShape{1, 2, 1, 1}, data_types::f16, format::bfyx},
+         layout{ov::PartialShape{1, 2, 1, 1}, data_types::f16, format::b_fs_yx_fsv16}, false, false},
+        {layout{ov::PartialShape{1, 2, 1, 1, 1}, data_types::f16, format::b_fs_zyx_fsv16},
+         layout{ov::PartialShape{1, 2, 1, 1}, data_types::f16, format::b_fs_yx_fsv16}, false, false},
+        {layout{ov::PartialShape{4, 2, 3, 4, 5}, data_types::f16, format::os_is_zyx_isv16_osv16},
+         layout{ov::PartialShape{4, 2, 3, 4, 5}, data_types::f16, format::is_os_zyx_isv16_osv16}, false, false},
+        {layout{ov::PartialShape{4, 2, 3, 4, 5}, data_types::f16, format::g_os_yx_is_osv8_isv2},
+         layout{ov::PartialShape{4, 2, 3, 4, 5}, data_types::f16, format::g_os_y_is_x_osv8_isv2}, false, false},
+        {layout{ov::PartialShape{4, 2, 3, 4, 5}, data_types::f16, format::goiyx},
+         layout{ov::PartialShape{4, 2, 3, 4, 5}, data_types::f16, format::gioyx}, false, false},
+        {layout{ov::PartialShape{9, 17, 3, 2, 5}, data_types::f16, format::is_os_zyx_isa8_osv8_isv2},
+         layout{ov::PartialShape{9, 17, 3, 2, 5}, data_types::f16, format::os_is_zyx_isa8_osv8_isv2}, false, false},
     }));

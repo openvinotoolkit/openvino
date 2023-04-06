@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -13,8 +13,6 @@
 
 using namespace std;
 using namespace ngraph;
-
-BWDCMP_RTTI_DEFINITION(op::v0::LRN);
 
 op::LRN::LRN(const Output<Node>& arg, double alpha, double beta, double bias, size_t size)
     : LRN(arg, op::v0::Constant::create(element::i64, ov::Shape{1}, {1}), alpha, beta, bias, size) {}
@@ -31,8 +29,11 @@ op::LRN::LRN(const Output<Node>& arg, const Output<Node>& axes, double alpha, do
 AxisSet op::LRN::get_reduction_axes() const {
     AxisSet axes{1};  // channel axis as default
     auto axes_input_node = input_value(1).get_node_shared_ptr();
-    if (const auto& const_op = get_constant_from_source(axes_input_node))
+    OPENVINO_SUPPRESS_DEPRECATED_START
+    if (const auto& const_op = get_constant_from_source(axes_input_node)) {
+        OPENVINO_SUPPRESS_DEPRECATED_END
         axes = const_op->get_axis_set_val();
+    }
     return axes;
 }
 

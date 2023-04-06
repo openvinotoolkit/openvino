@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -69,7 +69,7 @@ void GRUCellTest::SetUp() {
     function = std::make_shared<ngraph::Function>(results, params, "gru_cell");
     if (should_decompose) {
         ngraph::pass::Manager m;
-        m.register_pass<ngraph::pass::GRUCellDecomposition>();
+        m.register_pass<ov::pass::GRUCellDecomposition>();
         m.run_passes(function);
     }
 }

@@ -12,8 +12,6 @@
 using namespace std;
 using namespace ov;
 
-BWDCMP_RTTI_DEFINITION(op::internal::GenerateProposalsIEInternal);
-
 op::internal::GenerateProposalsIEInternal::GenerateProposalsIEInternal(const Output<Node>& im_info,
                                                                        const Output<Node>& anchors,
                                                                        const Output<Node>& deltas,

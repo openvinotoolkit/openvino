@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2022 Intel Corporation
+# Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import os
@@ -10,9 +10,9 @@ try:
 except ImportError:
     import tensorflow as tf_v1
 
-#in some environment suppressing through TF_CPP_MIN_LOG_LEVEL does not work
+# in some environment suppressing through TF_CPP_MIN_LOG_LEVEL does not work
 tf_v1.get_logger().setLevel("ERROR")
-from tensorflow.python.eager.context import graph_mode
+from tensorflow.python.eager.context import graph_mode  # pylint: disable=no-name-in-module,import-error
 
 try:
     import tensorflow.contrib  # pylint: disable=no-name-in-module,import-error

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -20,10 +20,7 @@ namespace intel_cpu {
 
 class bfloat16_t {
 public:
-    constexpr bfloat16_t()
-        : m_value{0}
-    {
-    }
+    bfloat16_t() = default;
     bfloat16_t(float value) noexcept
             : m_value{
 #if defined BFLOAT16_ROUND_MODE_TO_NEAREST

@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2022 Intel Corporation
+# Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import logging as log
@@ -40,7 +40,7 @@ SUPPORTED_DATA_TYPES = {
     'int8': (np.int8, 'I8', 'i8'),
     'int32': (np.int32, 'I32', 'i32'),
     'int64': (np.int64, 'I64', 'i64'),
-    'bool': (np.bool, 'BOOL', 'boolean'),
+    'bool': (bool, 'BOOL', 'boolean'),
     'uint8': (np.uint8, 'U8', 'u8'),
     'uint32': (np.uint32, 'U32', 'u32'),
     'uint64': (np.uint64, 'U64', 'u64'),

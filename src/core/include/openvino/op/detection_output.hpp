@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -19,7 +19,6 @@ public:
     };
 
     OPENVINO_OP("DetectionOutput", "opset1", op::util::DetectionOutputBase);
-    BWDCMP_RTTI_DECLARATION;
 
     DetectionOutput() = default;
     /// \brief Constructs a DetectionOutput operation
@@ -55,6 +54,9 @@ public:
     const Attributes& get_attrs() const {
         return m_attrs;
     }
+    void set_attrs(const Attributes& attrs) {
+        m_attrs = attrs;
+    }
     bool visit_attributes(AttributeVisitor& visitor) override;
 
 private:
@@ -70,7 +72,6 @@ public:
     using Attributes = op::util::DetectionOutputBase::AttributesBase;
 
     OPENVINO_OP("DetectionOutput", "opset8", op::util::DetectionOutputBase);
-    BWDCMP_RTTI_DECLARATION;
 
     DetectionOutput() = default;
     /// \brief Constructs a DetectionOutput operation
@@ -105,6 +106,9 @@ public:
 
     const Attributes& get_attrs() const {
         return m_attrs;
+    }
+    void set_attrs(const Attributes& attrs) {
+        m_attrs = attrs;
     }
     bool visit_attributes(AttributeVisitor& visitor) override;
 

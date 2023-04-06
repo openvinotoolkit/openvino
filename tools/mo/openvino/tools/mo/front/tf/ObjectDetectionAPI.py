@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2022 Intel Corporation
+# Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 """
@@ -98,7 +98,7 @@ def _value_or_raise(match: SubgraphMatch, pipeline_config: PipelineConfig, key: 
         raise Error('The sub-graph replacer "[REPLACEMENT_ID]" was not able to find the value for key "{}" in the '
                     'pipeline configuration file specified with the --tensorflow_object_detection_api_pipeline_config '
                     'command line parameter. Update the sub-graph replacement configuration file specified with the '
-                    '--tensorflow_use_custom_operations_config command line parameter by adding key "{}" with required '
+                    '--transformations_config command line parameter by adding key "{}" with required '
                     'value to the "custom_attributes" dictionary of the "[REPLACEMENT_ID]" replacer.'.format(key, key))
     return value
 
@@ -1521,8 +1521,11 @@ class ObjectDetectionAPIProposalReplacement(FrontReplacementFromConfigFileSubGra
                                                                dict(name="reshape_swap_proposals_2d"), proposal)
         mark_input_as_in_correct_layout(proposal_reshape_2d, 0)
 
-        crop_and_resize_nodes_ids = [node_id for node_id in bfs_search(graph, [match.single_input_node(0)[0].id]) if
-                                     graph.nodes[node_id]['op'] == 'CropAndResize']
+        # Find closest CropAndResize in topological order
+        start_node = match.single_input_node(0)[0]
+        crop_and_resize_nodes_ids = [node.id for node in graph.pseudo_topological_sort_with_start_node(start_node) if
+                                     graph.nodes[node.id]['op'] == 'CropAndResize']
+
         if len(crop_and_resize_nodes_ids) != 0 and swap_proposals:
             # feed the CropAndResize node with a correct boxes information produced with the Proposal layer
             # find the first CropAndResize node in the BFS order. This is needed in the case when we already swapped

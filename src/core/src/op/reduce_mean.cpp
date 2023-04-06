@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -16,8 +16,6 @@
 
 using namespace std;
 using namespace ngraph;
-
-BWDCMP_RTTI_DEFINITION(op::v1::ReduceMean);
 
 op::v1::ReduceMean::ReduceMean(const Output<Node>& arg, const Output<Node>& reduction_axes, bool keep_dims)
     : ArithmeticReductionKeepDims(arg, reduction_axes, keep_dims) {
@@ -59,8 +57,10 @@ bool evaluate_mean(const HostTensorPtr& arg, const HostTensorPtr& out, const Axi
 
 bool op::v1::ReduceMean::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const {
     OV_OP_SCOPE(v1_ReduceMean_evaluate);
+    OPENVINO_SUPPRESS_DEPRECATED_START
     NGRAPH_CHECK(validate_host_tensor_vector(inputs, 2));
     NGRAPH_CHECK(validate_host_tensor_vector(outputs, 1));
+    OPENVINO_SUPPRESS_DEPRECATED_END
 
     const auto reduction_axes =
         get_normalized_axes_from_tensor(inputs[1], inputs[0]->get_partial_shape().rank(), get_friendly_name());

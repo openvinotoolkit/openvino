@@ -1,10 +1,10 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "include/batch_headers/data_types.cl"
+#include "include/batch_headers/sub_group_block_read.cl"
+#include "include/batch_headers/sub_group_block_write.cl"
 #include "include/batch_headers/fetch_data.cl"
-#include "include/batch_headers/data_types.cl"
 
 #if MAX_POOLING
     #define INIT_VAL ACCUMULATOR_VAL_MIN
@@ -34,11 +34,9 @@
 #define OUTPUT_SIZE_B_WITH_PADDING (OUTPUT_PAD_BEFORE_BATCH_NUM + OUTPUT_BATCH_NUM + OUTPUT_PAD_AFTER_BATCH_NUM)
 
 // Kernel works only for sub_group size of 16 with 32 features slice size and process 2 features per WI
-#define REQD_SUB_GROUP_SIZE 16
+#define SUB_GROUP_SIZE 16
 #define REQD_FEATURE_SLICE_SIZE 32
 #define REQD_FEATURES_PER_WORK_ITEM 2
-
-#define unroll_for __attribute__((opencl_unroll_hint)) for
 
 inline ACCUMULATOR_VEC2 FUNC(apply_pooling)(ACCUMULATOR_VEC2 tmp, ACCUMULATOR_VEC2 in)
 {
@@ -49,7 +47,7 @@ inline ACCUMULATOR_VEC2 FUNC(apply_pooling)(ACCUMULATOR_VEC2 tmp, ACCUMULATOR_VE
 #endif
 }
 
-__attribute__((intel_reqd_sub_group_size(REQD_SUB_GROUP_SIZE)))
+REQD_SUB_GROUP_SIZE(SUB_GROUP_SIZE)
 KERNEL(pooling_gpu_fs_b_yx_fsv32)(
     const __global INPUT0_TYPE* input,
     __global OUTPUT_TYPE* output
@@ -180,9 +178,9 @@ KERNEL(pooling_gpu_fs_b_yx_fsv32)(
     {
         unroll_for (uint ofi = 0; ofi < REQD_FEATURES_PER_WORK_ITEM; ++ofi)
         {
-            if (fs * REQD_FEATURE_SLICE_SIZE + ofi * REQD_SUB_GROUP_SIZE + sglid < OUTPUT_FEATURE_NUM)
+            if (fs * REQD_FEATURE_SLICE_SIZE + ofi * SUB_GROUP_SIZE + sglid < OUTPUT_FEATURE_NUM)
             {
-                output[output_offset + ofi * REQD_SUB_GROUP_SIZE + sglid] = (OUTPUT_TYPE)final_result[ofi];
+                output[output_offset + ofi * SUB_GROUP_SIZE + sglid] = (OUTPUT_TYPE)final_result[ofi];
             }
         }
     }
@@ -209,6 +207,6 @@ KERNEL(pooling_gpu_fs_b_yx_fsv32)(
 #undef OUTPUT_SIZE_Y_WITH_PADDING
 #undef OUTPUT_SIZE_B_WITH_PADDING
 
-#undef REQD_SUB_GROUP_SIZE
+#undef SUB_GROUP_SIZE
 #undef REQD_FEATURE_SLICE_SIZE
 #undef REQD_FEATURES_PER_WORK_ITEM

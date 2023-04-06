@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -46,7 +46,9 @@ bool SplitTransformation::transform(TransformationContext& context, ngraph::patt
     ngraph::copy_runtime_info(split, newSplit);
 
     const int64_t axis = ov::as_type_ptr<opset1::Constant>(split->get_input_node_shared_ptr(1))->cast_vector<int64_t>()[0];
+    OPENVINO_SUPPRESS_DEPRECATED_START
     const size_t normalizedAxis = normalize_axis(split->get_friendly_name(), axis, split->get_input_partial_shape(0).rank());
+    OPENVINO_SUPPRESS_DEPRECATED_END
     const size_t outputSize = newSplit->get_output_size();
 
     const auto splitConstant = [&](const std::shared_ptr<Node> operation) {
@@ -95,7 +97,7 @@ bool SplitTransformation::transform(TransformationContext& context, ngraph::patt
             parent = subtract;
         }
 
-        const auto multiply = std::make_shared<op::TypeRelaxed<opset1::Multiply>>(parent, splitedMul[i]);
+        const auto multiply = std::make_shared<ov::op::TypeRelaxed<opset1::Multiply>>(parent, splitedMul[i]);
         NetworkHelper::setOutDataPrecisionForTypeRelaxed(multiply, dequantization.multiply->get_output_element_type(0));
         copy_runtime_info({ newSplit, multiply }, multiply);
 

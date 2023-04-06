@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -21,7 +21,6 @@ namespace internal {
 class TRANSFORMATIONS_API AUGRUSequence : public ov::op::util::RNNCellBase {
 public:
     OPENVINO_OP("AUGRUSequence", "ie_internal_opset", ov::op::util::RNNCellBase);
-    BWDCMP_RTTI_DECLARATION;
 
     AUGRUSequence();
     AUGRUSequence(const Output<Node>& X,

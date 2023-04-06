@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -170,10 +170,6 @@ struct OPENVINO_API AutoBroadcastSpec {
     bool operator!=(const AutoBroadcastSpec& a) const {
         return !(*this == a);
     }
-    OPENVINO_DEPRECATED("Use ov::op::AutoBroadcastType::NUMPY")
-    static const AutoBroadcastSpec NUMPY;
-    OPENVINO_DEPRECATED("Use ov::op::AutoBroadcastType::NONE")
-    static const AutoBroadcastSpec NONE;
 
 private:
     AutoBroadcastType type_from_string(const std::string& type) const;
@@ -209,7 +205,6 @@ public:
     AttributeAdapter(op::PadMode& value) : EnumAttributeAdapterBase<op::PadMode>(value) {}
 
     OPENVINO_RTTI("AttributeAdapter<PadMode>");
-    BWDCMP_RTTI_DECLARATION;
 };
 
 template <>
@@ -218,7 +213,6 @@ public:
     AttributeAdapter(op::PadType& value) : EnumAttributeAdapterBase<op::PadType>(value) {}
 
     OPENVINO_RTTI("AttributeAdapter<PadType>");
-    BWDCMP_RTTI_DECLARATION;
 };
 
 template <>
@@ -227,7 +221,6 @@ public:
     AttributeAdapter(op::RoundingType& value) : EnumAttributeAdapterBase<op::RoundingType>(value) {}
 
     OPENVINO_RTTI("AttributeAdapter<RoundingType>");
-    BWDCMP_RTTI_DECLARATION;
 };
 
 template <>
@@ -236,7 +229,6 @@ public:
     AttributeAdapter(op::AutoBroadcastType& value) : EnumAttributeAdapterBase<op::AutoBroadcastType>(value) {}
 
     OPENVINO_RTTI("AttributeAdapter<AutoBroadcastType>");
-    BWDCMP_RTTI_DECLARATION;
 };
 
 template <>
@@ -245,7 +237,6 @@ public:
     AttributeAdapter(op::BroadcastType& value) : EnumAttributeAdapterBase<op::BroadcastType>(value) {}
 
     OPENVINO_RTTI("AttributeAdapter<BroadcastType>");
-    BWDCMP_RTTI_DECLARATION;
 };
 
 template <>
@@ -254,7 +245,6 @@ public:
     AttributeAdapter(op::EpsMode& value) : EnumAttributeAdapterBase<op::EpsMode>(value) {}
 
     OPENVINO_RTTI("AttributeAdapter<EpsMode>");
-    BWDCMP_RTTI_DECLARATION;
 };
 
 template <>
@@ -263,7 +253,6 @@ public:
     AttributeAdapter(op::TopKSortType& value) : EnumAttributeAdapterBase<op::TopKSortType>(value) {}
 
     OPENVINO_RTTI("AttributeAdapter<TopKSortType>");
-    BWDCMP_RTTI_DECLARATION;
 };
 
 template <>
@@ -272,7 +261,6 @@ public:
     AttributeAdapter(op::TopKMode& value) : EnumAttributeAdapterBase<op::TopKMode>(value) {}
 
     OPENVINO_RTTI("AttributeAdapter<TopKMode>");
-    BWDCMP_RTTI_DECLARATION;
 };
 
 template <>
@@ -282,7 +270,6 @@ public:
     bool visit_attributes(AttributeVisitor& visitor) override;
 
     OPENVINO_RTTI("AttributeAdapter<AutoBroadcastSpec>");
-    BWDCMP_RTTI_DECLARATION;
 
 protected:
     op::AutoBroadcastSpec& m_ref;
@@ -295,7 +282,6 @@ public:
     bool visit_attributes(AttributeVisitor& visitor) override;
 
     OPENVINO_RTTI("AttributeAdapter<BroadcastModeSpec>");
-    BWDCMP_RTTI_DECLARATION;
 
 protected:
     op::BroadcastModeSpec& m_ref;
@@ -309,6 +295,5 @@ public:
         : EnumAttributeAdapterBase<op::RecurrentSequenceDirection>(value) {}
 
     OPENVINO_RTTI("AttributeAdapter<RecurrentSequenceDirection>");
-    BWDCMP_RTTI_DECLARATION;
 };
 }  // namespace ov

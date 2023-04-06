@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -14,8 +14,7 @@ namespace v3 {
 /// \ingroup ov_ops_cpp_api
 class OPENVINO_API ExtractImagePatches : public Op {
 public:
-    OPENVINO_OP("ExtractImagePatches", "opset3", op::Op, 3);
-    BWDCMP_RTTI_DECLARATION;
+    OPENVINO_OP("ExtractImagePatches", "opset3", op::Op);
 
     ExtractImagePatches() = default;
     /// \brief Constructs a ExtractImagePatches operation

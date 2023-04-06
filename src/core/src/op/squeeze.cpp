@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -9,16 +9,14 @@
 #include <functional>
 #include <set>
 
+#include "bound_evaluate.hpp"
 #include "itt.hpp"
 #include "ngraph/op/constant.hpp"
 #include "ngraph/runtime/reference/copy.hpp"
-#include "ngraph/validation_util.hpp"
 #include "squeeze_shape_inference.hpp"
 
 using namespace std;
 using namespace ngraph;
-
-BWDCMP_RTTI_DEFINITION(op::v0::Squeeze);
 
 op::Squeeze::Squeeze() : Op() {}
 
@@ -33,7 +31,9 @@ op::Squeeze::Squeeze(const Output<Node>& data) : Op({data}) {
 void op::Squeeze::validate_and_infer_types() {
     OV_OP_SCOPE(v0_Squeeze_validate_and_infer_types);
 
+    OPENVINO_SUPPRESS_DEPRECATED_START
     const auto input_shapes = get_node_input_partial_shapes(*this);
+    OPENVINO_SUPPRESS_DEPRECATED_END
     auto output_shapes = std::vector<ov::PartialShape>(1);
     shape_infer(this, input_shapes, output_shapes);
 
@@ -59,8 +59,10 @@ shared_ptr<Node> op::Squeeze::clone_with_new_inputs(const OutputVector& new_args
 
 bool op::v0::Squeeze::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const {
     OV_OP_SCOPE(v0_Squeeze_evaluate);
+    OPENVINO_SUPPRESS_DEPRECATED_START
     NGRAPH_CHECK(validate_host_tensor_vector(inputs, inputs.size()));
     NGRAPH_CHECK(validate_host_tensor_vector(outputs, 1));
+    OPENVINO_SUPPRESS_DEPRECATED_END
 
     if (has_evaluate()) {
         auto output_shapes = std::vector<PartialShape>{outputs[0]->get_partial_shape()};
@@ -111,19 +113,15 @@ bool op::v0::Squeeze::has_evaluate() const {
     }
 }
 
-bool op::v0::Squeeze::evaluate_lower(const HostTensorVector& output_values) const {
+bool op::v0::Squeeze::evaluate_lower(ov::TensorVector& output_values) const {
     OV_OP_SCOPE(v0_Squeeze_evaluate_lower);
-    NGRAPH_CHECK(validate_host_tensor_vector(output_values, 1));
-
     if (inputs().size() > 1 && !input_value(1).get_tensor().has_and_set_bound())
         return false;
     return default_lower_bound_evaluator(this, output_values);
 }
 
-bool op::v0::Squeeze::evaluate_upper(const HostTensorVector& output_values) const {
+bool op::v0::Squeeze::evaluate_upper(ov::TensorVector& output_values) const {
     OV_OP_SCOPE(v0_Squeeze_evaluate_upper);
-    NGRAPH_CHECK(validate_host_tensor_vector(output_values, 1));
-
     if (inputs().size() > 1 && !input_value(1).get_tensor().has_and_set_bound())
         return false;
     return default_upper_bound_evaluator(this, output_values);
@@ -132,7 +130,9 @@ bool op::v0::Squeeze::evaluate_upper(const HostTensorVector& output_values) cons
 bool op::v0::Squeeze::evaluate_label(TensorLabelVector& output_labels) const {
     if (get_input_size() > 1 && !get_input_tensor(1).has_and_set_bound())
         return false;
+    OPENVINO_SUPPRESS_DEPRECATED_START
     return default_label_evaluator(this, output_labels);
+    OPENVINO_SUPPRESS_DEPRECATED_END
 }
 
 bool op::v0::Squeeze::constant_fold(OutputVector& output_values, const OutputVector& inputs_values) {

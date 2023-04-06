@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -28,11 +28,12 @@ namespace LayerTestsDefinitions {
 class ScaleshiftConv_x2_Eltwise : public BasicBF16Test {
 protected:
     std::shared_ptr<ngraph::Function> createGraph(InferenceEngine::Precision netPrecision) override {
-        //              scaleshift (FP32)
-        //             /             \
-        //           Conv1 (BF16)     Conv1 (BF16)
-        //             \               /
-        //                eltwise (Fused into Conv1) produce FP32 output
+        /*              scaleshift (FP32)
+         *             /             \
+         *           Conv1 (BF16)     Conv1 (BF16)
+         *             \               /
+         *                eltwise (Fused into Conv1) produce FP32 output
+         */
 
         ngraph::element::Type ntype = (netPrecision == Precision::FP32) ? ngraph::element::f32 : ngraph::element::bf16;
         auto channelsCount = inputShapes[1];
@@ -102,11 +103,11 @@ protected:
         fnPtr = createGraph(netPrecision);
 
         // STAGE1:
-        threshold = 2e-1;
+        threshold = 2e-1f;
         // STAGE2:
         // filling of expected precision of layer execution defined by precisoin of input tensor to the primitive and reflected in
         // performance counters
-        expectedPrecisions["ADD_1"] = "ndef";
+        expectedPrecisions["ADD_1"] = netPrecision.name();
         expectedPrecisions["CONV_1"] = "BF16";
         expectedPrecisions["CONV_2"] = "BF16";
         expectedPrecisions["ELT_1"] = "ndef";

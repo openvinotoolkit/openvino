@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2018-2022 Intel Corporation
+﻿// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -197,19 +197,6 @@ std::string toString(EltwiseMode b_mode) {
     }
 }
 
-std::string toString(ReorderMode mode) {
-    switch (mode) {
-        case ReorderMode::xyzw: return "XYZW";
-        case ReorderMode::xywz: return "XYWZ";
-        case ReorderMode::xwyz: return "XWYZ";
-        case ReorderMode::wxyz: return "WXYZ";
-        case ReorderMode::xzyw: return "XZYW";
-        case ReorderMode::zyxw: return "ZYXW";
-        case ReorderMode::yxzw: return "YXZW";
-        default: return "XYZW";
-    }
-}
-
 std::string toString(MeanSubtractMode mode) {
     switch (mode) {
         case MeanSubtractMode::NONE:          return "NONE";
@@ -319,6 +306,7 @@ std::string toString(WeightsLayout layout) {
         case WeightsLayout::os_yxi_osv16:                                return "OS_YXI_OSV16";
         case WeightsLayout::os_iyx_osv16:                                return "OS_IYX_OSV16";
         case WeightsLayout::os_iyx_osv32:                                return "OS_IYX_OSV32";
+        case WeightsLayout::os_iyx_osv8:                                 return "OS_IYX_OSV8";
         case WeightsLayout::os_iyx_osv32__ai32:                          return "OS_IYX_OSV32__AI32";
         case WeightsLayout::os_iyx_osv64:                                return "OS_IYX_OSV64";
         case WeightsLayout::os_iyx_osv16_rotate_180:                     return "OS_IYX_OSV16_ROTATE_180";

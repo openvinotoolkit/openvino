@@ -29,7 +29,7 @@ cmake .. \
 -DENABLE_PROFILING_ITT=ON \
 -DSELECTIVE_BUILD=COLLECT \
 -DCMAKE_INSTALL_PREFIX=`pwd`/install \
--DCMAKE_INSTALL_RPATH=`pwd`/install/runtime/3rdparty/tbb/lib:`pwd`/install/runtime/3rdparty/hddl/lib:`pwd`/install/runtime/lib/intel64
+-DCMAKE_INSTALL_RPATH=`pwd`/install/runtime/3rdparty/tbb/lib:`pwd`/install/runtime/lib/intel64
 
 cmake --build . --config Release -j 8
 ```
@@ -73,7 +73,7 @@ cmake .. \
 -DSELECTIVE_BUILD_STAT=<CSV_PATH> \
 -DPYTHON_EXECUTABLE=/usr/bin/python3.7 \
 -DCMAKE_INSTALL_PREFIX=`pwd`/install \
--DCMAKE_INSTALL_RPATH=`pwd`/install/runtime/3rdparty/tbb/lib:`pwd`/install/runtime/3rdparty/hddl/lib:`pwd`/install/runtime/lib/intel64
+-DCMAKE_INSTALL_RPATH=`pwd`/install/runtime/3rdparty/tbb/lib:`pwd`/install/runtime/lib/intel64
 
 cmake --build . --config Release -j 8
 ```
@@ -97,7 +97,7 @@ cd ./bin/intel64/Release
 ```
 
 ## Reference 
-https://github.com/openvinotoolkit/openvino/wiki/ConditionalCompilation
+https://github.com/openvinotoolkit/openvino/blob/master/docs/dev/conditional_compilation.md
 
 https://github.com/openvinotoolkit/openvino/commit/ec48fcb29bef94cca480573110a598afc3515019#
 

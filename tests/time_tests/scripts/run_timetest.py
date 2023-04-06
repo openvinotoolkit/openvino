@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 
-# Copyright (C) 2018-2022 Intel Corporation
+# Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 """
@@ -55,13 +55,14 @@ def aggregate_stats(stats: dict):
                         "stdev": statistics.stdev(duration_list) if len(duration_list) > 1 else 0}
             for step_name, duration_list in stats.items()}
 
-
 def prepare_executable_cmd(args: dict):
     """Generate common part of cmd from arguments to execute"""
     return [
         str(args["executable"].resolve(strict=True)),
         "-m", str(args["model"].resolve(strict=True)),
         "-d", args["device"],
+        *["-ip", args["input_precision"] if args["input_precision"] else ""],
+        *["-op", args["output_precision"] if args["output_precision"] else ""],
         "-c" if args["model_cache"] else ""
     ]
 
@@ -144,6 +145,16 @@ def cli_parser():
                         dest="model_cache",
                         action="store_true",
                         help="Enable model cache usage")
+    parser.add_argument("-ip",
+                        default="",
+                        dest="input_precision",
+                        type=str,
+                        help="Change input model precision")
+    parser.add_argument("-op",
+                        default="",
+                        dest="output_precision",
+                        type=str,
+                        help="Change output model precision")
 
     args = parser.parse_args()
 

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -15,9 +15,9 @@
 
 ov::pass::RandomUniformFusion::RandomUniformFusion() {
     MATCHER_SCOPE(RandomUniformFusion);
-    const auto data_pattern = ngraph::pattern::any_input();
-    const auto ru_min_input_pattern = ngraph::pattern::any_input();
-    const auto ru_max_input_pattern = ngraph::pattern::any_input();
+    const auto data_pattern = pass::pattern::any_input();
+    const auto ru_min_input_pattern = pass::pattern::any_input();
+    const auto ru_max_input_pattern = pass::pattern::any_input();
     const auto random_uniform_pattern =
         ngraph::pattern::wrap_type<opset8::RandomUniform>({data_pattern, ru_min_input_pattern, ru_max_input_pattern},
                                                           pattern::consumers_count(1));
@@ -59,8 +59,10 @@ ov::pass::RandomUniformFusion::RandomUniformFusion() {
         const auto new_mul_add1 = mul_add_ptr->clone_with_new_inputs({ru->input_value(1), new_const});
         const auto new_mul_add2 = mul_add_ptr->clone_with_new_inputs({ru->input_value(2), new_const});
 
+        OPENVINO_SUPPRESS_DEPRECATED_START
         const auto& folded_const1 = ngraph::get_constant_from_source(new_mul_add1);
         const auto& folded_const2 = ngraph::get_constant_from_source(new_mul_add2);
+        OPENVINO_SUPPRESS_DEPRECATED_END
 
         const auto new_ru = ru->clone_with_new_inputs(
             {data, folded_const1 ? folded_const1 : new_mul_add1, folded_const2 ? folded_const2 : new_mul_add2});

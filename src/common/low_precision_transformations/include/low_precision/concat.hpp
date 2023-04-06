@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -35,18 +35,6 @@ public:
     bool isPrecisionPreserved(std::shared_ptr<Node> layer) const noexcept override;
     bool canBeTransformed(const TransformationContext& context, std::shared_ptr<Node> layer) const override;
     static bool isQuantizedStatic(const std::shared_ptr<const Node>& layer);
-
-protected:
-    static bool isHandled(
-        const TransformationContext& context,
-        const std::vector<std::shared_ptr<ngraph::Node>>& quantizationOperations);
-
-    void fillDequantizationNodes(
-        const std::vector<FakeQuantizeDequantization>& layerDequantizations,
-        const std::shared_ptr<Node> layer,
-        NodeVector& convertNodes,
-        NodeVector& subtractNodes,
-        NodeVector& multiplyNodes) const;
 };
 
 } // namespace low_precision

@@ -5,22 +5,12 @@
 .. toctree::
    :maxdepth: 1
    :hidden:
-   :caption: Install & Config
    
    Installing OpenVINO <openvino_docs_install_guides_overview>
    Additional Configurations <openvino_docs_install_guides_configurations_header>
    Uninstalling <openvino_docs_install_guides_uninstalling_openvino>
    Troubleshooting <openvino_docs_get_started_guide_troubleshooting>
    
-.. toctree::
-   :maxdepth: 1
-   :hidden:
-   :caption: Get Started Guides
-   
-   Interactive Tutorials (Python) <tutorials>
-   Samples <openvino_docs_OV_UG_Samples_Overview>
-
-
 @endsphinxdirective
  
 @sphinxdirective
@@ -28,51 +18,75 @@
 
    <link rel="stylesheet" type="text/css" href="_static/css/getstarted_style.css">
    
-   <p id="GSG_introtext">This guide introduces the installation, configuration, and get started guides of Intel® Distribution of OpenVINO™ toolkit. Check the following steps from left to right:<br />
-     <a href="openvino_docs_install_guides_overview.html" >Install Intel® Distribution<br/>of OpenVINO™ toolkit</a>
-     <a href="openvino_docs_install_guides_configurations_header.html" >Perform <br/>Additional Configurations</a>
-     <a href="#get-started-tutorials" >Try <br/>Get Started Materials</a>
-   </p>
-
-   <p>If you prefer using a graphical interface, you can <a href="workbench_docs_Workbench_DG_Start_DL_Workbench_in_DevCloud.html" >Run Deep Learning Workbench in the Intel® DevCloud for the Edge</a>.  Deep Learning Workbench (DL Workbench) is the web version of OpenVINO developed based on Intel® Distribution of OpenVINO™ toolkit with a similar but slightly different function set.</li>
+   <p id="GSG_introtext">Welcome to OpenVINO! This guide introduces installation and learning materials for Intel® Distribution of OpenVINO™ toolkit. The guide walks through the following steps:<br />
+     <a href="https://mybinder.org/v2/gh/openvinotoolkit/openvino_notebooks/HEAD?filepath=notebooks%2F201-vision-monodepth%2F201-vision-monodepth.ipynb" >Quick Start Example</a>
+     <a href="openvino_docs_install_guides_overview.html" >Install OpenVINO</a>
+     <a href="#learn-openvino" >Learn OpenVINO</a>
    </p>
    <div style="clear:both;"> </div> 
    
-   <!--
-   <p>If you are using Intel® Processor Graphics, Intel® Vision Accelerator Design with Intel® Movidius™ VPUs, Intel® Neural Compute Stick 2 or Intel® Gaussian &amp; Neural Accelerator (GNA), please check the additional configurations for them accordingly: <a href="openvino_docs_install_guides_configurations_for_intel_gpu.html" >Configurations for GPU</a>, <a href="openvino_docs_install_guides_installing_openvino_ivad_vpu.html" >Configurations for VPU</a>, <a href="openvino_docs_install_guides_configurations_for_ncs2.html" >Configurations for NCS2</a> or <a href="openvino_docs_install_guides_configurations_for_intel_gna.html" >Configurations for GNA</a>.
-   </p>
-   -->
-   
-   <h3><a name="get-started-tutorials">Tutorials, Samples, and Demo Applications</a></h3>
-   
-   <p>After all the installation and configuration steps are done, you are ready to run your first inference and learn the workflow. Here is a set of hands-on demonstrations of various complexity levels to guide you through the process. You can run Jupyter notebooks, code samples, or demo applications.</p>
- 
-   <div id="GSG_nextstepchoice">
-     <a href="tutorials.html" >
-        <h4>Interactive Tutorials - Jupyter Notebooks (Python) </h4>
-        <p>Learn from a choice of interactive Python tutorials targeting typical OpenVINO use cases.</p>
-     </a> 		
-     <a href="openvino_docs_OV_UG_Samples_Overview.html" >
-        <h4>OpenVINO Samples	</h4>
-        <p>See ready-made applications explaining OpenVINO features and various use-cases.		</p>
-     </a> 
-     <a href="openvino_inference_engine_ie_bridges_python_sample_speech_sample_README.html" >
-        <h4>Reference Implementation For Speech Recognition Apps (Python)</h4>
-        <p>Use a speech recognition demo and Kaldi model conversion tool as reference. </p>
-     </a>
-     <a href="openvino_inference_engine_samples_speech_sample_README.html" >
-        <h4>Reference Implementation For Speech Recognition Apps (C++)</h4>
-        <p>Use a speech recognition demo and Kaldi model conversion tool as reference. </p>
-     </a>
-     <a href="omz_demos.html" >
-        <h4>Open Model Zoo Demo Applications</h4>
-        <p>See Open Model Zoo demo applications to use robust application templates for implementing specific deep learning scenarios. </p>
-     </a>
-     <a href="http://devcloud.intel.com/edge/" >
-        <h4>Intel® DevCloud 	</h4>
-        <p>Develop, test, and run your OpenVINO solution for free on a cluster of the latest Intel® hardware. </p>
-     </a> 
-   </div>
-   <div style="clear:both;"> </div>
-
 @endsphinxdirective
+
+## <a name="quick-start-example"></a>1. Quick Start Example (No Installation Required)
+
+<img src="https://user-images.githubusercontent.com/15709723/127752390-f6aa371f-31b5-4846-84b9-18dd4f662406.gif">
+
+Try out OpenVINO's capabilities with this quick start example that estimates depth in a scene using an OpenVINO monodepth model. <a href="https://mybinder.org/v2/gh/openvinotoolkit/openvino_notebooks/HEAD?filepath=notebooks%2F201-vision-monodepth%2F201-vision-monodepth.ipynb">Run the example in a Jupyter Notebook inside your web browser</a> to quickly see how to load a model, prepare an image, inference the image, and display the result.
+
+   
+## <a name="install-openvino-gsg"></a>2. Install OpenVINO
+   
+See the [installation overview page](./install_guides/installing-openvino-overview.md) for options to install OpenVINO and set up a development environment on your device.
+   
+## <a name="get-started-tutorials"></a>3. Learn OpenVINO
+   
+OpenVINO provides a wide array of examples and documentation showing how to work with models, run inference, and deploy applications. Step through the sections below to learn the basics of OpenVINO and explore its advanced optimization features. For further details, visit [OpenVINO documentation](./documentation.md).
+   
+OpenVINO users of all experience levels can try [Intel® DevCloud](https://www.intel.com/content/www/us/en/developer/tools/devcloud/edge/overview.html), a free web-based service for developing, testing, and running OpenVINO applications on an online cluster of the latest Intel® hardware.
+
+
+### <a name="openvino-basics"></a>OpenVINO Basics
+Learn the basics of working with models and inference in OpenVINO. Begin with “Hello World” Interactive Tutorials that show how to prepare models, run inference, and retrieve results using the OpenVINO API. Then, explore other examples from the Open Model Zoo and OpenVINO Code Samples that can be adapted for your own application.
+   
+
+#### <a name="interactive-tutorials"></a>Interactive Tutorials - Jupyter Notebooks
+   Start with <a href="tutorials.html">interactive Python tutorials</a> that show the basics of model inferencing, the OpenVINO API, how to convert models to OpenVINO format, and more.
+* <a href="notebooks/001-hello-world-with-output.html">Hello Image Classification</a> - Load an image classification model in OpenVINO and use it to apply a label to an image
+* <a href="notebooks/002-openvino-api-with-output.html">OpenVINO Runtime API Tutorial</a> - Learn the basic Python API for working with models in OpenVINO
+* <a href="notebooks/101-tensorflow-to-openvino-with-output.html">Convert TensorFlow Models to OpenVINO</a>
+* <a href="notebooks/102-pytorch-onnx-to-openvino-with-output.html">Convert PyTorch Models to OpenVINO</a>
+
+#### <a name="code-samples"></a>OpenVINO Code Samples
+View <a href="openvino_docs_OV_UG_Samples_Overview.html">sample code</a> for various C++ and Python applications that can be used as a starting point for your own application. For C++ developers, step through the [Get Started with C++ Samples](./get_started/get_started_demos.md) to learn how to build and run an image classification program that uses OpenVINO’s C++ API.
+      
+#### <a name="integrate-openvino"></a>Integrate OpenVINO With Your Application
+Learn how to <a href="openvino_docs_OV_UG_Integrate_OV_with_your_application.html">use the OpenVINO API to implement an inference pipeline</a> in your application.
+
+
+### <a name="openvino-advanced-features"></a>OpenVINO Advanced Features
+OpenVINO provides features to improve your model’s performance, optimize your runtime, maximize your application’s throughput on target hardware, and much more. Visit the links below to learn more about these features and how to use them.
+
+#### Model Compression and Quantization
+Use OpenVINO’s model compression tools to reduce your model’s latency and memory footprint while maintaining good accuracy.
+* Tutorial - <a href="notebooks/111-detection-quantization-with-output.html">OpenVINO Post-Training Model Quantization</a>
+* Tutorial - <a href="notebooks/305-tensorflow-quantization-aware-training-with-output.html">Quantization-Aware Training in TensorFlow with OpenVINO NNCF</a>
+* Tutorial - <a href="notebooks/302-pytorch-quantization-aware-training-with-output.html">Quantization-Aware Training in PyTorch with NNCF</a>
+* <a href="notebooks/openvino_docs_model_optimization_guide.html">Model Optimization Guide</a>
+
+#### Automated Device Configuration
+OpenVINO’s hardware device configuration options enable you to write an application once and deploy it anywhere with optimal performance.
+* Increase application portability with [Automatic Device Selection (AUTO)](./OV_Runtime_UG/auto_device_selection.md)
+* Perform parallel inference across processors with [Multi-Device Execution (MULTI)](./OV_Runtime_UG/multi_device.md)
+* Efficiently split inference between hardware cores with [Heterogeneous Execution (HETERO)](./OV_Runtime_UG/hetero_execution.md)
+
+#### Flexible Model and Pipeline Configuration
+Pipeline and model configuration features in OpenVINO Runtime allow you to easily optimize your application’s performance on any target hardware.
+* [Automatic Batching](./OV_Runtime_UG/automatic_batching.md) performs on-the-fly grouping of inference requests to maximize utilization of the target hardware’s memory and processing cores.
+* [Performance Hints](./OV_Runtime_UG/performance_hints.md) automatically adjust runtime parameters to prioritize for low latency or high throughput
+* [Dynamic Shapes](./OV_Runtime_UG/ov_dynamic_shapes.md) reshapes models to accept arbitrarily-sized inputs, increasing flexibility for applications that encounter different data shapes
+* [Benchmark Tool](../tools/benchmark_tool/README.md) characterizes model performance in various hardware and pipeline configurations
+   
+### <a name="additional-resources"></a>Additional Resources
+* [OpenVINO Success Stories](https://www.intel.com/content/www/us/en/internet-of-things/ai-in-production/success-stories.html) - See how Intel partners have successfully used OpenVINO in production applications to solve real-world problems.
+* [OpenVINO Supported Models](./resources/supported_models.md) - Check which models OpenVINO supports on your hardware.
+* [Performance Benchmarks](./benchmarks/performance_benchmarks.md) - View results from benchmarking models with OpenVINO on Intel hardware.

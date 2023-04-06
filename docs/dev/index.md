@@ -63,6 +63,7 @@ flowchart LR
      * [Add new transformation](#todo)
      * [Get code coverage report](./test_coverage.md) 
      * [Add component developer documentation](./dev_doc_guide.md)
+     * [Enabling tests in OpenVINO CI](./enabling_ci_step.md)
  * [OpenVINO contributing guidelines](../../CONTRIBUTING.md)
  * [OpenVINO debug capabilities](./debug_capabilities.md)
 
@@ -112,4 +113,5 @@ ov_component/           // Component folder
 
 ## See Also
 
+ * [OpenVINO Developer Documentation](./index.md)
  * [OpenVINO README](../../README.md)

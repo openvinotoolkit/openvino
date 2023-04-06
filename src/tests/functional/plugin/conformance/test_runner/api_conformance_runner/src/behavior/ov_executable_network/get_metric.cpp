@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -10,12 +10,9 @@
 namespace {
 using namespace ov::test::behavior;
 using namespace ov::test::conformance;
-using namespace InferenceEngine::PluginConfigParams;
 //
 // IE Class Common tests with <pluginName, deviceName params>
 //
-
-
 
 INSTANTIATE_TEST_SUITE_P(
         ov_compiled_model, OVClassExecutableNetworkImportExportTestP,
@@ -63,19 +60,19 @@ INSTANTIATE_TEST_SUITE_P(
 
 INSTANTIATE_TEST_SUITE_P(
         ov_compiled_model, OVClassHeteroExecutableNetworkGetMetricTest_SUPPORTED_CONFIG_KEYS,
-        ::testing::ValuesIn(return_all_possible_device_combination()));
+        ::testing::Values(targetDevice));
 
 INSTANTIATE_TEST_SUITE_P(
         ov_compiled_model, OVClassHeteroExecutableNetworkGetMetricTest_SUPPORTED_METRICS,
-        ::testing::ValuesIn(return_all_possible_device_combination()));
+        ::testing::Values(targetDevice));
 
 INSTANTIATE_TEST_SUITE_P(
         ov_compiled_model, OVClassHeteroExecutableNetworkGetMetricTest_NETWORK_NAME,
-        ::testing::ValuesIn(return_all_possible_device_combination()));
+        ::testing::Values(targetDevice));
 
 INSTANTIATE_TEST_SUITE_P(
         ov_compiled_model, OVClassHeteroExecutableNetworkGetMetricTest_TARGET_FALLBACK,
-        ::testing::ValuesIn(return_all_possible_device_combination()));
+        ::testing::Values(targetDevice));
 
 
 } // namespace

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -36,6 +36,10 @@ ParamsKey PoolingKernel_bsv16_fsv16::GetSupportedKey() const {
     k.EnablePoolKernelDividerMode(KernelDividerMode::DYNAMIC_WITH_PADDING);
     k.EnableDifferentTypes();
     return k;
+}
+
+DeviceFeaturesKey PoolingKernel_bsv16_fsv16::get_required_device_features_key(const Params& params, const optional_params& options) const {
+    return get_common_subgroups_device_features_key(params, options);
 }
 
 PoolingKernelBase::DispatchData PoolingKernel_bsv16_fsv16::SetDefault(const pooling_params& params) const {

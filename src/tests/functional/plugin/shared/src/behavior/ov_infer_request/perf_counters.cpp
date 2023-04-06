@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -33,6 +33,11 @@ TEST_P(OVInferRequestPerfCountersTest, NotEmptyAfterSyncInfer) {
     OV_ASSERT_NO_THROW(perf = req.get_profiling_info());
     ASSERT_FALSE(perf.empty());
 }
+
+TEST_P(OVInferRequestPerfCountersExceptionTest, perfCountWereNotEnabledExceptionTest) {
+    EXPECT_ANY_THROW(req.get_profiling_info());
+}
+
 }  // namespace behavior
 }  // namespace test
 }  // namespace ov

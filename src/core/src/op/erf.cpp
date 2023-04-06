@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -12,8 +12,6 @@
 
 using namespace std;
 using namespace ngraph;
-
-BWDCMP_RTTI_DEFINITION(op::v0::Erf);
 
 bool ngraph::op::v0::Erf::visit_attributes(AttributeVisitor& visitor) {
     OV_OP_SCOPE(v0_Erf_visit_attributes);

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -37,12 +37,12 @@
 
 ov::pass::FakeQuantizeMulFusion::FakeQuantizeMulFusion() {
     MATCHER_SCOPE(FakeQuantizeMulFusion);
-    const auto data_p = ngraph::pattern::any_input();
-    const auto fq_output_low_p = ngraph::pattern::any_input();
-    const auto fq_output_high_p = ngraph::pattern::any_input();
+    const auto data_p = pass::pattern::any_input();
+    const auto fq_output_low_p = pass::pattern::any_input();
+    const auto fq_output_high_p = pass::pattern::any_input();
 
     const auto fq_node_p = ngraph::pattern::wrap_type<opset4::FakeQuantize>(
-        {data_p, ngraph::pattern::any_input(), ngraph::pattern::any_input(), fq_output_low_p, fq_output_high_p},
+        {data_p, pass::pattern::any_input(), pass::pattern::any_input(), fq_output_low_p, fq_output_high_p},
         pattern::consumers_count(1));
 
     const auto mul_constant_p = ngraph::pattern::wrap_type<opset4::Constant>();
@@ -102,7 +102,9 @@ ov::pass::FakeQuantizeMulFusion::FakeQuantizeMulFusion() {
         auto get_adjusted_output_range = [&](const Output<Node>& node) -> std::shared_ptr<Node> {
             auto ret = std::make_shared<opset4::Multiply>(node, mul_constant);
             copy_runtime_info(node.get_node_shared_ptr(), ret);
+            OPENVINO_SUPPRESS_DEPRECATED_START
             auto constant = get_constant_from_source(ret);
+            OPENVINO_SUPPRESS_DEPRECATED_END
             if (constant)
                 return constant;
             return ret;
@@ -113,7 +115,9 @@ ov::pass::FakeQuantizeMulFusion::FakeQuantizeMulFusion() {
                                                                  fq_node->input_value(2),
                                                                  get_adjusted_output_range(original_output_low),
                                                                  get_adjusted_output_range(original_output_high)});
+        OPENVINO_SUPPRESS_DEPRECATED_START
         bool fq_on_weights = is_type<opset4::Constant>(data.get_node()) || get_constant_from_source(data) != nullptr;
+        OPENVINO_SUPPRESS_DEPRECATED_END
         if (!fq_on_weights && transformation_callback(new_fq_node))
             return false;
 

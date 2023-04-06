@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2018-2022 Intel Corporation
+﻿// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -11,6 +11,36 @@
 #include "jitter.h"
 
 namespace kernel_selector {
+
+DeviceFeaturesKey EngineInfo::get_supported_device_features_key() const {
+    DeviceFeaturesKey k;
+
+    if (supports_intel_subgroups) {
+        k.enable_subgroup_shuffle_relative();
+    }
+
+    // Note: sub-group extension emulation is an experimental thing and may produce incorrect results in some cases.
+    // Several known issues are listed below:
+    // 1. Kernels with subgroups may be implemented for specific sub-group size which is controlled by cl_intel_required_subgroup_size extension.
+    //    If that extension is unsupported then such kernels may produce wrong result.
+    // 2. Offset for sub-group block read/write functions in some cases includes get_sub_group_local_id() value which seems to be processed correctly
+    //    by intel extension, but may produce wrong result for emulation path.
+    // If you face such kind of issue, you may want to disable emulation by setting enable_sub_groups_emulation = false in set_params() method
+    bool can_emulate_intel_subgroups = enable_sub_groups_emulation && supports_khr_subgroups && (CL_TARGET_OPENCL_VERSION >= 200);
+
+    if (can_emulate_intel_subgroups || supports_intel_subgroups) {
+        k.enable_subgroups();
+        k.enable_subgroup_reduce();
+        k.enable_subgroup_broadcast();
+        k.enable_reqd_subgroup_size();
+        k.enable_blocked_read_write();
+        k.enable_subgroup_shuffle();
+        k.enable_blocked_read_write_short();
+        k.enable_blocked_read_write_char();
+    }
+
+    return k;
+}
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // ParamsKey
@@ -330,25 +360,6 @@ void ParamsKey::EnableArgMaxMinAxis(ArgMaxMinAxis a) {
     }
 }
 
-void ParamsKey::EnableIndexSelectAxis(IndexSelectAxis a) {
-    switch (a) {
-        case IndexSelectAxis::X:
-            key.restrict.val.dedicated.idxsel.axisX = 1;
-            break;
-        case IndexSelectAxis::Y:
-            key.restrict.val.dedicated.idxsel.axisY = 1;
-            break;
-        case IndexSelectAxis::FEATURE:
-            key.restrict.val.dedicated.idxsel.axisFeature = 1;
-            break;
-        case IndexSelectAxis::BATCH:
-            key.restrict.val.dedicated.idxsel.axisBatch = 1;
-            break;
-        default:
-            break;
-    }
-}
-
 void ParamsKey::EnableQuantization(QuantizationType q) {
     switch (q) {
         case QuantizationType::NONE:
@@ -373,9 +384,6 @@ void ParamsKey::EnableQuantization(QuantizationType q) {
 
 bool ParamsKey::Support(const ParamsKey& k) const {
     if (!((key.restrict.raw & k.key.restrict.raw) == k.key.restrict.raw))  // check if this kernel supports this params
-        return false;
-    if (!((key.machineInfo.raw & k.key.machineInfo.raw) ==
-          key.machineInfo.raw))  // check if machine supports this kernel
         return false;
     if (!((key.inputType.raw & k.key.inputType.raw) == k.key.inputType.raw))
         return false;
@@ -402,7 +410,6 @@ bool ParamsKey::Support(const ParamsKey& k) const {
 ParamsKey ParamsKey::Merge(const ParamsKey& k) const {
     ParamsKey ret;
     ret.key.restrict.raw = key.restrict.raw | k.key.restrict.raw;
-    ret.key.machineInfo.raw = key.machineInfo.raw | k.key.machineInfo.raw;
     ret.key.inputType.raw = key.inputType.raw | k.key.inputType.raw;
     ret.key.outputType.raw = key.outputType.raw | k.key.outputType.raw;
     ret.key.inputWeightsType.raw = key.inputWeightsType.raw | k.key.inputWeightsType.raw;
@@ -417,21 +424,7 @@ ParamsKey ParamsKey::Merge(const ParamsKey& k) const {
 // Params
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 ParamsKey Params::GetParamsKey() const {
-    ParamsKey k;
-
-    if (engineInfo.bSubGroupSupport) {
-        k.EnableSubGroup();
-    }
-
-    if (engineInfo.bSubGroupShortSupport) {
-        k.EnableSubGroupShort();
-    }
-
-    if (engineInfo.bSubGroupCharSupport) {
-        k.EnableSubGroupChar();
-    }
-
-    return k;
+    return ParamsKey();
 }
 
 std::string Params::to_string() const {
@@ -513,7 +506,7 @@ ParamsKey base_params::GetParamsKey() const {
         k.EnableDynamicShapesSupport();
     }
 
-    if (!engineInfo.bFP16Support && bFP16Used) {
+    if (!engineInfo.supports_fp16 && bFP16Used) {
         // I'm not sure it's the best idea, but we can live with it right now
         k.EnableFP16Emulation();
     }

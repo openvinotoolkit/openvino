@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 #pragma once
@@ -11,7 +11,7 @@
 
 template <class T>
 inline void dynamic_inference(const T& input_shape, T& output_shape, bool keep_dims) {
-    OPENVINO_UNREACHABLE("This code should be executed only for PartialShape class");
+    OPENVINO_THROW("This code should be executed only for PartialShape class");
 }
 
 template <>
@@ -32,7 +32,9 @@ void reduce_shape_infer(const ov::op::util::ReductionBase* op,
     bool axes_are_known = get_data_as_int64<T>(1, op, axes_val, constant_data);
 
     if (data_rank.is_static() && axes_are_known) {
+        OPENVINO_SUPPRESS_DEPRECATED_START
         ov::normalize_axes(op, data_rank.get_length(), axes_val);
+        OPENVINO_SUPPRESS_DEPRECATED_END
 
         if (keep_dims) {
             output_shape = input_shape;

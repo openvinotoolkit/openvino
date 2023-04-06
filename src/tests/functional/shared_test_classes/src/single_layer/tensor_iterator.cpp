@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -217,7 +217,7 @@ namespace LayerTestsDefinitions {
         }
         if (should_decompose) {
             ngraph::pass::Manager m;
-            m.register_pass<ngraph::pass::UnrollTensorIterator>();
+            m.register_pass<ov::pass::UnrollTensorIterator>();
             m.run_passes(function);
         }
     }

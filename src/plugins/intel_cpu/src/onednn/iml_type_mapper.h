@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -35,6 +35,8 @@ enum impl_desc_type {
     reorder = 1<<22,
     // winograd
     winograd = 1<<23,
+    // sparse
+    sparse = 1<<24,
 
     // real types
     ref_any             = ref  | any,
@@ -90,6 +92,7 @@ enum impl_desc_type {
     brgemm_sse42       = brgemm  | sse42,
     brgemm_uni         = brgemm  | uni,
     brgemm_avx512_amx  = brgemm  | avx512 | amx,
+    brgemm_sparse_avx512_amx = brgemm | sparse | avx512 | amx,
 };
 
 const char * impl_type_to_string(impl_desc_type type);

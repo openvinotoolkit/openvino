@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -43,12 +43,3 @@ public:
     OPENVINO_RTTI("GroupConvolutionBackpropDataMultiplyFusion", "0");
     GroupConvolutionBackpropDataMultiplyFusion();
 };
-
-namespace ngraph {
-namespace pass {
-using ov::pass::ConvolutionBackpropDataMultiplyFusion;
-using ov::pass::ConvolutionMultiplyFusion;
-using ov::pass::GroupConvolutionBackpropDataMultiplyFusion;
-using ov::pass::GroupConvolutionMultiplyFusion;
-}  // namespace pass
-}  // namespace ngraph

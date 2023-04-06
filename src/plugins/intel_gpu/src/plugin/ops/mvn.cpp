@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -17,11 +17,11 @@ namespace intel_gpu {
 
 static void CreateCommonMVNOp(Program& p, const std::shared_ptr<ngraph::Node>& op,
                               bool across_channels, bool normalize_variance, float eps, bool eps_inside_sqrt = true) {
-    auto inputPrimitives = p.GetInputPrimitiveIDs(op);
+    auto inputs = p.GetInputInfo(op);
     std::string layerName = layer_type_name_ID(op);
 
     auto mvnPrim = cldnn::mvn(layerName,
-                              inputPrimitives[0],
+                              inputs[0],
                               normalize_variance,
                               eps,
                               eps_inside_sqrt,
@@ -48,7 +48,9 @@ static void CreateMVNOp(Program& p, const std::shared_ptr<ngraph::op::v6::MVN>& 
         IE_THROW() << "Unsupported parameter nodes type in " << op->get_friendly_name() << " (" << op->get_type_name() << ")";
 
     std::vector<int64_t> axes = inConst->cast_vector<int64_t>();
+    OPENVINO_SUPPRESS_DEPRECATED_START
     ov::normalize_axes(op.get(), op->get_output_partial_shape(0).size(), axes);
+    OPENVINO_SUPPRESS_DEPRECATED_END
 
     const size_t chanelAxis = 1;
     bool across_channels = std::find(axes.begin(), axes.end(), chanelAxis) != axes.end();

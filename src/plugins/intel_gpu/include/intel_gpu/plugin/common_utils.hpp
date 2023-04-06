@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -89,8 +89,8 @@ inline cldnn::format FormatFromLayout(InferenceEngine::Layout l) {
     case InferenceEngine::Layout::NC:
     case InferenceEngine::Layout::CHW:
     case InferenceEngine::Layout::C:
-        return cldnn::format::bfyx;
     case InferenceEngine::Layout::SCALAR:
+        return cldnn::format::bfyx;
     case InferenceEngine::Layout::NHWC:
         return cldnn::format::byxf;
     default:
@@ -114,8 +114,8 @@ inline cldnn::format FormatFromTensorDesc(InferenceEngine::TensorDesc desc) {
     case InferenceEngine::Layout::NC:
     case InferenceEngine::Layout::CHW:
     case InferenceEngine::Layout::C:
-        return cldnn::format::bfyx;
     case InferenceEngine::Layout::SCALAR:
+        return cldnn::format::bfyx;
     case InferenceEngine::Layout::NHWC:
         return cldnn::format::byxf;
     default:
@@ -154,6 +154,17 @@ inline InferenceEngine::Layout InferenceEngineLayoutFromOVLayout(ov::Layout l) {
     if (l == ov::Layout("NCDHW")) return InferenceEngine::Layout::NCDHW;
     if (l == ov::Layout("NDHWC")) return InferenceEngine::Layout::NDHWC;
     IE_THROW() << "The plugin does not support " << l.to_string() << " layout";
+}
+
+/// WA: Force exit. Any opencl api call can be hang after CL_OUT_OF_RESOURCES.
+inline void ForceExit() {
+    std::cerr << "[GPU] force exit.\n"
+              << "\tDue to the driver bug any subsequent OpenCL API call will cause application hang, "
+              << "so GPU plugin can't finish correctly.\n"
+              << "\tPlease try to update the driver or reduce memory consumption "
+              << "(use smaller batch size, less streams, lower precision, etc)"
+              << "to avoid CL_OUT_OF_RESOURCES exception" << std::endl;
+    std::_Exit(-1);
 }
 
 }  // namespace intel_gpu

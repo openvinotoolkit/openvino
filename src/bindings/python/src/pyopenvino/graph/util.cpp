@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -6,9 +6,12 @@
 
 #include <pybind11/numpy.h>
 
+#include <openvino/core/node_output.hpp>
+
 #include "openvino/core/graph_util.hpp"
 #include "openvino/core/validation_util.hpp"
 #include "openvino/pass/manager.hpp"
+#include "pyopenvino/graph/ops/constant.hpp"
 #include "pyopenvino/utils/utils.hpp"
 
 namespace py = pybind11;
@@ -24,6 +27,7 @@ inline void* numpy_to_c(py::array a) {
 void regmodule_graph_util(py::module m) {
     py::module mod = m.def_submodule("util", "openvino.runtime.utils");
     mod.def("numpy_to_c", &numpy_to_c);
+    OPENVINO_SUPPRESS_DEPRECATED_START
     mod.def("get_constant_from_source",
             &ov::get_constant_from_source,
             py::arg("output"),
@@ -37,10 +41,11 @@ void regmodule_graph_util(py::module m) {
                          from the resulting bound, otherwise Null.
                 :rtype: openvino.runtime.op.Constant or openvino.runtime.Node
             )");
+    OPENVINO_SUPPRESS_DEPRECATED_END
     mod.def(
         "clone_model",
         [](ov::Model& model) {
-            return ov::clone_model(model);
+            return model.clone();
         },
         py::arg("model"),
         R"(

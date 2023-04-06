@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2022 Intel Corporation
+# Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -171,7 +171,7 @@ macro(ie_cpack)
         set(CPACK_GENERATOR "TGZ")
     endif()
     set(CPACK_SOURCE_GENERATOR "") # not used
-    set(CPACK_PACKAGE_DESCRIPTION_SUMMARY "OpenVINO™ Toolkit for Deep Learning Inference")
+    set(CPACK_PACKAGE_DESCRIPTION_SUMMARY "OpenVINO™ Toolkit")
     set(CPACK_COMPONENT_UNSPECIFIED_REQUIRED OFF)
     set(CPACK_INCLUDE_TOPLEVEL_DIRECTORY OFF)
     set(CPACK_PACKAGE_VENDOR "Intel Corporation")
@@ -194,7 +194,7 @@ macro(ie_cpack)
         set(CPACK_STRIP_FILES ON)
     endif()
 
-    # TODO: replace with openvino
+    # TODO: replace with openvino and handle multi-config generators case
     if(WIN32)
         set(CPACK_PACKAGE_NAME inference-engine_${CMAKE_BUILD_TYPE})
     else()
@@ -202,6 +202,7 @@ macro(ie_cpack)
     endif()
 
     set(CPACK_PACKAGE_VERSION "${OpenVINO_VERSION}")
+    # build version can be empty in case we are running cmake out of git repository
     if(NOT OpenVINO_VERSION_BUILD STREQUAL "000")
         set(CPACK_PACKAGE_VERSION "${CPACK_PACKAGE_VERSION}.${OpenVINO_VERSION_BUILD}")
     endif()

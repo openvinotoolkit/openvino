@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -79,7 +79,7 @@ std::string space_to_depth_inst::to_string(space_to_depth_node const& node) {
 
     std::stringstream primitive_description;
 
-    std::string depth_mode = (desc->mode == static_cast <cldnn::space_to_depth::depth_mode> (kernel_selector::SpaceToDepthMode::BLOCKS_FIRST)) ?
+    std::string depth_mode = (desc->mode == cldnn::space_to_depth::depth_mode::blocks_first) ?
                              "blocks_first" :
                              "depth_first";
 

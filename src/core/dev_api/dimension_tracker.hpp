@@ -9,11 +9,11 @@
 #include <unordered_set>
 
 #include "openvino/core/dimension.hpp"
+#include "openvino/core/type/element_type.hpp"
 
 namespace ov {
-
 /// \brief Special label value indicate no label set.
-constexpr size_t no_label = 0;
+constexpr label_t no_label = 0;
 
 /// \brief Friend class of Dimension to set, get and track dimensions and their equivalence
 class DimensionTracker {
@@ -24,12 +24,12 @@ public:
                         "Can not set nullptr as table of equivalence shared pointer for DimensionTracker");
     };
 
-    static void set_label(ov::Dimension& d, size_t label) {
+    static void set_label(ov::Dimension& d, label_t label) {
         OPENVINO_ASSERT(label != no_label, "Can not set zero as label for dimension -- it is reserved for no label");
         d.m_label = label;
     }
 
-    static size_t get_label(const ov::Dimension& d) {
+    static label_t get_label(const ov::Dimension& d) {
         return d.m_label;
     }
 
@@ -44,7 +44,7 @@ public:
         return m_table_of_equivalence;
     }
 
-    void set_up_for_tracking(ov::Dimension& d, size_t label) const {
+    void set_up_for_tracking(ov::Dimension& d, label_t label) const {
         set_label(d, label);
         set_table_of_equivalence(d);
     }
@@ -58,8 +58,8 @@ private:
     std::shared_ptr<TableOfEquivalence> m_table_of_equivalence;
 };
 
-using EqTable = std::unordered_map<size_t, std::unordered_set<size_t>>;
-using ValTable = std::unordered_map<size_t, ov::Dimension>;
+using EqTable = std::unordered_map<label_t, std::unordered_set<label_t>>;
+using ValTable = std::unordered_map<label_t, ov::Dimension>;
 
 class TableOfEquivalence {
 public:

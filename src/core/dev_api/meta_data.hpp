@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -25,6 +25,11 @@ public:
      * @return const ov::AnyMap with meta information
      */
     virtual operator const ov::AnyMap&() const = 0;
+
+    /**
+     * @brief Destructor
+     */
+    virtual ~Meta() = default;
 };
 
 }  // namespace ov

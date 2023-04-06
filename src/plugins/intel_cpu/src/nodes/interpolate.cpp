@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -29,6 +29,7 @@
 #include <utils/shape_inference/shape_inference.hpp>
 #include <ie_ngraph_utils.hpp>
 #include "utils/cpu_utils.hpp"
+#include <utils/shape_inference/shape_inference_ngraph.hpp>
 
 using namespace dnnl;
 using namespace InferenceEngine;
@@ -1490,29 +1491,29 @@ bool Interpolate::isSupportedOperation(const std::shared_ptr<const ngraph::Node>
         }
         const auto &interpAttr = interp->get_attrs();
         const auto &interpMode = interpAttr.mode;
-        if (!one_of(interpMode, ngInterpMode::nearest, ngInterpMode::linear, ngInterpMode::linear_onnx, ngInterpMode::cubic)) {
+        if (!one_of(interpMode, ngInterpMode::NEAREST, ngInterpMode::LINEAR, ngInterpMode::LINEAR_ONNX, ngInterpMode::CUBIC)) {
             errorMessage = "Does not support interpolate mode: " + ngraph::as_string(interpMode);
             return false;
         }
 
         const auto &interpCoordTransMode = interpAttr.coordinate_transformation_mode;
-        if (!one_of(interpCoordTransMode, ngInterpCoordTransf::half_pixel, ngInterpCoordTransf::pytorch_half_pixel, ngInterpCoordTransf::asymmetric,
-                                          ngInterpCoordTransf::tf_half_pixel_for_nn, ngInterpCoordTransf::align_corners)) {
+        if (!one_of(interpCoordTransMode, ngInterpCoordTransf::HALF_PIXEL, ngInterpCoordTransf::PYTORCH_HALF_PIXEL, ngInterpCoordTransf::ASYMMETRIC,
+                                          ngInterpCoordTransf::TF_HALF_PIXEL_FOR_NN, ngInterpCoordTransf::ALIGN_CORNERS)) {
             errorMessage = "Does not support coordinate transformation mode: " + ngraph::as_string(interpCoordTransMode);
             return false;
         }
 
-        if (interpMode == ngInterpMode::nearest) {
+        if (interpMode == ngInterpMode::NEAREST) {
             const auto &interpNearestMode = interpAttr.nearest_mode;
-            if (!one_of(interpNearestMode, ngInterpNearMode::round_prefer_floor, ngInterpNearMode::round_prefer_ceil, ngInterpNearMode::floor,
-                                           ngInterpNearMode::ceil, ngInterpNearMode::simple)) {
+            if (!one_of(interpNearestMode, ngInterpNearMode::ROUND_PREFER_FLOOR, ngInterpNearMode::ROUND_PREFER_CEIL, ngInterpNearMode::FLOOR,
+                                           ngInterpNearMode::CEIL, ngInterpNearMode::SIMPLE)) {
                 errorMessage = "Does not support nearest round mode: " + ngraph::as_string(interpNearestMode);
                 return false;
             }
         }
 
         const auto &interpShapeCalcMode = interpAttr.shape_calculation_mode;
-        if (!one_of(interpShapeCalcMode, ngInterpShapeCalcMode::scales, ngInterpShapeCalcMode::sizes)) {
+        if (!one_of(interpShapeCalcMode, ngInterpShapeCalcMode::SCALES, ngInterpShapeCalcMode::SIZES)) {
             errorMessage = "Does not support shape_calculation_mode: " + ngraph::as_string(interpShapeCalcMode);
             return false;
         }
@@ -1523,12 +1524,12 @@ bool Interpolate::isSupportedOperation(const std::shared_ptr<const ngraph::Node>
             return false;
         }
 
-        if (dataRank == 5 && interpMode == ngInterpMode::cubic) {
+        if (dataRank == 5 && interpMode == ngInterpMode::CUBIC) {
             errorMessage = "Doesn't support input tensor with rank: " + std::to_string(dataRank) + " for 'cubic' mode ";
             return false;
         }
 
-        if (!isDynamicNgraphNode(op) && interpShapeCalcMode == ngInterpShapeCalcMode::scales &&
+        if (!isDynamicNgraphNode(op) && interpShapeCalcMode == ngInterpShapeCalcMode::SCALES &&
                 !ngraph::is_type<ngraph::opset1::Constant>(op->get_input_node_ptr(2))) {
             errorMessage = "Only const 'scales' input is supported for static shapes";
             return false;
@@ -1544,8 +1545,39 @@ bool Interpolate::isSupportedOperation(const std::shared_ptr<const ngraph::Node>
     return true;
 }
 
-Interpolate::Interpolate(const std::shared_ptr<ngraph::Node>& op, const dnnl::engine& eng, WeightsSharing::Ptr &cache)
-        : Node(op, eng, cache) {
+namespace {
+/**
+ * Interpolate shape inference factory. It defines the input mask depending on the shape calculation mode.
+ * 
+ */
+class InterpolateShapeInferFactory : public ShapeInferFactory {
+public:
+    InterpolateShapeInferFactory(std::shared_ptr<ngraph::Node> op) : m_op(op) {}
+    ShapeInferPtr makeShapeInfer() const override {
+        IShapeInfer::port_mask_t port_mask = 0x00;
+        auto interp = ov::as_type_ptr<ngraph::opset4::Interpolate>(m_op);
+        if (!interp) {
+            IE_THROW(Unexpected) << "Wrong operation type";
+        }
+        const auto &attr = interp->get_attrs();
+
+        if (attr.shape_calculation_mode == ngInterpShapeCalcMode::SCALES) {
+            port_mask = PortMask(Interpolate::SCALES_ID, Interpolate::AXES_ID);
+        } else if (attr.shape_calculation_mode == ngInterpShapeCalcMode::SIZES) {
+            port_mask = PortMask(Interpolate::TARGET_SHAPE_ID, Interpolate::AXES_ID);
+        } else {
+            IE_ASSERT(false) << "Unsupported interpolate shape calculation mode";
+        }
+
+        return std::make_shared<NgraphShapeInfer>(make_shape_inference(m_op), port_mask);
+    }
+private:
+    std::shared_ptr<ngraph::Node> m_op;
+};
+} // namespace
+
+Interpolate::Interpolate(const std::shared_ptr<ngraph::Node>& op, const GraphContext::CPtr context)
+        : Node(op, context, InterpolateShapeInferFactory(op)) {
     std::string errorMessage;
     if (isSupportedOperation(op, errorMessage)) {
         errorPrefix = "Interpolate node with name '" + getName() + "'";
@@ -1563,32 +1595,32 @@ Interpolate::Interpolate(const std::shared_ptr<ngraph::Node>& op, const dnnl::en
 
         const size_t dataRank = getInputShapeAtPort(DATA_ID).getRank();
         const auto &interpMode = interpAttr.mode;
-        if (interpMode == ngInterpMode::nearest) {
+        if (interpMode == ngInterpMode::NEAREST) {
             interpAttrs.mode = InterpolateMode::nearest;
-        } else if (interpMode == ngInterpMode::linear) {
+        } else if (interpMode == ngInterpMode::LINEAR) {
             if (dataRank < 5) {
                 interpAttrs.mode = InterpolateMode::linear_onnx;
             } else {
                 interpAttrs.mode = InterpolateMode::linear;
             }
-        } else if (interpMode == ngInterpMode::linear_onnx) {
+        } else if (interpMode == ngInterpMode::LINEAR_ONNX) {
             interpAttrs.mode = InterpolateMode::linear_onnx;
-        } else if (interpMode == ngInterpMode::cubic) {
+        } else if (interpMode == ngInterpMode::CUBIC) {
             interpAttrs.mode = InterpolateMode::cubic;
         } else {
             IE_THROW() << errorPrefix << " has unsupported interpolate mode";
         }
 
         const auto &interpCoordTransMode = interpAttr.coordinate_transformation_mode;
-        if (interpCoordTransMode == ngInterpCoordTransf::half_pixel) {
+        if (interpCoordTransMode == ngInterpCoordTransf::HALF_PIXEL) {
             interpAttrs.coordTransMode = InterpolateCoordTransMode::half_pixel;
-        } else if (interpCoordTransMode == ngInterpCoordTransf::pytorch_half_pixel) {
+        } else if (interpCoordTransMode == ngInterpCoordTransf::PYTORCH_HALF_PIXEL) {
             interpAttrs.coordTransMode = InterpolateCoordTransMode::pytorch_half_pixel;
-        } else if (interpCoordTransMode == ngInterpCoordTransf::asymmetric) {
+        } else if (interpCoordTransMode == ngInterpCoordTransf::ASYMMETRIC) {
             interpAttrs.coordTransMode = InterpolateCoordTransMode::asymmetric;
-        } else if (interpCoordTransMode == ngInterpCoordTransf::tf_half_pixel_for_nn) {
+        } else if (interpCoordTransMode == ngInterpCoordTransf::TF_HALF_PIXEL_FOR_NN) {
             interpAttrs.coordTransMode = InterpolateCoordTransMode::tf_half_pixel_for_nn;
-        } else if (interpCoordTransMode == ngInterpCoordTransf::align_corners) {
+        } else if (interpCoordTransMode == ngInterpCoordTransf::ALIGN_CORNERS) {
             interpAttrs.coordTransMode = InterpolateCoordTransMode::align_corners;
         } else {
             IE_THROW() << errorPrefix << " has unsupported coordination transformation mode";
@@ -1596,15 +1628,15 @@ Interpolate::Interpolate(const std::shared_ptr<ngraph::Node>& op, const dnnl::en
 
         if (interpAttrs.mode == InterpolateMode::nearest) {
             const auto &interpNearestMode = interpAttr.nearest_mode;
-            if (interpNearestMode == ngInterpNearMode::round_prefer_floor) {
+            if (interpNearestMode == ngInterpNearMode::ROUND_PREFER_FLOOR) {
                 interpAttrs.nearestMode = InterpolateNearestMode::round_prefer_floor;
-            } else if (interpNearestMode == ngInterpNearMode::round_prefer_ceil) {
+            } else if (interpNearestMode == ngInterpNearMode::ROUND_PREFER_CEIL) {
                 interpAttrs.nearestMode = InterpolateNearestMode::round_prefer_ceil;
-            } else if (interpNearestMode == ngInterpNearMode::floor) {
+            } else if (interpNearestMode == ngInterpNearMode::FLOOR) {
                 interpAttrs.nearestMode = InterpolateNearestMode::floor;
-            } else if (interpNearestMode == ngInterpNearMode::ceil) {
+            } else if (interpNearestMode == ngInterpNearMode::CEIL) {
                 interpAttrs.nearestMode = InterpolateNearestMode::ceil;
-            } else if (interpNearestMode == ngInterpNearMode::simple) {
+            } else if (interpNearestMode == ngInterpNearMode::SIMPLE) {
                 interpAttrs.nearestMode = InterpolateNearestMode::simple;
             } else {
                 IE_THROW() << errorPrefix << " has unsupported nearest mode";
@@ -1615,9 +1647,9 @@ Interpolate::Interpolate(const std::shared_ptr<ngraph::Node>& op, const dnnl::en
         interpAttrs.antialias = interpAttr.antialias;
 
         const auto &interpShapeCalcMode = interpAttr.shape_calculation_mode;
-        if (interpShapeCalcMode == ngInterpShapeCalcMode::scales) {
+        if (interpShapeCalcMode == ngInterpShapeCalcMode::SCALES) {
             shapeCalcMode = InterpolateShapeCalcMode::scales;
-        } else if (interpShapeCalcMode == ngInterpShapeCalcMode::sizes) {
+        } else if (interpShapeCalcMode == ngInterpShapeCalcMode::SIZES) {
             shapeCalcMode = InterpolateShapeCalcMode::sizes;
         } else {
             IE_THROW() << errorPrefix << " has unsupported shape calculation mode";
@@ -1807,11 +1839,6 @@ bool Interpolate::needShapeInfer() const {
     return false;
 }
 
-std::vector<VectorDims> Interpolate::shapeInfer() const {
-    const size_t port = shapeCalcMode == InterpolateShapeCalcMode::sizes ? TARGET_SHAPE_ID : SCALES_ID;
-    return shapeInferGeneric(PortMask(port, AXES_ID));
-}
-
 void Interpolate::executeDynamicImpl(dnnl::stream strm) {
     execute(strm);
 
@@ -1893,7 +1920,7 @@ void Interpolate::prepareParams() {
         return executor;
     };
 
-    auto cache = getRuntimeCache();
+    auto cache = context->getParamsCache();
     auto result = cache->getOrCreate(key, buildExecutor);
     execPtr = result.first;
 
@@ -3059,10 +3086,10 @@ void Interpolate::InterpolateRefExecutor::linearInterpolation(const uint8_t *in_
 }
 
 Interpolate::InterpolateExecutor::InterpolateExecutor(const InterpolateAttrs& interpAttrs,
-                                                                const VectorDims &srcDims,
-                                                                const VectorDims &dstDims,
-                                                                const std::vector<float> &dataScales) :
-        mode(interpAttrs.mode), configured_for_layout(interpAttrs.layout), coordTransMode(interpAttrs.coordTransMode),
+                                                      const VectorDims &srcDims,
+                                                      const VectorDims &dstDims,
+                                                      const std::vector<float> &dataScales) :
+        mode(interpAttrs.mode), coordTransMode(interpAttrs.coordTransMode), configured_for_layout(interpAttrs.layout),
         inputPrec(interpAttrs.inPrc), outputPrec(interpAttrs.outPrc) {
     srcDimPad5d = to5Dim(getPaddedInputShape(srcDims, interpAttrs.padBegin, interpAttrs.padEnd));
     dstDim5d = to5Dim(dstDims);

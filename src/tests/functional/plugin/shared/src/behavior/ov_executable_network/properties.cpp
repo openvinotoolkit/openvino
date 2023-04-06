@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -110,7 +110,8 @@ TEST_P(OVCompiledModelPropertiesDefaultTests, CheckDefaultValues) {
         ASSERT_TRUE(supported) << "default_property=" << default_property.first;
         Any property;
         OV_ASSERT_NO_THROW(property = compiled_model.get_property(default_property.first));
-        ASSERT_EQ(default_property.second, property);
+        ASSERT_EQ(default_property.second, property) << "For property: " << default_property.first
+            << " expected value is: " << default_property.second.as<std::string>();
     }
 }
 

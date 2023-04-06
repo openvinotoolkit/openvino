@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -8,6 +8,8 @@
 #include "itt.h"
 
 #include "caseless.hpp"
+#include <memory>
+#include <oneapi/dnnl/dnnl.hpp>
 #include <vector>
 #include <string>
 #include <limits>
@@ -77,10 +79,19 @@ Node::NodesFactory & Node::factory() {
     return factoryInstance;
 }
 
-Node::Node(const std::shared_ptr<ngraph::Node>& op, const dnnl::engine& eng, WeightsSharing::Ptr &w_cache)
-        : selectedPrimitiveDescriptorIndex(-1), permanent(false), temporary(false), constant(ConstantType::Unknown),
-          weightCache(w_cache), engine(eng), name(op->get_friendly_name()), typeStr(op->get_type_name()),
-          type(TypeFromName(op->get_type_name())), profiling(op->get_friendly_name()) {
+Node::Node(const std::shared_ptr<ngraph::Node>& op,
+           const GraphContext::CPtr ctx,
+           const ShapeInferFactory& shapeInferFactory)
+    : selectedPrimitiveDescriptorIndex(-1),
+      permanent(false),
+      temporary(false),
+      constant(ConstantType::Unknown),
+      context(ctx),
+      engine(ctx->getEngine()),
+      name(op->get_friendly_name()),
+      typeStr(op->get_type_name()),
+      type(TypeFromName(op->get_type_name())),
+      profiling(op->get_friendly_name()) {
     algorithm = Algorithm::Default;
     fusingPort = -1;
     const std::string errorPrefix = "Ngraph operation " + std::string(op->get_type_name()) + " with name " + op->get_friendly_name();
@@ -116,7 +127,7 @@ Node::Node(const std::shared_ptr<ngraph::Node>& op, const dnnl::engine& eng, Wei
                 std::any_of(outputShapes.begin(), outputShapes.end(), [](const Shape& shape){ return shape.isDynamic(); });
 
     if (isDynamic) {
-        shapeInference = make_shape_inference(op);
+        shapeInference = shapeInferFactory.makeShapeInfer();
     }
 
     const auto& rtInfo = op->get_rt_info();
@@ -170,10 +181,18 @@ Node::Node(const std::shared_ptr<ngraph::Node>& op, const dnnl::engine& eng, Wei
     }
 }
 
-Node::Node(const std::string& type, const std::string& name, const dnnl::engine& eng, WeightsSharing::Ptr &w_cache)
-        : selectedPrimitiveDescriptorIndex(-1), permanent(false), temporary(false), constant(ConstantType::Unknown),
-          weightCache(w_cache), engine(eng), fusingPort(-1), name(name), typeStr(type),
-          type(TypeFromName(type)), profiling(name) {
+Node::Node(const std::string& type, const std::string& name, const GraphContext::CPtr ctx)
+    : selectedPrimitiveDescriptorIndex(-1),
+      permanent(false),
+      temporary(false),
+      constant(ConstantType::Unknown),
+      context(ctx),
+      fusingPort(-1),
+      engine(ctx->getEngine()),
+      name(name),
+      typeStr(type),
+      type(TypeFromName(type)),
+      profiling(name) {
     // TODO [NM]: What about filling inDims and outDims?
 }
 
@@ -251,45 +270,62 @@ void Node::selectPreferPrimitiveDescriptor(const std::vector<impl_desc_type>& pr
         int selectedPrimitive = -1;
         int equalsFormatCount = -1;
         for (size_t i = 0; i < getSupportedPrimitiveDescriptors().size(); i++) {
-            impl_desc_type supportedType = getSupportedPrimitiveDescriptors()[i].getImplementationType();
-            if (type == supportedType) {
-                int equalsLocalFormatCount = 0;
-                if (getSupportedPrimitiveDescriptors()[i].getConfig().inConfs.size() > getParentEdges().size())
+            const auto& supportedPrimitiveDesc = getSupportedPrimitiveDescriptors()[i];
+            const impl_desc_type supportedType = supportedPrimitiveDesc.getImplementationType();
+
+            if (supportedType != type) {
+                continue;
+            }
+
+            int equalsLocalFormatCount = 0;
+            const size_t descInConfSize = supportedPrimitiveDesc.getConfig().inConfs.size();
+
+            if (descInConfSize > getParentEdges().size()) {
+                IE_THROW() << getName() << " Desc " << i << " with type: " << supportedType <<
+                    " has more input ports than node: " << descInConfSize << " vs " << getParentEdges().size();
+                continue;
+            }
+
+            for (size_t j = 0; j < descInConfSize; j++) {
+                auto parentEdge = getParentEdgeAt(j);
+                auto parentPtr = parentEdge->getParent();
+
+                // We don't take into account constant edges since reorders on them will be executed on load network stage
+                if (ignoreConstInputs && j > 0 && parentPtr->isConstant()) {
+                    equalsLocalFormatCount++;
                     continue;
-                for (size_t j = 0; j < getSupportedPrimitiveDescriptors()[i].getConfig().inConfs.size(); j++) {
-                    auto parentEdge = getParentEdgeAt(j);
-                    auto parentPtr = parentEdge->getParent();
-
-                    // We don't take into account constant edges since reorders on them will be executed on load network stage
-                    if (ignoreConstInputs && j > 0 && parentPtr->isConstant()) {
-                        equalsLocalFormatCount++;
-                        continue;
-                    }
-
-                    auto parent_spd = parentPtr->getSelectedPrimitiveDescriptor();
-
-                    if (parent_spd != nullptr && !parent_spd->getConfig().outConfs.empty()) {
-                        int inNum = parentEdge->getInputNum();
-                        if (inNum < 0 || inNum >= parent_spd->getConfig().outConfs.size()) {
-                            inNum = 0;
-                        }
-                        auto curDesc = getSupportedPrimitiveDescriptors()[i].getConfig().inConfs[j].getMemDesc();
-                        auto parentDesc = parent_spd->getConfig().outConfs[inNum].getMemDesc();
-
-                        if (curDesc->isCompatible(*parentDesc)) {
-                            equalsLocalFormatCount++;
-                            DEBUG_LOG(getName(), " pd[", i, "].inConfs[", j, "]"
-                                      " is compatible with parent ", parentPtr->getName(),
-                                      " outConfs[", inNum, "], equalsLocalFormatCount add to ", equalsLocalFormatCount);
-                        }
-                    }
                 }
+
+                auto parent_spd = parentPtr->getSelectedPrimitiveDescriptor();
+
+                if (parent_spd != nullptr && !parent_spd->getConfig().outConfs.empty()) {
+                    int inNum = parentEdge->getInputNum();
+                    if (inNum < 0 || inNum >= parent_spd->getConfig().outConfs.size()) {
+                        inNum = 0;
+                    }
+                    auto curDesc = supportedPrimitiveDesc.getConfig().inConfs[j].getMemDesc();
+                    auto parentDesc = parent_spd->getConfig().outConfs[inNum].getMemDesc();
+
+                    const bool isCompatible = curDesc->isCompatible(*parentDesc);
+
+                    if (isCompatible) {
+                        equalsLocalFormatCount++;
+                    }
+
+                    DEBUG_LOG(getName(), " pd[", i, "].inConfs[", j, "]"
+                              " is ", (isCompatible ? "compatible" : "not compatible"),
+                              " with parent ", parentPtr->getName(),
+                              " outConfs[", inNum, "], equalsLocalFormatCount add to ", equalsLocalFormatCount);
+                }
+
                 if (equalsLocalFormatCount > equalsFormatCount) {
                     equalsFormatCount = equalsLocalFormatCount;
                     selectedPrimitive = static_cast<int>(i);
+                    DEBUG_LOG(getName(), " Select primitive desc: ", i, " ", supportedPrimitiveDesc);
                 }
             }
         }
+
         if (selectedPrimitive >= 0) {
             selectPrimitiveDescriptorByIndex(selectedPrimitive);
             return;
@@ -418,6 +454,7 @@ std::string Node::getPrimitiveDescriptorType() {
     SEARCH_TYPE(uni);
 
     SEARCH_TYPE(winograd);
+    SEARCH_TYPE(sparse);
     SEARCH_TYPE(_dw);
     SEARCH_TYPE(_1x1);
 
@@ -513,16 +550,18 @@ std::vector<memory::format_tag> Node::getAvailableFormatsForDims(const Shape &di
     return {memory::format_tag::any};
 }
 
-void Node::execute(dnnl::stream strm) {
-    if (prim) {
-        (*prim).execute(strm, primArgs);
+void Node::updateShapes() {
+    IE_ASSERT(isDynamicNode()) << "Node::updateShapes() is called to a static shape node of type: " << getTypeStr() << " with name: " << getName();
+    if (needShapeInfer()) {
+        auto result = shapeInfer();
+        if (ShapeInferStatus::success == result.status) {
+            redefineOutputMemory(result.dims);
+        }
     }
 }
 
-void Node::executeDynamic(dnnl::stream strm) {
-    if (needShapeInfer()) {
-        redefineOutputMemory(shapeInfer());
-    }
+void Node::updateDynamicParams() {
+    IE_ASSERT(isDynamicNode()) << "Node::updateDynamicParams() is called to a static shape node of type: " << getTypeStr() << " with name: " << getName();
     if (isExecutable()) {
         if (needPrepareParams()) {
             IE_ASSERT(inputShapesDefined()) << "Can't prepare params for " << getTypeStr() << " node with name: " << getName() <<
@@ -530,17 +569,26 @@ void Node::executeDynamic(dnnl::stream strm) {
             DEBUG_LOG(" prepareParams() on #", getExecIndex(), " ", getTypeStr(), " ", algToString(getAlgorithm()),
                       " ", getName(), " ", getOriginalLayers());
             prepareParams();
-#ifdef CPU_DEBUG_CAPS
-            if (prim) {
-                auto pd_c = (*prim).get_primitive_desc();
-                auto* pd = reinterpret_cast<const dnnl_primitive_desc*>(pd_c);
-                DEBUG_LOG("verbose##", getName(), "##", pd->info(), "\n");
-            }
-#endif
         }
+    }
+}
+void Node::executeDynamic(dnnl::stream strm) {
+    if (isExecutable()) {
         executeDynamicImpl(strm);
     }
     updateLastInputDims();
+}
+
+bool Node::outputShapeDataDependency() const {
+    auto port_mask = shapeInference->get_port_mask();
+    if (EMPTY_PORT_MASK != port_mask) {
+        for (size_t i = 0; i < getParentEdges().size(); ++i) {
+            if ((port_mask & (1 << i)) && !getParentEdgeAt(i)->getParent()->isConstant()) {
+                return true;
+            }
+        }
+    }
+    return false;
 }
 
 void Node::redefineOutputMemory(const std::vector<VectorDims> &newOutputShapes) {
@@ -575,17 +623,12 @@ void Node::initSupportedPrimitiveDescriptors() {
     auto attr = initPrimitiveAttr();
 
     for (auto& desc : descs) {
-        primitive_desc_iterator itpd;
-        if (attr) {
-            itpd = desc.createPrimitiveDescriptorIterator(engine, *attr);
-        } else {
-            itpd = desc.createPrimitiveDescriptorIterator(engine);
-        }
+        primitive_desc_iterator itpd = desc;
 
         while (static_cast<bool>(itpd)) {
             NodeConfig config;
             config.dynBatchSupport = true;
-            for (size_t i = 0; i < descInputNumbers(desc); i++) {
+            for (size_t i = 0; i < descInputNumbers(); i++) {
                 PortConfig portConfig;
                 portConfig.inPlace(-1);
                 portConfig.constant(false);
@@ -598,7 +641,7 @@ void Node::initSupportedPrimitiveDescriptors() {
                 config.inConfs.push_back(portConfig);
             }
 
-            for (size_t i = 0; i < descOutputNumbers(desc); i++) {
+            for (size_t i = 0; i < descOutputNumbers(); i++) {
                 PortConfig portConfig;
                 portConfig.inPlace(canBeInPlace() ? 0 : -1);
                 portConfig.constant(false);
@@ -620,6 +663,9 @@ void Node::initSupportedPrimitiveDescriptors() {
 }
 
 void Node::filterSupportedPrimitiveDescriptors() {
+    if (inputMemoryFormatsFilter.empty() && outputMemoryFormatsFilter.empty())
+        return;
+
     // Compare by format tag
     auto areCompatible = [](const MemoryDesc& desc, dnnl::memory::format_tag fmt) -> bool {
         auto fmt_tdesc = DnnlBlockedMemoryDesc(desc.getShape(),
@@ -628,91 +674,40 @@ void Node::filterSupportedPrimitiveDescriptors() {
         return desc.isCompatible(fmt_tdesc);
     };
 
-    if (!inputMemoryFormatsFilter.empty() || !outputMemoryFormatsFilter.empty()) {
-        auto itpd = supportedPrimitiveDescriptors.begin();
-        while (itpd != supportedPrimitiveDescriptors.end()) {
-            const auto &config = itpd->getConfig();
-            if (inputMemoryFormatsFilter.size() > config.inConfs.size() || outputMemoryFormatsFilter.size() > config.outConfs.size())
-                IE_THROW() << "Incorrect number of input or output memory formats";
+    auto isNotSuitableDesc = [&](const NodeDesc& desc) {
+        const auto &config = desc.getConfig();
+        if (inputMemoryFormatsFilter.size() > config.inConfs.size() || outputMemoryFormatsFilter.size() > config.outConfs.size())
+            IE_THROW() << "Incorrect number of input or output memory formats";
 
-            bool isSuitableDesc = true;
-            for (int i = 0; i < inputMemoryFormatsFilter.size(); i++) {
-                const bool matched = areCompatible(*config.inConfs[i].getMemDesc(), inputMemoryFormatsFilter[i]);
-                isSuitableDesc &= matched;
-            }
-            for (int i = 0; i < outputMemoryFormatsFilter.size(); i++) {
-                const bool matched = areCompatible(*config.outConfs[i].getMemDesc(), outputMemoryFormatsFilter[i]);
-                isSuitableDesc &= matched;
-            }
-            if (!isSuitableDesc) {
-                itpd = supportedPrimitiveDescriptors.erase(itpd);
-            } else {
-                itpd++;
+        for (int i = 0; i < inputMemoryFormatsFilter.size(); i++) {
+            if (!areCompatible(*config.inConfs[i].getMemDesc(), inputMemoryFormatsFilter[i])) {
+                DEBUG_LOG(getName(), " input memory format filter: ", inputMemoryFormatsFilter[i],
+                          " not matched. Erase desc from supported primitive descriptors: ", desc);
+                return true;
             }
         }
-    }
+
+        for (int i = 0; i < outputMemoryFormatsFilter.size(); i++) {
+            if (!areCompatible(*config.outConfs[i].getMemDesc(), outputMemoryFormatsFilter[i])) {
+                DEBUG_LOG(getName(), " Output memory format filter: ", outputMemoryFormatsFilter[i],
+                          " not matched. Erase desc from supported primitive descriptors: ", desc);
+                return true;
+            }
+        }
+
+        return false;
+    };
+
+    supportedPrimitiveDescriptors.erase(
+        std::remove_if(supportedPrimitiveDescriptors.begin(), supportedPrimitiveDescriptors.end(), isNotSuitableDesc),
+        supportedPrimitiveDescriptors.end());
 }
 
 void Node::initDescriptor(const NodeConfig& config) {
-    if (!getSelectedPrimitiveDescriptor()) {
-        return;
-    }
-    std::vector<MemoryDescPtr> inDescs;
-    for (const auto& inConf : config.inConfs)
-        inDescs.emplace_back(inConf.getMemDesc());
-    std::vector<MemoryDescPtr> outDescs;
-    for (const auto& outConf : config.outConfs)
-        outDescs.emplace_back(outConf.getMemDesc());
-    createDescriptor(inDescs, outDescs);
-
-    AttrPtr attr = initPrimitiveAttr();
-
     auto* selectedPD = getSelectedPrimitiveDescriptor();
-    NodeConfig rightConfig = selectedPD->getConfig();
-    size_t selected_count = 0;
-    for (size_t j = 0; j < descs.size(); j++) {
-        const auto &desc = descs[j];
-        primitive_desc_iterator itpd;
-        if (attr == nullptr) {
-            itpd = desc.createPrimitiveDescriptorIterator(engine);
-        } else {
-            itpd = desc.createPrimitiveDescriptorIterator(engine, *(attr.get()));
-        }
-        while (static_cast<bool>(itpd)) {
-            NodeConfig cfg;
-            cfg.dynBatchSupport = true;
-            for (size_t i = 0; i < descInputNumbers(desc); i++) {
-                PortConfig dataConfig;
-                dataConfig.inPlace(canBeInPlace() ? 0 : -1);
-                dataConfig.constant(false);
-                dataConfig.setMemDesc(getSrcMemDesc(itpd, i));
-                cfg.inConfs.push_back(dataConfig);
-            }
 
-            for (size_t i = 0; i < descOutputNumbers(desc); i++) {
-                PortConfig dataConfig;
-                dataConfig.inPlace(-1);
-                dataConfig.constant(false);
-                dataConfig.setMemDesc(getDstMemDesc(itpd, i));
-                cfg.outConfs.push_back(dataConfig);
-            }
-            impl_desc_type impl_type = parse_impl_name(itpd.impl_info_str());
-            if (selected_count == selectedPrimitiveDescriptorIndex) {
-                if (impl_type != selectedPD->getImplementationType()) {
-                    IE_THROW() << getName() << " expected selectedPD impl_type: " << impl_type_to_string(selectedPD->getImplementationType())
-                                << " but got: " << impl_type_to_string(impl_type);
-                }
-                rightConfig = cfg;
-            }
-            if (j == descs.size() - 1) {
-                if (impl_type == selectedPD->getImplementationType()) {
-                    rightConfig = config;
-                }
-            }
-            selected_count++;
-            if (!itpd.next_impl())
-                break;
-        }
+    if (!selectedPD) {
+        return;
     }
 
     if (descs.empty()) {
@@ -729,26 +724,53 @@ void Node::initDescriptor(const NodeConfig& config) {
             if (!selectedConfig.outConfs[i].getPortDesc()->isCompatible(*config.outConfs[i].getPortDesc()))
                 IE_THROW() << "Incorrect descriptor for node: " << getName() << " on " << i << " output port";
         }
-        rightConfig = config;
+        selectedPD->setConfig(config);
+
+        return;
     }
 
-    selectedPD->setConfig(rightConfig);
+    auto updateNodeConfig = [&](const NodeConfig& cfg){
+        auto updatedConfig = cfg;
+
+        for (size_t i = 0; i < descInputNumbers(); i++) {
+            PortConfig& dataConfig = updatedConfig.inConfs[i];
+            dataConfig.inPlace(canBeInPlace() ? 0 : -1);    // update inPlace
+            dataConfig.setMemDesc(dataConfig.getMemDesc()); // reset desc with default compatibility mask
+        }
+
+        for (size_t i = 0; i < descOutputNumbers(); i++) {
+            PortConfig& dataConfig = updatedConfig.outConfs[i];
+            dataConfig.inPlace(-1);                         // update inPlace
+            dataConfig.setMemDesc(dataConfig.getMemDesc()); // reset desc with default compatibility mask
+        }
+
+        return updatedConfig;
+    };
+
+    descs.clear();
+
+    std::vector<MemoryDescPtr> inDescs;
+    for (const auto& inConf : config.inConfs)
+        inDescs.emplace_back(inConf.getMemDesc());
+    std::vector<MemoryDescPtr> outDescs;
+    for (const auto& outConf : config.outConfs)
+        outDescs.emplace_back(outConf.getMemDesc());
+    createDescriptor(inDescs, outDescs);
+
+    for (auto& desc : descs) {
+        if (DnnlExtensionUtils::hasProperImplementationType(desc, selectedPD->getImplementationType())) {
+            selectedPD->setConfig(config);
+            return;
+        }
+    }
+
+    const auto& currentConfig = selectedPD->getConfig();
+    const auto& updatedConfig = updateNodeConfig(currentConfig);
+
+    selectedPD->setConfig(updatedConfig);
 }
 
 void Node::prepareMemory(const std::vector<DnnlMemoryDescPtr>& intDescs) {
-    for (size_t i = 0; i < getChildEdges().size(); i++) {
-        auto &dstMemPtr = getChildEdgeAt(i)->getMemoryPtr();
-        if (!dstMemPtr || !dstMemPtr->isAllocated())
-            IE_THROW() << "Destination memory didn't allocate for node " << getName()
-                               << " to node " << getChildEdgeAt(i)->getChild()->getName() << ".";
-    }
-    for (size_t i = 0; i < getParentEdges().size(); i++) {
-        auto &srcMemPtr = getParentEdgeAt(i)->getMemoryPtr();
-        if (!srcMemPtr || !srcMemPtr->isAllocated())
-            IE_THROW() << "Destination memory didn't allocate for node " << getName()
-                               << " from node " << getParentEdgeAt(i)->getParent()->getName() << ".";
-    }
-
     if (internalBlobs.size() != intDescs.size()) {
         IE_THROW() << "Can't prepare memory for internal blob, internal blob and internal descs number do not match "
                    << internalBlobs.size() << " vs " << intDescs.size();
@@ -765,7 +787,7 @@ void Node::prepareMemory(const std::vector<DnnlMemoryDescPtr>& intDescs) {
             Memory memory{ engine };
             memory.Create(newDesc, internalBlob->buffer());
 
-            MemoryPtr _ptr = MemoryPtr(new Memory(engine));
+            MemoryPtr _ptr = std::make_shared<Memory>(engine);
             _ptr->Create(*intDescs[i]);
             _ptr->SetData(memory);
 
@@ -773,6 +795,7 @@ void Node::prepareMemory(const std::vector<DnnlMemoryDescPtr>& intDescs) {
         };
 
         MemoryPtr ptr;
+        auto weightCache = context->getWeightsCache();
         if (weightCache != nullptr) {
             const uint64_t data_hash = weightCache->GetHashFunc().hash(
                     internalBlob->buffer(), internalBlob->byteSize());
@@ -796,6 +819,51 @@ void Node::prepareMemory(dnnl::primitive_desc_iterator& itpd) {
         intDescs.push_back(it(itpd, 0));
 
     Node::prepareMemory(intDescs);
+}
+
+MemoryPtr Node::prepareWeightMemory(DnnlMemoryDescPtr weightDesc) {
+    if (!getParentEdgeAt(1)->getParent()->isConstant())
+        IE_THROW() << "Weight input is not const for node " << getName() << ".";
+    auto edgeMem = getParentEdgeAt(1)->getMemoryPtr();
+    if (!edgeMem)
+        IE_THROW() << "Cannot get const weights edgeMem for node " << getName() << ".";
+
+    auto constDnnlMemOutDesc = edgeMem->GetDescWithType<DnnlMemoryDesc>();
+    auto weightSrcDesc = constDnnlMemOutDesc->getDnnlDesc();
+    weightSrcDesc = weightSrcDesc.reshape(weightDesc->getDnnlDesc().get_dims());
+    auto create = [&] () {
+        auto newSrcDesc = DnnlExtensionUtils::makeDescriptor(weightSrcDesc);
+
+        Memory srcMemory{ getEngine() };
+        srcMemory.Create(newSrcDesc, edgeMem->GetData());
+
+        MemoryPtr _ptr = std::make_shared<Memory>(getEngine());
+        _ptr->Create(weightDesc);
+        node::Reorder::reorderData(srcMemory, *_ptr, context->getParamsCache());
+
+        return _ptr;
+    };
+
+    MemoryPtr ptr;
+    const auto& format = weightDesc->serializeFormat();
+    auto itr = privateWeightCache.find(format);
+    if (privateWeightCache.end() != itr) {
+        ptr = itr->second;
+    } else {
+        auto weightCache = context->getWeightsCache();
+        if (weightCache != nullptr) {
+            const std::string string_hash = getName() + "_" + format
+                                            + "_" + std::to_string(edgeMem->GetSize())
+                                            + "_" + std::to_string(reinterpret_cast<uint64_t>(edgeMem->GetData()));
+
+            ptr = *weightCache->findOrCreate(string_hash, create);
+        } else {
+            ptr = create();
+        }
+        privateWeightCache[format] = ptr;
+    }
+
+    return ptr;
 }
 
 bool Node::isInPlace() {
@@ -932,101 +1000,119 @@ const std::vector<impl_desc_type>& Node::getPrimitivesPriority() {
 }
 
 PortDescBasePtr Node::getConsistentInputDesc(const NodeConfig &config, size_t idx) const {
-    int num = getParentEdgeAt(idx)->getInputNum();
-    auto *selectedPD = getParentEdgeAt(idx)->getParent()->getSelectedPrimitiveDescriptor();
-    if (!selectedPD)
-        IE_THROW() << "Cannot get selected primitive descriptor for node: " << getParentEdgeAt(idx)->getParent()->getName();
+    const auto& inConf = config.inConfs[idx];
 
-    if (config.inConfs[idx].inPlace() >= 0) {
-        auto inplaceIndx = static_cast<size_t>(config.inConfs[idx].inPlace());
+    if (inConf.inPlace() >= 0) { // node have inplace input
+        auto inplaceIndx = static_cast<size_t>(inConf.inPlace());
         PortDescBasePtr outPortDesc;
         const auto& outConf = config.outConfs[inplaceIndx];
-        if (outConf.inPlace() == idx) {
-            outPortDesc = outConf.getPortDesc();
+        if (outConf.inPlace() == idx) { // the input desc port is the same port used for inplace output
+            outPortDesc = outConf.getPortDesc(); // just use desc from this output port
         } else {
-            outPortDesc = getConsistentOutputDesc(config, inplaceIndx);
+            outPortDesc = getConsistentOutputDesc(config, inplaceIndx); // get consistent desc otherwise
         }
-        if (config.inConfs[idx].getPortDesc()->isCompatible(*outPortDesc)) {
+        if (inConf.getPortDesc()->isCompatible(*outPortDesc)) { // use the desc if compatible
             return outPortDesc;
         }
     }
 
+    auto *parentSelectedPD = getParentEdgeAt(idx)->getParent()->getSelectedPrimitiveDescriptor();
+    if (!parentSelectedPD)
+        IE_THROW() << "Cannot get selected primitive descriptor for node: " << getParentEdgeAt(idx)->getParent()->getName();
+
+    int num = getParentEdgeAt(idx)->getInputNum();
     if (num >= 0) {
-        auto parentConf = selectedPD->getConfig().outConfs[num];
-        parentConf.setMemDesc(parentConf.getMemDesc()->cloneWithNewPrecision(config.inConfs[idx].getMemDesc()->getPrecision()));
+        auto parentConf = parentSelectedPD->getConfig().outConfs[num];
+        const auto desc = parentConf.getMemDesc()->cloneWithNewPrecision(inConf.getMemDesc()->getPrecision());
+        parentConf.setMemDesc(desc);
+
         if (!parentConf.getMemDesc()->isDefined() && parentConf.inPlace() >= 0)
             getParentEdgeAt(idx)->getParent()->initOptimalPrimitiveDescriptor();
-        parentConf = getParentEdgeAt(idx)->getParent()->getSelectedPrimitiveDescriptor()->getConfig().outConfs[num];
-        if (parentConf.getMemDesc()->isDefined() && config.inConfs[idx].getPortDesc()->isCompatible(*parentConf.getPortDesc())) {
+
+        // config might be changed
+        parentConf = parentSelectedPD->getConfig().outConfs[num];
+        if (parentConf.getMemDesc()->isDefined() && inConf.getPortDesc()->isCompatible(*parentConf.getPortDesc())) {
             return parentConf.getPortDesc();
         }
     }
 
-    return config.inConfs[idx].getPortDesc();
+    return inConf.getPortDesc();
 }
 
 PortDescBasePtr Node::getConsistentOutputDesc(const NodeConfig &config, size_t idx) const {
-    int num = getChildEdgeAt(idx)->getOutputNum();
-    auto *selectedPD = getChildEdgeAt(idx)->getChild()->getSelectedPrimitiveDescriptor();
-    if (!selectedPD)
-        IE_THROW() << "Cannot get selected primitive descriptor for node: " << getChildEdgeAt(idx)->getChild()->getName();
+    const auto& outConf = config.outConfs[idx];
 
-    if (config.outConfs[idx].inPlace() >= 0) {
-        auto inplaceIndx = static_cast<size_t>(config.outConfs[idx].inPlace());
+    if (outConf.inPlace() >= 0) { // node have inplace output
+        auto inplaceIndx = static_cast<size_t>(outConf.inPlace());
         PortDescBasePtr inpPortDesc;
         const auto& inpConf = config.inConfs[inplaceIndx];
-        if (inpConf.inPlace() == idx) {
-            inpPortDesc = inpConf.getPortDesc();
+        if (inpConf.inPlace() == idx) { // the input desc port is the same port used for inplace output
+            inpPortDesc = inpConf.getPortDesc(); // just use desc from this output port
         } else {
-            inpPortDesc = getConsistentInputDesc(config, inplaceIndx);
+            inpPortDesc = getConsistentInputDesc(config, inplaceIndx); // get consistent desc otherwise
         }
-        if (config.outConfs[idx].getPortDesc()->isCompatible(*inpPortDesc)) {
+        if (outConf.getPortDesc()->isCompatible(*inpPortDesc)) { // use the desc if compatible
             return inpPortDesc;
         }
     }
 
+    auto *childSelectedPD = getChildEdgeAt(idx)->getChild()->getSelectedPrimitiveDescriptor();
+    if (!childSelectedPD)
+        IE_THROW() << "Cannot get selected primitive descriptor for node: " << getChildEdgeAt(idx)->getChild()->getName();
+
+    int num = getChildEdgeAt(idx)->getOutputNum();
     if (num >= 0) {
-        auto childConf = selectedPD->getConfig().inConfs[num];
-        childConf.setMemDesc(childConf.getMemDesc()->cloneWithNewPrecision(config.outConfs[idx].getMemDesc()->getPrecision()));
+        auto childConf = childSelectedPD->getConfig().inConfs[num];
+        const auto desc = childConf.getMemDesc()->cloneWithNewPrecision(outConf.getMemDesc()->getPrecision());
+        childConf.setMemDesc(desc);
+
         if (!childConf.getMemDesc()->isDefined() && childConf.inPlace() >= 0)
             getChildEdgeAt(idx)->getChild()->initOptimalPrimitiveDescriptor();
-        childConf = getChildEdgeAt(idx)->getChild()->getSelectedPrimitiveDescriptor()->getConfig().inConfs[num];
-        if (childConf.getMemDesc()->isDefined() && config.outConfs[idx].getPortDesc()->isCompatible(*childConf.getPortDesc())) {
+
+        // config might be changed
+        childConf = childSelectedPD->getConfig().inConfs[num];
+        if (childConf.getMemDesc()->isDefined() && outConf.getPortDesc()->isCompatible(*childConf.getPortDesc())) {
             return childConf.getPortDesc();
         }
     }
 
-    return config.outConfs[idx].getPortDesc();
+    return outConf.getPortDesc();
 }
 
 void Node::initOptimalPrimitiveDescriptor() {
+    if (one_of(getType(), Type::RNNCell, Type::RNNSeq)) // can be skipped for RNN node
+        return;
+
     auto selected_pd = getSelectedPrimitiveDescriptor();
     if (selected_pd == nullptr)
         IE_THROW() << "Preferable primitive descriptor is not set.";
+
     auto config = selected_pd->getConfig();
-    if (isDynamicNode()) {
-        // it is assumed that the nodes will define dense tensors on output edges
-        // if it is not the case the implementation must redefine this behaviour
-        for (size_t i = 0; i < config.outConfs.size(); i++) {
-            auto outMemDesc = config.outConfs[i].getMemDesc();
-            if (outMemDesc && (outMemDesc->getType() & Blocked)) {
+    for (size_t i = 0; i < config.inConfs.size(); i++) {
+        if (!isDynamicNode() || config.inConfs[i].getMemDesc()->isDefined()) {
+            auto inpPortDesc = getConsistentInputDesc(config, i);
+            DEBUG_LOG(getName(), ": input PortDesc before: ", *inpPortDesc->getMemDesc());
+            config.inConfs[i].setMemDesc(inpPortDesc->getMemDesc());
+            DEBUG_LOG(getName(), ": input PortDesc after: ", *config.inConfs[i].getMemDesc());
+        }
+    }
+
+    for (size_t i = 0; i < config.outConfs.size(); i++) {
+        auto outMemDesc = config.outConfs[i].getMemDesc();
+        if (!isDynamicNode() || outMemDesc->isDefined()) {
+            auto outPortDesc = getConsistentOutputDesc(config, i);
+            DEBUG_LOG(getName(), ": output PortDesc before: ", *outPortDesc->getMemDesc());
+            config.outConfs[i].setMemDesc(outPortDesc->getMemDesc());
+        } else {
+            // it is assumed that the nodes will define dense tensors on output edges
+            // if it is not the case the implementation must redefine this behaviour
+            if (outMemDesc->getType() & Blocked) {
                 config.outConfs[i].setMemDesc(std::dynamic_pointer_cast<BlockedMemoryDesc>(outMemDesc), BLOCKED_DESC_FULL_MASK);
             }
         }
-    } else {
-        for (size_t i = 0; i < config.inConfs.size(); i++) {
-            auto inpPortDesc = getConsistentInputDesc(config, i);
-            config.inConfs[i].setMemDesc(inpPortDesc->getMemDesc());
-        }
+    }
 
-        for (size_t i = 0; i < config.outConfs.size(); i++) {
-            auto outPortDesc = getConsistentOutputDesc(config, i);
-            config.outConfs[i].setMemDesc(outPortDesc->getMemDesc());
-        }
-    }
-    if (getType() != Type::RNNSeq && getType() != Type::RNNCell) {
-        initDescriptor(config);
-    }
+    initDescriptor(config);
 }
 
 bool Node::isConfigDefined(const NodeConfig &config) const {
@@ -1083,8 +1169,9 @@ void Node::setDynamicBatchLim(int lim) {
         if (param != primArgs.end()) {
             auto oldMem = param->second;
             dnnl::memory::desc newMemDesc(oldMem.get_desc());
-            newMemDesc.data.dims[0] = newBatch;
-            newMemDesc.data.padded_dims[0] = newBatch;
+            newMemDesc.get()->dims[0] = newBatch;
+            newMemDesc.get()->padded_dims[0] = newBatch;
+
             dnnl::memory newMem(newMemDesc, oldMem.get_engine(), oldMem.get_data_handle());
             primArgs.at(argType) = newMem;
         }
@@ -1100,8 +1187,8 @@ void Node::setDynamicBatchLim(int lim) {
 }
 
 void Node::appendPostOpArgs(const dnnl::primitive_attr& attr,
-                                  std::unordered_map<int, dnnl::memory>& primArgs,
-                                  const std::unordered_map<int, MemoryPtr>& postOpsArgs) {
+                            std::unordered_map<int, dnnl::memory>& primArgs,
+                            const std::unordered_map<int, MemoryPtr>& postOpsArgs) {
     for (auto & entry : postOpsArgs) {
         primArgs[entry.first] = entry.second->GetPrimitive();
     }
@@ -1184,8 +1271,7 @@ InferenceEngine::Precision Node::getRuntimePrecision() const {
     return runtimePrecision;
 }
 
-Node* Node::NodesFactory::create(const std::shared_ptr<ngraph::Node>& op, const dnnl::engine& eng,
-                                             const ExtensionManager::Ptr& extMgr, WeightsSharing::Ptr &w_cache) {
+Node* Node::NodesFactory::create(const std::shared_ptr<ngraph::Node>& op, const GraphContext::CPtr context) {
     // getExceptionDescWithoutStatus removes redundant information from the exception message. For instance, the NotImplemented
     // exception is generated in the form: full_path_to_src_file:line_number [ NOT_IMPLEMENTED ] reason.
     // An example for gather node:
@@ -1207,15 +1293,15 @@ Node* Node::NodesFactory::create(const std::shared_ptr<ngraph::Node>& op, const 
     Node *newNode = nullptr;
     std::string errorMessage;
     {
-        std::unique_ptr<Node> ol(createNodeIfRegistered(intel_cpu, Type::Generic, op, eng, w_cache));
-        if (ol != nullptr && ol->created(extMgr))
+        std::unique_ptr<Node> ol(createNodeIfRegistered(intel_cpu, Type::Generic, op, context));
+        if (ol != nullptr && ol->created(context->getExtensionManager()))
             newNode = ol.release();
     }
 
     if (newNode == nullptr) {
         try {
-            std::unique_ptr<Node> ol(createNodeIfRegistered(intel_cpu, TypeFromName(op->get_type_name()), op, eng, w_cache));
-            if (ol != nullptr && ol->created(extMgr))
+            std::unique_ptr<Node> ol(createNodeIfRegistered(intel_cpu, TypeFromName(op->get_type_name()), op, context));
+            if (ol != nullptr && ol->created(context->getExtensionManager()))
                 newNode = ol.release();
         } catch (const InferenceEngine::Exception& ex) {
             if (dynamic_cast<const InferenceEngine::NotImplemented*>(&ex) != nullptr) {
@@ -1228,8 +1314,8 @@ Node* Node::NodesFactory::create(const std::shared_ptr<ngraph::Node>& op, const 
 
     if (newNode == nullptr) {
         try {
-            std::unique_ptr<Node> ol(new Reference(op, eng, w_cache, errorMessage));
-            if (ol != nullptr && ol->created(extMgr))
+            std::unique_ptr<Node> ol(new Reference(op, context, errorMessage));
+            if (ol != nullptr && ol->created(context->getExtensionManager()))
                 newNode = ol.release();
         } catch (const InferenceEngine::Exception& ex) {
             if (dynamic_cast<const InferenceEngine::NotImplemented*>(&ex) != nullptr) {
@@ -1241,19 +1327,6 @@ Node* Node::NodesFactory::create(const std::shared_ptr<ngraph::Node>& op, const 
             }
         }
     }
-
-    //  WA-start : TI node requires all attributes to construct internal subgpath
-    //             including extManager, socket and dnnl::eng.
-    if (newNode) {
-        if (newNode->getType() == Type::TensorIterator) {
-            if (auto ti = dynamic_cast<TensorIterator*>(newNode))
-                ti->setExtManager(extMgr);
-        } else if (newNode->getType() == Type::If) {
-            if (auto ifNode = dynamic_cast<If*>(newNode))
-                ifNode->setExtManager(extMgr);
-        }
-    }
-//    //  WA-end
 
     if (!newNode) {
         std::string errorDetails;
@@ -1459,72 +1532,59 @@ bool Node::needShapeInfer() const {
     return inputShapesModified();
 }
 
-std::vector<VectorDims> Node::shapeInfer() const {
-    return shapeInferGeneric();
-}
+std::vector<VectorDims> Node::shapeInferGeneric(const std::vector<Shape>& shapes) const {
+    try {
+        std::vector<std::reference_wrapper<const VectorDims>> input_shapes;
+        auto input_value_port_mask = shapeInference->get_port_mask();
 
-std::vector<VectorDims> Node::shapeInferGeneric(const std::vector<StaticShape>& input_shapes,
-                                                uint32_t input_value_port_mask) const {
-    // collect input values
-    std::map<size_t, std::shared_ptr<ngraph::runtime::HostTensor>> input_values;
-    if (input_value_port_mask) {
-        const auto & iranks = shapeInference->get_input_ranks();
-        for (size_t port = 0; port < iranks.size(); port++) {
-            if (input_value_port_mask & (1 << port)) {
-                const auto& memPtr = getParentEdgesAtPort(port)[0]->getMemory();
+        input_shapes.reserve(shapes.size());
+        for (size_t i = 0; i < shapes.size(); i++)
+            input_shapes.emplace_back(std::ref(shapes[i].getStaticDims()));
 
-                ov::Shape shape(memPtr.getStaticDims());
-
-                // use scalar shape {} instead of {1} if required by shapeInference
-                if (iranks[port] == 0) {
-                    shape = ov::Shape();
+        std::unordered_map<size_t, MemoryPtr> input_values;
+        if (input_value_port_mask) {
+            for (size_t port = 0; port < inputShapes.size(); ++port) {
+                if (input_value_port_mask & (1 << port)) {
+                    input_values[port] = getParentEdgesAtPort(port)[0]->getMemoryPtr();
                 }
-
-                input_values[port] = std::make_shared<ngraph::runtime::HostTensor>(
-                    InferenceEngine::details::convertPrecision(memPtr.getDesc().getPrecision()),
-                    shape,
-                    memPtr.GetPtr());
             }
         }
-    }
 
-    // call shape inference API
-    std::vector<StaticShape> output_shapes = shapeInference->infer(input_shapes, input_values);
-
-    std::vector<VectorDims> result(output_shapes.size());
-    std::transform(output_shapes.begin(), output_shapes.end(), result.begin(), [](const StaticShape& s) {
-        return s.to_shape();
-    });
-
-    return result;
-}
-
-std::vector<VectorDims> Node::shapeInferGeneric(const std::vector<Shape>& shapes,
-                                                      uint32_t input_value_port_mask) const {
-    std::vector<StaticShape> input_shapes;
-
-    input_shapes.reserve(shapes.size());
-    for (size_t i = 0; i < shapes.size(); i++)
-        input_shapes.emplace_back(shapes[i].getStaticDims());
-
-    return shapeInferGeneric(input_shapes, input_value_port_mask);
-}
-
-std::vector<VectorDims> Node::shapeInferGeneric(uint32_t input_value_port_mask) const {
-    std::vector<StaticShape> input_shapes;
-    const auto & iranks = shapeInference->get_input_ranks();
-
-    input_shapes.reserve(iranks.size());
-
-    for (size_t port = 0; port < iranks.size(); port++) {
-        if (iranks[port] == 0) {
-            input_shapes.emplace_back();
-        } else {
-            input_shapes.emplace_back(getParentEdgesAtPort(port)[0]->getMemory().getStaticDims());
+        auto result = shapeInference->infer(input_shapes, input_values);
+        if (ShapeInferStatus::success != result.status) {
+            IE_THROW(Unexpected) << "Shape inference unexpectedly skipped";
         }
-    }
 
-    return shapeInferGeneric(input_shapes, input_value_port_mask);
+        return std::move(result.dims);
+    }
+    catch (const std::runtime_error& exp) {
+        IE_THROW() << "Shape inference of " << getTypeStr()  << " node with name " << getName() << " failed: " << exp.what();
+    }
+}
+
+IShapeInfer::Result Node::shapeInfer() const {
+    try {
+        std::vector<std::reference_wrapper<const VectorDims>> input_shapes;
+        auto input_value_port_mask = shapeInference->get_port_mask();
+
+        input_shapes.reserve(inputShapes.size());
+        for (size_t port = 0; port < inputShapes.size(); ++port)
+            input_shapes.emplace_back(std::ref(getParentEdgesAtPort(port)[0]->getMemory().getStaticDims()));
+
+        std::unordered_map<size_t, MemoryPtr> input_values;
+        if (input_value_port_mask) {
+            for (size_t port = 0; port < inputShapes.size(); ++port) {
+                if (input_value_port_mask & (1 << port)) {
+                    input_values[port] = getParentEdgesAtPort(port)[0]->getMemoryPtr();
+                }
+            }
+        }
+
+        return shapeInference->infer(input_shapes, input_values);
+    }
+    catch (const std::runtime_error& exp) {
+        IE_THROW() << "Shape inference of " << getTypeStr()  << " node with name " << getName() << " failed: " << exp.what();
+    }
 }
 
 void Node::updateLastInputDims() {

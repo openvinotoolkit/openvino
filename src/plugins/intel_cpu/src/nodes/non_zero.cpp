@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -9,6 +9,7 @@
 #include <ie_parallel.hpp>
 #include <ngraph/opsets/opset3.hpp>
 #include <utils/bfloat16.hpp>
+#include <utils/shape_inference/shape_inference_internal_dyn.hpp>
 
 using namespace InferenceEngine;
 
@@ -31,8 +32,8 @@ bool NonZero::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op
     return true;
 }
 
-NonZero::NonZero(const std::shared_ptr<ngraph::Node>& op, const dnnl::engine& eng,
-                                     WeightsSharing::Ptr &cache) : Node(op, eng, cache) {
+NonZero::NonZero(const std::shared_ptr<ngraph::Node>& op, const GraphContext::CPtr context)
+    : Node(op, context, InternalDynShapeInferFactory()) {
     std::string errorMessage;
     if (isSupportedOperation(op, errorMessage)) {
         errorPrefix = "NonZero layer with name '" + getName() + "' ";
@@ -78,16 +79,6 @@ std::vector<size_t> NonZero::getNonZeroElementsCount(const T* src, const Shape& 
     switch (inRank) {
     case 0: {
         size_t count = src[0] != zero ? 1 : 0;
-        counts.push_back(count);
-        break;
-    }
-    case 1: {
-        size_t count = 0;
-        for (size_t i = 0; i < inSize; i++) {
-            if (src[i] != zero) {
-                count++;
-            }
-        }
         counts.push_back(count);
         break;
     }
@@ -173,13 +164,16 @@ void NonZero::executeSpecified() {
         dst[0] = 0;
         break;
     case 1: {
-        size_t outputIndex = 0;
-        for (int i = 0; i < srcDims[0]; ++i) {
-            if (src[i] != zero) {
-                dst[outputIndex] = i;
-                outputIndex++;
-            }
-        }
+        //if nonZeroCounts.size() > 1, then the 2nd round scan could run in parallel.
+        parallel_nt(threadsCount, [&](int ithr, int nthr){
+            size_t outputIndex = std::accumulate(nonZeroCounts.begin(), nonZeroCounts.begin() + ithr, 0);
+            for_1d(ithr, nthr, inShape.getElementsCount(), [&](size_t i) {
+                if (src[i] != zero) {
+                    dst[outputIndex] = i;
+                    outputIndex++;
+                }
+            });
+        });
         break;
     }
     case 2: {

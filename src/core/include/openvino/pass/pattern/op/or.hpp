@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -16,7 +16,6 @@ namespace op {
 class OPENVINO_API Or : public Pattern {
 public:
     OPENVINO_RTTI("patternOr");
-    BWDCMP_RTTI_DECLARATION;
     /// \brief creates an Or node matching one of several sub-patterns in order. Does
     /// not add node to match list.
     /// \param patterns The patterns to try for matching

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -17,7 +17,7 @@ namespace node {
 
 class Deconvolution : public Node {
 public:
-    Deconvolution(const std::shared_ptr<ngraph::Node>& op, const dnnl::engine& eng, WeightsSharing::Ptr &cache);
+    Deconvolution(const std::shared_ptr<ngraph::Node>& op, const GraphContext::CPtr context);
 
     void getSupportedDescriptors() override;
     void createDescriptor(const std::vector<MemoryDescPtr>& inputDesc,
@@ -30,7 +30,7 @@ public:
         return false;
     }
 
-    size_t descInputNumbers(DnnlDesriptor desc) override {
+    size_t descInputNumbers() override {
         return static_cast<size_t>(getParentEdges().size());
     }
 
@@ -49,7 +49,6 @@ public:
     void execute(dnnl::stream strm) override;
     void executeDynamicImpl(dnnl::stream strm) override { execute(strm); }
     bool needShapeInfer() const override;
-    std::vector<VectorDims> shapeInfer() const override;
 
     void setDynamicBatchLim(int lim) override;
     bool canBeExecutedInInt8() const;
@@ -81,6 +80,9 @@ private:
                                const dnnl::memory::desc& outMemDesc,
                                const dnnl::engine& engine);
     };
+    // have to hold reference (shared_ptr) to forward convolution primitive_desc
+    // since backward one uses the reference to it as a hint
+    std::vector<dnnl::convolution_forward::primitive_desc> fwdConvPD;
 
     bool withGroups = false;
     bool isDW = false;

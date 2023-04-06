@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -66,11 +66,19 @@ public:
 
     // Apply callback to materialize RIC inside graph
     void materialize(Input<Node> input, const ov::NodeVector& nodes) const {
-        if (get_axis() >= input.get_partial_shape().size()) {
+        const auto& input_pshape = input.get_partial_shape();
+        const auto input_rank = input_pshape.rank();
+        if (input_rank.is_dynamic()) {
+            NGRAPH_DEBUG << "Axis calculated to materialize RIC on input: input rank is dynamic";
+            return;
+        }
+        const auto axis = get_axis();
+        // Despite of m_axis is signed integer this transformartion does not handle negative axes values
+        if (axis < 0 || axis >= static_cast<int64_t>(input_pshape.size())) {
             NGRAPH_DEBUG << "Axis calculated to materialize RIC on input: " << input << " is out of range";
             return;
         }
-        const auto& axis_dim = input.get_partial_shape()[get_axis()];
+        const auto& axis_dim = input_pshape[axis];
         if (axis_dim.is_dynamic()) {
             NGRAPH_DEBUG << "Axis calculated to materialize RIC on input: " << input << " is dynamic";
             return;
@@ -271,7 +279,9 @@ public:
             const auto& pattern_map = m.get_pattern_value_map();
             const auto& output = pattern_map.at(pattern_root);
 
+            OPENVINO_SUPPRESS_DEPRECATED_START
             auto axis = ov::get_constant_from_source(pattern_map.at(axis_p));
+            OPENVINO_SUPPRESS_DEPRECATED_END
             if (!axis)
                 return false;
 
@@ -283,7 +293,9 @@ public:
                 return true;
             }
 
+            OPENVINO_SUPPRESS_DEPRECATED_START
             auto order = ov::get_constant_from_source(pattern_map.at(indices_p));
+            OPENVINO_SUPPRESS_DEPRECATED_END
             if (!order)
                 return false;
 
@@ -817,18 +829,25 @@ public:
 
 bool ov::pass::ReverseInputChannelsFusion::run_on_model(const std::shared_ptr<ov::Model>& model) {
     RUN_ON_MODEL_SCOPE(ReverseInputChannelsFusion);
-    Manager m;
-    m.set_per_pass_validation(false);
 
     NodeVector nodes_to_fuse;
     // First we need to initialize and propagate RIC attributes through entire graph
-    auto ric_prop = m.register_pass<GraphRewrite>();
     {
         using namespace init;
-        ADD_MATCHER(ric_prop, SplitConcat, nodes_to_fuse)
-        ADD_MATCHER(ric_prop, Gather, nodes_to_fuse)
+        Manager m;
+        m.set_per_pass_validation(false);
+        auto ric_init = m.register_pass<GraphRewrite>();
+        ADD_MATCHER(ric_init, SplitConcat, nodes_to_fuse)
+        ADD_MATCHER(ric_init, Gather, nodes_to_fuse)
+        if (!m.run_passes(model)) {
+            return false;
+        }
     }
 
+    Manager m;
+    m.set_per_pass_validation(false);
+
+    auto ric_prop = m.register_pass<GraphRewrite>();
     {
         using namespace prop;
         ADD_MATCHER(ric_prop, Convolution)

@@ -49,10 +49,10 @@ class ocl_stream : public stream {
 public:
     const ocl_queue_type& get_cl_queue() const { return _command_queue; }
 
-    explicit ocl_stream(const ocl_engine& engine);
-    ocl_stream(const ocl_engine &engine, void *handle);
+    explicit ocl_stream(const ocl_engine& engine, const ExecutionConfig& config);
+    ocl_stream(const ocl_engine &engine, const ExecutionConfig& config, void *handle);
     ocl_stream(ocl_stream&& other)
-        : stream(other._engine.configuration().queue_type)
+        : stream(other.queue_type)
         , _engine(other._engine)
         , _command_queue(other._command_queue)
         , _queue_counter(other._queue_counter.load())
@@ -80,10 +80,10 @@ public:
 
     const cl::UsmHelper& get_usm_helper() const { return _engine.get_usm_helper(); }
 
-    static queue_types detect_queue_type(void* queue_handle);
+    static QueueTypes detect_queue_type(void* queue_handle);
 
 #ifdef ENABLE_ONEDNN_FOR_GPU
-    dnnl::stream& get_onednn_stream() const override;
+    dnnl::stream& get_onednn_stream() override;
 #endif
 
 private:

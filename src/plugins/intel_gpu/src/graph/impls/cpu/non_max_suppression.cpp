@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -6,7 +6,7 @@
 #include "primitive_inst.h"
 #include "register.hpp"
 #include "cpu_impl_helpers.hpp"
-#include "impls/implementation_map.hpp"
+#include "implementation_map.hpp"
 
 #include <vector>
 #include <queue>
@@ -330,7 +330,7 @@ void store_third_output(stream& stream, memory::ptr mem, const std::vector<resul
 }
 
 void run(non_max_suppression_inst& instance) {
-    auto prim = instance.node->get_primitive();
+    auto prim = instance.get_typed_desc<non_max_suppression>();
     auto& stream = instance.get_network().get_stream();
 
     auto boxes = load_boxes(stream, instance.input_boxes_mem(), prim->center_point_box);
@@ -419,7 +419,7 @@ struct non_max_suppression_impl : typed_primitive_impl<non_max_suppression> {
     static std::unique_ptr<primitive_impl> create(const non_max_suppression_node&, const kernel_impl_params&) {
         return make_unique<non_max_suppression_impl>();
     }
-    void init_kernels(const kernels_cache&) override {}
+    void init_kernels(const kernels_cache&, const kernel_impl_params&) override {}
 };
 namespace detail {
 
@@ -436,3 +436,4 @@ attach_non_max_suppression_impl::attach_non_max_suppression_impl() {
 }  // namespace cldnn
 
 BIND_BINARY_BUFFER_WITH_TYPE(cldnn::cpu::non_max_suppression_impl)
+BIND_BINARY_BUFFER_WITH_TYPE(cldnn::non_max_suppression)

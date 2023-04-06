@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -51,7 +51,7 @@ static std::string _get_frontend_library_path() {
     GetModuleFileNameA(hm, (LPSTR)ie_library_path, sizeof(ie_library_path));
     return ov::util::get_directory(std::string(ie_library_path));
 #    endif
-#elif defined(__APPLE__) || defined(__linux__)
+#elif defined(__APPLE__) || defined(__linux__) || defined(__EMSCRIPTEN__)
     Dl_info info;
     dladdr(reinterpret_cast<void*>(ov::frontend::get_frontend_library_path), &info);
     return ov::util::get_directory(ov::util::get_absolute_file_path(std::string(info.dli_fname))).c_str();

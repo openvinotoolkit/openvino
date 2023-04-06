@@ -1,19 +1,20 @@
-# Copyright (C) 2018-2022 Intel Corporation
+# Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
 set (TARGET_NAME "format_reader")
 
-file (GLOB MAIN_SRC ${CMAKE_CURRENT_SOURCE_DIR}/*.cpp)
-file (GLOB LIBRARY_HEADERS ${CMAKE_CURRENT_SOURCE_DIR}/*.h)
+file (GLOB MAIN_SRC ${CMAKE_CURRENT_SOURCE_DIR}/src/*.cpp)
+file (GLOB LIBRARY_HEADERS ${CMAKE_CURRENT_SOURCE_DIR}/src/*.h)
+file (GLOB LIBRARY_PUBLIC_HEADERS ${CMAKE_CURRENT_SOURCE_DIR}/include/*.h)
 
 # Create named folders for the sources within the .vcproj
 # Empty name lists them directly under the .vcproj
-source_group("src" FILES ${LIBRARY_SRC})
-source_group("include" FILES ${LIBRARY_HEADERS})
+source_group("src" FILES ${LIBRARY_SRC} ${LIBRARY_HEADERS})
+source_group("include" FILES ${LIBRARY_PUBLIC_HEADERS})
 
 # Create library file from sources.
-add_library(${TARGET_NAME} SHARED ${MAIN_SRC} ${LIBRARY_HEADERS})
+add_library(${TARGET_NAME} STATIC ${MAIN_SRC} ${LIBRARY_HEADERS} ${LIBRARY_PUBLIC_HEADERS})
 
 # Find OpenCV components if exist
 find_package(OpenCV QUIET COMPONENTS core imgproc imgcodecs)
@@ -29,20 +30,11 @@ else()
     target_compile_definitions(${TARGET_NAME} PRIVATE USE_OPENCV)
 endif()
 
-target_compile_definitions(${TARGET_NAME} PRIVATE IMPLEMENT_FORMAT_READER)
+target_include_directories(${TARGET_NAME} PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/include"
+                                          PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/src")
 
-target_include_directories(${TARGET_NAME} PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}"
-                                                 "${CMAKE_CURRENT_SOURCE_DIR}/..")
-
-set_target_properties(${TARGET_NAME} PROPERTIES COMPILE_PDB_NAME ${TARGET_NAME}
-                                                FOLDER cpp_samples)
+set_target_properties(${TARGET_NAME} PROPERTIES FOLDER cpp_samples)
 
 if(COMMAND add_clang_format_target)
     add_clang_format_target(${TARGET_NAME}_clang FOR_TARGETS ${TARGET_NAME})
 endif()
-
-install(
-    TARGETS ${TARGET_NAME}
-    RUNTIME DESTINATION samples_bin/ COMPONENT samples_bin EXCLUDE_FROM_ALL
-    LIBRARY DESTINATION samples_bin/ COMPONENT samples_bin EXCLUDE_FROM_ALL
-)

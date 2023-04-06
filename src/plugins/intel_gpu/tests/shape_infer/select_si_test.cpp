@@ -40,7 +40,7 @@ TEST_P(select_test, shape_infer) {
     auto input2_prim = std::make_shared<input_layout>("input2", p.input2_layout);
 
     const ov::op::AutoBroadcastSpec& broadcast_spec = ov::op::AutoBroadcastSpec(p.broadcast_type);
-    auto select_prim = std::make_shared<cldnn::select>("select_output", "input0", "input1", "input2", broadcast_spec);
+    auto select_prim = std::make_shared<cldnn::select>("select_output", input_info("input0"), input_info("input1"), input_info("input2"), broadcast_spec);
 
     cldnn::program prog(engine);
 

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -75,7 +75,6 @@ enum class Type {
     GridSample,
     OneHot,
     RegionYolo,
-    Select,
     Roll,
     Reference,
     ShuffleChannels,
@@ -110,7 +109,9 @@ enum class Type {
     PriorBox,
     PriorBoxClustered,
     Interaction,
-    MHA
+    MHA,
+    Unique,
+    Ngram
 };
 
 enum class Algorithm {
@@ -134,6 +135,9 @@ enum class Algorithm {
 
     // Elementwise algorithms
     EltwiseAdd,
+    EltwiseIsFinite,
+    EltwiseIsInf,
+    EltwiseIsNaN,
     EltwiseMultiply,
     EltwiseSubtract,
     EltwiseDivide,
@@ -161,6 +165,7 @@ enum class Algorithm {
     EltwiseTanh,
     EltwiseSigmoid,
     EltwiseAbs,
+    EltwiseSelect,
     EltwiseSqrt,
     EltwiseSoftRelu,
     EltwiseExp,

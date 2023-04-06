@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -17,18 +17,27 @@ namespace ov {
 namespace intel_cpu {
 namespace node {
 
+enum class FQ_add_input_type {
+    CROP_LOW,
+    CROP_HIGH,
+    INPUT_SCALE,
+    INPUT_SHIFT,
+    OUTPUT_SCALE,
+    OUTPUT_SHIFT,
+    INPUTS_SIZE
+};
+
 struct jit_quantize_params {
-    int c;
     bool is_planar;
 
     InferenceEngine::Precision src_prc;
     InferenceEngine::Precision wei_prc;
     InferenceEngine::Precision dst_prc;
 
-    std::vector<size_t> s_str;
-    std::vector<size_t> d_str;
-
     Algorithm op_type;
+
+    int c; // need only for binarization
+    std::bitset<static_cast<size_t>(FQ_add_input_type::INPUTS_SIZE)> broadcasted; // need only for quantization
 };
 
 struct jit_quantize_call_args {
@@ -68,7 +77,7 @@ struct jit_uni_quantize_kernel {
 
 class FakeQuantize : public Node {
 public:
-    FakeQuantize(const std::shared_ptr<ngraph::Node>& op, const dnnl::engine& eng, WeightsSharing::Ptr &cache);
+    FakeQuantize(const std::shared_ptr<ngraph::Node>& op, const GraphContext::CPtr context);
 
     void initSupportedPrimitiveDescriptors() override;
     void getSupportedDescriptors() override;
@@ -82,6 +91,7 @@ public:
 
     bool needPrepareParams() const override;
     void prepareParams() override;
+    void createPrimitive() override;
 
     const float* getBinarizationTresholdsPtr() const { return &binarizationThresholds[0]; }
     const float* getBinarizationOutputMaskPtr() const { return reinterpret_cast<const float*>(&binarizationOutputMask[0]); }
@@ -239,6 +249,8 @@ private:
     size_t inputShiftSize;
     size_t outputScaleSize;
     size_t outputShiftSize;
+
+    std::bitset<static_cast<size_t>(FQ_add_input_type::INPUTS_SIZE)> broadcasted;
 
     std::vector<float> fqScales;
 

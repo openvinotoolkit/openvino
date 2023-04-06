@@ -1,8 +1,7 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
-///////////////////////////////////////////////////////////////////////////////////////////////////
 #pragma once
 #include "intel_gpu/primitives/border.hpp"
 #include "primitive_inst.h"
@@ -23,7 +22,7 @@ public:
         support_padding_all(true);
     }
     program_node& input() const { return get_dependency(0); }
-    std::vector<size_t> get_shape_infer_dependencies() const override { return {1, 2}; }
+    std::vector<size_t> get_shape_infer_dependencies() const override { return {1, 2, 3}; }
 };
 
 using border_node = typed_program_node<border>;

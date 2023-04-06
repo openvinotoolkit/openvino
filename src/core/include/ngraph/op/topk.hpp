@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -20,5 +20,9 @@ using ov::op::v1::TopK;
 namespace v3 {
 using ov::op::v3::TopK;
 }  // namespace v3
+
+namespace v11 {
+using ov::op::v11::TopK;
+}  // namespace v11
 }  // namespace op
 }  // namespace ngraph

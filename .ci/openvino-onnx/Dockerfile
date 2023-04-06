@@ -25,16 +25,11 @@ ENV LC_ALL en_US.UTF-8
 
 RUN apt-get update && apt-get -y --no-install-recommends install \
 # OpenVINO dependencies
-        autoconf \
-        automake \
         build-essential \
         ninja-build \
         cmake \
         curl \
         git \
-        libtool \
-        ocl-icd-opencl-dev \
-        pkg-config \
         unzip \
         libtbb-dev \
         libpugixml-dev \
@@ -45,11 +40,7 @@ RUN apt-get update && apt-get -y --no-install-recommends install \
         python3-dev \
         python3-virtualenv \
         cython3 \
-        tox \
-# ONNX dependencies
-        git-lfs \
-        protobuf-compiler \
-        libprotobuf-dev && \
+        tox && \
     apt-get clean autoclean && \
     apt-get autoremove -y
 
@@ -59,16 +50,18 @@ WORKDIR /openvino/build
 RUN cmake .. \
     -G Ninja \
     -DCMAKE_BUILD_TYPE=${BUILD_TYPE} \
-    -DENABLE_INTEL_MYRIAD_COMMON=OFF \
     -DENABLE_INTEL_GNA=OFF \
+    -DENABLE_INTEL_GPU=OFF \
+    -DENABLE_HETERO=OFF \
+    -DENABLE_MULTI=OFF \
+    -DENABLE_AUTO_BATCH=OFF \
+    -DENABLE_GAPI_PREPROCESSING=OFF \
     -DENABLE_CPPLINT=OFF \
     -DENABLE_NCC_STYLE=OFF \
-    -DENABLE_TESTS=OFF \
-    -DENABLE_INTEL_CPU=ON \
-    -DENABLE_INTEL_GPU=OFF \
     -DENABLE_PROFILING_ITT=OFF \
     -DENABLE_SAMPLES=OFF \
     -DENABLE_OV_PADDLE_FRONTEND=OFF \
+    -DENABLE_OV_PYTORCH_FRONTEND=OFF \
     -DENABLE_OV_TF_FRONTEND=OFF \
     -DENABLE_OPENVINO_DEBUG=OFF \
     -DCMAKE_INSTALL_PREFIX=/openvino/dist
@@ -77,6 +70,6 @@ RUN ninja install
 # Run tests via tox
 WORKDIR /openvino/src/bindings/python
 ENV OpenVINO_DIR=/openvino/dist/runtime/cmake
-ENV LD_LIBRARY_PATH=/openvino/dist/runtime/lib:/openvino/dist/runtime/3rdparty/tbb/lib
+ENV LD_LIBRARY_PATH=/openvino/dist/runtime/lib/intel64:/openvino/dist/runtime/3rdparty/tbb/lib
 ENV PYTHONPATH=/openvino/bin/intel64/${BUILD_TYPE}/python_api/python3.10:${PYTHONPATH}
 CMD tox

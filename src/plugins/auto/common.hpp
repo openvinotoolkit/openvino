@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -42,6 +42,26 @@ using Time = std::chrono::time_point<std::chrono::steady_clock>;
 
 template<typename T>
 using DeviceMap = std::unordered_map<DeviceName, T>;
+
+struct MultiImmediateExecutor : public IE::ITaskExecutor {
+public:
+    /**
+     * @brief A shared pointer to a ImmediateExecutor object
+     */
+    using Ptr = std::shared_ptr<MultiImmediateExecutor>;
+
+    /**
+     * @brief Destroys the object.
+     */
+    ~MultiImmediateExecutor() override = default;
+
+    void run(IE::Task task) override {
+        _task = std::move(task);
+        _task();
+    }
+    InferenceEngine::Task _task;
+};
+
 struct DeviceInformation {
     DeviceName deviceName;
     std::map<std::string, std::string> config;
@@ -58,6 +78,7 @@ struct WorkerInferRequest {
     std::list<Time>    _startTimes;
     std::list<Time>    _endTimes;
     int                _index = 0;
+    MultiImmediateExecutor::Ptr  _fallbackExec;
 };
 
 using NotBusyPriorityWorkerRequests = IE::ThreadSafeBoundedPriorityQueue<std::pair<int, WorkerInferRequest*>>;
@@ -122,7 +143,8 @@ public:
     std::mutex                                     _mutex;
     bool                                           _needPerfCounters;
     bool                                           _batchingDisabled = {false};
-    bool                                           _bindBuffer = false;
+    bool                                           _startupfallback = true;
+    bool                                           _runtimeFallback = true;
     virtual ~MultiScheduleContext() = default;
 };
 
@@ -136,7 +158,9 @@ public:
     unsigned int                _modelPriority = 0;
     std::string                 _performanceHint;
     std::mutex                  _confMutex;
+    std::mutex                  _fallbackMutex;
     MultiDeviceInferencePlugin* _plugin;
+    SoExecNetwork               _hwExecutableNetwork;
     virtual ~AutoScheduleContext() = default;
 };
 

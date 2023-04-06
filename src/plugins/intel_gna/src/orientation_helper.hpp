@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -13,7 +13,8 @@
 #include "descriptions/gna_desc.hpp"
 
 namespace ov {
-namespace intela_gna {
+namespace intel_gna {
+
 /**
  * @namespace helpers contains helpers tools for gna plugin.
  */
@@ -38,8 +39,8 @@ namespace helpers {
  * @throws if orientations of input for multiple layers are different
  */
 void updateModelInputOrientationWithoutConvolution(const InferenceEngine::CNNLayer& inputLayer,
-                                                   const GNAPluginNS::backend::DnnComponents& components,
-                                                   GNAPluginNS::GnaInputs& inputs);
+                                                   const backend::DnnComponents& components,
+                                                   GnaInputs& inputs);
 
 /**
  * @brief Update expected orientation for model output of given \p outputName. It is needed to recognize if extra
@@ -60,9 +61,9 @@ void updateModelInputOrientationWithoutConvolution(const InferenceEngine::CNNLay
  */
 void updateModelOutputOrientation(const std::string& outputName,
                                   const std::string& cnnlayerName,
-                                  const GNAPluginNS::backend::DnnComponents& components,
-                                  GNAPluginNS::GnaOutputs& outputs);
+                                  const backend::DnnComponents& components,
+                                  GnaOutputs& outputs);
 
 }  // namespace helpers
-}  // namespace intela_gna
+}  // namespace intel_gna
 }  // namespace ov

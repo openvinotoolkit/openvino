@@ -1,31 +1,10 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "include/reshape_dims.cl"
-#include "include/batch_headers/fetch_data.cl"
+#include "include/fetch_utils.cl"
 
-#include "include/batch_headers/data_types.cl"
-///////////////////////// Output Index /////////////////////////
-inline uint FUNC(get_output_index)(uint b, uint f, uint w, uint z, uint y, uint x)
-{
-#if   OUTPUT_SIMPLE && OUTPUT_DIMS < 6
-    return GET_DATA_INDEX(OUTPUT, b, f, y, x);
-#elif OUTPUT_SIMPLE && OUTPUT_DIMS == 6
-    return GET_DATA_INDEX_6D(OUTPUT, b, f, w, z, y, x);
-#elif defined OUTPUT_LAYOUT_BS_F_BSV8__AF8  || \
-      defined OUTPUT_LAYOUT_BS_F_BSV16__AF8
-    return GET_DATA_BS_FYX_BSV8_INDEX(OUTPUT, b, f, y, x, SUB_GROUP_SIZE);
-#elif defined OUTPUT_LAYOUT_B_FS_YX_FSV16
-    return GET_DATA_B_FS_YX_FSV16_INDEX(OUTPUT, b, f, y, x);
-#elif defined OUTPUT_LAYOUT_B_FS_YX_FSV4
-    return GET_DATA_B_FS_YX_FSV4_INDEX(OUTPUT, b, f, y, x);
-#elif defined OUTPUT_LAYOUT_FS_B_YX_FSV32
-    return GET_DATA_FS_B_YX_FSV32_INDEX(OUTPUT, b, f, y, x);
-#else
-#error reorder_biplanar_nv12.cl: output format - not supported
-#endif
-}
 KERNEL(reorder_biplanar_nv12)(
     read_only image2d_t input,
     read_only image2d_t input_uv,

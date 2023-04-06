@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -11,8 +11,6 @@
 
 using namespace std;
 using namespace ngraph;
-
-BWDCMP_RTTI_DEFINITION(op::v1::LogicalXor);
 
 op::v1::LogicalXor::LogicalXor(const Output<Node>& arg0,
                                const Output<Node>& arg1,
@@ -62,7 +60,9 @@ bool evaluate_logxor(const HostTensorPtr& arg0,
 
 bool op::v1::LogicalXor::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const {
     OV_OP_SCOPE(v1_LogicalXor_evaluate);
+    OPENVINO_SUPPRESS_DEPRECATED_START
     NGRAPH_CHECK(validate_host_tensor_vector(outputs, 1) && validate_host_tensor_vector(inputs, 2));
+    OPENVINO_SUPPRESS_DEPRECATED_END
     return logxor::evaluate_logxor(inputs[0], inputs[1], outputs[0], get_autob());
 }
 
@@ -76,8 +76,6 @@ bool op::v1::LogicalXor::has_evaluate() const {
     }
     return false;
 }
-
-BWDCMP_RTTI_DEFINITION(op::v0::Xor);
 
 op::v0::Xor::Xor(const Output<Node>& arg0, const Output<Node>& arg1, const AutoBroadcastSpec& auto_broadcast)
     : BinaryElementwiseLogical(arg0, arg1, auto_broadcast) {

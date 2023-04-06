@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -42,28 +42,41 @@ ParamsKey FullyConnectedKernelIMAD::GetSupportedKey() const {
     k.EnableTensorPitches();
     k.EnableBatching();
     k.EnableQuantization(QuantizationType::SYMMETRIC);
+    k.EnableDynamicShapesSupport();
+    return k;
+}
+
+DeviceFeaturesKey FullyConnectedKernelIMAD::get_required_device_features_key(const Params& params, const optional_params& options) const {
+    DeviceFeaturesKey k;
+    k.requires_subgroups();
+    k.requires_reqd_subgroup_size();
+    k.requires_subgroup_shuffle();
+    k.requires_blocked_read_write();
+
     return k;
 }
 
 FullyConnectedKernelIMAD::Parent::DispatchData FullyConnectedKernelIMAD::SetDefault(const fully_connected_params& params, int) const {
     auto dispatchData = Parent::SetDefault(params);
-    auto tuning_data = GetTuningParams(params);
 
-    if (params.outputs[0].GetLayout() == DataLayout::bfyx) {
-        dispatchData.gws[0] = RoundUp(params.outputs[0].Y().v, tuning_data.sub_group_size * tuning_data.tile_ofm) /
-                              tuning_data.tile_ofm * tuning_data.slm_div_factor;
-        dispatchData.gws[1] = params.outputs[0].Batch().v;
-        dispatchData.gws[2] = params.outputs[0].Feature().v / tuning_data.tile_batch;
-    } else {
-        dispatchData.gws[0] = RoundUp(params.outputs[0].Feature().v, tuning_data.sub_group_size * tuning_data.tile_ofm) /
-                              tuning_data.tile_ofm * tuning_data.slm_div_factor;
-        dispatchData.gws[1] = params.outputs[0].Batch().v / tuning_data.tile_batch;
-        dispatchData.gws[2] = 1;
+    if (!params.has_dynamic_tensors()) {
+        auto tuning_data = GetTuningParams(params);
+        if (params.outputs[0].GetLayout() == DataLayout::bfyx) {
+            dispatchData.gws[0] = RoundUp(params.outputs[0].Y().v, tuning_data.sub_group_size * tuning_data.tile_ofm) /
+                                  tuning_data.tile_ofm * tuning_data.slm_div_factor;
+            dispatchData.gws[1] = params.outputs[0].Batch().v;
+            dispatchData.gws[2] = params.outputs[0].Feature().v / tuning_data.tile_batch;
+        } else {
+            dispatchData.gws[0] = RoundUp(params.outputs[0].Feature().v, tuning_data.sub_group_size * tuning_data.tile_ofm) /
+                                  tuning_data.tile_ofm * tuning_data.slm_div_factor;
+            dispatchData.gws[1] = params.outputs[0].Batch().v / tuning_data.tile_batch;
+            dispatchData.gws[2] = 1;
+        }
+
+        dispatchData.lws[0] = tuning_data.work_group_size;
+        dispatchData.lws[1] = 1;
+        dispatchData.lws[2] = 1;
     }
-
-    dispatchData.lws[0] = tuning_data.work_group_size;
-    dispatchData.lws[1] = 1;
-    dispatchData.lws[2] = 1;
 
     return dispatchData;
 }
@@ -76,6 +89,14 @@ bool FullyConnectedKernelIMAD::Validate(const Params& params, const optional_par
     const auto& fc_params = static_cast<const fully_connected_params&>(params);
     const auto& in = fc_params.inputs[0];
     const auto& wei = fc_params.weights;
+    auto out_l = fc_params.outputs[0].GetLayout();
+
+    // Dynamic kernel doesn't support dynamic weights
+    if (fc_params.is_shape_agnostic && in.is_dynamic()) {
+        if ((out_l == DataLayout::bfyx && in.Y().v == 0) ||
+            (out_l == DataLayout::bf && in.Feature().v == 0))
+            return false;
+    }
 
     if ((in.X().pad.before != 0) || (in.X().pad.after != 0) ||
         (in.Y().pad.before != 0) || (in.Y().pad.after != 0)) {
@@ -83,7 +104,6 @@ bool FullyConnectedKernelIMAD::Validate(const Params& params, const optional_par
         return false;
     }
 
-    auto out_l = fc_params.outputs[0].GetLayout();
     if (out_l == DataLayout::bfyx) {
         // We don't support 4d output
         if (in.X().v > 1)
@@ -137,25 +157,28 @@ FullyConnectedKernelIMAD::FullyConnectedTuningData FullyConnectedKernelIMAD::Get
     // In most cases SIMD8 works faster than SIMD16
     tuning_data.sub_group_size = 8;
 
-    auto mk_size = if_num * ib_num;
-    auto mn_size = of_num * ob_num;
+    if (!params.is_shape_agnostic) {
+        auto mk_size = if_num * ib_num;
+        auto mn_size = of_num * ob_num;
 
-    // Known cases where simd16 works better than simd8
-    bool simd16_is_faster = mk_size >= 1000 * 1024 && mn_size >= 1000 * 1024;
-    simd16_is_faster |= mk_size == 128 * 768 && mn_size == 128 * 3072;
+        // Known cases where simd16 works better than simd8
+        bool simd16_is_faster = mk_size >= 1000 * 1024 && mn_size >= 1000 * 1024;
+        simd16_is_faster |= mk_size == 128 * 768 && mn_size == 128 * 3072;
 
-    // Some specific HW doesn't support SIMD8, force SIMD16 to respect this HW
-    // For other SIMD16 exceptions check that if_num is divided by 64 (SIMD16 * ISV4) because
-    // if there are leftovers then SIMD8 is more preferrable
-    if (!IsSIMDSizeSupported(params.engineInfo, 8) || (simd16_is_faster && if_num % 64 == 0)) {
-        tuning_data.sub_group_size = 16;
+        // Some specific HW doesn't support SIMD8, force SIMD16 to respect this HW
+        // For other SIMD16 exceptions check that if_num is divided by 64 (SIMD16 * ISV4) because
+        // if there are leftovers then SIMD8 is more preferrable
+        if (!IsSIMDSizeSupported(params.engineInfo, 8) || (simd16_is_faster && if_num % 64 == 0)) {
+            tuning_data.sub_group_size = 16;
+        }
     }
-
     tuning_data.tile_ofm = 2;
 
     tuning_data.tile_batch = tuning_data.sub_group_size == 8 ? 16 : 8;
-    while (tile_batch_max_size % tuning_data.tile_batch != 0)
-        tuning_data.tile_batch--;
+    if (!params.has_dynamic_tensors()) {
+        while (tile_batch_max_size % tuning_data.tile_batch != 0)
+            tuning_data.tile_batch--;
+    }
 
     size_t sub_group_pack_size = tuning_data.sub_group_size * tuning_data.pack_size;
     tuning_data.in_f_blocks_number = CeilDiv(if_num, sub_group_pack_size);

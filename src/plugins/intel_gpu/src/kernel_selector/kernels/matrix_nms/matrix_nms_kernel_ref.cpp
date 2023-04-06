@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -49,8 +49,8 @@ MatrixNmsKernelRef::DispatchData SetDefault(const matrix_nms_params& params, siz
 }
 
 std::tuple<int, int> GetMaxBoxes(const matrix_nms_params& params) {
-    const int classes_num = params.inputs[1].Feature().v;
-    const int boxes_num = params.inputs[0].Feature().v;
+    const int classes_num = static_cast<const int>(params.inputs[1].Feature().v);
+    const int boxes_num = static_cast<const int>(params.inputs[0].Feature().v);
 
     int max_boxes_per_class{boxes_num};
     if (params.nms_top_k >= 0)
@@ -79,8 +79,8 @@ KernelsData MatrixNmsKernelRef::GetKernelsData(const Params& params, const optio
 
     constexpr size_t BOX_INFO_SIZE{16};
 
-    const int batches_num = new_params.inputs[1].Batch().v;
-    const int classes_num = new_params.inputs[1].Feature().v;
+    const int batches_num = static_cast<const int>(new_params.inputs[1].Batch().v);
+    const int classes_num = static_cast<const int>(new_params.inputs[1].Feature().v);
 
     int max_boxes_per_class, max_boxes_per_batch;
     std::tie(max_boxes_per_class, max_boxes_per_batch) = GetMaxBoxes(new_params);

@@ -1,8 +1,7 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "include/batch_headers/data_types.cl"
 #include "include/batch_headers/fetch_data.cl"
 
 #if defined(cl_intel_subgroups_short)
@@ -10,15 +9,15 @@
 #define TILE_K          FILTER_SIZE_X
 #define TILE_N          32
 
-__attribute__((intel_reqd_sub_group_size(16)))
+REQD_SUB_GROUP_SIZE(16)
 KERNEL(convolution_f16)(
     const __global half *src0,
     __global half *dst,
-    const __global half *src1,
+    const __global half *src1
 #if BIAS_TERM
-    const __global half *bias,
+    , const __global half *bias
 #endif
-    uint split_idx)
+)
 {
 #include "include/batch_headers/vec_typedefs.cl"
 
@@ -207,12 +206,12 @@ KERNEL(convolution_f16)(
             interleaved_y = 0;
             LOOP(FILTER_SIZE_X_DIV2, interleaved_y,
             {
-                p4BlockB00[interleaved_y] = intel_sub_group_block_read_us4( (const __global ushort*)src1 + src1_read_offset );
+                p4BlockB00[interleaved_y] = _sub_group_block_read_us4( (const __global ushort*)src1 + src1_read_offset );
                 src1_read_offset += ALIGNED_OFM_PER_GROUP * 2;
             } )
             if ( kernel_width_is_odd )
             {
-                p2BlockB00[FILTER_SIZE_X - 1] = intel_sub_group_block_read_us2( (const __global ushort*)src1 + src1_read_offset );
+                p2BlockB00[FILTER_SIZE_X - 1] = _sub_group_block_read_us2( (const __global ushort*)src1 + src1_read_offset );
                 src1_read_offset += ALIGNED_OFM_PER_GROUP * 2;
             }
 

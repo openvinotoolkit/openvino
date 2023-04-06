@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -14,7 +14,6 @@ namespace v9 {
 class OPENVINO_API RDFT : public util::FFTBase {
 public:
     OPENVINO_OP("RDFT", "opset9", util::FFTBase);
-    BWDCMP_RTTI_DECLARATION;
     RDFT() = default;
 
     /// \brief Constructs a RDFT operation. RDFT is performed for full size axes.

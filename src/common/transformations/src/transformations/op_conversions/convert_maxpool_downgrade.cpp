@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -11,6 +11,7 @@
 #include <transformations/utils/utils.hpp>
 
 #include "itt.hpp"
+#include "openvino/core/descriptor/tensor.hpp"
 
 using namespace std;
 using namespace ov;
@@ -38,7 +39,7 @@ pass::ConvertMaxPool8ToMaxPool1::ConvertMaxPool8ToMaxPool1() {
                                                                 maxpool_v8_node->get_rounding_type(),
                                                                 maxpool_v8_node->get_auto_pad());
 
-        auto out_name = ngraph::op::util::create_ie_output_name(maxpool_v8_node->output(0));
+        auto out_name = ov::op::util::create_ie_output_name(maxpool_v8_node->output(0));
 
         maxpool_v1_node->set_friendly_name(maxpool_v8_node->get_friendly_name());
         maxpool_v8_node->output(0).replace(maxpool_v1_node->output(0));
@@ -46,7 +47,7 @@ pass::ConvertMaxPool8ToMaxPool1::ConvertMaxPool8ToMaxPool1() {
         maxpool_v8_node->clear_control_dependencies();
 
         NGRAPH_SUPPRESS_DEPRECATED_START
-        maxpool_v1_node->output(0).get_tensor().set_name(out_name);
+        ov::descriptor::set_ov_tensor_legacy_name(maxpool_v1_node->output(0).get_tensor(), out_name);
         NGRAPH_SUPPRESS_DEPRECATED_END
 
         return true;

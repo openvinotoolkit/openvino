@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -54,9 +54,6 @@ bool evaluate_subtract(const HostTensorPtr& arg0,
 }  // namespace subtract
 
 // ------------------------------- v1 ------------------------------------------
-
-BWDCMP_RTTI_DEFINITION(op::v1::Subtract);
-
 op::v1::Subtract::Subtract(const Output<Node>& arg0, const Output<Node>& arg1, const AutoBroadcastSpec& auto_broadcast)
     : BinaryElementwiseArithmetic(arg0, arg1, auto_broadcast) {
     constructor_validate_and_infer_types();

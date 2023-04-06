@@ -4,16 +4,16 @@
 
 #include <gtest/gtest.h>
 
-#include "transformations/split_eltwise.hpp"
-
-#include "common_test_utils/common_utils.hpp"
-#include "common_test_utils/ngraph_test_utils.hpp"
+#include <layers/gna_split_layer.hpp>
+#include <legacy/ngraph_ops/eltwise.hpp>
 #include <ngraph/function.hpp>
 #include <ngraph/opsets/opset9.hpp>
 #include <ngraph/pass/manager.hpp>
 #include <transformations/init_node_info.hpp>
-#include <legacy/ngraph_ops/eltwise.hpp>
-#include <layers/gna_split_layer.hpp>
+
+#include "common_test_utils/common_utils.hpp"
+#include "common_test_utils/ngraph_test_utils.hpp"
+#include "transformations/split_eltwise.hpp"
 
 namespace testing {
 namespace {
@@ -55,13 +55,23 @@ static std::shared_ptr<ngraph::Function> createFunction(const ngraph::Shape& inp
     }
 
     if (split) {
-        auto split_sizes_per_axis = GNAPluginNS::AlignedSplitSizesPerAxis(input_shape);
-        auto split0 = std::make_shared<ngraph::opset9::VariadicSplit>(last_node0,
-                ngraph::opset9::Constant::create(ngraph::element::i64, ngraph::Shape({1}), std::vector<int64_t>{split_sizes_per_axis.first}),
-                ngraph::opset9::Constant::create(ngraph::element::i64, ngraph::Shape({split_sizes_per_axis.second.size()}), split_sizes_per_axis.second));
-        auto split1 = std::make_shared<ngraph::opset9::VariadicSplit>(last_node1,
-                ngraph::opset9::Constant::create(ngraph::element::i64, ngraph::Shape({1}), std::vector<int64_t>{split_sizes_per_axis.first}),
-                ngraph::opset9::Constant::create(ngraph::element::i64, ngraph::Shape({split_sizes_per_axis.second.size()}), split_sizes_per_axis.second));
+        auto split_sizes_per_axis = ov::intel_gna::AlignedSplitSizesPerAxis(input_shape);
+        auto split0 = std::make_shared<ngraph::opset9::VariadicSplit>(
+            last_node0,
+            ngraph::opset9::Constant::create(ngraph::element::i64,
+                                             ngraph::Shape({1}),
+                                             std::vector<int64_t>{split_sizes_per_axis.first}),
+            ngraph::opset9::Constant::create(ngraph::element::i64,
+                                             ngraph::Shape({split_sizes_per_axis.second.size()}),
+                                             split_sizes_per_axis.second));
+        auto split1 = std::make_shared<ngraph::opset9::VariadicSplit>(
+            last_node1,
+            ngraph::opset9::Constant::create(ngraph::element::i64,
+                                             ngraph::Shape({1}),
+                                             std::vector<int64_t>{split_sizes_per_axis.first}),
+            ngraph::opset9::Constant::create(ngraph::element::i64,
+                                             ngraph::Shape({split_sizes_per_axis.second.size()}),
+                                             split_sizes_per_axis.second));
         ov::NodeVector concat_inputs;
         for (size_t i = 0; i < split_sizes_per_axis.second.size(); i++) {
             auto eltwise_node_part = std::make_shared<ngraph::op::Eltwise>(split0->output(i), split1->output(i), type);
@@ -77,12 +87,12 @@ static std::shared_ptr<ngraph::Function> createFunction(const ngraph::Shape& inp
     }
 }
 
-typedef std::tuple<
-        ngraph::Shape,
-        bool,                               // with const
-        bool,                               // with fq
-        ELTWISE_TYPE                        // eltwise type
-> EltwiseSplitParams;
+typedef std::tuple<ngraph::Shape,
+                   bool,         // with const
+                   bool,         // with fq
+                   ELTWISE_TYPE  // eltwise type
+                   >
+    EltwiseSplitParams;
 
 static std::string getTestCaseName(testing::TestParamInfo<EltwiseSplitParams> obj) {
     ngraph::Shape shape;
@@ -112,10 +122,11 @@ static std::string getTestCaseName(testing::TestParamInfo<EltwiseSplitParams> ob
     return result.str();
 }
 
-class SplitEltwiseTestSuiteFixture: public CommonTestUtils::TestsCommon,
-                               public ::testing::WithParamInterface<EltwiseSplitParams> {
+class SplitEltwiseTestSuiteFixture : public CommonTestUtils::TestsCommon,
+                                     public ::testing::WithParamInterface<EltwiseSplitParams> {
 public:
     void SetUp() override;
+
 public:
     std::shared_ptr<ngraph::Function> function, reference_function;
 };
@@ -130,13 +141,13 @@ void SplitEltwiseTestSuiteFixture::SetUp() {
     reference_function = createFunction(shape, with_const, with_fq, type, true);
 }
 
-void execute_test(std::shared_ptr<ngraph::Function> function,
-                  std::shared_ptr<ngraph::Function> reference_function) {
+void execute_test(std::shared_ptr<ngraph::Function> function, std::shared_ptr<ngraph::Function> reference_function) {
     ngraph::pass::Manager manager;
-    manager.register_pass<ngraph::pass::InitNodeInfo>();
+    manager.register_pass<ov::pass::InitNodeInfo>();
     manager.register_pass<ov::intel_gna::pass::SplitEltwise>();
     manager.run_passes(function);
-    const FunctionsComparator func_comparator = FunctionsComparator::with_default().enable(FunctionsComparator::ATTRIBUTES);
+    const FunctionsComparator func_comparator =
+        FunctionsComparator::with_default().enable(FunctionsComparator::ATTRIBUTES);
     const FunctionsComparator::Result result = func_comparator(function, reference_function);
     ASSERT_TRUE(result.valid) << result.message;
 }
@@ -145,21 +156,18 @@ TEST_P(SplitEltwiseTestSuiteFixture, CompareFunctions) {
     execute_test(function, reference_function);
 }
 
-const std::vector<ov::Shape> inputShape = {
-    {1, 67000},
-    {1, 500000},
-    {1, 936, 513},
-    {1, 64, 64, 64},
-    {1, 256, 64, 64}
-};
+const std::vector<ov::Shape> inputShape = {{1, 67000}, {1, 500000}, {1, 936, 513}, {1, 64, 64, 64}, {1, 256, 64, 64}};
 
-INSTANTIATE_TEST_SUITE_P(SplitEltwiseTestSuite, SplitEltwiseTestSuiteFixture,
-                        ::testing::Combine(
-                            ::testing::ValuesIn(inputShape),
-                            ::testing::ValuesIn(std::vector<bool>{true, false}),                                                       // with const
-                            ::testing::ValuesIn(std::vector<bool>{true, false}),                                                       // with fq
-                            ::testing::ValuesIn(std::vector<ELTWISE_TYPE>{ELTWISE_TYPE::Sum, ELTWISE_TYPE::Sub, ELTWISE_TYPE::Prod})), // eltwise type
-                            getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(SplitEltwiseTestSuite,
+                         SplitEltwiseTestSuiteFixture,
+                         ::testing::Combine(::testing::ValuesIn(inputShape),
+                                            ::testing::ValuesIn(std::vector<bool>{true, false}),  // with const
+                                            ::testing::ValuesIn(std::vector<bool>{true, false}),  // with fq
+                                            ::testing::ValuesIn(std::vector<ELTWISE_TYPE>{
+                                                ELTWISE_TYPE::Sum,
+                                                ELTWISE_TYPE::Sub,
+                                                ELTWISE_TYPE::Prod})),  // eltwise type
+                         getTestCaseName);
 
-} // namespace
-} // namespace testing
+}  // namespace
+}  // namespace testing

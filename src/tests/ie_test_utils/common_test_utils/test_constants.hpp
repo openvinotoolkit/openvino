@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -11,8 +11,6 @@ extern const char* DEVICE_CPU;
 extern const char* DEVICE_GNA;
 extern const char* DEVICE_GPU;
 extern const char* DEVICE_BATCH;
-extern const char* DEVICE_HDDL;
-extern const char* DEVICE_MYRIAD;
 extern const char* DEVICE_KEEMBAY;
 extern const char* DEVICE_MULTI;
 extern const char* DEVICE_TEMPLATE;

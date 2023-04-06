@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -165,7 +165,7 @@ bool convertTensorIteratorToSequence(const std::shared_ptr<ov::opset5::TensorIte
                                                       gru_cell->get_clip(),
                                                       gru_cell->get_linear_before_reset());
     } else {
-        throw ov::Exception("Unsupported sequence type");
+        OPENVINO_THROW("Unsupported sequence type");
     }
 
     ngraph::Output<ngraph::Node> out = sequence->output(0);

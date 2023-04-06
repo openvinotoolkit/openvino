@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2018-2022 Intel Corporation
+﻿// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -34,6 +34,16 @@ ParamsKey FullyConnectedKernelMMAD::GetSupportedKey() const {
     k.EnableTensorPitches();
     k.EnableBatching();
     k.EnableQuantization(QuantizationType::SYMMETRIC);
+    return k;
+}
+
+DeviceFeaturesKey FullyConnectedKernelMMAD::get_required_device_features_key(const Params& params, const optional_params& options) const {
+    DeviceFeaturesKey k;
+    k.requires_subgroups();
+    k.requires_reqd_subgroup_size();
+    k.requires_blocked_read_write();
+    k.requires_subgroup_broadcast();
+
     return k;
 }
 

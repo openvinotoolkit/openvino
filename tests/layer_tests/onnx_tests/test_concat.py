@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2022 Intel Corporation
+# Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import pytest
@@ -33,7 +33,7 @@ class TestConcat(OnnxRuntimeLayerTest):
         concat_output_shape[concat_axis] *= 2
 
         const_number = np.prod(input_shape)
-        constant = np.random.randint(-127, 127, const_number).astype(np.float)
+        constant = np.random.randint(-127, 127, const_number).astype(float)
 
         input = helper.make_tensor_value_info('input', TensorProto.FLOAT, output_shape)
 

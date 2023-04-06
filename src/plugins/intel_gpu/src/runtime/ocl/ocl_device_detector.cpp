@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -40,10 +40,6 @@ bool does_device_match_config(const cl::Device& device) {
     if (device.getInfo<CL_DEVICE_TYPE>() != CL_DEVICE_TYPE_GPU) {
         return false;
     }
-
-    // TODO: Remove the check below once kernels are fixed
-    if (device.getInfo<CL_DEVICE_VENDOR_ID>() != cldnn::INTEL_VENDOR_ID)
-        return false;
 
     int32_t ocl_major = -1;
     int32_t ocl_minor = -1;

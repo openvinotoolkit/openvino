@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -86,7 +86,9 @@ public:
             while (!ngraph::is_type<opset6::Constant>(cur_node) && cur_node->inputs().size()) {
                 weights_calculation_nodes.push_back(cur_node);
                 if (ngraph::is_type<opset6::Transpose>(cur_node)) {
+                    OPENVINO_SUPPRESS_DEPRECATED_START
                     const auto forward_order = get_constant_from_source(cur_node->get_input_node_shared_ptr(1));
+                    OPENVINO_SUPPRESS_DEPRECATED_END
                     if (!forward_order)
                         return false;
                     const auto forward_order_vec = forward_order->cast_vector<int64_t>();
@@ -114,7 +116,7 @@ public:
             // 2. Get constant rank to set mask on last dimension
             const auto const_op = std::dynamic_pointer_cast<opset6::Constant>(cur_node);
             const auto shape_rank = const_op->get_shape().size();
-            const auto shift = (matmul->get_transpose_b()) ? 2 : 1;
+            const size_t shift = (matmul->get_transpose_b()) ? 2 : 1;
             if (shape_rank < shift) {
                 NGRAPH_DEBUG << "Can't init mask for MatMul: " << matmul->get_friendly_name() << std::endl;
                 return false;

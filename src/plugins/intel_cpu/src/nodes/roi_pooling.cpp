@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -383,8 +383,8 @@ bool ROIPooling::isSupportedOperation(const std::shared_ptr<const ngraph::Node>&
     return true;
 }
 
-ROIPooling::ROIPooling(const std::shared_ptr<ngraph::Node>& op, const dnnl::engine& eng,
-        WeightsSharing::Ptr &cache) : Node(op, eng, cache) {
+ROIPooling::ROIPooling(const std::shared_ptr<ngraph::Node>& op, const GraphContext::CPtr context)
+    : Node(op, context, NgraphShapeInferFactory(op, EMPTY_PORT_MASK)) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
         IE_THROW(NotImplemented) << errorMessage;
@@ -393,10 +393,10 @@ ROIPooling::ROIPooling(const std::shared_ptr<ngraph::Node>& op, const dnnl::engi
     std::string errorPrefix = "ROIPooling layer with name '" + getName() + "' ";
 
     auto roiPooling = ngraph::as_type_ptr<const ngraph::opset2::ROIPooling>(op);
-    refParams.pooled_h = roiPooling->get_output_size()[0];
-    refParams.pooled_w = roiPooling->get_output_size()[1];
+    refParams.pooled_h = roiPooling->get_output_roi()[0];
+    refParams.pooled_w = roiPooling->get_output_roi()[1];
     refParams.spatial_scale = roiPooling->get_spatial_scale();
-    std::string m = roiPooling->get_method();
+    const auto& m = roiPooling->get_method();
     if (m == "max") {
         algorithm = Algorithm::ROIPoolingMax;
     } else if (m == "bilinear") {
@@ -523,7 +523,7 @@ void ROIPooling::prepareParams() {
     auto builder = [](const RoiPoolingKey& key) {
         return ROIPoolingExecutor::createROIPoolingNewExecutor(key.refParams);
     };
-    auto cache = getRuntimeCache();
+    auto cache = context->getParamsCache();
     auto result = cache->getOrCreate(key, builder);
     execPtr = result.first;
 }

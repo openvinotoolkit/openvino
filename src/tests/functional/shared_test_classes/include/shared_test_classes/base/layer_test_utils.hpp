@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2018-2022 Intel Corporation
+﻿// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -21,8 +21,8 @@
 #include "common_test_utils/ngraph_test_utils.hpp"
 #include "common_test_utils/common_utils.hpp"
 #include "common_test_utils/test_common.hpp"
-#include "common_test_utils/crash_handler.hpp"
 
+#include "functional_test_utils/crash_handler.hpp"
 #include "functional_test_utils/skip_tests_config.hpp"
 #include "functional_test_utils/plugin_cache.hpp"
 #include "functional_test_utils/blob_utils.hpp"
@@ -143,6 +143,8 @@ protected:
     virtual void ConfigureNetwork();
 
     virtual void LoadNetwork();
+
+    virtual void ExpectLoadNetworkToThrow(const std::string& msg);
 
     virtual void GenerateInputs();
 

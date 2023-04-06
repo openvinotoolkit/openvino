@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -27,11 +27,10 @@
 #include "openvino/op/util/variable_extension.hpp"
 #include "openvino/pass/manager.hpp"
 #include "shared_node_info.hpp"
+#include "tensor_conversion_util.hpp"
 #include "transformations/smart_reshape/smart_reshape.hpp"
 
 using namespace std;
-
-BWDCMP_RTTI_DEFINITION(ov::AttributeAdapter<std::shared_ptr<ov::Model>>);
 
 atomic<size_t> ov::Model::m_next_instance_id(0);
 
@@ -47,8 +46,9 @@ void check_all_variables_registered(const std::vector<shared_ptr<ov::Node>>& ord
             std::find(variables.begin(), variables.end(), variable_op->get_variable()) == variables.end())
             unregistered_variables << variable_op->get_variable_id() << std::endl;
     }
-    if (!unregistered_variables.str().empty())
-        throw ov::Exception("Model references undeclared variables: " + unregistered_variables.str());
+    OPENVINO_ASSERT(unregistered_variables.str().empty(),
+                    "Model references undeclared variables: ",
+                    unregistered_variables.str());
 }
 
 void check_all_parameters_registered(const std::vector<shared_ptr<ov::Node>>& ordered_ops,
@@ -61,8 +61,9 @@ void check_all_parameters_registered(const std::vector<shared_ptr<ov::Node>>& or
             std::find(parameters.begin(), parameters.end(), node) == parameters.end())
             unregistered_parameters << node << std::endl;
     }
-    if (!unregistered_parameters.str().empty())
-        throw ov::Exception("Model references undeclared parameters: " + unregistered_parameters.str());
+    OPENVINO_ASSERT(unregistered_parameters.str().empty(),
+                    "Model references undeclared parameters: ",
+                    unregistered_parameters.str());
 }
 
 ov::op::util::VariableVector auto_detect_variables(const std::vector<std::shared_ptr<ov::Node>>& ordered_ops) {
@@ -87,11 +88,13 @@ ngraph::ParameterVector auto_detect_parameters(const std::vector<std::shared_ptr
     return parameter_vector;
 }
 
-}  // namespace
+// Check that a Node argument for ctor isn't nullptr.
+const std::shared_ptr<ov::Node>& verify_node(const std::shared_ptr<ov::Node>& node) {
+    OPENVINO_ASSERT(node != nullptr, "Model is incorrect! Some Node equals to nullptr.");
+    return node;
+}
 
-OPENVINO_SUPPRESS_DEPRECATED_START
-const ov::DiscreteTypeInfo ov::Model::type_info = ov::Model::get_type_info_static();
-OPENVINO_SUPPRESS_DEPRECATED_END
+}  // namespace
 
 ov::Model::Model(const ResultVector& results, const ngraph::ParameterVector& parameters, const std::string& name)
     : m_name(name),
@@ -123,7 +126,7 @@ ov::Model::Model(const NodeVector& results, const ngraph::ParameterVector& param
 ov::Model::Model(const std::shared_ptr<Node>& result,
                  const ngraph::ParameterVector& parameters,
                  const std::string& name)
-    : Model(result->outputs(), parameters, name) {}
+    : Model(verify_node(result)->outputs(), parameters, name) {}
 
 ov::Model::Model(const ngraph::ResultVector& results,
                  const ngraph::SinkVector& sinks,
@@ -192,6 +195,22 @@ ov::Model::Model(const OutputVector& results, const string& name) : Model(result
 void ov::Model::prerequirements(bool detect_variables, bool detect_parameters) {
     OV_ITT_SCOPED_TASK(ov::itt::domains::core, "Model::prerequirements");
 
+    for (const auto& param : m_parameters) {
+        OPENVINO_ASSERT(param != nullptr, "Model is incorrect! Some Parameter operation equals to nullptr.");
+    }
+
+    for (const auto& result : m_results) {
+        OPENVINO_ASSERT(result != nullptr, "Model is incorrect! Some Result operation equals to nullptr.");
+    }
+
+    for (const auto& sink : m_sinks) {
+        OPENVINO_ASSERT(sink != nullptr, "Model is incorrect! Some Sink operation equals to nullptr.");
+    }
+
+    for (const auto& variable : m_variables) {
+        OPENVINO_ASSERT(variable != nullptr, "Model is incorrect! Some Variable equals to nullptr.");
+    }
+
     m_shared_rt_info = std::make_shared<SharedRTInfo>();
 
     const auto& ordered_ops = get_ordered_ops();
@@ -243,18 +262,20 @@ void ov::Model::validate_nodes_and_infer_types() const {
         }
     }
 
-    if (!unregistered_parameters.str().empty())
-        throw ov::Exception("Model references undeclared parameters: " + unregistered_parameters.str());
+    OPENVINO_ASSERT(unregistered_parameters.str().empty(),
+                    "Model references undeclared parameters: ",
+                    unregistered_parameters.str());
 
-    if (!unregistered_variables.str().empty())
-        throw ov::Exception("Model references undeclared Variables: " + unregistered_variables.str());
+    OPENVINO_ASSERT(unregistered_variables.str().empty(),
+                    "Model references undeclared Variables: ",
+                    unregistered_variables.str());
     bool only_pairs =
         std::all_of(pair_checker.begin(), pair_checker.end(), [](const std::pair<op::util::Variable*, Counter>& val) {
             return val.second.cnt_assign == 1 && val.second.cnt_read_val == 1;
         });
-    if (!only_pairs)
-        throw ov::Exception("Model is incorrect. Assign and ReadValue operations must be in pairs on the "
-                            "network.");
+    OPENVINO_ASSERT(only_pairs,
+                    "Model is incorrect. Assign and ReadValue operations must be in pairs on the "
+                    "network.");
     for (const auto& output : outputs()) {
         OPENVINO_ASSERT(ov::layout::utils::is_compatible(ov::layout::get_layout(output), output.get_partial_shape()),
                         "Result '",
@@ -297,6 +318,7 @@ std::vector<shared_ptr<ov::Node>> ov::Model::get_ordered_ops() const {
     m_cached_ordered_ops.clear();
     for_each(order.cbegin(), order.cend(), [this](const shared_ptr<Node>& node) {
         m_cached_ordered_ops.push_back(node);
+        m_cached_ops.insert(node.get());
         node->insert_info(m_shared_rt_info);
     });
     m_cached_output_names.clear();
@@ -375,9 +397,7 @@ shared_ptr<ov::Node> ov::Model::get_output_op(size_t i) const {
 }
 
 shared_ptr<ov::Node> ov::Model::get_result() const {
-    if (m_results.size() != 1) {
-        throw ov::Exception("get_result() must be called on a Model with exactly one result.");
-    }
+    OPENVINO_ASSERT(m_results.size() == 1, "get_result() must be called on a Model with exactly one result.");
     return m_results.at(0);
 }
 
@@ -475,50 +495,15 @@ int64_t ov::Model::get_result_index(const Output<const Node>& value) const {
     return -1;
 }
 
-namespace {
-
-inline ov::Tensor create_tmp_tensor(const ngraph::HostTensorPtr& tensor) {
-    if (tensor->get_partial_shape().is_static()) {
-        ov::Shape shape = tensor->get_shape();
-        return std::move(ov::Tensor(tensor->get_element_type(), shape, tensor->get_data_ptr()));
-    } else {
-        if (tensor->get_element_type().is_dynamic()) {
-            return std::move(ov::Tensor());
-        } else {
-            return std::move(ov::Tensor(tensor->get_element_type(), {0}));
-        }
-    }
-}
-inline ov::TensorVector create_tmp_tensors(const ngraph::HostTensorVector& tensors) {
-    ov::TensorVector result;
-    result.reserve(tensors.size());
-    for (const auto& tensor : tensors) {
-        result.emplace_back(create_tmp_tensor(tensor));
-    }
-    return std::move(result);
-}
-
-inline void update_output_tensors(const ngraph::HostTensorVector& output_values, const ov::TensorVector& outputs) {
-    OPENVINO_ASSERT(output_values.size(), outputs.size());
-    for (size_t i = 0; i < outputs.size(); i++) {
-        const auto& tensor = output_values[i];
-        if (tensor->get_partial_shape().is_dynamic()) {
-            tensor->set_element_type(outputs[i].get_element_type());
-            tensor->set_shape(outputs[i].get_shape());
-            void* dst_data = tensor->get_data_ptr();
-            memcpy(dst_data, outputs[i].data(), tensor->get_size_in_bytes());
-        }
-    }
-}
-}  // namespace
-
 bool ov::Model::evaluate(const HostTensorVector& output_tensors,
                          const HostTensorVector& input_tensors,
                          EvaluationContext evaluation_context) const {
-    ov::TensorVector outputs = create_tmp_tensors(output_tensors);
-    ov::TensorVector inputs = create_tmp_tensors(input_tensors);
+    OPENVINO_SUPPRESS_DEPRECATED_START
+    auto outputs = ov::util::wrap_tensors(output_tensors);
+    auto inputs = ov::util::wrap_tensors(input_tensors);
     bool sts = evaluate(outputs, inputs, std::move(evaluation_context));
-    update_output_tensors(output_tensors, outputs);
+    ov::util::update_output_host_tensors(output_tensors, outputs);
+    OPENVINO_SUPPRESS_DEPRECATED_END
     return sts;
 }
 
@@ -550,13 +535,7 @@ bool ov::Model::evaluate(ov::TensorVector& output_tensors,
             for (const auto& v : node->outputs()) {
                 auto it = output_tensor_map.find(v);
                 if (it == output_tensor_map.end()) {
-                    if (v.get_partial_shape().is_dynamic() || v.get_element_type().is_dynamic()) {
-                        ov::Tensor c = create_tmp_tensor(std::make_shared<HostTensor>(v));
-                        output_tensors.push_back(c);
-                    } else {
-                        ov::Tensor c(v.get_element_type(), v.get_shape());
-                        output_tensors.push_back(c);
-                    }
+                    output_tensors.push_back(util::wrap_tensor(v));
                 } else {
                     output_tensors.push_back(it->second);
                 }
@@ -692,9 +671,7 @@ std::vector<ov::Output<const ov::Node>> ov::Model::outputs() const {
     return results;
 }
 ov::Output<const ov::Node> ov::Model::output() const {
-    if (m_results.size() != 1) {
-        throw ov::Exception("output() must be called on a Model with exactly one result.");
-    }
+    OPENVINO_ASSERT(m_results.size() == 1, "output() must be called on a Model with exactly one result.");
     std::shared_ptr<const ov::Node> result = m_results.at(0);
     return result;
 }
@@ -709,7 +686,7 @@ ov::Output<const ov::Node> ov::Model::output(const std::string& tensor_name) con
             return result;
         }
     }
-    throw ov::Exception("Output for tensor name '" + tensor_name + "' is not found.");
+    OPENVINO_THROW("Output for tensor name '", tensor_name, "' is not found.");
 }
 
 std::vector<ov::Output<ov::Node>> ov::Model::outputs() {
@@ -720,9 +697,7 @@ std::vector<ov::Output<ov::Node>> ov::Model::outputs() {
     return results;
 }
 ov::Output<ov::Node> ov::Model::output() {
-    if (m_results.size() != 1) {
-        throw ov::Exception("output() must be called on a Model with exactly one result.");
-    }
+    OPENVINO_ASSERT(m_results.size() == 1, "output() must be called on a Model with exactly one result.");
     return m_results.at(0);
 }
 ov::Output<ov::Node> ov::Model::output(size_t i) {
@@ -733,7 +708,7 @@ ov::Output<ov::Node> ov::Model::output(const std::string& tensor_name) {
         if (res->get_input_tensor(0).get_names().count(tensor_name))
             return res;
     }
-    throw ov::Exception("Output for tensor name '" + tensor_name + "' is not found.");
+    OPENVINO_THROW("Output for tensor name '", tensor_name, "' is not found.");
 }
 
 /// Input Model
@@ -747,9 +722,7 @@ std::vector<ov::Output<const ov::Node>> ov::Model::inputs() const {
 }
 
 ov::Output<const ov::Node> ov::Model::input() const {
-    if (m_parameters.size() != 1) {
-        throw ov::Exception("input() must be called on a Model with exactly one parameter.");
-    }
+    OPENVINO_ASSERT(m_parameters.size() == 1, "input() must be called on a Model with exactly one parameter.");
     std::shared_ptr<const ov::Node> parameter = m_parameters.at(0);
     return parameter;
 }
@@ -764,7 +737,7 @@ ov::Output<const ov::Node> ov::Model::input(const std::string& tensor_name) cons
             return parameter;
         }
     }
-    throw ov::Exception("Input for tensor name '" + tensor_name + "' is not found.");
+    OPENVINO_THROW("Input for tensor name '", tensor_name, "' is not found.");
 }
 
 std::vector<ov::Output<ov::Node>> ov::Model::inputs() {
@@ -776,9 +749,7 @@ std::vector<ov::Output<ov::Node>> ov::Model::inputs() {
 }
 
 ov::Output<ov::Node> ov::Model::input() {
-    if (m_parameters.size() != 1) {
-        throw ov::Exception("input() must be called on a Model with exactly one parameter.");
-    }
+    OPENVINO_ASSERT(m_parameters.size() == 1, "input() must be called on a Model with exactly one parameter.");
     return m_parameters.at(0);
 }
 ov::Output<ov::Node> ov::Model::input(size_t i) {
@@ -789,13 +760,12 @@ ov::Output<ov::Node> ov::Model::input(const std::string& tensor_name) {
         if (param->get_output_tensor(0).get_names().count(tensor_name))
             return param;
     }
-    throw ov::Exception("Input for tensor name '" + tensor_name + "' is not found.");
+    OPENVINO_THROW("Input for tensor name '", tensor_name, "' is not found.");
 }
 
 void ov::Model::reshape(const ov::PartialShape& partial_shape) {
-    if (m_parameters.size() != 1) {
-        throw ov::Exception("reshape(const ov::PartialShape&) must be called on a Model with exactly one parameter.");
-    }
+    OPENVINO_ASSERT(m_parameters.size() == 1,
+                    "reshape(const ov::PartialShape&) must be called on a Model with exactly one parameter.");
     std::map<size_t, ov::PartialShape> shapes;
     shapes[0] = partial_shape;
     reshape(shapes);
@@ -887,7 +857,7 @@ void ov::Model::reshape(const std::map<ov::Output<ov::Node>, ov::PartialShape>& 
 
     try {
         ov::pass::Manager ssr_manager;
-        ssr_manager.register_pass<ngraph::pass::SmartReshape>();
+        ssr_manager.register_pass<ov::pass::SmartReshape>();
         ssr_manager.run_passes(shared_from_this());
 
         reshape_only(new_param_shapes);
@@ -954,6 +924,9 @@ ov::Output<ov::Node> ov::Model::add_output(const std::string& op_name, size_t ou
 }
 
 ov::Output<ov::Node> ov::Model::add_output(const ov::Output<ov::Node>& port) {
+    auto cache_valid = [&]() {
+        return m_cached_ops.count(port.get_node());
+    };
     if (ov::op::util::is_output(port.get_node()))
         return port;
     for (const auto& input : port.get_target_inputs()) {
@@ -965,15 +938,22 @@ ov::Output<ov::Node> ov::Model::add_output(const ov::Output<ov::Node>& port) {
     auto result = std::make_shared<ov::op::v0::Result>(port);
     m_results.push_back(result);
     if (m_shared_rt_info->get_use_topological_cache()) {
-        // Full update of topological cache is not needed, 'result' can be just inserted to the end
-        m_cached_ordered_ops.push_back(result);
-        result->insert_info(m_shared_rt_info);  // Just for consistency, not required for Result nodes
+        if (cache_valid()) {
+            // Full update of topological cache is not needed, 'result' can be just inserted to the end
+            m_cached_ordered_ops.push_back(result);
+            m_cached_ops.insert(result.get());
+            result->insert_info(m_shared_rt_info);  // Just for consistency, not required for Result nodes
+        } else {
+            m_shared_rt_info->set_use_topological_cache(false);
+        }
     }
     return result->output(0);
 }
 
 std::shared_ptr<ov::Model> ov::Model::clone() const {
+    OPENVINO_SUPPRESS_DEPRECATED_START
     return ov::clone_model(*this);
+    OPENVINO_SUPPRESS_DEPRECATED_END
 }
 
 bool ov::Model::has_rt_info(const std::vector<std::string>& args) const {
@@ -984,7 +964,7 @@ bool ov::Model::has_rt_info(const std::vector<std::string>& args) const {
             return false;
         if (i == args.size() - 1)
             break;
-        const ov::Any& rt_attr = get_rt_arg<std::string>(info, args[i]);
+        const ov::Any rt_attr = get_rt_arg<std::string>(info, args[i]);
         info = get_map_from_attr(rt_attr);
     }
     return true;
@@ -1022,7 +1002,7 @@ const ov::AnyMap& ov::Model::get_map_from_attr(const ov::Any& info) const {
         std::shared_ptr<ov::Meta> meta = info.as<std::shared_ptr<ov::Meta>>();
         return *info.as<std::shared_ptr<ov::Meta>>();
     }
-    throw ov::Exception("Cannot get runtime attribute. Path to runtime attribute is incorrect.");
+    OPENVINO_THROW("Cannot get runtime attribute. Path to runtime attribute is incorrect.");
 }
 
 ov::AnyMap& ov::Model::get_map_from_attr(ov::Any& info) const {
@@ -1038,7 +1018,7 @@ ov::AnyMap& ov::Model::get_map_from_attr(ov::Any& info) const {
         std::shared_ptr<ov::Meta> meta = info.as<std::shared_ptr<ov::Meta>>();
         return *info.as<std::shared_ptr<ov::Meta>>();
     }
-    throw ov::Exception("Cannot get runtime attribute. Path to runtime attribute is incorrect.");
+    OPENVINO_THROW("Cannot get runtime attribute. Path to runtime attribute is incorrect.");
 }
 
 const ov::Any& ov::Model::get_attr(const ov::Any& info) const {

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -10,8 +10,6 @@
 
 using namespace std;
 using namespace ngraph;
-
-BWDCMP_RTTI_DEFINITION(ov::op::v1::LogicalAnd);
 
 op::v1::LogicalAnd::LogicalAnd(const Output<Node>& arg0,
                                const Output<Node>& arg1,
@@ -67,7 +65,9 @@ bool evaluate_logand(const HostTensorPtr& arg0,
 
 bool op::v1::LogicalAnd::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const {
     OV_OP_SCOPE(v1_LogicalAnd_evaluate);
+    OPENVINO_SUPPRESS_DEPRECATED_START
     NGRAPH_CHECK(validate_host_tensor_vector(outputs, 1) && validate_host_tensor_vector(inputs, 2));
+    OPENVINO_SUPPRESS_DEPRECATED_END
     return logand::evaluate_logand(inputs[0], inputs[1], outputs[0], get_autob());
 }
 

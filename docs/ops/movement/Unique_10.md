@@ -29,6 +29,14 @@ The operator can either work in elementwise mode searching for unique values in 
   * **Default value**: "i64"
   * **Required**: *no*
 
+* *count_element_type*
+
+  * **Description**: controls the data type of the last output tensor.
+  * **Range of values**: "i64" or "i32"
+  * **Type**: string
+  * **Default value**: "i64"
+  * **Required**: *no*
+
 **Inputs**
 
 * **1**: A tensor of type *T* and arbitrary shape. **Required.**
@@ -40,7 +48,7 @@ The operator can either work in elementwise mode searching for unique values in 
 * **1**: The output tensor containing unique elements (individual values or subtensors). This tensor's type matches the type of the first input tensor: *T*. The values in this tensor are either sorted ascendingly or maintain the same order as in the input tensor. The shape of this output depends on the values of the input tensor and will very often be dynamic. Please refer to the article describing how [Dynamic Shapes](https://docs.openvino.ai/latest/openvino_docs_OV_UG_DynamicShapes.html) are handled in OpenVINO.
 * **2**: The output tensor containing indices of the locations of unique elements. The indices map the elements in the first output tensor to their locations in the input tensor. The index always points to the first occurrence of a given unique output element in the input tensor. This is a 1D tensor with type controlled by the `index_element_type` attribute.
 * **3**: The output tensor containing indices of the locations of elements of the input tensor in the first output tensor. This means that for each element of the input tensor this output will point to the unique value in the first output tensor of this operator. This is a 1D tensor with type controlled by the `index_element_type` attribute.
-* **4**: The output tensor containing the number of occurrences of each unique value produced by this operator in the first output tensor. This is a 1D tensor with type `int64`.
+* **4**: The output tensor containing the number of occurrences of each unique value produced by this operator in the first output tensor. This is a 1D tensor with type controlled by the `count_element_type` attribute.
 
 **Types**
 
@@ -74,7 +82,7 @@ The operator can either work in elementwise mode searching for unique values in 
             <dim>-1</dim>
         </port>
         <port id="4" precision="I32">
-            <dim>-1</dim>
+            <dim>3</dim>
         </port>
         <port id="5" precision="I64">
             <dim>-1</dim>
@@ -96,13 +104,40 @@ The operator can either work in elementwise mode searching for unique values in 
         <port id="1" precision="FP32">
             <dim>-1</dim>
         </port>
+        <port id="2" precision="I64">
+            <dim>-1</dim>
+        </port>
+        <port id="3" precision="I64">
+            <dim>9</dim>
+        </port>
+        <port id="4" precision="I64">
+            <dim>-1</dim>
+        </port>
+    </output>
+</layer>
+```
+
+*Example 3: no axis provided, non-default outputs precision *
+```xml
+<layer ... type="Unique" ... >
+    <data sorted="false" index_element_type="i32" count_element_type="i32"/>
+    <input>
+        <port id="0" precision="FP32">
+            <dim>3</dim>
+            <dim>3</dim>
+        </port>
+    </input>
+    <output>
+        <port id="1" precision="FP32">
+            <dim>-1</dim>
+        </port>
         <port id="2" precision="I32">
             <dim>-1</dim>
         </port>
         <port id="3" precision="I32">
-            <dim>-1</dim>
+            <dim>9</dim>
         </port>
-        <port id="4" precision="I64">
+        <port id="4" precision="I32">
             <dim>-1</dim>
         </port>
     </output>

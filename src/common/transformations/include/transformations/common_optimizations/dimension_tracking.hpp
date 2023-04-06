@@ -9,7 +9,7 @@
 #include <openvino/pass/graph_rewrite.hpp>
 #include <transformations_visibility.hpp>
 
-using P2Btype = std::unordered_map<std::shared_ptr<ov::opset1::Parameter>, std::unordered_set<size_t>>;
+using P2Btype = std::unordered_map<std::shared_ptr<ov::opset1::Parameter>, std::unordered_set<ov::label_t>>;
 
 namespace ov {
 namespace pass {
@@ -37,7 +37,7 @@ class DimensionTracker;
 namespace batch_util {
 void mark_batch(const std::shared_ptr<ov::opset1::Parameter>& parameter,
                 P2Btype& map,
-                const std::unordered_set<size_t>& batches);
+                const std::unordered_set<label_t>& batches);
 void mark_no_batch(const std::shared_ptr<ov::opset1::Parameter>& parameter, P2Btype& map);
 void mark_layout_independent_batch(const std::shared_ptr<ov::opset1::Parameter>& parameter,
                                    const std::shared_ptr<ov::Node>& result,

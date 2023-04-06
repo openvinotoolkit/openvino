@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -17,24 +17,31 @@
 namespace InferenceEngine {
 
 #define CATCH_IE_EXCEPTION_TO_STATUS_NO_RESP(StatusCode, ExceptionType)     \
-catch (const InferenceEngine::ExceptionType& ex) {                          \
-    return InferenceEngine::DescriptionBuffer(StatusCode) << ex.what();     \
-}
+    catch (const InferenceEngine::ExceptionType& ex) {                      \
+        return InferenceEngine::DescriptionBuffer(StatusCode) << ex.what(); \
+    }
 
-#define CATCH_IE_EXCEPTIONS_TO_STATUS_NO_RESP                                         \
-        CATCH_IE_EXCEPTION_TO_STATUS_NO_RESP(GENERAL_ERROR, GeneralError)             \
-        CATCH_IE_EXCEPTION_TO_STATUS_NO_RESP(NOT_IMPLEMENTED, NotImplemented)         \
-        CATCH_IE_EXCEPTION_TO_STATUS_NO_RESP(NETWORK_NOT_LOADED, NetworkNotLoaded)    \
-        CATCH_IE_EXCEPTION_TO_STATUS_NO_RESP(PARAMETER_MISMATCH, ParameterMismatch)   \
-        CATCH_IE_EXCEPTION_TO_STATUS_NO_RESP(NOT_FOUND, NotFound)                     \
-        CATCH_IE_EXCEPTION_TO_STATUS_NO_RESP(OUT_OF_BOUNDS, OutOfBounds)              \
-        CATCH_IE_EXCEPTION_TO_STATUS_NO_RESP(UNEXPECTED, Unexpected)                  \
-        CATCH_IE_EXCEPTION_TO_STATUS_NO_RESP(REQUEST_BUSY, RequestBusy)               \
-        CATCH_IE_EXCEPTION_TO_STATUS_NO_RESP(RESULT_NOT_READY, ResultNotReady)        \
-        CATCH_IE_EXCEPTION_TO_STATUS_NO_RESP(NOT_ALLOCATED, NotAllocated)             \
-        CATCH_IE_EXCEPTION_TO_STATUS_NO_RESP(INFER_NOT_STARTED, InferNotStarted)      \
-        CATCH_IE_EXCEPTION_TO_STATUS_NO_RESP(NETWORK_NOT_READ, NetworkNotRead)        \
-        CATCH_IE_EXCEPTION_TO_STATUS_NO_RESP(INFER_CANCELLED, InferCancelled)
+#define CATCH_OV_EXCEPTION_TO_STATUS_NO_RESP(StatusCode, ExceptionType)     \
+    catch (const ov::ExceptionType& ex) {                                   \
+        return InferenceEngine::DescriptionBuffer(StatusCode) << ex.what(); \
+    }
+
+#define CATCH_IE_EXCEPTIONS_TO_STATUS_NO_RESP                                   \
+    CATCH_OV_EXCEPTION_TO_STATUS_NO_RESP(NOT_IMPLEMENTED, NotImplemented)       \
+    CATCH_OV_EXCEPTION_TO_STATUS_NO_RESP(GENERAL_ERROR, Exception)              \
+    CATCH_IE_EXCEPTION_TO_STATUS_NO_RESP(GENERAL_ERROR, GeneralError)           \
+    CATCH_IE_EXCEPTION_TO_STATUS_NO_RESP(NOT_IMPLEMENTED, NotImplemented)       \
+    CATCH_IE_EXCEPTION_TO_STATUS_NO_RESP(NETWORK_NOT_LOADED, NetworkNotLoaded)  \
+    CATCH_IE_EXCEPTION_TO_STATUS_NO_RESP(PARAMETER_MISMATCH, ParameterMismatch) \
+    CATCH_IE_EXCEPTION_TO_STATUS_NO_RESP(NOT_FOUND, NotFound)                   \
+    CATCH_IE_EXCEPTION_TO_STATUS_NO_RESP(OUT_OF_BOUNDS, OutOfBounds)            \
+    CATCH_IE_EXCEPTION_TO_STATUS_NO_RESP(UNEXPECTED, Unexpected)                \
+    CATCH_IE_EXCEPTION_TO_STATUS_NO_RESP(REQUEST_BUSY, RequestBusy)             \
+    CATCH_IE_EXCEPTION_TO_STATUS_NO_RESP(RESULT_NOT_READY, ResultNotReady)      \
+    CATCH_IE_EXCEPTION_TO_STATUS_NO_RESP(NOT_ALLOCATED, NotAllocated)           \
+    CATCH_IE_EXCEPTION_TO_STATUS_NO_RESP(INFER_NOT_STARTED, InferNotStarted)    \
+    CATCH_IE_EXCEPTION_TO_STATUS_NO_RESP(NETWORK_NOT_READ, NetworkNotRead)      \
+    CATCH_IE_EXCEPTION_TO_STATUS_NO_RESP(INFER_CANCELLED, InferCancelled)
 
 /**
  * @def TO_STATUS_NO_RESP(x)
@@ -56,7 +63,14 @@ catch (const InferenceEngine::ExceptionType& ex) {                              
     return InferenceEngine::DescriptionBuffer(StatusCode, resp) << ex.what();   \
 }
 
+#define CATCH_OV_EXCEPTION_CALL_RETURN_STATUS(StatusCode, ExceptionType)        \
+catch (const ov::ExceptionType& ex) {                              \
+    return InferenceEngine::DescriptionBuffer(StatusCode, resp) << ex.what();   \
+}
+
 #define CATCH_IE_EXCEPTIONS_CALL_RETURN_STATUS                                         \
+        CATCH_OV_EXCEPTION_CALL_RETURN_STATUS(NOT_IMPLEMENTED, NotImplemented)         \
+        CATCH_OV_EXCEPTION_CALL_RETURN_STATUS(GENERAL_ERROR, Exception)                \
         CATCH_IE_EXCEPTION_CALL_RETURN_STATUS(GENERAL_ERROR, GeneralError)             \
         CATCH_IE_EXCEPTION_CALL_RETURN_STATUS(NOT_IMPLEMENTED, NotImplemented)         \
         CATCH_IE_EXCEPTION_CALL_RETURN_STATUS(NETWORK_NOT_LOADED, NetworkNotLoaded)    \

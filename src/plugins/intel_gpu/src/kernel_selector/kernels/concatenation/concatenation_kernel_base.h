@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2018-2022 Intel Corporation
+﻿// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -17,6 +17,9 @@ struct concatenation_params : public base_params {
     ConcatAxis axis = ConcatAxis::FEATURE;
     bool isAligned = true;
     size_t misalignment = 0;
+
+    size_t kernel_split_id = 0;
+    MultiDataTensor original_input_layouts;
 
     ParamsKey GetParamsKey() const override {
         auto k = base_params::GetParamsKey();

@@ -1,12 +1,12 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "ngraph/op/non_max_suppression.hpp"
 
 #include <cstring>
-#include <ngraph/validation_util.hpp>
 
+#include "bound_evaluate.hpp"
 #include "itt.hpp"
 #include "ngraph/attribute_visitor.hpp"
 #include "ngraph/op/constant.hpp"
@@ -20,8 +20,6 @@
 using namespace ngraph;
 
 // ------------------------------ V1 ------------------------------
-
-BWDCMP_RTTI_DEFINITION(op::v1::NonMaxSuppression);
 
 op::v1::NonMaxSuppression::NonMaxSuppression(const Output<Node>& boxes,
                                              const Output<Node>& scores,
@@ -156,7 +154,9 @@ void op::v1::NonMaxSuppression::validate_and_infer_types() {
                           "The last dimension of the 'boxes' input must be equal to 4. Got:",
                           boxes_ps[2]);
 
+    OPENVINO_SUPPRESS_DEPRECATED_START
     const auto& max_output_boxes_input = get_constant_from_source(input_value(2));
+    OPENVINO_SUPPRESS_DEPRECATED_END
     if (num_boxes_boxes.is_static() && scores_ps[1].is_static() && max_output_boxes_input) {
         const auto num_boxes = num_boxes_boxes.get_length();
         const auto max_output_boxes_per_class = max_output_boxes_input->cast_vector<int64_t>().at(0);
@@ -170,7 +170,9 @@ void op::v1::NonMaxSuppression::validate_and_infer_types() {
 int64_t op::v1::NonMaxSuppression::max_boxes_output_from_input() const {
     int64_t max_output_boxes{0};
 
+    OPENVINO_SUPPRESS_DEPRECATED_START
     const auto max_output_boxes_input = get_constant_from_source(input_value(2));
+    OPENVINO_SUPPRESS_DEPRECATED_END
     max_output_boxes = max_output_boxes_input->cast_vector<int64_t>().at(0);
 
     return max_output_boxes;
@@ -186,9 +188,6 @@ EnumNames<ngraph::op::v1::NonMaxSuppression::BoxEncodingType>::get() {
          {"center", ngraph::op::v1::NonMaxSuppression::BoxEncodingType::CENTER}});
     return enum_names;
 }
-
-BWDCMP_RTTI_DEFINITION(AttributeAdapter<op::v1::NonMaxSuppression::BoxEncodingType>);
-
 }  // namespace ov
 
 std::ostream& ov::operator<<(std::ostream& s, const op::v1::NonMaxSuppression::BoxEncodingType& type) {
@@ -196,8 +195,6 @@ std::ostream& ov::operator<<(std::ostream& s, const op::v1::NonMaxSuppression::B
 }
 
 // ------------------------------ V3 ------------------------------
-BWDCMP_RTTI_DEFINITION(op::v3::NonMaxSuppression);
-
 op::v3::NonMaxSuppression::NonMaxSuppression(const Output<Node>& boxes,
                                              const Output<Node>& scores,
                                              const Output<Node>& max_output_boxes_per_class,
@@ -343,7 +340,9 @@ void op::v3::NonMaxSuppression::validate_and_infer_types() {
 
     if (boxes_ps.rank().is_static() && scores_ps.rank().is_static()) {
         const auto num_boxes_boxes = boxes_ps[1];
+        OPENVINO_SUPPRESS_DEPRECATED_START
         const auto max_output_boxes_input = get_constant_from_source(input_value(2));
+        OPENVINO_SUPPRESS_DEPRECATED_END
         if (num_boxes_boxes.is_static() && scores_ps[1].is_static() && max_output_boxes_input) {
             const auto num_boxes = num_boxes_boxes.get_length();
             const auto num_classes = scores_ps[1].get_length();
@@ -358,7 +357,9 @@ void op::v3::NonMaxSuppression::validate_and_infer_types() {
 int64_t op::v3::NonMaxSuppression::max_boxes_output_from_input() const {
     int64_t max_output_boxes{0};
 
+    OPENVINO_SUPPRESS_DEPRECATED_START
     const auto max_output_boxes_input = get_constant_from_source(input_value(2));
+    OPENVINO_SUPPRESS_DEPRECATED_END
     max_output_boxes = max_output_boxes_input->cast_vector<int64_t>().at(0);
 
     return max_output_boxes;
@@ -374,9 +375,6 @@ EnumNames<ngraph::op::v3::NonMaxSuppression::BoxEncodingType>::get() {
          {"center", ngraph::op::v3::NonMaxSuppression::BoxEncodingType::CENTER}});
     return enum_names;
 }
-
-BWDCMP_RTTI_DEFINITION(AttributeAdapter<op::v3::NonMaxSuppression::BoxEncodingType>);
-
 }  // namespace ov
 
 std::ostream& ov::operator<<(std::ostream& s, const op::v3::NonMaxSuppression::BoxEncodingType& type) {
@@ -384,9 +382,6 @@ std::ostream& ov::operator<<(std::ostream& s, const op::v3::NonMaxSuppression::B
 }
 
 // ------------------------------ V4 ------------------------------
-
-BWDCMP_RTTI_DEFINITION(op::v4::NonMaxSuppression);
-
 op::v4::NonMaxSuppression::NonMaxSuppression(const Output<Node>& boxes,
                                              const Output<Node>& scores,
                                              const Output<Node>& max_output_boxes_per_class,
@@ -457,7 +452,9 @@ void op::v4::NonMaxSuppression::validate_and_infer_types() {
 
     if (boxes_ps.rank().is_static() && scores_ps.rank().is_static()) {
         const auto num_boxes_boxes = boxes_ps[1];
+        OPENVINO_SUPPRESS_DEPRECATED_START
         const auto max_output_boxes_input = get_constant_from_source(input_value(2));
+        OPENVINO_SUPPRESS_DEPRECATED_END
         if (num_boxes_boxes.is_static() && scores_ps[0].is_static() && scores_ps[1].is_static() &&
             max_output_boxes_input) {
             const auto num_boxes = num_boxes_boxes.get_length();
@@ -471,9 +468,6 @@ void op::v4::NonMaxSuppression::validate_and_infer_types() {
 }
 
 // ------------------------------ V5 ------------------------------
-
-BWDCMP_RTTI_DEFINITION(op::v5::NonMaxSuppression);
-
 op::v5::NonMaxSuppression::NonMaxSuppression(const Output<Node>& boxes,
                                              const Output<Node>& scores,
                                              const op::v5::NonMaxSuppression::BoxEncodingType box_encoding,
@@ -607,7 +601,7 @@ constexpr size_t score_threshold_port = 4;
 constexpr size_t soft_nms_sigma_port = 5;
 
 inline bool is_float_type_admissible(const element::Type& t) {
-    return t == element::f32 || t == element::f16 || t == element::bf16;
+    return t == element::dynamic || t == element::f32 || t == element::f16 || t == element::bf16;
 }
 
 inline bool is_scalar_or_1d_tensor_with_1_element(const ov::PartialShape& p) {
@@ -729,7 +723,9 @@ int64_t op::v5::NonMaxSuppression::max_boxes_output_from_input() const {
         return 0;
     }
 
+    OPENVINO_SUPPRESS_DEPRECATED_START
     const auto max_output_boxes_input = get_constant_from_source(input_value(max_output_boxes_port));
+    OPENVINO_SUPPRESS_DEPRECATED_END
     max_output_boxes = max_output_boxes_input->cast_vector<int64_t>().at(0);
 
     return max_output_boxes;
@@ -742,7 +738,9 @@ float op::v5::NonMaxSuppression::iou_threshold_from_input() const {
         return iou_threshold;
     }
 
+    OPENVINO_SUPPRESS_DEPRECATED_START
     const auto iou_threshold_input = get_constant_from_source(input_value(iou_threshold_port));
+    OPENVINO_SUPPRESS_DEPRECATED_END
     iou_threshold = iou_threshold_input->cast_vector<float>().at(0);
 
     return iou_threshold;
@@ -755,7 +753,9 @@ float op::v5::NonMaxSuppression::score_threshold_from_input() const {
         return score_threshold;
     }
 
+    OPENVINO_SUPPRESS_DEPRECATED_START
     const auto score_threshold_input = get_constant_from_source(input_value(score_threshold_port));
+    OPENVINO_SUPPRESS_DEPRECATED_END
     score_threshold = score_threshold_input->cast_vector<float>().at(0);
 
     return score_threshold;
@@ -768,7 +768,9 @@ float op::v5::NonMaxSuppression::soft_nms_sigma_from_input() const {
         return soft_nms_sigma;
     }
 
+    OPENVINO_SUPPRESS_DEPRECATED_START
     const auto soft_nms_sigma_input = get_constant_from_source(input_value(soft_nms_sigma_port));
+    OPENVINO_SUPPRESS_DEPRECATED_END
     soft_nms_sigma = soft_nms_sigma_input->cast_vector<float>().at(0);
 
     return soft_nms_sigma;
@@ -834,14 +836,9 @@ EnumNames<ngraph::op::v5::NonMaxSuppression::BoxEncodingType>::get() {
          {"center", ngraph::op::v5::NonMaxSuppression::BoxEncodingType::CENTER}});
     return enum_names;
 }
-
-BWDCMP_RTTI_DEFINITION(AttributeAdapter<op::v5::NonMaxSuppression::BoxEncodingType>);
 }  // namespace ov
 
 // ------------------------------ V9 ------------------------------
-
-BWDCMP_RTTI_DEFINITION(op::v9::NonMaxSuppression);
-
 op::v9::NonMaxSuppression::NonMaxSuppression(const Output<Node>& boxes,
                                              const Output<Node>& scores,
                                              const op::v9::NonMaxSuppression::BoxEncodingType box_encoding,
@@ -1042,7 +1039,9 @@ int64_t op::v9::NonMaxSuppression::max_boxes_output_from_input() const {
         return 0;
     }
 
+    OPENVINO_SUPPRESS_DEPRECATED_START
     const auto max_output_boxes_input = get_constant_from_source(input_value(max_output_boxes_port));
+    OPENVINO_SUPPRESS_DEPRECATED_END
     max_output_boxes = max_output_boxes_input->cast_vector<int64_t>().at(0);
 
     return max_output_boxes;
@@ -1055,7 +1054,9 @@ float op::v9::NonMaxSuppression::iou_threshold_from_input() const {
         return iou_threshold;
     }
 
+    OPENVINO_SUPPRESS_DEPRECATED_START
     const auto iou_threshold_input = get_constant_from_source(input_value(iou_threshold_port));
+    OPENVINO_SUPPRESS_DEPRECATED_END
     iou_threshold = iou_threshold_input->cast_vector<float>().at(0);
 
     return iou_threshold;
@@ -1068,7 +1069,9 @@ float op::v9::NonMaxSuppression::score_threshold_from_input() const {
         return score_threshold;
     }
 
+    OPENVINO_SUPPRESS_DEPRECATED_START
     const auto score_threshold_input = get_constant_from_source(input_value(score_threshold_port));
+    OPENVINO_SUPPRESS_DEPRECATED_END
     score_threshold = score_threshold_input->cast_vector<float>().at(0);
 
     return score_threshold;
@@ -1081,7 +1084,9 @@ float op::v9::NonMaxSuppression::soft_nms_sigma_from_input() const {
         return soft_nms_sigma;
     }
 
+    OPENVINO_SUPPRESS_DEPRECATED_START
     const auto soft_nms_sigma_input = get_constant_from_source(input_value(soft_nms_sigma_port));
+    OPENVINO_SUPPRESS_DEPRECATED_END
     soft_nms_sigma = soft_nms_sigma_input->cast_vector<float>().at(0);
 
     return soft_nms_sigma;
@@ -1137,6 +1142,4 @@ EnumNames<ngraph::op::v9::NonMaxSuppression::BoxEncodingType>::get() {
          {"center", ngraph::op::v9::NonMaxSuppression::BoxEncodingType::CENTER}});
     return enum_names;
 }
-
-BWDCMP_RTTI_DEFINITION(AttributeAdapter<op::v9::NonMaxSuppression::BoxEncodingType>);
 }  // namespace ov

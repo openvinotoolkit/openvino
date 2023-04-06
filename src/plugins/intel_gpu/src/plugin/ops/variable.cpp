@@ -28,10 +28,10 @@ void CreateVariableAccessPrimitive(Program &p, const std::shared_ptr<ngraph::op:
                                                output_format,
                                                output_shape};
 
-    auto input_primitives = p.GetInputPrimitiveIDs(op);
+    auto inputs = p.GetInputInfo(op);
     p.AddVariableStateInfo(variable_id, variable_layout);
     const auto prim = T_PRIMITIVE{layer_type_name_ID(op),
-                                  input_primitives,
+                                  inputs,
                                   variable_id,
                                   variable_layout};
 

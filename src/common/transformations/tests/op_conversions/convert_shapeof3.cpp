@@ -1,18 +1,17 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include <gtest/gtest.h>
 
-#include <string>
 #include <memory>
-
 #include <ngraph/function.hpp>
 #include <ngraph/opsets/opset1.hpp>
 #include <ngraph/opsets/opset3.hpp>
-#include <transformations/op_conversions/convert_shapeof3.hpp>
-#include <transformations/init_node_info.hpp>
 #include <ngraph/pass/manager.hpp>
+#include <string>
+#include <transformations/init_node_info.hpp>
+#include <transformations/op_conversions/convert_shapeof3.hpp>
 
 #include "common_test_utils/ngraph_test_utils.hpp"
 
@@ -26,7 +25,7 @@ TEST_F(TransformationTestsF, ConvertShapeOf3WithI64) {
 
         function = std::make_shared<ngraph::Function>(ngraph::NodeVector{shapeof}, ngraph::ParameterVector{input});
 
-        manager.register_pass<ngraph::pass::ConvertShapeOf3>();
+        manager.register_pass<ov::pass::ConvertShapeOf3>();
     }
 
     {
@@ -44,7 +43,7 @@ TEST_F(TransformationTestsF, ConvertShapeOf3WithI32) {
 
         function = std::make_shared<ngraph::Function>(ngraph::NodeVector{shapeof}, ngraph::ParameterVector{input});
 
-        manager.register_pass<ngraph::pass::ConvertShapeOf3>();
+        manager.register_pass<ov::pass::ConvertShapeOf3>();
     }
 
     {

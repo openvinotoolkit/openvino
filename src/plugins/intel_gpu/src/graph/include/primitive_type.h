@@ -1,13 +1,12 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
-///////////////////////////////////////////////////////////////////////////////////////////////////
 #pragma once
 
 #include "intel_gpu/runtime/layout.hpp"
 #include "intel_gpu/runtime/memory.hpp"
-#include "kernel_selector_helper.h"
+#include "intel_gpu/graph/kernel_impl_params.hpp"
 
 #include <memory>
 #include <string>

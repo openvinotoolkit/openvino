@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -8,6 +8,8 @@
 #include <ngraph/pattern/op/wrap_type.hpp>
 #include <ngraph/rt_info.hpp>
 #include <openvino/opsets/opset1.hpp>
+#include <openvino/opsets/opset7.hpp>
+#include <openvino/opsets/opset8.hpp>
 #include <vector>
 
 #include "itt.hpp"

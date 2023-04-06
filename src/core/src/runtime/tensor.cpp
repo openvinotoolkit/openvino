@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -29,10 +29,4 @@ size_t runtime::Tensor::get_element_count() const {
 
 size_t runtime::Tensor::get_size_in_bytes() const {
     return m_descriptor->size();
-}
-
-const std::string& runtime::Tensor::get_name() const {
-    NGRAPH_SUPPRESS_DEPRECATED_START
-    return m_descriptor->get_name();
-    NGRAPH_SUPPRESS_DEPRECATED_END
 }

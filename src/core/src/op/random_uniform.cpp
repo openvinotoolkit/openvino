@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -11,8 +11,6 @@
 
 using namespace std;
 using namespace ngraph;
-
-BWDCMP_RTTI_DEFINITION(ov::op::v8::RandomUniform);
 
 op::v8::RandomUniform::RandomUniform(const Output<Node>& out_shape,
                                      const Output<Node>& min_val,
@@ -42,7 +40,9 @@ void op::v8::RandomUniform::validate_and_infer_types() {
                               input_shape.rank() == 1,
                               "The rank of the tensor defining output shape must be equal to 1.");
 
+        OPENVINO_SUPPRESS_DEPRECATED_START
         if (const auto& const_shape = get_constant_from_source(input_value(0))) {
+            OPENVINO_SUPPRESS_DEPRECATED_END
             output_shape = ov::PartialShape(const_shape->cast_vector<int64_t>());
         } else {
             output_shape = ov::PartialShape::dynamic(input_shape[0]);
@@ -78,8 +78,10 @@ void op::v8::RandomUniform::validate_and_infer_types() {
                           min_element_type == get_out_type(),
                           "'min_val' and 'max_val' should have the same type as 'out_type' attribute.");
 
+    OPENVINO_SUPPRESS_DEPRECATED_START
     if (const auto& const_min = get_constant_from_source(input_value(1))) {
         if (const auto& const_max = get_constant_from_source(input_value(2))) {
+            OPENVINO_SUPPRESS_DEPRECATED_END
             if (get_out_type() == ngraph::element::Type_t::i64 || get_out_type() == ngraph::element::Type_t::i32) {
                 int64_t min_val = const_min->cast_vector<int64_t>()[0];
                 int64_t max_val = const_max->cast_vector<int64_t>()[0];

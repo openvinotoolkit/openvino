@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2022 Intel Corporation
+# Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -13,14 +13,23 @@ macro(ov_debian_cpack_set_dirs)
     # override default locations for Debian
     set(OV_CPACK_TOOLSDIR ${CMAKE_INSTALL_BINDIR}) # only C++ tools are here
     set(OV_CPACK_INCLUDEDIR ${CMAKE_INSTALL_INCLUDEDIR})
-    set(OV_CPACK_LIBRARYDIR ${CMAKE_INSTALL_LIBDIR})
     set(OV_CPACK_RUNTIMEDIR ${CMAKE_INSTALL_LIBDIR})
+    if(CMAKE_CROSSCOMPILING)
+        if(ARM)
+            set(OV_CPACK_RUNTIMEDIR "${OV_CPACK_RUNTIMEDIR}/arm-linux-gnueabihf")
+        elseif(AARCH64)
+            set(OV_CPACK_RUNTIMEDIR "${OV_CPACK_RUNTIMEDIR}/aarch64-linux-gnu")
+        elseif(X86)
+            set(OV_CPACK_RUNTIMEDIR "${OV_CPACK_RUNTIMEDIR}/i386-linux-gnu")
+        endif()
+    endif()
+    set(OV_CPACK_LIBRARYDIR ${OV_CPACK_RUNTIMEDIR})
     set(OV_WHEEL_RUNTIMEDIR ${OV_CPACK_RUNTIMEDIR})
-    set(OV_CPACK_ARCHIVEDIR ${CMAKE_INSTALL_LIBDIR})
-    set(OV_CPACK_PLUGINSDIR ${CMAKE_INSTALL_LIBDIR}/openvino-${OpenVINO_VERSION})
-    set(OV_CPACK_IE_CMAKEDIR ${CMAKE_INSTALL_LIBDIR}/cmake/inferenceengine${OpenVINO_VERSION})
-    set(OV_CPACK_NGRAPH_CMAKEDIR ${CMAKE_INSTALL_LIBDIR}/cmake/ngraph${OpenVINO_VERSION})
-    set(OV_CPACK_OPENVINO_CMAKEDIR ${CMAKE_INSTALL_LIBDIR}/cmake/openvino${OpenVINO_VERSION})
+    set(OV_CPACK_ARCHIVEDIR ${OV_CPACK_RUNTIMEDIR})
+    set(OV_CPACK_PLUGINSDIR ${OV_CPACK_RUNTIMEDIR}/openvino-${OpenVINO_VERSION})
+    set(OV_CPACK_IE_CMAKEDIR ${OV_CPACK_RUNTIMEDIR}/cmake/inferenceengine${OpenVINO_VERSION})
+    set(OV_CPACK_NGRAPH_CMAKEDIR ${OV_CPACK_RUNTIMEDIR}/cmake/ngraph${OpenVINO_VERSION})
+    set(OV_CPACK_OPENVINO_CMAKEDIR ${OV_CPACK_RUNTIMEDIR}/cmake/openvino${OpenVINO_VERSION})
     set(OV_CPACK_DOCDIR ${CMAKE_INSTALL_DATADIR}/doc/openvino-${OpenVINO_VERSION})
     set(OV_CPACK_PYTHONDIR lib/python3/dist-packages)
 
@@ -34,7 +43,7 @@ macro(ov_debian_cpack_set_dirs)
     set(OV_CPACK_WHEELSDIR "tools")
 
     # for BW compatibility
-    set(IE_CPACK_LIBRARY_PATH ${OV_CPACK_LIBRARYDIR})
+    set(IE_CPACK_LIBRARY_PATH ${OV_CPACK_RUNTIMEDIR})
     set(IE_CPACK_RUNTIME_PATH ${OV_CPACK_RUNTIMEDIR})
     set(IE_CPACK_ARCHIVE_PATH ${OV_CPACK_ARCHIVEDIR})
 endmacro()

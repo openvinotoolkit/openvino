@@ -1,11 +1,11 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <vector>
-#include <string>
-
 #include "functional_test_utils/skip_tests_config.hpp"
+
+#include <string>
+#include <vector>
 
 std::vector<std::string> disabledTestPatterns() {
     return {
@@ -24,8 +24,6 @@ std::vector<std::string> disabledTestPatterns() {
         R"(.*(EltwiseLayerTest).*eltwiseOpType=Prod.*secondaryInputType=PARAMETER.*opType=SCALAR.*)",
         // TODO: Issue: 34348
         R"(.*IEClassGetAvailableDevices.*)",
-        // TODO: Issue 32923
-        R"(.*IEClassHeteroExecutableNetworkGetMetricTest_TARGET_FALLBACK.*)",
         // TODO: Issue 39358
         R"(.*unaligned.*MultipleConcatTest.*)",
         R"(.*ActivationConcatsEltwise.*CS=35.*)",
@@ -33,9 +31,7 @@ std::vector<std::string> disabledTestPatterns() {
         R"(.*ConcatMultiInput.CompareWithRefConstOnly.*IS=\(1.8\).*)",
         R"(.*ConcatMultiInput.CompareWithRefConstOnly.*IS=\(1.16\).*)",
         R"(.*ConcatMultiInput.CompareWithRefConstOnly.*IS=\(1.32\).*)",
-        // TODO: Issue: 29577
-        R"(.*CoreThreadingTests.smoke_QueryNetwork.*)",
-        //TODO: Issue: 46416
+        // TODO: Issue: 46416
         R"(.*InferRequestVariableStateTest.inferreq_smoke_VariableState_2infers*.*)",
         // TODO: Issue 24839
         R"(.*ConvolutionLayerTest.CompareWithRefs.*D=\(1.3\).*)",
@@ -69,12 +65,14 @@ std::vector<std::string> disabledTestPatterns() {
         R"(.*OVExecutableNetworkBaseTest.*CanSetConfigToExecNet.*)",
         R"(.*OVExecutableNetworkBaseTest.*CanGetInputsInfoAndCheck.*)",
         R"(.*OVExecutableNetworkBaseTest.*getOutputsFromSplitFunctionWithSeveralOutputs.*)",
-        R"(.*OVClassHeteroExecutableNetworkGetMetricTest_TARGET_FALLBACK.*GetMetricNoThrow.*)",
+        R"(.*OVExecutableNetworkBaseTest.*canLoadNetworkFromMemory.*)",
+        R"(.*(OVClass|IEClass)HeteroExecutableNetworkGetMetricTest_TARGET_FALLBACK.*GetMetricNoThrow.*)",
+        R"(.*LoadNetwork*.*LoadNetwork(HETEROWithDeviceIDNoThrow|WithBigDeviceID|WithInvalidDeviceID)*.*)",
+        R"(.*QueryNetwork*.*QueryNetwork(HETEROWithDeviceIDNoThrow|WithBigDeviceID|WithInvalidDeviceID)*.*)",
+        R"(.*LoadNetworkTest.*QueryNetwork(MULTIWithHETERO|HETEROWithMULTI)NoThrow_V10.*)",
         R"(.*Behavior.*OVExecutableNetworkBaseTest.*get(Inputs|Outputs)FromFunctionWithSeveral(Inputs|Outputs).*)",
         // TODO: temporary disabled. Need to be enabled when PR 9282 is merged
         R"(.*OVExecGraphImportExportTest.*readFromV10IR.*)",
-        // TODO: Issue: 29577
-        R"(.*QueryNetwork.*)",
         // Issue connected with OV2.0
         R"(.*EltwiseLayerTest.*NetType=f16.*)",
         // TODO: Issue: 69639
@@ -85,20 +83,15 @@ std::vector<std::string> disabledTestPatterns() {
         R"(.*ActivationLayerGNATest.*(Log|Exp).*netPRC=(FP16|FP32).*)",
         // TODO: Issue: 71068
         R"(.*OVInferRequestCancellationTests.*)",
-        // TODO: Issue: 71070
-        R"(.*OVInferenceChaining.*(StaticOutputToStaticInput).*)",
         // TODO: Issue: 95609
         R"(.*CompileModelCacheTestBase.*(ConvPoolRelu|TIwithLSTMcell1).*batch2.*)",
         R"(.*CompileModelCacheTestBase.*(SplitConvConcat|KSOFunction).*)",
         R"(.*CompileModelCacheTestBase.*(SingleConv|NestedSplitConvConcat).*)",
         R"(.*CompileModelCacheTestBase.*(Bias|ReadConcatSplitAssign).*)",
-        R"(.*OVClassLoadNetworkTest.*LoadNetwork.*)",
-        // TODO: Issue: 95234
-        R"(.*smoke_CachingSupportCase_GNA.*)",
+        // does not work due to GNA 3.0 convolution and other primitives limitations, partially can be resolved by
+        // switching GNA library to GNA3.5
         R"(.*CachingSupportCase.*LoadNet.*(Bias|Split|Concat|KSO|SingleConv).*)",
         R"(.*CachingSupportCase.*LoadNet.*(ConvPoolRelu|TIwithLSTMcell1)_f32_batch2.*)",
-        // TODO: Issue: 95234
-        R"(.*CachingSupportCase_GNA.*)",
-        R"(.*IEClassLoadNetworkTest.*LoadNetwork(HETERO|MULTI|WithDeviceIDNoThrow|WithInvalidDeviceIDThrows).*)",
+        R"(.*smoke_Multi_BehaviorTests.*)",
     };
 }

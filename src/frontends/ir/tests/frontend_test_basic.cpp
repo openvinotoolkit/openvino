@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -8,6 +8,15 @@
 #include "openvino/opsets/opset6.hpp"
 
 class IRFrontendTests : public ::testing::Test, public IRFrontendTestsImpl {
+protected:
+    void SetUp() override {}
+
+    void TearDown() override {
+        RemoveTemporalFiles();
+    }
+};
+
+class IRFrontendMMapTests : public ::testing::TestWithParam<bool>, public IRFrontendTestsImpl {
 protected:
     void SetUp() override {}
 
@@ -241,7 +250,7 @@ TEST_F(IRFrontendTests, model_with_missing_weights) {
     ASSERT_THROW(core.read_model(testModelV11, ov::Tensor()), ov::Exception);
 }
 
-TEST_F(IRFrontendTests, model_with_weights_reading_from_disk) {
+TEST_P(IRFrontendMMapTests, model_with_weights_reading_from_disk) {
     std::string xmlModel = R"V0G0N(
 <?xml version="1.0" ?>
 <net name="Network" version="11">
@@ -316,7 +325,9 @@ TEST_F(IRFrontendTests, model_with_weights_reading_from_disk) {
 
     std::shared_ptr<ov::Model> model;
 
-    ASSERT_NO_THROW(model = core.read_model(xmlFileName, binFileName));
+    ov::Core new_core;
+    new_core.set_property(ov::enable_mmap(GetParam()));
+    ASSERT_NO_THROW(model = new_core.read_model(xmlFileName, binFileName));
     ASSERT_TRUE(!!model);
 
     std::shared_ptr<ov::Model> modelRef;
@@ -342,6 +353,8 @@ TEST_F(IRFrontendTests, model_with_weights_reading_from_disk) {
     const auto res = fc.compare(model, modelRef);
     EXPECT_TRUE(res.valid) << res.message;
 }
+
+INSTANTIATE_TEST_SUITE_P(EnableMMapPropery, IRFrontendMMapTests, ::testing::Bool());
 
 TEST_F(IRFrontendTests, model_without_weights_reading_from_disk) {
     std::string xmlModel = R"V0G0N(

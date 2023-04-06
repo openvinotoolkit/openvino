@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -103,7 +103,7 @@ KernelsData SpaceToDepthKernelRef::GetKernelsData(const Params& params, const op
     auto& kernel = kd.kernels[0];
 
     FillCLKernelData(kernel, dispatchData, params.engineInfo, kernelName, jit, entry_point,
-                     DEFAULT, false, false, 1, GetFusedPrimitiveInputsCount(params));
+                     EXE_MODE_DEFAULT, false, false, 1, GetFusedPrimitiveInputsCount(params));
 
     return {kd};
 }

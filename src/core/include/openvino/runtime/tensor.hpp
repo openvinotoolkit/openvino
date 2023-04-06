@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -18,15 +18,28 @@
 #include "openvino/runtime/allocator.hpp"
 
 namespace InferenceEngine {
-class Blob;
+class IAsyncInferRequestWrapper;
+class IVariableStateWrapper;
 }  // namespace InferenceEngine
 
 namespace ov {
 
 class Core;
+class CoreImpl;
 class InferRequest;
 class RemoteContext;
 class VariableState;
+class ISyncInferRequest;
+class IInferRequestInternalWrapper;
+class IVariableStateInternalWrapper;
+class ITensor;
+class RemoteTensor;
+
+namespace op {
+namespace util {
+class VariableValue;
+}
+}  // namespace op
 
 /**
  * @brief Tensor API holding host memory
@@ -35,8 +48,8 @@ class VariableState;
  */
 class OPENVINO_API Tensor {
 protected:
-    std::shared_ptr<InferenceEngine::Blob> _impl;  //!< Shared pointer to internal tensor representation
-    std::vector<std::shared_ptr<void>> _so;        //!< Reference to dynamically loaded library
+    std::shared_ptr<ITensor> _impl;          //!< Shared pointer to internal tensor representation
+    std::vector<std::shared_ptr<void>> _so;  //!< Reference to dynamically loaded library
 
     /**
      * @brief Constructs Tensor from the initialized std::shared_ptr
@@ -44,12 +57,20 @@ protected:
      * @param so Plugin to use. This is required to ensure that Tensor can work properly even if plugin object is
      * destroyed.
      */
-    Tensor(const std::shared_ptr<InferenceEngine::Blob>& impl, const std::vector<std::shared_ptr<void>>& so);
+    Tensor(const std::shared_ptr<ITensor>& impl, const std::vector<std::shared_ptr<void>>& so);
 
     friend class ov::Core;
+    friend class ov::CoreImpl;
     friend class ov::InferRequest;
+    friend class ov::RemoteTensor;
     friend class ov::RemoteContext;
     friend class ov::VariableState;
+    friend class ov::ISyncInferRequest;
+    friend class ov::IInferRequestInternalWrapper;
+    friend class ov::IVariableStateInternalWrapper;
+    friend class InferenceEngine::IAsyncInferRequestWrapper;
+    friend class InferenceEngine::IVariableStateWrapper;
+    friend class ov::op::util::VariableValue;
 
 public:
     /// @brief Default constructor
@@ -91,7 +112,7 @@ public:
      * @param shape Tensor shape
      * @param allocator allocates memory for internal tensor storage
      */
-    Tensor(const element::Type type, const Shape& shape, const Allocator& allocator = {});
+    Tensor(const element::Type& type, const Shape& shape, const Allocator& allocator = {});
 
     /**
      * @brief Constructs Tensor using element type and shape. Wraps allocated host memory.
@@ -102,7 +123,24 @@ public:
      * @param strides Optional strides parameters in bytes. Strides are supposed to be computed automatically based
      * on shape and element size
      */
-    Tensor(const element::Type type, const Shape& shape, void* host_ptr, const Strides& strides = {});
+    Tensor(const element::Type& type, const Shape& shape, void* host_ptr, const Strides& strides = {});
+
+    /**
+     * @brief Constructs Tensor using port from node. Allocate internal host storage using default allocator
+     * @param port port from node
+     * @param allocator allocates memory for internal tensor storage
+     */
+    Tensor(const ov::Output<const ov::Node>& port, const Allocator& allocator = {});
+
+    /**
+     * @brief Constructs Tensor using port from node. Wraps allocated host memory.
+     * @note Does not perform memory allocation internally
+     * @param port port from node
+     * @param host_ptr Pointer to pre-allocated host memory
+     * @param strides Optional strides parameters in bytes. Strides are supposed to be computed automatically based
+     * on shape and element size
+     */
+    Tensor(const ov::Output<const ov::Node>& port, void* host_ptr, const Strides& strides = {});
 
     /**
      * @brief Constructs region of interest (ROI) tensor form another tensor.
@@ -124,12 +162,26 @@ public:
     /**
      * @return A tensor element type
      */
-    element::Type get_element_type() const;
+    const element::Type& get_element_type() const;
 
     /**
      * @return A tensor shape
      */
-    Shape get_shape() const;
+    const Shape& get_shape() const;
+
+    /**
+     * @brief Copy tensor, destination tensor should have the same element type and shape
+     *
+     * @param dst destination tensor
+     */
+    void copy_to(ov::Tensor& dst) const;
+
+    /**
+     * @brief Reports whether the tensor is continuous or not
+     *
+     * @return true if tensor is continuous
+     */
+    bool is_continuous() const;
 
     /**
      * @brief Returns the total number of elements (a product of all the dims or 1 for scalar)
@@ -155,7 +207,7 @@ public:
      * if specified type's fundamental type does not match with tensor element type's fundamental type
      * @return A host pointer to tensor memory
      */
-    void* data(const element::Type type = {}) const;
+    void* data(const element::Type& type = {}) const;
 
     /**
      * @brief Provides an access to the underlaying host memory casted to type `T`

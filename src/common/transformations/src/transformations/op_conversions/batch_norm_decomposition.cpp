@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -8,6 +8,7 @@
 #include <ngraph/pattern/op/or.hpp>
 #include <ngraph/pattern/op/wrap_type.hpp>
 #include <ngraph/rt_info.hpp>
+#include <openvino/core/validation_util.hpp>
 #include <openvino/opsets/opset1.hpp>
 #include <openvino/opsets/opset5.hpp>
 #include <transformations/utils/utils.hpp>
@@ -77,12 +78,14 @@ ov::pass::BatchNormDecomposition::BatchNormDecomposition() {
             mean_aligned,
             opset5::Constant::create(mean_aligned->get_output_element_type(0), Shape{}, {-1}));
 
+        OPENVINO_SUPPRESS_DEPRECATED_START
         if (auto constant = ov::get_constant_from_source(beta_aligned))
             beta_aligned = constant;
         if (auto constant = ov::get_constant_from_source(mean_negative))
             mean_negative = constant;
         if (auto constant = ov::get_constant_from_source(gamma_div_scale_aligned))
             gamma_div_scale_aligned = constant;
+        OPENVINO_SUPPRESS_DEPRECATED_END
 
         // input_sub_mean = input + mean * -1
         auto input_sub_mean = register_new_node<opset5::Add>(m_input, mean_negative);

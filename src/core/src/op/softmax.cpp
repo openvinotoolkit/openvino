@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -40,7 +40,6 @@ bool evaluate_softmax(const HostTensorPtr& arg, const HostTensorPtr& out, const 
 }  // namespace
 
 // *** SOFTMAX OP SET V1 ***
-BWDCMP_RTTI_DEFINITION(op::v1::Softmax);
 
 op::v1::Softmax::Softmax(const Output<Node>& arg, const size_t axis) : Op({arg}), m_axis(axis) {
     constructor_validate_and_infer_types();
@@ -75,7 +74,9 @@ shared_ptr<Node> op::v1::Softmax::clone_with_new_inputs(const OutputVector& new_
 
 bool op::v1::Softmax::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const {
     OV_OP_SCOPE(v1_Softmax_evaluate);
+    OPENVINO_SUPPRESS_DEPRECATED_START
     NGRAPH_CHECK(validate_host_tensor_vector(outputs, 1) && validate_host_tensor_vector(inputs, 1));
+    OPENVINO_SUPPRESS_DEPRECATED_END
     outputs[0]->set_unary(inputs[0]);
     return evaluate_softmax(inputs[0], outputs[0], AxisSet{m_axis});
 }
@@ -95,8 +96,6 @@ bool op::v1::Softmax::has_evaluate() const {
 }
 
 // *** SOFTMAX OP SET V8 ***
-BWDCMP_RTTI_DEFINITION(op::v8::Softmax);
-
 op::v8::Softmax::Softmax(const Output<Node>& arg, const int64_t axis) : Op({arg}), m_axis(axis) {
     constructor_validate_and_infer_types();
 }
@@ -132,7 +131,9 @@ shared_ptr<Node> op::v8::Softmax::clone_with_new_inputs(const OutputVector& new_
 
 bool op::v8::Softmax::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const {
     OV_OP_SCOPE(v8_Softmax_evaluate);
+    OPENVINO_SUPPRESS_DEPRECATED_START
     NGRAPH_CHECK(validate_host_tensor_vector(outputs, 1) && validate_host_tensor_vector(inputs, 1));
+    OPENVINO_SUPPRESS_DEPRECATED_END
     outputs[0]->set_unary(inputs[0]);
     auto rank = static_cast<int64_t>(inputs[0]->get_shape().size());
     NGRAPH_CHECK(-rank <= m_axis && m_axis < rank,
@@ -141,7 +142,9 @@ bool op::v8::Softmax::evaluate(const HostTensorVector& outputs, const HostTensor
                  ") is out of bounds (argument shape: ",
                  inputs[0]->get_shape(),
                  ").");
+    OPENVINO_SUPPRESS_DEPRECATED_START
     size_t axis = static_cast<size_t>(ov::normalize_axis(this->description(), m_axis, rank));
+    OPENVINO_SUPPRESS_DEPRECATED_END
     return evaluate_softmax(inputs[0], outputs[0], AxisSet{axis});
 }
 

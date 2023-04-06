@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -9,7 +9,6 @@
 namespace ov {
 namespace intel_gna {
 namespace pass {
-
 
 /**
  * @brief Convert a padded convolution with bias, max pooling and activation function
@@ -33,10 +32,10 @@ namespace pass {
  */
 class ConvertPaddedToValidConv : public ngraph::pass::MatcherPass {
 public:
-  OPENVINO_RTTI("ConvertPaddedToValidConv", "0");
-  ConvertPaddedToValidConv();
+    OPENVINO_RTTI("ConvertPaddedToValidConv", "0");
+    ConvertPaddedToValidConv();
 };
 
-} // namespace pass
-} // namespace intel_gna
-} // namespace ov
+}  // namespace pass
+}  // namespace intel_gna
+}  // namespace ov

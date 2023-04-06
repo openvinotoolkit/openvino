@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -27,7 +27,9 @@ static bool can_be_fused(const std::shared_ptr<opset5::Pad>& pad,
     if (!node)
         return false;
 
+    OPENVINO_SUPPRESS_DEPRECATED_START
     auto pad_value_const = ov::get_constant_from_source(pad_value_node);
+    OPENVINO_SUPPRESS_DEPRECATED_END
     if (!pad_value_const)
         return false;
     auto pad_value = pad_value_const->cast_vector<float>()[0];

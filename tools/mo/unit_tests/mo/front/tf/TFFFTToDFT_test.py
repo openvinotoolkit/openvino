@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2022 Intel Corporation
+# Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 
@@ -104,7 +104,6 @@ class TFFFTToDFTTest(unittest.TestCase):
                                 'fft': {'num_of_dimensions': num_of_dimensions, 'fft_kind': dft_type},
                             })
         graph.stage = 'front'
-        setattr(graph.graph['cmd_params'], 'disable_nhwc_to_nchw', False)
         graph.graph['layout'] = 'NHWC'
         TFFFTToDFT().find_and_replace_pattern(graph)
         ref_graph = build_graph(nodes_attrs=ref_dft_graph_node_attrs,
@@ -147,7 +146,6 @@ class TFFFTToDFTTest(unittest.TestCase):
                                 'fft': {'num_of_dimensions': num_of_dims, 'fft_kind': fft_kind},
                             })
         graph.stage = 'front'
-        setattr(graph.graph['cmd_params'], 'disable_nhwc_to_nchw', False)
         graph.graph['layout'] = 'NHWC'
         TFFFTToDFT().find_and_replace_pattern(graph)
         ref_graph = build_graph(nodes_attrs=ref_dft_graph_with_signal_size_node_attrs,
