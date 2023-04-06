@@ -8,6 +8,7 @@
 #include "openvino/core/validation_util.hpp"
 #include "openvino/opsets/opset8.hpp"
 #include "openvino/util/common_util.hpp"
+#include "shape_infer_type_utils.hpp"
 #include "validation_util.hpp"
 
 TEST(get_constant_from_source, invalidation_check) {
@@ -70,4 +71,9 @@ TEST(constantfold_subgraph, split) {
     ASSERT_NE(ret, nullptr);
     auto actual = ret->cast_vector<float>();
     ASSERT_EQ(expected, actual);
+}
+
+TEST(cast_operator, check_cast_values) {
+    double val = 7.77828e+31;
+    ASSERT_NO_THROW(ov::util::Cast<long>()(val));
 }
