@@ -96,7 +96,7 @@ std::vector<layout> arg_max_min_inst::calc_output_layouts(arg_max_min_node const
     } else if (constant_mem.count(1)) {
         std::map<size_t, ngraph::HostTensorPtr> const_data;
         auto target_shape_mem = constant_mem.at(1);
-        cldnn::mem_lock<uint8_t, mem_lock_type::read> target_shape_lock(target_shape_mem, impl_param.prog->get_stream());
+        cldnn::mem_lock<uint8_t, mem_lock_type::read> target_shape_lock(target_shape_mem, impl_param.get_stream());
         const_data.emplace(1, make_host_tensor(target_shape_mem->get_layout(), target_shape_lock.data()));
 
         ov::op::v1::shape_infer(&op, input_shapes, output_shapes, const_data);

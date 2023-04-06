@@ -338,6 +338,9 @@ std::vector<ov::AnyMap> OVPropertiesTestsWithComplieModelProps::getPropertiesVal
     res.push_back({{ov::PropertyName(ov::force_tbb_terminate.name(), ov::force_tbb_terminate.mutability), true}});
     res.push_back({{ov::PropertyName(ov::force_tbb_terminate.name(), ov::force_tbb_terminate.mutability), false}});
 
+    res.push_back({{ov::PropertyName(ov::enable_mmap.name(), ov::enable_mmap.mutability), true}});
+    res.push_back({{ov::PropertyName(ov::enable_mmap.name(), ov::enable_mmap.mutability), false}});
+
     ov::streams::Num nums[] = {ov::streams::AUTO, ov::streams::NUMA};
     for (auto &num : nums) {
         res.push_back({{ov::PropertyName(ov::streams::num.name(), ov::streams::num.mutability), num}});
