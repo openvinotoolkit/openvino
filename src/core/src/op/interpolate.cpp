@@ -112,7 +112,9 @@ std::vector<int64_t> ov::op::v4::Interpolate::get_axes() const {
         return default_value;
     }
 
+    OPENVINO_SUPPRESS_DEPRECATED_START
     auto axes_node = get_constant_from_source(input_value(3));
+    OPENVINO_SUPPRESS_DEPRECATED_END
     NODE_VALIDATION_CHECK(this, axes_node, "Input 'axes' should be Constant or foldable.");
 
     return axes_node->cast_vector<int64_t>();

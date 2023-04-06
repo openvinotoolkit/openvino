@@ -26,9 +26,13 @@ OutputVector reverse_sequence(const Node& node) {
     const auto data_rank = data.get_partial_shape().rank();
 
     const auto batch_axis = node.get_attribute_value<int64_t>("batch_axis", 1);
+    OPENVINO_SUPPRESS_DEPRECATED_START
     const auto normalized_batch_axis = ngraph::normalize_axis(node.get_description(), batch_axis, data_rank);
+    OPENVINO_SUPPRESS_DEPRECATED_END
     const auto time_axis = node.get_attribute_value<int64_t>("time_axis", 0);
+    OPENVINO_SUPPRESS_DEPRECATED_START
     const auto normalized_time_axis = ngraph::normalize_axis(node.get_description(), time_axis, data_rank);
+    OPENVINO_SUPPRESS_DEPRECATED_END
 
     NGRAPH_CHECK(normalized_batch_axis == 0 || normalized_batch_axis == 1,
                  "Allowed values of the 'batch_axis' attribute for ReverseSequence "

@@ -397,7 +397,9 @@ public:
                 return false;
             }
 
+            OPENVINO_SUPPRESS_DEPRECATED_START
             const auto constant = get_constant_from_source(m_shape.get_node_shared_ptr());
+            OPENVINO_SUPPRESS_DEPRECATED_END
             if (!constant) {
                 NGRAPH_DEBUG << "Can't get constant from source node " << m_shape.get_node()->get_friendly_name();
                 return false;
@@ -1130,7 +1132,9 @@ public:
 
             auto constant = std::dynamic_pointer_cast<opset10::Constant>(m_weights.get_node_shared_ptr());
             if (!constant) {
+                OPENVINO_SUPPRESS_DEPRECATED_START
                 constant = get_constant_from_source(m_weights.get_node_shared_ptr());
+                OPENVINO_SUPPRESS_DEPRECATED_END
                 if (!constant) {
                     NGRAPH_DEBUG << "Can't process reshape node " << m_output.get_node()->get_friendly_name()
                                  << " with no constant node " << m_weights.get_node()->get_friendly_name()
@@ -1375,7 +1379,9 @@ public:
             const auto& m_weights = pattern_map.at(weights);
             const auto& m_output = pattern_map.at(transpose);
 
+            OPENVINO_SUPPRESS_DEPRECATED_START
             const auto input_order_node = get_constant_from_source(m_weights.get_node_shared_ptr());
+            OPENVINO_SUPPRESS_DEPRECATED_END
             if (!input_order_node) {
                 NGRAPH_DEBUG << "Can't process transpose node " << m_output.get_node()->get_friendly_name()
                              << " with no constant node " << m_weights.get_node()->get_friendly_name()
