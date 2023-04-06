@@ -129,7 +129,7 @@ void apply_padding(const util::ConvolutionBackPropBase* op,
     const auto& filters_shape = input_shapes[1];
 
     // apply padding if required
-    if (input_shapes.size() == 3 && convolution::is_auto_pad(op) && data_shape.rank().is_static() &&
+    if (input_shapes.size() >= 3 && convolution::is_auto_pad(op) && data_shape.rank().is_static() &&
         filters_shape.rank().is_static()) {
         convolution::apply_auto_pad(op,
                                     data_shape,
