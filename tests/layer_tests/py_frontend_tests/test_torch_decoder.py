@@ -564,3 +564,30 @@ def test_pytorch_decoder_can_convert_tensor_list_empty():
     assert converted_graph[0].kind() == "prim::ListConstruct"
     assert converted_graph[0].hasUses()
     assert len(list(converted_graph[0].inputs())) == 0
+
+@pytest.mark.precommit
+def test_pytorch_decoder_can_convert_optional_tensor_none():
+    from openvino.frontend.pytorch.decoder import TorchScriptPythonDecoder
+    from openvino.runtime import PartialShape, Type
+    from typing import List, Optional
+    class SomeTensor(torch.nn.Module):
+        def forward(self):
+            l = torch.jit.annotate(Optional[torch.Tensor], None)
+            return l
+
+    model = get_scripted_model(SomeTensor())
+    consts = [n for n in model.inlined_graph.nodes() if n.kind() ==
+            "prim::Constant"]
+    assert len(consts) == 1
+    nc_decoder = TorchScriptPythonDecoder(model)
+    converted_graph = list(nc_decoder.graph_element.nodes())
+    # Assert that replaced const is not used
+    assert converted_graph[1].kind() == "prim::Constant"
+    assert isinstance(converted_graph[1].output().type(), torch.OptionalType)
+    assert not converted_graph[1].hasUses()
+    # Assert that replacer const is used and has correct dtype
+    assert converted_graph[0].kind() == "prim::Constant"
+    assert converted_graph[0].hasUses()
+    outputs = list(nc_decoder.graph_element.outputs())
+    assert len(outputs) == 1
+    assert isinstance(outputs[0].type(), torch.NoneType)

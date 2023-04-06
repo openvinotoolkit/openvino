@@ -111,6 +111,7 @@ class TorchScriptPythonDecoder (Decoder):
 
         if isinstance(self.graph_element, torch.Graph):
             self._transform_tensor_list_constants_to_listconstruct(self.graph_element)
+            self._transform_optional_constants(self.graph_element)
 
     def _get_scripted_model(self, pt_module, example_inputs=None, freeze=True):
         import torch
@@ -402,3 +403,20 @@ class TorchScriptPythonDecoder (Decoder):
             replacement.output().setType(torch.ListType.ofTensors())
             replacement.copyMetadata(node)
             node.output().replaceAllUsesWith(replacement.output())
+
+    @staticmethod
+    def _transform_optional_constants(graph: torch.Graph):
+        # Function replaces prim::Constant containing torch.OptionalType with
+        # prim::Constant containing torch.NoneType or type of IValue.
+        assert isinstance(graph, torch.Graph)
+        for node in graph.nodes():
+            if node.kind() != "prim::Constant":
+                continue
+            output_type = node.output().type()
+            if not isinstance(output_type, torch.OptionalType):
+                continue
+            value = node.output().toIValue()
+            const_input = graph.insertConstant(value)
+            const_input.node().moveBefore(node)
+            const_input.node().copyMetadata(node)
+            node.output().replaceAllUsesWith(const_input)
