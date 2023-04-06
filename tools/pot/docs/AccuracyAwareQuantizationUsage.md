@@ -46,10 +46,10 @@ To control accuracy during optimization, the ``openvino.tools.pot.Metric`` inter
 - ``reset()`` - resets collected accuracy metric. 
 - ``get_attributes()`` - returns a dictionary of metric attributes:
 
-   .. code-block:: console
-      
-      {metric_name: {attribute_name: value}}
-   
+    .. code-block:: console
+       
+       {metric_name: {attribute_name: value}}
+    
    Required attributes: 
 
    - ``direction`` - (``higher-better`` or ``higher-worse``) a string parameter defining whether metric value should be increased in accuracy-aware algorithms.
@@ -118,15 +118,19 @@ An instance of the ``Metric`` implementation should be passed to ``IEEngine`` ob
    metric = Accuracy()
    engine = IEEngine(config=engine_config, data_loader=data_loader, metric=metric)
 
-@endsphinxdirective
+Select quantization parameters
+##############################
 
-## Select quantization parameters
 Accuracy-aware Quantization uses the Default Quantization algorithm at the initialization step in such an order that all its parameters are also valid and can be specified. The only parameter required exclusively by Accuracy-aware Quantization is:
-- `"maximal_drop"` - the maximum accuracy drop which has to be achieved after the quantization. The default value is `0.01` (1%).
 
-## Run quantization
+- ``"maximal_drop"`` - the maximum accuracy drop which has to be achieved after the quantization. The default value is ``0.01`` (1%).
 
-The example code below shows a basic quantization workflow with accuracy control. `UserDataLoader()` is a placeholder for the implementation of `DataLoader`.
+Run quantization
+################
+
+The example code below shows a basic quantization workflow with accuracy control. ``UserDataLoader()`` is a placeholder for the implementation of ``DataLoader``.
+
+@endsphinxdirective
 
 ```python
 from openvino.tools.pot import IEEngine
