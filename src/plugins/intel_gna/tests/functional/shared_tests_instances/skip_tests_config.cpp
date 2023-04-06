@@ -34,8 +34,8 @@ std::vector<std::string> disabledTestPatterns() {
         // TODO: Issue: 46416
         R"(.*InferRequestVariableStateTest.inferreq_smoke_VariableState_2infers*.*)",
         // TODO: Issue 24839
-        R"(.*ConvolutionLayerTest.CompareWithRefs.*D=\(1.3\).*)",
-        R"(.*ConvolutionLayerTest.CompareWithRefs.*D=\(3.1\).*)",
+        R"(.*Convolution2DLayerTest.CompareWithRefs.*D=\(1.3\).*)",
+        R"(.*Convolution2DLayerTest.CompareWithRefs.*D=\(3.1\).*)",
         R"(.*ConstantResultSubgraphTest.*IS=\(2\.3\.4\.5\).*)",
         R"(.*ConstantResultSubgraphTest.*inPrc=(U8|I8|I32|U64|I64|BOOL).*)",
         R"(.*importExportedFunctionParameterResultOnly.*)",
