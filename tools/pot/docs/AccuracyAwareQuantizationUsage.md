@@ -29,15 +29,18 @@ Prepare data and dataset interface
 
 This step is the same as in :doc:`Default Quantization <pot_default_quantization_usage>`. The only difference is that ``__getitem__()`` should return ``(data, annotation)`` or ``(data, annotation, metadata)``. The ``annotation`` is required and its format should correspond to the expectations of the ``Metric`` class. The ``metadata`` is an optional field that can be used to store additional information required for post-processing.
 
-@endsphinxdirective
+Define accuracy metric
+######################
 
-## Define accuracy metric
-To control accuracy during optimization, the `openvino.tools.pot.Metric` interface should be implemented. Each implementation should override the following properties and methods:
+To control accuracy during optimization, the ``openvino.tools.pot.Metric`` interface should be implemented. Each implementation should override the following properties and methods:
 
 **Properties**
-- `value` - returns the accuracy metric value for the last model output in a format of `Dict[str, numpy.array]`.
-- `avg_value` - returns the average accuracy metric over collected model results in a format of `Dict[str, numpy.array]`.
-- `higher_better` if a higher value of the metric corresponds to better performance, returns `True` , otherwise, `False`. The default implementation returns `True`.
+
+- ``value`` - returns the accuracy metric value for the last model output in a format of ``Dict[str, numpy.array]``.
+- ``avg_value`` - returns the average accuracy metric over collected model results in a format of ``Dict[str, numpy.array]``.
+- ``higher_better`` if a higher value of the metric corresponds to better performance, returns ``True`` , otherwise, ``False``. The default implementation returns ``True``.
+
+@endsphinxdirective
 
 **Methods**
 - `update(output, annotation)` - calculates and updates the accuracy metric value, using the last model output and annotation. The model output and annotation should be passed in this method. It should also contain the model-specific post-processing in case the model returns the raw output.
