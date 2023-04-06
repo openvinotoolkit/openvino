@@ -14,7 +14,7 @@
 
 #include "include/mock_common.hpp"
 #include "openvino/runtime/compiled_model.hpp"
-#include "include/mock_load_network_properties.hpp"
+#include "include/mock_auto_device_plugin.hpp"
 #include "so_ptr.hpp"
 #include "unit_test_utils/mocks/cpp_interfaces/impl/mock_inference_plugin_internal.hpp"
 #include "unit_test_utils/mocks/cpp_interfaces/interface/mock_icore.hpp"
@@ -54,7 +54,7 @@ static std::vector<ConfigParams> testConfigs;
 class AutoDefaultPerfHintTest : public ::testing::TestWithParam<ConfigParams> {
 public:
     std::shared_ptr<NiceMock<MockICore>> core;
-    std::shared_ptr<NiceMock<MockMultiPluginForLoadNetworkWithPropertiesTest>> plugin;
+    std::shared_ptr<NiceMock<MockMultiDeviceInferencePlugin>> plugin;
     InferenceEngine::CNNNetwork simpleCnnNetwork;
     // mock cpu exeNetwork
     std::shared_ptr<NiceMock<MockIExecutableNetworkInternal>> cpuMockIExeNet;
@@ -263,8 +263,8 @@ public:
 
         // prepare mockicore and cnnNetwork for loading
         core = std::shared_ptr<NiceMock<MockICore>>(new NiceMock<MockICore>());
-        auto* origin_plugin = new NiceMock<MockMultiPluginForLoadNetworkWithPropertiesTest>();
-        plugin = std::shared_ptr<NiceMock<MockMultiPluginForLoadNetworkWithPropertiesTest>>(origin_plugin);
+        auto* origin_plugin = new NiceMock<MockMultiDeviceInferencePlugin>();
+        plugin = std::shared_ptr<NiceMock<MockMultiDeviceInferencePlugin>>(origin_plugin);
         // replace core with mock Icore
         plugin->SetCore(core);
         inferReqInternal = std::make_shared<NiceMock<MockIInferRequestInternal>>();

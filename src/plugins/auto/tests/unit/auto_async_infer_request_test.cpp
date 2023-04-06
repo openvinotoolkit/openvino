@@ -70,7 +70,7 @@ TEST_P(AsyncInferenceTest, canInferIfStartAsyncSuccess) {
 TEST_P(AsyncInferenceTest, canRethrowIfStartAsyncFails) {
     // create additional resource for infer fail restart
     for (size_t i = 0; i < request_num_pool; i++)
-        ON_CALL(*inferReqInternal[i], InferImpl()).WillByDefault(Throw(std::exception()));
+        ON_CALL(*inferReqInternal[i], InferImpl()).WillByDefault(Throw(InferenceEngine::GeneralError("runtime error")));
     auto_request = exeNetwork->CreateInferRequest();
     auto_request->SetCallback([&](std::exception_ptr exceptionPtr_) {
         auto exceptionPtr = exceptionPtr_;

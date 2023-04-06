@@ -14,7 +14,7 @@
 #include <cpp_interfaces/interface/ie_internal_plugin_config.hpp>
 #include "utils/log_util.hpp"
 #include "common.hpp"
-#include "utils/plugin_config.hpp"
+#include "plugin_config.hpp"
 
 #ifdef  MULTIUNITTEST
 #define MOCKTESTMACRO virtual
