@@ -420,10 +420,10 @@ void GNAPlugin::UpdateInputScaleFromNetwork(InferenceEngine::CNNNetwork& network
         auto data = input.second->getInputData();
         for (auto&& nextToInputLayer : getInputTo(data)) {
             CNNLayerPtr next_layer = nextToInputLayer.second;
-            // FQ layer can be connected to the input via Reshape/Transpose or other non-functional layers.
-            if (LayerInfo(next_layer).isNonFunctional()) {
+            // FQ layer can be connected to the input via Reshape/Transpose/Gather and other non-functional layers.
+            if (LayerInfo(next_layer).is_fq_non_sensitive()) {
                 next_layer = CNNNetCheckNextLayerSkipCertain(nextToInputLayer.second, 0, 0, true, [](CNNLayerPtr l) {
-                                 return LayerInfo(l).isNonFunctional();
+                                 return LayerInfo(l).is_fq_non_sensitive();
                              }).first;
             }
 

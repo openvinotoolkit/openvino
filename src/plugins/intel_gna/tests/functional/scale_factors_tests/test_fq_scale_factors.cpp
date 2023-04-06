@@ -19,7 +19,7 @@
 
 using namespace ov::opset10;
 
-enum NonFunctionalLayer { RESHAPE, SQUEEZE, UNSQUEEZE, TRANSPOSE, NONE };
+enum NonFunctionalLayer { RESHAPE, SQUEEZE, UNSQUEEZE, TRANSPOSE, GATHER, NONE };
 
 namespace std {
 inline std::ostream& operator<<(std::ostream& os, NonFunctionalLayer layer_type) {
@@ -35,6 +35,9 @@ inline std::ostream& operator<<(std::ostream& os, NonFunctionalLayer layer_type)
         break;
     case NonFunctionalLayer::TRANSPOSE:
         os << "TRANSPOSE";
+        break;
+    case NonFunctionalLayer::GATHER:
+        os << "GATHER";
         break;
     default:
         os << "NONE";
@@ -102,6 +105,9 @@ protected:
         case NonFunctionalLayer::TRANSPOSE:
             test_node = AddTransposeNode(test_node);
             break;
+        case NonFunctionalLayer::GATHER:
+            test_node = AddGatherNode(test_node, shape);
+            break;
         default:
             break;
         }
@@ -161,6 +167,17 @@ protected:
         return transpose;
     }
 
+    std::shared_ptr<ov::Node> AddGatherNode(std::shared_ptr<ov::Node> node, ov::Shape shape) {
+        ov::Shape gather_indices(shape.size());
+        std::iota(gather_indices.begin(), gather_indices.end(), 0);
+
+        auto gather_const =
+            std::make_shared<Constant>(ov::element::i32, ov::Shape{gather_indices.size()}, gather_indices);
+        auto gather_axis_const = Constant::create(ov::element::i64, ov::Shape{}, {shape.size() - 1});
+        auto gather = std::make_shared<Gather>(node, gather_const, gather_axis_const);
+        return gather;
+    }
+
     NonFunctionalLayer m_non_func_layer = NonFunctionalLayer::NONE;
     float inputDataMax = 1.0;
     float inputDataMin = -1.0;
@@ -204,6 +221,7 @@ const std::vector<std::map<std::string, std::string>> configs = {{
     {"GNA_DEVICE_MODE", "GNA_SW_EXACT"},
 }};
 
+// Need to enable Gather when it is supported by the plugin
 const std::vector<NonFunctionalLayer> non_func_layers = {NONE, RESHAPE, SQUEEZE, UNSQUEEZE, TRANSPOSE};
 
 const std::vector<std::pair<float, float>> inputValues = {{-188.0, 188.0}, {-90.0, 90.0}, {-20.0, 20.0}, {-10.0, 10.0}};
