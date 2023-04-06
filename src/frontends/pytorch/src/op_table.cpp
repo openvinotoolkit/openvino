@@ -106,6 +106,7 @@ OP_CONVERTER(translate_rsub);
 OP_CONVERTER(translate_select);
 OP_CONVERTER(translate_set_item);
 OP_CONVERTER(translate_selu);
+OP_CONVERTER(translate_sign);
 OP_CONVERTER(translate_size);
 OP_CONVERTER(translate_slice);
 OP_CONVERTER(translate_softmax);
@@ -197,6 +198,7 @@ const std::map<std::string, CreatorFunction> get_supported_ops() {
         {"aten::cosh", op::translate_1to1_match_1_inputs<opset10::Cosh>},
         {"aten::cosh_", op::inplace_op<op::translate_1to1_match_1_inputs<opset10::Cosh>>},
         {"aten::cumsum", op::translate_cumsum},
+        {"aten::detach", op::skip_node},
         {"aten::dim", op::translate_dim},
         {"aten::div", op::translate_div},
         {"aten::div_", op::inplace_op<op::translate_div>},
@@ -297,6 +299,7 @@ const std::map<std::string, CreatorFunction> get_supported_ops() {
         {"aten::selu_", op::inplace_op<op::translate_selu>},
         {"aten::sigmoid", op::translate_1to1_match_1_inputs<opset10::Sigmoid>},
         {"aten::sigmoid_", op::inplace_op<op::translate_1to1_match_1_inputs<opset10::Sigmoid>>},
+        {"aten::sign", op::translate_sign},
         {"aten::silu", op::translate_1to1_match_1_inputs<opset10::Swish>},
         {"aten::silu_", op::inplace_op<op::translate_1to1_match_1_inputs<opset10::Swish>>},
         {"aten::sin", op::translate_1to1_match_1_inputs<opset10::Sin>},
