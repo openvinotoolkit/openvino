@@ -290,13 +290,17 @@ protected:
         }
     }
 
-    void set_kernels(std::vector<kernel::ptr>& kernels) override {
+    void set_kernels(cldnn::kernels_cache::compiled_kernels kernels) override {
         if (is_cpu())
             return;
-
+        OPENVINO_ASSERT(kernels.size() == 1, "Only the kernels of the single primitive should be allowed.");
+        auto& kernel_vec = kernels.begin()->second;
         _kernels.clear();
-        _kernels.reserve(kernels.size());
-        _kernels.insert(_kernels.end(), kernels.begin(), kernels.end());
+        _kernels.resize(kernel_vec.size());
+        for (auto& k : kernel_vec) {
+            auto sub_kernel_idx = k.second;
+            _kernels[sub_kernel_idx] = k.first;
+        }
     }
 
     std::vector<kernel::ptr> get_kernels() override {

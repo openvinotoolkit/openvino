@@ -566,7 +566,7 @@ void kernels_cache::load(BinaryInputBuffer& ib) {
     }
 }
 
-std::vector<kernel::ptr> kernels_cache::compile(const kernel_impl_params& params,
+kernels_cache::compiled_kernels kernels_cache::compile(const kernel_impl_params& params,
                                             const std::vector<std::shared_ptr<kernel_string>>& kernel_sources,
                                             bool dump_custom_program) {
     OV_ITT_SCOPED_TASK(ov::intel_gpu::itt::domains::intel_gpu_plugin, "KernelsCache::compile");
@@ -586,23 +586,15 @@ std::vector<kernel::ptr> kernels_cache::compile(const kernel_impl_params& params
     std::vector<batch_program> batches;
     get_program_source(t_kernels_code, &batches);
 
-    compiled_kernels _compiled_kernels;
+    compiled_kernels output_kernels;
     // Build batches
     for (size_t idx = 0; idx < batches.size(); ++idx) {
-        build_batch(_build_engine, batches[idx], _compiled_kernels);
+        build_batch(_build_engine, batches[idx], output_kernels);
     }
 
-    OPENVINO_ASSERT(_compiled_kernels.size() == 1, "Only the kernels of the single primitive should be compiled.");
-
-    auto kernel_data = _compiled_kernels.begin()->second;
-    std::vector<kernel::ptr> output_kernels(kernel_data.size());
-    for (size_t idx = 0; idx < kernel_data.size(); idx++) {
-        size_t part_kernel_idx = kernel_data[idx].second;
-        output_kernels[part_kernel_idx] = kernel_data[idx].first;
-    }
+    OPENVINO_ASSERT(output_kernels.size() == 1, "Only the kernels of the single primitive should be compiled.");
 
     t_kernels_code.clear();
-    _compiled_kernels.clear();
 #if defined(__unix__) && !defined(__ANDROID__)
     //  NOTE: In linux, without malloc_trim, an amount of the memory used by compilation is not being returned to system thought they are freed.
     //  (It is at least 500 MB when we perform parallel compilation)

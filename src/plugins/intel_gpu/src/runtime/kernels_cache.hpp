@@ -114,7 +114,7 @@ public:
     void add_kernels_source(const kernel_impl_params& params,
                                 const std::vector<std::shared_ptr<kernel_string>>& kernel_sources,
                                 bool dump_custom_program = false);
-    std::vector<kernel::ptr> compile(const kernel_impl_params& params,
+    compiled_kernels compile(const kernel_impl_params& params,
                                 const std::vector<std::shared_ptr<kernel_string>>& kernel_sources,
                                 bool dump_custom_program = false);
 
