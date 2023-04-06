@@ -28,7 +28,7 @@ Follow the instructions below to get frozen TensorFlow EfficientDet model. Effic
 
 .. code-block:: sh
 
-   git checkout 96e1fee
+   git checkout ecbc7a3
 
 3. Install required dependencies:
 
@@ -50,7 +50,7 @@ referenced in the **"Pretrained EfficientDet Checkpoints"** section of the model
 
 .. code-block:: sh
 
-    mo --runmode=saved_model --model_name=efficientdet-d4  --ckpt_path=efficientdet-d4 --saved_model_dir=savedmodeldir
+    python3 model_inspect.py --runmode=saved_model --model_name=efficientdet-d4  --ckpt_path=efficientdet-d4 --saved_model_dir=savedmodeldir
 
 As a result, the frozen model file ``savedmodeldir/efficientdet-d4_frozen.pb`` will be generated.
 
