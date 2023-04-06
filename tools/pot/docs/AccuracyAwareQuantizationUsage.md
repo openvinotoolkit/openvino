@@ -24,10 +24,12 @@ A script for Accuracy-aware Quantization includes four steps:
 3. Select quantization parameters.
 4. Define and run quantization process.
 
-@endsphinxdirective
+Prepare data and dataset interface
+##################################
 
-## Prepare data and dataset interface
-This step is the same as in [Default Quantization](@ref pot_default_quantization_usage). The only difference is that `__getitem__()` should return `(data, annotation)` or `(data, annotation, metadata)`. The `annotation` is required and its format should correspond to the expectations of the `Metric` class. The `metadata` is an optional field that can be used to store additional information required for post-processing.
+This step is the same as in :doc:`Default Quantization <pot_default_quantization_usage>`. The only difference is that ``__getitem__()`` should return ``(data, annotation)`` or ``(data, annotation, metadata)``. The ``annotation`` is required and its format should correspond to the expectations of the ``Metric`` class. The ``metadata`` is an optional field that can be used to store additional information required for post-processing.
+
+@endsphinxdirective
 
 ## Define accuracy metric
 To control accuracy during optimization, the `openvino.tools.pot.Metric` interface should be implemented. Each implementation should override the following properties and methods:
