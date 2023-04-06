@@ -93,5 +93,7 @@ bool op::v1::Transpose::evaluate_upper(ov::TensorVector& output_values) const {
 }
 
 bool op::v1::Transpose::evaluate_label(TensorLabelVector& output_labels) const {
+    OPENVINO_SUPPRESS_DEPRECATED_START
     return get_input_tensor(ORDER).has_and_set_bound() && default_label_evaluator(this, output_labels);
+    OPENVINO_SUPPRESS_DEPRECATED_END
 }
