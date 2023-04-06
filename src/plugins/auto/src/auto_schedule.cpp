@@ -238,12 +238,7 @@ void AutoSchedule::init(const ScheduleContext::Ptr& sContext) {
             // Generate contexts for loading each device
             _pCTPUTLoadContext.reset(new AutoLoadContext[_nCTputDeviceNums]);
             int idx = 0;
-            /*  To be compatible with C++11 but also fix the scan warning. https://stackoverflow.com/questions/18184096
-                If we limit to use std >= C++14 one day, then we can initilize them in DeviceInformation definition directly
-                DeviceInformation cpuDeviceInformation = {.numRequestsPerDevices = -1, .devicePriority = 0};
-                Failed for Windows error C7555: use of designated initializers requires at least '/std:c++latest'
-                */
-            DeviceInformation cpuDeviceInformation = {std::string(), {}, -1, std::string(), std::string(), 0};
+            DeviceInformation cpuDeviceInformation;
             for (auto& device : validDevices) {
                 if (device.deviceName.find("CPU") == std::string::npos) {
                     _pCTPUTLoadContext[idx].deviceInfo = device;
