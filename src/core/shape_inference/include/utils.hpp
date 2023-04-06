@@ -281,7 +281,9 @@ std::unique_ptr<TRes> get_input_const_data_as(const ov::Node* op,
     if (constant_data.count(idx)) {
         return std::unique_ptr<TRes>(
             new TRes(get_tensor_data_as<TData, TRes>(constant_data.at(idx).get(), std::forward<UnaryOperation>(func))));
+        OPENVINO_SUPPRESS_DEPRECATED_START
     } else if (const auto& constant = ov::get_constant_from_source(op->input_value(idx))) {
+        OPENVINO_SUPPRESS_DEPRECATED_END
         const auto& et = constant->get_element_type();
         const auto& shape = constant->get_shape();
         return std::unique_ptr<TRes>(new TRes(get_raw_data_as<TData, TRes>(et,
@@ -325,7 +327,9 @@ std::unique_ptr<TShape> get_input_const_data_as_shape(const ov::Node* op,
         return std::unique_ptr<TShape>(new TShape(std::move(*d)));
     } else {
         PartialShape shape;
+        OPENVINO_SUPPRESS_DEPRECATED_START
         if (ov::evaluate_as_partial_shape(op->input_value(idx), shape)) {
+            OPENVINO_SUPPRESS_DEPRECATED_END
             return std::unique_ptr<TShape>(new TShape(std::move(shape)));
         }
     }
@@ -459,7 +463,9 @@ inline bool get_data_as_shape<ov::PartialShape>(
         shape = ov::PartialShape(ov::opset1::Constant(constant_data.at(idx)).cast_vector<int64_t>());
         return true;
     } else {
+        OPENVINO_SUPPRESS_DEPRECATED_START
         return ov::evaluate_as_partial_shape(op->input_value(idx), shape);
+        OPENVINO_SUPPRESS_DEPRECATED_END
     }
 }
 

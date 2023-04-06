@@ -29,6 +29,10 @@ TSSliceForward::TSSliceForward() {
         const auto& pattern_to_node = m.get_pattern_map();
 
         auto& main_node = pattern_to_node.at(main_node_label);
+        if (transformation_callback(main_node)) {
+            return false;
+        }
+
         auto transpose = std::dynamic_pointer_cast<Transpose>(pattern_to_node.at(transpose_label));
         if (!transpose || main_node->get_input_size() < 5) {
             return false;
@@ -84,6 +88,9 @@ TSSliceBackward::TSSliceBackward() {
         auto transpose_const = as_type_ptr<Constant>(pattern_to_output.at(transpose_const_label).get_node_shared_ptr());
         auto transpose = pattern_to_output.at(transpose_label).get_node_shared_ptr();
         auto main_node = pattern_to_output.at(main_node_label).get_node_shared_ptr();
+        if (transformation_callback(main_node)) {
+            return false;
+        }
 
         if (main_node->get_input_size() < 5) {
             return false;
