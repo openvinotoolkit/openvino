@@ -19,7 +19,7 @@ def infer_for_opsetX(node: Node, opset: str):
         inputs = [2, 3]
         scales_port = 1
     else:
-        raise f"Unknown opset {opset}"
+        raise "Unknown opset: {}".format(opset)
     axes_port = inputs[0]
     assert len([p for p in node.in_ports().values() if not p.disconnected()]) in inputs, \
         "Interpolate node {} must have at lease 2 inputs".format(node.soft_get(node.name, node.id))
