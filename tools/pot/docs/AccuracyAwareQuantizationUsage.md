@@ -40,19 +40,22 @@ To control accuracy during optimization, the ``openvino.tools.pot.Metric`` inter
 - ``avg_value`` - returns the average accuracy metric over collected model results in a format of ``Dict[str, numpy.array]``.
 - ``higher_better`` if a higher value of the metric corresponds to better performance, returns ``True`` , otherwise, ``False``. The default implementation returns ``True``.
 
-@endsphinxdirective
-
 **Methods**
-- `update(output, annotation)` - calculates and updates the accuracy metric value, using the last model output and annotation. The model output and annotation should be passed in this method. It should also contain the model-specific post-processing in case the model returns the raw output.
-- `reset()` - resets collected accuracy metric. 
-- `get_attributes()` - returns a dictionary of metric attributes:
-   ```
-   {metric_name: {attribute_name: value}}
-   ```
+
+- ``update(output, annotation)`` - calculates and updates the accuracy metric value, using the last model output and annotation. The model output and annotation should be passed in this method. It should also contain the model-specific post-processing in case the model returns the raw output.
+- ``reset()`` - resets collected accuracy metric. 
+- ``get_attributes()`` - returns a dictionary of metric attributes:
+
+   .. code-block:: console
+      
+      {metric_name: {attribute_name: value}}
+   
    Required attributes: 
-   - `direction` - (`higher-better` or `higher-worse`) a string parameter defining whether metric value 
-    should be increased in accuracy-aware algorithms.
-   - `type` - a string representation of a metric type. For example, "accuracy" or "mean_iou".
+
+   - ``direction`` - (``higher-better`` or ``higher-worse``) a string parameter defining whether metric value should be increased in accuracy-aware algorithms.
+   - ``type`` - a string representation of a metric type. For example, "accuracy" or "mean_iou".
+
+@endsphinxdirective
 
 Below is an example of the accuracy top-1 metric implementation with POT API:
 ```python
