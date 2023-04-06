@@ -31,7 +31,9 @@ void shape_infer(const RegionYolo* op, const std::vector<T>& input_shapes, std::
 
         if (op->m_do_softmax) {
             output_shape.resize(0);
+            OPENVINO_SUPPRESS_DEPRECATED_START
             auto axis = ov::normalize_axis(op, op->m_axis, input_rank);
+            OPENVINO_SUPPRESS_DEPRECATED_END
             DimType flat_dim = 1;
             for (int64_t i = 0; i < axis; i++) {
                 output_shape.push_back(input_shape[i]);
