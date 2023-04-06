@@ -35,7 +35,9 @@ bool relax_hc_reshape_followed_by_matmul(const ngraph::pattern::PatternValueMap&
 
     const auto& raw_idx =
         reshape_is_A_input ? (matmul->get_transpose_b() ? -1 : -2) : (matmul->get_transpose_a() ? -2 : -1);
+    OPENVINO_SUPPRESS_DEPRECATED_START
     const auto& idx = ngraph::normalize_axes(matmul->description(), {raw_idx}, reshape_rank);
+    OPENVINO_SUPPRESS_DEPRECATED_END
     const auto& C =
         std::make_shared<ov::opset4::Gather>(std::make_shared<ov::opset4::ShapeOf>(shape_source),
                                              ov::opset4::Constant::create(ngraph::element::i64, {idx.size()}, idx),

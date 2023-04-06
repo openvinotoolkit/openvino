@@ -50,7 +50,9 @@ void op::v0::PriorBox::validate_and_infer_types() {
     set_input_is_relevant_to_shape(0);
 
     PartialShape spatials;
+    OPENVINO_SUPPRESS_DEPRECATED_START
     if (evaluate_as_partial_shape(input_value(0), spatials)) {
+        OPENVINO_SUPPRESS_DEPRECATED_END
         NODE_VALIDATION_CHECK(this,
                               spatials.rank().is_static() && spatials.size() == 2,
                               "Layer shape must have rank 2",
@@ -237,7 +239,9 @@ void op::v8::PriorBox::validate_and_infer_types() {
     set_input_is_relevant_to_shape(0);
 
     PartialShape spatials;
+    OPENVINO_SUPPRESS_DEPRECATED_START
     if (evaluate_as_partial_shape(input_value(0), spatials)) {
+        OPENVINO_SUPPRESS_DEPRECATED_END
         NODE_VALIDATION_CHECK(this,
                               spatials.rank().is_static() && spatials.size() == 2,
                               "Layer shape must have rank 2",
