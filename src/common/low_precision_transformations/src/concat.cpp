@@ -99,9 +99,11 @@ bool ConcatTransformation::transform(TransformationContext& context, ngraph::pat
         [](const FakeQuantizeDequantization& value) { return !value.isLowPrecision(); });
 
     bool DqWithDifferentPrecision = someDqInLowPrecision && someDqInFpPrecision;
+    OPENVINO_SUPPRESS_DEPRECATED_START
     const auto axis = ngraph::normalize_axis(concat->get_friendly_name(),
         concat->get_axis(),
         concat->get_output_partial_shape(0).rank());
+    OPENVINO_SUPPRESS_DEPRECATED_END
 
     OutputVector dataNodes;
     NodeVector convertNodes;
@@ -214,7 +216,9 @@ bool ConcatTransformation::canBeTransformed(const TransformationContext& context
         return false;
     }
 
+    OPENVINO_SUPPRESS_DEPRECATED_START
     const size_t normalizedAxis = ngraph::normalize_axis(concat->get_friendly_name(), axis, outRank);
+    OPENVINO_SUPPRESS_DEPRECATED_END
     if (outPShape[normalizedAxis].is_dynamic()) {
         return false;
     }
