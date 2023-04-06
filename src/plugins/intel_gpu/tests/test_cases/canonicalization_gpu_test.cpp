@@ -13,6 +13,7 @@
 #include "eltwise_inst.h"
 #include "fully_connected_inst.h"
 #include "gemm_inst.h"
+#include "gather_inst.h"
 
 using namespace cldnn;
 using namespace ::tests;
@@ -182,6 +183,46 @@ TEST(canonicalization, gemm) {
                           data_types::f32, false, false, 1.0f, 0.0f, input_rank, weights_rank));
 
         canonicalization_test(topology, "gemm", std::get<1>(shapes), std::get<2>(shapes));
+    }
+}
+
+struct gather_params {
+    int64_t axis;
+    int64_t batch_dim;
+    bool support_neg_ind;
+};
+
+std::vector<std::pair<Shapes, gather_params>> gather_shapes_with_params {
+    {
+        {{{8, 2, 3}, {}}, {{8, 2, 3, 1}, {1, 1, 1, 1}}, {{1, 2, 3, 1}}},
+        {0, 0, false}
+    },
+    {
+        {{{8, -1, -1, 2}, {}}, {{8, -1, -1, 2}, {1, 1, 1, 1}}, {{1, -1, -1, 2}}},
+        {0, 0, false}
+    },
+    {
+        {{{8, 2, 3}, {1}}, {{8, 2, 3, 1}, {1, 1, 1, 1}}, {{1, 2, 3, 1}}},
+        {0, 0, false}
+    },
+    {
+        {{{8, 2, 3, 4}, {8}}, {{8, 2, 3, 4}, {8, 1, 1, 1}}, {{8, 2, 1, 4}}},
+        {2, 1, false}
+    }
+};
+
+TEST(canonicalization, gather) {
+    for (const auto& params : gather_shapes_with_params) {
+        layout data_layout = create_default_layout(std::get<0>(params.first)[0]);
+        layout indices_layout = create_default_layout(std::get<0>(params.first)[1]);
+
+        topology topology;
+        topology.add(input_layout("data", data_layout));
+        topology.add(input_layout("indices", indices_layout));
+        topology.add(gather("gather", input_info("data"), input_info("indices"), params.second.axis,
+                            ov::Shape{}, params.second.batch_dim, params.second.support_neg_ind));
+
+        canonicalization_test(topology, "gather", std::get<1>(params.first), std::get<2>(params.first));
     }
 }
 
