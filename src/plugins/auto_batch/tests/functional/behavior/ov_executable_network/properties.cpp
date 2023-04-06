@@ -13,13 +13,9 @@ namespace {
 
 const std::vector<ov::AnyMap> auto_batch_inproperties = {
     {ov::num_streams(-100)},
-    {{CONFIG_KEY(AUTO_BATCH_DEVICE_CONFIG), std::string(CommonTestUtils::DEVICE_CPU) + "(4)"},
-     {ov::auto_batch_timeout(-1)}},
-#ifdef HAVE_TEMPLATE_PLUGIN
-    {ov::device::id("UNSUPPORTED_DEVICE_ID_STRING")},
     {{CONFIG_KEY(AUTO_BATCH_DEVICE_CONFIG), std::string(CommonTestUtils::DEVICE_TEMPLATE) + "(4)"},
      {ov::auto_batch_timeout(-1)}},
-#endif
+    {ov::device::id("UNSUPPORTED_DEVICE_ID_STRING")},
 };
 
 INSTANTIATE_TEST_SUITE_P(smoke_AutoBatch_BehaviorTests,
@@ -29,18 +25,11 @@ INSTANTIATE_TEST_SUITE_P(smoke_AutoBatch_BehaviorTests,
                          OVCompiledModelPropertiesIncorrectTests::getTestCaseName);
 
 const std::vector<ov::AnyMap> auto_batch_properties = {
-    {{CONFIG_KEY(AUTO_BATCH_DEVICE_CONFIG), std::string(CommonTestUtils::DEVICE_CPU) + "(4)"}},
-    {{CONFIG_KEY(AUTO_BATCH_DEVICE_CONFIG), std::string(CommonTestUtils::DEVICE_CPU) + "(4)"},
-     {CONFIG_KEY(AUTO_BATCH_TIMEOUT), "1"}},
-    {{CONFIG_KEY(AUTO_BATCH_DEVICE_CONFIG), std::string(CommonTestUtils::DEVICE_CPU) + "(4)"},
-     {ov::auto_batch_timeout(10)}},
-#ifdef HAVE_TEMPLATE_PLUGIN
     {{CONFIG_KEY(AUTO_BATCH_DEVICE_CONFIG), std::string(CommonTestUtils::DEVICE_TEMPLATE) + "(4)"}},
     {{CONFIG_KEY(AUTO_BATCH_DEVICE_CONFIG), std::string(CommonTestUtils::DEVICE_TEMPLATE) + "(4)"},
      {CONFIG_KEY(AUTO_BATCH_TIMEOUT), "1"}},
     {{CONFIG_KEY(AUTO_BATCH_DEVICE_CONFIG), std::string(CommonTestUtils::DEVICE_TEMPLATE) + "(4)"},
      {ov::auto_batch_timeout(10)}},
-#endif
 };
 
 INSTANTIATE_TEST_SUITE_P(smoke_AutoBatch_BehaviorTests,

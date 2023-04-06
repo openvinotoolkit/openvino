@@ -8,8 +8,8 @@ using namespace BehaviorTestsDefinitions;
 namespace {
 auto AutoBatchConfigs = []() {
     return std::vector<std::map<std::string, std::string>>{
-        // explicit batch size 4 to avoid fallback to no auto-batching (i.e. plain GPU)
-        {{CONFIG_KEY(AUTO_BATCH_DEVICE_CONFIG), std::string(CommonTestUtils::DEVICE_GPU) + "(4)"},
+        // explicit batch size 4 to avoid fallback to no auto-batching
+        {{CONFIG_KEY(AUTO_BATCH_DEVICE_CONFIG), std::string(CommonTestUtils::DEVICE_TEMPLATE) + "(4)"},
          // no timeout to avoid increasing the test time
          {CONFIG_KEY(AUTO_BATCH_TIMEOUT), "0 "}}};
 };

@@ -56,7 +56,7 @@ protected:
             nets.push_back(CNNNetwork(fn_ptr));
         }
 
-        auto ie = InferenceEngine::Core();
+        auto ie = BehaviorTestsUtils::createIECoreWithTemplate();
         std::vector<std::string> outputs;
         std::vector<InferRequest> irs;
         std::vector<std::vector<uint8_t>> ref;
@@ -69,15 +69,6 @@ protected:
                 n.second->setPrecision(Precision::FP32);
             }
             std::map<std::string, std::string> config;
-            if (target_device.find("GPU") != std::string::npos) {
-                config[CONFIG_KEY(GPU_THROUGHPUT_STREAMS)] = std::to_string(num_streams);
-                config["INFERENCE_PRECISION_HINT"] = "f32";
-            }
-
-            if (target_device.find("CPU") != std::string::npos) {
-                config[CONFIG_KEY(CPU_THROUGHPUT_STREAMS)] = std::to_string(num_streams);
-                config[CONFIG_KEY(ENFORCE_BF16)] = CONFIG_VALUE(NO);
-            }
             // minimize timeout to reduce test time
             config[CONFIG_KEY(AUTO_BATCH_TIMEOUT)] = std::to_string(1);
             auto exec_net_ref = ie.LoadNetwork(net,

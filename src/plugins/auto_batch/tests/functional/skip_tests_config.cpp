@@ -3,32 +3,26 @@
 //
 
 #include "functional_test_utils/skip_tests_config.hpp"
-#include "device_utils.hpp"
 
 #include <string>
 #include <vector>
 
 std::vector<std::string> disabledTestPatterns() {
     std::vector<std::string> disabled_items = {
-        // TODO: for 22.2 (CVS-68949)
-        R"(smoke_AutoBatching_CPU/AutoBatching_Test_DetectionOutput.*)",
+        // TODO: for CVS-68949
+        R"(.*AutoBatching_Test_DetectionOutput.*)",
         // Not implemented yet:
         R"(.*Behavior.*ExecutableNetworkBaseTest.*canSetConfigToExecNet.*)",
         R"(.*Behavior.*ExecutableNetworkBaseTest.*canExport.*)",
         R"(.*OVExecutableNetworkBaseTest.*CanSetConfigToExecNet.*)",
         R"(.*OVExecutableNetworkBaseTest.*CanSetConfigToExecNetAndCheckConfigAndCheck.*)",
+        // Not supported by TEMPLATE plugin
+        R"(.*OVExecutableNetworkBaseTest.*CheckExecGraphInfo.*)",
         // Issue: 90539
-        R"(smoke_AutoBatch_BehaviorTests/OVInferRequestIOTensorTest.InferStaticNetworkSetInputTensor/targetDevice=BATCH.*)",
+        R"(.*OVInferRequestIOTensorTest.InferStaticNetworkSetInputTensor.*)",
+        R"(.*OVInferRequestIOTensorTest.canInferAfterIOBlobReallocation.*)",
         R"(.*VirtualPlugin.*BehaviorTests.*OVHoldersTest.*)",
     };
-
-    if (!ov::device_utils::is_device_supported("GPU")) {
-        disabled_items.push_back(R"(.*GPU.*)");
-    }
-
-    if (!ov::device_utils::is_device_supported("TEMPLATE")) {
-        disabled_items.push_back(R"(.*TEMPLATE.*)");
-    }
 
     return disabled_items;
 }
