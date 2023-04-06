@@ -548,6 +548,7 @@ void Snippet::generate(const jit_snippets_compile_args* jcp) {
         // Note, MatMul decomposition will be ran later again for case if BF16 enforcement is not happened
         pre_dialect.register_pass<ngraph::snippets::pass::MatMulToBrgemm>();
         pre_dialect.register_pass<pass::EnforcePrecision>(element::f32, element::bf16);
+        std::cout << "Snippet::generate: EnforcePrecision was added in pipeline" << std::endl;
     }
 
     ov::pass::Manager post_dialect;

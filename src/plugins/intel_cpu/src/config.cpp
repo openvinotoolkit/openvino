@@ -67,9 +67,17 @@ void Config::applyDebugCapsProperties() {
 }
 #endif
 
-void Config::readProperties(const std::map<std::string, std::string> &prop) {
+void Config::readProperties(const std::map<std::string, std::string> &prop_) {
     const auto streamExecutorConfigKeys = streamExecutorConfig.SupportedKeys();
     const auto hintsConfigKeys = perfHintsConfig.SupportedKeys();
+
+    auto prop = prop_;
+
+    // TODO: just to test
+    ov::element::Type hint = ov::element::bf16;
+    prop.emplace(std::string("INFERENCE_PRECISION_HINT"), hint.get_type_name());
+    std::cout << "Config::readProperties: INFERENCE_PRECISION_HINT: " << hint.get_type_name() << std::endl;
+
     for (const auto& kvp : prop) {
         const auto& key = kvp.first;
         const auto& val = kvp.second;

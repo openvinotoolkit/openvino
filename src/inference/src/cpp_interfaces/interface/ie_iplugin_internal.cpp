@@ -136,8 +136,15 @@ std::map<std::string, std::shared_ptr<const T>> const_map_cast(const std::map<st
 
 std::shared_ptr<IExecutableNetworkInternal> IInferencePlugin::LoadNetwork(
     const CNNNetwork& orig_network,
-    const std::map<std::string, std::string>& config,
+    const std::map<std::string, std::string>& config_,
     const std::shared_ptr<RemoteContext>& context) {
+    auto config = config_;
+
+    // TODO: just to test
+    ov::element::Type hint = ov::element::bf16;
+    config.emplace(std::string("INFERENCE_PRECISION_HINT"), hint.get_type_name());
+    std::cout << "IInferencePlugin::LoadNetwork: INFERENCE_PRECISION_HINT: " << hint.get_type_name() << std::endl;
+
     std::shared_ptr<IExecutableNetworkInternal> impl;
 
     // if IR `version` is not set, suppose it's IR v10 for old API

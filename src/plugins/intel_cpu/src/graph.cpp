@@ -192,6 +192,13 @@ void Graph::Replicate(const std::shared_ptr<const ov::Model> &subgraph) {
         graphNodes.push_back(outNode);
     }
 
+    std::cout << "Graph::Replicate" << std::endl;
+    if (dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core_bf16)) {
+        std::cout << "Graph::Replicate: BF16 is supported" << std::endl;
+    } else {
+        std::cout << "Graph::Replicate: BF16 is not supported" << std::endl;
+    }
+
     if (getConfig().enforceBF16)
         EnforceBF16();
 }
@@ -306,6 +313,12 @@ void Graph::Replicate(const CNNNetwork &network) {
         outNode->addEdge(edge);
         graphEdges.push_back(edge);
         graphNodes.push_back(outNode);
+    }
+
+    if (dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core_bf16)) {
+        std::cout << "Graph::Replicate: BF16 is supported" << std::endl;
+    } else {
+        std::cout << "Graph::Replicate: BF16 is not supported" << std::endl;
     }
 
     if (getConfig().enforceBF16)

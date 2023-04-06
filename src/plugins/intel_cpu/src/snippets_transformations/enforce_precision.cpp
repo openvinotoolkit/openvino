@@ -102,9 +102,11 @@ bool EnforcePrecision::run_on_model(const std::shared_ptr<ov::Model>& f) {
                     // remove convert
                     op_parent->output(0).replace(op_parent->get_input_source_output(0));
                     was_updated = true;
+                    std::cout << "EnforcePrecision::run_on_model: convertion removal: " << op->get_type_name() << ":" << op->get_friendly_name() << std::endl;
                 } else if (supported_precisions_to_enforce[index] != actual_precisions[index]) {
                     insert_convert(op->get_input_source_output(index), op, index, target);
                     was_updated = true;
+                    std::cout << "EnforcePrecision::run_on_model: convertion insertion: " << op->get_type_name() << ":" << op->get_friendly_name() << std::endl;
                 }
             }
         }
