@@ -46,14 +46,14 @@ To control accuracy during optimization, the ``openvino.tools.pot.Metric`` inter
 - ``reset()`` - resets collected accuracy metric. 
 - ``get_attributes()`` - returns a dictionary of metric attributes:
 
-    .. code-block:: console
-       
-       {metric_name: {attribute_name: value}}
-    
-   Required attributes: 
-
-   - ``direction`` - (``higher-better`` or ``higher-worse``) a string parameter defining whether metric value should be increased in accuracy-aware algorithms.
-   - ``type`` - a string representation of a metric type. For example, "accuracy" or "mean_iou".
+  .. code-block:: console
+     
+     {metric_name: {attribute_name: value}}
+  
+  Required attributes: 
+  
+  - ``direction`` - (``higher-better`` or ``higher-worse``) a string parameter defining whether metric value should be increased in accuracy-aware algorithms.
+  - ``type`` - a string representation of a metric type. For example, "accuracy" or "mean_iou".
 
 @endsphinxdirective
 
