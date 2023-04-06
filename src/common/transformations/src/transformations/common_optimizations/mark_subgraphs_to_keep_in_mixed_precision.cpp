@@ -12,7 +12,6 @@
 #include "openvino/pass/manager.hpp"
 #include "openvino/pass/pattern/op/or.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
-#include "openvino/pass/visualize_tree.hpp"
 #include "transformations/common_optimizations/mark_precision_sensitive_shapeof_subgraphs.hpp"
 #include "transformations/convert_precision.hpp"
 #include "transformations/rt_info/disable_fp16_compression.hpp"
@@ -36,16 +35,16 @@ void erase_reduceop_path(const std::shared_ptr<Node>& node) {
     rt_info.erase("reduceop_path");
 }
 
-void mark_int8_path(const std::shared_ptr<Node>& node) {
-    node->get_rt_info().emplace("int8_path", true);
+void mark_fq_path(const std::shared_ptr<Node>& node) {
+    node->get_rt_info().emplace("fq_path", true);
 }
-bool is_int8_path(const std::shared_ptr<const Node>& node) {
-    return node->get_rt_info().count("int8_path");
+bool is_fq_path(const std::shared_ptr<const Node>& node) {
+    return node->get_rt_info().count("fq_path");
 }
 
-void erase_int8_path(const std::shared_ptr<Node>& node) {
+void erase_fq_path(const std::shared_ptr<Node>& node) {
     auto& rt_info = node->get_rt_info();
-    rt_info.erase("int8_path");
+    rt_info.erase("fq_path");
 }
 
 /*
@@ -65,7 +64,7 @@ public:
                 return false;
 
             for (const auto& input_val : node->input_values()) {
-                if (is_int8_path(input_val.get_node_shared_ptr())) {
+                if (is_fq_path(input_val.get_node_shared_ptr())) {
                     enable_fp16_compression(node);
                     return true;
                 }
@@ -170,7 +169,7 @@ public:
             for (const auto& in_node : node->input_values()) {
                 if (!in_node.get_element_type().is_real())
                     continue;
-                if (is_int8_path(in_node.get_node_shared_ptr())) {
+                if (is_fq_path(in_node.get_node_shared_ptr())) {
                     enable_fp16_compression(node);
                     return true;
                 }
@@ -383,7 +382,7 @@ public:
 
             auto is_quantize = as_type_ptr<FakeQuantize>(node);
             if (is_quantize) {
-                mark_int8_path(node);
+                mark_fq_path(node);
                 return true;
             }
 
@@ -392,8 +391,8 @@ public:
             for (const auto& in_node_output : node->input_values()) {
                 auto input_node = in_node_output.get_node_shared_ptr();
                 auto is_quantize = as_type_ptr<FakeQuantize>(input_node);
-                if (is_quantize || is_int8_path(input_node)) {
-                    mark_int8_path(node);
+                if (is_quantize || is_fq_path(input_node)) {
+                    mark_fq_path(node);
                     enable_fp16_compression(node);
                     is_changed = true;
                 }
@@ -429,7 +428,7 @@ bool MarkSugraphsToKeepInMixedPrecision::run_on_model(const shared_ptr<ov::Model
 
     for (auto& node : m->get_ops()) {
         erase_reduceop_path(node);
-        erase_int8_path(node);
+        erase_fq_path(node);
     }
 
     return false;  // no need to revalidate

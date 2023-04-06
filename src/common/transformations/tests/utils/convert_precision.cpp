@@ -13,7 +13,6 @@
 #include <openvino/opsets/opset5.hpp>
 #include <openvino/opsets/opset8.hpp>
 #include <openvino/pass/manager.hpp>
-#include <openvino/pass/visualize_tree.hpp>
 #include <ov_ops/type_relaxed.hpp>
 #include <queue>
 #include <string>
