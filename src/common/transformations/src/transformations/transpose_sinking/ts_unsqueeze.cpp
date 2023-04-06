@@ -110,6 +110,9 @@ TSUnsqueezeForward::TSUnsqueezeForward() {
 
         auto transpose = pattern_to_output.at(transpose_label);
         auto unsqueeze = pattern_to_output.at(unsqueeze_label);
+        if (transformation_callback(unsqueeze)) {
+            return false;
+        }
 
         auto transpose_order = as_type_ptr<Constant>(transpose->get_input_node_shared_ptr(1));
         auto unsqueeze_axes = as_type_ptr<Constant>(unsqueeze->get_input_node_shared_ptr(1));
@@ -179,6 +182,9 @@ TSUnsqueezeBackward::TSUnsqueezeBackward() {
 
         auto transpose = pattern_to_output.at(transpose_label);
         auto unsqueeze = pattern_to_output.at(unsqueeze_label);
+        if (transformation_callback(unsqueeze)) {
+            return false;
+        }
 
         auto transpose_order = std::dynamic_pointer_cast<Constant>(transpose->get_input_node_shared_ptr(1));
         auto unsqueeze_axes = std::dynamic_pointer_cast<Constant>(unsqueeze->get_input_node_shared_ptr(1));

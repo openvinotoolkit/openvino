@@ -27,6 +27,9 @@ TSConcatForward::TSConcatForward() {
 
         auto& main_node_output = pattern_to_output.at(main_node_label);
         auto main_node = main_node_output.get_node_shared_ptr();
+        if (transformation_callback(main_node)) {
+            return false;
+        }
 
         TransposeInputsInfo transpose_input_info = GetFirstTransposeInput(main_node);
         auto concat_node = as_type_ptr<Concat>(main_node);
@@ -77,6 +80,10 @@ TSConcatBackward::TSConcatBackward() {
         auto transpose_const = as_type_ptr<Constant>(pattern_to_output.at(transpose_const_label).get_node_shared_ptr());
         auto transpose = pattern_to_output.at(transpose_label).get_node_shared_ptr();
         auto main_node = pattern_to_output.at(main_node_label).get_node_shared_ptr();
+        if (transformation_callback(main_node)) {
+            return false;
+        }
+
         auto concat_node = as_type_ptr<Concat>(main_node);
         auto concat_axis = concat_node->get_concatenation_axis();
         if (concat_axis < 0) {

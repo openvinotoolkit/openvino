@@ -134,7 +134,7 @@ TSSplitBackward::TSSplitBackward() {
             split = FindInputNode<VariadicSplit>(transpose_label_node);
         }
 
-        if (!split) {
+        if (!split || transformation_callback(split)) {
             return false;
         }
         auto split_axis_constant = as_type_ptr<Constant>(split->input_value(1).get_node_shared_ptr());
@@ -200,6 +200,10 @@ TSSplitForward::TSSplitForward() {
 
         auto& main_node_output = pattern_to_output.at(main_node_label);
         auto main_node = main_node_output.get_node_shared_ptr();
+        if (transformation_callback(main_node)) {
+            return false;
+        }
+
         auto split_axis_constant = as_type_ptr<Constant>(main_node->input_value(1).get_node_shared_ptr());
         if (!split_axis_constant) {
             return false;

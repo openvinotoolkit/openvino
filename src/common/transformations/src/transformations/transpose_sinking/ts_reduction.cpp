@@ -50,6 +50,10 @@ TSReductionForward::TSReductionForward() {
 
         auto transpose = pattern_to_output.at(transpose_label);
         auto reduction = pattern_to_output.at(reduce_label);
+        if (transformation_callback(reduction)) {
+            return false;
+        }
+
         auto keep_dims = get_keep_dims(reduction);
 
         auto transpose_order = as_type_ptr<Constant>(transpose->get_input_node_shared_ptr(1));
@@ -107,6 +111,10 @@ TSReductionBackward::TSReductionBackward() {
         const auto& pattern_to_output = m.get_pattern_map();
         auto transpose = pattern_to_output.at(transpose_label);
         auto reduction = pattern_to_output.at(reduce_label);
+        if (transformation_callback(reduction)) {
+            return false;
+        }
+
         auto keep_dims = get_keep_dims(reduction);
 
         auto transpose_order = as_type_ptr<Constant>(transpose->get_input_node_shared_ptr(1));
