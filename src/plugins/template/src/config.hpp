@@ -33,7 +33,7 @@ struct Configuration {
     int device_id = 0;
     bool perf_count = true;
     ov::threading::IStreamsExecutor::Config streams_executor_config;
-    ov::hint::PerformanceMode performance_mode = ov::hint::PerformanceMode::UNDEFINED;
+    ov::hint::PerformanceMode performance_mode = ov::hint::PerformanceMode::LATENCY;
     bool disable_transformations = false;
 };
 // ! [configuration:header]

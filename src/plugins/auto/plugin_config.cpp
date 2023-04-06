@@ -4,7 +4,6 @@
 #include "utils/plugin_config.hpp"
 
 namespace MultiDevicePlugin {
-const std::set<std::string> PluginConfig::_availableDevices = {"AUTO", "CPU", "GPU", "TEMPLATE", "NVIDIA", "VPUX", "MULTI", "HETERO", "mock"};
 // AUTO will enable the blocklist if
 // 1.No device priority passed to AUTO/MULTI.(eg. core.compile_model(model, "AUTO", configs);)
 // 2.No valid device parsed out from device priority (eg. core.compile_model(model, "AUTO:-CPU,-GPU", configs);).
@@ -24,8 +23,8 @@ void PluginConfig::set_default() {
         std::make_tuple(ov::hint::model_priority, ov::hint::Priority::MEDIUM),
         std::make_tuple(ov::log::level, ov::log::Level::NO),
         std::make_tuple(ov::intel_auto::device_bind_buffer, false),
-        std::make_tuple(ov::hint::performance_mode, ov::hint::PerformanceMode::UNDEFINED),
-        std::make_tuple(ov::hint::execution_mode, ov::hint::ExecutionMode::UNDEFINED),
+        std::make_tuple(ov::hint::performance_mode, ov::hint::PerformanceMode::LATENCY),
+        std::make_tuple(ov::hint::execution_mode, ov::hint::ExecutionMode::PERFORMANCE),
         std::make_tuple(ov::hint::num_requests, 0, UnsignedTypeValidator()),
         std::make_tuple(ov::intel_auto::enable_startup_fallback, true),
         std::make_tuple(ov::intel_auto::enable_runtime_fallback, true),

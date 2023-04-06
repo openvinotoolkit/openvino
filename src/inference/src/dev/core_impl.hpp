@@ -85,6 +85,8 @@ private:
 
         bool get_allow_auto_batch() const;
 
+        bool get_enable_mmap() const;
+
         // Creating thread-safe copy of config including shared_ptr to ICacheManager
         // Passing empty or not-existing name will return global cache config
         CacheConfig get_cache_config_for_device(const ov::Plugin& plugin, ov::AnyMap& parsedConfig) const;
@@ -94,6 +96,7 @@ private:
         CacheConfig _cacheConfig;
         std::map<std::string, CacheConfig> _cacheConfigPerDevice;
         bool _flag_allow_auto_batching = true;
+        bool _flag_enable_mmap = true;
     };
 
     struct CacheContent {
@@ -162,9 +165,9 @@ private:
         const ov::RemoteContext& context,
         std::function<ov::SoPtr<ov::ICompiledModel>()> compile_model_lambda);
 
-    bool device_supports_import_export(const ov::Plugin& plugin) const;
+    bool device_supports_model_caching(const ov::Plugin& plugin) const;
 
-    bool device_supports_property(const ov::Plugin& plugin, const std::string& key) const;
+    bool device_supports_property(const ov::Plugin& plugin, const ov::PropertyName& key) const;
 
     OPENVINO_DEPRECATED("Don't use this method, it will be removed soon")
     bool device_supports_cache_dir(const ov::Plugin& plugin) const;
@@ -297,7 +300,7 @@ public:
      */
     const std::vector<InferenceEngine::IExtensionPtr>& GetExtensions() const;
 
-    bool DeviceSupportsImportExport(const std::string& deviceName) const override;
+    bool DeviceSupportsModelCaching(const std::string& deviceName) const override;
 
     std::map<std::string, InferenceEngine::Version> GetVersions(const std::string& deviceName) const;
 
@@ -341,7 +344,7 @@ public:
 
     void add_extension(const std::vector<ov::Extension::Ptr>& extensions);
 
-    bool device_supports_import_export(const std::string& deviceName) const;
+    bool device_supports_model_caching(const std::string& deviceName) const;
 
     // ov::ICore
     std::shared_ptr<ov::Model> read_model(const std::string& model,

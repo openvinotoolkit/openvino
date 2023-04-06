@@ -6,6 +6,7 @@
 #include <ie_system_conf.h>
 
 #include <common_test_utils/test_common.hpp>
+#include <openvino/runtime/threading/cpu_map_scheduling.hpp>
 
 #include "cpu_streams_calculation.hpp"
 
@@ -14,6 +15,160 @@ using namespace InferenceEngine;
 using namespace ov;
 
 namespace {
+
+struct SchedulingCoreTypeTestCase {
+    ov::hint::SchedulingCoreType input_type;
+    std::vector<std::vector<int>> proc_type_table;
+    std::vector<std::vector<int>> result_table;
+};
+
+class SchedulingCoreTypeTests : public CommonTestUtils::TestsCommon,
+                                public testing::WithParamInterface<std::tuple<SchedulingCoreTypeTestCase>> {
+public:
+    void SetUp() override {
+        const auto& test_data = std::get<0>(GetParam());
+
+        std::vector<std::vector<int>> test_result_table =
+            ov::apply_scheduling_core_type(test_data.input_type, test_data.proc_type_table);
+
+        ASSERT_EQ(test_data.result_table, test_result_table);
+    }
+};
+
+SchedulingCoreTypeTestCase _2sockets_ALL = {
+    ov::hint::SchedulingCoreType::ANY_CORE,
+    {{208, 104, 0, 104}, {104, 52, 0, 52}, {104, 52, 0, 52}},
+    {{208, 104, 0, 104}, {104, 52, 0, 52}, {104, 52, 0, 52}},
+};
+
+SchedulingCoreTypeTestCase _2sockets_P_CORE_ONLY = {
+    ov::hint::SchedulingCoreType::PCORE_ONLY,
+    {{208, 104, 0, 104}, {104, 52, 0, 52}, {104, 52, 0, 52}},
+    {{208, 104, 0, 104}, {104, 52, 0, 52}, {104, 52, 0, 52}},
+};
+
+SchedulingCoreTypeTestCase _2sockets_E_CORE_ONLY = {
+    ov::hint::SchedulingCoreType::ECORE_ONLY,
+    {{208, 104, 0, 104}, {104, 52, 0, 52}, {104, 52, 0, 52}},
+    {{208, 104, 0, 104}, {104, 52, 0, 52}, {104, 52, 0, 52}},
+};
+
+SchedulingCoreTypeTestCase _1sockets_ALL = {
+    ov::hint::SchedulingCoreType::ANY_CORE,
+    {{20, 6, 8, 6}},
+    {{20, 6, 8, 6}},
+};
+
+SchedulingCoreTypeTestCase _1sockets_P_CORE_ONLY = {
+    ov::hint::SchedulingCoreType::PCORE_ONLY,
+    {{20, 6, 8, 6}},
+    {{12, 6, 0, 6}},
+};
+
+SchedulingCoreTypeTestCase _1sockets_E_CORE_ONLY = {
+    ov::hint::SchedulingCoreType::ECORE_ONLY,
+    {{20, 6, 8, 6}},
+    {{8, 0, 8, 0}},
+};
+
+TEST_P(SchedulingCoreTypeTests, SchedulingCoreType) {}
+
+INSTANTIATE_TEST_SUITE_P(SchedulingCoreTypeTable,
+                         SchedulingCoreTypeTests,
+                         testing::Values(_2sockets_ALL,
+                                         _2sockets_P_CORE_ONLY,
+                                         _2sockets_E_CORE_ONLY,
+                                         _1sockets_ALL,
+                                         _1sockets_P_CORE_ONLY,
+                                         _1sockets_E_CORE_ONLY));
+
+struct UseHTTestCase {
+    bool use_ht_value;
+    bool use_ht_changed;
+    std::vector<std::vector<int>> proc_type_table;
+    std::vector<std::vector<int>> result_table;
+};
+
+class UseHTTests : public CommonTestUtils::TestsCommon, public testing::WithParamInterface<std::tuple<UseHTTestCase>> {
+public:
+    void SetUp() override {
+        const auto& test_data = std::get<0>(GetParam());
+
+        std::vector<std::vector<int>> test_result_table =
+            ov::apply_hyper_threading(test_data.use_ht_value, test_data.use_ht_changed, test_data.proc_type_table);
+
+        ASSERT_EQ(test_data.result_table, test_result_table);
+    }
+};
+
+UseHTTestCase _2sockets_false = {
+    false,
+    true,
+    {{208, 104, 0, 104}, {104, 52, 0, 52}, {104, 52, 0, 52}},
+    {{104, 104, 0, 0}, {52, 52, 0, 0}, {52, 52, 0, 0}},
+};
+
+UseHTTestCase _2sockets_true = {
+    true,
+    true,
+    {{208, 104, 0, 104}, {104, 52, 0, 52}, {104, 52, 0, 52}},
+    {{208, 104, 0, 104}, {104, 52, 0, 52}, {104, 52, 0, 52}},
+};
+
+UseHTTestCase _2sockets_default_1 = {
+    false,
+    false,
+    {{208, 104, 0, 104}, {104, 52, 0, 52}, {104, 52, 0, 52}},
+    {{104, 104, 0, 0}, {52, 52, 0, 0}, {52, 52, 0, 0}},
+};
+
+UseHTTestCase _2sockets_default_2 = {
+    true,
+    false,
+    {{208, 104, 0, 104}, {104, 52, 0, 52}, {104, 52, 0, 52}},
+    {{104, 104, 0, 0}, {52, 52, 0, 0}, {52, 52, 0, 0}},
+};
+
+UseHTTestCase _1sockets_false = {
+    false,
+    true,
+    {{20, 6, 8, 6}},
+    {{14, 6, 8, 0}},
+};
+
+UseHTTestCase _1sockets_true = {
+    true,
+    true,
+    {{20, 6, 8, 6}},
+    {{20, 6, 8, 6}},
+};
+
+UseHTTestCase _1sockets_default_1 = {
+    false,
+    false,
+    {{20, 6, 8, 6}},
+    {{20, 6, 8, 6}},
+};
+
+UseHTTestCase _1sockets_default_2 = {
+    true,
+    false,
+    {{20, 6, 8, 6}},
+    {{20, 6, 8, 6}},
+};
+
+TEST_P(UseHTTests, UseHT) {}
+
+INSTANTIATE_TEST_SUITE_P(UseHTTable,
+                         UseHTTests,
+                         testing::Values(_2sockets_false,
+                                         _2sockets_true,
+                                         _2sockets_default_1,
+                                         _2sockets_default_2,
+                                         _1sockets_false,
+                                         _1sockets_true,
+                                         _1sockets_default_1,
+                                         _1sockets_default_2));
 
 struct StreamsCalculationTestCase {
     int input_streams;
@@ -617,6 +772,87 @@ StreamsCalculationTestCase _1sockets_6cores_tput_4 = {
     {{6, MAIN_CORE_PROC, 1}, {6, HYPER_THREADING_PROC, 1}},
 };
 
+StreamsCalculationTestCase _1sockets_ecores_latency_1 = {
+    1,
+    0,
+    0,
+    0,
+    {{16, 0, 16, 0}},
+    {{1, EFFICIENT_CORE_PROC, 16}},
+};
+
+StreamsCalculationTestCase _1sockets_ecores_latency_2 = {
+    1,
+    4,
+    0,
+    0,
+    {{16, 0, 16, 0}},
+    {{1, EFFICIENT_CORE_PROC, 4}},
+};
+
+StreamsCalculationTestCase _1sockets_ecores_latency_3 = {
+    1,
+    0,
+    4,
+    0,
+    {{16, 0, 16, 0}},
+    {{1, EFFICIENT_CORE_PROC, 16}},
+};
+
+StreamsCalculationTestCase _1sockets_ecores_latency_4 = {
+    1,
+    0,
+    0,
+    4,
+    {{16, 0, 16, 0}},
+    {{1, EFFICIENT_CORE_PROC, 16}},
+};
+
+StreamsCalculationTestCase _1sockets_ecores_tput_1 = {
+    0,
+    0,
+    0,
+    1,
+    {{16, 0, 16, 0}},
+    {{16, EFFICIENT_CORE_PROC, 1}},
+};
+
+StreamsCalculationTestCase _1sockets_ecores_tput_2 = {
+    0,
+    0,
+    0,
+    4,
+    {{16, 0, 16, 0}},
+    {{4, EFFICIENT_CORE_PROC, 4}},
+};
+
+StreamsCalculationTestCase _1sockets_ecores_tput_3 = {
+    2,
+    0,
+    0,
+    0,
+    {{16, 0, 16, 0}},
+    {{2, EFFICIENT_CORE_PROC, 8}},
+};
+
+StreamsCalculationTestCase _1sockets_ecores_tput_4 = {
+    8,
+    0,
+    4,
+    0,
+    {{16, 0, 16, 0}},
+    {{4, EFFICIENT_CORE_PROC, 4}},
+};
+
+StreamsCalculationTestCase _1sockets_ecores_tput_5 = {
+    2,
+    0,
+    0,
+    4,
+    {{16, 0, 16, 0}},
+    {{2, EFFICIENT_CORE_PROC, 8}},
+};
+
 TEST_P(StreamsCalculationTests, StreamsCalculation) {}
 
 INSTANTIATE_TEST_SUITE_P(StreamsInfoTable,
@@ -684,6 +920,15 @@ INSTANTIATE_TEST_SUITE_P(StreamsInfoTable,
                                          _1sockets_6cores_tput_1,
                                          _1sockets_6cores_tput_2,
                                          _1sockets_6cores_tput_3,
-                                         _1sockets_6cores_tput_4));
+                                         _1sockets_6cores_tput_4,
+                                         _1sockets_ecores_latency_1,
+                                         _1sockets_ecores_latency_2,
+                                         _1sockets_ecores_latency_3,
+                                         _1sockets_ecores_latency_4,
+                                         _1sockets_ecores_tput_1,
+                                         _1sockets_ecores_tput_2,
+                                         _1sockets_ecores_tput_3,
+                                         _1sockets_ecores_tput_4,
+                                         _1sockets_ecores_tput_5));
 
 }  // namespace
