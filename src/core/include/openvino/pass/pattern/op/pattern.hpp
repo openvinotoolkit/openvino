@@ -40,6 +40,9 @@ OPENVINO_API
 std::function<bool(Output<Node>)> consumers_count(size_t n);
 
 OPENVINO_API
+std::function<bool(Output<Node>)> consumers_more_than(size_t n);
+
+OPENVINO_API
 std::function<bool(Output<Node>)> has_static_dim(size_t pos);
 
 OPENVINO_API

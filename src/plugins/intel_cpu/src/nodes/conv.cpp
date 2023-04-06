@@ -57,6 +57,8 @@ struct ConvKey {
     dnnl::primitive_attr attr;
     impl_desc_type implType;
 
+    bool constWeight;
+
     size_t hash() const;
     bool operator==(const ConvKey& rhs) const;
 };
@@ -80,6 +82,7 @@ size_t ConvKey::hash() const {
 
     seed = hash_combine(seed, get_attr_hash(*attr.get()));
     seed = hash_combine(seed, implType);
+    seed = hash_combine(seed, constWeight);
     return seed;
 }
 
@@ -103,7 +106,7 @@ bool ConvKey::operator==(const ConvKey &rhs) const {
     retVal = retVal && paddingL == rhs.paddingL;
     retVal = retVal && paddingR == rhs.paddingR;
 
-    retVal = retVal && *attr.get() == *rhs.attr.get() && implType == rhs.implType;
+    retVal = retVal && *attr.get() == *rhs.attr.get() && implType == rhs.implType && constWeight == rhs.constWeight;
     return retVal;
 }
 
@@ -851,6 +854,14 @@ createDescriptorInternal(const dnnl::engine& engine,
 }
 } // namespace
 
+static memory::data_type deriveWeightDataType(memory::data_type src_dt) {
+    memory::data_type wdt = src_dt;
+    if (one_of(src_dt, memory::data_type::s8, memory::data_type::u8)) {
+        wdt = memory::data_type::s8;
+    }
+    return wdt;
+}
+
 void Convolution::createDescriptor(const std::vector<MemoryDescPtr>& inputDesc,
                                    const std::vector<MemoryDescPtr>& outputDesc) {
     MemoryDescPtr inpDesc;
@@ -874,12 +885,7 @@ void Convolution::createDescriptor(const std::vector<MemoryDescPtr>& inputDesc,
     const auto& inDnnlDesc = definedInpMemDesc->getDnnlDesc();
     const auto& outDnnlDesc = definedOutMemDesc->getDnnlDesc();
 
-    memory::data_type dt  = inDnnlDesc.get_data_type();
-    memory::data_type wdt = dt;
-
-    if (one_of(dt, memory::data_type::s8, memory::data_type::u8)) {
-        wdt = memory::data_type::s8;
-    }
+    memory::data_type wdt = deriveWeightDataType(inDnnlDesc.get_data_type());
 
     dnnl::memory::desc weightDnnlDesc(DnnlExtensionUtils::convertToDnnlDims(weightDims), wdt, memory::format_tag::any);
     dnnl::memory::desc biasDnnlDesc;
@@ -953,17 +959,6 @@ void Convolution::addLegacyZeroPoints(dnnl::primitive_attr& attr) {
             legacyOutputCompensationMemPtr->Create(memoryDesc, legacyOutputCompensation.data());
         }
     }
-}
-
-static bool attrContainsAnyOfPostOps(const dnnl::primitive_attr& attr, std::initializer_list<dnnl::impl::primitive_kind_t> kinds) {
-    const auto ops = attr.get_post_ops();
-
-    for (const auto& kind : kinds) {
-        if (ops.get()->find(kind) != -1)
-            return true;
-    }
-
-    return false;
 }
 
 static bool attrContainsPostOp(const dnnl::primitive_attr& attr, const dnnl::impl::primitive_kind_t kind) {
@@ -1154,6 +1149,11 @@ bool Convolution::isPossibleToSkipInitConfig(const dnnl::primitive_desc &desc) c
 }
 
 std::shared_ptr<MemoryDesc> Convolution::getSrcMemDesc(dnnl::primitive_desc_iterator &primitive_desc_it, size_t idx) {
+    if (idx == 1) {
+        // report original plain layout for weight since it needs to be reordered dynamically at runtime
+        return std::make_shared<CpuBlockedMemoryDesc>(getOriginalInputPrecisionAtPort(idx),
+                                                      Shape(getInputShapeAtPort(idx).getStaticDims()));
+    }
     auto desc = idx > 0 ? primitive_desc_it.weights_desc(idx - 1) : primitive_desc_it.src_desc(idx);
     if (getInputShapeAtPort(idx).isDynamic()) {
         return DnnlExtensionUtils::makeUndefinedDesc(desc, getInputShapeAtPort(idx));
@@ -1363,10 +1363,17 @@ void Convolution::prepareParams() {
                    paddingL,
                    paddingR,
                    *pAttrLocal,
-                   selected_pd->getImplementationType()};
+                   selected_pd->getImplementationType(),
+                   getParentEdgeAt(1)->getParent()->isConstant()};
 
     auto engine = getEngine();
     auto builder = [&engine](const ConvKey& key) -> executorPtr {
+        // remove the requirement on weight memory layout to let primitive
+        // report the best layout for weight to be reordered dynamically at runtime
+        auto wghDescAny =
+            dnnl::memory::desc(DnnlExtensionUtils::convertToDnnlDims(key.inp1->getShape().getStaticDims()),
+                               deriveWeightDataType(key.inp0->getDataType()),
+                               memory::format_tag::any);
         auto createDnnlConvDesc = [](const dnnl::engine engine,
                                      const dnnl::memory::desc& srcDesc,
                                      const dnnl::memory::desc& wghDesc,
@@ -1401,7 +1408,7 @@ void Convolution::prepareParams() {
         const auto alg = (key.implType & impl_desc_type::winograd) ? dnnl::algorithm::convolution_winograd : dnnl::algorithm::convolution_direct;
         dnnl::primitive_desc desc = createDnnlConvDesc(engine,
                                                        key.inp0->getDnnlDesc(),
-                                                       key.inp1->getDnnlDesc(),
+                                                       wghDescAny,
                                                        key.out->getDnnlDesc(),
                                                        key.bias,
                                                        key.stride,
@@ -1412,7 +1419,6 @@ void Convolution::prepareParams() {
                                                        key.attr);
 
         auto itpd = desc;
-
         executorPtr execPtr = nullptr;
         while (static_cast<bool>(itpd)) {
             impl_desc_type impl_type = parse_impl_name(itpd.impl_info_str());
@@ -1423,7 +1429,8 @@ void Convolution::prepareParams() {
                                                                 key.inp0->getDnnlDesc(),
                                                                 key.inp1->getDnnlDesc(),
                                                                 key.out->getDnnlDesc(),
-                                                                engine);
+                                                                engine,
+                                                                key.constWeight);
                 break;
             }
 
@@ -1436,16 +1443,13 @@ void Convolution::prepareParams() {
             auto inDesc = dnnl::memory::desc(DnnlExtensionUtils::convertToDnnlDims(key.inp0->getShape().getStaticDims()),
                                                                                            key.inp0->getDataType(),
                                                                                            memory::format_tag::any);
-            auto wghDesc = dnnl::memory::desc(DnnlExtensionUtils::convertToDnnlDims(key.inp1->getShape().getStaticDims()),
-                                                                                        key.inp1->getDataType(),
-                                                                                        memory::format_tag::any);
             auto outDesc = dnnl::memory::desc(DnnlExtensionUtils::convertToDnnlDims(key.out->getShape().getStaticDims()),
                                                                                         key.out->getDataType(),
                                                                                         memory::format_tag::any);
 
             auto reorderConvDesc = createDnnlConvDesc(engine,
                                                       inDesc,
-                                                      wghDesc,
+                                                      wghDescAny,
                                                       outDesc,
                                                       key.bias,
                                                       key.stride,
@@ -1461,13 +1465,15 @@ void Convolution::prepareParams() {
                                                                 key.inp0->getDnnlDesc(),
                                                                 key.inp1->getDnnlDesc(),
                                                                 key.out->getDnnlDesc(),
-                                                                engine);
+                                                                engine,
+                                                                key.constWeight);
             }
         }
 
         return execPtr;
     };
 
+    auto prevExecPtr = execPtr;
     execPtr = nullptr;
     auto cache = context->getParamsCache();
     auto result = cache->getOrCreate(key, builder);
@@ -1476,8 +1482,21 @@ void Convolution::prepareParams() {
 
     if (execPtr) {
         primArgs[DNNL_ARG_SRC] = srcMemPtr->GetPrimitive();
-        primArgs[DNNL_ARG_WEIGHTS] = wghMemPtr->GetPrimitive();
         primArgs[DNNL_ARG_DST] = dstMemPtr->GetPrimitive();
+
+        if (key.constWeight) {
+            // const weight preparation/reordering needs to be done once at next execution
+            // when the input weight data is guaranteed to be ready (considering possible const-folding
+            // subgraphs inserted between constant weight node and conv)
+            auto it = primArgs.find(DNNL_ARG_WEIGHTS);
+            if (it == primArgs.end() || !prevExecPtr ||
+                !execPtr->getWeightDesc()->isCompatible(*(prevExecPtr->getWeightDesc()))) {
+                pendingConstWeightReorder = true;
+            }
+        } else {
+            // non-const weight will be reordered by executor on every exec
+            primArgs[DNNL_ARG_WEIGHTS] = wghMemPtr->GetPrimitive();
+        }
 
         if (withBiases) {
             primArgs[DNNL_ARG_BIAS] = biasMemPtr->GetPrimitive();
@@ -1490,13 +1509,13 @@ void Convolution::prepareParams() {
 
         Node::appendPostOpArgs(*pAttrLocal, primArgs, convPostOpsArgs[preferLegacyPostOps]);
 
-        auto pd = execPtr->getPrimitiveDesc();
-        auto scratchpadMem = getScratchPadMem(pd);
+        auto scratchpadMem = getScratchPadMem(execPtr->getScratchPadDesc());
         primArgs[DNNL_ARG_SCRATCHPAD] = scratchpadMem->GetPrimitive();
 
 #ifdef CPU_DEBUG_CAPS
         if (result.second == CacheEntryBase::LookUpStatus::Miss) {
-            DEBUG_LOG("verbose##", getName(), "##", pd->info(), "\n");
+            auto pd = execPtr->getPrimitiveDesc();
+            DEBUG_LOG("verbose##", getName(), "##", DnnlExtensionUtils::query_pd_info(pd), "\n");
         }
 #endif
     } else {
@@ -1508,25 +1527,30 @@ Convolution::ConvolutionExecutor::ConvolutionExecutor(const dnnl::convolution_fo
                                                                 const dnnl::memory::desc& inMemDesc,
                                                                 const dnnl::memory::desc& weightMemDesc,
                                                                 const dnnl::memory::desc& outMemDesc,
-                                                                const dnnl::engine& engine) {
-    execPrim = dnnl::convolution_forward(pd);
-
-    if (inMemDesc != pd.src_desc()) {
-        inputReorders.insert({DNNL_ARG_SRC, IntermReorder(inMemDesc, pd.src_desc(), engine)});
+                                                                const dnnl::engine& engine,
+                                                                bool constWeight) : DnnlExecutor(pd) {
+    if (inMemDesc != getDnnlSrcDesc()) {
+        inputReorders.insert({DNNL_ARG_SRC, IntermReorder(inMemDesc, getDnnlSrcDesc(), engine)});
     }
 
-    if (weightMemDesc != pd.weights_desc()) {
-        inputReorders.insert({DNNL_ARG_WEIGHTS, IntermReorder(weightMemDesc, pd.weights_desc(), engine)});
+    if (!constWeight && weightMemDesc != getDnnlWeightDesc()) {
+        // const weight will be reordered at first execution
+        inputReorders.insert({DNNL_ARG_WEIGHTS, IntermReorder(weightMemDesc, getDnnlWeightDesc(), engine)});
     }
 
-    if (outMemDesc != pd.dst_desc()) {
-        outputReorders.insert({DNNL_ARG_DST, IntermReorder(pd.dst_desc(), outMemDesc, engine)});
+    if (outMemDesc != getDnnlDstDesc()) {
+        outputReorders.insert({DNNL_ARG_DST, IntermReorder(getDnnlDstDesc(), outMemDesc, engine)});
     }
 }
 
 void Convolution::execute(dnnl::stream strm) {
     if (!execPtr) {
         IE_THROW() << "Can't execute Convolution node with name: " << getName() << ", because executor is not compiled";
+    }
+
+    if (pendingConstWeightReorder) {
+        primArgs[DNNL_ARG_WEIGHTS] = prepareWeightMemory(execPtr->getWeightDesc())->GetPrimitive();
+        pendingConstWeightReorder = false;
     }
 
     execPtr->exec(primArgs, strm);
@@ -1643,28 +1667,10 @@ void Convolution::appendZeroPointsArgs() {
     }
 }
 
-// Due to performance issue, brgconv will only be enabled by default:
-// 1, static shape(dynamic shape may change weights layout if the input shape changes and cause performance issue: 86948)
-// 2, support amx except having input zero point.
-// 3, support avx512 without legacy postops/per channel zero point when avx512
+// brgconv will be enabled by default when HW supports avx512+
 void Convolution::initTryBrgconvFlag() {
-    if (isDynamicNode())
-        return;
-
-    if (dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core_amx)) {
+    if (dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core)) {
         shouldTryBrgconv = true;
-    } else if (dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core)) {
-        shouldTryBrgconv = true;
-        // should remove after binary postops performance issue resolved
-        // heuristics: if it's  avx512 ISA model && it doesn't have binary post ops or per channel zero point.
-        dnnl::primitive_attr attr;
-        DEBUG_LOG("setPostOps, useLegacyPostOps=false");
-        setPostOps(attr, outputStaticShape(), false);
-
-        if (attrContainsPostOp(attr, dnnl::impl::primitive_kind::binary) &&
-            attrContainsAnyOfPostOps(attr, {dnnl::impl::primitive_kind::eltwise})) {
-            shouldTryBrgconv = false;
-        }
     }
 
     // Temporary debug functionality to be able to force brgconv for any model

@@ -5,7 +5,9 @@
 #include "translate_session.hpp"
 
 #include "input_model.hpp"
+#include "openvino/op/util/framework_node.hpp"
 #include "openvino/opsets/opset10.hpp"
+#include "openvino/opsets/opset8.hpp"
 #include "tf_framework_node.hpp"
 #include "utils.hpp"
 
@@ -36,6 +38,39 @@ std::vector<T> reorder_ops_by_names(const std::vector<std::string>& names, const
     }
     return resulted_ops;
 };
+
+/// \brief Adds known input names from Saved Model file format
+/// \param[in] node Node which should be updated
+/// \param[in] saved_model_names Map of names from saved model
+/// \returns True if node was updated, false otherwise
+static bool apply_saved_model_names(std::shared_ptr<ov::Node> node,
+                                    const std::shared_ptr<std::map<std::string, std::string>>& saved_model_names) {
+    for (size_t i = 0; i < node->get_output_size(); ++i) {
+        const auto& node_names = node->get_output_tensor(i).get_names();
+        for (const auto& name : node_names) {
+            const auto& saved_model_name = saved_model_names->find(name);
+            if (saved_model_name != saved_model_names->end()) {
+                node->set_friendly_name(saved_model_name->second);
+                return true;
+            }
+        }
+    }
+    return false;
+}
+
+// it creates framework node and saves exception message in the node attribute
+ov::OutputVector create_fw_node_with_exception(const std::shared_ptr<DecoderBase>& decoder,
+                                               const ov::OutputVector& inputs,
+                                               size_t num_outputs,
+                                               const std::string& operation_name,
+                                               const std::string& exception_message) {
+    ov::op::util::FrameworkNodeAttrs attrs;
+    attrs[FrameworkNode::failed_conversion_key] = exception_message;
+    auto fw_node = std::make_shared<FrameworkNode>(decoder, inputs, num_outputs);
+    fw_node->set_attrs(attrs);
+    set_node_name(operation_name, fw_node);
+    return fw_node->outputs();
+}
 }  // namespace
 
 TranslateSession::TranslateSession(const ov::frontend::InputModel::Ptr& input_model,
@@ -66,7 +101,16 @@ void TranslateSession::inject_body_model(std::shared_ptr<ov::Model> body_model,
                             "inputs and arguments to the function " +
                                 operation_type + " do not match.");
     for (size_t param_ind = 0; param_ind < body_parameters.size(); ++param_ind) {
+        auto orig_type = body_parameters[param_ind]->get_element_type();
         body_parameters[param_ind]->output(0).replace(ov_inputs[param_ind]);
+        if (auto ext_parameter = as_type_ptr<ov::opset8::Parameter>(ov_inputs[param_ind].get_node_shared_ptr())) {
+            // save type of a Parameter as converted in the body
+            // this is important if the external conversion extension is applied to body graph node
+            // with setting its own type
+            if (orig_type != element::dynamic) {
+                ext_parameter->set_element_type(orig_type);
+            }
+        }
     }
     for (const auto& result_node : body_model->get_results()) {
         ov_outputs.push_back(result_node->input_value(0));
@@ -85,6 +129,8 @@ void TranslateSession::translate_graph(const ov::frontend::InputModel::Ptr& inpu
     const auto& model_inputs = model_tf->get_inputs();
     const auto& model_outputs = model_tf->get_outputs();
     const auto& model_frozen_inputs = model_tf->get_tensor_values();
+    const auto& saved_model_inputs = model_tf->get_saved_model_input_names();
+    const auto& saved_model_outputs = model_tf->get_saved_model_output_names();
 
     // fill ng_op_map with Constant outputs for frozen inputs
     for (const auto& frozen_input : model_frozen_inputs) {
@@ -114,6 +160,11 @@ void TranslateSession::translate_graph(const ov::frontend::InputModel::Ptr& inpu
 
         auto param = std::make_shared<ov::opset8::Parameter>(input_type, input_shape);
         set_node_name(input_name, param);
+        if (saved_model_inputs.get() && saved_model_inputs->size() > 0) {
+            if (!apply_saved_model_names(param, saved_model_inputs)) {
+                param->get_output_tensor(0).add_names({"saved_model_unused"});
+            }
+        }
         params.push_back(param);
         ng_op_map[input_name] = {param};
     }
@@ -206,14 +257,20 @@ void TranslateSession::translate_graph(const ov::frontend::InputModel::Ptr& inpu
                 auto translator = m_translator_map->at(operation_decoder->get_op_type());
                 NodeContext node_context(operation_decoder, ov_inputs, this);
                 ov_outputs = translator(node_context);
-            } catch (const std::exception&) {
-                // continue translation by replacing with FrameworkNode
-                // in case of any failures in translators due to their limitation
-                auto fw_node = std::make_shared<FrameworkNode>(operation_decoder,
-                                                               ov_inputs,
-                                                               operation_place->get_output_ports().size());
-                set_node_name(operation_name, fw_node);
-                ov_outputs = fw_node->outputs();
+            } catch (const std::exception& ex) {
+                // save the root-cause of the translation failure
+                ov_outputs = create_fw_node_with_exception(operation_decoder,
+                                                           ov_inputs,
+                                                           operation_place->get_output_ports().size(),
+                                                           operation_name,
+                                                           ex.what());
+            } catch (...) {
+                // save unknown exception type
+                ov_outputs = create_fw_node_with_exception(operation_decoder,
+                                                           ov_inputs,
+                                                           operation_place->get_output_ports().size(),
+                                                           operation_name,
+                                                           "Unknown exception type");
             }
         } else if (auto body_ov_model = get_body_ov_model(operation_type)) {
             inject_body_model(body_ov_model, operation_type, ov_inputs, ov_outputs);
@@ -264,10 +321,30 @@ void TranslateSession::translate_graph(const ov::frontend::InputModel::Ptr& inpu
             if (port_type == "none") {
                 for (const auto& node_output : ng_op_map[operation_name]) {
                     auto result_node = std::make_shared<ov::opset8::Result>(node_output);
-                    // to be aligned with Legacy Frontend we set a name along with output port index
-                    // though, the Result name is not used in the OV API 2.0 but it is checked in MO args tests
-                    result_node->set_friendly_name(model_output_name + ":0");
-                    results.push_back(result_node);
+                    // Customize output name in case we have mapping from Saved Model format
+                    if (saved_model_outputs.get() && saved_model_outputs->size() > 0) {
+                        bool isUsed = true;
+                        for (const auto& name : model_output_tensor_place->get_names()) {
+                            auto saved_model_name = saved_model_outputs->find(name);
+                            if (saved_model_name == saved_model_outputs->end()) {
+                                saved_model_name = saved_model_outputs->find(name + ":0");
+                            }
+                            if (saved_model_name != saved_model_outputs->end()) {
+                                result_node->set_friendly_name(saved_model_name->second);
+                                results.push_back(result_node);
+                                isUsed = false;
+                                break;
+                            }
+                            if (!isUsed) {
+                                result_node->get_input_tensor(0).add_names({"saved_model_unused"});
+                            }
+                        }
+                    } else {
+                        // to be aligned with Legacy Frontend we set a name along with output port index
+                        // though, the Result name is not used in the OV API 2.0 but it is checked in MO args tests
+                        result_node->set_friendly_name(model_output_name + ":0");
+                        results.push_back(result_node);
+                    }
                 }
             } else if (port_type == "out") {
                 const auto& node_outputs = ng_op_map[operation_name];

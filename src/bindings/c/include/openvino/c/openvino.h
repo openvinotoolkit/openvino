@@ -15,6 +15,7 @@
  **/
 #pragma once
 
+#include "openvino/c/auto/properties.h"
 #include "openvino/c/ov_common.h"
 #include "openvino/c/ov_compiled_model.h"
 #include "openvino/c/ov_core.h"

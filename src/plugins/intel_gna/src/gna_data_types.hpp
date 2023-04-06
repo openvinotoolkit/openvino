@@ -16,22 +16,6 @@
 #include "layers/gna_split_layer.hpp"
 #include "memory/gna_memory.hpp"
 
-struct TranspositionInfo {
-    bool transpose;
-    size_t num_transpose_rows;
-    size_t num_transpose_columns;
-};
-
-using TranspositionInfoMap = std::map<std::string, std::vector<TranspositionInfo>>;
-
-static inline bool FoundPartToTranspose(const std::vector<TranspositionInfo>& transpositionInfo) {
-    auto partToTranspose =
-        std::find_if(std::begin(transpositionInfo), std::end(transpositionInfo), [](const TranspositionInfo& infoPart) {
-            return infoPart.transpose;
-        });
-    return partToTranspose != std::end(transpositionInfo);
-}
-
 namespace ov {
 namespace intel_gna {
 
@@ -45,6 +29,7 @@ using ConcatConnection = std::unordered_map<std::string, GNAConcatLayer>;
 using SplitConnection = std::unordered_map<std::string, GNASplitLayer>;
 using CropConnection = std::unordered_map<std::string, GNACropLayer>;
 using ConstConnections = std::unordered_map<std::string, void*>;
+using PrePostProcessModels = std::unordered_map<std::string, std::shared_ptr<ov::Model>>;
 
 }  // namespace intel_gna
 }  // namespace ov

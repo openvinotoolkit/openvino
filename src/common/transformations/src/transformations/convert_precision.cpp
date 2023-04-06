@@ -8,6 +8,7 @@
 #include <ngraph/runtime/reference/convert.hpp>
 #include <openvino/opsets/opset1.hpp>
 #include <openvino/opsets/opset10.hpp>
+#include <openvino/opsets/opset11.hpp>
 #include <openvino/opsets/opset3.hpp>
 #include <openvino/opsets/opset4.hpp>
 #include <openvino/opsets/opset5.hpp>
@@ -334,7 +335,9 @@ bool ov::pass::ConvertPrecision::run_on_model(const std::shared_ptr<ngraph::Func
         {opset9::MulticlassNms::get_type_info_static(), fuse_type_to_multiclass_nms},
         {opset9::GenerateProposals::get_type_info_static(), fuse_type_to_generate_proposals},
         {opset6::CTCGreedyDecoderSeqLen::get_type_info_static(), fuse_type_to_ctc_greedy_decoder_seq_len},
+        {opset1::TopK::get_type_info_static(), fuse_type_to_topk},
         {opset4::TopK::get_type_info_static(), fuse_type_to_topk},
+        {opset11::TopK::get_type_info_static(), fuse_type_to_topk},
         {opset8::MaxPool::get_type_info_static(), fuse_type_to_maxpool},
         {opset4::NonZero::get_type_info_static(), fuse_type_to_nonzero},
         {opset4::Bucketize::get_type_info_static(), fuse_type_to_bucketize},
@@ -653,7 +656,7 @@ bool fuse_type_to_generate_proposals(const std::shared_ptr<ngraph::Node>& node, 
 }
 
 bool fuse_type_to_topk(const std::shared_ptr<ngraph::Node>& node, const precisions_map& precisions) {
-    if (auto topk = ov::as_type_ptr<opset4::TopK>(node)) {
+    if (auto topk = ov::as_type_ptr<ov::op::util::TopKBase>(node)) {
         return update_type(1, node, precisions, [&](const element::Type& to) {
             topk->set_index_element_type(to);
         });
@@ -813,6 +816,26 @@ std::shared_ptr<Node> change_constant_precision<ov::element::Type_t::f16, ov::el
     const auto size = shape_size(constant->get_shape());
 
     auto new_constant = std::make_shared<opset4::Constant>(ov::element::Type_t::f32, constant->get_shape());
+    new_constant->output(0).set_names(constant->output(0).get_names());
+    auto* dst_data = const_cast<dst_type*>(reinterpret_cast<const dst_type*>(new_constant->get_data_ptr()));
+    if (dst_data == nullptr)
+        throw Exception("Can't get destination data pointer");
+
+    ngraph::runtime::reference::convert<src_type, dst_type>(src_data, dst_data, size);
+
+    return new_constant;
+}
+
+template <>
+std::shared_ptr<Node> change_constant_precision<ov::element::Type_t::f32, ov::element::Type_t::f16>(
+    std::shared_ptr<opset4::Constant>& constant) {
+    using src_type = typename element_type_traits<ov::element::Type_t::f32>::value_type;
+    using dst_type = typename element_type_traits<ov::element::Type_t::f16>::value_type;
+
+    const auto* src_data = constant->get_data_ptr<src_type>();
+    const auto size = shape_size(constant->get_shape());
+
+    auto new_constant = std::make_shared<opset4::Constant>(ov::element::Type_t::f16, constant->get_shape());
     new_constant->output(0).set_names(constant->output(0).get_names());
     auto* dst_data = const_cast<dst_type*>(reinterpret_cast<const dst_type*>(new_constant->get_data_ptr()));
     if (dst_data == nullptr)

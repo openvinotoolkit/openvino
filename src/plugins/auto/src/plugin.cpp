@@ -351,19 +351,21 @@ IExecutableNetworkInternal::Ptr MultiDeviceInferencePlugin::LoadNetworkImpl(cons
     auto loadConfig = _pluginConfig;
     // if no perf hint from user with compiled model, or already been set with plugin
     // apply latency for AUTO, tput for MULTI
-    bool isHintSet = _pluginConfig.is_set_by_user(ov::hint::performance_mode) || config.find(ov::hint::performance_mode.name()) != config.end();
-    if (!isHintSet) {
-        if (workModeAuto) {
-            // set performance hint to 'LATENCY' model for AutoExecutable Network.
-            loadConfig.set_property(ov::hint::performance_mode(ov::hint::PerformanceMode::LATENCY));
-        } else {
-            // set performance hint to 'THROUGHPUT' model for MultiExecutable Network.
-            loadConfig.set_property(ov::hint::performance_mode(ov::hint::PerformanceMode::THROUGHPUT));
-        }
+    auto itorConfig = config.find(ov::hint::performance_mode.name());
+    bool isHintSet = _pluginConfig.is_set_by_user(ov::hint::performance_mode) || itorConfig != config.end();
+    if (!isHintSet && workModeAuto) {
+        // NO user sets perfHint, then set perfhint to 'LATENCY' for AutoExecutableNetwork.
+        loadConfig.set_property(ov::hint::performance_mode(ov::hint::PerformanceMode::LATENCY));
     }
     // updateFromMap will check config valid
     loadConfig.set_user_property(PreProcessConfig(config), workModeAuto);
     loadConfig.apply_user_properties();
+    if (!workModeAuto) {
+        if (itorConfig != config.end() && itorConfig->second != InferenceEngine::PluginConfigParams::THROUGHPUT) {
+            LOG_WARNING_TAG("User set perf_hint:%s, but MULTI supports THROUGHPUT only", itorConfig->second.c_str());
+        }
+        loadConfig.set_property(ov::hint::performance_mode(ov::hint::PerformanceMode::CUMULATIVE_THROUGHPUT));
+    }
     auto fullProperty = loadConfig.get_full_properties();
     // this can be updated when plugin switch to 2.0 API
     std::map<std::string, std::string> fullConfig = ConvertToStringMap(fullProperty);
@@ -378,6 +380,8 @@ IExecutableNetworkInternal::Ptr MultiDeviceInferencePlugin::LoadNetworkImpl(cons
     std::unordered_map<std::string, ov::Any> multiNetworkConfig;
     std::vector<DeviceInformation> metaDevices;
     auto priorities = loadConfig.get_property(ov::device::priorities);
+    if (priorities.empty() && !workModeAuto)
+        IE_THROW() << "KEY_MULTI_DEVICE_PRIORITIES key is not set for " << GetName() << " device";
     if (priorities.find("AUTO") != std::string::npos || priorities.find("MULTI") != std::string::npos) {
         IE_THROW() << "The device candidate list should not include the meta plugin for " << GetName() << " device";
     }
@@ -397,256 +401,104 @@ IExecutableNetworkInternal::Ptr MultiDeviceInferencePlugin::LoadNetworkImpl(cons
         }
     };
 
-    // if workMode is AUTO
-    // only AUTO uses CheckConfig() to check fullConfig's parameters, MULTI does not
-    if (workModeAuto) {
-        // check the configure and check if need to set PerfCounters configure to device
-        // and set filter configure
-
-        OV_ITT_SCOPED_TASK(itt::domains::MULTIPlugin, "MultiDeviceInferencePlugin::LoadNetworkImpl::AutoMode");
-        auto autoSContext = std::make_shared<AutoScheduleContext>();
-        std::map<std::string, std::string> filterConfig;
-        auto strDevices = GetDeviceList(fullConfig);
-        // fill in the context for auto
-        if (loadConfig.get_property(ov::enable_profiling)) {
-            filterConfig.insert({ov::enable_profiling.name(), PluginConfigParams::YES});
-            autoSContext->_needPerfCounters = true;
-        }
-        autoSContext->_modelPriority = MapPriorityValues(loadConfig.get_property(ov::hint::model_priority));
-        autoSContext->_batchingDisabled = !(loadConfig.get_property(ov::hint::allow_auto_batching));
-        autoSContext->_performanceHint = loadConfig.get_property(ov::hint::performance_mode.name()).as<std::string>();
-        // filter the device that supports filter configure
-        auto metaDevices = ParseMetaDevices(strDevices, fullConfig);
-        auto supportDevicesByConfig = FilterDevice(metaDevices, filterConfig);
-        if (supportDevicesByConfig.empty()) {
-             IE_THROW() << "There is no device support the configure";
-        }
-        auto supportDevices = supportDevicesByConfig;
-        CNNNetwork clonedNetwork;
-        std::string clonedModelPath = modelPath;
-        if (modelPath.empty()) {
-            // if network is valid
-            LOG_INFO_TAG("load with CNN network");
-            supportDevices = FilterDeviceByNetwork(supportDevicesByConfig, network);
-            // clone the network, in case of reshape conflict
-            clonedNetwork = InferenceEngine::details::cloneNetwork(network);
-        } else {
-            // model path, enable model load with single device situation
-            if (supportDevices.size() > 1) {
-                clonedNetwork = GetCore()->ReadNetwork(modelPath, std::string());
-                // do we really need to disable model path?
-                clonedModelPath = "";
-                LOG_INFO_TAG("load with CNN network");
-            } else {
-                LOG_INFO_TAG("load with model path");
-            }
-        }
-        // reset the strDevices to support devices
-        strDevices = "";
-        // calling GetValidDevices() to get a prioritized list of devices
-        auto devicesWithPriority = GetValidDevice(supportDevices, networkPrecision);
-        for (auto iter = devicesWithPriority.begin(); iter != devicesWithPriority.end(); iter++) {
-            strDevices += iter->deviceName;
-            strDevices += ",";
-        }
-        strDevices.pop_back();
-        for (auto iter = supportDevices.begin(); iter != supportDevices.end(); iter++) {
-            auto& configs = iter->config;
-            for (auto& config : configs) {
-                LOG_INFO_TAG("device:%s, config:%s=%s",
-                             iter->deviceName.c_str(),
-                             config.first.c_str(),
-                             config.second.c_str());
-            }
-            // carry on batch configs only if user explicitly sets
-            if (loadConfig.is_set_by_user(ov::hint::allow_auto_batching))
-                insertPropToConfig(ov::hint::allow_auto_batching.name(), iter->deviceName, configs);
-            if (loadConfig.is_set_by_user(ov::auto_batch_timeout))
-                insertPropToConfig(ov::auto_batch_timeout.name(), iter->deviceName, configs);
-            insertPropToConfig(ov::cache_dir.name(), iter->deviceName, configs);
-            LOG_INFO_TAG("device:%s, priority:%ld", iter->deviceName.c_str(), iter->devicePriority);
-        }
-        autoSContext->_modelPath = clonedModelPath;
+    // check the configure and check if need to set PerfCounters configure to device
+    // and set filter configure
+    OV_ITT_SCOPED_TASK(itt::domains::MULTIPlugin, "MultiDeviceInferencePlugin::LoadNetworkImpl::AutoMode");
+    auto autoSContext = std::make_shared<AutoScheduleContext>();
+    std::map<std::string, std::string> filterConfig;
+    auto strDevices = GetDeviceList(fullConfig);
+    // fill in the context for auto
+    if (loadConfig.get_property(ov::enable_profiling)) {
+        filterConfig.insert({ov::enable_profiling.name(), PluginConfigParams::YES});
+        autoSContext->_needPerfCounters = true;
+    }
+    autoSContext->_modelPriority = MapPriorityValues(loadConfig.get_property(ov::hint::model_priority));
+    autoSContext->_batchingDisabled = !(loadConfig.get_property(ov::hint::allow_auto_batching));
+    // set performanceHint for AutoExecutableNetwork
+    autoSContext->_performanceHint = loadConfig.get_property(ov::hint::performance_mode.name()).as<std::string>();
+    // filter the device that supports filter configure
+    metaDevices = ParseMetaDevices(strDevices, fullConfig);
+    auto supportDevicesByConfig = FilterDevice(metaDevices, filterConfig);
+    if (supportDevicesByConfig.empty()) {
+        IE_THROW() << "There is no device support the configure";
+    }
+    auto supportDevices = supportDevicesByConfig;
+    CNNNetwork clonedNetwork;
+    std::string clonedModelPath = modelPath;
+    // reset the strDevices to support devices
+    strDevices = "";
+    // calling GetValidDevices() to get a prioritized list of devices
+    bool isCumulative =
+        (autoSContext->_performanceHint == IE::PluginConfigParams::CUMULATIVE_THROUGHPUT) ? true : false;
+    std::list<DeviceInformation> devicesWithPriority(supportDevices.begin(), supportDevices.end());
+    if (modelPath.empty()) {
+        // if network is valid
+        LOG_INFO_TAG("load with CNN network");
+        supportDevices = FilterDeviceByNetwork(supportDevicesByConfig, network);
+        clonedNetwork = InferenceEngine::details::cloneNetwork(network);
         // clone the network, in case of reshape conflict
-        autoSContext->_network = clonedNetwork;
-        autoSContext->_devicePriorities = supportDevices;
-        autoSContext->_devicePrioritiesInitial = supportDevices;
-        autoSContext->_strDevices = strDevices;
-        autoSContext->_plugin = this;
-        autoSContext->_core = GetCore();
-        autoSContext->_LogTag = _LogTag;
-        autoSContext->_bindBuffer = loadConfig.get_property(ov::intel_auto::device_bind_buffer);
-        autoSContext->_startupfallback = loadConfig.get_property(ov::intel_auto::enable_startup_fallback);
-        autoSContext->_runtimeFallback = loadConfig.get_property(ov::intel_auto::enable_runtime_fallback);
-        return std::make_shared<AutoExecutableNetwork>(autoSContext, std::make_shared<AutoSchedule>());
-    }
-    OV_ITT_SCOPED_TASK(itt::domains::MULTIPlugin, "MultiDeviceInferencePlugin::LoadNetworkImpl:MultiMode");
-    // if is cumulative, PERFORMANCE_HINT set to THROUGHPUT and _LogTag set to AUTO
-    auto configIter =
-        std::find_if(fullConfig.begin(), fullConfig.end(), [](const std::pair<std::string, std::string>& config) {
-            return (config.first == CONFIG_KEY(PERFORMANCE_HINT));
-        });
-    if (configIter != fullConfig.end() && configIter->second == InferenceEngine::PluginConfigParams::CUMULATIVE_THROUGHPUT) {
-        configIter->second = InferenceEngine::PluginConfigParams::THROUGHPUT;
-        _LogTag = "AUTO";
-        LOG_INFO_TAG("CUMULATIVE Call MULTI PERFORMANCE_HINT set to THROUGHPUT");
-    }
-    if (priorities.empty()) {
-        IE_THROW() << "KEY_MULTI_DEVICE_PRIORITIES key is not set for " << GetName() << " device";
-    } else {  // for use case -d MULTI:xPU or -d AUTO:xPU
-        auto metaDevicesByConfig = ParseMetaDevices(priorities, fullConfig);
-        metaDevices = modelPath.empty() ? FilterDeviceByNetwork(metaDevicesByConfig, network)
-                                        : metaDevicesByConfig;
-        if (metaDevicesByConfig.size() != metaDevices.size()) {
-            LOG_DEBUG_TAG("stateful/dynamic model, loaded to single device");
-            multiNetworkConfig[ov::device::priorities.name()]
-                    = metaDevices[0].deviceName;
-        } else {
-            multiNetworkConfig[ov::device::priorities.name()] = priorities;
-        }
-    }
-    auto multiSContext = std::make_shared<MultiScheduleContext>();
-    DeviceMap<SoExecutableNetworkInternal> executableNetworkPerDevice;
-    std::mutex load_mutex;
-    std::vector<Task> loads;
-
-    auto loadInferEngTask = [&](DeviceInformation& p) {
-        auto tmpiter = fullConfig.find(CONFIG_KEY(ALLOW_AUTO_BATCHING));
-        if (tmpiter != fullConfig.end()) {
-            if (tmpiter->second == PluginConfigParams::NO) {
-                LOG_INFO_TAG("set %s=%s", tmpiter->first.c_str(), tmpiter->second.c_str());
-                multiSContext->_batchingDisabled = true;
-            }
-            if (loadConfig.is_set_by_user(ov::hint::allow_auto_batching))
-                p.config.insert({tmpiter->first, tmpiter->second});
-        }
-        if (loadConfig.is_set_by_user(ov::auto_batch_timeout))
-            insertPropToConfig(ov::auto_batch_timeout.name(), p.deviceName, p.config);
-        insertPropToConfig(ov::cache_dir.name(), p.deviceName, p.config);
-        const auto& deviceName = p.deviceName;
-        const auto& deviceConfig = p.config;
-        SoExecutableNetworkInternal exec_net;
-        LOG_DEBUG_TAG("load network to device:%s", deviceName.c_str());
-        try {
-            if (modelPath.empty()) {
-                exec_net = GetCore()->LoadNetwork(network, deviceName, deviceConfig);
-            } else {
-                exec_net = GetCore()->LoadNetwork(modelPath, deviceName, deviceConfig);
-            }
-        } catch (const IE::Exception& iie) {
-            if (_LogTag == "AUTO") {
-                LOG_DEBUG_TAG("Failed to load network to device:%s with error: %s", deviceName.c_str(), iie.what());
-                return;
-            } else {
-                IE_THROW() << "Failed to load network to device: " << deviceName.c_str() << " with error:" <<
-                    iie.what();
-            }
-        }
-
-        try {
-            std::string sStreamNums = "";
-            std::string sThreadNums = "";
-            if (deviceName.find("CPU") != std::string::npos) {
-                sStreamNums = exec_net->GetMetric(ov::num_streams.name()).as<std::string>();
-                sThreadNums = exec_net->GetMetric(ov::inference_num_threads.name()).as<std::string>();
-            } else if (deviceName.find("GPU") != std::string::npos) {
-                sStreamNums = exec_net->GetConfig(ov::num_streams.name()).as<std::string>();
-                sThreadNums = exec_net->GetConfig(ov::compilation_num_threads.name()).as<std::string>();
-            }
-
-            // print CPU or GPU streams num and threads num
-            if (!sStreamNums.empty() && !sThreadNums.empty()) {
-                LOG_INFO_TAG("after load network, %s streamNums:%s, %s threadNums:%s",
-                             deviceName.c_str(),
-                             sStreamNums.c_str(),
-                             deviceName.c_str(),
-                             sThreadNums.c_str());
-            }
-        } catch (const IE::Exception&) {
-            LOG_DEBUG_TAG("deviceName:%s cannot get streamNums and threadNums from exec_net", deviceName.c_str());
-        }
-        std::unique_lock<std::mutex> lock{load_mutex};
-        executableNetworkPerDevice.insert({deviceName, exec_net});
-        multiNetworkConfig.insert(deviceConfig.begin(), deviceConfig.end());
-    };
-
-    // Check if CPU is in device list
-    auto iterCPU = std::find_if(metaDevices.begin(), metaDevices.end(), [&](DeviceInformation& d) {
-        return d.deviceName.find("CPU") != std::string::npos;
-    });
-    // Load devices other than CPU first
-    for (auto& p : metaDevices) {
-        if (iterCPU != metaDevices.end() && p.deviceName == iterCPU->deviceName) {
-            continue;
-        }
-        loads.push_back([&]() {
-            loadInferEngTask(p);
-        });
-    }
-
-    auto executor = executorManager()->getIdleCPUStreamsExecutor(
-        IStreamsExecutor::Config{"MultiDeviceAsyncLoad",
-                                 static_cast<int>(std::thread::hardware_concurrency()) /* max possible #streams*/,
-                                 0 /*default threads per stream, workaround for ticket 62376*/,
-                                 IStreamsExecutor::ThreadBindingType::NONE});
-    if (loads.size() > 0) {
-        // Wait for the device to load the network
-        executor->runAndWait(loads);
-        loads.clear();
-    }
-
-    // Finally load the CPU
-    if (iterCPU != metaDevices.end()) {
-        if (!executableNetworkPerDevice.empty() && iterCPU->config.find(ov::affinity.name()) == iterCPU->config.end()) {
-            LOG_DEBUG_TAG("set affinity to NUMA and disable hyper thread for CPU");
-            // If the other devices load successfully and no user set affinity then set NUMA to CPU
-            iterCPU->config.insert({ov::affinity.name(), ov::affinity(ov::Affinity::NUMA).second.as<std::string>()});
-            iterCPU->config.insert({CONFIG_KEY_INTERNAL(ENABLE_HYPER_THREAD), CONFIG_VALUE(NO)});
-        }
-        loads.push_back([&]() {
-            loadInferEngTask(*iterCPU);
-        });
-        // Wait for CPU to load the network
-        executor->runAndWait(loads);
-    }
-
-    if (executableNetworkPerDevice.empty())
-        IE_THROW(NotFound) << "Failed to load network to any device "
-                           <<  "that the " << GetName() << " device is initialized to work with";
-
-    // checking the perf counters config from the loaded network to respect both device's plugin and load-specific setting
-    size_t num_plugins_supporting_perf_counters = 0;
-    for (auto& n : executableNetworkPerDevice) {
-            try {
-                num_plugins_supporting_perf_counters +=
-                        n.second->GetConfig(PluginConfigParams::KEY_PERF_COUNT).as<std::string>() ==
-                        PluginConfigParams::YES;
-            } catch (const IE::Exception&) {
-            }
-    }
-    // MULTI can enable the perf counters only if all  devices support/enable that
-    bool enablePerfCounters = num_plugins_supporting_perf_counters == executableNetworkPerDevice.size();
-    multiSContext->_devicePriorities = metaDevices;
-    multiSContext->_devicePrioritiesInitial = metaDevices;
-    multiSContext->_networksPerDevice = executableNetworkPerDevice;
-    multiSContext->_config = multiNetworkConfig;
-    multiSContext->_needPerfCounters = enablePerfCounters;
-    multiSContext->_core = GetCore();
-    multiSContext->_LogTag = _LogTag;
-    IExecutableNetworkInternal::Ptr impl;
-    auto tmp = loadConfig.get_property(ov::intel_auto::device_bind_buffer);
-    if (tmp) {
-        multiSContext->_bindBuffer = true;
-        impl = std::make_shared<MultiExecutableNetwork>(multiSContext, std::make_shared<BinderMultiSchedule>());
     } else {
-        impl = std::make_shared<MultiExecutableNetwork>(multiSContext, std::make_shared<MultiSchedule>());
+        // model path, enable model load with single device situation
+        if (supportDevices.size() > 1 && !isCumulative) {
+            clonedNetwork = GetCore()->ReadNetwork(modelPath, std::string());
+            // do we really need to disable model path?
+            clonedModelPath = "";
+            LOG_INFO_TAG("load with CNN network");
+        } else {
+            LOG_INFO_TAG("load with model path");
+        }
+    }
+    if (!isCumulative) {
+        devicesWithPriority = GetValidDevice(supportDevices, networkPrecision);
+    }
+    for (auto iter = devicesWithPriority.begin(); iter != devicesWithPriority.end(); iter++) {
+        strDevices += iter->deviceName;
+        strDevices += ",";
+    }
+    strDevices.pop_back();
+    for (auto iter = supportDevices.begin(); iter != supportDevices.end(); iter++) {
+        auto& configs = iter->config;
+        for (auto& config : configs) {
+            LOG_INFO_TAG("device:%s, config:%s=%s",
+                         iter->deviceName.c_str(),
+                         config.first.c_str(),
+                         config.second.c_str());
+        }
+        // carry on batch configs only if user explicitly sets
+        if (loadConfig.is_set_by_user(ov::hint::allow_auto_batching))
+            insertPropToConfig(ov::hint::allow_auto_batching.name(), iter->deviceName, configs);
+        if (loadConfig.is_set_by_user(ov::auto_batch_timeout))
+            insertPropToConfig(ov::auto_batch_timeout.name(), iter->deviceName, configs);
+        insertPropToConfig(ov::cache_dir.name(), iter->deviceName, configs);
+        LOG_INFO_TAG("device:%s, priority:%ld", iter->deviceName.c_str(), iter->devicePriority);
+    }
+    autoSContext->_modelPath = clonedModelPath;
+    // clone the network, in case of reshape conflict
+    autoSContext->_network = clonedNetwork;
+    autoSContext->_devicePriorities = supportDevices;
+    autoSContext->_devicePrioritiesInitial = supportDevices;
+    autoSContext->_strDevices = strDevices;
+    autoSContext->_plugin = this;
+    autoSContext->_core = GetCore();
+    autoSContext->_LogTag = _LogTag;
+    autoSContext->_startupfallback = loadConfig.get_property(ov::intel_auto::enable_startup_fallback);
+    autoSContext->_runtimeFallback = loadConfig.get_property(ov::intel_auto::enable_runtime_fallback);
+    IExecutableNetworkInternal::Ptr impl;
+    // enable bind only in cumulative_throughput mode
+    if (loadConfig.get_property(ov::intel_auto::device_bind_buffer) &&
+        autoSContext->_performanceHint == "CUMULATIVE_THROUGHPUT") {
+        LOG_INFO_TAG("runtime fallback set to disabled in binder mode");
+        autoSContext->_runtimeFallback = false;
+        impl = std::make_shared<AutoExecutableNetwork>(autoSContext, std::make_shared<BinderMultiSchedule>());
+    } else {
+        impl = std::make_shared<AutoExecutableNetwork>(autoSContext, std::make_shared<AutoSchedule>());
     }
     if (!modelPath.empty()) {
         SetExeNetworkInfo(impl,
-                          executableNetworkPerDevice.begin()->second->GetInputsInfo(),
-                          executableNetworkPerDevice.begin()->second->GetOutputsInfo());
-        impl->setInputs(executableNetworkPerDevice.begin()->second->getInputs());
-        impl->setOutputs(executableNetworkPerDevice.begin()->second->getOutputs());
+                          autoSContext->_hwExecutableNetwork->GetInputsInfo(),
+                          autoSContext->_hwExecutableNetwork->GetOutputsInfo());
+        impl->setInputs(autoSContext->_hwExecutableNetwork->getInputs());
+        impl->setOutputs(autoSContext->_hwExecutableNetwork->getOutputs());
     }
     return impl;
 }
