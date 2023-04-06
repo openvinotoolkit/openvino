@@ -69,7 +69,7 @@ struct DeviceInformation {
     std::string defaultDeviceID;
     DeviceName uniqueName;
     unsigned int devicePriority;
-    DeviceInformation () : numRequestsPerDevices(-1), devicePriority(0) {};
+    DeviceInformation () : numRequestsPerDevices(-1), devicePriority(0) {}
     DeviceInformation (DeviceName dn, std::map<std::string, std::string> conf, int nReq, std::string defaultID, DeviceName uName, unsigned int priority) {
         deviceName = dn;
         config = conf;
