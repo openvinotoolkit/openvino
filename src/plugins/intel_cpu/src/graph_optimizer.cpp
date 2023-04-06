@@ -28,6 +28,7 @@
 #include <blob_factory.hpp>
 #include "utils/general_utils.h"
 #include "utils/cpu_utils.hpp"
+#include "utils/debug_capabilities.h"
 
 #include <ngraph/opsets/opset1.hpp>
 #include <ie_ngraph_utils.hpp>
@@ -282,10 +283,17 @@ void GraphOptimizer::FuseConvMatmulFCDeconvAndDQScales(Graph &graph) {
             graph.DropNode(mul);
         } else {
             auto fcNode = std::dynamic_pointer_cast<FullyConnected>(node);
-            if (fcNode && fcNode->withBiasFused())
-                // For int8 FC, BIAS is fused in ngraph. But DQ can not be fused. It is a bug.
+            if (fcNode && fcNode->withBiasFused()) {
+                // For int8 FC, BIAS has been fused into FC during ngraph transformation. DQ fusing check fails here.
+                // Sliently exit here would cause accuracy issue, because this multiply would be append after BIAS.
+                // It is a bug. Assert to give more debugging information.
                 // todo: Remove this by moving the fullyconnect_bias fusing into graph optimizer from ngraph transformation.
-                IE_THROW() << "Bug: IN8 FC bias fused, DQ scale can not fused in " << node->getName() << std::endl;
+                DEBUG_LOG("BUG when fusing DQ Multiply ##", scales->getName(), " into FullyConnect ##", node->getName(),
+                            "Fusing axis: ", node->getFusingAxis());
+                DEBUG_LOG(*node);
+                DEBUG_LOG(*scales);
+                IE_THROW() << "BUG: IN8 FC bias fused, DQ scale can not fused in " << node->getName() << std::endl;
+            }
         }
     }
 }
