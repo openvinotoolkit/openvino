@@ -16,6 +16,8 @@
 #include <ngraph/opsets/opset7.hpp>
 #include <ngraph/opsets/opset8.hpp>
 #include <ngraph/opsets/opset9.hpp>
+#include <ngraph/opsets/opset10.hpp>
+#include <ngraph/opsets/opset11.hpp>
 
 #include "ngraph_functions/utils/data_utils.hpp"
 #include "openvino/core/partial_shape.hpp"

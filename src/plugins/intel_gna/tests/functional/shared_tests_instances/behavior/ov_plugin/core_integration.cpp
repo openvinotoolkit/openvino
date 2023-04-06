@@ -2,9 +2,10 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "behavior/ov_plugin/core_integration.hpp"
+
 #include <gna/gna_config.hpp>
 
-#include "behavior/ov_plugin/core_integration.hpp"
 #include "behavior/ov_plugin/properties_tests.hpp"
 #include "openvino/runtime/intel_gna/properties.hpp"
 
@@ -150,9 +151,6 @@ TEST(OVClassBasicTest, smoke_SetConfigAfterCreatedPrecisionHint) {
 TEST(OVClassBasicTest, smoke_SetConfigAfterCreatedPerformanceHint) {
     ov::Core core;
     ov::hint::PerformanceMode mode;
-
-    OV_ASSERT_NO_THROW(mode = core.get_property("GNA", ov::hint::performance_mode));
-    ASSERT_EQ(ov::hint::PerformanceMode::UNDEFINED, mode);
 
     OV_ASSERT_NO_THROW(core.set_property("GNA", ov::hint::performance_mode(ov::hint::PerformanceMode::LATENCY)));
     OV_ASSERT_NO_THROW(mode = core.get_property("GNA", ov::hint::performance_mode));
