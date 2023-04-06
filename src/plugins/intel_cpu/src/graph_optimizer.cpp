@@ -188,6 +188,7 @@ void GraphOptimizer::FuseConvMatmulFCDeconvAndDQScales(Graph &graph) {
         if (node->getType() != Type::Eltwise || node->getAlgorithm() != Algorithm::EltwiseMultiply) {
             return false;
         }
+
         auto parentNode = node->getParentEdgesAtPort(0)[0]->getParent();
         auto scaleNode = node->getParentEdgesAtPort(1)[0]->getParent();
         if (parentNode->getOriginalInputPrecisionAtPort(0) != Precision::U8 && parentNode->getOriginalInputPrecisionAtPort(0) != Precision::I8)
@@ -211,29 +212,44 @@ void GraphOptimizer::FuseConvMatmulFCDeconvAndDQScales(Graph &graph) {
                     && nodeType != Type::FullyConnected)
             IE_THROW() << "Unexpected DQ scale init from node" << node->getName() << " , type: "<< NameFromType(nodeType);
 
+        const auto parentOutDims = node->getOutputShapeAtPort(0).getDims();
         const auto channelAxis = node->getFusingAxis();
-        auto OC = node->getOutputShapeAtPort(0).getDims()[channelAxis];
+        auto OC = parentOutDims[channelAxis];
+        const auto parentNodeInputEdges = node->getParentEdges().size();
+
+        // FC bias has been fused into FC in transformation phase.
+        // todo: Move the FC fusing bias into graph optimizer.
+        if (parentNodeInputEdges != 2) {
+            auto fcNode = std::dynamic_pointer_cast<FullyConnected>(node);
+            if (!(parentNodeInputEdges == 3 && fcNode && fcNode->withBiasFused()))
+                return false;
+        }
+
         if (Shape::UNDEFINED_DIM == OC)
             return false;
         if (!node->getFusedWith().empty() || !scales->getFusedWith().empty())
             return false;
-        const auto parentNodeInputEdges = node->getParentEdges().size();
-        if (parentNodeInputEdges != 2) {
-            auto fcNode = std::dynamic_pointer_cast<FullyConnected>(node);
-            //Consider  bias has been fused into FC in transformation phase.
-            if (!(parentNodeInputEdges == 3 && fcNode && fcNode->withBiasFused()))
-                return false;
-        }
-        auto scalesDims = scales->getOutputShapeAtPort(0).getDims();
-        if (scalesDims.size() > 1) {
-            if (scalesDims[0] != 1 || !dimsEqualStrong(scalesDims[1], OC))
-                return false;
 
-            for (size_t i = 2; i < scalesDims.size(); i++) {
-                if (scalesDims[i] != 1)
-                    return false;
-            }
+        const auto scalesDims = getNormalizedDimsBySize(scales->getOutputShapeAtPort(0).getDims(),
+                                                parentOutDims.size());
+        if (parentOutDims.size() != scalesDims.size() || scalesDims.size() < 2)
+            return false;
+
+        if (!dimsEqualStrong(scalesDims[channelAxis], parentOutDims[channelAxis]) && scalesDims[channelAxis] != 1)
+            return false;
+
+        for (size_t i = 0; i < scalesDims.size(); i++) {
+            if (scalesDims[i] != 1 && static_cast<int>(i) != channelAxis)
+                return false;
         }
+        // if (scalesDims.size() > 1) {
+        //     if (scalesDims[0] != 1 || !dimsEqualStrong(scalesDims[channelAxis], OC))
+        //         return false;
+        //     for (size_t i = 0; i < scalesDims.size(); i++) {
+        //         if (scalesDims[i] != 1 && i != channelAxis)
+        //             return false;
+        //     }
+        // }
 
         auto scalesConstant = dynamic_cast<node::Input*>(scales.get());
         if (scalesConstant == nullptr)
@@ -264,6 +280,12 @@ void GraphOptimizer::FuseConvMatmulFCDeconvAndDQScales(Graph &graph) {
             auto p_edge = mul->getParentEdgesAtPort(1)[0];
             graph.RemoveEdge(p_edge);
             graph.DropNode(mul);
+        } else {
+            auto fcNode = std::dynamic_pointer_cast<FullyConnected>(node);
+            if (fcNode && fcNode->withBiasFused())
+                // For int8 FC, BIAS is fused in ngraph. But DQ can not be fused. It is a bug.
+                // todo: Remove this by moving the fullyconnect_bias fusing into graph optimizer from ngraph transformation.
+                IE_THROW() << "Bug: IN8 FC bias fused, DQ scale can not fused in " << node->getName() << std::endl;
         }
     }
 }

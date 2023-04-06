@@ -32,7 +32,7 @@ DnnlPostOpsComposer::DnnlPostOpsComposer(const dnnl::engine& engine,
     IE_ASSERT(idxOC >= 0 && idxOC < outputDims.size());
     //Dequantization scales should only be set for int8 precision primitive.
     if (!isINT8 && !DQScales.empty()) {
-        IE_THROW() << "DQScales is set on non I8 precision.";
+        IE_THROW() << "DQScales can only be set on int8 precision.";
     }
     OC = outputDims[idxOC];
     dimsPerOC = dimsPerTensor = VectorDims(outputDims.size(), 1);
