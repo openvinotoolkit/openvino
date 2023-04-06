@@ -25,6 +25,7 @@
                             <tab type="user" title="CreateAttribute" url="@ref openvino_docs_OV_UG_lpt_CreateAttribute"/>
                             <tab type="user" title="CreatePrecisionsDependentAttribute" url="@ref openvino_docs_OV_UG_lpt_CreatePrecisionsDependentAttribute"/>
                             <tab type="user" title="MarkupAvgPoolPrecisionPreserved" url="@ref openvino_docs_OV_UG_lpt_MarkupAvgPoolPrecisionPreserved"/>
+                            <tab type="user" title="MarkupBias" url="@ref openvino_docs_OV_UG_lpt_MarkupBias"/>
                             <tab type="user" title="MarkupCanBeQuantized" url="@ref openvino_docs_OV_UG_lpt_MarkupCanBeQuantized"/>
                             <tab type="user" title="MarkupPerTensorQuantization" url="@ref openvino_docs_OV_UG_lpt_MarkupPerTensorQuantization"/>
                             <tab type="user" title="MarkupPrecisions" url="@ref openvino_docs_OV_UG_lpt_MarkupPrecisions"/>
