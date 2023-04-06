@@ -49,6 +49,7 @@ OP_CONVERTER(translate_floor_divide);
 OP_CONVERTER(translate_floordiv);
 OP_CONVERTER(translate_full);
 OP_CONVERTER(translate_full_like);
+OP_CONVERTER(translate_gather);
 OP_CONVERTER(translate_gelu);
 OP_CONVERTER(translate_get_attr);
 OP_CONVERTER(translate_getitem);
@@ -217,6 +218,7 @@ const std::map<std::string, CreatorFunction> get_supported_ops() {
         {"aten::floordiv", op::translate_floordiv},
         {"aten::full", op::translate_full},
         {"aten::full_like", op::translate_full_like},
+        {"aten::gather", op::translate_gather},
         {"aten::ge", op::translate_1to1_match_2_inputs_align_types<opset10::GreaterEqual>},
         {"aten::gelu", op::translate_gelu},
         {"aten::glu", op::translate_glu},
