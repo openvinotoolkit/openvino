@@ -148,12 +148,12 @@ omz_downloader --name googlenet-v1 --output_dir %USERPROFILE%\Documents\models
 Linux and macOS:
 ```sh
 mkdir ~/ir
-mo --input_model ~/models/public/googlenet-v1/googlenet-v1.caffemodel --data_type FP16 --output_dir ~/ir
+mo --input_model ~/models/public/googlenet-v1/googlenet-v1.caffemodel --compress_to_fp16 --output_dir ~/ir
 ```
 Windows:
 ```bat
 mkdir %USERPROFILE%\Documents\ir
-mo --input_model %USERPROFILE%\Documents\models\public\googlenet-v1\googlenet-v1.caffemodel --data_type FP16 --output_dir %USERPROFILE%\Documents\ir
+mo --input_model %USERPROFILE%\Documents\models\public\googlenet-v1\googlenet-v1.caffemodel --compress_to_fp16 --output_dir %USERPROFILE%\Documents\ir
 ```
 
 5. Run Inference on the Sample
