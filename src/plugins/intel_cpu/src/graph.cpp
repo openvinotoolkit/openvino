@@ -204,24 +204,7 @@ void Graph::Replicate(const CNNNetwork &network) {
 
     this->_name = network.getName();
 
-    std::shared_ptr<const ov::Model> func = nullptr;
-    // we perform model cloning and reshaping on Replicate stage to preserve input/output information
-    // it help to perform a graph compilation like in static case
-    // and handle dynamic batch case in inference stage with minimal code changes
-    if (getConfig().isNewApi && getConfig().batchLimit > 0) {
-        auto upperBoundModel = ngraph::clone_function(*network.getFunction());
-        std::map<ov::Output<ov::Node>, ov::PartialShape> newInShape;
-        for (const auto& in : upperBoundModel->get_parameters()) {
-            auto newShape = in->get_output_partial_shape(0);
-            newShape[0] = getConfig().batchLimit;
-            newInShape[in] = newShape;
-        }
-        upperBoundModel->reshape(newInShape);
-
-        func = upperBoundModel;
-    } else {
-        func = network.getFunction();
-    }
+    std::shared_ptr<const ov::Model> func = network.getFunction();
 
     if (!func) {
         IE_THROW() << "Function pointer inside CNNNetwork is nullptr";
@@ -911,19 +894,7 @@ void Graph::PushInputData(const std::string& name, const InferenceEngine::Blob::
             Memory ext_mem(getEngine());
             ext_mem.Create(ext_tdesc, ext_data_ptr, false);
 
-            // branch for handling dynamic batch feature in new API
-            if (getConfig().isNewApi && getConfig().batchLimit > 0 && ext_mem.getStaticDims()[0] != childEdge->getMemory().getStaticDims()[0]) {
-                auto newDims = childEdge->getMemory().getStaticDims();
-                newDims[0] = ext_mem.getStaticDims()[0];
-
-                Memory tmpMem(getEngine());
-                auto newDesc = childEdge->getMemory().getDesc().cloneWithNewDims(newDims, true);
-                tmpMem.Create(newDesc, childEdge->getMemory().GetData(), false);
-
-                tmpMem.SetData(ext_mem, false);
-            } else {
-                childEdge->getMemory().SetData(ext_mem, false);
-            }
+            childEdge->getMemory().SetData(ext_mem, false);
         }
 
         // todo: make sure 'name' exists in this map...
