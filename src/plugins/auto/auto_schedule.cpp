@@ -637,9 +637,13 @@ SoExecNetwork AutoSchedule::WaitFirstNetworkReady() {
             }
         }
     }
+    std::ostringstream result;
     //print errMessage
+    result << "Load network failed, ";
     for (int i = CONTEXTNUM - 2; i >= 0; i--) {
         if (_loadContext[i].isEnabled) {
+            result << _loadContext[i].errMessage.c_str();
+            result << "; ";
             LOG_ERROR_TAG("load failed, %s", _loadContext[i].errMessage.c_str());
         }
     }
@@ -654,6 +658,9 @@ SoExecNetwork AutoSchedule::WaitFirstNetworkReady() {
                     execNetwork = _pCTPUTLoadContext[i].executableNetwork;
                 }
                 nLoadSucNums++;
+            } else {
+                result << _pCTPUTLoadContext[i].errMessage.c_str();
+                result << "; ";
             }
         }
         // one or more devices loaded successfully
@@ -661,7 +668,7 @@ SoExecNetwork AutoSchedule::WaitFirstNetworkReady() {
             return execNetwork;
         }
     }
-    IE_THROW() << GetLogTag() << "load all devices failed";
+    IE_THROW() << "[" << GetLogTag() << "] " << result.str();
 }
 
 void AutoSchedule::WaitActualNetworkReady() const {

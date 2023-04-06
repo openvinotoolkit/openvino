@@ -107,7 +107,9 @@ bool TopK_evaluate(const ov::op::util::TopKBase* const node,
                    const HostTensorVector& outputs,
                    const HostTensorVector& inputs) {
     const auto& arg_shape = inputs[0]->get_shape();
+    OPENVINO_SUPPRESS_DEPRECATED_START
     const auto axis = normalize_axis(node, node->get_provided_axis(), arg_shape.size());
+    OPENVINO_SUPPRESS_DEPRECATED_END
     const auto compute_max = node->get_mode() == ov::op::TopKMode::MAX;
     const auto sort_type = node->get_sort_type();
 

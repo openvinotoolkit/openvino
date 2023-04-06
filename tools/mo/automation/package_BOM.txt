@@ -1036,6 +1036,7 @@ openvino/tools/mo/utils/find_inputs.py
 openvino/tools/mo/utils/get_ov_update_message.py
 openvino/tools/mo/utils/graph.py
 openvino/tools/mo/utils/guess_framework.py
+openvino/tools/mo/utils/help.py
 openvino/tools/mo/utils/ie_version.py
 openvino/tools/mo/utils/import_extensions.py
 openvino/tools/mo/utils/ir_engine/__init__.py
