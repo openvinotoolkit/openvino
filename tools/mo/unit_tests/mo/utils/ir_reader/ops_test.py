@@ -20,7 +20,7 @@ class TestOps(unittest.TestCase):
             model_bin = Path(tmp) / (name + '.bin')
             serialize(model, model_xml, model_bin)
             graph, _ = restore_graph_from_ir(model_xml, model_bin)
-            save_restored_graph(graph, tmp, {}, 'name')
+            save_restored_graph(graph, tmp, {}, name)
             # restore 2 times to validate that after save graph doesn't lose attributes etc.
             graph, _ = restore_graph_from_ir(model_xml, model_bin)
             return graph
