@@ -78,7 +78,7 @@ set_target_properties(${PROJECT_NAME} PROPERTIES
     INTERPROCEDURAL_OPTIMIZATION_RELEASE ${ENABLE_LTO}
     OUTPUT_NAME "_pyopenvino")
 
-addVersionDefines(pyopenvino.cpp CI_BUILD_NUMBER)
+ov_add_version_defines(pyopenvino.cpp ${PROJECT_NAME})
 
 if(OV_GENERATOR_MULTI_CONFIG)
     string(APPEND _cmd_echo
