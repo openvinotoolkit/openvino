@@ -757,7 +757,7 @@ def get_network_batch_size(inputs_info):
 def show_available_devices():
     print("\nAvailable target devices:  ", ("  ".join(Core().available_devices)))
 
-def dict2string(config):
+def device_properties_to_string(config):
     ret = "{"
     for k, v in config.items():
         if isinstance(v, dict):
@@ -775,13 +775,14 @@ def dict2string(config):
     ret += "}"
     return ret
 
-def string2dict(device_properties_str):
-    config = {}
+def string_to_device_properties(device_properties_str):
+    ret = {}
     if not device_properties_str:
-        return config
-    if device_properties_str[0] != '{' or device_properties_str[-1] != '}':
+        return ret
+    if not device_properties_str.startswith("{") or not device_properties_str.endswith("}"):
         raise Exception(
-            "Can't deterimine batch size: batch is different for different inputs!")
+            "Failed to parse device properties. Value of device properties should be started with '{' and ended with '}'."
+            "They are actually {} and {}".format(device_properties_str[0], device_properties_str[-1]))
     pattern = r'(\w+):({.+?}|[^,}]+)'
     pairs = re.findall(pattern, device_properties_str)
     for key, value in pairs:
@@ -792,17 +793,17 @@ def string2dict(device_properties_str):
             for nested_key, nested_value in nested_pairs:
                 nested_dict[nested_key] = nested_value
             value = nested_dict
-        config[key] = value
-    return config
+        ret[key] = value
+    return ret
 
 def dump_config(filename, config):
     json_config = {}
     for device_name, device_config in config.items():
         json_config[device_name] = {}
         for key, value in device_config.items():
-            value_string = value.name if isinstance(value, properties.hint.PerformanceMode) else str(value)
+            value_string = value.get() if isinstance(value, OVAny) else value
             if key == properties.device.properties():
-                value_string = dict2string(value.get())
+                value_string = device_properties_to_string(value.get())
             json_config[device_name][key] = value_string
 
     with open(filename, 'w') as f:
@@ -816,6 +817,7 @@ def load_config(filename, config):
         for property_name in original_config[device]:
             if property_name == properties.device.properties():
                 properties_str = original_config[device][property_name]
-                config[device][property_name] = OVAny(string2dict(properties_str))
+                value = string_to_device_properties(properties_str)
+                config[device][property_name] = OVAny(value)
             else:
-                config[device][property_name] = original_config[device][property_name]
+                config[device][property_name] = OVAny(original_config[device][property_name])

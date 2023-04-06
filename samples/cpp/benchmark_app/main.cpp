@@ -361,8 +361,8 @@ int main(int argc, char* argv[]) {
         for (auto& device : devices) {
             auto& device_config = config[device];
             auto ov_perf_hint = get_performance_hint(device, core);
-            if (FLAGS_hint != "") {
-                // apply command line hint setting and override if hint existd
+            if (isFlagSetInCommandLine("hint")) {
+                // apply command line hint setting and override if hint exists
                 device_config[ov::hint::performance_mode.name()] = ov_perf_hint;
             } else {
                 // keep hint setting in the config if no hint setting from command line

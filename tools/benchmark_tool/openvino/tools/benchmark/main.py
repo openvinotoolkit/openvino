@@ -210,10 +210,10 @@ def main():
                     if hw_device not in current_config.keys():
                         current_config.update(value.get())
                     else:
-                        current_device_config = current_config[hw_device].get()
+                        current_device_config = current_config[hw_device]
                         for prop in value.get().items():
-                            current_device_config.update(prop[1].get())
-                        current_config[hw_device].set(current_device_config)
+                            current_device_config.update(prop[1])
+                        current_config[hw_device].update(current_device_config)
                     config[device][key].set(current_config)
 
             def update_device_config_for_virtual_device(value, config, key):
@@ -455,7 +455,7 @@ def main():
                 if k == properties.device.properties():
                     for device_key in value.keys():
                         logger.info(f'  {device_key}:')
-                        for k2, value2 in value.get(device_key).get().items():
+                        for k2, value2 in value.get(device_key).items():
                             if k2 not in skip_keys:
                                 logger.info(f'    {k2}: {value2}')
                 else:
