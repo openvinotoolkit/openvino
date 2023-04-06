@@ -12,6 +12,8 @@
 #include <string>
 #include <vector>
 
+#include "dev/threading/parallel_custom_arena.hpp"
+
 namespace ov {
 
 struct CPU {
@@ -24,8 +26,10 @@ struct CPU {
     std::mutex _task_mutex;
     int _plugin_status = PLUGIN_USED_START;
     int _socket_idx = 0;
+    int _num_threads = 0;
 
     CPU() {
+        _num_threads = parallel_get_max_threads();
         init_cpu(*this);
     }
     void init_cpu(CPU& cpu);
