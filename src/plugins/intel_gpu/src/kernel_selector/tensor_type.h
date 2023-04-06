@@ -629,6 +629,8 @@ struct DataTensor : public TensorBaseT<Datatype, DataLayout> {
 
     static inline uint32_t ChannelsCount(DataLayout l) { return TensorBaseT::ChannelsCount(dataChannelArray, l); }
 
+    static size_t max_rank() { return static_cast<size_t>(DataChannelName::COUNT); }
+
 private:
     using DataChannelDesc = std::pair<DataLayout, std::array<int, static_cast<size_t>(DataChannelName::COUNT)>>;
     using DataChannelArray = std::array<DataChannelDesc, DataLayout::DataLayoutCount>;
