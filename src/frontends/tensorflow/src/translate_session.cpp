@@ -283,18 +283,18 @@ void TranslateSession::translate_graph(const ov::frontend::InputModel::Ptr& inpu
             } catch (const std::exception& ex) {
                 // save the root-cause of the translation failure
                 const auto fw_outs = create_fw_node_with_exception(operation_decoder,
-                                                           ov_inputs,
-                                                           operation_place->get_output_ports().size(),
-                                                           operation_name,
-                                                           ex.what());
+                                                                   ov_inputs,
+                                                                   operation_place->get_output_ports().size(),
+                                                                   operation_name,
+                                                                   ex.what());
                 ov_outputs = named_from_indexed(fw_outs);
             } catch (...) {
                 // save unknown exception type
                 const auto fw_outs = create_fw_node_with_exception(operation_decoder,
-                                                           ov_inputs,
-                                                           operation_place->get_output_ports().size(),
-                                                           operation_name,
-                                                           "Unknown exception type");
+                                                                   ov_inputs,
+                                                                   operation_place->get_output_ports().size(),
+                                                                   operation_name,
+                                                                   "Unknown exception type");
                 ov_outputs = named_from_indexed(fw_outs);
             }
         } else if (auto body_ov_model = get_body_ov_model(operation_type)) {
