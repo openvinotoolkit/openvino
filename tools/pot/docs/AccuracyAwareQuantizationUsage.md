@@ -109,12 +109,16 @@ class Accuracy(Metric):
                              'type': 'accuracy'}}
 ```
 
-An instance of the `Metric` implementation should be passed to `IEEngine` object responsible for model inference.
+@sphinxdirective
 
-```python
-metric = Accuracy()
-engine = IEEngine(config=engine_config, data_loader=data_loader, metric=metric)
-```
+An instance of the ``Metric`` implementation should be passed to ``IEEngine`` object responsible for model inference.
+
+.. code-block:: python
+   
+   metric = Accuracy()
+   engine = IEEngine(config=engine_config, data_loader=data_loader, metric=metric)
+
+@endsphinxdirective
 
 ## Select quantization parameters
 Accuracy-aware Quantization uses the Default Quantization algorithm at the initialization step in such an order that all its parameters are also valid and can be specified. The only parameter required exclusively by Accuracy-aware Quantization is:
