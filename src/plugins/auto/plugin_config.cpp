@@ -38,6 +38,7 @@ void PluginConfig::set_default() {
         std::make_tuple(ov::device::full_name),
         std::make_tuple(ov::device::capabilities),
         std::make_tuple(ov::supported_properties));
+    devices_supported_properties = {CONFIG_KEY(CACHE_DIR)};
 }
 void PluginConfig::register_property_impl(const ov::AnyMap::value_type& property, ov::PropertyMutability mutability, BaseValidator::Ptr validator) {
     property_validators[property.first] = validator;
@@ -78,6 +79,13 @@ bool PluginConfig::is_supported(const std::string& name) const {
     return supported && has_validator;
 }
 
+bool PluginConfig::is_supported_by_devices(const std::string& name) const {
+    bool supported = find(devices_supported_properties.begin(), devices_supported_properties.end(), name) !=
+                     devices_supported_properties.end();
+
+    return supported;
+}
+
 bool PluginConfig::is_set_by_user(const std::string& name) const {
     return user_properties.find(name) != user_properties.end();
 }
@@ -93,14 +101,11 @@ void PluginConfig::set_user_property(const ov::AnyMap& config, bool checkfirstle
                         "Invalid value for property ", name,  ": ", val.as<std::string>());
             internal_properties[kv.first] = kv.second;
             user_properties[kv.first] = kv.second;
+        } else if (is_supported_by_devices(name) || !checkfirstlevel ||
+                   device_property_validator->is_valid(ov::Any(name))) {
+            user_properties[kv.first] = kv.second;
         } else {
-            if (device_property_validator->is_valid(ov::Any(name))) { // if it's a valid secondary, accept it
-                user_properties[kv.first] = kv.second;
-            } else if (!checkfirstlevel) { // for multi, accept it anyway when compiled model
-                user_properties[kv.first] = kv.second;
-            } else {
-                OPENVINO_ASSERT(false, "property ", name,  ": not supported");
-            }
+            OPENVINO_ASSERT(false, "property ", name, ": not supported");
         }
     }
 }

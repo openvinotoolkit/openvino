@@ -78,6 +78,7 @@ public:
     ov::Any get_property(const std::string& name) const;
     bool is_set_by_user(const std::string& name) const;
     bool is_supported(const std::string& name) const;
+    bool is_supported_by_devices(const std::string& name) const;
 
     void register_property_impl(const ov::AnyMap::value_type& property, ov::PropertyMutability mutability, BaseValidator::Ptr validator = nullptr);
 
@@ -233,6 +234,7 @@ private:
     ov::AnyMap full_properties;       // combined with user set properties, including secondary properties
     ov::AnyMap property_mutabilities; // mutability for supported configs/metrics installation
     std::map<std::string, BaseValidator::Ptr> property_validators;
+    std::vector<std::string> devices_supported_properties;
     BaseValidator::Ptr device_property_validator;
     static const std::set<std::string> _availableDevices;
     static const std::set<std::string> _deviceBlocklist;
