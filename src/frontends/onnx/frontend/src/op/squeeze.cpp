@@ -19,7 +19,9 @@ OutputVector squeeze(const Node& node) {
     std::vector<std::int64_t> axes = node.get_attribute_value<std::vector<std::int64_t>>("axes", {});
     const auto data_rank = data.get_partial_shape().rank();
 
+    OPENVINO_SUPPRESS_DEPRECATED_START
     std::vector<std::size_t> normalized_axes = ngraph::normalize_axes(node.get_description(), axes, data_rank);
+    OPENVINO_SUPPRESS_DEPRECATED_END
     auto axes_node =
         std::make_shared<default_opset::Constant>(element::u64, Shape{normalized_axes.size()}, normalized_axes);
 
