@@ -80,12 +80,14 @@
 #include "utils/ngraph_transformation.hpp"
 
 // LPT transformations
-#include "transformations/low_precision/mark_dequantization_subgraph.hpp"
-#include "low_precision/convolution_backprop_data.hpp"
+#include "low_precision/add.hpp"
 #include "low_precision/convert_subtract_constant.hpp"
-#include "low_precision/network_helper.hpp"
-#include "low_precision/multiply_to_group_convolution.hpp"
+#include "low_precision/convolution_backprop_data.hpp"
 #include "low_precision/group_convolution.hpp"
+#include "low_precision/multiply_to_group_convolution.hpp"
+#include "low_precision/network_helper.hpp"
+#include "low_precision/rt_info/bias_attribute.hpp"
+#include "transformations/low_precision/mark_dequantization_subgraph.hpp"
 
 // CPU specific transformations
 #include "ngraph_transformations/convert_to_cpu_specific_opset.hpp"
@@ -496,6 +498,10 @@ void Transformations::Lpt(const bool hasINT16orINT32Levels, const std::vector<ov
         [&defaultPrecisions](const_node_ptr& node) -> bool {
             return LayerTransformation::isAsymmetricQuantization(node, defaultPrecisions) ||
                 WeightableLayerTransformation::isAsymmetricOnWeights(node, defaultPrecisions);
+        });
+    lptManager.get_pass_config()->set_callback<ngraph::pass::low_precision::AddTransformation>(
+        [](const_node_ptr& node) -> bool {
+            return ov::marked_as_bias(node);
         });
 
     lptManager.get_pass_config()->disable<ngraph::pass::low_precision::MultiplyToGroupConvolutionTransformation>();
