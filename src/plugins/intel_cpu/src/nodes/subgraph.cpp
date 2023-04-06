@@ -183,10 +183,10 @@ void Snippet::initSupportedPrimitiveDescriptors() {
         config.inConfs.resize(inputShapes.size());
         for (size_t i = 0; i < inputShapes.size(); i++) {
             const auto originalInputPrecision = getOriginalInputPrecisionAtPort(i);
-            auto precision = (originalInputPrecision == InferenceEngine::Precision::FP32) &&
-                              context->getConfig().enforceBF16 &&
-                              snippet->has_domain_sensitive_ops() ?
-                InferenceEngine::Precision::BF16 :
+            const auto precision = ((originalInputPrecision == InferenceEngine::Precision::FP32) &&
+                                     context->getConfig().enforceBF16 &&
+                                     snippet->has_domain_sensitive_ops()) ?
+                static_cast<InferenceEngine::Precision>(InferenceEngine::Precision::BF16) :
                 originalInputPrecision;
             if (supportedPrecisions.count(precision) == 0)
                 IE_THROW() << "Subgraph node with name `" << getName() << "` doesn't support " << precision << " precision.";
