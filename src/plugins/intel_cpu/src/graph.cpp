@@ -487,7 +487,7 @@ void Graph::InitOptimalPrimitiveDescriptors() {
 void Graph::ExtractExecutableNodes() {
     OV_ITT_SCOPE(FIRST_INFERENCE, itt::domains::intel_cpu_LT, "Graph::ExtractExecutableNodes");
     for (const auto& graphNode : graphNodes) {
-        if (!graphNode->isConstant() && CPU_DEBUG_CAPS_ALWAYS_TRUE(graphNode->isExecutable()) || graphNode->isDynamicNode()) {
+        if ((!graphNode->isConstant() && CPU_DEBUG_CAPS_ALWAYS_TRUE(graphNode->isExecutable())) || graphNode->isDynamicNode()) {
             /* @todo
              * Revise implementation.
              * With current way it is possible that with debug_caps enabled
