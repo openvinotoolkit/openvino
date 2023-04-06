@@ -528,6 +528,13 @@ std::string Validator_35::ValidateCnn(const Validator_35::CnnLimits& limits,
     error += kerneHWlLimit.GetErrorOrEmpty(kernelH, kernelW);
     auto& strideHWLimit = (inPrecision == OvGnaTypeInt8) ? limits.kStrideHWLimit1B : limits.kStrideHWLimit2B;
     error += strideHWLimit.GetErrorOrEmpty(strideH, strideW);
+
+    const RangeLimit kKernelStrideHLimit{1, kernelH, "kernel stride height (must be up to kernel height)"};
+    const RangeLimit kKernelStrideWLimit{1, kernelW, "kernel stride width (must be up to kernel width)"};
+
+    error += kKernelStrideHLimit.GetErrorOrEmpty(strideH);
+    error += kKernelStrideWLimit.GetErrorOrEmpty(strideW);
+
     error += limits.kDilationLimit.GetErrorOrEmpty(dilationH, dilationW);
     return error;
 }

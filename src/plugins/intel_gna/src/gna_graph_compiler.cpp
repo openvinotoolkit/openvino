@@ -74,6 +74,13 @@ static bool CheckIFLastComponentIsPrecededByConv2D(const backend::DnnComponents:
         p->name(l);                          \
     }
 
+uint32_t count_conv2D_input_width_for_expected_output_width(uint32_t expected_ouput_width,
+                                                            uint32_t kernel_width,
+                                                            uint32_t stride_width,
+                                                            uint32_t padding_width) {
+    return (expected_ouput_width - 1) * stride_width - 2 * padding_width + kernel_width;
+};
+
 GNAGraphCompiler::GNAGraphCompiler(const Config& gna_config) : gna_config(gna_config) {}
 
 void GNAGraphCompiler::setGNAMemoryPtr(std::shared_ptr<gna_memory_type> gnaMemPtr) {
@@ -494,7 +501,7 @@ void GNAGraphCompiler::finalizeConvolution1DPrimitive(InferenceEngine::CNNLayerP
         log::debug() << LAYER_NAME(&convolution) << "Kernel padding is " << num_conv_kernel_padding << "\n";
     }
 
-    // have to pad input to let last kernel meets it's corresponding input
+    // have to pad input to let last kernel meet its corresponding input
     const auto num_inputs = in_width * in_channels;
 
     uint32_t num_input_padding = ALIGN(num_inputs, 8) - num_inputs;
@@ -689,18 +696,24 @@ void GNAGraphCompiler::finalizeConvolution2DPrimitive(InferenceEngine::CNNLayerP
                                          convolution._kernel_y,
                                          convolution._kernel_x);
 
-    if (convolution._kernel_x > in_width || convolution._kernel_y > in_height) {
-        THROW_GNA_LAYER_EXCEPTION(layer) << "Kernel dimensions XY (" << convolution._kernel_x << ", "
-                                         << convolution._kernel_y << ")"
-                                         << " are bigger than input dimensions WH (" << in_width << "," << in_height
-                                         << ")";
-    }
+    // Check if kernel width needs to be extended to stride width.
+    const auto effective_kernel_width = std::max(convolution._kernel_x, convolution._stride_x);
+
+    // Check if convolution input needs to be extended to accommodate for new stride
+    const auto temp_effective_input_width = count_conv2D_input_width_for_expected_output_width(out_width,
+                                                                                               effective_kernel_width,
+                                                                                               convolution._stride_x,
+                                                                                               convolution._padding_x);
+
+    const auto effective_input_width = std::max(in_width, temp_effective_input_width);
+
     const auto inputs = convolution.insData.front().lock();
     const auto outputs = convolution.outData.front();
 
     // have to pad input to let last kernel meets it's corresponding input
-    const auto num_inputs = in_width * in_height * in_channels;
-    uint32_t num_input_padding = ALIGN(num_inputs, 8) - num_inputs;
+    const auto num_inputs = in_batch * effective_input_width * in_height * in_channels;
+
+    uint32_t num_input_padding = ALIGN(num_inputs, limitations::noOfInputsDivisor) - num_inputs;
 
     const uint32_t filter_n = convolution._out_depth;
 
@@ -727,10 +740,10 @@ void GNAGraphCompiler::finalizeConvolution2DPrimitive(InferenceEngine::CNNLayerP
 
     ValidateCnn2D(layer->name,
                   in_height,
-                  in_width,
+                  effective_input_width,
                   in_channels,
                   convolution._kernel_y,
-                  convolution._kernel_x,
+                  effective_kernel_width,
                   filter_n,
                   convolution._stride_y,
                   convolution._stride_x,
@@ -744,9 +757,9 @@ void GNAGraphCompiler::finalizeConvolution2DPrimitive(InferenceEngine::CNNLayerP
     auto& currentComponent = dnnComponents.addComponent(convolution.name, "convolution");
     dnn->InitConvolutional2DComponent(
         currentComponent,
-        {{in_batch, in_height, in_width, in_channels}, inputPrec, {}},  // NHWC for GNA
+        {{in_batch, in_height, effective_input_width, in_channels}, inputPrec, {}},  // NHWC for GNA
         {{out_batch, out_height, out_width, out_channels}, outputPrec, {}},
-        {{filter_n, convolution._kernel_y, convolution._kernel_x, in_channels}, weightPrec, {}},
+        {{filter_n, convolution._kernel_y, effective_kernel_width, in_channels}, weightPrec, {}},
         {{filter_n}, biasPrec, {}},
         {convolution._stride_y, convolution._stride_x},
         {convolution._padding_y, convolution._padding_x},
@@ -789,19 +802,30 @@ void GNAGraphCompiler::finalizeConvolution2DPrimitive(InferenceEngine::CNNLayerP
 
     connectOutput(layer, ptr_outputs, num_data_bytes_out);
 
+    const auto convolution_precision = convolution.precision.size();
     const auto kernelHW = convolution._kernel_y * convolution._kernel_x;
+    const auto single_kernel_size = in_channels * kernelHW * convolution_precision;
 
-    std::vector<uint8_t> transposedWeights;
-    const auto singleKernelSize = in_channels * kernelHW * convolution.precision.size();
-    const auto kernelPad = Gna2RoundUp(singleKernelSize, 16) - singleKernelSize;
+    const auto effective_kernel_h_w = convolution._kernel_y * effective_kernel_width;
+    const auto effective_single_kernel_size = in_channels * effective_kernel_h_w * convolution_precision;
+
+    std::vector<uint8_t> transposed_weights;
+
+    // Kernel is extended only for 1D case which allows to add 0-s at the end of the kernel.
+    const auto kernel_pad =
+        ALIGN(effective_single_kernel_size, limitations::convEachKernelByteAlignment) - effective_single_kernel_size;
     for (uint32_t k = 0; k < convolution._out_depth; k++) {
-        uint8_t* ptr_filt_current = convolution._weights->cbuffer().as<uint8_t*>() + k * singleKernelSize;
-        auto transposedPart = transposeMatrix(ptr_filt_current, convolution.precision.size(), in_channels, kernelHW);
-        transposedWeights.insert(transposedWeights.end(), transposedPart.begin(), transposedPart.end());
-        transposedWeights.resize(transposedWeights.size() + kernelPad);
+        uint8_t* ptr_filt_current = convolution._weights->cbuffer().as<uint8_t*>() + k * single_kernel_size;
+        auto transposed_part = transposeMatrix(ptr_filt_current, convolution_precision, in_channels, kernelHW);
+        transposed_weights.insert(transposed_weights.end(), transposed_part.begin(), transposed_part.end());
+        transposed_weights.resize(transposed_weights.size() + effective_single_kernel_size - single_kernel_size +
+                                  kernel_pad);
     }
 
-    gnamem->getQueue(REGION_RO)->push_local_ptr(layer, ptr_weights, transposedWeights.data(), transposedWeights.size());
+    gnamem->getQueue(REGION_RO)->push_local_ptr(layer,
+                                                ptr_weights,
+                                                transposed_weights.data(),
+                                                transposed_weights.size());
 
     if (convolution._biases) {
         gnamem->getQueue(REGION_RO)->push_ptr(layer,
