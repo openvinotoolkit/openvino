@@ -142,7 +142,7 @@ OutputVector resize(const onnx_import::Node& node) {
     attrs.shape_calculation_mode = default_opset::Interpolate::ShapeCalcMode::SCALES;
 
     if (attrs.mode == InterpolateMode::NEAREST) {
-        attrs.nearest_mode = Nearest_mode::FLOOR;
+        attrs.nearest_mode = Nearest_mode::SIMPLE;
         attrs.coordinate_transformation_mode = Transform_mode::ASYMMETRIC;
     } else if (attrs.mode == InterpolateMode::LINEAR_ONNX) {
         attrs.coordinate_transformation_mode = Transform_mode::ASYMMETRIC;
