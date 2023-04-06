@@ -45,6 +45,22 @@ class EnforcePrecisionParamsValues {
 public:
     class Actual {
     public:
+        Actual() = default;
+        Actual(
+            std::pair<element::Type, element::Type> convertion_before_op1,
+            element::Type convertion_before_op2_1,
+            std::pair<element::Type, element::Type> convertion_before_op2_2,
+            element::Type convertion_after_op2,
+            std::set<std::vector<element::Type>> precisions1,
+            std::set<std::vector<element::Type>> precisions2) :
+            convertion_before_op1(convertion_before_op1),
+            convertion_before_op2_1(convertion_before_op2_1),
+            convertion_before_op2_2(convertion_before_op2_2),
+            convertion_after_op2(convertion_after_op2),
+            precisions1(precisions1),
+            precisions2(precisions2) {
+        }
+
         std::pair<element::Type, element::Type> convertion_before_op1;
         element::Type convertion_before_op2_1;
         std::pair<element::Type, element::Type> convertion_before_op2_2;
@@ -55,12 +71,36 @@ public:
 
     class Expected {
     public:
+        Expected() = default;
+        Expected(
+            std::pair<element::Type, element::Type> convertion_before_op1,
+            element::Type convertion_before_op2_1,
+            std::pair<element::Type, element::Type> convertion_before_op2_2,
+            element::Type convertion_after_op2,
+            element::Type convertion_before_result) :
+            convertion_before_op1(convertion_before_op1),
+            convertion_before_op2_1(convertion_before_op2_1),
+            convertion_before_op2_2(convertion_before_op2_2),
+            convertion_after_op2(convertion_after_op2),
+            convertion_before_result(convertion_before_result) {
+        }
+
         std::pair<element::Type, element::Type> convertion_before_op1;
         element::Type convertion_before_op2_1;
         std::pair<element::Type, element::Type> convertion_before_op2_2;
         element::Type convertion_after_op2;
         element::Type convertion_before_result;
     };
+
+    EnforcePrecisionParamsValues() = default;
+    EnforcePrecisionParamsValues(
+        std::vector<element::Type> input_types,
+        element::Type source,
+        element::Type target,
+        Actual actual,
+        Expected expected) :
+        input_types(input_types), source(source), target(target), actual(actual), expected(expected) {
+    }
 
     std::vector<element::Type> input_types;
     element::Type source;
