@@ -1,4 +1,5 @@
-# Quantized networks compute and restrictions {#openvino_docs_ie_plugin_dg_quantized_networks}
+# Quantized models compute and restrictions {#openvino_docs_ov_plugin_dg_quantized_models}
+
 
 @sphinxdirective
 
@@ -51,7 +52,7 @@ is considered the default way to get optimized models. Since the POT supports HW
 the particular HW. However, it is reasonable to have compatibility with general-purpose HW such as CPU and GPU and support their quantization schemes.
 Below we define these rules as follows:
 
-*  Support of mixed-precision models where some layers can be kept in the floating-point precision.
+* Support of mixed-precision models where some layers can be kept in the floating-point precision.
 * Per-channel quantization of weights of Convolutional and Fully-Connected layers.
 * Per-channel quantization of activations for channel-wise and element-wise operations, e.g. Depthwise Convolution, Eltwise Add/Mul, ScaleShift.
 * Symmetric and asymmetric quantization of weights and activations with the support of per-channel scales and zero-points.

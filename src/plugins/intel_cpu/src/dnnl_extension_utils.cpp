@@ -7,6 +7,8 @@
 #include <vector>
 #include "memory_desc/dnnl_blocked_memory_desc.h"
 #include "onednn/iml_type_mapper.h"
+#include <common/primitive_desc.hpp>
+#include <common/primitive_desc_iface.hpp>
 
 using namespace dnnl;
 
@@ -87,10 +89,8 @@ dnnl::memory::dim DnnlExtensionUtils::convertToDnnlDim(const Dim &dim) {
 }
 
 VectorDims DnnlExtensionUtils::convertToVectorDims(const memory::dims& dims) {
-    std::vector<size_t> vecResult;
-    vecResult.reserve(dims.size());
-    std::back_insert_iterator<std::vector<size_t>> itr(vecResult);
-    std::transform(dims.begin(), dims.end(), itr, convertToDim);
+    std::vector<size_t> vecResult(dims.size());
+    std::transform(dims.begin(), dims.end(), vecResult.begin(), convertToDim);
     return vecResult;
 }
 
@@ -99,10 +99,8 @@ VectorDims DnnlExtensionUtils::convertToVectorDims(const dnnl::impl::dims_t dims
 }
 
 memory::dims DnnlExtensionUtils::convertToDnnlDims(const VectorDims& dims) {
-    memory::dims vecResult;
-    vecResult.reserve(dims.size());
-    std::back_insert_iterator<memory::dims> itr(vecResult);
-    std::transform(dims.begin(), dims.end(), itr, convertToDnnlDim);
+    memory::dims vecResult(dims.size());
+    std::transform(dims.begin(), dims.end(), vecResult.begin(), convertToDnnlDim);
     return vecResult;
 }
 
@@ -199,6 +197,10 @@ dnnl_memory_desc_t DnnlExtensionUtils::clone_desc(const_dnnl_memory_desc_t cdesc
     dnnl_memory_desc_t cloned_md = nullptr;
     dnnl_memory_desc_clone(&cloned_md, cdesc);
     return cloned_md;
+}
+
+const char* DnnlExtensionUtils::query_pd_info(const_dnnl_primitive_desc_t pd) {
+    return pd->info();
 }
 
 }   // namespace intel_cpu

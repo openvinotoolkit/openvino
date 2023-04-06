@@ -42,16 +42,19 @@ std::shared_ptr<Node> NodeContext::mark_node(std::shared_ptr<Node> ov_node) cons
     return m_decoder->mark_node(ov_node);
 }
 
-void NodeContext::mutate_input(size_t index, Output<Node> ov_output) {
+void NodeContext::mutate_input(size_t index, Output<Node> ov_output) const {
     FRONT_END_GENERAL_CHECK(!m_decoder->input_is_none(index), "Input is none with index: ", index);
     auto input_id = m_decoder_inputs.at(index);
     FRONT_END_GENERAL_CHECK(m_tensor_map->count(input_id), "No tensor corresponding input: ", input_id, " exist.");
-    m_translate_session->encode_tensor_name(ov_output, input_id, m_decoder->get_input_debug_name(index));
+    m_translate_session->encode_tensor_name(
+        ov_output,
+        input_id,
+        {m_decoder->get_input_debug_name(index), m_decoder->get_input_signature_name(index)});
     (*m_tensor_map)[input_id] = ov_output;
-    m_mutated_tensors.insert(input_id);
+    m_mutated_tensors->insert(input_id);
 }
 
-void NodeContext::add_tensor_to_context(size_t index, Output<Node> ov_output) {
+void NodeContext::add_tensor_to_context(size_t index, Output<Node> ov_output) const {
     if (m_tensor_map->count(index)) {
         OPENVINO_DEBUG << "[ WARNING ] Current context has tensor. Rewriting.\n";
     }
@@ -59,7 +62,7 @@ void NodeContext::add_tensor_to_context(size_t index, Output<Node> ov_output) {
     (*m_tensor_map)[index] = ov_output;
 }
 
-Output<Node> NodeContext::get_tensor_from_model_or_create_input(size_t index) {
+Output<Node> NodeContext::get_tensor_from_model_or_create_input(size_t index) const {
     if (m_tensor_map->find(index) != m_tensor_map->end()) {
         return m_tensor_map->at(index);
     } else {
@@ -87,7 +90,7 @@ Output<Node> NodeContext::get_input_from_visible_context(size_t index) const {
     return input_tensor;
 }
 
-std::shared_ptr<ov::Model> NodeContext::convert_subgraph(size_t index) {
+std::shared_ptr<ov::Model> NodeContext::convert_subgraph(size_t index) const {
     auto subgraph_decoder = m_decoder->get_subgraph_decoder(index);
 
     // Extend external context with internal tensors except Parameter nodes, because internal Parameters are created to
@@ -178,6 +181,70 @@ std::string NodeContext::const_input<std::string>(size_t index) const {
                             " cannot be interpreted as FrameworkNode with string constant: ",
                             input_node);
     return input->get_decoder()->as_string();
+}
+
+namespace {
+template <typename T>
+Any get_constant_data(const std::shared_ptr<opset10::Constant>& constant) {
+    const T* ptr = reinterpret_cast<const T*>(constant->get_data_ptr());
+    const auto& shape = constant->get_shape();
+    if (is_scalar(shape)) {
+        return ptr[0];
+    }
+    return std::vector<T>(ptr, ptr + shape_size(shape));
+}
+}  // namespace
+
+Any NodeContext::get_values_from_const_input(int index) const {
+    FRONT_END_GENERAL_CHECK(static_cast<size_t>(index) < get_input_size(),
+                            "Input with index: ",
+                            index,
+                            " does not exist.");
+
+    if (input_is_none(index)) {
+        return {};
+    }
+
+    auto input_node = get_input_from_visible_context(index).get_node_shared_ptr();
+    if (auto constant = as_type_ptr<opset10::Constant>(input_node)) {
+        switch (constant->get_element_type()) {
+        case element::f32:
+            return get_constant_data<float>(constant);
+        case element::f64:
+            return get_constant_data<double>(constant);
+        case element::i32:
+            return get_constant_data<int32_t>(constant);
+        case element::u32:
+            return get_constant_data<uint32_t>(constant);
+        case element::i64:
+            return get_constant_data<int64_t>(constant);
+        case element::u64:
+            return get_constant_data<uint64_t>(constant);
+        case element::i8:
+            return get_constant_data<int8_t>(constant);
+        case element::u8:
+            return get_constant_data<uint8_t>(constant);
+        case element::i16:
+            return get_constant_data<int16_t>(constant);
+        case element::u16:
+            return get_constant_data<uint16_t>(constant);
+        default:
+            FRONT_END_GENERAL_CHECK(false, "Input with index: ", index, " has unsupported type.");
+        }
+    } else if (auto input = std::dynamic_pointer_cast<PtFrameworkNode>(input_node)) {
+        const auto& attrs = input->get_attrs();
+        if (attrs.find("none_value") != attrs.end()) {
+            return {};
+        }
+        auto it = attrs.find("string_value");
+        if (it != attrs.end()) {
+            return it->second;
+        }
+    }
+
+    FRONT_END_GENERAL_CHECK(false, "Input node with index ", index, " cannot be interpreted as constant", input_node);
+
+    return 0;
 }
 
 }  // namespace pytorch

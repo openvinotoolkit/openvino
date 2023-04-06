@@ -11,6 +11,8 @@
 #include <intel_gpu/primitives/input_layout.hpp>
 #include <intel_gpu/primitives/eltwise.hpp>
 
+#include "reshape_inst.h"
+
 using namespace cldnn;
 using namespace ::tests;
 using namespace testing;
@@ -66,7 +68,7 @@ void generic_reshape_test(format fmt, tensor const& input_size, tensor const& re
     }
     tpl.add(reshape("reshape", reshape_input, reshape_size, cldnn::reshape::reshape_mode::base, output_padd));
 
-    ExecutionConfig config;
+    ExecutionConfig config = get_test_default_config(engine);
     config.set_property(ov::intel_gpu::custom_outputs(std::vector<std::string>{reshape_input, "reshape"}));
 
     cldnn::network::ptr net = get_network(engine, tpl, config, get_test_stream_ptr(), is_caching_test);
@@ -459,7 +461,7 @@ void test_multiple_users_with_reorder(bool is_caching_test) {
     std::vector<T> out2 = {0.f, 2.f, 0.f, 4.0f};
     set_values(input, input_vec);
 
-    cldnn::network::ptr network = get_network(engine, topology, ExecutionConfig(), get_test_stream_ptr(), is_caching_test);
+    cldnn::network::ptr network = get_network(engine, topology, get_test_default_config(engine), get_test_stream_ptr(), is_caching_test);
     network->set_input_data("input", input);
     auto outputs = network->execute();
 
@@ -502,7 +504,7 @@ void test_calc_output_shape(bool is_caching_test) {
 
     set_values(input, {-1.f, 2.f, -3.f, 4.f});
 
-    cldnn::network::ptr network = get_network(engine, topology, ExecutionConfig(), get_test_stream_ptr(), is_caching_test);
+    cldnn::network::ptr network = get_network(engine, topology, get_test_default_config(engine), get_test_stream_ptr(), is_caching_test);
     network->set_input_data("input", input);
     auto outputs = network->execute();
 
@@ -574,7 +576,7 @@ void test_basic_bfwzyx(bool is_caching_test) {
 
     set_values(input, input_data);
 
-    cldnn::network::ptr network = get_network(engine, topology, ExecutionConfig(), get_test_stream_ptr(), is_caching_test);
+    cldnn::network::ptr network = get_network(engine, topology, get_test_default_config(engine), get_test_stream_ptr(), is_caching_test);
     network->set_input_data("input", input);
     auto outputs = network->execute();
 
@@ -630,7 +632,7 @@ void test_shrink_chain_partial(bool is_caching_test) {
     std::vector<T> out = {5.f, 12.f, 15.f, 32.0f};
     set_values(input, input_vec);
 
-    ExecutionConfig config;
+    ExecutionConfig config = get_test_default_config(engine);
     config.set_property(ov::intel_gpu::optimize_data(true));
     cldnn::network::ptr network = get_network(engine, topology, config, get_test_stream_ptr(), is_caching_test);
     network->set_input_data("input", input);
@@ -675,7 +677,7 @@ void test_shrink_chain_full(bool is_caching_test) {
     std::vector<T> out = {5.f, 12.f, 15.f, 32.0f};
     set_values(input, input_vec);
 
-    ExecutionConfig config;
+    ExecutionConfig config = get_test_default_config(engine);
     config.set_property(ov::intel_gpu::optimize_data(true));
     network network(engine, topology, config);
     network.set_input_data("input", input);
@@ -715,7 +717,7 @@ void test_shrink_chain_out(bool is_caching_test) {
     std::vector<T> out = {0.f, 2.f, 0.f, 4.0f};
     set_values(input, input_vec);
 
-    ExecutionConfig config;
+    ExecutionConfig config = get_test_default_config(engine);
     config.set_property(ov::intel_gpu::optimize_data(true));
     cldnn::network::ptr network = get_network(engine, topology, config, get_test_stream_ptr(), is_caching_test);
     network->set_input_data("input", input);
@@ -758,7 +760,7 @@ TEST(reshape_gpu_f32, basic_runtime_static_shape) {
 
     set_values(input, input_data);
 
-    ExecutionConfig config;
+    ExecutionConfig config = get_test_default_config(engine);
     config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
     network network(engine, topology, config);
     network.set_input_data("input", input);
@@ -806,7 +808,7 @@ TEST(reshape_gpu_f32, basic_runtime_dynamic_shape) {
 
     set_values(input, input_data);
 
-    ExecutionConfig config;
+    ExecutionConfig config = get_test_default_config(engine);
     config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
     config.set_property(ov::intel_gpu::optimize_data(true));
     network network(engine, topology, config);
@@ -857,7 +859,7 @@ TEST(reshape_gpu_f32, basic_runtime_dynamic_shape_with_const) {
 
     set_values(input, input_data);
 
-    ExecutionConfig config;
+    ExecutionConfig config = get_test_default_config(engine);
     config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
     config.set_property(ov::intel_gpu::optimize_data(true));
     network network(engine, topology, config);
@@ -914,7 +916,7 @@ TEST(reshape_gpu_f32, basic_runtime_dynamic_shape_with_const_optimized_out) {
 
     set_values(input, input_data);
 
-    ExecutionConfig config;
+    ExecutionConfig config = get_test_default_config(engine);
     config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
     config.set_property(ov::intel_gpu::optimize_data(true));
     network network(engine, topology, config);
@@ -939,6 +941,54 @@ TEST(reshape_gpu_f32, basic_runtime_dynamic_shape_with_const_optimized_out) {
 
     for (size_t i = 0; i < input_data.size(); i++) {
         ASSERT_TRUE(are_equal(input_data[i], output_ptr[i]));
+    }
+}
+
+TEST(reshape_gpu_f32, basic_dynamic_shape_to_static_optimized_out) {
+    auto& engine = get_test_engine();
+
+    auto input = engine.allocate_memory(layout{ov::PartialShape{2, 10}, data_types::f32, format::bfyx});
+    topology topology;
+    topology.add(input_layout("input", layout{ov::PartialShape::dynamic(2), data_types::f32, format::bfyx}));
+    topology.add(reshape("reshape", input_info("input"), false, {2, 10}, {2, 10}));
+    topology.add(reduce("reduce", input_info("reshape"), reduce_mode::max, {1}, true));
+
+    // clang-format off
+    std::vector<float> input_data = {
+        0.0, 1.f, 2.f, 3.f, 4.f, 5.f, 6.f, 7.f, 8.f, 9.f,
+        0.0, 1.f, 2.f, 3.f, 4.f, 5.f, 6.f, 7.f, 8.f, 9.f,
+    };
+    // clang-format on
+
+    set_values(input, input_data);
+
+    ExecutionConfig config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+    config.set_property(ov::intel_gpu::optimize_data(true));
+    network network(engine, topology, config);
+    network.set_input_data("input", input);
+    auto outputs = network.execute();
+
+    ASSERT_TRUE(network.get_primitive("reshape")->can_be_optimized());
+
+    ASSERT_EQ(outputs.size(), size_t(1));
+    ASSERT_EQ(outputs.begin()->first, "reduce");
+
+    auto output = outputs.at("reduce").get_memory();
+
+    ASSERT_EQ(output->get_layout().data_type, input->get_layout().data_type);
+    ASSERT_EQ(output->get_layout().format, format::bfyx);
+    ASSERT_TRUE(output->get_layout().is_static());
+    ov::PartialShape expected_shape = {2, 1};
+    ASSERT_EQ(output->get_layout().get_partial_shape(), expected_shape);
+
+    cldnn::mem_lock<float> output_ptr(output, get_test_stream());
+    std::vector<float> expected_res = {9.f, 9.f};
+    ASSERT_EQ(output_ptr.size(), expected_res.size());
+
+
+    for (size_t i = 0; i < expected_res.size(); i++) {
+        ASSERT_EQ(expected_res[i], output_ptr[i]);
     }
 }
 

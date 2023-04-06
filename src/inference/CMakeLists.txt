@@ -79,8 +79,6 @@ if(ENABLE_SSE42)
     endif()
 endif()
 
-addVersionDefines(src/ie_version.cpp CI_BUILD_NUMBER)
-
 set (PUBLIC_HEADERS_DIR "${CMAKE_CURRENT_SOURCE_DIR}/include")
 
 file (GLOB_RECURSE PUBLIC_HEADERS
@@ -100,6 +98,7 @@ add_library(${TARGET_NAME}_plugin_api INTERFACE)
 
 target_include_directories(${TARGET_NAME}_plugin_api INTERFACE
     $<TARGET_PROPERTY:openvino_gapi_preproc,INTERFACE_INCLUDE_DIRECTORIES>
+    $<TARGET_PROPERTY:openvino::core::dev,INTERFACE_INCLUDE_DIRECTORIES>
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/dev_api>
     $<BUILD_INTERFACE:${PUBLIC_HEADERS_DIR}>
     $<BUILD_INTERFACE:${PUBLIC_HEADERS_DIR}/ie>)
@@ -129,6 +128,8 @@ add_library(${TARGET_NAME}_obj OBJECT
             ${LIBRARY_HEADERS}
             ${PUBLIC_HEADERS})
 
+ov_add_version_defines(src/ie_version.cpp ${TARGET_NAME}_obj)
+
 if(NOT BUILD_SHARED_LIBS)
     target_compile_definitions(${TARGET_NAME}_obj PUBLIC OPENVINO_STATIC_LIBRARY)
 endif()
@@ -151,7 +152,7 @@ target_include_directories(${TARGET_NAME}_obj SYSTEM PRIVATE
 
 target_include_directories(${TARGET_NAME}_obj PRIVATE
     "${CMAKE_CURRENT_SOURCE_DIR}/src"
-    # for static ie_plugins.hpp
+    # for static ov_plugins.hpp
     "${CMAKE_CURRENT_BINARY_DIR}"
     # for ie_ir_version.hpp
     $<$<TARGET_EXISTS:inference_engine_ir_v7_reader>:$<TARGET_PROPERTY:inference_engine_ir_v7_reader,SOURCE_DIR>>

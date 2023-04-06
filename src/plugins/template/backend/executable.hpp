@@ -24,6 +24,14 @@ public:
     /// \returns true if iteration is successful, false otherwise
     virtual bool call(std::vector<ov::Tensor>& outputs, const std::vector<ov::Tensor>& inputs) = 0;
 
+    /// \param outputs vector of runtime::Tensor used as outputs
+    /// \param inputs vector of runtime::Tensor used as inputs
+    /// \param context Evaluation context
+    /// \returns true if iteration is successful, false otherwise
+    virtual bool call(std::vector<ov::Tensor>& outputs,
+                      const std::vector<ov::Tensor>& inputs,
+                      const ov::EvaluationContext& context) = 0;
+
     /// \brief Executes a single iteration of a Function.
     /// \param outputs vector of runtime::Tensor used as outputs
     /// \param inputs vector of runtime::Tensor used as inputs
@@ -42,6 +50,10 @@ public:
     /// \brief Query the output Results
     /// \returns an ngraph::ResultVector of all input parameters
     const ov::ResultVector& get_results() const;
+
+    /// \brief Query the internal model
+    /// \returns model which is used inside executable
+    virtual std::shared_ptr<ov::Model> get_model() const = 0;
 
     /// \brief Create an input Tensor
     /// \param input_index The index position in the input Parameter vector. This would be the same

@@ -93,7 +93,9 @@ std::vector<std::string> disabledTestPatterns() {
         R"(.*Behavior.*ExecutableNetworkBaseTest.*canSetConfigToExecNetWithIncorrectConfig.*)",
         R"(.*Hetero.*Behavior.*ExecutableNetworkBaseTest.*ExecGraphInfo.*)",
         R"(.*Hetero.*Behavior.*ExecutableNetworkBaseTest.*CanCreateTwoExeNetworksAndCheckFunction.*)",
-
+        // TODO: CVS-104942
+        R"(.*(Auto|Multi).*Behavior.*ExecutableNetworkBaseTest.*canLoadCorrectNetworkToGetExecutableAndCheckConfig.*)",
+        R"(.*(Auto|Multi).*SetPropLoadNetWorkGetPropTests.*)",
         // CPU does not support dynamic rank
         // Issue: CVS-66778
         R"(.*smoke_BehaviorTests.*InferFullyDynamicNetworkWith(S|G)etTensor.*)",
@@ -144,9 +146,6 @@ std::vector<std::string> disabledTestPatterns() {
         R"(.*OVInferRequestCheckTensorPrecision.*type=i4.*)",
         R"(.*OVInferRequestCheckTensorPrecision.*type=u1.*)",
         R"(.*OVInferRequestCheckTensorPrecision.*type=u4.*)",
-        // Issue: 75022
-        R"(.*OVExecutableNetworkBaseTest.*LoadNetworkToDefaultDeviceNoThrow.*)",
-        R"(.*IEClassBasicTest.*LoadNetworkToDefaultDeviceNoThrow.*)",
         // Issue: 77390
         R"(.*LoopLayerCPUTest.*exec_cond=0.*)",
         R"(.*LoopLayerCPUTest.*trip_count=0.*)",
@@ -160,23 +159,13 @@ std::vector<std::string> disabledTestPatterns() {
         R"(.*CompileModelCacheTestBase.*CompareWithRefImpl.*Nms.*)",
         // Issue: 76980
         R"(.*smoke_Auto_BehaviorTests.*InferDynamicNetwork/.*)",
-        // enable after other plugins support nms9 as setup with nms5 in
-        // tests/functional/shared_test_classes/include/shared_test_classes/single_layer/non_max_suppression.hpp
-        // is shared across plugins
-        // passed local test and cpu has specific test cases with nms9 to cover
+        // Issue: 105838
         R"(smoke_NmsLayerTest.*)",
         // Issue: 95590
         R"(.*CachingSupportCase.*CompileModelCacheTestBase.*(TIwithLSTMcell1|MatMulBias|2InputSubtract)_(u|i).*)",
         // Issue: 95607
-        R"(.*OVClass.*LoadNetwork.*LoadNetwork(HETEROAndDeviceIDThrows|MULTIwithAUTONoThrow|HETEROwithMULTINoThrow|MULTIwithHETERONoThrow).*)",
-        R"(.*OVClass.*LoadNetwork.*LoadNetwork(HETEROWithDeviceIDNoThrow|WithDeviceID|WithBigDeviceIDThrows|WithInvalidDeviceIDThrows|HETEROWithBigDeviceIDThrows).*)",
-        R"(.*OVClass.*QueryNetwork.*QueryNetwork(HETEROWithDeviceIDNoThrow|WithDeviceID|WithBigDeviceIDThrows|WithInvalidDeviceIDThrows|HETEROWithBigDeviceIDThrows).*)",
-        R"(.*OVClass.*LoadNetwork.*(DeviceID|MultiWithoutSettingDevicePrioritiesThrows).*)",
-        R"(.*OVClassLoadNetworkTest.*QueryNetwork(MULTIWithHETERO|HETEROWithMULTI)NoThrow_V10.*)",
         R"(.*CachingSupportCase.*LoadNetworkCacheTestBase.*(TIwithLSTMcell1|MatMulBias|2InputSubtract)_(i|u).*)",
         R"(.*CachingSupportCase.*ReadConcatSplitAssign.*)",
-        R"(.*IEClassQueryNetworkTest.*QueryNetwork.*)",
-        R"(.*IEClassLoadNetworkTest.*(Load|Query)Network.*)",
         // Issue: 95239
         // HETERO plugin lacks caching_properties definition
         R"(smoke_Hetero_CachingSupportCase.*)",
@@ -219,6 +208,10 @@ std::vector<std::string> disabledTestPatterns() {
         // Disabled Snippets MHA tests as well because MHA pattern contains MatMul
         retVector.emplace_back(R"(.*Snippets.*MHA.*)");
         retVector.emplace_back(R"(.*Snippets.*(MatMul|Matmul).*)");
+    }
+    if (!InferenceEngine::with_cpu_x86_avx512_core_vnni() && !InferenceEngine::with_cpu_x86_avx512_core_amx_int8()) {
+        // MatMul in Snippets uses BRGEMM that supports i8 only on platforms with VNNI or AMX instructions
+        retVector.emplace_back(R"(.*Snippets.*MatMulFQ.*)");
     }
     if (!InferenceEngine::with_cpu_x86_avx512_core_amx_int8())
         //TODO: Issue 92895

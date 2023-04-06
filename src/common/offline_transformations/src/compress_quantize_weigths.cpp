@@ -4,6 +4,7 @@
 
 #include <compress_quantize_weights.hpp>
 #include <ngraph/opsets/opset8.hpp>
+#include <ngraph/pattern/op/or.hpp>
 #include <ngraph/pattern/op/wrap_type.hpp>
 #include <ngraph/rt_info.hpp>
 #include <ngraph/validation_util.hpp>
@@ -36,7 +37,10 @@ static bool has_dequantization_subgraph(const std::shared_ptr<ngraph::Node>& fir
 }
 
 ngraph::pass::CompressQuantizeWeights::CompressQuantizeWeights() {
-    auto weights_pattern = pattern::wrap_type<opset8::Constant>();
+    auto weights_const_pattern = pattern::wrap_type<opset8::Constant>();
+    auto weigths_convert_pattern = pattern::wrap_type<opset8::Convert>({weights_const_pattern});
+    OutputVector weights_options{weights_const_pattern, weigths_convert_pattern};
+    auto weights_pattern = std::make_shared<pattern::op::Or>(weights_options);
     auto input_low_pattern = pattern::wrap_type<opset8::Constant>();
     auto input_high_pattern = pattern::wrap_type<opset8::Constant>();
     auto output_low_pattern = pattern::wrap_type<opset8::Constant>();
@@ -66,7 +70,9 @@ ngraph::pass::CompressQuantizeWeights::CompressQuantizeWeights() {
         auto fq_users = fq->get_users();
         if (fq_users.size() == 1 && has_dequantization_subgraph(fq_users[0])) {
             auto& first_convert = fq_users[0];
+            OPENVINO_SUPPRESS_DEPRECATED_START
             if (auto new_weights = ov::get_constant_from_source(first_convert)) {
+                OPENVINO_SUPPRESS_DEPRECATED_END
                 new_weights->set_friendly_name(first_convert->get_friendly_name());
                 replace_node(first_convert, new_weights);
                 copy_runtime_info(first_convert, new_weights);
@@ -93,20 +99,25 @@ ngraph::pass::CompressQuantizeWeights::CompressQuantizeWeights() {
             auto new_output_low = op::Constant::create(input_type, Shape{}, {-static_cast<float>(levels / 2)});
             auto new_output_high =
                 std::make_shared<opset8::Add>(new_output_low, op::Constant::create(input_type, Shape{}, {levels - 1}));
-            const auto& weights = pattern_value_map.at(weights_pattern);
+            const auto& weights_const = pattern_value_map.at(weights_const_pattern);
             const auto& input_low = pattern_value_map.at(input_low_pattern);
             const auto& input_high = pattern_value_map.at(input_high_pattern);
+            const auto& fq_data_input = pattern_value_map.count(weigths_convert_pattern)
+                                            ? pattern_value_map.at(weigths_convert_pattern)
+                                            : weights_const;
             auto quantize =
-                fq->clone_with_new_inputs({weights, input_low, input_high, new_output_low, new_output_high});
+                fq->clone_with_new_inputs({fq_data_input, input_low, input_high, new_output_low, new_output_high});
             // Convert quantized weights to low precision type
             std::shared_ptr<Node> new_weights = std::make_shared<opset8::Convert>(quantize, quantized_type);
             // Constant fold quantized weights
+            OPENVINO_SUPPRESS_DEPRECATED_START
             if (auto constant = ov::get_constant_from_source(new_weights)) {
+                OPENVINO_SUPPRESS_DEPRECATED_END
                 new_weights = constant;
             } else {
                 return false;
             }
-            new_weights->set_friendly_name(weights.get_node()->get_friendly_name());
+            new_weights->set_friendly_name(weights_const.get_node()->get_friendly_name());
 
             /*
                Dequantize part is performed by Convert(from low to high precision)->Subtract->Multiply subgraph.
@@ -139,17 +150,26 @@ ngraph::pass::CompressQuantizeWeights::CompressQuantizeWeights() {
             std::shared_ptr<Node> scale = std::make_shared<opset8::Divide>(output_range, input_range);
             auto descaled_output_low = std::make_shared<opset8::Divide>(output_low, scale);
             std::shared_ptr<Node> shift = std::make_shared<opset8::Subtract>(new_output_low, descaled_output_low);
-            if (auto constant = ov::get_constant_from_source(scale))
+            OPENVINO_SUPPRESS_DEPRECATED_START
+            if (auto constant = ov::get_constant_from_source(scale)) {
+                OPENVINO_SUPPRESS_DEPRECATED_END
                 scale = constant;
+            }
             auto zero = op::Constant::create(input_type, Shape{}, {0});
             auto scale_eq_zero = std::make_shared<opset8::Equal>(scale, zero);
             // shift equals to input_low - output_low / scale
             // for positions where scale == 0, we put zero as shift
             std::shared_ptr<Node> zero_point = std::make_shared<opset8::Select>(scale_eq_zero, zero, shift);
-            if (auto constant = ov::get_constant_from_source(zero_point))
+            OPENVINO_SUPPRESS_DEPRECATED_START
+            if (auto constant = ov::get_constant_from_source(zero_point)) {
+                OPENVINO_SUPPRESS_DEPRECATED_END
                 zero_point = constant;
-            if (auto constant = ov::get_constant_from_source(scale))
+            }
+            OPENVINO_SUPPRESS_DEPRECATED_START
+            if (auto constant = ov::get_constant_from_source(scale)) {
+                OPENVINO_SUPPRESS_DEPRECATED_END
                 scale = constant;
+            }
             auto convert_to_high_prec = std::make_shared<opset8::Convert>(new_weights, input_type);
             auto sub = register_new_node<opset8::Subtract>(convert_to_high_prec, zero_point);
             auto mul = register_new_node<opset8::Multiply>(sub, scale);
@@ -199,7 +219,9 @@ ngraph::pass::ZeroPointOptimizer::ZeroPointOptimizer() {
             zero_point,
             std::make_shared<opset8::Convert>(int8_zero_point, convert->get_element_type()));
 
+        OPENVINO_SUPPRESS_DEPRECATED_START
         auto adj_zero_point_const = ov::get_constant_from_source(adj_zero_point);
+        OPENVINO_SUPPRESS_DEPRECATED_END
         if (!adj_zero_point_const)
             return false;
         auto adj_zero_point_val = adj_zero_point_const->cast_vector<float>();
@@ -215,7 +237,9 @@ ngraph::pass::ZeroPointOptimizer::ZeroPointOptimizer() {
                                               convert->get_element_type()),
             adj_zero_point);
         auto diff = std::make_shared<opset8::Subtract>(sub, transformed);
+        OPENVINO_SUPPRESS_DEPRECATED_START
         auto diff_const = ov::get_constant_from_source(diff);
+        OPENVINO_SUPPRESS_DEPRECATED_END
         if (!diff_const)
             return false;
         auto diff_val = diff_const->cast_vector<float>();
@@ -226,10 +250,13 @@ ngraph::pass::ZeroPointOptimizer::ZeroPointOptimizer() {
             return false;
 
         std::shared_ptr<Node> new_weights = std::make_shared<opset8::Subtract>(weights, int8_zero_point);
-        if (auto constant = ov::get_constant_from_source(new_weights))
+        OPENVINO_SUPPRESS_DEPRECATED_START
+        if (auto constant = ov::get_constant_from_source(new_weights)) {
+            OPENVINO_SUPPRESS_DEPRECATED_END
             new_weights = constant;
-        else
+        } else {
             return false;
+        }
         new_weights->set_friendly_name(weights->get_friendly_name());
         replace_node(weights, new_weights);
 

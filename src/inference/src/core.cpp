@@ -9,11 +9,8 @@
 #include "dev/converter_utils.hpp"
 #include "dev/core_impl.hpp"
 #include "ie_itt.hpp"
+#include "openvino/runtime/device_id_parser.hpp"
 #include "so_extension.hpp"
-
-#ifdef OPENVINO_STATIC_LIBRARY
-#    include "ie_plugins.hpp"
-#endif
 
 namespace {
 std::string resolve_extension_path(const std::string& path) {
@@ -27,41 +24,9 @@ std::string resolve_extension_path(const std::string& path) {
     return retvalue;
 }
 
-ov::AnyMap flatten_sub_properties(const std::string& device, const ov::AnyMap& properties) {
-    ov::AnyMap result = properties;
-    bool isVirtualDev = device.find("AUTO") != std::string::npos || device.find("MULTI") != std::string::npos ||
-                        device.find("HETERO") != std::string::npos;
-    for (auto item = result.begin(); item != result.end();) {
-        auto parsed = ov::parseDeviceNameIntoConfig(item->first);
-        if (!item->second.is<ov::AnyMap>()) {
-            item++;
-            continue;
-        }
-        if (device == parsed._deviceName) {
-            // 1. flatten the secondary property for target device
-            for (auto&& sub_property : item->second.as<ov::AnyMap>()) {
-                // 1.1 1st level property overrides 2nd level property
-                if (result.find(sub_property.first) != result.end())
-                    continue;
-                result[sub_property.first] = sub_property.second;
-            }
-            item = result.erase(item);
-        } else if (isVirtualDev) {
-            // 2. keep the secondary property for the other virtual devices
-            item++;
-        } else {
-            // 3. remove the secondary property setting for other hardware device
-            item = result.erase(item);
-        }
-    }
-    return result;
-}
-
 }  // namespace
 
 namespace ov {
-
-#ifndef OPENVINO_STATIC_LIBRARY
 
 std::string findPluginXML(const std::string& xmlFile) {
     std::string xmlConfigFile_ = xmlFile;
@@ -85,13 +50,9 @@ std::string findPluginXML(const std::string& xmlFile) {
         xmlConfigFileDefault = FileUtils::makePath(ielibraryDir, ov::util::to_file_path("plugins.xml"));
         if (FileUtils::fileExist(xmlConfigFileDefault))
             return xmlConfigFile_ = ov::util::from_file_path(xmlConfigFileDefault);
-
-        OPENVINO_THROW("Failed to find plugins.xml file");
     }
     return xmlConfigFile_;
 }
-
-#endif  // OPENVINO_STATIC_LIBRARY
 
 #define OV_CORE_CALL_STATEMENT(...)             \
     try {                                       \
@@ -110,13 +71,13 @@ public:
 Core::Core(const std::string& xml_config_file) {
     _impl = std::make_shared<Impl>();
 
-#ifdef OPENVINO_STATIC_LIBRARY
-    OV_CORE_CALL_STATEMENT(_impl->register_plugins_in_registry(::getStaticPluginsRegistry());)
-#else
-    OV_CORE_CALL_STATEMENT(
-        // If XML is default, load default plugins by absolute paths
-        _impl->register_plugins_in_registry(findPluginXML(xml_config_file), xml_config_file.empty());)
-#endif
+    std::string xmlConfigFile = ov::findPluginXML(xml_config_file);
+    if (!xmlConfigFile.empty())
+        OV_CORE_CALL_STATEMENT(
+            // If XML is default, load default plugins by absolute paths
+            _impl->register_plugins_in_registry(xmlConfigFile, xml_config_file.empty());)
+    // Load plugins from the pre-compiled list
+    OV_CORE_CALL_STATEMENT(_impl->register_compile_time_plugins();)
 }
 
 std::map<std::string, Version> Core::get_versions(const std::string& device_name) const {
@@ -151,7 +112,7 @@ CompiledModel Core::compile_model(const std::shared_ptr<const ov::Model>& model,
                                   const std::string& device_name,
                                   const AnyMap& config) {
     OV_CORE_CALL_STATEMENT({
-        auto exec = _impl->compile_model(model, device_name, flatten_sub_properties(device_name, config));
+        auto exec = _impl->compile_model(model, device_name, config);
         return {exec._ptr, exec._so};
     });
 }
@@ -160,19 +121,33 @@ CompiledModel Core::compile_model(const std::string& model_path, const AnyMap& c
     return compile_model(model_path, ov::DEFAULT_DEVICE_NAME, config);
 }
 
+#ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
+CompiledModel Core::compile_model(const std::wstring& model_path, const AnyMap& config) {
+    return compile_model(ov::util::wstring_to_string(model_path), config);
+}
+#endif
+
 CompiledModel Core::compile_model(const std::string& model_path, const std::string& device_name, const AnyMap& config) {
     OV_CORE_CALL_STATEMENT({
-        auto exec = _impl->compile_model(model_path, device_name, flatten_sub_properties(device_name, config));
+        auto exec = _impl->compile_model(model_path, device_name, config);
         return {exec._ptr, exec._so};
     });
 }
+
+#ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
+CompiledModel Core::compile_model(const std::wstring& model_path,
+                                  const std::string& device_name,
+                                  const AnyMap& config) {
+    return compile_model(ov::util::wstring_to_string(model_path), device_name, config);
+}
+#endif
 
 CompiledModel Core::compile_model(const std::string& model,
                                   const ov::Tensor& weights,
                                   const std::string& device_name,
                                   const AnyMap& config) {
     OV_CORE_CALL_STATEMENT({
-        auto exec = _impl->compile_model(model, weights, device_name, flatten_sub_properties(device_name, config));
+        auto exec = _impl->compile_model(model, weights, device_name, config);
         return {exec._ptr, exec._so};
     });
 }
@@ -181,7 +156,7 @@ CompiledModel Core::compile_model(const std::shared_ptr<const ov::Model>& model,
                                   const RemoteContext& context,
                                   const AnyMap& config) {
     OV_CORE_CALL_STATEMENT({
-        auto exec = _impl->compile_model(model, context, flatten_sub_properties(context.get_device_name(), config));
+        auto exec = _impl->compile_model(model, context, config);
         return {exec._ptr, exec._so};
     });
 }
@@ -235,7 +210,7 @@ void Core::add_extension(const std::vector<std::shared_ptr<ov::Extension>>& exte
 CompiledModel Core::import_model(std::istream& modelStream, const std::string& device_name, const AnyMap& config) {
     OV_ITT_SCOPED_TASK(ov::itt::domains::IE, "Core::import_model");
     OV_CORE_CALL_STATEMENT({
-        auto exec = _impl->import_model(modelStream, device_name, flatten_sub_properties(device_name, config));
+        auto exec = _impl->import_model(modelStream, device_name, config);
         return {exec._ptr, exec._so};
     });
 }
@@ -253,7 +228,7 @@ CompiledModel Core::import_model(std::istream& modelStream, const RemoteContext&
 SupportedOpsMap Core::query_model(const std::shared_ptr<const ov::Model>& model,
                                   const std::string& device_name,
                                   const AnyMap& config) const {
-    OV_CORE_CALL_STATEMENT(return _impl->query_model(model, device_name, flatten_sub_properties(device_name, config)););
+    OV_CORE_CALL_STATEMENT(return _impl->query_model(model, device_name, config););
 }
 
 void Core::set_property(const AnyMap& properties) {
@@ -282,8 +257,8 @@ void Core::register_plugin(const std::string& plugin, const std::string& device_
 
 void Core::unload_plugin(const std::string& device_name) {
     OV_CORE_CALL_STATEMENT({
-        ie::DeviceIDParser parser(device_name);
-        std::string devName = parser.getDeviceName();
+        ov::DeviceIDParser parser(device_name);
+        std::string devName = parser.get_device_name();
 
         _impl->unload_plugin(devName);
     });
@@ -300,7 +275,7 @@ RemoteContext Core::create_context(const std::string& device_name, const AnyMap&
     OPENVINO_ASSERT(device_name.find("BATCH") != 0, "BATCH device does not support remote context");
 
     OV_CORE_CALL_STATEMENT({
-        auto parsed = parseDeviceNameIntoConfig(device_name, flatten_sub_properties(device_name, params));
+        auto parsed = parseDeviceNameIntoConfig(device_name, params);
         auto remoteContext = _impl->get_plugin(parsed._deviceName).create_context(parsed._config);
         return {remoteContext._impl, {remoteContext._so}};
     });

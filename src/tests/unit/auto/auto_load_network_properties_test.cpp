@@ -29,8 +29,17 @@ using ::testing::Return;
 using ::testing::ReturnRef;
 using ::testing::StrEq;
 using ::testing::Throw;
+using ::testing::HasSubstr;
 using Config = std::map<std::string, std::string>;
 
+#define EXPECT_THROW_WITH_MESSAGE(stmt, etype, whatstring) EXPECT_THROW( \
+        try { \
+            stmt; \
+        } catch (const etype& ex) { \
+            EXPECT_THAT(std::string(ex.what()), HasSubstr(whatstring)); \
+            throw; \
+        } \
+    , etype)
 // define a matcher if all the elements of subMap are contained in the map.
 MATCHER_P(MapContains, subMap, "Check if all the elements of the subMap are contained in the map.") {
     if (subMap.empty())
@@ -85,42 +94,40 @@ public:
         for (auto& device : targetDevices) {
             result << device << "_";
         }
-        auto cpuConfig = deviceConfigs.find("CPU");
-        auto gpuConfig = deviceConfigs.find("GPU");
-        result << "device_properties_";
-        if (cpuConfig != deviceConfigs.end())
-            result << "CPU_" << cpuConfig->second << "_";
-        if (gpuConfig != deviceConfigs.end())
-            result << "GPU_" << gpuConfig->second;
-        return result.str();
+        for (auto& item : deviceConfigs) {
+            result << item.first << "_" << item.second << "_";
+        }
+        auto name = result.str();
+        name.pop_back();
+        return name;
     }
 
     static std::vector<ConfigParams> CreateConfigs() {
         testConfigs.clear();
         testConfigs.push_back(
-            ConfigParams{"AUTO", {"CPU"}, {{"CPU", "NUM_STREAMS 3"}, {"MULTI_DEVICE_PRIORITIES", "CPU,GPU"}}});
+            ConfigParams{"AUTO", {"CPU"}, {{"DEVICE_PROPERTIES", "{CPU:{NUM_STREAMS:3}}"}, {"MULTI_DEVICE_PRIORITIES", "CPU,GPU"}}});
         testConfigs.push_back(
-            ConfigParams{"AUTO", {"CPU", "GPU"}, {{"GPU", "NUM_STREAMS 3"}, {"MULTI_DEVICE_PRIORITIES", "GPU,CPU"}}});
+            ConfigParams{"AUTO", {"CPU", "GPU"}, {{"DEVICE_PROPERTIES", "{GPU:{NUM_STREAMS:3}}"}, {"MULTI_DEVICE_PRIORITIES", "GPU,CPU"}}});
         testConfigs.push_back(
-            ConfigParams{"AUTO:CPU", {"CPU"}, {{"CPU", "NUM_STREAMS 3"}, {"MULTI_DEVICE_PRIORITIES", "CPU"}}});
+            ConfigParams{"AUTO:CPU", {"CPU"}, {{"DEVICE_PROPERTIES", "{CPU:{NUM_STREAMS:3}}"}, {"MULTI_DEVICE_PRIORITIES", "CPU"}}});
         testConfigs.push_back(
-            ConfigParams{"AUTO:CPU,GPU", {"CPU"}, {{"CPU", "NUM_STREAMS 3"}, {"MULTI_DEVICE_PRIORITIES", "CPU,GPU"}}});
+            ConfigParams{"AUTO:CPU,GPU", {"CPU"}, {{"DEVICE_PROPERTIES", "{CPU:{NUM_STREAMS:3}}"}, {"MULTI_DEVICE_PRIORITIES", "CPU,GPU"}}});
         testConfigs.push_back(
-            ConfigParams{"AUTO:GPU", {"GPU"}, {{"GPU", "NUM_STREAMS 5"}, {"MULTI_DEVICE_PRIORITIES", "GPU"}}});
+            ConfigParams{"AUTO:GPU", {"GPU"}, {{"DEVICE_PROPERTIES", "{GPU:{NUM_STREAMS:5}}"}, {"MULTI_DEVICE_PRIORITIES", "GPU"}}});
         testConfigs.push_back(ConfigParams{"AUTO:GPU,CPU",
                                            {"CPU", "GPU"},
-                                           {{"GPU", "NUM_STREAMS 5"}, {"MULTI_DEVICE_PRIORITIES", "GPU,CPU"}}});
+                                           {{"DEVICE_PROPERTIES", "{GPU:{NUM_STREAMS:5}}"}, {"MULTI_DEVICE_PRIORITIES", "GPU,CPU"}}});
 
         testConfigs.push_back(
-            ConfigParams{"MULTI:CPU", {"CPU"}, {{"CPU", "NUM_STREAMS 3"}, {"MULTI_DEVICE_PRIORITIES", "CPU"}}});
+            ConfigParams{"MULTI:CPU", {"CPU"}, {{"DEVICE_PROPERTIES", "{CPU:{NUM_STREAMS:3}}"}, {"MULTI_DEVICE_PRIORITIES", "CPU"}}});
         testConfigs.push_back(ConfigParams{"MULTI:CPU,GPU",
                                            {"CPU", "GPU"},
-                                           {{"CPU", "NUM_STREAMS 3"}, {"MULTI_DEVICE_PRIORITIES", "CPU,GPU"}}});
+                                           {{"DEVICE_PROPERTIES", "{CPU:{NUM_STREAMS:3}}"}, {"MULTI_DEVICE_PRIORITIES", "CPU,GPU"}}});
         testConfigs.push_back(
-            ConfigParams{"MULTI:GPU", {"GPU"}, {{"GPU", "NUM_STREAMS 5"}, {"MULTI_DEVICE_PRIORITIES", "GPU"}}});
+            ConfigParams{"MULTI:GPU", {"GPU"}, {{"DEVICE_PROPERTIES", "{GPU:{NUM_STREAMS:5}}"}, {"MULTI_DEVICE_PRIORITIES", "GPU"}}});
         testConfigs.push_back(ConfigParams{"MULTI:GPU,CPU",
                                            {"CPU", "GPU"},
-                                           {{"GPU", "NUM_STREAMS 5"}, {"MULTI_DEVICE_PRIORITIES", "GPU,CPU"}}});
+                                           {{"DEVICE_PROPERTIES", "{GPU:{NUM_STREAMS:5}}"}, {"MULTI_DEVICE_PRIORITIES", "GPU,CPU"}}});
         return testConfigs;
     }
 
@@ -268,7 +275,60 @@ TEST_P(LoadNetworkWithSecondaryConfigsMockTest, LoadNetworkWithSecondaryConfigsT
     ASSERT_NO_THROW(plugin->LoadExeNetworkImpl(simpleCnnNetwork, config));
 }
 
+using AutoLoadExeNetworkFailedTest = LoadNetworkWithSecondaryConfigsMockTest;
+TEST_P(AutoLoadExeNetworkFailedTest, checkLoadFailMassage) {
+    std::string device;
+    std::vector<std::string> targetDevices;
+    Config config;
+    std::tie(device, targetDevices, config) = this->GetParam();
+    if (device.find("AUTO") != std::string::npos)
+        plugin->SetName("AUTO");
+    if (device.find("MULTI") != std::string::npos)
+        plugin->SetName("MULTI");
+
+    ON_CALL(*core, LoadNetwork(::testing::Matcher<const InferenceEngine::CNNNetwork&>(_),
+                ::testing::Matcher<const std::string&>(StrEq(CommonTestUtils::DEVICE_GPU)),
+                ::testing::Matcher<const Config&>(_)))
+                .WillByDefault(Throw(InferenceEngine::GeneralError{"Mock GPU Load Failed"}));
+    ON_CALL(*core, LoadNetwork(::testing::Matcher<const InferenceEngine::CNNNetwork&>(_),
+                ::testing::Matcher<const std::string&>(StrEq(CommonTestUtils::DEVICE_CPU)),
+                ::testing::Matcher<const Config&>(_)))
+                .WillByDefault(Throw(InferenceEngine::GeneralError{"Mock CPU Load Failed"}));
+    if (device == "AUTO") {
+        EXPECT_THROW_WITH_MESSAGE(plugin->LoadExeNetworkImpl(simpleCnnNetwork, config), InferenceEngine::Exception,
+                                "[AUTO] Load network failed, GPU:Mock GPU Load Failed; CPU:Mock CPU Load Failed");
+    } else if (device == "AUTO:CPU") {
+        EXPECT_THROW_WITH_MESSAGE(plugin->LoadExeNetworkImpl(simpleCnnNetwork, config), InferenceEngine::Exception,
+                                "[AUTO] Load network failed, CPU:Mock CPU Load Failed");
+    } else if (device == "AUTO:GPU") {
+        EXPECT_THROW_WITH_MESSAGE(plugin->LoadExeNetworkImpl(simpleCnnNetwork, config), InferenceEngine::Exception,
+                                "[AUTO] Load network failed, GPU:Mock GPU Load Failed");
+    } else if (device == "MULTI") {
+        EXPECT_THROW_WITH_MESSAGE(plugin->LoadExeNetworkImpl(simpleCnnNetwork, config), InferenceEngine::Exception,
+                                "[MULTI] Load network failed, GPU:Mock GPU Load Failed; CPU:Mock CPU Load Failed");
+    } else if (device == "MULTI:CPU") {
+        EXPECT_THROW_WITH_MESSAGE(plugin->LoadExeNetworkImpl(simpleCnnNetwork, config), InferenceEngine::Exception,
+                                "[MULTI] Load network failed, CPU:Mock CPU Load Failed");
+    } else if (device == "MULTI:GPU") {
+        EXPECT_THROW_WITH_MESSAGE(plugin->LoadExeNetworkImpl(simpleCnnNetwork, config), InferenceEngine::Exception,
+                                "[MULTI] Load network failed, GPU:Mock GPU Load Failed");
+    }
+}
+
 INSTANTIATE_TEST_SUITE_P(smoke_AutoMock_LoadNetworkWithSecondaryConfigs,
                          LoadNetworkWithSecondaryConfigsMockTest,
                          ::testing::ValuesIn(LoadNetworkWithSecondaryConfigsMockTest::CreateConfigs()),
                          LoadNetworkWithSecondaryConfigsMockTest::getTestCaseName);
+
+const std::vector<ConfigParams> testConfigsAutoLoadFailed = {
+    ConfigParams{"AUTO", {"CPU", "GPU"}, {{"MULTI_DEVICE_PRIORITIES", "GPU,CPU"}}},
+    ConfigParams{"AUTO:CPU", {"CPU"}, {{"MULTI_DEVICE_PRIORITIES", "CPU"}}},
+    ConfigParams{"AUTO:GPU", {"GPU"}, {{"MULTI_DEVICE_PRIORITIES", "GPU"}}},
+    ConfigParams{"MULTI", {"CPU", "GPU"}, {{"MULTI_DEVICE_PRIORITIES", "GPU,CPU"}}},
+    ConfigParams{"MULTI:CPU", {"CPU"}, {{"MULTI_DEVICE_PRIORITIES", "CPU"}}},
+    ConfigParams{"MULTI:GPU", {"GPU"}, {{"MULTI_DEVICE_PRIORITIES", "GPU"}}}
+    };
+
+INSTANTIATE_TEST_SUITE_P(smoke_AutoLoadExeNetworkFailedTest, AutoLoadExeNetworkFailedTest,
+                ::testing::ValuesIn(testConfigsAutoLoadFailed),
+            AutoLoadExeNetworkFailedTest::getTestCaseName);
