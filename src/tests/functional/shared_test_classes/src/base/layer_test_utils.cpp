@@ -9,6 +9,7 @@
 
 #include <thread>
 
+#include "openvino/runtime/device_id_parser.hpp"
 #include <openvino/pass/serialize.hpp>
 #include <ngraph/opsets/opset.hpp>
 #include "shared_test_classes/base/layer_test_utils.hpp"
@@ -121,7 +122,7 @@ void LayerTestsCommon::QueryNetwork() {
             ASSERT_EQ(res.second, ctx->getDeviceName());
         } catch (...) {
             // otherwise, compare with originally used device name
-            ASSERT_EQ(InferenceEngine::DeviceIDParser(res.second).getDeviceName(), targetDevice);
+            ASSERT_EQ(ov::DeviceIDParser(res.second).get_device_name(), targetDevice);
         }
         actual.insert(res.first);
     }
@@ -417,8 +418,8 @@ void LayerTestsCommon::Infer() {
 }
 
 void LayerTestsCommon::ConvertRefsParams() {
-    ngraph::pass::ConvertPrecision<ngraph::element::Type_t::f16, ngraph::element::Type_t::f32>().run_on_function(functionRefs);
-    ngraph::pass::ConvertPrecision<ngraph::element::Type_t::bf16, ngraph::element::Type_t::f32>().run_on_function(functionRefs);
+    ngraph::pass::ConvertPrecision<ngraph::element::Type_t::f16, ngraph::element::Type_t::f32>().run_on_model(functionRefs);
+    ngraph::pass::ConvertPrecision<ngraph::element::Type_t::bf16, ngraph::element::Type_t::f32>().run_on_model(functionRefs);
 }
 
 std::vector<std::pair<ngraph::element::Type, std::vector<std::uint8_t>>> LayerTestsCommon::CalculateRefs() {

@@ -1,14 +1,14 @@
-# Plugin Testing {#openvino_docs_ie_plugin_dg_plugin_testing}
+# Plugin Testing {#openvino_docs_ov_plugin_dg_plugin_testing}
 
 OpenVINO tests infrastructure provides a predefined set of functional tests and utilities. They are used to verify a plugin using the OpenVINO public API.
 All the tests are written in the [Google Test C++ framework](https://github.com/google/googletest).
 
 OpenVINO Plugin tests are included in the `openvino::funcSharedTests` CMake target which is built within the OpenVINO repository
-(see [Build Plugin Using CMake](@ref openvino_docs_ie_plugin_dg_plugin_build) guide). This library contains tests definitions (the tests bodies) which can be parametrized and instantiated in plugins depending on whether a plugin supports a particular feature, specific sets of parameters for test on supported operation set and so on.
+(see [Build Plugin Using CMake](@ref openvino_docs_ov_plugin_dg_plugin_build) guide). This library contains tests definitions (the tests bodies) which can be parametrized and instantiated in plugins depending on whether a plugin supports a particular feature, specific sets of parameters for test on supported operation set and so on.
 
 Test definitions are split into tests class declaration (see `src/tests/functional/plugin/shared/include`) and tests class implementation (see `src/tests/functional/plugin/shared/src`) and include the following scopes of plugin conformance tests:
 
-1. **Behavior tests** (`behavior` sub-folder), which are a separate test group to check that a plugin satisfies basic OpenVINO concepts: plugin creation, multiple executable networks support, multiple synchronous and asynchronous inference requests support, and so on. See the next section with details how to instantiate the tests definition class with plugin-specific parameters.
+1. **Behavior tests** (`behavior` sub-folder), which are a separate test group to check that a plugin satisfies basic OpenVINO concepts: plugin creation, multiple compiled models support, multiple synchronous and asynchronous inference requests support, and so on. See the next section with details how to instantiate the tests definition class with plugin-specific parameters.
 
 2. **Single layer tests** (`single_layer_tests` sub-folder). This groups of tests checks that a particular single layer can be inferenced on a device. An example of test instantiation based on test definition from `openvino::funcSharedTests` library:
 
@@ -35,7 +35,7 @@ To use these tests for your own plugin development, link the `openvino::funcShar
 > **NOTE**: A plugin may contain its own tests for use cases that are specific to hardware or need to be extensively tested.
 
 To build test binaries together with other build artifacts, use the `make all` command. For details, see
-[Build Plugin Using CMake*](@ref openvino_docs_ie_plugin_dg_plugin_build).
+[Build Plugin Using CMake*](@ref openvino_docs_ov_plugin_dg_plugin_build).
 
 ### How to Extend OpenVINO Plugin Tests
 

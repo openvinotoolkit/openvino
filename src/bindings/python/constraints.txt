@@ -1,0 +1,22 @@
+# used in multiple components
+onnx==1.13.1  # Python bindings, ONNX Frontend
+
+# pytest
+pytest==7.2.0; python_version >= '3.10'
+pytest>=5.0,<=7.0.1; python_version < '3.10'
+pytest-dependency==0.5.1
+pytest-forked; platform_system != "Windows"
+pytest-html==1.19.0
+pytest-timeout==2.0.1
+
+# Python bindings
+py>=1.9.0
+pygments>=2.8.1
+setuptools>=53.0.0
+wheel>=0.38.1
+
+# Frontends
+docopt~=0.6.2
+paddlepaddle==2.4.2
+tensorflow>=1.15.5,<2.13.0
+six~=1.16.0

@@ -1,5 +1,8 @@
-requests>=2.25.1
+-c ../constraints.txt
+requests
 numpy>=1.19.2
 torch
 torchvision
+paddlepaddle
 pytest
+tensorflow-addons

@@ -3,6 +3,7 @@
 //
 
 #include "common_op_table.hpp"
+#include "helper_ops/string_constant.hpp"
 #include "helper_ops/unsupported_constant.hpp"
 #include "openvino/opsets/opset8.hpp"
 
@@ -24,7 +25,7 @@ OutputVector translate_const_op(const NodeContext& node) {
         auto ov_type = node.get_attribute_as_any("dtype");
         if(!ov_type.is<element::Type>()) {
             // FIXME: kind of a work around, the next line should raise StructuralTypeWA with necessary data encapsulated
-            node.get_attribute<ov::Tensor>("value");
+            auto tensor = node.get_attribute<ov::Tensor>("value");
             std::cerr << "----------------------------- CANNOT BE ------------------------------\n";
         }
         std::shared_ptr<Node> const_node;
@@ -58,6 +59,20 @@ OutputVector translate_const_op(const NodeContext& node) {
     } catch(...) {
         std::cerr << "[ ERROR ] Cannot decode ov::Tensor from node with name " << node.get_name() << "\n";
         throw;
+#if 0  // TODO: Adopt this part in string tensors
+    auto ov_type = node.get_attribute_as_any("dtype");
+    std::shared_ptr<Node> const_node;
+    if (!ov_type.is<ov::element::Type>() || ov_type.as<ov::element::Type>() == ov::element::dynamic ||
+        ov_type.as<ov::element::Type>() == ov::element::undefined) {
+        if (ov_type.is<std::string>() && ov_type.as<std::string>() == "DT_STRING") {
+            const_node = std::make_shared<StringConstant>(node.get_attribute_as_any("value"));
+        } else {
+            const_node = std::make_shared<UnsupportedConstant>();
+        }
+    } else {
+        auto tensor = node.get_attribute<Tensor>("value");
+        const_node = std::make_shared<Constant>(tensor.get_element_type(), tensor.get_shape(), tensor.data());
+#endif
     }
 
 }

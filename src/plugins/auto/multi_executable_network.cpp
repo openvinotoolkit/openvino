@@ -103,8 +103,24 @@ IE::Parameter MultiExecutableNetwork::GetMetric(const std::string& name) const {
             // Configs
             // device priority can be changed on-the-fly in MULTI
             ov::PropertyName{ov::device::priorities.name(), ov::PropertyMutability::RW},
+            ov::PropertyName{ov::device::properties.name(), ov::PropertyMutability::RO},
             ov::PropertyName{ov::execution_devices.name(), ov::PropertyMutability::RO}
         };
+    } else if (name == ov::device::properties) {
+        ov::AnyMap all_devices = {};
+        for (auto network : _multiSContext->_networksPerDevice) {
+            ov::AnyMap device_properties = {};
+            auto device_supported_metrics = network.second->GetMetric(METRIC_KEY(SUPPORTED_METRICS));
+            for (auto&& property_name : device_supported_metrics.as<std::vector<std::string>>()) {
+                device_properties[property_name] = network.second->GetMetric(property_name);;
+            }
+            auto device_supported_configs = network.second->GetMetric(METRIC_KEY(SUPPORTED_CONFIG_KEYS));
+            for (auto&& property_name : device_supported_configs.as<std::vector<std::string>>()) {
+                device_properties[property_name] = network.second->GetConfig(property_name);
+            }
+            all_devices[network.first] = device_properties;
+        }
+        return all_devices;
     } else if (name == ov::optimal_number_of_infer_requests) {
         unsigned int res = 0u;
         for (auto n : _multiSContext->_networksPerDevice) {

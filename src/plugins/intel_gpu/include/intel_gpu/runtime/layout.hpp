@@ -521,7 +521,7 @@ struct layout {
     // for smaller buffer which, currently, should always be performed
     bool identical(const layout& other) const;
 
-    ov::PartialShape transform(cldnn::format new_fmt) const;
+    static ov::PartialShape transform(const ov::PartialShape& pshape, cldnn::format old_fmt, cldnn::format new_fmt);
 
     size_t hash() const {
         size_t seed = 0;
@@ -531,7 +531,8 @@ struct layout {
 
         auto pshape = get_partial_shape();
         for (size_t idx = 0; idx < pshape.size(); idx++) {
-            seed = hash_combine(seed, pshape[idx].get_length());
+            auto v = pshape[idx].is_dynamic() ? -1 : pshape[idx].get_length();
+            seed = hash_combine(seed, v);
         }
         return seed;
     }

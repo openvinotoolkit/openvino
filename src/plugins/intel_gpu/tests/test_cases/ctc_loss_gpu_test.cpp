@@ -104,7 +104,7 @@ public:
         topology.add(ctc_loss("ctc_loss", inputs_ids, p.preprocess_collapse_repeated, p.ctc_merge_repeated, p.unique));
         topology.add(reorder("reordered_ctc_loss", input_info("ctc_loss"), plane_format, float_data_type));
 
-        cldnn::network::ptr network = get_network(engine, topology, ExecutionConfig(), get_test_stream_ptr(), is_caching_test);
+        cldnn::network::ptr network = get_network(engine, topology, get_test_default_config(engine), get_test_stream_ptr(), is_caching_test);
 
         for (auto& input : inputs) {
             network->set_input_data(std::get<0>(input), std::get<1>(input));

@@ -237,8 +237,15 @@ bool ConvolutionTransformation::transform(TransformationContext &context, ngraph
             Shape newScaleShape = newScalePShape.to_shape();
 
             if (!newScaleShape.empty()) {
-                // that's all we need: [C, 1, 1, 1] => [C, 1, 1]
-                newScaleShape.pop_back();
+                const auto input_shape = convolution->get_input_partial_shape(0);
+                const auto diff = newScaleShape.size() - input_shape.size();
+                OPENVINO_ASSERT(
+                    newScaleShape.empty() || ((0 <= diff) && (diff <= 2ull)),
+                    "unexpected shape size on weights");
+
+                for (size_t i = 0; i <= diff; ++i) {
+                    newScaleShape.pop_back();
+                }
             }
 
             if (reshapeFromWeights != nullptr) {
@@ -282,7 +289,12 @@ bool ConvolutionTransformation::transform(TransformationContext &context, ngraph
 
                 const size_t weightsRankValue = weightsPShape.rank().get_length();
                 Shape zeroPointShape(weightsRankValue, 1ul);
+                // output channel or group
                 zeroPointShape[0] = static_cast<size_t>(weightsPShape[0].get_length());
+                if ((reshapeFromWeights == nullptr) && (weightsRankValue == 5ull)) {
+                    // output channel
+                    zeroPointShape[1] = static_cast<size_t>(weightsPShape[1].get_length());
+                }
 
                 auto zeroPointConstant = fold<opset1::Broadcast>(
                     subtractFromWeights->input_value(1),
