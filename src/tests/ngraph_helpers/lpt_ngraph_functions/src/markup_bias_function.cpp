@@ -66,10 +66,10 @@ std::shared_ptr<ov::Model> MarkupBiasFunction::get(const ov::element::Type& prec
     } else if (layer_type == "MatMul") {
         auto new_param = std::make_shared<ov::opset1::Parameter>(precision, input_shape);
         input_params.push_back(new_param);
-        auto il_2 = opset1::Constant::create(precision, {}, {-12.8f});
-        auto ih_2 = opset1::Constant::create(precision, {}, {12.7f});
-        auto ol_2 = opset1::Constant::create(precision, {}, {-12.8f});
-        auto oh_2 = opset1::Constant::create(precision, {}, {12.7f});
+        auto il_2 = opset1::Constant::create(precision, {}, {-128.f});
+        auto ih_2 = opset1::Constant::create(precision, {}, {127.f});
+        auto ol_2 = opset1::Constant::create(precision, {}, {-128.f});
+        auto oh_2 = opset1::Constant::create(precision, {}, {127.f});
         auto fq_2 = std::make_shared<opset1::FakeQuantize>(new_param, il_2, ih_2, ol_2, oh_2, 256);
         layer = std::make_shared<ov::opset1::MatMul>(fq, fq_2, false, true);
     } else if (layer_type == "MatMulWithConstant") {
