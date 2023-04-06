@@ -166,9 +166,6 @@ std::vector<std::string> disabledTestPatterns() {
         // Issue: 95607
         R"(.*CachingSupportCase.*LoadNetworkCacheTestBase.*(TIwithLSTMcell1|MatMulBias|2InputSubtract)_(i|u).*)",
         R"(.*CachingSupportCase.*ReadConcatSplitAssign.*)",
-        // Issue: 95239
-        // HETERO plugin lacks caching_properties definition
-        R"(smoke_Hetero_CachingSupportCase.*)",
         // 94982. FP32->I32 conversion issue in the reference implementation. There can be some garbage in the rest of float values like 0.333333745.
         // The kernel does not have such garbage. The diff 0.000000745 is taken into account in calculations and affects further type conversion.
         // Reorder->GridSample->Reorder also does not work here. Potential fix is to use nearest conversion instead of truncation.
