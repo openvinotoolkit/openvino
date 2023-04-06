@@ -88,6 +88,7 @@ ngraph::ParameterVector auto_detect_parameters(const std::vector<std::shared_ptr
     return parameter_vector;
 }
 
+// Check compilation with full pipeline
 // Check that a Node argument for ctor isn't nullptr.
 const std::shared_ptr<ov::Node>& verify_node(const std::shared_ptr<ov::Node>& node) {
     OPENVINO_ASSERT(node != nullptr, "Model is incorrect! Some Node equals to nullptr.");
