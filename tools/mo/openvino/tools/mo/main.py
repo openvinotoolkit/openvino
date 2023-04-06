@@ -96,4 +96,4 @@ def main(cli_parser: argparse.ArgumentParser, framework=None):
 
 if __name__ == "__main__":
     from openvino.tools.mo.utils.cli_parser import get_all_cli_parser
-    sys.exit(main(get_all_cli_parser(FrontEndManager()), None))
+    sys.exit(main(get_all_cli_parser(), None))

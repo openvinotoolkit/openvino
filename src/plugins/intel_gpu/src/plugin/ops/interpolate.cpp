@@ -38,10 +38,14 @@ static void CreateInterpolateOp(Program& p, const std::shared_ptr<ngraph::op::v4
         OPENVINO_ASSERT(axes_constant, "Unsupported parameter node type in ", op->get_friendly_name(), " (", op->get_type_name(), ")");
 
         axes = axes_constant->cast_vector<int64_t>();
+        OPENVINO_SUPPRESS_DEPRECATED_START
         ov::normalize_axes(op.get(), inputRank, axes);
+        OPENVINO_SUPPRESS_DEPRECATED_END
     } else {
         for (size_t i = 0; i < inputRank; ++i) {
+            OPENVINO_SUPPRESS_DEPRECATED_START
             axes.push_back(ov::normalize_axis(op.get(), i, inputRank));
+            OPENVINO_SUPPRESS_DEPRECATED_END
         }
     }
 

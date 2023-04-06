@@ -139,8 +139,10 @@ bool SingleOpMatcher::match_ports(const std::shared_ptr<ov::Node> &node,
         const auto &cur_node_input = node->input_value(port_id);
         const auto &ref_node_input = ref->input_value(port_id);
 
+        OPENVINO_SUPPRESS_DEPRECATED_START
         const auto &cur_const_input = ov::get_constant_from_source(cur_node_input);
         const auto &ref_const_input = ov::get_constant_from_source(ref_node_input);
+        OPENVINO_SUPPRESS_DEPRECATED_END
 
         // Check that both OP an reference port inputs are constant and have same data
         if (cur_const_input && ref_const_input &&
