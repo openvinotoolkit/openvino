@@ -801,7 +801,12 @@ def dump_config(filename, config):
     for device_name, device_config in config.items():
         json_config[device_name] = {}
         for key, value in device_config.items():
-            value_string = value.get() if isinstance(value, OVAny) else value
+            if isinstance(value, properties.hint.PerformanceMode):
+                value_string = value.name
+            elif isinstance(value, OVAny):
+                value_string = str(value.value)
+            else:
+                value_string = str(value)
             if key == properties.device.properties():
                 value_string = device_properties_to_string(value.get())
             json_config[device_name][key] = value_string
