@@ -130,7 +130,7 @@ TSUnsqueezeForward::TSUnsqueezeForward() {
             auto rank = main_node->get_output_partial_shape(0).rank();
             OPENVINO_SUPPRESS_DEPRECATED_START
             non_negative_axes =
-                    normalize_axes(main_node->get_friendly_name(), unsqueeze_axes->cast_vector<int64_t>(), rank);
+                normalize_axes(main_node->get_friendly_name(), unsqueeze_axes->cast_vector<int64_t>(), rank);
             OPENVINO_SUPPRESS_DEPRECATED_END
         }
         auto ts_order_values = transpose_order->cast_vector<size_t>();
@@ -202,7 +202,7 @@ TSUnsqueezeBackward::TSUnsqueezeBackward() {
             auto rank = main_node->get_output_partial_shape(0).rank();
             OPENVINO_SUPPRESS_DEPRECATED_START
             non_negative_axes =
-                    normalize_axes(main_node->get_friendly_name(), unsqueeze_axes->cast_vector<int64_t>(), rank);
+                normalize_axes(main_node->get_friendly_name(), unsqueeze_axes->cast_vector<int64_t>(), rank);
             OPENVINO_SUPPRESS_DEPRECATED_END
         }
 
