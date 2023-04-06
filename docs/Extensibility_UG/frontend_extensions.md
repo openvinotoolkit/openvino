@@ -4,7 +4,7 @@
 
 The goal of this chapter is to explain how to use Frontend extension classes to facilitate mapping of custom operations from framework model representation to OpenVINO representation. Refer to :doc:`Introduction to OpenVINO Extension <openvino_docs_Extensibility_UG_Intro>` to understand entire flow.
 
-This API is applicable for new frontends only, which exist for ONNX, PaddlePaddle and TensorFlow. If a different model format is used, follow legacy :doc:`Model Optimizer Extensions <openvino_docs_MO_DG_prepare_model_customize_model_optimizer_Customize_Model_Optimizer>` guide.
+This API is applicable for new frontends only, which exist for ONNX, PaddlePaddle and TensorFlow. If a different model format is used, follow :doc:`[Legacy] Model Optimizer Extensions <openvino_docs_MO_DG_prepare_model_customize_model_optimizer_Customize_Model_Optimizer>` guide.
 
 .. note:: 
    This documentation is written based on the `Template extension <https://github.com/openvinotoolkit/openvino/tree/master/src/core/template_extension/new>`__, which demonstrates extension development details based on minimalistic ``Identity`` operation that is a placeholder for your real custom operation. You can review the complete code, which is fully compliable, to see how it works.
