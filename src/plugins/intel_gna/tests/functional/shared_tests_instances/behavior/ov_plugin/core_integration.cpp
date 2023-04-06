@@ -2,9 +2,10 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "behavior/ov_plugin/core_integration.hpp"
+
 #include <gna/gna_config.hpp>
 
-#include "behavior/ov_plugin/core_integration.hpp"
 #include "behavior/ov_plugin/properties_tests.hpp"
 #include "openvino/runtime/intel_gna/properties.hpp"
 

@@ -87,7 +87,9 @@ void op::v8::Slice::validate_and_infer_types() {
         set_input_is_relevant_to_shape(i);
     }
 
+    OPENVINO_SUPPRESS_DEPRECATED_START
     const auto input_shapes = get_node_input_partial_shapes(*this);
+    OPENVINO_SUPPRESS_DEPRECATED_END
     std::vector<ov::PartialShape> output_shapes = {ov::PartialShape::dynamic()};
 
     shape_infer(this, input_shapes, output_shapes);
@@ -216,5 +218,7 @@ bool op::v8::Slice::evaluate_upper(ov::TensorVector& output_values) const {
 bool op::v8::Slice::evaluate_label(TensorLabelVector& output_labels) const {
     if (!slice_input_check(this))
         return false;
+    OPENVINO_SUPPRESS_DEPRECATED_START
     return default_label_evaluator(this, output_labels);
+    OPENVINO_SUPPRESS_DEPRECATED_END
 }

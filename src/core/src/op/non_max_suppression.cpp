@@ -154,7 +154,9 @@ void op::v1::NonMaxSuppression::validate_and_infer_types() {
                           "The last dimension of the 'boxes' input must be equal to 4. Got:",
                           boxes_ps[2]);
 
+    OPENVINO_SUPPRESS_DEPRECATED_START
     const auto& max_output_boxes_input = get_constant_from_source(input_value(2));
+    OPENVINO_SUPPRESS_DEPRECATED_END
     if (num_boxes_boxes.is_static() && scores_ps[1].is_static() && max_output_boxes_input) {
         const auto num_boxes = num_boxes_boxes.get_length();
         const auto max_output_boxes_per_class = max_output_boxes_input->cast_vector<int64_t>().at(0);
@@ -168,7 +170,9 @@ void op::v1::NonMaxSuppression::validate_and_infer_types() {
 int64_t op::v1::NonMaxSuppression::max_boxes_output_from_input() const {
     int64_t max_output_boxes{0};
 
+    OPENVINO_SUPPRESS_DEPRECATED_START
     const auto max_output_boxes_input = get_constant_from_source(input_value(2));
+    OPENVINO_SUPPRESS_DEPRECATED_END
     max_output_boxes = max_output_boxes_input->cast_vector<int64_t>().at(0);
 
     return max_output_boxes;
@@ -336,7 +340,9 @@ void op::v3::NonMaxSuppression::validate_and_infer_types() {
 
     if (boxes_ps.rank().is_static() && scores_ps.rank().is_static()) {
         const auto num_boxes_boxes = boxes_ps[1];
+        OPENVINO_SUPPRESS_DEPRECATED_START
         const auto max_output_boxes_input = get_constant_from_source(input_value(2));
+        OPENVINO_SUPPRESS_DEPRECATED_END
         if (num_boxes_boxes.is_static() && scores_ps[1].is_static() && max_output_boxes_input) {
             const auto num_boxes = num_boxes_boxes.get_length();
             const auto num_classes = scores_ps[1].get_length();
@@ -351,7 +357,9 @@ void op::v3::NonMaxSuppression::validate_and_infer_types() {
 int64_t op::v3::NonMaxSuppression::max_boxes_output_from_input() const {
     int64_t max_output_boxes{0};
 
+    OPENVINO_SUPPRESS_DEPRECATED_START
     const auto max_output_boxes_input = get_constant_from_source(input_value(2));
+    OPENVINO_SUPPRESS_DEPRECATED_END
     max_output_boxes = max_output_boxes_input->cast_vector<int64_t>().at(0);
 
     return max_output_boxes;
@@ -444,7 +452,9 @@ void op::v4::NonMaxSuppression::validate_and_infer_types() {
 
     if (boxes_ps.rank().is_static() && scores_ps.rank().is_static()) {
         const auto num_boxes_boxes = boxes_ps[1];
+        OPENVINO_SUPPRESS_DEPRECATED_START
         const auto max_output_boxes_input = get_constant_from_source(input_value(2));
+        OPENVINO_SUPPRESS_DEPRECATED_END
         if (num_boxes_boxes.is_static() && scores_ps[0].is_static() && scores_ps[1].is_static() &&
             max_output_boxes_input) {
             const auto num_boxes = num_boxes_boxes.get_length();
@@ -713,7 +723,9 @@ int64_t op::v5::NonMaxSuppression::max_boxes_output_from_input() const {
         return 0;
     }
 
+    OPENVINO_SUPPRESS_DEPRECATED_START
     const auto max_output_boxes_input = get_constant_from_source(input_value(max_output_boxes_port));
+    OPENVINO_SUPPRESS_DEPRECATED_END
     max_output_boxes = max_output_boxes_input->cast_vector<int64_t>().at(0);
 
     return max_output_boxes;
@@ -726,7 +738,9 @@ float op::v5::NonMaxSuppression::iou_threshold_from_input() const {
         return iou_threshold;
     }
 
+    OPENVINO_SUPPRESS_DEPRECATED_START
     const auto iou_threshold_input = get_constant_from_source(input_value(iou_threshold_port));
+    OPENVINO_SUPPRESS_DEPRECATED_END
     iou_threshold = iou_threshold_input->cast_vector<float>().at(0);
 
     return iou_threshold;
@@ -739,7 +753,9 @@ float op::v5::NonMaxSuppression::score_threshold_from_input() const {
         return score_threshold;
     }
 
+    OPENVINO_SUPPRESS_DEPRECATED_START
     const auto score_threshold_input = get_constant_from_source(input_value(score_threshold_port));
+    OPENVINO_SUPPRESS_DEPRECATED_END
     score_threshold = score_threshold_input->cast_vector<float>().at(0);
 
     return score_threshold;
@@ -752,7 +768,9 @@ float op::v5::NonMaxSuppression::soft_nms_sigma_from_input() const {
         return soft_nms_sigma;
     }
 
+    OPENVINO_SUPPRESS_DEPRECATED_START
     const auto soft_nms_sigma_input = get_constant_from_source(input_value(soft_nms_sigma_port));
+    OPENVINO_SUPPRESS_DEPRECATED_END
     soft_nms_sigma = soft_nms_sigma_input->cast_vector<float>().at(0);
 
     return soft_nms_sigma;
@@ -1021,7 +1039,9 @@ int64_t op::v9::NonMaxSuppression::max_boxes_output_from_input() const {
         return 0;
     }
 
+    OPENVINO_SUPPRESS_DEPRECATED_START
     const auto max_output_boxes_input = get_constant_from_source(input_value(max_output_boxes_port));
+    OPENVINO_SUPPRESS_DEPRECATED_END
     max_output_boxes = max_output_boxes_input->cast_vector<int64_t>().at(0);
 
     return max_output_boxes;
@@ -1034,7 +1054,9 @@ float op::v9::NonMaxSuppression::iou_threshold_from_input() const {
         return iou_threshold;
     }
 
+    OPENVINO_SUPPRESS_DEPRECATED_START
     const auto iou_threshold_input = get_constant_from_source(input_value(iou_threshold_port));
+    OPENVINO_SUPPRESS_DEPRECATED_END
     iou_threshold = iou_threshold_input->cast_vector<float>().at(0);
 
     return iou_threshold;
@@ -1047,7 +1069,9 @@ float op::v9::NonMaxSuppression::score_threshold_from_input() const {
         return score_threshold;
     }
 
+    OPENVINO_SUPPRESS_DEPRECATED_START
     const auto score_threshold_input = get_constant_from_source(input_value(score_threshold_port));
+    OPENVINO_SUPPRESS_DEPRECATED_END
     score_threshold = score_threshold_input->cast_vector<float>().at(0);
 
     return score_threshold;
@@ -1060,7 +1084,9 @@ float op::v9::NonMaxSuppression::soft_nms_sigma_from_input() const {
         return soft_nms_sigma;
     }
 
+    OPENVINO_SUPPRESS_DEPRECATED_START
     const auto soft_nms_sigma_input = get_constant_from_source(input_value(soft_nms_sigma_port));
+    OPENVINO_SUPPRESS_DEPRECATED_END
     soft_nms_sigma = soft_nms_sigma_input->cast_vector<float>().at(0);
 
     return soft_nms_sigma;

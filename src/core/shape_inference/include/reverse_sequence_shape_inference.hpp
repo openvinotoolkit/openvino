@@ -30,7 +30,9 @@ std::vector<TShape> shape_infer(const ReverseSequence* op, const std::vector<TSh
                           seq_lengths_pshape);
     auto output_pshape = data_pshape;
     if (data_rank.is_static() && seq_lengths_rank.is_static()) {
+        OPENVINO_SUPPRESS_DEPRECATED_START
         const auto normalized_batch_axis = ov::normalize_axis(op, op->get_origin_batch_axis(), data_rank);
+        OPENVINO_SUPPRESS_DEPRECATED_END
         DimType merged_sequence_length;
         NODE_VALIDATION_CHECK(
             op,

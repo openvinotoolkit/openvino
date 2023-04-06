@@ -63,7 +63,9 @@ void ov::op::internal::AUGRUCell::validate_and_infer_types() {
                           "Element types for inputs do not match.");
 
     // Get input partial shape for all inputs
+    OPENVINO_SUPPRESS_DEPRECATED_START
     const auto input_shapes = get_node_input_partial_shapes(*this);
+    OPENVINO_SUPPRESS_DEPRECATED_END
     std::vector<ov::PartialShape> output_shapes = {ov::PartialShape::dynamic(2)};
     shape_infer(this, input_shapes, output_shapes);
 

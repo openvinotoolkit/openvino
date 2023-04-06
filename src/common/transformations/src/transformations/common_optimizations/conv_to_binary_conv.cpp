@@ -112,7 +112,9 @@ ov::pass::ConvToBinaryConv::ConvToBinaryConv() {
                 weights_reduced,
                 opset5::Constant::create(element::i64, Shape{weights_reduced_shape.size()}, weights_reduced_shape),
                 false);
+            OPENVINO_SUPPRESS_DEPRECATED_START
             weights_reduced_reshaped = ngraph::get_constant_from_source(weights_reduced_reshaped);
+            OPENVINO_SUPPRESS_DEPRECATED_END
             auto add = std::make_shared<opset5::Add>(new_conv, weights_reduced_reshaped);
             auto mul = std::make_shared<opset5::Multiply>(add, opset5::Constant::create(element::f32, Shape{}, {0.5}));
             copy_runtime_info(conv, {new_conv, add, mul});

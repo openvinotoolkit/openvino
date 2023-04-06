@@ -37,7 +37,9 @@ bool ngraph::op::v0::ShuffleChannels::visit_attributes(AttributeVisitor& visitor
 size_t op::ShuffleChannels::get_zero_based_axis() const {
     const auto input_rank = get_input_partial_shape(0).rank();
     if (input_rank.is_static()) {
+        OPENVINO_SUPPRESS_DEPRECATED_START
         return ov::normalize_axis(this, m_axis, input_rank);
+        OPENVINO_SUPPRESS_DEPRECATED_END
     } else {
         throw ngraph_error("Cannot request zero-based axis with a input of unknown rank");
     }
@@ -46,7 +48,9 @@ size_t op::ShuffleChannels::get_zero_based_axis() const {
 void op::ShuffleChannels::validate_and_infer_types() {
     OV_OP_SCOPE(v0_ShuffleChannels_validate_and_infer_types);
 
+    OPENVINO_SUPPRESS_DEPRECATED_START
     const auto output_shape = shape_infer(this, get_node_input_partial_shapes(*this)).front();
+    OPENVINO_SUPPRESS_DEPRECATED_END
     set_output_type(0, get_input_element_type(0), output_shape);
 }
 

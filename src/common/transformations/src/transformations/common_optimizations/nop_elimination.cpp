@@ -319,8 +319,10 @@ pass::EliminatePad::EliminatePad() {
     matcher_pass_callback callback = [=](pattern::Matcher& m) {
         auto pad = m.get_match_root();
 
+        OPENVINO_SUPPRESS_DEPRECATED_START
         auto pad_begin_const = get_constant_from_source(pad->input_value(1));
         auto pad_end_const = get_constant_from_source(pad->input_value(2));
+        OPENVINO_SUPPRESS_DEPRECATED_END
 
         if (!pad_begin_const || !pad_end_const) {
             return false;

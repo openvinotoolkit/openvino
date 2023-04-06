@@ -142,7 +142,9 @@ auto is_supported_op(const std::shared_ptr<const Node> &n) -> bool {
         int64_t axis = -1;
         const auto rank = n->get_input_partial_shape(0).rank();
         if (const auto softmax_v8 = ngraph::as_type_ptr<const ov::op::v8::Softmax>(n)) {
+            OPENVINO_SUPPRESS_DEPRECATED_START
             axis = ngraph::normalize_axis(n->get_friendly_name(), softmax_v8->get_axis(), rank);
+            OPENVINO_SUPPRESS_DEPRECATED_END
         } else if (const auto softmax_v1 = ngraph::as_type_ptr<const ov::op::v1::Softmax>(n)) {
             axis = softmax_v1->get_axis();
         } else {

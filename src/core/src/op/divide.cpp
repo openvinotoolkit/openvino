@@ -112,8 +112,10 @@ bool evaluate_bound(const Node* node, ov::TensorVector& output_values, bool is_u
     const auto zero_t = ov::Tensor(input2.get_element_type(), Shape{});
     memcpy(zero_t.data(), zeros_const->get_data_ptr(), zero_t.get_byte_size());
 
+    OPENVINO_SUPPRESS_DEPRECATED_START
     auto max_constant = get_constant_max_of_type(input2.get_element_type());
     auto dynamic_mask = or_tensor(equality_mask(input1_up, max_constant), equality_mask(input2_up, max_constant));
+    OPENVINO_SUPPRESS_DEPRECATED_END
 
     // mask to find out positive values for arg2
     auto less_up_outputs = ov::TensorVector{{element::boolean, input2.get_shape()}};
@@ -157,7 +159,9 @@ bool evaluate_bound(const Node* node, ov::TensorVector& output_values, bool is_u
             return status;
 
         // replace values where zeros inside range of second arg to maximum values
+        OPENVINO_SUPPRESS_DEPRECATED_START
         auto output_minimum_value = get_constant_min_of_type(output_values[0].get_element_type());
+        OPENVINO_SUPPRESS_DEPRECATED_END
         if (output_minimum_value == nullptr)
             return false;
 
@@ -202,7 +206,9 @@ bool evaluate_bound(const Node* node, ov::TensorVector& output_values, bool is_u
             return status;
 
         // replace values where zeros were found in the second argument to maximum values
+        OPENVINO_SUPPRESS_DEPRECATED_START
         auto output_maximum_value = get_constant_max_of_type(output_values[0].get_element_type());
+        OPENVINO_SUPPRESS_DEPRECATED_END
         if (output_maximum_value == nullptr)
             return false;
 

@@ -137,6 +137,7 @@ void calculate_auto_pads(const Shape& data_shape,
         padding_above.clear();
         // Extract kernel shape - remove (N,C) channels
         Shape kernel_shape(std::next(std::begin(filter_shape), 2), std::end(filter_shape));
+        OPENVINO_SUPPRESS_DEPRECATED_START
         ngraph::infer_auto_padding(data_shape,
                                    kernel_shape,
                                    strides,
@@ -144,6 +145,7 @@ void calculate_auto_pads(const Shape& data_shape,
                                    pad_type,
                                    padding_above,
                                    padding_below);
+        OPENVINO_SUPPRESS_DEPRECATED_END
     }
 }
 

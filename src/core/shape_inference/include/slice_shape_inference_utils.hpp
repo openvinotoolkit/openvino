@@ -194,7 +194,9 @@ inline element::Type get_input_const_element_type(const ov::Node* op,
                                                   const std::map<size_t, HostTensorPtr>& constant_data = {}) {
     if (constant_data.count(idx)) {
         return constant_data.at(idx)->get_element_type();
+        OPENVINO_SUPPRESS_DEPRECATED_START
     } else if (const auto& constant = ov::get_constant_from_source(op->input_value(idx))) {
+        OPENVINO_SUPPRESS_DEPRECATED_END
         return constant->get_element_type();
     } else {
         return element::undefined;

@@ -40,7 +40,9 @@ std::vector<TShape> shape_infer(const Roll* op,
 
     if (data_pshape.rank().is_static()) {
         if (const auto& axes = get_input_const_data_as<TShape, int64_t>(op, 2, constant_data)) {
+            OPENVINO_SUPPRESS_DEPRECATED_START
             ov::normalize_axes(op, data_pshape.size(), *axes);
+            OPENVINO_SUPPRESS_DEPRECATED_END
         }
     }
 

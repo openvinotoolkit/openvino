@@ -37,7 +37,9 @@ inline bool get_data_as_double<ov::PartialShape>(
     const std::map<size_t, std::shared_ptr<ngraph::runtime::HostTensor>>& constant_data) {
     if (constant_data.count(idx)) {
         axes_value = ov::opset1::Constant(constant_data.at(idx)).cast_vector<double>();
+        OPENVINO_SUPPRESS_DEPRECATED_START
     } else if (const auto& constant = ov::get_constant_from_source(op->input_value(idx))) {
+        OPENVINO_SUPPRESS_DEPRECATED_END
         axes_value = constant->cast_vector<double>();
     } else {
         return false;

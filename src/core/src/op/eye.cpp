@@ -71,7 +71,9 @@ void ov::op::v9::Eye::validate_and_infer_types() {
                               input_et);
     }
 
+    OPENVINO_SUPPRESS_DEPRECATED_START
     const auto output_shape = shape_infer(this, get_node_input_partial_shapes(*this)).front();
+    OPENVINO_SUPPRESS_DEPRECATED_END
     set_output_type(0, get_out_type(), output_shape);
 }
 
@@ -112,8 +114,10 @@ bool ov::op::v9::Eye::has_evaluate() const {
 
 bool ov::op::v9::Eye::evaluate(const ov::HostTensorVector& outputs, const ov::HostTensorVector& inputs) const {
     OV_OP_SCOPE(v9_Eye_evaluate);
+    OPENVINO_SUPPRESS_DEPRECATED_START
     OPENVINO_ASSERT(ngraph::validate_host_tensor_vector(inputs, get_input_size()), "Invalid Eye input TensorVector.");
     OPENVINO_ASSERT(ngraph::validate_host_tensor_vector(outputs, 1), "Invalid Eye output TensorVector.");
+    OPENVINO_SUPPRESS_DEPRECATED_END
 
     int64_t diagonal_index;
 

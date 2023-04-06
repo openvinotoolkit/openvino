@@ -21,8 +21,11 @@ void shape_infer(const GatherElements* op, const std::vector<T>& input_shapes, s
     auto& output_shape = output_shapes[0];
 
     int64_t axis = op->get_axis();
-    if (data_rank.is_static())
+    if (data_rank.is_static()) {
+        OPENVINO_SUPPRESS_DEPRECATED_START
         axis = ov::normalize_axis(op, axis, data_rank);
+        OPENVINO_SUPPRESS_DEPRECATED_END
+    }
 
     NODE_VALIDATION_CHECK(op, data_rank.is_dynamic() || data_rank.get_length() >= 1, "data rank must be >= 1.");
     NODE_VALIDATION_CHECK(op,

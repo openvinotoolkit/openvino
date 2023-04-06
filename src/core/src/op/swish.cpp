@@ -112,8 +112,10 @@ bool evaluate_swish(const HostTensorVector& inputs, const HostTensorPtr& out) {
 
 bool op::v4::Swish::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const {
     OV_OP_SCOPE(v4_Swish_evaluate);
+    OPENVINO_SUPPRESS_DEPRECATED_START
     NGRAPH_CHECK(validate_host_tensor_vector(outputs, 1) &&
                  (validate_host_tensor_vector(inputs, 2) || validate_host_tensor_vector(inputs, 1)));
+    OPENVINO_SUPPRESS_DEPRECATED_END
     return swish::evaluate_swish(inputs, outputs[0]);
 }
 

@@ -151,10 +151,14 @@ ov::pass::ConvertQuantizeDequantize::ConvertQuantizeDequantize() {
         if (out_high_shape.rank().is_dynamic() || out_high_shape.rank().get_length() > data_shape.rank().get_length())
             return false;
 
+        OPENVINO_SUPPRESS_DEPRECATED_START
         std::shared_ptr<Node> const_out_low = get_constant_from_source(new_out_low);
+        OPENVINO_SUPPRESS_DEPRECATED_END
         if (const_out_low)
             new_out_low = const_out_low;
+        OPENVINO_SUPPRESS_DEPRECATED_START
         std::shared_ptr<Node> const_out_high = get_constant_from_source(new_out_high);
+        OPENVINO_SUPPRESS_DEPRECATED_END
         if (const_out_high)
             new_out_high = const_out_high;
 

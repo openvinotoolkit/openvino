@@ -143,7 +143,9 @@ OutputVector dequantize_linear(const Output<ngraph::Node>& x,
 
     NGRAPH_CHECK(x_shape.rank().is_static(), "Rank of the input data tensor has to be known (static).");
 
+    OPENVINO_SUPPRESS_DEPRECATED_START
     axis = ngraph::normalize_axis(node.get_description(), axis, x_shape.rank());
+    OPENVINO_SUPPRESS_DEPRECATED_END
 
     validate_scale(scale, x, axis);
     const auto scale_reshaped = reshape_input(scale, axis, x_shape);

@@ -143,8 +143,10 @@ bool evaluate_bound(const Node* node, ov::TensorVector& output_values, bool is_u
         }
 
         // constants for dynamic values translation
+        OPENVINO_SUPPRESS_DEPRECATED_START
         auto input_maximum_value = get_constant_max_of_type(input_element_type);
         auto output_maximum_value = get_constant_max_of_type(output_values[0].get_element_type());
+        OPENVINO_SUPPRESS_DEPRECATED_END
         if (input_maximum_value == nullptr || output_maximum_value == nullptr)
             return false;
 
@@ -171,8 +173,10 @@ bool evaluate_bound(const Node* node, ov::TensorVector& output_values, bool is_u
 }  // namespace convert
 bool op::v0::Convert::evaluate(const HostTensorVector& output_values, const HostTensorVector& input_values) const {
     OV_OP_SCOPE(v0_Convert_evaluate);
+    OPENVINO_SUPPRESS_DEPRECATED_START
     NGRAPH_CHECK(validate_host_tensor_vector(input_values, 1));
     NGRAPH_CHECK(validate_host_tensor_vector(output_values, 1));
+    OPENVINO_SUPPRESS_DEPRECATED_END
     return convert::evaluate_convert(input_values[0], output_values[0]);
 }
 

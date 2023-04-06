@@ -37,12 +37,16 @@ OutputVector log_softmax(const Node& node, const int64_t DEFAULT_AXIS) {
     }
     case 1: {
         // checks if the axis belongs to the allowed values set (-1 and 0 for 1D)
+        OPENVINO_SUPPRESS_DEPRECATED_START
         ngraph::normalize_axis(node.get_description(), axis, data_rank);
+        OPENVINO_SUPPRESS_DEPRECATED_END
         result = std::make_shared<default_opset::LogSoftmax>(data, 0);
         break;
     }
     default: {
+        OPENVINO_SUPPRESS_DEPRECATED_START
         const auto normalized_axis = ngraph::normalize_axis(node.get_description(), axis, data_rank);
+        OPENVINO_SUPPRESS_DEPRECATED_END
 
         result = onnx_logsoftmax(data, normalized_axis);
         break;

@@ -61,7 +61,9 @@ void op::v5::Loop::validate_and_infer_types() {
                               loop_condition_rank.compatible(1) || loop_condition_rank.compatible(0),
                               "Rank of ExecutionCondition input must be equal to 0 or 1");
     }
+    OPENVINO_SUPPRESS_DEPRECATED_START
     if (const auto& cond_value = get_constant_from_source(loop_execution_condition)) {
+        OPENVINO_SUPPRESS_DEPRECATED_END
         auto val = cond_value->cast_vector<bool>();
         NODE_VALIDATION_CHECK(this,
                               val.size() == 1,
@@ -85,7 +87,9 @@ void op::v5::Loop::validate_and_infer_types() {
                               body_condition_rank.compatible(0) || body_condition_rank.compatible(1),
                               "Rank of BodyExecutionCondition output must be equal to 0 or 1");
     }
+    OPENVINO_SUPPRESS_DEPRECATED_START
     if (const auto& cond_value = get_constant_from_source(body_execution_condition)) {
+        OPENVINO_SUPPRESS_DEPRECATED_END
         auto val = cond_value->cast_vector<bool>();
         NODE_VALIDATION_CHECK(this,
                               val.size() == 1,
@@ -101,7 +105,9 @@ void op::v5::Loop::validate_and_infer_types() {
         // Const(true or false) -> Loop (body: Parameter -> execution_condition output)
         for (const auto& desc : get_input_descriptions()) {
             if (m_bodies[0]->get_parameters().at(desc->m_body_parameter_index) == cond_param) {
+                OPENVINO_SUPPRESS_DEPRECATED_START
                 if (const auto& cond_value = get_constant_from_source(input_value(desc->m_input_index))) {
+                    OPENVINO_SUPPRESS_DEPRECATED_END
                     auto val = cond_value->cast_vector<bool>();
                     NODE_VALIDATION_CHECK(this,
                                           val.size() == 1,
@@ -124,7 +130,9 @@ void op::v5::Loop::validate_and_infer_types() {
                               trip_count_rank.compatible(1) || trip_count_rank.compatible(0),
                               "Rank of TripCount input must be equal to 0 or 1");
     }
+    OPENVINO_SUPPRESS_DEPRECATED_START
     if (const auto& trip_count_val = get_constant_from_source(trip_count)) {
+        OPENVINO_SUPPRESS_DEPRECATED_END
         auto val = trip_count_val->cast_vector<int64_t>();
         NODE_VALIDATION_CHECK(this,
                               val.size() == 1,
@@ -168,8 +176,10 @@ void op::v5::Loop::validate_and_infer_types() {
                 body_parameter->set_partial_shape(ov::PartialShape::dynamic());
             } else {
                 auto out_shape = input_partial_shape;
+                OPENVINO_SUPPRESS_DEPRECATED_START
                 const auto axis =
                     ngraph::normalize_axis(this, slice_input_description->m_axis, input_partial_shape.rank());
+                OPENVINO_SUPPRESS_DEPRECATED_END
                 out_shape[axis] = slice_input_description->m_part_size;
                 body_parameter->set_partial_shape(out_shape);
             }
@@ -278,7 +288,9 @@ void op::v5::Loop::validate_and_infer_types() {
             if (zero_number_of_iter) {
                 out_shape = ov::PartialShape{0};
             } else if (out_shape.rank().is_static()) {
+                OPENVINO_SUPPRESS_DEPRECATED_START
                 const auto axis = ngraph::normalize_axis(this, concat_output_description->m_axis, out_shape.rank());
+                OPENVINO_SUPPRESS_DEPRECATED_END
                 const auto rank = out_shape.rank().get_length();
                 if (rank == 0) {
                     out_shape = ov::PartialShape{1};

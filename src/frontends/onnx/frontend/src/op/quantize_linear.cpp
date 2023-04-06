@@ -88,13 +88,19 @@ std::tuple<std::shared_ptr<ngraph::Node>, std::shared_ptr<ngraph::Node>> get_inp
     input_low =
         std::make_shared<default_opset::Multiply>(y_scale,
                                                   std::make_shared<default_opset::Subtract>(output_low, zero_point));
-    if (auto constant = ov::get_constant_from_source(input_low))
+    OPENVINO_SUPPRESS_DEPRECATED_START
+    if (auto constant = ov::get_constant_from_source(input_low)) {
+        OPENVINO_SUPPRESS_DEPRECATED_END
         input_low = constant;
+    }
     input_high =
         std::make_shared<default_opset::Multiply>(y_scale,
                                                   std::make_shared<default_opset::Subtract>(output_high, zero_point));
-    if (auto constant = ov::get_constant_from_source(input_high))
+    OPENVINO_SUPPRESS_DEPRECATED_START
+    if (auto constant = ov::get_constant_from_source(input_high)) {
+        OPENVINO_SUPPRESS_DEPRECATED_END
         input_high = constant;
+    }
 
     return std::make_tuple(input_low, input_high);
 }
@@ -152,7 +158,9 @@ OutputVector quantize_linear(Output<ngraph::Node> x,
 
     const auto& x_shape = x.get_partial_shape();
 
+    OPENVINO_SUPPRESS_DEPRECATED_START
     axis = normalize_axis(node.get_description(), axis, x_shape.rank());
+    OPENVINO_SUPPRESS_DEPRECATED_END
 
     const auto& y_scale_shape = y_scale.get_partial_shape();
     const auto& y_zero_point_shape = y_zero_point.get_partial_shape();

@@ -71,7 +71,9 @@ bool evaluate_softplus(const HostTensorPtr& arg, const HostTensorPtr& out) {
 
 bool op::v4::SoftPlus::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const {
     OV_OP_SCOPE(v4_SoftPlus_evaluate);
+    OPENVINO_SUPPRESS_DEPRECATED_START
     NGRAPH_CHECK(validate_host_tensor_vector(outputs, 1) && validate_host_tensor_vector(inputs, 1));
+    OPENVINO_SUPPRESS_DEPRECATED_END
     return softplus::evaluate_softplus(inputs[0], outputs[0]);
 }
 

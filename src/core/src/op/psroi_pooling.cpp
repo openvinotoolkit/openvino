@@ -55,7 +55,9 @@ void PSROIPooling::validate_and_infer_types() {
                           coords_et.is_real(),
                           "Coords' data type must be floating point. Got " + coords_et.get_type_name());
 
+    OPENVINO_SUPPRESS_DEPRECATED_START
     const auto output_shapes = shape_infer(this, get_node_input_partial_shapes(*this));
+    OPENVINO_SUPPRESS_DEPRECATED_END
     set_output_type(0, feat_maps_et, output_shapes[0]);
 }
 

@@ -98,6 +98,7 @@ public:
         if (auto_pad == ov::op::PadType::SAME_UPPER || auto_pad == ov::op::PadType::SAME_LOWER) {
             pads_begin.clear();
             pads_end.clear();
+            OPENVINO_SUPPRESS_DEPRECATED_START
             ngraph::try_apply_auto_padding(input_layout.get_partial_shape(),
                                            kernel,
                                            stride,
@@ -105,6 +106,7 @@ public:
                                            auto_pad,
                                            pads_end,
                                            pads_begin);
+            OPENVINO_SUPPRESS_DEPRECATED_END
         }
         if (auto_pad == ov::op::PadType::VALID) {
             pads_begin = ov::CoordinateDiff(pads_begin.size(), 0);

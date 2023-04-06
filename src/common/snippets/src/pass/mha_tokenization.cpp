@@ -184,7 +184,9 @@ ngraph::snippets::pass::TokenizeMHASnippets::TokenizeMHASnippets() {
         int64_t axis = 0;
         const auto rank = interm_op->get_input_partial_shape(0).rank();
         if (const auto softmax_v8 = ngraph::as_type_ptr<ngraph::opset8::Softmax>(interm_op)) {
+            OPENVINO_SUPPRESS_DEPRECATED_START
             axis = ngraph::normalize_axis(interm_op->get_friendly_name(), softmax_v8->get_axis(), rank);
+            OPENVINO_SUPPRESS_DEPRECATED_END
         } else if (const auto softmax_v1 = ngraph::as_type_ptr<ngraph::opset1::Softmax>(interm_op)) {
             axis = softmax_v1->get_axis();
         } else {

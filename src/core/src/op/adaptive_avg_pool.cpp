@@ -19,7 +19,9 @@ op::v8::AdaptiveAvgPool::AdaptiveAvgPool(const Output<Node>& data, const Output<
 void op::v8::AdaptiveAvgPool::validate_and_infer_types() {
     OV_OP_SCOPE(v8_AdaptiveAvgPool_validate_and_infer_types);
 
+    OPENVINO_SUPPRESS_DEPRECATED_START
     const auto output_shape = shape_infer(this, get_node_input_partial_shapes(*this)).front();
+    OPENVINO_SUPPRESS_DEPRECATED_END
     set_output_type(0, get_input_element_type(0), output_shape);
 }
 

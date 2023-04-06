@@ -53,8 +53,10 @@ std::shared_ptr<ngraph::Node> ArgMinMaxFactory::make_topk_subgraph(default_opset
         // res_index = dims_on_axis - topk->output(1) = 6 - 3 = 3
         // result = res_index - 1 = 3 - 1 = 2
 
+        OPENVINO_SUPPRESS_DEPRECATED_START
         const int64_t normalized_axis =
             normalize_axis(m_input_node.get_node(), m_axis, m_input_node.get_partial_shape().rank());
+        OPENVINO_SUPPRESS_DEPRECATED_END
 
         const auto axis_node = default_opset::Constant::create(ngraph::element::i64, Shape{1}, {normalized_axis});
         const auto reverse = std::make_shared<opset1::Reverse>(m_input_node, axis_node, opset1::Reverse::Mode::INDEX);

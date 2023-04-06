@@ -29,7 +29,9 @@ bool convert_divide(std::shared_ptr<ngraph::Node> node) {
         ngraph::op::Constant::create(div->get_input_element_type(1), ngraph::Shape{}, {-1}));
 
     if (std::dynamic_pointer_cast<ngraph::op::Constant>(div->get_input_node_shared_ptr(1))) {
+        OPENVINO_SUPPRESS_DEPRECATED_START
         if (auto const_pow = ngraph::get_constant_from_source(pow)) {
+            OPENVINO_SUPPRESS_DEPRECATED_END
             pow = const_pow;
         } else {
             NGRAPH_DEBUG << "ConvertDivide has failed due to unsupported evaluate type in " << pow.get();

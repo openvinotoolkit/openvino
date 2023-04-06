@@ -41,7 +41,9 @@ OutputVector clip(const Node& node) {
     if (inputs.size() > 1 && !ngraph::op::is_null(inputs.at(1))) {
         min = inputs.at(1);
     } else {
+        OPENVINO_SUPPRESS_DEPRECATED_START
         min = ngraph::get_constant_lowest_of_type(data_type);
+        OPENVINO_SUPPRESS_DEPRECATED_END
     }
 
     // If third input is provided, assign to max input, otherwise set maximum
@@ -49,7 +51,9 @@ OutputVector clip(const Node& node) {
     if (inputs.size() == 3 && !ngraph::op::is_null(inputs.at(2))) {
         max = inputs.at(2);
     } else {
+        OPENVINO_SUPPRESS_DEPRECATED_START
         max = ngraph::get_constant_max_of_type(data_type);
+        OPENVINO_SUPPRESS_DEPRECATED_END
     }
 
     const auto max_of_min_and_data = std::make_shared<default_opset::Maximum>(min, data);

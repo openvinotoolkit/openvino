@@ -140,7 +140,9 @@ void QuantizedConvolutionBatchNorm::SetUp() {
         auto output_high_weights = opset8::Constant::create(element::f32, Shape{}, {254});
         weights = std::make_shared<opset8::FakeQuantize>(weights, low_weights, high_weights, output_low_weights, output_high_weights, 255);
         weights = std::make_shared<opset8::Convert>(weights, element::i8);
+        OPENVINO_SUPPRESS_DEPRECATED_START
         weights = get_constant_from_source(weights);
+        OPENVINO_SUPPRESS_DEPRECATED_END
         weights = std::make_shared<opset8::Convert>(weights, element::f32);
         auto scale_weights = opset8::Constant::create(element::f32, weights_intervals_shape, {2.0 / 255.0});
         weights = std::make_shared<opset8::Multiply>(weights, scale_weights);

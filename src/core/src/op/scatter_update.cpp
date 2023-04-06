@@ -58,7 +58,9 @@ bool op::v3::ScatterUpdate::evaluate_scatter_update(const HostTensorVector& outp
 
     int64_t axis_val = host_tensor_2_vector<int64_t>(axis)[0];
     if (axis_val < 0) {
+        OPENVINO_SUPPRESS_DEPRECATED_START
         axis_val = ngraph::normalize_axis(this, axis_val, static_cast<int64_t>(data->get_shape().size()));
+        OPENVINO_SUPPRESS_DEPRECATED_END
     }
 
     std::vector<int64_t> indices_casted_vector;
@@ -126,5 +128,7 @@ bool op::v3::ScatterUpdate::has_evaluate() const {
 
 bool op::v3::ScatterUpdate::evaluate_label(TensorLabelVector& output_labels) const {
     OV_OP_SCOPE(v3_ScatterUpdate_evaluate_label);
+    OPENVINO_SUPPRESS_DEPRECATED_START
     return ov::default_label_evaluator(this, {0, 2}, output_labels);
+    OPENVINO_SUPPRESS_DEPRECATED_END
 }

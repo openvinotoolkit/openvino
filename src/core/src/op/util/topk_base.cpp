@@ -45,7 +45,9 @@ void ov::op::util::TopKBase::validate_and_infer_types() {
 
     set_axis(get_input_partial_shape(0).rank(), get_provided_axis());
 
+    OPENVINO_SUPPRESS_DEPRECATED_START
     const auto output_shapes = op::util::shape_infer(this, get_node_input_partial_shapes(*this));
+    OPENVINO_SUPPRESS_DEPRECATED_END
 
     set_output_type(0, get_input_element_type(0), output_shapes[0]);
     set_output_type(1, m_index_element_type, output_shapes[1]);
@@ -149,7 +151,9 @@ void ov::op::util::TopKBase::set_axis(const int64_t axis) {
 }
 
 void ov::op::util::TopKBase::set_axis(const Rank& input_rank, const int64_t axis) {
+    OPENVINO_SUPPRESS_DEPRECATED_START
     m_normalized_axis = input_rank.is_static() ? normalize_axis(this, axis, input_rank) : UNKNOWN_NORMALIZED_AXIS;
+    OPENVINO_SUPPRESS_DEPRECATED_END
     m_axis = axis;
 }
 

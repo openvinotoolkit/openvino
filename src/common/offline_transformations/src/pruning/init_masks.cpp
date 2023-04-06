@@ -86,7 +86,9 @@ public:
             while (!ngraph::is_type<opset6::Constant>(cur_node) && cur_node->inputs().size()) {
                 weights_calculation_nodes.push_back(cur_node);
                 if (ngraph::is_type<opset6::Transpose>(cur_node)) {
+                    OPENVINO_SUPPRESS_DEPRECATED_START
                     const auto forward_order = get_constant_from_source(cur_node->get_input_node_shared_ptr(1));
+                    OPENVINO_SUPPRESS_DEPRECATED_END
                     if (!forward_order)
                         return false;
                     const auto forward_order_vec = forward_order->cast_vector<int64_t>();

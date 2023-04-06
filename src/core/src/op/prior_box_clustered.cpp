@@ -55,7 +55,9 @@ void ov::op::v0::PriorBoxClustered::validate_and_infer_types() {
 
     set_input_is_relevant_to_shape(0);
 
+    OPENVINO_SUPPRESS_DEPRECATED_START
     if (auto const_shape = get_constant_from_source(input_value(0).get_node_shared_ptr())) {
+        OPENVINO_SUPPRESS_DEPRECATED_END
         NODE_VALIDATION_CHECK(this,
                               shape_size(const_shape->get_shape()) == 2,
                               "Layer shape must have rank 2",

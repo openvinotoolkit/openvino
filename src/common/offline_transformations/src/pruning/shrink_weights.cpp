@@ -37,7 +37,9 @@ static bool is_static_reshape_op(std::shared_ptr<ov::Node> node) {
     if (input.get_partial_shape().is_dynamic() || shape.get_partial_shape().is_dynamic())
         return false;
 
+    OPENVINO_SUPPRESS_DEPRECATED_START
     const auto output_shape_const_op = get_constant_from_source(shape);
+    OPENVINO_SUPPRESS_DEPRECATED_END
     if (!output_shape_const_op)
         return false;
 
@@ -59,7 +61,9 @@ static bool maybe_adopt_reshape_node(std::shared_ptr<ov::Node> reshape, ngraph::
         return false;
     }
 
+    OPENVINO_SUPPRESS_DEPRECATED_START
     const auto constant = get_constant_from_source(shape);
+    OPENVINO_SUPPRESS_DEPRECATED_END
     if (!constant) {
         return false;
     }
@@ -314,7 +318,9 @@ bool ngraph::pass::ShrinkWeights::run_on_model(const std::shared_ptr<ngraph::Fun
                 }
             }
             // Trying to fold sequence of Gather ops to avoid additional constant folding.
+            OPENVINO_SUPPRESS_DEPRECATED_START
             if (auto folded_const = ngraph::get_constant_from_source(last_output)) {
+                OPENVINO_SUPPRESS_DEPRECATED_END
                 last_output = folded_const;
             }
             // as we insert Gather operations after Constant we need to reconnect all

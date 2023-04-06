@@ -57,7 +57,9 @@ bool evaluate_hsigmoid(const HostTensorPtr& arg, const HostTensorPtr& out) {
 
 bool op::v5::HSigmoid::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const {
     OV_OP_SCOPE(v5_HSigmoid_evaluate);
+    OPENVINO_SUPPRESS_DEPRECATED_START
     NGRAPH_CHECK(validate_host_tensor_vector(outputs, 1) && validate_host_tensor_vector(inputs, 1));
+    OPENVINO_SUPPRESS_DEPRECATED_END
     return evaluate_hsigmoid(inputs[0], outputs[0]);
 }
 
