@@ -79,8 +79,6 @@ if(ENABLE_SSE42)
     endif()
 endif()
 
-addVersionDefines(src/ie_version.cpp CI_BUILD_NUMBER)
-
 set (PUBLIC_HEADERS_DIR "${CMAKE_CURRENT_SOURCE_DIR}/include")
 
 file (GLOB_RECURSE PUBLIC_HEADERS
@@ -129,6 +127,8 @@ add_library(${TARGET_NAME}_obj OBJECT
             ${LIBRARY_SRC}
             ${LIBRARY_HEADERS}
             ${PUBLIC_HEADERS})
+
+ov_add_version_defines(src/ie_version.cpp ${TARGET_NAME}_obj)
 
 if(NOT BUILD_SHARED_LIBS)
     target_compile_definitions(${TARGET_NAME}_obj PUBLIC OPENVINO_STATIC_LIBRARY)
