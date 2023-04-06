@@ -130,68 +130,69 @@ Run quantization
 
 The example code below shows a basic quantization workflow with accuracy control. ``UserDataLoader()`` is a placeholder for the implementation of ``DataLoader``.
 
+.. code-block:: python
+   
+   from openvino.tools.pot import IEEngine
+   from openvino.tools.pot load_model, save_model
+   from openvino.tools.pot import compress_model_weights
+   from openvino.tools.pot import create_pipeline
+   
+   # Model config specifies the model name and paths to model .xml and .bin file
+   model_config = Dict(
+       {
+           "model_name": "model",
+           "model": path_to_xml,
+           "weights": path_to_bin,
+       }
+   )
+   
+   # Engine config
+   engine_config = Dict({"device": "CPU"})
+   
+   algorithms = [
+       {
+           "name": "AccuracyAwareQuantization",
+           "params": {
+               "target_device": "ANY", 
+               "stat_subset_size": 300,
+               'maximal_drop': 0.02
+           },
+       }
+   ]
+   
+   # Step 1: Implement and create user's data loader.
+   data_loader = UserDataLoader()
+   
+   # Step 2: Implement and create user's data loader.
+   metric = Accuracy()
+   
+   # Step 3: Load the model.
+   model = load_model(model_config=model_config)
+   
+   # Step 4: Initialize the engine for metric calculation and statistics collection.
+   engine = IEEngine(config=engine_config, data_loader=data_loader, metric=metric)
+   
+   # Step 5: Create a pipeline of compression algorithms and run it.
+   pipeline = create_pipeline(algorithms, engine)
+   compressed_model = pipeline.run(model=model)
+   
+   # Step 6 (Optional): Compress model weights to quantized precision
+   #                    in order to reduce the size of the final .bin file.
+   compress_model_weights(compressed_model)
+   
+   # Step 7: Save the compressed model to the desired path.
+   # Set save_path to the directory where the model should be saved.
+   compressed_model_paths = save_model(
+       model=compressed_model,
+       save_path="optimized_model",
+       model_name="optimized_model",
+   )
+   
+   # Step 8 (Optional): Evaluate the compressed model. Print the results.
+   metric_results = pipeline.evaluate(compressed_model)
+   
 @endsphinxdirective
 
-```python
-from openvino.tools.pot import IEEngine
-from openvino.tools.pot load_model, save_model
-from openvino.tools.pot import compress_model_weights
-from openvino.tools.pot import create_pipeline
-
-# Model config specifies the model name and paths to model .xml and .bin file
-model_config = Dict(
-    {
-        "model_name": "model",
-        "model": path_to_xml,
-        "weights": path_to_bin,
-    }
-)
-
-# Engine config
-engine_config = Dict({"device": "CPU"})
-
-algorithms = [
-    {
-        "name": "AccuracyAwareQuantization",
-        "params": {
-            "target_device": "ANY", 
-            "stat_subset_size": 300,
-            'maximal_drop': 0.02
-        },
-    }
-]
-
-# Step 1: Implement and create user's data loader.
-data_loader = UserDataLoader()
-
-# Step 2: Implement and create user's data loader.
-metric = Accuracy()
-
-# Step 3: Load the model.
-model = load_model(model_config=model_config)
-
-# Step 4: Initialize the engine for metric calculation and statistics collection.
-engine = IEEngine(config=engine_config, data_loader=data_loader, metric=metric)
-
-# Step 5: Create a pipeline of compression algorithms and run it.
-pipeline = create_pipeline(algorithms, engine)
-compressed_model = pipeline.run(model=model)
-
-# Step 6 (Optional): Compress model weights to quantized precision
-#                    in order to reduce the size of the final .bin file.
-compress_model_weights(compressed_model)
-
-# Step 7: Save the compressed model to the desired path.
-# Set save_path to the directory where the model should be saved.
-compressed_model_paths = save_model(
-    model=compressed_model,
-    save_path="optimized_model",
-    model_name="optimized_model",
-)
-
-# Step 8 (Optional): Evaluate the compressed model. Print the results.
-metric_results = pipeline.evaluate(compressed_model)
-```
 
 It is worth noting that now the `evaluate` method that can compute accuracy on demand is also available in the `Pipeline` object.
 
