@@ -12,6 +12,45 @@
 
 #include "itt.hpp"
 
+namespace {
+// v4_sizes, v4_scales
+std::pair<ov::Output<ov::Node>, ov::Output<ov::Node>> make_v4_inputs(
+    const std::shared_ptr<ov::opset11::Interpolate>& interpolate) {
+    std::pair<ov::Output<ov::Node>, ov::Output<ov::Node>> ret;
+    std::shared_ptr<ov::Node> broadcast_shape;
+
+    if (interpolate->get_input_size() == 3) {
+        // broadcast dummy constant to the shape of axes
+        broadcast_shape = std::make_shared<ov::opset4::ShapeOf>(interpolate->input_value(2));
+        copy_runtime_info(interpolate, broadcast_shape);
+    } else {
+        // broadcast dummy constant to the rank of data
+        broadcast_shape = std::make_shared<ov::opset4::ShapeOf>(interpolate->input_value(0));
+        copy_runtime_info(interpolate, broadcast_shape);
+        broadcast_shape = std::make_shared<ov::opset4::ShapeOf>(broadcast_shape);
+        copy_runtime_info(interpolate, broadcast_shape);
+    }
+
+    if (interpolate->get_attrs().shape_calculation_mode == ov::op::util::InterpolateBase::ShapeCalcMode::SCALES) {
+        ret.second = interpolate->input_value(1);
+        std::shared_ptr<ov::Node> sizes_input = ov::opset4::Constant::create(ov::element::i32, ov::Shape{}, {1});
+        copy_runtime_info(interpolate, sizes_input);
+        sizes_input = std::make_shared<ov::opset4::Broadcast>(sizes_input, broadcast_shape);
+        copy_runtime_info(interpolate, sizes_input);
+        ret.first = sizes_input;
+    } else {
+        ret.first = interpolate->input_value(1);
+        std::shared_ptr<ov::Node> scales_input = ov::opset4::Constant::create(ov::element::f32, ov::Shape{}, {1.0f});
+        copy_runtime_info(interpolate, scales_input);
+        scales_input = std::make_shared<ov::opset4::Broadcast>(scales_input, broadcast_shape);
+        copy_runtime_info(interpolate, scales_input);
+        ret.second = scales_input;
+    }
+
+    return ret;
+}
+}  // namespace
+
 ov::pass::ConvertInterpolate11ToInterpolate4::ConvertInterpolate11ToInterpolate4() {
     MATCHER_SCOPE(ConvertInterpolate11ToInterpolate4);
 
@@ -34,38 +73,13 @@ ov::pass::ConvertInterpolate11ToInterpolate4::ConvertInterpolate11ToInterpolate4
             return false;
         }
 
-        const bool with_axes_input = interpolate_v11->get_input_size() == 3;
         // downgrade only if the interpolation mode used to create v11 is supported by v4
         std::shared_ptr<ov::opset4::Interpolate> interpolate_v4;
         ov::Output<ov::Node> v4_input_output_shape;
         ov::Output<ov::Node> v4_input_scales;
+        std::tie(v4_input_output_shape, v4_input_scales) = make_v4_inputs(interpolate_v11);
 
-        if (interpolate_v11->get_attrs().shape_calculation_mode ==
-            ov::op::util::InterpolateBase::ShapeCalcMode::SCALES) {
-            v4_input_scales = interpolate_v11->input_value(1);
-            v4_input_output_shape = opset4::Constant::create(element::i32, Shape{1}, {1});
-            copy_runtime_info(interpolate_v11, v4_input_output_shape.get_node_shared_ptr());
-
-            if (with_axes_input) {
-                const auto target_shape = std::make_shared<opset4::ShapeOf>(interpolate_v11->input_value(2));
-                copy_runtime_info(interpolate_v11, target_shape);
-                v4_input_output_shape = std::make_shared<opset4::Broadcast>(v4_input_output_shape, target_shape);
-                copy_runtime_info(interpolate_v11, v4_input_output_shape.get_node_shared_ptr());
-            }
-        } else {
-            v4_input_output_shape = interpolate_v11->input_value(1);
-            v4_input_scales = opset4::Constant::create(element::f32, Shape{1}, {1.0f});
-            copy_runtime_info(interpolate_v11, v4_input_scales.get_node_shared_ptr());
-
-            if (with_axes_input) {
-                const auto target_shape = std::make_shared<opset4::ShapeOf>(interpolate_v11->input_value(2));
-                copy_runtime_info(interpolate_v11, target_shape);
-                v4_input_scales = std::make_shared<opset4::Broadcast>(v4_input_scales, target_shape);
-                copy_runtime_info(interpolate_v11, v4_input_scales.get_node_shared_ptr());
-            }
-        }
-
-        if (with_axes_input) {  // with axes input
+        if (interpolate_v11->get_input_size() == 3) {  // with axes input
             interpolate_v4 = std::make_shared<ov::opset4::Interpolate>(interpolate_v11->input_value(0),
                                                                        v4_input_output_shape,
                                                                        v4_input_scales,
