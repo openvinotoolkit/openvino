@@ -191,14 +191,15 @@ The example code below shows a basic quantization workflow with accuracy control
    # Step 8 (Optional): Evaluate the compressed model. Print the results.
    metric_results = pipeline.evaluate(compressed_model)
    
+
+It is worth noting that now the ``evaluate`` method that can compute accuracy on demand is also available in the ``Pipeline`` object.
+
+In case when Accuracy-aware Quantization does not allow achieving the desired accuracy-performance trade-off, it is recommended to try Quantization-aware Training from :doc:`NNCF <tmo_introduction>`.
+
+Examples
+########
+
+ * `Quantization of Object Detection model with control of accuracy <https://github.com/openvinotoolkit/openvino/tree/master/tools/pot/openvino/tools/pot/api/samples/object_detection>`__
+
 @endsphinxdirective
-
-
-It is worth noting that now the `evaluate` method that can compute accuracy on demand is also available in the `Pipeline` object.
-
-In case when Accuracy-aware Quantization does not allow achieving the desired accuracy-performance trade-off, it is recommended to try Quantization-aware Training from [NNCF](@ref tmo_introduction).
-
-## Examples
-
- * [Quantization of Object Detection model with control of accuracy](https://github.com/openvinotoolkit/openvino/tree/master/tools/pot/openvino/tools/pot/api/samples/object_detection)
 
