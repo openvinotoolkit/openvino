@@ -32,17 +32,15 @@ class UniqueInternal(Op):
         input_shape = node.in_port(0).data.get_shape()
         if node.is_out_port_connected(0):
             if node.is_in_port_connected(1):
-              axis = node.in_port(1).data.get_value()
-              if axis:
-                  out_shape = input_shape.copy()
-                  out_shape[axis.item()] = dynamic_dimension
-                  node.out_port(0).data.set_shape(out_shape)
-              else:
-                node.out_port(0).data.set_shape(
-                shape_array([dynamic_dimension] * len(input_shape)))
+                axis = node.in_port(1).data.get_value()
+                assert axis, "Unique must have constant axis."
+                out_shape = input_shape.copy()
+                out_shape[axis.item()] = dynamic_dimension
+                node.out_port(0).data.set_shape(out_shape)
             else:
                 # no axis, means flattening
-                node.out_port(0).data.set_shape(shape_array([dynamic_dimension]))
+                node.out_port(0).data.set_shape(
+                    shape_array([dynamic_dimension]))
         if node.is_out_port_connected(1):
             node.out_port(1).data.set_shape(shape_array([dynamic_dimension]))
         if node.is_out_port_connected(2):

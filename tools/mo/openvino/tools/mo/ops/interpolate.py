@@ -11,18 +11,20 @@ from openvino.tools.mo.graph.graph import Node, Graph
 from openvino.tools.mo.graph.perm_inputs import PermuteInputs
 from openvino.tools.mo.ops.op import Op, PermuteAttrs
 
+
 def infer_for_opsetX(node: Node, opset: str):
     if opset == "opset4":
-        inputs = [3, 4]
         scales_port = 2
+        axes_port = 3
+        min_inputs_num = 3
     elif opset == "opset11":
-        inputs = [2, 3]
         scales_port = 1
+        axes_port = 2
+        min_inputs_num = 2
     else:
         raise "Unknown opset: {}".format(opset)
-    axes_port = inputs[0]
-    assert len([p for p in node.in_ports().values() if not p.disconnected()]) in inputs, \
-        "Interpolate node {} must have at lease 2 inputs".format(node.soft_get(node.name, node.id))
+    assert len([p for p in node.in_ports().values() if not p.disconnected()]) in [min_inputs_num, min_inputs_num + 1], \
+        "Interpolate node {} must have at least {} inputs".format(node.soft_get(node.name, node.id), axes_port)
     assert node.has_valid('mode')
     assert node.has_valid('shape_calculation_mode')
     src_shape = node.in_port(0).data.get_shape()
