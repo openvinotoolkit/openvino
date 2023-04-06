@@ -151,7 +151,7 @@ memory::ptr ocl_engine::allocate_memory(const layout& layout, allocation_type ty
         }
 
         if (reset || res->is_memory_reset_needed(layout)) {
-            res->fill(get_service_stream());
+            get_service_stream().wait_for_events({res->fill(get_service_stream())});
         }
 
         return res;

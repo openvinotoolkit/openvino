@@ -35,9 +35,8 @@ std::pair<bool, bool> are_layouts_identical(layout const& l1, layout const& l2) 
         return {false, false};
     // Reorders between bfyx, bfzyx, bfwzyx can pe reinterpeted as reshape when
     // there is no padding and both hold same number of elements.
-    if ((l1.format == format::bfyx || l1.format == format::bfzyx || l1.format == format::bfwzyx) &&
-        (l2.format == format::bfyx || l2.format == format::bfzyx || l2.format == format::bfwzyx) && !l1_pad &&
-        !l2_pad && l1.get_linear_size() == l2.get_linear_size())
+    if (format::is_default_format(l1.format) && format::is_default_format(l2.format) &&
+        !l1_pad && !l2_pad && l1.get_linear_size() == l2.get_linear_size())
         return {false, true};
     if (l1_size != l2_size)
         return {false, false};
@@ -506,20 +505,19 @@ bool layout::identical(const layout& other) const {
     return are_layouts_identical(*this, other).first;
 }
 
-ov::PartialShape layout::transform(cldnn::format new_fmt) const {
-    if (format == new_fmt) {
-        return size;
+ov::PartialShape layout::transform(const ov::PartialShape& pshape, cldnn::format old_fmt, cldnn::format new_fmt) {
+    if (old_fmt == new_fmt) {
+        return pshape;
     }
 
     cldnn::tensor::value_type default_size = -1;
-    auto shape = size.to_shape();
+    auto shape = pshape.to_shape();
     std::vector<tensor::value_type> dims;
     for (auto dim : shape) {
         dims.push_back(static_cast<tensor::value_type>(dim));
     }
-
     const cldnn::format default_fmt = cldnn::format::bfwzyx;
-    auto old_sizes = convert_dimensions(dims, format.order(), default_fmt.internal_order()); // convert to internal order (bfxyzw)
+    auto old_sizes = convert_dimensions(dims, old_fmt.order(), default_fmt.internal_order()); // convert to internal order (bfxyzw)
 
     auto val_order = default_fmt.internal_order();
     auto new_order = new_fmt.internal_order();

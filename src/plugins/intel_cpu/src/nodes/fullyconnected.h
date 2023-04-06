@@ -83,22 +83,7 @@ private:
     bool useConv1x1 = false;
     impl_desc_type implementationTypeIP;
     MemoryDescPtr weightDescIP;
-    // when weightCache is not enabled (such as stream=1), brgconv weights may change due to
-    // different shapes. Weights will be cached in privateWeightCache.
-    // When weightCache is enabled, it holds weight ptr reference since weightCache does not hold the
-    // reference
-    std::unordered_map<std::string, MemoryPtr> privateWeightCache;
     dnnl::primitive_attr attr;
-
-    class ExecutorInnerProduct : public DnnlExecutor {
-        public:
-            ExecutorInnerProduct(const dnnl::inner_product_forward::primitive_desc& pd);
-    };
-
-    class ExecutorConv1x1 : public DnnlExecutor {
-        public:
-            ExecutorConv1x1(const dnnl::convolution_forward::primitive_desc& pd);
-    };
 
     static dnnl::convolution_forward::primitive_desc
     createDescriptorInternalForConv(DnnlMemoryDescCPtr inputDescPtr,
@@ -109,7 +94,6 @@ private:
                                     const dnnl::engine& engine);
 
     bool canBeExecutedInConv1x1() const;
-    MemoryPtr prepareWeightMemory(const DnnlMemoryDescPtr weightDesc);
 
     // sparse weights
     bool useSparseWeights = false;

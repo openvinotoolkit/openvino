@@ -14,7 +14,7 @@ namespace v3 {
 /// \ingroup ov_ops_cpp_api
 class OPENVINO_API ScatterElementsUpdate : public Op {
 public:
-    OPENVINO_OP("ScatterElementsUpdate", "opset3", op::Op, 3);
+    OPENVINO_OP("ScatterElementsUpdate", "opset3", op::Op);
 
     ScatterElementsUpdate() = default;
     /// \brief Constructs a ScatterElementsUpdate node

@@ -6,13 +6,6 @@ set(CMAKE_INTERPROCEDURAL_OPTIMIZATION_RELEASE OFF)
 
 ov_try_use_gold_linker()
 
-if(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
-    ie_add_compiler_flags(/wd4244)
-    ie_add_compiler_flags(/wd4267)
-    ie_add_compiler_flags(/wd4305)
-    ie_add_compiler_flags(/wd4756)
-endif()
-
 message(STATUS "ONNX frontend test enabled")
 
 add_compile_definitions(
@@ -75,6 +68,7 @@ set(MULTI_TEST_SRC
     onnx_import_org_pytorch.in.cpp
     onnx_import_reshape.in.cpp
     onnx_import_rnn.in.cpp
+    onnx_import_signal.in.cpp
     onnx_import_quant.in.cpp
     onnx_test_utils.in.cpp
     onnx_import_with_editor.in.cpp)

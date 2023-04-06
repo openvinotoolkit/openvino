@@ -359,11 +359,11 @@ bool program_node::is_dynamic() {
 }
 
 bool program_node::is_dynamic_output_layout(size_t idx) const {
-    return (output_layouts[idx].is_dynamic()) ||  (output_layouts[idx].get_partial_shape().size() == 0);
+    return output_layouts[idx].is_dynamic();
 }
 
 bool program_node::is_dynamic_output_layout(size_t idx) {
-    return (output_layouts[idx].is_dynamic()) ||  (output_layouts[idx].get_partial_shape().size() == 0);
+    return output_layouts[idx].is_dynamic();
 }
 
 bool program_node::has_padded_dependency() {
@@ -378,6 +378,16 @@ bool program_node::has_padded_dependency() const {
     });
 }
 
+bool program_node::is_fused_dep(size_t dep_idx) const {
+    for (auto fused : get_fused_primitives()) {
+        if (dep_idx >= fused.dep_start_idx) {
+            return true;
+        }
+    }
+
+    return false;
+}
+
 std::map<size_t, memory::ptr> program_node::get_const_memory_deps() const {
     std::map<size_t, memory::ptr> mem_deps;
     for (auto& i : get_shape_infer_dependencies()) {
@@ -385,6 +395,12 @@ std::map<size_t, memory::ptr> program_node::get_const_memory_deps() const {
         if (i >= get_dependencies().size())
             continue;
 
+        // exclude fused dependency
+        if (is_fused_dep(i)) {
+            continue;
+        }
+
+        // constant type only
         auto& dep = get_dependency(i);
         if (dep.is_type<data>()) {
             mem_deps.insert({i, dep.as<data>().get_attached_memory_ptr()});
@@ -902,8 +918,10 @@ void program_node::init_onednn_primitive_attributes() {
     // Add information about post-operation into the list, update indices
     auto update_onednn_post_op_list = [&](onednn_post_op_type type, size_t m_dep,
                                           dnnl::memory::format_tag tag = dnnl::memory::format_tag::undef,
-                                          bool flatten = false) {
-        fused_primitive_desc_onednn cur_op_desc = { type, memory_offset, m_dep, tag, flatten };
+                                          bool flatten = false,
+                                          dnnl::memory::dims dims = {},
+                                          dnnl::memory::data_type dt = dnnl::memory::data_type::undef) {
+        fused_primitive_desc_onednn cur_op_desc = { type, memory_offset, m_dep, tag, flatten, dims, dt };
         fused_ops.push_back(cur_op_desc);
 
         auto has_memory_buffers = type == onednn_post_op_type::binary_add ||
@@ -968,14 +986,14 @@ void program_node::init_onednn_primitive_attributes() {
                         cldnn::onednn::combine_bf_with_first_spatial_dim(in);
                     }
                     post_ops.append_binary(alg, onednn::layout_to_memory_desc(in, dnnl::memory::format_tag::ab));
-                    update_onednn_post_op_list(op_type, dep_idx);
+                    update_onednn_post_op_list(op_type, dep_idx, dnnl::memory::format_tag::ab);
                 } else if (is_type<gemm>()) {
                     size_t rank = cldnn::format::dimension(in.format);
                     dnnl::memory::dims dims = onednn::convert_gemm_tensor(in.get_tensor(), rank, in.batch() == 1);
                     dnnl::memory::data_type dt = onednn::convert_data_type(in.data_type);
                     dnnl::memory::format_tag fmt = onednn::convert_gemm_data_format(dims);
                     post_ops.append_binary(alg, dnnl::memory::desc(dims, dt, fmt));
-                    update_onednn_post_op_list(op_type, dep_idx);
+                    update_onednn_post_op_list(op_type, dep_idx, fmt, false, dims, dt);
                 } else {
                     post_ops.append_binary(alg, onednn::layout_to_memory_desc(in));
                     update_onednn_post_op_list(op_type, dep_idx);

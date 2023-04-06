@@ -19,6 +19,7 @@
 #include "transformations/utils/utils.hpp"
 #include "rnn_sequences_optimization.hpp"
 #include "transformations/common_optimizations/reshape_sequence_fusion.hpp"
+#include "ngram_fusion.hpp"
 
 #include "itt.hpp"
 
@@ -45,6 +46,7 @@ inline void ConvertToCPUSpecificOpset(std::shared_ptr<ngraph::Function> &nGraphF
     manager.register_pass<ov::pass::ReshapeSequenceFusion>();
     manager.register_pass<ngraph::pass::ConstantFolding>();
     manager.register_pass<ov::pass::ConvertPrecision>(precisions_map {{ ngraph::element::i64, ngraph::element::i32 }});
+    manager.register_pass<NgramFusion>();
     manager.register_pass<ov::pass::Validate>();
 
     manager.run_passes(nGraphFunc);
