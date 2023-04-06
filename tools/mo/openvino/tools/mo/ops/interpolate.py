@@ -135,6 +135,8 @@ class Interpolate(Op):
                 ('pads_end', lambda node: pad_attribute_to_str(node, 'pads_end')),
             ]
         }
+        # attributes for opset11 are same as for opset4
+        self.attributes_for_opsets['opset11'] = self.attributes_for_opsets['opset4']
 
         mandatory_props = {
             'op': self.op,
