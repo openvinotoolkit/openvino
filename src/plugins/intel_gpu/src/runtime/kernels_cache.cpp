@@ -93,7 +93,8 @@ void kernels_cache::get_program_source(const kernels_code& kernels_source_code, 
         auto& code = k.second;
         bool dump_custom_program = code.dump_custom_program;
 
-        for (auto kernel_string : code.kernel_strings) {
+        for (size_t kernel_part_idx = 0; kernel_part_idx < code.kernel_strings.size(); kernel_part_idx++) {
+            auto& kernel_string = code.kernel_strings[kernel_part_idx];
             std::string full_code = kernel_string->jit + kernel_string->str + kernel_string->undefs;
             std::string entry_point = kernel_string->entry_point;
             std::string options = kernel_string->options;
@@ -132,7 +133,7 @@ void kernels_cache::get_program_source(const kernels_code& kernels_source_code, 
 
             auto& current_batch = current_bucket.back();
             current_batch.dump_custom_program = dump_custom_program;
-            current_batch.entry_point_to_id.emplace(entry_point, code.params);
+            current_batch.entry_point_to_id.emplace(entry_point, std::make_pair(code.params, kernel_part_idx));
 
             current_batch.source.push_back(std::move(full_code));
             current_batch.kernels_counter++;
@@ -283,11 +284,12 @@ void kernels_cache::build_batch(const engine& build_engine, const batch_program&
                     cl_kernel kern = k.get();
                     cl_context context = cl_build_engine.get_cl_context().get();
                     kernel::ptr kernel = kernels_factory::create(_engine, context, kern, entry_point);
-                    auto& params = iter->second;
+                    auto& params = iter->second.first;
+                    auto kernel_part_idx = iter->second.second;
                     if (compiled_kernels.find(params) != compiled_kernels.end()) {
-                        compiled_kernels[params].push_back(kernel);
+                        compiled_kernels[params].push_back(std::make_pair(kernel, kernel_part_idx));
                     } else {
-                        compiled_kernels[params] = { kernel };
+                        compiled_kernels[params] = { std::make_pair(kernel, kernel_part_idx) };
                     }
                 } else {
                     throw std::runtime_error("Could not find entry point");
@@ -345,11 +347,13 @@ std::vector<kernel::ptr> kernels_cache::get_kernels(kernel_impl_params params) c
     }
     auto res = _kernels.find(params);
     OPENVINO_ASSERT(_kernels.end() != res, "Kernel for {" + current_node_id + "} is not found in the kernel cache!");
+    OPENVINO_ASSERT(res->second.size() != 0, "Number of kernels should not be zero for " + current_node_id);
 
-    std::vector<kernel::ptr> kernels;
-    kernels.reserve(res->second.size());
+    std::vector<kernel::ptr> kernels(res->second.size());
     for (auto& k : res->second) {
-        kernels.emplace_back(k->clone());
+        auto& kernel_ptr = k.first;
+        auto kernel_part_idx = k.second;
+        kernels[kernel_part_idx] = kernel_ptr->clone();
     }
     return kernels;
 }
@@ -565,7 +569,10 @@ void kernels_cache::load(BinaryInputBuffer& ib) {
 kernels_cache::compiled_kernels kernels_cache::compile(const kernel_impl_params& params,
                                             const std::vector<std::shared_ptr<kernel_string>>& kernel_sources,
                                             bool dump_custom_program) {
-    OV_ITT_SCOPED_TASK(ov::intel_gpu::itt::domains::intel_gpu_plugin, "KernelsCache::Compile_ThreadSafe");
+    OV_ITT_SCOPED_TASK(ov::intel_gpu::itt::domains::intel_gpu_plugin, "KernelsCache::compile");
+    if (kernel_sources.empty())
+        return {};
+
     kernels_code t_kernels_code;
 
     // Get kernels code from kernel sources
@@ -585,6 +592,8 @@ kernels_cache::compiled_kernels kernels_cache::compile(const kernel_impl_params&
         build_batch(_build_engine, batches[idx], output_kernels);
     }
 
+    OPENVINO_ASSERT(output_kernels.size() == 1, "Only the kernels of the single primitive should be compiled.");
+
     t_kernels_code.clear();
 #if defined(__unix__) && !defined(__ANDROID__)
     //  NOTE: In linux, without malloc_trim, an amount of the memory used by compilation is not being returned to system thought they are freed.
@@ -597,5 +606,4 @@ kernels_cache::compiled_kernels kernels_cache::compile(const kernel_impl_params&
 
     return output_kernels;
 }
-
 }  // namespace cldnn
