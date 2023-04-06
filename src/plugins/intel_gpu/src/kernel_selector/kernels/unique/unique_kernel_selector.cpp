@@ -21,4 +21,17 @@ unique_kernel_selector& unique_kernel_selector::Instance() {
     return instance;
 }
 
+unique_reshape_kernel_selector::unique_reshape_kernel_selector() {
+    Attach<UniqueReshapeKernelRef>();
+}
+
+KernelsData unique_reshape_kernel_selector::GetBestKernels(const Params& params, const optional_params& options) const {
+    return GetNaiveBestKernel(params, options, KernelType::UNIQUE_RESHAPE);
+}
+
+unique_reshape_kernel_selector& unique_reshape_kernel_selector::Instance() {
+    static unique_reshape_kernel_selector instance;
+    return instance;
+}
+
 }  // namespace kernel_selector

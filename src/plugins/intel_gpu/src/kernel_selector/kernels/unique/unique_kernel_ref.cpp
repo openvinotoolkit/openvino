@@ -10,19 +10,18 @@ namespace kernel_selector {
 
 namespace {
 
-JitConstants MakeAxisJitConstants(const unique_params& kernel_params) {
+JitConstants MakeAxisJitConstants(size_t rank, int64_t axis, const std::string& input_num) {
     const std::map<char, std::string> dimensions_sizes_map = {
-        {'b', "INPUT0_BATCH_NUM"},
-        {'f', "INPUT0_FEATURE_NUM"},
-        {'w', "INPUT0_SIZE_W"},
-        {'z', "INPUT0_SIZE_Z"},
-        {'y', "INPUT0_SIZE_Y"},
-        {'x', "INPUT0_SIZE_X"},
+        {'b', "INPUT" + input_num + "_BATCH_NUM"},
+        {'f', "INPUT" + input_num + "_FEATURE_NUM"},
+        {'w', "INPUT" + input_num + "_SIZE_W"},
+        {'z', "INPUT" + input_num + "_SIZE_Z"},
+        {'y', "INPUT" + input_num + "_SIZE_Y"},
+        {'x', "INPUT" + input_num + "_SIZE_X"},
     };
 
-    const auto in_rank = kernel_params.inputs.front().Dimentions();
-    auto dimensions = [in_rank]() -> std::vector<char> {
-        switch (in_rank) {
+    auto dimensions = [rank]() -> std::vector<char> {
+        switch (rank) {
         case 4:
             return {'b', 'f', 'y', 'x'};
         case 5:
@@ -32,7 +31,7 @@ JitConstants MakeAxisJitConstants(const unique_params& kernel_params) {
         }
         throw std::invalid_argument("Unsupported input rank for unique primitive");
     }();
-    auto& axis_dimension = dimensions.at(kernel_params.axis);
+    auto& axis_dimension = dimensions.at(axis);
 
     const auto axis_length_name = "AXIS_LENGTH";
     const auto axis_length_val = dimensions_sizes_map.at(axis_dimension);
@@ -127,7 +126,7 @@ bool UniqueKernelRef::Validate(const Params& params, const optional_params& opti
     if (kernel_params.inputs.size() != 1) {
         return false;
     }
-    if (kernel_params.outputs.size() != 4 && kernel_params.outputs.size() != 5) {
+    if (kernel_params.outputs.size() != 5) {
         return false;
     }
 
@@ -143,13 +142,97 @@ JitConstants UniqueKernelRef::GetJitConstants(const unique_params& kernel_params
     });
 
     if (!kernel_params.flattened) {
-        jit_constants.Merge(MakeAxisJitConstants(kernel_params));
+        jit_constants.Merge(MakeAxisJitConstants(kernel_params.inputs.front().Dimentions(), kernel_params.axis, "0"));
     }
 
     return jit_constants;
 }
 
 CommonDispatchData UniqueKernelRef::SetDefault(const unique_params& /* kernel_params */) {
+    CommonDispatchData dispatch_data;
+
+    // For now we run only in one thread
+    // TODO: Parallelize
+    dispatch_data.gws = {1, 1, 1};
+    dispatch_data.lws = {1, 1, 1};
+
+    return dispatch_data;
+}
+
+KernelsData UniqueReshapeKernelRef::GetKernelsData(const Params& params, const optional_params& options) const {
+    if (!Validate(params, options)) {
+        return {};
+    }
+
+    auto kernel_data = KernelData::Default<unique_reshape_params>(params);
+    const auto& kernel_params = dynamic_cast<const unique_reshape_params&>(*kernel_data.params);
+    const auto dispatch_data = SetDefault(kernel_params);
+    const auto entry_point = GetEntryPoint(kernelName, kernel_params.layerID, params, options);
+    const auto jit_constants = GetJitConstants(kernel_params);
+    const auto jit = CreateJit(kernelName, jit_constants, entry_point);
+    auto& kernel = kernel_data.kernels.front();
+
+    FillCLKernelData(kernel,
+                     dispatch_data,
+                     params.engineInfo,
+                     kernelName,
+                     jit,
+                     entry_point,
+                     {},
+                     false,
+                     false,
+                     kernel_params.inputs.size(),
+                     GetFusedPrimitiveInputsCount(kernel_params),
+                     kernel_params.outputs.size());
+
+    return {kernel_data};
+}
+
+ParamsKey UniqueReshapeKernelRef::GetSupportedKey() const {
+    ParamsKey key;
+    key.EnableAllInputDataType();
+    key.EnableAllOutputDataType();
+    key.EnableDifferentTypes();
+    key.EnableAllInputLayout();
+    key.EnableAllOutputLayout();
+    key.EnableTensorOffset();
+    key.EnableTensorPitches();
+    key.EnableBatching();
+    return key;
+}
+
+bool UniqueReshapeKernelRef::Validate(const Params& params, const optional_params& options) const {
+    if (params.GetType() != KernelType::UNIQUE_RESHAPE || options.GetType() != KernelType::UNIQUE_RESHAPE) {
+        return false;
+    }
+
+    const auto& kernel_params = dynamic_cast<const unique_reshape_params&>(params);
+    if (kernel_params.inputs.size() != 5) {
+        return false;
+    }
+    if (kernel_params.outputs.size() != 4) {
+        return false;
+    }
+
+    return true;
+}
+
+JitConstants UniqueReshapeKernelRef::GetJitConstants(const unique_reshape_params& kernel_params) const {
+    auto jit_constants = MakeBaseParamsJitConstants(kernel_params);
+
+    jit_constants.AddConstants({
+        MakeJitConstant("FLATTENED", kernel_params.flattened),
+        MakeJitConstant("AXIS", kernel_params.axis),
+    });
+
+    if (!kernel_params.flattened) {
+        jit_constants.Merge(MakeAxisJitConstants(kernel_params.inputs.at(1).Dimentions(), kernel_params.axis, "1"));
+    }
+
+    return jit_constants;
+}
+
+CommonDispatchData UniqueReshapeKernelRef::SetDefault(const unique_reshape_params& /* kernel_params */) {
     CommonDispatchData dispatch_data;
 
     // For now we run only in one thread

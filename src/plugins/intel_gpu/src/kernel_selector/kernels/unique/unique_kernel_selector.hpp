@@ -18,4 +18,11 @@ public:
     static unique_kernel_selector& Instance();
 };
 
+class unique_reshape_kernel_selector : public kernel_selector_base {
+public:
+    unique_reshape_kernel_selector();
+    KernelsData GetBestKernels(const Params& params, const optional_params& options) const override;
+    static unique_reshape_kernel_selector& Instance();
+};
+
 }  // namespace kernel_selector

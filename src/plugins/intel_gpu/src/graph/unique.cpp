@@ -7,11 +7,16 @@
 #include <sstream>
 #include <string>
 
+#include "intel_gpu/runtime/memory.hpp"
 #include "json_object.h"
 #include "primitive_type_base.h"
 #include "unique_inst.hpp"
 
 namespace cldnn {
+
+// -----------------------------------------------
+// unique
+// -----------------------------------------------
 GPU_DEFINE_PRIMITIVE_TYPE_ID(unique)
 
 layout unique_inst::calc_output_layout(const unique_node& node, const kernel_impl_params& impl_param) {
@@ -23,18 +28,35 @@ std::vector<layout> unique_inst::calc_output_layouts(const unique_node& node, co
     std::vector<layout> layouts;
     const auto desc = impl_param.typed_desc<unique>();
     const auto input_layout = impl_param.get_input_layout();
-    const auto input_shape = input_layout.get_partial_shape();
 
     // TODO: Properly calculate dynamic outputs
-    std::vector<ShapeType> output_shapes = {ShapeType(), ShapeType(), ShapeType(), ShapeType()};
-    output_shapes.at(0) = input_shape;
+    std::vector<ShapeType> output_shapes = {ShapeType(), ShapeType(), ShapeType(), ShapeType(), ShapeType()};
 
-    if (desc->flattened) {
-        const auto input_tensor_capacity = ov::shape_size(input_shape.to_shape());
-        output_shapes.at(0) = ov::Shape{input_tensor_capacity};
+    if (impl_param.memory_deps.empty()) {
+        output_shapes.at(0) = ov::PartialShape{ov::Dimension::dynamic()};
+        output_shapes.at(1) = ov::PartialShape::dynamic(input_layout.get_partial_shape().rank());
+        output_shapes.at(2) = ov::PartialShape{ov::Dimension::dynamic()};
+        output_shapes.at(3) = ov::PartialShape{ov::Dimension::dynamic()};
+        output_shapes.at(4) = ov::PartialShape{ov::Dimension::dynamic()};
+    } else {
+        const auto input_shape = input_layout.get_shape();
+        output_shapes.at(0) = ov::Shape{1};
+        if (desc->flattened) {
+            const auto input_tensor_capacity = ov::shape_size(input_shape);
+            output_shapes.at(1) = ov::Shape{input_tensor_capacity};
+            output_shapes.at(2) = ov::Shape{input_tensor_capacity};
+            output_shapes.at(3) = ov::Shape{input_tensor_capacity};
+            output_shapes.at(4) = ov::Shape{input_tensor_capacity};
+        } else {
+            const auto axis_dimension = input_shape.at(desc->axis);
+            output_shapes.at(1) = input_shape;
+            output_shapes.at(2) = ov::Shape{axis_dimension};
+            output_shapes.at(3) = ov::Shape{axis_dimension};
+            output_shapes.at(4) = ov::Shape{axis_dimension};
+        }
     }
 
-    for (size_t i = 0; i < desc->num_outputs; ++i) {
+    for (auto i = 0U; i < desc->num_outputs; ++i) {
         const auto& output_shape = output_shapes.at(i);
         const auto output_dt = desc->output_data_types.at(i).value();
         layouts.push_back({output_shape, output_dt, format::get_default_format(output_shape.size())});
@@ -57,6 +79,79 @@ std::string unique_inst::to_string(const unique_node& node) {
 
     auto node_info = node.desc_to_json();
     node_info->add("unique info", unique_info);
+
+    std::ostringstream primitive_description;
+    node_info->dump(primitive_description);
+    return primitive_description.str();
+}
+
+// -----------------------------------------------
+// unique_reshape
+// -----------------------------------------------
+GPU_DEFINE_PRIMITIVE_TYPE_ID(unique_reshape)
+
+layout unique_reshape_inst::calc_output_layout(const unique_reshape_node& node, const kernel_impl_params& impl_param) {
+    OPENVINO_THROW("Only calc_output_layouts should be used!");
+}
+
+template <typename ShapeType>
+std::vector<layout> unique_reshape_inst::calc_output_layouts(const unique_reshape_node& node,
+                                                             const kernel_impl_params& impl_param) {
+    std::vector<layout> layouts;
+    const auto desc = impl_param.typed_desc<unique_reshape>();
+    const auto input_layout = impl_param.get_input_layout(1);
+
+    // TODO: Properly calculate dynamic outputs
+    std::vector<ShapeType> output_shapes = {ShapeType(), ShapeType(), ShapeType(), ShapeType()};
+
+    if (impl_param.memory_deps.empty()) {
+        output_shapes.at(0) = ov::PartialShape::dynamic(input_layout.get_partial_shape().rank());
+        output_shapes.at(1) = ov::PartialShape{ov::Dimension::dynamic()};
+        output_shapes.at(2) = ov::PartialShape{ov::Dimension::dynamic()};
+        output_shapes.at(3) = ov::PartialShape{ov::Dimension::dynamic()};
+    } else {
+        const auto input_shape = input_layout.get_shape();
+        const size_t unique_count = read_vector<int64_t>(impl_param.memory_deps.at(0), impl_param.get_stream()).at(0);
+        if (desc->flattened) {
+            const auto input_tensor_capacity = ov::shape_size(input_shape);
+            output_shapes.at(0) = ov::Shape{unique_count};
+            output_shapes.at(1) = ov::Shape{unique_count};
+            output_shapes.at(2) = ov::Shape{input_tensor_capacity};
+            output_shapes.at(3) = ov::Shape{unique_count};
+        } else {
+            auto output_shape = input_shape;
+            auto& new_axis_dimension = output_shape.at(desc->axis);
+            const auto old_axis_dimension = new_axis_dimension;
+            new_axis_dimension = unique_count;
+            output_shapes.at(0) = output_shape;
+            output_shapes.at(1) = ov::Shape{new_axis_dimension};
+            output_shapes.at(2) = ov::Shape{old_axis_dimension};
+            output_shapes.at(3) = ov::Shape{new_axis_dimension};
+        }
+    }
+
+    for (auto i = 0U; i < desc->num_outputs; ++i) {
+        const auto& output_shape = output_shapes.at(i);
+        const auto output_dt = desc->output_data_types.at(i).value();
+        layouts.push_back({output_shape, output_dt, format::get_default_format(output_shape.size())});
+    }
+
+    return layouts;
+}
+
+template std::vector<layout> unique_reshape_inst::calc_output_layouts<ov::PartialShape>(
+    const unique_reshape_node& node,
+    const kernel_impl_params& impl_param);
+
+std::string unique_reshape_inst::to_string(const unique_reshape_node& node) {
+    auto primitive = node.get_primitive();
+    json_composite unique_reshape_info;
+    unique_reshape_info.add("input", node.input().id());
+    if (!primitive->flattened) {
+        unique_reshape_info.add("axis", primitive->axis);
+    }
+    auto node_info = node.desc_to_json();
+    node_info->add("unique_reshape info", unique_reshape_info);
 
     std::ostringstream primitive_description;
     node_info->dump(primitive_description);

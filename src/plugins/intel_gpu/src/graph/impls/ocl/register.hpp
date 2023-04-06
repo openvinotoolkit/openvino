@@ -176,6 +176,7 @@ REGISTER_OCL(count_nonzero);
 REGISTER_OCL(gather_nonzero);
 REGISTER_OCL(eye);
 REGISTER_OCL(unique);
+REGISTER_OCL(unique_reshape);
 
 #undef REGISTER_OCL
 

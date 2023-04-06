@@ -17,10 +17,6 @@ struct typed_program_node<unique> : typed_program_node_base<unique> {
     program_node& input() const {
         return get_dependency(0);
     }
-
-    bool generates_dynamic_output() const override {
-        return true;
-    }
 };
 
 using unique_node = typed_program_node<unique>;
@@ -38,5 +34,36 @@ public:
 };
 
 using unique_inst = typed_primitive_inst<unique>;
+
+template <>
+struct typed_program_node<unique_reshape> : typed_program_node_base<unique_reshape> {
+    using parent = typed_program_node_base<unique_reshape>;
+    using parent::parent;
+
+    program_node& input() const {
+        return get_dependency(0);
+    }
+
+    bool generates_dynamic_output() const override {
+        return true;
+    }
+};
+
+using unique_reshape_node = typed_program_node<unique_reshape>;
+
+template <>
+class typed_primitive_inst<unique_reshape> : public typed_primitive_inst_base<unique_reshape> {
+public:
+    using parent = typed_primitive_inst_base<unique_reshape>;
+    using parent::parent;
+
+    static layout calc_output_layout(const unique_reshape_node& node, const kernel_impl_params& impl_param);
+    template <typename ShapeType>
+    static std::vector<layout> calc_output_layouts(const unique_reshape_node& node,
+                                                   const kernel_impl_params& impl_param);
+    static std::string to_string(const unique_reshape_node& node);
+};
+
+using unique_reshape_inst = typed_primitive_inst<unique_reshape>;
 
 }  // namespace cldnn

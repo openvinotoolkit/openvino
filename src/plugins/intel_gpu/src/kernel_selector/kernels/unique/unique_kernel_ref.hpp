@@ -31,7 +31,6 @@ struct unique_optional_params : optional_params {
 class UniqueKernelRef : public KernelBaseOpenCL {
 public:
     UniqueKernelRef() : KernelBaseOpenCL{"unique_ref"} {}
-
     KernelsData GetKernelsData(const Params& params, const optional_params& options) const override;
     ParamsKey GetSupportedKey() const override;
 
@@ -39,6 +38,37 @@ protected:
     bool Validate(const Params& params, const optional_params& options) const override;
     JitConstants GetJitConstants(const unique_params& kernel_params) const;
     static CommonDispatchData SetDefault(const unique_params& kernel_params);
+};
+
+/**
+ * UniqueReshape reference kernel parameters.
+ */
+struct unique_reshape_params : base_params {
+    unique_reshape_params() : base_params(KernelType::UNIQUE_RESHAPE) {}
+    bool flattened{};
+    int64_t axis{};
+};
+
+/**
+ * UniqueReshape reference kernel optional parameters.
+ */
+struct unique_reshape_optional_params : optional_params {
+    unique_reshape_optional_params() : optional_params(KernelType::UNIQUE_RESHAPE) {}
+};
+
+/**
+ * Reference kernel for UniqueReshape.
+ */
+class UniqueReshapeKernelRef : public KernelBaseOpenCL {
+public:
+    UniqueReshapeKernelRef() : KernelBaseOpenCL{"unique_reshape_ref"} {}
+    KernelsData GetKernelsData(const Params& params, const optional_params& options) const override;
+    ParamsKey GetSupportedKey() const override;
+
+protected:
+    bool Validate(const Params& params, const optional_params& options) const override;
+    JitConstants GetJitConstants(const unique_reshape_params& kernel_params) const;
+    static CommonDispatchData SetDefault(const unique_reshape_params& kernel_params);
 };
 
 }  // namespace kernel_selector

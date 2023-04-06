@@ -8,66 +8,66 @@
 #    define LENGTH AXIS_LENGTH
 #endif
 
-inline void FUNC(swap_out_unique_elements)(__global OUTPUT_TYPE* a, __global OUTPUT_TYPE* b) {
-    const OUTPUT_TYPE temp = *a;
-    *a = *b;
-    *b = temp;
-}
-
-inline void FUNC(swap_out_indices)(__global OUTPUT1_TYPE* a, __global OUTPUT1_TYPE* b) {
+inline void FUNC(swap_out_unique_elements)(__global OUTPUT1_TYPE* a, __global OUTPUT1_TYPE* b) {
     const OUTPUT1_TYPE temp = *a;
     *a = *b;
     *b = temp;
 }
 
+inline void FUNC(swap_out_indices)(__global OUTPUT2_TYPE* a, __global OUTPUT2_TYPE* b) {
+    const OUTPUT2_TYPE temp = *a;
+    *a = *b;
+    *b = temp;
+}
+
 #if !FLATTENED
-inline bool FUNC(compare_slices_ascending)(const __global OUTPUT_TYPE* out_unique_elements, uint lhs, uint rhs) {
+inline bool FUNC(compare_slices_ascending)(const __global OUTPUT1_TYPE* out_unique_elements, uint lhs, uint rhs) {
     ITERATE(
-        if (out_unique_elements[GET_INDEX(OUTPUT, lhs)] > out_unique_elements[GET_INDEX(OUTPUT, rhs)]) {
+        if (out_unique_elements[GET_INDEX(OUTPUT1, lhs)] > out_unique_elements[GET_INDEX(OUTPUT1, rhs)]) {
             return true;
-        } else if (out_unique_elements[GET_INDEX(OUTPUT, lhs)] < out_unique_elements[GET_INDEX(OUTPUT, rhs)]) {
+        } else if (out_unique_elements[GET_INDEX(OUTPUT1, lhs)] < out_unique_elements[GET_INDEX(OUTPUT1, rhs)]) {
             return false;
         } else { continue; })
     return false;
 }
 
-inline void FUNC(swap_slices)(__global OUTPUT_TYPE* out_unique_elements, uint lhs, uint rhs) {
-    ITERATE(FUNC_CALL(swap_out_unique_elements)(&out_unique_elements[GET_INDEX(OUTPUT, lhs)],
-                                                &out_unique_elements[GET_INDEX(OUTPUT, rhs)]);)
+inline void FUNC(swap_slices)(__global OUTPUT1_TYPE* out_unique_elements, uint lhs, uint rhs) {
+    ITERATE(FUNC_CALL(swap_out_unique_elements)(&out_unique_elements[GET_INDEX(OUTPUT1, lhs)],
+                                                &out_unique_elements[GET_INDEX(OUTPUT1, rhs)]);)
 }
 
-inline bool FUNC(slices_are_equal)(const __global OUTPUT_TYPE* out_unique_elements, uint lhs, uint rhs) {
-    ITERATE(if (out_unique_elements[GET_INDEX(OUTPUT, lhs)] != out_unique_elements[GET_INDEX(OUTPUT, rhs)]) {
+inline bool FUNC(slices_are_equal)(const __global OUTPUT1_TYPE* out_unique_elements, uint lhs, uint rhs) {
+    ITERATE(if (out_unique_elements[GET_INDEX(OUTPUT1, lhs)] != out_unique_elements[GET_INDEX(OUTPUT1, rhs)]) {
         return false;
     })
     return true;
 }
 
-inline void FUNC(assign_slice)(__global OUTPUT_TYPE* out_unique_elements, uint lhs, uint rhs) {
-    ITERATE(out_unique_elements[GET_INDEX(OUTPUT, lhs)] = out_unique_elements[GET_INDEX(OUTPUT, rhs)];)
+inline void FUNC(assign_slice)(__global OUTPUT1_TYPE* out_unique_elements, uint lhs, uint rhs) {
+    ITERATE(out_unique_elements[GET_INDEX(OUTPUT1, lhs)] = out_unique_elements[GET_INDEX(OUTPUT1, rhs)];)
 }
 
 // We have almost the same versions of slices_are_equal and assign_slice functions, but here we use INPUT0 for GET_INDEX
-inline bool FUNC(slices_are_equal_in)(const __global OUTPUT_TYPE* out_unique_elements,
+inline bool FUNC(slices_are_equal_in)(const __global OUTPUT1_TYPE* out_unique_elements,
                                       uint lhs,
                                       const __global INPUT0_TYPE* input,
                                       uint rhs) {
-    ITERATE(if (out_unique_elements[GET_INDEX(OUTPUT, lhs)] != input[GET_INDEX(INPUT0, rhs)]) { return false; })
+    ITERATE(if (out_unique_elements[GET_INDEX(OUTPUT1, lhs)] != input[GET_INDEX(INPUT0, rhs)]) { return false; })
     return true;
 }
 
-inline void FUNC(assign_slice_in)(__global OUTPUT_TYPE* out_unique_elements,
+inline void FUNC(assign_slice_in)(__global OUTPUT1_TYPE* out_unique_elements,
                                   uint lhs,
                                   const __global INPUT0_TYPE* input,
                                   uint rhs) {
-    ITERATE(out_unique_elements[GET_INDEX(OUTPUT, lhs)] = input[GET_INDEX(INPUT0, rhs)];)
+    ITERATE(out_unique_elements[GET_INDEX(OUTPUT1, lhs)] = input[GET_INDEX(INPUT0, rhs)];)
 }
 #endif
 
 // We use bubble sort here, because we need stable sort
 // TODO: Change to better stable sort algorithm
-inline void FUNC(bubbleSort)(__global OUTPUT_TYPE* out_unique_elements,
-                             __global OUTPUT1_TYPE* out_indices,
+inline void FUNC(bubbleSort)(__global OUTPUT1_TYPE* out_unique_elements,
+                             __global OUTPUT2_TYPE* out_indices,
                              uint l,
                              uint h) {
     for (uint i = 0; i < h - l; ++i) {
@@ -91,10 +91,10 @@ inline void FUNC(bubbleSort)(__global OUTPUT_TYPE* out_unique_elements,
 }
 
 // Works as std::unique, only on already sorted data
-inline uint FUNC(deduplicate)(__global OUTPUT_TYPE* out_unique_elements,
-                              __global OUTPUT1_TYPE* out_indices,
-                              __global OUTPUT2_TYPE* out_rev_indices,
-                              __global OUTPUT3_TYPE* out_counts,
+inline uint FUNC(deduplicate)(__global OUTPUT1_TYPE* out_unique_elements,
+                              __global OUTPUT2_TYPE* out_indices,
+                              __global OUTPUT3_TYPE* out_rev_indices,
+                              __global OUTPUT4_TYPE* out_counts,
                               uint first,
                               const uint last) {
     if (first == last) {
@@ -121,10 +121,10 @@ inline uint FUNC(deduplicate)(__global OUTPUT_TYPE* out_unique_elements,
 
 // Works on unsorted data, but has worse complexity
 inline uint FUNC(unique)(const __global INPUT0_TYPE* input,
-                         __global OUTPUT_TYPE* out_unique_elements,
-                         __global OUTPUT1_TYPE* out_indices,
-                         __global OUTPUT2_TYPE* out_rev_indices,
-                         __global OUTPUT3_TYPE* out_counts,
+                         __global OUTPUT1_TYPE* out_unique_elements,
+                         __global OUTPUT2_TYPE* out_indices,
+                         __global OUTPUT3_TYPE* out_rev_indices,
+                         __global OUTPUT4_TYPE* out_counts,
                          uint first,
                          const uint last) {
     uint unique_length = 0;
@@ -159,22 +159,18 @@ inline uint FUNC(unique)(const __global INPUT0_TYPE* input,
 
 KERNEL(unique_ref)
 (const __global INPUT0_TYPE* input,
- __global OUTPUT_TYPE* out_unique_elements,
- __global OUTPUT1_TYPE* out_indices,
- __global OUTPUT2_TYPE* out_rev_indices,
- __global OUTPUT3_TYPE* out_counts
-#ifdef OUTPUT4_TYPE
- ,
- __global OUTPUT4_TYPE* out_total_count
-#endif
-) {
+ __global OUTPUT_TYPE* out_total_count,
+ __global OUTPUT1_TYPE* out_unique_elements,
+ __global OUTPUT2_TYPE* out_indices,
+ __global OUTPUT3_TYPE* out_rev_indices,
+ __global OUTPUT4_TYPE* out_counts) {
 #if SORTED
     // Copy input to output data and initialize out_indices
     for (uint i = 0; i < LENGTH; ++i) {
 #    if FLATTENED
         out_unique_elements[i] = input[i];
 #    else
-        ITERATE(out_unique_elements[GET_INDEX(OUTPUT, i)] = input[GET_INDEX(INPUT0, i)];)
+        FUNC_CALL(assign_slice_in)(out_unique_elements, i, input, i);
 #    endif
         out_indices[i] = i;
     }
@@ -186,9 +182,7 @@ KERNEL(unique_ref)
     // Run unique algorithm
     const uint end = FUNC_CALL(unique)(input, out_unique_elements, out_indices, out_rev_indices, out_counts, 0, LENGTH);
 #endif
-#ifdef OUTPUT4_TYPE
     out_total_count[0] = end;
-#endif
 }
 
 #undef LENGTH
