@@ -7,6 +7,7 @@
 #include <low_precision/align_quantization_parameters.hpp>
 #include <low_precision/layer_transformation.hpp>
 #include <low_precision/low_precision.hpp>
+#include <low_precision/markup_bias.hpp>
 #include <low_precision/markup_can_be_quantized.hpp>
 #include <low_precision/markup_quantization_granularity.hpp>
 #include <low_precision/transformation_context.hpp>
@@ -26,6 +27,7 @@ SimpleLowPrecisionTransformer::SimpleLowPrecisionTransformer(
 
     // TODO: use one pass manager
     markup = std::make_shared<ngraph::pass::Manager>(passConfig);
+    markup->register_pass<ngraph::pass::low_precision::MarkupBias>();
     markup->register_pass<ngraph::pass::low_precision::MarkupCanBeQuantized>(params.defaultPrecisions);
     markup->register_pass<ngraph::pass::low_precision::MarkupPrecisions>(precisionRestrictions,
                                                                          params.defaultPrecisions);

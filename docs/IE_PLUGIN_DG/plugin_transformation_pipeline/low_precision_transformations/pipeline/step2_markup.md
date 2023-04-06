@@ -2,18 +2,20 @@
 
 This step defines the optimal `FakeQuantize` decomposition precisions for the best inference performance via operations markup with runtime attribute instances. Attributes are created for input and output ports and operations. Transformations do not change the operation output port precisions. A model markup low precision logic is decomposed and implemented into the following common markup transformations. The order of transformations is important:
 
-1. [MarkupCanBeQuantized](@ref openvino_docs_OV_UG_lpt_MarkupCanBeQuantized)
-2. [MarkupPrecisions](@ref openvino_docs_OV_UG_lpt_MarkupPrecisions)
-3. [MarkupPerTensorQuantization](@ref openvino_docs_OV_UG_lpt_MarkupPerTensorQuantization)
-4. [MarkupAvgPoolPrecisionPreserved](@ref openvino_docs_OV_UG_lpt_MarkupAvgPoolPrecisionPreserved)
-5. [PropagatePrecisions](@ref openvino_docs_OV_UG_lpt_PropagatePrecisions)
-6. [AlignQuantizationIntervals](@ref openvino_docs_OV_UG_lpt_AlignQuantizationIntervals)
-7. [AlignQuantizationParameters](@ref openvino_docs_OV_UG_lpt_AlignQuantizationParameters)
+1. [MarkupBias](@ref openvino_docs_OV_UG_lpt_MarkupBias)
+2. [MarkupCanBeQuantized](@ref openvino_docs_OV_UG_lpt_MarkupCanBeQuantized)
+3. [MarkupPrecisions](@ref openvino_docs_OV_UG_lpt_MarkupPrecisions)
+4. [MarkupPerTensorQuantization](@ref openvino_docs_OV_UG_lpt_MarkupPerTensorQuantization)
+5. [MarkupAvgPoolPrecisionPreserved](@ref openvino_docs_OV_UG_lpt_MarkupAvgPoolPrecisionPreserved)
+6. [PropagatePrecisions](@ref openvino_docs_OV_UG_lpt_PropagatePrecisions)
+7. [AlignQuantizationIntervals](@ref openvino_docs_OV_UG_lpt_AlignQuantizationIntervals)
+8. [AlignQuantizationParameters](@ref openvino_docs_OV_UG_lpt_AlignQuantizationParameters)
 
 The table of transformations and used attributes:
 
 | Transformation name             | Create attributes             | Use attributes                            |
 |---------------------------------|-------------------------------|-------------------------------------------|
+| MarkupBias                      | Bias                          |                                           |
 | MarkupCanBeQuantized            | Precisions                    |                                           |
 | MarkupPrecisions                | Precisions,PrecisionPreserved |                                           |
 | MarkupPerTensorQuantization     | PerTensorQuantization         |                                           |

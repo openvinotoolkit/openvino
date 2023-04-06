@@ -128,6 +128,7 @@ The model on this step is changed. There are more details in developer guide [Pr
 
 ### Step 2. Markup
 This step creates runtime attributes for operations. These attributes will be used in next step. Transformations:
+* [MarkupBias](@ref openvino_docs_OV_UG_lpt_MarkupBias)
 * [MarkupCanBeQuantized](@ref openvino_docs_OV_UG_lpt_MarkupCanBeQuantized)
 * [MarkupPrecisions](@ref openvino_docs_OV_UG_lpt_MarkupPrecisions)
 * [MarkupPerTensorQuantization](@ref openvino_docs_OV_UG_lpt_MarkupPerTensorQuantization)

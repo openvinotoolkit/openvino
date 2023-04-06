@@ -10,6 +10,7 @@
 #include <vector>
 
 #include "low_precision/network_helper.hpp"
+#include "low_precision/rt_info/bias_attribute.hpp"
 
 using namespace ngraph;
 using namespace ngraph::pass;
@@ -70,8 +71,18 @@ static std::shared_ptr<Node> getDataParent(const std::shared_ptr<Node> branchDat
         parent = parent->get_input_node_shared_ptr(0);
     }
 
-    if (ov::is_type<opset1::Add>(parent) && isTargetType(parent->get_input_node_shared_ptr(0))) {
-        return parent->get_input_node_shared_ptr(0);
+    if (ov::marked_as_bias(parent)) {
+        const auto bias_parent = parent->get_input_node_shared_ptr(0);
+        // target node just before bias
+        if (isTargetType(bias_parent)) {
+            return bias_parent;
+        }
+        // between target node and bias are placed some DQ operations
+        const auto dq = NetworkHelper::getDequantization(parent->get_input_node_shared_ptr(0));
+        const auto data_node = dq.data.get_node_shared_ptr();
+        if (isTargetType(data_node)) {
+            return data_node;
+        }
     }
     return parent;
 }

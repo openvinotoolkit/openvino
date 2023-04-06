@@ -2365,10 +2365,11 @@ bool Eltwise::canBeInPlace() const {
 
 void Eltwise::fuseInto(NodePtr& parentNode) {
     // Handling Convolution custom Add node fusing case which is processed via dnnl append_sum() API.
-    specialConvolutionAddFusing = (parentNode->getType() == Type::Convolution
-                                    || parentNode->getType() == Type::BinaryConvolution)
-                                        && getAlgorithm() == Algorithm::EltwiseAdd &&
-            dimsEqualWeak(getInputShapeAtPort(0).getDims(), getInputShapeAtPort(1).getDims());
+    specialConvolutionAddFusing =
+        (parentNode->getType() == Type::Convolution || parentNode->getType() == Type::BinaryConvolution) &&
+        getAlgorithm() == Algorithm::EltwiseAdd &&
+        dimsEqualWeak(getInputShapeAtPort(0).getDims(), getInputShapeAtPort(1).getDims()) &&
+        !getParentEdgeAt(0)->getParent()->isConstant() && !getParentEdgeAt(1)->getParent()->isConstant();
     if ((scales.empty() && shifts.empty()) &&
         !specialConvolutionAddFusing &&
         canBePerformedAsScaleShift(parentNode.get())) {
