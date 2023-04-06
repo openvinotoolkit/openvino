@@ -47,8 +47,8 @@ Introduction
     * - :ref:`QuantizationGranularity <openvino_docs_OV_UG_lpt_QuantizationGranularity>`
       - Quantization granularity
       - Yes
-      - No Quantization granularity | Yes      | No      |
-
+      - No 
+      
 ``Target`` attribute group defines attribute usage during model transformation for the best performance:
 
 * ``Precision`` - the attribute defines the most optimal output port precision.

@@ -24,7 +24,7 @@ and in some cases fused with the following *Quantize* operation for the next lay
 
 .. image:: _static/images/qdq_propagation.png 
 
-Figure 1. Quantization operations propagation at runtime. Q, DQ, RQ stand for Quantize, Dequantize, and Requantize correspondingly.</div>
+Figure 1. Quantization operations propagation at runtime. Q, DQ, RQ stand for Quantize, Dequantize, and Requantize correspondingly.
 
 From the calculation standpoint, the FakeQuantize formula also is split into two parts accordingly:  
 

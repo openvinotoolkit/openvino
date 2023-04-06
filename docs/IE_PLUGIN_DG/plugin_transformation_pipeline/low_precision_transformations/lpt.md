@@ -22,10 +22,12 @@ Introduction
 Low precision transformations (known as LPT) are a set of nGraph transformations, which are combined in one library. The library is mandatory part of OpenVINO to infer quantized model in low precision with the maximum performance on Intel CPU, GPU and ARM platforms. The library includes more than 45 transformations and supports more then 30 operations. Some transformations are mandatory, some of them are optional and developed for specific device.
 
 The goal of Low Precision Transformations (LPT) is to transform a quantized model from its original precision (FP16 or FP32) to a low precision (INT8: `signed int8` or `unsigned int8`), so that it is prepared for low precision inference in OpenVINO™ plugin. It is achieved by two main principles:
+
 1. ``FakeQuantize`` operation decomposition to two parts:  
 
-    * part #1: quantize operation - new `FakeQuantize` operation with output quantization intervals in low precision range (signed int8: [-128, 127] or [-127, 127], unsigned int8: [0, 255] or [0, 256]) and with low precision output (``signed int8`` or ``unsigned int8``), 
-    * part #2: dequantization operations with low precision input and original precision output.
+   * part #1: quantize operation - new `FakeQuantize` operation with output quantization intervals in low precision range (signed int8: [-128, 127] or [-127, 127], unsigned int8: [0, 255] or [0, 256]) and with low precision output (``signed int8`` or ``unsigned int8``).
+
+   * part #2: dequantization operations with low precision input and original precision output.
 
 2. Propagation of the dequantization operation through original model's operations. It is done to avoid dequantization operations before original model operations, thus the quantize operations with low precision output remain before the original model operations. 
 
@@ -37,6 +39,7 @@ Input model requirements
 ########################
 
 LPT transformations propagate dequantization operations through the following operations:
+
 * :doc:`Add-1 <openvino_docs_ops_arithmetic_Add_1>`
 * :doc:`AvgPool-1 <openvino_docs_ops_pooling_AvgPool_1>`
 * :doc:`Clamp-1 <openvino_docs_ops_activation_Clamp_1>`
@@ -71,7 +74,7 @@ LPT transformations propagate dequantization operations through the following op
 
 If operation is not supported by LPT then dequantization operation will not be propagated, input tensor precisions will not be changed to low precision and operation will be executed in original precision. 
 
-For example, if you would like to infer a model with `Convolution` operation in low precision then the model can look as on picture below:
+For example, if you would like to infer a model with ``Convolution`` operation in low precision then the model can look as on picture below:
 
 .. image:: _static/images/model_fq_and_convolution.common.svg
    :alt: Quantized Convolution
@@ -81,7 +84,7 @@ There are several supported quantization approaches on activations and on weight
 Low precision tools
 +++++++++++++++++++
 
-For more details on how to get a quantized model, refer to :doc:`Model Optimization < openvino_docs_model_optimization_guide>` document.
+For more details on how to get a quantized model, refer to :doc:`Model Optimization <openvino_docs_model_optimization_guide>` document.
 
 Quantization approaches
 #######################
@@ -110,11 +113,15 @@ In this case ``FakeQuantize`` operation and ``Convert`` are used as quantize ope
 .. image:: _static/images/model_qdq_and_convolution.common.svg
    :alt: Original model with Q/DQ
 
-In both cases result is the same. In LPT result model you can see, that:
+In both cases result is the same. In LPT result model you can see that:
+
 1. if necessary, ``FakeQuantize`` operations on activations were decomposed to two part: 
+
    * new ``FakeQuantize``operation with updated output intervals in low precision range and low precision output,
    * dequantization operations on activations;  
+
 2. if necessary, an existing ``FakeQuantize`` decomposition can be reworked to get better precision;  
+
 3. dequantization operations were propagated through ``Convolution``.  
 
 LPT result model:  
@@ -130,16 +137,16 @@ LPT transformation pipeline has several steps. For each transformation inside on
 .. image:: _static/images/low_precision_transformation_pipeline.svg
    :alt: Low precision transformations pipeline
 
-Inside each step LPT transformations handle input model operation by operation, applying transformation matching pattern for each transformation from the step to an operation, and execute transformation if pattern is matched. Decomposition transformation decomposes `FakeQuantize` to quantize and dequantization operations. Dequantization operations from previous transformation result is used for the current one and so on, until the end of the model is achieved.
+Inside each step LPT transformations handle input model operation by operation, applying transformation matching pattern for each transformation from the step to an operation, and execute transformation if pattern is matched. Decomposition transformation decomposes ``FakeQuantize`` to quantize and dequantization operations. Dequantization operations from previous transformation result is used for the current one and so on, until the end of the model is achieved.
 
 As result, usually all operations are inferred by plugin in low precision. If plugin doesn't support an operation inference in low precision, then corresponding LPT transformation can be disabled, and input tensor precisions for the operation will not be changed. In this case the operation is inferred in the original precision. 
 
 Low precision transformations pipeline includes four steps:
 
-* :doc:`Step #1: Prerequisites <openvino_docs_OV_UG_lpt_step1_prerequisites>`
-* :doc:`Step #2: Markup transformations <openvino_docs_OV_UG_lpt_step2_markup>`
-* :doc:`Step #3: Main transformations <openvino_docs_OV_UG_lpt_step3_main>`
-* :doc:`Step #4: Cleanup transformations <openvino_docs_OV_UG_lpt_step4_cleanup>`
+* :doc:`Step 1: Prerequisites <openvino_docs_OV_UG_lpt_step1_prerequisites>`
+* :doc:`Step 2: Markup transformations <openvino_docs_OV_UG_lpt_step2_markup>`
+* :doc:`Step 3: Main transformations <openvino_docs_OV_UG_lpt_step3_main>`
+* :doc:`Step 4: Cleanup transformations <openvino_docs_OV_UG_lpt_step4_cleanup>`
 
 Step 1. Prerequisites
 ---------------------
@@ -299,7 +306,7 @@ This step is optional. It modifies the nGraph function to a device-specific oper
 Result model overview
 #####################
 
-Let's explore quantized `TensorFlow implementation of ResNet-50 <https://github.com/openvinotoolkit/open_model_zoo/tree/master/models/public/resnet-50-tf>`__ model. Use :doc:`Model Downloader <omz_tools_downloader>` tool to download the `fp16` model from `OpenVINO™ Toolkit - Open Model Zoo repository <https://github.com/openvinotoolkit/open_model_zoo>`__:
+Let's explore quantized `TensorFlow implementation of ResNet-50 <https://github.com/openvinotoolkit/open_model_zoo/tree/master/models/public/resnet-50-tf>`__ model. Use :doc:`Model Downloader <omz_tools_downloader>` tool to download the ``fp16`` model from `OpenVINO™ Toolkit - Open Model Zoo repository <https://github.com/openvinotoolkit/open_model_zoo>`__:
 
 .. code-block:: sh
 
@@ -409,7 +416,7 @@ As result all operations (except not quantized ``SoftMax`` at the end of the mod
 Mixed precision
 ###############
 
-If LPT input model operation output has ``fp16`` precision then dequantization computations still occurs in `fp32` precision. This approach is used to avoid accuracy loss in ``fp16`` arithmetic computations. The ultimate output of the dequantization operation  will have the ``fp16`` precision, as expected.
+If LPT input model operation output has ``fp16`` precision then dequantization computations still occurs in ``fp32`` precision. This approach is used to avoid accuracy loss in ``fp16`` arithmetic computations. The ultimate output of the dequantization operation  will have the ``fp16`` precision, as expected.
 
 Customization
 #############
@@ -424,7 +431,7 @@ Low Precision Transformations can be customizable. Build-in customization option
 Operation precision restrictions
 ++++++++++++++++++++++++++++++++
 
-This option defines precisions which allowed for the operation input ports. The option value is passed as input argument for `LowPrecision` constructor. For example:
+This option defines precisions which allowed for the operation input ports. The option value is passed as input argument for ``LowPrecision`` constructor. For example:
 
 .. doxygensnippet:: docs/snippets/lpt_intel_cpu_plugin.cpp
    :language: cpp
@@ -446,7 +453,7 @@ In provided example in result model ``Convolution`` operations must have per-ten
 Update precisions
 ++++++++++++++++++
 
-This option defines if each LPT transformation updates precision or not. The option value is boolean and is passed as ``updatePrecisions`` member of ``LayerTransformation::Params`` which is input argument for ``LowPrecision`` constructor. All transformations are affected. If ``true`` then low precision transformations update precisions to low precision and doesn't if `false`. Typically this option is used for plugin debugging.
+This option defines if each LPT transformation updates precision or not. The option value is boolean and is passed as ``updatePrecisions`` member of ``LayerTransformation::Params`` which is input argument for ``LowPrecision`` constructor. All transformations are affected. If ``true`` then low precision transformations update precisions to low precision and doesn't if ``false``. Typically this option is used for plugin debugging.
 
 Typical customization use cases
 +++++++++++++++++++++++++++++++
