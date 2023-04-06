@@ -127,7 +127,7 @@ TEST(kernels_cache, sub_kernel_ordering_test) {
     auto _out_kernels = _kernels_cache->get_kernels(dummy_params);
     ASSERT_EQ(entry_point_list.size(), _out_kernels.size());
     for (size_t i = 0; i < entry_point_list.size(); i++) {
-        ASSERT_EQ(entry_point_list[i], _kernels_cache->get_entry_point_from_kernel(_out_kernels[i]));
+        ASSERT_EQ(entry_point_list[i], _out_kernels[i]->get_id());
     }
 }
 

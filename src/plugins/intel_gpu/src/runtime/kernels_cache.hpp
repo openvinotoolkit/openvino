@@ -105,7 +105,6 @@ public:
     }
 
     bool validate_simple_kernel_execution(kernel::ptr kernel);
-    std::string get_entry_point_from_kernel(kernel::ptr kernel);
 
     // forces compilation of all pending kernels/programs
     void build_all();
