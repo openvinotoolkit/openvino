@@ -442,8 +442,6 @@ TEST(TransformationTests, keep_precission_sensitive_fp32_4) {
         auto matmul_1 = make_shared<MatMul>(unsqueeze_1, input_2);
 
         // marking nodes to be kept in fp32 for mixed precision
-        disable_fp16_compression(addition_const);
-        disable_fp16_compression(unsqueeze_1);
         disable_fp16_compression(mvn_1);
 
         model_ref = make_shared<Model>(NodeVector{matmul_1}, ParameterVector{input_1, input_2});
@@ -487,8 +485,6 @@ TEST(TransformationTests, keep_precission_sensitive_fp32_5) {
         auto matmul_1 = make_shared<MatMul>(unsqueeze_1, input_2);
 
         // marking nodes to be kept in fp32 for mixed precision
-        disable_fp16_compression(addition_const);
-        disable_fp16_compression(unsqueeze_1);
         disable_fp16_compression(normalizel2_1);
 
         model_ref = make_shared<Model>(NodeVector{matmul_1}, ParameterVector{input_1, input_2});
