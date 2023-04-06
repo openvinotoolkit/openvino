@@ -55,6 +55,6 @@ Changes in the example model after main transformation:
 
 .. note:: 
    
-   The left branch (branch #1) does not require per-tensor quantization. As a result, the ``fakeQuantize1``output interval is [0, 255]. But quantized `convolution2` requires per-tensor quantization on the right branch (branch #2). Then all connected ``FakeQuantize`` interval operations (``fakeQuantize1`` and ``fakeQuantize2``) are aligned to have per-tensor quantization after the concatenation (``concat2``) operation.
+   The left branch (branch #1) does not require per-tensor quantization. As a result, the ``fakeQuantize1``output interval is [0, 255]. But quantized ``convolution2`` requires per-tensor quantization on the right branch (branch #2). Then all connected ``FakeQuantize`` interval operations (``fakeQuantize1`` and ``fakeQuantize2``) are aligned to have per-tensor quantization after the concatenation (``concat2``) operation.
 
 @endsphinxdirective

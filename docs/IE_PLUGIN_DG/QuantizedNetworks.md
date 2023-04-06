@@ -3,9 +3,9 @@
 
 @sphinxdirective
 
-One of the feature of Inference Engine is the support of quantized networks with different precisions: INT8, INT4, etc.
+One of the feature of OpenVINO is the support of quantized models with different precisions: INT8, INT4, etc.
 However, it is up to the plugin to define what exact precisions are supported by the particular HW.
-All quantized networks which can be expressed in IR have a unified representation by means of *FakeQuantize* operation. 
+All quantized models which can be expressed in IR have a unified representation by means of *FakeQuantize* operation. 
 For more details about low-precision model representation please refer to this :doc:`document <openvino_docs_ie_plugin_dg_lp_representation>`.
 
 Interpreting FakeQuantize at runtime
@@ -14,8 +14,7 @@ Interpreting FakeQuantize at runtime
 During the model load each plugin can interpret quantization rules expressed in *FakeQuantize* operations:
 
 * Independently based on the definition of *FakeQuantize* operation.
-* Using a special library of low-precision transformations (LPT) which applies common rules for generic operations,
-such as Convolution, Fully-Connected, Eltwise, etc., and translates "fake-quantized" models into models with low-precision operations.
+* Using a special library of low-precision transformations (LPT) which applies common rules for generic operations, such as Convolution, Fully-Connected, Eltwise, etc., and translates "fake-quantized" models into models with low-precision operations.
 
 Here we provide only a high-level overview of the interpretation rules of FakeQuantize. 
 At runtime each FakeQuantize can be split into two independent operations: **Quantize** and **Dequantize**. 
@@ -28,12 +27,19 @@ and in some cases fused with the following *Quantize* operation for the next lay
 Figure 1. Quantization operations propagation at runtime. Q, DQ, RQ stand for Quantize, Dequantize, and Requantize correspondingly.</div>
 
 From the calculation standpoint, the FakeQuantize formula also is split into two parts accordingly:  
+
 ``output = round((x - input_low) / (input_high - input_low) * (levels-1)) / (levels-1) * (output_high - output_low) + output_low``
+
 The first part of this formula represents *Quantize* operation:  
+
 ``q = round((x - input_low) / (input_high - input_low) * (levels-1))``  
+
 The second is responsible for the dequantization:  
+
 ``r = q / (levels-1) * (output_high - output_low) + output_low``  
+
 From the scale/zero-point notation standpoint the latter formula can be written as follows:  
+
 ``r = (output_high - output_low) / (levels-1) * (q + output_low / (output_high - output_low) * (levels-1))``  
 
 Thus we can define:
