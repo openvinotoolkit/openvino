@@ -21,11 +21,6 @@ logger.setLevel(logging.WARNING)
 class Partitioner:
     def __init__(self):
         self.supported_ops = OperatorSupport()
-        # TODO: this is a naive implementation of cache without proper guard
-        self.partitioner_cache: Dict[GraphModule, GraphModule] = {}
-
-        # TODO: this is a naive implementation of cache without proper guard, this will only work for identical inputs
-        self.prim_decomp_cache: Dict[GraphModule, GraphModule] = {}
 
     def fx_serialize(self, graph_module: GraphModule, *args, **kwargs):
         print("Original Graph Module: ", graph_module)
@@ -41,15 +36,9 @@ class Partitioner:
         # logger.debug("Compiling graph_module: ", graph_module.code)
         print("Compiling graph_module: ", graph_module.code)
         # FX graph based partitioning based on nvfuser supported ops
-        if graph_module in self.partitioner_cache:
-            logger.debug("partitioner_cache hit!")
-            print("partitioner_cache hit!")
-            fused_graph_module = self.partitioner_cache[graph_module]
-        else:
-            partitioner = CapabilityBasedPartitioner(
-                graph_module, self.supported_ops, allows_single_node_partition=True)
-            fused_graph_module = partitioner.partition_and_fuse()
-            self.partitioner_cache[graph_module] = fused_graph_module
+        partitioner = CapabilityBasedPartitioner(
+            graph_module, self.supported_ops, allows_single_node_partition=True)
+        fused_graph_module = partitioner.partition_and_fuse()
 
         return fused_graph_module
 
