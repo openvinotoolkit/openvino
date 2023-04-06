@@ -615,4 +615,8 @@ std::vector<kernel::ptr> kernels_cache::compile(const kernel_impl_params& params
     return output_kernels;
 }
 
+std::string kernels_cache::get_entry_point_from_kernel(kernel::ptr kernel) {
+    auto casted = downcast<ocl::ocl_kernel>(kernel.get());
+    return casted->get_id();
+}
 }  // namespace cldnn
