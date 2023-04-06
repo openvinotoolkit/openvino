@@ -1,7 +1,7 @@
 {
-  "name": "openvinojs",
+  "name": "openvinojs-common",
   "version": "1.0.0",
-  "description": "OpenVINO™ utils for using from JavaScript environment",
+  "description": "Shared JavaScript API for OpenVINO™",
   "type": "module",
   "author": "vishniakov-nikolai",
   "license": "Apache-2.0",

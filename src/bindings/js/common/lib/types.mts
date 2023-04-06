@@ -72,7 +72,7 @@ export type SessionEnvironment = 'nodejs' | 'browser';
 
 export interface IModel {
   // new (ov: OpenvinoModule, originalModel: OriginalModel): void,
-  infer(tensor: ITensor): Promise<ITensor>,
+  infer(tensorOrDataArray: ITensor | number[], shape: IShape): Promise<ITensor>,
 }
 
 export interface ISession {

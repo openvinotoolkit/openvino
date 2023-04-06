@@ -1,10 +1,10 @@
 import { OpenvinoModule, OriginalModel } from './ov-module.mjs';
 import Shape from './shape.mjs';
+import Model from './model.mjs';
 
 import type { IShape, SessionEnvironment, ISession, IModel } from './types.mjs';
 
-type ISessionFactory = new (ov: OpenvinoModule) => ISession
-type IModelFactory = new (ov: OpenvinoModule, model: OriginalModel) => IModel
+type ISessionFactory = new (ov: OpenvinoModule) => ISession;
 
 export default class Session implements ISession {
   _ov: OpenvinoModule;
@@ -18,9 +18,8 @@ export default class Session implements ISession {
 
   async loadModel(xmlData: Uint8Array, binData: Uint8Array, shapeData: number[] | IShape, layout: string): Promise<IModel> {
     const originalModel = await loadModel(this._ov, xmlData, binData, shapeData, layout);
-    const ModelFactory: IModelFactory = (await import(this._env == 'browser' ? './model-browser.mjs' : './model-nodejs.mjs')).default;
 
-    return new ModelFactory(this._ov, originalModel);
+    return new Model(this._ov, originalModel);
   }
 
   getVersionString(): string {

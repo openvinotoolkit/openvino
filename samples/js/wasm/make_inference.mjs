@@ -1,8 +1,7 @@
-import { Session } from './node_modules/openvinojs/dist/index.mjs';
-
+import { Session, Tensor } from 'openvinojs-wasm';
 import { default as imagenetClassesMap } from './assets/imagenet_classes_map.mjs';
 
-export default async function(openvinojs, env, { modelPath, imgPath, shape, layout }, events = {}) {
+export default async function({ modelPath, imgPath, shape, layout }, events = {}) {
   events.onLibInitializing = events.onLibInitializing || (() => {});
   events.onModelLoaging = events.onModelLoaging || (() => {});
   events.onInferenceRunning = events.onInferenceRunning || (() => {});
@@ -11,7 +10,7 @@ export default async function(openvinojs, env, { modelPath, imgPath, shape, layo
   console.log('= Start');
 
   events.onLibInitializing();
-  const session = await Session.init(openvinojs, env);
+  const session = await Session.init();
 
   console.log(`== OpenVINO v${session.getVersionString()}`);
   console.log(`== Description string: ${session.getDescriptionString()}`);
@@ -20,7 +19,8 @@ export default async function(openvinojs, env, { modelPath, imgPath, shape, layo
   const model = await session.loadModel(modelPath.xml, modelPath.bin, shape, layout);
 
   events.onInferenceRunning(model);
-  const outputTensor = await model.infer(imgPath, shape);
+  const inputTensor = getTensorByImgPath(imgPath);
+  const outputTensor = await model.infer(inputTensor, shape);
 
   events.onFinish(outputTensor);
   const max = getMaxElement(outputTensor.data);
@@ -44,4 +44,12 @@ function getMaxElement(arr) {
   }
 
   return { value: max, index: maxIndex };
+}
+
+function getTensorByImgPath(path) {
+
+}
+
+function isNodeEnv() {
+  return import.meta.url.startsWith('file:');
 }
