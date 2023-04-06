@@ -64,7 +64,9 @@ bool evaluate_prelu(const ngraph::HostTensorPtr& arg,
 
 bool ov::op::v0::PRelu::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const {
     OV_OP_SCOPE(v0_PRelu_evaluate);
+    OPENVINO_SUPPRESS_DEPRECATED_START
     NGRAPH_CHECK(ngraph::validate_host_tensor_vector(outputs, 1) && ngraph::validate_host_tensor_vector(inputs, 2));
+    OPENVINO_SUPPRESS_DEPRECATED_END
     return prelu::evaluate_prelu(inputs[0], inputs[1], outputs[0]);
 }
 
