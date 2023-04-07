@@ -44,6 +44,8 @@ static T smUnpack(char*& ptr, const char* ptr_end) {
     return 0;
 }
 
+/// \brief Structure is for storing information about block in Varaibles Index file.
+/// It defines only offset and block size, no information about exact content.
 struct VIBlock {
     uint64_t m_size;
     uint64_t m_offset;
@@ -54,6 +56,11 @@ struct VIBlock {
     }
 };
 
+#define VARIABLES_INDEX_FOOTER_SIZE 48
+
+/// \brief Structure is for storing information about Variables Index footer information.
+/// It contains description of two blocks and a magic number for a file verification.
+/// Currently, it is placed in last VARIABLES_INDEX_FOOTER_SIZE bytes at the end of a file.
 struct VIFooter {
     VIBlock m_metaIndex;
     VIBlock m_index;
@@ -66,7 +73,10 @@ struct VIFooter {
     void read(std::ifstream& fs) {
         fs.seekg(0, std::ios::end);
         size_t size = fs.tellg();
-        char footerData[48] = {}, *ptr = &footerData[0];
+        FRONT_END_GENERAL_CHECK(size >= VARIABLES_INDEX_FOOTER_SIZE,
+                                "Wrong index file, file size is less than minimal expected");
+
+        char footerData[VARIABLES_INDEX_FOOTER_SIZE] = {}, *ptr = &footerData[0];
         fs.seekg(size - sizeof(footerData));
         fs.read(ptr, sizeof(footerData));
 
@@ -92,6 +102,10 @@ void VariablesIndex::read_variables_index_block(std::ifstream& fs,
     size_t block_size = index.m_size;
     data.clear();
     data.resize(block_size + 5 /*kBlockTrailerSize*/);
+    FRONT_END_GENERAL_CHECK(index.m_offset <= m_variables_index_size,
+                            "Block offset is bigger than variables index size");
+    FRONT_END_GENERAL_CHECK(index.m_offset + data.size() <= m_variables_index_size,
+                            "Block size is bigger than variables index size");
     fs.seekg(index.m_offset, std::ios::beg);
     fs.read(data.data(), data.size());
 #ifndef ENABLE_SNAPPY_COMPRESSION
@@ -141,6 +155,9 @@ void VariablesIndex::read_variables_index_pair(char*& ptr,
 }
 
 void VariablesIndex::read_variables_index(std::ifstream& fs, std::map<std::string, std::vector<char>>& varIndex) {
+    fs.seekg(0, std::ios::end);
+    m_variables_index_size = fs.tellg();
+
     VIFooter footer;
 
     footer.read(fs);
@@ -182,7 +199,7 @@ void VariablesIndex::read_bundle_header() {
     FRONT_END_GENERAL_CHECK(item != m_variables_index.end(), "Bundle Header isn't found in index");
 
     ::tensorflow::BundleHeaderProto bundleHeader;
-    FRONT_END_GENERAL_CHECK(bundleHeader.ParseFromString(item->second.data()),
+    FRONT_END_GENERAL_CHECK(bundleHeader.ParseFromArray(item->second.data(), static_cast<int>(item->second.size())),
                             "Bundle Header: Cannot parse Bundle Header");
     FRONT_END_GENERAL_CHECK(bundleHeader.version().producer() == 1, "Bundle Header: Unsupported producer version");
     FRONT_END_GENERAL_CHECK(bundleHeader.version().min_consumer() == 0, "Bundle Header: Unsupported consumer version");

@@ -11,9 +11,6 @@ class AddVariable(tf.Module):
   def __init__(self):
     super(AddVariable, self).__init__()
     self.var1 = tf.Variable(123.0)
-  @tf.function(input_signature=[tf.TensorSpec([], tf.float32)])
-  def mutate(self, new_v):
-    self.var1.assign(new_v)
   @tf.function(input_signature=[tf.TensorSpec([1], tf.float32)])
   def __call__(self, x):
     return {'test_output_name': x * self.var1}

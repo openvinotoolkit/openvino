@@ -4,13 +4,11 @@
 import os
 import sys
 
-import numpy as np
 import tensorflow as tf
 
 # Create the graph and model
 tf.compat.v1.reset_default_graph()
 with tf.compat.v1.Session() as sess:
-    x_shape = [2, 3]
     x_value = [[1.,2.,3.],[3.,2.,1.]]
     tf_x = tf.constant(x_value)
     tf_y = tf.compat.v1.placeholder(dtype=tf.float32, shape=[1], name='y')
