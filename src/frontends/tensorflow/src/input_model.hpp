@@ -26,7 +26,6 @@ class InputModel : public ov::frontend::InputModel {
     std::vector<std::string> get_input_names() const;
     std::vector<std::string> get_output_names() const;
     std::vector<std::shared_ptr<OpPlace>> get_op_places() const;
-    std::map<std::string, std::shared_ptr<TensorPlace>> get_tensor_places() const;
     std::map<std::string, Output<Node>> get_tensor_values() const;
     std::shared_ptr<InputModel> get_body_input_model(const std::string& body_input_model_name) const;
 
@@ -52,6 +51,8 @@ public:
     std::shared_ptr<VariablesIndex> get_variables_index();
     std::shared_ptr<std::map<std::string, std::string>> get_saved_model_input_names() const;
     std::shared_ptr<std::map<std::string, std::string>> get_saved_model_output_names() const;
+
+    std::map<std::string, std::shared_ptr<TensorPlace>> get_tensor_places() const;
 };
 
 }  // namespace tensorflow

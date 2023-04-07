@@ -42,6 +42,7 @@ TF_OP_CONVERTER(translate_staticregexfullmatch_op);
 TF_OP_CONVERTER(translate_stringjoin_op);
 TF_OP_CONVERTER(translate_mergev2checkpoint_op);
 TF_OP_CONVERTER(translate_while_op);
+TF_OP_CONVERTER(translate_placeholder_linked_op);
 
 const std::map<std::string, CreatorFunction> get_supported_ops() {
     return {
@@ -202,7 +203,7 @@ const std::map<std::string, CreatorFunction> get_supported_ops() {
         {"DynamicStitch", CreatorFunction(translate_parallel_dynamic_stitch_op)},
         {"ParallelDynamicStitch", CreatorFunction(translate_parallel_dynamic_stitch_op)},
         {"PartitionedCall", CreatorFunction(translate_partitioned_call_op)},
-        {"Placeholder", CreatorFunction(translate_placeholder_op)},
+        {"Placeholder", CreatorFunction(translate_placeholder_linked_op)},
         {"PlaceholderWithDefault", CreatorFunction(translate_placeholder_with_default_op)},
         {"PreventGradient", CreatorFunction(translate_identity_op)},
         {"Range", CreatorFunction(translate_range_op)},
