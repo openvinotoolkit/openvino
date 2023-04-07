@@ -757,24 +757,6 @@ def get_network_batch_size(inputs_info):
 def show_available_devices():
     print("\nAvailable target devices:  ", ("  ".join(Core().available_devices)))
 
-def device_properties_to_string(config):
-    ret = "{"
-    for k, v in config.items():
-        if isinstance(v, dict):
-            sub_str = "{"
-            for sk, sv in v.items():
-                if isinstance(sv, bool):
-                    sv = str(sv).capitalize()
-                sub_str += "{0}:{1},".format(sk, sv)
-            sub_str = sub_str[:-1]
-            sub_str += "}"
-            ret += "{0}:{1},".format(k, sub_str)
-        else:
-            ret += "{0}:{1},".format(k, v)
-    ret = ret[:-1]
-    ret += "}"
-    return ret
-
 def string_to_device_properties(device_properties_str):
     ret = {}
     if not device_properties_str:
@@ -801,14 +783,12 @@ def dump_config(filename, config):
     for device_name, device_config in config.items():
         json_config[device_name] = {}
         for key, value in device_config.items():
-            if isinstance(value, properties.hint.PerformanceMode):
-                value_string = value.name
+            if isinstance(value, OVAny) and (isinstance(value.value, dict)):
+                value_string = str(value.value).replace('\'','').replace(' ' , '')
             elif isinstance(value, OVAny):
                 value_string = str(value.value)
             else:
                 value_string = str(value)
-            if key == properties.device.properties():
-                value_string = device_properties_to_string(value.get())
             json_config[device_name][key] = value_string
 
     with open(filename, 'w') as f:
