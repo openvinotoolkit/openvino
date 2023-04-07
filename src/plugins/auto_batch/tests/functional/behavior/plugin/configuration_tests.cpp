@@ -8,22 +8,25 @@ using namespace BehaviorTestsDefinitions;
 namespace {
 auto auto_batch_inconfigs = []() {
     return std::vector<std::map<std::string, std::string>>{
-        {{CONFIG_KEY(AUTO_BATCH_DEVICE_CONFIG), CommonTestUtils::DEVICE_TEMPLATE}, {CONFIG_KEY(AUTO_BATCH_TIMEOUT), "-1"}},
         {{CONFIG_KEY(AUTO_BATCH_DEVICE_CONFIG), CommonTestUtils::DEVICE_TEMPLATE},
-         {InferenceEngine::PluginConfigParams::KEY_PERFORMANCE_HINT, "DOESN'T EXIST"}},
+         {ov::auto_batch_timeout.name(), "-1"}},
+        {{CONFIG_KEY(AUTO_BATCH_DEVICE_CONFIG), CommonTestUtils::DEVICE_TEMPLATE},
+         {ov::hint::performance_mode.name(), "DOESN'T EXIST"}},
         {{CONFIG_KEY(AUTO_BATCH_DEVICE_CONFIG), CommonTestUtils::DEVICE_TEMPLATE},
          {InferenceEngine::PluginConfigParams::KEY_PERFORMANCE_HINT, InferenceEngine::PluginConfigParams::LATENCY},
-         {InferenceEngine::PluginConfigParams::KEY_PERFORMANCE_HINT_NUM_REQUESTS, "-1"}},
+         {ov::hint::performance_mode.name(), "LATENCY"},
+         {ov::hint::num_requests.name(), "-1"}},
         {{CONFIG_KEY(AUTO_BATCH_DEVICE_CONFIG), CommonTestUtils::DEVICE_TEMPLATE},
          {InferenceEngine::PluginConfigParams::KEY_CONFIG_FILE, "unknown_file"}},
         {{CONFIG_KEY(AUTO_BATCH_DEVICE_CONFIG), CommonTestUtils::DEVICE_TEMPLATE},
-         {InferenceEngine::PluginConfigParams::KEY_DEVICE_ID, "DEVICE_UNKNOWN"}}};
+         {ov::device::id.name(), "DEVICE_UNKNOWN"}}};
 };
 
 auto auto_batch_configs = []() {
     return std::vector<std::map<std::string, std::string>>{
         {{CONFIG_KEY(AUTO_BATCH_DEVICE_CONFIG), CommonTestUtils::DEVICE_TEMPLATE}},
-        {{CONFIG_KEY(AUTO_BATCH_DEVICE_CONFIG), CommonTestUtils::DEVICE_TEMPLATE}, {CONFIG_KEY(AUTO_BATCH_TIMEOUT), "1"}},
+        {{CONFIG_KEY(AUTO_BATCH_DEVICE_CONFIG), CommonTestUtils::DEVICE_TEMPLATE},
+         {ov::auto_batch_timeout.name(), "1"}},
     };
 };
 

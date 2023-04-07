@@ -27,7 +27,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_AutoBatch_BehaviorTests,
 const std::vector<ov::AnyMap> auto_batch_properties = {
     {{CONFIG_KEY(AUTO_BATCH_DEVICE_CONFIG), std::string(CommonTestUtils::DEVICE_TEMPLATE) + "(4)"}},
     {{CONFIG_KEY(AUTO_BATCH_DEVICE_CONFIG), std::string(CommonTestUtils::DEVICE_TEMPLATE) + "(4)"},
-     {CONFIG_KEY(AUTO_BATCH_TIMEOUT), "1"}},
+     {ov::auto_batch_timeout(1)}},
     {{CONFIG_KEY(AUTO_BATCH_DEVICE_CONFIG), std::string(CommonTestUtils::DEVICE_TEMPLATE) + "(4)"},
      {ov::auto_batch_timeout(10)}},
 };
