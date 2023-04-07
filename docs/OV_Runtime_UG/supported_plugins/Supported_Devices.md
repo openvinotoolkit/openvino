@@ -5,7 +5,7 @@
 
 
 The OpenVINO runtime can infer various models of different input and output formats. Here, you can find configurations 
-supported by OpenVINO devices, which are CPU, GPU, or GNA (Gaussian neural accelerator coprocessor).
+supported by OpenVINO devices, which are CPU, GPU, or GNA (Gaussian neural accelerator coprocessor). The newer 11th and 12th generation processors provide a further performance boost, especially with INT8 models.
 
 .. note::
 
@@ -17,11 +17,11 @@ The OpenVINO Runtime provides unique capabilities to infer deep learning models 
 +--------------------------------------------------------------------------+---------------------------------------------------------------------------------------------------------------+
 | OpenVINO Device                                                          | Supported Hardware                                                                                            |
 +==========================================================================+===============================================================================================================+
-|| :doc:`GPU <openvino_docs_OV_UG_supported_plugins_GPU>`                  | Intel&reg; Processor Graphics, including Intel&reg; HD Graphics and Intel&reg; Iris&reg; Graphics             |
-+--------------------------------------------------------------------------+---------------------------------------------------------------------------------------------------------------+
 || :doc:`CPU <openvino_docs_OV_UG_supported_plugins_CPU>`                  | Intel&reg; Xeon&reg; with Intel® Advanced Vector Extensions 2 (Intel® AVX2), Intel® Advanced Vector           |
 ||                                                                         | Extensions 512 (Intel® AVX-512), and AVX512_BF16, Intel&reg; Core&trade; Processors with Intel&reg;           |
 ||                                                                         | AVX2, Intel&reg; Atom&reg; Processors with Intel® Streaming SIMD Extensions (Intel® SSE)                      |
++--------------------------------------------------------------------------+---------------------------------------------------------------------------------------------------------------+
+|| :doc:`GPU <openvino_docs_OV_UG_supported_plugins_GPU>`                  | Intel&reg; Processor Graphics, including Intel&reg; HD Graphics and Intel&reg; Iris&reg; Graphics             |
 +--------------------------------------------------------------------------+---------------------------------------------------------------------------------------------------------------+
 || :doc:`GNA plugin <openvino_docs_OV_UG_supported_plugins_GNA>`           | Intel&reg; Speech Enabling Developer Kit, Amazon Alexa* Premium Far-Field Developer Kit, Intel&reg;           |
 || (available in the Intel® Distribution of OpenVINO™ toolkit)             | Pentium&reg; Silver J5005 Processor, Intel&reg; Pentium&reg; Silver N5000 Processor, Intel&reg;               |
