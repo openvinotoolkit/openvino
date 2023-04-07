@@ -433,16 +433,8 @@ void TranslateSession::translate_graph(const ov::frontend::InputModel::Ptr& inpu
         }
     }
 
-    // reorder Parameter and Result nodes according to the requested order
-    // of input and output names from the original model
-    // during translation and topologically sorting this order could be lost
-    auto input_names = model_tf->get_input_names();
-    auto output_names = model_tf->get_output_names();
-    ov::ParameterVector ordered_params = reorder_ops_by_names(input_names, params);
-    ov::ResultVector ordered_results = reorder_ops_by_names(output_names, results);
-
     if (saved_model_inputs.get() && saved_model_inputs->size() > 0) {
-        for (auto param : ordered_params) {
+        for (auto param : params) {
             if (!apply_saved_model_names(param, saved_model_inputs)) {
                 param->get_output_tensor(0).add_names({"saved_model_unused"});
             }
@@ -450,12 +442,20 @@ void TranslateSession::translate_graph(const ov::frontend::InputModel::Ptr& inpu
     }
 
     if (saved_model_outputs.get() && saved_model_outputs->size() > 0) {
-        for (auto result : ordered_results) {
+        for (auto result : results) {
             if (!apply_saved_model_names(result, saved_model_outputs)) {
                 result->get_input_tensor(0).add_names({"saved_model_unused"});
             }
         }
     }
+
+    // reorder Parameter and Result nodes according to the requested order
+    // of input and output names from the original model
+    // during translation and topologically sorting this order could be lost
+    auto input_names = model_tf->get_input_names();
+    auto output_names = model_tf->get_output_names();
+    ov::ParameterVector ordered_params = reorder_ops_by_names(input_names, params);
+    ov::ResultVector ordered_results = reorder_ops_by_names(output_names, results);
 
     ov_model = std::make_shared<ov::Model>(ordered_results, ordered_params, m_model_name);
 }
