@@ -486,6 +486,22 @@ TEST_P(fc_fp16_eltwise_add, basic) {
     execute(p);
 }
 
+TEST_P(fc_fp16_eltwise_add, basic_cached) {
+    auto p = GetParam();
+    create_topologies(
+        input_layout("input", get_input_layout(p)),
+        data("weights", get_mem(get_weights_layout(p))),
+        data("bias", get_mem(get_bias_layout(p))),
+        data("eltwise_data", get_mem(get_per_channel_layout(p), 1, 9)),
+        fully_connected("fc_prim", input_info("input"), "weights", "bias", padding(), get_output_dim_size(p)),
+        eltwise("eltwise", { input_info("fc_prim"), input_info("eltwise_data") }, eltwise_mode::sum),
+        reorder("reorder_bfyx", input_info("eltwise"), p.default_format, data_types::f32)
+    );
+
+    tolerance = 1e-2f;
+    execute(p, true);
+}
+
 INSTANTIATE_TEST_SUITE_P(fusings_gpu, fc_fp16_eltwise_add, ::testing::ValuesIn(std::vector<fully_connected_test_params>{
     // fully_connected_test_params{ CASE_FC_FP16_1, 2, 3, "fully_connected_gpu_bs_f_bsv16_b1"}, // TODO check a failure in fully_connected_gpu_bs_f_bsv16_b1 + eltwise in iGPU
     // fully_connected_test_params{ CASE_FC_FP16_3D_3, 2, 3, "fully_connected_gpu_bfyx_ref"},   // TODO check onednn failure
@@ -541,6 +557,22 @@ TEST_P(fc_fp16_eltwise_sub, basic) {
     execute(p);
 }
 
+TEST_P(fc_fp16_eltwise_sub, basic_cached) {
+    auto p = GetParam();
+    create_topologies(
+        input_layout("input", get_input_layout(p)),
+        data("weights", get_mem(get_weights_layout(p))),
+        data("bias", get_mem(get_bias_layout(p))),
+        data("eltwise_data", get_mem(get_per_channel_layout(p), 1, 9)),
+        fully_connected("fc_prim", input_info("input"), "weights", "bias", padding(), get_output_dim_size(p)),
+        eltwise("eltwise", { input_info("fc_prim"), input_info("eltwise_data") }, eltwise_mode::sub),
+        reorder("reorder_bfyx", input_info("eltwise"), p.default_format, data_types::f32)
+    );
+
+    tolerance = 1e-1f;
+    execute(p, true);
+}
+
 INSTANTIATE_TEST_SUITE_P(fusings_gpu, fc_fp16_eltwise_sub, ::testing::ValuesIn(std::vector<fully_connected_test_params>{
     fully_connected_test_params{ CASE_FC_FP16_1, 2, 3, "fully_connected_gpu_bfyx_ref" },
     fully_connected_test_params{ CASE_FC_FP16_2, 2, 3, "fully_connected_gpu_bfyx_ref" },
@@ -564,6 +596,22 @@ TEST_P(fc_fp16_eltwise_prod, basic) {
 
     tolerance = 1e-1f;
     execute(p);
+}
+
+TEST_P(fc_fp16_eltwise_prod, basic_cached) {
+    auto p = GetParam();
+    create_topologies(
+        input_layout("input", get_input_layout(p)),
+        data("weights", get_mem(get_weights_layout(p))),
+        data("bias", get_mem(get_bias_layout(p))),
+        data("eltwise_data", get_mem(get_per_channel_layout(p), 1, 9)),
+        fully_connected("fc_prim", input_info("input"), "weights", "bias", padding(), get_output_dim_size(p)),
+        eltwise("eltwise", { input_info("fc_prim"), input_info("eltwise_data") }, eltwise_mode::prod),
+        reorder("reorder_bfyx", input_info("eltwise"), p.default_format, data_types::f32)
+    );
+
+    tolerance = 1e-1f;
+    execute(p, true);
 }
 
 INSTANTIATE_TEST_SUITE_P(fusings_gpu, fc_fp16_eltwise_prod, ::testing::ValuesIn(std::vector<fully_connected_test_params>{
