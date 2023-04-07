@@ -1820,7 +1820,8 @@ void Reduce::initSupportedPrimitiveDescriptors() {
     }
 
     support_split = algorithm != Algorithm::ReduceL2 && algorithm != Algorithm::ReduceLogSumExp &&
-                    algorithm != Algorithm::ReduceSumSquare && input_prec == output_prec;
+                    algorithm != Algorithm::ReduceSumSquare;
+    precision_change = input_prec != output_prec;
 
     src_data_size = input_prec.size();
     dst_data_size = output_prec.size();
@@ -2040,18 +2041,29 @@ void Reduce::createPrimitive() {
             prepareParams();
         updateLastInputDims();
     }
+
+    create_reduce_kernel(reduce_kernel, jcp);
+    if (use_aux_kernel) {
+        aux_jcp = jcp;
+        aux_jcp.src_dt = jcp.dst_dt;
+        aux_jcp.src_data_size = jcp.dst_data_size;
+        create_reduce_kernel(reduce_aux_kernel, aux_jcp);
+    }
+}
+
+void Reduce::create_reduce_kernel(std::shared_ptr<jit_uni_reduce_kernel> &kernel, const jit_reduce_config_params &jcp) {
 #if defined(OPENVINO_ARCH_X86_64)
     if (mayiuse(cpu::x64::avx512_core)) {
-        reduce_kernel.reset(new jit_uni_reduce_kernel_f32<cpu::x64::avx512_core>(jcp));
+        kernel.reset(new jit_uni_reduce_kernel_f32<cpu::x64::avx512_core>(jcp));
     } else if (mayiuse(cpu::x64::avx2)) {
-        reduce_kernel.reset(new jit_uni_reduce_kernel_f32<cpu::x64::avx2>(jcp));
+        kernel.reset(new jit_uni_reduce_kernel_f32<cpu::x64::avx2>(jcp));
     } else if (mayiuse(cpu::x64::sse41)) {
-        reduce_kernel.reset(new jit_uni_reduce_kernel_f32<cpu::x64::sse41>(jcp));
+        kernel.reset(new jit_uni_reduce_kernel_f32<cpu::x64::sse41>(jcp));
     }
 #endif // OPENVINO_ARCH_X86_64
-    if (reduce_kernel)
-        reduce_kernel->create_ker();
-    jit_mode = jit_mode && reduce_kernel;
+    if (kernel)
+        kernel->create_ker();
+    jit_mode = jit_mode && kernel;
 }
 
 void Reduce::executeDynamicImpl(dnnl::stream strm) {
@@ -2227,11 +2239,18 @@ void Reduce::reduce_PLN(const uint8_t *in_ptr, uint8_t *out_ptr) {
                         });
                         // step2: ReduceD
                         reduce_stride = PW;
+                        if (use_aux_kernel) {
+                            reduce_tmp_kernel = reduce_kernel;
+                            reduce_kernel = reduce_aux_kernel;
+                        }
                         parallel_for(IWB, [&](size_t iwb){
                             size_t pwb = iwb, owb = iwb;
                             reduce_kernel_process(prc_ptr_n + pwb * blk_size * prc_data_size,
                                                 out_ptr_n + owb * blk_size * dst_data_size, blk_size, 0, ID);
                         });
+                        if (use_aux_kernel) {
+                            reduce_kernel = reduce_tmp_kernel;
+                        }
                     }
                     // reduce tail
                     reduce_stride = IW;
@@ -2328,7 +2347,14 @@ void Reduce::reduce_BLK(const uint8_t *in_ptr, uint8_t *out_ptr) {
                     reduce_kernel_process(in_ptr_nc, out_ptr_nc, ID * IH * IW * blk_size);
                 });
                 // step2: ReduceC
+                if (use_aux_kernel) {
+                    reduce_tmp_kernel = reduce_kernel;
+                    reduce_kernel = reduce_aux_kernel;
+                }
                 reduce_kernel_process(out_ptr_n, out_ptr_n_cp, ICB * blk_size);
+                if (use_aux_kernel) {
+                    reduce_kernel = reduce_tmp_kernel;
+                }
             }
         } else if (ReduceW) {
             for (size_t icb = 0; icb < ICB; icb++) {
@@ -2813,8 +2839,9 @@ inline void Reduce::set_reduce_dim_flags() {
     // must be done after the above dimension change
     create_DH_working_memory();
 
-    ReduceAll_opt = layout == ReduceLayoutType::reduce_blocked && support_split &&
+    ReduceAll_opt = layout == ReduceLayoutType::reduce_blocked && !isDynamicNode() && support_split &&
                     ReduceC && ReduceD && ReduceH && ReduceW;
+    use_aux_kernel = (ReduceDH_opt || ReduceAll_opt) && precision_change;
 
     // suit for parallel
     if (ReduceH && IW == 1) {
