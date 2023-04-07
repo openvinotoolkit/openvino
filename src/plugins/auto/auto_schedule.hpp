@@ -79,7 +79,6 @@ private:
     std::future<void>                        _firstLoadFuture;
     std::promise<void>                       _firstLoadPromise;
     bool                                     _exitFlag = {false};
-    size_t                                   _cpuHelpInferCount = 0;
 };
 
 }  // namespace MultiDevicePlugin

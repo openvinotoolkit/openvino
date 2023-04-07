@@ -60,7 +60,7 @@ protected:
     MultiScheduleContext::Ptr                                 _multiSContext;
     SoExecNetwork                                             _passthroughExeNet;
     Time                                                      _cpuHelpReleaseTime;
-    unsigned int                                              _cpuHelpInferCount = 0;
+    size_t                                                    _cpuHelpInferCount = 0;
     double                                                    _cpuHelpFps = 0.0;
     std::string                                               _LogTag;
 };

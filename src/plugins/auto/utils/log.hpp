@@ -179,7 +179,7 @@ inline void Log::setLogLevel(LogLevel logLevel_) {
 }
 
 inline void Log::print(std::stringstream& stream) {
-    std::cout << stream.str() << std::endl;
+    std::cout << stream.str() << std::endl << std::flush;
 }
 
 inline void Log::checkFormat(const char* fmt) {
