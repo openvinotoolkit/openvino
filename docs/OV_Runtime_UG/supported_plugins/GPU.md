@@ -125,7 +125,7 @@ Floating-point precision of a GPU primitive is selected based on operation preci
 
 .. note::
 
-   Hardware acceleration for ``i8``/``u8`` precision may be unavailable on some platforms. In such cases, a model is executed in the floating-point precision taken from IR. 
+   The newer generation Intel Iris Xe and Xe MAX GPUs provide accelerated performance for i8/u8 models. Hardware acceleration for i8/u8 precision may be unavailable on older generation platforms. In such cases, a model is executed in the floating-point precision taken from IR. 
    Hardware support of ``u8``/``i8`` acceleration can be queried via the `ov::device::capabilities` property.
 
 :doc:`Hello Query Device C++ Sample<openvino_inference_engine_samples_hello_query_device_README>` can be used to print out the supported data types for all detected devices.

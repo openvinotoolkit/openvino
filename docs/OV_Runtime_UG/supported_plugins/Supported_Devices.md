@@ -5,7 +5,7 @@
 
 
 The OpenVINO runtime can infer various models of different input and output formats. Here, you can find configurations 
-supported by OpenVINO devices, which are CPU, GPU, or GNA (Gaussian neural accelerator coprocessor).
+supported by OpenVINO devices, which are CPU, GPU, or GNA (Gaussian neural accelerator coprocessor). The newer 11th and 12th generation processors provide a further performance boost, especially with INT8 models.
 
 .. note::
 
