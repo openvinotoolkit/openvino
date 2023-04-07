@@ -401,9 +401,10 @@ bool ov::interval_bound_evaluator(const Node* node,
         }
         unsqueezed_output_variants.push_back(vector_of_unsqueezed_output_variants);
     }
-
+    OPENVINO_SUPPRESS_DEPRECATED_START
     auto input_0_maximum_value = ngraph::get_constant_max_of_type(low_0.get_element_type());
     auto input_1_maximum_value = ngraph::get_constant_max_of_type(low_1.get_element_type());
+    OPENVINO_SUPPRESS_DEPRECATED_END
     if (input_0_maximum_value == nullptr || input_1_maximum_value == nullptr)
         return false;
 
@@ -508,7 +509,9 @@ bool ov::default_label_evaluator(const Node* node,
     for (size_t i = 0; i < inputs_count; ++i) {
         if (std::find(labeled_inputs.begin(), labeled_inputs.end(), i) != labeled_inputs.end()) {
             auto labels = node->get_input_tensor(i).get_value_label();
+            OPENVINO_SUPPRESS_DEPRECATED_START
             if (!has_no_labels(labels) && !has_any_input_labels) {
+                OPENVINO_SUPPRESS_DEPRECATED_END
                 has_any_input_labels = true;
             }
 
