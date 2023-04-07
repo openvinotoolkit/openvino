@@ -48,7 +48,9 @@ OpenVINO can be built based on specific virtual environments such as [venv](http
     pip install -r src/bindings/python/wheel/requirements-dev.txt
     ```
 
-6. Add following flags to the main `cmake` command to use specific virtual environment:
+6. Add `-DENABLE_TESTS=ON` flag to the main `cmake` command if to enable full testing capabilities.
+
+7. Add following flags to the main `cmake` command to use specific virtual environment:
     ```shell
     -DPYTHON_EXECUTABLE=`which python` \
     -DPYTHON_LIBRARY=/home/user/.pyenv/versions/3.10.7/lib/libpython3.10.so \
@@ -58,7 +60,7 @@ OpenVINO can be built based on specific virtual environments such as [venv](http
 
     *Note: `libpython3.10.so` is created with `--enable-shared` flag while installing specific Python version. For static build name of library may differ.*
 
-7. Follow the rest of building and installation steps from ["How to build OpenVINO" developer documentation](../../../../docs/dev/build.md).
+8. Follow the rest of building and installation steps from ["How to build OpenVINO" developer documentation](../../../../docs/dev/build.md).
 
 ## Run tests to verify OpenVINO™ Python API
 
