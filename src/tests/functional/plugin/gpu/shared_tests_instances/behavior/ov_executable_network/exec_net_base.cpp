@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "behavior/ov_executable_network/exec_network_base.hpp"
+#include "behavior/compiled_model/compiled_model_base.hpp"
 
 using namespace ov::test::behavior;
 namespace {
@@ -28,21 +28,21 @@ const std::vector<ov::AnyMap> autoConfigs = {
 #endif
 };
 
-INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests, OVExecutableNetworkBaseTest,
+INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests, OVCompiledModelBaseTest,
                         ::testing::Combine(
                                 ::testing::Values(CommonTestUtils::DEVICE_GPU),
                                 ::testing::ValuesIn(configs())),
-                        OVExecutableNetworkBaseTest::getTestCaseName);
+                        OVCompiledModelBaseTest::getTestCaseName);
 
-INSTANTIATE_TEST_SUITE_P(smoke_AutoBatchBehaviorTests, OVExecutableNetworkBaseTest,
+INSTANTIATE_TEST_SUITE_P(smoke_AutoBatchBehaviorTests, OVCompiledModelBaseTest,
                          ::testing::Combine(
                                  ::testing::Values(CommonTestUtils::DEVICE_BATCH),
                                  ::testing::ValuesIn(autoBatchConfigs())),
-                         OVExecutableNetworkBaseTest::getTestCaseName);
+                         OVCompiledModelBaseTest::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_Auto_BehaviorTests,
                          OVAutoExecutableNetworkTest,
                          ::testing::Combine(::testing::Values(CommonTestUtils::DEVICE_AUTO),
                                             ::testing::ValuesIn(autoConfigs)),
-                         OVExecutableNetworkBaseTest::getTestCaseName);
+                         OVCompiledModelBaseTest::getTestCaseName);
 }  // namespace

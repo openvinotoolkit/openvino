@@ -61,8 +61,8 @@ std::vector<std::string> disabledTestPatterns() {
             // Not implemented yet:
             R"(.*Behavior.*ExecutableNetworkBaseTest.*canSetConfigToExecNet.*)",
             R"(.*Behavior.*ExecutableNetworkBaseTest.*canExport.*)",
-            R"(.*OVExecutableNetworkBaseTest.*CanSetConfigToExecNet.*)",
-            R"(.*OVExecutableNetworkBaseTest.*CanSetConfigToExecNetAndCheckConfigAndCheck.*)",
+            R"(.*OVCompiledModelBaseTest.*CanSetConfigToExecNet.*)",
+            R"(.*OVCompiledModelBaseTest.*CanSetConfigToExecNetAndCheckConfigAndCheck.*)",
             // TODO: Issue 67408
             R"(.*smoke_LSTMSequenceCommonClip.*LSTMSequenceTest.*CompareWithRefs.*)",
             // Expected behavior. GPU plugin doesn't support i64 for eltwise power operation.
