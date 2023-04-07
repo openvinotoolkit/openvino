@@ -40,6 +40,25 @@ TEST_F(BinaryConvolutionV1StaticShapeInferenceTest, default_ctor) {
     EXPECT_EQ(shape_infer->get_pads_end(), CoordinateDiff({0, 0}));
 }
 
+TEST_F(BinaryConvolutionV1StaticShapeInferenceTest, default_ctor_three_input_shapes) {
+    op = make_op();
+    op->set_strides({1, 1});
+    op->set_dilations({1, 1});
+    op->set_pads_begin({2, 2});
+    op->set_pads_end({2, 1});
+    op->set_auto_pad(op::PadType::VALID);
+
+    // Third input shape (bias) can be provided, but is not used
+    input_shapes = ShapeVector{{1, 3, 10, 12}, {2, 3, 5, 5}, {2}};
+    auto shape_infer = make_shape_inference(op);
+    output_shapes = shape_infer->infer(input_shapes, {}).shapes;
+
+    EXPECT_EQ(output_shapes.size(), 1);
+    EXPECT_EQ(output_shapes.front(), StaticShape({1, 2, 6, 8}));
+    EXPECT_EQ(shape_infer->get_pads_begin(), CoordinateDiff({0, 0}));
+    EXPECT_EQ(shape_infer->get_pads_end(), CoordinateDiff({0, 0}));
+}
+
 TEST_F(BinaryConvolutionV1StaticShapeInferenceTest, auto_pads_same_lower_inputs_dynamic_rank) {
     const auto strides = Strides{1, 1};
     const auto dilations = Strides{1, 1};
