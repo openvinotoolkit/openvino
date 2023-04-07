@@ -109,6 +109,9 @@ TSSqueezeForward::TSSqueezeForward() {
 
         auto transpose = pattern_to_output.at(transpose_label);
         auto squeeze = pattern_to_output.at(squeeze_label);
+        if (transformation_callback(squeeze)) {
+            return false;
+        }
 
         auto transpose_order = as_type_ptr<Constant>(transpose->get_input_node_shared_ptr(1));
         auto squeeze_axes = as_type_ptr<Constant>(squeeze->get_input_node_shared_ptr(1));
@@ -124,8 +127,10 @@ TSSqueezeForward::TSSqueezeForward() {
             }
         } else {
             auto rank = squeeze->get_input_partial_shape(0).rank();
+            OPENVINO_SUPPRESS_DEPRECATED_START
             non_negative_axes =
                 normalize_axes(squeeze->get_friendly_name(), squeeze_axes->cast_vector<int64_t>(), rank);
+            OPENVINO_SUPPRESS_DEPRECATED_END
         }
 
         // if 2nd input to squeeze is empty then all '1' dims will be deleted.
@@ -194,6 +199,9 @@ TSSqueezeBackward::TSSqueezeBackward() {
 
         auto transpose = pattern_to_output.at(transpose_label);
         auto squeeze = pattern_to_output.at(squeeze_label);
+        if (transformation_callback(squeeze)) {
+            return false;
+        }
 
         auto transpose_order = as_type_ptr<Constant>(transpose->get_input_node_shared_ptr(1));
         auto squeeze_axes = as_type_ptr<Constant>(squeeze->get_input_node_shared_ptr(1));
@@ -209,8 +217,10 @@ TSSqueezeBackward::TSSqueezeBackward() {
             }
         } else {
             auto rank = squeeze->get_input_partial_shape(0).rank();
+            OPENVINO_SUPPRESS_DEPRECATED_START
             non_negative_axes =
                 normalize_axes(squeeze->get_friendly_name(), squeeze_axes->cast_vector<int64_t>(), rank);
+            OPENVINO_SUPPRESS_DEPRECATED_END
         }
 
         bool squeeze_all_dims = false;

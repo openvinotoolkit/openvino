@@ -8,6 +8,7 @@ import errno
 import subprocess  # nosec
 import typing
 import platform
+import re
 import multiprocessing
 from fnmatch import fnmatchcase
 from pathlib import Path
@@ -97,6 +98,7 @@ LIB_INSTALL_CFG = {
         "name": "tbb",
         "prefix": "libs.tbb",
         "install_dir": TBB_LIBS_DIR,
+        "rpath": LIBS_RPATH,
         "binary_dir": OPENVINO_BUILD_DIR,
     },
     "pugixml_libs": {
@@ -307,7 +309,7 @@ class PrepareLibs(build_clib):
     def generate_package(self, src_dirs):
         """Collect package data files from preinstalled dirs and put all runtime libraries to the subpackage."""
         # additional blacklist filter, just to fix cmake install issues
-        blacklist = [".lib", ".pdb", "_debug.dll", "_debug.dylib"]
+        blacklist_patterns = ["^.*\\.lib$", "^.*\\.pdb$", "^.*_debug\\.dll$", "^.*_debug\\.\\d*\\.dylib$", "^.*_debug\\.so\\.\\d*$", "^.*\\.la$"]
         package_dir = os.path.join(get_package_dir(PY_INSTALL_CFG), WHEEL_LIBS_INSTALL_DIR)
 
         for src_dir in src_dirs:
@@ -354,7 +356,12 @@ class PrepareLibs(build_clib):
                 file_name = os.path.basename(file_path)
                 if file_path.is_symlink():
                     sys.exit(f"Wheel package content must not contain symlinks {file_path}")
-                if file_path.is_file() and not any(file_name.endswith(ext) for ext in blacklist):
+                blacklisted = False
+                for pattern in blacklist_patterns:
+                    if re.match(pattern, file_name) is not None:
+                        blacklisted = True
+                        break
+                if file_path.is_file() and not blacklisted:
                     dst_file = os.path.join(package_dir, os.path.relpath(file_path, local_base_dir))
                     os.makedirs(os.path.dirname(dst_file), exist_ok=True)
                     copyfile(file_path, dst_file)

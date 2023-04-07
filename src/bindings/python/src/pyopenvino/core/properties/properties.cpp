@@ -30,6 +30,7 @@ void regmodule_properties(py::module m) {
     wrap_property_RW(m_properties, ov::compilation_num_threads, "compilation_num_threads");
     wrap_property_RW(m_properties, ov::affinity, "affinity");
     wrap_property_RW(m_properties, ov::force_tbb_terminate, "force_tbb_terminate");
+    wrap_property_RW(m_properties, ov::enable_mmap, "enable_mmap");
 
     wrap_property_RO(m_properties, ov::supported_properties, "supported_properties");
     wrap_property_RO(m_properties, ov::available_devices, "available_devices");
@@ -72,8 +73,9 @@ void regmodule_properties(py::module m) {
     wrap_property_RW(m_hint, ov::hint::inference_precision, "inference_precision");
     wrap_property_RW(m_hint, ov::hint::model_priority, "model_priority");
     wrap_property_RW(m_hint, ov::hint::performance_mode, "performance_mode");
+    wrap_property_RW(m_hint, ov::hint::enable_cpu_pinning, "enable_cpu_pinning");
     wrap_property_RW(m_hint, ov::hint::scheduling_core_type, "scheduling_core_type");
-    wrap_property_RW(m_hint, ov::hint::use_hyper_threading, "use_hyper_threading");
+    wrap_property_RW(m_hint, ov::hint::enable_hyper_threading, "enable_hyper_threading");
     wrap_property_RW(m_hint, ov::hint::execution_mode, "execution_mode");
     wrap_property_RW(m_hint, ov::hint::num_requests, "num_requests");
     wrap_property_RW(m_hint, ov::hint::model, "model");
@@ -271,4 +273,13 @@ void regmodule_properties(py::module m) {
     m_streams.def("num", [](const int32_t value) {
         return ov::streams::num(ov::streams::Num(value));
     });
+
+    // Submodule auto
+    py::module m_intel_auto =
+        m_properties.def_submodule("intel_auto",
+                                   "openvino.runtime.properties.intel_auto submodule that simulates ov::intel_auto");
+
+    wrap_property_RW(m_intel_auto, ov::intel_auto::device_bind_buffer, "device_bind_buffer");
+    wrap_property_RW(m_intel_auto, ov::intel_auto::enable_startup_fallback, "enable_startup_fallback");
+    wrap_property_RW(m_intel_auto, ov::intel_auto::enable_runtime_fallback, "enable_runtime_fallback");
 }
