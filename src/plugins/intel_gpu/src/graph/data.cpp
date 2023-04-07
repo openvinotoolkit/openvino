@@ -80,10 +80,10 @@ void data_inst::load(BinaryInputBuffer& ib) {
     layout output_layout = layout();
     ib >> output_layout;
 
-    allocation_type _allocation_type;
+    allocation_type _allocation_type = allocation_type::unknown;
     ib >> make_data(&_allocation_type, sizeof(_allocation_type));
 
-    size_t data_size;
+    size_t data_size = 0;
     ib >> make_data(&data_size, sizeof(size_t));
 
     if (ib.getNetwork()) {

@@ -1273,7 +1273,7 @@ void primitive_inst::load(cldnn::BinaryInputBuffer& ib) {
             ib >> output_layout;
             output_layouts.emplace_back(output_layout);
 
-            allocation_type _allocation_type;
+            allocation_type _allocation_type = allocation_type::unknown;
             ib >> make_data(&_allocation_type, sizeof(_allocation_type));
             allocation_types.emplace_back(_allocation_type);
         }

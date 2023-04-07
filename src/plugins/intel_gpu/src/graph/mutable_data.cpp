@@ -99,7 +99,7 @@ void mutable_data_inst::save(cldnn::BinaryOutputBuffer& ob) const {
 void mutable_data_inst::load(BinaryInputBuffer& ib) {
     parent::load(ib);
 
-    size_t data_size;
+    size_t data_size = 0;
     ib >> make_data(&data_size, sizeof(size_t));
 
     if (data_size == 0)
