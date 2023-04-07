@@ -18,6 +18,8 @@ struct VIBlock;
 
 // Stores information about variables index
 class VariablesIndex {
+    // Contains file size for internal checks
+    size_t m_variables_index_size;
     // Contains maximum amount of shards, used for creating corrext extension
     int32_t m_total_shards;
     // Contains BundleEntryProto variables list, readed from .index file
