@@ -69,7 +69,11 @@ void EltwiseAfterConvTest::SetUp() {
 
     auto filterWeights = CommonTestUtils::generate_float_numbers(outputChannels * convInputShape[1] * kernelShape[0] * kernelShape[1],
                                                                  -0.2f, 0.2f);
-    auto conv = ngraph::builder::makeConvolution(reshape1, ngPrc, { kernelShape[0], kernelShape[1] }, { stride, stride }, { 0, 0 },
+    auto conv = ngraph::builder::makeConvolution(reshape1,
+                                                 ngPrc,
+                                                 {kernelShape[0], kernelShape[1]},
+                                                 {kernelShape[0] > 1 ? stride : 1, stride},
+                                                 {0, 0},
         { 0, 0 }, { 1, 1 }, ngraph::op::PadType::VALID, outputChannels, false, filterWeights);
 
     auto widthAfterConv = (convInputShape[3] - kernelShape[1]) / stride + 1;
@@ -157,7 +161,11 @@ void EltwiseBeforeConvTest::SetUp() {
 
     auto filterWeights = CommonTestUtils::generate_float_numbers(outputChannels * convInputShape[1] * kernelShape[0] * kernelShape[1],
                                                                  -0.2f, 0.2f);
-    auto conv = ngraph::builder::makeConvolution(reshape1, ngPrc, { kernelShape[0], kernelShape[1] }, { stride, stride }, { 0, 0 },
+    auto conv = ngraph::builder::makeConvolution(reshape1,
+                                                 ngPrc,
+                                                 {kernelShape[0], kernelShape[1]},
+                                                 {kernelShape[0] > 1 ? stride : 1, stride},
+                                                 {0, 0},
         { 0, 0 }, { 1, 1 }, ngraph::op::PadType::VALID, outputChannels, false, filterWeights);
 
     auto widthAfterReshape = (convInputShape[3] - kernelShape[1]) / stride + 1;
@@ -230,7 +238,12 @@ void EltwiseWithTwoConvsAsInputsTest::SetUp() {
 
     auto filterWeights1 = CommonTestUtils::generate_float_numbers(outputChannels * convInputShape[1] * kernelShape[0] * kernelShape[1],
                                                                   -0.2f, 0.2f);
-    auto conv1 = ngraph::builder::makeConvolution(reshape1, ngPrc, { kernelShape[0], kernelShape[1] }, { stride, stride }, { 0, 0 },
+    auto stride_h = kernelShape[0] > 1 ? stride : 1;
+    auto conv1 = ngraph::builder::makeConvolution(reshape1,
+                                                  ngPrc,
+                                                  {kernelShape[0], kernelShape[1]},
+                                                  {stride_h, stride},
+                                                  {0, 0},
         { 0, 0 }, { 1, 1 }, ngraph::op::PadType::VALID, outputChannels, false, filterWeights1);
 
     auto widthAfterReshape = (convInputShape[3] - kernelShape[1]) / stride + 1;
@@ -243,7 +256,11 @@ void EltwiseWithTwoConvsAsInputsTest::SetUp() {
 
     auto filterWeights2 = CommonTestUtils::generate_float_numbers(outputChannels * convInputShape[1] * kernelShape[0] * kernelShape[1],
                                                                   -0.2f, 0.2f);
-    auto conv2 = ngraph::builder::makeConvolution(reshape3, ngPrc, { kernelShape[0], kernelShape[1] }, { stride, stride }, { 0, 0 },
+    auto conv2 = ngraph::builder::makeConvolution(reshape3,
+                                                  ngPrc,
+                                                  {kernelShape[0], kernelShape[1]},
+                                                  {stride_h, stride},
+                                                  {0, 0},
         { 0, 0 }, { 1, 1 }, ngraph::op::PadType::VALID, outputChannels, false, filterWeights2);
 
     auto reshapePattern4 = std::make_shared<ngraph::opset1::Constant>(ngraph::element::Type_t::i64, ngraph::Shape{ 2 }, outFormShapes);

@@ -66,7 +66,11 @@ void SliceConvTest::SetUp() {
 
     auto filterWeights = CommonTestUtils::generate_float_numbers(outputChannels * inputShape[1] * kernelShape[0] * kernelShape[1],
                                                                  -0.2f, 0.2f);
-    auto conv = ngraph::builder::makeConvolution(ss, ngPrc, { kernelShape[0], kernelShape[1] }, { stride, stride }, { 0, 0 },
+    auto conv = ngraph::builder::makeConvolution(ss,
+                                                 ngPrc,
+                                                 {kernelShape[0], kernelShape[1]},
+                                                 {kernelShape[0] > 1 ? stride : 1, stride},
+                                                 {0, 0},
         { 0, 0 }, { 1, 1 }, ngraph::op::PadType::VALID, outputChannels, false, filterWeights);
 
     function = std::make_shared<ngraph::Function>(conv, params, "StridedSliceConvTest");
