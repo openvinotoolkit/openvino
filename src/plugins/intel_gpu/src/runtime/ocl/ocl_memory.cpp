@@ -129,7 +129,7 @@ dnnl::memory gpu_buffer::get_onednn_memory(dnnl::memory::desc desc, int64_t offs
 #endif
 
 gpu_image2d::gpu_image2d(ocl_engine* engine, const layout& layout)
-    : lockable_gpu_mem(), memory(engine, layout, allocation_type::cl_mem, false), _row_pitch(0), _slice_pitch(0) {
+    : lockable_gpu_mem(), memory(engine, layout, allocation_type::cl_mem, false), _width(0), _height(0), _row_pitch(0), _slice_pitch(0) {
     cl_channel_type type = layout.data_type == data_types::f16 ? CL_HALF_FLOAT : CL_FLOAT;
     cl_channel_order order = CL_R;
     switch (layout.format) {

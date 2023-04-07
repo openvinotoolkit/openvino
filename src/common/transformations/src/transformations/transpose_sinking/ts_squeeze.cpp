@@ -117,7 +117,7 @@ TSSqueezeForward::TSSqueezeForward() {
         } else {
             main_node = pattern_to_output.at(squeeze_with_1_input);
         }
-        if (!transpose) {
+        if (!transpose || transformation_callback(main_node)) {
             return false;
         }
 
@@ -227,6 +227,10 @@ TSSqueezeBackward::TSSqueezeBackward() {
             main_node = pattern_to_output.at(squeeze_label);
         } else {
             main_node = pattern_to_output.at(squeeze_with_1_input);
+        }
+
+        if (transformation_callback(main_node)) {
+            return false;
         }
 
         auto transpose_order = as_type_ptr<Constant>(transpose->get_input_node_shared_ptr(1));
