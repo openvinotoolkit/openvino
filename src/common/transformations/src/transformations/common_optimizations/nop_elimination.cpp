@@ -10,6 +10,7 @@
 #include <numeric>
 #include <openvino/core/validation_util.hpp>
 #include <openvino/opsets/opset3.hpp>
+#include <openvino/opsets/opset7.hpp>
 #include <openvino/opsets/opset8.hpp>
 #include <openvino/opsets/opset9.hpp>
 #include <openvino/pass/pattern/op/or.hpp>
@@ -25,7 +26,7 @@ using namespace ov;
 //`simplify_gather`, optimizes gather if Gather is gathering the
 // whole input tensor
 static bool simplify_gather(shared_ptr<Node> node) {
-    if (auto gather = ov::as_type_ptr<opset3::Gather>(node)) {
+    if (auto gather = ov::as_type_ptr<op::util::GatherBase>(node)) {
         // check if we are gathering the whole input
         auto data = gather->input_value(0);
         auto indices = gather->input_value(1);
@@ -34,14 +35,26 @@ static bool simplify_gather(shared_ptr<Node> node) {
         if (data.get_partial_shape().is_dynamic() || indices.get_partial_shape().is_dynamic()) {
             return false;
         }
-        // if rank of data and gather output dont match, we will skip
-        if (data.get_shape().size() != node->get_shape().size()) {
-            return false;
-        }
 
         auto axis = gather->get_axis();
         if (axis == opset3::Gather::AXIS_NOT_SET_VALUE) {
             NGRAPH_DEBUG << "axis value not set";
+            return false;
+        }
+
+        if (data.get_shape().size() != node->get_shape().size()) {
+            auto constant_indices = ov::as_type_ptr<opset3::Constant>(gather->input_value(1).get_node_shared_ptr());
+            if (!constant_indices)
+                return false;
+            // case_3: if input_shape is (1,3,5,5) and axis = 0, indices = 0, then gather is just a Squeeze
+            const auto const_indices = constant_indices->cast_vector<int64_t>();
+            if (data.get_shape()[axis] == 1 && const_indices.size() == 1 && const_indices[0] == 0) {
+                auto squeeze = std::make_shared<opset8::Squeeze>(gather->input_value(0), gather->input_value(2));
+                squeeze->set_friendly_name(gather->get_friendly_name());
+                ov::copy_runtime_info(gather, squeeze);
+                ov::replace_node(gather, squeeze);
+                return true;
+            }
             return false;
         }
 
@@ -297,7 +310,7 @@ static bool eliminate_unsqueeze(const shared_ptr<Node>& node) {
 SIMPLE_MATCHER_PASS_DEFINITION(EliminateReshape, eliminate_reshape_v1, opset3::Reshape);
 SIMPLE_MATCHER_PASS_DEFINITION(EliminateUnsqueeze, eliminate_unsqueeze, opset3::Unsqueeze);
 SIMPLE_MATCHER_PASS_DEFINITION(EliminateBroadcast, eliminate_nop, op::v1::Broadcast, op::v3::Broadcast);
-SIMPLE_MATCHER_PASS_DEFINITION(EliminateGather, simplify_gather, opset3::Gather);
+SIMPLE_MATCHER_PASS_DEFINITION(EliminateGather, simplify_gather, opset3::Gather, opset7::Gather, opset8::Gather);
 
 pass::EliminatePad::EliminatePad() {
     MATCHER_SCOPE(EliminatePad);
@@ -306,8 +319,10 @@ pass::EliminatePad::EliminatePad() {
     matcher_pass_callback callback = [=](pattern::Matcher& m) {
         auto pad = m.get_match_root();
 
+        OPENVINO_SUPPRESS_DEPRECATED_START
         auto pad_begin_const = get_constant_from_source(pad->input_value(1));
         auto pad_end_const = get_constant_from_source(pad->input_value(2));
+        OPENVINO_SUPPRESS_DEPRECATED_END
 
         if (!pad_begin_const || !pad_end_const) {
             return false;

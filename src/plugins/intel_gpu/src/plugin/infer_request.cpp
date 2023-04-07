@@ -544,13 +544,10 @@ void InferRequest::wait() {
             }
             auto layout_by_rank = [](size_t rank) {
                 switch (rank) {
-                    case 6: return InferenceEngine::Layout::BLOCKED;
                     case 5: return InferenceEngine::Layout::NCDHW;
                     case 4: return InferenceEngine::Layout::NCHW;
-                    case 3: return InferenceEngine::Layout::BLOCKED;
                     case 2: return InferenceEngine::Layout::NC;
-                    case 1: return InferenceEngine::Layout::BLOCKED;
-                    default: IE_THROW() << "[GPU] Unsupported out rank";
+                    default: return InferenceEngine::Layout::BLOCKED;
                 }
             };
             auto layout = layout_by_rank(out_rank);

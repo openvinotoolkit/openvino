@@ -34,7 +34,6 @@ endif()
 if (CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
     # disable warning: This operator was deprecated and will be removed with v0 operation.
     add_compile_options(/wd4996)
-    add_compile_options(/wd4244)
 elseif(CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
     add_compile_options(-Wno-deprecated-register -Wno-range-loop-analysis)
 elseif(OV_COMPILER_IS_APPLECLANG)

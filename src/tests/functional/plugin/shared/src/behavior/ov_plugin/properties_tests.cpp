@@ -178,8 +178,6 @@ TEST_P(OVSetPropComplieModleGetPropTests, SetPropertyComplieModelGetProperty) {
 
     ov::CompiledModel exeNetWork;
     OV_ASSERT_NO_THROW(exeNetWork = core->compile_model(model, target_device, compileModelProperties));
-    if (target_device == CommonTestUtils::DEVICE_AUTO)
-        GTEST_SKIP();
 
     for (const auto& property_item : compileModelProperties) {
         Any exeNetProperty;
@@ -339,6 +337,9 @@ std::vector<ov::AnyMap> OVPropertiesTestsWithComplieModelProps::getPropertiesVal
 
     res.push_back({{ov::PropertyName(ov::force_tbb_terminate.name(), ov::force_tbb_terminate.mutability), true}});
     res.push_back({{ov::PropertyName(ov::force_tbb_terminate.name(), ov::force_tbb_terminate.mutability), false}});
+
+    res.push_back({{ov::PropertyName(ov::enable_mmap.name(), ov::enable_mmap.mutability), true}});
+    res.push_back({{ov::PropertyName(ov::enable_mmap.name(), ov::enable_mmap.mutability), false}});
 
     ov::streams::Num nums[] = {ov::streams::AUTO, ov::streams::NUMA};
     for (auto &num : nums) {

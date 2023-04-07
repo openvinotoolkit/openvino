@@ -139,11 +139,11 @@ void cnpy::parse_npy_header(FILE* fp, size_t& word_size, std::vector<size_t>& sh
         throw std::runtime_error("parse_npy_header: failed to find header keyword: '(' or ')'");
 
     std::regex num_regex("[0-9][0-9]*");
-    std::smatch sm;
+    std::cmatch sm;
     shape.clear();
 
     std::string str_shape = header.substr(loc1+1,loc2-loc1-1);
-    while(std::regex_search(str_shape, sm, num_regex)) {
+    while(std::regex_search(str_shape.c_str(), sm, num_regex)) {
         shape.push_back(std::stoi(sm[0].str()));
         str_shape = sm.suffix().str();
     }

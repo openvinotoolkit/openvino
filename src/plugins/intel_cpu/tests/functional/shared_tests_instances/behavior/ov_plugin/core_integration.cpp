@@ -49,7 +49,7 @@ INSTANTIATE_TEST_SUITE_P(
         ::testing::Values("CPU", "MULTI", "HETERO", "AUTO"));
 
 INSTANTIATE_TEST_SUITE_P(smoke_OVClassSetConfigTest,
-                         OVClassSetUseHyperThreadingHintConfigTest,
+                         OVClassSetEnableHyperThreadingHintConfigTest,
                          ::testing::Values("CPU"));
 
 INSTANTIATE_TEST_SUITE_P(smoke_OVClassSetConfigTest,
@@ -79,6 +79,8 @@ INSTANTIATE_TEST_SUITE_P(
 INSTANTIATE_TEST_SUITE_P(
         smoke_OVClassGetAvailableDevices, OVClassGetAvailableDevices,
         ::testing::Values("CPU"));
+
+INSTANTIATE_TEST_SUITE_P(smoke_OVClassSetConfigTest, OVClassSetEnableCpuPinningHintConfigTest, ::testing::Values("CPU"));
 
 INSTANTIATE_TEST_SUITE_P(
         smoke_OVClassSetModelPriorityConfigTest, OVClassSetModelPriorityConfigTest,
@@ -298,7 +300,7 @@ TEST(OVClassBasicTest, smoke_SetConfigHintInferencePrecision) {
 
 TEST(OVClassBasicTest, smoke_SetConfigEnableProfiling) {
     ov::Core ie;
-    bool value;
+    auto value = false;
     const bool enableProfilingDefault = false;
 
     OV_ASSERT_NO_THROW(value = ie.get_property("CPU", ov::enable_profiling));
@@ -309,6 +311,76 @@ TEST(OVClassBasicTest, smoke_SetConfigEnableProfiling) {
     OV_ASSERT_NO_THROW(ie.set_property("CPU", ov::enable_profiling(enableProfiling)));
     OV_ASSERT_NO_THROW(value = ie.get_property("CPU", ov::enable_profiling));
     ASSERT_EQ(enableProfiling, value);
+}
+
+const auto bf16_if_supported       = InferenceEngine::with_cpu_x86_bfloat16() ?    ov::element::bf16 : ov::element::f32;
+const auto bf16_if_can_be_emulated = InferenceEngine::with_cpu_x86_avx512_core() ? ov::element::bf16 : ov::element::f32;
+using ExpectedModeAndType = std::pair<ov::hint::ExecutionMode, ov::element::Type>;
+
+const std::map<ov::hint::ExecutionMode, ExpectedModeAndType> exectedTypeByMode {
+    {ov::hint::ExecutionMode::PERFORMANCE, {ov::hint::ExecutionMode::PERFORMANCE,
+                                            bf16_if_supported}},
+    {ov::hint::ExecutionMode::ACCURACY,    {ov::hint::ExecutionMode::ACCURACY,
+                                            ov::element::f32}},
+};
+
+TEST(OVClassBasicTest, smoke_SetConfigExecutionModeExpectCorrespondingInferencePrecision) {
+    ov::Core ie;
+    const auto inference_precision_default = bf16_if_supported;
+    const auto execution_mode_default = ov::hint::ExecutionMode::PERFORMANCE;
+    auto execution_mode_value = ov::hint::ExecutionMode::PERFORMANCE;
+    auto inference_precision_value = ov::element::undefined;
+
+    // check default values
+    OV_ASSERT_NO_THROW(inference_precision_value = ie.get_property("CPU", ov::hint::inference_precision));
+    ASSERT_EQ(inference_precision_value, inference_precision_default);
+    OV_ASSERT_NO_THROW(execution_mode_value = ie.get_property("CPU", ov::hint::execution_mode));
+    ASSERT_EQ(execution_mode_value, execution_mode_default);
+
+    for (const auto& m : exectedTypeByMode) {
+        const auto execution_mode = m.first;
+        const auto execution_mode_exected = m.second.first;
+        const auto inference_precision_exected = m.second.second;
+
+        OV_ASSERT_NO_THROW(ie.set_property("CPU", ov::hint::execution_mode(execution_mode)));
+        OV_ASSERT_NO_THROW(execution_mode_value = ie.get_property("CPU", ov::hint::execution_mode));
+        ASSERT_EQ(execution_mode_value, execution_mode_exected);
+
+        OV_ASSERT_NO_THROW(inference_precision_value = ie.get_property("CPU", ov::hint::inference_precision));
+        ASSERT_EQ(inference_precision_value, inference_precision_exected);
+    }
+}
+
+TEST(OVClassBasicTest, smoke_SetConfigExecutionModeAndInferencePrecision) {
+    ov::Core ie;
+    const auto inference_precision_default = bf16_if_supported;
+    const auto execution_mode_default = ov::hint::ExecutionMode::PERFORMANCE;
+
+    auto expect_execution_mode = [&](const ov::hint::ExecutionMode expected_value) {
+        auto execution_mode_value = ov::hint::ExecutionMode::ACCURACY;
+        OV_ASSERT_NO_THROW(execution_mode_value = ie.get_property("CPU", ov::hint::execution_mode));
+        ASSERT_EQ(execution_mode_value, expected_value);
+    };
+
+    auto expect_inference_precision = [&](const ov::element::Type expected_value) {
+        auto inference_precision_value = ov::element::undefined;;
+        OV_ASSERT_NO_THROW(inference_precision_value = ie.get_property("CPU", ov::hint::inference_precision));
+        ASSERT_EQ(inference_precision_value, expected_value);
+    };
+
+    // check default values
+    expect_execution_mode(execution_mode_default);
+    expect_inference_precision(inference_precision_default);
+    // verify that conflicting property values work as expect
+    OV_ASSERT_NO_THROW(ie.set_property("CPU", ov::hint::execution_mode(ov::hint::ExecutionMode::PERFORMANCE)));
+    OV_ASSERT_NO_THROW(ie.set_property("CPU", ov::hint::inference_precision(ov::element::f32)));
+    expect_execution_mode(ov::hint::ExecutionMode::PERFORMANCE); // inference_preicision does not affect execution_mode property itself
+    expect_inference_precision(ov::element::f32); // inference_preicision has more priority than performance mode
+
+    OV_ASSERT_NO_THROW(ie.set_property("CPU", ov::hint::execution_mode(ov::hint::ExecutionMode::ACCURACY)));
+    OV_ASSERT_NO_THROW(ie.set_property("CPU", ov::hint::inference_precision(bf16_if_can_be_emulated)));
+    expect_execution_mode(ov::hint::ExecutionMode::ACCURACY);
+    expect_inference_precision(bf16_if_can_be_emulated);
 }
 
 // IE Class Query network
@@ -341,12 +413,12 @@ INSTANTIATE_TEST_SUITE_P(smoke_HETERO_OVClassLoadNetworkWithSecondaryPropertiesT
 // IE Class load and check network with ov::device::properties
 INSTANTIATE_TEST_SUITE_P(smoke_CPU_OVClassLoadNetworkAndCheckWithSecondaryPropertiesTest,
                          OVClassLoadNetworkAndCheckSecondaryPropertiesTest,
-                         ::testing::Combine(::testing::Values("CPU", "MULTI:CPU"),
+                         ::testing::Combine(::testing::Values("CPU"),
                                             ::testing::ValuesIn(configsDeviceProperties)));
 
 INSTANTIATE_TEST_SUITE_P(smoke_CPU_OVClassLoadNetworkAndCheckWithSecondaryPropertiesDoubleTest,
                          OVClassLoadNetworkAndCheckSecondaryPropertiesTest,
-                         ::testing::Combine(::testing::Values("CPU", "MULTI:CPU"),
+                         ::testing::Combine(::testing::Values("CPU"),
                                             ::testing::ValuesIn(configsDevicePropertiesDouble)));
 INSTANTIATE_TEST_SUITE_P(
         smoke_OVClassLoadNetworkTest, OVClassLoadNetworkTest,

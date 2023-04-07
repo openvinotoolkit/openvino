@@ -8,6 +8,7 @@
 
 #include "primitive_inst.h"
 #include "intel_gpu/graph/serialization/binary_buffer.hpp"
+#include "intel_gpu/plugin/common_utils.hpp"
 #include "intel_gpu/runtime/memory.hpp"
 #include "to_string_utils.h"
 #include "register.hpp"
@@ -249,11 +250,16 @@ struct typed_primitive_onednn_impl : public typed_primitive_impl<PType> {
                         dnnl::algorithm aalgorithm = dnnl::algorithm::undef;
                         ib >> make_data(&aalgorithm, sizeof(dnnl::algorithm));
 
-                        dnnl::memory::desc md = onednn::layout_to_memory_desc(
-                                                        impl_params->get_input_layout(fused_desc.at(idx).mem_dep),
-                                                        fused_desc.at(idx).tag, fused_desc.at(idx).flatten);
+                        if (fused_desc.at(idx).dims.size() > 0) {
+                            _post_ops.append_binary(aalgorithm,
+                                dnnl::memory::desc(fused_desc.at(idx).dims, fused_desc.at(idx).dt, fused_desc.at(idx).tag));
+                        } else {
+                            dnnl::memory::desc md = onednn::layout_to_memory_desc(
+                                                            impl_params->get_input_layout(fused_desc.at(idx).mem_dep),
+                                                            fused_desc.at(idx).tag, fused_desc.at(idx).flatten);
 
-                        _post_ops.append_binary(aalgorithm, md);
+                            _post_ops.append_binary(aalgorithm, md);
+                        }
                     } else if (_kind == dnnl::primitive::kind::prelu) {
                         int mask;
                         ib >> mask;
@@ -483,7 +489,15 @@ protected:
         }
 
         if (!instance.can_be_optimized()) {
-            _prim.execute(stream.get_onednn_stream(), _args[net_id]);
+            try {
+                _prim.execute(stream.get_onednn_stream(), _args[net_id]);
+            } catch (dnnl::error& err) {
+                /// WA: Force exit. Any opencl api call can be hang after CL_OUT_OF_RESOURCES.
+                if (err.status == dnnl_status_t::dnnl_out_of_memory) {
+                    ov::intel_gpu::ForceExit();
+                }
+                throw;    // rethrowing dnnl::error if not out_of_memory
+            }
         }
 
         if (_enable_profiling) {

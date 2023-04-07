@@ -7,6 +7,7 @@
 #include "intel_gpu/primitives/concatenation.hpp"
 #include "intel_gpu/runtime/event.hpp"
 #include "intel_gpu/runtime/memory.hpp"
+#include "intel_gpu/runtime/lru_cache.hpp"
 #include "intel_gpu/graph/network.hpp"
 #include "intel_gpu/runtime/utils.hpp"
 #include "program_node.h"
@@ -143,6 +144,7 @@ public:
     void check_memory_to_set(const memory& mem, const layout& layout) const;
     const std::list<const cldnn::program_node *>& get_users() const { return _node->get_users(); }
 
+    const kernel_impl_params* get_impl_params() const { return _impl_params.get(); }
     // return pointer to const to prevent arbitrary 'execute' call -> use primitive_inst.execute() instead
     const primitive_impl* get_impl() const { return _impl.get(); }
 
@@ -266,6 +268,8 @@ protected:
     std::vector<memory::ptr> _outputs;
 
     std::vector<memory::cptr> _intermediates_memory;
+
+    mutable LruCache<layout, memory::ptr, layout::Hasher> _reordered_weights_cache;
 
     // Buffer to store actual shapes of dynamic tensor which is automatically asigned as 1st argument to shape agnostic kernels
     memory::ptr _shape_info_memory = nullptr;

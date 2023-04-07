@@ -45,10 +45,7 @@ void AutoSchedule::GenerateWorkers(const std::string& device,
     } else {
         realDeviceName = device;
     }
-    auto itNumRequests = std::find_if(_autoSContext->_devicePriorities.cbegin(), _autoSContext->_devicePriorities.cend(),
-                                      [&realDeviceName](const DeviceInformation & d) {
-                                          return d.deviceName == realDeviceName;
-                                      });
+    auto itNumRequests = deviceChecker().checkAndReturnIfDeviceInList<DeviceInformation>(realDeviceName, _autoSContext->_devicePriorities, true);
     unsigned int optimalNum = 0;
     try {
         optimalNum = executableNetwork->GetMetric(METRIC_KEY(OPTIMAL_NUMBER_OF_INFER_REQUESTS)).as<unsigned int>();
@@ -139,9 +136,7 @@ bool AutoSchedule::selectOtherDevice(const std::string& currentDeviceName) {
             } else {
                 realDeviceName = deviceName;
             }
-            const auto CurrentDeviceIter = std::find_if(_autoSContext->_devicePriorities.begin(), _autoSContext->_devicePriorities.end(),
-                                                [=](const DeviceInformation& d) -> bool {
-                                                return d.deviceName.find(realDeviceName) != std::string::npos;});
+            const auto CurrentDeviceIter = deviceChecker().checkAndReturnIfDeviceInList<DeviceInformation>(realDeviceName, _autoSContext->_devicePriorities);
             if (CurrentDeviceIter != _autoSContext->_devicePriorities.end()) {
                 if (_autoSContext->_devicePriorities.size() == 1) {
                     LOG_INFO_TAG("No other devices in _devicePriorities");
@@ -186,11 +181,7 @@ bool AutoSchedule::selectOtherDevice(const std::string& currentDeviceName) {
         auto removeInferFailDevice = [&](const std::string& deviceName) {
             if (_autoSContext->_devicePriorities.size() > 1) {
                 const auto CurrentDeviceIter =
-                    std::find_if(_autoSContext->_devicePriorities.begin(),
-                                 _autoSContext->_devicePriorities.end(),
-                                 [=](const DeviceInformation& d) -> bool {
-                                     return d.deviceName.find(deviceName) != std::string::npos;
-                                 });
+                    deviceChecker().checkAndReturnIfDeviceInList<DeviceInformation>(deviceName, _autoSContext->_devicePriorities);
                 if (CurrentDeviceIter != _autoSContext->_devicePriorities.end()) {
                     _autoSContext->_devicePriorities.erase(CurrentDeviceIter);
                     return true;
@@ -234,9 +225,7 @@ void AutoSchedule::init(const ScheduleContext::Ptr& sContext) {
     bool isCumulative =
         (_autoSContext->_performanceHint == IE::PluginConfigParams::CUMULATIVE_THROUGHPUT) ? true : false;
     if (isCumulative) {
-        std::list<DeviceInformation> validDevices =
-            _autoSContext->_plugin->GetValidDevice(_autoSContext->_devicePriorities,
-                                                   _loadContext[ACTUALDEVICE].networkPrecision);
+        const auto& validDevices = _autoSContext->_devicePriorities;
         // When the hint is ctput and there is only one device, the single-device logic is used
         if (validDevices.size() == 1) {
             _loadContext[ACTUALDEVICE].deviceInfo = validDevices.front();
@@ -244,14 +233,10 @@ void AutoSchedule::init(const ScheduleContext::Ptr& sContext) {
                 IE::PluginConfigParams::THROUGHPUT;
         } else if (validDevices.size() > 1) {
             _loadContext[ACTUALDEVICE].isEnabled = false;
-            _autoSContext->_devicePriorities.clear();
-            std::copy(std::begin(validDevices),
-                      std::end(validDevices),
-                      std::back_inserter(_autoSContext->_devicePriorities));
             // Total number of devices in CTPUT
-            auto nCTputDeviceNums = validDevices.size();
+            _nCTputDeviceNums = validDevices.size();
             // Generate contexts for loading each device
-            _pCTPUTLoadContext.reset(new AutoLoadContext[nCTputDeviceNums]);
+            _pCTPUTLoadContext.reset(new AutoLoadContext[_nCTputDeviceNums]);
             int idx = 0;
             DeviceInformation cpuDeviceInformation;
             for (auto& device : validDevices) {
@@ -271,6 +256,10 @@ void AutoSchedule::init(const ScheduleContext::Ptr& sContext) {
                 _pCTPUTLoadContext[idx].deviceInfo.config[CONFIG_KEY(PERFORMANCE_HINT)] =
                     IE::PluginConfigParams::THROUGHPUT;
             }
+        }
+        if (_autoSContext->_LogTag == "MULTI") {
+            // MULTI's performance hint always is tput
+            _autoSContext->_performanceHint = IE::PluginConfigParams::THROUGHPUT;
         }
     } else {
         _loadContext[ACTUALDEVICE].deviceInfo =
@@ -319,12 +308,7 @@ void AutoSchedule::init(const ScheduleContext::Ptr& sContext) {
         if (isCumulative && !contextPtr->isLoadSuccess) {
             std::string failedDeviceName = contextPtr->deviceInfo.deviceName;
             std::lock_guard<std::mutex> lock(_autoSContext->_confMutex);
-            const auto DeviceIter =
-                std::find_if(_autoSContext->_devicePriorities.begin(),
-                             _autoSContext->_devicePriorities.end(),
-                             [&](const DeviceInformation& d) -> bool {
-                                 return d.deviceName.find(failedDeviceName) != std::string::npos;
-                             });
+            const auto DeviceIter = deviceChecker().checkAndReturnIfDeviceInList(failedDeviceName, _autoSContext->_devicePriorities);
             // Remove failed device from _devicePriorities
             if (DeviceIter != _autoSContext->_devicePriorities.end()) {
                 _autoSContext->_devicePriorities.erase(DeviceIter);
@@ -358,11 +342,7 @@ void AutoSchedule::init(const ScheduleContext::Ptr& sContext) {
         if (isActualDevCPU || !_autoSContext->_startupfallback) {
             _loadContext[CPU].isEnabled = false;
         } else {
-            const auto CPUIter = std::find_if(_autoSContext->_devicePriorities.begin(),
-                                              _autoSContext->_devicePriorities.end(),
-                                              [](const DeviceInformation& d) -> bool {
-                                                  return d.deviceName.find("CPU") != std::string::npos;
-                                              });
+            const auto CPUIter = deviceChecker().checkAndReturnIfDeviceInList("CPU", _autoSContext->_devicePriorities);
             // if have CPU Device,  enable _loadContext[CPU]
             if (CPUIter != _autoSContext->_devicePriorities.end()) {
                 _loadContext[CPU].isEnabled = true;
@@ -388,12 +368,12 @@ void AutoSchedule::init(const ScheduleContext::Ptr& sContext) {
     std::vector<Task> otherDevicesloads;
     std::vector<Task> cpuLoads;
     if (_pCTPUTLoadContext) {
-        for (size_t i = 0; i < _autoSContext->_devicePriorities.size(); i++) {
+        for (size_t i = 0; i < _nCTputDeviceNums; i++) {
             auto* contextPtr = &_pCTPUTLoadContext[i];
             auto modelPath = _autoSContext->_modelPath;
             auto network = _autoSContext->_network;
             _pCTPUTLoadContext[i].task = std::bind(loadDeviceTask, contextPtr, modelPath, network, isCumulative);
-            if (i == _autoSContext->_devicePriorities.size() - 1 &&
+            if (i == _nCTputDeviceNums - 1 &&
                 _pCTPUTLoadContext[i].deviceInfo.deviceName.find("CPU") != std::string::npos) {
                 cpuLoads.push_back(_pCTPUTLoadContext[i].task);
             } else {
@@ -518,7 +498,7 @@ void AutoSchedule::init(const ScheduleContext::Ptr& sContext) {
             _passthroughExeNet = _loadContext[ACTUALDEVICE].executableNetwork;
         }
     }
-    WaitFirstNetworkReady();
+    _autoSContext->_hwExecutableNetwork = WaitFirstNetworkReady();
 }
 
 void AutoSchedule::TryToLoadNetWork(AutoLoadContext& context, const std::string& modelPath, const IE::CNNNetwork& network, bool isCumulative) {
@@ -572,11 +552,9 @@ void AutoSchedule::TryToLoadNetWork(AutoLoadContext& context, const std::string&
     // maybe 0 is loaded to VPUX, 1 is loaded to iGPU
     _autoSContext->_plugin->UnregisterPriority(_autoSContext->_modelPriority, context.deviceInfo.uniqueName);
     // remove the current device from deviceList
-    auto eraseDevice = std::find_if(deviceList.begin(), deviceList.end(),
-                                    [device](DeviceInformation & d) {
-                                        return d.deviceName == device;
-                                    });
-    deviceList.erase(eraseDevice);
+    auto eraseDevice = deviceChecker().checkAndReturnIfDeviceInList(device, deviceList, true);
+    if (eraseDevice != deviceList.end())
+        deviceList.erase(eraseDevice);
     if (deviceList.empty()) {
         return;
     }
@@ -618,7 +596,7 @@ void AutoSchedule::TryToLoadNetWork(AutoLoadContext& context, const std::string&
     TryToLoadNetWork(context, modelPath, network, isCumulative);
 }
 
-void AutoSchedule::WaitFirstNetworkReady() {
+SoExecNetwork AutoSchedule::WaitFirstNetworkReady() {
     if (_firstLoadFuture.valid()) {
         // wait for the first loading finished
         _firstLoadFuture.wait();
@@ -626,7 +604,7 @@ void AutoSchedule::WaitFirstNetworkReady() {
     // check if there is any device that have loaded network successfully
     for (int i = CONTEXTNUM - 2; i >= 0; i--) {
         if (_loadContext[i].isEnabled && _loadContext[i].isAlready) {
-            return;
+            return _loadContext[i].executableNetwork;
         }
     }
     // the first loading is failed, wait for another loading
@@ -635,31 +613,42 @@ void AutoSchedule::WaitFirstNetworkReady() {
             _loadContext[i].future.wait();
             // check if loading is successful
             if (_loadContext[i].isAlready) {
-                return;
+                return _loadContext[i].executableNetwork;
             }
         }
     }
+    std::ostringstream result;
     //print errMessage
+    result << "Load network failed, ";
     for (int i = CONTEXTNUM - 2; i >= 0; i--) {
         if (_loadContext[i].isEnabled) {
+            result << _loadContext[i].errMessage.c_str();
+            result << "; ";
             LOG_ERROR_TAG("load failed, %s", _loadContext[i].errMessage.c_str());
         }
     }
     // devices loaded successfully in CTPUT
+    SoExecNetwork execNetwork;
     if (_pCTPUTLoadContext) {
         int nLoadSucNums = 0;
-        for (size_t i = 0; i < _autoSContext->_devicePriorities.size(); i++) {
+        for (size_t i = 0; i < _nCTputDeviceNums; i++) {
             // check if device loaded successfully
             if (_pCTPUTLoadContext[i].isAlready) {
+                if (!execNetwork) {
+                    execNetwork = _pCTPUTLoadContext[i].executableNetwork;
+                }
                 nLoadSucNums++;
+            } else {
+                result << _pCTPUTLoadContext[i].errMessage.c_str();
+                result << "; ";
             }
         }
         // one or more devices loaded successfully
         if (nLoadSucNums > 0) {
-            return;
+            return execNetwork;
         }
     }
-    IE_THROW() << GetLogTag() << "load all devices failed";
+    IE_THROW() << "[" << GetLogTag() << "] " << result.str();
 }
 
 void AutoSchedule::WaitActualNetworkReady() const {
@@ -676,23 +665,22 @@ void AutoSchedule::WaitActualNetworkReady() const {
 bool AutoSchedule::ScheduleToWorkerInferRequest(IE::Task inferPipelineTask, DeviceName preferred_device) {
     std::vector<DeviceInformation> devices;
     // AUTO work mode
+    // Devices that fail infer will be removed from the priority list in the callback, need lock here
+    std::unique_lock<std::mutex> lock(_autoSContext->_fallbackMutex);
     if (!preferred_device.empty()) {
         if (_pCTPUTLoadContext) {
-            std::lock_guard<std::mutex> lock(_autoSContext->_fallbackMutex);
             devices = _autoSContext->_devicePriorities;
         } else {
             // if the device needed by customer is not ready, need to wait for it
             WaitActualNetworkReady();
-            // the preferred_device should be the selected device in AUTO work mode
-            if (preferred_device != _loadContext[ACTUALDEVICE].deviceInfo.deviceName) {
-                IE_THROW(NotFound) << "The preferred device should be the selected device";
-            }
             devices.push_back(_loadContext[ACTUALDEVICE].deviceInfo);
+        }
+        if (!deviceChecker().checkIfDeviceInList<DeviceInformation>(preferred_device, devices)) {
+            lock.unlock();
+            IE_THROW(NotFound) << "The preferred device should be the selected device";
         }
     } else {
         if (_pCTPUTLoadContext) {
-            // Devices that fail infer will be removed from the priority list in the callback, need lock here
-            std::lock_guard<std::mutex> lock(_autoSContext->_fallbackMutex);
             for (size_t i = 0; i < _autoSContext->_devicePriorities.size(); i++) {
                 devices.push_back(_autoSContext->_devicePriorities[i]);
             }
@@ -713,9 +701,7 @@ bool AutoSchedule::ScheduleToWorkerInferRequest(IE::Task inferPipelineTask, Devi
             }
         }
     }
-    if (devices.size() == 0) {
-        IE_THROW(GeneralError) << "No device to run pipeline task";
-    }
+    lock.unlock();
     for (auto&& device : devices) {
         if (!preferred_device.empty() && (device.deviceName != preferred_device)) {
             continue;
@@ -784,7 +770,6 @@ IInferPtr AutoSchedule::CreateInferRequest() {
             so = _passthroughExeNet._so;
         syncRequestImpl->setPointerToSo(so);
     } else if (std::static_pointer_cast<MultiDeviceInferRequest>(syncRequestImpl)->GetSharedRequest()) {
-        // cumulative case, load to MULTI:*
         auto sharedMultiRequest = std::static_pointer_cast<MultiDeviceInferRequest>(syncRequestImpl)->GetSharedRequest();
         if (sharedMultiRequest._ptr->getPointerToSo())
             syncRequestImpl->setPointerToSo(sharedMultiRequest._ptr->getPointerToSo());
