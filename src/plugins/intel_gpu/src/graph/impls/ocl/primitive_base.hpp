@@ -212,13 +212,16 @@ protected:
     }
 
     void set_arguments_impl(typed_primitive_inst<PType>& instance, kernel_arguments_data& args) override {
-        if (instance.can_be_optimized() || is_cpu()) {
+        if (instance.can_be_optimized()) {
             return;
         }
 
         stream& stream = instance.get_network().get_stream();
 
         for (size_t k = 0; k < _kernels.size(); ++k) {
+            if (_kernel_data.kernels[k].skip_execution)
+                continue;
+
             stream.set_arguments(*_kernels[k], _kernel_data.kernels[k].params, args);
         }
     }

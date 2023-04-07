@@ -9,6 +9,7 @@
 
 #include "gemm_inst.h"
 #include "pooling_inst.h"
+#include "fully_connected_inst.h"
 
 #include <iterator>
 #include <vector>

@@ -150,8 +150,8 @@ struct WeightsReordersFactory {
 
             return kv.second;
         }
-        OPENVINO_ASSERT(false, "[GPU] WeightsReordersFactory doesn't have any implementation for "
-                               " impl_type: ", preferred_impl_type, ", shape_type: ", target_shape_type);
+        OPENVINO_THROW("[GPU] WeightsReordersFactory doesn't have any implementation for "
+                       " impl_type: ", preferred_impl_type, ", shape_type: ", target_shape_type);
     }
 };
 }  // namespace cldnn
