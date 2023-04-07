@@ -971,6 +971,7 @@ public:
 
 std::vector<element::Type> types{
     element::f32,
+    element::f16,
     element::f64,
     element::i32,
     element::u32,
