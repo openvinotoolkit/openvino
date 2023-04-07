@@ -230,6 +230,10 @@ Performance Hints for AUTO
 
 The ``ov::hint::performance_mode`` property enables you to specify a performance option for AUTO to be more efficient for particular use cases. The default hint for AUTO is ``LATENCY``.
 
+The THROUGHPUT and CUMULATIVE_THROUGHPUT hints below only improve performance in an asynchronous inference pipeline. For information on asynchronous inference, see the `Async API documentation <https://docs.openvino.ai/latest/openvino_docs_OV_UG_Infer_request.html#doxid-openvino-docs-o-v-u-g-infer-request>`__ . The following notebooks provide examples of how to set up an asynchronous pipeline:
+
+* :doc:`Image Classification Async Sample <openvino_inference_engine_samples_classification_sample_async_README>`
+* `Notebook - Automatic Device Selection with OpenVINO <https://docs.openvino.ai/latest/notebooks/106-auto-device-with-output.html>`__
 
 LATENCY
 --------------------
@@ -257,15 +261,45 @@ While ``LATENCY`` and ``THROUGHPUT`` can select one target device with your pref
 
 CUMULATIVE_THROUGHPUT has similar behavior as :doc:`the Multi-Device execution mode (MULTI) <openvino_docs_OV_UG_Running_on_multiple_devices>`. The only difference is that CUMULATIVE_THROUGHPUT uses the devices specified by AUTO, which means that it's not mandatory to add devices manually, while with MULTI, you need to specify the devices before inference.
 
-With the CUMULATIVE_THROUGHPUT option:
+If device priority is specified when using CUMULATIVE_THROUGHPUT, AUTO will run inference requests on devices based on the priority. In the following example, AUTO will always try to use GPU first, and then use CPU if GPU is busy:
 
-* If ``AUTO`` without any device names is specified, and the system has more than two GPU devices, AUTO will remove CPU from the device candidate list to keep GPU running at full capacity.
-* If device priority is specified, AUTO will run inference requests on devices based on the priority. In the following example, AUTO will always try to use GPU first, and then use CPU if GPU is busy:
+.. tab-set::
+   
+    .. tab-item:: C++
+        :sync: cpp
 
-  .. code-block: sh
+        .. code_block:: sh
+   
+           ov::CompiledModel compiled_model = core.compile_model(model, "AUTO:GPU,CPU", ov::hint::performance_mode(ov::hint::PerformanceMode::CUMULATIVE_THROUGHPUT));
+   
+    .. tab-item:: Python
+        :sync: py
 
-     ov::CompiledModel compiled_model = core.compile_model(model, "AUTO:GPU,CPU", ov::hint::performance_mode(ov::hint::PerformanceMode::CUMULATIVE_THROUGHPUT));
+        .. code_block:: sh
+         
+           compiled_model = core.compile_model(model, "AUTO:GPU,CPU", {"PERFORMANCE_HINT" : {"CUMULATIVE_THROUGHPUT"}})
 
+
+If AUTO is used without specifying any device names, and if there are multiple GPUs in the system, CUMULATIVE_THROUGHPUT mode will use all of the GPUs by default. If the system has more than two GPU devices, AUTO will remove CPU from the device candidate list to keep the GPUs running at full capacity. A full list of system devices and their unique identifiers can be queried using ov::Core::get_available_devices (for more information, see :doc:`Query Device Properties <openvino_docs_OV_UG_query_api>`). To explicitly specify which GPUs to use, set their priority when compiling with AUTO:
+
+@endsphinxdirective
+
+.. tab-set::
+   
+    .. tab-item:: C++
+        :sync: cpp
+
+        .. code_block:: sh
+   
+           ov::CompiledModel compiled_model = core.compile_model(model, "AUTO:GPU.1,GPU.0", ov::hint::performance_mode(ov::hint::PerformanceMode::CUMULATIVE_THROUGHPUT));
+
+   
+    .. tab-item:: Python
+        :sync: py
+
+        .. code_block:: sh
+         
+           compiled_model = core.compile_model(model, "AUTO:GPU.1,GPU.0", {"PERFORMANCE_HINT" : {"CUMULATIVE_THROUGHPUT"})
 
 Code Examples
 --------------------
