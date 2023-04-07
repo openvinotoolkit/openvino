@@ -12,8 +12,8 @@
 #include <ngraph_functions/subgraph_builders.hpp>
 #include <openvino/runtime/core.hpp>
 
-#include "mock_common.hpp"
-#include "plugin/mock_load_network_properties.hpp"
+#include "include/mock_common.hpp"
+#include "include/mock_auto_device_plugin.hpp"
 #include "unit_test_utils/mocks/cpp_interfaces/impl/mock_inference_plugin_internal.hpp"
 #include "unit_test_utils/mocks/cpp_interfaces/interface/mock_icore.hpp"
 #include "unit_test_utils/mocks/cpp_interfaces/interface/mock_iexecutable_network_internal.hpp"
@@ -67,7 +67,7 @@ static std::vector<ConfigParams> testConfigs;
 class LoadNetworkWithSecondaryConfigsMockTest : public ::testing::TestWithParam<ConfigParams> {
 public:
     std::shared_ptr<NiceMock<MockICore>> core;
-    std::shared_ptr<NiceMock<MockMultiPluginForLoadNetworkWithPropertiesTest>> plugin;
+    std::shared_ptr<NiceMock<MockMultiDeviceInferencePlugin>> plugin;
     InferenceEngine::CNNNetwork simpleCnnNetwork;
     // mock cpu exeNetwork
     std::shared_ptr<NiceMock<MockIExecutableNetworkInternal>> cpuMockIExeNet;
@@ -159,8 +159,8 @@ public:
 
         // prepare mockicore and cnnNetwork for loading
         core = std::shared_ptr<NiceMock<MockICore>>(new NiceMock<MockICore>());
-        auto* origin_plugin = new NiceMock<MockMultiPluginForLoadNetworkWithPropertiesTest>();
-        plugin = std::shared_ptr<NiceMock<MockMultiPluginForLoadNetworkWithPropertiesTest>>(origin_plugin);
+        auto* origin_plugin = new NiceMock<MockMultiDeviceInferencePlugin>();
+        plugin = std::shared_ptr<NiceMock<MockMultiDeviceInferencePlugin>>(origin_plugin);
         // replace core with mock Icore
         plugin->SetCore(core);
         inferReqInternal = std::make_shared<NiceMock<MockIInferRequestInternal>>();
@@ -197,7 +197,7 @@ public:
             });
 
         ON_CALL(*plugin, GetValidDevice)
-            .WillByDefault([this](const std::vector<DeviceInformation>& metaDevices, const std::string& netPrecision) {
+            .WillByDefault([](const std::vector<DeviceInformation>& metaDevices, const std::string& netPrecision) {
                 std::list<DeviceInformation> devices(metaDevices.begin(), metaDevices.end());
                 return devices;
             });

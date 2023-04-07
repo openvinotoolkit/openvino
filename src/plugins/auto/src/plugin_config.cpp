@@ -1,7 +1,7 @@
 // Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
-#include "utils/plugin_config.hpp"
+#include "plugin_config.hpp"
 
 namespace MultiDevicePlugin {
 // AUTO will enable the blocklist if

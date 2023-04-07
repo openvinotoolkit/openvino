@@ -15,8 +15,8 @@
 #include <ngraph_functions/subgraph_builders.hpp>
 #include <gtest/gtest.h>
 #include <gmock/gmock.h>
-#include "plugin/mock_auto_device_plugin.hpp"
-#include "mock_common.hpp"
+#include "include/mock_auto_device_plugin.hpp"
+#include "include/mock_common.hpp"
 #include <thread>
 
 using ::testing::MatcherCast;
@@ -163,7 +163,7 @@ TEST_P(AutoReleaseHelperTest, releaseResource) {
     DeviceInformation devInfo;
     ON_CALL(*plugin, ParseMetaDevices(_, _)).WillByDefault(Return(metaDevices));
     ON_CALL(*plugin, GetValidDevice)
-        .WillByDefault([this](const std::vector<DeviceInformation>& metaDevices, const std::string& netPrecision) {
+        .WillByDefault([](const std::vector<DeviceInformation>& metaDevices, const std::string& netPrecision) {
             std::list<DeviceInformation> devices(metaDevices.begin(), metaDevices.end());
             return devices;
         });
