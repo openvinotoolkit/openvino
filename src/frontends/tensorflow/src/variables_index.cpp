@@ -85,10 +85,10 @@ struct VIFooter {
 };
 
 void VariablesIndex::read_variables_index_block(std::ifstream& fs,
-                                                          const VIBlock& index,
-                                                          std::vector<char>& data,
-                                                          uint32_t& offset,
-                                                          uint32_t& offset_end) {
+                                                const VIBlock& index,
+                                                std::vector<char>& data,
+                                                uint32_t& offset,
+                                                uint32_t& offset_end) {
     size_t block_size = index.m_size;
     data.clear();
     data.resize(block_size + 5 /*kBlockTrailerSize*/);
@@ -118,10 +118,10 @@ void VariablesIndex::read_variables_index_block(std::ifstream& fs,
 }
 
 void VariablesIndex::read_variables_index_pair(char*& ptr,
-                                                         const char* ptr_end,
-                                                         std::string& key,
-                                                         char*& value,
-                                                         uint32_t& val_length) {
+                                               const char* ptr_end,
+                                               std::string& key,
+                                               char*& value,
+                                               uint32_t& val_length) {
     uint32_t shared, nonShared;
     shared = smUnpack<uint32_t>(ptr, ptr_end);
     nonShared = smUnpack<uint32_t>(ptr, ptr_end);
@@ -140,8 +140,7 @@ void VariablesIndex::read_variables_index_pair(char*& ptr,
     ptr = value + val_length;
 }
 
-void VariablesIndex::read_variables_index(std::ifstream& fs,
-                                                    std::map<std::string, std::vector<char>>& varIndex) {
+void VariablesIndex::read_variables_index(std::ifstream& fs, std::map<std::string, std::vector<char>>& varIndex) {
     VIFooter footer;
 
     footer.read(fs);
@@ -239,7 +238,7 @@ bool VariablesIndex::read_variables(std::ifstream& vi_stream, const std::string&
     std::vector<char> suffix(20);
     for (int32_t shard = 0; shard < m_total_shards; ++shard) {
         std::snprintf(suffix.data(), suffix.size(), "data-%05d-of-%05d", shard, m_total_shards);
-        std::string fullPath; 
+        std::string fullPath;
         if (is_saved_model) {
             fullPath = ov::util::path_join({path, "variables", std::string("variables.") + suffix.data()});
         } else {
@@ -282,7 +281,6 @@ bool VariablesIndex::read_variables(std::ifstream& vi_stream, const std::wstring
     return true;
 }
 #endif
-
 
 struct PtrNode {
     const ::tensorflow::NodeDef* node;
@@ -393,7 +391,7 @@ static void read_stateful_partitioned_call(const std::shared_ptr<::tensorflow::G
 }
 
 void VariablesIndex::map_assignvariable(const std::shared_ptr<::tensorflow::GraphDef> graph_def,
-                                                 std::map<std::string, std::string>& variables_map) {
+                                        std::map<std::string, std::string>& variables_map) {
     std::map<std::string, PtrNode*> nodes;
 
     for (const auto& node : graph_def->node()) {
