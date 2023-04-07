@@ -89,11 +89,11 @@ public:
             }
         }
 
-        for (int i = 0; i < srcDescs.size(); i++) {
+        for (size_t i = 0; i < srcDescs.size(); i++) {
             if (getAclDataLayoutByMemoryDesc(srcDescs[i]) == arm_compute::DataLayout::UNKNOWN)
                  return false;
         }
-        for (int i = 0; i < dstDescs.size(); i++) {
+        for (size_t i = 0; i < dstDescs.size(); i++) {
             if (getAclDataLayoutByMemoryDesc(dstDescs[i]) == arm_compute::DataLayout::UNKNOWN)
                 return false;
         }

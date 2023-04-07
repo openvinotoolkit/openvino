@@ -473,7 +473,7 @@ private:
         constexpr unsigned simd_w = isa == cpu::x64::avx512_core ? 16 : 8;
         constexpr unsigned tail8_simd_w = 8;
         constexpr unsigned tail4_simd_w = 4;
-        constexpr unsigned repeats = isa == cpu::x64::sse41 ? 2 : 1;
+        constexpr int repeats = isa == cpu::x64::sse41 ? 2 : 1;
 
         Label main_loop_label;
         Label tail_blk8_label;
@@ -616,7 +616,7 @@ private:
 
             auto tail_unroll = [&](size_t iter) {
                 const auto &broadcasted = jqp_.broadcasted;
-                for (int i = 0; i < iter; i++) {
+                for (size_t i = 0; i < iter; i++) {
                     if (!broadcasted[static_cast<size_t>(FQ_add_input_type::CROP_LOW)])
                         uni_vmovss(xmm_crop_low(0), ptr[reg_crop_low + i * wei_type_size]);
                     if (!broadcasted[static_cast<size_t>(FQ_add_input_type::CROP_HIGH)])
@@ -1456,7 +1456,7 @@ void FakeQuantize::createPrimitive() {
         const auto &srcMemory = getParentEdgeAt(0)->getMemory();
         const auto &srcDesc = srcMemory.getDesc();
 
-        key.jqp.is_planar = srcDesc.hasLayoutType(LayoutType::ncsp) && one_of(srcDesc.getShape().getRank(), 3, 4, 5);
+        key.jqp.is_planar = srcDesc.hasLayoutType(LayoutType::ncsp) && one_of(srcDesc.getShape().getRank(), 3u, 4u, 5u);
         key.jqp.op_type = getAlgorithm();
 
         if (isBinarization()) {

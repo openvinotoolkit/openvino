@@ -378,11 +378,11 @@ private:
         // xpass
         if (xPass) {
             mov(reg_dst_aux, reg_dst_xpass);
-            for (size_t ih = 0; ih < jcp_.IH; ih++) {
+            for (size_t ih = 0; ih < static_cast<size_t>(jcp_.IH); ih++) {
                 // reg_dst_xpass: point to start of this dst height
                 // reset reg_dst_aux to start of this height
                 mov(reg_weights, reg_weights_bk);
-                for (size_t ow = 0; ow < jcp_.OW; ow++) {
+                for (size_t ow = 0; ow < static_cast<size_t>(jcp_.OW); ow++) {
                     // reg_src: point to start of this src height src
                     // reset reg_src_aux to reg_src
                     mov(reg_src_aux, reg_src);
@@ -433,10 +433,10 @@ private:
             add(reg_weights_bk, jcp_.OW * jcp_.filterLenX * sizeof(float));
             mov(reg_weights, reg_weights_bk);
             size_t bound_offset_y = jcp_.OW * 2;
-            for (size_t oh = 0; oh < jcp_.OH; oh++) {
+            for (size_t oh = 0; oh < static_cast<size_t>(jcp_.OH); oh++) {
                 filterS = jcp_.bound[bound_offset_y + oh * 2];
                 filterL = jcp_.bound[bound_offset_y + oh * 2 + 1];
-                for (size_t ow = 0; ow < jcp_.OW; ow++) {
+                for (size_t ow = 0; ow < static_cast<size_t>(jcp_.OW); ow++) {
                     mov(reg_src_aux, reg_src_ypass);  // reg_src_aux to advance block
                     for (int blk = 0; blk < jcp_.C / vector_step; blk++) {
                         uni_vpxor(vmm_dst, vmm_dst, vmm_dst);
@@ -1895,7 +1895,7 @@ Interpolate::Interpolate(const std::shared_ptr<ngraph::Node>& op, const GraphCon
                 axes = std::dynamic_pointer_cast<const ngraph::opset1::Constant>(interp->get_input_node_shared_ptr(AXES_ID))->cast_vector<int>();
             } else {
                 axes.resize(dataRank);
-                for (int i = 0; i < dataRank; i++) {
+                for (int i = 0; i < static_cast<int>(dataRank); i++) {
                     axes[i] = i;
                 }
             }
@@ -1959,7 +1959,7 @@ Interpolate::Interpolate(const std::shared_ptr<ngraph::Node>& op, const GraphCon
                 axes = std::dynamic_pointer_cast<const ngraph::opset1::Constant>(interp->get_input_node_shared_ptr(AXES_ID_V11))->cast_vector<int>();
             } else {
                 axes.resize(dataRank);
-                for (int i = 0; i < dataRank; i++) {
+                for (int i = 0; i < static_cast<int>(dataRank); i++) {
                     axes[i] = i;
                 }
             }
@@ -2067,11 +2067,11 @@ void Interpolate::initSupportedPrimitiveDescriptors() {
 
             if (useAclExecutor) {
                 std::vector<MemoryDescPtr> srcMemoryDescs;
-                for (int i = 0; i < config.inConfs.size(); i++) {
+                for (size_t i = 0; i < config.inConfs.size(); i++) {
                     srcMemoryDescs.push_back(config.inConfs[i].getMemDesc());
                 }
                 std::vector<MemoryDescPtr> dstMemoryDescs;
-                for (int i = 0; i < config.outConfs.size(); i++) {
+                for (size_t i = 0; i < config.outConfs.size(); i++) {
                     dstMemoryDescs.push_back(config.outConfs[i].getMemDesc());
                 }
 
@@ -2125,11 +2125,11 @@ void Interpolate::initSupportedPrimitiveDescriptors() {
 
             if (useAclExecutor) {
                 std::vector<MemoryDescPtr> srcMemoryDescs;
-                for (int i = 0; i < config.inConfs.size(); i++) {
+                for (size_t i = 0; i < config.inConfs.size(); i++) {
                     srcMemoryDescs.push_back(config.inConfs[i].getMemDesc());
                 }
                 std::vector<MemoryDescPtr> dstMemoryDescs;
-                for (int i = 0; i < config.outConfs.size(); i++) {
+                for (size_t i = 0; i < config.outConfs.size(); i++) {
                     dstMemoryDescs.push_back(config.outConfs[i].getMemDesc());
                 }
 
@@ -2295,7 +2295,7 @@ void Interpolate::prepareParams() {
         interpAttrs.dataScales = dataScales;
 
         std::vector<MemoryDescPtr> srcMemoryDescs;
-        for (int i = 0; i < getParentEdges().size(); i++) {
+        for (size_t i = 0; i < getParentEdges().size(); i++) {
             srcMemoryDescs.push_back(getParentEdgeAt(i)->getMemoryPtr()->getDescPtr());
         }
         std::vector<MemoryDescPtr> dstMemoryDescs;
@@ -3703,8 +3703,8 @@ void Interpolate::InterpolateRefExecutor::pillowRef(const uint8_t *in_ptr_, uint
         int f, filterS, filterL;
         float* weight;
         if (xPass) {
-            for (size_t ih = 0; ih < IH; ih++) {
-                for (size_t ow = 0; ow < OW; ow++) {
+            for (size_t ih = 0; ih < static_cast<size_t>(IH); ih++) {
+                for (size_t ow = 0; ow < static_cast<size_t>(OW); ow++) {
                     filterS = indexX[ow * 2];
                     filterL = indexX[ow * 2 + 1];
                     weight = reinterpret_cast<float*>(&weightX[ow * filterLenX]);
@@ -3721,11 +3721,11 @@ void Interpolate::InterpolateRefExecutor::pillowRef(const uint8_t *in_ptr_, uint
             }
         }
         if (yPass) {
-            for (size_t oh = 0; oh < OH; oh++) {
+            for (size_t oh = 0; oh < static_cast<size_t>(OH); oh++) {
                 filterS = indexY[oh * 2];
                 filterL = indexY[oh * 2 + 1];
                 weight = reinterpret_cast<float*>(&weightY[oh * filterLenY]);
-                for (size_t ow = 0; ow < OW; ow++) {
+                for (size_t ow = 0; ow < static_cast<size_t>(OW); ow++) {
                     result = 0.f;
                     for (f = 0; f < filterL; f++) {
                         float pixel = getValue(ypass_in_ptr_nc, ((f + filterS) * OW + ow) * srcDataSize, inputPrec);
