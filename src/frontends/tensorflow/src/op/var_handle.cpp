@@ -45,7 +45,7 @@ static std::shared_ptr<ov::Node> read_variable(std::shared_ptr<VariablesIndex> v
 }
 
 OutputVector translate_varhandle_op(const NodeContext& node) {
-    default_op_checks(node, 0, {"VarHandleOp"});
+    default_op_checks(node, 0, {"VarHandleOp", "VariableV2"});
     auto translate_session = node.get_translate_session();
     TENSORFLOW_OP_VALIDATION(node,
                              translate_session,
@@ -114,7 +114,7 @@ OutputVector translate_varisinitialized_op(const NodeContext& node) {
 }
 
 OutputVector translate_readvariable_op(const NodeContext& node) {
-    default_op_checks(node, 1, {"ReadVariableOp"});
+    default_op_checks(node, 1, {"ReadVariableOp", "Assign"});
     // Documentation says it should return only one tensor with dtype, but
     // _output_shapes in a vector of shapes and it means it could have multiple outputs
     // https://www.tensorflow.org/api_docs/python/tf/raw_ops/ReadVariableOp
