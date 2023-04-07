@@ -412,6 +412,29 @@ TEST_F(TransformationTestsF, TSGeneralTestMultipleTypes) {
     manager.register_pass<TSGeneral>();
 }
 
+TEST_F(TransformationTestsF, TSGeneralCheckShapeOfConstFoldingDisabled) {
+    using namespace transpose_sinking::testing::general;
+    ov::Shape input_shape = {96, 40, 55};
+    ov::Shape reshape_shape = {1, 96, 40, 55};
+    ov::element::Type input_type = ov::element::f32;
+    {
+        auto X = std::make_shared<Parameter>(input_type, input_shape);
+        auto Shape = std::make_shared<Parameter>(input_type, reshape_shape);
+
+        auto order = std::make_shared<Constant>(ov::element::u64, ov::Shape{3}, ov::Shape{0, 2, 1});
+        auto transpose = std::make_shared<Transpose>(X, order);
+
+        auto shape_of = std::make_shared<ShapeOf>(Shape);
+        auto reshape = std::make_shared<Reshape>(transpose, shape_of, false);
+
+        auto ng_order1 = std::make_shared<Constant>(ov::element::u64, ov::Shape{4}, ov::Shape{0, 3, 1, 2});
+        auto transpose1 = std::make_shared<Transpose>(reshape, ng_order1);
+
+        function = std::make_shared<ov::Model>(transpose1, ov::ParameterVector{X, Shape});
+    }
+    manager.register_pass<TSGeneral>();
+}
+
 }  // namespace general
 }  // namespace testing
 }  // namespace transpose_sinking

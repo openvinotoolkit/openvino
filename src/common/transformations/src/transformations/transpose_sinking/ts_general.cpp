@@ -9,6 +9,7 @@
 #include "openvino/pass/graph_rewrite.hpp"
 #include "openvino/pass/manager.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
+#include "transformations/common_optimizations/disable_shapeof_constant_folding.hpp"
 #include "transformations/transpose_sinking/ts_binary.hpp"
 #include "transformations/transpose_sinking/ts_concat.hpp"
 #include "transformations/transpose_sinking/ts_data_movement.hpp"
@@ -58,6 +59,7 @@ bool TSGeneral::run_on_model(const std::shared_ptr<ov::Model>& f) {
     RUN_ON_FUNCTION_SCOPE(TSGeneral);
     {
         Manager manager(get_pass_config());
+        manager.register_pass<DisableShapeOfConstantFolding>();
         manager.register_pass<TSGeneralForward>();
         manager.register_pass<ConstantFolding>();
         manager.run_passes(f);
@@ -65,6 +67,7 @@ bool TSGeneral::run_on_model(const std::shared_ptr<ov::Model>& f) {
 
     {
         Manager manager(get_pass_config());
+        manager.register_pass<DisableShapeOfConstantFolding>();
         manager.register_pass<TSGeneralBackward>();
         manager.register_pass<ConstantFolding>();
         manager.run_passes(f);
