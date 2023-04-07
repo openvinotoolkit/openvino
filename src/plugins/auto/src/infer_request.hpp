@@ -57,6 +57,8 @@ private:
     void CreateInferRequest(const InferenceEngine::SoIInferRequestInternal& request_to_share_blobs_with,
                             InferenceEngine::RemoteContext::Ptr ctx);
     InferenceEngine::SoIInferRequestInternal _sharedRequest;
+    std::unordered_map<std::string, std::shared_ptr<const ov::Node>> modelInputsMap;
+    std::unordered_map<std::string, std::shared_ptr<const ov::Node>> modelOutputsMap;
 };
 
 }  // namespace MultiDevicePlugin

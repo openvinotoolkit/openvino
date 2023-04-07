@@ -5,9 +5,12 @@
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 #include "infer_request.hpp"
+#include <ngraph/node.hpp>
+#include <transformations/utils/utils.hpp>
 #include <ie_input_info.hpp>
 #include <cpp_interfaces/interface/ie_iinfer_request_internal.hpp>
 #include <blob_factory.hpp>
+#include <debug.h>
 
 namespace MultiDevicePlugin {
 
@@ -20,6 +23,12 @@ MultiDeviceInferRequest::MultiDeviceInferRequest(const std::vector<std::shared_p
                                                  InferenceEngine::RemoteContext::Ptr ctx)
         : IInferRequestInternal(inputs, outputs),
           _sharedRequest(request_to_share_blobs_with)  {
+    for (const std::shared_ptr<const ov::Node>& in : inputs) {
+        modelInputsMap[ov::op::util::get_ie_output_name(ngraph::Output<const ngraph::Node>(in))] = in;
+    }
+    for (const std::shared_ptr<const ov::Node>& out : outputs) {
+        modelOutputsMap[ov::op::util::get_ie_output_name(out->input_value(0))] = out;
+    }
     CreateInferRequest(request_to_share_blobs_with, ctx);
 }
 
@@ -57,6 +66,16 @@ void MultiDeviceInferRequest::CreateInferRequest(const InferenceEngine::SoIInfer
         auto l = it.second->getLayout();
         auto p = it.second->getPrecision();
         auto dims = it.second->getTensorDesc().getDims();
+        // for 1.0 API, dims is not dynamic anyway
+        if (InferenceEngine::details::product(dims) == 0 && !modelOutputsMap.empty()) {
+            // replace the dims with one from dynamic shape
+            const auto outputNodeItr = modelOutputsMap.find(it.first);
+            if (outputNodeItr != modelOutputsMap.end()) {
+                const auto shape = outputNodeItr->second->get_input_partial_shape(0);
+                // update dims
+                dims = shape.get_max_shape();
+            }
+        }
 
         TensorDesc desc = TensorDesc(p, dims, l);
         if (ctx) {

@@ -9,7 +9,7 @@
 #include "ie_performance_hints.hpp"
 #include "ie_icore.hpp"
 #include "openvino/runtime/auto/properties.hpp"
-#include "log.hpp"
+#include "utils/log.hpp"
 #include "openvino/runtime/device_id_parser.hpp"
 #include <string>
 #include <map>

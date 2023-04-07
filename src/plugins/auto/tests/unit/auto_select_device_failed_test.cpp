@@ -16,8 +16,8 @@
 #include <ngraph_functions/subgraph_builders.hpp>
 #include <gtest/gtest.h>
 #include <gmock/gmock.h>
-#include "plugin/mock_auto_device_plugin.hpp"
-#include "mock_common.hpp"
+#include "include/mock_auto_device_plugin.hpp"
+#include "include/mock_common.hpp"
 
 using ::testing::MatcherCast;
 using ::testing::AllOf;
@@ -181,7 +181,7 @@ TEST_P(AutoLoadFailedTest, LoadCNNetWork) {
     // test auto plugin
     plugin->SetName("AUTO");
     std::string devicesStr = "";
-    int selDevsSize = deviceConfigs.size();
+    auto selDevsSize = deviceConfigs.size();
     for (auto iter = deviceConfigs.begin(); iter != deviceConfigs.end(); selDevsSize--) {
         std::string deviceName = std::get<0>(*iter);
         bool loadSuccess = std::get<1>(*iter);
@@ -226,7 +226,7 @@ TEST_P(AutoLoadFailedTest, LoadCNNetWork) {
     }
     ON_CALL(*plugin, ParseMetaDevices(_, _)).WillByDefault(Return(metaDevices));
     ON_CALL(*plugin, GetValidDevice)
-        .WillByDefault([this](const std::vector<DeviceInformation>& metaDevices, const std::string& netPrecision) {
+        .WillByDefault([](const std::vector<DeviceInformation>& metaDevices, const std::string& netPrecision) {
             std::list<DeviceInformation> devices(metaDevices.begin(), metaDevices.end());
             return devices;
         });

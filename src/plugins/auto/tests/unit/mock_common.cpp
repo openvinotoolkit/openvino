@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "mock_common.hpp"
+#include "include/mock_common.hpp"
 
 //  getMetric will return a fake ov::Any, gmock will call ostreamer << ov::Any
 //  it will cause core dump, so add this special implemented
