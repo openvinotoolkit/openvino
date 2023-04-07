@@ -108,7 +108,7 @@ void parse_processor_info_win(const char* base_ptr,
                 proc_info[CPU_MAP_PROCESSOR_ID] = list[0] + base_proc;
                 proc_info[CPU_MAP_SOCKET_ID] = _sockets;
                 proc_info[CPU_MAP_CORE_ID] = _cores;
-                proc_info[CPU_MAP_CORE_TYPE] = HYPER_THREADING_PROC;
+                proc_info[CPU_MAP_CORE_TYPE] = MAIN_CORE_PROC;
                 proc_info[CPU_MAP_GROUP_ID] = group;
                 _cpu_mapping_table.push_back(proc_info);
 
@@ -116,7 +116,7 @@ void parse_processor_info_win(const char* base_ptr,
                 proc_info[CPU_MAP_PROCESSOR_ID] = list[1] + base_proc;
                 proc_info[CPU_MAP_SOCKET_ID] = _sockets;
                 proc_info[CPU_MAP_CORE_ID] = _cores;
-                proc_info[CPU_MAP_CORE_TYPE] = MAIN_CORE_PROC;
+                proc_info[CPU_MAP_CORE_TYPE] = HYPER_THREADING_PROC;
                 proc_info[CPU_MAP_GROUP_ID] = group;
                 _cpu_mapping_table.push_back(proc_info);
 
