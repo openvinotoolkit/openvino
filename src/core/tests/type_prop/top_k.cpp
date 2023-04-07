@@ -410,20 +410,6 @@ TEST_F(TypePropTopKV3Test, k_is_u32) {
                 Each(Property("PartialShape", &Output<Node>::get_partial_shape, PartialShape({1, {-1, 2}}))));
 }
 
-TEST(type_prop, topk_v11_stable_sort_by_indices) {
-    const auto data = std::make_shared<Parameter>(element::f32, Shape{2, 3, 4});
-    const auto k = Constant::create(element::u32, Shape{}, {1});
-    OV_EXPECT_THROW(const auto op = std::make_shared<ov::op::v11::TopK>(data,
-                                                                        k,
-                                                                        1,
-                                                                        op::TopKMode::MAX,
-                                                                        op::TopKSortType::SORT_INDICES,
-                                                                        element::i32,
-                                                                        true),
-                    NodeValidationFailure,
-                    HasSubstr("Stable sort can only be used when TopK's sorting mode is set to 'VALUE'"));
-}
-
 TEST(type_prop, topk_v11_stable_sort_by_none) {
     const auto data = std::make_shared<Parameter>(element::f32, Shape{2, 3, 4});
     const auto k = Constant::create(element::u32, Shape{}, {1});
@@ -435,5 +421,5 @@ TEST(type_prop, topk_v11_stable_sort_by_none) {
                                                                         element::i64,
                                                                         true),
                     NodeValidationFailure,
-                    HasSubstr("Stable sort can only be used when TopK's sorting mode is set to 'VALUE'"));
+                    HasSubstr("Stable sort can only be used when TopK's sorting mode is set to 'VALUE' or 'INDEX'"));
 }

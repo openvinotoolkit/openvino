@@ -31,7 +31,7 @@
 
 * *stable*
 
-  * **Description**: Specifies whether the equivalent elements should maintain their relative order from the input tensor. Takes effect only if the `sort` attribute is set to `value`.
+  * **Description**: Specifies whether the equivalent elements should maintain their relative order from the input tensor. Takes effect only if the `sort` attribute is set to `value` or `index`.
   * **Range of values**: `true` of `false`
   * **Type**: `boolean`
   * **Default value**: `false`
