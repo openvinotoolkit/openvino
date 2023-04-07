@@ -160,10 +160,27 @@ const std::vector<convReluSpecificParamsAll> convReluSpecificParamsAllAll = {
     // },
     {inputShapeSimpleWithPooling, convReluSpecificParamsSimpleSeqWithPooling}};
 
-const std::vector<std::map<std::string, std::string>> configs = {
+const std::vector<std::map<std::string, std::string>> configs_software_and_exec_target_2_0 = {
     {{InferenceEngine::GNAConfigParams::KEY_GNA_DEVICE_MODE, InferenceEngine::GNAConfigParams::GNA_AUTO}},
     {{InferenceEngine::GNAConfigParams::KEY_GNA_DEVICE_MODE, InferenceEngine::GNAConfigParams::GNA_SW_FP32}},
-    {{InferenceEngine::GNAConfigParams::KEY_GNA_DEVICE_MODE, InferenceEngine::GNAConfigParams::GNA_SW_EXACT}}};
+    {{InferenceEngine::GNAConfigParams::KEY_GNA_DEVICE_MODE, InferenceEngine::GNAConfigParams::GNA_SW_EXACT},
+     {InferenceEngine::GNAConfigParams::KEY_GNA_EXEC_TARGET, "GNA_TARGET_2_0"}}};
+
+const std::vector<std::map<std::string, std::string>> configs_exect_target_3_0_and_above = {
+    {{InferenceEngine::GNAConfigParams::KEY_GNA_DEVICE_MODE, InferenceEngine::GNAConfigParams::GNA_SW_EXACT},
+     {InferenceEngine::GNAConfigParams::KEY_GNA_EXEC_TARGET, "GNA_TARGET_3_0"}},
+    {{InferenceEngine::GNAConfigParams::KEY_GNA_DEVICE_MODE, InferenceEngine::GNAConfigParams::GNA_SW_EXACT},
+     {InferenceEngine::GNAConfigParams::KEY_GNA_EXEC_TARGET, "GNA_TARGET_3_5"}}};
+
+const std::vector<std::map<std::string, std::string>> configs_all = {
+    {{InferenceEngine::GNAConfigParams::KEY_GNA_DEVICE_MODE, InferenceEngine::GNAConfigParams::GNA_AUTO}},
+    {{InferenceEngine::GNAConfigParams::KEY_GNA_DEVICE_MODE, InferenceEngine::GNAConfigParams::GNA_SW_FP32}},
+    {{InferenceEngine::GNAConfigParams::KEY_GNA_DEVICE_MODE, InferenceEngine::GNAConfigParams::GNA_SW_EXACT},
+     {InferenceEngine::GNAConfigParams::KEY_GNA_EXEC_TARGET, "GNA_TARGET_2_0"}},
+    {{InferenceEngine::GNAConfigParams::KEY_GNA_DEVICE_MODE, InferenceEngine::GNAConfigParams::GNA_SW_EXACT},
+     {InferenceEngine::GNAConfigParams::KEY_GNA_EXEC_TARGET, "GNA_TARGET_3_0"}},
+    {{InferenceEngine::GNAConfigParams::KEY_GNA_DEVICE_MODE, InferenceEngine::GNAConfigParams::GNA_SW_EXACT},
+     {InferenceEngine::GNAConfigParams::KEY_GNA_EXEC_TARGET, "GNA_TARGET_3_5"}}};
 
 // Enable when using GNA 2.1 library
 INSTANTIATE_TEST_SUITE_P(smoke_ConvolutionReluSequenceTest,
@@ -173,7 +190,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_ConvolutionReluSequenceTest,
                                             ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
                                             ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
                                             ::testing::Values(CommonTestUtils::DEVICE_GNA),
-                                            ::testing::ValuesIn(configs)),
+                                            ::testing::ValuesIn(configs_all)),
                          GnaConvolutionReluSequenceTest::getTestCaseName);
 
 const InferenceEngine::SizeVector inputShape1Even = {
@@ -236,7 +253,7 @@ const std::vector<convReluSpecificParams> poolingStrideAboveWindow = {
     },
 };
 
-const std::vector<convReluSpecificParamsAll> poolingStrideNotEqualWindowAll = {
+const std::vector<convReluSpecificParamsAll> poolingStrideNotEqualWindowAll_LowerAndGreater = {
     {inputShape1Even, poolingStrideBelowWindow},
     {inputShape1DOneAbove, poolingStrideBelowWindow},
     {inputShape1DOneBelow, poolingStrideBelowWindow},
@@ -256,14 +273,35 @@ const std::vector<convReluSpecificParamsAll> poolingStrideNotEqualWindowAll = {
     {inputShape1DMultichannel9, poolingStrideBelowWindow},
     {inputShape1DMultichannel9, poolingStrideAboveWindow}};
 
-INSTANTIATE_TEST_SUITE_P(smoke_ConvolutionPoolingStrideNotEqualWindowTest,
+const std::vector<convReluSpecificParamsAll> poolingStrideNotEqualWindowAll_Lower = {
+    {inputShape1Even, poolingStrideBelowWindow},
+    {inputShape1DOneAbove, poolingStrideBelowWindow},
+    {inputShape1DOneBelow, poolingStrideBelowWindow},
+    {inputShape1DMultichannel4, poolingStrideBelowWindow},
+    {inputShape1DMultichannel5, poolingStrideBelowWindow},
+    {inputShape1DMultichannel6, poolingStrideBelowWindow},
+    {inputShape1DMultichannel7, poolingStrideBelowWindow},
+    {inputShape1DMultichannel8, poolingStrideBelowWindow},
+    {inputShape1DMultichannel9, poolingStrideBelowWindow}};
+
+INSTANTIATE_TEST_SUITE_P(smoke_ConvolutionPoolingStrideNotEqualWindowTest_LowerAndGreater,
                          ConvolutionReluSequenceTest,
-                         ::testing::Combine(::testing::ValuesIn(poolingStrideNotEqualWindowAll),
+                         ::testing::Combine(::testing::ValuesIn(poolingStrideNotEqualWindowAll_LowerAndGreater),
                                             ::testing::ValuesIn(netPrecisions),
                                             ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
                                             ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
                                             ::testing::Values(CommonTestUtils::DEVICE_GNA),
-                                            ::testing::ValuesIn(configs)),
+                                            ::testing::ValuesIn(configs_software_and_exec_target_2_0)),
+                         ConvolutionReluSequenceTest::getTestCaseName);
 
+// GNA 3_0 and above check if pooling stride is less or equal to window
+INSTANTIATE_TEST_SUITE_P(smoke_ConvolutionPoolingStrideNotEqualWindowTest_Lower,
+                         ConvolutionReluSequenceTest,
+                         ::testing::Combine(::testing::ValuesIn(poolingStrideNotEqualWindowAll_Lower),
+                                            ::testing::ValuesIn(netPrecisions),
+                                            ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+                                            ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+                                            ::testing::Values(CommonTestUtils::DEVICE_GNA),
+                                            ::testing::ValuesIn(configs_exect_target_3_0_and_above)),
                          ConvolutionReluSequenceTest::getTestCaseName);
 }  // namespace
