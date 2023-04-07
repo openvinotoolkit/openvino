@@ -309,7 +309,7 @@ class PrepareLibs(build_clib):
     def generate_package(self, src_dirs):
         """Collect package data files from preinstalled dirs and put all runtime libraries to the subpackage."""
         # additional blacklist filter, just to fix cmake install issues
-        blacklist_patterns = ["^.*\\.lib$", "^.*\\.pdb$", "^.*_debug\\.dll$", "^.*_debug\\.dylib$", "^.*_debug\\.so\\.\\d*$", "^.*\\.la$"]
+        blacklist_patterns = ["^.*\\.lib$", "^.*\\.pdb$", "^.*_debug\\.dll$", "^.*_debug\\.\\d*\\.dylib$", "^.*_debug\\.so\\.\\d*$", "^.*\\.la$"]
         package_dir = os.path.join(get_package_dir(PY_INSTALL_CFG), WHEEL_LIBS_INSTALL_DIR)
 
         for src_dir in src_dirs:
