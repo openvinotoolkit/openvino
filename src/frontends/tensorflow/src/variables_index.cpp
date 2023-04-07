@@ -328,12 +328,20 @@ struct PtrNode {
         }
     }
 
-    void find_parent_by_op(const std::string& op, std::vector<SharedPtrNode>& result) const {
+    void find_parent_by_op(const std::string& op,
+                           std::vector<SharedPtrNode>& result,
+                           std::shared_ptr<std::vector<const PtrNode*>> walked = nullptr) const {
+        if (walked.get() == nullptr) {
+            walked = std::make_shared<std::vector<const PtrNode*>>();
+        }
         for (auto input : inputs) {
             if (input->op() == op) {
                 result.push_back(input);
             }
-            input->find_parent_by_op(op, result);
+            if (find(walked->begin(), walked->end(), input.get()) == walked->end()) {
+                walked->push_back(this);
+                input->find_parent_by_op(op, result, walked);
+            }
         }
     }
 
