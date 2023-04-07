@@ -284,6 +284,8 @@ void propagate_formats_rec(std::map<program_node*, format::type>& fmt_map,
     for (auto next : travel_direction_wrapper<dir>::next_nodes(node)) {
         if (!next->is_in_data_flow())
             continue;
+        if (!can_propagate_formats_rec<dir>(fmt_map, lo, node, next, fmt))
+            continue;
         propagate_formats_rec<dir>(fmt_map, lo, node, next, fmt);
     }
 }

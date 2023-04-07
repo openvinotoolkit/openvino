@@ -118,7 +118,6 @@ const std::vector<std::vector<size_t>> inputShapes8D = {
 
 const std::vector<std::vector<size_t>> inputOrder8D = {
         std::vector<size_t>{1, 2, 4, 3, 6, 7, 5, 0},
-
 };
 
 INSTANTIATE_TEST_SUITE_P(smoke_Transpose_8D,
