@@ -474,11 +474,9 @@ class TestParallelRunner:
         filters_cache, filters_runtime = self.__get_filters()
 
         worker_cnt = 0
-        print(worker_cnt)
         if len(filters_cache):
             logger.info(f"Execute jobs taken from cache")
             worker_cnt = self.__execute_tests(filters_cache, worker_cnt)
-            print(worker_cnt)
         # 15m for one test in one process
         if TaskManager.process_timeout == -1 or TaskManager.process_timeout == DEFAULT_PROCESS_TIMEOUT:
             TaskManager.process_timeout = DEFAULT_TEST_TIMEOUT
@@ -512,15 +510,21 @@ class TestParallelRunner:
             test_log_filename = os.path.join(logs_dir, dir, f"{test_name}.txt".replace('/', '_'))
             hash_str = str(sha256(test_name.encode('utf-8')).hexdigest())
             if hash_str in hash_map.keys():
-                # logger.warning(f"Test {test_name} was executed before!")
-                return False
+                (dir_hash, _) = hash_map[hash_str]
+                if dir_hash != "interapted":
+                    # logger.warning(f"Test {test_name} was executed before!")
+                    return False
             else:
                 hash_map.update({hash_str: (dir, test_name)})
             if test_name in interapted_tests:
+                if dir == "interapted":
+                    return False
                 interapted_log_path = os.path.join(logs_dir, "interapted", f'{hash_str}.log')
                 if os.path.isfile(interapted_log_path):
                     os.remove(interapted_log_path)
                 interapted_tests.remove(test_name)
+                hash_map.pop(hash_str)
+                hash_map.update({hash_str: (dir, test_name)})
             test_log_filename = os.path.join(logs_dir, dir, f'{hash_str}.log')
             if os.path.isfile(test_log_filename):
                 # logger.warning(f"Log file {test_log_filename} is exist!")
