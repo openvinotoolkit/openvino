@@ -89,7 +89,7 @@ public:
             if (exceptionPtr)
                 workerRequestPtr->_exceptionPtr = exceptionPtr;
         });
-        workerRequestPtr->_thread = std::thread([this] {
+        workerRequestPtr->_thread = std::thread([] {
             std::this_thread::sleep_for(std::chrono::milliseconds(10));
         });
         return;
