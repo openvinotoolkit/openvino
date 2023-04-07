@@ -476,23 +476,24 @@ class TestParallelRunner:
         worker_cnt = 0
         if len(filters_cache):
             logger.info(f"Execute jobs taken from cache")
-            worker_cnt = self.__execute_tests(filters_cache, worker_cnt)
+            worker_cnt += self.__execute_tests(filters_cache, worker_cnt)
+            print(f"DEBUG CACHE: {worker_cnt}")
         # 15m for one test in one process
         if TaskManager.process_timeout == -1 or TaskManager.process_timeout == DEFAULT_PROCESS_TIMEOUT:
             TaskManager.process_timeout = DEFAULT_TEST_TIMEOUT
         if len(filters_runtime):
             logger.info(f"Execute jobs taken from runtime")
-            worker_cnt = self.__execute_tests(filters_runtime, worker_cnt)
-            print(worker_cnt)
+            worker_cnt += self.__execute_tests(filters_runtime, worker_cnt)
+            print(f"DEBUG RUNTIME: {worker_cnt}")
         not_runned_test_filter, interapted_tests = self.__find_not_runned_tests()
         if len(not_runned_test_filter) > 0:
             logger.info(f"Execute not runned {len(not_runned_test_filter)} tests")
-            worker_cnt = self.__execute_tests(not_runned_test_filter, worker_cnt)
-            print(worker_cnt)
+            worker_cnt += self.__execute_tests(not_runned_test_filter, worker_cnt)
+            print(f"DEBUG NOT RUN: {worker_cnt}")
         if len(interapted_tests) > 0:
             logger.info(f"Execute interapted {len(interapted_tests)} tests")
-            worker_cnt = self.__execute_tests(interapted_tests, worker_cnt)
-            print(worker_cnt)
+            worker_cnt += self.__execute_tests(interapted_tests, worker_cnt)
+            print(f"DEBUG INTERAPTED: {worker_cnt}")
 
         t_end = datetime.datetime.now()
         total_seconds = (t_end - t_start).total_seconds()
@@ -512,18 +513,23 @@ class TestParallelRunner:
             if hash_str in hash_map.keys():
                 (dir_hash, _) = hash_map[hash_str]
                 if dir_hash != "interapted":
-                    # logger.warning(f"Test {test_name} was executed before!")
+                    logger.warning(f"Test {test_name} was executed before!")
                     return False
+                elif test_name in interapted_tests:
+                    if dir == "interapted":
+                        return False
+                    interapted_log_path = os.path.join(logs_dir, "interapted", f'{hash_str}.log')
+                    if os.path.isfile(interapted_log_path):
+                        os.remove(interapted_log_path)
+                    print(f"DEBUG INTERAPTED_TESTS: {len(interapted_tests)} {interapted_tests}")
+                    interapted_tests.remove(test_name)
+                    print(f"DEBUG INTERAPTED_TESTS: {len(interapted_tests)} {interapted_tests}")
+                    print(f"DEBUG hash_map: {len(hash_map)}")
+                    hash_map.pop(hash_str)
+                    print(f"DEBUG hash_map: {len(hash_map)}")
+                    hash_map.update({hash_str: (dir, test_name)})
+                    print(f"DEBUG hash_map: {len(hash_map)}")
             else:
-                hash_map.update({hash_str: (dir, test_name)})
-            if test_name in interapted_tests:
-                if dir == "interapted":
-                    return False
-                interapted_log_path = os.path.join(logs_dir, "interapted", f'{hash_str}.log')
-                if os.path.isfile(interapted_log_path):
-                    os.remove(interapted_log_path)
-                interapted_tests.remove(test_name)
-                hash_map.pop(hash_str)
                 hash_map.update({hash_str: (dir, test_name)})
             test_log_filename = os.path.join(logs_dir, dir, f'{hash_str}.log')
             if os.path.isfile(test_log_filename):
@@ -611,6 +617,7 @@ class TestParallelRunner:
                 else:
                     os.remove(log_filename)
         for test_name in interapted_tests:
+            dir = 'interapted'
             # update test_cache with tests. If tests is crashed use -1 as unknown time
             time = -1
             test_times.append((int(time), test_name))
