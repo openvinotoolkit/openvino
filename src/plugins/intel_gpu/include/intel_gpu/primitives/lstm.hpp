@@ -280,7 +280,7 @@ protected:
 struct lstm_elt : public primitive_base<lstm_elt> {
     CLDNN_DECLARE_PRIMITIVE(lstm_elt)
 
-    lstm_elt() : primitive_base("", {}) {}
+    lstm_elt() : primitive_base("", {}), clip(0), input_forget(0), offset_order(lstm_weights_order::iofz), direction(0) {}
 
     DECLARE_OBJECT_TYPE_SERIALIZATION
 
