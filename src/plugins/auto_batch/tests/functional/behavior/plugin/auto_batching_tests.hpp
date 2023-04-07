@@ -83,7 +83,7 @@ protected:
                 outputs.push_back(output->first);
                 outElementsCount.push_back(std::accumulate(begin(fn_ptrs[i]->get_output_shape(0)),
                                                            end(fn_ptrs[i]->get_output_shape(0)),
-                                                           1,
+                                                           (size_t)1,
                                                            std::multiplies<size_t>()));
 
                 auto inf_req = exec_net_ref.CreateInferRequest();
