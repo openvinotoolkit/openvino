@@ -1514,7 +1514,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_resize10_down_scales_const_linear) {
     Shape expected_output_shape{1, 1, 1, 2};
     auto test_case = test::TestCase(function, s_device);
     test_case.add_input<float>({1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0});
-    test_case.add_expected_output<float>(expected_output_shape, {1.0, 2.6666665});
+    test_case.add_expected_output<float>(expected_output_shape, {1.0f, 2.6666665f});
     test_case.run();
 }
 
