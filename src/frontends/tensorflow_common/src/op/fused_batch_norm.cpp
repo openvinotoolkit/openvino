@@ -234,7 +234,7 @@ void compute_fused_batch_norm_training(const NodeContext& node,
 }
 }  // namespace
 
-OutputVector translate_fused_batch_norm_op(const NodeContext& node) {
+NamedOutputVector translate_fused_batch_norm_op(const NodeContext& node) {
     default_op_checks(node, 3, {"FusedBatchNorm", "FusedBatchNormV2", "FusedBatchNormV3"});
     auto scale = node.get_input(1);
 
@@ -263,11 +263,15 @@ OutputVector translate_fused_batch_norm_op(const NodeContext& node) {
     set_node_name(node.get_name() + ":3", zero_const.get_node_shared_ptr());
     set_node_name(node.get_name() + ":4", zero_const2.get_node_shared_ptr());
 
-    OutputVector results = OutputVector{fused_batch_norm, batch_mean, batch_variance, zero_const, zero_const2};
+    auto results = NamedOutputVector{{"y", fused_batch_norm},
+                                     {"batch_mean", batch_mean},
+                                     {"batch_variance", batch_variance},
+                                     {"reserve_space_1", zero_const},
+                                     {"reserve_space_2", zero_const2}};
     if (is_v3) {
         auto zero_const3 = create_same_type_const_scalar<float>(scale, 0);
         set_node_name(node.get_name() + ":5", zero_const3.get_node_shared_ptr());
-        results.push_back(zero_const3);
+        results.push_back({"reserve_space_3", zero_const3});
     }
 
     return results;

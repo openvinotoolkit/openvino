@@ -26,8 +26,8 @@ ov::element::Type get_ov_type(const ::tensorflow::DataType& type);
 
 void parse_producer_name(const std::string& producer_port_name,
                          std::string& producer_name,
-                         size_t& producer_output_port_index,
-                         const DecoderBase::OpTypeByName& op_type_by_name);
+                         std::string& producer_output_port_name,
+                         size_t& producer_output_port_index);
 
 class DecoderProto : public ov::frontend::tensorflow::DecoderBase {
 public:
@@ -50,12 +50,8 @@ public:
 
     void get_input_node(size_t input_port_idx,
                         std::string& producer_name,
+                        std::string& producer_output_port_name,
                         size_t& producer_output_port_index) const override;
-
-    void get_input_node(size_t input_port_idx,
-                        std::string& producer_name,
-                        size_t& producer_output_port_index,
-                        const OpTypeByName& op_type_by_name) const override;
 
     const std::string& get_op_type() const override;
 

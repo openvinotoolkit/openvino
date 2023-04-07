@@ -100,3 +100,20 @@ void ov::frontend::tensorflow_lite::dequantize_inputs(OutputVector& deq_inputs) 
         deq_input = std::make_shared<opset10::Convert>(deq_input, element::f32);
     }
 }
+
+namespace ov {
+namespace frontend {
+namespace tensorflow_lite {
+// namespace required by arm compiler to specify template
+template <>
+OutputVector get_indexed_outputs(const OutputVector& outputs) {
+    return outputs;
+};
+
+template <>
+OutputVector get_indexed_outputs(const frontend::NamedOutputVector& outputs) {
+    return indexed_from_named(outputs);
+};
+}  // namespace tensorflow_lite
+}  // namespace frontend
+}  // namespace ov

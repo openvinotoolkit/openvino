@@ -32,22 +32,14 @@ const std::string& DecoderArgDef::get_op_name() const {
 
 void DecoderArgDef::get_input_node(size_t input_port_idx,
                                    std::string& producer_name,
+                                   std::string& producer_output_port_name,
                                    size_t& producer_output_port_index) const {
     // Body graph nodes may have two colons `:`, for example,
     // producer_name:z:2 means that producer operation name is `producer_name`
     // and output port is 2
     FRONT_END_GENERAL_CHECK(m_op_type == "output_arg",
                             "[TensorFlow Frontend] Internal error: get_input_node is supported only for output_arg.");
-    parse_producer_name(m_producer_name, producer_name, producer_output_port_index, {});
-}
-
-void DecoderArgDef::get_input_node(size_t input_port_idx,
-                                   std::string& producer_name,
-                                   size_t& producer_output_port_index,
-                                   const OpTypeByName& op_type_by_name) const {
-    FRONT_END_GENERAL_CHECK(m_op_type == "output_arg",
-                            "[TensorFlow Frontend] Internal error: get_input_node is supported only for output_arg.");
-    parse_producer_name(m_producer_name, producer_name, producer_output_port_index, op_type_by_name);
+    parse_producer_name(m_producer_name, producer_name, producer_output_port_name, producer_output_port_index);
 }
 
 ov::Any DecoderArgDef::get_attribute(const std::string& name) const {
