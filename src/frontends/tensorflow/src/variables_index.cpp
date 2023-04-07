@@ -212,7 +212,10 @@ void VariablesIndex::read_checkpointable_object_graph() {
     m_variables_map.clear();
 
     auto item = m_variables_index.find("_CHECKPOINTABLE_OBJECT_GRAPH");
-    FRONT_END_GENERAL_CHECK(item != m_variables_index.end(), "Checkpointable Object Graph isn't found in index");
+    if (item == m_variables_index.end()) {
+        // Might be missing for some models. In such case all variables should be resolved thru RestoreV2
+        return;
+    }
 
     ::tensorflow::BundleEntryProto entry;
     FRONT_END_GENERAL_CHECK(entry.ParseFromArray(item->second.data(), static_cast<int>(item->second.size())),
@@ -266,9 +269,7 @@ bool VariablesIndex::read_variables(std::ifstream& vi_stream, const std::string&
         FRONT_END_GENERAL_CHECK(m_data_files[shard]->is_open(), "Variable index data file does not exist");
     }
 
-    if (is_saved_model) {
-        read_checkpointable_object_graph();
-    }
+    read_checkpointable_object_graph();
     return true;
 }
 
@@ -292,9 +293,7 @@ bool VariablesIndex::read_variables(std::ifstream& vi_stream, const std::wstring
         FRONT_END_GENERAL_CHECK(m_data_files[shard]->is_open(), "Variable index data file does not exist");
     }
 
-    if (is_saved_model) {
-        read_checkpointable_object_graph();
-    }
+    read_checkpointable_object_graph();
     return true;
 }
 #endif
