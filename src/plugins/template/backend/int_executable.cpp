@@ -75,23 +75,27 @@ inline void update_output_tensors(ov::TensorVector& output_values, const ngraph:
 }  // namespace
 
 class TemporaryOverrideOutputs {
-    std::shared_ptr<ov::Node> node;
-    std::vector<ov::PartialShape> orig_shapes;
+    std::shared_ptr<ov::Model> model;
+    std::unordered_map<std::shared_ptr<ov::descriptor::Tensor>, ov::PartialShape> orig_paramter_shapes_map;
 
 public:
-    TemporaryOverrideOutputs(std::shared_ptr<ov::Node> node, const std::vector<ov::Tensor>& args) : node(node) {
-        for (size_t i = 0; i < args.size(); ++i) {
-            auto output = node->get_input_source_output(i);
-            orig_shapes.push_back(output.get_partial_shape());
-            output.get_tensor().set_partial_shape(args[i].get_shape());
+    TemporaryOverrideOutputs(std::shared_ptr<ov::Model>& model,
+                             const std::unordered_map<std::shared_ptr<ov::descriptor::Tensor>, ov::Tensor>& tensor_map)
+        : model(model) {
+        for (const auto& param : model->get_parameters()) {
+            auto output_tensor = param->output(0).get_tensor_ptr();
+            orig_paramter_shapes_map.insert({output_tensor, param->get_partial_shape()});
+            param->set_partial_shape(tensor_map.at(output_tensor).get_shape());
         }
+        model->validate_nodes_and_infer_types();
     }
 
     ~TemporaryOverrideOutputs() {
-        for (size_t i = 0; i < orig_shapes.size(); ++i) {
-            auto output = node->get_input_source_output(i);
-            output.get_tensor().set_partial_shape(orig_shapes[i]);
+        for (const auto& param : model->get_parameters()) {
+            auto output_tensor = param->output(0).get_tensor_ptr();
+            param->set_partial_shape(orig_paramter_shapes_map.at(output_tensor));
         }
+        model->validate_nodes_and_infer_types();
     }
 };
 
@@ -147,12 +151,13 @@ bool ov::runtime::interpreter::INTExecutable::call(std::vector<ov::Tensor>& outp
             results_map.emplace(output, output_count);
     }
 
+    auto overrider = TemporaryOverrideOutputs(m_model, tensor_map);
+
     // for each ordered op in the graph
     for (const auto& op : m_nodes) {
         if (std::dynamic_pointer_cast<ov::op::v0::Parameter>(op)) {
             continue;
         }
-
         // get op inputs from map
         std::vector<ov::Tensor> op_inputs;
         for (auto input : op->inputs()) {
@@ -160,7 +165,6 @@ bool ov::runtime::interpreter::INTExecutable::call(std::vector<ov::Tensor>& outp
             op_inputs.push_back(tensor_map.at(tensor));
         }
 
-        TemporaryOverrideOutputs overrider(op, op_inputs);
         OutputVector output_ports;
         for (size_t i = 0; i < op->inputs().size(); ++i) {
             output_ports.push_back(op->get_input_source_output(i));
