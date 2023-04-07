@@ -68,5 +68,6 @@ protected:
     virtual size_t GetAlignment(const concatenation_params& /*params*/) const {
         return 1;
     }
+    bool SkipKernelExecution(const concatenation_params& params, size_t kernel_id) const;
 };
 }  // namespace kernel_selector

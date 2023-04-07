@@ -28,6 +28,10 @@ JitConstants ShapeOfKernelRef::GetJitConstants(const shape_of_params& params) co
     return jit;
 }
 
+bool ShapeOfKernelRef::SkipKernelExecution(const shape_of_params& params) const {
+    return false;
+}
+
 KernelsData ShapeOfKernelRef::GetKernelsData(const Params &params, const optional_params &options) const {
     KernelsData kernels_data;
     if (!Validate(params, options))
@@ -40,13 +44,15 @@ KernelsData ShapeOfKernelRef::GetKernelsData(const Params &params, const optiona
     auto jit_constants = GetJitConstants(derived_params);
     auto jit = CreateJit(kernelName, jit_constants, entry_point);
     auto &clKernelData = kernel_data.kernels[0];
+    clKernelData.skip_execution = SkipKernelExecution(derived_params);
 
-    kernel_data.update_dispatch_data_func = [](const Params& params, KernelData& kd) {
+    kernel_data.update_dispatch_data_func = [this](const Params& params, KernelData& kd) {
         const auto& prim_params = static_cast<const shape_of_params&>(params);
         auto dispatchData = SetDefault(prim_params);
         OPENVINO_ASSERT(kd.kernels.size() == 1, "[GPU] Invalid kernels size for update dispatch data func");
         kd.kernels[0].params.workGroups.global = dispatchData.gws;
         kd.kernels[0].params.workGroups.local = dispatchData.lws;
+        kd.kernels[0].skip_execution = SkipKernelExecution(prim_params);
     };
 
     FillCLKernelData(clKernelData, dispatch_data, params.engineInfo, kernelName, jit, entry_point, EXE_MODE_DEFAULT,

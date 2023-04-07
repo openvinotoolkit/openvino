@@ -56,6 +56,7 @@ KernelsData SoftmaxKernelRef::GetKernelsData(const Params& params, const optiona
             OPENVINO_ASSERT(kd.kernels.size() == 1, "[GPU] Invalid kernels size for update dispatch data func");
             kd.kernels[0].params.workGroups.global = dispatchData.gws;
             kd.kernels[0].params.workGroups.local = dispatchData.lws;
+            kd.kernels[0].skip_execution = KernelData::SkipKernelExecution(prim_params);
             kd.internalBufferSizes.clear();
             kd.internalBufferSizes.push_back(prim_params.inputs[0].PhysicalSizeInBytes());
             kd.internalBufferDataType = prim_params.inputs[0].GetDType();
