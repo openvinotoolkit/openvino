@@ -280,6 +280,31 @@ TEST_F(TransformationTestsF, ModelWithDilatedGroupConvolution) {
     }
 }
 
+TEST_F(TransformationTestsF, ModelWithSplitConvConcat) {
+    {
+        model = convert_model("split_conv_concat/split_conv_concat.pbtxt");
+        manager.register_pass<pass::MOCTransformations>(false);
+    }
+    {
+        auto x = make_shared<Parameter>(f32, Shape{1, 10, 10, 4});
+        auto transpose_before =
+            make_shared<Transpose>(x, Constant::create(i64, Shape{4}, std::vector<int64_t>{0, 3, 1, 2}));
+        Strides dilations{1, 1};
+        CoordinateDiff pads_begin{0, 0};
+        CoordinateDiff pads_end{0, 0};
+        Strides strides{1, 1};
+        auto weights = make_shared<Constant>(f32, Shape{4, 4, 1, 1}, std::vector<float>{0});
+        auto conv = make_shared<Convolution>(transpose_before, weights, strides, pads_begin, pads_end, dilations);
+        auto group_conv_weights = make_shared<Constant>(f32, Shape{2, 3, 2, 1, 1}, std::vector<float>{0});
+        auto group_conv =
+            make_shared<GroupConvolution>(conv, group_conv_weights, strides, pads_begin, pads_end, dilations);
+        auto transpose_after =
+            make_shared<Transpose>(group_conv, make_shared<Constant>(i64, Shape{4}, std::vector<int64_t>{0, 2, 3, 1}));
+
+        model_ref = make_shared<Model>(OutputVector{transpose_after}, ParameterVector{x});
+    }
+}
+
 TEST_F(TransformationTestsF, ModelWithSaveV2) {
     {
         model = convert_model("model_savev2/model_savev2.pbtxt");
