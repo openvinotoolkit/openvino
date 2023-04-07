@@ -2719,8 +2719,8 @@ inline void Reduce::create_DH_working_memory() {
     if (ReduceDH_opt) {
         PD = ID;
         PW = IW / blk_size * blk_size;
-        prc_data_size = src_data_size;
-        prc_size = PD * PW * src_data_size;
+        prc_data_size = dst_data_size;
+        prc_size = PD * PW * dst_data_size;
         if (prc_size > vec_reduceDH_prc.size()) {
             vec_reduceDH_prc.resize(prc_size);
         }
