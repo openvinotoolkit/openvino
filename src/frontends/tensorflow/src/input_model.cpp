@@ -394,24 +394,12 @@ std::vector<ov::frontend::Place::Ptr> InputModel::InputModelTFImpl::get_outputs(
 }
 
 ov::frontend::Place::Ptr InputModel::InputModelTFImpl::get_place_by_tensor_name(const std::string& tensorName) const {
-    if (m_tensor_places.find(tensorName) != m_tensor_places.end())
-        return m_tensor_places.at(tensorName);
-
-    // check that operation node exists for which this place is specified
-    std::string operation_name;
-    size_t port_idx;
-    std::string port_type;
-    tensorflow::extract_operation_name_and_port(tensorName, operation_name, port_idx, port_type);
+    std::string internalTensorName = tensorName;
 
     if (m_saved_model_input_names.get()) {
         for (const auto& alt_name : *m_saved_model_input_names) {
-            if (alt_name.second == operation_name) {
-                auto pos = alt_name.first.find_first_of(':');
-                if (pos != std::string::npos) {
-                    operation_name = alt_name.first.substr(0, pos);
-                } else {
-                    operation_name = alt_name.first;
-                }
+            if (alt_name.second == tensorName) {
+                internalTensorName = alt_name.first;
                 break;
             }
         }
@@ -419,24 +407,29 @@ ov::frontend::Place::Ptr InputModel::InputModelTFImpl::get_place_by_tensor_name(
 
     if (m_saved_model_output_names.get()) {
         for (const auto& alt_name : *m_saved_model_output_names) {
-            if (alt_name.second == operation_name) {
-                auto pos = alt_name.first.find_first_of(':');
-                if (pos != std::string::npos) {
-                    operation_name = alt_name.first.substr(0, pos);
-                } else {
-                    operation_name = alt_name.first;
-                }
+            if (alt_name.second == tensorName) {
+                internalTensorName = alt_name.first;
                 break;
             }
         }
     }
 
+    if (m_tensor_places.find(internalTensorName) != m_tensor_places.end()) {
+        return m_tensor_places.at(internalTensorName);
+    }
+
+    // check that operation node exists for which this place is specified
+    std::string operation_name;
+    size_t port_idx;
+    std::string port_type;
+    tensorflow::extract_operation_name_and_port(internalTensorName, operation_name, port_idx, port_type);
+
     if (m_op_places_map.find(operation_name) != m_op_places_map.end()) {
         // new Tensor places must be constructed of dynamic rank and type
-        std::vector<std::string> names = {tensorName};
+        std::vector<std::string> names = {internalTensorName};
         auto m_var_place =
             std::make_shared<TensorPlace>(m_input_model, ov::PartialShape::dynamic(), ov::element::dynamic, names);
-        m_tensor_places[tensorName] = m_var_place;
+        m_tensor_places[internalTensorName] = m_var_place;
         return m_var_place;
     }
 
