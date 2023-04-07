@@ -15,6 +15,8 @@ from openvino.runtime.passes import (
     LowLatency2,
     Serialize,
 )
+from openvino.test_utils import compare_functions
+
 from tests.test_transformations.utils.utils import count_ops, get_relu_model
 from tests.test_utils.test_utils import create_filename_for_test
 
@@ -136,18 +138,19 @@ def test_serialize_pass(request, tmp_path, is_path_xml, is_path_bin):
                                                   is_path_xml,
                                                   is_path_bin)
 
-    func = get_relu_model()
+    model = get_relu_model()
 
     manager = Manager()
     manager.register_pass(Serialize(xml_path, bin_path))
-    manager.run_passes(func)
+    manager.run_passes(model)
 
-    assert func is not None
+    assert model is not None
 
-    res_func = core.read_model(model=xml_path, weights=bin_path)
+    res_model = core.read_model(model=xml_path, weights=bin_path)
 
-    assert func.get_parameters() == res_func.get_parameters()
-    assert func.get_ordered_ops() == res_func.get_ordered_ops()
+    assert compare_functions(model, res_model)[0] is True
+
+    del res_model
 
     os.remove(xml_path)
     os.remove(bin_path)

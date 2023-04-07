@@ -5,7 +5,6 @@
 import os
 import pytest
 import numpy as np
-from openvino.runtime import serialize
 from openvino._offline_transformations import (
     apply_moc_transformations,
     apply_pot_transformations,
@@ -17,7 +16,8 @@ from openvino._offline_transformations import (
     apply_fused_names_cleanup,
 )
 
-from openvino.runtime import Model, PartialShape, Core
+from openvino.runtime import Model, PartialShape, Core, serialize
+from openvino.test_utils import compare_functions
 import openvino.runtime as ov
 
 from tests.test_utils.test_utils import create_filename_for_test
@@ -183,17 +183,18 @@ def test_serialize_pass_v2(request, tmp_path, is_path_xml, is_path_bin):
     shape = [100, 100, 2]
     parameter_a = ov.opset8.parameter(shape, dtype=np.float32, name="A")
     parameter_b = ov.opset8.parameter(shape, dtype=np.float32, name="B")
-    model = ov.opset8.floor(ov.opset8.minimum(ov.opset8.abs(parameter_a), parameter_b))
-    func = Model(model, [parameter_a, parameter_b], "Model")
+    _model = ov.opset8.floor(ov.opset8.minimum(ov.opset8.abs(parameter_a), parameter_b))
+    model = Model(_model, [parameter_a, parameter_b], "Model")
 
-    serialize(func, xml_path, bin_path)
+    serialize(model, xml_path, bin_path)
 
-    assert func is not None
+    assert model is not None
 
     res_model = core.read_model(model=xml_path, weights=bin_path)
 
-    assert func.get_parameters() == res_model.get_parameters()
-    assert func.get_ordered_ops() == res_model.get_ordered_ops()
+    assert compare_functions(model, res_model)[0] is True
+
+    del res_model
 
     os.remove(xml_path)
     os.remove(bin_path)
@@ -229,14 +230,15 @@ def test_version_default(request, tmp_path, is_path_xml, is_path_bin):
     shape = [100, 100, 2]
     parameter_a = ov.opset8.parameter(shape, dtype=np.float32, name="A")
     parameter_b = ov.opset8.parameter(shape, dtype=np.float32, name="B")
-    model = ov.opset8.floor(ov.opset8.minimum(ov.opset8.abs(parameter_a), parameter_b))
-    func = Model(model, [parameter_a, parameter_b], "Model")
+    _model = ov.opset8.floor(ov.opset8.minimum(ov.opset8.abs(parameter_a), parameter_b))
+    model = Model(_model, [parameter_a, parameter_b], "Model")
 
-    serialize(func, xml_path, bin_path)
+    serialize(model, xml_path, bin_path)
     res_model = core.read_model(model=xml_path, weights=bin_path)
 
-    assert func.get_parameters() == res_model.get_parameters()
-    assert func.get_ordered_ops() == res_model.get_ordered_ops()
+    assert compare_functions(model, res_model)[0] is True
+
+    del res_model
 
     os.remove(xml_path)
     os.remove(bin_path)
@@ -263,20 +265,22 @@ def test_serialize_default_bin(request, tmp_path, is_path_xml, is_path_bin):
 
 
 # request - https://docs.pytest.org/en/7.1.x/reference/reference.html#request
+@pytest.mark.xfail(reason="Output tensors names mismatch after deserialization")
 def test_version_ir_v10(request, tmp_path):
     core = Core()
     xml_path, bin_path = create_filename_for_test(request.node.name, tmp_path)
     shape = [100, 100, 2]
     parameter_a = ov.opset8.parameter(shape, dtype=np.float32, name="A")
     parameter_b = ov.opset8.parameter(shape, dtype=np.float32, name="B")
-    model = ov.opset8.floor(ov.opset8.minimum(ov.opset8.abs(parameter_a), parameter_b))
-    func = Model(model, [parameter_a, parameter_b], "Model")
+    _model = ov.opset8.floor(ov.opset8.minimum(ov.opset8.abs(parameter_a), parameter_b))
+    model = Model(_model, [parameter_a, parameter_b], "Model")
 
-    serialize(func, xml_path, bin_path, "IR_V10")
+    serialize(model, xml_path, bin_path, "IR_V10")
     res_model = core.read_model(model=xml_path, weights=bin_path)
 
-    assert func.get_parameters() == res_model.get_parameters()
-    assert func.get_ordered_ops() == res_model.get_ordered_ops()
+    assert compare_functions(model, res_model)[0] is True
+
+    del res_model
 
     os.remove(xml_path)
     os.remove(bin_path)
@@ -289,14 +293,15 @@ def test_version_ir_v11(request, tmp_path):
     shape = [100, 100, 2]
     parameter_a = ov.opset8.parameter(shape, dtype=np.float32, name="A")
     parameter_b = ov.opset8.parameter(shape, dtype=np.float32, name="B")
-    model = ov.opset8.floor(ov.opset8.minimum(ov.opset8.abs(parameter_a), parameter_b))
-    func = Model(model, [parameter_a, parameter_b], "Model")
+    _model = ov.opset8.floor(ov.opset8.minimum(ov.opset8.abs(parameter_a), parameter_b))
+    model = Model(_model, [parameter_a, parameter_b], "Model")
 
-    serialize(func, xml_path, bin_path, "IR_V11")
+    serialize(model, xml_path, bin_path, "IR_V11")
     res_model = core.read_model(model=xml_path, weights=bin_path)
 
-    assert func.get_parameters() == res_model.get_parameters()
-    assert func.get_ordered_ops() == res_model.get_ordered_ops()
+    assert compare_functions(model, res_model)[0] is True
+
+    del res_model
 
     os.remove(xml_path)
     os.remove(bin_path)

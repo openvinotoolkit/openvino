@@ -18,6 +18,7 @@ from openvino.runtime import (
     tensor_from_file,
     compile_model,
 )
+from openvino.test_utils import compare_functions
 
 from tests.conftest import (
     model_path,
@@ -158,9 +159,7 @@ def test_model_from_buffer_valid():
         xml = f.read()
     model = core.read_model(model=xml, weights=weights)
     ref_model = core.read_model(model=test_net_xml, weights=test_net_bin)
-    assert model.get_parameters() == ref_model.get_parameters()
-    assert model.get_results() == ref_model.get_results()
-    assert model.get_ordered_ops() == ref_model.get_ordered_ops()
+    assert compare_functions(model, ref_model)[0] is True
 
 
 def test_get_version(device):
