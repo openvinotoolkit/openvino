@@ -2313,7 +2313,7 @@ void Reduce::reduce_BLK(const uint8_t *in_ptr, uint8_t *out_ptr) {
                 reduce_kernel_process(in_ptr_ncd, out_ptr_ncd, IH * IW * blk_size);
             });
         } else if (ReduceC && ReduceD && ReduceH && ReduceW) {
-            if (!support_split) {
+            if (!ReduceAll_opt) {
                 reduce_kernel_process(in_ptr_n, out_ptr_n, ICB * ID * IH * IW * blk_size);
             } else {
                 // reduce parallelly
@@ -2812,6 +2812,9 @@ inline void Reduce::set_reduce_dim_flags() {
 
     // must be done after the above dimension change
     create_DH_working_memory();
+
+    ReduceAll_opt = layout == ReduceLayoutType::reduce_blocked && support_split &&
+                    ReduceC && ReduceD && ReduceH && ReduceW;
 
     // suit for parallel
     if (ReduceH && IW == 1) {

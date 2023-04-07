@@ -138,6 +138,7 @@ private:
     bool is_hybrid_layout = false;
     bool compile_post_kernel = true;
     bool support_split = false;
+    bool ReduceAll_opt = false;
     bool ReduceDH_opt = false;
     bool ReduceN, ReduceC, ReduceD, ReduceH, ReduceW;
     size_t IB, IC, ID, IH, IW;
