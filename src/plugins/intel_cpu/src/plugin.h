@@ -4,13 +4,14 @@
 
 #pragma once
 
-#include "exec_network.h"
-#include "cpu_streams_calculation.hpp"
-
-#include <string>
+#include <functional>
 #include <map>
 #include <memory>
-#include <functional>
+#include <sstream>
+#include <string>
+
+#include "cpu_streams_calculation.hpp"
+#include "exec_network.h"
 
 namespace ov {
 namespace intel_cpu {

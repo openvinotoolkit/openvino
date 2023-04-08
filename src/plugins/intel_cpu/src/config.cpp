@@ -70,15 +70,32 @@ void Config::applyDebugCapsProperties() {
 
 void Config::readProperties(const std::map<std::string, std::string> &prop) {
     const auto streamExecutorConfigKeys = streamExecutorConfig.SupportedKeys();
-    const auto hintsConfigKeys = perfHintsConfig.SupportedKeys();
     for (const auto& kvp : prop) {
         const auto& key = kvp.first;
         const auto& val = kvp.second;
         if (streamExecutorConfigKeys.end() !=
             std::find(std::begin(streamExecutorConfigKeys), std::end(streamExecutorConfigKeys), key)) {
             streamExecutorConfig.SetConfig(key, val);
-        } else if (hintsConfigKeys.end() != std::find(hintsConfigKeys.begin(), hintsConfigKeys.end(), key)) {
-            perfHintsConfig.SetConfig(key, val);
+        } else if (key == ov::hint::performance_mode.name()) {
+            const auto prefHint = ov::util::from_string(val, ov::hint::performance_mode);
+            if (prefHint == ov::hint::PerformanceMode::LATENCY || prefHint == ov::hint::PerformanceMode::THROUGHPUT) {
+                performanceHint = prefHint;
+                changedPerformanceHint = true;
+            } else {
+                IE_THROW() << "Wrong value " << val << "for property key " << ov::hint::performance_mode.name()
+                           << ". Expected only " << ov::hint::PerformanceMode::LATENCY << "/"
+                           << ov::hint::PerformanceMode::THROUGHPUT << std::endl;
+            }
+        } else if ((key == ov::hint::num_requests.name()) &&
+                   (key == PluginConfigParams::KEY_PERFORMANCE_HINT_NUM_REQUESTS)) {
+            int val_i = -1;
+            try {
+                val_i = std::stoi(val);
+            } catch (const std::exception&) {
+                IE_THROW() << "Wrong value for property key " << key << ". Expected only integer numbers";
+            }
+            // zero and any negative value will be treated as default number of request
+            numRequests = std::max(val_i, 0);
         } else if (key == ov::hint::enable_cpu_pinning.name()) {
             if (val == PluginConfigParams::YES) {
                 enableCpuPinning = true;
@@ -271,6 +288,9 @@ void Config::updateProperties() {
     if (!_config.empty())
         return;
 
+    std::stringstream perfstr;
+    perfstr << performanceHint;
+
     switch (streamExecutorConfig._threadBindingType) {
     case IStreamsExecutor::ThreadBindingType::NONE:
         _config.insert({ PluginConfigParams::KEY_CPU_BIND_THREAD, PluginConfigParams::NO });
@@ -316,9 +336,8 @@ void Config::updateProperties() {
         _config.insert({ PluginConfigParams::KEY_ENFORCE_BF16, PluginConfigParams::NO });
     }
 
-    _config.insert({ PluginConfigParams::KEY_PERFORMANCE_HINT, perfHintsConfig.ovPerfHint });
-    _config.insert({ PluginConfigParams::KEY_PERFORMANCE_HINT_NUM_REQUESTS,
-            std::to_string(perfHintsConfig.ovPerfHintNumRequests) });
+    _config.insert({PluginConfigParams::KEY_PERFORMANCE_HINT, perfstr.str()});
+    _config.insert({PluginConfigParams::KEY_PERFORMANCE_HINT_NUM_REQUESTS, std::to_string(numRequests)});
 }
 
 }  // namespace intel_cpu

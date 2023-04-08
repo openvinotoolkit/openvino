@@ -4,18 +4,20 @@
 
 #pragma once
 
-#include <threading/ie_istreams_executor.hpp>
-#include <ie_performance_hints.hpp>
 #include <ie/ie_common.h>
-#include <openvino/runtime/properties.hpp>
-#include <openvino/util/common_util.hpp>
-#include "utils/debug_caps_config.h"
-#include "openvino/runtime/properties.hpp"
 
 #include <bitset>
-#include <string>
+#include <ie_performance_hints.hpp>
 #include <map>
 #include <mutex>
+#include <openvino/runtime/properties.hpp>
+#include <openvino/util/common_util.hpp>
+#include <sstream>
+#include <string>
+#include <threading/ie_istreams_executor.hpp>
+
+#include "openvino/runtime/properties.hpp"
+#include "utils/debug_caps_config.h"
 
 namespace ov {
 namespace intel_cpu {
@@ -50,7 +52,9 @@ struct Config {
     float fcSparseWeiDecompressionRate = 1.0f;
     size_t rtCacheCapacity = 5000ul;
     InferenceEngine::IStreamsExecutor::Config streamExecutorConfig;
-    InferenceEngine::PerfHintsConfig  perfHintsConfig;
+    ov::hint::PerformanceMode performanceHint = ov::hint::PerformanceMode::LATENCY;
+    bool changedPerformanceHint = false;
+    int numRequests = 0;
     bool enableCpuPinning = true;
     bool changedCpuPinning = false;
     ov::hint::SchedulingCoreType schedulingCoreType = ov::hint::SchedulingCoreType::ANY_CORE;

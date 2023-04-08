@@ -215,9 +215,9 @@ void Engine::ApplyPerformanceHints(std::map<std::string, std::string> &config, c
             auto val = PerfHintsConfig::CheckPerformanceHintRequestValue(num_requests->second);
             if (val > 0)
                 streams_info.num_streams = std::min(streams_info.num_streams, val);
-        } else if (engConfig.perfHintsConfig.ovPerfHintNumRequests) {  // set thru SetConfig to the plugin, 2nd priority
+        } else if (engConfig.numRequests > 0) {  // set thru SetConfig to the plugin, 2nd priority
             streams_info.num_streams =
-                std::min(streams_info.num_streams, engConfig.perfHintsConfig.ovPerfHintNumRequests);
+                std::min(streams_info.num_streams, engConfig.numRequests);
         }
         return std::pair<std::string, StreamCfg>(std::to_string(streams_info.num_streams), streams_info);
     };
@@ -231,13 +231,14 @@ void Engine::ApplyPerformanceHints(std::map<std::string, std::string> &config, c
 
         const auto& perf_hint = config.find(CONFIG_KEY(PERFORMANCE_HINT));
         // the perf_hint may have just arrived to the LoadNetwork, or was set with the plugin's SetConfig
-        if (perf_hint == config.end() && engConfig.perfHintsConfig.ovPerfHint.empty())
+        if (perf_hint == config.end() && !engConfig.changedPerformanceHint)
             return std::string();
         /* performance hints set for network has higher pririty than engine ones.
         * This applies for all the configuration parameters */
-        const auto perf_hint_name = (perf_hint != config.end()) ?
-            PerfHintsConfig::CheckPerformanceHintValue(perf_hint->second) :
-            engConfig.perfHintsConfig.ovPerfHint;
+        std::stringstream perfstr;
+        perfstr << engConfig.performanceHint;
+        const auto perf_hint_name =
+            (perf_hint != config.end()) ? PerfHintsConfig::CheckPerformanceHintValue(perf_hint->second) : perfstr.str();
         return perf_hint_name;
     };
 
@@ -282,13 +283,14 @@ void Engine::GetPerformanceStreams(std::map<std::string, std::string>& config,
 
         const auto& perf_hint = config.find(CONFIG_KEY(PERFORMANCE_HINT));
         // the perf_hint may have just arrived to the LoadNetwork, or was set with the plugin's SetConfig
-        if (perf_hint == config.end() && engConfig.perfHintsConfig.ovPerfHint.empty())
+        if (perf_hint == config.end() && !engConfig.changedPerformanceHint)
             return std::string();
         /* performance hints set for network has higher pririty than engine ones.
          * This applies for all the configuration parameters */
-        const auto perf_hint_name = (perf_hint != config.end())
-                                        ? PerfHintsConfig::CheckPerformanceHintValue(perf_hint->second)
-                                        : engConfig.perfHintsConfig.ovPerfHint;
+        std::stringstream perfstr;
+        perfstr << engConfig.performanceHint;
+        const auto perf_hint_name =
+            (perf_hint != config.end()) ? PerfHintsConfig::CheckPerformanceHintValue(perf_hint->second) : perfstr.str();
         return perf_hint_name;
     };
 
@@ -306,8 +308,8 @@ void Engine::GetPerformanceStreams(std::map<std::string, std::string>& config,
     int infer_requests = 0;
     if (num_requests != config.end()) {  // arrived with config to the LoadNetwork (and thus higher pri)
         infer_requests = PerfHintsConfig::CheckPerformanceHintRequestValue(num_requests->second);
-    } else if (engConfig.perfHintsConfig.ovPerfHintNumRequests) {  // set thru SetConfig to the plugin, 2nd priority
-        infer_requests = engConfig.perfHintsConfig.ovPerfHintNumRequests;
+    } else if (engConfig.numRequests > 0) {  // set thru SetConfig to the plugin, 2nd priority
+        infer_requests = engConfig.numRequests;
     }
 
     const auto common_hints = get_num_streams(streams, infer_requests, ngraphFunc, engConfig.streamExecutorConfig);
@@ -594,7 +596,7 @@ Parameter Engine::GetConfig(const std::string& name, const std::map<std::string,
         const auto inference_precision = enforceBF16 ? ov::element::bf16 : ov::element::f32;
         return decltype(ov::hint::inference_precision)::value_type(inference_precision);
     } else if (name == ov::hint::performance_mode) {
-        const auto perfHint = ov::util::from_string(engConfig.perfHintsConfig.ovPerfHint, ov::hint::performance_mode);
+        const auto perfHint = engConfig.performanceHint;
         return perfHint;
     } else if (name == ov::hint::enable_cpu_pinning) {
         const bool pin_value = engConfig.enableCpuPinning;
@@ -606,7 +608,7 @@ Parameter Engine::GetConfig(const std::string& name, const std::map<std::string,
         const bool ht_value = engConfig.enableHyperThreading;
         return decltype(ov::hint::enable_hyper_threading)::value_type(ht_value);
     } else if (name == ov::hint::num_requests) {
-        const auto perfHintNumRequests = engConfig.perfHintsConfig.ovPerfHintNumRequests;
+        const auto perfHintNumRequests = engConfig.numRequests;
         return decltype(ov::hint::num_requests)::value_type(perfHintNumRequests);
     } else if (name == ov::hint::execution_mode) {
         return engConfig.executionMode;
@@ -808,8 +810,10 @@ InferenceEngine::IExecutableNetworkInternal::Ptr Engine::ImportNetwork(std::istr
 
     // import config props from caching model
     auto function = cnnnetwork.getFunction();
-    if (function->has_rt_info("intel_cpu_hints_config") && !conf.perfHintsConfig.ovPerfHint.empty()) {
-        const auto mode_name = conf.perfHintsConfig.ovPerfHint;
+    if (function->has_rt_info("intel_cpu_hints_config") && conf.changedPerformanceHint) {
+        std::stringstream perfstr;
+        perfstr << engConfig.performanceHint;
+        const auto mode_name = perfstr.str();
         if (mode_name == CONFIG_VALUE(LATENCY) || mode_name == CONFIG_VALUE(THROUGHPUT)) {
             const auto& hints_config = function->get_rt_info<ov::AnyMap>("intel_cpu_hints_config");
             const auto hints_param_name = mode_name + "_" + std::string(ov::num_streams.name());

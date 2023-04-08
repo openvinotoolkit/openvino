@@ -354,7 +354,7 @@ InferenceEngine::Parameter ExecNetwork::GetMetric(const std::string &name) const
         const auto inference_precision = enforceBF16 ? ov::element::bf16 : ov::element::f32;
         return decltype(ov::hint::inference_precision)::value_type(inference_precision);
     } else if (name == ov::hint::performance_mode) {
-        const auto perfHint = ov::util::from_string(config.perfHintsConfig.ovPerfHint, ov::hint::performance_mode);
+        const auto perfHint = config.performanceHint;
         return perfHint;
     } else if (name == ov::hint::enable_cpu_pinning.name()) {
         const bool use_pin = config.enableCpuPinning;
@@ -368,7 +368,7 @@ InferenceEngine::Parameter ExecNetwork::GetMetric(const std::string &name) const
     } else if (name == ov::hint::execution_mode) {
         return config.executionMode;
     } else if (name == ov::hint::num_requests) {
-        const auto perfHintNumRequests = config.perfHintsConfig.ovPerfHintNumRequests;
+        const auto perfHintNumRequests = config.numRequests;
         return decltype(ov::hint::num_requests)::value_type(perfHintNumRequests);
     } else if (name == ov::execution_devices) {
         return decltype(ov::execution_devices)::value_type{_plugin->GetName()};
