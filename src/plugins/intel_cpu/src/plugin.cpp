@@ -283,15 +283,20 @@ void Engine::GetPerformanceStreams(std::map<std::string, std::string>& config,
 
         const auto& perf_hint = config.find(CONFIG_KEY(PERFORMANCE_HINT));
         // the perf_hint may have just arrived to the LoadNetwork, or was set with the plugin's SetConfig
-        if (perf_hint == config.end() && !engConfig.changedPerformanceHint)
-            return std::string();
-        /* performance hints set for network has higher pririty than engine ones.
-         * This applies for all the configuration parameters */
-        std::stringstream perfstr;
-        perfstr << engConfig.performanceHint;
-        const auto perf_hint_name =
-            (perf_hint != config.end()) ? PerfHintsConfig::CheckPerformanceHintValue(perf_hint->second) : perfstr.str();
-        return perf_hint_name;
+        if (perf_hint != config.end()) {
+            return PerfHintsConfig::CheckPerformanceHintValue(perf_hint->second);
+        } else if (engConfig.changedPerformanceHint) {
+            std::stringstream perfstr;
+            perfstr << engConfig.performanceHint;
+            return perfstr.str();
+        } else {
+            const std::vector<std::vector<int>> proc_type_table = get_num_available_cpu_cores();
+            if (proc_type_table.size() == 1) {
+                return std::string("LATENCY");
+            } else {
+                return std::string("THROUGHPUT");
+            }
+        }
     };
 
     const auto perf_hint_name = getPerfHintName();
