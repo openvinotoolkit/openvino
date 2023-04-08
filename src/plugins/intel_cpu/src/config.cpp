@@ -92,7 +92,7 @@ void Config::readProperties(const std::map<std::string, std::string> &prop) {
             try {
                 val_i = std::stoi(val);
             } catch (const std::exception&) {
-                IE_THROW() << "Wrong value for property key " << key << ". Expected only positive integer numbers";
+                IE_THROW() << "Wrong value type for property key " << key << ". Expected only positive integer numbers";
             }
             if (val_i >= 0) {
                 numRequests = val_i;
