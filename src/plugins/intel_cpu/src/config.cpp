@@ -86,7 +86,7 @@ void Config::readProperties(const std::map<std::string, std::string> &prop) {
                            << ". Expected only " << ov::hint::PerformanceMode::LATENCY << "/"
                            << ov::hint::PerformanceMode::THROUGHPUT << std::endl;
             }
-        } else if ((key == ov::hint::num_requests.name()) &&
+        } else if ((key == ov::hint::num_requests.name()) ||
                    (key == PluginConfigParams::KEY_PERFORMANCE_HINT_NUM_REQUESTS)) {
             int val_i = -1;
             try {

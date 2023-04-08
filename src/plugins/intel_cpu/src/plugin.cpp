@@ -292,8 +292,10 @@ void Engine::GetPerformanceStreams(std::map<std::string, std::string>& config,
         } else {
             const std::vector<std::vector<int>> proc_type_table = get_num_available_cpu_cores();
             if (proc_type_table.size() == 1) {
+                config.insert({PluginConfigParams::KEY_PERFORMANCE_HINT, PluginConfigParams::LATENCY});
                 return std::string("LATENCY");
             } else {
+                config.insert({PluginConfigParams::KEY_PERFORMANCE_HINT, PluginConfigParams::THROUGHPUT});
                 return std::string("THROUGHPUT");
             }
         }
