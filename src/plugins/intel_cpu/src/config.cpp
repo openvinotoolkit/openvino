@@ -94,7 +94,7 @@ void Config::readProperties(const std::map<std::string, std::string> &prop) {
             } catch (const std::exception&) {
                 IE_THROW() << "Wrong value for property key " << key << ". Expected only positive integer numbers";
             }
-            if (val_i > 0) {
+            if (val_i >= 0) {
                 numRequests = val_i;
             } else {
                 IE_THROW() << "Wrong value for property key " << key << ". Expected only positive integer numbers";
