@@ -92,10 +92,13 @@ void Config::readProperties(const std::map<std::string, std::string> &prop) {
             try {
                 val_i = std::stoi(val);
             } catch (const std::exception&) {
-                IE_THROW() << "Wrong value for property key " << key << ". Expected only integer numbers";
+                IE_THROW() << "Wrong value for property key " << key << ". Expected only positive integer numbers";
             }
-            // zero and any negative value will be treated as default number of request
-            numRequests = std::max(val_i, 0);
+            if (val_i > 0) {
+                numRequests = val_i;
+            } else {
+                IE_THROW() << "Wrong value for property key " << key << ". Expected only positive integer numbers";
+            }
         } else if (key == ov::hint::enable_cpu_pinning.name()) {
             if (val == PluginConfigParams::YES) {
                 enableCpuPinning = true;
