@@ -81,7 +81,7 @@ void Config::readProperties(const std::map<std::string, std::string> &prop) {
             if (prefHint == ov::hint::PerformanceMode::LATENCY || prefHint == ov::hint::PerformanceMode::THROUGHPUT) {
                 performanceHint = prefHint;
                 changedPerformanceHint = true;
-            } else if (prefHint != ov::hint::PerformanceMode::UNDEFINED) {
+            } else {
                 IE_THROW() << "Wrong value " << val << "for property key " << ov::hint::performance_mode.name()
                            << ". Expected only " << ov::hint::PerformanceMode::LATENCY << "/"
                            << ov::hint::PerformanceMode::THROUGHPUT << std::endl;
