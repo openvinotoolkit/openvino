@@ -378,16 +378,19 @@ int main(int argc, char* argv[]) {
         for (auto& device : devices) {
             auto& device_config = config[device];
 
+            ov::hint::PerformanceMode ov_perf_hint = ov::hint::PerformanceMode::THROUGHPUT;
+
             // high-level performance modes
             if (!device_config.count(ov::hint::performance_mode.name())) {
-                auto perfhint = get_performance_hint(device, core);
-                if ((perfhint == ov::hint::PerformanceMode::LATENCY) ||
-                    (perfhint == ov::hint::PerformanceMode::THROUGHPUT) ||
-                    (perfhint == ov::hint::PerformanceMode::CUMULATIVE_THROUGHPUT)) {
-                    device_config.emplace(ov::hint::performance_mode(perfhint));
+                auto ov_perf_hint = get_performance_hint(device, core);
+                if ((ov_perf_hint == ov::hint::PerformanceMode::LATENCY) ||
+                    (ov_perf_hint == ov::hint::PerformanceMode::THROUGHPUT) ||
+                    (ov_perf_hint == ov::hint::PerformanceMode::CUMULATIVE_THROUGHPUT)) {
+                    device_config.emplace(ov::hint::performance_mode(ov_perf_hint));
                 }
+            } else {
+                ov_perf_hint = device_config.at(ov::hint::performance_mode.name()).as<ov::hint::PerformanceMode>();
             }
-            auto ov_perf_hint = device_config.at(ov::hint::performance_mode.name()).as<ov::hint::PerformanceMode>();
 
             if (FLAGS_nireq != 0)
                 device_config.emplace(ov::hint::num_requests(unsigned(FLAGS_nireq)));
