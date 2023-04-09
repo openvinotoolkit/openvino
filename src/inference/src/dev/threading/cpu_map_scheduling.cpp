@@ -4,6 +4,7 @@
 
 #include "openvino/runtime/threading/cpu_map_scheduling.hpp"
 
+#include "ie_parallel.hpp"
 #include "ie_system_conf.h"
 
 namespace ov {
@@ -55,6 +56,29 @@ std::vector<std::vector<int>> apply_hyper_threading(bool input_value,
     }
 
     return result_table;
+}
+
+bool apply_cpu_pinning(bool& input_value,
+                       const bool input_changed,
+                       const int num_streams,
+                       const std::vector<std::vector<int>>& proc_type_table) {
+    int result_value;
+    int num_sockets = proc_type_table.size() > 1 ? proc_type_table.size() - 1 : 1;
+    bool latency = num_streams <= num_sockets;
+
+    if (proc_type_table[0][EFFICIENT_CORE_PROC] > 0) {
+        result_value = input_changed ? input_value : (latency ? false : true);
+    } else {
+        result_value = input_changed ? input_value : true;
+#if (IE_THREAD == IE_THREAD_TBB || IE_THREAD == IE_THREAD_TBB_AUTO)
+#    if defined(__APPLE__) || defined(_WIN32)
+        result_value = false;
+#    endif
+#endif
+    }
+    input_value = result_value;
+
+    return result_value;
 }
 
 }  // namespace ov

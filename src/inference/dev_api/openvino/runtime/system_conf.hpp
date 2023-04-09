@@ -221,7 +221,7 @@ OPENVINO_RUNTIME_API std::vector<int> reserve_available_cpus(const ColumnOfProce
  * @param[in]  cpu_ids cpus in cpu_mapping.
  * @param[in]  used update CPU_MAP_USED_FLAG of cpu_mapping with this flag bit
  */
-OPENVINO_RUNTIME_API void set_cpu_used(std::vector<int>& cpu_ids, int used);
+OPENVINO_RUNTIME_API void set_cpu_used(const std::vector<int>& cpu_ids, const int used);
 
 /**
  * @enum       ColumnOfCPUMappingTable

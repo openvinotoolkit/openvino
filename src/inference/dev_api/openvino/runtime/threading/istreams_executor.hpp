@@ -106,6 +106,7 @@ public:
         std::vector<std::vector<int>> _proc_type_table;
         std::vector<std::vector<int>> _streams_info_table;
         std::vector<int> _stream_ids;
+        bool _cpu_pinning = false;
         enum StreamMode { DEFAULT, AGGRESSIVE, LESSAGGRESSIVE };
         enum PreferredCoreType {
             ANY,

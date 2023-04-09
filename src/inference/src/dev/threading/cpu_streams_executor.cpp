@@ -140,32 +140,27 @@ struct CPUStreamsExecutor::Impl {
                     ? static_cast<ColumnOfProcessorTypeTable>(
                           _impl->_config._streams_info_table[_impl->_config._stream_ids[stream_id]][PROC_TYPE])
                     : static_cast<ColumnOfProcessorTypeTable>(0);
-            if (concurrency > 0 && (ThreadBindingType::CORES == _impl->_config._threadBindingType ||
-                                    ThreadBindingType::NONE == _impl->_config._threadBindingType ||
-                                    cpu_core_type == ALL_PROC || _streamId >= _impl->_config._streams)) {
-                _taskArena.reset(new custom::task_arena{concurrency});
-            } else if (ThreadBindingType::NUMA == _impl->_config._threadBindingType) {
+            if (concurrency <= 0 || _streamId >= _impl->_config._streams) {
+                return;
+            }
+            if (_impl->_config._proc_type_table.size() > 0 && !_impl->_config._cpu_pinning) {
                 _taskArena.reset(new custom::task_arena{custom::task_arena::constraints{_numaNodeId, concurrency}});
-            } else if (ThreadBindingType::HYBRID_AWARE == _impl->_config._threadBindingType) {
+            } else if (_impl->_config._proc_type_table[0][EFFICIENT_CORE_PROC] > 0 && _impl->_config._cpu_pinning) {
+#    ifdef _WIN32
                 const auto selected_core_type =
                     (cpu_core_type == MAIN_CORE_PROC || cpu_core_type == HYPER_THREADING_PROC)
                         ? custom::info::core_types().back()
                         : custom::info::core_types().front();
-#    ifdef _WIN32
                 _taskArena.reset(new custom::task_arena{custom::task_arena::constraints{}
                                                             .set_core_type(selected_core_type)
                                                             .set_max_concurrency(concurrency)});
 #    else
-                if (_impl->bind_cores) {
-                    _taskArena.reset(new custom::task_arena{concurrency});
-                } else {
-                    _taskArena.reset(new custom::task_arena{custom::task_arena::constraints{}
-                                                                .set_core_type(selected_core_type)
-                                                                .set_max_concurrency(concurrency)});
-                }
+                _taskArena.reset(new custom::task_arena{concurrency});
 #    endif
+            } else {
+                _taskArena.reset(new custom::task_arena{concurrency});
             }
-            if (_impl->bind_cores && _streamId < _impl->_config._streams) {
+            if (_impl->_config._cpu_pinning && _streamId < _impl->_config._streams) {
                 // Handle special case: reserve 4 cores when threads is 3 in ECore
                 const auto num_cpus =
                     cpu_core_type == EFFICIENT_CORE_PROC && concurrency == 3 && _impl->_config._small_core_streams > 1
@@ -326,24 +321,7 @@ struct CPUStreamsExecutor::Impl {
             _usedNumaNodes = numaNodes;
         }
 #if (OV_THREAD == OV_THREAD_TBB || OV_THREAD == OV_THREAD_TBB_AUTO)
-        if (is_cpu_map_available()) {
-            if ((config._streams > static_cast<int>(numaNodes.size()) &&
-                 ThreadBindingType::HYBRID_AWARE == config._threadBindingType) ||
-                ThreadBindingType::CORES == config._threadBindingType) {
-                bind_cores = true;
-                if (_config._plugin_task >= PLUGIN_USED_START) {
-                    _config._threads = _config._streams;
-                    _config._streams_info_table.resize(1, std::vector<int>(CPU_STREAMS_TABLE_SIZE, 0));
-                    _config._streams_info_table[0][NUMBER_OF_STREAMS] = _config._streams;
-                    _config._streams_info_table[0][PROC_TYPE] =
-                        _config._threadPreferredCoreType == Config::PreferredCoreType::LITTLE ? EFFICIENT_CORE_PROC
-                                                                                              : MAIN_CORE_PROC;
-                    _config._streams_info_table[0][THREADS_PER_STREAM] = 1;
-                }
-            }
-        }
-
-        if (ThreadBindingType::HYBRID_AWARE == config._threadBindingType) {
+        if (!is_cpu_map_available() && ThreadBindingType::HYBRID_AWARE == config._threadBindingType) {
             const auto core_types = custom::info::core_types();
             const auto num_core_phys = get_number_of_cpu_cores();
             num_big_core_phys = get_number_of_cpu_cores(true);
@@ -452,8 +430,6 @@ struct CPUStreamsExecutor::Impl {
     using StreamIdToCoreTypes = std::vector<std::pair<custom::core_type_id, int>>;
     StreamIdToCoreTypes total_streams_on_core_types;
     int num_big_core_phys;
-    bool bind_cores = false;
-    std::vector<int> stream_ids;
 #endif
     std::shared_ptr<ExecutorManager> _exectorMgr;
 };
