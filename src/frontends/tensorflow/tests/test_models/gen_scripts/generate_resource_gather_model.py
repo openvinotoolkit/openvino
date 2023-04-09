@@ -32,9 +32,9 @@ def main():
         tf.compat.v1.global_variables_initializer()
         tf_net = sess.graph_def
 
-    tf.io.write_graph(tf_net, os.path.join(".", "resource_gather_model"), "resource_gather_model.pbtxt", True)
+    tf.io.write_graph(tf_net, os.path.join(sys.argv[1], "resource_gather_model"), "resource_gather_model.pbtxt", True)
 
-    with open(os.path.join(".", "resource_gather_model", "resource_gather_model.pbtxt"),
+    with open(os.path.join(sys.argv[1], "resource_gather_model", "resource_gather_model.pbtxt"),
               mode='r') as file:
         modelContent = file.read()
 
@@ -44,7 +44,7 @@ def main():
     # we have an example of the model in our scope
     modelContent = modelContent.replace("Gather", "ResourceGather")
 
-    with open(os.path.join(".", "resource_gather_model", "resource_gather_model.pbtxt"),
+    with open(os.path.join(sys.argv[1], "resource_gather_model", "resource_gather_model.pbtxt"),
               mode='w') as file:
         file.write(modelContent)
 
