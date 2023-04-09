@@ -46,7 +46,9 @@ bool SplitTransformation::transform(TransformationContext& context, ngraph::patt
     ngraph::copy_runtime_info(split, newSplit);
 
     const int64_t axis = ov::as_type_ptr<opset1::Constant>(split->get_input_node_shared_ptr(1))->cast_vector<int64_t>()[0];
+    OPENVINO_SUPPRESS_DEPRECATED_START
     const size_t normalizedAxis = normalize_axis(split->get_friendly_name(), axis, split->get_input_partial_shape(0).rank());
+    OPENVINO_SUPPRESS_DEPRECATED_END
     const size_t outputSize = newSplit->get_output_size();
 
     const auto splitConstant = [&](const std::shared_ptr<Node> operation) {

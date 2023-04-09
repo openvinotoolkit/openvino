@@ -176,9 +176,13 @@ void InputModel::InputModelTFImpl::load_places() {
         }
         for (size_t input_port_idx = 0; input_port_idx < node_decoder->get_input_size(); ++input_port_idx) {
             std::string producer_op_name;
+            std::string producer_output_port_name;
             size_t producer_output_port_idx;
             try {
-                node_decoder->get_input_node(input_port_idx, producer_op_name, producer_output_port_idx);
+                node_decoder->get_input_node(input_port_idx,
+                                             producer_op_name,
+                                             producer_output_port_name,
+                                             producer_output_port_idx);
                 op_names_with_consumers.insert(producer_op_name);
             } catch (const std::exception&) {
                 FRONT_END_THROW("[ ERROR ] Exception happened when preparing input " + std::to_string(input_port_idx) +
@@ -276,9 +280,13 @@ std::vector<std::shared_ptr<OpPlace>> InputModel::InputModelTFImpl::topologicall
 
             for (size_t input_port_idx = 0; input_port_idx < input_count; ++input_port_idx) {
                 std::string producer_name;
+                std::string producer_output_port_name;
                 size_t producer_output_port_idx;
                 try {
-                    current_operation_decoder->get_input_node(input_port_idx, producer_name, producer_output_port_idx);
+                    current_operation_decoder->get_input_node(input_port_idx,
+                                                              producer_name,
+                                                              producer_output_port_name,
+                                                              producer_output_port_idx);
                 } catch (const std::exception&) {
                     FRONT_END_THROW("[ ERROR ] Exception happened when preparing input " +
                                     std::to_string(input_port_idx) + " for op '" +

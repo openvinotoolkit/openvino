@@ -114,6 +114,24 @@ struct KernelData {
 
     bool can_reuse_memory = true;
 
+    static bool SkipKernelExecution(const base_params& params, size_t kernel_id = 0) {
+        for (const auto& input : params.inputs) {
+            if (input.LogicalSize() == 0) {
+                return true;
+            }
+        }
+        for (const auto& output : params.outputs) {
+            if (output.LogicalSize() == 0) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    static bool SkipKernelExecution(const Params& params, size_t kernel_id = 0) {
+        return false;
+    }
+
     template <typename T>
     inline static KernelData Default(const Params& _params, size_t kernel_nums = 1) {
         KernelData kd;
@@ -124,6 +142,10 @@ struct KernelData {
         kd.reorderInput = false;  // for KW
         kd.autoTuneIndex = -1;
         kd.can_reuse_memory = true;
+
+        for (auto& kernel : kd.kernels) {
+            kernel.skip_execution = SkipKernelExecution(orgParams);
+        }
         return kd;
     }
 };

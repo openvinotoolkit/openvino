@@ -258,7 +258,7 @@ void get_num_streams(const int streams,
 
     std::vector<std::vector<int>> proc_type_table = get_num_available_cpu_cores();
     proc_type_table = apply_scheduling_core_type(config.schedulingCoreType, proc_type_table);
-    proc_type_table = apply_hyper_threading(config.useHyperThreading, config.changedHyperThreading, proc_type_table);
+    proc_type_table = apply_hyper_threading(config.enableHyperThreading, config.changedHyperThreading, proc_type_table);
     executor_config._proc_type_table = proc_type_table;
     const int model_prefer = get_model_prefer_threads(streams, proc_type_table, ngraphFunc, executor_config);
     executor_config._streams_info_table =

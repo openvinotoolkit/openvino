@@ -43,7 +43,7 @@ shared_ptr<Model> convert_model(const string& model_path, const ConversionExtens
     return model;
 }
 
-ov::OutputVector fake_translator_ragged_tensor_to_sparse(const ov::frontend::NodeContext& node) {
+NamedOutputVector fake_translator_ragged_tensor_to_sparse(const NodeContext& node) {
     // NOTE: pay attention that this is a fake translator for RaggedTensorToSparse
     // only serves for testing purposes
     FRONT_END_GENERAL_CHECK(node.get_input_size() > 1, "RaggedTensorToSparse expects at least two inputs.");
@@ -70,7 +70,7 @@ ov::OutputVector fake_translator_ragged_tensor_to_sparse(const ov::frontend::Nod
     add.get_tensor().add_names({node_name + ":1"});
     sub.get_tensor().add_names({node_name + ":2"});
 
-    return {mul, add, sub};
+    return {{"sparse_indices", mul}, {"sparse_values", add}, {"sparse_dense_shape", sub}};
 }
 }  // namespace
 
@@ -406,7 +406,13 @@ TEST_F(TransformationTestsF, ModelWithEmptyTensorListAndPushBack) {
         auto x_unsqueeze_flatten = make_shared<Unsqueeze>(x_flatten, zero_const);
         auto empty_const = make_shared<Constant>(f32, Shape{0, 30}, vector<float>{});
         auto list_push_back = make_shared<Concat>(OutputVector{empty_const, x_unsqueeze_flatten}, 0);
-        auto recover_item_shape = make_shared<Constant>(i32, Shape{4}, vector<int32_t>{1, 2, 3, 5});
+        auto list_push_back_shape = make_shared<ShapeOf>(list_push_back, element::i32);
+        auto start = make_shared<Constant>(i32, Shape{1}, 0);
+        auto stop = make_shared<Constant>(i32, Shape{1}, 1);
+        auto step = make_shared<Constant>(i32, Shape{1}, 1);
+        auto batch = make_shared<Slice>(list_push_back_shape, start, stop, step);
+        auto shape_without_batch = make_shared<Constant>(i32, Shape{3}, vector<int32_t>{2, 3, 5});
+        auto recover_item_shape = make_shared<Concat>(OutputVector{batch, shape_without_batch}, 0);
         auto recover_item = make_shared<Reshape>(list_push_back, recover_item_shape, false);
         model_ref = make_shared<Model>(OutputVector{recover_item}, ParameterVector{x});
     }
@@ -463,5 +469,35 @@ TEST_F(TransformationTestsF, RaggedTensorToSparse) {
         auto concat = make_shared<Concat>(OutputVector{reshape1, reshape2}, 0);
 
         model_ref = make_shared<Model>(OutputVector{concat}, ParameterVector{row_splits, strings});
+    }
+}
+
+TEST_F(TransformationTestsF, SplitInFunction) {
+    {
+        // create FAKE conversion extension for Split using named ports, this is not required for Split, but it tests
+        // how named ports will work if there is one name and many outputs associated with it
+        auto conv_ext = std::make_shared<ov::frontend::ConversionExtension>("Split", [](const NodeContext& node) {
+            auto axis = node.get_input(0);
+            auto value = node.get_input(1);
+            auto num_split = node.get_attribute<int64_t>("num_split");
+
+            auto split = make_shared<Split>(value, axis, num_split);
+            NamedOutputVector res;
+            for (const auto& output : split->outputs()) {
+                res.push_back({"output", output});
+            }
+            return res;
+        });
+        model = convert_model("split_in_function/split_in_function.pbtxt", conv_ext);
+    }
+    {
+        auto x = make_shared<Parameter>(f32, PartialShape{3, 20});
+
+        auto const_zero = make_shared<Constant>(i32, Shape{}, 0);
+        auto split = make_shared<Split>(x, const_zero, 3);
+        auto add1 = make_shared<Add>(split->output(0), split->output(1));
+        auto add2 = make_shared<Add>(add1, split->output(2));
+
+        model_ref = make_shared<Model>(OutputVector{add2}, ParameterVector{x});
     }
 }
