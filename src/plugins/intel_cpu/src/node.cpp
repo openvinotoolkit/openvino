@@ -1140,7 +1140,8 @@ MemoryDescPtr Node::getDstMemDesc(dnnl::primitive_desc_iterator &primitive_desc_
 }
 
 int Node::batchToProcess() const {
-    return dynBatchLim == 0 ? getMaxBatch() : std::min<int>(getMaxBatch(), dynBatchLim);
+    const int maxBatch = static_cast<int>(getMaxBatch());
+    return dynBatchLim == 0 ? maxBatch : std::min(maxBatch, dynBatchLim);
 }
 
 // TODO [DS]: how we should process this for dynamic shape?
@@ -1162,28 +1163,33 @@ size_t Node::getMaxBatch() const {
 }
 
 void Node::setDynamicBatchLim(int lim) {
+    DEBUG_LOG(getName(), ": Setting dynamic batch limit to ", lim);
+
     dynBatchLim = lim;
+
+    if (primArgs.empty())
+        return;
 
     auto setDynamicBatch = [this](int argType, int newBatch) {
         auto param = primArgs.find(argType);
-        if (param != primArgs.end()) {
-            auto oldMem = param->second;
-            dnnl::memory::desc newMemDesc(oldMem.get_desc());
-            newMemDesc.get()->dims[0] = newBatch;
-            newMemDesc.get()->padded_dims[0] = newBatch;
+        if (param == primArgs.end())
+            return;
 
-            dnnl::memory newMem(newMemDesc, oldMem.get_engine(), oldMem.get_data_handle());
-            primArgs.at(argType) = newMem;
-        }
+        auto oldMem = param->second;
+        dnnl::memory::desc newMemDesc(oldMem.get_desc());
+        newMemDesc.get()->dims[0] = newBatch;
+        newMemDesc.get()->padded_dims[0] = newBatch;
+
+        dnnl::memory newMem(newMemDesc, oldMem.get_engine(), oldMem.get_data_handle());
+        primArgs.at(argType) = newMem;
     };
 
-    if (!primArgs.empty()) {
-        int newBatch = batchToProcess();
-        setDynamicBatch(DNNL_ARG_SRC, newBatch);
-        setDynamicBatch(DNNL_ARG_DST, newBatch);
-        setDynamicBatch(DNNL_ARG_DIFF_SRC, newBatch);
-        setDynamicBatch(DNNL_ARG_DIFF_DST, newBatch);
-    }
+    const int newBatch = batchToProcess();
+
+    setDynamicBatch(DNNL_ARG_SRC, newBatch);
+    setDynamicBatch(DNNL_ARG_DST, newBatch);
+    setDynamicBatch(DNNL_ARG_DIFF_SRC, newBatch);
+    setDynamicBatch(DNNL_ARG_DIFF_DST, newBatch);
 }
 
 void Node::appendPostOpArgs(const dnnl::primitive_attr& attr,

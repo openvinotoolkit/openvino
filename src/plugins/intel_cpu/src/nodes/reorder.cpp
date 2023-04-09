@@ -352,7 +352,7 @@ void Reorder::execute(dnnl::stream strm) {
 }
 
 void Reorder::setDynamicBatchLim(int lim) {
-    std::cout << getName() << " setDynamicBatchLim" << "\n";
+    DEBUG_LOG(getName(), ": Setting dynamic batch limit to ", lim);
 
     dynBatchLim = lim;
 
