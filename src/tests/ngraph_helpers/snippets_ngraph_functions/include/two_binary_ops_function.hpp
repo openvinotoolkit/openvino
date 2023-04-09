@@ -24,21 +24,37 @@ public:
     BaseDummyOperation(
         const Output<Node>& arg0,
         const Output<Node>& arg1,
-        const element::Type& output_type = element::undefined) : Op({ arg0, arg1 }), output_type(output_type) {
+        const std::map<std::vector<element::Type>, std::vector<element::Type>>& output_types = {}) : Op({ arg0, arg1 }), output_types(output_types) {
         constructor_validate_and_infer_types();
     }
 
     void validate_and_infer_types() override {
-        set_output_type(
-            0,
-            output_type == element::undefined ? get_input_element_type(0) : output_type,
-            get_input_partial_shape(0));
+        element::Type output_type;
+        if (output_types.size() == 0ull) {
+            output_type = get_input_element_type(0);
+        } else {
+            const auto& input_type1 = get_input_element_type(0);
+            const auto& input_type2 = get_input_element_type(1);
+            auto it = output_types.find({ input_type1, input_type2 });
+            OPENVINO_ASSERT(
+                it != output_types.end(),
+                "output type for " + input_type1.c_type_string() + " & " + input_type2.c_type_string() + " inputs was not found");
+            OPENVINO_ASSERT(
+                it->second.size() == 1ull,
+                "unexpected output types amount for " + input_type1.c_type_string() + " & " + input_type2.c_type_string() + " inputs");
+            output_type = it->second[0];
+        }
+
+        set_output_type(0, output_type, get_input_partial_shape(0));
     }
 
-    element::Type get_output_type() const { return output_type; }
+    std::map<std::vector<element::Type>, std::vector<element::Type>> get_output_types() const noexcept {
+        return output_types;
+    }
 
 protected:
-    element::Type output_type;
+    // maps consists output element types by input element types
+    const std::map<std::vector<element::Type>, std::vector<element::Type>> output_types;
 };
 
 /*
@@ -52,16 +68,20 @@ public:
     DummyOperation1(
         const Output<Node>& arg0,
         const Output<Node>& arg1,
-        const element::Type& output_type = element::undefined) : BaseDummyOperation(arg0, arg1, output_type) {
+        const std::map<std::vector<element::Type>, std::vector<element::Type>>& output_types = {}) : BaseDummyOperation(arg0, arg1, output_types) {
         constructor_validate_and_infer_types();
     }
 
-    DummyOperation1(const BaseDummyOperation& op) : DummyOperation1(op.get_input_source_output(0), op.get_input_source_output(1), op.get_output_type()) {
+    DummyOperation1(const BaseDummyOperation& op) : DummyOperation1(
+        op.get_input_source_output(0),
+        op.get_input_source_output(1),
+        op.get_output_types()) {
         constructor_validate_and_infer_types();
     }
 
     std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& new_args) const override {
-        return std::make_shared<DummyOperation1>(new_args.at(0), new_args.at(1), this->get_output_type());
+        // TODO: not completed
+        return std::make_shared<DummyOperation1>(new_args.at(0), new_args.at(1), output_types);
     }
 };
 
@@ -76,16 +96,19 @@ public:
     DummyOperation2(
         const Output<Node>& arg0,
         const Output<Node>& arg1,
-        const element::Type& output_type = element::undefined) : BaseDummyOperation(arg0, arg1, output_type) {
+        const std::map<std::vector<element::Type>, std::vector<element::Type>>& output_types = {}) : BaseDummyOperation(arg0, arg1, output_types) {
         constructor_validate_and_infer_types();
     }
 
-    DummyOperation2(const BaseDummyOperation& op) : DummyOperation2(op.get_input_source_output(0), op.get_input_source_output(1), op.get_output_type()) {
+    DummyOperation2(const BaseDummyOperation& op) : DummyOperation2(
+        op.get_input_source_output(0),
+        op.get_input_source_output(1),
+        op.get_output_types()) {
         constructor_validate_and_infer_types();
     }
 
     std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& new_args) const override {
-        return std::make_shared<DummyOperation2>(new_args.at(0), new_args.at(1), this->get_output_type());
+        return std::make_shared<DummyOperation2>(new_args.at(0), new_args.at(1), output_types);
     }
 };
 
@@ -110,12 +133,20 @@ public:
  */
 class TwoBinaryOpsFunction : public SnippetsFunctionBase {
 public:
+    class Branch {
+    public:
+        element::Type type;
+        size_t branches_amount;
+    };
+
     class Actual {
     public:
         std::pair<element::Type, element::Type> convertion_before_op1;
         element::Type convertion_before_op2_1;
         std::pair<element::Type, element::Type> convertion_before_op2_2;
-        element::Type convertion_after_op2;
+        std::vector<Branch> convertion_after_op2;
+        std::map<std::vector<element::Type>, std::vector<element::Type>> supported_out_precisions1;
+        std::map<std::vector<element::Type>, std::vector<element::Type>> supported_out_precisions2;
     };
 
     class Expected {
@@ -123,7 +154,7 @@ public:
         std::pair<element::Type, element::Type> convertion_before_op1;
         element::Type convertion_before_op2_1;
         std::pair<element::Type, element::Type> convertion_before_op2_2;
-        element::Type convertion_after_op2;
+        std::vector<Branch> convertion_after_op2;
         element::Type convertion_before_result;
     };
 
@@ -166,8 +197,10 @@ private:
         const std::pair<element::Type, element::Type>& convertion_before_op1,
         const element::Type& convertion_before_op2_1,
         const std::pair<element::Type, element::Type>& convertion_before_op2_2,
-        const element::Type& convertion_after_op2,
-        const element::Type& convertion_before_result = {});
+        const std::vector<Branch>& convertion_after_op2,
+        const element::Type& convertion_before_result,
+        const std::map<std::vector<element::Type>, std::vector<element::Type>>& supported_out_precisions1,
+        const std::map<std::vector<element::Type>, std::vector<element::Type>>& supported_out_precisions2);
 };
 
 }  // namespace snippets
