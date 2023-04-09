@@ -20,7 +20,9 @@ std::shared_ptr<ngraph::Function> TwoBinaryOpsFunction::get(
     const element::Type& convertion_before_op2_1,
     const std::pair<element::Type, element::Type>& convertion_before_op2_2,
     const element::Type& convertion_after_op2,
-    const element::Type& convertion_before_result) {
+    const element::Type& convertion_before_result,
+    const std::map<std::vector<element::Type>, std::vector<element::Type>>& supported_out_precisions1,
+    const std::map<std::vector<element::Type>, std::vector<element::Type>>& supported_out_precisions2) {
     const auto create_convert = [](std::shared_ptr<Node> parent, const element::Type convertion_type) -> std::shared_ptr<Node> {
         return convertion_type == element::undefined
             ? std::dynamic_pointer_cast<Node>(parent)
@@ -43,7 +45,7 @@ std::shared_ptr<ngraph::Function> TwoBinaryOpsFunction::get(
     const auto branch1 = make_branch(precision1, inputShape1, 1, convertion_before_op1.first);
     const auto branch2 = make_branch(precision2, inputShape2, 2, convertion_before_op1.second);
 
-    std::shared_ptr<Node> parent = std::make_shared<DummyOperation1>(branch1.second, branch2.second);
+    std::shared_ptr<Node> parent = std::make_shared<DummyOperation1>(branch1.second, branch2.second, supported_out_precisions1);
     parent->set_friendly_name("operation1");
 
     parent = create_convert(parent, convertion_before_op2_1);
@@ -52,7 +54,8 @@ std::shared_ptr<ngraph::Function> TwoBinaryOpsFunction::get(
         create_convert(parent, convertion_before_op2_2.first),
         create_convert(
             std::make_shared<ngraph::opset1::Constant>(constant_precision, Shape{}, std::vector<float>{0.f}),
-            convertion_before_op2_2.second));
+            convertion_before_op2_2.second),
+        supported_out_precisions2);
     parent->set_friendly_name("operation2");
 
     parent = create_convert(parent, convertion_after_op2);
@@ -80,7 +83,10 @@ std::shared_ptr<ov::Model> TwoBinaryOpsFunction::initOriginal() const {
         actual.convertion_before_op1,
         actual.convertion_before_op2_1,
         actual.convertion_before_op2_2,
-        actual.convertion_after_op2);
+        actual.convertion_after_op2,
+        {},
+        actual.supported_out_precisions1,
+        actual.supported_out_precisions2);
 }
 
 std::shared_ptr<ov::Model> TwoBinaryOpsFunction::initReference() const {
@@ -94,7 +100,9 @@ std::shared_ptr<ov::Model> TwoBinaryOpsFunction::initReference() const {
         expected.convertion_before_op2_1,
         expected.convertion_before_op2_2,
         expected.convertion_after_op2,
-        expected.convertion_before_result);
+        expected.convertion_before_result,
+        actual.supported_out_precisions1,
+        actual.supported_out_precisions2);
 }
 
 }  // namespace snippets

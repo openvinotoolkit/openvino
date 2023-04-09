@@ -212,6 +212,42 @@ bool ngraph::snippets::pass::PropagatePrecision::validate_and_infer_types_and_re
 
         if (output.get_element_type() != op_output_types[i]) {
             was_updated = true;
+
+            // option #1: if convertion after the operation exists then check if possible to remove it instead add new
+            const auto& target_inputs = output.get_target_inputs();
+            // limit by 1 child, while the issue was not resolved
+            // issue #107966
+            if (target_inputs.size() == 1ull) {
+                const auto& child_input = *target_inputs.begin();
+                const auto& child = child_input.get_node();
+                const auto existing_convert = ov::as_type<ngraph::snippets::op::ConvertSaturation>(child);
+                if (existing_convert != nullptr) {
+                    const element::Type actual_before = output.get_element_type();
+                    const element::Type actual_after = op_output_types[i];
+                    const element::Type required_after = existing_convert->output(0).get_element_type();
+                    if (can_be_removed(actual_before, actual_after, required_after)) {
+                        // output.get_target_inputs().size() is increasing in line below
+                        // as result we need to remove existing child_input manually
+                        // issue #107966
+                        existing_convert->output(0).replace(output);
+                        output.remove_target_input(child_input);
+
+
+                        for (auto& input : output.get_target_inputs()) {
+                            if (ngraph::is_type<ngraph::op::Result>(input.get_node())) {
+                                // Result input tensor name was changed, the name has to be restored
+                                // issue #107826
+                                input.get_tensor_ptr()->add_names(output.get_tensor_ptr()->get_names());
+                                op->set_friendly_name(existing_convert->get_friendly_name());
+                            }
+                        }
+
+                        continue;
+                    }
+                }
+            }
+
+            // option #2: add new convertion after the operation
             auto convert = std::make_shared<ngraph::snippets::op::ConvertSaturation>(
                 output,
                 op_output_types[i]);
@@ -228,7 +264,7 @@ bool ngraph::snippets::pass::PropagatePrecision::validate_and_infer_types_and_re
 
                 if (ngraph::is_type<ngraph::op::Result>(input.get_node())) {
                     // Result input tensor name was changed, the name has to be restored
-                    // task #107826
+                    // issue #107826
                     input.get_tensor_ptr()->add_names(output.get_tensor_ptr()->get_names());
 
                     const std::string original_name = op->get_friendly_name();
