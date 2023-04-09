@@ -380,7 +380,12 @@ int main(int argc, char* argv[]) {
 
             // high-level performance modes
             if (!device_config.count(ov::hint::performance_mode.name())) {
-                device_config.emplace(ov::hint::performance_mode(get_performance_hint(device, core)));
+                auto perfhint = get_performance_hint(device, core);
+                if ((perfhint == ov::hint::PerformanceMode::LATENCY) ||
+                    (perfhint == ov::hint::PerformanceMode::THROUGHPUT) ||
+                    (perfhint == ov::hint::PerformanceMode::CUMULATIVE_THROUGHPUT)) {
+                    device_config.emplace(ov::hint::performance_mode(perfhint));
+                }
             }
             auto ov_perf_hint = device_config.at(ov::hint::performance_mode.name()).as<ov::hint::PerformanceMode>();
 
