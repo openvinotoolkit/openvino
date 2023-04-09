@@ -543,11 +543,8 @@ void Transformations::PostLpt() {
             return false;
         });
 
-    // Float MHA is supported by snippets now
-    if (!enableBF16) {
-        postLPTPassManager.get_pass_config()->disable<MHAFloatFusion>();
-        postLPTPassManager.get_pass_config()->disable<MHAFloatFusion2>();
-    }
+    postLPTPassManager.get_pass_config()->disable<MHAFloatFusion>();
+    postLPTPassManager.get_pass_config()->disable<MHAFloatFusion2>();
 
     // Execute before snippets. Otherwise FQ will be converted to Subgraph
     postLPTPassManager.register_pass<ConvertFqRnnToQuantizedRnn>();
@@ -565,7 +562,6 @@ void Transformations::MainSnippets(void) {
     snippetsManager.register_pass<ngraph::snippets::pass::SnippetsTokenization>();
 
     const bool isMHASupported =
-            !enableBF16 &&  // TODO: Need to add BF16 support for MHA in Snippets
             dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core);  // MHA has BRGEMM that is supported only on AVX512 platforms
     if (!isMHASupported) {
         snippetsManager.get_pass_config()->disable<ngraph::snippets::pass::TokenizeMHASnippets>();
