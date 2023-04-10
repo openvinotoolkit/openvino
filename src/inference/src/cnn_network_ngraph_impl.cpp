@@ -4,19 +4,12 @@
 
 #include "cnn_network_ngraph_impl.hpp"
 
-#include <math.h>
-
 #include <cassert>
+#include <cmath>
 #include <map>
 #include <memory>
-#include <openvino/cc/pass/itt.hpp>
-#include <openvino/op/util/op_types.hpp>
 #include <set>
 #include <string>
-#include <transformations/common_optimizations/fold_subgraph_empty_inputs.hpp>
-#include <transformations/common_optimizations/nop_elimination.hpp>
-#include <transformations/common_optimizations/remove_concat_zero_dim_input.hpp>
-#include <transformations/common_optimizations/remove_multi_subgraph_op_dangling_params.hpp>
 #include <unordered_set>
 #include <vector>
 
@@ -28,8 +21,14 @@
 #include "ie_ngraph_utils.hpp"
 #include "ngraph/graph_util.hpp"
 #include "ngraph/pass/manager.hpp"
+#include "openvino/cc/pass/itt.hpp"
 #include "openvino/core/except.hpp"
+#include "openvino/op/util/op_types.hpp"
 #include "openvino/pass/serialize.hpp"
+#include "transformations/common_optimizations/fold_subgraph_empty_inputs.hpp"
+#include "transformations/common_optimizations/nop_elimination.hpp"
+#include "transformations/common_optimizations/remove_concat_zero_dim_input.hpp"
+#include "transformations/common_optimizations/remove_multi_subgraph_op_dangling_params.hpp"
 #include "transformations/fix_rt_info.hpp"
 #include "transformations/smart_reshape/set_batch_size.hpp"
 #include "transformations/smart_reshape/smart_reshape.hpp"
