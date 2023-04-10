@@ -1120,9 +1120,9 @@ class PostgreSQLEventListener : public ::testing::EmptyTestEventListener {
         sstr.str("");
         sstr.clear();
         // Creates temporary record
-        sstr << "INSERT INTO test_results_temp (tr_id, session_id, suite_id, run_id, test_id) VALUES (DEFAULT, "
-             << this->sessionId << ", " << this->testSuiteId << ", " << this->testRunId << ", " << this->testNameId
-             << ") RETURNING tr_id";
+        sstr << "INSERT INTO test_results_temp (tr_id, session_id, suite_id, run_id, test_id, test_result) "
+             << "VALUES (DEFAULT, " << this->sessionId << ", " << this->testSuiteId << ", " << this->testRunId << ", "
+             << this->testNameId << ", 0::smallint) RETURNING tr_id";
 
         if (!RequestTestId(sstr.str()))
             return;
@@ -1208,11 +1208,13 @@ class PostgreSQLEventListener : public ::testing::EmptyTestEventListener {
             return;
         }
 
-        uint32_t testResult = 0;
+        // Need to use such order to be able simplify queries to database
+        // State 0 - Incomplete state, worst possible
+        uint32_t testResult = 32;  // Failed state
         if (test_info.result()->Passed())
-            testResult = 1;
+            testResult = 128;
         else if (test_info.result()->Skipped())
-            testResult = 2;
+            testResult = 64;
 
         if (reportingLevel == REPORT_LVL_DEFAULT) {
             std::stringstream sstr;
