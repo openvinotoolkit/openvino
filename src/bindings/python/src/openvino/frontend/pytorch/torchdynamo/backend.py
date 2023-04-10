@@ -19,8 +19,9 @@ log = logging.getLogger(__name__)
 @register_backend
 @fake_tensor_unsupported
 def openvino(subgraph, example_inputs):
-    if(os.getenv("PYTORCH_TRACING_MODE")=="TORCHFX"):  
-    	return fx_openvino(subgraph, example_inputs)
+    if (os.getenv("PYTORCH_TRACING_MODE") is not None):
+        if (os.getenv("PYTORCH_TRACING_MODE") == "TORCHFX"):  
+    	    return fx_openvino(subgraph, example_inputs)
     return ts_openvino(subgraph, example_inputs)
 
 def ts_openvino(subgraph, example_inputs):
@@ -52,7 +53,7 @@ def ts_openvino(subgraph, example_inputs):
         om.validate_nodes_and_infer_types()
 
         device = 'CPU'
-        if os.getenv("OPENVINO_DEVICE") is not None:
+        if (os.getenv("OPENVINO_DEVICE") is not None):
             device = os.getenv("OPENVINO_DEVICE")
             assert device in core.available_devices, "Specified device " + device + " is not in the list of OpenVINO Available Devices"
             

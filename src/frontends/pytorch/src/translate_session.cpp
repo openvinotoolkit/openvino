@@ -137,16 +137,16 @@ std::shared_ptr<Model> TranslateSession::convert_pytorch_model(
                     // Input refers value in the outer scope, need to create a new Parameter in the current scope
                     // Linkage to external scope will be performed on the level of the parent operation (if or loop)
                     // TODO: Eliminate duplication with the main code for Parameters creation
-                    PartialShape ps = node->get_input_shape(i);
-                  
+                    PartialShape ps = node->get_input_shape(i); 
                     auto type = simplified_type_interpret(node->get_input_type(i));
                     // TODO: Use special API to set custom type specification
                     std::shared_ptr<v0::Parameter> parameter;
                     // TODO: Use decoder type or explore adding the missing cast types to Torchscript path
-                    if (std::strcmp(std::getenv("PYTORCH_TRACING_MODE"),"TORCHFX") == 0)
+                    const char* torch_tracing_mode = std::getenv("PYTORCH_TRACING_MODE");
+                    if ((torch_tracing_mode != NULL) && std::strcmp(torch_tracing_mode,"TORCHFX") == 0)                       
                         parameter = std::make_shared<v0::Parameter>(type.as<element::Type>(), ps);
                     else
-                        parameter = std::make_shared<v0::Parameter>(element::dynamic, ps);
+                        parameter = std::make_shared<v0::Parameter>(element::dynamic, ps);                 	
                     // TODO: Missing get_input_transpose_order handling for not trivial layouts
                     (*tensor_map)[input] = parameter;
                     // set name of parameter to the index of node in the model
