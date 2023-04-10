@@ -17,7 +17,7 @@ DnnlPostOpsComposer::DnnlPostOpsComposer(const dnnl::engine& engine,
                                         std::unordered_map<int, MemoryPtr>& args,
                                         const VectorDims& outputDims,
                                         int indexOfOutputChannelDim,
-                                        bool isI8,
+                                        bool isInt8,
                                         const int weiScaleMaskPerChannel,
                                         const std::vector<float>& DQScales,
                                         bool hasBias)
@@ -27,13 +27,12 @@ DnnlPostOpsComposer::DnnlPostOpsComposer(const dnnl::engine& engine,
       args(args),
       outputDims(outputDims),
       idxOC(indexOfOutputChannelDim),
-      isINT8(isI8),
+      isINT8(isInt8),
       weightScaleMaskPerChannel(weiScaleMaskPerChannel) {
     IE_ASSERT(idxOC >= 0 && idxOC < outputDims.size());
-    //Dequantization scales should only be set for int8 precision primitive.
-    if (!isINT8 && !DQScales.empty()) {
-        IE_THROW() << "DQScales can only be set on int8 precision.";
-    }
+    // if (!isINT8 && !DQScales.empty()) {
+    //     IE_THROW() << "DQScales can only be set on int8 precision.";
+    // }
     OC = outputDims[idxOC];
     dimsPerOC = dimsPerTensor = VectorDims(outputDims.size(), 1);
     dimsPerOC[idxOC] = OC;
@@ -48,6 +47,10 @@ DnnlPostOpsComposer::DnnlPostOpsComposer(const dnnl::engine& engine,
         //If having the bias, attr weight scale can't be updated for further ops-ops optimization.
         //ONEDNN 3.x quantization for scheme: QuantizedInput * QuantizedWeight * DQScale + Bias.
         weightScaleAvailable = !hasBias;
+    } else if (!DQScales.empty()) {
+        // DQ scale is fused but swiching back to non-INT8 for execution in some cases.
+        DEBUG_LOG("Set DQ scales for None-INT8, scale size ", DQScales.size());
+        appendScale(DQScales, false, true);
     }
 }
 

@@ -202,6 +202,9 @@ void GraphOptimizer::FuseConvMatmulFCDeconvAndDQScales(Graph &graph) {
         //Only Fusing scales for INT8 precision.
         if (parentNode->getOriginalInputPrecisionAtPort(0) != Precision::U8 && parentNode->getOriginalInputPrecisionAtPort(0) != Precision::I8)
             return false;
+        if (parentNode->getOriginalInputPrecisionAtPort(1) != Precision::I8)
+            return false;
+
         //Deconv has some heuristic limitation to use INT8 besides input precision.
         auto deconv = std::dynamic_pointer_cast<Deconvolution>(parentNode);
         if (deconv && !deconv->canBeExecutedInInt8())
@@ -247,14 +250,6 @@ void GraphOptimizer::FuseConvMatmulFCDeconvAndDQScales(Graph &graph) {
             if (scalesDims[i] != 1 && static_cast<int>(i) != channelAxis)
                 return false;
         }
-        // if (scalesDims.size() > 1) {
-        //     if (scalesDims[0] != 1 || !dimsEqualStrong(scalesDims[channelAxis], OC))
-        //         return false;
-        //     for (size_t i = 0; i < scalesDims.size(); i++) {
-        //         if (scalesDims[i] != 1 && i != channelAxis)
-        //             return false;
-        //     }
-        // }
 
         auto scalesConstant = dynamic_cast<node::Input*>(scales.get());
         if (scalesConstant == nullptr)

@@ -534,8 +534,7 @@ void FullyConnected::setPostOps(dnnl::primitive_attr& attr, const VectorDims& di
         IE_THROW() << "Unexpected rank(" << dims_ext.size() << ") for output tensor of node: " << getName();
     }
 
-    bool isINT8 = getOriginalInputPrecisionAtPort(WEIGHTS_ID) == Precision::U8 ||
-                  getOriginalInputPrecisionAtPort(WEIGHTS_ID) == Precision::I8;
+    bool isINT8 = getOriginalInputPrecisionAtPort(WEIGHTS_ID) == Precision::I8;
 
     DnnlPostOpsComposer dnnlpoc(getEngine(), attr, ops, postOpsArgs, dims, dims.size() - 1, isINT8, 1 << 0,  getDQScales(), withBiases);
 
