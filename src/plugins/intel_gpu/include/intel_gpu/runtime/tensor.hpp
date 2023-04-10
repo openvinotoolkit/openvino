@@ -476,104 +476,41 @@ public:
         auto new_order = new_fmt.internal_order();
         std::vector<value_type> old_sizes = sizes();
         std::vector<value_type> new_sizes(old_sizes.size(), default_size);
-        auto tmp = 1;
-        auto tmp_z = 1;
-        auto tmp_w = 1;
-        auto tmp_u = 1;
-        auto tmp_v = 1;
-        for (size_t i = 0; i < format.order().size(); i++) {
-            auto c = val_order[i];
-            // skip dim for the formats that do not have it
-            if (((new_fmt == format::bs_fs_fsv8_bsv8) ||
-                 (new_fmt == format::bs_fs_fsv8_bsv16) ||
-                 (new_fmt == format::os_i_osv8__ai8) ||
-                 (new_fmt == format::os_i_osv16__ai8) ||
-                 (new_fmt == format::bs_f_bsv16)) &&
-                 (c != 'b' && c != 'f' && c != 'o' && c != 'i')) {
-                if (new_order[i] == '?')
-                    new_sizes[i] = default_size;
+        const auto& new_traits = format::traits(new_fmt);
+        const cldnn::format default_fmt = cldnn::format::bfvuwzyx;
+        static const std::map<char, char> flatten_mapping = {
+            { 'v', 'u'},
+            { 'u', 'w'},
+            { 'w', 'z'},
+            { 'z', 'y'}
+        };
 
-                tmp *= old_sizes[i];
-                continue;
+        for (size_t i = 0; i < default_fmt.order().size(); i++) {
+            auto target_dim = val_order[i]; //bfxywzuv
+            while (!new_traits.has_dimension(target_dim)) {
+                if (flatten_mapping.find(target_dim) != flatten_mapping.end()) {
+                    target_dim = flatten_mapping.at(target_dim);
+                } else {
+                    target_dim = new_fmt.order().back();
+                }
             }
 
-            // skip z for the formats that do not have it
-            if (((new_fmt != format::bfzyx && new_fmt != format::b_fs_zyx_fsv16 && new_fmt != format::b_fs_zyx_fsv32 && new_fmt != format::bzyxf &&
-                  new_fmt != format::bfwzyx && new_fmt != format::bs_fs_zyx_bsv16_fsv16 && new_fmt != format::bs_fs_zyx_bsv16_fsv32 &&
-                  new_fmt != format::bs_fs_zyx_bsv32_fsv16 && new_fmt != format::bs_fs_zyx_bsv32_fsv32 &&
-                  new_fmt != format::b_fs_zyx_fsv2 && new_fmt != format::b_fs_zyx_fsv4 &&
-                  new_fmt != format::bs_fs_zyx_bsv8_fsv2 && new_fmt != format::bs_fs_zyx_bsv8_fsv4 &&
-                  new_fmt != format::bs_fs_zyx_bsv16_fsv2 && new_fmt != format::bs_fs_zyx_bsv16_fsv4)) && (c == 'z')) {
-                if (new_order[i] == '?')
-                    new_sizes[i] = default_size;
-
-                tmp_z *= old_sizes[i];
-                continue;
+            auto new_pos = new_order.find(target_dim);
+            if (new_pos != std::string::npos) {
+                if (new_sizes[new_pos] == -1) {
+                    new_sizes[new_pos] = old_sizes[i];
+                } else {
+                    new_sizes[new_pos] *= old_sizes[i];
+                }
             }
-
-            if (new_fmt != format::bfwzyx && c == 'w') {
-                if (new_order[i] == '?')
-                    new_sizes[i] = default_size;
-
-                if (new_fmt == format::bfzyx || new_fmt == format::b_fs_zyx_fsv16 ||
-                    new_fmt == format::bs_fs_zyx_bsv16_fsv16 || new_fmt == format::b_fs_zyx_fsv32 ||
-                    new_fmt == format::bs_fs_zyx_bsv16_fsv32)
-                    tmp_w *= old_sizes[i];
-                else
-                    tmp_z *= old_sizes[i];
-                continue;
-            }
-
-            if (new_fmt != format::bfuwzyx && c == 'u') {
-                if (new_order[i] == '?')
-                    new_sizes[i] = default_size;
-
-                tmp_u *= old_sizes[i];
-                continue;
-            }
-
-            if (new_fmt != format::bfvuwzyx && c == 'v') {
-                if (new_order[i] == '?')
-                    new_sizes[i] = default_size;
-
-                tmp_v *= old_sizes[i];
-                continue;
-            }
-
-            auto new_pos = new_order.find(c);
-            if (new_pos == std::string::npos)
-                throw std::invalid_argument("cannot convert to new format");
-            new_sizes[new_pos] = old_sizes[i];
         }
 
-        // in case of formats with smaller number of dimensions than input, flatten is performed below
-        if (tmp != 1 || tmp_z != 1 || tmp_w != 1 || tmp_u != 1 || tmp_v != 1) {
-            for (size_t i = 0; i < format.order().size(); i++) {
-                auto c = val_order[i];
-                if (c == 'f') {
-                    auto new_pos = new_order.find(c);
-                    new_sizes[new_pos] *= tmp;
-                }
-                if (c == 'y') {
-                    auto new_pos = new_order.find(c);
-                    if (new_pos != std::string::npos)
-                        new_sizes[new_pos] *= tmp_z;
-                }
-                if (c == 'z') {
-                    auto new_pos = new_order.find(c);
-                    if (new_pos != std::string::npos)
-                        new_sizes[new_pos] *= tmp_w;
-                }
-                if (c == 'w') {
-                    auto new_pos = new_order.find(c);
-                    if (new_pos != std::string::npos)
-                        new_sizes[new_pos] *= tmp_u;
-                }
-                if (c == 'u') {
-                    auto new_pos = new_order.find(c);
-                    if (new_pos != std::string::npos)
-                        new_sizes[new_pos] *= tmp_v;
-                }
+        for (size_t i = 0; i < new_order.size(); i++) {
+            auto c = new_order[i]; //bfxywz
+            if (c == '?')
+                continue;
+            if (new_sizes[i] == -1) {
+                new_sizes[i] = 1;
             }
         }
 

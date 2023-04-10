@@ -536,18 +536,14 @@ JitDefinitions DataTensorJitConstant::GetDefinitions() const {
                 Tensor::DataChannelName::X,
         };
         bool is_common_6d_layout = is_common_nd_layout(base_6d_channels, layout);
-        if (is_common_6d_layout) {
-            index_func_name = _name + "_GET_INDEX(b, f, w, z, y, x)";
-            safe_index_func_name = _name + "_GET_INDEX_SAFE(b, f, w, z, y, x)";
-            raw_index_func_name = _name + "_GET_INDEX_RAW(b, f, w, z, y, x)";
+        OPENVINO_ASSERT(is_common_6d_layout, "[GPU] Unhandled 6d format in jitter: ", toString(layout));
+        index_func_name = _name + "_GET_INDEX(b, f, w, z, y, x)";
+        safe_index_func_name = _name + "_GET_INDEX_SAFE(b, f, w, z, y, x)";
+        raw_index_func_name = _name + "_GET_INDEX_RAW(b, f, w, z, y, x)";
 
-            index_func_val = "GET_DATA_INDEX_6D(" + _name + ", b, f, w, z, y, x)";
-            safe_index_func_val = "GET_DATA_INDEX_6D_SAFE(" + _name + ", b, f, w, z, y, x)";
-            raw_index_func_val = "GET_DATA_INDEX_6D_RAW(" + _name + ", b, f, w, z, y, x)";
-        } else {
-            // TODO: implement support of non-default layouts with 6 channels
-            assert(0);
-        }
+        index_func_val = "GET_DATA_INDEX_6D(" + _name + ", b, f, w, z, y, x)";
+        safe_index_func_val = "GET_DATA_INDEX_6D_SAFE(" + _name + ", b, f, w, z, y, x)";
+        raw_index_func_val = "GET_DATA_INDEX_6D_RAW(" + _name + ", b, f, w, z, y, x)";
     } else if (DataTensor::ChannelsCount(layout) == 7) {
         std::vector<Tensor::DataChannelName> base_7d_channels = {
                 Tensor::DataChannelName::BATCH,
@@ -559,18 +555,14 @@ JitDefinitions DataTensorJitConstant::GetDefinitions() const {
                 Tensor::DataChannelName::X,
         };
         bool is_common_7d_layout = is_common_nd_layout(base_7d_channels, layout);
-        if (is_common_7d_layout) {
-            index_func_name = _name + "_GET_INDEX(b, f, u, w, z, y, x)";
-            safe_index_func_name = _name + "_GET_INDEX_SAFE(b, f, u, w, z, y, x)";
-            raw_index_func_name = _name + "_GET_INDEX_RAW(b, f, u, w, z, y, x)";
+        OPENVINO_ASSERT(is_common_7d_layout, "[GPU] Unhandled 7d format in jitter: ", toString(layout));
+        index_func_name = _name + "_GET_INDEX(b, f, u, w, z, y, x)";
+        safe_index_func_name = _name + "_GET_INDEX_SAFE(b, f, u, w, z, y, x)";
+        raw_index_func_name = _name + "_GET_INDEX_RAW(b, f, u, w, z, y, x)";
 
-            index_func_val = "GET_DATA_INDEX_7D(" + _name + ", b, f, u, w, z, y, x)";
-            safe_index_func_val = "GET_DATA_INDEX_7D_SAFE(" + _name + ", b, f, u, w, z, y, x)";
-            raw_index_func_val = "GET_DATA_INDEX_7D_RAW(" + _name + ", b, f, u, w, z, y, x)";
-        } else {
-            // TODO: implement support of non-default layouts with 6 channels
-            assert(0);
-        }
+        index_func_val = "GET_DATA_INDEX_7D(" + _name + ", b, f, u, w, z, y, x)";
+        safe_index_func_val = "GET_DATA_INDEX_7D_SAFE(" + _name + ", b, f, u, w, z, y, x)";
+        raw_index_func_val = "GET_DATA_INDEX_7D_RAW(" + _name + ", b, f, u, w, z, y, x)";
     } else if (DataTensor::ChannelsCount(layout) == 8) {
         std::vector<Tensor::DataChannelName> base_8d_channels = {
                 Tensor::DataChannelName::BATCH,
@@ -583,18 +575,14 @@ JitDefinitions DataTensorJitConstant::GetDefinitions() const {
                 Tensor::DataChannelName::X,
         };
         bool is_common_8d_layout = is_common_nd_layout(base_8d_channels, layout);
-        if (is_common_8d_layout) {
-            index_func_name = _name + "_GET_INDEX(b, f, v, u, w, z, y, x)";
-            safe_index_func_name = _name + "_GET_INDEX_SAFE(b, f, v, u, w, z, y, x)";
-            raw_index_func_name = _name + "_GET_INDEX_RAW(b, f, v, u, w, z, y, x)";
+        OPENVINO_ASSERT(is_common_8d_layout, "[GPU] Unhandled 8d format in jitter: ", toString(layout));
+        index_func_name = _name + "_GET_INDEX(b, f, v, u, w, z, y, x)";
+        safe_index_func_name = _name + "_GET_INDEX_SAFE(b, f, v, u, w, z, y, x)";
+        raw_index_func_name = _name + "_GET_INDEX_RAW(b, f, v, u, w, z, y, x)";
 
-            index_func_val = "GET_DATA_INDEX_8D(" + _name + ", b, f, v, u, w, z, y, x)";
-            safe_index_func_val = "GET_DATA_INDEX_8D_SAFE(" + _name + ", b, f, v, u, w, z, y, x)";
-            raw_index_func_val = "GET_DATA_INDEX_8D_RAW(" + _name + ", b, f, v, u, w, z, y, x)";
-        } else {
-            // TODO: implement support of non-default layouts with 6 channels
-            assert(0);
-        }
+        index_func_val = "GET_DATA_INDEX_8D(" + _name + ", b, f, v, u, w, z, y, x)";
+        safe_index_func_val = "GET_DATA_INDEX_8D_SAFE(" + _name + ", b, f, v, u, w, z, y, x)";
+        raw_index_func_val = "GET_DATA_INDEX_8D_RAW(" + _name + ", b, f, v, u, w, z, y, x)";
     } else {
         throw std::runtime_error("Unsupported channels count(" + std::to_string(DataTensor::ChannelsCount(layout)) +
                                  ") in layout: " + toString(layout));

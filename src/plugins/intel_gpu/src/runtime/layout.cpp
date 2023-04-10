@@ -522,7 +522,7 @@ ov::PartialShape layout::transform(const ov::PartialShape& pshape, cldnn::format
     auto shape = pshape.to_shape();
     std::vector<int32_t> dims;
     for (auto dim : shape) {
-        dims.push_back(static_cast<tensor::value_type>(dim));
+        dims.push_back(static_cast<int32_t>(dim));
     }
 
     const cldnn::format default_fmt = cldnn::format::bfvuwzyx;

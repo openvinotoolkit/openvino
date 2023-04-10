@@ -1592,7 +1592,7 @@ format layout_optimizer::get_preferred_format(program_node& node) {
                 // If no, use default fotmat instead
                 try {
                     format::adjust_to_rank(fmt, out_lay_rank);
-                } catch (std::exception&) {
+                } catch (ov::Exception&) {
                     fmt = format::get_default_format(out_lay_rank);
                 }
                 node.set_preferred_input_fmt(i, fmt);
