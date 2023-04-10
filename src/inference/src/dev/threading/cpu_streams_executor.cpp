@@ -140,7 +140,7 @@ struct CPUStreamsExecutor::Impl {
                     ? static_cast<ColumnOfProcessorTypeTable>(
                           _impl->_config._streams_info_table[_impl->_config._stream_ids[stream_id]][PROC_TYPE])
                     : static_cast<ColumnOfProcessorTypeTable>(0);
-            if (concurrency <= 0 || _streamId >= _impl->_config._streams) {
+            if (concurrency <= 0) {
                 return;
             }
             if (_impl->_config._proc_type_table[0][EFFICIENT_CORE_PROC] > 0 && _impl->_config._cpu_pinning) {
