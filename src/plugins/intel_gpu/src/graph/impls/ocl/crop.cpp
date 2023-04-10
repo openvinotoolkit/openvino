@@ -49,7 +49,6 @@ public:
                     "[GPU] Scalar field for runtime offset is not added for crop shape agnostic impl");
             _kernel_data.kernels[0].params.scalars[0] = s;
             (_kernel_data.update_dispatch_data_func)(kernel_params.first, _kernel_data);
-            update_kernels_list_to_skip();
     }
 };
 
