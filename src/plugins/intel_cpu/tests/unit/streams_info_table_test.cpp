@@ -92,7 +92,7 @@ struct UseHTTestCase {
 class UseHTTests : public CommonTestUtils::TestsCommon, public testing::WithParamInterface<std::tuple<UseHTTestCase>> {
 public:
     void SetUp() override {
-        const auto& test_data = std::get<0>(GetParam());
+        auto test_data = std::get<0>(GetParam());
 
         std::vector<std::vector<int>> test_result_table =
             ov::apply_hyper_threading(test_data.use_ht_value, test_data.use_ht_changed, test_data.proc_type_table);

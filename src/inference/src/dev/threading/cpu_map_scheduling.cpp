@@ -64,7 +64,7 @@ bool apply_cpu_pinning(bool& input_value,
                        const std::vector<std::vector<int>>& proc_type_table) {
     int result_value;
     int num_sockets = proc_type_table.size() > 1 ? proc_type_table.size() - 1 : 1;
-    bool latency = num_streams <= num_sockets;
+    bool latency = num_streams <= num_sockets && num_streams > 0;
 
     if (proc_type_table[0][EFFICIENT_CORE_PROC] > 0) {
         result_value = input_changed ? input_value : (latency ? false : true);
