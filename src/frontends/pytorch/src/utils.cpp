@@ -296,6 +296,16 @@ std::shared_ptr<ov::op::util::FrameworkNode> cast_fw_node(std::shared_ptr<Node> 
     return fw_node;
 }
 
+std::shared_ptr<ov::op::util::FrameworkNode> make_list_construct(const ov::OutputVector &inputs) {
+    auto list_construct = std::make_shared<::ov::op::util::FrameworkNode>(inputs, inputs.size());
+    ov::op::util::FrameworkNodeAttrs attrs;
+    attrs.set_type_name("PTFrameworkNode");
+    attrs["PtTypeName"] = "prim::ListConstruct";
+    list_construct->set_attrs(attrs);
+    list_construct->validate_and_infer_types();
+    return list_construct;
+}
+
 Any simplified_type_interpret(Any type) {
     // Interpret Tensor[type] as just type
     // After applying of this interpretation we cannot distinguish true scalars (not tensors) and tensors with elements
