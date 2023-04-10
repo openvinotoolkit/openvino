@@ -33,7 +33,7 @@ OPENVINO_RUNTIME_API std::vector<std::vector<int>> apply_scheduling_core_type(
  * @return     updated proc_type_table which removed unmatched processors
  */
 OPENVINO_RUNTIME_API std::vector<std::vector<int>>
-apply_hyper_threading(bool input_type, const bool input_changed, const std::vector<std::vector<int>>& proc_type_table);
+apply_hyper_threading(bool& input_type, const bool input_changed, const std::vector<std::vector<int>>& proc_type_table);
 
 /**
  * @brief      whether pinning cpu cores according to enableCpuPinning property

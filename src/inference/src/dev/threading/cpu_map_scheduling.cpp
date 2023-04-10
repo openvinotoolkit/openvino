@@ -41,7 +41,7 @@ std::vector<std::vector<int>> apply_scheduling_core_type(const ov::hint::Schedul
     return result_table;
 }
 
-std::vector<std::vector<int>> apply_hyper_threading(bool input_value,
+std::vector<std::vector<int>> apply_hyper_threading(bool& input_value,
                                                     const bool input_changed,
                                                     const std::vector<std::vector<int>>& proc_type_table) {
     std::vector<std::vector<int>> result_table = proc_type_table;

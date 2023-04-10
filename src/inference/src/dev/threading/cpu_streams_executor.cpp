@@ -143,9 +143,7 @@ struct CPUStreamsExecutor::Impl {
             if (concurrency <= 0 || _streamId >= _impl->_config._streams) {
                 return;
             }
-            if (_impl->_config._proc_type_table.size() > 0 && !_impl->_config._cpu_pinning) {
-                _taskArena.reset(new custom::task_arena{custom::task_arena::constraints{_numaNodeId, concurrency}});
-            } else if (_impl->_config._proc_type_table[0][EFFICIENT_CORE_PROC] > 0 && _impl->_config._cpu_pinning) {
+            if (_impl->_config._proc_type_table[0][EFFICIENT_CORE_PROC] > 0 && _impl->_config._cpu_pinning) {
 #    ifdef _WIN32
                 const auto selected_core_type =
                     (cpu_core_type == MAIN_CORE_PROC || cpu_core_type == HYPER_THREADING_PROC)
@@ -157,6 +155,8 @@ struct CPUStreamsExecutor::Impl {
 #    else
                 _taskArena.reset(new custom::task_arena{concurrency});
 #    endif
+            } else if (_impl->_config._proc_type_table.size() > 1 && !_impl->_config._cpu_pinning) {
+                _taskArena.reset(new custom::task_arena{custom::task_arena::constraints{_numaNodeId, concurrency}});
             } else {
                 _taskArena.reset(new custom::task_arena{concurrency});
             }
