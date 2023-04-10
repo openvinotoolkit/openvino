@@ -316,11 +316,6 @@ void FrontEnd::normalize(const std::shared_ptr<ov::Model>& model) const {
         manager.run_passes(model);
     }
 
-    // TODO 107554: TSGeneral can fail on models with Framework nodes (not converted to OV opset)
-    std::unordered_map<std::string, std::string> failures;
-    std::vector<std::string> unsupported_operations;
-    get_unsupported_operations_and_failures(model, unsupported_operations, failures);
-
     {
         // perform transpose sinking and reverse infer if the model contains only OpenVINO operations
         ov::pass::Manager manager;
