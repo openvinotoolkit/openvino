@@ -10,8 +10,11 @@
 #include "ie_ngraph_utils.hpp"
 #include "ie_plugin_config.hpp"
 #include "itt.hpp"
+#include "openvino/op/util/op_types.hpp"
+#include "openvino/runtime/exec_model_info.hpp"
 #include "openvino/runtime/properties.hpp"
 #include "plugin.hpp"
+#include "transformations/rt_info/fused_names_attribute.hpp"
 #include "transformations/utils/utils.hpp"
 
 // ! [compiled_model:ctor]
@@ -50,6 +53,20 @@ void ov::template_plugin::CompiledModel::compile_model(const std::shared_ptr<ov:
         return;
     // apply plugins transformations
     transform_model(model);
+
+    // all operations in the model will be executed excepts parameter, constant and results
+    size_t exec_order = 0;
+    for (const auto& op : model->get_ordered_ops()) {
+        auto& info = op->get_rt_info();
+        info[ov::exec_model_info::LAYER_TYPE] = op->get_type_info().name;
+        info[ov::exec_model_info::EXECUTION_ORDER] = std::to_string(exec_order++);
+        info[ov::exec_model_info::IMPL_TYPE] = "ref";
+        info[ov::exec_model_info::PERF_COUNTER] = "not_executed";
+
+        std::string original_names = ov::getFusedNames(op);
+        original_names = op->get_friendly_name() + (original_names.empty() ? "" : "," + original_names);
+        info[ov::exec_model_info::ORIGINAL_NAMES] = original_names;
+    }
     // Perform any other steps like allocation and filling backend specific memory handles and so on
 }
 // ! [compiled_model:compile_model]
@@ -76,7 +93,7 @@ std::shared_ptr<ov::IAsyncInferRequest> ov::template_plugin::CompiledModel::crea
 
 // ! [compiled_model:set_property]
 void ov::template_plugin::CompiledModel::set_property(const ov::AnyMap& properties) {
-    OPENVINO_NOT_IMPLEMENTED;
+    m_cfg = Configuration{properties, m_cfg};
 }
 // ! [compiled_model:set_property]
 
