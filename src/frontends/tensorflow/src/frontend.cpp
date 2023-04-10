@@ -320,9 +320,6 @@ void FrontEnd::normalize(const std::shared_ptr<ov::Model>& model) const {
     std::unordered_map<std::string, std::string> failures;
     std::vector<std::string> unsupported_operations;
     get_unsupported_operations_and_failures(model, unsupported_operations, failures);
-    if (unsupported_operations.size() > 0 || failures.size() > 0) {
-        return;
-    }
 
     {
         // perform transpose sinking and reverse infer if the model contains only OpenVINO operations
