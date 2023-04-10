@@ -391,8 +391,10 @@ bool primitive_inst::update_impl() {
                     }
 
                     auto impl = _node->type()->choose_impl(*_node, updated_params);
-                    auto kernels = _program->get_kernels_cache().compile(updated_params, impl->get_kernels_source());
-                    impl->set_kernels(kernels);
+                    if (!can_be_optimized()) {
+                        auto kernels = _program->get_kernels_cache().compile(updated_params, impl->get_kernels_source());
+                        impl->set_kernels(kernels);
+                    }
                     cache.add(updated_params, impl->clone());
                 });
                 if (!can_be_optimized())  {
@@ -404,9 +406,11 @@ bool primitive_inst::update_impl() {
                 }
             } else {
                 _impl = _node->type()->choose_impl(*_node, updated_params);
-                auto& kernels_cache = get_network().get_program()->get_kernels_cache();
-                auto kernels = kernels_cache.compile(updated_params, _impl->get_kernels_source());
-                _impl->set_kernels(kernels);
+                if (!can_be_optimized()) {
+                    auto& kernels_cache = get_network().get_program()->get_kernels_cache();
+                    auto kernels = kernels_cache.compile(updated_params, _impl->get_kernels_source());
+                    _impl->set_kernels(kernels);
+                }
                 cache.add(updated_params, _impl->clone());
 
                 auto new_impl_str = _impl != nullptr ? _impl->get_kernel_name() : "nullptr";
@@ -767,7 +771,8 @@ event::ptr primitive_inst::update_weights() {
                 auto& kernels_cache = get_network().get_program()->get_kernels_cache();
                 auto kernels = kernels_cache.compile(*_impl_params, {weights_params.clKernel->code.kernelString});
                 OPENVINO_ASSERT(kernels.size() == 1, "The output of kernel compile has issue");
-                kernel = (kernels.begin()->second)[0];
+                auto& kernel_data = kernels.begin()->second;
+                kernel = kernel_data[0].first;
                 cache.add(kernel_key, kernel);
             }
 
@@ -1268,7 +1273,7 @@ void primitive_inst::load(cldnn::BinaryInputBuffer& ib) {
             ib >> output_layout;
             output_layouts.emplace_back(output_layout);
 
-            allocation_type _allocation_type;
+            allocation_type _allocation_type = allocation_type::unknown;
             ib >> make_data(&_allocation_type, sizeof(_allocation_type));
             allocation_types.emplace_back(_allocation_type);
         }

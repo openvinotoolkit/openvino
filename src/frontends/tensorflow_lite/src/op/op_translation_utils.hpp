@@ -91,7 +91,14 @@ template OutputVector translate_binary_op_with_activation<opset10::Divide, tflit
 
 OutputVector attribute_helper(const ov::frontend::tensorflow_lite::NodeContext& node,
                               const std::map<std::string, ov::Any>& attrs,
-                              ov::OutputVector (*converter)(const ov::frontend::NodeContext&),
+                              ov::frontend::CreatorFunction converter,
+                              std::string new_op_type = "",
+                              bool empty_name = false,
+                              ov::OutputVector inputs = {});
+
+OutputVector attribute_helper(const ov::frontend::tensorflow_lite::NodeContext& node,
+                              const std::map<std::string, ov::Any>& attrs,
+                              ov::frontend::CreatorFunctionNamedAndIndexed converter,
                               std::string new_op_type = "",
                               bool empty_name = false,
                               ov::OutputVector inputs = {});
