@@ -237,7 +237,7 @@ IE::Parameter AutoExecutableNetwork::GetMetric(const std::string& name) const {
         if (_autoSchedule->_pCTPUTLoadContext) {
             std::vector<std::string> exeDevices = {};
             std::lock_guard<std::mutex> lock(_autoSContext->_confMutex);
-            for (auto n : _autoSContext->_devicePriorities) {
+            for (auto const & n : _autoSContext->_devicePriorities) {
                 exeDevices.push_back(n.deviceName);
             }
             execution_devices = decltype(ov::execution_devices)::value_type {exeDevices};

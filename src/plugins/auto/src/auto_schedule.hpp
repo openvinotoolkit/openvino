@@ -51,7 +51,7 @@ public:
 public:
     AutoLoadContext                           _loadContext[CONTEXTNUM];
     std::unique_ptr<AutoLoadContext[]>        _pCTPUTLoadContext = nullptr;
-    size_t                                    _nCTputDeviceNums;
+    size_t                                    _nCTputDeviceNums = 0;
 
 protected:
     void GenerateWorkers(const std::string& device, const SoExecNetwork& executableNetwork) override;
