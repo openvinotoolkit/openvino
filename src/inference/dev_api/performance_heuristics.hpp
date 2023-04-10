@@ -68,7 +68,15 @@ static MemBandwidthPressure MemBandwidthPressureTolerance(
                 const auto& shapeInput0 = input0.get_shape();
                 const auto& shapeInput1 = input1.get_shape();
                 OPENVINO_SUPPRESS_DEPRECATED_START
-                const auto non_const = !get_constant_from_source(node->input_value(1));
+                bool non_const;
+                // todo: temporary workaround.
+                //  Without that WA expensive Convert::evaluate is run just to know if this node is const_foldable.
+                //  When Const + Decompression Converts are kept, this call slows loading by several times
+                if (!strcmp(node->input_value(1).get_node_shared_ptr()->get_type_name(), "Convert")) {
+                    non_const = true;
+                } else {
+                    non_const = !get_constant_from_source(node->input_value(1));
+                }
                 OPENVINO_SUPPRESS_DEPRECATED_END
                 const auto& shapeOutput = output.get_shape();
                 const auto dataSizeInput0 =

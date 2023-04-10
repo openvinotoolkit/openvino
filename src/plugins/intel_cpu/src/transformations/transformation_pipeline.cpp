@@ -115,7 +115,7 @@
 #include "nodes/normalize.h"
 #include "nodes/fake_quantize.h"
 #include "nodes/mha.h"
-
+#include "transformations/common_optimizations/keep_decompressions_in_fp32.hpp"
 #include "dnnl.hpp"
 #include <cpu/x64/cpu_isa_traits.hpp>
 
@@ -197,6 +197,7 @@ void Transformations::PreLpt(const std::vector<ov::element::Type>& defaultPrecis
     ov::pass::Manager manager;
     manager.set_per_pass_validation(false);
     CPU_REGISTER_PASS_COMMON(manager, ov::pass::InitNodeInfo);
+    CPU_REGISTER_PASS_COMMON(manager, ov::pass::KeepDecompressionsInFP32);
 
     const bool useLpt = !defaultPrecisions.empty();
     if (useLpt) {
@@ -255,7 +256,9 @@ void Transformations::PreLpt(const std::vector<ov::element::Type>& defaultPrecis
     }
     CPU_REGISTER_PASS_COMMON(manager, ov::pass::Validate);
     CPU_REGISTER_PASS_COMMON(manager, ov::pass::RefConvertI64ToI32);
-    CPU_REGISTER_PASS_COMMON(manager, ov::pass::ConvertPrecision, precisions, type_to_fuse);
+
+    CPU_REGISTER_PASS_COMMON(manager, ov::pass::KeepDecompressionsInFP32);
+    CPU_REGISTER_PASS_COMMON(manager, ov::pass::ConvertPrecision, precisions, type_to_fuse, false);
     CPU_REGISTER_PASS_COMMON(manager, ov::pass::EliminateConvert);
     CPU_REGISTER_PASS_COMMON(manager, SwapConvertTranspose);
     CPU_REGISTER_PASS_X64(manager, ConvertToInteraction);

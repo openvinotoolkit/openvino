@@ -24,6 +24,7 @@
 #include "transformations/common_optimizations/align_mixed_fp32_fp16_types.hpp"
 #include "transformations/common_optimizations/mark_subgraphs_to_keep_in_mixed_precision.hpp"
 #include "transformations/enable_decompression_convert_constant_folding.hpp"
+#include "transformations/rt_info/disable_constant_folding.hpp"
 #include "transformations/rt_info/disable_fp16_compression.hpp"
 
 using namespace ov;
@@ -182,6 +183,11 @@ bool convert_function_precision(
     for (auto& node : ops) {
         if (skip_precision_sensitive && fp16_compression_is_disabled(node) && has_fp16_compression)
             continue;
+
+        // todo: a dirty hack to keep Const+DecompressionConvert for CPU
+        if (skip_precision_sensitive && constant_folding_is_disabled(node))
+            continue;
+
         is_changed |= convert_node_input_precision(node, precisions, type_to_extend);
     }
 
@@ -207,6 +213,11 @@ bool convert_function_precision(
         // skip precision sensitive nodes
         if (skip_precision_sensitive && fp16_compression_is_disabled(node) && has_fp16_compression)
             continue;
+
+        // todo: a dirty hack to keep Const+DecompressionConvert for CPU
+        if (skip_precision_sensitive && constant_folding_is_disabled(node))
+            continue;
+
         // Recursively apply transformation for sub-graph based operations
         if (auto sub_graph_node = std::dynamic_pointer_cast<op::util::MultiSubGraphOp>(node)) {
             size_t sub_graphs_num = sub_graph_node->get_internal_subgraphs_size();
@@ -381,7 +392,7 @@ bool ov::pass::ConvertPrecision::run_on_model(const std::shared_ptr<ngraph::Func
     // to remove extra converts
     if (m_keep_precision_sensitive_in_fp32) {
         pass::Manager manager(get_pass_config());
-        manager.register_pass<pass::EnableDecompressionConvertConstantFolding>();
+        //        manager.register_pass<pass::EnableDecompressionConvertConstantFolding>();
         manager.register_pass<pass::ConstantFolding>();
         manager.run_passes(f);
     }
