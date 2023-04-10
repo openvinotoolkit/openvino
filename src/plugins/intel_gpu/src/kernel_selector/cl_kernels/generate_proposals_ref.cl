@@ -92,7 +92,7 @@ KERNEL(generate_proposals_ref_stage_0)
 #endif /* GENERATE_PROPOSALS_STAGE_0 */
 
 #ifdef GENERATE_PROPOSALS_STAGE_1
-
+#define Box FUNC(__Box)
 typedef struct __attribute__((__packed__)) {
     INPUT0_TYPE x0;
     INPUT0_TYPE y0;
@@ -190,6 +190,7 @@ KERNEL(generate_proposals_ref_stage_1)(__global OUTPUT_TYPE* proposals) {
 
     FUNC_CALL(quickSortIterative)(boxes, 0, NUM_PROPOSALS-1);
 }
+#undef Box
 #endif /* GENERATE_PROPOSALS_STAGE_1 */
 
 #ifdef GENERATE_PROPOSALS_STAGE_2

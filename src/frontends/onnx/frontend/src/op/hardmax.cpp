@@ -4,8 +4,6 @@
 
 #include "op/hardmax.hpp"
 
-#include <openvino/opsets/opset11.hpp>
-
 #include "exceptions.hpp"
 #include "ngraph/builder/reshape.hpp"
 #include "ngraph/op/one_hot.hpp"
@@ -24,7 +22,9 @@ OutputVector hardmax(const Node& node) {
 
     auto axis = node.get_attribute_value<std::int64_t>("axis", 1);
     if (input_shape.rank().is_static()) {
+        OPENVINO_SUPPRESS_DEPRECATED_START
         axis = ngraph::normalize_axis(node.get_description(), axis, input_shape.rank());
+        OPENVINO_SUPPRESS_DEPRECATED_END
     }
 
     // reshape to 2D - "batch size" x "input feature dimensions" (NxD)
@@ -39,11 +39,11 @@ OutputVector hardmax(const Node& node) {
 
     const auto indices_axis = 1;
     const auto topk =
-        std::make_shared<ov::opset11::TopK>(coerced_tensor,
-                                            default_opset::Constant::create(ngraph::element::i64, Shape{}, {1}),
-                                            indices_axis,
-                                            ov::opset11::TopK::Mode::MAX,
-                                            ov::opset11::TopK::SortType::NONE);
+        std::make_shared<default_opset::TopK>(coerced_tensor,
+                                              default_opset::Constant::create(ngraph::element::i64, Shape{}, {1}),
+                                              indices_axis,
+                                              default_opset::TopK::Mode::MAX,
+                                              default_opset::TopK::SortType::NONE);
 
     const auto on_value = default_opset::Constant::create(ngraph::element::i64, Shape{}, {1});
     const auto off_value = default_opset::Constant::create(ngraph::element::i64, Shape{}, {0});
@@ -63,7 +63,9 @@ OutputVector hardmax(const Node& node) {
     const auto& input_shape = input.get_partial_shape();
 
     auto axis = node.get_attribute_value<std::int64_t>("axis", -1);
+    OPENVINO_SUPPRESS_DEPRECATED_START
     axis = ngraph::normalize_axis(node.get_description(), axis, input_shape.rank());
+    OPENVINO_SUPPRESS_DEPRECATED_END
 
     const auto input_runtime_shape = std::make_shared<default_opset::ShapeOf>(input);
     Output<ngraph::Node> row_size =
@@ -73,11 +75,11 @@ OutputVector hardmax(const Node& node) {
     row_size = ngraph::onnx_import::reshape::interpret_as_scalar(row_size);
 
     const auto topk =
-        std::make_shared<ov::opset11::TopK>(input,
-                                            default_opset::Constant::create(ngraph::element::i64, Shape{}, {1}),
-                                            axis,
-                                            ov::opset11::TopK::Mode::MAX,
-                                            ov::opset11::TopK::SortType::NONE);
+        std::make_shared<default_opset::TopK>(input,
+                                              default_opset::Constant::create(ngraph::element::i64, Shape{}, {1}),
+                                              axis,
+                                              default_opset::TopK::Mode::MAX,
+                                              default_opset::TopK::SortType::NONE);
 
     const auto on_value = default_opset::Constant::create(ngraph::element::i64, Shape{}, {1});
     const auto off_value = default_opset::Constant::create(ngraph::element::i64, Shape{}, {0});

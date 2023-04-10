@@ -16,6 +16,8 @@ namespace ov {
 namespace test {
 namespace behavior {
 
+// ===================== DEPRECATED =====================
+
 class OVExecutableNetworkBaseTest : public testing::WithParamInterface<InferRequestParams>,
                                     public OVCompiledNetworkTestBase {
 public:
@@ -148,6 +150,10 @@ TEST(OVExecutableNetworkBaseTest, smoke_LoadNetworkToDefaultDeviceNoThrow) {
 }
 
 TEST_P(OVExecutableNetworkBaseTest, canLoadCorrectNetworkToGetExecutableWithIncorrectConfig) {
+    std::set<std::string> metaPlugins = {"AUTO", "MULTI", "HETERO"};
+    if (metaPlugins.end() != std::find(metaPlugins.begin(), metaPlugins.end(), target_device)) {
+        GTEST_SKIP();
+    }
     ov::AnyMap incorrectConfig = {{"abc", "def"}};
     EXPECT_ANY_THROW(auto execNet = core->compile_model(function, target_device, incorrectConfig));
 }

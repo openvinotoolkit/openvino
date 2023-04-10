@@ -187,11 +187,12 @@ def fe_input_user_data_repack(
     """
     _input_shapes = []
     _input_names = []
+    model_inputs = input_model.get_inputs()
+    
     if isinstance(input_user_shapes, list) and len(input_user_shapes) > 1 and isinstance(input_user_shapes[0],
                                                                                          PartialShape):
         for shape in input_user_shapes:
             assert isinstance(shape, PartialShape), "Got incorrect format of input shapes."
-        model_inputs = input_model.get_inputs()
         assert len(model_inputs) == len(input_user_shapes)
         for idx, model_input in enumerate(model_inputs):
             _input_shapes.append({"node": model_input, "shape": input_user_shapes[idx]})
@@ -234,7 +235,6 @@ def fe_input_user_data_repack(
         # for example, --input_shape [3] --freeze_placeholder_with_value "is_training->False"
         # means the model has two inputs: one is is_training to be frozen, the other to re-write the shape
         # NOTE: the logic relies on parameters with the single name
-        model_inputs = input_model.get_inputs()
         frozen_names = freeze_placeholder.keys()
         assert len(model_inputs) == len(frozen_names) + 1, \
             "Please check the conversion command-line. Total number of model inputs ({} detected) " \
@@ -259,7 +259,7 @@ def fe_input_user_data_repack(
         # and they should not be changed and their properties (shape and type) should not be over-written
         # NOTE: the logic relies on parameters with the single name
         assert input_user_shapes is None
-        for node in input_model.get_inputs():
+        for node in model_inputs:
             assert len(node.get_names()) > 0, "Original model inputs must have tensor names."
             input_name = node.get_names()[0]
             _input_shapes.append(

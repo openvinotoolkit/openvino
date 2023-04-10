@@ -34,7 +34,9 @@ ngraph::snippets::pass::SoftmaxReshapeElimination::SoftmaxReshapeElimination() {
             const auto softmax_rank = softmax->get_input_partial_shape(0).rank();
             int64_t axis = 0;
             if (const auto softmax_v8 = ngraph::as_type_ptr<const ov::op::v8::Softmax>(softmax)) {
+                OPENVINO_SUPPRESS_DEPRECATED_START
                 axis = ngraph::normalize_axis(softmax->get_friendly_name(), softmax_v8->get_axis(), softmax_rank);
+                OPENVINO_SUPPRESS_DEPRECATED_END
             } else if (const auto softmax_v1 = ngraph::as_type_ptr<const ov::op::v1::Softmax>(softmax)) {
                 axis = softmax_v1->get_axis();
             } else {
