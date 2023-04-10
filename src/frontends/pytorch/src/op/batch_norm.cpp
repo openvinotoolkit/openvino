@@ -5,6 +5,7 @@
 #include "openvino/op/batch_norm.hpp"
 
 #include "openvino/frontend/pytorch/node_context.hpp"
+#include "openvino/op/util/framework_node.hpp"
 #include "openvino/op/broadcast.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/gather.hpp"
@@ -62,6 +63,11 @@ OutputVector translate_batch_norm(const NodeContext& context) {
     return {context.mark_node(
         std::make_shared<v5::BatchNormInference>(input, weight, bias, running_mean, running_var, epsilon))};
 };
+
+OutputVector translate_batch_norm_fx(const NodeContext& context) {
+    auto output = translate_batch_norm(context);
+    return {context.mark_node(make_list_construct(output))};
+}
 
 }  // namespace op
 }  // namespace pytorch
