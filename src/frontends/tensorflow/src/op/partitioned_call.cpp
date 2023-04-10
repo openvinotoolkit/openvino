@@ -28,7 +28,8 @@ OutputVector translate_partitioned_call_op(const NodeContext& node) {
     }
 
     // try to retrieve ov::Model for body graph
-    auto body_model = translate_session->get_body_ov_model(operation_type);
+    auto body_model =
+        translate_session->get_body_ov_model(operation_type, operation_type.find("wrappe") == std::string::npos);
     FRONT_END_OP_CONVERSION_CHECK(
         body_model,
         "[TensorFlow Frontend] Internal error or incorrect input model: body graph is not found for " + operation_type +
