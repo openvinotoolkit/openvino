@@ -61,7 +61,7 @@ KERNEL (softmax_gpu_continuous_bfyx)(
     __local INPUT0_TYPE lg_storage[SLM_SIZE];
 
     uint i=0;
-    if (workers_per_data_set > SUB_GROUP_SIZE)
+    if (workers_per_data_set >= SUB_GROUP_SIZE && (leftovers % (16 / sizeof(INPUT0_TYPE))) == 0)
     {
         for (; i<items_num - (items_num % SUBGROUP_BLOCK_SIZE); i+=SUBGROUP_BLOCK_SIZE)
         {
@@ -145,7 +145,7 @@ KERNEL (softmax_gpu_continuous_bfyx)(
     i=0;
 
 #if HAS_FUSED_OPS
-    if (workers_per_data_set > SUB_GROUP_SIZE)
+    if (workers_per_data_set >= SUB_GROUP_SIZE && (leftovers % (16 / sizeof(INPUT0_TYPE))) == 0)
     {
         for (; i < items_num - (items_num % SUBGROUP_BLOCK_SIZE); i+=SUBGROUP_BLOCK_SIZE)
         {
@@ -178,7 +178,7 @@ KERNEL (softmax_gpu_continuous_bfyx)(
         output[data_set_offset + workers_per_data_set * items_num + in_data_set_idx] = FUSED_OPS_RESULT_LEFTOVERS;
     }
 #else
-    if (workers_per_data_set > SUB_GROUP_SIZE)
+    if (workers_per_data_set >= SUB_GROUP_SIZE && (leftovers % (16 / sizeof(INPUT0_TYPE))) == 0)
     {
         for (; i<items_num - (items_num % SUBGROUP_BLOCK_SIZE); i+=SUBGROUP_BLOCK_SIZE)
         {
