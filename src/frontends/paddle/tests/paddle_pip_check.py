@@ -1,41 +1,62 @@
 import pkg_resources
 import re
 import sys
-import tempfile
-from itertools import islice
+import os
 
 req_file=sys.argv[1]
-con_file=sys.argv[2]
 
-tmpfile = tempfile.TemporaryFile(mode="w+")
+constraints = {}
+constraints_path = None
+requirements = []
 
-confile=open(con_file, mode='r')
-for line in confile.readlines():
-    tmpfile.write(line)
-tmpfile.write("\n")
-reqfile=open(req_file, mode='r')
-for line in islice(reqfile, 2, None):
-    tmpfile.write(line)
+# read requirements and find constraints file
+with open(req_file) as f:
+    raw_requirements = f.readlines()
+for line in raw_requirements:
+    if line.startswith("-c"):
+        constraints_path = os.path.join(os.path.dirname(req_file), line.split(' ')[1][:-1])
 
-tmpfile.seek(0)
+# read constraints if they exist
+if constraints_path:
+    with open(constraints_path) as f:
+        raw_constraints = f.readlines()
+    for line in raw_constraints:
+        if line.startswith("#") or line=="\n":
+            continue
+        line = line.replace("\n", "")
+        package, delimiter, constraint = re.split("(~|=|<|>|;)", line, maxsplit=1)
+        if constraints.get(package) is None:
+            constraints[package] = [delimiter + constraint]
+        else:
+            constraints[package].extend([delimiter + constraint])
+
+    for line in raw_requirements:
+        if line.startswith(("#", "-c")):
+            continue
+        line = line.replace("\n", "")
+        if re.search("\W", line):
+            requirements.append(line)
+        else:
+            constraint = constraints.get(line)
+            if constraint:
+                for marker in constraint:
+                    requirements.append(line+marker)
+            else:
+                requirements.append(line)
+else:
+    requirements = raw_requirements
 
 try:
-    pkg_resources.require(tmpfile)
+    pkg_resources.require(requirements)
 except Exception as inst:
-    pattern_proto_version = re.compile(r"protobuf .*, Requirement.parse\('protobuf<=3\.20\.0,>=3\.1\.0'\), {'paddlepaddle'}")
-    result_proto_version = pattern_proto_version.findall(str(inst))
-    pattern_paddle_req= re.compile (r'paddlepaddle|numpy|six|protobuf')
-    result_paddle_req = pattern_paddle_req.findall(str(inst))
-    if len(result_proto_version) != 0:
+    pattern  = re.compile(r"protobuf .*, Requirement.parse\('protobuf<=3\.20\.0,>=3\.1\.0'\), {'paddlepaddle'}")
+    result = pattern .findall(str(inst))
+    if len(result) == 0:
+        raise inst
+    else:
         env = pkg_resources.Environment()
         env['protobuf'].clear()
         env.add(pkg_resources.DistInfoDistribution(project_name="protobuf", version="3.20.0"))
         ws = pkg_resources.working_set
         reqs = pkg_resources.parse_requirements(open(req_file, mode='r'))
         dists = ws.resolve(reqs, env, replace_conflicting=True)
-    elif len(result_paddle_req) != 0:
-        raise inst
-finally:
-    tmpfile.close()
-    reqfile.close()
-    confile.close()

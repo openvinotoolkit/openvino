@@ -26,10 +26,9 @@ ov_add_test_target(
 
 # Test model generating
 set(PADDLE_REQ "${CMAKE_CURRENT_SOURCE_DIR}/requirements.txt")
-set(CONSTRAINTS_FILE "${CMAKE_CURRENT_SOURCE_DIR}/../../../../src/bindings/python/constraints.txt")
 if(PYTHONINTERP_FOUND)
     execute_process(
-        COMMAND ${PYTHON_EXECUTABLE} "${CMAKE_CURRENT_SOURCE_DIR}/paddle_pip_check.py" ${PADDLE_REQ} ${CONSTRAINTS_FILE}
+        COMMAND ${PYTHON_EXECUTABLE} "${CMAKE_CURRENT_SOURCE_DIR}/paddle_pip_check.py" ${PADDLE_REQ}
         RESULT_VARIABLE EXIT_CODE
         OUTPUT_VARIABLE OUTPUT_TEXT
         ERROR_VARIABLE ERROR_TEXT)
