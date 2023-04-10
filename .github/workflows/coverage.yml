@@ -35,24 +35,29 @@ jobs:
           - { name: "Ubuntu gcc", os: ubuntu-latest-16-cores, cc: "gcc", cxx: "g++" }
 
     steps:
+      - name: Setup python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.10.10'
+          architecture: 'x64'
+          
+        
+      - name: Setup ccache
+        uses: hendrikmuhs/ccache-action@v1.2
+        with:
+          max-size: 50G
+      
       - name: Clone OpenVINO
         uses: actions/checkout@v3
         with:
           submodules: recursive
       
-      - name: Setup ccache
-        uses: hendrikmuhs/ccache-action@v1.2
-        with:
-          max-size: 50G
-
-      - name: Install build dependencies
+      - name: Install dependencies
         run: |
           sudo apt --assume-yes update
           sudo -E ${{ github.workspace }}/install_build_dependencies.sh
           sudo apt --assume-yes install lcov
-      
-      - name: Install python dependencies
-        run: |
+          
           python3 -m pip install --upgrade pip
           python3 -m pip install -r ${{ github.workspace }}/src/bindings/python/wheel/requirements-dev.txt
           python3 -m pip install -r ${{ github.workspace }}/src/bindings/python/requirements.txt
@@ -83,22 +88,33 @@ jobs:
           cxx: ${{ matrix.config.cxx }}
           configure-options: >
             -GNinja
+            -DCMAKE_VERBOSE_MAKEFILE=ON
             -DENABLE_PYTHON=ON
             -DENABLE_ONEDNN_FOR_GPU=ON
             -DBUILD_SHARED_LIBS=ON
-            -DCMAKE_VERBOSE_MAKEFILE=ON
-            -DCUSTOM_OPERATIONS="calculate_grid;complex_mul;fft;grid_sample;sparse_conv;sparse_conv_transpose"
-            -DENABLE_FASTER_BUILD=ON
             -DENABLE_TESTS=ON
-            -DENABLE_COVERAGE=ON
             -DENABLE_OV_ONNX_FRONTEND=ON
+            -DENABLE_FASTER_BUILD=ON
+            -DENABLE_STRICT_DEPENDENCIES=OFF
+            -DCUSTOM_OPERATIONS="calculate_grid;complex_mul;fft;grid_sample;sparse_conv;sparse_conv_transpose"
+            -DENABLE_COVERAGE=ON
             -DCMAKE_C_COMPILER_LAUNCHER=ccache
             -DCMAKE_CXX_COMPILER_LAUNCHER=ccache
             -DCMAKE_C_LINKER_LAUNCHER=ccache
             -DCMAKE_CXX_LINKER_LAUNCHER=ccache
+            -DENABLE_SYSTEM_SNAPPY=ON
+            -DBUILD_nvidia_plugin=OFF
           build-type: Release
-          run-test: false
           parallel: ${{ steps.cpu-cores.outputs.count }}
+      
+      - name: Install wheel packages
+        run: cmake -DCOMPONENT=python_wheels -DCMAKE_INSTALL_PREFIX=${{ github.workspace }}/install_pkg -P ${{ github.workspace }}/build/cmake_install.cmake
+      
+      - name: Install python wheels
+        run: python3 -m pip install openvino-dev --find-links=${{ github.workspace }}/install_pkg/tools
+      
+      - name: Install OpenVINO
+        run: cmake -DCMAKE_INSTALL_PREFIX=${{ github.workspace }}/install_pkg -P ${{ github.workspace }}/build/cmake_install.cmake
       
       - name: Run OV core unit tests
         run: . ${{ github.workspace }}/scripts/setupvars/setupvars.sh -pyver 3.10 && ${{ github.workspace }}/bin/intel64/Release/ov_core_unit_tests # --gtest_print_time=1 --gtest_filter=-*IE_GPU* --gtest_output=xml:${{ github.workspace }}/testdata/TEST-NGraphUT.xml
