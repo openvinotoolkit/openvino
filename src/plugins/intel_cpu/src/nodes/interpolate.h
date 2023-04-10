@@ -146,7 +146,7 @@ private:
             size_t srcDataSize, dstDataSize;
             int spatialDimSize;
             size_t dataRank;
-            std::vector<int> indexTable;
+            std::vector<int> auxTable;
             std::vector<uint8_t> pillow_working_buf;
     };
     std::shared_ptr<InterpolateExecutorBase> execPtr = nullptr;

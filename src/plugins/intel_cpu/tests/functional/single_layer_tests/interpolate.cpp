@@ -74,7 +74,7 @@ public:
         for (const auto& shape : inputShapes.second) {
             result << CommonTestUtils::vec2str(shape) << "_";
         }
-        if (shapeCalcMode == ngraph::op::v11::Interpolate::ShapeCalcMode::SCALES) {
+        if (shapeCalcMode == ov::op::v11::Interpolate::ShapeCalcMode::SCALES) {
             result << "Scales=";
         } else {
             result << "Sizes=";
@@ -106,7 +106,7 @@ public:
         return result.str();
     }
 
-    void generate_inputs(const std::vector<ngraph::Shape>& targetInputStaticShapes) override {
+    void generate_inputs(const std::vector<ov::Shape>& targetInputStaticShapes) override {
         inputs.clear();
         const auto& funcInputs = function->inputs();
         for (int i = 0; i < funcInputs.size(); ++i) {
@@ -114,7 +114,7 @@ public:
             ov::Tensor tensor;
 
             if (i == 1) {
-                if (shapeCalcMode == ngraph::op::v4::Interpolate::ShapeCalcMode::SIZES) {
+                if (shapeCalcMode == ov::op::v4::Interpolate::ShapeCalcMode::SIZES) {
                     tensor = ov::Tensor(funcInput.get_element_type(), targetInputStaticShapes[i], sizes[inferRequestNum].data());
                 } else {
                     tensor = ov::Tensor(funcInput.get_element_type(), targetInputStaticShapes[i], scales[inferRequestNum].data());
@@ -155,7 +155,7 @@ public:
 protected:
     std::vector<std::vector<float>> scales;
     std::vector<std::vector<int32_t>> sizes;
-    ngraph::op::v4::Interpolate::ShapeCalcMode shapeCalcMode;
+    ov::op::v4::Interpolate::ShapeCalcMode shapeCalcMode;
     size_t inferRequestNum = 0;
 
     void SetUp() override {
@@ -188,7 +188,7 @@ protected:
         std::vector<int64_t> axes;
         std::tie(shapeCalcMode, dataShape, shapeInputType, shapeDataForInput, axes) = shapeParams;
 
-        if (shapeCalcMode == ngraph::op::v11::Interpolate::ShapeCalcMode::SCALES) {
+        if (shapeCalcMode == ov::op::v11::Interpolate::ShapeCalcMode::SCALES) {
             scales = shapeDataForInput;
         } else {
             sizes.resize(shapeDataForInput.size());
@@ -219,22 +219,22 @@ protected:
         std::shared_ptr<ov::Node> sizesInput, scalesInput;
         if (shapeCalcMode == ov::op::v11::Interpolate::ShapeCalcMode::SCALES) {
             if (shapeInputType == ngraph::helpers::InputLayerType::PARAMETER) {
-                auto paramNode = std::make_shared<ngraph::opset3::Parameter>(ngraph::element::Type_t::f32, ov::Shape{scales.front().size()});
+                auto paramNode = std::make_shared<ov::op::v0::Parameter>(ElementType::f32, ov::Shape{scales.front().size()});
                 params.push_back(paramNode);
                 scalesInput = paramNode;
             } else {
-                scalesInput = std::make_shared<ngraph::opset3::Constant>(ngraph::element::Type_t::f32, ov::Shape{scales.front().size()}, scales.front());
+                scalesInput = std::make_shared<ov::op::v0::Constant>(ElementType::f32, ov::Shape{scales.front().size()}, scales.front());
             }
         } else {
             if (shapeInputType == ngraph::helpers::InputLayerType::PARAMETER) {
-                auto paramNode = std::make_shared<ngraph::opset3::Parameter>(ngraph::element::Type_t::i32, ov::Shape{sizes.front().size()});
+                auto paramNode = std::make_shared<ov::op::v0::Parameter>(ElementType::i32, ov::Shape{sizes.front().size()});
                 params.push_back(paramNode);
                 sizesInput = paramNode;
             } else {
-                sizesInput = std::make_shared<ngraph::opset3::Constant>(ngraph::element::Type_t::i32, ov::Shape{sizes.front().size()}, sizes.front());
+                sizesInput = std::make_shared<ov::op::v0::Constant>(ElementType::i32, ov::Shape{sizes.front().size()}, sizes.front());
             }
         }
-        auto axesInput = std::make_shared<ngraph::opset3::Constant>(ngraph::element::Type_t::i64, ov::Shape{axes.size()}, axes);
+        auto axesInput = std::make_shared<ov::op::v0::Constant>(ElementType::i64, ov::Shape{axes.size()}, axes);
 
         for (size_t i = 0; i < params.size(); i++) {
             params[i]->set_friendly_name(std::string("param_") + std::to_string(i));
@@ -252,7 +252,7 @@ protected:
 
         function = makeNgraphFunction(ngPrc, params, interp, "InterpolateCPU");
 
-        ngraph::pass::Manager m;
+        ov::pass::Manager m;
         m.register_pass<ov::pass::ConvertInterpolate11ToInterpolate4>();
         m.run_passes(function);
 
@@ -308,7 +308,7 @@ const std::vector<ov::op::v11::Interpolate::NearestMode> nearestModes_Smoke = {
         ov::op::v11::Interpolate::NearestMode::FLOOR,
 };
 
-const std::vector<ngraph::op::v11::Interpolate::NearestMode> nearestModes_Full = {
+const std::vector<ov::op::v11::Interpolate::NearestMode> nearestModes_Full = {
         ov::op::v11::Interpolate::NearestMode::SIMPLE,
         ov::op::v11::Interpolate::NearestMode::ROUND_PREFER_FLOOR,
         ov::op::v11::Interpolate::NearestMode::FLOOR,
