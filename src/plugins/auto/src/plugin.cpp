@@ -300,7 +300,7 @@ InferenceEngine::Parameter MultiDeviceInferencePlugin::GetMetric(const std::stri
     } else if (name == METRIC_KEY(OPTIMIZATION_CAPABILITIES)) {
         auto deviceList = GetCore()->GetAvailableDevices();
         std::vector<std::string> capabilities;
-        for (auto device : deviceList) {
+        for (auto const & device : deviceList) {
             auto devCapabilities = GetCore()->GetMetric(device, ov::device::capabilities.name()).as<std::vector<std::string>>();
             capabilities.insert(capabilities.end(), devCapabilities.begin(), devCapabilities.end());
         }
