@@ -62,9 +62,7 @@ public:
         return false;
     }
     bool try_pop(T& value) {
-        if (_capacity)
-            return _pqueue.try_pop(value);
-        return false;
+        return _capacity ? _pqueue.try_pop(value) : false;
     }
     void set_capacity(std::size_t newCapacity) {
         _capacity = newCapacity;
