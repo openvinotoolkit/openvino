@@ -28,8 +28,7 @@ void PluginConfig::set_default() {
         std::make_tuple(ov::hint::num_requests, 0, UnsignedTypeValidator()),
         std::make_tuple(ov::intel_auto::enable_startup_fallback, true),
         std::make_tuple(ov::intel_auto::enable_runtime_fallback, true),
-        // TODO 1) cache_dir 2) allow_auto_batch 3) auto_batch_timeout
-        std::make_tuple(ov::cache_dir, ""),
+        // TODO 1) allow_auto_batch 2) auto_batch_timeout
         std::make_tuple(ov::hint::allow_auto_batching, true),
         std::make_tuple(ov::auto_batch_timeout, 1000),
         // Legacy API properties
@@ -94,13 +93,7 @@ void PluginConfig::set_user_property(const ov::AnyMap& config, bool checkfirstle
             internal_properties[kv.first] = kv.second;
             user_properties[kv.first] = kv.second;
         } else {
-            if (device_property_validator->is_valid(ov::Any(name))) { // if it's a valid secondary, accept it
-                user_properties[kv.first] = kv.second;
-            } else if (!checkfirstlevel) { // for multi, accept it anyway when compiled model
-                user_properties[kv.first] = kv.second;
-            } else {
-                OPENVINO_ASSERT(false, "property ", name,  ": not supported");
-            }
+            user_properties[kv.first] = kv.second;
         }
     }
 }
