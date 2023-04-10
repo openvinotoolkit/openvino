@@ -460,7 +460,7 @@ void TranslateSession::translate_graph(const ov::frontend::InputModel::Ptr& inpu
     ov_model = std::make_shared<ov::Model>(ordered_results, ordered_params, m_model_name);
 }
 
-std::shared_ptr<ov::Model> TranslateSession::get_body_ov_model(const std::string& body_graph_name) {
+std::shared_ptr<ov::Model> TranslateSession::get_body_ov_model(const std::string& body_graph_name, bool clear_names) {
     std::shared_ptr<ov::Model> body_model = nullptr;
     auto input_model = std::dynamic_pointer_cast<InputModel>(m_input_model);
     if (m_cached_body_models->count(body_graph_name)) {
@@ -479,15 +479,13 @@ std::shared_ptr<ov::Model> TranslateSession::get_body_ov_model(const std::string
 
         // before caching, erase tensor names from the body graph
         // otherwise, it can lead tensor names conflicts
-        /*
-        // Have to carefully re-check this place! It cause an issue because some meaningful names may
-        // be missed after cleanup!
-        for (const auto& op : body_model->get_ordered_ops()) {
-            for (size_t ind = 0; ind < op->get_output_size(); ++ind) {
-                op->get_output_tensor(ind).set_names({});
+        if (clear_names) {
+            for (const auto& op : body_model->get_ordered_ops()) {
+                for (size_t ind = 0; ind < op->get_output_size(); ++ind) {
+                    op->get_output_tensor(ind).set_names({});
+                }
             }
         }
-        */
 
         auto cached_body_model = body_model->clone();
         update_cached_body_models(body_graph_name, cached_body_model);
