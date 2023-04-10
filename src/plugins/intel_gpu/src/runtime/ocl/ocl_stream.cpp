@@ -187,7 +187,9 @@ void set_arguments_impl(ocl_kernel_type& kernel,
         }
 
         if (status != CL_SUCCESS) {
-            throw std::runtime_error("Error set arg " + std::to_string(i) + ", error code: " + std::to_string(status) + "\n");
+            throw std::runtime_error("Error set arg " + std::to_string(i)
+                                     + ", kernel: " + kernel.getInfo<CL_KERNEL_FUNCTION_NAME>()
+                                     + ", error code: " + std::to_string(status) + "\n");
         }
     }
 }

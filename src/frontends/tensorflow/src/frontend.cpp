@@ -76,7 +76,7 @@ void translate_framework_node(const std::shared_ptr<FrameworkNode>& node,
     auto old_output = old_outputs.begin();
 
     for (; new_output != new_node_outputs.end() && old_output != old_outputs.end(); ++old_output, ++new_output) {
-        old_output->replace(*new_output);
+        old_output->replace(new_output->port);
     }
 }
 }  // namespace
@@ -343,13 +343,22 @@ void FrontEnd::add_extension(const std::shared_ptr<ov::Extension>& extension) {
         m_extensions.push_back(so_ext);
     } else if (auto common_conv_ext = std::dynamic_pointer_cast<ov::frontend::ConversionExtension>(extension)) {
         m_conversion_extensions.push_back(common_conv_ext);
-        m_op_translators[common_conv_ext->get_op_type()] = [=](const NodeContext& context) {
-            return common_conv_ext->get_converter()(context);
-        };
-    } else if (const auto& tensorflow_conv_ext = std::dynamic_pointer_cast<ConversionExtension>(extension)) {
+        if (common_conv_ext->get_converter()) {
+            m_op_translators[common_conv_ext->get_op_type()] =
+                ov::frontend::tensorflow::CreatorFunctionIndexed([=](const tensorflow::NodeContext& context) {
+                    return common_conv_ext->get_converter()(context);
+                });
+        } else if (common_conv_ext->get_converter_named_and_indexed()) {
+            m_op_translators[common_conv_ext->get_op_type()] =
+                ov::frontend::tensorflow::CreatorFunctionNamedAndIndexed([=](const tensorflow::NodeContext& context) {
+                    return common_conv_ext->get_converter_named_and_indexed()(context);
+                });
+        }
+        // Ignore other types of extensions in particular CreatorFunctionNamed which cannot be used with tensorflow
+        // frontend
+    } else if (const auto& tensorflow_conv_ext =
+                   std::dynamic_pointer_cast<ov::frontend::tensorflow::ConversionExtension>(extension)) {
         m_conversion_extensions.push_back(tensorflow_conv_ext);
-        m_op_translators[tensorflow_conv_ext->get_op_type()] = [=](const NodeContext& context) {
-            return tensorflow_conv_ext->get_converter()(context);
-        };
+        m_op_translators[tensorflow_conv_ext->get_op_type()] = tensorflow_conv_ext->get_converter();
     }
 }
