@@ -37,6 +37,9 @@ namespace cldnn
         {
             p.prepare_memory_dependencies();
         }
+        static void update_configs_properties(program& p, const ov::AnyMap& properties) {
+            p._config.set_property(properties);
+        }
     };
 
 }
