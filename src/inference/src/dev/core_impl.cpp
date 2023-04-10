@@ -1337,8 +1337,10 @@ ov::CoreImpl::CoreConfig::CacheConfig ov::CoreImpl::CoreConfig::get_cache_config
     if (parsedConfig.count(ov::cache_dir.name())) {
         auto cache_dir_val = parsedConfig.at(ov::cache_dir.name()).as<std::string>();
         auto tempConfig = CoreConfig::CacheConfig::create(cache_dir_val);
-        // if plugin does not explicitly support cache_dir, we need to remove it from config
-        if (!util::contains(plugin.get_property(ov::supported_properties), ov::cache_dir)) {
+        // if plugin does not explicitly support cache_dir, and if plugin is not virtual, we need to remove
+        // it from config
+        if (!util::contains(plugin.get_property(ov::supported_properties), ov::cache_dir) &&
+            !is_virtual_device(plugin.get_name())) {
             parsedConfig.erase(ov::cache_dir.name());
         }
         return tempConfig;
