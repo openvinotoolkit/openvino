@@ -8,6 +8,19 @@
 #include "openvino/runtime/icompiled_model.hpp"
 #include "openvino/runtime/properties.hpp"
 
+#ifdef __GLIBC__
+#    include <malloc.h>
+namespace {
+void release_memory_to_os() {
+    malloc_trim(0);
+}
+}  // namespace
+#else
+namespace {
+void release_memory_to_os() {}
+}  // namespace
+#endif
+
 #define OV_COMPILED_MODEL_CALL_STATEMENT(...)                                \
     OPENVINO_ASSERT(_impl != nullptr, "CompiledModel was not initialized."); \
     try {                                                                    \
@@ -22,6 +35,7 @@ namespace ov {
 
 CompiledModel::~CompiledModel() {
     _impl = {};
+    release_memory_to_os();
 }
 
 CompiledModel::CompiledModel(const std::shared_ptr<ov::ICompiledModel>& impl, const std::shared_ptr<void>& so)
