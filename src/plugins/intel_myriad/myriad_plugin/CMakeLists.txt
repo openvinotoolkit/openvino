@@ -47,6 +47,7 @@ if(LINUX AND OV_GLIBC_VERSION VERSION_GREATER_EQUAL 2.24)
     set_target_properties(${TARGET_NAME} PROPERTIES LINK_OPTIONS "-Wl,-z,nodelete")
 endif()
 
+# must be called after all target_link_libraries
 ie_add_api_validator_post_build_step(TARGET ${TARGET_NAME})
 
 # LTO

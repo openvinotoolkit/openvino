@@ -26,6 +26,7 @@ if(NOT TARGET nlohmann_json::nlohmann_json)
     if(TARGET nlohmann_json)
         # Ubuntu 18.04 case where target 'nlohmann_json' is here, but nlohmann_json_FOUND is OFF
         if(NOT TARGET nlohmann_json::nlohmann_json)
+            set_target_properties(nlohmann_json PROPERTIES IMPORTED_GLOBAL ON)
             add_library(nlohmann_json::nlohmann_json ALIAS nlohmann_json)
         endif()
         set(nlohmann_json_FOUND ON)

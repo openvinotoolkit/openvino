@@ -30,6 +30,7 @@ resources:
     type: github
     endpoint: openvinotoolkit
     name: openvinotoolkit/testdata
+    ref: releases/2022/3
 
 jobs:
 - job: LinCC

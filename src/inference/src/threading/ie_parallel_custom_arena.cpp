@@ -4,6 +4,8 @@
 
 #include "ie_parallel_custom_arena.hpp"
 
+#include <cstring>
+
 #include "itt.hpp"
 
 #if IE_THREAD == IE_THREAD_TBB || IE_THREAD == IE_THREAD_TBB_AUTO
@@ -12,7 +14,12 @@
 #        define TBBBIND_2_5_AVAILABLE 0
 #    endif
 
-#    define USE_TBBBIND_2_5          (TBBBIND_2_5_AVAILABLE && TBB_INTERFACE_VERSION < 12020)
+#    define USE_TBBBIND_2_5 TBBBIND_2_5_AVAILABLE
+#    if USE_TBBBIND_2_5
+#        pragma message("USE_TBBBIND_2_5 is enabled")
+#    else
+#        pragma message("USE_TBBBIND_2_5 is disabled")
+#    endif
 #    define TBB_NUMA_SUPPORT_PRESENT (TBB_INTERFACE_VERSION >= 11100)
 #    if defined(__APPLE__)
 // 2021.2 TBB doesn't export for macOS symbol:
