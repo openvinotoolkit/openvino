@@ -56,15 +56,14 @@ KERNEL (softmax_gpu_continuous_bfyx)(
     __local INPUT0_TYPE lg_storage[SLM_SIZE];
 
     uint i=0;
+#if SUBGROUP_BLOCK_SIZE != 1
     if (workers_per_data_set > SUB_GROUP_SIZE)
     {
         for (; i<items_num - (items_num % SUBGROUP_BLOCK_SIZE); i+=SUBGROUP_BLOCK_SIZE)
         {
-#if SUBGROUP_BLOCK_SIZE == 1
             INPUT0_TYPE tmp = input[data_set_offset + subgroup_offset + i * get_sub_group_size() + get_sub_group_local_id()];
             my_maximum = max(my_maximum, tmp);
             my_chunk[i] = tmp;
-#else
             BLOCK_TYPE vec_tmp = BLOCK_READ(input, data_set_offset + subgroup_offset + i * get_sub_group_size());
             for (int j = 0; j < SUBGROUP_BLOCK_SIZE; j++)
             {
@@ -72,9 +71,9 @@ KERNEL (softmax_gpu_continuous_bfyx)(
                 my_maximum = max(my_maximum, tmp);
                 my_chunk[i+j] = tmp;
             }
-#endif
         }
     }
+#endif
     for (; i<items_num; i++)
     {
         INPUT0_TYPE tmp = input[data_set_offset + subgroup_offset + get_sub_group_local_id() + i * get_sub_group_size()];
@@ -138,19 +137,14 @@ KERNEL (softmax_gpu_continuous_bfyx)(
 
     my_sum = lg_storage[0];
     
-    i=0;
 
+    i=0;
 #if HAS_FUSED_OPS
+#if SUBGROUP_BLOCK_SIZE != 1
     if (workers_per_data_set > SUB_GROUP_SIZE)
     {
         for (; i < items_num - (items_num % SUBGROUP_BLOCK_SIZE); i+=SUBGROUP_BLOCK_SIZE)
         {
-#if SUBGROUP_BLOCK_SIZE == 1
-            ACTIVATION_TYPE dequantized = my_chunk[i] / my_sum;
-            FUSED_OPS_MAIN;
-            OUTPUT_TYPE tmp = FUSED_OPS_RESULT_MAIN;
-            output[data_set_offset + subgroup_offset + i * get_sub_group_size() + get_sub_group_local_id()] = tmp;
-#else
             BLOCK_TYPE vec_tmp;
             for (int j = 0; j < SUBGROUP_BLOCK_SIZE; j++)
             {
@@ -159,9 +153,9 @@ KERNEL (softmax_gpu_continuous_bfyx)(
                 vec_tmp[j] = FUSED_OPS_RESULT_MAIN;
             }
             BLOCK_WRITE(output, data_set_offset + subgroup_offset + i * get_sub_group_size(), vec_tmp);
-#endif
         }
     }
+#endif
     for (; i<items_num; i++)
     {
         ACTIVATION_TYPE dequantized = my_chunk[i] / my_sum;
@@ -175,21 +169,18 @@ KERNEL (softmax_gpu_continuous_bfyx)(
         output[data_set_offset + workers_per_data_set * items_num + in_data_set_idx] = FUSED_OPS_RESULT_LEFTOVERS;
     }
 #else
+#if SUBGROUP_BLOCK_SIZE != 1
     if (workers_per_data_set > SUB_GROUP_SIZE)
     {
         for (; i<items_num - (items_num % SUBGROUP_BLOCK_SIZE); i+=SUBGROUP_BLOCK_SIZE)
         {
-#if SUBGROUP_BLOCK_SIZE == 1
-            OUTPUT_TYPE tmp = ACTIVATION(my_chunk[i] / my_sum, ACTIVATION_PARAMS);
-            output[data_set_offset + subgroup_offset + i * get_sub_group_size() + get_sub_group_local_id()] = tmp;
-#else
             BLOCK_TYPE vec_tmp;
             for (int j = 0; j < SUBGROUP_BLOCK_SIZE; j++)
                 vec_tmp[j] = ACTIVATION(my_chunk[i + j] / my_sum, ACTIVATION_PARAMS);
             BLOCK_WRITE(output, data_set_offset + subgroup_offset + i * get_sub_group_size(), vec_tmp);
-#endif
         }
     }
+#endif
     for (; i < items_num; i++)
     {
         output[data_set_offset + subgroup_offset + get_sub_group_local_id() + i * get_sub_group_size()] = ACTIVATION(my_chunk[i] / my_sum, ACTIVATION_PARAMS);
