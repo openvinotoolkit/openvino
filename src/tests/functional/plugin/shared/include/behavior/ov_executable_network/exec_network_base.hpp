@@ -16,6 +16,8 @@ namespace ov {
 namespace test {
 namespace behavior {
 
+// ===================== DEPRECATED =====================
+
 class OVExecutableNetworkBaseTest : public testing::WithParamInterface<InferRequestParams>,
                                     public OVCompiledNetworkTestBase {
 public:

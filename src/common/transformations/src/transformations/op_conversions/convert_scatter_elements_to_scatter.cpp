@@ -56,9 +56,11 @@ ov::pass::ConvertScatterElementsToScatter::ConvertScatterElementsToScatter() {
             return false;
         }
 
+        OPENVINO_SUPPRESS_DEPRECATED_START
         const size_t axis = ngraph::normalize_axes(scatter->get_friendly_name(),
                                                    axis_const->cast_vector<int64_t>(),
                                                    data_pshape.rank())[0];
+        OPENVINO_SUPPRESS_DEPRECATED_END
 
         struct Range {
             uint64_t l, r;

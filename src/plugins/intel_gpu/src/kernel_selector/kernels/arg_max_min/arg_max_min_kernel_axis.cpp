@@ -22,18 +22,13 @@ size_t getOperationNumber(const arg_max_min_params& params) {
 
 std::string getOperationNumberString(const arg_max_min_params& params) {
     const auto& output = params.outputs[0];
-    auto x = toCodeString(output.X(), 11);
-    auto y = toCodeString(output.Y(), 10);
-    auto z = toCodeString(output.Z(), 9);
-    auto w = toCodeString(output.W(), 8);
-    auto f = toCodeString(output.Feature(), 7);
-    auto b = toCodeString(output.Batch(), 6);
+    DimensionAccessHelper dims(output, 1);
     switch (params.argMaxMinAxis) {
-        case ArgMaxMinAxis::BATCH: return toVectorMulString({x, y, z, f});
-        case ArgMaxMinAxis::FEATURE: return toVectorMulString({x, y, z, b});
-        case ArgMaxMinAxis::Z: return toVectorMulString({y, z, f, b});
-        case ArgMaxMinAxis::Y: return toVectorMulString({x, z, f, b});
-        case ArgMaxMinAxis::X: return toVectorMulString({y, z, f, b});
+        case ArgMaxMinAxis::BATCH: return toVectorMulString({dims.x, dims.y, dims.z, dims.f});
+        case ArgMaxMinAxis::FEATURE: return toVectorMulString({dims.x, dims.y, dims.z, dims.b});
+        case ArgMaxMinAxis::Z: return toVectorMulString({dims.y, dims.z, dims.f, dims.b});
+        case ArgMaxMinAxis::Y: return toVectorMulString({dims.x, dims.z, dims.f, dims.b});
+        case ArgMaxMinAxis::X: return toVectorMulString({dims.y, dims.z, dims.f, dims.b});
         default:
             throw std::invalid_argument("Unsupported axis");
     }
@@ -133,6 +128,7 @@ KernelsData ArgMaxMinKernelAxis::GetKernelsData(const Params& params, const opti
         OPENVINO_ASSERT(kd.kernels.size() == 1, "[GPU] Invalid kernels size for update dispatch data func");
         kd.kernels[0].params.workGroups.global = dispatchData.gws;
         kd.kernels[0].params.workGroups.local = dispatchData.lws;
+        kd.kernels[0].skip_execution = KernelData::SkipKernelExecution(prim_params);
 
         const size_t elem_size = prim_params.inputs[0].ElementSize();
         const size_t iav_type_size = elem_size + 4;

@@ -10,6 +10,7 @@
 #include <memory>
 #include <mutex>
 #include <string>
+#include <unordered_set>
 #include <vector>
 
 #include "openvino/core/any.hpp"
@@ -554,6 +555,7 @@ private:
     // of weak_ptr not to increase node ref counter to prevent the situation when
     // node has no consumers but still exists in a graph.
     mutable std::vector<std::weak_ptr<Node>> m_cached_ordered_ops;
+    mutable std::unordered_set<Node*> m_cached_ops;
 
     mutable std::unordered_map<std::string, Output<Node>> m_cached_output_names;
     mutable std::unordered_map<std::string, std::weak_ptr<Node>> m_cached_op_names;

@@ -52,7 +52,9 @@ void op::v3::ScatterElementsUpdate::validate_and_infer_types() {
                           " and: ",
                           updates_et);
 
+    OPENVINO_SUPPRESS_DEPRECATED_START
     const auto output_shape = shape_infer(this, get_node_input_partial_shapes(*this)).front();
+    OPENVINO_SUPPRESS_DEPRECATED_END
     set_output_type(0, data_et, output_shape);
     if (output_shape.is_dynamic())
         set_input_is_relevant_to_shape(0);
@@ -198,9 +200,13 @@ bool op::v3::ScatterElementsUpdate::evaluate_scatter_element_update(const HostTe
 
     if (normalized_axis < 0) {
         if (input_rank.is_static()) {
+            OPENVINO_SUPPRESS_DEPRECATED_START
             normalized_axis = ngraph::normalize_axis(this, axis, input_rank);
+            OPENVINO_SUPPRESS_DEPRECATED_END
         } else {
+            OPENVINO_SUPPRESS_DEPRECATED_START
             normalized_axis = ngraph::normalize_axis(this, axis, static_cast<int64_t>(inputs[0]->get_shape().size()));
+            OPENVINO_SUPPRESS_DEPRECATED_END
         }
     }
 
@@ -261,5 +267,7 @@ bool op::v3::ScatterElementsUpdate::evaluate_upper(ov::TensorVector& output_valu
 bool op::v3::ScatterElementsUpdate::evaluate_label(TensorLabelVector& output_labels) const {
     OV_OP_SCOPE(v3_ScatterNDUpdate_evaluate_label);
 
+    OPENVINO_SUPPRESS_DEPRECATED_START
     return ov::default_label_evaluator(this, {0, 2}, output_labels);
+    OPENVINO_SUPPRESS_DEPRECATED_END
 }

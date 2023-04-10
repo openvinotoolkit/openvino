@@ -32,12 +32,11 @@ static void CreateParameterOp(Program& p, const std::shared_ptr<ngraph::op::v0::
     InferenceEngine::Layout l = inputDesc.getLayout();
     InferenceEngine::Precision ip = inputDesc.getPrecision();
 
-    cldnn::format inputFormat = cldnn::format::bfyx;
-    if (input_pshape.is_dynamic()) {
-        inputFormat = cldnn::format::get_default_format(input_pshape.size());
-    } else if (InferenceEngine::Layout::BLOCKED == l && 6 == input_pshape.size()) {
-        inputFormat = cldnn::format::bfwzyx;
-    } else {
+    cldnn::format inputFormat = cldnn::format::get_default_format(input_pshape.size());
+    std::vector<size_t> default_order(input_pshape.size());
+    std::iota(default_order.begin(), default_order.end(), 0);
+    // For legacy API we need to handle NHWC as well, so check non default order
+    if (inputDesc.getBlockingDesc().getOrder() != default_order) {
         inputFormat = FormatFromLayout(l);
     }
 
