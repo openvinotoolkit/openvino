@@ -325,7 +325,7 @@ TokenizeSnippets::TokenizeSnippets() {
             // Skip the node being attached, since it will be a part of subgraph and can't introduce loop dependency
             const int64_t minChildOrder = std::accumulate(childNodes.begin(), childNodes.end(), currentBounds.second,
                                                             [&node](int64_t minOrder, std::shared_ptr<Node> n){
-                                                                if (ngraph::op::is_constant(n) || ngraph::op::is_parameter(n) || n == node)
+                                                                if (ov::is_type<ov::op::v0::Result>(n) || n == node)
                                                                     return minOrder;
                                                                 return std::min(minOrder, GetTopologicalOrder(n));
                                                             });

@@ -277,6 +277,17 @@ std::shared_ptr<ov::Model> TwoInputsAndOutputsFunction::initOriginal() const {
     return std::make_shared<Model>(NodeVector{hswish, sin3}, ParameterVector{data0, data1});
 }
 
+std::shared_ptr<ov::Model> TwoInputsAndOutputsWithReversedOutputsFunction::initOriginal() const {
+    auto data0 = std::make_shared<op::v0::Parameter>(precision, input_shapes[0]);
+    auto data1 = std::make_shared<op::v0::Parameter>(precision, input_shapes[1]);
+    auto hswish = std::make_shared<op::v4::HSwish>(data0);
+    auto add = std::make_shared<op::v1::Add>(hswish, data1);
+    auto relu = std::make_shared<op::v0::Relu>(add);
+    auto sin3 = std::make_shared<op::v0::Sin>(relu);
+
+    return std::make_shared<Model>(NodeVector{sin3, hswish}, ParameterVector{data0, data1});
+}
+
 std::shared_ptr<ov::Model> SelectFunction::initOriginal() const {
     auto data0 = std::make_shared<op::v0::Parameter>(ov::element::boolean, input_shapes[0]);
     auto data1 = std::make_shared<op::v0::Parameter>(precision, input_shapes[1]);
