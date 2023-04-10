@@ -24,6 +24,10 @@ endif()
 # Create named folders for the sources within the .vcproj
 # Empty name lists them directly under the .vcproj
 
+set_source_files_properties(
+    "${CMAKE_CURRENT_SOURCE_DIR}/src/file_util.cpp"
+    PROPERTIES COMPILE_DEFINITIONS OpenVINO_VERSION="${OpenVINO_VERSION}")
+
 source_group("src" FILES ${LIBRARY_SRC})
 source_group("include" FILES ${PUBLIC_HEADERS})
 

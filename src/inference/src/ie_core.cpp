@@ -40,15 +40,12 @@
 #include "openvino/op/result.hpp"
 #include "openvino/runtime/compiled_model.hpp"
 #include "openvino/runtime/core.hpp"
+#include "openvino/runtime/device_id_parser.hpp"
 #include "openvino/util/common_util.hpp"
 #include "openvino/util/file_util.hpp"
 #include "openvino/util/shared_object.hpp"
 #include "so_extension.hpp"
 #include "xml_parse_utils.h"
-
-#ifdef OPENVINO_STATIC_LIBRARY
-#    include "ie_plugins.hpp"
-#endif
 
 using namespace InferenceEngine::PluginConfigParams;
 using namespace InferenceEngine;
@@ -90,13 +87,12 @@ public:
 Core::Core(const std::string& xmlConfigFile) {
     _impl = std::make_shared<Impl>();
 
-#ifdef OPENVINO_STATIC_LIBRARY
-    _impl->register_plugins_in_registry(::getStaticPluginsRegistry());
-#else
-    // If XML is default, load default plugins by absolute paths
-    auto loadByAbsPath = xmlConfigFile.empty();
-    _impl->register_plugins_in_registry(ov::findPluginXML(xmlConfigFile), loadByAbsPath);
-#endif
+    std::string xmlConfigFile_ = ov::findPluginXML(xmlConfigFile);
+    if (!xmlConfigFile_.empty())
+        // If XML is default, load default plugins by absolute paths
+        _impl->register_plugins_in_registry(xmlConfigFile_, xmlConfigFile.empty());
+    // Load plugins from pre-compiled list
+    _impl->register_compile_time_plugins();
 }
 
 std::map<std::string, Version> Core::GetVersions(const std::string& deviceName) const {
@@ -251,8 +247,8 @@ ExecutableNetwork Core::ImportNetwork(std::istream& networkModel,
     }
 
     std::string deviceName_ = context->getDeviceName();
-    DeviceIDParser device(deviceName_);
-    std::string deviceName = device.getDeviceName();
+    ov::DeviceIDParser device(deviceName_);
+    std::string deviceName = device.get_device_name();
 
     auto parsed = ov::parseDeviceNameIntoConfig(deviceName, ov::any_copy(config));
     auto exec = _impl->get_plugin(deviceName)
@@ -350,8 +346,8 @@ void Core::RegisterPlugins(const std::string& xmlConfigFile) {
 }
 
 void Core::UnregisterPlugin(const std::string& deviceName_) {
-    DeviceIDParser parser(deviceName_);
-    std::string deviceName = parser.getDeviceName();
+    ov::DeviceIDParser parser(deviceName_);
+    std::string deviceName = parser.get_device_name();
 
     _impl->unload_plugin(deviceName);
 }

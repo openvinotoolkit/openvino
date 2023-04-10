@@ -204,34 +204,6 @@ MatMul::MatMul(const std::shared_ptr<ngraph::Node>& op, const GraphContext::CPtr
 }
 
 bool MatMul::canFuse(const NodePtr& node) const {
-    // per channel binary post op for rank > 2D is supported only by oneDNN reference implementation because of unusual MatMul channel axis (issue 6669)
-    if (getOutputShapeAtPort(0).getRank() > 2) {
-        if (const auto* eltwiseNode = dynamic_cast<Eltwise *>(node.get())) {
-            if (one_of(eltwiseNode->getAlgorithm(), Algorithm::EltwiseAdd,
-                                                    Algorithm::EltwiseMultiply,
-                                                    Algorithm::EltwiseSubtract,
-                                                    Algorithm::EltwiseDivide,
-                                                    Algorithm::EltwisePrelu,
-                                                    Algorithm::EltwiseMulAdd,
-                                                    Algorithm::EltwisePowerStatic) &&
-                eltwiseNode->getBroadcastingPolicy() != Eltwise::PerTensor) {
-                return false;
-            }
-        } else if (const auto* fakeQuantizeNode = dynamic_cast<FakeQuantize *>(node.get())) {
-            if (fakeQuantizeNode->getBroadcastingPolicy() != FakeQuantize::PerTensor) {
-                return false;
-            }
-        }
-    }
-
-    // Todo:
-    //  Consider the case when Matmul doesn't support execution in int8, but is getting fused with FQ with int8 output.
-    //  Then the Matmul will change its output precision to fp32, but the FQ child will still has the int8 input precision.
-    //  This information should be propagated! Note that we may need to propagate updated precision to child fused nodes.
-    if (node->getType() == Type::FakeQuantize &&
-        one_of(node->getOriginalOutputPrecisionAtPort(0), Precision::I8, Precision::U8) &&
-        !canBeExecutedInInt8(getOriginalInputPrecisionAtPort(0), getOriginalInputPrecisionAtPort(1)))
-        return false;
     return canFuseSimpleOperation(node);
 }
 
@@ -344,12 +316,20 @@ void MatMul::getSupportedDescriptors() {
         outPortPrec = firstInPortPrec = secondInPortPrec = Precision::FP32;
     }
 
+    Precision postOpsPrec = outPortPrec;
     if (!fusedWith.empty()) {
-        outPortPrec = fusedWith[fusedWith.size() - 1]->getOriginalOutputPrecisionAtPort(0);
+        postOpsPrec = fusedWith[fusedWith.size() - 1]->getOriginalOutputPrecisionAtPort(0);
     }
 
-    if (!canBeExecutedInInt8(firstInPortPrec, secondInPortPrec) && one_of(outPortPrec, Precision::U8, Precision::I8))
-        outPortPrec = Precision::FP32; // INT output is not supported for non-INT inputs
+    if (canBeExecutedInInt8(firstInPortPrec, secondInPortPrec)) {
+        // INT8 mode support wide range of output precisions
+        outPortPrec = postOpsPrec;
+    } else if (postOpsPrec == Precision::FP32) {
+        // all non-INT8 modes support fp32 output precision
+        outPortPrec = postOpsPrec;
+    } else {
+        // otherwise we ignore postOpsPrec and stay with getOriginalOutputPrecisionAtPort(0)
+    }
 
     const auto& inputShape0 = getInputShapeAtPort(0);
     const auto& inputShape1 = getInputShapeAtPort(1);
@@ -613,7 +593,7 @@ void MatMul::prepareParams() {
 
     auto engine = getEngine();
 
-    auto builder = [&engine](const MatMulKey& key) -> dnnl::primitive {
+    auto builder = [&engine](const MatMulKey& key) -> executorPtr {
         dnnl::matmul::primitive_desc matmul_desc;
 
         if (key.bias) {
@@ -653,22 +633,20 @@ void MatMul::prepareParams() {
                 break;
             }
         }
-        return matmul(prim_desc);
+        return std::make_shared<DnnlExecutor>(prim_desc);
     };
 
     auto cache = context->getParamsCache();
     auto result = cache->getOrCreate(key, builder);
 
-    if (!result.first) {
+    execPtr = result.first;
+    if (!execPtr) {
         IE_THROW() << "Primitive descriptor was not found for node " << getName() << ".";
     }
 
-    prim = result.first;
+    auto schratchpadMem = getScratchPadMem(execPtr->getScratchPadDesc());
 
-    auto pd = prim.get_primitive_desc();
-    auto scratchpadMem = getScratchPadMem(pd);
-
-    primArgs[DNNL_ARG_SCRATCHPAD] = scratchpadMem->GetPrimitive();
+    primArgs[DNNL_ARG_SCRATCHPAD] = schratchpadMem->GetPrimitive();
     primArgs[DNNL_ARG_SRC_0] = src0MemPtr->GetPrimitive();
     primArgs[DNNL_ARG_WEIGHTS_0] = src1MemPtr->GetPrimitive();
     primArgs[DNNL_ARG_DST] = dstMemPtr->GetPrimitive();
@@ -676,6 +654,20 @@ void MatMul::prepareParams() {
         primArgs[DNNL_ARG_BIAS] = getParentEdgeAt(2)->getMemoryPtr()->GetPrimitive();
 
     appendPostOpArgs(*attr, primArgs, postOpsArgs);
+#ifdef CPU_DEBUG_CAPS
+    if (result.second == CacheEntryBase::LookUpStatus::Miss) {
+        auto pd = execPtr->getPrimitiveDesc();
+        DEBUG_LOG("verbose##", getName(), "##", DnnlExtensionUtils::query_pd_info(pd), "\n");
+    }
+#endif
+}
+
+void MatMul::execute(dnnl::stream strm) {
+    if (execPtr) {
+        execPtr->exec(primArgs, strm);
+    } else {
+        IE_THROW() << errorPrefix << " doesn't have an initialized executor";
+    }
 }
 
 void MatMul::executeDynamicImpl(dnnl::stream strm) {
