@@ -122,12 +122,12 @@ std::shared_ptr<Model> TranslateSession::convert_pytorch_model(
             for (size_t i = 0; i < inlined_inputs.size(); ++i) {
                 size_t fw_tensor_id = inlined_nodes_counter;
                 ++inlined_nodes_counter;     // TODO: Make sure that Decoder side use the same increment for producing ids
-                if (tensor_map.find(fw_tensor_id) != tensor_map.end()) {
+                if (tensor_map->find(fw_tensor_id) != tensor_map->end()) {
                     throw std::runtime_error("Duplicated producer for PT value with unique ID: " +
                                              std::to_string(fw_tensor_id) + " produced by inlined_inputs");
                 }
 
-                tensor_map[fw_tensor_id] = inlined_inputs[i];
+                (*tensor_map)[fw_tensor_id] = inlined_inputs[i];
             }  
 
             auto raw_inputs = node->inputs();
@@ -138,9 +138,15 @@ std::shared_ptr<Model> TranslateSession::convert_pytorch_model(
                     // Linkage to external scope will be performed on the level of the parent operation (if or loop)
                     // TODO: Eliminate duplication with the main code for Parameters creation
                     PartialShape ps = node->get_input_shape(i);
-                    auto type = simplified_type_interpret(node->get_input_type(i)).as<element::Type>();
+                  
+                    auto type = simplified_type_interpret(node->get_input_type(i));
                     // TODO: Use special API to set custom type specification
-                    auto parameter = std::make_shared<v0::Parameter>(type, ps);
+                    std::shared_ptr<v0::Parameter> parameter;
+                    // TODO: Use decoder type or explore adding the missing cast types to Torchscript path
+                    if (std::strcmp(std::getenv("PYTORCH_TRACING_MODE"),"TORCHFX") == 0)
+                        parameter = std::make_shared<v0::Parameter>(type.as<element::Type>(), ps);
+                    else
+                        parameter = std::make_shared<v0::Parameter>(element::dynamic, ps);
                     // TODO: Missing get_input_transpose_order handling for not trivial layouts
                     (*tensor_map)[input] = parameter;
                     // set name of parameter to the index of node in the model

@@ -4,6 +4,7 @@ from functools import lru_cache
 from types import MappingProxyType
 from warnings import warn
 
+import os
 import torch
 import torch.overrides
 
@@ -48,12 +49,19 @@ def openvino_compile(gm: GraphModule, *args):
         torch.bool: Type.boolean
     }
 
-    for idx, input_data in enumerate(args): #subgraph.example_inputs):
+    for idx, input_data in enumerate(args): 
         om.inputs[idx].get_node().set_element_type(dtype_mapping[input_data.dtype])
         om.inputs[idx].get_node().set_partial_shape(PartialShape(list(input_data.shape)))
     om.validate_nodes_and_infer_types()
 
     core = Core()
-    compiled = core.compile_model(om, "CPU")
+    
+    device = 'CPU'
+
+    if os.getenv("OPENVINO_DEVICE") is not None:
+        device = os.getenv("OPENVINO_DEVICE")
+        assert device in core.available_devices, "Specified device " + device + " is not in the list of OpenVINO Available Devices"
+
+    compiled = core.compile_model(om, device)
     print("!!Returning compiled model!!")
     return compiled

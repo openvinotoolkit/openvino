@@ -471,6 +471,9 @@ class TorchFXPythonDecoder (Decoder):
     def get_input_debug_name(self, index):
         return "input"+str(index)
 
+    def get_input_signature_name(self, index: int) -> str:
+        return self.get_input_debug_name(index)
+
     def get_input_shape(self, index):
         print(f'[ FX DECODER DEBUG ] Decoder method called: {inspect.currentframe().f_code.co_name}')
         if index < len(self.input_shapes):
