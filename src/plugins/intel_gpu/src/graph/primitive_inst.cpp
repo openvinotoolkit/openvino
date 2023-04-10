@@ -1338,7 +1338,7 @@ void primitive_inst::load(cldnn::BinaryInputBuffer& ib) {
     bool has_impl;
     ib >> has_impl;
     if (has_impl) {
-        _impl.release();
+        _impl.reset();
         ib >> _impl;
     }
 }
