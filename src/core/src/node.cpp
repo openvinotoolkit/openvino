@@ -389,7 +389,7 @@ std::ostream& ov::Node::write_description(std::ostream& out, uint32_t depth) con
         if (version)
             out << version << "::" << get_type_info().name << " " << get_friendly_name() << " (";
         else
-            out << "::" << get_type_info().name << " " << get_friendly_name() << " (";
+            out << get_type_info().name << " " << get_friendly_name() << " (";
         string sep = "";
         for (const auto& arg : input_values()) {
             out << sep << arg;
