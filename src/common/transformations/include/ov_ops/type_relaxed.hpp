@@ -8,6 +8,7 @@
 #include <memory>
 #include <mutex>
 #include <openvino/op/convert.hpp>
+#include <openvino/op/parameter.hpp>
 #include <string>
 #include <transformations_visibility.hpp>
 #include <vector>
@@ -223,6 +224,9 @@ public:
     bool evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const override;
     OPENVINO_SUPPRESS_DEPRECATED_END
 
+    bool evaluate_lower(TensorVector& outputs) const override;
+    bool evaluate_upper(TensorVector& outputs) const override;
+
     std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& new_args) const override;
 
     bool visit_attributes(AttributeVisitor& visitor) override;
@@ -233,6 +237,7 @@ private:
         validate_and_infer_types();
     }
 
+    bool evaluate_bound(TensorVector& outputs, bool is_upper) const;
     init_rt_result init_rt = init_rt_info(*this);
 };
 
@@ -295,6 +300,41 @@ bool TypeRelaxed<BaseOp>::evaluate(const HostTensorVector& outputs, const HostTe
     return true;
 }
 OPENVINO_SUPPRESS_DEPRECATED_END
+
+std::unordered_map<size_t, std::pair<ov::Tensor, ov::Tensor>> OPENVINO_API
+convert_input_types(OutputVector& inputs, const element::TypeVector& types);
+ov::TensorVector OPENVINO_API get_output_tensors_of_original_type(const ov::TensorVector& fake_output_tensors,
+                                                                  const element::TypeVector& types);
+void OPENVINO_API
+reset_input_types(const std::unordered_map<size_t, std::pair<ov::Tensor, ov::Tensor>>& original_input_vals,
+                  OutputVector& inputs);
+bool OPENVINO_API convert_outputs_to_fake_type(ov::TensorVector& outputs,
+                                               ov::TensorVector& original_outputs,
+                                               bool is_upper);
+
+template <typename BaseOp>
+bool TypeRelaxed<BaseOp>::evaluate_bound(TensorVector& outputs, bool is_upper) const {
+    auto inputs = Op::input_values();
+    const auto& original_inputs = convert_input_types(inputs, m_input_data_types);
+    auto original_outputs = get_output_tensors_of_original_type(outputs, m_original_output_data_types);
+    if ((is_upper && !BaseOp::evaluate_upper(original_outputs)) ||
+        (!is_upper && !BaseOp::evaluate_lower(original_outputs))) {
+        reset_input_types(original_inputs, inputs);
+        return false;
+    }
+    reset_input_types(original_inputs, inputs);
+    return convert_outputs_to_fake_type(outputs, original_outputs, is_upper);
+}
+
+template <typename BaseOp>
+bool TypeRelaxed<BaseOp>::evaluate_lower(TensorVector& outputs) const {
+    return evaluate_bound(outputs, false);
+}
+
+template <typename BaseOp>
+bool TypeRelaxed<BaseOp>::evaluate_upper(TensorVector& outputs) const {
+    return evaluate_bound(outputs, true);
+}
 
 template <typename BaseOp>
 void TypeRelaxed<BaseOp>::validate_and_infer_types() {
