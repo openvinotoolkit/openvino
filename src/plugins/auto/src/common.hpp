@@ -69,6 +69,11 @@ struct DeviceInformation {
     std::string defaultDeviceID;
     DeviceName uniqueName;
     unsigned int devicePriority;
+    DeviceInformation(DeviceName dn = {}, std::map<std::string, std::string> conf = {},
+        int nReq = -1, std::string defaultID = {}, DeviceName uName = {}, unsigned int priority = 0)
+        : deviceName(dn), config(conf),
+        numRequestsPerDevices(nReq), defaultDeviceID(defaultID), uniqueName(uName), devicePriority(priority)
+        {}
 };
 
 struct WorkerInferRequest {
