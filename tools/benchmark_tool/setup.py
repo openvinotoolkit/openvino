@@ -12,7 +12,7 @@ import pkg_resources
 import re
 from setuptools import setup, find_packages
 from pathlib import Path
-from typing import List
+from typing import Dict, List
 
 
 with open('README.md', 'r', encoding='utf-8') as f:
