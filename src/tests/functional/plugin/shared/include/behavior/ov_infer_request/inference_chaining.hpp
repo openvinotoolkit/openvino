@@ -56,6 +56,8 @@ public:
 
     void Run();
 };
+using OVInferenceChainingStatic = OVInferenceChaining;
+
 }  // namespace behavior
 }  // namespace test
 }  // namespace ov
