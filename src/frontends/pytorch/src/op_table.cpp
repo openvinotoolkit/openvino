@@ -25,6 +25,7 @@ OP_CONVERTER(translate_as_tensor);
 OP_CONVERTER(translate_avg_poolnd);
 OP_CONVERTER(translate_bool);
 OP_CONVERTER(translate_batch_norm);
+OP_CONVERTER(translate_batch_norm_fx);
 OP_CONVERTER(translate_bitwise_not);
 OP_CONVERTER(translate_cat);
 OP_CONVERTER(translate_clamp);
@@ -74,6 +75,7 @@ OP_CONVERTER(translate_loop);
 OP_CONVERTER(translate_masked_fill);
 OP_CONVERTER(translate_max);
 OP_CONVERTER(translate_max_poolnd);
+OP_CONVERTER(translate_max_poolnd_fx);
 OP_CONVERTER(translate_mean);
 OP_CONVERTER(translate_meshgrid);
 OP_CONVERTER(translate_min);
@@ -136,6 +138,7 @@ OP_CONVERTER(translate_zeros_like);
 
 const std::map<std::string, CreatorFunction> get_supported_ops() {
     return {
+        {"<built-in function getitem>", op::translate_getitem}, // TODO: Check if there is any other way to handle this
         {"aten::__and__", op::translate_1to1_match_2_inputs<opset10::LogicalAnd>},  // TODO: cover numerical cases
         {"aten::__getitem__", op::translate_getitem},
         {"aten::__not__", op::translate_1to1_match_1_inputs<opset10::LogicalNot>},
@@ -257,7 +260,7 @@ const std::map<std::string, CreatorFunction> get_supported_ops() {
         {"aten::max", op::translate_max},
         {"aten::max_pool1d", op::translate_max_poolnd},
         {"aten::max_pool2d", op::translate_max_poolnd},
-        {"aten.max_pool2d_with_indices.default", op::translate_max_poolnd},
+        {"aten.max_pool2d_with_indices.default", op::translate_max_poolnd_fx},
         {"aten::max_pool3d", op::translate_max_poolnd},
         {"aten::mean", op::translate_mean},
         {"aten.mean.dim", op::translate_mean},
@@ -267,7 +270,7 @@ const std::map<std::string, CreatorFunction> get_supported_ops() {
         {"aten::mul", op::translate_1to1_match_2_inputs_align_types<opset10::Multiply>},
         {"aten::mul_", op::inplace_op<op::translate_1to1_match_2_inputs_align_types<opset10::Multiply>>},
         {"aten::narrow", op::translate_narrow},
-        {"aten.native_batch_norm.default", op::translate_batch_norm},
+        {"aten.native_batch_norm.default", op::translate_batch_norm_fx},
         {"aten::ne", op::translate_1to1_match_2_inputs_align_types<opset10::NotEqual>},
         {"aten::neg", op::translate_neg},
         {"aten::new_empty", op::translate_new_zeros},
