@@ -49,7 +49,9 @@ static void CreateInterpolateOp(Program& p, const std::shared_ptr<ngraph::op::v4
         }
     }
 
-    OPENVINO_ASSERT(!scales_constant || axes.size() == scales.size(), op->get_friendly_name(), " Incorrect axes and scales should be the same size");
+    if (attrs.shape_calculation_mode == ov::op::v4::Interpolate::ShapeCalcMode::SCALES && scales_constant) {
+        OPENVINO_ASSERT(axes.size() == scales.size(), "[GPU] Incorrect axes and scales values for Interpolate operation with id ", op->get_friendly_name());
+    }
 
     // TODO shouldn't be all this checking done in ngraph::op::v4::Interpolate?
     auto interpolateMode = attrs.mode;
