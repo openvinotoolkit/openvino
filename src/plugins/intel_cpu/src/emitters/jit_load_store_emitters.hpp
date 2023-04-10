@@ -139,13 +139,13 @@ private:
     void emit_isa(const int in_vec_idx,  const Xbyak::Reg64 &reg_dst, const int offset) const;
 
     template <typename Vmm>
-    void store_bytes(const Vmm &vmm, const Xbyak::Reg64 &reg, int offset, int store_size) const;
+    void store_bytes(const Xbyak::Reg64 &reg, int offset, int store_size) const;
 
     template <typename Vmm>
-    void store_dword_to_byte_extension(const Vmm &vmm, const Xbyak::Reg64 &reg, int offset, bool is_signed, int store_size) const;
+    void store_dword_to_byte_extension(const Xbyak::Reg64 &reg, int offset, bool is_signed, int store_size) const;
 
     template <typename Vmm>
-    void store_dword_to_word_extension(const Vmm &vmm, const Xbyak::Reg64 &reg, int offset, bool is_bf16, bool is_signed, int store_size) const;
+    void store_dword_to_word_extension(const Xbyak::Reg64 &reg, int offset, bool is_bf16, bool is_signed, int store_size) const;
 
     void register_table_entries() override;
 
@@ -163,6 +163,14 @@ private:
     InferenceEngine::Precision dst_prc_;
     arithmetic_mode mode_ = arithmetic_mode::saturation;
     std::shared_ptr<jit_uni_vcvtneps2bf16> uni_vcvtneps2bf16_;
+    // below members are to keep original vector values
+    // data_idx is active vec to store.
+    // For instructions that change src vec value, use aux_vec(aux_src_idx) as dst vec to keep src vec intact,
+    // then proceed with new vec(data_idx) for continued procedure. Guarantee original vec is not needed any more.
+    // once updated, set data_reg_updated to true, and no more update needed.
+    mutable bool data_reg_updated = false;
+    mutable int data_idx = 0;
+    mutable int aux_src_idx = 0;
 };
 
 }   // namespace intel_cpu
