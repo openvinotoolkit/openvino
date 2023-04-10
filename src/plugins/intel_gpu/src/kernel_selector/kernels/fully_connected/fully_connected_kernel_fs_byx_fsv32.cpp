@@ -70,6 +70,22 @@ JitConstants FullyConnected_fs_byx_fsv32::GetJitConstants(const fully_connected_
     return jit;
 }
 
+bool FullyConnected_fs_byx_fsv32::Validate(const Params& p, const optional_params& o) const {
+    if (!FullyConnectedKernelBase::Validate(p, o)) {
+        return false;
+    }
+
+    const auto& params = static_cast<const fully_connected_params&>(p);
+
+    if (!params.bias.empty()) {
+        if (params.inputs[0].GetDType() != params.bias[0].GetDType()) {
+            return false;
+        }
+    }
+
+    return true;
+}
+
 KernelsData FullyConnected_fs_byx_fsv32::GetKernelsData(const Params& params, const optional_params& options) const {
     KernelsData res = {};
     for (size_t i = 0; i < autoTuneOptions.size(); i++) {

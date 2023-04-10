@@ -73,6 +73,12 @@ bool FullyConnected_bs_f_bsv8_af8::Validate(const Params& p, const optional_para
         return false;
     }
 
+    if (!params.bias.empty()) {
+        if (params.inputs[0].GetDType() != params.bias[0].GetDType()) {
+            return false;
+        }
+    }
+
     return true;
 }
 

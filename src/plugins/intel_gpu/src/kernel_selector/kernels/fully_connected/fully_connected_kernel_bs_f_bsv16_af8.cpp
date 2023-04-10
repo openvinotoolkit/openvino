@@ -53,6 +53,12 @@ bool FullyConnected_bs_f_bsv16_af8::Validate(const Params& p, const optional_par
 
     const bool bProperBatch = params.inputs[0].Batch().v == 16;
 
+    if (!params.bias.empty()) {
+        if (params.inputs[0].GetDType() != params.bias[0].GetDType()) {
+            return false;
+        }
+    }
+
     return bProperBatch;
 }
 

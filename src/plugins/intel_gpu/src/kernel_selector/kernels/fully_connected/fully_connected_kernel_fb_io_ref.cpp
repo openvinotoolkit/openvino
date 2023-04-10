@@ -34,6 +34,22 @@ JitConstants FullyConnected_fb_io_ref::GetJitConstants(const fully_connected_par
     return jit;
 }
 
+bool FullyConnected_fb_io_ref::Validate(const Params& p, const optional_params& o) const {
+    if (!FullyConnectedKernelBase::Validate(p, o)) {
+        return false;
+    }
+
+    const auto& params = static_cast<const fully_connected_params&>(p);
+
+    if (!params.bias.empty()) {
+        if (params.inputs[0].GetDType() != params.bias[0].GetDType()) {
+            return false;
+        }
+    }
+
+    return true;
+}
+
 KernelsData FullyConnected_fb_io_ref::GetKernelsData(const Params& params, const optional_params& optParams) const {
     // TODO: it should be fb_io. but the original code use this kernel with yxfb and yxio
     //       (fb == fyxb flatten fyx, not yxfb flatten yxf).
