@@ -78,14 +78,16 @@ void Config::readProperties(const std::map<std::string, std::string> &prop) {
             streamExecutorConfig.SetConfig(key, val);
         } else if (key == ov::hint::performance_mode.name()) {
             const auto prefHint = ov::util::from_string(val, ov::hint::performance_mode);
+            OPENVINO_SUPPRESS_DEPRECATED_START
             if (prefHint == ov::hint::PerformanceMode::LATENCY || prefHint == ov::hint::PerformanceMode::THROUGHPUT) {
                 performanceHint = prefHint;
                 changedPerformanceHint = true;
-            } else {
+            } else if (prefHint != ov::hint::PerformanceMode::UNDEFINED) {
                 IE_THROW() << "Wrong value " << val << "for property key " << ov::hint::performance_mode.name()
                            << ". Expected only " << ov::hint::PerformanceMode::LATENCY << "/"
                            << ov::hint::PerformanceMode::THROUGHPUT << std::endl;
             }
+            OPENVINO_SUPPRESS_DEPRECATED_END
         } else if ((key == ov::hint::num_requests.name()) ||
                    (key == PluginConfigParams::KEY_PERFORMANCE_HINT_NUM_REQUESTS)) {
             int val_i = -1;
