@@ -9,18 +9,24 @@
 #include <cassert>
 #include <map>
 #include <memory>
+#include <openvino/cc/pass/itt.hpp>
+#include <openvino/op/util/op_types.hpp>
 #include <set>
 #include <string>
+#include <transformations/common_optimizations/fold_subgraph_empty_inputs.hpp>
+#include <transformations/common_optimizations/nop_elimination.hpp>
+#include <transformations/common_optimizations/remove_concat_zero_dim_input.hpp>
+#include <transformations/common_optimizations/remove_multi_subgraph_op_dangling_params.hpp>
 #include <unordered_set>
 #include <vector>
 
 #include "blob_factory.hpp"
 #include "cpp/ie_cnn_network.h"
 #include "ie_common.h"
+#include "ie_itt.hpp"
 #include "ie_memcpy.h"
+#include "ie_ngraph_utils.hpp"
 #include "ngraph/graph_util.hpp"
-#include "ngraph/ngraph.hpp"
-#include "ngraph/pass/constant_folding.hpp"
 #include "ngraph/pass/manager.hpp"
 #include "openvino/core/except.hpp"
 #include "openvino/pass/serialize.hpp"
@@ -28,26 +34,6 @@
 #include "transformations/smart_reshape/set_batch_size.hpp"
 #include "transformations/smart_reshape/smart_reshape.hpp"
 #include "transformations/utils/utils.hpp"
-
-// TODO: remove this pass usage
-#include <legacy/transformations/convert_opset1_to_legacy/convert_nms_5_to_legacy.hpp>
-#include <legacy/transformations/convert_opset1_to_legacy/convert_one_hot_to_one_hot_ie.hpp>
-#include <openvino/cc/pass/itt.hpp>
-#include <transformations/common_optimizations/dimension_tracking.hpp>
-#include <transformations/common_optimizations/fold_subgraph_empty_inputs.hpp>
-#include <transformations/common_optimizations/nop_elimination.hpp>
-#include <transformations/common_optimizations/remove_concat_zero_dim_input.hpp>
-#include <transformations/common_optimizations/remove_multi_subgraph_op_dangling_params.hpp>
-#include <transformations/disable_decompression_convert_constant_folding.hpp>
-#include <transformations/low_precision/mark_dequantization_subgraph.hpp>
-#include <transformations/op_conversions/convert_gp9_to_gp_ie_internal.hpp>
-#include <transformations/op_conversions/convert_matrix_nms_to_matrix_nms_ie.hpp>
-#include <transformations/op_conversions/convert_multiclass_nms_to_multiclass_nms_ie.hpp>
-#include <transformations/op_conversions/convert_nms9_to_nms_ie_internal.hpp>
-
-#include "exec_graph_info.hpp"
-#include "ie_itt.hpp"
-#include "ie_ngraph_utils.hpp"
 
 using namespace std;
 using namespace InferenceEngine;
@@ -79,12 +65,13 @@ void CNNNetworkNGraphImpl::createDataForResult(const ::ngraph::Output<::ngraph::
         }
     };
     auto shape = output.get_partial_shape();
-    auto rank = shape.rank().is_static() ? shape.rank().get_length() : -1;
     SizeVector dims(1, 0);
-    if (shape.is_static()) {
-        dims = output.get_shape();
-    } else if (rank >= 0) {
-        dims = SizeVector(rank, 0);
+    if (shape.rank().is_static()) {
+        dims.resize(shape.size(), 0);
+        for (size_t i = 0; i < shape.size(); ++i) {
+            if (shape[i].get_max_length() != -1)  // dimension has an estimation
+                dims[i] = shape[i].get_max_length();
+        }
     }
     // query shape from ngraph::Parameter output shape and check there are no zeros in it
     for (const auto& dim : shape) {
@@ -92,6 +79,7 @@ void CNNNetworkNGraphImpl::createDataForResult(const ::ngraph::Output<::ngraph::
             IE_THROW() << outName << " has zero dimension which is not allowed";
     }
 
+    auto rank = shape.rank().is_static() ? shape.rank().get_length() : -1;
     const Layout rankLayout = rank < 0 ? Layout::BLOCKED : TensorDesc::getLayoutByRank(rank);
     if (ptr) {
         const auto origLayout = ptr->getTensorDesc().getLayout();
@@ -118,7 +106,7 @@ void CNNNetworkNGraphImpl::validateFunctionNames() const {
         if (parent->get_output_size() > 1) {
             name += "." + std::to_string(result->get_input_source_output(0).get_index());
         }
-        if (unique_names.count(name) && !ngraph::op::is_parameter(parent) && parent != unique_names.at(name)) {
+        if (unique_names.count(name) && !ov::op::util::is_parameter(parent) && parent != unique_names.at(name)) {
             IE_THROW() << "Function contains several inputs and outputs with one friendly name: " << name;
         }
         unique_names.insert({name, parent});
@@ -489,8 +477,7 @@ void CNNNetworkNGraphImpl::reshape(const std::map<std::string, ngraph::PartialSh
     auto params = _ngraph_function->get_parameters();
 
     bool parameter_replaced = false;
-    for (size_t i = 0; i < params.size(); i++) {
-        auto& param = params[i];
+    for (auto& param : params) {
         if (inputShapes.find(param->get_friendly_name()) == inputShapes.end())
             continue;
         param->set_partial_shape(inputShapes.at(param->get_friendly_name()));
@@ -498,43 +485,6 @@ void CNNNetworkNGraphImpl::reshape(const std::map<std::string, ngraph::PartialSh
     }
     if (parameter_replaced)
         _ngraph_function->validate_nodes_and_infer_types();
-
-    const auto& results = _ngraph_function->get_results();
-    bool outputs_are_static = all_of(begin(results), end(results), [](const std::shared_ptr<ngraph::Node>& n) {
-        return n->get_output_partial_shape(0).is_static();
-    });
-
-    {
-        shared_ptr<Function> specialized_ngraph_function = nullptr;
-        if (outputs_are_static) {
-            specialized_ngraph_function = _ngraph_function;
-        } else {
-            specialized_ngraph_function = ngraph::clone_function(*_ngraph_function);
-            {
-                OV_ITT_SCOPED_TASK(ov::itt::domains::IE, "CNNNetworkNGraphImpl::ConvertToLegacy");
-                ::ngraph::pass::Manager manager;
-                // resolves dynamism by replacing dynamic operation with static version
-                using namespace ngraph::pass;
-                using namespace ov::pass;
-                REGISTER_PASS(manager, ConvertNMS5ToLegacyMatcher, false)
-                REGISTER_PASS(manager, ConvertMulticlassNmsToMulticlassNmsIE, false)
-                REGISTER_PASS(manager, ConvertMatrixNmsToMatrixNmsIE, false)
-                REGISTER_PASS(manager, ConvertNMS9ToNMSIEInternal)
-                REGISTER_PASS(manager, ConvertGP9ToGPIEInternal)
-                REGISTER_PASS(
-                    manager,
-                    MarkDequantizationSubgraph,
-                    ov::element::TypeVector{ov::element::i8, ov::element::u8, ov::element::i4, ov::element::u4})
-                REGISTER_PASS(manager, DisableDecompressionConvertConstantFolding)
-                REGISTER_PASS(manager, ConstantFolding)
-
-                // OneHotToLegacy changes output precision
-                manager.register_pass<::ngraph::pass::ConvertOneHotToOneHotIEMatcher>()->detect_output_type(
-                    specialized_ngraph_function);
-                manager.run_passes(specialized_ngraph_function);
-            }
-            specialized_ngraph_function->validate_nodes_and_infer_types();
-        }
 
 #if 0
         bool obfuscate = true;  // set to false to get exact dimensions
@@ -547,19 +497,18 @@ void CNNNetworkNGraphImpl::reshape(const std::map<std::string, ngraph::PartialSh
                 std::cout << item.first << " " << shape_to_count.second << "x " << shape_to_count.first << std::endl;
 #endif
 
-        std::unordered_set<std::string> opName;
-        for (const auto& result : specialized_ngraph_function->get_results()) {
-            addOutput(result->input_value(0));
-        }
+    std::unordered_set<std::string> opName;
+    for (const auto& result : _ngraph_function->get_results()) {
+        addOutput(result->input_value(0));
+    }
 
-        for (const auto& parameter : specialized_ngraph_function->get_parameters()) {
-            const auto& outName = parameter->get_friendly_name();
-            if (opName.find(outName) != opName.end()) {
-                IE_THROW() << "All operations in nGraph function should have unique friendly names!";
-            }
-            opName.insert(outName);
-            createDataForResult(parameter, outName, _data[outName]);
+    for (const auto& parameter : _ngraph_function->get_parameters()) {
+        const auto& outName = parameter->get_friendly_name();
+        if (opName.find(outName) != opName.end()) {
+            IE_THROW() << "All operations in nGraph function should have unique friendly names!";
         }
+        opName.insert(outName);
+        createDataForResult(parameter, outName, _data[outName]);
     }
 }
 
