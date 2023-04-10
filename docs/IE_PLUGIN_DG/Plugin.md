@@ -42,6 +42,7 @@ As an example, a plugin configuration has three value parameters:
 - `perf_counts` - boolean value to identify whether to collect performance counters during [Inference Request](@ref openvino_docs_ov_plugin_dg_infer_request) execution.
 - `streams_executor_config` - configuration of `ov::threading::IStreamsExecutor` to handle settings of multi-threaded context.
 - `performance_mode` - configuration of `ov::hint::PerformanceMode` to set the performance mode.
+- `disable_transformations` - allows to disable transformations which are applied in the process of model compilation.
 
 ### Plugin Constructor
 
@@ -85,7 +86,7 @@ Actual model compilation is done in the `CompiledModel` constructor. Refer to th
 
 The function accepts a const shared pointer to `ov::Model` object and applies common and device-specific transformations on a copied model to make it more friendly to hardware operations. For details how to write custom device-specific transformation, please, refer to [Writing OpenVINO™ transformations](@ref openvino_docs_transformations) guide. See detailed topics about model representation:
     * [Intermediate Representation and Operation Sets](@ref openvino_docs_MO_DG_IR_and_opsets)
-    * [Quantized models](@ref openvino_docs_ie_plugin_dg_quantized_networks).
+    * [Quantized models](@ref openvino_docs_ov_plugin_dg_quantized_models).
 
 @snippet template/src/plugin.cpp plugin:transform_model
 

@@ -13,6 +13,8 @@
 #include <vector>
 #include <iostream>
 
+#include "primitive_inst.h"
+
 using namespace cldnn;
 using namespace ::tests;
 
@@ -24,7 +26,7 @@ TEST(multistream_gpu, basic) {
     auto task_executor = std::make_shared<InferenceEngine::CPUStreamsExecutor>(task_config);
     auto& engine = get_test_engine();
 
-    ExecutionConfig config;
+    ExecutionConfig config = get_test_default_config(engine);
     config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
 
     auto input1_dyn_layout = layout{ ov::PartialShape::dynamic(3), data_types::f16,format::bfyx };
@@ -40,14 +42,22 @@ TEST(multistream_gpu, basic) {
     topology.add(shape_of("shape_of", input_info("fc"), 3, data_types::i32));
 
     auto prog_ptr = program::build_program(engine, topology, config);
+    auto &node = prog_ptr->get_node("shape_of");
+    auto strm = node.get_kernel_impl_params()->get_stream_ptr();
+    ASSERT_EQ(prog_ptr->get_stream_ptr(), strm);
+
     std::vector<network::ptr> networks;
+    std::vector<stream::ptr> streams;
     for (size_t i = 0; i < num_streams; i++) {
         networks.push_back(network::allocate_network(engine, prog_ptr));
+        streams.push_back(networks[i]->get_stream_ptr());
     }
 
     std::vector<InferenceEngine::Task> tasks;
     for (size_t i = 0; i < num_streams; i++) {
-        tasks.push_back([&networks, i, &engine] {
+        tasks.push_back([&networks, &streams, i, &engine] {
+            auto cfg = get_test_default_config(engine);
+            auto stream = engine.create_stream(cfg);
             auto net = networks[i];
             std::vector<int> various_size = {32, 128, 16, 64};
             for (size_t iter = 0; iter < 8; iter++) {
@@ -59,8 +69,12 @@ TEST(multistream_gpu, basic) {
 
                 auto outputs = net->execute();
 
+                auto inst = net->get_primitive("shape_of");
+                auto strm = inst->get_impl_params()->get_stream_ptr();
+                ASSERT_EQ(streams[i], strm);
+
                 auto output = outputs.at("shape_of").get_memory();
-                cldnn::mem_lock<int32_t> output_ptr(output, get_test_stream());
+                cldnn::mem_lock<int32_t> output_ptr(output, *stream);
 
                 std::vector<int32_t> expected_results = {1, len, 512};
 

@@ -2,6 +2,7 @@ import logging
 from functools import partial
 
 import torch
+import os
 from torch._dynamo.backends.common import aot_autograd, mem_efficient_fusion_kwargs
 from torch._dynamo.backends.common import fake_tensor_unsupported
 from torch._dynamo.backends.registry import register_backend
@@ -18,7 +19,9 @@ log = logging.getLogger(__name__)
 @register_backend
 @fake_tensor_unsupported
 def openvino(subgraph, example_inputs):
-    return fx_openvino(subgraph, example_inputs)
+    if(os.getenv("PYTORCH_TRACING_MODE")=="TORCHFX"):  
+    	return fx_openvino(subgraph, example_inputs)
+    return ts_openvino(subgraph, example_inputs)
 
 def ts_openvino(subgraph, example_inputs):
     try:
@@ -48,7 +51,12 @@ def ts_openvino(subgraph, example_inputs):
             om.inputs[idx].get_node().set_partial_shape(PartialShape(list(input_data.shape)))
         om.validate_nodes_and_infer_types()
 
-        compiled_model = core.compile_model(om, 'CPU')
+        device = 'CPU'
+        if os.getenv("OPENVINO_DEVICE") is not None:
+            device = os.getenv("OPENVINO_DEVICE")
+            assert device in core.available_devices, "Specified device " + device + " is not in the list of OpenVINO Available Devices"
+            
+        compiled_model = core.compile_model(om, device)
 
         def _call(*args):
             ov_inputs = [a.detach().cpu().numpy() for a in args]
@@ -60,6 +68,7 @@ def ts_openvino(subgraph, example_inputs):
             return result
         return _call
     except Exception as e:
+        print(str(e))
         return subgraph
 
 
@@ -76,4 +85,5 @@ def fx_openvino(subgraph, example_inputs):
             return res
         return _call
     except Exception as e:
+        print(str(e))
         return subgraph

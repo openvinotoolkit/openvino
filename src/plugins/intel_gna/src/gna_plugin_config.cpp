@@ -172,15 +172,26 @@ void Config::UpdateFromMap(const std::map<std::string, std::string>& config) {
             }
         } else if (key == ov::hint::performance_mode) {
             performance_mode = ov::util::from_string(value, ov::hint::performance_mode);
-        } else if (key == ov::inference_precision) {
-            std::stringstream ss(value);
-            ss >> inference_precision;
+        } else if (key == ov::hint::inference_precision) {
+            inference_precision = ov::util::from_string<ov::element::Type>(value);
             if ((inference_precision != ov::element::i8) && (inference_precision != ov::element::i16)) {
-                THROW_GNA_EXCEPTION << "Unsupported precision of GNA hardware, should be i16 or i8, but was: " << value;
+                THROW_GNA_EXCEPTION << "Unsupported precision of GNA hardware, should be I16 or I8, but was: " << value;
             }
-            gnaPrecision = (inference_precision == ov::element::i8) ? Precision::I8 : Precision::I16;
+            gnaPrecision = inference_precision == ov::element::i8 ? InferenceEngine::Precision::I8
+                                                                  : InferenceEngine::Precision::I16;
+        } else if (key == ov::hint::execution_mode) {
+            execution_mode = ov::util::from_string<ov::hint::ExecutionMode>(value);
+            if ((execution_mode != ov::hint::ExecutionMode::ACCURACY) &&
+                (execution_mode != ov::hint::ExecutionMode::PERFORMANCE)) {
+                THROW_GNA_EXCEPTION << "Unsupported execution mode, should be ACCURACY or PERFORMANCE, but was: "
+                                    << value;
+            }
+            // Update gnaPrecision basing on execution_mode only if inference_precision is not set
+            if (config.count(ov::hint::inference_precision.name()) == 0) {
+                gnaPrecision = execution_mode == ov::hint::ExecutionMode::PERFORMANCE ? InferenceEngine::Precision::I8
+                                                                                      : InferenceEngine::Precision::I16;
+            }
         } else if (key == GNA_CONFIG_KEY(PRECISION)) {
-            check_compatibility(ov::inference_precision.name());
             auto precision = Precision::FromStr(value);
             if (precision != Precision::I8 && precision != Precision::I16) {
                 THROW_GNA_EXCEPTION << "Unsupported precision of GNA hardware, should be Int16 or Int8, but was: "
@@ -309,10 +320,11 @@ void Config::AdjustKeyMapValues() {
         gnaFlags.exclusive_async_requests ? PluginConfigParams::YES : PluginConfigParams::NO;
     keyConfigMap[ov::hint::performance_mode.name()] = ov::util::to_string(performance_mode);
     if (inference_precision != ov::element::undefined) {
-        keyConfigMap[ov::inference_precision.name()] = ov::util::to_string(inference_precision);
+        keyConfigMap[ov::hint::inference_precision.name()] = ov::util::to_string(inference_precision);
     } else {
         keyConfigMap[GNA_CONFIG_KEY(PRECISION)] = gnaPrecision.name();
     }
+    keyConfigMap[ov::hint::execution_mode.name()] = ov::util::to_string(execution_mode);
     OPENVINO_SUPPRESS_DEPRECATED_START
     if (gnaFlags.pwl_design_algorithm != ov::intel_gna::PWLDesignAlgorithm::UNDEFINED) {
         keyConfigMap[ov::intel_gna::pwl_design_algorithm.name()] = ov::util::to_string(gnaFlags.pwl_design_algorithm);
@@ -343,7 +355,7 @@ Parameter Config::GetParameter(const std::string& name) const {
         return DeviceToHwGeneration(target->get_user_set_compile_target());
     } else if (name == ov::hint::performance_mode) {
         return performance_mode;
-    } else if (name == ov::inference_precision) {
+    } else if (name == ov::hint::inference_precision) {
         return inference_precision;
     } else {
         auto result = keyConfigMap.find(name);
@@ -363,7 +375,8 @@ const Parameter Config::GetImpactingModelCompilationProperties(bool compiled) {
         {ov::intel_gna::compile_target.name(), model_mutability},
         {ov::intel_gna::pwl_design_algorithm.name(), model_mutability},
         {ov::intel_gna::pwl_max_error_percent.name(), model_mutability},
-        {ov::inference_precision.name(), model_mutability},
+        {ov::hint::inference_precision.name(), model_mutability},
+        {ov::hint::execution_mode.name(), model_mutability},
         {ov::hint::num_requests.name(), model_mutability},
     };
     return supported_properties;

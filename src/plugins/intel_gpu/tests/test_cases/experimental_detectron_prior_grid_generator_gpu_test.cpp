@@ -62,7 +62,7 @@ public:
                                                                  params.imageShape.first,
                                                                  params.imageShape.second));
 
-        cldnn::network::ptr network = get_network(engine, topology, ExecutionConfig(), get_test_stream_ptr(), params.is_caching_test);
+        cldnn::network::ptr network = get_network(engine, topology, get_test_default_config(engine), get_test_stream_ptr(), params.is_caching_test);
 
         network->set_input_data(priors_id, prior_input);
 
