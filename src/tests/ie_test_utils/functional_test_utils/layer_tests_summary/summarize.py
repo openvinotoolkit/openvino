@@ -42,6 +42,7 @@ def parse_arguments():
     conformance_mode_help = "Allow to align test number"
     csv_help = "Allow to serialize report as csv file"
     expected_devices_help = "List of expected devices"
+    rel_weights_help = "Path to file with rel weights"
 
     parser.add_argument("--xml", help=xml_help, nargs="*", required=True)
     parser.add_argument("--out", help=out_help, default="")
@@ -51,11 +52,25 @@ def parse_arguments():
     parser.add_argument("--conformance_mode", help=conformance_mode_help, default=False)
     parser.add_argument("--csv", help=csv_help, default=False)
     parser.add_argument("--expected_devices", help=expected_devices_help, nargs="*", required=False)
+    parser.add_argument("--rel_weights", help=rel_weights_help, type=str, required=False)
 
     return parser.parse_args()
 
 
-def merge_xmls(xml_paths: list):
+def parse_rel_weights(rel_weights_path: os.path):
+    rel_weights = dict()
+    if os.path.isfile(rel_weights_path):
+        logger.info(f"Rel weights will be taken from {rel_weights_path}")
+        with open(rel_weights_path, "r") as rel_weights_file:
+            for line in rel_weights_file.readlines():
+                sep_pos = line.find(':')
+                op_name = line[:sep_pos:]
+                op_weight = float(line[sep_pos+1::].replace('\n', ''))
+                rel_weights.update({op_name: op_weight})
+    return rel_weights
+
+
+def merge_xmls(xml_paths: list, rel_weights: dict):
     logger.info("Merging XML files is started")
 
     summary = Element("report")
@@ -110,7 +125,7 @@ def merge_xmls(xml_paths: list):
                                 device_results.find(current_op_res.tag).set(attr_name, str(xml_value))
                     else:
                         device_results.append(op_result)
-    stat_update_utils.update_passrates(summary_results)
+    stat_update_utils.update_passrates(summary_results, rel_weights)
     summary.set("timestamp", timestamp)
     logger.info("Merging XML files is competed")
     return summary
@@ -248,10 +263,12 @@ def serialize_to_csv(report_filename: str, output_dir: os.path, op_list: list, d
 
 
 def create_summary(summary_root: Element, output_folder: os.path, expected_devices:list, report_tag: str, report_version: str,
-                   is_conformance_mode: bool,  is_serialize_to_csv: bool, output_filename='report'):
+                   is_conformance_mode: bool,  is_serialize_to_csv: bool, rel_weights_path: str, output_filename='report'):
+    rel_weights = dict()
     if is_conformance_mode:
         stat_update_utils.update_conformance_test_counters(summary_root)
-        stat_update_utils.update_passrates(summary_root.find("results"))
+        rel_weights = parse_rel_weights(rel_weights_path)
+        stat_update_utils.update_passrates(summary_root.find("results"), rel_weights)
     device_list, results, general_pass_rate, general_pass_rate_rel, pass_rate_avg, pass_rate_avg_rel, general_test_count, trusted_ops, covered_ops = \
         collect_statistic(summary_root, is_conformance_mode)
 
@@ -297,7 +314,6 @@ def create_summary(summary_root: Element, output_folder: os.path, expected_devic
     if is_serialize_to_csv:
         serialize_to_csv(output_filename, output_folder, op_list, device_list, results)
 
-
 if __name__ == "__main__":
     args = parse_arguments()
     summary_root = merge_xmls(args.xml)
@@ -307,5 +323,6 @@ if __name__ == "__main__":
                    args.report_version,
                    args.conformance_mode,
                    args.csv,
+                   args.rel_weights,
                    args.output_filename)
     

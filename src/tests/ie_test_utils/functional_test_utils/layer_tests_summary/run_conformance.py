@@ -138,7 +138,7 @@ class Conformance:
             exit(-1)
         self._model_path = conformance_ir_path
         if has_python_api:
-            create_hash(Path(self._model_path))
+            create_hash(Path(self._model_path), Path(self._model_path))
             logger.info(f"All conformance IRs in {self._ov_bin_path} were renamed based on hash")
         else:
             logger.warning("The OV Python was not built or Environment was not updated to requirments. Skip the step to rename Conformance IR based on a hash")
@@ -184,7 +184,7 @@ class Conformance:
 
     def __summarize(self, xml_report_path:os.path, report_dir: os.path):
         summary_root = ET.parse(xml_report_path).getroot()
-        create_summary(summary_root, report_dir, [], "", "", False, True)
+        create_summary(summary_root, report_dir, [], "", "", True, True, os.path.join(self._model_path, "rel_weights.lst"))
         copytree(os.path.join(SCRIPT_DIR_PATH, "template"), os.path.join(report_dir, "template"))
         logger.info(f"Report was saved to {os.path.join(report_dir, 'report.html')}")
 
