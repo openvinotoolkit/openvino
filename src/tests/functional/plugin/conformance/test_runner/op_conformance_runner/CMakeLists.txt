@@ -20,4 +20,8 @@ addIeTargetTest(
             OP_CONFORMANCE
 )
 
+if(ENABLE_CONFORMANCE_PGQL)
+    target_compile_definitions(${TARGET_NAME} PRIVATE ENABLE_CONFORMANCE_PGQL)
+endif()
+
 ie_faster_build(${TARGET_NAME} UNITY)

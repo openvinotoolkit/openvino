@@ -3,13 +3,23 @@
 #
 
 function(add_common_utils ADD_TARGET_NAME)
+    list(APPEND TARGET_EXCLUDED_SOURCE_PATHS
+        ${CMAKE_CURRENT_SOURCE_DIR}/tests
+    )
+    if(NOT ENABLE_CONFORMANCE_PGQL)
+        list(APPEND TARGET_EXCLUDED_SOURCE_PATHS
+            ${CMAKE_CURRENT_SOURCE_DIR}/include/common_test_utils/postgres_link.hpp
+            ${CMAKE_CURRENT_SOURCE_DIR}/src/postgres_link.cpp
+        )
+    endif()
+
     # create target
     addIeTarget(
             NAME ${ADD_TARGET_NAME}
             TYPE STATIC
             ROOT ${CMAKE_CURRENT_SOURCE_DIR}
             EXCLUDED_SOURCE_PATHS
-                ${CMAKE_CURRENT_SOURCE_DIR}/tests
+                ${TARGET_EXCLUDED_SOURCE_PATHS}
             ADD_CPPLINT
             DEVELOPER_PACKAGE
                 tests
@@ -63,6 +73,28 @@ function(add_common_utils ADD_TARGET_NAME)
     target_include_directories(${ADD_TARGET_NAME} SYSTEM PUBLIC ${IE_TESTS_ROOT}/ie_test_utils)
 
     target_compile_definitions(${ADD_TARGET_NAME} PUBLIC ${ARGN})
+
+    if(ENABLE_CONFORMANCE_PGQL)
+#Uncomment to be able use statically linked libpq
+        target_compile_definitions(${ADD_TARGET_NAME} PRIVATE ENABLE_CONFORMANCE_PGQL)
+        target_include_directories(${ADD_TARGET_NAME} PRIVATE
+#            ${POSTGRES_LIBPQ_INCLUDE}
+#            ${POSTGRES_LIBPQ_INCLUDE}/../../include
+            $<TARGET_PROPERTY:openvino::pugixml,INTERFACE_INCLUDE_DIRECTORIES>
+        )
+        target_link_directories(${ADD_TARGET_NAME} PUBLIC ${POSTGRES_LIBPQ})
+        if(WIN32)
+            target_link_libraries(${ADD_TARGET_NAME} PUBLIC
+#                libpq.lib
+                openvino::pugixml
+            )
+        else()
+            target_link_libraries(${ADD_TARGET_NAME} PUBLIC
+#                pq
+                openvino::pugixml
+            )
+        endif()
+    endif()
 endfunction()
 
 # Keep old name so that library can be used from VPU repo
