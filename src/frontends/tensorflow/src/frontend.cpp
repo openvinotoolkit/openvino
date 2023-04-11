@@ -38,14 +38,19 @@ void get_unsupported_operations_and_failures(const std::shared_ptr<Model>& model
     for (const auto& node : model->get_ordered_ops()) {
         if (const auto& fw_node = ov::as_type_ptr<FrameworkNode>(node)) {
             auto op_type = fw_node->get_decoder()->get_op_type();
+            // if this operation is encountered among unsupported operations
+            // or conversion failures, skip it
+            if (failures.count(op_type) > 0 ||
+                std::find(unsupported_operations.begin(), unsupported_operations.end(), op_type) !=
+                    unsupported_operations.end()) {
+                continue;
+            }
             auto fw_node_attrs = fw_node->get_attrs();
-            if (fw_node_attrs.find(FrameworkNode::failed_conversion_key) != fw_node_attrs.end() &&
-                failures.count(op_type) == 0) {
+            if (fw_node_attrs.find(FrameworkNode::failed_conversion_key) != fw_node_attrs.end()) {
                 // save only the first encountered failure that is more improtant for developer
                 // that means the translator is found but the conversion is failed
                 failures[op_type] = fw_node_attrs.at(FrameworkNode::failed_conversion_key);
-            } else if (std::find(unsupported_operations.begin(), unsupported_operations.end(), op_type) ==
-                       unsupported_operations.end()) {
+            } else {
                 // found new unsupported operation
                 unsupported_operations.push_back(op_type);
             }
