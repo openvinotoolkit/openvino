@@ -11,9 +11,7 @@ This step defines the optimal ``FakeQuantize`` decomposition precisions for the 
 5. :doc:`MarkupAvgPoolPrecisionPreserved <openvino_docs_OV_UG_lpt_MarkupAvgPoolPrecisionPreserved>` 
 6. :doc:`PropagatePrecisions <openvino_docs_OV_UG_lpt_PropagatePrecisions>` 
 7. :doc:`AlignQuantizationIntervals <openvino_docs_OV_UG_lpt_AlignQuantizationIntervals>` 
-78. :doc:`AlignQuantizationParameters <openvino_docs_OV_UG_lpt_AlignQuantizationParameters>` 
-
-The table of transformations and used attributes:
+8. :doc:`AlignQuantizationParameters <openvino_docs_OV_UG_lpt_AlignQuantizationParameters>` 
 
 .. list-table::
     :header-rows: 1

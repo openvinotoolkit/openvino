@@ -114,6 +114,7 @@ KernelsData ConcatenationKernel_fs_b_yx_fsv32::GetKernelsData(const Params& para
         kernel.params.workGroups.local = dispatchData.lws;
         kernel.params.arguments.push_back({ArgumentDescriptor::Types::INPUT, (uint32_t)i});
         kernel.params.arguments.push_back({ArgumentDescriptor::Types::OUTPUT, 0});
+        kernel.skip_execution = SkipKernelExecution(newParams, i);
 
         ScalarDescriptor s;
         s.t = ScalarDescriptor::Types::UINT32;
