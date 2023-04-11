@@ -82,7 +82,7 @@ void handle_reshape::run(program& p) {
             std::vector<program_node*> onednn_users;
 
             // find the users of reshape that are reorder type, if none present then skip the current node
-            // find onednn users
+            // find users who are onednn impl
             for (const auto& user : node->get_users()) {
                 if (user->is_type<reorder>())
                     reorder_node_to_split.push_back(user);
@@ -90,7 +90,8 @@ void handle_reshape::run(program& p) {
                     onednn_users.push_back(user);
             }
 
-            // If onednn user doesn't support new input data type, remove target reorder_node
+            // If onednn user doesn't support new input data type from future "reorder:_reshape_input_" reorder,
+            // remove target reorder_node to keep original datatype
             if (!onednn_users.empty() && !reorder_node_to_split.empty()) {
                 for (const auto& reorder_node : reorder_node_to_split) {
                     auto output_data_type = reorder_node->get_output_layout().data_type;
