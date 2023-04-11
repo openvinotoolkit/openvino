@@ -184,7 +184,7 @@ class CompressQuantizeWeights(BackReplacementPattern):
         out_low = fake_quantize.in_port(3).get_source()
         out_high = fake_quantize.in_port(4).get_source()
 
-        need_cast_to_f32 = fake_quantize.out_port(0).is_data_type_defined() and fake_quantize.out_port(0).get_data_type() != np.float32
+        need_cast_to_f32 = fake_quantize.out_port(0).is_data_type_defined() and fake_quantize.out_port(0).get_data_type() < np.float32
         if need_cast_to_f32:
             in_low_cast = Cast(graph, {'name': name + '/in_low/convert_to_f32', 'dst_type': np.float32}).create_node()
             in_low_cast.in_port(0).connect(in_low)
