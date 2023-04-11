@@ -59,7 +59,7 @@ std::shared_ptr<ov::Model> create_v4_model(const bool with_axes,
     attributes.pads_begin = {0, 0};
     attributes.pads_end = {0, 0};
 
-    const auto input = std::make_shared<ov::opset11::Parameter>(ov::element::i32, ov::Shape{1, 2, 10, 10});
+    const auto input = std::make_shared<ov::opset4::Parameter>(ov::element::i32, ov::Shape{1, 2, 10, 10});
     const auto axes = std::make_shared<ov::opset4::Parameter>(ov::element::i32, ov::Shape{2});
     std::shared_ptr<ov::Node> output_shape;
     std::shared_ptr<ov::Node> scales;
@@ -111,24 +111,32 @@ TEST_F(TransformationTestsF, ConvertInterpolate11ToInterpolate4_scales) {
     manager.register_pass<ov::pass::ConvertInterpolate11ToInterpolate4>();
     function = create_v11_model(WITH_AXES, ov::opset11::Interpolate::ShapeCalcMode::SCALES);
     function_ref = create_v4_model(WITH_AXES, ov::opset4::Interpolate::ShapeCalcMode::SCALES);
+    comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
+    comparator.enable(FunctionsComparator::CmpValues::ATTRIBUTES);
 }
 
 TEST_F(TransformationTestsF, ConvertInterpolate11ToInterpolate4_sizes) {
     manager.register_pass<ov::pass::ConvertInterpolate11ToInterpolate4>();
     function = create_v11_model(WITH_AXES, ov::opset11::Interpolate::ShapeCalcMode::SIZES);
     function_ref = create_v4_model(WITH_AXES, ov::opset4::Interpolate::ShapeCalcMode::SIZES);
+    comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
+    comparator.enable(FunctionsComparator::CmpValues::ATTRIBUTES);
 }
 
 TEST_F(TransformationTestsF, ConvertInterpolate11ToInterpolate4_scales_no_axes) {
     manager.register_pass<ov::pass::ConvertInterpolate11ToInterpolate4>();
     function = create_v11_model(WITHOUT_AXES, ov::opset11::Interpolate::ShapeCalcMode::SCALES);
     function_ref = create_v4_model(WITHOUT_AXES, ov::opset4::Interpolate::ShapeCalcMode::SCALES);
+    comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
+    comparator.enable(FunctionsComparator::CmpValues::ATTRIBUTES);
 }
 
 TEST_F(TransformationTestsF, ConvertInterpolate11ToInterpolate4_sizes_no_axes) {
     manager.register_pass<ov::pass::ConvertInterpolate11ToInterpolate4>();
     function = create_v11_model(WITHOUT_AXES, ov::opset11::Interpolate::ShapeCalcMode::SIZES);
     function_ref = create_v4_model(WITHOUT_AXES, ov::opset4::Interpolate::ShapeCalcMode::SIZES);
+    comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
+    comparator.enable(FunctionsComparator::CmpValues::ATTRIBUTES);
 }
 
 namespace {

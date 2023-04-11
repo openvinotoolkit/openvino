@@ -11,41 +11,38 @@
 #include <openvino/opsets/opset4.hpp>
 
 #include "itt.hpp"
+#include "utils.hpp"
 
 namespace {
 // v4_sizes, v4_scales
 std::pair<ov::Output<ov::Node>, ov::Output<ov::Node>> make_v4_inputs(
     const std::shared_ptr<ov::opset11::Interpolate>& interpolate) {
+    ov::pass::NodeRegistry registry;
     std::pair<ov::Output<ov::Node>, ov::Output<ov::Node>> ret;
     std::shared_ptr<ov::Node> broadcast_shape;
 
     if (interpolate->get_input_size() == 3) {
         // broadcast dummy constant to the shape of axes
-        broadcast_shape = std::make_shared<ov::opset4::ShapeOf>(interpolate->input_value(2));
-        copy_runtime_info(interpolate, broadcast_shape);
+        broadcast_shape = registry.make<ov::opset4::ShapeOf>(interpolate->input_value(2));
     } else {
         // broadcast dummy constant to the rank of data
-        broadcast_shape = std::make_shared<ov::opset4::ShapeOf>(interpolate->input_value(0));
-        copy_runtime_info(interpolate, broadcast_shape);
-        broadcast_shape = std::make_shared<ov::opset4::ShapeOf>(broadcast_shape);
-        copy_runtime_info(interpolate, broadcast_shape);
+        broadcast_shape = registry.make<ov::opset4::ShapeOf>(interpolate->input_value(0));
+        broadcast_shape = registry.make<ov::opset4::ShapeOf>(broadcast_shape);
     }
 
     if (interpolate->get_attrs().shape_calculation_mode == ov::op::util::InterpolateBase::ShapeCalcMode::SCALES) {
         ret.second = interpolate->input_value(1);
         std::shared_ptr<ov::Node> sizes_input = ov::opset4::Constant::create(ov::element::i32, ov::Shape{}, {1});
-        copy_runtime_info(interpolate, sizes_input);
-        sizes_input = std::make_shared<ov::opset4::Broadcast>(sizes_input, broadcast_shape);
-        copy_runtime_info(interpolate, sizes_input);
+        sizes_input = registry.make<ov::opset4::Broadcast>(sizes_input, broadcast_shape);
         ret.first = sizes_input;
     } else {
         ret.first = interpolate->input_value(1);
         std::shared_ptr<ov::Node> scales_input = ov::opset4::Constant::create(ov::element::f32, ov::Shape{}, {1.0f});
-        copy_runtime_info(interpolate, scales_input);
-        scales_input = std::make_shared<ov::opset4::Broadcast>(scales_input, broadcast_shape);
-        copy_runtime_info(interpolate, scales_input);
+        scales_input = registry.make<ov::opset4::Broadcast>(scales_input, broadcast_shape);
         ret.second = scales_input;
     }
+
+    copy_runtime_info(interpolate, registry.get());
 
     return ret;
 }
