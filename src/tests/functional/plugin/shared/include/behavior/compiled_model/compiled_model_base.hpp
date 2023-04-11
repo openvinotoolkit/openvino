@@ -259,6 +259,7 @@ TEST_P(OVCompiledModelBaseTestOptional, CheckExecGraphInfoAfterExecution) {
     std::shared_ptr<const ov::Model> execGraph;
     // Load CNNNetwork to target plugins
     auto execNet = core->compile_model(function, target_device, configuration);
+    execNet.create_infer_request().infer();
     EXPECT_NO_THROW(execGraph = execNet.get_runtime_model());
     std::map<std::string, int> originalLayersMap;
     for (const auto& layer : function->get_ops()) {

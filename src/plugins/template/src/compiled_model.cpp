@@ -13,6 +13,7 @@
 #include "openvino/op/util/op_types.hpp"
 #include "openvino/runtime/exec_model_info.hpp"
 #include "openvino/runtime/properties.hpp"
+#include "perf_counter.hpp"
 #include "plugin.hpp"
 #include "transformations/rt_info/fused_names_attribute.hpp"
 #include "transformations/utils/utils.hpp"
@@ -54,18 +55,11 @@ void ov::template_plugin::CompiledModel::compile_model(const std::shared_ptr<ov:
     // apply plugins transformations
     transform_model(model);
 
-    // all operations in the model will be executed excepts parameter, constant and results
-    size_t exec_order = 0;
-    for (const auto& op : model->get_ordered_ops()) {
-        auto& info = op->get_rt_info();
-        info[ov::exec_model_info::LAYER_TYPE] = op->get_type_info().name;
-        info[ov::exec_model_info::EXECUTION_ORDER] = std::to_string(exec_order++);
-        info[ov::exec_model_info::IMPL_TYPE] = "ref";
-        info[ov::exec_model_info::PERF_COUNTER] = "not_executed";
-
-        std::string original_names = ov::getFusedNames(op);
-        original_names = op->get_friendly_name() + (original_names.empty() ? "" : "," + original_names);
-        info[ov::exec_model_info::ORIGINAL_NAMES] = original_names;
+    // Integrate performance counters to the compiled model
+    for (const auto& op : model->get_ops()) {
+        auto& rt_info = op->get_rt_info();
+        rt_info[ov::runtime::interpreter::PERF_COUNTER_NAME] =
+            std::make_shared<ov::runtime::interpreter::PerfCounter>();
     }
     // Perform any other steps like allocation and filling backend specific memory handles and so on
 }
@@ -99,7 +93,29 @@ void ov::template_plugin::CompiledModel::set_property(const ov::AnyMap& properti
 
 // ! [compiled_model:get_runtime_model]
 std::shared_ptr<const ov::Model> ov::template_plugin::CompiledModel::get_runtime_model() const {
-    return m_model;
+    auto model = m_model->clone();
+    // Add execution information into the model
+    size_t exec_order = 0;
+    for (const auto& op : model->get_ordered_ops()) {
+        auto& info = op->get_rt_info();
+        auto perf_count = info.at(ov::runtime::interpreter::PERF_COUNTER_NAME)
+                              .as<std::shared_ptr<ov::runtime::interpreter::PerfCounter>>();
+        info[ov::exec_model_info::LAYER_TYPE] = op->get_type_info().name;
+        info[ov::exec_model_info::EXECUTION_ORDER] = std::to_string(exec_order++);
+        info[ov::exec_model_info::IMPL_TYPE] = "ref";
+        info[ov::exec_model_info::PERF_COUNTER] = m_cfg.perf_count && perf_count && perf_count->avg() != 0
+                                                      ? std::to_string(perf_count->avg())
+                                                      : "not_executed";
+
+        std::string original_names = ov::getFusedNames(op);
+        if (original_names.empty()) {
+            original_names = op->get_friendly_name();
+        } else if (original_names.find(op->get_friendly_name()) == std::string::npos) {
+            original_names = op->get_friendly_name() + "," + original_names;
+        }
+        info[ov::exec_model_info::ORIGINAL_NAMES] = original_names;
+    }
+    return model;
 }
 // ! [compiled_model:get_runtime_model]
 
