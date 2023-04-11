@@ -5,6 +5,7 @@ from pathlib import Path
 import os
 import glob
 import re
+import sys
 
 # ticket 95904
 try:
@@ -16,8 +17,6 @@ except ModuleNotFoundError as e:
         raise
 
 import pytest
-
-import sys
 
 from openvino.frontend import FrontEndManager
 from openvino.runtime import shutdown
