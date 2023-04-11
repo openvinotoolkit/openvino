@@ -43,7 +43,7 @@ def parse_arguments():
     conformance_mode_help = "Allow to align test number"
     csv_help = "Allow to serialize report as csv file"
     expected_devices_help = "List of expected devices"
-    rel_weights_help = "Path to dir with rel weights"
+    rel_weights_help = "Path to dir/file with rel weights"
 
     parser.add_argument("--xml", help=xml_help, nargs="*", required=True)
     parser.add_argument("--out", help=out_help, default="")

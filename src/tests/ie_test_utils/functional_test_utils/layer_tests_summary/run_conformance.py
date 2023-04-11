@@ -185,7 +185,8 @@ class Conformance:
 
     def __summarize(self, xml_report_path:os.path, report_dir: os.path):
         summary_root = ET.parse(xml_report_path).getroot()
-        create_summary(summary_root, report_dir, [], "", "", True, True, os.path.join(self._model_path, constants.REL_WEIGHTS_FILENAME))
+        rel_weights_path = os.path.join(self._model_path, constants.REL_WEIGHTS_FILENAME.replace(constants.REL_WEIGHTS_REPLACE_STR, self._shape_mode))
+        create_summary(summary_root, report_dir, [], "", "", True, True, rel_weights_path)
         copytree(os.path.join(SCRIPT_DIR_PATH, "template"), os.path.join(report_dir, "template"))
         logger.info(f"Report was saved to {os.path.join(report_dir, 'report.html')}")
 
