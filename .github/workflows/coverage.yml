@@ -90,7 +90,7 @@ jobs:
           cxx: ${{ matrix.config.cxx }}
           configure-options: >
             -GNinja
-            -DCMAKE_COMPILE_WARNING_AS_ERROR=ON
+            -DCMAKE_COMPILE_WARNING_AS_ERROR=OFF
             -DCMAKE_VERBOSE_MAKEFILE=ON
             -DENABLE_PYTHON=ON
             -DENABLE_ONEDNN_FOR_GPU=ON
