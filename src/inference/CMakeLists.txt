@@ -20,20 +20,6 @@ file (GLOB LIBRARY_SRC
         ${CMAKE_CURRENT_SOURCE_DIR}/src/cpp_interfaces/interface/*.cpp
       )
 
-# TODO: WA for OneHot pass usage in reshape
-set(LEGACY_ROOT "${OpenVINO_SOURCE_DIR}/src/plugins/intel_gna/legacy")
-set(LEGACY_LIBRARY_SHARED_SRCS
-    "${LEGACY_ROOT}/src/transformations/convert_opset1_to_legacy/convert_one_hot_to_one_hot_ie.cpp"
-    "${LEGACY_ROOT}/src/transformations/convert_opset1_to_legacy/convert_nms_5_to_legacy.cpp"
-    "${LEGACY_ROOT}/src/ngraph_ops/nms_ie.cpp"
-    "${LEGACY_ROOT}/src/ngraph_ops/onehot_ie.cpp")
-
-set_source_files_properties(${LEGACY_LIBRARY_SHARED_SRCS} PROPERTIES
-    COMPILE_DEFINITIONS "USE_STATIC_IE"
-    INCLUDE_DIRECTORIES "${LEGACY_ROOT}/include")
-set_source_files_properties("${CMAKE_CURRENT_SOURCE_DIR}/src/cnn_network_ngraph_impl.cpp" PROPERTIES
-    INCLUDE_DIRECTORIES "${LEGACY_ROOT}/include")
-
 set(IE_STATIC_DEPENDENT_FILES ${CMAKE_CURRENT_SOURCE_DIR}/src/file_utils.cpp)
 list(REMOVE_ITEM LIBRARY_SRC ${IE_STATIC_DEPENDENT_FILES})
 
@@ -123,7 +109,6 @@ ov_ncc_naming_style(FOR_TARGET ${TARGET_NAME}_plugin_api
 
 add_library(${TARGET_NAME}_obj OBJECT
             ${IE_STATIC_DEPENDENT_FILES}
-            ${LEGACY_LIBRARY_SHARED_SRCS}
             ${LIBRARY_SRC}
             ${LIBRARY_HEADERS}
             ${PUBLIC_HEADERS})
@@ -150,13 +135,14 @@ target_include_directories(${TARGET_NAME}_obj SYSTEM PRIVATE
     $<TARGET_PROPERTY:frontend_common::static,INTERFACE_INCLUDE_DIRECTORIES>
     $<TARGET_PROPERTY:xbyak,INTERFACE_INCLUDE_DIRECTORIES>)
 
+
 target_include_directories(${TARGET_NAME}_obj PRIVATE
     "${CMAKE_CURRENT_SOURCE_DIR}/src"
     # for static ov_plugins.hpp
     "${CMAKE_CURRENT_BINARY_DIR}"
     # for ie_ir_version.hpp
     $<$<TARGET_EXISTS:inference_engine_ir_v7_reader>:$<TARGET_PROPERTY:inference_engine_ir_v7_reader,SOURCE_DIR>>
-    "${LEGACY_ROOT}/include"
+    "${OpenVINO_SOURCE_DIR}/src/plugins/intel_gna/legacy/include"
     $<TARGET_PROPERTY:${TARGET_NAME}_transformations,INTERFACE_INCLUDE_DIRECTORIES>
     $<TARGET_PROPERTY:${TARGET_NAME}_plugin_api,INTERFACE_INCLUDE_DIRECTORIES>)
 
