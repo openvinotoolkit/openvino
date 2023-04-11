@@ -69,21 +69,14 @@ ngraph::snippets::pass::FakeQuantizeDecomposition::FakeQuantizeDecomposition() {
 
         std::vector<float> out_scales;
         std::vector<float> cl, ch, isc, ish, osc, osh;
-        const bool status = getScalesAndShifts(fake_quantize_node, cl, ch, isc, ish, osc, osh);
-        if (status) {
-            out_scales = calculateScales(fake_quantize_node->get_output_element_type(0), cl, ch, isc, ish, osc, osh);
-        }
-        const bool do_dequantize = !(status && ((std::all_of(osc.cbegin(),
-                                                             osc.cend(),
-                                                             [](float val) {
-                                                                 return val == 1.f;
-                                                             }) &&
-                                                 std::all_of(osh.cbegin(),
-                                                             osh.cend(),
-                                                             [](float val) {
-                                                                 return val == 0.f;
-                                                             })) ||
-                                                out_scales.size() != 0));
+        const bool weights_are_constant = getScalesAndShifts(fake_quantize_node, cl, ch, isc, ish, osc, osh);
+        const bool is_optimized = weights_are_constant &&
+            calculateScales(fake_quantize_node->get_output_element_type(0), cl, ch, isc, ish, osc, osh, out_scales);
+
+        const bool dequantize_is_needed = !(weights_are_constant &&
+                                            std::all_of(osc.cbegin(), osc.cend(), [](float val) { return val == 1.f; }) &&
+                                            std::all_of(osh.cbegin(), osh.cend(), [](float val) { return val == 0.f; }));
+        const bool do_dequantize = !is_optimized && dequantize_is_needed;
         const bool do_rounding = do_dequantize || fake_quantize_node->get_output_element_type(0) == ngraph::element::f32;
 
         ngraph::NodeVector decomp_ops;
@@ -101,7 +94,7 @@ ngraph::snippets::pass::FakeQuantizeDecomposition::FakeQuantizeDecomposition() {
         decomp_ops.push_back(min);
 
         std::shared_ptr<ngraph::Node> result = nullptr;
-        if (out_scales.size() != 0) {
+        if (is_optimized) {
             PartialShape scale_shape = input_low.get_partial_shape();
             ngraph::PartialShape::broadcast_merge_into(scale_shape,
                                                        input_high.get_partial_shape(),
@@ -111,6 +104,20 @@ ngraph::snippets::pass::FakeQuantizeDecomposition::FakeQuantizeDecomposition() {
             decomp_ops.push_back(scales);
 
             result = std::make_shared<ngraph::opset1::Multiply>(min, scales);
+            decomp_ops.push_back(result);
+        } else if (weights_are_constant) {
+            PartialShape isc_shape = input_low.get_partial_shape();
+            ngraph::PartialShape::broadcast_merge_into(isc_shape,
+                                                       input_high.get_partial_shape(),
+                                                       ov::op::AutoBroadcastType::NUMPY);
+            const auto isc_constant = std::make_shared<ngraph::opset1::Constant>(input_type, isc_shape.get_shape(), isc);
+            const auto after_isc_apply = std::make_shared<ngraph::opset1::Multiply>(min, isc_constant);
+            decomp_ops.push_back(isc_constant);
+            decomp_ops.push_back(after_isc_apply);
+
+            const auto ish_constant = std::make_shared<ngraph::opset1::Constant>(input_type, isc_shape.get_shape(), ish);
+            result = std::make_shared<ngraph::opset1::Add>(after_isc_apply, ish_constant);
+            decomp_ops.push_back(ish_constant);
             decomp_ops.push_back(result);
         } else {
             // (levels-1)
@@ -142,24 +149,40 @@ ngraph::snippets::pass::FakeQuantizeDecomposition::FakeQuantizeDecomposition() {
         }
 
         if (do_dequantize) {
-            // (levels-1)
-            const auto levels_minus_one =
-                std::make_shared<ngraph::opset1::Constant>(input_type, Shape{}, fake_quantize_node->get_levels() - 1);
-            // (output_high - output_low)
-            const auto sub_out_high_low = std::make_shared<ngraph::opset1::Subtract>(output_high, output_low);
-            // (output_high - output_low) / (levels-1)
-            const auto osc = std::make_shared<ngraph::opset1::Divide>(sub_out_high_low, levels_minus_one);
-            decomp_ops.push_back(sub_out_high_low);
-            decomp_ops.push_back(osc);
+            if (weights_are_constant) {
+                PartialShape osc_shape = output_high.get_partial_shape();
+                PartialShape osh_shape = output_low.get_partial_shape();
+                ngraph::PartialShape::broadcast_merge_into(osc_shape, osh_shape,
+                                                           ov::op::AutoBroadcastType::NUMPY);
+                const auto osc_constant = std::make_shared<ngraph::opset1::Constant>(input_type, osc_shape.get_shape(), osc);
+                const auto after_osc_apply = std::make_shared<ngraph::opset1::Multiply>(result, osc_constant);
+                decomp_ops.push_back(osc_constant);
+                decomp_ops.push_back(after_osc_apply);
 
-            // round(x * (levels-1) / (input_high - input_low) - input_low * (levels-1) / (input_high - input_low)) *
-            // (output_high - output_low) / (levels-1)
-            const auto after_osc_apply = std::make_shared<ngraph::opset1::Multiply>(result, osc);
-            // round(x * (levels-1) / (input_high - input_low) - input_low * (levels-1) / (input_high - input_low)) *
-            // (output_high - output_low) / (levels-1) + output_low
-            result = std::make_shared<ngraph::opset1::Add>(after_osc_apply, output_low);
-            decomp_ops.push_back(after_osc_apply);
-            decomp_ops.push_back(result);
+                const auto osh_constant = std::make_shared<ngraph::opset1::Constant>(input_type, osh_shape.get_shape(), osh);
+                result = std::make_shared<ngraph::opset1::Add>(after_osc_apply, osh_constant);
+                decomp_ops.push_back(osh_constant);
+                decomp_ops.push_back(result);
+            } else {
+                // (levels-1)
+                const auto levels_minus_one =
+                    std::make_shared<ngraph::opset1::Constant>(input_type, Shape{}, fake_quantize_node->get_levels() - 1);
+                // (output_high - output_low)
+                const auto sub_out_high_low = std::make_shared<ngraph::opset1::Subtract>(output_high, output_low);
+                // (output_high - output_low) / (levels-1)
+                const auto osc = std::make_shared<ngraph::opset1::Divide>(sub_out_high_low, levels_minus_one);
+                decomp_ops.push_back(sub_out_high_low);
+                decomp_ops.push_back(osc);
+
+                // round(x * (levels-1) / (input_high - input_low) - input_low * (levels-1) / (input_high - input_low)) *
+                // (output_high - output_low) / (levels-1)
+                const auto after_osc_apply = std::make_shared<ngraph::opset1::Multiply>(result, osc);
+                // round(x * (levels-1) / (input_high - input_low) - input_low * (levels-1) / (input_high - input_low)) *
+                // (output_high - output_low) / (levels-1) + output_low
+                result = std::make_shared<ngraph::opset1::Add>(after_osc_apply, output_low);
+                decomp_ops.push_back(after_osc_apply);
+                decomp_ops.push_back(result);
+            }
         }
 
         if (result->get_output_element_type(0) != fake_quantize_node->get_output_element_type(0)) {
@@ -286,34 +309,21 @@ bool ngraph::snippets::pass::FakeQuantizeDecomposition::getScalesAndShifts(
     return true;
 }
 
-std::vector<float> ngraph::snippets::pass::FakeQuantizeDecomposition::calculateScales(const ngraph::element::Type& out_type,
-                                                                                      const std::vector<float>& cl,
-                                                                                      const std::vector<float>& ch,
-                                                                                      const std::vector<float>& isc,
-                                                                                      const std::vector<float>& ish,
-                                                                                      const std::vector<float>& osc,
-                                                                                      const std::vector<float>& osh) {
-    std::vector<float> out_scales;
+bool ngraph::snippets::pass::FakeQuantizeDecomposition::calculateScales(const ngraph::element::Type& out_type,
+                                                                        const std::vector<float>& cl,
+                                                                        const std::vector<float>& ch,
+                                                                        const std::vector<float>& isc,
+                                                                        const std::vector<float>& ish,
+                                                                        const std::vector<float>& osc,
+                                                                        const std::vector<float>& osh,
+                                                                        std::vector<float>& scales) {
     if (out_type == ngraph::element::u8 &&
-        std::all_of(cl.cbegin(),
-                    cl.cend(),
-                    [](float val) {
-                        return val == 0.0f;
-                    }) &&
-        std::all_of(ish.cbegin(),
-                    ish.cend(),
-                    [](float val) {
-                        return val == 0.0f;
-                    }) &&
-        std::all_of(osc.cbegin(),
-                    osc.cend(),
-                    [](float val) {
-                        return val == 1.0f;
-                    }) &&
-        std::all_of(osh.cbegin(), osh.cend(), [](float val) {
-            return val == 0.0f;
-        })) {
-        out_scales = isc;
+        std::all_of(cl.cbegin(),  cl.cend(),  [](float val) { return val == 0.0f; }) &&
+        std::all_of(ish.cbegin(), ish.cend(), [](float val) { return val == 0.0f; }) &&
+        std::all_of(osc.cbegin(), osc.cend(), [](float val) { return val == 1.0f; }) &&
+        std::all_of(osh.cbegin(), osh.cend(), [](float val) { return val == 0.0f; })) {
+        scales = isc;
+        return true;
     }
 
     static const float thr = 0.0001f;
@@ -335,20 +345,10 @@ std::vector<float> ngraph::snippets::pass::FakeQuantizeDecomposition::calculateS
         }
 
         if (is_crop_aligned) {
-            out_scales = isc;
+            scales = isc;
+            return true;
         }
     }
 
-    return out_scales;
-}
-
-bool ngraph::snippets::pass::CommonFakeQuantizeDecomposition::run_on_model(const std::shared_ptr<ngraph::Function>& f) {
-    RUN_ON_FUNCTION_SCOPE(CommonFakeQuantizeDecomposition);
-    ngraph::pass::Manager manager;
-    manager.set_per_pass_validation(false);
-    manager.register_pass<ngraph::snippets::pass::FakeQuantizeDecomposition>();
-    manager.register_pass<ngraph::pass::ConstantFolding>();
-    manager.register_pass<ngraph::pass::Validate>();
-    manager.run_passes(f);
     return false;
 }

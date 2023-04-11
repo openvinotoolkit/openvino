@@ -18,3 +18,12 @@ std::shared_ptr<ngraph::Node> ngraph::snippets::op::ConvertSaturation::clone_wit
     check_new_args_count(this, new_args);
     return std::make_shared<ConvertSaturation>(new_args.at(0), m_destination_type);
 }
+
+bool ngraph::snippets::op::ConvertSaturation::has_evaluate() const {
+    INTERNAL_OP_SCOPE(ConvertSaturation_has_evaluate);
+    // Original ngraph Convert has truncation algorithm for integer values so we can reuse this implementation
+    // for cases when destination element type is float
+    if (m_destination_type.is_integral())
+        return false;
+    return ov::op::v0::Convert::has_evaluate();
+}

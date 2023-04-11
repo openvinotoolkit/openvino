@@ -61,28 +61,14 @@ public:
                                    std::vector<float>& ish,
                                    std::vector<float>& osc,
                                    std::vector<float>& osh);
-    static std::vector<float> calculateScales(const ngraph::element::Type& out_type,
-                                              const std::vector<float>& cl,
-                                              const std::vector<float>& ch,
-                                              const std::vector<float>& isc,
-                                              const std::vector<float>& ish,
-                                              const std::vector<float>& osc,
-                                              const std::vector<float>& osh);
-};
-
-/**
- * @interface CommonFakeQuantizeDecomposition
- * @ingroup snippets
- * @brief CommonFakeQuantizeDecomposition pass applies all needed transformations for
- *        correct FQ Decomposition:
- *          0. Disable Validate() pass after each transformations
- *          1. FakeQuantization decomposition
- *          2. ConstantFolding
- *          3. Validate
- */
-class CommonFakeQuantizeDecomposition: public ngraph::pass::FunctionPass {
-public:
-    bool run_on_model(const std::shared_ptr<ngraph::Function>& m) override;
+    static bool calculateScales(const ngraph::element::Type& out_type,
+                                const std::vector<float>& cl,
+                                const std::vector<float>& ch,
+                                const std::vector<float>& isc,
+                                const std::vector<float>& ish,
+                                const std::vector<float>& osc,
+                                const std::vector<float>& osh,
+                                std::vector<float>& scales);
 };
 
 }  // namespace pass

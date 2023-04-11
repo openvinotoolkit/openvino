@@ -82,6 +82,9 @@ public:
 
     void validate_and_infer_types() override;
 
+    // Check for unregistered parameters in body
+    void verify_parameters() const;
+
     std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& inputs) const override;
 
     // we introduce this method instead of using SubGraphOp::get_function()

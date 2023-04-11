@@ -541,6 +541,7 @@ bool Snippet::created() const {
 
 void Snippet::generate(const jit_snippets_compile_args* jcp) {
     ov::pass::Manager pre_dialect;
+    pre_dialect.set_per_pass_validation(false);
     pre_dialect.register_pass<ConvertToSwishCPU>();
     if (context->getConfig().enforceBF16 && snippet->has_domain_sensitive_ops()) {
         // enforce BF16 precisions to supported operations
@@ -551,9 +552,11 @@ void Snippet::generate(const jit_snippets_compile_args* jcp) {
     }
 
     ov::pass::Manager post_dialect;
+    post_dialect.set_per_pass_validation(false);
     post_dialect.register_pass<ov::intel_cpu::pass::BrgemmToBrgemmCPU>();
 
     ov::pass::Manager post_precision;
+    post_precision.set_per_pass_validation(false);
     post_precision.register_pass<ov::intel_cpu::pass::RemoveConverts>();
     post_precision.register_pass<ov::intel_cpu::pass::FuseLoadConvert>();
     post_precision.register_pass<ov::intel_cpu::pass::FuseStoreConvert>();

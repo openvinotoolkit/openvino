@@ -63,8 +63,10 @@ ngraph::snippets::pass::SoftmaxReshapeElimination::SoftmaxReshapeElimination() {
             const auto new_axis = input_shape.rank().get_length() - 1;
             if (auto softmax_v8 = ngraph::as_type_ptr<ov::op::v8::Softmax>(softmax)) {
                 softmax_v8->set_axis(new_axis);
+                softmax_v8->validate_and_infer_types();
             } else if (auto softmax_v1 = ngraph::as_type_ptr<ov::op::v1::Softmax>(softmax)) {
                 softmax_v1->set_axis(new_axis);
+                softmax_v1->validate_and_infer_types();
             }
 
             return true;

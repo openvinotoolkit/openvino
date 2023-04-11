@@ -15,6 +15,7 @@
 #include "snippets/pass/assign_registers.hpp"
 #include "snippets/pass/convert_constants.hpp"
 #include "snippets/pass/convert_power_to_powerstatic.hpp"
+#include "snippets/pass/constant_convert_folding.hpp"
 #include "snippets/pass/vector_to_scalar.hpp"
 #include "snippets/pass/insert_loops.hpp"
 #include "snippets/pass/transpose_decomposition.hpp"
@@ -144,6 +145,19 @@ void snippets::op::Subgraph::validate_and_infer_types() {
     for (size_t i = 0; i < get_output_size(); ++i) {
         set_output_type(i, body_ptr()->get_output_element_type(i), body_ptr()->get_output_partial_shape(i));
     }
+}
+
+void snippets::op::Subgraph::verify_parameters() const {
+    std::stringstream unregistered_parameters;
+    const auto& parameters = body_ptr()->get_parameters();
+    const auto ops = body_ptr()->get_ops();
+    for (const auto& op : ops) {
+        if (ov::is_type<ov::op::v0::Parameter>(op) &&
+            std::find(parameters.begin(), parameters.end(), op) == parameters.end())
+            unregistered_parameters << op << std::endl;
+    }
+    if (!unregistered_parameters.str().empty())
+        throw ov::Exception("Subgraph body references undeclared parameters: " + unregistered_parameters.str());
 }
 
 bool snippets::op::Subgraph::visit_attributes(AttributeVisitor& visitor) {
@@ -532,6 +546,7 @@ void snippets::op::Subgraph::convert_to_snippet_dialect() {
                                                     });
     const auto allocationRank = static_cast<int32_t>(tileRank);
     ngraph::pass::Manager manager;
+    manager.set_per_pass_validation(false);
     if (config.m_has_domain_sensitive_ops) {
         manager.register_pass<snippets::pass::MatMulToBrgemm>();
         manager.register_pass<snippets::pass::FuseTransposeBrgemm>();
@@ -575,12 +590,13 @@ void snippets::op::Subgraph::convert_to_snippet_dialect() {
             manager.get_pass_config()->
                     set_callback<ngraph::snippets::pass::SetScalarCountForStore>(skip_matching_domain);
         }
-        // Note that InsertLoops requires validate_and_infer_types afterwards, so add it manually if
-        // automatic validation will be disabled in the pass manager
+        // Note that InsertLoops requires validate_and_infer_types afterwards
         manager.register_pass<snippets::pass::InsertLoops>(master_shape, tileRank,
             m_generator->get_target_machine()->get_lanes(), !config.m_explicit_loop_insertion);
+        manager.register_pass<ngraph::pass::Validate>();
         if (config.m_has_domain_sensitive_ops) {
             manager.register_pass<snippets::pass::LoopFusion>();
+            manager.register_pass<ngraph::pass::Validate>();
             manager.register_pass<snippets::pass::ResetBufferState>();
         }
     }
@@ -623,12 +639,23 @@ snippets::Schedule snippets::op::Subgraph::generate(
     post_dialect.run_passes(body_ptr());
 
     ngraph::pass::Manager precision_manager;
+    precision_manager.set_per_pass_validation(false);
     precision_manager.register_pass<snippets::pass::PropagatePrecision>(m_generator->get_target_machine());
-    precision_manager.register_pass<ngraph::pass::ConstantFolding>();
+    // We call ConstantConvertFolding() pass instead of ConstantFolding()
+    // because before the generate() call all constant inputs have been already folded.
+    // And after aligning only Converts can be inserted after Constants.
+    // Thus, we should to call ConstantFolding() but it's very expensive pass for LoadNetwork because
+    // it iterates over the whole function so we can just call ConstantConvertFolding() which works only witn Constants and Converts
+    precision_manager.register_pass<snippets::pass::ConstantConvertFolding>();
     precision_manager.register_pass<snippets::pass::ConvertConstantsToScalars>();
     precision_manager.run_passes(body_ptr());
 
     post_precision.run_passes(body_ptr());
+
+    // After all transformations we have to call Validate() pass to have correct tensor propagation in Loop nodes.
+    // Note: We call separately since PassManager calls Validate() pass only if previous transformation return True.
+    //       Even in cases when Validate() pass has been manually registered.
+    ov::pass::Validate().run_on_model(body_ptr());
 
     // After all passes, when all optimizations are completed and all MemoryAccess ops are inserted,
     // we can calculate common buffer scratchpad size and propagate offset from Buffer to the corresponding MemoryAccess ops

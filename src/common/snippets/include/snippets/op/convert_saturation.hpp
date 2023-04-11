@@ -30,7 +30,7 @@ public:
 
     std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& new_args) const override;
 
-    bool has_evaluate() const override { return false; }
+    bool has_evaluate() const override;
 };
 
 } // namespace op

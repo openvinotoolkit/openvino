@@ -52,8 +52,9 @@ void ConvertConstantsToParameters(const std::shared_ptr<ngraph::snippets::op::Su
 
     if (new_parameters.size() != 0) {
         body->add_parameters(new_parameters);
-        body->validate_nodes_and_infer_types();
         subgraph->set_arguments(new_external_inputs);
+        // After new parameter addition we should verify body parameters
+        subgraph->verify_parameters();
     }
 }
 
@@ -71,12 +72,13 @@ CommonOptimizations::CommonOptimizations() {
         const auto is_quantized = subgraph->is_quantized();
 
         // Firsly we should transform all original Converts inside body to ConvertTruncation to save original behavior.
-        // Then if Subgraph contains FakeQuantize we enable specific transformation for quantized subgraphs.
+        // Then if Subgraph contains FakeQuantize we enable fq decomposition transformation for quantized subgraphs.
         ngraph::pass::Manager manager;
+        manager.set_per_pass_validation(false);
         manager.register_pass<ngraph::snippets::pass::TransformConvertToConvertTruncation>();
         manager.register_pass<ngraph::snippets::pass::ExplicitTransposeMatMulInputs>();
         if (is_quantized) {
-            manager.register_pass<ngraph::snippets::pass::CommonFakeQuantizeDecomposition>();
+            manager.register_pass<ngraph::snippets::pass::FakeQuantizeDecomposition>();
         }
         manager.register_pass<snippets::pass::SoftmaxReshapeElimination>();
         manager.run_passes(body);
@@ -86,6 +88,7 @@ CommonOptimizations::CommonOptimizations() {
         if (is_quantized) {
             ConvertConstantsToParameters(subgraph);
         }
+
         return true;
     };
 

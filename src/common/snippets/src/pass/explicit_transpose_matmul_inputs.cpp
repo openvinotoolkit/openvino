@@ -75,6 +75,11 @@ ngraph::snippets::pass::ExplicitTransposeMatMulInputs::ExplicitTransposeMatMulIn
             } else {
                 matmul0->set_transpose_b(false);
             }
+
+            // Update shapes
+            transpose1->validate_and_infer_types();
+            matmul0->validate_and_infer_types();
+
             rewritten |= true;
         }
 

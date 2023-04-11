@@ -11,15 +11,17 @@ namespace snippets {
 namespace utils {
 
 auto get_non_scalar_constant_count_for_fq(const std::shared_ptr<opset1::FakeQuantize>& fq) -> size_t {
+    std::vector<float> out_scales;
     std::vector<float> cl, ch, isc, ish, osc, osh;
-    const bool status = ngraph::snippets::pass::FakeQuantizeDecomposition::getScalesAndShifts(fq, cl, ch, isc, ish, osc, osh);
-    bool is_optimized = false;  // The case when we can calculate only scales
-    if (status) {
-        const auto out_scales = ngraph::snippets::pass::FakeQuantizeDecomposition::calculateScales(fq->get_output_element_type(0), cl, ch, isc, ish, osc, osh);
-        is_optimized = out_scales.size() != 0;
+    const bool weights_are_constant = ngraph::snippets::pass::FakeQuantizeDecomposition::getScalesAndShifts(fq, cl, ch, isc, ish, osc, osh);
+    const bool is_optimized = weights_are_constant &&
+        ngraph::snippets::pass::FakeQuantizeDecomposition::calculateScales(fq->get_output_element_type(0), cl, ch, isc, ish, osc, osh, out_scales);
+    if (is_optimized) {
+        // Check if scales are scalar
+        return out_scales.size() != 1;
     }
 
-    const bool only_quantized = is_optimized || (status &&
+    const bool only_quantized = is_optimized || (weights_are_constant &&
                                                  std::all_of(osc.cbegin(), osc.cend(),
                                                      [](float val) { return val == 1.f; }) &&
                                                  std::all_of(osh.cbegin(), osh.cend(),
@@ -29,7 +31,7 @@ auto get_non_scalar_constant_count_for_fq(const std::shared_ptr<opset1::FakeQuan
     const bool ol = !only_quantized && ngraph::shape_size(fq->input(3).get_shape()) != 1lu;
     const bool oh = !only_quantized && ngraph::shape_size(fq->input(4).get_shape()) != 1lu;
 
-    // FakeQuantize decompoisition has the folowwing formula:
+    // FakeQuantize decompoisition has the following formula:
     //      round(x * (levels-1) / (ih - il) - il * (levels-1) / (ih - il)) * (oh - ol) / (levels-1) + ol
     // After the decomposition there is call of ConstantsFolding pass that generates new Constants:
     //      - isc := (levels-1) / (ih - il)

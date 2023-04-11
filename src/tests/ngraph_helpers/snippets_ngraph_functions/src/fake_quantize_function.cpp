@@ -220,21 +220,21 @@ std::shared_ptr<ov::Model> FakeQuantizeFunction::getSubgraphWithDecomposedFakeQu
             std::make_shared<ngraph::opset1::Constant>(element::f32, Shape{}, std::vector<float>{13.4211f}));
         multiply->set_friendly_name("multiply");
 
-        const auto subtract = std::make_shared<ngraph::opset1::Subtract>(
+        const auto subtract = std::make_shared<ngraph::opset1::Add>(
             multiply,
-            std::make_shared<ngraph::opset1::Constant>(element::f32, Shape{}, std::vector<float>{13.4211f}));
+            std::make_shared<ngraph::opset1::Constant>(element::f32, Shape{}, std::vector<float>{-13.4211f}));
         subtract->set_friendly_name("subtract");
 
         const auto round = std::make_shared<ngraph::opset5::Round>(subtract, ngraph::opset5::Round::RoundMode::HALF_TO_EVEN);
         round->set_friendly_name("round");
 
-        const auto devide = std::make_shared<ngraph::opset1::Multiply>(
+        const auto divide = std::make_shared<ngraph::opset1::Multiply>(
             round,
             std::make_shared<ngraph::opset1::Constant>(element::f32, Shape{}, std::vector<float>{0.0745098f}));
-        devide->set_friendly_name("devide");
+        divide->set_friendly_name("divide");
 
         const auto add = std::make_shared<ngraph::opset1::Add>(
-            devide,
+            divide,
             std::make_shared<ngraph::opset1::Constant>(element::f32, Shape{}, std::vector<float>{1.f}));
         add->set_friendly_name("add");
 
