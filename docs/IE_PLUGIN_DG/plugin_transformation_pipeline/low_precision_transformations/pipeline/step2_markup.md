@@ -4,13 +4,14 @@
 
 This step defines the optimal ``FakeQuantize`` decomposition precisions for the best inference performance via operations markup with runtime attribute instances. Attributes are created for input and output ports and operations. Transformations do not change the operation output port precisions. A model markup low precision logic is decomposed and implemented into the following common markup transformations. The order of transformations is important:
 
-1. :doc:`MarkupCanBeQuantized <openvino_docs_OV_UG_lpt_MarkupCanBeQuantized>` 
-2. :doc:`MarkupPrecisions <openvino_docs_OV_UG_lpt_MarkupPrecisions>` 
-3. :doc:`MarkupPerTensorQuantization <openvino_docs_OV_UG_lpt_MarkupPerTensorQuantization>` 
-4. :doc:`MarkupAvgPoolPrecisionPreserved <openvino_docs_OV_UG_lpt_MarkupAvgPoolPrecisionPreserved>` 
-5. :doc:`PropagatePrecisions <openvino_docs_OV_UG_lpt_PropagatePrecisions>` 
-6. :doc:`AlignQuantizationIntervals <openvino_docs_OV_UG_lpt_AlignQuantizationIntervals>` 
-7. :doc:`AlignQuantizationParameters <openvino_docs_OV_UG_lpt_AlignQuantizationParameters>` 
+1. :doc:MarkupBias <openvino_docs_OV_UG_lpt_MarkupBias>`
+2. :doc:`MarkupCanBeQuantized <openvino_docs_OV_UG_lpt_MarkupCanBeQuantized>` 
+3. :doc:`MarkupPrecisions <openvino_docs_OV_UG_lpt_MarkupPrecisions>` 
+4. :doc:`MarkupPerTensorQuantization <openvino_docs_OV_UG_lpt_MarkupPerTensorQuantization>` 
+5. :doc:`MarkupAvgPoolPrecisionPreserved <openvino_docs_OV_UG_lpt_MarkupAvgPoolPrecisionPreserved>` 
+6. :doc:`PropagatePrecisions <openvino_docs_OV_UG_lpt_PropagatePrecisions>` 
+7. :doc:`AlignQuantizationIntervals <openvino_docs_OV_UG_lpt_AlignQuantizationIntervals>` 
+78. :doc:`AlignQuantizationParameters <openvino_docs_OV_UG_lpt_AlignQuantizationParameters>` 
 
 The table of transformations and used attributes:
 
@@ -20,6 +21,9 @@ The table of transformations and used attributes:
     * - Transformation name
       - Create attributes
       - Use attributes
+    * - MarkupBias
+      - Bias
+      - 
     * - MarkupCanBeQuantized
       - Precisions
       - 

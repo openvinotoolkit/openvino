@@ -164,6 +164,7 @@ Step 2. Markup
 
 This step creates runtime attributes for operations. These attributes will be used in next step. Transformations:
 
+* :doc:`MarkupBias <openvino_docs_OV_UG_lpt_MarkupBias>`
 * :doc:`MarkupCanBeQuantized <openvino_docs_OV_UG_lpt_MarkupCanBeQuantized>`
 * :doc:`MarkupPrecisions <openvino_docs_OV_UG_lpt_MarkupPrecisions>`
 * :doc:`MarkupPerTensorQuantization <openvino_docs_OV_UG_lpt_MarkupPerTensorQuantization>`
