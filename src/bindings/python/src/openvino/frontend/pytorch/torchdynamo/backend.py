@@ -1,18 +1,19 @@
 import logging
+import os
 from functools import partial
 
 import torch
-import os
 from torch._dynamo.backends.common import aot_autograd, mem_efficient_fusion_kwargs
 from torch._dynamo.backends.common import fake_tensor_unsupported
 from torch._dynamo.backends.registry import register_backend
+from torch._inductor.compile_fx import compile_fx
+from torch.fx.experimental.proxy_tensor import make_fx
 
 from openvino.runtime import Core, Type, PartialShape
 from openvino.frontend import FrontEndManager
 from openvino.frontend.pytorch.decoder import TorchScriptPythonDecoder
 from openvino.frontend.pytorch.torchdynamo.partition import Partitioner
 from openvino.frontend.pytorch.torchdynamo.execute import execute
-from torch.fx.experimental.proxy_tensor import make_fx
 
 log = logging.getLogger(__name__)
 
@@ -70,7 +71,7 @@ def ts_openvino(subgraph, example_inputs):
         return _call
     except Exception as e:
         print(str(e))
-        return subgraph
+        return compile_fx(subgraph, example_inputs)
 
 
 def fx_openvino(subgraph, example_inputs):
@@ -87,4 +88,4 @@ def fx_openvino(subgraph, example_inputs):
         return _call
     except Exception as e:
         print(str(e))
-        return subgraph
+        return compile_fx(subgraph, example_inputs)
