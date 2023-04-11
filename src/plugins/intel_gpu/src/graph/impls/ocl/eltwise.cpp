@@ -119,10 +119,32 @@ public:
         return {params, optional_params};
     }
 
+    static kernel_impl_params static_canonicalize_shapes(const kernel_impl_params& impl_params) {
+        auto updated_impl_params = canonicalize_fused_shapes(impl_params);
+        bool use_new_shape_infer = impl_params.prog->get_config().get_property(ov::intel_gpu::allow_new_shape_infer);
+
+        auto& output_layout = updated_impl_params.output_layouts[0];
+        auto out_pshape = output_layout.get_partial_shape();
+        output_layout.set_partial_shape(extend_shape_to_rank_from_end(out_pshape));
+
+        for (auto& input_layout : updated_impl_params.input_layouts) {
+            auto input_pshape = input_layout.get_partial_shape();
+            if (!broadcastable(input_pshape, out_pshape, use_new_shape_infer)) {
+                input_pshape = extend_shape_to_rank_from_begin(input_pshape, out_pshape.size());
+            }
+            input_layout.set_partial_shape(extend_shape_to_rank_from_end(input_pshape));
+        }
+
+        return updated_impl_params;
+    }
+
+    kernel_impl_params canonicalize_shapes(const kernel_impl_params& impl_params) const override {
+        return static_canonicalize_shapes(impl_params);
+    }
+
     void update_dispatch_data(const kernel_impl_params& impl_param) override {
         auto kernel_params = get_kernel_params(impl_param, true);
         (_kernel_data.update_dispatch_data_func)(kernel_params.first, _kernel_data);
-        update_kernels_list_to_skip();
     }
 };
 

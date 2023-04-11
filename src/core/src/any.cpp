@@ -217,13 +217,13 @@ void Read<std::tuple<unsigned int, unsigned int, unsigned int>>::operator()(
 }
 
 void Read<AnyMap>::operator()(std::istream& is, AnyMap& map) const {
-    std::string key, value;
     char c;
 
     is >> c;
     OPENVINO_ASSERT(c == '{', "Failed to parse ov::AnyMap. Starting symbols is not '{', it's ", c);
 
     while (c != '}') {
+        std::string key, value;
         std::getline(is, key, ':');
         size_t enclosed_container_level = 0;
 

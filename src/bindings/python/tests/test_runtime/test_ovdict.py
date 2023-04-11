@@ -99,7 +99,7 @@ def _check_dict(result, obj, output_names=None):
     assert _check_keys(result.keys(), outs)
     assert _check_values(result)
     assert _check_items(result, outs, output_names)
-    assert result.names() == output_names
+    assert all([output_names[i] in result.names()[i] for i in range(0, len(output_names))])
 
     return True
 
@@ -125,6 +125,15 @@ def test_ovdict_single_output_basic(device, is_direct):
 
 
 @pytest.mark.parametrize("is_direct", [True, False])
+def test_ovdict_wrong_key_type(device, is_direct):
+    result, _ = _get_ovdict(device, multi_output=False, direct_infer=is_direct)
+
+    with pytest.raises(TypeError) as e:
+        _ = result[2.0]
+    assert "Unknown key type: <class 'float'>" in str(e.value)
+
+
+@pytest.mark.parametrize("is_direct", [True, False])
 def test_ovdict_single_output_noname(device, is_direct):
     result, obj = _get_ovdict(
         device,
@@ -140,13 +149,13 @@ def test_ovdict_single_output_noname(device, is_direct):
     assert isinstance(result[outs[0]], np.ndarray)
     assert isinstance(result[0], np.ndarray)
 
-    with pytest.raises(RuntimeError) as e0:
+    with pytest.raises(KeyError) as e0:
         _ = result["some_name"]
-    assert "Attempt to get a name for a Tensor without names" in str(e0.value)
+    assert "some_name" in str(e0.value)
 
-    with pytest.raises(RuntimeError) as e1:
-        _ = result.names()
-    assert "Attempt to get a name for a Tensor without names" in str(e1.value)
+    # Check if returned names are tuple with one empty set
+    assert len(result.names()) == 1
+    assert result.names()[0] == set()
 
 
 @pytest.mark.parametrize("is_direct", [True, False])

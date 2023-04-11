@@ -4484,7 +4484,7 @@ TEST(scatter_nd_update_gpu, dynamic_5d) {
                                ov::Shape input_shape,
                                ov::Shape indices_shape,
                                ov::Shape updates_shape) -> std::vector<float> {
-        size_t count = std::accumulate(input_shape.begin(), input_shape.end(), 1, std::multiplies<size_t>());
+        size_t count = std::accumulate(input_shape.begin(), input_shape.end(), static_cast<size_t>(1), std::multiplies<size_t>());
         auto outputs_ref = std::vector<float>(count);
         ngraph::runtime::reference::scatterNdUpdate<float, int32_t>(input.data(),
                                                                     indices.data(),
@@ -4503,12 +4503,17 @@ TEST(scatter_nd_update_gpu, dynamic_5d) {
         std::vector<int32_t> result;
         size_t last_indices_dim = indices_shape.at(indices_shape.size() - 1);
 
-        size_t count = std::accumulate(indices_shape.begin(), indices_shape.end(), 1, std::multiplies<size_t>()) / last_indices_dim;
+        size_t count = std::accumulate(indices_shape.begin(),
+                                       indices_shape.end(),
+                                       static_cast<size_t>(1),
+                                       std::multiplies<size_t>()) / last_indices_dim;
 
         while (unique_indices.size() != count) {
             std::vector<int32_t> indices;
             for (size_t i = 0; i < last_indices_dim; i++) {
-                indices.push_back(static_cast<int32_t>(generate_random_val<int>(0, data_shape[i] - 1)));
+                const int min = 0;
+                const int max = static_cast<int>(data_shape[i]) - 1;
+                indices.push_back(static_cast<int32_t>(generate_random_val<int>(min, max)));
             }
 
             unique_indices.insert(indices);

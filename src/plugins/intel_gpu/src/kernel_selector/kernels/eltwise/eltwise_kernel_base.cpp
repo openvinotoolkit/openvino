@@ -457,12 +457,12 @@ JitConstants EltwiseKernelBase::MakeIndexJitConstants(const eltwise_params& para
                 jit.AddConstant(MakeJitConstant(out_idx_order, GetIdxOrderStringForLayout(params.outputs[0].GetLayout(),
                                                                                           params.layoutBased || params.broadcast,
                                                                                           {1, 1, 1})));
-            } else if (out_c == 5) {
-                jit.AddConstant(MakeJitConstant(out_idx_order, "d5,d4,d3,d2,d1"));
-            } else if (out_c == 6) {
-                jit.AddConstant(MakeJitConstant(out_idx_order, "d6,d5,d4,d3,d2,d1"));
             } else {
-                assert(0);
+                std::string idx_order;
+                for (size_t i = 0; i < out_c; i++) {
+                    idx_order += "d" + std::to_string(out_c - i) + ((i == (out_c - 1)) ? "" : ",");
+                }
+                jit.AddConstant(MakeJitConstant(out_idx_order, idx_order));
             }
         }
     }
@@ -714,6 +714,7 @@ KernelsData EltwiseKernelBase::GetCommonKernelsData(const Params& params, const 
         OPENVINO_ASSERT(kd.kernels.size() == 1, "[GPU] Invalid kernels size for update dispatch data func");
         kd.kernels[0].params.workGroups.global = dispatchData.gws;
         kd.kernels[0].params.workGroups.local = dispatchData.lws;
+        kd.kernels[0].skip_execution = KernelData::SkipKernelExecution(prim_params);
     };
 
     DispatchData dispatchData = SetDefault(newParams);
