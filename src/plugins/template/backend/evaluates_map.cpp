@@ -4272,7 +4272,7 @@ bool evaluate_interpolate(const shared_ptr<op::v11::Interpolate>& op,
         padded_input_shape.emplace_back(m_attrs.pads_begin[i] + m_attrs.pads_end[i] + input_shape[i].get_length());
     }
 
-    auto axes = get_axes_vector(inputs, inputs[1]->get_shape().size(), axes_port, max_num_of_ports);
+    auto axes = get_axes_vector(inputs, inputs[1]->get_shape()[0], axes_port, max_num_of_ports);
     auto scales = get_scales_vector(inputs, padded_input_shape, m_attrs, axes, scales_sizes_port);
 
     ov::PartialShape output_shape{padded_input_shape};
