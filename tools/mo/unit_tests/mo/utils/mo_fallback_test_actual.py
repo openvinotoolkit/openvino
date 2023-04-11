@@ -25,7 +25,7 @@ except ImportError:
 # ticket 95904
 try:
     import paddle
-except ModuleNotFoundError as e:
+except ModuleNotFoundError:
     if sys.version_info < (3, 11):
         raise
 
