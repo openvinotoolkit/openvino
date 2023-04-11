@@ -4,7 +4,7 @@ numpy>=1.16.6,<1.25  # Python bindings, frontends
 protobuf>=3.18.1,<4.0.0  # Python bindings, frontends
 
 # pytest
-pytest>=5.0,<7.3
+pytest>=5.0,<7.4
 pytest-dependency==0.5.1
 pytest-forked; platform_system != "Windows"
 pytest-html==1.19.0

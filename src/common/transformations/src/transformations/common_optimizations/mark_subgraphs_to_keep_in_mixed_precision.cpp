@@ -337,18 +337,18 @@ bool MarkSugraphsToKeepInMixedPrecision::run_on_model(const shared_ptr<ov::Model
     Manager manager(get_pass_config());
     // Mark root of Division with eps pattern to keep in FP32
     REGISTER_PASS(manager, MarkDivWithEps)
-
     REGISTER_PASS(manager, MarkExpInReduceOpPath)
-    REGISTER_PASS(manager, MarkNormalizationOps)
 
     // both Up and Down propagations are needed.
     // Why both of them are needed is explained in comments in passes declarations.
     REGISTER_PASS(manager, PropagateDownMarkToKeepInMixedPrecision)
+
     auto propagate_up = manager.register_pass<BackwardGraphRewrite>();
     ADD_MATCHER(propagate_up, PropagateUpMarkToKeepInMixedPrecision)
 
     // Mark nodes in ShapeOf subgraphs to keep in FP32
     REGISTER_PASS(manager, MarkPrecisionSensitiveShapeOfSubgraphs)
+    REGISTER_PASS(manager, MarkNormalizationOps)
     manager.run_passes(m);
 
     for (auto& node : m->get_ops()) {

@@ -64,6 +64,9 @@ TSUnaryForward::TSUnaryForward() {
         const auto& pattern_to_output = m.get_pattern_value_map();
         auto transpose = pattern_to_output.at(transpose_label).get_node_shared_ptr();
         auto unary = pattern_to_output.at(unary_label).get_node_shared_ptr();
+        if (transformation_callback(unary)) {
+            return false;
+        }
 
         const NodePair new_nodes = SwapNodes(transpose, unary);
 
@@ -105,6 +108,9 @@ TSUnaryBackward::TSUnaryBackward() {
         auto transpose_const = as_type_ptr<Constant>(pattern_to_output.at(transpose_const_label).get_node_shared_ptr());
         auto transpose = pattern_to_output.at(transpose_label).get_node_shared_ptr();
         auto unary = pattern_to_output.at(unary_label).get_node_shared_ptr();
+        if (transformation_callback(unary)) {
+            return false;
+        }
 
         for (auto& new_node : sink_backward::InsertTransposeBeforeNode(unary, transpose_const)) {
             register_new_node(new_node);

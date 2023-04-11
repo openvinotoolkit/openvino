@@ -50,6 +50,10 @@ TSReductionForward::TSReductionForward() {
 
         auto transpose = pattern_to_output.at(transpose_label);
         auto reduction = pattern_to_output.at(reduce_label);
+        if (transformation_callback(reduction)) {
+            return false;
+        }
+
         auto keep_dims = get_keep_dims(reduction);
 
         auto transpose_order = as_type_ptr<Constant>(transpose->get_input_node_shared_ptr(1));
@@ -58,8 +62,10 @@ TSReductionForward::TSReductionForward() {
             return false;
 
         auto rank = reduction->get_input_partial_shape(0).rank();
+        OPENVINO_SUPPRESS_DEPRECATED_START
         auto non_negative_axes =
             normalize_axes(reduction->get_friendly_name(), reduction_axes->cast_vector<int64_t>(), rank);
+        OPENVINO_SUPPRESS_DEPRECATED_END
 
         auto transpose_order_values = transpose_order->cast_vector<size_t>();
         std::vector<size_t> new_values;
@@ -105,6 +111,10 @@ TSReductionBackward::TSReductionBackward() {
         const auto& pattern_to_output = m.get_pattern_map();
         auto transpose = pattern_to_output.at(transpose_label);
         auto reduction = pattern_to_output.at(reduce_label);
+        if (transformation_callback(reduction)) {
+            return false;
+        }
+
         auto keep_dims = get_keep_dims(reduction);
 
         auto transpose_order = as_type_ptr<Constant>(transpose->get_input_node_shared_ptr(1));
@@ -113,8 +123,10 @@ TSReductionBackward::TSReductionBackward() {
             return false;
 
         auto rank = reduction->get_input_partial_shape(0).rank();
+        OPENVINO_SUPPRESS_DEPRECATED_START
         auto non_negative_axes =
             normalize_axes(reduction->get_friendly_name(), reduction_axes->cast_vector<int64_t>(), rank);
+        OPENVINO_SUPPRESS_DEPRECATED_END
         auto transpose_order_values = transpose_order->cast_vector<size_t>();
         if (!keep_dims) {
             transpose_order_values = GetOrderBeforeReduction(non_negative_axes, transpose_order_values);
