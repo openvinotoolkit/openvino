@@ -603,7 +603,8 @@ void Convolution::setPostOps(dnnl::primitive_attr& attr,
     dnnl::post_ops ops;
     auto& args = convPostOpsArgs[useLegacyPostOps];
     bool isINT8 = canBeExecutedInInt8();
-
+    // Weight dims in NON-Group CONV: [OC, IC, KH, KW], perchannel weight scale applied on OC DIM, weiScaleMaskPerChannel =  1 << 0
+    // Weight dims in Group CONV:[Group, OC, IC, KH, KW], perchannel weight scale applied on GROUP and OC DIM, weiScaleMaskPerChannel = ( 1 << 0 | 1<< 1) = 0x03
     DnnlPostOpsComposer dnnlpoc(getEngine(), attr, ops, args, dims, 1, isINT8, isGrouped ? 3 : 1 << 0, getDQScales(), withBiases);
 
     DEBUG_LOG(getName(), " useLegacyPostOps=", useLegacyPostOps, " initWeights=", initWeights);
@@ -972,7 +973,6 @@ void Convolution::SetPostOpsAndZeroPoints(std::vector<dnnl::primitive_attr> &att
     auto outputShape = outputStaticShape();
     // attr[0] - Legacy post ops + Legacy zero points.
     DEBUG_LOG(getName(), ": set post ops, attr 0, useLegacyPostOps=true");
-    // addOutputScales(attrs[0]);
     setPostOps(attrs[0], outputShape, true);
     addLegacyZeroPoints(attrs[0]);
 

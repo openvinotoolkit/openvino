@@ -470,7 +470,10 @@ void Deconvolution::initPaddingR(const Shape &inShape, const Shape &outShape) {
 
 void Deconvolution::setPostOps(dnnl::primitive_attr& attr, const VectorDims& dims) {
     dnnl::post_ops ops;
-
+    // Weight dims in NON-Group deconv: [OC, IC, KH, KW], perchannel weight scale applied on OC DIM
+    //                                  weiScaleMaskPerChannel =  1 << 0
+    // Weight dims in Group deconv:     [Group, OC, IC, KH, KW], perchannel weight scale applied on GROUP and OC DIM,
+    //                                   weiScaleMaskPerChannel = ( 1 << 0 | 1<< 1) = 0x03
     DnnlPostOpsComposer dnnlpoc(getEngine(), attr, ops, postOpsArgs, dims, 1, isInt8, withGroups ? 3 : 1 << 0,  getDQScales(), withBiases);
 
     for (int i = 0; i < fusedWith.size(); ++i) {

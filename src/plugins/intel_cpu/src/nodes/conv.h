@@ -170,7 +170,6 @@ private:
     MemoryPtr legacyWeightsZeroPointsMemPtr;
     MemoryPtr legacyOutputCompensationMemPtr;
     MemoryPtr stockInputZeroPointsMemPtr;
-    MemoryPtr outScaleMemPtr;
     dnnl::memory::data_type outputDataType;
     InferenceEngine::Precision sumPrc = InferenceEngine::Precision::UNSPECIFIED;
 };

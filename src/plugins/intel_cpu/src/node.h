@@ -104,11 +104,6 @@ public:
     Node & operator = (const Node &) = delete;
 
     using AttrPtr = std::shared_ptr<dnnl::primitive_attr>;
-    enum class scalesType {
-        None,
-        PerTensor,
-        PerChannel
-    };
 
 public:
     template<typename T, int N>
@@ -522,10 +517,6 @@ public:
     const std::vector<float>& getDQScales() const {
         return DQScales;
     }
-    const scalesType& getDQScaleType() const {
-        return DQScalesType;
-    }
-
     /**
      * @brief Appends new item into ops list with the information on how the node should be executed as post operation.
      * Seed node should call this routine and pass its post operations list as parameter.
@@ -703,8 +694,6 @@ private:
     ConstantType checkConstant(LOOK look, std::vector<NodePtr>& checkNodes);
     // Hold output scales
     std::vector<float> DQScales;
-    scalesType DQScalesType = scalesType::None;
-
     // we cannot rely on per-NUMA weightCache for caching weights because:
     //   1.it may not exist(in single stream configuration)
     //   2.it only holds weak references, the life-cycle of cached item
