@@ -7,7 +7,7 @@ from argparse import ArgumentParser
 from pathlib import Path
 from hashlib import sha256
 from utils.conformance_utils import get_logger, set_env_variable
-from utils.constants import PY_OPENVINO, LD_LIB_PATH_NAME, PYTHON_NAME
+from utils.constants import PY_OPENVINO, LD_LIB_PATH_NAME, PYTHON_NAME, REL_WEIGHTS_FILENAME
 from utils.file_utils import get_ov_path, find_latest_dir
 import defusedxml.ElementTree as ET
 
@@ -48,7 +48,7 @@ def parse_arguments():
     rel_weights_dir = "Path to dir to save rel_weights_file"
 
     parser.add_argument("--input_dir", help=in_dir_help, nargs="*", required=True)
-    parser.add_argument("--rel_weights_dir", help=in_dir_help, type=str, required=True)
+    parser.add_argument("--rel_weights_dir", help=in_dir_help, type=str, default=None, required=False)
 
     return parser.parse_args()
 
@@ -62,18 +62,17 @@ def generate_op_name(type_info):
     op_version = type_info.version_id.replace('opset', '')
     return f"{op_name}-{op_version}"
 
-def get_rel_weight(meta_info_file):
+def get_rel_weight(meta_info_file:Path):
     try:
-        # doc.child("meta_info").child("graph_priority").attribute("value").as_double();
         meta_info_root = ET.parse(meta_info_file).getroot()
         graph_priority_node = meta_info_root.find("graph_priority")
         value_attrib = float(graph_priority_node.attrib.get("value"))
         return value_attrib
     except:
-        logger.error(f"{meta_info_file} is incorrect!")
+        logger.error(f"Meta info {meta_info_file} is incorrect!")
         return 1
 
-def is_report_op(op_name, is_convert_model):
+def is_report_op(op_name:str, is_convert_model:bool):
     if "Parameter-1" == op_name or "Result-1" == op_name or "Constant-1" == op_name:
         return False
     if is_convert_model and "Convert-1" == op_name:
@@ -83,8 +82,7 @@ def is_report_op(op_name, is_convert_model):
     else:
         return False
 
-def create_hash(in_dir_path: Path, rel_weights_dir: Path):
-    operations = dict()
+def create_hash(in_dir_path: Path, operations=dict()):
     core = Core()
     models = in_dir_path.rglob("*.xml")
     models = sorted(models)
@@ -140,24 +138,40 @@ def create_hash(in_dir_path: Path, rel_weights_dir: Path):
         bin_path.rename(Path(bin_path.parent, new_name + BIN_EXTENSION))
 
         # logger.info(f"{old_name} -> {new_name}")
-    rel_weights_path = os.path.join(rel_weights_dir, "rel_weights.lst")
+    return operations
+
+def save_rel_weights(rel_weights_dir:Path, operations: dict):
+    if not rel_weights_dir.is_dir:
+        logger.info(f"Create rel weight_dir: {rel_weights_dir}")
+        os.mkdir(rel_weights_dir)
+    rel_weights_path = os.path.join(rel_weights_dir, REL_WEIGHTS_FILENAME)
     with open(rel_weights_path, "w") as rel_weights_file:
         for op, rel_weight in operations.items():
             rel_weights_file.write(f"{op}:{rel_weight}\n")
         rel_weights_file.close()
         logger.info(f"Relative weights are saved to {rel_weights_path}")
+    return rel_weights_path
 
 if __name__=="__main__":
     args = parse_arguments()
+    operations = dict()
+    rel_weights_dir = None
+    if not args.rel_weights_dir is None:
+        rel_weights_dir = Path(args.rel_weights_dir)
+        if not rel_weights_dir.is_dir:
+            logger.info(f"Create rel weight_dir: {rel_weights_dir}")
+            os.mkdir(rel_weights_dir)
+
     for in_dir in args.input_dir:
         if not Path(in_dir).is_dir:
             logger.error(f"Directory {in_dir} is not exist!")
             exit(-1)
         logger.info(f"Starting to rename models in {in_dir}")
-        rel_weights_dir = Path(args.rel_weights_dir)
-        if not rel_weights_dir.is_dir:
-            os.mkdir(rel_weights_dir)
-        create_hash(Path(in_dir), rel_weights_dir)
+        operations = create_hash(Path(in_dir), rel_weights_dir, operations)
+    
+    if not rel_weights_dir is None:
+        save_rel_weights(rel_weights_dir, operations)
+
     logger.info("The run is successfully completed")
 
 

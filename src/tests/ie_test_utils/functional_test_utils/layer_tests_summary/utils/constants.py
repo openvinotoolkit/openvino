@@ -32,3 +32,5 @@ RELEASE_DIR = "Release"
 
 OP_CONFORMANCE = "OP"
 API_CONFORMANCE = "API"
+
+REL_WEIGHTS_FILENAME = "rel_weights.lst"

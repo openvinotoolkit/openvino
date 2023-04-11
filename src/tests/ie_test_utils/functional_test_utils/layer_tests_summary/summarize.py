@@ -11,6 +11,7 @@ from jinja2 import Environment, FileSystemLoader
 
 from utils.conformance_utils import get_logger
 from utils import stat_update_utils
+from utils.constants import REL_WEIGHTS_FILENAME
 
 # defuse_stdlib provide patched version of xml.etree.ElementTree which allows to use objects from xml.etree.ElementTree
 # in a safe manner without including unsafe xml.etree.ElementTree
@@ -42,7 +43,7 @@ def parse_arguments():
     conformance_mode_help = "Allow to align test number"
     csv_help = "Allow to serialize report as csv file"
     expected_devices_help = "List of expected devices"
-    rel_weights_help = "Path to file with rel weights"
+    rel_weights_help = "Path to dir with rel weights"
 
     parser.add_argument("--xml", help=xml_help, nargs="*", required=True)
     parser.add_argument("--out", help=out_help, default="")
@@ -59,18 +60,23 @@ def parse_arguments():
 
 def parse_rel_weights(rel_weights_path: os.path):
     rel_weights = dict()
-    if os.path.isfile(rel_weights_path):
-        logger.info(f"Rel weights will be taken from {rel_weights_path}")
+    rel_weights_file_path = rel_weights_path
+    if os.path.isdir(rel_weights_path):
+        rel_weights_file_path = os.path.join(rel_weights_path, REL_WEIGHTS_FILENAME)
+    if os.path.isfile(rel_weights_file_path):
+        logger.info(f"Rel weights will be taken from {rel_weights_file_path}")
         with open(rel_weights_path, "r") as rel_weights_file:
             for line in rel_weights_file.readlines():
                 sep_pos = line.find(':')
                 op_name = line[:sep_pos:]
                 op_weight = float(line[sep_pos+1::].replace('\n', ''))
                 rel_weights.update({op_name: op_weight})
+    else:
+        logger.warning(f"Rel weights file does not exist! The expected passrates will be taken from runtime")
     return rel_weights
 
 
-def merge_xmls(xml_paths: list, rel_weights: dict):
+def merge_xmls(xml_paths: list):
     logger.info("Merging XML files is started")
 
     summary = Element("report")
