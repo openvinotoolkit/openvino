@@ -304,25 +304,15 @@ void FrontEnd::convert(const std::shared_ptr<ov::Model>& partiallyConverted) con
 }
 
 void FrontEnd::normalize(const std::shared_ptr<ov::Model>& model) const {
-    {
-        // run transformations to convert sub-graphs with intermediate (or FrameworkNode) operations
-        // into sub-graphs with only OpenVINO operations
-        ov::pass::Manager manager;
-        manager.register_pass<pass::SavedModelUnusedRemover>();
-        manager.register_pass<pass::EmbeddingSegmentSingleFeatureFusion>();
-        manager.register_pass<pass::BlockLSTMReplacer>();
-        manager.register_pass<pass::GRUBlockCellReplacer>();
-        manager.register_pass<pass::ConstToResultRemover>();
-        manager.run_passes(model);
-    }
-
-    {
-        // perform transpose sinking and reverse infer if the model contains only OpenVINO operations
-        ov::pass::Manager manager;
-        manager.register_pass<ov::pass::TransposeSinkingGeneral>();
-        manager.register_pass<ov::pass::ReverseShapeAndTypeInfer>();
-        manager.run_passes(model);
-    }
+    ov::pass::Manager manager;
+    manager.register_pass<pass::SavedModelUnusedRemover>();
+    manager.register_pass<pass::EmbeddingSegmentSingleFeatureFusion>();
+    manager.register_pass<pass::BlockLSTMReplacer>();
+    manager.register_pass<pass::GRUBlockCellReplacer>();
+    manager.register_pass<pass::ConstToResultRemover>();
+    manager.register_pass<ov::pass::TransposeSinkingGeneral>();
+    manager.register_pass<ov::pass::ReverseShapeAndTypeInfer>();
+    manager.run_passes(model);
 }
 
 void FrontEnd::add_extension(const std::shared_ptr<ov::Extension>& extension) {
