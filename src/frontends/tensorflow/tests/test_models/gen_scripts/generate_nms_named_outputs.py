@@ -12,29 +12,20 @@ def main():
 
     @tf.function
     def second_func(boxes, scores):
-        const_one = tf.constant(1, dtype=tf.float32)
-        const_two = tf.constant(2, dtype=tf.float32)
-        const_five = tf.constant(5, dtype=tf.float32)
-        const_seven = tf.constant(5, dtype=tf.int32)
-        const_ten = tf.constant(10, dtype=tf.int32)
-
-        boxes = tf.raw_ops.Mul(x=boxes, y=const_two)
-        scores = tf.raw_ops.Add(x=scores, y=const_one)
+        # the second function is used to obtain the body graph with NonMaxSuppressionV5
+        # only body graphs use named output ports
         selected_indices, selected_scores, valid_outputs = tf.raw_ops.NonMaxSuppressionV5(boxes=boxes, scores=scores,
                                                                                           max_output_size=50,
                                                                                           iou_threshold=0.4,
                                                                                           score_threshold=0.3,
                                                                                           soft_nms_sigma=0.1)
-        selected_indices = tf.raw_ops.Add(x=selected_indices, y=const_ten)
-        selected_scores = tf.raw_ops.Mul(x=selected_scores, y=const_five)
-        valid_outputs = tf.raw_ops.Add(x=valid_outputs, y=const_seven)
-
         return selected_indices, selected_scores, valid_outputs
 
     @tf.function
     def first_func(boxes, scores):
         selected_indices, selected_scores, valid_outputs = second_func(boxes, scores)
 
+        # the post-processing part of the test model to get the single output
         selected_indices = tf.raw_ops.Reshape(tensor=selected_indices, shape=[-1])
         selected_scores = tf.raw_ops.Cast(x=selected_scores, DstT=tf.int32)
         selected_scores = tf.raw_ops.Reshape(tensor=selected_scores, shape=[-1])
