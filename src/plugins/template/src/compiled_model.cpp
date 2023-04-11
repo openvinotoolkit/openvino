@@ -50,17 +50,18 @@ ov::template_plugin::CompiledModel::CompiledModel(const std::shared_ptr<ov::Mode
 void transform_model(const std::shared_ptr<ov::Model>& model);
 
 void ov::template_plugin::CompiledModel::compile_model(const std::shared_ptr<ov::Model>& model) {
-    if (m_cfg.disable_transformations)
-        return;
-    // apply plugins transformations
-    transform_model(model);
-
     // Integrate performance counters to the compiled model
     for (const auto& op : model->get_ops()) {
         auto& rt_info = op->get_rt_info();
         rt_info[ov::runtime::interpreter::PERF_COUNTER_NAME] =
             std::make_shared<ov::runtime::interpreter::PerfCounter>();
     }
+
+    if (m_cfg.disable_transformations)
+        return;
+    // apply plugins transformations
+    transform_model(model);
+
     // Perform any other steps like allocation and filling backend specific memory handles and so on
 }
 // ! [compiled_model:compile_model]
