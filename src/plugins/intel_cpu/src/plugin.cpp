@@ -296,7 +296,11 @@ void Engine::GetPerformanceStreams(std::map<std::string, std::string>& config,
         }
 
         if (streamsExplicitlySetForEngine && engConfig.streamExecutorConfig._streams > 0) {
-            config[CONFIG_KEY(PERFORMANCE_HINT)] = std::string();
+            if (engConfig.streamExecutorConfig._streams <= getAvailableNUMANodes().size()) {
+                config[CONFIG_KEY(PERFORMANCE_HINT)] = PluginConfigParams::LATENCY;
+            } else {
+                config[CONFIG_KEY(PERFORMANCE_HINT)] = PluginConfigParams::THROUGHPUT;
+            }
             return engConfig.streamExecutorConfig._streams;
         }
 
