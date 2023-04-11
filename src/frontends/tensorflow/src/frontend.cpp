@@ -38,14 +38,19 @@ void get_unsupported_operations_and_failures(const std::shared_ptr<Model>& model
     for (const auto& node : model->get_ordered_ops()) {
         if (const auto& fw_node = ov::as_type_ptr<FrameworkNode>(node)) {
             auto op_type = fw_node->get_decoder()->get_op_type();
+            // if this operation is encountered among unsupported operations
+            // or conversion failures, skip it
+            if (failures.count(op_type) > 0 ||
+                std::find(unsupported_operations.begin(), unsupported_operations.end(), op_type) !=
+                    unsupported_operations.end()) {
+                continue;
+            }
             auto fw_node_attrs = fw_node->get_attrs();
-            if (fw_node_attrs.find(FrameworkNode::failed_conversion_key) != fw_node_attrs.end() &&
-                failures.count(op_type) == 0) {
+            if (fw_node_attrs.find(FrameworkNode::failed_conversion_key) != fw_node_attrs.end()) {
                 // save only the first encountered failure that is more improtant for developer
                 // that means the translator is found but the conversion is failed
                 failures[op_type] = fw_node_attrs.at(FrameworkNode::failed_conversion_key);
-            } else if (std::find(unsupported_operations.begin(), unsupported_operations.end(), op_type) ==
-                       unsupported_operations.end()) {
+            } else {
                 // found new unsupported operation
                 unsupported_operations.push_back(op_type);
             }
@@ -76,7 +81,7 @@ void translate_framework_node(const std::shared_ptr<FrameworkNode>& node,
     auto old_output = old_outputs.begin();
 
     for (; new_output != new_node_outputs.end() && old_output != old_outputs.end(); ++old_output, ++new_output) {
-        old_output->replace(*new_output);
+        old_output->replace(new_output->port);
     }
 }
 }  // namespace
@@ -343,13 +348,22 @@ void FrontEnd::add_extension(const std::shared_ptr<ov::Extension>& extension) {
         m_extensions.push_back(so_ext);
     } else if (auto common_conv_ext = std::dynamic_pointer_cast<ov::frontend::ConversionExtension>(extension)) {
         m_conversion_extensions.push_back(common_conv_ext);
-        m_op_translators[common_conv_ext->get_op_type()] = [=](const NodeContext& context) {
-            return common_conv_ext->get_converter()(context);
-        };
-    } else if (const auto& tensorflow_conv_ext = std::dynamic_pointer_cast<ConversionExtension>(extension)) {
+        if (common_conv_ext->get_converter()) {
+            m_op_translators[common_conv_ext->get_op_type()] =
+                ov::frontend::tensorflow::CreatorFunctionIndexed([=](const tensorflow::NodeContext& context) {
+                    return common_conv_ext->get_converter()(context);
+                });
+        } else if (common_conv_ext->get_converter_named_and_indexed()) {
+            m_op_translators[common_conv_ext->get_op_type()] =
+                ov::frontend::tensorflow::CreatorFunctionNamedAndIndexed([=](const tensorflow::NodeContext& context) {
+                    return common_conv_ext->get_converter_named_and_indexed()(context);
+                });
+        }
+        // Ignore other types of extensions in particular CreatorFunctionNamed which cannot be used with tensorflow
+        // frontend
+    } else if (const auto& tensorflow_conv_ext =
+                   std::dynamic_pointer_cast<ov::frontend::tensorflow::ConversionExtension>(extension)) {
         m_conversion_extensions.push_back(tensorflow_conv_ext);
-        m_op_translators[tensorflow_conv_ext->get_op_type()] = [=](const NodeContext& context) {
-            return tensorflow_conv_ext->get_converter()(context);
-        };
+        m_op_translators[tensorflow_conv_ext->get_op_type()] = tensorflow_conv_ext->get_converter();
     }
 }
