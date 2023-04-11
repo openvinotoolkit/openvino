@@ -54,7 +54,9 @@ SoftmaxKernel_bf::Parent::DispatchData SoftmaxKernel_bf::SetDefault(const softma
         }
 
         dispatchData.leftovers = dispatchData.dataSetSize % dispatchData.lws[0];
-        if (dispatchData.leftovers % subgroup_size) {
+        //if (dispatchData.leftovers % subgroup_size) {
+        // To use subgroup read/write, the starting address should be aligned to 128 bit
+        if ((dispatchData.dataSetSize * params.inputs[0].ElementSize()) >> 4) {
             dispatchData.subgroupBlockSize = 1;
         } else {
             if (dispatchData.itemsNum >> 3)
@@ -119,7 +121,6 @@ JitConstants SoftmaxKernel_bf::GetJitConstants(const softmax_params& params, Dis
             MakeJitConstant("DATA_SETS_COUNT", data_set_count),
             MakeJitConstant("DATA_SET_SIZE", data_set_size),
             MakeJitConstant("STACK_SIZE", stack_size),
-            MakeJitConstant("SUBGROUP_BLOCK_SIZE", dispatchData.subgroupBlockSize),
         });
     } else {
         jit.AddConstants({
@@ -130,10 +131,10 @@ JitConstants SoftmaxKernel_bf::GetJitConstants(const softmax_params& params, Dis
             MakeJitConstant("DATA_SET_SIZE", dispatchData.dataSetSize),
             MakeJitConstant("LEFTOVERS", dispatchData.leftovers),
             MakeJitConstant("STACK_SIZE", dispatchData.itemsNum + 1),
-            MakeJitConstant("SUBGROUP_BLOCK_SIZE", dispatchData.subgroupBlockSize),
         });
     }
     jit.AddConstant(MakeJitConstant("SUB_GROUP_SIZE", subgroup_size));
+    jit.AddConstant(MakeJitConstant("SUBGROUP_BLOCK_SIZE", dispatchData.subgroupBlockSize));
     auto activation_dt = GetActivationType(params);
     jit.Merge(MakeTypeJitConstants(activation_dt, "ACTIVATION"));
 
