@@ -142,20 +142,6 @@ void CPUTestsBase::CheckPluginRelatedResults(const ov::CompiledModel &execNet, c
     CheckPluginRelatedResults(execNet, std::set<std::string>{nodeType});
 }
 
-void CPUTestsBase::ExpectPluginRelatedResultsFailed(const ov::CompiledModel &execNet, const std::string& nodeType) {
-    static std::mutex gtest_mutex;
-    static CPUTestsBase* curTest = nullptr;
-    static ov::CompiledModel curCompiledModel;
-    static std::string curNodeType;
-    const std::lock_guard<std::mutex> lock(gtest_mutex);
-    curTest = this;
-    curCompiledModel = execNet;
-    curNodeType = nodeType;
-    EXPECT_FATAL_FAILURE(
-        curTest->CheckPluginRelatedResults(curCompiledModel, curNodeType),
-        "primType is unexpected");
-}
-
 void CPUTestsBase::CheckPluginRelatedResultsImpl(const std::shared_ptr<const ov::Model>& function, const std::set<std::string>& nodeType) const {
     ASSERT_NE(nullptr, function);
     for (const auto &node : function->get_ops()) {

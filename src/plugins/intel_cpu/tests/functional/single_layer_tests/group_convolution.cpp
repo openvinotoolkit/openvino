@@ -209,9 +209,19 @@ TEST_P(ExpectFailedGroupConvolutionLayerCPUTest, CompareWithRefs) {
     if (isBias) {
         checkBiasFusing(compiledModel);
     }
-    bool isCurrentTestDisabled = FuncTestUtils::SkipTestsConfig::currentTestIsDisabled();
-    if (!isCurrentTestDisabled) {
-        ExpectPluginRelatedResultsFailed(compiledModel, "Convolution");
+    ASSERT_TRUE(!selectedType.empty()) << "Node type is not defined.";
+    auto function = compiledModel.get_runtime_model();
+    for (const auto &node : function->get_ops()) {
+        const auto & rtInfo = node->get_rt_info();
+        auto getExecValue = [&rtInfo](const std::string & paramName) -> std::string {
+            auto it = rtInfo.find(paramName);
+            IE_ASSERT(rtInfo.end() != it);
+            return it->second.as<std::string>();
+        };
+        if ("Convolution" == getExecValue(ExecGraphInfoSerialization::LAYER_TYPE)) {
+            auto primType = getExecValue(ExecGraphInfoSerialization::IMPL_TYPE);
+            ASSERT_TRUE(selectedType != primType) << "primType is unexpected: " << primType;
+        }
     }
 }
 
