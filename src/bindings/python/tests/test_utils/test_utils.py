@@ -17,7 +17,7 @@ from openvino.runtime import Model, Core, Shape
 from openvino.utils import deprecated
 
 
-def _compare_models(model_one: Model, model_two: Model, compare_names:bool = True) -> Tuple[bool, str]:  # noqa: C901 the function is too complex
+def _compare_models(model_one: Model, model_two: Model, compare_names: bool = True) -> Tuple[bool, str]:  # noqa: C901 the function is too complex
     """Function to compare OpenVINO model (ops names, types and shapes).
 
     Note that the functions uses get_ordered_ops, so the topological order of ops should be also preserved.
@@ -81,7 +81,7 @@ def _compare_models(model_one: Model, model_two: Model, compare_names:bool = Tru
     return result, msg
 
 
-def compare_models(model_one: Model, model_two: Model, compare_names:bool = True):
+def compare_models(model_one: Model, model_two: Model, compare_names: bool = True):
     """Function to compare OpenVINO model (ops names, types and shapes).
 
     :param model_one: The first model to compare.
