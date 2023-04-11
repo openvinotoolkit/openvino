@@ -141,7 +141,7 @@ using ov::with_cpu_x86_avx512_core_amx_bf16;
  * @return     `True` is tAMX_INT8 or tAMX_BF16 instructions are available, `false` otherwise
  */
 using ov::with_cpu_x86_avx512_core_amx;
-
+using ov::set_map_enable;
 /**
  * @brief      Checks whether CPU mapping Available
  * @ingroup    ie_dev_api_system_conf

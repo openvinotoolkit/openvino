@@ -136,16 +136,6 @@ struct CPUStreamsExecutor::Impl {
                     : (stream_id < _impl->_config._big_core_streams + _impl->_config._big_core_logic_streams
                            ? _impl->_config._threads_per_stream_big
                            : _impl->_config._threads_per_stream_small);
-            if (stream_id == 0) {
-                std::cout << "---streams info--- _streams:" << _impl->_config._streams
-                          << " _threads:" << _impl->_config._threads
-                          << " big_core_streams: " << _impl->_config._big_core_streams
-                          << " threads_per_stream_big:" << _impl->_config._threads_per_stream_big
-                          << " bind_cores:" << _impl->bind_cores << "\n";
-            }
-            std::cout << "init_stream------stream_id:" << stream_id << " concurrency:" << concurrency
-                      << " _numaNodeId:" << _numaNodeId
-                      << " BindingType:" << std::to_string(_impl->_config._threadBindingType) << "\n";
             if (concurrency > 0 && (ThreadBindingType::CORES == _impl->_config._threadBindingType ||
                                     ThreadBindingType::NONE == _impl->_config._threadBindingType || _impl->any_cores ||
                                     _streamId >= _impl->_config._streams)) {

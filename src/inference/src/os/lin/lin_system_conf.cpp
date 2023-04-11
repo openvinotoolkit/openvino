@@ -120,8 +120,8 @@ void parse_processor_info_linux(const int _processors,
                  * Processor 0 need to handle system interception on Linux. So use second processor as physical core
                  * and first processor as logic core
                  */
-                _cpu_mapping_table[core_1][CPU_MAP_CORE_TYPE] = HYPER_THREADING_PROC;
-                _cpu_mapping_table[core_2][CPU_MAP_CORE_TYPE] = MAIN_CORE_PROC;
+                _cpu_mapping_table[core_1][CPU_MAP_CORE_TYPE] = MAIN_CORE_PROC;
+                _cpu_mapping_table[core_2][CPU_MAP_CORE_TYPE] = HYPER_THREADING_PROC;
 
                 _cpu_mapping_table[core_1][CPU_MAP_GROUP_ID] = n_group;
                 _cpu_mapping_table[core_2][CPU_MAP_GROUP_ID] = n_group;

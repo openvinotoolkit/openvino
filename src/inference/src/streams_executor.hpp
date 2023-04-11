@@ -24,6 +24,7 @@ struct CPU {
     std::mutex _task_mutex;
     int _plugin_status = PLUGIN_USED_START;
     int _socket_idx = 0;
+    bool _map_enable = true;
 
     CPU() {
         init_cpu(*this);

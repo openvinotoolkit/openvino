@@ -220,7 +220,6 @@ static auto Executors = ::testing::Values(
     [] {
         auto streams = getNumberOfCPUCores();
         auto threads = parallel_get_max_threads();
-        std::cout << "test1 StreamsExecutorConfigTest---- streams: " << streams << " threads: " << threads << "\n";
         return std::make_shared<CPUStreamsExecutor>(
             IStreamsExecutor::Config{"TestCPUStreamsExecutor",
                                      streams,
@@ -230,7 +229,6 @@ static auto Executors = ::testing::Values(
     [] {
         auto streams = getNumberOfLogicalCPUCores(true);
         auto threads = parallel_get_max_threads();
-        std::cout << "test2 StreamsExecutorConfigTest---- streams: " << streams << " threads: " << threads << "\n";
         return std::make_shared<CPUStreamsExecutor>(
             IStreamsExecutor::Config{"TestCPUStreamsExecutor",
                                      streams,
@@ -240,7 +238,6 @@ static auto Executors = ::testing::Values(
     [] {
         auto streams = getNumberOfLogicalCPUCores(false);
         auto threads = parallel_get_max_threads();
-        std::cout << "test3 StreamsExecutorConfigTest---- streams: " << streams << " threads: " << threads << "\n";
         return std::make_shared<CPUStreamsExecutor>(
             IStreamsExecutor::Config{"TestCPUStreamsExecutor",
                                      streams,

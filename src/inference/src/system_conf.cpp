@@ -228,9 +228,12 @@ std::vector<int> get_available_numa_nodes() {
 std::vector<std::vector<int>> get_num_available_cpu_cores() {
     return cpu._proc_type_table;
 }
+void set_map_enable() {
+    cpu._map_enable = false;
+}
 
 bool is_cpu_map_available() {
-    return cpu._cpu_mapping_table.size() > 0;
+    return cpu._map_enable && cpu._cpu_mapping_table.size() > 0;
 }
 
 std::vector<int> reserve_available_cpus(const ColumnOfProcessorTypeTable core_type,

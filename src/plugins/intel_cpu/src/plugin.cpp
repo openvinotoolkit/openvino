@@ -482,6 +482,13 @@ Engine::LoadExeNetworkImpl(const InferenceEngine::CNNNetwork &network, const std
         }
     }
 
+    if (config.count(ov::inference_num_threads.name())) {
+        if (config[ov::inference_num_threads.name()] == "0") {
+            set_map_enable();
+            std::cout << "-------- streams calculation using old logic ------\n";
+        }
+    }
+
     if (is_cpu_map_available()) {
         SetStreamtoConfig(config);
         GetPerformanceStreams(config, nGraphFunc);
