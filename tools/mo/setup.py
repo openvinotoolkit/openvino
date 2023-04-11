@@ -72,7 +72,7 @@ def read_requirements(path: str) -> List[str]:
         # get rid of newlines
         line = line.replace('\n', '')
         # if version is specified (non-word chars present)
-        if re.search('\W', line):
+        if re.search('(~|=|<|>|;)', line):
             requirements.append(line)
         # else get version from constraints
         else:
