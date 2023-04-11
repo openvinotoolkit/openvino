@@ -72,12 +72,10 @@ struct StreamCfg {
 /**
  * @brief      Get information about number of streams, threads and pinning threads on different processors
  * @param[in]  streams number of streams
- * @param[in]  infer_requests number of infer requests
  * @param[in]  ngraphFunc graph handle
  * @param[in]  config intel cpu configuration
  */
 void get_num_streams(const int streams,
-                     const int infer_requests,
                      const std::shared_ptr<ngraph::Function>& ngraphFunc,
                      Config& config);
 

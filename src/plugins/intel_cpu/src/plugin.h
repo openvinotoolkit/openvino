@@ -47,7 +47,7 @@ private:
 
     void ApplyPerformanceHints(std::map<std::string, std::string> &config, const std::shared_ptr<ngraph::Function>& ngraphFunc) const;
 
-    void GetPerformanceStreams(std::map<std::string, std::string> &config, const std::shared_ptr<ngraph::Function>& ngraphFunc);
+    void GetPerformanceStreams(Config &config, const std::shared_ptr<ngraph::Function>& ngraphFunc);
 
     StreamCfg GetNumStreams(InferenceEngine::IStreamsExecutor::ThreadBindingType thread_binding_type,
                             int stream_mode,

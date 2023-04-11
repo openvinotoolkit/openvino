@@ -248,7 +248,6 @@ int get_model_prefer_threads(const int num_streams,
 }
 
 void get_num_streams(const int streams,
-                     const int infer_requests,
                      const std::shared_ptr<ngraph::Function>& ngraphFunc,
                      Config& config) {
     InferenceEngine::IStreamsExecutor::Config& executor_config = config.streamExecutorConfig;
@@ -263,8 +262,11 @@ void get_num_streams(const int streams,
     executor_config._cpu_pinning =
         apply_cpu_pinning(config.enableCpuPinning, config.changedCpuPinning, streams, proc_type_table);
     const int model_prefer = get_model_prefer_threads(streams, proc_type_table, ngraphFunc, executor_config);
-    executor_config._streams_info_table =
-        get_streams_info_table(streams, executor_config._threads, infer_requests, model_prefer, proc_type_table);
+    executor_config._streams_info_table = get_streams_info_table(streams,
+                                                                 executor_config._threads,
+                                                                 config.perfHintsConfig.ovPerfHintNumRequests,
+                                                                 model_prefer,
+                                                                 proc_type_table);
     executor_config._streams = 0;
     executor_config._threads = 0;
     for (int i = 0; i < executor_config._streams_info_table.size(); i++) {
