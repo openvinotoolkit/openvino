@@ -79,6 +79,17 @@ void Config::readProperties(const std::map<std::string, std::string> &prop) {
             streamExecutorConfig.SetConfig(key, val);
         } else if (hintsConfigKeys.end() != std::find(hintsConfigKeys.begin(), hintsConfigKeys.end(), key)) {
             perfHintsConfig.SetConfig(key, val);
+        } else if (key == ov::hint::enable_cpu_pinning.name()) {
+            if (val == PluginConfigParams::YES) {
+                enableCpuPinning = true;
+                changedCpuPinning = true;
+            } else if (val == PluginConfigParams::NO) {
+                enableCpuPinning = false;
+                changedCpuPinning = true;
+            } else {
+                IE_THROW() << "Wrong value " << val << "for property key " << ov::hint::enable_cpu_pinning.name()
+                           << ". Expected only true/false." << std::endl;
+            }
         } else if (key == ov::hint::scheduling_core_type.name()) {
             const auto core_type = ov::util::from_string(val, ov::hint::scheduling_core_type);
             if (core_type == ov::hint::SchedulingCoreType::ANY_CORE ||
@@ -91,15 +102,15 @@ void Config::readProperties(const std::map<std::string, std::string> &prop) {
                            << ov::hint::SchedulingCoreType::PCORE_ONLY << "/"
                            << ov::hint::SchedulingCoreType::ECORE_ONLY << std::endl;
             }
-        } else if (key == ov::hint::use_hyper_threading.name()) {
+        } else if (key == ov::hint::enable_hyper_threading.name()) {
             if (val == PluginConfigParams::YES) {
-                useHyperThreading = true;
+                enableHyperThreading = true;
                 changedHyperThreading = true;
             } else if (val == PluginConfigParams::NO) {
-                useHyperThreading = false;
+                enableHyperThreading = false;
                 changedHyperThreading = true;
             } else {
-                IE_THROW() << "Wrong value " << val << "for property key " << ov::hint::use_hyper_threading.name()
+                IE_THROW() << "Wrong value " << val << "for property key " << ov::hint::enable_hyper_threading.name()
                            << ". Expected only true/false." << std::endl;
             }
         } else if (key == PluginConfigParams::KEY_DYN_BATCH_LIMIT) {

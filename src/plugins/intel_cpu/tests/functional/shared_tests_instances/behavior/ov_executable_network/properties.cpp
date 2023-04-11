@@ -53,7 +53,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_Multi_BehaviorTests, OVCompiledModelPropertiesInc
 
 INSTANTIATE_TEST_SUITE_P(smoke_Auto_BehaviorTests, OVCompiledModelPropertiesIncorrectTests,
                         ::testing::Combine(
-                                ::testing::Values(CommonTestUtils::DEVICE_AUTO),
+                                ::testing::Values("AUTO:CPU"),
                                 ::testing::ValuesIn(auto_inproperties)),
                         OVCompiledModelPropertiesIncorrectTests::getTestCaseName);
 

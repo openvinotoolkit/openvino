@@ -121,8 +121,9 @@ using OVClassLoadNetworkTest = OVClassQueryNetworkTest;
 using OVClassSetGlobalConfigTest = OVClassBaseTestP;
 using OVClassSetModelPriorityConfigTest = OVClassBaseTestP;
 using OVClassSetExecutionModeHintConfigTest = OVClassBaseTestP;
+using OVClassSetEnableCpuPinningHintConfigTest = OVClassBaseTestP;
 using OVClassSetSchedulingCoreTypeHintConfigTest = OVClassBaseTestP;
-using OVClassSetUseHyperThreadingHintConfigTest = OVClassBaseTestP;
+using OVClassSetEnableHyperThreadingHintConfigTest = OVClassBaseTestP;
 using OVClassSetTBBForceTerminatePropertyTest = OVClassBaseTestP;
 using OVClassSetLogLevelConfigTest = OVClassBaseTestP;
 using OVClassSpecificDeviceTestSetConfig = OVClassBaseTestP;
@@ -611,6 +612,23 @@ TEST_P(OVClassSetExecutionModeHintConfigTest, SetConfigNoThrow) {
     ASSERT_EQ(ov::hint::ExecutionMode::PERFORMANCE, ie.get_property(target_device, ov::hint::execution_mode));
 }
 
+TEST_P(OVClassSetEnableCpuPinningHintConfigTest, SetConfigNoThrow) {
+    ov::Core ie = createCoreWithTemplate();
+
+    OV_ASSERT_PROPERTY_SUPPORTED(ov::hint::enable_cpu_pinning);
+
+    bool defaultMode{};
+    ASSERT_NO_THROW(defaultMode = ie.get_property(target_device, ov::hint::enable_cpu_pinning));
+    (void)defaultMode;
+
+    ASSERT_EQ(true, ie.get_property(target_device, ov::hint::enable_cpu_pinning));
+
+    ie.set_property(target_device, ov::hint::enable_cpu_pinning(false));
+    ASSERT_EQ(false, ie.get_property(target_device, ov::hint::enable_cpu_pinning));
+    ie.set_property(target_device, ov::hint::enable_cpu_pinning(true));
+    ASSERT_EQ(true, ie.get_property(target_device, ov::hint::enable_cpu_pinning));
+}
+
 TEST_P(OVClassSetSchedulingCoreTypeHintConfigTest, SetConfigNoThrow) {
     ov::Core ie = createCoreWithTemplate();
 
@@ -630,21 +648,21 @@ TEST_P(OVClassSetSchedulingCoreTypeHintConfigTest, SetConfigNoThrow) {
     ASSERT_EQ(ov::hint::SchedulingCoreType::ANY_CORE, ie.get_property(target_device, ov::hint::scheduling_core_type));
 }
 
-TEST_P(OVClassSetUseHyperThreadingHintConfigTest, SetConfigNoThrow) {
+TEST_P(OVClassSetEnableHyperThreadingHintConfigTest, SetConfigNoThrow) {
     ov::Core ie = createCoreWithTemplate();
 
-    OV_ASSERT_PROPERTY_SUPPORTED(ov::hint::use_hyper_threading);
+    OV_ASSERT_PROPERTY_SUPPORTED(ov::hint::enable_hyper_threading);
 
     bool defaultMode{};
-    ASSERT_NO_THROW(defaultMode = ie.get_property(target_device, ov::hint::use_hyper_threading));
+    ASSERT_NO_THROW(defaultMode = ie.get_property(target_device, ov::hint::enable_hyper_threading));
     (void)defaultMode;
 
-    ASSERT_EQ(true, ie.get_property(target_device, ov::hint::use_hyper_threading));
+    ASSERT_EQ(true, ie.get_property(target_device, ov::hint::enable_hyper_threading));
 
-    ie.set_property(target_device, ov::hint::use_hyper_threading(false));
-    ASSERT_EQ(false, ie.get_property(target_device, ov::hint::use_hyper_threading));
-    ie.set_property(target_device, ov::hint::use_hyper_threading(true));
-    ASSERT_EQ(true, ie.get_property(target_device, ov::hint::use_hyper_threading));
+    ie.set_property(target_device, ov::hint::enable_hyper_threading(false));
+    ASSERT_EQ(false, ie.get_property(target_device, ov::hint::enable_hyper_threading));
+    ie.set_property(target_device, ov::hint::enable_hyper_threading(true));
+    ASSERT_EQ(true, ie.get_property(target_device, ov::hint::enable_hyper_threading));
 }
 
 TEST_P(OVClassSetDevicePriorityConfigTest, SetConfigAndCheckGetConfigNoThrow) {
@@ -671,10 +689,22 @@ TEST(OVClassBasicTest, SetTBBForceTerminatePropertyCoreNoThrow) {
     bool value = true;
     OV_ASSERT_NO_THROW(ie.set_property(ov::force_tbb_terminate(false)));
     OV_ASSERT_NO_THROW(value = ie.get_property(ov::force_tbb_terminate.name()).as<bool>());
-    EXPECT_EQ(value, false);
+    EXPECT_FALSE(value);
     OV_ASSERT_NO_THROW(ie.set_property(ov::force_tbb_terminate(true)));
     OV_ASSERT_NO_THROW(value = ie.get_property(ov::force_tbb_terminate.name()).as<bool>());
-    EXPECT_EQ(value, true);
+    EXPECT_TRUE(value);
+}
+
+TEST(OVClassBasicTest, SetEnableMmapPropertyCoreNoThrow) {
+    ov::Core ie;
+
+    bool value = true;
+    OV_ASSERT_NO_THROW(ie.set_property(ov::enable_mmap(false)));
+    OV_ASSERT_NO_THROW(value = ie.get_property(ov::enable_mmap.name()).as<bool>());
+    EXPECT_FALSE(value);
+    OV_ASSERT_NO_THROW(ie.set_property(ov::enable_mmap(true)));
+    OV_ASSERT_NO_THROW(value = ie.get_property(ov::enable_mmap.name()).as<bool>());
+    EXPECT_TRUE(value);
 }
 
 TEST(OVClassBasicTest, GetUnsupportedPropertyCoreThrow) {

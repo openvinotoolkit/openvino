@@ -67,7 +67,9 @@ std::vector<TShape> shape_infer(const util::TopKBase* op,
 
     auto output_shape = input_shape;
     if (input_shape.rank().is_static()) {
+        OPENVINO_SUPPRESS_DEPRECATED_START
         const auto normalized_axis = ov::normalize_axis(op, op->get_provided_axis(), input_shape.rank());
+        OPENVINO_SUPPRESS_DEPRECATED_END
         auto& dim_axis = output_shape[normalized_axis];
 
         if (auto k_as_shape = get_input_const_data_as_shape<TShape>(op, 1, constant_data, GetK<TDimValue>(op))) {
@@ -90,8 +92,8 @@ std::vector<TShape> shape_infer(const util::TopKBase* op,
                 const auto k_max = k.get_max_length();
 
                 const auto lower = std::min<TDimValue>(in_min, k_min);
-                const auto upper =
-                    in_max < 0 ? Dimension::dynamic().get_max_length() : std::max<TDimValue>(in_max, k_max);
+                const auto upper = in_max < 0 ? Dimension::dynamic().get_max_length()
+                                              : std::min<TDimValue>(in_max, (k_max < 0 ? Interval::s_max : k_max));
                 dim_axis = TDim(lower, upper);
             }
         } else {
