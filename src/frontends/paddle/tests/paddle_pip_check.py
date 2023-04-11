@@ -34,7 +34,7 @@ if constraints_path:
         if line.startswith(("#", "-c")):
             continue
         line = line.replace("\n", "")
-        if re.search("\W", line):
+        if re.search("(~|=|<|>|;)", line):
             requirements.append(line)
         else:
             constraint = constraints.get(line)
@@ -49,7 +49,9 @@ else:
 try:
     pkg_resources.require(requirements)
 except Exception as inst:
-    pattern  = re.compile(r"protobuf .*, Requirement.parse\('protobuf<=3\.20\.0,>=3\.1\.0'\), {'paddlepaddle'}")
+    pattern = re.compile(
+        r"protobuf .*, Requirement.parse\('protobuf<=3\.20\.0,>=3\.1\.0'\), {'paddlepaddle'}"
+    )
     result = pattern.findall(str(inst))
     if len(result) == 0:
         raise inst
