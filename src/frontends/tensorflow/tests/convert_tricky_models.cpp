@@ -565,24 +565,19 @@ TEST_F(TransformationTestsF, ResourceGatherModel) {
 }
 
 TEST_F(TransformationTestsF, NonMaxSuppressionWithNamedOutputs) {
-    {
-        model = convert_model("nms_named_outputs/nms_named_outputs.pb");
-        // ov::serialize(model, "nms_named_outputs.xml", "nms_named_outputs.bin", ov::pass::Serialize::Version::IR_V11);
-    }
+    // The purpose of this test is to check that named output ports of TensorFlow NMS operation are connected correctly
+    // to its consumers
+    { model = convert_model("nms_named_outputs/nms_named_outputs.pb"); }
     {
         // prepare the first input for NMS
         auto boxes = make_shared<Parameter>(f32, PartialShape{2, 4});
-        auto const_two = make_shared<Constant>(f32, Shape{}, 2);
-        auto mul = make_shared<Multiply>(boxes, const_two);
         auto const_zero = make_shared<Constant>(i32, Shape{1}, 0);
-        auto unsqueeze = make_shared<Unsqueeze>(mul, const_zero);
+        auto unsqueeze = make_shared<Unsqueeze>(boxes, const_zero);
 
         // prepare the second input for NMS
         auto scores = make_shared<Parameter>(f32, PartialShape{2});
-        auto const_one = make_shared<Constant>(f32, Shape{}, 1);
-        auto add = make_shared<Add>(scores, const_one);
         auto const_one_zero = make_shared<Constant>(i32, Shape{2}, vector<int32_t>{0, 1});
-        auto unsqueeze_2 = make_shared<Unsqueeze>(add, const_one_zero);
+        auto unsqueeze_2 = make_shared<Unsqueeze>(scores, const_one_zero);
 
         // create NMS node
         auto max_output_size = make_shared<Constant>(i32, Shape{}, 50);
@@ -607,10 +602,6 @@ TEST_F(TransformationTestsF, NonMaxSuppressionWithNamedOutputs) {
         auto slice =
             make_shared<Slice>(nms->output(0), slice_const_two, slice_const_three, slice_const_one, slice_const_one_2);
         Output<Node> selected_indices = make_shared<Squeeze>(slice, slice_const_one_2);
-        auto const_ten = make_shared<Constant>(i32, Shape{}, 10);
-        selected_indices = make_shared<Add>(selected_indices, const_ten);
-        auto const_minus_one = make_shared<Constant>(i32, Shape{1}, -1);
-        selected_indices = make_shared<Reshape>(selected_indices, const_minus_one, false);
 
         // compute the second output - selected_scores
         auto slice2_const_one = make_shared<Constant>(i32, Shape{1}, 1);
@@ -620,21 +611,21 @@ TEST_F(TransformationTestsF, NonMaxSuppressionWithNamedOutputs) {
         auto slice2 =
             make_shared<Slice>(nms->output(1), slice_const_two, slice_const_three, slice_const_one, slice_const_one_2);
         Output<Node> selected_scores = make_shared<Squeeze>(slice2, slice_const_one_2);
-        selected_scores = make_shared<ConvertLike>(selected_scores, mul);
-        auto const_five = make_shared<Constant>(f32, Shape{}, 5);
-        selected_scores = make_shared<Multiply>(selected_scores, const_five);
+        selected_scores = make_shared<ConvertLike>(selected_scores, boxes);
         selected_scores = make_shared<Convert>(selected_scores, i32);
-        auto const_minus_one_2 = make_shared<Constant>(i32, Shape{1}, -1);
-        selected_scores = make_shared<Reshape>(selected_scores, const_minus_one_2, false);
 
         // compute the third output - valid_outputs
         Output<Node> valid_outputs = make_shared<Squeeze>(nms->output(2));
-        auto const_five_int32 = make_shared<Constant>(i32, Shape{}, 5);
-        valid_outputs = make_shared<Add>(valid_outputs, const_five_int32);
+
+        // make post-processing before the concatenation
+        auto const_minus_one = make_shared<Constant>(i32, Shape{1}, -1);
+        selected_indices = make_shared<Reshape>(selected_indices, const_minus_one, false);
+        auto const_minus_one_2 = make_shared<Constant>(i32, Shape{1}, -1);
+        selected_scores = make_shared<Reshape>(selected_scores, const_minus_one_2, false);
         auto const_minus_one_3 = make_shared<Constant>(i32, Shape{1}, -1);
         valid_outputs = make_shared<Reshape>(valid_outputs, const_minus_one_3, false);
 
-        // concatenate all outputs
+        // concatenate all outputs in order to have the single output
         auto concat = make_shared<Concat>(OutputVector{selected_indices, selected_scores, valid_outputs}, 0);
 
         model_ref = make_shared<Model>(OutputVector{concat}, ParameterVector{boxes, scores});
