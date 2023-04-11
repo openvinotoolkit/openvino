@@ -19,12 +19,12 @@ from utils.conformance_utils import get_logger
 from utils import file_utils
 
 logger = get_logger('conformance_runner')
-is_hash = True
+has_python_api = True
 try:
     from rename_conformance_ir import create_hash
 except:
     logger.warning("Please set the above env variable to get the same conformance ir names run by run!")
-    is_hash = False
+    has_python_api = False
 
 API_CONFORMANCE_BIN_NAME = "apiConformanceTests"
 OP_CONFORMANCE_BIN_NAME = "conformanceTests"
@@ -50,6 +50,7 @@ def parse_arguments():
     ov_config_path_helper = "Specify path to file contains plugin config"
     dump_conformance_help = "Set '1' if you want to create Conformance IRs from custom/downloaded models. In other cases, set 0. The default value is '1'"
     shape_mode_help = "Specify shape mode for conformance. Default value is ``. Possible values: `static`, `dynamic`, ``"
+    parallel_help = "Parallel over HW devices. For example run tests over GPU.0, GPU.1 and etc"
 
     parser.add_argument("-m", "--models_path", help=models_path_help, type=str, required=False, default=NO_MODEL_CONSTANT)
     parser.add_argument("-d", "--device", help= device_help, type=str, required=False, default="CPU")
@@ -61,6 +62,7 @@ def parse_arguments():
     parser.add_argument("-c", "--ov_config_path", help=ov_config_path_helper, type=str, required=False, default="")
     parser.add_argument("-s", "--dump_conformance", help=dump_conformance_help, type=int, required=False, default=0)
     parser.add_argument("-sm", "--shape_mode", help=shape_mode_help, type=str, required=False, default="")
+    parser.add_argument("-p", "--parallel_devices", help=parallel_help, type=int, required=False, default=0)
 
     return parser.parse_args()
 
@@ -135,7 +137,7 @@ class Conformance:
             logger.error("Process failed on step: 'Subgraph dumping'")
             exit(-1)
         self._model_path = conformance_ir_path
-        if is_hash:
+        if has_python_api:
             create_hash(Path(self._model_path))
             logger.info(f"All conformance IRs in {self._ov_bin_path} were renamed based on hash")
         else:
@@ -167,13 +169,13 @@ class Conformance:
                              f"--report_unique_name", f'--output_folder="{parallel_report_dir}"',
                              f'--gtest_filter={self._gtest_filter}', f'--config_path="{self._ov_config_path}"',
                              f'--shape_mode={self._shape_mode}']
-        conformance = TestParallelRunner(f"{conformance_path}", command_line_args, self._workers, logs_dir, "")
+        conformance = TestParallelRunner(f"{conformance_path}", command_line_args, self._workers, logs_dir, "", True)
         conformance.run()
         conformance.postprocess_logs()
 
         final_report_name = f'report_{self._type.lower()}'
         # API Conformance contains both report type
-        merge_xml([parallel_report_dir], report_dir, final_report_name, self._type)
+        merge_xml([parallel_report_dir], report_dir, final_report_name, self._type, True)
         if self._type == constants.API_CONFORMANCE:
             final_op_report_name = f'report_{constants.OP_CONFORMANCE.lower()}'
             merge_xml([parallel_report_dir], report_dir, final_op_report_name, constants.OP_CONFORMANCE.lower())

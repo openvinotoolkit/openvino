@@ -91,10 +91,12 @@ OutputVector translate_max_pool_v2(const NodeContext& node) {
     auto ksize = node.get_input(1);
     auto strides = node.get_input(2);
 
+    OPENVINO_SUPPRESS_DEPRECATED_START
     auto ksize_constant = get_constant_from_source(ksize);
     TENSORFLOW_OP_VALIDATION(node, ksize_constant, "MaxPoolV2 is supported only with constant ksize.");
     auto strides_constant = get_constant_from_source(strides);
     TENSORFLOW_OP_VALIDATION(node, ksize_constant, "MaxPoolV2 is supported only with constant strides.");
+    OPENVINO_SUPPRESS_DEPRECATED_END
 
     auto ksize_vector = ksize_constant->cast_vector<int64_t>();
     auto strides_vector = strides_constant->cast_vector<int64_t>();

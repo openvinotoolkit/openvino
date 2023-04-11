@@ -924,6 +924,9 @@ ov::Any ov::CoreImpl::get_property_for_core(const std::string& name) const {
     } else if (name == ov::hint::allow_auto_batching.name()) {
         const auto flag = coreConfig.get_allow_auto_batch();
         return decltype(ov::hint::allow_auto_batching)::value_type(flag);
+    } else if (name == ov::enable_mmap.name()) {
+        const auto flag = coreConfig.get_enable_mmap();
+        return decltype(ov::enable_mmap)::value_type(flag);
     }
 
     OPENVINO_THROW("Exception is thrown while trying to call get_property with unsupported property: '", name, "'");
@@ -1298,6 +1301,13 @@ void ov::CoreImpl::CoreConfig::set_and_update(ov::AnyMap& config) {
         _flag_allow_auto_batching = flag;
         config.erase(it);
     }
+
+    it = config.find(ov::enable_mmap.name());
+    if (it != config.end()) {
+        auto flag = it->second.as<bool>();
+        _flag_enable_mmap = flag;
+        config.erase(it);
+    }
 }
 
 void ov::CoreImpl::CoreConfig::set_cache_dir_for_device(const std::string& dir, const std::string& name) {
@@ -1314,6 +1324,10 @@ bool ov::CoreImpl::CoreConfig::get_allow_auto_batch() const {
     return _flag_allow_auto_batching;
 }
 
+bool ov::CoreImpl::CoreConfig::get_enable_mmap() const {
+    return _flag_enable_mmap;
+}
+
 // Creating thread-safe copy of config including shared_ptr to ICacheManager
 // Passing empty or not-existing name will return global cache config
 ov::CoreImpl::CoreConfig::CacheConfig ov::CoreImpl::CoreConfig::get_cache_config_for_device(
@@ -1323,8 +1337,10 @@ ov::CoreImpl::CoreConfig::CacheConfig ov::CoreImpl::CoreConfig::get_cache_config
     if (parsedConfig.count(ov::cache_dir.name())) {
         auto cache_dir_val = parsedConfig.at(ov::cache_dir.name()).as<std::string>();
         auto tempConfig = CoreConfig::CacheConfig::create(cache_dir_val);
-        // if plugin does not explicitly support cache_dir, we need to remove it from config
-        if (!util::contains(plugin.get_property(ov::supported_properties), ov::cache_dir)) {
+        // if plugin does not explicitly support cache_dir, and if plugin is not virtual, we need to remove
+        // it from config
+        if (!util::contains(plugin.get_property(ov::supported_properties), ov::cache_dir) &&
+            !is_virtual_device(plugin.get_name())) {
             parsedConfig.erase(ov::cache_dir.name());
         }
         return tempConfig;
