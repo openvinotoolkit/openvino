@@ -391,8 +391,10 @@ bool primitive_inst::update_impl() {
                     }
 
                     auto impl = _node->type()->choose_impl(*_node, updated_params);
-                    auto kernels = _program->get_kernels_cache().compile(updated_params, impl->get_kernels_source());
-                    impl->set_kernels(kernels);
+                    if (!can_be_optimized()) {
+                        auto kernels = _program->get_kernels_cache().compile(updated_params, impl->get_kernels_source());
+                        impl->set_kernels(kernels);
+                    }
                     cache.add(updated_params, impl->clone());
                 });
                 if (!can_be_optimized())  {
@@ -404,9 +406,11 @@ bool primitive_inst::update_impl() {
                 }
             } else {
                 _impl = _node->type()->choose_impl(*_node, updated_params);
-                auto& kernels_cache = get_network().get_program()->get_kernels_cache();
-                auto kernels = kernels_cache.compile(updated_params, _impl->get_kernels_source());
-                _impl->set_kernels(kernels);
+                if (!can_be_optimized()) {
+                    auto& kernels_cache = get_network().get_program()->get_kernels_cache();
+                    auto kernels = kernels_cache.compile(updated_params, _impl->get_kernels_source());
+                    _impl->set_kernels(kernels);
+                }
                 cache.add(updated_params, _impl->clone());
 
                 auto new_impl_str = _impl != nullptr ? _impl->get_kernel_name() : "nullptr";
@@ -727,11 +731,12 @@ event::ptr primitive_inst::update_weights() {
     if (weights_params.engine == kernel_selector::GenericKernelParams::Engine::NONE) {
         // If kernel doesn't says that it doesn't require weights reorder, but weights were reordered previously, then
         // incorrect memory buffer may be assigned, so reset cached weights for such case
-        _reordered_weights_cache.add(original_weights_memory->get_layout(), original_weights_memory);
+        _reordered_weights_cache.add(original_layout, original_weights_memory);
+        _impl_params->weights_layout = optional_layout(original_layout);
     } else {
         auto expected_layout = from_weights_tensor(weights_params.dest);
         // Set original patrial shape, because it may be lost during kernel_selector::weights_tensor -> layout conversion
-        expected_layout.set_partial_shape(original_weights_memory->get_layout().get_partial_shape());
+        expected_layout.set_partial_shape(original_layout.get_partial_shape());
         _impl_params->weights_layout = optional_layout(expected_layout);
 
         if (_reordered_weights_cache.has(expected_layout)) {
@@ -767,7 +772,8 @@ event::ptr primitive_inst::update_weights() {
                 auto& kernels_cache = get_network().get_program()->get_kernels_cache();
                 auto kernels = kernels_cache.compile(*_impl_params, {weights_params.clKernel->code.kernelString});
                 OPENVINO_ASSERT(kernels.size() == 1, "The output of kernel compile has issue");
-                kernel = (kernels.begin()->second)[0];
+                auto& kernel_data = kernels.begin()->second;
+                kernel = kernel_data[0].first;
                 cache.add(kernel_key, kernel);
             }
 
@@ -1268,7 +1274,7 @@ void primitive_inst::load(cldnn::BinaryInputBuffer& ib) {
             ib >> output_layout;
             output_layouts.emplace_back(output_layout);
 
-            allocation_type _allocation_type;
+            allocation_type _allocation_type = allocation_type::unknown;
             ib >> make_data(&_allocation_type, sizeof(_allocation_type));
             allocation_types.emplace_back(_allocation_type);
         }
@@ -1333,7 +1339,7 @@ void primitive_inst::load(cldnn::BinaryInputBuffer& ib) {
     bool has_impl;
     ib >> has_impl;
     if (has_impl) {
-        _impl.release();
+        _impl.reset();
         ib >> _impl;
     }
 }

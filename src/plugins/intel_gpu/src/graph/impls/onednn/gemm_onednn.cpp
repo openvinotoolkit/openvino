@@ -233,20 +233,20 @@ public:
         bool gemm_with_bias;
         ib >> gemm_with_bias;
 
-        dnnl::memory::data_type in0_dt;
-        dnnl::memory::data_type in1_dt;
-        dnnl::memory::data_type out_dt;
-        dnnl::memory::data_type bias_dt;
+        dnnl::memory::data_type in0_dt = dnnl::memory::data_type::undef;
+        dnnl::memory::data_type in1_dt = dnnl::memory::data_type::undef;
+        dnnl::memory::data_type out_dt = dnnl::memory::data_type::undef;
+        dnnl::memory::data_type bias_dt = dnnl::memory::data_type::undef;
 
         dnnl::memory::dims in0_dims;
         dnnl::memory::dims in1_dims;
         dnnl::memory::dims out_dims;
         dnnl::memory::dims bias_dims;
 
-        dnnl::memory::format_tag in0_fmt;
-        dnnl::memory::format_tag in1_fmt;
-        dnnl::memory::format_tag out_fmt;
-        dnnl::memory::format_tag bias_fmt;
+        dnnl::memory::format_tag in0_fmt = dnnl::memory::format_tag::undef;
+        dnnl::memory::format_tag in1_fmt = dnnl::memory::format_tag::undef;
+        dnnl::memory::format_tag out_fmt = dnnl::memory::format_tag::undef;
+        dnnl::memory::format_tag bias_fmt = dnnl::memory::format_tag::undef;
 
         ib >> make_data(&in0_dt, sizeof(dnnl::memory::data_type));
         ib >> make_data(&in1_dt, sizeof(dnnl::memory::data_type));
