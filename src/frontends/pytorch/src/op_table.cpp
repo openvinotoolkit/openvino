@@ -371,6 +371,7 @@ const std::map<std::string, CreatorFunction> get_supported_ops_fx() {
         {"aten.empty.memory_format", op::translate_empty},
         {"aten.max_pool2d_with_indices.default", op::translate_max_poolnd_fx},
         {"aten.mean.dim", op::translate_mean},
+        {"aten.native_batch_norm.default", op::translate_batch_norm_fx},
         {"aten.relu_.default", op::translate_1to1_match_1_inputs<opset10::Relu>},
         {"aten.sigmoid.default", op::translate_1to1_match_1_inputs<opset10::Sigmoid>},
         {"aten.silu_.default", op::inplace_op<op::translate_1to1_match_1_inputs<opset10::Swish>>},
