@@ -231,7 +231,6 @@ void update_device_config_for_virtual_device(const std::string& value,
         for (const auto& it : devices_property) {
             const auto& device_name = it.first;
             const auto& device_value = it.second;
-            // Update device properties for HW device.
             update_device_properties_setting(device_name, device_config, property(device_value));
         }
     }

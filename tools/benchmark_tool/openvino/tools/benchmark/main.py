@@ -105,7 +105,7 @@ def main():
         # --------------------- 3. Setting device configuration --------------------------------------------------------
         next_step()
 
-        def get_performance_hint(device) -> properties.hint.PerformanceMode:
+        def set_performance_hint(device):
             perf_hint = properties.hint.PerformanceMode.UNDEFINED
             supported_properties = benchmark.core.get_property(device, properties.supported_properties())
             if properties.hint.performance_mode() in supported_properties:
@@ -125,9 +125,10 @@ def main():
                     perf_hint = properties.hint.PerformanceMode.THROUGHPUT if benchmark.api_type == "async" else properties.hint.PerformanceMode.LATENCY
                     logger.warning(f"Performance hint was not explicitly specified in command line. " +
                     f"Device({device}) performance hint will be set to {perf_hint}.")
+                config[device][properties.hint.performance_mode()] = perf_hint
             else:
                 logger.warning(f"Device {device} does not support performance hint property(-hint).")
-            return perf_hint
+
 
         def get_device_type_from_name(name) :
             new_name = str(name)
@@ -166,10 +167,7 @@ def main():
                 config[device] = {}
 
             ## high-level performance modes
-            if properties.hint.performance_mode() not in config[device].keys():
-                config[device][properties.hint.performance_mode()] = get_performance_hint(device)
-
-            perf_hint = config[device][properties.hint.performance_mode()]
+            set_performance_hint(device)
 
             if is_flag_set_in_command_line('nireq'):
                 config[device][properties.hint.num_requests()] = str(args.number_infer_requests)

@@ -312,7 +312,7 @@ Running the application with the ``-h`` or ``--help`` option yields the followin
                               Example 2: a simple JSON file for meta device(AUTO/MULTI) with HW device properties.
                                      {
                                        "AUTO": {
-                                          "PERFORMANCE_HINT": "UNDEFINED",
+                                          "PERFORMANCE_HINT": "THROUGHPUT",
                                           "PERF_COUNT": "NO",
                                           "DEVICE_PROPERTIES": "{CPU:{INFERENCE_PRECISION_HINT:f32,NUM_STREAMS:3},GPU:{INFERENCE_PRECISION_HINT:f32,NUM_STREAMS:5}}"
                                        }

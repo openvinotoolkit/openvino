@@ -757,6 +757,7 @@ def get_network_batch_size(inputs_info):
 def show_available_devices():
     print("\nAvailable target devices:  ", ("  ".join(Core().available_devices)))
 
+
 def string_to_device_properties(device_properties_str):
     ret = {}
     if not device_properties_str:
@@ -778,13 +779,16 @@ def string_to_device_properties(device_properties_str):
         ret[key] = value
     return ret
 
+
 def dump_config(filename, config):
     json_config = {}
     for device_name, device_config in config.items():
         json_config[device_name] = {}
         for key, value in device_config.items():
             if isinstance(value, OVAny) and (isinstance(value.value, dict)):
-                value_string = str(value.value).replace('\'','').replace(' ' , '')
+                value_string = str(value.value).replace('\'', '').replace(' ', '')
+            elif isinstance(value, properties.hint.PerformanceMode):
+                value_string = value.name
             elif isinstance(value, OVAny):
                 value_string = str(value.value)
             else:
@@ -793,6 +797,7 @@ def dump_config(filename, config):
 
     with open(filename, 'w') as f:
         json.dump(json_config, f, indent=4)
+
 
 def load_config(filename, config):
     with open(filename) as f:
