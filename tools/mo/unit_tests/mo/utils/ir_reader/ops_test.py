@@ -10,13 +10,16 @@ import openvino.runtime.opset11 as opset11
 import openvino.runtime.opset10 as opset10
 from openvino.runtime import Model, serialize
 
+from openvino.tools.mo.utils.ir_reader.restore_graph import restore_graph_from_ir, save_restored_graph
+from openvino.tools.mo.utils.logger import init_logger
+
+# required to be in global area to run MO IR Reader
+init_logger('ERROR', False)
+
 
 class TestOps(unittest.TestCase):
     @staticmethod
     def check_graph_can_save(model, name):
-        from openvino.tools.mo.utils.ir_reader.restore_graph import restore_graph_from_ir, save_restored_graph
-        from openvino.tools.mo.utils.logger import init_logger
-        init_logger('ERROR', False)
         with tempfile.TemporaryDirectory() as tmp:
             model_xml = Path(tmp) / (name + '.xml')
             model_bin = Path(tmp) / (name + '.bin')
@@ -26,7 +29,7 @@ class TestOps(unittest.TestCase):
             # restore 2 times to validate that after save graph doesn't lose attributes etc.
             graph, _ = restore_graph_from_ir(model_xml, model_bin)
             return graph
-        
+
     def test_topk_11(self):
         data_shape = [6, 12, 10, 24]
         data_parameter = opset11.parameter(
@@ -74,7 +77,7 @@ class TestOps(unittest.TestCase):
         unique_node = graph.get_op_nodes(op="Unique")[0]
         self.assertEqual(unique_node["version"], "opset10")
         self.assertListEqual(unique_node.out_port(
-                0).data.get_shape().tolist(), [6, 12, None, 24])
+            0).data.get_shape().tolist(), [6, 12, None, 24])
         self.assertTrue(unique_node["sorted"])
 
     def test_is_finite(self):
