@@ -53,7 +53,7 @@ Configuring the Model
 
 Model input dimensions can be specified as dynamic using the model.reshape method. To set a dynamic dimension, use ``-1``, ``ov::Dimension()`` (C++), or ``ov.Dimension()`` (Python) as the value for that dimension.
 
-.. note:
+.. note::
    
    Some models may already have dynamic shapes out of the box and do not require additional configuration. This can either be because it was generated with dynamic shapes from the source framework, or because it was converted with Model Optimizer to use dynamic shapes. For more information, see the Dynamic Dimensions “Out of the Box” section.
 
@@ -71,9 +71,9 @@ The examples below show how to set dynamic dimensions with a model that has a st
 
     .. tab-item:: Python
         :sync: py
-
+        
         .. doxygensnippet:: docs/snippets/ov_dynamic_shapes.py
-           :language: python
+           :language: Python
            :fragment: reshape_undefined
     
         With Python, you may also pass all dimensions as a string and use ``?`` for the dynamic dimensions (e.g. ``model.reshape(“1, 3, ?, ?”)``).
