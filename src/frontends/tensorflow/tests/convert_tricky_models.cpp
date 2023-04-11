@@ -21,7 +21,11 @@ using namespace ov::opset10;
 using namespace ov::frontend;
 
 namespace {
-shared_ptr<Model> convert_model(const string& model_path, const ConversionExtension::Ptr& conv_ext = nullptr) {
+shared_ptr<Model> convert_model(const string& model_path,
+                                const ConversionExtension::Ptr& conv_ext = nullptr,
+                                const vector<string>& input_names = {},
+                                const vector<element::Type>& input_types = {},
+                                const vector<PartialShape>& input_shapes = {}) {
     FrontEndManager fem;
     auto front_end = fem.load_by_framework(TF_FE);
     if (!front_end) {
@@ -35,6 +39,36 @@ shared_ptr<Model> convert_model(const string& model_path, const ConversionExtens
     if (!input_model) {
         throw "Input model is not read";
     }
+
+    // set custom inputs, input shapes and types
+    vector<Place::Ptr> input_places;
+    for (const auto& input_name : input_names) {
+        auto input_place = input_model->get_place_by_tensor_name(input_name);
+        if (!input_place) {
+            throw "Input place with name " + input_name + " is not found ";
+        }
+        input_places.push_back(input_place);
+    }
+    if (input_places.size() < input_types.size()) {
+        throw "The number of input places is less than the number of types";
+    }
+    for (size_t ind = 0; ind < input_types.size(); ++ind) {
+        auto input_type = input_types[ind];
+        auto input_place = input_places[ind];
+        input_model->set_element_type(input_place, input_type);
+    }
+    if (input_places.size() < input_shapes.size()) {
+        throw "The number of input places is less than the number of shapes";
+    }
+    for (size_t ind = 0; ind < input_shapes.size(); ++ind) {
+        auto input_shape = input_shapes[ind];
+        auto input_place = input_places[ind];
+        input_model->set_partial_shape(input_place, input_shape);
+    }
+    if (!input_places.empty()) {
+        input_model->override_all_inputs(input_places);
+    }
+
     auto model = front_end->convert(input_model);
     if (!model) {
         throw "Model is not converted";
@@ -499,6 +533,34 @@ TEST_F(TransformationTestsF, SplitInFunction) {
         auto add2 = make_shared<Add>(add1, split->output(2));
 
         model_ref = make_shared<Model>(OutputVector{add2}, ParameterVector{x});
+    }
+}
+
+TEST_F(TransformationTestsF, ResourceGatherModel) {
+    // This test aims to check basic support of ResourceGather operation
+    // and cutting an input model with specified shapes and types
+    {
+        model = convert_model("resource_gather_model/resource_gather_model.pbtxt",
+                              nullptr,
+                              {"1:embedding_lookup1", "1:embedding_lookup2"},
+                              {element::i32, element::i32},
+                              {Shape{7, 2}, Shape{3}});
+    }
+    {
+        auto ind1 = make_shared<Parameter>(i32, Shape{7, 2});
+        auto table1 = make_shared<Constant>(f32, Shape{2, 3}, vector<float>{1, 2, 3, 4, 5, 6});
+        auto axis1 = make_shared<Constant>(i64, Shape{}, 0);
+
+        auto ind2 = make_shared<Parameter>(i32, Shape{3});
+        auto table2 = make_shared<Constant>(f32, Shape{5}, vector<float>{10, 11, 12, 13, 14});
+        auto axis2 = make_shared<Constant>(i64, Shape{}, 0);
+
+        auto gather1 = make_shared<Gather>(table1, ind1, axis1);
+        auto gather2 = make_shared<Gather>(table2, ind2, axis2);
+
+        auto mul = make_shared<Multiply>(gather1, gather2);
+
+        model_ref = make_shared<Model>(OutputVector{mul}, ParameterVector{ind1, ind2});
     }
 }
 

@@ -2,7 +2,7 @@
 onnx==1.13.1  # Python bindings, ONNX Frontend
 
 # pytest
-pytest==7.2.0; python_version >= '3.10'
+pytest==7.3.0; python_version >= '3.10'
 pytest>=5.0,<=7.0.1; python_version < '3.10'
 pytest-dependency==0.5.1
 pytest-forked; platform_system != "Windows"
