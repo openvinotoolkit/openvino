@@ -37,6 +37,7 @@ public:
     virtual int& getIntVar(std::string name) = 0;
     virtual const bool& isLowPrecision() const = 0;
     virtual InferenceEngine::CNNNetwork& getNetwork() = 0;
+    virtual size_t getMemoryAlignment() const = 0;
 };
 
 class BasePass : public Pass {
@@ -232,6 +233,7 @@ struct PassManagerSettings {
     /// @brief whether to run passes before copy
     bool runBeforeCopy;
     bool lowPrecision;
+    size_t mem_alignment;
 };
 
 class PassManager : public IPassManager, public std::enable_shared_from_this<PassManager> {
@@ -257,6 +259,9 @@ public:
     }
     InferenceEngine::CNNNetwork& getNetwork() override {
         return network;
+    }
+    size_t getMemoryAlignment() const override {
+        return settings.mem_alignment;
     }
     /**
      * @brief returns number of passes have been passed

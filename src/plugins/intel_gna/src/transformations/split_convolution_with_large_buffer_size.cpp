@@ -51,7 +51,8 @@ static std::shared_ptr<ngraph::Node> getConvForMatcher() {
 static bool Convert(std::shared_ptr<ngraph::Node> conv,
                     std::shared_ptr<ngraph::Node> add,
                     std::shared_ptr<ngraph::Node> bias,
-                    std::shared_ptr<ngraph::Node> fq) {
+                    std::shared_ptr<ngraph::Node> fq,
+                    size_t mem_alignment) {
     auto input_size = std::accumulate(std::begin(conv->get_input_shape(0)),
                                       std::end(conv->get_input_shape(0)),
                                       size_t(1),
@@ -62,7 +63,7 @@ static bool Convert(std::shared_ptr<ngraph::Node> conv,
     auto& input = conv->get_input_shape(0);
     uint32_t width = input.back();
     uint32_t in_channels = input.at(1);
-    auto split_sizes = GetAlignedSplitSizes(width, limitations::bufferMaxSize / in_channels);
+    auto split_sizes = GetAlignedSplitSizes(width, limitations::bufferMaxSize / in_channels, mem_alignment);
     IE_ASSERT(split_sizes.size() > 1);
     std::vector<int64_t> split_sizes_casted(split_sizes.size());
     std::transform(std::begin(split_sizes), std::end(split_sizes), std::begin(split_sizes_casted), [](uint32_t size) {
@@ -107,19 +108,19 @@ static bool Convert(std::shared_ptr<ngraph::Node> conv,
     return true;
 }
 
-SplitConvolution::SplitConvolution() {
+SplitConvolution::SplitConvolution(size_t mem_alignment) {
     MATCHER_SCOPE(SplitConvolution);
     auto conv = getConvForMatcher();
     ngraph::matcher_pass_callback callback = [=](ngraph::pattern::Matcher& m) {
         const auto& pattern_map = m.get_pattern_value_map();
-        return Convert(pattern_map.at(conv).get_node_shared_ptr(), nullptr, nullptr, nullptr);
+        return Convert(pattern_map.at(conv).get_node_shared_ptr(), nullptr, nullptr, nullptr, mem_alignment);
     };
 
     auto m = std::make_shared<ngraph::pattern::Matcher>(conv, matcher_name);
     this->register_matcher(m, callback);
 }
 
-SplitConvolutionWithBias::SplitConvolutionWithBias() {
+SplitConvolutionWithBias::SplitConvolutionWithBias(size_t mem_alignment) {
     MATCHER_SCOPE(SplitConvolutionWithBias);
     auto conv = getConvForMatcher();
     auto bias = ngraph::pattern::wrap_type<ngraph::opset7::Constant>();
@@ -130,14 +131,15 @@ SplitConvolutionWithBias::SplitConvolutionWithBias() {
         return Convert(pattern_map.at(conv).get_node_shared_ptr(),
                        pattern_map.at(add).get_node_shared_ptr(),
                        pattern_map.at(bias).get_node_shared_ptr(),
-                       nullptr);
+                       nullptr,
+                       mem_alignment);
     };
 
     auto m = std::make_shared<ngraph::pattern::Matcher>(add, matcher_name);
     this->register_matcher(m, callback);
 }
 
-SplitConvolutionWithFq::SplitConvolutionWithFq() {
+SplitConvolutionWithFq::SplitConvolutionWithFq(size_t mem_alignment) {
     MATCHER_SCOPE(SplitConvolutionWithFq);
     auto conv = getConvForMatcher();
     auto bias = ngraph::pattern::wrap_type<ngraph::opset7::Constant>();
@@ -159,7 +161,8 @@ SplitConvolutionWithFq::SplitConvolutionWithFq() {
         return Convert(pattern_map.at(conv).get_node_shared_ptr(),
                        add_node,
                        bias_node,
-                       pattern_map.at(out_fq).get_node_shared_ptr());
+                       pattern_map.at(out_fq).get_node_shared_ptr(),
+                       mem_alignment);
     };
 
     auto m = std::make_shared<ngraph::pattern::Matcher>(out_fq, matcher_name);

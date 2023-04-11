@@ -16,7 +16,7 @@ namespace pass {
 class SplitEltwise : public ov::pass::MatcherPass {
 public:
     OPENVINO_RTTI("SplitEltwise", "0");
-    SplitEltwise();
+    SplitEltwise(size_t mem_alignment);
 };
 
 }  // namespace pass

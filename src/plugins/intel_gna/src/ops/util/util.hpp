@@ -77,7 +77,7 @@ inline bool get_constant_value(const std::shared_ptr<ngraph::opset8::Constant>& 
     return true;
 }
 
-inline bool is_aligned_split(const std::shared_ptr<ngraph::Node> input_op, size_t input_op_out_index) {
+inline bool is_aligned_split(const std::shared_ptr<ngraph::Node> input_op, size_t input_op_out_index, size_t alignment) {
     size_t offset = 0;
 
     if (std::dynamic_pointer_cast<ngraph::opset8::Split>(input_op) ||
@@ -87,7 +87,7 @@ inline bool is_aligned_split(const std::shared_ptr<ngraph::Node> input_op, size_
             offset += outputSize * limitations::bytesPerSplitElement;
         }
     }
-    return (offset == ALIGN16(offset));
+    return (offset == ALIGN(offset, alignment));
 }
 
 inline bool is_crop_affined(std::shared_ptr<ngraph::Node> node) {

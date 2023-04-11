@@ -14,14 +14,14 @@ namespace pass {
 class SplitConvolution : public ngraph::pass::MatcherPass {
 public:
     OPENVINO_RTTI("SplitConvolution", "0");
-    SplitConvolution();
+    SplitConvolution(size_t mem_alignment);
 };
 
 // @brief Splits convolution with large input buffer, move add with bias to each convolution before concat
 class SplitConvolutionWithBias : public ngraph::pass::MatcherPass {
 public:
     OPENVINO_RTTI("SplitConvolutionWithBias", "0");
-    SplitConvolutionWithBias();
+    SplitConvolutionWithBias(size_t mem_alignment);
 };
 
 /* @brief Splits convolution with large input buffer,
@@ -30,7 +30,7 @@ public:
 class SplitConvolutionWithFq : public ngraph::pass::MatcherPass {
 public:
     OPENVINO_RTTI("SplitConvolutionWithFq", "0");
-    SplitConvolutionWithFq();
+    SplitConvolutionWithFq(size_t mem_alignment);
 };
 
 }  // namespace pass

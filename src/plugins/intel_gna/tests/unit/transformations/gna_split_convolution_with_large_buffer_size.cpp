@@ -17,7 +17,6 @@ namespace {
 
 struct Graph {
     std::shared_ptr<ngraph::Function> createFunction();
-
     std::shared_ptr<ngraph::opset7::Parameter> input_params;
     ngraph::OutputVector output_nodes;
 };
@@ -263,7 +262,7 @@ Graph createSolidGraph(const ngraph::Shape& input_shape, const ngraph::Shape& ke
 
 class SplitConvolutionFixture : public CommonTestUtils::TestsCommon,
                                 public ::testing::WithParamInterface<
-                                    std::tuple<Graph /* tranformed */, Graph /* reference */, ngraph::pass::Manager>> {
+                                    std::tuple<Graph /* transformed */, Graph /* reference */, ngraph::pass::Manager>> {
 public:
     void SetUp() override;
 
@@ -293,12 +292,23 @@ void execute_test(std::shared_ptr<ngraph::Function> function,
 }
 
 template <typename TransformationT>
-ngraph::pass::Manager createPassManager() {
+ngraph::pass::Manager createPassManager(size_t mem_alignment) {
     ngraph::pass::Manager manager;
     manager.register_pass<ov::pass::InitNodeInfo>();
-    manager.register_pass<TransformationT>();
+    manager.register_pass<TransformationT>(mem_alignment);
     return manager;
 }
+
+typedef std::tuple<Graph,                 // Test model
+                   Graph,                 // Input shape
+                   ngraph::pass::Manager  // Max Pool shape
+                   >
+    graphParams;
+
+graphParams generate() {}
+
+const auto test_input_shape = ngraph::Shape{1, 1, 1, 1};
+const size_t test_mem_alignment = 64;
 
 TEST_P(SplitConvolutionFixture, CompareFunctions) {
     execute_test(function, reference_function, pass_manager);
@@ -310,29 +320,27 @@ INSTANTIATE_TEST_SUITE_P(
     ::testing::Values(
         std::make_tuple(createGraph<CreateConvolution>(),
                         createGraph<CreateConcat, CreateSplittedConvolution>(),
-                        createPassManager<ov::intel_gna::pass::SplitConvolution>()),
+                        createPassManager<ov::intel_gna::pass::SplitConvolution>(test_mem_alignment)),
         std::make_tuple(createGraph<CreateAdd, CreateConvolution>(),
                         createGraph<CreateConcat, CreateAdd, CreateSplittedConvolution>(),
-                        createPassManager<ov::intel_gna::pass::SplitConvolutionWithBias>()),
+                        createPassManager<ov::intel_gna::pass::SplitConvolutionWithBias>(test_mem_alignment)),
         std::make_tuple(createGraph<CreateFakeQuantize, CreateConvolution>(),
                         createGraph<CreateConcat, CreateFakeQuantize, CreateSplittedConvolution>(),
-                        createPassManager<ov::intel_gna::pass::SplitConvolutionWithFq>()),
+                        createPassManager<ov::intel_gna::pass::SplitConvolutionWithFq>(test_mem_alignment)),
         std::make_tuple(createGraph<CreateFakeQuantize, CreateAdd, CreateConvolution>(),
                         createGraph<CreateConcat, CreateFakeQuantize, CreateAdd, CreateSplittedConvolution>(),
-                        createPassManager<ov::intel_gna::pass::SplitConvolutionWithFq>()),
-        std::make_tuple(createSolidGraph(ngraph::Shape{1, 1, 1, 1}, ngraph::Shape{1, 1, 1, 1}),
-                        createSolidGraph(ngraph::Shape{1, 1, 1, 1}, ngraph::Shape{1, 1, 1, 1}),
-                        createPassManager<ov::intel_gna::pass::SplitConvolution>()),
-        std::make_tuple(createSolidGraph<CreateAdd>(ngraph::Shape{1, 1, 1, 1}, ngraph::Shape{1, 1, 1, 1}),
-                        createSolidGraph<CreateAdd>(ngraph::Shape{1, 1, 1, 1}, ngraph::Shape{1, 1, 1, 1}),
-                        createPassManager<ov::intel_gna::pass::SplitConvolutionWithBias>()),
-        std::make_tuple(createSolidGraph<CreateFakeQuantize>(ngraph::Shape{1, 1, 1, 1}, ngraph::Shape{1, 1, 1, 1}),
-                        createSolidGraph<CreateFakeQuantize>(ngraph::Shape{1, 1, 1, 1}, ngraph::Shape{1, 1, 1, 1}),
-                        createPassManager<ov::intel_gna::pass::SplitConvolutionWithFq>()),
-        std::make_tuple(
-            createSolidGraph<CreateAdd, CreateFakeQuantize>(ngraph::Shape{1, 1, 1, 1}, ngraph::Shape{1, 1, 1, 1}),
-            createSolidGraph<CreateAdd, CreateFakeQuantize>(ngraph::Shape{1, 1, 1, 1}, ngraph::Shape{1, 1, 1, 1}),
-            createPassManager<ov::intel_gna::pass::SplitConvolutionWithFq>())));
-
+                        createPassManager<ov::intel_gna::pass::SplitConvolutionWithFq>(test_mem_alignment)),
+        std::make_tuple(createSolidGraph(test_input_shape, test_input_shape),
+                        createSolidGraph(test_input_shape, test_input_shape),
+                        createPassManager<ov::intel_gna::pass::SplitConvolution>(test_mem_alignment)),
+        std::make_tuple(createSolidGraph<CreateAdd>(test_input_shape, test_input_shape),
+                        createSolidGraph<CreateAdd>(test_input_shape, test_input_shape),
+                        createPassManager<ov::intel_gna::pass::SplitConvolutionWithBias>(test_mem_alignment)),
+        std::make_tuple(createSolidGraph<CreateFakeQuantize>(test_input_shape, test_input_shape),
+                        createSolidGraph<CreateFakeQuantize>(test_input_shape, test_input_shape),
+                        createPassManager<ov::intel_gna::pass::SplitConvolutionWithFq>(test_mem_alignment)),
+        std::make_tuple(createSolidGraph<CreateAdd, CreateFakeQuantize>(test_input_shape, test_input_shape),
+                        createSolidGraph<CreateAdd, CreateFakeQuantize>(test_input_shape, test_input_shape),
+                        createPassManager<ov::intel_gna::pass::SplitConvolutionWithFq>(test_mem_alignment))));
 }  // namespace
 }  // namespace testing

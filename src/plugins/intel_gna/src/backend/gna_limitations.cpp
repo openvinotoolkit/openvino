@@ -177,10 +177,10 @@ bool is_fc_supported(const std::shared_ptr<ngraph::op::FullyConnected>& fully_co
     return true;
 }
 
-bool is_split_supported(const std::shared_ptr<ov::Node>& node, bool is_exception_allowed) {
-    OPENVINO_ASSERT(node, "Split node is empty!");    
+bool is_split_supported(const std::shared_ptr<ov::Node>& node, size_t alignment, bool is_exception_allowed) {
+    OPENVINO_ASSERT(node, "Split node is empty!");
     for (size_t i = 0; i < node->get_output_size(); i++) {
-        if (!ov::intel_gna::ngraph_util::is_aligned_split(node, i)) {
+        if (!ov::intel_gna::ngraph_util::is_aligned_split(node, i, alignment)) {
             return false;
         }
     }
@@ -217,7 +217,7 @@ bool is_op_supported(const std::shared_ptr<ov::Node>& node,
     } else if (ov::intel_gna::ngraph_util::is_gna_precision_agnostic(node)) {
         if ((std::dynamic_pointer_cast<ngraph::opset9::Split>(node) != nullptr) ||
             (std::dynamic_pointer_cast<ngraph::opset9::VariadicSplit>(node) != nullptr)) {
-            return is_split_supported(node, is_exception_allowed);
+            return is_split_supported(node, getMemoryAlignmentBytes(effective_compile_target), is_exception_allowed);
         }
         // TODO check concat are aligned when transformation will be moved to ngraph
         return true;

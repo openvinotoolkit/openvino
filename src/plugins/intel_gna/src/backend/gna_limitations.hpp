@@ -33,7 +33,6 @@ constexpr uint32_t convFiltersNumDivider = 4;
 constexpr uint32_t convFilterSizeDivider = 8;
 constexpr uint32_t convFilterMaxSize = 768;
 constexpr uint32_t convEachKernelByteAlignment = 16;
-constexpr uint32_t inputByteAlignment = 16;
 constexpr uint32_t noOfInputsDivisor = 8;
 constexpr uint32_t noOfInputsLowPrecDivisor = 16;
 
@@ -127,10 +126,11 @@ bool is_fc_supported(const std::shared_ptr<ngraph::op::FullyConnected>& fully_co
 /**
  * @brief Validates if split is supported by GNA
  * @param node split
+ * @param alignment specifies memory byte alignment
  * @param is_exception_allowed flag specifies whether exception is allowed
  * @return true if supported
  */
-bool is_split_supported(const std::shared_ptr<ov::Node>& node, bool is_exception_allowed = false);
+bool is_split_supported(const std::shared_ptr<ov::Node>& node, size_t alignment, bool is_exception_allowed = false);
 
 /**
  * @brief Validates if operation is supported by GNA

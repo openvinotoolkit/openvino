@@ -72,7 +72,7 @@ using SplitParameters = std::tuple<ov::Shape,  // input size
 const std::vector<SplitParameters> split_data = {
     SplitParameters{ov::Shape{1024}, 0, 4, true},
     SplitParameters{ov::Shape{1, 1024}, 1, 16, true},
-    SplitParameters{ov::Shape{1024}, 0, 64, false},
+    SplitParameters{ov::Shape{1024}, 0, 64, true},
     SplitParameters{ov::Shape{1, 1024}, 1, 256, false},
 };
 

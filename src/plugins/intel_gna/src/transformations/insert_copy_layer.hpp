@@ -31,7 +31,7 @@ namespace pass {
 class InsertCopyBeforeAssignLayer : public ngraph::pass::MatcherPass {
 public:
     NGRAPH_RTTI_DECLARATION;
-    InsertCopyBeforeAssignLayer();
+    InsertCopyBeforeAssignLayer(size_t alignment);
 };
 
 /**
@@ -70,7 +70,7 @@ public:
 class InsertCopyBeforeConcatLayer : public ngraph::pass::MatcherPass {
 public:
     NGRAPH_RTTI_DECLARATION;
-    InsertCopyBeforeConcatLayer();
+    InsertCopyBeforeConcatLayer(size_t mem_alignment);
 };
 
 /**
@@ -106,7 +106,7 @@ public:
 class InsertCopyBeforeLayerToBeEliminated : public ngraph::pass::MatcherPass {
 public:
     OPENVINO_RTTI("InsertCopyBeforeLayerToBeEliminated", "0");
-    InsertCopyBeforeLayerToBeEliminated();
+    InsertCopyBeforeLayerToBeEliminated(size_t mem_alignment);
 };
 
 /**
@@ -148,7 +148,9 @@ public:
  * [Memory]       [Concat]      [Memory]        [Concat]
  */
 class HandleMultiConnectedLayerToConcatAndMemory : public ngraph::pass::FunctionPass {
+    size_t m_mem_alignment;
 public:
+    HandleMultiConnectedLayerToConcatAndMemory(size_t mem_alignment) : m_mem_alignment(mem_alignment) {};
     NGRAPH_RTTI_DECLARATION;
     bool run_on_model(const std::shared_ptr<ngraph::Function>& f) override;
 };
@@ -177,7 +179,7 @@ public:
 class MatchNonComputationalLayers : public ngraph::pass::MatcherPass {
 public:
     NGRAPH_RTTI_DECLARATION;
-    MatchNonComputationalLayers();
+    MatchNonComputationalLayers(size_t mem_alignment);
 };
 
 /**
@@ -187,8 +189,8 @@ public:
 class HandleNonFunctionalSubgraphs : public ngraph::pass::BackwardGraphRewrite {
 public:
     NGRAPH_RTTI_DECLARATION;
-    HandleNonFunctionalSubgraphs() {
-        add_matcher<MatchNonComputationalLayers>();
+    HandleNonFunctionalSubgraphs(size_t mem_alignment) {
+        add_matcher<MatchNonComputationalLayers>(mem_alignment);
     }
 };
 

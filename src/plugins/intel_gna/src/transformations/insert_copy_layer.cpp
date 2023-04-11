@@ -29,7 +29,8 @@ NGRAPH_RTTI_DEFINITION(HandleNonFunctionalSubgraphs, "HandleNonFunctionalSubgrap
 namespace {
 void insert_copy_layer_between(std::shared_ptr<ngraph::Node> input_op,
                                std::shared_ptr<ngraph::Node> output_op,
-                               const size_t& index) {
+                               const size_t& index,
+                               size_t alignment) {
     NGRAPH_CHECK(input_op);
     NGRAPH_CHECK(output_op);
 
@@ -37,7 +38,7 @@ void insert_copy_layer_between(std::shared_ptr<ngraph::Node> input_op,
     // In this case we don't need copy layer insertion, because after insertion of aligning filter graph will include
     // convolution layer Should be removed when InsertSplitAligningFilterPass is moved to nGraph, because it should run
     // before the copy layer insertion passes
-    if (!is_aligned_split(input_op, input_op_out_index))
+    if (!is_aligned_split(input_op, input_op_out_index, alignment))
         return;
 
     auto copy_op = std::make_shared<ov::intel_gna::op::Copy>(input_op->output(input_op_out_index));
@@ -51,7 +52,7 @@ void insert_copy_layer_between(std::shared_ptr<ngraph::Node> input_op,
 class CopyInsertionForEliminatedLayersHandler {
 public:
     virtual ~CopyInsertionForEliminatedLayersHandler() = default;
-    bool InsertCopyBeforeIfNeeded(std::shared_ptr<ngraph::Node>& layer);
+    bool InsertCopyBeforeIfNeeded(std::shared_ptr<ngraph::Node>& layer, size_t alignment);
 
 protected:
     virtual bool WillLayerBeEliminated(std::shared_ptr<ngraph::Node>& layer) = 0;
@@ -67,7 +68,7 @@ protected:
     bool WillLayerBeEliminated(std::shared_ptr<ngraph::Node>& layer) override;
 };
 
-bool CopyInsertionForEliminatedLayersHandler::InsertCopyBeforeIfNeeded(std::shared_ptr<ngraph::Node>& layer) {
+bool CopyInsertionForEliminatedLayersHandler::InsertCopyBeforeIfNeeded(std::shared_ptr<ngraph::Node>& layer, size_t alignment) {
     auto layer_input = layer->get_input_node_shared_ptr(0);
 
     // skip non functional layers
@@ -78,7 +79,7 @@ bool CopyInsertionForEliminatedLayersHandler::InsertCopyBeforeIfNeeded(std::shar
     }
 
     if (WillLayerBeEliminated(layer)) {
-        insert_copy_layer_between(layer_input, layer, 0);
+        insert_copy_layer_between(layer_input, layer, 0, alignment);
         return true;
     }
     return false;
@@ -142,7 +143,7 @@ std::shared_ptr<CopyInsertionForEliminatedLayersHandler> GetCopyInsertionHandler
 
 }  // namespace
 
-InsertCopyBeforeAssignLayer::InsertCopyBeforeAssignLayer() {
+InsertCopyBeforeAssignLayer::InsertCopyBeforeAssignLayer(size_t mem_alignment) {
     MATCHER_SCOPE(InsertCopyBeforeAssignLayer);
 
     auto memory_op = ngraph::pattern::wrap_type<ngraph::op::ReadValueBase, ngraph::op::AssignBase>();
@@ -160,7 +161,7 @@ InsertCopyBeforeAssignLayer::InsertCopyBeforeAssignLayer() {
                 std::dynamic_pointer_cast<ngraph::opset8::Concat>(current_node) ||
                 std::dynamic_pointer_cast<ngraph::opset8::Split>(current_node) ||
                 std::dynamic_pointer_cast<ngraph::opset8::VariadicSplit>(current_node)) {
-                insert_copy_layer_between(matched_node_input, node, i);
+                insert_copy_layer_between(matched_node_input, node, i, mem_alignment);
             }
         }
 
@@ -171,7 +172,7 @@ InsertCopyBeforeAssignLayer::InsertCopyBeforeAssignLayer() {
     this->register_matcher(m, callback);
 }
 
-InsertCopyBeforeConcatLayer::InsertCopyBeforeConcatLayer() {
+InsertCopyBeforeConcatLayer::InsertCopyBeforeConcatLayer(size_t mem_alignment) {
     MATCHER_SCOPE(InsertCopyBeforeConcatLayer);
 
     auto concat_op = ngraph::pattern::wrap_type<ngraph::opset8::Concat>();
@@ -185,7 +186,7 @@ InsertCopyBeforeConcatLayer::InsertCopyBeforeConcatLayer() {
             auto input_op = concat->get_input_node_shared_ptr(i);
 
             if (inputs.find(input_op) != inputs.end()) {
-                insert_copy_layer_between(input_op, concat, i);
+                insert_copy_layer_between(input_op, concat, i, mem_alignment);
             } else {
                 inputs.insert(input_op);
             }
@@ -200,7 +201,7 @@ InsertCopyBeforeConcatLayer::InsertCopyBeforeConcatLayer() {
             if ((std::dynamic_pointer_cast<ngraph::op::CropIE>(current_node) && !is_crop_affined(current_node)) ||
                 std::dynamic_pointer_cast<ngraph::opset8::Split>(current_node) ||
                 std::dynamic_pointer_cast<ngraph::opset8::VariadicSplit>(current_node)) {
-                insert_copy_layer_between(concat_input, concat, i);
+                insert_copy_layer_between(concat_input, concat, i, mem_alignment);
             }
         }
 
@@ -211,7 +212,7 @@ InsertCopyBeforeConcatLayer::InsertCopyBeforeConcatLayer() {
     this->register_matcher(m, callback);
 }
 
-InsertCopyBeforeLayerToBeEliminated::InsertCopyBeforeLayerToBeEliminated() {
+InsertCopyBeforeLayerToBeEliminated::InsertCopyBeforeLayerToBeEliminated(size_t mem_alignment) {
     MATCHER_SCOPE(InsertCopyBeforeLayerToBeEliminated);
     const auto constant = ngraph::pattern::wrap_type<Constant>();
     const auto broadcast_op = ngraph::pattern::wrap_type<Broadcast>({ngraph::pattern::any_input(), constant});
@@ -231,7 +232,7 @@ InsertCopyBeforeLayerToBeEliminated::InsertCopyBeforeLayerToBeEliminated() {
 
         // Parameter -> Tile/Broadcast to Parameter -> Copy -> Tile/Broadcast
         // Parameter -> non functional -> Tile/Broadcast to Parameter -> non functional -> Copy -> Tile/Broadcast
-        return insertion_handler->InsertCopyBeforeIfNeeded(node);
+        return insertion_handler->InsertCopyBeforeIfNeeded(node, mem_alignment);
     };
 
     auto m = std::make_shared<ngraph::pattern::Matcher>(brodcast_tile, matcher_name);
@@ -301,12 +302,11 @@ bool HandleMultiConnectedLayerToConcatAndMemory::run_on_model(const std::shared_
                 size_t input_id;
                 std::tie(in_layer, out_layer, input_id) =
                     (i < memory_nodes.size()) ? memory_nodes[i] : concat_nodes[i - memory_nodes.size()];
-                insert_copy_layer_between(in_layer, out_layer, input_id);
+                insert_copy_layer_between(in_layer, out_layer, input_id, m_mem_alignment);
             }
             is_graph_modified = true;
         }
     }
-
     return is_graph_modified;
 }
 /* The main idea, is that we match the non-computational layers
@@ -317,7 +317,7 @@ bool HandleMultiConnectedLayerToConcatAndMemory::run_on_model(const std::shared_
  * If we found the "parameter" node with both of properties, it indicates that we found the
  * non-computational subgraph, and we insert the copy layer.
  */
-MatchNonComputationalLayers::MatchNonComputationalLayers() {
+MatchNonComputationalLayers::MatchNonComputationalLayers(size_t mem_alignment) {
     MATCHER_SCOPE(MatchNonComputationalLayers);
 
     auto noncompute_op = ngraph::pattern::wrap_type<ngraph::opset8::Reshape,
@@ -382,7 +382,7 @@ MatchNonComputationalLayers::MatchNonComputationalLayers() {
                     if (!std::dynamic_pointer_cast<ngraph::opset8::Constant>(copy_in) &&
                         // Copy already inserted from different result
                         !std::dynamic_pointer_cast<ov::intel_gna::op::Copy>(copy_in))
-                        insert_copy_layer_between(copy_in, copy_out, i);
+                        insert_copy_layer_between(copy_in, copy_out, i, mem_alignment);
                 }
             }
         }

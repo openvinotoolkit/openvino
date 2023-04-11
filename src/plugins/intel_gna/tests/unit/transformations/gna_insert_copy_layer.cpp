@@ -19,20 +19,24 @@
 namespace testing {
 
 typedef std::tuple<size_t,  // Concat axis
-                   size_t   // input number
+                   size_t,  // Input number
+                   size_t   // Memory alignment
                    >
     InsertCopyTestParams;
+
+const size_t test_mem_alignment = 64;
 
 class InsertCopyLayerTest : public CommonTestUtils::TestsCommon,
                             public ::testing::WithParamInterface<InsertCopyTestParams> {
 public:
     static std::string getTestCaseName(const testing::TestParamInfo<InsertCopyTestParams>& obj) {
-        size_t axis, inputs_num;
-        std::tie(axis, inputs_num) = obj.param;
+        size_t axis, inputs_num, alignment;
+        std::tie(axis, inputs_num, alignment) = obj.param;
 
         std::ostringstream result;
         result << "inputsNum=" << inputs_num << "_";
-        result << "axis=" << axis;
+        result << "axis=" << axis << "_";
+        result << "memAlign=" << alignment;
 
         return result.str();
     }
@@ -42,7 +46,7 @@ public:
 
 public:
     std::shared_ptr<ngraph::Function> m_func, m_ref_func;
-    size_t m_axis, m_inputs_num;
+    size_t m_axis, m_inputs_num, m_alignment;
 };
 
 void InsertCopyLayerTest::Validate() {
@@ -53,11 +57,10 @@ void InsertCopyLayerTest::Validate() {
 }
 
 void InsertCopyLayerTest::SetUp() {
-    std::tie(m_axis, m_inputs_num) = this->GetParam();
+    std::tie(m_axis, m_inputs_num, m_alignment) = this->GetParam();
 }
 
 void InsertCopyLayerTest::Run() {
-    SetUp();
     Validate();
 }
 
@@ -110,7 +113,7 @@ public:
     void Validate() override {
         ngraph::pass::Manager m;
         m.register_pass<ov::pass::InitNodeInfo>();
-        m.register_pass<ov::intel_gna::pass::HandleMultiConnectedLayerToConcatAndMemory>();
+        m.register_pass<ov::intel_gna::pass::HandleMultiConnectedLayerToConcatAndMemory>(m_alignment);
         m.run_passes(m_func);
 
         InsertCopyLayerTest::Validate();
@@ -150,10 +153,13 @@ public:
         {
             auto params = std::make_shared<ngraph::opset8::Parameter>(ngraph::element::i64, input_shape);
             auto split = ngraph::builder::makeSplit(params, ngraph::element::i64, m_inputs_num, m_axis);
+            auto copy_layers_cnt = m_alignment == 64 ? 8 : m_alignment == 16 ? 32 : 0;
+
+            ASSERT_TRUE(copy_layers_cnt);
 
             ngraph::OutputVector concat_inputs;
             for (int i = 0; i < m_inputs_num; ++i) {
-                if (m_inputs_num == 1 || (i % (m_inputs_num / 8) == 0))
+                if (m_inputs_num == 1 || (i % (m_inputs_num / copy_layers_cnt) == 0))
                     concat_inputs.push_back(std::make_shared<ov::intel_gna::op::Copy>(split->output(i)));
                 else
                     concat_inputs.push_back(split->output(i));
@@ -169,7 +175,7 @@ public:
     void Validate() override {
         ngraph::pass::Manager m;
         m.register_pass<ov::pass::InitNodeInfo>();
-        m.register_pass<ov::intel_gna::pass::InsertCopyBeforeConcatLayer>();
+        m.register_pass<ov::intel_gna::pass::InsertCopyBeforeConcatLayer>(m_alignment);
         m.run_passes(m_func);
 
         InsertCopyLayerTest::Validate();
@@ -210,7 +216,7 @@ TEST(TransformationTests, InsertCopyLayerMultiParamConcatTest) {
 
     ngraph::pass::Manager m;
     m.register_pass<ov::pass::InitNodeInfo>();
-    m.register_pass<ov::intel_gna::pass::HandleMultiConnectedLayerToConcatAndMemory>();
+    m.register_pass<ov::intel_gna::pass::HandleMultiConnectedLayerToConcatAndMemory>(test_mem_alignment);
     m.run_passes(func);
 
     ASSERT_NO_THROW(check_rt_info(func));
@@ -262,7 +268,7 @@ TEST(TransformationTests, InsertCopyLayerMultiParamNFLConcatTest) {
 
     ngraph::pass::Manager m;
     m.register_pass<ov::pass::InitNodeInfo>();
-    m.register_pass<ov::intel_gna::pass::HandleMultiConnectedLayerToConcatAndMemory>();
+    m.register_pass<ov::intel_gna::pass::HandleMultiConnectedLayerToConcatAndMemory>(test_mem_alignment);
     m.run_passes(func);
 
     ASSERT_NO_THROW(check_rt_info(func));
@@ -323,7 +329,7 @@ TEST(TransformationTests, InsertCopyLayerMultiParamMultiNFLConcatTest) {
 
     ngraph::pass::Manager m;
     m.register_pass<ov::pass::InitNodeInfo>();
-    m.register_pass<ov::intel_gna::pass::HandleMultiConnectedLayerToConcatAndMemory>();
+    m.register_pass<ov::intel_gna::pass::HandleMultiConnectedLayerToConcatAndMemory>(test_mem_alignment);
     m.run_passes(func);
 
     ASSERT_NO_THROW(check_rt_info(func));
@@ -381,7 +387,7 @@ TEST(TransformationTests, InsertCopyLayerMultiConstConcatTest) {
 
     ngraph::pass::Manager m;
     m.register_pass<ov::pass::InitNodeInfo>();
-    m.register_pass<ov::intel_gna::pass::InsertCopyBeforeConcatLayer>();
+    m.register_pass<ov::intel_gna::pass::InsertCopyBeforeConcatLayer>(test_mem_alignment);
     m.run_passes(func);
 
     ASSERT_NO_THROW(check_rt_info(func));
@@ -441,7 +447,7 @@ TEST(TransformationTests, InsertCopyLayerMultiLayerConcatTest) {
 
     ngraph::pass::Manager m;
     m.register_pass<ov::pass::InitNodeInfo>();
-    m.register_pass<ov::intel_gna::pass::HandleMultiConnectedLayerToConcatAndMemory>();
+    m.register_pass<ov::intel_gna::pass::HandleMultiConnectedLayerToConcatAndMemory>(test_mem_alignment);
     m.run_passes(func);
 
     ASSERT_NO_THROW(check_rt_info(func));
@@ -509,7 +515,7 @@ TEST(TransformationTests, InsertCopyLayerMultiLayerNFLConcatTest) {
 
     ngraph::pass::Manager m;
     m.register_pass<ov::pass::InitNodeInfo>();
-    m.register_pass<ov::intel_gna::pass::HandleMultiConnectedLayerToConcatAndMemory>();
+    m.register_pass<ov::intel_gna::pass::HandleMultiConnectedLayerToConcatAndMemory>(test_mem_alignment);
     m.run_passes(func);
 
     ASSERT_NO_THROW(check_rt_info(func));
@@ -572,7 +578,7 @@ TEST(TransformationTests, InsertCopyLayerMultiParamMemoryTest) {
 
     ngraph::pass::Manager m;
     m.register_pass<ov::pass::InitNodeInfo>();
-    m.register_pass<ov::intel_gna::pass::HandleMultiConnectedLayerToConcatAndMemory>();
+    m.register_pass<ov::intel_gna::pass::HandleMultiConnectedLayerToConcatAndMemory>(test_mem_alignment);
     m.run_passes(func);
 
     ASSERT_NO_THROW(check_rt_info(func));
@@ -632,7 +638,7 @@ TEST(TransformationTests, InsertCopyLayerMultiParamConcatMemoryTest) {
 
     ngraph::pass::Manager m;
     m.register_pass<ov::pass::InitNodeInfo>();
-    m.register_pass<ov::intel_gna::pass::HandleMultiConnectedLayerToConcatAndMemory>();
+    m.register_pass<ov::intel_gna::pass::HandleMultiConnectedLayerToConcatAndMemory>(test_mem_alignment);
     m.run_passes(func);
 
     ASSERT_NO_THROW(check_rt_info(func));
@@ -704,7 +710,7 @@ TEST(TransformationTests, InsertCopyLayerMultiParamNFLConcatMemoryTest) {
 
     ngraph::pass::Manager m;
     m.register_pass<ov::pass::InitNodeInfo>();
-    m.register_pass<ov::intel_gna::pass::HandleMultiConnectedLayerToConcatAndMemory>();
+    m.register_pass<ov::intel_gna::pass::HandleMultiConnectedLayerToConcatAndMemory>(test_mem_alignment);
     m.run_passes(func);
 
     ASSERT_NO_THROW(check_rt_info(func));
@@ -775,7 +781,7 @@ TEST(TransformationTests, InsertCopyLayerMultiLayerConcatMemoryTest) {
 
     ngraph::pass::Manager m;
     m.register_pass<ov::pass::InitNodeInfo>();
-    m.register_pass<ov::intel_gna::pass::InsertCopyBeforeAssignLayer>();
+    m.register_pass<ov::intel_gna::pass::InsertCopyBeforeAssignLayer>(test_mem_alignment);
     m.run_passes(func);
 
     ASSERT_NO_THROW(check_rt_info(func));
@@ -850,7 +856,7 @@ TEST(TransformationTests, InsertCopyLayerCropMemoryTest) {
 
     ngraph::pass::Manager m;
     m.register_pass<ov::pass::InitNodeInfo>();
-    m.register_pass<ov::intel_gna::pass::InsertCopyBeforeAssignLayer>();
+    m.register_pass<ov::intel_gna::pass::InsertCopyBeforeAssignLayer>(test_mem_alignment);
     m.run_passes(func);
 
     ASSERT_NO_THROW(check_rt_info(func));
@@ -917,7 +923,7 @@ TEST(TransformationTests, InsertCopyLayerCropNFLMemoryTest) {
 
     ngraph::pass::Manager m;
     m.register_pass<ov::pass::InitNodeInfo>();
-    m.register_pass<ov::intel_gna::pass::InsertCopyBeforeAssignLayer>();
+    m.register_pass<ov::intel_gna::pass::InsertCopyBeforeAssignLayer>(test_mem_alignment);
     m.run_passes(func);
 
     ASSERT_NO_THROW(check_rt_info(func));
@@ -986,7 +992,7 @@ TEST(TransformationTests, InsertCopyLayerConcatMemoryTest) {
 
     ngraph::pass::Manager m;
     m.register_pass<ov::pass::InitNodeInfo>();
-    m.register_pass<ov::intel_gna::pass::InsertCopyBeforeAssignLayer>();
+    m.register_pass<ov::intel_gna::pass::InsertCopyBeforeAssignLayer>(test_mem_alignment);
     m.run_passes(func);
 
     ASSERT_NO_THROW(check_rt_info(func));
@@ -1059,7 +1065,7 @@ TEST(TransformationTests, InsertCopyLayerConcatNFLMemoryTest) {
 
     ngraph::pass::Manager m;
     m.register_pass<ov::pass::InitNodeInfo>();
-    m.register_pass<ov::intel_gna::pass::InsertCopyBeforeAssignLayer>();
+    m.register_pass<ov::intel_gna::pass::InsertCopyBeforeAssignLayer>(test_mem_alignment);
     m.run_passes(func);
 
     ASSERT_NO_THROW(check_rt_info(func));
@@ -1121,7 +1127,7 @@ TEST(TransformationTests, InsertCopyLayerSplitMemoryTest) {
 
     ngraph::pass::Manager m;
     m.register_pass<ov::pass::InitNodeInfo>();
-    m.register_pass<ov::intel_gna::pass::InsertCopyBeforeAssignLayer>();
+    m.register_pass<ov::intel_gna::pass::InsertCopyBeforeAssignLayer>(test_mem_alignment);
     m.run_passes(func);
 
     ASSERT_NO_THROW(check_rt_info(func));
@@ -1188,7 +1194,7 @@ TEST(TransformationTests, InsertCopyLayerSplitNFLMemoryTest) {
 
     ngraph::pass::Manager m;
     m.register_pass<ov::pass::InitNodeInfo>();
-    m.register_pass<ov::intel_gna::pass::InsertCopyBeforeAssignLayer>();
+    m.register_pass<ov::intel_gna::pass::InsertCopyBeforeAssignLayer>(test_mem_alignment);
     m.run_passes(func);
 
     ASSERT_NO_THROW(check_rt_info(func));
@@ -1243,7 +1249,7 @@ TEST(TransformationTests, InsertCopyLayerCropConcatTest) {
 
     ngraph::pass::Manager m;
     m.register_pass<ov::pass::InitNodeInfo>();
-    m.register_pass<ov::intel_gna::pass::InsertCopyBeforeConcatLayer>();
+    m.register_pass<ov::intel_gna::pass::InsertCopyBeforeConcatLayer>(test_mem_alignment);
     m.run_passes(func);
 
     ASSERT_NO_THROW(check_rt_info(func));
@@ -1288,7 +1294,7 @@ TEST(TransformationTests, InsertCopyLayerNonfuncTest) {
 
     ngraph::pass::Manager m;
     m.register_pass<ov::pass::InitNodeInfo>();
-    m.register_pass<ov::intel_gna::pass::HandleNonFunctionalSubgraphs>();
+    m.register_pass<ov::intel_gna::pass::HandleNonFunctionalSubgraphs>(test_mem_alignment);
     m.run_passes(func);
 
     ASSERT_NO_THROW(check_rt_info(func));
@@ -1337,7 +1343,7 @@ TEST(TransformationTests, InsertCopyLayerNonfuncTwoSubgraphsTest) {
 
     ngraph::pass::Manager m;
     m.register_pass<ov::pass::InitNodeInfo>();
-    m.register_pass<ov::intel_gna::pass::HandleNonFunctionalSubgraphs>();
+    m.register_pass<ov::intel_gna::pass::HandleNonFunctionalSubgraphs>(test_mem_alignment);
     m.run_passes(func);
 
     ASSERT_NO_THROW(check_rt_info(func));
@@ -1384,7 +1390,7 @@ TEST(TransformationTests, InsertCopyLayerNonfuncTwoResultsTest) {
 
     ngraph::pass::Manager m;
     m.register_pass<ov::pass::InitNodeInfo>();
-    m.register_pass<ov::intel_gna::pass::HandleNonFunctionalSubgraphs>();
+    m.register_pass<ov::intel_gna::pass::HandleNonFunctionalSubgraphs>(test_mem_alignment);
     m.run_passes(func);
 
     ASSERT_NO_THROW(check_rt_info(func));
@@ -1441,7 +1447,7 @@ TEST(TransformationTests, InsertCopyLayerNFLBranchTest) {
 
     ngraph::pass::Manager m;
     m.register_pass<ov::pass::InitNodeInfo>();
-    m.register_pass<ov::intel_gna::pass::HandleNonFunctionalSubgraphs>();
+    m.register_pass<ov::intel_gna::pass::HandleNonFunctionalSubgraphs>(test_mem_alignment);
     m.run_passes(func);
 
     ASSERT_NO_THROW(check_rt_info(func));
@@ -1498,7 +1504,7 @@ TEST(TransformationTests, InsertCopyLayerNFLvsFLSubgraphTestt) {
 
     ngraph::pass::Manager m;
     m.register_pass<ov::pass::InitNodeInfo>();
-    m.register_pass<ov::intel_gna::pass::HandleNonFunctionalSubgraphs>();
+    m.register_pass<ov::intel_gna::pass::HandleNonFunctionalSubgraphs>(test_mem_alignment);
     m.run_passes(func);
 
     ASSERT_NO_THROW(check_rt_info(func));
@@ -1549,7 +1555,7 @@ TEST(TransformationTests, InsertCopyLayerSplitNFLConcatTest) {
 
     ngraph::pass::Manager m;
     m.register_pass<ov::pass::InitNodeInfo>();
-    m.register_pass<ov::intel_gna::pass::InsertCopyBeforeConcatLayer>();
+    m.register_pass<ov::intel_gna::pass::InsertCopyBeforeConcatLayer>(test_mem_alignment);
     m.run_passes(func);
 
     ASSERT_NO_THROW(check_rt_info(func));
@@ -1560,6 +1566,7 @@ TEST(TransformationTests, InsertCopyLayerSplitNFLConcatTest) {
 
 const size_t axis = 0;
 const std::vector<size_t> inputCounts = {1, 64, 128, 256};
+const std::vector<size_t> alignment = {16, 64};
 
 TEST_P(InsertCopyLayerConcatTest, CompareWithRefs) {
     Run();
@@ -1571,12 +1578,16 @@ TEST_P(InsertCopyLayerSplitConcatTest, CompareWithRefs) {
 
 INSTANTIATE_TEST_SUITE_P(TransformationTests,
                          InsertCopyLayerConcatTest,
-                         ::testing::Combine(::testing::Values(axis), ::testing::ValuesIn(inputCounts)),
+                         ::testing::Combine(::testing::Values(axis),
+                                            ::testing::ValuesIn(inputCounts),
+                                            ::testing::ValuesIn(alignment)),
                          InsertCopyLayerTest::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(TransformationTests,
                          InsertCopyLayerSplitConcatTest,
-                         ::testing::Combine(::testing::Values(axis), ::testing::ValuesIn(inputCounts)),
+                         ::testing::Combine(::testing::Values(axis),
+                                            ::testing::ValuesIn(inputCounts),
+                                            ::testing::ValuesIn(alignment)),
                          InsertCopyLayerTest::getTestCaseName);
 
 }  // namespace testing

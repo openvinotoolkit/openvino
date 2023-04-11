@@ -59,7 +59,7 @@ static std::shared_ptr<ngraph::op::Eltwise> create_eltwise(const std::shared_ptr
     return eltwise;
 }
 
-SplitEltwise::SplitEltwise() {
+SplitEltwise::SplitEltwise(size_t mem_alignment) {
     MATCHER_SCOPE(SplitEltwise);
     auto eltwise =
         ngraph::pattern::wrap_type<ngraph::op::Eltwise>({ngraph::pattern::any_input(), ngraph::pattern::any_input()},
@@ -71,7 +71,7 @@ SplitEltwise::SplitEltwise() {
         auto consumers = eltwise_node->output(0).get_target_inputs();
         auto o_dims = eltwise_node->get_output_shape(0);
 
-        auto split_sizes_per_axis = AlignedSplitSizesPerAxis(o_dims);
+        auto split_sizes_per_axis = AlignedSplitSizesPerAxis(o_dims, mem_alignment);
         if (0 == split_sizes_per_axis.second.size()) {
             log::debug() << "Splitting didn't succeed for layer " << eltwise_node->get_friendly_name() << " on axis "
                          << split_sizes_per_axis.first << std::endl;

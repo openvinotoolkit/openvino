@@ -21,6 +21,7 @@ namespace {
 static std::shared_ptr<ngraph::Function> createFunction(const ngraph::Shape& input_shape,
                                                         bool with_const,
                                                         bool with_fq,
+                                                        size_t mem_alignment,
                                                         ELTWISE_TYPE type,
                                                         bool split) {
     std::shared_ptr<ngraph::Node> last_node, last_node0, last_node1;
@@ -55,7 +56,7 @@ static std::shared_ptr<ngraph::Function> createFunction(const ngraph::Shape& inp
     }
 
     if (split) {
-        auto split_sizes_per_axis = ov::intel_gna::AlignedSplitSizesPerAxis(input_shape);
+        auto split_sizes_per_axis = ov::intel_gna::AlignedSplitSizesPerAxis(input_shape, mem_alignment);
         auto split0 = std::make_shared<ngraph::opset9::VariadicSplit>(
             last_node0,
             ngraph::opset9::Constant::create(ngraph::element::i64,
@@ -90,6 +91,7 @@ static std::shared_ptr<ngraph::Function> createFunction(const ngraph::Shape& inp
 typedef std::tuple<ngraph::Shape,
                    bool,         // with const
                    bool,         // with fq
+                   size_t,       // memory alignment
                    ELTWISE_TYPE  // eltwise type
                    >
     EltwiseSplitParams;
@@ -98,13 +100,15 @@ static std::string getTestCaseName(testing::TestParamInfo<EltwiseSplitParams> ob
     ngraph::Shape shape;
     bool with_const;
     bool with_fq;
+    size_t mem_alignment;
     ELTWISE_TYPE type;
-    std::tie(shape, with_const, with_fq, type) = obj.param;
+    std::tie(shape, with_const, with_fq, mem_alignment, type) = obj.param;
 
     std::ostringstream result;
     result << "IS=" << CommonTestUtils::vec2str(shape) << "_";
     result << "wConst=" << with_const << "_";
     result << "wFQ=" << with_fq << "_";
+    result << "align=" << mem_alignment << "_";
     result << "type=";
     switch (type) {
     case ELTWISE_TYPE::Sum:
@@ -126,9 +130,11 @@ class SplitEltwiseTestSuiteFixture : public CommonTestUtils::TestsCommon,
                                      public ::testing::WithParamInterface<EltwiseSplitParams> {
 public:
     void SetUp() override;
+    void Run();
 
 public:
-    std::shared_ptr<ngraph::Function> function, reference_function;
+    std::shared_ptr<ngraph::Function> m_function, m_reference_function;
+    size_t m_mem_alignment;
 };
 
 void SplitEltwiseTestSuiteFixture::SetUp() {
@@ -136,24 +142,24 @@ void SplitEltwiseTestSuiteFixture::SetUp() {
     bool with_const;
     bool with_fq;
     ELTWISE_TYPE type;
-    std::tie(shape, with_const, with_fq, type) = this->GetParam();
-    function = createFunction(shape, with_const, with_fq, type, false);
-    reference_function = createFunction(shape, with_const, with_fq, type, true);
+    std::tie(shape, with_const, with_fq, m_mem_alignment, type) = this->GetParam();
+    m_function = createFunction(shape, with_const, with_fq, m_mem_alignment, type, false);
+    m_reference_function = createFunction(shape, with_const, with_fq, m_mem_alignment, type, true);
 }
 
-void execute_test(std::shared_ptr<ngraph::Function> function, std::shared_ptr<ngraph::Function> reference_function) {
+void SplitEltwiseTestSuiteFixture::Run() {
     ngraph::pass::Manager manager;
     manager.register_pass<ov::pass::InitNodeInfo>();
-    manager.register_pass<ov::intel_gna::pass::SplitEltwise>();
-    manager.run_passes(function);
+    manager.register_pass<ov::intel_gna::pass::SplitEltwise>(m_mem_alignment);
+    manager.run_passes(m_function);
     const FunctionsComparator func_comparator =
         FunctionsComparator::with_default().enable(FunctionsComparator::ATTRIBUTES);
-    const FunctionsComparator::Result result = func_comparator(function, reference_function);
+    const FunctionsComparator::Result result = func_comparator(m_function, m_reference_function);
     ASSERT_TRUE(result.valid) << result.message;
 }
 
 TEST_P(SplitEltwiseTestSuiteFixture, CompareFunctions) {
-    execute_test(function, reference_function);
+    Run();
 }
 
 const std::vector<ov::Shape> inputShape = {{1, 67000}, {1, 500000}, {1, 936, 513}, {1, 64, 64, 64}, {1, 256, 64, 64}};
@@ -163,6 +169,7 @@ INSTANTIATE_TEST_SUITE_P(SplitEltwiseTestSuite,
                          ::testing::Combine(::testing::ValuesIn(inputShape),
                                             ::testing::ValuesIn(std::vector<bool>{true, false}),  // with const
                                             ::testing::ValuesIn(std::vector<bool>{true, false}),  // with fq
+                                            ::testing::ValuesIn(std::vector<size_t>{64, 16}),     // memory alignment
                                             ::testing::ValuesIn(std::vector<ELTWISE_TYPE>{
                                                 ELTWISE_TYPE::Sum,
                                                 ELTWISE_TYPE::Sub,

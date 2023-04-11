@@ -4,11 +4,13 @@
 
 #include "gna_transformations_pipeline.hpp"
 
+#include "backend/gna_limitations.hpp"
 #include "gna_itt.hpp"
 #include "legacy/net_pass.h"
 #include "legacy/transformations/convert_opset1_to_legacy/convert_opset1_to_legacy.hpp"
 #include "ngraph/opsets/opset7.hpp"
 #include "openvino/pass/manager.hpp"
+#include "openvino/pass/serialize.hpp"
 #include "optimizer/gna_pass_manager.hpp"
 #include "transformations/broadcast_const.hpp"
 #include "transformations/common_optimizations/add_fake_quantize_fusion.hpp"
@@ -62,11 +64,14 @@ void TransformationsPipeline::apply(const std::shared_ptr<ov::Model>& model) {
 
     fake_quantized = ov::op::util::has_op_with_type<ngraph::op::FakeQuantize>(model);
 
+    auto mem_alignment = limitations::getMemoryAlignmentBytes(effective_compile_target);
+
     ov::pass::Manager manager;
     manager.register_pass<ov::pass::InitNodeInfo>();
 
     // In OV API 2.0(IRv10) default convertion to fp32 (inputs, outputs and weights) is disabled
     // and we need to run the ConvertPrecision transformation to support old networks.
+    manager.register_pass<ov::pass::Serialize>("ngraph_pass_begin.xml", "ngraph_pass_begin.bin");
     manager.register_pass<ov::pass::ConvertPrecision>(precisions_map{{ngraph::element::f16, ngraph::element::f32}});
     manager.register_pass<ov::pass::ConvertMVN1ToMVN6>();
     manager.register_pass<ov::intel_gna::pass::DecomposeMVN>();
@@ -89,9 +94,9 @@ void TransformationsPipeline::apply(const std::shared_ptr<ov::Model>& model) {
         manager.register_pass<ov::intel_gna::pass::ConvertMatmulWithBiasToPointWiseConvolution>();
         manager.register_pass<ov::intel_gna::pass::ConvertMatmulToPointWiseConvolution>();
     }
-    manager.register_pass<ov::intel_gna::pass::SplitConvolutionWithFq>();
-    manager.register_pass<ov::intel_gna::pass::SplitConvolutionWithBias>();
-    manager.register_pass<ov::intel_gna::pass::SplitConvolution>();
+    manager.register_pass<ov::intel_gna::pass::SplitConvolutionWithFq>(mem_alignment);
+    manager.register_pass<ov::intel_gna::pass::SplitConvolutionWithBias>(mem_alignment);
+    manager.register_pass<ov::intel_gna::pass::SplitConvolution>(mem_alignment);
     manager.register_pass<ov::intel_gna::pass::InsertReshapeAroundMatmulWithTranspose>();
     manager.register_pass<ov::intel_gna::pass::InsertReshapeAroundMatmulWithFq>();
     manager.register_pass<ov::intel_gna::pass::InsertReshapeAroundMatmulWithAdd>();
@@ -109,7 +114,7 @@ void TransformationsPipeline::apply(const std::shared_ptr<ov::Model>& model) {
     manager.register_pass<ov::intel_gna::pass::ReorderActivationAndPooling>();
     manager.register_pass<ov::intel_gna::pass::RemoveSingleInputConcat>();
     manager.register_pass<ov::intel_gna::pass::SubstituteSoftsign>();
-    manager.register_pass<ov::intel_gna::pass::InsertCopyBeforeLayerToBeEliminated>();
+    manager.register_pass<ov::intel_gna::pass::InsertCopyBeforeLayerToBeEliminated>(mem_alignment);
     manager.register_pass<ov::pass::ConvertOpSet3ToOpSet2>();
     manager.register_pass<ov::pass::ConvertOpSet2ToOpSet1>();
     manager.register_pass<ngraph::pass::ConvertOpSet1ToLegacy>();
@@ -129,7 +134,7 @@ void TransformationsPipeline::apply(const std::shared_ptr<ov::Model>& model) {
         input is doing
     */
     manager.register_pass<ov::pass::Serialize>("SplitEltwise_begin.xml", "SplitEltwise_begin.bin");
-    manager.register_pass<ov::intel_gna::pass::SplitEltwise>();
+    manager.register_pass<ov::intel_gna::pass::SplitEltwise>(mem_alignment);
     manager.register_pass<ov::pass::Serialize>("SplitEltwise_end.xml", "SplitEltwise_end.bin");
     /* The following transformations perform insertion of Identity layer in 3 steps:
         1. Mark inputs with rt_info attribute where precision change from i32 to i16/i8 is happened
@@ -146,10 +151,10 @@ void TransformationsPipeline::apply(const std::shared_ptr<ov::Model>& model) {
         manager.register_pass<ov::intel_gna::pass::PWLApproximation>(config.gnaFlags.pwlMaxErrorPercent);
     }
     manager.register_pass<ov::pass::UnrollTensorIterator>();
-    manager.register_pass<ov::intel_gna::pass::InsertCopyBeforeAssignLayer>();
-    manager.register_pass<ov::intel_gna::pass::InsertCopyBeforeConcatLayer>();
-    manager.register_pass<ov::intel_gna::pass::HandleMultiConnectedLayerToConcatAndMemory>();
-    manager.register_pass<ov::intel_gna::pass::HandleNonFunctionalSubgraphs>();
+    manager.register_pass<ov::intel_gna::pass::InsertCopyBeforeAssignLayer>(mem_alignment);
+    manager.register_pass<ov::intel_gna::pass::InsertCopyBeforeConcatLayer>(mem_alignment);
+    manager.register_pass<ov::intel_gna::pass::HandleMultiConnectedLayerToConcatAndMemory>(mem_alignment);
+    manager.register_pass<ov::intel_gna::pass::HandleNonFunctionalSubgraphs>(mem_alignment);
     manager.register_pass<ov::pass::ConvertPrecision>(precisions_map{{ov::element::i64, ov::element::i32},
                                                                      {ov::element::u64, ov::element::i32},
                                                                      {ov::element::u32, ov::element::i32}});
@@ -172,6 +177,8 @@ void TransformationsPipeline::apply(const std::shared_ptr<ov::Model>& model) {
     // Operations Max and Min aren't supported
     pass_config->disable<ov::pass::ConcatReduceFusion>();
 
+    manager.register_pass<ov::pass::Serialize>("ngraph_pass_end.xml", "ngraph_pass_end.bin");
+
     manager.run_passes(model);
 
     is_ngraph_passes_used = true;
@@ -180,8 +187,11 @@ void TransformationsPipeline::apply(const std::shared_ptr<ov::Model>& model) {
 IE_SUPPRESS_DEPRECATED_START
 void TransformationsPipeline::apply_legacy(const InferenceEngine::CNNNetwork& network, bool runBeforeCopy) {
     OV_ITT_SCOPED_TASK(itt::domains::GNAPlugin, "TransformationsPipeline::apply_legacy");
-    auto passes =
-        std::make_shared<PassManager>(PassManagerSettings{runBeforeCopy, config.gnaFlags.input_low_precision}, network);
+    auto passes = std::make_shared<PassManager>(
+        PassManagerSettings{runBeforeCopy,
+                            config.gnaFlags.input_low_precision,
+                            limitations::getMemoryAlignmentBytes(effective_compile_target)},
+        network);
     passes->registerPass<RemoveConstPass>();
     if (!is_ngraph_passes_used) {
         passes->registerPass<UnrollTIPass>();
