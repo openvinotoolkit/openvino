@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "transformations/common_optimizations/nonzero_fusion.hpp"
+#include "transformations/common_optimizations/nonzero_horizontal_fusion.hpp"
 
 #include <memory>
 #include <openvino/opsets/opset10.hpp>
@@ -12,8 +12,8 @@
 #include "itt.hpp"
 #include "transformations/utils/utils.hpp"
 
-ov::pass::NonZeroFusion::NonZeroFusion() {
-    MATCHER_SCOPE(NonZeroFusion);
+ov::pass::NonZeroHorizontalFusion::NonZeroHorizontalFusion() {
+    MATCHER_SCOPE(NonZeroHorizontalFusion);
     auto input_m = pass::pattern::any_input(ov::pass::pattern::consumers_more_than(1));
     auto nonzero_m = pass::pattern::wrap_type<ov::opset10::NonZero>({input_m});
 
@@ -24,8 +24,9 @@ ov::pass::NonZeroFusion::NonZeroFusion() {
 
         bool status = false;
         auto replace_if_nodes_match = [&](const ov::Input<ov::Node>& in) {
-            auto cur_nonzero = ov::as_type_ptr<ov::opset10::NonZero>(in.get_node()->shared_from_this());
-            if (cur_nonzero && cur_nonzero->get_output_type() == out_prc) {
+            auto in_node = in.get_node();
+            auto cur_nonzero = ov::as_type<ov::opset10::NonZero>(in_node);
+            if (in_node != nonzero.get() && cur_nonzero && cur_nonzero->get_output_type() == out_prc) {
                 status |= ov::replace_output_update_name(cur_nonzero->output(0), nonzero->output(0));
             }
         };
