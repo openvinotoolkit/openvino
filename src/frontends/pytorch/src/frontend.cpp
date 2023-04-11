@@ -57,7 +57,8 @@ std::set<std::string> get_unconverted_types_from_model(const std::shared_ptr<Mod
 
 FrontEnd::FrontEnd(){
 
-    if(std::strcmp(std::getenv("PYTORCH_TRACING_MODE"), "TORCHFX") == 0){
+    const char* torch_tracing_mode = std::getenv("PYTORCH_TRACING_MODE");
+    if((torch_tracing_mode != NULL) && std::strcmp(std::getenv("PYTORCH_TRACING_MODE"), "TORCHFX") == 0){
         m_op_translators = get_supported_ops_fx();
     }
     else{
