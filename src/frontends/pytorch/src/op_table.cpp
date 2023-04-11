@@ -134,7 +134,6 @@ OP_CONVERTER(translate_where);
 OP_CONVERTER(translate_zeros);
 OP_CONVERTER(translate_zeros_like);
 //Torch FX Translations
-OP_CONVERTER(translate_addmm_fx);
 OP_CONVERTER(translate_batch_norm_fx);
 OP_CONVERTER(translate_max_poolnd_fx);
 OP_CONVERTER(translate_transpose_fx);
@@ -368,7 +367,7 @@ const std::map<std::string, CreatorFunction> get_supported_ops_fx() {
         {"<built-in function getitem>", op::translate_getitem}, // TODO: Check if there is any other way to handle this
         {"aten.convolution.default", op::translate_convolution},
         {"aten.add_.Tensor", op::translate_add},
-        {"aten.addmm.default", op::translate_addmm_fx},
+        {"aten.addmm.default", op::translate_addmm},
         {"aten.empty.memory_format", op::translate_empty},
         {"aten.max_pool2d_with_indices.default", op::translate_max_poolnd_fx},
         {"aten.mean.dim", op::translate_mean},
