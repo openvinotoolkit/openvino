@@ -16,6 +16,8 @@
 #include "functional_test_utils/blob_utils.hpp"
 #include "openvino/core/preprocess/pre_post_process.hpp"
 #include "transformations/utils/utils.hpp"
+#include "common_test_utils/file_utils.hpp"
+#include "openvino/runtime/intel_gpu/properties.hpp"
 
 using namespace ::testing;
 
@@ -27,7 +29,8 @@ class OVConcurrencyTest : public CommonTestUtils::TestsCommon,
     void SetUp() override {
         std::tie(num_streams, num_requests) = this->GetParam();
         fn_ptrs = {ngraph::builder::subgraph::makeSplitMultiConvConcat(),
-                   ngraph::builder::subgraph::makeMultiSingleConv()};
+                   ngraph::builder::subgraph::makeMultiSingleConv(),
+                   ngraph::builder::subgraph::makeTIwithLSTMcell()};
     };
 public:
     static std::string getTestCaseName(const testing::TestParamInfo<ConcurrencyTestParams>& obj) {
@@ -37,6 +40,100 @@ public:
             std::to_string(requests);
     }
 
+    void execute(bool is_caching_test = false) {
+        auto ie = ov::Core();
+
+        std::string cacheFolderName;
+        if (is_caching_test) {
+            std::stringstream ss;
+            ss << "OVConcurrencyTest_nstreams_" << num_streams << "_nireq_" << num_requests;
+            cacheFolderName = ss.str();
+            CommonTestUtils::removeFilesWithExt(cacheFolderName, "blob");
+            CommonTestUtils::removeFilesWithExt(cacheFolderName, "cl_cache");
+            CommonTestUtils::removeDir(cacheFolderName);
+            ie.set_property(ov::cache_dir(cacheFolderName));
+            ie.set_property(ov::intel_gpu::enable_loop_unrolling(false));
+        }
+
+        ov::ResultVector outputs;
+        std::vector<ov::InferRequest> irs;
+        std::vector<std::vector<uint8_t>> ref;
+        std::vector<int> outElementsCount;
+
+        for (size_t i = 0; i < fn_ptrs.size(); ++i) {
+            auto fn = fn_ptrs[i];
+
+            ov::CompiledModel exec_net;
+
+            if (is_caching_test) {
+                {
+                    auto _dummy_exec_net = ie.compile_model(fn_ptrs[i], CommonTestUtils::DEVICE_GPU,
+                                                    ov::num_streams(num_streams), ov::hint::inference_precision(ov::element::f32));
+                }
+                {
+                    exec_net = ie.compile_model(fn_ptrs[i], CommonTestUtils::DEVICE_GPU,
+                                                    ov::num_streams(num_streams), ov::hint::inference_precision(ov::element::f32));
+                }
+            } else {
+                exec_net = ie.compile_model(fn_ptrs[i], CommonTestUtils::DEVICE_GPU,
+                                                ov::num_streams(num_streams), ov::hint::inference_precision(ov::element::f32));
+            }
+
+            auto output = fn_ptrs[i]->get_results().at(0);
+
+            for (int j = 0; j < num_streams * num_requests; j++) {
+                outputs.push_back(output);
+
+                auto inf_req = exec_net.create_infer_request();
+                irs.push_back(inf_req);
+
+                std::vector<std::vector<uint8_t>> inputs;
+                for (size_t param_idx = 0; param_idx < fn_ptrs[i]->get_parameters().size(); ++param_idx) {
+                    auto input = fn_ptrs[i]->get_parameters().at(param_idx);
+                    auto tensor = FuncTestUtils::create_and_fill_tensor(input->get_element_type(), input->get_shape());
+                    inf_req.set_tensor(input, tensor);
+
+                    const auto in_tensor = inf_req.get_tensor(input);
+                    const auto tensorSize = in_tensor.get_byte_size();
+                    const auto inBlobBuf = static_cast<uint8_t*>(in_tensor.data());
+                    std::vector<uint8_t> inData(inBlobBuf, inBlobBuf + tensorSize);
+                    inputs.emplace_back(inData);
+                }
+
+                auto reOutData = ngraph::helpers::interpreterFunction(fn_ptrs[i], inputs).front().second;
+                ref.push_back(reOutData);
+                outElementsCount.push_back(ov::shape_size(fn_ptrs[i]->get_output_shape(0)));
+            }
+        }
+
+        const int niter = 10;
+        for (int i = 0; i < niter; i++) {
+            for (auto ir : irs) {
+                ir.start_async();
+            }
+
+            for (auto ir : irs) {
+                ir.wait();
+            }
+        }
+
+        auto thr = FuncTestUtils::GetComparisonThreshold(InferenceEngine::Precision::FP32);
+        for (size_t i = 0; i < irs.size(); ++i) {
+            const auto &refBuffer = ref[i].data();
+            ASSERT_EQ(outElementsCount[i], irs[i].get_tensor(outputs[i]).get_size());
+            FuncTestUtils::compareRawBuffers(irs[i].get_tensor(outputs[i]).data<float>(),
+                                            reinterpret_cast<const float *>(refBuffer), outElementsCount[i],
+                                            outElementsCount[i],
+                                            thr);
+        }
+
+        if (is_caching_test) {
+            CommonTestUtils::removeFilesWithExt(cacheFolderName, "blob");
+            CommonTestUtils::removeFilesWithExt(cacheFolderName, "cl_cache");
+            CommonTestUtils::removeDir(cacheFolderName);
+        }
+    }
+
 protected:
     size_t num_streams;
     size_t num_requests;
@@ -44,61 +141,11 @@ protected:
 };
 
 TEST_P(OVConcurrencyTest, canInferTwoExecNets) {
-    auto ie = ov::Core();
+    this->execute(false);
+}
 
-    ov::ResultVector outputs;
-    std::vector<ov::InferRequest> irs;
-    std::vector<std::vector<uint8_t>> ref;
-    std::vector<int> outElementsCount;
-
-    for (size_t i = 0; i < fn_ptrs.size(); ++i) {
-        auto fn = fn_ptrs[i];
-
-        auto exec_net = ie.compile_model(fn_ptrs[i], CommonTestUtils::DEVICE_GPU,
-                                         ov::num_streams(num_streams), ov::hint::inference_precision(ov::element::f32));
-
-        auto input = fn_ptrs[i]->get_parameters().at(0);
-        auto output = fn_ptrs[i]->get_results().at(0);
-
-        for (int j = 0; j < num_streams * num_requests; j++) {
-            outputs.push_back(output);
-
-            auto inf_req = exec_net.create_infer_request();
-            irs.push_back(inf_req);
-
-            auto tensor = FuncTestUtils::create_and_fill_tensor(input->get_element_type(), input->get_shape());
-            inf_req.set_tensor(input, tensor);
-
-            outElementsCount.push_back(ov::shape_size(fn_ptrs[i]->get_output_shape(0)));
-            const auto in_tensor = inf_req.get_tensor(input);
-            const auto tensorSize = in_tensor.get_byte_size();
-            const auto inBlobBuf = static_cast<uint8_t*>(in_tensor.data());
-            std::vector<uint8_t> inData(inBlobBuf, inBlobBuf + tensorSize);
-            auto reOutData = ngraph::helpers::interpreterFunction(fn_ptrs[i], {inData}).front().second;
-            ref.push_back(reOutData);
-        }
-    }
-
-    const int niter = 10;
-    for (int i = 0; i < niter; i++) {
-        for (auto ir : irs) {
-            ir.start_async();
-        }
-
-        for (auto ir : irs) {
-            ir.wait();
-        }
-    }
-
-    auto thr = FuncTestUtils::GetComparisonThreshold(InferenceEngine::Precision::FP32);
-    for (size_t i = 0; i < irs.size(); ++i) {
-        const auto &refBuffer = ref[i].data();
-        ASSERT_EQ(outElementsCount[i], irs[i].get_tensor(outputs[i]).get_size());
-        FuncTestUtils::compareRawBuffers(irs[i].get_tensor(outputs[i]).data<float>(),
-                                         reinterpret_cast<const float *>(refBuffer), outElementsCount[i],
-                                         outElementsCount[i],
-                                         thr);
-    }
+TEST_P(OVConcurrencyTest, canInferTwoExecNets_cached) {
+    this->execute(true);
 }
 
 const std::vector<size_t> num_streams{ 1, 2 };
