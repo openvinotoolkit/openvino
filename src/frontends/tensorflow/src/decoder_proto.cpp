@@ -308,32 +308,8 @@ size_t DecoderProto::get_input_size() const {
 
 void parse_producer_name(const std::string& producer_port_name,
                          std::string& producer_name,
-                         size_t& producer_output_port_index,
-                         const DecoderBase::OpTypeByName& op_type_by_name) {
-    using OutputPortIdxMax = std::unordered_map<std::string, int>;
-    // create a table of operation type and its output ports
-    // for which we specify output port indices manually
-    // it is mainly affects multiple output operations
-    // extract this information from tensorflow/core/ops/*.cc files
-    const OutputPortIdxMax output_port_idx_map = {
-        {"TopK:indices", 1},
-        {"TopKV2:indices", 1},
-        {"CTCGreedyDecoder:decoded_values", 1},
-        {"CTCGreedyDecoder:decoded_shape", 2},
-        {"CTCGreedyDecoder:log_probability", 3},
-        {"CTCGreedyDecoder:log_probability", 3},
-        {"FusedBatchNorm:batch_mean", 1},
-        {"FusedBatchNorm:batch_variance", 2},
-        {"FusedBatchNormV2:batch_mean", 1},
-        {"FusedBatchNormV2:batch_variance", 2},
-        {"FusedBatchNormV3:batch_mean", 1},
-        {"FusedBatchNormV3:batch_variance", 2},
-        {"Unique:y", 0},
-        {"Unique:idx", 1},
-        {"RaggedTensorToSparse:sparse_indices", 0},
-        {"RaggedTensorToSparse:sparse_values", 1},
-        {"RaggedTensorToSparse:sparse_dense_shape", 2},
-    };
+                         std::string& producer_output_port_name,
+                         size_t& producer_output_port_index) {
     // Body graph nodes may have two colons `:` input names, for example,
     // `TopKV2Name:indices:0` means that producer operation name is `TopKV2Name`
     // the middle name is output port name of the producer `indices` that means
@@ -350,11 +326,7 @@ void parse_producer_name(const std::string& producer_port_name,
                                 "Port id is not specified or not a number. Value: ",
                                 port_id);
         producer_output_port_index = std::stoi(port_id);
-        auto producer_op_type =
-            (op_type_by_name.count(producer_name) > 0) ? op_type_by_name.at(producer_name) : "Unknown";
-        auto producer_key = producer_op_type + ":" + port_name;
-        producer_output_port_index = output_port_idx_map.count(producer_key) > 0 ? output_port_idx_map.at(producer_key)
-                                                                                 : producer_output_port_index;
+        producer_output_port_name = port_name;
         return;
     } else if (first_colon != std::string::npos) {
         // just one colon case
@@ -372,17 +344,10 @@ void parse_producer_name(const std::string& producer_port_name,
 
 void DecoderProto::get_input_node(size_t input_port_idx,
                                   std::string& producer_name,
+                                  std::string& producer_output_port_name,
                                   size_t& producer_output_port_index) const {
     const std::string producer_port_name = m_node_def->input(static_cast<int>(input_port_idx));
-    parse_producer_name(producer_port_name, producer_name, producer_output_port_index, {});
-}
-
-void DecoderProto::get_input_node(size_t input_port_idx,
-                                  std::string& producer_name,
-                                  size_t& producer_output_port_index,
-                                  const OpTypeByName& op_type_by_name) const {
-    const std::string producer_port_name = m_node_def->input(static_cast<int>(input_port_idx));
-    parse_producer_name(producer_port_name, producer_name, producer_output_port_index, op_type_by_name);
+    parse_producer_name(producer_port_name, producer_name, producer_output_port_name, producer_output_port_index);
 }
 
 const std::string& DecoderProto::get_op_type() const {
