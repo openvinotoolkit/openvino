@@ -32,7 +32,7 @@ jobs:
       fail-fast: false
       matrix:
         config:
-          - { name: "Ubuntu gcc", os: ubuntu-latest-16-cores, cc: "clang", cxx: "clang++" }
+          - { name: "Ubuntu clang", os: ubuntu-latest-16-cores, cc: "clang", cxx: "clang++" }
 
     steps:
       - name: Setup python
@@ -54,10 +54,11 @@ jobs:
       
       - name: Install dependencies
         run: |
+          set -e
           sudo apt --assume-yes update
           sudo -E ${{ github.workspace }}/install_build_dependencies.sh
           sudo apt --assume-yes install openjdk-11-jdk libbz2-dev clang lcov
-          
+          sudo apt --assume-yes install clang-14 libclang-14-dev
           python3 -m pip install --upgrade pip
           python3 -m pip install -r ${{ github.workspace }}/src/bindings/python/wheel/requirements-dev.txt
           python3 -m pip install -r ${{ github.workspace }}/src/bindings/python/requirements.txt
