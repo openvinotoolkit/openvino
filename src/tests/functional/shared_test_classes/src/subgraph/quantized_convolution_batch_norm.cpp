@@ -167,6 +167,8 @@ void QuantizedConvolutionBatchNorm::SetUp() {
 }
 
 void QuantizedConvolutionBatchNorm::TearDown() {
+    if (!executableNetwork)
+        return;
     auto get_layer_type = [] (const std::shared_ptr<ngraph::Node>& node) -> const std::string& {
         const auto& rt_info = node->get_rt_info();
         auto it = rt_info.find(ExecGraphInfoSerialization::LAYER_TYPE);
