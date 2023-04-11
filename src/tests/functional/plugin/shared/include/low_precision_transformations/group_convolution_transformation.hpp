@@ -19,6 +19,7 @@ public:
     int groupCalculationDimention;
     ngraph::builder::subgraph::FakeQuantizeOnData fakeQuantizeOnData;
     ngraph::builder::subgraph::FakeQuantizeOnWeights fakeQuantizeOnWeights;
+    bool addReshape;
     std::string layerName;
     std::string expectedKernelType;
 };

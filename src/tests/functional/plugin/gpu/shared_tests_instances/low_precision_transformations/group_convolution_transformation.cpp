@@ -32,6 +32,7 @@ const std::vector<LayerTestsDefinitions::GroupConvolutionTransformationParam> pa
         -1,
         { 256ul, ngraph::Shape { 1, 1, 1, 1 }, { 0.f }, { 25.5f }, { 0.f }, { 25.5f } },
         { 255ul, ngraph::Shape { 1, 1, 1, 1 }, { 0.f }, { 254.f }, { -127.f }, { 127.f } },
+        true,
         "Convolution",
         "U8"
     },
@@ -41,6 +42,7 @@ const std::vector<LayerTestsDefinitions::GroupConvolutionTransformationParam> pa
         0,
         { 256ul, ngraph::Shape { 1, 1, 1, 1 }, { 0.f }, { 25.5f }, { 0.f }, { 25.5f } },
         { 255ul, ngraph::Shape { 1, 1, 1, 1 }, { 0.f }, { 254.f }, { -127.f }, { 127.f } },
+        true,
         "Convolution",
         "U8"
     },
@@ -50,6 +52,7 @@ const std::vector<LayerTestsDefinitions::GroupConvolutionTransformationParam> pa
         1,
         { 256ul, ngraph::Shape { 1, 1, 1, 1 }, { 0.f }, { 25.5f }, { 0.f }, { 25.5f } },
         { 255ul, ngraph::Shape { 1, 1, 1, 1 }, { 0.f }, { 254.f }, { -127.f }, { 127.f } },
+        true,
         "Convolution",
         "U8"
     },
@@ -59,13 +62,24 @@ const std::vector<LayerTestsDefinitions::GroupConvolutionTransformationParam> pa
         -1,
         {
             256ul,
-            ngraph::Shape { 6, 1, 1, 1 },
+            {/* will be filled in automatically */},
             { 0.f },
             { 25.5f },
             { 0.f, 0.f, 0.f, 0.f, 0.f, 0.f },
             { 25.5f, 25.5f, 25.5f / 2.f, 25.5f / 2.f, 25.5f / 4.f, 25.5f / 4.f }
         },
         { 255ul, ngraph::Shape { 1, 1, 1, 1 }, { 0.f }, { 254.f }, { -127.f }, { 127.f } },
+        true,
+    },
+    // group convolution, per-channel weights quantization
+    {
+        3ul,
+        -1,
+        { 256ul, ngraph::Shape { 1, 1, 1, 1 }, { 0.f }, { 25.5f }, { 0.f }, { 25.5f } },
+        { 255ul, ngraph::Shape { 1, 1, 1, 1 }, { 0.f }, { 254.f }, { -127.f }, { 127.f } },
+        false,
+        "",
+        ""
     }
 };
 
@@ -91,6 +105,7 @@ const std::vector<LayerTestsDefinitions::GroupConvolutionTransformationParam> pa
         -1,
         { 256ul, ngraph::Shape { 1, 1, 1, 1 }, { 0.f }, { 25.5f }, { 0.f }, { 25.5f } },
         { 255ul, ngraph::Shape { 1, 1, 1, 1 }, { 0.f }, { 254.f }, { -127.f }, { 127.f } },
+        true,
     },
     // depthwise convolution, per-channel quantization
     {
@@ -98,13 +113,14 @@ const std::vector<LayerTestsDefinitions::GroupConvolutionTransformationParam> pa
         -1,
         {
             256ul,
-            ngraph::Shape { 6, 1, 1, 1 },
+            {/* will be filled in automatically */},
             { 0.f },
             { 25.5f },
             { 0.f, 0.f, 0.f, 0.f, 0.f, 0.f },
             { 25.5f, 25.5f, 25.5f / 2.f, 25.5f / 2.f, 25.5f / 4.f, 25.5f / 4.f }
         },
         { 255ul, ngraph::Shape { 1, 1, 1, 1 }, { 0.f }, { 254.f }, { -127.f }, { 127.f } },
+        true,
     }
 };
 

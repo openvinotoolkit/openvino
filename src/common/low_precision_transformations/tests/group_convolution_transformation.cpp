@@ -647,6 +647,70 @@ const std::vector<GroupConvolutionTestValues> testValuesGroupConv = {
             },
         }
     },
+    // without reshape, per-channel weights quantization
+    {
+        LayerTransformation::createParamsU8I8().setSupportAsymmetricQuantization(true),
+         3ul,
+         -1,
+         false,
+         // ActualValues
+        {
+            ngraph::element::u8,
+            {{ngraph::element::f32}, {}, {0.02f}},
+            op::Constant::create(ngraph::element::f32, ngraph::Shape{}, std::vector<float>{2.f}),
+            {255ul, Shape({3, 8, 1, 1, 1}), {0.f}, {254.f}, {-1.27f}, {1.27f}},
+            {}
+        },
+        // ExpectedValues
+        {
+            ngraph::element::u8,
+            {},
+            op::Constant::create(ngraph::element::i8, ngraph::Shape{}, std::vector<float>{-125.f}),
+            {},
+            {},
+            ngraph::element::f32,
+            {{}, {}, {{0.0002f}, ngraph::element::f32, {}}}
+        }
+    },
+    // without reshape, per-channel weights quantization
+    {
+        LayerTransformation::createParamsU8I8().setSupportAsymmetricQuantization(true),
+         3ul,
+         -1,
+         false,
+         // ActualValues
+        {
+            ngraph::element::u8,
+            {{ngraph::element::f32}, {}, {0.1f}},
+            op::Constant::create(ngraph::element::i8, ngraph::Shape{}, std::vector<float>{-125.f}),
+            {},
+            {
+                {ngraph::element::f32},
+                {},
+                {
+                    {0.1f, 0.2f, 0.3f, 0.4f, 0.5f, 0.6f, 0.7f, 0.8f,
+                     0.1f, 0.2f, 0.3f, 0.4f, 0.5f, 0.6f, 0.7f, 0.8f,
+                     0.1f, 0.2f, 0.3f, 0.4f, 0.5f, 0.6f, 0.7f, 0.8f},
+                    ngraph::element::f32, {3, 8, 1, 1, 1}
+                }
+            }
+        },
+        // ExpectedValues
+        {
+            ngraph::element::u8,
+            {},
+            op::Constant::create(ngraph::element::i8, ngraph::Shape{}, std::vector<float>{-125.f}),
+            {},
+            {},
+            ngraph::element::f32,
+            {{}, {}, {
+                {0.01f, 0.02f, 0.03f, 0.04f, 0.05f, 0.06f, 0.07f, 0.08f,
+                 0.01f, 0.02f, 0.03f, 0.04f, 0.05f, 0.06f, 0.07f, 0.08f,
+                 0.01f, 0.02f, 0.03f, 0.04f, 0.05f, 0.06f, 0.07f, 0.08f},
+                 ngraph::element::f32, {1, 24, 1, 1}
+            }}
+        }
+    },
 };
 
 INSTANTIATE_TEST_SUITE_P(smoke_LPT,
