@@ -55,7 +55,15 @@ std::set<std::string> get_unconverted_types_from_model(const std::shared_ptr<Mod
 }
 }  // namespace
 
-FrontEnd::FrontEnd() : m_op_translators(get_supported_ops()) {}
+FrontEnd::FrontEnd(){
+
+    if(std::strcmp(std::getenv("PYTORCH_TRACING_MODE"), "TORCHFX") == 0){
+        m_op_translators = get_supported_ops_fx();
+    }
+    else{
+        m_op_translators = get_supported_ops_ts();
+    }
+}
 
 std::shared_ptr<Model> FrontEnd::convert(const InputModel::Ptr& model) const {
     auto converted_model = convert_partially(model);

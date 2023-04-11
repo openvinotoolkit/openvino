@@ -14,6 +14,8 @@ namespace op {
 
 #define OP_CONVERTER(op) OutputVector op(const NodeContext& node)
 
+
+//TorchScript translations
 OP_CONVERTER(translate_adaptive_avg_pool3d);
 OP_CONVERTER(translate_adaptive_max_pool2d);
 OP_CONVERTER(translate_add);
@@ -25,7 +27,6 @@ OP_CONVERTER(translate_as_tensor);
 OP_CONVERTER(translate_avg_poolnd);
 OP_CONVERTER(translate_bool);
 OP_CONVERTER(translate_batch_norm);
-OP_CONVERTER(translate_batch_norm_fx);
 OP_CONVERTER(translate_bitwise_not);
 OP_CONVERTER(translate_cat);
 OP_CONVERTER(translate_clamp);
@@ -75,7 +76,6 @@ OP_CONVERTER(translate_loop);
 OP_CONVERTER(translate_masked_fill);
 OP_CONVERTER(translate_max);
 OP_CONVERTER(translate_max_poolnd);
-OP_CONVERTER(translate_max_poolnd_fx);
 OP_CONVERTER(translate_mean);
 OP_CONVERTER(translate_meshgrid);
 OP_CONVERTER(translate_min);
@@ -133,18 +133,22 @@ OP_CONVERTER(translate_var_mean);
 OP_CONVERTER(translate_where);
 OP_CONVERTER(translate_zeros);
 OP_CONVERTER(translate_zeros_like);
-
+//Torch FX Translations
+OP_CONVERTER(translate_addmm_fx);
+OP_CONVERTER(translate_batch_norm_fx);
+OP_CONVERTER(translate_max_poolnd_fx);
+OP_CONVERTER(translate_transpose_fx);
 }  // namespace op
 
-const std::map<std::string, CreatorFunction> get_supported_ops() {
+
+//Supported ops for TorchScript
+const std::map<std::string, CreatorFunction> get_supported_ops_ts() {
     return {
-        {"<built-in function getitem>", op::translate_getitem}, // TODO: Check if there is any other way to handle this
         {"aten::__and__", op::translate_1to1_match_2_inputs<opset10::LogicalAnd>},  // TODO: cover numerical cases
         {"aten::__getitem__", op::translate_getitem},
         {"aten::__not__", op::translate_1to1_match_1_inputs<opset10::LogicalNot>},
         {"aten::__or__", op::translate_1to1_match_2_inputs<opset10::LogicalOr>},
         {"aten::_convolution", op::translate_convolution},
-        {"aten.convolution.default", op::translate_convolution},
         {"aten::_convolution_mode", op::translate_convolution_mode},
         {"aten::_set_item", op::translate_set_item},
         {"aten::abs", op::translate_1to1_match_1_inputs<opset10::Abs>},
@@ -156,7 +160,6 @@ const std::map<std::string, CreatorFunction> get_supported_ops() {
         {"aten::adaptive_avg_pool3d", op::translate_adaptive_avg_pool3d},
         {"aten::adaptive_max_pool2d", op::translate_adaptive_max_pool2d},
         {"aten::add", op::translate_add},
-        {"aten.add_.Tensor", op::translate_add},
         {"aten::add_", op::inplace_op<op::translate_add>},
         {"aten::addcmul", op::translate_addcmul},
         {"aten::addmm", op::translate_addmm},
@@ -260,17 +263,14 @@ const std::map<std::string, CreatorFunction> get_supported_ops() {
         {"aten::max", op::translate_max},
         {"aten::max_pool1d", op::translate_max_poolnd},
         {"aten::max_pool2d", op::translate_max_poolnd},
-        {"aten.max_pool2d_with_indices.default", op::translate_max_poolnd_fx},
         {"aten::max_pool3d", op::translate_max_poolnd},
         {"aten::mean", op::translate_mean},
-        {"aten.mean.dim", op::translate_mean},
         {"aten::meshgrid", op::translate_meshgrid},
         {"aten::min", op::translate_min},
         {"aten::mm", op::translate_1to1_match_2_inputs<opset10::MatMul>},
         {"aten::mul", op::translate_1to1_match_2_inputs_align_types<opset10::Multiply>},
         {"aten::mul_", op::inplace_op<op::translate_1to1_match_2_inputs_align_types<opset10::Multiply>>},
         {"aten::narrow", op::translate_narrow},
-        {"aten.native_batch_norm.default", op::translate_batch_norm_fx},
         {"aten::ne", op::translate_1to1_match_2_inputs_align_types<opset10::NotEqual>},
         {"aten::neg", op::translate_neg},
         {"aten::new_empty", op::translate_new_zeros},
@@ -287,7 +287,6 @@ const std::map<std::string, CreatorFunction> get_supported_ops() {
         {"aten::pow", op::translate_pow},
         {"aten::reciprocal", op::translate_reciprocal},
         {"aten::relu", op::translate_1to1_match_1_inputs<opset10::Relu>},
-        {"aten.relu_.default", op::translate_1to1_match_1_inputs<opset10::Relu>},
         {"aten::relu_", op::inplace_op<op::translate_1to1_match_1_inputs<opset10::Relu>>},
         {"aten::relu6", op::translate_relu6},
         {"aten::remainder", op::translate_remainder},
@@ -303,11 +302,9 @@ const std::map<std::string, CreatorFunction> get_supported_ops() {
         {"aten::selu", op::translate_selu},
         {"aten::selu_", op::inplace_op<op::translate_selu>},
         {"aten::sigmoid", op::translate_1to1_match_1_inputs<opset10::Sigmoid>},
-        {"aten.sigmoid.default", op::translate_1to1_match_1_inputs<opset10::Sigmoid>},
         {"aten::sigmoid_", op::inplace_op<op::translate_1to1_match_1_inputs<opset10::Sigmoid>>},
         {"aten::silu", op::translate_1to1_match_1_inputs<opset10::Swish>},
         {"aten::silu_", op::inplace_op<op::translate_1to1_match_1_inputs<opset10::Swish>>},
-        {"aten.silu_.default", op::inplace_op<op::translate_1to1_match_1_inputs<opset10::Swish>>},
         {"aten::sin", op::translate_1to1_match_1_inputs<opset10::Sin>},
         {"aten::sin_", op::inplace_op<op::translate_1to1_match_1_inputs<opset10::Sin>>},
         {"aten::sinh", op::translate_1to1_match_1_inputs<opset10::Sinh>},
@@ -346,7 +343,6 @@ const std::map<std::string, CreatorFunction> get_supported_ops() {
         {"aten::var", op::translate_var},
         {"aten::var_mean", op::translate_var_mean},
         {"aten::view", op::translate_reshape},
-        {"aten.view.default", op::translate_reshape},
         {"aten::where", op::translate_where},
         {"aten::zeros", op::translate_zeros},
         {"aten::zeros_like", op::translate_zeros_like},
@@ -366,6 +362,38 @@ const std::map<std::string, CreatorFunction> get_supported_ops() {
         {"torchvision::roi_align", op::translate_roi_align},
     };
 };
+
+const std::map<std::string, CreatorFunction> get_supported_ops_fx() {
+    return {
+        {"<built-in function getitem>", op::translate_getitem}, // TODO: Check if there is any other way to handle this
+        {"aten.convolution.default", op::translate_convolution},
+        {"aten.add_.Tensor", op::translate_add},
+        {"aten.addmm.default", op::translate_addmm_fx},
+        {"aten.empty.memory_format", op::translate_empty},
+        {"aten.max_pool2d_with_indices.default", op::translate_max_poolnd_fx},
+        {"aten.mean.dim", op::translate_mean},
+        {"aten.relu_.default", op::translate_1to1_match_1_inputs<opset10::Relu>},
+        {"aten.sigmoid.default", op::translate_1to1_match_1_inputs<opset10::Sigmoid>},
+        {"aten.silu_.default", op::inplace_op<op::translate_1to1_match_1_inputs<opset10::Swish>>},
+        {"aten.t.default", op::translate_transpose_fx},
+        {"aten.view.default", op::translate_reshape},
+        {"prim::Constant", op::translate_constant},
+        {"prim::device", op::translate_constant},
+        {"prim::GetAttr", op::translate_get_attr},
+        {"prim::If", op::translate_if},
+        {"prim::is_cuda", op::return_false_scalar},
+        {"prim::ListConstruct", op::translate_list_construct},
+        {"prim::Loop", op::translate_loop},
+        {"prim::NumToTensor", op::skip_node},  // In openvino we already store number as tensor with shape []
+        {"prim::requires_grad", op::return_false_scalar},
+        {"prim::PythonOp", op::translate_pythonop},
+        {"prim::type", op::skip_node},  // Used with prim::device, pass PtFrameworkNode.
+        {"torchvision::deform_conv2d", op::translate_deform_conv},
+        {"torchvision::nms", op::translate_nms},
+        {"torchvision::roi_align", op::translate_roi_align},
+    };
+};
+
 
 }  // namespace pytorch
 }  // namespace frontend
