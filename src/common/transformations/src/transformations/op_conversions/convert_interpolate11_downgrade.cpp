@@ -32,12 +32,13 @@ std::pair<ov::Output<ov::Node>, ov::Output<ov::Node>> make_v4_inputs(
 
     if (interpolate->get_attrs().shape_calculation_mode == ov::op::util::InterpolateBase::ShapeCalcMode::SCALES) {
         ret.second = interpolate->input_value(1);
-        std::shared_ptr<ov::Node> sizes_input = ov::opset4::Constant::create(ov::element::i32, ov::Shape{}, {1});
+        std::shared_ptr<ov::Node> sizes_input = registry.make<ov::opset4::Constant>(ov::element::i32, ov::Shape{}, 1);
         sizes_input = registry.make<ov::opset4::Broadcast>(sizes_input, broadcast_shape);
         ret.first = sizes_input;
     } else {
         ret.first = interpolate->input_value(1);
-        std::shared_ptr<ov::Node> scales_input = ov::opset4::Constant::create(ov::element::f32, ov::Shape{}, {1.0f});
+        std::shared_ptr<ov::Node> scales_input =
+            registry.make<ov::opset4::Constant>(ov::element::f32, ov::Shape{}, 1.0f);
         scales_input = registry.make<ov::opset4::Broadcast>(scales_input, broadcast_shape);
         ret.second = scales_input;
     }
