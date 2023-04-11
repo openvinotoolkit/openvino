@@ -12,7 +12,7 @@ Inference Engine Plugin tests are included in the ``IE::funcSharedTests`` CMake 
 Test definitions are split into tests class declaration (see ``inference_engine/tests/functional/plugin/shared/include``) and tests class implementation (see ``inference_engine/tests/functional/plugin/shared/src``) and include the following scopes of plugin conformance tests:
 
 1. **Behavior tests** (``behavior`` sub-folder), which are a separate test group to check that a plugin satisfies basic Inference
-Engine concepts: plugin creation, multiple executable networks support, multiple synchronous and asynchronous inference requests support, and so on. See the next section with details how to instantiate the tests definition class with plugin-specific parameters.
+Engine concepts: plugin creation, multiple compiled models support, multiple synchronous and asynchronous inference requests support, and so on. See the next section with details how to instantiate the tests definition class with plugin-specific parameters.
 
 2. **Single layer tests** (``single_layer_tests`` sub-folder). This groups of tests checks that a particular single layer can be inferenced on a device. An example of test instantiation based on test definition from ``IE::funcSharedTests`` library:
 

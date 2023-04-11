@@ -10,7 +10,8 @@
    Implement Plugin Functionality <openvino_docs_ie_plugin_dg_plugin>
    Implement Executable Network Functionality <openvino_docs_ie_plugin_dg_executable_network>
    Implement Synchronous Inference Request <openvino_docs_ie_plugin_dg_infer_request>
-   Implement Asynchronous Inference Request <openvino_docs_ie_plugin_dg_async_infer_request>
+   Implement Asynchronous Inference Request <openvino_docs_ov_plugin_dg_async_infer_reques>
+   Provide Plugin Specific Properties <openvino_docs_ov_plugin_dg_properties>
    openvino_docs_ie_plugin_dg_plugin_build
    openvino_docs_ie_plugin_dg_plugin_testing
    openvino_docs_ie_plugin_detailed_guides
@@ -41,7 +42,7 @@ Inference Engine plugin dynamic library consists of several main components:
 3. :doc:`Inference Request class <openvino_docs_ie_plugin_dg_infer_request>`:
     - Runs an inference pipeline serially.
     - Can extract performance counters for an inference pipeline execution profiling.
-4. :doc:`Asynchronous Inference Request class <openvino_docs_ie_plugin_dg_async_infer_request>`:
+4. :doc:`Asynchronous Inference Request class <openvino_docs_ov_plugin_dg_async_infer_reques>`:
     - Wraps the :doc:`Inference Request <openvino_docs_ie_plugin_dg_infer_request>` class and runs pipeline stages in parallel 
 	on several task executors based on a device-specific pipeline structure.
 
@@ -55,7 +56,7 @@ Detailed Guides
 
 * :doc:`Build <openvino_docs_ie_plugin_dg_plugin_build>` a plugin library using CMake
 * Plugin and its components :ref:`testing <openvino_docs_ie_plugin_dg_plugin_testing>`
-* :doc:`Quantized networks <openvino_docs_ie_plugin_dg_quantized_networks>`
+* :doc:`Quantized networks <openvino_docs_ov_plugin_dg_quantized_models>`
 * :doc:`Low precision transformations <openvino_docs_OV_UG_lpt>` guide
 * :doc:`Writing OpenVINO™ transformations <openvino_docs_transformations>` guide
 

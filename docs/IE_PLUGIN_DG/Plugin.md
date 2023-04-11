@@ -47,9 +47,10 @@ The provided plugin class also has several fields:
 
 As an example, a plugin configuration has three value parameters:
 
-- ``deviceId`` - particular device ID to work with. Applicable if a plugin supports more than one ``Template`` device. In this case, some plugin methods, like ``SetConfig``, ``QueryNetwork``, and `LoadNetwork`, must support the :ref:`CONFIG_KEY(KEY_DEVICE_ID) <doxid-ie__plugin__config_8hpp_1aad09cfba062e8ec9fb7ab9383f656ec7>` parameter. 
-- ``perfCounts`` - boolean value to identify whether to collect performance counters during :doc:`Inference Request <openvino_docs_ie_plugin_dg_infer_request>`execution.
-- ``_streamsExecutorConfig`` - configuration of ``:ref:`InferenceEngine::IStreamsExecutor <doxid-class_inference_engine_1_1_i_streams_executor>``` to handle settings of multi-threaded context.
+* ``deviceId`` - particular device ID to work with. Applicable if a plugin supports more than one ``Template`` device. In this case, some plugin methods, like ``SetConfig``, ``QueryNetwork``, and `LoadNetwork`, must support the :ref:`CONFIG_KEY(KEY_DEVICE_ID) <doxid-ie__plugin__config_8hpp_1aad09cfba062e8ec9fb7ab9383f656ec7>` parameter. 
+* ``perfCounts`` - boolean value to identify whether to collect performance counters during :doc:`Inference Request <openvino_docs_ie_plugin_dg_infer_request>`execution.
+* ``_streamsExecutorConfig`` - configuration of ``:ref:`InferenceEngine::IStreamsExecutor <doxid-class_inference_engine_1_1_i_streams_executor>``` to handle settings of multi-threaded context.
+* ``disable_transformations`` - allows to disable transformations which are applied in the process of model compilation.
 
 Engine Constructor
 ------------------
@@ -66,8 +67,8 @@ A plugin must define a device name enabled via the ``_pluginName`` field of a ba
    :language: hpp
    :fragment: [plugin:ctor]
 
-`LoadExeNetworkImpl()`
-----------------------
+LoadExeNetworkImpl()
+--------------------
 
 **Implementation details:** The base :ref:`InferenceEngine::IInferencePlugin <doxid-class_inference_engine_1_1_i_inference_plugin>` class provides a common implementation 
 of the public :ref:`InferenceEngine::IInferencePlugin::LoadNetwork <doxid-class_inference_engine_1_1_i_inference_plugin_1addf67bb7bae8f00cad65545d5a5a0d51>` method that calls plugin-specific ``LoadExeNetworkImpl``, which is defined in a derived class.
@@ -89,15 +90,17 @@ Actual graph compilation is done in the ``ExecutableNetwork`` constructor. Refer
 .. note::
  Actual configuration map used in ``ExecutableNetwork`` is constructed as a base plugin configuration set via ``Plugin::SetConfig``, where some values are overwritten with `config` passed to ``Plugin::LoadExeNetworkImpl``. Therefore, the config of  ``Plugin::LoadExeNetworkImpl`` has a higher priority.
 
-`TransformNetwork()`
---------------------
+TransformNetwork()
+------------------
 
 The function accepts a const shared pointer to ``:ref:`ov::Model <doxid-classov_1_1_model>``` object and performs the following steps:
 
 1. Deep copies a const object to a local object, which can later be modified.
+
 2. Applies common and plugin-specific transformations on a copied graph to make the graph more friendly to hardware operations. For details how to write custom plugin-specific transformation, please, refer to [Writing OpenVINO™ transformations](@ref openvino_docs_transformations) guide. See detailed topics about network representation:
+
     * `Intermediate Representation and Operation Sets <openvino_docs_MO_DG_IR_and_opsets>`
-    * [Quantized networks](@ref openvino_docs_ie_plugin_dg_quantized_networks).
+    * [Quantized networks](@ref openvino_docs_ov_plugin_dg_quantized_models).
 
 .. doxygensnippet:: template/src/plugin.hpp
    :language: cpp
@@ -106,8 +109,8 @@ The function accepts a const shared pointer to ``:ref:`ov::Model <doxid-classov_
 .. note:: 
    After all these transformations, a ``:ref:`ov::Model <doxid-classov_1_1_model>``` object contains operations which can be perfectly mapped to backend kernels. E.g. if backend has kernel computing ``A + B`` operations at once, the ``TransformNetwork`` function should contain a pass which fuses operations ``A`` and ``B`` into a single custom operation ``A + B`` which fits backend kernels set.
 
-`QueryNetwork()`
-----------------
+QueryNetwork()
+--------------
 
 Use the method with the ``HETERO`` mode, which allows to distribute network execution between different 
 devices based on the ``:ref:`ov::Node::get_rt_info() <doxid-classov_1_1_node_1a6941c753af92828d842297b74df1c45a>``` map, which can contain the ``"affinity"`` key.
@@ -123,8 +126,8 @@ operations via the InferenceEngine::QueryNetworkResult structure. The ``QueryNet
    :language: cpp
    :fragment: [plugin:query_network]
 
-`SetConfig()`
--------------
+SetConfig()
+-----------
 
 Sets new values for plugin configuration keys:
 
@@ -138,8 +141,8 @@ ones. All these values are used during backend specific graph compilation and ex
 .. note::
    The function must throw an exception if it receives an unsupported configuration key.
 
-`GetConfig()`
--------------
+GetConfig()
+-----------
 
 Returns a current value for a specified configuration key:
 
@@ -154,8 +157,8 @@ key value to the InferenceEngine::Parameter and returns it.
 
    The function must throw an exception if it receives an unsupported configuration key.
 
-`GetMetric()`
--------------
+GetMetric()
+-----------
 
 Returns a metric value for a metric with the name ``name``. A device metric is a static type of information 
 from a plugin about its devices or device capabilities. 
@@ -185,8 +188,8 @@ The snippet below provides an example of the implementation for `GetMetric`:
 
    If an unsupported metric key is passed to the function, it must throw an exception.
 
-`ImportNetwork()`
------------------
+ImportNetwork()
+---------------
 
 The importing network mechanism allows to import a previously exported backend specific graph and wrap it 
 using an :ref:`ExecutableNetwork <openvino_docs_ie_plugin_dg_executable_network>` object. This functionality is useful if 
