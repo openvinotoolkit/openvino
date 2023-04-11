@@ -818,6 +818,7 @@ InferenceEngine::Parameter HeteroExecutableNetwork::GetMetric(const std::string&
         std::vector<std::string> heteroMetrics = {ov::model_name.name(),
                                                   METRIC_KEY(SUPPORTED_METRICS),
                                                   METRIC_KEY(SUPPORTED_CONFIG_KEYS),
+                                                  ov::loaded_from_cache.name(),
                                                   ov::optimal_number_of_infer_requests.name(),
                                                   ov::execution_devices.name()};
         IE_SET_METRIC_RETURN(SUPPORTED_METRICS, heteroMetrics);
