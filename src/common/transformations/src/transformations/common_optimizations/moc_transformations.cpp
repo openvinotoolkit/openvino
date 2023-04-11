@@ -39,7 +39,7 @@
 #include <transformations/common_optimizations/mul_fake_quantize_fusion.hpp>
 #include <transformations/common_optimizations/mvn_fusion.hpp>
 #include <transformations/common_optimizations/nearest_neighbor_upsampling_fusion.hpp>
-#include <transformations/common_optimizations/nonzero_fusion.hpp>
+#include <transformations/common_optimizations/nonzero_horizontal_fusion.hpp>
 #include <transformations/common_optimizations/nop_elimination.hpp>
 #include <transformations/common_optimizations/normalize_l2_fusion.hpp>
 #include <transformations/common_optimizations/optimize_strided_slice.hpp>
@@ -203,7 +203,7 @@ bool ov::pass::MOCTransformations::run_on_model(const std::shared_ptr<ngraph::Fu
     ADD_MATCHER(common_fusions, PReluFusion)
     ADD_MATCHER(common_fusions, DepthToSpaceFusion)
     ADD_MATCHER(common_fusions, ShuffleChannelsFusion, !m_use_shapes)
-    ADD_MATCHER(common_fusions, NonZeroFusion)
+    ADD_MATCHER(common_fusions, NonZeroHorizontalFusion)
     common_fusions->set_name("ov::pass::CommonFusions");
 
     REGISTER_PASS(manager, BinarizeWeights)

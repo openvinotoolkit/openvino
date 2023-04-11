@@ -12,17 +12,17 @@
 namespace ov {
 namespace pass {
 
-class TRANSFORMATIONS_API NonZeroFusion;
+class TRANSFORMATIONS_API NonZeroHorizontalFusion;
 
 }  // namespace pass
 }  // namespace ov
 
 /**
  * @ingroup ie_transformation_common_api
- * @brief NonZeroFusion transformation makes horizontal fusion for equal NonZero layers
+ * @brief NonZeroHorizontalFusion transformation makes horizontal fusion for equal NonZero layers
  */
-class ov::pass::NonZeroFusion : public ov::pass::MatcherPass {
+class ov::pass::NonZeroHorizontalFusion : public ov::pass::MatcherPass {
 public:
-    OPENVINO_RTTI("NonZeroFusion", "0");
-    NonZeroFusion();
+    OPENVINO_RTTI("NonZeroHorizontalFusion", "0");
+    NonZeroHorizontalFusion();
 };
