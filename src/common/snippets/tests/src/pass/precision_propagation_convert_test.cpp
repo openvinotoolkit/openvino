@@ -89,7 +89,52 @@ TEST_F(PrecisionPropagationConvertTest, smoke_Snippets_PrecisionPropagation_can_
         {element::u32, element::bf16},
 
         {element::u16, element::f16},
-        {element::u16, element::bf16}
+        {element::u16, element::bf16},
+
+        {element::f16, element::bf16},
+        {element::bf16, element::f16},
+
+        // signed => unsigned
+        {element::i64, element::u64},
+        {element::i64, element::u32},
+        {element::i64, element::u16},
+        {element::i64, element::u8},
+
+        {element::i32, element::u64},
+        {element::i32, element::u32},
+        {element::i32, element::u16},
+        {element::i32, element::u8},
+
+        {element::i16, element::u64},
+        {element::i16, element::u32},
+        {element::i16, element::u16},
+        {element::i16, element::u8},
+
+        {element::i8, element::u64},
+        {element::i8, element::u32},
+        {element::i8, element::u16},
+        {element::i8, element::u8},
+
+        // signed => unsigned
+        {element::u64, element::i64},
+        {element::u64, element::i32},
+        {element::u64, element::i16},
+        {element::u64, element::i8},
+
+        {element::u32, element::i64},
+        {element::u32, element::i32},
+        {element::u32, element::i16},
+        {element::u32, element::i8},
+
+        {element::u16, element::i64},
+        {element::u16, element::i32},
+        {element::u16, element::i16},
+        {element::u16, element::i8},
+
+        {element::u8, element::i64},
+        {element::u8, element::i32},
+        {element::u8, element::i16},
+        {element::u8, element::i8},
     };
 
     for (const auto& precisions : precisions_set) {

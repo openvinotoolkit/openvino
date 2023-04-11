@@ -2,15 +2,15 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "precision_propagation_function.hpp"
-#include <assert.h>
+#include "two_binary_ops_function.hpp"
 #include <ngraph/opsets/opset1.hpp>
+#include "snippets/op/convert_saturation.hpp"
 
 namespace ov {
 namespace test {
 namespace snippets {
 
-std::shared_ptr<ngraph::Function> PrecisionPropagationAddFunction::get(
+std::shared_ptr<ngraph::Function> TwoBinaryOpsFunction::get(
     const ngraph::element::Type& precision1,
     const ngraph::PartialShape& inputShape1,
     const ngraph::element::Type& precision2,
@@ -43,25 +43,17 @@ std::shared_ptr<ngraph::Function> PrecisionPropagationAddFunction::get(
     const auto branch1 = make_branch(precision1, inputShape1, 1, convertion_before_op1.first);
     const auto branch2 = make_branch(precision2, inputShape2, 2, convertion_before_op1.second);
 
-    std::shared_ptr<Node> parent = std::make_shared<DummyAdd>(branch1.second, branch2.second);
-    parent->set_friendly_name("add");
+    std::shared_ptr<Node> parent = std::make_shared<DummyOperation1>(branch1.second, branch2.second);
+    parent->set_friendly_name("operation1");
 
     parent = create_convert(parent, convertion_before_op2_1);
 
-    const auto maximum_in2_type = convertion_before_op2_2.second == element::undefined ?
-        constant_precision :
-        convertion_before_op2_2.second;
-    if ((convertion_before_op2_2.first == element::undefined) &&
-        (parent->get_output_element_type(0) != maximum_in2_type)) {
-        parent = std::make_shared<ngraph::snippets::op::ConvertSaturation>(parent, maximum_in2_type);
-    }
-
-    parent = std::make_shared<ngraph::opset1::Maximum>(
+    parent = std::make_shared<DummyOperation2>(
         create_convert(parent, convertion_before_op2_2.first),
         create_convert(
             std::make_shared<ngraph::opset1::Constant>(constant_precision, Shape{}, std::vector<float>{0.f}),
             convertion_before_op2_2.second));
-    parent->set_friendly_name("maximum");
+    parent->set_friendly_name("operation2");
 
     parent = create_convert(parent, convertion_after_op2);
 
@@ -78,7 +70,7 @@ std::shared_ptr<ngraph::Function> PrecisionPropagationAddFunction::get(
     return model;
 }
 
-std::shared_ptr<ov::Model> PrecisionPropagationAddFunction::initOriginal() const {
+std::shared_ptr<ov::Model> TwoBinaryOpsFunction::initOriginal() const {
     return get(
         precision1,
         input_shapes[0],
@@ -91,7 +83,7 @@ std::shared_ptr<ov::Model> PrecisionPropagationAddFunction::initOriginal() const
         actual.convertion_after_op2);
 }
 
-std::shared_ptr<ov::Model> PrecisionPropagationAddFunction::initReference() const {
+std::shared_ptr<ov::Model> TwoBinaryOpsFunction::initReference() const {
     return get(
         precision1,
         input_shapes[0],
