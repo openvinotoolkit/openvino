@@ -389,27 +389,32 @@ network::network(cldnn::BinaryInputBuffer& ib, const ExecutionConfig& config, st
         _primitives[_primitive_id] = new_primitive_inst;
     }
 
+    std::vector<std::shared_ptr<primitive_inst>> insts_to_allocate;
     size_t exec_order_size;
     ib >> exec_order_size;
-    _exec_order.clear();
 
-    std::vector<std::string> _exec_order_types;
-    _exec_order_types.resize(exec_order_size);
-
-    for (auto& type : _exec_order_types) {
+    for (size_t i = 0; i < exec_order_size; ++i) {
+        std::string type;
         ib >> type;
         std::shared_ptr<cldnn::primitive_inst> new_primitive_inst = prim_map_storage::instance().get_type_id(type)->create_instance(*this);
-        _exec_order.emplace_back(new_primitive_inst);
+        insts_to_allocate.emplace_back(new_primitive_inst);
     }
 
     _outputs.clear();
     _output_chains.clear();
 
-    for (const auto& p_inst : _exec_order) {
+    for (const auto& p_inst : insts_to_allocate) {
         ib >> *p_inst;
         _primitives[p_inst->id()] = p_inst;
         if (p_inst->get_impl() != nullptr)
             p_inst->init_by_cached_kernels(kernels_cache);
+    }
+
+    std::vector<primitive_id> exec_order_ids;
+    ib >> exec_order_ids;
+    _exec_order.clear();
+    for (auto& exec_order_id : exec_order_ids) {
+        _exec_order.emplace_back(_primitives[exec_order_id]);
     }
 
     for (auto& item : _primitives) {
@@ -549,13 +554,34 @@ void network::save(cldnn::BinaryOutputBuffer& ob) {
     size_t exec_order_size = _exec_order.size();
     ob << exec_order_size;
 
+    std::unordered_map<primitive_id, int> exec_order_num;
+    int i = -1;
     for (const auto& p_inst : _exec_order) {
+        exec_order_num[p_inst->id()] = i--;
+    }
+
+    std::vector<std::shared_ptr<primitive_inst>> insts_to_allocate(_exec_order.begin(), _exec_order.end());
+    std::sort(insts_to_allocate.begin(),
+              insts_to_allocate.end(),
+              [&exec_order_num](std::shared_ptr<primitive_inst> const& lhs, std::shared_ptr<primitive_inst> const& rhs) {
+                    long lhs_size = (lhs->mem_allocated()) ? lhs->get_output_layout().bytes_count() : exec_order_num[lhs->id()];
+                    long rhs_size = (rhs->mem_allocated()) ? rhs->get_output_layout().bytes_count() : exec_order_num[rhs->id()];
+                    return (lhs_size > rhs_size);
+              });
+
+    for (const auto& p_inst : insts_to_allocate) {
         ob << p_inst->get_node().get_primitive()->type_string();
     }
 
-    for (const auto& p_inst : _exec_order) {
+    for (const auto& p_inst : insts_to_allocate) {
         ob << *p_inst;
     }
+
+    std::vector<primitive_id> exec_order_ids;
+    for (const auto& p_inst : _exec_order) {
+        exec_order_ids.emplace_back(p_inst->id());
+    }
+    ob << exec_order_ids;
 
     std::map<std::string, std::string> reuse_map;
 
