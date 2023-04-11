@@ -211,6 +211,7 @@ TEST_P(ExecutableNetworkBaseTest, CheckExecGraphInfoAfterExecution) {
     InferenceEngine::CNNNetwork execGraph;
     // Load CNNNetwork to target plugins
     auto execNet = ie->LoadNetwork(cnnNet, target_device, configuration);
+    execNet.CreateInferRequest().Infer();
     ASSERT_NO_THROW(execGraph = execNet.GetExecGraphInfo());
     std::map<std::string, int> originalLayersMap;
     for (const auto &layer : function->get_ops()) {

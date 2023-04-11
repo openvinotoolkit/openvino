@@ -100,7 +100,7 @@ INSTANTIATE_TEST_SUITE_P(
        ::testing::Values(CommonTestUtils::DEVICE_TEMPLATE));
 INSTANTIATE_TEST_SUITE_P(
         smoke_OVClassHeteroExecutableNetworkGetMetricTest, OVClassHeteroExecutableNetworkGetMetricTest_EXEC_DEVICES,
-        ::testing::Values(CommonTestUtils::DEVICE_TEMPLATE));
+        ::testing::Values("TEMPLATE.0"));
 //////////////////////////////////////////////////////////////////////////////////////////
 
 } // namespace

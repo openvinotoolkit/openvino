@@ -201,7 +201,7 @@ ov::SupportedOpsMap ov::template_plugin::Plugin::query_model(const std::shared_p
     // 3. Produce the result
     ov::SupportedOpsMap res;
     for (auto&& layerName : supported) {
-        res.emplace(layerName, get_device_name());
+        res.emplace(layerName, get_device_name() + "." + std::to_string(m_cfg.device_id));
     }
 
     return res;

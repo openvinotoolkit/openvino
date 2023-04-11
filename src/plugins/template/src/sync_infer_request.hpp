@@ -39,6 +39,7 @@ public:
     void start_pipeline();
     void wait_pipeline();
     void infer_postprocess();
+    void cancel();
 
     void set_tensors_impl(const ov::Output<const ov::Node> port, const std::vector<ov::Tensor>& tensors) override;
 

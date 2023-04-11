@@ -22,8 +22,10 @@ public:
                       const std::shared_ptr<ov::threading::ITaskExecutor>& callback_executor);
 
     ~AsyncInferRequest();
+    void cancel() override;
 
 private:
+    std::function<void()> m_cancel_callback;
     std::shared_ptr<ov::threading::ITaskExecutor> m_wait_executor;
 };
 // ! [async_infer_request:header]
