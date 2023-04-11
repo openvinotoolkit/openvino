@@ -56,7 +56,9 @@ void op::v3::NonZero::validate_and_infer_types() {
 
     set_input_is_relevant_to_shape(0);
 
+    OPENVINO_SUPPRESS_DEPRECATED_START
     if (const auto& input_constant = get_constant_from_source(input_value(0))) {
+        OPENVINO_SUPPRESS_DEPRECATED_END
         // input_value is available to calculate output shape
         const auto& input_data = std::make_shared<HostTensor>(input_constant);
         auto output = std::make_shared<HostTensor>(m_output_type, get_output_partial_shape(0));

@@ -18,7 +18,9 @@ static void CreateShuffleChannelsOp(Program& p, const std::shared_ptr<ngraph::op
     std::string layerName = layer_type_name_ID(op);
 
     int32_t group = op->get_group();
+    OPENVINO_SUPPRESS_DEPRECATED_START
     int64_t axis = ov::normalize_axis(op.get(), op->get_axis(), op->get_input_partial_shape(0).rank());
+    OPENVINO_SUPPRESS_DEPRECATED_END
 
     auto shuffleChannelsPrim = cldnn::shuffle_channels(layerName,
                                                        inputs[0],

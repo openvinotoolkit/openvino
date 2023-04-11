@@ -283,27 +283,16 @@ protected:
         }
     }
 
-    void update_kernels_list_to_skip() {
-        for (size_t i = 0; i < _kernel_data.kernels.size(); ++i) {
-            auto gws = _kernel_data.kernels[i].params.workGroups.global;
-            _kernel_data.kernels[i].skip_execution = (std::accumulate(gws.begin(), gws.end(), static_cast<size_t>(1), std::multiplies<size_t>()) == 0);
-        }
-    }
-
     void set_kernels(cldnn::kernels_cache::compiled_kernels kernels) override {
         if (is_cpu())
             return;
-
-        size_t total_kernels_num = std::accumulate(kernels.begin(), kernels.end(), static_cast<size_t>(0),
-            [](size_t val, cldnn::kernels_cache::compiled_kernels::value_type& p) {
-                return (val + p.second.size());
-            });
-
+        OPENVINO_ASSERT(kernels.size() == 1, "Only the kernels of the single primitive should be allowed.");
+        auto& kernel_vec = kernels.begin()->second;
         _kernels.clear();
-        _kernels.reserve(total_kernels_num);
-
-        for (auto& k : kernels) {
-            _kernels.insert(_kernels.end(), k.second.begin(), k.second.end());
+        _kernels.resize(kernel_vec.size());
+        for (auto& k : kernel_vec) {
+            auto sub_kernel_idx = k.second;
+            _kernels[sub_kernel_idx] = k.first;
         }
     }
 

@@ -60,6 +60,10 @@ BorderKernelBase::DispatchData BorderKernelBase::SetDefault(const border_params&
     return dispatchData;
 }
 
+bool BorderKernelBase::SkipKernelExecution(const border_params& params) const {
+    return params.outputs[0].LogicalSize() == 0;
+}
+
 KernelsData BorderKernelBase::GetCommonKernelsData(const Params& params,
                                                    const optional_params& options) const {
     assert(params.GetType() == KernelType::BORDER);
@@ -75,6 +79,7 @@ KernelsData BorderKernelBase::GetCommonKernelsData(const Params& params,
         OPENVINO_ASSERT(kd.kernels.size() == 1, "[GPU] Invalid kernels size for update dispatch data func");
         kd.kernels[0].params.workGroups.global = dispatchData.gws;
         kd.kernels[0].params.workGroups.local = dispatchData.lws;
+        kd.kernels[0].skip_execution = SkipKernelExecution(prim_params);
     };
 
     auto cldnn_jit = GetJitConstants(prim_params);
@@ -82,6 +87,8 @@ KernelsData BorderKernelBase::GetCommonKernelsData(const Params& params,
     auto jit = CreateJit(kernelName, cldnn_jit, entry_point);
 
     auto& kernel = k_data.kernels[0];
+    kernel.skip_execution = SkipKernelExecution(prim_params);
+
     FillCLKernelData(kernel,
                      dispatchData,
                      params.engineInfo,
