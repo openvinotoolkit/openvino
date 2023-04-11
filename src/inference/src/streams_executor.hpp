@@ -28,6 +28,13 @@ struct CPU {
 
     CPU() {
         init_cpu(*this);
+        std::cout << "_processors:" << _processors << " _sockets:" << _sockets << " _cores:" << _cores << "\n";
+        for (int i = 0; i < static_cast<int>(_cpu_mapping_table.size()); i++) {
+            std::cout << _cpu_mapping_table[i][CPU_MAP_PROCESSOR_ID] << " " << _cpu_mapping_table[i][CPU_MAP_SOCKET_ID]
+                      << " " << _cpu_mapping_table[i][CPU_MAP_CORE_ID] << " "
+                      << _cpu_mapping_table[i][CPU_MAP_CORE_TYPE] << " " << _cpu_mapping_table[i][CPU_MAP_GROUP_ID]
+                      << " " << _cpu_mapping_table[i][CPU_MAP_USED_FLAG] << "\n";
+        }
     }
     void init_cpu(CPU& cpu);
 };

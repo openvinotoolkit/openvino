@@ -5,12 +5,12 @@
 #include "openvino/runtime/threading/cpu_streams_executor.hpp"
 
 #include <condition_variable>
+#include <iostream>
 #include <memory>
 #include <mutex>
 #include <queue>
 #include <thread>
 #include <vector>
-#include <iostream>
 
 #include "dev/threading/parallel_custom_arena.hpp"
 #include "dev/threading/thread_affinity.hpp"
@@ -77,6 +77,8 @@ struct CPUStreamsExecutor::Impl {
                                                           _impl->_usedNumaNodes.size()))
                               : _impl->_usedNumaNodes.at(_streamId % _impl->_usedNumaNodes.size());
 #if OV_THREAD == OV_THREAD_TBB || OV_THREAD == OV_THREAD_TBB_AUTO
+            std::cout << "Stream------stream_id:" << _streamId << " _numaNodeId:" << _numaNodeId
+                      << " BindingType:" << std::to_string(_impl->_config._threadBindingType) << "\n";
             if (is_cpu_map_available() &&
                 (_impl->_config._threads_per_stream_big + _impl->_config._threads_per_stream_small > 0)) {
                 init_stream();
@@ -279,6 +281,7 @@ struct CPUStreamsExecutor::Impl {
                 _taskArena.reset(new custom::task_arena{custom::task_arena::constraints{_numaNodeId, concurrency}});
             } else if ((0 != _impl->_config._threadsPerStream) ||
                        (ThreadBindingType::CORES == _impl->_config._threadBindingType)) {
+                std::cout << "------create taskArena------\n";
                 _taskArena.reset(new custom::task_arena{concurrency});
                 if (ThreadBindingType::CORES == _impl->_config._threadBindingType) {
                     CpuSet processMask;
@@ -388,6 +391,7 @@ struct CPUStreamsExecutor::Impl {
                         }
                     }
                     if (task) {
+                        std::cout << "_streams.local\n";
                         Execute(task, *(_streams.local()));
                     }
                 }
