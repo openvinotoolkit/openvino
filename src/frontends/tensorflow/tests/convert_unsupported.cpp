@@ -215,3 +215,24 @@ TEST(FrontEndConvertModelTest, conversion_with_unknown_exception) {
         FAIL() << "Conversion of TensorFlow 1 While failed by wrong reason.";
     }
 }
+
+TEST(FrontEndConvertModelTest, test_unsupported_resource_gather_translator) {
+    shared_ptr<Model> model = nullptr;
+    try {
+        auto conv_ext =
+            std::make_shared<ov::frontend::ConversionExtension>("ResourceGather", incorrect_less_translator);
+        model = convert_model("resource_gather_model/resource_gather_model.pbtxt", conv_ext);
+        FAIL() << "The model with ResourceGather node must not be converted due to incorrect "
+                  "ResourceGather translator. "
+                  "OpConversionFailure is expected.";
+    } catch (const OpConversionFailure& error) {
+        string error_message = error.what();
+        string ref_message = "Less expects ten inputs.\n";
+        string no_ref_message = "[TensorFlow Frontend] Internal error: No translator found for";
+        ASSERT_TRUE(error_message.find(ref_message) != string::npos);
+        ASSERT_TRUE(error_message.find(no_ref_message) == string::npos);
+        ASSERT_EQ(model, nullptr);
+    } catch (...) {
+        FAIL() << "Conversion of the model with ResourceGather failed by wrong reason.";
+    }
+}
