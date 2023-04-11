@@ -63,8 +63,6 @@ jobs:
           python3 -m pip install -r ${{ github.workspace }}/src/bindings/python/requirements.txt
           # For running Python API tests
           python3 -m pip install -r ${{ github.workspace }}/src/bindings/python/src/compatibility/openvino/requirements-dev.txt
-          # For running Paddle frontend unit tests
-          python3 -m pip install -r ${{ github.workspace }}/src/frontends/paddle/tests/requirements.txt
           # For running ONNX frontend unit tests
           python3 -m pip install -r ${{ github.workspace }}/src/frontends/onnx/tests/requirements.txt
           # For running TensorFlow frontend unit tests
@@ -76,7 +74,10 @@ jobs:
           python3 -m pip install -r ${{ github.workspace }}/tools/mo/requirements_onnx.txt
           python3 -m pip install -r ${{ github.workspace }}/tools/mo/requirements_tf2.txt
           python3 -m pip install -r ${{ github.workspace }}/tools/mo/requirements_dev.txt
-          
+      
+      - name: Install PDPD dependencies
+        run: python3 -m pip install -r ${{ github.workspace }}/src/frontends/paddle/tests/requirements.txt
+      
       - name: Get number of CPU cores
         uses: SimenB/github-actions-cpu-cores@v1
         id: cpu-cores
@@ -88,6 +89,7 @@ jobs:
           cxx: ${{ matrix.config.cxx }}
           configure-options: >
             -GNinja
+            -DCMAKE_COMPILE_WARNING_AS_ERROR=ON
             -DCMAKE_VERBOSE_MAKEFILE=ON
             -DENABLE_PYTHON=ON
             -DENABLE_ONEDNN_FOR_GPU=ON
