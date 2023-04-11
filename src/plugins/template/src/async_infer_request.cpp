@@ -24,7 +24,7 @@ ov::template_plugin::AsyncInferRequest::AsyncInferRequest(
     constexpr const auto remoteDevice = false;
 
     m_cancel_callback = [request] {
-        request->terminate();
+        request->cancel();
     };
     if (remoteDevice) {
         m_pipeline = {{task_executor,

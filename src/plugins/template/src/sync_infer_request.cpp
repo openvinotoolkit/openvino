@@ -272,8 +272,8 @@ std::vector<ov::ProfilingInfo> ov::template_plugin::InferRequest::get_profiling_
 }
 // ! [infer_request:get_profiling_info]
 
-// ! [infer_request:terminate]
-void ov::template_plugin::InferRequest::terminate() {
+// ! [infer_request:cancel]
+void ov::template_plugin::InferRequest::cancel() {
     m_executable->cancel();
 }
-// ! [infer_request:terminate]
+// ! [infer_request:cancel]
