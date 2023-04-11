@@ -72,7 +72,7 @@ public:
     ov::element::Type get_element_type(ov::frontend::Place::Ptr place) const;
     void set_tensor_value(ov::frontend::Place::Ptr place, const void* value);
 
-    std::vector<std::shared_ptr<OpPlace>> get_op_places() const;
+    std::vector<std::shared_ptr<OpPlace>> get_op_places();
     std::map<std::string, std::shared_ptr<TensorPlace>> get_tensor_places() const {
         return m_tensor_places;
     }
@@ -88,7 +88,7 @@ public:
 
 private:
     void load_places();
-    std::vector<std::shared_ptr<OpPlace>> topologically_sort_op_nodes() const;
+    std::vector<std::shared_ptr<OpPlace>> topologically_sort_op_nodes();
 
     std::vector<std::shared_ptr<OpPlace>> m_op_places;
     std::map<std::string, std::shared_ptr<OpPlace>> m_op_places_map;
@@ -101,6 +101,7 @@ private:
     const ov::frontend::InputModel& m_input_model;
 
     std::vector<std::string> m_input_names;
+    std::vector<std::string> m_found_inputs;
     std::vector<std::string> m_output_names;
 
     std::shared_ptr<TelemetryExtension> m_telemetry;
@@ -108,6 +109,8 @@ private:
     std::shared_ptr<VariablesIndex> m_variables_index;
     std::shared_ptr<std::map<std::string, std::string>> m_saved_model_input_names;
     std::shared_ptr<std::map<std::string, std::string>> m_saved_model_output_names;
+
+    bool m_custom_inputs;
 
     // shows if some nodes might be deleted from graph
     bool m_graph_changed = false;
@@ -117,6 +120,8 @@ void InputModel::InputModelTFImpl::load_places() {
     std::set<std::string> all_op_names;
     std::set<std::string> op_names_with_consumers;
     std::map<std::string, uint64_t> op_statistics;
+
+    m_custom_inputs = false;
 
     m_inputs.clear();
     for (; !m_graph_iterator->is_end(); m_graph_iterator->next()) {
@@ -228,7 +233,7 @@ std::shared_ptr<std::map<std::string, std::string>> InputModel::InputModelTFImpl
     return m_saved_model_output_names;
 }
 
-std::vector<std::shared_ptr<OpPlace>> InputModel::InputModelTFImpl::get_op_places() const {
+std::vector<std::shared_ptr<OpPlace>> InputModel::InputModelTFImpl::get_op_places() {
     return topologically_sort_op_nodes();
 }
 
@@ -240,7 +245,7 @@ std::vector<std::string> InputModel::InputModelTFImpl::get_output_names() const 
     return m_output_names;
 }
 
-std::vector<std::shared_ptr<OpPlace>> InputModel::InputModelTFImpl::topologically_sort_op_nodes() const {
+std::vector<std::shared_ptr<OpPlace>> InputModel::InputModelTFImpl::topologically_sort_op_nodes() {
     std::vector<std::shared_ptr<OpPlace>> topologically_sorted_ops;
     std::stack<std::shared_ptr<OpPlace>> ops_to_do;
     std::unordered_set<std::shared_ptr<OpPlace>> ops_done;
@@ -336,6 +341,14 @@ std::vector<std::shared_ptr<OpPlace>> InputModel::InputModelTFImpl::topologicall
                 }
             }
 
+            // Storing information about found inputs.
+            // It needs to cover "cutting" a graph, we need to return updated list of inputs
+            if (current_operation_type == "Placeholder") {
+                for (auto& name : current_operation_place->get_names()) {
+                    m_found_inputs.push_back(name);
+                }
+            }
+
             if (can_add) {
                 topologically_sorted_ops.push_back(current_operation_place);
                 ops_to_do.pop();
@@ -386,7 +399,20 @@ InputModel::InputModelTFImpl::InputModelTFImpl(
 }
 
 std::vector<ov::frontend::Place::Ptr> InputModel::InputModelTFImpl::get_inputs() const {
-    return m_inputs;
+    if (m_custom_inputs) {
+        std::vector<ov::frontend::Place::Ptr> found_inputs;
+        for (auto& input : m_inputs) {
+            for (auto& name : input->get_names()) {
+                if (std::find(m_found_inputs.begin(), m_found_inputs.end(), name) != m_found_inputs.end()) {
+                    found_inputs.push_back(input);
+                    break;
+                }
+            }
+        }
+        return found_inputs;
+    } else {
+        return m_inputs;
+    }
 }
 
 std::vector<ov::frontend::Place::Ptr> InputModel::InputModelTFImpl::get_outputs() const {
@@ -461,6 +487,8 @@ void InputModel::InputModelTFImpl::override_all_outputs(const std::vector<ov::fr
     for (const auto& output_place : outputs) {
         m_outputs.push_back(castToTensorPlace(output_place));
     }
+    std::cerr << "Override outputs\n";
+    m_custom_inputs = true;
 }
 
 void InputModel::InputModelTFImpl::extract_subgraph(const std::vector<ov::frontend::Place::Ptr>& inputs,
