@@ -642,6 +642,18 @@ TEST_P(OVCompiledModelBaseTest, loadIncorrectV11Model) {
     EXPECT_NO_THROW(core->compile_model(function, target_device, configuration));
 }
 
+TEST_P(OVCompiledModelBaseTest, canLoadCorrectNetworkToGetExecutableWithIncorrectConfig) {
+    ov::AnyMap incorrectConfig = {{"abc", "def"}};
+    bool is_meta_devices =
+        target_device.find("AUTO") != std::string::npos || target_device.find("MULTI:") != std::string::npos ||
+        target_device.find("HETERO:") != std::string::npos || target_device.find("BATCH:") != std::string::npos;
+    if (is_meta_devices) {
+        EXPECT_NO_THROW(auto execNet = core->compile_model(function, target_device, incorrectConfig));
+    } else {
+        EXPECT_ANY_THROW(auto execNet = core->compile_model(function, target_device, incorrectConfig));
+    }
+}
+
 TEST_P(OVAutoExecutableNetworkTest, AutoNotImplementedSetConfigToExecNet) {
     std::map<std::string, ov::Any> config;
     for (const auto& confItem : configuration) {
