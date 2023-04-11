@@ -2,9 +2,9 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include <exec_graph_info.hpp>
 #include <openvino/frontend/manager.hpp>
 #include <openvino/openvino.hpp>
-#include <exec_graph_info.hpp>
 
 #include "gtest/gtest.h"
 #include "tf_utils.hpp"
@@ -50,12 +50,18 @@ TEST_F(CompileModelsTests, ModelWithSplitConvConcat) {
         ov::Core core;
         ov::CompiledModel compiled_model = core.compile_model(model, "CPU");
         const auto runtime_model = compiled_model.get_runtime_model();
-        auto get_layer_type = [] (const std::shared_ptr<ov::Node>& node) {
+        auto get_layer_type = [](const std::shared_ptr<ov::Node>& node) {
             return node->get_rt_info().at(ExecGraphInfoSerialization::LAYER_TYPE).as<std::string>();
         };
         const auto ops = runtime_model->get_ops();
-        EXPECT_EQ(0, std::count_if(ops.begin(), ops.end(), [&] (const std::shared_ptr<ov::Node>& node) { return get_layer_type(node) == "Split"; }));
-        EXPECT_EQ(2, std::count_if(ops.begin(), ops.end(), [&] (const std::shared_ptr<ov::Node>& node) { return get_layer_type(node) == "Convolution"; }));
-        EXPECT_EQ(0, std::count_if(ops.begin(), ops.end(), [&] (const std::shared_ptr<ov::Node>& node) { return get_layer_type(node) == "Concat"; }));
+        EXPECT_EQ(0, std::count_if(ops.begin(), ops.end(), [&](const std::shared_ptr<ov::Node>& node) {
+                      return get_layer_type(node) == "Split";
+                  }));
+        EXPECT_EQ(2, std::count_if(ops.begin(), ops.end(), [&](const std::shared_ptr<ov::Node>& node) {
+                      return get_layer_type(node) == "Convolution";
+                  }));
+        EXPECT_EQ(0, std::count_if(ops.begin(), ops.end(), [&](const std::shared_ptr<ov::Node>& node) {
+                      return get_layer_type(node) == "Concat";
+                  }));
     }
 }
