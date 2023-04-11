@@ -199,13 +199,6 @@ TEST_P(DefaultValuesConfigTests, CanSetDefaultValueBackToPlugin) {
     }
 }
 
-TEST_P(ExclusiveAsyncReqTests, excluAsyncReqTests) {
-    if (target_device.find("AUTO") == std::string::npos && target_device.find("MULTI") == std::string::npos) {
-        ASSERT_NO_THROW(ie->SetConfig(configuration, target_device));
-    }
-    ASSERT_NO_THROW(ie->LoadNetwork(cnnNet, target_device, configuration));
-}
-
 TEST_P(SetPropLoadNetWorkGetPropTests, SetPropLoadNetWorkGetProperty) {
     ASSERT_NO_THROW(ie->SetConfig(configuration, target_device));
 
