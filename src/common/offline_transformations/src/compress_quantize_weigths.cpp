@@ -146,7 +146,8 @@ ngraph::pass::CompressQuantizeWeights::CompressQuantizeWeights() {
             Output<Node> output_low = pattern_value_map.at(output_low_pattern);
             Output<Node> output_high = pattern_value_map.at(output_high_pattern);
             const auto& fq_type = fq->get_output_element_type(0);
-            if (fq_type != element::f32) {
+            const bool should_convert = fq_type.is_real() && fq_type.size() < element::f32.size();
+            if (should_convert) {
                 input_low = std::make_shared<opset8::Convert>(input_low, element::f32);
                 input_high = std::make_shared<opset8::Convert>(input_high, element::f32);
                 output_low = std::make_shared<opset8::Convert>(output_low, element::f32);
@@ -170,7 +171,7 @@ ngraph::pass::CompressQuantizeWeights::CompressQuantizeWeights() {
             // for positions where scale == 0, we put zero as shift
             std::shared_ptr<Node> zero_point = std::make_shared<opset8::Select>(scale_eq_zero, zero, shift);
 
-            if (fq_type != element::f32) {
+            if (should_convert) {
                 scale = std::make_shared<opset8::Convert>(scale, fq_type);
                 zero_point = std::make_shared<opset8::Convert>(zero_point, fq_type);
             }
