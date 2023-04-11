@@ -418,11 +418,11 @@ static constexpr Property<SchedulingCoreType> scheduling_core_type{"SCHEDULING_C
  * The following code is example to use this property.
  *
  * @code
- * ie.set_property(ov::hint::use_cpu_pinning(true));
- * ie.set_property(ov::hint::use_cpu_pinning(false));
+ * ie.set_property(ov::hint::enable_cpu_pinning(true));
+ * ie.set_property(ov::hint::enable_cpu_pinning(false));
  * @endcode
  */
-static constexpr Property<bool> use_cpu_pinning{"USE_CPU_PINNING"};
+static constexpr Property<bool> enable_cpu_pinning{"ENABLE_CPU_PINNING"};
 
 /**
  * @brief This property define if using hyper threading during inference.
@@ -434,11 +434,11 @@ static constexpr Property<bool> use_cpu_pinning{"USE_CPU_PINNING"};
  * The following code is example to use this property.
  *
  * @code
- * ie.set_property(ov::hint::use_hyper_threading(true));
- * ie.set_property(ov::hint::use_hyper_threading(false));
+ * ie.set_property(ov::hint::enable_hyper_threading(true));
+ * ie.set_property(ov::hint::enable_hyper_threading(false));
  * @endcode
  */
-static constexpr Property<bool> use_hyper_threading{"USE_HYPER_THREADING"};
+static constexpr Property<bool> enable_hyper_threading{"ENABLE_HYPER_THREADING"};
 
 /**
  * @brief (Optional) property that backs the (above) Performance Hints
@@ -677,6 +677,17 @@ static constexpr Property<std::tuple<unsigned int, unsigned int, unsigned int>, 
  * @ingroup ov_runtime_cpp_prop_api
  */
 static constexpr Property<bool, PropertyMutability::RW> force_tbb_terminate{"FORCE_TBB_TERMINATE"};
+
+/**
+ * @brief Read-write property to configure `mmap()` use for model read. Enabled by default.
+ * For the moment only IR Frontend supports the property.
+ *
+ * value type: boolean
+ *   - True enable `mmap()` use and map model
+ *   - False disable `mmap()` use and read model
+ * @ingroup ov_runtime_cpp_prop_api
+ */
+static constexpr Property<bool, PropertyMutability::RW> enable_mmap{"ENABLE_MMAP"};
 
 /**
  * @brief Namespace with device properties

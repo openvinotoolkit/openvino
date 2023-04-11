@@ -109,6 +109,10 @@ ConcatenationKernelBase::DispatchData ConcatenationKernelBase::SetDefault(const 
     return dispatchData;
 }
 
+bool ConcatenationKernelBase::SkipKernelExecution(const concatenation_params& params, size_t kernel_id) const {
+    return params.inputs[kernel_id].LogicalSize() == 0;
+}
+
 KernelsData ConcatenationKernelBase::GetCommonKernelsData(const Params& params, const optional_params& options) const {
     if (!Validate(params, options)) {
         return {};
@@ -136,6 +140,7 @@ KernelsData ConcatenationKernelBase::GetCommonKernelsData(const Params& params, 
             DispatchData dispatchData = SetDefault(newParams);
             kernel.params.workGroups.global = dispatchData.gws;
             kernel.params.workGroups.local = dispatchData.lws;
+            kernel.skip_execution = SkipKernelExecution(prim_params, i);
 
             ScalarDescriptor s;
             s.t = ScalarDescriptor::Types::UINT32;
@@ -173,6 +178,7 @@ KernelsData ConcatenationKernelBase::GetCommonKernelsData(const Params& params, 
         kernel.code.kernelString = GetKernelString(kernelName, jit, entryPoint, params.engineInfo);
         kernel.params.workGroups.global = dispatchData.gws;
         kernel.params.workGroups.local = dispatchData.lws;
+        kernel.skip_execution = SkipKernelExecution(newParams, i);
         if (is_dynamic) {
             kernel.params.arguments.push_back({ArgumentDescriptor::Types::SHAPE_INFO, 0});
         }

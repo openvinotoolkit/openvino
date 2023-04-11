@@ -24,7 +24,7 @@ void regclass_graph_Strides(py::module m) {
 
     strides.def("__str__", [](const ov::Strides& self) -> std::string {
         std::stringstream stringstream;
-        std::copy(self.begin(), self.end(), std::ostream_iterator<int>(stringstream, ", "));
+        std::copy(self.begin(), self.end(), std::ostream_iterator<size_t>(stringstream, ", "));
         std::string string = stringstream.str();
         return string.substr(0, string.size() - 2);
     });
