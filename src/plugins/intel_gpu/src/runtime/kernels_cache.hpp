@@ -56,7 +56,7 @@ public:
         source_code source;
         std::string options;
         bool dump_custom_program;
-        std::map<std::string, kernel_impl_params> entry_point_to_id;
+        std::map<std::string, std::pair<kernel_impl_params, size_t>> entry_point_to_id;
 
         explicit batch_program(int32_t _bucket_id, int32_t _batch_id, std::string _options, const std::vector<std::string>& batch_header_str)
             : bucket_id(_bucket_id),
@@ -70,7 +70,7 @@ public:
         }
     };
 
-    using compiled_kernels = std::unordered_map<kernel_impl_params, std::vector<kernel::ptr>, impl_hasher>;
+    using compiled_kernels = std::unordered_map<kernel_impl_params, std::vector<std::pair<kernel::ptr, size_t>>, impl_hasher>;
 
 private:
     static std::mutex _mutex;
