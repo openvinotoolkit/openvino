@@ -5,7 +5,6 @@ import unittest
 import tempfile
 import numpy as np
 from pathlib import Path
-from openvino.tools.mo.utils.ir_reader.restore_graph import restore_graph_from_ir, save_restored_graph
 
 import openvino.runtime.opset11 as opset11
 import openvino.runtime.opset10 as opset10
@@ -15,6 +14,9 @@ from openvino.runtime import Model, serialize
 class TestOps(unittest.TestCase):
     @staticmethod
     def check_graph_can_save(model, name):
+        from openvino.tools.mo.utils.ir_reader.restore_graph import restore_graph_from_ir, save_restored_graph
+        from openvino.tools.mo.utils.logger import init_logger
+        init_logger('ERROR', False)
         with tempfile.TemporaryDirectory() as tmp:
             model_xml = Path(tmp) / (name + '.xml')
             model_bin = Path(tmp) / (name + '.bin')
