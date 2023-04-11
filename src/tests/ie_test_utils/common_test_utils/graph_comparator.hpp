@@ -29,7 +29,9 @@ public:
         TENSOR_NAMES = 1 << 6,
         ACCURACY = 1 << 7,
         SUBGRAPH_DESCRIPTORS = 1 << 8,
-        CONSUMERS_COUNT = 1 << 9
+        CONSUMERS_COUNT = 1 << 9,
+        // issue #108208
+        GRAPH = 1 << 10
     };
 
     struct Result {
@@ -45,7 +47,7 @@ public:
     };
 
     static FunctionsComparator no_default() noexcept {
-        return FunctionsComparator{NONE};
+        return FunctionsComparator{GRAPH};
     }
     static FunctionsComparator with_default() noexcept {
         auto fc = FunctionsComparator::no_default();
@@ -53,6 +55,7 @@ public:
         fc.enable(PRECISIONS);
         fc.enable(TENSOR_NAMES);
         fc.enable(SUBGRAPH_DESCRIPTORS);
+        fc.enable(GRAPH);
         return fc;
     }
 

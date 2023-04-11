@@ -44,8 +44,12 @@ void TransformationTestsF::TearDown() {
         ASSERT_TRUE(res.valid) << res.message;
         comparator.disable(FunctionsComparator::CmpValues::ACCURACY);
     }
-    auto res = comparator.compare(function, function_ref);
-    ASSERT_TRUE(res.valid) << res.message;
+
+    // issue #108208
+    if (comparator.should_compare(FunctionsComparator::CmpValues::GRAPH)) {
+        auto res = comparator.compare(function, function_ref);
+        ASSERT_TRUE(res.valid) << res.message;
+    }
 }
 
 void TransformationTestsF::disable_rt_info_check() {
