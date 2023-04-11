@@ -463,7 +463,7 @@ StreamsCalculationTestCase _1sockets_14cores_tput_5 = {
     0,
     1,
     {{20, 6, 8, 6}},
-    {{6, MAIN_CORE_PROC, 1}, {8, EFFICIENT_CORE_PROC, 1}, {6, HYPER_THREADING_PROC, 1}},
+    {{6, MAIN_CORE_PROC, 1}, {4, EFFICIENT_CORE_PROC, 2}, {6, HYPER_THREADING_PROC, 1}},
 };
 
 StreamsCalculationTestCase _1sockets_14cores_tput_6 = {
@@ -607,7 +607,7 @@ StreamsCalculationTestCase _1sockets_10cores_tput_5 = {
     0,
     1,
     {{12, 2, 8, 2}},
-    {{2, MAIN_CORE_PROC, 1}, {8, EFFICIENT_CORE_PROC, 1}, {2, HYPER_THREADING_PROC, 1}},
+    {{2, MAIN_CORE_PROC, 1}, {4, EFFICIENT_CORE_PROC, 2}, {2, HYPER_THREADING_PROC, 1}},
 };
 
 StreamsCalculationTestCase _1sockets_10cores_tput_6 = {
@@ -715,7 +715,7 @@ StreamsCalculationTestCase _1sockets_8cores_tput_7 = {
     0,
     1,
     {{12, 4, 4, 4}},
-    {{4, MAIN_CORE_PROC, 1}, {4, EFFICIENT_CORE_PROC, 1}, {4, HYPER_THREADING_PROC, 1}},
+    {{4, MAIN_CORE_PROC, 1}, {2, EFFICIENT_CORE_PROC, 2}, {4, HYPER_THREADING_PROC, 1}},
 };
 
 StreamsCalculationTestCase _1sockets_6cores_latency_1 = {
