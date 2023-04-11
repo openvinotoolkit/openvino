@@ -9,6 +9,11 @@ This API is applicable for new frontends only, which exist for ONNX, PaddlePaddl
 .. note:: 
    This documentation is written based on the `Template extension <https://github.com/openvinotoolkit/openvino/tree/master/src/core/template_extension/new>`__, which demonstrates extension development details based on minimalistic ``Identity`` operation that is a placeholder for your real custom operation. You can review the complete code, which is fully compliable, to see how it works.
 
+
+.. note::
+   You can find more examples of extensions in `openvino_contrib repository <https://github.com/openvinotoolkit/openvino_contrib/tree/master/modules/custom_operations>`_.
+
+
 Single Operation Mapping with OpExtension
 ######################################### 
 
