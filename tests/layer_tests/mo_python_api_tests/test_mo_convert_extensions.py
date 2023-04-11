@@ -11,48 +11,49 @@ import openvino.runtime as ov
 from openvino.runtime import PartialShape, Model
 
 
+def create_onnx_model(tmp_dir):
+    #
+    #   Create ONNX model
+    #
+
+    import onnx
+    from onnx import helper
+    from onnx import TensorProto
+
+    shape = [2, 3, 4]
+
+    input = helper.make_tensor_value_info('input', TensorProto.FLOAT, shape)
+    output = helper.make_tensor_value_info('output', TensorProto.FLOAT, shape)
+
+    node_def = onnx.helper.make_node(
+        'LeakyRelu',
+        inputs=['input'],
+        outputs=['LeakyRelu_data'],
+        alpha=0.1
+    )
+    node_def2 = onnx.helper.make_node(
+        'Elu',
+        inputs=['LeakyRelu_data'],
+        outputs=['output'],
+        alpha=0.1
+    )
+
+    # Create the graph (GraphProto)
+    graph_def = helper.make_graph(
+        [node_def, node_def2],
+        'test_model',
+        [input],
+        [output],
+    )
+
+    # Create the model (ModelProto)
+    onnx_net = helper.make_model(graph_def, producer_name='test_model')
+
+    # save model to .onnx and return path to the model
+    return save_to_onnx(onnx_net, tmp_dir)
+
+
 class TestExtensions(CommonMOConvertTest):
-    def create_onnx_model(self, tmp_dir):
-        #
-        #   Create ONNX model
-        #
-
-        import onnx
-        from onnx import helper
-        from onnx import TensorProto
-
-        shape = [2, 3, 4]
-
-        input = helper.make_tensor_value_info('input', TensorProto.FLOAT, shape)
-        output = helper.make_tensor_value_info('output', TensorProto.FLOAT, shape)
-
-        node_def = onnx.helper.make_node(
-            'LeakyRelu',
-            inputs=['input'],
-            outputs=['LeakyRelu_data'],
-            alpha=0.1
-        )
-        node_def2 = onnx.helper.make_node(
-            'Elu',
-            inputs=['LeakyRelu_data'],
-            outputs=['output'],
-            alpha=0.1
-        )
-
-        # Create the graph (GraphProto)
-        graph_def = helper.make_graph(
-            [node_def, node_def2],
-            'test_model',
-            [input],
-            [output],
-        )
-
-        # Create the model (ModelProto)
-        onnx_net = helper.make_model(graph_def, producer_name='test_model')
-
-        # save model to .onnx and return path to the model
-        return save_to_onnx(onnx_net, tmp_dir)
-
     def create_custom_extension_leaky_relu_to_relu():
         # replaces LeakyRelu with Relu
         from openvino.frontend import ConversionExtension
@@ -114,7 +115,7 @@ class TestExtensions(CommonMOConvertTest):
     @pytest.mark.precommit
     def test_mo_convert_extensions(self, params, ie_device, precision, ir_version,
                                    temp_dir, use_new_frontend, use_old_api):
-        onnx_net_path = self.create_onnx_model(temp_dir)
+        onnx_net_path = create_onnx_model(temp_dir)
 
         test_params = params['params_test']
         test_params.update({'input_model': onnx_net_path})

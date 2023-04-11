@@ -564,10 +564,10 @@ class Graph(nx.MultiDiGraph):
         if not hasattr(self, 'node'):
             self.node = self.nodes
 
-    unique_id_count = 0
-    op_names_statistic = collections.Counter()
-    inputs_order = []
-    outputs_order = []
+        self.unique_id_count = 0
+        self.op_names_statistic = collections.Counter()
+        self.inputs_order = []
+        self.outputs_order = []
 
     # SAFE API DESCRIPTION
     # all provided methods below are designed to be more safe and convenient

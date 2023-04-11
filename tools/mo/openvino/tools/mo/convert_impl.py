@@ -38,10 +38,10 @@ from openvino.tools.mo.utils.find_ie_version import find_ie_version
 from openvino.tools.mo.utils.guess_framework import deduce_legacy_frontend_by_namespace
 from openvino.tools.mo.utils.logger import init_logger, progress_printer
 from openvino.tools.mo.utils.utils import refer_to_faq_msg
-from openvino.tools.mo.utils.telemetry_utils import send_params_info, send_framework_info
+from openvino.tools.mo.utils.telemetry_utils import send_params_info, send_framework_info, remove_path_lines
 from openvino.tools.mo.utils.version import get_simplified_mo_version, get_simplified_ie_version, get_version, simplify_version
 from openvino.tools.mo.utils.versions_checker import check_requirements  # pylint: disable=no-name-in-module
-from openvino.tools.mo.utils.telemetry_utils import get_tid
+from openvino.tools.mo.utils.telemetry_utils import get_tid, send_transformations_status
 from openvino.tools.mo.moc_frontend.check_config import legacy_extensions_used
 from openvino.tools.mo.moc_frontend.pytorch_frontend_utils import get_pytorch_decoder, convert_pytorch_via_onnx
 from openvino.tools.mo.moc_frontend.shape_utils import parse_input_shapes, get_static_shape
@@ -394,7 +394,6 @@ def prepare_ir(argv: argparse.Namespace):
                 from openvino.tools.mo.front.tf.loader import convert_to_pb
                 path_to_aux_pb = convert_to_pb(argv)
             try:
-                t.send_event("mo", "conversion_method", moc_front_end.get_name() + "_frontend")
                 moc_front_end.add_extension(TelemetryExtension("mo", t.send_event, t.send_error, t.send_stack_trace))
                 moc_front_end.add_extension(ProgressReporterExtension(progress_printer(argv)))
                 if legacy_transformations_config_used(argv):
@@ -407,6 +406,14 @@ def prepare_ir(argv: argparse.Namespace):
                     for extension in argv.extensions:
                         moc_front_end.add_extension(extension)
                 ngraph_function = moc_pipeline(argv, moc_front_end)
+
+                # send conversion method after conversion finished, as fallback still can happen in case of error
+                t.send_event("mo", "conversion_method", moc_front_end.get_name() + "_frontend")
+
+                if hasattr(argv, 'tf2_used') and argv.tf2_used:
+                    send_framework_info("tf2")
+                else:
+                    send_framework_info(moc_front_end.get_name())
                 return graph, ngraph_function
             except OpConversionFailure as ex:
                 # in some set of operations (TF1 While), we have to fallback to the Legacy TensorFlow Frontend
@@ -505,20 +512,10 @@ def emit_ir(graph: Graph, argv: argparse.Namespace, non_default_params: dict):
         except Exception as e:
             return_code = "failed"
             log.error(e)
-
-        message = str(dict({
-            "platform": platform.system(),
-            "mo_version": get_simplified_mo_version(),
-            "ie_version": get_simplified_ie_version(env=os.environ),
-            "python_version": sys.version,
-            "return_code": return_code
-        }))
-        t = tm.Telemetry()
-        t.send_event('mo', 'offline_transformations_status', message)
-
         if return_code != 0:
             raise Error("offline transformations step has failed.")
 
+    send_transformations_status(return_code)
     return func
 
 
@@ -537,7 +534,7 @@ def check_model_object(argv):
             argv['input_model'] = model.graph.as_graph_def()
             return "tf"
         if isinstance(model, tf.keras.Model):
-            return "tf"
+            return "tf2"
         if isinstance(model, tf.train.Checkpoint):
             if isinstance(model.root, tf.keras.Model):
                 argv['input_model'] = model.root
@@ -560,7 +557,7 @@ def check_model_object(argv):
             outputs = model(*inputs)
             argv['input_model'] = tf.keras.Model(inputs, outputs)
             argv['input_shape'] = None
-            return "tf"
+            return "tf2" if isinstance(model, tf.keras.layers.Layer) else "tf"
         if isinstance(model, Trackable):
             return "tf"
     if 'torch' in sys.modules:
@@ -633,7 +630,7 @@ def args_dict_to_list(cli_parser, **kwargs):
     return result
 
 
-def get_non_default_params(argv, cli_parser):
+def get_non_default_params(argv, cli_parser, save_used_objects_info=False):
     import numbers
     import inspect
     from openvino.tools.mo import convert_model
@@ -651,6 +648,9 @@ def get_non_default_params(argv, cli_parser):
         # serializing it to rt_info
         if isinstance(value, (str, bool, numbers.Number)):
             non_default_params[arg] = value
+        else:
+            if save_used_objects_info:
+                non_default_params[arg] = "1"
     return non_default_params
 
 
@@ -765,6 +765,13 @@ def _convert(cli_parser: argparse.ArgumentParser, framework, args):
 
         argv = pack_params_to_args_namespace(args, cli_parser)
 
+        # send telemetry with params info before any internal values are set to argv, for example 'feManager'
+        send_params_info(argv, cli_parser)
+
+        if inp_model_is_object and model_framework == 'tf2':
+            argv.tf2_used = True
+            model_framework = "tf"
+
         argv.feManager = FrontEndManager()
         frameworks = list(set(['tf', 'caffe', 'mxnet', 'kaldi', 'onnx'] + (get_available_front_ends(argv.feManager)
                                                                            if argv.feManager else [])))
@@ -773,9 +780,6 @@ def _convert(cli_parser: argparse.ArgumentParser, framework, args):
             assert framework in frameworks, "error: argument --framework: invalid choice: '{}'. " \
                                             "Expected one of {}.".format(framework, frameworks)
             setattr(argv, 'framework', framework)
-
-        # send telemetry with params info
-        send_params_info(argv, cli_parser)
 
         non_default_params = get_non_default_params(argv, cli_parser)
 
@@ -810,6 +814,11 @@ def _convert(cli_parser: argparse.ArgumentParser, framework, args):
         return ov_model, argv
     except Exception as e:
         telemetry.send_event('mo', 'conversion_result', 'fail')
+
+        msg = remove_path_lines(str(e.with_traceback(None))).strip()
+        if len(msg):
+            telemetry.send_event('mo', 'error_cause', "error_message:'{}'".format(msg))
+
         telemetry.end_session('mo')
         telemetry.force_shutdown(1.0)
         raise e.with_traceback(None)

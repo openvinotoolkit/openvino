@@ -1,6 +1,9 @@
 # Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 import argparse
+import os
+import platform
+import sys
 from collections import Counter
 
 import numpy as np
@@ -10,7 +13,7 @@ from openvino.tools.mo.graph.graph import Graph
 from openvino.tools.mo.middle.pattern_match import for_graph_and_each_sub_graph_recursively
 from openvino.tools.mo.utils.cli_parser import get_params_with_paths_list
 from openvino.tools.mo.utils.telemetry_params import telemetry_params
-from openvino.tools.mo.utils.version import get_simplified_mo_version
+from openvino.tools.mo.utils.version import get_simplified_mo_version, get_simplified_ie_version
 
 try:
     import openvino_telemetry as tm
@@ -74,19 +77,20 @@ def send_params_info(argv: argparse.Namespace, cli_parser: argparse.ArgumentPars
     :param argv: command line parameters.
     :param cli_parser: command line parameters parser.
     """
+    from openvino.tools.mo.convert_impl import get_non_default_params
+
+    params = get_non_default_params(argv, cli_parser, save_used_objects_info=True)
     t = tm.Telemetry()
     params_with_paths = get_params_with_paths_list()
-    for arg in vars(argv):
-        arg_value = getattr(argv, arg)
-        if arg_value != cli_parser.get_default(arg):
-            if arg in params_with_paths:
-                # If command line argument value is a directory or a path to file it is not sent
-                # as it may contain confidential information. "1" value is used instead.
-                param_str = arg + ":" + str(1)
-            else:
-                param_str = arg + ":" + str(arg_value)
+    for arg, arg_value in params.items():
+        if arg in params_with_paths:
+            # If command line argument value is a directory or a path to file it is not sent
+            # as it may contain confidential information. "1" value is used instead.
+            param_str = arg + ":" + str(1)
+        else:
+            param_str = arg + ":" + str(arg_value)
 
-            t.send_event('mo', 'cli_parameters', param_str)
+        t.send_event('mo', 'cli_parameters', param_str)
 
 
 def send_framework_info(framework: str):
@@ -96,6 +100,34 @@ def send_framework_info(framework: str):
     """
     t = tm.Telemetry()
     t.send_event('mo', 'framework', framework)
+
+
+def send_transformations_status(return_code):
+    message = str(dict({
+        "platform": platform.system(),
+        "mo_version": get_simplified_mo_version(),
+        "ie_version": get_simplified_ie_version(env=os.environ),
+        "python_version": sys.version,
+        "return_code": return_code
+    }))
+    t = tm.Telemetry()
+    t.send_event('mo', 'offline_transformations_status', message)
+
+
+def remove_path_lines(message):
+    """
+    Removes any lines from message which contain os.sep.
+    For example in Linux, where os.sep is "/" the line "a/b/c\nline2" will be transformed to "\nline2".
+    In Windows, where os.sep is "\\" the line "line1\na\\b\\c" will be transformed to "line1\n".
+    :param message: input message string.
+    :return: message without lines that contain os.sep
+    """
+    import re
+
+    # remove any lines which contain os.sep to remove file paths
+    msg = re.sub('.*{}.*'.format(os.sep), '', message)
+
+    return msg
 
 
 def get_tid():

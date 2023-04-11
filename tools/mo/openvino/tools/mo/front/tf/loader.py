@@ -351,6 +351,7 @@ def convert_to_pb(argv: argparse.Namespace):
         model_name = get_model_name(argv.input_model)
     elif argv.saved_model_dir:
         model_name = "saved_model"
+        argv.tf2_used = True
     elif argv.input_meta_graph:
         model_name = get_model_name(argv.input_meta_graph)
     argv.model_name = model_name
