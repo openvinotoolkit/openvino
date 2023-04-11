@@ -18,7 +18,6 @@ from openvino.runtime import (
     tensor_from_file,
     compile_model,
 )
-from openvino.test_utils import compare_functions
 
 from tests.conftest import (
     model_path,
@@ -31,6 +30,7 @@ from tests.test_utils.test_utils import (
     generate_relu_compiled_model,
     get_relu_model,
     plugins_path,
+    compare_models,
 )
 
 
@@ -159,7 +159,7 @@ def test_model_from_buffer_valid():
         xml = f.read()
     model = core.read_model(model=xml, weights=weights)
     ref_model = core.read_model(model=test_net_xml, weights=test_net_bin)
-    assert compare_functions(model, ref_model)[0] is True
+    assert compare_models(model, ref_model)
 
 
 def test_get_version(device):

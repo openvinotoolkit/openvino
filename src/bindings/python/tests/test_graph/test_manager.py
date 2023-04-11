@@ -11,10 +11,9 @@ import pytest
 import openvino.runtime.opset10 as ops
 from openvino.runtime import Core, Model
 from openvino.runtime.passes import Manager, Serialize, ConstantFolding, Version
-from openvino.test_utils import compare_functions
 
 from tests.test_graph.util import count_ops_of_type
-from tests.test_utils.test_utils import create_filename_for_test
+from tests.test_utils.test_utils import create_filename_for_test, compare_models
 
 def create_model():
     shape = [100, 100, 2]
@@ -79,7 +78,7 @@ def test_serialize_separate_paths_kwargs(prepare_ir_paths):
 
     res_model = core.read_model(model=xml_path, weights=bin_path)
 
-    assert compare_functions(model, res_model)[0] is True
+    assert compare_models(model, res_model)
 
 
 def test_serialize_separate_paths_args(prepare_ir_paths):
@@ -100,7 +99,7 @@ def test_serialize_separate_paths_args(prepare_ir_paths):
 
     res_model = core.read_model(model=xml_path, weights=bin_path)
 
-    assert compare_functions(model, res_model)[0] is True
+    assert compare_models(model, res_model)
 
 
 def test_serialize_pass_mixed_args_kwargs(prepare_ir_paths):
@@ -119,7 +118,7 @@ def test_serialize_pass_mixed_args_kwargs(prepare_ir_paths):
 
     res_model = core.read_model(model=xml_path, weights=bin_path)
 
-    assert compare_functions(model, res_model)[0] is True
+    assert compare_models(model, res_model)
 
 
 def test_serialize_pass_mixed_args_kwargs_v2(prepare_ir_paths):
@@ -133,7 +132,7 @@ def test_serialize_pass_mixed_args_kwargs_v2(prepare_ir_paths):
 
     res_model = core.read_model(model=xml_path, weights=bin_path)
 
-    assert compare_functions(model, res_model)[0] is True
+    assert compare_models(model, res_model)
 
 
 # request - https://docs.pytest.org/en/7.1.x/reference/reference.html#request
@@ -159,7 +158,7 @@ def test_serialize_results(prepare_ir_paths):
 
     res_model = core.read_model(model=xml_path, weights=bin_path)
 
-    assert compare_functions(model, res_model)[0] is True
+    assert compare_models(model, res_model)
 
 
 def test_default_version(prepare_ir_paths):
@@ -173,7 +172,7 @@ def test_default_version(prepare_ir_paths):
 
     res_model = core.read_model(model=xml_path, weights=bin_path)
 
-    assert compare_functions(model, res_model)[0] is True
+    assert compare_models(model, res_model)
 
 
 def test_default_version_IR_V11_seperate_paths(prepare_ir_paths):
@@ -187,4 +186,4 @@ def test_default_version_IR_V11_seperate_paths(prepare_ir_paths):
 
     res_model = core.read_model(model=xml_path, weights=bin_path)
 
-    assert compare_functions(model, res_model)[0] is True
+    assert compare_models(model, res_model)

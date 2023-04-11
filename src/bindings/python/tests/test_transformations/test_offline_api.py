@@ -17,10 +17,9 @@ from openvino._offline_transformations import (
 )
 
 from openvino.runtime import Model, PartialShape, Core, serialize
-from openvino.test_utils import compare_functions
 import openvino.runtime as ov
 
-from tests.test_utils.test_utils import create_filename_for_test
+from tests.test_utils.test_utils import create_filename_for_test, compare_models
 
 
 def get_relu_model():
@@ -192,7 +191,7 @@ def test_serialize_pass_v2(request, tmp_path, is_path_xml, is_path_bin):
 
     res_model = core.read_model(model=xml_path, weights=bin_path)
 
-    assert compare_functions(model, res_model)[0] is True
+    assert compare_models(model, res_model)
 
     del res_model
 
@@ -236,7 +235,7 @@ def test_version_default(request, tmp_path, is_path_xml, is_path_bin):
     serialize(model, xml_path, bin_path)
     res_model = core.read_model(model=xml_path, weights=bin_path)
 
-    assert compare_functions(model, res_model)[0] is True
+    assert compare_models(model, res_model)
 
     del res_model
 
@@ -265,7 +264,6 @@ def test_serialize_default_bin(request, tmp_path, is_path_xml, is_path_bin):
 
 
 # request - https://docs.pytest.org/en/7.1.x/reference/reference.html#request
-@pytest.mark.xfail(reason="Output tensors names mismatch after deserialization")
 def test_version_ir_v10(request, tmp_path):
     core = Core()
     xml_path, bin_path = create_filename_for_test(request.node.name, tmp_path)
@@ -278,7 +276,7 @@ def test_version_ir_v10(request, tmp_path):
     serialize(model, xml_path, bin_path, "IR_V10")
     res_model = core.read_model(model=xml_path, weights=bin_path)
 
-    assert compare_functions(model, res_model)[0] is True
+    assert compare_models(model, res_model, compare_names=False)
 
     del res_model
 
@@ -299,7 +297,7 @@ def test_version_ir_v11(request, tmp_path):
     serialize(model, xml_path, bin_path, "IR_V11")
     res_model = core.read_model(model=xml_path, weights=bin_path)
 
-    assert compare_functions(model, res_model)[0] is True
+    assert compare_models(model, res_model)
 
     del res_model
 

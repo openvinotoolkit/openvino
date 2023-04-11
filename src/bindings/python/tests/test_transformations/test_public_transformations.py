@@ -15,10 +15,9 @@ from openvino.runtime.passes import (
     LowLatency2,
     Serialize,
 )
-from openvino.test_utils import compare_functions
 
 from tests.test_transformations.utils.utils import count_ops, get_relu_model
-from tests.test_utils.test_utils import create_filename_for_test
+from tests.test_utils.test_utils import create_filename_for_test, compare_models
 
 
 def get_model():
@@ -148,7 +147,7 @@ def test_serialize_pass(request, tmp_path, is_path_xml, is_path_bin):
 
     res_model = core.read_model(model=xml_path, weights=bin_path)
 
-    assert compare_functions(model, res_model)[0] is True
+    assert compare_models(model, res_model)
 
     del res_model
 
