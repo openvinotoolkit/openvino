@@ -10,7 +10,6 @@
 #include <vector>
 
 #include "itt.hpp"
-#include "transformations/fix_rt_info.hpp"
 #include "transformations/rt_info/fused_names_attribute.hpp"
 #include "transformations/rt_info/primitives_priority_attribute.hpp"
 
@@ -27,6 +26,5 @@ bool ov::pass::InitNodeInfo::run_on_model(const std::shared_ptr<ngraph::Function
         auto& rtInfo = node->get_rt_info();
         rtInfo.emplace(FusedNames::get_type_info_static(), FusedNames{node->get_friendly_name()});
     }
-    FixRtInfo{}.run_on_model(f);
     return false;
 }
