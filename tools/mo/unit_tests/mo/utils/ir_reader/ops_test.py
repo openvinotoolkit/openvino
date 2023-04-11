@@ -70,5 +70,5 @@ class TestOps(unittest.TestCase):
         self.assertEqual(if_node["version"], "opset8")
         _, layer_info, _ = if_node['IE'][0]
         _, callable_attribute = layer_info[0]
-        if callable(callable_attribute):
-            self.assertEqual(callable_attribute(if_node), "If_opset8")
+        self.assertTrue(callable(callable_attribute))
+        self.assertEqual(callable_attribute(if_node), "If_opset8")
