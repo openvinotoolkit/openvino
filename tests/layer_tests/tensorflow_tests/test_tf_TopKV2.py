@@ -40,7 +40,7 @@ class TestTopKV2(CommonTFLayerTest):
              is_second_output=True),
         # Expect stable mode implementation for sort_type=indices in OpenVINO. See 101503
         pytest.param(dict(input_shape=[5, 10], input_type=tf.int32, k=8, sorted=False, is_first_output=True,
-                          is_second_output=True), marks=pytest.mark.xfail(reason="101503")),
+                          is_second_output=True)),
     ]
 
     @pytest.mark.parametrize("params", test_basic)

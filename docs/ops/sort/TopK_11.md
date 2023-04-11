@@ -77,12 +77,39 @@ Sorting and minimum/maximum are controlled by `sort` and `mode` attributes with 
   * *sort*=`value`, *mode*=`max`, *stable*=`true`  - descending by value, relative order of equal elements guaranteed to be maintained
   * *sort*=`value`, *mode*=`min`, *stable*=`false` - ascending by value, relative order of equal elements not guaranteed to be maintained
   * *sort*=`value`, *mode*=`min`, *stable*=`true`  - ascending by value, relative order of equal elements guaranteed to be maintained
-  * *sort*=`index`, *mode*=`max` - descending by index
-  * *sort*=`index`, *mode*=`min` - ascending by index
+  * *sort*=`index`, *mode*=`max`, *stable*=`false` - descending by index, relative order of equal elements not guaranteed to be maintained
+  * *sort*=`index`, *mode*=`max`, *stable*=`true`  - descending by index, relative order of equal elements guaranteed to be maintained
+  * *sort*=`index`, *mode*=`min`, *stable*=`false` - ascending by index, relative order of equal elements not guaranteed to be maintained
+  * *sort*=`index`, *mode*=`min`, *stable*=`true`  - ascending by index, relative order of equal elements guaranteed to be maintained
   * *sort*=`none` , *mode*=`max` - undefined
   * *sort*=`none` , *mode*=`min` - undefined
 
 The relative order of equivalent elements is only preserved if the *stable* attribute is set to `true`. This makes the implementation use stable sorting algorithm during the computation of TopK elements. Otherwise the output order is undefined.
+The "by index" order means that the input tensor's elements are still sorted by value but their order in the output tensor is additionally determined by the indices of those elements in the input tensor. This might yield multiple correct results though. For example if the input tensor contains the following elements:
+
+    input = [5, 3, 1, 2, 5, 5]
+
+and when TopK is configured the following way:
+
+    mode = min
+    sort = index
+    k = 4
+
+then the 3 following results are correct:
+
+    output_values  = [5, 3, 1, 2]
+    output_indices = [0, 1, 2, 3]
+
+    output_values  = [3, 1, 2, 5]
+    output_indices = [1, 2, 3, 4]
+
+    output_values  = [3, 1, 2, 5]
+    output_indices = [1, 2, 3, 5]
+
+When the `stable` attribute is additionally set to `true`, the example above will only have a single correct solution:
+
+    output_values  = [5, 3, 1, 2]
+    output_indices = [0, 1, 2, 3]
 
 **Example**
 
