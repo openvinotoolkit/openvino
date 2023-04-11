@@ -5,7 +5,6 @@
 #include "openvino/runtime/threading/cpu_streams_executor.hpp"
 
 #include <condition_variable>
-#include <iostream>
 #include <memory>
 #include <mutex>
 #include <queue>

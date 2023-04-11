@@ -10,7 +10,6 @@
 
 #include <memory>
 #include <vector>
-#include <iostream>
 
 #include "dev/threading/parallel_custom_arena.hpp"
 #include "openvino/runtime/system_conf.hpp"
