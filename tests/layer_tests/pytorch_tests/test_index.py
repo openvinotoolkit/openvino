@@ -82,7 +82,7 @@ class TestIndexRange(PytorchLayerTest):
     def create_model(self):
         import torch
 
-        class aten_index_unsqueeze(torch.nn.Module):
+        class aten_index_arange(torch.nn.Module):
 
             def forward(self, x, y):
                 x = x.reshape(x.shape[0], -1)
@@ -90,7 +90,20 @@ class TestIndexRange(PytorchLayerTest):
 
         ref_net = None
 
-        return aten_index_unsqueeze(), ref_net, "aten::index"
+        return aten_index_arange(), ref_net, "aten::index"
+
+    def create_model2(self):
+        import torch
+
+        class aten_index_arange(torch.nn.Module):
+
+            def forward(self, x, y):
+                x = x.reshape(x.shape[0], x.shape[1], -1, 1)
+                return x[torch.arange(x.shape[0]), y]
+
+        ref_net = None
+
+        return aten_index_arange(), ref_net, "aten::index"
 
     @pytest.mark.nightly
     @pytest.mark.precommit
@@ -101,4 +114,14 @@ class TestIndexRange(PytorchLayerTest):
         ([2, 2, 3, 4], [0])))
     def test_index_range(self, input_shape, idx, ie_device, precision, ir_version):
         self._test(*self.create_model(), ie_device, precision, ir_version, kwargs_to_prepare_input={
+                   "input_shape": input_shape, "idx": idx}, trace_model=True, dynamic_shapes=False)
+    @pytest.mark.nightly
+    @pytest.mark.precommit
+    @pytest.mark.parametrize(("input_shape", "idx"), (
+        ((1, 1), [0]),
+        ([2, 3], [1, 2]),
+        ([7, 8, 9], [1]),
+        ([2, 2, 3, 4], [0])))
+    def test_index_range_free_dims(self, input_shape, idx, ie_device, precision, ir_version):
+        self._test(*self.create_model2(), ie_device, precision, ir_version, kwargs_to_prepare_input={
                    "input_shape": input_shape, "idx": idx}, trace_model=True, dynamic_shapes=False)
