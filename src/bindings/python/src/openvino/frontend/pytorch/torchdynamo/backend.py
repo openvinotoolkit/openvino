@@ -13,7 +13,7 @@ from openvino.runtime import Core, Type, PartialShape
 from openvino.frontend import FrontEndManager
 from openvino.frontend.pytorch.decoder import TorchScriptPythonDecoder
 from openvino.frontend.pytorch.torchdynamo.partition import Partitioner
-from openvino.frontend.pytorch.torchdynamo.execute import execute 
+from openvino.frontend.pytorch.torchdynamo.execute import execute
 
 log = logging.getLogger(__name__)
 
@@ -21,8 +21,8 @@ log = logging.getLogger(__name__)
 @fake_tensor_unsupported
 def openvino(subgraph, example_inputs):
     if (os.getenv("PYTORCH_TRACING_MODE") is not None):
-        if (os.getenv("PYTORCH_TRACING_MODE") == "TORCHFX"):  
-    	    return fx_openvino(subgraph, example_inputs)
+        if (os.getenv("PYTORCH_TRACING_MODE") == "TORCHFX"):
+            return fx_openvino(subgraph, example_inputs)
     return ts_openvino(subgraph, example_inputs)
 
 def ts_openvino(subgraph, example_inputs):
@@ -30,7 +30,7 @@ def ts_openvino(subgraph, example_inputs):
         model = torch.jit.script(subgraph)
         model.eval()
         fr_model = torch.jit.freeze(model)
-        
+
         core = Core()
         fe_manager = FrontEndManager()
         fe = fe_manager.load_by_framework('pytorch')
@@ -43,7 +43,7 @@ def ts_openvino(subgraph, example_inputs):
             torch.int8: Type.i8,
             torch.bool: Type.boolean
         }
-        decoder = TorchScriptPythonDecoder(model)
+        decoder = TorchScriptPythonDecoder(fr_model)
 
         im = fe.load(decoder)
         om = fe.convert(im)
@@ -57,7 +57,7 @@ def ts_openvino(subgraph, example_inputs):
         if (os.getenv("OPENVINO_DEVICE") is not None):
             device = os.getenv("OPENVINO_DEVICE")
             assert device in core.available_devices, "Specified device " + device + " is not in the list of OpenVINO Available Devices"
-            
+
         compiled_model = core.compile_model(om, device)
 
         def _call(*args):
@@ -81,7 +81,7 @@ def fx_openvino(subgraph, example_inputs):
             model.eval()
         partitioner = Partitioner()
         compiled_model = partitioner.make_partitions(model)
-    
+
         def _call(*args):
             res = execute(compiled_model, *args, executor="openvino")
             return res
