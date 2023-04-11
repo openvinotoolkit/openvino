@@ -9,6 +9,7 @@
 #include <ratio>
 
 #include "openvino/core/except.hpp"
+#include "openvino/core/node.hpp"
 
 namespace ov {
 namespace runtime {
@@ -55,8 +56,12 @@ class PerfHelper {
     std::shared_ptr<PerfCounter> counter;
 
 public:
-    explicit PerfHelper(std::shared_ptr<PerfCounter>& count) : counter(count) {
-        OPENVINO_ASSERT(counter);
+    explicit PerfHelper(const std::shared_ptr<ov::Node>& node) {
+        auto info = node->get_rt_info();
+        const auto& it = info.find(ov::runtime::interpreter::PERF_COUNTER_NAME);
+        OPENVINO_ASSERT(it != info.end(), "Operation ", node, " doesn't contain performance counter");
+        counter = it->second.as<std::shared_ptr<ov::runtime::interpreter::PerfCounter>>();
+        OPENVINO_ASSERT(counter, "Performance counter is empty");
         counter->start_itr();
     }
 
@@ -69,8 +74,5 @@ public:
 }  // namespace runtime
 }  // namespace ov
 
-#define GET_PERF(node)                                                                              \
-    std::unique_ptr<PerfHelper>(new PerfHelper(node->get_rt_info()                                  \
-                                                   .at(ov::runtime::interpreter::PERF_COUNTER_NAME) \
-                                                   .as<std::shared_ptr<ov::runtime::interpreter::PerfCounter>>()))
+#define GET_PERF(node)   std::unique_ptr<PerfHelper>(new PerfHelper(node))
 #define PERF(node, need) auto pc = need ? GET_PERF(node) : nullptr

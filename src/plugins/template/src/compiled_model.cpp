@@ -50,17 +50,16 @@ ov::template_plugin::CompiledModel::CompiledModel(const std::shared_ptr<ov::Mode
 void transform_model(const std::shared_ptr<ov::Model>& model);
 
 void ov::template_plugin::CompiledModel::compile_model(const std::shared_ptr<ov::Model>& model) {
+    // apply plugins transformations
+    if (!m_cfg.disable_transformations)
+        transform_model(model);
+
     // Integrate performance counters to the compiled model
     for (const auto& op : model->get_ops()) {
         auto& rt_info = op->get_rt_info();
         rt_info[ov::runtime::interpreter::PERF_COUNTER_NAME] =
             std::make_shared<ov::runtime::interpreter::PerfCounter>();
     }
-
-    if (m_cfg.disable_transformations)
-        return;
-    // apply plugins transformations
-    transform_model(model);
 
     // Perform any other steps like allocation and filling backend specific memory handles and so on
 }
@@ -99,8 +98,10 @@ std::shared_ptr<const ov::Model> ov::template_plugin::CompiledModel::get_runtime
     size_t exec_order = 0;
     for (const auto& op : model->get_ordered_ops()) {
         auto& info = op->get_rt_info();
-        auto perf_count = info.at(ov::runtime::interpreter::PERF_COUNTER_NAME)
-                              .as<std::shared_ptr<ov::runtime::interpreter::PerfCounter>>();
+        const auto& it = info.find(ov::runtime::interpreter::PERF_COUNTER_NAME);
+        OPENVINO_ASSERT(it != info.end(), "Operation ", op, " doesn't contain performance counter");
+        auto perf_count = it->second.as<std::shared_ptr<ov::runtime::interpreter::PerfCounter>>();
+        OPENVINO_ASSERT(perf_count, "Performance counter is empty");
         info[ov::exec_model_info::LAYER_TYPE] = op->get_type_info().name;
         info[ov::exec_model_info::EXECUTION_ORDER] = std::to_string(exec_order++);
         info[ov::exec_model_info::IMPL_TYPE] = "ref";
