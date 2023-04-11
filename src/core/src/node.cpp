@@ -385,9 +385,11 @@ std::ostream& ov::Node::write_description(std::ostream& out, uint32_t depth) con
     if (depth == 0) {
         out << get_friendly_name();
     } else {
-        OPENVINO_SUPPRESS_DEPRECATED_START
-        out << "v" << get_type_info().version << "::" << get_type_info().name << " " << get_friendly_name() << " (";
-        OPENVINO_SUPPRESS_DEPRECATED_END
+        auto version = get_type_info().version_id;
+        if (version)
+            out << version << "::" << get_type_info().name << " " << get_friendly_name() << " (";
+        else
+            out << get_type_info().name << " " << get_friendly_name() << " (";
         string sep = "";
         for (const auto& arg : input_values()) {
             out << sep << arg;

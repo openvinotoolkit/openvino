@@ -26,15 +26,8 @@ endif()
 
 # compile options
 
-if (CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
-    # disable warning: This operator was deprecated and will be removed with v0 operation.
-    add_compile_options(/wd4996)
-    add_compile_options(/wd4244)
-elseif(CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
-    add_compile_options(-Wno-deprecated-register -Wno-range-loop-analysis)
-elseif(OV_COMPILER_IS_APPLECLANG)
+if(OV_COMPILER_IS_APPLECLANG)
     add_link_options(-stdlib=libc++)
-    add_compile_options(-Wno-unused-value -Wno-range-loop-analysis)
 elseif(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
     # WA for GCC 7.5 "PYBIND11_NOINLINE inline" warning
     add_compile_options(-Wno-error=attributes)
@@ -85,7 +78,7 @@ set_target_properties(${PROJECT_NAME} PROPERTIES
     INTERPROCEDURAL_OPTIMIZATION_RELEASE ${ENABLE_LTO}
     OUTPUT_NAME "_pyopenvino")
 
-addVersionDefines(pyopenvino.cpp CI_BUILD_NUMBER)
+ov_add_version_defines(pyopenvino.cpp ${PROJECT_NAME})
 
 if(OV_GENERATOR_MULTI_CONFIG)
     string(APPEND _cmd_echo

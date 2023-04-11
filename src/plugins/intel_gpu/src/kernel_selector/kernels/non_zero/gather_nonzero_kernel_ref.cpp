@@ -43,14 +43,8 @@ JitConstants GatherNonzeroKernelRef::GetJitConstants(const gather_nonzero_params
     jit.AddConstant(MakeJitConstant("OV_INPUT_RANK", params.ov_input_rank));
     auto max_local_mem_size = params.engineInfo.maxLocalMemSize / (params.outputs[0].ElementSize());
     if (input.is_dynamic()) {
-        auto x = toCodeString(input.X(), 5);
-        auto y = toCodeString(input.Y(), 4);
-        auto z = toCodeString(input.Z(), 3);
-        auto w = toCodeString(input.W(), 2);
-        auto f = toCodeString(input.Feature(), 1);
-        auto b = toCodeString(input.Batch(), 0);
-
-        const std::string total_data_size = toVectorMulString({x, y, z, w, f, b});
+        DimensionAccessHelper dims(input, 0);
+        const std::string total_data_size = toVectorMulString({dims.x, dims.y, dims.z, dims.w, dims.f, dims.b});
         jit.AddConstant(MakeJitConstant("TOTAL_DATA_SIZE", total_data_size));
         jit.AddConstant(MakeJitConstant("MAX_LOCAL_MEM_SIZE", max_local_mem_size));
     } else {
@@ -91,6 +85,7 @@ KernelsData GatherNonzeroKernelRef::GetKernelsData(const Params& params, const o
         OPENVINO_ASSERT(kd.kernels.size() == 1, "[GPU] Invalid kernels size for update dispatch data func");
         kd.kernels[0].params.workGroups.global = dispatchData.gws;
         kd.kernels[0].params.workGroups.local = dispatchData.lws;
+        kd.kernels[0].skip_execution = KernelData::SkipKernelExecution(prim_params);
     };
 
     FillCLKernelData(kernel,

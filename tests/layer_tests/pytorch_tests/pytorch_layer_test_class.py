@@ -48,50 +48,23 @@ class PytorchLayerTest:
             inputs = self._prepare_input()
         with torch.no_grad():
             model.eval()
-            if not kwargs.get('trace_model', False):
-                model = torch.jit.script(model)
-            else:
-                torch_inputs = [torch.from_numpy(inp) for inp in inputs]
-                model = torch.jit.trace(model, deepcopy(torch_inputs))
-            if kwargs.get('freeze_model', True):
-                model = torch.jit.freeze(model)
+            torch_inputs = [torch.from_numpy(inp) if isinstance(
+                inp, np.ndarray) else inp for inp in inputs]
+            trace_model = kwargs.get('trace_model', False)
+            freeze_model = kwargs.get('freeze_model', True)
+            model, converted_model = self.convert_directly_via_frontend(model, torch_inputs, trace_model, dynamic_shapes, inputs, freeze_model)
             graph = model.inlined_graph
-            print(graph)
 
             if kind is not None and not isinstance(kind, (tuple, list)):
                 kind = [kind]
             if kind is not None:
                 for op in kind:
-                    assert self._check_kind_exist(graph, op), f"Operation {op} type doesn't exist in provided graph"
-
-            fe_manager = FrontEndManager()
-            fe = fe_manager.load_by_framework('pytorch')
-
-            decoder = TorchScriptPythonDecoder(model)
-
-            im = fe.load(decoder)
-            om = fe.convert(im)
-
-        torch_inps = [torch.from_numpy(inp) if isinstance(inp, np.ndarray) else inp for inp in inputs]
-        
-        params = om.get_parameters()
-        # todo: support lists and dicts
-        for i in range(len(inputs)):
-            inp = inputs[i]
-            if isinstance(inp, list):
-                inputs[i] = np.array(inp)
-                if inputs[i].dtype == np.int64:
-                    inputs[i] = inputs[i].astype(np.int32)
-                inp = inputs[i]
-            assert inp.dtype.name in self._type_map, f"Unknown type {inp.dtype}."
-            params[i].set_element_type(self._type_map[inp.dtype.name])
-            shape = [-1] * len(inp.shape) if dynamic_shapes else inp.shape
-            params[i].set_partial_shape(PartialShape(shape))
-        om.validate_nodes_and_infer_types()
+                    assert self._check_kind_exist(
+                        graph, op), f"Operation {op} type doesn't exist in provided graph"
 
         # OV infer:
         core = Core()
-        compiled = core.compile_model(om, ie_device)
+        compiled = core.compile_model(converted_model, ie_device)
         infer_res = compiled(deepcopy(inputs))
 
         if hasattr(self, 'skip_framework') and self.skip_framework:
@@ -99,7 +72,7 @@ class PytorchLayerTest:
             return
 
         # Framework infer:
-        fw_res = model(*deepcopy(torch_inps))
+        fw_res = model(*deepcopy(torch_inputs))
 
         if not isinstance(fw_res, (tuple)):
             fw_res = (fw_res,)
@@ -120,8 +93,8 @@ class PytorchLayerTest:
                     results.extend(decomposed_res)
                     continue
                 results.append(res_item)
-            return results 
-       
+            return results
+
         flatten_fw_res = flattenize_list_outputs(fw_res)
 
         assert len(flatten_fw_res) == len(
@@ -130,7 +103,8 @@ class PytorchLayerTest:
         for fw_tensor, ov_tensor in zip(flatten_fw_res, output_list):
             if not isinstance(fw_tensor, torch.Tensor):
                 if np.isscalar(fw_tensor):
-                    assert fw_tensor == np.array(ov_tensor).item(), f"{fw_tensor} != {np.array(ov_tensor).item()}"
+                    assert fw_tensor == np.array(ov_tensor).item(
+                    ), f"{fw_tensor} != {np.array(ov_tensor).item()}"
                 else:
                     if isinstance(fw_tensor, list):
                         ov_tensor = ov_tensor.tolist()
@@ -168,6 +142,60 @@ class PytorchLayerTest:
     # Each model should specify inputs
     def _prepare_input(self):
         raise RuntimeError("Please provide inputs generation function")
+
+    def convert_via_mo(self, model, example_input, trace_model, dynamic_shapes, ov_inputs):
+        import torch
+        from openvino.tools.mo import convert_model
+        kwargs = {"example_input": example_input if len(
+            example_input) > 1 else example_input[0], "compress_to_fp16": False}
+        with torch.no_grad():
+            if trace_model:
+                model = torch.jit.trace(model, example_input)
+            else:
+                model = torch.jit.script(model)
+            model = torch.jit.freeze(model)
+            print(model)
+            if not dynamic_shapes:
+                input_shapes = [inp.shape for inp in ov_inputs]
+                kwargs["input_shape"] = input_shapes
+            om = convert_model(model, **kwargs)
+        self._resolve_input_shape_dtype(om, ov_inputs, dynamic_shapes)
+        return model, om
+
+    def convert_directly_via_frontend(self, model, example_input, trace_model, dynamic_shapes, ov_inputs, freeze_model):
+        import torch
+
+        fe_manager = FrontEndManager()
+        fe = fe_manager.load_by_framework('pytorch')
+
+        model.eval()
+        with torch.no_grad():
+            if trace_model:
+                model = torch.jit.trace(model, example_input)
+            else:
+                model = torch.jit.script(model)
+        print(model.inlined_graph)
+        decoder = TorchScriptPythonDecoder(model, freeze=freeze_model)
+        im = fe.load(decoder)
+        om = fe.convert(im)
+        self._resolve_input_shape_dtype(om, ov_inputs, dynamic_shapes)
+        return model, om
+
+    def _resolve_input_shape_dtype(self, om, ov_inputs, dynamic_shapes):
+        params = list(om.inputs)
+        for i in range(len(ov_inputs)):
+            inp = ov_inputs[i]
+            if isinstance(inp, list):
+                ov_inputs[i] = np.array(inp)
+                if ov_inputs[i].dtype == np.int64:
+                    ov_inputs[i] = ov_inputs[i].astype(np.int32)
+                inp = ov_inputs[i]
+            assert inp.dtype.name in self._type_map, f"Unknown type {inp.dtype}."
+            params[i].get_node().set_element_type(self._type_map[inp.dtype.name])
+            shape = [-1] * len(inp.shape) if dynamic_shapes else inp.shape
+            params[i].get_node().set_partial_shape(PartialShape(shape))
+        om.validate_nodes_and_infer_types()
+        return om
 
 
 def get_params(ie_device=None, precision=None):

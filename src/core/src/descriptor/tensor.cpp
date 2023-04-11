@@ -38,16 +38,12 @@ ov::descriptor::Tensor::Tensor(const element::Type& element_type,
 OPENVINO_SUPPRESS_DEPRECATED_START
 void ov::descriptor::Tensor::set_tensor_type(const element::Type& element_type, const PartialShape& pshape) {
     set_element_type(element_type);
-    set_partial_shape(pshape);
+    m_partial_shape = pshape;
+    m_shape_changed = true;
 }
 
 void ov::descriptor::Tensor::set_element_type(const element::Type& element_type) {
     m_element_type = element_type;
-}
-
-void ov::descriptor::Tensor::set_partial_shape(const PartialShape& partial_shape) {
-    m_partial_shape = partial_shape;
-    m_shape_changed = true;
 }
 OPENVINO_SUPPRESS_DEPRECATED_END
 
@@ -100,10 +96,8 @@ const ov::Shape& ov::descriptor::Tensor::get_shape() const {
 
 size_t ov::descriptor::Tensor::size() const {
     const bool bitwidth_less_than_byte = m_element_type.bitwidth() < 8;
-    if (bitwidth_less_than_byte) {
-        return static_cast<size_t>(ceil((1.0 * shape_size(get_shape()) * m_element_type.bitwidth()) / 8));
-    }
-    return shape_size(get_shape()) * m_element_type.size();
+    return bitwidth_less_than_byte ? (shape_size(get_shape()) * m_element_type.bitwidth() + 7) >> 3
+                                   : (shape_size(get_shape()) * m_element_type.size());
 }
 
 const std::unordered_set<std::string>& ov::descriptor::Tensor::get_names() const {

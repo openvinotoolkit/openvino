@@ -241,6 +241,10 @@ const std::vector<std::vector<int>> axes5DFusing = {
         {0, 2, 4},
 };
 
+const std::vector<std::vector<int>> axesHW = {
+        {2, 3}
+};
+
 std::vector<CommonTestUtils::OpType> opTypes = {
         CommonTestUtils::OpType::SCALAR,
         CommonTestUtils::OpType::VECTOR,
@@ -294,6 +298,11 @@ std::vector<std::vector<ov::test::InputShape>> inputShapes_Int32 = {
     {{{{1, 5}, 19, {1, 5}, {1, 10}}, {{2, 19, 2, 2}, {2, 19, 2, 3}}}},
 };
 
+std::vector<std::vector<ov::test::InputShape>> inputShapes_SmallChannel = {
+    {{{}, {{2, 3, 2, 9}}}},
+    {{{{1, 5}, 3, {1, 5}, {1, 10}}, {{2, 3, 2, 2}, {2, 3, 2, 9}}}},
+};
+
 std::vector<CPUSpecificParams> cpuParams_4D = {
         CPUSpecificParams({nChw16c}, {nChw16c}, {}, {}),
         CPUSpecificParams({nchw}, {nchw}, {}, {}),
@@ -314,6 +323,10 @@ std::vector<CPUSpecificParams> cpuParams_HybridLayout_4D = {
 std::vector<CPUSpecificParams> cpuParams_HybridLayout_5D = {
         CPUSpecificParams({nCdhw16c}, {}, {}, {}),
         CPUSpecificParams({ndhwc}, {}, {}, {})
+};
+
+std::vector<CPUSpecificParams> cpuParams_NHWC_4D = {
+        CPUSpecificParams({nhwc}, {nhwc}, {}, {})
 };
 
 const std::vector<fusingSpecificParams> fusingParamsSet {
@@ -431,6 +444,19 @@ const auto params_Int32 = testing::Combine(
         testing::Values(emptyCPUSpec),
         testing::Values(emptyFusingSpec));
 
+const auto params_NHWC_SmallChannel = testing::Combine(
+        testing::Combine(
+                testing::ValuesIn(axesHW),
+                testing::Values(CommonTestUtils::OpType::VECTOR),
+                testing::Values(true),
+                testing::ValuesIn(reductionTypes),
+                testing::ValuesIn(inpOutPrc),
+                testing::Values(ElementType::undefined),
+                testing::Values(ElementType::undefined),
+                testing::ValuesIn(inputShapes_SmallChannel)),
+        testing::ValuesIn(filterCPUSpecificParams(cpuParams_NHWC_4D)),
+        testing::Values(emptyFusingSpec));
+
 INSTANTIATE_TEST_SUITE_P(
         smoke_Reduce_OneAxis_CPU,
         ReduceCPULayerTest,
@@ -477,6 +503,13 @@ INSTANTIATE_TEST_SUITE_P(
         smoke_Reduce_Int32_CPU,
         ReduceCPULayerTest,
         params_Int32,
+        ReduceCPULayerTest::getTestCaseName
+);
+
+INSTANTIATE_TEST_SUITE_P(
+        smoke_Reducea_NHWC_SmallChannel_CPU,
+        ReduceCPULayerTest,
+        params_NHWC_SmallChannel,
         ReduceCPULayerTest::getTestCaseName
 );
 

@@ -224,6 +224,7 @@ std::vector<layout> pooling_inst::calc_output_layouts(pooling_node const& /*node
     if (auto_pad == ov::op::PadType::SAME_UPPER || auto_pad == ov::op::PadType::SAME_LOWER) {
         pads_begin.clear();
         pads_end.clear();
+        OPENVINO_SUPPRESS_DEPRECATED_START
         ngraph::try_apply_auto_padding(input_shape,
                                        kernel_size,
                                        stride,
@@ -231,6 +232,7 @@ std::vector<layout> pooling_inst::calc_output_layouts(pooling_node const& /*node
                                        auto_pad,
                                        pads_end,
                                        pads_begin);
+        OPENVINO_SUPPRESS_DEPRECATED_END
     }
     if (auto_pad == ov::op::PadType::VALID) {
         pads_begin = ov::CoordinateDiff(pads_begin.size(), 0);
