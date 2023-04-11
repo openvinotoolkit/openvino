@@ -259,8 +259,11 @@ void get_num_streams(const int streams,
     proc_type_table = apply_scheduling_core_type(config.schedulingCoreType, proc_type_table);
     proc_type_table = apply_hyper_threading(config.enableHyperThreading, config.changedHyperThreading, proc_type_table);
     executor_config._proc_type_table = proc_type_table;
-    executor_config._cpu_pinning =
-        apply_cpu_pinning(config.enableCpuPinning, config.changedCpuPinning, streams, proc_type_table);
+    executor_config._cpu_pinning = get_cpu_pinning(config.enableCpuPinning,
+                                                   config.changedCpuPinning,
+                                                   streams,
+                                                   executor_config._threadBindingType,
+                                                   proc_type_table);
     const int model_prefer = get_model_prefer_threads(streams, proc_type_table, ngraphFunc, executor_config);
     executor_config._streams_info_table = get_streams_info_table(streams,
                                                                  executor_config._threads,

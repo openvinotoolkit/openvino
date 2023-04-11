@@ -12,6 +12,7 @@
 #include <vector>
 
 #include "openvino/runtime/properties.hpp"
+#include "openvino/runtime/threading/istreams_executor.hpp"
 
 namespace ov {
 
@@ -39,12 +40,15 @@ apply_hyper_threading(bool& input_type, const bool input_changed, const std::vec
  * @brief      whether pinning cpu cores according to enableCpuPinning property
  * @param[in]  input_type indicate value of property enableCpuPinning.
  * @param[in]  input_changed indicate if value is set by user.
+ * @param[in]  num_streams number of streams
+ * @param[in]  bind_type thread binding core type
  * @param[in]  proc_type_table candidate processors available at this time
  * @return     whether pinning threads to cpu cores
  */
-OPENVINO_RUNTIME_API bool apply_cpu_pinning(bool& input_value,
-                                            const bool input_changed,
-                                            const int num_streams,
-                                            const std::vector<std::vector<int>>& proc_type_table);
+OPENVINO_RUNTIME_API bool get_cpu_pinning(bool& input_value,
+                                          const bool input_changed,
+                                          const int num_streams,
+                                          const threading::IStreamsExecutor::ThreadBindingType bind_type,
+                                          const std::vector<std::vector<int>>& proc_type_table);
 
 }  // namespace ov
