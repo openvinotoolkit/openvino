@@ -77,8 +77,7 @@ struct CPUStreamsExecutor::Impl {
                                                           _impl->_usedNumaNodes.size()))
                               : _impl->_usedNumaNodes.at(_streamId % _impl->_usedNumaNodes.size());
 #if OV_THREAD == OV_THREAD_TBB || OV_THREAD == OV_THREAD_TBB_AUTO
-            if (is_cpu_map_available() &&
-                (_impl->_config._threads_per_stream_big + _impl->_config._threads_per_stream_small > 0)) {
+            if (is_cpu_map_available()) {
                 init_stream();
             } else {
                 init_stream_legacy();
