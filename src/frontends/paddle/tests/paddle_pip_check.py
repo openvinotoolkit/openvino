@@ -6,7 +6,7 @@ import os
 req_file=sys.argv[1]
 
 constraints = {}
-constraints_path = None
+constraints_path = []
 requirements = []
 
 # read requirements and find constraints file
@@ -14,22 +14,22 @@ with open(req_file) as f:
     raw_requirements = f.readlines()
 for line in raw_requirements:
     if line.startswith("-c"):
-        constraints_path = os.path.join(os.path.dirname(req_file), line.split(' ')[1][:-1])
+        constraints_path.append(os.path.join(os.path.dirname(req_file), line.split(' ')[1][:-1]))
 
 # read constraints if they exist
 if constraints_path:
-    with open(constraints_path) as f:
-        raw_constraints = f.readlines()
-    for line in raw_constraints:
-        if line.startswith("#") or line=="\n":
-            continue
-        line = line.replace("\n", "")
-        package, delimiter, constraint = re.split("(~|=|<|>|;)", line, maxsplit=1)
-        if constraints.get(package) is None:
-            constraints[package] = [delimiter + constraint]
-        else:
-            constraints[package].extend([delimiter + constraint])
-
+    for constraint_path in constraints_path:
+        with open(constraint_path) as f:
+            raw_constraints = f.readlines()
+        for line in raw_constraints:
+            if line.startswith("#") or line=="\n":
+                continue
+            line = line.replace("\n", "")
+            package, delimiter, constraint = re.split("(~|=|<|>|;)", line, maxsplit=1)
+            if constraints.get(package) is None:
+                constraints[package] = [delimiter + constraint]
+            else:
+                constraints[package].extend([delimiter + constraint])
     for line in raw_requirements:
         if line.startswith(("#", "-c")):
             continue
@@ -50,7 +50,7 @@ try:
     pkg_resources.require(requirements)
 except Exception as inst:
     pattern  = re.compile(r"protobuf .*, Requirement.parse\('protobuf<=3\.20\.0,>=3\.1\.0'\), {'paddlepaddle'}")
-    result = pattern .findall(str(inst))
+    result = pattern.findall(str(inst))
     if len(result) == 0:
         raise inst
     else:
