@@ -63,7 +63,7 @@ public:
             }
         }
 
-        IE_THROW() << "Supported executor is not found";
+        IE_THROW() << "Supported Pooling executor is not found";
     }
 
 private:

@@ -2017,7 +2017,7 @@ void Eltwise::initSupportedPrimitiveDescriptors() {
         Blocked
     };
 
-    auto initDesc = [&] (LayoutType lt, bool useAclExecutor) -> NodeDesc {
+    auto initDesc = [&] (LayoutType lt, bool useAclExecutor = false) -> NodeDesc {
         auto createMemoryDesc = [lt](const Shape &shape, Precision prc, size_t offset) -> std::shared_ptr<CpuBlockedMemoryDesc> {
             const auto &dims = shape.getDims();
             if (lt == ChannelsFirst && shape.getRank() != 1) {
@@ -2112,7 +2112,7 @@ void Eltwise::initSupportedPrimitiveDescriptors() {
             auto factory = std::make_shared<EltwiseExecutorFactory>(eltwiseAttrs, srcMemoryDescs, dstMemoryDescs,
                                                                     std::make_shared<ExecutorContext>(context, getPrimitivesPriority()));
 
-            return {config, impl_type, factory};
+            return {config, impl_type, !factory->isEmpty() ? factory : nullptr};
         } else {
             impl_desc_type impl_type = impl_desc_type::ref;
             if (canUseOptimizedImpl) {
@@ -2148,20 +2148,31 @@ void Eltwise::initSupportedPrimitiveDescriptors() {
             isBlockedApplicable = isBlockedApplicable && inShape.getMinDims()[1] != Shape::UNDEFINED_DIM && inShape.getMinDims()[1] > 1;
     }
 
+    inputNum = getParentEdges().size();
+    currentInBlkDims.resize(inputNum);
+
 #if defined (OV_CPU_WITH_ACL)
-        eltwiseAttrs = {algorithm, alpha, beta, gamma};
-        auto desc = initDesc(Planar, true);
-        canUseAclExecutor = !desc.getExecutorFactoryAs<EltwiseExecutorFactory>()->isEmpty();
+    eltwiseAttrs = {algorithm, alpha, beta, gamma};
+    if (isChannelsFirstApplicable) {
+        auto channelFirstDesc = initDesc(ChannelsFirst, true);
+        if (channelFirstDesc.getExecutorFactory())
+            supportedPrimitiveDescriptors.emplace_back(channelFirstDesc);
+    }
+
+    auto planarDesc = initDesc(Planar, true);
+    if (planarDesc.getExecutorFactory())
+        supportedPrimitiveDescriptors.emplace_back(planarDesc);
+
+    canUseAclExecutor = !supportedPrimitiveDescriptors.empty();
+    if (canUseAclExecutor)
+        return;
 #endif
 
     if (isChannelsFirstApplicable)
-        supportedPrimitiveDescriptors.emplace_back(initDesc(ChannelsFirst, canUseAclExecutor));
-    if (isBlockedApplicable && !canUseAclExecutor)
-        supportedPrimitiveDescriptors.emplace_back(initDesc(Blocked, canUseAclExecutor));
-    supportedPrimitiveDescriptors.emplace_back(initDesc(Planar, canUseAclExecutor));
-
-    inputNum = getParentEdges().size();
-    currentInBlkDims.resize(inputNum);
+        supportedPrimitiveDescriptors.emplace_back(initDesc(ChannelsFirst));
+    if (isBlockedApplicable)
+        supportedPrimitiveDescriptors.emplace_back(initDesc(Blocked));
+    supportedPrimitiveDescriptors.emplace_back(initDesc(Planar));
 }
 
 void Eltwise::createPrimitive() {

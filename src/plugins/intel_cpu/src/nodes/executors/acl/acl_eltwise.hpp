@@ -6,6 +6,7 @@
 
 #include "../eltwise.hpp"
 #include "arm_compute/runtime/NEON/NEFunctions.h"
+#include "acl_utils.hpp"
 
 namespace ov {
 namespace intel_cpu {
@@ -38,6 +39,47 @@ public:
     bool isSupported(const EltwiseAttrs& eltwiseAttrs,
                      const std::vector<MemoryDescPtr>& srcDescs,
                      const std::vector<MemoryDescPtr>& dstDescs) const override {
+        switch (eltwiseAttrs.algorithm) {
+            case Algorithm::EltwiseAdd:
+            case Algorithm::EltwiseMultiply:
+            case Algorithm::EltwiseSubtract:
+            case Algorithm::EltwiseDivide:
+            case Algorithm::EltwiseMaximum:
+            case Algorithm::EltwiseMinimum:
+            case Algorithm::EltwiseSquaredDifference:
+            case Algorithm::EltwisePowerDynamic:
+            case Algorithm::EltwiseEqual:
+            case Algorithm::EltwiseNotEqual:
+            case Algorithm::EltwiseGreater:
+            case Algorithm::EltwiseGreaterEqual:
+            case Algorithm::EltwiseLess:
+            case Algorithm::EltwiseLessEqual:
+            case Algorithm::EltwiseRelu:
+            case Algorithm::EltwiseGeluErf:
+            case Algorithm::EltwiseElu:
+            case Algorithm::EltwiseTanh:
+            case Algorithm::EltwiseSigmoid:
+            case Algorithm::EltwiseAbs:
+            case Algorithm::EltwiseSqrt:
+            case Algorithm::EltwiseSoftRelu:
+            case Algorithm::EltwiseExp:
+            case Algorithm::EltwiseClamp:
+            case Algorithm::EltwiseSwish:
+            case Algorithm::EltwisePrelu:
+            case Algorithm::EltwiseHswish:
+            case Algorithm::EltwiseLog:
+                break;
+            default:
+                return false;
+        }
+
+        // ACL supports only U8 precision on output for comparison operations
+        if (one_of(eltwiseAttrs.algorithm, Algorithm::EltwiseEqual, Algorithm::EltwiseNotEqual, Algorithm::EltwiseGreater,
+                                           Algorithm::EltwiseGreaterEqual, Algorithm::EltwiseLess, Algorithm::EltwiseLessEqual)) {
+            if (dstDescs[0]->getPrecision() != InferenceEngine::Precision::U8) {
+                return false;
+            }
+        }
         for (const auto &srcD : srcDescs) {
             for (const auto &dstD : dstDescs) {
                 if ((srcD->getPrecision() != InferenceEngine::Precision::FP32 &&
@@ -47,29 +89,16 @@ public:
             }
         }
 
-        switch (eltwiseAttrs.algorithm) {
-            case Algorithm::EltwiseIsFinite:
-            case Algorithm::EltwiseIsInf:
-            case Algorithm::EltwiseIsNaN:
-            case Algorithm::EltwiseFloorMod:
-            case Algorithm::EltwiseMod:
-            case Algorithm::EltwisePowerStatic:
-            case Algorithm::EltwiseMulAdd:
-            case Algorithm::EltwiseLogicalAnd:
-            case Algorithm::EltwiseLogicalOr:
-            case Algorithm::EltwiseLogicalXor:
-            case Algorithm::EltwiseLogicalNot:
-            case Algorithm::EltwiseGeluTanh:
-            case Algorithm::EltwiseMish:
-            case Algorithm::EltwiseHsigmoid:
-            case Algorithm::EltwiseRoundHalfToEven:
-            case Algorithm::EltwiseRoundHalfAwayFromZero:
-            case Algorithm::EltwiseErf:
-            case Algorithm::EltwiseSoftSign:
-                return false;
-            default:
-                return true;
+        for (int i = 0; i < srcDescs.size(); i++) {
+            if (getAclDataLayoutByMemoryDesc(srcDescs[i]) == arm_compute::DataLayout::UNKNOWN)
+                 return false;
         }
+        for (int i = 0; i < dstDescs.size(); i++) {
+            if (getAclDataLayoutByMemoryDesc(dstDescs[i]) == arm_compute::DataLayout::UNKNOWN)
+                return false;
+        }
+
+        return true;
     }
 
     EltwiseExecutorPtr makeExecutor(const ExecutorContext::CPtr context) const override {

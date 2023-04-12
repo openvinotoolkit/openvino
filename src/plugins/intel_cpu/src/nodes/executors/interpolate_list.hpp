@@ -66,7 +66,7 @@ public:
             }
         }
 
-        IE_THROW() << "Supported executor is not found";
+        IE_THROW() << "Supported Interpolate executor is not found";
     }
 
     bool isEmpty() {
