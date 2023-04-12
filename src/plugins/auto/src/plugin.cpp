@@ -358,7 +358,7 @@ IExecutableNetworkInternal::Ptr MultiDeviceInferencePlugin::LoadNetworkImpl(cons
         loadConfig.set_property(ov::hint::performance_mode(ov::hint::PerformanceMode::LATENCY));
     }
     // updateFromMap will check config valid
-    loadConfig.set_user_property(PreProcessConfig(config), workModeAuto);
+    loadConfig.set_user_property(PreProcessConfig(config));
     loadConfig.apply_user_properties();
     if (!workModeAuto) {
         if (itorConfig != config.end() && itorConfig->second != InferenceEngine::PluginConfigParams::THROUGHPUT) {
@@ -395,7 +395,7 @@ IExecutableNetworkInternal::Ptr MultiDeviceInferencePlugin::LoadNetworkImpl(cons
         autoSContext->_needPerfCounters = true;
     }
     autoSContext->_modelPriority = MapPriorityValues(loadConfig.get_property(ov::hint::model_priority));
-    autoSContext->_batchingDisabled = loadConfig.is_disable_auto_batching();
+    autoSContext->_batchingDisabled = loadConfig.is_batching_disabled();
     // set performanceHint for AutoExecutableNetwork
     autoSContext->_performanceHint = loadConfig.get_property(ov::hint::performance_mode.name()).as<std::string>();
     // filter the device that supports filter configure
@@ -496,7 +496,7 @@ QueryNetworkResult MultiDeviceInferencePlugin::QueryNetwork(const CNNNetwork&   
 
     auto queryconfig = _pluginConfig;
     // updateFromMap will check config valid
-    queryconfig.set_user_property(PreProcessConfig(config), (GetName() == "AUTO")? true : false);
+    queryconfig.set_user_property(PreProcessConfig(config));
     queryconfig.apply_user_properties();
     auto fullproperty = queryconfig.get_full_properties();
     // this can be updated when plugin switch to 2.0 API

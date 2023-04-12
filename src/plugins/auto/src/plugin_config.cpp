@@ -67,7 +67,7 @@ ov::Any PluginConfig::get_property(const std::string& name) const {
     return internal_properties.at(name);
 }
 
-bool PluginConfig::is_disable_auto_batching() const {
+bool PluginConfig::is_batching_disabled() const {
     if (user_properties.find(ov::hint::allow_auto_batching.name()) != user_properties.end()) {
         return !user_properties.at(ov::hint::allow_auto_batching.name()).as<bool>();
     }
@@ -85,7 +85,7 @@ bool PluginConfig::is_set_by_user(const std::string& name) const {
     return user_properties.find(name) != user_properties.end();
 }
 
-void PluginConfig::set_user_property(const ov::AnyMap& config, bool checkfirstlevel) {
+void PluginConfig::set_user_property(const ov::AnyMap& config) {
     // user property, accept either internal property, or secondary property for hardware plugin
     // TODO: for multi, other first level property are also accepted
     for (auto& kv : config) {
