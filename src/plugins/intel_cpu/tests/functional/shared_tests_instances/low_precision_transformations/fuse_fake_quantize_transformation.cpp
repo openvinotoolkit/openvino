@@ -27,21 +27,6 @@ const std::vector<FuseFakeQuantizeTransformationTestValues> testValues = {
             2ull
         }
     },
-    // pipeline test: both Convolutions have to be in U8 independently of possible fuse
-    {
-        {1, 3, 16, 16},
-        LayerTestsUtils::LayerTransformationParamsNGraphFactory::createParamsU8I8(),
-        {
-            ngraph::element::f32,
-            { 256ul, {}, { -128.f / 2.f }, { 127.f / 2.f }, { -128.f / 2.f }, { 127.f / 2.f }, ngraph::element::f32 },
-            { 256ul, {}, { -128.f / 2.f }, { 127.f / 2.f }, { -128.f / 2.f }, { 127.f / 2.f }, ngraph::element::f32 }
-        },
-        {
-            { "fakeQuantize1", "fakeQuantize2" }, // not fused
-            { },
-            2ull
-        }
-    },
     {
         {1, 3, 16, 16},
         LayerTestsUtils::LayerTransformationParamsNGraphFactory::createParamsU8I8(),

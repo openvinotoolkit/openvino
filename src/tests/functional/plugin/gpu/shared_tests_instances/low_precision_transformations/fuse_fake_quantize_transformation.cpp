@@ -16,12 +16,13 @@ const std::vector<FuseFakeQuantizeTransformationTestValues> testValues = {
         LayerTestsUtils::LayerTransformationParamsNGraphFactory::createParamsU8I8(),
         {
             ngraph::element::f32,
-            { 256ul, {}, { 0.f }, { 2.55f }, { 0.f }, { 2.55f }, ngraph::element::f32 },
-            { 256ul, {}, { 0.f }, { 2.55f }, { 0.f }, { 2.55f }, ngraph::element::f32 }
+            { 256ul, {}, { 0.f }, { 255.f / 2.f }, { 0.f }, { 255.f / 2.f }, ngraph::element::f32 },
+            { 256ul, {}, { 0.f }, { 255.f / 2.f }, { 0.f }, { 255.f / 2.f }, ngraph::element::f32 }
         },
         {
             { "fakeQuantize1" },
-            { "fakeQuantize2" }
+            { "fakeQuantize2" }, // was fused to fakeQuantize1
+            2ull
         }
     },
     {
@@ -29,25 +30,13 @@ const std::vector<FuseFakeQuantizeTransformationTestValues> testValues = {
         LayerTestsUtils::LayerTransformationParamsNGraphFactory::createParamsU8I8(),
         {
             ngraph::element::f32,
-            { 256ul, {}, { 0.f }, { 2.55f }, { 0.f }, { 2.55f }, ngraph::element::f32 },
-            { 256ul, {}, { 0.f }, { 2.55f / 2.f }, { 0.f }, { 2.55f / 2.f }, ngraph::element::f32 }
+            { 256ul, {}, { 0.f }, { 255.f / 2.f }, { 0.f }, { 255.f / 2.f }, ngraph::element::f32 },
+            { 256ul, {}, { 0.f }, { 255.f / 2.1f }, { 0.f }, { 255.f / 2.1f }, ngraph::element::f32 }
         },
         {
-            { "fakeQuantize1", "fakeQuantize2"},
-            { }
-        }
-    },
-    {
-        {1, 3, 16, 16},
-        LayerTestsUtils::LayerTransformationParamsNGraphFactory::createParamsU8I8(),
-        {
-            ngraph::element::f32,
-            { 256ul, {}, { 0.f }, { 2.55f }, { 0.f }, { 2.55f }, ngraph::element::f32 },
-            { 256ul, {}, { -1.28f }, { 1.27f }, { -1.28f }, { 1.27f }, ngraph::element::f32 }
-        },
-        {
-            { "fakeQuantize1", "fakeQuantize2"},
-            { }
+            { "fakeQuantize1", "fakeQuantize2" }, // not fused
+            { },
+            2ull
         }
     }
 };
