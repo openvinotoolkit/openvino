@@ -73,8 +73,8 @@ The examples below show how to set dynamic dimensions with a model that has a st
         :sync: py
         
         .. doxygensnippet:: docs/snippets/ov_dynamic_shapes.py
-           :language: Python
-           :fragment: reshape_undefined
+           :language: python
+           :fragment: [reshape_undefined]
     
         With Python, you may also pass all dimensions as a string and use ``?`` for the dynamic dimensions (e.g. ``model.reshape(“1, 3, ?, ?”)``).
     
