@@ -66,7 +66,7 @@ if (NOT X86_64)
                       ${CMAKE_CURRENT_SOURCE_DIR}/src/transformations/snippets/x64/*)
 endif()
 
-if (NOT AARCH64)
+if (NOT (AARCH64 OR ARM))
     set(EXCLUDE_PATHS ${EXCLUDE_PATHS}
                       ${CMAKE_CURRENT_SOURCE_DIR}/src/transformations/cpu_opset/arm/*)
 endif()
@@ -87,7 +87,7 @@ ie_add_plugin(NAME ${TARGET_NAME}
 if(ARM OR AARCH64)
     set_target_properties(${TARGET_NAME} PROPERTIES OUTPUT_NAME "openvino_arm_cpu_plugin")
 elseif(RISCV64)
-    set_target_properties(${TARGET_NAME} PROPERTIES OUTPUT_NAME "openvino_risv_cpu_plugin")
+    set_target_properties(${TARGET_NAME} PROPERTIES OUTPUT_NAME "openvino_riscv_cpu_plugin")
 endif()
 
 set_ie_threading_interface_for(${TARGET_NAME})
