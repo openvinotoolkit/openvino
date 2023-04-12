@@ -82,6 +82,7 @@ Any& Any::operator=(const Any& other) {
         _temp = other._temp->copy();
     if (other._impl)
         _impl = other._impl->copy();
+    _so = other._so;
     return *this;
 };
 
