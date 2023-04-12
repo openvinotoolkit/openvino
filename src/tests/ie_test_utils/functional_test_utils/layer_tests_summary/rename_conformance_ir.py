@@ -211,7 +211,7 @@ if __name__=="__main__":
     rel_weights_dir = None
     if not args.rel_weights_dir is None:
         rel_weights_dir = Path(args.rel_weights_dir)
-        if not rel_weights_dir.is_dir:
+        if not os.path.is_dir(rel_weights_dir):
             logger.info(f"Create rel weight_dir: {rel_weights_dir}")
             os.mkdir(rel_weights_dir)
 
