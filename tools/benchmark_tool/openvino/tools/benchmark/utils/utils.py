@@ -758,6 +758,27 @@ def show_available_devices():
     print("\nAvailable target devices:  ", ("  ".join(Core().available_devices)))
 
 
+def device_properties_to_string(config):
+    ret = "{"
+    for k, v in config.items():
+        if isinstance(v, dict):
+            sub_str = "{"
+            for sk, sv in v.items():
+                if isinstance(sv, bool):
+                    sv = "YES" if sv else "NO"
+                if isinstance(sv, properties.Affinity):
+                    sv = sv.name
+                sub_str += "{0}:{1},".format(sk, sv)
+            sub_str = sub_str[:-1]
+            sub_str += "}"
+            ret += "{0}:{1},".format(k, sub_str)
+        else:
+            ret += "{0}:{1},".format(k, v)
+    ret = ret[:-1]
+    ret += "}"
+    return ret
+
+
 def string_to_device_properties(device_properties_str):
     ret = {}
     if not device_properties_str:
@@ -786,13 +807,15 @@ def dump_config(filename, config):
         json_config[device_name] = {}
         for key, value in device_config.items():
             if isinstance(value, OVAny) and (isinstance(value.value, dict)):
-                value_string = str(value.value).replace('\'', '').replace(' ', '')
-            elif isinstance(value, properties.hint.PerformanceMode):
+                value_string = device_properties_to_string(value.get())
+            elif isinstance(value, (properties.hint.PerformanceMode, properties.Affinity)):
                 value_string = value.name
             elif isinstance(value, OVAny):
                 value_string = str(value.value)
             else:
                 value_string = str(value)
+                if isinstance(value, bool):
+                    value_string = "YES" if value else "NO"
             json_config[device_name][key] = value_string
 
     with open(filename, 'w') as f:
@@ -805,9 +828,9 @@ def load_config(filename, config):
     for device in original_config:
         config[device] = {}
         for property_name in original_config[device]:
+            property_value = original_config[device][property_name]
             if property_name == properties.device.properties():
-                properties_str = original_config[device][property_name]
-                value = string_to_device_properties(properties_str)
-                config[device][property_name] = OVAny(value)
-            else:
-                config[device][property_name] = OVAny(original_config[device][property_name])
+                property_value = string_to_device_properties(property_value)
+            elif property_value in ("YES", "NO"):
+                property_value = True if property_value == "YES" else False
+            config[device][property_name] = OVAny(property_value)

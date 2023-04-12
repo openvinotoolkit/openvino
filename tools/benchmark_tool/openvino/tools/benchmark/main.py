@@ -313,7 +313,6 @@ def main():
                 if device in device_number_streams.keys():
                     del device_number_streams[device]
 
-        perf_counts = perf_counts
         device_config = {}
         for device in config:
             if benchmark.device.find(device) == 0:
@@ -589,7 +588,7 @@ def main():
                 if statistics:
                     statistics.dump_performance_counters_sorted(total_sorted_list)
 
-            elif args.perf_counts:
+            else:
                 print_perf_counters(perfs_count_list)
 
             if statistics:

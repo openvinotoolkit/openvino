@@ -178,7 +178,6 @@ void setDeviceProperty(ov::Core& core,
     if (device_property.first.empty())
         return;
 
-    // Update device properties for HW device.
     update_device_properties_setting(device, device_config, device_property);
 }
 
@@ -1225,7 +1224,7 @@ int main(int argc, char* argv[]) {
                                                getFullDeviceName(core, FLAGS_d),
                                                FLAGS_pcsort,
                                                false);
-                } else if (FLAGS_pc) {
+                } else {
                     slog::info << "Performance counts for " << ireq << "-th infer request:" << slog::endl;
                     printPerformanceCounts(reqPerfCounts, std::cout, getFullDeviceName(core, FLAGS_d), false);
                 }
