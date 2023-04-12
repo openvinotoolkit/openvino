@@ -383,22 +383,6 @@ IExecutableNetworkInternal::Ptr MultiDeviceInferencePlugin::LoadNetworkImpl(cons
     if (priorities.find("AUTO") != std::string::npos || priorities.find("MULTI") != std::string::npos) {
         IE_THROW() << "The device candidate list should not include the meta plugin for " << GetName() << " device";
     }
-    // If the user sets the property, insert the property into the deviceConfig
-    auto insertPropToConfig = [&](std::string property,
-                                  std::string& deviceName,
-                                  std::map<std::string, std::string>& deviceConfig) {
-        if (deviceConfig.find(property) == deviceConfig.end()) {
-            auto tmpiter = fullConfig.find(property);
-            if (tmpiter != fullConfig.end()) {
-                deviceConfig.insert({tmpiter->first, tmpiter->second});
-                LOG_INFO_TAG("device:%s, config:%s=%s",
-                                deviceName.c_str(),
-                                tmpiter->first.c_str(),
-                                tmpiter->second.c_str());
-            }
-        }
-    };
-
     // check the configure and check if need to set PerfCounters configure to device
     // and set filter configure
     OV_ITT_SCOPED_TASK(itt::domains::MULTIPlugin, "MultiDeviceInferencePlugin::LoadNetworkImpl::AutoMode");
@@ -411,7 +395,8 @@ IExecutableNetworkInternal::Ptr MultiDeviceInferencePlugin::LoadNetworkImpl(cons
         autoSContext->_needPerfCounters = true;
     }
     autoSContext->_modelPriority = MapPriorityValues(loadConfig.get_property(ov::hint::model_priority));
-    autoSContext->_batchingDisabled = !(loadConfig.get_property(ov::hint::allow_auto_batching));
+    auto itorConfigAutoBatch = config.find(ov::hint::allow_auto_batching.name());
+    autoSContext->_batchingDisabled = itorConfigAutoBatch != config.end() && itorConfigAutoBatch->second == "false";
     // set performanceHint for AutoExecutableNetwork
     autoSContext->_performanceHint = loadConfig.get_property(ov::hint::performance_mode.name()).as<std::string>();
     // filter the device that supports filter configure
@@ -454,21 +439,6 @@ IExecutableNetworkInternal::Ptr MultiDeviceInferencePlugin::LoadNetworkImpl(cons
         strDevices += ",";
     }
     strDevices.pop_back();
-    for (auto iter = supportDevices.begin(); iter != supportDevices.end(); iter++) {
-        auto& configs = iter->config;
-        for (auto& config : configs) {
-            LOG_INFO_TAG("device:%s, config:%s=%s",
-                         iter->deviceName.c_str(),
-                         config.first.c_str(),
-                         config.second.c_str());
-        }
-        // carry on batch configs only if user explicitly sets
-        if (loadConfig.is_set_by_user(ov::hint::allow_auto_batching))
-            insertPropToConfig(ov::hint::allow_auto_batching.name(), iter->deviceName, configs);
-        if (loadConfig.is_set_by_user(ov::auto_batch_timeout))
-            insertPropToConfig(ov::auto_batch_timeout.name(), iter->deviceName, configs);
-        LOG_INFO_TAG("device:%s, priority:%ld", iter->deviceName.c_str(), iter->devicePriority);
-    }
     autoSContext->_modelPath = clonedModelPath;
     // clone the network, in case of reshape conflict
     autoSContext->_network = clonedNetwork;

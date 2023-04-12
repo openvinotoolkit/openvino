@@ -28,9 +28,6 @@ void PluginConfig::set_default() {
         std::make_tuple(ov::hint::num_requests, 0, UnsignedTypeValidator()),
         std::make_tuple(ov::intel_auto::enable_startup_fallback, true),
         std::make_tuple(ov::intel_auto::enable_runtime_fallback, true),
-        // TODO 1) allow_auto_batch 2) auto_batch_timeout
-        std::make_tuple(ov::hint::allow_auto_batching, true),
-        std::make_tuple(ov::auto_batch_timeout, 1000),
         // Legacy API properties
         std::make_tuple(exclusive_asyc_requests, false),
         // RO for register only
