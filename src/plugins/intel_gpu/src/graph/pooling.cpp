@@ -251,6 +251,8 @@ std::vector<layout> pooling_inst::calc_output_layouts(pooling_node const& /*node
     return { layout{output_shape, output_dtype, input_layout.format} };
 }
 
+template std::vector<layout> pooling_inst::calc_output_layouts<ov::PartialShape>(pooling_node const& node, const kernel_impl_params& impl_param);
+
 std::string pooling_inst::to_string(pooling_node const& node) {
     auto desc = node.get_primitive();
     auto strd = desc->stride;

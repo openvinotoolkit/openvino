@@ -55,6 +55,8 @@ std::vector<layout> select_inst::calc_output_layouts(const select_node& /*node*/
     return {{output_shapes[0], dt, format::get_default_format(output_shapes[0].size())}};
 }
 
+template std::vector<layout> select_inst::calc_output_layouts<ov::PartialShape>(select_node const& node, const kernel_impl_params& impl_param);
+
 std::string select_inst::to_string(select_node const& node) {
     auto node_info = node.desc_to_json();
     auto desc = node.get_primitive();
