@@ -2,8 +2,10 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+// clang-format off
 #include "evaluate_node.hpp"
 #include "ngraph/runtime/reference/ctc_loss.hpp"
+// clang-format on
 
 namespace ctc_loss_v4 {
 template <ngraph::element::Type_t t1,
