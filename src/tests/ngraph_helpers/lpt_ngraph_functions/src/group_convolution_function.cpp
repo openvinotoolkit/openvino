@@ -63,23 +63,13 @@ std::shared_ptr<Node> createWeightsOriginal(
                 weightsValues);
 
         if (!fakeQuantizeOnWeights.empty()) {
-            Shape constantShape;
-            if (ov::shape_size(fakeQuantizeOnWeights.constantShape) != 1) {
-                constantShape = fakeQuantizeOnWeights.constantShape;
-            } else {
-                constantShape = Shape(weights->get_shape().size(), 1);
-                if (addReshape) {
-                    constantShape[0] = outputChannelsCount;
-                } else {
-                    constantShape[0] = groupCount;
-                    constantShape[1] = outputChannelsCount / groupCount;
-                }
-            }
             weights = ngraph::builder::makeFakeQuantize(
                 weights,
                 precision,
                 fakeQuantizeOnWeights.quantizationLevel,
-                constantShape,
+                rankLength == 3 ?
+                    std::vector<size_t>{ outputChannelsCount, 1, 1 } :
+                    std::vector<size_t>{ outputChannelsCount, 1, 1, 1 },
                 fakeQuantizeOnWeights.inputLowValues,
                 fakeQuantizeOnWeights.inputHighValues,
                 fakeQuantizeOnWeights.outputLowValues,
@@ -172,7 +162,6 @@ std::shared_ptr<ngraph::Function> GroupConvolutionFunction::getOriginal(
     const int groupCalculationDimention,
     const FakeQuantizeOnData& fakeQuantizeOnData,
     const FakeQuantizeOnWeights& fakeQuantizeOnWeights,
-    const bool addReshape,
     const bool addPrecisionPreserved) {
     const auto rankLength = inputShape.rank().is_dynamic() ? 4 : inputShape.rank().get_length();
     OPENVINO_ASSERT(rankLength == 3 || rankLength == 4, "not supported input shape rank: ", rankLength);
@@ -181,34 +170,31 @@ std::shared_ptr<ngraph::Function> GroupConvolutionFunction::getOriginal(
 
     std::shared_ptr<ngraph::Node> parent = input;
     if (!fakeQuantizeOnData.empty()) {
-        auto getConstShape = [&](const size_t elemsCount) {
-            Shape constantShape;
-            if (ov::shape_size(fakeQuantizeOnData.constantShape) != 1) {
-                constantShape = fakeQuantizeOnData.constantShape;
-            } else {
-                constantShape = Shape(rankLength, 1);
-                constantShape[1] = elemsCount;
-            }
-            return constantShape;
-        };
-
         parent = std::make_shared<ngraph::opset1::FakeQuantize>(
             input,
             std::make_shared<ngraph::opset1::Constant>(
                 precision,
-                getConstShape(fakeQuantizeOnData.inputLowValues.size()),
+                rankLength == 3 ?
+                    Shape{ 1, fakeQuantizeOnData.inputLowValues.size(), 1 } :
+                    Shape{ 1, fakeQuantizeOnData.inputLowValues.size(), 1, 1 },
                 fakeQuantizeOnData.inputLowValues),
             std::make_shared<ngraph::opset1::Constant>(
                 precision,
-                getConstShape(fakeQuantizeOnData.inputHighValues.size()),
+                rankLength == 3 ?
+                    Shape{ 1, fakeQuantizeOnData.inputHighValues.size(), 1 } :
+                    Shape{ 1, fakeQuantizeOnData.inputHighValues.size(), 1, 1 },
                 fakeQuantizeOnData.inputHighValues),
             std::make_shared<ngraph::opset1::Constant>(
                 precision,
-                getConstShape(fakeQuantizeOnData.outputLowValues.size()),
+                rankLength == 3 ?
+                    Shape{ 1, fakeQuantizeOnData.outputLowValues.size(), 1 } :
+                    Shape{ 1, fakeQuantizeOnData.outputLowValues.size(), 1, 1 },
                 fakeQuantizeOnData.outputLowValues),
             std::make_shared<ngraph::opset1::Constant>(
                 precision,
-                getConstShape(fakeQuantizeOnData.outputHighValues.size()),
+                rankLength == 3 ?
+                    Shape{ 1, fakeQuantizeOnData.outputHighValues.size(), 1 } :
+                    Shape{ 1, fakeQuantizeOnData.outputHighValues.size(), 1, 1 },
                 fakeQuantizeOnData.outputHighValues),
             fakeQuantizeOnData.quantizationLevel);
     }
@@ -231,6 +217,8 @@ std::shared_ptr<ngraph::Function> GroupConvolutionFunction::getOriginal(
         parent = pooling;
     }
 
+    // TODO: pass as argument
+    //const size_t groupCount = 3ul;
     const size_t outputChannelsCount = outputShape[1];
     const size_t kernelSize = 5ul;
     const size_t inputChannelsCount = inputShape[1].get_length();
@@ -246,8 +234,7 @@ std::shared_ptr<ngraph::Function> GroupConvolutionFunction::getOriginal(
         kernelSize,
         weightsValues,
         fakeQuantizeOnWeights,
-        {},
-        addReshape);
+        {});
 
     const auto convolution = std::make_shared<ngraph::opset1::GroupConvolution>(
         parent,

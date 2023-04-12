@@ -80,23 +80,7 @@ bool FoldFakeQuantizeTransformation::isConstantOutput(std::shared_ptr<ngraph::No
 }
 
 bool FoldFakeQuantizeTransformation::canBeTransformed(const TransformationContext& context, std::shared_ptr<Node> op) const {
-    if (!NetworkHelper::isConstantPath(op) && !isConstantOutput(op)) {
-        return false;
-    }
-
-    const auto fq = ov::as_type_ptr<opset1::FakeQuantize>(op);
-    if (!fq) {
-        return false;
-    }
-
-    for (size_t i = 1; i < fq->get_input_size(); ++i) {
-        const auto& shape = fq->get_input_shape(i);
-        if (std::count_if(shape.begin(), shape.end(), [](size_t x) { return x > 1; }) > 1) {
-            return false;
-        }
-    }
-
-    return true;
+    return NetworkHelper::isConstantPath(op) || isConstantOutput(op);
 }
 
 bool FoldFakeQuantizeTransformation::isPrecisionPreserved(std::shared_ptr<Node> layer) const noexcept {
