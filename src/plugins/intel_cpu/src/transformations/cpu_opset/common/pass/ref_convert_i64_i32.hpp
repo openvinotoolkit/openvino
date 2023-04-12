@@ -4,18 +4,18 @@
 
 #pragma once
 
-#include "openvino/pass/pass.hpp"
+#include <openvino/pass/graph_rewrite.hpp>
 
 namespace ov {
-namespace intel_cpu {
-class RefConvertI64ToI32: public ov::pass::ModelPass {
+namespace pass {
+
+// This pass inserts Convert node from i64 to i32 for Reference nodes.
+
+class RefConvertI64ToI32: public ov::pass::MatcherPass {
 public:
     OPENVINO_RTTI("RefConvertI64ToI32", "0");
-
-    RefConvertI64ToI32() = default;
-
-    bool run_on_model(const std::shared_ptr<ov::Model>& model) override;
+    RefConvertI64ToI32();
 };
 
-}  // namespace intel_cpu
+}  // namespace pass
 }  // namespace ov
