@@ -76,6 +76,7 @@ public:
     void set_property(const ov::AnyMap& properties);
     void set_user_property(const ov::AnyMap& properties, bool checkfirstlevel = true);
     ov::Any get_property(const std::string& name) const;
+    bool is_disable_auto_batching() const;
     bool is_set_by_user(const std::string& name) const;
     bool is_supported(const std::string& name) const;
 

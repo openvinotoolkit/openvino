@@ -67,6 +67,13 @@ ov::Any PluginConfig::get_property(const std::string& name) const {
     return internal_properties.at(name);
 }
 
+bool PluginConfig::is_disable_auto_batching() const {
+    if (user_properties.find(ov::hint::allow_auto_batching.name()) != user_properties.end()) {
+        return !user_properties.at(ov::hint::allow_auto_batching.name()).as<bool>();
+    }
+    return false;
+}
+
 bool PluginConfig::is_supported(const std::string& name) const {
     bool supported = internal_properties.find(name) != internal_properties.end();
     bool has_validator = property_validators.find(name) != property_validators.end();

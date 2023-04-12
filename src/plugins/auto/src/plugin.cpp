@@ -395,8 +395,7 @@ IExecutableNetworkInternal::Ptr MultiDeviceInferencePlugin::LoadNetworkImpl(cons
         autoSContext->_needPerfCounters = true;
     }
     autoSContext->_modelPriority = MapPriorityValues(loadConfig.get_property(ov::hint::model_priority));
-    auto itorConfigAutoBatch = config.find(ov::hint::allow_auto_batching.name());
-    autoSContext->_batchingDisabled = itorConfigAutoBatch != config.end() && itorConfigAutoBatch->second == "false";
+    autoSContext->_batchingDisabled = loadConfig.is_disable_auto_batching();
     // set performanceHint for AutoExecutableNetwork
     autoSContext->_performanceHint = loadConfig.get_property(ov::hint::performance_mode.name()).as<std::string>();
     // filter the device that supports filter configure
@@ -439,6 +438,16 @@ IExecutableNetworkInternal::Ptr MultiDeviceInferencePlugin::LoadNetworkImpl(cons
         strDevices += ",";
     }
     strDevices.pop_back();
+    for (auto iter = supportDevices.begin(); iter != supportDevices.end(); iter++) {
+        auto& configs = iter->config;
+        for (auto& config : configs) {
+            LOG_INFO_TAG("device:%s, config:%s=%s",
+                         iter->deviceName.c_str(),
+                         config.first.c_str(),
+                         config.second.c_str());
+        }
+        LOG_INFO_TAG("device:%s, priority:%ld", iter->deviceName.c_str(), iter->devicePriority);
+    }
     autoSContext->_modelPath = clonedModelPath;
     // clone the network, in case of reshape conflict
     autoSContext->_network = clonedNetwork;
