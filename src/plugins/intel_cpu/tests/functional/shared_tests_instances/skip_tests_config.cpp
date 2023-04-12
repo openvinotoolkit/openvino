@@ -202,8 +202,6 @@ std::vector<std::string> disabledTestPatterns() {
 #endif
 
 #if defined(OPENVINO_ARCH_ARM64)
-    retVector.emplace_back(R"(.*Extension.XmlModelWithExtensionFromDSO.*)");
-    retVector.emplace_back(R"(.*Extension.OnnxModelWithExtensionFromDSO.*)");
     retVector.emplace_back(R"(OVClassBasicTest.smoke_SetConfigAffinity.*)");
     retVector.emplace_back(R"(ONNXQuantizedModels/QuantizedModelsTests.*)");
     retVector.emplace_back(R"(smoke_serialization/ExecGraphSerializationTest.ExecutionGraph.*)");
@@ -213,7 +211,7 @@ std::vector<std::string> disabledTestPatterns() {
     retVector.emplace_back(R"(smoke_ExecGraph/ExecGraphRuntimePrecision.CheckRuntimePrecision/Function=(EltwiseWithTwoDynamicInputs|FakeQuantizeRelu).*)");
     retVector.emplace_back(R"(smoke_LPT.*)");
     retVector.emplace_back(R"(smoke_Activation_Basic/ActivationLayerTest.CompareWithRefs.*)");
-    retVector.emplace_back(R"(moke_Integer_Activation_Basic/ActivationLayerTest.CompareWithRefs/(Tanh|Negative|Sqrt).*)");
+    retVector.emplace_back(R"(smoke_Integer_Activation_Basic/ActivationLayerTest.CompareWithRefs/(Tanh|Negative|Sqrt).*)");
     retVector.emplace_back(R"(smoke_Activation_Basic_Prelu_Const/ActivationLayerTest.CompareWithRefs/(LeakyRelu|PReLu).*)");
     retVector.emplace_back(R"(smoke_Activation_Basic_Prelu_Param/ActivationParamLayerTest.CompareWithRefs/(LeakyRelu|PReLu).*)");
     retVector.emplace_back(R"(smoke_CompareWithRefs/ComparisonLayerTest.ComparisonTests.*)");

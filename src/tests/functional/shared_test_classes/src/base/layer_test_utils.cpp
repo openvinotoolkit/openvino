@@ -505,6 +505,8 @@ void LayerTestsCommon::Validate() {
 }
 
 std::string LayerTestsCommon::getRuntimePrecision(const std::string& layerName) {
+    if (!executableNetwork)
+        return;
     const auto execGraph = executableNetwork.GetExecGraphInfo();
     const auto execFunction = execGraph.getFunction();
 
