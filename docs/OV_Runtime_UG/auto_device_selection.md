@@ -278,14 +278,14 @@ If device priority is specified when using CUMULATIVE_THROUGHPUT, AUTO will run 
     .. tab-item:: C++
         :sync: cpp
 
-        .. code_block:: sh
+        .. code-block:: sh
    
            ov::CompiledModel compiled_model = core.compile_model(model, "AUTO:GPU,CPU", ov::hint::performance_mode(ov::hint::PerformanceMode::CUMULATIVE_THROUGHPUT));
    
     .. tab-item:: Python
         :sync: py
 
-        .. code_block:: sh
+        .. code-block:: sh
          
            compiled_model = core.compile_model(model, "AUTO:GPU,CPU", {"PERFORMANCE_HINT" : {"CUMULATIVE_THROUGHPUT"}})
 
@@ -297,7 +297,7 @@ If AUTO is used without specifying any device names, and if there are multiple G
     .. tab-item:: C++
         :sync: cpp
 
-        .. code_block:: sh
+        .. code-block:: sh
    
            ov::CompiledModel compiled_model = core.compile_model(model, "AUTO:GPU.1,GPU.0", ov::hint::performance_mode(ov::hint::PerformanceMode::CUMULATIVE_THROUGHPUT));
 
@@ -305,7 +305,7 @@ If AUTO is used without specifying any device names, and if there are multiple G
     .. tab-item:: Python
         :sync: py
 
-        .. code_block:: sh
+        .. code-block:: sh
          
            compiled_model = core.compile_model(model, "AUTO:GPU.1,GPU.0", {"PERFORMANCE_HINT" : {"CUMULATIVE_THROUGHPUT"})
 
