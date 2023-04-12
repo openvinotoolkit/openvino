@@ -157,9 +157,6 @@ private:
     Shape exec_domain = {};
     std::shared_ptr<ngraph::snippets::Generator> m_generator = nullptr;
 
-    // TODO: Change logic of insert Converts. This exec element type can be different for plugins
-    const ov::element::Type execution_element_type = ov::element::f32;
-
     ov::PartialShape master_shape;
     size_t tileRank = 0; // set by plugin to specify the number of dimensions processed in a single kernel call
 
