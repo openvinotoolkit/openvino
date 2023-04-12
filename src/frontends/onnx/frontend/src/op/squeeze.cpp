@@ -5,9 +5,7 @@
 #include "ngraph/op/squeeze.hpp"
 
 #include "default_opset.hpp"
-#include "exceptions.hpp"
 #include "ngraph/op/constant.hpp"
-#include "ngraph/validation_util.hpp"
 #include "op/squeeze.hpp"
 
 namespace ngraph {
@@ -16,16 +14,14 @@ namespace op {
 namespace set_1 {
 OutputVector squeeze(const Node& node) {
     auto data = node.get_ng_inputs().at(0);
-    std::vector<std::int64_t> axes = node.get_attribute_value<std::vector<std::int64_t>>("axes", {});
-    const auto data_rank = data.get_partial_shape().rank();
+    const auto axes = node.get_attribute_value<std::vector<std::int64_t>>("axes", {});
 
-    OPENVINO_SUPPRESS_DEPRECATED_START
-    std::vector<std::size_t> normalized_axes = ngraph::normalize_axes(node.get_description(), axes, data_rank);
-    OPENVINO_SUPPRESS_DEPRECATED_END
-    auto axes_node =
-        std::make_shared<default_opset::Constant>(element::u64, Shape{normalized_axes.size()}, normalized_axes);
-
-    return {std::make_shared<default_opset::Squeeze>(data, axes_node)};
+    if (axes.empty()) {
+        return {std::make_shared<default_opset::Squeeze>(data)};
+    } else {
+        const auto axes_const = std::make_shared<default_opset::Constant>(element::i64, Shape{axes.size()}, axes);
+        return {std::make_shared<default_opset::Squeeze>(data, axes_const)};
+    }
 }
 
 }  // namespace set_1
