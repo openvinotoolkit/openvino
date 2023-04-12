@@ -358,7 +358,7 @@ IExecutableNetworkInternal::Ptr MultiDeviceInferencePlugin::LoadNetworkImpl(cons
         loadConfig.set_property(ov::hint::performance_mode(ov::hint::PerformanceMode::LATENCY));
     }
     // updateFromMap will check config valid
-    loadConfig.set_user_property(PreProcessConfig(config), workModeAuto);
+    loadConfig.set_user_property(PreProcessConfig(config));
     loadConfig.apply_user_properties();
     if (!workModeAuto) {
         if (itorConfig != config.end() && itorConfig->second != InferenceEngine::PluginConfigParams::THROUGHPUT) {
@@ -383,22 +383,6 @@ IExecutableNetworkInternal::Ptr MultiDeviceInferencePlugin::LoadNetworkImpl(cons
     if (priorities.find("AUTO") != std::string::npos || priorities.find("MULTI") != std::string::npos) {
         IE_THROW() << "The device candidate list should not include the meta plugin for " << GetName() << " device";
     }
-    // If the user sets the property, insert the property into the deviceConfig
-    auto insertPropToConfig = [&](std::string property,
-                                  std::string& deviceName,
-                                  std::map<std::string, std::string>& deviceConfig) {
-        if (deviceConfig.find(property) == deviceConfig.end()) {
-            auto tmpiter = fullConfig.find(property);
-            if (tmpiter != fullConfig.end()) {
-                deviceConfig.insert({tmpiter->first, tmpiter->second});
-                LOG_INFO_TAG("device:%s, config:%s=%s",
-                                deviceName.c_str(),
-                                tmpiter->first.c_str(),
-                                tmpiter->second.c_str());
-            }
-        }
-    };
-
     // check the configure and check if need to set PerfCounters configure to device
     // and set filter configure
     OV_ITT_SCOPED_TASK(itt::domains::MULTIPlugin, "MultiDeviceInferencePlugin::LoadNetworkImpl::AutoMode");
@@ -411,7 +395,7 @@ IExecutableNetworkInternal::Ptr MultiDeviceInferencePlugin::LoadNetworkImpl(cons
         autoSContext->_needPerfCounters = true;
     }
     autoSContext->_modelPriority = MapPriorityValues(loadConfig.get_property(ov::hint::model_priority));
-    autoSContext->_batchingDisabled = !(loadConfig.get_property(ov::hint::allow_auto_batching));
+    autoSContext->_batchingDisabled = loadConfig.is_batching_disabled();
     // set performanceHint for AutoExecutableNetwork
     autoSContext->_performanceHint = loadConfig.get_property(ov::hint::performance_mode.name()).as<std::string>();
     // filter the device that supports filter configure
@@ -462,11 +446,6 @@ IExecutableNetworkInternal::Ptr MultiDeviceInferencePlugin::LoadNetworkImpl(cons
                          config.first.c_str(),
                          config.second.c_str());
         }
-        // carry on batch configs only if user explicitly sets
-        if (loadConfig.is_set_by_user(ov::hint::allow_auto_batching))
-            insertPropToConfig(ov::hint::allow_auto_batching.name(), iter->deviceName, configs);
-        if (loadConfig.is_set_by_user(ov::auto_batch_timeout))
-            insertPropToConfig(ov::auto_batch_timeout.name(), iter->deviceName, configs);
         LOG_INFO_TAG("device:%s, priority:%ld", iter->deviceName.c_str(), iter->devicePriority);
     }
     autoSContext->_modelPath = clonedModelPath;
@@ -517,7 +496,7 @@ QueryNetworkResult MultiDeviceInferencePlugin::QueryNetwork(const CNNNetwork&   
 
     auto queryconfig = _pluginConfig;
     // updateFromMap will check config valid
-    queryconfig.set_user_property(PreProcessConfig(config), (GetName() == "AUTO")? true : false);
+    queryconfig.set_user_property(PreProcessConfig(config));
     queryconfig.apply_user_properties();
     auto fullproperty = queryconfig.get_full_properties();
     // this can be updated when plugin switch to 2.0 API
