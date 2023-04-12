@@ -9,9 +9,11 @@
 #include <openvino/op/util/variable_context.hpp>
 
 #include "evaluates_map.hpp"
+#include "openvino/core/except.hpp"
 #include "openvino/op/parameter.hpp"
 #include "openvino/op/result.hpp"
 #include "openvino/op/util/op_types.hpp"
+#include "perf_counter.hpp"
 #include "tensor_conversion_util.hpp"
 
 NGRAPH_SUPPRESS_DEPRECATED_START
@@ -107,8 +109,13 @@ ov::runtime::interpreter::INTExecutable::INTExecutable(const std::shared_ptr<ov:
     set_parameters_and_results(*m_model);
 }
 
+void ov::runtime::interpreter::INTExecutable::cancel() {
+    m_cancel_execution = true;
+}
+
 bool ov::runtime::interpreter::INTExecutable::call(std::vector<ov::Tensor>& outputs,
-                                                   const std::vector<ov::Tensor>& inputs) {
+                                                   const std::vector<ov::Tensor>& inputs,
+                                                   bool collect_performance) {
     EvaluationContext eval_context;
     ov::op::util::VariableContext variable_context;
     eval_context.emplace("VariableContext", variable_context);
@@ -127,12 +134,21 @@ bool ov::runtime::interpreter::INTExecutable::call(std::vector<ov::Tensor>& outp
         }
     }
 
-    return call(outputs, inputs, eval_context);
+    return call(outputs, inputs, eval_context, collect_performance);
 }
 
 bool ov::runtime::interpreter::INTExecutable::call(std::vector<ov::Tensor>& outputs,
                                                    const std::vector<ov::Tensor>& inputs,
-                                                   const ov::EvaluationContext& context) {
+                                                   const ov::EvaluationContext& context,
+                                                   bool collect_performance) {
+#define CHECK_TERMINATE()                          \
+    if (m_cancel_execution) {                      \
+        std::lock_guard<std::mutex> lock(m_mutex); \
+        m_cancel_execution = false;                \
+        return false;                              \
+    }
+
+    CHECK_TERMINATE()
     // map function params -> ov::Tensor
     std::unordered_map<std::shared_ptr<ov::descriptor::Tensor>, ov::Tensor> tensor_map;
     size_t input_count = 0;
@@ -155,6 +171,7 @@ bool ov::runtime::interpreter::INTExecutable::call(std::vector<ov::Tensor>& outp
 
     // for each ordered op in the graph
     for (const auto& op : m_nodes) {
+        CHECK_TERMINATE()
         if (std::dynamic_pointer_cast<ov::op::v0::Parameter>(op)) {
             continue;
         }
@@ -165,19 +182,13 @@ bool ov::runtime::interpreter::INTExecutable::call(std::vector<ov::Tensor>& outp
             op_inputs.push_back(tensor_map.at(tensor));
         }
 
-        OutputVector output_ports;
-        for (size_t i = 0; i < op->inputs().size(); ++i) {
-            output_ports.push_back(op->get_input_source_output(i));
-        }
-        auto cloned_node = op->clone_with_new_inputs(output_ports);
-
         // get op outputs from map or create
         std::vector<ov::Tensor> op_outputs;
         for (size_t i = 0; i < op->get_output_size(); ++i) {
             auto tensor = op->output(i).get_tensor_ptr();
             ov::Tensor host_tensor;
             auto it = tensor_map.find(tensor);
-            auto output = cloned_node->output(i);
+            auto output = op->output(i);
             if (op::util::is_output(op) || it == tensor_map.end() || !it->second) {
                 host_tensor = ov::Tensor(output.get_element_type(),
                                          output.get_partial_shape().is_dynamic()
@@ -189,10 +200,13 @@ bool ov::runtime::interpreter::INTExecutable::call(std::vector<ov::Tensor>& outp
             op_outputs.push_back(host_tensor);
         }
 
-        // Call evaluate for cloned_node with static shapes
-        if (!cloned_node->evaluate(op_outputs, op_inputs, context)) {
-            // TODO: extend evaluate map for the context
-            evaluate_node(cloned_node, op_outputs, op_inputs);
+        {
+            PERF(op, collect_performance);
+            // Call evaluate for cloned_node with static shapes
+            if (!op->evaluate(op_outputs, op_inputs, context)) {
+                // TODO: extend evaluate map for the context
+                evaluate_node(op, op_outputs, op_inputs);
+            }
         }
         // Update tensors in tensor map
         for (size_t i = 0; i < op->get_output_size(); ++i) {
@@ -214,13 +228,13 @@ bool ov::runtime::interpreter::INTExecutable::call(std::vector<ov::Tensor>& outp
 
 std::shared_ptr<ov::op::v0::Parameter> ov::runtime::interpreter::INTExecutable::get_parameter(size_t index) const {
     const ParameterVector& parameters = get_parameters();
-    NGRAPH_CHECK(index < parameters.size(), "create_tensor for input out of bounds");
+    OPENVINO_ASSERT(index < parameters.size(), "create_tensor for input out of bounds");
     return parameters[index];
 }
 
 std::shared_ptr<ov::op::v0::Result> ov::runtime::interpreter::INTExecutable::get_result(size_t index) const {
     const ResultVector& results = get_results();
-    NGRAPH_CHECK(index < results.size(), "create_tensor for input out of bounds");
+    OPENVINO_ASSERT(index < results.size(), "create_tensor for input out of bounds");
     return results[index];
 }
 ov::Tensor ov::runtime::interpreter::INTExecutable::create_input_tensor(size_t input_index) {
@@ -265,17 +279,12 @@ bool ov::runtime::interpreter::INTExecutable::evaluate_node(const std::shared_pt
     bool res = false;
     const auto tensor_inputs = create_tmp_tensors(inputs);
     auto tensor_outputs = create_tmp_tensors(outputs);
-    if (it != map.end()) {
-        res = it->second(node, tensor_outputs, tensor_inputs);
-        if (!res) {
-            throw ngraph::ngraph_error(std::string("Running evaluate method for OP ") + node->get_type_info().name +
-                                       std::string(" failed!"));
-        }
-        update_output_tensors(outputs, tensor_outputs);
-    } else {
-        throw ngraph::unsupported_op(std::string("Interpreter backend doesn't implement evaluate method for OP ") +
-                                     node->get_type_info().name);
-    }
+    OPENVINO_ASSERT(it != map.end(),
+                    "Interpreter backend doesn't implement evaluate method for OP ",
+                    node->get_type_info().name);
+    res = it->second(node, tensor_outputs, tensor_inputs);
+    OPENVINO_ASSERT(res, "Running evaluate method for OP ", node->get_type_info().name, " failed!");
+    update_output_tensors(outputs, tensor_outputs);
     return res;
 }
 
