@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "ngraph/ops.hpp"
+#include "evaluate_node.hpp"
 #include "ngraph/runtime/reference/embedding_bag_packed_sum.hpp"
 
 namespace embedding_bag_packed_sum_v3 {
