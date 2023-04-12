@@ -6,8 +6,6 @@
 #include "ie_ngraph_utils.hpp"
 #include "utils/rt_info/memory_formats_attribute.hpp"
 #include <cstdint>
-#include <gtest/gtest-spi.h>
-#include <mutex>
 
 namespace CPUTestUtils {
 const char* CPUTestsBase::any_type = "any_type";
