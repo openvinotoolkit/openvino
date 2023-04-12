@@ -88,6 +88,7 @@ void PullReshapeThroughDequantizationTransformation::Run() {
 }
 
 TEST_P(PullReshapeThroughDequantizationTransformation, CompareWithRefImpl) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED();
     Run();
 };
 

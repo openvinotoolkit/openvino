@@ -248,6 +248,7 @@ TEST(OVClassBasicTest, smoke_SetConfigStreamsNum) {
 }
 
 TEST(OVClassBasicTest, smoke_SetConfigAffinity) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED();
     ov::Core ie;
     ov::Affinity value = ov::Affinity::NONE;
 
