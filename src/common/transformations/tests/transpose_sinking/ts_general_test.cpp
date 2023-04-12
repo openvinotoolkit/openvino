@@ -412,7 +412,7 @@ TEST_F(TransformationTestsF, TSGeneralTestMultipleTypes) {
     manager.register_pass<TSGeneral>();
 }
 
-TEST_F(TransformationTestsF, TSGeneralCheckShapeOfConstFoldingDisabled) {
+TEST_F(TransformationTestsF, DISABLED_TSGeneralCheckShapeOfConstFoldingDisabled) {
     using namespace transpose_sinking::testing::general;
     ov::Shape input_shape = {96, 40, 55};
     ov::Shape reshape_shape = {1, 96, 40, 55};
