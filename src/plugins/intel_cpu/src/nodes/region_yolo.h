@@ -66,7 +66,7 @@ private:
     std::string errorPrefix;
 
     int block_size;
-    std::shared_ptr<jit_uni_logistic_kernel> logistic_kernel;
+    std::shared_ptr<jit_uni_logistic_kernel> logistic_kernel = nullptr;
     std::shared_ptr<SoftmaxGeneric> softmax_kernel;
 
     union U {

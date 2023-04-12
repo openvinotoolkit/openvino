@@ -9,9 +9,6 @@
 namespace ov {
 namespace intel_cpu {
 
-using Dim = std::size_t;
-using VectorDims = std::vector<Dim>;
-
 const InferenceEngine::details::caseless_unordered_map<std::string, Type> type_to_name_tbl = {
         { "Constant", Type::Input },
         { "Parameter", Type::Input },
@@ -69,6 +66,7 @@ const InferenceEngine::details::caseless_unordered_map<std::string, Type> type_t
         { "SoftPlus", Type::Eltwise },
         { "SoftSign", Type::Eltwise },
         { "Select", Type::Eltwise},
+        { "Log", Type::Eltwise },
         { "Reshape", Type::Reshape },
         { "Squeeze", Type::Reshape },
         { "Unsqueeze", Type::Reshape },
@@ -163,7 +161,6 @@ const InferenceEngine::details::caseless_unordered_map<std::string, Type> type_t
         { "Floor", Type::Math},
         { "HardSigmoid", Type::Math},
         { "If", Type::If},
-        { "Log", Type::Math},
         { "Neg", Type::Math},
         { "Reciprocal", Type::Math},
         { "Selu", Type::Math},
@@ -448,7 +445,8 @@ std::string algToString(const Algorithm alg) {
     CASE(EltwiseLogicalXor);
     CASE(EltwiseLogicalNot);
     CASE(EltwiseRelu);
-    CASE(EltwiseGelu);
+    CASE(EltwiseGeluErf);
+    CASE(EltwiseGeluTanh);
     CASE(EltwiseElu);
     CASE(EltwiseTanh);
     CASE(EltwiseSelect);
@@ -466,10 +464,10 @@ std::string algToString(const Algorithm alg) {
     CASE(EltwiseRoundHalfToEven);
     CASE(EltwiseRoundHalfAwayFromZero);
     CASE(EltwiseErf);
+    CASE(EltwiseLog);
     CASE(FQCommon);
     CASE(FQQuantization);
     CASE(FQBinarization);
-    CASE(FQRequantization);
     CASE(ROIPoolingMax);
     CASE(ROIPoolingBilinear);
     CASE(ROIAlignMax);
@@ -502,7 +500,6 @@ std::string algToString(const Algorithm alg) {
     CASE(MathErf);
     CASE(MathFloor);
     CASE(MathHardSigmoid);
-    CASE(MathLog);
     CASE(MathNegative);
     CASE(MathReciprocal);
     CASE(MathSelu);

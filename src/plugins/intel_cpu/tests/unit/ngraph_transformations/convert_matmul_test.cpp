@@ -11,9 +11,9 @@
 #include <ngraph/opsets/opset1.hpp>
 #include <ngraph/opsets/opset3.hpp>
 #include <ngraph/opsets/opset7.hpp>
-#include <ngraph_transformations/op/fully_connected.hpp>
-#include <ngraph_transformations/convert_matmul_to_fc.hpp>
-#include <ngraph_transformations/fc_bias_fusion.hpp>
+#include <transformations/cpu_opset/common/op/fully_connected.hpp>
+#include <transformations/cpu_opset/common/pass/convert_matmul_to_fc.hpp>
+#include <transformations/cpu_opset/common/pass/fc_bias_fusion.hpp>
 #include <transformations/init_node_info.hpp>
 #include <transformations/utils/utils.hpp>
 #include <ngraph/pass/manager.hpp>

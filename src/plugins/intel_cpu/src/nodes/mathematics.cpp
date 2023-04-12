@@ -138,11 +138,6 @@ void Math::execute(dnnl::stream strm) {
                 dst_data[i] = (std::max)(0.f, (std::min)(1.f, alpha * src_data[i] + beta));
             });
             break;
-        case Algorithm::MathLog:
-            parallel_for(dataSize, [&](size_t i) {
-                dst_data[i] = logf(src_data[i]);
-            });
-            break;
         case Algorithm::MathNegative:
             parallel_for(dataSize, [&](size_t i) {
                 dst_data[i] = -src_data[i];
@@ -241,9 +236,6 @@ std::map<const ngraph::DiscreteTypeInfo, std::function<void(const std::shared_pt
             node.algorithm = Algorithm::MathHardSigmoid;
             node.alpha = ngraph::as_type_ptr<ngraph::op::v0::Constant>(op->get_input_node_shared_ptr(1))->cast_vector<float>()[0];
             node.beta = ngraph::as_type_ptr<ngraph::op::v0::Constant>(op->get_input_node_shared_ptr(2))->cast_vector<float>()[0];
-        }},
-        {ngraph::op::v0::Log::get_type_info_static(), [](const std::shared_ptr<ngraph::Node>& op, Math& node) {
-            node.algorithm = Algorithm::MathLog;
         }},
         {ngraph::op::v0::Negative::get_type_info_static(), [](const std::shared_ptr<ngraph::Node>& op, Math& node) {
             node.algorithm = Algorithm::MathNegative;

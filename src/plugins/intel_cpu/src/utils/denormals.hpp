@@ -4,7 +4,9 @@
 
 #pragma once
 
-#include <immintrin.h>
+#if defined(OPENVINO_ARCH_X86) || defined(OPENVINO_ARCH_X86_64)
+#   include <immintrin.h>
+#endif
 
 #include "openvino/core/visibility.hpp"
 

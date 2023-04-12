@@ -148,7 +148,7 @@ private:
     void checkOutput(const Shape& shape, const std::vector<Precision>& precList, const std::string& name, const size_t port);
 
     void createJitKernel();
-    std::shared_ptr<jit_uni_nms_kernel> nms_kernel;
+    std::shared_ptr<jit_uni_nms_kernel> nms_kernel = nullptr;
 };
 
 }   // namespace node

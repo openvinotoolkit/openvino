@@ -5,7 +5,7 @@
 #pragma once
 
 #include <node.h>
-#include "kernels/grid_sample.hpp"
+#include "kernels/x64/grid_sample.hpp"
 
 #include <memory>
 #include <string>

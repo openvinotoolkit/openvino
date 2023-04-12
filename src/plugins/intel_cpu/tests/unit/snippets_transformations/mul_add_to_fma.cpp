@@ -4,8 +4,8 @@
 
 #include <gtest/gtest.h>
 #include <subgraph_simple.hpp>
-#include <snippets_transformations/mul_add_to_fma.hpp>
-#include <snippets_transformations/op/fused_mul_add.hpp>
+#include <transformations/snippets/x64/pass/mul_add_to_fma.hpp>
+#include <transformations/snippets/x64/op/fused_mul_add.hpp>
 
 #include "snippets/pass/loop_helpers.hpp"
 #include "lowering_utils.hpp"

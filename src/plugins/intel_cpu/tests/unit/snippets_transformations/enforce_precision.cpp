@@ -10,7 +10,7 @@
 #include <gtest/gtest.h>
 
 #include "openvino/core/type/element_type.hpp"
-#include "snippets_transformations/enforce_precision.hpp"
+#include "transformations/snippets/x64/pass/enforce_precision.hpp"
 #include "common_test_utils/common_utils.hpp"
 #include "two_binary_ops_function.hpp"
 

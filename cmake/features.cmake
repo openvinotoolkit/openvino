@@ -6,7 +6,7 @@
 # Common cmake options
 #
 
-ie_dependent_option (ENABLE_INTEL_CPU "CPU plugin for OpenVINO Runtime" ON "RISCV64 OR X86 OR X86_64" OFF)
+ie_dependent_option (ENABLE_INTEL_CPU "CPU plugin for OpenVINO Runtime" ON "RISCV64 OR X86 OR X86_64 OR AARCH64" OFF)
 
 ie_option (ENABLE_TESTS "unit, behavior and functional tests" OFF)
 

@@ -9,7 +9,7 @@
 #include "snippets/pass/tokenization.hpp"
 #include "fake_quantize_function.hpp"
 #include "snippets/op/subgraph.hpp"
-#include "ngraph_transformations/snippets_mark_skipped.hpp"
+#include "transformations/snippets/x64/pass/snippets_mark_skipped.hpp"
 #include "function_helper.hpp"
 
 namespace ov {

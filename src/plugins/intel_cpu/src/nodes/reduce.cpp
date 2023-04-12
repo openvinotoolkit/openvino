@@ -12,7 +12,7 @@
 #include <onednn/dnnl.h>
 #include <dnnl_extension_utils.h>
 #include "utils/bfloat16.hpp"
-#include "emitters/jit_bf16_emitters.hpp"
+#include "emitters/x64/jit_bf16_emitters.hpp"
 #include "ie_parallel.hpp"
 #include <algorithm>
 
@@ -101,6 +101,8 @@ bool ReduceKey::operator==(const ReduceKey &rhs) const {
            jcp.src_dt == rhs.jcp.src_dt && jcp.dst_dt == rhs.jcp.dst_dt && *postOps.get() == *rhs.postOps.get();
 }
 } // namespace
+
+#if defined(OPENVINO_ARCH_X86_64)
 
 // some utility functions
 static inline bool isFloatCompatible(memory::data_type type) {
@@ -1673,6 +1675,8 @@ private:
     }
 };
 
+#endif // OPENVINO_ARCH_X86_64
+
 const std::map<const ngraph::DiscreteTypeInfo, std::function<void(const std::shared_ptr<ngraph::Node>&, Reduce&)>> Reduce::initializers = {
     {ngraph::opset4::ReduceL1::get_type_info_static(), [](const std::shared_ptr<ngraph::Node>& op, Reduce& node) {
         node.algorithm = Algorithm::ReduceL1;
@@ -1835,13 +1839,47 @@ void Reduce::initSupportedPrimitiveDescriptors() {
     auto& creatorsMap = BlockedDescCreator::getCommonCreators();
 
     auto pushDesc = [&](LayoutType inFormat, LayoutType outFormat, InferenceEngine::Precision inPrecision,
-            InferenceEngine::Precision outPrecision, impl_desc_type impl_type) {
+            InferenceEngine::Precision outPrecision, impl_desc_type impl_type, bool useAclExecutor = false) {
         config.inConfs[REDUCE_DATA].setMemDesc(creatorsMap.at(inFormat)->createSharedDesc(inPrecision, getInputShapeAtPort(REDUCE_DATA)));
         config.inConfs[REDUCE_INDEXES].setMemDesc(creatorsMap.at(LayoutType::ncsp)->createSharedDesc(InferenceEngine::Precision::I32,
                                                                                                  getInputShapeAtPort(REDUCE_INDEXES)));
         config.outConfs[0].setMemDesc(creatorsMap.at(outFormat)->createSharedDesc(outPrecision, getOutputShapeAtPort(0)));
-        supportedPrimitiveDescriptors.push_back({config, impl_type});
+
+        if (useAclExecutor) {
+            std::vector<MemoryDescPtr> srcMemoryDescs;
+            for (int i = 0; i < config.inConfs.size(); i++) {
+                srcMemoryDescs.push_back(config.inConfs[i].getMemDesc());
+            }
+            std::vector<MemoryDescPtr> dstMemoryDescs;
+            for (int i = 0; i < config.outConfs.size(); i++) {
+                dstMemoryDescs.push_back(config.outConfs[i].getMemDesc());
+            }
+
+            auto factory = std::make_shared<ReduceExecutorFactory>(reduceAttrs, srcMemoryDescs, dstMemoryDescs,
+                                                                   std::make_shared<ExecutorContext>(context, getPrimitivesPriority()));
+            if (!factory->isEmpty()) {
+                supportedPrimitiveDescriptors.push_back({config, impl_type, factory});
+            }
+        } else {
+            supportedPrimitiveDescriptors.push_back({config, impl_type});
+        }
     };
+
+#if defined (OV_CPU_WITH_ACL)
+        reduceAttrs.operation = algorithm;
+        reduceAttrs.keepDims = keep_dims;
+        reduceAttrs.axes = raw_axes;
+        for (auto &axis : reduceAttrs.axes) {
+            if (axis < 0)
+                axis += static_cast<int>(getInputShapeAtPort(REDUCE_DATA).getRank());
+        }
+        // TODO: Per-channel layout is disabled due to accuracy issue in ACL Reduce Executor
+        // pushDesc(LayoutType::nspc, LayoutType::nspc, input_prec, output_prec, undef, true);
+        pushDesc(LayoutType::ncsp, LayoutType::ncsp, input_prec, output_prec, impl_desc_type::undef, true);
+        canUseAclExecutor = !supportedPrimitiveDescriptors.empty();
+        if (canUseAclExecutor)
+            return;
+#endif
 
     if (jit_mode) {
         impl_desc_type impl_type = impl_desc_type::jit_sse42;
@@ -1882,6 +1920,21 @@ bool Reduce::isExecutable() const {
 }
 
 void Reduce::prepareParams() {
+    if (canUseAclExecutor) {
+        std::vector<MemoryDescPtr> srcMemoryDescs;
+        for (int i = 0; i < getParentEdges().size(); i++) {
+            srcMemoryDescs.push_back(getParentEdgeAt(i)->getMemoryPtr()->getDescPtr());
+        }
+        std::vector<MemoryDescPtr> dstMemoryDescs;
+        dstMemoryDescs.push_back(getChildEdgeAt(0)->getMemoryPtr()->getDescPtr());
+
+        auto selectedPD = getSelectedPrimitiveDescriptor();
+        aclExecPtr = selectedPD->getExecutorFactoryAs<ReduceExecutorFactory>()->makeExecutor(reduceAttrs, srcMemoryDescs, dstMemoryDescs, {});
+        selectedPD->setImplementationType(aclExecPtr->getImplType());
+
+        return;
+    }
+
     src_dims = getParentEdgesAtPort(REDUCE_DATA)[0]->getMemory().getDesc().getShape().getDims();
     std::vector<int> reduce_axes;
     if (jit_mode && jit_beyond_5D) {
@@ -1900,7 +1953,7 @@ void Reduce::prepareParams() {
 
     auto builder = [&](const ReduceKey& key) -> std::shared_ptr<jit_uni_reduce_post_kernel> {
         std::shared_ptr<jit_uni_reduce_post_kernel> post_kernel;
-
+#if defined(OPENVINO_ARCH_X86_64)
         if (mayiuse(cpu::x64::avx512_core)) {
             post_kernel.reset(new jit_uni_reduce_post_kernel_f32<cpu::x64::avx512_core>(key.jcp, *attr.get()));
         } else if (mayiuse(cpu::x64::avx2)) {
@@ -1908,6 +1961,7 @@ void Reduce::prepareParams() {
         } else if (mayiuse(cpu::x64::sse41)) {
             post_kernel.reset(new jit_uni_reduce_post_kernel_f32<cpu::x64::sse41>(key.jcp, *attr.get()));
         }
+#endif // OPENVINO_ARCH_X86_64
         if (post_kernel)
             post_kernel->create_ker();
 
@@ -1982,7 +2036,7 @@ void Reduce::createPrimitive() {
             prepareParams();
         updateLastInputDims();
     }
-
+#if defined(OPENVINO_ARCH_X86_64)
     if (mayiuse(cpu::x64::avx512_core)) {
         reduce_kernel.reset(new jit_uni_reduce_kernel_f32<cpu::x64::avx512_core>(jcp));
     } else if (mayiuse(cpu::x64::avx2)) {
@@ -1990,6 +2044,7 @@ void Reduce::createPrimitive() {
     } else if (mayiuse(cpu::x64::sse41)) {
         reduce_kernel.reset(new jit_uni_reduce_kernel_f32<cpu::x64::sse41>(jcp));
     }
+#endif // OPENVINO_ARCH_X86_64
     if (reduce_kernel)
         reduce_kernel->create_ker();
     jit_mode = jit_mode && reduce_kernel;
@@ -2011,6 +2066,15 @@ void Reduce::execute(dnnl::stream strm) {
             dst_data = reinterpret_cast<uint8_t *>(prc_mem.get_data_handle());
         }
         reduce_type(src_data, dst_data, dst_size);
+    } else if (aclExecPtr) {
+        std::vector<MemoryCPtr> srcMemory;
+        for (int i = 0; i < getParentEdges().size(); i++) {
+            srcMemory.push_back(getParentEdgeAt(i)->getMemoryPtr());
+        }
+        std::vector<MemoryPtr> dstMemory;
+        dstMemory.push_back(getChildEdgeAt(0)->getMemoryPtr());
+
+        aclExecPtr->exec(srcMemory, dstMemory, postOpsDataPtrs.data());
     } else {
         if (layout == ReduceLayoutType::reduce_ncsp) {
             auto in_ptr = reinterpret_cast<const float *>(src_data);

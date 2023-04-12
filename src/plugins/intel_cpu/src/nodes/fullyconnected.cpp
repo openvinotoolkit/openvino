@@ -9,7 +9,7 @@
 #include "fake_quantize.h"
 #include "input.h"
 #include "reorder.h"
-#include "ngraph_transformations/op/fully_connected.hpp"
+#include "transformations/cpu_opset/common/op/fully_connected.hpp"
 #include "ngraph/opsets/opset1.hpp"
 #include "dnnl_extension_utils.h"
 #include "onednn/dnnl.h"
