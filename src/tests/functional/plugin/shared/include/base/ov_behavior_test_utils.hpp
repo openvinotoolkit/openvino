@@ -44,10 +44,9 @@ inline std::shared_ptr<ngraph::Function> getDefaultNGraphFunctionForTheDevice(st
 
 class APIBaseTest : public CommonTestUtils::TestsCommon {
 private:
-    // place to jump in case of a crash
-    int jmpRes = 0;
     // in case of crash jump will be made and work will be continued
-    const std::unique_ptr<CommonTestUtils::CrashHandler> crashHandler = std::unique_ptr<CommonTestUtils::CrashHandler>(new CommonTestUtils::CrashHandler());
+    const std::unique_ptr<CommonTestUtils::CrashHandler> crashHandler = std::unique_ptr<CommonTestUtils::CrashHandler>(
+                                                                        new CommonTestUtils::CrashHandler(CommonTestUtils::CONFORMANCE_TYPE::api));
 
 protected:
     size_t k = 1;
@@ -66,17 +65,7 @@ public:
         k = test_name.find("_mandatory") != std::string::npos || test_name.find("mandatory_") != std::string::npos ? 1 : 0;
         std::cout << "[ CONFORMANCE ] Influence coefficient: " << k << std::endl;
         api_summary.updateStat(api_entity, target_device, ov::test::utils::PassRate::Statuses::CRASHED, k);
-#ifdef _WIN32
-        jmpRes = setjmp(CommonTestUtils::env);
-#else
-        jmpRes = sigsetjmp(CommonTestUtils::env, 0);
-#endif
-        if (jmpRes == CommonTestUtils::JMP_STATUS::ok) {
-            crashHandler->StartTimer();
-        } else if (jmpRes == CommonTestUtils::JMP_STATUS::alarmErr) {
-            api_summary.updateStat(api_entity, target_device, ov::test::utils::PassRate::Statuses::HANGED, k);
-            GTEST_FAIL();
-        }
+        crashHandler->StartTimer();
     }
 
     void TearDown() override {
