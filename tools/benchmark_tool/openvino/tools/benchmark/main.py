@@ -462,10 +462,10 @@ def main():
         for device in device_number_streams.keys():
             try:
                 key = get_device_type_from_name(device) + '_THROUGHPUT_STREAMS'
-                device_number_streams[device] = benchmark.core.get_property(device, key)
+                device_number_streams[device] = compiled_model.get_property(key)
             except:
                 key = 'NUM_STREAMS'
-                device_number_streams[device] = benchmark.core.get_property(device, key)
+                device_number_streams[device] = compiled_model.get_property(key)
 
         # ------------------------------------ 9. Creating infer requests and preparing input data ----------------------
         next_step()

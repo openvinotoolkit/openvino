@@ -7,7 +7,7 @@
 #include <memory>
 #include <openvino/opsets/opset10.hpp>
 #include <string>
-#include <transformations/common_optimizations/nonzero_fusion.hpp>
+#include <transformations/common_optimizations/nonzero_horizontal_fusion.hpp>
 
 #include "common_test_utils/ngraph_test_utils.hpp"
 
@@ -15,9 +15,9 @@ using namespace testing;
 
 enum NonZeroType { I32, I64, NONE };
 
-struct NonZeroFusionBuilder {
-    NonZeroFusionBuilder() = default;
-    NonZeroFusionBuilder(const std::vector<NonZeroType>& props) : branch_props(props) {}
+struct NonZeroHorizontalFusionBuilder {
+    NonZeroHorizontalFusionBuilder() = default;
+    NonZeroHorizontalFusionBuilder(const std::vector<NonZeroType>& props) : branch_props(props) {}
 
     std::shared_ptr<ov::Model> getOriginal() {
         const auto input = std::make_shared<ov::opset10::Parameter>(ov::element::f32, ov::PartialShape::dynamic(4));
@@ -71,14 +71,15 @@ struct NonZeroFusionBuilder {
     std::vector<NonZeroType> branch_props;
 };
 
-class NonZeroFusionTests : public testing::WithParamInterface<std::vector<NonZeroType>>, public TransformationTestsF {
+class NonZeroHorizontalFusionTests : public testing::WithParamInterface<std::vector<NonZeroType>>,
+                                     public TransformationTestsF {
 public:
-    NonZeroFusionTests() : TransformationTestsF() {
+    NonZeroHorizontalFusionTests() : TransformationTestsF() {
         comparator.enable(FunctionsComparator::CONSUMERS_COUNT);
     }
 
-    static std::string getTestCaseName(testing::TestParamInfo<std::vector<NonZeroType>> obj) {
-        const std::vector<NonZeroType> testValues = obj.param;
+    static std::string getTestCaseName(const testing::TestParamInfo<std::vector<NonZeroType>>& obj) {
+        const std::vector<NonZeroType>& testValues = obj.param;
         std::ostringstream result;
         result << "branch_props_{";
         for (const auto& value : testValues) {
@@ -101,20 +102,20 @@ public:
 protected:
     void SetUp() override {
         TransformationTestsF::SetUp();
-        const auto branch_props = GetParam();
-        builder = NonZeroFusionBuilder(branch_props);
-        manager.register_pass<ov::pass::NonZeroFusion>();
+        const auto& branch_props = GetParam();
+        builder = NonZeroHorizontalFusionBuilder(branch_props);
+        manager.register_pass<ov::pass::NonZeroHorizontalFusion>();
     }
 
-    NonZeroFusionBuilder builder;
+    NonZeroHorizontalFusionBuilder builder;
 };
 
-TEST_P(NonZeroFusionTests, NonZeroFusion) {
+TEST_P(NonZeroHorizontalFusionTests, NonZeroHorizontalFusion) {
     model = builder.getOriginal();
     model_ref = builder.getReference();
 }
 
-namespace NonZeroFusionTestsInstantiation {
+namespace NonZeroHorizontalFusionTestsInstantiation {
 std::vector<std::vector<NonZeroType>> test_params{std::vector<NonZeroType>(5, I32),
                                                   std::vector<NonZeroType>(5, I64),
                                                   std::vector<NonZeroType>(2, NONE),
@@ -123,8 +124,8 @@ std::vector<std::vector<NonZeroType>> test_params{std::vector<NonZeroType>(5, I3
                                                   {NONE, I64, NONE, I64, I32}};
 
 INSTANTIATE_TEST_SUITE_P(TransformationTestsF,
-                         NonZeroFusionTests,
+                         NonZeroHorizontalFusionTests,
                          ::testing::ValuesIn(test_params),
-                         NonZeroFusionTests::getTestCaseName);
+                         NonZeroHorizontalFusionTests::getTestCaseName);
 
-}  // namespace NonZeroFusionTestsInstantiation
+}  // namespace NonZeroHorizontalFusionTestsInstantiation
