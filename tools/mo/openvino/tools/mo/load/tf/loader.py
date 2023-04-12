@@ -119,8 +119,10 @@ class TFLoader(Loader):
                 log.debug('disable_nhwc_to_nchw" was automatically enabled.')
             for_graph_and_each_sub_graph_recursively(graph, update_cmd_params_and_layout)
 
-        send_op_names_info(framework, graph)
-        send_shapes_info(framework, graph)
+        # Send "tf" for both tf and tf2 operations to align with TF FE.
+        # If tf2 was used it is sent in 'framework' event
+        send_op_names_info("tf", graph)
+        send_shapes_info("tf", graph)
 
 
 def is_node_layout_nhwc(node: Node):
