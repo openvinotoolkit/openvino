@@ -34,7 +34,10 @@ class TopK(Op):
 
     def backend_attrs(self):
         version = self.get_opset()
-        if version == 'opset3':
+        if version in 'opset11':
+            return ['axis', 'mode', 'sort', 'stable',
+                    ('index_element_type', lambda node: np_data_type_to_destination_type(node.index_element_type))]
+        elif version in 'opset3':
             return ['axis', 'mode', 'sort',
                     ('index_element_type', lambda node: np_data_type_to_destination_type(node.index_element_type))]
         elif version == 'opset1':
