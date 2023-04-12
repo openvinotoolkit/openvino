@@ -189,6 +189,8 @@ protected:
     void Init();
 
     void InitGNADevice();
+    void InitGNAMemory();
+    void InitGraphCompiler();
 
     void DumpXNNToFile() const;
     /**

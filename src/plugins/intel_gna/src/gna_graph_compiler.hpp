@@ -54,7 +54,7 @@ private:
                                                 uint32_t num_rows,
                                                 uint32_t num_cols);
 
-    std::unique_ptr<const limitations::cnn2d::AbstractValidator> cnn2dValidator;
+    std::shared_ptr<limitations::cnn2d::AbstractValidator> cnn2dValidator;
 
     bool ShouldUseOnlyConv2DGnaIface() const;
 
@@ -93,7 +93,7 @@ public:
                            const uint32_t strideH,
                            const uint32_t strideW) const;
 
-    void SetValidatorTarget(const target::DeviceVersion& target);
+    void initTargetValidator();
 
     /**
      * Connects either memory output, or generic output to a layer

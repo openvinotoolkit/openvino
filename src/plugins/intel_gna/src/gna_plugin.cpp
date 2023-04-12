@@ -29,6 +29,7 @@
 #include <vector>
 
 #include "backend/am_intel_dnn.hpp"
+#include "backend/gna_limitations.hpp"
 #include "common/gna_target.hpp"
 #include "frontend/model_quantizer.hpp"
 #include "frontend/scale_factor_calc.hpp"
@@ -55,6 +56,7 @@
 #include "scale_factor_helper.hpp"
 #include "serial/gna_model_serial.hpp"
 
+using namespace ov::intel_gna::limitations;
 using namespace ov::intel_gna::graph_utils;
 
 inline uint32_t ToByteSize(const Gna2DataType type) {
@@ -361,6 +363,9 @@ GNAPlugin::GNAPlugin() : graphCompiler(config) {
     Init();
     UpdateFieldsFromConfig();
     InitGNADevice();
+    Limitations::GetInstance().Init(this->config.target->get_effective_compile_target());
+    InitGNAMemory();
+    InitGraphCompiler();
 }
 
 GNAPlugin::GNAPlugin(const std::map<std::string, std::string>& configMap) : graphCompiler(config) {
@@ -368,6 +373,9 @@ GNAPlugin::GNAPlugin(const std::map<std::string, std::string>& configMap) : grap
     SetConfig(configMap);
     log::set_log_level(gnaFlags->log_level);
     InitGNADevice();
+    Limitations::GetInstance().Init(config.target->get_effective_compile_target());
+    InitGNAMemory();
+    InitGraphCompiler();
 }
 
 void GNAPlugin::Init() {
@@ -376,27 +384,38 @@ void GNAPlugin::Init() {
     gnaFlags = std::make_shared<GNAFlags>(GNAFlags());
     inputs_ptr_ = std::make_shared<GnaInputs>(GnaInputs());
     outputs_ = GnaOutputs();
-
-    graphCompiler.setDNNPtr(dnn);
-    graphCompiler.setInputsPtr(inputs_ptr_);
-
     requestWorkerPool_ = std::make_shared<request::WorkerPoolImpl>();
 }
 
 void GNAPlugin::InitGNADevice() {
     OV_ITT_SCOPED_TASK(itt::domains::GNA_LT, "InitGNADevice");
-    if (gnaFlags->sw_fp32) {
-        gnamem.reset(new gna_memory_float(memory::GNAFloatAllocator{}));
-    } else {
+
+    if (!gnaFlags->sw_fp32) {
         gnadevice = std::make_shared<GNADeviceHelper>(config.target,
                                                       gnaFlags->performance_counting,
                                                       !config.embedded_export_path.empty());
-
-        gnamem = std::make_shared<gna_memory_device>(memory::GNAAllocator(gnadevice),
-                                                     gnadevice->getMemAlignment(),
-                                                     limitations::kMemoryPageSize);
     }
+}
+
+void GNAPlugin::InitGNAMemory() {
+    OV_ITT_SCOPED_TASK(itt::domains::GNA_LT, "InitGNAMemory");
+
+    if (gnaFlags->sw_fp32) {
+        gnamem.reset(new gna_memory_float(memory::GNAFloatAllocator{}));
+    } else {
+        gnamem = std::make_shared<gna_memory_device>(memory::GNAAllocator(gnadevice),
+                                                     Limitations::GetInstance().GetMemoryAlignment(),
+                                                     Limitations::kMemoryPageSize);
+    }
+}
+
+void GNAPlugin::InitGraphCompiler() {
+    OV_ITT_SCOPED_TASK(itt::domains::GNA_LT, "InitGraphCompiler");
+
+    graphCompiler.setDNNPtr(dnn);
+    graphCompiler.setInputsPtr(inputs_ptr_);
     graphCompiler.setGNAMemoryPtr(gnamem);
+    graphCompiler.initTargetValidator();
 }
 
 void GNAPlugin::UpdateInputScaleFromNetwork(InferenceEngine::CNNNetwork& network) {
@@ -428,8 +447,7 @@ void GNAPlugin::UpdateInputScaleFromNetwork(InferenceEngine::CNNNetwork& network
             GNAFakeQuantizeLayer fqLayer(next_layer);
             auto inputRange = fqLayer.getInputRange();
             auto outputRange = fqLayer.getOutputRange();
-            if (inputRange.second.size() != 1 || inputRange.second.size() != 1 || outputRange.second.size() != 1 ||
-                outputRange.second.size() != 1) {
+            if (inputRange.second.size() != 1 || outputRange.second.size() != 1) {
                 THROW_GNA_LAYER_EXCEPTION(next_layer)
                     << "unsupported, per-channel quantization for input layer : " << input.second->name();
             }
@@ -696,16 +714,13 @@ void GNAPlugin::LoadNetwork(const CNNNetwork& _network) {
     _network_name = _network.getName();
     std::shared_ptr<InferenceEngine::details::CNNNetworkImpl> convertedNetwork;
 
-    const auto effectiveCompileTarget = config.target->get_effective_compile_target();
-    graphCompiler.SetValidatorTarget(effectiveCompileTarget);
-
     auto transformer = TransformationsPipeline(config);
 
     if (_network.getFunction()) {
         CNNNetwork clonedNetwork = InferenceEngine::cloneNetwork(_network);
         auto model = clonedNetwork.getFunction();
         transformer.apply(model, &m_input_output_subgraphs);
-        limitations::check_all_ops_supported(model, effectiveCompileTarget, config.gnaPrecision);
+        Limitations::GetInstance().CheckAllOpsSupported(model, config.gnaPrecision);
         convertedNetwork = InferenceEngine::details::convertFunctionToICNNNetwork(model, clonedNetwork);
     }
     IE_SUPPRESS_DEPRECATED_START
@@ -717,7 +732,7 @@ void GNAPlugin::LoadNetwork(const CNNNetwork& _network) {
     //  Check the network
 
     std::string error;
-    if (!limitations::AreLayersSupported(network, error)) {
+    if (!Limitations::AreLayersSupported(network, error)) {
         THROW_GNA_EXCEPTION << error.c_str();
     }
 
@@ -1691,7 +1706,8 @@ InferenceEngine::QueryNetworkResult GNAPlugin::QueryNetwork(
     Config qn_config(config);
     qn_config.UpdateFromMap(config_map);
 
-    const auto effectiveCompileTarget = qn_config.target->get_effective_compile_target();
+    Limitations::GetInstance().Init(qn_config.target->get_effective_compile_target());
+
     auto model = network.getFunction();
     if (model) {
         auto supported = GetSupportedNodes(
@@ -1700,7 +1716,7 @@ InferenceEngine::QueryNetworkResult GNAPlugin::QueryNetwork(
                 TransformationsPipeline(qn_config).apply(model);
             },
             [&](const std::shared_ptr<ngraph::Node>& op) {
-                return limitations::is_op_supported(op, effectiveCompileTarget, qn_config.gnaPrecision);
+                return Limitations::GetInstance().IsOpSupported(op, qn_config.gnaPrecision);
             });
         for (auto&& op_name : supported) {
             res.supportedLayersMap.emplace(op_name, GetName());

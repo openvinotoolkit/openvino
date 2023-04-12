@@ -50,6 +50,7 @@ using namespace InferenceEngine::details;
 using namespace ov::intel_gna::frontend;
 using namespace ov::intel_gna::common;
 using namespace ov::intel_gna::pre_post_processing;
+using namespace ov::intel_gna::limitations;
 
 namespace ov {
 namespace intel_gna {
@@ -152,7 +153,7 @@ static void insertDiagonalLayerBetween(InferenceEngine::CNNLayerPtr prevLayer,
     size_t weightsSize =
         LayerInfo(prevLayer).has32BOutput()
             ? nextLayer->outData[0]->getDims().back()
-            : Get2DReshapedData(nextLayer->outData[0], limitations::GetMinBatchToFitInBuffer(nextLayer->outData[0]), 8)
+            : Get2DReshapedData(nextLayer->outData[0], Limitations::GetMinBatchToFitInBuffer(nextLayer->outData[0]), 8)
                   ->getDims()[1];
     std::vector<float> weightsValues(weightsSize, fillValue);
     IE_ASSERT(diagLayer != nullptr);
@@ -1531,19 +1532,19 @@ void InsertSplitAligningFilterPass::run() {
 
                     // encodes offset to beginning of split layer input
                     filterLayer->params["offset"] =
-                        std::to_string(aligned64_offset / limitations::bytesPerSplitElement);
+                        std::to_string(aligned64_offset / Limitations::kBytesPerSplitElement);
                     auto dims = splitOutput->getTensorDesc().getDims();
                     if (dims.size() > 3) {
                         THROW_GNA_EXCEPTION << "unsupported split layer dims size: " << dims.size();
                     }
 
                     const auto offsetOfUnalignment =
-                        (currentOffset - aligned64_offset) / limitations::bytesPerSplitElement;
+                        (currentOffset - aligned64_offset) / Limitations::kBytesPerSplitElement;
                     // TODO consider to use a different number of filters do decrese the number of trailing zeros
                     // (additionalPaddingOfFilter)
-                    const auto numberOfFilters = limitations::convMinFiltersNum;
+                    const auto numberOfFilters = Limitations::kConvMinFiltersNum;
                     const auto filterSize =
-                        ALIGN(offsetOfUnalignment + numberOfFilters, limitations::convFilterSizeDivider);
+                        ALIGN(offsetOfUnalignment + numberOfFilters, Limitations::kConvFilterSizeDivider);
 
                     // filterWeights: numberOfFilters X (offsetOfUnalignment + additionalPaddingOfFilter +
                     // numberOfFilters) offsetOfUnalignment - the leading zeros in the filter
@@ -1598,7 +1599,7 @@ void InsertSplitAligningFilterPass::run() {
             }
 
             // search data that starts from unaligned location
-            currentOffset += outputSize * limitations::bytesPerSplitElement;
+            currentOffset += outputSize * Limitations::kBytesPerSplitElement;
             splitOutIndex++;
         }
     }
@@ -1636,7 +1637,7 @@ void EltwiseSplitOverChannelsPass::run() {
         auto oData = l->outData.front();
         auto oDims = oData->getDims();
         auto totalElementsSize = details::product(std::begin(oDims), std::end(oDims));
-        if (totalElementsSize <= limitations::bufferMaxSize) {
+        if (totalElementsSize <= Limitations::kBufferMaxSize) {
             continue;
         }
         auto splitSizesPerAxis = AlignedSplitSizesPerAxis(oDims);
@@ -1748,7 +1749,7 @@ void SubstituteScaleShiftBroadCastPass::run() {
             dataDims = reshaped_data[insData->getName()];
         } else {
             dataDims = HasTo2DReshapeData(l)
-                           ? Get2DReshapedData(insData, limitations::GetMinBatchToFitInBuffer(insData), 8)->getDims()
+                           ? Get2DReshapedData(insData, Limitations::GetMinBatchToFitInBuffer(insData), 8)->getDims()
                            : insData->getDims();
         }
 
