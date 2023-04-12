@@ -328,8 +328,10 @@ const std::vector<double> cubeCoefs = {
 
 const std::vector<fusingSpecificParams> interpolateFusingParamsSet{
         emptyFusingSpec,
+#if defined(OPENVINO_ARCH_X86) || defined(OPENVINO_ARCH_X86_64)
         fusingSwish,
         fusingFakeQuantizePerTensorRelu,
+#endif
 };
 
 std::vector<std::map<std::string, std::string>> filterAdditionalConfig() {
@@ -458,6 +460,7 @@ const std::vector<ShapeParams> shapeParams4D_fixed_C = {
     }
 };
 
+#if defined(OPENVINO_ARCH_X86) || defined(OPENVINO_ARCH_X86_64)
 INSTANTIATE_TEST_SUITE_P(smoke_InterpolateNN_Layout_PerChannelFuse_Test, InterpolateLayerCPUTest,
         ::testing::Combine(
             interpolateCasesNN_Smoke,
@@ -477,6 +480,7 @@ INSTANTIATE_TEST_SUITE_P(InterpolateNN_Layout_PerChannelFuse_Test, InterpolateLa
             ::testing::Values(fusingFakeQuantizePerChannelRelu),
             ::testing::ValuesIn(filterAdditionalConfig())),
     InterpolateLayerCPUTest::getTestCaseName);
+#endif
 
 const auto interpolateCasesLinearOnnx_Smoke = ::testing::Combine(
         ::testing::Values(ngraph::op::v4::Interpolate::InterpolateMode::LINEAR_ONNX),
