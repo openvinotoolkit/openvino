@@ -83,6 +83,13 @@ ie_add_plugin(NAME ${TARGET_NAME}
               VERSION_DEFINES_FOR src/plugin.cpp
               SOURCES ${SOURCES} ${HEADERS})
 
+# give a different file name depending on target platform architecture
+if(ARM OR AARCH64)
+    set_target_properties(${TARGET_NAME} PROPERTIES OUTPUT_NAME "openvino_arm_cpu_plugin")
+elseif(RISCV64)
+    set_target_properties(${TARGET_NAME} PROPERTIES OUTPUT_NAME "openvino_risv_cpu_plugin")
+endif()
+
 set_ie_threading_interface_for(${TARGET_NAME})
 
 ie_mark_target_as_cc(${TARGET_NAME})
