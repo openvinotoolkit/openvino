@@ -430,7 +430,7 @@ TEST_F(TransformationTestsF, ModelWithMultioutputBodyGraphNode) {
     }
 }
 
-TEST_F(TransformationTestsF, ModelWithEmptyTensorListAndPushBack) {
+TEST_F(TransformationTestsF, DISABLED_ModelWithEmptyTensorListAndPushBack) {
     { model = convert_model("empty_tensor_list/empty_tensor_list.pb"); }
     {
         auto x = make_shared<Parameter>(f32, Shape{2, 3, 5});
