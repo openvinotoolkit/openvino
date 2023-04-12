@@ -217,27 +217,18 @@ Running the application with the ``-h`` or ``--help`` option yields the followin
           -exec_graph_path        Optional. Path to a file where to store executable graph information serialized.
           -dump_config            Optional. Path to JSON file to dump IE parameters, which were set by application.
           -load_config            Optional. Path to JSON file to load custom IE parameters. Please note, command line parameters have higher priority then parameters from configuration    file.
-                                    Example 1: a simple JSON file for HW device with primary properties.
-                                             {
-                                                  "CPU": {"NUM_STREAMS": "3", "PERF_COUNT": "NO"}
-                                             }
-                                    Example 2: a simple JSON file for meta device(AUTO/MULTI) with HW device properties.
-                                             {
-                                                     "AUTO": {
-                                                             "PERFORMANCE_HINT": "",
-                                                             "PERF_COUNT": "NO",
-                                                             "DEVICE_PROPERTIES": {
-                                                             "CPU": {
-                                                                 "INFERENCE_PRECISION_HINT": "f32",
-                                                                 "NUM_STREAMS": "3"
-                                                             },
-                                                             "GPU": {
-                                                                 "INFERENCE_PRECISION_HINT": "f32",
-                                                                 "NUM_STREAMS": "5"
-                                                             }
-                                                         }
-                                                     }
-                                             }
+                              Example 1: a simple JSON file for HW device with primary properties.
+                                       {
+                                            "CPU": {"NUM_STREAMS": "3", "PERF_COUNT": "NO"}
+                                       }
+                              Example 2: a simple JSON file for meta device(AUTO/MULTI) with HW device properties.
+                                       {
+                                               "AUTO": {
+                                                       "PERFORMANCE_HINT": "THROUGHPUT",
+                                                       "PERF_COUNT": "NO",
+                                                       "DEVICE_PROPERTIES": "{CPU:{INFERENCE_PRECISION_HINT:f32,NUM_STREAMS:3},GPU:{INFERENCE_PRECISION_HINT:f32,NUM_STREAMS:5}}"
+                                               }
+                                       }
 
 
 Running the application with the empty list of options yields the usage message given above and an error message.
