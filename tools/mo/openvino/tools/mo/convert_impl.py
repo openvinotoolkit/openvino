@@ -739,7 +739,7 @@ def update_args_for_unnamed_saved_model(args):
         return
     if 'saved_model_dir' in args and args['saved_model_dir'] is not None:
         raise Error("Both --input_model and --saved_model_dir are defined. "
-                    "Specify either inpust model or saved model directory.")
+                    "Please specify either input_model or saved_model_dir directory.")
     args['saved_model_dir'] = args['input_model']
     args['input_model'] = None
 
