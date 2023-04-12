@@ -32,7 +32,7 @@ void PluginConfig::set_default() {
         std::make_tuple(ov::hint::allow_auto_batching, true),
         std::make_tuple(ov::auto_batch_timeout, 1000),
         // Legacy API properties
-        std::make_tuple(exclusive_asyc_requests, false),
+        std::make_tuple(exclusive_async_requests, false),
         // RO for register only
         std::make_tuple(ov::device::full_name),
         std::make_tuple(ov::device::capabilities),
