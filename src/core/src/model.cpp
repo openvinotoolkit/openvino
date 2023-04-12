@@ -497,7 +497,9 @@ int64_t ov::Model::get_result_index(const Output<const Node>& value) const {
 
 bool ov::Model::evaluate(const HostTensorVector& output_tensors, const HostTensorVector& input_tensors) const {
     ov::EvaluationContext evaluation_context;
+    OPENVINO_SUPPRESS_DEPRECATED_START
     return evaluate(output_tensors, input_tensors, evaluation_context);
+    OPENVINO_SUPPRESS_DEPRECATED_END
 }
 
 bool ov::Model::evaluate(const HostTensorVector& output_tensors,
