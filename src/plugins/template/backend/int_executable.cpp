@@ -122,10 +122,7 @@ bool ov::runtime::interpreter::INTExecutable::call(std::vector<ov::Tensor>& outp
             auto variable = var_extension->get_variable();
             if (!variable_context.get_variable_value(variable)) {
                 auto h_tensor = ov::Tensor(op->get_input_element_type(0), op->get_input_shape(0));
-                // h_tensor->write(h_tensor->get_data_ptr(), h_tensor->get_size_in_bytes());
-                const auto tensor_input = make_tmp_host_tensor(h_tensor);
-                variable_context.set_variable_value(variable,
-                                                    std::make_shared<ov::op::util::VariableValue>(tensor_input));
+                variable_context.set_variable_value(variable, std::make_shared<ov::op::util::VariableValue>(h_tensor));
             }
         }
     }
