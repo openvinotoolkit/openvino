@@ -11,9 +11,6 @@ const std::set<std::string> PluginConfig::_deviceBlocklist = {"VPUX", "GNA"};
 
 PluginConfig::PluginConfig() {
     set_default();
-    device_property_validator = std::dynamic_pointer_cast<BaseValidator>(std::make_shared<FuncValidator>([](const ov::Any& target) -> bool {
-        return (target.as<std::string>().find(ov::device::properties.name()) != std::string::npos);
-    }));
 }
 
 void PluginConfig::set_default() {
@@ -28,10 +25,6 @@ void PluginConfig::set_default() {
         std::make_tuple(ov::hint::num_requests, 0, UnsignedTypeValidator()),
         std::make_tuple(ov::intel_auto::enable_startup_fallback, true),
         std::make_tuple(ov::intel_auto::enable_runtime_fallback, true),
-        // TODO 1) cache_dir 2) allow_auto_batch 3) auto_batch_timeout
-        std::make_tuple(ov::cache_dir, ""),
-        std::make_tuple(ov::hint::allow_auto_batching, true),
-        std::make_tuple(ov::auto_batch_timeout, 1000),
         // Legacy API properties
         std::make_tuple(exclusive_asyc_requests, false),
         // RO for register only
@@ -81,8 +74,13 @@ bool PluginConfig::is_supported(const std::string& name) const {
 bool PluginConfig::is_set_by_user(const std::string& name) const {
     return user_properties.find(name) != user_properties.end();
 }
+ov::Any PluginConfig::get_user_property(const std::string& name) const {
+    OPENVINO_ASSERT(user_properties.find(name) != user_properties.end(), "[AUTO]", " not registered user property ", name);
+    if (user_properties.find(name) != user_properties.end())
+        return user_properties.at(name);
+}
 
-void PluginConfig::set_user_property(const ov::AnyMap& config, bool checkfirstlevel) {
+void PluginConfig::set_user_property(const ov::AnyMap& config) {
     // user property, accept either internal property, or secondary property for hardware plugin
     // TODO: for multi, other first level property are also accepted
     for (auto& kv : config) {
@@ -94,13 +92,7 @@ void PluginConfig::set_user_property(const ov::AnyMap& config, bool checkfirstle
             internal_properties[kv.first] = kv.second;
             user_properties[kv.first] = kv.second;
         } else {
-            if (device_property_validator->is_valid(ov::Any(name))) { // if it's a valid secondary, accept it
-                user_properties[kv.first] = kv.second;
-            } else if (!checkfirstlevel) { // for multi, accept it anyway when compiled model
-                user_properties[kv.first] = kv.second;
-            } else {
-                OPENVINO_ASSERT(false, "property ", name,  ": not supported");
-            }
+            user_properties[kv.first] = kv.second;
         }
     }
 }
