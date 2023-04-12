@@ -23,7 +23,6 @@
 #include "transformations/transpose_sinking/ts_unary.hpp"
 #include "transformations/transpose_sinking/ts_unsqueeze.hpp"
 #include "transformations/utils/utils.hpp"
-#include "transformations/common_optimizations/disable_shapeof_constant_folding.hpp"
 
 using namespace ov::pass::transpose_sinking;
 
