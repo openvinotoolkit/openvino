@@ -318,6 +318,7 @@ std::vector<shared_ptr<ov::Node>> ov::Model::get_ordered_ops() const {
     m_cached_ordered_ops.clear();
     for_each(order.cbegin(), order.cend(), [this](const shared_ptr<Node>& node) {
         m_cached_ordered_ops.push_back(node);
+        m_cached_ops.insert(node.get());
         node->insert_info(m_shared_rt_info);
     });
     m_cached_output_names.clear();
@@ -923,6 +924,9 @@ ov::Output<ov::Node> ov::Model::add_output(const std::string& op_name, size_t ou
 }
 
 ov::Output<ov::Node> ov::Model::add_output(const ov::Output<ov::Node>& port) {
+    auto cache_valid = [&]() {
+        return m_cached_ops.count(port.get_node());
+    };
     if (ov::op::util::is_output(port.get_node()))
         return port;
     for (const auto& input : port.get_target_inputs()) {
@@ -934,9 +938,14 @@ ov::Output<ov::Node> ov::Model::add_output(const ov::Output<ov::Node>& port) {
     auto result = std::make_shared<ov::op::v0::Result>(port);
     m_results.push_back(result);
     if (m_shared_rt_info->get_use_topological_cache()) {
-        // Full update of topological cache is not needed, 'result' can be just inserted to the end
-        m_cached_ordered_ops.push_back(result);
-        result->insert_info(m_shared_rt_info);  // Just for consistency, not required for Result nodes
+        if (cache_valid()) {
+            // Full update of topological cache is not needed, 'result' can be just inserted to the end
+            m_cached_ordered_ops.push_back(result);
+            m_cached_ops.insert(result.get());
+            result->insert_info(m_shared_rt_info);  // Just for consistency, not required for Result nodes
+        } else {
+            m_shared_rt_info->set_use_topological_cache(false);
+        }
     }
     return result->output(0);
 }
@@ -948,18 +957,21 @@ std::shared_ptr<ov::Model> ov::Model::clone() const {
 }
 
 bool ov::Model::has_rt_info(const std::vector<std::string>& args) const {
-    ov::AnyMap info = m_rt_info;
-    for (size_t i = 0; i < args.size(); i++) {
-        bool has_attr = has_rt_arg(info, args[i]);
-        if (!has_attr)
-            return false;
-        if (i == args.size() - 1)
-            break;
-        const ov::Any rt_attr = get_rt_arg<std::string>(info, args[i]);
-        info = get_map_from_attr(rt_attr);
-    }
-    return true;
+    return has_rt_info(m_rt_info, args.cbegin(), args.cend());
 }
+
+bool ov::Model::has_rt_info(const ov::AnyMap& info,
+                            const std::vector<std::string>::const_iterator& begin,
+                            const std::vector<std::string>::const_iterator& end) const {
+    if (!has_rt_arg(info, *begin))
+        return false;
+    if (begin == end - 1) {
+        return true;
+    } else {
+        return has_rt_info(get_map_from_attr(get_rt_arg<std::string>(info, *begin)), begin + 1, end);
+    }
+}
+
 ov::Any& ov::Model::get_rt_info(ov::AnyMap& info,
                                 const std::vector<std::string>::const_iterator& begin,
                                 const std::vector<std::string>::const_iterator& end) {

@@ -39,6 +39,8 @@ public:
         const element::Type& actual,
         const element::Type& required) noexcept;
 
+    static bool validate_and_infer_types_and_restore_outputs(const std::shared_ptr<ngraph::Node>& op);
+
 private:
     const std::shared_ptr<const TargetMachine> target_machine;
 };
