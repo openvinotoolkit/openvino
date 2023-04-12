@@ -101,8 +101,7 @@ void QuantizedMatMulConstTransposesExtractionTest::SetUp() {
 }
 
 void QuantizedMatMulConstTransposesExtractionTest::TearDown() {
-    if (!executableNetwork)
-        return;
+    SKIP_IF_CURRENT_TEST_IS_DISABLED();
     auto runtime_function = executableNetwork.GetExecGraphInfo().getFunction();
     int ops_found = 0;
     for (const auto& node : runtime_function->get_ordered_ops()) {
