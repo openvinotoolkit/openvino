@@ -2,9 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "ngraph/runtime/reference/embedding_bag_packed_sum.hpp"
-
 #include "ngraph/ops.hpp"
+#include "ngraph/runtime/reference/embedding_bag_packed_sum.hpp"
 
 namespace embedding_bag_packed_sum_v3 {
 template <ngraph::element::Type_t t1, ngraph::element::Type_t t2>
