@@ -1,5 +1,5 @@
 -c ../../constraints.txt
-numpy>=1.19.2
+numpy
 pytest
 py
 attrs

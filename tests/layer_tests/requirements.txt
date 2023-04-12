@@ -1,8 +1,8 @@
 -c ../constraints.txt
 requests
-numpy>=1.19.2
+numpy
 torch
 torchvision
-paddlepaddle
+paddlepaddle; python_version<'3.11'
 pytest
 tensorflow-addons
