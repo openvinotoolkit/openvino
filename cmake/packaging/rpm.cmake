@@ -157,10 +157,10 @@ macro(ov_cpack_settings)
     endif()
 
     # cpu
-    if(ENABLE_INTEL_CPU)
+    if(ENABLE_INTEL_CPU OR DEFINED openvino_arm_cpu_plugin_SOURCE_DIR)
         if(ARM OR AARCH64)
             set(CPACK_RPM_CPU_PACKAGE_NAME "libopenvino-arm-cpu-plugin-${cpack_name_ver}")
-            set(CPACK_COMPONENT_CPU_DESCRIPTION "ARM CPU")
+            set(CPACK_COMPONENT_CPU_DESCRIPTION "ARM® CPU plugin")
             set(cpu_copyright "arm_cpu")
         elseif(X86 OR X86_64)
             set(CPACK_RPM_CPU_PACKAGE_NAME "libopenvino-intel-cpu-plugin-${cpack_name_ver}")
