@@ -9,61 +9,106 @@
 
 #include <ngraph/ngraph.hpp>
 #include "ngraph/opsets/opset1.hpp"
-#include "snippets/op/convert_saturation.hpp"
 #include "snippets_helpers.hpp"
 
 namespace ov {
 namespace test {
 namespace snippets {
 
-/**
- * @class DummyAdd
- * @brief DummyAdd operation has custom validate_and_infer_types method implementation.
+/*
+ * @class BaseDummyOperation
+ * @brief Base not type relaxed operation with absent validation and parameterized output.
  */
-class DummyAdd : public ngraph::opset1::Add {
+class BaseDummyOperation : public ngraph::op::Op {
 public:
-    OPENVINO_OP("DummyAdd", "test::snippets");
-
-    DummyAdd(const Output<Node>& arg0,
+    BaseDummyOperation(
+        const Output<Node>& arg0,
         const Output<Node>& arg1,
-        const ngraph::op::AutoBroadcastSpec& auto_broadcast =
-        ngraph::op::AutoBroadcastSpec(ngraph::op::AutoBroadcastType::NUMPY))
-        : ngraph::opset1::Add(arg0, arg1, auto_broadcast) {
+        const element::Type& output_type = element::undefined) : Op({ arg0, arg1 }), output_type(output_type) {
         constructor_validate_and_infer_types();
     }
-
-    DummyAdd(const ngraph::opset1::Add& add)
-        : Add(add.get_input_source_output(0), add.get_input_source_output(1), add.get_autob()) {
-        constructor_validate_and_infer_types();
-    }
-
-    DummyAdd() = default;
 
     void validate_and_infer_types() override {
-        const auto input_type1 = get_input_element_type(0);
-        const auto input_type2 = get_input_element_type(1);
+        set_output_type(
+            0,
+            output_type == element::undefined ? get_input_element_type(0) : output_type,
+            get_input_partial_shape(0));
+    }
 
-        const element::Type output_type = (input_type1 == element::i8) || (input_type2 == element::i8) ?
-            element::i32 :
-            get_input_element_type(0);
+    element::Type get_output_type() const { return output_type; }
 
-        set_output_type(0, output_type, get_input_partial_shape(0));
+protected:
+    element::Type output_type;
+};
+
+/*
+ * @class DummyOperation1
+ * @brief Not type relaxed operation with absent validation and parameterized output.
+ */
+class DummyOperation1 : public BaseDummyOperation {
+public:
+    OPENVINO_OP("DummyOperation1", "test::snippets");
+
+    DummyOperation1(
+        const Output<Node>& arg0,
+        const Output<Node>& arg1,
+        const element::Type& output_type = element::undefined) : BaseDummyOperation(arg0, arg1, output_type) {
+        constructor_validate_and_infer_types();
+    }
+
+    DummyOperation1(const BaseDummyOperation& op) : DummyOperation1(op.get_input_source_output(0), op.get_input_source_output(1), op.get_output_type()) {
+        constructor_validate_and_infer_types();
     }
 
     std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& new_args) const override {
-        return std::make_shared<DummyAdd>(new_args.at(0), new_args.at(1), this->get_autob());
+        return std::make_shared<DummyOperation1>(new_args.at(0), new_args.at(1), this->get_output_type());
     }
 };
 
-/**
- * @class PrecisionPropagationAddFunction
- * @brief PrecisionPropagationAddFunction instance returns reference and original functions.
+/*
+ * @class DummyOperation2
+ * @brief Not type relaxed operation with absent validation and parameterized output.
+ */
+class DummyOperation2 : public BaseDummyOperation {
+public:
+    OPENVINO_OP("DummyOperation2", "test::snippets");
+
+    DummyOperation2(
+        const Output<Node>& arg0,
+        const Output<Node>& arg1,
+        const element::Type& output_type = element::undefined) : BaseDummyOperation(arg0, arg1, output_type) {
+        constructor_validate_and_infer_types();
+    }
+
+    DummyOperation2(const BaseDummyOperation& op) : DummyOperation2(op.get_input_source_output(0), op.get_input_source_output(1), op.get_output_type()) {
+        constructor_validate_and_infer_types();
+    }
+
+    std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& new_args) const override {
+        return std::make_shared<DummyOperation2>(new_args.at(0), new_args.at(1), this->get_output_type());
+    }
+};
+
+/*
+ * @class TwoBinaryOpsFunction
+ * @brief The function for unit tests only, includes dummy DummyOperation1 & DummyOperation2 operations.
  *
  * Input arguments are used to create function in getOriginal or getReference methods only.
  * Dont use getLowered method, it is not implemented and throw std::runtime_error exception.
- * Note, ov::element::Type_t precision base type input argument is not used.
+ *
+ *    Parameter    Parameter
+ *        \         /
+ *         \       /
+ *       DummyOperation1   Constant
+ *              \          /
+ *               \        /
+ *              DummyOperation2
+ *                    |
+ *                    |
+ *                 Result
+ *
  */
-class PrecisionPropagationAddFunction : public SnippetsFunctionBase {
+class TwoBinaryOpsFunction : public SnippetsFunctionBase {
 public:
     class Actual {
     public:
@@ -82,7 +127,7 @@ public:
         element::Type convertion_before_result;
     };
 
-    explicit PrecisionPropagationAddFunction(
+    explicit TwoBinaryOpsFunction(
         const std::vector<PartialShape> input_shapes,
         const ngraph::element::Type precision1,
         const ngraph::element::Type precision2,
@@ -110,7 +155,7 @@ protected:
 
 private:
     /*
-     * Returns model implicitly via getOriginal call in initOriginal.
+     * Returns model implicitly via getOriginal call in initOriginal or getReference in initReference.
      */
     static std::shared_ptr<ngraph::Function> get(
         const ngraph::element::Type& precision1,
