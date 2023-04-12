@@ -201,7 +201,7 @@ std::vector<std::string> disabledTestPatterns() {
     // retVector.emplace_back(R"(.*smoke_LPT.*ReduceMinTransformation.*f32.*)");
 #endif
 
-#if defined(OPENVINO_ARCH_ARM64)
+#if defined(OPENVINO_ARCH_ARM64) || defined(OPENVINO_ARCH_ARM)
     retVector.emplace_back(R"(OVClassBasicTest.smoke_SetConfigAffinity.*)");
     retVector.emplace_back(R"(OVClassConfigTestCPU.smoke_Check(Model|Core)StreamsHasHigherPriorityThanLatencyHint.*)");
     retVector.emplace_back(R"(.*OVInferRequestDynamicTests.*)");
