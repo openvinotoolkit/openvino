@@ -9,32 +9,16 @@
 
 std::vector<std::string> disabledTestPatterns() {
     std::vector<std::string> retVector{
-        R"(.*ExclusiveAsyncRequests.*)",
-        R"(.*ReusableCPUStreamsExecutor.*)",
-        R"(.*SplitLayerTest.*numSplits=30.*)",
-        // CVS-51758
-        R"(.*InferRequestPreprocessConversionTest.*oLT=(NHWC|NCHW).*)",
-        R"(.*InferRequestPreprocessDynamicallyInSetBlobTest.*oPRC=0.*oLT=1.*)",
         // Not Implemented
-        R"(.*(Multi|Auto|Hetero).*Behavior.*OVCompiledModelBaseTest.*(CheckExecGraphInfoBeforeExecution|CheckExecGraphInfoAfterExecution).*)",
-        R"(.*(Multi|Auto|Hetero).*Behavior.*OVCompiledModelBaseTest.*(checkGetExecGraphInfoIsNotNullptr).*)",
+        R"(.*(Multi|Auto|Hetero).*Behavior.*OVCompiledModelBaseTest.*CheckExecGraphInfoBeforeExecution.*)",
+        R"(.*(Multi|Auto|Hetero).*Behavior.*OVCompiledModelBaseTest.*CheckExecGraphInfoAfterExecution.*)",
+        R"(.*(Multi|Auto|Hetero).*Behavior.*OVCompiledModelBaseTest.*checkGetExecGraphInfoIsNotNullptr.*)",
         R"(.*OVClassExecutableNetworkGetMetricTest_EXEC_DEVICES.*CanGetExecutionDeviceInfo.*)",
         R"(.*OVClassHeteroExecutableNetworkGetMetricTest_SUPPORTED_CONFIG_KEYS.*GetMetricNoThrow.*)",
         R"(.*OVClassHeteroExecutableNetworkGetMetricTest_SUPPORTED_METRICS.*GetMetricNoThrow.*)",
 
-        // TODO: Round with f16 is not supported
-        R"(.*smoke_Hetero_BehaviorTests.*OVExecGraphImportExportTest.*readFromV10IR.*)",
-        // TODO: support import / export of precisions in template plugin
-        R"(.*smoke_Hetero_BehaviorTests.*OVExecGraphImportExportTest.ieImportExportedFunction.*)",
-        R"(.*smoke_BehaviorTests.*OVExecGraphImportExportTest.ieImportExportedFunction.*)",
-        // TODO: Round with f16 is not supported
-        R"(.*smoke_Hetero_BehaviorTests.*OVExecGraphImportExportTest.*readFromV10IR.*)",
-
-        R"(.*importExportedIENetworkParameterResultOnly.*elementType=(i8|u8).*)",
-        R"(.*importExportedIENetworkParameterResultOnly.*elementType=(i16|u16).*)",
-        R"(.*importExportedIENetworkParameterResultOnly.*elementType=(i64|u64).*)",
-        R"(.*importExportedIENetworkParameterResultOnly.*elementType=u32.*)",
-        R"(.*importExportedIENetworkConstantResultOnly.*elementType=(u32|u64).*)",
+        // CVS-55937
+        R"(.*SplitLayerTest.*numSplits=30.*)",
 
         // CVS-64094
         R"(.*ReferenceLogSoftmaxLayerTest.*4.*iType=f16.*axis=.*1.*)",
@@ -103,8 +87,7 @@ std::vector<std::string> disabledTestPatterns() {
         // CVS-71891
         R"(.*ReferenceTileTest.*rType=i4.*)",
         R"(.*ReferenceTileTest.*rType=u4.*)",
-        // CVS-95608
-        R"(.*CachingSupportCase.*CompileModelCacheTestBase.*)",
+
         // New plugin API doesn't support legacy NV12 I420 preprocessing
         R"(.*ConvertNV12WithLegacyTest.*)",
         R"(.*ConvertI420WithLegacyTest.*)",

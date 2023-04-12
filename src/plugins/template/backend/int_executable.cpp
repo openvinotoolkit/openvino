@@ -16,8 +16,6 @@
 #include "perf_counter.hpp"
 #include "tensor_conversion_util.hpp"
 
-NGRAPH_SUPPRESS_DEPRECATED_START
-
 namespace {
 
 class DynamicTensor : public ngraph::runtime::HostTensor {
@@ -47,7 +45,6 @@ protected:
 };
 
 inline ngraph::HostTensorPtr make_tmp_host_tensor(const ov::Tensor& t) {
-    OPENVINO_SUPPRESS_DEPRECATED_START
     if (!t) {
         return std::make_shared<DynamicTensor>(ov::element::dynamic);
     } else if (t.get_shape() == ov::Shape{0, std::numeric_limits<size_t>::max()}) {
@@ -55,7 +52,6 @@ inline ngraph::HostTensorPtr make_tmp_host_tensor(const ov::Tensor& t) {
     } else {
         return std::make_shared<ngraph::runtime::HostTensor>(t.get_element_type(), t.get_shape(), t.data());
     }
-    OPENVINO_SUPPRESS_DEPRECATED_END
 }
 inline ngraph::HostTensorVector create_tmp_tensors(const ov::TensorVector& tensors) {
     ngraph::HostTensorVector result;

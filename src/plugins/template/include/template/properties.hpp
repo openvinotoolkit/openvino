@@ -25,6 +25,11 @@ namespace template_plugin {
  */
 static constexpr Property<bool, PropertyMutability::RW> disable_transformations{"DISABLE_TRANSFORMATIONS"};
 
+/**
+ * @brief Allow to create exclusive_asyc_requests with one executor
+ */
+static constexpr Property<bool, PropertyMutability::RW> exclusive_async_requests{"EXCLUSIVE_ASYNC_REQUESTS"};
+
 // ! [properties:public_header]
 
 }  // namespace template_plugin
