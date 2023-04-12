@@ -5,16 +5,11 @@
 set (SRC
     backend.cpp
     backend.hpp
-    cache.cpp
-    cache.hpp
     executable.cpp
     executable.hpp
-    performance_counter.hpp
-    pass/dyn_elimination.cpp
-    pass/dyn_elimination.hpp
-    pass/shape_relevance.cpp
-    pass/shape_relevance.hpp
-    int_backend.cpp int_executable.cpp evaluates_map.cpp
+    int_backend.cpp 
+    int_executable.cpp 
+    evaluates_map.cpp
     )
 
 if(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
@@ -28,7 +23,6 @@ add_library(openvino::interpreter_backend ALIAS interpreter_backend)
 
 if(CMAKE_COMPILER_IS_GNUCXX)
     ie_add_compiler_flags(-Wno-missing-declarations)
-    ie_add_compiler_flags(-Wno-sign-compare)
 endif()
 
 ie_faster_build(interpreter_backend UNITY)
@@ -38,7 +32,7 @@ target_compile_definitions(interpreter_backend
         SHARED_LIB_PREFIX="${CMAKE_SHARED_LIBRARY_PREFIX}"
         SHARED_LIB_SUFFIX="${IE_BUILD_POSTFIX}${CMAKE_SHARED_LIBRARY_SUFFIX}"
 )
-target_link_libraries(interpreter_backend PRIVATE ngraph::builder ngraph::reference openvino::util openvino::runtime::dev)
+target_link_libraries(interpreter_backend PRIVATE ngraph::builder ngraph::reference openvino::util openvino::runtime::dev ov_shape_inference)
 
 target_include_directories(interpreter_backend PUBLIC $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}>)
 

@@ -16,10 +16,11 @@ OutputVector translate_einsum_op(const NodeContext& node) {
     auto op_type = node.get_op_type();
     TENSORFLOW_OP_VALIDATION(node, op_type == "Einsum", "Internal error: incorrect usage of translate_einsum_op.");
     auto equation = node.get_attribute<std::string>("equation");
+    int input_size = static_cast<int>(node.get_input_size());
 
     OutputVector inputs;
-    for (size_t input_ind = 0; input_ind < node.get_input_size(); ++input_ind) {
-        inputs.push_back(node.get_input(static_cast<int>(input_ind)));
+    for (int input_ind = 0; input_ind < input_size; ++input_ind) {
+        inputs.push_back(node.get_input(input_ind));
     }
 
     auto einsum = make_shared<Einsum>(inputs, equation);

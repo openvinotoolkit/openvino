@@ -120,12 +120,12 @@ struct MemRequest {
                size_t alignment = 1)
         : _region(region),
           _type(REQUEST_INITIALIZER | req),
-          _ptr_in(ptr_out),
           _ptr_out(ptr_out),
+          _ptr_in(ptr_out),
+          _initializer(initializer),
           _element_size(1),
           _num_elements(regionSize),
-          _alignment(alignment),
-          _initializer(initializer) {}
+          _alignment(alignment) {}
 };
 
 }  // namespace memory

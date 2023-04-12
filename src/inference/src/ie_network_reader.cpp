@@ -27,7 +27,6 @@
 #include "legacy_op_extension.hpp"
 #include "ngraph/function.hpp"
 #include "ngraph/type/element_type.hpp"
-#include "ngraph/variant.hpp"
 #include "openvino/core/deprecated.hpp"
 #include "openvino/core/except.hpp"
 #include "openvino/core/preprocess/pre_post_process.hpp"
@@ -48,7 +47,7 @@ public:
         : m_ext(ext),
           m_opset_name(opset),
           m_type(name),
-          m_ext_type(m_type.c_str(), 0, m_opset_name.c_str()) {}
+          m_ext_type(m_type.c_str(), m_opset_name.c_str()) {}
 
     const ov::DiscreteTypeInfo& get_type_info() const override {
         return m_ext_type;
@@ -160,7 +159,7 @@ void registerReaders() {
 }
 
 void assertIfIRv7LikeModel(std::istream& modelStream) {
-    auto irVersion = details::GetIRVersion(modelStream);
+    auto irVersion = details::get_ir_version(modelStream);
     bool isIRv7 = irVersion > 1 && irVersion <= 7;
 
     if (!isIRv7 || reader_irv7)
@@ -259,12 +258,14 @@ CNNNetwork convert_to_cnnnetwork(std::shared_ptr<ngraph::Function>& function,
 
     // only for IR cases we need preprocessing or postprocessing steps
     if (is_ir) {
+        IR_READER_SCOPE(is_ir);
         using namespace ov::preprocess;
         PrePostProcessor prepost(function);
 
         const int64_t ir_version = function->get_rt_info<int64_t>("version");
 
         if (ir_version == 10 && newAPI) {
+            IR_READER_SCOPE(ir10_new_api);
             std::unordered_map<std::string, std::shared_ptr<ov::descriptor::Tensor>> leaf_names;
             const auto inputs = function->inputs();
             for (size_t i = 0; i < inputs.size(); ++i) {
@@ -332,6 +333,7 @@ CNNNetwork convert_to_cnnnetwork(std::shared_ptr<ngraph::Function>& function,
             // Set version to 10
             rt_info["version"] = int64_t(10);
         } else if (ir_version == 11 && !newAPI) {
+            IR_READER_SCOPE(ir11_old_api);
             const std::string& old_api_map_key_order = ov::OldApiMapOrder::get_type_info_static();
             const std::string& old_api_map_key_type = ov::OldApiMapElementType::get_type_info_static();
 
@@ -416,7 +418,8 @@ CNNNetwork details::ReadNetwork(const std::string& modelPath,
                                 const std::string& binPath,
                                 const std::vector<IExtensionPtr>& exts,
                                 const std::vector<ov::Extension::Ptr>& ov_exts,
-                                bool newAPI) {
+                                bool newAPI,
+                                bool enable_mmap) {
 #ifdef ENABLE_IR_V7_READER
     // IR v7 obsolete code
     {
@@ -455,6 +458,7 @@ CNNNetwork details::ReadNetwork(const std::string& modelPath,
 #endif
         params.emplace_back(weights_path);
     }
+    params.emplace_back(enable_mmap);
 
     FE = manager.load_by_model(params);
     if (FE) {

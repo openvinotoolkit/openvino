@@ -4,6 +4,7 @@
 
 #include "common_op_table.hpp"
 #include "openvino/opsets/opset9.hpp"
+#include "utils.hpp"
 
 using namespace std;
 using namespace ov;
@@ -19,13 +20,10 @@ static void slice_pads_begin_end(const Output<Node>& paddings,
     // TODO: fix IR reader to accept padding of i32 type
     auto paddings_i64 = make_shared<Convert>(paddings, element::i64);
     auto axis = make_shared<Constant>(element::i32, Shape{}, 1);
-    auto index_zero = make_shared<Constant>(element::i32, Shape{1}, 0);
-    auto index_one = make_shared<Constant>(element::i32, Shape{1}, 1);
-    auto unsqueeze_pad_begin = make_shared<Gather>(paddings_i64, index_zero, axis);
-    auto unsqueeze_pad_end = make_shared<Gather>(paddings_i64, index_one, axis);
-
-    pads_begin = make_shared<Squeeze>(unsqueeze_pad_begin, axis);
-    pads_end = make_shared<Squeeze>(unsqueeze_pad_end, axis);
+    auto index_zero = make_shared<Constant>(element::i32, Shape{}, 0);
+    auto index_one = make_shared<Constant>(element::i32, Shape{}, 1);
+    pads_begin = make_shared<Gather>(paddings_i64, index_zero, axis);
+    pads_end = make_shared<Gather>(paddings_i64, index_one, axis);
 }
 
 static OutputVector translate_pad_base_op(const NodeContext& node,
@@ -47,7 +45,7 @@ OutputVector translate_pad_op(const NodeContext& node) {
     default_op_checks(node, 2, {"Pad"});
     auto input = node.get_input(0);
     auto paddings = node.get_input(1);
-    auto constant_value = make_shared<Constant>(input.get_element_type(), Shape{}, 0);
+    auto constant_value = create_same_type_const_scalar<int32_t>(input, 0);
 
     return translate_pad_base_op(node, input, paddings, constant_value);
 }

@@ -54,7 +54,7 @@ void handle_reshape::run(program& p) {
     while (node_itr != p.get_processing_order().end()) {
         auto& node = (*node_itr++);
         program_helpers::do_for_types<reshape>(*node, [&p](reshape_node& node) {
-            if (node.is_output() || node.get_users().size() > 1 || node.has_fused_primitives())
+            if (node.is_output() || node.get_users().size() > 1 || node.has_fused_primitives() || node.is_dynamic())
                 return;
 
             auto& out_node = node.get_users().front();
@@ -124,11 +124,7 @@ void handle_reshape::run(program& p) {
                     auto& reorder_reshape_node = reorder_reshape_nodes[reshape_reorder_id];
                     auto reshape_in_layout = reorder_node->get_output_layout();
                     auto dims = cldnn::format::dimension(reshape_in_layout.format);
-                    auto format = cldnn::format::bfyx;
-                    if (dims == 5)
-                        format = cldnn::format::bfzyx;
-                    else if (dims == 6)
-                        format = cldnn::format::bfwzyx;
+                    auto format = cldnn::format::get_default_format(dims);
                     auto reshape_input = std::make_shared<reorder>(
                         "reorder:_reshape_input_" + reorder_node->id() + "_" + reorder_reshape_node->id(),
                         input_node.id(),

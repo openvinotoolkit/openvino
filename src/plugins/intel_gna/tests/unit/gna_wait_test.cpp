@@ -82,6 +82,11 @@ public:
 
 TEST_F(GNAWaitTest, ReturnsGna2StatusDriverQoSTimeoutExceeded) {
     GNACppApi enableMocks;
+    EXPECT_CALL(enableMocks, Gna2DeviceGetVersion(_, _))
+        .WillOnce(testing::Invoke([](uint32_t deviceIndex, enum Gna2DeviceVersion* deviceVersion) {
+            *deviceVersion = Gna2DeviceVersion::Gna2DeviceVersionSoftwareEmulation;
+            return Gna2StatusSuccess;
+        }));
     EXPECT_CALL(enableMocks, Gna2RequestWait(_, _)).Times(1).WillOnce(Return(Gna2StatusDriverQoSTimeoutExceeded));
     auto plugin = std::make_shared<GNAPluginForGNAWaitTest>();
     GNAInferRequestForGNAWaitTest inferRequest{plugin};
@@ -91,6 +96,11 @@ TEST_F(GNAWaitTest, ReturnsGna2StatusDriverQoSTimeoutExceeded) {
 
 TEST_F(GNAWaitTest, ReturnsGna2StatusWarningDeviceBusy) {
     GNACppApi enableMocks;
+    EXPECT_CALL(enableMocks, Gna2DeviceGetVersion(_, _))
+        .WillOnce(testing::Invoke([](uint32_t deviceIndex, enum Gna2DeviceVersion* deviceVersion) {
+            *deviceVersion = Gna2DeviceVersion::Gna2DeviceVersionSoftwareEmulation;
+            return Gna2StatusSuccess;
+        }));
     EXPECT_CALL(enableMocks, Gna2RequestWait(_, _)).Times(1).WillOnce(Return(Gna2StatusWarningDeviceBusy));
     auto plugin = std::make_shared<GNAPluginForGNAWaitTest>();
     GNAInferRequestForGNAWaitTest inferRequest{plugin};
@@ -100,6 +110,11 @@ TEST_F(GNAWaitTest, ReturnsGna2StatusWarningDeviceBusy) {
 
 TEST_F(GNAWaitTest, ReturnsGna2StatusDeviceParameterOutOfRange) {
     GNACppApi enableMocks;
+    EXPECT_CALL(enableMocks, Gna2DeviceGetVersion(_, _))
+        .WillOnce(testing::Invoke([](uint32_t deviceIndex, enum Gna2DeviceVersion* deviceVersion) {
+            *deviceVersion = Gna2DeviceVersion::Gna2DeviceVersionSoftwareEmulation;
+            return Gna2StatusSuccess;
+        }));
     EXPECT_CALL(enableMocks, Gna2RequestWait(_, _)).Times(1).WillOnce(Return(Gna2StatusDeviceParameterOutOfRange));
     auto plugin = std::make_shared<GNAPluginForGNAWaitTest>();
     GNAInferRequestForGNAWaitTest inferRequest{plugin};
@@ -109,6 +124,11 @@ TEST_F(GNAWaitTest, ReturnsGna2StatusDeviceParameterOutOfRange) {
 
 TEST_F(GNAWaitTest, ReturnsGna2StatusDeviceParameterOutOfRange_Extra_Sync) {
     GNACppApi enableMocks;
+    EXPECT_CALL(enableMocks, Gna2DeviceGetVersion(_, _))
+        .WillOnce(testing::Invoke([](uint32_t deviceIndex, enum Gna2DeviceVersion* deviceVersion) {
+            *deviceVersion = Gna2DeviceVersion::Gna2DeviceVersionSoftwareEmulation;
+            return Gna2StatusSuccess;
+        }));
     EXPECT_CALL(enableMocks, Gna2RequestWait(_, _)).Times(1).WillOnce(Return(Gna2StatusDeviceParameterOutOfRange));
     auto plugin = std::make_shared<GNAPluginForGNAWaitTest>();
     GNAInferRequestForGNAWaitTest inferRequest{plugin};
@@ -120,6 +140,11 @@ TEST_F(GNAWaitTest, ReturnsGna2StatusDeviceParameterOutOfRange_Extra_Sync) {
 
 TEST_F(GNAWaitTest, ReturnsGna2StatusDeviceParameterOutOfRange_Another_Use) {
     GNACppApi enableMocks;
+    EXPECT_CALL(enableMocks, Gna2DeviceGetVersion(_, _))
+        .WillOnce(testing::Invoke([](uint32_t deviceIndex, enum Gna2DeviceVersion* deviceVersion) {
+            *deviceVersion = Gna2DeviceVersion::Gna2DeviceVersionSoftwareEmulation;
+            return Gna2StatusSuccess;
+        }));
     EXPECT_CALL(enableMocks, Gna2RequestWait(_, _)).Times(1).WillOnce(Return(Gna2StatusDeviceParameterOutOfRange));
     auto plugin = std::make_shared<GNAPluginForGNAWaitTest>();
     GNAInferRequestForGNAWaitTest inferRequest{plugin};

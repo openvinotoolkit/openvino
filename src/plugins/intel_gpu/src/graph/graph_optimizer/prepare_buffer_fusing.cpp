@@ -198,6 +198,16 @@ bool concat_in_place_optimization::match(concatenation_node& node) {
         if (input.first->get_users().size() > 2)
             return false;
 
+        // If sibling is using onednn impl and batch > 1, the onednn impl cannot process the implicit concat'ed buffer.
+        // Onednn impls can process implicit concat'ed buffer only through buffer pointer manipulation.
+        if (node.get_output_layout().batch() > 1) {
+            for (auto& sib : input.first->get_users()) {
+                if (sib->get_preferred_impl_type() == impl_types::onednn) {
+                    return false;
+                }
+            }
+        }
+
         // Check that input isn't optimized out concatenation along different axis.
         if (input.first->is_type<concatenation>() && input.first->can_be_optimized() &&
             input.first->as<concatenation>().get_primitive()->axis != concat_axis)
@@ -314,19 +324,14 @@ void prepare_buffer_fusing::run(program& p) {
     If crop is before concat there can be padding mismtach, since concat changes padding.
     */
     auto can_optimize = [](const program_node* node) {
-        bool is_dynamic = node->get_output_layout().is_dynamic();
-        bool is_planar = node->get_output_layout().format == format::bfyx ||
-                         node->get_output_layout().format == format::bfzyx ||
-                         node->get_output_layout().format == format::bfwzyx;
+        bool is_dynamic = node->is_dynamic();
+        bool is_planar = format::is_default_format(node->get_output_layout().format);
         bool no_pad = !node->get_output_layout().data_padding && !node->get_input_layouts().empty() && !node->get_input_layouts()[0].data_padding;
-        // The condition below check only output layout as cases like
-        // (dyn_shape) -> reshape -> (static_shape) -> some_static_primitive
-        // may have invalid set_arguments call as output memory of reshape won't be available until reshape primitive is executed
         if (node->is_type<reshape>() && is_dynamic && is_planar && no_pad && !node->is_output() && !node->has_fused_primitives()) {
             return true;
         }
 
-        if (node->is_dynamic() || node->is_output() || node->has_fused_primitives()) {
+        if (is_dynamic || node->is_output() || node->has_fused_primitives()) {
             return false;
         }
         return true;
@@ -458,7 +463,7 @@ void prepare_buffer_fusing::run(program& p) {
         if (!can_optimize(node))
             continue;
 
-        program_helpers::do_for_types<reshape>(*node, [&p](reshape_node& node) {
+        program_helpers::do_for_types<reshape>(*node, [](reshape_node& node) {
             node.get_output_layout();
             node.can_be_optimized(can_reshape_be_optimized(node));
         });

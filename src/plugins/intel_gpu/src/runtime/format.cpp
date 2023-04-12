@@ -35,7 +35,7 @@ static const std::map<format::type, format_traits> format_traits_map {
         FMT_TRAITS(b_fs_zyx_fsv32,        1, 1, 3, 0, {0, 1, 2, 3, 4},    "bfzyx",  "bfxyz",  {{1, 32}}),
         FMT_TRAITS(bs_xs_xsv8_bsv8,       1, 0, 1, 0, {0, 1},             "bx",     "b?x??",  {{2, 8}, {0, 8}}),
         FMT_TRAITS(bs_xs_xsv8_bsv16,      1, 0, 1, 0, {0, 1},             "bx",     "b?x??",  {{2, 8}, {0, 16}}),
-        FMT_TRAITS(bs_x_bsv16,            1, 1, 1, 0, {0, 1},             "bx",     "b?x??",  {{0, 16}}),
+        FMT_TRAITS(bs_x_bsv16,            1, 0, 1, 0, {0, 1},             "bx",     "b?x??",  {{0, 16}}),
         FMT_TRAITS(winograd_2x3_s1_data,  1, 1, 2, 0, {0, 2, 3, 1},       "bxyf",   "bfxy?",  {}),
         FMT_TRAITS(bzyxf,                 1, 1, 3, 0, {0, 2, 3, 4, 1},    "bzyxf",  "bfxyz",  {}),
         FMT_TRAITS(bfzyx,                 1, 1, 3, 0, {0, 1, 2, 3, 4},    "bfzyx",  "bfxyz",  {}),
@@ -139,6 +139,7 @@ static const std::map<format::type, format_traits> format_traits_map {
         FMT_TRAITS(os_is_yx_osv16_isv16,                         1, 1, 2, 0, {0, 1, 2, 3},    "oiyx",   "oixy",  {{0, 16}, {1, 16}}),
         FMT_TRAITS(os_is_zyx_osv32_isv16,                        1, 1, 3, 0, {0, 1, 2, 3, 4}, "oizyx",  "oixyz", {{0, 32}, {1, 16}}),
         FMT_TRAITS(os_is_zyx_osv64_isv16,                        1, 1, 3, 0, {0, 1, 2, 3, 4}, "oizyx",  "oixyz", {{0, 64}, {1, 16}}),
+        FMT_TRAITS(os_iyx_osv8,                                  1, 1, 2, 0, {0, 1, 2, 3},    "oiyx",   "oixy",  {{0, 8}}),
         FMT_TRAITS(os_iyx_osv32__ai32,                           1, 1, 2, 0, {0, 1, 2, 3},    "oiyx",   "oixy",  {{0, 32}}),
         FMT_TRAITS(i_yxs_os_yxsv2_osv16,                         1, 1, 2, 0, {1, 2, 3, 0},    "iyxo",   "oixy",  {{0, 16}}),
         FMT_TRAITS(iy_xs_os_xsv2_osv8__ao32,                     1, 1, 2, 0, {1, 2, 3, 0},    "iyxo",   "oixy",  {{2, 2}, {0, 8}}),
@@ -246,6 +247,10 @@ format format::get_default_format(size_t rank, bool is_weights, bool is_grouped)
         }
     }
     return default_fmt;
+}
+
+bool format::is_default_format(type fmt) {
+    return fmt == get_default_format(dimension(fmt));
 }
 
 format format::adjust_to_rank(format fmt, size_t new_rank) {

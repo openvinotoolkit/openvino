@@ -8,7 +8,7 @@ include(target_flags)
 # FIXME: there are compiler failures with LTO and Cross-Compile toolchains. Disabling for now, but
 #        this must be addressed in a proper way
 ie_dependent_option (ENABLE_LTO "Enable Link Time Optimization" OFF
-    "LINUX OR (APPLE AND AARCH64);EMSCRIPTEN OR NOT CMAKE_CROSSCOMPILING;CMAKE_CXX_COMPILER_VERSION VERSION_GREATER 4.9" OFF)
+    "LINUX;EMSCRIPTEN OR NOT CMAKE_CROSSCOMPILING;CMAKE_CXX_COMPILER_VERSION VERSION_GREATER 4.9" OFF)
 
 ie_option (OS_FOLDER "create OS dedicated folder in output" OFF)
 
@@ -19,16 +19,14 @@ else()
 endif()
 
 if(CI_BUILD_NUMBER)
-    set(TREAT_WARNING_AS_ERROR_DEFAULT ON)
+    set(CMAKE_COMPILE_WARNING_AS_ERROR_DEFAULT ON)
 else()
-    set(TREAT_WARNING_AS_ERROR_DEFAULT OFF)
+    set(CMAKE_COMPILE_WARNING_AS_ERROR_DEFAULT OFF)
 endif()
 
-ie_dependent_option (TREAT_WARNING_AS_ERROR "WILL BE REMOVED SOON, NEED TO FIX PRIVATE COMPONENTS" ON "X86_64 OR X86" OFF)
+ie_option (CMAKE_COMPILE_WARNING_AS_ERROR "Enable warnings as errors" ${CMAKE_COMPILE_WARNING_AS_ERROR_DEFAULT})
 
-if(NOT DEFINED CMAKE_COMPILE_WARNING_AS_ERROR)
-    set(CMAKE_COMPILE_WARNING_AS_ERROR ${TREAT_WARNING_AS_ERROR_DEFAULT})
-endif()
+ie_dependent_option (ENABLE_QSPECTRE "Enable Qspectre mitigation" OFF "CMAKE_CXX_COMPILER_ID STREQUAL MSVC" OFF)
 
 ie_dependent_option (ENABLE_INTEGRITYCHECK "build DLLs with /INTEGRITYCHECK flag" OFF "CMAKE_CXX_COMPILER_ID STREQUAL MSVC" OFF)
 

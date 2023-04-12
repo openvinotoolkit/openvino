@@ -70,7 +70,7 @@ ov::Tensor read_weights(const std::string& filepath) {
     ov::Tensor weights(ov::element::u8, {static_cast<size_t>(fileSize)});
     read_file(filepath, weights.data(), weights.get_byte_size());
 
-    return std::move(weights);
+    return weights;
 }
 
 /**

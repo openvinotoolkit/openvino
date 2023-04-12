@@ -5,6 +5,7 @@
 #include "decoder_flatbuffer.h"
 
 #include "schema_generated.h"
+#include "utils.hpp"
 
 namespace ov {
 namespace frontend {
@@ -16,6 +17,7 @@ size_t DecoderFlatBuffer::get_input_size() const {
 
 void DecoderFlatBuffer::get_input_node(size_t input_port_idx,
                                        std::string& producer_name,
+                                       std::string& producer_output_port_name,
                                        size_t& producer_output_port_index) const {
     const auto inputs = m_node_def->inputs();
     FRONT_END_GENERAL_CHECK(inputs->size() > input_port_idx,
@@ -25,7 +27,7 @@ void DecoderFlatBuffer::get_input_node(size_t input_port_idx,
                             input_port_idx,
                             ". Number of inputs: ",
                             inputs->size());
-    auto input_tensor_idx = (*inputs)[input_port_idx];
+    auto input_tensor_idx = (*inputs)[static_cast<flatbuffers::uoffset_t>(input_port_idx)];
     auto tensor = m_input_info.at(input_port_idx).tensor;
     std::string name = (*tensor).name()->str();
     producer_name = name;
@@ -61,27 +63,27 @@ ov::element::Type DecoderFlatBuffer::get_output_tensor_type(size_t idx) const {
 
 std::shared_ptr<ov::frontend::tensorflow_lite::TensorLitePlace> DecoderFlatBuffer::decode_input_tensor(
     size_t idx,
-    const InputModel& model) const {
+    const ov::frontend::InputModel& model) const {
     FRONT_END_GENERAL_CHECK(idx < get_input_size(), "Requested input is out-of-range");
     return decode_tensor(m_input_info.at(idx), model);
 }
 
 std::shared_ptr<ov::frontend::tensorflow_lite::TensorLitePlace> DecoderFlatBuffer::decode_output_tensor(
     size_t idx,
-    const InputModel& model) const {
+    const ov::frontend::InputModel& model) const {
     FRONT_END_GENERAL_CHECK(idx < get_output_size(), "Requested output is out-of-range");
     return decode_tensor(m_output_info.at(idx), model);
 }
 
 std::shared_ptr<ov::frontend::tensorflow_lite::TensorLitePlace> DecoderFlatBuffer::decode_tensor(
     const ov::frontend::tensorflow_lite::TensorInfo& tensor_info,
-    const InputModel& model) const {
+    const ov::frontend::InputModel& model) const {
     const auto tensor = tensor_info.tensor;
     std::vector<std::string> names = {tensor->name()->str()};
 
     return std::make_shared<ov::frontend::tensorflow_lite::TensorLitePlace>(
         model,
-        ov::frontend::tensorflow_lite::get_ov_shape(tensor->shape()),
+        ov::frontend::tensorflow_lite::get_ov_shape(tensor->shape(), tensor->shape_signature()),
         ov::frontend::tensorflow_lite::get_ov_type(tensor->type()),
         names,
         ov::frontend::tensorflow_lite::get_quantization(tensor->quantization()),

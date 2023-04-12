@@ -5,7 +5,6 @@
 #pragma once
 
 #include <ngraph/node.hpp>
-#include <ngraph/variant.hpp>
 
 #include <low_precision/lpt_visibility.hpp>
 #include <ngraph/pass/graph_rewrite.hpp>
@@ -23,7 +22,7 @@ namespace ngraph {
  */
 class LP_TRANSFORMATIONS_API QuantizationGranularityAttribute : public ov::RuntimeAttribute {
 public:
-    OPENVINO_RTTI("LowPrecision::QuantizationGranularity", "", ov::RuntimeAttribute, 0);
+    OPENVINO_RTTI("LowPrecision::QuantizationGranularity", "", ov::RuntimeAttribute);
 
     enum class Granularity {
         PerChannel,

@@ -21,14 +21,14 @@ static void CreateCommonSplitOp(Program& p, const std::shared_ptr<ngraph::Node>&
     auto inputs = p.GetInputInfo(op);
     if (p.use_new_shape_infer() || op->is_dynamic()) {
         cldnn::crop_ngraph_op_mode op_mode = cldnn::crop_ngraph_op_mode::variadic_split;
-        size_t num_splits = 1;
+        auto num_splits = static_cast<size_t>(1);
         if (ngraph::is_type<ngraph::op::v1::Split>(op)) {
             num_splits = ngraph::as_type_ptr<ngraph::op::v1::Split>(op)->get_num_splits();
             op_mode = cldnn::crop_ngraph_op_mode::split;
         }
 
         for (size_t i = 0; i < op->get_output_size(); i++) {
-            auto cropPrim = cldnn::crop(get_layer_name(i), inputs, cldnn::tensor(1), cldnn::tensor(0), op_mode, i, num_splits);
+            auto cropPrim = cldnn::crop(get_layer_name(i), inputs, cldnn::tensor(1), cldnn::tensor(0), op_mode, static_cast<int>(i), num_splits);
             p.add_primitive(*op, cropPrim);
         }
     } else {

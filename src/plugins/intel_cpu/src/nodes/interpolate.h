@@ -9,6 +9,8 @@
 #include <string>
 #include <memory>
 #include <vector>
+#include "executors/interpolate.hpp"
+#include "executors/interpolate_list.hpp"
 
 #define MAX_INPUT_INTERPOLATE 8
 
@@ -17,40 +19,6 @@ using namespace InferenceEngine;
 namespace ov {
 namespace intel_cpu {
 namespace node {
-
-enum InterpolateLayoutType {
-    planar,
-    block,
-    by_channel
-};
-
-enum InterpolateMode {
-    nearest,
-    linear,
-    linear_onnx,
-    cubic
-};
-
-enum InterpolateCoordTransMode {
-    half_pixel,
-    pytorch_half_pixel,
-    asymmetric,
-    tf_half_pixel_for_nn,
-    align_corners
-};
-
-enum class InterpolateNearestMode {
-    round_prefer_floor,
-    round_prefer_ceil,
-    floor,
-    ceil,
-    simple
-};
-
-enum class InterpolateShapeCalcMode {
-    sizes,
-    scales
-};
 
 struct jit_interpolate_config_params {
     InterpolateLayoutType layout;
@@ -121,31 +89,18 @@ public:
     bool needPrepareParams() const override;
     void prepareParams() override;
 
-    struct InterpolateAttrs {
-        InterpolateMode mode = InterpolateMode::nearest;
-        InterpolateCoordTransMode coordTransMode = InterpolateCoordTransMode::half_pixel;
-        InterpolateNearestMode nearestMode = InterpolateNearestMode::round_prefer_floor;
-        bool antialias = false;
-        float cubeCoeff = -0.75;
-        std::vector<int> padBegin;
-        std::vector<int> padEnd;
-        InferenceEngine::Precision inPrc;
-        InferenceEngine::Precision outPrc;
-        InterpolateLayoutType layout;
-    };
-
 private:
     InterpolateAttrs interpAttrs;
 
-    class InterpolateExecutor {
+    class InterpolateExecutorBase {
         public:
-            InterpolateExecutor(const InterpolateAttrs& interpAttrs,
+            InterpolateExecutorBase(const InterpolateAttrs& interpAttrs,
                                 const VectorDims &srcDims,
                                 const VectorDims &dstDims,
                                 const std::vector<float> &dataScales);
 
             virtual void exec(const uint8_t *in_ptr_, uint8_t *out_ptr_, const void *post_ops_data_) = 0;
-            virtual ~InterpolateExecutor() = default;
+            virtual ~InterpolateExecutorBase() = default;
             VectorDims getSrcDimPad5d() const { return srcDimPad5d; }
 
         private:
@@ -174,9 +129,9 @@ private:
             size_t dataRank;
             std::vector<int> indexTable;
     };
-    std::shared_ptr<InterpolateExecutor> execPtr = nullptr;
+    std::shared_ptr<InterpolateExecutorBase> execPtr = nullptr;
 
-    class InterpolateJitExecutor : public InterpolateExecutor {
+    class InterpolateJitExecutor : public InterpolateExecutorBase {
         public:
             InterpolateJitExecutor(const InterpolateAttrs& interpAttrs,
                                    const VectorDims &srcDims,
@@ -209,13 +164,14 @@ private:
             std::shared_ptr<jit_uni_interpolate_kernel> interpolateKernel = nullptr;
     };
 
-    class InterpolateRefExecutor : public InterpolateExecutor {
+    class InterpolateRefExecutor : public InterpolateExecutorBase {
         public:
             InterpolateRefExecutor(const InterpolateAttrs& interpAttrs,
                                    const VectorDims &srcDims,
                                    const VectorDims &dstDims,
-                                   const std::vector<float> &_dataScales) : dataScales(_dataScales), antialias(interpAttrs.antialias),
-                InterpolateExecutor(interpAttrs, srcDims, dstDims, _dataScales) {}
+                                   const std::vector<float> &_dataScales) :
+                InterpolateExecutorBase(interpAttrs, srcDims, dstDims, _dataScales),
+                antialias(interpAttrs.antialias), dataScales(_dataScales) {}
 
             void exec(const uint8_t *in_ptr_, uint8_t *out_ptr_, const void *post_ops_data_) override;
 
@@ -258,6 +214,9 @@ private:
     VectorDims lastOutputDims;
 
     std::string errorPrefix;
+
+    bool canUseAclExecutor = false;
+    std::shared_ptr<InterpolateExecutor> aclExecPtr = nullptr;
 };
 
 }   // namespace node

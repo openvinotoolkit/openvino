@@ -6,7 +6,7 @@ cmake_policy(SET CMP0054 NEW)
 
 set(TARGET_NAME InferenceEngineUnitTests)
 
-disable_deprecated_warnings()
+ov_disable_deprecated_warnings()
 
 # rpath enabled for unit tests only
 SET (CMAKE_SKIP_RPATH OFF)

@@ -38,8 +38,8 @@ void FrontEndFuzzyOpTest::doLoadFromFile() {
 }
 
 template <typename T>
-inline void addInputOutput(cnpy::NpyArray& npy_array, test::TestCase& test_case, bool is_input = true) {
-    T* npy_begin = npy_array.data<T>();
+inline void addInputOutput(const cnpy::NpyArray& npy_array, test::TestCase& test_case, bool is_input = true) {
+    const T* npy_begin = npy_array.data<T>();
     std::vector<T> data(npy_begin, npy_begin + npy_array.num_vals);
     if (is_input)
         test_case.add_input(npy_array.shape, data);
@@ -107,7 +107,7 @@ void FrontEndFuzzyOpTest::runConvertedModel(const std::shared_ptr<ngraph::Functi
     }
 
     if (useFloatTest) {
-        testCase.run_with_tolerance_as_fp(2e-5);
+        testCase.run_with_tolerance_as_fp(2e-5f);
     } else {
         testCase.run();
     }

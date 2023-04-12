@@ -62,7 +62,7 @@ TEST(attributes, deformable_psroi_pooling_op2) {
     string mode = "bilinear_deformable";
     const int spatial_bins_x = 2;
     const int spatial_bins_y = 3;
-    const float trans_std = 0.1;
+    const float trans_std = 0.1f;
     const int part_size = 3;
 
     auto op = make_shared<opset1::DeformablePSROIPooling>(input,

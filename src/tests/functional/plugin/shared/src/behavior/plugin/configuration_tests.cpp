@@ -174,7 +174,7 @@ TEST_P(IncorrectConfigAPITests, SetConfigWithNoExistingKey) {
 TEST_P(DefaultValuesConfigTests, CanSetDefaultValueBackToPlugin) {
     InferenceEngine::Parameter metric;
     ASSERT_NO_THROW(metric = ie->GetMetric(target_device, METRIC_KEY(SUPPORTED_CONFIG_KEYS)));
-    std::vector<std::string> keys = metric;
+    auto keys = metric.as<std::vector<std::string>>();
 
     for (auto& key : keys) {
         InferenceEngine::Parameter configValue;
@@ -197,6 +197,8 @@ TEST_P(SetPropLoadNetWorkGetPropTests, SetPropLoadNetWorkGetProperty) {
 
     InferenceEngine::ExecutableNetwork exeNetWork;
     ASSERT_NO_THROW(exeNetWork = ie->LoadNetwork(cnnNet, target_device, loadNetWorkConfig));
+
+    //ie's setConfig and LoadNetwork should not affect each other, for config settings
     for (const auto& property_item : loadNetWorkConfig) {
         InferenceEngine::Parameter exeNetProperty;
         ASSERT_NO_THROW(exeNetProperty = exeNetWork.GetConfig(property_item.first));
@@ -210,5 +212,4 @@ TEST_P(SetPropLoadNetWorkGetPropTests, SetPropLoadNetWorkGetProperty) {
         ASSERT_EQ(property_item.second, property.as<std::string>());
     }
 }
-
 } // namespace BehaviorTestsDefinitions

@@ -397,7 +397,9 @@ public:
                 return false;
             }
 
+            OPENVINO_SUPPRESS_DEPRECATED_START
             const auto constant = get_constant_from_source(m_shape.get_node_shared_ptr());
+            OPENVINO_SUPPRESS_DEPRECATED_END
             if (!constant) {
                 NGRAPH_DEBUG << "Can't get constant from source node " << m_shape.get_node()->get_friendly_name();
                 return false;
@@ -970,7 +972,7 @@ static std::vector<dims_vec> map_reshaped_dimensions(const dims_vec input_shape,
 static std::vector<ov::Shape> map_reshaped_shapes(const ov::Shape unsquized_shape,
                                                   const std::vector<dims_vec> dims_map) {
     auto retval = std::vector<ov::Shape>();
-    for (const auto unsquized_dims : dims_map) {
+    for (const auto& unsquized_dims : dims_map) {
         auto cur_dim_shape = ov::Shape();
         for (const auto& dim : unsquized_dims)
             cur_dim_shape.push_back(unsquized_shape[dim]);
@@ -1130,7 +1132,9 @@ public:
 
             auto constant = std::dynamic_pointer_cast<opset10::Constant>(m_weights.get_node_shared_ptr());
             if (!constant) {
+                OPENVINO_SUPPRESS_DEPRECATED_START
                 constant = get_constant_from_source(m_weights.get_node_shared_ptr());
+                OPENVINO_SUPPRESS_DEPRECATED_END
                 if (!constant) {
                     NGRAPH_DEBUG << "Can't process reshape node " << m_output.get_node()->get_friendly_name()
                                  << " with no constant node " << m_weights.get_node()->get_friendly_name()
@@ -1243,7 +1247,7 @@ public:
                                     for (auto& ch : weights_mask_row->at(out_dim)) {
                                         NGRAPH_SUPPRESS_DEPRECATED_START
                                         auto iter = get_channel_iter(dims_shape[in_dim], unsquized_shift, ch);
-                                        for (const auto coord : iter)
+                                        for (const auto& coord : iter)
                                             cur_mask->at(in_dim).insert(iter.index(coord));
                                         NGRAPH_SUPPRESS_DEPRECATED_END
                                     }
@@ -1316,7 +1320,7 @@ public:
                                     for (auto& ch : input_mask_row->at(in_dim)) {
                                         NGRAPH_SUPPRESS_DEPRECATED_START
                                         auto iter = get_channel_iter(dims_shape[out_dim], unsquized_shift, ch);
-                                        for (const auto coord : iter)
+                                        for (const auto& coord : iter)
                                             cur_mask->at(out_dim).insert(iter.index(coord));
                                         NGRAPH_SUPPRESS_DEPRECATED_END
                                     }
@@ -1375,7 +1379,9 @@ public:
             const auto& m_weights = pattern_map.at(weights);
             const auto& m_output = pattern_map.at(transpose);
 
+            OPENVINO_SUPPRESS_DEPRECATED_START
             const auto input_order_node = get_constant_from_source(m_weights.get_node_shared_ptr());
+            OPENVINO_SUPPRESS_DEPRECATED_END
             if (!input_order_node) {
                 NGRAPH_DEBUG << "Can't process transpose node " << m_output.get_node()->get_friendly_name()
                              << " with no constant node " << m_weights.get_node()->get_friendly_name()
@@ -1388,7 +1394,7 @@ public:
                 NGRAPH_DEBUG << "No input mask for: " << m_output.get_node()->get_friendly_name() << std::endl;
                 return false;
             }
-            if (input_mask->size() != m_output.get_partial_shape().rank().get_length()) {
+            if (static_cast<int64_t>(input_mask->size()) != m_output.get_partial_shape().rank().get_length()) {
                 NGRAPH_DEBUG << "Transpose which change tensor rank is not supported yet.";
                 return false;
             }
@@ -1454,7 +1460,7 @@ static ngraph::Mask::Ptr create_connect_split_output_mask(ngraph::Mask::Ptr inpu
             }
             for (size_t j = 0; j < output_mask_raw->size(); j++) {
                 const auto& dim_mask = output_mask_raw->at(j);
-                if (j == axis) {
+                if (static_cast<int64_t>(j) == axis) {
                     for (auto d : dim_mask)
                         cur_mask->at(j).insert(d + split_start);
                 } else {
@@ -1502,9 +1508,9 @@ public:
             // split_lengths can contain -1 value
             int minus_one_length_idx = -1;
             int64_t total_lengths = 0;
-            for (int i = 0; i < split_lengths.size(); i++) {
+            for (size_t i = 0; i < split_lengths.size(); i++) {
                 if (split_lengths[i] == -1) {
-                    minus_one_length_idx = i;
+                    minus_one_length_idx = static_cast<int>(i);
                     continue;
                 }
                 total_lengths += split_lengths[i];

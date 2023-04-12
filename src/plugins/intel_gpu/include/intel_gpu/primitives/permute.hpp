@@ -37,5 +37,14 @@ struct permute : public primitive_base<permute> {
         seed = hash_range(seed, permute_order.begin(), permute_order.end());
         return seed;
     }
+
+    bool operator==(const primitive& rhs) const override {
+        if (!compare_common_params(rhs))
+            return false;
+
+        auto rhs_casted = downcast<const permute>(rhs);
+
+        return permute_order == rhs_casted.permute_order;
+    }
 };
 }  // namespace cldnn

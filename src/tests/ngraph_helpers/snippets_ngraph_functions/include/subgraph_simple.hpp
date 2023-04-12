@@ -1,4 +1,4 @@
-// Copyright (C) 2022 Intel Corporation
+// Copyright (C) 2022-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -176,6 +176,22 @@ protected:
 class TwoInputsAndOutputsFunction : public SnippetsFunctionBase {
 public:
     explicit TwoInputsAndOutputsFunction(const std::vector<PartialShape>& inputShapes) : SnippetsFunctionBase(inputShapes) {
+        NGRAPH_CHECK(input_shapes.size() == 2, "Got invalid number of input shapes");
+    }
+protected:
+    std::shared_ptr<ov::Model> initOriginal() const override;
+};
+/// Two different Input and Outputs.
+/// This function is to check correct Broadcasting
+//        in1       in2
+//       HSwish      /
+//  Result      Add
+//              Relu
+//              Sin
+//             Result
+class TwoInputsAndOutputsWithReversedOutputsFunction : public SnippetsFunctionBase {
+public:
+    explicit TwoInputsAndOutputsWithReversedOutputsFunction(const std::vector<PartialShape>& inputShapes) : SnippetsFunctionBase(inputShapes) {
         NGRAPH_CHECK(input_shapes.size() == 2, "Got invalid number of input shapes");
     }
 protected:

@@ -93,7 +93,6 @@ jobs:
 
   - checkout: self
     clean: 'true'
-    fetchDepth: '1'
     submodules: 'true'
     path: openvino
 
@@ -107,7 +106,6 @@ jobs:
   - checkout: testdata
     clean: 'true'
     lfs: 'true'
-    fetchDepth: '1'
     path: testdata
 
   - script: |
@@ -155,6 +153,7 @@ jobs:
         -DCMAKE_BUILD_TYPE=$(BUILD_TYPE) ^
         -DENABLE_PROFILING_ITT=OFF ^
         -DSELECTIVE_BUILD=ON ^
+        -DCMAKE_COMPILE_WARNING_AS_ERROR=ON ^
         -DSELECTIVE_BUILD_STAT=$(BUILD_DIR)\*.csv ^
         -DCMAKE_C_COMPILER:PATH="$(MSVC_COMPILER_PATH)" ^
         -DCMAKE_CXX_COMPILER:PATH="$(MSVC_COMPILER_PATH)" ^

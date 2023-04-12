@@ -4,6 +4,7 @@
 
 #include "common_op_table.hpp"
 #include "openvino/opsets/opset8.hpp"
+#include "utils.hpp"
 
 using namespace std;
 using namespace ov::opset8;
@@ -14,16 +15,19 @@ namespace tensorflow {
 namespace op {
 
 OutputVector translate_x_div_y_op(const NodeContext& node) {
+    default_op_checks(node, 2, {"Xdivy"});
     auto x = node.get_input(0);
     auto y = node.get_input(1);
 
-    auto zero = make_shared<Constant>(x.get_element_type(), Shape{}, 0);
-    auto x_is_zero = make_shared<Equal>(x, zero);
-    auto one = make_shared<Constant>(x.get_element_type(), Shape{}, 1);
-    auto select = make_shared<Select>(x_is_zero, one, y);
-    auto res = make_shared<Divide>(x, select);
-    set_node_name(node.get_name(), res);
-    return res->outputs();
+    // create auxiliary constants
+    auto const_zero = create_same_type_const_scalar<int32_t>(x, 0);
+    auto const_one = create_same_type_const_scalar<int32_t>(x, 1);
+
+    auto x_is_zero = make_shared<Equal>(x, const_zero);
+    auto select = make_shared<Select>(x_is_zero, const_one, y);
+    auto xdivy = make_shared<Divide>(x, select);
+    set_node_name(node.get_name(), xdivy);
+    return {xdivy};
 }
 
 }  // namespace op

@@ -10,6 +10,7 @@
 #include <ngraph/pattern/op/wrap_type.hpp>
 
 #include "low_precision/network_helper.hpp"
+#include "low_precision/rt_info/bias_attribute.hpp"
 #include "itt.hpp"
 
 namespace ngraph {
@@ -179,10 +180,8 @@ std::shared_ptr<opset1::FakeQuantize> FakeQuantizeTransformation::fuseElementwis
 
         inputLowConst_f32 = fold<opset1::Divide>(inputLowConst_f32, value);
         inputHighConst_f32 = fold<opset1::Divide>(inputHighConst_f32, value);
-        const auto resultLow = ov::as_type_ptr<opset1::Constant>(inputLowConst_f32)->cast_vector<float>();
-        const auto resultHigh = ov::as_type_ptr<opset1::Constant>(inputHighConst_f32)->cast_vector<float>();
-        if (std::any_of(resultLow.begin(), resultLow.end(), [](const float value){ return std::isinf(value); }) ||
-            std::any_of(resultHigh.begin(), resultHigh.end(), [](const float value){ return std::isinf(value); })) {
+        if (!NetworkHelper::checkConstantNotInf(inputLowConst_f32) ||
+            !NetworkHelper::checkConstantNotInf(inputHighConst_f32)) {
             return nullptr;
         }
 
@@ -193,17 +192,8 @@ std::shared_ptr<opset1::FakeQuantize> FakeQuantizeTransformation::fuseElementwis
 
         inputLowConst_f32 = fq::updateShape(fold<opset1::Add>(inputLowConst_f32, value), fakeQuantize->get_output_partial_shape(0));
         inputHighConst_f32 = fq::updateShape(fold<opset1::Add>(inputHighConst_f32, value), fakeQuantize->get_output_partial_shape(0));
-    } else if (ov::is_type<opset1::Add>(eltwise) && checkElementwise(eltwise)) {
-        if (ov::is_type<opset1::Convolution>(fq::getDataNode(eltwise)) ||
-            ov::is_type<opset1::GroupConvolution>(fq::getDataNode(eltwise)) ||
-            ov::is_type<opset1::ConvolutionBackpropData>(fq::getDataNode(eltwise)) ||
-            ov::is_type<opset1::MatMul>(fq::getDataNode(eltwise)) ||
-            ov::is_type<opset1::GroupConvolutionBackpropData>(fq::getDataNode(eltwise))) {
-            return nullptr;
-        }
-
+    } else if (ov::is_type<opset1::Add>(eltwise) && checkElementwise(eltwise) && !ov::marked_as_bias(eltwise)) {
         const auto value = foldConvert(constant, element::f32);
-
         inputLowConst_f32 = fq::updateShape(fold<opset1::Subtract>(inputLowConst_f32, value), fakeQuantize->get_output_partial_shape(0));
         inputHighConst_f32 = fq::updateShape(fold<opset1::Subtract>(inputHighConst_f32, value), fakeQuantize->get_output_partial_shape(0));
     } else if (ov::is_type<opset1::Convert>(eltwise)) {

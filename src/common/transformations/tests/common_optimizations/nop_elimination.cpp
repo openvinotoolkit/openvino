@@ -64,12 +64,13 @@ TEST(nop_elimination, convert_type_agnostic) {
     ASSERT_EQ(count_ops_of_type<op::v0::Convert>(f), 0);
 }
 
-TEST(nop_elimination, eliminate_broadcast) {
+template <typename Op>
+void test_nop_eliminate_broadcast() {
     std::shared_ptr<Function> f;
     {
         Shape shape{1};
         auto A = make_shared<op::Parameter>(element::f32, shape);
-        auto b = make_shared<op::v1::Broadcast>(A, op::Constant::create(element::u64, Shape{1}, {1}));
+        auto b = make_shared<Op>(A, op::Constant::create(element::u64, Shape{1}, {1}));
         f = make_shared<Function>(make_shared<op::v0::Abs>(b), ParameterVector{A});
     }
 
@@ -77,7 +78,15 @@ TEST(nop_elimination, eliminate_broadcast) {
     pass_manager.register_pass<ov::pass::NopElimination>();
     pass_manager.run_passes(f);
 
-    ASSERT_EQ(count_ops_of_type<op::v1::Broadcast>(f), 0);
+    ASSERT_EQ(count_ops_of_type<Op>(f), 0);
+}
+
+TEST(nop_elimination, eliminate_broadcast_v1) {
+    test_nop_eliminate_broadcast<op::v1::Broadcast>();
+}
+
+TEST(nop_elimination, eliminate_broadcast_v3) {
+    test_nop_eliminate_broadcast<op::v3::Broadcast>();
 }
 
 TEST(nop_elimination, pass_property) {
@@ -109,6 +118,30 @@ TEST(nop_elimination, reshape_elimination_v1) {
     ASSERT_TRUE(count_ops_of_type<op::v1::Reshape>(func) == 1);
     ASSERT_TRUE(count_ops_of_type<op::v1::Reshape>(nopass_func_zero) == 2);
     ASSERT_TRUE(count_ops_of_type<op::v1::Reshape>(func_zero) == 1);
+}
+
+TEST(nop_elimination, reshape_v1_1D) {
+    auto make_model = [](int64_t input_dim, int64_t requested_dim) {
+        const auto input = make_shared<op::Parameter>(element::i64, PartialShape{{input_dim}});
+        const auto abs = make_shared<op::v0::Abs>(input);
+        const auto req_shape = op::Constant::create(element::i64, Shape{1}, {requested_dim});
+        const auto reshape = make_shared<op::v1::Reshape>(abs, req_shape, false);
+        return make_shared<ov::Model>(NodeVector{reshape}, ParameterVector{input});
+    };
+    // clang-format off
+    vector<shared_ptr<ov::Model>> models{
+        make_model( 7,  7),
+        make_model( 7, -1),
+        make_model(-1, -1),
+    };
+    // clang-format on
+
+    pass::Manager pass_manager;
+    pass_manager.register_pass<ov::pass::NopElimination>();
+    for (auto&& m : models) {
+        pass_manager.run_passes(m);
+        ASSERT_EQ(count_ops_of_type<op::v1::Reshape>(m), 0);
+    }
 }
 
 TEST(nop_elimination, squeeze_reshape_elimination_check_info) {
@@ -938,6 +971,7 @@ public:
 
 std::vector<element::Type> types{
     element::f32,
+    element::f16,
     element::f64,
     element::i32,
     element::u32,
@@ -1276,4 +1310,32 @@ TEST(SplitConcatElimination, no_sequence_found) {
                                                                   "The number of Concat ops is not 1";
     EXPECT_EQ(count_ops_of_type<ov::opset9::Split>(model), 1) << "SplitConcatElimination transformation has failed. "
                                                                  "The number of Split ops is not 1";
+}
+
+TEST(nop_elimination, gather_to_squeeze) {
+    auto generate_func = [](int64_t gather_axis) {
+        ov::Shape shape{3, 3, 4, 4};
+        shape[gather_axis] = 1;
+        auto arg = std::make_shared<op::Parameter>(element::f32, shape);
+        auto indices = op::Constant::create(element::i64, Shape{}, vector<int64_t>{0});
+        auto axis = op::Constant::create(element::i64, Shape{}, vector<int64_t>{gather_axis});
+        auto gather = std::make_shared<op::v8::Gather>(arg, indices, axis);
+        return std::make_shared<Function>(NodeVector{gather}, ParameterVector{arg});
+    };
+
+    auto func_axis_0 = generate_func(0);
+    auto func_axis_1 = generate_func(1);
+    auto func_axis_2 = generate_func(2);
+    auto func_axis_3 = generate_func(3);
+    pass::Manager pass_manager;
+    pass_manager.register_pass<ov::pass::NopElimination>();
+    auto run_and_check = [&](std::shared_ptr<Function>& func) {
+        pass_manager.run_passes(func);
+        EXPECT_EQ(count_ops_of_type<op::v8::Gather>(func), 0);
+        EXPECT_EQ(count_ops_of_type<op::v0::Squeeze>(func), 1);
+    };
+    run_and_check(func_axis_0);
+    run_and_check(func_axis_1);
+    run_and_check(func_axis_2);
+    run_and_check(func_axis_3);
 }

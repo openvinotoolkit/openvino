@@ -12,14 +12,13 @@
 
 using namespace InferenceEngine;
 using namespace ov::intel_gna;
+using namespace ov::intel_gna::target;
 
 IE_SUPPRESS_DEPRECATED_START
 const std::map<std::string, std::string> supportedConfigKeysWithDefaults = {
-    {CONFIG_KEY(CACHE_DIR), ""},
     {GNA_CONFIG_KEY(SCALE_FACTOR), "1.000000"},
     {GNA_CONFIG_KEY(SCALE_FACTOR) + std::string("_0"), "1.000000"},
     {GNA_CONFIG_KEY(FIRMWARE_MODEL_IMAGE), ""},
-    {GNA_CONFIG_KEY(FIRMWARE_MODEL_IMAGE_GENERATION), ""},
     {GNA_CONFIG_KEY(EXEC_TARGET), ""},
     {GNA_CONFIG_KEY(COMPILE_TARGET), ""},
     {GNA_CONFIG_KEY(DEVICE_MODE), GNAConfigParams::GNA_SW_EXACT},
@@ -32,8 +31,9 @@ const std::map<std::string, std::string> supportedConfigKeysWithDefaults = {
     {GNA_CONFIG_KEY(LIB_N_THREADS), "1"},
     {CONFIG_KEY(SINGLE_THREAD), CONFIG_VALUE(YES)},
     {CONFIG_KEY(LOG_LEVEL), PluginConfigParams::LOG_NONE},
-    {CONFIG_KEY(PERFORMANCE_HINT), ""},
-    {CONFIG_KEY(PERFORMANCE_HINT_NUM_REQUESTS), "1"}};
+    {CONFIG_KEY(PERFORMANCE_HINT), "LATENCY"},
+    {CONFIG_KEY(PERFORMANCE_HINT_NUM_REQUESTS), "1"},
+    {ov::hint::execution_mode.name(), ov::util::to_string<ov::hint::ExecutionMode>(ov::hint::ExecutionMode::ACCURACY)}};
 IE_SUPPRESS_DEPRECATED_END
 
 class GNAPluginConfigTest : public ::testing::Test {
@@ -94,11 +94,6 @@ TEST_F(GNAPluginConfigTest, GnaConfigScaleFactorTest) {
     ExpectThrow(GNA_CONFIG_KEY(SCALE_FACTOR) + std::string("abs"), std::string("8.43"));
     ExpectThrow(GNA_CONFIG_KEY(SCALE_FACTOR), std::string("abc"));
     ExpectThrow(GNA_CONFIG_KEY(SCALE_FACTOR), std::string("0"));
-}
-
-TEST_F(GNAPluginConfigTest, GnaConfigFirmwareModelImageTest) {
-    SetAndCompare(GNA_CONFIG_KEY(FIRMWARE_MODEL_IMAGE), "abc");
-    EXPECT_EQ(config.dumpXNNPath, "abc");
 }
 
 TEST_F(GNAPluginConfigTest, GnaConfigDeviceModeTest) {
@@ -187,15 +182,25 @@ TEST_F(GNAPluginConfigTest, GnaConfigSingleThreadTest) {
 IE_SUPPRESS_DEPRECATED_END
 
 TEST_F(GNAPluginConfigTest, GnaConfigGnaExecTargetTest) {
+    SetAndCompare(GNA_CONFIG_KEY(EXEC_TARGET), "GNA_TARGET_1_0");
+    EXPECT_EQ(config.target->get_user_set_execution_target(), DeviceVersion::GNA1_0);
     SetAndCompare(GNA_CONFIG_KEY(EXEC_TARGET), "GNA_TARGET_2_0");
-    EXPECT_EQ(config.gnaExecTarget, "GNA_TARGET_2_0");
+    EXPECT_EQ(config.target->get_user_set_execution_target(), DeviceVersion::GNA2_0);
     SetAndCompare(GNA_CONFIG_KEY(EXEC_TARGET), "GNA_TARGET_3_0");
-    EXPECT_EQ(config.gnaExecTarget, "GNA_TARGET_3_0");
+    EXPECT_EQ(config.target->get_user_set_execution_target(), DeviceVersion::GNA3_0);
+    SetAndCompare(GNA_CONFIG_KEY(EXEC_TARGET), "GNA_TARGET_3_1");
+    EXPECT_EQ(config.target->get_user_set_execution_target(), DeviceVersion::GNA3_1);
 
     ExpectThrow(GNA_CONFIG_KEY(EXEC_TARGET), "GNA_TARGET_3_7");
 
     SetAndCompare(GNA_CONFIG_KEY(EXEC_TARGET), "GNA_TARGET_3_5");
-    EXPECT_EQ(config.gnaExecTarget, "GNA_TARGET_3_5");
+    EXPECT_EQ(config.target->get_user_set_execution_target(), DeviceVersion::GNA3_5);
+    SetAndCompare(GNA_CONFIG_KEY(EXEC_TARGET), "GNA_TARGET_3_5_E");
+    EXPECT_EQ(config.target->get_user_set_execution_target(), DeviceVersion::GNAEmbedded3_5);
+    SetAndCompare(GNA_CONFIG_KEY(EXEC_TARGET), "GNA_TARGET_3_6");
+    EXPECT_EQ(config.target->get_user_set_execution_target(), DeviceVersion::GNA3_6);
+    SetAndCompare(GNA_CONFIG_KEY(EXEC_TARGET), "GNA_TARGET_4_0");
+    EXPECT_EQ(config.target->get_user_set_execution_target(), DeviceVersion::GNA4_0);
 
     ExpectThrow(GNA_CONFIG_KEY(EXEC_TARGET), "0");
     ExpectThrow(GNA_CONFIG_KEY(EXEC_TARGET), "GNA_TARGET_1_5");
@@ -204,14 +209,14 @@ TEST_F(GNAPluginConfigTest, GnaConfigGnaExecTargetTest) {
 
 TEST_F(GNAPluginConfigTest, GnaConfigGnaCompileTargetTest) {
     SetAndCompare(GNA_CONFIG_KEY(COMPILE_TARGET), "GNA_TARGET_2_0");
-    EXPECT_EQ(config.gnaCompileTarget, "GNA_TARGET_2_0");
+    EXPECT_EQ(config.target->get_user_set_compile_target(), DeviceVersion::GNA2_0);
     SetAndCompare(GNA_CONFIG_KEY(COMPILE_TARGET), "GNA_TARGET_3_0");
-    EXPECT_EQ(config.gnaCompileTarget, "GNA_TARGET_3_0");
+    EXPECT_EQ(config.target->get_user_set_compile_target(), DeviceVersion::GNA3_0);
 
     ExpectThrow(GNA_CONFIG_KEY(COMPILE_TARGET), "GNA_TARGET_3_7");
 
     SetAndCompare(GNA_CONFIG_KEY(COMPILE_TARGET), "GNA_TARGET_3_5");
-    EXPECT_EQ(config.gnaCompileTarget, "GNA_TARGET_3_5");
+    EXPECT_EQ(config.target->get_user_set_compile_target(), DeviceVersion::GNA3_5);
 
     ExpectThrow(GNA_CONFIG_KEY(COMPILE_TARGET), "0");
     ExpectThrow(GNA_CONFIG_KEY(COMPILE_TARGET), "GNA_TARGET_1_5");
@@ -232,4 +237,34 @@ TEST_F(GNAPluginConfigTest, GnaConfigLogLevel) {
     SetAndCompare(CONFIG_KEY(LOG_LEVEL), PluginConfigParams::LOG_TRACE);
     EXPECT_EQ(config.gnaFlags.log_level, ov::log::Level::TRACE);
     EXPECT_THROW(config.UpdateFromMap({{CONFIG_KEY(LOG_LEVEL), "LOG_UNSUPPORTED"}}), ov::Exception);
+}
+
+TEST_F(GNAPluginConfigTest, GnaConfigExecutionModeUpdatesGnaPrecision) {
+    SetAndCompare(ov::hint::execution_mode.name(), "PERFORMANCE");
+    EXPECT_EQ(config.gnaPrecision, InferenceEngine::Precision::I8);
+    SetAndCompare(ov::hint::execution_mode.name(), "ACCURACY");
+    EXPECT_EQ(config.gnaPrecision, InferenceEngine::Precision::I16);
+}
+
+TEST_F(GNAPluginConfigTest, GnaConfigInferencePrecisionUpdatesGnaPrecision) {
+    SetAndCompare(ov::hint::inference_precision.name(), ov::util::to_string<ov::element::Type>(ov::element::i8));
+    EXPECT_EQ(config.gnaPrecision, InferenceEngine::Precision::I8);
+    SetAndCompare(ov::hint::inference_precision.name(), ov::util::to_string<ov::element::Type>(ov::element::i16));
+    EXPECT_EQ(config.gnaPrecision, InferenceEngine::Precision::I16);
+}
+
+TEST_F(GNAPluginConfigTest, GnaConfigInferencePrecisionHasHigherPriorityI16) {
+    SetAndCompare(GNA_CONFIG_KEY(PRECISION), Precision(Precision::I8).name());
+    SetAndCompare(ov::hint::execution_mode.name(),
+                  ov::util::to_string<ov::hint::ExecutionMode>(ov::hint::ExecutionMode::PERFORMANCE));
+    SetAndCompare(ov::hint::inference_precision.name(), ov::util::to_string<ov::element::Type>(ov::element::i16));
+    EXPECT_EQ(config.gnaPrecision, InferenceEngine::Precision::I16);
+}
+
+TEST_F(GNAPluginConfigTest, GnaConfigInferencePrecisionHasHigherPriorityI8) {
+    SetAndCompare(GNA_CONFIG_KEY(PRECISION), Precision(Precision::I16).name());
+    SetAndCompare(ov::hint::execution_mode.name(),
+                  ov::util::to_string<ov::hint::ExecutionMode>(ov::hint::ExecutionMode::ACCURACY));
+    SetAndCompare(ov::hint::inference_precision.name(), ov::util::to_string<ov::element::Type>(ov::element::i8));
+    EXPECT_EQ(config.gnaPrecision, InferenceEngine::Precision::I8);
 }

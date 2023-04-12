@@ -48,7 +48,9 @@ static void CreateMVNOp(Program& p, const std::shared_ptr<ngraph::op::v6::MVN>& 
         IE_THROW() << "Unsupported parameter nodes type in " << op->get_friendly_name() << " (" << op->get_type_name() << ")";
 
     std::vector<int64_t> axes = inConst->cast_vector<int64_t>();
+    OPENVINO_SUPPRESS_DEPRECATED_START
     ov::normalize_axes(op.get(), op->get_output_partial_shape(0).size(), axes);
+    OPENVINO_SUPPRESS_DEPRECATED_END
 
     const size_t chanelAxis = 1;
     bool across_channels = std::find(axes.begin(), axes.end(), chanelAxis) != axes.end();

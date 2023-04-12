@@ -2,6 +2,10 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 
+if(NOT ANDROID)
+    find_package(PkgConfig QUIET)
+endif()
+
 function(_ov_get_tbb_location tbb_target _tbb_lib_location_var)
     if(NOT TBB_FOUND)
         return()
@@ -63,48 +67,45 @@ macro(ov_find_package_tbb)
             unset(TBB_DIR)
 
             # try tbb.pc from system
-            if(NOT ANDROID AND ENABLE_SYSTEM_TBB)
-                find_package(PkgConfig QUIET)
-                if(PkgConfig_FOUND)
-                    macro(_ov_pkg_config_tbb_unset)
-                        # unset since it affects OpenVINOConfig.cmake.in
-                        unset(tbb_FOUND)
-                        unset(tbb_FOUND CACHE)
-                    endmacro()
-                    pkg_search_module(tbb QUIET
-                                      IMPORTED_TARGET GLOBAL
-                                      tbb)
-                    if(tbb_FOUND)
-                        # parse version
-                        string(REGEX REPLACE "~.*" "" tbb_VERSION_PATCHED "${tbb_VERSION}")
-                        if(tbb_VERSION_PATCHED AND tbb_VERSION_PATCHED VERSION_LESS _ov_minimal_tbb_version)
-                            _ov_pkg_config_tbb_unset()
-                            message(WARNING "Found TBB ${tbb_VERSION} via ${PKG_CONFIG_EXECUTABLE} while OpenVINO requies ${_ov_minimal_tbb_version} at least")
-                        elseif(TARGET PkgConfig::tbb)
-                            add_library(TBB::tbb ALIAS PkgConfig::tbb)
-                            set(TBB_VERSION ${tbb_VERSION})
-                            set(TBB_FOUND ${tbb_FOUND})
+            if(ENABLE_SYSTEM_TBB AND PkgConfig_FOUND)
+                macro(_ov_pkg_config_tbb_unset)
+                    # unset since it affects OpenVINOConfig.cmake.in
+                    unset(tbb_FOUND)
+                    unset(tbb_FOUND CACHE)
+                endmacro()
+                pkg_search_module(tbb QUIET
+                                  IMPORTED_TARGET GLOBAL
+                                  tbb)
+                if(tbb_FOUND)
+                    # parse version
+                    string(REGEX REPLACE "~.*" "" tbb_VERSION_PATCHED "${tbb_VERSION}")
+                    if(tbb_VERSION_PATCHED AND tbb_VERSION_PATCHED VERSION_LESS _ov_minimal_tbb_version)
+                        _ov_pkg_config_tbb_unset()
+                        message(WARNING "Found TBB ${tbb_VERSION} via ${PKG_CONFIG_EXECUTABLE} while OpenVINO requies ${_ov_minimal_tbb_version} at least")
+                    elseif(TARGET PkgConfig::tbb)
+                        add_library(TBB::tbb ALIAS PkgConfig::tbb)
+                        set(TBB_VERSION ${tbb_VERSION})
+                        set(TBB_FOUND ${tbb_FOUND})
 
-                            # note: for python wheels we need to find and install tbbmalloc as well
-                            _ov_get_tbb_location(PkgConfig::tbb tbb_loc)
-                            string(REPLACE "tbb" "tbbmalloc" tbbmalloc_loc "${tbb_loc}")
-                            if(EXISTS "${tbbmalloc_loc}")
-                                add_library(TBB::tbbmalloc SHARED IMPORTED)
-                                set_target_properties(TBB::tbbmalloc PROPERTIES IMPORTED_LOCATION ${tbbmalloc_loc})
-                            endif()
-
-                            message(STATUS "${PKG_CONFIG_EXECUTABLE}: tbb (${tbb_VERSION}) is found at ${tbb_PREFIX}")
-                        else()
-                            _ov_pkg_config_tbb_unset()
-
-                            if(CPACK_GENERATOR STREQUAL "^(DEB|RPM|CONDA-FORGE|BREW)$")
-                                # package managers require system TBB
-                                set(message_type FATAL_ERROR)
-                            else()
-                                set(message_type WARNING)
-                            endif()
-                            message(${message_type} "cmake v${CMAKE_VERSION} contains bug in function 'pkg_search_module', need to update to at least v3.16.0 version")
+                        # note: for python wheels we need to find and install tbbmalloc as well
+                        _ov_get_tbb_location(PkgConfig::tbb tbb_loc)
+                        string(REPLACE "tbb" "tbbmalloc" tbbmalloc_loc "${tbb_loc}")
+                        if(EXISTS "${tbbmalloc_loc}")
+                            add_library(TBB::tbbmalloc SHARED IMPORTED)
+                            set_target_properties(TBB::tbbmalloc PROPERTIES IMPORTED_LOCATION ${tbbmalloc_loc})
                         endif()
+
+                        message(STATUS "${PKG_CONFIG_EXECUTABLE}: tbb (${tbb_VERSION}) is found at ${tbb_PREFIX}")
+                    else()
+                        _ov_pkg_config_tbb_unset()
+
+                        if(CPACK_GENERATOR STREQUAL "^(DEB|RPM|CONDA-FORGE|BREW)$")
+                            # package managers require system TBB
+                            set(message_type FATAL_ERROR)
+                        else()
+                            set(message_type WARNING)
+                        endif()
+                        message(${message_type} "cmake v${CMAKE_VERSION} contains bug in function 'pkg_search_module', need to update to at least v3.16.0 version")
                     endif()
                 endif()
             endif()
@@ -124,7 +125,7 @@ macro(ov_find_package_tbb)
                 endif()
 
                 # try to find one more time
-                find_package(TBB QUIET COMPONENTS tbb tbbmalloc
+                find_package(TBB ${_ov_minimal_tbb_version} QUIET COMPONENTS tbb tbbmalloc
                              # TBB_DIR can be provided by ov_download_tbb
                              HINTS ${TBB_DIR}
                              ${_tbb_paths}
@@ -141,6 +142,41 @@ macro(ov_find_package_tbb)
                     list(APPEND TBB_IMPORTED_TARGETS ${target})
                 endif()
             endforeach()
+
+            if(WIN32 AND TARGET TBB::tbbbind_2_5)
+                # some package managers provide hwloc.pc file within installation package
+                # let's try it first
+                if(PkgConfig_FOUND)
+                    pkg_search_module(HWLOC QUIET
+                                      IMPORTED_TARGET GLOBAL
+                                      hwloc)
+                endif()
+
+                if(TARGET PkgConfig::HWLOC)
+                    # dependency is satisfied
+                else()
+                    # Add HWLOC::hwloc_2_5 target to check via ApiValidator
+                    get_target_property(imported_configs TBB::tbbbind_2_5 IMPORTED_CONFIGURATIONS)
+                    foreach(imported_config RELEASE RELWITHDEBINFO DEBUG)
+                        if(imported_config IN_LIST imported_configs)
+                            get_target_property(TBBbind_location TBB::tbbbind_2_5 IMPORTED_LOCATION_${imported_config})
+                            get_filename_component(TBB_dir "${TBBbind_location}" DIRECTORY)
+                            break()
+                        endif()
+                    endforeach()
+
+                    set(hwloc_dll_name "${CMAKE_SHARED_LIBRARY_PREFIX}hwloc${CMAKE_SHARED_LIBRARY_SUFFIX}")
+                    find_file(HWLOC_DLL NAMES ${hwloc_dll_name} PATHS "${TBB_dir}" DOC "Path to hwloc.dll")
+
+                    if(NOT HWLOC_DLL)
+                        message(FATAL_ERROR "Failed to find ${hwloc_dll_name} in ${TBB_dir}")
+                    endif()
+
+                    add_library(HWLOC::hwloc_2_5 SHARED IMPORTED)
+                    set_property(TARGET HWLOC::hwloc_2_5 APPEND PROPERTY IMPORTED_CONFIGURATIONS RELEASE)
+                    set_target_properties(HWLOC::hwloc_2_5 PROPERTIES IMPORTED_LOCATION_RELEASE "${HWLOC_DLL}")
+                endif()
+            endif()
         endif()
 
         if(NOT TBB_FOUND)
@@ -245,6 +281,7 @@ function(set_ie_threading_interface_for TARGET_NAME)
         endif ()
 
         if (NOT OpenVINO_SOURCE_DIR)
+            # TODO: dead code since ie_parallel.cmake is not used outside of OpenVINO build
             if (WIN32)
                 set(lib_rel_path ${IE_LIB_REL_DIR})
                 set(lib_dbg_path ${IE_LIB_DBG_DIR})
@@ -290,6 +327,7 @@ function(set_ie_threading_interface_for TARGET_NAME)
                 if (WIN32)
                     ie_target_link_libraries(${TARGET_NAME} ${LINK_TYPE} "$<$<CONFIG:DEBUG>:${OMP_LIBRARIES_DEBUG}>;$<$<NOT:$<CONFIG:DEBUG>>:${OMP_LIBRARIES_RELEASE}>")
                 else()
+                    # TODO: handle multi-config generators case
                     if (CMAKE_BUILD_TYPE STREQUAL "Debug")
                         ie_target_link_libraries(${TARGET_NAME} ${LINK_TYPE} ${OMP_LIBRARIES_DEBUG})
                     else()

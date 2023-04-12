@@ -22,7 +22,7 @@
                                         INPUTVTYPE read_data = AS_INPUTVTYPE(VLOAD(0, input + input_idx)); \
                                         unroll_for (uint lw = 0; lw < inner; ++lw) { \
                                             const uint dst = local_buf_offset + lw; \
-                                            transpose_buf[dst][lh] = ACTIVATION(read_data[lw], ACTIVATION_PARAMS); \
+                                            transpose_buf[dst][lh] = read_data[lw]; \
                                         } \
                                     }
 
@@ -34,7 +34,7 @@
 #define FUNC_WRITE(inner, outer)    unroll_for (uint lw = 0; lw < outer; ++lw) { \
                                         const uint output_idx = output_idx_tile + (lw * x_pitch); \
                                         unroll_for (uint i = 0; i < inner; ++i) { \
-                                            output[output_idx + i] = TO_OUTPUT_TYPE(transpose_buf[local_buf_offset + lw][i]); \
+                                            output[output_idx + i] = ACTIVATION(TO_OUTPUT_TYPE(transpose_buf[local_buf_offset + lw][i]), ACTIVATION_PARAMS); \
                                         } \
                                     }
 
@@ -71,7 +71,7 @@ KERNEL (reorder_data_bfyx_to_blocked_format)(
 
 #if INPUT0_DIMS == 4
     #if DOUBLE_BLOCKED_FORMAT
-        const uint bsv_pitch = BSV_ALIGNMENT;
+        const uint bsv_pitch = FSV_ALIGNMENT;
         const uint fs_pitch = y_pitch * (OUTPUT_SIZE_Y);
         const uint bs_pitch = fs_pitch * (INPUT0_FEATURE_SLICE_NUM);
         const uint output_idx_tile = (bs * bs_pitch) + (fs * fs_pitch) + (y * y_pitch) + (x * x_pitch) + (bsv * bsv_pitch) + (fsv);

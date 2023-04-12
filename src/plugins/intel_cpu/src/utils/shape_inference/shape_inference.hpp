@@ -9,19 +9,21 @@
 #include <openvino/core/node.hpp>
 
 #include "static_shape.hpp"
+#include "shape_inference_status.hpp"
 
 namespace ov {
 namespace intel_cpu {
 
-void shape_inference(ov::Node* op,
-                     const std::vector<StaticShape>& input_shapes,
-                     std::vector<StaticShape>& output_shapes,
-                     const std::map<size_t, HostTensorPtr>& constant_data = {});
-
 class IShapeInferCommon {
 public:
-    virtual std::vector<StaticShape> infer(const std::vector<StaticShape>& input_shapes,
-                                           const std::map<size_t, HostTensorPtr>& constant_data) = 0;
+    struct Result {
+        std::vector<StaticShape> shapes;
+        ShapeInferStatus status;
+    };
+
+public:
+    virtual Result infer(const std::vector<StaticShape>& input_shapes,
+                                   const std::map<size_t, HostTensorPtr>& constant_data) = 0;
 
     // infer may generate padding as by-product, these APIs is designed to retrieve them back
     virtual const ov::CoordinateDiff& get_pads_begin() = 0;
@@ -32,7 +34,9 @@ public:
 
 class IStaticShapeInfer : public IShapeInferCommon {
 public:
-    virtual std::vector<StaticShape> infer(
+    using IShapeInferCommon::infer;
+
+    virtual Result infer(
         const std::vector<StaticShape>& input_shapes,
         const std::map<size_t, std::reference_wrapper<const Tensor>>& constant_data) = 0;
 };

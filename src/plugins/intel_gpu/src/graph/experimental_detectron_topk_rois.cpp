@@ -6,7 +6,6 @@
 #include "primitive_type_base.h"
 #include <sstream>
 #include <json_object.h>
-#include <data_inst.h>
 
 namespace cldnn {
 GPU_DEFINE_PRIMITIVE_TYPE_ID(experimental_detectron_topk_rois)

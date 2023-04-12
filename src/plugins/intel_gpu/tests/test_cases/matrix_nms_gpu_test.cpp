@@ -48,7 +48,7 @@ struct matrix_nms_test_inputs {
     std::string test_name;
 };
 
-using matrix_nms_test_params = std::tuple<matrix_nms_test_inputs, format::type>;
+using matrix_nms_test_params = std::tuple<matrix_nms_test_inputs, format::type, bool>;
 
 template <class T>
 struct matrix_nms_gpu_test : public testing::TestWithParam<matrix_nms_test_params> {
@@ -56,7 +56,8 @@ public:
     void test() {
         format::type blocked_format;
         matrix_nms_test_inputs test_inputs;
-        std::tie(test_inputs, blocked_format) = testing::TestWithParam<matrix_nms_test_params>::GetParam();
+        bool is_caching_test;
+        std::tie(test_inputs, blocked_format, is_caching_test) = testing::TestWithParam<matrix_nms_test_params>::GetParam();
 
         const auto data_type = type_to_data_type<T>::value;
         const auto plain_format = format::bfyx;
@@ -106,11 +107,12 @@ public:
                                 attrs));
         topology.add(reorder("matrix_nms", input_info("reordered_matrix_nms"), plain_format, data_type));
 
-        network network(engine, topology);
-        network.set_input_data("boxes", boxes);
-        network.set_input_data("scores", scores);
+        cldnn::network::ptr network = get_network(engine, topology, get_test_default_config(engine), get_test_stream_ptr(), is_caching_test);
 
-        auto outputs = network.execute();
+        network->set_input_data("boxes", boxes);
+        network->set_input_data("scores", scores);
+
+        auto outputs = network->execute();
 
         auto output = outputs.at("matrix_nms").get_memory();
         cldnn::mem_lock<T> output_ptr(output, get_test_stream());
@@ -124,14 +126,16 @@ public:
             ASSERT_NEAR(expected_output[i], output_ptr[i], THRESHOLD);
         }
 
-        ASSERT_EQ(test_inputs.expected_selected_boxes.size(), selected_boxes_ptr.size());
-        for (size_t i = 0; i < test_inputs.expected_selected_boxes.size(); ++i) {
-            ASSERT_EQ(test_inputs.expected_selected_boxes[i], selected_boxes_ptr[i]);
-        }
+        if (!is_caching_test) {
+            ASSERT_EQ(test_inputs.expected_selected_boxes.size(), selected_boxes_ptr.size());
+            for (size_t i = 0; i < test_inputs.expected_selected_boxes.size(); ++i) {
+                ASSERT_EQ(test_inputs.expected_selected_boxes[i], selected_boxes_ptr[i]);
+            }
 
-        ASSERT_EQ(test_inputs.expected_valid_outputs.size(), valid_outputs_ptr.size());
-        for (size_t i = 0; i < test_inputs.expected_valid_outputs.size(); ++i) {
-            ASSERT_EQ(test_inputs.expected_valid_outputs[i], valid_outputs_ptr[i]);
+            ASSERT_EQ(test_inputs.expected_valid_outputs.size(), valid_outputs_ptr.size());
+            for (size_t i = 0; i < test_inputs.expected_valid_outputs.size(); ++i) {
+                ASSERT_EQ(test_inputs.expected_valid_outputs[i], valid_outputs_ptr[i]);
+            }
         }
     }
 
@@ -158,7 +162,8 @@ public:
         result << "Normalized=" << bool_to_str(test_inputs.normalized) << "_";
         result << "sort_result_type=" << sort_res_type_str << "_";
         result << "decay_function=" << decay_function_str << "_";
-        result << "Format=" << fmt_to_str(std::get<1>(info.param));
+        result << "Format=" << fmt_to_str(std::get<1>(info.param)) << "_";
+        result << "Cached=" << bool_to_str(std::get<2>(info.param));
 
         if (!test_inputs.test_name.empty())
             result << "_TN=" << test_inputs.test_name;
@@ -630,6 +635,12 @@ const std::vector<format::type> layout_formats = {format::bfyx,
                                                   format::bs_fs_yx_bsv32_fsv32,
                                                   format::bs_fs_yx_bsv32_fsv16};
 
+#ifdef RUN_ALL_MODEL_CACHING_TESTS
+const std::vector<bool> run_caching_test = {false, true};
+#else
+const std::vector<bool> run_caching_test = {false};
+#endif
+
 #define INSTANTIATE_MATRIX_NMS_TEST_SUITE(input_type, func)                                                \
     using matrix_nms_gpu_test_##input_type##func = matrix_nms_gpu_test<input_type>;                        \
     TEST_P(matrix_nms_gpu_test_##input_type##func, test) {                                                 \
@@ -637,7 +648,8 @@ const std::vector<format::type> layout_formats = {format::bfyx,
     }                                                                                                      \
     INSTANTIATE_TEST_SUITE_P(matrix_nms_test_##input_type##func,                                           \
                              matrix_nms_gpu_test_##input_type##func,                                       \
-                             testing::Combine(testing::Values(func()), testing::ValuesIn(layout_formats)), \
+                             testing::Combine(testing::Values(func()), testing::ValuesIn(layout_formats),  \
+                                              testing::ValuesIn(run_caching_test)),                        \
                              matrix_nms_gpu_test_##input_type##func::PrintToStringParamName);
 
 INSTANTIATE_MATRIX_NMS_TEST_SUITE(float, get_matrix_nms_smoke_inputs)
@@ -667,6 +679,14 @@ INSTANTIATE_MATRIX_NMS_TEST_SUITE(FLOAT16, get_matrix_nms_identical_boxes_inputs
 INSTANTIATE_MATRIX_NMS_TEST_SUITE(FLOAT16, get_matrix_nms_top_k_inputs)
 INSTANTIATE_MATRIX_NMS_TEST_SUITE(FLOAT16, get_matrix_nms_single_box_inputs)
 INSTANTIATE_MATRIX_NMS_TEST_SUITE(FLOAT16, get_matrix_nms_no_output_inputs)
+
+#ifndef RUN_ALL_MODEL_CACHING_TESTS
+INSTANTIATE_TEST_SUITE_P(matrix_nms_test_FLOAT16get_matrix_nms_smoke_inputs_cached,
+                         matrix_nms_gpu_test_FLOAT16get_matrix_nms_smoke_inputs,
+                         testing::Combine(testing::Values(get_matrix_nms_smoke_inputs()), testing::ValuesIn(layout_formats),
+                                          testing::Values(true)),
+                         matrix_nms_gpu_test_FLOAT16get_matrix_nms_smoke_inputs::PrintToStringParamName);
+#endif
 
 #undef INSTANTIATE_MATRIX_NMS_TEST_SUITE
 

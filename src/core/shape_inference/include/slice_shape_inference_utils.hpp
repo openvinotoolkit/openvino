@@ -4,11 +4,10 @@
 
 #pragma once
 
-#include <ngraph/validation_util.hpp>
-#include <openvino/op/constant.hpp>
-
+#include "openvino/op/constant.hpp"
 #include "sequnce_generator.hpp"
 #include "utils.hpp"
+#include "validation_util.hpp"
 
 namespace ov {
 namespace internal {
@@ -134,7 +133,11 @@ inline int64_t get_sliced_value(const int64_t& dim, const int64_t& start, const 
     constexpr int64_t inf_bound = -1;
 
     const auto& norm_dim = dim == inf_bound ? std::numeric_limits<int64_t>::max() : dim;
+#ifdef OPENVINO_ARCH_64_BIT
     const auto is_norm_dim_max = ov::internal::is_max(norm_dim);
+#else
+    const auto is_norm_dim_max = ov::internal::is_max(size_t(norm_dim));
+#endif
     const int64_t lower_max = is_reverse_step ? norm_dim - 1 : norm_dim;
     const int64_t upper_min = is_reverse_step ? inf_bound : min_bound;
 
@@ -157,8 +160,8 @@ inline int64_t get_sliced_value(const int64_t& dim, const int64_t& start, const 
         }
         lb = min_bound;
     } else {
-        lb = clip(normalize(start, norm_dim), min_bound, lower_max);
-        ub = clip(normalize(stop, norm_dim), upper_min, norm_dim);
+        lb = ov::util::clip(ov::util::normalize(start, norm_dim), min_bound, lower_max);
+        ub = ov::util::clip(ov::util::normalize(stop, norm_dim), upper_min, norm_dim);
     }
 
     // Calculate sliced value from bounds and step.
@@ -191,7 +194,9 @@ inline element::Type get_input_const_element_type(const ov::Node* op,
                                                   const std::map<size_t, HostTensorPtr>& constant_data = {}) {
     if (constant_data.count(idx)) {
         return constant_data.at(idx)->get_element_type();
+        OPENVINO_SUPPRESS_DEPRECATED_START
     } else if (const auto& constant = ov::get_constant_from_source(op->input_value(idx))) {
+        OPENVINO_SUPPRESS_DEPRECATED_END
         return constant->get_element_type();
     } else {
         return element::undefined;

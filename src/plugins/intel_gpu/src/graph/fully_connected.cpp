@@ -3,7 +3,6 @@
 //
 #include "fully_connected_inst.h"
 #include "primitive_type_base.h"
-#include "intel_gpu/runtime/error_handler.hpp"
 #include "json_object.h"
 #include <string>
 #include <algorithm>
@@ -39,8 +38,9 @@ bool is_batch_after_spatial(const std::string order) {
 }
 
 format::type get_preferred_format(fully_connected_node const& node, const kernel_impl_params& impl_param) {
-    if (node.get_preferred_impl_type() == impl_types::onednn)
-        return format::bfyx;
+    if (node.get_preferred_impl_type() == impl_types::onednn && node.get_preferred_output_fmt() != format::any) {
+        return node.get_preferred_output_fmt();
+    }
 
     auto input_layout = impl_param.get_input_layout();
 
@@ -107,7 +107,7 @@ layout fully_connected_inst::calc_output_layout(fully_connected_node const& node
 
     auto reshape_to_2d = [](const ov::PartialShape& shape, int64_t feature) {
         auto staticShape = shape.to_shape();
-        size_t total = std::accumulate(staticShape.begin(), staticShape.end(), 1, std::multiplies<size_t>());
+        size_t total = std::accumulate(staticShape.begin(), staticShape.end(), static_cast<size_t>(1), std::multiplies<size_t>());
         std::vector<int64_t> reshapeSize = { static_cast<int64_t>(total) / feature, feature };
         return reshapeSize;
     };

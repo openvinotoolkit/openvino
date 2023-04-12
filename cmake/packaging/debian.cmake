@@ -52,6 +52,8 @@ macro(ov_cpack_settings)
            NOT item STREQUAL OV_CPACK_COMP_PYTHON_WHEELS AND
            # see ticket # 82605
            NOT item STREQUAL "gna" AND
+           # don't install Intel OpenMP during debian
+           NOT item STREQUAL "omp" AND
            # even for case of system TBB we have installation rules for wheels packages
            # so, need to skip this explicitly
            NOT item MATCHES "^tbb(_dev)?$" AND
@@ -336,12 +338,11 @@ macro(ov_cpack_settings)
     set(samples_build_deps "cmake, g++, gcc, libc6-dev, make, pkg-config")
     set(samples_build_deps_suggest "libopencv-core-dev, libopencv-imgproc-dev, libopencv-imgcodecs-dev")
     set(samples_opencl_suggest "ocl-icd-opencl-dev, opencl-headers")
-    if(OV_GLIBC_VERSION VERSION_LESS_EQUAL 2.27)
-        # Ubuntu 18.04, Debian 9 cases
-        set(json_library "nlohmann-json-dev")
-    else()
-        set(json_library "nlohmann-json3-dev")
-    endif()
+    # Ubuntu 18.04, Debian 9 cases have nlohmann-json-dev
+    # newer systems have nlohmann-json3-dev
+    # according to https://www.debian.org/doc/debian-policy/ch-relationships.html#syntax-of-relationship-fields
+    # we can use | (pipe) to provide alternative package names
+    set(json_library "nlohmann-json3-dev | nlohmann-json-dev")
 
     # c_samples / cpp_samples
     set(CPACK_COMPONENT_SAMPLES_DESCRIPTION "Intel(R) Distribution of OpenVINO(TM) Toolkit C / C++ Samples")

@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 
-disable_deprecated_warnings()
+ov_disable_deprecated_warnings()
 
 add_subdirectory(shared_tests)
 

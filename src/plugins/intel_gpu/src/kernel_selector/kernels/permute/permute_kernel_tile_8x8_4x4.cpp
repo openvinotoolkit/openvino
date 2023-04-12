@@ -187,7 +187,7 @@ JitConstants PermuteKernel_tile_8x8_4x4::GetJitConstants(const permute_params& p
     jit.AddConstant(MakeJitConstant("TRANS_BUF_SIZE", (tile_size / vector_width) * tile_size * total_lws) );
 
     if (!params.fused_ops.empty()) {
-        std::vector<std::string> output_order = GetFusedOpOrderVector(params.outputs[0].GetDims().size());
+        std::vector<std::string> output_order = GetFusedOpOrderVector(params.inputs[0].GetDims().size());
         FusedOpsConfiguration conf = {"", output_order, "input_var", params.inputs[0].GetDType(), 1};
         jit.Merge(MakeFusedOpsJitConstants(params, {conf}));
     }
@@ -248,6 +248,12 @@ CommonDispatchData PermuteKernel_tile_8x8_4x4::SetDefault(const permute_params& 
 bool PermuteKernel_tile_8x8_4x4::Validate(const Params& p, const optional_params& o) const {
     if (!Parent::Validate(p, o)) return false;
 
+    const permute_params& params = static_cast<const permute_params&>(p);
+
+    if (params.outputs[0].PitchesDifferFromLogicalDims() || params.inputs[0].PitchesDifferFromLogicalDims()) {
+        return false;
+    }
+
     std::function<bool(const std::vector<uint16_t>&)> is_rotating_except_batch = [](const std::vector<uint16_t>& order) {
         // Target transform: Rotate feature dim to back to be taken as inner-most axis
         // ex) 0(b), 4(f), 1(z), 2(y), 3(x)
@@ -260,15 +266,22 @@ bool PermuteKernel_tile_8x8_4x4::Validate(const Params& p, const optional_params
         return true;
     };
 
-    const permute_params& params = static_cast<const permute_params&>(p);
-
     if (!is_rotating_except_batch(params.order)) {
         return false;
     }
 
-    if (params.outputs[0].PitchesDifferFromLogicalDims() || params.inputs[0].PitchesDifferFromLogicalDims()) {
+    std::function<bool(const permute_params&)> has_fused_op = [] (const permute_params& params) {
+        if (!params.fused_ops.empty()) {
+            for (auto f : params.fused_ops) {
+                if (f.GetType() != KernelType::REORDER)
+                    return true;
+            }
+        }
         return false;
-    }
+    };
+
+    if (has_fused_op(params) && params.inputs[0].GetDims().size() != params.outputs[0].GetDims().size())
+        return false;
 
     return true;
 }

@@ -16,7 +16,7 @@ using BlockedShapeVector = ngraph::snippets::op::Subgraph::BlockedShapeVector;
 class DummyEmitter : public ngraph::snippets::Emitter {
 public:
     // Here I pass Add to Emitter, but could be any other op, since it's ignored anyway.
-    DummyEmitter() : ngraph::snippets::Emitter(std::make_shared<ov::op::v1::Add>()) {}
+    DummyEmitter(const std::vector<ov::Node::type_info_t>& custom_opset = {}) : ngraph::snippets::Emitter(std::make_shared<ov::op::v1::Add>()) {}
     void emit_code(const std::vector<size_t>&,
                    const std::vector<size_t>&,
                    const std::vector<size_t>&,
@@ -26,7 +26,7 @@ public:
 
 class DummyTargetMachine : public ngraph::snippets::TargetMachine {
 public:
-    DummyTargetMachine();
+    DummyTargetMachine(const std::vector<ov::Node::type_info_t>& custom_opset = {});
     bool is_supported() const override { return true; }
     ngraph::snippets::code get_snippet() const override { return nullptr; }
     size_t get_lanes() const override { return 10; }
@@ -35,6 +35,10 @@ public:
 class DummyGenerator : public ngraph::snippets::Generator {
 public:
     DummyGenerator() : ngraph::snippets::Generator(std::make_shared<DummyTargetMachine>()) {}
+    DummyGenerator(const std::shared_ptr<ngraph::snippets::TargetMachine>& t) : ngraph::snippets::Generator(t) {}
+
+protected:
+    opRegType get_specific_op_reg_type(const std::shared_ptr<ov::Node>& op) const override { return vec2vec; };
 };
 
 class LoweringTests : public TransformationTestsF {
@@ -47,7 +51,11 @@ public:
 protected:
     static std::shared_ptr<ngraph::snippets::op::Subgraph> getSubgraph(const std::shared_ptr<Model>& f);
     static std::shared_ptr<ngraph::snippets::op::Subgraph> getLoweredSubgraph(const std::shared_ptr<Model>& f,
-                                                                              const ov::PartialShape& master_shape);
+                                                                              const ov::PartialShape& master_shape,
+                                                                              ov::pass::Manager pre_dialect = {},
+                                                                              ov::pass::Manager post_dialect = {},
+                                                                              ov::pass::Manager post_precision = {},
+                                                                              const std::shared_ptr<ngraph::snippets::Generator> generator = nullptr);
     static std::shared_ptr<ngraph::snippets::op::Subgraph> getTokenizedSubgraph(const std::shared_ptr<Model>& f);
     ov::PartialShape master_shape{};
 };

@@ -133,6 +133,26 @@ struct matrix_nms : public primitive_base<matrix_nms> {
         return seed;
     }
 
+    bool operator==(const primitive& rhs) const override {
+        if (!compare_common_params(rhs))
+            return false;
+
+        auto rhs_casted = downcast<const matrix_nms>(rhs);
+
+        #define cmp_fields(name) name == rhs_casted.name
+        return cmp_fields(attribs.sort_type) &&
+               cmp_fields(attribs.sort_result_across_batch) &&
+               cmp_fields(attribs.score_threshold) &&
+               cmp_fields(attribs.nms_top_k) &&
+               cmp_fields(attribs.keep_top_k) &&
+               cmp_fields(attribs.background_class) &&
+               cmp_fields(attribs.decay) &&
+               cmp_fields(attribs.gaussian_sigma) &&
+               cmp_fields(attribs.post_threshold) &&
+               cmp_fields(attribs.normalized);
+        #undef cmp_fields
+    }
+
 private:
     static cldnn::matrix_nms::decay_function from(ngraph::op::v8::MatrixNms::DecayFunction decay) {
         switch (decay) {

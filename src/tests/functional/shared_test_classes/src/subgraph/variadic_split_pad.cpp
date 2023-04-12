@@ -8,7 +8,7 @@ namespace SubgraphTestsDefinitions {
 
 std::string VariadicSplitPad::getTestCaseName(const testing::TestParamInfo<SplitPadTuple> &obj) {
     InferenceEngine::SizeVector inputShape;
-    size_t axis;
+    int64_t axis;
     std::vector<size_t> numSplits, connectIndexes;
     std::vector<int64_t> padsBegin, padsEnd;
     ngraph::helpers::PadMode padMode;
@@ -31,7 +31,7 @@ std::string VariadicSplitPad::getTestCaseName(const testing::TestParamInfo<Split
 
 void VariadicSplitPad::SetUp() {
     InferenceEngine::SizeVector inputs;
-    size_t axis;
+    int64_t axis;
     std::vector<size_t> numSplits, connectIndexes;
     std::vector<int64_t> padBegin, padEnd;
     ngraph::helpers::PadMode padMode;

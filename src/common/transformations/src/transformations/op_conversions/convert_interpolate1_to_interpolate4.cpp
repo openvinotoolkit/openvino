@@ -20,7 +20,7 @@ ov::pass::ConvertInterpolate1ToInterpolate4::ConvertInterpolate1ToInterpolate4()
     MATCHER_SCOPE(ConvertInterpolate1ToInterpolate4);
     auto interpolate1 = ngraph::pattern::wrap_type<ov::opset1::Interpolate>(
         {pattern::any_input(pattern::has_static_rank()), pattern::any_input()});
-    matcher_pass_callback callback = [this](pattern::Matcher& m) {
+    matcher_pass_callback callback = [](pattern::Matcher& m) {
         auto interpolationV0 = std::dynamic_pointer_cast<ov::opset1::Interpolate>(m.get_match_root());
         if (!interpolationV0) {
             return false;
@@ -34,8 +34,11 @@ ov::pass::ConvertInterpolate1ToInterpolate4::ConvertInterpolate1ToInterpolate4()
             element::f32);
 
         std::shared_ptr<Node> scales = std::make_shared<opset1::Divide>(out_dims, in_dims);
-        if (const auto& constant = ov::get_constant_from_source(scales))
+        OPENVINO_SUPPRESS_DEPRECATED_START
+        if (const auto& constant = ov::get_constant_from_source(scales)) {
+            OPENVINO_SUPPRESS_DEPRECATED_END
             scales = constant;
+        }
         auto axisConstant = opset1::Constant::create(ngraph::element::i64, {axes.size()}, axes);
 
         ov::opset4::Interpolate::InterpolateAttrs attrsV4;

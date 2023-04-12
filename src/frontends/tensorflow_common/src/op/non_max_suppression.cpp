@@ -4,6 +4,7 @@
 
 #include "common_op_table.hpp"
 #include "openvino/opsets/opset10.hpp"
+#include "utils.hpp"
 
 using namespace std;
 using namespace ov;
@@ -26,10 +27,11 @@ Output<Node> normalize_selected_indices(const Output<Node>& ov_selected_indices,
     selected_indices = make_shared<Squeeze>(selected_indices, axis)->output(0);
 
     if (pad_to_max_output_size) {
-        auto num_selected_indices = make_shared<ShapeOf>(selected_indices, max_output_size.get_element_type());
+        Output<Node> num_selected_indices = make_shared<ShapeOf>(selected_indices);
+        num_selected_indices = make_shared<ConvertLike>(num_selected_indices, max_output_size);
         auto num_padded_elements = make_shared<Subtract>(max_output_size, num_selected_indices);
-        auto pad_element = make_shared<Constant>(selected_indices.get_element_type(), Shape{}, 0);
-        auto pads_begin = make_shared<Constant>(max_output_size.get_element_type(), Shape{1}, 0);
+        auto pad_element = create_same_type_const_scalar<int64_t>(selected_indices, 0);
+        auto pads_begin = create_same_type_const<int64_t>(max_output_size, vector<int64_t>{0}, Shape{1});
         auto pad_mode = ov::op::PadMode::CONSTANT;
         selected_indices =
             make_shared<Pad>(selected_indices, pads_begin, num_padded_elements, pad_element, pad_mode)->output(0);
@@ -38,7 +40,7 @@ Output<Node> normalize_selected_indices(const Output<Node>& ov_selected_indices,
     return selected_indices;
 }
 
-OutputVector translate_non_max_suppression_op(const NodeContext& node) {
+NamedOutputVector translate_non_max_suppression_op(const NodeContext& node) {
     default_op_checks(node,
                       3,
                       {"NonMaxSuppression",
@@ -63,7 +65,6 @@ OutputVector translate_non_max_suppression_op(const NodeContext& node) {
     auto ov_scores = make_shared<Unsqueeze>(scores, scores_axes);
 
     const auto& op_type = node.get_op_type();
-    OutputVector results;
 
     // set all thresholds to zero, default values
     Output<Node> iou_threshold = make_shared<Constant>(element::f32, Shape{}, 0.0);
@@ -122,21 +123,23 @@ OutputVector translate_non_max_suppression_op(const NodeContext& node) {
                                                               element::i32);
     auto tf_selected_indices =
         normalize_selected_indices(non_max_suppression->output(0), max_output_size, pad_to_max_output_size);
-    results.push_back(tf_selected_indices);
+
+    NamedOutputVector named_results;
+    named_results.push_back({"selected_indices", tf_selected_indices});
 
     Output<Node> tf_selected_scores;
     if (selected_scores) {
         tf_selected_scores =
             normalize_selected_indices(non_max_suppression->output(1), max_output_size, pad_to_max_output_size);
-        tf_selected_scores = make_shared<Convert>(tf_selected_scores, boxes.get_element_type())->output(0);
-        results.push_back(tf_selected_scores);
+        tf_selected_scores = make_shared<ConvertLike>(tf_selected_scores, boxes)->output(0);
+        named_results.push_back({"selected_scores", tf_selected_scores});
     }
 
     Output<Node> tf_valid_outputs;
     if (valid_outputs) {
         // In TensorFlow valid_outputs output is a scalar
         tf_valid_outputs = make_shared<Squeeze>(non_max_suppression->output(2))->output(0);
-        results.push_back(tf_valid_outputs);
+        named_results.push_back({"valid_outputs", tf_valid_outputs});
     }
 
     // set output tensor names based on a number of outputs
@@ -150,7 +153,7 @@ OutputVector translate_non_max_suppression_op(const NodeContext& node) {
         set_node_name(node.get_name() + ":2", tf_valid_outputs.get_node_shared_ptr());
     }
 
-    return results;
+    return named_results;
 }
 }  // namespace op
 }  // namespace tensorflow

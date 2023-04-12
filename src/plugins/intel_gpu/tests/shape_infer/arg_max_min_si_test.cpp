@@ -129,4 +129,4 @@ INSTANTIATE_TEST_SUITE_P(smoke, arg_max_min_test,
         },
     }));
 
-}  // shape_infer_tests
+}  // namespace shape_infer_tests

@@ -49,5 +49,17 @@ struct mvn : public primitive_base<mvn> {
         seed = hash_combine(seed, across_channels);
         return seed;
     }
+
+    bool operator==(const primitive& rhs) const override {
+        if (!compare_common_params(rhs))
+            return false;
+
+        auto rhs_casted = downcast<const mvn>(rhs);
+
+        return normalize_variance == rhs_casted.normalize_variance &&
+               epsilon == rhs_casted.epsilon &&
+               eps_inside_sqrt == rhs_casted.eps_inside_sqrt &&
+               across_channels == rhs_casted.across_channels;
+    }
 };
 }  // namespace cldnn

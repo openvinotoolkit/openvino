@@ -9,6 +9,7 @@
 #include <string>
 #include <memory>
 #include <vector>
+#include "executors/reduce_list.hpp"
 
 namespace ov {
 namespace intel_cpu {
@@ -157,7 +158,7 @@ private:
 
     std::vector<const void*> postOpsDataPtrs;
 
-    std::shared_ptr<dnnl::memory> prc_mem;
+    dnnl::memory prc_mem;
     std::vector<uint8_t> vec_reduceDH_prc;
 
     std::shared_ptr<jit_uni_reduce_kernel> reduce_kernel;
@@ -166,6 +167,10 @@ private:
     static const std::map<const ngraph::DiscreteTypeInfo, std::function<void(const std::shared_ptr<ngraph::Node>& op, Reduce& node)>> initializers;
 
     std::string errorPrefix;
+
+    ReduceAttrs reduceAttrs;
+    bool canUseAclExecutor = false;
+    std::shared_ptr<ReduceExecutor> aclExecPtr = nullptr;
 };
 
 }   // namespace node

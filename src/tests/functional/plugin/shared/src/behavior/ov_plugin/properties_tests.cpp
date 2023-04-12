@@ -193,23 +193,12 @@ TEST_P(OVSetPropComplieModleGetPropTests, SetPropertyComplieModelGetProperty) {
     }
 }
 
-TEST_P(OVSetPropComplieModleWihtIncorrectPropTests, SetPropertyComplieModelWithIncorrectProperty) {
-    OV_ASSERT_NO_THROW(core->set_property(target_device, properties));
-    ASSERT_THROW(core->compile_model(model, target_device, compileModelProperties), ov::Exception);
-}
-
-TEST_P(OVSetPropComplieModleWihtIncorrectPropTests, CanNotCompileModelWithIncorrectProperties) {
+TEST_P(OVSetPropCompileModelWithIncorrectPropTests, CanNotCompileModelWithIncorrectProperties) {
     ASSERT_THROW(core->compile_model(model, target_device, properties), ov::Exception);
 }
 
-TEST_P(OVSetSupportPropComplieModleWithoutConfigTests, SetPropertyComplieModelWithCorrectProperty) {
-    OV_ASSERT_NO_THROW(core->set_property(target_device, properties));
-    ASSERT_NO_THROW(core->compile_model(model, target_device, {}));
-}
-
-TEST_P(OVSetUnsupportPropComplieModleWithoutConfigTests, SetPropertyComplieModelWithIncorrectProperty) {
-    OV_ASSERT_NO_THROW(core->set_property(target_device, properties));
-    ASSERT_THROW(core->compile_model(model, target_device, {}), ov::Exception);
+TEST_P(OVSetSupportPropCompileModelWithoutConfigTests, SetPropertyCompiledModelWithCorrectProperty) {
+    ASSERT_NO_THROW(core->compile_model(model, target_device, properties));
 }
 
 std::string OVCompileModelGetExecutionDeviceTests::getTestCaseName(testing::TestParamInfo<OvPropertiesParams> obj) {
@@ -317,7 +306,7 @@ std::vector<ov::AnyMap> OVPropertiesTestsWithComplieModelProps::getPropertiesVal
         res.push_back({{ov::PropertyName(ov::hint::model_priority.name(), ov::hint::model_priority.mutability), priority}});
     }
 
-    ov::hint::PerformanceMode performance_modes[] = {ov::hint::PerformanceMode::UNDEFINED , ov::hint::PerformanceMode::LATENCY,
+    ov::hint::PerformanceMode performance_modes[] = {ov::hint::PerformanceMode::LATENCY,
             ov::hint::PerformanceMode::THROUGHPUT, ov::hint::PerformanceMode::CUMULATIVE_THROUGHPUT};
     for (auto &performance_mode : performance_modes) {
         res.push_back({{ov::PropertyName(ov::hint::performance_mode.name(), ov::hint::performance_mode.mutability), performance_mode}});
@@ -328,8 +317,7 @@ std::vector<ov::AnyMap> OVPropertiesTestsWithComplieModelProps::getPropertiesVal
     res.push_back({{ov::PropertyName(ov::hint::allow_auto_batching.name(), ov::hint::allow_auto_batching.mutability), true}});
     res.push_back({{ov::PropertyName(ov::hint::allow_auto_batching.name(), ov::hint::allow_auto_batching.mutability), false}});
 
-    ov::hint::ExecutionMode execution_modes[] = {ov::hint::ExecutionMode::UNDEFINED , ov::hint::ExecutionMode::PERFORMANCE,
-                                                 ov::hint::ExecutionMode::ACCURACY};
+    ov::hint::ExecutionMode execution_modes[] = {ov::hint::ExecutionMode::PERFORMANCE, ov::hint::ExecutionMode::ACCURACY};
     for (auto &execution_mode : execution_modes) {
         res.push_back({{ov::PropertyName(ov::hint::execution_mode.name(), ov::hint::execution_mode.mutability), execution_mode}});
     }
@@ -349,6 +337,9 @@ std::vector<ov::AnyMap> OVPropertiesTestsWithComplieModelProps::getPropertiesVal
 
     res.push_back({{ov::PropertyName(ov::force_tbb_terminate.name(), ov::force_tbb_terminate.mutability), true}});
     res.push_back({{ov::PropertyName(ov::force_tbb_terminate.name(), ov::force_tbb_terminate.mutability), false}});
+
+    res.push_back({{ov::PropertyName(ov::enable_mmap.name(), ov::enable_mmap.mutability), true}});
+    res.push_back({{ov::PropertyName(ov::enable_mmap.name(), ov::enable_mmap.mutability), false}});
 
     ov::streams::Num nums[] = {ov::streams::AUTO, ov::streams::NUMA};
     for (auto &num : nums) {

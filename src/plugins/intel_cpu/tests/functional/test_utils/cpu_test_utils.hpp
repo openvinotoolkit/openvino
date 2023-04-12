@@ -5,7 +5,6 @@
 #pragma once
 
 #include <string>
-#include <ngraph/variant.hpp>
 #include "ie_system_conf.h"
 #include "shared_test_classes/base/layer_test_utils.hpp"
 #include <exec_graph_info.hpp>

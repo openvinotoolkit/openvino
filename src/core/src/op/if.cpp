@@ -98,7 +98,9 @@ void ov::op::v8::If::validate_and_infer_types() {
     }
 
     // Trying to get cond as const value
+    OPENVINO_SUPPRESS_DEPRECATED_START
     if (const auto& cond_value = get_constant_from_source(if_condition)) {
+        OPENVINO_SUPPRESS_DEPRECATED_END
         // If cond is const shape and inference is run for one of bodies another body is skipped
         auto val = cond_value->cast_vector<bool>();
         NODE_VALIDATION_CHECK(this,
@@ -179,8 +181,8 @@ std::shared_ptr<ov::Node> ov::op::v8::If::clone_with_new_inputs(const OutputVect
 
     op->set_arguments(new_args);
     op->set_output_size(m_output_descriptions[0].size());
-    op->set_then_body(clone_model(*get_then_body()));
-    op->set_else_body(clone_model(*get_else_body()));
+    op->set_then_body(get_then_body()->clone());
+    op->set_else_body(get_else_body()->clone());
 
     for (auto body_index = 0; body_index < 2; ++body_index) {
         for (const auto& m_input_descr : m_input_descriptions[body_index]) {

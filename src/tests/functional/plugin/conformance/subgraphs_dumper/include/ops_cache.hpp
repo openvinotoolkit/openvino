@@ -12,6 +12,8 @@
 #include "matchers/matchers_manager.hpp"
 #include "functional_test_utils/include/functional_test_utils/summary/op_info.hpp"
 
+#include "utils/model_wrap_struct.hpp"
+
 namespace SubgraphsDumper {
 
 class OPCache {
@@ -23,9 +25,9 @@ public:
         return std::unique_ptr<OPCache>(new OPCache());
     }
 
-    void update_ops_cache(const std::shared_ptr<ov::Node> &op, const std::string &source_model = {});
+    void update_ops_cache(const std::shared_ptr<ov::Node> &op, const Model& source_model);
 
-    void update_ops_cache(const std::shared_ptr<ov::Model> &func, const bool extract_body = true, const std::string &source_model = {});
+    void update_ops_cache(const std::shared_ptr<ov::Model> &func,  const Model& source_model, const bool extract_body = true);
 
     void serialize_cached_ops(const std::string &serialization_dir);
 

@@ -10,6 +10,7 @@
 #include <memory>
 #include <mutex>
 #include <string>
+#include <unordered_set>
 #include <vector>
 
 #include "openvino/core/any.hpp"
@@ -27,8 +28,7 @@
 namespace ov {
 class Model;
 
-OPENVINO_API
-std::shared_ptr<Model> clone_model(const Model& func, std::unordered_map<Node*, std::shared_ptr<Node>>& node_map);
+std::shared_ptr<Model> clone_ov_model(const Model& func, std::unordered_map<Node*, std::shared_ptr<Node>>& node_map);
 
 namespace frontend {
 class FrontEnd;
@@ -42,13 +42,13 @@ class ModelAccessor;
  */
 class OPENVINO_API Model : public std::enable_shared_from_this<Model> {
     friend class frontend::FrontEnd;
-    friend OPENVINO_API std::shared_ptr<Model> clone_model(const Model& func,
-                                                           std::unordered_map<Node*, std::shared_ptr<Node>>& node_map);
+    friend std::shared_ptr<Model> clone_ov_model(const Model& func,
+                                                 std::unordered_map<Node*, std::shared_ptr<Node>>& node_map);
     std::shared_ptr<void> m_shared_object;  // Frontend plugin shared object handle.
 
 public:
     _OPENVINO_HIDDEN_METHOD static const ::ov::DiscreteTypeInfo& get_type_info_static() {
-        static const ::ov::DiscreteTypeInfo type_info_static{"Model", static_cast<uint64_t>(0)};
+        static const ::ov::DiscreteTypeInfo type_info_static{"Model"};
         return type_info_static;
     }
     const ::ov::DiscreteTypeInfo& get_type_info() const {
@@ -452,6 +452,10 @@ private:
                                const std::vector<std::string>::const_iterator& begin,
                                const std::vector<std::string>::const_iterator& end) const;
 
+    bool has_rt_info(const ov::AnyMap& info,
+                     const std::vector<std::string>::const_iterator& begin,
+                     const std::vector<std::string>::const_iterator& end) const;
+
     // Checks rt attribute
     template <class T,
               typename std::enable_if<std::is_same<std::string, T>::value || std::is_same<T, const char*>::value ||
@@ -482,8 +486,8 @@ private:
                                           std::is_same<T, char*>::value,
                                       bool>::type = true>
     const ov::Any& get_rt_arg(const ov::AnyMap& rt_info, const T& name) const {
-        if (rt_info.find(name) == rt_info.end())
-            throw ov::Exception("Cannot get runtime attribute. Path to runtime attribute is incorrect.");
+        OPENVINO_ASSERT(rt_info.find(name) != rt_info.end(),
+                        "Cannot get runtime attribute. Path to runtime attribute is incorrect.");
         return get_attr(rt_info.at(name));
     }
 
@@ -555,6 +559,7 @@ private:
     // of weak_ptr not to increase node ref counter to prevent the situation when
     // node has no consumers but still exists in a graph.
     mutable std::vector<std::weak_ptr<Node>> m_cached_ordered_ops;
+    mutable std::unordered_set<Node*> m_cached_ops;
 
     mutable std::unordered_map<std::string, Output<Node>> m_cached_output_names;
     mutable std::unordered_map<std::string, std::weak_ptr<Node>> m_cached_op_names;

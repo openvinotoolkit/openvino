@@ -45,9 +45,7 @@ ov_tensor_create_from_host_ptr(const ov_element_type_e type,
  * @return Status code of the operation: OK(0) for success.
  */
 OPENVINO_C_API(ov_status_e)
-ov_tensor_create(const ov_element_type_e type,
-                 const ov_shape_t shape,
-                 ov_tensor_t** tensor);
+ov_tensor_create(const ov_element_type_e type, const ov_shape_t shape, ov_tensor_t** tensor);
 
 /**
  * @brief Set new shape for tensor, deallocate/allocate if new total size is bigger than previous one.

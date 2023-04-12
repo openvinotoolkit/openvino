@@ -86,6 +86,7 @@ enum WeightsLayout {
     os_yxi_osv16,
     os_iyx_osv16,
     os_iyx_osv32,
+    os_iyx_osv8,
     os_iyx_osv32__ai32,
     os_iyx_osv64,
     os_is_zyx_isv16_osv16,
@@ -627,6 +628,8 @@ struct DataTensor : public TensorBaseT<Datatype, DataLayout> {
     }
 
     static inline uint32_t ChannelsCount(DataLayout l) { return TensorBaseT::ChannelsCount(dataChannelArray, l); }
+
+    static size_t max_rank() { return static_cast<size_t>(DataChannelName::COUNT); }
 
 private:
     using DataChannelDesc = std::pair<DataLayout, std::array<int, static_cast<size_t>(DataChannelName::COUNT)>>;

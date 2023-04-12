@@ -10,11 +10,13 @@
 #include "op_table.hpp"
 #include "openvino/frontend/tensorflow_lite/extension/op.hpp"
 #include "openvino/util/common_util.hpp"
-#include "pass/transpose_sinking.hpp"
 #include "so_extension.hpp"
 #include "tensor_lite_place.hpp"
 #include "tf_framework_node.hpp"
+#include "tflite_transformations/rfft2d_complex_abs.h"
+#include "tflite_transformations/tflite_quantize_resolver.hpp"
 #include "transformations/common_optimizations/transpose_sinking.hpp"
+#include "transformations/transpose_sinking/ts_general.hpp"
 
 using namespace ov;
 using namespace ov::frontend::tensorflow_lite;
@@ -23,23 +25,18 @@ namespace {
 void translate_framework_node(const std::shared_ptr<ov::frontend::tensorflow::FrameworkNode>& node,
                               const ov::frontend::tensorflow_lite::TranslatorDictionaryType& op_translators) {
     auto type = node->get_op_type();
-
     const auto& TRANSLATE_OP_MAP = op_translators;
     auto translator_it = TRANSLATE_OP_MAP.find(type);
     FRONT_END_OP_CONVERSION_CHECK(translator_it != TRANSLATE_OP_MAP.end(), "No translator found for ", type, " node.");
-
     ov::OutputVector ov_inputs = node->input_values();
     ov::frontend::tensorflow_lite::NodeContext node_ctx(node->get_decoder(), ov_inputs);
-    auto new_node_outputs = translator_it->second(node_ctx);
-    ov::frontend::tensorflow_lite::op::set_output_names(node_ctx, new_node_outputs);
-
-    auto new_output = new_node_outputs.begin();
+    auto new_outputs = translator_it->second(node_ctx);
+    ov::frontend::tensorflow_lite::op::set_output_names(node_ctx, new_outputs);
     auto old_outputs = node->outputs();
-    auto old_output = old_outputs.begin();
-
-    for (; new_output != new_node_outputs.end() && old_output != old_outputs.end(); ++old_output, ++new_output) {
-        old_output->replace(*new_output);
-        apply_quantization(*new_output);
+    FRONT_END_GENERAL_CHECK(new_outputs.size() == old_outputs.size());
+    for (size_t i = 0; i < new_outputs.size(); ++i) {
+        old_outputs[i].replace(new_outputs[i]);
+        apply_quantization(new_outputs[i], node->get_output_element_type(i));
     }
 }
 }  // namespace
@@ -50,7 +47,9 @@ FrontEnd::FrontEnd() {
 
 /// \brief Check if FrontEndTensorflowLite can recognize model from given parts
 bool FrontEnd::supported_impl(const std::vector<ov::Any>& variants) const {
-    if (variants.size() != 1)
+    // Last boolean flag in `variants` (if presented) is reserved for FE configuration
+    size_t extra_variants_num = variants.size() > 0 && variants[variants.size() - 1].is<bool>() ? 1 : 0;
+    if (variants.size() != 1 + extra_variants_num)
         return false;
 
     if (variants[0].is<std::string>()) {
@@ -73,7 +72,9 @@ bool FrontEnd::supported_impl(const std::vector<ov::Any>& variants) const {
 }
 
 ov::frontend::InputModel::Ptr FrontEnd::load_impl(const std::vector<ov::Any>& variants) const {
-    if (variants.size() == 1) {
+    // Last boolean flag in `variants` (if presented) is reserved for FE configuration
+    size_t extra_variants_num = variants.size() > 0 && variants[variants.size() - 1].is<bool>() ? 1 : 0;
+    if (variants.size() == 1 + extra_variants_num) {
         if (variants[0].is<std::string>()) {
             std::string suffix = ".tflite";
             std::string model_path = variants[0].as<std::string>();
@@ -267,10 +268,10 @@ std::shared_ptr<ov::Model> FrontEnd::decode(const InputModel::Ptr& model) const 
 
 void FrontEnd::normalize(const std::shared_ptr<ov::Model>& function) const {
     ov::pass::Manager manager;
-    // TODO: register i8 weights normalization after implemented
-    // TODO: remove custom transpose sinking after common TS ready
+    manager.register_pass<ov::frontend::tensorflow_lite::pass::TFLQuantizeResolver>();
+    manager.register_pass<ov::frontend::tensorflow_lite::pass::Rfft2dSimplifier>();
     manager.register_pass<ov::pass::TransposeSinking>();
-    manager.register_pass<ov::frontend::tensorflow::pass::TransposeSinking>();
+    manager.register_pass<ov::pass::TransposeSinkingGeneral>();
     manager.run_passes(function);
 }
 

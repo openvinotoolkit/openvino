@@ -5,7 +5,6 @@
 #pragma once
 #include "intel_gpu/primitives/depth_to_space.hpp"
 #include "primitive_inst.h"
-#include "kernel_selector/kernels/depth_to_space/depth_to_space_kernel_base.h"
 
 #include <string>
 #include <memory>
@@ -19,8 +18,8 @@ public:
     using parent::parent;
 
     program_node& input(size_t index = 0) const { return get_dependency(index); }
-    std::shared_ptr<kernel_selector::fuse_params> get_fuse_params() const override {
-        return std::make_shared<kernel_selector::depth_to_space_fuse_params>();
+    std::shared_ptr<NodeFuseParams> get_fuse_params() const override {
+        return std::make_shared<NodeFuseParams>(depth_to_space::type_id());
     }
 };
 

@@ -57,6 +57,8 @@ struct MulticlassNmsParams {
     std::vector<T> expected_selected_outputs;
     std::vector<T_IND> expected_selected_indices;
     std::vector<T_IND> expected_selected_num;
+
+    bool is_caching_test;
 };
 
 template<typename T, typename T_IND>
@@ -168,17 +170,18 @@ public:
 
             topology.add(primitive);
             topology.add(reorder("multiclass_nms", input_info("multiclass_nms_reordered"), plain_format, data_type));
-            ExecutionConfig config;
+            ExecutionConfig config = get_test_default_config(engine);
             config.set_property(ov::intel_gpu::optimize_data(false));
-            network network(engine, topology, config);
 
-            network.set_input_data("input_boxes", input_boxes);
-            network.set_input_data("input_scores", input_scores);
+            cldnn::network::ptr network = get_network(engine, topology, config, get_test_stream_ptr(), param.is_caching_test);
+
+            network->set_input_data("input_boxes", input_boxes);
+            network->set_input_data("input_scores", input_scores);
             if (param.has_roisnum) {
-                network.set_input_data("input_roisnum", input_roisnum);
+                network->set_input_data("input_roisnum", input_roisnum);
             }
 
-            const auto outputs = network.execute();
+            const auto outputs = network->execute();
 
             const auto output_boxes = outputs.at("multiclass_nms").get_memory();
             const cldnn::mem_lock<T> output_boxes_ptr(output_boxes, get_test_stream());
@@ -192,7 +195,7 @@ public:
                 cldnn::topology reorder_topology;
                 reorder_topology.add(input_layout("data", from_layout));
                 reorder_topology.add(reorder("plane_data", input_info("data"), plain_format, data_type));
-                cldnn::network reorder_net{engine, reorder_topology};
+                cldnn::network reorder_net{engine, reorder_topology, get_test_default_config(engine)};
                 reorder_net.set_input_data("data", mem);
                 const auto second_output_result = reorder_net.execute();
                 const auto plane_data_mem = second_output_result.at("plane_data").get_memory();
@@ -209,13 +212,17 @@ public:
                     get_test_stream());
             ASSERT_EQ(output_selected_num_ptr.size(), param.num_batches) << "format=" << fmt_to_str(target_format);
 
-            for (size_t i = 0; i < param.num_batches; ++i) {
-                ASSERT_EQ(param.expected_selected_num[i], output_selected_num_ptr[i])
-                                    << "format=" << fmt_to_str(target_format) << " i=" << i;
+            if (!param.is_caching_test) {
+                for (size_t i = 0; i < param.num_batches; ++i) {
+                    ASSERT_EQ(param.expected_selected_num[i], output_selected_num_ptr[i])
+                                        << "format=" << fmt_to_str(target_format) << " i=" << i;
+                }
             }
 
             for (size_t box = 0; box < dim; ++box) {
-                ASSERT_EQ(param.expected_selected_indices[box], output_selected_indices_ptr[box]) << "box=" << box;
+                if (!param.is_caching_test) {
+                    ASSERT_EQ(param.expected_selected_indices[box], output_selected_indices_ptr[box]) << "box=" << box;
+                }
 
                 for (size_t j = 0; j < 6; ++j) {
                     const auto idx = box * 6 + j;
@@ -266,7 +273,7 @@ TEST_P(multiclass_nms_test_blocked, basic) {
 }
 
 template<typename T, typename T_IND>
-std::vector<MulticlassNmsParams<T, T_IND>> getMulticlassNmsParams() {
+std::vector<MulticlassNmsParams<T, T_IND>> getMulticlassNmsParams(bool is_caching_test = false) {
     std::vector<MulticlassNmsParams<T, T_IND>> params = {
         {"by_score",
          cldnn::multiclass_nms::sort_result_type::score,
@@ -292,7 +299,8 @@ std::vector<MulticlassNmsParams<T, T_IND>> getMulticlassNmsParams() {
                        0.00, 0.90, 0.00, 0.00, 1.00, 1.00, 1.00, 0.80, 0.00, 10.00, 1.00, 11.00,
                        -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0}),
          std::vector<T_IND>{3, 0, 0, 3, -1, -1},
-         std::vector<T_IND>{4}},
+         std::vector<T_IND>{4},
+         is_caching_test},
 
         {"by_class_id",
          cldnn::multiclass_nms::sort_result_type::classid,
@@ -306,7 +314,8 @@ std::vector<MulticlassNmsParams<T, T_IND>> getMulticlassNmsParams() {
                           1.00, 0.95, 0.00, 0.00, 1.00, 1.00, 1.00, 0.80, 0.00, 10.00, 1.00, 11.00,
                           -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0}),
             std::vector<T_IND>{3, 0, 0, 3, -1, -1},
-            std::vector<T_IND>{4}},
+            std::vector<T_IND>{4},
+            is_caching_test},
 
         {"three_inputs",
          cldnn::multiclass_nms::sort_result_type::score,
@@ -346,7 +355,8 @@ std::vector<MulticlassNmsParams<T, T_IND>> getMulticlassNmsParams() {
                        -1.0, -1.0, -1.0, -1.0, -1.0, -1.0}),
         std::vector<T_IND>{1, 0, -1, -1, -1, -1,
                            2, 3, -1, -1, -1, -1},
-        std::vector<T_IND>{2, 2}},
+        std::vector<T_IND>{2, 2},
+        is_caching_test},
 
         {"across_batches_by_score",
          cldnn::multiclass_nms::sort_result_type::score,
@@ -384,7 +394,8 @@ std::vector<MulticlassNmsParams<T, T_IND>> getMulticlassNmsParams() {
                       -1.0, -1.0, -1.0, -1.0, -1.0, -1.0,
                       -1.0, -1.0, -1.0, -1.0, -1.0, -1.0}),
         std::vector<T_IND>{3, 0, 6, 0, -1, -1, 3, 9, 4, 5, -1, -1},
-        std::vector<T_IND>{4, 4}},
+        std::vector<T_IND>{4, 4},
+        is_caching_test},
 
         {"across_batches_by_class_id",
          cldnn::multiclass_nms::sort_result_type::classid,
@@ -423,7 +434,8 @@ std::vector<MulticlassNmsParams<T, T_IND>> getMulticlassNmsParams() {
                       -1.0, -1.0, -1.0, -1.0, -1.0, -1.0,
                       -1.0, -1.0, -1.0, -1.0, -1.0, -1.0}),
          std::vector<T_IND>{3, 0, 0, 3, -1, -1, 4, 5, 6, 9, -1, -1},
-         std::vector<T_IND>{4, 4}},
+         std::vector<T_IND>{4, 4},
+         is_caching_test},
 
         {"normalized",
          cldnn::multiclass_nms::sort_result_type::score,
@@ -449,7 +461,8 @@ std::vector<MulticlassNmsParams<T, T_IND>> getMulticlassNmsParams() {
          getValues<T>({0.00, 0.95, 0.00, 10.00, 1.00, 11.00, 0.00, 0.90, 1.00,
                        1.00, 0.00, 0.00, 0.00, 0.75, 0.00, 0.10, 1.00, 1.10}),
          std::vector<T_IND>{3, 0, 1},
-         std::vector<T_IND>{3}},
+         std::vector<T_IND>{3},
+         is_caching_test},
 
         {"identical_boxes",
          cldnn::multiclass_nms::sort_result_type::score,
@@ -477,7 +490,8 @@ std::vector<MulticlassNmsParams<T, T_IND>> getMulticlassNmsParams() {
                        -1.0, -1.0, -1.0, -1.0, -1.0, -1.0,
                        -1.0, -1.0, -1.0, -1.0, -1.0, -1.0}),
         std::vector<T_IND>{0, -1, -1},
-        std::vector<T_IND>{1}},
+        std::vector<T_IND>{1},
+        is_caching_test},
 
         {"limit_output_size",
          cldnn::multiclass_nms::sort_result_type::score,
@@ -501,7 +515,8 @@ std::vector<MulticlassNmsParams<T, T_IND>> getMulticlassNmsParams() {
          std::vector<T_IND>{},
          getValues<T>({0.00, 0.95, 0.00, 10.00, 1.00, 11.00, 0.00, 0.90, 0.00, 0.00, 1.00, 1.00}),
          std::vector<T_IND>{3, 0},
-         std::vector<T_IND>{2}},
+         std::vector<T_IND>{2},
+         is_caching_test},
 
         {"single_box",
          cldnn::multiclass_nms::sort_result_type::score,
@@ -525,7 +540,8 @@ std::vector<MulticlassNmsParams<T, T_IND>> getMulticlassNmsParams() {
 
          getValues<T>({0.00, 0.90, 0.00, 0.00, 1.00, 1.00}),
          std::vector<T_IND>{0},
-         std::vector<T_IND>{1}},
+         std::vector<T_IND>{1},
+         is_caching_test},
 
         {"iou_threshold",
          cldnn::multiclass_nms::sort_result_type::score,
@@ -551,7 +567,8 @@ std::vector<MulticlassNmsParams<T, T_IND>> getMulticlassNmsParams() {
          getValues<T>({0.00, 0.95, 0.00, 10.00, 1.00, 11.00, 0.00, 0.90, 0.00,
                        0.00, 1.00, 1.00, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0}),
         std::vector<T_IND>{3, 0, -1},
-        std::vector<T_IND>{2}},
+        std::vector<T_IND>{2},
+        is_caching_test},
 
         {"iou_and_score_thresholds",
          cldnn::multiclass_nms::sort_result_type::score,
@@ -577,7 +594,8 @@ std::vector<MulticlassNmsParams<T, T_IND>> getMulticlassNmsParams() {
          getValues<T>({0.00, 0.96, 0.00, 10.00, 1.00, 11.00, -1.0, -1.0, -1.0,
                        -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0}),
          std::vector<T_IND>{3, -1, -1},
-         std::vector<T_IND>{1}},
+         std::vector<T_IND>{1},
+         is_caching_test},
 
         {"no_output",
          cldnn::multiclass_nms::sort_result_type::score,
@@ -607,7 +625,8 @@ std::vector<MulticlassNmsParams<T, T_IND>> getMulticlassNmsParams() {
                       -1.0, -1.0, -1.0, -1.0, -1.0, -1.0,
                       -1.0, -1.0, -1.0, -1.0, -1.0, -1.0}),
          std::vector<T_IND>{-1, -1, -1, -1, -1, -1},
-         std::vector<T_IND>{0}},
+         std::vector<T_IND>{0},
+         is_caching_test},
 
         {"background_class",
          cldnn::multiclass_nms::sort_result_type::classid,
@@ -648,7 +667,8 @@ std::vector<MulticlassNmsParams<T, T_IND>> getMulticlassNmsParams() {
                       1.00, 0.80, 0.00, 10.00, 1.00, 11.00,
                       -1.0, -1.0, -1.0, -1.0, -1.0, -1.0}),
         std::vector<T_IND>{0, 3, -1, 6, 9, -1},
-        std::vector<T_IND>{2, 2}},
+        std::vector<T_IND>{2, 2},
+        is_caching_test},
 
         {"keep_top_k",
          cldnn::multiclass_nms::sort_result_type::classid,
@@ -681,7 +701,8 @@ std::vector<MulticlassNmsParams<T, T_IND>> getMulticlassNmsParams() {
                        1.00, 0.95, 0.00, 0.00, 1.00, 1.00,
                        1.00, 0.80, 0.00, 10.00, 1.00, 11.00}),
         std::vector<T_IND>{3, 0, 0, 4, 6, 9},
-        std::vector<T_IND>{3, 3}},
+        std::vector<T_IND>{3, 3},
+        is_caching_test},
 
         {"normalized_by_classid",
          cldnn::multiclass_nms::sort_result_type::classid,
@@ -735,14 +756,15 @@ std::vector<MulticlassNmsParams<T, T_IND>> getMulticlassNmsParams() {
                             -1, -1, -1, -1, -1, -1,
                             2, 4, 5, 6, 9, 11,
                             -1, -1, -1, -1, -1, -1},
-         std::vector<T_IND>{6, 6}},
+         std::vector<T_IND>{6, 6},
+         is_caching_test},
     };
 
     return params;
 }
 
 template<typename T, typename T_IND>
-std::vector<MulticlassNmsParams<T, T_IND>> getParamsForBlockedLayout() {
+std::vector<MulticlassNmsParams<T, T_IND>> getParamsForBlockedLayout(bool is_caching_test = false) {
     MulticlassNmsParams<T, T_IND> param = {
         "blocked_format_three_inputs",
         cldnn::multiclass_nms::sort_result_type::score,
@@ -798,7 +820,8 @@ std::vector<MulticlassNmsParams<T, T_IND>> getParamsForBlockedLayout() {
         std::vector<T_IND>{1, 0, -1, -1, -1, -1,
                            2, 3, -1, -1, -1, -1},
         std::vector<T_IND>{2, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-                           0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}
+                           0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+        is_caching_test
     };
 
     const auto indices_size = param.num_batches * param.num_boxes;
@@ -829,8 +852,24 @@ INSTANTIATE_TEST_SUITE_P(multiclass_nms_gpu_test,
                      PrintToStringParamName());
 
 INSTANTIATE_TEST_SUITE_P(multiclass_nms_gpu_test_blocked,
-                     multiclass_nms_test_f32_i32,
+                     multiclass_nms_test_blocked,
                      ::testing::ValuesIn(getParamsForBlockedLayout<float, int32_t>()),
+                     PrintToStringParamName());
+
+#ifdef RUN_ALL_MODEL_CACHING_TESTS
+INSTANTIATE_TEST_SUITE_P(multiclass_nms_gpu_test_cached,
+                     multiclass_nms_test_f32_i32,
+                     ::testing::ValuesIn(getMulticlassNmsParams<float, int32_t>(true)),
+                     PrintToStringParamName());
+
+INSTANTIATE_TEST_SUITE_P(multiclass_nms_gpu_test_cached,
+                     multiclass_nms_test_f16_i64,
+                     ::testing::ValuesIn(getMulticlassNmsParams<half_t, int64_t>(true)),
+                     PrintToStringParamName());
+#endif
+INSTANTIATE_TEST_SUITE_P(multiclass_nms_gpu_test_blocked_cached,
+                     multiclass_nms_test_blocked,
+                     ::testing::ValuesIn(getParamsForBlockedLayout<float, int32_t>(true)),
                      PrintToStringParamName());
 
 };  // namespace
