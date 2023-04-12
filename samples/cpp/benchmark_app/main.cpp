@@ -1224,7 +1224,7 @@ int main(int argc, char* argv[]) {
                                                getFullDeviceName(core, FLAGS_d),
                                                FLAGS_pcsort,
                                                false);
-                } else {
+                } else if (FLAGS_pc) {
                     slog::info << "Performance counts for " << ireq << "-th infer request:" << slog::endl;
                     printPerformanceCounts(reqPerfCounts, std::cout, getFullDeviceName(core, FLAGS_d), false);
                 }

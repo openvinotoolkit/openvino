@@ -588,7 +588,7 @@ def main():
                 if statistics:
                     statistics.dump_performance_counters_sorted(total_sorted_list)
 
-            else:
+            elif args.perf_counts:
                 print_perf_counters(perfs_count_list)
 
             if statistics:
