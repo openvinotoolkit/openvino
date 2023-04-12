@@ -810,7 +810,10 @@ static bool ValidateConcatAxis(const InferenceEngine::CNNLayerPtr layer, std::st
         if (unsupported_concat_axis != end_dim) {
             auto dims = concat_layer->insData[0].lock()->getDims();
             std::ostringstream in_dims_oss;
-            std::copy(dims.begin(), dims.end(), std::ostream_iterator<size_t>(in_dims_oss, ","));
+            std::copy(dims.begin(), std::prev(dims.end()), std::ostream_iterator<size_t>(in_dims_oss, ","));
+            if (!dims.empty()) {
+                in_dims_oss << dims.back();
+            }
             errMessage = "[ WARNING ] Topology with layer: " + layer->name + ", type: " + layer->type +
                          ", and concatenation axis(" + std::to_string(concat_layer->_axis) + ") for input dimensions(" +
                          in_dims_oss.str() + ") not supported\n";
@@ -829,7 +832,8 @@ bool ValidateConvConcatAxis(const InferenceEngine::ConcatLayer* concat_layer) {
 
         // Skipping here all layers which would disappear or otherwise fuse with convolution in the final GNA graph
         auto isFusableWithConv = [](InferenceEngine::CNNLayerPtr ptr) {
-            return (LayerInfo(ptr).isFusableWithConv() || LayerInfo(ptr).isNonFunctional());
+            return (LayerInfo(ptr).isFusableWithConv() || LayerInfo(ptr).isNonFunctional() ||
+                    LayerInfo(ptr).isConcat());
         };
 
         auto in_dims = concat_layer->insData[0].lock()->getDims();

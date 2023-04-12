@@ -33,18 +33,18 @@ struct ReLUConcatAxis {
                                                             const unsigned int& axis,
                                                             const InferenceEngine::Precision& netPrecision) {
         auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
-        ngraph::OutputVector concatInputs;
+        ov::OutputVector concatInputs;
 
-        ngraph::ParameterVector params = ngraph::builder::makeParams(ngPrc, {inputShape});
+        ov::ParameterVector params = ngraph::builder::makeParams(ngPrc, {inputShape});
         auto relu = ngraph::builder::makeActivation(params[0], ngPrc, ngraph::helpers::ActivationTypes::Relu);
         concatInputs.push_back(relu);
-        size_t totalSize = ngraph::shape_size(inputShape);
+        size_t totalSize = ov::shape_size(inputShape);
         auto constValues = CommonTestUtils::generate_float_numbers(totalSize, -0.1f, 0.1f);
         auto constNode = ngraph::builder::makeConstant(ngPrc, {inputShape}, constValues);
         concatInputs.push_back(constNode);
         auto concat = ngraph::builder::makeConcat(concatInputs, axis);
 
-        ngraph::ResultVector results{std::make_shared<ngraph::opset8::Result>(concat)};
+        ov::ResultVector results{std::make_shared<ov::opset10::Result>(concat)};
         return std::make_shared<ngraph::Function>(results, params, getName());
     }
     static const char* getMatch() {
@@ -60,9 +60,9 @@ struct MatmulConcatAxis {
                                                             const unsigned int& axis,
                                                             const InferenceEngine::Precision& netPrecision) {
         auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
-        ngraph::OutputVector concatInputs;
-        ngraph::ParameterVector params = ngraph::builder::makeParams(ngPrc, {inputShape});
-        ngraph::Shape mulConstShape;
+        ov::OutputVector concatInputs;
+        ov::ParameterVector params = ngraph::builder::makeParams(ngPrc, {inputShape});
+        ov::Shape mulConstShape;
 
         switch (inputShape.size()) {
         default:
@@ -77,20 +77,20 @@ struct MatmulConcatAxis {
             break;
         }
 
-        size_t mulConstSize = ngraph::shape_size(mulConstShape);
+        size_t mulConstSize = ov::shape_size(mulConstShape);
         std::vector<float> weights1(mulConstSize);
         std::vector<float> weights2(mulConstSize);
         std::iota(weights1.begin(), weights1.end(), 0.0f);
         std::iota(weights2.begin(), weights2.end(), 0.0f);
         auto constMul1 = ngraph::builder::makeConstant<float>(ngPrc, mulConstShape, weights1);
         auto constMul2 = ngraph::builder::makeConstant<float>(ngPrc, mulConstShape, weights2);
-        auto matmul1 = std::make_shared<ngraph::opset8::MatMul>(params[0], constMul1, false, true);
+        auto matmul1 = std::make_shared<ov::opset10::MatMul>(params[0], constMul1, false, true);
         concatInputs.push_back(matmul1);
-        auto matmul2 = std::make_shared<ngraph::opset8::MatMul>(params[0], constMul2, false, true);
+        auto matmul2 = std::make_shared<ov::opset10::MatMul>(params[0], constMul2, false, true);
         concatInputs.push_back(matmul2);
         auto concat = ngraph::builder::makeConcat(concatInputs, axis);
 
-        ngraph::ResultVector results{std::make_shared<ngraph::opset8::Result>(concat)};
+        ov::ResultVector results{std::make_shared<ov::opset10::Result>(concat)};
         return std::make_shared<ngraph::Function>(results, params, getName());
     }
     static const char* getMatch() {
@@ -106,8 +106,8 @@ struct ConvNCHWConcatAxis {
                                                             const unsigned int& axis,
                                                             const InferenceEngine::Precision& netPrecision) {
         auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
-        ngraph::OutputVector concatInputs;
-        ngraph::ParameterVector params = ngraph::builder::makeParams(ngPrc, {inputShape});
+        ov::OutputVector concatInputs;
+        ov::ParameterVector params = ngraph::builder::makeParams(ngPrc, {inputShape});
 
         size_t numOutChannels = 8;
         size_t kernelSize = 1;
@@ -120,19 +120,19 @@ struct ConvNCHWConcatAxis {
                                                      {0, 0},
                                                      {0, 0},
                                                      {1, 1},
-                                                     ngraph::op::PadType::VALID,
+                                                     ov::op::PadType::VALID,
                                                      numOutChannels,
                                                      true,
                                                      filterWeights);
 
         concatInputs.push_back(conv);
-        size_t totalSize = ngraph::shape_size(inputShape);
+        size_t totalSize = ov::shape_size(inputShape);
         auto constValues = CommonTestUtils::generate_float_numbers(totalSize, -0.0001f, 0.0001f);
         auto constNode = ngraph::builder::makeConstant(ngPrc, {inputShape}, constValues);
         concatInputs.push_back(constNode);
         auto concat = ngraph::builder::makeConcat(concatInputs, axis);
 
-        ngraph::ResultVector results{std::make_shared<ngraph::opset8::Result>(concat)};
+        ov::ResultVector results{std::make_shared<ov::opset10::Result>(concat)};
         return std::make_shared<ngraph::Function>(results, params, getName());
     }
     static const char* getMatch() {
@@ -148,11 +148,11 @@ struct ConvNHWCConcatAxis {
                                                             const unsigned int& axis,
                                                             const InferenceEngine::Precision& netPrecision) {
         auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
-        ngraph::OutputVector concatInputs;
-        ngraph::ParameterVector params = ngraph::builder::makeParams(ngPrc, {inputShape});
+        ov::OutputVector concatInputs;
+        ov::ParameterVector params = ngraph::builder::makeParams(ngPrc, {inputShape});
 
-        auto transposeInOrder = ngraph::op::Constant::create(ngraph::element::i64, ngraph::Shape{4}, {0, 3, 1, 2});
-        auto transposeIn = std::make_shared<ngraph::opset8::Transpose>(params[0], transposeInOrder);
+        auto transposeInOrder = ov::opset10::Constant::create(ov::element::i64, ov::Shape{4}, {0, 3, 1, 2});
+        auto transposeIn = std::make_shared<ov::opset10::Transpose>(params[0], transposeInOrder);
         size_t numOutChannels = 8;
         size_t kernelSize = 1;
         std::vector<float> filterWeights =
@@ -164,21 +164,21 @@ struct ConvNHWCConcatAxis {
                                                      {0, 0},
                                                      {0, 0},
                                                      {1, 1},
-                                                     ngraph::op::PadType::VALID,
+                                                     ov::op::PadType::VALID,
                                                      numOutChannels,
                                                      true,
                                                      filterWeights);
-        auto transposeOutOrder = ngraph::op::Constant::create(ngraph::element::i64, ngraph::Shape{4}, {0, 2, 3, 1});
-        auto transposeOut = std::make_shared<ngraph::opset8::Transpose>(conv, transposeOutOrder);
+        auto transposeOutOrder = ov::opset10::Constant::create(ov::element::i64, ov::Shape{4}, {0, 2, 3, 1});
+        auto transposeOut = std::make_shared<ov::opset10::Transpose>(conv, transposeOutOrder);
 
         concatInputs.push_back(transposeOut);
-        size_t totalSize = ngraph::shape_size(inputShape);
+        size_t totalSize = ov::shape_size(inputShape);
         auto constValues = CommonTestUtils::generate_float_numbers(totalSize, -0.0001f, 0.0001f);
         auto constNode = ngraph::builder::makeConstant(ngPrc, {inputShape}, constValues);
         concatInputs.push_back(constNode);
         auto concat = ngraph::builder::makeConcat(concatInputs, axis);
 
-        ngraph::ResultVector results{std::make_shared<ngraph::opset8::Result>(concat)};
+        ov::ResultVector results{std::make_shared<ov::opset10::Result>(concat)};
         return std::make_shared<ngraph::Function>(results, params, getName());
     }
     static const char* getMatch() {
@@ -194,12 +194,12 @@ struct ConvConcatNHWCAxis {
                                                             const unsigned int& axis,
                                                             const InferenceEngine::Precision& netPrecision) {
         auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
-        ngraph::OutputVector concatInputs;
-        ngraph::ParameterVector params = ngraph::builder::makeParams(ngPrc, {inputShape});
+        ov::OutputVector concatInputs;
+        ov::ParameterVector params = ngraph::builder::makeParams(ngPrc, {inputShape});
 
-        auto transposeInOrder = ngraph::op::Constant::create(ngraph::element::i64, ngraph::Shape{4}, {0, 3, 1, 2});
-        auto transposeIn1 = std::make_shared<ngraph::opset8::Transpose>(params[0], transposeInOrder);
-        auto transposeIn2 = std::make_shared<ngraph::opset8::Transpose>(params[0], transposeInOrder);
+        auto transposeInOrder = ov::opset10::Constant::create(ov::element::i64, ov::Shape{4}, {0, 3, 1, 2});
+        auto transposeIn1 = std::make_shared<ov::opset10::Transpose>(params[0], transposeInOrder);
+        auto transposeIn2 = std::make_shared<ov::opset10::Transpose>(params[0], transposeInOrder);
         size_t numOutChannels = 8;
         size_t kernelSize = 1;
         std::vector<float> filterWeights1 =
@@ -213,7 +213,7 @@ struct ConvConcatNHWCAxis {
                                                       {0, 0},
                                                       {0, 0},
                                                       {1, 1},
-                                                      ngraph::op::PadType::VALID,
+                                                      ov::op::PadType::VALID,
                                                       numOutChannels,
                                                       true,
                                                       filterWeights1);
@@ -224,7 +224,7 @@ struct ConvConcatNHWCAxis {
                                                       {0, 0},
                                                       {0, 0},
                                                       {1, 1},
-                                                      ngraph::op::PadType::VALID,
+                                                      ov::op::PadType::VALID,
                                                       numOutChannels,
                                                       true,
                                                       filterWeights2);
@@ -233,10 +233,86 @@ struct ConvConcatNHWCAxis {
         concatInputs.push_back(conv2);
         auto concat = ngraph::builder::makeConcat(concatInputs, axis);
 
-        auto transposeOutOrder = ngraph::op::Constant::create(ngraph::element::i64, ngraph::Shape{4}, {0, 2, 3, 1});
-        auto transposeOut = std::make_shared<ngraph::opset8::Transpose>(concat, transposeOutOrder);
+        auto transposeOutOrder = ov::opset10::Constant::create(ov::element::i64, ov::Shape{4}, {0, 2, 3, 1});
+        auto transposeOut = std::make_shared<ov::opset10::Transpose>(concat, transposeOutOrder);
 
-        ngraph::ResultVector results{std::make_shared<ngraph::opset8::Result>(transposeOut)};
+        ov::ResultVector results{std::make_shared<ov::opset10::Result>(transposeOut)};
+        return std::make_shared<ngraph::Function>(results, params, getName());
+    }
+    static const char* getMatch() {
+        return "type: Concat, and concatenation axis(";
+    }
+};
+
+struct ConvConcatConcatNHWCAxis {
+    static const char* getName() {
+        return "ConvConcatConcatNHWCAxis";
+    }
+    static std::shared_ptr<ngraph::Function> createTopology(const InferenceEngine::SizeVector& inputShape,
+                                                            const unsigned int& axis,
+                                                            const InferenceEngine::Precision& netPrecision) {
+        auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
+        ov::OutputVector concat1Inputs, concat2Inputs;
+        ov::ParameterVector params = ngraph::builder::makeParams(ngPrc, {inputShape});
+
+        auto transposeInOrder = ov::opset10::Constant::create(ov::element::i64, ov::Shape{4}, {0, 3, 1, 2});
+        auto transposeIn1 = std::make_shared<ov::opset10::Transpose>(params[0], transposeInOrder);
+        auto transposeIn2 = std::make_shared<ov::opset10::Transpose>(params[0], transposeInOrder);
+        size_t numOutChannels = 64;
+        size_t kernelSize = 1;
+        std::vector<float> filterWeights1 =
+            CommonTestUtils::generate_float_numbers(numOutChannels * inputShape[3] * kernelSize, -0.1f, 2.2f);
+        std::vector<float> filterWeights2 =
+            CommonTestUtils::generate_float_numbers(numOutChannels * inputShape[3] * kernelSize, -1.2f, 0.5f);
+        auto conv1 = ngraph::builder::makeConvolution(transposeIn1,
+                                                      ngPrc,
+                                                      {1, kernelSize},
+                                                      {1, 1},
+                                                      {0, 0},
+                                                      {0, 0},
+                                                      {1, 1},
+                                                      ov::op::PadType::VALID,
+                                                      numOutChannels,
+                                                      true,
+                                                      filterWeights1);
+        auto conv2 = ngraph::builder::makeConvolution(transposeIn2,
+                                                      ngPrc,
+                                                      {1, kernelSize},
+                                                      {1, 1},
+                                                      {0, 0},
+                                                      {0, 0},
+                                                      {1, 1},
+                                                      ov::op::PadType::VALID,
+                                                      numOutChannels,
+                                                      true,
+                                                      filterWeights2);
+
+        auto transposeOutOrder = ov::opset10::Constant::create(ov::element::i64, ov::Shape{4}, {0, 2, 3, 1});
+        auto transposeOut1 = std::make_shared<ov::opset10::Transpose>(conv1, transposeOutOrder);
+        auto transposeOut2 = std::make_shared<ov::opset10::Transpose>(conv2, transposeOutOrder);
+
+        concat1Inputs.push_back(transposeOut1);
+        concat1Inputs.push_back(transposeOut2);
+        auto concat1 = ngraph::builder::makeConcat(concat1Inputs, 2);
+        auto squeeze = std::make_shared<ov::opset10::Squeeze>(
+            concat1,
+            ov::opset10::Constant::create(ov::element::i64, ov::Shape{2}, {0, 1}));
+
+        size_t totalSize = ov::shape_size(squeeze->get_shape());
+        auto constValues = CommonTestUtils::generate_float_numbers(totalSize, -0.0001f, 0.0001f);
+        auto constNode = ngraph::builder::makeConstant(ngPrc, {squeeze->get_shape()}, constValues);
+
+        concat2Inputs.push_back(squeeze);
+        concat2Inputs.push_back(constNode);
+        auto concat2 = ngraph::builder::makeConcat(concat2Inputs, axis);
+        auto reshape = std::make_shared<ov::opset10::Reshape>(
+            concat2,
+            ov::opset10::Constant::create(ov::element::i64,
+                                          ov::Shape{2},
+                                          ov::Shape{1, shape_size(concat2->get_shape())}),
+            false);
+
+        ov::ResultVector results{std::make_shared<ov::opset10::Result>(reshape)};
         return std::make_shared<ngraph::Function>(results, params, getName());
     }
     static const char* getMatch() {
@@ -290,6 +366,8 @@ using ConvNHWCConcatRestrictionsNeg = ConcatRestrictions<ConvNHWCConcatAxis>;
 using ConvNHWCConcatRestrictionsPos = ConcatRestrictions<ConvNHWCConcatAxis>;
 using ConvConcatNHWCRestrictionsNeg = ConcatRestrictions<ConvConcatNHWCAxis>;
 using ConvConcatNHWCRestrictionsPos = ConcatRestrictions<ConvConcatNHWCAxis>;
+using ConvConcatConcatNHWCRestrictionsNeg = ConcatRestrictions<ConvConcatConcatNHWCAxis>;
+using ConvConcatConcatNHWCRestrictionsPos = ConcatRestrictions<ConvConcatConcatNHWCAxis>;
 
 TEST_P(ReLUConcatRestrictionsNeg, CompareWithRefImpl) {
     ExpectLoadNetworkToThrow(getMatch());
@@ -330,6 +408,14 @@ TEST_P(ConvConcatNHWCRestrictionsNeg, CompareWithRefImpl) {
 };
 
 TEST_P(ConvConcatNHWCRestrictionsPos, CompareWithRefImpl) {
+    Run();
+};
+
+TEST_P(ConvConcatConcatNHWCRestrictionsNeg, CompareWithRefImpl) {
+    ExpectLoadNetworkToThrow(getMatch());
+};
+
+TEST_P(ConvConcatConcatNHWCRestrictionsPos, CompareWithRefImpl) {
     Run();
 };
 
@@ -521,4 +607,28 @@ INSTANTIATE_TEST_SUITE_P(smoke_concat_restrictions,
                                             ::testing::Values(CommonTestUtils::DEVICE_GNA)),
                          ConvConcatNHWCRestrictionsPos::getTestCaseName);
 
+// Negative cases NHWC with two consecutive concats
+const std::vector<std::vector<size_t>> inputShapesConcatConcatNHWC = {{1, 1, 16, 8}};
+const std::vector<unsigned int> concatAxisConcatConcatNHWC_neg = {1};
+
+INSTANTIATE_TEST_SUITE_P(smoke_concat_restrictions,
+                         ConvConcatConcatNHWCRestrictionsNeg,
+                         ::testing::Combine(::testing::ValuesIn(inputShapesConcatConcatNHWC),
+                                            ::testing::ValuesIn(concatAxisConcatConcatNHWC_neg),
+                                            ::testing::ValuesIn(netPrecisions),
+                                            ::testing::ValuesIn(configs),
+                                            ::testing::Values(CommonTestUtils::DEVICE_GNA)),
+                         ConvConcatConcatNHWCRestrictionsNeg::getTestCaseName);
+
+// Positive cases NHWC with two consecutive concats
+const std::vector<unsigned int> concatAxisConcatConcatNHWC_pos = {0};
+
+INSTANTIATE_TEST_SUITE_P(smoke_concat_restrictions,
+                         ConvConcatConcatNHWCRestrictionsPos,
+                         ::testing::Combine(::testing::ValuesIn(inputShapesConcatConcatNHWC),
+                                            ::testing::ValuesIn(concatAxisConcatConcatNHWC_pos),
+                                            ::testing::ValuesIn(netPrecisions),
+                                            ::testing::ValuesIn(configs),
+                                            ::testing::Values(CommonTestUtils::DEVICE_GNA)),
+                         ConvConcatConcatNHWCRestrictionsPos::getTestCaseName);
 }  // namespace ConcatTestsDefinitions
