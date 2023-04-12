@@ -108,29 +108,29 @@ TSUnsqueezeForward::TSUnsqueezeForward() {
     ov::matcher_pass_callback matcher_pass_callback = [=](pattern::Matcher& m) {
         const auto& pattern_to_output = m.get_pattern_map();
 
-        auto transpose = pattern_to_output.at(transpose_label);
-        auto unsqueeze = pattern_to_output.at(unsqueeze_label);
-        if (transformation_callback(unsqueeze)) {
+        auto transpose = as_type_ptr<Transpose>(pattern_to_output.at(transpose_label));
+        auto main_node = pattern_to_output.at(unsqueeze_label);
+        if (!transpose || transformation_callback(main_node)) {
             return false;
         }
 
         auto transpose_order = as_type_ptr<Constant>(transpose->get_input_node_shared_ptr(1));
-        auto unsqueeze_axes = as_type_ptr<Constant>(unsqueeze->get_input_node_shared_ptr(1));
+        auto unsqueeze_axes = as_type_ptr<Constant>(main_node->get_input_node_shared_ptr(1));
         if (!transpose_order || !unsqueeze_axes) {
             return false;
         }
 
         std::vector<size_t> non_negative_axes;
-        if (as_type_ptr<Reshape>(unsqueeze)) {
-            auto success = shape_to_unsqueeze_axes(unsqueeze, unsqueeze_axes, non_negative_axes);
+        if (as_type_ptr<Reshape>(main_node)) {
+            auto success = shape_to_unsqueeze_axes(main_node, unsqueeze_axes, non_negative_axes);
             if (!success) {
                 return false;
             }
         } else {
-            auto rank = unsqueeze->get_output_partial_shape(0).rank();
+            auto rank = main_node->get_output_partial_shape(0).rank();
             OPENVINO_SUPPRESS_DEPRECATED_START
             non_negative_axes =
-                normalize_axes(unsqueeze->get_friendly_name(), unsqueeze_axes->cast_vector<int64_t>(), rank);
+                normalize_axes(main_node->get_friendly_name(), unsqueeze_axes->cast_vector<int64_t>(), rank);
             OPENVINO_SUPPRESS_DEPRECATED_END
         }
         auto ts_order_values = transpose_order->cast_vector<size_t>();
@@ -140,25 +140,29 @@ TSUnsqueezeForward::TSUnsqueezeForward() {
             Constant::create(transpose_order->get_element_type(), {ts_order_values.size()}, ts_order_values);
 
         std::shared_ptr<Node> new_unsqueeze;
-        if (as_type_ptr<Reshape>(unsqueeze)) {
+        if (as_type_ptr<Reshape>(main_node)) {
             std::vector<size_t> new_values;
             auto success = unsqueeze_axes_to_shape(transpose->input_value(0), non_negative_axes, new_values);
             if (!success) {
                 return false;
             }
             auto new_const = Constant::create(unsqueeze_axes->get_element_type(), {new_values.size()}, new_values);
-            new_unsqueeze = unsqueeze->clone_with_new_inputs({transpose->input_value(0), new_const});
-        } else {
-            new_unsqueeze = unsqueeze->clone_with_new_inputs({transpose->input_value(0), unsqueeze->input_value(1)});
+            main_node->input(1).replace_source_output(new_const);
+            copy_runtime_info(unsqueeze_axes, new_const);
         }
-        auto new_transpose = transpose->clone_with_new_inputs({new_unsqueeze, new_transpose_order});
 
-        replace_node(unsqueeze, new_transpose);
-        new_unsqueeze->set_friendly_name(transpose->get_friendly_name());
-        new_transpose->set_friendly_name(unsqueeze->get_friendly_name());
-        UpdateForwardSinkingAbility(new_transpose);
-        register_new_node(new_transpose);
-        copy_runtime_info({transpose, unsqueeze}, {new_transpose, new_unsqueeze});
+        TransposeInputsInfo transpose_input_info = {transpose, new_transpose_order, 0};
+        // deletes Transpose from 0 input
+        auto success = sink_forward::UpdateInputTransposes(main_node, transpose_input_info, {0});
+        if (!success) {
+            return false;
+        }
+
+        main_node->validate_and_infer_types();
+        for (auto& new_node : sink_forward::InsertOutputTransposes(main_node, transpose_input_info)) {
+            register_new_node(new_node);
+            UpdateForwardSinkingAbility(new_node);
+        }
 
         return true;
     };
@@ -181,27 +185,27 @@ TSUnsqueezeBackward::TSUnsqueezeBackward() {
         const auto& pattern_to_output = m.get_pattern_map();
 
         auto transpose = pattern_to_output.at(transpose_label);
-        auto unsqueeze = pattern_to_output.at(unsqueeze_label);
-        if (transformation_callback(unsqueeze)) {
+        auto main_node = pattern_to_output.at(unsqueeze_label);
+        if (transformation_callback(main_node)) {
             return false;
         }
 
         auto transpose_order = std::dynamic_pointer_cast<Constant>(transpose->get_input_node_shared_ptr(1));
-        auto unsqueeze_axes = std::dynamic_pointer_cast<Constant>(unsqueeze->get_input_node_shared_ptr(1));
+        auto unsqueeze_axes = std::dynamic_pointer_cast<Constant>(main_node->get_input_node_shared_ptr(1));
         if (!transpose_order || !unsqueeze_axes)
             return false;
 
         std::vector<size_t> non_negative_axes;
-        if (as_type_ptr<Reshape>(unsqueeze)) {
-            auto success = shape_to_unsqueeze_axes(unsqueeze, unsqueeze_axes, non_negative_axes);
+        if (as_type_ptr<Reshape>(main_node)) {
+            auto success = shape_to_unsqueeze_axes(main_node, unsqueeze_axes, non_negative_axes);
             if (!success) {
                 return false;
             }
         } else {
-            auto rank = unsqueeze->get_output_partial_shape(0).rank();
+            auto rank = main_node->get_output_partial_shape(0).rank();
             OPENVINO_SUPPRESS_DEPRECATED_START
             non_negative_axes =
-                normalize_axes(unsqueeze->get_friendly_name(), unsqueeze_axes->cast_vector<int64_t>(), rank);
+                normalize_axes(main_node->get_friendly_name(), unsqueeze_axes->cast_vector<int64_t>(), rank);
             OPENVINO_SUPPRESS_DEPRECATED_END
         }
 
@@ -210,9 +214,9 @@ TSUnsqueezeBackward::TSUnsqueezeBackward() {
         std::vector<size_t> new_values;
 
         if (non_negative_axes.size() == transpose_order_values.size()) {
-            // input is a scalar, we unsqueeze all dims
+            // input is a scalar, we main_node all dims
             // it's enough to eliminate such Transpose
-            transpose->output(0).replace(unsqueeze);
+            transpose->output(0).replace(main_node);
             return true;
         }
 
@@ -228,23 +232,24 @@ TSUnsqueezeBackward::TSUnsqueezeBackward() {
                                                               Shape{transpose_order_values.size()},
                                                               transpose_order_values);
 
-        auto new_transpose = transpose->clone_with_new_inputs({unsqueeze->input_value(0), new_transpose_order});
-        if (as_type_ptr<Reshape>(unsqueeze)) {
+        for (auto& new_node : sink_backward::InsertTransposeBeforeNode(main_node, new_transpose_order, {0})) {
+            register_new_node(new_node);
+        }
+        if (as_type_ptr<Reshape>(main_node)) {
             std::vector<size_t> to_shape;
-            auto success = unsqueeze_axes_to_shape(new_transpose->output(0), new_values, to_shape);
+            auto success = unsqueeze_axes_to_shape(main_node->input_value(0), new_values, to_shape);
             if (!success) {
                 return false;
             }
             new_values = to_shape;
         }
-        auto new_const = Constant::create(unsqueeze_axes->get_element_type(), unsqueeze_axes->get_shape(), new_values);
-        auto new_unsqueeze = unsqueeze->clone_with_new_inputs({new_transpose, new_const});
+        auto new_const = Constant::create(unsqueeze_axes->get_element_type(), {new_values.size()}, new_values);
+        main_node->input(1).replace_source_output(new_const);
 
-        replace_node(transpose, new_unsqueeze);
-        copy_runtime_info({transpose, unsqueeze}, {new_transpose, new_unsqueeze});
-        new_unsqueeze->set_friendly_name(transpose->get_friendly_name());
-        new_transpose->set_friendly_name(unsqueeze->get_friendly_name());
-        register_new_node(new_transpose);
+        main_node->validate_and_infer_types();
+        RemoveSingleOutputConsumers(main_node);
+        SwapNames(transpose, main_node);
+        copy_runtime_info(unsqueeze_axes, new_const);
         return true;
     };
 
