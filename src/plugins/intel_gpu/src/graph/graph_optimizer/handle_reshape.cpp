@@ -93,7 +93,9 @@ void handle_reshape::run(program& p) {
             // If onednn user doesn't support new input data type from future "reorder:_reshape_input_" reorder,
             // remove target reorder_node to keep original datatype
             if (!onednn_users.empty() && !reorder_node_to_split.empty()) {
-                for (const auto& reorder_node : reorder_node_to_split) {
+                // Copy reorder_node_to_split to iteration
+                std::vector<program_node*> reorder_users(reorder_node_to_split);
+                for (const auto& reorder_node : reorder_users) {
                     auto output_data_type = reorder_node->get_output_layout().data_type;
                     bool onednn_support = true;
                     for (const auto& user : onednn_users) {
