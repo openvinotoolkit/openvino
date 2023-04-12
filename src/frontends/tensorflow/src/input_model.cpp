@@ -487,7 +487,6 @@ void InputModel::InputModelTFImpl::override_all_outputs(const std::vector<ov::fr
     for (const auto& output_place : outputs) {
         m_outputs.push_back(castToTensorPlace(output_place));
     }
-    std::cerr << "Override outputs\n";
     m_custom_inputs = true;
 }
 
