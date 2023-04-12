@@ -77,6 +77,19 @@ def get_rel_weight(meta_info_file:Path):
         logger.error(f"Meta info {meta_info_file} is incorrect!")
         return 1
 
+def update_rel_weight(meta_info_file:Path, additional_value: float):
+    try:
+        meta_info_root = ET.parse(meta_info_file).getroot()
+        graph_priority_node = meta_info_root.find("graph_priority")
+        value_attrib = float(graph_priority_node.attrib.get("value"))
+        graph_priority_node.set("value", str(value_attrib + additional_value))
+        with open(meta_info_file, "w") as xml_file:
+            xml_file.write(ET.tostring(meta_info_root).decode('utf8'))
+        logger.info(f"Meta info file {meta_info_file} was updated")
+    except:
+        logger.error(f"Meta info {meta_info_file} is incorrect!")
+        return
+
 def is_report_op(op_name:str, is_convert_model:bool):
     if "Parameter-1" == op_name or "Result-1" == op_name or "Constant-1" == op_name:
         return False
@@ -130,9 +143,6 @@ def create_hash(in_dir_path: Path, operations=dict()):
             for node in model.get_ordered_ops():
                 op_name = generate_op_name(node.get_type_info())
                 if is_report_op(op_name, is_convert_model):
-                    print(model_path)
-                    if op_name == "Loop-5":
-                        a = 9
                     if not op_name in operations.keys():
                         operations.update({op_name: TestStructure()})
                     if "static" in str(model_path):
@@ -153,10 +163,19 @@ def create_hash(in_dir_path: Path, operations=dict()):
         old_name = model_path
         new_name = str(sha256(str_to_hash.encode('utf-8')).hexdigest())
 
-        model_path.rename(Path(model_path.parent, new_name + XML_EXTENSION))
-        meta_path.rename(Path(meta_path.parent, new_name + META_EXTENSION))
-        bin_path.rename(Path(bin_path.parent, new_name + BIN_EXTENSION))
+        new_meta_path = Path(meta_path.parent, new_name + META_EXTENSION)
+        new_xml_path = Path(model_path.parent, new_name + XML_EXTENSION)
+        new_bin_path = Path(bin_path.parent, new_name + BIN_EXTENSION)
 
+        if os.path.isfile(new_meta_path):
+            update_rel_weight(new_meta_path, rel_weight)
+            os.remove(meta_path)
+            os.remove(model_path)
+            os.remove(bin_path)
+        else:
+            model_path.rename(new_xml_path)
+            meta_path.rename(new_meta_path)
+            bin_path.rename(new_bin_path)
         # logger.info(f"{old_name} -> {new_name}")
     return operations
 
