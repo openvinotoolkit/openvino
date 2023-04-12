@@ -32,6 +32,10 @@
 #include <memory>
 #include <algorithm>
 
+#ifdef ENABLE_ONEDNN_FOR_GPU
+#include <impls/onednn/utils.hpp>
+#endif
+
 namespace cldnn {
 namespace {
 
@@ -1062,6 +1066,29 @@ bool primitive_inst::is_valid_fusion() const {
         auto dep_pshape = dep.first->_impl_params->get_output_layout().get_partial_shape();
         auto merged_shape = out_pshape;
         auto can_broadcast = ov::PartialShape::broadcast_merge_into(merged_shape, dep_pshape, fd.typed_desc<eltwise>()->broadcast_spec);
+
+#ifdef ENABLE_ONEDNN_FOR_GPU
+        // WA for OneDNN binary add fusions: we need to broadcast batch dimension to avoid situation with
+        // batch dimension mismatch in OneDNN tensor descriptors as follow:
+        // * Gemm output shape: (b,f,y,x) -> OneDNN shape: (b*f,y,x)
+        // * Gemm fused op shape: (1,f,y,x) -> OneDNN shape: (1*f,y,x)
+        // If batch dimension of gemm output is not equal to 1, then OneDNN will not be able to broadcast fused op data
+        // correctly and we need to do it manually
+        if (_node->is_type<gemm>() && _node->get_preferred_impl_type() == impl_types::onednn) {
+            auto gemm_layout = _impl_params->get_output_layout();
+            auto data_layout = dep.first->_impl_params->get_output_layout();
+            auto gemm_dims = onednn::convert_gemm_tensor(gemm_layout.get_tensor(),
+                                                         cldnn::format::dimension(gemm_layout.format),
+                                                         false);
+
+            auto data_dims = onednn::convert_gemm_tensor(data_layout.get_tensor(),
+                                                         cldnn::format::dimension(data_layout.format),
+                                                         false);
+
+            if (gemm_dims[0] != data_dims[0])
+                return false;
+        }
+#endif
 
         // We check that broadcasting of extra input is possible and it doesn't change output shape. If it output shape is changed, then
         // some dimension of dep_pshape is greater than out_pshape
