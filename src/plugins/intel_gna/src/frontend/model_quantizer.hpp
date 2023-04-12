@@ -148,13 +148,28 @@ private:
                 inf_loop_count++;
             } else {
                 if (inf_loop_count > 0 &&
-                    (inf_loop_history.size() % inf_loop_pattern.size() == 0 || sf.allLayersProcessed()) &&
-                    !std::equal(inf_loop_history.begin() + (inf_loop_history.size() - inf_loop_pattern.size()),
-                                inf_loop_history.end(),
-                                inf_loop_pattern.begin())) {
-                    inf_loop_count = 0;
-                    inf_loop_pattern.clear();
-                    log::debug() << "infinite loop fixed\n";
+                    ((inf_loop_pattern.size() > 0 && (inf_loop_history.size() % inf_loop_pattern.size() == 0)) ||
+                     sf.allLayersProcessed())) {
+                    int32_t history_shift = 0;
+                    int32_t pattern_shift = 0;
+
+                    if (inf_loop_history.size() > inf_loop_pattern.size()) {
+                        history_shift = inf_loop_history.size() - inf_loop_pattern.size();
+                    } else {
+                        pattern_shift = inf_loop_pattern.size() - inf_loop_history.size();
+                    }
+
+                    if (!std::equal(inf_loop_history.begin() + history_shift,
+                                    inf_loop_history.end(),
+                                    inf_loop_pattern.begin() + pattern_shift)) {
+                        inf_loop_count = 0;
+                        log::debug() << "inf_loop_pattern:\n";
+                        for (const auto& s : inf_loop_pattern) {
+                            log::debug() << "\t " << s << '\n';
+                        }
+                        inf_loop_pattern.clear();
+                        log::debug() << "infinite loop fixed\n";
+                    }
                 }
             }
 
