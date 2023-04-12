@@ -34,7 +34,7 @@ class TestGeneralTelemetrySending(unittest.TestCase):
 
         _ = convert_model(model)
 
-        calls = [call('mo', 'version', 'custom'),
+        calls = [call('mo', 'version', get_simplified_mo_version()),
                  call('mo', 'cli_parameters', 'framework:pytorch'),
                  call('mo', 'cli_parameters', 'input_model:1'),
                  call('mo', 'op_count', 'pytorch_aten::add', 1),
