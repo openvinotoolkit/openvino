@@ -309,33 +309,15 @@ void FrontEnd::convert(const std::shared_ptr<ov::Model>& partiallyConverted) con
 }
 
 void FrontEnd::normalize(const std::shared_ptr<ov::Model>& model) const {
-    {
-        // run transformations to convert sub-graphs with intermediate (or FrameworkNode) operations
-        // into sub-graphs with only OpenVINO operations
-        ov::pass::Manager manager;
-        manager.register_pass<pass::SavedModelUnusedRemover>();
-        manager.register_pass<pass::EmbeddingSegmentSingleFeatureFusion>();
-        manager.register_pass<pass::BlockLSTMReplacer>();
-        manager.register_pass<pass::GRUBlockCellReplacer>();
-        manager.register_pass<pass::ConstToResultRemover>();
-        manager.run_passes(model);
-    }
-
-    // TODO 107554: TSGeneral can fail on models with Framework nodes (not converted to OV opset)
-    std::unordered_map<std::string, std::string> failures;
-    std::vector<std::string> unsupported_operations;
-    get_unsupported_operations_and_failures(model, unsupported_operations, failures);
-    if (unsupported_operations.size() > 0 || failures.size() > 0) {
-        return;
-    }
-
-    {
-        // perform transpose sinking and reverse infer if the model contains only OpenVINO operations
-        ov::pass::Manager manager;
-        manager.register_pass<ov::pass::TransposeSinkingGeneral>();
-        manager.register_pass<ov::pass::ReverseShapeAndTypeInfer>();
-        manager.run_passes(model);
-    }
+    ov::pass::Manager manager;
+    manager.register_pass<pass::SavedModelUnusedRemover>();
+    manager.register_pass<pass::EmbeddingSegmentSingleFeatureFusion>();
+    manager.register_pass<pass::BlockLSTMReplacer>();
+    manager.register_pass<pass::GRUBlockCellReplacer>();
+    manager.register_pass<pass::ConstToResultRemover>();
+    manager.register_pass<ov::pass::TransposeSinkingGeneral>();
+    manager.register_pass<ov::pass::ReverseShapeAndTypeInfer>();
+    manager.run_passes(model);
 }
 
 void FrontEnd::add_extension(const std::shared_ptr<ov::Extension>& extension) {

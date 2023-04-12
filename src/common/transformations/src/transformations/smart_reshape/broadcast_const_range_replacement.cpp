@@ -41,9 +41,10 @@ ov::pass::BroadcastConstRangeReplacement::BroadcastConstRangeReplacement() {
 
         constexpr size_t dim_low_limit = 5;
         constexpr size_t dim_up_limit = 500;
+        const auto const_rank = const_node_shape.size();
 
         // To affect less models, the transformation is applied to Constants with elements count in range (5:500)
-        if (const_node_shape.size() - one_dims_count != 1 || elem_count <= dim_low_limit || elem_count >= dim_up_limit)
+        if (const_rank - one_dims_count != 1 || elem_count <= dim_low_limit || elem_count >= dim_up_limit)
             return false;
 
         std::vector<int64_t> sequence_pattern(elem_count);
@@ -58,51 +59,44 @@ ov::pass::BroadcastConstRangeReplacement::BroadcastConstRangeReplacement() {
         const auto target_dim_index =
             std::distance(const_node_shape.cbegin(),
                           std::find(const_node_shape.cbegin(), const_node_shape.cend(), elem_count));
-        const int64_t target_dim_neg_index = target_dim_index - const_node_shape.size();
+        const int64_t target_dim_neg_index = target_dim_index - const_rank;
 
-        const auto axis_node = ngraph::opset8::Constant::create(ngraph::element::i32, {}, {0});
+        NodeRegistry node_registry;
+
+        const auto axis_node = node_registry.add(ngraph::opset8::Constant::create(ngraph::element::i32, {}, {0}));
         const auto target_dim_index_node =
-            ngraph::opset8::Constant::create(ngraph::element::i64, {}, {target_dim_neg_index});
+            node_registry.add(ngraph::opset8::Constant::create(ngraph::element::i64, {}, {target_dim_neg_index}));
         const auto gather_dim =
-            std::make_shared<ngraph::opset8::Gather>(target_shape_out, target_dim_index_node, axis_node);
+            node_registry.make<ngraph::opset8::Gather>(target_shape_out, target_dim_index_node, axis_node);
 
         // If the corresponding target dim is 1, use the original end of range
-        const auto one_dim_const = ngraph::opset8::Constant::create(target_shape_out.get_element_type(), {}, {1});
-        const auto dim_check_one = std::make_shared<ngraph::opset8::Equal>(gather_dim, one_dim_const);
+        const auto one_dim_const =
+            node_registry.add(ngraph::opset8::Constant::create(target_shape_out.get_element_type(), {}, {1}));
+        const auto dim_check_one = node_registry.make<ngraph::opset8::Equal>(gather_dim, one_dim_const);
 
-        const auto start = ngraph::opset8::Constant::create(data_elem_type, {}, {0});
-        const auto original_end = ngraph::opset8::Constant::create(data_elem_type, {}, {elem_count});
+        const auto start = node_registry.add(ngraph::opset8::Constant::create(data_elem_type, {}, {0}));
+        const auto original_end = node_registry.add(ngraph::opset8::Constant::create(data_elem_type, {}, {elem_count}));
 
-        const auto cast_gather_dim = std::make_shared<ngraph::opset8::Convert>(gather_dim, data_elem_type);
-        const auto select_end = std::make_shared<ngraph::opset8::Select>(dim_check_one, original_end, cast_gather_dim);
+        const auto cast_gather_dim = node_registry.make<ngraph::opset8::Convert>(gather_dim, data_elem_type);
+        const auto select_end =
+            node_registry.make<ngraph::opset8::Select>(dim_check_one, original_end, cast_gather_dim);
 
-        const auto default_range_step = ngraph::opset8::Constant::create(data_elem_type, {}, {1});
-        const auto range =
-            std::make_shared<ngraph::opset8::Range>(start, select_end, default_range_step, data_elem_type);
+        const auto default_range_step = node_registry.add(ngraph::opset8::Constant::create(data_elem_type, {}, {1}));
+        std::shared_ptr<Node> replacement =
+            node_registry.make<ngraph::opset8::Range>(start, select_end, default_range_step, data_elem_type);
 
-        // Unsqueeze the output of the Range op to the original shape of data input
-        std::vector<int64_t> final_shape_axes(const_node_shape.size());
-        std::iota(final_shape_axes.begin(), final_shape_axes.end(), 0);
-        final_shape_axes.erase(final_shape_axes.begin() + target_dim_index);
-        const auto axes_to_unsqueeze =
-            ngraph::opset8::Constant::create(ngraph::element::i64, {final_shape_axes.size()}, final_shape_axes);
-        const auto unsqueeze_range = std::make_shared<ngraph::opset8::Unsqueeze>(range, axes_to_unsqueeze);
+        if (const_rank > 1) {
+            // Unsqueeze the output of the Range op to the original shape of data input
+            std::vector<int64_t> final_shape_axes(const_rank);
+            std::iota(final_shape_axes.begin(), final_shape_axes.end(), 0);
+            final_shape_axes.erase(final_shape_axes.begin() + target_dim_index);
+            const auto axes_to_unsqueeze = node_registry.add(
+                ngraph::opset8::Constant::create(ngraph::element::i64, {final_shape_axes.size()}, final_shape_axes));
+            replacement = node_registry.make<ngraph::opset8::Unsqueeze>(replacement, axes_to_unsqueeze);
+        }
 
-        copy_runtime_info(const_node,
-                          {axis_node,
-                           target_dim_index_node,
-                           gather_dim,
-                           cast_gather_dim,
-                           one_dim_const,
-                           dim_check_one,
-                           start,
-                           original_end,
-                           select_end,
-                           default_range_step,
-                           range,
-                           axes_to_unsqueeze,
-                           unsqueeze_range});
-        broadcast->input(0).replace_source_output(unsqueeze_range);
+        copy_runtime_info(const_node, node_registry.get());
+        broadcast->input(0).replace_source_output(replacement);
         return false;
     };
 

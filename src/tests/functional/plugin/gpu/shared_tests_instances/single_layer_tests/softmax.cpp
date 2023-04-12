@@ -20,7 +20,10 @@ const std::vector<ov::Shape> inputShapes2D = {
     {1, 100},
     {100, 1},
     {10, 10},
-    {100, 10}
+    {100, 10},
+    {1024, 300},
+    {1024, 304},
+    {1024, 306}
 };
 
 const std::vector<int64_t> axis2D = {
