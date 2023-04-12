@@ -6,13 +6,13 @@
 
 #include <vector>
 
-#include "ngraph/opsets/opset11.hpp"
 #include "ngraph_functions/builders.hpp"
 #include "openvino/op/util/variable.hpp"
+#include "openvino/opsets/opset11.hpp"
 
 using namespace LayerTestsDefinitions;
 using namespace ngraph;
-using namespace opset11;
+using namespace ov::opset11;
 
 namespace {
 

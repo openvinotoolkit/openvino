@@ -44,8 +44,8 @@ protected:
 
     virtual void CreateCommonFunc();
 
-    ngraph::element::Type ngPrc;
-    InferenceEngine::SizeVector inputShape;
+    ov::element::Type ngPrc;
+    ov::Shape inputShape;
 
 private:
     void CreateTIFunc();
