@@ -642,6 +642,10 @@ void prepare_quantization::prepare_asymmetric_quantization(program &p, convoluti
         w_zero_points.push_back(new_w_zp->id());
     }
 
+    if (!new_weights->is_type<data>()) {
+        need_compensation = false;
+    }
+
     std::vector<primitive_id> compensation = {};
     cldnn::program_node* new_compenstation = nullptr;
     if (need_compensation) {
