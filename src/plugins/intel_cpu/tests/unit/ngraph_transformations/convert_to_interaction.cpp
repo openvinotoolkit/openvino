@@ -9,8 +9,8 @@
 
 #include <openvino/opsets/opset1.hpp>
 #include <openvino/opsets/opset8.hpp>
-#include <ngraph_transformations/op/interaction.hpp>
-#include <ngraph_transformations/convert_to_interaction.hpp>
+#include <transformations/cpu_opset/x64/op/interaction.hpp>
+#include <transformations/cpu_opset/x64/pass/convert_to_interaction.hpp>
 #include <transformations/common_optimizations/nop_elimination.hpp>
 #include <transformations/smart_reshape/matmul_sr.hpp>
 #include <transformations/init_node_info.hpp>

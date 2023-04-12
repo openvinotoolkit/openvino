@@ -86,14 +86,17 @@ class CustomBuild(build):
         BUILD_BASE = Path.cwd() / self.build_base
         for cmp, cmp_data in PKG_INSTALL_CFG.items():
             self.announce(f'Processing package: {cmp}', level=log.INFO)
-            if not cmp_data['src_dir'].is_dir():
-                raise FileNotFoundError(
-                    f'The source directory was not found: {cmp_data["src_dir"]}'
-                )
-            subprocess.call([sys.executable, 'setup.py', 'install',
+            subprocess.run([sys.executable, 'setup.py',
+                            '--quiet',
+                            '--no-user-cfg',
+                            'install',
                             '--root', str(BUILD_BASE),
-                            '--prefix', str(cmp_data.get("prefix"))],
-                            cwd=str(cmp_data.get('src_dir')))
+                            '--prefix', str(cmp_data.get("prefix")),
+                            '--no-compile'],
+                            check=True,
+                            cwd=str(cmp_data.get('src_dir')),
+                            stdout=sys.stdout,
+                            stderr=sys.stderr)
 
             # grab installed modules
             lib_dir = 'lib/site-packages' if platform.system() == 'Windows' else f'lib/{PYTHON_VERSION}/site-packages'
@@ -249,7 +252,7 @@ def read_requirements(path: str) -> List[str]:
         # get rid of newlines
         line = line.replace('\n', '')
         # if version is specified (non-word chars present)
-        if re.search('\W', line):
+        if re.search('(~|=|<|>|;)', line):
             requirements.append(line)
         # else get version from constraints
         else:
