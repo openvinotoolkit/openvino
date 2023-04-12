@@ -21,6 +21,9 @@
 
 #include "primitive_inst.h"
 #include "input_layout_inst.h"
+#include "fully_connected_inst.h"
+#include "convolution_inst.h"
+#include "deconvolution_inst.h"
 #include "mutable_data_inst.h"
 #include "condition_inst.h"
 #include "loop_inst.h"
@@ -323,6 +326,7 @@ network::network(program::ptr program, const ExecutionConfig& config, stream::pt
         wait_for_the_turn();
     }
 
+    calculate_weights_cache_capacity();
     allocate_primitives();
     configure_primitives_second_output();
     check_names();
@@ -356,17 +360,17 @@ network::network(program::ptr program, uint16_t stream_id)
 network::network(program::ptr program, stream::ptr stream, uint16_t stream_id)
     : network(program, program->get_config(), stream, false, stream_id == 0) {}
 
-network::network(cldnn::BinaryInputBuffer& ib, stream::ptr stream, engine& engine, uint16_t stream_id)
-    : network(ib, ExecutionConfig{}, stream, engine, stream_id) {}
+network::network(cldnn::BinaryInputBuffer& ib, stream::ptr stream, engine& engine, bool is_primary_stream)
+    : network(ib, ExecutionConfig{}, stream, engine, is_primary_stream) {}
 
-network::network(cldnn::BinaryInputBuffer& ib, const ExecutionConfig& config, stream::ptr stream, engine& engine, uint16_t stream_id)
+network::network(cldnn::BinaryInputBuffer& ib, const ExecutionConfig& config, stream::ptr stream, engine& engine, bool is_primary_stream)
     : _program(nullptr)
     , _config(config)
     , _engine(engine)
     , _stream(stream)
     , _memory_pool(new memory_pool(engine))
     , _internal(false)
-    , _is_primary_stream(false)
+    , _is_primary_stream(is_primary_stream)
     , _reset_arguments(true) {
     net_id = get_unique_net_id();
 
@@ -638,8 +642,22 @@ void network::set_arguments() {
         return;
 
     for (auto const& prim : _exec_order) {
-        if (!prim->is_dynamic())
-            prim->set_arguments();
+        if (!prim->is_dynamic()) {
+            bool can_set_args = true;
+            for (auto& dep : prim->dependencies()) {
+                // Skip set args for nodes with dynamic & optimized_out dependency
+                // This is needed to handle dynamic -> static cases like
+                // (dynamic) -> reshape -> (static) -> some_op
+                // In that case some_op is static and we may want to set arguments once,
+                // but dynamic optimized out reshape means that output buffer of reshape is unavailable
+                // and attempt to set args will fail.
+                if (dep.first->can_be_optimized() && dep.first->is_dynamic())
+                    can_set_args = false;
+            }
+
+            if (can_set_args)
+                prim->set_arguments();
+        }
     }
     _reset_arguments = false;
 }
@@ -688,6 +706,52 @@ void network::add_default_output_chains() {
     GPU_DEBUG_DEFINE_MEM_LOGGER("add_default_output_chains");
     for (auto& output : _outputs) {
         add_output_chain(output);
+    }
+}
+
+void network::calculate_weights_cache_capacity() {
+    auto get_buffer_size = [](const program_node& node) {
+        size_t weights_size = 0;
+        auto get_size = [](const layout& layout) {
+            return layout.is_dynamic() ? 0 : layout.bytes_count();
+        };
+
+        #define is_weightable(T) node.is_type<T>() && node.as<T>().weights().is_constant()
+        if (node.is_type<data>())
+            weights_size = get_size(node.get_output_layout());
+        else if (is_weightable(fully_connected))
+            weights_size = get_size(node.as<fully_connected>().weights().get_output_layout());
+        else if (is_weightable(convolution))
+            weights_size = get_size(node.as<convolution>().weights().get_output_layout());
+        else if (is_weightable(deconvolution))
+            weights_size = get_size(node.as<deconvolution>().weights().get_output_layout());
+        #undef is_weightable
+
+        return weights_size;
+    };
+
+    size_t total_const_size = 0;
+    size_t weights_const_size = 0;
+    size_t required_mem_size = 0;
+    for (auto node : _program->get_processing_order()) {
+        if (node->is_type<fully_connected>() || node->is_type<convolution>() || node->is_type<deconvolution>())
+            weights_const_size += get_buffer_size(*node);
+        else if (node->is_type<data>())
+            total_const_size += get_buffer_size(*node);
+    }
+
+    // Sum all weights constants for each stream
+    required_mem_size += weights_const_size * _config.get_property(ov::streams::num);
+    // Add all other constants (shared between streams)
+    required_mem_size += total_const_size - weights_const_size;
+
+    if (required_mem_size != 0) {
+        const size_t required_weights_cache_capacity = 3;
+        const size_t max_device_mem_size = _engine.get_device_info().max_global_mem_size;
+        const size_t max_weights_cache_capacity = max_device_mem_size / required_mem_size;
+
+        if (max_weights_cache_capacity > 1)
+            _weights_cache_capacity = std::min(max_weights_cache_capacity, required_weights_cache_capacity);
     }
 }
 
@@ -1058,7 +1122,7 @@ void network::execute_impl(const std::vector<event::ptr>& events) {
                 for (size_t i = 0; i < get_primitive(inst->id())->dependencies().size(); i++) {
                     log_memory_to_file(get_primitive(inst->id())->dep_memory_ptr(i),
                                        get_stream(),
-                                       "program" + std::to_string(get_program()->get_id()) +
+                                       "program" + std::to_string((get_program() != nullptr) ? get_program()->get_id() : 1) +
                                        "_network" + std::to_string(get_id()) +
                                        "_" + layer_name + "_src" + std::to_string(i),
                                        debug_config->dump_layers_raw);
@@ -1075,7 +1139,7 @@ void network::execute_impl(const std::vector<event::ptr>& events) {
                 for (size_t i = 0; i < get_primitive(inst->id())->outputs_memory_count(); i++) {
                     log_memory_to_file(get_primitive(inst->id())->output_memory_ptr(i),
                                        get_stream(),
-                                       "program" + std::to_string(get_program()->get_id()) +
+                                       "program" + std::to_string((get_program() != nullptr) ? get_program()->get_id() : 1) +
                                        "_network" + std::to_string(get_id()) +
                                        "_" + layer_name + "_dst" + std::to_string(i),
                                        debug_config->dump_layers_raw);
@@ -1258,7 +1322,7 @@ void network::allocate_primitive_instance(program_node const& node) {
                     return true;
             }
             if (dep.first->can_be_optimized()) {
-                if (is_mutable_input(*dep.first)) {
+                if (is_mutable_input(*dep.first) || dep.first->is_dynamic()) {
                     return true;
                 }
             }

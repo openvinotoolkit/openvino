@@ -63,12 +63,12 @@ TSUnaryForward::TSUnaryForward() {
     ov::matcher_pass_callback matcher_pass_callback = [=](Matcher& m) {
         const auto& pattern_to_output = m.get_pattern_value_map();
         auto transpose = pattern_to_output.at(transpose_label).get_node_shared_ptr();
-        auto main_node = pattern_to_output.at(unary_label).get_node_shared_ptr();
-        if (transformation_callback(main_node)) {
+        auto unary = pattern_to_output.at(unary_label).get_node_shared_ptr();
+        if (transformation_callback(unary)) {
             return false;
         }
 
-        const NodePair new_nodes = SwapNodes(transpose, main_node);
+        const NodePair new_nodes = SwapNodes(transpose, unary);
 
         register_new_node(new_nodes.first);
         register_new_node(new_nodes.second);
@@ -107,18 +107,18 @@ TSUnaryBackward::TSUnaryBackward() {
         const auto& pattern_to_output = m.get_pattern_value_map();
         auto transpose_const = as_type_ptr<Constant>(pattern_to_output.at(transpose_const_label).get_node_shared_ptr());
         auto transpose = pattern_to_output.at(transpose_label).get_node_shared_ptr();
-        auto main_node = pattern_to_output.at(unary_label).get_node_shared_ptr();
-        if (transformation_callback(main_node)) {
+        auto unary = pattern_to_output.at(unary_label).get_node_shared_ptr();
+        if (transformation_callback(unary)) {
             return false;
         }
 
-        for (auto& new_node : sink_backward::InsertTransposeBeforeNode(main_node, transpose_const)) {
+        for (auto& new_node : sink_backward::InsertTransposeBeforeNode(unary, transpose_const)) {
             register_new_node(new_node);
         }
-        main_node->validate_and_infer_types();
+        unary->validate_and_infer_types();
         // remove output transposes
-        RemoveSingleOutputConsumers(main_node);
-        SwapNames(transpose, main_node);
+        RemoveSingleOutputConsumers(unary);
+        SwapNames(transpose, unary);
         return true;
     };
 

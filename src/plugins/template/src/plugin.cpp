@@ -163,7 +163,7 @@ std::shared_ptr<ov::ICompiledModel> ov::template_plugin::Plugin::import_model(st
 // ! [plugin:query_model]
 ov::SupportedOpsMap ov::template_plugin::Plugin::query_model(const std::shared_ptr<const ov::Model>& model,
                                                              const ov::AnyMap& properties) const {
-    OV_ITT_SCOPED_TASK(TemplatePlugin::itt::domains::TemplatePlugin, "Plugin::query_model");
+    OV_ITT_SCOPED_TASK(itt::domains::TemplatePlugin, "Plugin::query_model");
 
     Configuration fullConfig{properties, m_cfg, false};
 
@@ -201,7 +201,7 @@ ov::SupportedOpsMap ov::template_plugin::Plugin::query_model(const std::shared_p
     // 3. Produce the result
     ov::SupportedOpsMap res;
     for (auto&& layerName : supported) {
-        res.emplace(layerName, get_device_name());
+        res.emplace(layerName, get_device_name() + "." + std::to_string(m_cfg.device_id));
     }
 
     return res;

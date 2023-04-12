@@ -141,8 +141,10 @@ TSSqueezeForward::TSSqueezeForward() {
                 }
             } else {
                 auto rank = main_node->get_input_partial_shape(0).rank();
+                OPENVINO_SUPPRESS_DEPRECATED_START
                 non_negative_axes =
                     normalize_axes(main_node->get_friendly_name(), squeeze_axes->cast_vector<int64_t>(), rank);
+                OPENVINO_SUPPRESS_DEPRECATED_END
             }
         }
 
@@ -208,10 +210,11 @@ TSSqueezeForward::TSSqueezeForward() {
 
 TSSqueezeBackward::TSSqueezeBackward() {
     MATCHER_SCOPE(TSSqueezeBackward);
-
+    auto squeeze_with_1_input = wrap_type<Squeeze>({any_input()}, HasSameOutputTransposeNodes);
     auto squeeze_label = wrap_type<Squeeze, Reshape>({any_input(), wrap_type<Constant>()}, HasSameOutputTransposeNodes);
+    auto pattern = std::make_shared<pattern::op::Or>(OutputVector{squeeze_with_1_input, squeeze_label});
     auto transpose_label =
-        wrap_type<Transpose>({squeeze_label, wrap_type<Constant>()}, [](const Output<Node>& output) -> bool {
+        wrap_type<Transpose>({pattern, wrap_type<Constant>()}, [](const Output<Node>& output) -> bool {
             return has_static_rank()(output) && is_sinking_node(output);
         });
 
@@ -219,27 +222,42 @@ TSSqueezeBackward::TSSqueezeBackward() {
         const auto& pattern_to_output = m.get_pattern_map();
 
         auto transpose = pattern_to_output.at(transpose_label);
-        auto main_node = pattern_to_output.at(squeeze_label);
+        std::shared_ptr<Node> main_node;
+        if (pattern_to_output.count(squeeze_label)) {
+            main_node = pattern_to_output.at(squeeze_label);
+        } else {
+            main_node = pattern_to_output.at(squeeze_with_1_input);
+        }
+
         if (transformation_callback(main_node)) {
             return false;
         }
 
         auto transpose_order = as_type_ptr<Constant>(transpose->get_input_node_shared_ptr(1));
-        auto squeeze_axes = as_type_ptr<Constant>(main_node->get_input_node_shared_ptr(1));
-        if (!transpose_order || !squeeze_axes) {
+
+        if (!transpose_order) {
             return false;
         }
 
         std::vector<size_t> non_negative_axes;
-        if (as_type_ptr<Reshape>(main_node)) {
-            auto success = shape_to_squeeze_axes(main_node, squeeze_axes, non_negative_axes);
-            if (!success) {
+        std::shared_ptr<Constant> squeeze_axes;
+        if (main_node->get_input_size() > 1) {
+            squeeze_axes = as_type_ptr<Constant>(main_node->get_input_node_shared_ptr(1));
+            if (!squeeze_axes) {
                 return false;
             }
-        } else {
-            auto rank = main_node->get_input_partial_shape(0).rank();
-            non_negative_axes =
-                normalize_axes(main_node->get_friendly_name(), squeeze_axes->cast_vector<int64_t>(), rank);
+            if (as_type_ptr<Reshape>(main_node)) {
+                auto success = shape_to_squeeze_axes(main_node, squeeze_axes, non_negative_axes);
+                if (!success) {
+                    return false;
+                }
+            } else {
+                auto rank = main_node->get_input_partial_shape(0).rank();
+                OPENVINO_SUPPRESS_DEPRECATED_START
+                non_negative_axes =
+                    normalize_axes(main_node->get_friendly_name(), squeeze_axes->cast_vector<int64_t>(), rank);
+                OPENVINO_SUPPRESS_DEPRECATED_END
+            }
         }
 
         bool squeeze_all_dims = false;

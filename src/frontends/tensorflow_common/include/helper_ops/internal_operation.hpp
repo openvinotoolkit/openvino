@@ -30,15 +30,8 @@ public:
 
     void get_input_node(size_t input_port_idx,
                         std::string& producer_name,
+                        std::string& producer_output_port_name,
                         size_t& producer_output_port_index) const override {
-        FRONT_END_OP_CONVERSION_CHECK(false,
-                                      "Internal error: the get_input_node method of the fake node decoder is invoked.");
-    }
-
-    void get_input_node(size_t input_port_idx,
-                        std::string& producer_name,
-                        size_t& producer_output_port_index,
-                        const OpTypeByName& op_type_by_name) const override {
         FRONT_END_OP_CONVERSION_CHECK(false,
                                       "Internal error: the get_input_node method of the fake node decoder is invoked.");
     }

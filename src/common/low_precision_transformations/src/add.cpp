@@ -15,6 +15,7 @@
 
 #include "low_precision/common/ie_lpt_exception.hpp"
 #include "low_precision/network_helper.hpp"
+#include "low_precision/rt_info/bias_attribute.hpp"
 #include "itt.hpp"
 
 namespace ngraph {
@@ -29,7 +30,7 @@ std::shared_ptr<opset1::Subtract> replaceToSubtract(const std::shared_ptr<Node>&
     //    - single responsibility
     //    - keep AddTransformation and AddToSubtractTransformation transformations independent and optional
     const auto add = ov::as_type_ptr<opset1::Add>(op);
-    if (add == nullptr) {
+    if (add == nullptr || ov::marked_as_bias(add)) {
         return nullptr;
     }
 
@@ -40,17 +41,8 @@ std::shared_ptr<opset1::Subtract> replaceToSubtract(const std::shared_ptr<Node>&
     if (constBranchIndex == -1) {
         return nullptr;
     }
+
     const size_t dataBranchIndex = constBranchIndex == 0 ? 1ul : 0;
-
-    const auto parent = add->get_input_node_shared_ptr(dataBranchIndex);
-    if (ov::is_type<opset1::Convolution>(parent) ||
-        ov::is_type<opset1::GroupConvolution>(parent) ||
-        ov::is_type<opset1::ConvolutionBackpropData>(parent) ||
-        (ov::is_type<opset1::MatMul>(parent) &&
-        (ov::is_type<opset1::Constant>(parent->get_input_node_ptr(0)) || ov::is_type<opset1::Constant>(parent->get_input_node_ptr(1))))) {
-        return nullptr;
-    }
-
     auto constant = fold<opset1::Negative>(add->input_value(constBranchIndex));
     auto constOutput = constant->output(0);
 

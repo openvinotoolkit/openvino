@@ -409,20 +409,36 @@ inline std::istream& operator>>(std::istream& is, SchedulingCoreType& core_type)
 static constexpr Property<SchedulingCoreType> scheduling_core_type{"SCHEDULING_CORE_TYPE"};
 
 /**
- * @brief This property allows hyper threading during inference.
+ * @brief This property allows CPU threads pinning during inference.
  * @ingroup ov_runtime_cpp_prop_api
  *
- * Developer can use this property to use or not use hyper threading during inference. If user does not explicitly set
+ * Developer can use this property to use or not use CPU threads pinning during inference. If user does not explicitly
+ * set value for this property, OpenVINO may choose any desired value based on internal logic.
+ *
+ * The following code is example to use this property.
+ *
+ * @code
+ * ie.set_property(ov::hint::enable_cpu_pinning(true));
+ * ie.set_property(ov::hint::enable_cpu_pinning(false));
+ * @endcode
+ */
+static constexpr Property<bool> enable_cpu_pinning{"ENABLE_CPU_PINNING"};
+
+/**
+ * @brief This property define if using hyper threading during inference.
+ * @ingroup ov_runtime_cpp_prop_api
+ *
+ * Developer can use this property to use or not use CPU pinning during inference. If user does not explicitly set
  * value for this property, OpenVINO may choose any desired value based on internal logic.
  *
  * The following code is example to use this property.
  *
  * @code
- * ie.set_property(ov::hint::use_hyper_threading(true));
- * ie.set_property(ov::hint::use_hyper_threading(false));
+ * ie.set_property(ov::hint::enable_hyper_threading(true));
+ * ie.set_property(ov::hint::enable_hyper_threading(false));
  * @endcode
  */
-static constexpr Property<bool> use_hyper_threading{"USE_HYPER_THREADING"};
+static constexpr Property<bool> enable_hyper_threading{"ENABLE_HYPER_THREADING"};
 
 /**
  * @brief (Optional) property that backs the (above) Performance Hints
@@ -661,6 +677,17 @@ static constexpr Property<std::tuple<unsigned int, unsigned int, unsigned int>, 
  * @ingroup ov_runtime_cpp_prop_api
  */
 static constexpr Property<bool, PropertyMutability::RW> force_tbb_terminate{"FORCE_TBB_TERMINATE"};
+
+/**
+ * @brief Read-write property to configure `mmap()` use for model read. Enabled by default.
+ * For the moment only IR Frontend supports the property.
+ *
+ * value type: boolean
+ *   - True enable `mmap()` use and map model
+ *   - False disable `mmap()` use and read model
+ * @ingroup ov_runtime_cpp_prop_api
+ */
+static constexpr Property<bool, PropertyMutability::RW> enable_mmap{"ENABLE_MMAP"};
 
 /**
  * @brief Namespace with device properties

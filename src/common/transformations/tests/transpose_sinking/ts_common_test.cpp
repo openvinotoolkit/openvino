@@ -1083,39 +1083,6 @@ auto test_backward_interpolate = []() {
 
 INSTANTIATE_TEST_SUITE_P(TransposeSinkingCommonInterpolateBackward, TSTestFixture, test_backward_interpolate());
 
-auto test_backward_squeeze = []() {
-    TestCase test_case;
-
-    // Initialize common attributes
-    test_case.transformation = CREATE_PASS_FACTORY(TSSqueezeBackward);
-    test_case.num_main_ops = {1};
-    test_case.inputs_to_main = {
-        parameter(element::f32, {32, 1, 2, 1}),
-        constant<int64_t>(element::i32, {2}, {1, 3}),
-    };
-
-    // Test model description:
-    test_case.model.main_op = {CREATE_BINARY_FACTORY(Squeeze)};
-    test_case.model.preprocess_outputs_of_main = {{set_transpose_for}, {{0}}};
-    test_case.model.model_template = create_model;
-
-    // Reference model description:
-    auto new_transpose = [](const vector<size_t>& idxs, const OutputVector& out_vec) -> OutputVector {
-        OutputVector new_out_vec(out_vec.size());
-        auto order = make_shared<Constant>(element::i32, Shape{4}, std::vector<int64_t>{2, 1, 0, 3});
-        new_out_vec[0] = make_shared<Transpose>(out_vec[0], order);
-        new_out_vec[1] = out_vec[1];
-        return new_out_vec;
-    };
-    test_case.model_ref.preprocess_inputs_to_main = {{new_transpose}, {{0}}};
-    test_case.model_ref.main_op = {CREATE_BINARY_FACTORY(Squeeze)};
-    test_case.model_ref.model_template = create_model;
-
-    return wrapper(test_case);
-};
-
-INSTANTIATE_TEST_SUITE_P(TransposeSinkingCommonSqueezeBackward, TSTestFixture, test_backward_squeeze());
-
 auto test_backward_unsqueeze = []() {
     TestCase test_case;
 

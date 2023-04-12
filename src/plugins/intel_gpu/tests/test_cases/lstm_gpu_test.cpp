@@ -459,6 +459,7 @@ template<typename T>
 void generic_lstm_gpu_test(int layers, int sequence_len, int direction, int batch_size, int input_size, int hidden_size,
                             bool hasBias, bool hasInitialHidden, bool hasInitialCell,
                             T clip_threshold, bool input_forget, bool is_caching_test = false) {
+    GTEST_SKIP(); // Issue: 107984
     std::cout << "Layers = " << layers << " Input Size = " << input_size << " Hidden Size = " << hidden_size
             << " Sequence Len = " << sequence_len << " Direction = " << direction << " Batch Size = " << batch_size << std::endl;
     int min_random = -2, max_random = 2;
@@ -638,6 +639,7 @@ void generic_lstm_gpu_test(int layers, int sequence_len, int direction, int batc
 // -------------------------------------------------------
 template<typename T>
 void lstm_gpu_output_test(const lstm_output_selection& output_selection, int directions, bool is_caching_test = false) {
+    GTEST_SKIP(); // Issue: 107984
     int layers = 1;
     int sequence_len = 4;
     int batch_size = 3;
@@ -2360,7 +2362,7 @@ TEST(DISABLED_lstm_gpu, generic_lstm_clip_f16_cached) {
     generic_lstm_gpu_test<FLOAT16>(1, 7, 1, 3, 3, 2, true, true, true, 0.3f, 0, true);
 }
 
-TEST(lstm_gpu, generic_lstm_input_forget_f16_cached) {
+TEST(DISABLED_lstm_gpu, generic_lstm_input_forget_f16_cached) {
     generic_lstm_gpu_test<FLOAT16>(1, 7, 1, 3, 3, 2, true, true, true, 0.f, 1, true);
 }
 

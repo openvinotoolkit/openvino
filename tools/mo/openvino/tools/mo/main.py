@@ -37,8 +37,7 @@ def main(cli_parser: argparse.ArgumentParser, framework=None):
     try:
         ngraph_function, argv = _convert(cli_parser, framework, {})
         is_tf, _, _, _, _ = deduce_legacy_frontend_by_namespace(argv)
-        if ('compress_to_fp16' in argv and argv.compress_to_fp16) \
-                or ('data_type' in argv and argv.data_type in ['half', 'FP16']):
+        if 'compress_to_fp16' in argv and argv.compress_to_fp16:
             print(get_compression_message())
 
         ov_update_message = get_ov_update_message()
@@ -97,4 +96,4 @@ def main(cli_parser: argparse.ArgumentParser, framework=None):
 
 if __name__ == "__main__":
     from openvino.tools.mo.utils.cli_parser import get_all_cli_parser
-    sys.exit(main(get_all_cli_parser(FrontEndManager()), None))
+    sys.exit(main(get_all_cli_parser(), None))
