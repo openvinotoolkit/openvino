@@ -1,5 +1,5 @@
 -c ../constraints.txt
-paddlepaddle; python_version <= '3.10'
+# paddlepaddle #  ticket 95904
 numpy>=1.19.2
 requests
 torch

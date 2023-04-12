@@ -63,7 +63,7 @@ def teardown_module():
     shutdown()
 
 
-@pytest.mark.skipif(sys.version_info > (3, 10), "Ticket: 95904")
+@pytest.mark.skipif(sys.version_info > (3, 10), reason="Ticket: 95904")
 def test_paddle_conversion_extension():
     skip_if_paddle_frontend_is_disabled()
 
@@ -94,7 +94,7 @@ def test_paddle_conversion_extension():
     assert invoked
 
 
-@pytest.mark.skipif(sys.version_info > (3, 10), "Ticket: 95904")
+@pytest.mark.skipif(sys.version_info > (3, 10), reason="Ticket: 95904")
 def test_op_extension_via_paddle_extension_set_attrs_values():
     skip_if_paddle_frontend_is_disabled()
 
@@ -115,7 +115,7 @@ def test_op_extension_via_paddle_extension_set_attrs_values():
     assert model
 
 
-@pytest.mark.skipif(sys.version_info > (3, 10), "Ticket: 95904")
+@pytest.mark.skipif(sys.version_info > (3, 10), reason="Ticket: 95904")
 def test_op_extension_via_frontend_extension_set_attrs_values():
     skip_if_paddle_frontend_is_disabled()
 
@@ -149,7 +149,7 @@ def get_builtin_extensions_path():
     raise RuntimeError("Unable to find test_builtin_extensions")
 
 
-@pytest.mark.skipif(sys.version_info > (3, 10), "Ticket: 95904")
+@pytest.mark.skipif(sys.version_info > (3, 10), reason="Ticket: 95904")
 def test_so_extension_via_frontend_convert_input_model():
     skip_if_paddle_frontend_is_disabled()
 
@@ -165,7 +165,7 @@ def test_so_extension_via_frontend_convert_input_model():
     assert all(op.get_type_name() != "Clamp" for op in model.get_ops())
 
 
-@pytest.mark.skipif(sys.version_info > (3, 10), "Ticket: 95904")
+@pytest.mark.skipif(sys.version_info > (3, 10), reason="Ticket: 95904")
 def test_so_extension_via_frontend_decode_input_model():
     skip_if_paddle_frontend_is_disabled()
 
