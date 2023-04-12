@@ -352,6 +352,7 @@ IExecutableNetworkInternal::Ptr MultiDeviceInferencePlugin::LoadNetworkImpl(cons
     // if no perf hint from user with compiled model, or already been set with plugin
     // apply latency for AUTO, tput for MULTI
     auto itorConfig = config.find(ov::hint::performance_mode.name());
+    bool isHintSet = _pluginConfig.is_set_by_user(ov::hint::performance_mode) || itorConfig != config.end();
     // updateFromMap will check config valid
     loadConfig.set_user_property(PreProcessConfig(config));
     loadConfig.apply_user_properties();
@@ -364,7 +365,9 @@ IExecutableNetworkInternal::Ptr MultiDeviceInferencePlugin::LoadNetworkImpl(cons
     auto fullProperty = loadConfig.get_full_properties();
     // this can be updated when plugin switch to 2.0 API
     std::map<std::string, std::string> fullConfig = ConvertToStringMap(fullProperty);
-    // Remove the execution hint as this is set by plugin logic, not from user
+    // Remove the performance hint as this is set by plugin logic, not from user
+    if (!isHintSet)
+        fullConfig.erase(ov::hint::performance_mode.name());
     if (!loadConfig.is_set_by_user(ov::hint::execution_mode))
         fullConfig.erase(ov::hint::execution_mode.name());
     // collect the settings that are applicable to the devices we are loading the network to
