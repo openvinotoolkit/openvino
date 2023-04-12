@@ -24,13 +24,6 @@ if (WIN32)
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DNOMINMAX")
 endif()
 
-
-if(X86_64 OR X86 OR AARCH64 OR RISCV64)
-    # nothing for now
-else()
-    message(FATAL_ERROR "Unsupported system processor ${CMAKE_SYSTEM_PROCESSOR}")
-endif()
-
 if (ENABLE_CPU_DEBUG_CAPS)
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DCPU_DEBUG_CAPS")
 endif()
