@@ -482,8 +482,6 @@ jobs:
     displayName: 'Samples Smoke Tests'
 
   - script: |
-      cat $(LAYER_TESTS_DIR)/requirements.txt
-      cat $(LAYER_TESTS_DIR)/../constraints.txt
       python3 -m pip install -r $(LAYER_TESTS_DIR)/requirements.txt
       export PYTHONPATH=$(REPO_DIR)/tools/mo/:$(LAYER_TESTS_DIR):$PYTHONPATH
       export TEST_DEVICE=CPU

@@ -8,13 +8,9 @@ import re
 import sys
 
 # ticket 95904
-try:
-    import paddle
-    from paddle.jit import to_static
-    from paddle.static import InputSpec
-except ModuleNotFoundError as e:
-    if sys.version_info < (3, 11):
-        raise
+#import paddle
+#from paddle.jit import to_static
+#from paddle.static import InputSpec
 
 import pytest
 
@@ -35,26 +31,29 @@ def skip_if_paddle_frontend_is_disabled():
         pytest.skip()
 
 
-def create_paddle_model():
-    @to_static()
-    def test(x):
-        return paddle.nn.functional.relu6(x)
-    x_spec = InputSpec(shape=[None, 3], dtype="float32", name="x")
-    paddle.jit.save(test, path=paddle_relu6_model_basename, input_spec=[x_spec, ])
+# ticket 95904
+#def create_paddle_model():
+    #@to_static()
+    #def test(x):
+    #    return paddle.nn.functional.relu6(x)
+    #x_spec = InputSpec(shape=[None, 3], dtype="float32", name="x")
+    #paddle.jit.save(test, path=paddle_relu6_model_basename, input_spec=[x_spec, ])
 
 
-def create_concat_model():
-    @to_static()
-    def test(x, y):
-        return paddle.concat([x, y], axis=0)
-    x_spec = InputSpec(shape=[None, 3], dtype="float32", name="x")
-    y_spec = InputSpec(shape=[None, 3], dtype="float32", name="y")
-    paddle.jit.save(test, path=paddle_concat_model_basename, input_spec=[x_spec, y_spec])
+# ticket 95904
+#def create_concat_model():
+    #@to_static()
+    #def test(x, y):
+    #    return paddle.concat([x, y], axis=0)
+    #x_spec = InputSpec(shape=[None, 3], dtype="float32", name="x")
+    #y_spec = InputSpec(shape=[None, 3], dtype="float32", name="y")
+    #paddle.jit.save(test, path=paddle_concat_model_basename, input_spec=[x_spec, y_spec])
 
 
-def setup_module():
-    create_paddle_model()
-    create_concat_model()
+# ticket 95904
+#def setup_module():
+    #create_paddle_model()
+    #create_concat_model()
 
 
 def teardown_module():
@@ -63,7 +62,7 @@ def teardown_module():
     shutdown()
 
 
-@pytest.mark.skipif(sys.version_info > (3, 10), reason="Ticket: 95904")
+@pytest.mark.skip(reason="Paddlepaddle has incompatible protobuf. Ticket: 95904")
 def test_paddle_conversion_extension():
     skip_if_paddle_frontend_is_disabled()
 
@@ -94,7 +93,7 @@ def test_paddle_conversion_extension():
     assert invoked
 
 
-@pytest.mark.skipif(sys.version_info > (3, 10), reason="Ticket: 95904")
+@pytest.mark.skip(reason="Paddlepaddle has incompatible protobuf. Ticket: 95904")
 def test_op_extension_via_paddle_extension_set_attrs_values():
     skip_if_paddle_frontend_is_disabled()
 
@@ -115,7 +114,7 @@ def test_op_extension_via_paddle_extension_set_attrs_values():
     assert model
 
 
-@pytest.mark.skipif(sys.version_info > (3, 10), reason="Ticket: 95904")
+@pytest.mark.skip(reason="Paddlepaddle has incompatible protobuf. Ticket: 95904")
 def test_op_extension_via_frontend_extension_set_attrs_values():
     skip_if_paddle_frontend_is_disabled()
 
@@ -149,7 +148,7 @@ def get_builtin_extensions_path():
     raise RuntimeError("Unable to find test_builtin_extensions")
 
 
-@pytest.mark.skipif(sys.version_info > (3, 10), reason="Ticket: 95904")
+@pytest.mark.skip(reason="Paddlepaddle has incompatible protobuf. Ticket: 95904")
 def test_so_extension_via_frontend_convert_input_model():
     skip_if_paddle_frontend_is_disabled()
 
@@ -165,7 +164,7 @@ def test_so_extension_via_frontend_convert_input_model():
     assert all(op.get_type_name() != "Clamp" for op in model.get_ops())
 
 
-@pytest.mark.skipif(sys.version_info > (3, 10), reason="Ticket: 95904")
+@pytest.mark.skip(reason="Paddlepaddle has incompatible protobuf. Ticket: 95904")
 def test_so_extension_via_frontend_decode_input_model():
     skip_if_paddle_frontend_is_disabled()
 
