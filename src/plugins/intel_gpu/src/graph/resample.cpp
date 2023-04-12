@@ -61,7 +61,7 @@ std::vector<layout> resample_inst::calc_output_layouts(resample_node const& /*no
 
     if (((sizes_data.empty() && !memory_deps.count(1)) || !sizes_calc_mod) &&
         ((scales_data.empty() && !memory_deps.count(2)) || sizes_calc_mod)) {
-       return { layout{ShapeType::dynamic(input_rank), input_layout.data_type, input_layout.format} };
+        return { layout{ShapeType::dynamic(input_rank), input_layout.data_type, input_layout.format} };
     }
 
     auto axes_data = desc->axes;

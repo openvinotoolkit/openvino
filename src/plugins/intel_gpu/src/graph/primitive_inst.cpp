@@ -179,6 +179,10 @@ void primitive_inst::update_shape() {
     if (input_shape_changed)
         set_shape_change();
 
+    // We assume that tensor ranks are static, thus shape_of doesn't need to update anything even if input shape is dynamic
+    if (_node->is_type<shape_of>() && !input_shape_changed)
+        return;
+
     // Even though the predecessors' shapes are not changed, the output shape might be udpated by the mem_dep
     auto memory_deps = _node->get_const_memory_deps();
     for (auto& i : _node->get_shape_infer_dependencies()) {
@@ -187,10 +191,6 @@ void primitive_inst::update_shape() {
         }
         input_shape_changed = true;
     }
-
-    // We assume that tensor ranks are static, thus shape_of doesn't need to update anything even if input shape is dynamic
-    if (_node->is_type<shape_of>() && !input_shape_changed)
-        return;
 
     if (!input_shape_changed && !_node->generates_dynamic_output() && _impl_params->get_output_layout().is_static())
         return;
@@ -731,11 +731,12 @@ event::ptr primitive_inst::update_weights() {
     if (weights_params.engine == kernel_selector::GenericKernelParams::Engine::NONE) {
         // If kernel doesn't says that it doesn't require weights reorder, but weights were reordered previously, then
         // incorrect memory buffer may be assigned, so reset cached weights for such case
-        _reordered_weights_cache.add(original_weights_memory->get_layout(), original_weights_memory);
+        _reordered_weights_cache.add(original_layout, original_weights_memory);
+        _impl_params->weights_layout = optional_layout(original_layout);
     } else {
         auto expected_layout = from_weights_tensor(weights_params.dest);
         // Set original patrial shape, because it may be lost during kernel_selector::weights_tensor -> layout conversion
-        expected_layout.set_partial_shape(original_weights_memory->get_layout().get_partial_shape());
+        expected_layout.set_partial_shape(original_layout.get_partial_shape());
         _impl_params->weights_layout = optional_layout(expected_layout);
 
         if (_reordered_weights_cache.has(expected_layout)) {
@@ -1338,7 +1339,7 @@ void primitive_inst::load(cldnn::BinaryInputBuffer& ib) {
     bool has_impl;
     ib >> has_impl;
     if (has_impl) {
-        _impl.release();
+        _impl.reset();
         ib >> _impl;
     }
 }

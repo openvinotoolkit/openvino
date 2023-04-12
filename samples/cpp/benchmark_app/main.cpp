@@ -573,7 +573,7 @@ int main(int argc, char* argv[]) {
         // If set batch size, disable the auto batching
         if (FLAGS_b > 0) {
             slog::warn << "Batch size is set. Auto batching will be disabled" << slog::endl;
-            core.set_property(ov::hint::allow_auto_batching(false));
+            device_config.insert(ov::hint::allow_auto_batching(false));
         }
 
         bool isDynamicNetwork = false;
@@ -871,9 +871,9 @@ int main(int argc, char* argv[]) {
         for (auto&& ds : device_nstreams) {
             try {
                 const std::string key = getDeviceTypeFromName(ds.first) + "_THROUGHPUT_STREAMS";
-                device_nstreams[ds.first] = core.get_property(ds.first, key).as<std::string>();
+                device_nstreams[ds.first] = compiledModel.get_property(key).as<std::string>();
             } catch (const ov::Exception&) {
-                device_nstreams[ds.first] = core.get_property(ds.first, ov::num_streams.name()).as<std::string>();
+                device_nstreams[ds.first] = compiledModel.get_property(ov::num_streams.name()).as<std::string>();
             }
         }
 

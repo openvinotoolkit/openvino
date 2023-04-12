@@ -3,6 +3,7 @@
 //
 
 #include "test_utils.h"
+#include "program_wrapper.h"
 
 #include <intel_gpu/primitives/input_layout.hpp>
 #include "intel_gpu/primitives/concatenation.hpp"
@@ -15,7 +16,7 @@ using namespace ::tests;
     This set of tests has been designed to check the correctness of trim_to_outputs optimization pass
 */
 
-class trim_to_outputs: public ::testing::Test {
+class trim_to_outputs_test: public ::testing::Test {
 public:
     /*
     In this test we check if the convolution conv2 will be eliminated from the network. This is expected to be done in trim_to_outputs optimization pass
@@ -180,29 +181,68 @@ public:
             ASSERT_EQ(it.first, "conv4");
         }
     }
+
+    void test_const_removal() {
+        auto& engine = get_test_engine();
+        auto input = engine.allocate_memory({ { 2, 32, 1, 1 }, data_types::f16, format::bfyx });
+        auto weights = engine.allocate_memory({ { 32, 32, 1, 1 }, data_types::f16, format::bfyx });
+        auto bias = engine.allocate_memory({ { 1, 32, 1, 1 }, data_types::f16, format::bfyx });
+
+        topology topology;
+        topology.add(data("weights", weights));
+        topology.add(data("bias", bias));
+        topology.add(data("unused1", bias));
+        topology.add(data("unused2", weights));
+        topology.add(input_layout("input", input->get_layout()));
+        topology.add(convolution("conv1", input_info("input"), { "weights" }));
+        topology.add(pooling("pool", input_info("conv1"), pooling_mode::max, { 1, 1 }, { 1, 1 }));
+        topology.add(convolution("conv2", input_info("pool"), { "weights" }, { "bias" }));
+
+        ExecutionConfig config = get_test_default_config(engine);
+        config.set_property(ov::intel_gpu::optimize_data(true));
+        auto prog = program::build_program(engine, topology, config, false, true);
+
+        ASSERT_NE(prog, nullptr);
+
+        program_wrapper::apply_opt_pass<trim_to_outputs>(*prog);
+
+        auto prog_impl = prog.get();
+
+        ASSERT_TRUE(prog_impl->has_node("conv1"));
+        ASSERT_TRUE(prog_impl->has_node("conv2"));
+        ASSERT_TRUE(prog_impl->has_node("pool"));
+        ASSERT_TRUE(prog_impl->has_node("weights"));
+        ASSERT_TRUE(prog_impl->has_node("bias"));
+        ASSERT_FALSE(prog_impl->has_node("unused1"));
+        ASSERT_FALSE(prog_impl->has_node("unused2"));
+    }
 };
 
-TEST_F(trim_to_outputs, one_node_to_eliminate_case1) {
+TEST_F(trim_to_outputs_test, one_node_to_eliminate_case1) {
     this->test_one_node_to_eliminate_case1(false);
 }
 
-TEST_F(trim_to_outputs, one_node_to_eliminate_case2) {
+TEST_F(trim_to_outputs_test, one_node_to_eliminate_case2) {
     this->test_one_node_to_eliminate_case2(false);
 }
 
-TEST_F(trim_to_outputs, two_nodes_to_eliminate_case1) {
+TEST_F(trim_to_outputs_test, two_nodes_to_eliminate_case1) {
     this->test_two_nodes_to_eliminate_case1(false);
 }
 
 #ifdef RUN_ALL_MODEL_CACHING_TESTS
-TEST_F(trim_to_outputs, one_node_to_eliminate_case1_cached) {
+TEST_F(trim_to_outputs_test, one_node_to_eliminate_case1_cached) {
     this->test_one_node_to_eliminate_case1(true);
 }
 
-TEST_F(trim_to_outputs, one_node_to_eliminate_case2_cached) {
+TEST_F(trim_to_outputs_test, one_node_to_eliminate_case2_cached) {
     this->test_one_node_to_eliminate_case2(true);
 }
 #endif
-TEST_F(trim_to_outputs, two_nodes_to_eliminate_case1_cached) {
+TEST_F(trim_to_outputs_test, two_nodes_to_eliminate_case1_cached) {
     this->test_two_nodes_to_eliminate_case1(true);
+}
+
+TEST_F(trim_to_outputs_test, dangling_constants_are_removed) {
+    this->test_const_removal();
 }
