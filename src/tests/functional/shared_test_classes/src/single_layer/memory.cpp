@@ -52,7 +52,6 @@ namespace LayerTestsDefinitions {
         eval_context["VariableContext"] = variable_context;
     }
 
-
     void MemoryTest::Run() {
         functionRefs = ngraph::clone_function(*function);
         SKIP_IF_CURRENT_TEST_IS_DISABLED()

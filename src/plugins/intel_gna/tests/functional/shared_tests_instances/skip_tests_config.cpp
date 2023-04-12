@@ -43,12 +43,9 @@ std::vector<std::string> disabledTestPatterns() {
         R"(.*importExportedIENetworkConstantResultOnly.*)",
         R"(.*importExportedIENetworkParameterResultOnly.*)",
 
-        // TODO: Issue 57368 (accuracy)
-        R"(.*smoke_MemoryTest.*LOW_LATENCY.*IS=\(1.10\).*)",
-        R"(.*smoke_MemoryTest.*iteration_count=3.*IS=\(1.10\).*)",
-        R"(.*smoke_MemoryTest.*iteration_count=4.*IS=\(1.10\).*)",
-        R"(.*smoke_MemoryTest.*iteration_count=10.*IS=\(1.10\).*)",
-        R"(.*smoke_MemoryTest.*LOW_LATENCY.*iteration_count=10.*IS=\(1.2\).*)",
+        // Issue 57368 (accuracy)
+        R"(.*smoke_MemoryTest.*transformation=LOW_LATENCY.*)",
+
         // Not implemented yet
         R"(.*Behavior.*ExecutableNetworkBaseTest.*(canSetConfigToExecNet|canSetConfigToExecNetWithIncorrectConfig).*)",
         R"(.*Behavior.*OVCompiledModelBaseTest.*(canSetConfigToCompiledModel|canSetConfigToCompiledModelWithIncorrectConfig).*)",
