@@ -495,8 +495,7 @@ int64_t ov::Model::get_result_index(const Output<const Node>& value) const {
     return -1;
 }
 
-bool ov::Model::evaluate(const HostTensorVector& output_tensors,
-                         const HostTensorVector& input_tensors) const {
+bool ov::Model::evaluate(const HostTensorVector& output_tensors, const HostTensorVector& input_tensors) const {
     ov::EvaluationContext evaluation_context;
     return evaluate(output_tensors, input_tensors, evaluation_context);
 }
@@ -513,12 +512,10 @@ bool ov::Model::evaluate(const HostTensorVector& output_tensors,
     return sts;
 }
 
-bool ov::Model::evaluate(ov::TensorVector& output_tensors,
-                         const ov::TensorVector& input_tensors) const {
+bool ov::Model::evaluate(ov::TensorVector& output_tensors, const ov::TensorVector& input_tensors) const {
     ov::EvaluationContext evaluation_context;
     return evaluate(output_tensors, input_tensors, evaluation_context);
 }
-
 
 bool ov::Model::evaluate(ov::TensorVector& output_tensors,
                          const ov::TensorVector& input_tensors,
