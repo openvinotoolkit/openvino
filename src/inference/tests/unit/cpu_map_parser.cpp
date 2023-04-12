@@ -618,7 +618,7 @@ public:
         const char* test_ptr = (char*)test_data.system_info.c_str();
         std::size_t test_len = test_data.system_info.length();
 
-        std::shared_ptr<char> test_info(new char[test_len / 2]);
+        std::unique_ptr<char[]> test_info(new char[test_len / 2]);
         char* test_info_ptr = test_info.get();
 
         Hex2Bin(test_ptr, test_len, test_info_ptr);

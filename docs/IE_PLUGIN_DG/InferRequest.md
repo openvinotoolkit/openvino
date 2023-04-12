@@ -89,4 +89,10 @@ The method returns the profiling info which was measured during pipeline stages 
 
 @snippet src/sync_infer_request.cpp infer_request:get_profiling_info
 
+### cancel()
+
+The plugin specific method allows to interrupt the synchronous execution from the AsyncInferRequest:
+
+@snippet src/sync_infer_request.cpp infer_request:cancel
+
 The next step in the plugin library implementation is the [Asynchronous Inference Request](@ref openvino_docs_ov_plugin_dg_async_infer_request) class.

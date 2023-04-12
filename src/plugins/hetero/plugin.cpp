@@ -165,7 +165,7 @@ InferenceEngine::IExecutableNetworkInternal::Ptr Engine::LoadExeNetworkImpl(cons
 InferenceEngine::IExecutableNetworkInternal::Ptr Engine::ImportNetwork(
     std::istream& heteroModel,
     const std::map<std::string, std::string>& user_config) {
-    return std::make_shared<HeteroExecutableNetwork>(heteroModel, user_config, this);
+    return std::make_shared<HeteroExecutableNetwork>(heteroModel, user_config, this, true);
 }
 
 Engine::DeviceMetaInformationMap Engine::GetDevicePlugins(const std::string& targetFallback,
