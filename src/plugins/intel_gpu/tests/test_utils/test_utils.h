@@ -769,7 +769,6 @@ inline cldnn::network::ptr get_network(cldnn::engine& engine,
                                 const bool is_caching_test) {
     cldnn::network::ptr network;
     if (is_caching_test) {
-        std::cout << "cached" << std::endl;
         cldnn::membuf mem_buf;
         {
             cldnn::network _network(engine, topology, config);
