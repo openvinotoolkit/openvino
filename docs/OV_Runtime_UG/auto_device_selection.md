@@ -135,6 +135,15 @@ Following the OpenVINO™ naming convention, the Automatic Device Selection mode
 | |                                             | | beginning. The default value is ``true``, indicating that CPU is   |
 | |                                             | | used as acceleration by default.                                   |
 +-----------------------------------------------+----------------------------------------------------------------------+
+| | ``ov::intel_auto::enable_runtime_fallback`` | | **Values**:                                                        |
+| |                                             | |       ``true``                                                     |
+| |                                             | |       ``false``                                                    |
+| |                                             | |                                                                    |
+| |                                             | | Enables/disables runtime fallback to other devices and performs    |
+| |                                             | | the failed inference request again, if inference request fails on  |
+| |                                             | | the currently selected device.                                     |
+| |                                             | | The default value is ``true``.                                     |
++-----------------------------------------------+----------------------------------------------------------------------+
 
 Inference with AUTO is configured similarly to when device plugins are used:
 you compile the model on the plugin with configuration and execute inference.

@@ -71,6 +71,11 @@ bool FullyConnected_bf_io_input_spatial::Validate(const Params& p, const optiona
         (output.GetLayout() != DataLayout::bf)) {
         return false;
     }
+    if (!params.bias.empty()) {
+        if (params.inputs[0].GetDType() != params.bias[0].GetDType()) {
+            return false;
+        }
+    }
 
     return true;
 }

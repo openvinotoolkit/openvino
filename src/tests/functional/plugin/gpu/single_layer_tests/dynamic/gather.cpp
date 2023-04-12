@@ -170,6 +170,11 @@ const std::vector<GatherShapeParams> dynamicInputShapeConstTargetShape = {
         3, 2
     },
     {
+        ov::test::InputShape(ov::PartialShape({8, -1, -1, 2}), {{8, 2, 3, 2}, {8, 4, 5, 2}}),
+        ov::test::InputShape(ov::PartialShape({}), {{}}),
+        0, 0
+    },
+    {
         ov::test::InputShape(ov::PartialShape({-1, -1, -1, -1, -1}), {{2, 6, 7, 8, 9}, {2, 6, 9, 1, 2}}),
         ov::test::InputShape(ov::PartialShape({}), {{2, 6}}),
         3, 1
@@ -193,7 +198,7 @@ const std::vector<GatherShapeParams> dynamicInputShapeConstTargetShape = {
         ov::test::InputShape(ov::PartialShape({-1, -1, -1, -1, -1, -1}), {{2, 4, 2, 3, 1, 3}, {2, 4, 7, 8, 9, 10}}),
         ov::test::InputShape(ov::PartialShape({}), {{2, 4}}),
         2, 2
-    },
+    }
 };
 
 INSTANTIATE_TEST_SUITE_P(smoke_dynamic_input_shapes_const_target_shapes, GatherGPUTest,

@@ -241,8 +241,8 @@ const std::vector<double> epsilon = {
 
 const std::vector<ngraph::AxisSet> emptyReductionAxes = {{}};
 
-std::vector<ElementType> inpPrc = {ElementType::i8, ElementType::bf16, ElementType::f32};
-std::vector<ElementType> outPrc = {ElementType::bf16, ElementType::f32};
+std::vector<ElementType> inpPrc = {ElementType::i8, ElementType::f16, ElementType::f32};
+std::vector<ElementType> outPrc = {ElementType::f16, ElementType::f32};
 
 const auto Mvn3D = ::testing::Combine(
        ::testing::Combine(
