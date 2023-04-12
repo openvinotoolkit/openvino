@@ -2,9 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "ngraph/runtime/reference/ctc_loss.hpp"
-
 #include "evaluate_node.hpp"
+#include "ngraph/runtime/reference/ctc_loss.hpp"
 
 namespace ctc_loss_v4 {
 template <ngraph::element::Type_t t1,

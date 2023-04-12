@@ -2,9 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "ngraph/runtime/reference/is_nan.hpp"
-
 #include "evaluate_node.hpp"
+#include "ngraph/runtime/reference/is_nan.hpp"
 
 template <ngraph::element::Type_t ET>
 bool evaluate(const std::shared_ptr<ngraph::op::v10::IsNaN>& op,

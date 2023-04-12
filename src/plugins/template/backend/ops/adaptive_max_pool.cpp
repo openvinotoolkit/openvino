@@ -2,10 +2,9 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "ngraph/runtime/reference/adaptive_max_pool.hpp"
-
 #include "evaluate_node.hpp"
 #include "ngraph/runtime/reference/adaptive_avg_pool.hpp"
+#include "ngraph/runtime/reference/adaptive_max_pool.hpp"
 
 template <ngraph::element::Type_t ET>
 bool evaluate(const std::shared_ptr<ngraph::op::v8::AdaptiveMaxPool>& op,
