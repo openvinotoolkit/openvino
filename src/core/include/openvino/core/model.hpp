@@ -239,8 +239,7 @@ public:
     /// \param input_tensors Tensors for the inputs. One for each inputs.
     OPENVINO_DEPRECATED(
         "This method is deprecated and will be removed soon. Please use evaluate with ov::Tensor instead.")
-    bool evaluate(const ov::HostTensorVector& output_tensors,
-                  const ov::HostTensorVector& input_tensors) const;
+    bool evaluate(const ov::HostTensorVector& output_tensors, const ov::HostTensorVector& input_tensors) const;
 
     /// \brief Evaluate the model on inputs, putting results in outputs.
     /// \param output_tensors Tensors for the outputs to compute. One for each result
@@ -254,8 +253,7 @@ public:
     /// \brief Evaluate the model on inputs, putting results in outputs.
     /// \param output_tensors Tensors for the outputs to compute. One for each result
     /// \param input_tensors Tensors for the inputs. One for each inputs.
-    bool evaluate(ov::TensorVector& output_tensors,
-                  const ov::TensorVector& input_tensors) const;
+    bool evaluate(ov::TensorVector& output_tensors, const ov::TensorVector& input_tensors) const;
 
     /// \brief Return a list of model's sinks.
     const ov::SinkVector& get_sinks() const {
