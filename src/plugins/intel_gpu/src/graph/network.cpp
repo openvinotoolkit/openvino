@@ -554,18 +554,18 @@ void network::save(cldnn::BinaryOutputBuffer& ob) {
     size_t exec_order_size = _exec_order.size();
     ob << exec_order_size;
 
-    std::unordered_map<primitive_id, int> exec_order_num;
-    int i = -1;
+    std::unordered_map<primitive_id, size_t> exec_order_num;
+    size_t i = exec_order_size;
     for (const auto& p_inst : _exec_order) {
-        exec_order_num[p_inst->id()] = i--;
+        exec_order_num[p_inst->id()] = --i;
     }
 
     std::vector<std::shared_ptr<primitive_inst>> insts_to_allocate(_exec_order.begin(), _exec_order.end());
     std::sort(insts_to_allocate.begin(),
               insts_to_allocate.end(),
-              [&exec_order_num](std::shared_ptr<primitive_inst> const& lhs, std::shared_ptr<primitive_inst> const& rhs) {
-                    long lhs_size = (lhs->mem_allocated()) ? lhs->get_output_layout().bytes_count() : exec_order_num[lhs->id()];
-                    long rhs_size = (rhs->mem_allocated()) ? rhs->get_output_layout().bytes_count() : exec_order_num[rhs->id()];
+              [&exec_order_num, &exec_order_size](std::shared_ptr<primitive_inst> const& lhs, std::shared_ptr<primitive_inst> const& rhs) {
+                    size_t lhs_size = (lhs->mem_allocated()) ? (lhs->get_output_layout().bytes_count() + exec_order_size) : exec_order_num[lhs->id()];
+                    size_t rhs_size = (rhs->mem_allocated()) ? (rhs->get_output_layout().bytes_count() + exec_order_size) : exec_order_num[rhs->id()];
                     return (lhs_size > rhs_size);
               });
 
