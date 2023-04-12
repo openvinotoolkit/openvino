@@ -74,7 +74,7 @@ class TestGeneralTelemetrySending(unittest.TestCase):
         model, _, _ = create_tf_graph_def("")
         _ = convert_model(model)
 
-        calls = [call('mo', 'version', 'custom'),
+        calls = [call('mo', 'version', get_simplified_mo_version()),
                  call('mo', 'cli_parameters', 'input_model:1'),
                  call('mo', 'op_count', 'tf_AddV2', 1),
                  call('mo', 'op_count', 'tf_NoOp', 1),
