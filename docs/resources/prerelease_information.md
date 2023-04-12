@@ -7,6 +7,7 @@ OpenVINO developers continue to roll out pre-release software. On this page you 
 a general changelog for each version published under the current cycle.
 
 .. note:: 
+
    These versions are pre-release software and have not undergone full validation or qualification. OpenVINO™ toolkit pre-release is:
 
    * NOT to be incorporated into production software/solutions.
@@ -16,32 +17,36 @@ a general changelog for each version published under the current cycle.
  
 
 
-.. dropdown:: OpenVINO Toolkit 2023.0.0.dev20230229
+.. dropdown:: OpenVINO Toolkit 2023.0.0.dev20230407
    :open:
    :animate: fade-in-slide-down
    :color: primary
 
-   * Added remote tensor support (accepting tensor located in graph memory) in C API 2.0
-   * Introduced model caching on GPU. Model Caching which reduces First Inference Latency (FIL) is 
+   * Enabled remote tensor in C API 2.0 (accepting tensor located in graph memory)
+   * Introduced model caching on GPU. Model Caching, which reduces First Inference Latency (FIL), is 
      extended to work as a single method on both CPU and GPU plug-ins.
    * Added the post-training Accuracy-Aware Quantization mechanism for OpenVINO IR. By using this mechanism 
      the user can define the accuracy drop criteria and NNCF will consider it during the quantization.
-   * CPU plugin migrated to OneDNN 3.1.
-   * AUTO supports fall-back to CPU device in case of run-time failure of networks on accelerator devices. 
-   * AUTO supports the option to disable CPU as the initial acceleration device to speed up first-inference latency.
-   * Implementing a parameter enabling network inference independently of IR precision. The default mode will be FP16 
-     with FP32 as an option to increase accuracy. General hints (performance vs accuracy) to be provided.
-   * Adding support for new model use cases or optimizing the existing support (better accuracy or performance).
-   * Performance on dGPU optimized with Intel oneDNN v3.1, especially for transformer models. 
-   * Dynamic shapes supported on iGPU and dGPU for Transformer(NLP) models. Not all dynamic models are supported but model coverage will be expanded in future releases.
-   * Performance improvement for Transformer models for NLP pipelines on CPU. 
-   * Models:
+   * Migrated the CPU plugin to OneDNN 3.1.
+   * Enabled CPU fall-back for the AUTO plugin - in case of run-time failure of networks on accelerator devices, CPU is used.
+   * Now, AUTO supports the option to disable CPU as the initial acceleration device to speed up first-inference latency.
+   * Implemented ov::hint::inference_precision, which enables running network inference independently of the IR precision. 
+     The default mode is FP16, it is possible to infer in FP32 to increase accuracy. 
+   * Optimized performance on dGPU with Intel oneDNN v3.1, especially for transformer models.
+   * Enabled dynamic shapes on iGPU and dGPU for Transformer(NLP) models. Not all dynamic models are enabled but model coverage will be expanded in following releases.
+   * Improved performance for Transformer models for NLP pipelines on CPU. 
+   * Extended support to the following models:
 
      * Enabled MLPerf RNN-T model.
      * Enabled Detectron2 MaskRCNN.
      * Enabled OpenSeeFace models.
      * Enabled Clip model.
      * Optimized WeNet model.
+
+
+   Known issues:
+
+   * OpenVINO-dev wheel does not contain the benchmark_app package
 
 
 
