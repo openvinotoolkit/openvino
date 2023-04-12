@@ -67,7 +67,8 @@ bool get_cpu_pinning(bool& input_value,
     int num_sockets = proc_type_table.size() > 1 ? proc_type_table.size() - 1 : 1;
     bool latency = num_streams <= num_sockets && num_streams > 0;
 
-    if (proc_type_table[0][EFFICIENT_CORE_PROC] > 0) {
+    if (proc_type_table[0][EFFICIENT_CORE_PROC] > 0 &&
+        proc_type_table[0][EFFICIENT_CORE_PROC] == proc_type_table[0][ALL_PROC]) {
         result_value =
             input_changed
                 ? input_value
