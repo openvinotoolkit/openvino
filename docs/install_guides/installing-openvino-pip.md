@@ -6,7 +6,9 @@ You can install both OpenVINO™ Runtime and OpenVINO Development Tools through 
 
 .. note:
 
-   From the 2022.1 release, the OpenVINO™ Development Tools can only be installed via PyPI. See :doc:`Install OpenVINO Development Tools <openvino_docs_install_guides_install_dev_tools>` for detailed steps.
+   * If you install OpenVINO Development Tools, OpenVINO Runtime will also be installed as a dependency, so you don't need to install it separately.
+   * The PyPI distribution does not include support for VPU, VAD, and HDDL. For information on how to use these devices, 
+     see :doc:`Additional Configurations For Hardware <openvino_docs_install_guides_configurations_header>`
 
 
 Installing OpenVINO Runtime

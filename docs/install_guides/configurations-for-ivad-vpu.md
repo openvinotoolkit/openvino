@@ -21,7 +21,7 @@ For troubleshooting issues, please see the [Troubleshooting Guide](troubleshooti
 
 For Intel® Vision Accelerator Design with Intel® Movidius™ VPUs, the following additional installation steps are required.
 
-> **NOTE**: If you installed OpenVINO™ Runtime to the non-default install directory, replace `/opt/intel` with the directory in which you installed the software.
+> **NOTE**: If you have installed OpenVINO™ Runtime to the non-default install directory, replace `/opt/intel` with the proper path.
 
 1. Set the environment variables:
 ```sh
