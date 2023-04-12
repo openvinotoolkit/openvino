@@ -79,10 +79,13 @@ void Config::readProperties(const std::map<std::string, std::string> &prop) {
         } else if (key == ov::hint::performance_mode.name()) {
             const auto prefHint = ov::util::from_string(val, ov::hint::performance_mode);
             OPENVINO_SUPPRESS_DEPRECATED_START
-            if (prefHint == ov::hint::PerformanceMode::LATENCY || prefHint == ov::hint::PerformanceMode::THROUGHPUT) {
-                performanceHint = prefHint;
+            if (prefHint == ov::hint::PerformanceMode::LATENCY || prefHint == ov::hint::PerformanceMode::UNDEFINED) {
+                performanceHint = ov::hint::PerformanceMode::LATENCY;
                 changedPerformanceHint = true;
-            } else if (prefHint != ov::hint::PerformanceMode::UNDEFINED) {
+            } else if (prefHint == ov::hint::PerformanceMode::THROUGHPUT) {
+                performanceHint = ov::hint::PerformanceMode::THROUGHPUT;
+                changedPerformanceHint = true;
+            } else {
                 IE_THROW() << "Wrong value " << val << "for property key " << ov::hint::performance_mode.name()
                            << ". Expected only " << ov::hint::PerformanceMode::LATENCY << "/"
                            << ov::hint::PerformanceMode::THROUGHPUT << std::endl;
