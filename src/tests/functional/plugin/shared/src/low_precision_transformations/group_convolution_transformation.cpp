@@ -108,6 +108,7 @@ void GroupConvolutionTransformation::Run() {
 }
 
 TEST_P(GroupConvolutionTransformation, CompareWithRefImpl) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED();
     Run();
 };
 
