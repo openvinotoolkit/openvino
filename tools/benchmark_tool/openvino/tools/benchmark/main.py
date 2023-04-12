@@ -171,7 +171,7 @@ def main():
             ## high-level performance modes
             if properties.hint.performance_mode() not in config[device].keys():
                 perf_hint = get_performance_hint(device)
-                if perf_hint == properties.hint.PerformanceMode.LATENCY and perf_hint == properties.hint.PerformanceMode.THROUGHPUT and perf_hint == properties.hint.PerformanceMode.CUMULATIVE_THROUGHPUT:
+                if perf_hint == properties.hint.PerformanceMode.LATENCY or perf_hint == properties.hint.PerformanceMode.THROUGHPUT or perf_hint == properties.hint.PerformanceMode.CUMULATIVE_THROUGHPUT:
                     config[device][properties.hint.performance_mode()] = perf_hint
 
             if is_flag_set_in_command_line('nireq'):
