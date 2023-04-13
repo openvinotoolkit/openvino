@@ -171,6 +171,13 @@ private:
     MemoryPtr stockInputZeroPointsMemPtr;
     dnnl::memory::data_type outputDataType;
     InferenceEngine::Precision sumPrc = InferenceEngine::Precision::UNSPECIFIED;
+
+    // TODO: migrate on convolution_auto algorithm for x64
+#if defined(OPENVINO_ARCH_X86_64)
+    const dnnl::algorithm baseConvAlgorithm = dnnl::algorithm::convolution_direct;
+#else
+    const dnnl::algorithm baseConvAlgorithm = dnnl::algorithm::convolution_auto;
+#endif
 };
 
 }   // namespace node
