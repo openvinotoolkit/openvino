@@ -457,10 +457,12 @@ HeteroExecutableNetwork::HeteroExecutableNetwork(const InferenceEngine::CNNNetwo
 
 HeteroExecutableNetwork::HeteroExecutableNetwork(std::istream& heteroModel,
                                                  const Configs& user_config,
-                                                 Engine* heteroPlugin)
+                                                 Engine* heteroPlugin,
+                                                 bool fromCache)
     : _heteroPlugin(heteroPlugin),
       _hetero_config{},
-      _device_config{} {
+      _device_config{},
+      _loadedFromCache(fromCache) {
     std::string heteroXmlStr;
     std::getline(heteroModel, heteroXmlStr);
 
@@ -809,12 +811,14 @@ InferenceEngine::Parameter HeteroExecutableNetwork::GetMetric(const std::string&
             ov::PropertyName{ov::model_name.name(), ov::PropertyMutability::RO},
             ov::PropertyName{ov::optimal_number_of_infer_requests.name(), ov::PropertyMutability::RO},
             ov::PropertyName{ov::execution_devices.name(), ov::PropertyMutability::RO},
+            ov::PropertyName{ov::loaded_from_cache.name(), ov::PropertyMutability::RO},
             ov::PropertyName{ov::device::properties.name(), ov::PropertyMutability::RO},
             ov::PropertyName{ov::device::priorities.name(), ov::PropertyMutability::RO}};
     } else if (EXEC_NETWORK_METRIC_KEY(SUPPORTED_METRICS) == name) {
         std::vector<std::string> heteroMetrics = {ov::model_name.name(),
                                                   METRIC_KEY(SUPPORTED_METRICS),
                                                   METRIC_KEY(SUPPORTED_CONFIG_KEYS),
+                                                  ov::loaded_from_cache.name(),
                                                   ov::optimal_number_of_infer_requests.name(),
                                                   ov::execution_devices.name()};
         IE_SET_METRIC_RETURN(SUPPORTED_METRICS, heteroMetrics);
@@ -843,6 +847,8 @@ InferenceEngine::Parameter HeteroExecutableNetwork::GetMetric(const std::string&
         return all_devices;
     } else if (ov::model_name == name) {
         return decltype(ov::model_name)::value_type{_name};
+    } else if (ov::loaded_from_cache == name) {
+        return decltype(ov::loaded_from_cache)::value_type{_loadedFromCache};
     } else if (ov::optimal_number_of_infer_requests == name) {
         unsigned int value = 0u;
         for (auto&& desc : _networks) {
