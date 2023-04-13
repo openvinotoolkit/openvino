@@ -59,10 +59,10 @@ For complex cases, when a value needs to be set in the ``input`` parameter, the 
 
 ``InputCutInfo("input_name", [3], np.float32, [0.5, 2.1, 3.4])`` is equivalent of ``InputCutInfo(name="input_name", shape=[3], type=np.float32, value=[0.5, 2.1, 3.4])``.
 Supported types for ``InputCutInfo``:
-- name: ``string``.
-- shape: ``list`` or ``tuple`` of dimensions (``int`` or ``openvino.runtime.Dimension``), ``openvino.runtime.PartialShape``, ``openvino.runtime.Shape``.
-- type: ``numpy type``, ``openvino.runtime.Type``.
-- value: ``numpy.ndarray``, ``list`` of numeric values, ``bool``.
+* name: ``string``.
+* shape: ``list`` or ``tuple`` of dimensions (``int`` or ``openvino.runtime.Dimension``), ``openvino.runtime.PartialShape``, ``openvino.runtime.Shape``.
+* type: ``numpy type``, ``openvino.runtime.Type``.
+* value: ``numpy.ndarray``, ``list`` of numeric values, ``bool``.
 
 .. code-block:: python
 
@@ -72,13 +72,13 @@ Supported types for ``InputCutInfo``:
 
 To set parameters for models with multiple inputs ``list`` of parameters can be used.
 Following parameters support lists: 
-- input
-- input_shape
-- layout 
-- source_layout
-- dest_layout
-- mean_values
-- scale_values
+* input
+* input_shape
+* layout 
+* source_layout
+* dest_layout
+* mean_values
+* scale_values
 
 .. code-block:: python
 
