@@ -19,9 +19,12 @@ The OpenVINO Runtime provides unique capabilities to infer deep learning models 
 +==========================================================================+===============================================================================================================+
 || :doc:`GPU <openvino_docs_OV_UG_supported_plugins_GPU>`                  | Intel&reg; Processor Graphics, including Intel&reg; HD Graphics and Intel&reg; Iris&reg; Graphics             |
 +--------------------------------------------------------------------------+---------------------------------------------------------------------------------------------------------------+
-|| :doc:`CPU <openvino_docs_OV_UG_supported_plugins_CPU>`                  | Intel&reg; Xeon&reg; with Intel® Advanced Vector Extensions 2 (Intel® AVX2), Intel® Advanced Vector           |
+|| :doc:`CPU (x86) <openvino_docs_OV_UG_supported_plugins_CPU>`            | Intel&reg; Xeon&reg; with Intel® Advanced Vector Extensions 2 (Intel® AVX2), Intel® Advanced Vector           |
 ||                                                                         | Extensions 512 (Intel® AVX-512), and AVX512_BF16, Intel&reg; Core&trade; Processors with Intel&reg;           |
 ||                                                                         | AVX2, Intel&reg; Atom&reg; Processors with Intel® Streaming SIMD Extensions (Intel® SSE)                      |
++--------------------------------------------------------------------------+---------------------------------------------------------------------------------------------------------------+
+|| :doc:`CPU (Arm®) <openvino_docs_OV_UG_supported_plugins_CPU>`           | Raspberry Pi™ 4 Model B, Apple® Mac with M1 chip, NVIDIA® Jetson Nano™, Android™ devices                      |
+||                                                                         |                                                                                                               |
 +--------------------------------------------------------------------------+---------------------------------------------------------------------------------------------------------------+
 || :doc:`GNA plugin <openvino_docs_OV_UG_supported_plugins_GNA>`           | Intel&reg; Speech Enabling Developer Kit, Amazon Alexa* Premium Far-Field Developer Kit, Intel&reg;           |
 || (available in the Intel® Distribution of OpenVINO™ toolkit)             | Pentium&reg; Silver J5005 Processor, Intel&reg; Pentium&reg; Silver N5000 Processor, Intel&reg;               |
@@ -32,9 +35,6 @@ The OpenVINO Runtime provides unique capabilities to infer deep learning models 
 ||                                                                         | i5-1035G1 Processor, Intel&reg; Core&trade; i5-1030G7 Processor, Intel&reg; Core&trade; i5-1030G4 Processor,  |
 ||                                                                         | Intel&reg; Core&trade; i3-1005G1 Processor, Intel&reg; Core&trade; i3-1000G1 Processor,                       |
 ||                                                                         | Intel&reg; Core&trade; i3-1000G4 Processor                                                                    |
-+--------------------------------------------------------------------------+---------------------------------------------------------------------------------------------------------------+
-|| :doc:`Arm® CPU <openvino_docs_OV_UG_supported_plugins_ARM_CPU>`         | Raspberry Pi™ 4 Model B, Apple® Mac mini with M1 chip, NVIDIA® Jetson Nano™, Android™ devices                 |
-|| (unavailable in the Intel® Distribution of OpenVINO™ toolkit)           |                                                                                                               |
 +--------------------------------------------------------------------------+---------------------------------------------------------------------------------------------------------------+
 || :doc:`Multi-Device <openvino_docs_OV_UG_Running_on_multiple_devices>`   | Multi-Device execution enables simultaneous inference of the same model on several devices in parallel        |
 +--------------------------------------------------------------------------+---------------------------------------------------------------------------------------------------------------+
