@@ -128,6 +128,27 @@ function(ov_download_tbb)
                 ENVIRONMENT "TBBROOT"
                 SHA256 "c57ce4b97116cd3093c33e6dcc147fb1bbb9678d0ee6c61a506b2bfe773232cb"
                 USE_NEW_LOCATION TRUE)
+    elseif(WIN32 AND AARCH64)
+        RESOLVE_DEPENDENCY(TBB
+                ARCHIVE_WIN "oneapi-tbb-2021.2.1-win-arm64.zip"
+                TARGET_PATH "${TEMP}/tbb"
+                ENVIRONMENT "TBBROOT"
+                SHA256 "0741fb8d117c4c86bd61341748bdb3a0b5a1fbe8d2117d07db783878a1e20bde"
+                USE_NEW_LOCATION TRUE)
+    elseif(LINUX AND AARCH64)
+        RESOLVE_DEPENDENCY(TBB
+                ARCHIVE_LIN "oneapi-tbb-2021.2.1-lin-arm64.tgz"
+                TARGET_PATH "${TEMP}/tbb"
+                ENVIRONMENT "TBBROOT"
+                SHA256 "f333f5d4185781878caf1ab011552821079330805e63fda2da9b40c2b00bc5cd"
+                USE_NEW_LOCATION TRUE)
+    elseif(APPLE AND AARCH64)
+        RESOLVE_DEPENDENCY(TBB
+                ARCHIVE_MAC "oneapi-tbb-2021.2.1-mac-arm64.tgz"
+                TARGET_PATH "${TEMP}/tbb"
+                ENVIRONMENT "TBBROOT"
+                SHA256 "6c6232c442f12b05835b48dcfa45c085a3c84070590df9d3308fa620fae1a24a"
+                USE_NEW_LOCATION TRUE)
     else()
         message(WARNING "Prebuilt TBB is not available on current platform")
     endif()
