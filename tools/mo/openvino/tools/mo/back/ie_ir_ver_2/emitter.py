@@ -624,14 +624,10 @@ def generate_ie_ir(graph: Graph, file_name: str, input_names: tuple = (), mean_o
     xml_doc = parseString(xml_string)
     pretty_xml_as_string = xml_doc.toprettyxml()
     if len(unsupported.unsupported):
-
-        ops_list = []
-        for op_name in unsupported.unsupported.keys():
-            ops_list.append(op_name)
-        ops_list_str = ",".join(ops_list)
-
+        framework = graph.graph['cmd_params'].framework
         t = tm.Telemetry()
-        t.send_event('mo', 'error_info', "unsupported_ops:{}".format(ops_list_str))
+        for op in unsupported.unsupported.keys():
+            t.send_event('mo', 'error_cause', "{}_{}".format(framework, op))
 
         log.debug('Partially correct IR XML:\n{}'.format(pretty_xml_as_string))
         unsupported.report(log.error, "List of operations that cannot be converted to Inference Engine IR:")

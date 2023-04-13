@@ -801,7 +801,7 @@ def _convert(cli_parser: argparse.ArgumentParser, framework, args):
 
         msg = remove_path_lines(str(e.with_traceback(None))).strip()
         if len(msg):
-            telemetry.send_event('mo', 'error_cause', "error_message:'{}'".format(msg))
+            telemetry.send_event('mo', 'error_info', "error_message:'{}'".format(msg))
 
         telemetry.end_session('mo')
         telemetry.force_shutdown(1.0)

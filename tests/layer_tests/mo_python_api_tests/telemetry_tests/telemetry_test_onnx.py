@@ -86,7 +86,7 @@ class TestGeneralTelemetrySending(unittest.TestCase):
                      call('mo', 'cli_parameters', 'input_model:1'),
                      call('mo', 'op_count', 'onnx_MyTorchOp', 1),
                      call('mo', 'conversion_result', 'fail'),
-                     call('mo', 'error_cause', "error_message:"
+                     call('mo', 'error_info', "error_message:"
                                                "'OpenVINO does not support the following ONNX operations: MyTorchOp'")]
             tm.Telemetry.send_event.assert_has_calls(calls)
             tm.Telemetry.send_event.reset_mock()
