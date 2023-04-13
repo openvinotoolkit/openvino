@@ -24,4 +24,11 @@ For details on how plugins handle compressed ``FP16`` models, see
    information about that.
 
 
+.. note::
+
+   Some large models (larger than few Gb) when compressed to ``FP16`` may consume enormous amount of RAM. In case if 
+   you are facing such problems please try to convert them without compression: 
+   `mo --input_model INPUT_MODEL --compress_to_fp16=False`
+
+
 @endsphinxdirective
