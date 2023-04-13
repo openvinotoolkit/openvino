@@ -142,7 +142,11 @@ function(ie_add_onednn)
     list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}")
 
     add_subdirectory(onednn EXCLUDE_FROM_ALL)
+
     ov_install_static_lib(dnnl cpu)
+    if(ARM OR AARCH64)
+        ov_install_static_lib(arm_compute_core cpu)
+    endif()
 endfunction()
 
 if(ENABLE_INTEL_CPU)
