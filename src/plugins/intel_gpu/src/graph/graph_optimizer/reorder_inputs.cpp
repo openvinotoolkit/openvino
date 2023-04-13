@@ -13,7 +13,6 @@
 #include "mvn_inst.h"
 #include "to_string_utils.h"
 #include "pooling_inst.h"
-#include "reshape_inst.h"
 
 #ifdef ENABLE_ONEDNN_FOR_GPU
 #include "gemm_inst.h"
@@ -285,6 +284,8 @@ void propagate_formats_rec(std::map<program_node*, format::type>& fmt_map,
     for (auto next : travel_direction_wrapper<dir>::next_nodes(node)) {
         if (!next->is_in_data_flow())
             continue;
+        if (!can_propagate_formats_rec<dir>(fmt_map, lo, node, next, fmt))
+            continue;
         propagate_formats_rec<dir>(fmt_map, lo, node, next, fmt);
     }
 }
@@ -511,6 +512,8 @@ void minimize_local_reorders(program& p, std::map<program_node*, format::type>& 
             continue;
 
         for (auto new_fmt : local_formats) {
+            if (fmt_map.at(node) != format::any && format::dimension(fmt_map.at(node)) != format::dimension(new_fmt))
+                continue;
             fmt_map.at(node) = new_fmt;
 
             auto reorders_cnt = count_reorders(fmt_map, lo, node);

@@ -31,14 +31,6 @@ pr:
     - 'tools/*'
     - 'tests/layer_tests/*'
 
-resources:
-  repositories:
-  - repository: openvino_contrib
-    type: github
-    endpoint: openvinotoolkit
-    name: openvinotoolkit/openvino_contrib
-    ref: master
-
 variables:
   - group: github
 
@@ -56,7 +48,6 @@ jobs:
     VSTS_HTTP_TIMEOUT: 200
     BUILD_TYPE: Release
     OPENVINO_REPO_DIR: $(Build.Repository.LocalPath)
-    OPENVINO_CONTRIB_REPO_DIR: $(OPENVINO_REPO_DIR)/../openvino_contrib
     WORK_DIR: $(Pipeline.Workspace)/_w
     BUILD_DIR: $(WORK_DIR)/build
     ANDROID_TOOLS: $(WORK_DIR)/android_tools
@@ -121,11 +112,6 @@ jobs:
     submodules: 'true'
     path: openvino
 
-  - checkout: openvino_contrib
-    clean: 'true'
-    submodules: 'true'
-    path: openvino_contrib
-
   - script: |
       set -e
       sudo -E $(OPENVINO_REPO_DIR)/install_build_dependencies.sh
@@ -156,11 +142,7 @@ jobs:
         -DANDROID_STL=c++_shared
         -DANDROID_PLATFORM=$(ANDROID_SDK_VERSION)
         -DENABLE_TESTS=ON
-        -DBUILD_java_api=ON
-        -DBUILD_nvidia_plugin=OFF
-        -DBUILD_custom_operations=OFF
         -DENABLE_INTEL_GPU=ON
-        -DOPENVINO_EXTRA_MODULES=$(OPENVINO_CONTRIB_REPO_DIR)/modules
         -DCMAKE_CXX_LINKER_LAUNCHER=ccache
         -DCMAKE_C_LINKER_LAUNCHER=ccache
         -DCMAKE_CXX_COMPILER_LAUNCHER=ccache

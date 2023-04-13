@@ -1474,6 +1474,47 @@ TEST(eltwise_gpu_f32, dynamic_kernel_broadcast_mixed_ranks_5d_2d) {
     }
 }
 
+TEST(eltwise_gpu_f32, add_basic_8d) {
+    auto& engine = get_test_engine();
+
+    auto input1 = engine.allocate_memory({{1, 3, 2, 2, 2, 3, 2, 3}, data_types::f32, format::bfvuwzyx });
+    auto input2 = engine.allocate_memory({{1, 3, 2, 2, 2, 3, 2, 3}, data_types::f32, format::bfvuwzyx });
+
+    topology topology;
+    topology.add(input_layout("input1", input1->get_layout()));
+    topology.add(input_layout("input2", input2->get_layout()));
+    topology.add(eltwise("eltwise", { input_info("input1"), input_info("input2") }, eltwise_mode::sum));
+
+    {
+        mem_lock<float> lock1(input1, get_test_stream());
+        mem_lock<float> lock2(input2, get_test_stream());
+
+        std::iota(lock1.begin(), lock1.end(), 0);
+        std::iota(lock2.begin(), lock2.end(), 0);
+    }
+
+    auto config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+    network network(engine, topology, config);
+
+    network.set_input_data("input1", input1);
+    network.set_input_data("input2", input2);
+    auto outputs = network.execute();
+
+    ASSERT_EQ(outputs.size(), size_t(1));
+    ASSERT_EQ(outputs.begin()->first, "eltwise");
+
+    auto output = outputs.at("eltwise").get_memory();
+    ov::PartialShape expected_shape = {1, 3, 2, 2, 2, 3, 2, 3};
+    ASSERT_EQ(output->get_layout().get_partial_shape(), expected_shape);
+
+    cldnn::mem_lock<float> output_ptr(output, get_test_stream());
+
+    for (size_t i = 0; i < output->count(); i++) {
+        ASSERT_EQ(2.f*i, output_ptr[i]) << " i = " << i;
+    }
+}
+
 TEST(eltwise_gpu_f32, add_basic_in4x4x2x2) {
     //  Input2   : 2x2x2
     //  Input  : 2x2x2x2
