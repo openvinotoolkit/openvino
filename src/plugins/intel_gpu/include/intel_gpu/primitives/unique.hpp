@@ -25,10 +25,14 @@ struct unique : primitive_base<unique> {
            bool flattened,
            int64_t axis,
            bool sorted,
-           const std::vector<padding>& output_paddings,
-           const std::vector<optional_data_type>& output_data_types,
-           size_t num_outputs)
-        : primitive_base(id, {input}, output_paddings, output_data_types, num_outputs),
+           data_types elem_type,
+           data_types index_type,
+           data_types count_type)
+        : primitive_base(id,
+                         {input},
+                         decltype(output_paddings)(5),
+                         {count_type, elem_type, index_type, index_type, count_type},
+                         5),
           flattened(flattened),
           axis(axis),
           sorted(sorted) {}
@@ -62,10 +66,10 @@ struct unique_reshape : primitive_base<unique_reshape> {
                    const std::vector<input_info>& inputs,
                    bool flattened,
                    int64_t axis,
-                   const std::vector<padding>& output_paddings,
-                   const std::vector<optional_data_type>& output_data_types,
-                   size_t num_outputs)
-        : primitive_base(id, inputs, output_paddings, output_data_types, num_outputs),
+                   data_types elem_type,
+                   data_types index_type,
+                   data_types count_type)
+        : primitive_base(id, inputs, decltype(output_paddings)(4), {elem_type, index_type, index_type, count_type}, 4),
           flattened(flattened),
           axis(axis) {}
 

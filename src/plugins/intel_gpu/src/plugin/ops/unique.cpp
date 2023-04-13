@@ -28,34 +28,18 @@ void CreateUniqueOp(Program& p, const std::shared_ptr<ngraph::op::v10::Unique>& 
         flattened = false;
     }
 
-    std::vector<cldnn::optional_data_type> output_data_types;
-    output_data_types.emplace_back(cldnn::element_type_to_data_type(op->get_count_element_type()));
-    output_data_types.emplace_back(cldnn::element_type_to_data_type(op->get_input_element_type(0)));
-    output_data_types.emplace_back(cldnn::element_type_to_data_type(op->get_index_element_type()));
-    output_data_types.emplace_back(cldnn::element_type_to_data_type(op->get_index_element_type()));
-    output_data_types.emplace_back(cldnn::element_type_to_data_type(op->get_count_element_type()));
-    const auto num_outputs = output_data_types.size();
-    const std::vector<cldnn::padding> output_paddings(num_outputs);
-
     const auto layer_name = layer_type_name_ID(op);
     const cldnn::unique unique_prim(layer_name,
                                     p.GetInputInfo(op).at(0),
                                     flattened,
                                     axis,
                                     op->get_sorted(),
-                                    output_paddings,
-                                    output_data_types,
-                                    num_outputs);
+                                    cldnn::element_type_to_data_type(op->get_input_element_type(0)),
+                                    cldnn::element_type_to_data_type(op->get_index_element_type()),
+                                    cldnn::element_type_to_data_type(op->get_count_element_type()));
     p.add_primitive(*op, unique_prim);
 
     // We add unique reshape primitive to adjust outputs shapes to founded unique count
-    std::vector<cldnn::optional_data_type> output_data_types_reshape;
-    for (auto i = 1U; i < output_data_types.size(); ++i) {
-        output_data_types_reshape.emplace_back(output_data_types.at(i));
-    }
-    const auto num_outputs_reshape = output_data_types_reshape.size();
-    const std::vector<cldnn::padding> output_paddings_reshape(num_outputs_reshape);
-
     const auto layer_name_reshape = layer_name + "_reshape";
     const cldnn::unique_reshape unique_reshape_prim(layer_name_reshape,
                                                     {cldnn::input_info(layer_name, 0),
@@ -65,9 +49,9 @@ void CreateUniqueOp(Program& p, const std::shared_ptr<ngraph::op::v10::Unique>& 
                                                      cldnn::input_info(layer_name, 4)},
                                                     flattened,
                                                     axis,
-                                                    output_paddings_reshape,
-                                                    output_data_types_reshape,
-                                                    num_outputs_reshape);
+                                                    cldnn::element_type_to_data_type(op->get_input_element_type(0)),
+                                                    cldnn::element_type_to_data_type(op->get_index_element_type()),
+                                                    cldnn::element_type_to_data_type(op->get_count_element_type()));
     p.add_primitive(*op, unique_reshape_prim);
 }
 
