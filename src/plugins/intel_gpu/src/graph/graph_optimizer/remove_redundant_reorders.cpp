@@ -278,7 +278,11 @@ void remove_redundant_reorders::run(program& p) {
 
         // Optimize reorder b_fs_yx_fsv16 -> bfyx when spatials are equal to 1. In this case we can reinterpret buffer,
         // but pads need to be handled correctly.
-        if (i_layout.format == format::b_fs_yx_fsv16 && o_layout.format == format::bfyx && !r_node.is_output() &&
+        // If the batch size is not 1, and the newly aligned pad is merged into output layout and then buffer is reinterpreted
+        // during post_optimize_graph phase, user node cannot handle pad properly for kernel execution
+        bool no_post_optimization = update_implementations && o_layout.batch() != 1;
+        if (i_layout.format == format::b_fs_yx_fsv16 && o_layout.format == format::bfyx &&
+            !r_node.is_output() && !no_post_optimization &&
             i_layout.spatial(0) == 1 && i_layout.spatial(1) == 1 &&
             i_layout.data_padding.upper_size().spatial[0] == 0 && i_layout.data_padding.lower_size().spatial[0] == 0 &&
             i_layout.data_padding.upper_size().spatial[1] == 0 && i_layout.data_padding.lower_size().spatial[1] == 0 &&
