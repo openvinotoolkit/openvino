@@ -131,7 +131,7 @@ def merge_xmls(xml_paths: list):
                                 device_results.find(current_op_res.tag).set(attr_name, str(xml_value))
                     else:
                         device_results.append(op_result)
-    stat_update_utils.update_passrates(summary_results, rel_weights)
+    stat_update_utils.update_passrates(summary_results)
     summary.set("timestamp", timestamp)
     logger.info("Merging XML files is competed")
     return summary
