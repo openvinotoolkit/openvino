@@ -10,6 +10,7 @@
 #include <vector>
 #include <memory>
 #include <caseless.hpp>
+#include "executors/eltwise_list.hpp"
 
 namespace ov {
 namespace intel_cpu {
@@ -199,6 +200,10 @@ private:
 
     void appendMemory(const std::vector<float> &data, MemoryPtr &memPtr, std::vector<MemoryPtr>& postOpsMem);
     void appendMemory(const std::vector<float> &data, MemoryPtr &memPtr, std::vector<const void*>& postOpsMem);
+
+    bool canUseAclExecutor = false;
+    EltwiseAttrs eltwiseAttrs;
+    std::shared_ptr<EltwiseExecutor> aclExecPtr = nullptr;
 };
 
 class eltwise_precision_helper {

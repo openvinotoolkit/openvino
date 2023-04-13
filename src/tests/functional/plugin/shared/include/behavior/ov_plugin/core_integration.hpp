@@ -714,20 +714,6 @@ TEST(OVClassBasicTest, GetUnsupportedPropertyCoreThrow) {
     ASSERT_THROW(ie.get_property("unsupported_property"), ov::Exception);
 }
 
-TEST(OVClassBasicTest, SetAllowAutoBatchingPropertyCoreNoThrows) {
-    ov::Core ie = createCoreWithTemplate();
-
-    bool value1 = true;
-    OV_ASSERT_NO_THROW(ie.set_property(ov::hint::allow_auto_batching(false)));
-    OV_ASSERT_NO_THROW(value1 = ie.get_property(ov::hint::allow_auto_batching.name()).as<bool>());
-    ASSERT_FALSE(value1);
-
-    bool value2 = false;
-    OV_ASSERT_NO_THROW(ie.set_property(ov::hint::allow_auto_batching(true)));
-    OV_ASSERT_NO_THROW(value2 = ie.get_property(ov::hint::allow_auto_batching.name()).as<bool>());
-    ASSERT_TRUE(value2);
-}
-
 TEST_P(OVClassSetLogLevelConfigTest, SetConfigNoThrow) {
     ov::Core ie = createCoreWithTemplate();
     // log level

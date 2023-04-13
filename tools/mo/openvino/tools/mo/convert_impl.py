@@ -34,12 +34,11 @@ from openvino.tools.mo.utils.cli_parser import check_available_transforms, \
     get_model_name_from_args, depersonalize, get_mo_convert_params
 
 from openvino.tools.mo.utils.error import Error
-from openvino.tools.mo.utils.find_ie_version import find_ie_version
+from openvino.tools.mo.utils.version import VersionChecker
 from openvino.tools.mo.utils.guess_framework import deduce_legacy_frontend_by_namespace
 from openvino.tools.mo.utils.logger import init_logger, progress_printer
 from openvino.tools.mo.utils.utils import refer_to_faq_msg
 from openvino.tools.mo.utils.telemetry_utils import send_params_info, send_framework_info
-from openvino.tools.mo.utils.version import get_simplified_mo_version, get_simplified_ie_version, get_version, simplify_version
 from openvino.tools.mo.utils.versions_checker import check_requirements  # pylint: disable=no-name-in-module
 from openvino.tools.mo.utils.telemetry_utils import get_tid
 from openvino.tools.mo.moc_frontend.check_config import legacy_extensions_used
@@ -202,19 +201,7 @@ def arguments_post_parsing(argv: argparse.Namespace):
     if not argv.silent:
         print_argv(argv, is_caffe, is_tf, is_mxnet, is_kaldi, is_onnx, argv.model_name)
 
-    # This try-except is additional reinsurance that the IE
-    # dependency search does not break the MO pipeline
-    def raise_ie_not_found():
-        raise Error("Could not find the Inference Engine or nGraph Python API.\n"
-                    "Consider building the Inference Engine and nGraph Python APIs from sources or "
-                    "try to install OpenVINO (TM) Toolkit using pip \npip install openvino")
-
-    try:
-        if not find_ie_version(silent=argv.silent):
-            raise_ie_not_found()
-    except Exception as e:
-        log.error(e)
-        raise_ie_not_found()
+    VersionChecker().check_runtime_dependencies(argv.silent)
 
     argv.data_type = 'FP32'  # if compression was enabled will be restored back to 'FP16' after apply_offline_transformations
 
@@ -505,11 +492,10 @@ def emit_ir(graph: Graph, argv: argparse.Namespace, non_default_params: dict):
         except Exception as e:
             return_code = "failed"
             log.error(e)
-
         message = str(dict({
             "platform": platform.system(),
-            "mo_version": get_simplified_mo_version(),
-            "ie_version": get_simplified_ie_version(env=os.environ),
+            "mo_version": VersionChecker().get_mo_simplified_version(),
+            "ie_version": VersionChecker().get_ie_simplified_version(),
             "python_version": sys.version,
             "return_code": return_code
         }))
@@ -734,9 +720,7 @@ def _convert(cli_parser: argparse.ArgumentParser, framework, args):
     if 'help' in args and args['help']:
         show_mo_convert_help()
         return None, None
-
-    version = get_version()
-    simplified_mo_version = simplify_version(version)
+    simplified_mo_version = VersionChecker().get_mo_simplified_version()
     telemetry = tm.Telemetry(tid=get_tid(), app_name='Model Optimizer', app_version=simplified_mo_version)
     telemetry.start_session('mo')
     telemetry.send_event('mo', 'version', simplified_mo_version)
@@ -798,7 +782,7 @@ def _convert(cli_parser: argparse.ArgumentParser, framework, args):
         ov_model, legacy_path = driver(argv, {"conversion_parameters": non_default_params})
 
         # add MO meta data to model
-        ov_model.set_rt_info(version, "MO_version")
+        ov_model.set_rt_info(VersionChecker().get_mo_version(), "MO_version")
         ov_model.set_rt_info(get_rt_version(), "Runtime_version")
         ov_model.set_rt_info(str(legacy_path), "legacy_frontend")
         for key, value in non_default_params.items():
