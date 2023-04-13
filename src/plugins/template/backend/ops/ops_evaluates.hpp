@@ -52,8 +52,8 @@ extern template bool evaluate_node<ngraph::op::v0::Interpolate>(std::shared_ptr<
                                                                 const ngraph::HostTensorVector& inputs);
 
 extern template bool evaluate_node<ngraph::op::v11::Interpolate>(std::shared_ptr<ngraph::Node> node,
-                                                                const ngraph::HostTensorVector& outputs,
-                                                                const ngraph::HostTensorVector& inputs);
+                                                                 const ngraph::HostTensorVector& outputs,
+                                                                 const ngraph::HostTensorVector& inputs);
 
 extern template bool evaluate_node<ngraph::op::v0::LRN>(std::shared_ptr<ngraph::Node> node,
                                                         const ngraph::HostTensorVector& outputs,

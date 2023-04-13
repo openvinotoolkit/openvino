@@ -2,8 +2,10 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+// clang-format off
 #include "evaluate_node.hpp"
 #include "ngraph/runtime/reference/roi_pooling.hpp"
+// clang-format on
 
 template <ngraph::element::Type_t ET>
 bool evaluate(const std::shared_ptr<ngraph::op::v0::ROIPooling>& op,

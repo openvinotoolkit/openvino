@@ -2,9 +2,11 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+// clang-format off
 #include "evaluate_node.hpp"
 #include "ov_ops/augru_sequence.hpp"
 #include "ngraph/runtime/reference/sequences.hpp"
+// clang-format on
 
 namespace rnn_seq_v5 {
 template <ngraph::element::Type_t t1, ngraph::element::Type_t t2>
