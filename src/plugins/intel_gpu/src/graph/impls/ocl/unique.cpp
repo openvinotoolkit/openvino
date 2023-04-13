@@ -22,9 +22,9 @@ struct unique_impl : typed_primitive_impl_ocl<unique> {
         return make_unique<unique_impl>(*this);
     }
 
-    static kernel_params_t get_kernel_params(const kernel_impl_params& impl_param) {
+    static kernel_params_t get_kernel_params(const kernel_impl_params& impl_param, bool is_shape_agnostic = false) {
         const auto& primitive = impl_param.typed_desc<unique>();
-        auto params = get_default_params<kernel_selector::unique_params>(impl_param);
+        auto params = get_default_params<kernel_selector::unique_params>(impl_param, is_shape_agnostic);
         auto optional_params =
             get_default_optional_params<kernel_selector::unique_optional_params>(impl_param.get_program());
 
@@ -37,6 +37,11 @@ struct unique_impl : typed_primitive_impl_ocl<unique> {
         }
 
         return {params, optional_params};
+    }
+
+    void update_dispatch_data(const kernel_impl_params& impl_param) override {
+        auto kernel_params = get_kernel_params(impl_param, true);
+        (_kernel_data.update_dispatch_data_func)(kernel_params.first, _kernel_data);
     }
 };
 
@@ -59,6 +64,7 @@ attach_unique_impl::attach_unique_impl() {
     };
 
     implementation_map<unique>::add(impl_types::ocl,
+                                    shape_types::any,
                                     typed_primitive_impl_ocl<unique>::create<unique_impl>,
                                     types,
                                     formats);
@@ -78,9 +84,9 @@ struct unique_reshape_impl : typed_primitive_impl_ocl<unique_reshape> {
         return make_unique<unique_reshape_impl>(*this);
     }
 
-    static kernel_params_t get_kernel_params(const kernel_impl_params& impl_param) {
+    static kernel_params_t get_kernel_params(const kernel_impl_params& impl_param, bool is_shape_agnostic = false) {
         const auto& primitive = impl_param.typed_desc<unique_reshape>();
-        auto params = get_default_params<kernel_selector::unique_reshape_params>(impl_param);
+        auto params = get_default_params<kernel_selector::unique_reshape_params>(impl_param, is_shape_agnostic);
         auto optional_params =
             get_default_optional_params<kernel_selector::unique_reshape_optional_params>(impl_param.get_program());
 
@@ -96,6 +102,11 @@ struct unique_reshape_impl : typed_primitive_impl_ocl<unique_reshape> {
         }
 
         return {params, optional_params};
+    }
+
+    void update_dispatch_data(const kernel_impl_params& impl_param) override {
+        auto kernel_params = get_kernel_params(impl_param, true);
+        (_kernel_data.update_dispatch_data_func)(kernel_params.first, _kernel_data);
     }
 };
 
@@ -118,6 +129,7 @@ attach_unique_reshape_impl::attach_unique_reshape_impl() {
     };
 
     implementation_map<unique_reshape>::add(impl_types::ocl,
+                                            shape_types::any,
                                             typed_primitive_impl_ocl<unique_reshape>::create<unique_reshape_impl>,
                                             types,
                                             formats);

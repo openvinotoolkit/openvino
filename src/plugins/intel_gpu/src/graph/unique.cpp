@@ -29,10 +29,9 @@ std::vector<layout> unique_inst::calc_output_layouts(const unique_node& node, co
     const auto desc = impl_param.typed_desc<unique>();
     const auto input_layout = impl_param.get_input_layout();
 
-    // TODO: Properly calculate dynamic outputs
     std::vector<ShapeType> output_shapes = {ShapeType(), ShapeType(), ShapeType(), ShapeType(), ShapeType()};
 
-    if (impl_param.memory_deps.empty()) {
+    if (input_layout.is_dynamic()) {
         output_shapes.at(0) = ov::PartialShape{ov::Dimension::dynamic()};
         output_shapes.at(1) = ov::PartialShape::dynamic(input_layout.get_partial_shape().rank());
         output_shapes.at(2) = ov::PartialShape{ov::Dimension::dynamic()};
@@ -101,7 +100,6 @@ std::vector<layout> unique_reshape_inst::calc_output_layouts(const unique_reshap
     const auto desc = impl_param.typed_desc<unique_reshape>();
     const auto input_layout = impl_param.get_input_layout(1);
 
-    // TODO: Properly calculate dynamic outputs
     std::vector<ShapeType> output_shapes = {ShapeType(), ShapeType(), ShapeType(), ShapeType()};
 
     if (impl_param.memory_deps.empty()) {

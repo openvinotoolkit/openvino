@@ -158,7 +158,8 @@ inline uint FUNC(unique)(const __global INPUT0_TYPE* input,
 }
 
 KERNEL(unique_ref)
-(const __global INPUT0_TYPE* input,
+(OPTIONAL_SHAPE_INFO_ARG
+ const __global INPUT0_TYPE* input,
  __global OUTPUT_TYPE* out_total_count,
  __global OUTPUT1_TYPE* out_unique_elements,
  __global OUTPUT2_TYPE* out_indices,

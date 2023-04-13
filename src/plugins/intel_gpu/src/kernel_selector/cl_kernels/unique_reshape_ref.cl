@@ -9,7 +9,8 @@
 #endif
 
 KERNEL(unique_reshape_ref)
-(const __global INPUT0_TYPE* in_total_count,
+(OPTIONAL_SHAPE_INFO_ARG
+ const __global INPUT0_TYPE* in_total_count,
  const __global INPUT1_TYPE* in_unique_elements,
  const __global INPUT2_TYPE* in_indices,
  const __global INPUT3_TYPE* in_rev_indices,

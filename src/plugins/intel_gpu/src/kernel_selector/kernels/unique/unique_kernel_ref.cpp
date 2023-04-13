@@ -88,6 +88,15 @@ KernelsData UniqueKernelRef::GetKernelsData(const Params& params, const optional
     const auto jit = CreateJit(kernelName, jit_constants, entry_point);
     auto& kernel = kernel_data.kernels.front();
 
+    kernel_data.update_dispatch_data_func = [this](const Params& params, KernelData& kd) {
+        const auto& prim_params = dynamic_cast<const unique_params&>(params);
+        auto dispatchData = SetDefault(prim_params);
+        OPENVINO_ASSERT(kd.kernels.size() == 1, "[GPU] Invalid kernels size for update dispatch data func");
+        kd.kernels[0].params.workGroups.global = dispatchData.gws;
+        kd.kernels[0].params.workGroups.local = dispatchData.lws;
+        kd.kernels[0].skip_execution = KernelData::SkipKernelExecution(prim_params);
+    };
+
     FillCLKernelData(kernel,
                      dispatch_data,
                      params.engineInfo,
@@ -99,7 +108,8 @@ KernelsData UniqueKernelRef::GetKernelsData(const Params& params, const optional
                      false,
                      kernel_params.inputs.size(),
                      GetFusedPrimitiveInputsCount(kernel_params),
-                     kernel_params.outputs.size());
+                     kernel_params.outputs.size(),
+                     kernel_params.inputs.front().is_dynamic());
 
     return {kernel_data};
 }
@@ -114,6 +124,7 @@ ParamsKey UniqueKernelRef::GetSupportedKey() const {
     key.EnableTensorOffset();
     key.EnableTensorPitches();
     key.EnableBatching();
+    key.EnableDynamicShapesSupport();
     return key;
 }
 
@@ -172,6 +183,15 @@ KernelsData UniqueReshapeKernelRef::GetKernelsData(const Params& params, const o
     const auto jit = CreateJit(kernelName, jit_constants, entry_point);
     auto& kernel = kernel_data.kernels.front();
 
+    kernel_data.update_dispatch_data_func = [this](const Params& params, KernelData& kd) {
+        const auto& prim_params = dynamic_cast<const unique_reshape_params&>(params);
+        auto dispatchData = SetDefault(prim_params);
+        OPENVINO_ASSERT(kd.kernels.size() == 1, "[GPU] Invalid kernels size for update dispatch data func");
+        kd.kernels[0].params.workGroups.global = dispatchData.gws;
+        kd.kernels[0].params.workGroups.local = dispatchData.lws;
+        kd.kernels[0].skip_execution = KernelData::SkipKernelExecution(prim_params);
+    };
+
     FillCLKernelData(kernel,
                      dispatch_data,
                      params.engineInfo,
@@ -183,7 +203,8 @@ KernelsData UniqueReshapeKernelRef::GetKernelsData(const Params& params, const o
                      false,
                      kernel_params.inputs.size(),
                      GetFusedPrimitiveInputsCount(kernel_params),
-                     kernel_params.outputs.size());
+                     kernel_params.outputs.size(),
+                     kernel_params.outputs.front().is_dynamic());
 
     return {kernel_data};
 }
@@ -198,6 +219,7 @@ ParamsKey UniqueReshapeKernelRef::GetSupportedKey() const {
     key.EnableTensorOffset();
     key.EnableTensorPitches();
     key.EnableBatching();
+    key.EnableDynamicShapesSupport();
     return key;
 }
 
