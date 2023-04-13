@@ -21,13 +21,13 @@ Introduction
 
 Low precision transformations (known as LPT) are a set of nGraph transformations, which are combined in one library. The library is mandatory part of OpenVINO to infer quantized model in low precision with the maximum performance on Intel CPU, GPU and ARM platforms. The library includes more than 45 transformations and supports more then 30 operations. Some transformations are mandatory, some of them are optional and developed for specific device.
 
-The goal of Low Precision Transformations (LPT) is to transform a quantized model from its original precision (FP16 or FP32) to a low precision (INT8: `signed int8` or `unsigned int8`), so that it is prepared for low precision inference in OpenVINO™ plugin. It is achieved by two main principles:
+The goal of Low Precision Transformations (LPT) is to transform a quantized model from its original precision (FP16 or FP32) to a low precision (INT8: ``signed int8`` or ``unsigned int8``), so that it is prepared for low precision inference in OpenVINO™ plugin. It is achieved by two main principles:
 
 1. ``FakeQuantize`` operation decomposition to two parts:  
 
-   * part #1: quantize operation - new `FakeQuantize` operation with output quantization intervals in low precision range (signed int8: [-128, 127] or [-127, 127], unsigned int8: [0, 255] or [0, 256]) and with low precision output (``signed int8`` or ``unsigned int8``).
+   * part 1: quantize operation - new ``FakeQuantize`` operation with output quantization intervals in low precision range (signed int8: [-128, 127] or [-127, 127], unsigned int8: [0, 255] or [0, 256]) and with low precision output (``signed int8`` or ``unsigned int8``).
 
-   * part #2: dequantization operations with low precision input and original precision output.
+   * part 2: dequantization operations with low precision input and original precision output.
 
 2. Propagation of the dequantization operation through original model's operations. It is done to avoid dequantization operations before original model operations, thus the quantize operations with low precision output remain before the original model operations. 
 
@@ -117,7 +117,7 @@ In both cases result is the same. In LPT result model you can see that:
 
 1. if necessary, ``FakeQuantize`` operations on activations were decomposed to two part: 
 
-   * new ``FakeQuantize``operation with updated output intervals in low precision range and low precision output,
+   * new ``FakeQuantize`` operation with updated output intervals in low precision range and low precision output,
    * dequantization operations on activations;  
 
 2. if necessary, an existing ``FakeQuantize`` decomposition can be reworked to get better precision;  
@@ -412,7 +412,7 @@ The ``execType`` column of the table includes inference primitives with specific
 * Suffix ``I8`` for layers that had 8-bit data type input and were computed in 8-bit precision
 * Suffix ``FP32`` for layers computed in 32-bit precision 
 
-As result all operations (except not quantized ``SoftMax`` at the end of the model) in OpenVINO™ CPU plugin are inferred in low precision. Note, please, in the result model there are ``FakeQuantize`` operations in FP32 but the plugin responsibility is fuse these operations with previous operations. OpenVINO™ CPU plugin achieves maximum optimized inference for all operations by fusing INT8 `Convolution` with FP32 output with `FakeQuantize` operation with FP32 input and INT8 output. In this case OpenVINO™ CPU plugin uses INT8 and FP32 vectorized instructions but reports about one INT8 kernel usage for inference, which is the most optimized for this case.
+As result all operations (except not quantized ``SoftMax`` at the end of the model) in OpenVINO™ CPU plugin are inferred in low precision. Note, please, in the result model there are ``FakeQuantize`` operations in FP32 but the plugin responsibility is fuse these operations with previous operations. OpenVINO™ CPU plugin achieves maximum optimized inference for all operations by fusing INT8 ``Convolution`` with FP32 output with ``FakeQuantize`` operation with FP32 input and INT8 output. In this case OpenVINO™ CPU plugin uses INT8 and FP32 vectorized instructions but reports about one INT8 kernel usage for inference, which is the most optimized for this case.
 
 Mixed precision
 ###############

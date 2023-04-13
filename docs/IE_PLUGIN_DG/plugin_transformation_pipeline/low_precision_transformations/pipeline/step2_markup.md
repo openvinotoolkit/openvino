@@ -4,7 +4,7 @@
 
 This step defines the optimal ``FakeQuantize`` decomposition precisions for the best inference performance via operations markup with runtime attribute instances. Attributes are created for input and output ports and operations. Transformations do not change the operation output port precisions. A model markup low precision logic is decomposed and implemented into the following common markup transformations. The order of transformations is important:
 
-1. :doc:MarkupBias <openvino_docs_OV_UG_lpt_MarkupBias>`
+1. :doc:`MarkupBias <openvino_docs_OV_UG_lpt_MarkupBias>`
 2. :doc:`MarkupCanBeQuantized <openvino_docs_OV_UG_lpt_MarkupCanBeQuantized>` 
 3. :doc:`MarkupPrecisions <openvino_docs_OV_UG_lpt_MarkupPrecisions>` 
 4. :doc:`MarkupPerTensorQuantization <openvino_docs_OV_UG_lpt_MarkupPerTensorQuantization>` 
@@ -62,9 +62,12 @@ Let's explore all transformations and their relations in detail, using one and t
 The original model key features:
 
 * The first ``concat1`` concatenation operation has not quantized ``convolution1`` consumer.
+
 * The second ``concat2`` concatenation operation has quantized ``convolution2`` consumer with requirements: 
-   - support ``unsigned int8`` on activations,
-   - per-tensor quantization.
+
+   * support ``unsigned int8`` on activations,
+   * per-tensor quantization.
+
 * Between the ``concat2`` concatenation operation and ``Convolution`` there is an ``AvgPool`` operation, which mathematically should return an ``f32`` tensor. But the ``MarkupAvgPoolPrecisionPreserved`` transformation is active. This allows the low precision transformation, that goes after the ``AvgPool``, to propagate low precision tensor to the next consumer. 
 
 Transformations are run with the following parameters:
@@ -145,7 +148,7 @@ Result model:
 5. PropagatePrecisions
 ######################
 
-The transformation is required. ``PropagatePrecision`` is a key transformation in the markup pipeline, which marks ``FakeQuantize`` output port precisions. The transformation uses `PrecisionPreserved` attribute instances created before. The transformation is combined and uses:
+The transformation is required. ``PropagatePrecision`` is a key transformation in the markup pipeline, which marks ``FakeQuantize`` output port precisions. The transformation uses ``PrecisionPreserved`` attribute instances created before. The transformation is combined and uses:
 
 * CreateAttribute
 * PropagateThroughPrecisionPreserved
