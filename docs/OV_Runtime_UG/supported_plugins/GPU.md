@@ -296,11 +296,11 @@ Model Caching helps reduce application startup delays by exporting and reusing
 the compiled model automatically. The cache for the GPU plugin may be enabled 
 via the common OpenVINO ``ov::cache_dir`` property. 
 
-GPU plugin implementation fully supports static models only. For dynamic models,
-kernel caching is used instead and multiple ‘.cl_cache’ files are generated along with the ‘.blob’ file. 
 This means that all plugin-specific model transformations are executed on each ``ov::Core::compile_model()`` 
-call, regardless of the ``cache_dir`` option. Still, since kernel compilation is a bottleneck in the model 
+call, regardless of the ``ov::cache_dir`` option. Still, since kernel compilation is a bottleneck in the model 
 loading process, a significant load time reduction can be achieved.
+Currently, GPU plugin implementation fully supports static models only. For dynamic models,
+kernel caching is used instead and multiple ‘.cl_cache’ files are generated along with the ‘.blob’ file. 
 
 For more details, see the :doc:`Model caching overview <openvino_docs_OV_UG_Model_caching_overview>`.
 
