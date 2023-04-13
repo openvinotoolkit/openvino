@@ -66,11 +66,11 @@ To build a plugin and its tests, run the following CMake scripts:
 
 .. doxygensnippet:: template/CMakeLists.txt
    :language: cpp
-   :fragment: [cmake:main]
+   :fragment: cmake:main
 
-   .. note:: 
+.. note:: 
       
-      The default values of the ``ENABLE_TESTS``, ``ENABLE_FUNCTIONAL_TESTS`` options are shared via the OpenVINO Developer Package and they are the same as for the main OpenVINO build tree. You can override them during plugin build using the command below:
+   The default values of the ``ENABLE_TESTS``, ``ENABLE_FUNCTIONAL_TESTS`` options are shared via the OpenVINO Developer Package and they are the same as for the main OpenVINO build tree. You can override them during plugin build using the command below:
 
 .. code-block:: bash 
    

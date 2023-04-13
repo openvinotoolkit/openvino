@@ -111,7 +111,7 @@ Waits a pipeline in case of plugin asynchronous execution:
    :fragment: [infer_request:wait_pipeline]
 
 4. infer_postprocess()
---------------------
+----------------------
 
 Converts backend specific tensors to tensors passed by user:
 

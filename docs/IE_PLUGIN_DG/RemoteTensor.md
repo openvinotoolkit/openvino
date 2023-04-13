@@ -33,7 +33,7 @@ get_data()
 The set of methods (specific for the example, other implementation can have another API) which are helpers to get an access to remote data.
 
 Device Specific Internal tensor implementation
-#############################################
+##############################################
 
 The plugin should have the internal implementation of remote tensor which can communicate with public API.
 The example contains the implementation of remote tensor which wraps memory from stl vector.
