@@ -1,9 +1,8 @@
-// Copyright (C) 2023 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "low_precision_transformations/fuse_fake_quantize_transformation.hpp"
-
+#include "low_precision_transformations/eliminate_fake_quantize_transformation.hpp"
 #include <vector>
 #include <gtest/gtest.h>
 
@@ -11,8 +10,7 @@ using namespace LayerTestsDefinitions;
 using namespace InferenceEngine::details;
 
 namespace {
-
-const std::vector<FuseFakeQuantizeTransformationTestValues> testValues = {
+const std::vector<EliminateFakeQuantizeTransformationTestValues> testValues = {
     {
         {1, 3, 16, 16},
         LayerTestsUtils::LayerTransformationParamsNGraphFactory::createParamsU8I8(),
@@ -43,10 +41,11 @@ const std::vector<FuseFakeQuantizeTransformationTestValues> testValues = {
     }
 };
 
-INSTANTIATE_TEST_SUITE_P(smoke_LPT, FuseFakeQuantizeTransformation,
-    ::testing::Combine(
-        ::testing::Values(CommonTestUtils::DEVICE_CPU),
-        ::testing::ValuesIn(testValues)),
-    FuseFakeQuantizeTransformation::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_LPT,
+                         EliminateFakeQuantizeTransformation,
+                         ::testing::Combine(
+                             ::testing::Values(CommonTestUtils::DEVICE_GPU),
+                             ::testing::ValuesIn(testValues)),
+                         EliminateFakeQuantizeTransformation::getTestCaseName);
 
 }  // namespace

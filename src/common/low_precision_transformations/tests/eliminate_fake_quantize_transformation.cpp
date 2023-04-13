@@ -7,9 +7,9 @@
 
 #include "common_test_utils/ngraph_test_utils.hpp"
 #include "layer_transformation.hpp"
+#include "low_precision/eliminate_fake_quantize.hpp"
 #include "low_precision/fake_quantize.hpp"
 #include "low_precision/fake_quantize_decomposition.hpp"
-#include "low_precision/fuse_fake_quantize.hpp"
 #include "low_precision/max_pool.hpp"
 #include "lpt_ngraph_functions/common/dequantization_operations.hpp"
 #include "lpt_ngraph_functions/fuse_fake_quantize_function.hpp"
@@ -21,8 +21,7 @@ using namespace testing;
 using namespace ngraph;
 using namespace ngraph::pass;
 
-// clang-format off
-class FuseFakeQuantizeTransformationTestValues {
+class TransformationTestValues {
 public:
     class Actual {
     public:
@@ -45,11 +44,11 @@ public:
     Expected expected;
 };
 
-class FuseFakeQuantizeTransformation : public LayerTransformation,
-                                       public testing::WithParamInterface<FuseFakeQuantizeTransformationTestValues> {
+class EliminateFakeQuantizeTransformation : public LayerTransformation,
+                                            public testing::WithParamInterface<TransformationTestValues> {
 public:
     void SetUp() override {
-        const FuseFakeQuantizeTransformationTestValues testValues = GetParam();
+        const TransformationTestValues testValues = GetParam();
 
         actualFunction = ngraph::builder::subgraph::FuseFakeQuantizeFunction::get(testValues.inputShape,
                                                                                   testValues.actual.precisionBefore,
@@ -64,43 +63,40 @@ public:
         transformer.add<ngraph::pass::low_precision::MaxPoolTransformation, ngraph::opset1::MaxPool>(testValues.params);
         transformer.add<ngraph::pass::low_precision::FakeQuantizeTransformation, ngraph::opset1::FakeQuantize>(
             testValues.params);
-        transformer.add<ngraph::pass::low_precision::FuseFakeQuantizeTransformation, ngraph::opset1::FakeQuantize>(
+        transformer.add<ngraph::pass::low_precision::EliminateFakeQuantizeTransformation, ngraph::opset1::FakeQuantize>(
             testValues.params);
         transformer.transform(actualFunction);
 
-		referenceFunction =
-			ngraph::builder::subgraph::FuseFakeQuantizeFunction::get(testValues.inputShape,
-				                                                     testValues.expected.precisionBefore,
-				                                                     testValues.expected.fakeQuantizeOnData1,
-				                                                     testValues.expected.fakeQuantizeOnData2,
-				                                                     testValues.expected.dequantizationOperations2);
+        referenceFunction =
+            ngraph::builder::subgraph::FuseFakeQuantizeFunction::get(testValues.inputShape,
+                                                                     testValues.expected.precisionBefore,
+                                                                     testValues.expected.fakeQuantizeOnData1,
+                                                                     testValues.expected.fakeQuantizeOnData2,
+                                                                     testValues.expected.dequantizationOperations2);
     }
 
-    static std::string getTestCaseName(testing::TestParamInfo<FuseFakeQuantizeTransformationTestValues> obj) {
-        const FuseFakeQuantizeTransformationTestValues testValues = obj.param;
+    static std::string getTestCaseName(testing::TestParamInfo<TransformationTestValues> obj) {
+        const TransformationTestValues testValues = obj.param;
 
         std::ostringstream result;
-        result << testValues.inputShape << "_"
-               << testValues.params.updatePrecisions << "_"
-               << testValues.actual.precisionBefore << "_"
-               << testValues.actual.fakeQuantizeOnData1 << "_" << testValues.actual.fakeQuantizeOnData2 << "_"
-               << testValues.expected.precisionBefore << "_"
+        result << testValues.inputShape << "_" << testValues.params.updatePrecisions << "_"
+               << testValues.actual.precisionBefore << "_" << testValues.actual.fakeQuantizeOnData1 << "_"
+               << testValues.actual.fakeQuantizeOnData2 << "_" << testValues.expected.precisionBefore << "_"
                << testValues.expected.fakeQuantizeOnData1 << "_" << testValues.expected.fakeQuantizeOnData2 << "_";
         return result.str();
     }
 };
-// clang-format on
 
-TEST_P(FuseFakeQuantizeTransformation, CompareFunctions) {
+TEST_P(EliminateFakeQuantizeTransformation, CompareFunctions) {
     actualFunction->validate_nodes_and_infer_types();
-    auto res = compare_functions(actualFunction, referenceFunction, true, false);
+    auto res = compare_functions(actualFunction, referenceFunction, true, true);
     ASSERT_TRUE(res.first) << res.second;
 
     ASSERT_TRUE(LayerTransformation::allNamesAreUnique(actualFunction)) << "Not all names are unique";
 }
 
 // clang-format off
-const std::vector<FuseFakeQuantizeTransformationTestValues> testValues = {
+const std::vector<TransformationTestValues> testValues = {
     {
         {1, 3, 16, 16},
         TestTransformationParams(true, {ngraph::element::u8}, {ngraph::element::i8}),
@@ -135,8 +131,8 @@ const std::vector<FuseFakeQuantizeTransformationTestValues> testValues = {
 // clang-format on
 
 INSTANTIATE_TEST_SUITE_P(smoke_LPT,
-                         FuseFakeQuantizeTransformation,
+                         EliminateFakeQuantizeTransformation,
                          ::testing::ValuesIn(testValues),
-                         FuseFakeQuantizeTransformation::getTestCaseName);
+                         EliminateFakeQuantizeTransformation::getTestCaseName);
 
 }  // namespace

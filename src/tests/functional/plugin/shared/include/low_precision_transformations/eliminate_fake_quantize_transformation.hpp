@@ -15,7 +15,7 @@
 
 namespace LayerTestsDefinitions {
 
-class FuseFakeQuantizeTransformationTestValues {
+class EliminateFakeQuantizeTransformationTestValues {
 public:
     class Actual {
     public:
@@ -39,15 +39,13 @@ public:
 
 typedef std::tuple<
     std::string,
-    FuseFakeQuantizeTransformationTestValues> FuseFakeQuantizeTransformationParams;
+    EliminateFakeQuantizeTransformationTestValues> EliminateFakeQuantizeTransformationParams;
 
-class FuseFakeQuantizeTransformation
-    : public testing::WithParamInterface<FuseFakeQuantizeTransformationParams>,
+class EliminateFakeQuantizeTransformation
+    : public testing::WithParamInterface<EliminateFakeQuantizeTransformationParams>,
       public LayerTestsUtils::LayerTransformation {
 public:
-    static std::string getTestCaseName(const testing::TestParamInfo<FuseFakeQuantizeTransformationParams>& obj);
-
-    InferenceEngine::Blob::Ptr GenerateInput(const InferenceEngine::InputInfo& inputInfo) const override;
+    static std::string getTestCaseName(const testing::TestParamInfo<EliminateFakeQuantizeTransformationParams>& obj);
 
 protected:
     void SetUp() override;

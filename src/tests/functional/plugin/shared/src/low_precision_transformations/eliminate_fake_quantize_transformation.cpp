@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "low_precision_transformations/fuse_fake_quantize_transformation.hpp"
+#include "low_precision_transformations/eliminate_fake_quantize_transformation.hpp"
 
 #include <tuple>
 #include <sstream>
@@ -10,13 +10,14 @@
 #include <vector>
 
 #include <transformations/init_node_info.hpp>
+#include "openvino/util/common_util.hpp"
 #include "lpt_ngraph_functions/fuse_fake_quantize_function.hpp"
 
 namespace LayerTestsDefinitions {
 
-std::string FuseFakeQuantizeTransformation::getTestCaseName(const testing::TestParamInfo<FuseFakeQuantizeTransformationParams>& obj) {
+std::string EliminateFakeQuantizeTransformation::getTestCaseName(const testing::TestParamInfo<EliminateFakeQuantizeTransformationParams>& obj) {
     std::string targetDevice;
-    FuseFakeQuantizeTransformationTestValues testValues;
+    EliminateFakeQuantizeTransformationTestValues testValues;
     std::tie(targetDevice, testValues) = obj.param;
 
     std::ostringstream result;
@@ -27,12 +28,8 @@ std::string FuseFakeQuantizeTransformation::getTestCaseName(const testing::TestP
     return result.str();
 }
 
-InferenceEngine::Blob::Ptr FuseFakeQuantizeTransformation::GenerateInput(const InferenceEngine::InputInfo& info) const {
-    return FuncTestUtils::createAndFillBlob(info.getTensorDesc(), 20, 0, 1, 1);
-}
-
-void FuseFakeQuantizeTransformation::SetUp() {
-    FuseFakeQuantizeTransformationTestValues testValues;
+void EliminateFakeQuantizeTransformation::SetUp() {
+    EliminateFakeQuantizeTransformationTestValues testValues;
     std::tie(targetDevice, testValues) = this->GetParam();
 
     // Convolution is used in a model as operation with specific precision requirements on data branch
@@ -48,44 +45,33 @@ void FuseFakeQuantizeTransformation::SetUp() {
     ov::pass::InitNodeInfo().run_on_model(function);
 }
 
-TEST_P(FuseFakeQuantizeTransformation, CompareWithRefImpl) {
+TEST_P(EliminateFakeQuantizeTransformation, CompareWithRefImpl) {
     Run();
 
-    FuseFakeQuantizeTransformationTestValues testValues;
+    EliminateFakeQuantizeTransformationTestValues testValues;
     std::tie(targetDevice, testValues) = this->GetParam();
 
-    auto rtInfo = LayerTestsCommon::getRuntimeInfo();
-
-    auto split = [](const std::string& s, char delim) -> std::vector<std::string> {
-        std::vector<std::string> result;
-        std::stringstream ss(s);
-        std::string item;
-
-        while (std::getline(ss, item, delim)) {
-            result.push_back(item);
-        }
-        return result;
-    };
+    const auto& rtInfo = LayerTestsCommon::getRuntimeInfo();
 
     auto exist = testValues.expected.exist;
     auto absent = testValues.expected.absent;
     auto int8_convolutions = 0ull;
-    for (auto it : rtInfo) {
+    for (const auto& it : rtInfo) {
         const auto& nameIt = it.second.find("originalLayersNames");
-        const auto fused_name = nameIt->second.as<std::string>();
+        const auto& fused_name = nameIt->second.as<std::string>();
 
-        const auto names = split(fused_name, ',');
+        const auto names = ov::util::split(fused_name, ',', true);
         for (const auto& name : names) {
             ASSERT_TRUE(absent.find(name) == absent.end());
             exist.erase(name);
         }
 
         const auto& type_it = it.second.find("layerType");
-        const auto type = type_it->second.as<std::string>();
+        const auto& type = type_it->second.as<std::string>();
 
         if (type == "Convolution") {
             const auto& precision_it = it.second.find("runtimePrecision");
-            const auto precision = precision_it->second.as<std::string>();
+            const auto& precision = precision_it->second.as<std::string>();
             if (precision == "U8") {
                 int8_convolutions++;
             }

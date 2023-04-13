@@ -2,9 +2,10 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "low_precision/fuse_fake_quantize.hpp"
+#include "low_precision/eliminate_fake_quantize.hpp"
 
 #include <memory>
+
 #include <ngraph/ngraph.hpp>
 #include <ngraph/pattern/op/wrap_type.hpp>
 #include "itt.hpp"
@@ -13,38 +14,35 @@ namespace ngraph {
 namespace pass {
 namespace low_precision {
 
-FuseFakeQuantizeTransformation::FuseFakeQuantizeTransformation(const Params& params) : LayerTransformation(params) {
+EliminateFakeQuantizeTransformation::EliminateFakeQuantizeTransformation(const Params& params) : LayerTransformation(params) {
     MATCHER_SCOPE(FuseMultiplyToFakeQuantizeTransformation);
-    auto matcher = pattern::wrap_type<opset1::FakeQuantize>();
+    const auto matcher = pattern::wrap_type<opset1::FakeQuantize>({
+            pattern::any_input(),
+            pattern::wrap_type<opset1::Constant>(),
+            pattern::wrap_type<opset1::Constant>(),
+            pattern::wrap_type<opset1::Constant>(),
+            pattern::wrap_type<opset1::Constant>()
+        });
 
     ngraph::graph_rewrite_callback callback = [this](pattern::Matcher& m) {
-        auto op = m.get_match_root();
+        const auto op = m.get_match_root();
         if (transformation_callback(op)) {
             return false;
         }
         return transform(*context, m);
     };
 
-    auto m = std::make_shared<ngraph::pattern::Matcher>(matcher, matcher_name);
+    const auto m = std::make_shared<ngraph::pattern::Matcher>(matcher, matcher_name);
     this->register_matcher(m, callback);
 }
 
-bool FuseFakeQuantizeTransformation::transform(TransformationContext& context, ngraph::pattern::Matcher& m) {
+bool EliminateFakeQuantizeTransformation::transform(TransformationContext& context, ngraph::pattern::Matcher& m) {
     const auto root = m.get_match_root();
     if (!canBeTransformed(context, root)) {
         return false;
     }
 
-    auto fakeQuantize = ov::as_type_ptr<opset1::FakeQuantize>(root);
-
-    auto parent_output = fakeQuantize->get_input_source_output(0);
-    parent_output.remove_target_input(fakeQuantize->input(0));
-
-    for (auto& input : fakeQuantize->output(0).get_target_inputs()) {
-        input.replace_source_output(parent_output);
-    }
-
-    return true;
+    return replace_output_update_name(root->output(0), root->input_value(0));
 }
 
 namespace {
@@ -59,7 +57,7 @@ bool check_interval(const std::shared_ptr<opset1::Constant>& constant, const flo
 }
 
 bool check_intervals(const std::shared_ptr<opset1::FakeQuantize>& fakeQuantize) {
-    const auto element_type = fakeQuantize->output(0).get_element_type();
+    const auto& element_type = fakeQuantize->get_output_element_type(0);
     const auto min_value = DataPrecision::getMinValue(element_type, fakeQuantize->get_levels());
     const auto max_value = DataPrecision::getMaxValue(element_type, fakeQuantize->get_levels());
     return
@@ -70,18 +68,12 @@ bool check_intervals(const std::shared_ptr<opset1::FakeQuantize>& fakeQuantize) 
 }
 } // namespace
 
-bool FuseFakeQuantizeTransformation::canBeTransformed(const TransformationContext& context, std::shared_ptr<Node> operation) const {
-    auto fakeQuantize = ov::as_type_ptr<opset1::FakeQuantize>(operation);
-    if ((fakeQuantize == nullptr) ||
-        (!ov::is_type<opset1::Constant>(fakeQuantize->get_input_node_ptr(1))) ||
-        (!ov::is_type<opset1::Constant>(fakeQuantize->get_input_node_ptr(2))) ||
-        (!ov::is_type<opset1::Constant>(fakeQuantize->get_input_node_ptr(3))) ||
-        (!ov::is_type<opset1::Constant>(fakeQuantize->get_input_node_ptr(4)))) {
-        return false;
-    }
+bool EliminateFakeQuantizeTransformation::canBeTransformed(const TransformationContext& context, std::shared_ptr<Node> operation) const {
+    const auto fakeQuantize = ov::as_type_ptr<opset1::FakeQuantize>(operation);
+    OPENVINO_ASSERT(fakeQuantize != nullptr, "unexpected operation type");
 
-    const auto input_type = fakeQuantize->get_input_source_output(0).get_element_type();
-    const auto output_type = fakeQuantize->output(0).get_element_type();
+    const auto& input_type = fakeQuantize->get_input_element_type(0);
+    const auto& output_type = fakeQuantize->get_output_element_type(0);
     if ((input_type != output_type) || (!check_intervals(fakeQuantize))) {
         return false;
     }
@@ -89,7 +81,7 @@ bool FuseFakeQuantizeTransformation::canBeTransformed(const TransformationContex
     return true;
 }
 
-bool FuseFakeQuantizeTransformation::isPrecisionPreserved(std::shared_ptr<Node> layer) const noexcept {
+bool EliminateFakeQuantizeTransformation::isPrecisionPreserved(std::shared_ptr<Node> layer) const noexcept {
     return false;
 }
 
