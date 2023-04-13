@@ -110,11 +110,15 @@ def convert_pytorch_to_onnx(model, input_shape, opset_version, example_inputs, o
     if opset_version is not None:
         additional_params.update({'opset_version': opset_version})
 
-    torch.onnx.export(model,
-                      inputs,
-                      model_onnx,
-                      operator_export_type=torch.onnx.OperatorExportTypes.ONNX_FALLTHROUGH,
-                      **additional_params)
+    try:
+        torch.onnx.export(model,
+                          inputs,
+                          model_onnx,
+                          operator_export_type=torch.onnx.OperatorExportTypes.ONNX_FALLTHROUGH,
+                          **additional_params)
+    except Exception as e:
+        raise Error("Could not export PyTorch model to ONNX with following error: {}.".format(e))
+
     return model_onnx
 
 

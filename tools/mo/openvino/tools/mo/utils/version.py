@@ -13,32 +13,6 @@ from openvino.tools.mo.utils.find_ie_version import find_ie_version
 from openvino.tools.mo.utils.utils import get_mo_root_dir
 
 
-def get_version_file_path():
-    return os.path.join(os.path.dirname(os.path.realpath(__file__)), os.pardir, "version.txt")
-
-
-def generate_mo_version():
-    """
-    Function generates version like in cmake
-    custom_{branch_name}_{commit_hash}
-    """
-    try:
-        mo_dir = get_mo_root_dir()
-        branch_name = subprocess.check_output(["git", "rev-parse", "--abbrev-ref", "HEAD"], cwd=mo_dir).strip().decode()
-        commit_hash = subprocess.check_output(["git", "rev-parse", "HEAD"], cwd=mo_dir).strip().decode()
-        return "custom_{}_{}".format(branch_name, commit_hash)
-    except Exception as e:
-        return "unknown version"
-
-
-def get_version():
-    version_txt = get_version_file_path()
-    if not os.path.isfile(version_txt):
-        return generate_mo_version()
-    with open(version_txt) as f:
-        return f.readline().replace('\n', '')
-
-
 def extract_release_version(version: str):
     patterns = [
         # captures release version set by CI for example: '2021.1.0-1028-55e4d5673a8'
@@ -52,31 +26,6 @@ def extract_release_version(version: str):
         if m and len(m.groups()) == 2:
             return m.group(1), m.group(2)
     return None, None
-
-
-def simplify_version(version: str):
-    release_version = extract_release_version(version)
-    if release_version == (None, None):
-        return "custom"
-    return "{}.{}".format(*release_version)
-
-
-def get_simplified_mo_version():
-    return simplify_version(get_version())
-
-
-def get_simplified_ie_version(env=dict(), version=None):
-    if version is None:
-        try:
-            version = subprocess.check_output([sys.executable, os.path.join(os.path.dirname(__file__), "ie_version.py")], timeout=2, env=env).strip().decode()
-        except:
-            return "ie not found"
-
-    # To support legacy IE versions
-    m = re.match(r"^([0-9]+).([0-9]+).(.*)", version)
-    if m and len(m.groups()) == 3:
-        return simplify_version(m.group(3))
-    return simplify_version(version)
 
 
 def extract_hash_from_version(full_version: str):
@@ -109,7 +58,7 @@ class VersionChecker(metaclass=SingletonMetaClass):
     def get_mo_version(self):
         if self.mo_version:
             return self.mo_version
-        self.mo_version = get_version()
+        self.mo_version = VersionChecker._get_version()
         return self.mo_version
 
     def get_ie_version(self):
@@ -121,13 +70,13 @@ class VersionChecker(metaclass=SingletonMetaClass):
     def get_mo_simplified_version(self):
         if self.mo_simplified_version:
             return self.mo_simplified_version
-        self.mo_simplified_version = simplify_version(self.get_mo_version())
+        self.mo_simplified_version = VersionChecker._simplify_version(self.get_mo_version())
         return self.mo_simplified_version
 
     def get_ie_simplified_version(self):
         if self.ie_simplified_version:
             return self.ie_simplified_version
-        self.ie_simplified_version = get_simplified_ie_version(env=os.environ)
+        self.ie_simplified_version = VersionChecker._get_simplified_ie_version(env=os.environ)
         return self.ie_simplified_version
 
     def check_runtime_dependencies(self, silent=True):
@@ -146,3 +95,52 @@ class VersionChecker(metaclass=SingletonMetaClass):
                     log.error(e)
                 raise_ie_not_found()
             self.runtime_checked = True
+
+    @staticmethod
+    def _get_version():
+        version_txt = VersionChecker._get_version_file_path()
+        if not os.path.isfile(version_txt):
+            return VersionChecker._generate_mo_version()
+        with open(version_txt) as f:
+            return f.readline().replace('\n', '')
+
+    @staticmethod
+    def _simplify_version(version: str):
+        release_version = extract_release_version(version)
+        if release_version == (None, None):
+            return "custom"
+        return "{}.{}".format(*release_version)
+
+    @staticmethod
+    def _get_simplified_ie_version(env=dict(), version=None):
+        if version is None:
+            try:
+                version = subprocess.check_output(
+                    [sys.executable, os.path.join(os.path.dirname(__file__), "ie_version.py")], timeout=2,
+                    env=env).strip().decode()
+            except:
+                return "ie not found"
+
+        # To support legacy IE versions
+        m = re.match(r"^([0-9]+).([0-9]+).(.*)", version)
+        if m and len(m.groups()) == 3:
+            return VersionChecker._simplify_version(m.group(3))
+        return VersionChecker._simplify_version(version)
+
+    @staticmethod
+    def _get_version_file_path():
+        return os.path.join(os.path.dirname(os.path.realpath(__file__)), os.pardir, "version.txt")
+
+    @staticmethod
+    def _generate_mo_version():
+        """
+        Function generates version like in cmake
+        custom_{branch_name}_{commit_hash}
+        """
+        try:
+            mo_dir = get_mo_root_dir()
+            branch_name = subprocess.check_output(["git", "rev-parse", "--abbrev-ref", "HEAD"], cwd=mo_dir).strip().decode()
+            commit_hash = subprocess.check_output(["git", "rev-parse", "HEAD"], cwd=mo_dir).strip().decode()
+            return "custom_{}_{}".format(branch_name, commit_hash)
+        except Exception as e:
+            return "unknown version"

@@ -363,9 +363,6 @@ def get_moc_frontends(argv: argparse.Namespace):
 
 
 def prepare_ir(argv: argparse.Namespace):
-    # TODO: remove this workaround once new TensorFlow frontend supports non-frozen formats: checkpoint, MetaGraph, and SavedModel
-    # Now it converts all TensorFlow formats to the frozen .pb format in case new TensorFlow frontend
-    is_tf, _, _, _, _ = deduce_legacy_frontend_by_namespace(argv)
     argv = arguments_post_parsing(argv)
     t = tm.Telemetry()
     graph = None
@@ -377,6 +374,10 @@ def prepare_ir(argv: argparse.Namespace):
         if len(fallback_reasons) == 0:
             path_to_aux_pb = None
             orig_argv_values = {"input_model": argv.input_model, "model_name": argv.model_name}
+
+            # TODO: remove this workaround once new TensorFlow frontend supports non-frozen formats: checkpoint, MetaGraph, and SavedModel
+            # Now it converts all TensorFlow formats to the frozen .pb format in case new TensorFlow frontend
+            is_tf, _, _, _, _ = deduce_legacy_frontend_by_namespace(argv)
             if not argv.use_legacy_frontend and is_tf:
                 from openvino.tools.mo.front.tf.loader import convert_to_pb
                 path_to_aux_pb = convert_to_pb(argv)

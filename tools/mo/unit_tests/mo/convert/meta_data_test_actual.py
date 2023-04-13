@@ -10,7 +10,7 @@ from openvino.runtime import get_version as get_rt_version
 from openvino.runtime import serialize
 from openvino.tools.mo import convert_model
 from openvino.tools.mo.utils.ir_reader.restore_graph import restore_graph_from_ir, save_restored_graph
-from openvino.tools.mo.utils.version import get_version
+from openvino.tools.mo.utils.version import VersionChecker
 
 
 class MetaDataTestTF(unittest.TestCase):
@@ -57,7 +57,7 @@ class MetaDataTestTF(unittest.TestCase):
 
         def ref_meta_data():
             return {
-                'MO_version': get_version(),
+                'MO_version': VersionChecker().get_mo_version(),
                 'Runtime_version': get_rt_version(),
                 'legacy_frontend': "True",
                 'conversion_parameters': {
