@@ -43,7 +43,6 @@ protected:
         std::tie(input_shape, layer_type) = GetParam();
 
         targetDevice = CommonTestUtils::DEVICE_CPU;
-        fusedOps = std::vector<std::string>{"Add"};
         std::tie(inFmts, outFmts, priority, selectedType) = CPUSpecificParams{{}, {}, {}, CPUTestsBase::any_type};
         std::unordered_map<std::string, std::string> ngraph_type_to_plugin_type{
             {"Convolution", "Convolution"},
@@ -53,6 +52,11 @@ protected:
             {"MatMulWithConstant", "FullyConnected"},
         };
         node_type = ngraph_type_to_plugin_type[layer_type];
+        if (node_type == "FullyConnected")
+            // @todo: Recover the Multiply fusing check after moving FC bias fusing into CPUgraph optimizer.
+            fusedOps = std::vector<std::string>{"Add"};
+        else
+            fusedOps = std::vector<std::string>{"Multiply", "Add"};
 
         const auto shapes = layer_type == "MatMul" ? std::vector<InputShape>{input_shape, input_shape}
                                                    : std::vector<InputShape>{input_shape};
@@ -100,7 +104,6 @@ INSTANTIATE_TEST_SUITE_P(smoke_FQLayerDQBias_4D_dynamic, FQLayerDQBias,
                          ::testing::Combine(::testing::ValuesIn(input_shapes_4D_dynamic),
                                             ::testing::ValuesIn(layer_types_4D_dynamic)),
                          FQLayerDQBias::getTestCaseName);
-
 const std::vector<InputShape> input_shapes_2D = {
     {{-1, 768}, {{1, 768}}}
 };

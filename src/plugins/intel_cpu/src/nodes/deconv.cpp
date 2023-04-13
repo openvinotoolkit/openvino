@@ -470,8 +470,19 @@ void Deconvolution::initPaddingR(const Shape &inShape, const Shape &outShape) {
 
 void Deconvolution::setPostOps(dnnl::primitive_attr& attr, const VectorDims& dims) {
     dnnl::post_ops ops;
-
-    DnnlPostOpsComposer dnnlpoc(getEngine(), attr, ops, postOpsArgs, dims, 1, isInt8);
+    // OC, IC is the convolution forward output channel, input channel.
+    // According to ONEDNN API doc, mask whould be set on the corresponding index on weight.
+    // For [OC, IC, KH, KW] perchannel scale weight mask should set on IC dim( 1 << 1) for none group deconv;
+    // For [Group, OC, IC, KH, KW] IC and group dims ( 1 << 0 |  1<< 2) for group deconv.
+    // Perchannel weight should set on IC dimention not OC dimention.
+    // But we have to set on IC dimesion as following to make weight scale work. It should be ONEDNN bug??
+    // Current perchannel mask setting.
+    // Weight dims in NON-Group deconv: [OC, IC, KH, KW], perchannel weight scale applied on OC DIM
+    //                                  weiScaleMaskPerChannel =  1 << 0
+    // Weight dims in Group deconv:     [Group, OC, IC, KH, KW], perchannel weight scale applied on GROUP and OC DIM,
+    //                                   weiScaleMaskPerChannel = ( 1 << 0 | 1 << 1) = 0x03
+    // @todo: Clarify with ONEDNN about deconvolution channel mask setting.
+    DnnlPostOpsComposer dnnlpoc(getEngine(), attr, ops, postOpsArgs, dims, 1, isInt8, withGroups ? 3 : 1 << 0,  getDQScales(), withBiases);
 
     for (int i = 0; i < fusedWith.size(); ++i) {
         auto& node = fusedWith[i];

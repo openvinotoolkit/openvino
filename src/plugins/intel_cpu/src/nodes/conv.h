@@ -83,6 +83,7 @@ private:
         PerTensor,
         PerChannel
     };
+
     class FusedSubgraph;
     using FusedSubgraphPtr = std::shared_ptr<FusedSubgraph>;
     using executorPtr = std::shared_ptr<DnnlExecutor>;

@@ -540,6 +540,10 @@ public:
     */
     std::pair<std::vector<float>, std::vector<float>> getScalesAndShifts(const Node *parentNode) const;
 
+    void initializeDQScales(const float* scaleData, const size_t scaleSize);
+    const std::vector<float>& getDQScales() const {
+        return DQScales;
+    }
     /**
      * @brief Appends new item into ops list with the information on how the node should be executed as post operation.
      * Seed node should call this routine and pass its post operations list as parameter.
@@ -715,7 +719,8 @@ private:
 
     enum LOOK { LOOK_UP = 1, LOOK_DOWN = 2 };
     ConstantType checkConstant(LOOK look, std::vector<NodePtr>& checkNodes);
-
+    // Hold output scales
+    std::vector<float> DQScales;
     // we cannot rely on per-NUMA weightCache for caching weights because:
     //   1.it may not exist(in single stream configuration)
     //   2.it only holds weak references, the life-cycle of cached item
