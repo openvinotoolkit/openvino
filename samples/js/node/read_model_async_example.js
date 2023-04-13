@@ -1,4 +1,4 @@
-var ov = require('bindings')('ov_node_addon.node');
+var ov = require('./lib/ov_node_addon.node');;
 
 
 const fs = require('fs');
@@ -22,8 +22,8 @@ async function create_tensor(img_path) {
 
 async function onRuntimeInitialized()
 {
-    const img_path = process.argv[2];
-    const model_path = process.argv[3];
+    const img_path = process.argv[2] || '../assets/images/shih_tzu.jpg';
+    const model_path = '../assets/models/v3-small_224_1.0_float.xml';
     const core = new ov.Core();
 
     /*   ---Read model asynchronously and create a promise---   */

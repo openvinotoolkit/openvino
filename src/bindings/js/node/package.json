@@ -1,5 +1,5 @@
 {
-    "name": "hello",
+    "name": "openvinojs-node",
     "version": "0.0.0",
     "description": "Node.js Addons POC",
     "main": "index.js",
@@ -25,4 +25,3 @@
     },
     "gypfile": true
   }
-  

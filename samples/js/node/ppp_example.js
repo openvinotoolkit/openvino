@@ -1,4 +1,4 @@
-var ov = require('bindings')('ov_node_addon.node');
+var ov = require('./lib/ov_node_addon.node');;
 
 
 const math = require('./lib/math_func.js');
@@ -11,7 +11,7 @@ async function onRuntimeInitialized()
 
     
     /*   ---Load the model---   */
-    const model_path = process.argv[3];
+    const model_path = process.argv[2];
     const model = new ov.Model().read_model(model_path)
 
     ppp = new ov.PrePostProcessor(model)
@@ -24,7 +24,7 @@ async function onRuntimeInitialized()
 
     /*   ---Load an image---   */
     //read image from a file
-    const img_path = process.argv[2];
+    const img_path = process.argv[3] || '../assets/images/shih_tzu.jpg';
     const jimpSrc = await Jimp.read(img_path);
     const src = cv.matFromImageData(jimpSrc.bitmap);
     cv.cvtColor(src, src, cv.COLOR_RGBA2RGB);
