@@ -529,6 +529,43 @@ StreamsCalculationTestCase _1sockets_14cores_tput_12 = {
     {{1, MAIN_CORE_PROC, 6}, {1, EFFICIENT_CORE_PROC, 6}},
 };
 
+StreamsCalculationTestCase _1sockets_14cores_tput_13 = {
+    0,
+    1,
+    0,
+    1,
+    {{20, 6, 8, 6}},
+    {{1, MAIN_CORE_PROC, 1}},
+};
+
+StreamsCalculationTestCase _1sockets_14cores_tput_14 = {
+    0,
+    9,
+    0,
+    1,
+    {{20, 6, 8, 6}},
+    {{6, MAIN_CORE_PROC, 1}, {1, EFFICIENT_CORE_PROC, 2}},
+};
+
+StreamsCalculationTestCase _1sockets_14cores_tput_15 = {
+    0,
+    12,
+    0,
+    1,
+    {{20, 6, 8, 6}},
+    {{6, MAIN_CORE_PROC, 1}, {3, EFFICIENT_CORE_PROC, 2}},
+};
+
+StreamsCalculationTestCase _1sockets_14cores_tput_16 = {
+    0,
+    15,
+    0,
+    1,
+    {{20, 6, 8, 6}},
+    {{6, MAIN_CORE_PROC, 1}, {4, EFFICIENT_CORE_PROC, 2}, {1, HYPER_THREADING_PROC, 1}},
+};
+
+
 StreamsCalculationTestCase _1sockets_10cores_latency_1 = {
     1,
     0,
@@ -853,6 +890,15 @@ StreamsCalculationTestCase _1sockets_ecores_tput_5 = {
     {{2, EFFICIENT_CORE_PROC, 8}},
 };
 
+StreamsCalculationTestCase _1sockets_mock_tput_1 = {
+    0,
+    15,
+    0,
+    1,
+    {{20, 6, 7, 6}},
+    {{6, MAIN_CORE_PROC, 1}, {3, EFFICIENT_CORE_PROC, 2}, {3, HYPER_THREADING_PROC, 1}},
+};
+
 TEST_P(StreamsCalculationTests, StreamsCalculation) {}
 
 INSTANTIATE_TEST_SUITE_P(StreamsInfoTable,
@@ -894,6 +940,10 @@ INSTANTIATE_TEST_SUITE_P(StreamsInfoTable,
                                          _1sockets_14cores_tput_10,
                                          _1sockets_14cores_tput_11,
                                          _1sockets_14cores_tput_12,
+                                         _1sockets_14cores_tput_13,
+                                         _1sockets_14cores_tput_14,
+                                         _1sockets_14cores_tput_15,
+                                         _1sockets_14cores_tput_16,
                                          _1sockets_10cores_latency_1,
                                          _1sockets_10cores_latency_2,
                                          _1sockets_10cores_latency_3,
@@ -929,6 +979,7 @@ INSTANTIATE_TEST_SUITE_P(StreamsInfoTable,
                                          _1sockets_ecores_tput_2,
                                          _1sockets_ecores_tput_3,
                                          _1sockets_ecores_tput_4,
-                                         _1sockets_ecores_tput_5));
+                                         _1sockets_ecores_tput_5,
+                                         _1sockets_mock_tput_1));
 
 }  // namespace
