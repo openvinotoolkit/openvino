@@ -9,6 +9,7 @@ Converting a PyTorch model with MO Python API
 #############################################
 
 Example of PyTorch model converting:
+
 .. code-block:: python
 
    import torchvision
@@ -29,6 +30,7 @@ Converting of some PyTorch models may require model tracing which need setting o
 ``input_shape`` is used for constructing a float zero-filled torch.Tensor for model tracing.
 
 Example:
+
 .. code-block:: python
 
    import torchvision
