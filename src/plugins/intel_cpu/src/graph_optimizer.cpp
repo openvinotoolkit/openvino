@@ -1108,21 +1108,7 @@ void GraphOptimizer::FuseConvolutionAndSimpleOperationThroughMaxPool(Graph &grap
             continue;
         }
 
-        if (!one_of(fuseCandidate->getAlgorithm(), Algorithm::EltwiseRelu,
-                                                   Algorithm::EltwiseGelu,
-                                                   Algorithm::EltwiseElu,
-                                                   Algorithm::EltwiseSigmoid,
-                                                   Algorithm::EltwiseClamp,
-                                                   Algorithm::EltwiseTanh,
-                                                   Algorithm::EltwiseSwish,
-                                                   Algorithm::EltwiseHswish,
-                                                   Algorithm::EltwiseMish,
-                                                   Algorithm::EltwiseHsigmoid,
-                                                   Algorithm::EltwiseRoundHalfToEven,
-                                                   Algorithm::EltwiseRoundHalfAwayFromZero,
-                                                   Algorithm::EltwiseAbs,
-                                                   Algorithm::EltwiseSqrt,
-                                                   Algorithm::EltwiseSoftRelu)) {
+        if (!DnnlExtensionUtils::isUnarySupportedAsPostOp(fuseCandidate->getAlgorithm())) {
             parent++;
             continue;
         }
@@ -1295,17 +1281,7 @@ void GraphOptimizer::FuseConvolutionSumAndConvolutionSumActivation(Graph &graph)
 
     auto isFusingSupported = [&](NodePtr conv, NodePtr child) {
         return child->getType() == Type::Eltwise &&
-                one_of(child->getAlgorithm(), Algorithm::EltwiseRelu,
-                                              Algorithm::EltwiseElu,
-                                              Algorithm::EltwiseSigmoid,
-                                              Algorithm::EltwiseClamp,
-                                              Algorithm::EltwiseSwish,
-                                              Algorithm::EltwiseHswish,
-                                              Algorithm::EltwiseMish,
-                                              Algorithm::EltwiseHsigmoid,
-                                              Algorithm::EltwiseRoundHalfToEven,
-                                              Algorithm::EltwiseRoundHalfAwayFromZero,
-                                              Algorithm::EltwiseSoftRelu);
+            DnnlExtensionUtils::isUnarySupportedAsPostOp(child->getAlgorithm());
     };
 
     for (auto &graphNode : graphNodes) {

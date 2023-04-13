@@ -327,6 +327,9 @@ InferenceEngine::Precision Convolution::fusedEltwisePrecision(const NodePtr& fus
 const std::vector<impl_desc_type>& Convolution::getPrimitivesPriority() {
     std::vector<impl_desc_type> priorities = {
         impl_desc_type::unknown,
+        impl_desc_type::dw_acl,
+        impl_desc_type::winograd_acl,
+        impl_desc_type::gemm_acl,
         impl_desc_type::brgconv_avx512_amx_1x1,
         impl_desc_type::brgconv_avx512_amx,
         impl_desc_type::jit_avx512_amx_dw,
@@ -556,6 +559,7 @@ void Convolution::getSupportedDescriptors() {
     auto inputShape = getInputShapeAtPort(0);
     auto outputShape = getOutputShapeAtPort(0);
 
+#if defined(OPENVINO_ARCH_X86_64)
     bool acceptedFormat = inputDataType == memory::data_type::bf16;
     bool nspcAdded = false;
     acceptedFormat |= (shouldTryBrgconv && inputDataType == memory::data_type::f32);
@@ -594,6 +598,15 @@ void Convolution::getSupportedDescriptors() {
         out_candidate = std::make_shared<DnnlBlockedMemoryDesc>(outputShape, outputDataType, nspc);
         createDescriptor({ in_candidate }, { out_candidate });
     }
+#else
+    (void)ncsp;
+    (void)nCsp8c;
+    (void)nCsp16c;
+
+    in_candidate = std::make_shared<DnnlBlockedMemoryDesc>(inputShape, inputDataType, nspc);
+    out_candidate = std::make_shared<DnnlBlockedMemoryDesc>(outputShape, outputDataType, nspc);
+    createDescriptor({ in_candidate }, { out_candidate });
+#endif
 }
 
 void Convolution::setPostOps(dnnl::primitive_attr& attr,
@@ -900,7 +913,7 @@ void Convolution::createDescriptor(const std::vector<MemoryDescPtr>& inputDesc,
 
     if (isWinograd())
         algorithms.push_back(dnnl::algorithm::convolution_winograd);
-    algorithms.push_back(dnnl::algorithm::convolution_direct);
+    algorithms.push_back(baseConvAlgorithm);
 
     updatePadding();
 
@@ -1368,7 +1381,8 @@ void Convolution::prepareParams() {
                    getParentEdgeAt(1)->getParent()->isConstant()};
 
     auto engine = getEngine();
-    auto builder = [&engine](const ConvKey& key) -> executorPtr {
+    auto convAlg = baseConvAlgorithm;
+    auto builder = [&engine, convAlg](const ConvKey& key) -> executorPtr {
         // remove the requirement on weight memory layout to let primitive
         // report the best layout for weight to be reordered dynamically at runtime
         auto wghDescAny =
@@ -1406,7 +1420,7 @@ void Convolution::prepareParams() {
                                             attr);
         };
 
-        const auto alg = (key.implType & impl_desc_type::winograd) ? dnnl::algorithm::convolution_winograd : dnnl::algorithm::convolution_direct;
+        const auto alg = (key.implType & impl_desc_type::winograd) ? dnnl::algorithm::convolution_winograd : convAlg;
         dnnl::primitive_desc desc = createDnnlConvDesc(engine,
                                                        key.inp0->getDnnlDesc(),
                                                        wghDescAny,
@@ -1420,6 +1434,7 @@ void Convolution::prepareParams() {
                                                        key.attr);
 
         auto itpd = desc;
+
         executorPtr execPtr = nullptr;
         while (static_cast<bool>(itpd)) {
             impl_desc_type impl_type = parse_impl_name(itpd.impl_info_str());
@@ -1457,7 +1472,7 @@ void Convolution::prepareParams() {
                                                       key.dilation,
                                                       key.paddingL,
                                                       key.paddingR,
-                                                      dnnl::algorithm::convolution_direct,
+                                                      convAlg,
                                                       key.attr);
 
             if (reorderConvDesc) {
