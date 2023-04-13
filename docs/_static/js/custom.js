@@ -25,8 +25,18 @@ var wapSection = 'openvinotoolkit';
     s.appendChild(po);
 })();
 
+// legal notice for benchmarks
+function addLegalNotice() {
+    if (window.location.href.indexOf('openvino_docs_performance_') !== -1) {
+        var legalNotice = $('<div class="opt-notice-wrapper"><p class="opt-notice">Results may vary. For workloads visit: <a href="openvino_docs_performance_benchmarks_faq.html#what-image-sizes-are-used-for-the-classification-network-models">workloads</a> and for configurations visit: <a href="openvino_docs_performance_benchmarks_openvino.html#platform-configurations">configurations</a>. See also <a class="el" href="openvino_docs_Legal_Information.html">Legal Information</a>.</p></div>');
+        $('body').append(legalNotice);
+    }
+}
+
 $(document).ready(function () {
     createVersions();
+    updateTitleTag();
+    updateLanguageSelector();
     init_col_sections();
     init_switchers();
     handleSwitcherParam();
@@ -35,13 +45,22 @@ $(document).ready(function () {
     if (TABLE_SORT) {
         addTableSort();
     }
+    addLegalNotice();
 });
 
 // Determine where we'd go if clicking on a version selector option
 function getPageUrlWithVersion(version) {
-    var currentURL = window.location.href;
-    var newURL = currentURL.replace(getCurrentVersion(), version);
-    return encodeURI(newURL);
+    const currentUrl = window.location.href;
+    const pattern = new RegExp('(?:http|https)\:\/\/.*?\/');
+    const newUrl = currentUrl.match(pattern) + version + '/index.html';
+    return encodeURI(newUrl);
+}
+
+function updateTitleTag() {
+    var title = $('title');
+    var currentVersion = getCurrentVersion();
+    var newTitle = (title.text() + ' — Version(' + currentVersion + ')').replace(/\s+/g, ' ').trim();
+    title.text(newTitle);
 }
 
 function getCurrentVersion() {
@@ -61,7 +80,6 @@ function getCurrentVersion() {
     return encodeURI(wordAfterDomain);
 }
 
-
 function createVersions() {
     var currentVersion = getCurrentVersion();
     var versionBtn = $('#version-selector');
@@ -77,9 +95,7 @@ function createVersions() {
     })
     var downloadBtn = $('#download-zip-btn');
     downloadBtn.attr('href', '/archives/' + currentVersion + '.zip')
-
 }
-
 
 function addTableSort() {
     var tables = $('table.table');
@@ -147,6 +163,14 @@ function addTableSort() {
             });
             th.find('p').append(sortBtn);
         });
+    });
+}
+
+function updateLanguageSelector() {
+    const currentVersion = getCurrentVersion();
+    $('[aria-labelledby="language-selector"]').find('a').each(function(){
+        const newUrl = $(this).attr('href').replace(/latest\/.*/, `${currentVersion}/index.html`);
+        $(this).attr('href', newUrl);
     });
 }
 
