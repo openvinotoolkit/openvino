@@ -47,6 +47,8 @@ macro(ov_cpack_settings)
            NOT item STREQUAL "pugixml" AND
            # we have copyright file for rpm package
            NOT item STREQUAL OV_CPACK_COMP_LICENSING AND
+           # TODO: remove after CI removes arm_plugin build
+           NOT item STREQUAL "arm_cpu" AND
            # compile_tool is not needed
            NOT item STREQUAL OV_CPACK_COMP_CORE_TOOLS AND
            # not appropriate components
