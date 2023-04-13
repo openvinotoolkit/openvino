@@ -248,14 +248,21 @@ protected:
                 is_output_event = instance.is_output_event();
             }
 
+            auto& params = _kernel_data.kernels[kd_idx].params;
             auto args = get_arguments(instance);
-            args.scalars = &_kernel_data.kernels[kd_idx].params.scalars;
+            args.scalars = &params.scalars;
 
             for (const auto& m : instance.get_intermediates_memories()) {
                 args.intermediates.push_back(m);
             }
 
-            auto ev = stream.enqueue_kernel(*_kernels[kd_idx], _kernel_data.kernels[kd_idx].params, args, tmp_events, is_output_event);
+            const auto& gws = params.workGroups.global;
+            const auto& lws = params.workGroups.local;
+
+            GPU_DEBUG_TRACE_DETAIL << "Enqueue kernel " << kd_idx << ": gws=[" << gws[0] << ", " << gws[1] << ", " << gws[2] << "] "
+                                   << "lws=[" << lws[0] << ", " << lws[1] << ", " << lws[2] << "]" << std::endl;
+
+            auto ev = stream.enqueue_kernel(*_kernels[kd_idx], params, args, tmp_events, is_output_event);
             new_events.push_back(ev);
             all_events.push_back(ev);
 
