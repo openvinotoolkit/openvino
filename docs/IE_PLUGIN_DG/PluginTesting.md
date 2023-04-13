@@ -14,23 +14,23 @@ Test definitions are split into tests class declaration (see ``src/tests/functio
 
 2. **Single layer tests** (``single_layer_tests`` sub-folder). This groups of tests checks that a particular single layer can be inferenced on a device. An example of test instantiation based on test definition from ``openvino::funcSharedTests`` library:
 
-   * From the declaration of convolution test class we can see that it's a parametrized GoogleTest based class with the ``convLayerTestParamsSet`` tuple of parameters:
+* From the declaration of convolution test class we can see that it's a parametrized GoogleTest based class with the ``convLayerTestParamsSet`` tuple of parameters:
     
-      .. doxygensnippet:: single_layer/convolution.hpp
-         :language: cpp
-         :fragment: test_convolution:definition
+   .. doxygensnippet:: single_layer/convolution.hpp
+      :language: cpp
+      :fragment: test_convolution:definition
 
-   * Based on that, define a set of parameters for ``Template`` plugin functional test instantiation:
+* Based on that, define a set of parameters for ``Template`` plugin functional test instantiation:
    
-      .. doxygensnippet:: single_layer_tests/convolution.cpp
-         :language: cpp
-         :fragment: test_convolution:declare_parameters
+   .. doxygensnippet:: openvino/src/tests/functional/plugin/gpu/single_layer_tests/convolution.cpp
+      :language: cpp
+      :fragment: test_convolution:declare_parameters
 
-   * Instantiate the test itself using standard GoogleTest macro ``INSTANTIATE_TEST_SUITE_P``:
+* Instantiate the test itself using standard GoogleTest macro ``INSTANTIATE_TEST_SUITE_P``:
 
-      .. doxygensnippet:: single_layer_tests/convolution.cpp
-         :language: cpp
-         :fragment: test_convolution:instantiate
+   .. doxygensnippet:: openvino/src/tests/functional/plugin/gpu/single_layer_tests/convolution.cpp
+      :language: cpp
+      :fragment: test_convolution:instantiate
 
 3. **Sub-graph tests** (``subgraph_tests`` sub-folder). This group of tests is designed to tests small patterns or combination of layers. E.g. when a particular topology is being enabled in a plugin e.g. TF ResNet-50, there is no need to add the whole topology to test tests. In opposite way, a particular repetitive subgraph or pattern can be extracted from ``ResNet-50`` and added to the tests. The instantiation of the sub-graph tests is done in the same way as for single layer tests.
 
@@ -51,8 +51,7 @@ To use these tests for your own plugin development, link the ``openvino::funcSha
    
    A plugin may contain its own tests for use cases that are specific to hardware or need to be extensively tested.
 
-To build test binaries together with other build artifacts, use the ``make all`` command. For details, see
-doc:`Build Plugin Using CMake* <openvino_docs_ov_plugin_dg_plugin_build>`.
+To build test binaries together with other build artifacts, use the ``make all`` command. For details, see :doc:`Build Plugin Using CMake <openvino_docs_ov_plugin_dg_plugin_build>`.
 
 How to Extend OpenVINO Plugin Tests
 +++++++++++++++++++++++++++++++++++

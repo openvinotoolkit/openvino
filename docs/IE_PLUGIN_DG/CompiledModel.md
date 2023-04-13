@@ -15,7 +15,7 @@ CompiledModel Class
 
 OpenVINO Plugin API provides the interface ov::ICompiledModel which should be used as a base class for a compiled model. Based on that, a declaration of an compiled model class can look as follows: 
 
-.. doxygensnippet:: src/compiled_model.hpp
+.. doxygensnippet:: openvino/src/plugins/template/src/compiled_model.hpp
    :language: cpp
    :fragment: [compiled_model:header]
 
@@ -35,7 +35,7 @@ CompiledModel Constructor
 
 This constructor accepts a generic representation of a model as an ov::Model and is compiled into a backend specific device graph:
 
-.. doxygensnippet:: src/compiled_model.cpp
+.. doxygensnippet:: openvino/src/plugins/template/src/compiled_model.cpp
    :language: cpp
    :fragment: [compiled_model:ctor]
 
@@ -46,7 +46,7 @@ compile_model()
 
 The function accepts a const shared pointer to ``ov::Model`` object and applies OpenVINO passes using ``transform_model()`` function, which defines plugin-specific conversion pipeline. To support low precision inference, the pipeline can include Low Precision Transformations. These transformations are usually hardware specific. You can find how to use and configure Low Precisions Transformations in :doc:`Low Precision Transformations <openvino_docs_OV_UG_lpt>` guide.
 
-.. doxygensnippet:: src/compiled_model.cpp
+.. doxygensnippet:: openvino/src/plugins/template/src/compiled_model.cpp
    :language: cpp
    :fragment: [compiled_model:compile_model]
 
@@ -60,7 +60,7 @@ export_model()
 
 The implementation of the method should write all data to the ``model_stream``, which is required to import a backend specific graph later in the ``Plugin::import_model`` method:
 
-.. doxygensnippet:: src/compiled_model.cpp
+.. doxygensnippet:: openvino/src/plugins/template/src/compiled_model.cpp
    :language: cpp
    :fragment: [compiled_model:export_model]
 
@@ -69,7 +69,7 @@ create_sync_infer_request()
 
 The method creates an synchronous inference request and returns it.
 
-.. doxygensnippet:: src/compiled_model.cpp
+.. doxygensnippet:: openvino/src/plugins/template/src/compiled_model.cpp
    :language: cpp
    :fragment: [compiled_model:create_sync_infer_request]
 
@@ -92,7 +92,7 @@ create_infer_request()
 
 The method creates an asynchronous inference request and returns it.
 
-.. doxygensnippet:: src/compiled_model.cpp
+.. doxygensnippet:: openvino/src/plugins/template/src/compiled_model.cpp
    :language: cpp
    :fragment: [compiled_model:create_infer_request]
 
@@ -101,7 +101,7 @@ get_property()
 
 Returns a current value for a property with the name ``name``. The method extracts configuration values a compiled model is compiled with.
 
-.. doxygensnippet:: src/compiled_model.cpp
+.. doxygensnippet:: openvino/src/plugins/template/src/compiled_model.cpp
    :language: cpp
    :fragment: [compiled_model:get_property]
 
@@ -112,7 +112,7 @@ set_property()
 
 The methods allows to set compiled model specific properties.
 
-.. doxygensnippet:: src/compiled_model.cpp
+.. doxygensnippet:: openvino/src/plugins/template/src/compiled_model.cpp
    :language: cpp
    :fragment: [compiled_model:set_property]
 
@@ -121,7 +121,7 @@ get_runtime_model()
 
 The methods returns the runtime model with backend specific information.
 
-.. doxygensnippet:: src/compiled_model.cpp
+.. doxygensnippet:: openvino/src/plugins/template/src/compiled_model.cpp
    :language: cpp
    :fragment: [compiled_model:get_runtime_model]
 

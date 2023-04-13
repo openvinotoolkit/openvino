@@ -9,7 +9,7 @@ Property Class
 
 OpenVINO API provides the interface ov::Property which allows to define the property and access rights. Based on that, a declaration of plugin specific properties can look as follows: 
 
-.. doxygensnippet:: include/template/properties.hpp
+.. doxygensnippet:: openvino/src/plugins/template/include/template/properties.hpp
    :language: cpp
    :fragment: [properties:public_header]
 

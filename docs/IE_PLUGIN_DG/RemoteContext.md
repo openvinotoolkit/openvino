@@ -17,7 +17,7 @@ RemoteContext Class
 
 OpenVINO Plugin API provides the interface ov::IRemoteContext which should be used as a base class for a plugin specific remote context. Based on that, a declaration of an compiled model class can look as follows: 
 
-.. doxygensnippet:: src/remote_context.hpp
+.. doxygensnippet:: openvino/src/plugins/template/src/remote_context.hpp
    :language: cpp
    :fragment: [remote_context:header]
 
@@ -34,7 +34,7 @@ RemoteContext Constructor
 
 This constructor should initialize the remote context device name and properties.
 
-.. doxygensnippet:: src/remote_context.cpp
+.. doxygensnippet:: src/plugins/template/src/remote_context.cpp
    :language: cpp
    :fragment: [remote_context:ctor]
 
@@ -43,7 +43,7 @@ get_device_name()
 
 The function returns the device name from the remote context.
 
-.. doxygensnippet:: src/remote_context.cpp
+.. doxygensnippet:: src/plugins/template/src/remote_context.cpp
    :language: cpp
    :fragment: [remote_context:get_device_name]
 
@@ -52,7 +52,7 @@ get_property()
 
 The implementation returns the remote context properties.
 
-.. doxygensnippet:: src/remote_context.cpp
+.. doxygensnippet:: src/plugins/template/src/remote_context.cpp
    :language: cpp
    :fragment: [remote_context:get_property]
 
@@ -61,7 +61,7 @@ create_tensor()
 
 The method creates device specific remote tensor.
 
-.. doxygensnippet:: src/remote_context.cpp
+.. doxygensnippet:: src/plugins/template/src/remote_context.cpp
    :language: cpp
    :fragment: [remote_context:create_tensor]
 
