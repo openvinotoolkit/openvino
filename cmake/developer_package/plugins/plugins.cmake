@@ -10,7 +10,8 @@ function(ie_plugin_get_file_name target_name library_name)
     set(LIB_PREFIX "${CMAKE_SHARED_MODULE_PREFIX}")
     set(LIB_SUFFIX "${IE_BUILD_POSTFIX}${CMAKE_SHARED_MODULE_SUFFIX}")
 
-    set("${library_name}" "${LIB_PREFIX}${target_name}${LIB_SUFFIX}" PARENT_SCOPE)
+    set(LIB_NAME $<TARGET_PROPERTY:${target_name},OUTPUT_NAME>)
+    set("${library_name}" "${LIB_PREFIX}${LIB_NAME}${LIB_SUFFIX}" PARENT_SCOPE)
 endfunction()
 
 if(NOT TARGET ov_plugins)
