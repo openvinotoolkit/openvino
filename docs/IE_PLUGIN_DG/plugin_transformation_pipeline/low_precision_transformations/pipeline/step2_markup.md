@@ -63,6 +63,7 @@ The original model key features:
 
 * The first ``concat1`` concatenation operation has not quantized ``convolution1`` consumer.
 
+
 * The second ``concat2`` concatenation operation has quantized ``convolution2`` consumer with requirements: 
 
    * support ``unsigned int8`` on activations,
