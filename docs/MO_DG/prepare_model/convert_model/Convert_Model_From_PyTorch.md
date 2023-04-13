@@ -72,10 +72,13 @@ If the ``onnx_opset_version`` is not set, the default opset from ``torch.onnx.ex
    model = torchvision.models.resnet50(pretrained=True)
    ov_model = convert_model(model, input_shape=[1,3,100,100], onnx_opset_version=13)
 
-When ``convert_model()`` fails to convert the model you can convert it to ONNX first with specific ``torch.onnx.export()`` parameters which are not available in ``convert_model()``, explore the model and apply model cutting techniques (with ``input``/``output`` parameters) if there are ONNX operators that are not supported by OpenVINO.
-
 Exporting a PyTorch Model to ONNX Format
 ########################################
+
+When ``convert_model()`` fails to convert the model you can convert it to ONNX first with specific ``torch.onnx.export()`` parameters which are not available in ``convert_model()``, explore the model and apply model cutting techniques (with ``input``/``output`` parameters) if there are ONNX operators that are not supported by OpenVINO.
+
+1. `Export a PyTorch model to ONNX <#exporting-a-pytorch-model-to-onnx-format>`__.
+2. :doc:`Convert the ONNX model <openvino_docs_MO_DG_prepare_model_convert_model_Convert_Model_From_ONNX>` to produce an optimized :doc:`Intermediate Representation <openvino_docs_MO_DG_IR_and_opsets>` of the model based on the trained network topology, weights, and biases values.
 
 PyTorch models are defined in Python. To export them, use the ``torch.onnx.export()`` method. The code to
 evaluate or test the model is usually provided with its code and can be used for its initialization and export.
