@@ -50,8 +50,8 @@ Changes in the example model after main transformation:
 
 * All ``FakeQuantize`` operations (``fakeQuantize1``, ``fakeQuantize2`` and ``fakeQuantize3``) were decomposed:
 
-   * original ``FakeQuantize`` operations were replaced with new operations with other output intervals and output port precision,
-   * dequantization operations.
+  * original ``FakeQuantize`` operations were replaced with new operations with other output intervals and output port precision,
+  * dequantization operations.
    
 * Dequantization operations were moved via precision preserved (``concat1`` and ``concat2``) and quantized (``convolution2``) operations. 
 

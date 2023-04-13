@@ -65,9 +65,9 @@ The original model key features:
 
 
 * The second ``concat2`` concatenation operation has quantized ``convolution2`` consumer with requirements: 
-
-   * support ``unsigned int8`` on activations,
-   * per-tensor quantization.
+   
+  * support ``unsigned int8`` on activations,
+  * per-tensor quantization.
 
 * Between the ``concat2`` concatenation operation and ``Convolution`` there is an ``AvgPool`` operation, which mathematically should return an ``f32`` tensor. But the ``MarkupAvgPoolPrecisionPreserved`` transformation is active. This allows the low precision transformation, that goes after the ``AvgPool``, to propagate low precision tensor to the next consumer. 
 
