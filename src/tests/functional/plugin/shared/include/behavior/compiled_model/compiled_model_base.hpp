@@ -643,14 +643,17 @@ TEST_P(OVCompiledModelBaseTest, loadIncorrectV11Model) {
 }
 
 TEST_P(OVCompiledModelBaseTest, canLoadCorrectNetworkToGetExecutableWithIncorrectConfig) {
-    ov::AnyMap incorrectConfig = {{"abc", "def"}};
+    std::map<std::string, ov::Any> config = {{"abc", "def"}};
+    for (const auto& confItem : configuration) {
+        config.emplace(confItem.first, confItem.second);
+    }
     bool is_meta_devices =
-        target_device.find("AUTO") != std::string::npos || target_device.find("MULTI:") != std::string::npos ||
-        target_device.find("HETERO:") != std::string::npos || target_device.find("BATCH:") != std::string::npos;
+        target_device.find("AUTO") != std::string::npos || target_device.find("MULTI") != std::string::npos ||
+        target_device.find("HETERO") != std::string::npos;
     if (is_meta_devices) {
-        EXPECT_NO_THROW(auto execNet = core->compile_model(function, target_device, incorrectConfig));
+        EXPECT_NO_THROW(auto execNet = core->compile_model(function, target_device, config));
     } else {
-        EXPECT_ANY_THROW(auto execNet = core->compile_model(function, target_device, incorrectConfig));
+        EXPECT_ANY_THROW(auto execNet = core->compile_model(function, target_device, config));
     }
 }
 
