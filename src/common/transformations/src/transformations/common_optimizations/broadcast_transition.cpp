@@ -45,8 +45,16 @@ ov::pass::BroadcastTransition::BroadcastTransition() {
 
         auto target_shape = pattern_map.at(target_shape_m);
         const auto& target_shape_et = target_shape.get_element_type();
-        auto data_shape_path = ov::op::util::make_try_fold<opset10::ShapeOf>(new_eltwise, target_shape_et);
-        ov::copy_runtime_info(eltwise, data_shape_path);
+
+        std::shared_ptr<ov::Node> data_shape_path;
+        if (target_shape_et == ov::element::i32 || target_shape_et == ov::element::i64) {
+            data_shape_path = ov::op::util::make_try_fold<opset10::ShapeOf>(new_eltwise, target_shape_et);
+            ov::copy_runtime_info(eltwise, data_shape_path);
+        } else {
+            auto shapeof = ov::op::util::make_try_fold<opset10::ShapeOf>(new_eltwise);
+            data_shape_path = ov::op::util::make_try_fold<ov::opset10::Convert>(shapeof, target_shape_et);
+            ov::copy_runtime_info(eltwise, {shapeof, data_shape_path});
+        }
 
         const size_t target_shape_rank = target_shape.get_partial_shape()[0].get_length();
         const size_t input_rank = new_eltwise->get_output_partial_shape(0).size();

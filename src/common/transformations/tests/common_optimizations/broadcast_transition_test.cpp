@@ -152,6 +152,33 @@ INSTANTIATE_TEST_SUITE_P(TransformationTestsF,
                          StaticBroadcastTransitionTests::getTestCaseName);
 }  // namespace BroadcastTransitionTestsInstantiation
 
+TEST_F(TransformationTestsF, BroadcastTransitionTests_Dynamic_U32TargetShapePrecision) {
+    const auto data_precision = ov::element::f32;
+    const auto shape_precision = ov::element::u32;
+    {
+        const auto input = std::make_shared<ov::opset10::Parameter>(data_precision, ov::PartialShape::dynamic(4));
+        const auto target_shape = std::make_shared<ov::opset10::Parameter>(shape_precision, ov::PartialShape{4});
+
+        const auto data_constant = ov::opset10::Constant::create(data_precision, {}, {1.f});
+        const auto bcast = std::make_shared<ov::opset10::Broadcast>(data_constant, target_shape);
+        const auto operation = getOperation(input, bcast, "Add");
+        model = std::make_shared<ov::Model>(operation, ov::ParameterVector{input, target_shape});
+    }
+    manager.register_pass<ov::pass::BroadcastTransition>();
+    {
+        const auto input = std::make_shared<ov::opset10::Parameter>(data_precision, ov::PartialShape::dynamic(4));
+        const auto target_shape = std::make_shared<ov::opset10::Parameter>(shape_precision, ov::PartialShape{4});
+
+        const auto data_constant = ov::opset10::Constant::create(data_precision, {}, {1.f});
+        const auto operation = getOperation(input, data_constant, "Add");
+        const auto shapeof = std::make_shared<ov::opset10::ShapeOf>(operation);
+        const auto convert = std::make_shared<ov::opset10::Convert>(shapeof, shape_precision);
+        const auto max = std::make_shared<ov::opset10::Maximum>(convert, target_shape);
+        const auto bcast = std::make_shared<ov::opset10::Broadcast>(operation, max);
+        model_ref = std::make_shared<ov::Model>(bcast, ov::ParameterVector{input, target_shape});
+    }
+}
+
 TEST_F(TransformationTestsF, BroadcastTransitionTests_Dynamic_EqualRanks) {
     const auto data_precision = ov::element::f32;
     const auto shape_precision = ov::element::i32;
