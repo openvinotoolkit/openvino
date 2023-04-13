@@ -256,12 +256,22 @@ void OpSummary::saveReport() {
 
     std::string outputFilePath = outputFolder + std::string(CommonTestUtils::FileSeparator) + filename;
 
-    std::set<ov::NodeTypeInfo> opsInfo;
+    std::map<ov::NodeTypeInfo, std::string> opsInfo;
     for (const auto &opset_pair : get_available_opsets()) {
         std::string opset_version = opset_pair.first;
         const ov::OpSet& opset = opset_pair.second();
         const auto &type_info_set = opset.get_type_info_set();
-        opsInfo.insert(type_info_set.begin(), type_info_set.end());
+        for (const auto& type_info : type_info_set) {
+            auto it = opsInfo.find(type_info);
+            auto pos = std::string(type_info.version_id).find(std::string("opset"));
+            std::string op_version = std::string(type_info.version_id).substr(pos + std::string("opset").size());
+            if (it == opsInfo.end()) {
+                opsInfo.insert({{type_info, op_version}});
+            } else {
+                opsInfo[type_info] += " ";
+                opsInfo[type_info] += op_version;
+            }
+        }
     }
 
     auto &summary = OpSummary::getInstance();
@@ -299,9 +309,9 @@ void OpSummary::saveReport() {
 
     pugi::xml_node opsNode = root.append_child("ops_list");
     for (const auto &op : opsInfo) {
-        std::string name = std::string(op.name) + "-" + getOpVersion(op);
+        std::string name = std::string(op.first.name) + "-" + getOpVersion(op.first);
         pugi::xml_node entry = opsNode.append_child(name.c_str());
-        (void) entry;
+        entry.append_attribute("opsets").set_value(op.second.c_str());
     }
 
     pugi::xml_node resultsNode = root.child("results");
