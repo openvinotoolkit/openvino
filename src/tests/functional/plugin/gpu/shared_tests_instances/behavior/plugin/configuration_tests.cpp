@@ -274,22 +274,6 @@ namespace {
                      ::testing::ValuesIn(auto_batch_configs())),
              CorrectConfigTests::getTestCaseName);
 
-    auto ExcluAsyncReqConfigs = []() {
-        return std::vector<std::map<std::string, std::string>>{
-            {{InferenceEngine::MultiDeviceConfigParams::KEY_MULTI_DEVICE_PRIORITIES, CommonTestUtils::DEVICE_GPU},
-             {InferenceEngine::PluginConfigParams::KEY_EXCLUSIVE_ASYNC_REQUESTS,
-              InferenceEngine::PluginConfigParams::YES}},
-            {{InferenceEngine::MultiDeviceConfigParams::KEY_MULTI_DEVICE_PRIORITIES, CommonTestUtils::DEVICE_GPU},
-             {InferenceEngine::PluginConfigParams::KEY_EXCLUSIVE_ASYNC_REQUESTS,
-              InferenceEngine::PluginConfigParams::NO}}};
-    };
-
-    INSTANTIATE_TEST_SUITE_P(smoke_Auto_BehaviorTests,
-                             ExclusiveAsyncReqTests,
-                             ::testing::Combine(::testing::Values(CommonTestUtils::DEVICE_AUTO),
-                                                ::testing::ValuesIn(ExcluAsyncReqConfigs())),
-                             CorrectConfigTests::getTestCaseName);
-
     const std::vector<std::map<std::string, std::string>> gpu_prop_config = {{
         {InferenceEngine::PluginConfigParams::KEY_PERFORMANCE_HINT, InferenceEngine::PluginConfigParams::THROUGHPUT},
         {InferenceEngine::PluginConfigParams::KEY_EXCLUSIVE_ASYNC_REQUESTS, InferenceEngine::PluginConfigParams::YES},

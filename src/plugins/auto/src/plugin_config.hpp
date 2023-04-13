@@ -16,8 +16,6 @@
 #include <vector>
 namespace MultiDevicePlugin {
 using namespace InferenceEngine;
-// legacy config
-static constexpr ov::Property<bool, ov::PropertyMutability::RW> exclusive_asyc_requests{"EXCLUSIVE_ASYNC_REQUESTS"};
 
 class BaseValidator {
 public:

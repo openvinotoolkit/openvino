@@ -78,10 +78,6 @@ namespace {
             {{InferenceEngine::MultiDeviceConfigParams::KEY_MULTI_DEVICE_PRIORITIES , CommonTestUtils::DEVICE_CPU},
                 {InferenceEngine::PluginConfigParams::KEY_PERF_COUNT, InferenceEngine::PluginConfigParams::NO}},
             {{InferenceEngine::MultiDeviceConfigParams::KEY_MULTI_DEVICE_PRIORITIES , CommonTestUtils::DEVICE_CPU},
-                {InferenceEngine::PluginConfigParams::KEY_EXCLUSIVE_ASYNC_REQUESTS, InferenceEngine::PluginConfigParams::YES}},
-            {{InferenceEngine::MultiDeviceConfigParams::KEY_MULTI_DEVICE_PRIORITIES , CommonTestUtils::DEVICE_CPU},
-                {InferenceEngine::PluginConfigParams::KEY_EXCLUSIVE_ASYNC_REQUESTS, InferenceEngine::PluginConfigParams::NO}},
-            {{InferenceEngine::MultiDeviceConfigParams::KEY_MULTI_DEVICE_PRIORITIES , CommonTestUtils::DEVICE_CPU},
                 {InferenceEngine::PluginConfigParams::KEY_PERFORMANCE_HINT, InferenceEngine::PluginConfigParams::LATENCY},
                     {InferenceEngine::PluginConfigParams::KEY_PERFORMANCE_HINT_NUM_REQUESTS, "1"}}
     };
@@ -115,13 +111,6 @@ namespace {
                 {InferenceEngine::PluginConfigParams::KEY_MODEL_PRIORITY, InferenceEngine::PluginConfigParams::MODEL_PRIORITY_LOW}}
     };
 
-    const std::vector<std::map<std::string, std::string>> ExcluAsyncReqConfigs = {
-            {{InferenceEngine::MultiDeviceConfigParams::KEY_MULTI_DEVICE_PRIORITIES , CommonTestUtils::DEVICE_CPU},
-                {InferenceEngine::PluginConfigParams::KEY_EXCLUSIVE_ASYNC_REQUESTS, InferenceEngine::PluginConfigParams::YES}},
-            {{InferenceEngine::MultiDeviceConfigParams::KEY_MULTI_DEVICE_PRIORITIES , CommonTestUtils::DEVICE_CPU},
-                {InferenceEngine::PluginConfigParams::KEY_EXCLUSIVE_ASYNC_REQUESTS, InferenceEngine::PluginConfigParams::NO}}
-    };
-
     INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests, CorrectConfigTests,
             ::testing::Combine(
                 ::testing::Values(CommonTestUtils::DEVICE_CPU),
@@ -138,12 +127,6 @@ namespace {
             ::testing::Combine(
                 ::testing::Values(CommonTestUtils::DEVICE_AUTO),
                 ::testing::ValuesIn(AutoConfigs)),
-            CorrectConfigTests::getTestCaseName);
-
-    INSTANTIATE_TEST_SUITE_P(smoke_Auto_BehaviorTests, ExclusiveAsyncReqTests,
-            ::testing::Combine(
-                ::testing::Values(CommonTestUtils::DEVICE_AUTO),
-                ::testing::ValuesIn(ExcluAsyncReqConfigs)),
             CorrectConfigTests::getTestCaseName);
 
     const std::vector<std::map<std::string, std::string>> inconfigs = {
