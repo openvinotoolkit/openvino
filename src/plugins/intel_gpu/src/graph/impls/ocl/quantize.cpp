@@ -92,7 +92,6 @@ public:
         const auto& output_layout = impl_param.get_output_layout();
         quantize_params.packed_binary_output = output_layout.data_type == data_types::bin;
         (_kernel_data.update_dispatch_data_func)(quantize_params, _kernel_data);
-        update_kernels_list_to_skip();
     }
 };
 

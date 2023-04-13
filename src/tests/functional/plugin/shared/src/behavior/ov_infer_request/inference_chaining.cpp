@@ -134,7 +134,19 @@ void OVInferenceChaining::Run() {
     }
 }
 
+// DEPRECATED VERSION
 TEST_P(OVInferenceChaining, StaticOutputToStaticInput) {
+    // Skip test according to plugin specific disabledTestPatterns() (if any)
+    SKIP_IF_CURRENT_TEST_IS_DISABLED()
+
+    function0 = getFirstStaticFunction();
+    function1 = getSecondStaticFunction();
+    function2 = getThirdStaticFunction();
+
+    Run();
+}
+
+TEST_P(OVInferenceChainingStatic, StaticOutputToStaticInput) {
     // Skip test according to plugin specific disabledTestPatterns() (if any)
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
 
