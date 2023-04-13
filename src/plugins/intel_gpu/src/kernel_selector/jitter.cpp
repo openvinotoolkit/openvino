@@ -318,7 +318,6 @@ public:
 
 JitDefinitions DataTensorJitConstant::GetDefinitions() const {
     JitDefinitions baseDefinitions = TensorBaseTJitConstant::GetDefinitions(_tensor);
-
     JitDefinitions definitions{};
 
     DimensionAccessHelper dims(_tensor, _dyn_array_index);
@@ -329,18 +328,24 @@ JitDefinitions DataTensorJitConstant::GetDefinitions() const {
         {_name + "_SIZE_Y", dims.y},
         {_name + "_SIZE_Z", dims.z},
         {_name + "_SIZE_W", dims.w},
+        {_name + "_SIZE_U", dims.u},
+        {_name + "_SIZE_V", dims.v},
         {_name + "_FEATURE_NUM", dims.f},
         {_name + "_BATCH_NUM", dims.b},
         {_name + "_PAD_BEFORE_SIZE_X", toCodeString(_tensor.X().pad.before)},
         {_name + "_PAD_BEFORE_SIZE_Y", toCodeString(_tensor.Y().pad.before)},
         {_name + "_PAD_BEFORE_SIZE_Z", toCodeString(_tensor.Z().pad.before)},
         {_name + "_PAD_BEFORE_SIZE_W", toCodeString(_tensor.W().pad.before)},
+        {_name + "_PAD_BEFORE_SIZE_U", toCodeString(_tensor.U().pad.before)},
+        {_name + "_PAD_BEFORE_SIZE_V", toCodeString(_tensor.V().pad.before)},
         {_name + "_PAD_BEFORE_FEATURE_NUM", toCodeString(_tensor.Feature().pad.before)},
         {_name + "_PAD_BEFORE_BATCH_NUM", toCodeString(_tensor.Batch().pad.before)},
         {_name + "_PAD_AFTER_SIZE_X", toCodeString(_tensor.X().pad.after)},
         {_name + "_PAD_AFTER_SIZE_Y", toCodeString(_tensor.Y().pad.after)},
         {_name + "_PAD_AFTER_SIZE_Z", toCodeString(_tensor.Z().pad.after)},
         {_name + "_PAD_AFTER_SIZE_W", toCodeString(_tensor.W().pad.after)},
+        {_name + "_PAD_AFTER_SIZE_U", toCodeString(_tensor.U().pad.after)},
+        {_name + "_PAD_AFTER_SIZE_V", toCodeString(_tensor.V().pad.after)},
         {_name + "_PAD_AFTER_FEATURE_NUM", toCodeString(_tensor.Feature().pad.after)},
         {_name + "_PAD_AFTER_BATCH_NUM", toCodeString(_tensor.Batch().pad.after)},
     };
@@ -354,8 +359,12 @@ JitDefinitions DataTensorJitConstant::GetDefinitions() const {
             definitions.push_back({_name + "_Y_PITCH", dims_padded.x});
             definitions.push_back({_name + "_Z_PITCH", toVectorMulString({dims_padded.x, dims_padded.y})});
             definitions.push_back({_name + "_W_PITCH", toVectorMulString({dims_padded.x, dims_padded.y, dims_padded.z})});
-            definitions.push_back({_name + "_FEATURE_PITCH", toVectorMulString({dims_padded.x, dims_padded.y, dims_padded.z, dims_padded.w})});
-            definitions.push_back({_name + "_BATCH_PITCH", toVectorMulString({dims_padded.x, dims_padded.y, dims_padded.z, dims_padded.w, dims_padded.f})});
+            definitions.push_back({_name + "_U_PITCH", toVectorMulString({dims_padded.x, dims_padded.y, dims_padded.z, dims_padded.w})});
+            definitions.push_back({_name + "_V_PITCH", toVectorMulString({dims_padded.x, dims_padded.y, dims_padded.z, dims_padded.w, dims_padded.u})});
+            definitions.push_back({_name + "_FEATURE_PITCH",
+                toVectorMulString({dims_padded.x, dims_padded.y, dims_padded.z, dims_padded.w, dims_padded.u, dims_padded.v})});
+            definitions.push_back({_name + "_BATCH_PITCH",
+                toVectorMulString({dims_padded.x, dims_padded.y, dims_padded.z, dims_padded.w, dims_padded.u, dims_padded.v, dims_padded.f})});
         } else {
             OPENVINO_ASSERT(false, "[GPU] Jitter couldn't generate dynamic pitches for given layout");
         }
@@ -364,6 +373,8 @@ JitDefinitions DataTensorJitConstant::GetDefinitions() const {
         definitions.push_back({_name + "_Y_PITCH", toCodeString(_tensor.Y().pitch)});
         definitions.push_back({_name + "_Z_PITCH", toCodeString(_tensor.Z().pitch)});
         definitions.push_back({_name + "_W_PITCH", toCodeString(_tensor.W().pitch)});
+        definitions.push_back({_name + "_U_PITCH", toCodeString(_tensor.U().pitch)});
+        definitions.push_back({_name + "_V_PITCH", toCodeString(_tensor.V().pitch)});
         definitions.push_back({_name + "_FEATURE_PITCH", toCodeString(_tensor.Feature().pitch)});
         definitions.push_back({_name + "_BATCH_PITCH", toCodeString(_tensor.Batch().pitch)});
     }
@@ -525,18 +536,53 @@ JitDefinitions DataTensorJitConstant::GetDefinitions() const {
                 Tensor::DataChannelName::X,
         };
         bool is_common_6d_layout = is_common_nd_layout(base_6d_channels, layout);
-        if (is_common_6d_layout) {
-            index_func_name = _name + "_GET_INDEX(b, f, w, z, y, x)";
-            safe_index_func_name = _name + "_GET_INDEX_SAFE(b, f, w, z, y, x)";
-            raw_index_func_name = _name + "_GET_INDEX_RAW(b, f, w, z, y, x)";
+        OPENVINO_ASSERT(is_common_6d_layout, "[GPU] Unhandled 6d format in jitter: ", toString(layout));
+        index_func_name = _name + "_GET_INDEX(b, f, w, z, y, x)";
+        safe_index_func_name = _name + "_GET_INDEX_SAFE(b, f, w, z, y, x)";
+        raw_index_func_name = _name + "_GET_INDEX_RAW(b, f, w, z, y, x)";
 
-            index_func_val = "GET_DATA_INDEX_6D(" + _name + ", b, f, w, z, y, x)";
-            safe_index_func_val = "GET_DATA_INDEX_6D_SAFE(" + _name + ", b, f, w, z, y, x)";
-            raw_index_func_val = "GET_DATA_INDEX_6D_RAW(" + _name + ", b, f, w, z, y, x)";
-        } else {
-            // TODO: implement support of non-default layouts with 6 channels
-            assert(0);
-        }
+        index_func_val = "GET_DATA_INDEX_6D(" + _name + ", b, f, w, z, y, x)";
+        safe_index_func_val = "GET_DATA_INDEX_6D_SAFE(" + _name + ", b, f, w, z, y, x)";
+        raw_index_func_val = "GET_DATA_INDEX_6D_RAW(" + _name + ", b, f, w, z, y, x)";
+    } else if (DataTensor::ChannelsCount(layout) == 7) {
+        std::vector<Tensor::DataChannelName> base_7d_channels = {
+                Tensor::DataChannelName::BATCH,
+                Tensor::DataChannelName::FEATURE,
+                Tensor::DataChannelName::U,
+                Tensor::DataChannelName::W,
+                Tensor::DataChannelName::Z,
+                Tensor::DataChannelName::Y,
+                Tensor::DataChannelName::X,
+        };
+        bool is_common_7d_layout = is_common_nd_layout(base_7d_channels, layout);
+        OPENVINO_ASSERT(is_common_7d_layout, "[GPU] Unhandled 7d format in jitter: ", toString(layout));
+        index_func_name = _name + "_GET_INDEX(b, f, u, w, z, y, x)";
+        safe_index_func_name = _name + "_GET_INDEX_SAFE(b, f, u, w, z, y, x)";
+        raw_index_func_name = _name + "_GET_INDEX_RAW(b, f, u, w, z, y, x)";
+
+        index_func_val = "GET_DATA_INDEX_7D(" + _name + ", b, f, u, w, z, y, x)";
+        safe_index_func_val = "GET_DATA_INDEX_7D_SAFE(" + _name + ", b, f, u, w, z, y, x)";
+        raw_index_func_val = "GET_DATA_INDEX_7D_RAW(" + _name + ", b, f, u, w, z, y, x)";
+    } else if (DataTensor::ChannelsCount(layout) == 8) {
+        std::vector<Tensor::DataChannelName> base_8d_channels = {
+                Tensor::DataChannelName::BATCH,
+                Tensor::DataChannelName::FEATURE,
+                Tensor::DataChannelName::V,
+                Tensor::DataChannelName::U,
+                Tensor::DataChannelName::W,
+                Tensor::DataChannelName::Z,
+                Tensor::DataChannelName::Y,
+                Tensor::DataChannelName::X,
+        };
+        bool is_common_8d_layout = is_common_nd_layout(base_8d_channels, layout);
+        OPENVINO_ASSERT(is_common_8d_layout, "[GPU] Unhandled 8d format in jitter: ", toString(layout));
+        index_func_name = _name + "_GET_INDEX(b, f, v, u, w, z, y, x)";
+        safe_index_func_name = _name + "_GET_INDEX_SAFE(b, f, v, u, w, z, y, x)";
+        raw_index_func_name = _name + "_GET_INDEX_RAW(b, f, v, u, w, z, y, x)";
+
+        index_func_val = "GET_DATA_INDEX_8D(" + _name + ", b, f, v, u, w, z, y, x)";
+        safe_index_func_val = "GET_DATA_INDEX_8D_SAFE(" + _name + ", b, f, v, u, w, z, y, x)";
+        raw_index_func_val = "GET_DATA_INDEX_8D_RAW(" + _name + ", b, f, v, u, w, z, y, x)";
     } else {
         throw std::runtime_error("Unsupported channels count(" + std::to_string(DataTensor::ChannelsCount(layout)) +
                                  ") in layout: " + toString(layout));
@@ -1902,6 +1948,10 @@ std::string FusedOpsCodeGenerator::GetIdx(size_t input_id, idx_desc idx, bool sh
         idx_order = idx.b + "," + idx.f + "," + idx.z + "," + idx.y + "," + idx.x;
     } else if (DataTensor::ChannelsCount(desc.tensors[input_id].GetLayout()) == 6) {
         idx_order = idx.b + "," + idx.f + "," + idx.w + "," + idx.z + "," + idx.y + "," + idx.x;
+    } else if (DataTensor::ChannelsCount(desc.tensors[input_id].GetLayout()) == 7) {
+        idx_order = idx.b + "," + idx.f + "," + idx.u + "," + idx.w + "," + idx.z + "," + idx.y + "," + idx.x;
+    } else if (DataTensor::ChannelsCount(desc.tensors[input_id].GetLayout()) == 8) {
+        idx_order = idx.b + "," + idx.f + "," + idx.v + "," + idx.u + "," + idx.w + "," + idx.z + "," + idx.y + "," + idx.x;
     }
 
     if (should_be_safe) {

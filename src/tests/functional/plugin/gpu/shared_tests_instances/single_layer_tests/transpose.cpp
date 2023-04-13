@@ -109,4 +109,27 @@ INSTANTIATE_TEST_SUITE_P(smoke_Transpose_6D,
                                           testing::Values(CommonTestUtils::DEVICE_GPU)),
                          TransposeLayerTest::getTestCaseName);
 
+/**
+ * 8D permute tests
+ */
+const std::vector<std::vector<size_t>> inputShapes8D = {
+        std::vector<size_t>{1, 2, 3, 4, 5, 6, 7, 8},
+};
+
+const std::vector<std::vector<size_t>> inputOrder8D = {
+        std::vector<size_t>{1, 2, 4, 3, 6, 7, 5, 0},
+};
+
+INSTANTIATE_TEST_SUITE_P(smoke_Transpose_8D,
+                         TransposeLayerTest,
+                         testing::Combine(testing::ValuesIn(inputOrder8D),
+                                          testing::ValuesIn(netPrecisions),
+                                          testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+                                          testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+                                          testing::Values(InferenceEngine::Layout::ANY),
+                                          testing::Values(InferenceEngine::Layout::ANY),
+                                          testing::ValuesIn(inputShapes8D),
+                                          testing::Values(CommonTestUtils::DEVICE_GPU)),
+                         TransposeLayerTest::getTestCaseName);
+
 }  // namespace

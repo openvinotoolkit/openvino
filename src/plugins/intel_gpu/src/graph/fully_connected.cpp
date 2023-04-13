@@ -50,8 +50,8 @@ format::type get_preferred_format(fully_connected_node const& node, const kernel
 
     if (data_type_traits::is_floating_point(input_layout.data_type) &&
         (is_batch_after_spatial(input_layout.format.order()) ||
-         input_layout.format == format::bs_x_bsv16 ||
-         input_layout.format == format::bs_xs_xsv8_bsv8))
+         input_layout.format == format::bs_f_bsv16 ||
+         input_layout.format == format::bs_fs_fsv8_bsv8))
         return format::yxfb;
 
     bool no_spatial_padding = true;

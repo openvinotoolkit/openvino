@@ -57,7 +57,7 @@
 
 __attribute__((reqd_work_group_size(SUB_GROUP_SIZE, 1, 1)))
 REQD_SUB_GROUP_SIZE(SUB_GROUP_SIZE)
-KERNEL (fully_connected_gpu_xb_bs_xs_xsv8_bsv8_vload)(
+KERNEL (fully_connected_gpu_xb_bs_fs_fsv8_bsv8_vload)(
     const __global UNIT_TYPE* input,
     __global UNIT_TYPE* output,
     const __global UNIT_TYPE* weight

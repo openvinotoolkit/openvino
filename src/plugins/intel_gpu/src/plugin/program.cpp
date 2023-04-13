@@ -358,8 +358,19 @@ std::shared_ptr<cldnn::program> Program::BuildProgram(const std::vector<std::sha
     for (const auto& op : ops) {
         if (op->is_dynamic()) {
             allow_new_shape_infer = true;
-            break;
         }
+
+        for (size_t i = 0; i < op->get_output_size(); i++) {
+            if (op->get_output_partial_shape(i).size() > 6)
+                allow_new_shape_infer = true;
+        }
+        for (size_t i = 0; i < op->get_input_size(); i++) {
+            if (op->get_input_partial_shape(i).size() > 6)
+                allow_new_shape_infer = true;
+        }
+
+        if (allow_new_shape_infer)
+            break;
     }
 
     m_config.set_property(ov::intel_gpu::partial_build_program(partialBuild));

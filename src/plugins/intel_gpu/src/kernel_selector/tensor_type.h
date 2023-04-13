@@ -4,6 +4,7 @@
 
 #pragma once
 
+#include "openvino/core/except.hpp"
 #include "common_types.h"
 #include "common_tools.h"
 #include <vector>
@@ -66,6 +67,8 @@ enum DataLayout {
     fs_b_yx_fsv32,          // for FP16 kernels, 32 features to avoid partial writes
     b_fs_yx_32fp,           // bfyx with blocks of 16 packed binary input channels
     bfwzyx,                 // batch, feature, 4D spatial
+    bfuwzyx,                // batch, feature, 5D spatial
+    bfvuwzyx,               // batch, feature, 6D spatial
     nv12,                   // media nv12 layout
     image_2d_rgba,          // image2d RGBA
     DataLayoutCount         // NUMBER OF ELEMENTS IN ENUM
@@ -258,7 +261,7 @@ using NDims = std::vector<Dim>;
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // extract code
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-enum class DataChannelName { X = 0, Y = 1, Z = 2, W = 3, FEATURE = 4, BATCH = 5, COUNT = 6 };
+enum class DataChannelName { X = 0, Y = 1, Z = 2, W = 3, U = 4, V = 5, FEATURE = 6, BATCH = 7, COUNT = 8 };
 
 enum class WeightsChannelName { X = 0, Y = 1, Z = 2, IFM = 3, OFM = 4, G = 5, COUNT = 6 };
 
@@ -292,6 +295,8 @@ inline bool SimpleLayout(DataLayout l) {
         case DataLayout::bfzyx:
         case DataLayout::bzyxf:
         case DataLayout::bfwzyx:
+        case DataLayout::bfuwzyx:
+        case DataLayout::bfvuwzyx:
             return true;
         default:
             return false;
@@ -611,6 +616,8 @@ struct DataTensor : public TensorBaseT<Datatype, DataLayout> {
     Dim Y() const { return Extract(layout, DataChannelName::Y, dims); }
     Dim Z() const { return Extract(layout, DataChannelName::Z, dims); }
     Dim W() const { return Extract(layout, DataChannelName::W, dims); }
+    Dim U() const { return Extract(layout, DataChannelName::U, dims); }
+    Dim V() const { return Extract(layout, DataChannelName::V, dims); }
     Dim Feature() const { return Extract(layout, DataChannelName::FEATURE, dims); }
     Dim Batch() const { return Extract(layout, DataChannelName::BATCH, dims); }
 

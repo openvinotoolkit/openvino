@@ -319,7 +319,7 @@ QueryNetworkResult Plugin::QueryNetwork(const CNNNetwork& network,
                     return false;
 
                 auto pshape = node->get_output_partial_shape(0);
-                if (pshape.rank().is_dynamic())
+                if (pshape.rank().is_dynamic() || pshape.size() > cldnn::layout::max_rank())
                     return false;
 
                 int dynCount = 0;

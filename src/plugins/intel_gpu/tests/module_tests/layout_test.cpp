@@ -241,3 +241,67 @@ INSTANTIATE_TEST_SUITE_P(smoke, layout_cmp_test,
         {layout{ov::PartialShape{9, 17, 3, 2, 5}, data_types::f16, format::is_os_zyx_isa8_osv8_isv2},
          layout{ov::PartialShape{9, 17, 3, 2, 5}, data_types::f16, format::os_is_zyx_isa8_osv8_isv2}, false, false},
     }));
+
+struct layouts_transform_test_params {
+    format::type from;
+    format::type to;
+    ov::PartialShape shape;
+    ov::PartialShape expected;
+};
+
+class layout_transform_test : public testing::TestWithParam<layouts_transform_test_params> { };
+
+TEST_P(layout_transform_test, basic) {
+    auto p = GetParam();
+
+    ASSERT_EQ(layout::transform(p.shape, p.from, p.to), p.expected)
+        << "from=" << fmt_to_str(p.from) << " to=" << fmt_to_str(p.to) << " shape=" << p.shape;
+}
+
+INSTANTIATE_TEST_SUITE_P(smoke, layout_transform_test,
+    testing::ValuesIn(std::vector<layouts_transform_test_params>{
+        {format::yxfb, format::bfyx, ov::PartialShape{1, 2, 3, 4}, ov::PartialShape{4, 3, 1, 2}},
+        {format::bfyx, format::yxfb, ov::PartialShape{1, 2, 3, 4}, ov::PartialShape{3, 4, 2, 1}},
+        {format::bfyx, format::bs_f_bsv16, ov::PartialShape{1, 2, 3, 4}, ov::PartialShape{1, 2*3*4}},
+        {format::bs_f_bsv16, format::bfyx, ov::PartialShape{1, 2*3*4}, ov::PartialShape{1, 2*3*4, 1, 1}},
+        {format::bfyx, format::bs_fs_yx_bsv16_fsv16, ov::PartialShape{1, 2, 3, 4}, ov::PartialShape{1, 2, 3, 4}},
+        {format::bfyx, format::bfzyx, ov::PartialShape{1, 2, 3, 4}, ov::PartialShape{1, 2, 1, 3, 4}},
+        {format::bfyx, format::bfwzyx, ov::PartialShape{1, 2, 3, 4}, ov::PartialShape{1, 2, 1, 1, 3, 4}},
+        {format::bfyx, format::bfuwzyx, ov::PartialShape{1, 2, 3, 4}, ov::PartialShape{1, 2, 1, 1, 1, 3, 4}},
+        {format::bfyx, format::bfvuwzyx, ov::PartialShape{1, 2, 3, 4}, ov::PartialShape{1, 2, 1, 1, 1, 1, 3, 4}},
+
+        {format::b_fs_yx_fsv16, format::bfyx, ov::PartialShape{1, 2, 3, 4}, ov::PartialShape{1, 2, 3, 4}},
+        {format::b_fs_yx_fsv16, format::bfzyx, ov::PartialShape{1, 2, 3, 4}, ov::PartialShape{1, 2, 1, 3, 4}},
+        {format::b_fs_yx_fsv16, format::bfwzyx, ov::PartialShape{1, 2, 3, 4}, ov::PartialShape{1, 2, 1, 1, 3, 4}},
+        {format::b_fs_yx_fsv16, format::bfuwzyx, ov::PartialShape{1, 2, 3, 4}, ov::PartialShape{1, 2, 1, 1, 1, 3, 4}},
+        {format::b_fs_yx_fsv16, format::bfvuwzyx, ov::PartialShape{1, 2, 3, 4}, ov::PartialShape{1, 2, 1, 1, 1, 1, 3, 4}},
+
+        {format::bfzyx, format::b_fs_zyx_fsv16, ov::PartialShape{1, 2, 3, 4, 5}, ov::PartialShape{1, 2, 3, 4, 5}},
+        {format::bfzyx, format::bfwzyx, ov::PartialShape{1, 2, 3, 4, 5}, ov::PartialShape{1, 2, 1, 3, 4, 5}},
+        {format::bfzyx, format::bfuwzyx, ov::PartialShape{1, 2, 3, 4, 5}, ov::PartialShape{1, 2, 1, 1, 3, 4, 5}},
+        {format::bfzyx, format::bfvuwzyx, ov::PartialShape{1, 2, 3, 4, 5}, ov::PartialShape{1, 2, 1, 1, 1, 3, 4, 5}},
+
+        {format::b_fs_zyx_fsv16, format::bfzyx, ov::PartialShape{1, 2, 3, 4, 5}, ov::PartialShape{1, 2, 3, 4, 5}},
+        {format::b_fs_zyx_fsv16, format::bfwzyx, ov::PartialShape{1, 2, 3, 4, 5}, ov::PartialShape{1, 2, 1, 3, 4, 5}},
+        {format::b_fs_zyx_fsv16, format::bfuwzyx, ov::PartialShape{1, 2, 3, 4, 5}, ov::PartialShape{1, 2, 1, 1, 3, 4, 5}},
+        {format::b_fs_zyx_fsv16, format::bfvuwzyx, ov::PartialShape{1, 2, 3, 4, 5}, ov::PartialShape{1, 2, 1, 1, 1, 3, 4, 5}},
+
+        {format::bfwzyx, format::bfuwzyx, ov::PartialShape{1, 2, 3, 4, 5, 6}, ov::PartialShape{1, 2, 1, 3, 4, 5, 6}},
+        {format::bfwzyx, format::bfvuwzyx, ov::PartialShape{1, 2, 3, 4, 5, 6}, ov::PartialShape{1, 2, 1, 1, 3, 4, 5, 6}},
+
+        {format::bfuwzyx, format::bfvuwzyx, ov::PartialShape{1, 2, 3, 4, 5, 6, 7}, ov::PartialShape{1, 2, 1, 3, 4, 5, 6, 7}},
+
+        {format::bfvuwzyx, format::bfuwzyx,  ov::PartialShape{1, 2, 3, 4, 5, 6, 7, 8}, ov::PartialShape{1, 2, 3*4, 5, 6, 7, 8}},
+        {format::bfvuwzyx, format::bfuwzyx,  ov::PartialShape{1, 2, 3, 4, 5, 6, 7, 8}, ov::PartialShape{1, 2, 3*4, 5, 6, 7, 8}},
+        {format::bfvuwzyx, format::bfzyx,  ov::PartialShape{1, 2, 3, 4, 5, 6, 7, 8}, ov::PartialShape{1, 2, 3*4*5*6, 7, 8}},
+        {format::bfvuwzyx, format::bfyx,  ov::PartialShape{1, 2, 3, 4, 5, 6, 7, 8}, ov::PartialShape{1, 2, 3*4*5*6*7, 8}},
+
+        {format::bfuwzyx, format::bfwzyx,  ov::PartialShape{1, 2, 3, 4, 5, 6, 7}, ov::PartialShape{1, 2, 3*4, 5, 6, 7}},
+        {format::bfuwzyx, format::bfzyx,  ov::PartialShape{1, 2, 3, 4, 5, 6, 7}, ov::PartialShape{1, 2, 3*4*5, 6, 7}},
+        {format::bfuwzyx, format::bfyx,  ov::PartialShape{1, 2, 3, 4, 5, 6, 7}, ov::PartialShape{1, 2, 3*4*5*6, 7}},
+
+        {format::bfwzyx, format::bfzyx,  ov::PartialShape{1, 2, 3, 4, 5, 6}, ov::PartialShape{1, 2, 3*4, 5, 6}},
+        {format::bfwzyx, format::bfyx,  ov::PartialShape{1, 2, 3, 4, 5, 6}, ov::PartialShape{1, 2, 3*4*5, 6}},
+
+        {format::bfzyx, format::bfyx,  ov::PartialShape{1, 2, 3, 4, 5}, ov::PartialShape{1, 2, 3*4, 5}},
+    }));
