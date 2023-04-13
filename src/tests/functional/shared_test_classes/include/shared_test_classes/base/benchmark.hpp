@@ -45,7 +45,7 @@ public:
             timeAttribute = testCaseNode.append_attribute(timeAttributeName);
         }
 
-        timeAttribute.set_value(time);
+        timeAttribute.set_value(static_cast<unsigned long long>(time));
     }
 
     uint64_t get_time(const std::string& nodeTypeName, const std::string& testCaseName) {
