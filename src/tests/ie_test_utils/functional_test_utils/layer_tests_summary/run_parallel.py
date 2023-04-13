@@ -9,7 +9,9 @@ from subprocess import Popen, STDOUT, TimeoutExpired, run, call
 from hashlib import sha256
 from pathlib import Path
 from shutil import rmtree
-from signal import SIGKILL
+
+if not constants.IS_WIN:
+    from signal import SIGKILL
 
 import os
 import sys

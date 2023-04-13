@@ -133,6 +133,7 @@ public:
                 input_pshape = extend_shape_to_rank_from_begin(input_pshape, out_pshape.size());
             }
             input_layout.set_partial_shape(extend_shape_to_rank_from_end(input_pshape));
+            input_layout.format = format::adjust_to_rank(input_layout.format, input_pshape.size());
         }
 
         return updated_impl_params;
@@ -163,7 +164,9 @@ attach_eltwise_impl::attach_eltwise_impl() {
     auto dyn_formats = {
         format::bfyx,
         format::bfzyx,
-        format::bfwzyx
+        format::bfwzyx,
+        format::bfuwzyx,
+        format::bfvuwzyx,
     };
 
     implementation_map<eltwise>::add(impl_types::ocl,
@@ -212,6 +215,20 @@ attach_eltwise_impl::attach_eltwise_impl() {
         std::make_tuple(data_types::u8, format::bfwzyx),
         std::make_tuple(data_types::i32, format::bfwzyx),
         std::make_tuple(data_types::i64, format::bfwzyx),
+
+        std::make_tuple(data_types::f32, format::bfuwzyx),
+        std::make_tuple(data_types::f16, format::bfuwzyx),
+        std::make_tuple(data_types::i8, format::bfuwzyx),
+        std::make_tuple(data_types::u8, format::bfuwzyx),
+        std::make_tuple(data_types::i32, format::bfuwzyx),
+        std::make_tuple(data_types::i64, format::bfuwzyx),
+
+        std::make_tuple(data_types::f32, format::bfvuwzyx),
+        std::make_tuple(data_types::f16, format::bfvuwzyx),
+        std::make_tuple(data_types::i8, format::bfvuwzyx),
+        std::make_tuple(data_types::u8, format::bfvuwzyx),
+        std::make_tuple(data_types::i32, format::bfvuwzyx),
+        std::make_tuple(data_types::i64, format::bfvuwzyx),
 
         std::make_tuple(data_types::f32, format::b_fs_zyx_fsv16),
         std::make_tuple(data_types::f16, format::b_fs_zyx_fsv16),
