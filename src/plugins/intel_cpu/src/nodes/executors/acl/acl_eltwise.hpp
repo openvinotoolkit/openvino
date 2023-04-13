@@ -43,13 +43,12 @@ public:
                      const std::vector<MemoryDescPtr>& dstDescs) const override {
         auto checker = [](const std::vector<MemoryDescPtr>& srcDescs,
                           const std::vector<MemoryDescPtr>& dstDescs,
-                          Precision ref1, Precision ref2, Precision ref3) -> bool {
-            if (srcDescs[0]->getPrecision() == ref1 &&
-                srcDescs[1]->getPrecision() == ref2 &&
-                dstDescs[0]->getPrecision() == ref3) {
-                return true;
+                          std::vector<Precision> srcVecPrc, Precision dstPrc) -> bool {
+            for (int i = 0; i < srcDescs.size(); i++) {
+                if (srcDescs[i]->getPrecision() != srcVecPrc[i]) return false;
             }
-            return false;
+            if (dstDescs[0]->getPrecision() != dstPrc) { return false; }
+            return true;
         };
         switch (eltwiseAttrs.algorithm) {
             case Algorithm::EltwiseIsFinite:
@@ -84,44 +83,44 @@ public:
             case Algorithm::EltwiseSwish:
             case Algorithm::EltwisePrelu:
             case Algorithm::EltwiseHswish:
-                if (!(checker(srcDescs, dstDescs, Precision::FP16, Precision::FP16, Precision::FP16) ||
-                      checker(srcDescs, dstDescs, Precision::FP32, Precision::FP32, Precision::FP32))) {
+                if (!(checker(srcDescs, dstDescs, {Precision::FP16, Precision::FP16}, Precision::FP16) ||
+                      checker(srcDescs, dstDescs, {Precision::FP32, Precision::FP32}, Precision::FP32))) {
                     return false;
                 } else { return true; }
             case Algorithm::EltwiseAbs:
             case Algorithm::EltwiseExp:
             case Algorithm::EltwiseLog:
-                if (!(checker(srcDescs, dstDescs, Precision::I32, Precision::I32, Precision::I32) ||
-                      checker(srcDescs, dstDescs, Precision::FP16, Precision::FP16, Precision::FP16) ||
-                      checker(srcDescs, dstDescs, Precision::FP32, Precision::FP32, Precision::FP32))) {
+                if (!(checker(srcDescs, dstDescs, {Precision::I32, Precision::I32}, Precision::I32) ||
+                      checker(srcDescs, dstDescs, {Precision::FP16, Precision::FP16}, Precision::FP16) ||
+                      checker(srcDescs, dstDescs, {Precision::FP32, Precision::FP32}, Precision::FP32))) {
                     return false;
                 } else { return true; }
             case Algorithm::EltwiseMaximum:
             case Algorithm::EltwiseMinimum:
             case Algorithm::EltwiseSquaredDifference:
-                if (!(checker(srcDescs, dstDescs, Precision::I16, Precision::I16, Precision::I16) ||
-                      checker(srcDescs, dstDescs, Precision::I32, Precision::I32, Precision::I32) ||
-                      checker(srcDescs, dstDescs, Precision::FP16, Precision::FP16, Precision::FP16) ||
-                      checker(srcDescs, dstDescs, Precision::FP32, Precision::FP32, Precision::FP32))) {
+                if (!(checker(srcDescs, dstDescs, {Precision::I16, Precision::I16}, Precision::I16) ||
+                      checker(srcDescs, dstDescs, {Precision::I32, Precision::I32}, Precision::I32) ||
+                      checker(srcDescs, dstDescs, {Precision::FP16, Precision::FP16}, Precision::FP16) ||
+                      checker(srcDescs, dstDescs, {Precision::FP32, Precision::FP32}, Precision::FP32))) {
                     return false;
                 } else { return true; }
             case Algorithm::EltwiseAdd:
             case Algorithm::EltwiseSubtract:
-                if (!(checker(srcDescs, dstDescs, Precision::U8, Precision::U8, Precision::U8) ||
-                      checker(srcDescs, dstDescs, Precision::I16, Precision::I16, Precision::I16) ||
-                      checker(srcDescs, dstDescs, Precision::I32, Precision::I32, Precision::I32) ||
-                      checker(srcDescs, dstDescs, Precision::FP16, Precision::FP16, Precision::FP16) ||
-                      checker(srcDescs, dstDescs, Precision::FP32, Precision::FP32, Precision::FP32))) {
+                if (!(checker(srcDescs, dstDescs, {Precision::U8, Precision::U8}, Precision::U8) ||
+                      checker(srcDescs, dstDescs, {Precision::I16, Precision::I16}, Precision::I16) ||
+                      checker(srcDescs, dstDescs, {Precision::I32, Precision::I32}, Precision::I32) ||
+                      checker(srcDescs, dstDescs, {Precision::FP16, Precision::FP16}, Precision::FP16) ||
+                      checker(srcDescs, dstDescs, {Precision::FP32, Precision::FP32}, Precision::FP32))) {
                     return false;
                 } else { return true; }
             case Algorithm::EltwiseMultiply:
-                if (!(checker(srcDescs, dstDescs, Precision::U8, Precision::U8, Precision::U8) ||
-                      checker(srcDescs, dstDescs, Precision::U8, Precision::U8, Precision::I16) ||
-                      checker(srcDescs, dstDescs, Precision::U8, Precision::I16, Precision::I16) ||
-                      checker(srcDescs, dstDescs, Precision::I16, Precision::U8, Precision::I16) ||
-                      checker(srcDescs, dstDescs, Precision::I16, Precision::I16, Precision::I16) ||
-                      checker(srcDescs, dstDescs, Precision::FP16, Precision::FP16, Precision::FP16) ||
-                      checker(srcDescs, dstDescs, Precision::FP32, Precision::FP32, Precision::FP32))) {
+                if (!(checker(srcDescs, dstDescs, {Precision::U8, Precision::U8}, Precision::U8) ||
+                      checker(srcDescs, dstDescs, {Precision::U8, Precision::U8}, Precision::I16) ||
+                      checker(srcDescs, dstDescs, {Precision::U8, Precision::I16}, Precision::I16) ||
+                      checker(srcDescs, dstDescs, {Precision::I16, Precision::U8}, Precision::I16) ||
+                      checker(srcDescs, dstDescs, {Precision::I16, Precision::I16}, Precision::I16) ||
+                      checker(srcDescs, dstDescs, {Precision::FP16, Precision::FP16}, Precision::FP16) ||
+                      checker(srcDescs, dstDescs, {Precision::FP32, Precision::FP32}, Precision::FP32))) {
                     return false;
                 } else { return true; }
             case Algorithm::EltwiseEqual:
@@ -130,11 +129,11 @@ public:
             case Algorithm::EltwiseGreaterEqual:
             case Algorithm::EltwiseLess:
             case Algorithm::EltwiseLessEqual:
-                if (!(checker(srcDescs, dstDescs, Precision::U8, Precision::U8, Precision::U8) ||
-                      checker(srcDescs, dstDescs, Precision::I16, Precision::I16, Precision::U8) ||
-                      checker(srcDescs, dstDescs, Precision::I32, Precision::I32, Precision::U8) ||
-                      checker(srcDescs, dstDescs, Precision::FP16, Precision::FP16, Precision::U8) ||
-                      checker(srcDescs, dstDescs, Precision::FP32, Precision::FP32, Precision::U8))) {
+                if (!(checker(srcDescs, dstDescs, {Precision::U8, Precision::U8}, Precision::U8) ||
+                      checker(srcDescs, dstDescs, {Precision::I16, Precision::I16}, Precision::U8) ||
+                      checker(srcDescs, dstDescs, {Precision::I32, Precision::I32}, Precision::U8) ||
+                      checker(srcDescs, dstDescs, {Precision::FP16, Precision::FP16}, Precision::U8) ||
+                      checker(srcDescs, dstDescs, {Precision::FP32, Precision::FP32}, Precision::U8))) {
                     return false;
                 } else { return true; }
             default:
