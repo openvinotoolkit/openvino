@@ -175,6 +175,7 @@ MO Python API supports passing TensorFlow/TensorFlow2 models directly from memor
 * ``tf.keras.Model``
 
 .. code-block:: python
+
    model = tf.keras.applications.ResNet50(weights="imagenet")
    ov_model = convert_model(model)
 
@@ -182,6 +183,7 @@ MO Python API supports passing TensorFlow/TensorFlow2 models directly from memor
 * ``tf.keras.layers.Layer``. Requires setting the "input_shape".
 
 .. code-block:: python
+
    import tensorflow_hub as hub
 
    model = hub.KerasLayer("https://tfhub.dev/google/imagenet/mobilenet_v1_100_224/classification/5")
@@ -190,6 +192,7 @@ MO Python API supports passing TensorFlow/TensorFlow2 models directly from memor
 * ``tf.Module``. Requires setting of "input_shape".
 
 .. code-block:: python
+
    class MyModule(tf.Module):
       def __init__(self, name=None):
          super().__init__(name=name)
@@ -204,6 +207,7 @@ MO Python API supports passing TensorFlow/TensorFlow2 models directly from memor
 * ``tf.compat.v1.GraphDef``
 
 .. code-block:: python
+
    with tf.compat.v1.Session() as sess:
       inp1 = tf.compat.v1.placeholder(tf.float32, [100], 'Input1')
       inp2 = tf.compat.v1.placeholder(tf.float32, [100], 'Input2')
@@ -216,6 +220,7 @@ MO Python API supports passing TensorFlow/TensorFlow2 models directly from memor
 * ``tf.compat.v1.wrap_function``
 
 .. code-block:: python
+
    def f(x, y):
       return tf.nn.sigmoid(tf.nn.relu(x + y))
    model = tf.compat.v1.wrap_function(f, [tf.TensorSpec((100), tf.float32),tf.TensorSpec((100), tf.float32)])
@@ -225,6 +230,7 @@ MO Python API supports passing TensorFlow/TensorFlow2 models directly from memor
 * ``tf.compat.v1.session``
 
 .. code-block:: python
+
    with tf.compat.v1.Session() as sess:
       inp1 = tf.compat.v1.placeholder(tf.float32, [100], 'Input1')
       inp2 = tf.compat.v1.placeholder(tf.float32, [100], 'Input2')
@@ -236,6 +242,7 @@ MO Python API supports passing TensorFlow/TensorFlow2 models directly from memor
 * ``tf.train.checkpoint``
 
 .. code-block:: python
+
    model = tf.keras.Model(...)
    checkpoint = tf.train.Checkpoint(model)
    save_path = checkpoint.save(save_directory)
@@ -246,6 +253,7 @@ MO Python API supports passing TensorFlow/TensorFlow2 models directly from memor
 * ``tf.python.training.tracking.base.Trackable``. Supported only in case of the ``tf.saved_model.load()`` output.
 
 .. code-block:: python
+
    model = tf.keras.Model(...)
    tf.saved_model.save(model, save_directory)
    # ... 

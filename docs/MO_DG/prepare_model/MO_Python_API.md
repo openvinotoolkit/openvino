@@ -6,7 +6,8 @@ Model Optimizer (MO) has a Python API for model conversion, which is represented
   ``convert_model()`` has all the functionality available from the command-line tool, plus the ability to pass Python model objects like Pytorch model or TensorFlow Keras model directly without saving it into files and without leaving the training environment (Jupyter Notebook or training scripts). As well as the input models consumed directly from Python, ``convert_model`` can take OpenVINO extension objects constructed directly in Python for easier conversion of operations that are not supported in OpenVINO (TODO: insert the link).
   ``convert_model()`` returns an openvino.runtime.Model object which can be compiled and inferred or serialized to IR.
 
-.. code-block:: python 
+.. code-block:: python
+
    from openvino.tools.mo import convert_model
 
    ov_model = convert_model("resnet.onnx")
@@ -14,6 +15,7 @@ Model Optimizer (MO) has a Python API for model conversion, which is represented
 MO Python API allows the conversion of PyTorch models.
 
 .. code-block:: python
+
    import torchvision
    
    model = torchvision.models.resnet50(pretrained=True)
@@ -25,9 +27,11 @@ The following types are supported as an input model for ``convert_model()``:
 * TensorFlow/ TensorFlow2 / Keras - ``tf.keras.Model``, ``tf.keras.layers.Layer``, ``tf.compat.v1.GraphDef``, ``tf.Module``, ``tf.compat.v1.wrap_function``, ``tf.compat.v1.session``, ``tf.train.checkpoint``, ``tf.python.training.tracking.base.Trackable``(with limitations). Refer to the :doc:`Converting a TensorFlow Model<openvino_docs_MO_DG_prepare_model_convert_model_Convert_Model_From_TensorFlow>` article for more details.
 
 ``convert_model()`` accepts all parameters available in the MO command-line tool. Parameters can be specified by Python classes or string analogs, similar to the command-line tool.
+
 Example 1:
 
 .. code-block:: python
+
    from openvino.runtime import PartialShape, Layout
    
    ov_model = convert_model(model, input_shape=PartialShape([1,3,100,100]), mean_values=[127, 127, 127], layout=Layout("NCHW"))
@@ -35,17 +39,20 @@ Example 1:
 Example 2:
 
 .. code-block:: python
+
    ov_model = convert_model(model, input_shape="[1,3,100,100]", mean_values="[127,127,127]", layout="NCHW")
 
 Command-line flags, like ``--compress_to_fp16``, can be set in the Python API by providing a boolean value (``True`` or ``False``).
 
-.. code-block:: python 
+.. code-block:: python
+
    ov_model = convert_model(model, compress_to_fp16=True)
 
 The ``input`` parameter can be set by a ``tuple`` with a name, shape, and type. The input name of the type string is required in the tuple. The shape and type are optional.
 The shape can be a ``list`` or ``tuple`` of dimensions (``int`` or ``openvino.runtime.Dimension``), or ``openvino.runtime.PartialShape``, or ``openvino.runtime.Shape``. The type can be of numpy type or ``openvino.runtime.Type``.
 
 .. code-block:: python
+
    ov_model = convert_model(model, input=("input_name", [3], np.float32))
 
 For complex cases, when a value needs to be set in the ``input`` parameter, the ``InputCutInfo`` class can be used. ``InputCutInfo`` accepts four parameters: ``name``, ``shape``, ``type``, and ``value``. 
@@ -58,6 +65,7 @@ Supported types for ``InputCutInfo``:
 - value: ``numpy.ndarray``, ``list`` of numeric values, ``bool``.
 
 .. code-block:: python
+
    from openvino.tools.mo import convert_model, InputCutInfo
    
    ov_model = convert_model(model, input=InputCutInfo("input_name", [3], np.float32, [0.5, 2.1, 3.4]))
@@ -73,11 +81,13 @@ Following parameters support lists:
 - scale_values
 
 .. code-block:: python
+
    ov_model = convert_model(model, input=[("input1", [1,3,100,100], np.float32), ("input2", [1,3,100,100], np.float32)], layout=[Layout("NCHW"), LayoutMap("NCHW", "NHWC")])
 
 ``layout``, ``source_layout`` and ``dest_layout`` accept an ``openvino.runtime.Layout`` object or ``string``.
 
 .. code-block:: python
+
    from openvino.runtime import Layout
    from openvino.tools.mo import convert_model
    
@@ -87,6 +97,7 @@ To set both source and destination layouts in the ``layout`` parameter, the ``La
 ``LayoutMap("NCHW", "NHWC")`` is equivalent to ``LayoutMap(source_layout="NCHW", target_layout="NHWC")``.
 
 .. code-block:: python
+
    from openvino.tools.mo import convert_model, LayoutMap
    
    ov_model = convert_model(model, layout=LayoutMap("NCHW", "NHWC"))
