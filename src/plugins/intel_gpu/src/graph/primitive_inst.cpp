@@ -846,7 +846,7 @@ memory::ptr primitive_inst::allocate_output(engine& _engine, memory_pool& pool, 
             allocation_type type, bool reusable, bool reset = true) {
         OPENVINO_ASSERT(!layout.is_dynamic() || layout.has_upper_bound(), "[GPU] Can't allocate output for dynamic layout without upper bound");
         // Use layout with max tensor for dynamic shape with upper bound
-        auto static_layout = cldnn::layout(layout.data_type, layout.format, layout.get_tensor(), layout.data_padding);
+        auto static_layout = cldnn::layout(layout.get_partial_shape().get_max_shape(), layout.data_type, layout.format, layout.data_padding);
         if (_node.get_program().get_config().get_property(ov::intel_gpu::enable_memory_pool))
             return pool.get_memory(static_layout, id, net_id, dependencies, type, reusable, reset);
         return pool.get_memory(static_layout, type, reset);
