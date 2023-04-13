@@ -64,6 +64,13 @@ ov::Any PluginConfig::get_property(const std::string& name) const {
     return internal_properties.at(name);
 }
 
+bool PluginConfig::is_batching_disabled() const {
+    if (user_properties.find(ov::hint::allow_auto_batching.name()) != user_properties.end()) {
+        return !user_properties.at(ov::hint::allow_auto_batching.name()).as<bool>();
+    }
+    return false;
+}
+
 bool PluginConfig::is_supported(const std::string& name) const {
     bool supported = internal_properties.find(name) != internal_properties.end();
     bool has_validator = property_validators.find(name) != property_validators.end();
@@ -73,11 +80,6 @@ bool PluginConfig::is_supported(const std::string& name) const {
 
 bool PluginConfig::is_set_by_user(const std::string& name) const {
     return user_properties.find(name) != user_properties.end();
-}
-ov::Any PluginConfig::get_user_property(const std::string& name) const {
-    OPENVINO_ASSERT(user_properties.find(name) != user_properties.end(), "[AUTO]", " not registered user property ", name);
-    if (user_properties.find(name) != user_properties.end())
-        return user_properties.at(name);
 }
 
 void PluginConfig::set_user_property(const ov::AnyMap& config) {

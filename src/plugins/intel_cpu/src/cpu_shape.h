@@ -194,7 +194,7 @@ public:
     }
 
     enum : Dim {
-        UNDEFINED_DIM = 0xffffffffffffffff
+        UNDEFINED_DIM = std::numeric_limits<Dim>::max()
     };
 
 private:

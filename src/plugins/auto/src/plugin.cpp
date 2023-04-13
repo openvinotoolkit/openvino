@@ -379,7 +379,6 @@ IExecutableNetworkInternal::Ptr MultiDeviceInferencePlugin::LoadNetworkImpl(cons
     if (priorities.find("AUTO") != std::string::npos || priorities.find("MULTI") != std::string::npos) {
         IE_THROW() << "The device candidate list should not include the meta plugin for " << GetName() << " device";
     }
-
     // check the configure and check if need to set PerfCounters configure to device
     // and set filter configure
     OV_ITT_SCOPED_TASK(itt::domains::MULTIPlugin, "MultiDeviceInferencePlugin::LoadNetworkImpl::AutoMode");
@@ -392,13 +391,7 @@ IExecutableNetworkInternal::Ptr MultiDeviceInferencePlugin::LoadNetworkImpl(cons
         autoSContext->_needPerfCounters = true;
     }
     autoSContext->_modelPriority = MapPriorityValues(loadConfig.get_property(ov::hint::model_priority));
-    // auto needs to implicitly hold the batching information, for later deducing of optimal infer requests
-    try {
-        if (!loadConfig.get_user_property(ov::hint::allow_auto_batching) )
-            autoSContext->_batchingDisabled = true;
-    } catch (ov::Exception& exception) {
-        // not any batching settings in user config, let it be
-    }
+    autoSContext->_batchingDisabled = loadConfig.is_batching_disabled();
     // set performanceHint for AutoExecutableNetwork
     autoSContext->_performanceHint = loadConfig.get_property(ov::hint::performance_mode.name()).as<std::string>();
     // filter the device that supports filter configure
