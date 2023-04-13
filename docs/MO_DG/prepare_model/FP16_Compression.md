@@ -2,10 +2,10 @@
 
 @sphinxdirective
 
-Model Optimizer can convert all floating-point weights to ``FP16`` data type. 
-The resulting IR is called compressed ``FP16`` model. The resulting model will occupy 
-about twice as less space in the file system, but it may have some accuracy drop. 
-For most models, the accuracy drop is negligible.
+Model Optimizer can convert all floating-point weights to the ``FP16`` data type. 
+It results in creating a "compressed ``FP16`` model", which occupies about half of 
+the original space in the file system. The compression may introduce a drop in accuracy.
+but it is negligible for most models.
 
 To compress the model, use the `--compress_to_fp16` or `--compress_to_fp16=True` option:
 
