@@ -211,12 +211,12 @@ if __name__=="__main__":
     rel_weights_dir = None
     if not args.rel_weights_dir is None:
         rel_weights_dir = Path(args.rel_weights_dir)
-        if not os.path.is_dir(rel_weights_dir):
+        if not rel_weights_dir.is_dir():
             logger.info(f"Create rel weight_dir: {rel_weights_dir}")
             os.mkdir(rel_weights_dir)
 
     for in_dir in args.input_dir:
-        if not Path(in_dir).is_dir:
+        if not Path(in_dir).is_dir():
             logger.error(f"Directory {in_dir} is not exist!")
             exit(-1)
         logger.info(f"Starting to rename models in {in_dir}")
