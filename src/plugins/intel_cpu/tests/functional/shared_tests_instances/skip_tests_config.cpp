@@ -253,7 +253,6 @@ std::vector<std::string> disabledTestPatterns() {
     retVector.emplace_back(R"(smoke_NegativeQuantizedMatMulMultiplyFusion.*)");
     retVector.emplace_back(R"(MultipleLSTMCellTest/MultipleLSTMCellTest.CompareWithRefs.*)");
     retVector.emplace_back(R"(smoke_MultipleAdd_Nd/MultiplyAddLayerTest.CompareWithRefs.*)");
-    retVector.emplace_back(R"(smoke_MVNMultiplyAdd_1D/MVNMultiplyAdd.CompareWithRefs.*)");
     retVector.emplace_back(R"(smoke_If/SimpleIfTest.CompareWithRefs.*)");
     retVector.emplace_back(R"(smoke_If/SimpleIfNotConstConditionTest.CompareWithRefs.*)");
 #endif
