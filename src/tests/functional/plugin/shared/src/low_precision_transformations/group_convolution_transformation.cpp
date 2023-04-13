@@ -60,7 +60,7 @@ std::string GroupConvolutionTransformation::getTestCaseName(const testing::TestP
         param.group << "_" <<
         param.groupCalculationDimention << "_" <<
         param.fakeQuantizeOnData << "_" <<
-        (param.addReshape ? "reshape_on_weights_" : "") <<
+        (param.addReshape ? "reshape_on_weights_" : "wo_reshape_") <<
         (addPrecisionPreserved ? "max_pool_" : "") <<
         param.fakeQuantizeOnWeights;
     return result.str();
@@ -108,6 +108,7 @@ void GroupConvolutionTransformation::Run() {
 }
 
 TEST_P(GroupConvolutionTransformation, CompareWithRefImpl) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED();
     Run();
 };
 
