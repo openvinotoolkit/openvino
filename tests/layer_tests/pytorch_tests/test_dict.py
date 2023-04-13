@@ -16,7 +16,7 @@ class TestDict(PytorchLayerTest):
     def create_model(self):
         class aten_dict(torch.nn.Module):
             def forward(self, x):                
-                return {"b": x, "a": x + x, "c": 2 * x}
+                return {"b": x, "a": x + x, "c": 2 * x}, x / 2
 
         return aten_dict(), None, "prim::DictConstruct"
 

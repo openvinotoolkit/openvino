@@ -28,7 +28,7 @@ bool DictResolver::run_on_model(const std::shared_ptr<Model>& model) {
                 // inputs must be divisible by 2
                 return false;
             }
-            OutputVector new_outputs;
+            ResultVector new_outputs;
             for (size_t i = 0; i < inputs.size(); i += 2) {
                 auto new_output = inputs.at(i + 1);
                 const auto name_node = inputs.at(i);
@@ -44,13 +44,21 @@ bool DictResolver::run_on_model(const std::shared_ptr<Model>& model) {
                 }
                 auto name = attrs.at("string_value");
                 new_output.add_names({name});
-                new_outputs.push_back(new_output);
+                new_outputs.push_back(std::make_shared<v0::Result>(new_output));
             }
-            // TODO: this may break the order of outputs if after dict more outputs exist 
-            model->remove_result(res);
-            for (const auto& out : new_outputs) {
-                model->add_output(out);
+            bool after_res = false;
+            for (const auto& result : results) {
+                if (after_res) {
+                    // To preserve output order remove results after this one and insert them after new outputs
+                    model->remove_result(result);
+                    new_outputs.push_back(result);
+                }
+                if (result == res) {
+                    after_res = true;
+                    model->remove_result(result);
+                }
             }
+            model->add_results(new_outputs);
             changed = true;
         }
     }
