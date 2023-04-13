@@ -6,12 +6,18 @@
 @sphinxdirective
 
 
-The CPU plugin is a part of the Intel® Distribution of OpenVINO™ toolkit. It is developed to achieve high performance inference of neural networks on Intel® x86-64 CPUs.
+The CPU plugin is a part of the Intel® Distribution of OpenVINO™ toolkit. It is developed to achieve high performance inference of neural networks on Intel® x86-64 and Arm® CPUs.
 For an in-depth description of CPU plugin, see:
 
 - `CPU plugin developers documentation <https://github.com/openvinotoolkit/openvino/blob/master/docs/dev/cmake_options_for_custom_comiplation.md>`__.
 - `OpenVINO Runtime CPU plugin source files <https://github.com/openvinotoolkit/openvino/tree/master/src/plugins/intel_cpu/>`__.
 
+.. note::
+   Arm® platform is supported on a community level. Intel® welcomes community participation in the OpenVINO™ ecosystem, 
+   as well as technical questions and code contributions on community forums. However, the CPU plugin on Arm® has not undergone 
+   full release validation or qualification from Intel®, hence no official support is offered. 
+   The scope of the CPU plugin features and optimizations on Arm® may differ from Intel® x86-64.
+   
 
 Device Name
 ###########################################################
@@ -315,7 +321,7 @@ Read-only properties
 External Dependencies
 ###########################################################
 For some performance-critical DL operations, the CPU plugin uses optimized implementations from the oneAPI Deep Neural Network Library 
-(`oneDNN <https://github.com/oneapi-src/oneDNN>`__).
+(`oneDNN <https://github.com/oneapi-src/oneDNN>`__) and (`Compute Library <https://github.com/ARM-software/ComputeLibrary>`__).
 
 .. dropdown:: The following operations are implemented using primitives from the OneDNN library:
 
@@ -335,6 +341,14 @@ For some performance-critical DL operations, the CPU plugin uses optimized imple
    * RNNCell
    * RNNSequence
    * SoftMax
+
+.. dropdown:: The following operations are implemented using primitives from the Compute Library:
+
+   * MatMul
+   * MVN
+   * Reduce
+   * Eltwise
+   * Pooling
 
 
 Optimization guide
