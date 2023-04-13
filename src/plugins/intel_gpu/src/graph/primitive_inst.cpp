@@ -706,10 +706,8 @@ void primitive_inst::allocate_internal_buffers(void) {
     // allocate intermediate memory for the updated layout of buffer
     std::vector<memory::cptr> intermediates_memory;
     for (size_t i = 0; i < ibuf_layouts.size(); ++i) {
-        if (ibuf_layouts[i].get_linear_size() == 0) {
-            max_intermediates_memory_sizes.push_back(0);
+        if (ibuf_layouts[i].get_linear_size() == 0)
             continue;
-        }
         intermediates_memory.push_back(allocate_internal_buffer(i));
         max_intermediates_memory_sizes.push_back(intermediates_memory[i]->size());
     }
