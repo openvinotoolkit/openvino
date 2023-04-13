@@ -6,6 +6,7 @@
 
 #include "../eltwise.hpp"
 #include "arm_compute/runtime/NEON/NEFunctions.h"
+#include "acl_utils.hpp"
 
 namespace ov {
 namespace intel_cpu {
