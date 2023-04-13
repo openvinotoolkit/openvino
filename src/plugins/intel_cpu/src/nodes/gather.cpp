@@ -10,7 +10,7 @@
 #include <ngraph/opsets/opset1.hpp>
 #include "common/cpu_memcpy.h"
 #include <utils/general_utils.h>
-#include "kernels/gather_uni_kernel.hpp"
+#include "kernels/x64/gather_uni_kernel.hpp"
 #include "utils/shape_inference/shape_inference_cpu.hpp"
 
 using namespace InferenceEngine;
@@ -205,6 +205,7 @@ void Gather::initSupportedPrimitiveDescriptors() {
 }
 
 void Gather::createPrimitive() {
+#if defined(OPENVINO_ARCH_X86_64)
     uint64_t idxElPerVec = 1;
     if (!isDynamicNode()) {
         idxElPerVec = x64::mayiuse(x64::avx512_core) ? x64::cpu_isa_traits<x64::avx512_core>::vlen / idxTypeSize :
@@ -269,7 +270,7 @@ void Gather::createPrimitive() {
             }
         }
     }
-
+#endif
     Node::createPrimitive();
 }
 
@@ -323,6 +324,7 @@ void Gather::prepareParams() {
         totalWork = beforeBatchSize * betweenBatchAndAxisSize * specIndicesSize * afterAxisSize;
     }
 
+#if defined(OPENVINO_ARCH_X86_64)
     const auto& selectedPD = getSelectedPrimitiveDescriptor();
     if (jitKernel && jitKernel->isSupportedConfiguration(afterAxisSize)) {
         if (x64::mayiuse(x64::avx512_core)) {
@@ -330,12 +332,12 @@ void Gather::prepareParams() {
         } else if (x64::mayiuse(x64::avx2)) {
             selectedPD->setImplementationType(jit_avx2);
         }
-    } else {
-        selectedPD->setImplementationType(ref_any);
     }
+#endif
 }
 
 void Gather::execute(dnnl::stream strm) {
+#if defined(OPENVINO_ARCH_X86_64)
     if (jitKernel && jitKernel->isSupportedConfiguration(afterAxisSize)) {
         const void* srcIndices = getParentEdgeAt(GATHER_INDICES)->getMemoryPtr()->GetPtr();
         const void* srcData = getParentEdgeAt(GATHER_DATA)->getMemoryPtr()->GetPtr();
@@ -383,12 +385,15 @@ void Gather::execute(dnnl::stream strm) {
         };
 
         parallel_nt(0, threadBody);
-    } else {
-        execReference();
+
+        return;
     }
+#endif
+    execReference();
 }
 
 void Gather::executeDynamicImpl(dnnl::stream strm) {
+#if defined(OPENVINO_ARCH_X86_64)
     if (jitKernel && jitKernel->isSupportedConfiguration(afterAxisSize)) {
         const void* srcIndices = getParentEdgeAt(GATHER_INDICES)->getMemoryPtr()->GetPtr();
         const void* srcData = getParentEdgeAt(GATHER_DATA)->getMemoryPtr()->GetPtr();
@@ -442,9 +447,11 @@ void Gather::executeDynamicImpl(dnnl::stream strm) {
         };
 
         parallel_nt(0, threadBody);
-    } else {
-        execReference();
+
+        return;
     }
+#endif
+    execReference();
 }
 
 void Gather::initShortParams(threadExecParams& p, const uint64_t start) {

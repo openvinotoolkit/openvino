@@ -2872,6 +2872,57 @@ TEST_P(conv_int8_asymmetric_data_and_weights, basic) {
     compare(network_not_fused, network_fused, p);
 }
 
+TEST_P(conv_int8_asymmetric_data_and_weights, eltwise) {
+    auto p = GetParam();
+    auto weights_format = (p.weights_format == format::goiyx) ? format::bfyx : format::bfzyx;
+    auto weights_layout = (p.groups > 1) ? get_weights_layout(p, weights_format) :
+                          get_weights_layout(p);
+    create_topologies(
+        input_layout("input", get_input_layout(p)),
+        data("weights1", get_mem(weights_layout)),
+        data("weights2", get_mem(weights_layout)),
+        eltwise("weights", { input_info("weights1"), input_info("weights2") }, eltwise_mode::sub, data_types::i8),
+        data("bias", get_mem(get_bias_layout(p))),
+        data("a_zp", get_mem(get_activations_zp_layout(p), 1, 127)),
+        data("w_zp", get_mem(get_weights_zp_layout(p), 1, 127)),
+        eltwise("a_sub", { input_info("input"), input_info("a_zp") }, eltwise_mode::sub, data_types::f32),
+        eltwise("w_sub", { input_info("weights"), input_info("w_zp") }, eltwise_mode::sub, data_types::f32),
+        convolution("conv_prim", input_info("a_sub"), { "w_sub" }, { "bias" }, p.groups, p.stride, p.pad, p.dilation, p.out_shape, data_types::f32, false),
+        reorder("reorder_bfyx", input_info("conv_prim"), p.default_format, data_types::f32)
+    );
+
+    tolerance = 1.f;
+
+    auto input_prim = get_mem(get_input_layout(p));
+    network network_not_fused(this->engine, this->topology_non_fused, cfg_not_fused);
+    network network_fused(this->engine, this->topology_fused, cfg_fused);
+    network_fused.set_input_data("input", input_prim);
+    network_not_fused.set_input_data("input", input_prim);
+
+    ASSERT_FALSE(network_fused.get_primitives_info().empty());
+    ASSERT_FALSE(network_not_fused.get_primitives_info().empty());
+
+    // Search for both conv_prim and reorder_bfyx, as in case of fused topology convolution will be merged with the last reorder
+    auto find_conv = [](primitive_info& p) -> bool {
+        if (p.original_id == "conv_prim" || p.original_id == "reorder_bfyx")
+            return true;
+        return false;
+    };
+
+    auto pi_fused = network_fused.get_primitives_info();
+    auto pi_not_fused = network_not_fused.get_primitives_info();
+    auto info_fused = std::find_if(pi_fused.begin(), pi_fused.end(), find_conv);
+    auto info_not_fused = std::find_if(pi_not_fused.begin(), pi_not_fused.end(), find_conv);
+
+    ASSERT_TRUE(info_fused != pi_fused.end());
+    ASSERT_TRUE(info_not_fused != pi_not_fused.end());
+
+    ASSERT_EQ(info_fused->c_dependencies.size(), 5lu);  // input + weights + bias + a_zp + w_zp + comp
+    ASSERT_EQ(info_not_fused->c_dependencies.size(), 3lu);  // input + weights + bias
+
+    compare(network_not_fused, network_fused, p);
+}
+
 INSTANTIATE_TEST_SUITE_P(fusings_gpu, conv_int8_asymmetric_data_and_weights, ::testing::ValuesIn(std::vector<convolution_test_params>{
     convolution_test_params{ CASE_CONV_U8S8_1, 2, 2, 3 },
     convolution_test_params{ CASE_CONV_U8S8_2, 2, 2, 3 },
