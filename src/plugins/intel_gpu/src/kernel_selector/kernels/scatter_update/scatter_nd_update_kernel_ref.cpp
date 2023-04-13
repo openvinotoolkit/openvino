@@ -169,6 +169,7 @@ KernelsData ScatterNDUpdateKernelRef::GetKernelsData(const Params& params, const
             auto dispatchData = SetDefault(prim_params, (i == 1));
             kd.kernels[i].params.workGroups.global = dispatchData.gws;
             kd.kernels[i].params.workGroups.local = dispatchData.lws;
+            kd.kernels[i].skip_execution = KernelData::SkipKernelExecution(prim_params);
         }
     };
 

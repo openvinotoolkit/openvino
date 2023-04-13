@@ -13,6 +13,8 @@
 #include <vector>
 #include <iostream>
 
+#include "primitive_inst.h"
+
 using namespace cldnn;
 using namespace ::tests;
 
@@ -40,14 +42,20 @@ TEST(multistream_gpu, basic) {
     topology.add(shape_of("shape_of", input_info("fc"), 3, data_types::i32));
 
     auto prog_ptr = program::build_program(engine, topology, config);
+    auto &node = prog_ptr->get_node("shape_of");
+    auto strm = node.get_kernel_impl_params()->get_stream_ptr();
+    ASSERT_EQ(prog_ptr->get_stream_ptr(), strm);
+
     std::vector<network::ptr> networks;
+    std::vector<stream::ptr> streams;
     for (size_t i = 0; i < num_streams; i++) {
         networks.push_back(network::allocate_network(engine, prog_ptr));
+        streams.push_back(networks[i]->get_stream_ptr());
     }
 
     std::vector<InferenceEngine::Task> tasks;
     for (size_t i = 0; i < num_streams; i++) {
-        tasks.push_back([&networks, i, &engine] {
+        tasks.push_back([&networks, &streams, i, &engine] {
             auto cfg = get_test_default_config(engine);
             auto stream = engine.create_stream(cfg);
             auto net = networks[i];
@@ -60,6 +68,10 @@ TEST(multistream_gpu, basic) {
                 net->set_input_data("input2", input2_mem);
 
                 auto outputs = net->execute();
+
+                auto inst = net->get_primitive("shape_of");
+                auto strm = inst->get_impl_params()->get_stream_ptr();
+                ASSERT_EQ(streams[i], strm);
 
                 auto output = outputs.at("shape_of").get_memory();
                 cldnn::mem_lock<int32_t> output_ptr(output, *stream);

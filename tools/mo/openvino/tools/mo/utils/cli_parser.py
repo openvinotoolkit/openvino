@@ -13,6 +13,7 @@ from pathlib import Path
 from operator import xor
 from typing import List, Union
 import numbers
+import inspect
 
 import numpy as np
 from openvino.runtime import Layout, PartialShape, Dimension, Shape, Type
@@ -21,10 +22,10 @@ import openvino
 from openvino.tools.mo.front.extractor import split_node_in_port
 from openvino.tools.mo.middle.passes.convert_data_type import destination_type_to_np_data_type
 from openvino.tools.mo.middle.passes.convert_data_type import np_data_type_to_destination_type
-from openvino.tools.mo.utils import import_extensions
 from openvino.tools.mo.utils.error import Error
 from openvino.tools.mo.utils.utils import refer_to_faq_msg, get_mo_root_dir
 from openvino.tools.mo.utils.version import get_version
+from openvino.tools.mo.utils.help import get_convert_model_help_specifics, get_to_string_methods_for_params
 
 
 def extension_path_to_str_or_extensions_class(extension):
@@ -46,7 +47,7 @@ def transformations_config_to_str(value):
 
 def extensions_to_str_or_extensions_class(extensions):
     if extensions is None:
-        return [import_extensions.default_path()]
+        return None
     extensions_list = []
     if isinstance(extensions, str):
         extensions_list = extensions.split(',')
@@ -415,300 +416,67 @@ def transform_param_to_str(value):
 
 
 ParamDescription = namedtuple("ParamData",
-                              ["description", "possible_types_command_line", "possible_types_python_api", "to_string"])
-mo_convert_params = {
-    'optional':
-    {
-    'help': ParamDescription(
-        'Print available parameters.', '', '', None),
-    'framework': ParamDescription(
-        'Name of the framework used to train the input model.', '', '', None),
-    },
-    'fw_agnostic':
-    {
-    'input_model': ParamDescription(
-        '{} Tensorflow*: a file with a pre-trained model ' +
-        ' (binary or text .pb file after freezing).\n' +
-        ' Caffe*: a model proto file with model weights', '',
-        'Model object in original framework (PyTorch, Tensorflow) or path to model file. \n' +
-        'Supported object formats of input model:\n PyTorch - torch.nn.Module, torch.jit.ScriptModule, torch.jit.ScriptFunction' +
-        'TF - tf.compat.v1.GraphDef, tf.compat.v1.wrap_function, tf.compat.v1.session\n ' +
-        'TF2 / Keras - tf.keras.Model, tf.keras.layers.Layer, tf.function, tf.Module, tf.train.checkpoint, ' +
-        'tf.python.training.tracking.base.Trackable for case when it is output from tf.saved_model.load().\n' +
-        'File formats examples:\n',
-        path_to_str_or_object),
-    'model_name': ParamDescription(
-        'Model_name parameter passed to the final create_ir transform. ' +
-        'This parameter is used to name ' +
-        'a network in a generated IR and output .xml/.bin files.', '', '', None),
-    'input_shape': ParamDescription(
-        'Input shape(s) that should be fed to an input node(s) of the model. {}'
-        'Shape is defined as a comma-separated list of integer numbers enclosed in '
-        'parentheses or square brackets, for example [1,3,227,227] or (1,227,227,3), where '
-        'the order of dimensions depends on the framework input layout of the model. '
-        'For example, [N,C,H,W] is used for ONNX* models and [N,H,W,C] for TensorFlow* '
-        'models. The shape can contain undefined dimensions (? or -1) and '
-        'should fit the dimensions defined in the input '
-        'operation of the graph. Boundaries of undefined dimension can be specified with '
-        'ellipsis, for example [1,1..10,128,128]. One boundary can be undefined, for '
-        'example [1,..100] or [1,3,1..,1..]. If there are multiple inputs in the model, '
-        '--input_shape should contain definition of shape for each input separated by a '
-        'comma, for example: [1,3,227,227],[2,4] for a model with two inputs with 4D and 2D '
-        'shapes. Alternatively, specify shapes with the --input option.', '',
-        'Input shapes can be defined by passing a list of objects of type '
-        'PartialShape, Shape, [Dimension, ...] or [int, ...] or by a string '
-        'of the following format. ', input_shape_to_str),
-    'scale': ParamDescription(
-        'All input values coming from original network inputs will be ' +
-        'divided by this ' +
-        'value. When a list of inputs is overridden by the --input ' +
-        'parameter, this scale ' +
-        'is not applied for any input that does not match with ' +
-        'the original input of the model. ' +
-        'If both --mean_values and --scale  are specified, ' +
-        'the mean is subtracted first and then scale is applied ' +
-        'regardless of the order of options in command line.', '', '', None),
-    'reverse_input_channels': ParamDescription(
-        'Switch the input channels order from RGB to BGR (or vice versa). Applied to '
-        'original inputs of the model if and only if a number of channels equals 3. '
-        'When --mean_values/--scale_values are also specified, reversing of channels will '
-        'be applied to user\'s input data first, so that numbers in --mean_values '
-        'and --scale_values go in the order of channels used in the original model. '
-        'In other words, if both options are specified, then the data flow in the model '
-        'looks as following: '
-        'Parameter -> ReverseInputChannels -> Mean apply-> Scale apply -> the original body of the model.',
-        '', '', None),
-    'log_level': ParamDescription(
-        'Logger level', '', '', None),
-    'input': ParamDescription(
-        '{}Quoted list of comma-separated input nodes names with shapes, data types, '
-        'and values for freezing. The order of inputs in converted model is the same as '
-        'order of specified operation names. The shape and value are specified as comma-separated '
-        'lists. The data type of input node is specified in braces and '
-        'can have one of the values: f64 (float64), f32 (float32), f16 (float16), '
-        'i64 (int64), i32 (int32), u8 (uint8), boolean (bool). Data type is optional. '
-        'If it\'s not specified explicitly then there are two options: '
-        'if input node is a parameter, data type is taken from the original node dtype, '
-        'if input node is not a parameter, data type is set to f32. '
-        'Example, to set `input_1` with shape [1,100], and Parameter node `sequence_len` '
-        'with scalar input with value `150`, and boolean input `is_training` with '
-        '`False` value use the following format: '
-        '"input_1[1,100],sequence_len->150,is_training->False". '
-        'Another example, use the following format to set input port 0 of the node '
-        '`node_name1` with the shape [3,4] as an input node and freeze output port 1 '
-        'of the node `node_name2` with the value [20,15] of the int32 type and shape [2]: '
-        '"0:node_name1[3,4],node_name2:1[2]{{i32}}->[20,15]".', '',
-        'Input can be set by passing a list of InputCutInfo objects or by a list of tuples. '
-        'Each tuple should contain input name and optionally input type or input shape. '
-        'Example: input=("op_name", PartialShape([-1, 3, 100, 100]), Type(np.float32)). '
-        'Alternatively input can be set by a string or list of strings of the following format. ',
-        input_to_str),
-    'output': ParamDescription(
-        'The name of the output operation of the model or list of names. ' +
-        'For TensorFlow*, do not add :0 to this name.'
-        'The order of outputs in converted model is the same as order of '
-        'specified operation names.', '', '', str_list_to_str),
-    'mean_values': ParamDescription(
-        'Mean values to be used for the input image per channel. {}' +
-        'Values to be provided in the (R,G,B) or [R,G,B] format. ' +
-        'Can be defined for desired input of the model, for example: ' +
-        '"--mean_values data[255,255,255],info[255,255,255]". ' +
-        'The exact meaning and order ' +
-        'of channels depend on how the original model was trained.', '',
-        'Mean values can be set by passing a dictionary, '
-        'where key is input name and value is mean value. '
-        'For example mean_values={\'data\':[255,255,255],\'info\':[255,255,255]}. '
-        'Or mean values can be set by a string of the following format. ',
-        mean_scale_value_to_str),
-    'scale_values': ParamDescription(
-        'Scale values to be used for the input image per channel. {}' +
-        'Values are provided in the (R,G,B) or [R,G,B] format. ' +
-        'Can be defined for desired input of the model, for example: ' +
-        '"--scale_values data[255,255,255],info[255,255,255]". ' +
-        'The exact meaning and order ' +
-        'of channels depend on how the original model was trained. ' +
-        'If both --mean_values and --scale_values are specified, ' +
-        'the mean is subtracted first and then scale is applied ' +
-        'regardless of the order of options in command line.', '',
-        'Scale values can be set by passing a dictionary, '
-        'where key is input name and value is scale value. '
-        'For example scale_values={\'data\':[255,255,255],\'info\':[255,255,255]}. '
-        'Or scale values can be set by a string of the following format. ',
-        mean_scale_value_to_str),
-    'source_layout': ParamDescription(
-        'Layout of the input or output of the model in the framework. {}Layout can'
-        ' be specified in the short form, e.g. nhwc, or in complex form, e.g. "[n,h,w,c]".'
-        ' Example for many names: '
-        '"in_name1([n,h,w,c]),in_name2(nc),out_name1(n),out_name2(nc)". Layout can be '
-        'partially defined, "?" can be used to specify undefined layout for one dimension, '
-        '"..." can be used to specify undefined layout for multiple dimensions, for example '
-        '"?c??", "nc...", "n...c", etc.', '',
-        'Layout can be set by passing a dictionary, where key is input name and value is '
-        'LayoutMap object. Or layout can be set by string of the following format. ',
-        source_target_layout_to_str),
-    'target_layout': ParamDescription(
-        'Same as --source_layout, but specifies target layout that will be in the model '
-        'after processing by ModelOptimizer.', '', '', source_target_layout_to_str),
-    'layout': ParamDescription(
-        'Combination of --source_layout and --target_layout. Can\'t be used with either of '
-        'them. If model has one input it is sufficient to specify layout of this input, for'
-        ' example --layout nhwc. To specify layouts of many tensors, names must be provided,'
-        ' for example: --layout "name1(nchw),name2(nc)". It is possible to instruct '
-        'ModelOptimizer to change layout, for example: '
-        '--layout "name1(nhwc->nchw),name2(cn->nc)". Also "*" in long layout form can be'
-        ' used to fuse dimensions, for example "[n,c,...]->[n*c,...]".', '', '', layout_param_to_str),
-    'compress_to_fp16': ParamDescription(
-        'If the original model has FP32 weights or biases, they are compressed to FP16. '
-        'All intermediate data is kept in original precision. Option can be specified alone as "--compress_to_fp16", '
-        'or explicit True/False values can be set, for example: "--compress_to_fp16=False", or "--compress_to_fp16=True"',
-        '', '', None),
-    'transform': ParamDescription(
-        'Apply additional transformations. {}' +
-        '"--transform transformation_name1[args],transformation_name2..." ' +
-        'where [args] is key=value pairs separated by semicolon. ' +
-        'Examples:' +
-        '          "--transform LowLatency2" or \n' +
-        '          "--transform Pruning" or \n' +
-        '          "--transform LowLatency2[use_const_initializer=False]" or \n' +
-        '          "--transform \"MakeStateful[param_res_names=\n'
-        '{{\'input_name_1\':\'output_name_1\',\'input_name_2\':\'output_name_2\'}}]\"" ' +
-        'Available transformations: "LowLatency2", "MakeStateful", "Pruning"', 'Usage: ',
-        '\'transform\' can be set by a list of tuples, where the first element is '
-        'transform name and the second element is transform parameters. '
-        'For example: [(\'LowLatency2\', {{\'use_const_initializer\': False}}), ...]',
-        transform_param_to_str),
-    'extensions': ParamDescription(
-        "{} For the legacy MO path (if `--use_legacy_frontend` is used), "
-        "a directory or a comma-separated list of directories with extensions are supported. "
-        "To disable all extensions including those that are placed at the default location, "
-        "pass an empty string.",
-        "Paths or a comma-separated list of paths to libraries (.so or .dll) with extensions.",
-        "Paths to libraries (.so or .dll) with extensions, comma-separated list of paths, "
-        "objects derived from BaseExtension class or lists of objects.",
-        extensions_to_str_or_extensions_class),
-    'batch': ParamDescription(
-        'Input batch size', '', '', batch_to_int),
-    'silent': ParamDescription(
-        'Prevent any output messages except those that correspond to log level equals '
-        'ERROR, that can be set with the following option: --log_level. '
-        'By default, log level is already ERROR. ', '', '', None),
-    'version': ParamDescription(
-        "Version of Model Optimizer", '', '', None
-    ),
-    'static_shape': ParamDescription(
-        'Enables IR generation for fixed input shape (folding `ShapeOf` operations and '
-        'shape-calculating sub-graphs to `Constant`). Changing model input shape using '
-        'the OpenVINO Runtime API in runtime may fail for such an IR.', '', '', None),
-    'progress': ParamDescription(
-        'Enable model conversion progress display.', '', '', None),
-    'stream_output': ParamDescription(
-        'Switch model conversion progress display to a multiline mode.', '', '', None),
-    'transformations_config': ParamDescription(
-        'Use the configuration file with transformations '
-        'description{}. Transformations file can be specified as relative path '
-        'from the current directory, as absolute path or as a'
-        'relative path from the mo root directory.', '',
-        ' or pass object derived from BaseExtension class.',
-        transformations_config_to_str),
-    'use_new_frontend': ParamDescription(
-        'Force the usage of new Frontend of Model Optimizer for model conversion into IR. '
-        'The new Frontend is C++ based and is available for ONNX* and PaddlePaddle* models. '
-        'Model optimizer uses new Frontend for ONNX* and PaddlePaddle* by default that means '
-        '`--use_new_frontend` and `--use_legacy_frontend` options are not specified.', '', '', None),
-    'use_legacy_frontend': ParamDescription(
-        'Force the usage of legacy Frontend of Model Optimizer for model conversion into IR. '
-        'The legacy Frontend is Python based and is available for TensorFlow*, ONNX*, MXNet*, '
-        'Caffe*, and Kaldi* models.', '', '', None),
-    },
-    "caffe":
-    {
-    'input_proto': ParamDescription(
-        'Deploy-ready prototxt file that contains a topology structure ' +
-        'and layer attributes', '', '', path_to_str),
-    'caffe_parser_path': ParamDescription(
-        'Path to Python Caffe* parser generated from caffe.proto', '', '',
-        path_to_str),
-    'k': ParamDescription(
-        'Path to CustomLayersMapping.xml to register custom layers', '', '', path_to_str),
-    'disable_omitting_optional': ParamDescription(
-        'Disable omitting optional attributes to be used for custom layers. ' +
-        'Use this option if you want to transfer all attributes of a custom layer to IR. ' +
-        'Default behavior is to transfer the attributes with default values '
-        'and the attributes defined by the user to IR.',
-        '', '', None),
-    'enable_flattening_nested_params': ParamDescription(
-        'Enable flattening optional params to be used for custom layers. ' +
-        'Use this option if you want to transfer attributes of a custom layer to IR with flattened nested parameters. ' +
-        'Default behavior is to transfer the attributes without flattening nested parameters.', '', '', None),
-    },
-    "tf":
-    {
-    'input_model_is_text': ParamDescription(
-        'TensorFlow*: treat the input model file as a text protobuf format. If not specified, ' +
-        'the Model Optimizer treats it as a binary file by default.', '', '', None),
-    'input_checkpoint': ParamDescription(
-        'TensorFlow*: variables file to load.', '', '', path_to_str),
-    'input_meta_graph': ParamDescription(
-        'Tensorflow*: a file with a meta-graph of the model before freezing', '', '',
-        path_to_str),
-    'saved_model_dir': ParamDescription(
-        'TensorFlow*: directory with a model in SavedModel format '
-        'of TensorFlow 1.x or 2.x version.', '', '', path_to_str),
-    'saved_model_tags': ParamDescription(
-        "Group of tag(s) of the MetaGraphDef to load, in string format, separated by ','. "
-        "For tag-set contains multiple tags, all tags must be passed in.", '', '', str_list_to_str),
-    'tensorflow_custom_operations_config_update': ParamDescription(
-        'TensorFlow*: update the configuration file with node name patterns with input/output '
-        'nodes information.', '', '', path_to_str),
-    'tensorflow_object_detection_api_pipeline_config': ParamDescription(
-        'TensorFlow*: path to the pipeline configuration file used to generate model created '
-        'with help of Object Detection API.', '', '', path_to_str),
-    'tensorboard_logdir': ParamDescription(
-        'TensorFlow*: dump the input graph to a given directory that should be used with TensorBoard.', '', '',
-        path_to_str),
-    'tensorflow_custom_layer_libraries': ParamDescription(
-        'TensorFlow*: comma separated list of shared libraries with TensorFlow* custom '
-        'operations implementation.', '', '', path_to_str),
-    },
-    "mxnet":
-    {
-    'input_symbol': ParamDescription(
-        'Symbol file (for example, model-symbol.json) that contains a topology structure ' +
-        'and layer attributes', '', '', path_to_str),
-    'nd_prefix_name': ParamDescription(
-        "Prefix name for args.nd and argx.nd files.", '', '', None),
-    'pretrained_model_name': ParamDescription(
-        "Name of a pretrained MXNet model without extension and epoch number. "
-        "This model will be merged with args.nd and argx.nd files",
-        '', '', None),
-    'save_params_from_nd': ParamDescription(
-        "Enable saving built parameters file from .nd files", '', '', None),
-    'legacy_mxnet_model': ParamDescription(
-        "Enable MXNet loader to make a model compatible with the latest MXNet version. "
-        "Use only if your model was trained with MXNet version lower than 1.0.0",
-        '', '', None),
-    'enable_ssd_gluoncv': ParamDescription(
-        "Enable pattern matchers replacers for converting gluoncv ssd topologies.",
-        '', '', None),
-    },
-    "kaldi":
-    {
-    'counts': ParamDescription(
-        "Path to the counts file", '', '', path_to_str),
-    'remove_output_softmax': ParamDescription(
-        "Removes the SoftMax layer that is the output layer", '', '', None),
-    'remove_memory': ParamDescription(
-        "Removes the Memory layer and use additional inputs outputs instead", '', '',
-        None),
-    },
-    "pytorch":
-    {
-    'example_input': ParamDescription('Sample of model input in original framework. '
-                                       'For PyTorch it can be torch.Tensor.', '', '', None),
-    'onnx_opset_version': ParamDescription('Version of ONNX opset that is used for converting from PyTorch to ONNX.',
-                                           '', '', None),
-    }
-}
+                              ["description", "cli_tool_description", "to_string"])
+
+
+def get_mo_convert_params():
+    mo_convert_docs = openvino.tools.mo.convert_model.__doc__
+    mo_convert_params = {}
+    group = "Optional parameters:"
+    mo_convert_params[group] = {}
+
+    mo_convert_docs = mo_convert_docs[:mo_convert_docs.find('Returns:')]
+
+    while len(mo_convert_docs) > 0:
+        param_idx1 = mo_convert_docs.find(":param")
+        if param_idx1 == -1:
+            break
+        param_idx2 = mo_convert_docs.find(":", param_idx1+1)
+        param_name = mo_convert_docs[param_idx1+len(':param '):param_idx2]
+
+        param_description_idx = mo_convert_docs.find(":param", param_idx2+1)
+        param_description = mo_convert_docs[param_idx2+1: param_description_idx]
+
+        group_name_idx = param_description.rfind('\n\n')
+        group_name = ''
+        if group_name_idx != -1:
+            group_name = param_description[group_name_idx:].strip()
+
+        param_description = param_description[:group_name_idx]
+        param_description = param_description.strip()
+
+        mo_convert_params[group][param_name] = ParamDescription(param_description, "", None)
+
+        mo_convert_docs = mo_convert_docs[param_description_idx:]
+
+        if group_name != '':
+            mo_convert_params[group_name] = {}
+            group = group_name
+
+    # TODO: remove this when internal converting of params to string is removed
+    params_converted_to_string = get_to_string_methods_for_params()
+
+    params_with_paths = get_params_with_paths_list()
+    cli_tool_specific_descriptions = get_convert_model_help_specifics()
+
+    for group_name, param_group in mo_convert_params.items():
+        for param_name, d in param_group.items():
+            to_str_method = None
+            if param_name in params_converted_to_string:
+                to_str_method = params_converted_to_string[param_name]
+            elif param_name in params_with_paths:
+                to_str_method = path_to_str
+
+            cli_tool_description = None
+            if param_name in cli_tool_specific_descriptions:
+                cli_tool_description = cli_tool_specific_descriptions[param_name]
+
+            desc = ParamDescription(d.description,
+                                    cli_tool_description,
+                                    to_str_method)
+            mo_convert_params[group_name][param_name] = desc
+
+    return mo_convert_params
 
 
 class DeprecatedStoreTrue(argparse.Action):
@@ -945,16 +713,70 @@ def writable_dir(path: str):
             raise Error('The directory "{}" is not writable'.format(cur_path))
 
 
+def add_args_by_description(args_group, params_description):
+    signature = inspect.signature(openvino.tools.mo.convert_model)
+    filepath_args = get_params_with_paths_list()
+    cli_tool_specific_descriptions = get_convert_model_help_specifics()
+    for param_name, param_description in params_description.items():
+        if param_name == 'help':
+            continue
+        cli_param_name = "--"+param_name
+        if cli_param_name not in args_group._option_string_actions:
+            # Get parameter specifics
+            param_specifics = cli_tool_specific_descriptions[param_name] if param_name in \
+                                                                            cli_tool_specific_descriptions else {}
+            help_text = param_specifics['description'] if 'description' in param_specifics \
+                else param_description.description
+            action = param_specifics['action'] if 'action' in param_specifics else None
+            param_type = param_specifics['type'] if 'type' in param_specifics else None
+            param_alias = param_specifics['aliases'] if 'aliases' in param_specifics else {}
+            param_version = param_specifics['version'] if 'version' in param_specifics else None
+            param_choices = param_specifics['choices'] if 'choices' in param_specifics else None
+
+            # Bool params common setting
+            if signature.parameters[param_name].annotation == bool and param_name != 'version':
+                args_group.add_argument(
+                    cli_param_name, *param_alias,
+                    type=check_bool if param_type is None else param_type,
+                    nargs="?",
+                    const=True,
+                    help=help_text,
+                    default=signature.parameters[param_name].default)
+            # File paths common setting
+            elif param_name in filepath_args:
+                action = action if action is not None else CanonicalizePathCheckExistenceAction
+                args_group.add_argument(
+                    cli_param_name, *param_alias,
+                    type=str if param_type is None else param_type,
+                    action=action,
+                    help=help_text,
+                    default=signature.parameters[param_name].default)
+            # Other params
+            else:
+                additional_params = {}
+                if param_version is not None:
+                    additional_params['version'] = param_version
+                if param_type is not None:
+                    additional_params['type'] = param_type
+                if param_choices is not None:
+                    additional_params['choices'] = param_choices
+                args_group.add_argument(
+                    cli_param_name, *param_alias,
+                    help=help_text,
+                    default=signature.parameters[param_name].default,
+                    action=action,
+                    **additional_params
+                )
+
+
 def get_common_cli_parser(parser: argparse.ArgumentParser = None):
     if not parser:
         parser = argparse.ArgumentParser()
     common_group = parser.add_argument_group('Framework-agnostic parameters')
-    mo_convert_params_common = mo_convert_params['fw_agnostic']
-    # Common parameters
-    common_group.add_argument('--input_model', '-w', '-m',
-                              help=mo_convert_params_common['input_model'].description,
-                              action=CanonicalizePathCheckExistenceAction,
-                              type=readable_file_or_dir)
+    mo_convert_params = get_mo_convert_params()
+    mo_convert_params_common = mo_convert_params['Framework-agnostic parameters:']
+
+    # Command line tool specific params
     common_group.add_argument('--model_name', '-n',
                               help='Model_name parameter passed to the final create_ir transform. ' +
                                    'This parameter is used to name ' +
@@ -965,90 +787,8 @@ def get_common_cli_parser(parser: argparse.ArgumentParser = None):
                               default=get_absolute_path('.'),
                               action=CanonicalizePathAction,
                               type=writable_dir)
-    common_group.add_argument('--input_shape',
-                              help=mo_convert_params_common['input_shape'].description.format(
-                                  mo_convert_params_common['input_shape'].possible_types_command_line))
-    common_group.add_argument('--scale', '-s',
-                              type=float,
-                              help='All input values coming from original network inputs will be ' +
-                                   'divided by this ' +
-                                   'value. When a list of inputs is overridden by the --input ' +
-                                   'parameter, this scale ' +
-                                   'is not applied for any input that does not match with ' +
-                                   'the original input of the model.' +
-                                   'If both --mean_values and --scale  are specified, ' +
-                                   'the mean is subtracted first and then scale is applied ' +
-                                   'regardless of the order of options in command line.')
-    common_group.add_argument('--reverse_input_channels',
-                              help='Switch the input channels order from RGB to BGR (or vice versa). Applied to '
-                                   'original inputs of the model if and only if a number of channels equals 3. '
-                                   'When --mean_values/--scale_values are also specified, reversing of channels will '
-                                   'be applied to user\'s input data first, so that numbers in --mean_values '
-                                   'and --scale_values go in the order of channels used in the original model. '
-                                   'In other words, if both options are specified, then the data flow in the model '
-                                   'looks as following: Parameter -> ReverseInputChannels -> Mean apply-> Scale apply -> the original body of the model.',
-                              action='store_true')
-    common_group.add_argument('--log_level',
-                              help='Logger level',
-                              choices=['CRITICAL', 'ERROR', 'WARN', 'WARNING', 'INFO',
-                                       'DEBUG', 'NOTSET'],
-                              default='ERROR')
-    common_group.add_argument('--input',
-                              help=mo_convert_params_common['input'].description.format(
-                                  mo_convert_params_common['input'].possible_types_command_line))
-    common_group.add_argument('--output',
-                              help=mo_convert_params_common['output'].description.format(
-                                  mo_convert_params_common['output'].possible_types_command_line))
-    common_group.add_argument('--mean_values', '-ms',
-                              help=mo_convert_params_common['mean_values'].description.format(
-                                  mo_convert_params_common['mean_values'].possible_types_command_line),
-                              default=())
-    common_group.add_argument('--scale_values',
-                              help=mo_convert_params_common['scale_values'].description.format(
-                                  mo_convert_params_common['scale_values'].possible_types_command_line),
-                              default=())
-    common_group.add_argument('--source_layout',
-                              help=mo_convert_params_common['source_layout'].description.format(
-                                  mo_convert_params_common['source_layout'].possible_types_command_line),
-                              default=())
-    common_group.add_argument('--target_layout',
-                              help=mo_convert_params_common['target_layout'].description.format(
-                                  mo_convert_params_common['target_layout'].possible_types_command_line),
-                              default=())
-    common_group.add_argument('--layout',
-                              help=mo_convert_params_common['layout'].description.format(
-                                  mo_convert_params_common['layout'].possible_types_command_line),
-                              default=())
-    common_group.add_argument('--compress_to_fp16',
-                              help=mo_convert_params_common['compress_to_fp16'].description,
-                              type=check_bool,
-                              nargs="?",
-                              const=True,
-                              default=True)
-    common_group.add_argument('--transform',
-                              help=mo_convert_params_common['transform'].description.format(
-                                  mo_convert_params_common['transform'].possible_types_command_line),
-                              default="")
-    # we use CanonicalizeDirCheckExistenceAction instead of readable_dirs to handle empty strings
-    common_group.add_argument("--extensions",
-                              help=mo_convert_params_common['extensions'].description.format(
-                                  mo_convert_params_common['extensions'].possible_types_command_line),
-                              default=[import_extensions.default_path()],
-                              action=CanonicalizeExtensionsPathCheckExistenceAction,
-                              type=readable_dirs_or_files_or_empty)
-    common_group.add_argument("--batch", "-b",
-                              type=check_positive,
-                              default=None,
-                              help=mo_convert_params_common['batch'].description)
-    common_group.add_argument("--version",
-                              action='version',
-                              version='Version of Model Optimizer is: {}'.format(get_version()),
-                              help=mo_convert_params_common['version'].description)
 
-    common_group.add_argument('--silent',
-                              help=mo_convert_params_common['silent'].description,
-                              type=check_bool,
-                              default=True)
+    # Deprecated params
     common_group.add_argument('--freeze_placeholder_with_value',
                               help='Replaces input layer with constant node with '
                                    'provided value, for example: "node_name->True". '
@@ -1056,24 +796,22 @@ def get_common_cli_parser(parser: argparse.ArgumentParser = None):
                                    'Use --input option to specify a value for freezing.',
                               default=None)
     common_group.add_argument('--static_shape',
-                              help=mo_convert_params_common['static_shape'].description,
+                              help='Enables IR generation for fixed input shape (folding `ShapeOf` operations and '
+                                   'shape-calculating sub-graphs to `Constant`). Changing model input shape using '
+                                   'the OpenVINO Runtime API in runtime may fail for such an IR.',
                               action='store_true', default=False)
-    common_group.add_argument('--progress',
-                              help=mo_convert_params_common['progress'].description,
-                              action='store_true', default=False)
-    common_group.add_argument('--stream_output',
-                              help=mo_convert_params_common['stream_output'].description,
-                              action='store_true', default=False)
-    common_group.add_argument('--transformations_config',
-                              help=mo_convert_params_common['transformations_config'].description.format(
-                                  mo_convert_params_common['transformations_config'].possible_types_command_line),
-                              action=CanonicalizeTransformationPathCheckExistenceAction)
     common_group.add_argument("--use_new_frontend",
-                              help=mo_convert_params_common['use_new_frontend'].description,
+                              help='Force the usage of new Frontend of Model Optimizer for model conversion into IR. '
+                                   'The new Frontend is C++ based and is available for ONNX* and PaddlePaddle* models. '
+                                   'Model optimizer uses new Frontend for ONNX* and PaddlePaddle* by default that means '
+                                   '`--use_new_frontend` and `--use_legacy_frontend` options are not specified.',
                               action='store_true', default=False)
     common_group.add_argument("--use_legacy_frontend",
-                              help=mo_convert_params_common['use_legacy_frontend'].description,
+                              help='Force the usage of legacy Frontend of Model Optimizer for model conversion into IR. '
+                                   'The legacy Frontend is Python based and is available for TensorFlow*, ONNX*, MXNet*, '
+                                   'Caffe*, and Kaldi* models.',
                               action='store_true', default=False)
+    add_args_by_description(common_group, mo_convert_params_common)
     return parser
 
 
@@ -1181,32 +919,8 @@ def get_caffe_cli_parser(parser: argparse.ArgumentParser = None):
         get_common_cli_parser(parser=parser)
 
     caffe_group = parser.add_argument_group('Caffe*-specific parameters')
-    mo_convert_params_caffe = mo_convert_params['caffe']
-
-    caffe_group.add_argument('--input_proto', '-d',
-                             help=mo_convert_params_caffe['input_proto'].description,
-                             type=str,
-                             action=CanonicalizePathCheckExistenceAction)
-    caffe_group.add_argument('--caffe_parser_path',
-                             help=mo_convert_params_caffe['caffe_parser_path'].description,
-                             type=str,
-                             default=os.path.join(os.path.dirname(__file__), os.pardir, 'front', 'caffe', 'proto'),
-                             action=CanonicalizePathCheckExistenceAction)
-    caffe_group.add_argument('-k',
-                             help=mo_convert_params_caffe['k'].description,
-                             type=str,
-                             default=os.path.join(os.path.dirname(__file__), os.pardir, os.pardir, 'extensions',
-                                                  'front', 'caffe',
-                                                  'CustomLayersMapping.xml'),
-                             action=CanonicalizePathCheckExistenceAction)
-    caffe_group.add_argument('--disable_omitting_optional',
-                             help=mo_convert_params_caffe['disable_omitting_optional'].description,
-                             action='store_true',
-                             default=False)
-    caffe_group.add_argument('--enable_flattening_nested_params',
-                             help=mo_convert_params_caffe['enable_flattening_nested_params'].description,
-                             action='store_true',
-                             default=False)
+    mo_convert_params_caffe = get_mo_convert_params()['Caffe*-specific parameters:']
+    add_args_by_description(caffe_group, mo_convert_params_caffe)
     return parser
 
 
@@ -1221,39 +935,10 @@ def get_tf_cli_parser(parser: argparse.ArgumentParser = None):
     if not parser:
         parser = argparse.ArgumentParser(usage='%(prog)s [options]')
         get_common_cli_parser(parser=parser)
-    mo_convert_params_tf = mo_convert_params['tf']
+    mo_convert_params_tf = get_mo_convert_params()['TensorFlow*-specific parameters:']
 
     tf_group = parser.add_argument_group('TensorFlow*-specific parameters')
-    tf_group.add_argument('--input_model_is_text',
-                          help=mo_convert_params_tf['input_model_is_text'].description,
-                          action='store_true')
-    tf_group.add_argument('--input_checkpoint', type=str, default=None,
-                          help=mo_convert_params_tf['input_checkpoint'].description,
-                          action=CanonicalizePathCheckExistenceAction)
-    tf_group.add_argument('--input_meta_graph',
-                          help=mo_convert_params_tf['input_meta_graph'].description,
-                          action=CanonicalizePathCheckExistenceAction,
-                          type=readable_file)
-    tf_group.add_argument('--saved_model_dir', default=None,
-                          help=mo_convert_params_tf['saved_model_dir'].description,
-                          action=CanonicalizePathCheckExistenceAction,
-                          type=readable_dirs)
-    tf_group.add_argument('--saved_model_tags', type=str, default=None,
-                          help=mo_convert_params_tf['saved_model_tags'].description)
-    tf_group.add_argument('--tensorflow_custom_operations_config_update',
-                          help=mo_convert_params_tf['tensorflow_custom_operations_config_update'].description,
-                          action=CanonicalizePathCheckExistenceAction)
-    tf_group.add_argument('--tensorflow_object_detection_api_pipeline_config',
-                          help=mo_convert_params_tf['tensorflow_object_detection_api_pipeline_config'].description,
-                          action=CanonicalizePathCheckExistenceAction)
-    tf_group.add_argument('--tensorboard_logdir',
-                          help=mo_convert_params_tf['tensorboard_logdir'].description,
-                          default=None,
-                          action=CanonicalizePathCheckExistenceAction)
-    tf_group.add_argument('--tensorflow_custom_layer_libraries',
-                          help=mo_convert_params_tf['tensorflow_custom_layer_libraries'].description,
-                          default=None,
-                          action=CanonicalizePathCheckExistenceAction)
+    add_args_by_description(tf_group, mo_convert_params_tf)
     return parser
 
 
@@ -1269,29 +954,9 @@ def get_mxnet_cli_parser(parser: argparse.ArgumentParser = None):
         parser = argparse.ArgumentParser(usage='%(prog)s [options]')
         get_common_cli_parser(parser=parser)
 
-    mx_group = parser.add_argument_group('Mxnet-specific parameters')
-    mo_convert_params_mxnet = mo_convert_params['mxnet']
-
-    mx_group.add_argument('--input_symbol',
-                          help=mo_convert_params_mxnet['input_symbol'].description,
-                          type=str,
-                          action=CanonicalizePathCheckExistenceAction)
-    mx_group.add_argument("--nd_prefix_name",
-                          help=mo_convert_params_mxnet['nd_prefix_name'].description,
-                          default=None)
-    mx_group.add_argument("--pretrained_model_name",
-                          help=mo_convert_params_mxnet['pretrained_model_name'].description,
-                          default=None)
-    mx_group.add_argument("--save_params_from_nd",
-                          action='store_true',
-                          help=mo_convert_params_mxnet['save_params_from_nd'].description)
-    mx_group.add_argument("--legacy_mxnet_model",
-                          action='store_true',
-                          help=mo_convert_params_mxnet['legacy_mxnet_model'].description)
-    mx_group.add_argument("--enable_ssd_gluoncv",
-                          action='store_true',
-                          help=mo_convert_params_mxnet['enable_ssd_gluoncv'].description,
-                          default=False)
+    mx_group = parser.add_argument_group('MXNet-specific parameters')
+    mo_convert_params_mxnet = get_mo_convert_params()['MXNet-specific parameters:']
+    add_args_by_description(mx_group, mo_convert_params_mxnet)
 
     return parser
 
@@ -1309,22 +974,8 @@ def get_kaldi_cli_parser(parser: argparse.ArgumentParser = None):
         get_common_cli_parser(parser=parser)
 
     kaldi_group = parser.add_argument_group('Kaldi-specific parameters')
-    mo_convert_params_kaldi = mo_convert_params['kaldi']
-
-    kaldi_group.add_argument("--counts",
-                             help=mo_convert_params_kaldi['counts'].description,
-                             default=None,
-                             action=CanonicalizePathCheckExistenceIfNeededAction)
-
-    kaldi_group.add_argument("--remove_output_softmax",
-                             help=mo_convert_params_kaldi['remove_output_softmax'].description,
-                             action='store_true',
-                             default=False)
-
-    kaldi_group.add_argument("--remove_memory",
-                             help=mo_convert_params_kaldi['remove_memory'].description,
-                             action='store_true',
-                             default=False)
+    mo_convert_params_kaldi = get_mo_convert_params()['Kaldi-specific parameters:']
+    add_args_by_description(kaldi_group, mo_convert_params_kaldi)
     return parser
 
 
@@ -1343,7 +994,7 @@ def get_onnx_cli_parser(parser: argparse.ArgumentParser = None):
     return parser
 
 
-def get_all_cli_parser(frontEndManager=None):
+def get_all_cli_parser():
     """
     Specifies cli arguments for Model Optimizer
 
@@ -1352,17 +1003,10 @@ def get_all_cli_parser(frontEndManager=None):
         ArgumentParser instance
     """
     parser = argparse.ArgumentParser(usage='%(prog)s [options]')
-
-    frameworks = list(set(['tf', 'caffe', 'mxnet', 'kaldi', 'onnx'] +
-                          (get_available_front_ends(frontEndManager) if frontEndManager else [])))
-
-    parser.add_argument('--framework',
-                        help='Name of the framework used to train the input model.',
-                        type=str,
-                        choices=frameworks)
+    mo_convert_params_optional = get_mo_convert_params()['Optional parameters:']
+    add_args_by_description(parser, mo_convert_params_optional)
 
     get_common_cli_parser(parser=parser)
-
     get_tf_cli_parser(parser=parser)
     get_caffe_cli_parser(parser=parser)
     get_mxnet_cli_parser(parser=parser)
@@ -2264,7 +1908,6 @@ def depersonalize(value: str, key: str):
     dir_keys = [
         'output_dir', 'extensions', 'saved_model_dir', 'tensorboard_logdir', 'caffe_parser_path'
     ]
-
     if isinstance(value, list):
         updated_value = []
         for elem in value:
