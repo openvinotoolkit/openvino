@@ -26,8 +26,8 @@ Class Fields
 
 The example class has several fields:
 
-* `m_name` - Device name.
-* `m_property` - Device-specific context properties. It can be used to cast RemoteContext to device specific type.
+* ``m_name`` - Device name.
+* ``m_property`` - Device-specific context properties. It can be used to cast RemoteContext to device specific type.
 
 RemoteContext Constructor
 +++++++++++++++++++++++++

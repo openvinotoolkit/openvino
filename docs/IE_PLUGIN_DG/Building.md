@@ -23,21 +23,21 @@ Once the commands above are executed, the OpenVINO Developer Package is generate
 
    - Libraries for plugin development:
 
-      * ``openvino::runtime`` - shared OpenVINO library
-      * ``openvino::runtime::dev`` - interface library with OpenVINO Developer API
-      * ``openvino::pugixml`` - static Pugixml library
-      * ``openvino::xbyak`` - interface library with Xbyak headers
-      * ``openvino::itt`` - static library with tools for performance measurement using Intel ITT
+   * ``openvino::runtime`` - shared OpenVINO library
+   * ``openvino::runtime::dev`` - interface library with OpenVINO Developer API
+   * ``openvino::pugixml`` - static Pugixml library
+   * ``openvino::xbyak`` - interface library with Xbyak headers
+   * ``openvino::itt`` - static library with tools for performance measurement using Intel ITT
 
    - Libraries for tests development:
 
-      * ``openvino::gtest``, ``openvino::gtest_main``, ``openvino::gmock`` - Google Tests framework libraries
-      * ``openvino::commonTestUtils`` - static library with common tests utilities 
-      * ``openvino::funcTestUtils`` - static library with functional tests utilities 
-      * ``openvino::unitTestUtils`` - static library with unit tests utilities 
-      * ``openvino::ngraphFunctions`` - static library with the set of ``ov::Model`` builders
-      * ``openvino::funcSharedTests`` - static library with common functional tests
-      * ``openvino::ngraph_reference`` - static library with operation reference implementations.
+   * ``openvino::gtest``, ``openvino::gtest_main``, ``openvino::gmock`` - Google Tests framework libraries
+   * ``openvino::commonTestUtils`` - static library with common tests utilities 
+   * ``openvino::funcTestUtils`` - static library with functional tests utilities 
+   * ``openvino::unitTestUtils`` - static library with unit tests utilities 
+   * ``openvino::ngraphFunctions`` - static library with the set of ``ov::Model`` builders
+   * ``openvino::funcSharedTests`` - static library with common functional tests
+   * ``openvino::ngraph_reference`` - static library with operation reference implementations.
 
 .. note::  
    
@@ -83,9 +83,9 @@ To build a plugin and its tests, run the following CMake scripts:
    :language: cpp
    :fragment: [cmake:plugin]
 
-   .. note::  
+.. note::  
       
-      ``openvino::...`` targets are imported from the OpenVINO Developer Package.
+   ``openvino::...`` targets are imported from the OpenVINO Developer Package.
 
 * ``tests/functional/CMakeLists.txt`` to build a set of functional plugin tests:
 
@@ -93,9 +93,9 @@ To build a plugin and its tests, run the following CMake scripts:
    :language: cpp
    :fragment: [cmake:functional_tests]
 
-   .. note::  
+.. note::  
       
-      The ``openvino::funcSharedTests`` static library with common functional OpenVINO Plugin tests is imported via the OpenVINO Developer Package.
+   The ``openvino::funcSharedTests`` static library with common functional OpenVINO Plugin tests is imported via the OpenVINO Developer Package.
 
 @endsphinxdirective
 

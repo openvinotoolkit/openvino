@@ -42,8 +42,8 @@ OpenVINO Plugin API provides the interface ov::IRemoteTensor which should be use
 
 The example implementation have two remote tensor classes:
 
-   * Internal type dependent implementation which has as an template argument the vector type and create the type specific tensor.
-   * The type independent implementation which works with type dependent tensor inside.
+* Internal type dependent implementation which has as an template argument the vector type and create the type specific tensor.
+* The type independent implementation which works with type dependent tensor inside.
 
 Based on that, an implementation of a type independent remote tensor class can look as follows:
 

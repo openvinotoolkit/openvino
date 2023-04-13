@@ -6,7 +6,7 @@ OpenVINO tests infrastructure provides a predefined set of functional tests and 
 All the tests are written in the `Google Test C++ framework <https://github.com/google/googletest>`__.
 
 OpenVINO Plugin tests are included in the ``openvino::funcSharedTests`` CMake target which is built within the OpenVINO repository
-(see [Build Plugin Using CMake](@ref openvino_docs_ov_plugin_dg_plugin_build) guide). This library contains tests definitions (the tests bodies) which can be parametrized and instantiated in plugins depending on whether a plugin supports a particular feature, specific sets of parameters for test on supported operation set and so on.
+(see :doc:`Build Plugin Using CMake <openvino_docs_ov_plugin_dg_plugin_build>` guide). This library contains tests definitions (the tests bodies) which can be parametrized and instantiated in plugins depending on whether a plugin supports a particular feature, specific sets of parameters for test on supported operation set and so on.
 
 Test definitions are split into tests class declaration (see ``src/tests/functional/plugin/shared/include``) and tests class implementation (see ``src/tests/functional/plugin/shared/src``) and include the following scopes of plugin conformance tests:
 
