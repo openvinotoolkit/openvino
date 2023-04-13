@@ -292,24 +292,27 @@ For more details, see the :doc:`preprocessing API<openvino_docs_OV_UG_Preprocess
 Model Caching
 +++++++++++++++++++++++++++++++++++++++
 
-Cache for the GPU plugin may be enabled via the common OpenVINO ``ov::cache_dir`` property. GPU plugin implementation supports only caching of compiled kernels, so all plugin-specific model transformations are executed on each ``ov::Core::compile_model()`` call regardless of the ``cache_dir`` option.
-Still, since kernel compilation is a bottleneck in the model loading process, a significant load time reduction can be achieved with the ``ov::cache_dir`` property enabled.
+Model Caching helps reduce application startup delays by exporting and reusing 
+the compiled model automatically. The cache for the GPU plugin may be enabled 
+via the common OpenVINO ``ov::cache_dir`` property. 
 
-.. note::
+This means that all plugin-specific model transformations are executed on each ``ov::Core::compile_model()`` 
+call, regardless of the ``ov::cache_dir`` option. Still, since kernel compilation is a bottleneck in the model 
+loading process, a significant load time reduction can be achieved.
+Currently, GPU plugin implementation fully supports static models only. For dynamic models,
+kernel caching is used instead and multiple ‘.cl_cache’ files are generated along with the ‘.blob’ file. 
 
-   Full model caching support is currently implemented as a preview feature. To activate it, set the OV_GPU_CACHE_MODEL environment variable to 1.
-
-For more details, see the :doc:`Model caching overview<openvino_docs_OV_UG_Model_caching_overview>`.
+For more details, see the :doc:`Model caching overview <openvino_docs_OV_UG_Model_caching_overview>`.
 
 Extensibility
 +++++++++++++++++++++++++++++++++++++++
 
-For information on this subject, see the :doc:`GPU Extensibility<openvino_docs_Extensibility_UG_GPU>`.
+For information on this subject, see the :doc:`GPU Extensibility <openvino_docs_Extensibility_UG_GPU>`.
 
 GPU Context and Memory Sharing via RemoteTensor API
 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
-For information on this subject, see the :doc:`RemoteTensor API of GPU Plugin<openvino_docs_OV_UG_supported_plugins_GPU_RemoteTensor_API>`.
+For information on this subject, see the :doc:`RemoteTensor API of GPU Plugin <openvino_docs_OV_UG_supported_plugins_GPU_RemoteTensor_API>`.
 
 Supported Properties
 #######################################
@@ -373,18 +376,18 @@ GPU Performance Checklist: Summary
 Since OpenVINO relies on the OpenCL kernels for the GPU implementation, many general OpenCL tips apply:
 
 -	Prefer ``FP16`` inference precision over ``FP32``, as Model Optimizer can generate both variants, and the ``FP32`` is the default. To learn about optimization options, see :doc:`Optimization Guide<openvino_docs_model_optimization_guide>`.
-- Try to group individual infer jobs by using :doc:`automatic batching<openvino_docs_OV_UG_Automatic_Batching>`.
--	Consider :doc:`caching<openvino_docs_OV_UG_Model_caching_overview>` to minimize model load time.
--	If your application performs inference on the CPU alongside the GPU, or otherwise loads the host heavily, make sure that the OpenCL driver threads do not starve. :doc:`CPU configuration options<openvino_docs_OV_UG_supported_plugins_CPU>` can be used to limit the number of inference threads for the CPU plugin.
--	Even in the GPU-only scenario, a GPU driver might occupy a CPU core with spin-loop polling for completion. If CPU load is a concern, consider the dedicated ``queue_throttle`` property mentioned previously. Note that this option may increase inference latency, so consider combining it with multiple GPU streams or :doc:`throughput performance hints<openvino_docs_OV_UG_Performance_Hints>`.
-- When operating media inputs, consider :doc:`remote tensors API of the GPU Plugin<openvino_docs_OV_UG_supported_plugins_GPU_RemoteTensor_API>`.
+- Try to group individual infer jobs by using :doc:`automatic batching <openvino_docs_OV_UG_Automatic_Batching>`.
+-	Consider :doc:`caching <openvino_docs_OV_UG_Model_caching_overview>` to minimize model load time.
+-	If your application performs inference on the CPU alongside the GPU, or otherwise loads the host heavily, make sure that the OpenCL driver threads do not starve. :doc:`CPU configuration options <openvino_docs_OV_UG_supported_plugins_CPU>` can be used to limit the number of inference threads for the CPU plugin.
+-	Even in the GPU-only scenario, a GPU driver might occupy a CPU core with spin-loop polling for completion. If CPU load is a concern, consider the dedicated ``queue_throttle`` property mentioned previously. Note that this option may increase inference latency, so consider combining it with multiple GPU streams or :doc:`throughput performance hints <openvino_docs_OV_UG_Performance_Hints>`.
+- When operating media inputs, consider :doc:`remote tensors API of the GPU Plugin <openvino_docs_OV_UG_supported_plugins_GPU_RemoteTensor_API>`.
 
 
 Additional Resources
 #######################################
 
-* :doc:`Supported Devices<openvino_docs_OV_UG_supported_plugins_Supported_Devices>`.
-* :doc:`Optimization guide<openvino_docs_deployment_optimization_guide_dldt_optimization_guide>`.
+* :doc:`Supported Devices <openvino_docs_OV_UG_supported_plugins_Supported_Devices>`.
+* :doc:`Optimization guide <openvino_docs_deployment_optimization_guide_dldt_optimization_guide>`.
 * `GPU plugin developers documentation <https://github.com/openvinotoolkit/openvino/blob/master/src/plugins/intel_gpu/README.md>`__
 
 
