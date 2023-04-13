@@ -143,18 +143,24 @@ struct CPUStreamsExecutor::Impl {
             if (concurrency <= 0) {
                 return;
             }
-            if (_impl->_config._proc_type_table[0][EFFICIENT_CORE_PROC] > 0 && _impl->_config._cpu_pinning) {
-#    ifdef _WIN32
+            if (_impl->_config._orig_proc_type_table[0][EFFICIENT_CORE_PROC] > 0) {
                 const auto selected_core_type =
                     (cpu_core_type == MAIN_CORE_PROC || cpu_core_type == HYPER_THREADING_PROC)
                         ? custom::info::core_types().back()
                         : custom::info::core_types().front();
-                _taskArena.reset(new custom::task_arena{custom::task_arena::constraints{}
-                                                            .set_core_type(selected_core_type)
-                                                            .set_max_concurrency(concurrency)});
+                if (_impl->_config._cpu_pinning) {
+#    ifdef _WIN32
+                    _taskArena.reset(new custom::task_arena{custom::task_arena::constraints{}
+                                                                .set_core_type(selected_core_type)
+                                                                .set_max_concurrency(concurrency)});
 #    else
-                _taskArena.reset(new custom::task_arena{concurrency});
+                    _taskArena.reset(new custom::task_arena{concurrency});
 #    endif
+                } else {
+                    _taskArena.reset(new custom::task_arena{custom::task_arena::constraints{}
+                                                                .set_core_type(selected_core_type)
+                                                                .set_max_concurrency(concurrency)});
+                }
             } else if (_impl->_config._proc_type_table.size() > 1 && !_impl->_config._cpu_pinning) {
                 _taskArena.reset(new custom::task_arena{custom::task_arena::constraints{_numaNodeId, concurrency}});
             } else {
@@ -320,6 +326,7 @@ struct CPUStreamsExecutor::Impl {
         } else {
             _usedNumaNodes = numaNodes;
         }
+        _config._streams = _config._streams == 0 ? 1 : _config._streams;
 #if (OV_THREAD == OV_THREAD_TBB || OV_THREAD == OV_THREAD_TBB_AUTO)
         if (!is_cpu_map_available() && ThreadBindingType::HYBRID_AWARE == config._threadBindingType) {
             const auto core_types = custom::info::core_types();

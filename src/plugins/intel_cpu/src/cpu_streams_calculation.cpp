@@ -255,8 +255,10 @@ void get_num_streams(const int streams,
     std::string log = "[ streams info ]";
     std::vector<std::string> core_type_str = {" Any core: ", " PCore: ", " ECore: ", " Logical core: "};
 
-    std::vector<std::vector<int>> proc_type_table = get_num_available_cpu_cores();
-    proc_type_table = apply_scheduling_core_type(config.schedulingCoreType, proc_type_table);
+    std::vector<std::vector<int>> orig_proc_type_table = get_num_available_cpu_cores();
+    executor_config._orig_proc_type_table = orig_proc_type_table;
+    std::vector<std::vector<int>> proc_type_table =
+        apply_scheduling_core_type(config.schedulingCoreType, orig_proc_type_table);
     proc_type_table = apply_hyper_threading(config.enableHyperThreading, config.changedHyperThreading, proc_type_table);
     executor_config._proc_type_table = proc_type_table;
     executor_config._cpu_pinning = get_cpu_pinning(config.enableCpuPinning,
@@ -270,6 +272,7 @@ void get_num_streams(const int streams,
                                                                  config.perfHintsConfig.ovPerfHintNumRequests,
                                                                  model_prefer,
                                                                  proc_type_table);
+    executor_config._threadsPerStream = executor_config._streams_info_table[0][THREADS_PER_STREAM];
     executor_config._streams = 0;
     executor_config._threads = 0;
     for (int i = 0; i < executor_config._streams_info_table.size(); i++) {

@@ -85,7 +85,7 @@ public:
         static void update_hybrid_custom_threads(Config& config);
 
         std::string _name;          //!< Used by `ITT` to name executor threads
-        int _streams = 1;           //!< Number of streams.
+        int _streams = 0;           //!< Number of streams.
         int _threadsPerStream = 0;  //!< Number of threads per stream that executes `ov_parallel` calls
         ThreadBindingType _threadBindingType = ThreadBindingType::NONE;  //!< Thread binding to hardware resource type.
                                                                          //!< No binding by default
@@ -103,6 +103,7 @@ public:
         bool _enable_hyper_thread = true;   //!< enable hyper thread
         bool _set_streams = false;
         int _plugin_task = NOT_USED;
+        std::vector<std::vector<int>> _orig_proc_type_table;
         std::vector<std::vector<int>> _proc_type_table;
         std::vector<std::vector<int>> _streams_info_table;
         std::vector<int> _stream_ids;
