@@ -4,7 +4,6 @@ var ov = require('./lib/ov_node_addon.node');;
 const math = require('./lib/math_func.js');
 const Jimp = require('jimp');
 const fs = require('fs');
-const imagenet_classes = fs.readFileSync('./imagenet_2012_labels.txt').toString().split("\n");
 
 async function onRuntimeInitialized()
 {
@@ -41,7 +40,8 @@ async function onRuntimeInitialized()
     const output = model.compile("CPU").infer(tensor);
 
     //show the results
-    console.log("Result: " + imagenet_classes[math.argMax(output.data) - 1]);
+    const { default: imagenetClassesMap } = await import('../assets/imagenet_classes_map.mjs');
+    console.log("Result: " + imagenetClassesMap[math.argMax(output.data)]);
 }
 
 

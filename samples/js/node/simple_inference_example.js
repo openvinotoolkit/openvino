@@ -4,11 +4,12 @@ var ov = require('./lib/ov_node_addon.node');;
 const math = require('./lib/math_func.js');
 const Jimp = require('jimp');
 const fs = require('fs');
-const imagenet_classes = fs.readFileSync('./imagenet_2012_labels.txt').toString().split("\n");
+
 
 
 async function onRuntimeInitialized()
 {
+    
     /*   ---Load an image---   */
     //read image from a file
     const img_path = process.argv[2] || '../assets/images/shih_tzu.jpg';
@@ -29,12 +30,15 @@ async function onRuntimeInitialized()
     const output = model.infer(tensor);
 
     //show the results
-    console.log("Result: " + imagenet_classes[math.argMax(output.data) - 1]);
+    const { default: imagenetClassesMap } = await import('../assets/imagenet_classes_map.mjs');
+    console.log("Result: " + imagenetClassesMap[math.argMax(output.data)]);
     console.log(math.argMax(output.data));
 }
 
 
 Module = {
+    
     onRuntimeInitialized
 };
 cv = require('./lib/opencv.js');
+

@@ -2,7 +2,6 @@ var ov = require('./lib/ov_node_addon.node');;
 
 
 const fs = require('fs');
-const imagenet_classes = fs.readFileSync('./imagenet_2012_labels.txt').toString().split("\n");
 const math = require('./lib/math_func.js');
 const Jimp = require('jimp');
 
@@ -22,6 +21,7 @@ async function create_tensor(img_path) {
 
 async function onRuntimeInitialized()
 {
+    const { default: imagenetClassesMap } = await import('../assets/imagenet_classes_map.mjs');
     const img_path = process.argv[2] || '../assets/images/shih_tzu.jpg';
     const model_path = '../assets/models/v3-small_224_1.0_float.xml';
     const core = new ov.Core();
@@ -36,7 +36,7 @@ async function onRuntimeInitialized()
     Promise.all([model_promise, tensor_promise]).then(([model, tensor]) => {
         const output = model.compile("CPU").infer(tensor);
         //show the results
-        console.log("Result: " + imagenet_classes[math.argMax(output.data) - 1]);
+        console.log("Result: " + imagenetClassesMap[math.argMax(output.data)]);
     });
 
 }
