@@ -281,7 +281,7 @@ class TorchScriptPythonDecoder (Decoder):
         return decoder
 
     def get_op_type(self) -> str:
-        assert isinstance(self.graph_element, torch.Node)
+        assert isinstance(self.graph_element, torch.Node), "Function can be called only when self.graph_element is of type torch.Node"
         return self.graph_element.kind()
 
     def get_schema(self) -> str:
@@ -380,7 +380,7 @@ class TorchScriptPythonDecoder (Decoder):
     def _transform_tensor_list_constants_to_listconstruct(graph: torch.Graph):
         # Function replaces prim::Constant containing List of Tensors with
         # prim::ListConstruct containing prim::Constant Tensors.
-        assert isinstance(graph, torch.Graph)
+        assert isinstance(graph, torch.Graph), "Function can be called only with parameters of type torch.Graph."
         for node in graph.nodes():
             if node.kind() != "prim::Constant":
                 continue
@@ -408,7 +408,7 @@ class TorchScriptPythonDecoder (Decoder):
     def _transform_optional_constants(graph: torch.Graph):
         # Function replaces prim::Constant containing torch.OptionalType with
         # prim::Constant containing torch.NoneType or type of IValue.
-        assert isinstance(graph, torch.Graph)
+        assert isinstance(graph, torch.Graph), "Function can be called only with parameters of type torch.Graph."
         for node in graph.nodes():
             if node.kind() != "prim::Constant":
                 continue
