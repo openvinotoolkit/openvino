@@ -381,7 +381,7 @@ TEST_P(gemm_2in_add, eltwise_postop_cached) {
     );
 
     tolerance = default_tolerance(p.default_type);
-    execute(p, false);
+    execute(p, false, true);
 }
 
 INSTANTIATE_TEST_SUITE_P(fusings_gpu, gemm_2in_add, ::testing::ValuesIn(std::vector<gemm_test_params>{
