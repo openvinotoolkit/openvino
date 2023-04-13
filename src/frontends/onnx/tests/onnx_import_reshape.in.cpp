@@ -367,6 +367,18 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_squeeze) {
     test_case.run();
 }
 
+NGRAPH_TEST(${BACKEND_NAME}, onnx_model_squeeze_empty_axes_attribute) {
+    auto function = onnx_import::import_onnx_model(file_util::path_join(CommonTestUtils::getExecutableDirectory(),
+                                                                        SERIALIZED_ZOO,
+                                                                        "onnx/squeeze_empty_axes_attribute.onnx"));
+
+    auto test_case = test::TestCase(function, s_device);
+    const std::vector<float> data = {1.0f, 2.0f, 3.0f, 4.0f, 5.0f, 6.0f, 7.0f, 8.0f};
+    test_case.add_input<float>(Shape{1, 4, 1, 1, 2}, data);
+    test_case.add_expected_output<float>(Shape{4, 2}, data);
+    test_case.run();
+}
+
 NGRAPH_TEST(${BACKEND_NAME}, onnx_model_squeeze_opset13_no_axes) {
     const auto function = onnx_import::import_onnx_model(file_util::path_join(CommonTestUtils::getExecutableDirectory(),
                                                                               SERIALIZED_ZOO,
