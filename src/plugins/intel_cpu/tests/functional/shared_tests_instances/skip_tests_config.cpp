@@ -236,7 +236,6 @@ std::vector<std::string> disabledTestPatterns() {
     retVector.emplace_back(R"(smoke_TrivialLoop/TrivialLoopTest.AutoSlicingInputWithDynCondition_(CheckPredefinedValues|CheckReference).*)");
     retVector.emplace_back(R"(smoke_LSTMSequenceCommonZeroClip/LSTMSequenceTest.CompareWithRefs.*)");
     retVector.emplace_back(R"(smoke_LSTMSequenceCommonClip/LSTMSequenceTest.CompareWithRefs.*)");
-    retVector.emplace_back(R"(smoke_MVN_1D/Mvn6LayerTest.CompareWithRefs.*)");
     retVector.emplace_back(R"(smoke_Decomposition_(3|4|10)D/Mvn6LayerTest.CompareWithRefs.*)");
     retVector.emplace_back(R"(smoke_AvgPool_ExplicitPad_CeilRounding/PoolingLayerTest.CompareWithRefs.*)");
     retVector.emplace_back(R"(smoke_ReduceLogicalOneAxis/ReduceOpsLayerTest.CompareWithRefs.*)");
