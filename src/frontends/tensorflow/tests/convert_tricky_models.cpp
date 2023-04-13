@@ -21,7 +21,11 @@ using namespace ov::opset10;
 using namespace ov::frontend;
 
 namespace {
-shared_ptr<Model> convert_model(const string& model_path, const ConversionExtension::Ptr& conv_ext = nullptr) {
+shared_ptr<Model> convert_model(const string& model_path,
+                                const ConversionExtension::Ptr& conv_ext = nullptr,
+                                const vector<string>& input_names = {},
+                                const vector<element::Type>& input_types = {},
+                                const vector<PartialShape>& input_shapes = {}) {
     FrontEndManager fem;
     auto front_end = fem.load_by_framework(TF_FE);
     if (!front_end) {
@@ -35,6 +39,36 @@ shared_ptr<Model> convert_model(const string& model_path, const ConversionExtens
     if (!input_model) {
         throw "Input model is not read";
     }
+
+    // set custom inputs, input shapes and types
+    vector<Place::Ptr> input_places;
+    for (const auto& input_name : input_names) {
+        auto input_place = input_model->get_place_by_tensor_name(input_name);
+        if (!input_place) {
+            throw "Input place with name " + input_name + " is not found ";
+        }
+        input_places.push_back(input_place);
+    }
+    if (input_places.size() < input_types.size()) {
+        throw "The number of input places is less than the number of types";
+    }
+    for (size_t ind = 0; ind < input_types.size(); ++ind) {
+        auto input_type = input_types[ind];
+        auto input_place = input_places[ind];
+        input_model->set_element_type(input_place, input_type);
+    }
+    if (input_places.size() < input_shapes.size()) {
+        throw "The number of input places is less than the number of shapes";
+    }
+    for (size_t ind = 0; ind < input_shapes.size(); ++ind) {
+        auto input_shape = input_shapes[ind];
+        auto input_place = input_places[ind];
+        input_model->set_partial_shape(input_place, input_shape);
+    }
+    if (!input_places.empty()) {
+        input_model->override_all_inputs(input_places);
+    }
+
     auto model = front_end->convert(input_model);
     if (!model) {
         throw "Model is not converted";
@@ -43,7 +77,7 @@ shared_ptr<Model> convert_model(const string& model_path, const ConversionExtens
     return model;
 }
 
-ov::OutputVector fake_translator_ragged_tensor_to_sparse(const ov::frontend::NodeContext& node) {
+NamedOutputVector fake_translator_ragged_tensor_to_sparse(const NodeContext& node) {
     // NOTE: pay attention that this is a fake translator for RaggedTensorToSparse
     // only serves for testing purposes
     FRONT_END_GENERAL_CHECK(node.get_input_size() > 1, "RaggedTensorToSparse expects at least two inputs.");
@@ -70,7 +104,7 @@ ov::OutputVector fake_translator_ragged_tensor_to_sparse(const ov::frontend::Nod
     add.get_tensor().add_names({node_name + ":1"});
     sub.get_tensor().add_names({node_name + ":2"});
 
-    return {mul, add, sub};
+    return {{"sparse_indices", mul}, {"sparse_values", add}, {"sparse_dense_shape", sub}};
 }
 }  // namespace
 
@@ -406,7 +440,13 @@ TEST_F(TransformationTestsF, ModelWithEmptyTensorListAndPushBack) {
         auto x_unsqueeze_flatten = make_shared<Unsqueeze>(x_flatten, zero_const);
         auto empty_const = make_shared<Constant>(f32, Shape{0, 30}, vector<float>{});
         auto list_push_back = make_shared<Concat>(OutputVector{empty_const, x_unsqueeze_flatten}, 0);
-        auto recover_item_shape = make_shared<Constant>(i32, Shape{4}, vector<int32_t>{1, 2, 3, 5});
+        auto list_push_back_shape = make_shared<ShapeOf>(list_push_back, element::i32);
+        auto start = make_shared<Constant>(i32, Shape{1}, 0);
+        auto stop = make_shared<Constant>(i32, Shape{1}, 1);
+        auto step = make_shared<Constant>(i32, Shape{1}, 1);
+        auto batch = make_shared<Slice>(list_push_back_shape, start, stop, step);
+        auto shape_without_batch = make_shared<Constant>(i32, Shape{3}, vector<int32_t>{2, 3, 5});
+        auto recover_item_shape = make_shared<Concat>(OutputVector{batch, shape_without_batch}, 0);
         auto recover_item = make_shared<Reshape>(list_push_back, recover_item_shape, false);
         model_ref = make_shared<Model>(OutputVector{recover_item}, ParameterVector{x});
     }
@@ -463,5 +503,131 @@ TEST_F(TransformationTestsF, RaggedTensorToSparse) {
         auto concat = make_shared<Concat>(OutputVector{reshape1, reshape2}, 0);
 
         model_ref = make_shared<Model>(OutputVector{concat}, ParameterVector{row_splits, strings});
+    }
+}
+
+TEST_F(TransformationTestsF, SplitInFunction) {
+    {
+        // create FAKE conversion extension for Split using named ports, this is not required for Split, but it tests
+        // how named ports will work if there is one name and many outputs associated with it
+        auto conv_ext = std::make_shared<ov::frontend::ConversionExtension>("Split", [](const NodeContext& node) {
+            auto axis = node.get_input(0);
+            auto value = node.get_input(1);
+            auto num_split = node.get_attribute<int64_t>("num_split");
+
+            auto split = make_shared<Split>(value, axis, num_split);
+            NamedOutputVector res;
+            for (const auto& output : split->outputs()) {
+                res.push_back({"output", output});
+            }
+            return res;
+        });
+        model = convert_model("split_in_function/split_in_function.pbtxt", conv_ext);
+    }
+    {
+        auto x = make_shared<Parameter>(f32, PartialShape{3, 20});
+
+        auto const_zero = make_shared<Constant>(i32, Shape{}, 0);
+        auto split = make_shared<Split>(x, const_zero, 3);
+        auto add1 = make_shared<Add>(split->output(0), split->output(1));
+        auto add2 = make_shared<Add>(add1, split->output(2));
+
+        model_ref = make_shared<Model>(OutputVector{add2}, ParameterVector{x});
+    }
+}
+
+TEST_F(TransformationTestsF, ResourceGatherModel) {
+    // This test aims to check basic support of ResourceGather operation
+    // and cutting an input model with specified shapes and types
+    {
+        model = convert_model("resource_gather_model/resource_gather_model.pbtxt",
+                              nullptr,
+                              {"1:embedding_lookup1", "1:embedding_lookup2"},
+                              {element::i32, element::i32},
+                              {Shape{7, 2}, Shape{3}});
+    }
+    {
+        auto ind1 = make_shared<Parameter>(i32, Shape{7, 2});
+        auto table1 = make_shared<Constant>(f32, Shape{2, 3}, vector<float>{1, 2, 3, 4, 5, 6});
+        auto axis1 = make_shared<Constant>(i64, Shape{}, 0);
+
+        auto ind2 = make_shared<Parameter>(i32, Shape{3});
+        auto table2 = make_shared<Constant>(f32, Shape{5}, vector<float>{10, 11, 12, 13, 14});
+        auto axis2 = make_shared<Constant>(i64, Shape{}, 0);
+
+        auto gather1 = make_shared<Gather>(table1, ind1, axis1);
+        auto gather2 = make_shared<Gather>(table2, ind2, axis2);
+
+        auto mul = make_shared<Multiply>(gather1, gather2);
+
+        model_ref = make_shared<Model>(OutputVector{mul}, ParameterVector{ind1, ind2});
+    }
+}
+
+TEST_F(TransformationTestsF, NonMaxSuppressionWithNamedOutputs) {
+    // The purpose of this test is to check that named output ports of TensorFlow NMS operation are connected correctly
+    // to its consumers
+    { model = convert_model("nms_named_outputs/nms_named_outputs.pb"); }
+    {
+        // prepare the first input for NMS
+        auto boxes = make_shared<Parameter>(f32, PartialShape{2, 4});
+        auto const_zero = make_shared<Constant>(i32, Shape{1}, 0);
+        auto unsqueeze = make_shared<Unsqueeze>(boxes, const_zero);
+
+        // prepare the second input for NMS
+        auto scores = make_shared<Parameter>(f32, PartialShape{2});
+        auto const_one_zero = make_shared<Constant>(i32, Shape{2}, vector<int32_t>{0, 1});
+        auto unsqueeze_2 = make_shared<Unsqueeze>(scores, const_one_zero);
+
+        // create NMS node
+        auto max_output_size = make_shared<Constant>(i32, Shape{}, 50);
+        auto iou_threshold = make_shared<Constant>(f32, Shape{}, 0.4f);
+        auto score_threshold = make_shared<Constant>(f32, Shape{}, 0.3f);
+        auto soft_nms_sigma = make_shared<Constant>(f32, Shape{}, 0.1f);
+        auto nms = make_shared<NonMaxSuppression>(unsqueeze,
+                                                  unsqueeze_2,
+                                                  max_output_size,
+                                                  iou_threshold,
+                                                  score_threshold,
+                                                  soft_nms_sigma,
+                                                  NonMaxSuppression::BoxEncodingType::CORNER,
+                                                  false,
+                                                  i32);
+
+        // compute the first output - selected_indices
+        auto slice_const_one = make_shared<Constant>(i32, Shape{1}, 1);
+        auto slice_const_one_2 = make_shared<Constant>(i32, Shape{1}, 1);
+        auto slice_const_two = make_shared<Constant>(i32, Shape{1}, 2);
+        auto slice_const_three = make_shared<Constant>(i32, Shape{1}, 3);
+        auto slice =
+            make_shared<Slice>(nms->output(0), slice_const_two, slice_const_three, slice_const_one, slice_const_one_2);
+        Output<Node> selected_indices = make_shared<Squeeze>(slice, slice_const_one_2);
+
+        // compute the second output - selected_scores
+        auto slice2_const_one = make_shared<Constant>(i32, Shape{1}, 1);
+        auto slice2_const_one_2 = make_shared<Constant>(i32, Shape{1}, 1);
+        auto slice2_const_two = make_shared<Constant>(i32, Shape{1}, 2);
+        auto slice2_const_three = make_shared<Constant>(i32, Shape{1}, 3);
+        auto slice2 =
+            make_shared<Slice>(nms->output(1), slice_const_two, slice_const_three, slice_const_one, slice_const_one_2);
+        Output<Node> selected_scores = make_shared<Squeeze>(slice2, slice_const_one_2);
+        selected_scores = make_shared<ConvertLike>(selected_scores, boxes);
+        selected_scores = make_shared<Convert>(selected_scores, i32);
+
+        // compute the third output - valid_outputs
+        Output<Node> valid_outputs = make_shared<Squeeze>(nms->output(2));
+
+        // make post-processing before the concatenation
+        auto const_minus_one = make_shared<Constant>(i32, Shape{1}, -1);
+        selected_indices = make_shared<Reshape>(selected_indices, const_minus_one, false);
+        auto const_minus_one_2 = make_shared<Constant>(i32, Shape{1}, -1);
+        selected_scores = make_shared<Reshape>(selected_scores, const_minus_one_2, false);
+        auto const_minus_one_3 = make_shared<Constant>(i32, Shape{1}, -1);
+        valid_outputs = make_shared<Reshape>(valid_outputs, const_minus_one_3, false);
+
+        // concatenate all outputs in order to have the single output
+        auto concat = make_shared<Concat>(OutputVector{selected_indices, selected_scores, valid_outputs}, 0);
+
+        model_ref = make_shared<Model>(OutputVector{concat}, ParameterVector{boxes, scores});
     }
 }

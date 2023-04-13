@@ -4,7 +4,6 @@
 
 #include "pooling_inst.h"
 #include "quantize_inst.h"
-#include "reshape_inst.h"
 #include "reorder_inst.h"
 #include "binary_convolution_inst.h"
 #include "eltwise_inst.h"
@@ -641,6 +640,10 @@ void prepare_quantization::prepare_asymmetric_quantization(program &p, convoluti
 
         weights = { new_weights->id() };
         w_zero_points.push_back(new_w_zp->id());
+    }
+
+    if (!new_weights->is_type<data>()) {
+        need_compensation = false;
     }
 
     std::vector<primitive_id> compensation = {};

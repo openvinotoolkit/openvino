@@ -49,7 +49,7 @@ INSTANTIATE_TEST_SUITE_P(
         ::testing::Values("CPU", "MULTI", "HETERO", "AUTO"));
 
 INSTANTIATE_TEST_SUITE_P(smoke_OVClassSetConfigTest,
-                         OVClassSetUseHyperThreadingHintConfigTest,
+                         OVClassSetEnableHyperThreadingHintConfigTest,
                          ::testing::Values("CPU"));
 
 INSTANTIATE_TEST_SUITE_P(smoke_OVClassSetConfigTest,
@@ -79,6 +79,8 @@ INSTANTIATE_TEST_SUITE_P(
 INSTANTIATE_TEST_SUITE_P(
         smoke_OVClassGetAvailableDevices, OVClassGetAvailableDevices,
         ::testing::Values("CPU"));
+
+INSTANTIATE_TEST_SUITE_P(smoke_OVClassSetConfigTest, OVClassSetEnableCpuPinningHintConfigTest, ::testing::Values("CPU"));
 
 INSTANTIATE_TEST_SUITE_P(
         smoke_OVClassSetModelPriorityConfigTest, OVClassSetModelPriorityConfigTest,
@@ -246,6 +248,7 @@ TEST(OVClassBasicTest, smoke_SetConfigStreamsNum) {
 }
 
 TEST(OVClassBasicTest, smoke_SetConfigAffinity) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED();
     ov::Core ie;
     ov::Affinity value = ov::Affinity::NONE;
 
