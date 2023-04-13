@@ -9,7 +9,7 @@ Converting a PyTorch model with MO Python API
 #############################################
 
 Example of PyTorch model converting:
-.. code-block:: python 
+.. code-block:: python
    import torchvision
    import torch
    from openvino.tools.mo import convert_model
@@ -28,11 +28,11 @@ Converting of some PyTorch models may require model tracing which need setting o
 ``input_shape`` is used for constructing a float zero-filled torch.Tensor for model tracing.
 
 Example:
-.. code-block:: python 
+.. code-block:: python
    import torchvision
    import torch
    from openvino.tools.mo import convert_model
-    
+   
    model = torchvision.models.resnet50(pretrained=True)
    ov_model = convert_model(model, example_input=torch.zeros(1, 3, 100, 100))
 
@@ -46,23 +46,23 @@ Example:
 
 If PyTorch model is scripted it can be converted using ``convert_model()`` with ``input_signature`` parameter, which specifies additional names for input tensors aligned with argument names in model forward method.
 
-.. code-block:: python 
+.. code-block:: python
    import inspect
    
    model = torchvision.models.resnet50(pretrained=True)
-    
+   
    model_signature = list(inspect.signature(model.forward).parameters.keys())
    traced_model = torch.jit.trace(model, example_inputs=torch.zeros(1, 3, 224, 224))
-    
+   
    ov_model = convert_model(traced_model, input_signature=model_signature)
 
 If ``use_legacy_frontend`` is set, it enables PyTorch model converting using temporary ONNX model.
 ONNX opset version can be set using an optional ``onnx_opset_version`` parameter.
 If the ``onnx_opset_version`` is not set, the default opset from ``torch.onnx.export()`` is used.
 
-.. code-block:: python 
+.. code-block:: python
    import torchvision
-    
+   
    model = torchvision.models.resnet50(pretrained=True)
    ov_model = convert_model(model, input_shape=[1,3,100,100], onnx_opset_version=13)
 

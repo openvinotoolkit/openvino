@@ -174,14 +174,14 @@ MO Python API supports passing TensorFlow/TensorFlow2 models directly from memor
 
 * ``tf.keras.Model``
 
-.. code-block:: python 
+.. code-block:: python
    model = tf.keras.applications.ResNet50(weights="imagenet")
    ov_model = convert_model(model)
 
 
 * ``tf.keras.layers.Layer``. Requires setting the "input_shape".
 
-.. code-block:: python 
+.. code-block:: python
    import tensorflow_hub as hub
 
    model = hub.KerasLayer("https://tfhub.dev/google/imagenet/mobilenet_v1_100_224/classification/5")
@@ -189,7 +189,7 @@ MO Python API supports passing TensorFlow/TensorFlow2 models directly from memor
 
 * ``tf.Module``. Requires setting of "input_shape".
 
-.. code-block:: python 
+.. code-block:: python
    class MyModule(tf.Module):
       def __init__(self, name=None):
          super().__init__(name=name)
@@ -203,14 +203,14 @@ MO Python API supports passing TensorFlow/TensorFlow2 models directly from memor
 
 * ``tf.compat.v1.GraphDef``
 
-.. code-block:: python 
+.. code-block:: python
    with tf.compat.v1.Session() as sess:
       inp1 = tf.compat.v1.placeholder(tf.float32, [100], 'Input1')
       inp2 = tf.compat.v1.placeholder(tf.float32, [100], 'Input2')
       output = tf.nn.relu(inp1 + inp2, name='Relu')
       tf.compat.v1.global_variables_initializer()
       model = sess.graph_def
-
+   
    ov_model = convert_model(model)  
 
 * ``tf.compat.v1.wrap_function``
@@ -219,7 +219,7 @@ MO Python API supports passing TensorFlow/TensorFlow2 models directly from memor
    def f(x, y):
       return tf.nn.sigmoid(tf.nn.relu(x + y))
    model = tf.compat.v1.wrap_function(f, [tf.TensorSpec((100), tf.float32),tf.TensorSpec((100), tf.float32)])
-
+   
    ov_model = convert_model(model)  
 
 * ``tf.compat.v1.session``
