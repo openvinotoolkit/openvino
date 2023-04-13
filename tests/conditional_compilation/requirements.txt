@@ -1,5 +1,5 @@
 -c ../constraints.txt
-numpy>=1.16.6
+numpy
 pytest
 pytest-dependency
 pytest-html
