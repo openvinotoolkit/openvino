@@ -115,6 +115,10 @@ ov::intel_cpu::QuantizedFullyConnectedBiasFusion::QuantizedFullyConnectedBiasFus
             return false;
         }
 
+        const bool per_channel = std::count_if(bias_shape.begin(), bias_shape.end(), [](size_t x) { return x > 1; }) == 1;
+        if (ov::shape_size(bias_shape) != 1 && !per_channel)
+            return false;
+
         if (bias_shape.empty() || bias_shape.back() != output_shape[rank - 1].get_length() || bias_shape.back() != bias_size) {
             return false;
         }
