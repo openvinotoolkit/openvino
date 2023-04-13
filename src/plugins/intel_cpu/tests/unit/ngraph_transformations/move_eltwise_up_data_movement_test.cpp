@@ -11,7 +11,7 @@
 #include <ngraph/pass/manager.hpp>
 
 #include "common_test_utils/ngraph_test_utils.hpp"
-#include <ngraph_transformations/move_eltwise_up_data_movement.hpp>
+#include <transformations/cpu_opset/common/pass/move_eltwise_up_data_movement.hpp>
 
 using namespace testing;
 

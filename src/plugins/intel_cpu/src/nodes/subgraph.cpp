@@ -21,13 +21,15 @@
 #include <ie_ngraph_utils.hpp>
 
 #include <snippets/op/subgraph.hpp>
-#include "emitters/cpu_generator.hpp"
+#include "snippets/pass/matmul_to_brgemm.hpp"
 #include "utils/cpu_utils.hpp"
-#include "snippets_transformations/fuse_load_store_and_convert.hpp"
-#include "snippets_transformations/mul_add_to_fma.hpp"
-#include "snippets_transformations/brgemm_to_brgemm_cpu.hpp"
-#include "snippets_transformations/remove_converts.hpp"
-#include "ngraph_transformations/convert_to_swish_cpu.hpp"
+#include "emitters/x64/cpu_generator.hpp"
+#include "transformations/snippets/x64/pass/fuse_load_store_and_convert.hpp"
+#include "transformations/snippets/x64/pass/mul_add_to_fma.hpp"
+#include "transformations/snippets/x64/pass/brgemm_to_brgemm_cpu.hpp"
+#include "transformations/snippets/x64/pass/remove_converts.hpp"
+#include "transformations/snippets/x64/pass/enforce_precision.hpp"
+#include "transformations/cpu_opset/common/pass/convert_to_swish_cpu.hpp"
 
 using namespace InferenceEngine;
 using namespace dnnl::impl::utils;
@@ -180,7 +182,12 @@ void Snippet::initSupportedPrimitiveDescriptors() {
         config.dynBatchSupport = false;
         config.inConfs.resize(inputShapes.size());
         for (size_t i = 0; i < inputShapes.size(); i++) {
-            auto precision = getOriginalInputPrecisionAtPort(i);
+            const auto originalInputPrecision = getOriginalInputPrecisionAtPort(i);
+            const auto precision = ((originalInputPrecision == InferenceEngine::Precision::FP32) &&
+                                     context->getConfig().enforceBF16 &&
+                                     snippet->has_domain_sensitive_ops()) ?
+                static_cast<InferenceEngine::Precision>(InferenceEngine::Precision::BF16) :
+                originalInputPrecision;
             if (supportedPrecisions.count(precision) == 0)
                 IE_THROW() << "Subgraph node with name `" << getName() << "` doesn't support " << precision << " precision.";
 
@@ -535,6 +542,13 @@ bool Snippet::created() const {
 void Snippet::generate(const jit_snippets_compile_args* jcp) {
     ov::pass::Manager pre_dialect;
     pre_dialect.register_pass<ConvertToSwishCPU>();
+    if (context->getConfig().enforceBF16 && snippet->has_domain_sensitive_ops()) {
+        // enforce BF16 precisions to supported operations
+        // MatMul has to be decomposed to Brgemm operations before enforcement
+        // Note, MatMul decomposition will be ran later again for case if BF16 enforcement is not happened
+        pre_dialect.register_pass<ngraph::snippets::pass::MatMulToBrgemm>();
+        pre_dialect.register_pass<pass::EnforcePrecision>(element::f32, element::bf16);
+    }
 
     ov::pass::Manager post_dialect;
     post_dialect.register_pass<ov::intel_cpu::pass::BrgemmToBrgemmCPU>();

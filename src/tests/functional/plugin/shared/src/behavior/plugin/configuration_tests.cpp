@@ -19,6 +19,7 @@ std::string DefaultConfigurationTest::getTestCaseName(const ::testing::TestParam
 }
 
 TEST_P(DefaultConfigurationTest, checkDeviceDefaultConfigurationValue) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED();
     target_device = std::get<DeviceName>(GetParam());
     std::string key;
     InferenceEngine::Parameter parameter;

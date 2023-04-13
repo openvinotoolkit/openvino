@@ -41,16 +41,17 @@ JitConstants GatherNonzeroKernelRef::GetJitConstants(const gather_nonzero_params
     JitConstants jit = MakeBaseParamsJitConstants(params);
     const auto& input = params.inputs[0];
     jit.AddConstant(MakeJitConstant("OV_INPUT_RANK", params.ov_input_rank));
+
     auto max_local_mem_size = params.engineInfo.maxLocalMemSize / (params.outputs[0].ElementSize());
+    jit.AddConstant(MakeJitConstant("MAX_LOCAL_MEM_SIZE", max_local_mem_size));
+
     if (input.is_dynamic()) {
         DimensionAccessHelper dims(input, 0);
         const std::string total_data_size = toVectorMulString({dims.x, dims.y, dims.z, dims.w, dims.f, dims.b});
         jit.AddConstant(MakeJitConstant("TOTAL_DATA_SIZE", total_data_size));
-        jit.AddConstant(MakeJitConstant("MAX_LOCAL_MEM_SIZE", max_local_mem_size));
     } else {
         jit.AddConstant(MakeJitConstant("TOTAL_DATA_SIZE", params.inputs[0].LogicalSize()));
         if (params.inputs[0].LogicalSize() * params.ov_input_rank < max_local_mem_size) {
-            jit.AddConstant(MakeJitConstant("MAX_LOCAL_MEM_SIZE", max_local_mem_size));
             jit.AddConstant(MakeJitConstant("USE_LOCAL_MEM", 1));
         }
     }

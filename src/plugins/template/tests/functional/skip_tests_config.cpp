@@ -9,10 +9,6 @@
 
 std::vector<std::string> disabledTestPatterns() {
     std::vector<std::string> retVector{
-        // CVS-66280
-        R"(.*canLoadCorrectNetworkAndCheckConfig.*)",
-        R"(.*canSetCorrectConfigLoadNetworkAndCheckConfig.*)",
-        //
         R"(.*ExclusiveAsyncRequests.*)",
         R"(.*ReusableCPUStreamsExecutor.*)",
         R"(.*SplitLayerTest.*numSplits=30.*)",
@@ -20,17 +16,8 @@ std::vector<std::string> disabledTestPatterns() {
         R"(.*InferRequestPreprocessConversionTest.*oLT=(NHWC|NCHW).*)",
         R"(.*InferRequestPreprocessDynamicallyInSetBlobTest.*oPRC=0.*oLT=1.*)",
         // Not Implemented
-        R"(.*Behavior.*ExecutableNetworkBaseTest.*(canSetConfigToExecNet|canSetConfigToExecNetAndCheckConfigAndCheck).*)",
-        R"(.*OVCompiledModelBaseTest.*(CanSetConfigToExecNet|canSetConfigToExecNetAndCheckConfigAndCheck).*)",
-        R"(.*Behavior.*ExecutableNetworkBaseTest.*(CheckExecGraphInfoBeforeExecution|CheckExecGraphInfoAfterExecution|CheckExecGraphInfoSerialization).*)",
-        R"(.*Behavior.*OVCompiledModelBaseTest.*(CheckExecGraphInfoBeforeExecution|CheckExecGraphInfoAfterExecution).*)",
-        R"(.*Behavior.*ExecutableNetworkBaseTest.*canExport.*)",
-        R"(.*Behavior.*OVCompiledModelBaseTest.*canExport.*)",
-        R"(.*Behavior.*ExecutableNetworkBaseTest.*(CanCreateTwoExeNetworksAndCheckFunction).*)",
-        R"(.*Behavior.*OVCompiledModelBaseTest.*(CanCreateTwoExeNetworksAndCheckFunction).*)",
-        R"(.*Behavior.*ExecutableNetworkBaseTest.*(checkGetExecGraphInfoIsNotNullptr).*)",
-        R"(.*Behavior.*OVCompiledModelBaseTest.*(checkGetExecGraphInfoIsNotNullptr).*)",
-        R"(.*LoadNetworkCreateDefaultExecGraphResult.*)",
+        R"(.*(Multi|Auto|Hetero).*Behavior.*OVCompiledModelBaseTest.*(CheckExecGraphInfoBeforeExecution|CheckExecGraphInfoAfterExecution).*)",
+        R"(.*(Multi|Auto|Hetero).*Behavior.*OVCompiledModelBaseTest.*(checkGetExecGraphInfoIsNotNullptr).*)",
         R"(.*OVClassExecutableNetworkGetMetricTest_EXEC_DEVICES.*CanGetExecutionDeviceInfo.*)",
         R"(.*OVClassHeteroExecutableNetworkGetMetricTest_SUPPORTED_CONFIG_KEYS.*GetMetricNoThrow.*)",
         R"(.*OVClassHeteroExecutableNetworkGetMetricTest_SUPPORTED_METRICS.*GetMetricNoThrow.*)",
@@ -137,6 +124,7 @@ std::vector<std::string> disabledTestPatterns() {
         R"(.*InferRequestIOBBlobTest.*canProcessDeallocatedOutputBlobAfterGetAndSetBlob.*)",
         // Why query state should throw an exception
         R"(.*InferRequestQueryStateExceptionTest.*inferreq_smoke_QueryState_ExceptionTest.*)",
+        R"(.*OVInferRequestCheckTensorPrecision.*get(Input|Output|Inputs|Outputs)From.*FunctionWith(Single|Several).*type=(u4|u1|i4|boolean).*)",
     };
 
 #ifdef _WIN32
