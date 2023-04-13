@@ -366,9 +366,7 @@ int main(int argc, char* argv[]) {
                     // apply command line hint setting and override if hint exists
                     device_config[ov::hint::performance_mode.name()] = ov_perf_hint;
                 } else {
-                    auto iter =
-                        std::remove(device_config.begin(), device_config.end(), ov::hint::performance_mode.name());
-                    device_config.erase(iter, device_config.end());
+                    device_config.erase(ov::hint::performance_mode.name());
                 }
             } else if (ov_perf_hint != ov::hint::PerformanceMode::UNDEFINED) {
                 // keep hint setting in the config if no hint setting from command line
