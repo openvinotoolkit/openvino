@@ -259,7 +259,6 @@ void OpSummary::saveReport() {
     std::map<ov::NodeTypeInfo, std::string> opsInfo;
     for (const auto &opset_pair : get_available_opsets()) {
         std::string opset_version = opset_pair.first;
-        std::cout << "DEBUG " << opset_version << std::endl;
         const ov::OpSet& opset = opset_pair.second();
         const auto &type_info_set = opset.get_type_info_set();
         for (const auto& type_info : type_info_set) {
