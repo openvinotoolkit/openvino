@@ -44,7 +44,7 @@ static const char hint_message[] =
     "                               'cumulative_throughput' or 'ctput': device performance mode will be set to "
     "CUMULATIVE_THROUGHPUT.\n"
     "                               'latency': device performance mode will be set to LATENCY.\n"
-    "                               'none': device performance mode will be set to UNDEFINED.\n"
+    "                               'none': no device performance mode will be set.\n"
     "                              Using explicit 'nstreams' or other device-specific options, please set hint to "
     "'none'";
 
