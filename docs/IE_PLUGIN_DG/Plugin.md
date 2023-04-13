@@ -28,9 +28,10 @@ Plugin Class
 OpenVINO Plugin API provides the helper ov::IPlugin class recommended to use as a base class for a plugin.
 Based on that, declaration of a plugin class can look as follows:
 
-.. doxygensnippet:: template/src/plugin.hpp
+.. doxygensnippet:: src/plugin.hpp
    :language: cpp
    :fragment: [plugin:header]
+
 
 Class Fields
 ++++++++++++
@@ -41,7 +42,7 @@ The provided plugin class also has several fields:
 * ``m_waitExecutor`` - a task executor that waits for a response from a device about device tasks completion.
 * ``m_cfg`` of type ``Configuration``:
 
-.. doxygensnippet:: template/src/plugin.hpp
+.. doxygensnippet:: src/plugin.hpp
    :language: cpp
    :fragment: [configuration:header]
 
@@ -49,12 +50,12 @@ As an example, a plugin configuration has three value parameters:
 
 * ``device_id`` - particular device ID to work with. Applicable if a plugin supports more than one ``Template`` device. In this case, some plugin methods, like ``set_property``, ``query_model``, and ``compile_model``, must support the ov::device::id property. 
 * ``perf_counts`` - boolean value to identify whether to collect performance counters during :doc:`Inference Request <openvino_docs_ov_plugin_dg_infer_request>` execution.
-* ``streams_executor_config`` - configuration of `ov::threading::IStreamsExecutor` to handle settings of multi-threaded context.
-* ``performance_mode`` - configuration of `ov::hint::PerformanceMode` to set the performance mode.
+* ``streams_executor_config`` - configuration of ``ov::threading::IStreamsExecutor`` to handle settings of multi-threaded context.
+* ``performance_mode`` - configuration of ``ov::hint::PerformanceMode`` to set the performance mode.
 * ``disable_transformations`` - allows to disable transformations which are applied in the process of model compilation.
 
 Plugin Constructor
-+++++++++++++++++
+++++++++++++++++++
 
 A plugin constructor must contain code that checks the ability to work with a device of the ``Template`` 
 type. For example, if some drivers are required, the code must check 
@@ -64,7 +65,7 @@ must be thrown from a plugin constructor.
 
 A plugin must define a device name enabled via the ``set_device_name()`` method of a base class:
 
-.. doxygensnippet:: template/src/plugin.cpp
+.. doxygensnippet:: src/plugin.cpp
    :language: cpp
    :fragment: [plugin:ctor]
 
@@ -74,7 +75,7 @@ Plugin Destructor
 A plugin destructor must stop all plugins activities, and clean all allocated resources.
 
 
-.. doxygensnippet:: template/src/plugin.cpp
+.. doxygensnippet:: src/plugin.cpp
    :language: cpp
    :fragment: [plugin:dtor]
 
@@ -86,11 +87,11 @@ The plugin should implement two ``compile_model()`` methods: the first one compi
 This is the most important function of the ``Plugin`` class is to create an instance of compiled ``CompiledModel``,
 which holds a backend-dependent compiled model in an internal representation:
 
-.. doxygensnippet:: template/src/plugin.cpp
+.. doxygensnippet:: src/plugin.cpp
    :language: cpp
    :fragment: [plugin:compile_model]
 
-.. doxygensnippet:: template/src/plugin.cpp
+.. doxygensnippet:: src/plugin.cpp
    :language: cpp
    :fragment: [plugin:compile_model_with_remote]
 
@@ -108,24 +109,24 @@ transform_model()
 
 The function accepts a const shared pointer to `ov::Model` object and applies common and device-specific transformations on a copied model to make it more friendly to hardware operations. For details how to write custom device-specific transformation, refer to :doc:`Writing OpenVINO™ transformations <openvino_docs_transformations>` guide. See detailed topics about model representation:
 
-   * :doc:`Intermediate Representation and Operation Sets <openvino_docs_MO_DG_IR_and_opsets>`
-   * :doc:`Quantized models <openvino_docs_ov_plugin_dg_quantized_models>`.
+* :doc:`Intermediate Representation and Operation Sets <openvino_docs_MO_DG_IR_and_opsets>`
+* :doc:`Quantized models <openvino_docs_ov_plugin_dg_quantized_models>`.
 
 
-.. doxygensnippet:: template/src/plugin.cpp
+.. doxygensnippet:: src/plugin.cpp
    :language: cpp
    :fragment: [plugin:transform_model]
 
 .. note:: 
 
-   After all these transformations, an `ov::Model` object contains operations which can be perfectly mapped to backend kernels. E.g. if backend has kernel computing `A + B` operations at once, the `transform_model` function should contain a pass which fuses operations `A` and `B` into a single custom operation `A + B` which fits backend kernels set.
+   After all these transformations, an ``ov::Model`` object contains operations which can be perfectly mapped to backend kernels. E.g. if backend has kernel computing ``A + B`` operations at once, the ``transform_model`` function should contain a pass which fuses operations ``A`` and ``B`` into a single custom operation `A + B` which fits backend kernels set.
 
 query_model()
 +++++++++++++
 
 Use the method with the ``HETERO`` mode, which allows to distribute model execution between different 
 devices based on the ``ov::Node::get_rt_info()`` map, which can contain the ``affinity`` key.
-The ``query_model`` method analyzes operations of provided `model` and returns a list of supported
+The ``query_model`` method analyzes operations of provided ``model`` and returns a list of supported
 operations via the ov::SupportedOpsMap structure. The ``query_model`` firstly applies ``transform_model`` passes to input ``ov::Model`` argument. After this, the transformed model in ideal case contains only operations are 1:1 mapped to kernels in computational backend. In this case, it's very easy to analyze which operations is supposed (``m_backend`` has a kernel for such operation or extensions for the operation is provided) and not supported (kernel is missed in ``m_backend``):
 
 1. Store original names of all operations in input ``ov::Model``.
@@ -133,7 +134,7 @@ operations via the ov::SupportedOpsMap structure. The ``query_model`` firstly ap
 3. Construct ``supported`` map which contains names of original operations. Note that since the inference is performed using OpenVINO™ reference backend, the decision whether the operation is supported or not depends on whether the latest OpenVINO opset contains such operation.
 4. ``ov.SupportedOpsMap`` contains only operations which are fully supported by ``m_backend``.
 
-.. doxygensnippet:: template/src/plugin.cpp
+.. doxygensnippet:: src/plugin.cpp
    :language: cpp
    :fragment: [plugin:query_model]
 
@@ -142,7 +143,7 @@ set_property()
 
 Sets new values for plugin property keys:
 
-.. doxygensnippet:: template/src/plugin.cpp
+.. doxygensnippet:: src/plugin.cpp
    :language: cpp
    :fragment: [plugin:set_property]
 
@@ -158,11 +159,11 @@ get_property()
 
 Returns a current value for a specified property key:
 
-.. doxygensnippet:: template/src/plugin.cpp
+.. doxygensnippet:: src/plugin.cpp
    :language: cpp
    :fragment: [plugin:get_property]
 
-The function is implemented with the `Configuration::Get` method, which wraps an actual configuration 
+The function is implemented with the ``Configuration::Get`` method, which wraps an actual configuration 
 key value to the ov::Any and returns it.
 
 .. note::  
@@ -188,11 +189,11 @@ capabilities and a model compiled for a particular device cannot be used for ano
 information must be stored and checked during the import. 
 * Compiled backend specific model itself.
 
-.. doxygensnippet:: template/src/plugin.cpp
+.. doxygensnippet:: src/plugin.cpp
    :language: cpp
    :fragment: [plugin:import_model]
 
-.. doxygensnippet:: template/src/plugin.cpp
+.. doxygensnippet:: src/plugin.cpp
    :language: cpp
    :fragment: [plugin:import_model_with_remote]
 
@@ -202,7 +203,7 @@ create_context()
 
 The Plugin should implement ``Plugin::create_context()`` method which returns `ov::RemoteContext` in case if plugin supports remote context, in other case the plugin can throw an exception that this method is not implemented.
 
-.. doxygensnippet:: template/src/plugin.cpp
+.. doxygensnippet:: src/plugin.cpp
    :language: cpp
    :fragment: [plugin:create_context]
 
@@ -212,7 +213,7 @@ get_default_context()
 
 ``Plugin::get_default_context()`` also needed in case if plugin supports remote context, if the plugin doesn't support it, this method can throw an exception that functionality is not implemented.
 
-.. doxygensnippet:: template/src/plugin.cpp
+.. doxygensnippet:: src/plugin.cpp
    :language: cpp
    :fragment: [plugin:get_default_context]
 
@@ -221,7 +222,7 @@ Create Instance of Plugin Class
 
 OpenVINO plugin library must export only one function creating a plugin instance using OV_DEFINE_PLUGIN_CREATE_FUNCTION macro:
 
-.. doxygensnippet:: template/src/plugin.cpp
+.. doxygensnippet:: src/plugin.cpp
    :language: cpp
    :fragment: [plugin:create_plugin_engine]
 

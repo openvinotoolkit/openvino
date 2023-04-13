@@ -7,7 +7,6 @@ ov::CompiledModel class functionality:
 * Compile an ov::Model instance to a backend specific graph representation
 * Create an arbitrary number of ov::InferRequest objects
 * Hold some common resources shared between different instances of ov::InferRequest. For example:
-
    * ov::ICompiledModel::m_task_executor task executor to implement asynchronous execution
    * ov::ICompiledModel::m_callback_executor task executor to run an asynchronous inference request callback in a separate thread
 
@@ -16,7 +15,10 @@ CompiledModel Class
 
 OpenVINO Plugin API provides the interface ov::ICompiledModel which should be used as a base class for a compiled model. Based on that, a declaration of an compiled model class can look as follows: 
 
-@snippet src/compiled_model.hpp compiled_model:header
+.. doxygensnippet:: src/compiled_model.hpp
+   :language: cpp
+   :fragment: [compiled_model:header]
+
 
 Class Fields
 ++++++++++++

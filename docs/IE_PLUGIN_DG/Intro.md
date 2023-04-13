@@ -32,10 +32,9 @@ OpenVINO plugin dynamic library consists of several main components:
 1.  :doc:`Plugin class <openvino_docs_ov_plugin_dg_plugin>`:
 
     * Provides information about devices of a specific type.
-    * Can create an  :doc:`compiled model <openvino_docs_ov_plugin_dg_compiled_model>` instance which represents a Neural Network backend specific graph structure for a particular device in opposite to the ov::Model 
-    which is backend-independent.
-    * Can import an already compiled graph structure from an input stream to a 
-    :doc:`compiled model <openvino_docs_ov_plugin_dg_compiled_model>` object.
+    * Can create an  :doc:`compiled model <openvino_docs_ov_plugin_dg_compiled_model>` instance which represents a Neural Network backend specific graph structure for a particular device in opposite to the ov::Model which is backend-independent.
+    * Can import an already compiled graph structure from an input stream to a :doc:`compiled model <openvino_docs_ov_plugin_dg_compiled_model>` object.
+
 
 2.  :doc:`Compiled Model class <openvino_docs_ov_plugin_dg_compiled_model>`:
 
@@ -44,37 +43,43 @@ OpenVINO plugin dynamic library consists of several main components:
     * Can create several instances of  :doc:`Inference Request <openvino_docs_ov_plugin_dg_infer_request>`.
     * Can export an internal backend specific graph structure to an output stream.
 
+
 3.  :doc:`Inference Request class <openvino_docs_ov_plugin_dg_infer_request>`:
 
     * Runs an inference pipeline serially.
     * Can extract performance counters for an inference pipeline execution profiling.
 
+
 4.  :doc:`Asynchronous Inference Request class <openvino_docs_ov_plugin_dg_async_infer_request>`:
 
     * Wraps the  :doc:`Inference Request <openvino_docs_ov_plugin_dg_infer_request>` class and runs pipeline stages in parallel on several task executors based on a device-specific pipeline structure.
+
 
 5.  :doc:`Plugin specific properties <openvino_docs_ov_plugin_dg_properties>`:
 
     * Provides the plugin specific properties.
 
+
 6.  :doc:`Remote Context <openvino_docs_ov_plugin_dg_remote_context>`:
 
     * Provides the device specific remote context. Context allows to create remote tensors.
+
 
 7.  :doc:`Remote Tensor <openvino_docs_ov_plugin_dg_remote_tensor>`
 
     * Provides the device specific remote tensor API and implementation.
 
+
 .. note::  
 
-   This documentation is written based on the `Template` plugin, which demonstrates plugin development details. Find the complete code of the ``Template``, which is fully compilable and up-to-date, at ``<openvino source dir>/src/plugins/template``.
+   This documentation is written based on the ``Template`` plugin, which demonstrates plugin development details. Find the complete code of the ``Template``, which is fully compilable and up-to-date, at ``<openvino source dir>/src/plugins/template``.
 
 
 Detailed Guides
 ###############
 
 *  :doc:`Build <openvino_docs_ov_plugin_dg_plugin_build>` a plugin library using CMake
-*  :doc:`Plugin and its components testing <openvino_docs_ov_plugin_dg_plugin_testing>`
+*  Plugin and its components :doc:`testing <openvino_docs_ov_plugin_dg_plugin_testing>`
 *  :doc:`Quantized networks <openvino_docs_ov_plugin_dg_quantized_models>`
 *  :doc:`Low precision transformations <openvino_docs_OV_UG_lpt>` guide
 *  :doc:`Writing OpenVINO™ transformations <openvino_docs_transformations>` guide
@@ -82,7 +87,7 @@ Detailed Guides
 API References
 ##############
 
-*  :doc:`OpenVINO Plugin API <ov_dev_api>`
-*  :doc:`OpenVINO Transformation API <ie_transformation_api>`
+*  `OpenVINO Plugin API <https://docs.openvino.ai/2022.3/groupov_dev_api.html>`__
+*  `OpenVINO Transformation API <https://docs.openvino.ai/2022.3/groupie_transformation_api.html>`__
 
 @endsphinxdirective
