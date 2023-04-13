@@ -131,7 +131,7 @@ std::shared_ptr<ov::frontend::tensorflow_lite::DecoderMap> get_pool_decoder_map(
 
 OutputVector attribute_helper(const ov::frontend::tensorflow_lite::NodeContext& node,
                               const std::map<std::string, ov::Any>& attrs,
-                              ov::OutputVector (*converter)(const ov::frontend::NodeContext&),
+                              ov::frontend::CreatorFunction converter,
                               std::string new_op_type,
                               bool empty_name,
                               ov::OutputVector inputs) {
@@ -150,6 +150,23 @@ OutputVector attribute_helper(const ov::frontend::tensorflow_lite::NodeContext& 
     auto outputs = converter(context);
     del_output_names(outputs);
     return outputs;
+}
+
+OutputVector attribute_helper(const ov::frontend::tensorflow_lite::NodeContext& node,
+                              const std::map<std::string, ov::Any>& attrs,
+                              ov::frontend::CreatorFunctionNamedAndIndexed converter,
+                              std::string new_op_type,
+                              bool empty_name,
+                              ov::OutputVector inputs) {
+    return attribute_helper(
+        node,
+        attrs,
+        [&](const ov::frontend::NodeContext& ctx) {
+            return indexed_from_named(converter(ctx));
+        },
+        new_op_type,
+        empty_name,
+        inputs);
 }
 
 std::shared_ptr<DecoderFlatBuffer> get_decoder(const ov::frontend::tensorflow_lite::NodeContext& node) {

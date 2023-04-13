@@ -32,20 +32,63 @@ file(GLOB_RECURSE SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/src/*.cpp)
 file(GLOB_RECURSE HEADERS ${CMAKE_CURRENT_SOURCE_DIR}/src/*.h
                           ${CMAKE_CURRENT_SOURCE_DIR}/src/*.hpp)
 
-addVersionDefines(${CMAKE_CURRENT_SOURCE_DIR}/src/plugin.cpp CI_BUILD_NUMBER)
-
 add_subdirectory(thirdparty)
 
 if(ENABLE_TESTS)
     add_subdirectory(tests)
 endif()
 
+add_definitions(-DOV_CPU_WITH_DNNL)
+set(OV_CPU_WITH_DNNL ON)
+
+if(DNNL_AARCH64_USE_ACL)
+    add_definitions(-DOV_CPU_WITH_ACL)
+    set(OV_CPU_WITH_ACL ON)
+endif()
+
+if(OV_CPU_WITH_ACL)
+    set(CMAKE_CXX_STANDARD 14)
+endif()
+
+# remove target specific files from compilation
+
+if (NOT OV_CPU_WITH_ACL)
+    set(EXCLUDE_PATHS ${EXCLUDE_PATHS}
+                      ${CMAKE_CURRENT_SOURCE_DIR}/src/nodes/executors/acl/*)
+endif()
+
+if (NOT X86_64)
+    set(EXCLUDE_PATHS ${EXCLUDE_PATHS}
+                      ${CMAKE_CURRENT_SOURCE_DIR}/src/nodes/executors/x64/*
+                      ${CMAKE_CURRENT_SOURCE_DIR}/src/nodes/kernels/x64/*
+                      ${CMAKE_CURRENT_SOURCE_DIR}/src/emitters/x64/*
+                      ${CMAKE_CURRENT_SOURCE_DIR}/src/transformations/cpu_opset/x64/*
+                      ${CMAKE_CURRENT_SOURCE_DIR}/src/transformations/snippets/x64/*)
+endif()
+
+if (NOT AARCH64)
+    set(EXCLUDE_PATHS ${EXCLUDE_PATHS}
+                      ${CMAKE_CURRENT_SOURCE_DIR}/src/transformations/cpu_opset/arm/*)
+endif()
+
+file(GLOB_RECURSE FILES_TO_REMOVE ${EXCLUDE_PATHS})
+list(REMOVE_ITEM SOURCES ${FILES_TO_REMOVE})
+list(REMOVE_ITEM HEADERS ${FILES_TO_REMOVE})
+
 # create plugin
 
 ie_add_plugin(NAME ${TARGET_NAME}
               DEVICE_NAME "CPU"
               AS_EXTENSION
+              VERSION_DEFINES_FOR src/plugin.cpp
               SOURCES ${SOURCES} ${HEADERS})
+
+# give a different file name depending on target platform architecture
+if(ARM OR AARCH64)
+    set_target_properties(${TARGET_NAME} PROPERTIES OUTPUT_NAME "openvino_arm_cpu_plugin")
+elseif(RISCV64)
+    set_target_properties(${TARGET_NAME} PROPERTIES OUTPUT_NAME "openvino_risv_cpu_plugin")
+endif()
 
 set_ie_threading_interface_for(${TARGET_NAME})
 
@@ -80,6 +123,8 @@ ie_add_api_validator_post_build_step(TARGET ${TARGET_NAME})
 if(BUILD_SHARED_LIBS)
     add_library(${TARGET_NAME}_obj OBJECT ${SOURCES} ${HEADERS})
     link_system_libraries(${TARGET_NAME}_obj PUBLIC dnnl openvino::pugixml)
+
+    ov_add_version_defines(src/plugin.cpp ${TARGET_NAME}_obj)
 
     target_include_directories(${TARGET_NAME}_obj
         PRIVATE

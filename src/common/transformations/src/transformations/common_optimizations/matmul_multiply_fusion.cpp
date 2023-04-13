@@ -130,7 +130,9 @@ static std::shared_ptr<Node> fuse_const_to_weights(const std::shared_ptr<Node>& 
         auto transpose =
             std::make_shared<opset8::Transpose>(new_const,
                                                 opset8::Constant::create(element::i64, Shape{perm.size()}, perm));
+        OPENVINO_SUPPRESS_DEPRECATED_START
         return get_constant_from_source(transpose);
+        OPENVINO_SUPPRESS_DEPRECATED_END
     };
 
     // If weights meant to be transposed - we need to also transpose constant
@@ -168,7 +170,9 @@ pass::MatMulMultiplyFusion::MatMulMultiplyFusion() {
         // Constantfold new weights, only if old weights is a constant node.
         // To make sure that subgraphs with e.g. FakeQuantize don't get constant folded here.
         if (ov::is_type<opset8::Constant>(weights.get_node())) {
+            OPENVINO_SUPPRESS_DEPRECATED_START
             if (auto constant = get_constant_from_source(new_weights)) {
+                OPENVINO_SUPPRESS_DEPRECATED_END
                 new_weights = constant;
             }
         }
