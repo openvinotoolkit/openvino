@@ -73,7 +73,8 @@ bool update_cpu_pinning(const bool input_pinning,
         return false;
     } else if (!input_changed) {
         for (auto& row : stream_info_table) {
-            if ((row[PROC_TYPE] == ALL_PROC) || (row[PROC_TYPE] == MAIN_CORE_PROC) || (row[PROC_TYPE] == HYPER_THREADING_PROC)) {
+            if ((row[PROC_TYPE] == ALL_PROC) || (row[PROC_TYPE] == MAIN_CORE_PROC) ||
+                (row[PROC_TYPE] == HYPER_THREADING_PROC)) {
                 return false;
             }
         }
