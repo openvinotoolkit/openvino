@@ -2043,6 +2043,12 @@ void Reduce::createPrimitive() {
     }
 
     create_reduce_kernel(reduce_kernel, jcp);
+
+    // For scenarios(e.g. when ReduceDH_opt or ReduceAll_opt is true) that apply two stages of kernel invocation
+    // to improve parallelism, if the precision is asymmetrical, we apply the aux kernel on the second stage. For
+    // example, if the original kernel is bf16-in-fp32-out, then this original kernel will be applied on first
+    // stage to reduce some dimensions, and an extra fp32-in-fp32-out aux kernel will be applied on the second
+    // stage to reduce the rest dimensions.
     if (use_aux_kernel) {
         aux_jcp = jcp;
         aux_jcp.src_dt = jcp.dst_dt;
