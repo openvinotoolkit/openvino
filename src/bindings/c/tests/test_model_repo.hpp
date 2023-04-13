@@ -10,6 +10,7 @@
 #include "ngraph_functions/builders.hpp"
 #include "ngraph_functions/subgraph_builders.hpp"
 #include "openvino/pass/manager.hpp"
+#include "openvino/util/file_util.hpp"
 
 namespace TestDataHelpers {
 
@@ -54,19 +55,22 @@ inline void fill_random_input_nv12_data(uint8_t* data, const size_t w, const siz
 inline std::string generate_test_xml_file() {
 #ifdef _WIN32
 #    ifdef __MINGW32__
-    std::string libraryname = "libopenvino_intel_cpu_plugin.dll";
+    std::string tmp_libraryname = "libopenvino_intel_cpu_plugin";
 #    else
-    std::string libraryname = "openvino_intel_cpu_plugin.dll";
+    std::string tmp_libraryname = "openvino_intel_cpu_plugin";
 #    endif
 #elif defined __APPLE__
 #    ifdef __aarch64__
-    std::string libraryname = "libopenvino_arm_cpu_plugin.so";
+    std::string tmp_libraryname = "openvino_arm_cpu_plugin";
 #    else
-    std::string libraryname = "libopenvino_intel_cpu_plugin.so";
+    std::string tmp_libraryname = "openvino_intel_cpu_plugin";
 #    endif
 #else
-    std::string libraryname = "libopenvino_intel_cpu_plugin.so";
+    std::string tmp_libraryname = "openvino_intel_cpu_plugin";
 #endif
+    tmp_libraryname += IE_BUILD_POSTFIX;
+    std::string libraryname = ov::util::make_plugin_library_name({}, tmp_libraryname);
+
     // Create the file
     std::string plugin_xml = "plugin_test.xml";
     std::ofstream plugin_xml_file(plugin_xml);
