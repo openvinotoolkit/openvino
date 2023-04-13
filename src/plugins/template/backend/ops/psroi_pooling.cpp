@@ -7,7 +7,7 @@
 #include "evaluate_node.hpp"
 
 template <ngraph::element::Type_t ET>
-bool evaluate(const std::shared_ptr<ngraph::op::PSROIPooling>& op,
+bool evaluate(const std::shared_ptr<ngraph::op::v0::PSROIPooling>& op,
               const ngraph::HostTensorVector& outputs,
               const ngraph::HostTensorVector& inputs) {
     using T = typename ngraph::element_type_traits<ET>::value_type;

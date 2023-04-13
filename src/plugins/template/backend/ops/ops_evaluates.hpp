@@ -39,6 +39,10 @@ extern template bool evaluate_node<ngraph::op::v0::Gelu>(std::shared_ptr<ngraph:
                                                          const ngraph::HostTensorVector& outputs,
                                                          const ngraph::HostTensorVector& inputs);
 
+extern template bool evaluate_node<ngraph::op::v7::Gelu>(std::shared_ptr<ngraph::Node> node,
+                                                         const ngraph::HostTensorVector& outputs,
+                                                         const ngraph::HostTensorVector& inputs);
+
 extern template bool evaluate_node<ngraph::op::v0::GRN>(std::shared_ptr<ngraph::Node> node,
                                                         const ngraph::HostTensorVector& outputs,
                                                         const ngraph::HostTensorVector& inputs);
