@@ -4,6 +4,7 @@
 
 #include "openvino/runtime/threading/cpu_map_scheduling.hpp"
 
+#include "threading/ie_cpu_streams_info.hpp"
 #include "ie_system_conf.h"
 
 namespace ov {
@@ -73,8 +74,8 @@ bool update_cpu_pinning(const bool input_pinning,
         return false;
     } else if (!input_changed) {
         for (auto& row : stream_info_table) {
-            if ((row[PROC_TYPE] == ALL_PROC) || (row[PROC_TYPE] == MAIN_CORE_PROC) ||
-                (row[PROC_TYPE] == HYPER_THREADING_PROC)) {
+            if ((row[InferenceEngine::PROC_TYPE] == ALL_PROC) || (row[InferenceEngine::PROC_TYPE] == MAIN_CORE_PROC) ||
+                (row[InferenceEngine::PROC_TYPE] == HYPER_THREADING_PROC)) {
                 return false;
             }
         }
