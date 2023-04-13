@@ -73,10 +73,12 @@ class VersionChecker(metaclass=SingletonMetaClass):
         self.mo_simplified_version = VersionChecker._simplify_version(self.get_mo_version())
         return self.mo_simplified_version
 
-    def get_ie_simplified_version(self):
+    def get_ie_simplified_version(self, env=None, version=None):
         if self.ie_simplified_version:
             return self.ie_simplified_version
-        self.ie_simplified_version = VersionChecker._get_simplified_ie_version(env=os.environ)
+        if env is None:
+            env = os.environ
+        self.ie_simplified_version = VersionChecker._get_simplified_ie_version(env=env, version=version)
         return self.ie_simplified_version
 
     def check_runtime_dependencies(self, silent=True):

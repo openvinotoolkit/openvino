@@ -16,7 +16,7 @@ except ModuleNotFoundError:
     sys.path.insert(0, mo_root_path)
     execution_type = "install_prerequisites.{}".format("bat" if platform.system() == "Windows" else "sh")
 
-import openvino.tools.mo.utils.version as v
+from openvino.tools.mo.utils.version import VersionChecker, extract_hash_from_version, extract_release_version
 try:
     import openvino_telemetry as tm  # pylint: disable=import-error,no-name-in-module
 except ImportError:
@@ -64,7 +64,7 @@ def import_core_modules(silent: bool, path_to_module: str):
             return True
 
         ie_version = str(get_version())
-        mo_version = str(v.get_version())  # pylint: disable=no-member,no-name-in-module
+        mo_version = str(VersionChecker().get_mo_version())  # pylint: disable=no-member,no-name-in-module
 
         print("{}: \t{}".format("OpenVINO runtime found in", os.path.dirname(openvino.__file__)))
         print("{}: \t{}".format("OpenVINO runtime version", ie_version))
@@ -72,8 +72,8 @@ def import_core_modules(silent: bool, path_to_module: str):
 
         versions_mismatch = False
 
-        mo_hash = v.extract_hash_from_version(mo_version)
-        ie_hash = v.extract_hash_from_version(ie_version)
+        mo_hash = extract_hash_from_version(mo_version)
+        ie_hash = extract_hash_from_version(ie_version)
 
         if mo_hash is not None and ie_hash is not None:
             min_length = min(len(mo_hash), len(ie_hash))
@@ -82,7 +82,7 @@ def import_core_modules(silent: bool, path_to_module: str):
 
         if mo_hash != ie_hash or mo_hash is None or ie_hash is None:
             versions_mismatch = True
-            extracted_mo_release_version = v.extract_release_version(mo_version)
+            extracted_mo_release_version = extract_release_version(mo_version)
             mo_is_custom = extracted_mo_release_version == (None, None)
 
             print("[ WARNING ] Model Optimizer and OpenVINO runtime versions do not match.")
@@ -93,11 +93,11 @@ def import_core_modules(silent: bool, path_to_module: str):
             else:
                 print("\"pip install openvino=={}.{}\"".format(*extracted_mo_release_version))
 
-        simplified_mo_version = v.get_simplified_mo_version()
+        simplified_mo_version = VersionChecker().get_mo_simplified_version()
         message = str(dict({
             "platform": platform.system(),
             "mo_version": simplified_mo_version,
-            "ie_version": v.get_simplified_ie_version(version=ie_version),
+            "ie_version": VersionChecker().get_ie_simplified_version(version=ie_version),
             "versions_mismatch": versions_mismatch,
         }))
         send_telemetry(simplified_mo_version, message, 'ie_version_check')
@@ -110,11 +110,11 @@ def import_core_modules(silent: bool, path_to_module: str):
             print("[ WARNING ] {}".format(e))
 
             # Send telemetry message about warning
-            simplified_mo_version = v.get_simplified_mo_version()
+            simplified_mo_version = VersionChecker().get_mo_simplified_version()
             message = str(dict({
                 "platform": platform.system(),
                 "mo_version": simplified_mo_version,
-                "ie_version": v.get_simplified_ie_version(env=os.environ),
+                "ie_version": VersionChecker().get_ie_simplified_version(env=os.environ),
                 "python_version": sys.version,
                 "error_type": classify_error_type(e),
             }))
