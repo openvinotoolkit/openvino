@@ -265,7 +265,6 @@ def create_summary(summary_root: Element, output_folder: os.path, expected_devic
         except:
             opsets = []
         op_list.update({op.tag: opsets})
-    # op_list = sorted(op_list)
     
     if len(expected_devices) > 0 and sorted(expected_devices) != device_list:
         for expected_device in expected_devices:
