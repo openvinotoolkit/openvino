@@ -10,7 +10,6 @@
 #include <ngraph/pattern/op/wrap_type.hpp>
 
 #include "transformations/utils/utils.hpp"
-#include "low_precision/rt_info/bias_attribute.hpp"
 
 #include "itt.hpp"
 
@@ -103,10 +102,7 @@ ov::intel_cpu::QuantizedFullyConnectedBiasFusion::QuantizedFullyConnectedBiasFus
         if (!fc || transformation_callback(fc)) {
             return false;
         }
-        //If the add is marked as BiasAttribute by LPT in FC + Multiply + add pattern,
-        //try fusing bias into FC.
-        if (!marked_as_bias(add))
-            return false;
+
         if (!std::dynamic_pointer_cast<ngraph::opset1::Constant>(bias)) {
             return false;
         }
