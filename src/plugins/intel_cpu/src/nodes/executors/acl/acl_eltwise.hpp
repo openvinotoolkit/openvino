@@ -6,14 +6,15 @@
 
 #include "../eltwise.hpp"
 #include "arm_compute/runtime/NEON/NEFunctions.h"
-#include "acl_utils.hpp"
 
 namespace ov {
 namespace intel_cpu {
 
+using namespace InferenceEngine;
+
 class AclEltwiseExecutor : public EltwiseExecutor {
 public:
-    AclEltwiseExecutor(const ExecutorContext::CPtr context);
+    explicit AclEltwiseExecutor(const ExecutorContext::CPtr context);
 
     bool init(const EltwiseAttrs& eltwiseAttrs,
               const std::vector<MemoryDescPtr>& srcDescs,
@@ -39,66 +40,105 @@ public:
     bool isSupported(const EltwiseAttrs& eltwiseAttrs,
                      const std::vector<MemoryDescPtr>& srcDescs,
                      const std::vector<MemoryDescPtr>& dstDescs) const override {
+        auto checker = [](const std::vector<MemoryDescPtr>& srcDescs,
+                          const std::vector<MemoryDescPtr>& dstDescs,
+                          Precision ref1, Precision ref2, Precision ref3) -> bool {
+            if (srcDescs[0]->getPrecision() == ref1 &&
+                srcDescs[1]->getPrecision() == ref2 &&
+                dstDescs[0]->getPrecision() == ref3) {
+                return true;
+            }
+            return false;
+        };
         switch (eltwiseAttrs.algorithm) {
-            case Algorithm::EltwiseAdd:
-            case Algorithm::EltwiseMultiply:
-            case Algorithm::EltwiseSubtract:
+            case Algorithm::EltwiseIsFinite:
+            case Algorithm::EltwiseIsInf:
+            case Algorithm::EltwiseIsNaN:
+            case Algorithm::EltwiseFloorMod:
+            case Algorithm::EltwiseMod:
+            case Algorithm::EltwisePowerStatic:
+            case Algorithm::EltwiseMulAdd:
+            case Algorithm::EltwiseLogicalAnd:
+            case Algorithm::EltwiseLogicalOr:
+            case Algorithm::EltwiseLogicalXor:
+            case Algorithm::EltwiseLogicalNot:
+            case Algorithm::EltwiseGeluTanh:
+            case Algorithm::EltwiseMish:
+            case Algorithm::EltwiseHsigmoid:
+            case Algorithm::EltwiseRoundHalfToEven:
+            case Algorithm::EltwiseRoundHalfAwayFromZero:
+            case Algorithm::EltwiseErf:
+            case Algorithm::EltwiseSoftSign:
+            case Algorithm::EltwisePowerDynamic: // TODO: ACL version doesn't work https://github.com/ARM-software/ComputeLibrary/issues/1047
+                return false;
             case Algorithm::EltwiseDivide:
+            case Algorithm::EltwiseRelu:
+            case Algorithm::EltwiseGeluErf:
+            case Algorithm::EltwiseElu:
+            case Algorithm::EltwiseTanh:
+            case Algorithm::EltwiseSigmoid:
+//            case Algorithm::EltwiseSqrt: TODO: seg. fault in reference
+            case Algorithm::EltwiseSoftRelu:
+            case Algorithm::EltwiseClamp:
+            case Algorithm::EltwiseSwish:
+            case Algorithm::EltwisePrelu:
+            case Algorithm::EltwiseHswish:
+                if (!(checker(srcDescs, dstDescs, Precision::FP16, Precision::FP16, Precision::FP16) ||
+                      checker(srcDescs, dstDescs, Precision::FP32, Precision::FP32, Precision::FP32))) {
+                    return false;
+                } else { return true; }
+            case Algorithm::EltwiseAbs:
+            case Algorithm::EltwiseExp:
+            case Algorithm::EltwiseLog:
+                if (!(checker(srcDescs, dstDescs, Precision::I32, Precision::I32, Precision::I32) ||
+                      checker(srcDescs, dstDescs, Precision::FP16, Precision::FP16, Precision::FP16) ||
+                      checker(srcDescs, dstDescs, Precision::FP32, Precision::FP32, Precision::FP32))) {
+                    return false;
+                } else { return true; }
             case Algorithm::EltwiseMaximum:
             case Algorithm::EltwiseMinimum:
             case Algorithm::EltwiseSquaredDifference:
-            case Algorithm::EltwisePowerDynamic:
+                if (!(checker(srcDescs, dstDescs, Precision::I16, Precision::I16, Precision::I16) ||
+                      checker(srcDescs, dstDescs, Precision::I32, Precision::I32, Precision::I32) ||
+                      checker(srcDescs, dstDescs, Precision::FP16, Precision::FP16, Precision::FP16) ||
+                      checker(srcDescs, dstDescs, Precision::FP32, Precision::FP32, Precision::FP32))) {
+                    return false;
+                } else { return true; }
+            case Algorithm::EltwiseAdd:
+            case Algorithm::EltwiseSubtract:
+                if (!(checker(srcDescs, dstDescs, Precision::U8, Precision::U8, Precision::U8) ||
+                      checker(srcDescs, dstDescs, Precision::I16, Precision::I16, Precision::I16) ||
+                      checker(srcDescs, dstDescs, Precision::I32, Precision::I32, Precision::I32) ||
+                      checker(srcDescs, dstDescs, Precision::FP16, Precision::FP16, Precision::FP16) ||
+                      checker(srcDescs, dstDescs, Precision::FP32, Precision::FP32, Precision::FP32))) {
+                    return false;
+                } else { return true; }
+            case Algorithm::EltwiseMultiply:
+                if (!(checker(srcDescs, dstDescs, Precision::U8, Precision::U8, Precision::U8) ||
+                      checker(srcDescs, dstDescs, Precision::U8, Precision::U8, Precision::I16) ||
+                      checker(srcDescs, dstDescs, Precision::U8, Precision::I16, Precision::I16) ||
+                      checker(srcDescs, dstDescs, Precision::I16, Precision::U8, Precision::I16) ||
+                      checker(srcDescs, dstDescs, Precision::I16, Precision::I16, Precision::I16) ||
+                      checker(srcDescs, dstDescs, Precision::FP16, Precision::FP16, Precision::FP16) ||
+                      checker(srcDescs, dstDescs, Precision::FP32, Precision::FP32, Precision::FP32))) {
+                    return false;
+                } else { return true; }
             case Algorithm::EltwiseEqual:
             case Algorithm::EltwiseNotEqual:
             case Algorithm::EltwiseGreater:
             case Algorithm::EltwiseGreaterEqual:
             case Algorithm::EltwiseLess:
             case Algorithm::EltwiseLessEqual:
-            case Algorithm::EltwiseRelu:
-            case Algorithm::EltwiseGeluErf:
-            case Algorithm::EltwiseElu:
-            case Algorithm::EltwiseTanh:
-            case Algorithm::EltwiseSigmoid:
-            case Algorithm::EltwiseAbs:
-            case Algorithm::EltwiseSqrt:
-            case Algorithm::EltwiseSoftRelu:
-            case Algorithm::EltwiseExp:
-            case Algorithm::EltwiseClamp:
-            case Algorithm::EltwiseSwish:
-            case Algorithm::EltwisePrelu:
-            case Algorithm::EltwiseHswish:
-            case Algorithm::EltwiseLog:
-                break;
-            default:
-                return false;
-        }
-
-        // ACL supports only U8 precision on output for comparison operations
-        if (one_of(eltwiseAttrs.algorithm, Algorithm::EltwiseEqual, Algorithm::EltwiseNotEqual, Algorithm::EltwiseGreater,
-                                           Algorithm::EltwiseGreaterEqual, Algorithm::EltwiseLess, Algorithm::EltwiseLessEqual)) {
-            if (dstDescs[0]->getPrecision() != InferenceEngine::Precision::U8) {
-                return false;
-            }
-        }
-        for (const auto &srcD : srcDescs) {
-            for (const auto &dstD : dstDescs) {
-                if ((srcD->getPrecision() != InferenceEngine::Precision::FP32 &&
-                     srcD->getPrecision() != InferenceEngine::Precision::FP16) ||
-                     srcD->getPrecision() != dstD->getPrecision())
+                if (!(checker(srcDescs, dstDescs, Precision::U8, Precision::U8, Precision::U8) ||
+                      checker(srcDescs, dstDescs, Precision::I16, Precision::I16, Precision::U8) ||
+                      checker(srcDescs, dstDescs, Precision::I32, Precision::I32, Precision::U8) ||
+                      checker(srcDescs, dstDescs, Precision::FP16, Precision::FP16, Precision::U8) ||
+                      checker(srcDescs, dstDescs, Precision::FP32, Precision::FP32, Precision::U8))) {
                     return false;
-            }
+                } else { return true; }
+            default:
+                return true;
         }
-
-        for (int i = 0; i < srcDescs.size(); i++) {
-            if (getAclDataLayoutByMemoryDesc(srcDescs[i]) == arm_compute::DataLayout::UNKNOWN)
-                 return false;
-        }
-        for (int i = 0; i < dstDescs.size(); i++) {
-            if (getAclDataLayoutByMemoryDesc(dstDescs[i]) == arm_compute::DataLayout::UNKNOWN)
-                return false;
-        }
-
-        return true;
     }
 
     EltwiseExecutorPtr makeExecutor(const ExecutorContext::CPtr context) const override {
