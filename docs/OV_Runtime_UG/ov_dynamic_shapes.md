@@ -60,30 +60,25 @@ Model input dimensions can be specified as dynamic using the model.reshape metho
 The examples below show how to set dynamic dimensions with a model that has a static ``[1, 3, 224, 224]`` input shape (such as `mobilenet-v2 <https://docs.openvino.ai/latest/omz_models_model_mobilenet_v2.html>`__). The first example shows how to change the first dimension (batch size) to be dynamic. In the second example, the third and fourth dimensions (height and width) are set as dynamic.
 
 
-.. tab-set::
-
-    .. tab-item:: C++
-        :sync: cpp
-
-        .. doxygensnippet:: docs/snippets/ov_dynamic_shapes.cpp
-            :language: cpp
-            :fragment: ov_dynamic_shapes:reshape_undefined
-
-    .. tab-item:: Python
-        :sync: py
-        
-        .. doxygensnippet:: docs/snippets/ov_dynamic_shapes.py
-           :language: python
-           :fragment: [reshape_undefined]
+.. tab:: C++
     
-        With Python, you may also pass all dimensions as a string and use ``?`` for the dynamic dimensions (e.g. ``model.reshape(“1, 3, ?, ?”)``).
-    
-    .. tab-item:: C
-        :sync: c
+    .. doxygensnippet:: docs/snippets/ov_dynamic_shapes.cpp
+       :language: cpp
+       :fragment: ov_dynamic_shapes:reshape_undefined
 
-        .. doxygensnippet:: docs/snippets/ov_dynamic_shapes.c
-           :language: cpp
-           :fragment: ov_dynamic_shapes:reshape_undefined
+.. tab:: Python
+    
+    .. doxygensnippet:: docs/snippets/ov_dynamic_shapes.py
+       :language: python
+       :fragment: [reshape_undefined]
+      
+      With Python, you may also pass all dimensions as a string and use ``?`` for the dynamic dimensions (e.g. ``model.reshape(“1, 3, ?, ?”)``).
+
+.. tab:: C
+    
+    .. doxygensnippet:: docs/snippets/ov_dynamic_shapes.c
+       :language: cpp
+       :fragment: ov_dynamic_shapes:reshape_undefined
 
 
 The examples above assume that the model has a single input layer. To change models with multiple input layers (such as NLP models), iterate over all the input layers and apply the model.reshape method to each individual layer. For example, the following code sets the second dimension as dynamic in every input layer:
