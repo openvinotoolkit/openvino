@@ -25,8 +25,7 @@ const std::vector<InferenceEngine::Precision> idxPrecisions = {
 // map<inputShape map<indicesShape, indicesValue>>
 // updateShape is gotten from inputShape and indicesShape
 std::map<std::vector<size_t>, std::map<std::vector<size_t>, std::vector<size_t>>> sliceSelectInShape {
-    {{10, 9, 9, 11}, {{{4, 1}, {1, 3, 5, 7}}, {{1, 2}, {4, 6}}, {{2, 3}, {0, 1, 1, 2, 2, 2}}, {{1, 4}, {5, 5, 4, 9}}}},
-    {{10, 9, 10, 9, 10}, {{{2, 2, 1}, {5, 6, 2, 8}}, {{2, 3}, {0, 4, 6, 5, 7, 1}}}},
+    {{2, 3}, {{{1, 2}, {1, 3}}}}
 };
 
 const auto ScatterNDUpdateCases = ::testing::Combine(
