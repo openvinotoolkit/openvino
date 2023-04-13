@@ -26,11 +26,9 @@ Rules
 **PDPD broadcast**:
 1. First input tensor A is of any rank, second input B has rank smaller or equal to the first input.
 2. Input tensor B is a continuous subsequence of input A.
-3. Apply broadcast B to match the shape of A, where provided *axis* is the start dimension index
-   for broadcasting B onto A.
+3. Apply broadcast B to match the shape of A, where provided *axis* is the start dimension index for broadcasting B onto A.
 4. If *axis* is set to default (-1) calculate new value: ``axis = rank(A) - rank(B)``.
-5. The trailing dimensions of size 1 for input B will be ignored for the consideration of
-   subsequence, such as ``shape(B) = (3, 1) => (3)``.
+5. The trailing dimensions of size 1 for input B will be ignored for the consideration of subsequence, such as ``shape(B) = (3, 1) => (3)``.
 
 Numpy examples
 ##############
@@ -122,6 +120,7 @@ Rules
 2. Following broadcast rule is applied: ``numpy.array(input) * numpy.ones(target_shape)``.
 3. Two corresponding dimension must have the same value, or one of them is equal to 1.
 4. Output shape may not be equal to ``target_shape`` if:
+
    * ``target_shape`` contains dimensions of size 1,
    * ``target_shape`` rank is smaller than the rank of input tensor.
 
