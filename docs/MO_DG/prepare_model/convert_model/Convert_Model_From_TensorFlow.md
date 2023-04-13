@@ -190,67 +190,67 @@ MO Python API supports passing TensorFlow/TensorFlow2 models directly from memor
 * ``tf.Module``. Requires setting of "input_shape".
 
 .. code-block:: python 
-    class MyModule(tf.Module):
-        def __init__(self, name=None):
-            super().__init__(name=name)
-            self.variable1 = tf.Variable(5.0, name="var1")
-            self.variable2 = tf.Variable(1.0, name="var2")
-        def __call__(self, x):
-            return self.variable1 * x + self.variable2
+   class MyModule(tf.Module):
+      def __init__(self, name=None):
+         super().__init__(name=name)
+         self.variable1 = tf.Variable(5.0, name="var1")
+         self.variable2 = tf.Variable(1.0, name="var2")
+      def __call__(self, x):
+         return self.variable1 * x + self.variable2
 
-    model = MyModule(name="simple_module")
-    ov_model = convert_model(model, input_shape=[-1])
+   model = MyModule(name="simple_module")
+   ov_model = convert_model(model, input_shape=[-1])
 
 * ``tf.compat.v1.GraphDef``
 
 .. code-block:: python 
-    with tf.compat.v1.Session() as sess:
-        inp1 = tf.compat.v1.placeholder(tf.float32, [100], 'Input1')
-        inp2 = tf.compat.v1.placeholder(tf.float32, [100], 'Input2')
-        output = tf.nn.relu(inp1 + inp2, name='Relu')
-        tf.compat.v1.global_variables_initializer()
-        model = sess.graph_def
+   with tf.compat.v1.Session() as sess:
+      inp1 = tf.compat.v1.placeholder(tf.float32, [100], 'Input1')
+      inp2 = tf.compat.v1.placeholder(tf.float32, [100], 'Input2')
+      output = tf.nn.relu(inp1 + inp2, name='Relu')
+      tf.compat.v1.global_variables_initializer()
+      model = sess.graph_def
 
-    ov_model = convert_model(model)  
+   ov_model = convert_model(model)  
 
 * ``tf.compat.v1.wrap_function``
 
 .. code-block:: python
-    def f(x, y):
-        return tf.nn.sigmoid(tf.nn.relu(x + y))
-    model = tf.compat.v1.wrap_function(f, [tf.TensorSpec((100), tf.float32),tf.TensorSpec((100), tf.float32)])
+   def f(x, y):
+      return tf.nn.sigmoid(tf.nn.relu(x + y))
+   model = tf.compat.v1.wrap_function(f, [tf.TensorSpec((100), tf.float32),tf.TensorSpec((100), tf.float32)])
 
-    ov_model = convert_model(model)  
+   ov_model = convert_model(model)  
 
 * ``tf.compat.v1.session``
 
 .. code-block:: python
-    with tf.compat.v1.Session() as sess:
-        inp1 = tf.compat.v1.placeholder(tf.float32, [100], 'Input1')
-        inp2 = tf.compat.v1.placeholder(tf.float32, [100], 'Input2')
-        output = tf.nn.relu(inp1 + inp2, name='Relu')
-        tf.compat.v1.global_variables_initializer()
+   with tf.compat.v1.Session() as sess:
+      inp1 = tf.compat.v1.placeholder(tf.float32, [100], 'Input1')
+      inp2 = tf.compat.v1.placeholder(tf.float32, [100], 'Input2')
+      output = tf.nn.relu(inp1 + inp2, name='Relu')
+      tf.compat.v1.global_variables_initializer()
 
-        ov_model = convert_model(sess)
+      ov_model = convert_model(sess)
 
 * ``tf.train.checkpoint``
 
 .. code-block:: python
-    model = tf.keras.Model(...)
-    checkpoint = tf.train.Checkpoint(model)
-    save_path = checkpoint.save(save_directory)
-    # ... 
-    checkpoint.restore(save_path)
-    ov_model = convert_model(checkpoint)
+   model = tf.keras.Model(...)
+   checkpoint = tf.train.Checkpoint(model)
+   save_path = checkpoint.save(save_directory)
+   # ... 
+   checkpoint.restore(save_path)
+   ov_model = convert_model(checkpoint)
 
 * ``tf.python.training.tracking.base.Trackable``. Supported only in case of the ``tf.saved_model.load()`` output.
 
 .. code-block:: python
-    model = tf.keras.Model(...)
-    tf.saved_model.save(model, save_directory)
-    # ... 
-    model = tf.saved_model.load(save_directory)
-    ov_model = convert_model(model)
+   model = tf.keras.Model(...)
+   tf.saved_model.save(model, save_directory)
+   # ... 
+   model = tf.saved_model.load(save_directory)
+   ov_model = convert_model(model)
 
 Supported TensorFlow and TensorFlow 2 Keras Layers
 ##################################################
