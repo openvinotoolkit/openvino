@@ -31,7 +31,7 @@ private:
     static bool extractBody;
     std::map<ov::NodeTypeInfo, PassRate> opsStats = {};
 
-    std::string getOpVersion(const ov::NodeTypeInfo &type_info);
+    std::string getOpVersion(const std::string& version);
 
 protected:
     OpSummary();
