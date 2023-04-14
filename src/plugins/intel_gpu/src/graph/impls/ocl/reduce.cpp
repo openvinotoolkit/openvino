@@ -105,8 +105,6 @@ attach_reduce_impl::attach_reduce_impl() {
         format::bfyx,
         format::bfzyx,
         format::bfwzyx,
-        format::bfuwzyx,
-        format::bfvuwzyx,
         format::b_fs_yx_fsv16,
         format::b_fs_yx_fsv32,
         format::b_fs_zyx_fsv16
@@ -121,9 +119,7 @@ attach_reduce_impl::attach_reduce_impl() {
     auto dyn_formats = {
         format::bfyx,
         format::bfzyx,
-        format::bfwzyx,
-        format::bfuwzyx,
-        format::bfvuwzyx
+        format::bfwzyx
     };
 
     implementation_map<reduce>::add(impl_types::ocl,

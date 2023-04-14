@@ -84,9 +84,7 @@ attach_permute_impl::attach_permute_impl() {
     auto dyn_formats = {
         format::bfyx,
         format::bfzyx,
-        format::bfwzyx,
-        format::bfuwzyx,
-        format::bfvuwzyx,
+        format::bfwzyx
     };
 
     implementation_map<permute>::add(impl_types::ocl,

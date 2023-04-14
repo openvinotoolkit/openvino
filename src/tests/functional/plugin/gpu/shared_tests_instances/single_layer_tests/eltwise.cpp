@@ -24,10 +24,6 @@ std::vector<std::vector<ov::Shape>>  inShapes = {
         {{1, 4, 4, 1}},
         {{1, 4, 3, 2, 1, 3}},
         {{1, 3, 1, 1, 1, 3}, {1, 3, 1, 1, 1, 1}},
-        {{1, 3, 2, 2, 2, 3, 2, 3}, {1, 3, 1, 1, 1, 1, 1, 1}},
-        {{1, 3, 2, 2, 2, 3, 2, 3}, {3}},
-        {{1, 3, 2, 2, 2, 3, 2, 3}, {1, 3, 2, 2, 2, 3, 2, 3}},
-        {{1, 3, 2, 2, 2, 3, 2}, {1, 3, 2, 2, 2, 3, 2}},
 };
 
 std::vector<ov::test::ElementType> netPrecisions = {
@@ -44,11 +40,6 @@ std::vector<ngraph::helpers::InputLayerType> secondaryInputTypes = {
 std::vector<CommonTestUtils::OpType> opTypes = {
         CommonTestUtils::OpType::SCALAR,
         CommonTestUtils::OpType::VECTOR,
-};
-
-std::vector<ngraph::helpers::EltwiseTypes> smoke_eltwiseOpTypes = {
-        ngraph::helpers::EltwiseTypes::ADD,
-        ngraph::helpers::EltwiseTypes::MULTIPLY,
 };
 
 std::vector<ngraph::helpers::EltwiseTypes> eltwiseOpTypes = {
@@ -68,20 +59,6 @@ INSTANTIATE_TEST_SUITE_P(
     smoke_CompareWithRefs,
     EltwiseLayerTest,
     ::testing::Combine(::testing::ValuesIn(ov::test::static_shapes_to_test_representation(inShapes)),
-                       ::testing::ValuesIn(smoke_eltwiseOpTypes),
-                       ::testing::ValuesIn(secondaryInputTypes),
-                       ::testing::ValuesIn(opTypes),
-                       ::testing::ValuesIn(netPrecisions),
-                       ::testing::Values(ov::element::undefined),
-                       ::testing::Values(ov::element::undefined),
-                       ::testing::Values(CommonTestUtils::DEVICE_GPU),
-                       ::testing::Values(additional_config)),
-    EltwiseLayerTest::getTestCaseName);
-
-INSTANTIATE_TEST_SUITE_P(
-    CompareWithRefs,
-    EltwiseLayerTest,
-    ::testing::Combine(::testing::ValuesIn(ov::test::static_shapes_to_test_representation(inShapes)),
                        ::testing::ValuesIn(eltwiseOpTypes),
                        ::testing::ValuesIn(secondaryInputTypes),
                        ::testing::ValuesIn(opTypes),
@@ -91,5 +68,16 @@ INSTANTIATE_TEST_SUITE_P(
                        ::testing::Values(CommonTestUtils::DEVICE_GPU),
                        ::testing::Values(additional_config)),
     EltwiseLayerTest::getTestCaseName);
+
+std::vector<std::vector<std::vector<size_t>>> inShapesSingleThread = {
+        {{1, 2, 3, 4}},
+        {{2, 2, 2, 2}},
+        {{2, 1, 2, 1, 2, 2}}
+};
+
+std::vector<ngraph::helpers::EltwiseTypes> eltwiseOpTypesSingleThread = {
+        ngraph::helpers::EltwiseTypes::ADD,
+        ngraph::helpers::EltwiseTypes::POWER,
+};
 
 }  // namespace
