@@ -436,7 +436,6 @@ void Graph::InitDescriptors() {
             if (inputNode)
                 inputNode->withMeanImage();
         }
-
         OV_ITT_SCOPE_NEXT(FIRST_INFERENCE, taskChain, node->profiling.getSupportedDescriptors);
         DEBUG_LOG("Get supported primitive descriptors for node: ", node->getName());
         node->getSupportedDescriptors();
