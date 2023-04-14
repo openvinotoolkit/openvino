@@ -35,4 +35,4 @@ bool update_cpu_pinning(const bool input_pinning,
 #endif
 }
 
-}
+}  // namespace ov

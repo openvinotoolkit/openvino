@@ -12,7 +12,7 @@
 namespace InferenceEngine {
 
 /**
- * @enum       column_of_cpu_streams_info_table
+ * @enum       ColumnOfCpuStreamsInfoTable
  * @brief      This enum contains definition of each columns in cpu streams information table.
  *
  * The following are two example of processor type table.
@@ -30,11 +30,11 @@ namespace InferenceEngine {
  *          0               1                2          // 2 threads on physical core of Intel Performance-cores
  *          0               2                8          // 8 threads on Intel Efficient-cores
  */
-enum ColumnOfCpuStreamsInfoTable{
+enum ColumnOfCpuStreamsInfoTable {
     NUMBER_OF_STREAMS = 0,      //!< Number of streams on specific CPU core tpye
     PROC_TYPE = 1,              //!< Core type of current streams
     THREADS_PER_STREAM = 2,     //!< Number of threads per stream of current streams
     CPU_STREAMS_TABLE_SIZE = 3  //!< Size of streams info table
-} ;
+};
 
 }  // namespace InferenceEngine
