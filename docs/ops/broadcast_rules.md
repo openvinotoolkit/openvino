@@ -36,7 +36,7 @@ Broadcast allows to perform element-wise operation for inputs of arbitrary numbe
 
 *     `A: Shape(2, 3)` <br>
       `B: Shape(   1)` <br>
- `Result: Shape(2, 3)`
+  `Result: Shape(2, 3)`
 
 *      `A: Shape(   3)` <br>
        `B: Shape(2, 3)` <br>
