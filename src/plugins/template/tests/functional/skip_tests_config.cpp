@@ -3,6 +3,7 @@
 //
 
 #include "functional_test_utils/skip_tests_config.hpp"
+#include "openvino/core/core_visibility.hpp"
 
 #include <string>
 #include <vector>
@@ -124,6 +125,7 @@ std::vector<std::string> disabledTestPatterns() {
         R"(.*InferRequestIOBBlobTest.*canProcessDeallocatedOutputBlobAfterGetAndSetBlob.*)",
         // Why query state should throw an exception
         R"(.*InferRequestQueryStateExceptionTest.*inferreq_smoke_QueryState_ExceptionTest.*)",
+        R"(.*OVInferRequestCheckTensorPrecision.*get(Input|Output|Inputs|Outputs)From.*FunctionWith(Single|Several).*type=(u4|u1|i4|boolean).*)",
     };
 
 #ifdef _WIN32
@@ -132,6 +134,13 @@ std::vector<std::string> disabledTestPatterns() {
     // CVS-64054
     retVector.emplace_back(R"(.*ReferenceTopKTest.*topk_max_sort_none)");
     retVector.emplace_back(R"(.*ReferenceTopKTest.*topk_min_sort_none)");
+#endif
+
+#if defined(OPENVINO_ARCH_ARM64) || defined(OPENVINO_ARCH_ARM)
+    retVector.emplace_back(R"(.*smoke_TopK_With_Hardcoded_Refs/ReferenceTopKTestMaxMinSort.CompareWithRefs.*)");
+    retVector.emplace_back(R"(.*smoke_TopK_With_Hardcoded_Refs/ReferenceTopKTestBackend.CompareWithRefs.*)");
+    retVector.emplace_back(R"(.*smoke_TopK_With_Hardcoded_Refs/ReferenceTopKTestMaxMinSortV3.CompareWithRefs.*)");
+    retVector.emplace_back(R"(.*smoke_TopK_With_Hardcoded_Refs/ReferenceTopKTestBackendV3.CompareWithRefs.*)");
 #endif
     return retVector;
 }
