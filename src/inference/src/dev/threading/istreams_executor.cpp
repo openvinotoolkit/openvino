@@ -73,7 +73,6 @@ void IStreamsExecutor::Config::set_property(const ov::AnyMap& property) {
             }
         } else if (key == CONFIG_KEY(CPU_THROUGHPUT_STREAMS)) {
             if (value.as<std::string>() == CONFIG_VALUE(CPU_THROUGHPUT_NUMA)) {
-                _set_streams = true;
                 _streams = static_cast<int>(get_available_numa_nodes().size());
             } else if (value.as<std::string>() == CONFIG_VALUE(CPU_THROUGHPUT_AUTO)) {
                 // bare minimum of streams (that evenly divides available number of cores)
@@ -91,13 +90,11 @@ void IStreamsExecutor::Config::set_property(const ov::AnyMap& property) {
                     IE_THROW() << "Wrong value for property key " << CONFIG_KEY(CPU_THROUGHPUT_STREAMS)
                                << ". Expected only positive numbers (#streams)";
                 }
-                _set_streams = true;
                 _streams = val_i;
             }
         } else if (key == ov::num_streams) {
             auto streams = value.as<ov::streams::Num>();
             if (streams == ov::streams::NUMA) {
-                _set_streams = true;
                 _streams = static_cast<int32_t>(get_available_numa_nodes().size());
             } else if (streams == ov::streams::AUTO) {
                 // bare minimum of streams (that evenly divides available number of cores)
@@ -105,7 +102,6 @@ void IStreamsExecutor::Config::set_property(const ov::AnyMap& property) {
                     _streams = get_default_num_streams();
                 }
             } else if (streams.num >= 0) {
-                _set_streams = true;
                 _streams = streams.num;
             } else {
                 OPENVINO_THROW("Wrong value for property key ",

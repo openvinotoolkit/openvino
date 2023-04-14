@@ -278,9 +278,8 @@ void Engine::GetPerformanceStreams(Config& config, const std::shared_ptr<ngraph:
         streams = get_num_numa_nodes();
     } else if (perf_hint_name == CONFIG_VALUE(THROUGHPUT)) {
         streams = 0;
-    } else if (perf_hint_name.empty()) {
-        streams = streams > 1 ? streams : (engConfig.streamExecutorConfig._set_streams ? streams : 0);
     }
+    streams = config.streamExecutorConfig._streams > 0 ? config.streamExecutorConfig._streams : streams;
 
     get_num_streams(streams, ngraphFunc, config);
 
