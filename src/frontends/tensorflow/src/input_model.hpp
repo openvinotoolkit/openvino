@@ -34,7 +34,8 @@ public:
                         const std::shared_ptr<TelemetryExtension>& telemetry = {},
                         const std::shared_ptr<VariablesIndex>& variables_index = {},
                         const std::shared_ptr<std::map<std::string, std::string>> saved_model_input_names = nullptr,
-                        const std::shared_ptr<std::map<std::string, std::string>> saved_model_output_names = nullptr);
+                        const std::shared_ptr<std::map<std::string, std::string>> saved_model_output_names = nullptr,
+                        const bool native_format = false);
 
     std::vector<ov::frontend::Place::Ptr> get_inputs() const override;
     std::vector<ov::frontend::Place::Ptr> get_outputs() const override;

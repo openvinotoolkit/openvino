@@ -127,6 +127,9 @@ def moc_pipeline(argv: argparse.Namespace, moc_front_end: FrontEnd):
         add_names_to_tensors(input_model, user_shapes)
         new_output_places = [x['node'] for x in outputs]
         input_model.override_all_outputs(new_output_places)
+        # invalidation of existing Place objects could have happened in the operation above
+        if user_shapes:
+            model_inputs = input_model.get_inputs()
 
     if user_shapes:
         for user_shape in user_shapes:
