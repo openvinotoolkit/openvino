@@ -12,6 +12,7 @@
 #include "ngraph/opsets/opset1.hpp"
 #include "ngraph/opsets/opset5.hpp"
 #include "ngraph/pass/manager.hpp"
+#include "openvino/opsets/opset11.hpp"
 #include "util/all_close_f.hpp"
 #include "util/test_tools.hpp"
 
@@ -3583,4 +3584,32 @@ TEST(constant_folding, evaluate_on_tensor_vector) {
     ASSERT_TRUE(result_node);
     ASSERT_EQ(data_shape, result_node->get_output_shape(0));
     ASSERT_EQ(add_expected, result_node->cast_vector<int>());
+}
+
+TEST(constant_folding, gather_with_dynamic_shapes_in_data_input) {
+    auto in_0 = std::make_shared<ov::opset11::Parameter>(ov::element::i64, ov::PartialShape{30});
+
+    // dynamic input to Gather
+    auto in_1 = std::make_shared<ov::opset11::Parameter>(ov::element::i32, ov::PartialShape{-1, 2});
+    auto shape_of = std::make_shared<ov::opset11::ShapeOf>(in_1);
+    auto indices = std::make_shared<ov::opset11::Constant>(ov::element::i32, ov::Shape{1}, std::vector<int>{1});
+    auto axis = std::make_shared<ov::opset11::Constant>(ov::element::i32, ov::Shape{1}, std::vector<int>{0});
+    auto gather = std::make_shared<ov::opset11::Gather>(shape_of, indices, axis);
+    auto in_2 = std::make_shared<ov::opset11::Constant>(ov::element::i32, ov::Shape{1}, std::vector<int>{10});
+    auto in_3 = std::make_shared<ov::opset11::Constant>(ov::element::i32, ov::Shape{1}, std::vector<int>{1});
+    auto strided_slice = std::make_shared<ov::opset11::StridedSlice>(in_0,
+                                                                     gather,
+                                                                     in_2,
+                                                                     in_3,
+                                                                     std::vector<int64_t>{0, 0},
+                                                                     std::vector<int64_t>{0, 0},
+                                                                     std::vector<int64_t>{0, 0},
+                                                                     std::vector<int64_t>{0, 1});
+    auto res = std::make_shared<ov::opset11::Result>(strided_slice);
+
+    auto model = std::make_shared<ov::Model>(ov::ResultVector{res}, ov::ParameterVector{in_0, in_1});
+
+    run_constant_folding(model);
+
+    ASSERT_EQ(count_ops_of_type<ov::opset11::Gather>(model), 0);
 }

@@ -55,13 +55,17 @@ const auto friendly_name_from = [](const ov::Node& node, const size_t output_cou
 
 const auto fold_gather = [](const std::shared_ptr<ov::Node>& current_node) -> bool {
     auto data_out = current_node->input_value(0);
-    auto out_pshape = data_out.get_partial_shape();
+    if (!ov::as_type_ptr<ov::opset11::ShapeOf>(data_out.get_node_shared_ptr())) {
+        return false;
+    }
+    auto out_pshape = data_out.get_node_shared_ptr()->input_value(0).get_partial_shape();
     if (out_pshape.rank().is_static() && is_output_foldable(data_out, "can_be_partially_folded")) {
         auto rank = out_pshape.rank().get_length();
         std::set<size_t> dyn_indices;
 
-        // In some cases, Gather doesn't use dynamic dimensions in `indices` argument,
-        // so we can create a constant after ShapeOf with any values instead of the dynamic dims.
+        // In some cases, Gather doesn't use dynamic dimensions from its 1st input `ShapeOf(data)`
+        // in `indices` argument, so we can create a constant after ShapeOf with any values instead
+        // of the dynamic dims.
         int64_t stub = 1;
         std::vector<int64_t> shape_with_stubs(rank);
         for (int64_t i = 0; i < rank; ++i) {
@@ -90,6 +94,8 @@ const auto fold_gather = [](const std::shared_ptr<ov::Node>& current_node) -> bo
                                                                           shape_with_stubs);
 
                 current_node->input(0).replace_source_output(replacement);
+                auto rt_info = data_out.get_node_shared_ptr()->get_rt_info();
+                rt_info.erase("can_be_partially_folded");
                 // Propagate runtime info attributes to replacement
                 copy_runtime_info(data_out.get_node_shared_ptr(), replacement);
                 return true;
@@ -102,7 +108,7 @@ const auto fold_gather = [](const std::shared_ptr<ov::Node>& current_node) -> bo
 
 /**
  * \brief Folds the inputs of the `current_node` when ConstantFolding depends on node's logic.
- * For example, when Gather has dynamic dims in the first inputs, but
+ * For example, when Gather has dynamic dims in the first inputs after ShapeOf, but
  * operates with non-dynamic data specified in 'indices' argument.
  *
  * \param current_node Node which inputs can be folded.
