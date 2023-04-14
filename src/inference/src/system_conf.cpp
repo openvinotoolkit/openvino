@@ -168,7 +168,7 @@ std::vector<std::vector<int>> get_proc_type_table() {
 bool is_cpu_map_available() {
     return false;
 }
-int get_num_numa_nodes(){
+int get_num_numa_nodes() {
     return -1;
 }
 std::vector<int> reserve_available_cpus(const ColumnOfProcessorTypeTable core_type,
