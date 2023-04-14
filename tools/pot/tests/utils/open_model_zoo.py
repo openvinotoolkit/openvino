@@ -86,7 +86,7 @@ def convert(config, custom_mo_config=None):
 
 
 def get_models_list():
-    return load_models(MODEL_ROOT, Dict(config=None), mode=ModelLoadingMode.ignore_composite)
+    return load_models(MODEL_ROOT, mode=ModelLoadingMode.ignore_composite)
 
 
 def download_engine_config(model_name):
