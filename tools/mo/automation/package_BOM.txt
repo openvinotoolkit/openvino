@@ -835,6 +835,7 @@ openvino/tools/mo/moc_frontend/__init__.py
 openvino/tools/mo/moc_frontend/analysis.py
 openvino/tools/mo/moc_frontend/check_config.py
 openvino/tools/mo/moc_frontend/extractor.py
+openvino/tools/mo/moc_frontend/layout_utils.py
 openvino/tools/mo/moc_frontend/pipeline.py
 openvino/tools/mo/moc_frontend/pytorch_frontend_utils.py
 openvino/tools/mo/moc_frontend/serialize.py
@@ -1081,7 +1082,6 @@ openvino/tools/mo/utils/ir_reader/extenders/tensoriterator_extender.py
 openvino/tools/mo/utils/ir_reader/extenders/topk_extender.py
 openvino/tools/mo/utils/ir_reader/extenders/variadic_split_extender.py
 openvino/tools/mo/utils/ir_reader/internal_ops/squeeze.py
-openvino/tools/mo/utils/ir_reader/internal_ops/unique.py
 openvino/tools/mo/utils/ir_reader/internal_ops/unsqueeze.py
 openvino/tools/mo/utils/ir_reader/layer_to_class.py
 openvino/tools/mo/utils/ir_reader/restore_graph.py
