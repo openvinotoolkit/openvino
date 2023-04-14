@@ -790,8 +790,7 @@ void Node::prepareMemory(const std::vector<DnnlMemoryDescPtr>& intDescs) {
 
             MemoryPtr _ptr = std::make_shared<Memory>(engine);
             _ptr->Create(*intDescs[i]);
-            _ptr->SetData(memory);
-
+            node::Reorder::reorderData(memory, *_ptr, context->getParamsCache());
             return _ptr;
         };
 
