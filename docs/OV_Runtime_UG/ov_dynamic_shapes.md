@@ -74,6 +74,8 @@ The examples below show how to set dynamic dimensions with a model that has a st
        .. doxygensnippet:: docs/snippets/ov_dynamic_shapes.py
           :language: python
           :fragment: [reshape_undefined]
+       
+       With Python, you may also pass all dimensions as a string and use ``?`` for the dynamic dimensions (e.g. ``model.reshape(“1, 3, ?, ?”)``).
 
     .. tab-item:: C
        :sync: c
@@ -83,7 +85,7 @@ The examples below show how to set dynamic dimensions with a model that has a st
           :fragment: [ov_dynamic_shapes:reshape_undefined]
 
 
-With Python, you may also pass all dimensions as a string and use ``?`` for the dynamic dimensions (e.g. ``model.reshape(“1, 3, ?, ?”)``).
+
 
 The examples above assume that the model has a single input layer. To change models with multiple input layers (such as NLP models), iterate over all the input layers and apply the model.reshape method to each individual layer. For example, the following code sets the second dimension as dynamic in every input layer:
 
