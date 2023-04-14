@@ -229,7 +229,7 @@ def moc_pipeline(argv: argparse.Namespace, moc_front_end: FrontEnd):
                 continue
 
             batch_dim, is_default_index = get_dimension_index_by_label(input_partial_shape,
-                                                                       place.get_names(), layout_values, 'N')
+                                                                       place.get_names(), layout_values, 'N', 0)
             if batch_dim is None:
                 # skip because no batch dimension exists in the input
                 continue
@@ -264,7 +264,7 @@ def moc_pipeline(argv: argparse.Namespace, moc_front_end: FrontEnd):
                 # update input shape with the specified batch for input that originally has dynamic rank
                 batch_dim, is_default_index = get_dimension_index_by_label(input_partial_shape,
                                                                            model_input.get_names(),
-                                                                           layout_values, 'N')
+                                                                           layout_values, 'N', 0)
                 if batch_dim is None:
                     continue
 
