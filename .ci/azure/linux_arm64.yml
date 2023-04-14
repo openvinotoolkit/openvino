@@ -196,7 +196,6 @@ jobs:
         -DCMAKE_TOOLCHAIN_FILE=$(OPENVINO_REPO_DIR)/cmake/arm64.toolchain.cmake
         -DCMAKE_BUILD_TYPE=$(BUILD_TYPE)
         -DTHREADING=TBB
-        -DTBB_DIR=$(INSTALL_ONETBB)/lib/cmake/TBB
         -DCMAKE_VERBOSE_MAKEFILE=ON
         -DCMAKE_CXX_COMPILER_LAUNCHER=ccache
         -DCMAKE_C_COMPILER_LAUNCHER=ccache
