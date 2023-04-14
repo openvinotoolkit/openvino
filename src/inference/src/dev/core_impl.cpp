@@ -65,15 +65,6 @@ bool is_virtual_device(const std::string& device_name) {
             device_name.find("HETERO") != std::string::npos || device_name.find("BATCH") != std::string::npos);
 };
 
-ov::AnyMap clone_map(const ov::AnyMap& m) {
-    ov::AnyMap rm;
-    for (auto&& kvp : m) {
-        rm[kvp.first] = kvp.second.is<ov::AnyMap>() ? ov::Any(clone_map(kvp.second.as<ov::AnyMap>())) : kvp.second;
-    }
-
-    return rm;
-}
-
 /**
  * @brief Converts / flattens ov::device::properties from
  * @code
@@ -94,7 +85,7 @@ ov::AnyMap clone_map(const ov::AnyMap& m) {
  * @return ov::AnyMap Flattened ov::AnyMap with properties
  */
 ov::AnyMap flatten_sub_properties(const std::string& user_device_name, const ov::AnyMap& user_properties) {
-    ov::AnyMap result_properties = clone_map(user_properties);
+    ov::AnyMap result_properties = user_properties;
 
     // puts sub-property to result_properties if it's not there yet
     auto update_result_properties = [&result_properties](const ov::AnyMap& sub_properties) -> void {
@@ -748,7 +739,7 @@ ov::AnyMap ov::CoreImpl::get_supported_property(const std::string& full_device_n
         // ov::device::priority cannot be shared, because it's specific for current virtual
         // plugin. So, we need to remove ov::device::priorities from the list, because it's
         // supposed to be set for current virtual plugin and cannot be propogated down
-        ov::AnyMap return_properties = clone_map(user_properties);
+        ov::AnyMap return_properties = user_properties;
         auto device_priorities_it = return_properties.find(ov::device::priorities.name());
         if (device_priorities_it != return_properties.end()) {
             return_properties.erase(device_priorities_it);
