@@ -82,7 +82,10 @@ ov::pass::SelectWithOneValueCondition::SelectWithOneValueCondition() {
 
             auto target_shape = copy_to.make<Constant>(element::i32, Shape{select_rank}, select_shape_values);
             auto broadcast = copy_to.make<Broadcast>(branch_output, target_shape);
-            return replace_output_update_name(select->output(0), broadcast->output(0));
+            select->output(0).replace(broadcast->output(0));
+            broadcast->set_friendly_name(select->get_friendly_name());
+            copy_runtime_info(select, copy_to.get());
+            return true;
         }
         return false;
     };
