@@ -72,7 +72,7 @@ void validate_scale(const Output<ngraph::Node> scale, const Output<ngraph::Node>
         const auto& x_shape = x.get_partial_shape();
         const auto& x_dim_at_axis = x_shape[axis];
 
-        NGRAPH_CHECK(scale_dim.same_scheme(x_dim_at_axis),
+        NGRAPH_CHECK(scale_dim.compatible(x_dim_at_axis),
                      "The number of dequantization scale elements '",
                      scale_dim,
                      "' must match the input shape dimension '",
@@ -92,7 +92,7 @@ void validate_zero_point(const Output<ngraph::Node> zero_point, const Output<ngr
         const auto& x_shape = x.get_partial_shape();
         const auto& x_dim_at_axis = x_shape[axis];
 
-        NGRAPH_CHECK(zero_point_dim.same_scheme(x_dim_at_axis),
+        NGRAPH_CHECK(zero_point_dim.compatible(x_dim_at_axis),
                      "The number of zero point elements '",
                      zero_point_dim,
                      "' must match the input shape dimension '",
