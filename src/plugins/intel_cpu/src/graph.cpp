@@ -44,9 +44,9 @@
 #include "utils/verbose.h"
 #include "memory_desc/cpu_memory_desc_utils.h"
 
-#include <ngraph/node.hpp>
-#include <ngraph/function.hpp>
-#include <ngraph/ops.hpp>
+#include <openvino/core/model.hpp>
+#include <openvino/core/node.hpp>
+#include <openvino/op/ops.hpp>
 #include <transformations/utils/utils.hpp>
 #include <low_precision/low_precision.hpp>
 #include "memory_desc/dnnl_blocked_memory_desc.h"
@@ -114,7 +114,7 @@ void Graph::CreateGraph(const std::vector<NodePtr> &graphNodes,
     CPU_DEBUG_CAP_ENABLE(serialize(*this));
 }
 
-template void Graph::CreateGraph(const std::shared_ptr<const ngraph::Function>&, const GraphContext::CPtr);
+template void Graph::CreateGraph(const std::shared_ptr<const ov::Model>&, const GraphContext::CPtr);
 template void Graph::CreateGraph(const CNNNetwork&, const GraphContext::CPtr);
 
 void Graph::Replicate(const std::shared_ptr<const ov::Model> &subgraph) {
@@ -126,9 +126,9 @@ void Graph::Replicate(const std::shared_ptr<const ov::Model> &subgraph) {
 
     // nodes which has no consumers (output or just unused). But doesn't marked as graph output.
     // Will be stored as fake output separately.
-    std::deque<ngraph::Output<ngraph::Node>> unusedOutputs;
+    std::deque<ov::Output<ov::Node>> unusedOutputs;
 
-    auto getParentOutputPort = [](const std::shared_ptr<ngraph::Node> childOp, const std::shared_ptr<ngraph::Node> parentOp,
+    auto getParentOutputPort = [](const std::shared_ptr<ov::Node> childOp, const std::shared_ptr<ov::Node> parentOp,
                                   const size_t childInputPort) -> int {
         for (size_t parentPort = 0; parentPort < parentOp->get_output_size(); parentPort++) {
             if (childOp->input(childInputPort).get_tensor_ptr() == parentOp->output(parentPort).get_tensor_ptr()) {
@@ -144,13 +144,13 @@ void Graph::Replicate(const std::shared_ptr<const ov::Model> &subgraph) {
 
         graphNodes.push_back(node);
 
-        if (op->get_type_info() == ngraph::op::v0::Parameter::get_type_info_static()) {
+        if (op->get_type_info() == op::v0::Parameter::get_type_info_static()) {
             inputNodesMap[node->getName()] = node;
         }
 
-        if (op->get_type_info() == ngraph::op::v0::Result::get_type_info_static()) {
+        if (op->get_type_info() == op::v0::Result::get_type_info_static()) {
             const auto prev = op->input_value(0);
-            const std::string inputID = ov::op::util::get_ie_output_name(prev);
+            const std::string inputID = op::util::get_ie_output_name(prev);
 
             outputNodesMap[inputID] = node;
         }
@@ -167,10 +167,10 @@ void Graph::Replicate(const std::shared_ptr<const ov::Model> &subgraph) {
         }
 
         if (!one_of(op->get_type_info(),
-                ngraph::op::v0::Result::get_type_info_static(),
-                ngraph::op::v3::Assign::get_type_info_static(),
-                ngraph::op::v6::Assign::get_type_info_static())) {
-            for (size_t oi = 0; oi < op->get_output_size(); oi++) {
+                op::v0::Result::get_type_info_static(),
+                op::v3::Assign::get_type_info_static(),
+                op::v6::Assign::get_type_info_static())) {
+            for (int oi = 0; oi < op->get_output_size(); oi++) {
                 if (op->get_output_target_inputs(oi).empty()) {
                     unusedOutputs.push_back(op->output(oi));
                 }
@@ -211,11 +211,11 @@ void Graph::Replicate(const CNNNetwork &network) {
 
     auto orderedOps = func->get_ordered_ops();
 
-    // TODO [NM]: unordered_map is preferred from performance perspective. Needs hash for ngraph::Node
-    std::map<std::shared_ptr<ngraph::Node>, NodePtr> op2node;
-    std::deque<ngraph::Output<ngraph::Node>> unusedOutputs;  // nodes which has no consumers (output or just unused)
+    // TODO [NM]: unordered_map is preferred from performance perspective. Needs hash for ov::Node
+    std::map<std::shared_ptr<ov::Node>, NodePtr> op2node;
+    std::deque<ov::Output<ov::Node>> unusedOutputs;  // nodes which has no consumers (output or just unused)
 
-    auto getParentOutputPort = [](const std::shared_ptr<ngraph::Node> childOp, const std::shared_ptr<ngraph::Node> parentOp,
+    auto getParentOutputPort = [](const std::shared_ptr<ov::Node> childOp, const std::shared_ptr<ov::Node> parentOp,
                                   const size_t childInputPort) -> int {
         for (size_t parentPort = 0; parentPort < parentOp->get_output_size(); parentPort++) {
             if (childOp->input(childInputPort).get_tensor_ptr() == parentOp->output(parentPort).get_tensor_ptr()) {
@@ -234,7 +234,7 @@ void Graph::Replicate(const CNNNetwork &network) {
 
         graphNodes.push_back(node);
 
-        if (op->get_type_info() == ngraph::op::v0::Parameter::get_type_info_static()) {
+        if (op->get_type_info() == op::v0::Parameter::get_type_info_static()) {
             const auto inInfo = inputsInfo.find(node->getName());
             if (inInfo != inputsInfo.end()) {
                 inputNodesMap[node->getName()] = node;
@@ -244,12 +244,14 @@ void Graph::Replicate(const CNNNetwork &network) {
             }
         }
 
-        if (op->get_type_info() == ngraph::op::v0::Result::get_type_info_static()) {
+        if (op->get_type_info() == op::v0::Result::get_type_info_static()) {
             const auto &input = op->input_value(0);
-            const auto name = ov::op::util::get_ie_output_name(input);
+            const auto name = op::util::get_ie_output_name(input);
 
             if (outputsInfo.count(name) != 0) {
                 outputNodesMap[name] = node;
+            } else if (!input.get_names().empty()) {
+                outputNodesMap[*input.get_names().begin()] = node;
             }
         }
 
@@ -265,10 +267,10 @@ void Graph::Replicate(const CNNNetwork &network) {
         }
 
         if (!one_of(op->get_type_info(),
-                ngraph::op::v0::Result::get_type_info_static(),
-                ngraph::op::v3::Assign::get_type_info_static(),
-                ngraph::op::v6::Assign::get_type_info_static())) {
-            for (size_t oi = 0; oi < op->get_output_size(); oi++) {
+                op::v0::Result::get_type_info_static(),
+                op::v3::Assign::get_type_info_static(),
+                op::v6::Assign::get_type_info_static())) {
+            for (int oi = 0; oi < op->get_output_size(); oi++) {
                 if (op->get_output_target_inputs(oi).empty()) {
                     unusedOutputs.push_back(op->output(oi));
                 }
@@ -1671,7 +1673,7 @@ void Graph::EnforceInferencePrecision() {
     }
 }
 
-std::shared_ptr<ngraph::Function> Graph::dump() const {
+std::shared_ptr<ov::Model> Graph::dump() const {
     return dump_graph_as_ie_ngraph_net(*this);
 }
 

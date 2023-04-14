@@ -2,16 +2,14 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "insert_convert_after_extension.hpp"
 
-#include "ref_convert_i64_i32.hpp"
 #include <openvino/opsets/opset10.hpp>
 #include "cpu_types.h"
-#include <openvino/pass/pattern/op/wrap_type.hpp>
-
 #include "itt.hpp"
 
-ov::pass::RefConvertI64ToI32::RefConvertI64ToI32() {
-    MATCHER_SCOPE(RefConvertI64ToI32);
+ov::pass::InsertConvertAfterExtension::InsertConvertAfterExtension() {
+    MATCHER_SCOPE(InsertConvertAfterExtension);
 
     auto i64_extension = [](const ov::Output<ov::Node>& output) -> bool {
         auto node = output.get_node_shared_ptr();
@@ -36,6 +34,9 @@ ov::pass::RefConvertI64ToI32::RefConvertI64ToI32() {
                 auto& convertTensor = convert->output(0).get_tensor();
                 if (!output.get_names().empty()) {
                     convertTensor.set_names(output.get_names());
+                } else {
+                    std::unordered_set<std::string> newNames({ref->get_friendly_name() + "." + std::to_string(output.get_index())});
+                    convertTensor.set_names(newNames);
                 }
             }
         }
