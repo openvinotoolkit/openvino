@@ -1,6 +1,7 @@
 -c ../constraints.txt
 numpy>=1.16.6,<1.25.0
-mxnet
+mxnet~=1.2.0; sys_platform == 'win32'
+mxnet>=1.7.0.post2,<=1.9.1; sys_platform != 'win32'
 networkx
 defusedxml
 urllib3

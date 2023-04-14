@@ -6,7 +6,6 @@ protobuf>=3.18.1,<4.0.0  # Python bindings, frontends
 # pytest
 pytest>=5.0,<7.4
 pytest-dependency==0.5.1
-pytest-forked; platform_system != "Windows"
 pytest-html==1.19.0
 pytest-timeout==2.0.1
 

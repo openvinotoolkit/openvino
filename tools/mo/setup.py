@@ -60,6 +60,9 @@ def read_requirements(path: str) -> List[str]:
     1. version specified in requirements.txt
     2. version specified in constraints.txt
     3. version unbound
+
+    Additionally, constraints.txt does not support environment markers.
+    They need to be specified in requirements.txt files.
     """
     requirements = []
     constraints = read_constraints()
@@ -72,7 +75,14 @@ def read_requirements(path: str) -> List[str]:
         # get rid of newlines
         line = line.replace('\n', '')
         # if version is specified (non-word chars present)
-        if re.search('(~|=|<|>|;)', line):
+        package_constraint = constraints.get(line.split(';')[0])
+        if re.search('(~|=|<|>)', line):
+            #print(f"Checking {line}")
+            if package_constraint:  # both markers and versions specified
+                marker_index = line.find(";")
+                line = line[:marker_index] \
+                + ",".join([constraint for constraint in package_constraint]) \
+                + line[marker_index:]
             requirements.append(line)
         # else get version from constraints
         else:
@@ -84,6 +94,7 @@ def read_requirements(path: str) -> List[str]:
             # else version is unbound
             else:
                 requirements.append(line)
+    #print(f"\n{path}:\n{requirements}\n\n")
     return requirements
 
 

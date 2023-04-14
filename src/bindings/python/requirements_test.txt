@@ -29,7 +29,7 @@ flake8_quotes
 mypy
 Pep8-naming
 pydocstyle
-pytest-forked
+pytest-forked; platform_system != "Windows"
 pytest-xdist
 pytest-html
 pytest
