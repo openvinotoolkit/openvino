@@ -127,13 +127,17 @@ attach_quantize_impl::attach_quantize_impl() {
         format::bs_fs_zyx_bsv32_fsv16,
         format::bs_fs_zyx_bsv32_fsv32,
 
-        format::bfwzyx
+        format::bfwzyx,
+        format::bfuwzyx,
+        format::bfvuwzyx,
     };
 
     auto dyn_formats = {
         format::bfyx,
         format::bfzyx,
-        format::bfwzyx
+        format::bfwzyx,
+        format::bfuwzyx,
+        format::bfvuwzyx,
     };
 
     for (const auto type : types) {
