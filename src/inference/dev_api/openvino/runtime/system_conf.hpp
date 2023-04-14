@@ -139,7 +139,14 @@ OPENVINO_RUNTIME_API bool with_cpu_x86_avx512_core_amx();
 OPENVINO_RUNTIME_API bool is_cpu_map_available();
 
 /**
- * @brief      Returns number of CPU cores on Linux/Windows
+ * @brief      Get number of numa nodes
+ * @ingroup    ie_dev_api_system_conf
+ * @return     Number of numa nodes
+ */
+OPENVINO_RUNTIME_API int get_num_numa_nodes();
+
+/**
+ * @brief      Returns a table of number of processor types on Linux/Windows
  * @ingroup    ie_dev_api_system_conf
  * @return     A table about number of CPU cores of different types defined with ColumnOfProcessorTypeTable
  * The following are two example of processor type table.
@@ -153,7 +160,7 @@ OPENVINO_RUNTIME_API bool is_cpu_map_available();
  *  ALL_PROC | MAIN_CORE_PROC | EFFICIENT_CORE_PROC | HYPER_THREADING_PROC
  *     32            8                 16                       8           // Total number of one socket
  */
-OPENVINO_RUNTIME_API std::vector<std::vector<int>> get_num_available_cpu_cores();
+OPENVINO_RUNTIME_API std::vector<std::vector<int>> get_proc_type_table();
 
 /**
  * @brief      Returns corresponding logical cores

@@ -150,6 +150,13 @@ using ov::with_cpu_x86_avx512_core_amx;
 using ov::is_cpu_map_available;
 
 /**
+ * @brief      Get number of numa nodes
+ * @ingroup    ie_dev_api_system_conf
+ * @return     Number of numa nodes
+ */
+using ov::get_num_numa_nodes;
+
+/**
  * @brief      Set flag bit 'Used' of CPU
  * @ingroup    ie_dev_api_system_conf
  * @param[in]  cpu_ids cpus in cup_mapping.
@@ -163,7 +170,7 @@ using ov::set_cpu_used;
  * @param[in]  plugin_task plugin task.
  * @return     Number of CPU cores with core_type.
  */
-using ov::get_num_available_cpu_cores;
+using ov::get_proc_type_table;
 
 /**
  * @brief      Returns corresponding logical cores

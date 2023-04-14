@@ -185,7 +185,7 @@ int get_model_prefer_threads(const int num_streams,
                              const std::vector<std::vector<int>> proc_type_table,
                              const std::shared_ptr<ngraph::Function>& ngraphFunc,
                              const InferenceEngine::IStreamsExecutor::Config streamExecutorConfig) {
-    const int sockets = static_cast<int>(getAvailableNUMANodes().size());
+    const int sockets = get_num_numa_nodes();
     auto model_prefer = 0;
     // latency
     if (num_streams <= sockets && num_streams > 0) {
@@ -255,7 +255,7 @@ void get_num_streams(const int streams,
     std::string log = "[ streams info ]";
     std::vector<std::string> core_type_str = {" Any core: ", " PCore: ", " ECore: ", " Logical core: "};
 
-    std::vector<std::vector<int>> orig_proc_type_table = get_num_available_cpu_cores();
+    std::vector<std::vector<int>> orig_proc_type_table = get_proc_type_table();
     executor_config._orig_proc_type_table = orig_proc_type_table;
     std::vector<std::vector<int>> proc_type_table =
         apply_scheduling_core_type(config.schedulingCoreType, orig_proc_type_table);

@@ -162,11 +162,14 @@ std::vector<int> get_available_numa_nodes() {
 int get_number_of_logical_cpu_cores(bool) {
     return parallel_get_max_threads();
 }
-std::vector<std::vector<int>> get_num_available_cpu_cores() {
+std::vector<std::vector<int>> get_proc_type_table() {
     return {{-1}};
 }
 bool is_cpu_map_available() {
     return false;
+}
+int get_num_numa_nodes(){
+    return -1;
 }
 std::vector<int> reserve_available_cpus(const ColumnOfProcessorTypeTable core_type,
                                         const int num_cpus,
@@ -225,12 +228,16 @@ std::vector<int> get_available_numa_nodes() {
 #        endif
 #    endif
 
-std::vector<std::vector<int>> get_num_available_cpu_cores() {
+std::vector<std::vector<int>> get_proc_type_table() {
     return cpu._proc_type_table;
 }
 
 bool is_cpu_map_available() {
     return cpu._proc_type_table.size() > 0 && cpu._num_threads == cpu._proc_type_table[0][ALL_PROC];
+}
+
+int get_num_numa_nodes() {
+    return cpu._sockets;
 }
 
 std::vector<int> reserve_available_cpus(const ColumnOfProcessorTypeTable core_type,

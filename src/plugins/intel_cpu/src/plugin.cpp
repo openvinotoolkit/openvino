@@ -275,7 +275,7 @@ void Engine::GetPerformanceStreams(Config& config, const std::shared_ptr<ngraph:
     const auto perf_hint_name = config.perfHintsConfig.ovPerfHint;
     int streams = config.streamExecutorConfig._streams;
     if (perf_hint_name == CONFIG_VALUE(LATENCY)) {
-        streams = static_cast<int>(getAvailableNUMANodes().size());
+        streams = get_num_numa_nodes();
     } else if (perf_hint_name == CONFIG_VALUE(THROUGHPUT)) {
         streams = 0;
     } else if (perf_hint_name.empty()) {
@@ -283,6 +283,12 @@ void Engine::GetPerformanceStreams(Config& config, const std::shared_ptr<ngraph:
     }
 
     get_num_streams(streams, ngraphFunc, config);
+
+    if (config.exclusiveAsyncRequests) {  // Exclusive request feature disables the streams
+        config.streamExecutorConfig._streams = 1;
+        config._config[PluginConfigParams::KEY_CPU_THROUGHPUT_STREAMS] =
+            std::to_string(config.streamExecutorConfig._streams);
+    }
 }
 
 StreamCfg Engine::GetNumStreams(InferenceEngine::IStreamsExecutor::ThreadBindingType thread_binding_type,

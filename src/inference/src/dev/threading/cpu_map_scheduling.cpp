@@ -64,11 +64,11 @@ bool get_cpu_pinning(bool& input_value,
                      const threading::IStreamsExecutor::ThreadBindingType bind_type,
                      const std::vector<std::vector<int>>& proc_type_table) {
     int result_value;
-    int num_sockets = proc_type_table.size() > 1 ? proc_type_table.size() - 1 : 1;
+    int num_sockets = get_num_numa_nodes();
     bool latency = num_streams <= num_sockets && num_streams > 0;
 
     if (proc_type_table[0][EFFICIENT_CORE_PROC] > 0 &&
-        proc_type_table[0][EFFICIENT_CORE_PROC] == proc_type_table[0][ALL_PROC]) {
+        proc_type_table[0][EFFICIENT_CORE_PROC] < proc_type_table[0][ALL_PROC]) {
         result_value =
             input_changed
                 ? input_value
