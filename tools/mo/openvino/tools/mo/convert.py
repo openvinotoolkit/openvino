@@ -5,8 +5,7 @@ import pathlib
 from collections import namedtuple
 from typing import Any
 
-from openvino.runtime import PartialShape, Shape, Layout
-
+from openvino.runtime import PartialShape, Shape, Layout, Model
 from openvino.tools.mo.convert_impl import _convert
 from openvino.tools.mo.utils.cli_parser import get_all_cli_parser
 from openvino.tools.mo.utils.logger import get_logger_state, restore_logger_state
@@ -80,7 +79,7 @@ def convert_model(
         remove_memory: bool = False,
 
         **args
-):
+) -> Model:
     """
     Converts the model from original framework to OpenVino Model.
 
@@ -160,7 +159,10 @@ def convert_model(
             for a model with two inputs with 4D and 2D shapes. Alternatively, specify
             shapes with the --input option.
         :param batch:
-            Input batch size
+            Set batch size. It applies to 1D or higher dimension inputs.
+            The default dimension index for the batch is zero.
+            Use a label 'n' in --layout or --source_layout option to set the batch dimension.
+            For example, "x(hwnc)" defines the third dimension to be the batch.
         :param mean_values:
             Mean values to be used for the input image per channel. Mean values can
             be set by passing a dictionary, where key is input name and value is mean
