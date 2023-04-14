@@ -16,7 +16,7 @@ Device Specific Remote Tensor Public API
 
 The public interface to work with device specific remote tensors should have header only implementation and doesn't depend on the plugin library.
 
-.. doxygensnippet:: include/template/remote_tensor.hpp
+.. doxygensnippet:: src/plugins/template/include/template/remote_tensor.hpp
    :language: cpp
    :fragment: [remote_tensor:public_header]
 
@@ -47,7 +47,7 @@ The example implementation have two remote tensor classes:
 
 Based on that, an implementation of a type independent remote tensor class can look as follows:
 
-.. doxygensnippet:: src/remote_context.cpp
+.. doxygensnippet:: src/plugins/template/src/remote_context.cpp
    :language: cpp
    :fragment: [vector_impl:implementation]
 
@@ -55,7 +55,7 @@ The implementation provides a helper to get wrapped stl tensor and overrides all
 
 The type dependent remote tensor has the next implementation:
 
-.. doxygensnippet:: src/remote_context.cpp
+.. doxygensnippet:: src/plugins/template/src/remote_context.cpp
    :language: cpp
    :fragment: [vector_impl_t:implementation]
 

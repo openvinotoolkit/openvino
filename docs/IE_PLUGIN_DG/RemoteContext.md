@@ -17,7 +17,7 @@ RemoteContext Class
 
 OpenVINO Plugin API provides the interface ov::IRemoteContext which should be used as a base class for a plugin specific remote context. Based on that, a declaration of an compiled model class can look as follows: 
 
-.. doxygensnippet:: openvino/src/plugins/template/src/remote_context.hpp
+.. doxygensnippet:: src/plugins/template/src/remote_context.hpp
    :language: cpp
    :fragment: [remote_context:header]
 

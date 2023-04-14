@@ -28,7 +28,7 @@ Plugin Class
 OpenVINO Plugin API provides the helper ov::IPlugin class recommended to use as a base class for a plugin.
 Based on that, declaration of a plugin class can look as follows:
 
-.. doxygensnippet:: openvino/src/plugins/template/src/plugin.hpp
+.. doxygensnippet:: src/plugins/template/src/plugin.hpp
    :language: cpp
    :fragment: [plugin:header]
 
@@ -42,7 +42,7 @@ The provided plugin class also has several fields:
 * ``m_waitExecutor`` - a task executor that waits for a response from a device about device tasks completion.
 * ``m_cfg`` of type ``Configuration``:
 
-.. doxygensnippet:: openvino/src/plugins/template/src/plugin.hpp
+.. doxygensnippet:: src/plugins/template/src/plugin.hpp
    :language: cpp
    :fragment: [configuration:header]
 
@@ -65,7 +65,7 @@ must be thrown from a plugin constructor.
 
 A plugin must define a device name enabled via the ``set_device_name()`` method of a base class:
 
-.. doxygensnippet:: openvino/src/plugins/template/src/plugin.cpp
+.. doxygensnippet:: src/plugins/template/src/plugin.cpp
    :language: cpp
    :fragment: [plugin:ctor]
 
@@ -75,7 +75,7 @@ Plugin Destructor
 A plugin destructor must stop all plugins activities, and clean all allocated resources.
 
 
-.. doxygensnippet:: openvino/src/plugins/template/src/plugin.cpp
+.. doxygensnippet:: src/plugins/template/src/plugin.cpp
    :language: cpp
    :fragment: [plugin:dtor]
 
@@ -87,11 +87,11 @@ The plugin should implement two ``compile_model()`` methods: the first one compi
 This is the most important function of the ``Plugin`` class is to create an instance of compiled ``CompiledModel``,
 which holds a backend-dependent compiled model in an internal representation:
 
-.. doxygensnippet:: openvino/src/plugins/template/src/plugin.cpp
+.. doxygensnippet:: src/plugins/template/src/plugin.cpp
    :language: cpp
    :fragment: [plugin:compile_model]
 
-.. doxygensnippet:: openvino/src/plugins/template/src/plugin.cpp
+.. doxygensnippet:: src/plugins/template/src/plugin.cpp
    :language: cpp
    :fragment: [plugin:compile_model_with_remote]
 
@@ -113,7 +113,7 @@ The function accepts a const shared pointer to `ov::Model` object and applies co
 * :doc:`Quantized models <openvino_docs_ov_plugin_dg_quantized_models>`.
 
 
-.. doxygensnippet:: openvino/src/plugins/template/src/plugin.cpp
+.. doxygensnippet:: src/plugins/template/src/plugin.cpp
    :language: cpp
    :fragment: [plugin:transform_model]
 
@@ -134,7 +134,7 @@ operations via the ov::SupportedOpsMap structure. The ``query_model`` firstly ap
 3. Construct ``supported`` map which contains names of original operations. Note that since the inference is performed using OpenVINO™ reference backend, the decision whether the operation is supported or not depends on whether the latest OpenVINO opset contains such operation.
 4. ``ov.SupportedOpsMap`` contains only operations which are fully supported by ``m_backend``.
 
-.. doxygensnippet:: openvino/src/plugins/template/src/plugin.cpp
+.. doxygensnippet:: src/plugins/template/src/plugin.cpp
    :language: cpp
    :fragment: [plugin:query_model]
 
@@ -143,7 +143,7 @@ set_property()
 
 Sets new values for plugin property keys:
 
-.. doxygensnippet:: openvino/src/plugins/template/src/plugin.cpp
+.. doxygensnippet:: src/plugins/template/src/plugin.cpp
    :language: cpp
    :fragment: [plugin:set_property]
 
@@ -159,7 +159,7 @@ get_property()
 
 Returns a current value for a specified property key:
 
-.. doxygensnippet:: openvino/src/plugins/template/src/plugin.cpp
+.. doxygensnippet:: src/plugins/template/src/plugin.cpp
    :language: cpp
    :fragment: [plugin:get_property]
 
@@ -189,11 +189,11 @@ capabilities and a model compiled for a particular device cannot be used for ano
 information must be stored and checked during the import. 
 * Compiled backend specific model itself.
 
-.. doxygensnippet:: openvino/src/plugins/template/src/plugin.cpp
+.. doxygensnippet:: src/plugins/template/src/plugin.cpp
    :language: cpp
    :fragment: [plugin:import_model]
 
-.. doxygensnippet:: openvino/src/plugins/template/src/plugin.cpp
+.. doxygensnippet:: src/plugins/template/src/plugin.cpp
    :language: cpp
    :fragment: [plugin:import_model_with_remote]
 
@@ -203,7 +203,7 @@ create_context()
 
 The Plugin should implement ``Plugin::create_context()`` method which returns `ov::RemoteContext` in case if plugin supports remote context, in other case the plugin can throw an exception that this method is not implemented.
 
-.. doxygensnippet:: openvino/src/plugins/template/src/plugin.cpp
+.. doxygensnippet:: src/plugins/template/src/plugin.cpp
    :language: cpp
    :fragment: [plugin:create_context]
 
@@ -213,7 +213,7 @@ get_default_context()
 
 ``Plugin::get_default_context()`` also needed in case if plugin supports remote context, if the plugin doesn't support it, this method can throw an exception that functionality is not implemented.
 
-.. doxygensnippet:: openvino/src/plugins/template/src/plugin.cpp
+.. doxygensnippet:: src/plugins/template/src/plugin.cpp
    :language: cpp
    :fragment: [plugin:get_default_context]
 
@@ -222,7 +222,7 @@ Create Instance of Plugin Class
 
 OpenVINO plugin library must export only one function creating a plugin instance using OV_DEFINE_PLUGIN_CREATE_FUNCTION macro:
 
-.. doxygensnippet:: openvino/src/plugins/template/src/plugin.cpp
+.. doxygensnippet:: src/plugins/template/src/plugin.cpp
    :language: cpp
    :fragment: [plugin:create_plugin_engine]
 

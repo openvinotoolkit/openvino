@@ -17,11 +17,11 @@ To automatically generate the OpenVINO Developer Package, run the ``cmake`` tool
 
 Once the commands above are executed, the OpenVINO Developer Package is generated in the ``openvino-release-build`` folder. It consists of several files:
 
- - ``OpenVINODeveloperPackageConfig.cmake`` - the main CMake script which imports targets and provides compilation flags and CMake options.
- - ``OpenVINODeveloperPackageConfig-version.cmake`` - a file with a package version.
- - ``targets_developer.cmake`` - an automatically generated file which contains all targets exported from the OpenVINO build tree. This file is included by ``OpenVINODeveloperPackageConfig.cmake`` to import the following targets:
+* ``OpenVINODeveloperPackageConfig.cmake`` - the main CMake script which imports targets and provides compilation flags and CMake options.
+* ``OpenVINODeveloperPackageConfig-version.cmake`` - a file with a package version.
+* ``targets_developer.cmake`` - an automatically generated file which contains all targets exported from the OpenVINO build tree. This file is included by ``OpenVINODeveloperPackageConfig.cmake`` to import the following targets:
 
-   - Libraries for plugin development:
+* Libraries for plugin development:
 
    * ``openvino::runtime`` - shared OpenVINO library
    * ``openvino::runtime::dev`` - interface library with OpenVINO Developer API
@@ -29,7 +29,7 @@ Once the commands above are executed, the OpenVINO Developer Package is generate
    * ``openvino::xbyak`` - interface library with Xbyak headers
    * ``openvino::itt`` - static library with tools for performance measurement using Intel ITT
 
-   - Libraries for tests development:
+* Libraries for tests development:
 
    * ``openvino::gtest``, ``openvino::gtest_main``, ``openvino::gmock`` - Google Tests framework libraries
    * ``openvino::commonTestUtils`` - static library with common tests utilities 
@@ -64,9 +64,9 @@ To build a plugin and its tests, run the following CMake scripts:
 
 - Root ``CMakeLists.txt``, which finds the OpenVINO Developer Package using the ``find_package`` CMake command and adds the ``src`` and ``tests`` subdirectories with plugin sources and their tests respectively:
 
-.. doxygensnippet:: template/CMakeLists.txt
+.. doxygensnippet:: src/plugins/template/CMakeLists.txt
    :language: cpp
-   :fragment: cmake:main
+   :fragment: [cmake:main]
 
 .. note:: 
       
@@ -79,7 +79,7 @@ To build a plugin and its tests, run the following CMake scripts:
 
 * ``src/CMakeLists.txt`` to build a plugin shared library from sources:
 
-.. doxygensnippet:: template/src/CMakeLists.txt
+.. doxygensnippet:: src/plugins/template/CMakeLists.txt
    :language: cpp
    :fragment: [cmake:plugin]
 
@@ -89,7 +89,7 @@ To build a plugin and its tests, run the following CMake scripts:
 
 * ``tests/functional/CMakeLists.txt`` to build a set of functional plugin tests:
 
-.. doxygensnippet:: template/tests/functional/CMakeLists.txt
+.. doxygensnippet:: src/plugins/template/tests/functional/CMakeLists.txt
    :language: cpp
    :fragment: [cmake:functional_tests]
 

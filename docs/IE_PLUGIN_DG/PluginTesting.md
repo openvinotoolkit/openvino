@@ -16,19 +16,19 @@ Test definitions are split into tests class declaration (see ``src/tests/functio
 
 * From the declaration of convolution test class we can see that it's a parametrized GoogleTest based class with the ``convLayerTestParamsSet`` tuple of parameters:
     
-   .. doxygensnippet:: single_layer/convolution.hpp
+   .. doxygensnippet:: src/tests/functional/shared_test_classes/include/shared_test_classes/single_layer/convolution.hpp
       :language: cpp
       :fragment: test_convolution:definition
 
 * Based on that, define a set of parameters for ``Template`` plugin functional test instantiation:
    
-   .. doxygensnippet:: openvino/src/tests/functional/plugin/gpu/single_layer_tests/convolution.cpp
+   .. doxygensnippet:: src/tests/functional/plugin/gpu/single_layer_tests/convolution.cpp
       :language: cpp
       :fragment: test_convolution:declare_parameters
 
 * Instantiate the test itself using standard GoogleTest macro ``INSTANTIATE_TEST_SUITE_P``:
 
-   .. doxygensnippet:: openvino/src/tests/functional/plugin/gpu/single_layer_tests/convolution.cpp
+   .. doxygensnippet:: src/tests/functional/plugin/gpu/single_layer_tests/convolution.cpp
       :language: cpp
       :fragment: test_convolution:instantiate
 

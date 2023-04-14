@@ -15,7 +15,7 @@ OpenVINO Plugin API provides the interface ov::ISyncInferRequest which should be
 used as a base class for a synchronous inference request implementation. Based of that, a declaration 
 of a synchronous request class can look as follows: 
 
-.. doxygensnippet:: openvino/src/plugins/template/src/sync_infer_request.hpp
+.. doxygensnippet:: src/plugins/template/src/sync_infer_request.hpp
    :language: cpp
    :fragment: [infer_request:header]
 
@@ -39,7 +39,7 @@ InferRequest Constructor
 
 The constructor initializes helper fields and calls methods which allocate tensors:
 
-.. doxygensnippet:: openvino/src/plugins/template/src/sync_infer_request.cpp
+.. doxygensnippet:: src/plugins/template/src/sync_infer_request.cpp
    :language: cpp
    :fragment: [infer_request:ctor]
 
@@ -52,7 +52,7 @@ The constructor initializes helper fields and calls methods which allocate tenso
 
 Destructor can contain plugin specific logic to finish and destroy infer request.
 
-.. doxygensnippet:: openvino/src/plugins/template/src/sync_infer_request.cpp
+.. doxygensnippet:: src/plugins/template/src/sync_infer_request.cpp
    :language: cpp
    :fragment: [infer_request:dtor]
 
@@ -61,7 +61,7 @@ set_tensors_impl()
 
 The method allows to set batched tensors in case if the plugin supports it.
 
-.. doxygensnippet:: openvino/src/plugins/template/src/sync_infer_request.cpp
+.. doxygensnippet:: src/plugins/template/src/sync_infer_request.cpp
    :language: cpp
    :fragment: [infer_request:set_tensors_impl]
 
@@ -70,7 +70,7 @@ query_state()
 
 The method returns variable states from the model.
 
-.. doxygensnippet:: openvino/src/plugins/template/src/sync_infer_request.cpp
+.. doxygensnippet:: src/plugins/template/src/sync_infer_request.cpp
    :language: cpp
    :fragment: [infer_request:query_state]
 
@@ -79,7 +79,7 @@ infer()
 
 The method calls actual pipeline stages synchronously. Inside the method plugin should check input/output tensors, move external tensors to backend and run the inference.
 
-.. doxygensnippet:: openvino/src/plugins/template/src/sync_infer_request.cpp
+.. doxygensnippet:: src/plugins/template/src/sync_infer_request.cpp
    :language: cpp
    :fragment: [infer_request:infer]
 
@@ -88,7 +88,7 @@ The method calls actual pipeline stages synchronously. Inside the method plugin 
 
 Below is the code of the ``infer_preprocess()`` method. The method checks user input/output tensors and demonstrates conversion from user tensor to backend specific representation:
 
-.. doxygensnippet:: openvino/src/plugins/template/src/sync_infer_request.cpp
+.. doxygensnippet:: src/plugins/template/src/sync_infer_request.cpp
    :language: cpp
    :fragment: [infer_request:infer_preprocess]
 
@@ -97,7 +97,7 @@ Below is the code of the ``infer_preprocess()`` method. The method checks user i
 
 Executes a pipeline synchronously using ``m_executable`` object:
 
-.. doxygensnippet:: openvino/src/plugins/template/src/sync_infer_request.cpp
+.. doxygensnippet:: src/plugins/template/src/sync_infer_request.cpp
    :language: cpp
    :fragment: [infer_request:start_pipeline]
 
@@ -106,7 +106,7 @@ Executes a pipeline synchronously using ``m_executable`` object:
 
 Waits a pipeline in case of plugin asynchronous execution:
 
-.. doxygensnippet:: openvino/src/plugins/template/src/sync_infer_request.cpp
+.. doxygensnippet:: src/plugins/template/src/sync_infer_request.cpp
    :language: cpp
    :fragment: [infer_request:wait_pipeline]
 
@@ -115,7 +115,7 @@ Waits a pipeline in case of plugin asynchronous execution:
 
 Converts backend specific tensors to tensors passed by user:
 
-.. doxygensnippet:: openvino/src/plugins/template/src/sync_infer_request.cpp
+.. doxygensnippet:: src/plugins/template/src/sync_infer_request.cpp
    :language: cpp
    :fragment: [infer_request:infer_postprocess]
 
@@ -124,7 +124,7 @@ get_profiling_info()
 
 The method returns the profiling info which was measured during pipeline stages execution:
 
-.. doxygensnippet:: openvino/src/plugins/template/src/sync_infer_request.cpp
+.. doxygensnippet:: src/plugins/template/src/sync_infer_request.cpp
    :language: cpp
    :fragment: [infer_request:get_profiling_info]
 
