@@ -76,4 +76,28 @@ INSTANTIATE_TEST_SUITE_P(ov_plugin, OVCheckChangePropComplieModleGetPropTests_Mo
                 ::testing::ValuesIn(return_all_possible_device_combination()),
                 ::testing::ValuesIn(OVCheckChangePropComplieModleGetPropTests::getModelDependcePropertiesValues())),
         OVCheckChangePropComplieModleGetPropTests_ModelDependceProps::getTestCaseName);
+
+//
+// IE Class GetMetric
+//
+
+INSTANTIATE_TEST_SUITE_P(
+        ov_plugin, OVGetMetricPropsTest,
+        ::testing::ValuesIn(return_all_possible_device_combination(false)));
+
+INSTANTIATE_TEST_SUITE_P(
+        ov_plugin, OVGetAvailableDevicesPropsTest,
+        ::testing::ValuesIn(return_all_possible_device_combination(false)));
+
+//
+// IE Class GetConfig
+//
+
+INSTANTIATE_TEST_SUITE_P(
+        ov_plugin, OVGetConfigTest,
+        ::testing::ValuesIn(return_all_possible_device_combination(false)));
+
+INSTANTIATE_TEST_SUITE_P(
+        ov_plugin_remove, OVClassBasicPropsTestP,
+        ::testing::ValuesIn(generate_pairs_plugin_name_by_device()));
 } // namespace

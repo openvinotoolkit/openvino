@@ -125,4 +125,11 @@ INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests,
                          OVCompiledModelEmptyPropertiesTests,
                          ::testing::Values(CommonTestUtils::DEVICE_TEMPLATE),
                          OVCompiledModelEmptyPropertiesTests::getTestCaseName);
+
+// OV Class Load network
+
+INSTANTIATE_TEST_SUITE_P(
+        smoke_OVClassCompileModelTest, OVClassCompileModelTest,
+        ::testing::Values(CommonTestUtils::DEVICE_TEMPLATE));
+
 }  // namespace

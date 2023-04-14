@@ -71,6 +71,7 @@ std::vector<std::string> disabledTestPatterns() {
         R"(.*(OVClass|IEClass)HeteroExecutableNetworkGetMetricTest_TARGET_FALLBACK.*GetMetricNoThrow.*)",
         R"(.*LoadNetwork*.*LoadNetwork(HETEROWithDeviceIDNoThrow|WithBigDeviceID|WithInvalidDeviceID)*.*)",
         R"(.*QueryNetwork*.*QueryNetwork(HETEROWithDeviceIDNoThrow|WithBigDeviceID|WithInvalidDeviceID)*.*)",
+        R"(.*QueryModel*.*QueryModel(HETEROWithDeviceIDNoThrow|WithBigDeviceID|WithInvalidDeviceID)*.*)",
         R"(.*LoadNetworkTest.*QueryNetwork(MULTIWithHETERO|HETEROWithMULTI)NoThrow_V10.*)",
         R"(.*Behavior.*OVCompiledModelBaseTest.*get(Inputs|Outputs)FromFunctionWithSeveral(Inputs|Outputs).*)",
         // TODO: temporary disabled. Need to be enabled when PR 9282 is merged
@@ -95,5 +96,8 @@ std::vector<std::string> disabledTestPatterns() {
         R"(.*CachingSupportCase.*LoadNet.*(Bias|Split|Concat|KSO|SingleConv).*)",
         R"(.*CachingSupportCase.*LoadNet.*(ConvPoolRelu|TIwithLSTMcell1)_f32_batch2.*)",
         R"(.*smoke_Multi_BehaviorTests.*)",
+        // unsupported metrics
+        R"(.*OVGetMetricPropsTest.*OVGetMetricPropsTest.*(DEVICE_UUID|FULL_DEVICE_NAME_with_DEVICE_ID|DEVICE_GOPS|DEVICE_TYPE|MAX_BATCH_SIZE).*)",
+        R"(.*smoke_MultiHeteroOVGetMetricPropsTest.*OVGetMetricPropsTest.*(AVAILABLE_DEVICES|OPTIMIZATION_CAPABILITIES|RANGE_FOR_ASYNC_INFER_REQUESTS|RANGE_FOR_STREAMS).*)",
     };
 }

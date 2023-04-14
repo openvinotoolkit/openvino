@@ -23,6 +23,9 @@ std::vector<std::string> disabledTestPatterns() {
         R"(.*OVClassHeteroExecutableNetworkGetMetricTest_SUPPORTED_CONFIG_KEYS.*GetMetricNoThrow.*)",
         R"(.*OVClassHeteroExecutableNetworkGetMetricTest_SUPPORTED_METRICS.*GetMetricNoThrow.*)",
 
+        // unsupported metrics
+        R"(.*smoke_OVGetMetricPropsTest.*OVGetMetricPropsTest.*(DEVICE_UUID|FULL_DEVICE_NAME_with_DEVICE_ID|RANGE_FOR_STREAMS|DEVICE_GOPS|DEVICE_TYPE|MAX_BATCH_SIZE).*)",
+
         // TODO: Round with f16 is not supported
         R"(.*smoke_Hetero_BehaviorTests.*OVExecGraphImportExportTest.*readFromV10IR.*)",
         // TODO: support import / export of precisions in template plugin

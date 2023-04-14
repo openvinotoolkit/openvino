@@ -80,6 +80,11 @@ TEST_P(OVCompiledModelPropertiesIncorrectTests, CanNotCompileModelWithIncorrectP
     ASSERT_THROW(core->compile_model(model, target_device, properties), ov::Exception);
 }
 
+TEST_P(OVClassCompileModelTest, LoadNetworkWithBigDeviceIDThrows) {
+    ov::Core ie = createCoreWithTemplate();
+    ASSERT_THROW(ie.compile_model(actualNetwork, target_device + ".10"), ov::Exception);
+}
+
 TEST_P(OVCompiledModelPropertiesDefaultTests, CanCompileWithDefaultValueFromPlugin) {
     std::vector<ov::PropertyName> supported_properties;
     OV_ASSERT_NO_THROW(supported_properties = core->get_property(target_device, ov::supported_properties));
