@@ -25,8 +25,10 @@ Class Fields
 The example class has several fields:
 
 * ``m_profiling_task`` - array of the ``std::array<openvino::itt::handle_t, numOfStages>`` type. Defines names for pipeline stages. Used to profile an inference pipeline execution with the Intel® instrumentation and tracing technology (ITT).
+
 * ``m_durations`` - array of durations of each pipeline stage.
-* backend specific fields:
+
+* backend-specific fields:
 
    * ``m_backend_input_tensors`` - input backend tensors.
    * ``m_backend_output_tensors`` - output backend tensors.
@@ -127,6 +129,16 @@ The method returns the profiling info which was measured during pipeline stages 
 .. doxygensnippet:: src/plugins/template/src/sync_infer_request.cpp
    :language: cpp
    :fragment: [infer_request:get_profiling_info]
+
+cancel()
++++++++++
+
+The plugin specific method allows to interrupt the synchronous execution from the AsyncInferRequest:
+
+.. doxygensnippet:: src/plugins/template/src/sync_infer_request.cpp
+   :language: cpp
+   :fragment: [infer_request:cancel]
+
 
 The next step in the plugin library implementation is the :doc:`Asynchronous Inference Request <openvino_docs_ov_plugin_dg_async_infer_request>` class.
 
