@@ -38,6 +38,12 @@ def default_path():
     return os.path.abspath(os.getcwd().join(EXT_DIR_NAME))
 
 
+def get_excluded_frameworks(framework):
+    frameworks = {'tf', 'onnx', 'kaldi', 'mxnet', 'caffe'}
+    frameworks.remove(framework)
+    return frameworks
+
+
 def load_dir(framework: str, path: str, get_front_classes: callable):
     """
     Assuming the following sub-directory structure for path:
@@ -75,12 +81,15 @@ def load_dir(framework: str, path: str, get_front_classes: callable):
     internal_dirs = get_internal_dirs(framework, get_front_classes)
     prefix = 'openvino.tools.' if ext == 'mo' else ''
 
-    exclude_modules = {'tf', 'onnx', 'kaldi', 'mxnet', 'caffe'}
-    exclude_modules.remove(framework)
+    # for p in internal_dirs.keys():
+    #     classes = internal_dirs[p]
+    #     for cls in classes:
+    #         cls.registered_cls = []
+    #         cls.registered_ops = {}
 
     for p in internal_dirs.keys():
         import_by_path(os.path.join(path, *p), [ext, *p], prefix)
-        update_registration(internal_dirs[p], enabled_transforms, disabled_transforms, exclude_modules)
+        update_registration(internal_dirs[p], enabled_transforms, disabled_transforms, get_excluded_frameworks(framework))
     sys.path.remove(root_dir)
 
 

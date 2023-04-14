@@ -70,15 +70,8 @@ def _update(cls, registered_list: list, registered_dict: dict, key: str, enabled
     # print('Registering new subclasses for', cls)
 
     for c in cls.__subclasses__():
-        # skip importing loaders of other frameworks
-        if cls.__name__ == 'Loader':
-            need_exclude = False
-            for framework in exclude_modules:
-                if framework in c.__module__:
-                    need_exclude = True
-                    break
-            if need_exclude:
-                continue
+        if need_exclude_class(c, exclude_modules):
+            continue
         # Force enabling operations
         if hasattr(c, 'id') and c.id in enabled_transforms or \
                 ".".join([c.__module__, c.__name__]) in enabled_transforms:
@@ -223,7 +216,18 @@ class DependencyGraph(Graph):
         return order
 
 
-def get_replacers_order(transform_types: list):
+def need_exclude_class(class_type, excluded_frameworks):
+    for framework in excluded_frameworks:
+        if "." + framework + "." in str(class_type):
+            # FakeQuantWithMinMaxVarsToQuantize is in TF group, but it is applied in all framework pipelines and
+            # should not be excluded
+            if "FakeQuantWithMinMaxVarsToQuantize" in str(class_type):
+                return False
+            return True
+    return False
+
+
+def get_replacers_order(transform_types: list, excluded_frameworks: list):
     """
     Gets all transforms that do not have 'op'.
     If two or more classes replaces the same op (both have op class attribute and values match), such
@@ -245,9 +249,11 @@ def get_replacers_order(transform_types: list):
 
     for i, replacer_cls in enumerate(replacers):
         for cls_after in replacer_cls().run_before():
-            dependency_graph.add_edge(replacer_cls, cls_after)
+            if cls_after in replacers:
+                dependency_graph.add_edge(replacer_cls, cls_after)
         for cls_before in replacer_cls().run_after():
-            dependency_graph.add_edge(cls_before, replacer_cls)
+            if cls_before in replacers:
+                dependency_graph.add_edge(cls_before, replacer_cls)
 
     replacers_order = dependency_graph.determined_sort()
 
@@ -327,13 +333,13 @@ def apply_replacements_list(graph: Graph, replacers_order: list):
             num_transforms=len(replacers_order))
 
 
-def apply_replacements(graph: Graph, replacements_type: list):
+def apply_replacements(graph: Graph, replacements_type: list, excluded_frameworks: list):
     """
     Apply all patterns that do not have 'op' first, then apply patterns from registered_ops.
     If two or more classes replaces the same op (both have op class attribute and values match), such
     pattern is not applied (while registration it will warn user that we have a conflict).
     """
-    replacers_order = get_replacers_order(replacements_type)
+    replacers_order = get_replacers_order(replacements_type, excluded_frameworks)
     apply_replacements_list(graph, replacers_order)
 
 
