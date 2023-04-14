@@ -14,7 +14,12 @@ namespace ov {
  * @ingroup ov_runtime_cpp_api
  */
 class OPENVINO_RUNTIME_API Cancelled : public Exception {
-    using Exception::Exception;
+public:
+    [[noreturn]] static void create(const std::string& explanation);
+    ~Cancelled() override;
+
+protected:
+    explicit Cancelled(const std::string& what_arg) : ov::Exception(what_arg) {}
 };
 
 /**
@@ -23,7 +28,12 @@ class OPENVINO_RUNTIME_API Cancelled : public Exception {
  * @ingroup ov_runtime_cpp_api
  */
 class OPENVINO_RUNTIME_API Busy : public Exception {
-    using Exception::Exception;
+public:
+    [[noreturn]] static void create(const std::string& explanation);
+    ~Busy() override;
+
+protected:
+    explicit Busy(const std::string& what_arg) : ov::Exception(what_arg) {}
 };
 
 }  // namespace ov

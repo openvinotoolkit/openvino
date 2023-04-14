@@ -84,17 +84,17 @@ std::shared_ptr<Node> make_constant(const element::Type& type, const Shape& shap
                                                      std::vector<uint8_t>{static_cast<uint8_t>(num)});
         break;
     case element::Type_t::dynamic:
-        throw ngraph_error("make_constant: Unsupported element type 'dynamic'");
+        OPENVINO_THROW("make_constant: Unsupported element type 'dynamic'");
     case element::Type_t::boolean:
-        throw ngraph_error("make_constant: Unsupported element type 'boolean'");
+        OPENVINO_THROW("make_constant: Unsupported element type 'boolean'");
     case element::Type_t::u1:
-        throw ngraph_error("make_constant: Unsupported element type 'u1'");
+        OPENVINO_THROW("make_constant: Unsupported element type 'u1'");
     case element::Type_t::i4:
-        throw ngraph_error("make_constant: Unsupported element type 'i4'");
+        OPENVINO_THROW("make_constant: Unsupported element type 'i4'");
     case element::Type_t::u4:
-        throw ngraph_error("make_constant: Unsupported element type 'u4'");
+        OPENVINO_THROW("make_constant: Unsupported element type 'u4'");
     case element::Type_t::undefined:
-        throw ngraph_error("make_constant: Unsupported element type 'undefined'");
+        OPENVINO_THROW("make_constant: Unsupported element type 'undefined'");
     }
 #if defined(__GNUC__) && !(__GNUC__ == 4 && __GNUC_MINOR__ == 8)
 #    pragma GCC diagnostic pop

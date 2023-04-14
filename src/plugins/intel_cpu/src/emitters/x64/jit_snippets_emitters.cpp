@@ -844,7 +844,7 @@ std::set<std::vector<element::Type>> BrgemmEmitter::get_supported_precisions(con
                     {element::u8, element::i8, element::u8},
                     {element::bf16, element::bf16, element::u8}};
         default:
-            throw ov::Exception("BrgemmEmitter got BrgemmCPU node with unsupported type");
+            OPENVINO_THROW("BrgemmEmitter got BrgemmCPU node with unsupported type");
     }
 }
 
