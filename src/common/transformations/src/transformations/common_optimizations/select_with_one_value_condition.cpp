@@ -85,9 +85,11 @@ ov::pass::SelectWithOneValueCondition::SelectWithOneValueCondition() {
             select->output(0).replace(broadcast->output(0));
             broadcast->set_friendly_name(select->get_friendly_name());
             copy_runtime_info(select, copy_to.get());
-            return true;
+        } else {
+            return false;
         }
-        return false;
+
+        return true;
     };
 
     auto m = make_shared<pattern::Matcher>(select_pattern, matcher_name);
