@@ -1,6 +1,12 @@
 # MYRIAD Device {#openvino_docs_OV_UG_supported_plugins_MYRIAD}
 
 
+> **warning:**
+> OpenVINO 2022.3, temporarily, does not support the VPU devices.
+> The feature will be re-implemented with the next update. Until then, 
+> continue using a previous release of OpenVINO, if you work with VPUs.
+
+
 The OpenVINO Runtime MYRIAD plugin has been developed for inference of neural networks on Intel® Neural Compute Stick 2.
 
 ## Configuring the MYRIAD Plugin
