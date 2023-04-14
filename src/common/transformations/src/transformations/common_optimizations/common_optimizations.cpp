@@ -21,7 +21,6 @@
 #include "transformations/common_optimizations/batch_to_space_fusion.hpp"
 #include "transformations/common_optimizations/binarize_weights.hpp"
 #include "transformations/common_optimizations/broadcast_elementwise_fusion.hpp"
-#include "transformations/common_optimizations/broadcast_transition.hpp"
 #include "transformations/common_optimizations/clamp_fusion.hpp"
 #include "transformations/common_optimizations/concat_reduce_fusion.hpp"
 #include "transformations/common_optimizations/conv_mul_fusion.hpp"
@@ -224,7 +223,6 @@ bool ov::pass::CommonOptimizations::run_on_model(const std::shared_ptr<ov::Model
     ADD_MATCHER(fq_fusions, MulFakeQuantizeFusion)
     fq_fusions->set_name("ngraph::pass::FakeQuantizeFusions");
 
-    manager.register_pass<BroadcastTransition>();
     // StridesOptimization should be at the very end
     // because we cannot insert any MaxPools since they may prevent
     // other optimizations

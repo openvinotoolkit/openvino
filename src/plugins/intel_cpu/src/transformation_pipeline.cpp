@@ -17,6 +17,7 @@
 
 // Common transformations
 #include "transformations/common_optimizations/add_fake_quantize_fusion.hpp"
+#include "transformations/common_optimizations/broadcast_transition.hpp"
 #include "transformations/common_optimizations/convert_compression_only_to_legacy.hpp"
 #include "transformations/common_optimizations/convert_quantize_dequantize.hpp"
 #include "transformations/common_optimizations/fq_mul_fusion.hpp"
@@ -216,6 +217,7 @@ void Transformations::PreLpt(const std::vector<ov::element::Type>& defaultPrecis
     type_to_fuse_map type_to_fuse = {{ov::opset10::Convert::get_type_info_static(), fuse_type_to_convert}};
 
     manager.register_pass<ov::pass::AUGRUCellFusion>();
+    manager.register_pass<ov::pass::BroadcastTransition>();
     manager.register_pass<ov::pass::CommonOptimizations>();
     manager.register_pass<ov::pass::WrapInterpolateIntoTransposes>();
     manager.register_pass<ov::pass::TransposeSinking>();
