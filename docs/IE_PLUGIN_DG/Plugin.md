@@ -42,7 +42,7 @@ The provided plugin class also has several fields:
 * ``m_waitExecutor`` - a task executor that waits for a response from a device about device tasks completion.
 * ``m_cfg`` of type ``Configuration``:
 
-.. doxygensnippet:: src/plugins/template/src/plugin.hpp
+.. doxygensnippet:: src/plugins/template/src/config.hpp
    :language: cpp
    :fragment: [configuration:header]
 
