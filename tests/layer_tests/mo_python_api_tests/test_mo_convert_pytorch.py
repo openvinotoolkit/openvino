@@ -458,23 +458,18 @@ def create_pytorch_nn_module_mean_list(tmp_dir):
         "input": [InputCutInfo("x", None, "f32", None), InputCutInfo("y", None, "f32", None)]}
 
 
-def create_pytorch_nn_module_mean_list_default_compression(tmp_dir):
-    # by default compression should be enabled (same as setting 'compress_to_fp16': True)
-    # therefore decompression Converts will be present
+def create_pytorch_nn_module_mean_list_default_no_compression(tmp_dir):
+    # by default compression is disabled (same as setting 'compress_to_fp16': False)
     pt_model = make_pt_model_two_inputs()
     shape = [1, 10, 10, 3]
 
     shape = PartialShape(shape)
     param1 = ov.opset8.parameter(shape)
     param2 = ov.opset8.parameter(shape)
-    const1 = ov.opset8.constant([[[[0, 0, 0]]]], dtype=np.float16)
-    const1_decompressed = ov.opset8.convert(
-        const1, destination_type=np.float32)
-    const2 = ov.opset8.constant([[[[0, 0, 0]]]], dtype=np.float16)
-    const2_decompressed = ov.opset8.convert(
-        const2, destination_type=np.float32)
-    sub1 = ov.opset8.subtract(param1, const1_decompressed)
-    sub2 = ov.opset8.subtract(param2, const2_decompressed)
+    const1 = ov.opset8.constant([[[[0, 0, 0]]]], dtype=np.float32)
+    const2 = ov.opset8.constant([[[[0, 0, 0]]]], dtype=np.float32)
+    sub1 = ov.opset8.subtract(param1, const1)
+    sub2 = ov.opset8.subtract(param2, const2)
     add = ov.opset8.add(sub1, sub2)
     relu = ov.opset8.relu(add)
     sigm = ov.opset8.sigmoid(relu)
@@ -529,23 +524,18 @@ def create_pytorch_nn_module_scale_list(tmp_dir):
     return pt_model, ref_model, {'input_shape': [shape, shape], 'scale_values': [[1, 1, 1], [1, 1, 1]], 'compress_to_fp16': False, "input": [InputCutInfo("x", None, "f32", None), InputCutInfo("y", None, "f32", None)]}
 
 
-def create_pytorch_nn_module_scale_list_default_compression(tmp_dir):
-    # by default compression should be enabled (same as setting 'compress_to_fp16': True)
-    # therefore decompression Converts will be present
+def create_pytorch_nn_module_scale_list_default_no_compression(tmp_dir):
+    # by default compression is disabled (same as setting 'compress_to_fp16': False)
     pt_model = make_pt_model_two_inputs()
     shape = [1, 10, 10, 3]
 
     shape = PartialShape(shape)
     param1 = ov.opset8.parameter(shape)
     param2 = ov.opset8.parameter(shape)
-    const1 = ov.opset8.constant([[[[1, 1, 1]]]], dtype=np.float16)
-    const1_decompressed = ov.opset8.convert(
-        const1, destination_type=np.float32)
-    const2 = ov.opset8.constant([[[[1, 1, 1]]]], dtype=np.float16)
-    const2_decompressed = ov.opset8.convert(
-        const2, destination_type=np.float32)
-    sub1 = ov.opset8.multiply(param1, const1_decompressed)
-    sub2 = ov.opset8.multiply(param2, const2_decompressed)
+    const1 = ov.opset8.constant([[[[1, 1, 1]]]], dtype=np.float32)
+    const2 = ov.opset8.constant([[[[1, 1, 1]]]], dtype=np.float32)
+    sub1 = ov.opset8.multiply(param1, const1)
+    sub2 = ov.opset8.multiply(param2, const2)
     add = ov.opset8.add(sub1, sub2)
     relu = ov.opset8.relu(add)
     sigm = ov.opset8.sigmoid(relu)
@@ -754,10 +744,10 @@ class TestMoConvertPyTorch(CommonMOConvertTest):
         create_pytorch_nn_module_layout_list,
         create_pytorch_nn_module_layout_list_case2,
         create_pytorch_nn_module_mean_list,
-        create_pytorch_nn_module_mean_list_default_compression,
+        create_pytorch_nn_module_mean_list_default_no_compression,
         create_pytorch_nn_module_mean_list_compressin_enabled,
         create_pytorch_nn_module_scale_list,
-        create_pytorch_nn_module_scale_list_default_compression,
+        create_pytorch_nn_module_scale_list_default_no_compression,
         create_pytorch_nn_module_scale_list_compression_enabled,
         create_pytorch_nn_module_shapes_list_static,
         create_pytorch_nn_module_shapes_list_dynamic,
