@@ -240,8 +240,6 @@ std::vector<std::string> disabledTestPatterns() {
     retVector.emplace_back(R"(smoke_INTEL_CPU_TestsDFT_(1|2|3|4)d/DFTLayerTest.CompareWithRefs.*)");
     retVector.emplace_back(R"(smoke_INTEL_CPU_TestsSelect_none/SelectLayerTest.CompareWithRefImpl/COND=BOOL.*)");
     retVector.emplace_back(R"(smoke_INTEL_CPU_TestsSelect_numpy/SelectLayerTest.CompareWithRefImpl/COND=BOOL.*)");
-    retVector.emplace_back(R"(smoke_SoftMax(2|4)D_dynamic/SoftMax8LayerTest.CompareWithRefs/NetType=f32_InType=undefined_OutType=undefined.*)");
-    retVector.emplace_back(R"(smoke_TopK/TopKLayerTest.CompareWithRefsDynamicBath.*)");
     retVector.emplace_back(R"(smoke_Snippets.*)");
     retVector.emplace_back(R"(smoke_Quantized.*)");
     retVector.emplace_back(R"(smoke_NegativeQuantizedMatMulMultiplyFusion.*)");
