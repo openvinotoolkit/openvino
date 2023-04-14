@@ -301,11 +301,11 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_dequantize_linear_1d_zero_scale_int8_4d)
 
     auto test_case = ngraph::test::TestCase(function, s_device);
 
-    test_case.add_input(std::vector<uint8_t>{7, 9, 10, 10, 5,  8, 9, 1, 8, 6, 7, 9, 10, 0, 7, 10,
-                                             8, 2, 6,  0,  5,  9, 8, 1, 2, 7, 5, 3, 2,  4, 1, 3,
-                                             8, 7, 4,  8,  10, 1, 5, 5, 7, 7, 0, 2, 4,  4, 0, 5});  // x
-    test_case.add_input(std::vector<float>{1.0f, 10.0f, 7.0f});                                     // scale
-    test_case.add_input(std::vector<uint8_t>{10, 2, 1});                                            // zero_point
+    test_case.add_input(std::vector<int8_t>{7, 9, 10, 10, 5,  8, 9, 1, 8, 6, 7, 9, 10, 0, 7, 10,
+                                            8, 2, 6,  0,  5,  9, 8, 1, 2, 7, 5, 3, 2,  4, 1, 3,
+                                            8, 7, 4,  8,  10, 1, 5, 5, 7, 7, 0, 2, 4,  4, 0, 5});  // x
+    test_case.add_input(std::vector<float>{1.0f, 10.0f, 7.0f});                                    // scale
+    test_case.add_input(std::vector<int8_t>{10, 2, 1});                                            // zero_point
 
     test_case.add_expected_output<float>(
         {2, 3, 2, 4},
