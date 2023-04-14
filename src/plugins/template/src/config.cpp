@@ -7,8 +7,8 @@
 #include <cpp_interfaces/interface/ie_internal_plugin_config.hpp>
 #include <ie_plugin_config.hpp>
 
-#include "openvino/runtime/properties.hpp"
 #include "openvino/runtime/internal_properties.hpp"
+#include "openvino/runtime/properties.hpp"
 #include "template/properties.hpp"
 
 using namespace ov::template_plugin;
