@@ -3,6 +3,7 @@
 //
 
 #include "functional_test_utils/skip_tests_config.hpp"
+#include "openvino/core/core_visibility.hpp"
 
 #include <string>
 #include <vector>
