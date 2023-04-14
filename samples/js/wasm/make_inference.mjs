@@ -1,6 +1,9 @@
+import { createRequire } from 'module';
+const require = createRequire(import.meta.url);
+
 import { Session } from './node_modules/openvinojs/dist/index.mjs';
 
-import { default as imagenetClassesMap } from '../assets/imagenet_classes_map.mjs';
+const imagenetClassesMap = require('../assets/imagenet_classes_map.json');
 
 export default async function(openvinojs, env, { modelPath, imgPath, shape, layout }, events = {}) {
   events.onLibInitializing = events.onLibInitializing || (() => {});

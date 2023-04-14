@@ -40,7 +40,7 @@ async function onRuntimeInitialized()
     const output = model.compile("CPU").infer(tensor);
 
     //show the results
-    const { default: imagenetClassesMap } = await import('../assets/imagenet_classes_map.mjs');
+    const imagenetClassesMap = require('../assets/imagenet_classes_map.json');
     console.log("Result: " + imagenetClassesMap[math.argMax(output.data)]);
 }
 

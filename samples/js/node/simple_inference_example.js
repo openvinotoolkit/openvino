@@ -2,6 +2,7 @@ var ov = require('./lib/ov_node_addon.node');;
 
 
 const math = require('./lib/math_func.js');
+const imagenetClassesMap = require('../assets/imagenet_classes_map.json');
 const Jimp = require('jimp');
 const fs = require('fs');
 
@@ -30,7 +31,6 @@ async function onRuntimeInitialized()
     const output = model.infer(tensor);
 
     //show the results
-    const { default: imagenetClassesMap } = await import('../assets/imagenet_classes_map.mjs');
     console.log("Result: " + imagenetClassesMap[math.argMax(output.data)]);
     console.log(math.argMax(output.data));
 }

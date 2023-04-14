@@ -3,6 +3,7 @@ var ov = require('./lib/ov_node_addon.node');;
 
 const fs = require('fs');
 const math = require('./lib/math_func.js');
+const imagenetClassesMap = require('../assets/imagenet_classes_map.json');
 const Jimp = require('jimp');
 
 
@@ -21,7 +22,6 @@ async function create_tensor(img_path) {
 
 async function onRuntimeInitialized()
 {
-    const { default: imagenetClassesMap } = await import('../assets/imagenet_classes_map.mjs');
     const img_path = process.argv[2] || '../assets/images/shih_tzu.jpg';
     const model_path = '../assets/models/v3-small_224_1.0_float.xml';
     const core = new ov.Core();

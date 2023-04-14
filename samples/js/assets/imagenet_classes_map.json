@@ -1,4 +1,4 @@
-export default [
+[
   "background", 
   "tench, Tinca tinca", 
   "goldfish, Carassius auratus", 
@@ -1000,4 +1000,4 @@ export default [
   "bolete", 
   "ear, spike, capitulum", 
   "toilet tissue, toilet paper, bathroom tissue"
-];
+]
