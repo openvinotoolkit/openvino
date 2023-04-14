@@ -96,8 +96,8 @@ void OpSummary::updateOPsImplStatus(const ov::NodeTypeInfo &op, const bool implS
     }
 }
 
-std::string OpSummary::getOpVersion(const ov::NodeTypeInfo &type_info) {
-    std::string opset_name = "opset", version = type_info.get_version();
+std::string OpSummary::getOpVersion(const std::string& version) {
+    std::string opset_name = "opset";
     auto pos = version.find(opset_name);
     if (pos == std::string::npos) {
         return "undefined";
@@ -263,8 +263,7 @@ void OpSummary::saveReport() {
         const auto &type_info_set = opset.get_type_info_set();
         for (const auto& type_info : type_info_set) {
             auto it = opsInfo.find(type_info);
-            auto pos = std::string(opset_version).find(std::string("opset"));
-            std::string op_version = opset_version.substr(pos + std::string("opset").size());
+            std::string op_version = getOpVersion(opset_version);
             if (it == opsInfo.end()) {
                 opsInfo.insert({type_info, op_version});
             } else {
@@ -309,7 +308,8 @@ void OpSummary::saveReport() {
 
     pugi::xml_node opsNode = root.append_child("ops_list");
     for (const auto &op : opsInfo) {
-        std::string name = std::string(op.first.name) + "-" + getOpVersion(op.first);
+        std::string name = std::string(op.first.name) + "-" + getOpVersion(op.first.version_id);
+        std::cout << name << " " << op.second << std::endl;
         opsNode.append_child(name.c_str()).append_attribute("opsets").set_value(op.second.c_str());
     }
 
@@ -317,7 +317,7 @@ void OpSummary::saveReport() {
     pugi::xml_node currentDeviceNode = resultsNode.append_child(summary.deviceName.c_str());
     std::unordered_set<std::string> opList;
     for (const auto &it : stats) {
-        std::string name = std::string(it.first.name) + "-" + getOpVersion(it.first);
+        std::string name = std::string(it.first.name) + "-" + getOpVersion(it.first.version_id);
         opList.insert(name);
         pugi::xml_node entry = currentDeviceNode.append_child(name.c_str());
         entry.append_attribute("implemented").set_value(it.second.isImplemented);
