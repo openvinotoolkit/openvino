@@ -1312,6 +1312,20 @@ std::vector<InterpolateV11TestParams> generateParamsForInterpolate_bicubic_pil_f
             -0.5,  // cube_coeff
         },
         {
+            "bicubic.downsample_2D_scales_default_axes",
+            Shape{5, 6},
+            {},
+            Shape{2, 4},
+            {0.4f, 0.7f},
+            {}, // default axes {0, 1}
+            {InterpolateMode::BICUBIC_PILLOW, ShapeCalcMode::SCALES, {0, 0}, {0, 0}},
+            std::vector<Data_t>{121.14, 131.03, 193.32, 243.32, 8.92,   36.9,   210.67, 242.85, 63.8,  79.83,
+                                222.47, 108.37, 69.93,  211.89, 65.79,  104.75, 164.82, 140.7,  21.95, 7.06,
+                                221.59, 192.9,  214.5,  137.76, 209.29, 84.41,  115.89, 201.84, 31.72, 77.62},
+            std::vector<Data_t>{162.90814, 143.26627, 138.46507, 109.5325, 92.69513, 126.17204, 164.13477, 127.86513},
+            -0.5,  // cube_coeff
+        },
+        {
             "bicubic.downsample_2D_sizes_cube_coeff_ov_default",
             Shape{5, 6},
             {2, 4},
@@ -1363,6 +1377,21 @@ std::vector<InterpolateV11TestParams> generateParamsForInterpolate_bicubic_pil_f
             Shape{5, 6},
             {},
             {0, 1},
+            {InterpolateMode::BICUBIC_PILLOW, ShapeCalcMode::SIZES, {0, 0}, {0, 0}},
+            std::vector<Data_t>{214.42, 66.97, 27.98, 76.41, 105.94, 208.44, 115.53, 23.53},
+            std::vector<Data_t>{236.49521, 146.10538, 38.218796, 17.75709,  50.332058, 85.74947,  215.93185, 148.13255,
+                                63.085896, 35.050694, 51.983547, 75.524284, 161.65862, 153.48294, 128.71808, 80.69401,
+                                56.342354, 48.53678,  107.38538, 158.83333, 194.35027, 126.33732, 60.70116,  21.549273,
+                                86.82202,  160.8605,  219.21736, 143.63092, 62.35265,  11.32409},
+            -0.5,  // cube_coeff
+        },
+        {
+            "bicubic.upsample_2D_sizes_default_axes",
+            Shape{2, 4},
+            {5, 6},
+            Shape{5, 6},
+            {},
+            {}, // default axes {0, 1}
             {InterpolateMode::BICUBIC_PILLOW, ShapeCalcMode::SIZES, {0, 0}, {0, 0}},
             std::vector<Data_t>{214.42, 66.97, 27.98, 76.41, 105.94, 208.44, 115.53, 23.53},
             std::vector<Data_t>{236.49521, 146.10538, 38.218796, 17.75709,  50.332058, 85.74947,  215.93185, 148.13255,
@@ -1544,8 +1573,12 @@ private:
                 op::v0::Constant::create<int64_t>(element::i64, Shape{spatial_shape_data.size()}, spatial_shape_data);
         }
         const auto& axes_data = param.axes_data;
-        auto axes = op::v0::Constant::create<int64_t>(element::i64, Shape{axes_data.size()}, axes_data);
-        auto interpolate = std::make_shared<op::v11::Interpolate>(image, sizes_or_scales, axes, param.attrs);
+        if (!axes_data.empty()) {
+            auto axes = op::v0::Constant::create<int64_t>(element::i64, Shape{axes_data.size()}, axes_data);
+            auto interpolate = std::make_shared<op::v11::Interpolate>(image, sizes_or_scales, axes, param.attrs);
+            return std::make_shared<Model>(NodeVector{interpolate}, ParameterVector{image});
+        }
+        auto interpolate = std::make_shared<op::v11::Interpolate>(image, sizes_or_scales, param.attrs);
         return std::make_shared<Model>(NodeVector{interpolate}, ParameterVector{image});
     }
 };
