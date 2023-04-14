@@ -1463,8 +1463,6 @@ TEST(TransformationTests, ConvertPrecision_reducesum_without_exp) {
     ASSERT_TRUE(result.valid) << result.message;
 }
 
-
-
 TEST(TransformationTests, ConvertPrecision_keep_precission_sensitive_fp32_t2t_subgraph) {
     shared_ptr<Model> model, model_ref;
     pass::Manager manager;
