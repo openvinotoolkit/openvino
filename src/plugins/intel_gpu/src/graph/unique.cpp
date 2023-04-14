@@ -58,7 +58,11 @@ std::vector<layout> unique_inst::calc_output_layouts(const unique_node& node, co
     for (auto i = 0U; i < desc->num_outputs; ++i) {
         const auto& output_shape = output_shapes.at(i);
         const auto output_dt = desc->output_data_types.at(i).value();
-        layouts.push_back({output_shape, output_dt, format::get_default_format(output_shape.size())});
+        layouts.emplace_back(
+            output_shape,
+            output_dt,
+            // For some reasons we need to set for zero output also the same format to support blocking
+            (i == 0 || i == 1) ? input_layout.format : format::get_default_format(output_shape.size()));
     }
 
     return layouts;
@@ -131,7 +135,9 @@ std::vector<layout> unique_reshape_inst::calc_output_layouts(const unique_reshap
     for (auto i = 0U; i < desc->num_outputs; ++i) {
         const auto& output_shape = output_shapes.at(i);
         const auto output_dt = desc->output_data_types.at(i).value();
-        layouts.push_back({output_shape, output_dt, format::get_default_format(output_shape.size())});
+        layouts.emplace_back(output_shape,
+                             output_dt,
+                             i == 0 ? input_layout.format : format::get_default_format(output_shape.size()));
     }
 
     return layouts;
