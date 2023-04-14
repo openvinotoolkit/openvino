@@ -28,7 +28,15 @@ class INTExecutable : public Executable {
 public:
     INTExecutable(const std::shared_ptr<ov::Model>& model);
 
-    bool call(std::vector<ov::Tensor>& outputs, const std::vector<ov::Tensor>& inputs) override;
+    void cancel() override;
+
+    bool call(std::vector<ov::Tensor>& outputs,
+              const std::vector<ov::Tensor>& inputs,
+              bool collect_performance = false) override;
+    bool call(std::vector<ov::Tensor>& outputs,
+              const std::vector<ov::Tensor>& inputs,
+              const ov::EvaluationContext& context,
+              bool collect_performance = false) override;
 
     ov::Tensor create_input_tensor(size_t input_index) override;
 
@@ -37,6 +45,8 @@ public:
     std::vector<ov::Tensor> create_input_tensor(size_t input_index, size_t pipeline_depth) override;
 
     std::vector<ov::Tensor> create_output_tensor(size_t output_index, size_t pipeline_depth) override;
+
+    std::shared_ptr<ov::Model> get_model() const override;
 
 protected:
     std::shared_ptr<ov::op::v0::Parameter> get_parameter(size_t index) const;
@@ -47,6 +57,8 @@ protected:
     bool m_is_compiled = false;
     std::shared_ptr<ov::Model> m_model;
     std::vector<std::shared_ptr<Node>> m_nodes;
+    std::atomic_bool m_cancel_execution{false};
+    std::mutex m_mutex;
 
     struct InfoForNMS5 {
         int64_t max_output_boxes_per_class;

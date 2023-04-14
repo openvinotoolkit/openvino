@@ -9,6 +9,7 @@
 
 #include <thread>
 
+#include "openvino/runtime/device_id_parser.hpp"
 #include <openvino/pass/serialize.hpp>
 #include <ngraph/opsets/opset.hpp>
 #include "shared_test_classes/base/layer_test_utils.hpp"
@@ -23,6 +24,19 @@ LayerTestsCommon::LayerTestsCommon() : threshold(1e-2f), abs_threshold(-1.f) {
 }
 
 void LayerTestsCommon::Run() {
+    bool isCurrentTestDisabled = FuncTestUtils::SkipTestsConfig::currentTestIsDisabled();
+
+    ov::test::utils::PassRate::Statuses status = isCurrentTestDisabled ?
+         ov::test::utils::PassRate::Statuses::SKIPPED :
+         ov::test::utils::PassRate::Statuses::CRASHED;
+
+    auto &s = ov::test::utils::OpSummary::getInstance();
+    s.setDeviceName(targetDevice);
+    s.updateOPsStats(function, status);
+
+    if (isCurrentTestDisabled)
+        GTEST_SKIP() << "Disabled test due to configuration" << std::endl;
+
     if (functionRefs == nullptr) {
         functionRefs = ngraph::clone_function(*function);
         functionRefs->set_friendly_name("refFunction");
@@ -30,15 +44,6 @@ void LayerTestsCommon::Run() {
 
     // in case of crash jump will be made and work will be continued
     auto crashHandler = std::unique_ptr<CommonTestUtils::CrashHandler>(new CommonTestUtils::CrashHandler());
-    auto &s = ov::test::utils::OpSummary::getInstance();
-    s.setDeviceName(targetDevice);
-
-    if (FuncTestUtils::SkipTestsConfig::currentTestIsDisabled()) {
-        s.updateOPsStats(functionRefs, ov::test::utils::PassRate::Statuses::SKIPPED);
-        GTEST_SKIP() << "Disabled test due to configuration" << std::endl;
-    } else {
-        s.updateOPsStats(functionRefs, ov::test::utils::PassRate::Statuses::CRASHED);
-    }
 
     // place to jump in case of a crash
     int jmpRes = 0;
@@ -121,7 +126,7 @@ void LayerTestsCommon::QueryNetwork() {
             ASSERT_EQ(res.second, ctx->getDeviceName());
         } catch (...) {
             // otherwise, compare with originally used device name
-            ASSERT_EQ(InferenceEngine::DeviceIDParser(res.second).getDeviceName(), targetDevice);
+            ASSERT_EQ(ov::DeviceIDParser(res.second).get_device_name(), targetDevice);
         }
         actual.insert(res.first);
     }

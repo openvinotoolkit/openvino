@@ -60,7 +60,7 @@ void test_count_non_zero(layout in_layout, std::vector<T> in_data) {
     topology.add(count_nonzero("count_nonzero", input_info("InputData"))
     );
 
-    network network(engine, topology);
+    network network(engine, topology, get_test_default_config(engine));
     network.set_input_data("InputData", input_mem);
     auto outputs = network.execute();
     auto output = outputs.at("count_nonzero").get_memory();
@@ -132,7 +132,7 @@ TEST(test_count_non_zero, dynamic_2d_f32_bfyx) {
     topology.add(input_layout("InputData", in_dyn_layout));
     topology.add(count_nonzero("count_nonzero", input_info("InputData")));
 
-    ExecutionConfig config;
+    ExecutionConfig config = get_test_default_config(engine);
     config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
 
     std::vector<size_t> input_shapes = {171, 531, 168, 169, 174, 172, 168, 167, 1169, 16, 677};
@@ -180,7 +180,7 @@ void test_gather_non_zero(layout in_layout, std::vector<T> in_data) {
         gather_nonzero("gather_nonzero", input_info("InputData"), input_info("OutputShape"))
     );
 
-    network network(engine, topology);
+    network network(engine, topology, get_test_default_config(engine));
 
     network.set_input_data("InputData", input_mem);
     auto outputs = network.execute();
@@ -290,7 +290,7 @@ TEST(non_zero_gpu, dynamic) {
     topology.add(count_nonzero("count_nonzero", input_info("InputData")));
     topology.add(gather_nonzero("gather_nonzero", input_info("InputData"), input_info("count_nonzero")));
 
-    ExecutionConfig config;
+    ExecutionConfig config = get_test_default_config(engine);
     config.set_property(ov::intel_gpu::optimize_data(true));
     config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
     network network(engine, topology, config);
@@ -335,7 +335,7 @@ void test_non_zero(layout in_layout, std::vector<T> in_data) {
     topology.add(count_nonzero("count_nonzero", input_info("InputData")));
     topology.add(gather_nonzero("gather_nonzero", input_info("InputData"), input_info("count_nonzero")));
 
-    network network(engine, topology);
+    network network(engine, topology, get_test_default_config(engine));
 
     network.set_input_data("InputData", input_mem);
     auto outputs = network.execute();
@@ -447,4 +447,38 @@ TEST(test_non_zero, 6d_fp16_2_2_2_1_5_1) {
         10, 12, 3, 12, 11, 9, 0, 23, 0, 1
     };
     test_non_zero<int32_t>(layout{ov::PartialShape{2, 2, 2, 1, 5, 1}, data_types::i32, format::bfwzyx}, in_data);
+}
+
+TEST(test_gather_non_zero, not_use_local_mem) {
+    auto& engine = get_test_engine();
+    auto max_local_mem_size = engine.get_device_info().max_local_mem_size;
+
+    auto in_layout = layout{ov::PartialShape{ov::Dimension(max_local_mem_size)}, data_types::f32, format::bfyx};
+    auto input_mem = engine.allocate_memory(in_layout);
+    auto in_data = std::vector<float>(max_local_mem_size, 1.f);
+    set_values(input_mem, in_data);
+
+    auto output_shape_layout = layout{ov::PartialShape{1}, data_types::i32, format::bfyx};
+    auto output_shape_mem = engine.allocate_memory(output_shape_layout);
+    set_values(output_shape_mem, {static_cast<int32_t>(max_local_mem_size)});
+
+    topology topology;
+    topology.add(input_layout("input", in_layout));
+    topology.add(data("output_shape", output_shape_mem));
+    topology.add(gather_nonzero("gather_nonzero", input_info("input"), input_info("output_shape")));
+
+    network network(engine, topology, get_test_default_config(engine));
+
+    network.set_input_data("input", input_mem);
+
+    auto outputs = network.execute();
+    auto output = outputs.at("gather_nonzero").get_memory();
+    cldnn::mem_lock<int32_t> output_ptr(output, get_test_stream());
+
+    std::vector<int32_t> expected_results(max_local_mem_size);
+    ngraph::runtime::reference::non_zero<float, int32_t>(in_data.data(), expected_results.data(), in_layout.get_shape());
+
+    for (size_t i = 0; i < expected_results.size(); ++i) {
+        ASSERT_EQ(expected_results[i], output_ptr[i]);
+    }
 }

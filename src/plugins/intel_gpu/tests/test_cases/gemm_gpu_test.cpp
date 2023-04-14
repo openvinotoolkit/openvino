@@ -9,6 +9,7 @@
 #include <intel_gpu/primitives/crop.hpp>
 #include "ngraph/runtime/reference/matmul.hpp"
 
+#include "compilation_context.hpp"
 #include "gemm_inst.h"
 
 #include <cstddef>
@@ -129,7 +130,7 @@ public:
             std::cout << "cached" << std::endl;
             membuf mem_buf;
             {
-                cldnn::network _network(engine, tp);
+                cldnn::network _network(engine, tp, get_test_default_config(engine));
                 process_program(_network.get_program());
                 std::ostream out_mem(&mem_buf);
                 BinaryOutputBuffer ob = BinaryOutputBuffer(out_mem);
@@ -141,7 +142,7 @@ public:
                 network = std::make_shared<cldnn::network>(ib, get_test_stream_ptr(), engine);
             }
         } else {
-            network = std::make_shared<cldnn::network>(engine, tp);
+            network = std::make_shared<cldnn::network>(engine, tp, get_test_default_config(engine));
             process_program(network->get_program());
         }
 
@@ -292,7 +293,7 @@ void test_basic_bfyx_t2_inplace_crop_with_pad(bool is_caching_test) {
         gemm("output", { input_info("crop.1"), input_info("input2") }, data_types::f32, false, true)
     );
 
-    ExecutionConfig config;
+    ExecutionConfig config = get_test_default_config(engine);
     config.set_property(ov::intel_gpu::optimize_data(true));
     cldnn::network::ptr network = get_network(engine, topology, config, get_test_stream_ptr(), is_caching_test);
     network->set_input_data("input", input);
@@ -343,7 +344,7 @@ TEST(gemm_gpu, dynamic) {
                  gemm("gemm", { input_info("input1"), input_info("input2") }, data_types::f32, false, true, 1.0f, 0.0f, 4, 2)
     );
 
-    ExecutionConfig config;
+    ExecutionConfig config = get_test_default_config(engine);
     config.set_property(ov::intel_gpu::optimize_data(true));
     config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
     network network(engine, topology, config);
@@ -412,7 +413,7 @@ TEST(gemm_gpu, dynamic_multi_inference_same_shape) {
                  gemm("gemm", { input_info("input1"), input_info("input2") }, data_types::f32, false, false, 1.0f, 0.0f, 4, 2)
     );
 
-    ExecutionConfig config;
+    ExecutionConfig config = get_test_default_config(engine);
     config.set_property(ov::intel_gpu::optimize_data(true));
     config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
     network network(engine, topology, config);
@@ -501,7 +502,7 @@ TEST(gemm_gpu, dynamic_multi_inference_different_shape) {
                  gemm("gemm", { input_info("input1"), input_info("input2") }, data_types::f32, false, false, 1.0f, 0.0f, 4, 2)
     );
 
-    ExecutionConfig config;
+    ExecutionConfig config = get_test_default_config(engine);
     config.set_property(ov::intel_gpu::optimize_data(true));
     config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
     network network(engine, topology, config);
@@ -1311,11 +1312,11 @@ public:
 
 #ifdef ENABLE_ONEDNN_FOR_GPU
         ov::intel_gpu::ImplementationDesc gemm_impl = { format::bfyx, "", impl_types::onednn };
-        ExecutionConfig cfg(ov::intel_gpu::queue_type(QueueTypes::in_order));
 #else
         ov::intel_gpu::ImplementationDesc gemm_impl = { format::bfyx, p.kernel_name };
-        ExecutionConfig cfg(ov::intel_gpu::queue_type(QueueTypes::out_of_order));
 #endif
+
+        ExecutionConfig cfg = get_test_default_config(engine);
         cfg.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ {"gemm_bfyx", gemm_impl} }));
 
         cldnn::network::ptr network = get_network(engine, topology, cfg, get_test_stream_ptr(), is_caching_test);
@@ -1482,6 +1483,77 @@ INSTANTIATE_TEST_SUITE_P(gemm_gpu, gemm_onednn_ndims, ::testing::ValuesIn(std::v
     gemm_onednn_test_params{ CASE_GEMM_ONEDNN_I8_5D },
     gemm_onednn_test_params{ CASE_GEMM_ONEDNN_I8_6D },
 }));
+
+TEST(gemm_onednn, impl_replacement_with_cldnn) {
+    auto& engine = get_test_engine();
+
+    if (!engine.get_device_info().supports_immad)
+        return;
+
+    ov::Shape in1_shape = { 1, 1, 3, 4 };
+    ov::Shape in2_shape = { 1, 4 };
+    auto in1_layout = layout{ov::PartialShape::dynamic(in1_shape.size()), data_types::f32, format::bfyx};
+    auto in2_layout = layout{ov::PartialShape::dynamic(in2_shape.size()), data_types::f32, format::bfyx};
+    auto input1 = engine.allocate_memory(layout{ov::PartialShape(in1_shape), data_types::f32, format::bfyx});
+    auto input2 = engine.allocate_memory(layout{ov::PartialShape(in2_shape), data_types::f32, format::bfyx});
+
+    std::vector<float> input1_data = {
+        1.f, -2.f, 3.f, -4.f,
+        5.f, 6.f, 1.f, 2.f,
+        3.f, 3.f, 2.f, -1.f,
+    };
+
+    std::vector<float> input2_data = {
+        2.f, 5.f, -4.f, -7.f,
+    };
+    set_values(input1, input1_data);
+    set_values(input2, input2_data);
+
+    std::vector<float> out_data = {
+        8.f, 22.f, 20.f
+    };
+
+    topology topology;
+    topology.add(input_layout("input1", in1_layout),
+                 input_layout("input2", in2_layout),
+                 gemm("gemm", { input_info("input1"), input_info("input2") }, data_types::f32, false, true, 1.0f, 0.0f, 4, 2)
+    );
+
+    ov::intel_gpu::ImplementationDesc fc_impl = { format::bfyx, "", impl_types::onednn };
+    ExecutionConfig cfg{ ov::intel_gpu::queue_type(QueueTypes::in_order),
+                         ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ {"gemm", fc_impl} }),
+                         ov::intel_gpu::optimize_data(true),
+                         ov::intel_gpu::allow_new_shape_infer(true) };
+
+    network network(engine, topology, cfg);
+    network.set_input_data("input1", input1);
+    network.set_input_data("input2", input2);
+
+    auto inst = network.get_primitive("gemm");
+    auto impl = inst->get_impl();
+    ASSERT_TRUE(impl != nullptr);
+    ASSERT_TRUE(impl->is_dynamic());
+
+    auto outputs = network.execute();
+
+    auto output = outputs.at("gemm").get_memory();
+    cldnn::mem_lock<float> output_ptr(output, get_test_stream());
+
+    ASSERT_EQ(output_ptr.size(), (uint32_t)3);
+    for (uint32_t i = 0; i < out_data.size(); ++i) {
+        ASSERT_FLOAT_EQ(output_ptr[i], out_data[i]);
+    }
+
+    // WA: Call cancel() to wait for all queued kernels compilation finish
+    network.get_program()->get_compilation_context().cancel();
+
+    // Check if OneDNN's impl is used for the next execute() call
+    network.execute();
+    inst = network.get_primitive("gemm");
+    impl = inst->get_impl();
+    ASSERT_TRUE(impl != nullptr);
+    ASSERT_FALSE(impl->is_dynamic());
+}
 
 class gemm_int8_simple_tests_onednn : public ::GemmBaseTest<gemm_base_test_params, int8_t, int8_t, float, float, int32_t> {};
 TEST_P(gemm_int8_simple_tests_onednn, basic) { auto p = GetParam(); execute(p); }

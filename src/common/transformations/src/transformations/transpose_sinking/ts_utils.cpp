@@ -150,7 +150,13 @@ AxisVector AlignTransposeOrder(const Output<Node>& output, const TransposeInputs
     return new_transpose_order;
 }
 
-bool UpdateInputTransposes(const NodePtr& main_node, const TransposeInputsInfo& transpose_input_info) {
+bool UpdateInputTransposes(const NodePtr& main_node,
+                           const TransposeInputsInfo& transpose_input_info,
+                           std::vector<size_t> input_indexes) {
+    if (input_indexes.empty()) {
+        input_indexes.resize(main_node->get_input_size());
+        std::iota(input_indexes.begin(), input_indexes.end(), 0);
+    }
     if (transpose_input_info.isEmpty() || HasDynamicRankInput(main_node))
         return false;
 
@@ -161,7 +167,7 @@ bool UpdateInputTransposes(const NodePtr& main_node, const TransposeInputsInfo& 
     const size_t transpose_input_index = transpose_input_info.input_idx;
     const auto transpose_element_type = transpose_input_info.transpose_const->get_element_type();
 
-    for (size_t i = 0; i < main_node->get_input_size(); ++i) {
+    for (const auto& i : input_indexes) {
         auto input_node = main_node->input_value(i);
         if (i == transpose_input_index) {
             auto transpose_parent = input_node.get_node()->input_value(0);
@@ -230,7 +236,7 @@ namespace sink_backward {
 
 NodeVector InsertTransposeBeforeNode(const NodePtr& main_node,
                                      const std::shared_ptr<Constant>& transpose_const,
-                                     std::vector<int> input_indexes) {
+                                     std::vector<size_t> input_indexes) {
     if (input_indexes.empty()) {
         input_indexes.resize(main_node->get_input_size());
         std::iota(input_indexes.begin(), input_indexes.end(), 0);
@@ -377,6 +383,53 @@ void RemoveSingleOutputConsumers(const NodePtr& node) {
             consumer->output(0).replace(node->output(output_idx));
         }
     }
+}
+
+std::vector<size_t> GetOrderAfterReduction(const std::vector<size_t>& axes_values,
+                                           const std::vector<size_t>& order_values) {
+    size_t buffer_size = order_values.size() - axes_values.size();
+    std::vector<size_t> aligned_order(buffer_size, 0);
+    std::vector<size_t> values_to_reduce(axes_values);
+    for (size_t i = 0; i < values_to_reduce.size(); ++i) {
+        values_to_reduce[i] = order_values[axes_values[i]];
+    }
+    std::sort(values_to_reduce.begin(), values_to_reduce.end());
+    for (size_t i = 0, j = 0; i < order_values.size(); ++i) {
+        if (std::find(axes_values.begin(), axes_values.end(), i) != axes_values.end()) {
+            continue;
+        }
+
+        auto lb = std::lower_bound(values_to_reduce.begin(), values_to_reduce.end(), order_values[i]);
+        aligned_order[j] = order_values[i] - (lb - values_to_reduce.begin());
+        ++j;
+    }
+    return aligned_order;
+}
+
+std::vector<size_t> GetOrderBeforeReduction(const std::vector<size_t>& axes_values,
+                                            const std::vector<size_t>& order_values) {
+    size_t buffer_size = order_values.size() + axes_values.size();
+    std::vector<size_t> aligned_order(buffer_size);
+
+    std::vector<int64_t> cnt_deleted(buffer_size);
+    int64_t cnt = 0;
+    for (int64_t i = 0; i < static_cast<int64_t>(cnt_deleted.size()); ++i) {
+        if (std::find(axes_values.begin(), axes_values.end(), i) != axes_values.end()) {
+            cnt++;
+        }
+        cnt_deleted[i] = i - cnt;
+    }
+
+    for (size_t i = 0, j = 0; i < aligned_order.size(); ++i) {
+        if (std::find(axes_values.begin(), axes_values.end(), i) != axes_values.end()) {
+            aligned_order[i] = i;
+            continue;
+        }
+
+        aligned_order[i] = std::find(cnt_deleted.begin(), cnt_deleted.end(), order_values[j]) - cnt_deleted.begin();
+        ++j;
+    }
+    return aligned_order;
 }
 
 }  // namespace utils

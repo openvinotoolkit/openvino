@@ -97,10 +97,10 @@ function(ov_download_tbb)
     if(WIN32 AND X86_64)
         # TODO: add target_path to be platform specific as well, to avoid following if
         RESOLVE_DEPENDENCY(TBB
-                ARCHIVE_WIN "tbb2020_617e9a71_win.zip"
+                ARCHIVE_WIN "oneapi-tbb-2021.2.1-win.zip"
                 TARGET_PATH "${TEMP}/tbb"
                 ENVIRONMENT "TBBROOT"
-                SHA256 "01cac3cc48705bd52b83a6e1fa1ed95c708928be76160f5b9c5c37f954d56df4"
+                SHA256 "d81591673bd7d3d9454054642f8ef799e1fdddc7b4cee810a95e6130eb7323d4"
                 USE_NEW_LOCATION TRUE)
     elseif(ANDROID AND X86_64)
         RESOLVE_DEPENDENCY(TBB
@@ -110,10 +110,10 @@ function(ov_download_tbb)
                 SHA256 "f42d084224cc2d643314bd483ad180b081774608844000f132859fca3e9bf0ce")
     elseif(LINUX AND X86_64)
         RESOLVE_DEPENDENCY(TBB
-                ARCHIVE_LIN "tbb2020_617e9a71_lin_strip.tgz"
+                ARCHIVE_LIN "oneapi-tbb-2021.2.1-lin.tgz"
                 TARGET_PATH "${TEMP}/tbb"
                 ENVIRONMENT "TBBROOT"
-                SHA256 "e7a38f68059fb36de8b59d40b283a849f26275e34a58d2acadfdb84d49e31b9b"
+                SHA256 "0a56f73baaa40d72e06949ea6d593ae63a19f7580ce71c08287c1f59d2e5b988"
                 USE_NEW_LOCATION TRUE)
     elseif(YOCTO_AARCH64)
         RESOLVE_DEPENDENCY(TBB
@@ -123,10 +123,10 @@ function(ov_download_tbb)
                 SHA256 "321261ff2eda6d4568a473cb883262bce77a93dac599f7bd65d2918bdee4d75b")
     elseif(APPLE AND X86_64)
         RESOLVE_DEPENDENCY(TBB
-                ARCHIVE_MAC "tbb2020_617e9a71_mac.tgz"
+                ARCHIVE_MAC "oneapi-tbb-2021.2.1-mac.tgz"
                 TARGET_PATH "${TEMP}/tbb"
                 ENVIRONMENT "TBBROOT"
-                SHA256 "67a44b695bef3348416eaf5bf2baca2b1401576c0e09c394304eba1e0eee96cd"
+                SHA256 "c57ce4b97116cd3093c33e6dcc147fb1bbb9678d0ee6c61a506b2bfe773232cb"
                 USE_NEW_LOCATION TRUE)
     else()
         message(WARNING "Prebuilt TBB is not available on current platform")
@@ -184,10 +184,11 @@ function(ov_download_tbbbind_2_5)
                 USE_NEW_LOCATION TRUE)
     elseif(LINUX AND X86_64)
         RESOLVE_DEPENDENCY(TBBBIND_2_5
-                ARCHIVE_LIN "tbbbind_2_5_static_lin_v2.tgz"
+                ARCHIVE_LIN "tbbbind_2_5_static_lin_v3.tgz"
                 TARGET_PATH "${TEMP}/tbbbind_2_5"
                 ENVIRONMENT "TBBBIND_2_5_ROOT"
-                SHA256 "865e7894c58402233caf0d1b288056e0e6ab2bf7c9d00c9dc60561c484bc90f4")
+                SHA256 "d39deb262c06981b5e2d2e3c593e9fc9be62ce4feb91dd4e648e92753659a6b3"
+                USE_NEW_LOCATION TRUE)
     else()
         # TMP: for Apple Silicon TBB does not provide TBBBind
         if(NOT (APPLE AND AARCH64))

@@ -245,6 +245,13 @@ void Reorder::createReorderPrimitive(const dnnl::memory::desc& srcDesc,
     auto src = getParentEdgesAtPort(0)[0]->getMemoryPtr()->GetPrimitive();
     auto dst = getChildEdgesAtPort(0)[0]->getMemoryPtr()->GetPrimitive();
     primArgs = {{DNNL_ARG_SRC, src}, {DNNL_ARG_DST, dst}};
+
+#ifdef CPU_DEBUG_CAPS
+    if (prim) {
+        auto pd = prim.get_primitive_desc();
+        DEBUG_LOG("verbose##", getName(), "##", DnnlExtensionUtils::query_pd_info(pd), "\n");
+    }
+#endif
 }
 
 const std::vector<impl_desc_type>& Reorder::getPrimitivesPriority() {
@@ -336,7 +343,11 @@ void Reorder::execute(dnnl::stream strm) {
         src_blocked->setDataHandle(getParentEdgeAt(0)->getMemory().GetData());
         dst_blocked->setDataHandle(getChildEdgeAt(0)->getMemory().GetData());
 
-        Node::execute(strm);
+        if (prim) {
+            prim.execute(strm, primArgs);
+        } else {
+            IE_THROW() << "Reorder node with name " << getName() << " doesn't have an initialized primitive";
+        }
     }
 }
 

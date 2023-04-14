@@ -79,8 +79,7 @@ ov::template_plugin::InferRequest::InferRequest(const std::shared_ptr<const ov::
 
     // Save variable states
     ov::op::util::VariableContext variable_context;
-    for (const auto& variable : get_template_model()->m_model->get_variables()) {
-        auto value = std::make_shared<ov::op::util::VariableValue>();
+    for (const auto& variable : m_executable->get_model()->get_variables()) {
         if (!variable_context.get_variable_value(variable)) {
             auto shape = variable->get_info().data_shape.is_dynamic() ? ov::Shape{0}
                                                                       : variable->get_info().data_shape.to_shape();
@@ -95,9 +94,28 @@ ov::template_plugin::InferRequest::InferRequest(const std::shared_ptr<const ov::
 }
 // ! [infer_request:ctor]
 
+// ! [infer_request:dtor]
+ov::template_plugin::InferRequest::~InferRequest() = default;
+// ! [infer_request:dtor]
+
+// ! [infer_request:set_tensors_impl]
+void ov::template_plugin::InferRequest::set_tensors_impl(const ov::Output<const ov::Node> port,
+                                                         const std::vector<ov::Tensor>& tensors) {
+    for (const auto& input : get_inputs()) {
+        if (input == port) {
+            m_batched_tensors[input.get_tensor_ptr()] = tensors;
+            return;
+        }
+    }
+    OPENVINO_THROW("Cannot find input tensors for port ", port);
+}
+// ! [infer_request:set_tensors_impl]
+
+// ! [infer_request:query_state]
 std::vector<std::shared_ptr<ov::IVariableState>> ov::template_plugin::InferRequest::query_state() const {
     return m_variable_states;
 }
+// ! [infer_request:query_state]
 
 std::shared_ptr<const ov::template_plugin::CompiledModel> ov::template_plugin::InferRequest::get_template_model()
     const {
@@ -107,11 +125,7 @@ std::shared_ptr<const ov::template_plugin::CompiledModel> ov::template_plugin::I
     return template_model;
 }
 
-// ! [infer_request:dtor]
-ov::template_plugin::InferRequest::~InferRequest() = default;
-// ! [infer_request:dtor]
-
-// ! [infer_request:infer_impl]
+// ! [infer_request:infer]
 void ov::template_plugin::InferRequest::infer() {
     // TODO: fill with actual list of pipeline stages, which are executed synchronously for sync infer requests
     infer_preprocess();
@@ -119,7 +133,7 @@ void ov::template_plugin::InferRequest::infer() {
     wait_pipeline();  // does nothing in current implementation
     infer_postprocess();
 }
-// ! [infer_request:infer_impl]
+// ! [infer_request:infer]
 
 // ! [infer_request:infer_preprocess]
 void ov::template_plugin::InferRequest::infer_preprocess() {
@@ -192,11 +206,15 @@ void ov::template_plugin::InferRequest::infer_preprocess() {
 void ov::template_plugin::InferRequest::start_pipeline() {
     OV_ITT_SCOPED_TASK(itt::domains::TemplatePlugin, m_profiling_task[StartPipeline])
     auto start = Time::now();
-    m_executable->call(m_backend_output_tensors, m_backend_input_tensors);
+    m_executable->call(m_backend_output_tensors,
+                       m_backend_input_tensors,
+                       m_eval_context,
+                       get_template_model()->m_cfg.perf_count);
     m_durations[StartPipeline] = Time::now() - start;
 }
 // ! [infer_request:start_pipeline]
 
+// ! [infer_request:wait_pipeline]
 void ov::template_plugin::InferRequest::wait_pipeline() {
     OV_ITT_SCOPED_TASK(itt::domains::TemplatePlugin, m_profiling_task[WaitPipeline])
     auto start = Time::now();
@@ -204,6 +222,7 @@ void ov::template_plugin::InferRequest::wait_pipeline() {
     // NOTE: not used in current implementation since `startPipeline` executes pipiline synchronously
     m_durations[WaitPipeline] = Time::now() - start;
 }
+// ! [infer_request:wait_pipeline]
 
 // ! [infer_request:infer_postprocess]
 void ov::template_plugin::InferRequest::infer_postprocess() {
@@ -235,20 +254,7 @@ void ov::template_plugin::InferRequest::infer_postprocess() {
 }
 // ! [infer_request:infer_postprocess]
 
-// ! [infer_request:set_blobs_impl]
-void ov::template_plugin::InferRequest::set_tensors_impl(const ov::Output<const ov::Node> port,
-                                                         const std::vector<ov::Tensor>& tensors) {
-    for (const auto& input : get_inputs()) {
-        if (input == port) {
-            m_batched_tensors[input.get_tensor_ptr()] = tensors;
-            return;
-        }
-    }
-    OPENVINO_THROW("Cannot find input tensors for port ", port);
-}
-// ! [infer_request:set_blobs_impl]
-
-// ! [infer_request:get_performance_counts]
+// ! [infer_request:get_profiling_info]
 std::vector<ov::ProfilingInfo> ov::template_plugin::InferRequest::get_profiling_info() const {
     std::vector<ov::ProfilingInfo> info;
     const auto fill_profiling_info = [](const std::string& name,
@@ -264,4 +270,10 @@ std::vector<ov::ProfilingInfo> ov::template_plugin::InferRequest::get_profiling_
     info.emplace_back(fill_profiling_info("output postprocessing", m_durations[Postprocess]));
     return info;
 }
-// ! [infer_request:get_performance_counts]
+// ! [infer_request:get_profiling_info]
+
+// ! [infer_request:cancel]
+void ov::template_plugin::InferRequest::cancel() {
+    m_executable->cancel();
+}
+// ! [infer_request:cancel]
