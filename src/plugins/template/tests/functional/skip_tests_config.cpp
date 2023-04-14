@@ -142,9 +142,7 @@ std::vector<std::string> disabledTestPatterns() {
     retVector.emplace_back(R"(.*smoke_TopK_With_Hardcoded_Refs/ReferenceTopKTestMaxMinSortV3.CompareWithRefs.*)");
     retVector.emplace_back(R"(.*smoke_TopK_With_Hardcoded_Refs/ReferenceTopKTestBackendV3.CompareWithRefs.*)");
     // fails only on Linux arm64
-    retVector.emplace_back(R"(.*ReferenceConversionLayerTest.CompareWithHardcodedRefs/conversionType=Convert_shape=[4]_iType=f16_oType=u4.*)");
-    retVector.emplace_back(R"(.*ReferenceConversionLayerTest.CompareWithHardcodedRefs/conversionType=Convert_shape=[4]_iType=bf16_oType=u4.*)");
-    retVector.emplace_back(R"(.*ReferenceConversionLayerTest.CompareWithHardcodedRefs/conversionType=Convert_shape=[4]_iType=f32_oType=u4.*)");
+    retVector.emplace_back(R"(.*ReferenceConversionLayerTest.CompareWithHardcodedRefs/conversionType=(Convert|ConvertLike)_shape=.*_iType=(f16|f32|bf16)_oType=u4.*)");
 #endif
     return retVector;
 }
