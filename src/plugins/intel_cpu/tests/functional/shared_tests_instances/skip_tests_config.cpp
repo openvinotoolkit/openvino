@@ -220,12 +220,6 @@ std::vector<std::string> disabledTestPatterns() {
     retVector.emplace_back(R"(smoke_Activation_Basic_Prelu_Const/ActivationLayerTest.CompareWithRefs/(LeakyRelu|PReLu).*)");
     retVector.emplace_back(R"(smoke_Activation_Basic_Prelu_Param/ActivationParamLayerTest.CompareWithRefs/(LeakyRelu|PReLu).*)");
     retVector.emplace_back(R"(smoke_CompareWithRefs/ComparisonLayerTest.ComparisonTests.*)");
-    retVector.emplace_back(R"(smoke_DeformableConvolution2D_ExplicitPadding/DeformableConvolutionLayerTest.CompareWithRefs.*)");
-    retVector.emplace_back(R"(smoke_DeformableConvolution2D_AutoPadValid/DeformableConvolutionLayerTest.CompareWithRefs.*)");
-    retVector.emplace_back(R"(smoke_DeformableConvolution2D_DeformableGroups_ExplicitPadding/DeformableConvolutionLayerTest.CompareWithRefs.*)");
-    retVector.emplace_back(R"(smoke_DeformableConvolution2D_SingleTestCase/DeformableConvolutionLayerTest.CompareWithRefs.*)");
-    retVector.emplace_back(R"(smoke_DeformableConvolution2D_MultipleGroups/DeformableConvolutionLayerTest.CompareWithRefs.*)");
-    retVector.emplace_back(R"(smoke_DeformableConvolution2D_MultipleGroups_2/DeformableConvolutionLayerTest.CompareWithRefs.*)");
     retVector.emplace_back(R"(smoke_CompareWithRefs_static/EltwiseLayerTest.EltwiseTests.*)");
     retVector.emplace_back(R"(smoke_CompareWithRefs_static_check_collapsing/EltwiseLayerTest.EltwiseTests.*)");
     retVector.emplace_back(R"(smoke_SingleThread/EltwiseLayerTest.EltwiseTests.*)");
