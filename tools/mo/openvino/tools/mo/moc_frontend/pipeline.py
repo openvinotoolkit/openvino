@@ -17,7 +17,7 @@ from openvino.runtime.utils.types import get_element_type, \
     get_numpy_ctype  # pylint: disable=no-name-in-module,import-error
 from openvino.tools.mo.middle.passes.infer import validate_batch_in_shape
 from openvino.tools.mo.moc_frontend.analysis import json_model_analysis_dump
-from openvino.tools.mo.moc_frontend.extractor import fe_user_data_repack
+from openvino.tools.mo.moc_frontend.extractor import fe_user_data_repack, convert_params_lists_to_dicts
 from openvino.tools.mo.moc_frontend.layout_utils import update_layout_to_dict, get_dimension_index_by_label
 from openvino.tools.mo.utils.class_registration import get_enabled_and_disabled_transforms
 from openvino.tools.mo.utils.error import Error
@@ -35,6 +35,10 @@ def moc_pipeline(argv: argparse.Namespace, moc_front_end: FrontEnd):
                         "Please use use_legacy_frontend=True to convert the model.")
     else:
         input_model = moc_front_end.load(argv.input_model)
+
+    argv.placeholder_shapes, argv.placeholder_data_types, argv.freeze_placeholder_with_value = convert_params_lists_to_dicts(
+        input_model, argv.placeholder_shapes, argv.placeholder_data_types,
+        argv.freeze_placeholder_with_value, argv.unnamed_freeze_placeholder_with_value)
 
     user_shapes, outputs, freeze_placeholder = fe_user_data_repack(
         input_model, argv.placeholder_shapes, argv.placeholder_data_types,
