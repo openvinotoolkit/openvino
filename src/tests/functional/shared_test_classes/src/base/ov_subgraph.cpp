@@ -41,6 +41,7 @@ std::ostream& operator <<(std::ostream& os, const InputShape& inputShape) {
 }
 
 void SubgraphBaseTest::run() {
+    is_reported = true;
     bool isCurrentTestDisabled = FuncTestUtils::SkipTestsConfig::currentTestIsDisabled();
 
     ov::test::utils::PassRate::Statuses status = isCurrentTestDisabled ?
