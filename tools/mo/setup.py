@@ -94,7 +94,7 @@ def read_requirements(path: str) -> List[str]:
             # else version is unbound
             else:
                 requirements.append(line)
-    #print(f"\n{path}:\n{requirements}\n\n")
+    print(f"\n{path}:\n{requirements}\n\n")
     return requirements
 
 
