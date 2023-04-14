@@ -93,3 +93,58 @@ TEST(tensor_api, linear_offsets) {
     test_tensor_offset({ 2, 5, 4, 3 }, { 1, 3, 1, 2 }, cldnn::format::fs_b_yx_fsv32, 675);
     test_tensor_offset({ 2, 37, 4, 3 }, { 1, 35, 3, 2 }, cldnn::format::fs_b_yx_fsv32, 1507);
 }
+
+TEST(tensor_api, transform) {
+    cldnn::tensor t4d{{1, 2, 3, 4}};
+    ASSERT_EQ(t4d.transform(cldnn::format::bfvuwzyx, 1), cldnn::tensor({1, 2, 3, 4, 1, 1, 1, 1}, 1));
+    ASSERT_EQ(t4d.transform(cldnn::format::bfuwzyx, 1), cldnn::tensor({1, 2, 3, 4, 1, 1, 1}, 1));
+    ASSERT_EQ(t4d.transform(cldnn::format::bfwzyx, 1), cldnn::tensor({1, 2, 3, 4, 1, 1}, 1));
+    ASSERT_EQ(t4d.transform(cldnn::format::bfzyx, 1), cldnn::tensor({1, 2, 3, 4, 1}, 1));
+    ASSERT_EQ(t4d.transform(cldnn::format::bfyx, 1), cldnn::tensor({1, 2, 3, 4}, 1));
+    ASSERT_EQ(t4d.transform(cldnn::format::bs_fs_fsv8_bsv8, 1), cldnn::tensor({1, 2*3*4}, 1));
+    ASSERT_EQ(t4d.transform(cldnn::format::os_i_osv8__ai8, 1), cldnn::tensor({1, 2*3*4}, 1));
+    ASSERT_EQ(t4d.transform(cldnn::format::os_i_osv16__ai8, 1), cldnn::tensor({1, 2*3*4}, 1));
+    ASSERT_EQ(t4d.transform(cldnn::format::bs_f_bsv16, 1), cldnn::tensor({1, 2*3*4}, 1));
+    ASSERT_EQ(t4d.transform(cldnn::format::b_fs_zyx_fsv16, 1), cldnn::tensor({1, 2, 3, 4, 1}, 1));
+    ASSERT_EQ(t4d.transform(cldnn::format::bs_fs_zyx_bsv16_fsv16, 1), cldnn::tensor({1, 2, 3, 4, 1}, 1));
+    ASSERT_EQ(t4d.transform(cldnn::format::bs_fs_zyx_bsv16_fsv32, 1), cldnn::tensor({1, 2, 3, 4, 1}, 1));
+    ASSERT_EQ(t4d.transform(cldnn::format::b_fs_zyx_fsv32, 1), cldnn::tensor({1, 2, 3, 4, 1}, 1));
+    ASSERT_EQ(t4d.transform(cldnn::format::bs_fs_yx_bsv16_fsv16, 1), cldnn::tensor({1, 2, 3, 4}, 1));
+
+    cldnn::tensor t5d{{1, 2, 3, 4, 5}};
+    ASSERT_EQ(t5d.transform(cldnn::format::bfvuwzyx, 1), cldnn::tensor({1, 2, 3, 4, 5, 1, 1, 1}, 1));
+    ASSERT_EQ(t5d.transform(cldnn::format::bfuwzyx, 1), cldnn::tensor({1, 2, 3, 4, 5, 1, 1}, 1));
+    ASSERT_EQ(t5d.transform(cldnn::format::bfwzyx, 1), cldnn::tensor({1, 2, 3, 4, 5, 1}, 1));
+    ASSERT_EQ(t5d.transform(cldnn::format::bfzyx, 1), cldnn::tensor({1, 2, 3, 4, 5}, 1));
+    ASSERT_EQ(t5d.transform(cldnn::format::bfyx, 1), cldnn::tensor({1, 2, 3, 4*5}, 1));
+    ASSERT_EQ(t5d.transform(cldnn::format::bs_fs_fsv8_bsv8, 1), cldnn::tensor({1, 2*3*4*5}, 1));
+    ASSERT_EQ(t5d.transform(cldnn::format::os_i_osv8__ai8, 1), cldnn::tensor({1, 2*3*4*5}, 1));
+    ASSERT_EQ(t5d.transform(cldnn::format::os_i_osv16__ai8, 1), cldnn::tensor({1, 2*3*4*5}, 1));
+    ASSERT_EQ(t5d.transform(cldnn::format::bs_f_bsv16, 1), cldnn::tensor({1, 2*3*4*5}, 1));
+    ASSERT_EQ(t5d.transform(cldnn::format::b_fs_zyx_fsv16, 1), cldnn::tensor({1, 2, 3, 4, 5}, 1));
+    ASSERT_EQ(t5d.transform(cldnn::format::bs_fs_zyx_bsv16_fsv16, 1), cldnn::tensor({1, 2, 3, 4, 5}, 1));
+    ASSERT_EQ(t5d.transform(cldnn::format::bs_fs_zyx_bsv16_fsv32, 1), cldnn::tensor({1, 2, 3, 4, 5}, 1));
+    ASSERT_EQ(t5d.transform(cldnn::format::b_fs_zyx_fsv32, 1), cldnn::tensor({1, 2, 3, 4, 5}, 1));
+    ASSERT_EQ(t5d.transform(cldnn::format::bs_fs_yx_bsv16_fsv16, 1), cldnn::tensor({1, 2, 3, 4*5}, 1));
+
+    cldnn::tensor t6d{{1, 2, 3, 4, 5, 6}};
+    ASSERT_EQ(t6d.transform(cldnn::format::bfvuwzyx, 1), cldnn::tensor({1, 2, 3, 4, 5, 6, 1, 1}, 1));
+    ASSERT_EQ(t6d.transform(cldnn::format::bfuwzyx, 1), cldnn::tensor({1, 2, 3, 4, 5, 6, 1}, 1));
+    ASSERT_EQ(t6d.transform(cldnn::format::bfwzyx, 1), cldnn::tensor({1, 2, 3, 4, 5, 6}, 1));
+    ASSERT_EQ(t6d.transform(cldnn::format::bfzyx, 1), cldnn::tensor({1, 2, 3, 4, 5*6}, 1));
+    ASSERT_EQ(t6d.transform(cldnn::format::bfyx, 1), cldnn::tensor({1, 2, 3, 4*5*6}, 1));
+
+    cldnn::tensor t7d{{1, 2, 3, 4, 5, 6, 7}};
+    ASSERT_EQ(t7d.transform(cldnn::format::bfvuwzyx, 1), cldnn::tensor({1, 2, 3, 4, 5, 6, 7, 1}, 1));
+    ASSERT_EQ(t7d.transform(cldnn::format::bfuwzyx, 1), cldnn::tensor({1, 2, 3, 4, 5, 6, 7}, 1));
+    ASSERT_EQ(t7d.transform(cldnn::format::bfwzyx, 1), cldnn::tensor({1, 2, 3, 4, 5, 6*7}, 1));
+    ASSERT_EQ(t7d.transform(cldnn::format::bfzyx, 1), cldnn::tensor({1, 2, 3, 4, 5*6*7}, 1));
+    ASSERT_EQ(t7d.transform(cldnn::format::bfyx, 1), cldnn::tensor({1, 2, 3, 4*5*6*7}, 1));
+
+    cldnn::tensor t8d{{1, 2, 3, 4, 5, 6, 7, 8}};
+    ASSERT_EQ(t8d.transform(cldnn::format::bfvuwzyx, 1), cldnn::tensor({1, 2, 3, 4, 5, 6, 7, 8}, 1));
+    ASSERT_EQ(t8d.transform(cldnn::format::bfuwzyx, 1), cldnn::tensor({1, 2, 3, 4, 5, 6, 7*8}, 1));
+    ASSERT_EQ(t8d.transform(cldnn::format::bfwzyx, 1), cldnn::tensor({1, 2, 3, 4, 5, 6*7*8}, 1));
+    ASSERT_EQ(t8d.transform(cldnn::format::bfzyx, 1), cldnn::tensor({1, 2, 3, 4, 5*6*7*8}, 1));
+    ASSERT_EQ(t8d.transform(cldnn::format::bfyx, 1), cldnn::tensor({1, 2, 3, 4*5*6*7*8}, 1));
+}

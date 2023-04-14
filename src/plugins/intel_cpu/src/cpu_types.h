@@ -160,7 +160,8 @@ enum class Algorithm {
     EltwiseLogicalXor,
     EltwiseLogicalNot,
     EltwiseRelu,
-    EltwiseGelu,
+    EltwiseGeluErf,
+    EltwiseGeluTanh,
     EltwiseElu,
     EltwiseTanh,
     EltwiseSigmoid,
@@ -179,12 +180,12 @@ enum class Algorithm {
     EltwiseRoundHalfAwayFromZero,
     EltwiseErf,
     EltwiseSoftSign,
+    EltwiseLog,
 
     // FakeQuantize algorithms
     FQCommon,
     FQQuantization,
     FQBinarization,
-    FQRequantization,
 
     // ROIPooling algorithms
     ROIPoolingMax,
@@ -227,7 +228,6 @@ enum class Algorithm {
     MathErf,
     MathFloor,
     MathHardSigmoid,
-    MathLog,
     MathNegative,
     MathReciprocal,
     MathSelu,
