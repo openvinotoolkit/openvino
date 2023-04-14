@@ -278,34 +278,36 @@ void remove_redundant_reorders::run(program& p) {
 
         // Optimize reorder b_fs_yx_fsv16 -> bfyx when spatials are equal to 1. In this case we can reinterpret buffer,
         // but pads need to be handled correctly.
-        // If the batch size is not 1, and the newly aligned pad is merged into output layout and then buffer is reinterpreted
-        // during post_optimize_graph phase, user node cannot handle pad properly for kernel execution
-        bool no_post_optimization = update_implementations && o_layout.batch() != 1;
-        if (i_layout.format == format::b_fs_yx_fsv16 && o_layout.format == format::bfyx &&
-            !r_node.is_output() && !no_post_optimization &&
+        if (i_layout.format == format::b_fs_yx_fsv16 && o_layout.format == format::bfyx && !r_node.is_output() &&
             i_layout.spatial(0) == 1 && i_layout.spatial(1) == 1 &&
             i_layout.data_padding.upper_size().spatial[0] == 0 && i_layout.data_padding.lower_size().spatial[0] == 0 &&
             i_layout.data_padding.upper_size().spatial[1] == 0 && i_layout.data_padding.lower_size().spatial[1] == 0 &&
             o_layout.data_padding.upper_size() == (tensor)0 && o_layout.data_padding.lower_size() == (tensor)0 &&
             i_layout.data_type == o_layout.data_type) {
-            r_node.can_be_optimized(true);
-            r_node.requires_reinterpret(true);
+            // If the newly aligned pad is merged into output layout during post_optimize_graph phase
+            // and then buffer is reinterpreted, user node cannot handle pad properly for kernel execution
+            if (!update_implementations || (i_layout.feature() % 16 == 0 &&
+                i_layout.data_padding.upper_size() == (tensor)0 && i_layout.data_padding.lower_size() == (tensor)0 &&
+                o_layout.data_padding.upper_size() == (tensor)0 && o_layout.data_padding.lower_size() == (tensor)0)) {
+                r_node.can_be_optimized(true);
+                r_node.requires_reinterpret(true);
 
-            auto pad_lo = o_layout.data_padding.lower_size();
-            auto pad_hi = o_layout.data_padding.upper_size();
+                auto pad_lo = o_layout.data_padding.lower_size();
+                auto pad_hi = o_layout.data_padding.upper_size();
 
-            pad_lo.batch[0] = i_layout.data_padding.lower_size().batch[0];
-            pad_hi.batch[0] = i_layout.data_padding.upper_size().batch[0];
+                pad_lo.batch[0] = i_layout.data_padding.lower_size().batch[0];
+                pad_hi.batch[0] = i_layout.data_padding.upper_size().batch[0];
 
-            pad_lo.feature[0] = i_layout.data_padding.lower_size().feature[0];
-            pad_hi.feature[0] = i_layout.data_padding.upper_size().feature[0];
+                pad_lo.feature[0] = i_layout.data_padding.lower_size().feature[0];
+                pad_hi.feature[0] = i_layout.data_padding.upper_size().feature[0];
 
-            if (i_layout.feature() % 16 != 0) {
-                pad_hi.feature[0] += 16 - i_layout.feature() % 16;
+                if (i_layout.feature() % 16 != 0) {
+                    pad_hi.feature[0] += 16 - i_layout.feature() % 16;
+                }
+
+                r_node.merge_output_padding(padding{pad_lo.sizes(), pad_hi.sizes()});
+                continue;
             }
-
-            r_node.merge_output_padding(padding{pad_lo.sizes(), pad_hi.sizes()});
-            continue;
         }
 
         if (!o_layout.compatible(i_layout))
