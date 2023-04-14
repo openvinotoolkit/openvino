@@ -96,7 +96,9 @@ def merge_xmls(xml_paths: list):
 
         for op in xml_root.find("ops_list"):
             if ops_list.find(op.tag) is None:
-                SubElement(ops_list, op.tag)
+                op_node = SubElement(ops_list, op.tag)
+                for op_attrib in op.attrib:
+                    op_node.set(op_attrib, op.get(op_attrib))
 
         for device in xml_root.find("results"):
             device_results = summary_results.find(device.tag)
@@ -278,10 +280,14 @@ def create_summary(summary_root: Element, output_folder: os.path, expected_devic
     device_list, results, general_pass_rate, general_pass_rate_rel, pass_rate_avg, pass_rate_avg_rel, general_test_count, trusted_ops, covered_ops = \
         collect_statistic(summary_root, is_conformance_mode)
 
-    op_list = list()
+    op_list = dict()
     for op in summary_root.find("ops_list"):
-        op_list.append(op.tag)
-    op_list = sorted(op_list)
+        try:
+            opsets = op.attrib.get("opsets").split()
+            opsets = [int(opset) for opset in opsets]
+        except:
+            opsets = []
+        op_list.update({op.tag: opsets})
     
     if len(expected_devices) > 0 and sorted(expected_devices) != device_list:
         for expected_device in expected_devices:

@@ -142,7 +142,9 @@ def merge_xml(input_folder_paths: list, output_folder_paths: str, output_filenam
             logger.error(f'{folder_path} does not contain the correct xml files')
         for entity in xml_root.find(entity_name):
             if entity_list.find(entity.tag) is None:
-                SubElement(entity_list, entity.tag)
+                entity_node = SubElement(entity_list, entity.tag)
+                for op_attrib in entity.attrib:
+                    entity_node.set(op_attrib, entity.get(op_attrib))
         timestamp = aggregate_test_results(results, xml_reports, report_type, merge_device_suffix)
         if report_type == "OP":
             stat_update_utils.update_passrates(results)
