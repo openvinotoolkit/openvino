@@ -492,40 +492,47 @@ void MatMul::initSupportedPrimitiveDescriptors() {
     if (!supportedPrimitiveDescriptors.empty())
         return;
 
+    auto addSupportedPrimitiveDescriptor = [&](const dnnl::primitive_desc& prim_desc) {
+        std::vector<PortConfig> inConfs, outConfs;
+        const int inPlaceOutPort = canBeInPlace() ? 0 : -1;
+
+        for (size_t i = 0; i < descInputNumbers(); i++) {
+            auto desc = getSrcMemDesc(prim_desc, i);
+
+            inConfs.emplace_back(desc);
+        }
+
+        for (size_t i = 0; i < descOutputNumbers(); i++) {
+            auto desc = getDstMemDesc(prim_desc, i);
+
+            outConfs.emplace_back(desc, inPlaceOutPort);
+        }
+
+        NodeConfig config(inConfs, outConfs);
+        impl_desc_type impl_type = parse_impl_name(prim_desc.impl_info_str());
+
+        supportedPrimitiveDescriptors.emplace_back(config, impl_type);
+    };
+
     for (auto& desc : descs) {
-        auto itpd = desc;
+        if (desc && customImplPriorities.empty()) {
+            addSupportedPrimitiveDescriptor(desc);
+            continue;
+        }
+
+        primitive_desc_iterator itpd = desc;
+
         while (itpd) {
-            NodeConfig config;
-            config.dynBatchSupport = true;
-            for (size_t i = 0; i < descInputNumbers(); i++) {
-                PortConfig portConfig;
-                portConfig.inPlace(-1);
-                portConfig.constant(false);
-                portConfig.setMemDesc(getSrcMemDesc(itpd, i));
+            addSupportedPrimitiveDescriptor(itpd);
 
-                config.inConfs.push_back(portConfig);
-            }
-
-            for (size_t i = 0; i < descOutputNumbers(); i++) {
-                PortConfig portConfig;
-                portConfig.inPlace(canBeInPlace() ? 0 : -1);
-                portConfig.constant(false);
-                portConfig.setMemDesc(getDstMemDesc(itpd, i));
-
-                config.outConfs.push_back(portConfig);
-            }
-
-            impl_desc_type impl_type = parse_impl_name(itpd.impl_info_str());
-
-            supportedPrimitiveDescriptors.emplace_back(config, impl_type);
             if (!itpd.next_impl())
                 break;
         }
     }
 }
 
-MemoryDescPtr MatMul::getSrcMemDesc(dnnl::primitive_desc_iterator &primitive_desc_it, size_t idx) {
-    auto desc = idx > 0 ? primitive_desc_it.weights_desc(idx - 1): primitive_desc_it.src_desc(idx);
+MemoryDescPtr MatMul::getSrcMemDesc(const dnnl::primitive_desc &prim_desc, size_t idx) const {
+    auto desc = idx > 0 ? prim_desc.weights_desc(idx - 1): prim_desc.src_desc(idx);
 
     if (idx < 2) // inputs
         return std::make_shared<CpuBlockedMemoryDesc>(
@@ -683,7 +690,10 @@ void MatMul::executeDynamicImpl(dnnl::stream strm) {
 }
 
 const std::vector<impl_desc_type>& MatMul::getPrimitivesPriority() {
-    std::vector<impl_desc_type> priorities = {
+    if (!customImplPriorities.empty())
+        return customImplPriorities;
+
+    static std::vector<impl_desc_type> priorities = {
             impl_desc_type::unknown,
             impl_desc_type::brgemm_avx512_amx,
             impl_desc_type::brgemm_avx512,
@@ -713,11 +723,8 @@ const std::vector<impl_desc_type>& MatMul::getPrimitivesPriority() {
             impl_desc_type::jit_sse42,
             impl_desc_type::ref,
     };
-    for (const auto& impl : priorities) {
-        if (std::find(implPriorities.begin(), implPriorities.end(), impl) == implPriorities.end())
-            implPriorities.push_back(impl);
-    }
-    return implPriorities;
+
+    return priorities;
 }
 }   // namespace node
 }   // namespace intel_cpu

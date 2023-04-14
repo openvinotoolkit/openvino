@@ -98,7 +98,7 @@ Node::Node(const std::shared_ptr<ngraph::Node>& op,
       type(TypeFromName(op->get_type_name())),
       profiling(op->get_friendly_name()),
       originalLayers(rt_info::getOriginalLayerNames(op->get_rt_info(), name)),
-      implPriorities(rt_info::getPrimitivesPriority(op->get_rt_info())),
+      customImplPriorities(rt_info::getPrimitivesPriority(op->get_rt_info())),
       inputMemoryFormatsFilter(rt_info::getInputMemoryFormatsFilter(op->get_rt_info())),
       outputMemoryFormatsFilter(rt_info::getOutputMemoryFormatsFilter(op->get_rt_info())),
       enforceBF16evenForGraphTail(rt_info::shouldEnforceBF16evenForGraphTail(op->get_rt_info())) {
@@ -580,42 +580,39 @@ void Node::initSupportedPrimitiveDescriptors() {
     if (!supportedPrimitiveDescriptors.empty())
         return;
 
-    auto attr = initPrimitiveAttr();
+    auto addSupportedPrimitiveDescriptor = [&](const dnnl::primitive_desc& prim_desc) {
+        std::vector<PortConfig> inConfs, outConfs;
+        const int inPlaceOutPort = canBeInPlace() ? 0 : -1;
+
+        for (size_t i = 0; i < descInputNumbers(); i++) {
+            auto desc = getSrcMemDesc(prim_desc, i);
+
+            inConfs.emplace_back(desc, BlockedMemoryDesc::BLOCKED_DESC_EMPTY_MASK);
+        }
+
+        for (size_t i = 0; i < descOutputNumbers(); i++) {
+            auto desc = getDstMemDesc(prim_desc, i);
+
+            outConfs.emplace_back(desc, BlockedMemoryDesc::BLOCKED_DESC_EMPTY_MASK, inPlaceOutPort);
+        }
+
+        NodeConfig config(inConfs, outConfs);
+        impl_desc_type impl_type = parse_impl_name(prim_desc.impl_info_str());
+
+        supportedPrimitiveDescriptors.emplace_back(config, impl_type);
+    };
 
     for (auto& desc : descs) {
+        if (desc && customImplPriorities.empty()) {
+            addSupportedPrimitiveDescriptor(desc);
+            continue;
+        }
+
         primitive_desc_iterator itpd = desc;
 
-        while (static_cast<bool>(itpd)) {
-            NodeConfig config;
-            config.dynBatchSupport = true;
-            for (size_t i = 0; i < descInputNumbers(); i++) {
-                PortConfig portConfig;
-                portConfig.inPlace(-1);
-                portConfig.constant(false);
-                auto desc = getSrcMemDesc(itpd, i);
-                if (desc->getType() & MemoryDescType::Blocked) {
-                    portConfig.setMemDesc(std::dynamic_pointer_cast<BlockedMemoryDesc>(desc), BLOCKED_DESC_EMPTY_MASK);
-                } else {
-                    portConfig.setMemDesc(std::move(desc));
-                }
-                config.inConfs.push_back(portConfig);
-            }
+        while (itpd) {
+            addSupportedPrimitiveDescriptor(itpd);
 
-            for (size_t i = 0; i < descOutputNumbers(); i++) {
-                PortConfig portConfig;
-                portConfig.inPlace(canBeInPlace() ? 0 : -1);
-                portConfig.constant(false);
-                auto desc = getDstMemDesc(itpd, i);
-                if (desc->getType() & MemoryDescType::Blocked) {
-                    portConfig.setMemDesc(std::dynamic_pointer_cast<BlockedMemoryDesc>(desc), BLOCKED_DESC_EMPTY_MASK);
-                } else {
-                    portConfig.setMemDesc(std::move(desc));
-                }
-                config.outConfs.push_back(portConfig);
-            }
-            impl_desc_type impl_type = parse_impl_name(itpd.impl_info_str());
-
-            supportedPrimitiveDescriptors.emplace_back(config, impl_type);
             if (!itpd.next_impl())
                 break;
         }
@@ -917,7 +914,10 @@ void Node::cleanup() {
 }
 
 const std::vector<impl_desc_type>& Node::getPrimitivesPriority() {
-    std::vector<impl_desc_type> priorities = {
+    if (!customImplPriorities.empty())
+        return customImplPriorities;
+
+    static std::vector<impl_desc_type> priorities = {
             impl_desc_type::unknown,
             // Undef impl type is used to express use-cases there real type is unkown during compilation
             // Undef has higher priority than defined types in order to force primitive selection logic to make decision based on other properties
@@ -956,11 +956,8 @@ const std::vector<impl_desc_type>& Node::getPrimitivesPriority() {
             impl_desc_type::ref_any,
             impl_desc_type::ref,
     };
-    for (const auto& impl : priorities) {
-        if (std::find(implPriorities.begin(), implPriorities.end(), impl) == implPriorities.end())
-            implPriorities.push_back(impl);
-    }
-    return implPriorities;
+
+    return priorities;
 }
 
 PortDescBasePtr Node::getConsistentInputDesc(const NodeConfig &config, size_t idx) const {
@@ -1071,7 +1068,7 @@ void Node::initOptimalPrimitiveDescriptor() {
             // it is assumed that the nodes will define dense tensors on output edges
             // if it is not the case the implementation must redefine this behaviour
             if (outMemDesc->getType() & Blocked) {
-                config.outConfs[i].setMemDesc(std::dynamic_pointer_cast<BlockedMemoryDesc>(outMemDesc), BLOCKED_DESC_FULL_MASK);
+                config.outConfs[i].setMemDesc(std::dynamic_pointer_cast<BlockedMemoryDesc>(outMemDesc), BlockedMemoryDesc::BLOCKED_DESC_FULL_MASK);
             }
         }
     }
@@ -1089,18 +1086,18 @@ bool Node::isConfigDefined(const NodeConfig &config) const {
     return true;
 }
 
-MemoryDescPtr Node::getSrcMemDesc(dnnl::primitive_desc_iterator &primitive_desc_it, size_t idx) {
+MemoryDescPtr Node::getSrcMemDesc(const dnnl::primitive_desc &prim_desc, size_t idx) const {
     if (getInputShapeAtPort(idx).isDynamic()) {
-        return DnnlExtensionUtils::makeUndefinedDesc(primitive_desc_it.src_desc(idx), getInputShapeAtPort(idx));
+        return DnnlExtensionUtils::makeUndefinedDesc(prim_desc.src_desc(idx), getInputShapeAtPort(idx));
     }
-    return DnnlExtensionUtils::makeDescriptor(primitive_desc_it.src_desc(idx));
+    return DnnlExtensionUtils::makeDescriptor(prim_desc.src_desc(idx));
 }
 
-MemoryDescPtr Node::getDstMemDesc(dnnl::primitive_desc_iterator &primitive_desc_it, size_t idx) {
+MemoryDescPtr Node::getDstMemDesc(const dnnl::primitive_desc &prim_desc, size_t idx) const {
     if (getOutputShapeAtPort(idx).isDynamic()) {
-        return DnnlExtensionUtils::makeUndefinedDesc(primitive_desc_it.dst_desc(idx), getOutputShapeAtPort(idx));
+        return DnnlExtensionUtils::makeUndefinedDesc(prim_desc.dst_desc(idx), getOutputShapeAtPort(idx));
     }
-    return DnnlExtensionUtils::makeDescriptor(primitive_desc_it.dst_desc(idx));
+    return DnnlExtensionUtils::makeDescriptor(prim_desc.dst_desc(idx));
 }
 
 int Node::batchToProcess() const {
@@ -1622,15 +1619,15 @@ void Node::addSupportedPrimDesc(const std::vector<PortConfigurator>& inPortConfi
     }
 
     config.dynBatchSupport = dynBatchSupport;
-    supportedPrimitiveDescriptors.push_back({config, implType});
+    supportedPrimitiveDescriptors.emplace_back(config, implType);
 }
 
 void Node::initializeDQScales(const float* scaleData, const size_t scaleSize) {
-    bool scalePerTensor;
     if (!DQScales.empty() || !scaleSize)
         IE_THROW() << "DQ scales is preset or scale size is 0, ##" << getName();
     DQScales.reserve(scaleSize);
-    scalePerTensor = true;
+
+    bool scalePerTensor = true;
     for (size_t i = 0; i < scaleSize; i++) {
         DQScales.push_back(scaleData[i]);
         if (scaleData[i] != scaleData[0])

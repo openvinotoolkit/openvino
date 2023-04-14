@@ -586,9 +586,6 @@ void Pooling::initSupportedPrimitiveDescriptors() {
     if (!supportedPrimitiveDescriptors.empty())
         return;
 
-    dnnl::primitive_attr attr;
-    setPostOps(attr);
-
     if (useACL) {
         auto& creatorsMap = BlockedDescCreator::getCommonCreators();
         auto pushDesc = [&](LayoutType format) {
@@ -603,12 +600,12 @@ void Pooling::initSupportedPrimitiveDescriptors() {
                 creatorsMap.at(format)->createSharedDesc(getOriginalOutputPrecisionAtPort(0), getOutputShapeAtPort(0)));
 
             std::vector<MemoryDescPtr> srcMemoryDescs;
-            for (int i = 0; i < config.inConfs.size(); i++) {
-                srcMemoryDescs.push_back(config.inConfs[i].getMemDesc());
+            for (const auto& inConf : config.inConfs) {
+                srcMemoryDescs.push_back(inConf.getMemDesc());
             }
             std::vector<MemoryDescPtr> dstMemoryDescs;
-            for (int i = 0; i < config.outConfs.size(); i++) {
-                dstMemoryDescs.push_back(config.outConfs[i].getMemDesc());
+            for (const auto& outConf : config.outConfs) {
+                dstMemoryDescs.push_back(outConf.getMemDesc());
             }
 
             auto factory = std::make_shared<PoolingExecutorFactory>(
@@ -618,50 +615,54 @@ void Pooling::initSupportedPrimitiveDescriptors() {
                 std::make_shared<ExecutorContext>(context, getPrimitivesPriority()));
             supportedPrimitiveDescriptors.emplace_back(config, impl_desc_type::undef, factory);
         };
+
         pushDesc(LayoutType::ncsp);
-    } else {
-        for (auto& desc : descs) {
-            auto itpd = desc;
 
-            while (static_cast<bool>(itpd)) {
-                NodeConfig config;
-                config.dynBatchSupport = true;
-                for (size_t i = 0; i < descInputNumbers(); i++) {
-                    PortConfig dataConfig;
-                    dataConfig.inPlace(-1);
-                    dataConfig.constant(false);
-                    dataConfig.setMemDesc(getSrcMemDesc(itpd, i));
+        return;
+    }
 
-                    config.inConfs.push_back(dataConfig);
-                }
+    auto addSupportedPrimitiveDescriptor = [&](const dnnl::primitive_desc& prim_desc) {
+        std::vector<PortConfig> inConfs, outConfs;
+        const int inPlaceOutPort = canBeInPlace() ? 0 : -1;
 
-                for (size_t i = 0; i < descOutputNumbers(); i++) {
-                    PortConfig dataConfig;
-                    dataConfig.inPlace(canBeInPlace() ? 0 : -1);
-                    dataConfig.constant(false);
-                    dataConfig.setMemDesc(getDstMemDesc(itpd, i));
+        for (size_t i = 0; i < descInputNumbers(); i++) {
+            auto desc = getSrcMemDesc(prim_desc, i);
+            inConfs.emplace_back(desc);
+        }
 
-                    config.outConfs.push_back(dataConfig);
-                }
+        for (size_t i = 0; i < descOutputNumbers(); i++) {
+            auto desc = getDstMemDesc(prim_desc, i);
+            outConfs.emplace_back(desc, inPlaceOutPort);
+        }
 
-                // CPU plugin doesn't support second output of MaxPool-8, but anyway we should have out config for second port as stub
-                if (isMaxPool8) {
-                    auto& creatorsMap = BlockedDescCreator::getCommonCreators();
-                    PortConfig dataConfig;
-                    dataConfig.inPlace(-1);
-                    dataConfig.constant(false);
-                    dataConfig.setMemDesc(creatorsMap.at(LayoutType::ncsp)->createSharedDesc(config.outConfs.front().getMemDesc()->getPrecision(),
-                                                                                            getOutputShapeAtPort(1)));
+        // CPU plugin doesn't support second output of MaxPool-8, but anyway we should have out config for second port as stub
+        if (isMaxPool8) {
+            const auto& creatorsMap = BlockedDescCreator::getCommonCreators();
+            const auto outputPrecision = outConfs.front().getMemDesc()->getPrecision();
+            auto desc = creatorsMap.at(LayoutType::ncsp)->createSharedDesc(outputPrecision, getOutputShapeAtPort(1));
 
-                    config.outConfs.push_back(dataConfig);
-                }
+            outConfs.emplace_back(desc);
+        }
 
-                impl_desc_type impl_type = parse_impl_name(itpd.impl_info_str());
+        NodeConfig config(inConfs, outConfs);
+        impl_desc_type impl_type = parse_impl_name(prim_desc.impl_info_str());
 
-                supportedPrimitiveDescriptors.emplace_back(config, impl_type);
-                if (!itpd.next_impl())
-                    break;
-            }
+        supportedPrimitiveDescriptors.emplace_back(config, impl_type);
+    };
+
+    for (auto& desc : descs) {
+        if (desc && customImplPriorities.empty()) {
+            addSupportedPrimitiveDescriptor(desc);
+            continue;
+        }
+
+        primitive_desc_iterator itpd = desc;
+
+        while (itpd) {
+            addSupportedPrimitiveDescriptor(itpd);
+
+            if (!itpd.next_impl())
+                break;
         }
     }
 }

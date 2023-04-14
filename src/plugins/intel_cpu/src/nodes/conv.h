@@ -34,7 +34,7 @@ public:
         return false;
     }
     InferenceEngine::Precision getRuntimePrecision() const override;
-    std::shared_ptr<MemoryDesc> getSrcMemDesc(dnnl::primitive_desc_iterator &primitive_desc_it, size_t idx) override;
+    std::shared_ptr<MemoryDesc> getSrcMemDesc(const dnnl::primitive_desc &prim_desc, size_t idx) const override;
 
     dnnl::memory getWeights() const;
     dnnl::memory getBias() const;
@@ -113,7 +113,7 @@ private:
     InferenceEngine::Blob::Ptr createInternalBlob(InferenceEngine::SizeVector dims, size_t edgeNum, bool isGrouped = false);
 
     void updatePadding();
-    MemoryDescPtr getSumMemDesc(dnnl::primitive_desc_iterator &primitive_desc_it);
+    MemoryDescPtr getSumMemDesc(const dnnl::primitive_desc &primitive_desc_it);
     MemoryPtr getOutputMemory() const;
     VectorDims makeInputDummyShape(const Shape& inpShape) const;
     VectorDims outputStaticShape() const;

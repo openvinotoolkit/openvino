@@ -2068,7 +2068,7 @@ void Eltwise::initSupportedPrimitiveDescriptors() {
         }
 
         for (size_t i = 0; i < getParentEdges().size(); i++) {
-            BlockedMemoryDesc::CmpMask inputMask = BLOCKED_DESC_SKIP_OFFSET_MASK;
+            BlockedMemoryDesc::CmpMask inputMask = BlockedMemoryDesc::BLOCKED_DESC_SKIP_OFFSET_MASK;
             PortConfig portConfig;
             // TODO [DS]: inplace
             if (!isDynamicNode())
@@ -2089,7 +2089,7 @@ void Eltwise::initSupportedPrimitiveDescriptors() {
         portConfig.constant(false);
 
         const auto &dstShape = getOutputShapeAtPort(0);
-        BlockedMemoryDesc::CmpMask outputMask = BLOCKED_DESC_SKIP_OFFSET_MASK;
+        BlockedMemoryDesc::CmpMask outputMask = BlockedMemoryDesc::BLOCKED_DESC_SKIP_OFFSET_MASK;
         if (!isDynamicNode() && dstShape.getDims()[0] == 1) {
             outputMask.reset(0); // accepts any stride on the batch axis
         }

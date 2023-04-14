@@ -564,8 +564,8 @@ protected:
 
     virtual PortDescBasePtr getConsistentInputDesc(const NodeConfig &config, size_t idx) const;
     virtual PortDescBasePtr getConsistentOutputDesc(const NodeConfig &config, size_t idx) const;
-    virtual MemoryDescPtr getSrcMemDesc(dnnl::primitive_desc_iterator &primitive_desc_it, size_t idx);
-    virtual MemoryDescPtr getDstMemDesc(dnnl::primitive_desc_iterator &primitive_desc_it, size_t idx);
+    virtual MemoryDescPtr getSrcMemDesc(const dnnl::primitive_desc &prim_desc, size_t idx) const;
+    virtual MemoryDescPtr getDstMemDesc(const dnnl::primitive_desc &prim_desc, size_t idx) const;
 
     virtual AttrPtr initPrimitiveAttr() { return nullptr; }
 
@@ -727,7 +727,7 @@ private:
 protected:
     // Data from runtime info
     std::string originalLayers;  // contains names of the original layers separated by comma
-    std::vector <impl_desc_type> implPriorities;
+    std::vector <impl_desc_type> customImplPriorities;
     const std::vector <dnnl::memory::format_tag> inputMemoryFormatsFilter;
     const std::vector <dnnl::memory::format_tag> outputMemoryFormatsFilter;
     const bool enforceBF16evenForGraphTail = false;

@@ -4,6 +4,7 @@
 
 #pragma once
 
+#include <memory>
 #include "memory_desc/cpu_memory_desc.h"
 #include "memory_desc/blocked_memory_desc.h"
 
@@ -77,29 +78,49 @@ public:
 
 private:
     BlockedMemoryDescPtr _memDesc;
-    CmpMask _cmpMask = BLOCKED_DESC_FULL_MASK;
+    CmpMask _cmpMask = BlockedMemoryDesc::BLOCKED_DESC_FULL_MASK;
 };
 
 class PortConfig {
 public:
     PortConfig() = default;
 
-    PortConfig(const PortConfig& rhs) {
-        this->_constant = rhs._constant;
-        this->_inPlacePort = rhs._inPlacePort;
-        if (rhs._desc) {
-            this->_desc = rhs._desc;
-        }
-    }
+    PortConfig(BlockedMemoryDescPtr desc, BlockedMemoryDesc::CmpMask cmpMask, int inPlacePort = -1, bool isConstant = false)
+        : _constant(isConstant),
+          _inPlacePort(inPlacePort),
+          _desc(createPortDesc(desc, cmpMask))
+    {}
 
-    PortConfig& operator=(const PortConfig& rhs) {
-        this->_constant = rhs._constant;
-        this->_inPlacePort = rhs._inPlacePort;
-        if (rhs._desc) {
-            this->_desc = rhs._desc;
-        }
-        return *this;
-    }
+    PortConfig(MemoryDescPtr desc, BlockedMemoryDesc::CmpMask cmpMask, int inPlacePort = -1, bool isConstant = false)
+        : _constant(isConstant),
+          _inPlacePort(inPlacePort),
+          _desc(createPortDesc(desc, cmpMask))
+    {}
+
+    PortConfig(MemoryDescPtr desc, int inPlacePort = -1, bool isConstant = false)
+        : _constant(isConstant),
+          _inPlacePort(inPlacePort),
+          _desc(createPortDesc(desc))
+    {}
+
+    PortConfig(const PortConfig& rhs) = default;
+    // PortConfig(const PortConfig& rhs) {
+    //     this->_constant = rhs._constant;
+    //     this->_inPlacePort = rhs._inPlacePort;
+    //     if (rhs._desc) {
+    //         this->_desc = rhs._desc;
+    //     }
+    // }
+
+    PortConfig& operator=(const PortConfig& rhs) = default;
+    // PortConfig& operator=(const PortConfig& rhs) {
+    //     this->_constant = rhs._constant;
+    //     this->_inPlacePort = rhs._inPlacePort;
+    //     if (rhs._desc) {
+    //         this->_desc = rhs._desc;
+    //     }
+    //     return *this;
+    // }
 
     PortConfig(PortConfig&& rhs) = default;
     PortConfig& operator=(PortConfig&& rhs) = default;
@@ -126,7 +147,7 @@ public:
 
     void setMemDesc(MemoryDescPtr desc) {
         if (desc->getType() & Blocked) {
-            setMemDesc(std::dynamic_pointer_cast<BlockedMemoryDesc>(desc), BLOCKED_DESC_FULL_MASK);
+            setMemDesc(std::dynamic_pointer_cast<BlockedMemoryDesc>(desc), BlockedMemoryDesc::BLOCKED_DESC_FULL_MASK);
         } else {
             _desc = std::make_shared<PortDescGeneric>(desc);
         }
@@ -140,6 +161,24 @@ public:
         return _desc;
     }
 
+    PortDescBasePtr createPortDesc(MemoryDescPtr desc) {
+        if (desc->getType() & Blocked)
+            return createPortDesc(std::dynamic_pointer_cast<BlockedMemoryDesc>(desc), BlockedMemoryDesc::BLOCKED_DESC_FULL_MASK);
+
+        return std::make_shared<PortDescGeneric>(desc);
+    }
+
+    PortDescBasePtr createPortDesc(MemoryDescPtr desc, BlockedMemoryDesc::CmpMask cmpMask) {
+        if (desc->getType() & Blocked)
+            return createPortDesc(std::dynamic_pointer_cast<BlockedMemoryDesc>(desc), cmpMask);
+
+        return std::make_shared<PortDescGeneric>(desc);
+    }
+
+    PortDescBasePtr createPortDesc(BlockedMemoryDescPtr desc, BlockedMemoryDesc::CmpMask cmpMask) {
+        return std::make_shared<PortDescBlocked>(desc, cmpMask);
+    }
+
 private:
     bool _constant = false;
     int _inPlacePort = -1;
@@ -147,6 +186,12 @@ private:
 };
 
 struct NodeConfig {
+    NodeConfig() = default;
+
+    NodeConfig(std::vector<PortConfig> inConfs, std::vector<PortConfig> outConfs, bool dynBatchSupport = true)
+        : dynBatchSupport(dynBatchSupport), inConfs(std::move(inConfs)), outConfs(std::move(outConfs))
+    {}
+
     bool dynBatchSupport = false;
     std::vector<PortConfig> inConfs;
     std::vector<PortConfig> outConfs;

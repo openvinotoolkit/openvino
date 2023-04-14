@@ -8,6 +8,12 @@
 namespace ov {
 namespace intel_cpu {
 
+/* c++11 requires to have a definition in cpp file */
+constexpr BlockedMemoryDesc::CmpMask BlockedMemoryDesc::BLOCKED_DESC_FULL_MASK;
+constexpr BlockedMemoryDesc::CmpMask BlockedMemoryDesc::BLOCKED_DESC_EMPTY_MASK;
+constexpr BlockedMemoryDesc::CmpMask BlockedMemoryDesc::BLOCKED_DESC_SKIP_OFFSET_MASK;
+constexpr size_t                     BlockedMemoryDesc::BLOCKED_DESC_OFFSET_MASK_POS;
+
 bool BlockedMemoryDesc::isCompatibleInternal(const BlockedMemoryDesc &rhs, CmpMask cmpMask) const {
     if (this->getShape() != rhs.getShape() || this->getPrecision() != rhs.getPrecision())
         return false;

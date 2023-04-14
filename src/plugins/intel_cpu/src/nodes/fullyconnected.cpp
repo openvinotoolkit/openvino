@@ -8,6 +8,7 @@
 #include "input.h"
 #include "fake_quantize.h"
 #include "input.h"
+#include "memory_desc/blocked_memory_desc.h"
 #include "reorder.h"
 #include "transformations/cpu_opset/common/op/fully_connected.hpp"
 #include "ngraph/opsets/opset1.hpp"
@@ -564,7 +565,10 @@ bool FullyConnected::created() const {
 }
 
 const std::vector<impl_desc_type>& FullyConnected::getPrimitivesPriority() {
-    std::vector<impl_desc_type> priorities = {
+    if (!customImplPriorities.empty())
+        return customImplPriorities;
+
+    static std::vector<impl_desc_type> priorities = {
             impl_desc_type::unknown,
             impl_desc_type::brgemm_sparse_avx512_amx,
             impl_desc_type::brgemm_avx512_amx,
@@ -595,11 +599,7 @@ const std::vector<impl_desc_type>& FullyConnected::getPrimitivesPriority() {
             impl_desc_type::ref,
     };
 
-    for (const auto& impl : priorities) {
-        if (std::find(implPriorities.begin(), implPriorities.end(), impl) == implPriorities.end())
-            implPriorities.push_back(impl);
-    }
-    return implPriorities;
+    return priorities;
 }
 
 // WA: creation DnnlMemoryDesc with format == any is prohibited
@@ -696,45 +696,48 @@ void FullyConnected::initSupportedPrimitiveDescriptors() {
     if (!supportedPrimitiveDescriptors.empty())
         return;
 
+    // 3D FC requires implicit reshape so strides should be defined
+    auto supportsUndefStridesAndOffset = [&]() {
+        return getOutputShapeAtPort(0).getRank() == 2;
+    };
+
+    auto addSupportedPrimitiveDescriptor = [&](const dnnl::primitive_desc& prim_desc) {
+        std::vector<PortConfig> inConfs, outConfs;
+        const int inPlaceOutPort = canBeInPlace() ? 0 : -1;
+
+        for (size_t i = 0; i < descInputNumbers(); i++) {
+            auto desc = getSrcMemDesc(prim_desc, i);
+            const auto inputBlockedMask = (supportsUndefStridesAndOffset() && !(i == WEIGHTS_ID && useSparseWeights)) ?
+                BlockedMemoryDesc::BLOCKED_DESC_EMPTY_MASK :
+                BlockedMemoryDesc::BLOCKED_DESC_FULL_MASK;
+
+            inConfs.emplace_back(desc, inputBlockedMask);
+        }
+
+        const auto outputBlockedMask = supportsUndefStridesAndOffset() ? BlockedMemoryDesc::BLOCKED_DESC_EMPTY_MASK : BlockedMemoryDesc::BLOCKED_DESC_FULL_MASK;
+
+        for (size_t i = 0; i < descOutputNumbers(); i++) {
+            auto desc = getDstMemDesc(prim_desc, i);
+
+            outConfs.emplace_back(desc, outputBlockedMask, inPlaceOutPort);
+        }
+
+        NodeConfig config(inConfs, outConfs);
+        impl_desc_type impl_type = parse_impl_name(prim_desc.impl_info_str());
+
+        supportedPrimitiveDescriptors.emplace_back(config, impl_type);
+    };
+
     for (auto& desc : descs) {
+        if (desc && customImplPriorities.empty()) {
+            addSupportedPrimitiveDescriptor(desc);
+            continue;
+        }
+
         primitive_desc_iterator itpd = desc;
-        while (static_cast<bool>(itpd)) {
-            // 3D FC requires implicit reshape so strides should be defined
-            auto supportsUndefStridesAndOffset = [&]() {
-                return getOutputShapeAtPort(0).getRank() == 2;
-            };
 
-            NodeConfig config;
-            config.dynBatchSupport = true;
-            for (size_t i = 0; i < descInputNumbers(); i++) {
-                PortConfig portConfig;
-                portConfig.inPlace(-1);
-                portConfig.constant(false);
-                auto desc = getSrcMemDesc(itpd, i);
-                if (supportsUndefStridesAndOffset() && !(i == WEIGHTS_ID && useSparseWeights)) {
-                    portConfig.setMemDesc(std::dynamic_pointer_cast<BlockedMemoryDesc>(desc), BLOCKED_DESC_EMPTY_MASK);
-                } else {
-                    portConfig.setMemDesc(desc);
-                }
-                config.inConfs.push_back(portConfig);
-            }
-
-            for (size_t i = 0; i < descOutputNumbers(); i++) {
-                PortConfig portConfig;
-                portConfig.inPlace(canBeInPlace() ? 0 : -1);
-                portConfig.constant(false);
-                auto desc = getDstMemDesc(itpd, i);
-                if (supportsUndefStridesAndOffset()) {
-                    portConfig.setMemDesc(std::dynamic_pointer_cast<BlockedMemoryDesc>(desc), BLOCKED_DESC_EMPTY_MASK);
-                } else {
-                    portConfig.setMemDesc(desc);
-                }
-                config.outConfs.push_back(portConfig);
-            }
-
-            impl_desc_type impl_type = parse_impl_name(itpd.impl_info_str());
-
-            supportedPrimitiveDescriptors.emplace_back(config, impl_type);
+        while (itpd) {
+            addSupportedPrimitiveDescriptor(itpd);
 
             if (!itpd.next_impl())
                 break;
@@ -742,8 +745,8 @@ void FullyConnected::initSupportedPrimitiveDescriptors() {
     }
 }
 
-std::shared_ptr<MemoryDesc> FullyConnected::getSrcMemDesc(dnnl::primitive_desc_iterator &primitive_desc_it, size_t idx) {
-    auto desc = idx > 0 ? primitive_desc_it.weights_desc(idx - 1) : primitive_desc_it.src_desc(idx);
+std::shared_ptr<MemoryDesc> FullyConnected::getSrcMemDesc(const dnnl::primitive_desc &prim_desc, size_t idx) const {
+    auto desc = idx > 0 ? prim_desc.weights_desc(idx - 1) : prim_desc.src_desc(idx);
 
     if (getInputShapeAtPort(idx).getRank() == 3) {
         return std::make_shared<CpuBlockedMemoryDesc>(
@@ -757,8 +760,8 @@ std::shared_ptr<MemoryDesc> FullyConnected::getSrcMemDesc(dnnl::primitive_desc_i
     return DnnlExtensionUtils::makeDescriptor(desc);
 }
 
-std::shared_ptr<MemoryDesc> FullyConnected::getDstMemDesc(dnnl::primitive_desc_iterator &primitive_desc_it, size_t idx) {
-    auto desc = primitive_desc_it.dst_desc(idx);
+std::shared_ptr<MemoryDesc> FullyConnected::getDstMemDesc(const dnnl::primitive_desc &prim_desc, size_t idx) const {
+    auto desc = prim_desc.dst_desc(idx);
 
     if (getOutputShapeAtPort(idx).getRank() == 3) {
         return std::make_shared<CpuBlockedMemoryDesc>(

@@ -24,7 +24,7 @@ public:
     void createDescriptor(const std::vector<MemoryDescPtr>& inputDesc,
                           const std::vector<MemoryDescPtr>& outputDesc) override;
     void initSupportedPrimitiveDescriptors() override;
-    MemoryDescPtr getSrcMemDesc(dnnl::primitive_desc_iterator &primitive_desc_it, size_t idx) override;
+    MemoryDescPtr getSrcMemDesc(const dnnl::primitive_desc &prim_desc, size_t idx) const override;
     bool canFuse(const NodePtr& node) const override;
     bool created() const override;
     size_t getMaxBatch() const override;
