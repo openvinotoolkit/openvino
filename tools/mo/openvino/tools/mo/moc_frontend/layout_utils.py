@@ -48,12 +48,13 @@ def update_layout_to_dict(inputs: list, layout: [list, dict], get_names_func: Ca
 def get_dimension_index_by_label(input_shape: PartialShape, input_names: list, layout_dict: [dict],
                                  dimension_label: str):
     """
-    The function returns index of the dimension pointed in the layout.
+    The function returns index of the dimension pointed in the layout
+    and a flag indicating if the index is chosen by default.
     For example, the index for 'D' dimension in "NHWDC" layout is 3.
     """
     if input_shape.rank.is_static and input_shape.rank.get_length() == 0:
         # in case a scalar, batch dimension is not defined
-        return None
+        return None, False
 
     # if layout is not specified for the input, use the default batch
     default_batch_dim = 0
@@ -63,13 +64,13 @@ def get_dimension_index_by_label(input_shape: PartialShape, input_names: list, l
         if name in input_names:
             layout = layout_value.get('source_layout', None)
             if layout is None:
-                return default_batch_dim
+                return default_batch_dim, True
             from openvino.runtime import Layout  # pylint: disable=no-name-in-module,import-error
             layout_parsed = Layout(layout)
             if layout_parsed.has_name(dimension_label):
-                return layout_parsed.get_index_by_name(dimension_label)
+                return layout_parsed.get_index_by_name(dimension_label), False
             else:
                 # if the layout is specified and the required dimension label is not found, the batch is unknown
-                return None
+                return None, False
 
-    return default_batch_dim
+    return default_batch_dim, True

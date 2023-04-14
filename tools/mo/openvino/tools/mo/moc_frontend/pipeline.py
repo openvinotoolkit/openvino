@@ -15,6 +15,7 @@ from openvino.frontend import FrontEnd, InputModel, NotImplementedFailure, \
 from openvino.runtime import PartialShape, Type  # pylint: disable=no-name-in-module,import-error
 from openvino.runtime.utils.types import get_element_type, \
     get_numpy_ctype  # pylint: disable=no-name-in-module,import-error
+from openvino.tools.mo.middle.passes.infer import validate_batch_in_shape
 from openvino.tools.mo.moc_frontend.analysis import json_model_analysis_dump
 from openvino.tools.mo.moc_frontend.extractor import fe_user_data_repack
 from openvino.tools.mo.moc_frontend.layout_utils import update_layout_to_dict, get_dimension_index_by_label
@@ -191,6 +192,9 @@ def moc_pipeline(argv: argparse.Namespace, moc_front_end: FrontEnd):
 
             input_model.set_tensor_value(place, value)
 
+    def shape_to_array(shape: PartialShape):
+        return [shape.get_dimension(i) for i in range(shape.rank.get_length())]
+
     # obtain layout for all inputs
     layout_values = {}
     if 'layout_values' in argv and argv.layout_values:
@@ -206,6 +210,7 @@ def moc_pipeline(argv: argparse.Namespace, moc_front_end: FrontEnd):
         for place in model_inputs:
             input_partial_shape = input_model.get_partial_shape(place)
             input_names = place.get_names()
+            joined_name = ' '.join(place.get_names())
             assert len(input_names) > 0, "One input place has no names"
 
             # if this input is frozen, there is no need to set the batch
@@ -219,9 +224,15 @@ def moc_pipeline(argv: argparse.Namespace, moc_front_end: FrontEnd):
                 deferred_batch_names += input_names
                 continue
 
-            batch_dim = get_dimension_index_by_label(input_partial_shape, place.get_names(), layout_values, 'N')
+            batch_dim, is_default_index = get_dimension_index_by_label(input_partial_shape,
+                                                                       place.get_names(), layout_values, 'N')
             if batch_dim is None:
+                # skip because no batch dimension exists in the input
                 continue
+
+            if is_default_index:
+                # if the batch index is chosen by default, we need to ensure that its size equals -1, 0 or 1
+                validate_batch_in_shape(shape_to_array(input_partial_shape), joined_name)
 
             assert batch_dim < input_partial_shape.rank.get_length(), \
                 "Incorrect layout is specified for {}:" \
@@ -230,7 +241,6 @@ def moc_pipeline(argv: argparse.Namespace, moc_front_end: FrontEnd):
             new_partial_shape = copy(input_partial_shape)
             new_partial_shape[batch_dim] = argv.batch
 
-            joined_name = ' '.join(place.get_names())
             log.debug('Input: {}, Old shape: {}, New shape: {}'.format(
                 joined_name, input_partial_shape, new_partial_shape))
             input_model.set_partial_shape(place, new_partial_shape)
@@ -248,10 +258,15 @@ def moc_pipeline(argv: argparse.Namespace, moc_front_end: FrontEnd):
             input_partial_shape = model_input.get_partial_shape()
             if input_name in deferred_batch_names and input_partial_shape.rank.is_static:
                 # update input shape with the specified batch for input that originally has dynamic rank
-                batch_dim = get_dimension_index_by_label(input_partial_shape, model_input.get_names(),
-                                                         layout_values, 'N')
+                batch_dim, is_default_index = get_dimension_index_by_label(input_partial_shape,
+                                                                           model_input.get_names(),
+                                                                           layout_values, 'N')
                 if batch_dim is None:
                     continue
+
+                if is_default_index:
+                    # if the batch index is chosen by default, we need to ensure that its size equals -1, 0 or 1
+                    validate_batch_in_shape(shape_to_array(input_partial_shape), input_name)
 
                 assert batch_dim < input_partial_shape.rank.get_length(), \
                     "Incorrect layout is specified for {}: " \
