@@ -122,7 +122,7 @@ std::shared_ptr<ngraph::Node> reshape_input(const Output<ngraph::Node>& input,
     if (x_shape[axis].is_static()) {
         target_dims.push_back(x_shape[axis].get_length());
     } else {
-        target_dims.push_back(0);
+        target_dims.push_back(-1);
     }
 
     for (int64_t i = axis + 1; i < x_shape.rank().get_length(); ++i) {
