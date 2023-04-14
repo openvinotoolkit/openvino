@@ -62,7 +62,7 @@ public:
     OPENVINO_RTTI(InputMemoryFormatsAttr);
     InputMemoryFormats() = default;
     explicit InputMemoryFormats(const std::string &_memory_format) : MemoryFormats(_memory_format) {}
-    ~InputMemoryFormats() override;
+    ~InputMemoryFormats() override = default;
 };
 
 std::string getInputMemoryFormats(const std::shared_ptr<ngraph::Node>& node);
@@ -72,7 +72,7 @@ public:
     OPENVINO_RTTI(OutputMemoryFormatsAttr);
     OutputMemoryFormats() = default;
     explicit OutputMemoryFormats(const std::string &_memory_format) : MemoryFormats(_memory_format) {}
-    ~OutputMemoryFormats() override;
+    ~OutputMemoryFormats() override = default;
 };
 
 std::string getOutputMemoryFormats(const std::shared_ptr<ngraph::Node>& node);

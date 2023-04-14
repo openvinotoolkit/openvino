@@ -20,10 +20,10 @@ class Factory;
 
 template <typename Key, typename T, typename... Args>
 class Factory<Key, T(Args...)> {
+public:
     Factory(Factory const&) = delete;
     Factory& operator=(Factory const&) = delete;
 
-public:
     using builder_t = std::function<T(Args...)>;
 
     Factory(const std::string& name) : name(name) {}

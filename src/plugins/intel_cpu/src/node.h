@@ -578,12 +578,6 @@ protected:
 
     std::vector <NodePtr> fusedWith;
     std::vector <NodePtr> mergedWith;
-    std::vector <impl_desc_type> implPriorities;
-    std::vector <dnnl::memory::format_tag> inputMemoryFormatsFilter;
-    std::vector <dnnl::memory::format_tag> outputMemoryFormatsFilter;
-    bool enforceBF16evenForGraphTail = false;
-
-    std::string originalLayers;  // contains names of the original layers separated by comma
 
     Node(const std::shared_ptr<ngraph::Node>& op, const GraphContext::CPtr ctx, const ShapeInferFactory& shapeInferFactory);
     Node(const std::string& type, const std::string& name, const GraphContext::CPtr ctx);
@@ -728,10 +722,15 @@ private:
     // privateWeightCache is for holding strong references to constant weight
     // copies of same content with different layouts.
     std::unordered_map<std::string, MemoryPtr> privateWeightCache;
+    CPU_DEBUG_CAP_ENABLE(friend class Verbose;)
 
-#ifdef CPU_DEBUG_CAPS
-    friend class Verbose;
-#endif
+protected:
+    // Data from runtime info
+    std::string originalLayers;  // contains names of the original layers separated by comma
+    std::vector <impl_desc_type> implPriorities;
+    const std::vector <dnnl::memory::format_tag> inputMemoryFormatsFilter;
+    const std::vector <dnnl::memory::format_tag> outputMemoryFormatsFilter;
+    const bool enforceBF16evenForGraphTail = false;
 };
 
 constexpr uint64_t PortMask(int n) {

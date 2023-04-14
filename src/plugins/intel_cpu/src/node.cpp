@@ -8,6 +8,7 @@
 #include "itt.h"
 
 #include "caseless.hpp"
+#include <algorithm>
 #include <memory>
 #include <oneapi/dnnl/dnnl.hpp>
 #include <vector>
@@ -16,6 +17,7 @@
 #include <cstdint>
 #include <unordered_map>
 
+#include "ngraph/partial_shape.hpp"
 #include "nodes/concat.h"
 #include "nodes/conv.h"
 #include "nodes/deconv.h"
@@ -48,6 +50,7 @@
 #include "nodes/reference.h"
 #include "nodes/fake_quantize.h"
 #include "dnnl_extension_utils.h"
+#include "utils/rt_info/extract.hpp"
 
 #include "nodes/common/cpu_memcpy.h"
 #include "utils/rt_info/memory_formats_attribute.hpp"
@@ -87,13 +90,19 @@ Node::Node(const std::shared_ptr<ngraph::Node>& op,
       temporary(false),
       constant(ConstantType::Unknown),
       context(ctx),
+      algorithm(Algorithm::Default),
+      fusingPort(-1),
       engine(ctx->getEngine()),
       name(op->get_friendly_name()),
       typeStr(op->get_type_name()),
       type(TypeFromName(op->get_type_name())),
-      profiling(op->get_friendly_name()) {
-    algorithm = Algorithm::Default;
-    fusingPort = -1;
+      profiling(op->get_friendly_name()),
+      originalLayers(rt_info::getOriginalLayerNames(op->get_rt_info(), name)),
+      implPriorities(rt_info::getPrimitivesPriority(op->get_rt_info())),
+      inputMemoryFormatsFilter(rt_info::getInputMemoryFormatsFilter(op->get_rt_info())),
+      outputMemoryFormatsFilter(rt_info::getOutputMemoryFormatsFilter(op->get_rt_info())),
+      enforceBF16evenForGraphTail(rt_info::shouldEnforceBF16evenForGraphTail(op->get_rt_info())) {
+
     const std::string errorPrefix = "Ngraph operation " + std::string(op->get_type_name()) + " with name " + op->get_friendly_name();
 
     for (size_t i = 0; i < op->get_input_size(); i++) {
@@ -128,56 +137,6 @@ Node::Node(const std::shared_ptr<ngraph::Node>& op,
 
     if (isDynamic) {
         shapeInference = shapeInferFactory.makeShapeInfer();
-    }
-
-    const auto& rtInfo = op->get_rt_info();
-    if (rtInfo.count("originalLayersNames")) {
-        originalLayers = getRTInfoValue(rtInfo, "originalLayersNames");
-    }
-
-    if (originalLayers.empty()) {
-        addOriginalLayer(name);
-    }
-
-    auto primitivesPriority = getPrimitivesPriorityValue(op);
-    if (!primitivesPriority.empty()) {
-        std::istringstream stream(primitivesPriority);
-        std::string str;
-        while (getline(stream, str, ',')) {
-            if (str.substr(0, 4) != "cpu:")
-                continue;
-            implPriorities.push_back(parse_impl_name(str));
-            if (implPriorities[implPriorities.size() - 1] == impl_desc_type::unknown &&
-                str != "cpu:unknown")
-                IE_THROW() << "Unsupported CPU implementation " << str << " for node " << getName();
-        }
-    }
-
-    std::string inputMemoryFormats = getInputMemoryFormats(op);
-    if (!inputMemoryFormats.empty()) {
-        std::istringstream stream(inputMemoryFormats);
-        std::string str;
-        while (getline(stream, str, ',')) {
-            if (str.substr(0, 4) != "cpu:")
-                continue;
-            inputMemoryFormatsFilter.push_back(dnnl::utils::str2fmt(str.substr(4, str.size()).c_str()));
-        }
-    }
-
-    std::string outputMemoryFormats = getOutputMemoryFormats(op);
-    if (!outputMemoryFormats.empty()) {
-        std::istringstream stream(outputMemoryFormats);
-        std::string str;
-        while (getline(stream, str, ',')) {
-            if (str.substr(0, 4) != "cpu:")
-                continue;
-            outputMemoryFormatsFilter.push_back(dnnl::utils::str2fmt(str.substr(4, str.size()).c_str()));
-        }
-    }
-
-    const auto it = rtInfo.find("enforceBF16evenForGraphTail");
-    if (it != rtInfo.end()) {
-        enforceBF16evenForGraphTail = it->second.as<bool>();
     }
 }
 
@@ -1285,7 +1244,7 @@ Node* Node::NodesFactory::create(const std::shared_ptr<ngraph::Node>& op, const 
     // Note that the op type and its friendly name will also be provided if we fail to create the node.
     auto getExceptionDescWithoutStatus = [](const InferenceEngine::Exception& ex) {
         std::string desc = ex.what();
-        size_t pos = desc.find("]");
+        size_t pos = desc.find(']');
         if (pos != std::string::npos) {
             if (desc.size() == pos + 1) {
                 desc.erase(0, pos + 1);
