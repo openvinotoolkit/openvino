@@ -37,9 +37,10 @@ The main goal of the ``AsyncInferRequest`` constructor is to define a device pip
 * ``wait_pipeline`` is a CPU non-compute task that waits for a response from a remote device.
 * ``infer_postprocess`` is a CPU compute task.
 
-.. doxygensnippet:: openvino/src/plugins/template/src/async_infer_request.cpp
+.. doxygensnippet:: src/plugins/template/src/async_infer_request.cpp
    :language: cpp
    :fragment: [async_infer_request:ctor]
+
 
 The stages are distributed among two task executors in the following way:
 
@@ -56,8 +57,7 @@ The stages are distributed among two task executors in the following way:
 
 In the asynchronous request destructor, it is necessary to wait for a pipeline to finish. It can be done using the ov::IAsyncInferRequest::stop_and_wait method of the base class.
 
-<<<<<<< HEAD
-.. doxygensnippet:: openvino/src/plugins/template/src/async_infer_request.cpp
+.. doxygensnippet:: src/plugins/template/src/async_infer_request.cpp
    :language: cpp
    :fragment: [async_infer_request:dtor]
 
@@ -66,18 +66,9 @@ cancel()
 
 The method allows to cancel the infer request execution:
 
-.. doxygensnippet:: openvino/src/plugins/template/src/async_infer_request.cpp
+.. doxygensnippet:: src/plugins/template/src/async_infer_request.cpp
    :language: cpp
    :fragment: [async_infer_request:cancel]
 
 @endsphinxdirective
 
-=======
-@snippet src/async_infer_request.cpp async_infer_request:dtor
-
-### cancel()
-
-The method allows to cancel the infer request execution:
-
-@snippet src/async_infer_request.cpp async_infer_request:cancel
->>>>>>> master
