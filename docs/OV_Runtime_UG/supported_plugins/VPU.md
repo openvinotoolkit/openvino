@@ -12,11 +12,17 @@
 @endsphinxdirective
 
 
-> **warning:**
-> OpenVINO 2022.3, temporarily, does not support the VPU devices.
-> The feature will be re-implemented with the next update. Until then, 
-> continue using a previous release of OpenVINO, if you work with VPUs.
 
+
+@sphinxdirective
+
+.. warning::
+
+   OpenVINO 2022.3, temporarily, does not support the VPU devices.
+   The feature will be re-implemented with the next update. Until then, 
+   continue using a previous release of OpenVINO, if you work with VPUs.
+
+@endsphinxdirective
 
 This chapter provides information on the OpenVINO™ Runtime plugins that enable inference of deep learning models on the supported VPU devices:
 
