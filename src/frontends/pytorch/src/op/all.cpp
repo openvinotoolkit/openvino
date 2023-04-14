@@ -17,9 +17,7 @@ OutputVector translate_all(const NodeContext& context) {
     ov::Output<ov::Node> axes;
     element::Type output_dtype;
 
-    auto elem_type = input_tensor.get_element_type();
-    if (elem_type == element::u8) {
-        // if (context.get_input_type(0).is<type::Dict>()) {
+    if (input_tensor.get_element_type() == element::u8) {
         output_dtype = element::u8;
     } else {
         output_dtype = element::boolean;
