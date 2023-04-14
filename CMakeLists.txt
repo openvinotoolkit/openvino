@@ -29,7 +29,6 @@ find_package(IEDevScripts REQUIRED
              NO_DEFAULT_PATH)
 
 set(ENABLE_SYSTEM_TBB OFF)
-set(THREADING "TBB")
 
 include(CTest)
 include(cmake/features.cmake)

@@ -60,6 +60,7 @@ ie_dependent_option (ENABLE_PKGCONFIG_GEN "Enable openvino.pc pkg-config file ge
 
 # "OneDNN library based on OMP or TBB or Sequential implementation: TBB|OMP|SEQ"
 set(THREADING "TBB" CACHE STRING "Threading")
+set(THREADING "TBB")
 set_property(CACHE THREADING PROPERTY STRINGS "TBB" "TBB_AUTO" "OMP" "SEQ")
 list (APPEND IE_OPTIONS THREADING)
 if (NOT THREADING STREQUAL "TBB" AND
