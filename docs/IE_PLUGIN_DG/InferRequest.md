@@ -30,11 +30,11 @@ The example class has several fields:
 
 * backend-specific fields:
 
-   * ``m_backend_input_tensors`` - input backend tensors.
-   * ``m_backend_output_tensors`` - output backend tensors.
-   * ``m_executable`` - an executable object / backend computational graph.
-   * ``m_eval_context`` - an evaluation context to save backend states after the inference.
-   * ``m_variable_states`` - a vector of variable states.
+  * ``m_backend_input_tensors`` - input backend tensors.
+  * ``m_backend_output_tensors`` - output backend tensors.
+  * ``m_executable`` - an executable object / backend computational graph.
+  * ``m_eval_context`` - an evaluation context to save backend states after the inference.
+  * ``m_variable_states`` - a vector of variable states.
 
 InferRequest Constructor
 ++++++++++++++++++++++++
