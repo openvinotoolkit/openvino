@@ -21,7 +21,7 @@ from utils import file_utils
 logger = get_logger('conformance_runner')
 has_python_api = True
 try:
-    from rename_conformance_ir import create_hash
+    from rename_conformance_ir import create_hash, save_rel_weights
 except:
     logger.warning("Please set the above env variable to get the same conformance ir names run by run!")
     has_python_api = False
@@ -140,7 +140,8 @@ class Conformance:
             exit(-1)
         self._model_path = conformance_ir_path
         if has_python_api:
-            create_hash(Path(self._model_path))
+            op_rel_weight = create_hash(Path(self._model_path))
+            save_rel_weights(Path(self._model_path), op_rel_weight)
             logger.info(f"All conformance IRs in {self._ov_bin_path} were renamed based on hash")
         else:
             logger.warning("The OV Python was not built or Environment was not updated to requirments. Skip the step to rename Conformance IR based on a hash")
@@ -186,7 +187,8 @@ class Conformance:
 
     def __summarize(self, xml_report_path:os.path, report_dir: os.path):
         summary_root = ET.parse(xml_report_path).getroot()
-        create_summary(summary_root, report_dir, [], "", "", False, True)
+        rel_weights_path = os.path.join(self._model_path, constants.REL_WEIGHTS_FILENAME.replace(constants.REL_WEIGHTS_REPLACE_STR, self._shape_mode))
+        create_summary(summary_root, report_dir, [], "", "", True, True, rel_weights_path)
         copytree(os.path.join(SCRIPT_DIR_PATH, "template"), os.path.join(report_dir, "template"))
         logger.info(f"Report was saved to {os.path.join(report_dir, 'report.html')}")
 
