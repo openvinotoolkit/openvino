@@ -27,11 +27,11 @@ else:
 
 has_python_api = True
 logger = get_logger('test_parallel_runner')
-# try:
-from utils.get_available_devices import get_available_devices
-# except:
-    # logger.warning("Please set the above env variable to get the same conformance ir names run by run!")
-    # has_python_api = False
+try:
+    from utils.get_available_devices import get_available_devices
+except:
+    logger.warning("Please set the above env variable to get the same conformance ir names run by run!")
+    has_python_api = False
 
 FILENAME_LENGTH = 255
 LOG_NAME_REPLACE_STR = "##NAME##"
