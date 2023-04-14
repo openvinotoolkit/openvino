@@ -27,9 +27,50 @@ if(ARM_COMPUTE_INCLUDE_DIR OR ARM_COMPUTE_LIB_DIR)
     add_library(half INTERFACE IMPORTED GLOBAL)
     set_target_properties(half PROPERTIES
         INTERFACE_INCLUDE_DIRECTORIES ${ARM_COMPUTE_INCLUDE_DIR})
+elseif(ENABLE_ARM_COMPUTE_CMAKE)
+    set(ARM_COMPUTE_SOURCE_DIR "${intel_cpu_thirdparty_SOURCE_DIR}/ComputeLibrary")
+    set(ARM_COMPUTE_BINARY_DIR "${intel_cpu_thirdparty_BINARY_DIR}/ComputeLibrary")
+
+    function(ov_build_compute_library)
+        # build ComputeLibrary as static libraries
+        set(BUILD_SHARED_LIBS OFF)
+        # ComputeLibrary settings
+        set(ARM_COMPUTE_GRAPH_ENABLED OFF CACHE BOOL "" FORCE)
+        # disable OpenMP
+        set(OPENMP OFF CACHE BOOL "" FORCE)
+        # and use std::threads instead
+        set(CPPTHREADS OFF CACHE BOOL "" FORCE)
+        # SVE is not supported on Darwin
+        if(CMAKE_HOST_APPLE)
+            set(ENABLE_SVE OFF CACHE BOOL "" FORCE)
+            set(ARM_COMPUTE_ENABLE_SVE OFF CACHE BOOL "" FORCE)
+            set(ARM_COMPUTE_ENABLE_SVEF32MM OFF CACHE BOOL "" FORCE)
+        endif()
+
+        add_subdirectory(${ARM_COMPUTE_SOURCE_DIR} ${ARM_COMPUTE_BINARY_DIR} EXCLUDE_FROM_ALL)
+
+        add_library(ArmCompute::Half INTERFACE IMPORTED GLOBAL)
+        set_target_properties(ArmCompute::Half PROPERTIES
+            INTERFACE_INCLUDE_DIRECTORIES "${ARM_COMPUTE_SOURCE_DIR}/include")
+    endfunction()
+
+    ov_build_compute_library()
+
+    # Helpers for oneDNN intergation
+
+    set(ACL_FOUND ON)
+    set(ACL_LIBRARIES arm_compute_core ArmCompute::Half)
+
+    foreach(acl_library IN LISTS ACL_LIBRARIES)
+        list(APPEND ACL_INCLUDE_DIRS
+                $<TARGET_PROPERTY:${acl_library},INTERFACE_INCLUDE_DIRECTORIES>)
+    endforeach()
+
+    # required by oneDNN to attempt to parse ACL version
+    set(ENV{ACL_ROOT_DIR} "${ARM_COMPUTE_SOURCE_DIR}")
 else()
-    set(ARM_COMPUTE_SOURCE_DIR ${intel_cpu_thirdparty_SOURCE_DIR}/ComputeLibrary)
-    set(ARM_COMPUTE_BINARY_DIR ${intel_cpu_thirdparty_BINARY_DIR}/ComputeLibrary)
+    set(ARM_COMPUTE_SOURCE_DIR "${intel_cpu_thirdparty_SOURCE_DIR}/ComputeLibrary")
+    set(ARM_COMPUTE_BINARY_DIR "${intel_cpu_thirdparty_BINARY_DIR}/ComputeLibrary")
 
     message(STATUS "Configure to build ${ARM_COMPUTE_SOURCE_DIR}")
 
@@ -271,6 +312,8 @@ else()
     find_package(Threads REQUIRED)
     set_target_properties(arm_compute::arm_compute PROPERTIES
         INTERFACE_LINK_LIBRARIES Threads::Threads)
+
+    # Helpers for oneDNN intergation
 
     set(ACL_FOUND ON)
     set(ACL_LIBRARIES arm_compute::arm_compute arm_compute::half)
