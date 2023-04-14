@@ -94,35 +94,35 @@ auto AutoBindConfigs = []() {
                                  {CommonTestUtils::DEVICE_GPU, {}}}};
 };
 
-INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests, OVInferConsistencyTest,
+INSTANTIATE_TEST_SUITE_P(BehaviorTests, OVInferConsistencyTest,
     ::testing::Combine(
         ::testing::Values(10),// inferRequest num
         ::testing::Values(50),// infer counts
         ::testing::ValuesIn(configs())),
     OVInferConsistencyTest::getTestCaseName);
 
-INSTANTIATE_TEST_SUITE_P(smoke_Auto_BehaviorTests, OVInferConsistencyTest,
+INSTANTIATE_TEST_SUITE_P(Auto_BehaviorTests, OVInferConsistencyTest,
     ::testing::Combine(
         ::testing::Values(10),// inferRequest num
         ::testing::Values(50),// infer counts
         ::testing::ValuesIn(AutoConfigs())),
     OVInferConsistencyTest::getTestCaseName);
 
-INSTANTIATE_TEST_SUITE_P(smoke_Multi_BehaviorTests, OVInferConsistencyTest,
+INSTANTIATE_TEST_SUITE_P(Multi_BehaviorTests, OVInferConsistencyTest,
     ::testing::Combine(
         ::testing::Values(10),// inferRequest num
         ::testing::Values(50),// infer counts
         ::testing::ValuesIn(MultiConfigs())),
     OVInferConsistencyTest::getTestCaseName);
 
-INSTANTIATE_TEST_SUITE_P(smoke_Auto_Bind_BehaviorTests, OVInferConsistencyTest,
+INSTANTIATE_TEST_SUITE_P(Auto_Bind_BehaviorTests, OVInferConsistencyTest,
     ::testing::Combine(
         ::testing::Values(0),// inferRequest num, will use optimal request number if set 0
         ::testing::Values(100),// infer counts
         ::testing::ValuesIn(AutoBindConfigs())),
     OVInferConsistencyTest::getTestCaseName);
 
-INSTANTIATE_TEST_SUITE_P(smoke_Multi_Bind_BehaviorTests, OVInferConsistencyTest,
+INSTANTIATE_TEST_SUITE_P(Multi_Bind_BehaviorTests, OVInferConsistencyTest,
     ::testing::Combine(
         ::testing::Values(0),// inferRequest num, will use optimal request number if set 0
         ::testing::Values(100),// infer counts
