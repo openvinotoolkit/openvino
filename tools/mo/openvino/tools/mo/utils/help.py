@@ -7,7 +7,7 @@ def get_convert_model_help_specifics():
         CanonicalizePathCheckExistenceAction, CanonicalizeExtensionsPathCheckExistenceAction, \
         CanonicalizePathCheckExistenceIfNeededAction, readable_file_or_dir, readable_dirs_or_files_or_empty, \
         check_positive
-    from openvino.tools.mo.utils.version import get_version
+    from openvino.tools.mo.utils.version import VersionChecker
     return {
         'input_model':
             {'description':
@@ -127,7 +127,7 @@ def get_convert_model_help_specifics():
             {'action': CanonicalizePathCheckExistenceIfNeededAction},
         'version':
             {'action': 'version',
-             'version': 'Version of Model Optimizer is: {}'.format(get_version())},
+             'version': 'Version of Model Optimizer is: {}'.format(VersionChecker().get_mo_version())},
         'scale':
             {'type': float,
              'aliases': {'-s'}},

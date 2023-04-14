@@ -131,6 +131,7 @@ void dump_perf_data_raw(std::string dump_path, const std::list<std::shared_ptr<p
     }
 }
 
+float convert_element(int64_t i) { return static_cast<float>(i); }
 float convert_element(int32_t i) { return static_cast<float>(i); }
 
 float convert_element(float f) { return f; }
@@ -265,6 +266,8 @@ void log_memory_to_file(memory::ptr mem, stream& stream, std::string layerName, 
         dump<half_t>(mem, stream, file_stream, dump_raw);
     else if (mem_dt == cldnn::data_types::bin)
         dump<uint32_t>(mem, stream, file_stream, dump_raw);
+    else if (mem_dt == cldnn::data_types::i64)
+        dump<int64_t>(mem, stream, file_stream, dump_raw);
     else if (mem_dt == cldnn::data_types::i32)
         dump<int32_t>(mem, stream, file_stream, dump_raw);
     else if (mem_dt == cldnn::data_types::i8)
@@ -360,17 +363,17 @@ network::network(program::ptr program, uint16_t stream_id)
 network::network(program::ptr program, stream::ptr stream, uint16_t stream_id)
     : network(program, program->get_config(), stream, false, stream_id == 0) {}
 
-network::network(cldnn::BinaryInputBuffer& ib, stream::ptr stream, engine& engine, uint16_t stream_id)
-    : network(ib, ExecutionConfig{}, stream, engine, stream_id) {}
+network::network(cldnn::BinaryInputBuffer& ib, stream::ptr stream, engine& engine, bool is_primary_stream)
+    : network(ib, ExecutionConfig{}, stream, engine, is_primary_stream) {}
 
-network::network(cldnn::BinaryInputBuffer& ib, const ExecutionConfig& config, stream::ptr stream, engine& engine, uint16_t stream_id)
+network::network(cldnn::BinaryInputBuffer& ib, const ExecutionConfig& config, stream::ptr stream, engine& engine, bool is_primary_stream)
     : _program(nullptr)
     , _config(config)
     , _engine(engine)
     , _stream(stream)
     , _memory_pool(new memory_pool(engine))
     , _internal(false)
-    , _is_primary_stream(false)
+    , _is_primary_stream(is_primary_stream)
     , _reset_arguments(true) {
     net_id = get_unique_net_id();
 
