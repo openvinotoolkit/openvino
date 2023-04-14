@@ -4323,12 +4323,12 @@ bool evaluate_interpolate(const shared_ptr<op::v11::Interpolate>& op,
         break;
     case element::Type_t::f16:
         ngraph::runtime::reference::interpolate<float16>(reinterpret_cast<float16*>(padded_data_ptr),
-                                                          padded_input_shape,
-                                                          scales,
-                                                          axes,
-                                                          outputs[0]->get_data_ptr<float16>(),
-                                                          out_shape,
-                                                          m_attrs);
+                                                         padded_input_shape,
+                                                         scales,
+                                                         axes,
+                                                         outputs[0]->get_data_ptr<float16>(),
+                                                         out_shape,
+                                                         m_attrs);
         break;
     case element::Type_t::u8:
         ngraph::runtime::reference::interpolate<uint8_t>(reinterpret_cast<uint8_t*>(padded_data_ptr),
@@ -4338,6 +4338,15 @@ bool evaluate_interpolate(const shared_ptr<op::v11::Interpolate>& op,
                                                          outputs[0]->get_data_ptr<uint8_t>(),
                                                          out_shape,
                                                          m_attrs);
+        break;
+    case element::Type_t::i8:
+        ngraph::runtime::reference::interpolate<int8_t>(reinterpret_cast<int8_t*>(padded_data_ptr),
+                                                        padded_input_shape,
+                                                        scales,
+                                                        axes,
+                                                        outputs[0]->get_data_ptr<int8_t>(),
+                                                        out_shape,
+                                                        m_attrs);
         break;
     case element::Type_t::i32:
         ngraph::runtime::reference::interpolate<int32_t>(reinterpret_cast<int32_t*>(padded_data_ptr),

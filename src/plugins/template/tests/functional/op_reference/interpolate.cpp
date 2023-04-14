@@ -993,6 +993,36 @@ std::vector<InterpolateV11TestParams> generateParamsForInterpolate_bilinear_pil_
         }};
 }
 
+template <typename Data_t = int8_t>
+std::vector<InterpolateV11TestParams> generateParamsForInterpolate_bilinear_pil_int8() {
+    return {
+        {
+            "bilinear.downsample_range_2D_sizes",
+            Shape{8, 8},
+            {4, 4},
+            Shape{4, 4},
+            {},
+            {0, 1},
+            {InterpolateMode::BILINEAR_PILLOW, ShapeCalcMode::SIZES, {0, 0}, {0, 0}},
+            std::vector<Data_t>{0,  1,  2,  3,  4,  5,  6,  7,  8,  9,  10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21,
+                                22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43,
+                                44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63},
+            std::vector<Data_t>{7, 9, 11, 12, 21, 23, 25, 26, 37, 39, 41, 42, 51, 53, 55, 56},
+        },
+        {
+            "bilinear.upsample_range_2D_scales",
+            Shape{4, 4},
+            {},
+            Shape{8, 8},
+            {2.0f, 2.0f},
+            {0, 1},
+            {InterpolateMode::BILINEAR_PILLOW, ShapeCalcMode::SCALES, {0, 0}, {0, 0}},
+            std::vector<Data_t>{7, 9, 11, 12, 21, 23, 25, 26, 37, 39, 41, 42, 51, 53, 55, 56},
+            std::vector<Data_t>{7,  8,  9,  10, 11, 11, 12, 12, 11, 12, 13, 14, 15, 15, 16, 16, 18, 19, 20, 21, 22, 22,
+                                23, 23, 25, 26, 27, 28, 29, 29, 30, 30, 33, 34, 35, 36, 37, 37, 38, 38, 41, 42, 43, 44,
+                                45, 45, 46, 46, 48, 49, 50, 51, 52, 52, 53, 53, 51, 52, 53, 54, 55, 55, 56, 56},
+        }};
+}
 template <typename Data_t = uint8_t>
 std::vector<InterpolateV11TestParams> generateParamsForInterpolate_bicubic_pil_int_common() {
     return {
@@ -1035,6 +1065,22 @@ std::vector<InterpolateV11TestParams> generateParamsForInterpolate_bicubic_pil_i
             std::vector<Data_t>{168, 92, 157, 111, 15,  138, 97,  47,  237, 25,  163, 6,   72,  118, 121,
                                 238, 22, 174, 182, 140, 43,  121, 158, 242, 210, 73,  113, 111, 75,  132},
             std::vector<Data_t>{99, 143, 105, 88, 146, 98, 123, 154},
+            -0.5,  // cube_coeff
+        },
+        {
+            "bicubic.upsample_sizes_2D",
+            Shape{4, 4},
+            {8, 8},
+            Shape{8, 8},
+            {},
+            {0, 1},
+            {InterpolateMode::BICUBIC_PILLOW, ShapeCalcMode::SIZES, {0, 0}, {0, 0}},
+            std::vector<Data_t>{5, 6, 9, 10, 21, 22, 25, 26, 37, 38, 41, 42, 53, 54, 57, 58},
+            std::vector<Data_t>{
+                4,  4,  5,  6,  7,  8,  9,  9,  8,  8,  9,  10, 11, 12, 13, 13, 16, 16, 17, 18, 19, 20,
+                21, 21, 25, 25, 26, 27, 28, 29, 30, 30, 33, 33, 34, 35, 36, 37, 38, 38, 42, 42, 43, 44,
+                45, 46, 47, 47, 50, 50, 51, 52, 53, 54, 55, 55, 54, 54, 55, 56, 57, 58, 59, 59,
+            },
             -0.5,  // cube_coeff
         },
         {
@@ -1094,6 +1140,41 @@ std::vector<InterpolateV11TestParams> generateParamsForInterpolate_bicubic_pil_i
                                 68,  148, 25,  251, 161, 124, 160, 2,   159, 116, 78,  119, 209, 37,  219},
             std::vector<Data_t>{126, 125, 124, 133, 79,  181, 77,  127, 79, 95,  111, 131,
                                 147, 178, 119, 124, 102, 144, 117, 75,  84, 135, 78,  134},
+            -0.5,  // cube_coeff
+        }};
+}
+
+template <typename Data_t = int8_t>
+std::vector<InterpolateV11TestParams> generateParamsForInterpolate_bicubic_pil_int8() {
+    return {
+        {
+            "bicubic.downsample_scales_2D",
+            Shape{8, 8},
+            {},
+            Shape{4, 4},
+            {0.5f, 0.5f},
+            {0, 1},
+            {InterpolateMode::BICUBIC_PILLOW, ShapeCalcMode::SCALES, {0, 0}, {0, 0}},
+            std::vector<Data_t>{0,  1,  2,  3,  4,  5,  6,  7,  8,  9,  10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21,
+                                22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43,
+                                44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63},
+            std::vector<Data_t>{5, 6, 9, 10, 21, 22, 25, 26, 37, 38, 41, 42, 53, 54, 57, 58},
+            -0.5,  // cube_coeff
+        },
+        {
+            "bicubic.upsample_sizes_2D",
+            Shape{4, 4},
+            {8, 8},
+            Shape{8, 8},
+            {},
+            {0, 1},
+            {InterpolateMode::BICUBIC_PILLOW, ShapeCalcMode::SIZES, {0, 0}, {0, 0}},
+            std::vector<Data_t>{5, 6, 9, 10, 21, 22, 25, 26, 37, 38, 41, 42, 53, 54, 57, 58},
+            std::vector<Data_t>{
+                4,  4,  5,  6,  7,  8,  9,  9,  8,  8,  9,  10, 11, 12, 13, 13, 16, 16, 17, 18, 19, 20,
+                21, 21, 25, 25, 26, 27, 28, 29, 30, 30, 33, 33, 34, 35, 36, 37, 38, 38, 42, 42, 43, 44,
+                45, 46, 47, 47, 50, 50, 51, 52, 53, 54, 55, 55, 54, 54, 55, 56, 57, 58, 59, 59,
+            },
             -0.5,  // cube_coeff
         }};
 }
@@ -1317,7 +1398,7 @@ std::vector<InterpolateV11TestParams> generateParamsForInterpolate_bicubic_pil_f
             {},
             Shape{2, 4},
             {0.4f, 0.7f},
-            {}, // default axes {0, 1}
+            {},  // default axes {0, 1}
             {InterpolateMode::BICUBIC_PILLOW, ShapeCalcMode::SCALES, {0, 0}, {0, 0}},
             std::vector<Data_t>{121.14, 131.03, 193.32, 243.32, 8.92,   36.9,   210.67, 242.85, 63.8,  79.83,
                                 222.47, 108.37, 69.93,  211.89, 65.79,  104.75, 164.82, 140.7,  21.95, 7.06,
@@ -1391,7 +1472,7 @@ std::vector<InterpolateV11TestParams> generateParamsForInterpolate_bicubic_pil_f
             {5, 6},
             Shape{5, 6},
             {},
-            {}, // default axes {0, 1}
+            {},  // default axes {0, 1}
             {InterpolateMode::BICUBIC_PILLOW, ShapeCalcMode::SIZES, {0, 0}, {0, 0}},
             std::vector<Data_t>{214.42, 66.97, 27.98, 76.41, 105.94, 208.44, 115.53, 23.53},
             std::vector<Data_t>{236.49521, 146.10538, 38.218796, 17.75709,  50.332058, 85.74947,  215.93185, 148.13255,
@@ -1516,9 +1597,11 @@ std::vector<InterpolateV11TestParams> generateCombinedParamsForInterpolate_v11()
         generateParamsForInterpolate_bicubic_pil_f16<element::Type_t::f16>(),
         generateParamsForInterpolate_bilinear_pil_int_common<uint8_t>(),
         generateParamsForInterpolate_bilinear_pil_int_common<int32_t>(),
+        generateParamsForInterpolate_bilinear_pil_int8<int8_t>(),
         generateParamsForInterpolate_bicubic_pil_int_common<uint8_t>(),
         generateParamsForInterpolate_bicubic_pil_int_common<int32_t>(),
         generateParamsForInterpolate_bicubic_pil_uint8<uint8_t>(),
+        generateParamsForInterpolate_bicubic_pil_int8<int8_t>(),
         generateParamsForInterpolate_bicubic_pil_int32<int32_t>()};
 
     const std::vector<std::vector<attribute_tests::InterpolateV4TestParams>> allTypeParamsV4{
