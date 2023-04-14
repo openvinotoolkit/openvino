@@ -164,14 +164,16 @@ ov::frontend::InputModel::Ptr FrontEnd::load_impl(const std::vector<ov::Any>& va
                                                 m_telemetry,
                                                 graph_iterator->get_variables_index(),
                                                 graph_iterator->get_saved_model_input_names(),
-                                                graph_iterator->get_saved_model_output_names());
+                                                graph_iterator->get_saved_model_output_names(),
+                                                true);
         } else if (GraphIteratorMeta::is_supported(model_path)) {
             auto graph_iterator = std::make_shared<GraphIteratorMeta>(model_path);
             return std::make_shared<InputModel>(graph_iterator,
                                                 m_telemetry,
                                                 graph_iterator->get_variables_index(),
                                                 graph_iterator->get_metagraph_input_names(),
-                                                graph_iterator->get_metagraph_output_names());
+                                                graph_iterator->get_metagraph_output_names(),
+                                                true);
         } else if (GraphIteratorProtoTxt::is_supported(model_path)) {
             // handle text protobuf format
             return std::make_shared<InputModel>(std::make_shared<GraphIteratorProtoTxt>(model_path), m_telemetry);
@@ -196,14 +198,16 @@ ov::frontend::InputModel::Ptr FrontEnd::load_impl(const std::vector<ov::Any>& va
                                                 m_telemetry,
                                                 graph_iterator->get_variables_index(),
                                                 graph_iterator->get_saved_model_input_names(),
-                                                graph_iterator->get_saved_model_output_names());
+                                                graph_iterator->get_saved_model_output_names(),
+                                                true);
         } else if (GraphIteratorMeta::is_supported(model_path)) {
             auto graph_iterator = std::make_shared<GraphIteratorMeta>(model_path);
             return std::make_shared<InputModel>(graph_iterator,
                                                 m_telemetry,
                                                 graph_iterator->get_variables_index(),
                                                 graph_iterator->get_metagraph_input_names(),
-                                                graph_iterator->get_metagraph_output_names());
+                                                graph_iterator->get_metagraph_output_names(),
+                                                true);
         } else if (GraphIteratorProtoTxt::is_supported(model_path)) {
             // handle text protobuf format with a path in Unicode
             return std::make_shared<InputModel>(std::make_shared<GraphIteratorProtoTxt>(model_path), m_telemetry);

@@ -35,15 +35,12 @@ def moc_pipeline(argv: argparse.Namespace, moc_front_end: FrontEnd):
                         "Please use use_legacy_frontend=True to convert the model.")
     else:
         # Flag allows to use old logic for *.pb in case of overriding outputs
-        rebuild_inputs = False
         if argv.input_model:
             input_model = moc_front_end.load(argv.input_model)
         elif argv.saved_model_dir:
             input_model = moc_front_end.load(argv.saved_model_dir)
-            rebuild_inputs = True
         elif argv.input_meta_graph:
             input_model = moc_front_end.load(argv.input_meta_graph)
-            rebuild_inputs = True
 
     argv.placeholder_shapes, argv.placeholder_data_types, argv.freeze_placeholder_with_value = convert_params_lists_to_dicts(
         input_model, argv.placeholder_shapes, argv.placeholder_data_types,
@@ -140,11 +137,7 @@ def moc_pipeline(argv: argparse.Namespace, moc_front_end: FrontEnd):
         new_output_places = [x['node'] for x in outputs]
         input_model.override_all_outputs(new_output_places)
         # invalidation of existing Place objects could have happened in the operation above
-        if (rebuild_inputs == True) and (user_shapes):
-            new_output_places_name = [x.get_names()[0] for x in new_output_places]
-            user_shapes, outputs, _ = fe_user_data_repack(
-                input_model, argv.placeholder_shapes, argv.placeholder_data_types,
-                new_output_places_name, argv.freeze_placeholder_with_value, moc_front_end.get_name())
+        if user_shapes:
             model_inputs = input_model.get_inputs()
 
     if user_shapes:
