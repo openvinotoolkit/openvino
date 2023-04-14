@@ -253,6 +253,7 @@ LPT cleanup transformations is final stage in LPT pipeline. In this step LPT tra
 
 Transformations:
 
+* :doc:`EliminateFakeQuantizeTransformation <openvino_docs_OV_UG_lpt_EliminateFakeQuantizeTransformation>`
 * :doc:`FoldConvertTransformation <openvino_docs_OV_UG_lpt_FoldConvertTransformation>`
 * :doc:`FoldFakeQuantizeTransformation <openvino_docs_OV_UG_lpt_FoldFakeQuantizeTransformation>`
 * :doc:`FuseConvertTransformation <openvino_docs_OV_UG_lpt_FuseConvertTransformation>`

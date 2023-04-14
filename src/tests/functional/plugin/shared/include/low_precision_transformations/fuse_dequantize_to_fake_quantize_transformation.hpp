@@ -14,7 +14,7 @@
 
 namespace LayerTestsDefinitions {
 
-class FuseFakeQuantizeTransformationTestValues {
+class FuseDequantizeToFakeQuantizeTransformationTestValues {
 public:
     class Actual {
     public:
@@ -33,13 +33,13 @@ public:
 
 typedef std::tuple<
     std::string,
-    FuseFakeQuantizeTransformationTestValues> FuseFakeQuantizeTransformationParams;
+    FuseDequantizeToFakeQuantizeTransformationTestValues> FuseDequantizeToFakeQuantizeTransformationParams;
 
-class FuseFakeQuantizeTransformation :
-    public testing::WithParamInterface<FuseFakeQuantizeTransformationParams>,
-    public LayerTestsUtils::LayerTransformation {
+class FuseDequantizeToFakeQuantizeTransformation
+    : public testing::WithParamInterface<FuseDequantizeToFakeQuantizeTransformationParams>,
+      public LayerTestsUtils::LayerTransformation {
 public:
-    static std::string getTestCaseName(const testing::TestParamInfo<FuseFakeQuantizeTransformationParams>& obj);
+    static std::string getTestCaseName(const testing::TestParamInfo<FuseDequantizeToFakeQuantizeTransformationParams>& obj);
 
 protected:
     void SetUp() override;
