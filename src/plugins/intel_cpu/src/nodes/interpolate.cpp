@@ -2049,7 +2049,7 @@ void Interpolate::initSupportedPrimitiveDescriptors() {
             config.inConfs.resize(2);
         }
         auto& creatorsMap = BlockedDescCreator::getCommonCreators();
-        auto pushDesc = [&](LayoutType dataFormat, impl_desc_type implDetail) {
+        auto pushDesc = [&](LayoutType dataFormat, impl_desc_type implDetail, bool useAclExecutor = false) {
             config.inConfs[DATA_ID].setMemDesc(creatorsMap.at(dataFormat)->createSharedDesc(inputPrecision, getInputShapeAtPort(DATA_ID)));
             if (shapeCalcMode == InterpolateShapeCalcMode::sizes) {
                 config.inConfs[SIZE_OR_SCALE_ID_V11].setMemDesc(
@@ -2064,8 +2064,36 @@ void Interpolate::initSupportedPrimitiveDescriptors() {
                     creatorsMap.at(LayoutType::ncsp)->createSharedDesc(axesType, getInputShapeAtPort(AXES_ID_V11)));
 
             config.outConfs[0].setMemDesc(creatorsMap.at(dataFormat)->createSharedDesc(outputPrecision, getOutputShapeAtPort(0)));
-            supportedPrimitiveDescriptors.push_back({config, implDetail});
+
+            if (useAclExecutor) {
+                std::vector<MemoryDescPtr> srcMemoryDescs;
+                for (int i = 0; i < config.inConfs.size(); i++) {
+                    srcMemoryDescs.push_back(config.inConfs[i].getMemDesc());
+                }
+                std::vector<MemoryDescPtr> dstMemoryDescs;
+                for (int i = 0; i < config.outConfs.size(); i++) {
+                    dstMemoryDescs.push_back(config.outConfs[i].getMemDesc());
+                }
+
+                auto factory = std::make_shared<InterpolateExecutorFactory>(interpAttrs, srcMemoryDescs, dstMemoryDescs,
+                                                                        std::make_shared<ExecutorContext>(context, getPrimitivesPriority()));
+                if (!factory->isEmpty()) {
+                    supportedPrimitiveDescriptors.push_back({config, implDetail, factory});
+                }
+            } else {
+                supportedPrimitiveDescriptors.push_back({config, implDetail});
+            }
         };
+
+#if defined (OV_CPU_WITH_ACL)
+                interpAttrs.hasPad = hasPad;
+                pushDesc(LayoutType::nspc, undef, true);
+                pushDesc(LayoutType::ncsp, undef, true);
+                canUseAclExecutor = !supportedPrimitiveDescriptors.empty();
+                if (canUseAclExecutor)
+                    return;
+#endif
+
         if (getInputShapeAtPort(DATA_ID).getRank() == 4) {
             if (mayiuse(cpu::x64::avx512_core)) {
                 pushDesc(LayoutType::nspc, jit_avx512);
@@ -2084,7 +2112,7 @@ void Interpolate::initSupportedPrimitiveDescriptors() {
         }
 
         auto& creatorsMap = BlockedDescCreator::getCommonCreators();
-    auto pushDesc = [&](LayoutType dataFormat, impl_desc_type implDetail, bool useAclExecutor = false) {
+        auto pushDesc = [&](LayoutType dataFormat, impl_desc_type implDetail, bool useAclExecutor = false) {
             config.inConfs[DATA_ID].setMemDesc(creatorsMap.at(dataFormat)->createSharedDesc(inputPrecision, getInputShapeAtPort(DATA_ID)));
             config.inConfs[TARGET_SHAPE_ID].setMemDesc(
                 creatorsMap.at(LayoutType::ncsp)->createSharedDesc(targetShapeType, getInputShapeAtPort(TARGET_SHAPE_ID)));
@@ -2095,24 +2123,24 @@ void Interpolate::initSupportedPrimitiveDescriptors() {
 
             config.outConfs[0].setMemDesc(creatorsMap.at(dataFormat)->createSharedDesc(outputPrecision, getOutputShapeAtPort(0)));
 
-        if (useAclExecutor) {
-            std::vector<MemoryDescPtr> srcMemoryDescs;
-            for (int i = 0; i < config.inConfs.size(); i++) {
-                srcMemoryDescs.push_back(config.inConfs[i].getMemDesc());
-            }
-            std::vector<MemoryDescPtr> dstMemoryDescs;
-            for (int i = 0; i < config.outConfs.size(); i++) {
-                dstMemoryDescs.push_back(config.outConfs[i].getMemDesc());
-            }
+            if (useAclExecutor) {
+                std::vector<MemoryDescPtr> srcMemoryDescs;
+                for (int i = 0; i < config.inConfs.size(); i++) {
+                    srcMemoryDescs.push_back(config.inConfs[i].getMemDesc());
+                }
+                std::vector<MemoryDescPtr> dstMemoryDescs;
+                for (int i = 0; i < config.outConfs.size(); i++) {
+                    dstMemoryDescs.push_back(config.outConfs[i].getMemDesc());
+                }
 
-            auto factory = std::make_shared<InterpolateExecutorFactory>(interpAttrs, srcMemoryDescs, dstMemoryDescs,
+                auto factory = std::make_shared<InterpolateExecutorFactory>(interpAttrs, srcMemoryDescs, dstMemoryDescs,
                                                                         std::make_shared<ExecutorContext>(context, getPrimitivesPriority()));
-            if (!factory->isEmpty()) {
-                supportedPrimitiveDescriptors.push_back({config, implDetail, factory});
+                if (!factory->isEmpty()) {
+                    supportedPrimitiveDescriptors.push_back({config, implDetail, factory});
+                }
+            } else {
+                supportedPrimitiveDescriptors.push_back({config, implDetail});
             }
-        } else {
-            supportedPrimitiveDescriptors.push_back({config, implDetail});
-        }
         };
 
         const auto &dataMinDims = getInputShapeAtPort(DATA_ID).getMinDims();
@@ -3182,7 +3210,7 @@ void Interpolate::InterpolateExecutorBase::buildTblCubic(const SizeVector& srcDi
     }
 }
 
-float Interpolate::InterpolateExecutor::getPillowBilinearCoeffs(float m) {
+float Interpolate::InterpolateExecutorBase::getPillowBilinearCoeffs(float m) {
     if (m < 0.0f)
         m = -m;
     if (m < 1.0)
@@ -3190,7 +3218,7 @@ float Interpolate::InterpolateExecutor::getPillowBilinearCoeffs(float m) {
     return 0.0f;
 }
 
-float Interpolate::InterpolateExecutor::getPillowBicubicCoeffs(float m) {
+float Interpolate::InterpolateExecutorBase::getPillowBicubicCoeffs(float m) {
     float a = -0.5f;
     if (m < 0.0f)
         m = -m;
@@ -3201,7 +3229,7 @@ float Interpolate::InterpolateExecutor::getPillowBicubicCoeffs(float m) {
     return 0.0f;
 }
 
-void Interpolate::InterpolateExecutor::buildTblPillow(const SizeVector& srcDimPad5d, const SizeVector& dstDim5d, const std::vector<float>& dataScales,
+void Interpolate::InterpolateExecutorBase::buildTblPillow(const SizeVector& srcDimPad5d, const SizeVector& dstDim5d, const std::vector<float>& dataScales,
                                         float cubicCoeff, InterpolateLayoutType layout) {
     int dimSize = dataRank;
     float fy = dataScales[dimSize - 2];
@@ -3713,7 +3741,7 @@ void Interpolate::InterpolateRefExecutor::pillowRef(const uint8_t *in_ptr_, uint
     });
 }
 
-void Interpolate::InterpolateExecutor::create_pillow_working_buf(InterpolateLayoutType layout) {
+void Interpolate::InterpolateExecutorBase::create_pillow_working_buf(InterpolateLayoutType layout) {
     if (srcDimPad5d[3] == dstDim5d[3] || srcDimPad5d[4] == dstDim5d[4])
         return;
     size_t bufSize = srcDimPad5d[3] * dstDim5d[4] * srcDataSize; // IH * OW
@@ -3730,6 +3758,7 @@ void Interpolate::InterpolateExecutor::create_pillow_working_buf(InterpolateLayo
     }
     pillow_working_buf.resize(bufSize);
 }
+
 Interpolate::InterpolateExecutorBase::InterpolateExecutorBase(const InterpolateAttrs& interpAttrs,
                                                       const VectorDims &srcDims,
                                                       const VectorDims &dstDims,
@@ -3803,7 +3832,7 @@ Interpolate::InterpolateJitExecutor::InterpolateJitExecutor(const InterpolateAtt
         jcp.filterLenY = auxTable[1];
         jcp.bound = static_cast<int*>(&auxTable[2 + jcp.OW * jcp.filterLenX + jcp.OH * jcp.filterLenY]);
     }
-if defined(OPENVINO_ARCH_X86_64)
+#if defined(OPENVINO_ARCH_X86_64)
     if (jcp.layout != InterpolateLayoutType::planar) {
         if (mayiuse(cpu::x64::avx512_core)) {
             interpolateKernel.reset(new jit_uni_interpolate_kernel_f32<cpu::x64::avx512_core>(jcp, *attr.get()));

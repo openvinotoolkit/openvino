@@ -20,8 +20,6 @@ namespace ov {
 namespace intel_cpu {
 namespace node {
 
-    bilinear_pillow,
-    bicubic_pillow
 struct jit_interpolate_config_params {
     InterpolateLayoutType layout;
     InterpolateMode mode;
