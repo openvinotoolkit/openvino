@@ -23,7 +23,7 @@ The OpenVINO Runtime provides unique capabilities to infer deep learning models 
 ||                                                                         | Extensions 512 (Intel® AVX-512), and AVX512_BF16, Intel&reg; Core&trade; Processors with Intel&reg;           |
 ||                                                                         | AVX2, Intel&reg; Atom&reg; Processors with Intel® Streaming SIMD Extensions (Intel® SSE)                      |
 +--------------------------------------------------------------------------+---------------------------------------------------------------------------------------------------------------+
-|| :doc:`CPU (Arm®) <openvino_docs_OV_UG_supported_plugins_CPU>`           | Raspberry Pi™ 4 Model B, Apple® Mac with M1 chip, NVIDIA® Jetson Nano™, Android™ devices                      |
+|| :doc:`CPU (Arm®) <openvino_docs_OV_UG_supported_plugins_CPU>`           | Raspberry Pi™ 4 Model B, Apple® Mac with M1/M2 chip, NVIDIA® Jetson Nano™, Android™ devices                   |
 ||                                                                         |                                                                                                               |
 +--------------------------------------------------------------------------+---------------------------------------------------------------------------------------------------------------+
 || :doc:`GNA plugin <openvino_docs_OV_UG_supported_plugins_GNA>`           | Intel&reg; Speech Enabling Developer Kit, Amazon Alexa* Premium Far-Field Developer Kit, Intel&reg;           |
