@@ -13,9 +13,6 @@ std::vector<std::string> disabledTestPatterns() {
         R"(.*(Multi|Auto|Hetero).*Behavior.*OVCompiledModelBaseTest.*CheckExecGraphInfoBeforeExecution.*)",
         R"(.*(Multi|Auto|Hetero).*Behavior.*OVCompiledModelBaseTest.*CheckExecGraphInfoAfterExecution.*)",
         R"(.*(Multi|Auto|Hetero).*Behavior.*OVCompiledModelBaseTest.*checkGetExecGraphInfoIsNotNullptr.*)",
-        R"(.*OVClassExecutableNetworkGetMetricTest_EXEC_DEVICES.*CanGetExecutionDeviceInfo.*)",
-        R"(.*OVClassHeteroExecutableNetworkGetMetricTest_SUPPORTED_CONFIG_KEYS.*GetMetricNoThrow.*)",
-        R"(.*OVClassHeteroExecutableNetworkGetMetricTest_SUPPORTED_METRICS.*GetMetricNoThrow.*)",
 
         // CVS-55937
         R"(.*SplitLayerTest.*numSplits=30.*)",

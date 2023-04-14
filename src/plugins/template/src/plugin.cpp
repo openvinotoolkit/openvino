@@ -6,11 +6,11 @@
 
 #include <memory>
 
-#include "cpp_interfaces/interface/ie_internal_plugin_config.hpp"
 #include "cpp_interfaces/interface/ie_iplugin_internal.hpp"
 #include "ie_plugin_config.hpp"
 #include "itt.hpp"
 #include "openvino/pass/manager.hpp"
+#include "openvino/runtime/internal_properties.hpp"
 #include "openvino/runtime/properties.hpp"
 #include "remote_context.hpp"
 #include "template/properties.hpp"
@@ -234,7 +234,7 @@ ov::Any ov::template_plugin::Plugin::get_property(const std::string& name, const
         std::vector<ov::PropertyName> rw_properties{ov::device::id,
                                                     ov::enable_profiling,
                                                     ov::hint::performance_mode,
-                                                    ov::template_plugin::exclusive_async_requests,
+                                                    ov::exclusive_async_requests,
                                                     ov::template_plugin::disable_transformations};
         return rw_properties;
     };
