@@ -79,7 +79,7 @@ To build a plugin and its tests, run the following CMake scripts:
 
 * ``src/CMakeLists.txt`` to build a plugin shared library from sources:
 
-.. doxygensnippet:: src/plugins/template/CMakeLists.txt
+.. doxygensnippet:: src/plugins/template/src/CMakeLists.txt
    :language: cpp
    :fragment: [cmake:plugin]
 
