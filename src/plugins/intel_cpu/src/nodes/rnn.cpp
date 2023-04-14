@@ -1084,35 +1084,21 @@ void RNN::prepareParams() {
         IE_THROW() << "Primitive descriptor was not found for node " << getName() << ".";
     }
 
-    auto repackWeights = [&] {
-        if (!primArgs.count(DNNL_ARG_WEIGHTS_LAYER) || !prevExecPtr ||
-            !execPtr->getWeightDesc()->isCompatible(*(prevExecPtr->getWeightDesc()))) {
-            return true;
-        }
-
-        if (!primArgs.count(DNNL_ARG_WEIGHTS_ITER) || !prevExecPtr ||
-            !execPtr->getWeightIterDesc()->isCompatible(*(prevExecPtr->getWeightIterDesc()))) {
-            return true;
-        }
-
-        if (!primArgs.count(DNNL_ARG_BIAS) || !prevExecPtr ||
-            !execPtr->getBiasDesc()->isCompatible(*(prevExecPtr->getBiasDesc()))) {
-            return true;
-        }
-        return false;
-    };
-
-    bool repack = repackWeights();
-
-    if (repack) {
-        std::vector<DnnlMemoryDescPtr> intDescs {
-            execPtr->getWeightDesc(),
-            execPtr->getWeightIterDesc(),
-            execPtr->getBiasDesc()
-        };
-        prepareMemory(intDescs);
+    if (!primArgs.count(DNNL_ARG_WEIGHTS_LAYER) || !prevExecPtr ||
+        !execPtr->getWeightDesc()->isCompatible(*(prevExecPtr->getWeightDesc()))) {
+        prepareMemory(execPtr->getWeightDesc(), 0);
         primArgs[DNNL_ARG_WEIGHTS_LAYER] = internalBlobMemory[0]->GetPrimitive();
+    }
+
+    if (!primArgs.count(DNNL_ARG_WEIGHTS_ITER) || !prevExecPtr ||
+        !execPtr->getWeightIterDesc()->isCompatible(*(prevExecPtr->getWeightIterDesc()))) {
+        prepareMemory(execPtr->getWeightIterDesc(), 1);
         primArgs[DNNL_ARG_WEIGHTS_ITER] = internalBlobMemory[1]->GetPrimitive();
+    }
+
+    if (!primArgs.count(DNNL_ARG_BIAS) || !prevExecPtr ||
+        !execPtr->getBiasDesc()->isCompatible(*(prevExecPtr->getBiasDesc()))) {
+        prepareMemory(execPtr->getBiasDesc(), 2);
         primArgs[DNNL_ARG_BIAS] = internalBlobMemory[2]->GetPrimitive();
     }
 
