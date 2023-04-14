@@ -68,11 +68,11 @@ inline void FUNC(assign_slice_in)(__global OUTPUT1_TYPE* out_unique_elements,
 // TODO: Change to better stable sort algorithm
 inline void FUNC(bubbleSort)(__global OUTPUT1_TYPE* out_unique_elements,
                              __global OUTPUT2_TYPE* out_indices,
-                             uint l,
-                             uint h) {
-    for (uint i = 0; i < h - l; ++i) {
+                             int l,
+                             int h) {
+    for (int i = 0; i < h - l; ++i) {
         bool swapped = false;
-        for (uint j = l; j < h - i; ++j) {
+        for (int j = l; j < h - i; ++j) {
 #if FLATTENED
             if ((out_unique_elements[j] > out_unique_elements[j + 1])) {
                 FUNC_CALL(swap_out_unique_elements)(&out_unique_elements[j], &out_unique_elements[j + 1]);
