@@ -122,8 +122,8 @@ Rules
 3. Two corresponding dimension must have the same value, or one of them is equal to 1.
 4. Output shape may not be equal to ``target_shape`` if:
 
-  * ``target_shape`` contains dimensions of size 1,
-  * ``target_shape`` rank is smaller than the rank of input tensor.
+* ``target_shape`` contains dimensions of size 1,
+* ``target_shape`` rank is smaller than the rank of input tensor.
 
 Bidirectional examples
 ++++++++++++++++++++++
