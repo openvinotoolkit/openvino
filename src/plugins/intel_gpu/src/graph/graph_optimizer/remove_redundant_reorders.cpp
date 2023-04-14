@@ -421,6 +421,132 @@ void remove_redundant_reorders::run(program& p) {
             }
         }
     }
+
+    // Fuse reorder which only changes data precision
+    itr = p.get_processing_order().begin();
+    if (enable_reorder_fusing) {
+        while (itr != p.get_processing_order().end()) {
+            auto node_ptr = *itr++;
+            if (!node_ptr->is_type<reorder>())  // only care for reorders
+                continue;
+
+            auto& node = node_ptr->as<reorder>();
+            if (node.get_users().size() != 1 || node.is_output() || node.has_fused_primitives() ||
+                node.has_mean() || !node.get_primitive()->subtract_per_feature.empty()) {
+                continue;
+            }
+
+            auto& prev = node.input();
+            auto next_ptr = node.get_users().front();
+
+            auto is_simple = [](format fmt) {
+                return fmt == format::bfyx || fmt == format::byxf || fmt == format::yxfb;
+            };
+
+            auto prev_layout = prev.get_output_layout();
+            auto output_layout = node.get_output_layout();
+            auto next_layout = next_ptr->get_output_layout();
+
+            auto prev_simple = is_simple(prev_layout.format);
+            auto next_simple = is_simple(next_layout.format);
+            auto fmt_prev = prev_layout.format;
+            auto fmt_next = next_layout.format;
+            auto prev_dt = prev_layout.data_type;
+            auto next_dt = next_layout.data_type;
+
+            // Fuse reorder into next node
+            if (next_ptr->is_type<eltwise>() || next_ptr->is_type<permute>() || next_ptr->is_type<fully_connected>()) {
+                if (prev_dt == output_layout.data_type || fmt_prev != output_layout.format)
+                    continue;
+
+                bool can_fuse_reorder = false;
+                if (next_ptr->is_type<eltwise>() && (prev_simple && next_simple)) {
+                    // If accumulate type of eltwise is impacted from low precision to high precision, do not fuse to avoid accuracy degradation.
+                    if ((data_type_traits::size_of(prev_dt) >= data_type_traits::size_of(next_dt))
+                        || (data_type_traits::is_floating_point(prev_dt) && data_type_traits::is_floating_point(next_dt))) {
+                        can_fuse_reorder = true;
+                    }
+                }
+
+                // - Fuse reorder into Permute: any node -> reorder -> Permute => any node -> Permute
+                // - Fuse reorder into FC     : any node -> reorder -> FC => any node -> FC
+                if ((next_ptr->is_type<permute>() || next_ptr->is_type<fully_connected>()) && (fmt_prev == fmt_next) &&
+                    ((fmt_prev != format::any) && (fmt_next != format::any))) {
+                    can_fuse_reorder = true;
+                }
+
+                if (!can_fuse_reorder)
+                    continue;
+
+                auto output_padded = static_cast<bool>(output_layout.data_padding);
+                auto can_omit_padding = ((output_layout.format == format::b_fs_yx_fsv16 || output_layout.format == format::b_fs_yx_fsv32) &&
+                                        (prev.get_output_layout().format == format::bfyx || prev.get_output_layout().format == format::b_fs_yx_fsv4)) ||
+                                        (output_layout.format == format::b_fs_zyx_fsv16 && prev.get_output_layout().format == format::bfzyx);
+
+                if (output_padded && !can_omit_padding) {
+                    if (prev.get_users().size() != 1)
+                        continue;
+
+                    if (prev.is_type<input_layout>())
+                        continue;
+
+                    prev.merge_output_padding(output_layout.data_padding);
+                }
+
+                node.can_be_optimized(true);
+                LOG_NODE_REMOVAL(node.id());
+                p.extract_and_remove(node);
+
+                if (next_ptr->is_type<fully_connected>())
+                    next_ptr->recalc_output_layout(true);
+            }
+
+            // Fuse reorder into previous node
+            if (prev.is_type<eltwise>() || prev.is_type<fully_connected>()) {
+                bool can_fuse_reorder = false;
+                if (prev.is_type<fully_connected>() && lo.get_optimization_attributes().use_onednn_impls
+                    && output_layout.format == prev.get_preferred_output_fmt()
+                    && output_layout.data_padding == prev.get_output_layout().data_padding) {
+                    auto check_data_types_for_fully_connected = [](data_types in_dt, data_types wei_dt, data_types out_dt) {
+                        if ((in_dt == data_types::f16 && wei_dt == data_types::f16) &&
+                            (out_dt == data_types::f16 || out_dt == data_types::f32 || out_dt == data_types::i8))
+                            return true;
+                        if (in_dt == data_types::f32 && wei_dt == data_types::f32)
+                            return true;
+                        if ((in_dt == data_types::i8 || in_dt == data_types::u8) && (wei_dt == data_types::i8) &&
+                            (out_dt == data_types::i8 || out_dt == data_types::u8 ||
+                            out_dt == data_types::i32 || out_dt == data_types::f16 || out_dt == data_types::f32))
+                            return true;
+                        return false;
+                    };
+
+                    auto src_dtype = prev.as<fully_connected>().input().get_output_layout().data_type;
+                    auto weight_dtype = prev.as<fully_connected>().weights().get_output_layout().data_type;
+                    // Check data type combination for oneDNN inner product
+                    if (check_data_types_for_fully_connected(src_dtype, weight_dtype, output_layout.data_type))
+                        can_fuse_reorder = true;
+                }
+
+                if (prev.is_type<eltwise>() && (fmt_prev == fmt_next))
+                    can_fuse_reorder = true;
+
+                if (!can_fuse_reorder)
+                    continue;
+
+                auto old_output_layout_of_input = prev.get_output_layout();
+                prev.set_output_layout(output_layout, false);
+                if (prev.type()->does_possible_implementation_exist(prev)) {
+                    node.can_be_optimized(true);
+                    p.add_optimized_primitive_info(node.id());
+                    LOG_NODE_REMOVAL(node.id());
+                    p.extract_and_remove(node);
+                } else {
+                    prev.set_output_layout(old_output_layout_of_input, false);
+                }
+            }
+        }
+    }
+
     // This pass removed reorder if the next node supports reorder's input format and data type doesn't change
     itr = p.get_processing_order().begin();
     while (itr != p.get_processing_order().end()) {
