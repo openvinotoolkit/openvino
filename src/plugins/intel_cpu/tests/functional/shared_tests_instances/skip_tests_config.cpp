@@ -215,11 +215,11 @@ std::vector<std::string> disabledTestPatterns() {
     retVector.emplace_back(R"(smoke_LPT.*)");
     retVector.emplace_back(R"(smoke_CPU_OVClassLoadNetworkAndCheckWithSecondaryPropertiesTest/OVClassLoadNetworkAndCheckSecondaryPropertiesTest.LoadNetworkAndCheckSecondaryPropertiesTest.*)");
     retVector.emplace_back(R"(smoke_CPU_OVClassLoadNetworkAndCheckWithSecondaryPropertiesDoubleTest/OVClassLoadNetworkAndCheckSecondaryPropertiesTest.LoadNetworkAndCheckSecondaryPropertiesTest.*)");
-    retVector.emplace_back(R"(smoke_Activation_Basic/ActivationLayerTest.CompareWithRefs.*)");
-    retVector.emplace_back(R"(smoke_Integer_Activation_Basic/ActivationLayerTest.CompareWithRefs/(Tanh|Negative|Sqrt).*)");
-    retVector.emplace_back(R"(smoke_Activation_Basic_Prelu_Const/ActivationLayerTest.CompareWithRefs/(LeakyRelu|PReLu).*)");
-    retVector.emplace_back(R"(smoke_Activation_Basic_Prelu_Param/ActivationParamLayerTest.CompareWithRefs/(LeakyRelu|PReLu).*)");
-    retVector.emplace_back(R"(smoke_CompareWithRefs/ComparisonLayerTest.ComparisonTests.*)");
+//    retVector.emplace_back(R"(smoke_Activation_Basic/ActivationLayerTest.CompareWithRefs.*)");
+//    retVector.emplace_back(R"(smoke_Integer_Activation_Basic/ActivationLayerTest.CompareWithRefs/(Tanh|Negative|Sqrt).*)");
+//    retVector.emplace_back(R"(smoke_Activation_Basic_Prelu_Const/ActivationLayerTest.CompareWithRefs/(LeakyRelu|PReLu).*)");
+//    retVector.emplace_back(R"(smoke_Activation_Basic_Prelu_Param/ActivationParamLayerTest.CompareWithRefs/(LeakyRelu|PReLu).*)");
+//    retVector.emplace_back(R"(smoke_CompareWithRefs/ComparisonLayerTest.ComparisonTests.*)");
     retVector.emplace_back(R"(smoke_DeformableConvolution2D_ExplicitPadding/DeformableConvolutionLayerTest.CompareWithRefs.*)");
     retVector.emplace_back(R"(smoke_DeformableConvolution2D_AutoPadValid/DeformableConvolutionLayerTest.CompareWithRefs.*)");
     retVector.emplace_back(R"(smoke_DeformableConvolution2D_DeformableGroups_ExplicitPadding/DeformableConvolutionLayerTest.CompareWithRefs.*)");
@@ -253,7 +253,7 @@ std::vector<std::string> disabledTestPatterns() {
     retVector.emplace_back(R"(smoke_Quantized.*)");
     retVector.emplace_back(R"(smoke_NegativeQuantizedMatMulMultiplyFusion.*)");
     retVector.emplace_back(R"(MultipleLSTMCellTest/MultipleLSTMCellTest.CompareWithRefs.*)");
-    retVector.emplace_back(R"(smoke_MultipleAdd_Nd/MultiplyAddLayerTest.CompareWithRefs.*)");
+//    retVector.emplace_back(R"(smoke_MultipleAdd_Nd/MultiplyAddLayerTest.CompareWithRefs.*)");
     retVector.emplace_back(R"(smoke_MVNMultiplyAdd_1D/MVNMultiplyAdd.CompareWithRefs.*)");
     retVector.emplace_back(R"(smoke_If/SimpleIfTest.CompareWithRefs.*)");
     retVector.emplace_back(R"(smoke_If/SimpleIfNotConstConditionTest.CompareWithRefs.*)");
