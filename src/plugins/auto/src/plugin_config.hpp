@@ -16,8 +16,6 @@
 #include <vector>
 namespace MultiDevicePlugin {
 using namespace InferenceEngine;
-// legacy config
-static constexpr ov::Property<bool, ov::PropertyMutability::RW> exclusive_asyc_requests{"EXCLUSIVE_ASYNC_REQUESTS"};
 
 class BaseValidator {
 public:
@@ -74,8 +72,9 @@ public:
 
     void set_default();
     void set_property(const ov::AnyMap& properties);
-    void set_user_property(const ov::AnyMap& properties, bool checkfirstlevel = true);
+    void set_user_property(const ov::AnyMap& properties);
     ov::Any get_property(const std::string& name) const;
+    bool is_batching_disabled() const;
     bool is_set_by_user(const std::string& name) const;
     bool is_supported(const std::string& name) const;
 

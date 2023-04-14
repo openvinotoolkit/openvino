@@ -3,16 +3,13 @@
 //
 
 #include "functional_test_utils/skip_tests_config.hpp"
+#include "openvino/core/core_visibility.hpp"
 
 #include <string>
 #include <vector>
 
 std::vector<std::string> disabledTestPatterns() {
     std::vector<std::string> retVector{
-        // CVS-66280
-        R"(.*canLoadCorrectNetworkAndCheckConfig.*)",
-        R"(.*canSetCorrectConfigLoadNetworkAndCheckConfig.*)",
-        //
         R"(.*ExclusiveAsyncRequests.*)",
         R"(.*ReusableCPUStreamsExecutor.*)",
         R"(.*SplitLayerTest.*numSplits=30.*)",
@@ -20,17 +17,8 @@ std::vector<std::string> disabledTestPatterns() {
         R"(.*InferRequestPreprocessConversionTest.*oLT=(NHWC|NCHW).*)",
         R"(.*InferRequestPreprocessDynamicallyInSetBlobTest.*oPRC=0.*oLT=1.*)",
         // Not Implemented
-        R"(.*Behavior.*ExecutableNetworkBaseTest.*(canSetConfigToExecNet|canSetConfigToExecNetAndCheckConfigAndCheck).*)",
-        R"(.*OVCompiledModelBaseTest.*(CanSetConfigToExecNet|canSetConfigToExecNetAndCheckConfigAndCheck).*)",
-        R"(.*Behavior.*ExecutableNetworkBaseTest.*(CheckExecGraphInfoBeforeExecution|CheckExecGraphInfoAfterExecution|CheckExecGraphInfoSerialization).*)",
-        R"(.*Behavior.*OVCompiledModelBaseTest.*(CheckExecGraphInfoBeforeExecution|CheckExecGraphInfoAfterExecution).*)",
-        R"(.*Behavior.*ExecutableNetworkBaseTest.*canExport.*)",
-        R"(.*Behavior.*OVCompiledModelBaseTest.*canExport.*)",
-        R"(.*Behavior.*ExecutableNetworkBaseTest.*(CanCreateTwoExeNetworksAndCheckFunction).*)",
-        R"(.*Behavior.*OVCompiledModelBaseTest.*(CanCreateTwoExeNetworksAndCheckFunction).*)",
-        R"(.*Behavior.*ExecutableNetworkBaseTest.*(checkGetExecGraphInfoIsNotNullptr).*)",
-        R"(.*Behavior.*OVCompiledModelBaseTest.*(checkGetExecGraphInfoIsNotNullptr).*)",
-        R"(.*LoadNetworkCreateDefaultExecGraphResult.*)",
+        R"(.*(Multi|Auto|Hetero).*Behavior.*OVCompiledModelBaseTest.*(CheckExecGraphInfoBeforeExecution|CheckExecGraphInfoAfterExecution).*)",
+        R"(.*(Multi|Auto|Hetero).*Behavior.*OVCompiledModelBaseTest.*(checkGetExecGraphInfoIsNotNullptr).*)",
         R"(.*OVClassExecutableNetworkGetMetricTest_EXEC_DEVICES.*CanGetExecutionDeviceInfo.*)",
         R"(.*OVClassHeteroExecutableNetworkGetMetricTest_SUPPORTED_CONFIG_KEYS.*GetMetricNoThrow.*)",
         R"(.*OVClassHeteroExecutableNetworkGetMetricTest_SUPPORTED_METRICS.*GetMetricNoThrow.*)",
@@ -137,6 +125,7 @@ std::vector<std::string> disabledTestPatterns() {
         R"(.*InferRequestIOBBlobTest.*canProcessDeallocatedOutputBlobAfterGetAndSetBlob.*)",
         // Why query state should throw an exception
         R"(.*InferRequestQueryStateExceptionTest.*inferreq_smoke_QueryState_ExceptionTest.*)",
+        R"(.*OVInferRequestCheckTensorPrecision.*get(Input|Output|Inputs|Outputs)From.*FunctionWith(Single|Several).*type=(u4|u1|i4|boolean).*)",
     };
 
 #ifdef _WIN32
@@ -145,6 +134,13 @@ std::vector<std::string> disabledTestPatterns() {
     // CVS-64054
     retVector.emplace_back(R"(.*ReferenceTopKTest.*topk_max_sort_none)");
     retVector.emplace_back(R"(.*ReferenceTopKTest.*topk_min_sort_none)");
+#endif
+
+#if defined(OPENVINO_ARCH_ARM64) || defined(OPENVINO_ARCH_ARM)
+    retVector.emplace_back(R"(.*smoke_TopK_With_Hardcoded_Refs/ReferenceTopKTestMaxMinSort.CompareWithRefs.*)");
+    retVector.emplace_back(R"(.*smoke_TopK_With_Hardcoded_Refs/ReferenceTopKTestBackend.CompareWithRefs.*)");
+    retVector.emplace_back(R"(.*smoke_TopK_With_Hardcoded_Refs/ReferenceTopKTestMaxMinSortV3.CompareWithRefs.*)");
+    retVector.emplace_back(R"(.*smoke_TopK_With_Hardcoded_Refs/ReferenceTopKTestBackendV3.CompareWithRefs.*)");
 #endif
     return retVector;
 }

@@ -28,6 +28,7 @@ const std::vector<std::vector<size_t>> inputShapes = {
 };
 
 const std::vector<std::vector<size_t>> inputShapesOneAxis = {
+        std::vector<size_t>{2, 3, 4, 5, 4, 3, 2, 3},
         std::vector<size_t>{10, 20, 30, 40},
         std::vector<size_t>{3, 5, 7, 9},
         std::vector<size_t>{10},
@@ -112,6 +113,23 @@ INSTANTIATE_TEST_SUITE_P(smoke_Reduce_Precisions,
                                           testing::Values(InferenceEngine::Precision::UNSPECIFIED),
                                           testing::Values(InferenceEngine::Layout::ANY),
                                           testing::Values(std::vector<size_t>{2, 2, 2, 2}),
+                                          testing::Values(CommonTestUtils::DEVICE_GPU)),
+                         ReduceOpsLayerTest::getTestCaseName);
+
+INSTANTIATE_TEST_SUITE_P(smoke_Reduce_Ranks,
+                         ReduceOpsLayerTest,
+                         testing::Combine(testing::Values(std::vector<int>{2, 3, 4},
+                                                          std::vector<int>{-1, -2}),
+                                          testing::Values(opTypes[1]),
+                                          testing::ValuesIn(keepDims),
+                                          testing::Values(ngraph::helpers::ReductionType::Sum),
+                                          testing::Values(InferenceEngine::Precision::FP32,
+                                                          InferenceEngine::Precision::I32),
+                                          testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+                                          testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+                                          testing::Values(InferenceEngine::Layout::ANY),
+                                          testing::Values(std::vector<size_t>{2, 3, 4, 5, 4, 3, 2, 3},
+                                                          std::vector<size_t>{2, 3, 4, 5, 4, 3, 2}),
                                           testing::Values(CommonTestUtils::DEVICE_GPU)),
                          ReduceOpsLayerTest::getTestCaseName);
 

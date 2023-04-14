@@ -1081,6 +1081,7 @@ openvino/tools/mo/utils/ir_reader/extenders/tensoriterator_extender.py
 openvino/tools/mo/utils/ir_reader/extenders/topk_extender.py
 openvino/tools/mo/utils/ir_reader/extenders/variadic_split_extender.py
 openvino/tools/mo/utils/ir_reader/internal_ops/squeeze.py
+openvino/tools/mo/utils/ir_reader/internal_ops/unique.py
 openvino/tools/mo/utils/ir_reader/internal_ops/unsqueeze.py
 openvino/tools/mo/utils/ir_reader/layer_to_class.py
 openvino/tools/mo/utils/ir_reader/restore_graph.py
