@@ -995,11 +995,15 @@ void reorder_inputs::run(program& p, layout_optimizer& lo, reorder_factory& rf) 
                     auto& data = node->get_dependency(fused_prim.dep_start_idx);
 
                     auto gemm_layout = node->get_output_layout();
+                    auto data_layout = data.get_output_layout();
+
+                    if (gemm_layout.is_dynamic() || data_layout.is_dynamic())
+                        continue;
+
                     auto gemm_dims = onednn::convert_gemm_tensor(gemm_layout.get_tensor(),
                                                                  cldnn::format::dimension(gemm_layout.format),
                                                                  false);
 
-                    auto data_layout = data.get_output_layout();
                     auto data_dims = onednn::convert_gemm_tensor(data_layout.get_tensor(),
                                                                  cldnn::format::dimension(data_layout.format),
                                                                  false);
