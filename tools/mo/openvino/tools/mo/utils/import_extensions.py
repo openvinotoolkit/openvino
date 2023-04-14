@@ -81,12 +81,6 @@ def load_dir(framework: str, path: str, get_front_classes: callable):
     internal_dirs = get_internal_dirs(framework, get_front_classes)
     prefix = 'openvino.tools.' if ext == 'mo' else ''
 
-    # for p in internal_dirs.keys():
-    #     classes = internal_dirs[p]
-    #     for cls in classes:
-    #         cls.registered_cls = []
-    #         cls.registered_ops = {}
-
     for p in internal_dirs.keys():
         import_by_path(os.path.join(path, *p), [ext, *p], prefix)
         update_registration(internal_dirs[p], enabled_transforms, disabled_transforms, get_excluded_frameworks(framework))
