@@ -4321,6 +4321,15 @@ bool evaluate_interpolate(const shared_ptr<op::v11::Interpolate>& op,
                                                           out_shape,
                                                           m_attrs);
         break;
+    case element::Type_t::f16:
+        ngraph::runtime::reference::interpolate<float16>(reinterpret_cast<float16*>(padded_data_ptr),
+                                                          padded_input_shape,
+                                                          scales,
+                                                          axes,
+                                                          outputs[0]->get_data_ptr<float16>(),
+                                                          out_shape,
+                                                          m_attrs);
+        break;
     case element::Type_t::u8:
         ngraph::runtime::reference::interpolate<uint8_t>(reinterpret_cast<uint8_t*>(padded_data_ptr),
                                                          padded_input_shape,
