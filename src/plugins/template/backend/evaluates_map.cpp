@@ -4330,6 +4330,15 @@ bool evaluate_interpolate(const shared_ptr<op::v11::Interpolate>& op,
                                                          out_shape,
                                                          m_attrs);
         break;
+    case element::Type_t::i32:
+        ngraph::runtime::reference::interpolate<int32_t>(reinterpret_cast<int32_t*>(padded_data_ptr),
+                                                         padded_input_shape,
+                                                         scales,
+                                                         axes,
+                                                         outputs[0]->get_data_ptr<int32_t>(),
+                                                         out_shape,
+                                                         m_attrs);
+        break;
     default:;
     }
 
