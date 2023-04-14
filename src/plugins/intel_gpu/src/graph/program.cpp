@@ -634,6 +634,10 @@ void program::mark_if_constant(program_node& node) {
         node.is_type<assign>() || node.is_type<read_value>()) {
         return;
     }
+    for (auto i = 0UL; i < node.get_output_layouts().size(); ++i) {
+        if (node.is_dynamic_output_layout(i))
+            return;
+    }
     node.constant = true;
     for (auto& dep : node.get_dependencies()) {
         if (!dep.first->is_constant()) {
