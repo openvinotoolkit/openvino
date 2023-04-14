@@ -47,7 +47,7 @@ bool EliminateFakeQuantizeTransformation::transform(TransformationContext& conte
 
 namespace {
 bool check_interval(const std::shared_ptr<opset1::Constant>& constant, const float value) noexcept {
-    const auto& constant_values = constant->get_vector<float>();
+    const auto& constant_values = constant->cast_vector<float>();
     for (const auto constant_value : constant_values) {
         if (std::fabs(constant_value - value) > std::numeric_limits<float>::epsilon()) {
             return false;
