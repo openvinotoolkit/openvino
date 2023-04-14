@@ -36,7 +36,7 @@ class TestArgSort(PytorchLayerTest):
 
         return aten_argsort(dim, descending, stable), ref_net, "aten::argsort"
 
-    @pytest.mark.parametrize("tensor_stable_pairs", [
+    @pytest.mark.parametrize("tensor_stable_pair", [
         (np.random.rand(1, 4), False),
         (np.random.rand(4, 4), False),
         (np.random.rand(4, 4, 4), False),
@@ -71,10 +71,10 @@ class TestArgSort(PytorchLayerTest):
     ])
     @pytest.mark.nightly
     @pytest.mark.precommit
-    def test_argsort(self, tensor_stable_pairs, descending, stable, ie_device, precision, ir_version):
-        self.input_tensor, stable = tensor_stable_pairs
+    def test_argsort(self, tensor_stable_pair, descending, stable, ie_device, precision, ir_version):
+        self.input_tensor, stable = tensor_stable_pair
         dims = len(self.input_tensor.shape)
         for dim in range(-dims, dims):
             stable_values = [True] if stable else [True, False, None]
-            for stable in stable_values:
-                self._test(*self.create_model(dim, descending, stable), ie_device, precision, ir_version)
+            for stable_value in stable_values:
+                self._test(*self.create_model(dim, descending, stable_value), ie_device, precision, ir_version)
