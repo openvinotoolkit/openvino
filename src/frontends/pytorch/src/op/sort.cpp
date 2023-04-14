@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 #include "openvino/frontend/pytorch/node_context.hpp"
-#include "openvino/opsets/opset10.hpp"
+#include "openvino/opsets/opset11.hpp"
 #include "utils.hpp"
 namespace ov {
 namespace frontend {
@@ -26,12 +26,12 @@ OutputVector translate_sort(const NodeContext& context) {
     }
 
     auto mode = descending ? ov::op::TopKMode::MAX : ov::op::TopKMode::MIN;
-    auto zero_axis = context.mark_node(opset10::Constant::create(element::i32, Shape{1}, {0}));
-    auto dim_axis = context.mark_node(opset10::Constant::create(element::i64, Shape{1}, {dim}));
-    auto shape = context.mark_node(std::make_shared<opset10::ShapeOf>(input_tensor));
-    auto k_values_node = context.mark_node(std::make_shared<opset10::Gather>(shape, dim_axis, zero_axis));
-    auto k_values = context.mark_node(std::make_shared<opset10::Squeeze>(k_values_node));
-    auto topk = context.mark_node(std::make_shared<opset10::TopK>(input_tensor,
+    auto zero_axis = context.mark_node(opset11::Constant::create(element::i32, Shape{1}, {0}));
+    auto dim_axis = context.mark_node(opset11::Constant::create(element::i64, Shape{1}, {dim}));
+    auto shape = context.mark_node(std::make_shared<opset11::ShapeOf>(input_tensor));
+    auto k_values_node = context.mark_node(std::make_shared<opset11::Gather>(shape, dim_axis, zero_axis));
+    auto k_values = context.mark_node(std::make_shared<opset11::Squeeze>(k_values_node));
+    auto topk = context.mark_node(std::make_shared<opset11::TopK>(input_tensor,
                                                                   k_values,
                                                                   dim,
                                                                   mode,
