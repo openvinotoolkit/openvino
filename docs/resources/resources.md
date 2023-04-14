@@ -8,7 +8,6 @@
    :hidden:
 
    openvino_docs_performance_benchmarks
-   openvino_ir
    prerelease_information
 
 .. toctree::
@@ -33,8 +32,6 @@ This section includes a variety of reference information focusing mostly on desc
 and its proprietary model format, OpenVINO IR.
 
 :doc:`Performance Benchmarks <openvino_docs_performance_benchmarks>` contain results from benchmarking models with OpenVINO on Intel hardware.
-
-:doc:`OpenVINO IR format <openvino_ir>` is the proprietary model format of OpenVINO. Read more details on its operations and usage. 
 
 :doc:`Supported Devices <openvino_docs_OV_UG_supported_plugins_Supported_Devices>` is compatibility information about supported hardware accelerators.
 
