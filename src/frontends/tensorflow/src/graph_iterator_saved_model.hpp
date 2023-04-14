@@ -132,8 +132,10 @@ private:
             // Update variables map using information by resolving AssignVariableOp graph nodes
             std::map<std::string, std::string> var_map;
             VariablesIndex::map_assignvariable(m_graph_def, var_map);
-            for (auto var : var_map) {
-                m_variables_index->map_variable(var.first, var.second);
+            if (var_map.size() > 0 && m_variables_index.get() != nullptr) {
+                for (auto var : var_map) {
+                    m_variables_index->map_variable(var.first, var.second);
+                }
             }
 
             initialize_decoders_and_library();
