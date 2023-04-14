@@ -59,5 +59,14 @@ In the asynchronous request destructor, it is necessary to wait for a pipeline t
    :language: cpp
    :fragment: [async_infer_request:dtor]
 
+cancel()
+++++++++
+
+The method allows to cancel the infer request execution:
+
+.. doxygensnippet:: openvino/src/plugins/template/src/async_infer_request.cpp
+   :language: cpp
+   :fragment: [async_infer_request:cancel]
+
 @endsphinxdirective
 
