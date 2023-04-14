@@ -1,7 +1,10 @@
 # Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
+from utils.conformance_utils import get_logger
+from utils.constants import FULL_DEVICE_PROPERTY, SUPPORTED_PROPERTIES, DEVICE_ARCHITECTURE_PROPERTY
 
+logger = get_logger("get_available_device")
 
 try:
     from openvino.runtime import Core
@@ -9,9 +12,7 @@ except:
     from utils.file_utils import get_ov_path, find_latest_dir
     import os
     from utils.constants import PY_OPENVINO, LD_LIB_PATH_NAME
-    from utils.conformance_utils import get_logger, set_env_variable
-
-    logger = get_logger("get_available_device")
+    from utils.conformance_utils import set_env_variable
 
     script_dir, _ = os.path.split(os.path.abspath(__file__))
     ov_bin_path = get_ov_path(script_dir, None, True)
@@ -39,5 +40,15 @@ def get_available_devices(target_device = None, exclude_device = None):
         if target_device is None or target_device in device:
             if exclude_device in device:
                 continue
+            supported_metrics = core.get_property(target_device, SUPPORTED_PROPERTIES)
+            if FULL_DEVICE_PROPERTY in supported_metrics:
+                if core.get_property(target_device, FULL_DEVICE_PROPERTY) != core.get_property(device, FULL_DEVICE_PROPERTY):
+                    logger.warning(f'Device {device} is different {FULL_DEVICE_PROPERTY} with {target_device} ( : {core.get_property(device, FULL_DEVICE_PROPERTY)} : {core.get_property(target_device, FULL_DEVICE_PROPERTY)} )')
+                    continue
+            if DEVICE_ARCHITECTURE_PROPERTY in supported_metrics:
+                if not core.get_property(target_device, DEVICE_ARCHITECTURE_PROPERTY) != core.get_property(device, DEVICE_ARCHITECTURE_PROPERTY):
+                    logger.warning(f'Device {device} is different {DEVICE_ARCHITECTURE_PROPERTY} with {target_device} ( : {core.get_property(device, DEVICE_ARCHITECTURE_PROPERTY)} : {core.get_property(target_device, DEVICE_ARCHITECTURE_PROPERTY)} )')
+                    continue
+            logger.info(f"{device} is added to device pool")
             result.append(device)
     return result
