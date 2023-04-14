@@ -26,8 +26,8 @@ using namespace tests;
 TEST(check_hash_value, eltwise_basic) {
     auto& engine = get_test_engine();
 
-    auto input1 = engine.allocate_memory({ data_types::f32, format::bfyx, { 2, 2, 2, 2 } });
-    auto input2 = engine.allocate_memory({ data_types::f32, format::bfyx, { 2, 2, 2, 2 } });
+    auto input1 = engine.allocate_memory({ { 2, 2, 2, 2 }, data_types::f32, format::bfyx });
+    auto input2 = engine.allocate_memory({ { 2, 2, 2, 2 }, data_types::f32, format::bfyx });
 
     auto key_prim_id = "eltwise";
     topology topology;
@@ -45,7 +45,7 @@ TEST(check_hash_value, eltwise_basic) {
     const auto params_hash = prog_node.get_kernel_impl_params()->hash();
 
     ASSERT_EQ(primitive_hash, 11385140218618178073UL);
-    ASSERT_EQ(params_hash, 10460622021476296271UL);
+    ASSERT_EQ(params_hash, 1027235386189301125UL);
 }
 
 TEST(check_hash_value, fc_basic) {
@@ -53,9 +53,9 @@ TEST(check_hash_value, fc_basic) {
 
     const int32_t b = 1, in_f = 128, in_x = 1, in_y = 1, out_f = 65;
 
-    auto input_prim = engine.allocate_memory({ data_types::f32, format::bfyx, { b, in_f, in_y, in_x } });
-    auto weights_prim = engine.allocate_memory({ data_types::f32, format::bfyx, { out_f, in_f, in_y, in_x } });
-    auto bias_prim = engine.allocate_memory({ data_types::f32, format::bfyx, { 1, 1, out_f, 1 } });
+    auto input_prim = engine.allocate_memory({ { b, in_f, in_y, in_x }, data_types::f32, format::bfyx });
+    auto weights_prim = engine.allocate_memory({ { out_f, in_f, in_y, in_x }, data_types::f32, format::bfyx });
+    auto bias_prim = engine.allocate_memory({ { 1, 1, out_f, 1 }, data_types::f32, format::bfyx });
 
     const auto key_prim_id = "fc";
     topology topology(
@@ -75,14 +75,14 @@ TEST(check_hash_value, fc_basic) {
     const auto params_hash = prog_node.type()->get_fake_aligned_params(*prog_node.get_kernel_impl_params()).hash();
 
     ASSERT_EQ(primitive_hash, 2197080758510296176UL);
-    ASSERT_EQ(params_hash, 5241462399408562393UL);
+    ASSERT_EQ(params_hash, 11955559181519986341UL);
 }
 
 TEST(check_hash_value, gather_basic) {
     auto& engine = get_test_engine();
 
-    auto input1 = engine.allocate_memory({ data_types::f16, format::bfzyx, tensor{ 3, 2, 2, 4, 3} }); // Dictionary
-    auto input2 = engine.allocate_memory({ data_types::f32, format::bfyx, tensor{ 3, 2, 1, 3 } }); // Indexes
+    auto input1 = engine.allocate_memory({ { 3, 2, 2, 4, 3}, data_types::f16, format::bfzyx }); // Dictionary
+    auto input2 = engine.allocate_memory({ { 3, 2, 1, 3 }, data_types::f32, format::bfyx }); // Indexes
 
     int64_t axis = 3;
     int64_t batch_dim = -1;
@@ -106,7 +106,7 @@ TEST(check_hash_value, gather_basic) {
     const auto params_hash = prog_node.get_kernel_impl_params()->hash();
 
     ASSERT_EQ(primitive_hash, 93320679543770233UL);
-    ASSERT_EQ(params_hash, 18126277300376770566UL);
+    ASSERT_EQ(params_hash, 10172614448743302593UL);
 }
 
 TEST(check_hash_value, gemm_basic) {
@@ -132,13 +132,13 @@ TEST(check_hash_value, gemm_basic) {
     const auto params_hash = prog_node.get_kernel_impl_params()->hash();
 
     ASSERT_EQ(primitive_hash, 8009877756431655269UL);
-    ASSERT_EQ(params_hash, 2966249915421110547UL);
+    ASSERT_EQ(params_hash, 5997261677234251325UL);
 }
 
 TEST(check_hash_value, permute_basic) {
     auto& engine = get_test_engine();
 
-    auto input = engine.allocate_memory({ data_types::f32, format::bfyx,{ 2, 2, 3, 2 } });
+    auto input = engine.allocate_memory({ { 2, 2, 3, 2 }, data_types::f32, format::bfyx });
 
     auto key_prim_id = "permute";
     topology topology(
@@ -155,7 +155,7 @@ TEST(check_hash_value, permute_basic) {
     const auto params_hash = prog_node.get_kernel_impl_params()->hash();
 
     ASSERT_EQ(primitive_hash, 4658575237077439700UL);
-    ASSERT_EQ(params_hash, 4319508487906266226UL);
+    ASSERT_EQ(params_hash, 17614582924449795856UL);
 }
 
 TEST(check_hash_value, reorder_basic) {
@@ -166,8 +166,8 @@ TEST(check_hash_value, reorder_basic) {
     const int32_t y_in = 4;
     const int32_t x_in = 8 * 2;
 
-    auto input = engine.allocate_memory({ data_types::f32, format::bfyx, { b_in,f_in,x_in,y_in } });
-    layout output_layout(data_types::f32, format::b_fs_yx_fsv16, { b_in,f_in,x_in,y_in });
+    auto input = engine.allocate_memory({ { b_in,f_in,y_in,x_in }, data_types::f32, format::bfyx });
+    layout output_layout({ b_in,f_in,y_in,x_in }, data_types::f32, format::b_fs_yx_fsv16);
 
     auto key_prim_id = "reorder";
     topology topology(
@@ -184,13 +184,13 @@ TEST(check_hash_value, reorder_basic) {
     const auto params_hash = prog_node.get_kernel_impl_params()->hash();
 
     ASSERT_EQ(primitive_hash, 16293979194373117693UL);
-    ASSERT_EQ(params_hash, 1719378641386629286UL);
+    ASSERT_EQ(params_hash, 3697547102322623168UL);
 }
 
 TEST(check_hash_value, reshape_basic) {
     auto& engine = get_test_engine();
 
-    auto input = engine.allocate_memory({ data_types::f32, format::bfyx, { 1, 1, 2, 2 } });
+    auto input = engine.allocate_memory({ { 1, 1, 2, 2 }, data_types::f32, format::bfyx });
 
     auto key_prim_id = "reshape";
     topology topology;
@@ -210,15 +210,15 @@ TEST(check_hash_value, reshape_basic) {
     const auto params_hash = prog_node.get_kernel_impl_params()->hash();
 
     ASSERT_EQ(primitive_hash, 1534749073560581535UL);
-    ASSERT_EQ(params_hash, 1686780870642992006UL);
+    ASSERT_EQ(params_hash, 11227242497540193830UL);
 }
 
 TEST(check_hash_value, conv_basic) {
     auto& engine = get_test_engine();
 
-    auto input = engine.allocate_memory({ data_types::f32, format::bfzyx, { 1, 1, 4, 4, 4 } });
-    auto weights = engine.allocate_memory({ data_types::f32, format::bfzyx, { 1, 1, 2, 2, 2 } });
-    auto biases = engine.allocate_memory({ data_types::f32, format::bfyx, { 1, 1, 1, 1, 1 } });
+    auto input = engine.allocate_memory({ { 1, 1, 4, 4, 4 }, data_types::f32, format::bfzyx });
+    auto weights = engine.allocate_memory({ { 1, 1, 2, 2, 2 }, data_types::f32, format::bfzyx });
+    auto biases = engine.allocate_memory({ { 1, 1, 1, 1 }, data_types::f32, format::bfyx });
 
     auto key_prim_id = "convolution";
     topology topology(
@@ -237,17 +237,17 @@ TEST(check_hash_value, conv_basic) {
     const auto params_hash = prog_node.get_kernel_impl_params()->hash();
 
     ASSERT_EQ(primitive_hash, 14591385718963138714UL);
-    ASSERT_EQ(params_hash, 6876197578014654797UL);
+    ASSERT_EQ(params_hash, 14648650631759496785UL);
 }
 
 TEST(check_hash_value, quantize_basic) {
     auto& engine = get_test_engine();
 
-    auto input = engine.allocate_memory({data_types::f32, format::bfyx, {1, 16, 2, 2}});
-    auto input_low = engine.allocate_memory({ data_types::f32,format::bfyx,{ 1, 16, 1, 1 } });
-    auto input_high = engine.allocate_memory({ data_types::f32,format::bfyx,{ 1, 16, 1, 1 } });
-    auto output_low = engine.allocate_memory({ data_types::f32,format::bfyx,{ 1, 1, 1, 1 } });
-    auto output_high = engine.allocate_memory({ data_types::f32,format::bfyx,{ 1, 1, 1, 1 } });
+    auto input = engine.allocate_memory({ {1, 16, 2, 2}, data_types::f32, format::bfyx });
+    auto input_low = engine.allocate_memory({ { 1, 16, 1, 1 }, data_types::f32,format::bfyx });
+    auto input_high = engine.allocate_memory({ { 1, 16, 1, 1 }, data_types::f32,format::bfyx });
+    auto output_low = engine.allocate_memory({ { 1, 1, 1, 1 }, data_types::f32,format::bfyx });
+    auto output_high = engine.allocate_memory({ { 1, 1, 1, 1 }, data_types::f32,format::bfyx });
 
     auto key_prim_id = "quantize";
     topology topology;
@@ -270,5 +270,5 @@ TEST(check_hash_value, quantize_basic) {
     const auto params_hash = prog_node.get_kernel_impl_params()->hash();
 
     ASSERT_EQ(primitive_hash, 4135863035456568493UL);
-    ASSERT_EQ(params_hash, 13898649554943348250UL);
+    ASSERT_EQ(params_hash, 11586366692713421904UL);
 }

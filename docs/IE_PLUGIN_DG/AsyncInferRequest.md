@@ -21,6 +21,7 @@ OpenVINO Runtime Plugin API provides the base ov::IAsyncInferRequest class for a
 Class Fields
 ++++++++++++
 
+* ``m_cancel_callback`` - a callback which allows to interrupt the execution
 * ``m_wait_executor`` - a task executor that waits for a response from a device about device tasks completion
 
 .. note::  
@@ -55,6 +56,7 @@ The stages are distributed among two task executors in the following way:
 
 In the asynchronous request destructor, it is necessary to wait for a pipeline to finish. It can be done using the ov::IAsyncInferRequest::stop_and_wait method of the base class.
 
+<<<<<<< HEAD
 .. doxygensnippet:: openvino/src/plugins/template/src/async_infer_request.cpp
    :language: cpp
    :fragment: [async_infer_request:dtor]
@@ -70,3 +72,12 @@ The method allows to cancel the infer request execution:
 
 @endsphinxdirective
 
+=======
+@snippet src/async_infer_request.cpp async_infer_request:dtor
+
+### cancel()
+
+The method allows to cancel the infer request execution:
+
+@snippet src/async_infer_request.cpp async_infer_request:cancel
+>>>>>>> master

@@ -77,7 +77,9 @@ protected:
     ov::AnyMap configuration;
     std::shared_ptr<ov::Model> function;
 
-    void set_api_entity() override { api_entity = ov::test::utils::ov_entity::ov_compiled_model; }
+    void set_api_entity() override {
+        api_entity = ov::test::utils::ov_entity::ov_compiled_model;
+    }
 };
 
 using OVAutoExecutableNetworkTest = OVCompiledModelBaseTest;
@@ -147,8 +149,6 @@ TEST(OVCompiledModelBaseTest, canCompileModelToDefaultDevice) {
     EXPECT_NO_THROW(auto execNet = core->compile_model(function));
 }
 
-
-
 TEST_P(OVCompiledModelBaseTestOptional, canCompileModelAndCreateInferRequest) {
     auto execNet = core->compile_model(function, target_device, configuration);
     EXPECT_NO_THROW(auto req = execNet.create_infer_request());
@@ -201,8 +201,7 @@ TEST_P(OVCompiledModelBaseTest, CanGetOutputsInfoAndCheck) {
     }
     auto results = function->get_results();
     for (const auto& param : results) {
-        EXPECT_NE(std::find(resVec.begin(), resVec.end(), param->get_output_tensor(0).get_any_name()),
-                  resVec.end());
+        EXPECT_NE(std::find(resVec.begin(), resVec.end(), param->get_output_tensor(0).get_any_name()), resVec.end());
     }
 }
 
@@ -218,7 +217,7 @@ TEST_P(OVCompiledModelBaseTestOptional, CheckExecGraphInfoBeforeExecution) {
     int constCnt = 0;
 
     std::shared_ptr<const ngraph::Function> getFunction = std::dynamic_pointer_cast<const ngraph::Function>(execGraph);
-    EXPECT_NE(getFunction, nullptr);
+    ASSERT_NE(getFunction, nullptr);
 
     for (const auto& op : getFunction->get_ops()) {
         const ov::RTMap& rtInfo = op->get_rt_info();
@@ -260,6 +259,7 @@ TEST_P(OVCompiledModelBaseTestOptional, CheckExecGraphInfoAfterExecution) {
     std::shared_ptr<const ov::Model> execGraph;
     // Load CNNNetwork to target plugins
     auto execNet = core->compile_model(function, target_device, configuration);
+    execNet.create_infer_request().infer();
     EXPECT_NO_THROW(execGraph = execNet.get_runtime_model());
     std::map<std::string, int> originalLayersMap;
     for (const auto& layer : function->get_ops()) {
@@ -269,7 +269,7 @@ TEST_P(OVCompiledModelBaseTestOptional, CheckExecGraphInfoAfterExecution) {
     // Store all the layers from the executable graph information represented as CNNNetwork
     bool hasOpWithValidTime = false;
     auto getFunction = std::dynamic_pointer_cast<const ngraph::Function>(execGraph);
-    EXPECT_NE(nullptr, getFunction);
+    ASSERT_NE(nullptr, getFunction);
 
     for (const auto& op : getFunction->get_ops()) {
         const auto& rtInfo = op->get_rt_info();
@@ -640,6 +640,21 @@ TEST_P(OVCompiledModelBaseTest, loadIncorrectV11Model) {
         function->set_friendly_name("SimpleReLU");
     }
     EXPECT_NO_THROW(core->compile_model(function, target_device, configuration));
+}
+
+TEST_P(OVCompiledModelBaseTest, canLoadCorrectNetworkToGetExecutableWithIncorrectConfig) {
+    std::map<std::string, ov::Any> config = {{"abc", "def"}};
+    for (const auto& confItem : configuration) {
+        config.emplace(confItem.first, confItem.second);
+    }
+    bool is_meta_devices =
+        target_device.find("AUTO") != std::string::npos || target_device.find("MULTI") != std::string::npos ||
+        target_device.find("HETERO") != std::string::npos;
+    if (is_meta_devices) {
+        EXPECT_NO_THROW(auto execNet = core->compile_model(function, target_device, config));
+    } else {
+        EXPECT_ANY_THROW(auto execNet = core->compile_model(function, target_device, config));
+    }
 }
 
 TEST_P(OVAutoExecutableNetworkTest, AutoNotImplementedSetConfigToExecNet) {

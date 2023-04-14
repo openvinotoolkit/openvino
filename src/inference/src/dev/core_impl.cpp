@@ -848,11 +848,6 @@ void ov::CoreImpl::apply_auto_batching(const std::shared_ptr<const ov::Model>& m
                 config.erase(batch_mode);
             if (disabled)
                 return;
-        } else if (!coreConfig.get_allow_auto_batch()) {
-            if (is_virtual_device(deviceName)) {
-                config[ov::hint::allow_auto_batching.name()] = coreConfig.get_allow_auto_batch();
-            }
-            return;
         }
 
         // check whether if the Auto-Batching is applicable to the device
@@ -921,9 +916,6 @@ ov::Any ov::CoreImpl::get_property_for_core(const std::string& name) const {
         return decltype(ov::force_tbb_terminate)::value_type(flag);
     } else if (name == ov::cache_dir.name()) {
         return ov::Any(coreConfig.get_cache_dir());
-    } else if (name == ov::hint::allow_auto_batching.name()) {
-        const auto flag = coreConfig.get_allow_auto_batch();
-        return decltype(ov::hint::allow_auto_batching)::value_type(flag);
     } else if (name == ov::enable_mmap.name()) {
         const auto flag = coreConfig.get_enable_mmap();
         return decltype(ov::enable_mmap)::value_type(flag);
@@ -1295,13 +1287,6 @@ void ov::CoreImpl::CoreConfig::set_and_update(ov::AnyMap& config) {
         config.erase(it);
     }
 
-    it = config.find(ov::hint::allow_auto_batching.name());
-    if (it != config.end()) {
-        auto flag = it->second.as<bool>();
-        _flag_allow_auto_batching = flag;
-        config.erase(it);
-    }
-
     it = config.find(ov::enable_mmap.name());
     if (it != config.end()) {
         auto flag = it->second.as<bool>();
@@ -1318,10 +1303,6 @@ void ov::CoreImpl::CoreConfig::set_cache_dir_for_device(const std::string& dir, 
 std::string ov::CoreImpl::CoreConfig::get_cache_dir() const {
     std::lock_guard<std::mutex> lock(_cacheConfigMutex);
     return _cacheConfig._cacheDir;
-}
-
-bool ov::CoreImpl::CoreConfig::get_allow_auto_batch() const {
-    return _flag_allow_auto_batching;
 }
 
 bool ov::CoreImpl::CoreConfig::get_enable_mmap() const {
