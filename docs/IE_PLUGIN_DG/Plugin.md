@@ -201,7 +201,7 @@ information must be stored and checked during the import.
 create_context()
 ++++++++++++++++
 
-The Plugin should implement ``Plugin::create_context()`` method which returns `ov::RemoteContext` in case if plugin supports remote context, in other case the plugin can throw an exception that this method is not implemented.
+The Plugin should implement ``Plugin::create_context()`` method which returns ``ov::RemoteContext`` in case if plugin supports remote context, in other case the plugin can throw an exception that this method is not implemented.
 
 .. doxygensnippet:: src/plugins/template/src/plugin.cpp
    :language: cpp
