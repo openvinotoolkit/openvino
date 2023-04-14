@@ -530,17 +530,29 @@ inline void update_output_tensors(const ngraph::HostTensorVector& output_values,
 
 bool ov::Model::evaluate(const HostTensorVector& output_tensors,
                          const HostTensorVector& input_tensors,
-                         EvaluationContext evaluation_context) const {
+                         EvaluationContext& evaluation_context) const {
     ov::TensorVector outputs = create_tmp_tensors(output_tensors);
     ov::TensorVector inputs = create_tmp_tensors(input_tensors);
-    bool sts = evaluate(outputs, inputs, std::move(evaluation_context));
+    bool sts = evaluate(outputs, inputs, evaluation_context);
     update_output_tensors(output_tensors, outputs);
     return sts;
 }
 
+bool ov::Model::evaluate(const HostTensorVector& output_tensors, const HostTensorVector& input_tensors) const {
+    ov::EvaluationContext evaluation_context;
+    OPENVINO_SUPPRESS_DEPRECATED_START
+    return evaluate(output_tensors, input_tensors, evaluation_context);
+    OPENVINO_SUPPRESS_DEPRECATED_END
+}
+
+bool ov::Model::evaluate(ov::TensorVector& output_tensors, const ov::TensorVector& input_tensors) const {
+    ov::EvaluationContext evaluation_context;
+    return evaluate(output_tensors, input_tensors, evaluation_context);
+}
+
 bool ov::Model::evaluate(ov::TensorVector& output_tensors,
                          const ov::TensorVector& input_tensors,
-                         ov::EvaluationContext evaluation_context) const {
+                         ov::EvaluationContext& evaluation_context) const {
     evaluation_context.emplace("VariableContext", ov::op::util::VariableContext());
     std::map<RawNodeOutput, ov::Tensor> value_map;
     for (size_t i = 0; i < m_parameters.size(); ++i) {
