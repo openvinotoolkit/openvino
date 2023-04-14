@@ -51,7 +51,7 @@ TEST(handle_reshape, dont_remove_reshape_that_changes_rank) {
     ASSERT_TRUE(prog->get_node("reshape").can_be_optimized());
 }
 
-TEST(handle_reshape, no_change_input_data_type_for_onednn_user) {
+TEST(handle_reshape, skip_reorder_node_to_split_when_onndnn_not_support) {
     auto& engine = get_test_engine();
     if (!engine.get_device_info().supports_immad)
         return;
