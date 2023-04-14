@@ -9,10 +9,25 @@
 namespace ov {
 namespace intel_cpu {
 
-class FullyConnectedBiasFusion : public ngraph::pass::MatcherPass {
+class NonQuantizedFullyConnectedBiasFusion : public ngraph::pass::MatcherPass {
+public:
+    OPENVINO_RTTI("NonQuantizedFullyConnectedBiasFusion", "0");
+    NonQuantizedFullyConnectedBiasFusion();
+};
+
+class QuantizedFullyConnectedBiasFusion : public ngraph::pass::MatcherPass {
+public:
+    OPENVINO_RTTI("FullyConnectedDQBiasFusion", "0");
+    QuantizedFullyConnectedBiasFusion();
+};
+
+class FullyConnectedBiasFusion : public ngraph::pass::GraphRewrite {
 public:
     OPENVINO_RTTI("FullyConnectedBiasFusion", "0");
-    FullyConnectedBiasFusion();
+    FullyConnectedBiasFusion() {
+        add_matcher<NonQuantizedFullyConnectedBiasFusion>();
+        add_matcher<QuantizedFullyConnectedBiasFusion>();
+    }
 };
 
 }   // namespace intel_cpu
