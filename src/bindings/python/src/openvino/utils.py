@@ -6,10 +6,11 @@ import os
 import sys
 from functools import wraps
 from typing import Callable, Any
+import warnings
 
 
-def add_openvino_libs_to_path() -> None:
-    """Adds OpenVINO libraries to the PATH environment variable on Windows."""
+def _add_openvino_libs_to_search_path() -> None:
+    """Add OpenVINO libraries to the DLL search path on Windows."""
     if sys.platform == "win32":
         # Installer, yum, pip installs openvino dlls to the different directories
         # and those paths need to be visible to the openvino modules
@@ -36,6 +37,12 @@ def add_openvino_libs_to_path() -> None:
                     os.add_dll_directory(os.path.abspath(lib_path))
                 else:
                     os.environ["PATH"] = os.path.abspath(lib_path) + ";" + os.environ["PATH"]
+
+
+def add_openvino_libs_to_path() -> None:
+    warnings.warn("add_openvino_libs_to_path function was implemented for internal usage only "
+                  "and will be removed in the 2023.2 release.", DeprecationWarning, stacklevel=2)
+    _add_openvino_libs_to_search_path()
 
 
 def deprecated(version: str = "", message: str = "") -> Callable[..., Any]:
