@@ -143,13 +143,11 @@ def get_convert_model_help_specifics():
 
 # TODO: remove this when internal converting of params to string is removed
 def get_to_string_methods_for_params():
-    from openvino.tools.mo.utils.cli_parser import path_to_str_or_object, input_shape_to_str, str_list_to_str, \
+    from openvino.tools.mo.utils.cli_parser import path_to_str_or_object, str_list_to_str, \
         mean_scale_value_to_str, source_target_layout_to_str, layout_param_to_str, transform_param_to_str, \
-        extensions_to_str_or_extensions_class, batch_to_int, transformations_config_to_str, input_to_str
+        extensions_to_str_or_extensions_class, batch_to_int, transformations_config_to_str
     return {
         'input_model': path_to_str_or_object,
-        'input_shape': input_shape_to_str,
-        'input': input_to_str,
         'output': str_list_to_str,
         'mean_values': mean_scale_value_to_str,
         'scale_values': mean_scale_value_to_str,
