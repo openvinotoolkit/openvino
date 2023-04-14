@@ -517,6 +517,11 @@ bool Snippet::canBeInPlace() const {
     if (getChildEdges().size() != 1) {
         return false;
     }
+    // TODO [108485]: At the moment, Snippets support domain sensitive ops only in MHA Pattern that doesn't support inplace.
+    //                Need to generalize inplace logic, when Snippets support these nodes as separate Subgraphs
+    if (snippet->has_domain_sensitive_ops()) {
+        return false;
+    }
 
     for (auto& parentEdge : getParentEdges()) {
         auto parent = parentEdge.lock()->getParent();
