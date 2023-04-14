@@ -42,6 +42,12 @@ protected:
     void SetUp() override;
 };
 
+class MHAReshapes : public MHA {
+protected:
+    void SetUp() override;
+};
+
+
 } // namespace snippets
 } // namespace test
 } // namespace ov

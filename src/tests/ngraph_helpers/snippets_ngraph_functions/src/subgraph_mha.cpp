@@ -343,6 +343,50 @@ std::shared_ptr<ov::Model> MHAWOTransposeOnInputsFunction::initOriginal() const 
     return std::make_shared<ov::Model>(results, ngraphParam, "mha");
 }
 
+std::shared_ptr<ov::Model> MHAReshapesFunction::initOriginal() const {
+    auto param0 = std::make_shared<ngraph::opset1::Parameter>(precision, input_shapes[0]);
+    auto param1 = std::make_shared<ngraph::opset1::Parameter>(precision, input_shapes[1]);
+    auto param2 = std::make_shared<ngraph::opset1::Parameter>(precision, input_shapes[2]);
+    ngraph::ParameterVector ngraphParam = {param0, param1, param2};
+
+    auto make_roll = [](const ov::Output<ov::Node>& output) {
+        auto axes = ngraph::builder::makeConstant(ngraph::element::i64, ov::Shape({1}), std::vector<int64_t>{1});
+        auto shift = ngraph::builder::makeConstant(ngraph::element::i64, ov::Shape({1}), std::vector<int64_t>{1});
+        return ngraph::builder::makeRoll(output, axes, shift);
+    };
+
+    auto unsqueeze_shape = [](const ov::Shape& shape) {
+        ov::Shape new_shape = shape;
+        new_shape.insert(new_shape.begin(), 1);
+        return new_shape;
+    };
+
+    auto roll0 = make_roll(param0);
+    auto roll1 = make_roll(param1);
+    auto roll2 = make_roll(param2);
+    auto reshape0Const = ngraph::builder::makeConstant(ngraph::element::i64, ov::Shape({4}), unsqueeze_shape(input_shapes[0].get_shape()));
+    auto reshape1Const = ngraph::builder::makeConstant(ngraph::element::i64, ov::Shape({4}), unsqueeze_shape(input_shapes[1].get_shape()));
+    auto reshape2Const = ngraph::builder::makeConstant(ngraph::element::i64, ov::Shape({4}), unsqueeze_shape(input_shapes[2].get_shape()));
+    auto reshape0 = std::make_shared<ov::op::v1::Reshape>(roll0, reshape0Const, false);
+    auto reshape1 = std::make_shared<ov::op::v1::Reshape>(roll1, reshape1Const, false);
+    auto reshape2 = std::make_shared<ov::op::v1::Reshape>(roll2, reshape2Const, false);
+
+    const auto matMul0 = std::make_shared<ngraph::opset3::MatMul>(reshape0, reshape1);
+    const auto softmax = std::make_shared<ngraph::opset8::Softmax>(matMul0, -1);
+    const auto matMul1 = std::make_shared<ngraph::opset3::MatMul>(softmax, reshape2);
+
+    auto shape = matMul1->get_output_shape(0);
+    auto reshape3Const = ngraph::builder::makeConstant(ngraph::element::i64, ov::Shape({3}),
+                                                       std::vector<int64_t>{-1,
+                                                                            static_cast<int64_t>(shape[shape.size() - 2]),
+                                                                            static_cast<int64_t>(shape[shape.size() - 1])});
+    auto reshape3 = std::make_shared<ov::op::v1::Reshape>(matMul1, reshape3Const, false);
+    auto roll3 = make_roll(reshape3);
+
+    ngraph::ResultVector results{std::make_shared<ngraph::opset1::Result>(roll3)};
+    return std::make_shared<ov::Model>(results, ngraphParam, "mha");
+}
+
 }  // namespace snippets
 }  // namespace test
 }  // namespace ov

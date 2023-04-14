@@ -104,6 +104,21 @@ void MHAWOTransposeOnInputs::SetUp() {
     }
 }
 
+void MHAReshapes::SetUp() {
+    std::vector<ov::PartialShape> inputShapes;
+    bool withMul;
+    std::tie(inputShapes, withMul, ref_num_nodes, ref_num_subgraphs, targetDevice) = this->GetParam();
+    init_input_shapes(static_partial_shapes_to_test_representation(inputShapes));
+
+    auto f = ov::test::snippets::MHAReshapesFunction(inputDynamicShapes);
+    function = f.getOriginal();
+
+    if (!configuration.count(InferenceEngine::PluginConfigInternalParams::KEY_SNIPPETS_MODE)) {
+        configuration.insert({InferenceEngine::PluginConfigInternalParams::KEY_SNIPPETS_MODE,
+                              InferenceEngine::PluginConfigInternalParams::IGNORE_CALLBACK});
+    }
+}
+
 
 TEST_P(MHA, CompareWithRefImpl) {
     run();
@@ -116,6 +131,11 @@ TEST_P(MHASelect, CompareWithRefImpl) {
 }
 
 TEST_P(MHAWOTransposeOnInputs, CompareWithRefImpl) {
+    run();
+    validateNumSubgraphs();
+}
+
+TEST_P(MHAReshapes, CompareWithRefImpl) {
     run();
     validateNumSubgraphs();
 }

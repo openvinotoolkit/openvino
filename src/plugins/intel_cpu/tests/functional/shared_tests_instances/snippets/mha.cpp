@@ -60,6 +60,20 @@ INSTANTIATE_TEST_SUITE_P(smoke_Snippets_MHAWOTransposeOnInputs, MHAWOTransposeOn
                                  ::testing::Values(CommonTestUtils::DEVICE_CPU)),
                          MHA::getTestCaseName);
 
+const std::vector<std::vector<ov::PartialShape>> inputShapesWithReshapes = {
+        {{12, 197, 64}, {12, 64, 197}, {12, 197, 64}}  // check InPlace in Plugin
+};
+
+
+INSTANTIATE_TEST_SUITE_P(smoke_Snippets_MHAReshapes, MHAReshapes,
+                         ::testing::Combine(
+                                 ::testing::ValuesIn(inputShapesWithReshapes),
+                                 ::testing::ValuesIn({false}),  // without multiply
+                                 ::testing::Values(9), // 4 Rolls + 4 Reshapes + 1 MHA (Reorder for inplace conflict resolving between
+                                 ::testing::Values(1), //                               Reshape0 and first input of Subgraph must be missed since
+                                 ::testing::Values(CommonTestUtils::DEVICE_CPU)),  //   Subgraph with MHA doesn't support inplace on first input port)
+                         MHA::getTestCaseName);
+
 
 } // namespace
 } // namespace snippets

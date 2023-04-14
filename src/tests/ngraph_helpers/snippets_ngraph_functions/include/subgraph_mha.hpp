@@ -126,6 +126,32 @@ protected:
     std::shared_ptr<ov::Model> initOriginal() const override;
 };
 
+/* Graph:
+ *  Roll      Roll
+ *    |        |
+ * Reshape  Reshape      
+ *       \     /
+ *       MatMul0     Roll
+ *          |         /
+ *       Softmax  Reshape
+ *           \      /
+ *            MatMul1
+ *               |
+ *            Reshape
+ *               |
+ *              Roll
+ * Note: Reshapes increase rank of Shape: from 3D to 4D
+ *       Use Roll instead of Transposes to avoid extra tokenization of Transposes
+ */
+class MHAReshapesFunction : public SnippetsFunctionBase {
+public:
+    explicit MHAReshapesFunction(const std::vector<PartialShape>& inputShapes) : SnippetsFunctionBase(inputShapes) {
+        NGRAPH_CHECK(input_shapes.size() == 3, "Got invalid number of input shapes");
+    }
+protected:
+    std::shared_ptr<ov::Model> initOriginal() const override;
+};
+
 }  // namespace snippets
 }  // namespace test
 }  // namespace ov
