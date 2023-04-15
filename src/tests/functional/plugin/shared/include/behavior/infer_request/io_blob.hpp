@@ -242,7 +242,7 @@ TEST_P(InferRequestIOBBlobTest, secondCallGetInputDoNotReAllocateData) {
     ASSERT_NO_THROW(req = execNet.CreateInferRequest());
     ASSERT_NO_THROW(blob1 = req.GetBlob(cnnNet.getInputsInfo().begin()->first));
     ASSERT_NO_THROW(blob2 = req.GetBlob(cnnNet.getInputsInfo().begin()->first));
-    ASSERT_EQ(blob1.get(), blob2.get());
+    ASSERT_EQ(blob1.get()->buffer(), blob2.get()->buffer());
 }
 
 TEST_P(InferRequestIOBBlobTest, secondCallGetOutputDoNotReAllocateData) {
@@ -252,7 +252,7 @@ TEST_P(InferRequestIOBBlobTest, secondCallGetOutputDoNotReAllocateData) {
     ASSERT_NO_THROW(req = execNet.CreateInferRequest());
     ASSERT_NO_THROW(blob1 = req.GetBlob(cnnNet.getOutputsInfo().begin()->first));
     ASSERT_NO_THROW(blob2 = req.GetBlob(cnnNet.getOutputsInfo().begin()->first));
-    ASSERT_EQ(blob1.get(), blob2.get());
+    ASSERT_EQ(blob1.get()->buffer(), blob2.get()->buffer());
 }
 
 TEST_P(InferRequestIOBBlobTest, secondCallGetInputAfterInferSync) {
@@ -264,7 +264,7 @@ TEST_P(InferRequestIOBBlobTest, secondCallGetInputAfterInferSync) {
     ASSERT_NO_THROW({ req.StartAsync(); req.Wait(); });
     ASSERT_NO_THROW(blob1 = req.GetBlob(cnnNet.getInputsInfo().begin()->first));
     ASSERT_NO_THROW(blob2 = req.GetBlob(cnnNet.getInputsInfo().begin()->first));
-    ASSERT_EQ(blob1.get(), blob2.get());
+    ASSERT_EQ(blob1.get()->buffer(), blob2.get()->buffer());
 }
 
 TEST_P(InferRequestIOBBlobTest, secondCallGetOutputAfterInferSync) {
@@ -276,7 +276,7 @@ TEST_P(InferRequestIOBBlobTest, secondCallGetOutputAfterInferSync) {
     ASSERT_NO_THROW({ req.StartAsync(); req.Wait(); });
     ASSERT_NO_THROW(blob1 = req.GetBlob(cnnNet.getOutputsInfo().begin()->first));
     ASSERT_NO_THROW(blob2 = req.GetBlob(cnnNet.getOutputsInfo().begin()->first));
-    ASSERT_EQ(blob1.get(), blob2.get());
+    ASSERT_EQ(blob1.get()->buffer(), blob2.get()->buffer());
 }
 
 TEST_P(InferRequestIOBBlobTest, canSetInputBlobForInferRequest) {
@@ -299,7 +299,7 @@ TEST_P(InferRequestIOBBlobTest, canSetOutputBlobForInferRequest) {
     ASSERT_NO_THROW(req.SetBlob(cnnNet.getOutputsInfo().begin()->first, outputBlob));
     std::shared_ptr<InferenceEngine::Blob> actualBlob;
     ASSERT_NO_THROW(actualBlob = req.GetBlob(cnnNet.getOutputsInfo().begin()->first));
-    ASSERT_EQ(outputBlob.get(), actualBlob.get());
+    ASSERT_EQ(outputBlob.get()->buffer(), actualBlob.get()->buffer());
 }
 
 TEST_P(InferRequestIOBBlobTest, canInferWithSetInOutBlobs) {
