@@ -219,10 +219,6 @@ class DependencyGraph(Graph):
 def need_exclude_class(class_type, excluded_frameworks):
     for framework in excluded_frameworks:
         if "." + framework + "." in str(class_type):
-            # FakeQuantWithMinMaxVarsToQuantize is in TF group, but it is applied in all framework pipelines and
-            # should not be excluded
-            if "FakeQuantWithMinMaxVarsToQuantize" in str(class_type):
-                return False
             return True
     return False
 
