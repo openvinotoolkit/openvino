@@ -71,7 +71,7 @@ class TestArgSort(PytorchLayerTest):
     ])
     @pytest.mark.nightly
     @pytest.mark.precommit
-    def test_argsort(self, tensor_stable_pair, descending, stable, ie_device, precision, ir_version):
+    def test_argsort(self, tensor_stable_pair, descending, ie_device, precision, ir_version):
         self.input_tensor, stable = tensor_stable_pair
         dims = len(self.input_tensor.shape)
         for dim in range(-dims, dims):
