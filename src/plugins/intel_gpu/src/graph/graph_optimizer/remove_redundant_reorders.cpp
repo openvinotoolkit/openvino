@@ -287,8 +287,7 @@ void remove_redundant_reorders::run(program& p) {
             // If the newly aligned pad is merged into output layout during post_optimize_graph phase
             // and then buffer is reinterpreted, user node cannot handle pad properly for kernel execution
             if (!update_implementations || (i_layout.feature() % 16 == 0 &&
-                i_layout.data_padding.upper_size() == (tensor)0 && i_layout.data_padding.lower_size() == (tensor)0 &&
-                o_layout.data_padding.upper_size() == (tensor)0 && o_layout.data_padding.lower_size() == (tensor)0)) {
+                i_layout.data_padding == padding() && o_layout.data_padding == padding())) {
                 r_node.can_be_optimized(true);
                 r_node.requires_reinterpret(true);
 
