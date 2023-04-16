@@ -43,7 +43,7 @@ function(ie_add_onednn)
     endif()
 
     set(SDL_cmake_included ON)  ## to skip internal SDL flags. SDL flags are already set on IE level
-    if (ANDROID OR ((CMAKE_CXX_COMPILER_ID STREQUAL "MSVC") AND NOT (THREADING STREQUAL "OMP")))
+    if (ANDROID OR ((CMAKE_CXX_COMPILER_ID STREQUAL "MSVC" OR OV_COMPILER_IS_CLANG) AND NOT (THREADING STREQUAL "OMP")))
         set(OpenMP_cmake_included ON) ## to skip "omp simd" inside a code. Lead to some crashes inside NDK LLVM..
     endif()
 
@@ -137,7 +137,11 @@ function(ie_add_onednn)
     list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}")
 
     add_subdirectory(onednn EXCLUDE_FROM_ALL)
+
     ov_install_static_lib(dnnl cpu)
+    if(ARM OR AARCH64)
+        ov_install_static_lib(arm_compute_core cpu)
+    endif()
 endfunction()
 
 if(ENABLE_INTEL_CPU)

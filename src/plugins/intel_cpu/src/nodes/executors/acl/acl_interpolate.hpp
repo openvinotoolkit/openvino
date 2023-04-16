@@ -29,7 +29,6 @@ private:
     InterpolateAttrs aclInterpolateAttrs;
     arm_compute::SamplingPolicy acl_coord;
     arm_compute::InterpolationPolicy acl_policy;
-    bool antialias{};
     arm_compute::Tensor srcTensor, dstTensor;
     std::unique_ptr<arm_compute::NEScale> acl_scale;
 };

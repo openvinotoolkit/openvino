@@ -204,6 +204,14 @@ MatMul::MatMul(const std::shared_ptr<ngraph::Node>& op, const GraphContext::CPtr
 }
 
 bool MatMul::canFuse(const NodePtr& node) const {
+    //  Consider the case when Matmul doesn't support execution in int8, but is getting fused with FQ with int8 output.
+    //  Then the Matmul will change its output precision to fp32. If fusing FQ into matmul, there would be reorder inserted
+    //  after matmul. In some bert model, this reorder causes great perf degradation.
+    //  Todo: Remove this if onednn primitive support U8 output with floating input.
+    if (node->getType() == Type::FakeQuantize && one_of(node->getOriginalOutputPrecisionAtPort(0), Precision::I8, Precision::U8) &&
+        !canBeExecutedInInt8(getOriginalInputPrecisionAtPort(0), getOriginalInputPrecisionAtPort(1)) &&
+        getOriginalInputPrecisionAtPort(0) == InferenceEngine::Precision::FP32 )
+        return false;
     return canFuseSimpleOperation(node);
 }
 
@@ -217,7 +225,7 @@ void MatMul::setPostOps(dnnl::primitive_attr& attr, const VectorDims& dims, bool
 
     bool isINT8 = canBeExecutedInInt8(getOriginalInputPrecisionAtPort(0), getOriginalInputPrecisionAtPort(1));
 
-    DnnlPostOpsComposer dnnlpoc(getEngine(), attr, ops, postOpsArgs, dims, dims.size() - 1, isINT8);
+    DnnlPostOpsComposer dnnlpoc(getEngine(), attr, ops, postOpsArgs, dims, dims.size() - 1, isINT8, 1 << (dims.size() - 1), getDQScales(), withBiases);
 
     for (int i = 0; i < fusedWith.size(); ++i) {
         auto& node = fusedWith[i];
