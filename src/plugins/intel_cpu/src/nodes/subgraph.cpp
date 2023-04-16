@@ -23,7 +23,7 @@
 #include <snippets/op/subgraph.hpp>
 #include "snippets/pass/matmul_to_brgemm.hpp"
 #include "utils/cpu_utils.hpp"
-#include "emitters/x64/cpu_generator.hpp"
+//#include "emitters/x64/cpu_generator.hpp"
 #include "transformations/snippets/x64/pass/fuse_load_store_and_convert.hpp"
 #include "transformations/snippets/x64/pass/mul_add_to_fma.hpp"
 #include "transformations/snippets/x64/pass/brgemm_to_brgemm_cpu.hpp"
@@ -100,7 +100,7 @@ void Snippet::copy_snippet() {
     snippet = std::make_shared<ngraph::snippets::op::Subgraph>(subgraph_node_inputs, new_body);
     ngraph::copy_runtime_info(original_snippet, snippet);
     snippet->set_friendly_name(original_snippet->get_friendly_name());
-    snippet->set_generator(std::make_shared<CPUGenerator>(host_isa));
+   // snippet->set_generator(std::make_shared<CPUGenerator>(host_isa));
     isa_num_lanes =  snippet->get_generator()->get_target_machine()->get_lanes();
 }
 
@@ -546,17 +546,18 @@ void Snippet::generate(const jit_snippets_compile_args* jcp) {
         // enforce BF16 precisions to supported operations
         // MatMul has to be decomposed to Brgemm operations before enforcement
         // Note, MatMul decomposition will be ran later again for case if BF16 enforcement is not happened
+        // Note, MatMul decomposition will be ran later again for case if BF16 enforcement is not happened
         pre_dialect.register_pass<ngraph::snippets::pass::MatMulToBrgemm>();
-        pre_dialect.register_pass<pass::EnforcePrecision>(element::f32, element::bf16);
+        //pre_dialect.register_pass<pass::EnforcePrecision>(element::f32, element::bf16);
     }
 
     ov::pass::Manager post_dialect;
-    post_dialect.register_pass<ov::intel_cpu::pass::BrgemmToBrgemmCPU>();
+    //post_dialect.register_pass<ov::intel_cpu::pass::BrgemmToBrgemmCPU>();
 
     ov::pass::Manager post_precision;
-    post_precision.register_pass<ov::intel_cpu::pass::RemoveConverts>();
-    post_precision.register_pass<ov::intel_cpu::pass::FuseLoadConvert>();
-    post_precision.register_pass<ov::intel_cpu::pass::FuseStoreConvert>();
+  //  post_precision.register_pass<ov::intel_cpu::pass::RemoveConverts>();
+   // post_precision.register_pass<ov::intel_cpu::pass::FuseLoadConvert>();
+   // post_precision.register_pass<ov::intel_cpu::pass::FuseStoreConvert>();
     // LoadConvert uses Load emitter that support conversion from any type to only f32
     post_precision.get_pass_config()->set_callback<ov::intel_cpu::pass::FuseLoadConvert>(
             [](const std::shared_ptr<const ov::Node>& n) -> bool {
@@ -571,7 +572,7 @@ void Snippet::generate(const jit_snippets_compile_args* jcp) {
                     return convert->get_input_element_type(0) != ov::element::f32;
                 return true;
             });
-    post_precision.register_pass<ov::intel_cpu::pass::MulAddToFMA>();
+    //post_precision.register_pass<ov::intel_cpu::pass::MulAddToFMA>();
 
     schedule = snippet->generate(
         pre_dialect,

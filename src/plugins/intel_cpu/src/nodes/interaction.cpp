@@ -17,8 +17,8 @@
 #include "common/cpu_memcpy.h"
 #include <ie_ngraph_utils.hpp>
 #include <cpu/x64/cpu_isa_traits.hpp>
-#include <cpu/x64/jit_generator.hpp>
-#include "emitters/x64/jit_dnnl_emitters.hpp"
+//#include <cpu/x64/jit_generator.hpp>
+//#include "emitters/x64/jit_dnnl_emitters.hpp"
 #include "emitters/x64/jit_load_store_emitters.hpp"
 
 using namespace InferenceEngine;
@@ -120,18 +120,19 @@ private:
 #undef GET_OFF
 
     inline void load(const Vmm& vmm_dst, const Xbyak::Reg64& reg_src, Precision src_prc, Precision dst_prc, const int& elt_num, bool fill) {
-        const auto seed = load_emitter_params(src_prc, dst_prc, elt_num, fill, "float_min").hash();
+        const auto seed = 0; // load_emitter_params(src_prc, dst_prc, elt_num, fill, "float_min").hash();
         if (!emitters[seed]) {
-            emitters[seed].reset(new jit_load_emitter(this, isa, src_prc, dst_prc, elt_num, src_prc, fill, "float_min"));
+           // emitters[seed].reset(new jit_load_emitter(this, isa, src_prc, dst_prc, elt_num, src_prc, fill, "float_min"));
         }
 
         emitters[seed]->emit_code({static_cast<size_t>(reg_src.getIdx()), 0}, {static_cast<size_t>(vmm_dst.getIdx())},
                                   pool_aux_vmm_idxs, pool_aux_gpr_idxs);
     }
     inline void store(const Xbyak::Reg64& reg_dst, const Vmm& vmm_src, Precision src_prc, Precision dst_prc, const int& elt_num) {
-        const auto seed = store_emitter_params(src_prc, dst_prc, elt_num).hash();
+        const auto seed = 0;
+        // store_emitter_params(src_prc, dst_prc, elt_num).hash();
         if (!emitters[seed]) {
-            emitters[seed].reset(new jit_store_emitter(this, isa, src_prc, dst_prc, elt_num));
+          //  emitters[seed].reset(new jit_store_emitter(this, isa, src_prc, dst_prc, elt_num));
         }
 
         emitters[seed]->emit_code({static_cast<size_t>(vmm_src.getIdx()), 0}, {static_cast<size_t>(reg_dst.getIdx())},

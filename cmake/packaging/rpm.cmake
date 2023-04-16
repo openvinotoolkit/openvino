@@ -47,8 +47,6 @@ macro(ov_cpack_settings)
            NOT item STREQUAL "pugixml" AND
            # we have copyright file for rpm package
            NOT item STREQUAL OV_CPACK_COMP_LICENSING AND
-           # TODO: remove after CI removes arm_plugin build
-           NOT item STREQUAL "arm_cpu" AND
            # compile_tool is not needed
            NOT item STREQUAL OV_CPACK_COMP_CORE_TOOLS AND
            # not appropriate components
@@ -159,7 +157,7 @@ macro(ov_cpack_settings)
     endif()
 
     # cpu
-    if(ENABLE_INTEL_CPU OR DEFINED openvino_arm_cpu_plugin_SOURCE_DIR)
+    if(ENABLE_INTEL_CPU)
         if(ARM OR AARCH64)
             set(CPACK_RPM_CPU_PACKAGE_NAME "libopenvino-arm-cpu-plugin-${cpack_name_ver}")
             set(CPACK_COMPONENT_CPU_DESCRIPTION "ARM® CPU plugin")

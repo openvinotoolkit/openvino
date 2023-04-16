@@ -11,11 +11,13 @@ set(TARGET_NAME "openvino_intel_cpu_plugin")
 if(CMAKE_COMPILER_IS_GNUCXX)
     ie_add_compiler_flags(-Wno-sign-compare)
 elseif(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
-    # C4267, 4244 issues from mkl-dnn headers conversion from 'XXX' to 'YYY', possible loss of data
+    # C4267, 4244 issues from oneDNN headers conversion from 'XXX' to 'YYY', possible loss of data
     ie_add_compiler_flags(/wd4267)
     ie_add_compiler_flags(/wd4244)
     # mkldnn headers: '<<': result of 32-bit shift implicitly converted to 64 bits
     ie_add_compiler_flags(/wd4334)
+    # oneDNN arm64: unary minus operator applied to unsigned type, result still unsigned
+    ie_add_compiler_flags(/wd4146)
 elseif(OV_COMPILER_IS_CLANG)
     ie_add_compiler_flags(-Wno-delete-non-abstract-non-virtual-dtor)
 endif()

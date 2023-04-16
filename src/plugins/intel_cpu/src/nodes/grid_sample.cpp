@@ -135,11 +135,11 @@ void GridSample::createPrimitive() {
     }
 
     if (x64::mayiuse(x64::avx512_core)) {
-        jitKernel.reset(new GridSampleKernel<x64::avx512_core>(jcp));
+        //jitKernel.reset(new GridSampleKernel<x64::avx512_core>(jcp));
     } else if (x64::mayiuse(x64::avx2)) {
-        jitKernel.reset(new GridSampleKernel<x64::avx2>(jcp));
+        //jitKernel.reset(new GridSampleKernel<x64::avx2>(jcp));
     } else if (x64::mayiuse(x64::sse41)) {
-        jitKernel.reset(new GridSampleKernel<x64::sse41>(jcp));
+        //jitKernel.reset(new GridSampleKernel<x64::sse41>(jcp));
     }
     if (!jitKernel) {
         THROW_ERROR << " could not create JIT kernel.";
