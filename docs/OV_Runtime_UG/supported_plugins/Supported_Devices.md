@@ -110,7 +110,7 @@ Supported Model Formats
 
 For :doc:`Multi-Device <openvino_docs_OV_UG_Running_on_multiple_devices>` and
 :doc:`Heterogeneous <openvino_docs_OV_UG_Hetero_execution>` executions, the supported models formats depends 
-on the actual underlying devices. *Generally, FP16 is preferable as it is most ubiquitous and performant*.
+on the actual underlying devices.
 
 Supported Input Precision
 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
