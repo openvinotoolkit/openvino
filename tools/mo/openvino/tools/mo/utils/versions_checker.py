@@ -14,7 +14,8 @@ os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
 modules = {
     "protobuf": "google.protobuf",
     "test-generator": "generator",
-    "openvino-telemetry": "openvino_telemetry"
+    "openvino-telemetry": "openvino_telemetry",
+    "importlib-metadata": "importlib.metadata"
 }
 critical_modules = ["networkx", "defusedxml", "numpy"]
 
@@ -23,11 +24,14 @@ message = "\nDetected not satisfied dependencies:\n" \
           "Please install required versions of components or run pip installation\n{}"
 
 
-def get_imported_module_version(imported_module):
+def get_imported_module_version(imported_module, name=None):
     """
     Get imported module version
     :return: version(str) or raise AttributeError exception
     """
+    if name == "importlib.metadata":
+        import importlib.metadata
+        return importlib.metadata.version("importlib-metadata")
     version_attrs = ("__version__", "VERSION", "version")
     installed_version = None
     for attr in version_attrs:
@@ -231,6 +235,70 @@ def get_environment_setup(framework):
     return env_setup
 
 
+def log_not_satisfied_dependencies(framework: str, not_satisfied_versions: list, extra_params: dict = None):
+    """
+    Logs not satisfied dependencies list
+    :param framework: framework name
+    :param not_satisfied_versions: list of unsatisfied dependencies
+    :param extra_params: extra parameters for log.error() method
+    """
+
+    if len(not_satisfied_versions) != 0:
+        if framework == 'tf':
+            extra = '[tensorflow]'
+        elif framework == 'tf2':
+            extra = '[tensorflow2]'
+        elif framework is None:
+            extra = ''
+        else:
+            extra = '[{}]'.format(framework)
+        helper_command = "pip install openvino-dev{}".format(extra)
+
+        missed_modules_message = ""
+        for module in not_satisfied_versions:
+            if module[1] == 'package error':
+                log.error('Error happened while importing {} module. It may happen due to unsatisfied requirements of '
+                          'that module. Please run requirements installation script once more.\n'
+                          'Details on module importing failure: {}'.format(module[0], module[3]))
+        for module in not_satisfied_versions:
+            missed_modules_message += "\t{}: {}, {}\n".format(module[0], module[1], module[2])
+        log.error(message.format(missed_modules_message, helper_command), extra=extra_params)
+
+
+def get_requirements_list_from_file(file_name: str, env_setup: dict):
+    """
+    Gets requirements list from .txt file
+    :param file_name: filename of file with requirements
+    :param env_setup: a dictionary of environment variables
+    :return: list of tuples with requirements, for example
+    [('tensorflow', '>=', '1.2.0'), ('networkx', '==', '2.1'), ('numpy', None, None)]
+    """
+    # if MO was run from developer clone requirements are 4 levels out from mo.py
+    requirements_file = os.path.realpath(os.path.join(os.path.dirname(__file__), os.pardir, os.pardir, os.pardir, os.pardir, file_name))
+    if not Path(requirements_file).is_file():
+        # if MO was run from site-packages requirements are at the same level with mo.py file
+        # in site-packages/openvino/tools/mo/requirements.txt
+        requirements_file = os.path.realpath(os.path.join(os.path.dirname(__file__), os.pardir, file_name))
+
+    return get_module_version_list_from_file(requirements_file, env_setup)
+
+
+def check_module_import(module_name, required_version, comparison_sign, not_satisfied_versions):
+    """
+    Checks importing of module and if its version satisfies required_version.
+    If module does not satisfy required_version, the method updates not_satisfied_versions list
+    :param module_name: module name
+    :param required_version: required version
+    :param comparison_sign: comparison sign, for example '>', '>=', '==', etc.
+    :param not_satisfied_versions: List of unsatisfied dependencies
+    """
+    importable_name = modules.get(module_name, module_name)
+    exec("import {}".format(importable_name))
+    installed_version = get_imported_module_version(sys.modules[importable_name], importable_name)
+    version_check(module_name, installed_version, required_version, comparison_sign, not_satisfied_versions)
+    exec("del {}".format(importable_name))
+
+
 def check_requirements(framework=None, silent=True):
     """
     Please do not add parameter type annotations (param:type).
@@ -255,25 +323,34 @@ def check_requirements(framework=None, silent=True):
                           'It is highly recommended to use TensorFlow 2.x.\n',
                           extra={'is_warning': True})
 
+    # Get requirements list
     file_name = "requirements{}.txt".format(framework_suffix)
+    requirements_list = get_requirements_list_from_file(file_name, env_setup)
 
-    # if MO was run from developer clone requirements are 4 levels out from mo.py
-    requirements_file = os.path.realpath(os.path.join(os.path.dirname(__file__), os.pardir, os.pardir, os.pardir, os.pardir, file_name))
-    if not Path(requirements_file).is_file():
-        # if MO was run from site-packages requirements are at the same level with mo.py file
-        # in site-packages/openvino/tools/mo/requirements.txt
-        requirements_file = os.path.realpath(os.path.join(os.path.dirname(__file__), os.pardir, file_name))
+    # Get constraints list
+    constraints_list = get_requirements_list_from_file("../constraints.txt", env_setup)
 
-    requirements_list = get_module_version_list_from_file(requirements_file, env_setup)
+    # Update list of tuples to dict for easier search
+    constraints_dict = {}
+    for constraint in constraints_list:
+        constraints_dict[constraint[0]] = (constraint[1], constraint[2])
+
     not_satisfied_versions = []
     exit_code = 0
     for name, key, required_version in requirements_list:
+        # this check allows to skip "-c ../constraints.txt" line
+        if "constraints.txt" in name:
+            continue
         try:
-            importable_name = modules.get(name, name)
-            exec("import {}".format(importable_name))
-            installed_version = get_imported_module_version(sys.modules[importable_name])
-            version_check(name, installed_version, required_version, key, not_satisfied_versions)
-            exec("del {}".format(importable_name))
+            # If requirements file does not have constraints for the package,
+            # try to get constraints from constraints.txt
+            if key is None and required_version is None:
+                if name in constraints_dict:
+                    key = constraints_dict[name][0]
+                    required_version = constraints_dict[name][1]
+
+            # Check module import and its version
+            check_module_import(name, required_version, key, not_satisfied_versions)
         except (AttributeError, ImportError):
             # we need to raise error only in cases when import of critical modules is failed
             if name in critical_modules:
@@ -292,24 +369,7 @@ def check_requirements(framework=None, silent=True):
             continue
 
     if len(not_satisfied_versions) != 0:
-
-        if framework == 'tf':
-            extra = '[tensorflow]'
-        elif framework == 'tf2':
-            extra = '[tensorflow2]'
-        elif framework is None:
-            extra = ''
-        else:
-            extra = '[{}]'.format(framework)
-        helper_command = "pip install openvino-dev{}".format(extra)
-
-        missed_modules_message = ""
-        for module in not_satisfied_versions:
-            missed_modules_message += "\t{}: {}, {}\n".format(module[0], module[1], module[2])
         if exit_code:
             if not silent:
-                log.error(message.format(missed_modules_message, helper_command))
-        else:
-            if not silent:
-                log.error(message.format(missed_modules_message, helper_command), extra={'is_warning': True})
-    return exit_code
+                log_not_satisfied_dependencies(framework, not_satisfied_versions)
+    return exit_code, not_satisfied_versions

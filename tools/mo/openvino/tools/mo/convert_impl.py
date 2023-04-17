@@ -39,7 +39,7 @@ from openvino.tools.mo.utils.guess_framework import deduce_legacy_frontend_by_na
 from openvino.tools.mo.utils.logger import init_logger, progress_printer
 from openvino.tools.mo.utils.utils import refer_to_faq_msg
 from openvino.tools.mo.utils.telemetry_utils import send_params_info, send_framework_info
-from openvino.tools.mo.utils.versions_checker import check_requirements  # pylint: disable=no-name-in-module
+from openvino.tools.mo.utils.versions_checker import check_requirements, log_not_satisfied_dependencies  # pylint: disable=no-name-in-module
 from openvino.tools.mo.utils.telemetry_utils import get_tid
 from openvino.tools.mo.moc_frontend.check_config import legacy_extensions_used
 from openvino.tools.mo.moc_frontend.pytorch_frontend_utils import get_pytorch_decoder, convert_pytorch_via_onnx
@@ -210,9 +210,9 @@ def arguments_post_parsing(argv: argparse.Namespace):
 
     # For C++ frontends there are no specific Python installation requirements, check only generic ones
     if moc_front_end:
-        ret_code = check_requirements(silent=argv.silent)
+        ret_code, argv.unsatisfied_requirements = check_requirements(silent=argv.silent)
     else:
-        ret_code = check_requirements(framework=argv.framework, silent=argv.silent)
+        ret_code, argv.unsatisfied_requirements = check_requirements(framework=argv.framework, silent=argv.silent)
     if ret_code:
         raise Error('check_requirements exited with return code {}'.format(ret_code))
 
@@ -727,6 +727,7 @@ def _convert(cli_parser: argparse.ArgumentParser, framework, args):
     # Initialize logger with 'ERROR' as default level to be able to form nice messages
     # before arg parser deliver log_level requested by user
     init_logger('ERROR', False)
+    argv = None
     try:
         model_framework = None
         inp_model_is_object = input_model_is_object(args)
@@ -796,4 +797,9 @@ def _convert(cli_parser: argparse.ArgumentParser, framework, args):
         telemetry.send_event('mo', 'conversion_result', 'fail')
         telemetry.end_session('mo')
         telemetry.force_shutdown(1.0)
+
+        # Log unsatisfied requirements only if error occurred and 'silent' is turned off
+        if argv is not None and hasattr(argv, "unsatisfied_requirements"):
+            if len(argv.unsatisfied_requirements) > 0 and not argv.silent:
+                log_not_satisfied_dependencies(framework, argv.unsatisfied_requirements, {'is_warning': True})
         raise e.with_traceback(None)

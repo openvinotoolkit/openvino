@@ -90,6 +90,29 @@ def test_mo_convert_logger():
 
     assert test_log.count("[ SUCCESS ] Total execution time") == 2
 
+    # Check no error happens during importing modules from requirements
+    assert 'Error happened while importing' not in test_log
+    assert 'package error' not in test_log
+
+
+def test_mo_convert_dependencies_check():
+    setup_env()
+    args = [sys.executable,
+            os.path.join(os.path.dirname(__file__), 'convert/dependencies_check_test1_actual.py')]
+
+    # Check that not satisfied dependencies are shown if error happened in convert_model()
+    status = subprocess.run(args, env=os.environ, capture_output=True)
+    test_log = status.stderr.decode("utf-8").replace("\r\n", "\n")
+    assert "Detected not satisfied dependencies:\n	openvino-telemetry: not installed, required: >= 2022.1.0" in test_log
+
+    args = [sys.executable,
+            os.path.join(os.path.dirname(__file__), 'convert/dependencies_check_test2_actual.py')]
+
+    # Check that not satisfied dependencies are not shown if convert_model() successfully converted the model
+    status = subprocess.run(args, env=os.environ, capture_output=True)
+    test_log = status.stdout.decode("utf-8").replace("\r\n", "\n")
+    assert "Detected not satisfied dependencies:" not in test_log
+
 
 def test_rt_info():
     setup_env()
