@@ -202,9 +202,9 @@ protected:
     }
 };
 
-using ExpectFailedGroupConvolutionLayerCPUTest = GroupConvolutionLayerCPUTest;
+using ExpectFallbackGroupConvolutionLayerCPUTest = GroupConvolutionLayerCPUTest;
 
-TEST_P(ExpectFailedGroupConvolutionLayerCPUTest, CompareWithRefs) {
+TEST_P(ExpectFallbackGroupConvolutionLayerCPUTest, CompareWithRefs) {
     run();
     if (isBias) {
         checkBiasFusing(compiledModel);
@@ -1870,29 +1870,29 @@ INSTANTIATE_TEST_SUITE_P(smoke_JIT_AVX512_DW_GroupConv, GroupConvolutionLayerCPU
 /* ============= JIT AVX5122 PLANAR Convolution (not supported with groups) ============= */
 /* ============================================= */
 
-/* ============= expect failed brgemm GroupConvolution  ============= */
-const std::vector<CPUSpecificParams> CPUParams_Failed_Brgemm_2D = {
+/* ============= brgemm GroupConvolution test, expect fallback to other implementation ============= */
+const std::vector<CPUSpecificParams> CPUParams_Fallback_Brgemm_2D = {
         conv_avx512_2D_nspc_brgconv,
         conv_avx512_2D_nspc_brgconv_amx
 };
-const std::vector<CPUSpecificParams> CPUParams_Failed_Brgemm_1D_Small_Shape = {
+const std::vector<CPUSpecificParams> CPUParams_Fallback_Brgemm_1D_Small_Shape = {
         conv_avx512_1D_nspc_brgconv_amx
 };
-const std::vector<groupConvLayerCPUTestParamsSet> BRGEMM_EXPECT_FAILED_GroupConvTestCases = generateSingleGroupConvCPUTestCases(
+const std::vector<groupConvLayerCPUTestParamsSet> BRGEMM_EXPECT_FALLBACK_GroupConvTestCases = generateSingleGroupConvCPUTestCases(
         // channel <= 16
         // https://github.com/openvinotoolkit/oneDNN/blob/6df930dab5ab0a7dfaea6100acd03b479e2fa0a8/src/cpu/x64/jit_brgemm_conv_utils.cpp#L1712
         makeSingleGroupConvCPUTestCases({3, 3}, {1, 1}, {1, 1}, {0, 0}, {0, 0}, ngraph::op::PadType::EXPLICIT,
-                                        4, 1, {5, 5}, 16, 16, CPUParams_Failed_Brgemm_2D, vecPrcConnectParamsFP32),
+                                        4, 1, {5, 5}, 16, 16, CPUParams_Fallback_Brgemm_2D, vecPrcConnectParamsFP32),
         // small shape on amx
         //  https://github.com/openvinotoolkit/oneDNN/blob/6df930dab5ab0a7dfaea6100acd03b479e2fa0a8/src/cpu/x64/jit_brgemm_conv_utils.cpp#L1719
         makeSingleGroupConvCPUTestCases({3}, {1}, {1}, {0}, {0}, ngraph::op::PadType::EXPLICIT,
-                                        4, 1, {3}, 32, 32, CPUParams_Failed_Brgemm_1D_Small_Shape, vecPrcConnectParamsBF16)
+                                        4, 1, {3}, 32, 32, CPUParams_Fallback_Brgemm_1D_Small_Shape, vecPrcConnectParamsBF16)
 );
 
-INSTANTIATE_TEST_SUITE_P(smoke_BRGEMM_EXPECT_FAILED_GroupConv, ExpectFailedGroupConvolutionLayerCPUTest, ::testing::ValuesIn(filterParamsSetForDevice
-(BRGEMM_EXPECT_FAILED_GroupConvTestCases)), ExpectFailedGroupConvolutionLayerCPUTest::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_BRGEMM_EXPECT_FALLBACK_GroupConv, ExpectFallbackGroupConvolutionLayerCPUTest, ::testing::ValuesIn(filterParamsSetForDevice
+(BRGEMM_EXPECT_FALLBACK_GroupConvTestCases)), ExpectFallbackGroupConvolutionLayerCPUTest::getTestCaseName);
 
-/* ============= expect faild GroupConvolution end============= */
+/* ============= brgemm GroupConvolution test, expect fallback to other implementation, end ============= */
 
 } // namespace
 
