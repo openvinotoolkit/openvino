@@ -184,6 +184,7 @@ void SoftMax::prepareParams() {
 
         primitive_desc_iterator itpd = *desc;
 
+        auto itpd_first = itpd;
         while (itpd) {
             impl_desc_type impl_type = parse_impl_name(itpd.impl_info_str());
             if (impl_type == key.implType ||
@@ -195,8 +196,10 @@ void SoftMax::prepareParams() {
                 prim_desc = itpd.get();
                 break;
             }
-            if (!itpd.next_impl())
-                return nullptr;
+            if (!itpd.next_impl()) {
+                prim_desc = itpd_first.get();
+                break;
+            }
         }
         return std::make_shared<DnnlExecutor>(prim_desc);
     };
