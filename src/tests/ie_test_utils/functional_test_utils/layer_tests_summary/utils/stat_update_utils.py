@@ -80,6 +80,6 @@ def update_conformance_test_counters(results: ET.SubElement):
                     op.set("skipped", str(int(op.attrib["skipped"]) + diff))
                     conformance_utils.UTILS_LOGGER.warning(f'{device.tag}: added {diff} skipped tests for {op.tag}')
             update_rel_values(op)
-    update_passrates(results)
+    update_passrates(results.find("results"))
 
 
