@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "snippets/lowered/pass/loop_markup.hpp"
+#include "snippets/lowered/pass/mark_loops.hpp"
 
 #include "snippets/lowered/linear_ir.hpp"
 #include "snippets/lowered/loop_manager.hpp"
@@ -14,10 +14,10 @@ namespace snippets {
 namespace lowered {
 namespace pass {
 
-LoopMarkup::LoopMarkup(size_t vector_size) : Transformation(), m_vector_size(vector_size) {}
+MarkLoops::MarkLoops(size_t vector_size) : Transformation(), m_vector_size(vector_size) {}
 
-bool LoopMarkup::run(LinearIR& linear_ir) {
-    OV_ITT_SCOPED_TASK(ngraph::pass::itt::domains::SnippetsTransform, "Snippets::LoopMarkup")
+bool MarkLoops::run(LinearIR& linear_ir) {
+    OV_ITT_SCOPED_TASK(ngraph::pass::itt::domains::SnippetsTransform, "Snippets::MarkLoops")
     if (linear_ir.empty())
         return false;
 

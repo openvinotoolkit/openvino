@@ -14,16 +14,16 @@ namespace lowered {
 namespace pass {
 
 /**
- * @interface LoadStoreInsertion
+ * @interface InsertLoadStore
  * @brief The pass inserts Load and Store expressions in Linear IR after Parameters, Buffers and before Results, Buffers accordingly.
- *        Note: The pass should be called after LoopFusion and BufferInsertion passes to have all possible data expressions.
+ *        Note: The pass should be called after FuseLoops and InsertBuffers passes to have all possible data expressions.
  * @param m_vector_size - the count of elements for loading/storing
  * @ingroup snippets
  */
-class LoadStoreInsertion : public Transformation {
+class InsertLoadStore : public Transformation {
 public:
-    explicit LoadStoreInsertion(size_t vector_size);
-    OPENVINO_RTTI("LoadStoreInsertion", "Transformation")
+    explicit InsertLoadStore(size_t vector_size);
+    OPENVINO_RTTI("InsertLoadStore", "Transformation")
     bool run(LinearIR& linear_ir) override;
 
 private:

@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "snippets/lowered/pass/buffer_identification.hpp"
+#include "snippets/lowered/pass/indentify_buffers.hpp"
 
 #include "snippets/lowered/linear_ir.hpp"
 #include "snippets/snippets_isa.hpp"
@@ -24,7 +24,7 @@ inline size_t index(size_t col_num, size_t row, size_t col) {
 }
 } // namespace
 
-std::vector<bool> BufferIdentification::create_adjacency_matrix(const LinearIR& linear_ir, const BufferSet& buffers) const {
+std::vector<bool> IdentifyBuffers::create_adjacency_matrix(const LinearIR& linear_ir, const BufferSet& buffers) const {
     // The sync point to check for adjacency is Loop because only in Loop we increment pointers.
     // So if some Buffers in the one Loop have conflict (cannot be inplace: the different ptr increment and data sizes)
     // they are called as adjacent
@@ -111,7 +111,7 @@ std::vector<bool> BufferIdentification::create_adjacency_matrix(const LinearIR& 
     return adj;
 }
 
-auto BufferIdentification::coloring(BufferSet& buffers, std::vector<bool>& adj) -> std::map<size_t, BufferSet> {
+auto IdentifyBuffers::coloring(BufferSet& buffers, std::vector<bool>& adj) -> std::map<size_t, BufferSet> {
     size_t color = 0;
     std::map<size_t, BufferSet> color_groups;
     const auto size = buffers.size();
@@ -156,8 +156,8 @@ auto BufferIdentification::coloring(BufferSet& buffers, std::vector<bool>& adj) 
     return color_groups;
 }
 
-bool BufferIdentification::run(LinearIR& linear_ir) {
-    OV_ITT_SCOPED_TASK(ngraph::pass::itt::domains::SnippetsTransform, "Snippets::BufferIdentification")
+bool IdentifyBuffers::run(LinearIR& linear_ir) {
+    OV_ITT_SCOPED_TASK(ngraph::pass::itt::domains::SnippetsTransform, "Snippets::IdentifyBuffers")
     // Unite Buffers using Graph coloring algorithm.
     // Notes: We identify only Buffer with Intermediate memory because Buffers with new memory are used only in Brgemm case
     //        so these Buffers are always IntermediateBuffer nonadjacent

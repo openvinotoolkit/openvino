@@ -14,14 +14,14 @@ namespace lowered {
 namespace pass {
 
 /**
- * @interface LoopFusion
+ * @interface FuseLoops
  * @brief The pass fuses marking Loops.
  * @ingroup snippets
  */
-class LoopFusion : public Transformation {
+class FuseLoops : public Transformation {
 public:
-    OPENVINO_RTTI("LoopFusion", "Transformation")
-    LoopFusion();
+    OPENVINO_RTTI("FuseLoops", "Transformation")
+    FuseLoops();
     bool run(LinearIR& linear_ir) override;
 
 private:

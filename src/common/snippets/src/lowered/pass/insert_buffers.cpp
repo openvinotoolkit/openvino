@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "snippets/lowered/pass/buffer_insertion.hpp"
+#include "snippets/lowered/pass/insert_buffers.hpp"
 
 #include "snippets/lowered/linear_ir.hpp"
 #include "snippets/lowered/loop_manager.hpp"
@@ -15,10 +15,10 @@ namespace snippets {
 namespace lowered {
 namespace pass {
 
-BufferInsertion::BufferInsertion(int32_t buffer_allocation_rank)
+InsertBuffers::InsertBuffers(int32_t buffer_allocation_rank)
     : Transformation(), m_buffer_allocation_rank(buffer_allocation_rank) {}
 
-LinearIR::constExprIt BufferInsertion::insertion_position(const LinearIR& linear_ir, const LinearIR::LoopManagerPtr& loop_manager,
+LinearIR::constExprIt InsertBuffers::insertion_position(const LinearIR& linear_ir, const LinearIR::LoopManagerPtr& loop_manager,
                                                           const ExpressionPtr& up_expr, const ExpressionPtr& down_expr) {
     const auto up_loops = up_expr->get_loop_ids();
     const auto down_loops = down_expr->get_loop_ids();
@@ -57,7 +57,7 @@ LinearIR::constExprIt BufferInsertion::insertion_position(const LinearIR& linear
     }
 }
 
-void BufferInsertion::insertion(LinearIR& linear_ir, const LinearIR::LoopManagerPtr& loop_manager, size_t loop_id,
+void InsertBuffers::insertion(LinearIR& linear_ir, const LinearIR::LoopManagerPtr& loop_manager, size_t loop_id,
                                 const std::vector<ExpressionPort>& loop_entries, const std::vector<ExpressionPort>& loop_exits) {
     for (const auto& entry_point : loop_entries) {
         const auto expr = entry_point.expr;
@@ -206,8 +206,8 @@ void BufferInsertion::insertion(LinearIR& linear_ir, const LinearIR::LoopManager
     }
 }
 
-bool BufferInsertion::run(LinearIR& linear_ir) {
-    OV_ITT_SCOPED_TASK(ngraph::pass::itt::domains::SnippetsTransform, "Snippets::BufferInsertion")
+bool InsertBuffers::run(LinearIR& linear_ir) {
+    OV_ITT_SCOPED_TASK(ngraph::pass::itt::domains::SnippetsTransform, "Snippets::InsertBuffers")
     if (linear_ir.empty())
         return false;
 

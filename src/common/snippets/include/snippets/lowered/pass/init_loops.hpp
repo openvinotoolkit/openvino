@@ -14,14 +14,14 @@ namespace lowered {
 namespace pass {
 
 /**
- * @interface LoopInit
+ * @interface InitLoops
  * @brief The pass explicitly insert LoadBegin and LoadEnd in Linear IR using Loop markup
  * @ingroup snippets
  */
-class LoopInit : public Transformation {
+class InitLoops : public Transformation {
 public:
     OPENVINO_RTTI("InsertLoops", "Transformation")
-    LoopInit();
+    InitLoops();
     bool run(LinearIR& linear_ir) override;
 
 private:

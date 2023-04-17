@@ -6,7 +6,7 @@
 
 #include "snippets/lowered/linear_ir.hpp"
 #include "snippets/lowered/loop_manager.hpp"
-#include "snippets/lowered/pass/loop_markup.hpp"
+#include "snippets/lowered/pass/mark_loops.hpp"
 #include "snippets/snippets_isa.hpp"
 #include "snippets/itt.hpp"
 

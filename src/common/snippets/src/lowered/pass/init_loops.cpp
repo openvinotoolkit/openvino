@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "snippets/lowered/pass/loop_init.hpp"
+#include "snippets/lowered/pass/init_loops.hpp"
 
 #include "snippets/lowered/linear_ir.hpp"
 #include "snippets/lowered/loop_manager.hpp"
@@ -63,9 +63,9 @@ int64_t get_dim_stride(const size_t dim, const std::vector<size_t>& layout, cons
 }
 }  // namespace
 
-LoopInit::LoopInit() : Transformation() {}
+InitLoops::InitLoops() : Transformation() {}
 
-std::vector<int64_t> LoopInit::init_ptr_increments(const std::vector<ExpressionPort>& loop_inputs,
+std::vector<int64_t> InitLoops::init_ptr_increments(const std::vector<ExpressionPort>& loop_inputs,
                                                    const std::vector<ExpressionPort>& loop_outputs,
                                                    size_t dim_idx) const {
     std::vector<int64_t> ptr_increments;
@@ -125,7 +125,7 @@ std::vector<int64_t> LoopInit::init_ptr_increments(const std::vector<ExpressionP
     return ptr_increments;
 }
 
-std::vector<int64_t> LoopInit::init_finalization_offsets(const std::vector<int64_t>& ptr_increments, size_t work_amount) const {
+std::vector<int64_t> InitLoops::init_finalization_offsets(const std::vector<int64_t>& ptr_increments, size_t work_amount) const {
     std::vector<int64_t> finalization_offsets;
     for (const auto& ptr_incr : ptr_increments) {
         int64_t offset = -1 * ptr_incr * work_amount;
@@ -134,7 +134,7 @@ std::vector<int64_t> LoopInit::init_finalization_offsets(const std::vector<int64
     return finalization_offsets;
 }
 
-std::vector<int64_t> LoopInit::init_element_type_sizes(const std::vector<ExpressionPort>& loop_inputs,
+std::vector<int64_t> InitLoops::init_element_type_sizes(const std::vector<ExpressionPort>& loop_inputs,
                                                        const std::vector<ExpressionPort>& loop_outputs) {
     std::vector<int64_t> element_types;
     element_types.reserve(loop_inputs.size() + loop_outputs.size());
@@ -147,7 +147,7 @@ std::vector<int64_t> LoopInit::init_element_type_sizes(const std::vector<Express
     return element_types;
 }
 
-bool LoopInit::insertion(LinearIR& linear_ir, const LinearIR::LoopManager::LoopInfoPtr& loop_info,
+bool InitLoops::insertion(LinearIR& linear_ir, const LinearIR::LoopManager::LoopInfoPtr& loop_info,
                          size_t loop_id, size_t dim_idx, bool has_outer_loop) {
     auto loop_entries = loop_info->entry_exprs;
     auto loop_exits = loop_info->exit_exprs;
@@ -184,8 +184,8 @@ bool LoopInit::insertion(LinearIR& linear_ir, const LinearIR::LoopManager::LoopI
     return true;
 }
 
-bool LoopInit::run(LinearIR& linear_ir) {
-    OV_ITT_SCOPED_TASK(ngraph::pass::itt::domains::SnippetsTransform, "Snippets::LoopInit")
+bool InitLoops::run(LinearIR& linear_ir) {
+    OV_ITT_SCOPED_TASK(ngraph::pass::itt::domains::SnippetsTransform, "Snippets::InitLoops")
     if (linear_ir.empty())
         return false;
 

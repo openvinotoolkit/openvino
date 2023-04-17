@@ -13,17 +13,17 @@ namespace lowered {
 namespace pass {
 
 /**
- * @interface LoopMarkup
+ * @interface MarkLoops
  * @brief The pass marks expressions with Loop IDs.
  *        The pass iterates expression by expression till the following conditions:
  *          - the layouts and subtensors them are the same
  *          - the consumer of the expression is explicitly after this expression - the pass marks the branches
  * @ingroup snippets
  */
-class LoopMarkup : public Transformation {
+class MarkLoops : public Transformation {
 public:
-    OPENVINO_RTTI("LoopMarkup", "Transformation")
-    LoopMarkup(size_t vector_size);
+    OPENVINO_RTTI("MarkLoops", "Transformation")
+    MarkLoops(size_t vector_size);
     bool run(LinearIR& linear_ir) override;
 
 private:

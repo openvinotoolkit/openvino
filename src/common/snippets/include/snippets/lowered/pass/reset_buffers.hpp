@@ -12,7 +12,7 @@ namespace lowered {
 namespace pass {
 
 /**
- * @interface BufferReset
+ * @interface ResetBuffers
  * @brief The pass `fuses` (reset) ptr increments and finalization offsets for ports of Loop
  *        with the same Buffers (with the same ID) to avoid double ptr shifts
  *        Note: Buffer always employ inplace logics by default. It means that if a loop has both
@@ -21,10 +21,10 @@ namespace pass {
  *              This condition should be removed when Buffers stop being inplace by default.
  * @ingroup snippets
  */
-class BufferReset: public Transformation {
+class ResetBuffers: public Transformation {
 public:
-    OPENVINO_RTTI("BufferReset", "Transformation")
-    BufferReset() = default;
+    OPENVINO_RTTI("ResetBuffers", "Transformation")
+    ResetBuffers() = default;
 
     bool run(LinearIR& linear_ir) override;
 

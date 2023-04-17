@@ -12,7 +12,7 @@ namespace lowered {
 namespace pass {
 
 /**
- * @interface BufferIdentification
+ * @interface IdentifyBuffers
  * @brief The pass set identifiers for Buffers in common Buffer system.
  *        The buffers with the same identifier has the same data register.
  *        The pass uses greedy graph coloring algorithm using adjacency matrix:
@@ -26,10 +26,10 @@ namespace pass {
  *        Note: should be called before ResetBuffer() pass to have correct offsets
  * @ingroup snippets
  */
-class BufferIdentification: public Transformation {
+class IdentifyBuffers: public Transformation {
 public:
-    OPENVINO_RTTI("BufferIdentification", "Transformation")
-    BufferIdentification() = default;
+    OPENVINO_RTTI("IdentifyBuffers", "Transformation")
+    IdentifyBuffers() = default;
 
     bool run(LinearIR& linear_ir) override;
 

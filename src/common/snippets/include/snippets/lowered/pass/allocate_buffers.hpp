@@ -13,14 +13,14 @@ namespace lowered {
 namespace pass {
 
 /**
- * @interface BufferAllocation
+ * @interface AllocateBuffers
  * @brief The pass calculation common size of buffer scratchpad and propagates Buffer offsets to connected MemoryAccess operations.
  * @ingroup snippets
  */
 
-class BufferAllocation : public Transformation {
+class AllocateBuffers : public Transformation {
 public:
-    OPENVINO_RTTI("BufferAllocation", "Transformation")
+    OPENVINO_RTTI("AllocateBuffers", "Transformation")
     bool run(lowered::LinearIR& linear_ir) override;
 
     size_t get_scratchpad_size() const { return m_buffer_scratchpad_size; }

@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "snippets/lowered/pass/buffer_reset.hpp"
+#include "snippets/lowered/pass/reset_buffers.hpp"
 
 #include "snippets/lowered/linear_ir.hpp"
 #include "snippets/snippets_isa.hpp"
@@ -13,7 +13,7 @@ namespace snippets {
 namespace lowered {
 namespace pass {
 
-bool BufferReset::reuse_buffer_increments(const LinearIR& linear_ir, const ExpressionPtr& loop_end_expr) {
+bool ResetBuffers::reuse_buffer_increments(const LinearIR& linear_ir, const ExpressionPtr& loop_end_expr) {
     const auto loop_end = ov::as_type_ptr<op::LoopEnd>(loop_end_expr->get_node());
     if (!loop_end)
         return false;
@@ -75,8 +75,8 @@ bool BufferReset::reuse_buffer_increments(const LinearIR& linear_ir, const Expre
     return true;
 }
 
-bool BufferReset::run(LinearIR& linear_ir) {
-    OV_ITT_SCOPED_TASK(ngraph::pass::itt::domains::SnippetsTransform, "Snippets::BufferReset")
+bool ResetBuffers::run(LinearIR& linear_ir) {
+    OV_ITT_SCOPED_TASK(ngraph::pass::itt::domains::SnippetsTransform, "Snippets::ResetBuffers")
     bool modified = false;
 
     for (const auto& expr : linear_ir) {

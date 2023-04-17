@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "snippets/lowered/pass/loop_fusion.hpp"
+#include "snippets/lowered/pass/fuse_loops.hpp"
 
 #include "snippets/lowered/linear_ir.hpp"
 #include "snippets/lowered/loop_manager.hpp"
@@ -17,9 +17,9 @@ namespace pass {
 using LoopManager = LinearIR::LoopManager;
 using LoopInfoPtr = LoopManager::LoopInfoPtr;
 
-LoopFusion::LoopFusion() : Transformation() {}
+FuseLoops::FuseLoops() : Transformation() {}
 
-bool LoopFusion::can_be_fused(const LoopInfoPtr& loop_current, const LoopInfoPtr& loop_target) {
+bool FuseLoops::can_be_fused(const LoopInfoPtr& loop_current, const LoopInfoPtr& loop_target) {
     auto current_work_amount = loop_current->work_amount;
     auto current_increment = loop_current->increment;
     auto target_work_amount = loop_target->work_amount;
@@ -29,7 +29,7 @@ bool LoopFusion::can_be_fused(const LoopInfoPtr& loop_current, const LoopInfoPtr
     return supported_work_amount && supported_increment;
 }
 
-void LoopFusion::fuse_points(LinearIR& linear_ir, std::vector<ExpressionPort>& exit_points, std::vector<ExpressionPort>& entry_points,
+void FuseLoops::fuse_points(LinearIR& linear_ir, std::vector<ExpressionPort>& exit_points, std::vector<ExpressionPort>& entry_points,
                              LinearIR::constExprIt loop_begin_pos, LinearIR::constExprIt loop_end_pos) {
     std::vector<ExpressionPort> new_exit_points;
     for (const auto& exit_point : exit_points) {
@@ -72,7 +72,7 @@ void LoopFusion::fuse_points(LinearIR& linear_ir, std::vector<ExpressionPort>& e
     exit_points = new_exit_points;
 }
 
-bool LoopFusion::fuse_upper_into_current(LinearIR& linear_ir, const LinearIR::LoopManagerPtr& loop_manager,
+bool FuseLoops::fuse_upper_into_current(LinearIR& linear_ir, const LinearIR::LoopManagerPtr& loop_manager,
                                          const ExpressionPort& current_entry_point, const ExpressionPort& target_exit_point,
                                          size_t current_loop_id, size_t target_loop_id, size_t dim_idx,
                                          LinearIR::constExprIt& current_loop_begin_pos, LinearIR::constExprIt& current_loop_end_pos) {
@@ -146,7 +146,7 @@ bool LoopFusion::fuse_upper_into_current(LinearIR& linear_ir, const LinearIR::Lo
     return true;
 }
 
-bool LoopFusion::fuse_lower_into_current(LinearIR& linear_ir, const LinearIR::LoopManagerPtr& loop_manager,
+bool FuseLoops::fuse_lower_into_current(LinearIR& linear_ir, const LinearIR::LoopManagerPtr& loop_manager,
                                          const ExpressionPort& current_exit_point, const ExpressionPort& target_entry_point,
                                          size_t current_loop_id, size_t target_loop_id, size_t dim_idx,
                                          LinearIR::constExprIt& current_loop_begin_pos, LinearIR::constExprIt& current_loop_end_pos) {
@@ -216,8 +216,8 @@ bool LoopFusion::fuse_lower_into_current(LinearIR& linear_ir, const LinearIR::Lo
     return true;
 }
 
-bool LoopFusion::run(LinearIR& linear_ir) {
-    OV_ITT_SCOPED_TASK(ngraph::pass::itt::domains::SnippetsTransform, "Snippets::LoopFusion")
+bool FuseLoops::run(LinearIR& linear_ir) {
+    OV_ITT_SCOPED_TASK(ngraph::pass::itt::domains::SnippetsTransform, "Snippets::FuseLoops")
     if (linear_ir.empty())
         return false;
 

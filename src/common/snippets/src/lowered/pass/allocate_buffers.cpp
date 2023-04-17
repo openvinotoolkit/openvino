@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "snippets/lowered/pass/buffer_allocation.hpp"
+#include "snippets/lowered/pass/allocate_buffers.hpp"
 
 #include "snippets/lowered/linear_ir.hpp"
 #include "snippets/itt.hpp"
@@ -12,7 +12,7 @@ namespace snippets {
 namespace lowered {
 namespace pass {
 
-void BufferAllocation::propagate_offset(const LinearIR& linear_ir, const ExpressionPtr& buffer_expr, const size_t offset) {
+void AllocateBuffers::propagate_offset(const LinearIR& linear_ir, const ExpressionPtr& buffer_expr, const size_t offset) {
     // If Buffer has offset We set this offset in the connected MemoryAccess ops
     // to correctly read and write data because all Buffers has the common data pointer on buffer scratchpad
 
@@ -55,8 +55,8 @@ void BufferAllocation::propagate_offset(const LinearIR& linear_ir, const Express
 }
 
 
-bool BufferAllocation::run(LinearIR& linear_ir) {
-    OV_ITT_SCOPED_TASK(ngraph::pass::itt::domains::SnippetsTransform, "Snippets::BufferAllocation");
+bool AllocateBuffers::run(LinearIR& linear_ir) {
+    OV_ITT_SCOPED_TASK(ngraph::pass::itt::domains::SnippetsTransform, "Snippets::AllocateBuffers");
 
     bool modified = false;
     size_t offset = 0;

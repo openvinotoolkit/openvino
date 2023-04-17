@@ -7,21 +7,21 @@
 #include "snippets/lowered/linear_ir.hpp"
 #include "snippets/lowered/pass/assign_registers.hpp"
 #include "snippets/lowered/pass/insert_tail_loop.hpp"
-#include "snippets/lowered/pass/loop_markup.hpp"
-#include "snippets/lowered/pass/loop_fusion.hpp"
-#include "snippets/lowered/pass/loop_init.hpp"
-#include "snippets/lowered/pass/buffer_insertion.hpp"
-#include "snippets/lowered/pass/load_store_insertion.hpp"
+#include "snippets/lowered/pass/mark_loops.hpp"
+#include "snippets/lowered/pass/fuse_loops.hpp"
+#include "snippets/lowered/pass/init_loops.hpp"
+#include "snippets/lowered/pass/insert_buffers.hpp"
+#include "snippets/lowered/pass/insert_load_store.hpp"
 #include "snippets/lowered/pass/vector_to_scalar.hpp"
 #include "snippets/lowered/pass/load_movebroadcast_to_broadcastload.hpp"
-#include "snippets/lowered/pass/buffer_allocation.hpp"
+#include "snippets/lowered/pass/allocate_buffers.hpp"
 #include "snippets/lowered/pass/propagate_layout.hpp"
 #include "snippets/lowered/pass/cleanup_loop_offsets.hpp"
 #include "snippets/lowered/pass/softmax_decomposition.hpp"
 #include "snippets/lowered/pass/move_scalar_to_consumer.hpp"
 #include "snippets/lowered/pass/move_result_out_of_loop.hpp"
-#include "snippets/lowered/pass/buffer_reset.hpp"
-#include "snippets/lowered/pass/buffer_identification.hpp"
+#include "snippets/lowered/pass/reset_buffers.hpp"
+#include "snippets/lowered/pass/indentify_buffers.hpp"
 
 #include "snippets/op/kernel.hpp"
 #include "snippets/tensor_descriptor.hpp"
@@ -41,18 +41,18 @@ Generator::LoweringResult Generator::generate(std::shared_ptr<ov::Model>& m, con
     const size_t vector_size = get_target_machine()->get_lanes();
     const int32_t buffer_allocation_rank = static_cast<int32_t>(config.m_loop_depth);
 
-    // Note: The pass LoopInit uses LoopInfo that contains entry and exit points of the corresponding Loop.
+    // Note: The pass InitLoops uses LoopInfo that contains entry and exit points of the corresponding Loop.
     //       To avoid the Loop information corruption, we should call the passes with Load/Store work
-    //       (for example, LoadMoveBroadcastToBroadcastLoad()) after explicit Loop insertion (LoopInit())
+    //       (for example, LoadMoveBroadcastToBroadcastLoad()) after explicit Loop insertion (InitLoops())
     lowered::pass::TransformationPipeline common_pipeline;
-    common_pipeline.register_transformation<lowered::pass::LoopMarkup>(vector_size);
+    common_pipeline.register_transformation<lowered::pass::MarkLoops>(vector_size);
     common_pipeline.register_transformation<lowered::pass::SoftmaxDecomposition>(vector_size);
-    common_pipeline.register_transformation<lowered::pass::LoopFusion>();
+    common_pipeline.register_transformation<lowered::pass::FuseLoops>();
     common_pipeline.register_transformation<lowered::pass::MoveResultOutOfLoop>();
-    common_pipeline.register_transformation<lowered::pass::BufferInsertion>(buffer_allocation_rank);
-    common_pipeline.register_transformation<lowered::pass::LoadStoreInsertion>(vector_size);
+    common_pipeline.register_transformation<lowered::pass::InsertBuffers>(buffer_allocation_rank);
+    common_pipeline.register_transformation<lowered::pass::InsertLoadStore>(vector_size);
     common_pipeline.register_transformation<lowered::pass::SetScalarCountForLoadStore>();
-    common_pipeline.register_transformation<lowered::pass::LoopInit>();
+    common_pipeline.register_transformation<lowered::pass::InitLoops>();
     common_pipeline.register_transformation<lowered::pass::MoveScalarToConsumer>();
     common_pipeline.register_transformation<lowered::pass::LoadMoveBroadcastToBroadcastLoad>();
     common_pipeline.register_transformation<lowered::pass::PropagateLayout>();  // or should be in final?
@@ -65,10 +65,10 @@ Generator::LoweringResult Generator::generate(std::shared_ptr<ov::Model>& m, con
         return get_op_reg_type(op);
     };
 
-    const auto buffer_allocation_pass = std::make_shared<lowered::pass::BufferAllocation>();
+    const auto buffer_allocation_pass = std::make_shared<lowered::pass::AllocateBuffers>();
     lowered::pass::TransformationPipeline buffer_pipeline;
-    buffer_pipeline.register_transformation<lowered::pass::BufferIdentification>();
-    buffer_pipeline.register_transformation<lowered::pass::BufferReset>();
+    buffer_pipeline.register_transformation<lowered::pass::IdentifyBuffers>();
+    buffer_pipeline.register_transformation<lowered::pass::ResetBuffers>();
     buffer_pipeline.register_transformation(buffer_allocation_pass);
     buffer_pipeline.run(linear_ir);
 

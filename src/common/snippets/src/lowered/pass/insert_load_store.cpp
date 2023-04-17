@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "snippets/lowered/pass/load_store_insertion.hpp"
+#include "snippets/lowered/pass/insert_load_store.hpp"
 
 #include "snippets/lowered/linear_ir.hpp"
 #include "snippets/lowered/loop_manager.hpp"
@@ -30,9 +30,9 @@ auto get_inner_loop_id(const std::vector<size_t>& loop_ids) -> size_t {
 using LoopManager = LinearIR::LoopManager;
 using LoopInfoPtr = LoopManager::LoopInfoPtr;
 
-LoadStoreInsertion::LoadStoreInsertion(size_t vector_size) : m_vector_size(vector_size) {}
+InsertLoadStore::InsertLoadStore(size_t vector_size) : m_vector_size(vector_size) {}
 
-void LoadStoreInsertion::update_loops(const LinearIR::LoopManagerPtr& loop_manager, const std::vector<size_t>& loop_ids,
+void InsertLoadStore::update_loops(const LinearIR::LoopManagerPtr& loop_manager, const std::vector<size_t>& loop_ids,
                                       const ExpressionPort& actual_port, const std::vector<ExpressionPort>& target_ports, bool is_entry) {
     for (auto loop_id : loop_ids) {
         if (loop_id != Expression::LOOP_NULL_ID)
@@ -40,7 +40,7 @@ void LoadStoreInsertion::update_loops(const LinearIR::LoopManagerPtr& loop_manag
     }
 }
 
-void LoadStoreInsertion::update_loop(const LinearIR::LoopManager::LoopInfoPtr& loop_info,
+void InsertLoadStore::update_loop(const LinearIR::LoopManager::LoopInfoPtr& loop_info,
                                      const ExpressionPort& actual_port, const std::vector<ExpressionPort>& target_ports, bool is_entry) {
     auto& ports = is_entry ? loop_info->entry_exprs : loop_info->exit_exprs;
     auto port_it = std::find(ports.begin(), ports.end(), actual_port);
@@ -50,7 +50,7 @@ void LoadStoreInsertion::update_loop(const LinearIR::LoopManager::LoopInfoPtr& l
     ports.insert(port_it, target_ports.cbegin(), target_ports.cend());
 }
 
-bool LoadStoreInsertion::insert_load(LinearIR& linear_ir, const LinearIR::constExprIt& data_expr_it) {
+bool InsertLoadStore::insert_load(LinearIR& linear_ir, const LinearIR::constExprIt& data_expr_it) {
     const auto& loop_manager = linear_ir.get_loop_manager();
     const auto& data_expr = *data_expr_it;
     const auto& data_node = data_expr->get_node();
@@ -93,7 +93,7 @@ bool LoadStoreInsertion::insert_load(LinearIR& linear_ir, const LinearIR::constE
     return was_inserted;
 }
 
-bool LoadStoreInsertion::insert_store(LinearIR& linear_ir, const LinearIR::constExprIt& data_expr_it) {
+bool InsertLoadStore::insert_store(LinearIR& linear_ir, const LinearIR::constExprIt& data_expr_it) {
     const auto& loop_manager = linear_ir.get_loop_manager();
     const auto& data_expr = *data_expr_it;
     const auto& input_td = data_expr->get_inputs().front();
@@ -141,8 +141,8 @@ bool LoadStoreInsertion::insert_store(LinearIR& linear_ir, const LinearIR::const
     return true;
 }
 
-bool LoadStoreInsertion::run(LinearIR& linear_ir) {
-    OV_ITT_SCOPED_TASK(ngraph::pass::itt::domains::SnippetsTransform, "Snippets::LoadStoreInsertion")
+bool InsertLoadStore::run(LinearIR& linear_ir) {
+    OV_ITT_SCOPED_TASK(ngraph::pass::itt::domains::SnippetsTransform, "Snippets::InsertLoadStore")
 
     bool modified = false;
     for (auto expr_it = linear_ir.begin(); expr_it != linear_ir.end(); expr_it++) {
