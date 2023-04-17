@@ -2,7 +2,7 @@ from typing import Dict
 
 import torch
 from torch.nn import Module
-from torch.fx import GraphModule
+from torch.fx import GraphModule, Node
 from torch.fx.passes.infra.partitioner import CapabilityBasedPartitioner
 
 from torch.fx.experimental.proxy_tensor import DecompositionInterpreter
@@ -38,7 +38,19 @@ class Partitioner:
         # FX graph based partitioning based on nvfuser supported ops
         partitioner = CapabilityBasedPartitioner(
             graph_module, self.supported_ops, allows_single_node_partition=True)
-        fused_graph_module = partitioner.partition_and_fuse()
+        partitions = partitioner.propose_partitions()
+
+        getattr_to_merge : Dict[Node, Node] = {}
+        for partition in partitions:
+            for pnode in partition.nodes:
+                for pnode_input in pnode.all_input_nodes:
+                    if pnode_input.op in ['get_attr']:
+                        if pnode_input.op not in getattr_to_merge:
+                            getattr_to_merge[pnode_input] = partition
+        for getattr_node, getattr_part in getattr_to_merge.items():
+            getattr_part.add_node(getattr_node)
+
+        fused_graph_module = partitioner.fuse_partitions(partitions)
 
         return fused_graph_module
 

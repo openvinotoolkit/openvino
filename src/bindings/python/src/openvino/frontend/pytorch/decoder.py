@@ -12,6 +12,25 @@ import typing
 import torch
 import numpy as np
 import inspect
+import ctypes
+
+def fetch_attr(self_module, target : str):
+    """
+    Fetch an attribute from the ``Module`` hierarchy of ``self.module``.
+
+    Args:
+        target (str): The fully-qualified name of the attribute to fetch
+
+    Return:
+        Any: The value of the attribute.
+    """
+    target_atoms = target.split('.')
+    attr_itr = self_module
+    for i, atom in enumerate(target_atoms):
+        if not hasattr(attr_itr, atom):
+            raise RuntimeError(f"Node referenced nonexistent target {'.'.join(target_atoms[:i])}")
+        attr_itr = getattr(attr_itr, atom)
+    return attr_itr
 
 def make_constant(*args, **kwargs):
     return op.Constant(*args, **kwargs)
@@ -95,6 +114,10 @@ pt_to_ov_type_map = {
     "torch.BoolTensor": OVType.boolean,
 }
 
+ov_to_c_type_map = {
+    OVType.f32: ctypes.c_float,
+    OVType.i32: ctypes.c_int,
+}
 
 class TorchScriptPythonDecoder (Decoder):
     def __init__(self, pt_module, graph_element=None, example_input=None, freeze=True):
@@ -662,7 +685,9 @@ class TorchFXPythonDecoder (Decoder):
             ovshape = PartialShape(ret.size())
             ovtype = pt_to_ov_type_map[ret.type()]
             print(ovshape, ovtype)
-            ov_const = make_constant(ovtype, ovshape.get_shape(), ret.data_ptr())
+            c_type = ctypes.POINTER(ov_to_c_type_map[ovtype])
+            data_c_ptr = ctypes.cast(ret.data_ptr(), c_type)
+            ov_const = op.Constant(ovtype, ovshape.get_shape(), data_c_ptr[:ret.nelement()])
             print('Made constant')
             return ov_const.outputs()
 
