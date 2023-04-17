@@ -191,19 +191,9 @@ std::vector<std::string> disabledTestPatterns() {
         R"(.*smoke_FakeQuantizeLayerCPUTest_Decompos.*IS=\[4\.5\.6\.6\]_TS=\(\(4\.5\.6\.6\)\)_RS=\(\(1\.5\.6\.1\)\)_\(\(1\.5\.6\.1\)\)_\(\(1\.5\.6\.1\)\)_\(\(1\.5\.1\.6\)\).*)",
     };
 
-#define FIX_62820 0
-#if FIX_62820 && ((IE_THREAD == IE_THREAD_TBB) || (IE_THREAD == IE_THREAD_TBB_AUTO))
-    retVector.emplace_back(R"(.*ReusableCPUStreamsExecutor.*)");
-#endif
-
-#ifdef __APPLE__
-    // TODO: Issue 55717
-    // retVector.emplace_back(R"(.*smoke_LPT.*ReduceMinTransformation.*f32.*)");
-#endif
-
 #if defined(OPENVINO_ARCH_ARM64) || defined(OPENVINO_ARCH_ARM)
     retVector.emplace_back(R"(ONNXQuantizedModels/QuantizedModelsTests.*)");
-    // TODO: generate new 'expected' runtime graph for CPU  ARM
+    // TODO: generate new 'expected' runtime graph for CPU ARM
     retVector.emplace_back(R"(smoke_serialization/ExecGraphSerializationTest.ExecutionGraph.*)");
     retVector.emplace_back(R"(smoke_ExecGraph/ExecGraphRuntimePrecision.CheckRuntimePrecision/Function=(EltwiseWithTwoDynamicInputs|FakeQuantizeRelu).*)");
     {
