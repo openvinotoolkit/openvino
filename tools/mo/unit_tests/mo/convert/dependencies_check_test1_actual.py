@@ -3,25 +3,8 @@
 
 from unittest.mock import patch
 
+from logger_test_actual import create_tf_model
 from openvino.tools.mo.utils.error import FrameworkError
-
-
-def simple_pytorch_model():
-    from torch import nn
-
-    class NeuralNetwork(nn.Module):
-        def __init__(self):
-            super(NeuralNetwork, self).__init__()
-            self.linear_relu_stack = nn.Sequential(
-                nn.ReLU(),
-                nn.Sigmoid(),
-            )
-
-        def forward(self, x):
-            logits = self.linear_relu_stack(x)
-            return logits
-
-    return NeuralNetwork()
 
 
 def mocked_check_module_import(module_name, required_version, key, not_satisfied_versions):
@@ -36,7 +19,7 @@ def run_main(mocked_check_module_import):
     from openvino.tools.mo import convert_model
 
     # convert_model() should fail to convert and show unsatisfied dependency
-    convert_model(simple_pytorch_model(), silent=False)
+    convert_model(create_tf_model(), silent=False)
 
 
 if __name__ == "__main__":
