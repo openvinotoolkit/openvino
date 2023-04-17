@@ -181,34 +181,31 @@ std::shared_ptr<ngraph::Function> GroupConvolutionFunction::getOriginal(
 
     std::shared_ptr<ngraph::Node> parent = input;
     if (!fakeQuantizeOnData.empty()) {
-        auto getConstShape = [&](const size_t elemsCount) {
-            Shape constantShape;
-            if (ov::shape_size(fakeQuantizeOnData.constantShape) != 1) {
-                constantShape = fakeQuantizeOnData.constantShape;
-            } else {
-                constantShape = Shape(rankLength, 1);
-                constantShape[1] = elemsCount;
-            }
-            return constantShape;
-        };
-
         parent = std::make_shared<ngraph::opset1::FakeQuantize>(
             input,
             std::make_shared<ngraph::opset1::Constant>(
                 precision,
-                getConstShape(fakeQuantizeOnData.inputLowValues.size()),
+                rankLength == 3 ?
+                    Shape{ 1, fakeQuantizeOnData.inputLowValues.size(), 1 } :
+                    Shape{ 1, fakeQuantizeOnData.inputLowValues.size(), 1, 1 },
                 fakeQuantizeOnData.inputLowValues),
             std::make_shared<ngraph::opset1::Constant>(
                 precision,
-                getConstShape(fakeQuantizeOnData.inputHighValues.size()),
+                rankLength == 3 ?
+                    Shape{ 1, fakeQuantizeOnData.inputHighValues.size(), 1 } :
+                    Shape{ 1, fakeQuantizeOnData.inputHighValues.size(), 1, 1 },
                 fakeQuantizeOnData.inputHighValues),
             std::make_shared<ngraph::opset1::Constant>(
                 precision,
-                getConstShape(fakeQuantizeOnData.outputLowValues.size()),
+                rankLength == 3 ?
+                    Shape{ 1, fakeQuantizeOnData.outputLowValues.size(), 1 } :
+                    Shape{ 1, fakeQuantizeOnData.outputLowValues.size(), 1, 1 },
                 fakeQuantizeOnData.outputLowValues),
             std::make_shared<ngraph::opset1::Constant>(
                 precision,
-                getConstShape(fakeQuantizeOnData.outputHighValues.size()),
+                rankLength == 3 ?
+                    Shape{ 1, fakeQuantizeOnData.outputHighValues.size(), 1 } :
+                    Shape{ 1, fakeQuantizeOnData.outputHighValues.size(), 1, 1 },
                 fakeQuantizeOnData.outputHighValues),
             fakeQuantizeOnData.quantizationLevel);
     }

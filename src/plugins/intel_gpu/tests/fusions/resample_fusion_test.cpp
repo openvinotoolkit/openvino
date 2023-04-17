@@ -173,6 +173,9 @@ INSTANTIATE_TEST_SUITE_P(fusings_gpu, resample_scale_activation_eltwise, ::testi
 
 class resample_quantize_concat : public ResamplePrimitiveFusingTest {};
 TEST_P(resample_quantize_concat, along_f) {
+    if (get_test_engine().get_device_info().supports_immad)
+        return;
+
     auto p = GetParam();
     create_topologies(
         input_layout("input", get_input_layout(p)),
@@ -222,6 +225,9 @@ INSTANTIATE_TEST_SUITE_P(fusings_gpu, resample_quantize_concat, ::testing::Value
 
 class resample_eltwise_concat : public ResamplePrimitiveFusingTest {};
 TEST_P(resample_eltwise_concat, along_f) {
+    if (get_test_engine().get_device_info().supports_immad)
+        return;
+
     auto p = GetParam();
     create_topologies(
         input_layout("input", get_input_layout(p)),
