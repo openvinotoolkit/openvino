@@ -282,6 +282,16 @@ public:
     }
 
     /**
+     * @brief Compares stored object with the given one
+     * @param pointer A LockedMemory to compare with
+     * @return `true` if objects are equal, `false` otherwise
+     */
+    bool operator==(const LockedMemory<void>& lm) const {
+        // special case with nullptr
+        return base::isEqualTo(lm.as<void*>());
+    }
+
+    /**
      * @brief Compares the object with the one stored in the memory
      * @param pointer A pointer to compare with
      * @param lm A compared LockedMemory object

@@ -67,12 +67,7 @@ std::vector<std::string> disabledTestPatterns() {
         // TODO: 57562 No dynamic output shape support
         R"(.*NonZeroLayerTest.*)",
         // Not expected behavior
-        R"(.*Behavior.*InferRequestIOBBlobSetLayoutTest.*layout=(SCALAR|OIHW).*)",
-        R"(.*Behavior.*InferRequestIOBBlobSetLayoutTest.*CanSetOutBlobWithDifferentLayouts.*layout=HW.*)",
-        R"(.*Behavior.*InferRequestIOBBlobSetLayoutTest.*CanSetInBlobWithDifferentLayouts.*layout=NHWC.*targetDevice=(AUTO|MULTI).*)",
-        R"(.*Behavior.*InferRequestIOBBlobSetLayoutTest.*CanSetOutBlobWithDifferentLayouts.*layout=CN.*targetDevice=(AUTO|MULTI).*)",
         R"(.*Behavior.*InferRequestSetBlobByType.*Batched.*)",
-        R"(.*Auto_Behavior.*InferRequestIOBBlobTest.*canProcessDeallocatedOutputBlobAfterGetAndSetBlob.*)",
         R"(.*Auto.*Behavior.*ExecutableNetworkBaseTest.*canLoadCorrectNetworkToGetExecutableWithIncorrectConfig.*)",
         R"(.*(Auto|Multi).*Behavior.*CorrectConfigAPITests.*CanSetExclusiveAsyncRequests.*)",
         R"(.*(Auto|Multi).*Behavior.*IncorrectConfigTests.*CanNotLoadNetworkWithIncorrectConfig.*)",
@@ -193,32 +188,23 @@ std::vector<std::string> disabledTestPatterns() {
         R"(.*UniqueLayerTestCPU.*axis.*True.*)",
     };
 
-#define FIX_62820 0
-#if FIX_62820 && ((IE_THREAD == IE_THREAD_TBB) || (IE_THREAD == IE_THREAD_TBB_AUTO))
-    retVector.emplace_back(R"(.*ReusableCPUStreamsExecutor.*)");
-#endif
-
-#ifdef __APPLE__
-    // TODO: Issue 55717
-    // retVector.emplace_back(R"(.*smoke_LPT.*ReduceMinTransformation.*f32.*)");
-#endif
-
 #if defined(OPENVINO_ARCH_ARM64) || defined(OPENVINO_ARCH_ARM)
-    retVector.emplace_back(R"(OVClassBasicTest.smoke_SetConfigAffinity.*)");
-    retVector.emplace_back(R"(OVClassConfigTestCPU.smoke_Check(Model|Core)StreamsHasHigherPriorityThanLatencyHint.*)");
-    retVector.emplace_back(R"(.*OVInferRequestDynamicTests.*)");
+    retVector.emplace_back(R"(OVClassBasicPropsTest.smoke_SetConfigAffinity.*)");
     retVector.emplace_back(R"(ONNXQuantizedModels/QuantizedModelsTests.*)");
+    // TODO: generate new 'expected' runtime graph for CPU ARM
     retVector.emplace_back(R"(smoke_serialization/ExecGraphSerializationTest.ExecutionGraph.*)");
-    retVector.emplace_back(R"(smoke_BehaviorTests/OVCompiledModelPropertiesDefaultTests.CheckDefaultValues.*)");
-    retVector.emplace_back(R"(smoke_BehaviorTests/CorrectConfigCheck.canSetConfigAndCheckGetConfig.*CPU_THROUGHPUT_STREAMS=8.*)");
-    retVector.emplace_back(R"(smoke_BehaviorTests/CorrectConfigCheck.canSetConfigTwiceAndCheckGetConfig.*CPU_THROUGHPUT_STREAMS=8.*)");
-    retVector.emplace_back(R"(smoke_Basic/DefaultConfigurationTest.checkDeviceDefaultConfigurationValue/configKey=CPU_BIND_THREAD.*)");
     retVector.emplace_back(R"(smoke_ExecGraph/ExecGraphRuntimePrecision.CheckRuntimePrecision/Function=(EltwiseWithTwoDynamicInputs|FakeQuantizeRelu).*)");
+    {
+        // TODO: enable once streams / tput mode is supported
+        retVector.emplace_back(R"(OVClassConfigTestCPU.smoke_Check(Model|Core)StreamsHasHigherPriorityThanLatencyHint.*)");
+        retVector.emplace_back(R"(smoke_BehaviorTests/CorrectConfigCheck.canSetConfigAndCheckGetConfig.*CPU_THROUGHPUT_STREAMS=8.*)");
+        retVector.emplace_back(R"(smoke_BehaviorTests/CorrectConfigCheck.canSetConfigTwiceAndCheckGetConfig.*CPU_THROUGHPUT_STREAMS=8.*)");
+        retVector.emplace_back(R"(smoke_CPU_OVClassLoadNetworkAndCheckWithSecondaryPropertiesTest/OVClassLoadNetworkAndCheckSecondaryPropertiesTest.LoadNetworkAndCheckSecondaryPropertiesTest.*)");
+        retVector.emplace_back(R"(smoke_CPU_OVClassLoadNetworkAndCheckWithSecondaryPropertiesDoubleTest/OVClassLoadNetworkAndCheckSecondaryPropertiesTest.LoadNetworkAndCheckSecondaryPropertiesTest.*)");
+        retVector.emplace_back(R"(smoke_CPU_OVClassCompileModelAndCheckSecondaryPropertiesTest.*)");
+        retVector.emplace_back(R"(smoke_CPU_OVClassCompileModelAndCheckWithSecondaryPropertiesDoubleTest.*)");
+    }
     retVector.emplace_back(R"(smoke_LPT.*)");
-    retVector.emplace_back(R"(smoke_CPU_OVClassLoadNetworkAndCheckWithSecondaryPropertiesTest/OVClassLoadNetworkAndCheckSecondaryPropertiesTest.LoadNetworkAndCheckSecondaryPropertiesTest.*)");
-    retVector.emplace_back(R"(smoke_CPU_OVClassLoadNetworkAndCheckWithSecondaryPropertiesDoubleTest/OVClassLoadNetworkAndCheckSecondaryPropertiesTest.LoadNetworkAndCheckSecondaryPropertiesTest.*)");
-    retVector.emplace_back(R"(smoke_CPU_OVClassCompileModelAndCheckSecondaryPropertiesTest/OVClassCompileModelAndCheckSecondaryPropertiesTest.CompileModelAndCheckSecondaryPropertiesTest.*)");
-    retVector.emplace_back(R"(smoke_CPU_OVClassCompileModelAndCheckWithSecondaryPropertiesDoubleTest.*)");
     retVector.emplace_back(R"(smoke_Activation_Basic/ActivationLayerTest.CompareWithRefs.*)");
     retVector.emplace_back(R"(smoke_Integer_Activation_Basic/ActivationLayerTest.CompareWithRefs/(Tanh|Negative|Sqrt).*)");
     retVector.emplace_back(R"(smoke_Activation_Basic_Prelu_Const/ActivationLayerTest.CompareWithRefs/(LeakyRelu|PReLu).*)");
@@ -232,9 +218,9 @@ std::vector<std::string> disabledTestPatterns() {
     retVector.emplace_back(R"(smoke_TrivialLoop/TrivialLoopTest.AutoSlicingInputWithDynCondition_(CheckPredefinedValues|CheckReference).*)");
     retVector.emplace_back(R"(smoke_Decomposition_(3|4)D/Mvn6LayerTest.CompareWithRefs.*)");
     retVector.emplace_back(R"(smoke_AvgPool_ExplicitPad_CeilRounding/PoolingLayerTest.CompareWithRefs.*)");
-    retVector.emplace_back(R"(smoke_INTEL_CPU_TestsDFT_(1|2|3|4)d/DFTLayerTest.CompareWithRefs.*)");
-    retVector.emplace_back(R"(smoke_INTEL_CPU_TestsSelect_none/SelectLayerTest.CompareWithRefImpl/COND=BOOL.*)");
-    retVector.emplace_back(R"(smoke_INTEL_CPU_TestsSelect_numpy/SelectLayerTest.CompareWithRefImpl/COND=BOOL.*)");
+    retVector.emplace_back(R"(smoke_TestsDFT_(1|2|3|4)d/DFTLayerTest.CompareWithRefs.*)");
+    retVector.emplace_back(R"(smoke_TestsSelect_none/SelectLayerTest.CompareWithRefImpl/COND=BOOL.*)");
+    retVector.emplace_back(R"(smoke_TestsSelect_numpy/SelectLayerTest.CompareWithRefImpl/COND=BOOL.*)");
     retVector.emplace_back(R"(smoke_Snippets.*)");
     retVector.emplace_back(R"(smoke_Quantized.*)");
     retVector.emplace_back(R"(smoke_NegativeQuantizedMatMulMultiplyFusion.*)");

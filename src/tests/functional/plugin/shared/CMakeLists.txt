@@ -24,6 +24,9 @@ if(ENABLE_AUTO_BATCH)
     list(APPEND DEPENDENCIES openvino_auto_batch_plugin)
 endif()
 
+if(ENABLE_TEMPLATE)
+    list(APPEND DEPENDENCIES openvino_template_plugin)
+endif()
 
 # remove once CVS-69781 is fixed
 if(ENABLE_OV_IR_FRONTEND)
@@ -31,7 +34,7 @@ if(ENABLE_OV_IR_FRONTEND)
 endif()
 
 if (ENABLE_OV_ONNX_FRONTEND)
-    list(APPEND DEPENDENCIES test_model_zoo)
+    list(APPEND DEPENDENCIES test_model_zoo openvino_onnx_frontend)
     list(APPEND DEFINES TEST_MODELS="${TEST_MODEL_ZOO}/func_tests/models/")
 else()
     set(EXCLUDED_SOURCE_PATHS ${CMAKE_CURRENT_SOURCE_DIR}/src/onnx)
