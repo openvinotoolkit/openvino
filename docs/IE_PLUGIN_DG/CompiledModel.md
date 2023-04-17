@@ -12,9 +12,8 @@ ov::CompiledModel class functionality:
 
 For example:
 
-   * ov::ICompiledModel::m_task_executor task executor to implement asynchronous execution
-   
-   * ov::ICompiledModel::m_callback_executor task executor to run an asynchronous inference request callback in a separate thread
+  * ov::ICompiledModel::m_task_executor task executor to implement asynchronous execution
+  * ov::ICompiledModel::m_callback_executor task executor to run an asynchronous inference request callback in a separate thread
 
 CompiledModel Class
 ###################
@@ -85,9 +84,8 @@ While the public OpenVINO API has a single interface for inference request, whic
 
 * :doc:`Asynchronous inference request <openvino_docs_ov_plugin_dg_async_infer_request>`, which is a wrapper for a synchronous inference request and can run a pipeline asynchronously. Depending on a device pipeline structure, it can have one or several stages:
 
-   * For single-stage pipelines, there is no need to define this method and create a class derived from ov::IAsyncInferRequest. For single stage pipelines, a default implementation of this method creates ov::IAsyncInferRequest wrapping a synchronous inference request and runs it asynchronously in the ``m_request_executor`` executor.
-
-   * For pipelines with multiple stages, such as performing some preprocessing on host, uploading input data to a device, running inference on a device, or downloading and postprocessing output data, schedule stages on several task executors to achieve better device use and performance. You can do it by creating a sufficient number of inference requests running in parallel. In this case, device stages of different inference requests are overlapped with preprocessing and postprocessing stage giving better performance.
+  * For single-stage pipelines, there is no need to define this method and create a class derived from ov::IAsyncInferRequest. For single stage pipelines, a default implementation of this method creates ov::IAsyncInferRequest wrapping a synchronous inference request and runs it asynchronously in the ``m_request_executor`` executor.
+  * For pipelines with multiple stages, such as performing some preprocessing on host, uploading input data to a device, running inference on a device, or downloading and postprocessing output data, schedule stages on several task executors to achieve better device use and performance. You can do it by creating a sufficient number of inference requests running in parallel. In this case, device stages of different inference requests are overlapped with preprocessing and postprocessing stage giving better performance.
    
 .. important:: 
 
