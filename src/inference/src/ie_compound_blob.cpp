@@ -14,6 +14,7 @@
 #include <utility>
 #include <vector>
 
+IE_SUPPRESS_DEPRECATED_START
 namespace InferenceEngine {
 
 namespace {
@@ -196,7 +197,6 @@ TensorDesc verifyI420BlobInput(const Blob::Ptr& y, const Blob::Ptr& u, const Blo
 }
 
 TensorDesc getBlobTensorDesc(const Blob::Ptr& blob) {
-    IE_SUPPRESS_DEPRECATED_START
     if (auto nv12 = dynamic_cast<NV12Blob*>(blob.get())) {
         auto yDesc = nv12->y()->getTensorDesc();
         yDesc.getDims()[1] += 2;
@@ -208,7 +208,6 @@ TensorDesc getBlobTensorDesc(const Blob::Ptr& blob) {
         yDesc.getDims()[1] += 2;
         return yDesc;
     }
-    IE_SUPPRESS_DEPRECATED_END
 
     return blob->getTensorDesc();
 }
