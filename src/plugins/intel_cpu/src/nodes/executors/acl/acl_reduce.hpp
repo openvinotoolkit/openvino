@@ -63,6 +63,11 @@ public:
                 return false;
             }
         }
+        if (srcDescs[0]->getShape().getRank() >= arm_compute::MAX_DIMS) {
+            DEBUG_LOG("ACL supports ", arm_compute::MAX_DIMS,
+                      " dimensions maximum. src[0] shape rank is ", srcDescs[0]->getShape().getRank());
+            return false;
+        }
         return true;
     }
 
