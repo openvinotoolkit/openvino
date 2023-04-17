@@ -9,7 +9,9 @@ const OVdefaultSelections = {
     platforms: {name: 'platform',
         data: [
             'Intel® Core™  i9-12900K CPU-only',
+            'Intel® Core™  i9-13900K CPU-only',
             'Intel® Core™  i5-10500TE CPU-only',
+            'Intel® Core™  i5-13600K CPU-only',
             'Intel® Core™  i5-8500 CPU-only',
             'Intel® Core™  i7-8700T CPU-only',
             'Intel® Core™  i9-10900TE CPU-only',
@@ -41,13 +43,13 @@ const OVMSdefaultSelections = {
     models: {name: 'networkmodel',
         data: [
             'bert-small-uncased-whole-word-masking-squad-0002',
-            'mobilenet-SSD ',
+            'mobilenet-ssd ',
             'resnet-50',
-            'yolo_V3_Tiny'
+            'yolo_v3_tiny'
         ]
     },
     parameters: {name: 'kpi', data: ['Throughput']},
-    pracision: {name: 'precision', data: ['OV-INT8 (reference)', 'INT8', 'FP32']}
+    pracision: {name: 'precision', data: ['OV-INT8 (reference)', 'INT8']}
 }
 
 // ====================================================
@@ -117,7 +119,7 @@ class ExcelData {
         if (!csvdataline) {
             return;
         }
-        this.networkModel = csvdataline[0];
+        this.networkModel = csvdataline[0].toLowerCase();
         this.release = csvdataline[1];
         this.ieType = csvdataline[2];
         this.platformName = csvdataline[3];
@@ -133,31 +135,16 @@ class ExcelData {
         this.tdpPerSocket = csvdataline[13];
         this.latency = csvdataline[14];
     }
-    networkModel = '';
-    release = '';
-    ieType = '';
-    platformName = '';
-    throughputInt8 = '';
-    throughputFP16 = '';
-    throughputFP32 = '';
-    value = '';
-    efficiency = '';
-    price = '';
-    tdp = '';
-    sockets = '';
-    pricePerSocket = '';
-    tdpPerSocket = '';
-    latency = '';
 }
 
 
 class OVMSExcelData extends ExcelData {
     constructor(csvdataline) {
         super(csvdataline);
-        this.throughputOVMSInt8 = csvdataline[4];
-        this.throughputInt8 = csvdataline[5];
-        this.throughputFP16 = csvdataline[6];
-        this.throughputFP32 = csvdataline[7];
+        this.throughputOVMSInt8 = csvdataline[5];
+        this.throughputInt8 = csvdataline[4];
+        this.throughputOVMSFP32 = csvdataline[7];
+        this.throughputFP32 = csvdataline[6];
     }
 }
 
@@ -172,7 +159,13 @@ class GraphData {
         this.ieType = excelData.ieType;
         this.platformName = excelData.platformName;
         this.kpi = new KPI(
-            new Precision(excelData.throughputOVMSInt8, excelData.throughputInt8, excelData.throughputFP16, excelData.throughputFP32),
+            {
+                'ovmsint8': excelData.throughputOVMSInt8,
+                'ovmsfp32': excelData.throughputOVMSFP32,
+                'int8': excelData.throughputInt8,
+                'fp16': excelData.throughputFP16,
+                'fp32': excelData.throughputFP32
+            },
             excelData.value,
             excelData.efficiency,
             excelData.latency);
@@ -183,16 +176,6 @@ class GraphData {
         this.tdpPerSocket = excelData.tdpPerSocket;
         this.latency = excelData.latency;
     }
-    networkModel = '';
-    platformName = '';
-    release = '';
-    ieType = '';
-    kpi = new KPI();
-    price = '';
-    tdp = '';
-    sockets = '';
-    pricePerSocket = '';
-    tdpPerSocket = '';
 }
 
 
@@ -203,23 +186,6 @@ class KPI {
         this.efficiency = efficiency;
         this.latency = latency;
     }
-    throughput = new Precision();
-    value = '';
-    efficiency = '';
-    latency = '';
-}
-
-
-class Precision {
-    constructor(ovmsint8, int8, fp16, fp32) {
-        this.ovmsint8 = ovmsint8;
-        this.int8 = int8;
-        this.fp16 = fp16;
-        this.fp32 = fp32;
-    }
-    int8 = '';
-    fp16 = '';
-    fp32 = '';
 }
 
 
@@ -248,7 +214,7 @@ class Modal {
     }
     static getPrecisionsLabels(version) {
         if (version == 'ovms')
-            return ['OV-INT8 (reference)', 'INT8', 'FP16', 'FP32'];
+            return ['OV-INT8 (reference)', 'INT8', 'OV-FP32 (reference)', 'FP32'];
         return ['INT8', 'FP16', 'FP32'];
     }
     static getCoreTypes(labels) {
@@ -270,6 +236,8 @@ class Modal {
             switch (label) {
                 case 'OV-INT8 (reference)':
                     return 'ovmsint8';
+                case 'OV-FP32 (reference)':
+                    return 'ovmsfp32';
                 case 'INT8':
                     return 'int8';
                 case 'FP16':
@@ -364,7 +332,9 @@ class Graph {
     static getPrecisionConfig(precision) {
         switch (precision) {
             case 'ovmsint8':
-                return { data: null, color: '#E1AD01', label: 'FPS (OV Ref. INT8)' };
+                return { data: null, color: '#FF8F51', label: 'FPS (OV Ref. INT8)' };
+            case 'ovmsfp32':
+                return { data: null, color: '#B24501', label: 'FPS (OV Ref. FP32)' };
             case 'int8':
                 return { data: null, color: '#00C7FD', label: 'FPS (INT8)' };
             case 'fp16':
@@ -442,9 +412,9 @@ $(document).ready(function () {
     function showModal(version) {
         $('body').css('overflow', 'hidden');
 
-        let dataPath = '_static/benchmarks_files/benchmark-data.csv';
+        let dataPath = '_static/benchmarks_files/OV-benchmark-data.csv';
         if (version == 'ovms')
-            dataPath = '_static/benchmarks_files/ovms_data.csv';
+            dataPath = '_static/benchmarks_files/OVMS-benchmark-data.csv';
         Papa.parse(dataPath, {
             download: true,
             complete: (result) => renderModal(result, version)
