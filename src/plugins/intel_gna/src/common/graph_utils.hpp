@@ -318,7 +318,7 @@ inline ov::Shape transpose_shape(const ov::Shape& shape, std::vector<size_t> ord
  * @brief Make gather indices using transpose axes.
  * @param input_shape the shape to be transposed as gather
  * @param order the permutation array to apply to the input shape
- * @return vecotor with indices to gather
+ * @return vector with indexes to gather
  */
 inline std::vector<size_t> make_gather_indices_from_transpose_axes(const Shape& input_shape, const Shape& order) {
     // Supported shapes: 2d, 3d, 4d
