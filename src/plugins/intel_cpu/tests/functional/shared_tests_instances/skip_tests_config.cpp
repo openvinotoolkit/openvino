@@ -239,9 +239,6 @@ std::vector<std::string> disabledTestPatterns() {
     retVector.emplace_back(R"(smoke_LSTMSequenceCommonClip/LSTMSequenceTest.CompareWithRefs.*)");
     retVector.emplace_back(R"(smoke_Decomposition_(3|4)D/Mvn6LayerTest.CompareWithRefs.*)");
     retVector.emplace_back(R"(smoke_AvgPool_ExplicitPad_CeilRounding/PoolingLayerTest.CompareWithRefs.*)");
-    retVector.emplace_back(R"(smoke_ReduceLogicalOneAxis/ReduceOpsLayerTest.CompareWithRefs.*)");
-    retVector.emplace_back(R"(smoke_Reduce_InputShapes/ReduceOpsLayerTest.CompareWithRefs.*)");
-    retVector.emplace_back(R"(smoke_ReduceLogical_ReductionTypes/ReduceOpsLayerTest.CompareWithRefs.*)");
     retVector.emplace_back(R"(smoke_RNNSequenceCommonZeroClip/RNNSequenceTest.CompareWithRefs.*)");
     retVector.emplace_back(R"(smoke_RNNSequenceCommonClip/RNNSequenceTest.CompareWithRefs.*)");
     retVector.emplace_back(R"(smoke_INTEL_CPU_TestsDFT_(1|2|3|4)d/DFTLayerTest.CompareWithRefs.*)");
