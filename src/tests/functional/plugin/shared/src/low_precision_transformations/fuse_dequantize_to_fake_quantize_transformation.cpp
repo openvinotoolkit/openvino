@@ -1,8 +1,8 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "low_precision_transformations/fuse_fake_quantize_transformation.hpp"
+#include "low_precision_transformations/fuse_dequantize_to_fake_quantize_transformation.hpp"
 
 #include <tuple>
 #include <sstream>
@@ -14,13 +14,13 @@
 
 namespace LayerTestsDefinitions {
 
-std::string FuseFakeQuantizeTransformation::getTestCaseName(const testing::TestParamInfo<FuseFakeQuantizeTransformationParams>& obj) {
+std::string FuseDequantizeToFakeQuantizeTransformation::getTestCaseName(const testing::TestParamInfo<FuseDequantizeToFakeQuantizeTransformationParams>& obj) {
     std::string targetDevice;
-    FuseFakeQuantizeTransformationTestValues testValues;
+    FuseDequantizeToFakeQuantizeTransformationTestValues testValues;
     std::tie(targetDevice, testValues) = obj.param;
 
     std::ostringstream result;
-    result << "targetDevice=" << targetDevice << "_" <<
+    result << targetDevice << "_" <<
         testValues.actual.precisionBeforeAdd << "_" <<
         testValues.actual.add.values.size() << "_" <<
         testValues.actual.add.outPrecision << "_" <<
@@ -32,8 +32,8 @@ std::string FuseFakeQuantizeTransformation::getTestCaseName(const testing::TestP
     return result.str();
 }
 
-void FuseFakeQuantizeTransformation::SetUp() {
-    FuseFakeQuantizeTransformationTestValues testValues;
+void FuseDequantizeToFakeQuantizeTransformation::SetUp() {
+    FuseDequantizeToFakeQuantizeTransformationTestValues testValues;
     std::tie(targetDevice, testValues) = this->GetParam();
 
     function = ngraph::builder::subgraph::FuseFakeQuantizeFunction::getOriginal(
@@ -45,11 +45,9 @@ void FuseFakeQuantizeTransformation::SetUp() {
         testValues.actual.precisionAfterDequantization,
         testValues.actual.precisionAfterDequantization,
         testValues.actual.fakeQuantizeOnData);
-
-    ov::pass::InitNodeInfo().run_on_model(function);
 }
 
-TEST_P(FuseFakeQuantizeTransformation, CompareWithRefImpl) {
+TEST_P(FuseDequantizeToFakeQuantizeTransformation, CompareWithRefImpl) {
     Run();
 };
 

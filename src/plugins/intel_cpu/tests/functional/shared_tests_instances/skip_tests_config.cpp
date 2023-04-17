@@ -116,6 +116,11 @@ std::vector<std::string> disabledTestPatterns() {
         R"(.*smoke_Hetero_BehaviorTests.*DynamicInputToDynamicOutput.*)",
         R"(.*smoke_Auto_BehaviorTests.*DynamicOutputToDynamicInput.*)",
         R"(.*smoke_Auto_BehaviorTests.*DynamicInputToDynamicOutput.*)",
+        // unsupported metrics
+        R"(.*OVGetMetricPropsTest.*OVGetMetricPropsTest.*(DEVICE_UUID|FULL_DEVICE_NAME_with_DEVICE_ID|DEVICE_GOPS|DEVICE_TYPE|MAX_BATCH_SIZE).*)",
+        R"(.*smoke_AutoMultiHeteroOVGetMetricPropsTest.*OVGetMetricPropsTest.*(AVAILABLE_DEVICES|OPTIMIZATION_CAPABILITIES|RANGE_FOR_ASYNC_INFER_REQUESTS|RANGE_FOR_STREAMS).*)",
+        // supports only '' as device id
+        R"(.*OVClassQueryModelTest.*QueryModelWithDeviceID.*)",
 
         // Issue 67214
         R"(smoke_PrePostProcess.*resize_and_convert_layout_i8.*)",
@@ -215,17 +220,13 @@ std::vector<std::string> disabledTestPatterns() {
     retVector.emplace_back(R"(smoke_LPT.*)");
     retVector.emplace_back(R"(smoke_CPU_OVClassLoadNetworkAndCheckWithSecondaryPropertiesTest/OVClassLoadNetworkAndCheckSecondaryPropertiesTest.LoadNetworkAndCheckSecondaryPropertiesTest.*)");
     retVector.emplace_back(R"(smoke_CPU_OVClassLoadNetworkAndCheckWithSecondaryPropertiesDoubleTest/OVClassLoadNetworkAndCheckSecondaryPropertiesTest.LoadNetworkAndCheckSecondaryPropertiesTest.*)");
+    retVector.emplace_back(R"(smoke_CPU_OVClassCompileModelAndCheckSecondaryPropertiesTest/OVClassCompileModelAndCheckSecondaryPropertiesTest.CompileModelAndCheckSecondaryPropertiesTest.*)");
+    retVector.emplace_back(R"(smoke_CPU_OVClassCompileModelAndCheckSecondaryPropertiesDoubleTest/OVClassCompileModelAndCheckSecondaryPropertiesTest.CompileModelAndCheckSecondaryPropertiesTest.*)");
     retVector.emplace_back(R"(smoke_Activation_Basic/ActivationLayerTest.CompareWithRefs.*)");
     retVector.emplace_back(R"(smoke_Integer_Activation_Basic/ActivationLayerTest.CompareWithRefs/(Tanh|Negative|Sqrt).*)");
     retVector.emplace_back(R"(smoke_Activation_Basic_Prelu_Const/ActivationLayerTest.CompareWithRefs/(LeakyRelu|PReLu).*)");
     retVector.emplace_back(R"(smoke_Activation_Basic_Prelu_Param/ActivationParamLayerTest.CompareWithRefs/(LeakyRelu|PReLu).*)");
     retVector.emplace_back(R"(smoke_CompareWithRefs/ComparisonLayerTest.ComparisonTests.*)");
-    retVector.emplace_back(R"(smoke_DeformableConvolution2D_ExplicitPadding/DeformableConvolutionLayerTest.CompareWithRefs.*)");
-    retVector.emplace_back(R"(smoke_DeformableConvolution2D_AutoPadValid/DeformableConvolutionLayerTest.CompareWithRefs.*)");
-    retVector.emplace_back(R"(smoke_DeformableConvolution2D_DeformableGroups_ExplicitPadding/DeformableConvolutionLayerTest.CompareWithRefs.*)");
-    retVector.emplace_back(R"(smoke_DeformableConvolution2D_SingleTestCase/DeformableConvolutionLayerTest.CompareWithRefs.*)");
-    retVector.emplace_back(R"(smoke_DeformableConvolution2D_MultipleGroups/DeformableConvolutionLayerTest.CompareWithRefs.*)");
-    retVector.emplace_back(R"(smoke_DeformableConvolution2D_MultipleGroups_2/DeformableConvolutionLayerTest.CompareWithRefs.*)");
     retVector.emplace_back(R"(smoke_CompareWithRefs_static/EltwiseLayerTest.EltwiseTests.*)");
     retVector.emplace_back(R"(smoke_CompareWithRefs_static_check_collapsing/EltwiseLayerTest.EltwiseTests.*)");
     retVector.emplace_back(R"(smoke_SingleThread/EltwiseLayerTest.EltwiseTests.*)");
@@ -236,8 +237,7 @@ std::vector<std::string> disabledTestPatterns() {
     retVector.emplace_back(R"(smoke_TrivialLoop/TrivialLoopTest.AutoSlicingInputWithDynCondition_(CheckPredefinedValues|CheckReference).*)");
     retVector.emplace_back(R"(smoke_LSTMSequenceCommonZeroClip/LSTMSequenceTest.CompareWithRefs.*)");
     retVector.emplace_back(R"(smoke_LSTMSequenceCommonClip/LSTMSequenceTest.CompareWithRefs.*)");
-    retVector.emplace_back(R"(smoke_MVN_1D/Mvn6LayerTest.CompareWithRefs.*)");
-    retVector.emplace_back(R"(smoke_Decomposition_(3|4|10)D/Mvn6LayerTest.CompareWithRefs.*)");
+    retVector.emplace_back(R"(smoke_Decomposition_(3|4)D/Mvn6LayerTest.CompareWithRefs.*)");
     retVector.emplace_back(R"(smoke_AvgPool_ExplicitPad_CeilRounding/PoolingLayerTest.CompareWithRefs.*)");
     retVector.emplace_back(R"(smoke_ReduceLogicalOneAxis/ReduceOpsLayerTest.CompareWithRefs.*)");
     retVector.emplace_back(R"(smoke_Reduce_InputShapes/ReduceOpsLayerTest.CompareWithRefs.*)");
@@ -247,14 +247,11 @@ std::vector<std::string> disabledTestPatterns() {
     retVector.emplace_back(R"(smoke_INTEL_CPU_TestsDFT_(1|2|3|4)d/DFTLayerTest.CompareWithRefs.*)");
     retVector.emplace_back(R"(smoke_INTEL_CPU_TestsSelect_none/SelectLayerTest.CompareWithRefImpl/COND=BOOL.*)");
     retVector.emplace_back(R"(smoke_INTEL_CPU_TestsSelect_numpy/SelectLayerTest.CompareWithRefImpl/COND=BOOL.*)");
-    retVector.emplace_back(R"(smoke_SoftMax(2|4)D_dynamic/SoftMax8LayerTest.CompareWithRefs/NetType=f32_InType=undefined_OutType=undefined.*)");
-    retVector.emplace_back(R"(smoke_TopK/TopKLayerTest.CompareWithRefsDynamicBath.*)");
     retVector.emplace_back(R"(smoke_Snippets.*)");
     retVector.emplace_back(R"(smoke_Quantized.*)");
     retVector.emplace_back(R"(smoke_NegativeQuantizedMatMulMultiplyFusion.*)");
     retVector.emplace_back(R"(MultipleLSTMCellTest/MultipleLSTMCellTest.CompareWithRefs.*)");
     retVector.emplace_back(R"(smoke_MultipleAdd_Nd/MultiplyAddLayerTest.CompareWithRefs.*)");
-    retVector.emplace_back(R"(smoke_MVNMultiplyAdd_1D/MVNMultiplyAdd.CompareWithRefs.*)");
     retVector.emplace_back(R"(smoke_If/SimpleIfTest.CompareWithRefs.*)");
     retVector.emplace_back(R"(smoke_If/SimpleIfNotConstConditionTest.CompareWithRefs.*)");
 #endif
