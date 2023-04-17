@@ -1354,7 +1354,6 @@ class TestLayoutParsing(unittest.TestCase):
         for i in exp_res.keys():
             assert np.array_equal(result[i], exp_res[i])
 
-
     def test_get_layout_4(self):
         argv_layout = "nhwc"
         result = get_layout_values(argv_layout)
