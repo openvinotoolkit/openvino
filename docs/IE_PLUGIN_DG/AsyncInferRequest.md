@@ -14,7 +14,7 @@ AsyncInferRequest Class
 
 OpenVINO Runtime Plugin API provides the base ov::IAsyncInferRequest class for a custom asynchronous inference request implementation:
 
-.. doxygensnippet:: openvino/src/plugins/template/src/async_infer_request.hpp
+.. doxygensnippet:: src/plugins/template/src/async_infer_request.hpp
    :language: cpp
    :fragment: [async_infer_request:header]
 
