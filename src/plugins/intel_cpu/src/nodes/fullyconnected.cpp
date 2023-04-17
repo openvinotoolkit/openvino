@@ -9,7 +9,7 @@
 #include "fake_quantize.h"
 #include "input.h"
 #include "reorder.h"
-#include "ngraph_transformations/op/fully_connected.hpp"
+#include "transformations/cpu_opset/common/op/fully_connected.hpp"
 #include "ngraph/opsets/opset1.hpp"
 #include "dnnl_extension_utils.h"
 #include "onednn/dnnl.h"
@@ -237,6 +237,7 @@ void FullyConnected::getSupportedDescriptors() {
     }
     auto weightsDataType = DnnlExtensionUtils::IEPrecisionToDataType(getOriginalInputPrecisionAtPort(WEIGHTS_ID));
 
+    isINT8 = one_of(inputDataType, memory::data_type::u8, memory::data_type::s8) && weightsDataType == memory::data_type::s8;
     // revert back outputDataType on special cases
     if (inputDataType == memory::data_type::f32) {
         // oneDNN only support f32 output when input is f32, even if FQ is fused
@@ -534,10 +535,8 @@ void FullyConnected::setPostOps(dnnl::primitive_attr& attr, const VectorDims& di
         IE_THROW() << "Unexpected rank(" << dims_ext.size() << ") for output tensor of node: " << getName();
     }
 
-    bool isINT8 = getOriginalInputPrecisionAtPort(WEIGHTS_ID) == Precision::U8 ||
-                  getOriginalInputPrecisionAtPort(WEIGHTS_ID) == Precision::I8;
 
-    DnnlPostOpsComposer dnnlpoc(getEngine(), attr, ops, postOpsArgs, dims, dims.size() - 1, isINT8);
+    DnnlPostOpsComposer dnnlpoc(getEngine(), attr, ops, postOpsArgs, dims, dims.size() - 1, isINT8, 1 << 0,  getDQScales(), withBiases);
 
     for (int i = 0; i < fusedWith.size(); ++i) {
         auto& node = fusedWith[i];
@@ -911,51 +910,6 @@ bool FullyConnected::canBeExecutedInConv1x1() const {
     }
 
     return retVal;
-}
-
-MemoryPtr FullyConnected::prepareWeightMemory(DnnlMemoryDescPtr weightDesc) {
-    if (!getParentEdgeAt(1)->getParent()->isConstant())
-        IE_THROW() << "Weight input is not const for node " << getName() << ".";
-    auto blob = getParentEdgeAt(1)->getMemoryPtr();
-    if (!blob)
-        IE_THROW() << "Cannot get const weights blob for node " << getName() << ".";
-
-    auto constDnnlMemOutDesc = blob->GetDescWithType<DnnlMemoryDesc>();
-    auto weightSrcDesc = constDnnlMemOutDesc->getDnnlDesc();
-    weightSrcDesc = weightSrcDesc.reshape(weightDesc->getDnnlDesc().get_dims());
-    auto create = [&] () {
-        auto newSrcDesc = DnnlExtensionUtils::makeDescriptor(weightSrcDesc);
-
-        Memory srcMemory{ getEngine() };
-        srcMemory.Create(newSrcDesc, blob->GetData());
-
-        MemoryPtr _ptr = std::make_shared<Memory>(getEngine());
-        _ptr->Create(weightDesc);
-        node::Reorder::reorderData(srcMemory, *_ptr, context->getParamsCache());
-
-        return _ptr;
-    };
-
-    MemoryPtr ptr;
-    const auto& format = weightDesc->serializeFormat();
-    auto itr = privateWeightCache.find(format);
-    if (privateWeightCache.end() != itr) {
-        ptr = itr->second;
-    } else {
-        auto weightCache = context->getWeightsCache();
-        if (weightCache != nullptr) {
-            const std::string string_hash = getName() + "_" + format
-                                            + "_" + std::to_string(blob->GetSize())
-                                            + "_" + std::to_string(reinterpret_cast<uint64_t>(blob->GetData()));
-
-            ptr = *weightCache->findOrCreate(string_hash, create);
-        } else {
-            ptr = create();
-        }
-        privateWeightCache[format] = ptr;
-    }
-
-    return ptr;
 }
 
 bool FullyConnected::useSparseWeightsDecompression() {

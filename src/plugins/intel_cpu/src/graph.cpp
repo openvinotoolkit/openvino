@@ -436,7 +436,6 @@ void Graph::InitDescriptors() {
             if (inputNode)
                 inputNode->withMeanImage();
         }
-
         OV_ITT_SCOPE_NEXT(FIRST_INFERENCE, taskChain, node->profiling.getSupportedDescriptors);
         DEBUG_LOG("Get supported primitive descriptors for node: ", node->getName());
         node->getSupportedDescriptors();
@@ -450,11 +449,19 @@ void Graph::InitDescriptors() {
         node->filterSupportedPrimitiveDescriptors();
 
 #ifdef CPU_DEBUG_CAPS
-        DEBUG_LOG("==================");
-        for (auto & pd : node->getSupportedPrimitiveDescriptors())
-            DEBUG_LOG("#", node->getExecIndex(),
-                      " ", node->getName(),
-                      "  SupportedPrimitiveDescriptor:\n", pd);
+        const auto& SPDs = node->getSupportedPrimitiveDescriptors();
+        for (int i = 0; i < SPDs.size(); i++) {
+            DEBUG_LOG("#",
+                      node->getExecIndex(),
+                      " ",
+                      node->getName(),
+                      "  SupportedPrimitiveDescriptors [",
+                      i,
+                      "/",
+                      SPDs.size(),
+                      "]: \n",
+                      SPDs[i]);
+        }
 #endif
     }
 

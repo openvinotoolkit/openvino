@@ -971,6 +971,7 @@ public:
 
 std::vector<element::Type> types{
     element::f32,
+    element::f16,
     element::f64,
     element::i32,
     element::u32,
@@ -1309,4 +1310,32 @@ TEST(SplitConcatElimination, no_sequence_found) {
                                                                   "The number of Concat ops is not 1";
     EXPECT_EQ(count_ops_of_type<ov::opset9::Split>(model), 1) << "SplitConcatElimination transformation has failed. "
                                                                  "The number of Split ops is not 1";
+}
+
+TEST(nop_elimination, gather_to_squeeze) {
+    auto generate_func = [](int64_t gather_axis) {
+        ov::Shape shape{3, 3, 4, 4};
+        shape[gather_axis] = 1;
+        auto arg = std::make_shared<op::Parameter>(element::f32, shape);
+        auto indices = op::Constant::create(element::i64, Shape{}, vector<int64_t>{0});
+        auto axis = op::Constant::create(element::i64, Shape{}, vector<int64_t>{gather_axis});
+        auto gather = std::make_shared<op::v8::Gather>(arg, indices, axis);
+        return std::make_shared<Function>(NodeVector{gather}, ParameterVector{arg});
+    };
+
+    auto func_axis_0 = generate_func(0);
+    auto func_axis_1 = generate_func(1);
+    auto func_axis_2 = generate_func(2);
+    auto func_axis_3 = generate_func(3);
+    pass::Manager pass_manager;
+    pass_manager.register_pass<ov::pass::NopElimination>();
+    auto run_and_check = [&](std::shared_ptr<Function>& func) {
+        pass_manager.run_passes(func);
+        EXPECT_EQ(count_ops_of_type<op::v8::Gather>(func), 0);
+        EXPECT_EQ(count_ops_of_type<op::v0::Squeeze>(func), 1);
+    };
+    run_and_check(func_axis_0);
+    run_and_check(func_axis_1);
+    run_and_check(func_axis_2);
+    run_and_check(func_axis_3);
 }

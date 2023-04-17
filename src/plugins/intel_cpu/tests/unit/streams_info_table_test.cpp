@@ -463,7 +463,7 @@ StreamsCalculationTestCase _1sockets_14cores_tput_5 = {
     0,
     1,
     {{20, 6, 8, 6}},
-    {{6, MAIN_CORE_PROC, 1}, {8, EFFICIENT_CORE_PROC, 1}, {6, HYPER_THREADING_PROC, 1}},
+    {{6, MAIN_CORE_PROC, 1}, {4, EFFICIENT_CORE_PROC, 2}, {6, HYPER_THREADING_PROC, 1}},
 };
 
 StreamsCalculationTestCase _1sockets_14cores_tput_6 = {
@@ -528,6 +528,43 @@ StreamsCalculationTestCase _1sockets_14cores_tput_12 = {
     {{20, 6, 8, 6}},
     {{1, MAIN_CORE_PROC, 6}, {1, EFFICIENT_CORE_PROC, 6}},
 };
+
+StreamsCalculationTestCase _1sockets_14cores_tput_13 = {
+    0,
+    1,
+    0,
+    1,
+    {{20, 6, 8, 6}},
+    {{1, MAIN_CORE_PROC, 1}},
+};
+
+StreamsCalculationTestCase _1sockets_14cores_tput_14 = {
+    0,
+    9,
+    0,
+    1,
+    {{20, 6, 8, 6}},
+    {{6, MAIN_CORE_PROC, 1}, {1, EFFICIENT_CORE_PROC, 2}},
+};
+
+StreamsCalculationTestCase _1sockets_14cores_tput_15 = {
+    0,
+    12,
+    0,
+    1,
+    {{20, 6, 8, 6}},
+    {{6, MAIN_CORE_PROC, 1}, {3, EFFICIENT_CORE_PROC, 2}},
+};
+
+StreamsCalculationTestCase _1sockets_14cores_tput_16 = {
+    0,
+    15,
+    0,
+    1,
+    {{20, 6, 8, 6}},
+    {{6, MAIN_CORE_PROC, 1}, {4, EFFICIENT_CORE_PROC, 2}, {1, HYPER_THREADING_PROC, 1}},
+};
+
 
 StreamsCalculationTestCase _1sockets_10cores_latency_1 = {
     1,
@@ -607,7 +644,7 @@ StreamsCalculationTestCase _1sockets_10cores_tput_5 = {
     0,
     1,
     {{12, 2, 8, 2}},
-    {{2, MAIN_CORE_PROC, 1}, {8, EFFICIENT_CORE_PROC, 1}, {2, HYPER_THREADING_PROC, 1}},
+    {{2, MAIN_CORE_PROC, 1}, {4, EFFICIENT_CORE_PROC, 2}, {2, HYPER_THREADING_PROC, 1}},
 };
 
 StreamsCalculationTestCase _1sockets_10cores_tput_6 = {
@@ -715,7 +752,7 @@ StreamsCalculationTestCase _1sockets_8cores_tput_7 = {
     0,
     1,
     {{12, 4, 4, 4}},
-    {{4, MAIN_CORE_PROC, 1}, {4, EFFICIENT_CORE_PROC, 1}, {4, HYPER_THREADING_PROC, 1}},
+    {{4, MAIN_CORE_PROC, 1}, {2, EFFICIENT_CORE_PROC, 2}, {4, HYPER_THREADING_PROC, 1}},
 };
 
 StreamsCalculationTestCase _1sockets_6cores_latency_1 = {
@@ -772,6 +809,96 @@ StreamsCalculationTestCase _1sockets_6cores_tput_4 = {
     {{6, MAIN_CORE_PROC, 1}, {6, HYPER_THREADING_PROC, 1}},
 };
 
+StreamsCalculationTestCase _1sockets_ecores_latency_1 = {
+    1,
+    0,
+    0,
+    0,
+    {{16, 0, 16, 0}},
+    {{1, EFFICIENT_CORE_PROC, 16}},
+};
+
+StreamsCalculationTestCase _1sockets_ecores_latency_2 = {
+    1,
+    4,
+    0,
+    0,
+    {{16, 0, 16, 0}},
+    {{1, EFFICIENT_CORE_PROC, 4}},
+};
+
+StreamsCalculationTestCase _1sockets_ecores_latency_3 = {
+    1,
+    0,
+    4,
+    0,
+    {{16, 0, 16, 0}},
+    {{1, EFFICIENT_CORE_PROC, 16}},
+};
+
+StreamsCalculationTestCase _1sockets_ecores_latency_4 = {
+    1,
+    0,
+    0,
+    4,
+    {{16, 0, 16, 0}},
+    {{1, EFFICIENT_CORE_PROC, 16}},
+};
+
+StreamsCalculationTestCase _1sockets_ecores_tput_1 = {
+    0,
+    0,
+    0,
+    1,
+    {{16, 0, 16, 0}},
+    {{16, EFFICIENT_CORE_PROC, 1}},
+};
+
+StreamsCalculationTestCase _1sockets_ecores_tput_2 = {
+    0,
+    0,
+    0,
+    4,
+    {{16, 0, 16, 0}},
+    {{4, EFFICIENT_CORE_PROC, 4}},
+};
+
+StreamsCalculationTestCase _1sockets_ecores_tput_3 = {
+    2,
+    0,
+    0,
+    0,
+    {{16, 0, 16, 0}},
+    {{2, EFFICIENT_CORE_PROC, 8}},
+};
+
+StreamsCalculationTestCase _1sockets_ecores_tput_4 = {
+    8,
+    0,
+    4,
+    0,
+    {{16, 0, 16, 0}},
+    {{4, EFFICIENT_CORE_PROC, 4}},
+};
+
+StreamsCalculationTestCase _1sockets_ecores_tput_5 = {
+    2,
+    0,
+    0,
+    4,
+    {{16, 0, 16, 0}},
+    {{2, EFFICIENT_CORE_PROC, 8}},
+};
+
+StreamsCalculationTestCase _1sockets_mock_tput_1 = {
+    0,
+    15,
+    0,
+    1,
+    {{20, 6, 7, 6}},
+    {{6, MAIN_CORE_PROC, 1}, {3, EFFICIENT_CORE_PROC, 2}, {3, HYPER_THREADING_PROC, 1}},
+};
+
 TEST_P(StreamsCalculationTests, StreamsCalculation) {}
 
 INSTANTIATE_TEST_SUITE_P(StreamsInfoTable,
@@ -813,6 +940,10 @@ INSTANTIATE_TEST_SUITE_P(StreamsInfoTable,
                                          _1sockets_14cores_tput_10,
                                          _1sockets_14cores_tput_11,
                                          _1sockets_14cores_tput_12,
+                                         _1sockets_14cores_tput_13,
+                                         _1sockets_14cores_tput_14,
+                                         _1sockets_14cores_tput_15,
+                                         _1sockets_14cores_tput_16,
                                          _1sockets_10cores_latency_1,
                                          _1sockets_10cores_latency_2,
                                          _1sockets_10cores_latency_3,
@@ -839,6 +970,16 @@ INSTANTIATE_TEST_SUITE_P(StreamsInfoTable,
                                          _1sockets_6cores_tput_1,
                                          _1sockets_6cores_tput_2,
                                          _1sockets_6cores_tput_3,
-                                         _1sockets_6cores_tput_4));
+                                         _1sockets_6cores_tput_4,
+                                         _1sockets_ecores_latency_1,
+                                         _1sockets_ecores_latency_2,
+                                         _1sockets_ecores_latency_3,
+                                         _1sockets_ecores_latency_4,
+                                         _1sockets_ecores_tput_1,
+                                         _1sockets_ecores_tput_2,
+                                         _1sockets_ecores_tput_3,
+                                         _1sockets_ecores_tput_4,
+                                         _1sockets_ecores_tput_5,
+                                         _1sockets_mock_tput_1));
 
 }  // namespace

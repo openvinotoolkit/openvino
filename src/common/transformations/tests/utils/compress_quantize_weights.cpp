@@ -184,6 +184,36 @@ TEST_F(TransformationTestsF, CompressQuantizeWeightsWithZeroPointOptimizer) {
     comparator.enable(FunctionsComparator::CmpValues::ACCURACY);
 }
 
+TEST_F(TransformationTestsF, CompressQuantizeWeightsWithZeroPointOptimizerFP16) {
+    {
+        auto data = opset8::Constant::create(element::f16, Shape{3, 1, 1, 1}, {0.2, 1.2, 1.2});
+        auto input_low =
+            opset8::Constant::create(element::f16, Shape{3, 1, 1, 1}, {0.59033203125, 1.4833984375, 1.2900390625});
+        auto input_high =
+            opset8::Constant::create(element::f16, Shape{3, 1, 1, 1}, {-0.59033203125, -1.4833984375, -1.2900390625});
+        auto output_low =
+            opset8::Constant::create(element::f16, Shape{3, 1, 1, 1}, {0.295166015625, 0.74169921875, 0.64501953125});
+        auto output_high = opset8::Constant::create(element::f16,
+                                                    Shape{3, 1, 1, 1},
+                                                    {-0.295166015625, -0.74169921875, -0.64501953125});
+        auto fq = std::make_shared<opset8::FakeQuantize>(data, input_low, input_high, output_low, output_high, 255);
+        function = std::make_shared<Function>(NodeVector{fq}, ParameterVector{});
+
+        manager.register_pass<pass::CompressQuantizeWeights>();
+        manager.register_pass<pass::ZeroPointOptimizer>();
+    }
+
+    {
+        auto data = opset8::Constant::create(element::i8, Shape{3, 1, 1, 1}, {-43, -103, -118});
+        auto convert = std::make_shared<opset8::Convert>(data, element::f16);
+        auto scale = opset8::Constant::create(element::f16, Shape{3, 1, 1, 1}, {-0.002325, -0.00584, -0.005077});
+        auto mul = std::make_shared<opset8::Multiply>(convert, scale);
+        function_ref = std::make_shared<Function>(NodeVector{mul}, ParameterVector{});
+    }
+    comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
+    comparator.enable(FunctionsComparator::CmpValues::ACCURACY);
+}
+
 TEST_F(TransformationTestsF, NegativeCompressQuantizeWeightsWithZeroPointOptimizer) {
     {
         auto data = opset8::Constant::create(element::f32, Shape{2, 4, 1, 1}, {-1, 0, 1, 2, 3, 4, 5, 11});

@@ -455,6 +455,7 @@ std::string Node::getPrimitiveDescriptorType() {
 
     SEARCH_TYPE(winograd);
     SEARCH_TYPE(sparse);
+    SEARCH_TYPE(acl);
     SEARCH_TYPE(_dw);
     SEARCH_TYPE(_1x1);
 
@@ -821,6 +822,51 @@ void Node::prepareMemory(dnnl::primitive_desc_iterator& itpd) {
     Node::prepareMemory(intDescs);
 }
 
+MemoryPtr Node::prepareWeightMemory(DnnlMemoryDescPtr weightDesc) {
+    if (!getParentEdgeAt(1)->getParent()->isConstant())
+        IE_THROW() << "Weight input is not const for node " << getName() << ".";
+    auto edgeMem = getParentEdgeAt(1)->getMemoryPtr();
+    if (!edgeMem)
+        IE_THROW() << "Cannot get const weights edgeMem for node " << getName() << ".";
+
+    auto constDnnlMemOutDesc = edgeMem->GetDescWithType<DnnlMemoryDesc>();
+    auto weightSrcDesc = constDnnlMemOutDesc->getDnnlDesc();
+    weightSrcDesc = weightSrcDesc.reshape(weightDesc->getDnnlDesc().get_dims());
+    auto create = [&] () {
+        auto newSrcDesc = DnnlExtensionUtils::makeDescriptor(weightSrcDesc);
+
+        Memory srcMemory{ getEngine() };
+        srcMemory.Create(newSrcDesc, edgeMem->GetData());
+
+        MemoryPtr _ptr = std::make_shared<Memory>(getEngine());
+        _ptr->Create(weightDesc);
+        node::Reorder::reorderData(srcMemory, *_ptr, context->getParamsCache());
+
+        return _ptr;
+    };
+
+    MemoryPtr ptr;
+    const auto& format = weightDesc->serializeFormat();
+    auto itr = privateWeightCache.find(format);
+    if (privateWeightCache.end() != itr) {
+        ptr = itr->second;
+    } else {
+        auto weightCache = context->getWeightsCache();
+        if (weightCache != nullptr) {
+            const std::string string_hash = getName() + "_" + format
+                                            + "_" + std::to_string(edgeMem->GetSize())
+                                            + "_" + std::to_string(reinterpret_cast<uint64_t>(edgeMem->GetData()));
+
+            ptr = *weightCache->findOrCreate(string_hash, create);
+        } else {
+            ptr = create();
+        }
+        privateWeightCache[format] = ptr;
+    }
+
+    return ptr;
+}
+
 bool Node::isInPlace() {
     if (inplace == InPlaceType::Unknown) {
         auto selected_pd = getSelectedPrimitiveDescriptor();
@@ -914,6 +960,9 @@ void Node::cleanup() {
 const std::vector<impl_desc_type>& Node::getPrimitivesPriority() {
     std::vector<impl_desc_type> priorities = {
             impl_desc_type::unknown,
+            // Undef impl type is used to express use-cases there real type is unkown during compilation
+            // Undef has higher priority than defined types in order to force primitive selection logic to make decision based on other properties
+            impl_desc_type::undef,
             impl_desc_type::brgconv_avx512_amx_1x1,
             impl_desc_type::brgconv_avx512_amx,
             impl_desc_type::jit_avx512_amx_dw,
@@ -943,6 +992,7 @@ const std::vector<impl_desc_type>& Node::getPrimitivesPriority() {
             impl_desc_type::gemm_avx2,
             impl_desc_type::gemm_avx,
             impl_desc_type::gemm_sse42,
+            impl_desc_type::acl,
             impl_desc_type::jit_gemm,
             impl_desc_type::ref_any,
             impl_desc_type::ref,
@@ -1295,6 +1345,7 @@ Node* Node::NodesFactory::create(const std::shared_ptr<ngraph::Node>& op, const 
 }
 
 bool Node::canBePerformedAsScaleShift(const Node *parentNode) const {
+#if defined(OPENVINO_ARCH_X86_64)
     IE_ASSERT(parentNode);
 
     size_t fusingPort = 0;
@@ -1345,6 +1396,10 @@ bool Node::canBePerformedAsScaleShift(const Node *parentNode) const {
                                    Algorithm::EltwisePrelu,
                                    Algorithm::EltwiseMulAdd) && isBroadcastableToDataInput())
             || isConvertablePowerStatic();
+#else
+    // TODO: provide correct list of operations for other backends
+    return false;
+#endif
 }
 
 // @todo shifts for Subtract and scales for Divide are replaced with
@@ -1561,22 +1616,7 @@ bool Node::canFuseSimpleOperation(const NodePtr& node) const {
         }
         return ret;
     } else if (node->getType() == Type::Eltwise) {
-        return one_of(node->getAlgorithm(),
-                      Algorithm::EltwiseRelu,
-                      Algorithm::EltwiseGelu,
-                      Algorithm::EltwiseElu,
-                      Algorithm::EltwiseSigmoid,
-                      Algorithm::EltwiseClamp,
-                      Algorithm::EltwiseTanh,
-                      Algorithm::EltwiseSwish,
-                      Algorithm::EltwiseHswish,
-                      Algorithm::EltwiseMish,
-                      Algorithm::EltwiseHsigmoid,
-                      Algorithm::EltwiseRoundHalfToEven,
-                      Algorithm::EltwiseRoundHalfAwayFromZero,
-                      Algorithm::EltwiseAbs,
-                      Algorithm::EltwiseSqrt,
-                      Algorithm::EltwiseSoftRelu) ||
+        return DnnlExtensionUtils::isUnarySupportedAsPostOp(node->getAlgorithm()) ||
             node->canBePerformedAsScaleShift(this);
     }
     return false;
@@ -1624,6 +1664,21 @@ void Node::addSupportedPrimDesc(const std::vector<PortConfigurator>& inPortConfi
 
     config.dynBatchSupport = dynBatchSupport;
     supportedPrimitiveDescriptors.push_back({config, implType});
+}
+
+void Node::initializeDQScales(const float* scaleData, const size_t scaleSize) {
+    bool scalePerTensor;
+    if (!DQScales.empty() || !scaleSize)
+        IE_THROW() << "DQ scales is preset or scale size is 0, ##" << getName();
+    DQScales.reserve(scaleSize);
+    scalePerTensor = true;
+    for (size_t i = 0; i < scaleSize; i++) {
+        DQScales.push_back(scaleData[i]);
+        if (scaleData[i] != scaleData[0])
+            scalePerTensor = false;
+    }
+    if (scalePerTensor)
+        DQScales.resize(1);
 }
 
 }   // namespace intel_cpu

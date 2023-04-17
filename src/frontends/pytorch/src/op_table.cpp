@@ -49,6 +49,7 @@ OP_CONVERTER(translate_floor_divide);
 OP_CONVERTER(translate_floordiv);
 OP_CONVERTER(translate_full);
 OP_CONVERTER(translate_full_like);
+OP_CONVERTER(translate_gather);
 OP_CONVERTER(translate_gelu);
 OP_CONVERTER(translate_get_attr);
 OP_CONVERTER(translate_getitem);
@@ -59,6 +60,7 @@ OP_CONVERTER(translate_hardtanh);
 OP_CONVERTER(translate_if);
 OP_CONVERTER(translate_im2col);
 OP_CONVERTER(translate_index_put_);
+OP_CONVERTER(translate_index_select);
 OP_CONVERTER(translate_instance_norm);
 OP_CONVERTER(translate_int);
 OP_CONVERTER(translate_layer_norm);
@@ -105,6 +107,7 @@ OP_CONVERTER(translate_rsub);
 OP_CONVERTER(translate_select);
 OP_CONVERTER(translate_set_item);
 OP_CONVERTER(translate_selu);
+OP_CONVERTER(translate_sign);
 OP_CONVERTER(translate_size);
 OP_CONVERTER(translate_slice);
 OP_CONVERTER(translate_softmax);
@@ -196,6 +199,7 @@ const std::map<std::string, CreatorFunction> get_supported_ops() {
         {"aten::cosh", op::translate_1to1_match_1_inputs<opset10::Cosh>},
         {"aten::cosh_", op::inplace_op<op::translate_1to1_match_1_inputs<opset10::Cosh>>},
         {"aten::cumsum", op::translate_cumsum},
+        {"aten::detach", op::skip_node},
         {"aten::dim", op::translate_dim},
         {"aten::div", op::translate_div},
         {"aten::div_", op::inplace_op<op::translate_div>},
@@ -217,6 +221,7 @@ const std::map<std::string, CreatorFunction> get_supported_ops() {
         {"aten::floordiv", op::translate_floordiv},
         {"aten::full", op::translate_full},
         {"aten::full_like", op::translate_full_like},
+        {"aten::gather", op::translate_gather},
         {"aten::ge", op::translate_1to1_match_2_inputs_align_types<opset10::GreaterEqual>},
         {"aten::gelu", op::translate_gelu},
         {"aten::glu", op::translate_glu},
@@ -230,6 +235,7 @@ const std::map<std::string, CreatorFunction> get_supported_ops() {
         {"aten::hardtanh_", op::inplace_op<op::translate_hardtanh>},
         {"aten::im2col", op::translate_im2col},
         {"aten::index_put_", op::inplace_op<op::translate_index_put_>},
+        {"aten::index_select", op::translate_index_select},
         {"aten::instance_norm", op::translate_instance_norm},
         {"aten::Int", op::translate_int},
         {"aten::IntImplicit", op::translate_int},
@@ -295,6 +301,7 @@ const std::map<std::string, CreatorFunction> get_supported_ops() {
         {"aten::selu_", op::inplace_op<op::translate_selu>},
         {"aten::sigmoid", op::translate_1to1_match_1_inputs<opset10::Sigmoid>},
         {"aten::sigmoid_", op::inplace_op<op::translate_1to1_match_1_inputs<opset10::Sigmoid>>},
+        {"aten::sign", op::translate_sign},
         {"aten::silu", op::translate_1to1_match_1_inputs<opset10::Swish>},
         {"aten::silu_", op::inplace_op<op::translate_1to1_match_1_inputs<opset10::Swish>>},
         {"aten::sin", op::translate_1to1_match_1_inputs<opset10::Sin>},

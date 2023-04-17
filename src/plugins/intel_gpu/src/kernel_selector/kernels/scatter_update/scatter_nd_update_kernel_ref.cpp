@@ -130,12 +130,12 @@ static std::string GetInputBlockND(const scatter_nd_update_params& params, size_
 
     std::vector<std::string> block_nd_s(rank + 1);
     block_nd_s[rank] = "1";
-    size_t input_offset = dyn_offset * 6;
+    size_t input_offset = dyn_offset * DataTensor::max_rank();
 
     for (int32_t idx = static_cast<int32_t>(rank) - 1; idx >= 0; --idx) {
         block_nd[idx] = input_dims[idx] * block_nd[idx + 1];
 
-        size_t dim_offset = idx < 2 ? idx : (6 - dims.size()) + idx; // convert to 6d bfwzyx idx
+        size_t dim_offset = idx < 2 ? idx : (DataTensor::max_rank() - dims.size()) + idx; // convert to idx in default planar format
         block_nd_s[idx] = "(" + toCodeString(dims[idx], input_offset + dim_offset) + "*" + block_nd_s[idx + 1] + ")";
     }
 
@@ -169,6 +169,7 @@ KernelsData ScatterNDUpdateKernelRef::GetKernelsData(const Params& params, const
             auto dispatchData = SetDefault(prim_params, (i == 1));
             kd.kernels[i].params.workGroups.global = dispatchData.gws;
             kd.kernels[i].params.workGroups.local = dispatchData.lws;
+            kd.kernels[i].skip_execution = KernelData::SkipKernelExecution(prim_params);
         }
     };
 
@@ -198,8 +199,8 @@ KernelsData ScatterNDUpdateKernelRef::GetKernelsData(const Params& params, const
                 std::reverse(dims.begin(), dims.end());
 
                 size_t last_idx = newParams.indices_rank - 1;
-                size_t dim_offset = last_idx < 2 ? last_idx : last_idx + 6 - newParams.indices_rank;
-                auto indices_last_dim = toCodeString(dims[last_idx], dim_offset + (newParams.inputs[0].is_dynamic() ? 6 : 0));
+                size_t dim_offset = last_idx < 2 ? last_idx : last_idx + DataTensor::max_rank() - newParams.indices_rank;
+                auto indices_last_dim = toCodeString(dims[last_idx], dim_offset + (newParams.inputs[0].is_dynamic() ? DataTensor::max_rank() : 0));
                 cldnn_jit.AddConstant(MakeJitConstant("INDICES_LAST_DIM", indices_last_dim));
             } else {
                 cldnn_jit.AddConstant(MakeJitConstant("INDICES_LAST_DIM", dispatchData.indicesLastDim));

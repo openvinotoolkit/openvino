@@ -9,16 +9,11 @@
 #include <memory>
 #include <vector>
 #include <tuple>
+#include "executors/mvn_list.hpp"
 
 namespace ov {
 namespace intel_cpu {
 namespace node {
-
-enum MVNLayoutType {
-    mvn_planar,
-    mvn_block,
-    mvn_by_channel
-};
 
 struct jit_mvn_config_params {
     MVNLayoutType layout;
@@ -103,24 +98,6 @@ public:
     bool canFuse(const NodePtr& node) const override;
     void prepareParams() override;
 
-    // Defines way to add epsilon: inside sqrt or outside.
-    enum MVNEpsMode {
-        INSIDE_SQRT,
-        OUTSIDE_SQRT
-    };
-
-    struct MVNAttrs {
-        MVNLayoutType layout;
-        std::tuple<size_t, size_t, size_t, size_t, size_t> shape5D;
-        bool initAcrossChannels_;
-        bool execAcrossChannels_;
-        bool normalizeVariance_;
-        float epsValue_;
-        MVNEpsMode epsMode_;
-        InferenceEngine::Precision src_prc;
-        InferenceEngine::Precision dst_prc;
-    };
-
 private:
     void setPostOps(dnnl::primitive_attr &attr, bool initWeights = false);
 
@@ -130,11 +107,11 @@ private:
 
     MVNAttrs mvnAttrs;
 
-    class MVNExecutor {
+    class MVNExecutorBase {
     public:
-        MVNExecutor(const MVNAttrs& mvnAttrs);
+        MVNExecutorBase(const MVNAttrs& mvnAttrs);
         virtual void exec(const uint8_t *in_ptr_, uint8_t *out_ptr_, const void *post_ops_data_) = 0;
-        virtual ~MVNExecutor() = default;
+        virtual ~MVNExecutorBase() = default;
 
     protected:
         MVNAttrs mvnAttrs;
@@ -142,9 +119,11 @@ private:
         size_t dst_data_size = 0;
     };
 
-    std::shared_ptr<MVNExecutor> execPtr = nullptr;
+    std::shared_ptr<MVNExecutorBase> execPtr = nullptr;
+    bool canUseAclExecutor = false;
+    std::shared_ptr<MVNExecutor> aclExecPtr = nullptr;
 
-    class MVNJitExecutor : public MVNExecutor {
+    class MVNJitExecutor : public MVNExecutorBase {
         public:
             MVNJitExecutor(const MVNAttrs& mvnAttrs,
                            const dnnl::primitive_attr &attr);
@@ -161,7 +140,7 @@ private:
             std::shared_ptr<jit_uni_mvn_kernel> mvn_kernel;
     };
 
-    class MVNRefExecutor : public MVNExecutor {
+    class MVNRefExecutor : public MVNExecutorBase {
         public:
             MVNRefExecutor(const MVNAttrs& mvnAttrs);
 

@@ -4,11 +4,10 @@
 
 #pragma once
 
-#include <ngraph/validation_util.hpp>
-#include <openvino/op/constant.hpp>
-
+#include "openvino/op/constant.hpp"
 #include "sequnce_generator.hpp"
 #include "utils.hpp"
+#include "validation_util.hpp"
 
 namespace ov {
 namespace internal {
@@ -161,8 +160,8 @@ inline int64_t get_sliced_value(const int64_t& dim, const int64_t& start, const 
         }
         lb = min_bound;
     } else {
-        lb = clip(normalize(start, norm_dim), min_bound, lower_max);
-        ub = clip(normalize(stop, norm_dim), upper_min, norm_dim);
+        lb = ov::util::clip(ov::util::normalize(start, norm_dim), min_bound, lower_max);
+        ub = ov::util::clip(ov::util::normalize(stop, norm_dim), upper_min, norm_dim);
     }
 
     // Calculate sliced value from bounds and step.
@@ -195,7 +194,9 @@ inline element::Type get_input_const_element_type(const ov::Node* op,
                                                   const std::map<size_t, HostTensorPtr>& constant_data = {}) {
     if (constant_data.count(idx)) {
         return constant_data.at(idx)->get_element_type();
+        OPENVINO_SUPPRESS_DEPRECATED_START
     } else if (const auto& constant = ov::get_constant_from_source(op->input_value(idx))) {
+        OPENVINO_SUPPRESS_DEPRECATED_END
         return constant->get_element_type();
     } else {
         return element::undefined;

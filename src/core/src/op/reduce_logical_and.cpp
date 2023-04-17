@@ -51,8 +51,11 @@ bool evaluate_reduce_logical_and(const HostTensorPtr& data,
 
 bool op::v1::ReduceLogicalAnd::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const {
     OV_OP_SCOPE(v1_ReduceLogicalAnd_evaluate);
+    OPENVINO_SUPPRESS_DEPRECATED_START
     NGRAPH_CHECK(validate_host_tensor_vector(inputs, 2));
     NGRAPH_CHECK(validate_host_tensor_vector(outputs, 1));
+    OPENVINO_SUPPRESS_DEPRECATED_END
+
     const auto& data = inputs[0];
     const auto& axes = inputs[1];
     const auto& out = outputs[0];

@@ -61,8 +61,8 @@ std::vector<std::string> disabledTestPatterns() {
             // Not implemented yet:
             R"(.*Behavior.*ExecutableNetworkBaseTest.*canSetConfigToExecNet.*)",
             R"(.*Behavior.*ExecutableNetworkBaseTest.*canExport.*)",
-            R"(.*OVExecutableNetworkBaseTest.*CanSetConfigToExecNet.*)",
-            R"(.*OVExecutableNetworkBaseTest.*CanSetConfigToExecNetAndCheckConfigAndCheck.*)",
+            R"(.*OVCompiledModelBaseTest.*CanSetConfigToExecNet.*)",
+            R"(.*OVCompiledModelBaseTest.*CanSetConfigToExecNetAndCheckConfigAndCheck.*)",
             // TODO: Issue 67408
             R"(.*smoke_LSTMSequenceCommonClip.*LSTMSequenceTest.*CompareWithRefs.*)",
             // Expected behavior. GPU plugin doesn't support i64 for eltwise power operation.
@@ -124,5 +124,11 @@ std::vector<std::string> disabledTestPatterns() {
 
             // Looks like the test is targeting CPU plugin and doesn't respect that execution graph may vary from plugin to plugin
             R"(.*ExecGraphSerializationTest.*)",
+
+            // TODO: support getconfig in auto/multi CVS-104942
+            // TODO: move auto/multi cases to dedicated unit tests
+            R"(.*(Auto|Multi).*SetPropLoadNetWorkGetPropTests.*)",
+            // unsupported metrics
+            R"(.*nightly_MultiHeteroAutoBatchOVGetMetricPropsTest.*OVGetMetricPropsTest.*(AVAILABLE_DEVICES|DEVICE_UUID|OPTIMIZATION_CAPABILITIES|MAX_BATCH_SIZE|DEVICE_GOPS|DEVICE_GOPS|RANGE_FOR_ASYNC_INFER_REQUESTS|RANGE_FOR_STREAMS).*)",
     };
 }

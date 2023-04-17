@@ -99,7 +99,11 @@ ExecNetwork::ExecNetwork(const InferenceEngine::CNNNetwork &network,
         // special case when all InferRequests are muxed into a single queue
         _taskExecutor = _plugin->executorManager()->getExecutor("CPU");
     } else {
-        auto streamsExecutorConfig = InferenceEngine::IStreamsExecutor::Config::MakeDefaultMultiThreaded(_cfg.streamExecutorConfig, isFloatModel);
+        auto streamsExecutorConfig =
+            is_cpu_map_available()
+                ? _cfg.streamExecutorConfig
+                : InferenceEngine::IStreamsExecutor::Config::MakeDefaultMultiThreaded(_cfg.streamExecutorConfig,
+                                                                                      isFloatModel);
         streamsExecutorConfig._name = "CPUStreamsExecutor";
         _cfg.streamExecutorConfig._threads = streamsExecutorConfig._threads;
 #if FIX_62820 && (IE_THREAD == IE_THREAD_TBB || IE_THREAD == IE_THREAD_TBB_AUTO)
@@ -305,11 +309,13 @@ InferenceEngine::Parameter ExecNetwork::GetMetric(const std::string &name) const
             RO_property(ov::affinity.name()),
             RO_property(ov::inference_num_threads.name()),
             RO_property(ov::enable_profiling.name()),
-            RO_property(ov::inference_precision.name()),
+            RO_property(ov::hint::inference_precision.name()),
             RO_property(ov::hint::performance_mode.name()),
+            RO_property(ov::hint::execution_mode.name()),
             RO_property(ov::hint::num_requests.name()),
+            RO_property(ov::hint::enable_cpu_pinning.name()),
             RO_property(ov::hint::scheduling_core_type.name()),
-            RO_property(ov::hint::use_hyper_threading.name()),
+            RO_property(ov::hint::enable_hyper_threading.name()),
             RO_property(ov::execution_devices.name()),
         };
     }
@@ -343,19 +349,24 @@ InferenceEngine::Parameter ExecNetwork::GetMetric(const std::string &name) const
     } else if (name == ov::enable_profiling.name()) {
         const bool perfCount = config.collectPerfCounters;
         return decltype(ov::enable_profiling)::value_type(perfCount);
-    } else if (name == ov::inference_precision) {
+    } else if (name == ov::hint::inference_precision) {
         const auto enforceBF16 = config.enforceBF16;
         const auto inference_precision = enforceBF16 ? ov::element::bf16 : ov::element::f32;
-        return decltype(ov::inference_precision)::value_type(inference_precision);
+        return decltype(ov::hint::inference_precision)::value_type(inference_precision);
     } else if (name == ov::hint::performance_mode) {
         const auto perfHint = ov::util::from_string(config.perfHintsConfig.ovPerfHint, ov::hint::performance_mode);
         return perfHint;
+    } else if (name == ov::hint::enable_cpu_pinning.name()) {
+        const bool use_pin = config.enableCpuPinning;
+        return decltype(ov::hint::enable_cpu_pinning)::value_type(use_pin);
     } else if (name == ov::hint::scheduling_core_type) {
         const auto core_type = config.schedulingCoreType;
         return core_type;
-    } else if (name == ov::hint::use_hyper_threading.name()) {
-        const bool use_ht = config.useHyperThreading;
-        return decltype(ov::hint::use_hyper_threading)::value_type(use_ht);
+    } else if (name == ov::hint::enable_hyper_threading.name()) {
+        const bool use_ht = config.enableHyperThreading;
+        return decltype(ov::hint::enable_hyper_threading)::value_type(use_ht);
+    } else if (name == ov::hint::execution_mode) {
+        return config.executionMode;
     } else if (name == ov::hint::num_requests) {
         const auto perfHintNumRequests = config.perfHintsConfig.ovPerfHintNumRequests;
         return decltype(ov::hint::num_requests)::value_type(perfHintNumRequests);

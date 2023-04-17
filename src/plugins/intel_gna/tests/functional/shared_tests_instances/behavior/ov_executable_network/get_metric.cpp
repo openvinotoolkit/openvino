@@ -6,6 +6,7 @@
 
 #include <gna/gna_config.hpp>
 
+#include "behavior/ov_executable_network/properties.hpp"
 #include "openvino/runtime/intel_gna/properties.hpp"
 
 using namespace ov::test::behavior;
@@ -193,7 +194,7 @@ INSTANTIATE_TEST_SUITE_P(
     ::testing::Combine(
         ::testing::Values("GNA"),
         ::testing::Values(ov::intel_gna::scale_factors_per_input(std::map<std::string, float>{{"0", 1.0f}}),
-                          ov::inference_precision(ngraph::element::i8),
+                          ov::hint::inference_precision(ngraph::element::i8),
                           ov::hint::num_requests(2),
                           ov::intel_gna::pwl_design_algorithm(ov::intel_gna::PWLDesignAlgorithm::UNIFORM_DISTRIBUTION),
                           ov::intel_gna::pwl_max_error_percent(0.2),
@@ -221,11 +222,10 @@ INSTANTIATE_TEST_SUITE_P(
                           ov::intel_gna::execution_mode(ov::intel_gna::ExecutionMode::SW_FP32),
                           ov::intel_gna::execution_mode(ov::intel_gna::ExecutionMode::AUTO),
                           ov::intel_gna::scale_factors_per_input(std::map<std::string, float>{{"input", 1.0f}}),
-                          ov::inference_precision(ov::element::i8),
-                          ov::inference_precision(ov::element::i16),
+                          ov::hint::inference_precision(ov::element::i8),
+                          ov::hint::inference_precision(ov::element::i16),
                           ov::hint::performance_mode(ov::hint::PerformanceMode::LATENCY),
                           ov::hint::performance_mode(ov::hint::PerformanceMode::THROUGHPUT),
-                          ov::hint::performance_mode(ov::hint::PerformanceMode::UNDEFINED),
                           ov::hint::num_requests(1),
                           ov::intel_gna::execution_target(ov::intel_gna::HWGeneration::GNA_2_0),
                           ov::intel_gna::execution_target(ov::intel_gna::HWGeneration::GNA_3_0),
@@ -256,4 +256,8 @@ INSTANTIATE_TEST_SUITE_P(smoke_OVClassHeteroExecutableNetworkGetMetricTest,
 INSTANTIATE_TEST_SUITE_P(smoke_OVClassHeteroExecutableNetworkGetMetricTest,
                          OVClassHeteroExecutableNetworkGetMetricTest_TARGET_FALLBACK,
                          ::testing::Values("GNA"));
+
+// IE Class Load network
+
+INSTANTIATE_TEST_SUITE_P(smoke_OVClassCompileModelTest, OVClassCompileModelTest, ::testing::Values("GNA"));
 }  // namespace

@@ -359,6 +359,12 @@ private:
 /// @brief Describes memory layout.
 /// @details Contains information about data stored in @ref memory.
 struct layout {
+    struct Hasher {
+        size_t operator()(const layout &l) const {
+            return l.hash();
+        }
+    };
+
     /// Constructs layout based on @p data_type and @p size information described by @ref tensor
     layout(data_types data_type, cldnn::format fmt, tensor size, padding apadding = padding())
         : data_type(data_type)
@@ -521,6 +527,7 @@ struct layout {
     // for smaller buffer which, currently, should always be performed
     bool identical(const layout& other) const;
 
+    static size_t max_rank() { return 8; }
     static ov::PartialShape transform(const ov::PartialShape& pshape, cldnn::format old_fmt, cldnn::format new_fmt);
 
     size_t hash() const {

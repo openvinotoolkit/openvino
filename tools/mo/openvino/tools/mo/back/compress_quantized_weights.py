@@ -7,6 +7,7 @@ import numpy as np
 
 from openvino.tools.mo.ops.Cast import Cast
 from openvino.tools.mo.ops.elementwise import Sub, Div, Mul, Equal
+from openvino.tools.mo.ops.Cast import Cast
 from openvino.tools.mo.ops.select import Select
 from openvino.tools.mo.back.replacement import BackReplacementPattern
 from openvino.tools.mo.front.common.partial_infer.utils import mo_array
@@ -183,6 +184,24 @@ class CompressQuantizeWeights(BackReplacementPattern):
         out_low = fake_quantize.in_port(3).get_source()
         out_high = fake_quantize.in_port(4).get_source()
 
+        need_cast_to_f32 = fake_quantize.out_port(0).is_data_type_defined() and fake_quantize.out_port(0).get_data_type() < np.float32
+        if need_cast_to_f32:
+            in_low_cast = Cast(graph, {'name': name + '/in_low/convert_to_f32', 'dst_type': np.float32}).create_node()
+            in_low_cast.in_port(0).connect(in_low)
+            in_low = in_low_cast.out_port(0)
+
+            in_high_cast = Cast(graph, {'name': name + '/in_high/convert_to_f32', 'dst_type': np.float32}).create_node()
+            in_high_cast.in_port(0).connect(in_high)
+            in_high = in_high_cast.out_port(0)
+
+            out_low_cast = Cast(graph, {'name': name + '/out_low/convert_to_f32', 'dst_type': np.float32}).create_node()
+            out_low_cast.in_port(0).connect(out_low)
+            out_low = out_low_cast.out_port(0)
+
+            out_high_cast = Cast(graph, {'name': name + '/out_high/convert_to_f32', 'dst_type': np.float32}).create_node()
+            out_high_cast.in_port(0).connect(out_high)
+            out_high = out_high_cast.out_port(0)
+
         # scale calculation
         output_range = Sub(graph, {'name': name + '/output_range'}).create_node()
         output_range.in_port(0).connect(out_high)
@@ -214,6 +233,15 @@ class CompressQuantizeWeights(BackReplacementPattern):
         zero_point.in_port(0).connect(scale_eq_zero.out_port(0))
         zero_point.in_port(1).connect(zero.out_port(0))
         zero_point.in_port(2).connect(shift.out_port(0))
+
+        if need_cast_to_f32:
+            fq_dtype = fake_quantize.out_port(0).get_data_type()
+            scale_cast = Cast(graph, {'name': name + '/scale/convert_back', 'dst_type': fq_dtype}).create_node()
+            scale_cast.in_port(0).connect(scale.out_port(0))
+            scale = scale_cast
+            zero_point_cast = Cast(graph, {'name': name + '/zero_point/convert_back', 'dst_type': fq_dtype}).create_node()
+            zero_point_cast.in_port(0).connect(zero_point.out_port(0))
+            zero_point = zero_point_cast
 
         # DeQuantize(x) == Mul(Sub(x, zero_point), scale)
         sub_zp = Sub(graph, {'name': name + '/minus_zp'}).create_node()
