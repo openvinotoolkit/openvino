@@ -389,8 +389,11 @@ TokenizeSnippets::TokenizeSnippets() {
                             size_t current_input_index = body_parameters.size();
                             for (size_t p_ind = 0; p_ind <  body_parameters.size(); p_ind++) {
                                 const auto & p = body_parameters[p_ind];
+                                // unite two body parameters from two input subgraphs only if:
+                                // 1. two input subgraphs are connected to the same parent node/subgraph,
+                                // 2. and connected to the same output port of this parent node/subgraph.
                                 if (p->get_friendly_name() == found->get_node_shared_ptr()->get_friendly_name() &&
-                                    external_inputs[p_ind] == *found) {  // or replace only when common parent subgraph have one output
+                                    external_inputs[p_ind] == *found) {
                                     current_input_index = p_ind;
                                     break;
                                 }

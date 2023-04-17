@@ -320,51 +320,25 @@ std::shared_ptr<ov::Model> BroadcastSelectFunction::initOriginal() const {
 }
 
 std::shared_ptr<ov::Model> EdgeReplaceFunction::initOriginal() const {
-    auto img_shape = std::make_shared<op::v0::Parameter>(ov::element::f32, input_shapes[0]);
-    auto input = std::make_shared<op::v0::Parameter>(ov::element::i32, input_shapes[1]);
-    auto data0 = std::make_shared<op::v0::Parameter>(ov::element::f32, input_shapes[2]);
-    auto data1 = std::make_shared<op::v0::Parameter>(ov::element::f32, input_shapes[3]);
-    auto data2 = std::make_shared<op::v0::Parameter>(ov::element::f32, input_shapes[4]);
-    auto data3 = std::make_shared<op::v0::Parameter>(ov::element::f32, input_shapes[5]);
-    auto data4 = std::make_shared<op::v0::Parameter>(ov::element::f32, input_shapes[6]);
-    auto data5 = std::make_shared<op::v0::Parameter>(ov::element::f32, input_shapes[7]);
-    const auto shape_pattern = std::make_shared<ov::opset8::Constant>(ov::element::Type_t::i32, ov::Shape({1}), std::vector<int>{2});
-    auto reshape = std::make_shared<ov::op::v1::Reshape>(img_shape, shape_pattern, true);
-    const auto power_input = std::make_shared<ov::opset8::Constant>(ov::element::Type_t::f32, ov::Shape({2}), std::vector<float>{1, 2});
-    auto power = std::make_shared<op::v1::Power>(reshape, power_input);
+    auto input = std::make_shared<op::v0::Parameter>(ov::element::f32, input_shapes[0]);
+    const auto axis = ngraph::op::Constant::create(element::i64, Shape{}, {0});
+    // first parent and second parent have common inputs from output of split
+    auto split = std::make_shared<ov::op::v1::Split>(input, axis, 2);
+    auto mul_lhs = split->output(0);
+    auto mul_rhs = split->output(1);
 
-    auto convert = std::make_shared<op::v0::Convert>(input, ov::element::Type_t::f32);
-
-    auto mul = std::make_shared<op::v1::Multiply>(power, convert);
-
-    std::vector<int> reduce_axes = {0};
-    auto reduceAxesNode = std::dynamic_pointer_cast<ngraph::Node>(
-                                 std::make_shared<op::v0::Constant>(ngraph::element::Type_t::i64, ngraph::Shape({1}), reduce_axes));
-    auto reduce = std::make_shared<op::v1::ReduceMean>(mul, reduceAxesNode, true);
-
-    auto mul_1 = std::make_shared<op::v1::Multiply>(reshape, reduce);
-    const auto const_f32 = std::make_shared<ov::opset8::Constant>(ov::element::Type_t::f32, ov::Shape({2}), std::vector<float>{0.2, 0.01});
-    auto add = std::make_shared<op::v1::Add>(mul_1, const_f32);
-    auto ceil = std::make_shared<ov::op::v0::Ceiling>(add);
-
-    const auto power_input1 = std::make_shared<ov::opset8::Constant>(ov::element::Type_t::f32, ov::Shape({2}), std::vector<float>{2, 2});
-    auto power_lhs = std::make_shared<op::v1::Power>(ceil, power_input1);
-    auto mul_lhs = std::make_shared<op::v1::Multiply>(power_lhs, convert);
-
-    auto mul_2 = std::make_shared<op::v1::Multiply>(ceil, const_f32);
-    auto add_1 = std::make_shared<op::v1::Add>(mul_2, convert);
-    auto mul_3 = std::make_shared<op::v1::Multiply>(add_1, const_f32);
-    const auto power_input2 = std::make_shared<ov::opset8::Constant>(ov::element::Type_t::f32, ov::Shape({2}), std::vector<float>{1, 1});
-    auto power_rhs = std::make_shared<op::v1::Power>(convert, power_input2);
-    auto mul_rhs = std::make_shared<op::v1::Multiply>(mul_3, power_rhs);
-
-    // first block
+    // first parent subgraph in tokenization stage
+    const auto data0 = std::make_shared<ov::opset8::Constant>(ov::element::Type_t::f32, ov::Shape({1, 1, 1, 3, 2}),
+        std::vector<float>{0.0, 0.2, 0.4, 0.6, 0.8, 1.0});
     const auto const_a4 = std::make_shared<ov::opset8::Constant>(ov::element::Type_t::f32, ov::Shape({2}), std::vector<float>{0.2, 0.1});
     auto mul_a4 = std::make_shared<op::v1::Multiply>(mul_rhs, const_a4);
-    auto add_a1 = std::make_shared<op::v1::Add>(mul_a4, data1);
+    auto add_a1 = std::make_shared<op::v1::Add>(mul_a4, data0);
     auto mul_a5 = std::make_shared<op::v1::Multiply>(add_a1, mul_lhs);
 
-    auto mul_a1 = std::make_shared<op::v1::Multiply>(data0, mul_lhs);
+    // second parent subgraph in tokenization stage
+    const auto data1 = std::make_shared<ov::opset8::Constant>(ov::element::Type_t::f32, ov::Shape({1, 1, 1, 3, 2}),
+        std::vector<float>{0.1, 0.3, 0.5, 0.7, 0.9, 1.0});
+    auto mul_a1 = std::make_shared<op::v1::Multiply>(data1, mul_lhs);
     const auto const_a2 = std::make_shared<ov::opset8::Constant>(ov::element::Type_t::f32, ov::Shape({2}), std::vector<float>{0.2, 0.4});
     auto mul_a2 = std::make_shared<op::v1::Multiply>(mul_a1, const_a2);
     const auto const_a3 = std::make_shared<ov::opset8::Constant>(ov::element::Type_t::f32, ov::Shape({2}), std::vector<float>{0.3, 0.1});
@@ -373,40 +347,9 @@ std::shared_ptr<ov::Model> EdgeReplaceFunction::initOriginal() const {
     auto add_a3 = std::make_shared<op::v1::Add>(mul_a5, mul_a3);
     auto add_a2 = std::make_shared<op::v1::Add>(mul_a5, mul_a2);
 
-    // second block
-    const auto const_b4 = std::make_shared<ov::opset8::Constant>(ov::element::Type_t::f32, ov::Shape({2}), std::vector<float>{0.66, 0.11});
-    auto mul_b4 = std::make_shared<op::v1::Multiply>(mul_rhs, const_a4);
-    auto add_b1 = std::make_shared<op::v1::Add>(mul_b4, data3);
-    auto mul_b5 = std::make_shared<op::v1::Multiply>(add_b1, mul_lhs);
+    auto concat = std::make_shared<op::v0::Concat>(ngraph::OutputVector{add_a3, add_a2}, 0);
 
-    auto mul_b1 = std::make_shared<op::v1::Multiply>(data2, mul_lhs);
-    const auto const_b2 = std::make_shared<ov::opset8::Constant>(ov::element::Type_t::f32, ov::Shape({2}), std::vector<float>{0.1, 0.3});
-    auto mul_b2 = std::make_shared<op::v1::Multiply>(mul_b1, const_b2);
-    const auto const_b3 = std::make_shared<ov::opset8::Constant>(ov::element::Type_t::f32, ov::Shape({2}), std::vector<float>{0.2, 0.4});
-    auto mul_b3 = std::make_shared<op::v1::Multiply>(mul_b2, const_b3);
-
-    auto add_b3 = std::make_shared<op::v1::Add>(mul_b5, mul_b3);
-    auto add_b2 = std::make_shared<op::v1::Add>(mul_b5, mul_b2);
-
-    // third block
-    const auto const_c4 = std::make_shared<ov::opset8::Constant>(ov::element::Type_t::f32, ov::Shape({2}), std::vector<float>{0.1, 0.5});
-    auto mul_c4 = std::make_shared<op::v1::Multiply>(mul_rhs, const_c4);
-    auto add_c1 = std::make_shared<op::v1::Add>(mul_c4, data5);
-    auto mul_c5 = std::make_shared<op::v1::Multiply>(add_c1, mul_lhs);
-
-    auto mul_c1 = std::make_shared<op::v1::Multiply>(data4, mul_lhs);
-    const auto const_c2 = std::make_shared<ov::opset8::Constant>(ov::element::Type_t::f32, ov::Shape({2}), std::vector<float>{2, 2});
-    auto mul_c2 = std::make_shared<op::v1::Multiply>(mul_c1, const_c2);
-    const auto const_c3 = std::make_shared<ov::opset8::Constant>(ov::element::Type_t::f32, ov::Shape({2}), std::vector<float>{3, 3});
-    auto mul_c3 = std::make_shared<op::v1::Multiply>(mul_c2, const_c3);
-
-    auto add_c3 = std::make_shared<op::v1::Add>(mul_c5, mul_c3);
-    auto add_c2 = std::make_shared<op::v1::Add>(mul_c5, mul_c2);
-
-    auto concat = std::make_shared<op::v0::Concat>(ngraph::OutputVector{add_a3, add_a2, add_b3, add_b2, add_c3, add_c2}, 0);
-
-    return std::make_shared<Model>(NodeVector{concat},
-        ParameterVector{img_shape, input, data0, data1, data2, data3, data4, data5});
+    return std::make_shared<Model>(NodeVector{concat}, ParameterVector{input});
 }
 }  // namespace snippets
 }  // namespace test
