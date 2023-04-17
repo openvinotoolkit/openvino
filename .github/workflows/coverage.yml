@@ -141,19 +141,19 @@ jobs:
         run: . ${{ github.workspace }}/scripts/setupvars/setupvars.sh -pyver 3.10 && ${{ github.workspace }}/bin/intel64/Release/ov_tensorflow_frontend_tests --gtest_filter=-*IE_GPU*
         continue-on-error: true
 
-      - name: Build coverage with CMake
-        uses: ashutoshvarma/action-cmake-build@master
-        with:
-          cc: ${{ matrix.config.cc }}
-          cxx: ${{ matrix.config.cxx }}
-          target: ov_coverage
-          configure-options: >
-            -DCMAKE_VERBOSE_MAKEFILE=ON
-            -DCMAKE_C_COMPILER_LAUNCHER=ccache
-            -DCMAKE_CXX_COMPILER_LAUNCHER=ccache
-            -DCMAKE_C_LINKER_LAUNCHER=ccache
-            -DCMAKE_CXX_LINKER_LAUNCHER=ccache
-          parallel: ${{ steps.cpu-cores.outputs.count }}
+      #- name: Build coverage with CMake
+      #  uses: ashutoshvarma/action-cmake-build@master
+      #  with:
+      #    cc: ${{ matrix.config.cc }}
+      #    cxx: ${{ matrix.config.cxx }}
+      #    target: ov_coverage
+      #    configure-options: >
+      #      -DCMAKE_VERBOSE_MAKEFILE=ON
+      #      -DCMAKE_C_COMPILER_LAUNCHER=ccache
+      #      -DCMAKE_CXX_COMPILER_LAUNCHER=ccache
+      #      -DCMAKE_C_LINKER_LAUNCHER=ccache
+      #      -DCMAKE_CXX_LINKER_LAUNCHER=ccache
+      #    parallel: ${{ steps.cpu-cores.outputs.count }}
 
       
       - name: Print info
