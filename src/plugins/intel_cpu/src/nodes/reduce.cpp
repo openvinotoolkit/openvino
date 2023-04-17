@@ -2023,7 +2023,11 @@ void Reduce::createPrimitive() {
     jcp.layout = layout;
     jcp.reduce_mode = getAlgorithm();
 
+#if defined(OPENVINO_ARCH_X86_64)
     compile_post_kernel = true;
+#else
+    compile_post_kernel = false;
+#endif // OPENVINO_ARCH_X86_64
 
     if (mayiuse(cpu::x64::avx512_core)) {
         blk_size = 16;
