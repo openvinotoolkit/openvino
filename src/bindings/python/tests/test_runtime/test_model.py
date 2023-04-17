@@ -549,7 +549,7 @@ def test_serialize_rt_info(request, tmp_path):
 
 # request - https://docs.pytest.org/en/7.1.x/reference/reference.html#request
 def test_serialize_complex_rt_info(request, tmp_path):
-    def check_rt_info(model, serialized):
+    def check_rt_info(model):
         assert model.has_rt_info(["config", "type_of_model"]) is True
         assert model.has_rt_info(["config", "converter_type"]) is True
         assert model.has_rt_info(["config", "model_parameters", "threshold"]) is True
@@ -610,13 +610,13 @@ def test_serialize_complex_rt_info(request, tmp_path):
     model.set_rt_info(["sasd", "fdfdfsdf"], ["config", "model_parameters", "labels", "label_groups", "ids"])
     model.set_rt_info([22.3, 33.11, 44.0], ["config", "model_parameters", "mean_values"])
 
-    check_rt_info(model, False)
+    check_rt_info(model)
 
     serialize(model, xml_path, bin_path)
 
     res_model = core.read_model(model=xml_path, weights=bin_path)
 
-    check_rt_info(res_model, True)
+    check_rt_info(res_model)
 
     os.remove(xml_path)
     os.remove(bin_path)

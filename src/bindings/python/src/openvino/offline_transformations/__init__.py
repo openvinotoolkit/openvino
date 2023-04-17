@@ -13,9 +13,9 @@ warnings.warn(
     category=FutureWarning,
 )
 
-from openvino.utils import add_openvino_libs_to_path, deprecated
+from openvino.utils import _add_openvino_libs_to_search_path, deprecated
 
-add_openvino_libs_to_path()
+_add_openvino_libs_to_search_path()
 
 from openvino._pyopenvino import get_version
 from openvino._pyopenvino import serialize as _base_serialize
