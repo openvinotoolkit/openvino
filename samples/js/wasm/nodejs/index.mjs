@@ -3,7 +3,7 @@ import makeInference from '../make_inference.mjs';
 
 const inferenceParametersFaceDetection = { 
   modelPath: getModelPaths('v3-small_224_1.0_float'),
-  imgPath: '../assets/images/coco224x224.jpg',
+  imgPath: '../../assets/images/coco224x224.jpg',
   shape: [1, 224, 224, 3],
   layout: 'NHWC',
 };
@@ -11,7 +11,7 @@ const inferenceParametersFaceDetection = {
 makeInference(openvinojs, 'nodejs', inferenceParametersFaceDetection);
 
 function getModelPaths(name) {
-  const MODEL_PATH = '../assets/models/';
+  const MODEL_PATH = '../../assets/models/';
   const pathAndName = `${MODEL_PATH}${name}`;
 
   return {

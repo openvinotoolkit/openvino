@@ -1,7 +1,7 @@
 import { Session, Shape } from './node_modules/openvinojs/dist/index.mjs';
 import openvinojs from './node_modules/openvinojs/dist/openvino_wasm.mjs';
 
-import { default as imagenetClassesMap } from './assets/imagenet_classes_map.mjs';
+import imagenetClassesMap from './assets/imagenet_classes_map.json' assert { type: 'json' };
 
 const selectBtn = document.getElementById('select-btn');
 const containerElement = document.getElementById('container');
