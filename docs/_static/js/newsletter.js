@@ -60,15 +60,22 @@ $(document).ready(function () {
         $('#newsletterForm').hide();
         let message = '';
         const messageBox = $('.message-box');
+        const icon = $('<div class="fa-stack fa-2x">');
+        const iconBackground = $('<i class="fas fa-square fa-stack-2x">');
+        const iconMain = $('<i class="fas fa-stack-1x fa-inverse">');
+        icon.append(iconBackground);
+        icon.append(iconMain);
         messageBox.css({'height': boxHeight + 16, 'display': 'flex'});
-        
+
         switch(status) {
             case 'pass':
-                messageBox.css('color', 'rgba(3, 163, 0, 1)')
+                icon.css('color', '#708541');
+                iconMain.addClass('fa-check-square');
                 message = 'REGISTRATION SUCCESSFUL'
                 break;
             case 'error':
-                messageBox.css('color', 'rgba(201, 0, 0, 1)')
+                icon.css('color', '#C81326');
+                iconMain.addClass('fa-window-close');
                 switch(errorCode) {
                     case 400:
                         message = 'ALREADY REGISTERED';
@@ -78,7 +85,10 @@ $(document).ready(function () {
                         break;
                 }
         }
-        messageBox.append(message);
+        window.setTimeout(() => {
+            messageBox.append(icon);
+            messageBox.append(message);
+        });
         window.setTimeout(closeForm, 1500);
     }
 });

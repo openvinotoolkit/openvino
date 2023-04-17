@@ -1052,6 +1052,7 @@ table#model-accuracy-and-perf-int8-fp32-table td.data {
     font-size: 1.2rem;
     text-align: center;
     display: none;
+    color: white;
 }
 
 .animated {
