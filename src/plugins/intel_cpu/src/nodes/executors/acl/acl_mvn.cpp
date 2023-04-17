@@ -27,8 +27,8 @@ bool AclMVNExecutor::init(const MVNAttrs& mvnAttrs,
                 X *= srcDims[i];
             }
         } else {
-            Y = srcDims[0];
-            X = 1;
+            Y = 1;
+            X = srcDims[0];
         }
     } else {
         if (srcDims.size() > 2) {

@@ -360,13 +360,19 @@ int main(int argc, char* argv[]) {
         for (auto& device : devices) {
             auto& device_config = config[device];
             auto ov_perf_hint = get_performance_hint(device, core);
+            OPENVINO_SUPPRESS_DEPRECATED_START
             if (isFlagSetInCommandLine("hint")) {
-                // apply command line hint setting and override if hint exists
-                device_config[ov::hint::performance_mode.name()] = ov_perf_hint;
-            } else {
+                if (ov_perf_hint != ov::hint::PerformanceMode::UNDEFINED) {
+                    // apply command line hint setting and override if hint exists
+                    device_config[ov::hint::performance_mode.name()] = ov_perf_hint;
+                } else {
+                    device_config.erase(ov::hint::performance_mode.name());
+                }
+            } else if (ov_perf_hint != ov::hint::PerformanceMode::UNDEFINED) {
                 // keep hint setting in the config if no hint setting from command line
                 device_config.emplace(ov::hint::performance_mode(ov_perf_hint));
             }
+            OPENVINO_SUPPRESS_DEPRECATED_END
 
             if (FLAGS_nireq != 0)
                 device_config[ov::hint::num_requests.name()] = unsigned(FLAGS_nireq);

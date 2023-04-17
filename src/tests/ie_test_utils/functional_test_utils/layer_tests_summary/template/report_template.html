@@ -124,9 +124,10 @@
             </tr>
         </tbody>
         <tbody id="data">
-            {% for op in ordered_ops -%}
+            {% for op, opsets in ordered_ops.items() -%}
             <tr>
-                <th scope="row" name="{{ op }}">{{ op }}</th>
+                <th scope="row" name='{ "{{ op }}": {{ opsets }} }'>{{ op }}</th>
+                
 
                 {% for d in devices -%}
                 {% if op in results[d] -%}

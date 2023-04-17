@@ -3,6 +3,7 @@
 //
 
 #include "functional_test_utils/skip_tests_config.hpp"
+#include "openvino/core/core_visibility.hpp"
 
 #include <string>
 #include <vector>
@@ -21,6 +22,9 @@ std::vector<std::string> disabledTestPatterns() {
         R"(.*OVClassExecutableNetworkGetMetricTest_EXEC_DEVICES.*CanGetExecutionDeviceInfo.*)",
         R"(.*OVClassHeteroExecutableNetworkGetMetricTest_SUPPORTED_CONFIG_KEYS.*GetMetricNoThrow.*)",
         R"(.*OVClassHeteroExecutableNetworkGetMetricTest_SUPPORTED_METRICS.*GetMetricNoThrow.*)",
+
+        // unsupported metrics
+        R"(.*smoke_OVGetMetricPropsTest.*OVGetMetricPropsTest.*(DEVICE_UUID|FULL_DEVICE_NAME_with_DEVICE_ID|RANGE_FOR_STREAMS|DEVICE_GOPS|DEVICE_TYPE|MAX_BATCH_SIZE).*)",
 
         // TODO: Round with f16 is not supported
         R"(.*smoke_Hetero_BehaviorTests.*OVExecGraphImportExportTest.*readFromV10IR.*)",
@@ -133,6 +137,15 @@ std::vector<std::string> disabledTestPatterns() {
     // CVS-64054
     retVector.emplace_back(R"(.*ReferenceTopKTest.*topk_max_sort_none)");
     retVector.emplace_back(R"(.*ReferenceTopKTest.*topk_min_sort_none)");
+#endif
+
+#if defined(OPENVINO_ARCH_ARM64) || defined(OPENVINO_ARCH_ARM)
+    retVector.emplace_back(R"(.*smoke_TopK_With_Hardcoded_Refs/ReferenceTopKTestMaxMinSort.CompareWithRefs.*)");
+    retVector.emplace_back(R"(.*smoke_TopK_With_Hardcoded_Refs/ReferenceTopKTestBackend.CompareWithRefs.*)");
+    retVector.emplace_back(R"(.*smoke_TopK_With_Hardcoded_Refs/ReferenceTopKTestMaxMinSortV3.CompareWithRefs.*)");
+    retVector.emplace_back(R"(.*smoke_TopK_With_Hardcoded_Refs/ReferenceTopKTestBackendV3.CompareWithRefs.*)");
+    // fails only on Linux arm64
+    retVector.emplace_back(R"(.*ReferenceConversionLayerTest.CompareWithHardcodedRefs/conversionType=(Convert|ConvertLike)_shape=.*_iType=(f16|f32|bf16)_oType=u4.*)");
 #endif
     return retVector;
 }

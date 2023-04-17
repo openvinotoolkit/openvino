@@ -134,7 +134,8 @@ struct ImplHasher {
 
 TEST(lru_cache, collisions) {
     auto l1 = layout{{8, 3, 131, 384}, data_types::f32, format::bfyx};
-    auto l2 = layout{{8, 5, 1, 384}, data_types::f32, format::bfyx};
+    auto l2 = layout{{6, 136, 80, 321}, data_types::f32, format::bfyx};
+
     auto input1_prim = std::make_shared<input_layout>("input1", l1);
     auto input2_prim = std::make_shared<input_layout>("input2", l2);
     auto shape_of1_prim = std::make_shared<shape_of>("shape_of1", input_info("input1"), 4, data_types::i64);

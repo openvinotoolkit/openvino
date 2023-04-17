@@ -1985,8 +1985,8 @@ class TestPackParamsToArgsNamespace(unittest.TestCase):
         assert argv.reverse_input_channels == args['reverse_input_channels']
         assert argv.scale == 0.5
         assert argv.batch == 1
-        assert argv.input_shape == "[1,100,100,3],[2,3]"
-        assert argv.input == "name,a[1 2 3]{f32}->[5 6 7]"
+        assert argv.input_shape == [PartialShape([1,100,100,3]), [2,3]]
+        assert argv.input == ['name', InputCutInfo("a", [1,2,3], numpy.float32, [5, 6, 7])]
         assert argv.output == "a,b,c"
         assert argv.mean_values == "[0.5,0.3]"
         assert argv.scale_values == "a[0.4],b[0.5,0.6]"
@@ -1995,7 +1995,7 @@ class TestPackParamsToArgsNamespace(unittest.TestCase):
         assert argv.transform == "LowLatency2[use_const_initializer=False]"
 
         for arg, value in vars(argv).items():
-            if arg not in args:
+            if arg not in args and arg != 'is_python_api_used':
                 assert value == cli_parser.get_default(arg)
 
     def test_not_existing_dir(self):
