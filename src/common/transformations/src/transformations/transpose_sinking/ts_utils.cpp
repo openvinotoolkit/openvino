@@ -30,6 +30,20 @@ Output<Node> ChangeValuesOrder(const Output<Node>& input,
     return gather;
 }
 
+Output<Node> ChangeAxes(const Output<Node>& indices,
+                        const std::shared_ptr<Constant>& data,
+                        const std::shared_ptr<Constant>& axis) {
+    auto gather = std::make_shared<Gather>(data, indices, axis);
+    copy_runtime_info(indices.get_node_shared_ptr(), gather);
+    return gather;
+}
+Output<Node> ChangeAxes(const Output<Node>& indices,
+                        const AxisVector& transpose_axis_order,
+                        const std::shared_ptr<Constant>& axis) {
+    auto data = std::make_shared<Constant>(element::i32, Shape{transpose_axis_order.size()}, transpose_axis_order);
+    return ChangeAxes(indices, data, axis);
+}
+
 TransposeInputsInfo GetFirstTransposeInput(const NodePtr& node) {
     for (size_t input_idx = 0; input_idx < node->get_input_size(); ++input_idx) {
         NodePtr input_node = node->get_input_node_shared_ptr(input_idx);
@@ -280,17 +294,35 @@ NodeVector InsertTransposeBeforeNode(const NodePtr& main_node,
 namespace {
 
 bool CanPropagateForwardThrough(Node* node) {
-    CHECK_TRANSPOSE_SINKING_SUPPORTED(ov::op::util::UnaryElementwiseArithmetic, node);
-    CHECK_TRANSPOSE_SINKING_SUPPORTED(Clamp, node);
-    CHECK_TRANSPOSE_SINKING_SUPPORTED(Elu, node);
-    CHECK_TRANSPOSE_SINKING_SUPPORTED(SoftPlus, node);
-    CHECK_TRANSPOSE_SINKING_SUPPORTED(LogicalNot, node);
-    CHECK_TRANSPOSE_SINKING_SUPPORTED(Convert, node);
-    CHECK_TRANSPOSE_SINKING_SUPPORTED(ov::op::util::BinaryElementwiseArithmetic, node);
-    CHECK_TRANSPOSE_SINKING_SUPPORTED(Concat, node);
-    CHECK_TRANSPOSE_SINKING_SUPPORTED(Split, node);
-    CHECK_TRANSPOSE_SINKING_SUPPORTED(Transpose, node);
-    CHECK_TRANSPOSE_SINKING_SUPPORTED(PRelu, node);
+    // todo: collect this info automatically
+    CHECK_TRANSPOSE_SINKING_SUPPORTED(op::util::UnaryElementwiseArithmetic, node)
+    CHECK_TRANSPOSE_SINKING_SUPPORTED(Clamp, node)
+    CHECK_TRANSPOSE_SINKING_SUPPORTED(Elu, node)
+    CHECK_TRANSPOSE_SINKING_SUPPORTED(SoftPlus, node)
+    CHECK_TRANSPOSE_SINKING_SUPPORTED(LogicalNot, node)
+    CHECK_TRANSPOSE_SINKING_SUPPORTED(Convert, node)
+    CHECK_TRANSPOSE_SINKING_SUPPORTED(IsInf, node)
+    CHECK_TRANSPOSE_SINKING_SUPPORTED(IsNaN, node)
+    CHECK_TRANSPOSE_SINKING_SUPPORTED(IsFinite, node)
+    CHECK_TRANSPOSE_SINKING_SUPPORTED(op::util::BinaryElementwiseArithmetic, node)
+    CHECK_TRANSPOSE_SINKING_SUPPORTED(op::util::BinaryElementwiseComparison, node)
+    CHECK_TRANSPOSE_SINKING_SUPPORTED(op::util::BinaryElementwiseLogical, node)
+    CHECK_TRANSPOSE_SINKING_SUPPORTED(PRelu, node)
+    CHECK_TRANSPOSE_SINKING_SUPPORTED(Pad, node)
+    CHECK_TRANSPOSE_SINKING_SUPPORTED(BatchToSpace, node)
+    CHECK_TRANSPOSE_SINKING_SUPPORTED(SpaceToBatch, node)
+    CHECK_TRANSPOSE_SINKING_SUPPORTED(ReverseSequence, node)
+    CHECK_TRANSPOSE_SINKING_SUPPORTED(Gather, node)
+    CHECK_TRANSPOSE_SINKING_SUPPORTED(Interpolate, node)
+    CHECK_TRANSPOSE_SINKING_SUPPORTED(op::util::ArithmeticReductionKeepDims, node)
+    CHECK_TRANSPOSE_SINKING_SUPPORTED(op::util::LogicalReductionKeepDims, node)
+    CHECK_TRANSPOSE_SINKING_SUPPORTED(Slice, node)
+    CHECK_TRANSPOSE_SINKING_SUPPORTED(Split, node)
+    CHECK_TRANSPOSE_SINKING_SUPPORTED(VariadicSplit, node)
+    CHECK_TRANSPOSE_SINKING_SUPPORTED(Squeeze, node)
+    CHECK_TRANSPOSE_SINKING_SUPPORTED(Reshape, node)
+    CHECK_TRANSPOSE_SINKING_SUPPORTED(Unsqueeze, node)
+    CHECK_TRANSPOSE_SINKING_SUPPORTED(Transpose, node)
 
     return false;
 }
