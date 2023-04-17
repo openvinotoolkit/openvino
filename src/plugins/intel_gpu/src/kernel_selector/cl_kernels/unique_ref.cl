@@ -74,8 +74,10 @@ inline void FUNC(bubbleSort)(__global OUTPUT1_TYPE* out_unique_elements,
         bool swapped = false;
         for (int j = l; j < h - i; ++j) {
 #if FLATTENED
-            if ((out_unique_elements[j] > out_unique_elements[j + 1])) {
-                FUNC_CALL(swap_out_unique_elements)(&out_unique_elements[j], &out_unique_elements[j + 1]);
+            int j1 = j + 1;
+            if ((out_unique_elements[GET_INDEX(OUTPUT1, j)] > out_unique_elements[GET_INDEX(OUTPUT1, j1)])) {
+                FUNC_CALL(swap_out_unique_elements)
+                (&(out_unique_elements[GET_INDEX(OUTPUT1, j)]), &(out_unique_elements[GET_INDEX(OUTPUT1, j1)]));
 #else
             if (FUNC_CALL(compare_slices_ascending)(out_unique_elements, j, j + 1)) {
                 FUNC_CALL(swap_slices)(out_unique_elements, j, j + 1);
@@ -105,8 +107,9 @@ inline uint FUNC(deduplicate)(__global OUTPUT1_TYPE* out_unique_elements,
     ++out_counts[dest];
     while (++first != last) {
 #if FLATTENED
-        if (out_unique_elements[dest] != out_unique_elements[first]) {
-            out_unique_elements[++dest] = out_unique_elements[first];
+        if (out_unique_elements[GET_INDEX(OUTPUT1, dest)] != out_unique_elements[GET_INDEX(OUTPUT1, first)]) {
+            ++dest;
+            out_unique_elements[GET_INDEX(OUTPUT1, dest)] = out_unique_elements[GET_INDEX(OUTPUT1, first)];
 #else
         if (!FUNC_CALL(slices_are_equal)(out_unique_elements, dest, first)) {
             FUNC_CALL(assign_slice)(out_unique_elements, ++dest, first);
@@ -132,7 +135,7 @@ inline uint FUNC(unique)(const __global INPUT0_TYPE* input,
         bool unique = true;
         for (uint unique_idx = 0; unique_idx < unique_length; ++unique_idx) {
 #if FLATTENED
-            if (out_unique_elements[unique_idx] == input[first]) {
+            if (out_unique_elements[GET_INDEX(OUTPUT1, unique_idx)] == input[GET_INDEX(INPUT0, first)]) {
 #else
             if (FUNC_CALL(slices_are_equal_in)(out_unique_elements, unique_idx, input, first)) {
 #endif
@@ -144,7 +147,7 @@ inline uint FUNC(unique)(const __global INPUT0_TYPE* input,
         }
         if (unique) {
 #if FLATTENED
-            out_unique_elements[unique_length] = input[first];
+            out_unique_elements[GET_INDEX(OUTPUT1, unique_length)] = input[GET_INDEX(INPUT0, first)];
 #else
             FUNC_CALL(assign_slice_in)(out_unique_elements, unique_length, input, first);
 #endif
@@ -169,7 +172,7 @@ KERNEL(unique_ref)
     // Copy input to output data and initialize out_indices
     for (uint i = 0; i < LENGTH; ++i) {
 #    if FLATTENED
-        out_unique_elements[i] = input[i];
+        out_unique_elements[GET_INDEX(OUTPUT1, i)] = input[GET_INDEX(INPUT0, i)];
 #    else
         FUNC_CALL(assign_slice_in)(out_unique_elements, i, input, i);
 #    endif

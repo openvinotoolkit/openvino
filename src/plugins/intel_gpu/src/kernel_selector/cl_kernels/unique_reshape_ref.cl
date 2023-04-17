@@ -22,7 +22,7 @@ KERNEL(unique_reshape_ref)
     // Copy all data to new shape
     for (uint i = 0; i < in_total_count[0]; ++i) {
 #if FLATTENED
-        out_unique_elements[i] = in_unique_elements[i];
+        out_unique_elements[GET_INDEX(OUTPUT, i)] = in_unique_elements[GET_INDEX(INPUT1, i)];
 #else
         ITERATE(out_unique_elements[GET_INDEX(OUTPUT, i)] = in_unique_elements[GET_INDEX(INPUT1, i)];)
 #endif

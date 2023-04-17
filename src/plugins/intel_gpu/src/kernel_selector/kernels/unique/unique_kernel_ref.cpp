@@ -73,6 +73,54 @@ JitConstants MakeAxisJitConstants(size_t rank, int64_t axis, const std::string& 
             MakeJitConstant(get_index_name, get_index_val),
             MakeJitConstant(iterate_name, iterate_val)};
 }
+
+JitConstants MakeFlattenedJitConstants(size_t rank, bool simple_layout) {
+    const auto get_index_name = "GET_INDEX(prefix, i)";
+
+    if (simple_layout) {
+        const auto get_index_val = "i";
+        return {MakeJitConstant(get_index_name, get_index_val)};
+    }
+
+    const auto dimensions = [rank]() -> std::vector<std::string> {
+        switch (rank) {
+        case 4:
+            return {"i / (prefix##_SIZE_X * prefix##_SIZE_Y * prefix##_FEATURE_NUM)",
+                    "i / (prefix##_SIZE_X * prefix##_SIZE_Y) % prefix##_FEATURE_NUM",
+                    "i / prefix##_SIZE_X % prefix##_SIZE_Y",
+                    "i % prefix##_SIZE_X"};
+        case 5:
+            return {"i / (prefix##_SIZE_X * prefix##_SIZE_Y * prefix##_SIZE_Z * prefix##_FEATURE_NUM)",
+                    "i / (prefix##_SIZE_X * prefix##_SIZE_Y * prefix##_SIZE_Z) % prefix##_FEATURE_NUM",
+                    "i / (prefix##_SIZE_X * prefix##_SIZE_Y) % prefix##_SIZE_Z",
+                    "i / prefix##_SIZE_X % prefix##_SIZE_Y",
+                    "i % prefix##_SIZE_X"};
+        case 6:
+            return {
+                "i / (prefix##_SIZE_X * prefix##_SIZE_Y * prefix##_SIZE_Z * prefix##_SIZE_W * prefix##_FEATURE_NUM)",
+                "i / (prefix##_SIZE_X * prefix##_SIZE_Y * prefix##_SIZE_Z * prefix##_SIZE_W) % prefix##_FEATURE_NUM",
+                "i / (prefix##_SIZE_X * prefix##_SIZE_Y * prefix##_SIZE_Z) % prefix##_SIZE_W",
+                "i / (prefix##_SIZE_X * prefix##_SIZE_Y) % prefix##_SIZE_Z",
+                "i / prefix##_SIZE_X % prefix##_SIZE_Y",
+                "i % prefix##_SIZE_X"};
+        }
+        throw std::invalid_argument("Unsupported rank for unique primitive");
+    }();
+
+    const auto get_index_val = [&dimensions]() {
+        std::string str = "CAT(prefix, _GET_INDEX)";
+        str += '(';
+        for (const auto& dimension : dimensions) {
+            str += dimension;
+            str += ',';
+        }
+        str.back() = ')';
+        return str;
+    }();
+
+    return {MakeJitConstant(get_index_name, get_index_val)};
+}
+
 }  // namespace
 
 KernelsData UniqueKernelRef::GetKernelsData(const Params& params, const optional_params& options) const {
@@ -145,6 +193,7 @@ bool UniqueKernelRef::Validate(const Params& params, const optional_params& opti
 }
 
 JitConstants UniqueKernelRef::GetJitConstants(const unique_params& kernel_params) const {
+    const auto input = kernel_params.inputs.front();
     auto jit_constants = MakeBaseParamsJitConstants(kernel_params);
 
     jit_constants.AddConstants({
@@ -152,8 +201,10 @@ JitConstants UniqueKernelRef::GetJitConstants(const unique_params& kernel_params
         MakeJitConstant("SORTED", kernel_params.sorted),
     });
 
-    if (!kernel_params.flattened) {
-        jit_constants.Merge(MakeAxisJitConstants(kernel_params.inputs.front().Dimentions(), kernel_params.axis, "0"));
+    if (kernel_params.flattened) {
+        jit_constants.Merge(MakeFlattenedJitConstants(input.Dimentions(), input.SimpleLayout()));
+    } else {
+        jit_constants.Merge(MakeAxisJitConstants(input.Dimentions(), kernel_params.axis, "0"));
     }
 
     return jit_constants;
@@ -240,6 +291,7 @@ bool UniqueReshapeKernelRef::Validate(const Params& params, const optional_param
 }
 
 JitConstants UniqueReshapeKernelRef::GetJitConstants(const unique_reshape_params& kernel_params) const {
+    const auto input = kernel_params.inputs.at(1);
     auto jit_constants = MakeBaseParamsJitConstants(kernel_params);
 
     jit_constants.AddConstants({
@@ -247,8 +299,10 @@ JitConstants UniqueReshapeKernelRef::GetJitConstants(const unique_reshape_params
         MakeJitConstant("AXIS", kernel_params.axis),
     });
 
-    if (!kernel_params.flattened) {
-        jit_constants.Merge(MakeAxisJitConstants(kernel_params.inputs.at(1).Dimentions(), kernel_params.axis, "1"));
+    if (kernel_params.flattened) {
+        jit_constants.Merge(MakeFlattenedJitConstants(input.Dimentions(), input.SimpleLayout()));
+    } else {
+        jit_constants.Merge(MakeAxisJitConstants(input.Dimentions(), kernel_params.axis, "1"));
     }
 
     return jit_constants;
