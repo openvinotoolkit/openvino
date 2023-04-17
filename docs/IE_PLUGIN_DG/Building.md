@@ -24,33 +24,33 @@ Once the commands above are executed, the OpenVINO Developer Package is generate
 * ``targets_developer.cmake`` - an automatically generated file which contains all targets exported from the OpenVINO build tree. This file is included by ``OpenVINODeveloperPackageConfig.cmake`` to import the following targets:
 
 
-* Libraries for plugin development:
+   * Libraries for plugin development:
 
-   * ``openvino::runtime`` - shared OpenVINO library
+      * ``openvino::runtime`` - shared OpenVINO library
    
-   * ``openvino::runtime::dev`` - interface library with OpenVINO Developer API
+      * ``openvino::runtime::dev`` - interface library with OpenVINO Developer API
    
-   * ``openvino::pugixml`` - static Pugixml library
+      * ``openvino::pugixml`` - static Pugixml library
    
-   * ``openvino::xbyak`` - interface library with Xbyak headers
+      * ``openvino::xbyak`` - interface library with Xbyak headers
    
-   * ``openvino::itt`` - static library with tools for performance measurement using Intel ITT
+      * ``openvino::itt`` - static library with tools for performance measurement using Intel ITT
    
-* Libraries for tests development:
+   * Libraries for tests development:
 
-   * ``openvino::gtest``, ``openvino::gtest_main``, ``openvino::gmock`` - Google Tests framework libraries
+      * ``openvino::gtest``, ``openvino::gtest_main``, ``openvino::gmock`` - Google Tests framework libraries
+     
+      * ``openvino::commonTestUtils`` - static library with common tests utilities 
    
-   * ``openvino::commonTestUtils`` - static library with common tests utilities 
+      * ``openvino::funcTestUtils`` - static library with functional tests utilities 
    
-   * ``openvino::funcTestUtils`` - static library with functional tests utilities 
-   
-   * ``openvino::unitTestUtils`` - static library with unit tests utilities 
+      * ``openvino::unitTestUtils`` - static library with unit tests utilities 
   
-   * ``openvino::ngraphFunctions`` - static library with the set of ``ov::Model`` builders
+      * ``openvino::ngraphFunctions`` - static library with the set of ``ov::Model`` builders
    
-   * ``openvino::funcSharedTests`` - static library with common functional tests
+      * ``openvino::funcSharedTests`` - static library with common functional tests
   
-   * ``openvino::ngraph_reference`` - static library with operation reference implementations.
+      * ``openvino::ngraph_reference`` - static library with operation reference implementations.
 
 .. note::  
    
