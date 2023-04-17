@@ -1,1 +1,0 @@
-../../../../../bin/ia32/Release/openvino_wasm.js
