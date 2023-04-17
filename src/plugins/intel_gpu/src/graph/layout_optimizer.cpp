@@ -304,21 +304,8 @@ bool layout_optimizer::can_fuse_reorder(program_node& prev, program_node& next, 
         ((fmt_prev == format::b_fs_yx_fsv4 && fmt_next == format::bfyx) && (prev_dt == data_types::u8 || prev_dt == data_types::i8))))
         return true;
 
-    if (next.is_type<eltwise>() && prev_simple && next_simple) {
-        // If accumulate type of eltwise is impacted from low precision to high precision, do not fuse to avoid accuracy degradation.
-        if ((data_type_traits::size_of(prev_dt) < data_type_traits::size_of(next_dt))) {
-            return false;
-        }
+    if (next.is_type<eltwise>() && prev_simple && next_simple)
         return true;
-    }
-
-    // Target patterns
-    // - Fuse reorder into Permute: any node -> reorder -> Permute => any node -> Permute
-    // - Fuse reorder into FC     : any node -> reorder -> FC      => any node -> FC
-    if ((next.is_type<permute>() || next.is_type<fully_connected>()) && (fmt_prev == fmt_next) &&
-        ((fmt_prev != format::any) && (fmt_next != format::any))) {
-        return true;
-    }
 
     if (next.is_type<permute>() && (fmt_prev == format::b_fs_zyx_fsv16 &&
         next_output_layout.batch() > 1 &&
@@ -526,10 +513,6 @@ bool layout_optimizer::can_fuse_reorder_to_prev(program_node& prev, reorder_node
         if (prev.is_type<eltwise>() &&
             is_mixed_layout(prev, *next, false, {{ format::bs_fs_zyx_bsv32_fsv32, format::bs_fs_zyx_bsv32_fsv16 }}))
             return true;
-    }
-
-    if (prev.is_type<eltwise>() && (fmt_prev == fmt_next)) {
-        return true;
     }
 
     return false;
