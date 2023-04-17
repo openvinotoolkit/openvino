@@ -66,13 +66,21 @@ class ResizeAlgorithm(Enum):
 
 
 class ColorFormat(Enum):
+    @classmethod
+    def _missing_(cls, value: object):
+        """Add deprecation warningt to Field2"""
+        if str(value) == "NV12":
+            print("Field name `NV12` for `ColorFormat` enum is deprecated and will be removed in 2023.1 release.")
+            return 5
+        if str(value) == "I420":
+            print("Field name `I420` for `ColorFormat` enum is deprecated and will be removed in 2023.1 release.")
+            return 6
+        return value
     RAW = 0
     RGB = 1
     BGR = 2
     RGBX = 3
     BGRX = 4
-    NV12 = 5
-    I420 = 6
 
 
 cpdef enum StatusCode:

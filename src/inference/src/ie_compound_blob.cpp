@@ -14,6 +14,7 @@
 #include <utility>
 #include <vector>
 
+IE_SUPPRESS_DEPRECATED_START
 namespace InferenceEngine {
 
 namespace {
