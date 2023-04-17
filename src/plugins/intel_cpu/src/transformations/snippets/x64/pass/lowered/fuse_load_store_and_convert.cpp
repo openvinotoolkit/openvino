@@ -7,8 +7,8 @@
 #include "fuse_load_store_and_convert.hpp"
 #include "snippets/snippets_isa.hpp"
 
-#include "snippets_transformations/op/load_convert.hpp"
-#include "snippets_transformations/op/store_convert.hpp"
+#include "transformations/snippets/x64/op/load_convert.hpp"
+#include "transformations/snippets/x64/op/store_convert.hpp"
 
 
 bool ov::intel_cpu::pass::FuseLoadStoreConvert::fuse_load_convert(ngraph::snippets::lowered::LinearIR& linear_ir,
