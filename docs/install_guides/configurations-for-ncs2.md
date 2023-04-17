@@ -41,10 +41,15 @@ You've completed all required configuration steps to perform inference on Intel�
 
 ## macOS
 
-> **warning:**
-> OpenVINO 2022.3, temporarily, does not support the VPU devices.
-> The feature will be re-implemented with the next update. Until then, 
-> continue using a previous release of OpenVINO, if you work with VPUs.
+@sphinxdirective
+
+.. warning::
+
+   OpenVINO 2022.3, temporarily, does not support the VPU devices.
+   The feature will be re-implemented with the next update. Until then, 
+   continue using a previous release of OpenVINO, if you work with VPUs.
+
+@endsphinxdirective
 
 
 These steps are required only if you want to perform inference on Intel® Neural Compute Stick 2 powered by the Intel® Movidius™ Myriad™ X VPU.
