@@ -20,6 +20,7 @@ public:
     using Ptr = std::shared_ptr<ExecutableNetwork>;
     ExecutableNetwork(const Schedule::Ptr& schedule, const ScheduleContext::Ptr& sContext);
     IInferPtr CreateInferRequest() override;
+    std::shared_ptr<ngraph::Function> GetExecGraphInfo() override;
     ~ExecutableNetwork() override;
 
 protected:

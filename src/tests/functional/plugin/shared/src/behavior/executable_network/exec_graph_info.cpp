@@ -424,7 +424,11 @@ TEST_P(ExecGraphSerializationTest, ExecutionGraph) {
 
     pugi::xml_document expected;
     pugi::xml_document result;
-    ASSERT_TRUE(expected.load_string(target_device == "CPU" ? expected_serialized_model_cpu : expected_serialized_model));
+    if (target_device == "CPU" || target_device == "AUTO:CPU" || target_device == "MULTI:CPU") {
+        ASSERT_TRUE(expected.load_string(expected_serialized_model_cpu));
+    } else {
+        ASSERT_TRUE(expected.load_string(expected_serialized_model));
+    }
     ASSERT_TRUE(result.load_file(m_out_xml_path.c_str()));
 
     bool status;
