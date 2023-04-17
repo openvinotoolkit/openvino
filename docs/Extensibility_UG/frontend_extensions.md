@@ -244,8 +244,8 @@ that has input named "X" and output named "Out" and all of them can be implement
    :language: cpp
    :fragment: [frontend_extension_framework_map_macro_CustomOp]
 
-Let's take a closer look at the parameters this macro takes. Note that there are two flavors - the second one is to map 
-for PaddlePaddle operations where input and output names have to be specified.
+Let's take a closer look at the parameters this macro takes (note that there are two flavors - the second one is to map 
+for PaddlePaddle operations where input and output names have to be specified).
 
 .. code-block:: cpp
 
