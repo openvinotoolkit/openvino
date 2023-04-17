@@ -57,6 +57,9 @@ struct format_traits {
     static bool is_spatial_char(char c) { return std::string(spatial_chars()).find_first_of(c) != std::string::npos; }
     /// @brief Checks if @p c represents group dimensions.
     static bool is_group_char(char c) { return std::string(group_chars()).find_first_of(c) != std::string::npos; }
+
+    /// @brief Checks if order has @p c dimension.
+    bool has_dimension(char c) const { return order.find_first_of(c) != std::string::npos; }
 };
 
 /// @brief Represents memory formats (orders).
@@ -73,6 +76,8 @@ struct format {
         bfyx,                                   ///< the most common format for activations in clDNN.
         bfzyx,                                  ///< format for 5d data tensors
         bfwzyx,                                 ///< batch, feature, 4D spatial
+        bfuwzyx,                                ///< 7d tensor
+        bfvuwzyx,                               ///< 8d tensor
         yxfb,                                   ///< batch first, feature and than spatials
         byxf,                                   ///< used in bitmaps, input from user i.e b images of RGB format
         fyxb,                                   ///< format not used inside clDNN, but supported in reorder as extension
@@ -107,10 +112,10 @@ struct format {
         bs_fs_zyx_bsv32_fsv32,                  ///< format used for big batches (batch and features blocked by 32)
         bs_fs_zyx_bsv32_fsv16,                  ///< format used for big batches (batch blocked by 32, features blocked by 16)
         fs_b_yx_fsv32,                          ///< format for input for fp16 primitives
-        bs_xs_xsv8_bsv8,                        ///< format used only for fully connected
-        bs_xs_xsv8_bsv16,                       ///< format used only for fully connected
-        bs_x_bsv16,                             ///< format used only for fully connected weights fp16 batch=1 : bs - batch slice
-                                                ///< (responses slice), bsv16 - 16 values of single batch slice, x - flattened plane of (fyx)
+        bs_fs_fsv8_bsv8,                        ///< format used only for fully connected
+        bs_fs_fsv8_bsv16,                       ///< format used only for fully connected
+        bs_f_bsv16,                             ///< format used only for fully connected weights fp16 batch=1 : bs - batch slice
+                                                ///< (responses slice), bsv16 - 16 values of single batch slice, f - flattened plane of (fyx)
         b_fs_yx_32fp,                           ///< format for data for binary convolutions
         winograd_2x3_s1_data,                   ///< format used for input for winograd convolution, F(2,3) -- filter 3x3 with stride 1
         nv12,                                   ///< format for media nv12 input
@@ -326,7 +331,8 @@ struct format {
     static bool is_simple_data_format(type fmt) {
         return (fmt == yxfb || fmt == byxf ||
                 fmt == bfyx || fmt == fyxb ||
-                fmt == bfzyx || fmt == bfwzyx);
+                fmt == bfzyx || fmt == bfwzyx ||
+                fmt == bfuwzyx || fmt == bfvuwzyx);
     }
 
     static format get_default_format(size_t rank, bool is_weights = false, bool is_grouped = false);
@@ -392,6 +398,10 @@ struct format {
 
     std::string to_string() const;
 };
+
+inline std::ostream& operator<<(std::ostream& os, const format& fmt) {
+    return os << fmt.to_string();
+}
 
 /// @}
 /// @}

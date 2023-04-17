@@ -24,8 +24,18 @@ namespace ov {
 namespace intel_gpu {
 
 static cldnn::tensor getConstTensor(const ngraph::Shape constDims) {
+    std::vector<cldnn::tensor::value_type> shuffled_dims(constDims.size());
+
+    // cldnn tensor c-tor expects constants be in a reversed order (x, y, z, w, u, v)
+    for (size_t i = 0; i < constDims.size(); i++) {
+        shuffled_dims[i] = TensorValue(constDims[i < 2 ? i : (constDims.size() - 1 - i)]);
+    }
     cldnn::tensor constTensor;
     switch (constDims.size()) {
+    case 8:
+    case 7:
+        constTensor = cldnn::tensor(shuffled_dims);
+        break;
     case 6: constTensor = cldnn::tensor(TensorValue(constDims[0]), TensorValue(constDims[1]),
                                         TensorValue(constDims[5]), TensorValue(constDims[4]),
                                         TensorValue(constDims[3]), TensorValue(constDims[2]));
