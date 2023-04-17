@@ -103,6 +103,8 @@ def test_mo_convert_dependencies_check():
     # Check that not satisfied dependencies are shown if error happened in convert_model()
     status = subprocess.run(args, env=os.environ, capture_output=True)
     test_log = status.stderr.decode("utf-8").replace("\r\n", "\n")
+    print(status.stderr.decode("utf-8").replace("\r\n", "\n"))
+    print(status.stdout.decode("utf-8").replace("\r\n", "\n"))
     assert "Detected not satisfied dependencies:" in test_log
     assert "openvino-telemetry: not installed" in test_log
 
