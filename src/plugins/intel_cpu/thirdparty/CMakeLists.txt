@@ -72,9 +72,14 @@ function(ie_add_onednn)
         else()
             set(ARM_COMPUTE_TARGET_ARCH_DEFAULT arm64-v8a)
         endif()
-        set(ARM_COMPUTE_TARGET_ARCHS arm64-v8a arm64-v8.2-a arm64-v8.2-a-sve arm64-v8.2-a-sve2
-                                     armv8a armv8.2-a armv8.2-a-sve armv8.6-a armv8.6-a-sve armv8.6-a-sve2
-                                     armv8r64)
+        set(ARM_COMPUTE_TARGET_ARCHS # armv7a armv7a-hf
+                                     arm64-v8a
+                                     arm64-v8.2-a arm64-v8.2-a-sve arm64-v8.2-a-sve2
+                                     armv8a
+                                     armv8.2-a armv8.2-a-sve
+                                     armv8.6-a armv8.6-a-sve armv8.6-a-sve2 armv8.6-a-sve2-sme2
+                                     armv8r64 # the same as armv8.4-a
+                                     )
 
         set(ARM_COMPUTE_TARGET_ARCH "${ARM_COMPUTE_TARGET_ARCH_DEFAULT}" CACHE STRING "Architecture for ARM ComputeLibrary")
         set_property(CACHE ARM_COMPUTE_TARGET_ARCH PROPERTY STRINGS ${ARM_COMPUTE_TARGET_ARCHS})

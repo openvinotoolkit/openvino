@@ -242,7 +242,7 @@ TEST_P(InferRequestIOBBlobTest, secondCallGetInputDoNotReAllocateData) {
     ASSERT_NO_THROW(req = execNet.CreateInferRequest());
     ASSERT_NO_THROW(blob1 = req.GetBlob(cnnNet.getInputsInfo().begin()->first));
     ASSERT_NO_THROW(blob2 = req.GetBlob(cnnNet.getInputsInfo().begin()->first));
-    ASSERT_EQ(blob1.get()->buffer(), blob2.get()->buffer());
+    ASSERT_EQ(blob1.get(), blob2.get());
 }
 
 TEST_P(InferRequestIOBBlobTest, secondCallGetOutputDoNotReAllocateData) {
@@ -252,7 +252,7 @@ TEST_P(InferRequestIOBBlobTest, secondCallGetOutputDoNotReAllocateData) {
     ASSERT_NO_THROW(req = execNet.CreateInferRequest());
     ASSERT_NO_THROW(blob1 = req.GetBlob(cnnNet.getOutputsInfo().begin()->first));
     ASSERT_NO_THROW(blob2 = req.GetBlob(cnnNet.getOutputsInfo().begin()->first));
-    ASSERT_EQ(blob1.get()->buffer(), blob2.get()->buffer());
+    ASSERT_EQ(blob1.get(), blob2.get());
 }
 
 TEST_P(InferRequestIOBBlobTest, secondCallGetInputAfterInferSync) {
@@ -264,7 +264,7 @@ TEST_P(InferRequestIOBBlobTest, secondCallGetInputAfterInferSync) {
     ASSERT_NO_THROW({ req.StartAsync(); req.Wait(); });
     ASSERT_NO_THROW(blob1 = req.GetBlob(cnnNet.getInputsInfo().begin()->first));
     ASSERT_NO_THROW(blob2 = req.GetBlob(cnnNet.getInputsInfo().begin()->first));
-    ASSERT_EQ(blob1.get()->buffer(), blob2.get()->buffer());
+    ASSERT_EQ(blob1.get(), blob2.get());
 }
 
 TEST_P(InferRequestIOBBlobTest, secondCallGetOutputAfterInferSync) {
@@ -276,7 +276,7 @@ TEST_P(InferRequestIOBBlobTest, secondCallGetOutputAfterInferSync) {
     ASSERT_NO_THROW({ req.StartAsync(); req.Wait(); });
     ASSERT_NO_THROW(blob1 = req.GetBlob(cnnNet.getOutputsInfo().begin()->first));
     ASSERT_NO_THROW(blob2 = req.GetBlob(cnnNet.getOutputsInfo().begin()->first));
-    ASSERT_EQ(blob1.get()->buffer(), blob2.get()->buffer());
+    ASSERT_EQ(blob1.get(), blob2.get());
 }
 
 TEST_P(InferRequestIOBBlobTest, canSetInputBlobForInferRequest) {
@@ -299,7 +299,7 @@ TEST_P(InferRequestIOBBlobTest, canSetOutputBlobForInferRequest) {
     ASSERT_NO_THROW(req.SetBlob(cnnNet.getOutputsInfo().begin()->first, outputBlob));
     std::shared_ptr<InferenceEngine::Blob> actualBlob;
     ASSERT_NO_THROW(actualBlob = req.GetBlob(cnnNet.getOutputsInfo().begin()->first));
-    ASSERT_EQ(outputBlob.get()->buffer(), actualBlob.get()->buffer());
+    ASSERT_EQ(outputBlob.get(), actualBlob.get());
 }
 
 TEST_P(InferRequestIOBBlobTest, canInferWithSetInOutBlobs) {
@@ -370,6 +370,160 @@ TEST_P(InferRequestIOBBlobTest, canReallocateExternalBlobViaGet) {
     outBlob->allocate();
 
     ASSERT_NO_THROW(req.Infer());
+}
+
+class InferRequestIOBBlobSetPrecisionTest : public BehaviorTestsUtils::BehaviorTestsBasicBase,
+                                            public BehaviorTestsUtils::IEInferRequestTestBase {
+protected:
+    void SetUp() override {
+        std::tie(netPrecision, target_device, configuration) = this->GetParam();
+        SKIP_IF_CURRENT_TEST_IS_DISABLED()
+        APIBaseTest::SetUp();
+        function = ov::test::behavior::getDefaultNGraphFunctionForTheDevice(target_device);
+        cnnNet = InferenceEngine::CNNNetwork(function);
+        execNet = ie->LoadNetwork(cnnNet, target_device, configuration);
+    }
+
+    void TearDown() override {
+        if (!configuration.empty()) {
+            PluginCache::get().reset();
+        }
+        APIBaseTest::TearDown();
+    }
+
+    InferenceEngine::ExecutableNetwork execNet;
+    InferenceEngine::CNNNetwork cnnNet;
+};
+
+
+TEST_P(InferRequestIOBBlobSetPrecisionTest, CanSetOutBlobWithDifferentPrecision) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED()
+    // Create InferRequest
+    InferenceEngine::InferRequest req;
+    ASSERT_NO_THROW(req = execNet.CreateInferRequest());
+    for (auto& outputInfo : cnnNet.getOutputsInfo()) {
+        InferenceEngine::TensorDesc td(netPrecision, outputInfo.second->getTensorDesc().getDims(), outputInfo.second->getTensorDesc().getLayout());
+        InferenceEngine::Blob::Ptr blob = FuncTestUtils::createAndFillBlob(td);
+        if (outputInfo.second->getTensorDesc().getPrecision() == netPrecision) {
+            ASSERT_NO_THROW(req.SetBlob(outputInfo.first, blob));
+        } else {
+            ASSERT_THROW(req.SetBlob(outputInfo.first, blob), InferenceEngine::Exception);
+        }
+    }
+}
+
+TEST_P(InferRequestIOBBlobSetPrecisionTest, CanSetInBlobWithDifferentPrecision) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED()
+    // Create InferRequest
+    InferenceEngine::InferRequest req;
+    ASSERT_NO_THROW(req = execNet.CreateInferRequest());
+
+    for (auto& inputInfo : cnnNet.getInputsInfo()) {
+        InferenceEngine::TensorDesc td(netPrecision, inputInfo.second->getTensorDesc().getDims(), inputInfo.second->getTensorDesc().getLayout());
+        InferenceEngine::Blob::Ptr blob = FuncTestUtils::createAndFillBlob(td);
+        if (inputInfo.second->getTensorDesc().getPrecision() == netPrecision) {
+            ASSERT_NO_THROW(req.SetBlob(inputInfo.first, blob));
+        } else {
+            ASSERT_THROW(req.SetBlob(inputInfo.first, blob), InferenceEngine::Exception);
+        }
+    }
+}
+
+typedef std::tuple<
+        InferenceEngine::Layout,            // Network precision
+        std::string,                        // Device name
+        std::map<std::string, std::string>  // Config
+> InferRequestIOBBlobSetLayoutParams;
+
+class InferRequestIOBBlobSetLayoutTest : public testing::WithParamInterface<InferRequestIOBBlobSetLayoutParams>,
+                                         public ov::test::behavior::APIBaseTest {
+public:
+    static std::string getTestCaseName(testing::TestParamInfo<InferRequestIOBBlobSetLayoutParams> obj) {
+        InferenceEngine::Layout  layout;
+        std::string target_device;
+        std::map<std::string, std::string> configuration;
+        std::tie(layout, target_device, configuration) = obj.param;
+        std::ostringstream result;
+        result << "layout=" << layout << "_";
+        result << "target_device=" << target_device << "_";
+        if (!configuration.empty()) {
+            result << "config=" << configuration;
+        }
+        return result.str();
+    }
+
+    void SetUp()  override {
+        std::tie(layout, target_device, configuration) = this->GetParam();
+        SKIP_IF_CURRENT_TEST_IS_DISABLED()
+        function = ngraph::builder::subgraph::makeConvPoolRelu();
+        cnnNet = InferenceEngine::CNNNetwork(function);
+        execNet = ie->LoadNetwork(cnnNet, target_device, configuration);
+    }
+
+    void TearDown() override {
+        if (!configuration.empty()) {
+            PluginCache::get().reset();
+        }
+        APIBaseTest::SetUp();
+    }
+
+    std::shared_ptr<InferenceEngine::Core> ie = PluginCache::get().ie();
+    std::shared_ptr<ngraph::Function> function;
+    InferenceEngine::Layout layout;
+    InferenceEngine::CNNNetwork cnnNet;
+    InferenceEngine::ExecutableNetwork execNet;
+    std::map<std::string, std::string> configuration;
+};
+
+TEST_P(InferRequestIOBBlobSetLayoutTest, CanSetInBlobWithDifferentLayouts) {
+    // Create InferRequest
+    InferenceEngine::InferRequest req;
+    ASSERT_NO_THROW(req = execNet.CreateInferRequest());
+
+    for (auto& inputInfo : cnnNet.getInputsInfo()) {
+        InferenceEngine::TensorDesc td;
+        InferenceEngine::Blob::Ptr blob;
+        if (FuncTestUtils::checkLayout(layout, inputInfo.second->getTensorDesc().getDims())) {
+            ASSERT_NO_THROW(td = InferenceEngine::TensorDesc(inputInfo.second->getTensorDesc().getPrecision(),
+                                                                       inputInfo.second->getTensorDesc().getDims(), layout));
+            ASSERT_NO_THROW(blob = FuncTestUtils::createAndFillBlob(td));
+            if (inputInfo.second->getLayout() == layout || layout == InferenceEngine::Layout::ANY ||
+                layout == InferenceEngine::Layout::BLOCKED || layout == InferenceEngine::Layout::SCALAR) {
+                ASSERT_NO_THROW(req.SetBlob(inputInfo.first, blob));
+            } else {
+                ASSERT_ANY_THROW(req.SetBlob(inputInfo.first, blob));
+            }
+        } else {
+            ASSERT_THROW(td = InferenceEngine::TensorDesc(inputInfo.second->getTensorDesc().getPrecision(),
+                                                          inputInfo.second->getTensorDesc().getDims(), layout), InferenceEngine::Exception);
+            ASSERT_THROW(blob = FuncTestUtils::createAndFillBlob(td), InferenceEngine::Exception);
+        }
+    }
+}
+
+TEST_P(InferRequestIOBBlobSetLayoutTest, CanSetOutBlobWithDifferentLayouts) {
+    // Create InferRequest
+    InferenceEngine::InferRequest req;
+    ASSERT_NO_THROW(req = execNet.CreateInferRequest());
+    for (auto& outputInfo : cnnNet.getOutputsInfo()) {
+        InferenceEngine::TensorDesc td;
+        InferenceEngine::Blob::Ptr blob;
+        if (FuncTestUtils::checkLayout(layout, outputInfo.second->getTensorDesc().getDims())) {
+            ASSERT_NO_THROW(td = InferenceEngine::TensorDesc(outputInfo.second->getTensorDesc().getPrecision(),
+                                                             outputInfo.second->getTensorDesc().getDims(), layout));
+            ASSERT_NO_THROW(blob = FuncTestUtils::createAndFillBlob(td));
+            if (outputInfo.second->getLayout() == layout || layout == InferenceEngine::Layout::ANY ||
+                layout == InferenceEngine::Layout::BLOCKED || layout == InferenceEngine::Layout::SCALAR) {
+                ASSERT_NO_THROW(req.SetBlob(outputInfo.first, blob));
+            } else {
+                ASSERT_ANY_THROW(req.SetBlob(outputInfo.first, blob));
+            }
+        } else {
+            ASSERT_THROW(td = InferenceEngine::TensorDesc(outputInfo.second->getTensorDesc().getPrecision(),
+                                                          outputInfo.second->getTensorDesc().getDims(), layout), InferenceEngine::Exception);
+            ASSERT_THROW(blob = FuncTestUtils::createAndFillBlob(td), InferenceEngine::Exception);
+        }
+    }
 }
 
 }  // namespace BehaviorTestsDefinitions
