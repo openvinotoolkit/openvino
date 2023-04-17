@@ -36,7 +36,7 @@ void basic_memory_dependencies::run(program& p) {
         }
 
         if (node->get_preferred_impl_type() == impl_types::onednn
-            && (node->is_type<convolution>() || node->is_type<deconvolution>())) {
+            && (node->is_type<convolution>() || node->is_type<deconvolution>() || node->is_type<fully_connected>())) {
             size_t eltw_dep = 0;
             for (auto& fused_op : node->get_fused_primitives()) {
                 if (fused_op.is_type<eltwise>() && fused_op.deps.size() == 1) {

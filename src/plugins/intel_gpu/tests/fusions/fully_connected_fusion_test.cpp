@@ -609,5 +609,45 @@ INSTANTIATE_TEST_SUITE_P(fusings_gpu, fc_fp16_eltwise_prod, ::testing::ValuesIn(
     fully_connected_test_params{ CASE_FC_FP16_3D_2, 2, 3 },
 }));
 
+class fc_fp16_eltwise_sum : public FullyConnectedFusingTestOneDNN {};
+TEST_P(fc_fp16_eltwise_sum, basic) {
+    auto p = GetParam();
+    create_topologies(
+        input_layout("input", get_input_layout(p)),
+        data("weights", get_mem(get_weights_layout(p))),
+        data("bias", get_mem(get_bias_layout(p))),
+        data("eltwise_data", get_mem(get_output_layout(p))),
+        fully_connected("fc_prim", input_info("input"), "weights", "bias", padding(), get_output_dim_size(p)),
+        eltwise("sum", { input_info("fc_prim"), input_info("eltwise_data") }, eltwise_mode::sum),
+        reorder("reorder_bfyx", input_info("sum"), p.default_format, data_types::f32)
+    );
+
+    tolerance = 1e-1f;
+    execute(p, false);
+}
+
+TEST_P(fc_fp16_eltwise_sum, basic_cached) {
+    auto p = GetParam();
+    create_topologies(
+        input_layout("input", get_input_layout(p)),
+        data("weights", get_mem(get_weights_layout(p))),
+        data("bias", get_mem(get_bias_layout(p))),
+        data("eltwise_data", get_mem(get_output_layout(p))),
+        fully_connected("fc_prim", input_info("input"), "weights", "bias", padding(), get_output_dim_size(p)),
+        eltwise("sum", { input_info("fc_prim"), input_info("eltwise_data") }, eltwise_mode::sum),
+        reorder("reorder_bfyx", input_info("sum"), p.default_format, data_types::f32)
+    );
+
+    tolerance = 1e-1f;
+    execute(p, true);
+}
+
+INSTANTIATE_TEST_SUITE_P(fusings_gpu, fc_fp16_eltwise_sum, ::testing::ValuesIn(std::vector<fully_connected_test_params>{
+    fully_connected_test_params{ CASE_FC_FP16_1, 2, 3 },
+    fully_connected_test_params{ CASE_FC_FP16_2, 2, 3 },
+    fully_connected_test_params{ CASE_FC_FP16_3, 2, 3 },
+    fully_connected_test_params{ CASE_FC_FP16_3D_1, 2, 3 },
+    fully_connected_test_params{ CASE_FC_FP16_3D_2, 2, 3 },
+}));
 
 #endif
