@@ -1,8 +1,8 @@
 -c ../constraints.txt
-requests
+# paddlepaddle #  ticket 95904
 numpy
+requests
 torch
 torchvision
-paddlepaddle; python_version<'3.11'
 pytest
-tensorflow-addons
+tensorflow-addons; python_version <= '3.10'

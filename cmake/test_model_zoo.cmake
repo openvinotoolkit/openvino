@@ -87,9 +87,10 @@ if(ENABLE_TESTS)
                                              ${ft_out_files}
                                              ${onnx_fe_out_files})
 
-    if (ENABLE_OV_PADDLE_FRONTEND)
-        add_dependencies(test_model_zoo paddle_test_models)
-    endif()
+    # TODO Reenable PDPD after paddlepaddle==2.5.0 with compliant protobuf is released (ticket 95904)
+    #if (ENABLE_OV_PADDLE_FRONTEND)
+    #    add_dependencies(test_model_zoo paddle_test_models)
+    #endif()
 
     install(DIRECTORY "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/test_model_zoo"
             DESTINATION tests COMPONENT tests EXCLUDE_FROM_ALL)
