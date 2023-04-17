@@ -186,9 +186,6 @@ std::vector<std::string> disabledTestPatterns() {
         R"(smoke_dynamic_BatchSizeOne/RNNSequenceCPUTest.*IS=\(\[1\.\?\.10\]_\[1\.1\.10\]_\[\?\]_\)_TS=\{\(1\.2\.10\)_\(1\.1\.10\)_\(1\)\}_\{\(1\.4\.10\)_\(1\.1\.10\)_\(1\)\}_\{\(1\.8\.10\)_\(1\.1\.10\)_\(1\)\}_seqMode=PURE_SEQ_activations=\(relu\)_clip=0_direction=forward_netPrec=f32__inFmts=ncw\.ntc_outFmts=ncw\.ncw_primitive=ref_any)", // NOLINT
         // 98151. Not valid sorting for slices in reference.
         R"(.*UniqueLayerTestCPU.*axis.*True.*)",
-        // Issue: 104402. Incorrect broadcasting in FQ reference implentation
-        R"(.*smoke_FakeQuantizeLayerCPUTest_Decompos.*IS=\[4\.5\.6\.6\]_TS=\(\(4\.5\.6\.6\)\)_RS=\(\(1\.1\.6\.6\)\)_\(\(1\.1\.6\.6\)\)_\(\(1\.5\.6\.1\)\)_\(\(1\.5\.1\.6\)\).*)",
-        R"(.*smoke_FakeQuantizeLayerCPUTest_Decompos.*IS=\[4\.5\.6\.6\]_TS=\(\(4\.5\.6\.6\)\)_RS=\(\(1\.5\.6\.1\)\)_\(\(1\.5\.6\.1\)\)_\(\(1\.5\.6\.1\)\)_\(\(1\.5\.1\.6\)\).*)",
     };
 
 #if defined(OPENVINO_ARCH_ARM64) || defined(OPENVINO_ARCH_ARM)
@@ -216,20 +213,11 @@ std::vector<std::string> disabledTestPatterns() {
     retVector.emplace_back(R"(smoke_CompareWithRefs_static/EltwiseLayerTest.EltwiseTests.*)");
     retVector.emplace_back(R"(smoke_CompareWithRefs_static_check_collapsing/EltwiseLayerTest.EltwiseTests.*)");
     retVector.emplace_back(R"(smoke_SingleThread/EltwiseLayerTest.EltwiseTests.*)");
-    retVector.emplace_back(R"(smoke_GRUSequenceCommonZeroClip/GRUSequenceTest.CompareWithRefs.*)");
-    retVector.emplace_back(R"(smoke_GRUSequenceCommonClip/GRUSequenceTest.CompareWithRefs.*)");
     retVector.emplace_back(R"(smoke_StaticShapeLoop/StaticShapeLoopTest.CompareWithRefs.*)");
     retVector.emplace_back(R"(smoke_StaticShapeLoop/StaticShapeLoopTest.CompareWithPredefinedRefs.*)");
     retVector.emplace_back(R"(smoke_TrivialLoop/TrivialLoopTest.AutoSlicingInputWithDynCondition_(CheckPredefinedValues|CheckReference).*)");
-    retVector.emplace_back(R"(smoke_LSTMSequenceCommonZeroClip/LSTMSequenceTest.CompareWithRefs.*)");
-    retVector.emplace_back(R"(smoke_LSTMSequenceCommonClip/LSTMSequenceTest.CompareWithRefs.*)");
     retVector.emplace_back(R"(smoke_Decomposition_(3|4)D/Mvn6LayerTest.CompareWithRefs.*)");
     retVector.emplace_back(R"(smoke_AvgPool_ExplicitPad_CeilRounding/PoolingLayerTest.CompareWithRefs.*)");
-    retVector.emplace_back(R"(smoke_ReduceLogicalOneAxis/ReduceOpsLayerTest.CompareWithRefs.*)");
-    retVector.emplace_back(R"(smoke_Reduce_InputShapes/ReduceOpsLayerTest.CompareWithRefs.*)");
-    retVector.emplace_back(R"(smoke_ReduceLogical_ReductionTypes/ReduceOpsLayerTest.CompareWithRefs.*)");
-    retVector.emplace_back(R"(smoke_RNNSequenceCommonZeroClip/RNNSequenceTest.CompareWithRefs.*)");
-    retVector.emplace_back(R"(smoke_RNNSequenceCommonClip/RNNSequenceTest.CompareWithRefs.*)");
     retVector.emplace_back(R"(smoke_TestsDFT_(1|2|3|4)d/DFTLayerTest.CompareWithRefs.*)");
     retVector.emplace_back(R"(smoke_TestsSelect_none/SelectLayerTest.CompareWithRefImpl/COND=BOOL.*)");
     retVector.emplace_back(R"(smoke_TestsSelect_numpy/SelectLayerTest.CompareWithRefImpl/COND=BOOL.*)");
