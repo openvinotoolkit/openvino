@@ -23,7 +23,6 @@ protected:
         configuration.insert(additional_config.begin(), additional_config.end());
 
         std::vector<size_t> inputShape {2, 4, 4, 1};
-        std::vector<size_t> outputShape = inputShape;
         auto eltwiseType = ngraph::helpers::EltwiseTypes::ADD;
         auto secondaryInputType = ngraph::helpers::InputLayerType::CONSTANT;
 
@@ -45,16 +44,16 @@ protected:
            \               /
             X  No Reorder X
              \           /
-             Eltwise[FP32->BF16]
+           Eltwise[FP32->BF16] (or Subgraph[FP32->BF16])
                   |
                   |
              Output[BF16]
 */
-TEST_F(InputNoReorderEltwiseBF16, CompareWithRefs) {
+TEST_F(InputNoReorderEltwiseBF16, smoke_CompareWithRefs) {
     Run();
 
     CheckNumberOfNodesWithType(executableNetwork, "Reorder", 0);
     CheckNumberOfNodesWithType(executableNetwork, "Convert", 0);
-    CheckNumberOfNodesWithType(executableNetwork, "Eltwise", 1);
+    CheckNumberOfNodesWithTypes(executableNetwork, {"Eltwise", "Subgraph"}, 1);
 }
 } // namespace CPULayerTestsDefinitions
