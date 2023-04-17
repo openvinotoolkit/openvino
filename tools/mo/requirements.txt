@@ -2,5 +2,4 @@
 numpy>=1.16.6
 importlib-metadata; python_version < "3.8" and sys_platform == "linux"
 networkx
-defusedxml
 openvino-telemetry

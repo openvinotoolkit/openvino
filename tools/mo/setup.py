@@ -77,9 +77,9 @@ def read_requirements(path: str) -> List[str]:
         # if version is specified (non-word chars present)
         package_constraint = constraints.get(line.split(';')[0])
         if re.search('(~|=|<|>)', line):
-            #print(f"Checking {line}")
             if package_constraint:  # both markers and versions specified
                 marker_index = line.find(";")
+                # insert package version between package name and environment markers
                 line = line[:marker_index] \
                 + ",".join([constraint for constraint in package_constraint]) \
                 + line[marker_index:]
@@ -94,7 +94,6 @@ def read_requirements(path: str) -> List[str]:
             # else version is unbound
             else:
                 requirements.append(line)
-    print(f"\n{path}:\n{requirements}\n\n")
     return requirements
 
 
