@@ -105,12 +105,27 @@ bool HasSameOutputTransposeNodes(const ov::Output<ov::Node>&);
 void RemoveSingleOutputConsumers(const std::shared_ptr<ov::Node>&);
 
 /**
- * @brief Changes the order of values in @arg input according to @arg transpose_axis_order along @arg axis
+ * @brief Inserts Gather operation which changes the order of values in @arg input
+ * according to @arg transpose_axis_order along @arg axis.
  */
 ov::Output<ov::Node> ChangeValuesOrder(const ov::Output<ov::Node>& input,
                                        const ov::AxisVector& transpose_axis_order,
                                        const std::shared_ptr<ov::opset10::Constant>& axis);
+/**
+ * @brief Inserts Gather operation which changes the order of values in @arg input
+ * according to @arg transpose_axis_order along @arg axis.
+ */
+Output<Node> ChangeAxes(const Output<Node>& input,
+                        const AxisVector& transpose_axis_order,
+                        const std::shared_ptr<ov::opset10::Constant>& axis);
 
+/**
+ * @brief Inserts Gather operation which changes the order of values in @arg input
+ * according to @arg transpose_axis_order along @arg axis.
+ */
+Output<Node> ChangeAxes(const Output<Node>& input,
+                        const std::shared_ptr<ov::opset10::Constant>& transpose_axis_order,
+                        const std::shared_ptr<ov::opset10::Constant>& axis);
 /**
  * @brief Returns the updated axes order for case when the initial axes order has more elements
  * than after TransposeSinking, e.g.:

@@ -237,6 +237,7 @@ void FullyConnected::getSupportedDescriptors() {
     }
     auto weightsDataType = DnnlExtensionUtils::IEPrecisionToDataType(getOriginalInputPrecisionAtPort(WEIGHTS_ID));
 
+    isINT8 = one_of(inputDataType, memory::data_type::u8, memory::data_type::s8) && weightsDataType == memory::data_type::s8;
     // revert back outputDataType on special cases
     if (inputDataType == memory::data_type::f32) {
         // oneDNN only support f32 output when input is f32, even if FQ is fused
@@ -534,10 +535,8 @@ void FullyConnected::setPostOps(dnnl::primitive_attr& attr, const VectorDims& di
         IE_THROW() << "Unexpected rank(" << dims_ext.size() << ") for output tensor of node: " << getName();
     }
 
-    bool isINT8 = getOriginalInputPrecisionAtPort(WEIGHTS_ID) == Precision::U8 ||
-                  getOriginalInputPrecisionAtPort(WEIGHTS_ID) == Precision::I8;
 
-    DnnlPostOpsComposer dnnlpoc(getEngine(), attr, ops, postOpsArgs, dims, dims.size() - 1, isINT8);
+    DnnlPostOpsComposer dnnlpoc(getEngine(), attr, ops, postOpsArgs, dims, dims.size() - 1, isINT8, 1 << 0,  getDQScales(), withBiases);
 
     for (int i = 0; i < fusedWith.size(); ++i) {
         auto& node = fusedWith[i];
