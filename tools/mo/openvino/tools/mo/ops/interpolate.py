@@ -49,7 +49,8 @@ def infer_for_opsetX(node: Node, opset: str):
     if node.shape_calculation_mode == 'sizes':
         dst_shape = node.in_port(1).data.get_value()
         assert dst_shape is not None
-        correct_scales_using_dst_shape(node, dst_shape, src_shape, axes)
+        if node.get_opset() != "opset11":
+            correct_scales_using_dst_shape(node, dst_shape, src_shape, axes)
         for i, axis in enumerate(axes):
             output_shape[axis] = dst_shape[i]
     else:
