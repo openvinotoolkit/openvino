@@ -460,72 +460,72 @@ static bool SimplifyAs2D(dnnl::memory::desc& in0,
                          dnnl::memory::desc& in1,
                          dnnl::memory::desc& bias,
                          dnnl::memory::desc& out) {
-    bool simplified = false;
     auto in0_dims = in0.get_dims();
-    if (in0_dims.size() > 2 && bias.is_zero()) {
-        // in0: (bs0, bs1,..., m, k)
-        // in1: (bs0, bs1,..., k, n)
-        // bias:(bs0, bs1,..., m, n)
-        // out: (bs0, bs1,..., m, n)
+    if (in0_dims.size() < 3)
+        return false;
+    if (!bias.is_zero())
+        return false;
 
-        // CVS-84056:
-        // on special cases, where:
-        //  in0: (bs0, bs1,..., m, k)
-        //  in1: (1,   1,  ..., k, n)
-        //  bias:(1,   1,  ..., 1, n)
-        //  out: (bs0, bs1,..., m, n)
-        // we can collapse batch dimensions into m using memory::desc::reshape()
-        // to form a equivalent but simpler 2D problem:
-        //  in0:  (bs0*bs1...*m, k)
-        //  in1:  (k, n)
-        //  bias: (1, n)
-        //  out:  (bs0*bs1...*m, n)
-        int rank = in0_dims.size();
-        auto in1_dims = in1.get_dims();
-        auto out_dims = out.get_dims();
-        do {
-            if (in1_dims.size() != rank || out_dims.size() != rank)
-                break;
+    // in0: (bs0, bs1,..., m, k)
+    // in1: (bs0, bs1,..., k, n)
+    // bias:(bs0, bs1,..., m, n)
+    // out: (bs0, bs1,..., m, n)
 
-            // check for the special case
-            bool is_special_case = true;
-            memory::dim bs_collapsed = 1;
-            for (int i = 0; i < rank-2; i++) {
-                bs_collapsed *= in0_dims[i];
-                if (in1_dims[i] != 1 || out_dims[i] != in0_dims[i])
-                    is_special_case = false;
-            }
-            if (!is_special_case)
-                break;
+    // CVS-84056:
+    // on special cases, where:
+    //  in0: (bs0, bs1,..., m, k)
+    //  in1: (1,   1,  ..., k, n)
+    //  bias:(1,   1,  ..., 1, n)
+    //  out: (bs0, bs1,..., m, n)
+    // we can collapse batch dimensions into m using memory::desc::reshape()
+    // to form a equivalent but simpler 2D problem:
+    //  in0:  (bs0*bs1...*m, k)
+    //  in1:  (k, n)
+    //  bias: (1, n)
+    //  out:  (bs0*bs1...*m, n)
+    int rank = in0_dims.size();
+    auto in1_dims = in1.get_dims();
+    auto out_dims = out.get_dims();
 
-            // these checks is guarenteed by semantics of oneDNN matmul
-            // caller should have satisfied them, assert is for debugging
-            auto m = out_dims[rank-2];
-            auto n = out_dims[rank-1];
-            auto k = in1_dims[rank-2];
-            assert(m == in0_dims[rank-2]);  // m
-            assert(k == in0_dims[rank-1]);  // k
-            assert(n == in1_dims[rank-1]);  // n
+    if (in1_dims.size() != rank || out_dims.size() != rank)
+        return false;
 
-            auto new_in0 = in0.reshape({bs_collapsed*m, k}, true);
-            if (!new_in0)
-                break;
-            auto new_in1 = in1.reshape({k, n}, true);
-            if (!new_in1)
-                break;
-            auto new_out = out.reshape({bs_collapsed*m, n}, true);
-            if (!new_out)
-                break;
-            DEBUG_LOG(in0, "=>", new_in0);
-            DEBUG_LOG(in1, "=>", new_in1);
-            DEBUG_LOG(out, "=>", new_out);
-            in0 = new_in0;
-            in1 = new_in1;
-            out = new_out;
-            simplified = true;
-        } while (false);
+    // check for the special case
+    bool is_special_case = true;
+    memory::dim bs_collapsed = 1;
+    for (int i = 0; i < rank-2; i++) {
+        bs_collapsed *= in0_dims[i];
+        if (in1_dims[i] != 1 || out_dims[i] != in0_dims[i])
+            is_special_case = false;
     }
-    return simplified;
+    if (!is_special_case)
+        return false;
+
+    // these checks is guarenteed by semantics of oneDNN matmul
+    // caller should have satisfied them, assert is for debugging
+    auto m = out_dims[rank-2];
+    auto n = out_dims[rank-1];
+    auto k = in1_dims[rank-2];
+    assert(m == in0_dims[rank-2]);  // m
+    assert(k == in0_dims[rank-1]);  // k
+    assert(n == in1_dims[rank-1]);  // n
+
+    auto new_in0 = in0.reshape({bs_collapsed*m, k}, true);
+    if (!new_in0)
+        return false;
+    auto new_in1 = in1.reshape({k, n}, true);
+    if (!new_in1)
+        return false;
+    auto new_out = out.reshape({bs_collapsed*m, n}, true);
+    if (!new_out)
+        return false;
+    DEBUG_LOG(in0, "=>", new_in0);
+    DEBUG_LOG(in1, "=>", new_in1);
+    DEBUG_LOG(out, "=>", new_out);
+    in0 = new_in0;
+    in1 = new_in1;
+    out = new_out;
+    return true;
 }
 
 void MatMul::createDescriptor(const std::vector<MemoryDescPtr>& inputDesc,
@@ -542,10 +542,6 @@ void MatMul::createDescriptor(const std::vector<MemoryDescPtr>& inputDesc,
     SimplifyAs2D(in0, in1, bias, out);
 
     const auto attr = initPrimitiveAttr(DnnlExtensionUtils::convertToVectorDims(out.get_dims()));
-
-    //if (getName() == "MatMul_298")
-    //    asm("int3");
-
     if (withBiases) {
         matmul_desc = matmul::primitive_desc(
             getEngine(),
@@ -614,16 +610,9 @@ MemoryDescPtr MatMul::getSrcMemDesc(dnnl::primitive_desc_iterator &primitive_des
 }
 
 MemoryDescPtr MatMul::getDstMemDesc(dnnl::primitive_desc_iterator &primitive_desc_it, size_t idx) {
-    auto desc = primitive_desc_it.dst_desc(idx);
     return std::make_shared<CpuBlockedMemoryDesc>(
-                        DnnlExtensionUtils::DataTypeToIEPrecision(desc.get_data_type()),
+                        getOriginalOutputPrecisionAtPort(idx),
                         getOutputShapeAtPort(idx)); /* provide initial shapes, so hide transpose effect */
-/*
-    if (getOutputShapeAtPort(idx).isDynamic()) {
-        return DnnlExtensionUtils::makeUndefinedDesc(desc, getOutputShapeAtPort(idx));
-    }
-    return DnnlExtensionUtils::makeDescriptor(desc);
-*/
 }
 
 bool MatMul::created() const {
