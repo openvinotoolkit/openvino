@@ -203,7 +203,21 @@ MatMul::MatMul(const std::shared_ptr<ngraph::Node>& op, const GraphContext::CPtr
     transposeIn[1] = matMul->get_transpose_b();
 }
 
+const char * MM6D_FUSE_BIN = std::getenv("MM6D_FUSE_BIN");
+
 bool MatMul::canFuse(const NodePtr& node) const {
+    if (auto* eltwiseNode = dynamic_cast<Eltwise*>(node.get())) {
+        if (eltwiseNode->getBroadcastingPolicy() != Eltwise::BroadcastingPolicy::PerTensor) {
+            auto rank = getInputShapeAtPort(0).getRank();
+            if (rank == 6) {
+                if (MM6D_FUSE_BIN[0] == '0') {
+                    std::cout << "MM6D fuse skip: " << *node << std::endl;
+                    return false;
+                }
+            }
+        }
+    }
+
     return canFuseSimpleOperation(node);
 }
 
@@ -460,6 +474,11 @@ static bool SimplifyAs2D(dnnl::memory::desc& in0,
                          dnnl::memory::desc& in1,
                          dnnl::memory::desc& bias,
                          dnnl::memory::desc& out) {
+    // will not fuse bin post-ops in 6D matmul, so skip simplify
+    if (MM6D_FUSE_BIN[0] == '0') {
+        return false;
+    }
+
     auto in0_dims = in0.get_dims();
     if (in0_dims.size() < 3)
         return false;
