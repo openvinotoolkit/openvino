@@ -18,12 +18,9 @@ bool update_cpu_pinning(const bool input_pinning,
 
 #ifdef __linux__
 
-    if (original_proc_type_table[0][HYPER_THREADING_PROC] == 0) {
-        return false;
-    } else if (!input_changed) {
+    if (!input_changed) {
         for (auto& row : stream_info_table) {
-            if ((row[InferenceEngine::PROC_TYPE] == ALL_PROC) || (row[InferenceEngine::PROC_TYPE] == MAIN_CORE_PROC) ||
-                (row[InferenceEngine::PROC_TYPE] == HYPER_THREADING_PROC)) {
+            if (row[InferenceEngine::PROC_TYPE] == ALL_PROC) {
                 return false;
             }
         }
