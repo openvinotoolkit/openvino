@@ -7,7 +7,7 @@
 void ov::Exception::create(const CheckLocInfo& check_loc_info,
                            const std::string& context_info,
                            const std::string& explanation) {
-    OPENVINO_THROW(make_what(check_loc_info, context_info, explanation));
+    throw ov::Exception(make_what(check_loc_info, context_info, explanation));
 }
 
 std::string ov::Exception::make_what(const CheckLocInfo& check_loc_info,
