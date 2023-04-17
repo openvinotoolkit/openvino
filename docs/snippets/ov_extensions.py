@@ -41,7 +41,20 @@ core.add_extension(ConversionExtension("ThresholdedRelu", conversion))
 
 
 #! [py_frontend_extension_aten_hardtanh]
-from openvino.frontend import FrontEndManager, ConversionExtension, NodeContext
+import torch
+from openvino.frontend import ConversionExtension, NodeContext
+from openvino.tools.mo import convert_model
+
+
+class HardTanh(torch.nn.Module):
+    def __init__(self, min_val, max_val):
+        super(HardTanh, self).__init__()
+        self.min_val = min_val
+        self.max_val = max_val
+
+    def forward(self, inp):
+        return torch.nn.functional.hardtanh(inp, self.min_val, self.max_val)
+
 
 def convert_hardtanh(node: NodeContext):
     inp = node.get_input(0)
@@ -49,7 +62,8 @@ def convert_hardtanh(node: NodeContext):
     max_value = node.get_values_from_const_input(2)
     return ops.clamp(inp, min_value, max_value).outputs()
 
-fem = FrontEndManager()
-fe = fem.load_by_framework(framework="pytorch")
-fe.add_extension(ConversionExtension("aten::hardtanh", convert_hardtanh))
+
+model = HardTanh(min_val=0.1, max_val=2.0)
+hardtanh_ext = ConversionExtension("aten::hardtanh", convert_hardtanh)
+ov_model = convert_model(input_model=model, extensions=[hardtanh_ext])
 #! [py_frontend_extension_aten_hardtanh]
