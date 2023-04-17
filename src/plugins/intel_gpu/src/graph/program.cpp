@@ -23,6 +23,7 @@
 #include "roi_pooling_inst.h"
 #include "reorg_yolo_inst.h"
 #include "eltwise_inst.h"
+#include "non_zero_inst.h"
 #include "softmax_inst.h"
 #include "permute_inst.h"
 #include "custom_gpu_primitive_inst.h"
@@ -631,7 +632,7 @@ void program::post_optimize_graph(bool is_internal) {
 // mark if the node is constant assuming that all dependencies are marked properly
 void program::mark_if_constant(program_node& node) {
     if (node.get_dependencies().empty() || node.is_type<prior_box>() ||
-        node.is_type<assign>() || node.is_type<read_value>()) {
+        node.is_type<assign>() || node.is_type<read_value>() || node.is_type<gather_nonzero>()) {
         return;
     }
     node.constant = true;
