@@ -104,6 +104,9 @@ attach_activation_impl::attach_activation_impl() {
         format::bfvuwzyx,
     };
 
+    auto keys = implementation_map<activation>::combine(types, static_formats);
+    keys.emplace(data_types::f16, format::fs_b_yx_fsv32);
+
     implementation_map<activation>::add(impl_types::ocl,
                                         shape_types::dynamic_shape,
                                         typed_primitive_impl_ocl<activation>::create<activation_impl>,
@@ -113,12 +116,7 @@ attach_activation_impl::attach_activation_impl() {
     implementation_map<activation>::add(impl_types::ocl,
                                         shape_types::static_shape,
                                         typed_primitive_impl_ocl<activation>::create<activation_impl>,
-                                        types,
-                                        static_formats);
-
-    implementation_map<activation>::add(impl_types::ocl, shape_types::static_shape, typed_primitive_impl_ocl<activation>::create<activation_impl>, {
-        std::make_tuple(data_types::f16, format::fs_b_yx_fsv32),
-    });
+                                        keys);
 }
 
 }  // namespace detail

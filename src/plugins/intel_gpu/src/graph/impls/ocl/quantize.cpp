@@ -98,8 +98,6 @@ public:
 namespace detail {
 
 attach_quantize_impl::attach_quantize_impl() {
-    std::set<implementation_map<quantize>::key_type> keys;
-
     auto types = {
         data_types::f16,
         data_types::f32,
@@ -140,12 +138,7 @@ attach_quantize_impl::attach_quantize_impl() {
         format::bfvuwzyx,
     };
 
-    for (const auto type : types) {
-        for (const auto format : formats) {
-            keys.emplace(type, format);
-        }
-    }
-
+    auto keys = implementation_map<quantize>::combine(types, formats);
     keys.emplace(data_types::f16, format::yxfb);
     keys.emplace(data_types::f32, format::yxfb);
 

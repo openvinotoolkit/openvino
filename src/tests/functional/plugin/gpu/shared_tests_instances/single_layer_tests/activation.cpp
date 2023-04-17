@@ -118,7 +118,8 @@ const auto basicPreluCases = []() {
         ::testing::Values(CommonTestUtils::DEVICE_GPU));
 };
 
-const auto big_rank_cases = []() { return ::testing::Combine(
+const auto big_rank_cases = []() {
+    return ::testing::Combine(
         ::testing::ValuesIn(CommonTestUtils::combineParams(big_rank_activation_types)),
         ::testing::ValuesIn(netPrecisions),
         ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
