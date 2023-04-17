@@ -221,7 +221,7 @@ std::vector<std::string> disabledTestPatterns() {
     retVector.emplace_back(R"(smoke_CPU_OVClassLoadNetworkAndCheckWithSecondaryPropertiesTest/OVClassLoadNetworkAndCheckSecondaryPropertiesTest.LoadNetworkAndCheckSecondaryPropertiesTest.*)");
     retVector.emplace_back(R"(smoke_CPU_OVClassLoadNetworkAndCheckWithSecondaryPropertiesDoubleTest/OVClassLoadNetworkAndCheckSecondaryPropertiesTest.LoadNetworkAndCheckSecondaryPropertiesTest.*)");
     retVector.emplace_back(R"(smoke_CPU_OVClassCompileModelAndCheckSecondaryPropertiesTest/OVClassCompileModelAndCheckSecondaryPropertiesTest.CompileModelAndCheckSecondaryPropertiesTest.*)");
-    retVector.emplace_back(R"(smoke_CPU_OVClassCompileModelAndCheckSecondaryPropertiesDoubleTest/OVClassCompileModelAndCheckSecondaryPropertiesTest.CompileModelAndCheckSecondaryPropertiesTest.*)");
+    retVector.emplace_back(R"(smoke_CPU_OVClassCompileModelAndCheckWithSecondaryPropertiesDoubleTest.*)");
     retVector.emplace_back(R"(smoke_Activation_Basic/ActivationLayerTest.CompareWithRefs.*)");
     retVector.emplace_back(R"(smoke_Integer_Activation_Basic/ActivationLayerTest.CompareWithRefs/(Tanh|Negative|Sqrt).*)");
     retVector.emplace_back(R"(smoke_Activation_Basic_Prelu_Const/ActivationLayerTest.CompareWithRefs/(LeakyRelu|PReLu).*)");
