@@ -9,10 +9,12 @@
 
 #pragma once
 
-#include <openvino/function_name.hpp>
-#include <openvino/util/pp.hpp>
+#include <cstdint>
 #include <string>
 #include <utility>
+
+#include "openvino/function_name.hpp"
+#include "openvino/util/pp.hpp"
 
 /** @ingroup ov_dev_profiling
   * @brief openvino namespace
