@@ -315,6 +315,8 @@ void Engine::GetPerformanceStreams(std::map<std::string, std::string>& config,
     config[CONFIG_KEY(CPU_THROUGHPUT_STREAMS)] = common_hints.first;
     config[ov::num_streams.name()] = common_hints.first;
     config[CONFIG_KEY(CPU_THREADS_NUM)] = std::to_string(common_hints.second.num_threads);
+    config[CONFIG_KEY_INTERNAL(CPU_THREADS_PER_STREAM)] =
+        std::to_string(std::max(1, common_hints.second.num_threads / std::max(1, common_hints.second.num_streams)));
     config[CONFIG_KEY_INTERNAL(BIG_CORE_STREAMS)] = std::to_string(common_hints.second.big_core_streams);
     config[CONFIG_KEY_INTERNAL(BIG_CORE_LOGIC_STREAMS)] = std::to_string(common_hints.second.big_core_logic_streams);
     config[CONFIG_KEY_INTERNAL(SMALL_CORE_STREAMS)] = std::to_string(common_hints.second.small_core_streams);

@@ -202,7 +202,7 @@ class TaskManager:
         return self._idx
 
 class TestParallelRunner:
-    def __init__(self, exec_file_path: os.path, test_command_line: list, worker_num: int, working_dir: os.path, cache_path: os.path, is_parallel_devices: False):
+    def __init__(self, exec_file_path: os.path, test_command_line: list, worker_num: int, working_dir: os.path, cache_path: os.path, is_parallel_devices=False):
         self._exec_file_path = exec_file_path
         self._working_dir = working_dir
         self._command = self.__init_basic_command_line_for_exec_file(test_command_line)
