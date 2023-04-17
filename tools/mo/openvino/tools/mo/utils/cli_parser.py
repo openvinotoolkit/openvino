@@ -21,7 +21,6 @@ from openvino.runtime import Layout, PartialShape, Dimension, Shape, Type
 import openvino
 from openvino.tools.mo.front.extractor import split_node_in_port
 from openvino.tools.mo.middle.passes.convert_data_type import destination_type_to_np_data_type
-from openvino.tools.mo.middle.passes.convert_data_type import np_data_type_to_destination_type
 from openvino.tools.mo.utils.error import Error
 from openvino.tools.mo.utils.utils import refer_to_faq_msg, get_mo_root_dir
 from openvino.tools.mo.utils.help import get_convert_model_help_specifics, get_to_string_methods_for_params
@@ -122,52 +121,6 @@ def is_shape_type(value):
     return False
 
 
-def shape_to_str(shape, separator):
-    if isinstance(shape, str):
-        return shape
-    if isinstance(shape, PartialShape):
-        return shape.to_string()
-    if isinstance(shape, Shape):
-        return PartialShape(shape).to_string()
-    if isinstance(shape, list) or isinstance(shape, tuple):
-        dims = []
-        for dim in shape:
-            if isinstance(dim, Dimension):
-                dims.append(dim.to_string())
-            elif isinstance(dim, int):
-                dims.append(str(dim))
-            else:
-                raise Exception("Incorrect type of dimension. Expected Dimension or int, got {}".format(type(dim)))
-        return "[" + separator.join(dims) + "]"
-    raise Exception("Incorrect shape type. Expected PartialShape, Shape, [Dimension, ...] or [int, ...], "
-                    "got {}".format(type(shape)))
-
-
-def input_shape_to_str(input_shape):
-    if input_shape is None or isinstance(input_shape, str):
-        return input_shape
-    if isinstance(input_shape, list):
-        if len(input_shape) > 0 and isinstance(input_shape[0], int) or isinstance(input_shape[0], Dimension):
-            # The case when shape is specified as list of int or Dimension
-            return shape_to_str(input_shape, ',')
-        # The case when list of shapes is specified
-        shapes = []
-        for shape in input_shape:
-            shapes.append(shape_to_str(shape, ','))
-        return ','.join(shapes)
-    return shape_to_str(input_shape, ',')
-
-
-def type_to_str(type_obj):
-    if isinstance(type_obj, str):
-        return type_obj
-    if isinstance(type_obj, type):
-        return np_data_type_to_destination_type(type_obj)
-    if isinstance(type_obj, Type):
-        return type_obj.get_type_name()
-    raise Exception("Incorrect type. Expected Type or numpy type, got {}".format(type(type_obj)))
-
-
 def value_to_str(value, separator):
     if isinstance(value, np.ndarray):
         values = []
@@ -186,22 +139,32 @@ def value_to_str(value, separator):
     raise Exception("Incorrect value type. Expected np.ndarray or list, got {}".format(type(value)))
 
 
-def single_input_to_str(input):
+def single_input_to_input_cut_info(input: [str, tuple, list, PartialShape, Type, type]):
+    """
+    Parses parameters of single input to InputCutInfo.
+    :param input: input cut parameters of single input
+    :return: InputCutInfo
+    """
     if isinstance(input, str):
-        return input
+        # Parse params from string
+        node_name, shape, value, data_type = parse_input_value(input)
+        return openvino.tools.mo.InputCutInfo(node_name,
+                                              PartialShape(shape) if shape is not None else None,
+                                              data_type,
+                                              value)
     if isinstance(input, openvino.tools.mo.InputCutInfo):
-        if not isinstance(input.name, str):
-            raise Exception("Input name should be string, got {}".format(input.name))
-        input_str = input.name
-        assert input_str is not None, "Incorrect InputCutInfo. 'name' should be set."
-        if input.shape is not None:
-            input_str += shape_to_str(input.shape, " ")
-        if input.type is not None:
-            input_str += "{" + type_to_str(input.type) + "}"
-        if input.value is not None:
-            input_str += "->" + value_to_str(input.value, " ")
-        return input_str
-    if isinstance(input, tuple):
+        # Wrap input.shape to PartialShape if possible and wrap to InputCutInfo
+        return openvino.tools.mo.InputCutInfo(input.name,
+                                              PartialShape(input.shape) if input.shape is not None else None,
+                                              input.type,
+                                              input.value)
+    if isinstance(input, (tuple, list, PartialShape)):
+        # If input represents list with shape, wrap it to list. Single PartialShape also goes to this condition.
+        # Check of all dimensions will be in is_shape_type(val) method below
+        if len(input) > 0 and isinstance(input[0], (int, Dimension)):
+            input = [input]
+
+        # Check values of tuple or list and collect to InputCutInfo
         name = None
         inp_type = None
         shape = None
@@ -210,38 +173,147 @@ def single_input_to_str(input):
                 if name is not None:
                     raise Exception("More than one input name provided: {}".format(input))
                 name = val
-            elif isinstance(val, type) or isinstance(val, Type):
+            elif isinstance(val, (type, Type)):
                 if inp_type is not None:
                     raise Exception("More than one input type provided: {}".format(input))
-                inp_type = type_to_str(val)
+                inp_type = val
             elif is_shape_type(val):
                 if shape is not None:
                     raise Exception("More than one input shape provided: {}".format(input))
-                shape = shape_to_str(val, " ")
+                shape = PartialShape(val)
             else:
-                raise Exception("Incorrect input parameters provided. Expected input name and "
-                                "optionally input type or input shape. Got unknown object: {}".format(val))
-        if name is None:
-            raise Exception("Input name was not provided for following input {}.".format(input))
-        if shape is not None:
-            name += shape
-        if inp_type is not None:
-            name += "{" + inp_type + "}"
-        return name
+                raise Exception("Incorrect input parameters provided. Expected tuple with input name, "
+                                "input type or input shape. Got unknown object: {}".format(val))
+        return openvino.tools.mo.InputCutInfo(name,
+                                              PartialShape(shape) if shape is not None else None,
+                                              inp_type,
+                                              None)
+    # Case when only type is set
+    if isinstance(input, (type, Type)):
+        return openvino.tools.mo.InputCutInfo(None, None, input, None)
+
+    # We don't expect here single unnamed value. If list of int is set it is considered as shape.
+    # Setting of value is expected only using InputCutInfo or string analog.
 
     raise Exception("Unexpected object provided for input. Expected openvino.tools.mo.InputCutInfo "
                     "or tuple or str. Got {}".format(type(input)))
 
 
-def input_to_str(input):
-    if input is None or isinstance(input, str):
-        return input
+def input_to_input_cut_info(input: [str, tuple, list]):
+    """
+    Parses 'input' to list of InputCutInfo.
+    :param input: input cut parameters passed by user
+    :return: list of InputCutInfo with input cut parameters
+    """
+    if input is None:
+        return []
+    if isinstance(input, str):
+        inputs = []
+        # Split to list of string
+        for input_value in split_inputs(input):
+
+            # Parse string with parameters for single input
+            node_name, shape, value, data_type = parse_input_value(input_value)
+            inputs.append(openvino.tools.mo.InputCutInfo(node_name,
+                                                         PartialShape(shape) if shape is not None else None,
+                                                         data_type,
+                                                         value))
+        return inputs
+    if isinstance(input, openvino.tools.mo.InputCutInfo):
+        # Wrap to list and return
+        return [input]
+    if isinstance(input, tuple):
+        # Case when input is single shape set in tuple
+        if len(input) > 0 and isinstance(input[0], (int, Dimension)):
+            input = [input]
+        # Case when input is set as tuple. Expected that it is always single input.
+        return [single_input_to_input_cut_info(input)]
     if isinstance(input, list):
-        inputs_str = []
+        # Case when input is single shape set in list
+        if len(input) > 0 and isinstance(input[0], (int, Dimension)):
+            input = [input]
+        inputs = []
+        # Case when input is set as list. Expected that it is list of params for different inputs.
         for inp in input:
-            inputs_str.append(single_input_to_str(inp))
-        return ','.join(inputs_str)
-    return single_input_to_str(input)
+            inputs.append(single_input_to_input_cut_info(inp))
+        return inputs
+    # Case when single type or value is set, or unknown object
+    return [single_input_to_input_cut_info(input)]
+
+
+def input_shape_to_input_cut_info(input_shape: [str, Shape, PartialShape, list, tuple], inputs: list):
+    """
+    Parses 'input_shape' to list of PartialShape and updates 'inputs'.
+    :param input_shape: input shapes passed by user
+    :param inputs: list of InputCutInfo with information from 'input' parameter
+    """
+    if input_shape is None:
+        return
+    if isinstance(input_shape, str):
+        # Split input_shape to list of string
+        input_shape = split_shapes(input_shape)
+    if isinstance(input_shape, (Shape, PartialShape)):
+        # Whap single shape to list
+        input_shape = [input_shape]
+    if isinstance(input_shape, (list, tuple)):
+        # Check case when single shape is passed as list or tuple
+        if len(input_shape) > 0 and isinstance(input_shape[0], (int, Dimension)):
+            input_shape = [input_shape]
+
+        if len(inputs) > 0 and len(input_shape) > 0:
+            assert len(inputs) == len(input_shape), "Different numbers of inputs were specified in --input parameter " \
+                    "and --input_shapes. --input has {} items, --input_shape has {} item.".format(len(inputs), len(input_shape))
+
+        # Update inputs with information from 'input_shape'
+        if len(inputs) > 0:
+            for idx, shape in enumerate(input_shape):
+                shape = PartialShape(shape)
+                assert inputs[idx].shape is None, "Shape was set in both --input and in --input_shape parameter." \
+                                                  "Please use either --input or --input_shape for shape setting."
+                inputs[idx] = openvino.tools.mo.InputCutInfo(inputs[idx].name, shape, inputs[idx].type, inputs[idx].value)
+
+        else:
+            for shape in input_shape:
+                inputs.append(openvino.tools.mo.InputCutInfo(None, PartialShape(shape), None, None))
+        return
+
+    raise Exception("Unexpected object provided for input_shape. Expected PartialShape, Shape, tuple, list or str. "
+                    "Got {}".format(type(input_shape)))
+
+
+def freeze_placeholder_to_input_cut_info(argv_freeze_placeholder_with_value: str, inputs: list):
+    """
+    Parses 'argv_freeze_placeholder_with_value' to dictionary and collects unnamed inputs from 'inputs' to list.
+    :param argv_freeze_placeholder_with_value: string set by user.
+    As it was planned to be deprecated no Python analogs were made.
+    :param inputs: list of InputCutInfo with information from 'input' parameter
+    :returns (placeholder_values, unnamed_placeholder_values), where
+    placeholder_values - dictionary where key is node name, value is node value,
+    unnamed_placeholder_values - list with unnamed node values
+    """
+    # Parse argv_freeze_placeholder_with_value to dictionary with names and values
+    placeholder_values = parse_freeze_placeholder_values(argv_freeze_placeholder_with_value)
+    unnamed_placeholder_values = []
+
+    # Collect values for freezing from 'inputs'
+    if inputs is not None and len(inputs) > 0:
+        for input in inputs:
+            node_name = input.name
+            value = input.value
+            if value is None:
+                continue
+            # Check for value conflict
+            if node_name in placeholder_values and placeholder_values[node_name] != value:
+                raise Error("Overriding replacement value of the placeholder with name '{}': old value = {}, new value = {}"
+                            ".".format(node_name, placeholder_values[node_name], value))
+            if node_name is not None:
+                # Named input case, add to dictionary
+                placeholder_values[node_name] = value
+            else:
+                # Unnamed input case, add to list
+                unnamed_placeholder_values.append(value)
+
+    return placeholder_values, unnamed_placeholder_values
 
 
 def mean_scale_value_to_str(value):
@@ -1329,6 +1401,30 @@ def get_layout_values(argv_layout: str = '', argv_source_layout: str = '', argv_
         return res_list
 
 
+def parse_freeze_placeholder_values(argv_freeze_placeholder_with_value: str):
+    """
+    Parses parse_freeze_placeholder_values string.
+    :param argv_freeze_placeholder_with_value: string information on freezing placeholders
+    :return: dictionary where key is node name, value is node value.
+    """
+    placeholder_values = {}
+    if argv_freeze_placeholder_with_value is not None:
+        for plh_with_value in argv_freeze_placeholder_with_value.split(','):
+            plh_with_value = plh_with_value.split('->')
+            if len(plh_with_value) != 2:
+                raise Error("Wrong replacement syntax. Use --freeze_placeholder_with_value "
+                            "\"node1_name->value1,node2_name->value2\"")
+            node_name = plh_with_value[0]
+            value = plh_with_value[1]
+            if node_name in placeholder_values and placeholder_values[node_name] != value:
+                raise Error("Overriding replacement value of the placeholder with name '{}': old value = {}, new value = {}"
+                            ".".format(node_name, placeholder_values[node_name], value))
+            if '[' in value.strip(' '):
+                value = value.replace('[', '').replace(']', '').split(' ')
+            placeholder_values[node_name] = value
+    return placeholder_values
+
+
 def get_freeze_placeholder_values(argv_input: str, argv_freeze_placeholder_with_value: str):
     """
     Parses values for placeholder freezing and input node names
@@ -1347,23 +1443,8 @@ def get_freeze_placeholder_values(argv_input: str, argv_freeze_placeholder_with_
         parsed placeholders with values for freezing
         input nodes cleaned from shape info
     """
-    placeholder_values = {}
+    placeholder_values = parse_freeze_placeholder_values(argv_freeze_placeholder_with_value)
     input_node_names = None
-
-    if argv_freeze_placeholder_with_value is not None:
-        for plh_with_value in argv_freeze_placeholder_with_value.split(','):
-            plh_with_value = plh_with_value.split('->')
-            if len(plh_with_value) != 2:
-                raise Error("Wrong replacement syntax. Use --freeze_placeholder_with_value "
-                            "\"node1_name->value1,node2_name->value2\"")
-            node_name = plh_with_value[0]
-            value = plh_with_value[1]
-            if node_name in placeholder_values and placeholder_values[node_name] != value:
-                raise Error("Overriding replacement value of the placeholder with name '{}': old value = {}, new value = {}"
-                            ".".format(node_name, placeholder_values[node_name], value))
-            if '[' in value.strip(' '):
-                value = value.replace('[', '').replace(']', '').split(' ')
-            placeholder_values[node_name] = value
 
     if argv_input is not None:
         input_node_names = ''
@@ -1608,7 +1689,7 @@ def get_tuple_values(argv_values: str or tuple, num_exp_values: int = 3, t=float
     return mean_values_matches
 
 
-def get_mean_scale_dictionary(mean_values, scale_values, argv_input: str):
+def get_mean_scale_dictionary(mean_values, scale_values, argv_input: list):
     """
     This function takes mean_values and scale_values, checks and processes them into convenient structure
 
@@ -1629,7 +1710,7 @@ def get_mean_scale_dictionary(mean_values, scale_values, argv_input: str):
     res = {}
     # collect input names
     if argv_input:
-        inputs =  [get_node_name_with_port_from_input_value(input_value) for input_value in split_inputs(argv_input)]
+        inputs = [get_node_name_with_port_from_input_value(input_value) for input_value in split_inputs(argv_input)]
     else:
         inputs = []
         if type(mean_values) is dict:
