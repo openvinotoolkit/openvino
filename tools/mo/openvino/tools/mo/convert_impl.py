@@ -50,6 +50,7 @@ from openvino.tools.mo.utils.telemetry_utils import send_params_info, send_frame
 from openvino.tools.mo.utils.versions_checker import get_environment_setup  # pylint: disable=no-name-in-module
 from openvino.tools.mo.moc_frontend.check_config import legacy_extensions_used
 from openvino.tools.mo.moc_frontend.pytorch_frontend_utils import get_pytorch_decoder
+from openvino.tools.mo.moc_frontend.paddle_frontend_utils import convert_paddle_to_pdmodel
 from openvino.tools.mo.moc_frontend.shape_utils import parse_input_shapes, get_static_shape
 
 # pylint: disable=no-name-in-module,import-error
@@ -577,6 +578,11 @@ def check_model_object(argv):
     if isinstance(model, io.BytesIO):
         return 'onnx'
 
+    if 'paddle' in sys.modules:
+        import paddle
+        if isinstance(model, paddle.hapi.model.Model) or isinstance(model, paddle.fluid.dygraph.layers.Layer) or isinstance(model, paddle.fluid.executor.Executor):
+            return "paddle"
+
     raise Error('Unknown model type: {}'.format(type(model)))
 
 
@@ -876,6 +882,17 @@ def _convert(cli_parser: argparse.ArgumentParser, framework, args, python_api_us
                 decoder = get_pytorch_decoder(args['input_model'], parse_input_shapes(args), example_inputs, args.get("input"))
                 args['input_model'] = decoder
                 args["framework"] = "pytorch"
+            if model_framework == "paddle":
+                example_inputs = None
+                if 'example_input' in args and args['example_input'] is not None:
+                    example_inputs = args['example_input']
+
+                example_outputs = None
+                if 'example_output' in args and args['example_output'] is not None:
+                    example_outputs = args['example_output']
+                pdmodel = convert_paddle_to_pdmodel(args['input_model'], example_inputs, example_outputs)
+                args['input_model'] = pdmodel
+                args['framework'] = "paddle"
 
         update_args_for_saved_model_dir(args)
 

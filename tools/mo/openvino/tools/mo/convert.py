@@ -96,6 +96,11 @@ def convert_model(
 
             Supported formats of input model:
 
+            Paddle
+            paddle.hapi.model.Model
+            paddle.fluid.dygraph.layers.Layer
+            paddle.fluid.executor.Executor
+
             PyTorch
             torch.nn.Module
             torch.jit.ScriptModule
@@ -260,6 +265,12 @@ def convert_model(
             Enable model conversion progress display.
         :param stream_output:
             Switch model conversion progress display to a multiline mode.
+
+    PaddlePaddle-specific parameters:
+        :param example_input:
+            Sample of model input in original framework. For PaddlePaddle it can be Paddle Variable.
+        :param example_output:
+            Sample of model output in original framework. For PaddlePaddle it can be Paddle Variable.
 
     PyTorch-specific parameters:
         :param example_input:

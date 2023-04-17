@@ -1,0 +1,120 @@
+# Copyright (C) 2018-2023 Intel Corporation
+# SPDX-License-Identifier: Apache-2.0
+
+import numpy as np
+import pytest
+from common.mo_convert_test_class import CommonMOConvertTest
+
+import openvino
+import openvino.runtime as ov
+from openvino.runtime import PartialShape, Model, Dimension, serialize
+
+def make_pd_dynamic_graph_model():
+    import paddle
+    class NeuralNetwork(paddle.nn.Layer):
+        def __init__(self):
+            super(NeuralNetwork, self).__init__()
+            self.relu_sigmoid_stack = paddle.nn.Sequential(
+                paddle.nn.ReLU(),
+                paddle.nn.Sigmoid())
+        def forward(self, input):
+            return self.relu_sigmoid_stack(input)
+    return NeuralNetwork()
+
+def make_pd_static_graph_model(shape):
+    import paddle
+    import paddle.static as static
+
+    paddle.enable_static()
+
+    x = paddle.static.data(name="x", shape=shape)
+    y = paddle.static.data(name="y", shape=shape)
+    relu = paddle.nn.ReLU()
+    sigmoid = paddle.nn.Sigmoid()
+    y = sigmoid(relu(x))
+    
+    exe = paddle.static.Executor(paddle.CPUPlace())
+    exe.run(paddle.static.default_startup_program())
+    return exe, x, y
+
+def make_pd_hapi_graph_model(shape):
+    import paddle
+    import paddle.nn as nn
+    from paddle.static import InputSpec
+    net = nn.Sequential(
+        nn.ReLU(),
+        nn.Sigmoid())
+    input = InputSpec(shape, 'float32', 'x')
+    label = InputSpec(shape, 'float32', 'label')
+    
+    model = paddle.Model(net, input, label)
+    return model
+
+def make_ref_graph_model(shape, dtype=np.float32):
+    shape = PartialShape(shape)
+    param = ov.opset8.parameter(shape, name="x", dtype=dtype)
+
+    relu = ov.opset8.relu(param)
+    sigm = ov.opset8.sigmoid(relu)
+
+    model = Model([sigm], [param], "test")
+    return model
+
+def create_paddle_dynamic_module(tmp_dir):
+    pd_model = make_pd_dynamic_graph_model()
+    ref_model = make_ref_graph_model()
+
+    x = paddle.static.InputSpec(shape=[1, 784], dtype='float32', name='x')
+    return pd_model, ref_model, {"example_input": x}
+
+def create_paddle_static_module(tmp_dir):
+    pd_model, x, y = make_pd_static_graph_model()
+    ref_model = make_ref_graph_model()
+
+    return pd_model, ref_model, {"example_input": x, "example_output": y}
+
+def create_paddle_hapi_module(tmp_dir):
+    pd_model = make_pd_hapi_graph_model()
+    ref_model = make_ref_graph_model()
+
+    return pd_model, ref_model
+
+'''
+def main():
+    import paddle
+    # 1. dyn
+    tmp_dyn = "tmp_dynamic/model"
+    model_dyn = make_pd_dynamic_graph_model()
+    x = paddle.static.InputSpec(shape=[1, 784], dtype='float32', name='x')
+    model_dyn_xml = openvino.tools.mo.convert.convert_model(model_dyn, example_input = [x])
+    serialize(model_dyn_xml, "{}.xml".format(tmp_dyn))
+
+    # 2. static
+    tmp_stc = "tmp_static/model"
+    x, y, model_stc = make_pd_static_graph_model([2,3,4])
+    model_stc_xml = openvino.tools.mo.convert.convert_model(model_stc, example_input = [x], example_output = [y])
+    serialize(model_stc_xml, "{}.xml".format(tmp_stc))
+
+    # 3. hapi
+    tmp_hapi = "tmp_hapi/model"
+    model_hapi = make_pd_hapi_graph_model([2,3,4])
+    model_hapi_xml = openvino.tools.mo.convert.convert_model(model_hapi)
+    serialize(model_hapi_xml, "{}.xml".format(tmp_hapi))
+
+if __name__ == "__main__":
+    main()
+'''
+class TestMoConvertPaddle(CommonMOConvertTest):
+    test_data = [
+        create_paddle_dynamic_module,
+        create_paddle_static_module,
+        create_paddle_hapi_module
+    ]
+    @pytest.mark.parametrize("create_model", test_data)
+    def test_mo_import_from_memory_paddle_fe(self, create_model, ie_device, precision, ir_version,
+                                             temp_dir):
+        fw_model, graph_ref, mo_params = create_model(temp_dir)
+        test_params = {'input_model': fw_model, 'use_new_frontend': True}
+        if mo_params is not None:
+            test_params.update(mo_params)
+        self._test_by_ref_graph(temp_dir, test_params, graph_ref, compare_tensor_names=False)
