@@ -30,31 +30,31 @@ const std::vector<ov::AnyMap> auto_batch_inproperties = {
     {ov::device::id("UNSUPPORTED_DEVICE_ID_STRING")},
 };
 
-INSTANTIATE_TEST_SUITE_P(DISABLED_smoke_BehaviorTests,
+INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests,
                          OVPropertiesIncorrectTests,
                          ::testing::Combine(::testing::Values(CommonTestUtils::DEVICE_TEMPLATE),
                                             ::testing::ValuesIn(inproperties)),
                          OVPropertiesIncorrectTests::getTestCaseName);
 
-INSTANTIATE_TEST_SUITE_P(DISABLED_smoke_Hetero_BehaviorTests,
+INSTANTIATE_TEST_SUITE_P(smoke_Hetero_BehaviorTests,
                          OVPropertiesIncorrectTests,
                          ::testing::Combine(::testing::Values(CommonTestUtils::DEVICE_HETERO),
                                             ::testing::ValuesIn(hetero_inproperties)),
                          OVPropertiesIncorrectTests::getTestCaseName);
 
-INSTANTIATE_TEST_SUITE_P(DISABLED_smoke_Multi_BehaviorTests,
+INSTANTIATE_TEST_SUITE_P(smoke_Multi_BehaviorTests,
                          OVPropertiesIncorrectTests,
                          ::testing::Combine(::testing::Values(CommonTestUtils::DEVICE_MULTI),
                                             ::testing::ValuesIn(multi_inproperties)),
                          OVPropertiesIncorrectTests::getTestCaseName);
 
-INSTANTIATE_TEST_SUITE_P(DISABLED_smoke_Auto_BehaviorTests,
+INSTANTIATE_TEST_SUITE_P(smoke_Auto_BehaviorTests,
                          OVPropertiesIncorrectTests,
                          ::testing::Combine(::testing::Values(CommonTestUtils::DEVICE_AUTO),
                                             ::testing::ValuesIn(auto_inproperties)),
                          OVPropertiesIncorrectTests::getTestCaseName);
 
-INSTANTIATE_TEST_SUITE_P(DISABLED_smoke_AutoBatch_BehaviorTests,
+INSTANTIATE_TEST_SUITE_P(smoke_AutoBatch_BehaviorTests,
                          OVPropertiesIncorrectTests,
                          ::testing::Combine(::testing::Values(CommonTestUtils::DEVICE_BATCH),
                                             ::testing::ValuesIn(auto_batch_inproperties)),
@@ -97,19 +97,19 @@ INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests,
                                             ::testing::ValuesIn(properties)),
                          OVPropertiesTests::getTestCaseName);
 
-INSTANTIATE_TEST_SUITE_P(DISABLED_smoke_Hetero_BehaviorTests,
+INSTANTIATE_TEST_SUITE_P(smoke_Hetero_BehaviorTests,
                          OVPropertiesTests,
                          ::testing::Combine(::testing::Values(CommonTestUtils::DEVICE_HETERO),
                                             ::testing::ValuesIn(hetero_properties)),
                          OVPropertiesTests::getTestCaseName);
 
-INSTANTIATE_TEST_SUITE_P(DISABLED_smoke_Multi_BehaviorTests,
+INSTANTIATE_TEST_SUITE_P(smoke_Multi_BehaviorTests,
                          OVPropertiesTests,
                          ::testing::Combine(::testing::Values(CommonTestUtils::DEVICE_MULTI),
                                             ::testing::ValuesIn(multi_properties)),
                          OVPropertiesTests::getTestCaseName);
 
-INSTANTIATE_TEST_SUITE_P(DISABLED_smoke_AutoBatch_BehaviorTests,
+INSTANTIATE_TEST_SUITE_P(smoke_AutoBatch_BehaviorTests,
                          OVPropertiesTests,
                          ::testing::Combine(::testing::Values(CommonTestUtils::DEVICE_BATCH),
                                             ::testing::ValuesIn(auto_batch_properties)),

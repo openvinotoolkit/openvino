@@ -15,6 +15,8 @@ std::vector<std::string> disabledTestPatterns() {
         R"(.*(Multi|Auto|Hetero).*Behavior.*OVCompiledModelBaseTest.*CheckExecGraphInfoBeforeExecution.*)",
         R"(.*(Multi|Auto|Hetero).*Behavior.*OVCompiledModelBaseTest.*CheckExecGraphInfoAfterExecution.*)",
         R"(.*(Multi|Auto|Hetero).*Behavior.*OVCompiledModelBaseTest.*checkGetExecGraphInfoIsNotNullptr.*)",
+        R"(.*smoke_(Multi|Auto|Hetero)_BehaviorTests.*OVPropertiesTests.*SetCorrectProperties.*)",
+        R"(.*smoke_(Multi|Auto|Hetero)_BehaviorTests.*OVPropertiesTests.*canSetPropertyAndCheckGetProperty.*)",
         //
         // unsupported metrics
         R"(.*smoke_OVGetMetricPropsTest.*OVGetMetricPropsTest.*(DEVICE_UUID|FULL_DEVICE_NAME_with_DEVICE_ID|RANGE_FOR_STREAMS|DEVICE_GOPS|DEVICE_TYPE|MAX_BATCH_SIZE).*)",
