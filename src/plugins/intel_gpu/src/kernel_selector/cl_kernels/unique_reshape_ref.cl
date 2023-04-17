@@ -3,7 +3,7 @@
 //
 
 #if FLATTENED
-#    define LENGTH INPUT1_LENGTH
+#    define LENGTH TOTAL_DATA_SIZE
 #else
 #    define LENGTH AXIS_LENGTH
 #endif

@@ -207,6 +207,14 @@ JitConstants UniqueKernelRef::GetJitConstants(const unique_params& kernel_params
         jit_constants.Merge(MakeAxisJitConstants(input.Dimentions(), kernel_params.axis, "0"));
     }
 
+    if (input.is_dynamic()) {
+        const DimensionAccessHelper dims(input, 0);
+        const std::string total_data_size = toVectorMulString({dims.x, dims.y, dims.z, dims.w, dims.f, dims.b});
+        jit_constants.AddConstant(MakeJitConstant("TOTAL_DATA_SIZE", total_data_size));
+    } else {
+        jit_constants.AddConstant(MakeJitConstant("TOTAL_DATA_SIZE", input.LogicalSize()));
+    }
+
     return jit_constants;
 }
 
@@ -303,6 +311,14 @@ JitConstants UniqueReshapeKernelRef::GetJitConstants(const unique_reshape_params
         jit_constants.Merge(MakeFlattenedJitConstants(input.Dimentions(), input.SimpleLayout()));
     } else {
         jit_constants.Merge(MakeAxisJitConstants(input.Dimentions(), kernel_params.axis, "1"));
+    }
+
+    if (input.is_dynamic()) {
+        const DimensionAccessHelper dims(input, 1);
+        const std::string total_data_size = toVectorMulString({dims.x, dims.y, dims.z, dims.w, dims.f, dims.b});
+        jit_constants.AddConstant(MakeJitConstant("TOTAL_DATA_SIZE", total_data_size));
+    } else {
+        jit_constants.AddConstant(MakeJitConstant("TOTAL_DATA_SIZE", input.LogicalSize()));
     }
 
     return jit_constants;
