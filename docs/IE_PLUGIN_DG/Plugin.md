@@ -183,10 +183,7 @@ type of information it needs to import a compiled model properly and check its c
 For example, the export information may include:
 
 * Compilation options (state of ``Plugin::m_cfg`` structure).
-* Information about a plugin and a device type to check this information later during the import and 
-throw an exception if the ``model`` stream contains wrong data. For example, if devices have different 
-capabilities and a model compiled for a particular device cannot be used for another, such type of 
-information must be stored and checked during the import. 
+* Information about a plugin and a device type to check this information later during the import and throw an exception if the ``model`` stream contains wrong data. For example, if devices have different capabilities and a model compiled for a particular device cannot be used for another, such type of information must be stored and checked during the import. 
 * Compiled backend specific model itself.
 
 .. doxygensnippet:: src/plugins/template/src/plugin.cpp
