@@ -730,18 +730,20 @@ def pack_params_to_args_namespace(args: dict, cli_parser: argparse.ArgumentParse
     return argv
 
 
-def update_args_for_unnamed_saved_model(args):
-    if 'input_model' not in args or args['input_model'] is None:
-        return
-    if not isinstance(args['input_model'], (str, Path)):
-        return
-    if not os.path.isdir(args['input_model']):
-        return
-    if 'saved_model_dir' in args and args['saved_model_dir'] is not None:
+def update_args_for_saved_model_dir(args: dict):
+    """
+    If directory is set in 'input_model' argument, the directory is considered as TF saved model.
+    In this case this method updates args and moves saved model directory to 'saved_model_dir' param.
+    :param args: dictionary with arguments from user
+    """
+    if 'saved_model_dir' in args and args['saved_model_dir'] is not None and \
+            'input_model' in args and args['input_model'] is not None:
         raise Error("Both --input_model and --saved_model_dir are defined. "
                     "Please specify either input_model or saved_model_dir directory.")
-    args['saved_model_dir'] = args['input_model']
-    args['input_model'] = None
+    
+    if 'input_model' in args and isinstance(args['input_model'], (str, Path)) and os.path.isdir(args['input_model']):
+        args['saved_model_dir'] = args['input_model']
+        args['input_model'] = None
 
 
 def _convert(cli_parser: argparse.ArgumentParser, framework, args):
@@ -777,8 +779,7 @@ def _convert(cli_parser: argparse.ArgumentParser, framework, args):
                 args['input_model'] = decoder
                 args["framework"] = "pytorch"
 
-        if not inp_model_is_object:
-            update_args_for_unnamed_saved_model(args)
+        update_args_for_saved_model_dir(args)
 
         argv = pack_params_to_args_namespace(args, cli_parser)
 
