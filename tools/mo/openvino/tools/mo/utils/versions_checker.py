@@ -280,7 +280,10 @@ def get_requirements_list_from_file(file_name: str, env_setup: dict):
         # in site-packages/openvino/tools/mo/requirements.txt
         requirements_file = os.path.realpath(os.path.join(os.path.dirname(__file__), os.pardir, file_name))
 
-    return get_module_version_list_from_file(requirements_file, env_setup)
+    if Path(requirements_file).is_file():
+        return get_module_version_list_from_file(requirements_file, env_setup)
+    else:
+        return []
 
 
 def check_module_import(module_name, required_version, comparison_sign, not_satisfied_versions):
