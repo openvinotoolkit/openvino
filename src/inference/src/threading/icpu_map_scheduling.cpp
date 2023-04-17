@@ -18,15 +18,15 @@ bool update_cpu_pinning(const bool input_pinning,
 
 #ifdef __linux__
 
-    if (!input_changed) {
+    if (input_changed && !input_pinning) {
+        return false;
+    } else {
         for (auto& row : stream_info_table) {
             if (row[InferenceEngine::PROC_TYPE] == ALL_PROC) {
                 return false;
             }
         }
         return true;
-    } else {
-        return input_pinning;
     }
 
 #endif
