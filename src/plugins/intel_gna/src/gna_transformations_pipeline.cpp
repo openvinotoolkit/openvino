@@ -114,7 +114,7 @@ void TransformationsPipeline::apply(const std::shared_ptr<ov::Model>& model,
     manager.register_pass<ov::intel_gna::pass::SubstituteSoftsign>();
     manager.register_pass<ov::intel_gna::pass::InsertCopyBeforeLayerToBeEliminated>();
     if (!has_convolution) {
-        // TODO: Remove this condition when the legacy laouyt transformation (NCHW->HHWC) is disabled
+        // TODO: Remove this condition when the legacy layout transformation (NCHW->NHWC) is disabled
         manager.register_pass<ov::intel_gna::pass::RemoveInputsProcessing>(input_output_subgraphs);
         manager.register_pass<ov::intel_gna::pass::RemoveOutputsProcessing>(input_output_subgraphs);
     }
