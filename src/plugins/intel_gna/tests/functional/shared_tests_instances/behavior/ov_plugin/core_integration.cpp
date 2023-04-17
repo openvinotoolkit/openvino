@@ -6,7 +6,9 @@
 
 #include <gna/gna_config.hpp>
 
+#include "behavior/ov_plugin/core_integration_sw.hpp"
 #include "behavior/ov_plugin/properties_tests.hpp"
+#include "behavior/ov_plugin/query_model.hpp"
 #include "openvino/runtime/intel_gna/properties.hpp"
 
 using namespace ov::test::behavior;
@@ -17,66 +19,46 @@ namespace {
 // IE Class Common tests with <pluginName, deviceName params>
 //
 
-INSTANTIATE_TEST_SUITE_P(nightly_OVClassBasicTestP,
-                         OVClassBasicTestP,
+INSTANTIATE_TEST_SUITE_P(nightly_OVClassBasicPropsTestP,
+                         OVClassBasicPropsTestP,
                          ::testing::Values(std::make_pair("openvino_intel_gna_plugin", "GNA")));
 
 // TODO
-INSTANTIATE_TEST_SUITE_P(DISABLED_smoke_OVClassNetworkTestP, OVClassNetworkTestP, ::testing::Values("GNA"));
+INSTANTIATE_TEST_SUITE_P(DISABLED_smoke_OVClassModelTestP, OVClassModelTestP, ::testing::Values("GNA"));
 
 //
 // IE Class GetMetric
 //
 
-INSTANTIATE_TEST_SUITE_P(nightly_OVClassGetMetricTest,
-                         OVClassGetMetricTest_SUPPORTED_CONFIG_KEYS,
-                         ::testing::Values("GNA", "MULTI", "HETERO"));
+INSTANTIATE_TEST_SUITE_P(smoke_MultiHeteroOVGetMetricPropsTest,
+                         OVGetMetricPropsTest,
+                         ::testing::Values("MULTI", "HETERO"));
 
-INSTANTIATE_TEST_SUITE_P(nightly_OVClassGetMetricTest,
-                         OVClassGetMetricTest_SUPPORTED_METRICS,
-                         ::testing::Values("GNA", "MULTI", "HETERO"));
+INSTANTIATE_TEST_SUITE_P(nightly_OVGetMetricPropsTest, OVGetMetricPropsTest, ::testing::Values("GNA"));
 
-INSTANTIATE_TEST_SUITE_P(nightly_OVClassGetMetricTest,
-                         OVClassGetMetricTest_AVAILABLE_DEVICES,
-                         ::testing::Values("GNA"));
-
-INSTANTIATE_TEST_SUITE_P(nightly_OVClassGetMetricTest,
-                         OVClassGetMetricTest_FULL_DEVICE_NAME,
-                         ::testing::Values("GNA", "MULTI", "HETERO"));
-
-INSTANTIATE_TEST_SUITE_P(smoke_OVClassGetMetricTest,
-                         OVClassGetMetricTest_OPTIMIZATION_CAPABILITIES,
-                         ::testing::Values("GNA"));
-
-INSTANTIATE_TEST_SUITE_P(smoke_OVClassGetMetricTest,
-                         OVClassGetMetricTest_RANGE_FOR_ASYNC_INFER_REQUESTS,
-                         ::testing::Values("GNA"));
-
-INSTANTIATE_TEST_SUITE_P(nightly_OVClassGetMetricTest,
-                         OVClassGetMetricTest_ThrowUnsupported,
-                         ::testing::Values("GNA", "MULTI", "HETERO"));
-
-INSTANTIATE_TEST_SUITE_P(nightly_OVClassGetConfigTest,
-                         OVClassGetConfigTest_ThrowUnsupported,
+INSTANTIATE_TEST_SUITE_P(nightly_OVGetConfigTest,
+                         OVGetConfigTest_ThrowUnsupported,
                          ::testing::Values("GNA", "MULTI", "HETERO"));
 
 const std::vector<std::tuple<std::string, std::pair<ov::AnyMap, std::string>>> GetMetricTest_ExecutionDevice_GNA = {
     {"GNA", std::make_pair(ov::AnyMap{}, "GNA")}};
 
-INSTANTIATE_TEST_SUITE_P(nightly_OVClassGetMetricTest,
+INSTANTIATE_TEST_SUITE_P(nightly_OVGetMetricPropsTest,
                          OVClassExecutableNetworkGetMetricTest_EXEC_DEVICES,
                          ::testing::ValuesIn(GetMetricTest_ExecutionDevice_GNA),
                          OVCompileModelGetExecutionDeviceTests::getTestCaseName);
 
-INSTANTIATE_TEST_SUITE_P(nightly_OVClassGetAvailableDevices, OVClassGetAvailableDevices, ::testing::Values("GNA"));
+INSTANTIATE_TEST_SUITE_P(nightly_OVGetAvailableDevicesPropsTest,
+                         OVGetAvailableDevicesPropsTest,
+                         ::testing::Values("GNA"));
 
 //
 // IE Class GetConfig
 //
 
-INSTANTIATE_TEST_SUITE_P(nightly_OVClassGetConfigTest, OVClassGetConfigTest, ::testing::Values("GNA"));
+INSTANTIATE_TEST_SUITE_P(nightly_OVGetConfigTest, OVGetConfigTest, ::testing::Values("GNA"));
 
-TEST(OVClassBasicTest, smoke_SetConfigAfterCreatedScaleFactors) {
+TEST(OVClassBasicPropsTest, smoke_SetConfigAfterCreatedScaleFactors) {
     ov::Core core;
     float sf1, sf2;
     OV_ASSERT_NO_THROW(core.set_property({{"GNA_SCALE_FACTOR_0", "1634.0"}, {"GNA_SCALE_FACTOR_1", "2000.0"}}));
@@ -93,7 +75,7 @@ TEST(OVClassBasicTest, smoke_SetConfigAfterCreatedScaleFactors) {
                  ov::Exception);
 }
 
-TEST(OVClassBasicTest, smoke_SetConfigAfterCreatedScaleFactorsPerInput) {
+TEST(OVClassBasicPropsTest, smoke_SetConfigAfterCreatedScaleFactorsPerInput) {
     ov::Core core;
     std::map<std::string, float> scale_factors_per_input;
 
@@ -113,7 +95,7 @@ TEST(OVClassBasicTest, smoke_SetConfigAfterCreatedScaleFactorsPerInput) {
     ASSERT_FLOAT_EQ(1.0f, scale_factors_per_input["0"]);
 }
 
-TEST(OVClassBasicTest, smoke_SetConfigAfterCreatedPrecisionHint) {
+TEST(OVClassBasicPropsTest, smoke_SetConfigAfterCreatedPrecisionHint) {
     ov::Core core;
     ov::element::Type precision;
 
@@ -148,7 +130,7 @@ TEST(OVClassBasicTest, smoke_SetConfigAfterCreatedPrecisionHint) {
     ASSERT_THROW(core.set_property("GNA", {{ov::hint::inference_precision.name(), "ABC"}}), ov::Exception);
 }
 
-TEST(OVClassBasicTest, smoke_SetConfigAfterCreatedPerformanceHint) {
+TEST(OVClassBasicPropsTest, smoke_SetConfigAfterCreatedPerformanceHint) {
     ov::Core core;
     ov::hint::PerformanceMode mode;
 
@@ -163,7 +145,7 @@ TEST(OVClassBasicTest, smoke_SetConfigAfterCreatedPerformanceHint) {
     ASSERT_THROW(core.set_property("GNA", {{ov::hint::performance_mode.name(), "ABC"}}), ov::Exception);
 }
 
-TEST(OVClassBasicTest, smoke_SetConfigAfterCreatedNumRequests) {
+TEST(OVClassBasicPropsTest, smoke_SetConfigAfterCreatedNumRequests) {
     ov::Core core;
     uint32_t num_requests;
 
@@ -191,7 +173,7 @@ TEST(OVClassBasicTest, smoke_SetConfigAfterCreatedNumRequests) {
     ASSERT_THROW(core.set_property("GNA", {{ov::hint::num_requests.name(), "ABC"}}), ov::Exception);
 }
 
-TEST(OVClassBasicTest, smoke_SetConfigAfterCreatedExecutionMode) {
+TEST(OVClassBasicPropsTest, smoke_SetConfigAfterCreatedExecutionMode) {
     ov::Core core;
     auto execution_mode = ov::intel_gna::ExecutionMode::AUTO;
 
@@ -224,7 +206,7 @@ TEST(OVClassBasicTest, smoke_SetConfigAfterCreatedExecutionMode) {
     ASSERT_EQ(ov::intel_gna::ExecutionMode::AUTO, execution_mode);
 }
 
-TEST(OVClassBasicTest, smoke_SetConfigAfterCreatedTargetDevice) {
+TEST(OVClassBasicPropsTest, smoke_SetConfigAfterCreatedTargetDevice) {
     ov::Core core;
     auto execution_target = ov::intel_gna::HWGeneration::UNDEFINED;
     auto compile_target = ov::intel_gna::HWGeneration::UNDEFINED;
@@ -268,7 +250,7 @@ TEST(OVClassBasicTest, smoke_SetConfigAfterCreatedTargetDevice) {
     ASSERT_THROW(core.set_property("GNA", {{ov::intel_gna::compile_target.name(), "ABC"}}), ov::Exception);
 }
 
-TEST(OVClassBasicTest, smoke_SetConfigAfterCreatedPwlAlgorithm) {
+TEST(OVClassBasicPropsTest, smoke_SetConfigAfterCreatedPwlAlgorithm) {
     ov::Core core;
     auto pwl_algo = ov::intel_gna::PWLDesignAlgorithm::UNDEFINED;
     float pwl_max_error = 0.0f;
@@ -306,7 +288,7 @@ TEST(OVClassBasicTest, smoke_SetConfigAfterCreatedPwlAlgorithm) {
     ASSERT_THROW(core.set_property("GNA", ov::intel_gna::pwl_max_error_percent(146.0f)), ov::Exception);
 }
 
-TEST(OVClassBasicTest, smoke_SetConfigAfterCreatedLogLevel) {
+TEST(OVClassBasicPropsTest, smoke_SetConfigAfterCreatedLogLevel) {
     ov::Core core;
     auto level = ov::log::Level::NO;
 
@@ -337,7 +319,7 @@ TEST(OVClassBasicTest, smoke_SetConfigAfterCreatedLogLevel) {
     ASSERT_THROW(core.set_property("GNA", {{ov::log::level.name(), "NO"}}), ov::Exception);
 }
 
-TEST(OVClassBasicTest, smoke_SetConfigAfterCreatedFwModelPath) {
+TEST(OVClassBasicPropsTest, smoke_SetConfigAfterCreatedFwModelPath) {
     ov::Core core;
     std::string path = "";
 
@@ -348,10 +330,6 @@ TEST(OVClassBasicTest, smoke_SetConfigAfterCreatedFwModelPath) {
 
 // IE Class Query network
 
-INSTANTIATE_TEST_SUITE_P(smoke_OVClassQueryNetworkTest, OVClassQueryNetworkTest, ::testing::Values("GNA"));
-
-// IE Class Load network
-
-INSTANTIATE_TEST_SUITE_P(smoke_OVClassLoadNetworkTest, OVClassLoadNetworkTest, ::testing::Values("GNA"));
+INSTANTIATE_TEST_SUITE_P(smoke_OVClassQueryModelTest, OVClassQueryModelTest, ::testing::Values("GNA"));
 
 }  // namespace
