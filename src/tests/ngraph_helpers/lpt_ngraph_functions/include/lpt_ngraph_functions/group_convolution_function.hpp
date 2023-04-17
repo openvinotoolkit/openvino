@@ -35,6 +35,7 @@ public:
         const int groupCalculationDimention,
         const FakeQuantizeOnData& fakeQuantizeOnData,
         const FakeQuantizeOnWeights& fakeQuantizeOnWeights,
+        const bool addReshape = true,
         const bool addPrecisionPreserved = false);
 
     static std::shared_ptr<ngraph::Function> get(

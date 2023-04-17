@@ -280,7 +280,8 @@ std::vector<int> get_logical_cores(const std::vector<int> cpu_ids) {
         int cpu_size = static_cast<int>(cpu_ids.size());
         for (int i = 0; i < cpu._processors; i++) {
             for (int j = 0; j < cpu_size; j++) {
-                if (cpu._cpu_mapping_table[i][CPU_MAP_CORE_ID] == cpu._cpu_mapping_table[cpu_ids[j]][CPU_MAP_CORE_ID] &&
+                if (cpu_ids[j] >= 0 &&
+                    cpu._cpu_mapping_table[i][CPU_MAP_CORE_ID] == cpu._cpu_mapping_table[cpu_ids[j]][CPU_MAP_CORE_ID] &&
                     cpu._cpu_mapping_table[i][CPU_MAP_CORE_TYPE] == HYPER_THREADING_PROC) {
                     logic_cores.push_back(cpu._cpu_mapping_table[i][CPU_MAP_PROCESSOR_ID]);
                 }

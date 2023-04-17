@@ -38,14 +38,19 @@ void get_unsupported_operations_and_failures(const std::shared_ptr<Model>& model
     for (const auto& node : model->get_ordered_ops()) {
         if (const auto& fw_node = ov::as_type_ptr<FrameworkNode>(node)) {
             auto op_type = fw_node->get_decoder()->get_op_type();
+            // if this operation is encountered among unsupported operations
+            // or conversion failures, skip it
+            if (failures.count(op_type) > 0 ||
+                std::find(unsupported_operations.begin(), unsupported_operations.end(), op_type) !=
+                    unsupported_operations.end()) {
+                continue;
+            }
             auto fw_node_attrs = fw_node->get_attrs();
-            if (fw_node_attrs.find(FrameworkNode::failed_conversion_key) != fw_node_attrs.end() &&
-                failures.count(op_type) == 0) {
+            if (fw_node_attrs.find(FrameworkNode::failed_conversion_key) != fw_node_attrs.end()) {
                 // save only the first encountered failure that is more improtant for developer
                 // that means the translator is found but the conversion is failed
                 failures[op_type] = fw_node_attrs.at(FrameworkNode::failed_conversion_key);
-            } else if (std::find(unsupported_operations.begin(), unsupported_operations.end(), op_type) ==
-                       unsupported_operations.end()) {
+            } else {
                 // found new unsupported operation
                 unsupported_operations.push_back(op_type);
             }
@@ -304,33 +309,15 @@ void FrontEnd::convert(const std::shared_ptr<ov::Model>& partiallyConverted) con
 }
 
 void FrontEnd::normalize(const std::shared_ptr<ov::Model>& model) const {
-    {
-        // run transformations to convert sub-graphs with intermediate (or FrameworkNode) operations
-        // into sub-graphs with only OpenVINO operations
-        ov::pass::Manager manager;
-        manager.register_pass<pass::SavedModelUnusedRemover>();
-        manager.register_pass<pass::EmbeddingSegmentSingleFeatureFusion>();
-        manager.register_pass<pass::BlockLSTMReplacer>();
-        manager.register_pass<pass::GRUBlockCellReplacer>();
-        manager.register_pass<pass::ConstToResultRemover>();
-        manager.run_passes(model);
-    }
-
-    // TODO 107554: TSGeneral can fail on models with Framework nodes (not converted to OV opset)
-    std::unordered_map<std::string, std::string> failures;
-    std::vector<std::string> unsupported_operations;
-    get_unsupported_operations_and_failures(model, unsupported_operations, failures);
-    if (unsupported_operations.size() > 0 || failures.size() > 0) {
-        return;
-    }
-
-    {
-        // perform transpose sinking and reverse infer if the model contains only OpenVINO operations
-        ov::pass::Manager manager;
-        manager.register_pass<ov::pass::TransposeSinkingGeneral>();
-        manager.register_pass<ov::pass::ReverseShapeAndTypeInfer>();
-        manager.run_passes(model);
-    }
+    ov::pass::Manager manager;
+    manager.register_pass<pass::SavedModelUnusedRemover>();
+    manager.register_pass<pass::EmbeddingSegmentSingleFeatureFusion>();
+    manager.register_pass<pass::BlockLSTMReplacer>();
+    manager.register_pass<pass::GRUBlockCellReplacer>();
+    manager.register_pass<pass::ConstToResultRemover>();
+    manager.register_pass<ov::pass::TransposeSinkingGeneral>();
+    manager.register_pass<ov::pass::ReverseShapeAndTypeInfer>();
+    manager.run_passes(model);
 }
 
 void FrontEnd::add_extension(const std::shared_ptr<ov::Extension>& extension) {
