@@ -87,10 +87,6 @@ onnx_model_erf_int32
 # Could not eliminate all Dyn nodes
 onnx_model_conv_with_dynamic_batch
 
-# Segmentation fault
-#onnx_model_fake_quantize_nonconst_inputs_infer
-#onnx_model_quantize_linear_const_scale_const_zero_p
-
 # OneHot operation has a form that is not supported
 onnx_model_one_hot_without_axis
 onnx_model_one_hot_with_axis
