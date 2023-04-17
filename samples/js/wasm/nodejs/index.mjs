@@ -1,4 +1,3 @@
-import openvinojs from '../node_modules/openvinojs/dist/openvino_wasm.mjs';
 import makeInference from '../make_inference.mjs';
 
 const inferenceParametersFaceDetection = { 
@@ -8,7 +7,7 @@ const inferenceParametersFaceDetection = {
   layout: 'NHWC',
 };
 
-makeInference(openvinojs, 'nodejs', inferenceParametersFaceDetection);
+makeInference(inferenceParametersFaceDetection);
 
 function getModelPaths(name) {
   const MODEL_PATH = '../../assets/models/';
