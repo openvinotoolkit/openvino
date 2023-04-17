@@ -1,8 +1,8 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "low_precision_transformations/fuse_fake_quantize_transformation.hpp"
+#include "low_precision_transformations/fuse_dequantize_to_fake_quantize_transformation.hpp"
 #include <vector>
 #include <gtest/gtest.h>
 
@@ -10,7 +10,9 @@ using namespace LayerTestsDefinitions;
 using namespace InferenceEngine::details;
 
 namespace {
-const std::vector<FuseFakeQuantizeTransformationTestValues> testValues = {
+
+// clang-format off
+const std::vector<FuseDequantizeToFakeQuantizeTransformationTestValues> testValues = {
     // 1) Multiply
     {
         {1, 3, 16, 16},
@@ -103,10 +105,11 @@ const std::vector<FuseFakeQuantizeTransformationTestValues> testValues = {
         }
     },
 };
+// clang-format on
 
-INSTANTIATE_TEST_SUITE_P(smoke_LPT, FuseFakeQuantizeTransformation,
+INSTANTIATE_TEST_SUITE_P(smoke_LPT, FuseDequantizeToFakeQuantizeTransformation,
     ::testing::Combine(
         ::testing::Values(CommonTestUtils::DEVICE_GPU),
         ::testing::ValuesIn(testValues)),
-    FuseFakeQuantizeTransformation::getTestCaseName);
+    FuseDequantizeToFakeQuantizeTransformation::getTestCaseName);
 }  // namespace
