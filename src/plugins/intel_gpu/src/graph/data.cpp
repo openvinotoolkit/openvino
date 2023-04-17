@@ -92,7 +92,7 @@ void data_inst::load(BinaryInputBuffer& ib) {
         pos += data_size;
         ib.seekg(pos);
     } else {
-        _outputs[0] = get_network().get_memory_pool().get_memory(output_layout, _allocation_type, false);
+        _outputs[0] = get_network().get_engine().allocate_memory(output_layout, _allocation_type, false);
 
         if (_allocation_type == allocation_type::usm_host || _allocation_type == allocation_type::usm_shared) {
             ib >> make_data(_outputs[0]->buffer_ptr(), data_size);
