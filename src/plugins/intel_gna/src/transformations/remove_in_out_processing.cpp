@@ -33,7 +33,7 @@ inline bool is_preprocessing_layer_not_supported(std::shared_ptr<ov::Node>& laye
         const size_t min_input_dim = std::min(squeezed_shape[0], squeezed_shape[1]);
         const size_t max_input_dim = std::max(squeezed_shape[0], squeezed_shape[1]);
 
-        // GNA transpose limits:
+        // GNA transpose limitations:
         // - supports 2d transposes only
         // - smaller dimension should be less or equal to 8
         // - greater dimention should be a multiple of limitations::noOfInputsDivisor
