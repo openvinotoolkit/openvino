@@ -186,7 +186,7 @@ KERNEL(unique_ref)
  __global OUTPUT3_TYPE* out_rev_indices,
  __global OUTPUT4_TYPE* out_counts) {
 #if SORTED
-    // Copy input to output data and initialize out_indices
+    // Copy input to output data and initialize out_indices and out_counts
     for (uint i = 0; i < LENGTH; ++i) {
 #    if FLATTENED
         out_unique_elements[GET_INDEX(OUTPUT1, i)] = input[GET_INDEX(INPUT0, i)];
@@ -194,12 +194,17 @@ KERNEL(unique_ref)
         FUNC_CALL(assign_slice_in)(OPTIONAL_SHAPE_INFO_TENSOR out_unique_elements, i, input, i);
 #    endif
         out_indices[i] = i;
+        out_counts[i] = 0;
     }
     // Sort out_unique_elements together with out_indices
     FUNC_CALL(bubbleSort)(OPTIONAL_SHAPE_INFO_TENSOR out_unique_elements, out_indices, 0, LENGTH - 1);
     // Run deduplicate algorithm
     const uint end = FUNC_CALL(deduplicate)(OPTIONAL_SHAPE_INFO_TENSOR out_unique_elements, out_indices, out_rev_indices, out_counts, 0, LENGTH);
 #else
+    // TODO: Think of better approach to initialize with zeros
+    for (uint i = 0; i < LENGTH; ++i) {
+        out_counts[i] = 0;
+    }
     // Run unique algorithm
     const uint end = FUNC_CALL(unique)(OPTIONAL_SHAPE_INFO_TENSOR input, out_unique_elements, out_indices, out_rev_indices, out_counts, 0, LENGTH);
 #endif
