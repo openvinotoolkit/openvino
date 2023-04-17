@@ -377,7 +377,6 @@ class TestMoConvertTF(CommonMOConvertTest):
         self._test_by_ref_graph(temp_dir, test_params, graph_ref, compare_tensor_names=False)
 
     @pytest.mark.nightly
-    @pytest.mark.precommit_tf_fe
     @pytest.mark.precommit
     def test_unnamed_saved_model_dir(self, ie_device, precision, ir_version, temp_dir):
         saved_model_dir, graph_ref = create_tf_saved_model_dir(temp_dir)
