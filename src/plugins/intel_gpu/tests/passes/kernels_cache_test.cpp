@@ -17,7 +17,7 @@
 #include "intel_gpu/graph/network.hpp"
 #include "pass_manager.h"
 #include "to_string_utils.h"
-
+#include <regex>
 #include "program_wrapper.h"
 
 #include <memory>
@@ -90,3 +90,44 @@ TEST(kernels_cache, reuse_kernel_for_static_model_01) {
         ASSERT_EQ(concat1_kern, concat2_kern);
     }
 }
+
+TEST(kernels_cache, sub_kernel_ordering_test) {
+    auto& engine = get_test_engine();
+    ExecutionConfig config = get_test_default_config(engine);
+    InferenceEngine::CPUStreamsExecutor::Config task_executor_config("sub_kernel_ordering_test", 1);
+    task_executor_config._streams = 2;
+    auto executor = std::make_shared<InferenceEngine::CPUStreamsExecutor>(task_executor_config);
+    const size_t num_kernels = 9;
+    auto _kernels_cache = std::unique_ptr<kernels_cache>(new kernels_cache(engine, config, 0, executor));
+    std::vector<std::string> entry_point_list;
+    std::vector<std::shared_ptr<kernel_selector::KernelString>> kernel_code_list;
+    for (size_t idx = 0; idx < num_kernels; idx++) {
+        std::shared_ptr<kernel_selector::KernelString> kernel_string = std::make_shared<kernel_selector::KernelString>();
+        std::string entry_point = "add_kernel_" + std::to_string(idx);
+        std::string kernel_code =
+            R"__krnl(
+                __kernel void $entry_point_name(const __global float* input0, const __global float* input1, __global float* output)
+                {
+                    const unsigned idx = get_global_id(0);
+                    output[idx] = input0[idx] + input1[idx];
+
+                }
+            )__krnl";
+        kernel_code = std::regex_replace(kernel_code, std::regex("\\$entry_point_name"), entry_point);
+        kernel_string->str = kernel_code;
+        kernel_string->options = "-cl-mad-enable";
+        kernel_string->entry_point = entry_point;
+        kernel_string->batch_compilation = true;
+        entry_point_list.push_back(entry_point);
+        kernel_code_list.push_back(kernel_string);
+    }
+    kernel_impl_params dummy_params;
+    _kernels_cache->add_kernels_source(dummy_params, kernel_code_list, false);
+    _kernels_cache->build_all();
+    auto _out_kernels = _kernels_cache->get_kernels(dummy_params);
+    ASSERT_EQ(entry_point_list.size(), _out_kernels.size());
+    for (size_t i = 0; i < entry_point_list.size(); i++) {
+        ASSERT_EQ(entry_point_list[i], _out_kernels[i]->get_id());
+    }
+}
+

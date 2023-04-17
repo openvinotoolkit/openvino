@@ -47,7 +47,9 @@ ov::pass::MultiplyConvolutionFusion::MultiplyConvolutionFusion() {
         }
 
         auto weights_multiply = std::make_shared<opset8::Multiply>(weights, mul_const);
+        OPENVINO_SUPPRESS_DEPRECATED_START
         std::shared_ptr<Node> new_weights = get_constant_from_source(weights_multiply);
+        OPENVINO_SUPPRESS_DEPRECATED_END
         if (!new_weights)
             new_weights = weights_multiply;
 
@@ -112,7 +114,9 @@ ov::pass::MultiplyGroupConvolutionFusion::MultiplyGroupConvolutionFusion() {
         }
 
         auto weights_multiply = std::make_shared<opset8::Multiply>(weights, mul_const);
+        OPENVINO_SUPPRESS_DEPRECATED_START
         std::shared_ptr<Node> new_weights = get_constant_from_source(weights_multiply);
+        OPENVINO_SUPPRESS_DEPRECATED_END
         if (!new_weights)
             new_weights = weights_multiply;
 
@@ -179,7 +183,9 @@ ov::pass::MultiplyConvolutionBackpropDataFusion::MultiplyConvolutionBackpropData
         }
 
         auto weights_multiply = std::make_shared<opset8::Multiply>(weights, mul_const);
+        OPENVINO_SUPPRESS_DEPRECATED_START
         std::shared_ptr<Node> new_weights = get_constant_from_source(weights_multiply);
+        OPENVINO_SUPPRESS_DEPRECATED_END
         if (!new_weights)
             new_weights = weights_multiply;
 
@@ -249,7 +255,9 @@ ov::pass::MultiplyGroupConvolutionBackpropDataFusion::MultiplyGroupConvolutionBa
         }
 
         auto weights_multiply = std::make_shared<opset8::Multiply>(weights, mul_const);
+        OPENVINO_SUPPRESS_DEPRECATED_START
         std::shared_ptr<Node> new_weights = get_constant_from_source(weights_multiply);
+        OPENVINO_SUPPRESS_DEPRECATED_END
         if (!new_weights)
             new_weights = weights_multiply;
 

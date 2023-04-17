@@ -5,7 +5,7 @@
 #pragma once
 
 #include <node.h>
-#include "kernels/gather_uni_kernel.hpp"
+#include "kernels/x64/gather_uni_kernel.hpp"
 
 #include <memory>
 #include <string>

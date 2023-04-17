@@ -23,7 +23,6 @@ from openvino.tools.mo.utils.guess_framework import deduce_legacy_frontend_by_na
 
 # pylint: disable=no-name-in-module,import-error
 from openvino.frontend import FrontEndManager
-from openvino._offline_transformations import generate_mapping_file
 from openvino.runtime import serialize
 
 
@@ -83,11 +82,6 @@ def main(cli_parser: argparse.ArgumentParser, framework=None):
 
     serialize(ngraph_function, model_path.encode('utf-8'), model_path.replace('.xml', '.bin').encode('utf-8'))
 
-    # generate .mapping file
-    path_to_mapping = model_path_no_ext + ".mapping"
-    extract_names = argv.framework in ['tf', 'mxnet', 'kaldi']
-    generate_mapping_file(ngraph_function, path_to_mapping, extract_names)
-
     print('[ SUCCESS ] Generated IR version {} model.'.format(get_ir_version(argv)))
     print('[ SUCCESS ] XML file: {}'.format(model_path))
     print('[ SUCCESS ] BIN file: {}'.format(model_path.replace('.xml', '.bin')))
@@ -96,4 +90,4 @@ def main(cli_parser: argparse.ArgumentParser, framework=None):
 
 if __name__ == "__main__":
     from openvino.tools.mo.utils.cli_parser import get_all_cli_parser
-    sys.exit(main(get_all_cli_parser(FrontEndManager()), None))
+    sys.exit(main(get_all_cli_parser(), None))

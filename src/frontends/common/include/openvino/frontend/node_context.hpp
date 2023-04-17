@@ -117,8 +117,32 @@ private:
     std::string m_op_type;
 };
 
+struct NamedOutput {
+    NamedOutput(const Output<Node>& _port) : port(_port) {}
+    NamedOutput(const std::string& _name, const Output<Node>& _port) : name(_name), port(_port) {}
+
+    std::string name;
+    Output<Node> port;
+};
+
+using NamedOutputVector = std::vector<NamedOutput>;
+
+inline OutputVector indexed_from_named(const NamedOutputVector& outputs) {
+    OutputVector result;
+    result.reserve(outputs.size());
+    std::transform(outputs.begin(), outputs.end(), std::back_inserter(result), [](const NamedOutput& x) {
+        return x.port;
+    });
+    return result;
+}
+
+inline NamedOutputVector named_from_indexed(const OutputVector& outputs) {
+    return NamedOutputVector(outputs.begin(), outputs.end());
+}
+
 using CreatorFunction = std::function<OutputVector(const NodeContext&)>;
 using CreatorFunctionNamed = std::function<std::map<std::string, OutputVector>(const NodeContext&)>;
+using CreatorFunctionNamedAndIndexed = std::function<NamedOutputVector(const NodeContext&)>;
 
 }  // namespace frontend
 }  // namespace ov

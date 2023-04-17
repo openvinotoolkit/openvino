@@ -9,7 +9,7 @@
 #include <set>
 #include <onednn/dnnl.h>
 #include <dnnl_extension_utils.h>
-#include "emitters/jit_load_store_emitters.hpp"
+#include "emitters/x64/jit_load_store_emitters.hpp"
 #include "ie_parallel.hpp"
 #include <ngraph/op/topk.hpp>
 #include <ie_ngraph_utils.hpp>
@@ -32,6 +32,7 @@ namespace ov {
 namespace intel_cpu {
 namespace node {
 
+#if defined(OPENVINO_ARCH_X86_64)
 #define GET_OFF(field) offsetof(jit_topk_call_args, field)
 
 #define vmm_mask    Vmm(0)
@@ -1787,6 +1788,7 @@ private:
         }
     }
 };
+#endif
 
 bool TopK::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept {
     try {
@@ -1898,7 +1900,11 @@ void TopK::initSupportedPrimitiveDescriptors() {
         impl_type = impl_desc_type::ref;
     }
 
+#if defined(OPENVINO_ARCH_X86_64)
     jit_mode = mayiuse(cpu::x64::sse41);
+#else
+    jit_mode = false;
+#endif
 
     static const Precision supportedPrecision[] = {
         Precision::FP32,
@@ -1923,9 +1929,11 @@ void TopK::initSupportedPrimitiveDescriptors() {
 
     std::vector<std::pair<LayoutType, LayoutType>> dataFomats{
         {LayoutType::ncsp, LayoutType::ncsp},
+#if defined(OPENVINO_ARCH_X86_64)
         {LayoutType::nspc, LayoutType::nspc},
         {LayoutType::nCsp16c, LayoutType::nCsp16c},
         {LayoutType::nCsp8c, LayoutType::nCsp8c}
+#endif
     };
 
     for (const auto &df : dataFomats) {
@@ -1946,15 +1954,6 @@ bool TopK::needPrepareParams() const {
 }
 
 void TopK::preset_params() {
-    auto &srcMemPtr = getParentEdgeAt(TOPK_DATA)->getMemoryPtr();
-    if (srcMemPtr->getDesc().hasLayoutType(LayoutType::ncsp)) {
-        layout = TopKLayoutType::topk_ncsp;
-    } else if (srcMemPtr->getDesc().hasLayoutType(LayoutType::nspc)) {
-        layout = TopKLayoutType::topk_nspc;
-    } else {
-        layout = TopKLayoutType::topk_blocked;
-    }
-
     auto selectedPD = getSelectedPrimitiveDescriptor();
     auto data_type = DnnlExtensionUtils::IEPrecisionToDataType(selectedPD->getConfig().inConfs[TOPK_DATA].getMemDesc()->getPrecision());
     data_size = DnnlExtensionUtils::sizeOfDataType(data_type);
@@ -2065,6 +2064,15 @@ void TopK::prepareParams() {
 }
 
 void TopK::createPrimitive() {
+    auto &srcMemPtr = getParentEdgeAt(TOPK_DATA)->getMemoryPtr();
+    if (srcMemPtr->getDesc().hasLayoutType(LayoutType::ncsp)) {
+        layout = TopKLayoutType::topk_ncsp;
+    } else if (srcMemPtr->getDesc().hasLayoutType(LayoutType::nspc)) {
+        layout = TopKLayoutType::topk_nspc;
+    } else {
+        layout = TopKLayoutType::topk_blocked;
+    }
+
     if (inputShapesDefined() && isExecutable()) {
         if (needPrepareParams())
             prepareParams();
@@ -2100,7 +2108,6 @@ void TopK::createPrimitive() {
         jcp.bitonic_k_idx_cnt = 0;
 
         if (algorithm == TopKAlgorithm::topk_bitonic_sort) {
-            auto &srcMemPtr = getParentEdgeAt(TOPK_DATA)->getMemoryPtr();
             size_t src_count = srcMemPtr->GetDescWithType<BlockedMemoryDesc>()->getPaddedElementsCount();
             vec_process_ptr.resize(src_count * data_size);
             vec_process_idx_ptr.resize(src_count * sizeof(int32_t));
@@ -2110,7 +2117,7 @@ void TopK::createPrimitive() {
                 calc_bitonic_idx(top_k, jcp.bitonic_k_idx_cnt, false);
             }
         }
-
+#if defined(OPENVINO_ARCH_X86_64)
         if (mayiuse(cpu::x64::avx512_core)) {
             topk_kernel.reset(new jit_uni_topk_kernel_f32<cpu::x64::avx512_core>(jcp));
         } else if (mayiuse(cpu::x64::avx2)) {
@@ -2121,6 +2128,7 @@ void TopK::createPrimitive() {
 
         if (topk_kernel)
             topk_kernel->create_ker();
+#endif
     }
 }
 

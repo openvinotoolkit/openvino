@@ -440,6 +440,10 @@ bool layout_optimizer::can_fuse_reorder_to_prev(program_node& prev, reorder_node
          && (!prev.as<permute>().is_rotating_except_batch())) {
             return false;
         }
+        // permute kernel doesn't support reorder fusion for ranks > 6
+        if (fmt_prev.dimension() > 6 || fmt_next.dimension() > 6)
+            return false;
+
         return true;
     }
 
@@ -760,7 +764,7 @@ static bool is_node_for_onednn(reduce_node const& node, format preferred_format)
     auto reduce_prim = node.get_primitive();
 
     if (input.get_output_layout().data_type == data_types::f32
-        && node.get_users().front()->get_output_layout().data_type == data_types::f32) {
+        && node.get_output_layout().data_type == data_types::f32) {
         return false;
     }
 
@@ -1176,8 +1180,10 @@ bool layout_optimizer::are_data_types_suitable_for_onednn(program_node& node) {
     auto in_dt = node.get_dependency(0).get_output_layout(false).data_type;
     auto out_dt = node.get_output_layout(false).data_type;
 
-    if (in_dt == data_types::f32 && (!node.is_type<fully_connected>() && !node.is_type<convolution>()))
-        return false;
+    // Generally, fp32 input does NOT use oneDNN
+    if (in_dt == data_types::f32 &&
+        (!node.is_type<fully_connected>() && !node.is_type<convolution>() && !node.is_type<reorder>()))
+          return false;
 
     if (in_dt == data_types::i64 || out_dt == data_types::i64)
         return false;
@@ -1222,6 +1228,19 @@ bool layout_optimizer::are_data_types_suitable_for_onednn(program_node& node) {
         if ((in_dt == data_types::i8 || in_dt == data_types::u8) && (wei_dt == data_types::i8) &&
             (out_dt == data_types::i8 || out_dt == data_types::u8 || out_dt == data_types::i32 || out_dt == data_types::f16 || out_dt == data_types::f32))
             return true;
+    } else if (node.is_type<reorder>()) {
+        auto input_fmt = node.get_dependency(0).get_output_layout().format;
+        auto output_fmt = node.get_output_layout().format;
+
+        // For mixed precision case, oneDNN is slower than clDNN
+        if (input_fmt == format::b_fs_yx_fsv16 && data_type_traits::is_i8_u8(in_dt))
+            return false;
+        if (output_fmt == format::b_fs_yx_fsv16 && data_type_traits::is_i8_u8(in_dt))
+            return false;
+        if (output_fmt == format::bfyx && out_dt == data_types::f32)
+            return false;
+
+        return true;
     }
 
     return false;
@@ -1408,8 +1427,6 @@ impl_types layout_optimizer::get_preferred_impl_type(program_node& node, format 
 
         auto input_fmt = input_layout.format;
         auto output_fmt = output_layout.format;
-        auto input_dt = input_layout.data_type;
-        auto output_dt = output_layout.data_type;
 
         preferred_impl = impl_types::onednn;
 
@@ -1436,14 +1453,6 @@ impl_types layout_optimizer::get_preferred_impl_type(program_node& node, format 
         if (!are_data_types_suitable_for_onednn(node)) {
             preferred_impl = impl_types::ocl;
         }
-
-        // For mixed precision case, onednn is slower than cldnn
-        if (input_fmt == format::b_fs_yx_fsv16 && data_type_traits::is_i8_u8(input_dt))
-            preferred_impl = impl_types::ocl;
-        if (output_fmt == format::b_fs_yx_fsv16 && data_type_traits::is_i8_u8(output_dt))
-            preferred_impl = impl_types::ocl;
-        if (output_fmt == format::bfyx && output_dt == data_types::f32)
-            preferred_impl = impl_types::ocl;
     } else if (node.is_type<reduce>()) {
         if (!_optimization_attributes.use_onednn_impls)
             return impl_types::ocl;
@@ -1577,8 +1586,17 @@ format layout_optimizer::get_preferred_format(program_node& node) {
         auto dep_size = node.get_dependencies().size();
         for (size_t i = 0; i < dep_size; i++) {
             auto in_lay_rank = node.get_dependency(i).get_output_layout(false).get_rank();
-            if (in_lay_rank != out_lay_rank)
-                node.set_preferred_input_fmt(i, get_preferred_format(node.get_dependency(i)));
+            if (in_lay_rank != out_lay_rank) {
+                auto fmt = get_preferred_format(node.get_dependency(i));
+                // Check if selected format can be adjusted to the required output rank
+                // If no, use default fotmat instead
+                try {
+                    format::adjust_to_rank(fmt, out_lay_rank);
+                } catch (ov::Exception&) {
+                    fmt = format::get_default_format(out_lay_rank);
+                }
+                node.set_preferred_input_fmt(i, fmt);
+            }
         }
 
         // shape_infer_dep should be plain format because the memory is being read by ngraph shape infer as is
