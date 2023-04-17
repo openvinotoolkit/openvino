@@ -90,7 +90,7 @@ OUTPUT =
 
 * *T*: any numeric type.
 
-* *T_INT*: any non-negative integer type.
+* *T_INT*: any integer type.
 
 
 **Example**: constant mode
