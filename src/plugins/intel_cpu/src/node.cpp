@@ -799,11 +799,13 @@ void Node::prepareMemory(const DnnlMemoryDescPtr& intDesc, size_t indx) {
 
     MemoryPtr ptr;
     auto weightCache = context->getWeightsCache();
-    if (weightCache != nullptr) {
+    if (weightCache != nullptr && memory::format_kind::blocked == intDesc->getDnnlDesc().get_format_kind()) {
+        const auto& format = intDesc->serializeFormat();
         const uint64_t data_hash = weightCache->GetHashFunc().hash(
                 internalBlob->buffer(), internalBlob->byteSize());
 
         const std::string string_hash = name + "_" + std::to_string(indx)
+                                        + "_" + format
                                         + "_" + std::to_string(internalBlob->byteSize())
                                         + "_" + std::to_string(data_hash);
 
