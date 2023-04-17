@@ -85,6 +85,25 @@ bool SupportedElementTypes::is_constant_type_supported(ov::element::Type elem_ty
     return true;
 }
 
+bool is_transpose_supported(const std::shared_ptr<const ov::Node>& node) {
+    OPENVINO_ASSERT(node, "Transpose node is empty!");
+    const ov::Shape squeezed_shape = graph_utils::squeeze_shape(node->get_shape());
+    const size_t min_input_dim = std::min(squeezed_shape[0], squeezed_shape[1]);
+    const size_t max_input_dim = std::max(squeezed_shape[0], squeezed_shape[1]);
+
+    // GNA transpose limitations:
+    // - supports 2d transposes only
+    // - smaller dimension should be less or equal to 8
+    // - bigger dimension should be a multiple of limitations::noOfInputsDivisor
+    if (squeezed_shape.size() > 2) {
+        return true;
+    } else if (min_input_dim > 8) {
+        return true;
+    } else if (ALIGN(max_input_dim, limitations::noOfInputsDivisor) != max_input_dim) {
+        return true;
+    }
+}
+
 bool is_conv_supported(const std::shared_ptr<ngraph::op::ConvolutionIE>& conv_ie,
                        const DeviceVersion& effective_compile_target,
                        const InferenceEngine::Precision gna_precision,

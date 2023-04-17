@@ -29,21 +29,7 @@ inline bool is_preprocessing_layer_not_supported(std::shared_ptr<ov::Node>& laye
 
     // Verify that transpose layer cannot be executed on GNA
     if (std::dynamic_pointer_cast<ov::opset1::Transpose>(layer)) {
-        const ov::Shape squeezed_shape = graph_utils::squeeze_shape(layer->get_shape());
-        const size_t min_input_dim = std::min(squeezed_shape[0], squeezed_shape[1]);
-        const size_t max_input_dim = std::max(squeezed_shape[0], squeezed_shape[1]);
-
-        // GNA transpose limitations:
-        // - supports 2d transposes only
-        // - smaller dimension should be less or equal to 8
-        // - bigger dimension should be a multiple of limitations::noOfInputsDivisor
-        if (squeezed_shape.size() > 2) {
-            return true;
-        } else if (min_input_dim > 8) {
-            return true;
-        } else if (ALIGN(max_input_dim, limitations::noOfInputsDivisor) != max_input_dim) {
-            return true;
-        }
+        return !limitations::is_transpose_supported(layer);
     }
 
     return false;
@@ -63,12 +49,11 @@ inline std::shared_ptr<ov::Model> copy_single_input_node(std::shared_ptr<ov::Nod
     std::shared_ptr<ov::Model> model =
         std::make_shared<ov::Model>(ov::ResultVector{result}, ov::ParameterVector{param});
 
-    ov::pass::Manager manager;
-    manager.register_pass<ov::pass::Serialize>("pre_model_" + model->get_friendly_name() + ".xml",
-                                               "pre_model_" + model->get_friendly_name() + ".bin");
-    manager.run_passes(model);
-
     return model;
+}
+
+inline bool is_skip_operation(const std::shared_ptr<ov::Node>& node) {
+    return std::dynamic_pointer_cast<Reshape>(node) != nullptr;
 }
 
 }  // namespace
@@ -76,9 +61,11 @@ inline std::shared_ptr<ov::Model> copy_single_input_node(std::shared_ptr<ov::Nod
 bool RemoveInputsProcessing::run_on_model(const std::shared_ptr<ov::Model>& model) {
     RUN_ON_MODEL_SCOPE(RemoveInputsProcessing);
     bool result = false;
+
     for (const auto& param_node : model->inputs()) {
         for (auto& param_target : param_node.get_target_inputs()) {
-            auto target_node = param_target.get_node()->shared_from_this();
+            auto target_node = graph_utils::get_next_node_skipping_certain(param_target.get_node()->shared_from_this(),
+                                                                           is_skip_operation);
             // Parameter -> Transpose, Parameter -> Gather
             if (is_preprocessing_layer_not_supported(target_node)) {
                 if (m_input_subgraphs) {
@@ -98,11 +85,12 @@ bool RemoveOutputsProcessing::run_on_model(const std::shared_ptr<ov::Model>& mod
     bool result = false;
     for (std::shared_ptr<ov::Node> r_node : model->get_results()) {
         for (auto& r_input : r_node->input_values()) {
-            auto r_input_node = r_input.get_node_shared_ptr();
+            auto r_input_node =
+                graph_utils::get_prev_node_skipping_certain(r_input.get_node_shared_ptr(), is_skip_operation);
             // Transpose -> Result, Gather -> Result
             if (is_preprocessing_layer_not_supported(r_input_node)) {
                 if (m_output_subgraphs) {
-                    m_output_subgraphs->emplace(r_input_node->get_friendly_name(),
+                    m_output_subgraphs->emplace(r_input.get_node_shared_ptr()->get_friendly_name(),
                                                 copy_single_input_node(r_input_node));
                 }
                 pass::helper::remove_single_input_node(r_input_node);
