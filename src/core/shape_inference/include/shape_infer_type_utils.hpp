@@ -29,7 +29,9 @@ struct Cast {
     template <class U,
               typename std::enable_if<std::is_integral<T>::value && std::is_floating_point<U>::value>::type* = nullptr>
     constexpr T operator()(const U u) const {
-        return u < std::numeric_limits<T>::max() ? static_cast<T>(u) : std::numeric_limits<T>::max();
+        return cmp::lt(u, std::numeric_limits<T>::max())
+                   ? cmp::lt(u, std::numeric_limits<T>::min()) ? std::numeric_limits<T>::min() : static_cast<T>(u)
+                   : std::numeric_limits<T>::max();
     }
 };
 
