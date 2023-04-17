@@ -10,7 +10,7 @@ from openvino._pyopenvino.properties.hint import PerformanceMode as PerformanceM
 class PerformanceMode(PerformanceModeBase):
 
     @deprecatedclassproperty(
-        name="PerformanceMode.UNDEFINED",
+        name="PerformanceMode.UNDEFINED",  # noqa: N802, N805
         version="2024.0",
         message="Please use actual value instead.",
         stacklevel=2,
