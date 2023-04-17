@@ -65,11 +65,6 @@ def apply_pruning_transformation(model):
 
 
 @deprecated(version="2023.1", message="The module is private and following namespace " "`offline_transformations` will be removed in " "the future.")
-def generate_mapping_file(model, path, extract_names):
-    _base.generate_mapping_file(model, path, extract_names)
-
-
-@deprecated(version="2023.1", message="The module is private and following namespace " "`offline_transformations` will be removed in " "the future.")
 def apply_make_stateful_transformation(model, param_res_names):
     _base.apply_make_stateful_transformation(model, param_res_names)
 

@@ -62,13 +62,14 @@ def parse_arguments():
     parser.add_argument("-c", "--ov_config_path", help=ov_config_path_helper, type=str, required=False, default="")
     parser.add_argument("-s", "--dump_conformance", help=dump_conformance_help, type=int, required=False, default=0)
     parser.add_argument("-sm", "--shape_mode", help=shape_mode_help, type=str, required=False, default="")
-    parser.add_argument("-p", "--parallel_devices", help=parallel_help, type=int, required=False, default=0)
+    parser.add_argument("-p", "--parallel_devices", help=parallel_help, type=bool, required=False, default=False)
 
     return parser.parse_args()
 
 class Conformance:
     def __init__(self, device:str, model_path:os.path, ov_path:os.path, type:str, workers:int,
-                 gtest_filter:str, working_dir:os.path, ov_config_path:os.path, shape_mode:str):
+                 gtest_filter:str, working_dir:os.path, ov_config_path:os.path, shape_mode:str,
+                 parallel_devices:bool):
         self._device = device
         self._model_path = model_path
         self._ov_path = ov_path
@@ -93,6 +94,7 @@ class Conformance:
         else:
             logger.error(f'Incorrect value to set shape mode: {shape_mode}. Please check to get possible values')
             exit(-1)
+        self._is_parallel_over_devices = parallel_devices
 
     def __download_models(self, url_to_download, path_to_save):
         _, file_name = os.path.split(urlparse(url_to_download).path)
@@ -170,7 +172,7 @@ class Conformance:
                              f"--report_unique_name", f'--output_folder="{parallel_report_dir}"',
                              f'--gtest_filter={self._gtest_filter}', f'--config_path="{self._ov_config_path}"',
                              f'--shape_mode={self._shape_mode}']
-        conformance = TestParallelRunner(f"{conformance_path}", command_line_args, self._workers, logs_dir, "", True)
+        conformance = TestParallelRunner(f"{conformance_path}", command_line_args, self._workers, logs_dir, "", self._is_parallel_over_devices)
         conformance.run()
         conformance.postprocess_logs()
 
@@ -240,5 +242,5 @@ if __name__ == "__main__":
                               args.ov_path, args.type,
                               args.workers, args.gtest_filter,
                               args.working_dir, args.ov_config_path,
-                              args.shape_mode)
+                              args.shape_mode, args.parallel_devices)
     conformance.run(args.dump_conformance)
