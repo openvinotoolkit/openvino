@@ -16,8 +16,6 @@
 #include "perf_counter.hpp"
 #include "tensor_conversion_util.hpp"
 
-NGRAPH_SUPPRESS_DEPRECATED_START
-
 namespace {
 
 class DynamicTensor : public ngraph::runtime::HostTensor {
@@ -47,7 +45,6 @@ protected:
 };
 
 inline ngraph::HostTensorPtr make_tmp_host_tensor(const ov::Tensor& t) {
-    OPENVINO_SUPPRESS_DEPRECATED_START
     if (!t) {
         return std::make_shared<DynamicTensor>(ov::element::dynamic);
     } else if (t.get_shape() == ov::Shape{0, std::numeric_limits<size_t>::max()}) {
@@ -55,7 +52,6 @@ inline ngraph::HostTensorPtr make_tmp_host_tensor(const ov::Tensor& t) {
     } else {
         return std::make_shared<ngraph::runtime::HostTensor>(t.get_element_type(), t.get_shape(), t.data());
     }
-    OPENVINO_SUPPRESS_DEPRECATED_END
 }
 inline ngraph::HostTensorVector create_tmp_tensors(const ov::TensorVector& tensors) {
     ngraph::HostTensorVector result;
@@ -126,10 +122,7 @@ bool ov::runtime::interpreter::INTExecutable::call(std::vector<ov::Tensor>& outp
             auto variable = var_extension->get_variable();
             if (!variable_context.get_variable_value(variable)) {
                 auto h_tensor = ov::Tensor(op->get_input_element_type(0), op->get_input_shape(0));
-                // h_tensor->write(h_tensor->get_data_ptr(), h_tensor->get_size_in_bytes());
-                const auto tensor_input = make_tmp_host_tensor(h_tensor);
-                variable_context.set_variable_value(variable,
-                                                    std::make_shared<ov::op::util::VariableValue>(tensor_input));
+                variable_context.set_variable_value(variable, std::make_shared<ov::op::util::VariableValue>(h_tensor));
             }
         }
     }

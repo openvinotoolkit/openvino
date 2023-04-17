@@ -6,11 +6,11 @@
 
 #include <memory>
 
-#include "cpp_interfaces/interface/ie_internal_plugin_config.hpp"
 #include "cpp_interfaces/interface/ie_iplugin_internal.hpp"
 #include "ie_plugin_config.hpp"
 #include "itt.hpp"
 #include "openvino/pass/manager.hpp"
+#include "openvino/runtime/internal_properties.hpp"
 #include "openvino/runtime/properties.hpp"
 #include "remote_context.hpp"
 #include "template/properties.hpp"
@@ -23,6 +23,7 @@
 namespace {
 static constexpr const char* wait_executor_name = "TemplateWaitExecutor";
 static constexpr const char* stream_executor_name = "TemplateStreamsExecutor";
+static constexpr const char* template_exclusive_executor = "TemplateExecutor";
 }  // namespace
 
 // ! [plugin:ctor]
@@ -43,8 +44,6 @@ ov::template_plugin::Plugin::~Plugin() {
     // Plugin should remove executors from executor cache to avoid threads number growth in the whole application
     get_executor_manager()->clear(stream_executor_name);
     get_executor_manager()->clear(wait_executor_name);
-    // NOTE: Uncomment this if Inference Engine Executor cache is used to create callback executor
-    // executorManager()->clear("TemplateCallbackExecutor");
 }
 // ! [plugin:dtor]
 
@@ -106,12 +105,14 @@ std::shared_ptr<ov::ICompiledModel> ov::template_plugin::Plugin::compile_model(
     auto streamsExecutorConfig =
         ov::threading::IStreamsExecutor::Config::make_default_multi_threaded(fullConfig.streams_executor_config);
     streamsExecutorConfig._name = stream_executor_name;
-    auto compiled_model =
-        std::make_shared<CompiledModel>(model->clone(),
-                                        shared_from_this(),
-                                        context,
-                                        get_executor_manager()->get_idle_cpu_streams_executor(streamsExecutorConfig),
-                                        fullConfig);
+    auto compiled_model = std::make_shared<CompiledModel>(
+        model->clone(),
+        shared_from_this(),
+        context,
+        fullConfig.exclusive_async_requests
+            ? get_executor_manager()->get_executor(template_exclusive_executor)
+            : get_executor_manager()->get_idle_cpu_streams_executor(streamsExecutorConfig),
+        fullConfig);
     return compiled_model;
 }
 // ! [plugin:compile_model_with_remote]
@@ -233,6 +234,7 @@ ov::Any ov::template_plugin::Plugin::get_property(const std::string& name, const
         std::vector<ov::PropertyName> rw_properties{ov::device::id,
                                                     ov::enable_profiling,
                                                     ov::hint::performance_mode,
+                                                    ov::exclusive_async_requests,
                                                     ov::template_plugin::disable_transformations};
         return rw_properties;
     };
