@@ -43,18 +43,18 @@ The table below lists the supported operating systems and Python versions.
 |                                     | (64-bit                        |
 |                                     | ) <https://www.python.org/>`__ |
 +=====================================+================================+
-| Ubuntu 18.04 LTS                    | 3.7, 3.8, 3.9, 3.10            |
+| Ubuntu 18.04 LTS                    | 3.7, 3.8, 3.9, 3.10. 3.11      |
 +-------------------------------------+--------------------------------+
-| Ubuntu 20.04 LTS                    | 3.7, 3.8, 3.9, 3.10            |
+| Ubuntu 20.04 LTS                    | 3.7, 3.8, 3.9, 3.10, 3.11      |
 +-------------------------------------+--------------------------------+
-| Red Hat Enterprise Linux 8          | 3.8, 3.9, 3.10                 |
+| Red Hat Enterprise Linux 8          | 3.8, 3.9, 3.10, 3.11           |
 +-------------------------------------+--------------------------------+
-| macOS 10.15.x versions              | 3.7, 3.8, 3.9, 3.10            |
+| macOS 10.15.x versions              | 3.7, 3.8, 3.9, 3.10, 3.11      |
 +-------------------------------------+--------------------------------+
-| Windows 10 Pro, Enterprise          | 3.7, 3.8, 3.9, 3.10            |
+| Windows 10 Pro, Enterprise          | 3.7, 3.8, 3.9, 3.10, 3.11      |
 | or Education editions               |                                |
 +-------------------------------------+--------------------------------+
-| Windows Server 2016 or higher       | 3.7, 3.8, 3.9, 3.10            |
+| Windows Server 2016 or higher       | 3.7, 3.8, 3.9, 3.10, 3.11      |
 +-------------------------------------+--------------------------------+
 
 OpenVINO Notebooks also require Git. Follow the guide below for your 
@@ -67,7 +67,7 @@ operating system or environment.
 
    1. **Install Python**
 
-      Download 64 bit version of Python software (3.7, 3.8, 3.9, 3.10) from  `python.org`_. 
+      Download 64 bit version of Python software (3.7, 3.8, 3.9, 3.10, 3.11) from  `python.org`_. 
 
       .. _python.org: https://www.python.org/downloads/windows/
 
@@ -127,7 +127,7 @@ operating system or environment.
 
    1. **Install Python**
 
-      Download Python software (3.7, 3.8, 3.9, 3.10) from `python.org`. For example, this `installer`_.
+      Download Python software (3.7, 3.8, 3.9, 3.10, 3.11) from `python.org`. For example, this `installer`_.
 
       .. _installer: https://www.python.org/ftp/python/3.7.9/python-3.7.9-macosx10.9.pkg
 
