@@ -42,11 +42,12 @@ function(ov_model_convert SRC DST OUT)
         endif()
 
         set(full_out_name "${DST}/${rel_out_name}")
-        file(MAKE_DIRECTORY "${DST}/${rel_dir}")
 
         if(ext STREQUAL ".prototxt")
             # convert .prototxt models to .onnx binary
             add_custom_command(OUTPUT ${full_out_name}
+                COMMAND ${CMAKE_COMMAND} -E make_directory
+                    "${DST}/${rel_dir}"
                 COMMAND ${PYTHON_EXECUTABLE} ${onnx_gen_script}
                     "${SRC}/${in_file}" ${full_out_name}
                 DEPENDS ${onnx_gen_script} "${SRC}/${in_file}"
@@ -55,6 +56,8 @@ function(ov_model_convert SRC DST OUT)
                 WORKING_DIRECTORY "${model_source_dir}")
         else()
             add_custom_command(OUTPUT ${full_out_name}
+                COMMAND ${CMAKE_COMMAND} -E make_directory
+                    "${DST}/${rel_dir}"
                 COMMAND "${CMAKE_COMMAND}" -E copy_if_different
                     "${SRC}/${in_file}" ${full_out_name}
                 DEPENDS ${onnx_gen_script} "${SRC}/${in_file}"
@@ -68,7 +71,7 @@ function(ov_model_convert SRC DST OUT)
     set(${OUT} ${files} PARENT_SCOPE)
 endfunction()
 
-if(OV_GENERATOR_MULTI_CONFIG)
+if(OV_GENERATOR_MULTI_CONFIG AND CMAKE_VERSION VERSION_GREATER_EQUAL 3.20)
     set(test_model_zoo_output_dir "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/$<CONFIG>/test_model_zoo")
 else()
     set(test_model_zoo_output_dir "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/test_model_zoo")
