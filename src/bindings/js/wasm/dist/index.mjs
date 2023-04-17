@@ -1,17 +1,11 @@
-// if (global) {
-//   console.log('== it is nodejs');
-// }
-// else {
-//   console.log('== it is browser');
-// }
-if (isNodeEnv()) {
-    console.log('== is Node');
+import ov from './openvino_wasm.mjs';
+import loadModel from './wasm-model.mjs';
+import { Tensor, Shape } from 'openvinojs-common';
+export { loadModel, Tensor, Shape, getVersionString, getDescriptionString, };
+function getVersionString() {
+    return ov.getVersionString();
 }
-else {
-    console.log('== is browser');
+function getDescriptionString() {
+    return ov.getDescriptionString();
 }
-function isNodeEnv() {
-    return import.meta.url.startsWith('file:');
-}
-export {};
 //# sourceMappingURL=index.mjs.map

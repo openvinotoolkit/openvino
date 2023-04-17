@@ -1,15 +1,3 @@
-import { OpenvinoModule, OriginalShapeWrapper, OriginalTensorWrapper } from './ov-module.mjs';
-
-export type OVType =
-  | 'uint8_t'
-  | 'int8_t'
-  | 'uint16_t'
-  | 'int16_t'
-  | 'uint32_t'
-  | 'int32_t'
-  | 'float'
-  | 'double';
-
 export type TypedArray =
   | Int8Array
   | Uint8Array
@@ -32,16 +20,6 @@ export type JSArrayType =
   | Float32ArrayConstructor 
   | Float64ArrayConstructor;
 
-export type HEAPType = 
-  | 'HEAP8'
-  | 'HEAPU8'
-  | 'HEAP16'
-  | 'HEAPU16'
-  | 'HEAP32'
-  | 'HEAPU32'
-  | 'HEAPF32'
-  | 'HEAPF64';
-
 export enum PrecisionSupportedTypes {
   uint8 = 'uint8',
   int8 = 'int8',
@@ -58,31 +36,16 @@ export type PrecisionSupportedType = keyof typeof PrecisionSupportedTypes;
 export interface IShape {
   dim: number,
   data: Uint32Array,
-  convert(ov: OpenvinoModule): OriginalShapeWrapper,
 };
 
 export interface ITensor {
   precision: PrecisionSupportedType,
   data: TypedArray,
   shape: IShape,
-  convert(ov: OpenvinoModule): OriginalTensorWrapper,
 };
 
 export type SessionEnvironment = 'nodejs' | 'browser';
 
 export interface IModel {
-  // new (ov: OpenvinoModule, originalModel: OriginalModel): void,
   infer(tensorOrDataArray: ITensor | number[], shape: IShape): Promise<ITensor>,
-}
-
-export interface ISession {
-  _ov: OpenvinoModule,
-  _env: SessionEnvironment,
-
-  getVersionString(): string,
-  getDescriptionString(): string,
-
-  // new (ov: OpenvinoModule, environment?: SessionEnvironment): ISession,
-  // loadModel(xmlPath: string, binPath: string, shape: IShape, layout: string): Promise<IModel>
-  loadModel(xmlData: Uint8Array, binData: Uint8Array, shapeData: number[] | IShape, layout: string): Promise<IModel>
 }

@@ -1,4 +1,6 @@
-import type { OVType, JSArrayType, PrecisionSupportedType, HEAPType } from './types.mjs';
+
+import { PrecisionSupportedType, JSArrayType } from 'openvinojs-common';
+import { OVType, HEAPType } from './types.js';
 
 export const ovTypesMap: { [Type in OVType]: PrecisionSupportedType } = {
   'uint8_t': 'uint8',
@@ -9,18 +11,6 @@ export const ovTypesMap: { [Type in OVType]: PrecisionSupportedType } = {
   'int32_t': 'int32',
   'float': 'float32',
   'double': 'float64',
-};
-
-export const jsTypeByPrecisionMap: { [Precision in PrecisionSupportedType]: JSArrayType } = {
-  int8: Int8Array,
-  uint8: Uint8Array,
-  // uint8c: Uint8ClampedArray,
-  int16: Int16Array,
-  uint16: Uint16Array,
-  int32: Int32Array,
-  uint32: Uint32Array,
-  float32: Float32Array,
-  float64: Float64Array,
 };
 
 // FIXME: define correct type

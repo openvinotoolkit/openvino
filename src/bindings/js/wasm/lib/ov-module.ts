@@ -1,4 +1,5 @@
-import type { TypedArray, OVType, PrecisionSupportedType } from 'openvinojs-common';
+import type { TypedArray, PrecisionSupportedType } from 'openvinojs-common';
+import type { OVType } from './types.js';
 
 interface WASMFilesystem {
   open(filename: string, flags: string): string,
@@ -26,9 +27,15 @@ export interface OpenvinoModule {
 };
 
 export interface OriginalShape {
+  // constructor(heapPointer: number, dimensions: number);
   getDim(): number;
   getData(): number;
 };
+
+export interface OriginalShapeWrapper {
+  obj: OriginalShape,
+  free: () => void,
+}
 
 export interface OriginalTensor {
   getPrecision(): OVType;
@@ -36,4 +43,15 @@ export interface OriginalTensor {
   getData(): number;
 }
 
+export interface OriginalTensorWrapper {
+  obj: OriginalTensor,
+  free: () => void,
+}
 
+export interface OriginalSession {
+  loadModel(): OriginalModel,
+}
+
+export interface OriginalModel {
+  infer(tensor: OriginalTensor): OriginalTensor,
+}
