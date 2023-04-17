@@ -45,7 +45,7 @@ private:
 /**
  * @brief Remove Transpose/Gather layers connected to Outputs and create post-processing model
  * to support output pre-processing on CPU.
- * Inserts Reshape layer instead of Transpose/Gater layer to avoid changing of the shapes.
+ * Inserts Reshape layer instead of Transpose/Gather layer to avoid changing of the shapes.
  * @param output_subgraphs Map where post-processing model for each output will be saved
  *
  * Searches for the following pattern
