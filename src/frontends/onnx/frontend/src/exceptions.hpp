@@ -9,6 +9,7 @@
 #include "ngraph/check.hpp"
 #include "ngraph/except.hpp"
 #include "onnx_import/core/node.hpp"
+#include "openvino/core/except.hpp"
 #include "utils/tensor_external_data.hpp"
 
 namespace ngraph {
@@ -18,10 +19,14 @@ namespace detail {
 std::string get_error_msg_prefix(const Node& node);
 }
 
-class OnnxNodeValidationFailure : public CheckFailure {
+class OnnxNodeValidationFailure : public ov::AssertFailure {
 public:
-    OnnxNodeValidationFailure(const CheckLocInfo& check_loc_info, const Node& node, const std::string& explanation)
-        : CheckFailure(check_loc_info, detail::get_error_msg_prefix(node), explanation) {}
+    [[noreturn]] static void create(const CheckLocInfo& check_loc_info,
+                                    const Node& node,
+                                    const std::string& explanation);
+
+protected:
+    explicit OnnxNodeValidationFailure(const std::string& what_arg) : ov::AssertFailure(what_arg) {}
 };
 
 struct invalid_external_data : ngraph_error {
@@ -37,4 +42,4 @@ struct invalid_external_data : ngraph_error {
 }  // namespace  ngraph
 
 #define CHECK_VALID_NODE(node_, cond_, ...) \
-    NGRAPH_CHECK_HELPER(::ngraph::onnx_import::error::OnnxNodeValidationFailure, (node_), (cond_), ##__VA_ARGS__)
+    OPENVINO_ASSERT_HELPER(::ngraph::onnx_import::error::OnnxNodeValidationFailure, (node_), (cond_), ##__VA_ARGS__)
