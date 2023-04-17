@@ -122,4 +122,31 @@ INSTANTIATE_TEST_SUITE_P(smoke_OVClassExecutableNetworkGetMetricTest,
                          OVClassExecutableNetworkGetMetricTest_EXEC_DEVICES,
                          ::testing::ValuesIn(GetMetricTest_ExecutionDevice_TEMPLATE),
                          OVCompileModelGetExecutionDeviceTests::getTestCaseName);
+
+//
+// OV Class GetMetric
+//
+
+INSTANTIATE_TEST_SUITE_P(smoke_OVGetMetricPropsTest,
+                         OVGetMetricPropsTest,
+                         ::testing::Values(CommonTestUtils::DEVICE_TEMPLATE));
+
+INSTANTIATE_TEST_SUITE_P(smoke_OVGetConfigTest,
+                         OVGetConfigTest_ThrowUnsupported,
+                         ::testing::Values(CommonTestUtils::DEVICE_TEMPLATE));
+
+INSTANTIATE_TEST_SUITE_P(smoke_OVGetAvailableDevicesPropsTest,
+                         OVGetAvailableDevicesPropsTest,
+                         ::testing::Values(CommonTestUtils::DEVICE_TEMPLATE));
+
+//
+// OV Class GetConfig
+//
+
+INSTANTIATE_TEST_SUITE_P(smoke_OVGetConfigTest, OVGetConfigTest, ::testing::Values(CommonTestUtils::DEVICE_TEMPLATE));
+
+INSTANTIATE_TEST_SUITE_P(smoke_OVClassBasicPropsTestP,
+                         OVClassBasicPropsTestP,
+                         ::testing::Values(std::make_pair("openvino_template_plugin",
+                                                          CommonTestUtils::DEVICE_TEMPLATE)));
 }  // namespace

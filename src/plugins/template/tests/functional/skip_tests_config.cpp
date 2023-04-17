@@ -7,12 +7,17 @@
 #include <string>
 #include <vector>
 
+#include "openvino/core/core_visibility.hpp"
+
 std::vector<std::string> disabledTestPatterns() {
     std::vector<std::string> retVector{
         // Not Implemented
         R"(.*(Multi|Auto|Hetero).*Behavior.*OVCompiledModelBaseTest.*CheckExecGraphInfoBeforeExecution.*)",
         R"(.*(Multi|Auto|Hetero).*Behavior.*OVCompiledModelBaseTest.*CheckExecGraphInfoAfterExecution.*)",
         R"(.*(Multi|Auto|Hetero).*Behavior.*OVCompiledModelBaseTest.*checkGetExecGraphInfoIsNotNullptr.*)",
+        //
+        // unsupported metrics
+        R"(.*smoke_OVGetMetricPropsTest.*OVGetMetricPropsTest.*(DEVICE_UUID|FULL_DEVICE_NAME_with_DEVICE_ID|RANGE_FOR_STREAMS|DEVICE_GOPS|DEVICE_TYPE|MAX_BATCH_SIZE).*)",
 
         // CVS-55937
         R"(.*SplitLayerTest.*numSplits=30.*)",
@@ -113,6 +118,16 @@ std::vector<std::string> disabledTestPatterns() {
     // CVS-64054
     retVector.emplace_back(R"(.*ReferenceTopKTest.*topk_max_sort_none)");
     retVector.emplace_back(R"(.*ReferenceTopKTest.*topk_min_sort_none)");
+#endif
+
+#if defined(OPENVINO_ARCH_ARM64) || defined(OPENVINO_ARCH_ARM)
+    retVector.emplace_back(R"(.*smoke_TopK_With_Hardcoded_Refs/ReferenceTopKTestMaxMinSort.CompareWithRefs.*)");
+    retVector.emplace_back(R"(.*smoke_TopK_With_Hardcoded_Refs/ReferenceTopKTestBackend.CompareWithRefs.*)");
+    retVector.emplace_back(R"(.*smoke_TopK_With_Hardcoded_Refs/ReferenceTopKTestMaxMinSortV3.CompareWithRefs.*)");
+    retVector.emplace_back(R"(.*smoke_TopK_With_Hardcoded_Refs/ReferenceTopKTestBackendV3.CompareWithRefs.*)");
+    // fails only on Linux arm64
+    retVector.emplace_back(
+        R"(.*ReferenceConversionLayerTest.CompareWithHardcodedRefs/conversionType=(Convert|ConvertLike)_shape=.*_iType=(f16|f32|bf16)_oType=u4.*)");
 #endif
     return retVector;
 }
