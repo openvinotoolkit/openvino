@@ -1033,7 +1033,7 @@ DeformableConvolution::DefConvExecutor::DefConvExecutor(const DefConvAttr &defCo
     if (withModulation) {
         modStrides = descVector[MOD_ID]->getStrides();
     }
-#if defined(OPENVINO_ARCH_X86_64)
+
     const VectorDims srcDims = descVector[DATA_ID]->getShape().getStaticDims();
     const VectorDims weiDims = descVector[WEI_ID]->getShape().getStaticDims();
     const VectorDims dstDims = descVector[descVector.size() - 1]->getShape().getStaticDims();
@@ -1084,7 +1084,6 @@ DeformableConvolution::DefConvExecutor::DefConvExecutor(const DefConvAttr &defCo
     jcp.nb_oc_blocking = !mayiuse(cpu::x64::avx2) ? 2 : 4;
 
     jcp.nthr = dnnl_get_max_threads();
-#endif
 }
 
 DeformableConvolution::DefConvJitExecutor::DefConvJitExecutor(const DefConvAttr &defConvAttr,

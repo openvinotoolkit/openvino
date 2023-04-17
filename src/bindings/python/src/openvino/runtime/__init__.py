@@ -60,7 +60,7 @@ from openvino.runtime import opset10
 from openvino.runtime import opset11
 
 # Import properties API
-from openvino._pyopenvino import properties
+from openvino.runtime import properties
 
 # Helper functions for openvino module
 from openvino.runtime.ie_api import tensor_from_file
