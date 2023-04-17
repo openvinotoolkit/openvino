@@ -240,7 +240,10 @@ Version convert_to_version(const std::string& version) {
                    "'! The supported versions are: 'UNSPECIFIED'(default), 'IR_V10', 'IR_V11'.");
 }
 
-void deprecation_warning(const std::string& function_name, const std::string& version, const std::string& message) {
+void deprecation_warning(const std::string& function_name,
+                         const std::string& version,
+                         const std::string& message,
+                         int stacklevel) {
     std::stringstream ss;
     ss << function_name << " is deprecated";
     if (!version.empty()) {
@@ -249,7 +252,7 @@ void deprecation_warning(const std::string& function_name, const std::string& ve
     if (!message.empty()) {
         ss << ". " << message;
     }
-    PyErr_WarnEx(PyExc_DeprecationWarning, ss.str().data(), 2);
+    PyErr_WarnEx(PyExc_DeprecationWarning, ss.str().data(), stacklevel);
 }
 
 bool py_object_is_any_map(const py::object& py_obj) {

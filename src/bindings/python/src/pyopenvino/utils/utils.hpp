@@ -40,7 +40,7 @@ namespace utils {
 
     std::string convert_path_to_string(const py::object& path);
 
-    void deprecation_warning(const std::string& function_name, const std::string& version = std::string(), const std::string& message = std::string());
+    void deprecation_warning(const std::string& function_name, const std::string& version = std::string(), const std::string& message = std::string(), int stacklevel=2);
 
     bool py_object_is_any_map(const py::object& py_obj);
 
