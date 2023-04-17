@@ -68,18 +68,24 @@ function(ov_model_convert SRC DST OUT)
     set(${OUT} ${files} PARENT_SCOPE)
 endfunction()
 
+if(OV_GENERATOR_MULTI_CONFIG)
+    set(test_model_zoo_output_dir "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/$<CONFIG>/test_model_zoo")
+else()
+    set(test_model_zoo_output_dir "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/test_model_zoo")
+endif()
+
 ov_model_convert("${CMAKE_CURRENT_SOURCE_DIR}/src/core/tests"
-                 "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/test_model_zoo/core"
+                 "${test_model_zoo_output_dir}/core"
                   core_tests_out_files)
 
 set(rel_path "src/tests/functional/plugin/shared/models")
 ov_model_convert("${OpenVINO_SOURCE_DIR}/${rel_path}"
-                 "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/test_model_zoo/func_tests/models"
+                 "${test_model_zoo_output_dir}/func_tests/models"
                  ft_out_files)
 
 set(rel_path "src/frontends/onnx/tests/models")
 ov_model_convert("${OpenVINO_SOURCE_DIR}/${rel_path}"
-                 "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/test_model_zoo/onnx"
+                 "${test_model_zoo_output_dir}/onnx"
                  onnx_fe_out_files)
 
 if(ENABLE_TESTS)
@@ -92,7 +98,7 @@ if(ENABLE_TESTS)
     #    add_dependencies(test_model_zoo paddle_test_models)
     #endif()
 
-    install(DIRECTORY "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/test_model_zoo"
+    install(DIRECTORY "${test_model_zoo_output_dir}"
             DESTINATION tests COMPONENT tests EXCLUDE_FROM_ALL)
 
     set(TEST_MODEL_ZOO "./test_model_zoo" CACHE PATH "Path to test model zoo")
