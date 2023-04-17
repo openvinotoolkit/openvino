@@ -561,24 +561,7 @@ template <dnnl::impl::cpu::x64::cpu_isa_t isa>
 void StoreEmitter::emit_isa(const std::vector<size_t> &in, const std::vector<size_t> &out) const {
     if (!store_emitter)
         IE_THROW() << "Store CPU emitter isn't initialized for StoreEmitter!";
-    using Vmm = typename dnnl::impl::utils::conditional3<isa == dnnl::impl::cpu::x64::sse41,
-            Xmm, isa == dnnl::impl::cpu::x64::avx2, Ymm, Zmm>::type;
-    /* When store_size > 16, the input Ymm register will not be
-    * preserved due to the usage of vextracti128 instruction.
-    */
-    // todo: is it better/faster to save it to a spare reg?
-    const bool input_not_preserved = !mayiuse(avx512_core) && count * dst_prc.size() > 16;
-    if (input_not_preserved) {
-        h->sub(h->rsp, get_vec_length());
-        h->uni_vmovups(h->ptr[h->rsp], Vmm(in[0]));
-    }
-
     store_emitter->emit_code({in[0], byte_offset}, {out[0]}, aux_vec_idxs, aux_gpr_idxs);
-
-    if (input_not_preserved) {
-        h->uni_vmovups(Vmm(in[0]), h->ptr[h->rsp]);
-        h->add(h->rsp, get_vec_length());
-    }
 }
 
 void StoreEmitter::emit_data() const {
