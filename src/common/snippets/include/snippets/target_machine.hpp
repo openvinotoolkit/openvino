@@ -9,7 +9,6 @@
 #pragma once
 
 #include "emitter.hpp"
-#include "lowered_expr.hpp"
 
 namespace ngraph {
 namespace snippets {

@@ -8,8 +8,7 @@ namespace ngraph {
 namespace snippets {
 namespace op {
 
-Kernel::Kernel(LoweredExprIR nested) : Op(), region(std::move(nested)) {
-}
+Kernel::Kernel(lowered::LinearIR nested) : Op(), region(std::move(nested)) {}
 
 } // namespace op
 } // namespace snippets

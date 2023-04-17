@@ -6,7 +6,7 @@
 
 #include <ngraph/op/op.hpp>
 #include <snippets/snippets_isa.hpp>
-#include <snippets/lowered_expr.hpp>
+#include <snippets/lowered/expression.hpp>
 
 namespace ngraph {
 namespace snippets {
@@ -14,7 +14,7 @@ namespace op {
 
 /**
  * @interface SerializationNode
- * @brief Fake node needed to serialize LoweredExpressionIR
+ * @brief Fake node needed to serialize lowered::Expression sessionIR
  * @ingroup snippets
  */
 class SerializationNode : public ngraph::op::Op {
@@ -22,7 +22,7 @@ public:
     OPENVINO_OP("SerializationNode", "SnippetsOpset");
 
     SerializationNode() = default;
-    SerializationNode(const Output <Node> &arg, const std::shared_ptr<LoweredExpr>& expr)
+    SerializationNode(const Output<Node> &arg, const std::shared_ptr<lowered::Expression>& expr)
     : Op({arg}), m_expr(expr) {
         if (!m_expr || !m_expr->get_node())
             throw ngraph_error("SerializationNode requires a valid expression with non-null node pointer");
@@ -68,7 +68,7 @@ public:
     }
 
 private:
-    std::shared_ptr<LoweredExpr> m_expr;
+    std::shared_ptr<lowered::Expression> m_expr;
 };
 
 } // namespace op

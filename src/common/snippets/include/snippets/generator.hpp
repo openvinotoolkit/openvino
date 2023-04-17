@@ -9,10 +9,9 @@
 #pragma once
 
 #include "snippets_isa.hpp"
-#include "emitter.hpp"
-#include "target_machine.hpp"
-#include "lowered_expr.hpp"
-#include "pass/lowered/linear_IR_transformation.hpp"
+
+#include "snippets/lowered/linear_ir.hpp"
+#include "snippets/lowered/pass/transformation.hpp"
 
 namespace ngraph {
 namespace snippets {
@@ -46,7 +45,7 @@ public:
     bool is_flat {false};
     code ptr {nullptr};
 };
-class LoweredExprIR;
+
 /**
  * @interface Generator
  * @brief Target independent code generator interface
@@ -78,7 +77,7 @@ public:
          code binary_code = nullptr;
          size_t buffer_scratchpad_size = 0;
      };
-    LoweringResult generate(std::shared_ptr<ov::Model>& m, const LoweringConfig& config, const void* compile_params = nullptr);
+    LoweringResult generate(std::shared_ptr<ov::Model>& m, const lowered::Config& config, const void* compile_params = nullptr);
 
     /**
      * @brief gets target machine
@@ -111,12 +110,12 @@ protected:
     /**
     * @brief gets target specific transformations for code generation
     */
-    virtual pass::lowered::LinearIRTransformationPipeline target_specific_transformations() const;
+    virtual lowered::pass::TransformationPipeline target_specific_transformations() const;
 
     std::shared_ptr<TargetMachine> target;
     // todo: we need to save lowered code to access compiled brgemm kernels on execution time (normally lowered is destructed by then).
     //  This is temporary solution, remove this when kernel caching is implemented. Don't forget to make generate const method.
-    LoweredExprIR lowered_saved;
+    lowered::LinearIR lowered_saved;
 };
 
 } // namespace snippets

@@ -24,11 +24,9 @@ public:
     /**
      * @brief Default constructor
      */
-    Emitter(const std::shared_ptr<ngraph::Node>& n) {
-    }
+    Emitter(const std::shared_ptr<ngraph::Node>& n) {}
 
-    Emitter(std::vector<std::pair<std::shared_ptr<Emitter>, RegInfo>>& region) {
-    }
+    Emitter(std::vector<std::pair<std::shared_ptr<Emitter>, RegInfo>>& region) {}
 
     /**
      * @brief called by generator to generate code to produce target code for a specific operation
@@ -47,8 +45,8 @@ public:
      * @brief called by generator to generate data section, if needed for a specific operation
      * @return void
      */
-    virtual void emit_data() const {
-    }
+    virtual void emit_data() const {}
+
     virtual ~Emitter() = default;
 };
 

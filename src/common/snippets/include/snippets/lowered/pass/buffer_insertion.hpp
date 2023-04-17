@@ -1,0 +1,44 @@
+// Copyright (C) 2023 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
+//
+
+#pragma once
+
+#include "transformation.hpp"
+#include "snippets/tensor_descriptor.hpp"
+
+namespace ngraph {
+namespace snippets {
+namespace lowered {
+namespace pass {
+
+/**
+ * @interface BufferInsertion
+ * @brief The pass inserts Buffer between exit points of one loop (or Brgemm) and
+ *        entry points of another loop (or Brgemm) to store intermediate data.
+ *        The pass should be called after LoopFusion.
+ * @param m_buffer_allocation_rank - rank of shape for memory allocation: shape[shape_rank - normalize(m_allocation_rank) : shape_rank]
+ * @ingroup snippets
+ */
+class BufferInsertion : public Transformation {
+public:
+    OPENVINO_RTTI("BufferInsertion", "Transformation")
+    BufferInsertion(int32_t buffer_allocation_rank);
+    bool run(LinearIR& linear_ir) override;
+
+private:
+    void insertion(LinearIR& linear_ir, const LinearIR::LoopManagerPtr& loop_manager, size_t loop_id,
+                   const std::vector<ExpressionPort>& loop_entries, const std::vector<ExpressionPort>& loop_exits);
+
+    LinearIR::constExprIt insertion_position(const LinearIR& linear_ir,
+                                             const LinearIR::LoopManagerPtr& loop_manager,
+                                             const ExpressionPtr& up_expr,
+                                             const ExpressionPtr& down_expr);
+
+    int32_t m_buffer_allocation_rank;
+};
+
+} // namespace pass
+} // namespace lowered
+} // namespace snippets
+} // namespace ngraph

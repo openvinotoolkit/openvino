@@ -75,7 +75,7 @@ std::vector<size_t> get_node_output_layout(const Node* node) {
         return {};
     if (node->is_dynamic())
         OPENVINO_THROW("It's illegal to call get_node_output_layout for dynamic nodes");
-    auto &rt = node->get_rt_info();
+    auto& rt = node->get_rt_info();
     const auto rinfo = rt.find("Layout");
     if (rinfo != rt.end()) {
         std::vector<size_t> layout(rinfo->second.as<std::vector<size_t>>());

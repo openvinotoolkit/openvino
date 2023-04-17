@@ -82,7 +82,7 @@ void LoweringTests::TearDown() {
 
 std::shared_ptr<ngraph::snippets::op::Subgraph> LoweringTests::getSubgraph(const std::shared_ptr<Model>& f) {
     std::shared_ptr<ngraph::snippets::op::Subgraph> subgraph;
-    for (const auto &op : f->get_ops()) {
+    for (const auto& op : f->get_ops()) {
         bool is_subgraph = is_type<ngraph::snippets::op::Subgraph>(op);
         if (is_subgraph) {
             NGRAPH_CHECK(subgraph.use_count() == 0,

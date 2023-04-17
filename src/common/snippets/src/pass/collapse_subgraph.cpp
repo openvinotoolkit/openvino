@@ -183,11 +183,11 @@ auto has_supported_in_out(const std::shared_ptr<const Node> &n) -> bool {
                         (ov::is_type<const opset1::Transpose>(n) ||
                          ov::is_type<const opset1::Broadcast>(n))));
     };
-    const auto & inputs = n->inputs();
-    const auto & outputs = n->outputs();
+    const auto&  inputs = n->inputs();
+    const auto&  outputs = n->outputs();
     // todo: Is this check necessary? Remove if not
     for (const auto& out : outputs) {
-        for (const auto &in_out : out.get_target_inputs()) {
+        for (const auto& in_out : out.get_target_inputs()) {
             if (ov::is_type<ngraph::op::v5::Loop>(in_out.get_node()->shared_from_this())) {
                 return false;
             }
@@ -198,7 +198,7 @@ auto has_supported_in_out(const std::shared_ptr<const Node> &n) -> bool {
 }
 
 auto has_result_child(const std::shared_ptr<const Node> &node) -> bool {
-    for (const auto &child : node->get_users()) {
+    for (const auto& child : node->get_users()) {
         if (ov::is_type<ngraph::opset1::Result>(child)) {
             return true;
         }
@@ -208,7 +208,7 @@ auto has_result_child(const std::shared_ptr<const Node> &node) -> bool {
 
 auto get_num_result_children(const std::shared_ptr<const Node> &node) -> size_t {
     size_t result = 0;
-    for (const auto &child : node->get_users()) {
+    for (const auto& child : node->get_users()) {
         if (ov::is_type<ngraph::opset1::Result>(child)) {
             result++;
         }
@@ -314,14 +314,14 @@ TokenizeSnippets::TokenizeSnippets() {
         */
         const auto cyclicDependencyIsIntoduced = [&node](const std::shared_ptr<Node>& nodeToExamine, std::pair<int64_t, int64_t>& currentBounds) -> bool {
             assert(currentBounds.first < currentBounds.second && "Invalid currentBounds passed");
-            const auto &parentNodes = ngraph::as_node_vector(nodeToExamine->input_values());
+            const auto& parentNodes = ngraph::as_node_vector(nodeToExamine->input_values());
             const int64_t maxParentOrder = std::accumulate(parentNodes.begin(), parentNodes.end(), currentBounds.first,
                                                             [](int64_t maxOrder, std::shared_ptr<Node> n){
                                                                 if (ngraph::op::is_constant(n) || ngraph::op::is_parameter(n))
                                                                     return maxOrder;
                                                                 return std::max(maxOrder, GetTopologicalOrder(n));
                                                             });
-            const auto &childNodes = nodeToExamine->get_users();
+            const auto& childNodes = nodeToExamine->get_users();
             // Skip the node being attached, since it will be a part of subgraph and can't introduce loop dependency
             const int64_t minChildOrder = std::accumulate(childNodes.begin(), childNodes.end(), currentBounds.second,
                                                             [&node](int64_t minOrder, std::shared_ptr<Node> n){
@@ -336,7 +336,7 @@ TokenizeSnippets::TokenizeSnippets() {
             return true;
         };
 
-        for (const auto &input_node : ngraph::as_node_vector(input_values)) {
+        for (const auto& input_node : ngraph::as_node_vector(input_values)) {
             if (auto subgraph = ov::as_type_ptr<op::Subgraph>(input_node)) {
                 if (!clones.count(input_node)) {
                     auto f = subgraph->body().clone();
@@ -388,7 +388,7 @@ TokenizeSnippets::TokenizeSnippets() {
                             // Todo: here we rely on friendly_name uniqueness. Propose a different algorithm.
                             size_t current_input_index = body_parameters.size();
                             for (size_t p_ind = 0; p_ind <  body_parameters.size(); p_ind++) {
-                                const auto & p = body_parameters[p_ind];
+                                const auto& p = body_parameters[p_ind];
                                 // unite two body parameters from two input subgraphs only if:
                                 // 1. two input subgraphs are connected to the same parent node/subgraph,
                                 // 2. and connected to the same output port of this parent node/subgraph.

@@ -11,8 +11,8 @@
 #include "snippets_transformations/op/store_convert.hpp"
 
 
-bool ov::intel_cpu::pass::FuseLoadStoreConvert::fuse_load_convert(ngraph::snippets::LoweredExprIR& linear_ir,
-                                                                  ngraph::snippets::LoweredExprIR::constExprIt& convert_it) {
+bool ov::intel_cpu::pass::FuseLoadStoreConvert::fuse_load_convert(ngraph::snippets::lowered::LinearIR& linear_ir,
+                                                                  ngraph::snippets::lowered::LinearIR::constExprIt& convert_it) {
     const auto& convert_expr = *convert_it;
     const auto& convert = ov::as_type_ptr<ov::op::v0::Convert>(convert_expr->get_node());
     const auto input_td = convert_expr->get_inputs().front();
@@ -51,12 +51,12 @@ bool ov::intel_cpu::pass::FuseLoadStoreConvert::fuse_load_convert(ngraph::snippe
     const auto& insertion_pos = std::next(convert_it);
     linear_ir.erase(std::find(linear_ir.cbegin(), mv_expr_it, load_expr));
     linear_ir.erase(mv_expr_it);
-    convert_it = linear_ir.insert(insertion_pos, std::make_shared<ngraph::snippets::LoweredExpr>(load_convert, in_td, out_td));
+    convert_it = linear_ir.insert(insertion_pos, std::make_shared<ngraph::snippets::lowered::Expression>(load_convert, in_td, out_td));
     return true;
 }
 
-bool ov::intel_cpu::pass::FuseLoadStoreConvert::fuse_store_convert(ngraph::snippets::LoweredExprIR& linear_ir,
-                                                                   ngraph::snippets::LoweredExprIR::constExprIt& convert_it) {
+bool ov::intel_cpu::pass::FuseLoadStoreConvert::fuse_store_convert(ngraph::snippets::lowered::LinearIR& linear_ir,
+                                                                   ngraph::snippets::lowered::LinearIR::constExprIt& convert_it) {
     const auto& convert_expr = *convert_it;
     const auto& convert = convert_expr->get_node();
     const auto input_td = convert_expr->get_inputs().front();
@@ -93,11 +93,11 @@ bool ov::intel_cpu::pass::FuseLoadStoreConvert::fuse_store_convert(ngraph::snipp
     const auto& insertion_pos = std::next(store_it);
     linear_ir.erase(store_it);
     convert_it = linear_ir.erase(convert_it);
-    linear_ir.insert(insertion_pos, std::make_shared<ngraph::snippets::LoweredExpr>(store_convert, in_td, out_td));
+    linear_ir.insert(insertion_pos, std::make_shared<ngraph::snippets::lowered::Expression>(store_convert, in_td, out_td));
     return true;
 }
 
-bool ov::intel_cpu::pass::FuseLoadStoreConvert::run(ngraph::snippets::LoweredExprIR& linear_ir) {
+bool ov::intel_cpu::pass::FuseLoadStoreConvert::run(ngraph::snippets::lowered::LinearIR& linear_ir) {
     OV_ITT_SCOPED_TASK(ngraph::pass::itt::domains::SnippetsTransform, "Snippets::FuseLoadStoreConvert")
 
     bool modified = false;

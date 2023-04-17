@@ -6,7 +6,10 @@
 #include <cpu/x64/jit_generator.hpp>
 
 #include "jit_snippets_emitters.hpp"
+
+#include "snippets/lowered/expression.hpp"
 #include "snippets/op/subgraph.hpp"
+#include "snippets/snippets_isa.hpp"
 #include "snippets/utils.hpp"
 #include "transformations/snippets/x64/op/brgemm_copy_b.hpp"
 #include "transformations/snippets/x64/op//brgemm_cpu.hpp"
@@ -20,9 +23,9 @@ using ngraph::snippets::AllocatedEmitter;
 using namespace Xbyak;
 using namespace dnnl::impl;
 using namespace dnnl::impl::cpu::x64;
-using ngraph::snippets::LoweredExpr;
-using ngraph::snippets::IOLoweredExpr;
-using ngraph::snippets::LoweredExprPtr;
+using ngraph::snippets::lowered::Expression;
+using ngraph::snippets::lowered::IOExpression;
+using ngraph::snippets::lowered::ExpressionPtr;
 using ngraph::snippets::TensorDescriptorPtr;
 
 namespace ov {
@@ -43,7 +46,7 @@ jit_container_emitter::jit_container_emitter(dnnl::impl::cpu::x64::jit_generator
 }
 
 void jit_container_emitter::map_abstract_registers(mapping_info& gpr_map_pool,  mapping_info& vec_map_pool,
-                            ngraph::snippets::LoweredExprIR::container& expressions) const {
+                            ngraph::snippets::lowered::LinearIR::container& expressions) const {
     if (expressions.empty())
         IE_THROW() << "Cannot map registers when there is no allocated_emitters provided";
     auto map_regs = [](const std::vector<size_t>& abstract_regs, mapping_info& mapping) {
@@ -121,13 +124,13 @@ KernelEmitter::KernelEmitter(dnnl::impl::cpu::x64::jit_generator* h, dnnl::impl:
         TensorDescriptorPtr td {};
         element::Type etype;
         switch (expr->get_type()) {
-            case IOLoweredExpr::io_type::INPUT: {
+            case ngraph::snippets::lowered::IOExpression::io_type::INPUT: {
                 td = expr->get_outputs()[0];
                 etype = expr->get_node()->get_output_element_type(0);
                 num_inputs++;
                 break;
             }
-            case IOLoweredExpr::io_type::OUTPUT: {
+            case ngraph::snippets::lowered::IOExpression::io_type::OUTPUT: {
                 num_outputs++;
                 td = expr->get_inputs()[0];
                 etype = expr->get_node()->get_input_element_type(0);
@@ -161,14 +164,14 @@ KernelEmitter::KernelEmitter(dnnl::impl::cpu::x64::jit_generator* h, dnnl::impl:
 
     mapping_info gpr_map_pool({}, gp_regs_pool);
     mapping_info vec_map_pool({}, vec_regs_pool);
-    ngraph::snippets::LoweredExprIR::container mem_access_exprs;
-    ngraph::snippets::LoweredExprIR::container general_exprs;
+    ngraph::snippets::lowered::LinearIR::container mem_access_exprs;
+    ngraph::snippets::lowered::LinearIR::container general_exprs;
     std::set<size_t> unique_buffers;
 
     for (const auto& expr : body) {
         // Brgemm is a special case since it incorporates input and output (we use onednn kernel)
         // Just like Load & Store it requires offsets calculation
-        if (std::dynamic_pointer_cast<ngraph::snippets::IOLoweredExpr>(expr)) {
+        if (std::dynamic_pointer_cast<ngraph::snippets::lowered::IOExpression>(expr)) {
             mem_access_exprs.emplace_back(expr);
         } else if (const auto buffer = ov::as_type_ptr<ngraph::snippets::op::Buffer>(expr->get_node())) {
             const auto buffer_id = buffer->get_id();

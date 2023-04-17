@@ -13,13 +13,13 @@ namespace snippets {
 namespace pass {
 
 void SetSnippetsNodeType(const std::shared_ptr<Node> &node, SnippetsNodeType nodeType) {
-    auto &rt = node->get_rt_info();
+    auto& rt = node->get_rt_info();
     rt["SnippetsNodeType"] = nodeType;
 }
 
 SnippetsNodeType GetSnippetsNodeType(const std::shared_ptr<const Node> &node) {
     OV_ITT_SCOPED_TASK(ngraph::pass::itt::domains::SnippetsTransform, "Snippets::GetSnippetsNodeType")
-    auto &rt = node->get_rt_info();
+    auto& rt = node->get_rt_info();
     const auto rinfo = rt.find("SnippetsNodeType");
     if (rinfo == rt.end())
         return SnippetsNodeType::NotSet;
@@ -28,12 +28,12 @@ SnippetsNodeType GetSnippetsNodeType(const std::shared_ptr<const Node> &node) {
 
 void SetTopologicalOrder(const std::shared_ptr<Node> &node, int64_t order) {
     OV_ITT_SCOPED_TASK(ngraph::pass::itt::domains::SnippetsTransform, "Snippets::SetTopologicalOrder")
-    auto &rt = node->get_rt_info();
+    auto& rt = node->get_rt_info();
     rt["TopologicalOrder"] = order;
 }
 
 int64_t GetTopologicalOrder(const std::shared_ptr<const Node> &node) {
-    auto &rt = node->get_rt_info();
+    auto& rt = node->get_rt_info();
     const auto rinfo = rt.find("TopologicalOrder");
     if (rinfo == rt.end())
         OPENVINO_THROW("Topological order is required, but not set.");
@@ -44,7 +44,7 @@ bool EnumerateNodes::run_on_model(const std::shared_ptr<ov::Model> &m) {
     OV_ITT_SCOPED_TASK(ngraph::pass::itt::domains::SnippetsTransform, "Snippets::EnumerateNodes")
     int64_t order = 0;
     // Todo: We don't really have to set order for every node, just for subgraph parents and children would be enough
-    for (auto &node : m->get_ordered_ops()) {
+    for (auto& node : m->get_ordered_ops()) {
         SetTopologicalOrder(node, order++);
     }
     return true;

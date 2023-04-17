@@ -199,7 +199,7 @@ static inline auto build_subgraph(const std::shared_ptr<ngraph::Node>& node, con
 auto inline update_out_tensor_name(const std::shared_ptr<ngraph::snippets::op::Subgraph>& subgraph) -> void {
     bool not_set = true;
     for (unsigned int i = 0; i < subgraph->get_output_size() && not_set; i++) {
-        for (const auto &in : subgraph->get_output_target_inputs(i)) {
+        for (const auto& in : subgraph->get_output_target_inputs(i)) {
             if (ov::is_type<ov::op::v0::Result>(in.get_node())) {
                 const auto& body_result = subgraph->body_ptr()->get_output_op(i);
                 const auto& body_result_input = body_result->get_input_source_output(0);

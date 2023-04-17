@@ -17,6 +17,7 @@
 #include "snippets/pass/matmul_to_brgemm.hpp"
 #include "snippets/pass/fuse_transpose_brgemm.hpp"
 #include "snippets/utils.hpp"
+#include "snippets/tensor_descriptor.hpp"
 
 #include "transformations/common_optimizations/nop_elimination.hpp"
 #include "transformations/utils/utils.hpp"
@@ -25,7 +26,6 @@
 #include "ngraph/pass/constant_folding.hpp"
 #include "ov_ops/type_relaxed.hpp"
 #include <openvino/pass/serialize.hpp>
-#include "snippets/tensor_descriptor.hpp"
 
 #include <algorithm>
 #include <memory>
@@ -313,7 +313,7 @@ ov::PartialShape snippets::op::Subgraph::canonicalize(const BlockedShapeVector& 
     const auto baseRank = baseShape.size();
     const bool baseIsBlocked = baseOrder.size() != std::set<size_t>(baseOrder.begin(), baseOrder.end()).size();
     for (size_t i = 0; i < inputShapes.size(); i++) {
-        const auto &blockedShape = inputShapes[i];
+        const auto& blockedShape = inputShapes[i];
         PartialShape inShape;
         AxisVector inOrder;
         element::Type inType;
@@ -451,7 +451,7 @@ void snippets::op::Subgraph::align_element_types(const BlockedShapeVector& outpu
 void snippets::op::Subgraph::convert_to_snippet_dialect() {
     INTERNAL_OP_SCOPE(Subgraph);
     OV_ITT_SCOPED_TASK(ngraph::pass::itt::domains::SnippetsTransform, "Snippets::convert_to_snippet_dialect")
-    const auto & params = body_ptr()->get_parameters();
+    const auto&  params = body_ptr()->get_parameters();
 
     bool inputs_has_dynamic_last_dims = std::any_of(params.begin(), params.end(),
                                                     [](const shared_ptr<ngraph::op::Parameter>& p){
@@ -522,7 +522,7 @@ snippets::Schedule snippets::op::Subgraph::generate(
 
     const auto ops = body_ptr()->get_ops();
     // actual code emission
-    LoweringConfig lowering_config;
+    lowered::Config lowering_config;
     lowering_config.m_save_lowered_code = config.m_has_domain_sensitive_ops;
     lowering_config.m_need_fill_tail_register = config.m_has_domain_sensitive_ops;
     lowering_config.m_loop_depth = tileRank;

@@ -19,7 +19,7 @@ std::string CanonicalizationTests::getTestCaseName(testing::TestParamInfo<canoni
     std::tie(inputs[0], inputs[1], output, expectedOutput) = obj.param;
     std::ostringstream result;
     for (size_t i = 0; i < inputs.size(); i++) {
-        const auto &blockedshape = std::get<1>(inputs[i]);
+        const auto& blockedshape = std::get<1>(inputs[i]);
         // input shape
         result << "IS[" << i << "]=" << CommonTestUtils::vec2str(std::get<0>(inputs[i])) << "_";
         // input blocked shape
