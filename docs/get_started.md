@@ -93,6 +93,7 @@ Model Compression and Quantization
 ----------------------------------
 
 Use OpenVINO’s model compression tools to reduce your model’s latency and memory footprint while maintaining good accuracy.
+
 * Tutorial - `OpenVINO Post-Training Model Quantization <https://docs.openvino.ai/nightly/notebooks/111-detection-quantization-with-output.html>`__
 * Tutorial - `Quantization-Aware Training in TensorFlow with OpenVINO NNCF <https://docs.openvino.ai/nightly/notebooks/305-tensorflow-quantization-aware-training-with-output.html>`__
 * Tutorial - `Quantization-Aware Training in PyTorch with NNCF <https://docs.openvino.ai/nightly/notebooks/302-pytorch-quantization-aware-training-with-output.html>`__
@@ -102,13 +103,16 @@ Automated Device Configuration
 ------------------------------
 
 OpenVINO’s hardware device configuration options enable you to write an application once and deploy it anywhere with optimal performance.
+
 * Increase application portability with :doc:`Automatic Device Selection (AUTO) <openvino_docs_OV_UG_supported_plugins_AUTO>`
 * Perform parallel inference across processors with :doc:`Multi-Device Execution (MULTI) <openvino_docs_OV_UG_Running_on_multiple_devices>`
 * Efficiently split inference between hardware cores with :doc:`Heterogeneous Execution (HETERO) <openvino_docs_OV_UG_Hetero_execution>`
 
 Flexible Model and Pipeline Configuration
 -----------------------------------------
+
 Pipeline and model configuration features in OpenVINO Runtime allow you to easily optimize your application’s performance on any target hardware.
+
 * :doc:`Automatic Batching <openvino_docs_OV_UG_Automatic_Batching>` performs on-the-fly grouping of inference requests to maximize utilization of the target hardware’s memory and processing cores.
 * :doc:`Performance Hints <openvino_docs_OV_UG_Performance_Hints>` automatically adjust runtime parameters to prioritize for low latency or high throughput
 * :doc:`Dynamic Shapes <openvino_docs_OV_UG_DynamicShapes>` reshapes models to accept arbitrarily-sized inputs, increasing flexibility for applications that encounter different data shapes

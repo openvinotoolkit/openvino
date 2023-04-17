@@ -199,7 +199,7 @@ In case when Accuracy-aware Quantization does not allow achieving the desired ac
 Examples
 ########
 
- * `Quantization of Object Detection model with control of accuracy <https://github.com/openvinotoolkit/openvino/tree/master/tools/pot/openvino/tools/pot/api/samples/object_detection>`__
+* `Quantization of Object Detection model with control of accuracy <https://github.com/openvinotoolkit/openvino/tree/master/tools/pot/openvino/tools/pot/api/samples/object_detection>`__
 
 @endsphinxdirective
 
