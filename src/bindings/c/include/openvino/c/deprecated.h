@@ -8,6 +8,26 @@
  **/
 #pragma once
 
+#ifdef OPENVINO_DEPRECATED
+#    undef OPENVINO_DEPRECATED
+#endif
+
+#ifdef OPENVINO_ENUM_DEPRECATED
+#    undef OPENVINO_ENUM_DEPRECATED
+#endif
+
+#ifdef OPENVINO_DO_PRAGMA
+#    undef OPENVINO_DO_PRAGMA
+#endif
+
+#ifdef OPENVINO_SUPPRESS_DEPRECATED_START
+#    undef OPENVINO_SUPPRESS_DEPRECATED_START
+#endif
+
+#ifdef OPENVINO_SUPPRESS_DEPRECATED_END
+#    undef OPENVINO_SUPPRESS_DEPRECATED_END
+#endif
+
 //
 // The OPENVINO_DEPRECATED macro can be used to deprecate a function declaration. For example:
 //
