@@ -6,6 +6,7 @@
 
 // TODO: remove relative path
 #include "../reduce.hpp"
+#include "acl_utils.hpp"
 #include "arm_compute/runtime/NEON/NEFunctions.h"
 #include "utils/debug_capabilities.h"
 
@@ -68,6 +69,17 @@ public:
                       " dimensions maximum. src[0] shape rank is ", srcDescs[0]->getShape().getRank());
             return false;
         }
+        if (reduceAttrs.operation == Algorithm::ReduceMean) {
+            arm_compute::Coordinates axesMean;
+            for (size_t i = 0; i < reduceAttrs.axes.size(); ++i) {
+                auto axe = axisCast(reduceAttrs.axes[i], srcDescs[0]->getShape().getRank());
+                if (axe > 3) {
+                    DEBUG_LOG("ACL supports 3 or less axis for Reduce op");
+                    return false;
+                }
+            }
+        }
+
         return true;
     }
 
