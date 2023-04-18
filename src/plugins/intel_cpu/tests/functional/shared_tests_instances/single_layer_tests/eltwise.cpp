@@ -41,6 +41,10 @@ std::vector<std::vector<ov::test::InputShape>> inShapesDynamic = {
          {{ngraph::Dimension(1, 10), 200}, {{2, 200}, {5, 200}}}},
 };
 
+std::vector<std::vector<ov::test::InputShape>> inShapesDynamicLargeUpperBound = {
+        {{{ngraph::Dimension(1, 1000000000000), 200}, {{2, 200}, {5, 200}}}},
+};
+
 std::vector<ov::test::ElementType> netPrecisions = {
         ov::element::f32,
         ov::element::f16,
@@ -117,9 +121,24 @@ const auto multiply_params_dynamic = ::testing::Combine(
         ::testing::Values(CommonTestUtils::DEVICE_CPU),
         ::testing::Values(additional_config));
 
+const auto multiply_params_dynamic_large_upper_bound = ::testing::Combine(
+        ::testing::ValuesIn(inShapesDynamicLargeUpperBound),
+        ::testing::Values(ngraph::helpers::EltwiseTypes::ADD),
+        ::testing::ValuesIn(secondaryInputTypesDynamic),
+        ::testing::ValuesIn(opTypesDynamic),
+        ::testing::Values(ov::element::f32),
+        ::testing::Values(ov::element::undefined),
+        ::testing::Values(ov::element::undefined),
+        ::testing::Values(CommonTestUtils::DEVICE_CPU),
+        ::testing::Values(additional_config));
+
 INSTANTIATE_TEST_SUITE_P(smoke_CompareWithRefs_static, EltwiseLayerTest, multiply_params, EltwiseLayerTest::getTestCaseName);
 INSTANTIATE_TEST_SUITE_P(smoke_CompareWithRefs_static_check_collapsing, EltwiseLayerTest, collapsing_params, EltwiseLayerTest::getTestCaseName);
 INSTANTIATE_TEST_SUITE_P(smoke_CompareWithRefs_dynamic, EltwiseLayerTest, multiply_params_dynamic, EltwiseLayerTest::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_CompareWithRefs_dynamic_large_upper_bound,
+                         EltwiseLayerTest,
+                         multiply_params_dynamic_large_upper_bound,
+                         EltwiseLayerTest::getTestCaseName);
 
 
 std::vector<std::vector<ov::Shape>> inShapesSingleThread = {
