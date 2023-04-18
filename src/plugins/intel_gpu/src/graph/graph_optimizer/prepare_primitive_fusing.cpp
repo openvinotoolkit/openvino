@@ -594,8 +594,10 @@ void prepare_primitive_fusing::fuse_simple_primitives(program &p) {
         };
 
         auto mvn_supports_fusings = [](mvn_node& node) -> bool {
-            auto in_dt = node.get_dependency(0).get_output_layout().data_type;
-            return data_type_traits::is_i8_u8(in_dt);
+            auto in_layout = node.get_dependency(0).get_output_layout();
+            if (node.get_primitive()->requires_alignment(in_layout.get_partial_shape()))
+                return false;
+            return data_type_traits::is_i8_u8(in_layout.data_type);
         };
 
         auto dts_supports_fusings = [](depth_to_space_node& node) -> bool {
