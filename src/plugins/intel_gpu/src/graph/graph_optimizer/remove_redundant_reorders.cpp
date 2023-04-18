@@ -313,6 +313,17 @@ void remove_redundant_reorders::run(program& p) {
         if (!o_layout.compatible(i_layout))
             continue;
 
+        // Check peer node which is reorder with padding. The reorder will cause layout incompatible.
+        // So r_node shouldn't be opt out in this case.
+        auto& dep = r_node.get_dependency(0);
+        auto will_dependency_have_padding = false;
+        for (auto user : dep.get_users()) {
+            if ((user != node) && (user->is_type<reorder>()) && (user->get_output_layout().data_padding))
+                will_dependency_have_padding = true;
+        }
+        if (will_dependency_have_padding == true)
+            continue;
+
         if (r_node.is_output() && i_layout.get_linear_size() != o_layout.get_linear_size())
             continue;
 
