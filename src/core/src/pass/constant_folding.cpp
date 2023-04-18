@@ -54,58 +54,56 @@ const auto friendly_name_from = [](const ov::Node& node, const size_t output_cou
 };
 
 const auto fold_gather = [](const std::shared_ptr<ov::Node>& current_node) -> bool {
-    auto data_out = current_node->input_value(0);
-    if (!ov::as_type_ptr<ov::opset11::ShapeOf>(data_out.get_node_shared_ptr())) {
+    auto data_out = current_node->get_input_node_shared_ptr(0);
+    if (!ov::is_type<ov::op::util::ShapeOfBase>(data_out)) {
         return false;
     }
-    auto out_pshape = data_out.get_node_shared_ptr()->input_value(0).get_partial_shape();
-    if (out_pshape.rank().is_static() && is_output_foldable(data_out, "can_be_partially_folded")) {
-        auto rank = out_pshape.rank().get_length();
-        std::set<size_t> dyn_indices;
+    const auto& out_pshape = data_out->get_input_partial_shape(0);
+    if (out_pshape.rank().is_dynamic() || !is_output_foldable(data_out, "can_be_partially_folded")) {
+        return false;
+    }
 
-        // In some cases, Gather doesn't use dynamic dimensions from its 1st input `ShapeOf(data)`
-        // in `indices` argument, so we can create a constant after ShapeOf with any values instead
-        // of the dynamic dims.
-        int64_t stub = 1;
-        std::vector<int64_t> shape_with_stubs(rank);
-        for (int64_t i = 0; i < rank; ++i) {
-            if (out_pshape[i].is_dynamic()) {
-                dyn_indices.insert(i);
-                shape_with_stubs[i] = stub;
-            } else {
-                shape_with_stubs[i] = out_pshape[i].get_length();
-            }
-        }
+    const auto indices = ov::as_type_ptr<ov::opset11::Constant>(current_node->get_input_node_shared_ptr(1));
+    if (!indices)
+        return false;
 
-        auto indices = current_node->input_value(1).get_node_shared_ptr();
-        bool dyn_indices_required = false;
-        if (auto const_indices = ov::as_type_ptr<ov::opset11::Constant>(indices)) {
-            auto indices_values = const_indices->cast_vector<int64_t>();
-            for (auto idx : indices_values) {
-                if (idx < 0)
-                    idx += rank;
-                if (dyn_indices.count(idx)) {
-                    dyn_indices_required = true;
-                    break;
-                }
-            }
+    const auto rank = out_pshape.rank().get_length();
+    std::set<size_t> dyn_indices;
 
-            if (!dyn_indices_required) {
-                auto replacement = std::make_shared<ov::op::v0::Constant>(data_out.get_element_type(),
-                                                                          ov::Shape{shape_with_stubs.size()},
-                                                                          shape_with_stubs);
-
-                current_node->input(0).replace_source_output(replacement);
-                auto rt_info = data_out.get_node_shared_ptr()->get_rt_info();
-                rt_info.erase("can_be_partially_folded");
-                // Propagate runtime info attributes to replacement
-                copy_runtime_info(data_out.get_node_shared_ptr(), replacement);
-                return true;
-            }
+    // In some cases, Gather doesn't use dynamic dimensions from its 1st input `ShapeOf(data)`
+    // in `indices` argument, so we can create a constant after ShapeOf with any values instead
+    // of the dynamic dims.
+    int64_t stub = 1;
+    std::vector<int64_t> shape_with_stubs(rank);
+    for (int64_t i = 0; i < rank; ++i) {
+        if (out_pshape[i].is_dynamic()) {
+            dyn_indices.insert(i);
+            shape_with_stubs[i] = stub;
+        } else {
+            shape_with_stubs[i] = out_pshape[i].get_length();
         }
     }
 
-    return false;
+    auto indices_values = indices->cast_vector<int64_t>();
+    for (auto idx : indices_values) {
+        if (idx < 0) {
+            idx += rank;
+        }
+        if (dyn_indices.count(idx)) {
+            return false;
+        }
+    }
+
+    auto replacement = std::make_shared<ov::op::v0::Constant>(data_out->get_output_element_type(0),
+                                                              ov::Shape{shape_with_stubs.size()},
+                                                              shape_with_stubs);
+
+    current_node->input(0).replace_source_output(replacement);
+    auto& rt_info = data_out->get_rt_info();
+    rt_info.erase("can_be_partially_folded");
+    // Propagate runtime info attributes to replacement
+    copy_runtime_info(data_out, replacement);
+    return true;
 };
 
 /**
