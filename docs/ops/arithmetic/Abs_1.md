@@ -1,5 +1,7 @@
 # Abs {#openvino_docs_ops_arithmetic_Abs_1}
 
+@sphinxdirective
+
 **Versioned name**: *Abs-1*
 
 **Category**: *Arithmetic unary*
@@ -8,43 +10,44 @@
 
 **Attributes**:
 
-    No attributes available.
+  No attributes available.
 
 **Inputs**
 
-* **1**: An tensor of type *T*. **Required.**
+  * **1**: An tensor of type *T*. **Required.**
 
 **Outputs**
 
-* **1**: The result of element-wise abs operation. A tensor of type *T*.
+  * **1**: The result of element-wise abs operation. A tensor of type *T*.
 
 **Types**
 
-* *T*: any numeric type.
+  * *T*: any numeric type.
 
 *Abs* does the following with the input tensor *a*:
 
-\f[
-a_{i} = \vert a_{i} \vert
-\f]
+.. math::
+   
+   a_{i} = \vert a_{i} \vert
+
 
 **Examples**
 
 *Example 1*
 
-```xml
-<layer ... type="Abs">
-    <input>
-        <port id="0">
-            <dim>256</dim>
-            <dim>56</dim>
-        </port>
-    </input>
-    <output>
-        <port id="1">
-            <dim>256</dim>
-            <dim>56</dim>
-        </port>
-    </output>
-</layer>
-```
+.. code-bloc:: xml
+   
+   <layer ... type="Abs">
+       <input>
+           <port id="0">
+               <dim>256</dim>
+               <dim>56</dim>
+           </port>
+       </input>
+       <output>
+           <port id="1">
+               <dim>256</dim>
+               <dim>56</dim>
+           </port>
+       </output>
+   </layer>
