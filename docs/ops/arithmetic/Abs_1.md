@@ -35,7 +35,7 @@
 
 *Example 1*
 
-.. code-bloc:: xml
+.. code-block:: xml
    
    <layer ... type="Abs">
        <input>
@@ -51,3 +51,7 @@
            </port>
        </output>
    </layer>
+
+
+@endsphinxdirective
+

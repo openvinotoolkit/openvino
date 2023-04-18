@@ -1,5 +1,7 @@
 # Acos {#openvino_docs_ops_arithmetic_Acos_1}
 
+@sphinxdirective
+
 **Versioned name**: *Acos-1*
 
 **Category**: *Arithmetic unary*
@@ -8,43 +10,46 @@
 
 **Attributes**:
 
-    No attributes available.
+  No attributes available.
 
 **Inputs**
 
-* **1**: An tensor of type *T*. **Required.**
+  * **1**: An tensor of type *T*. **Required.**
 
 **Outputs**
 
-* **1**: The result of element-wise acos operation. A tensor of type *T*.
+  * **1**: The result of element-wise acos operation. A tensor of type *T*.
 
 **Types**
 
-* *T*: any numeric type.
+  * *T*: any numeric type.
 
 *Acos* does the following with the input tensor *a*:
 
-\f[
-a_{i} = acos(a_{i})
-\f]
+.. math::
+   
+   a_{i} = acos(a_{i})
 
 **Examples**
 
 *Example 1*
 
-```xml
-<layer ... type="Acos">
-    <input>
-        <port id="0">
-            <dim>256</dim>
-            <dim>56</dim>
-        </port>
-    </input>
-    <output>
-        <port id="1">
-            <dim>256</dim>
-            <dim>56</dim>
-        </port>
-    </output>
-</layer>
-```
+..code-block:: xml
+  
+  <layer ... type="Acos">
+      <input>
+          <port id="0">
+              <dim>256</dim>
+              <dim>56</dim>
+          </port>
+      </input>
+      <output>
+          <port id="1">
+              <dim>256</dim>
+              <dim>56</dim>
+          </port>
+      </output>
+  </layer>
+
+@endsphinxdirective
+
