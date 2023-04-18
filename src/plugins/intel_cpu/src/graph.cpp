@@ -950,9 +950,6 @@ void Graph::PullOutputData(BlobMap &out) {
             if (expectedDesc.getLayout() == InferenceEngine::Layout::BLOCKED) {
                 expectedDesc = TensorDesc(expectedDesc.getPrecision(), expectedDesc.getLayout());
             }
-            if (getConfig().isNewApi && getConfig().batchLimit > 0) {
-                outDims[0] = node->batchToProcess();
-            }
             out[name]->setShape(outDims);
         }
 
@@ -964,7 +961,7 @@ void Graph::PullOutputData(BlobMap &out) {
         auto srcPrec = actualDesc.getPrecision();
         auto dstPrec = expectedDesc.getPrecision();
 
-        if ((getConfig().isNewApi && !getConfig().batchLimit) && srcPrec == dstPrec && ext_blob->byteSize() != intr_blob.GetSize())
+        if (getConfig().isNewApi && srcPrec == dstPrec && ext_blob->byteSize() != intr_blob.GetSize())
                 IE_THROW() << "Output blob byte size is not equal network output byte size ("
                                    << ext_blob->byteSize() << "!=" << intr_blob.GetSize() << ").";
 
@@ -983,19 +980,7 @@ void Graph::PullOutputData(BlobMap &out) {
             Memory outBloMem(getEngine());
             outBloMem.Create(outBlobDesc, ext_blob_ptr, false);
 
-            // branch for handling dynamic batch feature in new API
-            if (getConfig().isNewApi && getConfig().batchLimit > 0 && outBloMem.getStaticDims()[0] != intr_blob.getStaticDims()[0]) {
-                auto newDims = intr_blob.getStaticDims();
-                newDims[0] = outBloMem.getStaticDims()[0];
-
-                Memory tmpMem(getEngine());
-                auto newDesc = intr_blob.getDesc().cloneWithNewDims(newDims, true);
-                tmpMem.Create(newDesc, intr_blob.GetData(), false);
-
-                outBloMem.SetData(tmpMem, false);
-            } else {
-                outBloMem.SetData(intr_blob, false);
-            }
+            outBloMem.SetData(intr_blob, false);
         } else {
             size_t size_to_copy = intr_blob.GetDescWithType<BlockedMemoryDesc>()->getPaddedElementsCount();
             // TODO: Should we support InferenceEngine::PluginConfigParams::KEY_DYN_BATCH_LIMIT???
