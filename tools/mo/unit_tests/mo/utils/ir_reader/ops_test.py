@@ -45,6 +45,7 @@ class TestOps(unittest.TestCase):
         topk_node = graph.get_op_nodes(op="TopK")[0]
         self.assertEqual(topk_node["version"], "opset11")
         self.assertTrue(topk_node["stable"])
+        self.assertEqual(topk_node["index_element_type"], np.int32)
 
     def test_interpolate_11(self):
         data_shape = [6, 12, 10, 24]
