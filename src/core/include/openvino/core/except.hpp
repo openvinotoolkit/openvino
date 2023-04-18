@@ -8,6 +8,7 @@
 #include <stdexcept>
 
 #include "openvino/core/core_visibility.hpp"
+#include "openvino/core/deprecated.hpp"
 
 namespace ov {
 
@@ -20,13 +21,16 @@ struct CheckLocInfo {
 /// Base error for ov runtime errors.
 class OPENVINO_API Exception : public std::runtime_error {
 public:
+    OPENVINO_DEPRECATED("This constructor is deprecated and will be removed, please use OPENVINO_THROW instead")
+    explicit Exception(const std::string& what_arg) : std::runtime_error(what_arg) {}
+    OPENVINO_DEPRECATED("This constructor is deprecated and will be removed, please use OPENVINO_THROW instead")
+    explicit Exception(const std::stringstream& what_arg) : std::runtime_error(what_arg.str()) {}
     [[noreturn]] static void create(const CheckLocInfo& check_loc_info,
                                     const std::string& context_info,
                                     const std::string& explanation);
     virtual ~Exception();
 
 protected:
-    explicit Exception(const std::string& what_arg) : std::runtime_error(what_arg) {}
     static std::string make_what(const CheckLocInfo& check_loc_info,
                                  const std::string& context_info,
                                  const std::string& explanation);
@@ -49,7 +53,9 @@ public:
     ~AssertFailure() override;
 
 protected:
+    OPENVINO_SUPPRESS_DEPRECATED_START
     explicit AssertFailure(const std::string& what_arg) : ov::Exception(what_arg) {}
+    OPENVINO_SUPPRESS_DEPRECATED_END
 };
 
 /// Exception class to be thrown on not implemented code
