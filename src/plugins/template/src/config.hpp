@@ -35,6 +35,7 @@ struct Configuration {
     ov::threading::IStreamsExecutor::Config streams_executor_config;
     ov::hint::PerformanceMode performance_mode = ov::hint::PerformanceMode::LATENCY;
     bool disable_transformations = false;
+    bool exclusive_async_requests = false;
 };
 // ! [configuration:header]
 
