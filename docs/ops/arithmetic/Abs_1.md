@@ -35,7 +35,7 @@
 
 *Example 1*
 
-..  code-block:: xml
+.. code-block:: console
     
     <layer ... type="Abs">
         <input>
