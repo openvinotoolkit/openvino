@@ -66,6 +66,15 @@ public:
  *  | | |             |  [Copy]  [Copy]
  *  | | |              |    |   /
  * [Concat]            [Concat]
+ *
+ * Or if there is FQ connected to Concat
+ * [any node]                [any node]
+ *     |                          |
+ * [FakeQuantize]          [FakeQuantize]
+ *     |                          |
+ *     |              =>       [Copy]
+ *     |                         |
+ *  [Concat]                 [Concat]
  */
 class InsertCopyBeforeConcatLayer : public ngraph::pass::MatcherPass {
 public:

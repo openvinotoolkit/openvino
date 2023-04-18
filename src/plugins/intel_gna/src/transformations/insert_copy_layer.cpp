@@ -197,9 +197,13 @@ InsertCopyBeforeConcatLayer::InsertCopyBeforeConcatLayer() {
             auto current_node = get_prev_node_skipping_certain(concat_input, is_gna_non_functional_node);
 
             // Crop -> Concat, Input -> Split -> Concat
+            // FakeQuantize -> Concat - FQ needs to be detected, because:
+            //   - on one hand it's not non-functional layer, so it's not being skipped
+            //   - on the other - it gets fused during the further transformations, so we loose the connection to Concat
             if ((std::dynamic_pointer_cast<ngraph::op::CropIE>(current_node) && !is_crop_affined(current_node)) ||
                 std::dynamic_pointer_cast<ngraph::opset8::Split>(current_node) ||
-                std::dynamic_pointer_cast<ngraph::opset8::VariadicSplit>(current_node)) {
+                std::dynamic_pointer_cast<ngraph::opset8::VariadicSplit>(current_node) ||
+                std::dynamic_pointer_cast<ngraph::opset9::FakeQuantize>(current_node)) {
                 insert_copy_layer_between(concat_input, concat, i);
             }
         }
