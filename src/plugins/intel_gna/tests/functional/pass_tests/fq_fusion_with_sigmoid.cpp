@@ -62,10 +62,13 @@ public:
         std::ostringstream result;
         result << "netPrecision=" << netPrecision.name() << "_";
         result << "IS=" << inputSize << "_";
-        result << "targetDevice=" << targetDevice << "_";
         result << "levelFq=" << levelFq << "_";
         result << "(minFq,maxFq)=" << std::to_string(minMaxFq.first) << "_" << std::to_string(minMaxFq.first) << "_";
         result << "inputSize=" << std::to_string(inputSize);
+        result << "targetDevice=" << targetDevice << "_";
+        for (auto const& configItem : config) {
+            result << "_configItem=" << configItem.first << "_" << configItem.second;
+        }
         return result.str();
     }
 };  // class FqFusionWithSigmoidTest

@@ -9,7 +9,11 @@
 using namespace ov::test::behavior;
 
 namespace {
-const std::vector<ov::AnyMap> configs = {{{"GNA_DEVICE_MODE", "GNA_SW_FP32"}, {"GNA_DEVICE_MODE", "GNA_SW_EXACT"}}};
+
+const std::vector<ov::AnyMap> configs = {
+    {{"GNA_DEVICE_MODE", "GNA_SW_FP32"}},
+    {{"GNA_DEVICE_MODE", "GNA_SW_EXACT"}, {"GNA_EXEC_TARGET", "GNA_TARGET_3_0"}},
+    {{"GNA_DEVICE_MODE", "GNA_SW_EXACT"}, {"GNA_EXEC_TARGET", "GNA_TARGET_3_5"}}};
 
 std::vector<ov::element::Type> prcs = {
     ov::element::boolean,

@@ -19,8 +19,10 @@ const std::vector<ShapeRelatedParams> shapeRelatedParams = {{{{5, 1}, true}, {{5
 
 std::vector<ngraph::helpers::InputLayerType> secondaryInputTypes = {ngraph::helpers::InputLayerType::CONSTANT};
 
-std::vector<std::map<std::string, std::string>> additional_config = {{{"GNA_DEVICE_MODE", "GNA_SW_EXACT"}},
-                                                                     {{"GNA_DEVICE_MODE", "GNA_SW_FP32"}}};
+const std::vector<std::map<std::string, std::string>> additional_config = {
+    {{"GNA_DEVICE_MODE", "GNA_SW_FP32"}},
+    {{"GNA_DEVICE_MODE", "GNA_SW_EXACT"}, {"GNA_EXEC_TARGET", "GNA_TARGET_3_0"}},
+    {{"GNA_DEVICE_MODE", "GNA_SW_EXACT"}, {"GNA_EXEC_TARGET", "GNA_TARGET_3_5"}}};
 
 INSTANTIATE_TEST_SUITE_P(smoke_MatMul,
                          MatMulTest,

@@ -53,6 +53,7 @@ INSTANTIATE_TEST_SUITE_P(DISABLED_smoke_IEClassExecutableNetworkSetConfigTest,
                          ::testing::Values("GNA"));
 
 IE_SUPPRESS_DEPRECATED_START
+// TODO think how to do this for 3_0 and 3_5 targets.
 // TODO: Convolution with 3D input is not supported on GNA
 INSTANTIATE_TEST_SUITE_P(
     DISABLED_smoke_IEClassExecutableNetworkSupportedConfigTest,

@@ -17,6 +17,9 @@ std::string TransposeAdd::getTestCaseName(testing::TestParamInfo<TransposeAddPar
     results << "IS=" << CommonTestUtils::vec2str(std::vector<size_t>(input_shape.begin(), input_shape.end())) << "_";
     results << "netPRC=" << netPrecision.name() << "_";
     results << "targetDevice=" << targetName;
+    for (auto const& configItem : configuration) {
+        results << "_configItem=" << configItem.first << "_" << configItem.second;
+    }
     return results.str();
 }
 

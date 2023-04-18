@@ -36,12 +36,20 @@ std::vector<ngraph::helpers::EltwiseTypes> eltwiseOpTypes = {ngraph::helpers::El
                                                              ngraph::helpers::EltwiseTypes::ADD};
 
 std::vector<ov::AnyMap> additional_config_inputs_1 = {
-    {{"GNA_DEVICE_MODE", "GNA_SW_EXACT"}, {"GNA_SCALE_FACTOR_0", "1638.4"}},
-    {{"GNA_DEVICE_MODE", "GNA_SW_FP32"}, {"GNA_SCALE_FACTOR_0", "1638.4"}}};
+    {{"GNA_DEVICE_MODE", "GNA_SW_FP32"}, {"GNA_SCALE_FACTOR_0", "1638.4"}},
+    {{"GNA_DEVICE_MODE", "GNA_SW_EXACT"}, {"GNA_EXEC_TARGET", "GNA_TARGET_3_0"}, {"GNA_SCALE_FACTOR_0", "1638.4"}},
+    {{"GNA_DEVICE_MODE", "GNA_SW_EXACT"}, {"GNA_EXEC_TARGET", "GNA_TARGET_3_5"}, {"GNA_SCALE_FACTOR_0", "1638.4"}}};
 
 std::vector<ov::AnyMap> additional_config_inputs_2 = {
-    {{"GNA_DEVICE_MODE", "GNA_SW_EXACT"}, {"GNA_SCALE_FACTOR_0", "1638.4"}, {"GNA_SCALE_FACTOR_1", "1638.4"}},
-    {{"GNA_DEVICE_MODE", "GNA_SW_FP32"}, {"GNA_SCALE_FACTOR_0", "1638.4"}, {"GNA_SCALE_FACTOR_1", "1638.4"}}};
+    {{"GNA_DEVICE_MODE", "GNA_SW_FP32"}, {"GNA_SCALE_FACTOR_0", "1638.4"}, {"GNA_SCALE_FACTOR_1", "1638.4"}},
+    {{"GNA_DEVICE_MODE", "GNA_SW_EXACT"},
+     {"GNA_EXEC_TARGET", "GNA_TARGET_3_0"},
+     {"GNA_SCALE_FACTOR_0", "1638.4"},
+     {"GNA_SCALE_FACTOR_1", "1638.4"}},
+    {{"GNA_DEVICE_MODE", "GNA_SW_EXACT"},
+     {"GNA_EXEC_TARGET", "GNA_TARGET_3_5"},
+     {"GNA_SCALE_FACTOR_0", "1638.4"},
+     {"GNA_SCALE_FACTOR_1", "1638.4"}}};
 
 const auto multiply_params_1 =
     ::testing::Combine(::testing::ValuesIn(ov::test::static_shapes_to_test_representation(inShapes)),

@@ -118,6 +118,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_OVClassExecutableNetworkSetConfigTest,
 using OVGNAClassExecutableNetworkSupportedConfigTest = OVClassExecutableNetworkGetMetricTestForSpecificConfigGNA;
 using OVGNAClassExecutableNetworkUnsupportedConfigTest = OVClassExecutableNetworkGetMetricTestForSpecificConfigGNA;
 
+// TODO think how to do this for 3_0 and 3_5 targets.
 IE_SUPPRESS_DEPRECATED_START
 INSTANTIATE_TEST_SUITE_P(
     smoke_OVClassExecutableNetworkSupportedConfigTest,
@@ -155,7 +156,7 @@ TEST_P(OVClassExecutableNetworkSetConfigFromFp32Test, SetConfigFromFp32Throws) {
 
     ASSERT_THROW(exeNetwork.set_property({{configKey, configValue}}), ov::Exception);
 }
-
+// TODO think how to do this for 3_0 and 3_5 targets.
 INSTANTIATE_TEST_SUITE_P(
     smoke_OVClassExecutableNetworkSetConfigFromFp32Test,
     OVClassExecutableNetworkSetConfigFromFp32Test,

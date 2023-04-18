@@ -21,10 +21,16 @@ const ConfigType configFP32 = {
     {"GNA_DEVICE_MODE", "GNA_SW_FP32"},
 };
 
-const ConfigType configSWExact = {{"GNA_DEVICE_MODE", "GNA_SW_EXACT"}, {"GNA_COMPACT_MODE", "NO"}};
+const ConfigType configSWExact30 = {{"GNA_DEVICE_MODE", "GNA_SW_EXACT"},
+                                    {"GNA_EXEC_TARGET", "GNA_TARGET_3_0"},
+                                    {"GNA_COMPACT_MODE", "NO"}};
+const ConfigType configSWExact35 = {{"GNA_DEVICE_MODE", "GNA_SW_EXACT"},
+                                    {"GNA_EXEC_TARGET", "GNA_TARGET_3_5"},
+                                    {"GNA_COMPACT_MODE", "NO"}};
 
 const std::vector<std::pair<std::string, ConfigType>> gnaQuantModes = {{"sw_fp32", configFP32},
-                                                                       {"sw_exact", configSWExact}};
+                                                                       {"sw_exact_30", configSWExact30},
+                                                                       {"sw_exact_35", configSWExact35}};
 
 const std::vector<std::vector<size_t>> inputShapes = {{1, 250}, {1, 640}, {1, 1024}};
 

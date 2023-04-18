@@ -52,13 +52,13 @@ public:
 
         std::ostringstream result;
         result << "netPRC=" << netPrecision.name() << "_";
+        result << "_inputShape=" << CommonTestUtils::vec2str(inputShape);
+        result << "_bias=" << addBiases;
+        result << "_actType=" << activationNames[actType];
         result << "targetDevice=" << targetDevice << "_";
         for (auto const& configItem : configuration) {
             result << "_configItem=" << configItem.first << "_" << configItem.second;
         }
-        result << "_inputShape=" << CommonTestUtils::vec2str(inputShape);
-        result << "_bias=" << addBiases;
-        result << "_actType=" << activationNames[actType];
 
         return result.str();
     }
@@ -116,8 +116,8 @@ const std::vector<std::map<std::string, std::string>> configs = {
     {{"GNA_DEVICE_MODE", "GNA_SW_EXACT"}, {"GNA_EXEC_TARGET", "GNA_TARGET_3_5"}}};
 
 const std::vector<std::map<std::string, std::string>> gnaPwlUniformDesignConfigs = {
-    {{"GNA_DEVICE_MODE", "GNA_SW_EXACT"}, {"GNA_PWL_UNIFORM_DESIGN", "YES"}, {"GNA_EXEC_TARGET", "GNA_TARGET_3_0"}},
-    {{"GNA_DEVICE_MODE", "GNA_SW_EXACT"}, {"GNA_PWL_UNIFORM_DESIGN", "YES"}, {"GNA_EXEC_TARGET", "GNA_TARGET_3_0"}}};
+    {{"GNA_DEVICE_MODE", "GNA_SW_EXACT"}, {"GNA_EXEC_TARGET", "GNA_TARGET_3_0"}, {"GNA_PWL_UNIFORM_DESIGN", "YES"}},
+    {{"GNA_DEVICE_MODE", "GNA_SW_EXACT"}, {"GNA_EXEC_TARGET", "GNA_TARGET_3_5"}, {"GNA_PWL_UNIFORM_DESIGN", "YES"}}};
 
 const std::vector<std::vector<size_t>> inputShape = {
     {1, 1, 1, 1024},

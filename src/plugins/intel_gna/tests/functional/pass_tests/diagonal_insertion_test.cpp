@@ -156,14 +156,9 @@ TEST_P(DiagonalInsertionTest, CompareWithRefs) {
     Run();
 };
 
-// TODO ask if 3_5 is intentional?
 const vector<map<string, string>> configs = {
-    {
-        {"GNA_DEVICE_MODE", "GNA_SW_EXACT"},
-        {"GNA_PRECISION", "I16"},
-        {"GNA_EXEC_TARGET", "GNA_TARGET_3_5"},
-    },
-};
+    {{"GNA_DEVICE_MODE", "GNA_SW_EXACT"}, {"GNA_PRECISION", "I16"}, {"GNA_EXEC_TARGET", "GNA_TARGET_3_0"}},
+    {{"GNA_DEVICE_MODE", "GNA_SW_EXACT"}, {"GNA_PRECISION", "I16"}, {"GNA_EXEC_TARGET", "GNA_TARGET_3_5"}}};
 
 vector<vector<float>> fq_mm1 = {{-19.38653564453125, 19.38653564453125},
                                 {-4.872922897338867, 4.872922897338867},

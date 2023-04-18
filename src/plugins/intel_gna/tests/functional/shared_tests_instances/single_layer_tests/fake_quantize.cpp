@@ -20,6 +20,8 @@ using ConfigType = std::map<std::string, std::string>;
 const ConfigType configFP32 = {
     {"GNA_DEVICE_MODE", "GNA_SW_FP32"},
 };
+// This is currently disabled.
+// if enabled execution TARGET 3_0 and 3_5 should be used for GNA_SW_EXACT.
 const ConfigType configInt16 = {{"GNA_DEVICE_MODE", "GNA_SW_EXACT"},
                                 {InferenceEngine::GNAConfigParams::KEY_GNA_PRECISION, "I16"},
                                 {"GNA_SCALE_FACTOR_0", "327.67"}};

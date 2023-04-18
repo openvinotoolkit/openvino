@@ -26,8 +26,10 @@ std::map<std::string, std::string> additional_config = {{"GNA_SCALE_FACTOR_0", "
                                                         {"GNA_SCALE_FACTOR_1", "1"},
                                                         {"GNA_SCALE_FACTOR_2", "1"}};
 
-std::vector<std::map<std::string, std::string>> additional_config_one_input = {{{"GNA_DEVICE_MODE", "GNA_SW_EXACT"}},
-                                                                               {{"GNA_DEVICE_MODE", "GNA_SW_FP32"}}};
+std::vector<std::map<std::string, std::string>> additional_config_one_input = {
+    {{"GNA_DEVICE_MODE", "GNA_SW_FP32"}},
+    {{"GNA_DEVICE_MODE", "GNA_SW_EXACT"}, {"GNA_EXEC_TARGET", "GNA_TARGET_3_0"}},
+    {{"GNA_DEVICE_MODE", "GNA_SW_EXACT"}, {"GNA_EXEC_TARGET", "GNA_TARGET_3_5"}}};
 
 INSTANTIATE_TEST_SUITE_P(smoke_cascade_concat,
                          CascadeConcat,

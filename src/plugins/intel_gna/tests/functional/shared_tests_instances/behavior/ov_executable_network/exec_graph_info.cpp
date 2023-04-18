@@ -10,7 +10,9 @@
 using namespace ov::test::behavior;
 namespace {
 const std::vector<ov::element::Type_t> netPrecisions = {ov::element::i16, ov::element::u8, ov::element::f32};
-const std::vector<ov::AnyMap> configs = {{{"GNA_DEVICE_MODE", "GNA_SW_EXACT"}}};
+const std::vector<ov::AnyMap> configs = {
+    {{"GNA_DEVICE_MODE", "GNA_SW_EXACT"}, {"GNA_EXEC_TARGET", "GNA_TARGET_3_0"}},
+    {{"GNA_DEVICE_MODE", "GNA_SW_EXACT"}, {"GNA_EXEC_TARGET", "GNA_TARGET_3_5"}}};
 
 INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests,
                          OVExecGraphImportExportTest,

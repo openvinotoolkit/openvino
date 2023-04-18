@@ -9,7 +9,7 @@
 using namespace BehaviorTestsDefinitions;
 namespace {
 const std::vector<std::map<std::string, std::string>> configs = {{}};
-
+// TODO think how to do this for 3_0 and 3_5 targets.
 IE_SUPPRESS_DEPRECATED_START
 const std::vector<std::map<std::string, std::string>> Inconfigs = {
     {{InferenceEngine::GNAConfigParams::KEY_GNA_SCALE_FACTOR, "1.0"}},

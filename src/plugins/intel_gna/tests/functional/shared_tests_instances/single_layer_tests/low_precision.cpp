@@ -30,7 +30,7 @@ TEST_P(GnaLowPrecisionTest, CompareWithRefs) {
 
 const std::vector<InferenceEngine::Precision> netPrecisions = {InferenceEngine::Precision::FP32,
                                                                InferenceEngine::Precision::FP16};
-
+// TODO think how to do this.
 const std::map<std::string, std::string> config_fp32 = {
     {"GNA_DEVICE_MODE", "GNA_SW_FP32"},
 };
