@@ -31,7 +31,7 @@ std::shared_ptr<ngraph::Node> ov::intel_cpu::FullyConnectedNode::clone_with_new_
         return std::make_shared<ov::intel_cpu::FullyConnectedNode>(new_args.at(0), new_args.at(1), new_args.at(2), m_output_rank, m_output_type);
     }
 
-    throw ngraph::ngraph_error("Unsupported number of arguments for FullyConnected operation");
+    OPENVINO_THROW("Unsupported number of arguments for FullyConnected operation");
 }
 
 void ov::intel_cpu::FullyConnectedNode::validate_and_infer_types() {

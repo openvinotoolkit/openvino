@@ -857,7 +857,7 @@ void check_rt_info(const std::shared_ptr<ngraph::Function>& f) {
 
     auto err_msg = err_log.str();
     if (!err_msg.empty()) {
-        throw ngraph::ngraph_error(err_msg);
+        OPENVINO_THROW(err_msg);
     }
 }
 

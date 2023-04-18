@@ -375,7 +375,7 @@ OutputVector Graph::make_ng_nodes(const Node& onnx_node) {
         throw;
     } catch (const std::exception& exc) {
         std::string msg_prefix = error::detail::get_error_msg_prefix(onnx_node);
-        throw ngraph_error(msg_prefix + ":\n" + std::string(exc.what()));
+        OPENVINO_THROW(msg_prefix + ":\n" + std::string(exc.what()));
     } catch (...) {
         std::string msg_prefix = error::detail::get_error_msg_prefix(onnx_node);
         // Since we do not know anything about current exception data type we can only

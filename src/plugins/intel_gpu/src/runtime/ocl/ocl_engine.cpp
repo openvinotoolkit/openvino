@@ -38,8 +38,10 @@ cl::PFN_clCreateFromD3D11Buffer cl::BufferDX::pfn_clCreateFromD3D11Buffer = NULL
 namespace cldnn {
 namespace ocl {
 
+OPENVINO_SUPPRESS_DEPRECATED_START
 ocl_error::ocl_error(cl::Error const& err)
     : ov::Exception("[GPU] " + std::string(err.what()) + std::string(", error code: ") + std::to_string(err.err())) {}
+OPENVINO_SUPPRESS_DEPRECATED_END
 
 ocl_engine::ocl_engine(const device::ptr dev, runtime_types runtime_type)
     : engine(dev) {

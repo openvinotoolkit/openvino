@@ -333,9 +333,9 @@ void experimental_detectron_proposals_single_image_postprocessing(void* prois,
         memcpy(scores_ptr, output_scores.data(), shape_size(output_scores_shape) * sizeof(float));
     } break;
     default:;
-        throw ngraph_error("Unsupported input data type: "
-                           "ExperimentalDetectronGenerateProposalsSingleImage operation"
-                           " supports only fp32, fp16, or bf16 data.");
+        OPENVINO_THROW("Unsupported input data type: "
+                       "ExperimentalDetectronGenerateProposalsSingleImage operation"
+                       " supports only fp32, fp16, or bf16 data.");
     }
 }
 }  // namespace reference

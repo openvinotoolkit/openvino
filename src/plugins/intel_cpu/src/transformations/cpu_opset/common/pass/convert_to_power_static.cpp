@@ -95,7 +95,7 @@ std::shared_ptr<ngraph::Node> convert(const std::shared_ptr<BaseOp> &node) {
         return std::make_shared<ov::intel_cpu::PowerStaticNode>(node->input(nonConstPort).get_source_output(), 1.f, value, 0.0f,
                                                                node->output(0).get_element_type());
     } else {
-        throw ngraph::ngraph_error("ConvertToPowerStatic: op type is not supported");
+        OPENVINO_THROW("ConvertToPowerStatic: op type is not supported");
     }
 }
 
@@ -132,7 +132,7 @@ ov::intel_cpu::ConvertToPowerStatic::ConvertToPowerStatic() {
                 return false;
             toReplace = convert(mult);
         } else {
-            throw ngraph::ngraph_error("ConvertToPowerStatic: op type is not supported");
+            OPENVINO_THROW("ConvertToPowerStatic: op type is not supported");
         }
         toReplace->set_friendly_name(node->get_friendly_name());
         ngraph::copy_runtime_info(node, toReplace);

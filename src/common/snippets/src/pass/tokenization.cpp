@@ -36,7 +36,7 @@ int64_t GetTopologicalOrder(const std::shared_ptr<const Node> &node) {
     auto &rt = node->get_rt_info();
     const auto rinfo = rt.find("TopologicalOrder");
     if (rinfo == rt.end())
-        throw ngraph_error("Topological order is required, but not set.");
+        OPENVINO_THROW("Topological order is required, but not set.");
     return rinfo->second.as<int64_t>();
 }
 

@@ -506,7 +506,7 @@ TokenizeSnippets::TokenizeSnippets() {
                     << " body node outputs = " << body_node->get_output_size() << std::endl;
 
         if (node->get_output_size() != body_node->get_output_size()) {
-            throw ngraph_error("original node outputs size and extracted node outputs size doesn't much");
+            OPENVINO_THROW("original node outputs size and extracted node outputs size doesn't much");
         }
 
         // After some transformations, a different number of Constants for some operations may be created
@@ -552,7 +552,7 @@ TokenizeSnippets::TokenizeSnippets() {
                         }
 
                         if (!!subgraph_result_inputs.back().count(target_input)) {
-                            throw ngraph_error("target input added twice!!!");
+                            OPENVINO_THROW("target input added twice!!!");
                         }
                         // save target input port outside the body
                         subgraph_result_inputs.back().insert(target_input);
@@ -567,7 +567,7 @@ TokenizeSnippets::TokenizeSnippets() {
         }
 
         if (body_results.size() != subgraph_result_inputs.size()) {
-            throw ngraph_error("body results and node results size mismatch during subgraph collaps");
+            OPENVINO_THROW("body results and node results size mismatch during subgraph collaps");
         }
 
         // todo: move this plugin-specific constraint to the plugin callback
@@ -593,7 +593,7 @@ TokenizeSnippets::TokenizeSnippets() {
         }
 
         if (subgraph->get_output_size() != subgraph_result_inputs.size()) {
-            throw ngraph_error("newly create subgraph doesn't much number of results");
+            OPENVINO_THROW("newly create subgraph doesn't much number of results");
         }
 
         if (outputs_are_not_broadcastable(subgraph))

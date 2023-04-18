@@ -33,7 +33,7 @@ pass::BrgemmToBrgemmCPU::BrgemmToBrgemmCPU() {
         const auto brgemm = ov::as_type_ptr<ngraph::snippets::op::Brgemm>(node);
         const auto brgemm_plugin = ov::as_type_ptr<BrgemmCPU>(node);
         if (!brgemm || brgemm_plugin)
-            throw ov::Exception("BrgemmCPU cannot be in body before BrgemmToBrgemmCPU pass");
+            OPENVINO_THROW("BrgemmCPU cannot be in body before BrgemmToBrgemmCPU pass");
 
         if (brgemm->is_dynamic()) {
             return false;

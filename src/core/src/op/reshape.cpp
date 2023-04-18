@@ -165,7 +165,7 @@ bool op::v1::Reshape::evaluate_reshape(const HostTensorVector& outputs, const Ho
         COMPUTE_OUT_SHAPE_CASE(u32, inputs[1], out_shape_val);
         COMPUTE_OUT_SHAPE_CASE(u64, inputs[1], out_shape_val);
     default:
-        throw ngraph_error("shape_pattern element type is not integral data type");
+        OPENVINO_THROW("shape_pattern element type is not integral data type");
     }
 
     std::vector<Dimension> reshape_pattern;

@@ -494,7 +494,7 @@ static inline void fill_tensor_random(ov::Tensor tensor) {
         fill_random<uint8_t, uint32_t>(tensor, 0, 1);
         break;
     default:
-        throw ov::Exception("Input type is not supported for a tensor");
+        OPENVINO_THROW("Input type is not supported for a tensor");
     }
 }
 

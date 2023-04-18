@@ -37,7 +37,7 @@ ngraph::snippets::pass::InsertBuffer::InsertBuffer(const int32_t allocation_rank
                 }
                 if (ov::is_type<op::Buffer>(input.get_source_output().get_node_shared_ptr()) &&
                     input.get_source_output().get_target_inputs().size() != 1) {
-                    throw ngraph::ngraph_error(
+                    OPENVINO_THROW(
                             "If Buffer is a input for operation output, this Buffer should be a single consumer for this port");
                 }
             }
@@ -62,7 +62,7 @@ ngraph::snippets::pass::InsertBuffer::InsertBuffer(const int32_t allocation_rank
                              *    /    \
                              * Buffer Result
                              */
-                            throw ngraph::ngraph_error(
+                            OPENVINO_THROW(
                                 "Operation which is should be wrapped by Buffers has few children from one output port where one of them is Result");
                         }
                     }
@@ -88,7 +88,7 @@ ngraph::snippets::pass::InsertBuffer::InsertBuffer(const int32_t allocation_rank
                     return ov::is_type<ngraph::snippets::op::Buffer>(child) && child->output(0).get_target_inputs().size() > 0;
                 });
                 if (has_buffer_on_output && new_target_inputs.size() != 1) {
-                    throw ngraph::ngraph_error(
+                    OPENVINO_THROW(
                             "If Buffer is a input for operation output, this Buffer should be a single consumer for this port");
                 }
             }

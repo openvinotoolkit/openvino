@@ -193,7 +193,7 @@ public:
                 std::stringstream ss;
                 ss << "Node: " << node->get_type_info() << " with name " << node->get_friendly_name() << " ";
                 ss << "has non unique friendly name.";
-                throw ngraph_error(ss.str());
+                OPENVINO_THROW(ss.str());
             }
             unique_friendly_names.insert(node->get_friendly_name());
 
@@ -207,7 +207,7 @@ public:
                     std::stringstream ss;
                     ss << "Node: " << node->get_type_info() << " with name " << node->get_friendly_name() << " ";
                     ss << "has non unique tensor name.";
-                    throw ngraph_error(ss.str());
+                    OPENVINO_THROW(ss.str());
                 }
                 unique_tensor_names.insert(tensor_names.begin(), tensor_names.end());
             }
@@ -223,7 +223,7 @@ public:
                     auto node = r->input_value(0).get_node();
                     ss << "Tensor name: " << ref_name << " is missing in " << node->get_type_info() << " ";
                     ss << "output(" << r->input_value(0).get_index() << ")";
-                    throw ngraph_error(ss.str());
+                    OPENVINO_THROW(ss.str());
                 }
             }
 
@@ -237,13 +237,13 @@ public:
                         std::stringstream ss;
                         ss << "Output node names mismatch: " << cur_node_name << " and " << ref_node_name
                            << " (reference)";
-                        throw ngraph_error(ss.str());
+                        OPENVINO_THROW(ss.str());
                     }
                 } else if (cur_node_name != ref_node_name) {
                     std::stringstream ss;
                     ss << "Output node names are different: " << cur_node_name << " and " << ref_node_name
                        << " (reference)";
-                    throw ngraph_error(ss.str());
+                    OPENVINO_THROW(ss.str());
                 }
             }
         }

@@ -26,7 +26,7 @@ static std::shared_ptr<Node> makeReduceOp(const ReduceParams& p, bool axes_as_pa
         in_axes = make_shared<op::Parameter>(p.axes_et, p.axes_ps);
     } else {
         if (shape_size(p.axes_ps) != p.axes.size()) {
-            throw ngraph_error("Axes shape does not match with axes elements");
+            OPENVINO_THROW("Axes shape does not match with axes elements");
         }
         in_axes = make_shared<op::Constant>(p.axes_et, p.axes_ps, p.axes);
     }

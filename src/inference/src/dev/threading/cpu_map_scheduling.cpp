@@ -34,7 +34,7 @@ std::vector<std::vector<int>> apply_scheduling_core_type(const ov::hint::Schedul
         }
         break;
     default:
-        throw ov::Exception{"Unsupported core type!"};
+        OPENVINO_THROW("Unsupported core type!");
     }
 
     return result_table;

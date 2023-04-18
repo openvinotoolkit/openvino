@@ -113,7 +113,7 @@ public:
                                                                   false /*any*/,
                                                                   ngraph::op::RoundingType::FLOOR /*any*/);
             } else {
-                throw ngraph::ngraph_error("Unsupported Reduce type!");
+                OPENVINO_THROW("Unsupported Reduce type!");
             }
         }
 

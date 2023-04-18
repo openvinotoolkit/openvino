@@ -105,7 +105,7 @@ void op::v8::RandomUniform::validate_and_infer_types() {
                                       ", max value: ",
                                       max_val);
             } else {
-                throw ngraph_error("Unsupported output type of RandomUniform: " + get_out_type().get_type_name());
+                OPENVINO_THROW("Unsupported output type of RandomUniform: " + get_out_type().get_type_name());
             }
         }
     }
@@ -156,8 +156,8 @@ bool op::v8::RandomUniform::evaluate(const HostTensorVector& outputs, const Host
                        });
         out_shape = out_shape_uint64.data();
     } else {
-        throw ngraph_error("Unsupported type of out shape in RandomUniform operation: " +
-                           inputs[0]->get_element_type().get_type_name());
+        OPENVINO_THROW("Unsupported type of out shape in RandomUniform operation: " +
+                       inputs[0]->get_element_type().get_type_name());
     }
 
     element::Type_t t_out = get_out_type();
@@ -182,7 +182,7 @@ bool op::v8::RandomUniform::evaluate(const HostTensorVector& outputs, const Host
         out = (char*)outputs[0]->get_data_ptr<const double>();
         break;
     default:
-        throw ngraph_error("Unsupported type of RandomUniform: " + get_out_type().get_type_name());
+        OPENVINO_THROW("Unsupported type of RandomUniform: " + get_out_type().get_type_name());
     }
 
     auto state = ngraph::runtime::reference::random_uniform(out_shape,

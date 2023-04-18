@@ -134,7 +134,7 @@ matcher_pass_callback get_callback() {
         } else if (auto avg_pool = std::dynamic_pointer_cast<opset1::AvgPool>(node)) {
             last = convert(last, avg_pool, new_ops);
         } else {
-            throw ngraph_error("Reshape1DOps: op type is not supported");
+            OPENVINO_THROW("Reshape1DOps: op type is not supported");
         }
 
         last.get_node_shared_ptr()->set_friendly_name(node->get_friendly_name() + "/new");

@@ -37,7 +37,7 @@ public:
 
     ControlDependencyOp(const OutputVector& args, const std::set<std::shared_ptr<Node>>& deps) : Op(args) {
         if (args.size() == 0 && deps.size() == 0) {
-            throw ngraph_error("Expected some arguments or dependencies");
+            OPENVINO_THROW("Expected some arguments or dependencies");
         }
 
         for (auto& node : deps) {

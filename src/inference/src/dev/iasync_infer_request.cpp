@@ -193,9 +193,9 @@ void ov::IAsyncInferRequest::check_state() const {
     std::lock_guard<std::mutex> lock{m_mutex};
     switch (m_state) {
     case InferState::BUSY:
-        throw ov::Busy("Infer Request is busy");
+        ov::Busy::create("Infer Request is busy");
     case InferState::CANCELLED:
-        throw ov::Cancelled("Infer Request was canceled");
+        ov::Cancelled::create("Infer Request was canceled");
     default:
         break;
     }

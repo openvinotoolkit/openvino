@@ -22,8 +22,10 @@ namespace onnx_import {
 namespace error {
 namespace node {
 struct UnknownAttribute : ngraph_error {
+    OPENVINO_SUPPRESS_DEPRECATED_START
     explicit UnknownAttribute(const std::string& node, const std::string& name)
         : ngraph_error{"Node (" + node + "): unknown attribute \'" + name + "\'"} {}
+    OPENVINO_SUPPRESS_DEPRECATED_END
 };
 
 }  // namespace node

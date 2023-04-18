@@ -32,11 +32,10 @@ void embeddingBagOffsetsSum(const T* emb_table,
     auto get_indices =
         [&](size_t emb_index, const U*& indices_ref, size_t& indices_num, size_t& weights_idx, bool& with_weights) {
             if (emb_index >= offsets_size)
-                throw ngraph_error("Invalid embedding bag index.");
+                OPENVINO_THROW("Invalid embedding bag index.");
             if (static_cast<size_t>(offsets[emb_index]) >= indices_count)
-                throw ngraph_error(std::string("Offset value exceeds indices size in the model.\noffset: ") +
-                                   std::to_string(offsets[emb_index]) +
-                                   "; indices size: " + std::to_string(indices_count));
+                OPENVINO_THROW(std::string("Offset value exceeds indices size in the model.\noffset: ") +
+                               std::to_string(offsets[emb_index]) + "; indices size: " + std::to_string(indices_count));
 
             indices_ref = nullptr;
             indices_num = 0lu;

@@ -50,7 +50,7 @@ void MulConvFusion::SetUp() {
     } else if (conv_type == ngraph::opset8::GroupConvolutionBackpropData::get_type_info_static()) {
         conv = std::make_shared<ngraph::opset8::GroupConvolutionBackpropData>(mul, weights, strides, pad_begin, pad_end, strides);
     } else {
-        throw ngraph::ngraph_error("Unsupported type");
+        OPENVINO_THROW("Unsupported type");
     }
 
     function = std::make_shared<ngraph::Function>(ngraph::OutputVector{conv}, ngraph::ParameterVector{param});
@@ -116,7 +116,7 @@ void MulConvFusion::SetUp() {
             ASSERT_NE(nullptr, weights);
             conv = std::make_shared<ngraph::opset8::GroupConvolutionBackpropData>(param, weights, strides, pad_begin, pad_end, strides);
         } else {
-            throw ngraph::ngraph_error("Unsupported type");
+            OPENVINO_THROW("Unsupported type");
         }
         auto reference_function = std::make_shared<ngraph::Function>(ngraph::OutputVector{conv}, ngraph::ParameterVector{param});
         std::tie(functions_equal, std::ignore) = compare_functions(cloned_function, reference_function, true);

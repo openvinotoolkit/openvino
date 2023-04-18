@@ -57,7 +57,7 @@ void snippets::op::Buffer::validate_and_infer_types() {
         output_type = get_input_element_type(0);
         output_shape = input_shape.get_shape();
     } else {
-        throw ov::Exception("Buffer supports only the following types: NewMemory and IntermediateMemory");
+        OPENVINO_THROW("Buffer supports only the following types: NewMemory and IntermediateMemory");
     }
     set_output_type(0, output_type, output_shape);
 }
@@ -70,7 +70,7 @@ std::shared_ptr<Node> snippets::op::Buffer::clone_with_new_inputs(const OutputVe
     } else if (m_type == Type::IntermediateMemory) {
         return std::make_shared<Buffer>(new_args.at(0), m_shape);
     }
-    throw ov::Exception("Buffer supports only the following types: NewMemory and IntermediateMemory");
+    OPENVINO_THROW("Buffer supports only the following types: NewMemory and IntermediateMemory");
 }
 
 size_t ngraph::snippets::op::Buffer::get_byte_size() const {

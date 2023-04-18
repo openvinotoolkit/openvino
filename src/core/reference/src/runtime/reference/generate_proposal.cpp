@@ -398,9 +398,9 @@ void generate_proposals_postprocessing(void* prois,
         memcpy(scores_ptr, output_scores.data(), shape_size(output_scores_shape) * sizeof(float));
     } break;
     default:;
-        throw ngraph_error("Unsupported input data type: "
-                           "GenerateProposals operation"
-                           " supports only fp32, fp16, or bf16 data.");
+        OPENVINO_THROW("Unsupported input data type: "
+                       "GenerateProposals operation"
+                       " supports only fp32, fp16, or bf16 data.");
     }
 
     for (size_t i = 0; i < num_rois.size(); i++) {
@@ -414,8 +414,8 @@ void generate_proposals_postprocessing(void* prois,
             roi_num_ptr[i] = static_cast<int64_t>(num_rois[i]);
         } break;
         default:;
-            throw ngraph_error("Unsupported data type on output port 3: "
-                               " supports only int32 or int64.");
+            OPENVINO_THROW("Unsupported data type on output port 3: "
+                           " supports only int32 or int64.");
         }
     }
 }

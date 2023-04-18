@@ -33,7 +33,7 @@ std::shared_ptr<Node> op::internal::MulticlassNmsIEInternal::clone_with_new_inpu
     } else if (new_args.size() == 2) {
         return std::make_shared<MulticlassNmsIEInternal>(new_args.at(0), new_args.at(1), m_attrs);
     }
-    throw ngraph::ngraph_error("Unsupported number of inputs: " + std::to_string(new_args.size()));
+    OPENVINO_THROW("Unsupported number of inputs: " + std::to_string(new_args.size()));
 }
 
 void op::internal::MulticlassNmsIEInternal::validate_and_infer_types() {

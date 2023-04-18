@@ -105,7 +105,7 @@ std::shared_ptr<BrgemmCopyB> BrgemmCPU::get_brgemm_copy() const {
     if (const auto buffer = ov::as_type_ptr<ngraph::snippets::op::Buffer>(get_input_node_shared_ptr(1))) {
         return ov::as_type_ptr<BrgemmCopyB>(buffer->get_input_node_shared_ptr(0));
     }
-    throw ov::Exception("BrgemmCopyB hasn't been found!");
+    OPENVINO_THROW("BrgemmCopyB hasn't been found!");
 }
 
 size_t BrgemmCPU::get_offset_scratch() const {

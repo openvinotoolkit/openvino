@@ -33,7 +33,7 @@ OV_CC_DOMAINS(ov_pass);
 
 #    define MATCHER_SCOPE_(scope, region)                              \
         if (OV_CC_SCOPE_IS_ENABLED(OV_PP_CAT3(scope, _, region)) == 0) \
-        throw ngraph::ngraph_error(std::string(OV_PP_TOSTRING(OV_PP_CAT3(scope, _, region))) + " is disabled!")
+        OPENVINO_THROW(std::string(OV_PP_TOSTRING(OV_PP_CAT3(scope, _, region))) + " is disabled!")
 
 #    define MATCHER_SCOPE(region)                                        \
         const std::string matcher_name(OV_PP_TOSTRING(region));          \

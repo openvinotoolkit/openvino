@@ -504,7 +504,7 @@ bool fuse_type_to_nms3(const std::shared_ptr<ngraph::Node>& node, const precisio
         if (to == ov::element::i32 || to == ov::element::i64) {
             nms->set_output_type(to);
         } else {
-            throw Exception("Type: " + to.get_type_name() + " is not supported for NMS3");
+            OPENVINO_THROW("Type: " + to.get_type_name() + " is not supported for NMS3");
         }
         return true;
     }
@@ -520,7 +520,7 @@ bool fuse_type_to_nms4(const std::shared_ptr<ngraph::Node>& node, const precisio
         if (to == ov::element::i32 || to == ov::element::i64) {
             nms->set_output_type(to);
         } else {
-            throw Exception("Type: " + to.get_type_name() + " is not supported for NMS4");
+            OPENVINO_THROW("Type: " + to.get_type_name() + " is not supported for NMS4");
         }
         return true;
     }
@@ -815,7 +815,7 @@ std::shared_ptr<ngraph::Node> change_constant_precision(std::shared_ptr<opset4::
     new_constant->output(0).set_names(constant->output(0).get_names());
     auto* dst_data = const_cast<dst_type*>(reinterpret_cast<const dst_type*>(new_constant->get_data_ptr()));
     if (dst_data == nullptr)
-        throw Exception("Can't get destination data pointer");
+        OPENVINO_THROW("Can't get destination data pointer");
 
     for (size_t i = 0; i < size; ++i) {
         dst_data[i] = convert_value<src_type, dst_type>(src_data[i]);
@@ -836,7 +836,7 @@ std::shared_ptr<Node> change_constant_precision<ov::element::Type_t::f16, ov::el
     new_constant->output(0).set_names(constant->output(0).get_names());
     auto* dst_data = const_cast<dst_type*>(reinterpret_cast<const dst_type*>(new_constant->get_data_ptr()));
     if (dst_data == nullptr)
-        throw Exception("Can't get destination data pointer");
+        OPENVINO_THROW("Can't get destination data pointer");
 
     ngraph::runtime::reference::convert<src_type, dst_type>(src_data, dst_data, size);
 
@@ -856,7 +856,7 @@ std::shared_ptr<Node> change_constant_precision<ov::element::Type_t::f32, ov::el
     new_constant->output(0).set_names(constant->output(0).get_names());
     auto* dst_data = const_cast<dst_type*>(reinterpret_cast<const dst_type*>(new_constant->get_data_ptr()));
     if (dst_data == nullptr)
-        throw Exception("Can't get destination data pointer");
+        OPENVINO_THROW("Can't get destination data pointer");
 
     ngraph::runtime::reference::convert<src_type, dst_type>(src_data, dst_data, size);
 
@@ -957,15 +957,15 @@ std::shared_ptr<Node> convert_low_precisions_int(std::shared_ptr<opset4::Constan
     // source and destination data type should be real
     if (!supported_integer_precisions.count(src_type) || (src_type.size() * 8) % src_type.bitwidth() ||
         (to.size() * 8) % to.bitwidth() || to.is_real() || to.bitwidth() < src_type.bitwidth())
-        throw Exception("Convert low precision for " + constant->get_element_type().get_type_name() + " to " +
-                        to.get_type_name() + " is not implemented!");
+        OPENVINO_THROW("Convert low precision for " + constant->get_element_type().get_type_name() + " to " +
+                       to.get_type_name() + " is not implemented!");
 
     // Create a new constant operation and get destination data
     auto new_constant = std::make_shared<opset4::Constant>(to, constant->get_shape());
     auto* dst_data = const_cast<uint8_t*>(reinterpret_cast<const uint8_t*>(new_constant->get_data_ptr()));
     // Check pointers
     if (src_data == nullptr || dst_data == nullptr)
-        throw Exception("Can't get data pointer");
+        OPENVINO_THROW("Can't get data pointer");
 
     // Convert values
     const auto size = shape_size(constant->get_shape());
@@ -1019,7 +1019,7 @@ std::shared_ptr<Node> convert_low_precisions_int(std::shared_ptr<opset4::Constan
                                                 src_type.is_signed());
             break;
         default:
-            throw Exception("Unsupported element size!");
+            OPENVINO_THROW("Unsupported element size!");
         }
         // Calculate offsets and indexes
         if (src_type.bitwidth() < 8) {
@@ -1084,8 +1084,8 @@ bool fuse_type_to_constant(const std::shared_ptr<ngraph::Node>& node,
         } else if (from == ov::element::i4 || from == ov::element::u4 || from == ov::element::u1) {
             new_const = convert_low_precisions_int(constant, to);
         } else {
-            throw Exception("Precision conversion from " + from.get_type_name() + " to " + to.get_type_name() +
-                            " is not supported");
+            OPENVINO_THROW("Precision conversion from " + from.get_type_name() + " to " + to.get_type_name() +
+                           " is not supported");
         }
         for (auto& output : consumers) {
             output.replace_source_output(new_const);

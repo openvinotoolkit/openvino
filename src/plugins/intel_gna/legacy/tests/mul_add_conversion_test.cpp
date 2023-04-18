@@ -85,7 +85,7 @@ public:
                                                                        const AddConstant& add_const,
                                                                        const IsDequantization& is_dequanization) {
         if (mul_const.skip && add_const.skip) {
-            throw ngraph::ngraph_error("Invalid arguments");
+            OPENVINO_THROW("Invalid arguments");
         }
 
         auto input = std::make_shared<ngraph::opset1::Parameter>(ngraph::element::f32, input_shape);

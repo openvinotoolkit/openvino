@@ -99,7 +99,7 @@ ngraph::snippets::code ngraph::snippets::Generator::generate(std::shared_ptr<ov:
                                                              const void* compile_params) {
     OV_ITT_SCOPED_TASK(ngraph::pass::itt::domains::SnippetsTransform, "Snippets::Generator::generate")
     if (!target->is_supported())
-        throw ngraph_error("unsupported architecture for code generation");
+        OPENVINO_THROW("unsupported architecture for code generation");
 
     OV_ITT_TASK_CHAIN(GENERATE, ngraph::pass::itt::domains::SnippetsTransform, "Snippets::Generator", "::VectorTile")
     // vector loop
@@ -259,7 +259,7 @@ Generator::opRegType Generator::get_op_reg_type(const std::shared_ptr<Node>& op)
 }
 
 Generator::opRegType Generator::get_specific_op_reg_type(const std::shared_ptr<ov::Node>& op) const {
-    throw ov::Exception("Register type of the operation " + std::string(op->get_type_name()) + " isn't determined!");
+    OPENVINO_THROW("Register type of the operation " + std::string(op->get_type_name()) + " isn't determined!");
 }
 
 
