@@ -43,7 +43,7 @@ std::vector<TShape> shape_infer(ExperimentalDetectronTopKROIs* op, const std::ve
                               rois_probs_shape[0]);
     }
 
-    return {{op->get_max_rois(), 4}};
+    return {{static_cast<typename TShape::value_type>(op->get_max_rois()), 4}};
 }
 
 template <class TShape>
