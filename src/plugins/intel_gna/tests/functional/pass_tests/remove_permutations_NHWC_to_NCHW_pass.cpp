@@ -649,8 +649,9 @@ const std::vector<InferenceEngine::Precision> netPrecisions = {InferenceEngine::
                                                                InferenceEngine::Precision::FP16};
 
 const std::vector<std::map<std::string, std::string>> configs = {
-    {{"GNA_DEVICE_MODE", "GNA_SW_EXACT"}, {"GNA_SCALE_FACTOR_0", "327.67"}},
-    {{"GNA_DEVICE_MODE", "GNA_SW_FP32"}}};
+    {{"GNA_DEVICE_MODE", "GNA_SW_EXACT"}},
+    {{"GNA_DEVICE_MODE", "GNA_SW_EXACT"}, {"GNA_EXEC_TARGET", "GNA_TARGET_3_0"}, {"GNA_SCALE_FACTOR_0", "327.67"}},
+    {{"GNA_DEVICE_MODE", "GNA_SW_EXACT"}, {"GNA_EXEC_TARGET", "GNA_TARGET_3_5"}, {"GNA_SCALE_FACTOR_0", "327.67"}}};
 
 const std::vector<std::vector<size_t>> inputShapes{
     {1, 1, 168, 1}, {1, 1, 168, 2}, {1, 1, 168, 4}, {1, 1, 32, 1},  {1, 1, 32, 2}, {1, 1, 32, 8},

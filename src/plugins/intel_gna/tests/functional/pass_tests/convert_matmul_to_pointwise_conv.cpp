@@ -218,10 +218,13 @@ TEST_P(ConvertMatmulToPointwiseConvWithFqNeg, CompareWithRefImpl) {
 const std::vector<InferenceEngine::Precision> netPrecisions = {InferenceEngine::Precision::FP32,
                                                                InferenceEngine::Precision::FP16};
 
-const std::vector<std::map<std::string, std::string>> configs = {{{"GNA_DEVICE_MODE", "GNA_SW_EXACT"}}};
+const std::vector<std::map<std::string, std::string>> configs = {
+    {{"GNA_DEVICE_MODE", "GNA_SW_EXACT"}, {"GNA_EXEC_TARGET", "GNA_TARGET_3_0"}},
+    {{"GNA_DEVICE_MODE", "GNA_SW_EXACT"}, {"GNA_EXEC_TARGET", "GNA_TARGET_3_5"}}};
 
 const std::vector<std::map<std::string, std::string>> configs_neg = {
-    {{"GNA_DEVICE_MODE", "GNA_SW_EXACT"}, {"LOG_LEVEL", "LOG_WARNING"}}};
+    {{"GNA_DEVICE_MODE", "GNA_SW_EXACT"}, {"GNA_EXEC_TARGET", "GNA_TARGET_3_0"}, {"LOG_LEVEL", "LOG_WARNING"}},
+    {{"GNA_DEVICE_MODE", "GNA_SW_EXACT"}, {"GNA_EXEC_TARGET", "GNA_TARGET_3_5"}, {"LOG_LEVEL", "LOG_WARNING"}}};
 
 const std::vector<std::vector<size_t>> inputShape = {{1, 64, 64}, {1, 256, 128}, {1, 512, 128}};
 

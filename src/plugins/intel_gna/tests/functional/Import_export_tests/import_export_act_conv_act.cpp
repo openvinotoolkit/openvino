@@ -156,6 +156,7 @@ const std::vector<std::vector<size_t>> inputShape = {{1, 1, 1, 240}, {1, 1, 1, 1
 const std::vector<InferenceEngine::Precision> netPrecisions = {InferenceEngine::Precision::FP32,
                                                                InferenceEngine::Precision::FP16};
 
+// TODO check if we should tests for the same targets of separate.
 const std::vector<std::map<std::string, std::string>> exportConfigs = {{{"GNA_DEVICE_MODE", "GNA_SW_EXACT"}}};
 
 const std::vector<std::map<std::string, std::string>> importConfigs = {{{"GNA_DEVICE_MODE", "GNA_SW_EXACT"}}};

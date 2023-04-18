@@ -217,9 +217,9 @@ TEST_P(TestFQScaleFactorsTest, CompareWithRefImpl) {
 const std::vector<InferenceEngine::Precision> netPrecisions = {InferenceEngine::Precision::FP32,
                                                                InferenceEngine::Precision::FP16};
 
-const std::vector<std::map<std::string, std::string>> configs = {{
-    {"GNA_DEVICE_MODE", "GNA_SW_EXACT"},
-}};
+const std::vector<std::map<std::string, std::string>> configs = {
+    {{"GNA_DEVICE_MODE", "GNA_SW_EXACT"}, {"GNA_EXEC_TARGET", "GNA_TARGET_3_0"}},
+    {{"GNA_DEVICE_MODE", "GNA_SW_EXACT"}, {"GNA_EXEC_TARGET", "GNA_TARGET_3_5"}}};
 
 // Need to enable Gather when it is supported by the plugin
 const std::vector<NonFunctionalLayer> non_func_layers = {NONE, RESHAPE, SQUEEZE, UNSQUEEZE, TRANSPOSE};

@@ -156,6 +156,7 @@ TEST_P(DiagonalInsertionTest, CompareWithRefs) {
     Run();
 };
 
+// TODO ask if 3_5 is intentional?
 const vector<map<string, string>> configs = {
     {
         {"GNA_DEVICE_MODE", "GNA_SW_EXACT"},

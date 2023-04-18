@@ -238,8 +238,10 @@ TEST_P(InsertTransposeBetweenConvsWithPool, CompareWithRefImpl) {
 const std::vector<InferenceEngine::Precision> netPrecisions = {InferenceEngine::Precision::FP32,
                                                                InferenceEngine::Precision::FP16};
 
-const std::vector<std::map<std::string, std::string>> configs = {{{"GNA_DEVICE_MODE", "GNA_SW_EXACT"}},
-                                                                 {{"GNA_DEVICE_MODE", "GNA_SW_FP32"}}};
+const std::vector<std::map<std::string, std::string>> configs = {
+    {{"GNA_DEVICE_MODE", "GNA_SW_EXACT"}},
+    {{"GNA_DEVICE_MODE", "GNA_SW_EXACT"}, {"GNA_EXEC_TARGET", "GNA_TARGET_3_0"}},
+    {{"GNA_DEVICE_MODE", "GNA_SW_EXACT"}, {"GNA_EXEC_TARGET", "GNA_TARGET_3_5"}}};
 
 const std::vector<std::vector<size_t>> inputShape = {{1, 1, 1, 32}, {1, 8, 1, 64}, {1, 4, 1, 128}};
 

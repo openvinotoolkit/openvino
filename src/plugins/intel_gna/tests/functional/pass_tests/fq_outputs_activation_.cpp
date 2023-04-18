@@ -106,9 +106,9 @@ TEST_P(FQOutputsActivation, CompareWithRefImpl) {
 const std::vector<InferenceEngine::Precision> netPrecisions = {InferenceEngine::Precision::FP32,
                                                                InferenceEngine::Precision::FP16};
 
-const std::vector<std::map<std::string, std::string>> configs = {{
-    {"GNA_DEVICE_MODE", "GNA_SW_EXACT"},
-}};
+const std::vector<std::map<std::string, std::string>> configs = {
+    {{"GNA_DEVICE_MODE", "GNA_SW_EXACT"}, {"GNA_EXEC_TARGET", "GNA_TARGET_3_0"}},
+    {{"GNA_DEVICE_MODE", "GNA_SW_EXACT"}, {"GNA_EXEC_TARGET", "GNA_TARGET_3_5"}}};
 
 const std::vector<std::vector<size_t>> inputShape = {
     {1, 2048},

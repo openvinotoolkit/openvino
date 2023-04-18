@@ -135,10 +135,17 @@ const std::vector<InferenceEngine::Precision> netPrecisions = {InferenceEngine::
                                                                InferenceEngine::Precision::FP16};
 
 const std::vector<std::map<std::string, std::string>> configs = {
-    {{"GNA_DEVICE_MODE", "GNA_SW_EXACT"}, {"GNA_SCALE_FACTOR_0", "1638.4"}}};
+    {{"GNA_DEVICE_MODE", "GNA_SW_EXACT"}, {"GNA_SCALE_FACTOR_0", "1638.4"}, {"GNA_EXEC_TARGET", "GNA_TARGET_3_0"}},
+    {{"GNA_DEVICE_MODE", "GNA_SW_EXACT"}, {"GNA_SCALE_FACTOR_0", "1638.4"}, {"GNA_EXEC_TARGET", "GNA_TARGET_3_5"}}};
 
-const std::vector<std::map<std::string, std::string>> configsMultiple = {
-    {{"GNA_DEVICE_MODE", "GNA_SW_EXACT"}, {"GNA_SCALE_FACTOR_0", "1638.4"}, {"GNA_SCALE_FACTOR_1", "1638.4"}}};
+const std::vector<std::map<std::string, std::string>> configsMultiple = {{{"GNA_DEVICE_MODE", "GNA_SW_EXACT"},
+                                                                          {"GNA_SCALE_FACTOR_0", "1638.4"},
+                                                                          {"GNA_SCALE_FACTOR_1", "1638.4"},
+                                                                          {"GNA_EXEC_TARGET", "GNA_TARGET_3_0"}},
+                                                                         {{"GNA_DEVICE_MODE", "GNA_SW_EXACT"},
+                                                                          {"GNA_SCALE_FACTOR_0", "1638.4"},
+                                                                          {"GNA_SCALE_FACTOR_1", "1638.4"},
+                                                                          {"GNA_EXEC_TARGET", "GNA_TARGET_3_0"}}};
 
 const std::vector<ngraph::helpers::EltwiseTypes> eltwiseOpTypes = {ngraph::helpers::EltwiseTypes::MULTIPLY,
                                                                    ngraph::helpers::EltwiseTypes::SUBTRACT,

@@ -90,8 +90,10 @@ const std::vector<std::vector<size_t>> inputShapes = {{{1, 5}}};
 
 const std::vector<std::vector<size_t>> constantShapes = {{{1, 16}}};
 
-const std::vector<std::map<std::string, std::string>> configs = {{{"GNA_DEVICE_MODE", "GNA_SW_FP32"}},
-                                                                 {{"GNA_DEVICE_MODE", "GNA_SW_EXACT"}}};
+const std::vector<std::map<std::string, std::string>> configs = {
+    {{"GNA_DEVICE_MODE", "GNA_SW_EXACT"}},
+    {{"GNA_DEVICE_MODE", "GNA_SW_EXACT"}, {"GNA_EXEC_TARGET", "GNA_TARGET_3_0"}},
+    {{"GNA_DEVICE_MODE", "GNA_SW_EXACT"}, {"GNA_EXEC_TARGET", "GNA_TARGET_3_5"}}};
 
 INSTANTIATE_TEST_SUITE_P(smoke_WeighableLayerWithoutFqTest,
                          WeighableLayerWithoutFqTest,

@@ -106,8 +106,14 @@ TEST_P(PreprocessGNAUnsupportedOutputsTest, CompareWithRefs) {
     run();
 }
 
-std::map<std::string, std::string> config = {
-    {{"GNA_DEVICE_MODE", "GNA_SW_EXACT"}, {"GNA_SCALE_FACTOR_0", "1"}, {"GNA_SCALE_FACTOR_1", "1"}}};
+std::vector<std::map<std::string, std::string>> config = {{{"GNA_DEVICE_MODE", "GNA_SW_EXACT"},
+                                                           {"GNA_EXEC_TARGET", "GNA_TARGET_3_0"},
+                                                           {"GNA_SCALE_FACTOR_0", "1"},
+                                                           {"GNA_SCALE_FACTOR_1", "1"}},
+                                                          {{"GNA_DEVICE_MODE", "GNA_SW_EXACT"},
+                                                           {"GNA_EXEC_TARGET", "GNA_TARGET_3_5"},
+                                                           {"GNA_SCALE_FACTOR_0", "1"},
+                                                           {"GNA_SCALE_FACTOR_1", "1"}}};
 
 ov::element::TypeVector inputTypesUnsupported = {ov::element::i32};
 
@@ -126,7 +132,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_Preprocess,
                                             ::testing::Values(ov::element::f32),
                                             ::testing::ValuesIn(outputTypesSupported),
                                             ::testing::Values(CommonTestUtils::DEVICE_GNA),
-                                            ::testing::Values(config)),
+                                            ::testing::ValuesIn(config)),
                          PreprocessGNATest::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_Preprocess,
@@ -135,7 +141,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_Preprocess,
                                             ::testing::ValuesIn(inputTypesUnsupported),
                                             ::testing::Values(ov::element::f32),
                                             ::testing::Values(CommonTestUtils::DEVICE_GNA),
-                                            ::testing::Values(config)),
+                                            ::testing::ValuesIn(config)),
                          PreprocessGNATest::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_Preprocess,
@@ -144,7 +150,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_Preprocess,
                                             ::testing::Values(ov::element::f32),
                                             ::testing::ValuesIn(outputTypesUnsupported),
                                             ::testing::Values(CommonTestUtils::DEVICE_GNA),
-                                            ::testing::Values(config)),
+                                            ::testing::ValuesIn(config)),
                          PreprocessGNATest::getTestCaseName);
 
 }  // namespace LayerTestsDefinitions

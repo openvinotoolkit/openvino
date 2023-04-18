@@ -85,9 +85,9 @@ std::vector<size_t> input = {
     64,
 };
 
-std::map<std::string, std::string> additional_config = {
-    {"GNA_DEVICE_MODE", "GNA_SW_EXACT"},
-};
+const std::vector<std::map<std::string, std::string>> additional_config = {
+    {{"GNA_DEVICE_MODE", "GNA_SW_EXACT"}, {"GNA_EXEC_TARGET", "GNA_TARGET_3_0"}},
+    {{"GNA_DEVICE_MODE", "GNA_SW_EXACT"}, {"GNA_EXEC_TARGET", "GNA_TARGET_3_5"}}};
 
 INSTANTIATE_TEST_SUITE_P(smoke_fq_fusion_with_sigmoid,
                          FqFusionWithSigmoidTest,
@@ -96,7 +96,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_fq_fusion_with_sigmoid,
                                             ::testing::ValuesIn(levelFq),
                                             ::testing::ValuesIn(minMaxFq),
                                             ::testing::ValuesIn(input),
-                                            ::testing::Values(additional_config)),
+                                            ::testing::ValuesIn(additional_config)),
                          FqFusionWithSigmoidTest::getTestCaseName);
 
 }  // namespace LayerTestsDefinitions
