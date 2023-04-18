@@ -34,7 +34,7 @@
 
 *Example 1*
 
-..code-block:: xml
+..code-block:: console
   
   <layer ... type="Acos">
       <input>

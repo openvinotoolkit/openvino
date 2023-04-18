@@ -35,22 +35,22 @@
 
 *Example 1*
 
-.. code-block:: xml
-   
-   <layer ... type="Abs">
-       <input>
-           <port id="0">
-               <dim>256</dim>
-               <dim>56</dim>
-           </port>
-       </input>
-       <output>
-           <port id="1">
-               <dim>256</dim>
-               <dim>56</dim>
-           </port>
-       </output>
-   </layer>
+..  code-block:: xml
+    
+    <layer ... type="Abs">
+        <input>
+            <port id="0">
+                <dim>256</dim>
+                <dim>56</dim>
+            </port>
+        </input>
+        <output>
+            <port id="1">
+                <dim>256</dim>
+                <dim>56</dim>
+            </port>
+        </output>
+    </layer>
 
 
 @endsphinxdirective
