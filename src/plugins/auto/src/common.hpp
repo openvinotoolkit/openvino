@@ -214,7 +214,4 @@ public:
     SoExecNetwork                                  _hwExecutableNetwork;
     virtual ~AutoScheduleContext() = default;
 };
-
-
-
 }  // namespace MultiDevicePlugin

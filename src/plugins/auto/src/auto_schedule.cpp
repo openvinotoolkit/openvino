@@ -779,9 +779,7 @@ bool AutoSchedule::ScheduleToWorkerInferRequest(IE::Task inferPipelineTask, Devi
         }
     } else {
         if (_pCTPUTLoadContext) {
-            for (size_t i = 0; i < _autoSContext->_devicePriorities.size(); i++) {
-                devices.push_back(_autoSContext->_devicePriorities[i]);
-            }
+            devices = _autoSContext->_devicePriorities;
         } else {
             // _acceleratorDevice could be the same as _cpuDevice, such as AUTO:CPU
             if (_loadContext[FALLBACKDEVICE].isAlready) {

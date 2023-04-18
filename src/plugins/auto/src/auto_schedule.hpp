@@ -58,7 +58,7 @@ public:
     IInferPtr CreateInferRequestImpl(IE::InputsDataMap networkInputs, IE::OutputsDataMap networkOutputs) override;
     IInferPtr CreateInferRequestImpl(const std::vector<std::shared_ptr<const ov::Node>>& inputs,
                                                           const std::vector<std::shared_ptr<const ov::Node>>& outputs) override;
-    void run(IE::Task inferTask);
+    void run(IE::Task inferTask) override;
     Pipeline GetPipeline(const IInferPtr& syncRequestImpl, WorkerInferRequest** WorkerInferRequest) override;
     void WaitActualNetworkReady() const;
     virtual ~AutoSchedule();
@@ -100,7 +100,7 @@ private:
     DeviceMap<std::unique_ptr<IE::ThreadSafeQueue<IE::Task>>> _inferPipelineTasksDeviceSpecific;
     SoExecNetwork                                             _passthroughExeNet;
     Time                                                      _cpuHelpReleaseTime;
-    unsigned int                                              _cpuHelpInferCount = 0;
+    size_t                                                    _cpuHelpInferCount = 0;
     double                                                    _cpuHelpFps = 0.0;
     std::string                                               _LogTag;
     IE::IStreamsExecutor::Ptr                                 _executor;

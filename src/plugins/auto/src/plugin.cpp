@@ -353,6 +353,10 @@ IExecutableNetworkInternal::Ptr MultiDeviceInferencePlugin::LoadNetworkImpl(cons
     // apply latency for AUTO, tput for MULTI
     auto itorConfig = config.find(ov::hint::performance_mode.name());
     bool isHintSet = _pluginConfig.is_set_by_user(ov::hint::performance_mode) || itorConfig != config.end();
+    if (!isHintSet && workModeAuto) {
+        // NO user sets perfHint, then set perfhint to 'LATENCY' for AutoExecutableNetwork.
+        loadConfig.set_property(ov::hint::performance_mode(ov::hint::PerformanceMode::LATENCY));
+    }
     // updateFromMap will check config valid
     loadConfig.set_user_property(PreProcessConfig(config));
     loadConfig.apply_user_properties();

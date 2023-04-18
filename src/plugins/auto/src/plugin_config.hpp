@@ -137,11 +137,6 @@ public:
         return get_property(property.name()).template as<T>();
     }
 
-    template <typename T, ov::PropertyMutability mutability>
-    T get_user_property(const ov::Property<T, mutability>& property) const {
-        return get_user_property(property.name()).template as<T>();
-    }
-
     void apply_user_properties();
     ov::AnyMap get_full_properties();
 
