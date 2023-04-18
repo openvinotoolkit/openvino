@@ -7,7 +7,7 @@ from logger_test_actual import create_tf_model
 
 
 def mocked_check_module_import(module_name, required_version, key, not_satisfied_versions):
-    if module_name == 'openvino-telemetry':
+    if module_name == 'importlib-metadata':
         raise ImportError()
 
 

@@ -8,7 +8,9 @@ from openvino.tools.mo.utils.error import FrameworkError
 
 
 def mocked_check_module_import(module_name, required_version, key, not_satisfied_versions):
-    if module_name == 'openvino-telemetry':
+    print("mock run")
+    if module_name == 'importlib-metadata':
+        print("mock run ImportError")
         raise ImportError()
 
 
