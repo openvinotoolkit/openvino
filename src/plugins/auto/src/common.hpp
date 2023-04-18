@@ -198,7 +198,6 @@ public:
     std::vector<DeviceInformation>                 _devicePriorities;
     std::vector<DeviceInformation>                 _devicePrioritiesInitial;
     std::unordered_map<std::string, IE::Parameter> _config;
-    std::mutex                                     _mutex;
     bool                                           _needPerfCounters;
     bool                                           _batchingDisabled = {false};
     bool                                           _startupfallback = true;
