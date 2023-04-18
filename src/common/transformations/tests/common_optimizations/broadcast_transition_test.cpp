@@ -51,10 +51,14 @@ std::shared_ptr<ov::Model> getOriginal(
 std::shared_ptr<ov::Model> getReference(const ov::element::Type& precision,
                                         const ov::PartialShape& input_shape,
                                         const ov::Shape& original_target_shape,
-                                        const std::string& operation_type) {
+                                        const std::string& operation_type,
+                                        const size_t idx) {
     const auto input = std::make_shared<ov::opset10::Parameter>(precision, input_shape);
     const auto data_constant = ov::opset10::Constant::create(precision, {}, {1.f});
-    const auto operation = getOperation(input, data_constant, operation_type, ov::op::AutoBroadcastType::NUMPY);
+
+    const auto fst_in = idx == 0 ? data_constant->output(0) : input->output(0);
+    const auto sec_in = idx == 1 ? data_constant->output(0) : input->output(0);
+    const auto operation = getOperation(fst_in, sec_in, operation_type, ov::op::AutoBroadcastType::NUMPY);
 
     const auto target_shape = [&]() {
         auto new_shape = original_target_shape;
@@ -118,7 +122,7 @@ protected:
 
         manager.register_pass<ov::pass::BroadcastTransition>();
         model = getOriginal(precision, input_shape, target_shape, bcast_mode, operation_type, idx);
-        model_ref = getReference(precision, input_shape, target_shape, operation_type);
+        model_ref = getReference(precision, input_shape, target_shape, operation_type, idx);
     }
 };
 

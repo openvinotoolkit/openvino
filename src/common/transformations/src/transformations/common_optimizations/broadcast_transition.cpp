@@ -16,10 +16,7 @@
 
 ov::pass::BroadcastTransition::BroadcastTransition() {
     MATCHER_SCOPE(BroadcastTransition);
-    auto bcast_data_m = pass::pattern::any_input();
-    auto target_shape_m = pass::pattern::any_input(pass::pattern::has_static_shape());
-    auto bcast_m = pass::pattern::wrap_type<opset1::Broadcast, opset10::Broadcast>({bcast_data_m, target_shape_m},
-                                                                                   pass::pattern::consumers_count(1));
+    auto bcast_m = pass::pattern::wrap_type<opset1::Broadcast, opset10::Broadcast>(pass::pattern::consumers_count(1));
     auto eltwise_input_m = pass::pattern::any_input(pass::pattern::has_static_rank());
     auto eltwise_1 = pass::pattern::wrap_type<op::util::BinaryElementwiseArithmetic>({eltwise_input_m, bcast_m});
     auto eltwise_2 = pass::pattern::wrap_type<op::util::BinaryElementwiseArithmetic>({bcast_m, eltwise_input_m});
@@ -39,11 +36,16 @@ ov::pass::BroadcastTransition::BroadcastTransition() {
         }
 
         const auto& eltwise_input = pattern_map.at(eltwise_input_m);
-        const auto& bcast_data = pattern_map.at(bcast_data_m);
-        const auto new_eltwise = eltwise->clone_with_new_inputs({eltwise_input, bcast_data});
+        const auto& bcast_data = bcast->input_value(0);
+        // inputs order mustn't be changed because an eltwise might be not commutative
+        ov::OutputVector new_inputs{
+            eltwise->get_input_node_ptr(0) == eltwise_input.get_node() ? eltwise_input : bcast_data,
+            eltwise->get_input_node_ptr(1) == bcast.get() ? bcast_data : eltwise_input
+        };
+        const auto new_eltwise = eltwise->clone_with_new_inputs(new_inputs);
         ov::copy_runtime_info(eltwise, new_eltwise);
 
-        auto target_shape = pattern_map.at(target_shape_m);
+        auto target_shape = bcast->input_value(1);
         const auto& target_shape_et = target_shape.get_element_type();
 
         std::shared_ptr<ov::Node> data_shape_path;
