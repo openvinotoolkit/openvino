@@ -323,3 +323,18 @@ TEST(type_prop, interpolate_v11_intervals_with_sizes_mode) {
 
     EXPECT_EQ(interp->get_output_partial_shape(0), (PartialShape{1, 3, 200, 300}));
 }
+
+TEST(type_prop, interpolate_v11_sizes_with_shapeof) {
+    const auto image = std::make_shared<op::Parameter>(element::f32, PartialShape{1, 200, 100, 3});
+    const auto param = std::make_shared<op::Parameter>(element::f32, PartialShape{37, 21});
+    const auto sizes = std::make_shared<op::ShapeOf>(param);
+    const auto axes = op::Constant::create<int64_t>(element::i64, Shape{2}, {2, 1});
+
+    ov::op::util::InterpolateBase::InterpolateAttrs attrs;
+    attrs.shape_calculation_mode = ov::op::util::InterpolateBase::ShapeCalcMode::SIZES;
+    attrs.pads_begin = {0, 0, 0, 0};
+    attrs.pads_end = {0, 0, 0, 0};
+    auto interp = std::make_shared<ov::op::v11::Interpolate>(image, sizes, axes, attrs);
+
+    EXPECT_EQ(interp->get_output_partial_shape(0), (PartialShape{1, 21, 37, 3}));
+}
