@@ -40,6 +40,8 @@ class Partitioner:
             graph_module, self.supported_ops, allows_single_node_partition=True)
         partitions = partitioner.propose_partitions()
 
+        #TODO: Find a more efficient way to include input
+        #"get_attr" nodes to the partitions.
         getattr_to_merge : Dict[Node, Node] = {}
         for partition in partitions:
             for pnode in partition.nodes:
