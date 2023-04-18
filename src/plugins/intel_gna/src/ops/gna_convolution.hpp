@@ -4,12 +4,12 @@
 
 #pragma once
 
-#include "openvino/op/op.hpp"
-#include "ngraph/node.hpp"
 #include <transformations_visibility.hpp>
 
 #include "ngraph/coordinate_diff.hpp"
+#include "ngraph/node.hpp"
 #include "ngraph/op/op.hpp"
+#include "openvino/op/op.hpp"
 
 namespace ov {
 namespace intel_gna {
@@ -19,43 +19,35 @@ class GNAConvolution;
 
 namespace internal {
 
-int64_t calculate_num_spatial(const ov::intel_gna::op::GNAConvolution * op,
-                                         const ngraph::PartialShape& input_shape,
-                                         const ngraph::PartialShape& filters_shape,
-                                         const int64_t& num_non_spatial_data_dims,
-                                         const int64_t& num_non_spatial_filter_dims);
+int64_t calculate_num_spatial(const ov::intel_gna::op::GNAConvolution* op,
+                              const ngraph::PartialShape& input_shape,
+                              const ngraph::PartialShape& filters_shape,
+                              const int64_t& num_non_spatial_data_dims,
+                              const int64_t& num_non_spatial_filter_dims);
 
 void update_and_validate_attributes(ov::intel_gna::op::GNAConvolution* op);
 
 template <class T>
 bool resolve_auto_pad_for_shape(const ov::intel_gna::op::GNAConvolution* op,
-                                           ngraph::CoordinateDiff& pads_begin,
-                                           ngraph::CoordinateDiff& pads_end,
-                                           const std::vector<T>& input_shapes,
-                                           const int64_t& num_non_spatial_data_dims,
-                                           const int64_t& num_non_spatial_filter_dims);
+                                ngraph::CoordinateDiff& pads_begin,
+                                ngraph::CoordinateDiff& pads_end,
+                                const std::vector<T>& input_shapes,
+                                const int64_t& num_non_spatial_data_dims,
+                                const int64_t& num_non_spatial_filter_dims);
 template <class T>
 void shape_infer(const ov::intel_gna::op::GNAConvolution* op,
-                            const ngraph::CoordinateDiff& pads_begin,
-                            const ngraph::CoordinateDiff& pads_end,
-                            const std::vector<T>& input_shapes,
-                            std::vector<T>& output_shapes);
+                 const ngraph::CoordinateDiff& pads_begin,
+                 const ngraph::CoordinateDiff& pads_end,
+                 const std::vector<T>& input_shapes,
+                 std::vector<T>& output_shapes);
 
-} // namespace internal
+}  // namespace internal
 
 /**
  * @brief Activation modes for fused convolutions.
  *
  */
-enum class ActivationType { SIGMOID,
-                            RELU,
-                            TANH,
-                            ABS,
-                            LOG,
-                            EXP,
-                            SIGN,
-                            CLAMP,
-                            NO_ACTIVATION };
+enum class ActivationType { SIGMOID, RELU, TANH, ABS, LOG, EXP, SIGN, CLAMP, NO_ACTIVATION };
 
 /// \brief Convolution with NHWC layout
 ///
@@ -85,21 +77,21 @@ public:
     /// Output `[N, C_OUT, R1, ... Rf]`
     ///
     GNAConvolution(const ngraph::Output<ngraph::Node>& data_batch,
-                const ngraph::Output<ngraph::Node>& filters,
-                const ngraph::Output<ngraph::Node>& bias,
-                const ngraph::Strides& strides,
-                const ngraph::CoordinateDiff& pads_begin,
-                const ngraph::CoordinateDiff& pads_end,
-                const ngraph::Strides& dilations,
-                const ov::op::PadType& auto_pad = ov::op::PadType::EXPLICIT);
+                   const ngraph::Output<ngraph::Node>& filters,
+                   const ngraph::Output<ngraph::Node>& bias,
+                   const ngraph::Strides& strides,
+                   const ngraph::CoordinateDiff& pads_begin,
+                   const ngraph::CoordinateDiff& pads_end,
+                   const ngraph::Strides& dilations,
+                   const ov::op::PadType& auto_pad = ov::op::PadType::EXPLICIT);
 
     GNAConvolution(const ngraph::Output<ngraph::Node>& data_batch,
-                const ngraph::Output<ngraph::Node>& filters,
-                const ngraph::Strides& strides,
-                const ngraph::CoordinateDiff& pads_begin,
-                const ngraph::CoordinateDiff& pads_end,
-                const ngraph::Strides& dilations,
-                const ov::op::PadType& auto_pad = ov::op::PadType::EXPLICIT);
+                   const ngraph::Output<ngraph::Node>& filters,
+                   const ngraph::Strides& strides,
+                   const ngraph::CoordinateDiff& pads_begin,
+                   const ngraph::CoordinateDiff& pads_end,
+                   const ngraph::Strides& dilations,
+                   const ov::op::PadType& auto_pad = ov::op::PadType::EXPLICIT);
 
     void validate_and_infer_types() override;
     bool visit_attributes(ov::AttributeVisitor& visitor) override;
@@ -141,9 +133,15 @@ public:
     void set_auto_pad(const ov::op::PadType& auto_pad) {
         m_auto_pad = auto_pad;
     }
-    bool has_add_node() const { return m_has_add_node; }
-    ActivationType get_activation() const { return m_activation_type; }
-    void set_activation(ActivationType activation_type) { m_activation_type = activation_type; }
+    bool has_add_node() const {
+        return m_has_add_node;
+    }
+    ActivationType get_activation() const {
+        return m_activation_type;
+    }
+    void set_activation(ActivationType activation_type) {
+        m_activation_type = activation_type;
+    }
 
     /*
      * TODO: for unit tests
@@ -163,29 +161,29 @@ protected:
 
 private:
     friend int64_t internal::calculate_num_spatial(const ov::intel_gna::op::GNAConvolution* op,
-                                         const ngraph::PartialShape& input_shape,
-                                         const ngraph::PartialShape& filters_shape,
-                                         const int64_t& num_non_spatial_data_dims,
-                                         const int64_t& num_non_spatial_filter_dims);
+                                                   const ngraph::PartialShape& input_shape,
+                                                   const ngraph::PartialShape& filters_shape,
+                                                   const int64_t& num_non_spatial_data_dims,
+                                                   const int64_t& num_non_spatial_filter_dims);
 
     friend void internal::update_and_validate_attributes(ov::intel_gna::op::GNAConvolution* op);
 
     template <class T>
     friend bool internal::resolve_auto_pad_for_shape(const ov::intel_gna::op::GNAConvolution* op,
-                                           ngraph::CoordinateDiff& pads_begin,
-                                           ngraph::CoordinateDiff& pads_end,
-                                           const std::vector<T>& input_shapes,
-                                           const int64_t& num_non_spatial_data_dims,
-                                           const int64_t& num_non_spatial_filter_dims);
+                                                     ngraph::CoordinateDiff& pads_begin,
+                                                     ngraph::CoordinateDiff& pads_end,
+                                                     const std::vector<T>& input_shapes,
+                                                     const int64_t& num_non_spatial_data_dims,
+                                                     const int64_t& num_non_spatial_filter_dims);
     template <class T>
     friend void internal::shape_infer(const ov::intel_gna::op::GNAConvolution* op,
-                            const ngraph::CoordinateDiff& pads_begin,
-                            const ngraph::CoordinateDiff& pads_end,
-                            const std::vector<T>& input_shapes,
-                            std::vector<T>& output_shapes);
+                                      const ngraph::CoordinateDiff& pads_begin,
+                                      const ngraph::CoordinateDiff& pads_end,
+                                      const std::vector<T>& input_shapes,
+                                      std::vector<T>& output_shapes);
     bool m_has_add_node;
     ActivationType m_activation_type;
 };
-} // namespace op
-} // namespace intel_gna
-} // namespace ov
+}  // namespace op
+}  // namespace intel_gna
+}  // namespace ov

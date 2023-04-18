@@ -6,9 +6,9 @@
 
 #include <limits>
 
+#include "ngraph/node.hpp"
 #include "openvino/op/op.hpp"
 #include "openvino/op/util/attr_types.hpp"
-#include "ngraph/node.hpp"
 #include "openvino/op/util/max_pool_base.hpp"
 
 namespace ov {
@@ -33,12 +33,12 @@ public:
     /// computing output shape.
     /// \param auto_pad The pad type for automatically computing padding sizes.
     GNAMaxPool(const ngraph::Output<ngraph::Node>& arg,
-            const ngraph::Strides& strides,
-            const ngraph::Shape& pads_begin,
-            const ngraph::Shape& pads_end,
-            const ngraph::Shape& kernel,
-            const ov::op::RoundingType rounding_type = ov::op::RoundingType::FLOOR,
-            const ov::op::PadType auto_pad = ov::op::PadType::EXPLICIT);
+               const ngraph::Strides& strides,
+               const ngraph::Shape& pads_begin,
+               const ngraph::Shape& pads_end,
+               const ngraph::Shape& kernel,
+               const ov::op::RoundingType rounding_type = ov::op::RoundingType::FLOOR,
+               const ov::op::PadType auto_pad = ov::op::PadType::EXPLICIT);
 
     void validate_and_infer_types() override;
     bool visit_attributes(ov::AttributeVisitor& visitor) override;
@@ -103,6 +103,6 @@ protected:
     ov::op::PadType m_auto_pad;
     ov::op::RoundingType m_rounding_type;
 };
-} // namespace op
-} // namespace intel_gna
-} // namespace ov
+}  // namespace op
+}  // namespace intel_gna
+}  // namespace ov

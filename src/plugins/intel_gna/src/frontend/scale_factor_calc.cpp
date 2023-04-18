@@ -11,7 +11,6 @@
 #include "layers/gna_convolution_layer.hpp"
 #include "log/debug.hpp"
 #include "weights_converter.hpp"
-#include "debug_new_pass.hpp" // DEBUG
 
 namespace ov {
 namespace intel_gna {

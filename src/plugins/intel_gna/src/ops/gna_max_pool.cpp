@@ -3,13 +3,13 @@
 //
 
 #include "gna_max_pool.hpp"
+
 #include <assert.h>
 
 #include "ngraph/attribute_visitor.hpp"
+#include "ngraph/node.hpp"
 #include "ngraph/op/constant.hpp"
 #include "ngraph/runtime/host_tensor.hpp"
-#include "ngraph/validation_util.hpp"
-#include "ngraph/node.hpp"
 #include "ngraph/validation_util.hpp"
 
 NGRAPH_RTTI_DEFINITION(ov::intel_gna::op::GNAMaxPool, "GNAMaxPool", 0);
@@ -21,27 +21,27 @@ namespace op {
 // Infers the output batch shape and element type for batched pooling fprop.
 //
 ov::PartialShape infer_batched_pooling_forward(const ngraph::Node* node,
-                                                   const ov::PartialShape& data_batch_shape,
-                                                   const ov::CoordinateDiff& data_padding_below,
-                                                   const ov::CoordinateDiff& data_padding_above,
-                                                   const ov::PartialShape& window_shape,
-                                                   const ngraph::Strides& window_strides,
-                                                   bool is_window_all_in_padding_allowed,
-                                                   bool ceil_mode,
-                                                   const ngraph::Strides& window_dilation);
+                                               const ov::PartialShape& data_batch_shape,
+                                               const ov::CoordinateDiff& data_padding_below,
+                                               const ov::CoordinateDiff& data_padding_above,
+                                               const ov::PartialShape& window_shape,
+                                               const ngraph::Strides& window_strides,
+                                               bool is_window_all_in_padding_allowed,
+                                               bool ceil_mode,
+                                               const ngraph::Strides& window_dilation);
 
 //
 // Infers the output batch shape and element type for batched pooling fprop.
 //
 ov::PartialShape infer_batched_pooling_forward(const ngraph::Node* node,
-                                                   const ov::PartialShape& data_batch_shape,
-                                                   const ov::CoordinateDiff& data_padding_below,
-                                                   const ov::CoordinateDiff& data_padding_above,
-                                                   const ov::PartialShape& window_shape,
-                                                   const ngraph::Strides& window_strides,
-                                                   bool is_window_all_in_padding_allowed,
-                                                   bool ceil_mode,
-                                                   const ngraph::Strides& window_dilation) {
+                                               const ov::PartialShape& data_batch_shape,
+                                               const ov::CoordinateDiff& data_padding_below,
+                                               const ov::CoordinateDiff& data_padding_above,
+                                               const ov::PartialShape& window_shape,
+                                               const ngraph::Strides& window_strides,
+                                               bool is_window_all_in_padding_allowed,
+                                               bool ceil_mode,
+                                               const ngraph::Strides& window_dilation) {
     NODE_VALIDATION_CHECK(node,
                           data_batch_shape.rank().is_dynamic() ||
                               (data_batch_shape.rank().get_length() >= 3 && data_batch_shape.rank().get_length() <= 5),
@@ -79,10 +79,12 @@ ov::PartialShape infer_batched_pooling_forward(const ngraph::Node* node,
 
     if (data_batch_shape.rank().is_static()) {
         batch_size = data_batch_shape[0];
-        channel_count = *(data_batch_shape.end() - 1); // EMUTEX fix NCHW -> NHWC from data_batch_shape[1]
+        channel_count = *(data_batch_shape.end() - 1);  // EMUTEX fix NCHW -> NHWC from data_batch_shape[1]
 
         for (int64_t i = 0; i < data_spatial_shape.rank().get_length(); i++) {
-            data_spatial_shape[i] = data_batch_shape[i + 1]; // EMUTEX fix NCHW -> NHWC from data_spatial_shape[i] = data_batch_shape[i + 2]
+            data_spatial_shape[i] =
+                data_batch_shape[i +
+                                 1];  // EMUTEX fix NCHW -> NHWC from data_spatial_shape[i] = data_batch_shape[i + 2]
         }
 
         NODE_VALIDATION_CHECK(node, batch_size.is_dynamic() || batch_size.get_length() > 0, "Batch size is zero.");
@@ -101,36 +103,38 @@ ov::PartialShape infer_batched_pooling_forward(const ngraph::Node* node,
         }
 
         data_output_spatial_shape = ngraph::infer_windowed_reduction_output_shape(node,
-                                                                          data_spatial_shape,
-                                                                          data_dilation,
-                                                                          data_padding_below,
-                                                                          data_padding_above,
-                                                                          window_shape,
-                                                                          window_strides,
-                                                                          dilations,
-                                                                          is_window_all_in_padding_allowed,
-                                                                          ceil_mode);
+                                                                                  data_spatial_shape,
+                                                                                  data_dilation,
+                                                                                  data_padding_below,
+                                                                                  data_padding_above,
+                                                                                  window_shape,
+                                                                                  window_strides,
+                                                                                  dilations,
+                                                                                  is_window_all_in_padding_allowed,
+                                                                                  ceil_mode);
     }
 
     ov::PartialShape data_batch_output_shape{ov::PartialShape::dynamic(data_output_spatial_shape.rank() + 2)};
     data_batch_output_shape[0] = batch_size;
-    *(data_batch_output_shape.end() - 1) = channel_count;// EMUTEX fix NCHW -> NHWC data_batch_output_shape[1] = channel_count;
+    *(data_batch_output_shape.end() - 1) =
+        channel_count;  // EMUTEX fix NCHW -> NHWC data_batch_output_shape[1] = channel_count;
 
     for (int64_t i = 0; i < data_spatial_shape.rank().get_length(); i++) {
-        data_batch_output_shape[i + 1] = data_output_spatial_shape[i]; // EMUTEX fix NCHW -> NHWC data_batch_output_shape[i + 2] = data_output_spatial_shape[i];
+        data_batch_output_shape[i + 1] =
+            data_output_spatial_shape[i];  // EMUTEX fix NCHW -> NHWC data_batch_output_shape[i + 2] =
+                                           // data_output_spatial_shape[i];
     }
 
     return data_batch_output_shape;
 }
 
-
 GNAMaxPool::GNAMaxPool(const ngraph::Output<ngraph::Node>& arg,
-                                       const ngraph::Strides& strides,
-                                       const ov::Shape& pads_begin,
-                                       const ov::Shape& pads_end,
-                                       const ov::Shape& kernel,
-                                       const ov::op::RoundingType rounding_type,
-                                       const ov::op::PadType auto_pad)
+                       const ngraph::Strides& strides,
+                       const ov::Shape& pads_begin,
+                       const ov::Shape& pads_end,
+                       const ov::Shape& kernel,
+                       const ov::op::RoundingType rounding_type,
+                       const ov::op::PadType auto_pad)
     : Op({arg}),
       m_kernel(kernel),
       m_strides(strides),
@@ -216,21 +220,21 @@ ov::PartialShape GNAMaxPool::infer_output_shape(const ngraph::Strides& dilations
         ov::CoordinateDiff pads_begin(m_pads_begin.begin(), m_pads_begin.end());
         ov::CoordinateDiff pads_end(m_pads_end.begin(), m_pads_end.end());
         output_shape = ov::intel_gna::op::infer_batched_pooling_forward(this,
-                                                             get_input_partial_shape(0),
-                                                             pads_begin,
-                                                             pads_end,
-                                                             m_kernel,
-                                                             m_strides,
-                                                             true,
-                                                             m_rounding_type == ov::op::RoundingType::CEIL,
-                                                             dilations);
+                                                                        get_input_partial_shape(0),
+                                                                        pads_begin,
+                                                                        pads_end,
+                                                                        m_kernel,
+                                                                        m_strides,
+                                                                        true,
+                                                                        m_rounding_type == ov::op::RoundingType::CEIL,
+                                                                        dilations);
     } else {
         if (arg_shape.rank().is_static()) {
             output_shape = std::vector<ov::Dimension>(arg_shape.rank().get_max_length(), ov::Dimension::dynamic());
             if (arg_shape[0].is_static()) {
                 output_shape[0] = arg_shape[0];  // batch size
             }
-            if ((arg_shape.end() - 1)->is_static()) { // EMUTEX FIXED: from [1] to end() - 1 NCHW -> NHWC
+            if ((arg_shape.end() - 1)->is_static()) {                // EMUTEX FIXED: from [1] to end() - 1 NCHW -> NHWC
                 *(output_shape.end() - 1) = *(arg_shape.end() - 1);  // channel size
             }
         }
@@ -240,9 +244,9 @@ ov::PartialShape GNAMaxPool::infer_output_shape(const ngraph::Strides& dilations
 }
 
 bool GNAMaxPool::update_auto_padding(const ov::PartialShape& in_shape,
-                                                    const ngraph::Strides& filter_dilations,
-                                                    ov::Shape& new_pads_end,
-                                                    ov::Shape& new_pads_begin) const {
+                                     const ngraph::Strides& filter_dilations,
+                                     ov::Shape& new_pads_end,
+                                     ov::Shape& new_pads_begin) const {
     bool update_auto_padding_succeed = true;
     if (m_auto_pad == ov::op::PadType::SAME_UPPER || m_auto_pad == ov::op::PadType::SAME_LOWER) {
         ov::CoordinateDiff pads_end, pads_begin;
@@ -262,14 +266,14 @@ bool GNAMaxPool::update_auto_padding(const ov::PartialShape& in_shape,
 std::shared_ptr<ngraph::Node> GNAMaxPool::clone_with_new_inputs(const ov::OutputVector& new_args) const {
     check_new_args_count(this, new_args);
     return std::make_shared<GNAMaxPool>(new_args.at(0),
-                                    m_strides,
-                                    m_pads_begin,
-                                    m_pads_end,
-                                    m_kernel,
-                                    m_rounding_type,
-                                    m_auto_pad);
+                                        m_strides,
+                                        m_pads_begin,
+                                        m_pads_end,
+                                        m_kernel,
+                                        m_rounding_type,
+                                        m_auto_pad);
 }
 
-} // namespace op
-} // namespace intel_gna
-} // namespace ov
+}  // namespace op
+}  // namespace intel_gna
+}  // namespace ov

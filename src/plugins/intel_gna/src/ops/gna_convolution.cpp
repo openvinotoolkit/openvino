@@ -4,13 +4,12 @@
 
 #include "gna_convolution.hpp"
 
+#include <cmath>
+#include <cstddef>
 #include <ngraph/validation_util.hpp>
 
 #include "ngraph/attribute_visitor.hpp"
 #include "ngraph/runtime/host_tensor.hpp"
-
-#include <cmath>
-#include <cstddef>
 
 NGRAPH_RTTI_DEFINITION(ov::intel_gna::op::GNAConvolution, "GNAConvolution", 0);
 
@@ -29,16 +28,16 @@ int64_t calculate_num_spatial(const GNAConvolution* op,
                               const int64_t& num_non_spatial_filter_dims) {
     int64_t num_spatial = op->m_num_spatial;
     if (num_spatial == -1) {
-        const auto &input_rank = input_shape.rank();
-        const auto &filters_rank = filters_shape.rank();
+        const auto& input_rank = input_shape.rank();
+        const auto& filters_rank = filters_shape.rank();
 
-        if (const auto &size = op->m_dilations.size())
+        if (const auto& size = op->m_dilations.size())
             num_spatial = static_cast<int64_t>(size);
-        if (const auto &size = op->m_strides.size())
+        if (const auto& size = op->m_strides.size())
             num_spatial = static_cast<int64_t>(size);
-        if (const auto &size = op->m_pads_begin.size())
+        if (const auto& size = op->m_pads_begin.size())
             num_spatial = static_cast<int64_t>(size);
-        if (const auto &size = op->m_pads_end.size())
+        if (const auto& size = op->m_pads_end.size())
             num_spatial = static_cast<int64_t>(size);
         if (input_rank.is_static())
             num_spatial = input_rank.get_length() - num_non_spatial_data_dims;
@@ -74,12 +73,12 @@ void update_and_validate_attributes(GNAConvolution* op) {
                               "Dilations should be defined for all and only spatial features.");
         NODE_VALIDATION_CHECK(op,
                               static_cast<int64_t>(pad_begin.size()) == num_spatial &&
-                              static_cast<int64_t>(pad_end.size()) == num_spatial,
+                                  static_cast<int64_t>(pad_end.size()) == num_spatial,
                               "Pads should be defined for all and only spatial features.");
         NODE_VALIDATION_CHECK(op,
                               std::all_of(dilations.begin(),
                                           dilations.end(),
-                                          [](const size_t &i) {
+                                          [](const size_t& i) {
                                               return i > 0;
                                           }),
                               "Filter dilation (",
@@ -88,7 +87,7 @@ void update_and_validate_attributes(GNAConvolution* op) {
         NODE_VALIDATION_CHECK(op,
                               std::all_of(strides.begin(),
                                           strides.end(),
-                                          [](const size_t &i) {
+                                          [](const size_t& i) {
                                               return i > 0;
                                           }),
                               "Filter strides (",
@@ -108,18 +107,18 @@ inline bool dynamic_check(const int64_t& num_spatial) {
 }
 
 // FIXME: do we need that function as a template ?
-template<>
+template <>
 inline bool dynamic_check<ngraph::PartialShape>(const int64_t& num_spatial) {
     return num_spatial != -1;
 }
 
 // FIXME: do we need that function as a template ?
 // TODO: search where that function is used in openvino
-template<class T>
+template <class T>
 bool resolve_auto_pad_for_shape(const GNAConvolution* op,
                                 ngraph::CoordinateDiff& pads_begin,
                                 ngraph::CoordinateDiff& pads_end,
-                                const std::vector<T> &input_shapes,
+                                const std::vector<T>& input_shapes,
                                 const int64_t& num_non_spatial_data_dims,
                                 const int64_t& num_non_spatial_filter_dims) {
     const auto& auto_pad = op->get_auto_pad();
@@ -181,17 +180,18 @@ bool resolve_auto_pad_for_shape(const GNAConvolution* op,
 
 // FIXME: do we need that function as a template ?
 // TODO: search where that function is used in openvino
-template<class T>
+template <class T>
 void shape_infer(const GNAConvolution* op,
                  const ngraph::CoordinateDiff& pads_begin,
                  const ngraph::CoordinateDiff& pads_end,
-                 const std::vector<T> &input_shapes,
-                 std::vector<T> &output_shapes) {
+                 const std::vector<T>& input_shapes,
+                 std::vector<T>& output_shapes) {
     NODE_VALIDATION_CHECK(op, input_shapes.size() == 2 && output_shapes.size() == 1);
     auto input_shape = input_shapes[0], filters_shape = input_shapes[1];
 
     const auto& num_spatial = op->m_num_spatial;
-    NODE_VALIDATION_CHECK(op, num_spatial != -1,
+    NODE_VALIDATION_CHECK(op,
+                          num_spatial != -1,
                           "Convolution shape_infer should be provided with correct num_spatial attribute");
 
     if (input_shape.rank().is_dynamic())
@@ -201,7 +201,7 @@ void shape_infer(const GNAConvolution* op,
 
     NODE_VALIDATION_CHECK(op,
                           (static_cast<int64_t>(input_shape.size()) == (num_spatial + 2)) &&
-                          (static_cast<int64_t>(filters_shape.size()) == (num_spatial + 2)),
+                              (static_cast<int64_t>(filters_shape.size()) == (num_spatial + 2)),
                           "Data batch and filters rank do not match (data batch shape: ",
                           input_shape,
                           ", filters shape: ",
@@ -213,20 +213,20 @@ void shape_infer(const GNAConvolution* op,
     output_shape.resize(num_spatial + 2);
     output_shape[0] = input_shape[0];
     // Channel is the last in NHWC layout
-    *(output_shape.rbegin()) = filters_shape[0]; // NHWC C is last instead of filters_shape[0] for NCHW layout
+    *(output_shape.rbegin()) = filters_shape[0];  // NHWC C is last instead of filters_shape[0] for NCHW layout
 
     const auto n_data_channel = *(input_shape.rbegin());
     const auto n_filter_channel = *(filters_shape.rbegin());
 
     NODE_VALIDATION_CHECK(
-            op,
-            n_data_channel.compatible(n_filter_channel), // instead of input_shape[1].compatible(filters_shape[1]),
-            "Data batch channel count (",
-            n_data_channel, // instead of input_shape[1],
-            ") does not match filter input ",
-            "channel count (",
-            n_filter_channel, // instead of filters_shape[1],
-            ").");
+        op,
+        n_data_channel.compatible(n_filter_channel),  // instead of input_shape[1].compatible(filters_shape[1]),
+        "Data batch channel count (",
+        n_data_channel,  // instead of input_shape[1],
+        ") does not match filter input ",
+        "channel count (",
+        n_filter_channel,  // instead of filters_shape[1],
+        ").");
 
     const auto& dilations = op->m_dilations;
     const auto& strides = op->m_strides;
@@ -259,16 +259,16 @@ void shape_infer(const GNAConvolution* op,
     }
 }
 
-} // namespace internal
+}  // namespace internal
 
 GNAConvolution::GNAConvolution(const ngraph::Output<Node>& data_batch,
-                                 const ngraph::Output<Node>& filters,
-                                 const ngraph::Output<Node>& bias,
-                                 const ngraph::Strides& strides,
-                                 const ngraph::CoordinateDiff& pads_begin,
-                                 const ngraph::CoordinateDiff& pads_end,
-                                 const ngraph::Strides& dilations,
-                                 const ov::op::PadType& auto_pad)
+                               const ngraph::Output<Node>& filters,
+                               const ngraph::Output<Node>& bias,
+                               const ngraph::Strides& strides,
+                               const ngraph::CoordinateDiff& pads_begin,
+                               const ngraph::CoordinateDiff& pads_end,
+                               const ngraph::Strides& dilations,
+                               const ov::op::PadType& auto_pad)
     : ov::op::Op({data_batch, filters, bias}),
       m_strides(strides),
       m_dilations(dilations),
@@ -279,12 +279,12 @@ GNAConvolution::GNAConvolution(const ngraph::Output<Node>& data_batch,
 }
 
 GNAConvolution::GNAConvolution(const ngraph::Output<Node>& data_batch,
-                                 const ngraph::Output<Node>& filters,
-                                 const ngraph::Strides& strides,
-                                 const ngraph::CoordinateDiff& pads_begin,
-                                 const ngraph::CoordinateDiff& pads_end,
-                                 const ngraph::Strides& dilations,
-                                 const ov::op::PadType& auto_pad)
+                               const ngraph::Output<Node>& filters,
+                               const ngraph::Strides& strides,
+                               const ngraph::CoordinateDiff& pads_begin,
+                               const ngraph::CoordinateDiff& pads_end,
+                               const ngraph::Strides& dilations,
+                               const ov::op::PadType& auto_pad)
     : ov::op::Op({data_batch, filters}),
       m_strides(strides),
       m_dilations(dilations),
@@ -340,25 +340,25 @@ void GNAConvolution::validate_and_infer_types() {
 std::shared_ptr<ngraph::Node> GNAConvolution::clone_with_new_inputs(const ngraph::OutputVector& new_args) const {
     if (new_args.size() == 2) {
         return std::make_shared<GNAConvolution>(new_args.at(0),
-                                            new_args.at(1),
-                                            m_strides,
-                                            m_pads_begin,
-                                            m_pads_end,
-                                            m_dilations,
-                                            m_auto_pad);
+                                                new_args.at(1),
+                                                m_strides,
+                                                m_pads_begin,
+                                                m_pads_end,
+                                                m_dilations,
+                                                m_auto_pad);
     } else if (new_args.size() == 3) {
         return std::make_shared<GNAConvolution>(new_args.at(0),
-                                            new_args.at(1),
-                                            new_args.at(2),
-                                            m_strides,
-                                            m_pads_begin,
-                                            m_pads_end,
-                                            m_dilations,
-                                            m_auto_pad);
+                                                new_args.at(1),
+                                                new_args.at(2),
+                                                m_strides,
+                                                m_pads_begin,
+                                                m_pads_end,
+                                                m_dilations,
+                                                m_auto_pad);
     }
 
     throw ngraph::ngraph_error("Unsupported number of arguments for GNAConvolution operation");
 }
-} // namespace op
-} // namespace intel_gna
-} // namespace ov
+}  // namespace op
+}  // namespace intel_gna
+}  // namespace ov

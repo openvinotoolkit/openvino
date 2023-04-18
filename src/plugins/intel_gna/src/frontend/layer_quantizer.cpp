@@ -8,7 +8,6 @@
 #include "common/gna_target.hpp"
 #include "gna_graph_tools.hpp"
 #include "weights_converter.hpp"
-#include "debug_new_pass.hpp" // DEBUG
 
 namespace ov {
 namespace intel_gna {

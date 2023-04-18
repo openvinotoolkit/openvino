@@ -2,20 +2,18 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <openvino/cc/ngraph/itt.hpp>
-
 #include "transformations/transpose_nchw.hpp"
 
-#include "transformations/utils/transformation_helper.hpp"
-
 #include <ngraph/opsets/opset8.hpp>
+#include <ngraph/pass/manager.hpp>
 #include <ngraph/pattern/op/wrap_type.hpp>
-#include <transformations/utils/utils.hpp>
+#include <openvino/cc/ngraph/itt.hpp>
 #include <ops/gna_convolution.hpp>
 #include <ops/gna_max_pool.hpp>
-#include <ngraph/pass/manager.hpp>
-
+#include <transformations/utils/utils.hpp>
 #include <vector>
+
+#include "transformations/utils/transformation_helper.hpp"
 
 NGRAPH_RTTI_DEFINITION(ov::intel_gna::pass::TransposeNCHW, "TransposeNCHW", 0);
 NGRAPH_RTTI_DEFINITION(ov::intel_gna::pass::SubstituteGNAConvolution, "SubstituteGNAConvolution", 0);
@@ -32,7 +30,7 @@ ngraph::Shape MakeTransposeOrderNHWC2NCHW(size_t shape_size);
     3D: NCX {0, 1, 2} -> NXC {0, 2, 1}
     4D: NCHW {0, 1, 2, 3} -> NHWC {0, 2, 3, 1}
     5D: NCZYX {0, 1, 2, 3, 4} -> NZYXC {0, 2, 3, 4, 1}
-   
+
    after convolution convert NHWC -> NCHW
    3D: NXC {0, 1, 2} -> NCX {0, 2, 1}
    4D: NHWC {0, 1, 2, 3} -> NCHW {0, 3, 1, 2}
@@ -89,7 +87,7 @@ bool HasChildNode(Node node) {
     return false;
 }
 
-} // namespace
+}  // namespace
 
 namespace SubstituteGNAConvolutionNS {
 
@@ -114,25 +112,25 @@ bool DoTransformation(Node convolution) {
                                                             ngraph::Shape{transpose_before_order.size()},
                                                             transpose_before_order);
 
-    auto transpose_before = std::make_shared<ngraph::opset8::Transpose>(convolution_input_data_node,
-                                                                        transpose_const);
+    auto transpose_before = std::make_shared<ngraph::opset8::Transpose>(convolution_input_data_node, transpose_const);
 
-    auto transpose_conv_constant = std::make_shared<ngraph::opset8::Transpose>(convolution_input_const_node,
-                                                                               transpose_const);
+    auto transpose_conv_constant =
+        std::make_shared<ngraph::opset8::Transpose>(convolution_input_const_node, transpose_const);
     auto conv_new = std::make_shared<ov::intel_gna::op::GNAConvolution>(transpose_before,
-                                                                   transpose_conv_constant,
-                                                                   convolution_node->get_strides(),
-                                                                   convolution_node->get_pads_begin(),
-                                                                   convolution_node->get_pads_end(),
-                                                                   convolution_node->get_dilations(),
-                                                                   convolution_node->get_auto_pad());
+                                                                        transpose_conv_constant,
+                                                                        convolution_node->get_strides(),
+                                                                        convolution_node->get_pads_begin(),
+                                                                        convolution_node->get_pads_end(),
+                                                                        convolution_node->get_dilations(),
+                                                                        convolution_node->get_auto_pad());
 
     const ngraph::Shape transpose_after_order = MakeTransposeOrderNHWC2NCHW(conv_new->get_output_shape(0).size());
 
-    auto transpose_after = std::make_shared<ngraph::opset8::Transpose>(conv_new,
-                                                                       ngraph::opset8::Constant::create(ngraph::element::i64,
-                                                                       ngraph::Shape{transpose_after_order.size()},
-                                                                       transpose_after_order));
+    auto transpose_after = std::make_shared<ngraph::opset8::Transpose>(
+        conv_new,
+        ngraph::opset8::Constant::create(ngraph::element::i64,
+                                         ngraph::Shape{transpose_after_order.size()},
+                                         transpose_after_order));
 
     ov::copy_runtime_info(convolution_node, {transpose_before, transpose_const, conv_new, transpose_after});
 
@@ -141,7 +139,7 @@ bool DoTransformation(Node convolution) {
     return true;
 }
 
-} // namespace SubstituteGNAConvolutionNS
+}  // namespace SubstituteGNAConvolutionNS
 
 namespace SubstituteGNAMaxPoolNS {
 
@@ -158,23 +156,23 @@ bool DoTransformation(Node max_pool) {
                                                             ngraph::Shape{transpose_before_order.size()},
                                                             transpose_before_order);
 
-    auto transpose_before = std::make_shared<ngraph::opset8::Transpose>(max_pool_input_data_node,
-                                                                        transpose_const);
+    auto transpose_before = std::make_shared<ngraph::opset8::Transpose>(max_pool_input_data_node, transpose_const);
 
     auto max_pool_new = std::make_shared<ov::intel_gna::op::GNAMaxPool>(transpose_before,
-                                                                            max_pool_node->get_strides(),
-                                                                            max_pool_node->get_pads_begin(),
-                                                                            max_pool_node->get_pads_end(),
-                                                                            max_pool_node->get_kernel(),
-                                                                            max_pool_node->get_rounding_type(),
-                                                                            max_pool_node->get_auto_pad());
+                                                                        max_pool_node->get_strides(),
+                                                                        max_pool_node->get_pads_begin(),
+                                                                        max_pool_node->get_pads_end(),
+                                                                        max_pool_node->get_kernel(),
+                                                                        max_pool_node->get_rounding_type(),
+                                                                        max_pool_node->get_auto_pad());
 
     const ngraph::Shape transpose_after_order = MakeTransposeOrderNHWC2NCHW(max_pool_new->get_output_shape(0).size());
 
-    auto transpose_after = std::make_shared<ngraph::opset8::Transpose>(max_pool_new,
-                                                                       ngraph::opset8::Constant::create(ngraph::element::i64,
-                                                                       ngraph::Shape{transpose_after_order.size()},
-                                                                       transpose_after_order));
+    auto transpose_after = std::make_shared<ngraph::opset8::Transpose>(
+        max_pool_new,
+        ngraph::opset8::Constant::create(ngraph::element::i64,
+                                         ngraph::Shape{transpose_after_order.size()},
+                                         transpose_after_order));
 
     ov::copy_runtime_info(max_pool_node, {transpose_before, transpose_const, max_pool_new, transpose_after});
 
@@ -183,7 +181,7 @@ bool DoTransformation(Node max_pool) {
     return true;
 }
 
-} // namespace SubstituteGNAMaxPoolNS
+}  // namespace SubstituteGNAMaxPoolNS
 
 // ----------------------------------------------------------------------------
 
@@ -231,5 +229,5 @@ bool ov::intel_gna::pass::TransposeNCHW::run_on_model(const std::shared_ptr<ngra
     manager.register_pass<ov::intel_gna::pass::SubstituteGNAMaxPool>();
     manager.run_passes(function);
 
-    return false; // FIXME: should we return true here?
+    return false;  // FIXME: should we return true here?
 }

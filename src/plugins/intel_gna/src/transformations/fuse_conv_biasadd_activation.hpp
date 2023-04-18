@@ -5,6 +5,7 @@
 #pragma once
 
 #include <ngraph/node.hpp>
+
 #include "openvino/pass/graph_rewrite.hpp"
 
 namespace ov {

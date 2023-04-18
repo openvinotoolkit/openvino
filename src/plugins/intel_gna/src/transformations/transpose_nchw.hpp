@@ -28,9 +28,9 @@ public:
 class TransposeNCHW : public ngraph::pass::FunctionPass {
 public:
     NGRAPH_RTTI_DECLARATION;
-     bool run_on_model(const std::shared_ptr<ngraph::Function>& f) override;
+    bool run_on_model(const std::shared_ptr<ngraph::Function>& f) override;
 };
 
-} // namespace pass
-} // namespace intel_gna
-} // namespace ov
+}  // namespace pass
+}  // namespace intel_gna
+}  // namespace ov

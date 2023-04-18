@@ -1,14 +1,14 @@
 // Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
-#include <type_traits>
-#include <utility>
-#include <memory>
-
-#include "openvino/cc/ngraph/itt.hpp"
 #include "fuse_conv_biasadd_activation.hpp"
 
+#include <memory>
+#include <type_traits>
+#include <utility>
+
 #include "exec_graph_info.hpp"
+#include "openvino/cc/ngraph/itt.hpp"
 #include "openvino/core/graph_util.hpp"
 #include "openvino/core/node.hpp"
 #include "openvino/core/node_output.hpp"
@@ -16,15 +16,15 @@
 #include "openvino/core/shape.hpp"
 #include "openvino/core/type/element_type.hpp"
 #include "openvino/opsets/opset1.hpp"
-#include "openvino/pass/pattern/matcher.hpp"
-#include "openvino/pass/pattern/op/or.hpp"
-#include "openvino/pass/pattern/op/label.hpp"
-#include "openvino/pass/pattern/op/pattern.hpp"
+#include "openvino/opsets/opset10.hpp"
 #include "openvino/pass/manager.hpp"
+#include "openvino/pass/pattern/matcher.hpp"
+#include "openvino/pass/pattern/op/label.hpp"
+#include "openvino/pass/pattern/op/or.hpp"
+#include "openvino/pass/pattern/op/pattern.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "ops/gna_convolution.hpp"
 #include "rt_info/gna_node_id.hpp"
-#include "openvino/opsets/opset10.hpp"
 
 using namespace ov::pass::pattern;
 using namespace ov::intel_gna::op;
@@ -50,7 +50,7 @@ std::pair<std::shared_ptr<A>, std::shared_ptr<B>> parse_eltwise_inputs(std::shar
 }
 
 struct GnaConvCallbacks {
-    static bool gna_convolution_with_biasadd(Matcher &m) {
+    static bool gna_convolution_with_biasadd(Matcher& m) {
         auto eltwise = m.get_match_root();
         auto m_conv_const_pair = parse_eltwise_inputs<GNAConvolution, Constant>(eltwise);
         auto m_conv = m_conv_const_pair.first;
@@ -68,24 +68,25 @@ struct GnaConvCallbacks {
             return false;
         }
 
-        const ov::Output<ov::Node> &data = m_conv->input(0).get_source_output();
-        const ov::Output<ov::Node> &filters = m_conv->input(1).get_source_output();
-        const ov::Output<ov::Node> &bias = m_const->output(0);
+        const ov::Output<ov::Node>& data = m_conv->input(0).get_source_output();
+        const ov::Output<ov::Node>& filters = m_conv->input(1).get_source_output();
+        const ov::Output<ov::Node>& bias = m_const->output(0);
 
         auto gna_conv = std::make_shared<GNAConvolution>(data,
-                                                          filters,
-                                                          bias,
-                                                          m_conv->get_strides(),
-                                                          m_conv->get_pads_begin(),
-                                                          m_conv->get_pads_end(),
-                                                          m_conv->get_dilations(),
-                                                          m_conv->get_auto_pad());
+                                                         filters,
+                                                         bias,
+                                                         m_conv->get_strides(),
+                                                         m_conv->get_pads_begin(),
+                                                         m_conv->get_pads_end(),
+                                                         m_conv->get_dilations(),
+                                                         m_conv->get_auto_pad());
         ov::Output<ov::Node> new_conv(gna_conv);
 
         gna_conv->set_friendly_name(eltwise->get_friendly_name());
 
         ov::copy_runtime_info({m_conv, eltwise}, new_conv.get_node_shared_ptr());
-        ov::intel_gna::rt_info::set_node_id(new_conv.get_node_shared_ptr(), ov::intel_gna::rt_info::get_node_id(eltwise));
+        ov::intel_gna::rt_info::set_node_id(new_conv.get_node_shared_ptr(),
+                                            ov::intel_gna::rt_info::get_node_id(eltwise));
 
         const std::string originalLayers = eltwise->get_friendly_name() + "," + m_conv->get_friendly_name();
         gna_conv->get_rt_info()[ExecGraphInfoSerialization::ORIGINAL_NAMES] = originalLayers;
@@ -105,7 +106,8 @@ struct GnaConvCallbacks {
         auto gna_conv1 = std::dynamic_pointer_cast<GNAConvolution>(input1);
 
         auto can_be_fused = [](const std::shared_ptr<ov::Node>& target, const std::shared_ptr<ov::Node>& fused_input) {
-            return (target && fused_input && (get_node_id(target) > get_node_id(fused_input) || ov::op::util::is_constant(fused_input)));
+            return (target && fused_input &&
+                    (get_node_id(target) > get_node_id(fused_input) || ov::op::util::is_constant(fused_input)));
         };
 
         if (gna_conv0 && gna_conv1) {
@@ -126,7 +128,7 @@ struct GnaConvCallbacks {
         return {nullptr, nullptr};
     }
 
-    static bool sink_add_to_gna_convolution(Matcher &m) {
+    static bool sink_add_to_gna_convolution(Matcher& m) {
         auto add = std::dynamic_pointer_cast<Add>(m.get_match_root());
         auto gna_conv_node_pair = parse_gna_conv_inputs(m.get_match_root());
         auto gna_conv = gna_conv_node_pair.first;
@@ -140,9 +142,9 @@ struct GnaConvCallbacks {
             return false;
         }
 
-        const ov::Output<ov::Node> &data = gna_conv->input(0).get_source_output();
-        const ov::Output<ov::Node> &filters = gna_conv->input(1).get_source_output();
-        const ov::Output<ov::Node> &bias = gna_conv->input(2).get_source_output();
+        const ov::Output<ov::Node>& data = gna_conv->input(0).get_source_output();
+        const ov::Output<ov::Node>& filters = gna_conv->input(1).get_source_output();
+        const ov::Output<ov::Node>& bias = gna_conv->input(2).get_source_output();
 
         auto gna_conv_add = std::make_shared<GNAConvolution>(data,
                                                              filters,
@@ -158,9 +160,9 @@ struct GnaConvCallbacks {
         ov::copy_runtime_info({node, gna_conv}, gna_conv_add);
         set_node_id(gna_conv_add, get_node_id(add));
 
-        auto &rt_info = gna_conv->get_rt_info();
+        auto& rt_info = gna_conv->get_rt_info();
         if (rt_info.count(ExecGraphInfoSerialization::ORIGINAL_NAMES) > 0) {
-            auto &rt_info_layer_names = rt_info[ExecGraphInfoSerialization::ORIGINAL_NAMES];
+            auto& rt_info_layer_names = rt_info[ExecGraphInfoSerialization::ORIGINAL_NAMES];
             const auto original_names = rt_info_layer_names.template as<std::string>();
             const std::string original_names_with_activation = add->get_friendly_name() + "," + original_names;
             rt_info_layer_names = original_names_with_activation;
@@ -172,7 +174,7 @@ struct GnaConvCallbacks {
         return true;
     }
 
-    static bool sink_activation_to_gna_convolution(Matcher &m) {
+    static bool sink_activation_to_gna_convolution(Matcher& m) {
         auto activation_node = m.get_match_root();
         auto gna_conv = std::dynamic_pointer_cast<GNAConvolution>(
             activation_node->input(0).get_source_output().get_node_shared_ptr());
@@ -203,9 +205,9 @@ struct GnaConvCallbacks {
         gna_conv->set_friendly_name(activation_node->get_friendly_name());
         set_node_id(gna_conv, get_node_id(activation_node));
 
-        auto &rt_info = gna_conv->get_rt_info();
+        auto& rt_info = gna_conv->get_rt_info();
         if (rt_info.count(ExecGraphInfoSerialization::ORIGINAL_NAMES) > 0) {
-            auto &rt_info_layer_names = rt_info[ExecGraphInfoSerialization::ORIGINAL_NAMES];
+            auto& rt_info_layer_names = rt_info[ExecGraphInfoSerialization::ORIGINAL_NAMES];
             const auto original_names = rt_info_layer_names.template as<std::string>();
             const std::string original_names_with_activation =
                 activation_node->get_friendly_name() + "," + original_names;
@@ -254,11 +256,13 @@ bool is_bias_to_be_fused(const ov::Output<ov::Node>& output) {
     // NHWC or HWC
     size_t bias_channel_index = bias_shape.size() - 1;
     size_t conv_channel_index = conv_shape.size() - 1;
-    if (bias_shape.at(bias_channel_index) != conv_shape.at(conv_channel_index) && bias_shape.at(bias_channel_index) != 1 ) {
+    if (bias_shape.at(bias_channel_index) != conv_shape.at(conv_channel_index) &&
+        bias_shape.at(bias_channel_index) != 1) {
         return false;
     }
     for (size_t i = 0; i < bias_shape.size(); i++) {
-        if ((i != bias_channel_index) && (bias_shape.at(i) != 1)) return false;
+        if ((i != bias_channel_index) && (bias_shape.at(i) != 1))
+            return false;
     }
     return true;
 }
@@ -283,7 +287,7 @@ bool is_add_to_be_fused(const ov::Output<ov::Node>& output) {
     }
     return (partial_shape0.to_shape() == partial_shape1.to_shape());
 }
-} // namespace
+}  // namespace
 
 bool ov::intel_gna::pass::GnaFuseMarkUpNodesOrder::run_on_model(const std::shared_ptr<ov::Model>& m) {
     RUN_ON_FUNCTION_SCOPE(GnaFuseMarkUpNodesOrder);
@@ -308,7 +312,7 @@ ov::intel_gna::pass::FuseConvolutionWithBiasAdd::FuseConvolutionWithBiasAdd() {
     auto bias = wrap_type<Constant>();
     auto add = wrap_type<Add>({conv, bias}, is_bias_to_be_fused);
 
-    matcher_pass_callback callback = [](Matcher &m) {
+    matcher_pass_callback callback = [](Matcher& m) {
         return GnaConvCallbacks::gna_convolution_with_biasadd(m);
     };
 
@@ -321,9 +325,9 @@ ov::intel_gna::pass::FuseConvolutionWithBiasAddAdd::FuseConvolutionWithBiasAddAd
     auto gna_convolution = wrap_type<GNAConvolution>(consumers_count(1));
     auto add1 = wrap_type<Add>({gna_convolution, any_input()}, is_add_to_be_fused);
     auto add2 = wrap_type<Add>({any_input(), gna_convolution}, is_add_to_be_fused);
-    auto add = std::make_shared<::op::Or>(ov::OutputVector{ add1, add2 });
+    auto add = std::make_shared<::op::Or>(ov::OutputVector{add1, add2});
 
-    matcher_pass_callback callback = [](Matcher &m) {
+    matcher_pass_callback callback = [](Matcher& m) {
         return GnaConvCallbacks::sink_add_to_gna_convolution(m);
     };
 
@@ -334,15 +338,9 @@ ov::intel_gna::pass::FuseConvolutionWithBiasAddAdd::FuseConvolutionWithBiasAddAd
 ov::intel_gna::pass::SinkActivationToGnaConvolution::SinkActivationToGnaConvolution() {
     MATCHER_SCOPE(SinkActivationToGnaConvolution);
     auto gna_convolution = wrap_type<GNAConvolution>(consumers_count(1));
-    auto activation = wrap_type<Relu,
-                                Sigmoid,
-                                Tanh,
-                                Abs,
-                                Log,
-                                Clamp,
-                                Sign>({gna_convolution});
+    auto activation = wrap_type<Relu, Sigmoid, Tanh, Abs, Log, Clamp, Sign>({gna_convolution});
 
-    matcher_pass_callback callback = [](Matcher &m) {
+    matcher_pass_callback callback = [](Matcher& m) {
         return GnaConvCallbacks::sink_activation_to_gna_convolution(m);
     };
 
