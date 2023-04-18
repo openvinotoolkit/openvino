@@ -44,8 +44,6 @@ export interface ITensor {
   shape: IShape,
 };
 
-export type SessionEnvironment = 'nodejs' | 'browser';
-
 export interface IModel {
   infer(tensorOrDataArray: ITensor | number[], shape: IShape): Promise<ITensor>,
 }

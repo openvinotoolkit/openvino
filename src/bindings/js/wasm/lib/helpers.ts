@@ -1,16 +1,16 @@
 import { Shape, Tensor, IShape, ITensor, jsTypeByPrecisionMap } from 'openvinojs-common';
 
-import { OpenvinoModule } from './types.js';
-import { heapLabelByArrayTypeMap, ovTypesMap } from './maps.js';
+import { OpenvinoModule } from './types';
+import { heapLabelByArrayTypeMap, ovTypesMap } from './maps';
 
 import type { TypedArray } from 'openvinojs-common';
-import type { HEAPType } from './types.js';
+import type { HEAPType } from './types';
 import type { 
   OriginalShape, 
   OriginalTensor, 
   OriginalShapeWrapper, 
   OriginalTensorWrapper,
-} from './ov-module.js';
+} from './ov-module';
 
 export function isNodeEnv() {
   return typeof window === 'undefined';
@@ -27,14 +27,14 @@ export async function getFileDataAsArray(path: string): Promise<Uint8Array> {
 }
 
 async function getFileDataNode(path: string): Promise<Buffer>  {
-  const { readFileSync } = await import('node:fs');
+  const { readFileSync } = require('fs');
 
   return readFileSync(path);
 }
 
 async function getFileDataBrowser(path: string): Promise<ArrayBuffer | null> {
   const blob = await fetch(path).then(
-    response => !response.ok ? response.blob() : null
+    response => !response.ok ? null : response.blob()
   );
 
   return blob ? await blob.arrayBuffer() : null;

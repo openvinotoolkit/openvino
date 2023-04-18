@@ -1,6 +1,6 @@
 
 import { PrecisionSupportedType, JSArrayType } from 'openvinojs-common';
-import { OVType, HEAPType } from './types.js';
+import { OVType, HEAPType } from './types';
 
 export const ovTypesMap: { [Type in OVType]: PrecisionSupportedType } = {
   'uint8_t': 'uint8',

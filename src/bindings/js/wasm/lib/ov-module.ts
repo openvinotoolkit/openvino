@@ -1,5 +1,5 @@
 import type { TypedArray, PrecisionSupportedType } from 'openvinojs-common';
-import type { OVType } from './types.js';
+import type { OVType } from './types';
 
 interface WASMFilesystem {
   open(filename: string, flags: string): string,

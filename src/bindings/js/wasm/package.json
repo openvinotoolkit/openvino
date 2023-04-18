@@ -5,15 +5,23 @@
   "author": "vishniakov-nikolai",
   "license": "Apache-2.0",
   "devDependencies": {
-    "canvas": "^2.11.0",
-    "typescript": "^4.9.5",
     "@types/node": "^18.15.0",
-    "openvinojs-common": "file:../common"
+    "canvas": "^2.11.0",
+    "copy-webpack-plugin": "^11.0.0",
+    "openvinojs-common": "file:../common",
+    "ts-loader": "^9.4.2",
+    "typescript": "^5.0.4",
+    "webpack": "^5.79.0",
+    "webpack-cli": "^5.0.1"
   },
-  "main": "./dist/index.js",
+  "main": "./dist/openvino-wasm.bundle.js",
   "types": "./types/index.d.ts",
   "scripts": {
-    "postinstall": "tsc",
-    "create_link": "ln -sf ../../../../../bin/ia32/Release/openvino_wasm.js ./bin/ ln -sf ../../../../../bin/ia32/Release/openvino_wasm.wasm ./bin/"
+    "build": "webpack",
+    "create_links": "mkdir -p bin && ln -sf ../../../../../bin/ia32/Release/openvino_wasm.js ./bin/ ln -sf ../../../../../bin/ia32/Release/openvino_wasm.wasm ./bin/",
+    "postinstall": "npm run create_links && npm run build"
+  },
+  "engines": {
+    "node": ">=18.14.2"
   }
 }

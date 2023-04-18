@@ -1,8 +1,8 @@
-import Tensor from './tensor.js';
-import Shape from './shape.js';
+import Tensor from './tensor';
+import Shape from './shape';
 
-import { jsTypeByPrecisionMap } from './maps.js';
+import { jsTypeByPrecisionMap } from './maps';
 
-export * from './types.js';
+export * from './types';
 
 export { Tensor, Shape, jsTypeByPrecisionMap };

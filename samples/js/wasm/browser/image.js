@@ -1,8 +1,3 @@
-import { Session, Shape } from './node_modules/openvinojs/dist/index.mjs';
-import openvinojs from './node_modules/openvinojs/dist/openvino_wasm.mjs';
-
-import imagenetClassesMap from './assets/imagenet_classes_map.json' assert { type: 'json' };
-
 const selectBtn = document.getElementById('select-btn');
 const containerElement = document.getElementById('container');
 
@@ -20,12 +15,12 @@ const WAITING_INPUT_STATUS_TXT = 'OpenVINO initialized. Model loaded. Select ima
 run();
 
 async function run() {
-  const session = await Session.init(openvinojs);
+  const { Shape, loadModel } = await openvino.init();
 
   statusElement.innerText = 'OpenVINO successfully initialized. Model loading...';
 
   const shape = new Shape(1, WIDTH, HEIGHT, 3);
-  const model = await session.loadModel(`${MODEL_PATH}${MODEL_NAME}.xml`, `${MODEL_PATH}${MODEL_NAME}.bin`, shape, 'NHWC');
+  const model = await loadModel(`${MODEL_PATH}${MODEL_NAME}.xml`, `${MODEL_PATH}${MODEL_NAME}.bin`, shape, 'NHWC');
 
   statusElement.innerText = WAITING_INPUT_STATUS_TXT;
   panelElement.classList.remove('hide');
@@ -63,6 +58,8 @@ async function run() {
 
       const max = getMaxElement(outputTensor.data);
       console.log(`== Max index: ${max.index}, value: ${max.value}`);
+      const imagenetClassesMap = await fetch('./assets/imagenet_classes_map.json')
+        .then((response) => response.json());
       const humanReadableClass = imagenetClassesMap[max.index];
       console.log(`== Result class: ${humanReadableClass}`);
 

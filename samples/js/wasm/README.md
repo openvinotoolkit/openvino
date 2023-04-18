@@ -24,15 +24,12 @@
    - After finish compilation, enter `exit` to exit from container
    - Directory *./bin/ia32/Release/* should contain `openvino_wasm.js` and `openvino_wasm.wasm` files
 1. Run `npm i` from *./src/bindings/js/common/*
-1. Create symbolic links to WASM compilated part in *./src/bindings/js/common/dist/*
-   As the result *dist* directory will contain *openvino_wasm.js* and *openvino_wasm.wasm* files
-1. Run `npm link` from *./src/bindings/js/common/*
-1. Run `npm i` from *./samples/js/wasm/*
-1. Run `npm link openvinojs` from *./samples/js/wasm/*
+1. Run `npm i` from *./src/bindings/js/wasm/*
+1. Install dependencies of the sample by run `npm i` from *./samples/js/wasm/*
 
 ## Run demo
 
-### Node.js
+### Node.js (FIXME: temporary doesn't work)
 
 - Run `npm run nodejs` from *./samples/js/wasm/*
 - Console will contain execution results
@@ -40,5 +37,5 @@
 ### Browser
 
 - Run `npm run browser` from *./samples/js/wasm/*
-- Open [http://127.0.0.1:8080/](http://127.0.0.1:8080/) in your browser and follow instructions
-- Open [http://127.0.0.1:8080/demo.html](http://127.0.0.1:8080/demo.html) in your browser if you don't want to select image manually
+- Open [http://127.0.0.1:8081/](http://127.0.0.1:8081/) in your browser and follow instructions
+- Open [http://127.0.0.1:8081/demo.html](http://127.0.0.1:8081/demo.html) in your browser if you don't want to select image manually

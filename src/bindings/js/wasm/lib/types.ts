@@ -1,5 +1,5 @@
 import type { TypedArray, PrecisionSupportedType } from 'openvinojs-common';
-import type { OriginalModel } from './ov-module.js';
+import type { OriginalModel } from './ov-module';
 
 export type OVType =
   | 'uint8_t'

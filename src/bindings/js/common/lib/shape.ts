@@ -1,8 +1,8 @@
-import { PrecisionSupportedTypes } from './types.js';
-import { jsTypeByPrecisionMap } from './maps.js';
+import { PrecisionSupportedTypes } from './types';
+import { jsTypeByPrecisionMap } from './maps';
 
 import type { JSArrayType, IShape,
-} from './types.js';
+} from './types';
 
 export default class Shape implements IShape {
   #dimensions: Uint32Array;

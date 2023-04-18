@@ -1,8 +1,8 @@
-import openvinoWASM from '../bin/openvino_wasm.js';
-import loadModel from './wasm-model.js';
+import openvinoWASM from '../bin/openvino_wasm';
+import loadModel from './wasm-model';
 import { Tensor, Shape } from 'openvinojs-common';
 
-import type { OpenvinoModule } from './types.js';
+import type { OpenvinoModule } from './types';
 
 export async function init() { 
   const ov: OpenvinoModule = await openvinoWASM();

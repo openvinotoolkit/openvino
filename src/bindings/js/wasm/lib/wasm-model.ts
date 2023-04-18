@@ -1,4 +1,4 @@
-import openvinoWASM from '../bin/openvino_wasm.js';
+import openvinoWASM from '../bin/openvino_wasm';
 import { Tensor, Shape } from 'openvinojs-common';
 import { 
   getFileDataAsArray, 
@@ -6,17 +6,18 @@ import {
   convertShape,
   convertTensor,
   parseOriginalTensor,
-} from './helpers.js';
+} from './helpers';
 
 import type { ITensor, IModel, IShape } from 'openvinojs-common';
-import type { OpenvinoModule } from './types.js';
-import type { OriginalModel } from './ov-module.js';
+import type { OpenvinoModule } from './types';
+import type { OriginalModel } from './ov-module';
 
 class WASMModel implements IModel {
   #ov: OpenvinoModule;
   #originalModel: OriginalModel;
 
   constructor(ov: OpenvinoModule, originalModel: OriginalModel) {
+    this.#ov = ov;
     this.#originalModel = originalModel;
   }
 

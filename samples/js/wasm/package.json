@@ -1,16 +1,17 @@
 {
-  "name": "openvinojs-demo",
+  "name": "openvinojs-wasm-demo",
   "version": "1.0.0",
-  "description": "Demo of using openvinojs from nodejs environment",
+  "description": "Demo of using openvinojs-wasm from browser/nodejs environment",
   "main": "nodejs/index.js",
   "scripts": {
-    "nodejs": "cd nodejs && node index.mjs",
+    "nodejs": "cd nodejs && node index.js",
     "browser": "http-server -p8081 -c-1 ./browser/",
     "postinstall": "./create_symlinks.sh"
   },
   "author": "vishniakov-nikolai",
   "license": "Apache-2.0",
   "devDependencies": {
-    "http-server": "^14.1.1"
+    "http-server": "^14.1.1",
+    "openvinojs-wasm": "file:../../../src/bindings/js/wasm/"
   }
 }

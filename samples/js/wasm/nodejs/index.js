@@ -1,4 +1,4 @@
-import makeInference from '../make_inference.mjs';
+const makeInference = require('../make_inference.js');
 
 const inferenceParametersFaceDetection = { 
   modelPath: getModelPaths('v3-small_224_1.0_float'),

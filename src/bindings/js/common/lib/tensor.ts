@@ -1,13 +1,13 @@
-import { jsTypeByPrecisionMap } from './maps.js';
+import { jsTypeByPrecisionMap } from './maps';
 
-import Shape from './shape.js';
+import Shape from './shape';
 
 import type { 
   TypedArray,
   PrecisionSupportedType, 
   IShape,
   ITensor,
-} from './types.js';
+} from './types';
 
 export default class Tensor implements ITensor {
   #precision: PrecisionSupportedType;

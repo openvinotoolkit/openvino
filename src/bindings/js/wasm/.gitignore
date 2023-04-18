@@ -1,4 +1,4 @@
-bin
-dist
-types
+bin/
+dist/
+types/
 node_modules
