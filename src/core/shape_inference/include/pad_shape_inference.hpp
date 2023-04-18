@@ -14,7 +14,9 @@ namespace v1 {
 
 namespace pad {
 inline auto calc_dim(const int64_t dim, const int64_t pad_dim_diff) -> int64_t {
-    constexpr auto inf_bound = -1;
+    // 32bit os: inf_bound=0xFFFFFFFF
+    // 64bit os: inf_bound=0xFFFFFFFFFFFFFFFF
+    constexpr size_t inf_bound = -1;
     const auto padded_dim = dim + pad_dim_diff;
     return ((dim == inf_bound) || (padded_dim < 0)) ? inf_bound : padded_dim;
 };
