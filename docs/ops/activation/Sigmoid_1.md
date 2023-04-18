@@ -14,7 +14,7 @@
 
 **Mathematical Formulation**
 
-   For each element from the input tensor calculates corresponding element in the output tensor with the following formula:
+For each element from the input tensor calculates corresponding element in the output tensor with the following formula:
 
 .. math:: 
 

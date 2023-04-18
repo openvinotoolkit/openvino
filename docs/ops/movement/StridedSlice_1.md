@@ -10,7 +10,7 @@
 
 **Attributes**
 
-*   *begin_mask*
+* *begin_mask*
 
   * **Description**: *begin_mask* is a bit mask. *begin_mask[i]* equal to ``1`` means that the corresponding dimension of the ``begin`` input is ignored and the 'real' beginning of the tensor is used along corresponding dimension.
   * **Range of values**: a list of ``0``s and ``1``s
@@ -18,7 +18,7 @@
   * **Default value**: None
   * **Required**: *yes*
 
-*   *end_mask*
+* *end_mask*
 
   * **Description**: *end_mask* is a bit mask. If *end_mask[i]* is ``1``, the corresponding dimension of the ``end`` input is ignored and the real 'end' of the tensor is used along corresponding dimension.
   * **Range of values**: a list of ``0``s and ``1``s
@@ -26,7 +26,7 @@
   * **Default value**: None
   * **Required**: *yes*
 
-*   *new_axis_mask*
+* *new_axis_mask*
 
   * **Description**: *new_axis_mask* is a bit mask. If *new_axis_mask[i]* is ``1``, a length 1 dimension is inserted on the ``i``-th position of input tensor.
   * **Range of values**: a list of ``0``s and ``1``s
@@ -34,7 +34,7 @@
   * **Default value**: ``[0]``
   * **Required**: *no*
 
-*   *shrink_axis_mask*
+* *shrink_axis_mask*
 
   * **Description**: *shrink_axis_mask* is a bit mask. If *shrink_axis_mask[i]* is ``1``, the dimension on the ``i``-th position is deleted.
   * **Range of values**: a list of ``0``s and ``1``s
@@ -42,7 +42,7 @@
   * **Default value**: ``[0]``
   * **Required**: *no*
 
-*   *ellipsis_mask*
+* *ellipsis_mask*
 
   * **Description**: *ellipsis_mask* is a bit mask. It inserts missing dimensions on a position of a non-zero bit.
   * **Range of values**: a list of ``0``s and ``1``. Only one non-zero bit is allowed.

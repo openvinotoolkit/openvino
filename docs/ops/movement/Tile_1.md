@@ -7,6 +7,7 @@
 **Category**: *Data movement*
 
 **Short description**: *Tile* operation repeats an input tensor *"data"* the number of times given by *"repeats"* input tensor along each dimension.
+
 * If number of elements in *"repeats"* is more than shape of *"data"*, then *"data"* will be promoted to "*repeats*" by prepending new axes, e.g. let's shape of *"data"* is equal to (2, 3) and *"repeats"* is equal to [2, 2, 2], then shape of *"data"* will be promoted to (1, 2, 3) and result shape will be (2, 4, 6).
 * If number of elements in *"repeats"* is less than shape of *"data"*, then *"repeats"* will be promoted to "*data*" by prepending 1's to it, e.g. let's shape of *"data"* is equal to (4, 2, 3) and *"repeats"* is equal to [2, 2], then *"repeats"* will be promoted to [1, 2, 2] and result shape will be (4, 4, 6)
 

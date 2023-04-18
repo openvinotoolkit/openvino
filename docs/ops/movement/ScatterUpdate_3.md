@@ -29,8 +29,7 @@ Several examples for case when `axis = 0`:
 
 *   **1**: ``data`` tensor of arbitrary rank ``r`` and type *T_NUMERIC*. **Required.**
 
-*   **2**: ``indices`` tensor with indices of type *T_IND*.
-All index values are expected to be within bounds ``[0, s - 1]`` along the axis of size ``s``. If multiple indices point to the
+*   **2**: ``indices`` tensor with indices of type *T_IND*. All index values are expected to be within bounds ``[0, s - 1]`` along the axis of size ``s``. If multiple indices point to the
 same output location, the order of updating the values is undefined. If an index points to a non-existing output
 tensor element or is negative, then an exception is raised. **Required.**
 

@@ -14,6 +14,8 @@
 
 Input tensor of ``data_shape`` is always interpreted as 4D tensor with the following shape:
 
+.. code-block:: cpp
+
     dim 0: data_shape[0] * data_shape[1] * ... * data_shape[axis-1]
              (or 1 if axis == 0)
     dim 1: group

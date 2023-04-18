@@ -23,6 +23,7 @@ After broadcasting *Subtract* performs subtraction operation for the input tenso
 
   * **Description**: specifies rules used for auto-broadcasting of input tensors.
   * **Range of values**:
+  
     * *none* - no auto-broadcasting is allowed, all input shapes must match,
     * *numpy* - numpy broadcasting rules, description is available in :doc:`Broadcast Rules For Elementwise Operations <openvino_docs_ops_broadcast_rules>`, 
     * *pdpd* - PaddlePaddle-style implicit broadcasting, description is available in :doc:`Broadcast Rules For Elementwise Operations <openvino_docs_ops_broadcast_rules>`.

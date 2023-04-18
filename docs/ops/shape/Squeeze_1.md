@@ -9,6 +9,7 @@
 **Short description**: *Squeeze* removes dimensions equal to 1 from the first input tensor.
 
 **Detailed description**: *Squeeze* can be used with or without the second input tensor.
+
 * If only the first input is provided, every dimension that is equal to 1 will be removed from it.
 * With the second input provided, each value is an index of a dimension from the first tensor that is to be removed. Specified dimension has to be equal to 1, otherwise an error will be raised. Dimension indices can be specified directly, or by negative indices (counting dimensions from the end).
 

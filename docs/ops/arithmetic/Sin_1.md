@@ -19,7 +19,7 @@ a - value representing angle in radians.
 
 **Attributes**:
 
-    No attributes available.
+No attributes available.
 
 **Inputs**
 

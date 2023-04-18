@@ -29,8 +29,7 @@ For instance, in a 3D tensor case, the update corresponding to the ``[i][j][k]``
 
 *   **1**: ``data`` tensor of arbitrary rank ``r`` and of type *T*. **Required.**
 
-*   **2**: ``indices`` tensor with indices of type *T_IND*. The rank of the tensor is equal to the rank of ``data`` tensor.
-All index values are expected to be within bounds ``[0, s - 1]`` along axis of size ``s``. If multiple indices point to the
+*   **2**: ``indices`` tensor with indices of type *T_IND*. The rank of the tensor is equal to the rank of ``data`` tensor. All index values are expected to be within bounds ``[0, s - 1]`` along axis of size ``s``. If multiple indices point to the
 same output location then the order of updating the values is undefined. If an index points to non-existing output
 tensor element or is negative then exception is raised. **Required.**
 
