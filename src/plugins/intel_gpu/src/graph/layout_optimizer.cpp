@@ -1286,7 +1286,7 @@ bool layout_optimizer::is_primitive_implemented_for_onednn(program_node& node) {
     if (node.is_type<fully_connected>() || node.is_type<gemm>() || node.is_type<pooling>() ||
         node.is_type<convolution>() || node.is_type<deconvolution>() ||
         node.is_type<reduce>() || node.is_type<reorder>() || node.is_type<concatenation>()) {
-            return true;
+        return true;
     }
 
     return false;
