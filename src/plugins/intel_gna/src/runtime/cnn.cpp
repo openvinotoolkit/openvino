@@ -317,8 +317,12 @@ bool is2D(T&& vec) {
 }
 }  // namespace
 
-void CNNMaxPool(intel_dnn_component_t* component, intel_dnn_number_type_t number_type, const bool sumPoolingOverRide) {
-    if (is2D(component->op.maxpool.poolingStrideXY) || is2D(component->op.maxpool.poolingWindowXY)) {
+void CNNMaxPool(intel_dnn_component_t* component,
+                intel_dnn_number_type_t number_type,
+                const bool fused_with_convolution_2d,
+                const bool sumPoolingOverRide) {
+    if (fused_with_convolution_2d || is2D(component->op.maxpool.poolingStrideXY) ||
+        is2D(component->op.maxpool.poolingWindowXY)) {
         if (!sumPoolingOverRide) {
             CNNMaxPool2DFloat(component);
         } else {
