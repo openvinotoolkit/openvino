@@ -405,7 +405,7 @@ void AutoSchedule::init(const ScheduleContext::Ptr& sContext) {
         // Handle device load failure in case of ctput
         if (isCumulative && !contextPtr->isLoadSuccess) {
             std::string failedDeviceName = contextPtr->deviceInfo.deviceName;
-            std::lock_guard<std::mutex> lock(_autoSContext->_confMutex);
+            std::lock_guard<std::mutex> lock(_autoSContext->_fallbackMutex);
             const auto DeviceIter = deviceChecker().checkAndReturnIfDeviceInList(failedDeviceName, _autoSContext->_devicePriorities);
             // Remove failed device from _devicePriorities
             if (DeviceIter != _autoSContext->_devicePriorities.end()) {
@@ -851,7 +851,7 @@ AutoSchedule::~AutoSchedule() {
     _autoSContext->_plugin->UnregisterPriority(_autoSContext->_modelPriority,
         _loadContext[ACTUALDEVICE].deviceInfo.uniqueName);
     {
-        std::lock_guard<std::mutex> lock(_autoSContext->_mutex);
+        std::lock_guard<std::mutex> lock(_autoSContext->_fallbackMutex);
         _autoSContext->_devicePriorities.clear();
     }
     /* NOTE: The only threads that use `MultiSchedule` worker infer requests' threads.
