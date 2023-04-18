@@ -38,7 +38,7 @@ bool ngraph::op::v0::SpaceToDepth::visit_attributes(AttributeVisitor& visitor) {
 std::shared_ptr<Node> ov::op::v0::SpaceToDepth::clone_with_new_inputs(const OutputVector& new_args) const {
     OV_OP_SCOPE(v0_SpaceToDepth_clone_with_new_inputs);
     if (new_args.size() != 1) {
-        throw ngraph_error("Incorrect number of new arguments");
+        OPENVINO_THROW("Incorrect number of new arguments");
     }
     return std::make_shared<SpaceToDepth>(new_args.at(0), m_mode, m_blocksize);
 }
