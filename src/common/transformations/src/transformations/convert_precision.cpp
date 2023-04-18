@@ -36,6 +36,7 @@ bool fuse_type_to_shapeof_v0(const std::shared_ptr<ngraph::Node>& node, const pr
 bool fuse_type_to_random_uniform_v8(const std::shared_ptr<ngraph::Node>& node, const precisions_map& precisions);
 bool fuse_type_to_unique_v10(const std::shared_ptr<ngraph::Node>& node, const precisions_map& precisions);
 bool fuse_type_to_range_v4(const std::shared_ptr<ngraph::Node>& node, const precisions_map& precisions);
+bool fuse_type_to_eye_v9(const std::shared_ptr<ngraph::Node>& node, const precisions_map& precisions);
 bool fuse_type_to_parameter(const std::shared_ptr<ngraph::Node>& node, const precisions_map& precisions);
 bool fuse_type_to_convert(const std::shared_ptr<ngraph::Node>& node, const precisions_map& precisions);
 bool fuse_type_to_nms3(const std::shared_ptr<ngraph::Node>& node, const precisions_map& precisions);
@@ -356,6 +357,7 @@ bool ov::pass::ConvertPrecision::run_on_model(const std::shared_ptr<ngraph::Func
         {opset4::ReduceLogicalOr::get_type_info_static(), fuse_type_to_reduce_logical<opset4::ReduceLogicalOr>},
         {opset1::ShapeOf::get_type_info_static(), fuse_type_to_shapeof_v0},
         {opset4::Range::get_type_info_static(), fuse_type_to_range_v4},
+        {opset9::Eye::get_type_info_static(), fuse_type_to_eye_v9},
         {opset10::Unique::get_type_info_static(), fuse_type_to_unique_v10},
         {opset8::RandomUniform::get_type_info_static(), fuse_type_to_random_uniform_v8}};
 
@@ -383,6 +385,7 @@ bool ov::pass::ConvertPrecision::run_on_model(const std::shared_ptr<ngraph::Func
         pass::Manager manager(get_pass_config());
         manager.register_pass<pass::EnableDecompressionConvertConstantFolding>();
         manager.register_pass<pass::ConstantFolding>();
+        manager.run_passes(f);
     }
 
     (void)is_changed;  // ignored
@@ -447,6 +450,20 @@ bool fuse_type_to_range_v4(const std::shared_ptr<ngraph::Node>& node, const prec
     if (auto range = ov::as_type_ptr<opset4::Range>(node)) {
         if (to.is_integral_number() || to.is_real()) {
             range->set_output_type(to);
+            return true;
+        }
+    }
+    return false;
+}
+
+bool fuse_type_to_eye_v9(const std::shared_ptr<ngraph::Node>& node, const precisions_map& precisions) {
+    auto it = precisions.find(node->get_output_element_type(0));
+    if (it == precisions.end())
+        return false;
+    const auto& to = it->second;
+    if (auto eye_node = ov::as_type_ptr<opset9::Eye>(node)) {
+        if (to.is_integral() || to.is_real()) {
+            eye_node->set_out_type(to);
             return true;
         }
     }
