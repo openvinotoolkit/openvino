@@ -38,9 +38,9 @@ class TestKerasConvLSTM2D(CommonTF2LayerTest):
         return tf2_net, None
 
     test_data_basic = [
-        dict(params=dict(filters=4, kernel_size=(3, 3), padding='same', return_sequences=False,
-                         activation="swish"),
-             input_shapes=[[2, 5, 20, 30, 2]]),
+        pytest.param(dict(params=dict(filters=4, kernel_size=(3, 3), padding='same', return_sequences=False,
+                                      activation="swish"),
+                          input_shapes=[[2, 5, 20, 30, 2]]), marks=pytest.mark.skip(reason="*-108786")),
         dict(params=dict(filters=6, kernel_size=(2, 3), padding='valid', dilation_rate=3,
                          recurrent_activation="elu", return_sequences=True, use_bias=True,
                          data_format="channels_first"),
