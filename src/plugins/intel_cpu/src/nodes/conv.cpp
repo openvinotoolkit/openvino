@@ -638,11 +638,8 @@ void Convolution::setPostOps(dnnl::primitive_attr& attr,
                 ops.append_sum(1.0, 0, DnnlExtensionUtils::IEPrecisionToDataType(eltwisePrecision));
             } else {
                 if (useLegacyPostOps) {
-                    bool forceBinary = false;
-                    // Temporary debug functionality to be able to force binary postops for any model
-                    CPU_DEBUG_CAP_ENABLE(if (std::getenv("OV_CPU_FORCE_ELTWISE_AS_BINARY")) {forceBinary = true;})
                     // try mapping with optimization w/o using binary postOps
-                    if (eltwiseNode->appendAttrPostOps(dnnlpoc, isLastPostOp, outputDataType, forceBinary)) {
+                    if (eltwiseNode->appendAttrPostOps(dnnlpoc, isLastPostOp, outputDataType, false)) {
                         DEBUG_LOG(getName(), ": Append ", node->getName(), " as original post op without binary");
                         continue;
                     }
@@ -682,11 +679,8 @@ void Convolution::setPostOps(dnnl::primitive_attr& attr,
             }
 
             if (useLegacyPostOps) {
-                bool forceBinary = false;
-                // Temporary debug functionality to be able to force binary postops for any model
-                CPU_DEBUG_CAP_ENABLE(if (std::getenv("OV_CPU_FORCE_FQ_AS_BINARY")) {forceBinary = true;})
                 // can we implement it without binary postOps?
-                if (fakeQuantizeNode->appendAttrPostOps(dnnlpoc, isLastPostOp, outputDataType, forceBinary, do_rounding)) {
+                if (fakeQuantizeNode->appendAttrPostOps(dnnlpoc, isLastPostOp, outputDataType, false, do_rounding)) {
                     DEBUG_LOG(getName(), ": Append ", node->getName(), " as original post op without binary");
                     continue;
                 }
@@ -931,7 +925,7 @@ void Convolution::createDescriptor(const std::vector<MemoryDescPtr>& inputDesc,
 void Convolution::addZeroPoints(dnnl::primitive_attr& attr) {
     if (inputZeroPoints.empty())
         return;
-    DEBUG_LOG("Set original input zeropoints");
+    DEBUG_LOG(getName(), ": Set original input zeropoints");
     attr.set_zero_points_mask(DNNL_ARG_SRC, 0);
 
     if (!stockInputZeroPointsMemPtr) {
@@ -943,7 +937,7 @@ void Convolution::addZeroPoints(dnnl::primitive_attr& attr) {
 
 void Convolution::addLegacyZeroPoints(dnnl::primitive_attr& attr) {
     if (!legacyInputZeroPoints.empty()) {
-        DEBUG_LOG("Set legacy input zero points");
+        DEBUG_LOG(getName(), ": Set legacy input zero points");
         attr.set_input_zero_points(legacyInputZeroPoints.size(), 1 << 1 /*through C dim*/);
         if (!legacyInputZeroPointsMemPtr) {
             legacyInputZeroPointsMemPtr.reset(new Memory(getEngine()));
@@ -953,7 +947,7 @@ void Convolution::addLegacyZeroPoints(dnnl::primitive_attr& attr) {
     }
 
     if (!legacyWeightsZeroPoints.empty()) {
-        DEBUG_LOG("Set legacy weights zero points");
+        DEBUG_LOG(getName(), ": Set legacy weights zero points");
         attr.set_weights_zero_points(legacyWeightsZeroPoints.size(), 1 << 1 /*through C dim*/);
 
         if (!legacyWeightsZeroPointsMemPtr) {
@@ -964,7 +958,7 @@ void Convolution::addLegacyZeroPoints(dnnl::primitive_attr& attr) {
     }
 
     if (!legacyOutputCompensation.empty()) {
-        DEBUG_LOG("Set legacy output compensationss");
+        DEBUG_LOG(getName(), ": Set legacy output compensationss");
         attr.set_output_compensations(legacyOutputCompensation.size(), 1 << 1 /*through C dim*/);
 
         if (!legacyOutputCompensationMemPtr) {
@@ -1689,10 +1683,7 @@ void Convolution::initTryBrgconvFlag() {
         shouldTryBrgconv = true;
     }
 
-    // Temporary debug functionality to be able to force brgconv for any model
-    CPU_DEBUG_CAP_ENABLE(if (std::getenv("OV_CPU_FORCE_BRGCONV")) {shouldTryBrgconv = true;})
-
-    DEBUG_LOG("shouldTryBrgconv = ", shouldTryBrgconv);
+    DEBUG_LOG(getName(), ": shouldTryBrgconv = ", shouldTryBrgconv);
 }
 
 void Convolution::initializeInputZeroPoints(const uint8_t* inputZpData, const size_t inputZpSize) {

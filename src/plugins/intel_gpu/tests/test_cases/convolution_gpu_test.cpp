@@ -6930,7 +6930,12 @@ TEST_P(convolution_depthwise_gpu_fsv16_xy, depthwise_conv_b_fs_yx_fsv16)
 
     ExecutionConfig config = get_test_default_config(engine);
     config.set_property(ov::intel_gpu::optimize_data(true));
-    ov::intel_gpu::ImplementationDesc conv_impl = { format::b_fs_yx_fsv16, "convolution_gpu_bfyx_f16_depthwise" };
+    ov::intel_gpu::ImplementationDesc conv_impl;
+    if (engine.get_device_info().supports_immad) {
+        conv_impl = { format::b_fs_yx_fsv16, "", impl_types::onednn };
+    } else {
+        conv_impl = { format::b_fs_yx_fsv16, "convolution_gpu_bfyx_f16_depthwise" };
+    }
     config.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ { "conv_fsv", conv_impl } }));
     network network(engine, topology, config);
 
