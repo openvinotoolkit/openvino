@@ -19,7 +19,9 @@ public:
     ~Cancelled() override;
 
 protected:
+    OPENVINO_SUPPRESS_DEPRECATED_START
     explicit Cancelled(const std::string& what_arg) : ov::Exception(what_arg) {}
+    OPENVINO_SUPPRESS_DEPRECATED_END
 };
 
 /**
@@ -33,7 +35,9 @@ public:
     ~Busy() override;
 
 protected:
+    OPENVINO_SUPPRESS_DEPRECATED_START
     explicit Busy(const std::string& what_arg) : ov::Exception(what_arg) {}
+    OPENVINO_SUPPRESS_DEPRECATED_END
 };
 
 }  // namespace ov
