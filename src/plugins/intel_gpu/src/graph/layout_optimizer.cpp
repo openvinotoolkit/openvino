@@ -492,23 +492,9 @@ bool layout_optimizer::can_fuse_reorder_to_prev(program_node& prev, reorder_node
     // Remove Reorder after convolution if possible.
     if (use_onednn_impls) {
         auto reorder_layout = node.get_output_layout();
-        auto reorder_dtype = reorder_layout.data_type;
-        auto prev_dtype = prev.get_output_layout().data_type;
-
         if (reorder_layout.format == prev.get_preferred_output_fmt() &&
-            reorder_layout.data_padding == prev.get_output_layout().data_padding) {
-            if (reorder_dtype == prev_dtype) {
-                return true;
-            } else {
-                if (prev.is_type<fully_connected>()) {
-                    auto src_dtype = prev.as<fully_connected>().input().get_output_layout().data_type;
-                    auto weight_dtype = prev.as<fully_connected>().weights().get_output_layout().data_type;
-                    // Check data type combination for oneDNN inner product
-                    if (onednn_check_data_types_for_fc_gemm(src_dtype, weight_dtype, reorder_dtype))
-                        return true;
-                }
-            }
-        }
+                reorder_layout.data_padding == prev.get_output_layout().data_padding)
+            return true;
 
         if (prev.is_type<eltwise>() &&
             is_mixed_layout(prev, *next, false, {{ format::bs_fs_zyx_bsv32_fsv32, format::bs_fs_zyx_bsv32_fsv16 }}))
