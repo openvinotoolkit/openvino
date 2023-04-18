@@ -372,7 +372,7 @@ inline std::ostream& operator<<(std::ostream& os, const SchedulingCoreType& core
     case SchedulingCoreType::ECORE_ONLY:
         return os << "ECORE_ONLY";
     default:
-        throw ov::Exception{"Unsupported core type!"};
+        OPENVINO_THROW("Unsupported core type!");
     }
 }
 
@@ -386,7 +386,7 @@ inline std::istream& operator>>(std::istream& is, SchedulingCoreType& core_type)
     } else if (str == "ECORE_ONLY") {
         core_type = SchedulingCoreType::ECORE_ONLY;
     } else {
-        throw ov::Exception{"Unsupported core type: " + str};
+        OPENVINO_THROW("Unsupported core type: ", str);
     }
     return is;
 }

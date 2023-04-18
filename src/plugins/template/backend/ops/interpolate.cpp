@@ -120,8 +120,8 @@ bool evaluate_node<ngraph::op::v0::Interpolate>(std::shared_ptr<ngraph::Node> no
                                                       outputs,
                                                       inputs);
     default:
-        throw ngraph::ngraph_error(std::string("Unhandled data type ") + node->get_element_type().get_type_name() +
-                                   std::string("in evaluate_node()"));
+        OPENVINO_THROW(std::string("Unhandled data type ") + node->get_element_type().get_type_name() +
+                       std::string("in evaluate_node()"));
     }
 }
 
@@ -424,7 +424,7 @@ bool evaluate_node<ngraph::op::v11::Interpolate>(std::shared_ptr<ngraph::Node> n
                                                       outputs,
                                                       inputs);
     default:
-        throw ngraph::ngraph_error(std::string("Unhandled data type ") + node->get_element_type().get_type_name() +
-                                   std::string("in evaluate_node()"));
+        OPENVINO_THROW(std::string("Unhandled data type ") + node->get_element_type().get_type_name() +
+                       std::string("in evaluate_node()"));
     }
 }
