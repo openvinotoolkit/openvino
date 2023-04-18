@@ -89,7 +89,7 @@
 
 **Examples**
 
-.. code-block:: xml
+.. code-block:: console
    
    <layer ... type="AvgPool" ... >
        <data auto_pad="same_upper" exclude-pad="true" kernel="2,2" pads_begin="0,0" pads_end="1,1" strides="2,2"/>

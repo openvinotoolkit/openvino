@@ -30,7 +30,7 @@
 
 **Examples**
 
-.. code-block:: xml
+.. code-block:: console
    
    <layer ... type="Acosh">
        <input>

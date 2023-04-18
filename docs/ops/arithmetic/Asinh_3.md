@@ -30,7 +30,7 @@
 
 **Example**
 
-.. code-block:: xml
+.. code-block:: console
    
    <layer ... type="Asinh">
        <input>

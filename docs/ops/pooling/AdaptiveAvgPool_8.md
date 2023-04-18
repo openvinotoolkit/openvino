@@ -44,7 +44,7 @@ The output is calculated with the following formula:
 
 **Examples**
 
-.. code-block:: xml
+.. code-block:: console
    
    <layer ... type="AdaptiveAvgPool" ... >
        <data output_type="i64"/>
