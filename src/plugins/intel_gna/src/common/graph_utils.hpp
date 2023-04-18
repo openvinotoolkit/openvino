@@ -328,7 +328,7 @@ inline std::vector<size_t> make_gather_indices_from_transpose_axes(const Shape& 
 
     ov::Shape input_shape_4d = input_shape;
     ov::Shape order_4d = order;
-    // Just to simplify the code we transform all shapes to 4d by adding 1 dimentions at the end
+    // Just to simplify the code we transform all shapes to 4d by adding dimension(s) equal to 1 at the end
     while (input_shape_4d.size() < 4) {
         input_shape_4d.push_back(1);
         order_4d.push_back(order_4d.size());
