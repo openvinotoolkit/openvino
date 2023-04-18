@@ -105,8 +105,7 @@ private:
 
     std::vector<const void*> postOpsDataPtrs;
 
-    MVNAttrs mvnAttrs = {mvn_planar, std::make_tuple(0u, 0u, 0u, 0u, 0u), false, false, false, 0.0f,
-        INSIDE_SQRT, InferenceEngine::Precision(), InferenceEngine::Precision()};
+    MVNAttrs mvnAttrs;
 
     class MVNExecutorBase {
     public:
@@ -115,8 +114,7 @@ private:
         virtual ~MVNExecutorBase() = default;
 
     protected:
-        MVNAttrs mvnAttrs = {mvn_planar, std::make_tuple(0u, 0u, 0u, 0u, 0u), false, false, false, 0.0f,
-            INSIDE_SQRT, InferenceEngine::Precision(), InferenceEngine::Precision()};
+        MVNAttrs mvnAttrs;
         size_t src_data_size = 0;
         size_t dst_data_size = 0;
     };
