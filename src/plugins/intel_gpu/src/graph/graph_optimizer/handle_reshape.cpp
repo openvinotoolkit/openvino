@@ -99,22 +99,21 @@ void handle_reshape::run(program& p) {
                     auto output_data_type = reorder_node->get_output_layout().data_type;
                     bool onednn_support = true;
                     for (const auto& user : onednn_users) {
-                        if (user->get_preferred_impl_type() == cldnn::impl_types::onednn) {
-                            auto out_dt = user->get_output_layout().data_type;
-                            if (user->is_type<fully_connected>() || user->is_type<gemm>()) {
-                                bool is_fc = user->is_type<fully_connected>();
-                                auto wei_dt = is_fc ? user->as<fully_connected>().weights().get_output_layout().data_type :
-                                                      user->as<gemm>().get_dependency(1).get_output_layout().data_type;
-                                onednn_support = layout_optimizer::onednn_check_data_types_for_fc_gemm(output_data_type, wei_dt, out_dt);
-                            } else if (user->is_type<convolution>() || user->is_type<deconvolution>()) {
-                                bool is_conv = user->is_type<convolution>();
-                                auto wei_dt = is_conv ? user->as<convolution>().weights().get_output_layout().data_type :
-                                                        user->as<deconvolution>().weights().get_output_layout().data_type;
-                                onednn_support = layout_optimizer::onednn_check_data_types_for_convolution(output_data_type, wei_dt, out_dt);
-                            } else if (user->is_type<pooling>()) {
-                                onednn_support = layout_optimizer::onednn_check_data_types_for_pooling(output_data_type, out_dt);
-                            }
+                        auto out_dt = user->get_output_layout().data_type;
+                        if (user->is_type<fully_connected>() || user->is_type<gemm>()) {
+                            bool is_fc = user->is_type<fully_connected>();
+                            auto wei_dt = is_fc ? user->as<fully_connected>().weights().get_output_layout().data_type :
+                                                    user->as<gemm>().get_dependency(1).get_output_layout().data_type;
+                            onednn_support = layout_optimizer::onednn_check_data_types_for_fc_gemm(output_data_type, wei_dt, out_dt);
+                        } else if (user->is_type<convolution>() || user->is_type<deconvolution>()) {
+                            bool is_conv = user->is_type<convolution>();
+                            auto wei_dt = is_conv ? user->as<convolution>().weights().get_output_layout().data_type :
+                                                    user->as<deconvolution>().weights().get_output_layout().data_type;
+                            onednn_support = layout_optimizer::onednn_check_data_types_for_convolution(output_data_type, wei_dt, out_dt);
+                        } else if (user->is_type<pooling>()) {
+                            onednn_support = layout_optimizer::onednn_check_data_types_for_pooling(output_data_type, out_dt);
                         }
+
                         if (!onednn_support) {
                             reorder_node_to_split.erase(std::remove(reorder_node_to_split.begin(), reorder_node_to_split.end(), reorder_node),
                                                         reorder_node_to_split.end());

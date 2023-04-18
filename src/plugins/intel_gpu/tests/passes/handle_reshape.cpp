@@ -52,6 +52,7 @@ TEST(handle_reshape, dont_remove_reshape_that_changes_rank) {
 }
 
 TEST(handle_reshape, skip_reorder_node_to_split_when_onndnn_not_support) {
+    // Onednn FC does not support fp32 input, fp16 weight. In such case, we need to ignore reorder_split from handle_reshape pass
     auto& engine = get_test_engine();
     if (!engine.get_device_info().supports_immad)
         return;
