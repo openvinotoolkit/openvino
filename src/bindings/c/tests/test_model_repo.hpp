@@ -84,7 +84,8 @@ inline std::string generate_test_xml_file() {
 
     plugin_xml_file << "<ie>\n";
     plugin_xml_file << "    <plugins>\n";
-    plugin_xml_file << "        <plugin location=\"" << libraryname << "\" name=\"CUSTOM\">\n";
+    plugin_xml_file << "        <plugin location=\"" << ov::util::get_ov_lib_path()
+                    << ov::util::FileTraits<char>::file_separator << libraryname << "\" name=\"CUSTOM\">\n";
     plugin_xml_file << "        </plugin>\n";
     plugin_xml_file << "    </plugins>\n";
     plugin_xml_file << "</ie>\n";
