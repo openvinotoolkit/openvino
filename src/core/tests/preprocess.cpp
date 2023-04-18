@@ -1977,7 +1977,7 @@ TEST(pre_post_process, exception_safety) {
                      .tensor()
                      .set_color_format(ColorFormat::NV12_TWO_PLANES);
                  p.input().preprocess().custom([](const Output<Node>& node) -> Output<Node> {
-                     throw ngraph::ngraph_error("test error");
+                     OPENVINO_THROW("test error");
                  });
                  p.build(), ov::AssertFailure);
 
@@ -1989,7 +1989,7 @@ TEST(pre_post_process, exception_safety) {
                  p.output(1)  // This one is not
                      .postprocess()
                      .custom([](const Output<Node>& node) -> Output<Node> {
-                         throw ngraph::ngraph_error("test error");
+                         OPENVINO_THROW("test error");
                      });
                  p.build(), ngraph::ngraph_error);
     EXPECT_EQ(f->get_parameters().size(), 2);

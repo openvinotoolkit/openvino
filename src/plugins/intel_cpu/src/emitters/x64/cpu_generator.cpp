@@ -182,5 +182,5 @@ ngraph::snippets::Generator::opRegType ov::intel_cpu::CPUGenerator::get_specific
         std::dynamic_pointer_cast<ov::intel_cpu::SwishNode>(op))
         return vec2vec;
     else
-        throw ov::Exception("Register type of the operation " + std::string(op->get_type_name()) + " isn't determined!");
+        OPENVINO_THROW("Register type of the operation " + std::string(op->get_type_name()) + " isn't determined!");
 }
