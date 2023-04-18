@@ -81,7 +81,9 @@ const auto fold_gather = [](const std::shared_ptr<ov::Node>& current_node) -> bo
         bool dyn_indices_required = false;
         if (auto const_indices = ov::as_type_ptr<ov::opset11::Constant>(indices)) {
             auto indices_values = const_indices->cast_vector<int64_t>();
-            for (const auto& idx : indices_values) {
+            for (auto idx : indices_values) {
+                if (idx < 0)
+                    idx += rank;
                 if (dyn_indices.count(idx)) {
                     dyn_indices_required = true;
                     break;
