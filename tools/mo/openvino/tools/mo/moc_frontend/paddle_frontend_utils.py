@@ -39,7 +39,6 @@ def convert_paddle_to_pdmodel(model, inputs=None, outputs=None):
                     "Conversion just support paddle.hapi.model.Model, paddle.fluid.dygraph.layers.Layer and paddle.fluid.executor.Executor"
                 )
 
-        print("{}.pdmodel".format(model_name))
         return model_name + ".pdmodel"
     finally:
         if isinstance(tmp, tempfile._TemporaryFileWrapper):

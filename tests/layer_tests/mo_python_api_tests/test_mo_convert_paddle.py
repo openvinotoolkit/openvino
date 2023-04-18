@@ -11,6 +11,7 @@ from openvino.runtime import PartialShape, Model, Dimension, serialize
 
 def make_pd_dynamic_graph_model():
     import paddle
+    paddle.disable_static()
     class NeuralNetwork(paddle.nn.Layer):
         def __init__(self):
             super(NeuralNetwork, self).__init__()
@@ -23,6 +24,7 @@ def make_pd_dynamic_graph_model():
 
 def make_pd_static_graph_model(shape):
     import paddle
+    import paddle.nn
     import paddle.static as static
 
     paddle.enable_static()
@@ -39,15 +41,18 @@ def make_pd_static_graph_model(shape):
 
 def make_pd_hapi_graph_model(shape):
     import paddle
-    import paddle.nn as nn
+    paddle.disable_static()
     from paddle.static import InputSpec
-    net = nn.Sequential(
-        nn.ReLU(),
-        nn.Sigmoid())
+    net = paddle.nn.Sequential(
+        paddle.nn.ReLU(),
+        paddle.nn.Sigmoid())
     input = InputSpec(shape, 'float32', 'x')
     label = InputSpec(shape, 'float32', 'label')
     
     model = paddle.Model(net, input, label)
+    optim = paddle.optimizer.SGD(learning_rate=1e-3,
+        parameters=model.parameters())
+    model.prepare(optim, paddle.nn.CrossEntropyLoss(), paddle.metric.Accuracy())
     return model
 
 def make_ref_graph_model(shape, dtype=np.float32):
@@ -61,49 +66,28 @@ def make_ref_graph_model(shape, dtype=np.float32):
     return model
 
 def create_paddle_dynamic_module(tmp_dir):
+    import paddle
+    shape = [2,3,4]
     pd_model = make_pd_dynamic_graph_model()
-    ref_model = make_ref_graph_model()
+    ref_model = make_ref_graph_model(shape)
 
-    x = paddle.static.InputSpec(shape=[1, 784], dtype='float32', name='x')
-    return pd_model, ref_model, {"example_input": x}
+    x = paddle.static.InputSpec(shape=shape, dtype='float32', name='x')
+    return pd_model, ref_model, {"example_input": [x]}
 
 def create_paddle_static_module(tmp_dir):
-    pd_model, x, y = make_pd_static_graph_model()
-    ref_model = make_ref_graph_model()
+    shape = [2,3,4]
+    pd_model, x, y = make_pd_static_graph_model(shape)
+    ref_model = make_ref_graph_model(shape)
 
-    return pd_model, ref_model, {"example_input": x, "example_output": y}
+    return pd_model, ref_model, {"example_input": [x], "example_output": [y]}
 
 def create_paddle_hapi_module(tmp_dir):
-    pd_model = make_pd_hapi_graph_model()
-    ref_model = make_ref_graph_model()
+    shape = [2,3,4]
+    pd_model = make_pd_hapi_graph_model(shape)
+    ref_model = make_ref_graph_model(shape)
 
-    return pd_model, ref_model
+    return pd_model, ref_model, {}
 
-'''
-def main():
-    import paddle
-    # 1. dyn
-    tmp_dyn = "tmp_dynamic/model"
-    model_dyn = make_pd_dynamic_graph_model()
-    x = paddle.static.InputSpec(shape=[1, 784], dtype='float32', name='x')
-    model_dyn_xml = openvino.tools.mo.convert.convert_model(model_dyn, example_input = [x])
-    serialize(model_dyn_xml, "{}.xml".format(tmp_dyn))
-
-    # 2. static
-    tmp_stc = "tmp_static/model"
-    x, y, model_stc = make_pd_static_graph_model([2,3,4])
-    model_stc_xml = openvino.tools.mo.convert.convert_model(model_stc, example_input = [x], example_output = [y])
-    serialize(model_stc_xml, "{}.xml".format(tmp_stc))
-
-    # 3. hapi
-    tmp_hapi = "tmp_hapi/model"
-    model_hapi = make_pd_hapi_graph_model([2,3,4])
-    model_hapi_xml = openvino.tools.mo.convert.convert_model(model_hapi)
-    serialize(model_hapi_xml, "{}.xml".format(tmp_hapi))
-
-if __name__ == "__main__":
-    main()
-'''
 class TestMoConvertPaddle(CommonMOConvertTest):
     test_data = [
         create_paddle_dynamic_module,
