@@ -495,21 +495,33 @@ int64_t ov::Model::get_result_index(const Output<const Node>& value) const {
     return -1;
 }
 
+bool ov::Model::evaluate(const HostTensorVector& output_tensors, const HostTensorVector& input_tensors) const {
+    ov::EvaluationContext evaluation_context;
+    OPENVINO_SUPPRESS_DEPRECATED_START
+    return evaluate(output_tensors, input_tensors, evaluation_context);
+    OPENVINO_SUPPRESS_DEPRECATED_END
+}
+
 bool ov::Model::evaluate(const HostTensorVector& output_tensors,
                          const HostTensorVector& input_tensors,
-                         EvaluationContext evaluation_context) const {
+                         EvaluationContext& evaluation_context) const {
     OPENVINO_SUPPRESS_DEPRECATED_START
     auto outputs = ov::util::wrap_tensors(output_tensors);
     auto inputs = ov::util::wrap_tensors(input_tensors);
-    bool sts = evaluate(outputs, inputs, std::move(evaluation_context));
+    bool sts = evaluate(outputs, inputs, evaluation_context);
     ov::util::update_output_host_tensors(output_tensors, outputs);
     OPENVINO_SUPPRESS_DEPRECATED_END
     return sts;
 }
 
+bool ov::Model::evaluate(ov::TensorVector& output_tensors, const ov::TensorVector& input_tensors) const {
+    ov::EvaluationContext evaluation_context;
+    return evaluate(output_tensors, input_tensors, evaluation_context);
+}
+
 bool ov::Model::evaluate(ov::TensorVector& output_tensors,
                          const ov::TensorVector& input_tensors,
-                         ov::EvaluationContext evaluation_context) const {
+                         ov::EvaluationContext& evaluation_context) const {
     evaluation_context.emplace("VariableContext", ov::op::util::VariableContext());
     std::map<RawNodeOutput, ov::Tensor> value_map;
     for (size_t i = 0; i < m_parameters.size(); ++i) {

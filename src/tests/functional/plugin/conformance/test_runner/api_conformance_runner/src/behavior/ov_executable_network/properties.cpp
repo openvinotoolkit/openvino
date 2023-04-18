@@ -59,4 +59,10 @@ INSTANTIATE_TEST_SUITE_P(ov_compiled_model_AutoBatch, OVCompiledModelPropertiesT
                 ::testing::Values(CommonTestUtils::DEVICE_BATCH),
                 ::testing::ValuesIn(ov::test::conformance::generate_ov_configs(CommonTestUtils::DEVICE_BATCH, auto_batch_properties))),
         OVCompiledModelPropertiesTests::getTestCaseName);
+
+// IE Class Load network
+
+INSTANTIATE_TEST_SUITE_P(
+        ov_plugin, OVClassCompileModelTest,
+        ::testing::Values(targetDevice));
 } // namespace
