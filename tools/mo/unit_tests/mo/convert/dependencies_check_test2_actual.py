@@ -7,10 +7,7 @@ from logger_test_actual import create_tf_model
 
 
 def mocked_check_module_import(module_name, required_version, key, not_satisfied_versions):
-    print("mock run")
-    print("module_name {}".format(module_name))
     if module_name == 'numpy':
-        print("mock run ImportError")
         raise ImportError()
 
 

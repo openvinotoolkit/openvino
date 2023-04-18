@@ -802,4 +802,4 @@ def _convert(cli_parser: argparse.ArgumentParser, framework, args):
         if argv is not None and hasattr(argv, "unsatisfied_requirements"):
             if len(argv.unsatisfied_requirements) > 0 and not argv.silent:
                 log_not_satisfied_dependencies(framework, argv.unsatisfied_requirements, {'is_warning': True})
-        raise e#.with_traceback(None)
+        raise e.with_traceback(None)

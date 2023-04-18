@@ -106,7 +106,7 @@ def test_mo_convert_dependencies_check():
     print(status.stderr.decode("utf-8").replace("\r\n", "\n"))
     print(status.stdout.decode("utf-8").replace("\r\n", "\n"))
     assert "Detected not satisfied dependencies:" in test_log
-    assert "openvino-telemetry: not installed" in test_log
+    assert "numpy: not installed" in test_log
 
     args = [sys.executable,
             os.path.join(os.path.dirname(__file__), 'convert/dependencies_check_test2_actual.py')]
