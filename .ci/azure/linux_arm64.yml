@@ -117,16 +117,13 @@ jobs:
       python3 -m pip install --upgrade pip
       python3 -m pip install -r $(OPENVINO_REPO_DIR)/src/bindings/python/requirements.txt
       python3 -m pip install -r $(OPENVINO_REPO_DIR)/src/bindings/python/wheel/requirements-dev.txt
-    env:
-      CCACHE_TEMPDIR: $(TMP_DIR)/ccache
-      CCACHE_BASEDIR: $(Pipeline.Workspace)
-      CCACHE_MAXSIZE: 50G
-      USE_CCACHE: 1
-      NUM_PROC: $(NUM_PROC)
-      WORK_DIR: $(WORK_DIR)
-      BUILD_TYPE: $(BUILD_TYPE)
-      OPENVINO_REPO_DIR: $(OPENVINO_REPO_DIR)
-      INSTALL_OPENVINO: $(INSTALL_OPENVINO)
+      # install dependencies needed to build CPU plugin for ARM
+      sudo -E apt --assume-yes install scons crossbuild-essential-arm64
+      # Speed up build
+      sudo -E apt -y --no-install-recommends install unzip
+      wget https://github.com/ninja-build/ninja/releases/download/v1.10.2/ninja-linux.zip
+      unzip ninja-linux.zip
+      sudo cp -v ninja /usr/local/bin/
     displayName: 'Install dependencies'
 
   - task: CMake@1
