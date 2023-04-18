@@ -43,6 +43,7 @@ As an example, a plugin configuration has three value parameters:
 - `streams_executor_config` - configuration of `ov::threading::IStreamsExecutor` to handle settings of multi-threaded context.
 - `performance_mode` - configuration of `ov::hint::PerformanceMode` to set the performance mode.
 - `disable_transformations` - allows to disable transformations which are applied in the process of model compilation.
+- `exclusive_async_requests` - allows to use exclusive task executor for asynchronous infer requests.
 
 ### Plugin Constructor
 

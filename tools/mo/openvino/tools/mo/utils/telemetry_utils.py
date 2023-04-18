@@ -10,7 +10,7 @@ from openvino.tools.mo.graph.graph import Graph
 from openvino.tools.mo.middle.pattern_match import for_graph_and_each_sub_graph_recursively
 from openvino.tools.mo.utils.cli_parser import get_params_with_paths_list
 from openvino.tools.mo.utils.telemetry_params import telemetry_params
-from openvino.tools.mo.utils.version import get_simplified_mo_version
+from openvino.tools.mo.utils.version import VersionChecker
 
 try:
     import openvino_telemetry as tm
@@ -19,7 +19,7 @@ except ImportError:
 
 
 def init_mo_telemetry():
-    _ = tm.Telemetry(tid=get_tid(), app_name='Model Optimizer', app_version=get_simplified_mo_version())
+    _ = tm.Telemetry(tid=get_tid(), app_name='Model Optimizer', app_version=VersionChecker().get_mo_simplified_version())
 
 
 def send_op_names_info(framework: str, graph: Graph):

@@ -149,7 +149,7 @@ TEST(shape_of_gpu, dynamic) {
         std::vector<int32_t> expected_results = {1, 2, 3, 4};
 
         for (size_t i = 0; i < expected_results.size(); ++i) {
-            ASSERT_TRUE(are_equal(expected_results[i], output_ptr[i]));
+            ASSERT_EQ(expected_results[i], output_ptr[i]);
         }
     }
 
@@ -164,7 +164,7 @@ TEST(shape_of_gpu, dynamic) {
         std::vector<int32_t> expected_results = {4, 3, 2, 1};
 
         for (size_t i = 0; i < expected_results.size(); ++i) {
-            ASSERT_TRUE(are_equal(expected_results[i], output_ptr[i]));
+            ASSERT_EQ(expected_results[i], output_ptr[i]);
         }
     }
 }
