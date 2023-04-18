@@ -1,5 +1,7 @@
 # Tile {#openvino_docs_ops_movement_Tile_1}
 
+@sphinxdirective
+
 **Versioned name**: *Tile-1*
 
 **Category**: *Data movement*
@@ -30,81 +32,90 @@ No attributes available.
 
 *Tile* operation extends input tensor and filling in output tensor by the following rules:
 
-\f[out_i=input_i[inner_dim*t]\f] \f[ t \in \left ( 0, \quad tiles \right ) \f]
+.. math:: 
+
+   out_i=input_i[inner_dim*t]
+   
+.. math::
+
+   t \in \left ( 0, \quad tiles \right )
 
 **Examples**
 
 *Example 1: number elements in "repeats" is equal to shape of data*
 
-```xml
-<layer ... type="Tile">
-    <input>
-        <port id="0">
-            <dim>2</dim>
-            <dim>3</dim>
-            <dim>4</dim>
-        </port>
-        <port id="1">
-            <dim>3</dim>  <!-- [1, 2, 3] -->
-        </port>
-    </input>
-    <output>
-        <port id="2">
-            <dim>2</dim>
-            <dim>6</dim>
-            <dim>12</dim>
-        </port>
-    </output>
-</layer>
-```
+.. code-block:: cpp
+
+    <layer ... type="Tile">
+        <input>
+            <port id="0">
+                <dim>2</dim>
+                <dim>3</dim>
+                <dim>4</dim>
+            </port>
+            <port id="1">
+                <dim>3</dim>  <!-- [1, 2, 3] -->
+            </port>
+        </input>
+        <output>
+            <port id="2">
+                <dim>2</dim>
+                <dim>6</dim>
+                <dim>12</dim>
+            </port>
+        </output>
+    </layer>
 
 *Example 2: number of elements in "repeats" is more than shape of "data"*
 
-```xml
-<layer ... type="Tile">
-    <input>
-        <port id="0">  <!-- will be promoted to shape (1, 2, 3, 4) -->
-            <dim>2</dim>
-            <dim>3</dim>
-            <dim>4</dim>
-        </port>
-        <port id="1">
-            <dim>4</dim>  <!-- [5, 1, 2, 3] -->
-        </port>
-    </input>
-    <output>
-        <port id="2">
-            <dim>5/dim>
-            <dim>2</dim>
-            <dim>6</dim>
-            <dim>12</dim>
-        </port>
-    </output>
-</layer>
-```
+.. code-block:: cpp 
+
+    <layer ... type="Tile">
+        <input>
+            <port id="0">  <!-- will be promoted to shape (1, 2, 3, 4) -->
+                <dim>2</dim>
+                <dim>3</dim>
+                <dim>4</dim>
+            </port>
+            <port id="1">
+                <dim>4</dim>  <!-- [5, 1, 2, 3] -->
+            </port>
+        </input>
+        <output>
+            <port id="2">
+                <dim>5/dim>
+                <dim>2</dim>
+                <dim>6</dim>
+                <dim>12</dim>
+            </port>
+        </output>
+    </layer>
 
 *Example 3: number of elements in "repeats" is less than shape of "data"*
 
-```xml
-<layer ... type="Tile">
-    <input>
-        <port id="0">
-            <dim>5</dim>
-            <dim>2</dim>
-            <dim>3</dim>
-            <dim>4</dim>
-        </port>
-        <port id="1">
-            <dim>3</dim>  <!-- [1, 2, 3] will be promoted to [1, 1, 2, 3] -->
-        </port>
-    </input>
-    <output>
-        <port id="2">
-            <dim>5</dim>
-            <dim>2</dim>
-            <dim>6</dim>
-            <dim>12</dim>
-        </port>
-    </output>
-</layer>
-```
+.. code-block:: cpp
+
+    <layer ... type="Tile">
+        <input>
+            <port id="0">
+                <dim>5</dim>
+                <dim>2</dim>
+                <dim>3</dim>
+                <dim>4</dim>
+            </port>
+            <port id="1">
+                <dim>3</dim>  <!-- [1, 2, 3] will be promoted to [1, 1, 2, 3] -->
+            </port>
+        </input>
+        <output>
+            <port id="2">
+                <dim>5</dim>
+                <dim>2</dim>
+                <dim>6</dim>
+                <dim>12</dim>
+            </port>
+        </output>
+    </layer>
+
+@endsphinxdirective
+
