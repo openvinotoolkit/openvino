@@ -29,11 +29,13 @@ protected:
     explicit OnnxNodeValidationFailure(const std::string& what_arg) : ov::AssertFailure(what_arg) {}
 };
 
+OPENVINO_SUPPRESS_DEPRECATED_START
 struct invalid_external_data : ngraph_error {
     invalid_external_data(const onnx_import::detail::TensorExternalData& external_data)
         : ngraph_error{std::string{"invalid external data: "} + external_data.to_string()} {}
     invalid_external_data(const std::string& what_arg) : ngraph_error{what_arg} {}
 };
+OPENVINO_SUPPRESS_DEPRECATED_END
 
 }  // namespace  error
 
