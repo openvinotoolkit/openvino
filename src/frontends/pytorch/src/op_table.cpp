@@ -380,6 +380,7 @@ const std::map<std::string, CreatorFunction> get_supported_ops_fx() {
         {"prim::Constant", op::translate_constant},
         {"prim::device", op::translate_constant},
         {"prim::GetAttr", op::translate_get_attr},
+        {"get_attr", op::translate_constant},
         {"prim::If", op::translate_if},
         {"prim::is_cuda", op::return_false_scalar},
         {"prim::ListConstruct", op::translate_list_construct},
