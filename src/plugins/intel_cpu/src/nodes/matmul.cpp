@@ -208,9 +208,9 @@ bool MatMul::canFuse(const NodePtr& node) const {
     // WA for CVS-84056: oneDNN brgemm impl has problem with per-OC binary-postOps for MatMul with 6D inputs
     if (impl::cpu::x64::mayiuse(impl::cpu::x64::avx512_core)) {
         if (auto* eltwiseNode = dynamic_cast<Eltwise*>(node.get())) {
-            if (eltwiseNode->getBroadcastingPolicy() != Eltwise::BroadcastingPolicy::PerTensor) {
+            if (eltwiseNode->getBroadcastingPolicy() == Eltwise::BroadcastingPolicy::PerChannel) {
                 auto rank = getInputShapeAtPort(0).getRank();
-                if (rank == 6) {
+                if (rank > 4) {
                     DEBUG_LOG("skip fusing non-perTensor Eltwise:", eltwiseNode->getName(), " into 6D MatMul:", getName());
                     return false;
                 }
