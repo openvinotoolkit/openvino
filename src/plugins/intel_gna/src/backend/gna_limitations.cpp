@@ -95,13 +95,11 @@ bool is_transpose_supported(const std::shared_ptr<const ov::Node>& node) {
     // - supports 2d transposes only
     // - smaller dimension should be less or equal to 8
     // - bigger dimension should be a multiple of limitations::noOfInputsDivisor
-    if (squeezed_shape.size() > 2) {
-        return true;
-    } else if (min_input_dim > 8) {
-        return true;
-    } else if (ALIGN(max_input_dim, limitations::noOfInputsDivisor) != max_input_dim) {
+    if (squeezed_shape.size() == 2 && min_input_dim <= 8 &&
+        ALIGN(max_input_dim, limitations::noOfInputsDivisor) == max_input_dim) {
         return true;
     }
+    return false;
 }
 
 bool is_conv_supported(const std::shared_ptr<ngraph::op::ConvolutionIE>& conv_ie,

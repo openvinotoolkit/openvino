@@ -11,7 +11,6 @@
 #include <openvino/cc/ngraph/itt.hpp>
 
 #include "backend/gna_limitations.hpp"
-#include "common/graph_utils.hpp"
 #include "layers/gna_split_layer.hpp"
 #include "legacy/ngraph_ops/eltwise.hpp"
 #include "log/log.hpp"

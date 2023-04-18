@@ -7,7 +7,6 @@
 #include <vector>
 // to suppress deprecated definition errors
 #define IMPLEMENT_INFERENCE_ENGINE_PLUGIN
-#include "common/graph_utils.hpp"
 #include "layers/gna_split_layer.hpp"
 #include "ngraph/opsets/opset9.hpp"
 
