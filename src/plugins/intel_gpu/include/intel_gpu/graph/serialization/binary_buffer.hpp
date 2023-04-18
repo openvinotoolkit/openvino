@@ -12,6 +12,8 @@
 #include "bind.hpp"
 
 namespace cldnn {
+struct memory;
+
 class BinaryOutputBuffer : public OutputBuffer<BinaryOutputBuffer> {
 public:
     BinaryOutputBuffer(std::ostream& stream)
@@ -34,7 +36,7 @@ private:
 class BinaryInputBuffer : public InputBuffer<BinaryInputBuffer> {
 public:
     BinaryInputBuffer(std::istream& stream, engine& engine)
-    : InputBuffer(this, engine), stream(stream), _impl_params(nullptr), _network(nullptr) {}
+    : InputBuffer(this, engine), stream(stream), _impl_params(nullptr) {}
 
     void read(void* const data, std::streamsize size) {
         auto const read_size = stream.rdbuf()->sgetn(reinterpret_cast<char*>(data), size);
@@ -44,8 +46,14 @@ public:
 
     void setKernelImplParams(void* impl_params) { _impl_params = impl_params; }
     void* getKernelImplParams() const { return _impl_params; }
-    void setNetwork(void* network) { _network = network; }
-    void* getNetwork() const { return _network; }
+    void addConstData(const std::string& prim_id, const std::shared_ptr<memory> mem_ptr) {
+        OPENVINO_ASSERT(_const_data_map.find(prim_id) == _const_data_map.end(), "[GPU] duplicated primitive id " + prim_id);
+        _const_data_map[prim_id] = mem_ptr;
+    }
+    std::shared_ptr<memory> getConstData(const std::string& prim_id) {
+        OPENVINO_ASSERT(_const_data_map.find(prim_id) != _const_data_map.end(), "[GPU] Not found primitive id " + prim_id);
+        return _const_data_map[prim_id];
+    }
 
     std::streampos tellg() { return stream.tellg(); }
     void seekg(std::streampos pos) { stream.seekg(pos); }
@@ -53,7 +61,7 @@ public:
 private:
     std::istream& stream;
     void* _impl_params;
-    void* _network;
+    std::unordered_map<std::string, std::shared_ptr<memory>> _const_data_map;
 };
 
 template <typename T>

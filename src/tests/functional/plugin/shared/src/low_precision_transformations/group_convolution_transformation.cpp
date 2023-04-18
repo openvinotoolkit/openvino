@@ -19,6 +19,28 @@
 #include "lpt_ngraph_functions/group_convolution_function.hpp"
 
 namespace LayerTestsDefinitions {
+namespace {
+std::shared_ptr<ov::Model> replaceFQConstantsOnScalars(const std::shared_ptr<ov::Model>& m) {
+    auto model = ngraph::clone_function(*m);
+    for (const auto& op : model->get_ordered_ops()) {
+        if (!ov::is_type<ov::opset10::FakeQuantize>(op))
+            continue;
+        for (size_t i = 1; i < op->get_input_size(); ++i) {
+            if (auto constant = ov::as_type_ptr<ov::opset10::Constant>(op->get_input_node_shared_ptr(i))) {
+                const auto& shape = constant->get_shape();
+                if (ov::shape_size(shape) > 1) {
+                    const auto values = constant->cast_vector<float>();
+                    if (std::all_of(values.begin(), values.end(), [&](float x) { return x == values[0]; })) {
+                        const auto scalar_constant = ov::opset10::Constant::create(constant->get_element_type(), {}, &values[0]);
+                        ov::replace_node(constant, scalar_constant);
+                    }
+                }
+            }
+        }
+    }
+    return model;
+}
+}  // namespace
 
 std::string GroupConvolutionTransformation::getTestCaseName(const testing::TestParamInfo<GroupConvolutionTransformationParams>& obj) {
     ngraph::element::Type netPrecision;
@@ -38,6 +60,7 @@ std::string GroupConvolutionTransformation::getTestCaseName(const testing::TestP
         param.group << "_" <<
         param.groupCalculationDimention << "_" <<
         param.fakeQuantizeOnData << "_" <<
+        (param.addReshape ? "reshape_on_weights_" : "wo_reshape_") <<
         (addPrecisionPreserved ? "max_pool_" : "") <<
         param.fakeQuantizeOnWeights;
     return result.str();
@@ -64,7 +87,10 @@ void GroupConvolutionTransformation::SetUp() {
         param.groupCalculationDimention,
         param.fakeQuantizeOnData,
         param.fakeQuantizeOnWeights,
+        param.addReshape,
         addPrecisionPreserved);
+    // WA for issue #107400
+    functionRefs = replaceFQConstantsOnScalars(function);
 }
 
 void GroupConvolutionTransformation::Run() {
@@ -82,6 +108,7 @@ void GroupConvolutionTransformation::Run() {
 }
 
 TEST_P(GroupConvolutionTransformation, CompareWithRefImpl) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED();
     Run();
 };
 
