@@ -295,3 +295,31 @@ TEST(type_prop, interpolate_v11_sizes_incorrect_et) {
                     ov::NodeValidationFailure,
                     HasSubstr("Sizes element type must be i32, i64, u32 or u64"));
 }
+
+TEST(type_prop, interpolate_v11_intervals_with_scales_mode) {
+    const auto image = std::make_shared<op::Parameter>(element::f32, PartialShape{1, 3, {1, 10}, {1, 10}});
+    const auto scales = op::Constant::create<float>(element::f32, Shape{2}, {2.0f, 3.0f});
+    const auto axes = op::Constant::create<int64_t>(element::i64, Shape{2}, {2, 3});
+
+    ov::op::util::InterpolateBase::InterpolateAttrs attrs;
+    attrs.shape_calculation_mode = ov::op::util::InterpolateBase::ShapeCalcMode::SCALES;
+    attrs.pads_begin = {0, 0, 0, 0};
+    attrs.pads_end = {0, 0, 0, 0};
+    auto interp = std::make_shared<ov::op::v11::Interpolate>(image, scales, axes, attrs);
+
+    EXPECT_EQ(interp->get_output_partial_shape(0), (PartialShape{1, 3, {2, 20}, {3, 30}}));
+}
+
+TEST(type_prop, interpolate_v11_intervals_with_sizes_mode) {
+    const auto image = std::make_shared<op::Parameter>(element::f32, PartialShape{1, 3, {1, 10}, {1, 10}});
+    const auto sizes = op::Constant::create<float>(element::i32, Shape{2}, {200, 300});
+    const auto axes = op::Constant::create<int64_t>(element::i64, Shape{2}, {2, 3});
+
+    ov::op::util::InterpolateBase::InterpolateAttrs attrs;
+    attrs.shape_calculation_mode = ov::op::util::InterpolateBase::ShapeCalcMode::SIZES;
+    attrs.pads_begin = {0, 0, 0, 0};
+    attrs.pads_end = {0, 0, 0, 0};
+    auto interp = std::make_shared<ov::op::v11::Interpolate>(image, sizes, axes, attrs);
+
+    EXPECT_EQ(interp->get_output_partial_shape(0), (PartialShape{1, 3, 200, 300}));
+}

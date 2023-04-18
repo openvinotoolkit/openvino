@@ -208,7 +208,7 @@ void shape_infer(const Interpolate* op,
                                           [input_rank](size_t axis) {
                                               return axis < input_rank;
                                           }),
-                              "Axis value should less than input rank.");
+                              "Axis value should be smaller than the input's rank.");
 
         // Get padded input shape
         for (size_t i = 0; i < input_rank; ++i) {
