@@ -40,8 +40,7 @@ ov::pass::BroadcastTransition::BroadcastTransition() {
         // inputs order mustn't be changed because an eltwise might be not commutative
         ov::OutputVector new_inputs{
             eltwise->get_input_node_ptr(0) == eltwise_input.get_node() ? eltwise_input : bcast_data,
-            eltwise->get_input_node_ptr(1) == bcast.get() ? bcast_data : eltwise_input
-        };
+            eltwise->get_input_node_ptr(1) == bcast.get() ? bcast_data : eltwise_input};
         const auto new_eltwise = eltwise->clone_with_new_inputs(new_inputs);
         ov::copy_runtime_info(eltwise, new_eltwise);
 
