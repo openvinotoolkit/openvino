@@ -6,8 +6,8 @@
 #include <ie_system_conf.h>
 
 #include <common_test_utils/test_common.hpp>
-#include <openvino/runtime/threading/cpu_map_scheduling.hpp>
 
+#include "cpu_map_scheduling.hpp"
 #include "cpu_streams_calculation.hpp"
 
 using namespace testing;
