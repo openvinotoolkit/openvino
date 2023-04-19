@@ -161,15 +161,14 @@ const std::vector<convReluSpecificParamsAll> convReluSpecificParamsAllAll = {
     {inputShapeSimpleWithPooling, convReluSpecificParamsSimpleSeqWithPooling}};
 
 const std::vector<std::map<std::string, std::string>> configs = {
-    {{InferenceEngine::GNAConfigParams::KEY_GNA_DEVICE_MODE, InferenceEngine::GNAConfigParams::GNA_AUTO}},
     {{InferenceEngine::GNAConfigParams::KEY_GNA_DEVICE_MODE, InferenceEngine::GNAConfigParams::GNA_SW_FP32}},
-    {{InferenceEngine::GNAConfigParams::KEY_GNA_DEVICE_MODE, InferenceEngine::GNAConfigParams::GNA_SW_EXACT}}};
+    {{InferenceEngine::GNAConfigParams::KEY_GNA_DEVICE_MODE, InferenceEngine::GNAConfigParams::GNA_SW_EXACT},
+     {InferenceEngine::GNAConfigParams::KEY_GNA_EXEC_TARGET, InferenceEngine::GNAConfigParams::GNA_TARGET_3_0}}};
 
-const std::vector<std::map<std::string, std::string>> cofigs_exec_targets_supporting_legacy_convolution = {
+const std::vector<std::map<std::string, std::string>> configs_allowing_pooling_stride_above_window = {
     {{InferenceEngine::GNAConfigParams::KEY_GNA_DEVICE_MODE, InferenceEngine::GNAConfigParams::GNA_SW_EXACT},
      {InferenceEngine::GNAConfigParams::KEY_GNA_EXEC_TARGET, InferenceEngine::GNAConfigParams::GNA_TARGET_2_0}}};
 
-// Enable when using GNA 2.1 library
 INSTANTIATE_TEST_SUITE_P(smoke_ConvolutionReluSequenceTest,
                          GnaConvolutionReluSequenceTest,
                          ::testing::Combine(::testing::ValuesIn(convReluSpecificParamsAllAll),
@@ -258,7 +257,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_ConvolutionPoolingStrideNotEqualWindowTest_Above,
                                             ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
                                             ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
                                             ::testing::Values(CommonTestUtils::DEVICE_GNA),
-                                            ::testing::ValuesIn(cofigs_exec_targets_supporting_legacy_convolution)),
+                                            ::testing::ValuesIn(configs_allowing_pooling_stride_above_window)),
                          ConvolutionReluSequenceTest::getTestCaseName);
 
 const std::vector<convReluSpecificParamsAll> poolingStrideNotEqualWindow_Below = {
