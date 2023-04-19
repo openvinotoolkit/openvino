@@ -92,8 +92,10 @@ std::vector<TShape> shape_infer(const util::TopKBase* op,
                 const auto k_max = k.get_max_length();
 
                 const auto lower = std::min<TDimValue>(in_min, k_min);
-                const auto upper = in_max < 0 ? Dimension::dynamic().get_max_length()
-                                              : std::min<TDimValue>(in_max, (k_max < 0 ? Interval::s_max : k_max));
+                const auto upper =
+                    in_max < 0
+                        ? Dimension::dynamic().get_max_length()
+                        : std::min<TDimValue>(in_max, (k_max < 0 ? std::numeric_limits<TDimValue>::max() : k_max));
                 dim_axis = TDim(lower, upper);
             }
         } else {
