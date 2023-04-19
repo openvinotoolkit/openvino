@@ -126,10 +126,6 @@ std::vector<std::string> disabledTestPatterns() {
         // need to add support convert BIN -> FP32
         // if we set output precision as BIN, when we create output blob precision looks like UNSPECIFIED
         R"(.*smoke_FakeQuantizeLayerCPUTest.*bin.*)",
-        // Issue: 69088
-        // bad accuracy
-        R"(.*smoke_FakeQuantizeLayerCPUTest_Decompos.
-            *IS=_TS=\(\(4\.5\.6\.7\)\)_RS=\(\(1\.1\.6\.1\)\)_\(\(1\.5\.6\.1\)\)_\(\(1\.1\.1\.1\)\)_\(\(1\.1\.6\.1\)\).*)",
         // Issue: 69222
         R"(.*smoke_PriorBoxClustered.*PriorBoxClusteredLayerCPUTest.*_netPRC=f16_.*)",
         // Issue: 72005
@@ -213,13 +209,9 @@ std::vector<std::string> disabledTestPatterns() {
     retVector.emplace_back(R"(smoke_CompareWithRefs_static/EltwiseLayerTest.EltwiseTests.*)");
     retVector.emplace_back(R"(smoke_CompareWithRefs_static_check_collapsing/EltwiseLayerTest.EltwiseTests.*)");
     retVector.emplace_back(R"(smoke_SingleThread/EltwiseLayerTest.EltwiseTests.*)");
-    retVector.emplace_back(R"(smoke_StaticShapeLoop/StaticShapeLoopTest.CompareWithRefs.*)");
-    retVector.emplace_back(R"(smoke_StaticShapeLoop/StaticShapeLoopTest.CompareWithPredefinedRefs.*)");
-    retVector.emplace_back(R"(smoke_TrivialLoop/TrivialLoopTest.AutoSlicingInputWithDynCondition_(CheckPredefinedValues|CheckReference).*)");
     retVector.emplace_back(R"(smoke_Decomposition_(3|4)D/Mvn6LayerTest.CompareWithRefs.*)");
     retVector.emplace_back(R"(smoke_AvgPool_ExplicitPad_CeilRounding/PoolingLayerTest.CompareWithRefs.*)");
     retVector.emplace_back(R"(smoke_TestsDFT_(1|2|3|4)d/DFTLayerTest.CompareWithRefs.*)");
-    retVector.emplace_back(R"(smoke_TestsSelect_none/SelectLayerTest.CompareWithRefImpl/COND=BOOL.*)");
     retVector.emplace_back(R"(smoke_TestsSelect_numpy/SelectLayerTest.CompareWithRefImpl/COND=BOOL.*)");
     retVector.emplace_back(R"(smoke_Snippets.*)");
     retVector.emplace_back(R"(smoke_Quantized.*)");
