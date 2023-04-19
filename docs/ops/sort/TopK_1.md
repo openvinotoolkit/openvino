@@ -63,12 +63,12 @@ So for each slice ``input[i1, ...., i(axis-1), :, i(axis+1), ..., iN]`` which re
 
 Sorting and minimum/maximum are controlled by ``sort`` and ``mode`` attributes:
 
-* *mode*=``max``, *sort*=``value`` - descending by value
-* *mode*=``max``, *sort*=``index`` - ascending by index
-* *mode*=``max``, *sort*=``none``  - undefined
-* *mode*=``min``, *sort*=``value`` - ascending by value
-* *mode*=``min``, *sort*=``index`` - ascending by index
-* *mode*=``min``, *sort*=``none``  - undefined
+* ``mode``=``max``, ``sortv=``value`` - descending by value
+* ``mode``=``max``, ``sort``=``index`` - ascending by index
+* ``mode``=``max``, ``sort``=``none``  - undefined
+* ``mode``=``min``, ``sort``=``value`` - ascending by value
+* ``mode``=``min``, ``sort``=``index`` - ascending by index
+* ``mode``=``min``, ``sort``=``none``  - undefined
 
 If there are several elements with the same value then their output order is not determined.
 

@@ -4,9 +4,9 @@
 
 **Versioned name**: *TopK-11*
 
-**Category**: *Sorting and maximization*
+**Category**: *sorting and maximization*
 
-**Short description**: *TopK* computes indices and values of the *k* maximum/minimum values for each slice along a specified axis.
+*short description**: *TopK* computes indices and values of the *k* maximum/minimum values for each slice along a specified axis.
 
 **Attributes**
 
@@ -17,26 +17,26 @@
   * **Type**: ``int``
   * **Required**: *yes*
 
-* *mode*
+* ``mode*
 
   * **Description**: Specifies whether *TopK* selects the largest or the smallest elements from each slice.
   * **Range of values**: "min", "max"
   * **Type**: ``string``
   * **Required**: *yes*
 
-* *sort*
+*sort*
 
   * **Description**: Specifies the order of corresponding elements of the output tensor.
   * **Range of values**: ``value``, ``index``, ``none``
   * **Type**: ``string``
   * **Required**: *yes*
 
-* *stable*
+*stable*
 
   * **Description**: Specifies whether the equivalent elements should maintain their relative order from the input tensor. Takes effect only if the ``sort`` attribute is set to ``value`` or ``index``.
-  * **Range of values**: ``true`` of ``false``
+  * **Range of values**: *true* of *false*
   * **Type**: ``boolean``
-  * **Default value**: ``false``
+  * **Default value**: *false*
   * **Required**: *no*
 
 * *index_element_type*
@@ -70,24 +70,26 @@
 
 The output tensor is populated by values computed in the following way:
 
+.. code-block::
+
   output[i1, ..., i(axis-1), j, i(axis+1) ..., iN] = top_k(input[i1, ...., i(axis-1), :, i(axis+1), ..., iN]), k, sort, mode)
 
 meaning that for each slice ``input[i1, ...., i(axis-1), :, i(axis+1), ..., iN]`` the *TopK* values are computed individually.
 
-Sorting and minimum/maximum are controlled by `sort` and `mode` attributes with additional configurability provided by ``stable``:
+Sorting and minimum/maximum are controlled by ``sort`` and ``mode`` attributes with additional configurability provided by ``stable``:
 
-* *sort*=``value``, *mode*=``max``, *stable*=``false`` - descending by value, relative order of equal elements not guaranteed to be maintained
-* *sort*=``value``, *mode*=``max``, *stable*=``true``  - descending by value, relative order of equal elements guaranteed to be maintained
-* *sort*=``value``, *mode*=``min``, *stable*=``false`` - ascending by value, relative order of equal elements not guaranteed to be maintained
-* *sort*=``value``, *mode*=``min``, *stable*=``true``  - ascending by value, relative order of equal elements guaranteed to be maintained
-* *sort*=``index``, *mode*=``max``, *stable*=``false`` - ascending by index, relative order of equal elements not guaranteed to be maintained
-* *sort*=``index``, *mode*=``max``, *stable*=``true``  - ascending by index, relative order of equal elements guaranteed to be maintained
-* *sort*=``index``, *mode*=``min``, *stable*=``false`` - ascending by index, relative order of equal elements not guaranteed to be maintained
-* *sort*=``index``, *mode*=``min``, *stable*=``true``  - ascending by index, relative order of equal elements guaranteed to be maintained
-* *sort*=``none`` , *mode*=``max`` - undefined
-* *sort*=``none`` , *mode*=``min`` - undefined
+* ``sort``=*value*, ``mode``=*max*, ``stable``=*false* - descending by value, relative order of equal elements not guaranteed to be maintained
+* ``sort``=*value``, ``mode``=*max*, ``stable``=*true*  - descending by value, relative order of equal elements guaranteed to be maintained
+* ``sort``=*value``, ``mode``=*min*, ``stable``=*false* - ascending by value, relative order of equal elements not guaranteed to be maintained
+* ``sort``=*value``, ``mode``=*min*, ``stable``=*true*  - ascending by value, relative order of equal elements guaranteed to be maintained
+* ``sort``=*index*, ``mode``=*max*, ``stable``=*false* - ascending by index, relative order of equal elements not guaranteed to be maintained
+* ``sort``=*index*, ``mode``=*max*, ``stable``=*true*  - ascending by index, relative order of equal elements guaranteed to be maintained
+* ``sort``=*index*, ``mode``=*min*, ``stable``=*false* - ascending by index, relative order of equal elements not guaranteed to be maintained
+* ``sort``=*index*, ``mode``=*min*, ``stable``=*true*  - ascending by index, relative order of equal elements guaranteed to be maintained
+* ``sort``=*none* , ``mode``=*max* - undefined
+* ``sort``=*none* , ``mode``=*min* - undefined
 
-The relative order of equivalent elements is only preserved if the *stable* attribute is set to ``true``. This makes the implementation use stable sorting algorithm during the computation of TopK elements. Otherwise the output order is undefined.
+The relative order of equivalent elements is only preserved if the ``stable`` attribute is set to ``true``. This makes the implementation use stable sorting algorithm during the computation of TopK elements. Otherwise the output order is undefined.
 The "by index" order means that the input tensor's elements are still sorted by value but their order in the output tensor is additionally determined by the indices of those elements in the input tensor. This might yield multiple correct results though. For example if the input tensor contains the following elements:
 
 .. code-block::
@@ -115,7 +117,7 @@ then the 3 following results are correct:
   output_values  = [3, 1, 2, 5]
   output_indices = [1, 2, 3, 5]
 
-When the ``stable`` attribute is additionally set to ``true``, the example above will only have a single correct solution:
+When the ``stable`` attribute is additionally set to *true*, the example above will only have a single correct solution:
 
 .. code-block::
 
