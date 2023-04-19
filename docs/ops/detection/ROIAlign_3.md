@@ -8,7 +8,7 @@
 
 **Short description**: *ROIAlign* is a *pooling layer* used over feature maps of non-uniform input sizes and outputs a feature map of a fixed size.
 
-**Detailed description**:  `Reference <https://arxiv.org/abs/1703.06870)>`__.
+**Detailed description**:  `Reference <https://arxiv.org/abs/1703.06870>`__.
 
 *ROIAlign* performs the following for each Region of Interest (ROI) for each input feature map:
 
@@ -34,8 +34,7 @@
 
 * *sampling_ratio*
 
-  * **Description**: *sampling_ratio* is the number of bins over height and width to use to calculate each output feature map element. If the value
-  is equal to 0 then use adaptive number of elements over height and width: ``ceil(roi_height / pooled_h)`` and ``ceil(roi_width / pooled_w)`` respectively.
+  * **Description**: *sampling_ratio* is the number of bins over height and width to use to calculate each output feature map element. If the value is equal to 0 then use adaptive number of elements over height and width: ``cei (roi_height / pooled_h)`` and ``ceil(roi_width / pooled_w)`` respectively.
   * **Range of values**: a non-negative integer
   * **Type**: ``int``
   * **Required**: *yes*
@@ -51,6 +50,7 @@
 
   * **Description**: *mode* specifies a method to perform pooling to produce output feature map elements.
   * **Range of values**:
+
     * *max* - maximum pooling
     * *avg* - average pooling
   * **Type**: string
@@ -61,8 +61,7 @@
 *   **1**: 4D input tensor of shape ``[N, C, H, W]`` with feature maps of type *T*. **Required.**
 
 *   **2**: 2D input tensor of shape ``[NUM_ROIS, 4]`` describing box consisting of 4 element tuples: ``[x_1, y_1, x_2, y_2]`` in relative coordinates of type *T*.
-The box height and width are calculated the following way: ``roi_width = max(spatial_scale * (x_2 - x_1), 1.0)``,
-``roi_height = max(spatial_scale * (y_2 - y_1), 1.0)``, so the malformed boxes are expressed as a box of size ``1 x 1``. **Required.**
+The box height and width are calculated the following way: ``roi_width = max(spatial_scale * (x_2 - x_1), 1.0)``, ``roi_height = max(spatial_scale * (y_2 - y_1), 1.0)``, so the malformed boxes are expressed as a box of size ``1 x 1``. **Required.**
 
 *   **3**: 1D input tensor of shape ``[NUM_ROIS]`` with batch indices of type *IND_T*. **Required.**
 

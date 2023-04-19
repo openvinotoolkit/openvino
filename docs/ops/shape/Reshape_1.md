@@ -12,8 +12,8 @@
 
 *Reshape* takes two input tensors: ``data`` to be resized and ``shape`` of the new output. The values in the ``shape`` could be ``-1``, ``0`` and any positive integer number. The two special values ``-1`` and ``0``:
 
-  * ``0`` means "copy the respective dimension *(left aligned)* of the input tensor" if ``special_zero`` is set to ``true``; otherwise it is a normal dimension and is applicable to empty tensors.
-  * ``-1`` means that this dimension is calculated to keep the overall elements count the same as in the input tensor. Not more than one ``-1`` can be used in a reshape operation.
+* ``0`` means "copy the respective dimension *(left aligned)* of the input tensor" if ``special_zero`` is set to ``true``; otherwise it is a normal dimension and is applicable to empty tensors.
+* ``-1`` means that this dimension is calculated to keep the overall elements count the same as in the input tensor. Not more than one ``-1`` can be used in a reshape operation.
 
 If ``special_zero`` is set to ``true`` index of ``0`` cannot be larger than the rank of the input tensor.
 

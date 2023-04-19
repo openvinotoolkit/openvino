@@ -19,9 +19,8 @@
 
 The box height and width have different representation based on **method** attribute:
 
-  * *max*: Expressed in relative coordinates. The box height and width are calculated the following way: ``roi_width = max(spatial_scale * (x_2 - x_1), 1.0)``,
-``roi_height = max(spatial_scale * (y_2 - y_1), 1.0)``, so the malformed boxes are expressed as a box of size ``1 x 1``.
-  * *bilinear*: Expressed in absolute coordinates and normalized to the ``[0, 1]`` interval. The box height and width are calculated the following way: ``roi_width = (W - 1)  * (x_2 - x_1)``, ``roi_height = (H - 1) * (y_2 - y_1)``.
+* *max*: Expressed in relative coordinates. The box height and width are calculated the following way: ``roi_width = max(spatial_scale * (x_2 - x_1), 1.0)``, ``roi_height = max(spatial_scale * (y_2 - y_1), 1.0)``, so the malformed boxes are expressed as a box of size ``1 x 1``.
+* *bilinear*: Expressed in absolute coordinates and normalized to the ``[0, 1]`` interval. The box height and width are calculated the following way: ``roi_width = (W - 1)  * (x_2 - x_1)``, ``roi_height = (H - 1) * (y_2 - y_1)``.
 
 **Attributes**
 

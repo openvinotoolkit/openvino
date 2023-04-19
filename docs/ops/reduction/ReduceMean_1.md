@@ -13,7 +13,7 @@
 *ReduceMean* operation performs the reduction with finding the arithmetic mean on a given input ``data`` along dimensions specified by ``axes`` input.
 Each element in the output is calculated as follows:
 
-.. code-block:: 
+.. code-block:: html
 
    output[i0, i1, ..., iN] = mean[j0, ..., jN](x[j0, ..., jN]))
 
@@ -51,7 +51,7 @@ Particular cases:
 
 **Examples**
 
-.. code-block:: 
+.. code-block:: html
 
     <layer id="1" type="ReduceMean" ...>
         <data keep_dims="true" />
@@ -77,7 +77,7 @@ Particular cases:
     </layer>
 
 
-.. code-block:: 
+.. code-block:: html
 
     <layer id="1" type="ReduceMean" ...>
         <data keep_dims="false" />
@@ -101,7 +101,7 @@ Particular cases:
     </layer>
 
 
-.. code-block:: 
+.. code-block:: html
 
     <layer id="1" type="ReduceMean" ...>
         <data keep_dims="false" />
@@ -125,7 +125,7 @@ Particular cases:
         </output>
     </layer>
 
-.. code-block:: 
+.. code-block:: html
 
     <layer id="1" type="ReduceMean" ...>
         <data keep_dims="false" />

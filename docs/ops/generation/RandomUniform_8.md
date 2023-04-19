@@ -162,7 +162,7 @@ where *x* is uint32 random value.
 
 Example 1. *RandomUniform* output with `global_seed` = 150, `op_seed` = 10, `output_type` = f32:
 
-.. code-block:: 
+.. code-block:: html
    
     input_shape    = [ 3, 3 ]
     output  = [[0.7011236  0.30539632 0.93931055]
@@ -172,7 +172,7 @@ Example 1. *RandomUniform* output with `global_seed` = 150, `op_seed` = 10, `out
 
 Example 2. *RandomUniform* output with `global_seed` = 80, `op_seed` = 100, `output_type` = double:
 
-.. code-block:: 
+.. code-block:: html
     
     input_shape    = [ 2, 2 ]
 
@@ -186,7 +186,7 @@ Example 2. *RandomUniform* output with `global_seed` = 80, `op_seed` = 100, `out
 
 Example 3. *RandomUniform* output with `global_seed` = 80, `op_seed` = 100, `output_type` = i32:
 
-.. code-block:: 
+.. code-block:: html
      
     input_shape    = [ 2, 3 ]
 
@@ -202,26 +202,26 @@ Example 3. *RandomUniform* output with `global_seed` = 80, `op_seed` = 100, `out
 
 * *output_type*
 
-    * **Description**: the type of the output. Determines generation algorithm and affects resulting values. Output numbers generated for different values of *output_type* may not be equal.
-    * **Range of values**: "i32", "i64", "f16", "bf16", "f32", "f64".
-    * **Type**: string
-    * **Required**: *Yes*
+  * **Description**: the type of the output. Determines generation algorithm and affects resulting values. Output numbers generated for different values of *output_type* may not be equal.
+  * **Range of values**: "i32", "i64", "f16", "bf16", "f32", "f64".
+  * **Type**: string
+  * **Required**: *Yes*
 
 * *global_seed*
 
-    * **Description**: global seed value.
-    * **Range of values**: positive integers
-    * **Type**: `int`
-    * **Default value**: 0
-    * **Required**: *Yes*
+  * **Description**: global seed value.
+  * **Range of values**: positive integers
+  * **Type**: `int`
+  * **Default value**: 0
+  * **Required**: *Yes*
 
 * *op_seed*
 
-    * **Description**: operational seed value.
-    * **Range of values**: positive integers
-    * **Type**: `int`
-    * **Default value**: 0
-    * **Required**: *Yes*
+  * **Description**: operational seed value.
+  * **Range of values**: positive integers
+  * **Type**: `int`
+  * **Default value**: 0
+  * **Required**: *Yes*
 
 **Inputs**:
 
@@ -244,7 +244,7 @@ Example 3. *RandomUniform* output with `global_seed` = 80, `op_seed` = 100, `out
 
 *Example 1: IR example.*
 
-.. code-block:: cpp
+.. code-block:: html
 
     <layer ... name="RandomUniform" type="RandomUniform">
         <data output_type="f32" global_seed="234" op_seed="148"/>
