@@ -67,7 +67,7 @@ const TensorIndexMap cast_to_tensor_index_map(const py::dict& inputs) {
             auto tensor = Common::cast_to_tensor(input.second);
             result_map[idx] = tensor;
         } else {
-            throw ov::Exception("Unable to cast tensor " + std::to_string(idx) + "!");
+            OPENVINO_THROW("Unable to cast tensor " + std::to_string(idx) + "!");
         }
     }
     return result_map;
@@ -186,7 +186,7 @@ py::array array_from_tensor(ov::Tensor&& t) {
         break;
     }
     default: {
-        throw ov::Exception("Numpy array cannot be created from given OV Tensor!");
+        OPENVINO_THROW("Numpy array cannot be created from given OV Tensor!");
         break;
     }
     }

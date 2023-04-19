@@ -1354,10 +1354,10 @@ def parse_layouts_by_destination(s: str, parsed: dict, parsed_list: list, dest: 
     else:
         for idx, layout_str in enumerate(list_s):
             # case for: "name1(nhwc->[n,c,h,w])"
-            p1 = re.compile(r'([\w.:/\\]*)\((\S+)\)')
+            p1 = re.compile(r'([^\[\]\(\)]*)\((\S+)\)')
             m1 = p1.match(layout_str)
             # case for: "name1[n,h,w,c]->[n,c,h,w]"
-            p2 = re.compile(r'([\w.:/\\]*)(\[\S*\])')
+            p2 = re.compile(r'([^\[\]\(\)]*)(\[\S*\])')
             m2 = p2.match(layout_str)
             if m1:
                 found_g = m1.groups()

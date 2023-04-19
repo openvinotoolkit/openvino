@@ -6,6 +6,7 @@
 
 #include <vector>
 #include <cstdint>
+#include "ngraph/node.hpp"
 
 namespace ngraph {
 namespace snippets {
