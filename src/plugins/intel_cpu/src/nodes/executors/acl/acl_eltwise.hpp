@@ -50,7 +50,7 @@ public:
         };
 
         switch (eltwiseAttrs.algorithm) {
-            case Algorithm::EltwiseSqrt: break; // TODO: seg. fault in reference
+            case Algorithm::EltwiseSqrt:
             case Algorithm::EltwiseDivide:
             case Algorithm::EltwiseRelu:
             case Algorithm::EltwiseGeluErf:
