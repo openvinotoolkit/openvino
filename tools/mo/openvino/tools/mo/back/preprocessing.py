@@ -4,11 +4,10 @@
 import argparse
 import logging as log
 
-import numpy as np
-
 from openvino.preprocess import PrePostProcessor  # pylint: disable=no-name-in-module,import-error
 # pylint: disable=no-name-in-module,import-error
 from openvino.runtime import Model, Layout, PartialShape, layout_helpers
+
 from openvino.tools.mo.moc_frontend.layout_utils import update_layout_to_dict
 from openvino.tools.mo.utils.error import Error
 from openvino.tools.mo.utils.utils import refer_to_faq_msg
