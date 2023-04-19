@@ -1313,9 +1313,13 @@ bool ScaleFactorCalculator::ScaleFactorPerLayerWeightable(InferenceEngine::Weigh
             }
         }
 
-        if (calculateWeightsReducerFromDstStats(quant->_dst_quant) > initial_weights_reducer_val) {
+        auto weightsReducer = calculateWeightsReducerFromDstStats(quant->_dst_quant);
+        // This correction should be done by POT, but we observed issues with int8 quantization
+        if (weightsReducer > initial_weights_reducer_val) {
             log::warning() << "Potential overload correction issue at layer " << wl->name;
+            quant->_weights_quant.SetScale(quant->_weights_quant.GetScale() / weightsReducer);
         }
+        quant->_dst_quant.SetScale(quant->_weights_quant.GetScale() * quant->_src_quant.GetScale());
     }
 
     return true;

@@ -2,7 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "acl_utils.hpp"
 #include "acl_reduce.hpp"
 
 namespace ov {
