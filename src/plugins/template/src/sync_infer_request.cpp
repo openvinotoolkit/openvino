@@ -79,8 +79,7 @@ ov::template_plugin::InferRequest::InferRequest(const std::shared_ptr<const ov::
 
     // Save variable states
     ov::op::util::VariableContext variable_context;
-    for (const auto& variable : get_template_model()->m_model->get_variables()) {
-        auto value = std::make_shared<ov::op::util::VariableValue>();
+    for (const auto& variable : m_executable->get_model()->get_variables()) {
         if (!variable_context.get_variable_value(variable)) {
             auto shape = variable->get_info().data_shape.is_dynamic() ? ov::Shape{0}
                                                                       : variable->get_info().data_shape.to_shape();
@@ -207,11 +206,15 @@ void ov::template_plugin::InferRequest::infer_preprocess() {
 void ov::template_plugin::InferRequest::start_pipeline() {
     OV_ITT_SCOPED_TASK(itt::domains::TemplatePlugin, m_profiling_task[StartPipeline])
     auto start = Time::now();
-    m_executable->call(m_backend_output_tensors, m_backend_input_tensors);
+    m_executable->call(m_backend_output_tensors,
+                       m_backend_input_tensors,
+                       m_eval_context,
+                       get_template_model()->m_cfg.perf_count);
     m_durations[StartPipeline] = Time::now() - start;
 }
 // ! [infer_request:start_pipeline]
 
+// ! [infer_request:wait_pipeline]
 void ov::template_plugin::InferRequest::wait_pipeline() {
     OV_ITT_SCOPED_TASK(itt::domains::TemplatePlugin, m_profiling_task[WaitPipeline])
     auto start = Time::now();
@@ -219,6 +222,7 @@ void ov::template_plugin::InferRequest::wait_pipeline() {
     // NOTE: not used in current implementation since `startPipeline` executes pipiline synchronously
     m_durations[WaitPipeline] = Time::now() - start;
 }
+// ! [infer_request:wait_pipeline]
 
 // ! [infer_request:infer_postprocess]
 void ov::template_plugin::InferRequest::infer_postprocess() {
@@ -267,3 +271,9 @@ std::vector<ov::ProfilingInfo> ov::template_plugin::InferRequest::get_profiling_
     return info;
 }
 // ! [infer_request:get_profiling_info]
+
+// ! [infer_request:cancel]
+void ov::template_plugin::InferRequest::cancel() {
+    m_executable->cancel();
+}
+// ! [infer_request:cancel]

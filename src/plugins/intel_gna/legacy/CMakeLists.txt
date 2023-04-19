@@ -57,13 +57,6 @@ target_include_directories(${TARGET_NAME} INTERFACE
 
 # Compile with USE_STATIC_IE
 
-set(LEGACY_LIBRARY_SHARED_SRCS
-    "${CMAKE_CURRENT_SOURCE_DIR}/src/transformations/convert_opset1_to_legacy/convert_one_hot_to_one_hot_ie.cpp"
-    "${CMAKE_CURRENT_SOURCE_DIR}/src/transformations/convert_opset1_to_legacy/convert_nms_5_to_legacy.cpp"
-    "${CMAKE_CURRENT_SOURCE_DIR}/src/ngraph_ops/nms_ie.cpp"
-    "${CMAKE_CURRENT_SOURCE_DIR}/src/ngraph_ops/onehot_ie.cpp")
-list(REMOVE_ITEM LIBRARY_SRC ${LEGACY_LIBRARY_SHARED_SRCS})
-
 add_library(${TARGET_NAME}_s STATIC EXCLUDE_FROM_ALL
             ${LIBRARY_SRC}
             ${PUBLIC_HEADERS})

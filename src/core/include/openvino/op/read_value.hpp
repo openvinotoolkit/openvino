@@ -15,7 +15,7 @@ namespace v3 {
 /// \ingroup ov_ops_cpp_api
 class OPENVINO_API ReadValue : public util::ReadValueBase {
 public:
-    OPENVINO_OP("ReadValue", "opset3", util::ReadValueBase, 3);
+    OPENVINO_OP("ReadValue", "opset3", util::ReadValueBase);
     ReadValue() = default;
 
     /// \brief Constructs a ReadValue operation.
@@ -45,7 +45,7 @@ namespace v6 {
 /// \ingroup ov_ops_cpp_api
 class OPENVINO_API ReadValue : public util::ReadValueBase {
 public:
-    OPENVINO_OP("ReadValue", "opset6", util::ReadValueBase, 6);
+    OPENVINO_OP("ReadValue", "opset6", util::ReadValueBase);
     ReadValue() = default;
 
     /// \brief Constructs a ReadValue operation.

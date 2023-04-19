@@ -44,6 +44,14 @@ static void compare_bfyx2blocked_with_ref(const std::string& kernel_name,
     int32_t b_in, int32_t f_in, int32_t x_in, int32_t y_in, int32_t z_in, int32_t w_in,
     bool is_caching_test) {
     auto& engine = get_test_engine();
+    ExecutionConfig cfg = get_test_default_config(engine);
+    cfg.set_property(ov::intel_gpu::queue_type(QueueTypes::out_of_order));
+    if (engine.get_device_info().supports_immad) {
+        // Onednn currently does NOT support out_of_order : skip this test
+        return;
+    }
+
+    auto stream = std::shared_ptr<cldnn::stream>(engine.create_stream(cfg));
 
     tensor ts;
     if (input_format.dimension() == 4) {
@@ -60,7 +68,7 @@ static void compare_bfyx2blocked_with_ref(const std::string& kernel_name,
     layout output_layout(output_data_type, output_format, ts);
 
     if (input_data_type == data_types::i8) {
-        mem_lock<uint8_t> input_ptr{input, get_test_stream()};
+        mem_lock<uint8_t> input_ptr{input, *stream};
         unsigned char i = 1;
         for (auto it = input_ptr.begin(); it != input_ptr.end(); ++it)
         {
@@ -70,7 +78,7 @@ static void compare_bfyx2blocked_with_ref(const std::string& kernel_name,
             }
         }
     } else {
-        mem_lock<float> input_ptr{input, get_test_stream()};
+        mem_lock<float> input_ptr{input, *stream};
         float i = 1.f;
         for (auto it = input_ptr.begin(); it != input_ptr.end(); ++it)
         {
@@ -84,11 +92,11 @@ static void compare_bfyx2blocked_with_ref(const std::string& kernel_name,
         reorder("reorder", input_info("input"), output_layout));
 
     // run on reference(reorder_data) kernel
-    ov::intel_gpu::ExecutionConfig config_ref;
+    ov::intel_gpu::ExecutionConfig config_ref = get_test_default_config(engine);
     ov::intel_gpu::ImplementationDesc reorder_ref = { output_format, "reorder_data" };
     config_ref.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ {"reorder", reorder_ref} }));
 
-    cldnn::network::ptr network_ref = get_network(engine, topology, config_ref, get_test_stream_ptr(), is_caching_test);
+    cldnn::network::ptr network_ref = get_network(engine, topology, config_ref, stream, is_caching_test);
 
     network_ref->set_input_data("input", input);
 
@@ -97,11 +105,11 @@ static void compare_bfyx2blocked_with_ref(const std::string& kernel_name,
     e1->wait();
 
     // run on optimized kernel
-    ov::intel_gpu::ExecutionConfig config;
+    ov::intel_gpu::ExecutionConfig config = get_test_default_config(engine);
     ov::intel_gpu::ImplementationDesc reorder_optimized = { output_format, kernel_name };
     config.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ {"reorder", reorder_optimized} }));
 
-    cldnn::network::ptr network = get_network(engine, topology, config, get_test_stream_ptr(), is_caching_test);
+    cldnn::network::ptr network = get_network(engine, topology, config, stream, is_caching_test);
 
     network->set_input_data("input", input);
 
@@ -206,12 +214,28 @@ TEST(reorder_gpu_optimization, compare_with_ref__bfyx_to_double_blocked_f32) {
     compare_bfyx2blocked_with_ref("reorder_data_bfyx_to_blocked_format", data_types::f32, data_types::f32, format::bfyx, format::bs_fs_yx_bsv16_fsv16, 32, 48 + 5, 16, 4, 0, 0, false);
     compare_bfyx2blocked_with_ref("reorder_data_bfyx_to_blocked_format", data_types::f32, data_types::f32, format::bfyx, format::bs_fs_yx_bsv16_fsv16, 32, 48, 48 + 3, 4, 0, 0, false);
     compare_bfyx2blocked_with_ref("reorder_data_bfyx_to_blocked_format", data_types::f32, data_types::f32, format::bfyx, format::bs_fs_yx_bsv16_fsv16, 32 + 2, 48 + 3, 16 + 1, 4, 0, 0, false);
+    // bfyx to double blocked format (bs_fs_yx_bsv16_fsv32)
+    compare_bfyx2blocked_with_ref("reorder_data_bfyx_to_blocked_format", data_types::f32, data_types::f32, format::bfyx, format::bs_fs_yx_bsv16_fsv32, 32, 48, 8, 4, 0, 0, false);
+    compare_bfyx2blocked_with_ref("reorder_data_bfyx_to_blocked_format", data_types::f32, data_types::f32, format::bfyx, format::bs_fs_yx_bsv16_fsv32, 32 + 2, 48, 16, 4, 0, 0, false);
+    compare_bfyx2blocked_with_ref("reorder_data_bfyx_to_blocked_format", data_types::f32, data_types::f32, format::bfyx, format::bs_fs_yx_bsv16_fsv32, 32, 48 + 5, 16, 4, 0, 0, false);
+    compare_bfyx2blocked_with_ref("reorder_data_bfyx_to_blocked_format", data_types::f32, data_types::f32, format::bfyx, format::bs_fs_yx_bsv16_fsv32, 32, 48, 48 + 3, 4, 0, 0, false);
+    compare_bfyx2blocked_with_ref("reorder_data_bfyx_to_blocked_format", data_types::f32, data_types::f32, format::bfyx, format::bs_fs_yx_bsv16_fsv32, 32 + 2, 48 + 3, 16 + 1, 4, 0, 0, false);
+
     // bfzyx to double blocked format (bs_fs_zyx_bsv16_fsv16)
     compare_bfyx2blocked_with_ref("reorder_data_bfyx_to_blocked_format", data_types::f32, data_types::f32, format::bfzyx, format::bs_fs_zyx_bsv16_fsv16, 32, 48, 8, 4, 16, 0, false);
     compare_bfyx2blocked_with_ref("reorder_data_bfyx_to_blocked_format", data_types::f32, data_types::f32, format::bfzyx, format::bs_fs_zyx_bsv16_fsv16, 32 + 2, 48, 16, 4, 2, 0, false);
     compare_bfyx2blocked_with_ref("reorder_data_bfyx_to_blocked_format", data_types::f32, data_types::f32, format::bfzyx, format::bs_fs_zyx_bsv16_fsv16, 32, 48 + 5, 16, 4, 3, 0, false);
     compare_bfyx2blocked_with_ref("reorder_data_bfyx_to_blocked_format", data_types::f32, data_types::f32, format::bfzyx, format::bs_fs_zyx_bsv16_fsv16, 32, 48, 48 + 3, 4, 4, 0, false);
     compare_bfyx2blocked_with_ref("reorder_data_bfyx_to_blocked_format", data_types::f32, data_types::f32, format::bfzyx, format::bs_fs_zyx_bsv16_fsv16, 32 + 2, 48 + 3, 16 + 1, 4, 2, 0, false);
+}
+
+TEST(reorder_gpu_optimization, compare_with_ref__bfyx_to_double_blocked_f16) {
+    // bfyx to double blocked format (bs_fs_yx_bsv16_fsv32)
+    compare_bfyx2blocked_with_ref("reorder_data_bfyx_to_blocked_format", data_types::f16, data_types::f16, format::bfyx, format::bs_fs_yx_bsv16_fsv32, 32, 48, 8, 4, 0, 0, false);
+    compare_bfyx2blocked_with_ref("reorder_data_bfyx_to_blocked_format", data_types::f16, data_types::f16, format::bfyx, format::bs_fs_yx_bsv16_fsv32, 32 + 2, 48, 16, 4, 0, 0, false);
+    compare_bfyx2blocked_with_ref("reorder_data_bfyx_to_blocked_format", data_types::f16, data_types::f16, format::bfyx, format::bs_fs_yx_bsv16_fsv32, 32, 48 + 5, 16, 4, 0, 0, false);
+    compare_bfyx2blocked_with_ref("reorder_data_bfyx_to_blocked_format", data_types::f16, data_types::f16, format::bfyx, format::bs_fs_yx_bsv16_fsv32, 32, 48, 48 + 3, 4, 0, 0, false);
+    compare_bfyx2blocked_with_ref("reorder_data_bfyx_to_blocked_format", data_types::f16, data_types::f16, format::bfyx, format::bs_fs_yx_bsv16_fsv32, 32 + 2, 48 + 3, 16 + 1, 4, 0, 0, false);
 }
 
 TEST(reorder_gpu_optimization, compare_with_ref__bfyx_to_double_blocked_f32_bsv16_fsv32) {
@@ -268,7 +292,7 @@ TEST(reorder_gpu_optimization, bfyx_to_fsv16_without_f_remainder) {
         input_layout("input", input->get_layout()),
         reorder("reorder", input_info("input"), output_layout));
 
-    network network(engine, topology);
+    network network(engine, topology, get_test_default_config(engine));
     network.set_input_data("input", input);
 
     auto outputs = network.execute();
@@ -355,7 +379,7 @@ TEST(reorder_gpu_f32, basic) {
         input_layout("input", input->get_layout()),
         reorder("reorder", input_info("input"), output_layout));
 
-    network network(engine, topology);
+    network network(engine, topology, get_test_default_config(engine));
     network.set_input_data("input", input);
 
     auto outputs = network.execute();
@@ -447,7 +471,7 @@ TEST(reorder_gpu_f32, basic_subtract) {
         input_layout("subtract", subtract->get_layout()),
         reorder("reorder", input_info("input"), output_layout, "subtract"));
 
-    network network(engine, topology);
+    network network(engine, topology, get_test_default_config(engine));
     network.set_input_data("input", input);
     network.set_input_data("subtract", subtract);
 
@@ -529,7 +553,7 @@ TEST(reorder_gpu_f32, basic_subtract_value) {
     topology topology;
     topology.add(input_layout("input", input->get_layout()), reorder("reorder", input_info("input"), output_layout, subtract_val));
 
-    network network(engine, topology);
+    network network(engine, topology, get_test_default_config(engine));
     network.set_input_data("input", input);
 
     auto outputs = network.execute();
@@ -627,7 +651,7 @@ TEST(reorder_gpu_f16, basic_subtract_f32_output_f32) {
     topology.add(data("subtract", subtract));
     topology.add(reorder("reorder", input_info("input"), output_layout, "subtract"));
 
-    network network(engine, topology);
+    network network(engine, topology, get_test_default_config(engine));
     network.set_input_data("input", input);
 
     auto outputs = network.execute();
@@ -715,7 +739,7 @@ TEST(reorder_gpu_f16, basic_subtract_value) {
     topology.add(input_layout("input", input->get_layout()));
     topology.add(reorder("reorder", input_info("input"), output_layout, subtract_val));
 
-    network network(engine, topology);
+    network network(engine, topology, get_test_default_config(engine));
     network.set_input_data("input", input);
 
     auto outputs = network.execute();
@@ -788,12 +812,9 @@ TEST(reorder_gpu, basic_convert_f16_f32_f16) {
     topology.add(reorder("reorder_f16_f32", input_info("input"), interm_layout));
     topology.add(reorder("reorder_f32_f16", input_info("reorder_f16_f32"), output_layout));
 
-    network network(
-        engine,
-        topology,
-        ExecutionConfig{
-            ov::intel_gpu::custom_outputs(std::vector<std::string>{"reorder_f16_f32", "reorder_f32_f16"})
-        });
+    ExecutionConfig cfg = get_test_default_config(engine);
+    cfg.set_property(ov::intel_gpu::custom_outputs(std::vector<std::string>{"reorder_f16_f32", "reorder_f32_f16"}));
+    network network(engine, topology, cfg);
 
     network.set_input_data("input", input);
 
@@ -859,12 +880,9 @@ TEST(reorder_gpu, basic_convert_int8) {
         reorder("reorder2", input_info("reorder_input"), in_layout)
     );
 
-    network network(
-        engine,
-        topology,
-        ExecutionConfig{
-            ov::intel_gpu::custom_outputs(std::vector<std::string>{ "reorder_input", "reorder2"})
-        });
+    ExecutionConfig cfg = get_test_default_config(engine);
+    cfg.set_property(ov::intel_gpu::custom_outputs(std::vector<std::string>{ "reorder_input", "reorder2"}));
+    network network(engine, topology, cfg);
 
     network.set_input_data("input", input_memory);
 
@@ -906,12 +924,9 @@ TEST(reorder_gpu, basic_convert_uint8) {
         reorder("reorder2", input_info("reorder_input"), in_layout)
     );
 
-    network network(
-        engine,
-        topology,
-        ExecutionConfig{
-            ov::intel_gpu::custom_outputs(std::vector<std::string>{ "reorder_input", "reorder2" })
-        });
+    ExecutionConfig cfg = get_test_default_config(engine);
+    cfg.set_property(ov::intel_gpu::custom_outputs(std::vector<std::string>{ "reorder_input", "reorder2" }));
+    network network(engine, topology, cfg);
 
     network.set_input_data("input", input_memory);
 
@@ -988,12 +1003,9 @@ TEST(reorder_gpu, basic_convert_uint8rgbabyxf_to_fp32_bfyx) {
             )
     );
 
-    network network(
-        engine,
-        topology,
-        ExecutionConfig{
-            ov::intel_gpu::custom_outputs(std::vector<std::string>{ "reorder_input", "crop" })
-        });
+    ExecutionConfig cfg = get_test_default_config(engine);
+    cfg.set_property(ov::intel_gpu::custom_outputs(std::vector<std::string>{ "reorder_input", "crop" }));
+    network network(engine, topology, cfg);
 
     network.set_input_data("input", input_memory);
 
@@ -1091,7 +1103,7 @@ TEST(reorder_gpu_f32, basic_yxfb_to_bfyx_input_padding)
         reorder("reorder", input_info("input"), input->get_layout().format, input->get_layout().data_type, "", reorder_mean_mode::subtract, padding{ { 0, 0, 1, 2 }, 0 }),
         reorder("reorder2", input_info("reorder"), output_layout));
 
-    network network(engine, topology);
+    network network(engine, topology, get_test_default_config(engine));
     network.set_input_data("input", input);
 
     auto outputs = network.execute();
@@ -1170,7 +1182,7 @@ TEST(reorder_gpu_f32, basic_bfyx_to_yxfb_input_padding)
         reorder("reorder", input_info("input"), input->get_layout().format, input->get_layout().data_type, "", reorder_mean_mode::subtract, padding{ { 0, 0, 2, 1 }, 0 }),
         reorder("reorder2", input_info("reorder"), output_layout));
 
-    network network(engine, topology);
+    network network(engine, topology, get_test_default_config(engine));
     network.set_input_data("input", input);
 
     auto outputs = network.execute();
@@ -1229,7 +1241,7 @@ TEST(reorder_gpu_f32, basic_bfyx_to_bfzyx)
         input_layout("input", input->get_layout()),
         reorder("reorder", input_info("input"), format::bfzyx, data_types::f32));
 
-    network network(engine, topology);
+    network network(engine, topology, get_test_default_config(engine));
     network.set_input_data("input", input);
 
     auto outputs = network.execute();
@@ -1291,7 +1303,7 @@ TEST(reorder_gpu_f32, dynamic_bfyx_to_bfzyx) {
         input_layout("input", in_layout),
         reorder("reorder", input_info("input"), format::bfzyx, data_types::f32));
 
-    ExecutionConfig config;
+    ExecutionConfig config = get_test_default_config(engine);
     config.set_property(ov::intel_gpu::optimize_data(true));
     config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
     network network(engine, topology, config);
@@ -1360,7 +1372,7 @@ TEST(reorder_gpu_f32, basic_yxfb_to_bfzyx)
         input_layout("input", input->get_layout()),
         reorder("reorder", input_info("input"), format::bfzyx, data_types::f32));
 
-    network network(engine, topology);
+    network network(engine, topology, get_test_default_config(engine));
     network.set_input_data("input", input);
 
     auto outputs = network.execute();
@@ -1436,7 +1448,7 @@ TEST(reorder_gpu_f32, basic_bfzyx_to_bfyx)
         input_layout("input", input->get_layout()),
         reorder("reorder", input_info("input"), format::bfyx, data_types::f32));
 
-    network network(engine, topology);
+    network network(engine, topology, get_test_default_config(engine));
     network.set_input_data("input", input);
 
     auto outputs = network.execute();
@@ -1496,7 +1508,7 @@ TEST(reorder_gpu_opt, basic_remove_redundant)
         reorder("r2", input_info("r1"), format::yxfb, data_types::f32)
     };
 
-    ExecutionConfig config;
+    ExecutionConfig config = get_test_default_config(engine);
     config.set_property(ov::intel_gpu::optimize_data(true));
 
     network net(engine, tpl, config);
@@ -1525,7 +1537,7 @@ TEST(reorder_gpu_opt, remove_redundant_activation_fuse)
         eltwise("output", { input_info("relu"), input_info("scale_data") }, eltwise_mode::prod)
     };
 
-    ExecutionConfig config;
+    ExecutionConfig config = get_test_default_config(engine);
     config.set_property(ov::intel_gpu::optimize_data(true));
 
     network net(engine, tpl, config);
@@ -1549,7 +1561,7 @@ TEST(reorder_gpu_opt, basic_remove_redundant_output_due_to_implicit_reorders)
         reorder("r1", input_info("conv"), format::bfyx, data_types::f32) //optimize data should add conversion from yxfb to bfyx and 'conv' should output data in bfyx as well (IE case)
     };
 
-    ExecutionConfig config;
+    ExecutionConfig config = get_test_default_config(engine);
 
     //we need to check if r1 will be successfully opimized and still we should be able to query for r1's output which should point to conv's output (note conv cannot be marked as output in this case)
     config.set_property(ov::intel_gpu::custom_outputs(std::vector<std::string>{ "r1" }));
@@ -1578,7 +1590,7 @@ TEST(reorder_gpu_opt, basic_remove_redundant_due_to_implicit_reorders)
         softmax("output", input_info("r1"))
     };
 
-    ExecutionConfig config;
+    ExecutionConfig config = get_test_default_config(engine);
     config.set_property(ov::intel_gpu::optimize_data(true));
 
     network net(engine, tpl, config);
@@ -1603,7 +1615,7 @@ TEST(reorder_gpu_opt, non_trivial_remove_redundant)
         reorder("r1", input_info("in"), format::bfyx, data_types::f32)
     };
 
-    ExecutionConfig config;
+    ExecutionConfig config = get_test_default_config(engine);
 
     config.set_property(ov::intel_gpu::optimize_data(true));
 
@@ -1641,7 +1653,7 @@ TEST(reorder_gpu_opt, mean_mul)
     };
 
     float answers[] = { 0.5f, 5.0f, -15.0f, 17.2f, 6.0f, -21.0f };
-    ExecutionConfig config;
+    ExecutionConfig config = get_test_default_config(engine);
     config.set_property(ov::intel_gpu::optimize_data(true));
     network net(engine, tpl, config);
     net.set_input_data("in", in);
@@ -1676,7 +1688,7 @@ TEST(reorder_gpu_opt, mean_div)
     };
 
     float answers[] = { 2.0f, 1.0f, -1.0f, 0.5f, 4.0f, -2.0f };
-    ExecutionConfig config;
+    ExecutionConfig config = get_test_default_config(engine);
     config.set_property(ov::intel_gpu::optimize_data(true));
     network net(engine, tpl, config);
     net.set_input_data("in", in);
@@ -1707,7 +1719,7 @@ TEST(reorder_gpu_opt, mean_mul_val)
     };
 
     float answers[] = { 2.0f, 4.0f, 1.5f, 2.0f, 50.0f, 600.0f };
-    ExecutionConfig config;
+    ExecutionConfig config = get_test_default_config(engine);
     config.set_property(ov::intel_gpu::optimize_data(true));
     network net(engine, tpl, config);
     net.set_input_data("in", in);
@@ -1737,7 +1749,7 @@ TEST(reorder_gpu_opt, mean_mul_val_float_to_int)
     };
 
     char answers[] = { 0, 2, 1, 2, 25, 127 };
-    ExecutionConfig config;
+    ExecutionConfig config = get_test_default_config(engine);
     config.set_property(ov::intel_gpu::optimize_data(true));
     network net(engine, tpl, config);
     net.set_input_data("in", in);
@@ -1769,7 +1781,7 @@ TEST(reorder_gpu_i32, basic)
         input_layout("input", input->get_layout()),
         reorder("reorder", input_info("input"), output_layout));
 
-    network network(engine, topology);
+    network network(engine, topology, get_test_default_config(engine));
     network.set_input_data("input", input);
 
     auto outputs = network.execute();
@@ -1810,7 +1822,7 @@ TEST(reorder_gpu_i64, basic)
         input_layout("input", input->get_layout()),
         reorder("reorder", input_info("input"), output_layout));
 
-    network network(engine, topology);
+    network network(engine, topology, get_test_default_config(engine));
     network.set_input_data("input", input);
 
     auto outputs = network.execute();
@@ -1836,7 +1848,7 @@ TEST(reorder_gpu_binary, binary_output)
 {
     auto& engine = get_test_engine();
 
-    ov::intel_gpu::ExecutionConfig config;
+    ov::intel_gpu::ExecutionConfig config = get_test_default_config(engine);
     config.set_property(ov::intel_gpu::optimize_data(true));
 
     auto input = engine.allocate_memory({ data_types::f32, format::bfyx,{ 2, 2, 2, 2 } });
@@ -1855,7 +1867,7 @@ TEST(reorder_gpu_binary, binary_output)
         input_layout("input", input->get_layout()),
         reorder("reorder", input_info("input"), output_layout));
 
-    network network(engine, topology);
+    network network(engine, topology, get_test_default_config(engine));
     network.set_input_data("input", input);
 
     auto outputs = network.execute();
@@ -1884,7 +1896,7 @@ TEST(reorder_gpu_binary, binary_input)
 {
     auto& engine = get_test_engine();
 
-    ov::intel_gpu::ExecutionConfig config;
+    ov::intel_gpu::ExecutionConfig config = get_test_default_config(engine);
     config.set_property(ov::intel_gpu::optimize_data(true));
 
     auto input = engine.allocate_memory({ data_types::bin, format::b_fs_yx_32fp,{ 2, 2, 2, 2 } });
@@ -1906,7 +1918,7 @@ TEST(reorder_gpu_binary, binary_input)
         input_layout("input", input->get_layout()),
         reorder("reorder", input_info("input"), output_layout));
 
-    network network(engine, topology);
+    network network(engine, topology, get_test_default_config(engine));
     network.set_input_data("input", input);
 
     auto outputs = network.execute();
@@ -1976,7 +1988,7 @@ TEST(reorder_gpu_f32, bfwzyx_bfyx_chain)
         reorder("reorder3", input_info("reshape3"), format::bfyx, data_types::f32, sub_bfyx),
         reorder("out_reorder", input_info("reorder3"), format::bfwzyx, data_types::f32)
         );
-    ExecutionConfig config;
+    ExecutionConfig config = get_test_default_config(engine);
     config.set_property(ov::intel_gpu::optimize_data(true));
     network network(engine, topology, config);
     network.set_input_data("input", input);
@@ -2021,7 +2033,7 @@ TEST(reorder_gpu_f32, bfzyx_to_bsv16_fsv16)
             input_layout("input", input->get_layout()),
             reorder("reorder", input_info("input"), output_layout));
 
-    network network(engine, topology);
+    network network(engine, topology, get_test_default_config(engine));
     network.set_input_data("input", input);
 
     auto outputs = network.execute();
@@ -2103,7 +2115,7 @@ TEST(reorder_gpu_f32, bfzyx_to_bsv16_fsv16_padded)
             input_layout("input", input->get_layout()),
             reorder("reorder", input_info("input"), output_layout.with_padding(padding({ 0, 0, x_pad, y_pad, 0 }, 0.f))));
 
-    network network(engine, topology);
+    network network(engine, topology, get_test_default_config(engine));
     network.set_input_data("input", input);
 
     auto outputs = network.execute();
@@ -2178,7 +2190,7 @@ TEST(reorder_gpu_f32, b_fs_yx_fsv16_to_bfyx_opt_allowed)
             reorder(reorder_name, input_info("first_activation"), format::bfyx, data_types::f32),
             activation("second_activation", input_info(reorder_name), activation_func::abs));
 
-    ExecutionConfig config;
+    ExecutionConfig config = get_test_default_config(engine);
     config.set_property(ov::intel_gpu::optimize_data(true));
     network network(engine, topology, config);
     network.set_input_data("input", input);
@@ -2225,7 +2237,7 @@ TEST(reorder_gpu_f32, b_fs_yx_fsv16_to_bfyx_opt_not_allowed)
             reorder(reorder_name, input_info("input"), format::bfyx, data_types::f32),
             convolution("convolution", input_info(reorder_name), {"weights"}, { 1, 1 }, { 1, 1 }, { 1, 1 }));
 
-    ExecutionConfig config;
+    ExecutionConfig config = get_test_default_config(engine);
     config.set_property(ov::intel_gpu::optimize_data(true));
     network network(engine, topology, config);
     network.set_input_data("input", input);
@@ -2281,7 +2293,7 @@ TEST(reorder_gpu_f32, b_fs_yx_fsv16_to_bfyx_opt_padded)
         reorder(reorder_name, input_info("input"), format::bfyx, data_types::f32),
         activation("activation", input_info(reorder_name), activation_func::abs));
 
-    ExecutionConfig config;
+    ExecutionConfig config = get_test_default_config(engine);
     config.set_property(ov::intel_gpu::optimize_data(true));
     network network(engine, topology, config);
     network.set_input_data("input", input);
@@ -2317,7 +2329,7 @@ TEST(reorder_gpu, any_format) {
     topo.add(input_layout("in", input->get_layout()));
     topo.add(reorder("out", input_info("in"), format::any, data_types::f32));
 
-    network net(engine, topo);
+    network net(engine, topo, get_test_default_config(engine));
 
     auto data = generate_random_1d<float>(input->count(), -1, 1);
     set_values(input, data);
@@ -2350,7 +2362,7 @@ TEST(reorder_image2d_rgba_to_bfyx_gpu, basic)
         input_layout("input", input->get_layout()),
         reorder("reorder", input_info("input"), output_layout));
 
-    network network(engine, topology);
+    network network(engine, topology, get_test_default_config(engine));
     network.set_input_data("input", input);
 
     auto outputs = network.execute();
@@ -2400,7 +2412,7 @@ TEST(reorder_bfyx_to_image2d_rgba_gpu, basic)
         input_layout("input", input->get_layout()),
         reorder("reorder", input_info("input"), output_layout));
 
-    network network(engine, topology);
+    network network(engine, topology, get_test_default_config(engine));
     network.set_input_data("input", input);
 
     auto outputs = network.execute();
@@ -2571,7 +2583,7 @@ class ReorderTest : public ::testing::TestWithParam<T> {
 public:
     cldnn::engine& engine = get_test_engine();
     cldnn::topology topology_test;
-    ExecutionConfig config;
+    ExecutionConfig config = get_test_default_config(engine);
     static const int min_random = -200;
     static const int max_random = 200;
     std::vector<primitive_id> executed_prims;
@@ -2721,10 +2733,9 @@ TEST_P(testing_removal_reorder, removal_no_padded_reorder) {
     );
 
     ov::intel_gpu::ImplementationDesc impl = { format::b_fs_yx_fsv16, std::string(""), impl_types::ocl };
-    ExecutionConfig config{ov::intel_gpu::queue_type(QueueTypes::in_order),
-                            ov::intel_gpu::optimize_data(true),
-                            ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ {"conv_output", impl} })
-    };
+    ExecutionConfig config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::optimize_data(true));
+    config.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ {"conv_output", impl} }));
 
     setup_with_build_ops(config);
 
@@ -2751,10 +2762,9 @@ TEST_P(testing_removal_reorder, removal_padded_reorder) {
     );
 
     ov::intel_gpu::ImplementationDesc impl = { format::b_fs_yx_fsv16, std::string(""), impl_types::ocl };
-    ExecutionConfig config{ov::intel_gpu::queue_type(QueueTypes::in_order),
-                            ov::intel_gpu::optimize_data(true),
-                            ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ {"conv_output", impl} })
-    };
+    ExecutionConfig config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::optimize_data(true));
+    config.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ {"conv_output", impl} }));
 
     setup_with_build_ops(config);
 
@@ -2925,10 +2935,9 @@ TEST(reorder_onednn_gpu, basic_convert_int8) {
     );
 
     ov::intel_gpu::ImplementationDesc impl = { format::bfyx, std::string(""), impl_types::onednn };
-    ExecutionConfig cfg{ov::intel_gpu::queue_type(QueueTypes::in_order),
-                        ov::intel_gpu::custom_outputs(std::vector<std::string>{ "reorder_input", "reorder2"}),
-                        ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{{ "reorder_input", impl }}),
-    };
+    ExecutionConfig cfg = get_test_default_config(engine);
+    cfg.set_property(ov::intel_gpu::custom_outputs(std::vector<std::string>{ "reorder_input", "reorder2"}));
+    cfg.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{{ "reorder_input", impl }}));
 
     network network(
         engine,

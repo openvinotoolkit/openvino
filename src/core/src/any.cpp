@@ -73,6 +73,19 @@ Any::~Any() {
     _impl = {};
 }
 
+Any::Any(const Any& other) {
+    *this = other;
+};
+
+Any& Any::operator=(const Any& other) {
+    if (other._temp)
+        _temp = other._temp->copy();
+    if (other._impl)
+        _impl = other._impl->copy();
+    _so = other._so;
+    return *this;
+};
+
 Any::Any(const Any& other, const std::vector<std::shared_ptr<void>>& so) : _so{so}, _impl{other._impl} {}
 
 Any::Any(const char* str) : Any(std::string{str}) {}
@@ -214,6 +227,39 @@ void Read<std::tuple<unsigned int, unsigned int, unsigned int>>::operator()(
     Read<unsigned int>{}(is, std::get<0>(tuple));
     Read<unsigned int>{}(is, std::get<1>(tuple));
     Read<unsigned int>{}(is, std::get<2>(tuple));
+}
+
+void Read<AnyMap>::operator()(std::istream& is, AnyMap& map) const {
+    char c;
+
+    is >> c;
+    OPENVINO_ASSERT(c == '{', "Failed to parse ov::AnyMap. Starting symbols is not '{', it's ", c);
+
+    while (c != '}') {
+        std::string key, value;
+        std::getline(is, key, ':');
+        size_t enclosed_container_level = 0;
+
+        while (is.good()) {
+            is >> c;
+            if (c == ',') {                         // delimiter between map's pairs
+                if (enclosed_container_level == 0)  // we should interrupt after delimiter
+                    break;
+            }
+            if (c == '{' || c == '[')  // case of enclosed maps / arrays
+                ++enclosed_container_level;
+            if (c == '}' || c == ']') {
+                if (enclosed_container_level == 0)
+                    break;  // end of map
+                --enclosed_container_level;
+            }
+
+            value += c;  // accumulate current value
+        }
+        map.emplace(std::move(key), std::move(value));
+    }
+
+    OPENVINO_ASSERT(c == '}', "Failed to parse ov::AnyMap. Ending symbols is not '}', it's ", c);
 }
 
 void Read<std::tuple<unsigned int, unsigned int>>::operator()(std::istream& is,

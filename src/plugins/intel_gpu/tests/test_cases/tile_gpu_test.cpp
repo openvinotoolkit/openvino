@@ -72,7 +72,7 @@ public:
         set_values(input, input_vec);
         tile_ref<float>(input, output_ref, 0, 2);
 
-        cldnn::network::ptr network = get_network(engine, topology, ExecutionConfig(), get_test_stream_ptr(), is_caching_test);
+        cldnn::network::ptr network = get_network(engine, topology, get_test_default_config(engine), get_test_stream_ptr(), is_caching_test);
         network->set_input_data("input", input);
 
         auto outputs = network->execute();
@@ -104,7 +104,7 @@ public:
         set_values(input, input_vec);
         tile_ref<float>(input, output_ref, 1, 2);
 
-        cldnn::network::ptr network = get_network(engine, topology, ExecutionConfig(), get_test_stream_ptr(), is_caching_test);
+        cldnn::network::ptr network = get_network(engine, topology, get_test_default_config(engine), get_test_stream_ptr(), is_caching_test);
         network->set_input_data("input", input);
 
         auto outputs = network->execute();
@@ -140,7 +140,7 @@ public:
         set_values(input, input_vec);
         tile_ref<float>(input, output_ref, 2, 2);
 
-        cldnn::network::ptr network = get_network(engine, topology, ExecutionConfig(), get_test_stream_ptr(), is_caching_test);
+        cldnn::network::ptr network = get_network(engine, topology, get_test_default_config(engine), get_test_stream_ptr(), is_caching_test);
         network->set_input_data("input", input);
 
         auto outputs = network->execute();
@@ -172,7 +172,7 @@ public:
         set_values(input, input_vec);
         tile_ref<float>(input, output_ref, 3, 2);
 
-        cldnn::network::ptr network = get_network(engine, topology, ExecutionConfig(), get_test_stream_ptr(), is_caching_test);
+        cldnn::network::ptr network = get_network(engine, topology, get_test_default_config(engine), get_test_stream_ptr(), is_caching_test);
         network->set_input_data("input", input);
 
         auto outputs = network->execute();
@@ -200,7 +200,7 @@ public:
         set_values(input, input_vec);
         tile_ref<float>(input, output_ref, 3, 4);
 
-        cldnn::network::ptr network = get_network(engine, topology, ExecutionConfig(), get_test_stream_ptr(), is_caching_test);
+        cldnn::network::ptr network = get_network(engine, topology, get_test_default_config(engine), get_test_stream_ptr(), is_caching_test);
         network->set_input_data("input", input);
 
         auto outputs = network->execute();
@@ -237,7 +237,7 @@ public:
         set_values(input, input_vec);
         tile_ref<float>(input, output_ref, 2, 2);
 
-        cldnn::network::ptr network = get_network(engine, topology, ExecutionConfig(), get_test_stream_ptr(), is_caching_test);
+        cldnn::network::ptr network = get_network(engine, topology, get_test_default_config(engine), get_test_stream_ptr(), is_caching_test);
         network->set_input_data("input", input);
 
         auto outputs = network->execute();
@@ -292,7 +292,7 @@ TEST_F(tile_gpu, dynamic) {
     topology.add(input_layout("input", input_dyn_layout));
     topology.add(tile("tile", input_info("input"), std::vector<int64_t>{ 1, 2, 1, 1 }));
 
-    ExecutionConfig config;
+    ExecutionConfig config = get_test_default_config(engine);
     config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
     network network(engine, topology, config);
     network.set_input_data("input", input);
@@ -672,7 +672,7 @@ public:
             result_id = reorder_result_id;
         }
 
-        cldnn::network::ptr network = get_network(engine, topology, ExecutionConfig(), get_test_stream_ptr(), is_caching_test);
+        cldnn::network::ptr network = get_network(engine, topology, get_test_default_config(engine), get_test_stream_ptr(), is_caching_test);
 
         network->set_input_data(input_data_id, input);
 

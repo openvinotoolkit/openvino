@@ -15,7 +15,7 @@ namespace frontend {
 namespace pytorch {
 namespace op {
 
-OutputVector translate_add(NodeContext& context) {
+OutputVector translate_add(const NodeContext& context) {
     num_inputs_check(context, 2, 3);
     auto lhs = context.get_input(0);
     auto rhs = context.get_input(1);
@@ -26,7 +26,7 @@ OutputVector translate_add(NodeContext& context) {
         // Case when two lists gets concatenated
         FRONT_END_OP_CONVERSION_CHECK(false, "aten::add is used for concatenation of lists, not possible to convert");
     }
-    align_eltwise_input_types(context, lhs, rhs);
+    align_eltwise_input_types(context, lhs, rhs, true);
     if (!context.input_is_none(2)) {
         auto converted_alpha = context.mark_node(std::make_shared<ov::op::v1::ConvertLike>(context.get_input(2), rhs));
         rhs = context.mark_node(std::make_shared<ov::op::v1::Multiply>(converted_alpha, rhs));
