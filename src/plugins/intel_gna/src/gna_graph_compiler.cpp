@@ -349,7 +349,7 @@ void GNAGraphCompiler::ConvolutionPrimitive(InferenceEngine::CNNLayerPtr layer) 
     auto out_height = InferenceEngine::GetDataDimByName(outputs, InferenceEngine::DataDimName::H);
     auto out_width = InferenceEngine::GetDataDimByName(outputs, InferenceEngine::DataDimName::W);
 
-    if (in_height > 1 && in_width == 1) {
+    if (in_height > 1 && in_width == 1 && !ShouldUseOnlyConv2DGnaIface()) {
         std::swap(in_height, in_width);
         std::swap(out_height, out_width);
         std::swap(convolution._kernel_x, convolution._kernel_y);
@@ -1004,13 +1004,6 @@ void GNAGraphCompiler::PoolingPrimitive(InferenceEngine::CNNLayerPtr layer) {
     uint32_t h_dim_out = InferenceEngine::GetDataDimByName(outputs, InferenceEngine::DataDimName::H);
     const uint32_t c_dim_out = InferenceEngine::GetDataDimByName(outputs, InferenceEngine::DataDimName::C);
 
-    if (w_dim_in == 1) {  // swap dimensions if needed to support swapped 1D case
-        std::swap(h_dim_in, w_dim_in);
-        std::swap(h_dim_out, w_dim_out);
-        std::swap(pooling._kernel[X_AXIS], pooling._kernel[Y_AXIS]);
-        std::swap(pooling._stride[X_AXIS], pooling._stride[Y_AXIS]);
-    }
-
     void* ptr_inputs = nullptr;
     void* ptr_outputs = nullptr;
 
@@ -1023,6 +1016,13 @@ void GNAGraphCompiler::PoolingPrimitive(InferenceEngine::CNNLayerPtr layer) {
             const auto& prev2 = *std::prev(dnnComponents.components.cend(), 2);
             is2DPooling = prev2.dnnComponent.operation == kDnnConvolutional2dOp;
         }
+    }
+
+    if (w_dim_in == 1 && !ShouldUseOnlyConv2DGnaIface()) {  // swap dimensions if needed to support swapped 1D case
+        std::swap(h_dim_in, w_dim_in);
+        std::swap(h_dim_out, w_dim_out);
+        std::swap(pooling._kernel[X_AXIS], pooling._kernel[Y_AXIS]);
+        std::swap(pooling._stride[X_AXIS], pooling._stride[Y_AXIS]);
     }
 
     if (is2DPooling) {

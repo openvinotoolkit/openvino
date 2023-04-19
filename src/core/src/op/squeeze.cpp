@@ -53,7 +53,7 @@ shared_ptr<Node> op::Squeeze::clone_with_new_inputs(const OutputVector& new_args
     } else if (new_args.size() == 2) {
         return make_shared<Squeeze>(new_args.at(0), new_args.at(1));
     } else {
-        throw ngraph_error("Incorrect number of new arguments");
+        OPENVINO_THROW("Incorrect number of new arguments");
     }
 }
 

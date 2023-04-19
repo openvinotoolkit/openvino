@@ -184,7 +184,7 @@ auto snippets::op::Subgraph::wrap_node_as_subgraph(const std::shared_ptr<ov::Nod
     }
 
     if (node->get_output_size() != body_node->get_output_size()) {
-        throw ngraph::ngraph_error("original node outputs size and extracted subgraph node outputs size doesn't much");
+        OPENVINO_THROW("original node outputs size and extracted subgraph node outputs size doesn't much");
     }
 
     ngraph::ResultVector body_results;
@@ -212,7 +212,7 @@ auto snippets::op::Subgraph::wrap_node_as_subgraph(const std::shared_ptr<ov::Nod
     }
 
     if (subgraph->get_output_size() != body->get_results().size()) {
-        throw ngraph::ngraph_error("newly create subgraph doesn't much number of original node results");
+        OPENVINO_THROW("newly create subgraph doesn't much number of original node results");
     }
 
     return subgraph;
@@ -446,7 +446,7 @@ void snippets::op::Subgraph::initialize_buffer_scratchpad_size() {
                 if (auto memory_access = ov::as_type_ptr<ngraph::snippets::op::MemoryAccess>(parent)) {
                     memory_access->set_output_offset(offset, idx);
                 } else {
-                    throw ngraph_error(
+                    OPENVINO_THROW(
                             "Buffer::set_offset() was called when Buffer didn't have the corresponding MemoryAccess op for offset propagation");
                 }
             }
@@ -468,7 +468,7 @@ void snippets::op::Subgraph::initialize_buffer_scratchpad_size() {
                 } else if (auto memory_access = ov::as_type_ptr<ngraph::snippets::op::MemoryAccess>(child)) {
                     memory_access->set_input_offset(offset, target_input.get_index());
                 } else {
-                    throw ngraph_error("Buffer::set_offset() was called when Buffer didn't have the corresponding MemoryAccess op for offset propagation");
+                    OPENVINO_THROW("Buffer::set_offset() was called when Buffer didn't have the corresponding MemoryAccess op for offset propagation");
                 }
             };
 
