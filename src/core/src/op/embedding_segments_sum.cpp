@@ -132,6 +132,6 @@ shared_ptr<Node> op::v3::EmbeddingSegmentsSum::clone_with_new_inputs(const Outpu
                                                          new_args.at(4),
                                                          new_args.at(5));
     } else {
-        throw ngraph_error("Incorrect number of arguments");
+        OPENVINO_THROW("Incorrect number of arguments");
     }
 }

@@ -95,8 +95,8 @@ int find_source_node_idx(const ONNX_NAMESPACE::GraphProto& graph,
         }
     }
 
-    throw ngraph::ngraph_error{"Source node not found in the graph for node: " + std::to_string(current_node_idx) +
-                               " and input name: " + input_name};
+    OPENVINO_THROW("Source node not found in the graph for node: " + std::to_string(current_node_idx) +
+                   " and input name: " + input_name);
 }
 
 /// \brief Looks up a descriptor for a given tensor name. This descriptor contains inferred
