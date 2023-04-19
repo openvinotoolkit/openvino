@@ -12,7 +12,7 @@ set(pyversion python${PYTHON_VERSION_MAJOR}.${PYTHON_VERSION_MINOR})
 message(STATUS "Python version=${pyversion}")
 
 if(OpenVINO_SOURCE_DIR)
-    if(WIN32)
+    if(OV_GENERATOR_MULTI_CONFIG)
         set(PYTHON_BRIDGE_OUTPUT_DIRECTORY ${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/$<CONFIG>/python_api/${pyversion}/openvino)
     else()
         set(PYTHON_BRIDGE_OUTPUT_DIRECTORY ${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/python_api/${pyversion}/openvino)
