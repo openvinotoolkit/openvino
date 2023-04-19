@@ -715,7 +715,7 @@ public:
                 for (auto node : fq_params_nodes) {
                     auto const_node = std::dynamic_pointer_cast<op::Constant>(node);
                     if (!const_node)
-                        throw ngraph_error("Unexpected operation type.");
+                        OPENVINO_THROW("Unexpected operation type.");
                     auto new_shape = broadcast_shape_to_rank(const_node->get_shape(),
                                                              m_input.get_partial_shape().rank().get_length());
                     auto new_const = std::make_shared<op::Constant>(*const_node, new_shape);

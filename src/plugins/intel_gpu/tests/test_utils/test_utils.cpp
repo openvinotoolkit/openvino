@@ -332,7 +332,10 @@ cldnn::stream_ptr get_test_stream_ptr() {
 
 cldnn::stream_ptr get_test_stream_ptr(cldnn::ExecutionConfig cfg) {
     static std::shared_ptr<cldnn::stream> test_stream = nullptr;
-    test_stream = get_test_engine().create_stream(cfg);
+    if (!test_stream) {
+        test_stream = get_test_engine().create_stream(cfg);
+    }
+
     return test_stream;
 }
 

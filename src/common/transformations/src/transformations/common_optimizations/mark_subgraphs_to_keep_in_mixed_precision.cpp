@@ -47,36 +47,6 @@ void erase_fq_path(const std::shared_ptr<Node>& node) {
     rt_info.erase("fq_path");
 }
 
-/*
- * MarkNormalizationOps marks MVN and NormalizeL2 to be kept in f32 precision.
- */
-class MarkNormalizationOps : public MatcherPass {
-public:
-    OPENVINO_RTTI("MarkNormalizationOps", "0");
-
-    MarkNormalizationOps() {
-        MATCHER_SCOPE(MarkNormalizationOps);
-        auto ops_to_be_kept_fp32 = pattern::wrap_type<opset2::MVN, opset10::MVN, NormalizeL2>();
-
-        matcher_pass_callback callback = [=](pattern::Matcher& m) {
-            const auto& node = m.get_match_root();
-            if (!node)
-                return false;
-
-            for (const auto& input_val : node->input_values()) {
-                if (is_fq_path(input_val.get_node_shared_ptr())) {
-                    enable_fp16_compression(node);
-                    return true;
-                }
-            }
-
-            disable_fp16_compression(node);
-            return true;
-        };
-        auto m = make_shared<pattern::Matcher>(ops_to_be_kept_fp32, matcher_name);
-        register_matcher(m, callback);
-    }
-};
 
 // Marking continues to propagate through these ops.
 std::shared_ptr<Node> propagate_through_ops = pattern::wrap_type<Squeeze,
@@ -423,7 +393,6 @@ bool MarkSugraphsToKeepInMixedPrecision::run_on_model(const shared_ptr<ov::Model
 
     // Mark nodes in ShapeOf subgraphs to keep in FP32
     REGISTER_PASS(manager, MarkPrecisionSensitiveShapeOfSubgraphs)
-    REGISTER_PASS(manager, MarkNormalizationOps)
     manager.run_passes(m);
 
     for (auto& node : m->get_ops()) {

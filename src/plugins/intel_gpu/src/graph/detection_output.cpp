@@ -221,7 +221,7 @@ void detection_output_inst::load(cldnn::BinaryInputBuffer& ib) {
     float nms_threshold;
     int top_k;
     float eta;
-    prior_box_code_type code_type;
+    prior_box_code_type code_type = prior_box_code_type::corner;
     bool variance_encoded_in_target;
     float confidence_threshold;
     int32_t prior_info_size;
