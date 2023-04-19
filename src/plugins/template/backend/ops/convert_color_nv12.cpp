@@ -114,8 +114,8 @@ bool evaluate_node<ngraph::op::v8::NV12toRGB>(std::shared_ptr<ngraph::Node> node
                                                       outputs,
                                                       inputs);
     default:
-        throw ngraph::ngraph_error(std::string("Unhandled data type ") + node->get_element_type().get_type_name() +
-                                   std::string("in evaluate_node()"));
+        OPENVINO_THROW(std::string("Unhandled data type ") + node->get_element_type().get_type_name() +
+                       std::string("in evaluate_node()"));
     }
 }
 
@@ -183,8 +183,8 @@ bool evaluate_node<ngraph::op::v8::NV12toBGR>(std::shared_ptr<ngraph::Node> node
                                                       outputs,
                                                       inputs);
     default:
-        throw ngraph::ngraph_error(std::string("Unhandled data type ") + node->get_element_type().get_type_name() +
-                                   std::string("in evaluate_node()"));
+        OPENVINO_THROW(std::string("Unhandled data type ") + node->get_element_type().get_type_name() +
+                       std::string("in evaluate_node()"));
     }
 }
 
@@ -252,8 +252,8 @@ bool evaluate_node<ngraph::op::v8::I420toRGB>(std::shared_ptr<ngraph::Node> node
                                                       outputs,
                                                       inputs);
     default:
-        throw ngraph::ngraph_error(std::string("Unhandled data type ") + node->get_element_type().get_type_name() +
-                                   std::string("in evaluate_node()"));
+        OPENVINO_THROW(std::string("Unhandled data type ") + node->get_element_type().get_type_name() +
+                       std::string("in evaluate_node()"));
     }
 }
 
@@ -321,7 +321,7 @@ bool evaluate_node<ngraph::op::v8::I420toBGR>(std::shared_ptr<ngraph::Node> node
                                                       outputs,
                                                       inputs);
     default:
-        throw ngraph::ngraph_error(std::string("Unhandled data type ") + node->get_element_type().get_type_name() +
-                                   std::string("in evaluate_node()"));
+        OPENVINO_THROW(std::string("Unhandled data type ") + node->get_element_type().get_type_name() +
+                       std::string("in evaluate_node()"));
     }
 }
