@@ -84,8 +84,8 @@
 
 .. code-block::
 
-  `flat_dim = data.shape[axis] * data.shape[axis+1] * ... * data.shape[end_axis]`
-  `output.shape = [data.shape[0], ..., data.shape[axis-1], flat_dim, data.shape[end_axis + 1], ...]`
+  ``flat_dim = data.shape[axis] * data.shape[axis+1] * ... * data.shape[end_axis]``
+  ``output.shape = [data.shape[0], ..., data.shape[axis-1], flat_dim, data.shape[end_axis + 1], ...]``
 
 **Types**
 * *T*: any supported floating-point type.

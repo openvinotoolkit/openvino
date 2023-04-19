@@ -44,10 +44,10 @@ Then *n* and *counter* are updated with the following formula:
 
 .. math::
 
-    L'= mullo(R, M)\\
-    R' = mulhi(R, M) {\oplus} k {\oplus} L \\
-    mulhi(a, b) = floor((a {\times} b) / 2^{32}) \\
-    mullo(a, b) = (a {\times} b) \mod 2^{32}
+   L'= mullo(R, M)\\
+   R' = mulhi(R, M) {\oplus} k {\oplus} L \\
+   mulhi(a, b) = floor((a {\times} b) / 2^{32}) \\
+   mullo(a, b) = (a {\times} b) \mod 2^{32}
 
 where :math:`{\oplus}` - bitwise xor, *k* = :math:`R_{key}` for updating counter, *k* = :math:`L_{key}` for updating *n*, *M* = ``0xD2511F53`` for updating *n*, *M* = ``0xCD9E8D57`` for updating *counter*.
 
@@ -72,7 +72,7 @@ using following formula:
 
 so to obtain float16 values *sign*, *exponent* and *mantissa* are set as follows:
 
-.. code-block:: 
+.. code-block:: cpp
 
    sign = 0
    exponent = 15 - representation of a zero exponent.
@@ -81,14 +81,14 @@ so to obtain float16 values *sign*, *exponent* and *mantissa* are set as follows
 
 So the resulting float16 value is:
 
-.. code-block:: 
+.. code-block:: cpp
 
    x_uint16 = x // Truncate the upper 16 bits.
    val = ((exponent << 10) | x_uint16 & 0x3ffu) - 1.0,
 
 where x is uint32 generated random value.
 
-Float32 is formatted as follows: *sign*(1 bit) *exponent*(8 bits) *mantissa*(23 bits). The value is interpreted 
+Float32 is formatted as follows: ``sign``(1 bit) ``exponent``(8 bits) ``mantissa``(23 bits). The value is interpreted 
 using following formula:
 
 .. math::
@@ -98,7 +98,7 @@ using following formula:
 
 so to obtain float values *sign*, *exponent* and *mantissa* are set as follows:
 
-.. code-block:: 
+.. code-block:: cpp
 
    sign = 0
    exponent = 127 - representation of a zero exponent.
@@ -107,7 +107,7 @@ so to obtain float values *sign*, *exponent* and *mantissa* are set as follows:
 
 So the resulting float value is:
 
-.. code-block:: 
+.. code-block:: cpp
    
    val = ((exponent << 23) | x & 0x7fffffu) - 1.0,
 
@@ -123,7 +123,7 @@ using following formula:
 
 so to obtain double values *sign*, *exponent* and *mantissa* are set as follows:
 
-.. code-block:: 
+.. code-block:: cpp
      
    sign = 0
    exponent = 1023 - representation of a zero exponent.
@@ -132,7 +132,7 @@ so to obtain double values *sign*, *exponent* and *mantissa* are set as follows:
 
 So the resulting double is obtained as follows:
 
-.. code-block:: 
+.. code-block:: cpp
    
     mantissa_h = x0 & 0xfffffu;  // upper 20 bits of mantissa
     mantissa_l = x1;             // lower 32 bits of mantissa
@@ -162,7 +162,7 @@ where *x* is uint32 random value.
 
 Example 1. *RandomUniform* output with `global_seed` = 150, `op_seed` = 10, `output_type` = f32:
 
-.. code-block:: html
+.. code-block:: cpp
    
     input_shape    = [ 3, 3 ]
     output  = [[0.7011236  0.30539632 0.93931055]
@@ -172,42 +172,42 @@ Example 1. *RandomUniform* output with `global_seed` = 150, `op_seed` = 10, `out
 
 Example 2. *RandomUniform* output with `global_seed` = 80, `op_seed` = 100, `output_type` = double:
 
-.. code-block:: html
+.. code-block:: cpp
     
-    input_shape    = [ 2, 2 ]
+   input_shape    = [ 2, 2 ]
 
-    minval = 2
+   minval = 2
 
-    maxval = 10
+   maxval = 10
 
-    output  = [[5.65927959 4.23122376]
-            [2.67008206 2.36423758]]
+   output  = [[5.65927959 4.23122376]
+         [2.67008206 2.36423758]]
 
 
 Example 3. *RandomUniform* output with `global_seed` = 80, `op_seed` = 100, `output_type` = i32:
 
-.. code-block:: html
+.. code-block:: cpp
      
-    input_shape    = [ 2, 3 ]
+   input_shape    = [ 2, 3 ]
 
-    minval = 50
+   minval = 50
 
-    maxval = 100
+   maxval = 100
 
-    output  = [[65 70 56]
-            [59 82 92]]
+   output  = [[65 70 56]
+         [59 82 92]]
 
 
 **Attributes**:
 
-* *output_type*
+* ``output_type``
 
   * **Description**: the type of the output. Determines generation algorithm and affects resulting values. Output numbers generated for different values of *output_type* may not be equal.
   * **Range of values**: "i32", "i64", "f16", "bf16", "f32", "f64".
   * **Type**: string
   * **Required**: *Yes*
 
-* *global_seed*
+* ``global_seed``
 
   * **Description**: global seed value.
   * **Range of values**: positive integers
@@ -215,7 +215,7 @@ Example 3. *RandomUniform* output with `global_seed` = 80, `op_seed` = 100, `out
   * **Default value**: 0
   * **Required**: *Yes*
 
-* *op_seed*
+* ``op_seed``
 
   * **Description**: operational seed value.
   * **Range of values**: positive integers

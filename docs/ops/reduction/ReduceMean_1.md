@@ -78,7 +78,7 @@ Particular cases:
     </layer>
 
 
-.. code-block:: python
+.. code-block:: cpp
 
     <layer id="1" type="ReduceMean" ...>
         <data keep_dims="false" />
@@ -90,7 +90,7 @@ Particular cases:
                 <dim>24</dim>
             </port>
             <port id="1">
-                <dim>2</dim> <!-- value is [2, 3] that means independent reduction in each channel and batch -->
+                <dim>2</dim> /<!-- value is [2, 3] that means independent reduction in each channel and batch -->/
             </port>
         </input>
         <output>
@@ -114,7 +114,7 @@ Particular cases:
                 <dim>24</dim>
             </port>
             <port id="1">
-                <dim>1</dim>  /<!-- value is [1] that means independent reduction in each channel and spatial dimensions -->
+                <dim>1</dim>  /<!-- value is [1] that means independent reduction in each channel and spatial dimensions -->/
             </port>
         </input>
         <output>

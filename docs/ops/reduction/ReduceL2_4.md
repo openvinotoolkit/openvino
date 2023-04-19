@@ -13,9 +13,7 @@
 *ReduceL2* operation performs the reduction with finding the L2 norm (square root of sum of squares) on a given input ``data`` along dimensions specified by ``axes`` input.
 Each element in the output is calculated as follows:
 
-.. code-block::
-
-  `output[i0, i1, ..., iN] = L2[j0, ..., jN](x[j0, ..., jN]))`
+``output[i0, i1, ..., iN] = L2[j0, ..., jN](x[j0, ..., jN]))``
 
 where indices i0, ..., iN run through all valid indices for input ``data``, and finding the L2 norm ``L2[j0, ..., jN]`` has ``jk = ik`` for those dimensions ``k`` that are not in the set of indices specified by ``axes`` input.
 

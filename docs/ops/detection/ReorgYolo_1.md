@@ -8,9 +8,7 @@
 
 **Short description**: *ReorgYolo* reorganizes input tensor taking into account strides.
 
-**Detailed description**:
-
-`Reference <https://arxiv.org/pdf/1612.08242.pdf>`__
+**Detailed description**: `Reference <https://arxiv.org/pdf/1612.08242.pdf>`__
 
 **Attributes**
 

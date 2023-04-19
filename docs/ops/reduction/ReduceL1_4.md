@@ -1,5 +1,7 @@
 # ReduceL1 {#openvino_docs_ops_reduction_ReduceL1_4}
 
+@sphinxdirective
+
 **Versioned name**: *ReduceL1-4*
 
 **Category**: *Reduction*
@@ -11,9 +13,7 @@
 *ReduceL1* operation performs the reduction with finding the L1 norm (sum of absolute values) on a given input ``data`` along dimensions specified by ``axes`` input.
 Each element in the output is calculated as follows:
 
-.. code-block::
-
-  `output[i0, i1, ..., iN] = L1[j0, ..., jN](x[j0, ..., jN]))`
+``output[i0, i1, ..., iN] = L1[j0, ..., jN](x[j0, ..., jN]))``
 
 where indices i0, ..., iN run through all valid indices for input ``data``, and finding the L1 norm ``L1[j0, ..., jN]`` has ``jk = ik`` for those dimensions ``k`` that are not in the set of indices specified by ``axes`` input.
 
@@ -49,6 +49,7 @@ Particular cases:
 
 **Examples**
 
+
 .. code-block:: cpp
 
     <layer id="1" type="ReduceL1" ...>
@@ -75,6 +76,7 @@ Particular cases:
     </layer>
 
 
+
 .. code-block:: cpp
 
     <layer id="1" type="ReduceL1" ...>
@@ -97,6 +99,7 @@ Particular cases:
             </port>
         </output>
     </layer>
+
 
 
 .. code-block:: cpp
@@ -122,6 +125,7 @@ Particular cases:
             </port>
         </output>
     </layer>
+
 
 
 .. code-block:: cpp
