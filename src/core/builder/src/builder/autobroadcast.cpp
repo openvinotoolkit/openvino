@@ -20,11 +20,13 @@ using namespace std;
 
 namespace ngraph {
 namespace builder {
+OPENVINO_SUPPRESS_DEPRECATED_START
 numpy_autobroadcast_incompatible_shapes::numpy_autobroadcast_incompatible_shapes(const Shape& shape1,
                                                                                  const Shape& shape2)
     : ngraph_error(error_str(shape1, shape2)),
       m_shape1(shape1),
       m_shape2(shape2) {}
+OPENVINO_SUPPRESS_DEPRECATED_END
 
 string numpy_autobroadcast_incompatible_shapes::error_str(const Shape& shape1, const Shape& shape2) {
     ostringstream os;

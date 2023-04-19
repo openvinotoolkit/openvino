@@ -169,7 +169,9 @@ bool ov::intel_cpu::ACLInterpolateExecutorBuilder::isSupported(const ov::intel_c
         return false;
     }
 
-    if (interpolateAttrs.mode == InterpolateMode::cubic) {
+    if (interpolateAttrs.mode == InterpolateMode::cubic ||
+        interpolateAttrs.mode == InterpolateMode::bilinear_pillow ||
+        interpolateAttrs.mode == InterpolateMode::bicubic_pillow) {
         return false;
     }
 

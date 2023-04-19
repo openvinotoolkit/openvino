@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "openvino/runtime/threading/cpu_map_scheduling.hpp"
+#include "cpu_map_scheduling.hpp"
 
 #include "ie_system_conf.h"
 
@@ -34,7 +34,7 @@ std::vector<std::vector<int>> apply_scheduling_core_type(const ov::hint::Schedul
         }
         break;
     default:
-        throw ov::Exception{"Unsupported core type!"};
+        OPENVINO_THROW("Unsupported core type!");
     }
 
     return result_table;
