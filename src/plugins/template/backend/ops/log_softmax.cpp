@@ -96,7 +96,7 @@ bool evaluate_node<ngraph::op::v5::LogSoftmax>(std::shared_ptr<ngraph::Node> nod
                                                       outputs,
                                                       inputs);
     default:
-        throw ngraph::ngraph_error(std::string("Unhandled data type ") + node->get_element_type().get_type_name() +
-                                   std::string("in evaluate_node()"));
+        OPENVINO_THROW(std::string("Unhandled data type ") + node->get_element_type().get_type_name() +
+                       std::string("in evaluate_node()"));
     }
 }
