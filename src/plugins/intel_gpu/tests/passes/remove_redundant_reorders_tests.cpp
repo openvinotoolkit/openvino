@@ -99,42 +99,43 @@ TEST(remove_redundant_reorders, optimize_fsv16_to_bfyx) {
     auto fc_in_layout = fc_node.get_input_layouts();
     ASSERT_EQ(fc_in_layout.front().data_padding.upper_size().feature[0], 0);
 }
-#if 0
+
 TEST(remove_redundant_reorders, skip_opt_out_when_) {
-    // Topology:
-    // reorder(b_fs_yx_fsv16) -> reduce(b_fs_yx_fsv16) -> fully_connected(bfyx)
-    //
-    // Expectation:
-    // Reorder that converts b_fs_yx_fsv16 to bfyx is added between reduce and fc (add_required_reorders)
-    // If it is post_optimize_graph phase and the batch size of reorder output layout is not 1,
-    // reorder optimization (b_fs_yx_fsv16->bfyx when spatials are eqaul to 1) is skipped (remove_redundant_reorders)
-    // So there should be no upper padding for feature dim of FC's input layout
+    // 'Optimize reorders not changing memory layout' loop works prior to reorder fusing with padding.
+    // Enhance3-lite f16 b=2 model has issue that one reorder is opt out with not changing memory layout,
+    // and another peer reorder is fused to upper node with padding next.
+    // Then first opt out reorder has incompatible input/output layout and it causes accuracy drop in the model.
+    // This test checks fix code which skips 'Optimize reorders not changing memory layout' in that condition.
 
     auto& engine = get_test_engine();
-    auto input = engine.allocate_memory({ data_types::f16, format::bfyx, { 2, 8, 1080, 480 } });
+    auto input = engine.allocate_memory({ data_types::f16, format::bfyx, { 2, 32, 480, 270 } });
     auto weights = engine.allocate_memory({ data_types::f16, format::bfyx, { 16, 32, 1, 1 } });
+    auto weights_2 = engine.allocate_memory({ data_types::f16, format::bfyx, { 64, 16, 3, 3 } });
 
     topology topology;
     topology.add(data("weights", weights));
+    topology.add(data("weights_2", weights_2));
     topology.add(input_layout("input", input->get_layout()));
     topology.add(convolution("convolution", input_info("input"), { "weights" }));
-    topology.add(reorder("reorder_reshape_1", input_info("convolution"), { data_types::f16, format::bfwzyx, { 2, 16, 1, 1, 270, 480 } }));
-    topology.add(reorder("reorder_reshape_2", input_info("reorder_reshape_1"), { data_types::f16, format::bfwzyx, { 2, 16, 1, 1, 270, 480 } }));
-    topology.add(permute());
-    topology.add(reduce("reduce", input_info("reorder"), reduce_mode::min, {2, 3}, true));
-    topology.add(fully_connected("fc", input_info("reduce"), "weights"));
+    topology.add(reorder("reorder_reshape_1", input_info("convolution"), { data_types::f16, format::bfwzyx, { 2, 16, 1, 1, 480, 270 } }));
+    topology.add(permute("transpose_1", input_info("reorder_reshape_1"), { 0, 1, 2, 3, 5, 4 }));
+    topology.add(reorder("convolution_reorder_1", input_info("convolution"),
+                        { data_types::f16, format::fs_b_yx_fsv32, { 2, 16, 480, 270 }, padding({0, 0, 1, 1}, 0) }));
+    topology.add(convolution("convolution_2", input_info("convolution_reorder_1"),
+                            { "weights_2" }, { 1, 1}, { 1, 1}, { 1, 1}, false, padding({0, 0, 1, 1}, 0)));
 
     ExecutionConfig config = get_test_default_config(engine);
     config.set_property(ov::intel_gpu::optimize_data(true));
-    network network(engine, topology, config);
-    network.set_input_data("input", input);
 
-    network.execute();
+    auto prog = program::build_program(engine, topology, config, false, true);
+    config.set_property(ov::intel_gpu::optimize_data(true));
 
-    auto prog = network.get_program();
+    layout_optimizer lo(true);
+
+    bool optimize_data = config.get_property(ov::intel_gpu::optimize_data);
+    program_wrapper::apply_opt_pass<remove_redundant_reorders>(*prog, lo, optimize_data);
+
     ASSERT_NE(prog, nullptr);
-    auto& fc_node = prog->get_node("fc");
-    auto fc_in_layout = fc_node.get_input_layouts();
-    ASSERT_EQ(fc_in_layout.front().data_padding.upper_size().feature[0], 0);
+
+    ASSERT_FALSE(prog->get_node("reorder_reshape_1").can_be_optimized());
 }
-#endif
