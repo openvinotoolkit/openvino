@@ -543,7 +543,7 @@ def create_pytorch_nn_module_scale_list_default_no_compression(tmp_dir):
     parameter_list = [param1, param2]
     ref_model = Model([sigm], parameter_list, "test")
 
-    return pt_model, ref_model, {'input_shape': [shape, shape], 'scale_values': [[1, 1, 1], [1, 1, 1]], "input": [InputCutInfo(None, None, "f32", None), InputCutInfo(None, None, "f32", None)]}
+    return pt_model, ref_model, {'input_shape': [shape, shape], 'scale_values': [[1, 1, 1], [1, 1, 1]], "input": [np.float32, np.float32]}
 
 
 def create_pytorch_nn_module_scale_list_compression_enabled(tmp_dir):
