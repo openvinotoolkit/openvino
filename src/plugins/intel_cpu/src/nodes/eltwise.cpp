@@ -1424,8 +1424,7 @@ public:
         int collapsedDims = 0;
 
         bool hasDifferentDims = false;
-        while (!useRuntimePtrs && currentJitWorkAmount < minimalJitWorkAmount && currentJitWorkAmount < fullWorkAmount &&
-               (outBlkDims.size() - collapsedDims > 2)) {
+        while (!useRuntimePtrs && currentJitWorkAmount < minimalJitWorkAmount && currentJitWorkAmount < fullWorkAmount) {
             if (collapsedDims >= maxCollapsedDims)
                 break;
 
