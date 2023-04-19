@@ -497,7 +497,8 @@ public:
                 // Compute brodcasted dims
                 input_shape = m_input.get_shape();
                 weights_shape = m_weights.get_shape();
-                const int64_t input_shape_size_diff = input_shape.size() - weights_shape.size();
+                const int64_t input_shape_size_diff =
+                    static_cast<int64_t>(input_shape.size()) - static_cast<int64_t>(weights_shape.size());
                 const int64_t weights_shape_size_diff = -input_shape_size_diff;
                 for (size_t i = 0; i < input_shape.size(); ++i) {
                     const int64_t shifted_elem = i + weights_shape_size_diff;
