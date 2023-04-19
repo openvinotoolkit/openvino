@@ -16,7 +16,7 @@ if (ENABLE_OV_ONNX_FRONTEND)
 else()
     set(EXCLUDED_SOURCE_PATHS ${CMAKE_CURRENT_SOURCE_DIR}/extension ${CMAKE_CURRENT_SOURCE_DIR}/onnx)
 endif()
-if(ARM OR AARCH64)
+if(NOT X86_64)
     list(APPEND EXCLUDED_SOURCE_PATHS
         ${CMAKE_CURRENT_SOURCE_DIR}/single_layer_tests
         ${CMAKE_CURRENT_SOURCE_DIR}/subgraph_tests

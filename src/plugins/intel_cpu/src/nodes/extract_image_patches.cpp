@@ -441,8 +441,8 @@ void ExtractImagePatches::ExtractImagePatchesRefExecutor::executeReference(
     const std::vector<size_t> ostrides_partial = { ostrides[0], jpp.KW * IC * ostrides[1], IC * ostrides[1], ostrides[1] };
 
     parallel_for4d(OB, jpp.KH, jpp.KW, IC, [&](const size_t ob, const size_t kh, const size_t kw, const size_t ic) {
-        const int64_t iw_start = kw * RW - PL;
-        const int64_t ih_start = kh * RH - PT;
+        const int64_t iw_start = static_cast<int64_t>(kw * RW) - PL;
+        const int64_t ih_start = static_cast<int64_t>(kh * RH) - PT;
         const size_t ih_lpad = ih_start >= 0 ? 0 : std::ceil(-1.f * ih_start / jpp.SH);
         const size_t iw_lpad = iw_start >= 0 ? 0 : std::ceil(-1.f * iw_start / jpp.SW);
 
