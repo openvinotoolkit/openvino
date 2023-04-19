@@ -36,12 +36,12 @@ def get_pytorch_decoder(model, input_shape, example_inputs, args):
     args['input_model'] = decoder
     args["framework"] = "pytorch"
     if inputs is not None:
-        extract_input_info_form_example(inputs, args)
+        extract_input_info_from_example(inputs, args)
         
     return args
 
 
-def extract_input_info_form_example(example_inputs, args):
+def extract_input_info_from_example(example_inputs, args):
     import openvino
     try:
         from openvino.frontend.pytorch.decoder import pt_to_ov_type_map
