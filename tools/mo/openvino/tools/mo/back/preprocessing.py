@@ -3,6 +3,7 @@
 
 import argparse
 import logging as log
+from copy import copy
 
 from openvino.preprocess import PrePostProcessor  # pylint: disable=no-name-in-module,import-error
 # pylint: disable=no-name-in-module,import-error
@@ -20,7 +21,6 @@ def update_mean_scale_to_dict(input_nodes: list, mean_scale_val, scale):
     :param: mean_scale_val Parsed 'mean_scale_val' object from command line arguments
     :param: scale Global scale factor for all inputs from --scale command line arguments
     """
-    from copy import copy
     if not isinstance(mean_scale_val, dict):
         if len(mean_scale_val) != len(input_nodes):
             raise Error('Numbers of inputs and mean/scale values do not match. ' + refer_to_faq_msg(61))
