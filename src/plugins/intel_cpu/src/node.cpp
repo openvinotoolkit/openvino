@@ -335,8 +335,9 @@ void Node::selectPreferPrimitiveDescriptor(const std::vector<impl_desc_type>& pr
         }
     }
 
-    if (getSupportedPrimitiveDescriptors().empty())
-        IE_THROW() << "Supported primitive descriptors list is empty for node: " << getName();
+    IE_ASSERT(!getSupportedPrimitiveDescriptors().empty()) <<
+        "Supported primitive descriptors list is empty for node: " << getName() << " type: " << NameFromType(getType());
+
     // fallback. If there are no primitives from priority list just select a first
     selectPrimitiveDescriptorByIndex(0);
 }
@@ -711,6 +712,9 @@ void Node::filterSupportedPrimitiveDescriptors() {
     supportedPrimitiveDescriptors.erase(
         std::remove_if(supportedPrimitiveDescriptors.begin(), supportedPrimitiveDescriptors.end(), isNotSuitableDesc),
         supportedPrimitiveDescriptors.end());
+
+    IE_ASSERT(!supportedPrimitiveDescriptors.empty()) << getName() << " type: " << NameFromType(getType()) <<
+        " No supported primitive descriptors matched the provided input / output memory format filters.";
 }
 
 void Node::initDescriptor(const NodeConfig& config) {
