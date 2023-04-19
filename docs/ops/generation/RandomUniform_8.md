@@ -88,8 +88,7 @@ So the resulting float16 value is:
 
 where x is uint32 generated random value.
 
-Float32 is formatted as follows: ``sign``(1 bit) ``exponent``(8 bits) ``mantissa``(23 bits). The value is interpreted 
-using following formula:
+Float32 is formatted as follows: *sign* (1 bit) *exponent* (8 bits) *mantissa* (23 bits). The value is interpreted using following formula:
 
 .. math::
    
@@ -113,8 +112,7 @@ So the resulting float value is:
 
 where x is uint32 generated random value.
 
-Double is formatted as follows: *sign*(1 bit) *exponent*(11 bits) *mantissa*(52 bits). The value is interpreted 
-using following formula:
+Double is formatted as follows: *sign* (1 bit) *exponent* (11 bits) *mantissa* (52 bits). The value is interpreted using following formula:
 
 .. math::
    
@@ -160,7 +158,7 @@ For integer values:
 where *x* is uint32 random value.
 
 
-Example 1. *RandomUniform* output with `global_seed` = 150, `op_seed` = 10, `output_type` = f32:
+Example 1. *RandomUniform* output with ``global_seed`` = 150, ``op_seed`` = 10, ``output_type`` = f32:
 
 .. code-block:: cpp
    
@@ -170,7 +168,7 @@ Example 1. *RandomUniform* output with `global_seed` = 150, `op_seed` = 10, `out
             [0.5197197   0.22727466 0.991374  ]]
 
 
-Example 2. *RandomUniform* output with `global_seed` = 80, `op_seed` = 100, `output_type` = double:
+Example 2. *RandomUniform* output with ``global_seed`` = 80, ``op_seed`` = 100, ``output_type`` = double:
 
 .. code-block:: cpp
     
@@ -184,7 +182,7 @@ Example 2. *RandomUniform* output with `global_seed` = 80, `op_seed` = 100, `out
          [2.67008206 2.36423758]]
 
 
-Example 3. *RandomUniform* output with `global_seed` = 80, `op_seed` = 100, `output_type` = i32:
+Example 3. *RandomUniform* output with ``global_seed`` = 80, ``op_seed`` = 100, ``output_type`` = i32:
 
 .. code-block:: cpp
      

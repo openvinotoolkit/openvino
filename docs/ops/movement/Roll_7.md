@@ -12,7 +12,7 @@
 
 Example 1. *Roll* output with ``shift`` = 1, ``axes`` = 0:
 
-.. code-block:: 
+.. code-block:: cpp
 
     data    = [[ 1,  2,  3],
             [ 4,  5,  6],
@@ -26,7 +26,7 @@ Example 1. *Roll* output with ``shift`` = 1, ``axes`` = 0:
 
 Example 2. *Roll* output with ``shift`` = [-1, 2], ``axes`` = [0, 1]:
 
-.. code-block:: 
+.. code-block:: cpp
 
     data    = [[ 1,  2,  3],
             [ 4,  5,  6],
@@ -40,7 +40,7 @@ Example 2. *Roll* output with ``shift`` = [-1, 2], ``axes`` = [0, 1]:
 
 Example 3. *Roll* output with ``shift`` = [1, 2, 1], ``axes`` = [0, 1, 0]:
 
-.. code-block:: 
+.. code-block:: cpp
 
     data    = [[ 1,  2,  3],
             [ 4,  5,  6],

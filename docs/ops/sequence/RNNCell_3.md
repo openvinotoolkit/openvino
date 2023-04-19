@@ -12,7 +12,7 @@
 
 *RNNCell* represents a single RNN cell and is part of  :doc:`RNNSequence <openvino_docs_ops_sequence_RNNSequence_5>` operation.
 
-.. code-block::
+.. code-block:: cpp
 
   Formula:
     *  - matrix multiplication

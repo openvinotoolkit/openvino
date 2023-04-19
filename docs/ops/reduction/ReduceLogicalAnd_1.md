@@ -13,7 +13,7 @@
 *ReduceLogicalAnd* operation performs the reduction with *logical and* operation on a given input ``data`` along dimensions specified by ``axes`` input.
 Each element in the output is calculated as follows:
 
-.. code-block::
+.. code-block:: cpp
 
   output[i0, i1, ..., iN] = and[j0,c..., jN](x[j0, ..., jN]))
 

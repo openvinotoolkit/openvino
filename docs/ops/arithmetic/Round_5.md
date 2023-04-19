@@ -10,7 +10,7 @@
 
 **Detailed description**: Operation takes one input tensor and rounds the values, element-wise, meaning it finds the nearest integer for each value. In case of halves, the rule is to round them to the nearest even integer if ``mode`` attribute is ``half_to_even`` or rounding in such a way that the result heads away from zero if ``mode`` attribute is ``half_away_from_zero``.
 
-.. code-block::
+.. code-block:: cpp
 
   Input = [-4.5, -1.9, -1.5, 0.5, 0.9, 1.5, 2.3, 2.5]
 
