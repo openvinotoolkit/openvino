@@ -1386,6 +1386,15 @@ class TestLayoutParsing(unittest.TestCase):
         for i in exp_res.keys():
             assert np.array_equal(result[i], exp_res[i])
 
+    def test_get_layout_8(self):
+        argv_layout = "name1-0(n...c),name2-0(n...c->nc...)"
+        result = get_layout_values(argv_layout)
+        exp_res = {'name1-0': {'source_layout': 'n...c', 'target_layout': None},
+                   'name2-0': {'source_layout': 'n...c', 'target_layout': 'nc...'}}
+        self.assertEqual(list(exp_res.keys()), list(result.keys()))
+        for i in exp_res.keys():
+            assert np.array_equal(result[i], exp_res[i])
+
     def test_get_layout_scalar(self):
         argv_layout = "name1(nhwc),name2([])"
         result = get_layout_values(argv_layout)
@@ -1571,6 +1580,16 @@ class TestLayoutParsing(unittest.TestCase):
         result = get_layout_values(argv_source_layout=argv_source_layout, argv_target_layout=argv_target_layout)
         exp_res = {'name1.0:a/b': {'source_layout': 'nhwc', 'target_layout': 'nchw'},
                    'name2\\d\\': {'source_layout': '[n,h,w,c]', 'target_layout': '[n,c,h,w]'}}
+        self.assertEqual(list(exp_res.keys()), list(result.keys()))
+        for i in exp_res.keys():
+            assert np.array_equal(result[i], exp_res[i])
+
+    def test_get_layout_source_target_layout_7(self):
+        argv_source_layout = "name1-0[n,h,w,c],name2-1(?c??)"
+        argv_target_layout = "name1-0(nchw),name2-1[?,?,?,c]"
+        result = get_layout_values(argv_source_layout=argv_source_layout, argv_target_layout=argv_target_layout)
+        exp_res = {'name1-0': {'source_layout': '[n,h,w,c]', 'target_layout': 'nchw'},
+                   'name2-1': {'source_layout': '?c??', 'target_layout': '[?,?,?,c]'}}
         self.assertEqual(list(exp_res.keys()), list(result.keys()))
         for i in exp_res.keys():
             assert np.array_equal(result[i], exp_res[i])
