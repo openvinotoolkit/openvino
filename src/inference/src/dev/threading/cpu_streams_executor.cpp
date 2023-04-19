@@ -166,14 +166,9 @@ struct CPUStreamsExecutor::Impl {
             } else {
                 _taskArena.reset(new custom::task_arena{concurrency});
             }
-            if (_impl->_config._cpu_pinning && _streamId < _impl->_config._streams) {
-                // Handle special case: reserve 4 cores when threads is 3 in ECore
-                const auto num_cpus =
-                    cpu_core_type == EFFICIENT_CORE_PROC && concurrency == 3 && _impl->_config._small_core_streams > 1
-                        ? concurrency + 1
-                        : concurrency;
-                _cpu_ids = _impl->_config._stream_core_ids.size() == _impl->_config._streams
-                               ? _impl->_config._stream_core_ids[_streamId]
+            if (_impl->_config._cpu_pinning && stream_id < _impl->_config._streams) {
+                _cpu_ids = static_cast<int>(_impl->_config._stream_core_ids.size()) == _impl->_config._streams
+                               ? _impl->_config._stream_core_ids[stream_id]
                                : _cpu_ids;
                 if (_cpu_ids.size() > 0) {
                     CpuSet processMask;
