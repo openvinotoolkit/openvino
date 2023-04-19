@@ -9,10 +9,10 @@
 #include <numeric>
 #include <transformations/utils/utils.hpp>
 
+#include "cpu_map_scheduling.hpp"
 #include "graph.h"
 #include "ie_system_conf.h"
 #include "openvino/runtime/threading/istreams_executor.hpp"
-#include "openvino/runtime/threading/cpu_map_scheduling.hpp"
 #include "performance_heuristics.hpp"
 #include "threading/ie_cpu_streams_info.hpp"
 
