@@ -94,8 +94,8 @@ public:
         cfg_fused.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ { "fc_prim", fc_impl } }));
         cfg_fused.set_property(ov::intel_gpu::allow_new_shape_infer(is_dynamic));
 
-        network::ptr network_not_fused = get_network(this->engine, this->topology_non_fused, cfg_not_fused, get_test_stream_ptr(), is_caching_test);
-        network::ptr network_fused = get_network(this->engine, this->topology_fused, cfg_fused, get_test_stream_ptr(), is_caching_test);
+        network::ptr network_not_fused = get_network(this->engine, this->topology_non_fused, cfg_not_fused, get_test_stream_ptr(cfg_not_fused), is_caching_test);
+        network::ptr network_fused = get_network(this->engine, this->topology_fused, cfg_fused, get_test_stream_ptr(cfg_fused), is_caching_test);
         network_fused->set_input_data("input", input_prim);
         network_not_fused->set_input_data("input", input_prim);
 
@@ -411,43 +411,34 @@ INSTANTIATE_TEST_SUITE_P(fusings_gpu, fc_int8_eltwise_activation_quantize_i8, ::
 #ifdef ENABLE_ONEDNN_FOR_GPU
 
 // FC onednn sum case
-class fc_int8_inputs_fused_fp32_sum : public FullyConnectedFusingTestOneDNN {};
+class fc_int8_inputs_fused_fp32_sum : public FullyConnectedFusingTestOneDNN {
+public:
+    void run_test(bool is_caching_test = false) {
+        auto p = GetParam();
+        auto shift_layout = layout{ ov::PartialShape{p.weights_shape[0]}, p.default_type, p.default_format };
+
+        create_topologies(
+            input_layout("input", get_input_layout(p)),
+            data("weights", get_mem(get_weights_layout(p))),
+            data("bias", get_mem(get_bias_layout(p))),
+            data("shift_data", get_mem(shift_layout, 1)),
+            fully_connected("fc_prim", input_info("input"), "weights", "bias", cldnn::data_types::f32, padding(), get_output_dim_size(p), get_input_weights_rank(p)),
+            eltwise("shift", { input_info("fc_prim"), input_info("shift_data") }, eltwise_mode::sum, cldnn::data_types::f32),
+            crop("crop", input_info("shift"), get_output_layout(p).get_tensor(), { 0, 0, 0, 0 }),
+            reorder("reorder_bfyx", input_info("crop"), p.default_format, data_types::f32)
+        );
+
+        tolerance = 1.f;
+        execute(p, is_caching_test);
+    }
+};
+
 TEST_P(fc_int8_inputs_fused_fp32_sum, basic) {
-    auto p = GetParam();
-    auto shift_layout = layout{ ov::PartialShape{p.weights_shape[0]}, p.default_type, p.default_format };
-
-    create_topologies(
-        input_layout("input", get_input_layout(p)),
-        data("weights", get_mem(get_weights_layout(p))),
-        data("bias", get_mem(get_bias_layout(p))),
-        data("shift_data", get_mem(shift_layout, 1)),
-        fully_connected("fc_prim", input_info("input"), "weights", "bias", cldnn::data_types::f32, padding(), get_output_dim_size(p), get_input_weights_rank(p)),
-        eltwise("shift", { input_info("fc_prim"), input_info("shift_data") }, eltwise_mode::sum, cldnn::data_types::f32),
-        crop("crop", input_info("shift"), get_output_layout(p).get_tensor(), { 0, 0, 0, 0 }),
-        reorder("reorder_bfyx", input_info("crop"), p.default_format, data_types::f32)
-    );
-
-    tolerance = 1.f;
-    execute(p);
+    run_test(false);
 }
 
 TEST_P(fc_int8_inputs_fused_fp32_sum, basic_cached) {
-    auto p = GetParam();
-    auto shift_layout = layout{ ov::PartialShape{p.weights_shape[0]}, p.default_type, p.default_format };
-
-    create_topologies(
-        input_layout("input", get_input_layout(p)),
-        data("weights", get_mem(get_weights_layout(p))),
-        data("bias", get_mem(get_bias_layout(p))),
-        data("shift_data", get_mem(shift_layout, 1)),
-        fully_connected("fc_prim", input_info("input"), "weights", "bias", cldnn::data_types::f32, padding(), get_output_dim_size(p), get_input_weights_rank(p)),
-        eltwise("shift", { input_info("fc_prim"), input_info("shift_data") }, eltwise_mode::sum, cldnn::data_types::f32),
-        crop("crop", input_info("shift"), get_output_layout(p).get_tensor(), { 0, 0, 0, 0 }),
-        reorder("reorder_bfyx", input_info("crop"), p.default_format, data_types::f32)
-    );
-
-    tolerance = 1.f;
-    execute(p, true);
+    run_test(true);
 }
 
 INSTANTIATE_TEST_SUITE_P(fusings_gpu, fc_int8_inputs_fused_fp32_sum, ::testing::ValuesIn(std::vector<fully_connected_test_params>{
@@ -458,37 +449,31 @@ INSTANTIATE_TEST_SUITE_P(fusings_gpu, fc_int8_inputs_fused_fp32_sum, ::testing::
 }));
 
 
-class fc_fp16_eltwise_add : public FullyConnectedFusingTestOneDNN {};
-TEST_P(fc_fp16_eltwise_add, basic) {
-    auto p = GetParam();
-    create_topologies(
-        input_layout("input", get_input_layout(p)),
-        data("weights", get_mem(get_weights_layout(p))),
-        data("bias", get_mem(get_bias_layout(p))),
-        data("eltwise_data", get_mem(get_per_channel_layout(p), 1, 9)),
-        fully_connected("fc_prim", input_info("input"), "weights", "bias", padding(), get_output_dim_size(p)),
-        eltwise("eltwise", { input_info("fc_prim"), input_info("eltwise_data") }, eltwise_mode::sum),
-        reorder("reorder_bfyx", input_info("eltwise"), p.default_format, data_types::f32)
-    );
+class fc_fp16_eltwise_add : public FullyConnectedFusingTestOneDNN {
+public:
+    void run_test(bool is_caching_test = false) {
+        auto p = GetParam();
+        create_topologies(
+            input_layout("input", get_input_layout(p)),
+            data("weights", get_mem(get_weights_layout(p))),
+            data("bias", get_mem(get_bias_layout(p))),
+            data("eltwise_data", get_mem(get_per_channel_layout(p), 1, 9)),
+            fully_connected("fc_prim", input_info("input"), "weights", "bias", padding(), get_output_dim_size(p)),
+            eltwise("eltwise", { input_info("fc_prim"), input_info("eltwise_data") }, eltwise_mode::sum),
+            reorder("reorder_bfyx", input_info("eltwise"), p.default_format, data_types::f32)
+        );
 
-    tolerance = 1e-2f;
-    execute(p);
+        tolerance = 1e-2f;
+        execute(p, is_caching_test);
+    }
+};
+
+TEST_P(fc_fp16_eltwise_add, basic) {
+    run_test(false);
 }
 
 TEST_P(fc_fp16_eltwise_add, basic_cached) {
-    auto p = GetParam();
-    create_topologies(
-        input_layout("input", get_input_layout(p)),
-        data("weights", get_mem(get_weights_layout(p))),
-        data("bias", get_mem(get_bias_layout(p))),
-        data("eltwise_data", get_mem(get_per_channel_layout(p), 1, 9)),
-        fully_connected("fc_prim", input_info("input"), "weights", "bias", padding(), get_output_dim_size(p)),
-        eltwise("eltwise", { input_info("fc_prim"), input_info("eltwise_data") }, eltwise_mode::sum),
-        reorder("reorder_bfyx", input_info("eltwise"), p.default_format, data_types::f32)
-    );
-
-    tolerance = 1e-2f;
-    execute(p, true);
+    run_test(true);
 }
 
 INSTANTIATE_TEST_SUITE_P(fusings_gpu, fc_fp16_eltwise_add, ::testing::ValuesIn(std::vector<fully_connected_test_params>{
@@ -527,37 +512,31 @@ INSTANTIATE_TEST_SUITE_P(DISABLED_fusings_gpu, fc_fp16_eltwise_add_dynamic, ::te
     fully_connected_test_params{ CASE_FC_FP16_4, 2, 3 },
 }));
 
-class fc_fp16_eltwise_sub : public FullyConnectedFusingTestOneDNN {};
-TEST_P(fc_fp16_eltwise_sub, basic) {
-    auto p = GetParam();
-    create_topologies(
-        input_layout("input", get_input_layout(p)),
-        data("weights", get_mem(get_weights_layout(p))),
-        data("bias", get_mem(get_bias_layout(p))),
-        data("eltwise_data", get_mem(get_per_channel_layout(p), 1, 9)),
-        fully_connected("fc_prim", input_info("input"), "weights", "bias", padding(), get_output_dim_size(p)),
-        eltwise("eltwise", { input_info("fc_prim"), input_info("eltwise_data") }, eltwise_mode::sub),
-        reorder("reorder_bfyx", input_info("eltwise"), p.default_format, data_types::f32)
-    );
+class fc_fp16_eltwise_sub : public FullyConnectedFusingTestOneDNN {
+public:
+    void run_test(bool is_caching_test = false) {
+        auto p = GetParam();
+        create_topologies(
+            input_layout("input", get_input_layout(p)),
+            data("weights", get_mem(get_weights_layout(p))),
+            data("bias", get_mem(get_bias_layout(p))),
+            data("eltwise_data", get_mem(get_per_channel_layout(p), 1, 9)),
+            fully_connected("fc_prim", input_info("input"), "weights", "bias", padding(), get_output_dim_size(p)),
+            eltwise("eltwise", { input_info("fc_prim"), input_info("eltwise_data") }, eltwise_mode::sub),
+            reorder("reorder_bfyx", input_info("eltwise"), p.default_format, data_types::f32)
+        );
 
-    tolerance = 1e-1f;
-    execute(p);
+        tolerance = 1e-1f;
+        execute(p, is_caching_test);
+    }
+};
+
+TEST_P(fc_fp16_eltwise_sub, basic) {
+    run_test(false);
 }
 
 TEST_P(fc_fp16_eltwise_sub, basic_cached) {
-    auto p = GetParam();
-    create_topologies(
-        input_layout("input", get_input_layout(p)),
-        data("weights", get_mem(get_weights_layout(p))),
-        data("bias", get_mem(get_bias_layout(p))),
-        data("eltwise_data", get_mem(get_per_channel_layout(p), 1, 9)),
-        fully_connected("fc_prim", input_info("input"), "weights", "bias", padding(), get_output_dim_size(p)),
-        eltwise("eltwise", { input_info("fc_prim"), input_info("eltwise_data") }, eltwise_mode::sub),
-        reorder("reorder_bfyx", input_info("eltwise"), p.default_format, data_types::f32)
-    );
-
-    tolerance = 1e-1f;
-    execute(p, true);
+    run_test(true);
 }
 
 INSTANTIATE_TEST_SUITE_P(fusings_gpu, fc_fp16_eltwise_sub, ::testing::ValuesIn(std::vector<fully_connected_test_params>{
@@ -568,37 +547,31 @@ INSTANTIATE_TEST_SUITE_P(fusings_gpu, fc_fp16_eltwise_sub, ::testing::ValuesIn(s
     fully_connected_test_params{ CASE_FC_FP16_3D_2, 2, 3 },
 }));
 
-class fc_fp16_eltwise_prod : public FullyConnectedFusingTestOneDNN {};
-TEST_P(fc_fp16_eltwise_prod, basic) {
-    auto p = GetParam();
-    create_topologies(
-        input_layout("input", get_input_layout(p)),
-        data("weights", get_mem(get_weights_layout(p))),
-        data("bias", get_mem(get_bias_layout(p))),
-        data("eltwise_data", get_mem(get_per_channel_layout(p), 1, 9)),
-        fully_connected("fc_prim", input_info("input"), "weights", "bias", padding(), get_output_dim_size(p)),
-        eltwise("eltwise", { input_info("fc_prim"), input_info("eltwise_data") }, eltwise_mode::prod),
-        reorder("reorder_bfyx", input_info("eltwise"), p.default_format, data_types::f32)
-    );
+class fc_fp16_eltwise_prod : public FullyConnectedFusingTestOneDNN {
+public:
+    void run_test(bool is_caching_test = false) {
+        auto p = GetParam();
+        create_topologies(
+            input_layout("input", get_input_layout(p)),
+            data("weights", get_mem(get_weights_layout(p))),
+            data("bias", get_mem(get_bias_layout(p))),
+            data("eltwise_data", get_mem(get_per_channel_layout(p), 1, 9)),
+            fully_connected("fc_prim", input_info("input"), "weights", "bias", padding(), get_output_dim_size(p)),
+            eltwise("eltwise", { input_info("fc_prim"), input_info("eltwise_data") }, eltwise_mode::prod),
+            reorder("reorder_bfyx", input_info("eltwise"), p.default_format, data_types::f32)
+        );
 
-    tolerance = 1e-1f;
-    execute(p);
+        tolerance = 1e-1f;
+        execute(p, is_caching_test);
+    }
+};
+
+TEST_P(fc_fp16_eltwise_prod, basic) {
+    run_test(false);
 }
 
 TEST_P(fc_fp16_eltwise_prod, basic_cached) {
-    auto p = GetParam();
-    create_topologies(
-        input_layout("input", get_input_layout(p)),
-        data("weights", get_mem(get_weights_layout(p))),
-        data("bias", get_mem(get_bias_layout(p))),
-        data("eltwise_data", get_mem(get_per_channel_layout(p), 1, 9)),
-        fully_connected("fc_prim", input_info("input"), "weights", "bias", padding(), get_output_dim_size(p)),
-        eltwise("eltwise", { input_info("fc_prim"), input_info("eltwise_data") }, eltwise_mode::prod),
-        reorder("reorder_bfyx", input_info("eltwise"), p.default_format, data_types::f32)
-    );
-
-    tolerance = 1e-1f;
-    execute(p, true);
+    run_test(true);
 }
 
 INSTANTIATE_TEST_SUITE_P(fusings_gpu, fc_fp16_eltwise_prod, ::testing::ValuesIn(std::vector<fully_connected_test_params>{
@@ -609,5 +582,39 @@ INSTANTIATE_TEST_SUITE_P(fusings_gpu, fc_fp16_eltwise_prod, ::testing::ValuesIn(
     fully_connected_test_params{ CASE_FC_FP16_3D_2, 2, 3 },
 }));
 
+class fc_fp16_eltwise_sum : public FullyConnectedFusingTestOneDNN {
+public:
+    void run_test(bool is_caching_test = false) {
+        auto p = GetParam();
+        create_topologies(
+            input_layout("input", get_input_layout(p)),
+            data("weights", get_mem(get_weights_layout(p))),
+            data("bias", get_mem(get_bias_layout(p))),
+            data("eltwise_data", get_mem(get_output_layout(p))),
+            fully_connected("fc_prim", input_info("input"), "weights", "bias", padding(), get_output_dim_size(p)),
+            eltwise("sum", { input_info("fc_prim"), input_info("eltwise_data") }, eltwise_mode::sum),
+            reorder("reorder_bfyx", input_info("sum"), p.default_format, data_types::f32)
+        );
+
+        tolerance = 1e-1f;
+        execute(p, is_caching_test);
+    }
+};
+
+TEST_P(fc_fp16_eltwise_sum, basic) {
+    run_test(false);
+}
+
+TEST_P(fc_fp16_eltwise_sum, basic_cached) {
+    run_test(true);
+}
+
+INSTANTIATE_TEST_SUITE_P(fusings_gpu, fc_fp16_eltwise_sum, ::testing::ValuesIn(std::vector<fully_connected_test_params>{
+    fully_connected_test_params{ CASE_FC_FP16_1, 2, 3 },
+    fully_connected_test_params{ CASE_FC_FP16_2, 2, 3 },
+    fully_connected_test_params{ CASE_FC_FP16_3, 2, 3 },
+    fully_connected_test_params{ CASE_FC_FP16_3D_1, 2, 3 },
+    fully_connected_test_params{ CASE_FC_FP16_3D_2, 2, 3 },
+}));
 
 #endif

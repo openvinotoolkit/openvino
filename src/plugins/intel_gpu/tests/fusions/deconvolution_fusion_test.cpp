@@ -58,26 +58,26 @@ struct deconv_eltw_test_params {
 
 class DeconvolutionFusingTest : public ::BaseFusingTest<deconv_test_params> {
 public:
-    void execute(deconv_test_params& p) {
-        execute(p, get_mem(get_input_layout(p)));
+    void execute(deconv_test_params& p, bool is_caching_test = false) {
+        execute(p, get_mem(get_input_layout(p)), is_caching_test);
     }
-    void execute(deconv_test_params& p, cldnn::memory::ptr input_prim) {
+    void execute(deconv_test_params& p, cldnn::memory::ptr input_prim, bool is_caching_test = false) {
         if (engine.get_device_info().supports_immad)
             p.expected_fused_primitives = p.expected_fused_primitives_onednn;
 
-        network network_not_fused(this->engine, this->topology_non_fused, cfg_not_fused);
-        network network_fused(this->engine, this->topology_fused, cfg_fused);
-        network_fused.set_input_data("input", input_prim);
-        network_not_fused.set_input_data("input", input_prim);
+        network::ptr network_not_fused = get_network(this->engine, this->topology_non_fused, cfg_not_fused, get_test_stream_ptr(cfg_not_fused), is_caching_test);
+        network::ptr network_fused = get_network(this->engine, this->topology_fused, cfg_fused, get_test_stream_ptr(cfg_fused), is_caching_test);
+        network_fused->set_input_data("input", input_prim);
+        network_not_fused->set_input_data("input", input_prim);
 
-        compare(network_not_fused, network_fused, p);
+        compare(*network_not_fused, *network_fused, p);
         auto find_conv = [](primitive_info& p) -> bool {
             if (p.original_id == "deconv")
                 return true;
             return false;
         };
 
-        auto pi_fused = network_fused.get_primitives_info();
+        auto pi_fused = network_fused->get_primitives_info();
         auto info_fused = std::find_if(pi_fused.begin(), pi_fused.end(), find_conv);
         if (info_fused != pi_fused.end())
             std::cout << "kernel: " << info_fused->kernel_id << std::endl;
@@ -443,22 +443,32 @@ INSTANTIATE_TEST_SUITE_P(fusings_gpu, deconv_scale, ::testing::ValuesIn(std::vec
     deconv_test_params{ CASE_DECONV_S8S8_3D_8, 2, 2, 3 },
 }));
 
-class deconv_actv_eltw_actv : public DeconvolutionFusingTest {};
+class deconv_actv_eltw_actv : public DeconvolutionFusingTest {
+public:
+    void run_test(bool is_caching_test = false) {
+        auto p = GetParam();
+        create_topologies(
+            input_layout("input", get_input_layout(p)),
+            data("weights", get_mem(get_weights_layout(p))),
+            data("eltw_data", get_mem(get_output_layout(p))),
+            deconvolution("deconv", input_info("input"), { "weights" }, p.groups, p.stride, p.pad),
+            activation("act1", input_info("deconv"), activation_func::relu),
+            eltwise("eltw", { input_info("act1"), input_info("eltw_data") }, eltwise_mode::sum),
+            activation("act2", input_info("eltw"), activation_func::relu),
+            reorder("out", input_info("act2"), p.default_format, data_types::f32)
+        );
+        // Need much higher tolerance because of deconvolution -> convolution optimization
+        tolerance = 1.f;
+        execute(p, is_caching_test);
+    }
+};
+
 TEST_P(deconv_actv_eltw_actv, basic) {
-    auto p = GetParam();
-    create_topologies(
-        input_layout("input", get_input_layout(p)),
-        data("weights", get_mem(get_weights_layout(p))),
-        data("eltw_data", get_mem(get_output_layout(p))),
-        deconvolution("deconv", input_info("input"), { "weights" }, p.groups, p.stride, p.pad),
-        activation("act1", input_info("deconv"), activation_func::relu),
-        eltwise("eltw", { input_info("act1"), input_info("eltw_data") }, eltwise_mode::sum),
-        activation("act2", input_info("eltw"), activation_func::relu),
-        reorder("out", input_info("act2"), p.default_format, data_types::f32)
-    );
-    // Need much higher tolerance because of deconvolution -> convolution optimization
-    tolerance = 1.f;
-    execute(p);
+    run_test();
+}
+
+TEST_P(deconv_actv_eltw_actv, basic_cached) {
+    run_test(true);
 }
 
 INSTANTIATE_TEST_SUITE_P(fusings_gpu, deconv_actv_eltw_actv, ::testing::ValuesIn(std::vector<deconv_test_params>{

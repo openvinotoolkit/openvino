@@ -466,6 +466,12 @@ network::network(cldnn::BinaryInputBuffer& ib, const ExecutionConfig& config, st
         prim_inst->set_output_memory(new_mem);
     }
 
+    for (auto p_inst : _exec_order) {
+        if (p_inst->can_be_optimized() && !p_inst->is_dynamic()) {
+            p_inst->update_output_memory();
+        }
+    }
+
     size_t num_variable_state_primitives;
     ib >> num_variable_state_primitives;
     for (size_t i = 0; i < num_variable_state_primitives; i++) {
