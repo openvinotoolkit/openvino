@@ -66,7 +66,7 @@ ov::pass::ConvertScatterElementsToScatter::ConvertScatterElementsToScatter() {
             uint64_t l, r;
             Range(const uint64_t& l, const uint64_t& r) : l(l), r(r) {
                 if (l > r)
-                    throw Exception("Range values are inconsistent");
+                    OPENVINO_THROW("Range values are inconsistent");
             }
 
             uint64_t size() const {

@@ -197,12 +197,18 @@ std::vector<device::ptr> ocl_device_detector::create_device_list() const {
     for (auto& id : platform_ids) {
         cl::Platform platform = cl::Platform(id);
 
-        std::vector<cl::Device> devices;
-        platform.getDevices(CL_DEVICE_TYPE_ALL, &devices);
-        for (auto& device : devices) {
-            if (!does_device_match_config(device))
-                continue;
-            supported_devices.emplace_back(std::make_shared<ocl_device>(device, cl::Context(device), id));
+        try {
+            std::vector<cl::Device> devices;
+            platform.getDevices(CL_DEVICE_TYPE_ALL, &devices);
+            for (auto& device : devices) {
+                if (!does_device_match_config(device))
+                    continue;
+                supported_devices.emplace_back(std::make_shared<ocl_device>(device, cl::Context(device), id));
+            }
+        } catch (std::exception& ex) {
+            GPU_DEBUG_LOG << "Devices query/creation failed for " << platform.getInfo<CL_PLATFORM_NAME>() << ": " << ex.what() << std::endl;
+            GPU_DEBUG_LOG << "Platform is skipped" << std::endl;
+            continue;
         }
     }
     OPENVINO_ASSERT(!supported_devices.empty(), create_device_error_msg);
