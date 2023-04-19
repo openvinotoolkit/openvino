@@ -51,9 +51,8 @@ Particular cases:
 
 **Examples**
 
-.. highlight:: xml
-
-.. code-block:: 
+.. code-block:: cpp
+   :emphasize-lines: 10-12
 
     <layer id="1" type="ReduceMean" ...>
         <data keep_dims="true" />
@@ -80,6 +79,7 @@ Particular cases:
 
 
 .. code-block:: 
+   :emphasize-lines: 12
 
     <layer id="1" type="ReduceMean" ...>
         <data keep_dims="false" />
@@ -91,7 +91,7 @@ Particular cases:
                 <dim>24</dim>
             </port>
             <port id="1">
-                <dim>2</dim> /<!-- value is [2, 3] that means independent reduction in each channel and batch -->/
+                <dim>2</dim> <!-- value is [2, 3] that means independent reduction in each channel and batch -->
             </port>
         </input>
         <output>
@@ -105,6 +105,7 @@ Particular cases:
 
 
 .. code-block:: xml
+   :emphasize-lines: 11
 
     <layer id="1" type="ReduceMean" ...>
         <data keep_dims="false" />
@@ -129,6 +130,7 @@ Particular cases:
     </layer>
 
 .. code-block:: cpp
+   :emphasize-lines: 10-13
 
     <layer id="1" type="ReduceMean" ...>
         <data keep_dims="false" />
