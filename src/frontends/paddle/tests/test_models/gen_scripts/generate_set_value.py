@@ -64,7 +64,7 @@ def main():
     value = np.array([0]).astype(dtype)
 
     def set_value1(x, value):
-        x[1:2, :, 2:4] = value
+        x[1:2, ::2, 2:4] = value
         return x
 
     paddle_set_value("set_value1", data, value, set_value1, dtype)
