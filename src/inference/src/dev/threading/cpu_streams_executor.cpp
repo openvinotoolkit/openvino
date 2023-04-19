@@ -172,7 +172,9 @@ struct CPUStreamsExecutor::Impl {
                     cpu_core_type == EFFICIENT_CORE_PROC && concurrency == 3 && _impl->_config._small_core_streams > 1
                         ? concurrency + 1
                         : concurrency;
-                _cpu_ids = reserve_available_cpus(cpu_core_type, num_cpus, _impl->_config._plugin_task);
+                _cpu_ids = _impl->_config._stream_core_ids.size() == _impl->_config._streams
+                               ? _impl->_config._stream_core_ids[_streamId]
+                               : _cpu_ids;
                 if (_cpu_ids.size() > 0) {
                     CpuSet processMask;
                     int ncpus = 0;
