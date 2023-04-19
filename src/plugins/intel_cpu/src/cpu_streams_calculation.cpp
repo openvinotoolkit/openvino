@@ -285,8 +285,7 @@ void get_num_streams(const int streams,
                std::to_string(executor_config._streams_info_table[i][THREADS_PER_STREAM]) + ")";
     }
     executor_config._stream_ids = stream_ids;
-    log +=
-        "  Total: " + std::to_string(executor_config._streams) + "(" + std::to_string(executor_config._threads) + ")";
+    log += " Total: " + std::to_string(executor_config._streams) + "(" + std::to_string(executor_config._threads) + ")";
     DEBUG_LOG(log);
 }
 }  // namespace intel_cpu

@@ -21,7 +21,7 @@ public:
     CPU();
     ~CPU(){};
     int _processors = 0;
-    int _sockets = 0;
+    int _numa_nodes = 0;
     int _cores = 0;
     std::vector<std::vector<int>> _proc_type_table;
     std::vector<std::vector<int>> _cpu_mapping_table;

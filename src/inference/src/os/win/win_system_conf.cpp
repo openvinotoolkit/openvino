@@ -33,7 +33,7 @@ CPU::CPU() {
     parse_processor_info_win(base_ptr,
                              len,
                              _processors,
-                             _sockets,
+                             _numa_nodes,
                              _cores,
                              _proc_type_table,
                              _cpu_mapping_table);

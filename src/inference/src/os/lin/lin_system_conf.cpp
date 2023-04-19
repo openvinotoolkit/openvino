@@ -46,7 +46,7 @@ CPU::CPU() {
     if (!GetCatchInfoLinux()) {
         parse_processor_info_linux(_processors,
                                    system_info_table,
-                                   _sockets,
+                                   _numa_nodes,
                                    _cores,
                                    _proc_type_table,
                                    _cpu_mapping_table);
@@ -75,7 +75,7 @@ CPU::CPU() {
             }
         }
         _processors = processors.size();
-        _sockets = sockets.size();
+        _numa_nodes = sockets.size();
         for (auto&& socket : sockets) {
             _cores += socket.second;
         }

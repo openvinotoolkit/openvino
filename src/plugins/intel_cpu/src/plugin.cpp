@@ -282,12 +282,6 @@ void Engine::GetPerformanceStreams(Config& config, const std::shared_ptr<ngraph:
     streams = config.streamExecutorConfig._streams > 0 ? config.streamExecutorConfig._streams : streams;
 
     get_num_streams(streams, ngraphFunc, config);
-
-    if (config.exclusiveAsyncRequests) {  // Exclusive request feature disables the streams
-        config.streamExecutorConfig._streams = 1;
-        config._config[PluginConfigParams::KEY_CPU_THROUGHPUT_STREAMS] =
-            std::to_string(config.streamExecutorConfig._streams);
-    }
 }
 
 StreamCfg Engine::GetNumStreams(InferenceEngine::IStreamsExecutor::ThreadBindingType thread_binding_type,
