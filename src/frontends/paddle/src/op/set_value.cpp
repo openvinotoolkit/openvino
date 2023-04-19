@@ -53,12 +53,12 @@ NamedOutputs set_value(const NodeContext& node) {
     //    1. Create `starts node` filled with 0. Update `starts` to `starts_node` according to axes.
     //    starts node[axes[i]] = starts[i] for i in axes.size
     //    starts node: [0, 0, 0, 0, 0] -> [0, 0, 2, 4, 0].
-    //    2. Create `ends_node` filled with 0. Update `dim - ends` to `ends_node` according to axes.
-    //    ends_node[axes[i]] = input_shape[axes[i]] - ends[i] for i in axes.size
-    //    starts node: [0, 0, 0, 0, 0] -> [0, 0, 0, 1, 0].
+    //    2. Create `ends_node` filled with -1. Update `ends` to `ends_node` according to axes.
+    //    ends node[axes[i]] = ends[i] for i in axes.size
+    //    ends node: [-1, -1, -1, -1, -1] -> [-1, -1, 7, -1, -1].
     //    3. Create `steps_node` filled with 1. Update `steps' to `steps_node` according to axes.
-    //    steps_node[axes[i]] = steps[i]  for i in axes.size
-    //    starts node: [1, 1, 1, 1, 1] -> [1, 1, 2, 1, 1].
+    //    steps node[axes[i]] = steps[i]  for i in axes.size
+    //    steps node: [1, 1, 1, 1, 1] -> [1, 1, 2, 1, 1].
     // 4. Calculate and broadcast update_value to corresponding shape: [5, 6, 5, 3, 9].
     //    1. Calculate `end - start`: [5, 3].
     //    2. Calculate `(end - start) / step`: [2.5, 3]
@@ -79,35 +79,33 @@ NamedOutputs set_value(const NodeContext& node) {
     const auto dim_node = default_opset::Constant::create(element::i64, Shape{}, {dims});
     const auto reshape_flatten = default_opset::Constant::create(ov::element::i64, {1}, {-1});
 
-        // get positive starts ends and steps
-        if (node.has_input("StartsTensorList") && node.has_input("StepsTensorList") &&
-            node.has_input("EndsTensorList")) {
+    // get positive starts ends and steps
+    if (node.has_input("StartsTensorList") && node.has_input("StepsTensorList") && node.has_input("EndsTensorList")) {
         starts = handle_minus_index(node.get_ng_inputs("StartsTensorList"), spec_dim_node);
         ends = handle_minus_index(node.get_ng_inputs("EndsTensorList"), spec_dim_node);
         steps = handle_minus_index(node.get_ng_inputs("StepsTensorList"), spec_dim_node);
-    }
-    else if (node.has_attribute("starts") && node.has_attribute("steps") && node.has_attribute("ends")) {
+    } else if (node.has_attribute("starts") && node.has_attribute("steps") && node.has_attribute("ends")) {
         starts = handle_minus_index(node.get_attribute<std::vector<int64_t>>("starts"), spec_dim_node);
         ends = handle_minus_index(node.get_attribute<std::vector<int64_t>>("ends"), spec_dim_node);
         auto step_vec = node.get_attribute<std::vector<int64_t>>("steps");
         for (size_t i = 0; i < step_vec.size(); i++)
             PADDLE_OP_CHECK(node, (step_vec[i] == 1), "Elements of steps must be 1");
         steps = handle_minus_index(step_vec, spec_dim_node);
-    }
-    else PADDLE_OP_CHECK(node, (false), "Invalid arguments!");
+    } else
+        PADDLE_OP_CHECK(node, (false), "Invalid arguments!");
 
     // 3.1 get starts node
-    const auto zero_dim_node =
+    starts_node =
         default_opset::Constant::create(element::i64, {static_cast<size_t>(dims)}, std::vector<int64_t>(dims));
-    starts_node = std::make_shared<default_opset::ScatterNDUpdate>(zero_dim_node, axes_node, starts);
+    starts_node = std::make_shared<default_opset::ScatterNDUpdate>(starts_node, axes_node, starts);
 
-        // 3.2 get ends node
-        const auto ends_update_node = std::make_shared<default_opset::Subtract>(spec_dim_node, ends);
-    ends_node = std::make_shared<default_opset::ScatterNDUpdate>(zero_dim_node, axes_node, ends_update_node);
+    // 3.2 get ends node
+    ends_node = default_opset::Constant::create(element::i64, {static_cast<size_t>(dims)}, std::vector<int64_t>(dims));
+    ends_node = std::make_shared<default_opset::ScatterNDUpdate>(ends_node, axes_node, ends);
 
-        // 3.3 get steps node
-        steps_node =
-            default_opset::Constant::create(element::i64, {static_cast<size_t>(dims)}, std::vector<int64_t>(dims, 1));
+    // 3.3 get steps node
+    steps_node =
+        default_opset::Constant::create(element::i64, {static_cast<size_t>(dims)}, std::vector<int64_t>(dims, 1));
     steps_node = std::make_shared<default_opset::ScatterNDUpdate>(steps_node, axes_node, steps);
 
     // 4.get target value shape
