@@ -1,6 +1,9 @@
+// Copyright (C) 2023 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
+//
 #pragma once
 
-#include <ngraph/pass/graph_rewrite.hpp>
+#include "ngraph/pass/graph_rewrite.hpp"
 
 namespace ov {
 namespace intel_gna {
@@ -11,10 +14,7 @@ namespace pass {
  * @brief Convert a convolution node with asymmetric zero padding to concatenate zeros to the input so that the padding can be symmetric:
  * So far only supports N==1, Input to the transform node should be in NHWC
  * The transform looks for the pattern transpose->convolution->transform that get fused into one gna operation
- * 
- * 
- * 
- * 
+ *
  *                                                                                   Input {N,H,W,C}
  *                                                                                          |
  *                                                                                    Reshape to 2d
@@ -40,9 +40,6 @@ namespace pass {
  *             Transpose back to nhwc                                   Transpose back to nhwc
  *                       |                                                         |
  *                     output                                                    output
- * 
- * 
- * 
  * 
  *                                                                                   Input {N,H,W,C}
  *                                                                                          |
@@ -75,20 +72,13 @@ namespace pass {
  *              Transpose back to nhwc                                  Transpose back to nhwc
  *                       |                                                         |
  *                     output                                                    output
- * 
- * 
- * 
  */
-
-
 
 class AszpDecomposition : public ngraph::pass::MatcherPass {
 public:
     OPENVINO_RTTI("AszpDecomposition", "0");
     AszpDecomposition();
 };
-
-
 
 }  // namespace pass
 }  // namespace intel_gna
