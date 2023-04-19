@@ -14,7 +14,7 @@
 
 For instance, in a 3D tensor case, the update corresponding to the ``[i][j][k]`` entry is performed as below:
 
-.. code-block::
+.. code-block:: cpp
 
     output[indices[i][j][k]][j][k] = updates[i][j][k] if axis = 0,
     output[i][indices[i][j][k]][k] = updates[i][j][k] if axis = 1,

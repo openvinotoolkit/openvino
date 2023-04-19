@@ -17,7 +17,7 @@
     SoftPlus(x) = \left\{\begin{array}{r}
         x \qquad \mbox{if } x \geq threshold \\
         log(e^{x} + 1.0) \qquad \mbox{if } x < threshold
-    \end{array}\right.
+     \end{array}\right.
 
 **Note**: For numerical stability the operation reverts to the linear function when ``x > threshold`` where ``threshold`` depends on *T* and
 is chosen in such a way that the difference between the linear function and exact calculation is no more than ``1e-6``.

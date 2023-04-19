@@ -15,7 +15,7 @@
 
 The operation is equivalent to the following transformation of the input tensor ``data`` with ``K`` spatial dimensions of shape ``[N, C, D1, D2, ..., DK]`` to *Y* output tensor. If ``mode = blocks_first``:
 
-.. code-block:: 
+.. code-block:: cpp
 
   x' = reshape(data, [N, C, D1 / block_size, block_size, D2 / block_size, block_size, ... , DK / block_size, block_size])
 
@@ -25,7 +25,7 @@ The operation is equivalent to the following transformation of the input tensor 
 
 If ``mode = depth_first``:
 
-.. code-block:: 
+.. code-block:: cpp
 
   x' = reshape(data, [N, C, D1 / block_size, block_size, D2 / block_size, block_size, ..., DK / block_size, block_size])
 
@@ -47,6 +47,7 @@ If ``mode = depth_first``:
 
   * **Description**: specifies how the output depth dimension is gathered from block coordinates and the old depth dimension.
   * **Range of values**:
+  
     * *blocks_first*: the output depth is gathered from ``[block_size, ..., block_size,  C]``
     * *depth_first*: the output depth is gathered from ``[C, block_size, ..., block_size]``
   * **Type**: ``string``

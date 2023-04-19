@@ -135,13 +135,13 @@ The last iteration:
 
 if there are partitioning attributes, then an output tensor is a concatenation of tensors from all body iterations. If ``stride > 0``:
 
-.. code-block:: 
+.. code-block:: cpp
 
     output = Concat(S[0], S[1], ..., S[N-1])
 
 where ``Si`` is value of ``Result`` operation at i-th iteration in the tensor iterator body that corresponds to this output port. If ``stride < 0``, then output is concatenated in a reverse order:
 
-.. code-block:: 
+.. code-block:: cpp
 
     output = Concat(S[N-1], S[N-2], ..., S[0])
 

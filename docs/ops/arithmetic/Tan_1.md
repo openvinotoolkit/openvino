@@ -16,14 +16,14 @@
 
 *Example 1*
 
-.. code-block::
+.. code-block:: cpp
 
    input = [0.0, 0.25, -0.25, 0.5, -0.5]
    output = [0.0, 0.25534192, -0.25534192, 0.54630249, -0.54630249]
 
 *Example 2*
 
-.. code-block::
+.. code-block:: cpp
 
    input = [-2, -1, 0, 1, 2]
    output = [2, -2, 0, 2, -2]

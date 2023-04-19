@@ -18,7 +18,7 @@ if ``indices.shape[-1]`` < ``data.shape.rank``. ``updates`` is a tensor with sha
 
 Example 1 that shows update of four single elements in ``data``:
 
-.. code-block::
+.. code-block:: cpp
 
     data    = [1, 2, 3, 4, 5, 6, 7, 8]
     indices = [[4], [3], [1], [7]]
@@ -28,7 +28,7 @@ Example 1 that shows update of four single elements in ``data``:
 
 Example 2 that shows update of two slices of ``4x4`` shape in ``data``:
 
-.. code-block::
+.. code-block:: cpp
 
     data    = [[[1, 2, 3, 4], [5, 6, 7, 8], [8, 7, 6, 5], [4, 3, 2, 1]],
             [[1, 2, 3, 4], [5, 6, 7, 8], [8, 7, 6, 5], [4, 3, 2, 1]],
