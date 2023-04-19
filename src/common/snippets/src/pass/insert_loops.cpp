@@ -17,7 +17,7 @@ namespace pass {
 InsertLoops::InsertLoops(ov::PartialShape master_shape, size_t loop_depth, size_t vector_size, bool single_loop_body)
     : m_master_shape(std::move(master_shape)), m_loop_depth(loop_depth), m_vector_size(vector_size), m_single_loop_body(single_loop_body) {
     if (m_master_shape.size() < m_loop_depth)
-        throw ngraph_error("InsertLoops can't insert loops: master shape rank is too small");
+        OPENVINO_THROW("InsertLoops can't insert loops: master shape rank is too small");
 }
 
 std::vector<bool> InsertLoops::calculate_inner_apply_increments(const ov::PartialShape& master,
@@ -215,7 +215,7 @@ void insert_loops_explicitly(const ov::NodeVector& ops, const size_t vector_size
 bool InsertLoops::run_on_model(const std::shared_ptr<ov::Model> &model) {
     RUN_ON_FUNCTION_SCOPE(InsertLoops);
     if (m_master_shape.is_dynamic())
-        throw ngraph_error("InsertLoops doesn't support dynamic shapes yet");
+        OPENVINO_THROW("InsertLoops doesn't support dynamic shapes yet");
 
     const auto inner_work_amount = utils::get_inner_dim(m_master_shape).get_length();
     const auto outer_work_amount = m_loop_depth == 2 ? utils::get_outer_dim(m_master_shape).get_length() : 1;
@@ -231,11 +231,11 @@ bool InsertLoops::run_on_model(const std::shared_ptr<ov::Model> &model) {
     const auto& body_rt_info = model->get_rt_info();
     const auto& plugin_shapes = body_rt_info.find("PluginShapesOverride");
     if (plugin_shapes == body_rt_info.end()) {
-        throw ngraph_error("InsertLoops requires PluginShapesOverride rt_info field");
+        OPENVINO_THROW("InsertLoops requires PluginShapesOverride rt_info field");
     } else {
         const auto& new_shapes = plugin_shapes->second.as<std::vector<std::vector<size_t>>>();
         if (new_shapes.size() != commonResults.size() + commonParams.size())
-            throw ngraph_error("InsertLoops got invalid number of plugin-overriden shapes");
+            OPENVINO_THROW("InsertLoops got invalid number of plugin-overriden shapes");
         for (size_t i = 0; i < commonParams.size(); i++)
             ioShapes.emplace_back(new_shapes[i]);
         // reverse overriden_shapes for results since commonResults are reversed with respect to model->get_parameters()

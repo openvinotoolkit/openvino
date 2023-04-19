@@ -29,7 +29,7 @@ ngraph::AxisSet mvn_6_reduction_axes(const ngraph::HostTensorPtr& axes_input, si
     for (size_t i = 0; i < v.size(); i++) {
         if (v[i] < 0) {
             if (rank + v[i] < 0) {
-                throw ngraph::ngraph_error("Unexpected axis");
+                OPENVINO_THROW("Unexpected axis");
             }
             axes[i] = (size_t)(rank + v[i]);
         } else {
@@ -52,7 +52,7 @@ bool evaluate(const std::shared_ptr<ngraph::op::v6::MVN>& op,
     } else if (inputs[1]->get_element_type() == ngraph::element::i32) {
         reduction_axes = mvn_6_axes::mvn_6_reduction_axes<int32_t>(inputs[1], rank);
     } else {
-        throw ngraph::ngraph_error("Unexpected indices type");
+        OPENVINO_THROW("Unexpected indices type");
     }
     ngraph::runtime::reference::mvn_6<T>(inputs[0]->get_data_ptr<ET>(),
                                          outputs[0]->get_data_ptr<ET>(),
@@ -106,8 +106,8 @@ bool evaluate_node<ngraph::op::v0::MVN>(std::shared_ptr<ngraph::Node> node,
     case ngraph::element::Type_t::u64:
         return evaluate<ngraph::element::Type_t::u64>(ov::as_type_ptr<ngraph::op::v0::MVN>(node), outputs, inputs);
     default:
-        throw ngraph::ngraph_error(std::string("Unhandled data type ") + node->get_element_type().get_type_name() +
-                                   std::string("in evaluate_node()"));
+        OPENVINO_THROW(std::string("Unhandled data type ") + node->get_element_type().get_type_name() +
+                       std::string("in evaluate_node()"));
     }
 }
 
@@ -153,7 +153,7 @@ bool evaluate_node<ngraph::op::v6::MVN>(std::shared_ptr<ngraph::Node> node,
     case ngraph::element::Type_t::u64:
         return evaluate<ngraph::element::Type_t::u64>(ov::as_type_ptr<ngraph::op::v6::MVN>(node), outputs, inputs);
     default:
-        throw ngraph::ngraph_error(std::string("Unhandled data type ") + node->get_element_type().get_type_name() +
-                                   std::string("in evaluate_node()"));
+        OPENVINO_THROW(std::string("Unhandled data type ") + node->get_element_type().get_type_name() +
+                       std::string("in evaluate_node()"));
     }
 }

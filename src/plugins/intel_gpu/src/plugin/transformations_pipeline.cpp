@@ -194,6 +194,8 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
 
         // fuse softmax patterns so that they will not be marked as precision sensitive in ConvertPrecision
         manager.register_pass<ov::pass::SoftmaxFusion>();
+        // decompose MVNs that sre not supported in GPU, so the they will be marked as precision sensitive in ConvertPrecision
+        manager.register_pass<ov::pass::MVN6Decomposition>();
 
         //  call ConvertPrecision with keep_precision_sensitive_in_fp32 = true
         manager.register_pass<ov::pass::ConvertPrecision>(fp_convert_precision_map, empty_fuse_map, true);

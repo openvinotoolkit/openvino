@@ -425,7 +425,7 @@ void InterpolateEval<T>::linear_onnx_func(const T* input_data, T* out) {
     }
 
     if (!correct_axes)
-        throw ngraph_error("Axes are not correct!");
+        OPENVINO_THROW("Axes are not correct!");
 
     const auto info = helper.get_info_for_generic_linear_onnx();
 

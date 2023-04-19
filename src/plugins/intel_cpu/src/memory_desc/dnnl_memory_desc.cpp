@@ -70,7 +70,7 @@ std::string DnnlMemoryDesc::serializeFormat() const {
 
 size_t DnnlMemoryDesc::getMaxMemSize() const {
     if (shape.isDynamic()) {
-        IE_THROW() << "Can't compute max mem size for DnnlMemoryDesc with dynaimc shape";
+        IE_THROW() << "Can't compute max mem size for DnnlMemoryDesc with dynamic shape";
     }
 
     return getCurrentMemSize();
