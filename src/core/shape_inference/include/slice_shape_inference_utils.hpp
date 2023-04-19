@@ -205,6 +205,44 @@ inline element::Type get_input_const_element_type(const ov::Node* op,
 using Bounds = std::pair<int64_t, int64_t>;  //!< Alias to dimension bounds for slice.
 
 /**
+ * @brief Check if bounds can cross 0 value (rising edge).
+ *
+ * @param b Input interval bounds for check.
+ * @return True if lower bound is negative and upper is not negative, otherwise false.
+ */
+constexpr bool is_bounds_zero_crossing(const Bounds b) {
+    return (b.first < 0) && (b.second >= 0);
+}
+
+/**
+ * @brief Check if lower bound is within dimension.
+ *
+ * Check valid only if bounds can cross zero value (lb is negative).
+ *
+ * @param lb Lower bound for check.
+ * @param dim Dimension used to check lower bound.
+ * @return True if lower bound is within dimension length, otherwise false.
+ */
+template <class TDim>
+constexpr bool is_lb_within_dim(const int64_t lb, const TDim& dim) {
+    return (dim.get_max_length() == ov::util::dim::inf_bound) || lb + dim.get_max_length() >= 0;
+}
+
+/**
+ * @brief Check if upper bound is within dimension.
+ *
+ * Check valid only if bounds can cross zero value (up is not negative).
+ *
+ * @param ub Upper bound for check.
+ * @param dim Dimension used to check upper bound.
+ * @return True if upper bound is within dimension length, otherwise false.
+ */
+template <class TDim>
+constexpr bool is_ub_within_dim(const int64_t ub, const TDim& dim) {
+    return (dim.get_max_length() == ov::util::dim::inf_bound) || cmp::lt(ub, dim.get_max_length());
+}
+
+/**
  * \brief Get the input bounds from constant input (constant map) or evaluate bunds
  *  and return them as vector of pairs (lower, upper).
  *
@@ -261,7 +299,7 @@ std::unique_ptr<TResult> get_input_bounds(const ov::Node* op,
  *
  * \tparam TDim   Type of in/out dimension.
  *
- * \param dim
+ * \param dim    Input Dimension to slice.
  * \param start  Slice start bounds.
  * \param stop   Slice stop bounds.
  * \param step   Slice step.
@@ -273,10 +311,22 @@ TDim make_dim(const TDim& dim, const Bounds& start, const Bounds& stop, int64_t 
     using TDimVal = typename TDim::value_type;
     using namespace ov::util;
 
-    auto lb = static_cast<TDimVal>(
-        get_sliced_value(dim::value_convert(dim.get_min_length()), start.second, stop.first, step));
-    auto ub = static_cast<TDimVal>(
-        get_sliced_value(dim::value_convert(dim.get_max_length()), start.first, stop.second, step));
+    const auto is_start_zero_crossing = is_bounds_zero_crossing(start);
+    const auto start_lb = is_start_zero_crossing && is_lb_within_dim(start.first, dim) ? 0 : start.first;
+    const auto start_ub = is_start_zero_crossing && is_ub_within_dim(start.second, dim) ? -1 : start.second;
+
+    const auto is_stop_zero_crossing = is_bounds_zero_crossing(stop);
+    const auto stop_lb = is_stop_zero_crossing && is_lb_within_dim(stop.first, dim) ? 0 : stop.first;
+    const auto stop_ub = is_stop_zero_crossing && is_ub_within_dim(stop.second, dim) ? -1 : stop.second;
+
+    TDimVal lb, ub;
+    if (step > 0) {
+        lb = static_cast<TDimVal>(get_sliced_value(dim::value_convert(dim.get_min_length()), start_ub, stop_lb, step));
+        ub = static_cast<TDimVal>(get_sliced_value(dim::value_convert(dim.get_max_length()), start_lb, stop_ub, step));
+    } else {
+        lb = static_cast<TDimVal>(get_sliced_value(dim::value_convert(dim.get_min_length()), start_lb, stop_ub, step));
+        ub = static_cast<TDimVal>(get_sliced_value(dim::value_convert(dim.get_max_length()), start_ub, stop_lb, step));
+    }
 
     return {lb, ub};
 }
