@@ -59,7 +59,7 @@ void ConvEltwiseFusion::SetUp() {
         } else if (conv_type == ngraph::opset4::GroupConvolutionBackpropData::get_type_info_static()) {
             conv = std::make_shared<ngraph::opset4::GroupConvolutionBackpropData>(param, weights, strides, pad_begin, pad_end, strides);
         } else {
-            throw ngraph::ngraph_error("Unsupported type");
+            OPENVINO_THROW("Unsupported type");
         }
 
         std::shared_ptr<ngraph::Node> eltwise;
@@ -74,7 +74,7 @@ void ConvEltwiseFusion::SetUp() {
             // manager.register_pass<ngraph::pass::ConvertConvolutions>();
             // manager.register_pass<ngraph::pass::ConvFusion>();
         } else {
-            throw ngraph::ngraph_error("Unsupported type");
+            OPENVINO_THROW("Unsupported type");
         }
 
         function = std::make_shared<ngraph::Function>(ngraph::OutputVector{eltwise}, ngraph::ParameterVector{param}, "conv_eltwise");

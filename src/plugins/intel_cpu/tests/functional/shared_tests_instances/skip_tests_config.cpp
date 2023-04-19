@@ -205,13 +205,9 @@ std::vector<std::string> disabledTestPatterns() {
         retVector.emplace_back(R"(smoke_CPU_OVClassCompileModelAndCheckWithSecondaryPropertiesDoubleTest.*)");
     }
     retVector.emplace_back(R"(smoke_LPT.*)");
-    retVector.emplace_back(R"(smoke_StaticShapeLoop/StaticShapeLoopTest.CompareWithRefs.*)");
-    retVector.emplace_back(R"(smoke_StaticShapeLoop/StaticShapeLoopTest.CompareWithPredefinedRefs.*)");
-    retVector.emplace_back(R"(smoke_TrivialLoop/TrivialLoopTest.AutoSlicingInputWithDynCondition_(CheckPredefinedValues|CheckReference).*)");
     retVector.emplace_back(R"(smoke_Decomposition_(3|4)D/Mvn6LayerTest.CompareWithRefs.*)");
     retVector.emplace_back(R"(smoke_AvgPool_ExplicitPad_CeilRounding/PoolingLayerTest.CompareWithRefs.*)");
     retVector.emplace_back(R"(smoke_TestsDFT_(1|2|3|4)d/DFTLayerTest.CompareWithRefs.*)");
-    retVector.emplace_back(R"(smoke_TestsSelect_none/SelectLayerTest.CompareWithRefImpl/COND=BOOL.*)");
     retVector.emplace_back(R"(smoke_TestsSelect_numpy/SelectLayerTest.CompareWithRefImpl/COND=BOOL.*)");
     retVector.emplace_back(R"(smoke_Snippets.*)");
     retVector.emplace_back(R"(smoke_Quantized.*)");
