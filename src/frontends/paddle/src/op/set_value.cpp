@@ -77,7 +77,7 @@ NamedOutputs set_value(const NodeContext& node) {
     const auto zero_node = default_opset::Constant::create(element::i64, Shape{}, {0});
     const auto one_node = default_opset::Constant::create(element::i64, Shape{}, {1});
     const auto dim_node = default_opset::Constant::create(element::i64, Shape{}, {dims});
-    const auto reshape_flatten = default_opset::Constant::create(ov::element::i64, {1}, {-1})
+    const auto reshape_flatten = default_opset::Constant::create(ov::element::i64, {1}, {-1});
 
         // get positive starts ends and steps
         if (node.has_input("StartsTensorList") && node.has_input("StepsTensorList") &&
@@ -99,11 +99,11 @@ NamedOutputs set_value(const NodeContext& node) {
     // 3.1 get starts node
     const auto zero_dim_node =
         default_opset::Constant::create(element::i64, {static_cast<size_t>(dims)}, std::vector<int64_t>(dims));
-    starts_node = std::make_shared<default_opset::ScatterNDUpdate>(zero_dim_node, axes_node, starts)
+    starts_node = std::make_shared<default_opset::ScatterNDUpdate>(zero_dim_node, axes_node, starts);
 
         // 3.2 get ends node
         const auto ends_update_node = std::make_shared<default_opset::Subtract>(spec_dim_node, ends);
-    ends_node = std::make_shared<default_opset::ScatterNDUpdate>(zero_dim_node, axes_node, ends_update_node)
+    ends_node = std::make_shared<default_opset::ScatterNDUpdate>(zero_dim_node, axes_node, ends_update_node);
 
         // 3.3 get steps node
         steps_node =
@@ -112,7 +112,7 @@ NamedOutputs set_value(const NodeContext& node) {
 
     // 4.get target value shape
     // 4.1 end - start
-    const auto value_shape_update_node = std::make_shared<default_opset::Subtract>(ends, starts);
+    Output<Node> value_shape_update_node = std::make_shared<default_opset::Subtract>(ends, starts);
     // 4.2 ( end - start ) / step
     value_shape_update_node = std::make_shared<default_opset::Divide>(value_shape_update_node, steps);
     // 4.3 ceil(( end - start ) / step)
