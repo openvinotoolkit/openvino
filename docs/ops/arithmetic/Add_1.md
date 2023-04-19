@@ -49,7 +49,7 @@ After broadcasting *Add* performs addition operation for the input tensors *a* a
 
 *Example 1*
 
-.. code-block:: xml
+.. code-block:: console
    
    <layer ... type="Add">
        <data auto_broadcast="none"/>
