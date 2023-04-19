@@ -39,7 +39,7 @@ bool Reshape::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op
 namespace {
 class ReshapeShapeInfer : public ShapeInferEmptyPads {
 public:
-    ReshapeShapeInfer(bool specialZero, const std::string& name) : m_specialZero(specialZero), m_name(name) {}
+    ReshapeShapeInfer(bool specialZero) : m_specialZero(specialZero) {}
     Result infer(const std::vector<std::reference_wrapper<const VectorDims>>& input_shapes,
                  const std::unordered_map<size_t, MemoryPtr>& data_dependency) override {
         static constexpr size_t RESHAPE_SRC = 0, RESHAPE_PATTERN = 1;
@@ -84,30 +84,9 @@ public:
                 outputShape[minusOneIdx] = 0;
             }
         }
-        std::cout << "======= input shape " << m_name << std::endl;
-        for (auto& item : inputShape) {
-            std::cout << "=======" << item << std::endl;
-        }
-        std::cout << "======= input shape end" <<  std::endl;
-        std::cout << "======= outPattern " <<  std::endl;
-        for (auto& item : outPattern) {
-            std::cout << "=======" << item << std::endl;
-        }
-        std::cout << "======= outPattern end" <<  std::endl;
-        std::cout << "======= outputShape " << std::endl;
-        for (auto& item : outputShape) {
-            std::cout << "=======" << item << std::endl;
-        }
-        std::cout << "======= outputShape end " << m_name << std::endl;
-        std::cout << "======= inputProduct " << inputProduct << std::endl;
-        std::cout << "======= outputProduct " << outputProduct << std::endl;
-        std::cout << "======= minusOneCount " << minusOneCount << std::endl;
-
-
         if (minusOneCount > 1  || inputProduct != outputProduct) {
             IE_THROW(Unexpected) << "[cpu]reshape: the shape of input data conflicts with the reshape pattern";
         }
-
         return {{std::move(outputShape)}, ShapeInferStatus::success};
     }
     port_mask_t get_port_mask() const override {
@@ -116,12 +95,11 @@ public:
 
 private:
     bool m_specialZero;
-    std::string m_name;
 };
 
 class SqueezeShapeInfer : public ShapeInferEmptyPads {
 public:
-    SqueezeShapeInfer(const std::string& name): m_name(name) {}
+    SqueezeShapeInfer() {}
     Result infer(const std::vector<std::reference_wrapper<const VectorDims>>& input_shapes,
                  const std::unordered_map<size_t, MemoryPtr>& data_dependency) override {
         static constexpr size_t SQUEEZE_SRC = 0, SQUEEZE_PATTERN = 1;
@@ -160,12 +138,6 @@ public:
                     break;
                 }
             }
-            std::cout << "sq======= outPattern " <<  std::endl;
-            for (auto& item : outPattern) {
-                std::cout << "sq=======" << item << std::endl;
-            }
-            std::cout << "sq======= outPattern end" <<  std::endl;
-
             if (existError) {
                 IE_THROW(Unexpected) << "[cpu]squeeze: the shape of input data conflict with the squeeze pattern";
             }
@@ -176,31 +148,16 @@ public:
                 }
             }
         }
-
-        std::cout << "sq======= input shape " << m_name << std::endl;
-        for (auto& item : inputShape) {
-            std::cout << "sq=======" << item << std::endl;
-        }
-        std::cout << "sq======= input shape end" <<  std::endl;
-        std::cout << "sq======= outputShape " << std::endl;
-        for (auto& item : outputShape) {
-            std::cout << "sq=======" << item << std::endl;
-        }
-        std::cout << "sq======= outputShape end " << m_name << std::endl;
-
         return {{std::move(outputShape)}, ShapeInferStatus::success};
     }
     port_mask_t get_port_mask() const override {
         return PortMask(1);
     }
-
-private:
-    std::string m_name;
 };
 
 class UnsqueezeShapeInfer : public ShapeInferEmptyPads {
 public:
-    UnsqueezeShapeInfer(const std::string& name): m_name(name) {}
+    UnsqueezeShapeInfer() {}
     Result infer(const std::vector<std::reference_wrapper<const VectorDims>>& input_shapes,
                  const std::unordered_map<size_t, MemoryPtr>& data_dependency) override {
         static constexpr size_t UNSQUEEZE_SRC = 0, UNSQUEEZE_PATTERN = 1;
@@ -240,22 +197,6 @@ public:
                 }
             }
         }
-        std::cout << "unsq======= input shape " << m_name << std::endl;
-        for (auto& item : inputShape) {
-            std::cout << "unsq=======" << item << std::endl;
-        }
-        std::cout << "unsq======= input shape end" <<  std::endl;
-        std::cout << "unsq======= outPattern " <<  std::endl;
-        for (auto& item : outPattern) {
-            std::cout << "unsq=======" << item << std::endl;
-        }
-        std::cout << "unsq======= outPattern end" <<  std::endl;
-        std::cout << "unsq======= outputShape " << std::endl;
-        for (auto& item : outputShape) {
-            std::cout << "unsq=======" << item << std::endl;
-        }
-        std::cout << "unsq======= outputShape end " << m_name << std::endl;
-
         if (existError) {
             IE_THROW(Unexpected) << "[cpu]unsqueeze: the shape of input data conflicts with the unsqueeze pattern";
         }
@@ -264,9 +205,6 @@ public:
     port_mask_t get_port_mask() const override {
         return PortMask(1);
     }
-
-private:
-    std::string m_name;
 };
 
 class ReshapeShapeInferFactory : public ShapeInferFactory {
@@ -274,11 +212,11 @@ public:
     ReshapeShapeInferFactory(std::shared_ptr<ov::Node> op) : m_op(op) {}
     ShapeInferPtr makeShapeInfer() const override {
         if (const auto reshapeOp = ov::as_type_ptr<const ov::op::v1::Reshape>(m_op)) {
-            return std::make_shared<ReshapeShapeInfer>(reshapeOp->get_special_zero(), reshapeOp->get_friendly_name());
+            return std::make_shared<ReshapeShapeInfer>(reshapeOp->get_special_zero());
         } else if (ov::is_type<ov::op::v0::Squeeze>(m_op)) {
-            return std::make_shared<SqueezeShapeInfer>(m_op->get_friendly_name());
+            return std::make_shared<SqueezeShapeInfer>();
         } else if (ov::is_type<ov::op::v0::Unsqueeze>(m_op)) {
-            return std::make_shared<UnsqueezeShapeInfer>(m_op->get_friendly_name());
+            return std::make_shared<UnsqueezeShapeInfer>();
         } else {
             IE_THROW(Unexpected) << "[cpu]reshape: " << m_op->get_type_name() << "is not implemented";
         }
