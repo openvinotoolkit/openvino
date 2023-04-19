@@ -38,12 +38,23 @@ void add_primitives(engine& engine, topology& topology) {
     auto biases = engine.allocate_memory({ data_types::f32, format::bfyx, { 1, 2, 1, 1 } });
     set_values(biases, { 1.0f, -8.0f });
 
-    topology.add(
-        data("weights", weights),
-        data("biases", biases),
-        convolution("conv", input_info("input"), { "weights" }, { "biases" }, { 2, 1 }, { 0, 0 }, { 1, 1 }),
-        activation( "out", input_info("conv"), activation_func::relu)
-    );
+    if (engine.get_device_info().supports_immad) {
+        // Add reorder not to concern about query oneDNN (e.g. src:acdb, wei:Abcd8a, dst:acdb)
+        topology.add(
+            data("weights", weights),
+            data("biases", biases),
+            convolution("conv", input_info("input"), { "weights" }, { "biases" }, { 2, 1 }, { 0, 0 }, { 1, 1 }),
+            activation( "act", input_info("conv"), activation_func::relu),
+            reorder("out", input_info("act"), format::bfyx, data_types::f32)
+        );
+    } else {
+        topology.add(
+            data("weights", weights),
+            data("biases", biases),
+            convolution("conv", input_info("input"), { "weights" }, { "biases" }, { 2, 1 }, { 0, 0 }, { 1, 1 }),
+            activation( "out", input_info("conv"), activation_func::relu)
+        );
+    }
 }
 template<typename T>
 T kahan_summation(std::vector<T> &input) {
@@ -4016,6 +4027,7 @@ TEST(convolution_f32_fw_gpu, byte_activation) {
     topology topology(
         input_layout("input", input->get_layout()));
     add_primitives(engine, topology);
+
     network network(engine, topology, config);
     network.set_input_data("input", input);
 
@@ -4035,22 +4047,12 @@ TEST(convolution_f32_fw_gpu, byte_activation) {
     ASSERT_EQ(x_size, 3);
     ASSERT_EQ(f_size, 2);
     ASSERT_EQ(b_size, 1);
-    if (engine.get_device_info().supports_immad) {
-        // Query oneDNN about recommanded format : src:acdb, wei:Abcd8a, dst:acdb
-        ASSERT_EQ(output_layout.format, format::byxf);
-    } else {
-        ASSERT_EQ(output_layout.format, format::bfyx);
-    }
+    ASSERT_EQ(output_layout.format, format::bfyx);
 
     for (int f = 0; f < f_size; f++) {
         for (int y = 0; y < y_size; ++y) {
             for (int x = 0; x < x_size; ++x) {
-                if (engine.get_device_info().supports_immad) {
-                    // dst : acdb
-                    ASSERT_NEAR(output_vec[f][y][x], ((float)output_ptr[y * x_size * f_size + x * f_size + f]), 3.0f);
-                } else {
-                    ASSERT_NEAR(output_vec[f][y][x], ((float)output_ptr[f * y_size * x_size + y * x_size + x]), 3.0f);
-                }
+                ASSERT_NEAR(output_vec[f][y][x], ((float)output_ptr[f * y_size * x_size + y * x_size + x]), 3.0f);
             }
         }
     }
@@ -5406,17 +5408,16 @@ TEST(convolution_f32_fw_gpu, convolution_int8_b_fs_yx_fsv4_to_bfyx) {
     const int output_f = 12;
     const int input_f = 16;
     const int filter_xy = 5;
+    const int input_padding = 2;
+    const int output_padding = 2;
     const int input_size_x = 1280;
     const int input_size_y = 720;
-    int output_padding = 2;
-    int input_padding = 2;
 
     auto& engine = get_test_engine();
 
     if (engine.get_device_info().supports_immad) {
-        // Currently, oneDNN does NOT support input/output padding.
-        input_padding = 0;
-        output_padding = 0;
+        // Currently, oneDNN does NOT support input/output padding.(And oneDNN does NOT use fsv4 for this tensor.)
+        return;
     }
 
     auto input_size = tensor(batch_num, input_f, input_size_x, input_size_y);
@@ -5488,31 +5489,15 @@ TEST(convolution_f32_fw_gpu, convolution_int8_b_fs_yx_fsv4_to_bfyx) {
     int f_size = output_layout.feature();
     int b_size = output_layout.batch();
 
-    if (engine.get_device_info().supports_immad) {
-        // No padded input/output for oneDNN conv execution
-        ASSERT_EQ(output_layout.format, format::bfyx);
-        ASSERT_EQ(y_size, 716);
-        ASSERT_EQ(x_size, 1276);
-        ASSERT_EQ(f_size, output_f);
-        ASSERT_EQ(b_size, 1);
-        for (int o = 0; o < f_size; ++o) {
-            for (int y = 0; y < y_size; ++y) {
-                for (int x = 0; x < x_size; ++x) {
-                    ASSERT_EQ(output_act_ptr[o * x_size * y_size + y * x_size + x], output_ptr[o * x_size * y_size + y * x_size + x]);
-                }
-            }
-        }
-    } else {
-        ASSERT_EQ(output_layout.format, format::bfyx);
-        ASSERT_EQ(y_size, 720);
-        ASSERT_EQ(x_size, 1280);
-        ASSERT_EQ(f_size, output_f);
-        ASSERT_EQ(b_size, 1);
-        for (int o = 0; o < f_size; ++o) {
-            for (int y = 0; y < y_size; ++y) {
-                for (int x = 0; x < x_size; ++x) {
-                    ASSERT_EQ(output_act_ptr[o * x_size * y_size + y * x_size + x], output_ptr[o * x_size * y_size + y * x_size + x]);
-                }
+    ASSERT_EQ(output_layout.format, format::bfyx);
+    ASSERT_EQ(y_size, 720);
+    ASSERT_EQ(x_size, 1280);
+    ASSERT_EQ(f_size, output_f);
+    ASSERT_EQ(b_size, 1);
+    for (int o = 0; o < f_size; ++o) {
+        for (int y = 0; y < y_size; ++y) {
+            for (int x = 0; x < x_size; ++x) {
+                ASSERT_EQ(output_act_ptr[o * x_size * y_size + y * x_size + x], output_ptr[o * x_size * y_size + y * x_size + x]);
             }
         }
     }
@@ -5623,6 +5608,7 @@ TEST(convolution_gpu, bfyx_iyxo_5x5_fp16)
         conv_fsv.output_paddings = {padding({ 0, 0, output_padding, output_padding }, 0.f)};
 
         topology.add(conv_fsv);
+        topology.add(reorder("out", input_info("conv_fsv"), format::bfyx, data_types::f16));
     }
 
 
@@ -5635,34 +5621,21 @@ TEST(convolution_gpu, bfyx_iyxo_5x5_fp16)
 
     network.execute();
 
-    auto out_mem = network.get_output("conv_fsv").get_memory();
+    auto out_mem = network.get_output("out").get_memory();
     cldnn::mem_lock<FLOAT16> out_ptr(out_mem, get_test_stream());
 
     auto output_layout = out_mem->get_layout();
-    if (engine.get_device_info().supports_immad) {
-        // Query oneDNN about recommanded format : src:aBcd16b, wei:ABcd8b8a2b, dst:acdb
-        ASSERT_EQ(output_layout.format, format::byxf);
-    } else {
-        ASSERT_EQ(output_layout.format, format::bfyx);
-    }
+    ASSERT_EQ(output_layout.format, format::bfyx);
 
     for (int bi = 0; bi < batch_num; ++bi) {
         for (int fi = 0; fi < output_f; ++fi) {
             for (int yi = 0; yi < output_y; ++yi) {
                 for (int xi = 0; xi < output_x; ++xi) {
                     auto val_ref = reference_result[bi][fi][yi][xi];
-                    FLOAT16 val;
-                    if (engine.get_device_info().supports_immad) {
-                        val = out_ptr[bi * output_y * output_x * output_f +
-                                            yi * output_x * output_f  +
-                                            xi * output_f +
-                                            fi];
-                    } else {
-                        val = out_ptr[bi * output_f * output_x * output_y +
-                                            fi * output_y * output_x  +
-                                            yi * output_x +
-                                            xi];
-                    }
+                    auto val = out_ptr[bi * output_f * output_x * output_y +
+                                        fi * output_y * output_x  +
+                                        yi * output_x +
+                                        xi];
 
                     auto equal = are_equal(val_ref, val, 1e-2f);
                     ASSERT_TRUE(equal);
@@ -6990,6 +6963,7 @@ TEST_P(convolution_depthwise_gpu_fsv16_xy, depthwise_conv_b_fs_yx_fsv16)
     conv_fsv.output_paddings = {padding({ 0, 0, output_padding, output_padding }, 0.f)};
 
     topology.add(conv_fsv);
+    topology.add(reorder("out", input_info("conv_fsv"), format::b_fs_yx_fsv16, data_types::f16));
 
     ExecutionConfig config = get_test_default_config(engine);
     config.set_property(ov::intel_gpu::optimize_data(true));
@@ -7006,38 +6980,22 @@ TEST_P(convolution_depthwise_gpu_fsv16_xy, depthwise_conv_b_fs_yx_fsv16)
 
     network.execute();
 
-    auto out_mem = network.get_output("conv_fsv").get_memory();
-    cldnn::mem_lock<FLOAT16> out_ptr(out_mem, get_test_stream());
+    auto out_mem = network.get_output("out").get_memory();
 
-    // Query oneDNN about recommanded format in small tensor size : src:acdb, wei:Abcde16a, dst:acdb
-    bool is_onednn_acdb_output = (engine.get_device_info().supports_immad && output_f <= 8);
-    if (is_onednn_acdb_output) {
-        ASSERT_EQ(out_mem->get_layout().format, format::byxf);
-    } else {
-        ASSERT_EQ(out_mem->get_layout().format, format::b_fs_yx_fsv16);
-    }
+    cldnn::mem_lock<FLOAT16> out_ptr(out_mem, get_test_stream());
+    ASSERT_EQ(out_mem->get_layout().format, format::b_fs_yx_fsv16);
 
     for (int bi = 0; bi < batch_num; ++bi) {
         for (int fi = 0; fi < output_f; ++fi) {
             for (int yi = 0; yi < output_y; ++yi) {
                 for (int xi = 0; xi < output_x; ++xi)
                 {
-                    FLOAT16 val_ref = reference_result[bi][fi][yi][xi];
-
-                    FLOAT16 val;
-                    if (is_onednn_acdb_output) {
-                        // Query oneDNN about recommanded format in small tensor size : dst:acdb
-                        val = out_ptr[bi * output_y * output_x * output_f +
-                                        yi * output_x * output_f  +
-                                        xi * output_f +
-                                        fi];
-                    } else {
-                        val = out_ptr[bi * f_group_num_in_batch * f_group_size * output_y * output_x  +
+                    auto val_ref = reference_result[bi][fi][yi][xi];
+                    auto val = out_ptr[bi * f_group_num_in_batch * f_group_size * output_y * output_x  +
                                         (fi / f_group_size) * output_y * output_x * f_group_size +
                                         yi * output_x * f_group_size +
                                         xi * f_group_size +
                                         fi % f_group_size];
-                    }
 
                     auto equal = are_equal(val_ref, val, 1e-2f);
                     ASSERT_TRUE(equal);
