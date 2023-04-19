@@ -10,8 +10,11 @@
 #include "gna_mock_api.hpp"
 #include "gna_plugin.hpp"
 #include "ngraph_functions/builders.hpp"
+#include "openvino/opsets/opset11.hpp"
 
 using ov::intel_gna::GNAPlugin;
+using namespace ov::op;
+using namespace ov::opset11;
 
 namespace {
 
@@ -132,13 +135,13 @@ void GNAPWLExtraSegmentsTestFixture::SetUp() {
     filter_shape.push_back(input_shape[1]);
     filter_shape.insert(filter_shape.end(), kernel.begin(), kernel.end());
 
-    auto input = std::make_shared<ngraph::opset9::Parameter>(precision, input_shape);
+    auto input = std::make_shared<Parameter>(precision, input_shape);
     auto filter = ngraph::builder::makeConstant<float>(precision, filter_shape, {1.f}, true);
 
-    auto conv = std::make_shared<ngraph::opset9::Convolution>(input, filter, stride, pad_begin, pad_end, dilation);
+    auto conv = std::make_shared<Convolution>(input, filter, stride, pad_begin, pad_end, dilation);
 
     auto activation = ngraph::builder::makeActivation(conv, precision, activation_type);
-    std::shared_ptr<ngraph::opset9::Result> result = nullptr;
+    std::shared_ptr<Result> result = nullptr;
 
     if (use_pooling) {
         auto maxpool = ngraph::builder::makePooling(activation,
@@ -146,13 +149,13 @@ void GNAPWLExtraSegmentsTestFixture::SetUp() {
                                                     pad_begin_pool,
                                                     pad_end_pool,
                                                     kernel,
-                                                    ngraph::op::RoundingType::FLOOR,
-                                                    ngraph::op::PadType::VALID,
+                                                    RoundingType::FLOOR,
+                                                    PadType::VALID,
                                                     false,
                                                     ngraph::helpers::PoolingTypes::MAX);
-        result = std::make_shared<ngraph::opset9::Result>(maxpool);
+        result = std::make_shared<Result>(maxpool);
     } else {
-        result = std::make_shared<ngraph::opset9::Result>(activation);
+        result = std::make_shared<Result>(activation);
     }
 
     auto function = std::make_shared<ov::Model>(ov::ResultVector({result}),
