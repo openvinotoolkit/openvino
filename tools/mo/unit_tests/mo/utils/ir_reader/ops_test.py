@@ -57,6 +57,8 @@ class TestOps(unittest.TestCase):
         graph = TestOps.check_graph_can_save(model, 'interpolate_model')
         interpolate_node = graph.get_op_nodes(op="Interpolate")[0]
         self.assertEqual(interpolate_node["version"], "opset11")
+        self.assertTrue("force_precision_in_ports" in interpolate_node)
+        self.assertEqual(interpolate_node["force_precision_in_ports"], {1: 'int64'})
 
     def test_interpolate_11_scales(self):
         data_shape = [6, 12, 10, 24]
@@ -68,6 +70,7 @@ class TestOps(unittest.TestCase):
         graph = TestOps.check_graph_can_save(model, 'interpolate_model')
         interpolate_node = graph.get_op_nodes(op="Interpolate")[0]
         self.assertEqual(interpolate_node["version"], "opset11")
+        self.assertTrue("force_precision_in_ports" not in interpolate_node)
 
     def test_interpolate_11_no_axes(self):
         data_shape = [6, 12, 10, 24]
@@ -79,6 +82,8 @@ class TestOps(unittest.TestCase):
         graph = TestOps.check_graph_can_save(model, 'interpolate_model')
         interpolate_node = graph.get_op_nodes(op="Interpolate")[0]
         self.assertEqual(interpolate_node["version"], "opset11")
+        self.assertTrue("force_precision_in_ports" in interpolate_node)
+        self.assertEqual(interpolate_node["force_precision_in_ports"], {1: 'int64'})
 
     def test_interpolate_4(self):
         data_shape = [6, 12, 10, 24]
