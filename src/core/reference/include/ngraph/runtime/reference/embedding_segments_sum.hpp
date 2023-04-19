@@ -33,7 +33,7 @@ void embeddingSegmentsSum(const T* embTable,
     for (size_t index = 0; index < indices_len; index++) {
         size_t obi = segmentIds[index];
         if (obi >= segments_num)
-            throw ngraph_error("Segment index could not be more than segments number");
+            OPENVINO_THROW("Segment index could not be more than segments number");
         size_t dst_index = obi * embDepth;
         size_t src_index = indices[index] * embDepth;
 
@@ -51,7 +51,7 @@ void embeddingSegmentsSum(const T* embTable,
     if (defaultIndex != nullptr) {
         U defIndex = defaultIndex[0];
         if (defIndex < U(0) && static_cast<size_t>(defIndex) >= embTableShape[0])
-            throw ngraph_error(std::string("Invalid default index") + std::to_string(defIndex));
+            OPENVINO_THROW(std::string("Invalid default index") + std::to_string(defIndex));
         for (size_t obi = 0; obi < segments_num; obi++) {
             bool found = false;
             for (size_t index = 0; index < indices_len; index++) {

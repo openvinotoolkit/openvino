@@ -5,6 +5,10 @@
 #include "pass_manager.h"
 #include "program_helpers.h"
 #include "reshape_inst.h"
+#include "layout_optimizer.h"
+
+#include "gemm_inst.h"
+#include "pooling_inst.h"
 
 #include <iterator>
 #include <vector>
@@ -75,11 +79,48 @@ void handle_reshape::run(program& p) {
             // vector for storing nodes that are reorder type, for which splitted primitives are needed (except for the
             // first one where orginal reshape will be used)
             std::vector<program_node*> reorder_node_to_split;
+            std::vector<program_node*> onednn_users;
 
             // find the users of reshape that are reorder type, if none present then skip the current node
+            // find users who are onednn impl
             for (const auto& user : node->get_users()) {
                 if (user->is_type<reorder>())
                     reorder_node_to_split.push_back(user);
+                if (user->get_preferred_impl_type() == cldnn::impl_types::onednn)
+                    onednn_users.push_back(user);
+            }
+
+            // If onednn user doesn't support new input data type from future "reorder:_reshape_input_" reorder,
+            // remove target reorder_node to keep original datatype
+            if (!onednn_users.empty() && !reorder_node_to_split.empty()) {
+                // Copy reorder_node_to_split to iteration
+                std::vector<program_node*> reorder_users(reorder_node_to_split);
+                for (const auto& reorder_node : reorder_users) {
+                    auto output_data_type = reorder_node->get_output_layout().data_type;
+                    bool onednn_support = true;
+                    for (const auto& user : onednn_users) {
+                        auto out_dt = user->get_output_layout().data_type;
+                        if (user->is_type<fully_connected>() || user->is_type<gemm>()) {
+                            bool is_fc = user->is_type<fully_connected>();
+                            auto wei_dt = is_fc ? user->as<fully_connected>().weights().get_output_layout().data_type :
+                                                    user->as<gemm>().get_dependency(1).get_output_layout().data_type;
+                            onednn_support = layout_optimizer::onednn_check_data_types_for_fc_gemm(output_data_type, wei_dt, out_dt);
+                        } else if (user->is_type<convolution>() || user->is_type<deconvolution>()) {
+                            bool is_conv = user->is_type<convolution>();
+                            auto wei_dt = is_conv ? user->as<convolution>().weights().get_output_layout().data_type :
+                                                    user->as<deconvolution>().weights().get_output_layout().data_type;
+                            onednn_support = layout_optimizer::onednn_check_data_types_for_convolution(output_data_type, wei_dt, out_dt);
+                        } else if (user->is_type<pooling>()) {
+                            onednn_support = layout_optimizer::onednn_check_data_types_for_pooling(output_data_type, out_dt);
+                        }
+
+                        if (!onednn_support) {
+                            reorder_node_to_split.erase(std::remove(reorder_node_to_split.begin(), reorder_node_to_split.end(), reorder_node),
+                                                        reorder_node_to_split.end());
+                            break;
+                        }
+                    }
+                }
             }
 
             if (!reorder_node_to_split.empty()) {

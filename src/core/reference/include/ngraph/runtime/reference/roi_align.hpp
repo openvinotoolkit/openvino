@@ -58,7 +58,7 @@ void roi_align(const T* feature_maps,
         break;
     }
     default: {
-        throw ngraph_error(std::string("Not supported aligned_mode"));
+        OPENVINO_THROW(std::string("Not supported aligned_mode"));
         break;
     }
     }
