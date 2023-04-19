@@ -15,7 +15,7 @@ DecomposeIntegerDivide::DecomposeIntegerDivide() {
              if (!divide) {
                  return false;
              }
-             if (divide->get_element_type().is_integral_number()) {
+             if (!divide->get_element_type().is_integral_number()) {
                  return false;
              }
 
