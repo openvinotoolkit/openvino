@@ -1546,6 +1546,7 @@ cdef class InferRequest:
         """
         return self.impl.exec_time
 
+    @deprecated("This method is deprecated and will be removed in 2023.1 release")
     def set_batch(self, size):
         """Sets new batch size for certain infer request when dynamic batching is enabled in executable network
         that created this request.
