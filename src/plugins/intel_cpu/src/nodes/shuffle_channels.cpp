@@ -81,8 +81,6 @@ ShuffleChannels::ShuffleChannels(const std::shared_ptr<ngraph::Node>& op, const 
     attrs.dataRank = getInputShapeAtPort(0).getRank();
     if (attrs.axis < 0)
         attrs.axis += attrs.dataRank;
-
-    supportDynamicBatch = (attrs.axis != 0);
 }
 
 void ShuffleChannels::initSupportedPrimitiveDescriptors() {
@@ -111,18 +109,18 @@ void ShuffleChannels::initSupportedPrimitiveDescriptors() {
 
     addSupportedPrimDesc({{firstCreatorType, precision}},
                          {{firstCreatorType, precision}},
-                         impl_type, supportDynamicBatch);
+                         impl_type);
     addSupportedPrimDesc({{secondCreatorType, precision}},
                          {{secondCreatorType, precision}},
-                         impl_type, supportDynamicBatch);
+                         impl_type);
     // canUseBlocked
     if (attrs.axis != 1) {
         addSupportedPrimDesc({{LayoutType::nCsp8c, precision}},
                              {{LayoutType::nCsp8c, precision}},
-                             impl_type, supportDynamicBatch);
+                             impl_type);
         addSupportedPrimDesc({{LayoutType::nCsp16c, precision}},
                              {{LayoutType::nCsp16c, precision}},
-                             impl_type, supportDynamicBatch);
+                             impl_type);
     }
 }
 

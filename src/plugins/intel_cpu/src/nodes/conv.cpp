@@ -748,7 +748,6 @@ void Convolution::initSupportedPrimitiveDescriptors() {
         auto itpd = desc;
         while (itpd) {
             NodeConfig config;
-            config.dynBatchSupport = true;
 
             for (size_t i = 0; i < descInputNumbers(); i++) {
                 PortConfig dataConfig;

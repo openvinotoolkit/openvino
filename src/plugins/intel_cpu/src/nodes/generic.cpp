@@ -55,7 +55,6 @@ void Generic::getSupportedDescriptors() {
 
 NodeConfig Generic::convertLayerToNodeConfig(const InferenceEngine::LayerConfig &layerConfig) {
     NodeConfig config;
-    config.dynBatchSupport = layerConfig.dynBatchSupport;
     config.inConfs.resize(layerConfig.inConfs.size());
     for (size_t i = 0; i < layerConfig.inConfs.size(); i++) {
         config.inConfs[i].inPlace(layerConfig.inConfs[i].inPlace);
@@ -73,7 +72,6 @@ NodeConfig Generic::convertLayerToNodeConfig(const InferenceEngine::LayerConfig 
 
 InferenceEngine::LayerConfig Generic::convertNodeToLayerConfig(const NodeConfig &nodeConfig) {
     InferenceEngine::LayerConfig config;
-    config.dynBatchSupport = nodeConfig.dynBatchSupport;
     config.inConfs.resize(nodeConfig.inConfs.size());
     for (size_t i = 0; i < nodeConfig.inConfs.size(); i++) {
         config.inConfs[i].inPlace = nodeConfig.inConfs[i].inPlace();

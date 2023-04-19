@@ -1220,7 +1220,6 @@ struct EltwiseKey {
     std::vector<InferenceEngine::Precision> inpPrc;
     InferenceEngine::Precision outPrc;
     dnnl::post_ops postOps;
-    bool useDynBatch;
     EltwiseImplType implType;
 
     size_t hash() const {
@@ -1256,7 +1255,6 @@ struct EltwiseKey {
         });
         seed = hash_combine(seed, outPrc.getPrecVal());
         seed = get_post_op_hash(seed, *postOps.get());
-        seed = hash_combine(seed, useDynBatch);
         seed = hash_combine(seed, implType);
         return seed;
     }
@@ -1271,7 +1269,6 @@ struct EltwiseKey {
                       inpPrc == rhs.inpPrc &&
                       outPrc == rhs.outPrc &&
                       *postOps.get() == *rhs.postOps.get() &&
-                      useDynBatch == rhs.useDynBatch &&
                       implType == rhs.implType;
 
         if (result) {
@@ -1322,7 +1319,6 @@ public:
                        const std::vector<InferenceEngine::Precision>& inpPrc,
                        const InferenceEngine::Precision& outPrc,
                        const dnnl::post_ops& post_ops,
-                       bool useDynBatch,
                        bool useRuntimePtrs) {
         auto collapseLastDims = [](std::vector<size_t>& dims, int dimsToCollapse) {
             for (int i = dims.size() - 2; i > dims.size() - dimsToCollapse - 2; i--) {
@@ -1429,8 +1425,7 @@ public:
 
         bool hasDifferentDims = false;
         while (!useRuntimePtrs && currentJitWorkAmount < minimalJitWorkAmount && currentJitWorkAmount < fullWorkAmount &&
-               // we shouldn't collapse batch dimension in case dynamic batch is enabled
-               (!useDynBatch || (outBlkDims.size() - collapsedDims > 2))) {
+               (outBlkDims.size() - collapsedDims > 2)) {
             if (collapsedDims >= maxCollapsedDims)
                 break;
 
@@ -1786,7 +1781,6 @@ static Eltwise::executorPtr buildExecutor(const EltwiseKey& key) {
                                                        key.inpPrc,
                                                        key.outPrc,
                                                        key.postOps,
-                                                       key.useDynBatch,
                                                        key.implType == EltwiseImplType::optimizedShapeAgnostic);
     } else {
         execPtr = std::make_shared<EltwiseRefExecutor>(key.eltwise_data.front(),
@@ -2062,10 +2056,6 @@ void Eltwise::initSupportedPrimitiveDescriptors() {
         // TODO [DS]: inplace
         size_t offset = 0;
         NodeConfig config;
-        if (!isDynamicNode()) {
-            config.dynBatchSupport = getOutputShapeAtPort(0).getRank() > 1 && getOutputShapeAtPort(0) ==
-                                                                                    getInputShapeAtPort(0);
-        }
 
         for (size_t i = 0; i < getParentEdges().size(); i++) {
             BlockedMemoryDesc::CmpMask inputMask = BLOCKED_DESC_SKIP_OFFSET_MASK;
@@ -2182,8 +2172,6 @@ void Eltwise::createPrimitive() {
         memPtrs.push_back(getChildEdgeAt(0)->getMemoryPtr());
     }
 
-    isDynBatchEnabled = getSelectedPrimitiveDescriptor()->getConfig().dynBatchSupport;
-
     start_offset_in.resize(inputNum);
     for (size_t i = 0; i < inputNum; i++) {
         const auto desc = getParentEdgeAt(i)->getMemory().GetDescWithType<BlockedMemoryDesc>();
@@ -2276,7 +2264,7 @@ void Eltwise::prepareParams() {
 
     if (!canSkipSearchInCache) {
         EltwiseData thisOp{getAlgorithm(), getOneDnnAlgorithm(), getAlpha(), getBeta(), getGamma()};
-        EltwiseKey key = {{thisOp}, {getType()}, currentOutBlkDims, outOrder, dims_in, inpPrc, outPrc, dnnl::post_ops(), isDynBatchEnabled, implType};
+        EltwiseKey key = {{thisOp}, {getType()}, currentOutBlkDims, outOrder, dims_in, inpPrc, outPrc, dnnl::post_ops(), implType};
         fqDataPtrs.clear();
         for (const auto &node : fusedWith) {
             key.ops_list.push_back(node->getType());

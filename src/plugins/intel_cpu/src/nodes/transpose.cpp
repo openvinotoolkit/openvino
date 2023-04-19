@@ -133,7 +133,6 @@ void Transpose::initSupportedPrimitiveDescriptors() {
     auto& creatorsMap = BlockedDescCreator::getCommonCreators();
 
     NodeConfig config;
-    config.dynBatchSupport = true;
     config.inConfs.resize(2);
     config.outConfs.resize(1);
     config.inConfs[INPUT_DATA_IDX].inPlace(-1);

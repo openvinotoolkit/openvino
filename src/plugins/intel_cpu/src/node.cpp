@@ -628,7 +628,6 @@ void Node::initSupportedPrimitiveDescriptors() {
 
         while (static_cast<bool>(itpd)) {
             NodeConfig config;
-            config.dynBatchSupport = true;
             for (size_t i = 0; i < descInputNumbers(); i++) {
                 PortConfig portConfig;
                 portConfig.inPlace(-1);
@@ -1596,8 +1595,7 @@ void Node::addFusedNode(const NodePtr &fusingNode) {
 
 void Node::addSupportedPrimDesc(const std::vector<PortConfigurator>& inPortConfigs,
                                 const std::vector<PortConfigurator>& outPortConfigs,
-                                impl_desc_type implType,
-                                bool dynBatchSupport) {
+                                impl_desc_type implType) {
     auto fill_port = [] (const PortConfigurator& portConfigurator, const Shape& shape,
                          InferenceEngine::Precision prc, std::vector<PortConfig>& port) -> bool {
         // In order to simplify particular node initialization logic we just don't add config in case target shape is not supported by blockedDescCreator.
@@ -1629,8 +1627,6 @@ void Node::addSupportedPrimDesc(const std::vector<PortConfigurator>& inPortConfi
         if (!fill_port(outPortConfigs[i], dims, prc, config.outConfs))
             return;
     }
-
-    config.dynBatchSupport = dynBatchSupport;
     supportedPrimitiveDescriptors.push_back({config, implType});
 }
 

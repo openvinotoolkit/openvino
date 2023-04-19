@@ -638,8 +638,7 @@ protected:
 
     void addSupportedPrimDesc(const std::vector<PortConfigurator>& inPortConfigs,
                               const std::vector<PortConfigurator>& outPortConfigs,
-                              impl_desc_type implType,
-                              bool dynBatchSupport = false);
+                              impl_desc_type implType);
 
     void prepareMemory(const std::vector<DnnlMemoryDescPtr>& intDescs);
     void prepareMemory(const DnnlMemoryDescPtr& intDesc, size_t indx);

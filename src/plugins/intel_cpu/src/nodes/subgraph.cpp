@@ -179,7 +179,6 @@ void Snippet::initSupportedPrimitiveDescriptors() {
 
         size_t offset = 0;
         NodeConfig config;
-        config.dynBatchSupport = false;
         config.inConfs.resize(inputShapes.size());
         for (size_t i = 0; i < inputShapes.size(); i++) {
             const auto originalInputPrecision = getOriginalInputPrecisionAtPort(i);

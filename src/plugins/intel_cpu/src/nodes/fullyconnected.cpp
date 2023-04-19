@@ -673,7 +673,6 @@ void FullyConnected::initSupportedPrimitiveDescriptors() {
             };
 
             NodeConfig config;
-            config.dynBatchSupport = true;
             for (size_t i = 0; i < descInputNumbers(); i++) {
                 PortConfig portConfig;
                 portConfig.inPlace(-1);

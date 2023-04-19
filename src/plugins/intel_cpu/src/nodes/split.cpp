@@ -101,11 +101,6 @@ void Split::initSupportedPrimitiveDescriptors() {
     const auto axisPrecision = Precision::I32;
     auto outPrecision = inpPrecision; // the split layer doesn't convert precisions
 
-    bool dynBatchSupport = true;
-    if (axis < 1) {
-        dynBatchSupport = false;
-    }
-
     // Set plain and tailC formats
     std::vector<LayoutType> tdCreatorTypes{ LayoutType::ncsp, LayoutType::nspc };
 
@@ -137,7 +132,6 @@ void Split::initSupportedPrimitiveDescriptors() {
     for (auto itr = itrRange.first; itr != itrRange.second; ++itr) {
         NodeConfig config;
 
-        config.dynBatchSupport = dynBatchSupport;
         config.inConfs.resize(INPUTS_NUM);
         config.inConfs[0].inPlace(-1);
         config.inConfs[0].constant(false);
@@ -215,7 +209,6 @@ void Split::initSupportedPrimitiveDescriptors() {
     if (axis == 1 && (dstFirstDims.size() == 4 || dstFirstDims.size() == 5)) {
         NodeConfig config;
 
-        config.dynBatchSupport = dynBatchSupport;
         config.inConfs.resize(INPUTS_NUM);
         config.inConfs[0].inPlace(-1);
         config.inConfs[0].constant(false);

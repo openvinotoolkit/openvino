@@ -52,7 +52,6 @@ void Reorder::initSupportedPrimitiveDescriptors() {
     auto child = getChildEdgeAt(0)->getChild();
 
     NodeConfig config;
-    config.dynBatchSupport = true;
     config.inConfs.resize(1);
     config.outConfs.resize(1);
     config.inConfs[0].inPlace(-1);

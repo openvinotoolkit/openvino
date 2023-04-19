@@ -42,7 +42,6 @@ InferenceEngine::StatusCode OpImplementation::getSupportedConfigurations(
                            const InferenceEngine::SizeVector& outShape,
                            bool planar) {
         InferenceEngine::LayerConfig config;
-        config.dynBatchSupport = false;
         InferenceEngine::DataConfig inData;
         InferenceEngine::DataConfig outData;
         InferenceEngine::SizeVector order = {0, 1, 2, 3};

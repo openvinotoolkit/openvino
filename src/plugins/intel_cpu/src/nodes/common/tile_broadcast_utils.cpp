@@ -104,7 +104,6 @@ std::vector<NodeDesc> TileBroadcastCommon::getSupportedConfigs(const Node *node)
         IE_THROW() << node->getTypeStr() << " node with name " << node->getName() << " has incorrect Repeats vector."
                 "Repeats rank must be equal to output shape rank. Repeats rank: " << repeats.size() << ", output shape rank: " << outDataShapeRank;
 
-    config.dynBatchSupport = false;
     config.inConfs.resize(node->getParentEdges().size());
     config.inConfs[0].inPlace(-1);
     config.inConfs[0].constant(constMap[0]);

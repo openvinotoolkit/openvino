@@ -67,10 +67,6 @@ struct DataConfig {
  */
 struct LayerConfig {
     /**
-     * @brief Supported dynamic batch. If false, dynamic batch is not supported
-     */
-    bool dynBatchSupport = false;
-    /**
      * @brief Vector of input data configs
      */
     std::vector<DataConfig> inConfs;
