@@ -357,8 +357,6 @@ public:
 
     PerfCount &PerfCounter() { return perfCounter; }
 
-    virtual void setDynamicBatchLim(int lim);
-
     void resolveInPlaceEdges();
 
     virtual void execute(dnnl::stream strm) = 0;
@@ -559,9 +557,6 @@ protected:
         this->type = type;
     }
 
-    virtual size_t getMaxBatch() const;
-
-
     virtual PortDescBasePtr getConsistentInputDesc(const NodeConfig &config, size_t idx) const;
     virtual PortDescBasePtr getConsistentOutputDesc(const NodeConfig &config, size_t idx) const;
     virtual MemoryDescPtr getSrcMemDesc(dnnl::primitive_desc_iterator &primitive_desc_it, size_t idx);
@@ -591,7 +586,7 @@ protected:
     int selectedPrimitiveDescriptorIndex = -1;
     bool permanent = false;
     bool temporary = false;
-    int dynBatchLim = 0;
+
     enum class InPlaceType {
         Unknown,
         InPlace,
@@ -626,7 +621,6 @@ protected:
     virtual const std::vector<impl_desc_type>& getPrimitivesPriority();
 
     virtual std::vector<dnnl::memory::format_tag> getAvailableFormatsForDims(const Shape& dims) const;
-    int batchToProcess() const;
 
     InferenceEngine::Layout getWeightsLayoutByDims(InferenceEngine::SizeVector dims, bool isGrouped);
 

@@ -351,31 +351,6 @@ void Reorder::execute(dnnl::stream strm) {
     }
 }
 
-void Reorder::setDynamicBatchLim(int lim) {
-    std::cout << getName() << " setDynamicBatchLim" << "\n";
-
-    dynBatchLim = lim;
-
-    if (!prim)
-        return;
-
-    auto &dstMemPtr = getChildEdgeAt(0)->getMemoryPtr();
-    auto &srcMemPtr = getParentEdgeAt(0)->getMemoryPtr();
-    memory::desc src_d = srcMemPtr->GetDescWithType<DnnlMemoryDesc>()->getDnnlDesc();
-    memory::desc dst_d = dstMemPtr->GetDescWithType<DnnlMemoryDesc>()->getDnnlDesc();
-    void *src_data_hdl = srcMemPtr->GetData();
-    void *dst_data_hdl = dstMemPtr->GetData();
-
-    // @ TODO ONEDNN_3_0 direct access to internal elements should be avoided
-    src_d.get()->dims[0] = batchToProcess();
-    src_d.get()->padded_dims[0] = batchToProcess();
-
-    dst_d.get()->dims[0] = batchToProcess();
-    dst_d.get()->padded_dims[0] = batchToProcess();
-
-    createReorderPrimitive(src_d, src_data_hdl, dst_d, dst_data_hdl);
-}
-
 std::string Reorder::getReorderArgs(const MemoryDesc &parentDesc, const MemoryDesc &childDesc) {
     std::string inArgs, outArgs;
     if (parentDesc.getPrecision() != childDesc.getPrecision()) {

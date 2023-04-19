@@ -146,7 +146,6 @@ void Generic::cleanup() {
 }
 
 void Generic::execLayer() {
-    bool isDynBatch = dynBatchLim > 0;
     std::vector<InferenceEngine::Blob::Ptr> inputs;
     std::vector<InferenceEngine::Blob::CPtr> constInputs;
     std::vector<InferenceEngine::TensorDesc> inputDescs;
@@ -155,18 +154,9 @@ void Generic::execLayer() {
         auto inputBlob = MemoryDescUtils::interpretAsBlob(getParentEdgeAt(i)->getMemory());
         inputs.push_back(inputBlob);
         constInputs.push_back(inputBlob);
-        if (isDynBatch && dynBatchLim >= inputs[inputs.size() - 1]->getTensorDesc().getDims()[0]) {
-            isDynBatch = false;
-        } else {
-            // TODO: Ask the right dims using getShape() from previous node
-            inputDescs.push_back(inputs[inputs.size() - 1]->getTensorDesc());
-            if (inputDescs[inputDescs.size() - 1].getDims().size() > 0)
-                inputDescs[inputDescs.size() - 1].getDims()[0] = static_cast<size_t>(batchToProcess());
-        }
+        // TODO: Ask the right dims using getShape() from previous node
+        inputDescs.push_back(inputs[inputs.size() - 1]->getTensorDesc());
     }
-
-    // TODO: use ngraph-based extension mechnism if needed to recompute shape
-    isDynBatch = false;
 
     std::vector<InferenceEngine::Blob::Ptr> outputs;
     for (size_t i = 0; i < outputShapes.size(); i++) {

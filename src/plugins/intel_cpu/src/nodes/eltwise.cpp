@@ -2364,14 +2364,6 @@ void Eltwise::execute(dnnl::stream strm) {
             args_ptrs.src_ptr[i] = reinterpret_cast<const uint8_t*>(memPtrs[i]->GetData()) + start_offset_in[i];
         args_ptrs.dst_ptr = reinterpret_cast<uint8_t*>(memPtrs.back()->GetData()) + start_offset_out;
 
-        // In general case we need to recompute offsets as well but currently all supported layout assumes batch to be outermost dimension
-        if (isDynBatchEnabled) {
-            auto batchDimIdx = execPtr->getBatchDimIdx();
-            if (dims_out.size() <= batchDimIdx)
-                IE_THROW() << "Can't set batch dims for eltwise node with rank: " << dims_out.size() << " and batch idx: " << batchDimIdx;
-            dims_out[batchDimIdx] = static_cast<size_t>(batchToProcess());
-        }
-
         args_ptrs.post_op_data = fqDataPtrs.data();
 
         // shape agnostic kernel: offsets and work amount initialization
@@ -2400,24 +2392,6 @@ void Eltwise::execute(dnnl::stream strm) {
 
 void Eltwise::executeDynamicImpl(dnnl::stream strm) {
     execute(strm);
-}
-
-void Eltwise::setDynamicBatchLim(int lim) {
-    Node::setDynamicBatchLim(lim);
-
-    ov::PartialShape outShape = getParentEdgesAtPort(0)[0]->getMemory().GetShape().toPartialShape();
-    if (!getParentEdgesAtPort(0)[0]->getParent()->isConstant()) {
-        outShape[0] = batchToProcess();
-    }
-    for (size_t i = 1; i < getParentEdges().size(); i++) {
-        auto currentShape = getParentEdgesAtPort(i)[0]->getMemory().GetShape().toPartialShape();
-        if (!getParentEdgesAtPort(i)[0]->getParent()->isConstant()) {
-            currentShape[0] = batchToProcess();
-        }
-        if (!ov::PartialShape::broadcast_merge_into(outShape, currentShape, ov::op::AutoBroadcastType::NUMPY)) {
-            IE_THROW() << "Can't execute eltwise node with dynamic batch. Input shapes are incompatible";
-        }
-    }
 }
 
 bool Eltwise::created() const {

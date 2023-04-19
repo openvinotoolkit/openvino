@@ -304,7 +304,7 @@ void DepthToSpace::execute(dnnl::stream strm) {
         THROW_ERROR << "doesn't have a compiled executor.";
     }
 
-    int MB = isDynamicNode() ? getParentEdgeAt(0)->getMemoryPtr()->getStaticDims()[0] : batchToProcess();
+    int MB = getParentEdgeAt(0)->getMemoryPtr()->getStaticDims()[0];
     execPtr->exec(getParentEdgeAt(0)->getMemoryPtr(), getChildEdgeAt(0)->getMemoryPtr(), MB);
 }
 

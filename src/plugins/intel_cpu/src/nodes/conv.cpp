@@ -1177,16 +1177,6 @@ dnnl::memory Convolution::getWeights() const {
     return getParentEdgeAt(1)->getMemory().GetPrimitive();
 }
 
-void Convolution::setDynamicBatchLim(int lim) {
-    if (!execPtr) {
-        IE_THROW() << "Can't set dynamic batch for Convolution node with name: " << getName() << ", because executor is not compiled";
-    }
-    if (execPtr->needReordering()) {
-        IE_THROW() << "Can't execute Convolution node with dynamic batch via executor with reorders";
-    }
-    Node::setDynamicBatchLim(lim);
-}
-
 dnnl::memory Convolution::getBias() const {
     return getParentEdgeAt(2)->getMemory().GetPrimitive();
 }

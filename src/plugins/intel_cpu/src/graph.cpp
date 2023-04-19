@@ -983,14 +983,16 @@ void Graph::PullOutputData(BlobMap &out) {
             outBloMem.SetData(intr_blob, false);
         } else {
             size_t size_to_copy = intr_blob.GetDescWithType<BlockedMemoryDesc>()->getPaddedElementsCount();
-            // TODO: Should we support InferenceEngine::PluginConfigParams::KEY_DYN_BATCH_LIMIT???
-            // TODO [DS]: phase 2: should we support this behaviour? Looks obsolete in the dynamic shapes paradigm
+            // used only for backward compatibility with the legacy API
             if (getConfig().batchLimit) {
+                if (dynBatch < 0) {
+                    IE_THROW(Unexpected) << "Dynamic batch value is not set for the CPU plugin graph: " << GetName();
+                }
                 if (node->isDynamicNode() && !getConfig().isNewApi) {
                     IE_THROW(NotImplemented) << "[DS] not implemented dynamic batch for node with dynamic shape";
                 }
-                int MB_to_process = node->batchToProcess();
-                size_to_copy = std::accumulate(outDims.begin() + 1, outDims.end(), (size_t)1, std::multiplies<size_t>()) * MB_to_process;
+
+                size_to_copy = std::accumulate(outDims.begin() + 1, outDims.end(), (size_t)1, std::multiplies<size_t>()) * static_cast<size_t>(dynBatch);
             }
 
             cpu_convert(intr_blob_ptr, ext_blob_ptr, srcPrec, dstPrec, size_to_copy);

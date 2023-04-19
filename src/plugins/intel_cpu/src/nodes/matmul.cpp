@@ -553,12 +553,6 @@ bool MatMul::created() const {
     return getType() == Type::MatMul;
 }
 
-size_t MatMul::getMaxBatch() const {
-    if (!outputShapes.empty())
-        return outputShapes[0].getStaticDims()[0];
-    return 0;
-}
-
 InferenceEngine::Precision MatMul::getRuntimePrecision() const {
     return getMaxPrecision(getInputPrecisions());
 }

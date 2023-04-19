@@ -364,10 +364,7 @@ void LegacyInferRequest::SetBatch(int new_batch) {
     }
 
     m_curBatch = new_batch;
-
-    for (const auto& node : graph->GetNodes()) {
-        node->setDynamicBatchLim(new_batch);
-    }
+    graph->setDymBatch(m_curBatch);
 }
 
 void LegacyInferRequest::changeDefaultPtr() {

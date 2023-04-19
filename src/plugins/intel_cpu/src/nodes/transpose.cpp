@@ -382,12 +382,7 @@ void Transpose::execute(dnnl::stream strm) {
         auto &dstMemPtr = getChildEdgeAt(0)->getMemoryPtr();
         auto &srcMemPtr = getParentEdgeAt(INPUT_DATA_IDX)->getMemoryPtr();
 
-        int MB = 0;
-        if (isDynamicNode()) {
-            MB = srcMemPtr->getStaticDims()[0];
-        } else {
-            MB = batchToProcess();
-        }
+        int MB = srcMemPtr->getStaticDims()[0];
 
         execPtr->exec(this, srcMemPtr, dstMemPtr, MB);
     } else {

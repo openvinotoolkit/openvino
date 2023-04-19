@@ -294,9 +294,7 @@ void ShuffleChannels::execute(dnnl::stream strm) {
     if (!execPtr)
         THROW_SHCH_ERROR << "doesn't have a compiled executor.";
 
-    int MB = -1;
-    if (supportDynamicBatch)
-        MB = isDynamicNode() ? getParentEdgeAt(0)->getMemoryPtr()->getStaticDims()[0] : batchToProcess();
+    int MB = getParentEdgeAt(0)->getMemoryPtr()->getStaticDims()[0];
 
     const uint8_t* srcData = reinterpret_cast<const uint8_t*>(getParentEdgeAt(0)->getMemoryPtr()->GetPtr());
     uint8_t* dstData = reinterpret_cast<uint8_t*>(getChildEdgeAt(0)->getMemoryPtr()->GetPtr());

@@ -316,7 +316,7 @@ void SpaceToDepth::execute(dnnl::stream strm) {
     }
     const uint8_t* srcData = reinterpret_cast<const uint8_t *>(getParentEdgeAt(0)->getMemoryPtr()->GetPtr());
     uint8_t* dstData = reinterpret_cast<uint8_t *>(getChildEdgeAt(0)->getMemoryPtr()->GetPtr());
-    const int MB = isDynamicNode() ? getParentEdgeAt(0)->getMemoryPtr()->getStaticDims()[0] : batchToProcess();
+    const int MB = getParentEdgeAt(0)->getMemoryPtr()->getStaticDims()[0];
     execPtr->exec(srcData, dstData, MB);
 }
 

@@ -96,7 +96,7 @@ namespace ConfigurationTestsDefinitions {
                 auto& ref = reference_inputs[i][j];
                 auto& actual = scaled_inputs[i][j];
 
-                auto byte_num = ref->byteSize();
+            auto byte_num = ref->byteSize();
                 auto ref_ptr = ref->buffer().as<uint8_t*>();
                 auto actual_ptr = actual->buffer().as<uint8_t*>();
 
