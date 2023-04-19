@@ -41,43 +41,7 @@ public:
     bool isSupported(const EltwiseAttrs& eltwiseAttrs,
                      const std::vector<MemoryDescPtr>& srcDescs,
                      const std::vector<MemoryDescPtr>& dstDescs) const override {
-        switch (eltwiseAttrs.algorithm) {
-            case Algorithm::EltwiseAdd:
-            case Algorithm::EltwiseMultiply:
-            case Algorithm::EltwiseSubtract:
-            case Algorithm::EltwiseDivide:
-            case Algorithm::EltwiseMaximum:
-            case Algorithm::EltwiseMinimum:
-            case Algorithm::EltwiseSquaredDifference:
-//            case Algorithm::EltwisePowerDynamic: TODO: ACL version doesn't work https://github.com/ARM-software/ComputeLibrary/issues/1047
-            case Algorithm::EltwiseEqual:
-            case Algorithm::EltwiseNotEqual:
-            case Algorithm::EltwiseGreater:
-            case Algorithm::EltwiseGreaterEqual:
-            case Algorithm::EltwiseLess:
-            case Algorithm::EltwiseLessEqual:
-            case Algorithm::EltwiseRelu:
-            case Algorithm::EltwiseGeluErf:
-            case Algorithm::EltwiseElu:
-            case Algorithm::EltwiseTanh:
-            case Algorithm::EltwiseSigmoid:
-            case Algorithm::EltwiseAbs:
-            case Algorithm::EltwiseSqrt:
-            case Algorithm::EltwiseSoftRelu:
-            case Algorithm::EltwiseExp:
-            case Algorithm::EltwiseClamp:
-            case Algorithm::EltwiseSwish:
-            case Algorithm::EltwisePrelu:
-            case Algorithm::EltwiseHswish:
-            case Algorithm::EltwiseLog:
-                break;
-            default:
-                return false;
-        }
-
-        auto checker = [](const std::vector<MemoryDescPtr>& srcDescs,
-                          const std::vector<MemoryDescPtr>& dstDescs,
-                          std::vector<Precision> srcVecPrc, Precision dstPrc) -> bool {
+        auto checkPrecision = [&srcDescs, &dstDescs](std::vector<Precision> srcVecPrc, Precision dstPrc) -> bool {
             for (int i = 0; i < srcDescs.size(); i++) {
                 if (srcDescs[i]->getPrecision() != srcVecPrc[i]) return false;
             }
@@ -86,62 +50,64 @@ public:
         };
 
         switch (eltwiseAttrs.algorithm) {
+            case Algorithm::EltwiseSqrt: break; // TODO: seg. fault in reference
             case Algorithm::EltwiseDivide:
             case Algorithm::EltwiseRelu:
             case Algorithm::EltwiseGeluErf:
             case Algorithm::EltwiseElu:
             case Algorithm::EltwiseTanh:
             case Algorithm::EltwiseSigmoid:
-//            case Algorithm::EltwiseSqrt: TODO: seg. fault in reference
+//            case Algorithm::EltwisePowerDynamic: // TODO: ACL version doesn't work https://github.com/ARM-software/ComputeLibrary/issues/1047
             case Algorithm::EltwiseSoftRelu:
             case Algorithm::EltwiseClamp:
             case Algorithm::EltwiseSwish:
             case Algorithm::EltwisePrelu:
             case Algorithm::EltwiseHswish:
-                if (!(checker(srcDescs, dstDescs, {Precision::FP16, Precision::FP16}, Precision::FP16) ||
-                      checker(srcDescs, dstDescs, {Precision::FP32, Precision::FP32}, Precision::FP32))) {
+                if (!(checkPrecision({Precision::FP16, Precision::FP16}, Precision::FP16) ||
+                      checkPrecision({Precision::FP32, Precision::FP32}, Precision::FP32))) {
                     return false;
                 }
                 break;
             case Algorithm::EltwiseAbs:
             case Algorithm::EltwiseExp:
             case Algorithm::EltwiseLog:
-                if (!(checker(srcDescs, dstDescs, {Precision::I32, Precision::I32}, Precision::I32) ||
-                      checker(srcDescs, dstDescs, {Precision::FP16, Precision::FP16}, Precision::FP16) ||
-                      checker(srcDescs, dstDescs, {Precision::FP32, Precision::FP32}, Precision::FP32))) {
+                if (!(checkPrecision({Precision::I32, Precision::I32}, Precision::I32) ||
+                      checkPrecision({Precision::FP16, Precision::FP16}, Precision::FP16) ||
+                      checkPrecision({Precision::FP32, Precision::FP32}, Precision::FP32))) {
                     return false;
                 }
                 break;
             case Algorithm::EltwiseMaximum:
             case Algorithm::EltwiseMinimum:
             case Algorithm::EltwiseSquaredDifference:
-                if (!(checker(srcDescs, dstDescs, {Precision::I16, Precision::I16}, Precision::I16) ||
-                      checker(srcDescs, dstDescs, {Precision::I32, Precision::I32}, Precision::I32) ||
-                      checker(srcDescs, dstDescs, {Precision::FP16, Precision::FP16}, Precision::FP16) ||
-                      checker(srcDescs, dstDescs, {Precision::FP32, Precision::FP32}, Precision::FP32))) {
+                if (!(checkPrecision({Precision::I16, Precision::I16}, Precision::I16) ||
+                      checkPrecision({Precision::I32, Precision::I32}, Precision::I32) ||
+                      checkPrecision({Precision::FP16, Precision::FP16}, Precision::FP16) ||
+                      checkPrecision({Precision::FP32, Precision::FP32}, Precision::FP32))) {
                     return false;
                 }
                 break;
             case Algorithm::EltwiseAdd:
             case Algorithm::EltwiseSubtract:
-                if (!(checker(srcDescs, dstDescs, {Precision::U8, Precision::U8}, Precision::U8) ||
-                      checker(srcDescs, dstDescs, {Precision::I16, Precision::I16}, Precision::I16) ||
-                      checker(srcDescs, dstDescs, {Precision::I32, Precision::I32}, Precision::I32) ||
-                      checker(srcDescs, dstDescs, {Precision::FP16, Precision::FP16}, Precision::FP16) ||
-                      checker(srcDescs, dstDescs, {Precision::FP32, Precision::FP32}, Precision::FP32))) {
+                if (!(checkPrecision({Precision::U8, Precision::U8}, Precision::U8) ||
+                      checkPrecision({Precision::I16, Precision::I16}, Precision::I16) ||
+                      checkPrecision({Precision::I32, Precision::I32}, Precision::I32) ||
+                      checkPrecision({Precision::FP16, Precision::FP16}, Precision::FP16) ||
+                      checkPrecision({Precision::FP32, Precision::FP32}, Precision::FP32))) {
                     return false;
                 }
                 break;
             case Algorithm::EltwiseMultiply:
-                if (!(checker(srcDescs, dstDescs, {Precision::U8, Precision::U8}, Precision::U8) ||
-                      checker(srcDescs, dstDescs, {Precision::U8, Precision::U8}, Precision::I16) ||
-                      checker(srcDescs, dstDescs, {Precision::U8, Precision::I16}, Precision::I16) ||
-                      checker(srcDescs, dstDescs, {Precision::I16, Precision::U8}, Precision::I16) ||
-                      checker(srcDescs, dstDescs, {Precision::I16, Precision::I16}, Precision::I16) ||
-                      checker(srcDescs, dstDescs, {Precision::FP16, Precision::FP16}, Precision::FP16) ||
-                      checker(srcDescs, dstDescs, {Precision::FP32, Precision::FP32}, Precision::FP32))) {
+                if (!(checkPrecision({Precision::U8, Precision::U8}, Precision::U8) ||
+                      checkPrecision({Precision::U8, Precision::U8}, Precision::I16) ||
+                      checkPrecision({Precision::U8, Precision::I16}, Precision::I16) ||
+                      checkPrecision({Precision::I16, Precision::U8}, Precision::I16) ||
+                      checkPrecision({Precision::I16, Precision::I16}, Precision::I16) ||
+                      checkPrecision({Precision::FP16, Precision::FP16}, Precision::FP16) ||
+                      checkPrecision({Precision::FP32, Precision::FP32}, Precision::FP32))) {
                     return false;
-                } else { return true; }
+                }
+                break;
             // ACL supports only U8 precision on output for comparison operations
             case Algorithm::EltwiseEqual:
             case Algorithm::EltwiseNotEqual:
@@ -149,16 +115,16 @@ public:
             case Algorithm::EltwiseGreaterEqual:
             case Algorithm::EltwiseLess:
             case Algorithm::EltwiseLessEqual:
-                if (!(checker(srcDescs, dstDescs, {Precision::U8, Precision::U8}, Precision::U8) ||
-                      checker(srcDescs, dstDescs, {Precision::I16, Precision::I16}, Precision::U8) ||
-                      checker(srcDescs, dstDescs, {Precision::I32, Precision::I32}, Precision::U8) ||
-                      checker(srcDescs, dstDescs, {Precision::FP16, Precision::FP16}, Precision::U8) ||
-                      checker(srcDescs, dstDescs, {Precision::FP32, Precision::FP32}, Precision::U8))) {
+                if (!(checkPrecision({Precision::U8, Precision::U8}, Precision::U8) ||
+                      checkPrecision({Precision::I16, Precision::I16}, Precision::U8) ||
+                      checkPrecision({Precision::I32, Precision::I32}, Precision::U8) ||
+                      checkPrecision({Precision::FP16, Precision::FP16}, Precision::U8) ||
+                      checkPrecision({Precision::FP32, Precision::FP32}, Precision::U8))) {
                     return false;
                 }
                 break;
             default:
-                break;
+                return false;
         }
 
         for (const auto & srcDesc : srcDescs) {
