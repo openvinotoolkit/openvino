@@ -119,7 +119,7 @@ ov::intel_cpu::ConvertMatMulToFC::ConvertMatMulToFC() {
 
         auto aligned_a_rank = shape_a_aligned.rank(), aligned_b_rank = shape_b_aligned.rank();
         if (aligned_a_rank.is_dynamic() || aligned_b_rank.is_dynamic() || aligned_a_rank.get_length() < 2 || aligned_b_rank.get_length() < 2) {
-            throw ngraph::ngraph_error("MatMul " + matmul->get_friendly_name() + " shapes are inconsistent.");
+            OPENVINO_THROW("MatMul " + matmul->get_friendly_name() + " shapes are inconsistent.");
         }
 
         // Transferring from MatMul representation: [B, I, K] * [B, K, O] = [B, I, O]
