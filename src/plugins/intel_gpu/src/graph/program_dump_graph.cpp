@@ -136,7 +136,16 @@ void close_stream(std::ofstream& graph) { graph.close(); }
 
 std::string get_node_id(const program_node* ptr) { return "node_" + std::to_string(reinterpret_cast<uintptr_t>(ptr)); }
 
-void dump_full_node(std::ofstream& out, const program_node* node) { out << node->type()->to_string(*node); }
+void dump_full_node(std::ofstream& out, const program_node* node) {
+    GPU_DEBUG_GET_INSTANCE(debug_config);
+    try {
+        out << node->type()->to_string(*node);
+    } catch(const std::exception& e) {
+        GPU_DEBUG_IF(debug_config->verbose >= 2) {
+            std::cerr << node->id() << " to_string() error: " << e.what() << '\n';
+        }
+    }
+}
 }  // namespace
 
 std::string get_dir_path(const ExecutionConfig& config) {
