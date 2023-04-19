@@ -416,8 +416,7 @@ def create_pytorch_nn_module_layout_list(tmp_dir):
 
     return pt_model, ref_model, {
         'input_shape': [shape, shape], 'layout': ['nchw', Layout('nhwc')],
-        "input": [np.float32, np.float32]
-        }
+    }
 
 
 def create_pytorch_nn_module_layout_list_case2(tmp_dir):
@@ -431,8 +430,8 @@ def create_pytorch_nn_module_layout_list_case2(tmp_dir):
     ref_model.inputs[1].node.layout = Layout('nhwc')
 
     return pt_model, ref_model, {
-        'input_shape': [shape, shape], 'layout': ('nchw', Layout('nhwc')), 
-        "input": [np.float32, np.float32]}
+        'input_shape': [shape, shape], 'layout': ('nchw', Layout('nhwc')),
+    }
 
 
 def create_pytorch_nn_module_mean_list(tmp_dir):
@@ -454,8 +453,7 @@ def create_pytorch_nn_module_mean_list(tmp_dir):
     ref_model = Model([sigm], parameter_list, "test")
 
     return pt_model, ref_model, {
-        'input_shape': [shape, shape], 'mean_values': [[0, 0, 0], [0, 0, 0]], 'compress_to_fp16': False, 
-        "input": [np.float32, np.float32]}
+        'input_shape': [shape, shape], 'mean_values': [[0, 0, 0], [0, 0, 0]], 'compress_to_fp16': False}
 
 
 def create_pytorch_nn_module_mean_list_default_no_compression(tmp_dir):
@@ -477,7 +475,7 @@ def create_pytorch_nn_module_mean_list_default_no_compression(tmp_dir):
     parameter_list = [param1, param2]
     ref_model = Model([sigm], parameter_list, "test")
 
-    return pt_model, ref_model, {'input_shape': [shape, shape], 'mean_values': [[0, 0, 0], [0, 0, 0]], "input": [np.float32, np.float32]}
+    return pt_model, ref_model, {'input_shape': [shape, shape], 'mean_values': [[0, 0, 0], [0, 0, 0]]}
 
 
 def create_pytorch_nn_module_mean_list_compressin_enabled(tmp_dir):
@@ -500,7 +498,7 @@ def create_pytorch_nn_module_mean_list_compressin_enabled(tmp_dir):
 
     return pt_model, ref_model, {
         'input_shape': [shape, shape], 'mean_values': [[0, 0, 0], [0, 0, 0]], 
-        'compress_to_fp16': False, "input": [np.float32, np.float32]}
+        'compress_to_fp16': False}
 
 
 def create_pytorch_nn_module_scale_list(tmp_dir):
@@ -521,7 +519,7 @@ def create_pytorch_nn_module_scale_list(tmp_dir):
     parameter_list = [param1, param2]
     ref_model = Model([sigm], parameter_list, "test")
 
-    return pt_model, ref_model, {'input_shape': [shape, shape], 'scale_values': [[1, 1, 1], [1, 1, 1]], 'compress_to_fp16': False, "input": [np.float32, np.float32]}
+    return pt_model, ref_model, {'input_shape': [shape, shape], 'scale_values': [[1, 1, 1], [1, 1, 1]], 'compress_to_fp16': False}
 
 
 def create_pytorch_nn_module_scale_list_default_no_compression(tmp_dir):
@@ -543,7 +541,7 @@ def create_pytorch_nn_module_scale_list_default_no_compression(tmp_dir):
     parameter_list = [param1, param2]
     ref_model = Model([sigm], parameter_list, "test")
 
-    return pt_model, ref_model, {'input_shape': [shape, shape], 'scale_values': [[1, 1, 1], [1, 1, 1]], "input": [np.float32, np.float32]}
+    return pt_model, ref_model, {'input_shape': [shape, shape], 'scale_values': [[1, 1, 1], [1, 1, 1]]}
 
 
 def create_pytorch_nn_module_scale_list_compression_enabled(tmp_dir):
@@ -554,9 +552,11 @@ def create_pytorch_nn_module_scale_list_compression_enabled(tmp_dir):
     param1 = ov.opset8.parameter(shape)
     param2 = ov.opset8.parameter(shape)
     const1 = ov.opset8.constant([[[[1, 1, 1]]]], dtype=np.float16)
-    const1_decompressed = ov.opset8.convert(const1, destination_type=np.float32)
+    const1_decompressed = ov.opset8.convert(
+        const1, destination_type=np.float32)
     const2 = ov.opset8.constant([[[[1, 1, 1]]]], dtype=np.float16)
-    const2_decompressed = ov.opset8.convert(const2, destination_type=np.float32)
+    const2_decompressed = ov.opset8.convert(
+        const2, destination_type=np.float32)
     sub1 = ov.opset8.multiply(param1, const1_decompressed)
     sub2 = ov.opset8.multiply(param2, const2_decompressed)
     add = ov.opset8.add(sub1, sub2)
@@ -566,7 +566,7 @@ def create_pytorch_nn_module_scale_list_compression_enabled(tmp_dir):
     parameter_list = [param1, param2]
     ref_model = Model([sigm], parameter_list, "test")
 
-    return pt_model, ref_model, {'input_shape': [shape, shape], 'scale_values': [[1, 1, 1], [1, 1, 1]],  "input": [np.float32, np.float32],
+    return pt_model, ref_model, {'input_shape': [shape, shape], 'scale_values': [[1, 1, 1], [1, 1, 1]],
                                  'compress_to_fp16': True}
 
 
@@ -617,7 +617,7 @@ def create_pytorch_nn_module_shapes_list_dynamic_via_input(tmp_dir):
 
     parameter_list = [param1, param2]
     ref_model = Model([sigm], parameter_list, "test")
-    return pt_model, ref_model, {"input": [(inp_shapes[0], np.float32), (inp_shapes[1], np.float32)]}
+    return pt_model, ref_model, {'input_shape': inp_shapes}
 
 
 def create_pytorch_nn_module_shapes_list_dynamic_single_input(tmp_dir):
@@ -638,14 +638,7 @@ def create_pytorch_nn_module_shapes_list_static_single_input(tmp_dir):
     pt_model = make_pt_model_one_input()
     inp_shapes = [[1, 3, 20, 20]]
     ref_model = make_ref_pt_model_one_input(inp_shapes[0])
-    return pt_model, ref_model, {'input_shape': inp_shapes, "input": np.float32}
-
-
-def create_pytorch_nn_module_shapes_list_static_single_input_via_input(tmp_dir):
-    pt_model = make_pt_model_one_input()
-    inp_shapes = [1, 3, 20, 20]
-    ref_model = make_ref_pt_model_one_input(inp_shapes)
-    return pt_model, ref_model, {"input": (inp_shapes, np.float32)}
+    return pt_model, ref_model, {'input_shape': inp_shapes}
 
 
 def create_pytorch_nn_module_convert_pytorch_frontend1(tmp_dir):
@@ -660,7 +653,6 @@ def create_pytorch_nn_module_convert_pytorch_frontend1(tmp_dir):
     ref_model = Model([sigm], parameter_list, "test")
     return pt_model, ref_model, {
         "example_input": torch.zeros((1, 3, 10, 10)),
-        "input": [InputCutInfo(shape=[-1, -1, -1, -1], type="f32")]
     }
 
 
@@ -678,7 +670,6 @@ def create_pytorch_nn_module_convert_pytorch_frontend2(tmp_dir):
     ref_model.validate_nodes_and_infer_types()
     return pt_model, ref_model, {
         "example_input": torch.zeros((1, 3, 10, 10), dtype=torch.int32),
-        "input": [InputCutInfo(shape=[-1, -1, -1, -1], type="i32")]
     }
 
 
@@ -696,7 +687,6 @@ def create_pytorch_nn_module_convert_pytorch_frontend3(tmp_dir):
     ref_model = Model([sigm], parameter_list, "test")
     return pt_model, ref_model, {
         "example_input": [torch.zeros((1, 3, 10, 10)), torch.ones((1, 3, 10, 10))],
-        "input": [InputCutInfo(shape=[-1, -1, -1, -1], type="f32"), InputCutInfo(shape=[-1, -1, -1, -1], type="f32")]
     }
 
 
@@ -714,7 +704,6 @@ def create_pytorch_nn_module_convert_pytorch_frontend4(tmp_dir):
     ref_model = Model([sigm], parameter_list, "test")
     return pt_model, ref_model, {
         "example_input": {"x": torch.zeros((1, 3, 10, 10), dtype=torch.float32), "y": torch.ones((1, 3, 10, 10), dtype=torch.float32)},
-        "input": [InputCutInfo(shape=[-1, -1, -1, -1], type="f32"), InputCutInfo(shape=[-1, -1, -1, -1], type="f32")]
     }
 
 
@@ -733,8 +722,8 @@ def create_pytorch_jit_script_module_convert_pytorch_frontend(tmp_dir):
     parameter_list = [param1, param2]
     ref_model = Model([sigm], parameter_list, "test")
     return scripted_model, ref_model,  {
-        "example_input": {"x": torch.zeros((1, 3, 10, 10)), "y": torch.ones((1, 3, 10, 10))},
-        "input": [InputCutInfo(shape=[-1, -1, -1, -1], type="f32"), InputCutInfo(shape=[-1, -1, -1, -1], type="f32")]}
+        "example_input": [torch.zeros((1, 3, 10, 10)), torch.ones((1, 3, 10, 10))],
+    }
 
 
 def create_pytorch_jit_trace_module_convert_pytorch_frontend(tmp_dir):
@@ -752,8 +741,7 @@ def create_pytorch_jit_trace_module_convert_pytorch_frontend(tmp_dir):
     sigm = ov.opset10.sigmoid(relu)
     parameter_list = [param1, param2]
     ref_model = Model([sigm], parameter_list, "test")
-    return scripted_model, ref_model,  {"example_input": example_input, "input": [
-        InputCutInfo(shape=[-1, -1, -1, -1], type="f32"), InputCutInfo(shape=[-1, -1, -1, -1], type="f32")]}
+    return scripted_model, ref_model,  {"example_input": example_input}
 
 
 class TestMoConvertPyTorch(CommonMOConvertTest):
