@@ -984,10 +984,7 @@ void Graph::PullOutputData(BlobMap &out) {
         } else {
             size_t size_to_copy = intr_blob.GetDescWithType<BlockedMemoryDesc>()->getPaddedElementsCount();
             // used only for backward compatibility with the legacy API
-            if (getConfig().batchLimit) {
-                if (dynBatch < 0) {
-                    IE_THROW(Unexpected) << "Dynamic batch value is not set for the CPU plugin graph: " << GetName();
-                }
+            if (getConfig().batchLimit && dynBatch > 0) {
                 if (node->isDynamicNode() && !getConfig().isNewApi) {
                     IE_THROW(NotImplemented) << "[DS] not implemented dynamic batch for node with dynamic shape";
                 }
