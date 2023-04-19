@@ -25,7 +25,7 @@ bool PropagateLayout::run(LinearIR& linear_ir) {
             const bool is_input = expr->get_type() == IOExpression::io_type::INPUT;
             const auto& tds = is_input ? expr->get_outputs() : expr->get_inputs();
             if (tds.size() != 1)
-                throw ngraph_error("Parameter/Results should have exactly one output/input");
+                OPENVINO_THROW("Parameter/Results should have exactly one output/input");
             const auto& target_td = tds[0];
             // If input - we should be looking downstream, if output - upstream
             if (is_input) {
@@ -40,7 +40,7 @@ bool PropagateLayout::run(LinearIR& linear_ir) {
                         // Note: this limitation could be relaxed to multiple ops,
                         // but all of them must have the same shape and layout
                         if (!child_layout.empty() && child->get_outputs().front()->get_layout() != child_layout)
-                            throw ngraph_error("All children of an input expression must have the same layout");
+                            OPENVINO_THROW("All children of an input expression must have the same layout");
                         child_layout = child->get_outputs().front()->get_layout();
                     }
                 }

@@ -103,7 +103,7 @@ std::vector<bool> IdentifyBuffers::create_adjacency_matrix(const LinearIR& linea
                     }
                 }
             } else {
-                throw ov::Exception("Buffer has incorrect siblings! There can be only LoopEnds");
+                OPENVINO_THROW("Buffer has incorrect siblings! There can be only LoopEnds");
             }
         }
     }

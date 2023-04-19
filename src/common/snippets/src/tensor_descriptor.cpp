@@ -23,7 +23,7 @@ TensorDescriptor::TensorDescriptor(const Output<const ov::Node>& out,
     const auto& pshape = out.get_partial_shape();
     // Note: this limitation could be relaxed if necessary
     if (pshape.is_dynamic())
-        throw ngraph_error("Snippets tensor descriptor can be created only for static shapes");
+        OPENVINO_THROW("Snippets tensor descriptor can be created only for static shapes");
     m_tensor_shape = pshape.get_shape();
     validate_arguments();
 }
@@ -41,7 +41,7 @@ void TensorDescriptor::validate_arguments() {
         // NCHW layout by default
         std::iota(m_layout.begin(), m_layout.end(), 0);
     } else if (m_layout.size() != m_tensor_shape.size()) {
-        throw ngraph_error("Snippets tensor descriptor: Layout size must be equal to the shape size");
+        OPENVINO_THROW("Snippets tensor descriptor: Layout size must be equal to the shape size");
     }
 }
 
@@ -113,7 +113,7 @@ void set_tensor_descriptor_ptr(const Output<ov::Node>& out, const TensorDescript
     } else {
         auto& value = found->second.as<TensorDescriptorPtrVectorAttribute>().m_value;
         if (value.size() != node->get_output_size())
-            throw ngraph_error("Either all or none of Tensor descriptors should be stored in rt_info (set)");
+            OPENVINO_THROW("Either all or none of Tensor descriptors should be stored in rt_info (set)");
         value[out.get_index()] = desc;
     }
 }
@@ -129,7 +129,7 @@ TensorDescriptorPtr get_tensor_descriptor_ptr(const Output<const ov::Node>& out)
     }
     const auto& td_vector = it->second.as<TensorDescriptorPtrVectorAttribute>().m_value;
     if (td_vector.size() != node->get_output_size())
-        throw ngraph_error("Either all or none of Tensor descriptors should be stored in rt_info (get)");
+        OPENVINO_THROW("Either all or none of Tensor descriptors should be stored in rt_info (get)");
     return td_vector[out.get_index()];
 }
 } // namespace snippets

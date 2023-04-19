@@ -42,7 +42,7 @@ bool ov::intel_cpu::pass::FuseLoadStoreConvert::fuse_load_convert(ngraph::snippe
                                                                               convert_truncation->get_destination_type(),
                                                                               load->get_count(), load->get_offset());
     } else {
-        throw ov::Exception("Type of Convert op is undefined. Supports only fusing Load and ConvertTruncation or ConvertSaturation ops");
+        OPENVINO_THROW("Type of Convert op is undefined. Supports only fusing Load and ConvertTruncation or ConvertSaturation ops");
     }
 
     const auto in_td = std::vector<ngraph::snippets::TensorDescriptorPtr>{ load_expr->get_inputs().front() };
@@ -84,7 +84,7 @@ bool ov::intel_cpu::pass::FuseLoadStoreConvert::fuse_store_convert(ngraph::snipp
                                                                                 convert_truncation->get_destination_type(),
                                                                                 store->get_count(), store->get_offset());
     } else {
-        throw ov::Exception("Type of Convert op is undefined. Supports only fusing Store and ConvertTruncation or ConvertSaturation ops");
+        OPENVINO_THROW("Type of Convert op is undefined. Supports only fusing Store and ConvertTruncation or ConvertSaturation ops");
     }
 
     const auto in_td = std::vector<ngraph::snippets::TensorDescriptorPtr>{ input_td };

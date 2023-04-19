@@ -30,7 +30,7 @@ void AllocateBuffers::propagate_offset(const LinearIR& linear_ir, const Expressi
             if (memory_access && memory_access->is_memory_access_output_port(port)) {
                 memory_access->set_output_offset(offset, port);
             } else {
-                throw ngraph_error(
+                OPENVINO_THROW(
                         "Buffer::set_offset() was called when Buffer didn't have the corresponding MemoryAccess op for offset propagation");
             }
         }
@@ -48,7 +48,7 @@ void AllocateBuffers::propagate_offset(const LinearIR& linear_ir, const Expressi
             // After Loop initialization, Buffer can be connected to LoopEnd - it's ok
             continue;
         } else {
-            throw ngraph_error(
+            OPENVINO_THROW(
                     "Buffer::set_offset() was called when Buffer didn't have the corresponding MemoryAccess op for offset propagation");
         }
     }

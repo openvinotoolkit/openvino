@@ -61,7 +61,7 @@ LinearIR::LinearIR(const std::shared_ptr<ov::Model>& model, Config config)
 
 ov::NodeVector LinearIR::get_ordered_ops(const std::shared_ptr<ov::Model>& m) {
     if (!m->get_sinks().empty())
-        throw ngraph_error("Linear IR is not supposed to work for model with sinks. Check your transformation pipeline.");
+        OPENVINO_THROW("Linear IR is not supposed to work for model with sinks. Check your transformation pipeline.");
 
     // Note that an important difference between this impl and Model::get_ordered_ops is that Results and Parameters
     // are added in REVERSE order, so they will be visited in DIRECT order compared to get_parameters() and get_results()
@@ -135,7 +135,7 @@ void LinearIR::debug_print(bool tds_as_pointers) const {
         if (tds_as_pointers) {
             for (const auto& in : expr->get_inputs()) {
                 if (td2int.count(in) == 0)
-                    throw ngraph_error("Undefined input descriptor for op");
+                    OPENVINO_THROW("Undefined input descriptor for op");
                 std::cerr << td2int.at(in) << ", ";
             }
             std::cerr << "\b\b => ";
@@ -174,14 +174,14 @@ ExpressionPtr LinearIR::get_expr_by_node(const std::shared_ptr<Node>& n) const {
 ExpressionPort LinearIR::get_expr_by_output(const TensorDescriptorPtr& td) const {
     auto found = m_output2expression_map.find(td);
     if (found == m_output2expression_map.end())
-        throw ngraph_error("Failed to find expression by output tensor descriptor");
+        OPENVINO_THROW("Failed to find expression by output tensor descriptor");
     return found->second;
 }
 
 const std::set<ExpressionPort>& LinearIR::get_exprs_by_input(const TensorDescriptorPtr& td) const {
     auto found = m_input2expression_map.find(td);
     if (found == m_input2expression_map.end())
-        throw ngraph_error("Failed to find expression by input tensor descriptor");
+        OPENVINO_THROW("Failed to find expression by input tensor descriptor");
     return found->second;
 }
 
@@ -197,7 +197,7 @@ void LinearIR::replace_input(const ExpressionPort& expr_port, const TensorDescri
     const auto from = expr->m_inputs[port];
     auto found = m_input2expression_map.find(from);
     if (found == m_input2expression_map.end() || found->second.count(expr_port) == 0)
-        throw ngraph_error("Invalid expression of input was provided to replace_input");
+        OPENVINO_THROW("Invalid expression of input was provided to replace_input");
     found->second.erase(expr_port);
     {
         const auto& res = m_input2expression_map.insert({to, std::set<ExpressionPort>{expr_port}});
@@ -221,7 +221,7 @@ void LinearIR::replace_output(const ExpressionPort& expr_port, const TensorDescr
     const auto from = expr->m_outputs[port];
     auto found = m_output2expression_map.find(from);
     if (found == m_output2expression_map.end() || found->second != expr_port)
-        throw ngraph_error("Invalid expression of output was provided to replace_output");
+        OPENVINO_THROW("Invalid expression of output was provided to replace_output");
     m_output2expression_map.erase(found);
     m_output2expression_map[to] = expr_port;
     expr->replace_output(port, to);
@@ -229,7 +229,7 @@ void LinearIR::replace_output(const ExpressionPort& expr_port, const TensorDescr
 
 void LinearIR::register_regular_expression(const ExpressionPtr& expr) {
     if (is_type<ov::op::v0::Result>(expr->get_node()) || is_type<ov::op::v0::Parameter>(expr->get_node()))
-        throw ngraph_error("LinearIR::insert can't be used to add Parameters or Results to IR");
+        OPENVINO_THROW("LinearIR::insert can't be used to add Parameters or Results to IR");
     register_expression(expr);
 }
 
@@ -238,7 +238,7 @@ void LinearIR::register_expression(const ExpressionPtr& expr) {
     {
         const auto& res = m_node2expression_map.insert({node, expr});
         if (!res.second)
-            throw ngraph_error("Duplicate node is detected in linear IR: " + std::string(node->get_friendly_name()));
+            OPENVINO_THROW("Duplicate node is detected in linear IR: " + std::string(node->get_friendly_name()));
     }
     for (size_t i = 0; i < expr->m_outputs.size(); ++i) {
         const auto& out = expr->m_outputs[i];

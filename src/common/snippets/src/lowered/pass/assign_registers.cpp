@@ -51,7 +51,7 @@ bool AssignRegisters::run(LinearIR& linear_ir) {
             else if (io_expr->get_type() == IOExpression::io_type::OUTPUT)
                 manually_assigned_gprs[expr->get_inputs()[0]] = num_parameters + io_expr->get_index();
             else
-                throw ngraph_error("Unsupported io_type detected");
+                OPENVINO_THROW("Unsupported io_type detected");
         } else if (const auto& buffer = ov::as_type_ptr<op::Buffer>(op)) {
             const auto buffer_id = buffer->get_id();
             // All buffers have one common data pointer

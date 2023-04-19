@@ -25,7 +25,7 @@ public:
     SerializationNode(const Output<Node> &arg, const std::shared_ptr<lowered::Expression>& expr)
     : Op({arg}), m_expr(expr) {
         if (!m_expr || !m_expr->get_node())
-            throw ngraph_error("SerializationNode requires a valid expression with non-null node pointer");
+            OPENVINO_THROW("SerializationNode requires a valid expression with non-null node pointer");
         const auto& node = expr->get_node();
         std::string type = node->get_type_name();
         std::string name = node->get_friendly_name();

@@ -31,7 +31,7 @@ LinearIR::constExprIt InsertBuffers::insertion_position(const LinearIR& linear_i
 
     // If loop_ids of expressions are equal and don't contain LOOP_NULL_ID, it's attempt to insert Buffer between expressions from the same Loop!
     if (loop_idx == up_loops.size() && std::none_of(up_loops.begin(), up_loops.end(), [](const size_t id) { return id == Expression::LOOP_NULL_ID; }))
-        throw ov::Exception("Buffer isn't supported in Inner Loop at the moment!");
+        OPENVINO_THROW("Buffer isn't supported in Inner Loop at the moment!");
 
     // If the both expressions are outside Loops, insert Buffer explicitly after first Expression
     if (loop_idx == up_loops.size()) {
@@ -53,7 +53,7 @@ LinearIR::constExprIt InsertBuffers::insertion_position(const LinearIR& linear_i
         loop_manager->get_loop_bounds(linear_ir, down_loop_id, loop_begin_pos, loop_end_pos);
         return loop_begin_pos;
     } else {
-        throw ov::Exception("Incorrect configuration for Buffer insertion!");
+        OPENVINO_THROW("Incorrect configuration for Buffer insertion!");
     }
 }
 

@@ -44,7 +44,7 @@ Expression::Expression(const std::shared_ptr<Node>& n, std::vector<TensorDescrip
 
 std::shared_ptr<Node> Expression::get_node() const {
     if (!m_source_node)
-        throw ngraph_error("An attempt to get uninitialized node from lowered expression");
+        OPENVINO_THROW("An attempt to get uninitialized node from lowered expression");
     return  m_source_node;
 }
 
