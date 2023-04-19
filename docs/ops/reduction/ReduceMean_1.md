@@ -13,7 +13,7 @@
 *ReduceMean* operation performs the reduction with finding the arithmetic mean on a given input ``data`` along dimensions specified by ``axes`` input.
 Each element in the output is calculated as follows:
 
-.. code-block:: html
+.. code-block:: 
 
    output[i0, i1, ..., iN] = mean[j0, ..., jN](x[j0, ..., jN]))
 
@@ -51,7 +51,7 @@ Particular cases:
 
 **Examples**
 
-.. code-block:: html
+.. code-block:: 
 
     <layer id="1" type="ReduceMean" ...>
         <data keep_dims="true" />
@@ -63,7 +63,7 @@ Particular cases:
                 <dim>24</dim>
             </port>
             <port id="1">
-                <dim>2</dim>         <!-- value is [2, 3] that means independent reduction in each channel and batch -->
+                <dim>2</dim> <!-- value is [2, 3] that means independent reduction in each channel and batch -->
             </port>
         </input>
         <output>
@@ -77,7 +77,7 @@ Particular cases:
     </layer>
 
 
-.. code-block:: html
+.. code-block:: 
 
     <layer id="1" type="ReduceMean" ...>
         <data keep_dims="false" />
@@ -89,7 +89,7 @@ Particular cases:
                 <dim>24</dim>
             </port>
             <port id="1">
-                <dim>2</dim>         <!-- value is [2, 3] that means independent reduction in each channel and batch -->
+                <dim>2</dim> <!-- value is [2, 3] that means independent reduction in each channel and batch -->
             </port>
         </input>
         <output>
@@ -101,7 +101,7 @@ Particular cases:
     </layer>
 
 
-.. code-block:: html
+.. code-block:: 
 
     <layer id="1" type="ReduceMean" ...>
         <data keep_dims="false" />
@@ -113,7 +113,7 @@ Particular cases:
                 <dim>24</dim>
             </port>
             <port id="1">
-                <dim>1</dim>         <!-- value is [1] that means independent reduction in each channel and spatial dimensions -->
+                <dim>1</dim>         /<!-- value is [1] that means independent reduction in each channel and spatial dimensions -->
             </port>
         </input>
         <output>
@@ -125,7 +125,7 @@ Particular cases:
         </output>
     </layer>
 
-.. code-block:: html
+.. code-block:: cpp
 
     <layer id="1" type="ReduceMean" ...>
         <data keep_dims="false" />
@@ -137,7 +137,7 @@ Particular cases:
                 <dim>24</dim>
             </port>
             <port id="1">
-                <dim>1</dim>         <!-- value is [-2] that means independent reduction in each channel, batch and second spatial dimension -->
+                <dim>1</dim>         /<!-- value is [-2] that means independent reduction in each channel, batch and second spatial dimension -->
             </port>
         </input>
         <output>
