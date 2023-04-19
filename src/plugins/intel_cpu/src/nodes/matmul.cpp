@@ -204,6 +204,14 @@ MatMul::MatMul(const std::shared_ptr<ngraph::Node>& op, const GraphContext::CPtr
 }
 
 bool MatMul::canFuse(const NodePtr& node) const {
+    //  Consider the case when Matmul doesn't support execution in int8, but is getting fused with FQ with int8 output.
+    //  Then the Matmul will change its output precision to fp32. If fusing FQ into matmul, there would be reorder inserted
+    //  after matmul. In some bert model, this reorder causes great perf degradation.
+    //  Todo: Remove this if onednn primitive support U8 output with floating input.
+    if (node->getType() == Type::FakeQuantize && one_of(node->getOriginalOutputPrecisionAtPort(0), Precision::I8, Precision::U8) &&
+        !canBeExecutedInInt8(getOriginalInputPrecisionAtPort(0), getOriginalInputPrecisionAtPort(1)) &&
+        getOriginalInputPrecisionAtPort(0) == InferenceEngine::Precision::FP32 )
+        return false;
     return canFuseSimpleOperation(node);
 }
 
@@ -217,7 +225,7 @@ void MatMul::setPostOps(dnnl::primitive_attr& attr, const VectorDims& dims, bool
 
     bool isINT8 = canBeExecutedInInt8(getOriginalInputPrecisionAtPort(0), getOriginalInputPrecisionAtPort(1));
 
-    DnnlPostOpsComposer dnnlpoc(getEngine(), attr, ops, postOpsArgs, dims, dims.size() - 1, isINT8);
+    DnnlPostOpsComposer dnnlpoc(getEngine(), attr, ops, postOpsArgs, dims, dims.size() - 1, isINT8, 1 << (dims.size() - 1), getDQScales(), withBiases);
 
     for (int i = 0; i < fusedWith.size(); ++i) {
         auto& node = fusedWith[i];
@@ -593,7 +601,7 @@ void MatMul::prepareParams() {
 
     auto engine = getEngine();
 
-    auto builder = [&engine](const MatMulKey& key) -> dnnl::primitive {
+    auto builder = [&engine](const MatMulKey& key) -> executorPtr {
         dnnl::matmul::primitive_desc matmul_desc;
 
         if (key.bias) {
@@ -633,22 +641,20 @@ void MatMul::prepareParams() {
                 break;
             }
         }
-        return matmul(prim_desc);
+        return std::make_shared<DnnlExecutor>(prim_desc);
     };
 
     auto cache = context->getParamsCache();
     auto result = cache->getOrCreate(key, builder);
 
-    if (!result.first) {
+    execPtr = result.first;
+    if (!execPtr) {
         IE_THROW() << "Primitive descriptor was not found for node " << getName() << ".";
     }
 
-    prim = result.first;
+    auto schratchpadMem = getScratchPadMem(execPtr->getScratchPadDesc());
 
-    auto pd = prim.get_primitive_desc();
-    auto scratchpadMem = getScratchPadMem(pd);
-
-    primArgs[DNNL_ARG_SCRATCHPAD] = scratchpadMem->GetPrimitive();
+    primArgs[DNNL_ARG_SCRATCHPAD] = schratchpadMem->GetPrimitive();
     primArgs[DNNL_ARG_SRC_0] = src0MemPtr->GetPrimitive();
     primArgs[DNNL_ARG_WEIGHTS_0] = src1MemPtr->GetPrimitive();
     primArgs[DNNL_ARG_DST] = dstMemPtr->GetPrimitive();
@@ -656,6 +662,20 @@ void MatMul::prepareParams() {
         primArgs[DNNL_ARG_BIAS] = getParentEdgeAt(2)->getMemoryPtr()->GetPrimitive();
 
     appendPostOpArgs(*attr, primArgs, postOpsArgs);
+#ifdef CPU_DEBUG_CAPS
+    if (result.second == CacheEntryBase::LookUpStatus::Miss) {
+        auto pd = execPtr->getPrimitiveDesc();
+        DEBUG_LOG("verbose##", getName(), "##", DnnlExtensionUtils::query_pd_info(pd), "\n");
+    }
+#endif
+}
+
+void MatMul::execute(dnnl::stream strm) {
+    if (execPtr) {
+        execPtr->exec(primArgs, strm);
+    } else {
+        IE_THROW() << errorPrefix << " doesn't have an initialized executor";
+    }
 }
 
 void MatMul::executeDynamicImpl(dnnl::stream strm) {
@@ -667,6 +687,7 @@ const std::vector<impl_desc_type>& MatMul::getPrimitivesPriority() {
             impl_desc_type::unknown,
             impl_desc_type::brgemm_avx512_amx,
             impl_desc_type::brgemm_avx512,
+            impl_desc_type::gemm_acl,
             impl_desc_type::gemm_blas,
             impl_desc_type::gemm_avx512,
             impl_desc_type::gemm_avx2,

@@ -12,10 +12,6 @@
 #include "openvino/runtime/device_id_parser.hpp"
 #include "so_extension.hpp"
 
-#ifdef OPENVINO_STATIC_LIBRARY
-#    include "ie_plugins.hpp"
-#endif
-
 namespace {
 std::string resolve_extension_path(const std::string& path) {
     std::string retvalue;
@@ -31,8 +27,6 @@ std::string resolve_extension_path(const std::string& path) {
 }  // namespace
 
 namespace ov {
-
-#ifndef OPENVINO_STATIC_LIBRARY
 
 std::string findPluginXML(const std::string& xmlFile) {
     std::string xmlConfigFile_ = xmlFile;
@@ -56,13 +50,9 @@ std::string findPluginXML(const std::string& xmlFile) {
         xmlConfigFileDefault = FileUtils::makePath(ielibraryDir, ov::util::to_file_path("plugins.xml"));
         if (FileUtils::fileExist(xmlConfigFileDefault))
             return xmlConfigFile_ = ov::util::from_file_path(xmlConfigFileDefault);
-
-        OPENVINO_THROW("Failed to find plugins.xml file");
     }
     return xmlConfigFile_;
 }
-
-#endif  // OPENVINO_STATIC_LIBRARY
 
 #define OV_CORE_CALL_STATEMENT(...)             \
     try {                                       \
@@ -81,13 +71,13 @@ public:
 Core::Core(const std::string& xml_config_file) {
     _impl = std::make_shared<Impl>();
 
-#ifdef OPENVINO_STATIC_LIBRARY
-    OV_CORE_CALL_STATEMENT(_impl->register_plugins_in_registry(::getStaticPluginsRegistry());)
-#else
-    OV_CORE_CALL_STATEMENT(
-        // If XML is default, load default plugins by absolute paths
-        _impl->register_plugins_in_registry(findPluginXML(xml_config_file), xml_config_file.empty());)
-#endif
+    std::string xmlConfigFile = ov::findPluginXML(xml_config_file);
+    if (!xmlConfigFile.empty())
+        OV_CORE_CALL_STATEMENT(
+            // If XML is default, load default plugins by absolute paths
+            _impl->register_plugins_in_registry(xmlConfigFile, xml_config_file.empty());)
+    // Load plugins from the pre-compiled list
+    OV_CORE_CALL_STATEMENT(_impl->register_compile_time_plugins();)
 }
 
 std::map<std::string, Version> Core::get_versions(const std::string& device_name) const {
@@ -186,8 +176,11 @@ void Core::add_extension(const std::string& library_path) {
             OPENVINO_SUPPRESS_DEPRECATED_START
             add_extension(extension_ptr);
             OPENVINO_SUPPRESS_DEPRECATED_END
-        } catch (const std::runtime_error&) {
-            OPENVINO_THROW("Cannot add extension. Cannot find entry point to the extension library");
+        } catch (const std::runtime_error& e) {
+            OPENVINO_THROW(
+                std::string(
+                    "Cannot add extension. Cannot find entry point to the extension library. This error happened: ") +
+                e.what());
         }
     }
 }

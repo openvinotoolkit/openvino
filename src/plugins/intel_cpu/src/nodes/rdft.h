@@ -8,7 +8,7 @@
 #include <node.h>
 #include <string>
 #include <map>
-#include "kernels/rdft_kernel.hpp"
+#include "kernels/x64/rdft_kernel.hpp"
 
 namespace ov {
 namespace intel_cpu {

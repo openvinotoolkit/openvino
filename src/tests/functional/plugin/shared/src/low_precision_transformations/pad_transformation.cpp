@@ -58,6 +58,7 @@ void PadTransformation::Run() {
 }
 
 TEST_P(PadTransformation, CompareWithRefImpl) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED();
     Run();
 };
 

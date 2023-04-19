@@ -24,6 +24,7 @@ namespace ov {
 namespace intel_cpu {
 
 using namespace InferenceEngine;
+using namespace dnnl::impl::cpu::x64;
 
 Config::Config() {
     // this is default mode
@@ -46,7 +47,7 @@ Config::Config() {
         }
     #endif
 
-    if (!dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core_bf16))
+    if (!mayiuse(avx512_core_bf16))
         enforceBF16 = false;
 
     CPU_DEBUG_CAP_ENABLE(applyDebugCapsProperties());
@@ -78,6 +79,40 @@ void Config::readProperties(const std::map<std::string, std::string> &prop) {
             streamExecutorConfig.SetConfig(key, val);
         } else if (hintsConfigKeys.end() != std::find(hintsConfigKeys.begin(), hintsConfigKeys.end(), key)) {
             perfHintsConfig.SetConfig(key, val);
+        } else if (key == ov::hint::enable_cpu_pinning.name()) {
+            if (val == PluginConfigParams::YES) {
+                enableCpuPinning = true;
+                changedCpuPinning = true;
+            } else if (val == PluginConfigParams::NO) {
+                enableCpuPinning = false;
+                changedCpuPinning = true;
+            } else {
+                IE_THROW() << "Wrong value " << val << "for property key " << ov::hint::enable_cpu_pinning.name()
+                           << ". Expected only true/false." << std::endl;
+            }
+        } else if (key == ov::hint::scheduling_core_type.name()) {
+            const auto core_type = ov::util::from_string(val, ov::hint::scheduling_core_type);
+            if (core_type == ov::hint::SchedulingCoreType::ANY_CORE ||
+                core_type == ov::hint::SchedulingCoreType::PCORE_ONLY ||
+                core_type == ov::hint::SchedulingCoreType::ECORE_ONLY) {
+                schedulingCoreType = core_type;
+            } else {
+                IE_THROW() << "Wrong value " << val << "for property key " << ov::hint::scheduling_core_type.name()
+                           << ". Expected only " << ov::hint::SchedulingCoreType::ANY_CORE << "/"
+                           << ov::hint::SchedulingCoreType::PCORE_ONLY << "/"
+                           << ov::hint::SchedulingCoreType::ECORE_ONLY << std::endl;
+            }
+        } else if (key == ov::hint::enable_hyper_threading.name()) {
+            if (val == PluginConfigParams::YES) {
+                enableHyperThreading = true;
+                changedHyperThreading = true;
+            } else if (val == PluginConfigParams::NO) {
+                enableHyperThreading = false;
+                changedHyperThreading = true;
+            } else {
+                IE_THROW() << "Wrong value " << val << "for property key " << ov::hint::enable_hyper_threading.name()
+                           << ". Expected only true/false." << std::endl;
+            }
         } else if (key == PluginConfigParams::KEY_DYN_BATCH_LIMIT) {
             int val_i = -1;
             try {
@@ -135,9 +170,14 @@ void Config::readProperties(const std::map<std::string, std::string> &prop) {
                 lpTransformsMode = LPTransformsMode::On;
             else
                 IE_THROW() << "Wrong value for property key " << PluginConfigInternalParams::KEY_LP_TRANSFORMS_MODE;
+        } else if (key == ov::device::id.name()) {
+            device_id = val;
+            if (!device_id.empty()) {
+                IE_THROW() << "CPU plugin supports only '' as device id";
+            }
         } else if (key == PluginConfigParams::KEY_ENFORCE_BF16) {
             if (val == PluginConfigParams::YES) {
-                if (dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core)) {
+                if (mayiuse(avx512_core)) {
                     enforceBF16 = true;
                 } else {
                     IE_THROW() << "Platform doesn't support BF16 format";
@@ -148,14 +188,10 @@ void Config::readProperties(const std::map<std::string, std::string> &prop) {
                 IE_THROW() << "Wrong value for property key " << PluginConfigParams::KEY_ENFORCE_BF16
                     << ". Expected only YES/NO";
             }
-        } else if (key == ov::device::id.name()) {
-            device_id = val;
-            if (!device_id.empty()) {
-                IE_THROW() << "CPU plugin supports only '' as device id";
-            }
-        } else if (key == ov::inference_precision.name()) {
+            inferencePrecisionSetExplicitly = true;
+        } else if (key == ov::hint::inference_precision.name()) {
             if (val == "bf16") {
-                if (dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core)) {
+                if (mayiuse(avx512_core)) {
                     enforceBF16 = true;
                 } else {
                     IE_THROW() << "Platform doesn't support BF16 format";
@@ -163,9 +199,10 @@ void Config::readProperties(const std::map<std::string, std::string> &prop) {
             } else if (val == "f32") {
                 enforceBF16 = false;
             } else {
-                IE_THROW() << "Wrong value for property key " << ov::inference_precision.name()
+                IE_THROW() << "Wrong value for property key " << ov::hint::inference_precision.name()
                     << ". Supported values: bf16, f32";
             }
+            inferencePrecisionSetExplicitly = true;
         } else if (PluginConfigInternalParams::KEY_CPU_RUNTIME_CACHE_CAPACITY == key) {
             int val_i = -1;
             try {
@@ -197,8 +234,26 @@ void Config::readProperties(const std::map<std::string, std::string> &prop) {
             else
                 IE_THROW() << "Wrong value for property key " << PluginConfigInternalParams::KEY_SNIPPETS_MODE
                             << ". Expected values: ENABLE/DISABLE/IGNORE_CALLBACK";
+        } else if (key == ov::hint::execution_mode.name()) {
+            if (val == "PERFORMANCE") {
+                executionMode = ov::hint::ExecutionMode::PERFORMANCE;
+            } else if (val == "ACCURACY") {
+                executionMode = ov::hint::ExecutionMode::ACCURACY;
+            } else {
+                IE_THROW() << "Wrong value for property key " << ov::hint::execution_mode.name()
+                    << ". Supported values: PERFORMANCE, ACCURACY";
+            }
         } else {
             IE_THROW(NotFound) << "Unsupported property " << key << " by CPU plugin";
+        }
+    }
+    // apply execution mode after all the params are handled to prevent possible conflicts
+    // when both execution_mode and inference_precision are specified
+    if (!inferencePrecisionSetExplicitly) {
+        if (executionMode == ov::hint::ExecutionMode::PERFORMANCE && (mayiuse(avx512_core_bf16))) {
+            enforceBF16 = true;
+        } else {
+            enforceBF16 = false;
         }
     }
 
@@ -207,6 +262,11 @@ void Config::readProperties(const std::map<std::string, std::string> &prop) {
 
     if (exclusiveAsyncRequests)  // Exclusive request feature disables the streams
         streamExecutorConfig._streams = 1;
+
+#if defined(OPENVINO_ARCH_ARM) || defined(OPENVINO_ARCH_ARM64)
+    // TODO: multi-stream execution has functional issues on ARM target
+    streamExecutorConfig._streams = 1;
+#endif
 
     CPU_DEBUG_CAP_ENABLE(applyDebugCapsProperties());
     updateProperties();
@@ -254,15 +314,17 @@ void Config::updateProperties() {
     IE_SUPPRESS_DEPRECATED_START
         _config.insert({ PluginConfigParams::KEY_DUMP_EXEC_GRAPH_AS_DOT, dumpToDot });
     IE_SUPPRESS_DEPRECATED_END;
+
     if (enforceBF16) {
         _config.insert({ PluginConfigParams::KEY_ENFORCE_BF16, PluginConfigParams::YES });
     } else {
         _config.insert({ PluginConfigParams::KEY_ENFORCE_BF16, PluginConfigParams::NO });
     }
+
     _config.insert({ PluginConfigParams::KEY_PERFORMANCE_HINT, perfHintsConfig.ovPerfHint });
     _config.insert({ PluginConfigParams::KEY_PERFORMANCE_HINT_NUM_REQUESTS,
             std::to_string(perfHintsConfig.ovPerfHintNumRequests) });
 }
 
-}   // namespace intel_cpu
+}  // namespace intel_cpu
 }   // namespace ov

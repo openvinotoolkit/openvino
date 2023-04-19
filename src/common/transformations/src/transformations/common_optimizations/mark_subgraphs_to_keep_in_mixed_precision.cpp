@@ -23,30 +23,6 @@ using namespace ov::opset10;
 namespace ov {
 namespace pass {
 
-/*
- * MarkNormalizationOps marks MVN and NormalizeL2 to be kept in f32 precision.
- */
-class MarkNormalizationOps : public MatcherPass {
-public:
-    OPENVINO_RTTI("MarkNormalizationOps", "0");
-
-    MarkNormalizationOps() {
-        MATCHER_SCOPE(MarkNormalizationOps);
-        auto ops_to_be_kept_fp32 = pattern::wrap_type<opset2::MVN, MVN, NormalizeL2>();
-
-        matcher_pass_callback callback = [=](pattern::Matcher& m) {
-            const auto& node = m.get_match_root();
-            if (!node)
-                return false;
-
-            disable_fp16_compression(node);
-            return true;
-        };
-        auto m = make_shared<pattern::Matcher>(ops_to_be_kept_fp32, matcher_name);
-        register_matcher(m, callback);
-    }
-};
-
 // Marking continues to propagate through these ops.
 std::shared_ptr<Node> propagate_through_ops = pattern::wrap_type<Squeeze,
                                                                  Unsqueeze,
@@ -337,13 +313,12 @@ bool MarkSugraphsToKeepInMixedPrecision::run_on_model(const shared_ptr<ov::Model
     Manager manager(get_pass_config());
     // Mark root of Division with eps pattern to keep in FP32
     REGISTER_PASS(manager, MarkDivWithEps)
-
     REGISTER_PASS(manager, MarkExpInReduceOpPath)
-    REGISTER_PASS(manager, MarkNormalizationOps)
 
     // both Up and Down propagations are needed.
     // Why both of them are needed is explained in comments in passes declarations.
     REGISTER_PASS(manager, PropagateDownMarkToKeepInMixedPrecision)
+
     auto propagate_up = manager.register_pass<BackwardGraphRewrite>();
     ADD_MATCHER(propagate_up, PropagateUpMarkToKeepInMixedPrecision)
 

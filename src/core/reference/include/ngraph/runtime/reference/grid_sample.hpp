@@ -133,10 +133,11 @@ DATA_ET bilinear(const DATA_ET* data,
     const auto x_topleft = std::floor(x_d);
     const auto dy = y_d - y_topleft;
     const auto dx = x_d - x_topleft;
-    const auto v00 = get_padded(data, data_shape, n, c, y_topleft, x_topleft);
-    const auto v01 = get_padded(data, data_shape, n, c, y_topleft, x_topleft + 1);
-    const auto v10 = get_padded(data, data_shape, n, c, y_topleft + 1, x_topleft);
-    const auto v11 = get_padded(data, data_shape, n, c, y_topleft + 1, x_topleft + 1);
+    const auto v00 = get_padded(data, data_shape, n, c, static_cast<long>(y_topleft), static_cast<long>(x_topleft));
+    const auto v01 = get_padded(data, data_shape, n, c, static_cast<long>(y_topleft), static_cast<long>(x_topleft + 1));
+    const auto v10 = get_padded(data, data_shape, n, c, static_cast<long>(y_topleft + 1), static_cast<long>(x_topleft));
+    const auto v11 =
+        get_padded(data, data_shape, n, c, static_cast<long>(y_topleft + 1), static_cast<long>(x_topleft + 1));
 
     const auto q0 = (1 - dx) * v00 + dx * v01;
     const auto q1 = (1 - dx) * v10 + dx * v11;
@@ -204,7 +205,13 @@ DATA_ET bicubic(const DATA_ET* data,
     const auto x_topleft = std::floor(x_d);
     const auto dy = y_d - y_topleft;
     const auto dx = x_d - x_topleft;
-    const auto s = gather_4x4(data, data_shape, n, c, y_topleft - 1, x_topleft - 1, get_padded);
+    const auto s = gather_4x4(data,
+                              data_shape,
+                              n,
+                              c,
+                              static_cast<long>(y_topleft - 1),
+                              static_cast<long>(x_topleft - 1),
+                              get_padded);
 
     const auto cy = cubic_coeffs(dy);
     const auto cx = cubic_coeffs(dx);

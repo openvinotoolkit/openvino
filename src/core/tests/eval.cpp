@@ -101,14 +101,18 @@ TEST(eval, bad_get_data_ptr) {
 TEST(eval, max_eval_parameter) {
     auto p = make_shared<op::Parameter>(element::i64, Shape{});
 
+    OPENVINO_SUPPRESS_DEPRECATED_START
     auto result = maximum_value(p);
+    OPENVINO_SUPPRESS_DEPRECATED_END
     EXPECT_FALSE(result.first);
     EXPECT_EQ(result.second, numeric_limits<uint64_t>::max());
 }
 
 TEST(eval, max_eval_constant) {
     auto c = op::Constant::create<int64_t>(element::i64, Shape{}, {27});
+    OPENVINO_SUPPRESS_DEPRECATED_START
     auto result = maximum_value(c);
+    OPENVINO_SUPPRESS_DEPRECATED_END
     ASSERT_TRUE(result.first);
     EXPECT_EQ(result.second, 27);
 }
@@ -117,7 +121,9 @@ TEST(eval, max_eval_minimum_constant) {
     auto c = op::Constant::create<int64_t>(element::i64, Shape{}, {27});
     auto p = make_shared<op::Parameter>(element::i64, Shape{});
     auto m = make_shared<op::v1::Minimum>(c, p);
+    OPENVINO_SUPPRESS_DEPRECATED_START
     auto result = maximum_value(m);
+    OPENVINO_SUPPRESS_DEPRECATED_END
     ASSERT_TRUE(result.first);
     EXPECT_EQ(result.second, 27);
 }
@@ -134,7 +140,9 @@ TEST(eval, max_eval_reduce_min) {
     auto squeezes = make_shared<op::v0::Squeeze>(
         make_shared<op::v0::Unsqueeze>(reduce, make_shared<op::v0::Constant>(element::i32, Shape{1}, 0)),
         make_shared<op::v0::Constant>(element::i64, Shape{1}, 0));
+    OPENVINO_SUPPRESS_DEPRECATED_START
     EXPECT_EQ(maximum_value(squeezes).second, 37);
+    OPENVINO_SUPPRESS_DEPRECATED_END
 }
 
 TEST(eval, evaluate_shape_of) {
@@ -171,24 +179,6 @@ TEST(eval, evaluate_dynamic_range_sum) {
     auto cval = read_vector<float>(result_tensor);
     vector<float> seq{8.0f, 11.0f, 14.0f};
     ASSERT_EQ(cval, seq);
-}
-
-TEST(eval, interpret_dynamic_range_sum) {
-    auto p_start = make_shared<op::Parameter>(element::f32, PartialShape{});
-    auto p_stop = make_shared<op::Parameter>(element::f32, PartialShape{});
-    auto p_step = make_shared<op::Parameter>(element::f32, PartialShape{});
-    auto p1 = make_shared<op::Parameter>(element::f32, PartialShape{});
-    auto range = make_shared<op::v0::Range>(p_start, p_stop, p_step);
-    auto add = make_shared<op::v1::Add>(range, p1);
-    auto fun = make_shared<Function>(OutputVector{add}, ParameterVector{p_start, p_stop, p_step, p1});
-    auto test_case = test::TestCase(fun);
-    test_case.add_input(std::vector<float>{1.0f});
-    test_case.add_input(std::vector<float>{10.0f});
-    test_case.add_input(std::vector<float>{3.0f});
-    test_case.add_input(std::vector<float>{7.0f});
-    vector<float> seq{8.0f, 11.0f, 14.0f};
-    test_case.add_expected_output({3}, seq);
-    test_case.run();
 }
 
 TEST(eval, evaluate_broadcast_v3_bidirectional) {

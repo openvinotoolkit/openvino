@@ -44,7 +44,9 @@ std::shared_ptr<Node> op::DepthToSpace::clone_with_new_inputs(const OutputVector
 void op::DepthToSpace::validate_and_infer_types() {
     OV_OP_SCOPE(v0_DepthToSpace_validate_and_infer_types);
 
+    OPENVINO_SUPPRESS_DEPRECATED_START
     const auto output_shape = shape_infer(this, get_node_input_partial_shapes(*this)).front();
+    OPENVINO_SUPPRESS_DEPRECATED_END
     set_output_type(0, get_input_element_type(0), output_shape);
 }
 

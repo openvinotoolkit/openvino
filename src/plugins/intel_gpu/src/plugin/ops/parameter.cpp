@@ -28,16 +28,24 @@ static void CreateParameterOp(Program& p, const std::shared_ptr<ngraph::op::v0::
     auto inputInfo = networkInputs.at(op->get_friendly_name());
     // first create and add the input layout
     const auto inputDesc = inputInfo->getTensorDesc();
-    auto input_pshape = op->get_partial_shape();
     InferenceEngine::Layout l = inputDesc.getLayout();
     InferenceEngine::Precision ip = inputDesc.getPrecision();
 
-    cldnn::format inputFormat = cldnn::format::bfyx;
-    if (input_pshape.is_dynamic()) {
-        inputFormat = cldnn::format::get_default_format(input_pshape.size());
-    } else if (InferenceEngine::Layout::BLOCKED == l && 6 == input_pshape.size()) {
-        inputFormat = cldnn::format::bfwzyx;
-    } else {
+    auto input_pshape = op->get_partial_shape();
+    if (!p.use_new_shape_infer()) {
+        if (input_pshape.size() < 4) {
+            input_pshape.insert(input_pshape.end(), 4 - input_pshape.size(), ov::Dimension(1));
+        }
+        if (p.m_max_batch > 1) {
+            input_pshape[0] = ov::Dimension(p.m_curBatch);
+        }
+    }
+
+    cldnn::format inputFormat = cldnn::format::get_default_format(input_pshape.size());
+    std::vector<size_t> default_order(input_pshape.size());
+    std::iota(default_order.begin(), default_order.end(), 0);
+    // For legacy API we need to handle NHWC as well, so check non default order
+    if (inputDesc.getBlockingDesc().getOrder() != default_order) {
         inputFormat = FormatFromLayout(l);
     }
 
