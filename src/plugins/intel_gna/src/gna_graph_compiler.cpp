@@ -74,10 +74,10 @@ static bool CheckIFLastComponentIsPrecededByConv2D(const backend::DnnComponents:
         p->name(l);                          \
     }
 
-uint32_t count_conv2D_input_width_for_expected_output_width(uint32_t expected_ouput_width,
-                                                            uint32_t kernel_width,
-                                                            uint32_t stride_width,
-                                                            uint32_t padding_width) {
+static uint32_t count_conv2D_input_width_for_expected_output_width(uint32_t expected_ouput_width,
+                                                                   uint32_t kernel_width,
+                                                                   uint32_t stride_width,
+                                                                   uint32_t padding_width) {
     return (expected_ouput_width - 1) * stride_width - 2 * padding_width + kernel_width;
 };
 
