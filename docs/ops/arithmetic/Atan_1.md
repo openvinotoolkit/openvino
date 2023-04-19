@@ -18,15 +18,15 @@
 
 **Inputs**
 
-  * **1**: A tensor of type *T* and arbitrary shape. **Required.**
+* **1**: A tensor of type *T* and arbitrary shape. **Required.**
 
 **Outputs**
 
-  * **1**: The result of element-wise *Atan* applied to the input tensor. A tensor of type *T* and same shape as the input tensor.
+* **1**: The result of element-wise *Atan* applied to the input tensor. A tensor of type *T* and same shape as the input tensor.
 
 **Types**
 
-  * *T*: any supported numeric type.
+* *T*: any supported numeric type.
 
 **Examples**
 

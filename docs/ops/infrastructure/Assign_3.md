@@ -16,20 +16,20 @@ declared in ``variable_id`` and returns an error otherwise.
 
 **Attributes**:
 
-  * *variable_id*
-  
-    * **Description**: identificator of the variable to be updated
-    * **Range of values**: any non-empty string
-    * **Type**: string
-    * **Required**: *yes*
+* *variable_id*
+
+  * **Description**: identificator of the variable to be updated
+  * **Range of values**: any non-empty string
+  * **Type**: string
+  * **Required**: *yes*
 
 **Inputs**
 
-  * **1**: ``new_value`` - input tensor of any supported type. **Required.**
+* **1**: ``new_value`` - input tensor of any supported type. **Required.**
 
 **Outputs**
 
-  * **1**: tensor with the same shape and type as ``new_value``.
+* **1**: tensor with the same shape and type as ``new_value``.
 
 **Example**
 

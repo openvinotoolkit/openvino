@@ -18,31 +18,31 @@ After broadcasting *Add* performs addition operation for the input tensors *a* a
 
 **Attributes**:
 
-  * *auto_broadcast*
-  
-    * **Description**: specifies rules used for auto-broadcasting of input tensors.
-    * **Range of values**:
+* *auto_broadcast*
 
-      * *none* - no auto-broadcasting is allowed, all input shapes must match,
-      * *numpy* - numpy broadcasting rules, description is available in :doc:`Broadcast Rules For Elementwise Operations <openvino_docs_ops_broadcast_rules>`,
-      * *pdpd* - PaddlePaddle-style implicit broadcasting, description is available in :doc:`Broadcast Rules For Elementwise Operations <openvino_docs_ops_broadcast_rules>`.
+  * **Description**: specifies rules used for auto-broadcasting of input tensors.
+  * **Range of values**:
 
-    * **Type**: string
-    * **Default value**: "numpy"
-    * **Required**: *no*
+    * *none* - no auto-broadcasting is allowed, all input shapes must match,
+    * *numpy* - numpy broadcasting rules, description is available in :doc:`Broadcast Rules For Elementwise Operations <openvino_docs_ops_broadcast_rules>`,
+    * *pdpd* - PaddlePaddle-style implicit broadcasting, description is available in :doc:`Broadcast Rules For Elementwise Operations <openvino_docs_ops_broadcast_rules>`.
+
+  * **Type**: string
+  * **Default value**: "numpy"
+  * **Required**: *no*
 
 **Inputs**
 
-  * **1**: A tensor of type *T* and arbitrary shape and rank. **Required.**
-  * **2**: A tensor of type *T* and arbitrary shape and rank. **Required.**
+* **1**: A tensor of type *T* and arbitrary shape and rank. **Required.**
+* **2**: A tensor of type *T* and arbitrary shape and rank. **Required.**
 
 **Outputs**
 
-  * **1**: The result of element-wise addition operation. A tensor of type *T* with shape equal to broadcasted shape of the two inputs.
+* **1**: The result of element-wise addition operation. A tensor of type *T* with shape equal to broadcasted shape of the two inputs.
 
 **Types**
 
-  * *T*: any numeric type.
+* *T*: any numeric type.
 
 
 **Examples**

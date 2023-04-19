@@ -18,15 +18,15 @@
 
 **Inputs**
 
-  * **1**: A tensor of type *T* and arbitrary shape. **Required.**
+* **1**: A tensor of type *T* and arbitrary shape. **Required.**
 
 **Outputs**
 
-  * **1**: The result of element-wise *Acosh* operation. A tensor of type *T* and the same shape as the input tensor.
+* **1**: The result of element-wise *Acosh* operation. A tensor of type *T* and the same shape as the input tensor.
 
 **Types**
 
-  * *T*: any numeric type.
+* *T*: any numeric type.
 
 **Examples**
 

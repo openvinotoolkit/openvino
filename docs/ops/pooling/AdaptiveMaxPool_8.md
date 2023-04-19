@@ -30,28 +30,28 @@ The output is calculated following this formula:
 
 **Attributes**:
 
-  * *index_element_type*
-  
-    * **Description**: the type of the second output containing indices
-    * **Range of values**: "i64" or "i32"
-    * **Type**: string
-    * **Default value**: "i64"
-    * **Required**: *no*
+* *index_element_type*
+
+  * **Description**: the type of the second output containing indices
+  * **Range of values**: "i64" or "i32"
+  * **Type**: string
+  * **Default value**: "i64"
+  * **Required**: *no*
 
 **Inputs**:
 
-  * **1**: 3D, 4D, or 5D input tensor of shape ``[N, C, H]``, ``[N, C, H, W]`` or ``[N, C, D, H, W]`` and type *T*. **Required.**
-  * **2**: 1D tensor describing output shape for spatial dimensions. Can be ``[H_out]`` for 3D input, ``[H_out, W_out]`` for 4D input, ``[D_out, H_out, W_out]`` for 5D input and of type *T_SHAPE*. **Required.**
+* **1**: 3D, 4D, or 5D input tensor of shape ``[N, C, H]``, ``[N, C, H, W]`` or ``[N, C, D, H, W]`` and type *T*. **Required.**
+* **2**: 1D tensor describing output shape for spatial dimensions. Can be ``[H_out]`` for 3D input, ``[H_out, W_out]`` for 4D input, ``[D_out, H_out, W_out]`` for 5D input and of type *T_SHAPE*. **Required.**
 
 **Outputs**:
 
-  * **1**: Output of type *T* and shape ``[N, C, H_out]``, ``[N, C, H_out, W_out]`` or ``[N, C, D_out, H_out, W_out]``.
-  * **2**: Output of type specified by *index_element_type* and same shape as the first output containing indices of elements in the first output. The values of indices are computed as if input spatial dimensions were flatten, so the values are in the range ``[0, H * W * D)``.
+* **1**: Output of type *T* and shape ``[N, C, H_out]``, ``[N, C, H_out, W_out]`` or ``[N, C, D_out, H_out, W_out]``.
+* **2**: Output of type specified by *index_element_type* and same shape as the first output containing indices of elements in the first output. The values of indices are computed as if input spatial dimensions were flatten, so the values are in the range ``[0, H * W * D)``.
 
 **Types**
 
-  * *T*: floating-point type.
-  * *T_SHAPE*: ``int32`` or ``int64``.
+* *T*: floating-point type.
+* *T_SHAPE*: ``int32`` or ``int64``.
 
 **Examples**
 

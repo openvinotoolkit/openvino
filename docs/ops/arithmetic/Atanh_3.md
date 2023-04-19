@@ -33,15 +33,15 @@ Unsigned Intragral type put:
 
 **Inputs**
 
-  * **1**: A tensor of type *T*. **Required.**
+* **1**: A tensor of type *T*. **Required.**
 
 **Outputs**
 
-  * **1**: The result of element-wise atanh operation applied to the input tensor. A tensor of type *T* and the same shape as input tensor.
+* **1**: The result of element-wise atanh operation applied to the input tensor. A tensor of type *T* and the same shape as input tensor.
 
 **Types**
 
-  * *T*: any supported numeric type.
+* *T*: any supported numeric type.
 
 **Examples**
 

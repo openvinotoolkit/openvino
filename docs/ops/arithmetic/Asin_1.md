@@ -10,19 +10,19 @@
 
 **Attributes**:
 
-  No attributes available.
+No attributes available.
 
 **Inputs**
 
-  * **1**: An tensor of type *T*. **Required.**
+* **1**: An tensor of type *T*. **Required.**
 
 **Outputs**
 
-  * **1**: The result of element-wise asin operation. A tensor of type *T*.
+* **1**: The result of element-wise asin operation. A tensor of type *T*.
 
 **Types**
 
-  * *T*: any numeric type.
+* *T*: any numeric type.
 
 *Asin* does the following with the input tensor *a*:
 
