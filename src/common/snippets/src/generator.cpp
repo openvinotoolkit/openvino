@@ -259,7 +259,7 @@ Generator::opRegType Generator::get_op_reg_type(const std::shared_ptr<Node>& op)
 }
 
 Generator::opRegType Generator::get_specific_op_reg_type(const std::shared_ptr<ov::Node>& op) const {
-    OPENVINO_THROW("Register type of the operation " + std::string(op->get_type_name()) + " isn't determined!");
+    OPENVINO_THROW_NORETURN("Register type of the operation " + std::string(op->get_type_name()) + " isn't determined!");
 }
 
 
