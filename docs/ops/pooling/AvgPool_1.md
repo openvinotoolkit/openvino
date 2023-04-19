@@ -9,9 +9,10 @@
 **Short description**: `Reference <http://caffe.berkeleyvision.org/tutorial/layers/pooling.html>`__
 
 **Detailed description**: `Reference <http://cs231n.github.io/convolutional-networks/#pool>`__ . Average Pool is a pooling operation that performs down-sampling by dividing the input into pooling regions of size specified by kernel attribute and computing the average values of each region. Output shape is calculated as follows:
-        ``H_out = (H + pads_begin[0] + pads_end[0] - kernel[0] / strides[0]) + 1``
-        ``W_out = (H + pads_begin[1] + pads_end[1] - kernel[1] / strides[1]) + 1``
-        ``D_out = (H + pads_begin[2] + pads_end[2] - kernel[2] / strides[2]) + 1``
+
+``H_out = (H + pads_begin[0] + pads_end[0] - kernel[0] / strides[0]) + 1``
+``W_out = (H + pads_begin[1] + pads_end[1] - kernel[1] / strides[1]) + 1``
+``D_out = (H + pads_begin[2] + pads_end[2] - kernel[2] / strides[2]) + 1``
 
 **Attributes**: *Pooling* attributes are specified in the ``data`` node, which is a child of the layer node.
 
@@ -56,6 +57,7 @@
 
   * **Description**: *rounding_type* is a type of rounding to be applied.
   * **Range of values**:
+    
     * *ceil*
     * *floor*
   * **Type**: string
@@ -65,6 +67,7 @@
 * *auto_pad*
 
   * **Description**: *auto_pad* how the padding is calculated. Possible values:
+    
     * *explicit*: use explicit padding values from `pads_begin` and `pads_end`.
     * *same_upper (same_lower)* the input is padded to match the output size. In case of odd padding value an extra padding is added at the end (at the beginning).
     * *valid* - do not use padding.
