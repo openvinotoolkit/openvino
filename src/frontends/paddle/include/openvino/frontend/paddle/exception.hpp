@@ -14,8 +14,12 @@ class NodeContext;
 
 class OpValidationFailure : public ov::frontend::OpValidationFailure {
 public:
-    OpValidationFailure(const CheckLocInfo& check_loc_info, const NodeContext& node, const std::string& explanation)
-        : ov::frontend::OpValidationFailure(check_loc_info, get_error_msg_prefix_paddle(node), explanation) {}
+    [[noreturn]] static void create(const CheckLocInfo& check_loc_info,
+                                    const NodeContext& node,
+                                    const std::string& explanation);
+
+protected:
+    explicit OpValidationFailure(const std::string& what_arg) : ov::frontend::OpValidationFailure(what_arg) {}
 
 private:
     static std::string get_error_msg_prefix_paddle(const NodeContext& node);
