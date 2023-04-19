@@ -83,14 +83,14 @@ NamedOutputs set_value(const NodeContext& node) {
     if (node.has_input("StartsTensorList") && node.has_input("StepsTensorList") && node.has_input("EndsTensorList")) {
         starts = handle_minus_index(node.get_ng_inputs("StartsTensorList"), spec_dim_node);
         ends = handle_minus_index(node.get_ng_inputs("EndsTensorList"), spec_dim_node);
-        steps = handle_minus_index(node.get_ng_inputs("StepsTensorList"), spec_dim_node);
+        steps = std::make_shared<default_opset::Concat>(node.get_ng_inputs("StepsTensorList"), 0);
     } else if (node.has_attribute("starts") && node.has_attribute("steps") && node.has_attribute("ends")) {
         starts = handle_minus_index(node.get_attribute<std::vector<int64_t>>("starts"), spec_dim_node);
         ends = handle_minus_index(node.get_attribute<std::vector<int64_t>>("ends"), spec_dim_node);
         auto step_vec = node.get_attribute<std::vector<int64_t>>("steps");
         for (size_t i = 0; i < step_vec.size(); i++)
             PADDLE_OP_CHECK(node, (step_vec[i] == 1), "Elements of steps must be 1");
-        steps = handle_minus_index(step_vec, spec_dim_node);
+        steps = default_opset::Constant::create(element::i64, {step_vec.size()}, step_vec);
     } else
         PADDLE_OP_CHECK(node, (false), "Invalid arguments!");
 
@@ -100,7 +100,8 @@ NamedOutputs set_value(const NodeContext& node) {
     starts_node = std::make_shared<default_opset::ScatterNDUpdate>(starts_node, axes_node, starts);
 
     // 3.2 get ends node
-    ends_node = default_opset::Constant::create(element::i64, {static_cast<size_t>(dims)}, std::vector<int64_t>(dims));
+    ends_node =
+        default_opset::Constant::create(element::i64, {static_cast<size_t>(dims)}, std::vector<int64_t>(dims, -1));
     ends_node = std::make_shared<default_opset::ScatterNDUpdate>(ends_node, axes_node, ends);
 
     // 3.3 get steps node

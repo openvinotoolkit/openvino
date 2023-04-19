@@ -119,6 +119,28 @@ def main():
 
     paddle_set_value("set_value5", data, value, set_value5, dtype, starts, ends, steps)
 
+    shape = (17, 19)
+    dtype = "float32"
+    data = np.random.randn(*shape).astype(dtype)
+    value = np.random.randn(1).astype(dtype)
+
+    def set_value_step(x, value):
+        x[::4, 2:-1:5] = value
+        return x
+
+    paddle_set_value("set_value6", data, value, set_value_step, dtype)
+
+    shape = (7, 9)
+    dtype = "int32"
+    data = np.random.randint(0, 5, shape).astype(dtype)
+    value = np.random.randint(0, 2, (1, )).astype(dtype)
+
+    def set_value_step1(x, value):
+        x[::2, 2:7:5] = value
+        return x
+
+    paddle_set_value("set_value7", data, value, set_value_step1, dtype)
+
     shape = (10, 5)
     dtype = "float32"
     data = np.random.randint(0, 5, shape).astype(dtype)
