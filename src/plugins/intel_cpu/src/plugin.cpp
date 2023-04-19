@@ -28,6 +28,10 @@
 #include "weights_cache.hpp"
 #include "utils/denormals.hpp"
 
+#ifdef OV_CPU_WITH_ACL
+#include "arm_compute/runtime/Scheduler.h"
+#endif
+
 #if defined(__linux__)
 # include <sys/auxv.h>
 # include <signal.h>
@@ -141,6 +145,11 @@ Engine::Engine() :
     specialSetup(new CPUSpecialSetup) {
     _pluginName = "CPU";
     extensionManager->AddExtension(std::make_shared<Extension>());
+#ifdef OV_CPU_WITH_ACL
+    // initialize ARM Compute Library schedulers once in plugin ctor
+    // otherwise, in case of multiple streams, it will be initialized multiple times
+    arm_compute::Scheduler::get();
+#endif
 }
 
 Engine::~Engine() {
