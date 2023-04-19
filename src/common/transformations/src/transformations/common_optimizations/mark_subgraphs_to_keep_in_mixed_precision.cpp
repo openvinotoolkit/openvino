@@ -8,6 +8,7 @@
 #include "openvino/op/util/broadcast_base.hpp"
 #include "openvino/op/util/gather_base.hpp"
 #include "openvino/opsets/opset10.hpp"
+#include "openvino/opsets/opset11.hpp"
 #include "openvino/opsets/opset2.hpp"
 #include "openvino/pass/manager.hpp"
 #include "openvino/pass/pattern/op/or.hpp"
@@ -46,7 +47,6 @@ void erase_fq_path(const std::shared_ptr<Node>& node) {
     auto& rt_info = node->get_rt_info();
     rt_info.erase("fq_path");
 }
-
 
 // Marking continues to propagate through these ops.
 std::shared_ptr<Node> propagate_through_ops = pattern::wrap_type<Squeeze,
@@ -337,6 +337,18 @@ public:
                                                                                   FakeQuantize,
                                                                                   Reshape,
                                                                                   op::util::BroadcastBase,
+                                                                                  DepthToSpace,
+                                                                                  opset1::Interpolate,
+                                                                                  opset4::Interpolate,
+                                                                                  opset11::Interpolate,
+                                                                                  opset1::MaxPool,
+                                                                                  MaxPool,
+                                                                                  Pad,
+                                                                                  ReduceMax,
+                                                                                  ReduceMin,
+                                                                                  Relu,
+                                                                                  Transpose,
+                                                                                  ShuffleChannels,
                                                                                   StridedSlice,
                                                                                   Slice,
                                                                                   VariadicSplit,
