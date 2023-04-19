@@ -27,7 +27,6 @@ SimpleLowPrecisionTransformer::SimpleLowPrecisionTransformer(
 
     // TODO: use one pass manager
     markup = std::make_shared<ngraph::pass::Manager>(passConfig);
-    markup->register_pass<ngraph::pass::low_precision::MarkupBias>();
     markup->register_pass<ngraph::pass::low_precision::MarkupCanBeQuantized>(params.defaultPrecisions);
     markup->register_pass<ngraph::pass::low_precision::MarkupPrecisions>(precisionRestrictions,
                                                                          params.defaultPrecisions);
@@ -36,6 +35,7 @@ SimpleLowPrecisionTransformer::SimpleLowPrecisionTransformer(
     markup->register_pass<ngraph::pass::low_precision::PropagatePrecisions>(params);
     markup->register_pass<ngraph::pass::low_precision::AlignQuantizationIntervals>(params.defaultPrecisions);
     markup->register_pass<ngraph::pass::low_precision::AlignQuantizationParameters>(params.defaultPrecisions);
+    markup->register_pass<ngraph::pass::low_precision::MarkupBias>();
 
     common = std::make_shared<ngraph::pass::Manager>(passConfig);
     commonGraphRewrite = common->register_pass<ngraph::pass::GraphRewrite>();
