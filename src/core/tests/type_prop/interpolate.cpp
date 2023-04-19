@@ -338,3 +338,31 @@ TEST(type_prop, interpolate_v11_sizes_with_shapeof) {
 
     EXPECT_EQ(interp->get_output_partial_shape(0), (PartialShape{1, 21, 37, 3}));
 }
+
+TEST(type_prop, interpolate_v11_scales_incorrect_number) {
+    const auto image = std::make_shared<op::Parameter>(element::f32, Shape{1, 3, 30, 60});
+    const auto scales = op::Constant::create<float>(element::f32, Shape{2}, {0.2f, 0.2f});
+
+    ov::op::util::InterpolateBase::InterpolateAttrs attrs;
+    attrs.shape_calculation_mode = ov::op::util::InterpolateBase::ShapeCalcMode::SCALES;
+    attrs.pads_begin = {0, 0, 0, 0};
+    attrs.pads_end = {0, 0, 0, 0};
+    OV_EXPECT_THROW(
+        auto interp = std::make_shared<ov::op::v11::Interpolate>(image, scales, attrs),
+        ov::NodeValidationFailure,
+        HasSubstr("The number of elements in the 'scales_or_sizes' input does not match the number of axes"));
+}
+
+TEST(type_prop, interpolate_v11_sizes_incorrect_number) {
+    const auto image = std::make_shared<op::Parameter>(element::f32, Shape{1, 3, 30, 60});
+    const auto sizes = op::Constant::create<int32_t>(element::i32, Shape{2}, {6, 12});
+
+    ov::op::util::InterpolateBase::InterpolateAttrs attrs;
+    attrs.shape_calculation_mode = ov::op::util::InterpolateBase::ShapeCalcMode::SIZES;
+    attrs.pads_begin = {0, 0, 0, 0};
+    attrs.pads_end = {0, 0, 0, 0};
+    OV_EXPECT_THROW(
+        auto interp = std::make_shared<ov::op::v11::Interpolate>(image, sizes, attrs),
+        ov::NodeValidationFailure,
+        HasSubstr("The number of elements in the 'scales_or_sizes' input does not match the number of axes"));
+}
