@@ -17,7 +17,8 @@ namespace CPULayerTestsDefinitions {
 enum class shapeNodeType {
     Reshape,
     Squeeze,
-    Unsqueeze
+    Unsqueeze,
+    ReshapeWithNoneZero
 };
 
 inline std::ostream& operator<<(std::ostream& os, shapeNodeType type) {
@@ -30,6 +31,9 @@ inline std::ostream& operator<<(std::ostream& os, shapeNodeType type) {
             break;
         case shapeNodeType::Unsqueeze:
             os << "Unsqueeze";
+            break;
+        case shapeNodeType::ReshapeWithNoneZero:
+            os << "ReshapeWithNoneZero";
             break;
     }
     return os;
@@ -163,9 +167,19 @@ protected:
                 shapeOps = std::make_shared<ngraph::opset1::Unsqueeze>(dataInput, secondaryInput);
                 break;
             }
+            case shapeNodeType::ReshapeWithNoneZero: {
+                auto nonZero = std::make_shared<ngraph::opset3::NonZero>(dataInput);
+                shapeOps = std::make_shared<ngraph::opset1::Reshape>(nonZero, secondaryInput, specialZero);
+                break;
+            }
         }
-
-        function = makeNgraphFunction(ngPrc, inputs, shapeOps, "ShapeOpsCPUTest");
+        if (nodeType == shapeNodeType::ReshapeWithNoneZero) {
+            ngraph::ParameterVector paramsVector;
+            paramsVector.push_back(dataInput);
+            function = makeNgraphFunction(ngPrc, paramsVector, shapeOps, "ShapeOpsCPUTest");
+        } else {
+            function = makeNgraphFunction(ngPrc, inputs, shapeOps, "ShapeOpsCPUTest");
+        }
     }
 
 private:
@@ -220,6 +234,19 @@ const auto params_dynBatch = ::testing::Combine(::testing::Values(shape_dynBatch
                                                 ::testing::Values(true));
 
 INSTANTIATE_TEST_SUITE_P(smoke_CompareWithRefs_dynBatch, ShapeOpsCPUTest, params_dynBatch, ShapeOpsCPUTest::getTestCaseName);
+
+inputDescription shape_emptyTensor{{{-1, -1, -1, -1},
+                                 {ngraph::Shape{4, 5, 7, 3}, ngraph::Shape{6, 3, 4, 8}, ngraph::Shape{2, 2, 3, 9}}},
+                                 {std::vector<int>{-1, 0, 4}, std::vector<int>{0, 0, -1}, std::vector<int>{2, 0}}};
+
+const auto params_emptyTensor = ::testing::Combine(::testing::Values(shape_emptyTensor),
+                                                ::testing::Values(ngraph::helpers::InputLayerType::PARAMETER),
+                                                ::testing::Values(shapeNodeType::Reshape),
+                                                ::testing::Values(Precision::FP32),
+                                                ::testing::ValuesIn(secondInPrcs),
+                                                ::testing::Values(true));
+
+INSTANTIATE_TEST_SUITE_P(smoke_CompareWithRefs_emptyTensor, ShapeOpsCPUTest, params_emptyTensor, ShapeOpsCPUTest::getTestCaseName);
 
 } // namespace reshapeTest
 
