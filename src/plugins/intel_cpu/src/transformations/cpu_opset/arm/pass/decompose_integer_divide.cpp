@@ -1,21 +1,21 @@
 // Copyright (C) 2020-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 
-#include "convert_i32_div.hpp"
+#include "decompose_integer_divide.hpp"
 #include <ngraph/opsets/opset1.hpp>
 #include <ngraph/rt_info.hpp>
 
 namespace ov {
 namespace intel_cpu {
 
-ConvertI32Div::ConvertI32Div() {
-    register_matcher(std::make_shared<ngraph::pattern::Matcher>(ngraph::pattern::wrap_type<ngraph::opset1::Divide>(), "ConvertI32Div"),
+DecomposeIntegerDivide::DecomposeIntegerDivide() {
+    register_matcher(std::make_shared<ngraph::pattern::Matcher>(ngraph::pattern::wrap_type<ngraph::opset1::Divide>(), "DecomposeIntegerDivide"),
          [](ngraph::pattern::Matcher& m) {
              auto divide = std::dynamic_pointer_cast<ngraph::opset1::Divide>(m.get_match_root());
              if (!divide) {
                  return false;
              }
-             if (divide->get_element_type() != ov::element::i32) {
+             if (divide->get_element_type().is_integral_number()) {
                  return false;
              }
 

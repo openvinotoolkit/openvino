@@ -9,10 +9,10 @@
 namespace ov {
 namespace intel_cpu {
 
-class ConvertI32Div: public ngraph::pass::MatcherPass {
+class DecomposeIntegerDivide: public ngraph::pass::MatcherPass {
 public:
-    OPENVINO_RTTI("ConvertI32Div", "0");
-    ConvertI32Div();
+    OPENVINO_RTTI("DecomposeIntegerDivide", "0");
+    DecomposeIntegerDivide();
 };
 
 }   // namespace intel_cpu
