@@ -308,8 +308,7 @@ std::vector<T> host_tensor_2_vector(ngraph::HostTensorPtr tensor) {
         return array_2_vector<T, ngraph::element::Type_t::i64>(p, tensor->get_element_count());
     }
     case ngraph::element::Type_t::u1:
-        NGRAPH_CHECK(false, "u1 element type is unsupported");
-        break;
+        OPENVINO_THROW_NORETURN("u1 element type is unsupported");
     case ngraph::element::Type_t::u8: {
         auto p = tensor->get_data_ptr<ngraph::element::Type_t::u8>();
         return array_2_vector<T, ngraph::element::Type_t::u8>(p, tensor->get_element_count());
@@ -327,7 +326,7 @@ std::vector<T> host_tensor_2_vector(ngraph::HostTensorPtr tensor) {
         return array_2_vector<T, ngraph::element::Type_t::u64>(p, tensor->get_element_count());
     }
     default:
-        NGRAPH_UNREACHABLE("unsupported element type");
+        OPENVINO_THROW_NORETURN("unsupported element type");
     }
 }
 

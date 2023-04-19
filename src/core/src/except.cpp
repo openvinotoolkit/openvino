@@ -12,6 +12,14 @@ void ov::Exception::create(const CheckLocInfo& check_loc_info,
     OPENVINO_SUPPRESS_DEPRECATED_END
 }
 
+void ov::Exception::create_noreturn(const CheckLocInfo& check_loc_info,
+                                    const std::string& context_info,
+                                    const std::string& explanation) {
+    OPENVINO_SUPPRESS_DEPRECATED_START
+    throw ov::Exception(make_what(check_loc_info, context_info, explanation));
+    OPENVINO_SUPPRESS_DEPRECATED_END
+}
+
 std::string ov::Exception::make_what(const CheckLocInfo& check_loc_info,
                                      const std::string& context_info,
                                      const std::string& explanation) {
@@ -43,6 +51,11 @@ ov::Exception::~Exception() = default;
 void ov::AssertFailure::create(const CheckLocInfo& check_loc_info,
                                const std::string& context_info,
                                const std::string& explanation) {
+    throw ov::AssertFailure(make_what(check_loc_info, context_info, explanation));
+}
+void ov::AssertFailure::create_noreturn(const CheckLocInfo& check_loc_info,
+                                        const std::string& context_info,
+                                        const std::string& explanation) {
     throw ov::AssertFailure(make_what(check_loc_info, context_info, explanation));
 }
 ov::AssertFailure::~AssertFailure() = default;

@@ -14,9 +14,13 @@ namespace ov {
 namespace frontend {
 class FRONTEND_API GeneralFailure : public AssertFailure {
 public:
-    [[noreturn]] static void create(const CheckLocInfo& check_loc_info,
-                                    const std::string& context_info,
-                                    const std::string& explanation);
+    static void create(const CheckLocInfo& check_loc_info,
+                       const std::string& context_info,
+                       const std::string& explanation);
+
+    [[noreturn]] static void create_noreturn(const CheckLocInfo& check_loc_info,
+                                             const std::string& context_info,
+                                             const std::string& explanation);
 
 protected:
     explicit GeneralFailure(const std::string& what_arg) : ov::AssertFailure(what_arg) {}
@@ -24,9 +28,13 @@ protected:
 
 class FRONTEND_API InitializationFailure : public AssertFailure {
 public:
-    [[noreturn]] static void create(const CheckLocInfo& check_loc_info,
-                                    const std::string& context_info,
-                                    const std::string& explanation);
+    static void create(const CheckLocInfo& check_loc_info,
+                       const std::string& context_info,
+                       const std::string& explanation);
+
+    [[noreturn]] static void create_noreturn(const CheckLocInfo& check_loc_info,
+                                             const std::string& context_info,
+                                             const std::string& explanation);
 
 protected:
     explicit InitializationFailure(const std::string& what_arg) : ov::AssertFailure(what_arg) {}
@@ -34,9 +42,9 @@ protected:
 
 class FRONTEND_API OpValidationFailure : public AssertFailure {
 public:
-    [[noreturn]] static void create(const CheckLocInfo& check_loc_info,
-                                    const std::string& context_info,
-                                    const std::string& explanation);
+    static void create(const CheckLocInfo& check_loc_info,
+                       const std::string& context_info,
+                       const std::string& explanation);
 
 protected:
     explicit OpValidationFailure(const std::string& what_arg) : ov::AssertFailure(what_arg) {}
@@ -44,9 +52,9 @@ protected:
 
 class FRONTEND_API OpConversionFailure : public AssertFailure {
 public:
-    [[noreturn]] static void create(const CheckLocInfo& check_loc_info,
-                                    const std::string& context_info,
-                                    const std::string& explanation);
+    static void create(const CheckLocInfo& check_loc_info,
+                       const std::string& context_info,
+                       const std::string& explanation);
 
 protected:
     explicit OpConversionFailure(const std::string& what_arg) : ov::AssertFailure(what_arg) {}
@@ -69,6 +77,8 @@ protected:
 ///            i.e., only if the `cond` evalutes to `false`.
 /// \throws ::ov::frontend::GeneralFailure if `cond` is false.
 #define FRONT_END_GENERAL_CHECK(...) OPENVINO_ASSERT_HELPER(::ov::frontend::GeneralFailure, "", __VA_ARGS__)
+#define FRONT_END_GENERAL_CHECK_NORETURN(...) \
+    OPENVINO_ASSERT_NORETURN_HELPER(::ov::frontend::GeneralFailure, "", __VA_ARGS__)
 
 /// \brief Macro to check whether a boolean condition holds.
 /// \param cond Condition to check
@@ -78,6 +88,8 @@ protected:
 /// \throws ::ov::frontend::InitializationFailure if `cond` is false.
 #define FRONT_END_INITIALIZATION_CHECK(...) \
     OPENVINO_ASSERT_HELPER(::ov::frontend::InitializationFailure, "", __VA_ARGS__)
+#define FRONT_END_INITIALIZATION_CHECK_NORETURN(...) \
+    OPENVINO_ASSERT_NORETURN_HELPER(::ov::frontend::InitializationFailure, "", __VA_ARGS__)
 
 /// \brief Macro to check whether a boolean condition holds.
 /// \param cond Condition to check

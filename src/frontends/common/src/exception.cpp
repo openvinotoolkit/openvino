@@ -11,9 +11,23 @@ void ov::frontend::GeneralFailure::create(const CheckLocInfo& check_loc_info,
         make_what(check_loc_info, "FrontEnd API failed with GeneralFailure: " + context_info, explanation));
 }
 
+void ov::frontend::GeneralFailure::create_noreturn(const CheckLocInfo& check_loc_info,
+                                                   const std::string& context_info,
+                                                   const std::string& explanation) {
+    throw ov::frontend::GeneralFailure(
+        make_what(check_loc_info, "FrontEnd API failed with GeneralFailure: " + context_info, explanation));
+}
+
 void ov::frontend::InitializationFailure::create(const CheckLocInfo& check_loc_info,
                                                  const std::string& context_info,
                                                  const std::string& explanation) {
+    throw ov::frontend::InitializationFailure(
+        make_what(check_loc_info, "FrontEnd API failed with InitializationFailure: " + context_info, explanation));
+}
+
+void ov::frontend::InitializationFailure::create_noreturn(const CheckLocInfo& check_loc_info,
+                                                          const std::string& context_info,
+                                                          const std::string& explanation) {
     throw ov::frontend::InitializationFailure(
         make_what(check_loc_info, "FrontEnd API failed with InitializationFailure: " + context_info, explanation));
 }

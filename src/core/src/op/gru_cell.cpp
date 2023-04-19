@@ -141,6 +141,6 @@ shared_ptr<Node> op::v3::GRUCell::clone_with_new_inputs(const OutputVector& new_
                                     get_clip(),
                                     m_linear_before_reset);
     } else {
-        OPENVINO_THROW("Incorrect number of new arguments");
+        OPENVINO_THROW_NORETURN("Incorrect number of new arguments");
     }
 }

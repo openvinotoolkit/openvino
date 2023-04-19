@@ -24,10 +24,10 @@
     RETHROW_FRONTEND_EXCEPTION(ov::Exception)                       \
     catch (const std::exception& e) {                               \
         const auto message = std::string(MESSAGE "\n") + e.what();  \
-        OPENVINO_ASSERT(false, message);                            \
+        OPENVINO_THROW_NORETURN(message);                           \
     }                                                               \
     catch (...) {                                                   \
-        OPENVINO_ASSERT(false, (MESSAGE));                          \
+        OPENVINO_THROW_NORETURN((MESSAGE));                         \
     }
 
 #define FRONTEND_RETURN_STATEMENT(MESSAGE, FUNCTION)                \
@@ -43,10 +43,10 @@
     RETHROW_FRONTEND_EXCEPTION(ov::Exception)                       \
     catch (const std::exception& e) {                               \
         const auto message = std::string(MESSAGE "\n") + e.what();  \
-        OPENVINO_ASSERT(false, message);                            \
+        OPENVINO_THROW_NORETURN(message);                           \
     }                                                               \
     catch (...) {                                                   \
-        OPENVINO_ASSERT(false, (MESSAGE));                          \
+        OPENVINO_THROW_NORETURN((MESSAGE));                         \
     }
 
 namespace ov {

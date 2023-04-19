@@ -25,9 +25,12 @@ public:
     explicit Exception(const std::string& what_arg) : std::runtime_error(what_arg) {}
     OPENVINO_DEPRECATED("This constructor is deprecated and will be removed, please use OPENVINO_THROW instead")
     explicit Exception(const std::stringstream& what_arg) : std::runtime_error(what_arg.str()) {}
-    [[noreturn]] static void create(const CheckLocInfo& check_loc_info,
-                                    const std::string& context_info,
-                                    const std::string& explanation);
+    static void create(const CheckLocInfo& check_loc_info,
+                       const std::string& context_info,
+                       const std::string& explanation);
+    [[noreturn]] static void create_noreturn(const CheckLocInfo& check_loc_info,
+                                             const std::string& context_info,
+                                             const std::string& explanation);
     virtual ~Exception();
 
 protected:
@@ -47,9 +50,12 @@ static inline std::ostream& write_all_to_stream(std::ostream& str, const T& arg,
 /// Base class for check failure exceptions.
 class OPENVINO_API AssertFailure : public Exception {
 public:
-    [[noreturn]] static void create(const CheckLocInfo& check_loc_info,
-                                    const std::string& context_info,
-                                    const std::string& explanation);
+    static void create(const CheckLocInfo& check_loc_info,
+                       const std::string& context_info,
+                       const std::string& explanation);
+    [[noreturn]] static void create_noreturn(const CheckLocInfo& check_loc_info,
+                                             const std::string& context_info,
+                                             const std::string& explanation);
     ~AssertFailure() override;
 
 protected:
@@ -149,6 +155,22 @@ protected:
         }                                                                                   \
     } while (0)
 
+#define OPENVINO_ASSERT_NORETURN_HELPER2(exc_class, ctx, check, ...)                                          \
+    do {                                                                                                      \
+        if (!(check)) {                                                                                       \
+            ::std::stringstream ss___;                                                                        \
+            ::ov::write_all_to_stream(ss___, __VA_ARGS__);                                                    \
+            exc_class::create_noreturn((::ov::CheckLocInfo{__FILE__, __LINE__, #check}), (ctx), ss___.str()); \
+        }                                                                                                     \
+    } while (0)
+
+#define OPENVINO_ASSERT_NORETURN_HELPER1(exc_class, ctx, check)                                      \
+    do {                                                                                             \
+        if (!(check)) {                                                                              \
+            exc_class::create_noreturn((::ov::CheckLocInfo{__FILE__, __LINE__, #check}), (ctx), ""); \
+        }                                                                                            \
+    } while (0)
+
 /// \brief Macro to check whether a boolean condition holds.
 /// \param cond Condition to check
 /// \param ... Additional error message info to be added to the error message via the `<<`
@@ -163,8 +185,11 @@ protected:
 /// \throws ::ov::AssertFailure if the macro is executed.
 // TODO: OPENVINO_THROW after migration to functions
 #define OPENVINO_THROW(...)                         OPENVINO_ASSERT_HELPER(::ov::Exception, "", false, __VA_ARGS__)
+#define OPENVINO_THROW_NORETURN(...)                OPENVINO_ASSERT_NORETURN_HELPER(::ov::Exception, "", false, __VA_ARGS__)
 #define OPENVINO_ASSERT_HELPER(exc_class, ctx, ...) CALL_OVERLOAD(OPENVINO_ASSERT_HELPER, exc_class, ctx, __VA_ARGS__)
-#define OPENVINO_NOT_IMPLEMENTED                    OPENVINO_ASSERT_HELPER(::ov::NotImplemented, "", false, "Not Implemented", "")
+#define OPENVINO_ASSERT_NORETURN_HELPER(exc_class, ctx, ...) \
+    CALL_OVERLOAD(OPENVINO_ASSERT_NORETURN_HELPER, exc_class, ctx, __VA_ARGS__)
+#define OPENVINO_NOT_IMPLEMENTED OPENVINO_ASSERT_HELPER(::ov::NotImplemented, "", false, "Not Implemented", "")
 
 #define GLUE(x, y) x y
 

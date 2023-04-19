@@ -54,13 +54,13 @@ std::string findPluginXML(const std::string& xmlFile) {
     return xmlConfigFile_;
 }
 
-#define OV_CORE_CALL_STATEMENT(...)             \
-    try {                                       \
-        __VA_ARGS__;                            \
-    } catch (const std::exception& ex) {        \
-        OPENVINO_THROW(ex.what());              \
-    } catch (...) {                             \
-        OPENVINO_THROW("Unexpected exception"); \
+#define OV_CORE_CALL_STATEMENT(...)                      \
+    try {                                                \
+        __VA_ARGS__;                                     \
+    } catch (const std::exception& ex) {                 \
+        OPENVINO_THROW_NORETURN(ex.what());              \
+    } catch (...) {                                      \
+        OPENVINO_THROW_NORETURN("Unexpected exception"); \
     }
 
 class Core::Impl : public CoreImpl {

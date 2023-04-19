@@ -21,9 +21,7 @@ std::string get_error_msg_prefix(const Node& node);
 
 class OnnxNodeValidationFailure : public ov::AssertFailure {
 public:
-    [[noreturn]] static void create(const CheckLocInfo& check_loc_info,
-                                    const Node& node,
-                                    const std::string& explanation);
+    static void create(const CheckLocInfo& check_loc_info, const Node& node, const std::string& explanation);
 
 protected:
     explicit OnnxNodeValidationFailure(const std::string& what_arg) : ov::AssertFailure(what_arg) {}

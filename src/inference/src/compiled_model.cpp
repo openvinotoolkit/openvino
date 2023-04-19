@@ -13,9 +13,9 @@
     try {                                                                    \
         __VA_ARGS__;                                                         \
     } catch (const std::exception& ex) {                                     \
-        OPENVINO_THROW(ex.what());                                           \
+        OPENVINO_THROW_NORETURN(ex.what());                                  \
     } catch (...) {                                                          \
-        OPENVINO_THROW("Unexpected exception");                              \
+        OPENVINO_THROW_NORETURN("Unexpected exception");                     \
     }
 
 namespace ov {
@@ -65,7 +65,7 @@ const ov::Output<const ov::Node>& CompiledModel::input(const std::string& tensor
                 return input;
             }
         }
-        OPENVINO_THROW("Input for tensor name '", tensor_name, "' is not found.");
+        OPENVINO_THROW_NORETURN("Input for tensor name '", tensor_name, "' is not found.");
     });
 }
 
@@ -98,7 +98,7 @@ const ov::Output<const ov::Node>& CompiledModel::output(const std::string& tenso
                 return output;
             }
         }
-        OPENVINO_THROW("Output for tensor name '", tensor_name, "' is not found.");
+        OPENVINO_THROW_NORETURN("Output for tensor name '", tensor_name, "' is not found.");
     });
 }
 

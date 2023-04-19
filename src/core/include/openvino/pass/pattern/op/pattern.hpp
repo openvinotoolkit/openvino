@@ -85,7 +85,7 @@ public:
     Pattern(const OutputVector& patterns) : Pattern(patterns, nullptr) {}
 
     std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& /* new_args */) const override {
-        OPENVINO_THROW("Uncopyable");
+        OPENVINO_THROW_NORETURN("Uncopyable");
     }
 
     ValuePredicate get_predicate() const;

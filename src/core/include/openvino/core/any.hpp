@@ -423,7 +423,7 @@ class OPENVINO_API Any {
     template <class U>
     [[noreturn]] static typename std::enable_if<!EqualityComparable<U>::value, bool>::type equal_impl(const U&,
                                                                                                       const U&) {
-        OPENVINO_THROW("Could not compare types without equality operator");
+        OPENVINO_THROW_NORETURN("Could not compare types without equality operator");
     }
 
     template <typename T>
@@ -832,7 +832,7 @@ public:
                 return *static_cast<decay_t<T>*>(_impl->addressof());
             }
         }
-        OPENVINO_THROW("Bad cast from: ", _impl->type_info().name(), " to: ", typeid(T).name());
+        OPENVINO_THROW_NORETURN("Bad cast from: ", _impl->type_info().name(), " to: ", typeid(T).name());
     }
 
     /**
@@ -855,7 +855,7 @@ public:
                 return *static_cast<decay_t<T>*>(_impl->addressof());
             }
         }
-        OPENVINO_THROW("Bad cast from: ", _impl->type_info().name(), " to: ", typeid(T).name());
+        OPENVINO_THROW_NORETURN("Bad cast from: ", _impl->type_info().name(), " to: ", typeid(T).name());
     }
 
     /**

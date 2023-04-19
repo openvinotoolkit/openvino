@@ -21,9 +21,9 @@ namespace ov {
     try {                                                             \
         __VA_ARGS__;                                                  \
     } catch (const std::exception& ex) {                              \
-        OPENVINO_THROW(ex.what());                                    \
+        OPENVINO_THROW_NORETURN(ex.what());                           \
     } catch (...) {                                                   \
-        OPENVINO_ASSERT(false, "Unexpected exception");               \
+        OPENVINO_THROW_NORETURN("Unexpected exception");              \
     }
 
 void Tensor::type_check(const Tensor&) {}

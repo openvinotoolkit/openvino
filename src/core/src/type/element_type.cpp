@@ -11,6 +11,7 @@
 
 #include "ngraph/log.hpp"
 #include "ngraph/type/element_type_traits.hpp"
+#include "openvino/core/except.hpp"
 
 namespace {
 struct TypeInfo {
@@ -113,7 +114,7 @@ ov::element::Type type_from_string(const std::string& type) {
     } else if (type == "dynamic") {
         return ::ov::element::Type(::ov::element::Type_t::dynamic);
     } else {
-        OPENVINO_THROW("Incorrect type: ", type);
+        OPENVINO_THROW_NORETURN("Incorrect type: ", type);
     }
 }
 }  // namespace
@@ -287,7 +288,7 @@ Type fundamental_type_for(const Type& type) {
     case Type_t::u64:
         return from<element_type_traits<Type_t::u64>::value_type>();
     default:
-        OPENVINO_THROW("Unsupported Data type: ", type);
+        OPENVINO_THROW_NORETURN("Unsupported Data type: ", type);
     }
 }
 

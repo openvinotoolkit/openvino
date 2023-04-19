@@ -48,9 +48,9 @@ AnyMap RemoteTensor::get_params() const {
         }
         return paramMap;
     } catch (const std::exception& ex) {
-        OPENVINO_THROW(ex.what());
+        OPENVINO_THROW_NORETURN(ex.what());
     } catch (...) {
-        OPENVINO_THROW("Unexpected exception");
+        OPENVINO_THROW_NORETURN("Unexpected exception");
     }
 }
 
@@ -62,9 +62,9 @@ std::string RemoteTensor::get_device_name() const {
     try {
         return remote_tensor->get_device_name();
     } catch (const std::exception& ex) {
-        OPENVINO_THROW(ex.what());
+        OPENVINO_THROW_NORETURN(ex.what());
     } catch (...) {
-        OPENVINO_THROW("Unexpected exception");
+        OPENVINO_THROW_NORETURN("Unexpected exception");
     }
 }
 }  // namespace ov
