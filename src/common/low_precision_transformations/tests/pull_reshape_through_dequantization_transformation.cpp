@@ -41,6 +41,7 @@ public:
     TestTransformationParams params;
     Values actual;
     Values expected;
+    std::string operation;
 };
 
 typedef std::tuple<ngraph::Shape,
@@ -58,6 +59,7 @@ public:
         const auto dequantizationElementwiseShape = std::get<1>(GetParam());
         const auto multiplyShape = std::get<2>(GetParam());
         auto testValues = std::get<3>(GetParam());
+        const auto operation = testValues.operation.empty() ? "GroupConvolution" : testValues.operation;
 
         // to prevent test cases increasing let's parameterize test by dequantization shape and
         // initialize values here
@@ -82,7 +84,7 @@ public:
             testValues.actual.transpose,
             testValues.actual.reshape2,
             testValues.actual.dequantizationAfter,
-            "GroupConvolution");
+            operation);
 
         ngraph::pass::Manager manager;
         auto decomp = manager.register_pass<ngraph::pass::GraphRewrite>();
@@ -107,7 +109,7 @@ public:
             testValues.expected.transpose,
             testValues.expected.reshape2,
             testValues.expected.dequantizationAfter,
-            "GroupConvolution");
+            operation);
     }
 
     static std::string getTestCaseName(testing::TestParamInfo<PullReshapeThroughDequantizationParams> obj) {
@@ -343,8 +345,6 @@ const std::vector<PullReshapeThroughDequantizationTestValues> testValues = {
     }
 };
 
-// clang-format on
-
 INSTANTIATE_TEST_SUITE_P(smoke_LPT,
                          PullReshapeThroughDequantizationTransformation,
                          ::testing::Combine(::testing::ValuesIn(inputShapes),
@@ -352,3 +352,45 @@ INSTANTIATE_TEST_SUITE_P(smoke_LPT,
                                             ::testing::ValuesIn(multiplyShapes),
                                             ::testing::ValuesIn(testValues)),
                          PullReshapeThroughDequantizationTransformation::getTestCaseName);
+
+namespace reshapeAsTranspose {
+const PullReshapeThroughDequantizationTestValues reshapeAsTransposeTestCase = {
+    LayerTransformation::createParamsU8I8().setSupportAsymmetricQuantization(true),
+    // ActualValues
+    {
+        element::u8,
+        {{element::f32, false}, {}, {{0.02f}, element::f32, {}, false}},
+        {std::vector<float>{2.f}, element::i8, {24, 1, 1, 32}},
+        {{element::f32, false}, {}, {{0.03f}, element::f32, {/* from parameter */}, false}},
+        {},
+        {},
+        {{}},
+        {{24, 32, 1, 1}},
+        element::f32,
+        {}
+    },
+    // ExpectedValues
+    {
+        element::u8,
+        {{element::f32, false}, {}, {{0.02f}, element::f32, {}, false}},
+        {std::vector<float>{2.f}, element::i8, {24, 32, 1, 1}},
+        {{element::f32, false}, {}, {{0.03f}, element::f32, {/* from parameter */}, false}},
+        {},
+        {},
+        {},
+        {},
+        element::f32,
+        {}
+    },
+    "Convolution"
+};
+
+INSTANTIATE_TEST_SUITE_P(smoke_LPT,
+                         PullReshapeThroughDequantizationTransformation,
+                         ::testing::Combine(::testing::Values(Shape{1, 32, 150, 150}),
+                                            ::testing::Values(std::pair<Shape, Shape>{{24, 1, 1, 1}, {24, 1, 1, 1}}),
+                                            ::testing::Values(Shape{}),
+                                            ::testing::Values(reshapeAsTransposeTestCase)),
+                         PullReshapeThroughDequantizationTransformation::getTestCaseName);
+// clang-format on
+}  // namespace reshapeAsTranspose

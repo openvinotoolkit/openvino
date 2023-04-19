@@ -61,18 +61,22 @@ def parse_arguments():
 def parse_rel_weights(rel_weights_path: os.path):
     rel_weights = dict()
     rel_weights_file_path = rel_weights_path
-    if os.path.isdir(rel_weights_path):
-        rel_weights_file_path = os.path.join(rel_weights_path, REL_WEIGHTS_FILENAME)
-    if os.path.isfile(rel_weights_file_path):
-        logger.info(f"Rel weights will be taken from {rel_weights_file_path}")
-        with open(rel_weights_path, "r") as rel_weights_file:
-            for line in rel_weights_file.readlines():
-                sep_pos = line.find(':')
-                op_name = line[:sep_pos:]
-                op_weight = float(line[sep_pos+1::].replace('\n', ''))
-                rel_weights.update({op_name: op_weight})
+    if rel_weights_path:
+        if os.path.isdir(rel_weights_path):
+            rel_weights_file_path = os.path.join(rel_weights_path, REL_WEIGHTS_FILENAME)
+        if os.path.isfile(rel_weights_file_path):
+            logger.info(f"Rel weights will be taken from {rel_weights_file_path}")
+            with open(rel_weights_path, "r") as rel_weights_file:
+                for line in rel_weights_file.readlines():
+                    sep_pos = line.find(':')
+                    op_name = line[:sep_pos:]
+                    op_weight = float(line[sep_pos+1::].replace('\n', ''))
+                    rel_weights.update({op_name: op_weight})
+        else:
+            logger.warning(f"Rel weights file does not exist! The expected passrates will be taken from runtime")
     else:
-        logger.warning(f"Rel weights file does not exist! The expected passrates will be taken from runtime")
+        logger.warning(f"Rel weights file is not specified! The expected passrates will be taken from runtime")
+
     return rel_weights
 
 

@@ -23,7 +23,7 @@ std::pair<ov::PartialShape, std::vector<ov::PartialShape>> get_numpy_broadcast_p
     ov::PartialShape target_shape =  input_shapes.front();
     for (size_t i = 1; i < input_shapes.size(); i++) {
         if (!ov::PartialShape::broadcast_merge_into(target_shape, input_shapes[i], op::AutoBroadcastType::NUMPY))
-            throw ngraph::ngraph_error("InsertMoveBroadcast: Failed broadcast-merge input shapes");
+            OPENVINO_THROW("InsertMoveBroadcast: Failed broadcast-merge input shapes");
     }
     std::vector<ov::PartialShape> normalized_shapes;
     for (const auto& input : input_shapes) {
