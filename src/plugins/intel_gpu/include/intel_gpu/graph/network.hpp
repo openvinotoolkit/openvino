@@ -276,5 +276,9 @@ private:
     // Move from cldnn::program to cldnn::network for multi-threads issue.
     std::unique_ptr<KernelsCache> _in_mem_kernels_cache;
     const size_t _in_mem_kernels_cache_capacity = 10000;
+
+#ifdef GPU_DEBUG_CONFIG
+    int64_t iteration = 0;
+#endif
 };
 }  // namespace cldnn

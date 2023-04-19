@@ -6,6 +6,7 @@
 #include <string>
 #include <mutex>
 #include <vector>
+#include <set>
 
 namespace ov {
 namespace intel_gpu {
@@ -99,8 +100,10 @@ public:
     int serialize_compile;                      // Serialize creating primitives and compiling kernels
     std::vector<std::string> forced_impl_types; // Force implementation type either ocl or onednn
     int max_kernels_per_batch;                  // Maximum number of kernels in a batch during compiling kernels
+    std::set<int64_t> dump_iteration;           // Dump n-th execution of network.
     static const debug_configuration *get_instance();
     bool is_dumped_layer(const std::string& layerName, bool is_output = false) const;
+    bool is_target_iteration(int64_t iteration) const;
 };
 
 }  // namespace cldnn
