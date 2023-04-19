@@ -11,6 +11,11 @@
 #include "session.hpp"
 #include "shape_lite.hpp"
 
+Napi::String Method(const Napi::CallbackInfo& info) {
+  Napi::Env env = info.Env();
+  return Napi::String::New(env, "world");
+}
+
 /// @brief Initialize native add-on
 Napi::Object InitAll(Napi::Env env, Napi::Object exports) {
     ModelWrap::Init(env, exports);
@@ -23,6 +28,9 @@ Napi::Object InitAll(Napi::Env env, Napi::Object exports) {
     PrePostProcessorWrap::Init(env, exports);
     Napi::PropertyDescriptor element = Napi::PropertyDescriptor::Accessor<enumElementType>("element");
     exports.DefineProperty(element);
+
+    exports.Set(Napi::String::New(env, "getDescriptionString"),
+              Napi::Function::New(env, Method));
 
     return exports;
 }
