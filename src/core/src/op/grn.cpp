@@ -40,7 +40,7 @@ void op::v0::GRN::validate_and_infer_types() {
 shared_ptr<Node> op::v0::GRN::clone_with_new_inputs(const OutputVector& new_args) const {
     OV_OP_SCOPE(v0_GRN_clone_with_new_inputs);
     if (new_args.size() != 1) {
-        throw ngraph_error("Incorrect number of new arguments");
+        OPENVINO_THROW("Incorrect number of new arguments");
     }
     return make_shared<GRN>(new_args.at(0), m_bias);
 }
