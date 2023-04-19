@@ -87,7 +87,7 @@ bool SupportedElementTypes::is_constant_type_supported(ov::element::Type elem_ty
 
 bool is_transpose_supported(const std::shared_ptr<const ov::Node>& node) {
     OPENVINO_ASSERT(node, "Transpose node is empty!");
-    const ov::Shape squeezed_shape = graph_utils::squeeze_shape(node->get_shape());
+    const ov::Shape squeezed_shape = graph_utils::squeeze_shape(node->get_input_shape(0));
     const size_t min_input_dim = std::min(squeezed_shape[0], squeezed_shape[1]);
     const size_t max_input_dim = std::max(squeezed_shape[0], squeezed_shape[1]);
 

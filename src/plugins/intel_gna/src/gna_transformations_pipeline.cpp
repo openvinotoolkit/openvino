@@ -64,6 +64,7 @@ void TransformationsPipeline::apply(const std::shared_ptr<ov::Model>& model,
 
     fake_quantized = ov::op::util::has_op_with_type<ngraph::op::FakeQuantize>(model);
     const bool has_convolution = ov::op::util::has_op_with_type<ngraph::opset7::Convolution>(model);
+    const bool has_matmul = ov::op::util::has_op_with_type<ngraph::opset7::MatMul>(model);
 
     ov::pass::Manager manager;
     manager.register_pass<ov::pass::InitNodeInfo>();
@@ -112,7 +113,7 @@ void TransformationsPipeline::apply(const std::shared_ptr<ov::Model>& model,
     manager.register_pass<ov::intel_gna::pass::RemoveSingleInputConcat>();
     manager.register_pass<ov::intel_gna::pass::SubstituteSoftsign>();
     manager.register_pass<ov::intel_gna::pass::InsertCopyBeforeLayerToBeEliminated>();
-    if (!has_convolution) {
+    if (!has_convolution && !has_matmul) {
         // TODO: Remove this condition when the legacy layout transformation (NCHW->NHWC) is disabled
         manager.register_pass<ov::intel_gna::pass::RemoveInputsProcessing>(input_output_subgraphs);
         manager.register_pass<ov::intel_gna::pass::RemoveOutputsProcessing>(input_output_subgraphs);

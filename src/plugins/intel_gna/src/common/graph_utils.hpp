@@ -284,6 +284,23 @@ inline bool has_32bit_input(const std::shared_ptr<ngraph::Node>& node) {
  * @return modified shape
  */
 inline ov::Shape squeeze_shape(const ov::Shape& shape) {
+    ov::Shape squeezed_shape;
+    squeezed_shape.reserve(shape.size());
+
+    auto if_not_eq_1 = [](ov::Shape::value_type value) {
+        return value != 1;
+    };
+    std::copy_if(shape.begin(), shape.end(), std::back_inserter(squeezed_shape), if_not_eq_1);
+
+    return squeezed_shape;
+}
+
+/**
+ * @brief Remove all dimensions equal to 1 from the left and right of the tensor shape vector
+ * @param shape original tensor shape vector
+ * @return modified shape
+ */
+inline ov::Shape trim_shape(const ov::Shape& shape) {
     auto comp = [](size_t x) {
         return x != 1;
     };

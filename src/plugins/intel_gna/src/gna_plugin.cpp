@@ -348,8 +348,8 @@ void GNAPlugin::PrePostProcess(InferenceEngine::Blob::Ptr input_blob,
                                std::shared_ptr<ov::Model> model) {
     const ov::element::Type input_type = details::convertPrecision(input_blob->getTensorDesc().getPrecision());
     const ov::element::Type output_type = details::convertPrecision(output_blob->getTensorDesc().getPrecision());
-    const ov::Shape& input_shape = input_blob->getTensorDesc().getDims();
-    const ov::Shape& output_shape = output_blob->getTensorDesc().getDims();
+    const ov::Shape& input_shape = model->get_parameters().front()->get_shape();
+    const ov::Shape& output_shape = model->get_results().front()->get_shape();
 
     for (const auto& param : model->get_parameters()) {
         param->set_element_type(input_type);
