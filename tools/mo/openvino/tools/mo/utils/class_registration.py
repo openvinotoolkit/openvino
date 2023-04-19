@@ -223,7 +223,7 @@ def need_exclude_class(class_type, excluded_frameworks):
     return False
 
 
-def get_replacers_order(transform_types: list, excluded_frameworks: list):
+def get_replacers_order(transform_types: list):
     """
     Gets all transforms that do not have 'op'.
     If two or more classes replaces the same op (both have op class attribute and values match), such
@@ -329,13 +329,13 @@ def apply_replacements_list(graph: Graph, replacers_order: list):
             num_transforms=len(replacers_order))
 
 
-def apply_replacements(graph: Graph, replacements_type: list, excluded_frameworks: list):
+def apply_replacements(graph: Graph, replacements_type: list):
     """
     Apply all patterns that do not have 'op' first, then apply patterns from registered_ops.
     If two or more classes replaces the same op (both have op class attribute and values match), such
     pattern is not applied (while registration it will warn user that we have a conflict).
     """
-    replacers_order = get_replacers_order(replacements_type, excluded_frameworks)
+    replacers_order = get_replacers_order(replacements_type)
     apply_replacements_list(graph, replacers_order)
 
 

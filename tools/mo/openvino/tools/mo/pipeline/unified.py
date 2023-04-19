@@ -6,7 +6,6 @@ import argparse
 from openvino.tools.mo.graph.graph import Graph
 from openvino.tools.mo.pipeline.common import get_ir_version
 from openvino.tools.mo.utils import class_registration
-from openvino.tools.mo.utils.import_extensions import get_excluded_frameworks
 
 
 def unified_pipeline(argv: argparse.Namespace):
@@ -16,5 +15,5 @@ def unified_pipeline(argv: argparse.Namespace):
         class_registration.ClassType.FRONT_REPLACER,
         class_registration.ClassType.MIDDLE_REPLACER,
         class_registration.ClassType.BACK_REPLACER
-    ], get_excluded_frameworks(argv.framework))
+    ])
     return graph
