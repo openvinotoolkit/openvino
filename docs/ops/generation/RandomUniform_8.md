@@ -244,7 +244,7 @@ Example 3. *RandomUniform* output with `global_seed` = 80, `op_seed` = 100, `out
 
 *Example 1: IR example.*
 
-.. code-block:: html
+.. code-block:: console
 
     <layer ... name="RandomUniform" type="RandomUniform">
         <data output_type="f32" global_seed="234" op_seed="148"/>
