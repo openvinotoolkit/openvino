@@ -372,7 +372,7 @@ bool check_name(const ov::OutputVector& nodes, const std::string& node_name) {
  * @param name input name
  * @return striped input name
  */
-std::string strip_name(const std::string &name) {
+std::string strip_name(const std::string& name) {
     return {name, 0, name.rfind(':')};
 }
 
