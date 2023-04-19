@@ -161,7 +161,8 @@ class OperatorSupport(OperatorSupport):
             "torch.ops.aten.addmm.default": None,
             "_operator.getitem": None,
             "torch.ops.aten.t.default": None,
-            #"torch.ops.aten.empty.memory_format": None
+            "torch.ops.aten.empty.memory_format": None,
+            "torch.ops.aten.mul.Tensor": None,
         }
 
         super().__init__(support_dict)

@@ -392,6 +392,7 @@ const std::map<std::string, CreatorFunction> get_supported_ops_fx() {
         {"torchvision::deform_conv2d", op::translate_deform_conv},
         {"torchvision::nms", op::translate_nms},
         {"torchvision::roi_align", op::translate_roi_align},
+        {"aten.mul.Tensor", op::translate_1to1_match_2_inputs_align_types<opset10::Multiply>},
     };
 };
 
