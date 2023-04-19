@@ -8,7 +8,7 @@
 #include "openvino/frontend/tensorflow/decoder.hpp"
 
 using namespace std;
-using namespace ov::opset8;
+using namespace ov::opset10;
 
 namespace ov {
 namespace frontend {

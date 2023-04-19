@@ -35,7 +35,9 @@ void op::v0::Tile::validate_and_infer_types() {
                           "Tile repeats must have any integer element type, but has ",
                           repeats_et);
 
+    OPENVINO_SUPPRESS_DEPRECATED_START
     auto output_shapes = shape_infer(this, get_node_input_partial_shapes(*this));
+    OPENVINO_SUPPRESS_DEPRECATED_END
     set_output_type(0, get_input_element_type(0), output_shapes[0]);
 
     set_input_is_relevant_to_shape(0);
@@ -126,5 +128,7 @@ bool op::v0::Tile::evaluate_label(TensorLabelVector& output_labels) const {
     OV_OP_SCOPE(v0_Tile_evaluate_label);
     OPENVINO_ASSERT(output_labels.size() == 1);
 
+    OPENVINO_SUPPRESS_DEPRECATED_START
     return get_input_tensor(1).has_and_set_bound() && default_label_evaluator(this, output_labels);
+    OPENVINO_SUPPRESS_DEPRECATED_END
 }

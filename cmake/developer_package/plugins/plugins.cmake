@@ -10,7 +10,11 @@ function(ie_plugin_get_file_name target_name library_name)
     set(LIB_PREFIX "${CMAKE_SHARED_MODULE_PREFIX}")
     set(LIB_SUFFIX "${IE_BUILD_POSTFIX}${CMAKE_SHARED_MODULE_SUFFIX}")
 
-    set("${library_name}" "${LIB_PREFIX}${target_name}${LIB_SUFFIX}" PARENT_SCOPE)
+    get_target_property(LIB_NAME ${target_name} OUTPUT_NAME)
+    if (LIB_NAME STREQUAL "LIB_NAME-NOTFOUND")
+        set(LIB_NAME ${target_name})
+    endif()
+    set("${library_name}" "${LIB_PREFIX}${LIB_NAME}${LIB_SUFFIX}" PARENT_SCOPE)
 endfunction()
 
 if(NOT TARGET ov_plugins)
@@ -49,10 +53,6 @@ function(ie_add_plugin)
     # create and configure target
 
     if(NOT IE_PLUGIN_PSEUDO_PLUGIN_FOR)
-        if(IE_PLUGIN_VERSION_DEFINES_FOR)
-            addVersionDefines(${IE_PLUGIN_VERSION_DEFINES_FOR} CI_BUILD_NUMBER)
-        endif()
-
         set(input_files ${IE_PLUGIN_SOURCES})
         foreach(obj_lib IN LISTS IE_PLUGIN_OBJECT_LIBRARIES)
             list(APPEND input_files $<TARGET_OBJECTS:${obj_lib}>)
@@ -66,6 +66,10 @@ function(ie_add_plugin)
         endif()
 
         add_library(${IE_PLUGIN_NAME} ${library_type} ${input_files})
+
+        if(IE_PLUGIN_VERSION_DEFINES_FOR)
+            ov_add_version_defines(${IE_PLUGIN_VERSION_DEFINES_FOR} ${IE_PLUGIN_NAME})
+        endif()
 
         target_compile_definitions(${IE_PLUGIN_NAME} PRIVATE IMPLEMENT_INFERENCE_ENGINE_PLUGIN)
         if(NOT BUILD_SHARED_LIBS)
@@ -351,21 +355,4 @@ function(ov_generate_plugins_hpp)
     # so, we have to use explicit target and make it dependency for inference_engine
     add_custom_target(_ov_plugins_hpp DEPENDS ${ov_plugins_hpp})
     add_dependencies(inference_engine_obj _ov_plugins_hpp)
-
-    # add dependency for object files
-    get_target_property(sources inference_engine_obj SOURCES)
-    foreach(source IN LISTS sources)
-        if("${source}" MATCHES "\\$\\<TARGET_OBJECTS\\:([A-Za-z0-9_]*)\\>")
-            # object library
-            set(obj_library ${CMAKE_MATCH_1})
-            get_target_property(obj_sources ${obj_library} SOURCES)
-            list(APPEND all_sources ${obj_sources})
-        else()
-            # usual source
-            list(APPEND all_sources ${source})
-        endif()
-    endforeach()
-
-    # add dependency on header file generation for all inference_engine source files
-    set_source_files_properties(${all_sources} PROPERTIES OBJECT_DEPENDS ${ov_plugins_hpp})
 endfunction()

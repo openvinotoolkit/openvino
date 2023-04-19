@@ -26,7 +26,9 @@ std::vector<TShape> shape_infer(const ShuffleChannels* op, const std::vector<TSh
 
     if (input_shape_rank.is_static()) {
         NODE_VALIDATION_CHECK(op, input_shape.size() >= 1, "The input tensor's shape is expected to be at least 1D.");
+        OPENVINO_SUPPRESS_DEPRECATED_START
         const auto axis_zb = static_cast<size_t>(normalize_axis(op, op->get_axis(), input_shape_rank));
+        OPENVINO_SUPPRESS_DEPRECATED_END
         const auto& channel_dim = input_shape[axis_zb];
         NODE_VALIDATION_CHECK(op,
                               channel_dim.is_dynamic() || (channel_dim.get_length() % group) == 0,

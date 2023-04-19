@@ -111,34 +111,34 @@ bool with_cpu_x86_avx512_core_amx() {
 
 bool check_open_mp_env_vars(bool include_omp_num_threads) {
     for (auto&& var : {"GOMP_CPU_AFFINITY",
-                       "GOMP_DEBUG"
+                       "GOMP_DEBUG",
                        "GOMP_RTEMS_THREAD_POOLS",
-                       "GOMP_SPINCOUNT"
-                       "GOMP_STACKSIZE"
-                       "KMP_AFFINITY"
-                       "KMP_NUM_THREADS"
+                       "GOMP_SPINCOUNT",
+                       "GOMP_STACKSIZE",
+                       "KMP_AFFINITY",
+                       "KMP_NUM_THREADS",
                        "MIC_KMP_AFFINITY",
-                       "MIC_OMP_NUM_THREADS"
-                       "MIC_OMP_PROC_BIND"
-                       "MKL_DOMAIN_NUM_THREADS"
-                       "MKL_DYNAMIC"
+                       "MIC_OMP_NUM_THREADS",
+                       "MIC_OMP_PROC_BIND",
+                       "MKL_DOMAIN_NUM_THREADS",
+                       "MKL_DYNAMIC",
                        "MKL_NUM_THREADS",
-                       "OMP_CANCELLATION"
-                       "OMP_DEFAULT_DEVICE"
-                       "OMP_DISPLAY_ENV"
+                       "OMP_CANCELLATION",
+                       "OMP_DEFAULT_DEVICE",
+                       "OMP_DISPLAY_ENV",
                        "OMP_DYNAMIC",
-                       "OMP_MAX_ACTIVE_LEVELS"
-                       "OMP_MAX_TASK_PRIORITY"
+                       "OMP_MAX_ACTIVE_LEVELS",
+                       "OMP_MAX_TASK_PRIORITY",
                        "OMP_NESTED",
-                       "OMP_NUM_THREADS"
-                       "OMP_PLACES"
-                       "OMP_PROC_BIND"
-                       "OMP_SCHEDULE"
+                       "OMP_NUM_THREADS",
+                       "OMP_PLACES",
+                       "OMP_PROC_BIND",
+                       "OMP_SCHEDULE",
                        "OMP_STACKSIZE",
-                       "OMP_THREAD_LIMIT"
-                       "OMP_WAIT_POLICY"
+                       "OMP_THREAD_LIMIT",
+                       "OMP_WAIT_POLICY",
                        "PHI_KMP_AFFINITY",
-                       "PHI_KMP_PLACE_THREADS"
+                       "PHI_KMP_PLACE_THREADS",
                        "PHI_OMP_NUM_THREADS"}) {
         if (getenv(var)) {
             if (0 != strcmp(var, "OMP_NUM_THREADS") || include_omp_num_threads)
@@ -230,7 +230,7 @@ std::vector<std::vector<int>> get_num_available_cpu_cores() {
 }
 
 bool is_cpu_map_available() {
-    return cpu._cpu_mapping_table.size() > 0;
+    return cpu._proc_type_table.size() > 0 && cpu._num_threads == cpu._proc_type_table[0][ALL_PROC];
 }
 
 std::vector<int> reserve_available_cpus(const ColumnOfProcessorTypeTable core_type,

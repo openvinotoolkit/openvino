@@ -33,8 +33,9 @@ using namespace Xbyak;
 namespace ov {
 namespace intel_cpu {
 namespace node {
-namespace {
 
+#if defined(OPENVINO_ARCH_X86_64)
+namespace {
 struct jit_has_subnormals_base : public jit_generator {
     DECLARE_CPU_JIT_AUX_FUNCTIONS(jit_has_subnormals_base)
 
@@ -229,6 +230,7 @@ jit_has_subnormals_base::fn_t jit_has_subnormals_function() {
 }
 
 }   // namespace
+#endif
 
 Input::Input(const std::shared_ptr<ngraph::Node>& op, const GraphContext::CPtr context)
         : Node(op, context, PassThroughShapeInferFactory()) {
@@ -297,6 +299,7 @@ void Input::cloneBlobIfRequired() {
             if (!size)
                 return false;
 
+#if defined(OPENVINO_ARCH_X86_64)
             if (auto fn = jit_has_subnormals_function()) {
                 static const size_t batch_size = 2048;
                 const size_t iterations_num = size / batch_size + 1;
@@ -318,11 +321,12 @@ void Input::cloneBlobIfRequired() {
                 });
 
                 return has_subnormals;
-            } else {
-                for (size_t i = 0; i < size; ++i) {
-                    if (u32data[i] && (u32data[i] & (0xFF << 23)) == 0) {
-                        return true;
-                    }
+            }
+#endif
+
+            for (size_t i = 0; i < size; ++i) {
+                if (u32data[i] && (u32data[i] & (0xFF << 23)) == 0) {
+                    return true;
                 }
             }
         }

@@ -674,7 +674,7 @@ public:
         } catch (const ov::Cancelled&) {
             throw;
         } catch (const InferenceEngine::InferCancelled& e) {
-            throw ov::Cancelled{e.what()};
+            ov::Cancelled::create(e.what());
         } catch (const std::exception& ex) {
             OPENVINO_THROW(ex.what());
         } catch (...) {
@@ -685,7 +685,7 @@ public:
         try {
             return m_request->Wait(timeout.count()) == InferenceEngine::OK;
         } catch (const InferenceEngine::InferCancelled& e) {
-            throw ov::Cancelled{e.what()};
+            ov::Cancelled::create(e.what());
         } catch (const std::exception& ex) {
             OPENVINO_THROW(ex.what());
         } catch (...) {
