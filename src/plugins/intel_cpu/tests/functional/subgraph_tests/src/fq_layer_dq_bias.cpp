@@ -15,6 +15,19 @@ using namespace ov::test;
 using namespace CPUTestUtils;
 using namespace InferenceEngine;
 
+/*
+ * This class tests the order in which biases and dequantization scales are fused to the target operation
+ *
+ *   FQ1     FQ2
+ *    \       /
+ *     \     /
+ *   Target layer
+ *        |
+ *       Bias
+ *        |
+ *      Result
+ */
+
 namespace SubgraphTestsDefinitions {
 using FQLayerDQBiasParams = std::tuple<InputShape, std::string>;
 
@@ -44,14 +57,14 @@ protected:
 
         targetDevice = CommonTestUtils::DEVICE_CPU;
         std::tie(inFmts, outFmts, priority, selectedType) = CPUSpecificParams{{}, {}, {}, CPUTestsBase::any_type};
-        std::unordered_map<std::string, std::string> ngraph_type_to_plugin_type{
+        static const std::unordered_map<std::string, std::string> ngraph_type_to_plugin_type{
             {"Convolution", "Convolution"},
             {"GroupConvolution", "Convolution"},
             {"ConvolutionBackpropData", "Deconvolution"},
             {"MatMul", "MatMul"},
             {"MatMulWithConstant", "FullyConnected"},
         };
-        node_type = ngraph_type_to_plugin_type[layer_type];
+        node_type = ngraph_type_to_plugin_type.at(layer_type);
         if (node_type == "FullyConnected")
             // @todo: Recover the Multiply fusing check after moving FC bias fusing into CPUgraph optimizer.
             fusedOps = std::vector<std::string>{"Add"};
