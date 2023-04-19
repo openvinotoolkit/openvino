@@ -63,7 +63,7 @@ public:
         bool antialias = false;
         // Specifies the parameter *a* for the cubic interpolation .
         // (see, e.g. [article](https://ieeexplore.ieee.org/document/1163711/)).
-        // *cube_coeff* takes effect only when `mode == CUBIC`
+        // *cube_coeff* takes effect only when `mode == CUBIC` or `mode == BICUBIC_PILLOW`
         double cube_coeff = -0.75f;
 
         InterpolateAttrs() = default;
