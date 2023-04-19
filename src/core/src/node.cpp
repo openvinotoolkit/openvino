@@ -32,6 +32,12 @@ void ov::NodeValidationFailure::create(const CheckLocInfo& check_loc_info,
     throw ov::NodeValidationFailure(make_what(check_loc_info, node_validation_failure_loc_string(node), explanation));
 }
 
+void ov::NodeValidationFailure::create_noreturn(const CheckLocInfo& check_loc_info,
+                                                const Node* node,
+                                                const std::string& explanation) {
+    throw ov::NodeValidationFailure(make_what(check_loc_info, node_validation_failure_loc_string(node), explanation));
+}
+
 atomic<size_t> ov::Node::m_next_instance_id(0);
 
 ov::Node::Node() = default;
@@ -125,7 +131,7 @@ size_t ov::Node::get_default_output_index() const {
 }
 
 size_t ov::Node::no_default_index() const {
-    NODE_VALIDATION_CHECK(this, false, "Default output not supported");
+    NODE_VALIDATION_CHECK_NORETURN(this, false, "Default output not supported");
 }
 
 std::shared_ptr<ov::Node> ov::Node::copy_with_new_inputs(

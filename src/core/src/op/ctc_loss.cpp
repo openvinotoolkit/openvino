@@ -97,7 +97,7 @@ shared_ptr<Node> op::v4::CTCLoss::clone_with_new_inputs(const OutputVector& new_
                                     ctc_merge_repeated_,
                                     unique_);
     } else {
-        OPENVINO_THROW("Incorrect number of arguments");
+        OPENVINO_THROW_NORETURN("Incorrect number of arguments");
     }
 }
 }  // namespace ov

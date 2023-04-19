@@ -530,9 +530,10 @@ using RawNodeOutputMap = std::map<RawNodeOutput, Output<Node>>;
 
 class OPENVINO_API NodeValidationFailure : public ov::AssertFailure {
 public:
-    [[noreturn]] static void create(const CheckLocInfo& check_loc_info,
-                                    const Node* node,
-                                    const std::string& explanation);
+    static void create(const CheckLocInfo& check_loc_info, const Node* node, const std::string& explanation);
+    [[noreturn]] static void create_noreturn(const CheckLocInfo& check_loc_info,
+                                             const Node* node,
+                                             const std::string& explanation);
 
 protected:
     explicit NodeValidationFailure(const std::string& what_arg) : ov::AssertFailure(what_arg) {}
@@ -540,6 +541,8 @@ protected:
 
 }  // namespace ov
 #define NODE_VALIDATION_CHECK(node, ...) OPENVINO_ASSERT_HELPER(::ov::NodeValidationFailure, (node), __VA_ARGS__)
+#define NODE_VALIDATION_CHECK_NORETURN(node, ...) \
+    OPENVINO_ASSERT_NORETURN_HELPER(::ov::NodeValidationFailure, (node), __VA_ARGS__)
 
 namespace ov {
 template <typename T>

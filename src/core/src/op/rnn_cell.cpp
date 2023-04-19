@@ -175,6 +175,6 @@ shared_ptr<Node> op::v0::RNNCell::clone_with_new_inputs(const OutputVector& new_
                                     get_activations_beta(),
                                     get_clip());
     } else {
-        OPENVINO_THROW("Incorrect number of new arguments");
+        OPENVINO_THROW_NORETURN("Incorrect number of new arguments");
     }
 }

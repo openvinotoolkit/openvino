@@ -163,9 +163,9 @@ static auto stream_to(std::istream& is, F&& f) -> decltype(f(std::declval<const 
     try {
         return f(str);
     } catch (std::exception& e) {
-        OPENVINO_THROW(std::string{"Could not convert to: "} +
-                       typeid(decltype(f(std::declval<const std::string&>()))).name() + " from string \"" + str +
-                       "\": " + e.what());
+        OPENVINO_THROW_NORETURN(std::string{"Could not convert to: "} +
+                                typeid(decltype(f(std::declval<const std::string&>()))).name() + " from string \"" +
+                                str + "\": " + e.what());
     }
 }
 

@@ -90,7 +90,7 @@ ov::Any ExecutorManagerImpl::get_property(const std::string& name) const {
     if (name == ov::force_tbb_terminate.name()) {
         return tbbTerminateFlag;
     }
-    OPENVINO_THROW("Property ", name, " is not supported.");
+    OPENVINO_THROW_NORETURN("Property ", name, " is not supported.");
 }
 
 void ExecutorManagerImpl::reset_tbb() {

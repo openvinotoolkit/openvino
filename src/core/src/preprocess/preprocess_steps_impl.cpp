@@ -516,12 +516,11 @@ void PreStepsList::add_convert_color_impl(const ColorFormat& dst_format) {
                     return std::make_tuple(std::get<0>(reverse), updated);
                 }
             }
-            OPENVINO_ASSERT(false,
-                            "Source color format '",
-                            color_format_name(context.color_format()),
-                            "' is not convertible to '",
-                            color_format_name(dst_format),
-                            "'");
+            OPENVINO_THROW_NORETURN("Source color format '",
+                                    color_format_name(context.color_format()),
+                                    "' is not convertible to '",
+                                    color_format_name(dst_format),
+                                    "'");
         },
         "convert color (" + color_format_name(dst_format) + ")");
 }

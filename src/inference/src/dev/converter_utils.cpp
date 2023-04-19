@@ -460,7 +460,7 @@ class IInferRequestInternalWrapper : public InferenceEngine::IInferRequestIntern
             if (get_legacy_name_from_port(port) == legacy_name)
                 return port;
         }
-        OPENVINO_ASSERT(false, "Cannot find port with name: ", legacy_name);
+        OPENVINO_THROW_NORETURN("Cannot find port with name: ", legacy_name);
     }
 
 public:
@@ -660,9 +660,9 @@ public:
         } catch (const InferenceEngine::InferCancelled& e) {
             ov::Cancelled::create(e.what());
         } catch (const std::exception& ex) {
-            OPENVINO_THROW(ex.what());
+            OPENVINO_THROW_NORETURN(ex.what());
         } catch (...) {
-            OPENVINO_THROW("Unexpected exception");
+            OPENVINO_THROW_NORETURN("Unexpected exception");
         }
     }
 

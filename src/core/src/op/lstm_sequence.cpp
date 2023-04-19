@@ -142,7 +142,7 @@ shared_ptr<Node> op::v0::LSTMSequence::clone_with_new_inputs(const OutputVector&
                                                  m_clip_threshold,
                                                  m_input_forget);
     } else {
-        OPENVINO_THROW("Incorrect number of new arguments");
+        OPENVINO_THROW_NORETURN("Incorrect number of new arguments");
     }
 }
 
@@ -341,7 +341,7 @@ shared_ptr<Node> op::v5::LSTMSequence::clone_with_new_inputs(const OutputVector&
                                                  m_activations,
                                                  m_clip);
     } else {
-        OPENVINO_THROW("Incorrect number of new arguments");
+        OPENVINO_THROW_NORETURN("Incorrect number of new arguments");
     }
 }
 

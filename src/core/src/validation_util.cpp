@@ -1160,7 +1160,7 @@ void ngraph::evaluate_nodes(std::map<RawNodeOutput, HostTensorPtr>& value_map,
             if (node->evaluate(output_tensors, input_tensors, evaluation_context)) {
                 return output_tensors;
             } else {
-                NGRAPH_CHECK(false, "Evaluation failed on ", node);
+                OPENVINO_THROW_NORETURN("Evaluation failed on ", node);
             }
         });
     for (const auto& value : outputs) {

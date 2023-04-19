@@ -23,9 +23,9 @@
     } catch (const ::InferenceEngine::RequestBusy& ex) {                    \
         ov::Busy::create(ex.what());                                        \
     } catch (const std::exception& ex) {                                    \
-        OPENVINO_THROW(ex.what());                                          \
+        OPENVINO_THROW_NORETURN(ex.what());                                 \
     } catch (...) {                                                         \
-        OPENVINO_THROW("Unexpected exception");                             \
+        OPENVINO_THROW_NORETURN("Unexpected exception");                    \
     }
 
 namespace {
@@ -249,9 +249,9 @@ bool InferRequest::wait_for(const std::chrono::milliseconds timeout) {
     } catch (const ie::InferCancelled& e) {
         Cancelled::create(e.what());
     } catch (const std::exception& ex) {
-        OPENVINO_THROW(ex.what());
+        OPENVINO_THROW_NORETURN(ex.what());
     } catch (...) {
-        OPENVINO_THROW("Unexpected exception");
+        OPENVINO_THROW_NORETURN("Unexpected exception");
     }
 }
 

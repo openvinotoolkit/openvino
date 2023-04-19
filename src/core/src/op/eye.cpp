@@ -91,7 +91,7 @@ std::shared_ptr<ov::Node> ov::op::v9::Eye::clone_with_new_inputs(const ov::Outpu
     } else if (new_args.size() == 4) {
         return std::make_shared<v9::Eye>(new_args[0], new_args[1], new_args[2], new_args[3], m_output_type);
     } else {
-        OPENVINO_THROW("Eye has incorrect input number: ", new_args.size());
+        OPENVINO_THROW_NORETURN("Eye has incorrect input number: ", new_args.size());
     }
 }
 

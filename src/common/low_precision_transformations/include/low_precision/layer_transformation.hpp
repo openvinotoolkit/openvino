@@ -14,6 +14,7 @@
 #include <ngraph/ngraph.hpp>
 #include <ngraph/pass/graph_rewrite.hpp>
 
+#include "openvino/core/except.hpp"
 #include "transformation_context.hpp"
 #include "quantization_details.hpp"
 #include "low_precision/common/ie_lpt_exception.hpp"
@@ -136,7 +137,7 @@ public:
             default:
                 NGRAPH_CHECK(false, "unexpected precision ", precision);
         }
-        NGRAPH_CHECK(false, "unexpected levels ", levels, " for precision ", precision);
+        OPENVINO_THROW_NORETURN("unexpected levels ", levels, " for precision ", precision);
     }
 
     static float getMaxValue(const element::Type precision, const size_t levels) {
@@ -172,7 +173,7 @@ public:
             case element::f32:
                 return std::numeric_limits<float>::max();
             default:
-                NGRAPH_CHECK(false, "unexpected precision ", precision);
+                OPENVINO_THROW_NORETURN("unexpected precision ", precision);
         }
     }
 
