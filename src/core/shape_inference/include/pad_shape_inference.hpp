@@ -17,8 +17,11 @@ inline auto calc_dim(const int64_t dim, const int64_t pad_dim_diff) -> int64_t {
     // 32bit os: inf_bound=0xFFFFFFFF
     // 64bit os: inf_bound=0xFFFFFFFFFFFFFFFF
     constexpr size_t inf_bound = -1;
+    // 32bit os: if dim = 0x00000000FFFFFFFF (4294967295), then _dim = 0xFFFFFFFF
+    // 64bit os: if dim = 0xFFFFFFFFFFFFFFFF (-1), then _dim = 0xFFFFFFFFFFFFFFFF
+    const size_t _dim = dim == -1 ? -1 : static_cast<size_t>(dim);
     const auto padded_dim = dim + pad_dim_diff;
-    return ((dim == inf_bound) || (padded_dim < 0)) ? inf_bound : padded_dim;
+    return ((_dim == inf_bound) || (padded_dim < 0)) ? inf_bound : padded_dim;
 };
 }  // namespace pad
 
