@@ -174,7 +174,7 @@ bool is_cpu_map_available() {
 int get_num_numa_nodes() {
     return -1;
 }
-std::vector<std::vector<int>> reserve_available_cpus(const std::vector<std::vector<int>> streams_info_table){
+std::vector<std::vector<int>> reserve_available_cpus(const std::vector<std::vector<int>> streams_info_table) {
     return {{-1}};
 }
 void set_cpu_used(const std::vector<int>& cpu_ids, const int used) {}
