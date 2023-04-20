@@ -10,14 +10,14 @@ namespace kernel_selector {
 
 namespace {
 
-JitConstants MakeAxisJitConstants(size_t rank, int64_t axis, const std::string& input_num) {
+JitConstants MakeAxisJitConstants(size_t rank, int64_t axis, const std::string& prefix_for_iterate) {
     const std::map<char, std::string> dimensions_sizes_map = {
-        {'b', "INPUT" + input_num + "_BATCH_NUM"},
-        {'f', "INPUT" + input_num + "_FEATURE_NUM"},
-        {'w', "INPUT" + input_num + "_SIZE_W"},
-        {'z', "INPUT" + input_num + "_SIZE_Z"},
-        {'y', "INPUT" + input_num + "_SIZE_Y"},
-        {'x', "INPUT" + input_num + "_SIZE_X"},
+        {'b', "_BATCH_NUM"},
+        {'f', "_FEATURE_NUM"},
+        {'w', "_SIZE_W"},
+        {'z', "_SIZE_Z"},
+        {'y', "_SIZE_Y"},
+        {'x', "_SIZE_X"},
     };
 
     auto dimensions = [rank]() -> std::vector<char> {
@@ -34,7 +34,7 @@ JitConstants MakeAxisJitConstants(size_t rank, int64_t axis, const std::string& 
     auto& axis_dimension = dimensions.at(axis);
 
     const auto axis_length_name = "AXIS_LENGTH";
-    const auto axis_length_val = dimensions_sizes_map.at(axis_dimension);
+    const auto axis_length_val = "INPUT0" + dimensions_sizes_map.at(axis_dimension);
 
     // Mark axis dimension as 'i' for indexing
     axis_dimension = 'i';
@@ -52,14 +52,15 @@ JitConstants MakeAxisJitConstants(size_t rank, int64_t axis, const std::string& 
     }();
 
     const auto iterate_name = "ITERATE(body)";
-    const auto iterate_val = [&dimensions, &dimensions_sizes_map]() {
+    const auto iterate_val = [&dimensions, &dimensions_sizes_map, &prefix_for_iterate]() {
         std::stringstream ss;
         for (auto ch : dimensions) {
             // No need to iterate through axis index
             if (ch == 'i') {
                 continue;
             }
-            ss << "for (uint " << ch << " = 0; " << ch << " < " << dimensions_sizes_map.at(ch) << "; ++" << ch << ") {";
+            const auto size = prefix_for_iterate + dimensions_sizes_map.at(ch);
+            ss << "for (uint " << ch << " = 0; " << ch << " < " << size << "; ++" << ch << ") {";
         }
         ss << "body";
         // Note size - 1 here as we don't iterate through axis index
@@ -79,7 +80,7 @@ JitConstants MakeFlattenedJitConstants(size_t rank, bool simple_layout) {
 
     if (simple_layout) {
         const auto get_index_val = "i";
-        return {MakeJitConstant(get_index_name, get_index_val)};
+        return {MakeJitConstant("FLATTENED", true), MakeJitConstant(get_index_name, get_index_val)};
     }
 
     const auto dimensions = [rank]() -> std::vector<std::string> {
@@ -118,7 +119,7 @@ JitConstants MakeFlattenedJitConstants(size_t rank, bool simple_layout) {
         return str;
     }();
 
-    return {MakeJitConstant(get_index_name, get_index_val)};
+    return {MakeJitConstant("FLATTENED", true), MakeJitConstant(get_index_name, get_index_val)};
 }
 
 }  // namespace
@@ -143,6 +144,9 @@ KernelsData UniqueKernelRef::GetKernelsData(const Params& params, const optional
         kd.kernels[0].params.workGroups.global = dispatchData.gws;
         kd.kernels[0].params.workGroups.local = dispatchData.lws;
         kd.kernels[0].skip_execution = KernelData::SkipKernelExecution(prim_params);
+        // Need to adjust buffer size according to input size
+        kd.internalBufferSizes.front() = prim_params.inputs.front().PhysicalSizeInBytes();
+        kd.internalBufferDataType = prim_params.inputs.front().GetDType();
     };
 
     FillCLKernelData(kernel,
@@ -158,6 +162,11 @@ KernelsData UniqueKernelRef::GetKernelsData(const Params& params, const optional
                      GetFusedPrimitiveInputsCount(kernel_params),
                      kernel_params.outputs.size(),
                      kernel_params.inputs.front().is_dynamic());
+
+    // Additional buffer to save intermediate algorithm results
+    kernel.params.arguments.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 0});
+    kernel_data.internalBufferSizes.push_back(kernel_params.inputs.front().PhysicalSizeInBytes());
+    kernel_data.internalBufferDataType = kernel_params.inputs.front().GetDType();
 
     return {kernel_data};
 }
@@ -185,7 +194,7 @@ bool UniqueKernelRef::Validate(const Params& params, const optional_params& opti
     if (kernel_params.inputs.size() != 1) {
         return false;
     }
-    if (kernel_params.outputs.size() != 5) {
+    if (kernel_params.outputs.size() != 1) {
         return false;
     }
 
@@ -196,19 +205,14 @@ JitConstants UniqueKernelRef::GetJitConstants(const unique_params& kernel_params
     const auto input = kernel_params.inputs.front();
     auto jit_constants = MakeBaseParamsJitConstants(kernel_params);
 
-    jit_constants.AddConstants({
-        MakeJitConstant("FLATTENED", kernel_params.flattened),
-        MakeJitConstant("SORTED", kernel_params.sorted),
-    });
-
     if (kernel_params.flattened) {
         jit_constants.Merge(MakeFlattenedJitConstants(input.Dimentions(), input.SimpleLayout()));
     } else {
-        jit_constants.Merge(MakeAxisJitConstants(input.Dimentions(), kernel_params.axis, "0"));
+        jit_constants.Merge(MakeAxisJitConstants(input.Dimentions(), kernel_params.axis, "INPUT0"));
     }
 
     if (input.is_dynamic()) {
-        const DimensionAccessHelper dims(input, 0);
+        const DimensionAccessHelper dims(input);
         const std::string total_data_size = toVectorMulString({dims.x, dims.y, dims.z, dims.w, dims.f, dims.b});
         jit_constants.AddConstant(MakeJitConstant("TOTAL_DATA_SIZE", total_data_size));
     } else {
@@ -288,7 +292,7 @@ bool UniqueReshapeKernelRef::Validate(const Params& params, const optional_param
     }
 
     const auto& kernel_params = dynamic_cast<const unique_reshape_params&>(params);
-    if (kernel_params.inputs.size() != 5) {
+    if (kernel_params.inputs.size() != 2) {
         return false;
     }
     if (kernel_params.outputs.size() != 4) {
@@ -299,22 +303,21 @@ bool UniqueReshapeKernelRef::Validate(const Params& params, const optional_param
 }
 
 JitConstants UniqueReshapeKernelRef::GetJitConstants(const unique_reshape_params& kernel_params) const {
-    const auto input = kernel_params.inputs.at(1);
+    const auto input = kernel_params.inputs.front();
     auto jit_constants = MakeBaseParamsJitConstants(kernel_params);
 
-    jit_constants.AddConstants({
-        MakeJitConstant("FLATTENED", kernel_params.flattened),
-        MakeJitConstant("AXIS", kernel_params.axis),
-    });
+    if (kernel_params.sorted) {
+        jit_constants.AddConstant(MakeJitConstant("SORTED", true));
+    }
 
     if (kernel_params.flattened) {
         jit_constants.Merge(MakeFlattenedJitConstants(input.Dimentions(), input.SimpleLayout()));
     } else {
-        jit_constants.Merge(MakeAxisJitConstants(input.Dimentions(), kernel_params.axis, "1"));
+        jit_constants.Merge(MakeAxisJitConstants(input.Dimentions(), kernel_params.axis, "OUTPUT"));
     }
 
     if (input.is_dynamic()) {
-        const DimensionAccessHelper dims(input, 1);
+        const DimensionAccessHelper dims(input);
         const std::string total_data_size = toVectorMulString({dims.x, dims.y, dims.z, dims.w, dims.f, dims.b});
         jit_constants.AddConstant(MakeJitConstant("TOTAL_DATA_SIZE", total_data_size));
     } else {

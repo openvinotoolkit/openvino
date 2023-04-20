@@ -49,7 +49,7 @@ struct typed_program_node<unique_reshape> : typed_program_node_base<unique_resha
     }
 
     std::vector<size_t> get_shape_infer_dependencies() const override {
-        return {0};
+        return {1};
     }
 };
 

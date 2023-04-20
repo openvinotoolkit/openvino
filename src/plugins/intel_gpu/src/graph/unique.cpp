@@ -25,47 +25,7 @@ layout unique_inst::calc_output_layout(const unique_node& node, const kernel_imp
 
 template <typename ShapeType>
 std::vector<layout> unique_inst::calc_output_layouts(const unique_node& node, const kernel_impl_params& impl_param) {
-    std::vector<layout> layouts;
-    const auto desc = impl_param.typed_desc<unique>();
-    const auto input_layout = impl_param.get_input_layout();
-
-    std::vector<ShapeType> output_shapes = {ShapeType(), ShapeType(), ShapeType(), ShapeType(), ShapeType()};
-
-    if (input_layout.is_dynamic()) {
-        output_shapes.at(0) = ov::PartialShape{ov::Dimension::dynamic()};
-        output_shapes.at(1) = ov::PartialShape::dynamic(input_layout.get_partial_shape().rank());
-        output_shapes.at(2) = ov::PartialShape{ov::Dimension::dynamic()};
-        output_shapes.at(3) = ov::PartialShape{ov::Dimension::dynamic()};
-        output_shapes.at(4) = ov::PartialShape{ov::Dimension::dynamic()};
-    } else {
-        const auto input_shape = input_layout.get_shape();
-        output_shapes.at(0) = ov::Shape{1};
-        if (desc->flattened) {
-            const auto input_tensor_capacity = ov::shape_size(input_shape);
-            output_shapes.at(1) = ov::Shape{input_tensor_capacity};
-            output_shapes.at(2) = ov::Shape{input_tensor_capacity};
-            output_shapes.at(3) = ov::Shape{input_tensor_capacity};
-            output_shapes.at(4) = ov::Shape{input_tensor_capacity};
-        } else {
-            const auto axis_dimension = input_shape.at(desc->axis);
-            output_shapes.at(1) = input_shape;
-            output_shapes.at(2) = ov::Shape{axis_dimension};
-            output_shapes.at(3) = ov::Shape{axis_dimension};
-            output_shapes.at(4) = ov::Shape{axis_dimension};
-        }
-    }
-
-    for (auto i = 0U; i < desc->num_outputs; ++i) {
-        const auto& output_shape = output_shapes.at(i);
-        const auto output_dt = desc->output_data_types.at(i).value();
-        layouts.emplace_back(
-            output_shape,
-            output_dt,
-            // For some reasons we need to set for zero output also the same format to support blocking
-            (i == 0 || i == 1) ? input_layout.format : format::get_default_format(output_shape.size()));
-    }
-
-    return layouts;
+    return {layout{ov::PartialShape{1}, cldnn::data_types::i64, cldnn::format::bfyx}};
 }
 
 template std::vector<layout> unique_inst::calc_output_layouts<ov::PartialShape>(const unique_node& node,
@@ -78,7 +38,6 @@ std::string unique_inst::to_string(const unique_node& node) {
     if (!primitive->flattened) {
         unique_info.add("axis", primitive->axis);
     }
-    unique_info.add("sorted", primitive->sorted);
 
     auto node_info = node.desc_to_json();
     node_info->add("unique info", unique_info);
@@ -102,18 +61,18 @@ std::vector<layout> unique_reshape_inst::calc_output_layouts(const unique_reshap
                                                              const kernel_impl_params& impl_param) {
     std::vector<layout> layouts;
     const auto desc = impl_param.typed_desc<unique_reshape>();
-    const auto input_layout = impl_param.get_input_layout(1);
+    const auto input_layout = impl_param.get_input_layout();
 
     std::vector<ShapeType> output_shapes = {ShapeType(), ShapeType(), ShapeType(), ShapeType()};
 
-    if (impl_param.memory_deps.empty()) {
+    if (!impl_param.memory_deps.count(1)) {
         output_shapes.at(0) = ov::PartialShape::dynamic(input_layout.get_partial_shape().rank());
         output_shapes.at(1) = ov::PartialShape{ov::Dimension::dynamic()};
         output_shapes.at(2) = ov::PartialShape{ov::Dimension::dynamic()};
         output_shapes.at(3) = ov::PartialShape{ov::Dimension::dynamic()};
     } else {
         const auto input_shape = input_layout.get_shape();
-        const size_t unique_count = read_vector<int64_t>(impl_param.memory_deps.at(0), impl_param.get_stream()).at(0);
+        const size_t unique_count = read_vector<int64_t>(impl_param.memory_deps.at(1), impl_param.get_stream()).at(0);
         if (desc->flattened) {
             const auto input_tensor_capacity = ov::shape_size(input_shape);
             output_shapes.at(0) = ov::Shape{unique_count};
@@ -154,6 +113,8 @@ std::string unique_reshape_inst::to_string(const unique_reshape_node& node) {
     if (!primitive->flattened) {
         unique_reshape_info.add("axis", primitive->axis);
     }
+    unique_reshape_info.add("sorted", primitive->sorted);
+
     auto node_info = node.desc_to_json();
     node_info->add("unique_reshape info", unique_reshape_info);
 

@@ -15,7 +15,6 @@ struct unique_params : base_params {
     unique_params() : base_params(KernelType::UNIQUE) {}
     bool flattened{};
     int64_t axis{};
-    bool sorted{};
 };
 
 /**
@@ -47,6 +46,7 @@ struct unique_reshape_params : base_params {
     unique_reshape_params() : base_params(KernelType::UNIQUE_RESHAPE) {}
     bool flattened{};
     int64_t axis{};
+    bool sorted{};
 };
 
 /**

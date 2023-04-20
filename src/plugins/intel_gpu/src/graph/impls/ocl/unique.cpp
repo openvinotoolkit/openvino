@@ -30,11 +30,6 @@ struct unique_impl : typed_primitive_impl_ocl<unique> {
 
         params.flattened = primitive->flattened;
         params.axis = primitive->axis;
-        params.sorted = primitive->sorted;
-
-        for (auto i = 1U; i < impl_param.output_layouts.size(); ++i) {
-            params.outputs.push_back(convert_data_tensor(impl_param.output_layouts.at(i)));
-        }
 
         return {params, optional_params};
     }
@@ -106,6 +101,7 @@ struct unique_reshape_impl : typed_primitive_impl_ocl<unique_reshape> {
 
         params.flattened = primitive->flattened;
         params.axis = primitive->axis;
+        params.sorted = primitive->sorted;
 
         for (auto i = 1U; i < impl_param.input_layouts.size(); ++i) {
             params.inputs.push_back(convert_data_tensor(impl_param.input_layouts.at(i)));

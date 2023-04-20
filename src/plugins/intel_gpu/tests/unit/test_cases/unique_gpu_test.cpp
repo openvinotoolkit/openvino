@@ -61,22 +61,12 @@ public:
         topology topology;
         topology.add(input_layout("input", input->get_layout()));
         topology.add(reorder("reordered_input", input_info("input"), fmt, elem_data_type));
-        topology.add(unique("unique",
-                            {input_info("reordered_input")},
-                            p.flattened,
-                            p.axis,
-                            p.sorted,
-                            elem_data_type,
-                            index_data_type,
-                            count_data_type));
+        topology.add(unique("unique", {input_info("reordered_input")}, p.flattened, p.axis));
         topology.add(unique_reshape("unique_reshape",
-                                    {input_info("unique", 0),
-                                     input_info("unique", 1),
-                                     input_info("unique", 2),
-                                     input_info("unique", 3),
-                                     input_info("unique", 4)},
+                                    {input_info("reordered_input"), input_info("unique")},
                                     p.flattened,
                                     p.axis,
+                                    p.sorted,
                                     elem_data_type,
                                     index_data_type,
                                     count_data_type));
