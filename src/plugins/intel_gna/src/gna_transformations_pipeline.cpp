@@ -65,8 +65,8 @@ void TransformationsPipeline::apply(const std::shared_ptr<ov::Model>& model,
     fake_quantized = ov::op::util::has_op_with_type<ngraph::op::FakeQuantize>(model);
     const bool has_convolution = ov::op::util::has_op_with_type<ngraph::opset7::Convolution>(model);
     const bool has_matmul = ov::op::util::has_op_with_type<ngraph::opset7::MatMul>(model);
-    const bool has_mvn = ov::op::util::has_op_with_type<ngraph::opset7::MVN>(model);
-
+    const bool has_mvn = ov::op::util::has_op_with_type<ngraph::opset7::MVN>(model) ||
+                         ov::op::util::has_op_with_type<ov::op::v0::MVN>(model);
     ov::pass::Manager manager;
     manager.register_pass<ov::pass::InitNodeInfo>();
 
