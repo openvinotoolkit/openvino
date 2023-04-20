@@ -67,7 +67,7 @@ If ``mode = depth_first``:
 
 **Example**
 
-.. code-block:: cpp 
+.. code-block:: console 
 
     <layer type="SpaceToDepth" ...>
         <data block_size="2" mode="blocks_first"/>

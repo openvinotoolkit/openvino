@@ -30,7 +30,7 @@
 
 *Example 1: unsqueeze 2D tensor to a 4D tensor*
 
-.. code-block:: cpp 
+.. code-block:: console 
 
     <layer ... type="Unsqueeze">
         <input>
@@ -57,7 +57,7 @@
 
 *Example 2: unsqueeze 0D tensor (constant) to 1D tensor*
 
-.. code-block:: cpp 
+.. code-block:: console 
 
     <layer ... type="Unsqueeze">
         <input>

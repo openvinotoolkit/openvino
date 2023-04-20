@@ -33,7 +33,7 @@
 
 **Example**
 
-.. code-block:: cpp 
+.. code-block:: console 
 
     <layer ... type="SoftSign">
         <input>

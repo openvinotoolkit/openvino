@@ -130,7 +130,7 @@ The indices are always sorted ascendingly when ``sort == index`` for any given T
 
 This example assumes that ``K`` is equal to 10:
 
-.. code-block:: cpp 
+.. code-block:: console 
 
   <layer ... type="TopK" ... >
       <data axis="3" mode="max" sort="value" stable="true" index_element_type="i64"/>

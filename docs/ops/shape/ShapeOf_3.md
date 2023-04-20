@@ -34,7 +34,7 @@
 
 **Example**
 
-.. code-block:: cpp 
+.. code-block:: console 
 
     <layer ... type="ShapeOf">
         <data output_type="i64"/>

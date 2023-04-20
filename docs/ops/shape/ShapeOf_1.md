@@ -20,7 +20,7 @@
 
 **Example**
 
-.. code-block:: cpp 
+.. code-block:: console 
 
     <layer ... type="ShapeOf">
         <input>

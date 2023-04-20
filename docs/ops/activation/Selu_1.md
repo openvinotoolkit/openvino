@@ -46,7 +46,7 @@ Another mathematical representation that may be found in other references:
 
 **Example**
 
-.. code-block:: cpp 
+.. code-block:: console 
 
     <layer ... type="Selu">
         <input>

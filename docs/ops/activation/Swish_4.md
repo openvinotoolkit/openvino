@@ -40,7 +40,7 @@ where β corresponds to ``beta`` scalar input.
 
 *Example: Second input ``beta`` provided*
 
-.. code-block:: cpp 
+.. code-block:: console 
 
     <layer ... type="Swish">
         <input>
@@ -62,7 +62,7 @@ where β corresponds to ``beta`` scalar input.
 
 *Example: Second input ``beta`` not provided*
 
-.. code-block:: cpp 
+.. code-block:: console 
 
     <layer ... type="Swish">
         <input>

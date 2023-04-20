@@ -81,7 +81,7 @@ If there are several elements with the same value then their output order is not
 
 **Example**
 
-.. code-block:: cpp 
+.. code-block:: console 
 
   <layer ... type="TopK" ... >
       <data axis="1" mode="max" sort="value" index_element_type="i64"/>

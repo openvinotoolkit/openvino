@@ -47,7 +47,7 @@
 
 **Example**
 
-.. code-block:: 
+.. code-block:: console
 
     <layer ... type="Select">
         <input>

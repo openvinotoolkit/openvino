@@ -31,7 +31,7 @@ For each element from the input tensor calculates corresponding element in the o
 
 **Example**
 
-.. code-block:: cpp 
+.. code-block:: console 
 
     <layer ... type="Sigmoid">
         <input>

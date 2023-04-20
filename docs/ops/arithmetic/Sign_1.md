@@ -31,7 +31,7 @@
 
 **Example**
 
-.. code-block:: cpp  
+.. code-block:: console  
 
     <layer ... type="Sign">
         <input>

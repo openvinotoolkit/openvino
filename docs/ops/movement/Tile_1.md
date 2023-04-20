@@ -45,7 +45,7 @@ No attributes available.
 
 *Example 1: number elements in "repeats" is equal to shape of data*
 
-.. code-block:: cpp
+.. code-block:: console
 
     <layer ... type="Tile">
         <input>
@@ -69,7 +69,7 @@ No attributes available.
 
 *Example 2: number of elements in "repeats" is more than shape of "data"*
 
-.. code-block:: cpp 
+.. code-block:: console 
 
     <layer ... type="Tile">
         <input>
@@ -94,7 +94,7 @@ No attributes available.
 
 *Example 3: number of elements in "repeats" is less than shape of "data"*
 
-.. code-block:: cpp
+.. code-block:: console
 
     <layer ... type="Tile">
         <input>

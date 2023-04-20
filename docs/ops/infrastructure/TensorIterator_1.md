@@ -149,7 +149,7 @@ where ``Si`` is value of ``Result`` operation at i-th iteration in the tensor it
 
 *Example 1: a typical TensorIterator structure*
 
-.. code-block:: cpp 
+.. code-block:: console 
 
     <layer type="TensorIterator" ... >
         <input> ... </input>
@@ -174,7 +174,7 @@ where ``Si`` is value of ``Result`` operation at i-th iteration in the tensor it
 
 *Example 2: a full TensorIterator layer*
 
-.. code-block:: cpp 
+.. code-block:: console 
   
     <layer type="TensorIterator" ...>
         <input>

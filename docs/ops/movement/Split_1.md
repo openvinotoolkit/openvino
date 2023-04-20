@@ -46,7 +46,7 @@ Where D is the rank of input tensor ``data``. The axis being split must be evenl
 
 **Example**
 
-.. code-block:: cpp 
+.. code-block:: console 
 
     <layer id="1" type="Split" ...>
         <data num_splits="3" />
