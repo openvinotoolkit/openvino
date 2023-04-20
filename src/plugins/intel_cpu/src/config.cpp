@@ -19,6 +19,7 @@
 #include "openvino/runtime/properties.hpp"
 #include "utils/debug_capabilities.h"
 #include "cpu/x64/cpu_isa_traits.hpp"
+#include "utils/arch.h"
 
 namespace ov {
 namespace intel_cpu {
@@ -26,13 +27,14 @@ namespace intel_cpu {
 using namespace InferenceEngine;
 using namespace dnnl::impl::cpu::x64;
 
-Config::Config() {
-    // this is default mode
 #if defined(__APPLE__) || defined(_WIN32)
-    streamExecutorConfig._threadBindingType = InferenceEngine::IStreamsExecutor::NONE;
+    #define CPU_DEFAULT_THREAD_BINDING_TYPE IStreamsExecutor::NONE;
 #else
-    streamExecutorConfig._threadBindingType = InferenceEngine::IStreamsExecutor::CORES;
+    #define CPU_DEFAULT_THREAD_BINDING_TYPE IStreamsExecutor::CORES;
 #endif
+
+Config::Config() {
+    streamExecutorConfig._threadBindingType = CPU_DEFAULT_THREAD_BINDING_TYPE;
 
 // for the TBB code-path, additional configuration depending on the OS and CPU types
 #if (IE_THREAD == IE_THREAD_TBB || IE_THREAD == IE_THREAD_TBB_AUTO)
@@ -269,10 +271,7 @@ void Config::readProperties(const std::map<std::string, std::string> &prop) {
     if (exclusiveAsyncRequests)  // Exclusive request feature disables the streams
         streamExecutorConfig._streams = 1;
 
-#if defined(OPENVINO_ARCH_ARM) || defined(OPENVINO_ARCH_ARM64)
-    // TODO: multi-stream execution has functional issues on ARM target
-    streamExecutorConfig._streams = 1;
-#endif
+    CPU_ARM(streamExecutorConfig._streams = 1);
 
     CPU_DEBUG_CAP_ENABLE(applyDebugCapsProperties());
     updateProperties();
