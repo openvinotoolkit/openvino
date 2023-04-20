@@ -219,7 +219,7 @@ To generate ``vocab.bpe.32000``, execute the ``nmt/scripts/wmt16_en_de.sh`` scri
    --output_dir /path/to/output/IR/
 
 
-Input and output cutting with the ``--input`` and ``--output`` options is required since OpenVINO&trade; does not support ``IteratorGetNext`` and ``LookupTableFindV2`` operations.
+Input and output cutting with the ``--input`` and ``--output`` options is required since OpenVINO™ does not support ``IteratorGetNext`` and ``LookupTableFindV2`` operations.
 
 Input cutting:
 
