@@ -2,9 +2,9 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import os
+import platform
 import pytest
 import sys
-from sys import platform
 from pathlib import Path
 from threading import Event, Thread
 from time import sleep, time
@@ -293,6 +293,11 @@ def test_load_network_release_gil(device):
 
 
 def test_nogil_safe(device):
+    libc_name, libc_version = platform.libc_ver()
+    version = tuple(int(x) for x in libc_version.split('.'))
+    if libc_name == 'glibc' and version < (2, 34):
+        pytest.skip("There is an issue in glibc for elder version.")
+
     call_thread_func = Event()
     switch_interval = sys.getswitchinterval()
     core = IECore()
