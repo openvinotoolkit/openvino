@@ -55,17 +55,17 @@ To perform the summation in the opposite direction of the axis, set reverse attr
 
 *Example 1*
 
-.. code-block:: sh
+.. code-block:: console
    
    <layer ... type="CumSum" exclusive="0" reverse="0">
        <input>
-           <port id="0">     <!-- input value is: [1., 2., 3., 4., 5.] -->
+           <port id="0">     < !-- input value is: [1., 2., 3., 4., 5.] -->
                <dim>5</dim>
            </port>
-           <port id="1"/>     <!-- axis value is: 0 -->
+           <port id="1"/>     < !-- axis value is: 0 -->
        </input>
        <output>
-           <port id="2">     <!-- output value is: [1., 3., 6., 10., 15.] -->
+           <port id="2">     < !-- output value is: [1., 3., 6., 10., 15.] -->
                <dim>5</dim>
            </port>
        </output>
@@ -73,17 +73,17 @@ To perform the summation in the opposite direction of the axis, set reverse attr
 
 *Example 2*
 
-.. code-block:: sh
+.. code-block:: console
    
    <layer ... type="CumSum" exclusive="1" reverse="0">
        <input>
-           <port id="0">     <!-- input value is: [1., 2., 3., 4., 5.] -->
+           <port id="0">     < !-- input value is: [1., 2., 3., 4., 5.] -->
                <dim>5</dim>
            </port>
-           <port id="1"/>     <!-- axis value is: 0 -->
+           <port id="1"/>     < !-- axis value is: 0 -->
        </input>
        <output>
-           <port id="2">     <!-- output value is: [0., 1., 3., 6., 10.] -->
+           <port id="2">     < !-- output value is: [0., 1., 3., 6., 10.] -->
                <dim>5</dim>
            </port>
        </output>
@@ -91,17 +91,17 @@ To perform the summation in the opposite direction of the axis, set reverse attr
 
 *Example 3*
 
-.. code-block:: sh
+.. code-block:: console
    
    <layer ... type="CumSum" exclusive="0" reverse="1">
        <input>
-           <port id="0">     <!-- input value is: [1., 2., 3., 4., 5.] -->
+           <port id="0">     < !-- input value is: [1., 2., 3., 4., 5.] -->
                <dim>5</dim>
            </port>
-           <port id="1"/>     <!-- axis value is: 0 -->
+           <port id="1"/>     < !-- axis value is: 0 -->
        </input>
        <output>
-           <port id="2">     <!-- output value is: [15., 14., 12., 9., 5.] -->
+           <port id="2">     < !-- output value is: [15., 14., 12., 9., 5.] -->
                <dim>5</dim>
            </port>
        </output>
@@ -109,17 +109,17 @@ To perform the summation in the opposite direction of the axis, set reverse attr
 
 *Example 4*
 
-.. code-block: sh
+.. code-block: console
    
    <layer ... type="CumSum" exclusive="1" reverse="1">
        <input>
-           <port id="0">     <!-- input value is: [1., 2., 3., 4., 5.] -->
+           <port id="0">     < !-- input value is: [1., 2., 3., 4., 5.] -->
                <dim>5</dim>
            </port>
-           <port id="1"/>     <!-- axis value is: 0 -->
+           <port id="1"/>     < !-- axis value is: 0 -->
        </input>
        <output>
-           <port id="2">     <!-- output value is: [14., 12., 9., 5., 0.] -->
+           <port id="2">     < !-- output value is: [14., 12., 9., 5., 0.] -->
                <dim>5</dim>
            </port>
        </output>
