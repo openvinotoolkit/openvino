@@ -65,7 +65,7 @@ ngraph::pass::ConvertMatMulToFC::ConvertMatMulToFC() {
                 if (shape_a_aligned[i] != shape_b_aligned[i] && shape_a_aligned[i] > 1 && shape_b_aligned[i] > 1) {
                     std::ostringstream stream;
                     stream << "Shapes can't be aligned: " << shape_a_aligned << " " << shape_b_aligned;
-                    throw ngraph_error(stream.str());
+                    OPENVINO_THROW(stream.str());
                 }
                 size_t max_value = std::max(shape_a_aligned[i], shape_b_aligned[i]);
                 shape_a_aligned[i] = shape_b_aligned[i] = max_value;
@@ -119,7 +119,7 @@ ngraph::pass::ConvertMatMulToFC::ConvertMatMulToFC() {
             std::tie(shape_a_aligned, shape_b_aligned) = get_aligned_shapes();
 
             if (shape_a_aligned.size() < 2 || shape_b_aligned.size() < 2) {
-                throw ngraph_error("MatMul " + matmul->get_friendly_name() + " shapes are inconsistent.");
+                OPENVINO_THROW("MatMul " + matmul->get_friendly_name() + " shapes are inconsistent.");
             }
 
             // Transferring from MatMul representation: [B, I, K] * [B, K, O] = [B, I, O]

@@ -35,7 +35,7 @@ std::shared_ptr<ngraph::Function> get_initial_function(const ngraph::PartialShap
 
     auto broadcast_len = broadcast_shape.rank().get_length();
     if (std::numeric_limits<size_t>::max() < (size_t)broadcast_len) {
-        throw ngraph::ngraph_error("broadcast_len cannot be represented in size_t");
+        OPENVINO_THROW("broadcast_len cannot be represented in size_t");
     }
 
     auto broadcast_shape_param =

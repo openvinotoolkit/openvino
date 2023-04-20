@@ -7,18 +7,11 @@
 #include <openvino/core/validation_util.hpp>
 #include <openvino/op/pad.hpp>
 
+#include "dimension_util.hpp"
 #include "utils.hpp"
 namespace ov {
 namespace op {
 namespace v1 {
-
-namespace pad {
-inline auto calc_dim(const int64_t dim, const int64_t pad_dim_diff) -> int64_t {
-    constexpr auto inf_bound = -1;
-    const auto padded_dim = dim + pad_dim_diff;
-    return ((dim == inf_bound) || (padded_dim < 0)) ? inf_bound : padded_dim;
-};
-}  // namespace pad
 
 template <class TShape>
 std::vector<TShape> shape_infer(const Pad* op,
@@ -117,8 +110,9 @@ std::vector<TShape> shape_infer(const Pad* op,
                 const auto pad_dim_diff_lb = begin_lb + end_lb;
                 const auto pad_dim_diff_ub = begin.second + end.second;
                 if ((pad_dim_diff_lb != 0) || (pad_dim_diff_ub != 0)) {
-                    const auto lb = pad::calc_dim(dim_lb, pad_dim_diff_lb);
-                    const auto ub = pad::calc_dim(arg_shape[i].get_max_length(), pad_dim_diff_ub);
+                    using namespace ov::util;
+                    const auto lb = dim::padded(dim_lb, pad_dim_diff_lb);
+                    const auto ub = dim::padded(arg_shape[i].get_max_length(), pad_dim_diff_ub);
                     output_shape.emplace_back(lb, ub);
                 } else {
                     output_shape.push_back(arg_shape[i]);

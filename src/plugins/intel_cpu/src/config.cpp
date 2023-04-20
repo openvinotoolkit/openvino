@@ -74,6 +74,7 @@ void Config::readProperties(const std::map<std::string, std::string> &prop) {
     for (const auto& kvp : prop) {
         const auto& key = kvp.first;
         const auto& val = kvp.second;
+        IE_SUPPRESS_DEPRECATED_START
         if (streamExecutorConfigKeys.end() !=
             std::find(std::begin(streamExecutorConfigKeys), std::end(streamExecutorConfigKeys), key)) {
             streamExecutorConfig.SetConfig(key, val);
@@ -246,6 +247,7 @@ void Config::readProperties(const std::map<std::string, std::string> &prop) {
         } else {
             IE_THROW(NotFound) << "Unsupported property " << key << " by CPU plugin";
         }
+        IE_SUPPRESS_DEPRECATED_END
     }
     // apply execution mode after all the params are handled to prevent possible conflicts
     // when both execution_mode and inference_precision are specified
@@ -262,6 +264,11 @@ void Config::readProperties(const std::map<std::string, std::string> &prop) {
 
     if (exclusiveAsyncRequests)  // Exclusive request feature disables the streams
         streamExecutorConfig._streams = 1;
+
+#if defined(OPENVINO_ARCH_ARM) || defined(OPENVINO_ARCH_ARM64)
+    // TODO: multi-stream execution has functional issues on ARM target
+    streamExecutorConfig._streams = 1;
+#endif
 
     CPU_DEBUG_CAP_ENABLE(applyDebugCapsProperties());
     updateProperties();
@@ -293,12 +300,14 @@ void Config::updateProperties() {
         _config.insert({ PluginConfigParams::KEY_EXCLUSIVE_ASYNC_REQUESTS, PluginConfigParams::YES });
     else
         _config.insert({ PluginConfigParams::KEY_EXCLUSIVE_ASYNC_REQUESTS, PluginConfigParams::NO });
+    IE_SUPPRESS_DEPRECATED_START
     if (enableDynamicBatch == true)
         _config.insert({ PluginConfigParams::KEY_DYN_BATCH_ENABLED, PluginConfigParams::YES });
     else
         _config.insert({ PluginConfigParams::KEY_DYN_BATCH_ENABLED, PluginConfigParams::NO });
 
     _config.insert({ PluginConfigParams::KEY_DYN_BATCH_LIMIT, std::to_string(batchLimit) });
+    IE_SUPPRESS_DEPRECATED_END
 
     _config.insert({ PluginConfigParams::KEY_CPU_THROUGHPUT_STREAMS, std::to_string(streamExecutorConfig._streams) });
 

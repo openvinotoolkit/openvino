@@ -77,6 +77,47 @@ static bool is_reduce_blocked_axes(reduce_node const& node) {
     return false;
 }
 
+bool layout_optimizer::onednn_check_data_types_for_pooling(data_types in_dt, data_types out_dt) {
+    if (!data_type_traits::is_floating_point(in_dt) && in_dt != out_dt)
+            return false;
+    if ((in_dt == data_types::i8 || in_dt == data_types::u8) && out_dt != data_types::f32)
+        return true;
+    if (in_dt == data_types::f16 || out_dt == data_types::f16)
+        return true;
+    if (out_dt == data_types::f32)
+        return true;
+    if (in_dt == data_types::i32 || out_dt == data_types::i32)
+        return true;
+    if ((in_dt == data_types::i8 || out_dt == data_types::i8) || (in_dt == data_types::u8 || out_dt == data_types::u8))
+        return true;
+    return false;
+}
+
+bool layout_optimizer::onednn_check_data_types_for_convolution(data_types in_dt, data_types wei_dt, data_types out_dt) {
+    if ((in_dt == data_types::f16 && wei_dt == data_types::f16) &&
+        (out_dt == data_types::f16 || out_dt == data_types::f32 || out_dt == data_types::i8 || out_dt == data_types::u8))
+        return true;
+    if ((in_dt == data_types::i8 || in_dt == data_types::u8) && wei_dt == data_types::i8 &&
+        (out_dt == data_types::f32 || out_dt == data_types::i32 || out_dt == data_types::f16 || out_dt == data_types::i8 || out_dt == data_types::u8))
+        return true;
+    if ((in_dt == data_types::f32 && wei_dt == data_types::f32) &&
+        (out_dt == data_types::i8 || out_dt == data_types::u8))
+        return true;
+    return false;
+}
+
+bool layout_optimizer::onednn_check_data_types_for_fc_gemm(data_types in_dt, data_types wei_dt, data_types out_dt) {
+    if ((in_dt == data_types::f16 && wei_dt == data_types::f16) &&
+        (out_dt == data_types::f16 || out_dt == data_types::f32 || out_dt == data_types::i8))
+        return true;
+    if (in_dt == data_types::f32 && wei_dt == data_types::f32)
+        return true;
+    if ((in_dt == data_types::i8 || in_dt == data_types::u8) && (wei_dt == data_types::i8) &&
+        (out_dt == data_types::i8 || out_dt == data_types::u8 || out_dt == data_types::i32 || out_dt == data_types::f16 || out_dt == data_types::f32))
+        return true;
+    return false;
+}
+
 std::pair<std::shared_ptr<reorder>, bool> reorder_factory::get_reorder(primitive_id src_id,
                                                                        const layout& in_layout,
                                                                        const layout& out_layout) {
@@ -440,6 +481,10 @@ bool layout_optimizer::can_fuse_reorder_to_prev(program_node& prev, reorder_node
          && (!prev.as<permute>().is_rotating_except_batch())) {
             return false;
         }
+        // permute kernel doesn't support reorder fusion for ranks > 6
+        if (fmt_prev.dimension() > 6 || fmt_next.dimension() > 6)
+            return false;
+
         return true;
     }
 
@@ -760,7 +805,7 @@ static bool is_node_for_onednn(reduce_node const& node, format preferred_format)
     auto reduce_prim = node.get_primitive();
 
     if (input.get_output_layout().data_type == data_types::f32
-        && node.get_users().front()->get_output_layout().data_type == data_types::f32) {
+        && node.get_output_layout().data_type == data_types::f32) {
         return false;
     }
 
@@ -1185,58 +1230,17 @@ bool layout_optimizer::are_data_types_suitable_for_onednn(program_node& node) {
         return false;
 
     if (node.is_type<pooling>()) {
-        if (!data_type_traits::is_floating_point(in_dt) && in_dt != out_dt)
-            return false;
-        if ((in_dt == data_types::i8 || in_dt == data_types::u8) && out_dt != data_types::f32)
-            return true;
-        if (in_dt == data_types::f16 || out_dt == data_types::f16)
-            return true;
-        if (out_dt == data_types::f32)
-            return true;
-        if (in_dt == data_types::i32 || out_dt == data_types::i32)
-            return true;
-        if ((in_dt == data_types::i8 || out_dt == data_types::i8) || (in_dt == data_types::u8 || out_dt == data_types::u8))
-            return true;
+        return onednn_check_data_types_for_pooling(in_dt, out_dt);
     } else if (node.is_type<convolution>() || node.is_type<deconvolution>()) {
         bool is_conv = node.is_type<convolution>();
         auto wei_dt = is_conv ? node.as<convolution>().weights().get_output_layout().data_type :
                                 node.as<deconvolution>().weights().get_output_layout().data_type;
-
-        if ((in_dt == data_types::f16 && wei_dt == data_types::f16) &&
-            (out_dt == data_types::f16 || out_dt == data_types::f32 || out_dt == data_types::i8 || out_dt == data_types::u8))
-            return true;
-        if ((in_dt == data_types::i8 || in_dt == data_types::u8) && wei_dt == data_types::i8 &&
-            (out_dt == data_types::f32 || out_dt == data_types::i32 || out_dt == data_types::f16 || out_dt == data_types::i8 || out_dt == data_types::u8))
-            return true;
-        if ((in_dt == data_types::f32 && wei_dt == data_types::f32) &&
-            (out_dt == data_types::i8 || out_dt == data_types::u8))
-            return true;
+        return onednn_check_data_types_for_convolution(in_dt, wei_dt, out_dt);
     } else if (node.is_type<fully_connected>() || node.is_type<gemm>()) {
         bool is_fc = node.is_type<fully_connected>();
         auto wei_dt = is_fc ? node.as<fully_connected>().weights().get_output_layout().data_type :
                               node.as<gemm>().get_dependency(1).get_output_layout().data_type;
-
-        if ((in_dt == data_types::f16 && wei_dt == data_types::f16) &&
-            (out_dt == data_types::f16 || out_dt == data_types::f32 || out_dt == data_types::i8))
-            return true;
-        if (in_dt == data_types::f32 && wei_dt == data_types::f32)
-            return true;
-        if ((in_dt == data_types::i8 || in_dt == data_types::u8) && (wei_dt == data_types::i8) &&
-            (out_dt == data_types::i8 || out_dt == data_types::u8 || out_dt == data_types::i32 || out_dt == data_types::f16 || out_dt == data_types::f32))
-            return true;
-    } else if (node.is_type<reorder>()) {
-        auto input_fmt = node.get_dependency(0).get_output_layout().format;
-        auto output_fmt = node.get_output_layout().format;
-
-        // For mixed precision case, oneDNN is slower than clDNN
-        if (input_fmt == format::b_fs_yx_fsv16 && data_type_traits::is_i8_u8(in_dt))
-            return false;
-        if (output_fmt == format::b_fs_yx_fsv16 && data_type_traits::is_i8_u8(in_dt))
-            return false;
-        if (output_fmt == format::bfyx && out_dt == data_types::f32)
-            return false;
-
-        return true;
+        return onednn_check_data_types_for_fc_gemm(in_dt, wei_dt, out_dt);
     }
 
     return false;
@@ -1282,7 +1286,7 @@ bool layout_optimizer::is_primitive_implemented_for_onednn(program_node& node) {
     if (node.is_type<fully_connected>() || node.is_type<gemm>() || node.is_type<pooling>() ||
         node.is_type<convolution>() || node.is_type<deconvolution>() ||
         node.is_type<reduce>() || node.is_type<reorder>() || node.is_type<concatenation>()) {
-            return true;
+        return true;
     }
 
     return false;
@@ -1582,13 +1586,27 @@ format layout_optimizer::get_preferred_format(program_node& node) {
         auto dep_size = node.get_dependencies().size();
         for (size_t i = 0; i < dep_size; i++) {
             auto in_lay_rank = node.get_dependency(i).get_output_layout(false).get_rank();
-            if (in_lay_rank != out_lay_rank)
-                node.set_preferred_input_fmt(i, get_preferred_format(node.get_dependency(i)));
+            const auto& shape_infer_deps = node.get_shape_infer_dependencies();
+            if (std::find(shape_infer_deps.begin(), shape_infer_deps.end(), i) != shape_infer_deps.end()) {
+                auto fmt = format::get_default_format(in_lay_rank, false, false);
+                node.set_preferred_input_fmt(i, fmt);
+            } else if (in_lay_rank != out_lay_rank) {
+                auto fmt = get_preferred_format(node.get_dependency(i));
+                // Check if selected format can be adjusted to the required output rank
+                // If no, use default fotmat instead
+                try {
+                    format::adjust_to_rank(fmt, out_lay_rank);
+                } catch (ov::Exception&) {
+                    fmt = format::get_default_format(out_lay_rank);
+                }
+                node.set_preferred_input_fmt(i, fmt);
+            }
         }
 
         // shape_infer_dep should be plain format because the memory is being read by ngraph shape infer as is
         if (node.is_shape_infer_dep()) {
             expected = format::get_default_format(output_layout.get_rank(), false, false);
+            node.set_preferred_output_fmt(0, expected);
             return expected;
         }
     }

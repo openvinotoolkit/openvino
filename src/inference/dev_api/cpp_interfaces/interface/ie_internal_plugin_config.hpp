@@ -10,7 +10,7 @@
 #pragma once
 
 #include "ie_plugin_config.hpp"
-#include "openvino/runtime/properties.hpp"
+#include "openvino/runtime/internal_properties.hpp"
 
 namespace InferenceEngine {
 
@@ -120,14 +120,3 @@ DECLARE_CONFIG_VALUE(DISABLE);
 }  // namespace PluginConfigInternalParams
 
 }  // namespace InferenceEngine
-
-namespace ov {
-
-/**
- * @brief Read-only property to get a std::vector<PropertyName> of properties
- * which should affect the hash calculation for model cache
- * @ingroup ie_dev_api_plugin_api
- */
-static constexpr Property<std::vector<PropertyName>, PropertyMutability::RO> caching_properties{"CACHING_PROPERTIES"};
-
-}  // namespace ov

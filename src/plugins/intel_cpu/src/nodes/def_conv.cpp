@@ -27,7 +27,7 @@ using namespace Xbyak;
 namespace ov {
 namespace intel_cpu {
 namespace node {
-
+#if defined(OPENVINO_ARCH_X86_64)
 #define GET_OFF(field) offsetof(jit_def_conv_call_args, field)
 
 template <cpu_isa_t isa>
@@ -671,7 +671,7 @@ private:
         pop(reg_sampled_offs);
     }
 };
-
+#endif
 bool DeformableConvolution::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept {
     try {
         if (!one_of(op->get_type_info(),
@@ -1089,6 +1089,7 @@ DeformableConvolution::DefConvExecutor::DefConvExecutor(const DefConvAttr &defCo
 DeformableConvolution::DefConvJitExecutor::DefConvJitExecutor(const DefConvAttr &defConvAttr,
                             const std::vector<std::shared_ptr<BlockedMemoryDesc>> &descVector) :
                 DefConvExecutor(defConvAttr, descVector) {
+#if defined(OPENVINO_ARCH_X86_64)
     if (mayiuse(cpu::x64::avx512_core)) {
         def_conv_kernel.reset(new jit_uni_def_conv_kernel_f32<cpu::x64::avx512_core>(jcp));
     } else if (mayiuse(cpu::x64::avx2)) {
@@ -1103,6 +1104,7 @@ DeformableConvolution::DefConvJitExecutor::DefConvJitExecutor(const DefConvAttr 
     } else {
         IE_THROW() << "Can't compile DefConvJitExecutor";
     }
+#endif
 }
 
 void DeformableConvolution::DefConvRefExecutor::exec(const float* src, const float* offsets,
