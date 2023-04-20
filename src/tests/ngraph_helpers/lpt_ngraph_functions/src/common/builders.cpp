@@ -194,11 +194,11 @@ std::shared_ptr<Node> makeTranspose(const Output<Node>& data, const Transpose& t
 
 std::shared_ptr<ngraph::opset1::FakeQuantize> makeFakeQuantize(
     const Output<Node>& output,
-    const ngraph::element::Type precision,
+    const ngraph::element::Type constantType,
     const FakeQuantizeOnData& fqOnData) {
     return ov::as_type_ptr<ngraph::opset1::FakeQuantize>(ngraph::builder::makeFakeQuantize(
         output,
-        precision,
+        constantType,
         fqOnData.quantizationLevel,
         fqOnData.constantShape,
         fqOnData.inputLowValues,

@@ -15,6 +15,49 @@ namespace dim {
 constexpr auto inf_bound = -1;  //!< Infinite bound value for dimension.
 
 /**
+ * @brief Checks if dimension length is infinite bound (undefined).
+ *
+ * @tparam T    Type of dimension length.
+ * @param dim   Dimension length value.
+ * @return True if dimension length has infinite bound, otherwise false.
+ */
+template <class T>
+constexpr bool is_inf_bound(const T dim) {
+    return dim == static_cast<T>(inf_bound);
+}
+
+/**
+ * @brief Convert static dimension length to ov::Dimension::value_type.
+ *
+ * As static dimension length type is size_t (bit-length depends on architecture) the maximum value (undefined)
+ * is convert to ov::Dimension infinite bound.
+ *
+ * @tparam T   Static dimension type (size_t)
+ * @tparam U   ov::Dimension::value_type
+ * @param dim  Dimension length to convert.
+ * @return Converted input value to ov::Dimension::value_type.
+ */
+template <class T, class U = typename Dimension::value_type>
+constexpr typename std::enable_if<std::is_same<T, size_t>::value, U>::type value_convert(const T dim) {
+    return is_inf_bound(dim) ? inf_bound : static_cast<U>(dim);
+}
+
+/**
+ * @brief Conversion of dimension when input type is same as ov::Dimension::value_type.
+ *
+ * Return value as it is.
+ *
+ * @tparam T   Dimension type same as ov::Dimension::value_type.
+ * @tparam U   Dimension::value_type.
+ * @param dim  Dimension length to convert.
+ * @return Same value as input.
+ */
+template <class T, class U = typename Dimension::value_type>
+constexpr typename std::enable_if<std::is_same<T, U>::value, U>::type value_convert(const T dim) {
+    return dim;
+}
+
+/**
  * @brief Calculate dilated dimension value.
  *
  * @param dim       Dimension size value.
@@ -50,7 +93,7 @@ constexpr auto dilated(const TDim& dim, const typename TDim::value_type dilation
 template <class TDim>
 constexpr typename std::enable_if<std::is_arithmetic<TDim>::value, TDim>::type padded(const TDim dim,
                                                                                       const int64_t pad_num) {
-    return ((dim == inf_bound) || (dim + pad_num < 0)) ? inf_bound : dim + pad_num;
+    return (is_inf_bound(dim) || (dim + pad_num < 0)) ? inf_bound : dim + pad_num;
 }
 
 /**
