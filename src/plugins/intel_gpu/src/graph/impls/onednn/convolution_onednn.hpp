@@ -21,10 +21,19 @@ static std::shared_ptr<dnnl::convolution_forward::primitive_desc> get_convolutio
     dnnl::memory::dims pad_l(prim->pad.begin(), prim->pad.end());
     dnnl::memory::dims pad_r(prim->pad.begin(), prim->pad.end());
 
+    auto grouped_weights = format::is_grouped(weights_layout.format) || prim->grouped_weights_shape;
+    if (grouped_weights && (input_layout.get_rank() == weights_layout.get_rank())) {
+        auto tensor = weights_layout.get_tensor();
+        if (tensor.spatial[0] == 1 && tensor.spatial[1] != 1) {
+            std::swap(tensor.spatial[0], tensor.spatial[1]);
+            weights_layout.set_tensor(tensor);
+        }
+        weights_layout.format = format::get_default_format(weights_layout.get_rank() + 1, true, true);
+    }
+
     auto input_md = onednn::layout_to_memory_desc(input_layout, tag_in_out);
     auto weights_md = onednn::layout_to_memory_desc(weights_layout, dnnl::memory::format_tag::any);
     auto output_md = onednn::layout_to_memory_desc(output_layout, tag_in_out);
-    auto grouped_weights = format::is_grouped(weights_layout.format) || prim->grouped_weights_shape;
 
     // adjust_conv_dilation_pad(dilation, stride, pad_l, pad_r, input_md, output_md, weights_md, grouped_weights);
     for (size_t i = 0; i < dilation.size(); i++) {
