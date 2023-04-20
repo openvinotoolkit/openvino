@@ -416,7 +416,7 @@ def create_pytorch_nn_module_layout_list(tmp_dir):
 
     return pt_model, ref_model, {
         'input_shape': [shape, shape], 'layout': ['nchw', Layout('nhwc')],
-        "input": [InputCutInfo("x", None, "f32", None), InputCutInfo("y", None, "f32", None)]
+        "input": [np.float32, np.float32]
         }
 
 
@@ -432,7 +432,7 @@ def create_pytorch_nn_module_layout_list_case2(tmp_dir):
 
     return pt_model, ref_model, {
         'input_shape': [shape, shape], 'layout': ('nchw', Layout('nhwc')), 
-        "input": [InputCutInfo("x", None, "f32", None), InputCutInfo("y", None, "f32", None)]}
+        "input": [np.float32, np.float32]}
 
 
 def create_pytorch_nn_module_mean_list(tmp_dir):
@@ -455,7 +455,7 @@ def create_pytorch_nn_module_mean_list(tmp_dir):
 
     return pt_model, ref_model, {
         'input_shape': [shape, shape], 'mean_values': [[0, 0, 0], [0, 0, 0]], 'compress_to_fp16': False, 
-        "input": [InputCutInfo("x", None, "f32", None), InputCutInfo("y", None, "f32", None)]}
+        "input": [np.float32, np.float32]}
 
 
 def create_pytorch_nn_module_mean_list_default_no_compression(tmp_dir):
@@ -477,7 +477,7 @@ def create_pytorch_nn_module_mean_list_default_no_compression(tmp_dir):
     parameter_list = [param1, param2]
     ref_model = Model([sigm], parameter_list, "test")
 
-    return pt_model, ref_model, {'input_shape': [shape, shape], 'mean_values': [[0, 0, 0], [0, 0, 0]], "input": [InputCutInfo("x", None, "f32", None), InputCutInfo("y", None, "f32", None)]}
+    return pt_model, ref_model, {'input_shape': [shape, shape], 'mean_values': [[0, 0, 0], [0, 0, 0]], "input": [np.float32, np.float32]}
 
 
 def create_pytorch_nn_module_mean_list_compressin_enabled(tmp_dir):
@@ -500,7 +500,7 @@ def create_pytorch_nn_module_mean_list_compressin_enabled(tmp_dir):
 
     return pt_model, ref_model, {
         'input_shape': [shape, shape], 'mean_values': [[0, 0, 0], [0, 0, 0]], 
-        'compress_to_fp16': False, "input": [InputCutInfo("x", None, "f32", None), InputCutInfo("y", None, "f32", None)]}
+        'compress_to_fp16': False, "input": [np.float32, np.float32]}
 
 
 def create_pytorch_nn_module_scale_list(tmp_dir):
@@ -521,7 +521,7 @@ def create_pytorch_nn_module_scale_list(tmp_dir):
     parameter_list = [param1, param2]
     ref_model = Model([sigm], parameter_list, "test")
 
-    return pt_model, ref_model, {'input_shape': [shape, shape], 'scale_values': [[1, 1, 1], [1, 1, 1]], 'compress_to_fp16': False, "input": [InputCutInfo("x", None, "f32", None), InputCutInfo("y", None, "f32", None)]}
+    return pt_model, ref_model, {'input_shape': [shape, shape], 'scale_values': [[1, 1, 1], [1, 1, 1]], 'compress_to_fp16': False, "input": [np.float32, np.float32]}
 
 
 def create_pytorch_nn_module_scale_list_default_no_compression(tmp_dir):
@@ -543,7 +543,7 @@ def create_pytorch_nn_module_scale_list_default_no_compression(tmp_dir):
     parameter_list = [param1, param2]
     ref_model = Model([sigm], parameter_list, "test")
 
-    return pt_model, ref_model, {'input_shape': [shape, shape], 'scale_values': [[1, 1, 1], [1, 1, 1]], "input": [InputCutInfo("x", None, "f32", None), InputCutInfo("y", None, "f32", None)]}
+    return pt_model, ref_model, {'input_shape': [shape, shape], 'scale_values': [[1, 1, 1], [1, 1, 1]], "input": [np.float32, np.float32]}
 
 
 def create_pytorch_nn_module_scale_list_compression_enabled(tmp_dir):
@@ -566,7 +566,7 @@ def create_pytorch_nn_module_scale_list_compression_enabled(tmp_dir):
     parameter_list = [param1, param2]
     ref_model = Model([sigm], parameter_list, "test")
 
-    return pt_model, ref_model, {'input_shape': [shape, shape], 'scale_values': [[1, 1, 1], [1, 1, 1]],  "input": [InputCutInfo("x", None, "f32", None), InputCutInfo("y", None, "f32", None)],
+    return pt_model, ref_model, {'input_shape': [shape, shape], 'scale_values': [[1, 1, 1], [1, 1, 1]],  "input": [np.float32, np.float32],
                                  'compress_to_fp16': True}
 
 
@@ -574,7 +574,7 @@ def create_pytorch_nn_module_shapes_list_static(tmp_dir):
     pt_model = make_pt_model_two_inputs()
     ref_model = make_ref_pt_model_two_inputs([1, 3, 20, 20])
 
-    return pt_model, ref_model, {'input_shape': [[1, 3, 20, 20], [1, 3, 20, 20]], "input": [InputCutInfo("x", None, "f32", None), InputCutInfo("y", None, "f32", None)]}
+    return pt_model, ref_model, {'input_shape': [[1, 3, 20, 20], [1, 3, 20, 20]], "input": [np.float32, np.float32]}
 
 
 def create_pytorch_nn_module_shapes_list_dynamic(tmp_dir):
@@ -592,21 +592,21 @@ def create_pytorch_nn_module_shapes_list_dynamic(tmp_dir):
 
     parameter_list = [param1, param2]
     ref_model = Model([sigm], parameter_list, "test")
-    return pt_model, ref_model, {'input_shape': inp_shapes, "input": [InputCutInfo("x", None, "f32", None), InputCutInfo("y", None, "f32", None)]}
+    return pt_model, ref_model, {'input_shape': inp_shapes, "input": [np.float32, np.float32]}
 
 
 def create_pytorch_nn_module_shapes_list_dynamic_single_input(tmp_dir):
     pt_model = make_pt_model_one_input()
     inp_shapes = [[Dimension(-1), 3, 20, Dimension(20, -1)]]
     ref_model = make_ref_pt_model_one_input(inp_shapes[0])
-    return pt_model, ref_model, {'input_shape': inp_shapes, "input": InputCutInfo("x", None, "f32", None)}
+    return pt_model, ref_model, {'input_shape': inp_shapes, "input": np.float32}
 
 
 def create_pytorch_nn_module_shapes_list_static_single_input(tmp_dir):
     pt_model = make_pt_model_one_input()
     inp_shapes = [[1, 3, 20, 20]]
     ref_model = make_ref_pt_model_one_input(inp_shapes[0])
-    return pt_model, ref_model, {'input_shape': inp_shapes, "input": InputCutInfo("x", None, "f32", None)}
+    return pt_model, ref_model, {'input_shape': inp_shapes, "input": np.float32}
 
 
 def create_pytorch_nn_module_convert_pytorch_frontend1(tmp_dir):
@@ -621,7 +621,7 @@ def create_pytorch_nn_module_convert_pytorch_frontend1(tmp_dir):
     ref_model = Model([sigm], parameter_list, "test")
     return pt_model, ref_model, {
         "example_input": torch.zeros((1, 3, 10, 10)),
-        "input": [InputCutInfo("x", [-1, -1, -1, -1], "f32", None)]
+        "input": [InputCutInfo(shape=[-1, -1, -1, -1], type="f32")]
     }
 
 
@@ -639,7 +639,7 @@ def create_pytorch_nn_module_convert_pytorch_frontend2(tmp_dir):
     ref_model.validate_nodes_and_infer_types()
     return pt_model, ref_model, {
         "example_input": torch.zeros((1, 3, 10, 10), dtype=torch.int32),
-        "input": [InputCutInfo("x", [-1, -1, -1, -1], "i32", None)]
+        "input": [InputCutInfo(shape=[-1, -1, -1, -1], type="i32")]
     }
 
 
@@ -657,7 +657,7 @@ def create_pytorch_nn_module_convert_pytorch_frontend3(tmp_dir):
     ref_model = Model([sigm], parameter_list, "test")
     return pt_model, ref_model, {
         "example_input": [torch.zeros((1, 3, 10, 10)), torch.ones((1, 3, 10, 10))],
-        "input": [InputCutInfo("x", [-1, -1, -1, -1], "f32", None), InputCutInfo("y", [-1, -1, -1, -1], "f32", None)]
+        "input": [InputCutInfo(shape=[-1, -1, -1, -1], type="f32"), InputCutInfo(shape=[-1, -1, -1, -1], type="f32")]
     }
 
 
@@ -675,7 +675,7 @@ def create_pytorch_nn_module_convert_pytorch_frontend4(tmp_dir):
     ref_model = Model([sigm], parameter_list, "test")
     return pt_model, ref_model, {
         "example_input": {"x": torch.zeros((1, 3, 10, 10), dtype=torch.float32), "y": torch.ones((1, 3, 10, 10), dtype=torch.float32)},
-        "input": [InputCutInfo("x", [-1, -1, -1, -1], "f32", None), InputCutInfo("y", [-1, -1, -1, -1], "f32", None)]
+        "input": [InputCutInfo(shape=[-1, -1, -1, -1], type="f32"), InputCutInfo(shape=[-1, -1, -1, -1], type="f32")]
     }
 
 
@@ -695,7 +695,7 @@ def create_pytorch_jit_script_module_convert_pytorch_frontend(tmp_dir):
     ref_model = Model([sigm], parameter_list, "test")
     return scripted_model, ref_model,  {
         "example_input": {"x": torch.zeros((1, 3, 10, 10)), "y": torch.ones((1, 3, 10, 10))},
-        "input": [InputCutInfo("x.1", [-1, -1, -1, -1], "f32", None), InputCutInfo("y.1", [-1, -1, -1, -1], "f32", None)]}
+        "input": [InputCutInfo(shape=[-1, -1, -1, -1], type="f32"), InputCutInfo(shape=[-1, -1, -1, -1], type="f32")]}
 
 
 def create_pytorch_jit_trace_module_convert_pytorch_frontend(tmp_dir):
@@ -714,7 +714,7 @@ def create_pytorch_jit_trace_module_convert_pytorch_frontend(tmp_dir):
     parameter_list = [param1, param2]
     ref_model = Model([sigm], parameter_list, "test")
     return scripted_model, ref_model,  {"example_input": example_input, "input": [
-        InputCutInfo("x", [-1, -1, -1, -1], "f32", None), InputCutInfo("y", [-1, -1, -1, -1], "f32", None)]}
+        InputCutInfo(shape=[-1, -1, -1, -1], type="f32"), InputCutInfo(shape=[-1, -1, -1, -1], type="f32")]}
 
 
 class TestMoConvertPyTorch(CommonMOConvertTest):
