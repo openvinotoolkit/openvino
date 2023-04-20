@@ -707,6 +707,10 @@ void prepare_primitive_fusing::fuse_simple_primitives(program &p) {
 
                 // Activation should not be fused if oneDNN does NOT support it
                 if (_lo.is_primitive_implemented_for_onednn(input))  {
+                    auto activation_func = activation_node.get_primitive()->activation_function;
+                    // onednn post-op relu has a functional issue
+                    if (activation_func == cldnn::activation_func::relu_negative_slope)
+                        return;
                     #ifdef ENABLE_ONEDNN_FOR_GPU
                     try {
                         onednn::convert_activation_func(activation_node.get_primitive()->activation_function);
