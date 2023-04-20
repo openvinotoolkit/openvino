@@ -6,9 +6,9 @@
 
 **Category**: *Activation function*
 
-**Short description**: ReLU element-wise activation function. (`Reference <http://caffe.berkeleyvision.org/tutorial/layers/relu.html>`__)
+**Short description**: ReLU element-wise activation function. (`Reference <http://caffe.berkeleyvision.org/tutorial/layers/relu.html>`__).
 
-**Detailed description**: `Reference <https://github.com/Kulbear/deep-learning-nano-foundation/wiki/ReLU-and-Softmax-Activation-Functions#rectified-linear-units>`__
+**Detailed description**: `Reference <https://github.com/Kulbear/deep-learning-nano-foundation/wiki/ReLU-and-Softmax-Activation-Functions#rectified-linear-units>`__.
 
 **Attributes**: *ReLU* operation has no attributes.
 
@@ -31,7 +31,7 @@ For each element from the input tensor calculates corresponding element in the o
 
 **Example**
 
-.. code-block:: cpp
+.. code-block:: console
 
     <layer ... type="ReLU">
         <input>

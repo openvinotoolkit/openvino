@@ -93,7 +93,7 @@
 
 **Example**
 
-.. code-block:: cpp 
+.. code-block:: console 
 
   <layer ... type="ROIAlign" ... >
       <data pooled_h="6" pooled_w="6" spatial_scale="16.0" sampling_ratio="2" mode="avg" aligned_mode="half_pixel"/>

@@ -51,9 +51,7 @@ Particular cases:
 
 **Examples**
 
-.. code-block:: cpp
-   :emphasize-lines: 10-12
-   :linenos:
+.. code-block:: console
 
     <layer id="1" type="ReduceMean" ...>
         <data keep_dims="true" />
@@ -79,9 +77,7 @@ Particular cases:
     </layer>
 
 
-.. code-block:: 
-   :emphasize-lines: 12
-   :linenos:
+.. code-block:: console
 
     <layer id="1" type="ReduceMean" ...>
         <data keep_dims="false" />
@@ -106,8 +102,7 @@ Particular cases:
 
 
 
-.. code-block:: xml
-   :linenos:
+.. code-block:: console
 
     <layer id="1" type="ReduceMean" ...>
         <data keep_dims="false" />
@@ -131,9 +126,7 @@ Particular cases:
         </output>
     </layer>
 
-.. code-block:: xml
-   :emphasize-lines: 10-13
-   :linenos:
+.. code-block:: console
 
     <layer id="1" type="ReduceMean" ...>
         <data keep_dims="false" />

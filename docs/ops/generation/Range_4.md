@@ -69,7 +69,7 @@ This is aligned with PyTorch's operation ``torch.arange``, to align with tensorf
 
 *Example 1: positive step*
 
-.. code-block:: cpp
+.. code-block:: console
 
     <layer ... type="Range">
         <data output_type="i32">
@@ -91,7 +91,7 @@ This is aligned with PyTorch's operation ``torch.arange``, to align with tensorf
 
 *Example 2: negative step*
 
-.. code-block:: cpp
+.. code-block:: console
 
     <layer ... type="Range">
         <data output_type="i32">
@@ -113,7 +113,7 @@ This is aligned with PyTorch's operation ``torch.arange``, to align with tensorf
 
 *Example 3: floating-point*
 
-.. code-block:: cpp
+.. code-block:: console
 
     <layer ... type="Range">
         <data output_type="f32">

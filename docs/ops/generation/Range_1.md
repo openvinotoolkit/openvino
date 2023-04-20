@@ -30,14 +30,14 @@ No attributes available.
 
 *Range* operation generates a sequence of numbers starting from the value in the first input (start) up to but not including the value in the second input (stop) with a step equal to the value in the third input, according to the following formula:
 
-For a positive `step`:
+For a positive ``step``:
 
 .. math::
 
    start<=val[i]<stop,
 
 
-for a negative `step`:
+for a negative ``step``:
 
 .. math::
  
@@ -55,7 +55,7 @@ where
 
 *Example 1: positive step*
 
-.. code-block:: cpp
+.. code-block:: console
 
     <layer ... type="Range">
         <input>
@@ -76,7 +76,7 @@ where
 
 *Example 2: negative step*
 
-.. code-block:: cpp
+.. code-block:: console
 
     <layer ... type="Range">
         <input>

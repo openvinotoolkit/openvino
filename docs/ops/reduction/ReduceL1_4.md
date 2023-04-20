@@ -10,8 +10,7 @@
 
 **Detailed Description**
 
-*ReduceL1* operation performs the reduction with finding the L1 norm (sum of absolute values) on a given input ``data`` along dimensions specified by ``axes`` input.
-Each element in the output is calculated as follows:
+*ReduceL1* operation performs the reduction with finding the L1 norm (sum of absolute values) on a given input ``data`` along dimensions specified by ``axes`` input. Each element in the output is calculated as follows:
 
 ``output[i0, i1, ..., iN] = L1[j0, ..., jN](x[j0, ..., jN]))``
 
@@ -50,7 +49,7 @@ Particular cases:
 **Examples**
 
 
-.. code-block:: cpp
+.. code-block:: console
 
     <layer id="1" type="ReduceL1" ...>
         <data keep_dims="true" />

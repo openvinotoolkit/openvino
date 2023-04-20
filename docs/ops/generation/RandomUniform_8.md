@@ -24,7 +24,7 @@ If both seed values equal to zero, RandomUniform generates non-deterministic seq
    counter = op_seed
 
 
-Link to the original paper `Parallel Random Numbers: As Easy as 1, 2, 3 <https://www.thesalmons.org/john/random123/papers/random123sc11.pdf>`__
+Link to the original paper `Parallel Random Numbers: As Easy as 1, 2, 3 <https://www.thesalmons.org/john/random123/papers/random123sc11.pdf>`__.
 
 The result of Philox is calculated by applying a fixed number of *key* and *counter* updating so-called "rounds". 
 This implementation uses 4x32_10 version of Philox algorithm, where number of rounds = 10.
@@ -62,7 +62,7 @@ Values :math:`L'_{n}, R'_{n}, L'_{counter}, R'_{counter}` are resulting four ran
 
 Float values between [0..1) are obtained from 32-bit integers by the following rules.
 
-Float16 is formatted as follows: *sign*(1 bit) *exponent*(5 bits) *mantissa*(10 bits). The value is interpreted 
+Float16 is formatted as follows: *sign* (1 bit) *exponent* (5 bits) *mantissa* (10 bits). The value is interpreted 
 using following formula:
 
 .. math::
@@ -132,10 +132,10 @@ So the resulting double is obtained as follows:
 
 .. code-block:: cpp
    
-    mantissa_h = x0 & 0xfffffu;  // upper 20 bits of mantissa
-    mantissa_l = x1;             // lower 32 bits of mantissa
-    mantissa = (mantissa_h << 32) | mantissa_l;
-    val = ((exponent << 52) | mantissa) - 1.0,
+   mantissa_h = x0 & 0xfffffu;  // upper 20 bits of mantissa
+   mantissa_l = x1;             // lower 32 bits of mantissa
+   mantissa = (mantissa_h << 32) | mantissa_l;
+   val = ((exponent << 52) | mantissa) - 1.0,
 
 where x0, x1 are uint32 generated random values.
 
@@ -223,22 +223,20 @@ Example 3. *RandomUniform* output with ``global_seed`` = 80, ``op_seed`` = 100, 
 
 **Inputs**:
 
-*   **1**: `shape` - 1D tensor of type *T_SHAPE* describing output shape. **Required.**
+*   **1**: ``shape`` - 1D tensor of type *T_SHAPE* describing output shape. **Required.**
 
-*   **2**: `minval` - scalar or 1D tensor with 1 element with type specified by the attribute *output_type*, 
-    defines the lower bound on the range of random values to generate (inclusive). **Required.**
+*   **2**: ``minval`` - scalar or 1D tensor with 1 element with type specified by the attribute *output_type*, defines the lower bound on the range of random values to generate (inclusive). **Required.**
 
-*   **3**: `maxval` - scalar or 1D tensor with 1 element with type specified by the attribute *output_type*, 
-    defines the upper bound on the range of random values to generate (exclusive). **Required.**
+*   **3**: ``maxval`` - scalar or 1D tensor with 1 element with type specified by the attribute *output_type*, defines the upper bound on the range of random values to generate (exclusive). **Required.**
 
 
 **Outputs**:
 
-* **1**: A tensor with type specified by the attribute *output_type* and shape defined by `shape` input tensor.
+* **1**: A tensor with type specified by the attribute *output_type* and shape defined by ``shape`` input tensor.
 
 **Types**
 
-* *T_SHAPE*: `int32` or `int64`.
+* *T_SHAPE*: ``int32`` or ``int64``.
 
 *Example 1: IR example.*
 

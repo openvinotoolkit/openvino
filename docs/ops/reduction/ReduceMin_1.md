@@ -51,7 +51,7 @@ Particular cases:
 
 **Examples**
 
-.. code-block:: cpp
+.. code-block:: console
 
     <layer id="1" type="ReduceMin" ...>
         <data keep_dims="true" />
@@ -77,7 +77,7 @@ Particular cases:
     </layer>
 
 
-.. code-block:: cpp
+.. code-block:: console
 
     <layer id="1" type="ReduceMin" ...>
         <data keep_dims="false" />
@@ -101,7 +101,7 @@ Particular cases:
     </layer>
 
 
-.. code-block:: cpp
+.. code-block:: console
 
     <layer id="1" type="ReduceMin" ...>
         <data keep_dims="false" />
@@ -126,7 +126,7 @@ Particular cases:
     </layer>
 
 
-.. code-block:: cpp
+.. code-block:: console
 
     <layer id="1" type="ReduceMin" ...>
         <data keep_dims="false" />

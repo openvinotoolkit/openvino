@@ -79,7 +79,7 @@ No attributes available.
 
 *Example 1: "shift" and "axes" are 1D tensors.*
 
-.. code-block:: cpp 
+.. code-block:: console 
 
     <layer ... type="Roll">
         <input>
@@ -109,7 +109,7 @@ No attributes available.
 
 *Example 2: "shift" value is a scalar and multiple axes are specified.*
 
-.. code-block:: cpp 
+.. code-block:: console 
 
     <layer ... type="Roll">
         <input>

@@ -90,7 +90,7 @@
 
 **Example**
 
-.. code-block:: cpp
+.. code-block:: console
 
   <!-- YOLO V3 example -->
   <layer type="RegionYolo" ... >
