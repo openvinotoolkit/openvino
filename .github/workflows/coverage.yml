@@ -113,6 +113,9 @@ jobs:
       - name: Install python wheels
         run: python3 -m pip install openvino-dev --find-links=${{ github.workspace }}/install_pkg/tools
       
+      - name: List binaries
+        run: ls -la ${{ github.workspace }}/bin/intel64/Release
+      
       - name: Install OpenVINO
         run: cmake -DCMAKE_INSTALL_PREFIX=${{ github.workspace }}/install_pkg -P '${{ github.workspace }}/build/cmake_install.cmake'
       
