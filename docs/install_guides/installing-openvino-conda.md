@@ -30,7 +30,7 @@
 Installing OpenVINO Runtime with Anaconda Package Manager
 ############################################################
 
-1.  Set up the Anaconda environment (Python 3.10 used as an example):
+1. Set up the Anaconda environment (Python 3.10 used as an example):
    
    .. code-block:: sh
 
@@ -61,9 +61,9 @@ Uninstalling OpenVINO™ Runtime
 Once OpenVINO Runtime is installed via Conda, you can remove it using the following command, 
 with the proper OpenVINO version number:
 
-   .. code-block:: sh
-      
-      conda remove openvino=2022.3.0
+.. code-block:: sh
+   
+   conda remove openvino=2022.3.0
 
 
 What's Next?
