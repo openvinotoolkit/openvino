@@ -283,9 +283,6 @@ void Engine::GetPerformanceStreams(Config& config, const std::shared_ptr<ngraph:
                                                            : (streams == 1 ? 0 : streams);
 
     get_num_streams(streams, ngraphFunc, config);
-
-    config._config[CONFIG_KEY(CPU_THROUGHPUT_STREAMS)] = std::to_string(config.streamExecutorConfig._streams);
-    config._config[ov::num_streams.name()] = std::to_string(config.streamExecutorConfig._streams);
 }
 
 StreamCfg Engine::GetNumStreams(InferenceEngine::IStreamsExecutor::ThreadBindingType thread_binding_type,
