@@ -6,6 +6,7 @@
 #include "to_string_utils.h"
 #include "data_inst.h"
 #include "condition_inst.h"
+#include "json_object.h"
 
 #include <algorithm>
 #include <vector>
@@ -141,9 +142,14 @@ void dump_full_node(std::ofstream& out, const program_node* node) {
     try {
         out << node->type()->to_string(*node);
     } catch(const std::exception& e) {
-        GPU_DEBUG_IF(debug_config->verbose >= 2) {
-            std::cerr << node->id() << " to_string() error: " << e.what() << '\n';
-        }
+        auto node_info = std::shared_ptr<json_composite>(new json_composite());
+        node_info->add("id", node->id());
+        node_info->add("error", "failed to make string from descriptor");
+        std::stringstream emtpy_desc;
+        node_info->dump(emtpy_desc);
+        out << emtpy_desc.str();
+
+        GPU_DEBUG_INFO << node->id() << " to_string() error: " << e.what() << '\n';
     }
 }
 }  // namespace
