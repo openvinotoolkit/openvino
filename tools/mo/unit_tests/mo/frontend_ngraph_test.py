@@ -9,6 +9,7 @@ import unittest
 from unittest.mock import patch
 
 from openvino.tools.mo.subprocess_main import setup_env, subprocess_main
+from openvino.tools.mo.utils.get_ov_update_message import get_try_legacy_fe_message
 
 import pytest
 
@@ -89,6 +90,19 @@ def test_mo_convert_logger():
     assert "test message 3" in test_log
 
     assert test_log.count("[ SUCCESS ] Total execution time") == 2
+
+
+def test_mo_suggest_legacy_tf_fe():
+    setup_env()
+
+    args = [sys.executable,
+            os.path.join(os.path.dirname(__file__), 'convert/show_legacy_fe_suggestion_test_actual.py')]
+
+    status = subprocess.run(args, env=os.environ, capture_output=True)
+    test_log = status.stdout.decode("utf-8").replace("\r\n", "\n")
+    message = get_try_legacy_fe_message()
+
+    assert message in test_log
 
 
 def test_rt_info():
