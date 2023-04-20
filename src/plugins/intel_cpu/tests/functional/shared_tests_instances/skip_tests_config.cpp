@@ -203,10 +203,6 @@ std::vector<std::string> disabledTestPatterns() {
     retVector.emplace_back(R"(smoke_Snippets.*)");
 #endif
 
-#if defined(OPENVINO_ARCH_ARM)
-    retVector.emplace_back(R"(smoke_If/SimpleIfNotConstConditionAndDimsIncreaseTest.*)");
-#endif
-
 #if defined(OPENVINO_ARCH_ARM64) || defined(OPENVINO_ARCH_ARM)
     retVector.emplace_back(R"(OVClassBasicPropsTest.smoke_SetConfigAffinity.*)");
     retVector.emplace_back(R"(ONNXQuantizedModels/QuantizedModelsTests.*)");
