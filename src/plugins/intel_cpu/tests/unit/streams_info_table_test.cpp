@@ -29,7 +29,7 @@ public:
         const auto& test_data = std::get<0>(GetParam());
 
         std::vector<std::vector<int>> test_result_table =
-            ov::apply_scheduling_core_type(test_data.input_type, test_data.proc_type_table);
+            ov::intel_cpu::apply_scheduling_core_type(test_data.input_type, test_data.proc_type_table);
 
         ASSERT_EQ(test_data.result_table, test_result_table);
     }
@@ -95,7 +95,7 @@ public:
         auto test_data = std::get<0>(GetParam());
 
         std::vector<std::vector<int>> test_result_table =
-            ov::apply_hyper_threading(test_data.use_ht_value, test_data.use_ht_changed, test_data.proc_type_table);
+            ov::intel_cpu::apply_hyper_threading(test_data.use_ht_value, test_data.use_ht_changed, test_data.proc_type_table);
 
         ASSERT_EQ(test_data.result_table, test_result_table);
     }

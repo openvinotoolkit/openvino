@@ -8,6 +8,7 @@
 #include "ie_system_conf.h"
 
 namespace ov {
+namespace intel_cpu {
 
 std::vector<std::vector<int>> apply_scheduling_core_type(const ov::hint::SchedulingCoreType input_type,
                                                          const std::vector<std::vector<int>>& proc_type_table) {
@@ -88,4 +89,5 @@ bool get_cpu_pinning(bool& input_value,
     return result_value;
 }
 
+}  // namespace intel_cpu
 }  // namespace ov

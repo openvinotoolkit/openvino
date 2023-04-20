@@ -15,6 +15,7 @@
 #include "openvino/runtime/threading/istreams_executor.hpp"
 
 namespace ov {
+namespace intel_cpu {
 
 /**
  * @brief      Limit available CPU resource in processors type table according to scheduling core type property
@@ -51,4 +52,5 @@ OPENVINO_RUNTIME_API bool get_cpu_pinning(bool& input_value,
                                           const threading::IStreamsExecutor::ThreadBindingType bind_type,
                                           const std::vector<std::vector<int>>& proc_type_table);
 
+}  // namespace intel_cpu
 }  // namespace ov
