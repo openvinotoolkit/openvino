@@ -66,6 +66,7 @@ struct InterpolateAttrs {
     InterpolateLayoutType layout;
     std::vector<float> dataScales;
     bool hasPad = false;
+    bool NCHWAsNHWC = false;
 };
 
 inline SizeVector getPaddedInputShape(const VectorDims &srcDims,

@@ -159,6 +159,10 @@ struct jit_uni_interpolate_kernel_f32 : public jit_uni_interpolate_kernel, publi
             case InterpolateMode::bilinear_pillow:
             case InterpolateMode::bicubic_pillow: {
                 switch (jcp_.layout) {
+                    case InterpolateLayoutType::planar: {
+                        pillow_planar();
+                        break;
+                    }
                     case InterpolateLayoutType::by_channel: {
                         pillow_by_channel();
                         break;
@@ -474,6 +478,14 @@ private:
                 }
                 add(reg_weights, jcp_.filterLenY * sizeof(float));
             }
+        }
+    }
+
+    void pillow_planar() {
+        if (jcp_.NCHWAsNHWC) {
+            pillow_by_channel();
+        } else {
+            assert(!"unsupported memory layout for interpolate layer jit kernel with bilinear_pillow and bicubic_pillow modes.");
         }
     }
 
@@ -1578,6 +1590,7 @@ size_t InterpolateKey::hash() const {
 
     seed = hash_combine(seed, nodeAttrs.inPrc.getPrecVal());
     seed = hash_combine(seed, nodeAttrs.outPrc.getPrecVal());
+    seed = hash_combine(seed, nodeAttrs.NCHWAsNHWC);
 
     seed = get_vector_hash(seed, srcDims);
     seed = get_vector_hash(seed, dstDims);
@@ -1608,7 +1621,7 @@ bool InterpolateKey::operator==(const InterpolateKey &rhs) const {
         return false;
     if (nodeAttrs.outPrc != rhs.nodeAttrs.outPrc)
         return false;
-    if (nodeAttrs.layout != rhs.nodeAttrs.layout)
+    if (nodeAttrs.NCHWAsNHWC != rhs.nodeAttrs.NCHWAsNHWC)
         return false;
 
     if (srcDims != rhs.srcDims)
@@ -1957,6 +1970,11 @@ Interpolate::Interpolate(const std::shared_ptr<ngraph::Node>& op, const GraphCon
 
             if (isAxesSpecified) {
                 axes = std::dynamic_pointer_cast<const ngraph::opset1::Constant>(interp->get_input_node_shared_ptr(AXES_ID_V11))->cast_vector<int>();
+                if (dataRank == 4 && axes.size() == 2 && axes[0] == 1 && axes[1] == 2 && mayiuse(cpu::x64::sse41)) {
+                    interpAttrs.NCHWAsNHWC = true;
+                    axes[0] = 2;
+                    axes[1] = 3;
+                }
             } else {
                 axes.resize(dataRank);
                 for (int i = 0; i < dataRank; i++) {
@@ -1994,6 +2012,7 @@ void Interpolate::getSupportedDescriptors() {
     }
     //correct pad
     if (hasPad) {
+        interpAttrs.NCHWAsNHWC = false;
         auto correctPad = [&](std::vector<int> pad, int rank) {
             int padLen = pad.size();
             if (padLen == rank) {
@@ -2097,11 +2116,20 @@ void Interpolate::initSupportedPrimitiveDescriptors() {
 
         if (getInputShapeAtPort(DATA_ID).getRank() == 4) {
             if (mayiuse(cpu::x64::avx512_core)) {
-                pushDesc(LayoutType::nspc, jit_avx512);
+                if (interpAttrs.NCHWAsNHWC)
+                    pushDesc(LayoutType::ncsp, jit_avx512);
+                else
+                    pushDesc(LayoutType::nspc, jit_avx512);
             } else if (mayiuse(cpu::x64::avx2)) {
-                pushDesc(LayoutType::nspc, jit_avx2);
+                if (interpAttrs.NCHWAsNHWC)
+                    pushDesc(LayoutType::ncsp, jit_avx2);
+                else
+                    pushDesc(LayoutType::nspc, jit_avx2);
             } else if (mayiuse(cpu::x64::sse41)) {
-                pushDesc(LayoutType::nspc, jit_sse42);
+                if (interpAttrs.NCHWAsNHWC)
+                    pushDesc(LayoutType::ncsp, jit_sse42);
+                else
+                    pushDesc(LayoutType::nspc, jit_sse42);
             }
         }
         pushDesc(LayoutType::ncsp, ref);
@@ -2278,8 +2306,23 @@ void Interpolate::prepareParams() {
     if (selected_pd == nullptr)
         IE_THROW() << errorPrefix << " did not set preferable primitive descriptor";
 
-    const auto &srcDims = srcMemPtr->getStaticDims();
-    const auto &dstDims = dstMemPtr->getStaticDims();
+    const auto &srcDimsOrign = srcMemPtr->getStaticDims();
+    const auto &dstDimsOrign = dstMemPtr->getStaticDims();
+
+    VectorDims srcDims = srcDimsOrign;
+    VectorDims dstDims = dstDimsOrign;
+
+    if ((interpAttrs.layout == InterpolateLayoutType::planar) && interpAttrs.NCHWAsNHWC) {
+        // layoutAlign
+        auto layoutAlign = [] (VectorDims& Dims) {
+            size_t C = Dims[3];
+            Dims[3] = Dims[2];
+            Dims[2] = Dims[1];
+            Dims[1] = C;
+        };
+        layoutAlign(srcDims);
+        layoutAlign(dstDims);
+    }
 
     if (shapeCalcMode == InterpolateShapeCalcMode::scales) {
         if (!isScaleConstant) {
@@ -2290,7 +2333,7 @@ void Interpolate::prepareParams() {
     }
 
     std::vector<float> dataScales = getScales(getPaddedInputShape(srcDims, interpAttrs.padBegin, interpAttrs.padEnd), dstDims);
-    if (getOutputShapeAtPort(0).getRank() > 2 && (dataScales[0] != 1.f || dataScales[1] != 1.f)) {
+    if (!interpAttrs.NCHWAsNHWC && (getOutputShapeAtPort(0).getRank() > 2 && (dataScales[0] != 1.f || dataScales[1] != 1.f))) {
         IE_THROW() << "Interpolate layer only supports resize on spatial dimensions(depth, height and width)";
     }
 
@@ -2326,7 +2369,7 @@ void Interpolate::prepareParams() {
                                                                key.dataScales,
                                                                key.attr);
         } else if ((key.nodeAttrs.mode == InterpolateMode::bilinear_pillow || key.nodeAttrs.mode == InterpolateMode::bicubic_pillow) &&
-            (key.nodeAttrs.layout == InterpolateLayoutType::by_channel)) {
+            (key.nodeAttrs.layout == InterpolateLayoutType::by_channel || (key.nodeAttrs.layout == InterpolateLayoutType::planar && interpAttrs.NCHWAsNHWC))) {
             executor = std::make_shared<InterpolateJitExecutor>(key.nodeAttrs,
                                                                key.srcDims,
                                                                key.dstDims,
@@ -2345,7 +2388,7 @@ void Interpolate::prepareParams() {
     auto result = cache->getOrCreate(key, buildExecutor);
     execPtr = result.first;
 
-    lastOutputDims = dstDims;
+    lastOutputDims = dstDimsOrign;
 }
 
 void Interpolate::createPrimitive() {
@@ -2445,20 +2488,17 @@ void Interpolate::execute(dnnl::stream strm) {
     if (execPtr) {
         uint8_t *dst_data = reinterpret_cast<uint8_t*>(dstMemPtr->GetPtr());
         const uint8_t *src_data_origin = reinterpret_cast<uint8_t*>(srcMemPtr->GetData());
-
-        const auto &srcDim = srcMemPtr->getStaticDims();
-        const auto &dstDim = dstMemPtr->getStaticDims();
-        size_t dimSize = srcDim.size();
-        auto srcDimPad = execPtr->getSrcDimPad5d();
-
-        const auto srcDim5d = to5Dim(srcDim);
-        const auto srcDimPad5d = to5Dim(srcDimPad);
-        const auto dstDim5d = to5Dim(dstDim);
-        const auto srcDataSize = srcMemPtr->getDesc().getPrecision().size();
-
         const uint8_t *src_data = nullptr;
         std::vector<uint8_t> srcPadded;
         if (hasPad) {
+            const auto &srcDim = srcMemPtr->getStaticDims();
+            auto srcDimPad = execPtr->getSrcDimPad5d();
+            size_t dimSize = srcDim.size();
+
+            const auto srcDim5d = to5Dim(srcDim);
+            const auto srcDimPad5d = to5Dim(srcDimPad);
+            const auto srcDataSize = srcMemPtr->getDesc().getPrecision().size();
+
             int padB0 = (dimSize > 2) ? interpAttrs.padBegin[0] : 0;
             int padB1 = (dimSize > 2) ? interpAttrs.padBegin[1] : 0;
             int padB2 = (dimSize == 5) ? interpAttrs.padBegin[dimSize - 3] : 0;
@@ -3749,14 +3789,14 @@ void Interpolate::InterpolateExecutorBase::create_pillow_working_buf(Interpolate
         return;
     size_t bufSize = srcDimPad5d[3] * dstDim5d[4] * srcDataSize; // IH * OW
     size_t threadsNum = parallel_get_num_threads();
-    if (layout == InterpolateLayoutType::planar) {
-        // B and C execute in parallel, need separate buf
-        size_t parallelNum = srcDimPad5d[0] * srcDimPad5d[1];
-        bufSize *= std::min(threadsNum, parallelNum);
-    } else {
+    if (layout == InterpolateLayoutType::by_channel || NCHWAsNHWC) {
         bufSize *= srcDimPad5d[1]; // *C
         // B execute in parallel, need separate buf
         size_t parallelNum = srcDimPad5d[0];
+        bufSize *= std::min(threadsNum, parallelNum);
+    } else {
+        // B and C execute in parallel, need separate buf
+        size_t parallelNum = srcDimPad5d[0] * srcDimPad5d[1];
         bufSize *= std::min(threadsNum, parallelNum);
     }
     pillow_working_buf.resize(bufSize);
@@ -3767,7 +3807,7 @@ Interpolate::InterpolateExecutorBase::InterpolateExecutorBase(const InterpolateA
                                                       const VectorDims &dstDims,
                                                       const std::vector<float> &dataScales) :
         mode(interpAttrs.mode), coordTransMode(interpAttrs.coordTransMode), configured_for_layout(interpAttrs.layout),
-        inputPrec(interpAttrs.inPrc), outputPrec(interpAttrs.outPrc) {
+        inputPrec(interpAttrs.inPrc), outputPrec(interpAttrs.outPrc), NCHWAsNHWC(interpAttrs.NCHWAsNHWC) {
     srcDimPad5d = to5Dim(getPaddedInputShape(srcDims, interpAttrs.padBegin, interpAttrs.padEnd));
     dstDim5d = to5Dim(dstDims);
     srcDataSize = interpAttrs.inPrc.size();
@@ -3834,9 +3874,10 @@ Interpolate::InterpolateJitExecutor::InterpolateJitExecutor(const InterpolateAtt
         jcp.filterLenX = auxTable[0];
         jcp.filterLenY = auxTable[1];
         jcp.bound = static_cast<int*>(&auxTable[2 + jcp.OW * jcp.filterLenX + jcp.OH * jcp.filterLenY]);
+        jcp.NCHWAsNHWC = interpAttrs.NCHWAsNHWC;
     }
 #if defined(OPENVINO_ARCH_X86_64)
-    if (jcp.layout != InterpolateLayoutType::planar) {
+    if (jcp.layout != InterpolateLayoutType::planar || interpAttrs.NCHWAsNHWC) {
         if (mayiuse(cpu::x64::avx512_core)) {
             interpolateKernel.reset(new jit_uni_interpolate_kernel_f32<cpu::x64::avx512_core>(jcp, *attr.get()));
         } else if (mayiuse(cpu::x64::avx2)) {
@@ -3892,7 +3933,7 @@ void Interpolate::InterpolateJitExecutor::exec(const uint8_t *in_ptr_, uint8_t *
         }
         case InterpolateMode::bilinear_pillow:
         case InterpolateMode::bicubic_pillow: {
-            if (configured_for_layout == InterpolateLayoutType::by_channel) {
+            if (configured_for_layout == InterpolateLayoutType::by_channel || NCHWAsNHWC) {
                 pillowCGathered(in_ptr_, out_ptr_, post_ops_data_, N, C, IH, IW, OH, OW);
             } else {
                 IE_THROW() << "Only channel_first jit kernel is supported for pillow mode" << mode;
