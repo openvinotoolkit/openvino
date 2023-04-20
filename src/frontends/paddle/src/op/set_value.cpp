@@ -22,7 +22,6 @@ Output<Node> handle_minus_index(const OutputVector& node, const Output<Node>& di
 
 Output<Node> handle_minus_index(const std::vector<int64_t>& node, const Output<Node>& dim) {
     const auto zero = default_opset::Constant::create(element::i64, {1}, {0});
-    printV(node);
     const auto new_node = default_opset::Constant::create(element::i64, {node.size()}, node);
     const auto mask = std::make_shared<default_opset::Less>(new_node, zero);
     const auto res = std::make_shared<default_opset::Add>(new_node, dim);
