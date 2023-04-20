@@ -98,7 +98,6 @@ private:
                                 const dnnl::engine& engine,
                                 bool constWeight);
     };
-    bool pendingConstWeightReorder = false;
 
     void prepareParams() override;
     void execute(dnnl::stream strm) override;
