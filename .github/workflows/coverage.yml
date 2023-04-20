@@ -95,7 +95,7 @@ jobs:
             -DBUILD_SHARED_LIBS=ON
             -DENABLE_TESTS=ON
             -DENABLE_OV_ONNX_FRONTEND=ON
-            -DENABLE_OV_PDPD_FRONTEND=OFF
+            -DENABLE_OV_PDPD_FRONTEND=ON
             -DENABLE_FASTER_BUILD=ON
             -DENABLE_STRICT_DEPENDENCIES=OFF
             -DENABLE_COVERAGE=ON
@@ -106,9 +106,6 @@ jobs:
             -DENABLE_SYSTEM_SNAPPY=ON
           build-type: Release
           parallel: ${{ steps.cpu-cores.outputs.count }}
-      
-      - name: Build Lin
-        run: cmake --build '${{ github.workspace }}/build' --parallel --config Release
       
       - name: Install wheel packages
         run: cmake -DCOMPONENT=python_wheels -DCMAKE_INSTALL_PREFIX=${{ github.workspace }}/install_pkg -P '${{ github.workspace }}/build/cmake_install.cmake'
@@ -128,9 +125,8 @@ jobs:
       - name: Run ONNX frontend tests
         run: ${{ github.workspace }}/bin/intel64/Release/ov_onnx_frontend_tests --gtest_filter=-*IE_GPU*
       
-      #- name: Run Paddle frontend unit tests
-      #  run: . ${{ github.workspace }}/scripts/setupvars/setupvars.sh -pyver 3.10 && ${{ github.workspace }}/bin/intel64/Release/paddle_tests --gtest_filter=-*IE_GPU*
-      #  continue-on-error: true
+      - name: Run Paddle frontend unit tests
+        run: ${{ github.workspace }}/bin/intel64/Release/paddle_tests --gtest_filter=-*IE_GPU*
 
       - name: Run TensorFlow frontend unit tests
         run: ${{ github.workspace }}/bin/intel64/Release/ov_tensorflow_frontend_tests --gtest_filter=-*IE_GPU*
