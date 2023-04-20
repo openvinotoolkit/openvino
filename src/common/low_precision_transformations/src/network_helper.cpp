@@ -504,11 +504,9 @@ std::shared_ptr<Node> NetworkHelper::fold_fake_quantize(const std::shared_ptr<op
     return foldFakeQuantize(fq, false, false);
 }
 
-std::shared_ptr<Node> NetworkHelper::fold_fake_quantize(
-        const std::shared_ptr<opset1::FakeQuantize>& fq,
-        const bool roundValues,
-        const int outChannelsShapeIndex) {
-    return foldFakeQuantize(fq, roundValues, true, outChannelsShapeIndex);
+std::shared_ptr<Node> NetworkHelper::fold_fake_quantize(const std::shared_ptr<opset1::FakeQuantize>& fq,
+                                                        const bool roundValues) {
+    return foldFakeQuantize(fq, roundValues, true);
 }
 
 FakeQuantizeDequantization NetworkHelper::foldDequantization(const std::shared_ptr<Node>& node,
@@ -712,8 +710,7 @@ size_t NetworkHelper::calculateLevels(
 std::shared_ptr<Node> NetworkHelper::foldFakeQuantize(
     const std::shared_ptr<opset1::FakeQuantize>& fq,
     const bool roundValuesArg,
-    const bool roundValuesWasSet,
-    const int outChannelsShapeIndex) {
+    const bool roundValuesWasSet) {
     // Corner case
     //    y = FakeQuantize(x, inputLow, inputHigh, outputLow, outputHigh)
     // given:
@@ -976,8 +973,7 @@ std::tuple<std::shared_ptr<Node>, std::shared_ptr<Node>> NetworkHelper::decompos
             newMax->output(0),
             fq->get_levels(),
             fq->get_auto_broadcast()),
-        true,
-        static_cast<int>(outChannelsShapeIndex));
+        true);
     NetworkHelper::copyInfo(fq, newFQ);
 
     std::shared_ptr<ngraph::Node> convert2;
