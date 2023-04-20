@@ -1,4 +1,4 @@
-# OpenVINO™ Runtime Python API Inference {#openvino_docs_OV_UG_Python_API_inference}
+# OpenVINO™ Runtime Python API Advanced Inference {#openvino_docs_OV_UG_Python_API_inference}
 
 
 .. warning:: All mentioned methods are very dependant on a specific hardware and software set-up. Please consider conducting your own experiments with various models and different input/output sizes. Presented methods are not universal, they may or may not apply to the specific pipeline. Please consider all tradeoffs and avoid premature optimizations. 
