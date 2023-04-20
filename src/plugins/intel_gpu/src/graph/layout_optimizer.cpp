@@ -1586,7 +1586,11 @@ format layout_optimizer::get_preferred_format(program_node& node) {
         auto dep_size = node.get_dependencies().size();
         for (size_t i = 0; i < dep_size; i++) {
             auto in_lay_rank = node.get_dependency(i).get_output_layout(false).get_rank();
-            if (in_lay_rank != out_lay_rank) {
+            const auto& shape_infer_deps = node.get_shape_infer_dependencies();
+            if (std::find(shape_infer_deps.begin(), shape_infer_deps.end(), i) != shape_infer_deps.end()) {
+                auto fmt = format::get_default_format(in_lay_rank, false, false);
+                node.set_preferred_input_fmt(i, fmt);
+            } else if (in_lay_rank != out_lay_rank) {
                 auto fmt = get_preferred_format(node.get_dependency(i));
                 // Check if selected format can be adjusted to the required output rank
                 // If no, use default fotmat instead
@@ -1602,6 +1606,7 @@ format layout_optimizer::get_preferred_format(program_node& node) {
         // shape_infer_dep should be plain format because the memory is being read by ngraph shape infer as is
         if (node.is_shape_infer_dep()) {
             expected = format::get_default_format(output_layout.get_rank(), false, false);
+            node.set_preferred_output_fmt(0, expected);
             return expected;
         }
     }
