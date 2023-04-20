@@ -1793,7 +1793,8 @@ public:
         } else if (auto interp11 = ov::as_type_ptr<ngraph::opset11::Interpolate>(m_op)) {
             port_mask = PortMask(Interpolate::SIZE_OR_SCALE_ID_V11, Interpolate::AXES_ID_V11);
         } else {
-            IE_THROW(Unexpected) << "Wrong operation type";
+            IE_THROW() << "Shape infer factory cannot be created for " << m_op->get_type_name() << " node with name: " << m_op->get_friendly_name()
+                <<", only version 4 and 11 is supported.";
         }
         return std::make_shared<NgraphShapeInfer>(make_shape_inference(m_op), port_mask);
     }
@@ -2066,9 +2067,17 @@ void Interpolate::initSupportedPrimitiveDescriptors() {
         } else {
             config.inConfs.resize(2);
         }
-        auto& creatorsMap = BlockedDescCreator::getCommonCreators();
-        auto pushDesc = [&](LayoutType dataFormat, impl_desc_type implDetail, bool useAclExecutor = false) {
-            config.inConfs[DATA_ID].setMemDesc(creatorsMap.at(dataFormat)->createSharedDesc(inputPrecision, getInputShapeAtPort(DATA_ID)));
+    } else {
+        if (isAxesSpecified) {
+            config.inConfs.resize(4);
+        } else {
+            config.inConfs.resize(3);
+        }
+    }
+    auto& creatorsMap = BlockedDescCreator::getCommonCreators();
+    auto pushDesc = [&](LayoutType dataFormat, impl_desc_type implDetail, bool is_version11, bool useAclExecutor = false) {
+        config.inConfs[DATA_ID].setMemDesc(creatorsMap.at(dataFormat)->createSharedDesc(inputPrecision, getInputShapeAtPort(DATA_ID)));
+        if (is_version11) {
             if (shapeCalcMode == InterpolateShapeCalcMode::sizes) {
                 config.inConfs[SIZE_OR_SCALE_ID_V11].setMemDesc(
                     creatorsMap.at(LayoutType::ncsp)->createSharedDesc(targetShapeType, getInputShapeAtPort(SIZE_OR_SCALE_ID_V11)));
@@ -2080,98 +2089,67 @@ void Interpolate::initSupportedPrimitiveDescriptors() {
             if (isAxesSpecified)
                 config.inConfs[AXES_ID_V11].setMemDesc(
                     creatorsMap.at(LayoutType::ncsp)->createSharedDesc(axesType, getInputShapeAtPort(AXES_ID_V11)));
-
-            config.outConfs[0].setMemDesc(creatorsMap.at(dataFormat)->createSharedDesc(outputPrecision, getOutputShapeAtPort(0)));
-
-            if (useAclExecutor) {
-                std::vector<MemoryDescPtr> srcMemoryDescs;
-                for (int i = 0; i < config.inConfs.size(); i++) {
-                    srcMemoryDescs.push_back(config.inConfs[i].getMemDesc());
-                }
-                std::vector<MemoryDescPtr> dstMemoryDescs;
-                for (int i = 0; i < config.outConfs.size(); i++) {
-                    dstMemoryDescs.push_back(config.outConfs[i].getMemDesc());
-                }
-
-                auto factory = std::make_shared<InterpolateExecutorFactory>(interpAttrs, srcMemoryDescs, dstMemoryDescs,
-                                                                        std::make_shared<ExecutorContext>(context, getPrimitivesPriority()));
-                if (!factory->isEmpty()) {
-                    supportedPrimitiveDescriptors.push_back({config, implDetail, factory});
-                }
-            } else {
-                supportedPrimitiveDescriptors.push_back({config, implDetail});
-            }
-        };
-
-#if defined (OV_CPU_WITH_ACL)
-                interpAttrs.hasPad = hasPad;
-                //TODO: Fix NHWC case in ACL executor
-                //Interpolate ACL executor produces incorrect result in NHWC case
-                //pushDesc(LayoutType::nspc, undef, true);
-                pushDesc(LayoutType::ncsp, undef, true);
-                canUseAclExecutor = !supportedPrimitiveDescriptors.empty();
-                if (canUseAclExecutor)
-                    return;
-#endif
-
-        if (getInputShapeAtPort(DATA_ID).getRank() == 4) {
-            if (mayiuse(cpu::x64::avx512_core)) {
-                if (interpAttrs.NCHWAsNHWC)
-                    pushDesc(LayoutType::ncsp, jit_avx512);
-                else
-                    pushDesc(LayoutType::nspc, jit_avx512);
-            } else if (mayiuse(cpu::x64::avx2)) {
-                if (interpAttrs.NCHWAsNHWC)
-                    pushDesc(LayoutType::ncsp, jit_avx2);
-                else
-                    pushDesc(LayoutType::nspc, jit_avx2);
-            } else if (mayiuse(cpu::x64::sse41)) {
-                if (interpAttrs.NCHWAsNHWC)
-                    pushDesc(LayoutType::ncsp, jit_sse42);
-                else
-                    pushDesc(LayoutType::nspc, jit_sse42);
-            }
-        }
-        pushDesc(LayoutType::ncsp, ref);
-    } else {
-        if (isAxesSpecified) {
-            config.inConfs.resize(4);
         } else {
-            config.inConfs.resize(3);
-        }
-
-        auto& creatorsMap = BlockedDescCreator::getCommonCreators();
-        auto pushDesc = [&](LayoutType dataFormat, impl_desc_type implDetail, bool useAclExecutor = false) {
-            config.inConfs[DATA_ID].setMemDesc(creatorsMap.at(dataFormat)->createSharedDesc(inputPrecision, getInputShapeAtPort(DATA_ID)));
             config.inConfs[TARGET_SHAPE_ID].setMemDesc(
                 creatorsMap.at(LayoutType::ncsp)->createSharedDesc(targetShapeType, getInputShapeAtPort(TARGET_SHAPE_ID)));
             config.inConfs[get_scale_id()].setMemDesc(creatorsMap.at(LayoutType::ncsp)->createSharedDesc(scalesType, getInputShapeAtPort(get_scale_id())));
 
             if (isAxesSpecified)
                 config.inConfs[get_axis_id()].setMemDesc(creatorsMap.at(LayoutType::ncsp)->createSharedDesc(axesType, getInputShapeAtPort(get_axis_id())));
+        }
 
-            config.outConfs[0].setMemDesc(creatorsMap.at(dataFormat)->createSharedDesc(outputPrecision, getOutputShapeAtPort(0)));
+        config.outConfs[0].setMemDesc(creatorsMap.at(dataFormat)->createSharedDesc(outputPrecision, getOutputShapeAtPort(0)));
 
-            if (useAclExecutor) {
-                std::vector<MemoryDescPtr> srcMemoryDescs;
-                for (int i = 0; i < config.inConfs.size(); i++) {
-                    srcMemoryDescs.push_back(config.inConfs[i].getMemDesc());
-                }
-                std::vector<MemoryDescPtr> dstMemoryDescs;
-                for (int i = 0; i < config.outConfs.size(); i++) {
-                    dstMemoryDescs.push_back(config.outConfs[i].getMemDesc());
-                }
-
-                auto factory = std::make_shared<InterpolateExecutorFactory>(interpAttrs, srcMemoryDescs, dstMemoryDescs,
-                                                                        std::make_shared<ExecutorContext>(context, getPrimitivesPriority()));
-                if (!factory->isEmpty()) {
-                    supportedPrimitiveDescriptors.push_back({config, implDetail, factory});
-                }
-            } else {
-                supportedPrimitiveDescriptors.push_back({config, implDetail});
+        if (useAclExecutor) {
+            std::vector<MemoryDescPtr> srcMemoryDescs;
+            for (int i = 0; i < config.inConfs.size(); i++) {
+                srcMemoryDescs.push_back(config.inConfs[i].getMemDesc());
             }
-        };
+            std::vector<MemoryDescPtr> dstMemoryDescs;
+            for (int i = 0; i < config.outConfs.size(); i++) {
+                dstMemoryDescs.push_back(config.outConfs[i].getMemDesc());
+            }
 
+            auto factory = std::make_shared<InterpolateExecutorFactory>(interpAttrs, srcMemoryDescs, dstMemoryDescs,
+                                                                    std::make_shared<ExecutorContext>(context, getPrimitivesPriority()));
+            if (!factory->isEmpty()) {
+                supportedPrimitiveDescriptors.push_back({config, implDetail, factory});
+            }
+        } else {
+            supportedPrimitiveDescriptors.push_back({config, implDetail});
+        }
+    };
+    if (is_version11) {
+#if defined (OV_CPU_WITH_ACL)
+        interpAttrs.hasPad = hasPad;
+                //TODO: Fix NHWC case in ACL executor
+                //Interpolate ACL executor produces incorrect result in NHWC case
+                //pushDesc(LayoutType::nspc, undef, true, true);
+        canUseAclExecutor = !supportedPrimitiveDescriptors.empty();
+        if (canUseAclExecutor)
+            return;
+#endif
+
+        if (getInputShapeAtPort(DATA_ID).getRank() == 4) {
+            if (mayiuse(cpu::x64::avx512_core)) {
+                if (interpAttrs.NCHWAsNHWC)
+                    pushDesc(LayoutType::ncsp, jit_avx512, true);
+                else
+                    pushDesc(LayoutType::nspc, jit_avx512, true);
+            } else if (mayiuse(cpu::x64::avx2)) {
+                if (interpAttrs.NCHWAsNHWC)
+                    pushDesc(LayoutType::ncsp, jit_avx2, true);
+                else
+                    pushDesc(LayoutType::nspc, jit_avx2, true);
+            } else if (mayiuse(cpu::x64::sse41)) {
+                if (interpAttrs.NCHWAsNHWC)
+                    pushDesc(LayoutType::ncsp, jit_sse42, true);
+                else
+                    pushDesc(LayoutType::nspc, jit_sse42, true);
+            }
+        }
+        pushDesc(LayoutType::ncsp, ref, true);
+    } else {
         const auto &dataMinDims = getInputShapeAtPort(DATA_ID).getMinDims();
         bool isBlkApplied = getInputShapeAtPort(DATA_ID).getRank() > 1 && dataMinDims[1] != Shape::UNDEFINED_DIM && dataMinDims[1] > 1;
 
@@ -2179,36 +2157,35 @@ void Interpolate::initSupportedPrimitiveDescriptors() {
         interpAttrs.hasPad = hasPad;
         //TODO: Fix NHWC case in ACL executor
         //Interpolate ACL executor produces incorrect result in NHWC case
-        //pushDesc(LayoutType::nspc, undef, true);
-        pushDesc(LayoutType::ncsp, undef, true);
+        //pushDesc(LayoutType::nspc, undef, false, true);
         canUseAclExecutor = !supportedPrimitiveDescriptors.empty();
         if (canUseAclExecutor)
             return;
 #endif
 
         if (!mayiuse(cpu::x64::sse41) || interpAttrs.mode == InterpolateMode::linear) {
-            pushDesc(LayoutType::ncsp, ref);
+            pushDesc(LayoutType::ncsp, ref, false);
         } else {
             // blk and by_channel JIT kernel on sse41 or above machine
             if (getInputShapeAtPort(DATA_ID).getRank() == 4 || (getInputShapeAtPort(DATA_ID).getRank() == 5 && interpAttrs.mode != InterpolateMode::cubic)) {
                 if (mayiuse(cpu::x64::avx512_core)) {
-                    pushDesc(LayoutType::nspc, jit_avx512);
+                    pushDesc(LayoutType::nspc, jit_avx512, false);
                     if (isBlkApplied)
-                        pushDesc(LayoutType::nCsp16c, jit_avx512);
+                        pushDesc(LayoutType::nCsp16c, jit_avx512, false);
                 } else if (mayiuse(cpu::x64::avx2)) {
-                    pushDesc(LayoutType::nspc, jit_avx2);
+                    pushDesc(LayoutType::nspc, jit_avx2, false);
                     if (isBlkApplied)
-                        pushDesc(LayoutType::nCsp8c, jit_avx2);
+                        pushDesc(LayoutType::nCsp8c, jit_avx2, false);
                 } else {
-                    pushDesc(LayoutType::nspc, jit_sse42);
+                    pushDesc(LayoutType::nspc, jit_sse42, false);
                     if (isBlkApplied)
-                        pushDesc(LayoutType::nCsp8c, jit_sse42);
+                        pushDesc(LayoutType::nCsp8c, jit_sse42, false);
                 }
             }
 
             // planar for 1.ref on machine without sse41(if no sse41, canFuse() is false). 2.JIT kernel for f32 && avx2(gather).(with fuse)
             if (mayiuse(cpu::x64::avx2) && inputPrecision == Precision::FP32) {
-                pushDesc(LayoutType::ncsp, jit_avx2);
+                pushDesc(LayoutType::ncsp, jit_avx2, false);
             }
         }
     }
