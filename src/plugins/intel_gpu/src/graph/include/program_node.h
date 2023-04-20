@@ -94,7 +94,7 @@ public:
                 if (u->is_fused_dep(dep_idx)) {
                     continue;
                 }
-                if (u->get_dependency(dep_idx).get_unique_id() == unique_id) {
+                if (u->get_dependencies().at(dep_idx).first == this) {
                     return true;
                 }
             }

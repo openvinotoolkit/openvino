@@ -7,6 +7,7 @@
 #include <intel_gpu/primitives/input_layout.hpp>
 #include <intel_gpu/primitives/softmax.hpp>
 #include <intel_gpu/primitives/reorder.hpp>
+#include <intel_gpu/primitives/reshape.hpp>
 #include <intel_gpu/primitives/data.hpp>
 
 #include "softmax_inst.h"
@@ -184,5 +185,45 @@ TEST(softmax_gpu_dynamic_f32_test_upper_bound, input_same_values) {
     for (size_t i = 0; i < internal_mems_1.size(); ++i) {
         ASSERT_EQ(internal_mems_1[i]->buffer_ptr(), internal_mems_2[i]->buffer_ptr());
     }
+}
+
+TEST(dyn_shape_mem_test, igpu_shape_infer_dep_mem_type) {
+    auto& engine = get_test_engine();
+    auto input_lay_1 = layout{ov::PartialShape::dynamic(2), data_types::f32, format::bfyx};
+    auto input_lay_2 = layout{ov::PartialShape::dynamic(2), data_types::i32, format::bfyx};
+    topology topology(input_layout("input1", input_lay_1),
+                      input_layout("pattern1", input_lay_2),
+                      input_layout("pattern2", input_lay_2),
+                      reorder("reorder", input_info("input1"), format::bfyx, data_types::f16),
+                      eltwise("eltwise", {input_info("pattern1"), input_info("pattern2")}, eltwise_mode::sum, ov::op::AutoBroadcastSpec(ov::op::AutoBroadcastType::NUMPY)),
+                      reshape("reshape", input_info("reorder"), input_info("eltwise"), false, ov::PartialShape()));
+
+    ExecutionConfig config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+    network network(engine, topology, config);
+
+    auto input_mem = engine.allocate_memory(layout{ov::PartialShape{6, 1}, data_types::f32, format::bfyx});
+    set_values<float>(input_mem, {11.f, 22.f, 33.f, 44.f, 55.f, 66.f});;
+    auto pattern_mem1 = engine.allocate_memory(layout{ov::PartialShape{4}, data_types::i32, format::bfyx});
+    set_values<int32_t>(pattern_mem1, {2, 1, 1, 0});;
+    auto pattern_mem2 = engine.allocate_memory(layout{ov::PartialShape{4}, data_types::i32, format::bfyx});
+    set_values<int32_t>(pattern_mem2, {1, 1, 0, 1});;
+
+    network.set_input_data("input1", input_mem);
+    network.set_input_data("pattern1", pattern_mem1);
+    network.set_input_data("pattern2", pattern_mem2);
+    auto output = network.execute();
+    const auto& reorder_mem = network.get_primitive("reorder")->output_memory();
+    const auto& pattern_mem = network.get_primitive("eltwise")->output_memory();
+    ASSERT_EQ(reorder_mem.get_allocation_type(), allocation_type::usm_device);
+    if (engine.get_device_info().dev_type == device_type::integrated_gpu) {
+        // for iGPU, allocating shape infer dep mem to usm_host improves shape_infer performance by preventing memcpy b/w device to host mem
+        ASSERT_EQ(pattern_mem.get_allocation_type(), allocation_type::usm_host);
+    } else {
+        // if allocate shape infer dep mem to host && write result from device && read from host, cache coherence issue occurs
+        ASSERT_EQ(pattern_mem.get_allocation_type(), allocation_type::usm_device);
+    }
+    auto expected_layout = layout{ov::PartialShape{3, 2, 1, 1}, data_types::f16, format::bfyx};
+    ASSERT_EQ(output.begin()->second.get_memory()->get_layout(), expected_layout);
 }
 }  // memory_realloc_tests
