@@ -195,10 +195,14 @@ std::shared_ptr<ov::Node> create_convolution (
 }
 
 static bool decompose(std::shared_ptr<ngraph::opset11::Convolution> conv) {
+	if (conv == nullptr) {
+		return false;
+	}
+
 	auto pads_begin = conv->get_pads_begin();
     auto pads_end   = conv->get_pads_end();
 	
-	if (pads_begin.size() != 2 || pads_end.size() != 2) {
+	if (pads_begin.size() < 2 || pads_end.size() < 2) {
         return false;
 	}
 
