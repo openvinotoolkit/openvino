@@ -140,14 +140,14 @@ function(ov_download_tbb)
                 ARCHIVE_LIN "oneapi-tbb-2021.2.1-lin-arm64.tgz"
                 TARGET_PATH "${TEMP}/tbb"
                 ENVIRONMENT "TBBROOT"
-                SHA256 "f333f5d4185781878caf1ab011552821079330805e63fda2da9b40c2b00bc5cd"
+                SHA256 "6b87194a845aa9314f3785d842e250d934e545eccc4636655c7b27c98c302c0c"
                 USE_NEW_LOCATION TRUE)
     elseif(APPLE AND AARCH64)
         RESOLVE_DEPENDENCY(TBB
                 ARCHIVE_MAC "oneapi-tbb-2021.2.1-mac-arm64.tgz"
                 TARGET_PATH "${TEMP}/tbb"
                 ENVIRONMENT "TBBROOT"
-                SHA256 "6c6232c442f12b05835b48dcfa45c085a3c84070590df9d3308fa620fae1a24a"
+                SHA256 "1a710cbe5c284b9051f1adfc752df5291a2560aaf643d55dec4ba4e8c4f8fa21"
                 USE_NEW_LOCATION TRUE)
     else()
         message(WARNING "Prebuilt TBB is not available on current platform")
