@@ -38,20 +38,20 @@ where ``a`` and ``b`` correspond to ``data`` and ``like`` input tensors, respect
 
 **Example**
 
-.. code-block:: sh
+.. code-block:: console
    
    <layer ... type="ConvertLike">
        <input>
-           <port id="0">        <!-- type: int32 -->
+           <port id="0">        < !-- type: int32 -->
                <dim>256</dim>
                <dim>56</dim>
            </port>
-           <port id="1">        <!-- type: float32 -->
-               <dim>3</dim>     <!-- any data -->
+           <port id="1">        < !-- type: float32 -->
+               <dim>3</dim>     < !-- any data -->
            </port>
        </input>
        <output>
-           <port id="2">        <!-- result type: float32 -->
+           <port id="2">        < !-- result type: float32 -->
                <dim>256</dim>
                <dim>56</dim>
            </port>

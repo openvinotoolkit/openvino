@@ -49,7 +49,7 @@
 
 **Example**
 
-.. code-block:: sh
+.. code-block:: console
    
    <layer ... type="Constant">
        <data offset="1000" size="256" element_type="f32" shape="8,8"/>

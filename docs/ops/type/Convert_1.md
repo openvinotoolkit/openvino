@@ -45,18 +45,18 @@ where ``a`` corresponds to the input tensor.
 
 **Example**
 
-.. code-block:: sh
+.. code-block:: console
    
    <layer ... type="Convert">
        <data destination_type="f32"/>
        <input>
-           <port id="0">        <!-- type: i32 -->
+           <port id="0">        < !-- type: i32 -->
                <dim>256</dim>
                <dim>56</dim>
            </port>
        </input>
        <output>
-           <port id="1">        <!-- result type: f32 -->
+           <port id="1">        < !-- result type: f32 -->
                <dim>256</dim>
                <dim>56</dim>
            </port>

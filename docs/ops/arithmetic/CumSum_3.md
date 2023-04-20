@@ -113,13 +113,13 @@ To perform the summation in the opposite direction of the axis, set reverse attr
    
    <layer ... type="CumSum" exclusive="1" reverse="1">
        <input>
-           <port id="0">     <&excl;-- input value is: [1., 2., 3., 4., 5.] -->
+           <port id="0">     < -- input value is: [1., 2., 3., 4., 5.] -->
                <dim>5</dim>
            </port>
-           <port id="1"/>     <&excl;-- axis value is: 0 -->
+           <port id="1"/>     < -- axis value is: 0 -->
        </input>
        <output>
-           <port id="2">     <&excl;-- output value is: [14., 12., 9., 5., 0.] -->
+           <port id="2">     < -- output value is: [14., 12., 9., 5., 0.] -->
                <dim>5</dim>
            </port>
        </output>

@@ -101,7 +101,7 @@ Having log-probabilities for aligned paths, log of summed up probabilities for t
 
 **Example**
 
-.. code-block:: sh
+.. code-block:: console
    
    <layer ... type="CTCLoss" ...>
        <input>
@@ -120,7 +120,7 @@ Having log-probabilities for aligned paths, log of summed up probabilities for t
            <port id="3">
                <dim>8</dim>
            </port>
-           <port id="4">  <!-- blank_index value is: 120 -->
+           <port id="4">  < !-- blank_index value is: 120 -->
        </input>
        <output>
            <port id="0">

@@ -114,7 +114,7 @@ where ``K_i`` filter kernel dimension along spatial axis ``i``.
 
 *Example 1: 2D ConvolutionBackpropData*
 
-.. code-block:: sh
+.. code-block:: console
    
    <layer id="5" name="upsampling_node" type="ConvolutionBackpropData">
        <data dilations="1,1" pads_begin="1,1" pads_end="1,1" strides="2,2" output_padding="0,0" auto_pad="explicit"/>
@@ -144,7 +144,7 @@ where ``K_i`` filter kernel dimension along spatial axis ``i``.
 
 *Example 2: 2D ConvolutionBackpropData with output_padding*
 
-.. code-block:: sh
+.. code-block:: console
    
    <layer id="5" name="upsampling_node" type="ConvolutionBackpropData">
        <data dilations="1,1" pads_begin="0,0" pads_end="0,0" strides="3,3" output_padding="2,2" auto_pad="explicit"/>
@@ -174,7 +174,7 @@ where ``K_i`` filter kernel dimension along spatial axis ``i``.
 
 *Example 3: 2D ConvolutionBackpropData with output_shape input*
 
-.. code-block:: sh
+.. code-block:: console
    
    <layer id="5" name="upsampling_node" type="ConvolutionBackpropData">
        <data dilations="1,1" pads_begin="1,1" pads_end="1,1" strides="1,1" output_padding="0,0" auto_pad="valid"/>
@@ -192,7 +192,7 @@ where ``K_i`` filter kernel dimension along spatial axis ``i``.
                <dim>3</dim>
            </port>
            <port id="2">
-               <dim>2</dim> <!-- output_shape value is: [450, 450]-->
+               <dim>2</dim> < !-- output_shape value is: [450, 450]-->
            </port>
        </input>
        <output>

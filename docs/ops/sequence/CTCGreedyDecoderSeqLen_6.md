@@ -69,7 +69,7 @@ The main difference between :doc:`CTCGreedyDecoder <openvino_docs_ops_sequence_C
 
 **Example**
 
-.. code-block:: sh
+.. code-block:: console
    
    <layer ... type="CTCGreedyDecoderSeqLen" version="opset6">
        <data merge_repeated="true" classes_index_type="i64" sequence_length_type="i64"/>
@@ -82,7 +82,7 @@ The main difference between :doc:`CTCGreedyDecoder <openvino_docs_ops_sequence_C
            <port id="1">
                <dim>8</dim>
            </port>
-           <port id="2"/>  <!-- blank_index = 120 -->
+           <port id="2"/>  < !-- blank_index = 120 -->
        </input>
        <output>
            <port id="0" precision="I64">

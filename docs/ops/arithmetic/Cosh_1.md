@@ -30,7 +30,7 @@
 
 **Example**
 
-.. code-block:: sh
+.. code-block:: console
    
    <layer ... type="Cosh">
        <input>

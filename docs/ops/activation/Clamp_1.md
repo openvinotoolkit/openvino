@@ -53,7 +53,7 @@ Let *min_value* and *max_value* be *min* and *max*, respectively. The mathematic
 
 **Example**
 
-.. code-block:: sh
+.. code-block:: console
    
    <layer id="1" name="clamp_node" type="Clamp">
        <data min="10" max="50" />
