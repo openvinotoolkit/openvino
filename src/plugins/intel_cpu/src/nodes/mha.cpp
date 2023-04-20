@@ -11,12 +11,15 @@
 #include "common/cpu_memcpy.h"
 #include <utils/general_utils.h>
 #include <cpu/x64/jit_generator.hpp>
-//#include "emitters/x64/jit_dnnl_emitters.hpp"
-//#include "emitters/x64/jit_load_store_emitters.hpp"
 #include "common/cpu_convert.h"
 #include "transformations/cpu_opset/x64/op/mha.hpp"
 #include "dnnl_extension_utils.h"
 #include <ie_ngraph_utils.hpp>
+
+#if defined(OPENVINO_ARCH_X86_64)
+#include "emitters/x64/jit_dnnl_emitters.hpp"
+#include "emitters/x64/jit_load_store_emitters.hpp"
+#endif
 
 using namespace InferenceEngine;
 using namespace InferenceEngine::details;
@@ -31,12 +34,14 @@ namespace ov {
 namespace intel_cpu {
 namespace node {
 
+#if defined(OPENVINO_ARCH_X86_64)
+
 template <cpu_isa_t isa>
 struct jit_mul_add_softmax_kernel : public jit_uni_mul_add_softmax_kernel, public jit_generator {
     DECLARE_CPU_JIT_AUX_FUNCTIONS(jit_mul_add_softmax_kernel)
 
     explicit jit_mul_add_softmax_kernel(const jit_mul_add_softmax_compile_params& jcp) : jit_uni_mul_add_softmax_kernel(jcp), jit_generator(jit_name()) {
-        //exp_emitter = std::make_shared<jit_dnnl_aux_emitter>(this, isa, dnnl_eltwise_exp, 0.f, 0.f);
+        exp_emitter = std::make_shared<jit_dnnl_aux_emitter>(this, isa, dnnl_eltwise_exp, 0.f, 0.f);
 
         vec_size = dnnl::impl::cpu::x64::cpu_isa_traits<isa>::vlen / sizeof(float);
     }
@@ -186,12 +191,12 @@ private:
 
         this->postamble();
 
-        //for (const auto& emitter : emitters) {
-        //    if (emitter.second)
-        //        emitter.second->emit_data();
-        //}
+        for (const auto& emitter : emitters) {
+            if (emitter.second)
+                emitter.second->emit_data();
+        }
 
-        //exp_emitter->emit_data();
+        exp_emitter->emit_data();
     }
 
     void mul_add_max(size_t step) {
@@ -241,7 +246,7 @@ private:
         uni_vsubps(get_vmm_in(0), get_vmm_in(0), get_vmm_max(0));
 
         auto vmm_exp_idx = static_cast<size_t>(get_vmm_in(0).getIdx());
-        //exp_emitter->emit_code({vmm_exp_idx}, {vmm_exp_idx}, pool_aux_vmm_idxs, pool_aux_gpr_idxs);
+        exp_emitter->emit_code({vmm_exp_idx}, {vmm_exp_idx}, pool_aux_vmm_idxs, pool_aux_gpr_idxs);
 
         uni_vaddps(get_vmm_denom(0), get_vmm_denom(0), get_vmm_in(0));
 
@@ -279,24 +284,22 @@ private:
     }
 
     inline void load(const Vmm& vmm_dst, const Xbyak::Reg64& reg_src, Precision src_prc, const int& elt_num, bool fill) {
-        const auto seed = 0;
-        // load_emitter_params(src_prc, Precision::FP32, elt_num, fill, "float_min").hash();
-     //   if (!emitters[seed]) {
-           // emitters[seed].reset(new jit_load_emitter(this, isa, src_prc, Precision::FP32, elt_num, Precision::FP32, fill, "float_min"));
-       // }
+        const auto seed = load_emitter_params(src_prc, Precision::FP32, elt_num, fill, "float_min").hash();
+        if (!emitters[seed]) {
+            emitters[seed].reset(new jit_load_emitter(this, isa, src_prc, Precision::FP32, elt_num, Precision::FP32, fill, "float_min"));
+        }
 
-       // emitters[seed]->emit_code({static_cast<size_t>(reg_src.getIdx()), 0}, {static_cast<size_t>(vmm_dst.getIdx())},
-         //                         pool_aux_vmm_idxs, pool_aux_gpr_idxs);
+        emitters[seed]->emit_code({static_cast<size_t>(reg_src.getIdx()), 0}, {static_cast<size_t>(vmm_dst.getIdx())},
+                                  pool_aux_vmm_idxs, pool_aux_gpr_idxs);
     }
     inline void store(const Xbyak::Reg64& reg_dst, const Vmm& vmm_src, Precision dst_prc, const int& elt_num) {
-        const auto seed = 0;
-        //store_emitter_params(Precision::FP32, dst_prc, elt_num).hash();
-     //   if (!emitters[seed]) {
-           // emitters[seed].reset(new jit_store_emitter(this, isa, Precision::FP32, dst_prc, elt_num));
-       // }
+        const auto seed = store_emitter_params(Precision::FP32, dst_prc, elt_num).hash();
+        if (!emitters[seed]) {
+            emitters[seed].reset(new jit_store_emitter(this, isa, Precision::FP32, dst_prc, elt_num));
+        }
 
-     //   emitters[seed]->emit_code({static_cast<size_t>(vmm_src.getIdx()), 0}, {static_cast<size_t>(reg_dst.getIdx())},
-       //                           pool_aux_vmm_idxs, pool_aux_gpr_idxs);
+        emitters[seed]->emit_code({static_cast<size_t>(vmm_src.getIdx()), 0}, {static_cast<size_t>(reg_dst.getIdx())},
+                                  pool_aux_vmm_idxs, pool_aux_gpr_idxs);
     }
 
     size_t unroll_factor = 3;
@@ -349,11 +352,11 @@ private:
     const std::vector<size_t> pool_aux_gpr_idxs = { static_cast<size_t>(rsi.getIdx()), static_cast<size_t>(rbp.getIdx()) };
     const std::vector<size_t> pool_aux_vmm_idxs = { 12, 13, 14, 15 };
 
-  //  std::unordered_map<size_t, std::unique_ptr<jit_emitter>> emitters;
+    std::unordered_map<size_t, std::unique_ptr<jit_emitter>> emitters;
 
-  //  std::shared_ptr<jit_dnnl_aux_emitter> exp_emitter = nullptr;
-  //  std::unique_ptr<jit_load_emitter> load_emitter = nullptr;
-  //  std::unique_ptr<jit_store_emitter> store_emitter = nullptr;
+    std::shared_ptr<jit_dnnl_aux_emitter> exp_emitter = nullptr;
+    std::unique_ptr<jit_load_emitter> load_emitter = nullptr;
+    std::unique_ptr<jit_store_emitter> store_emitter = nullptr;
 };
 
 template <cpu_isa_t isa>
@@ -434,10 +437,10 @@ private:
 
         this->postamble();
 
-     /*   for (const auto& emitter : emitters) {
+        for (const auto& emitter : emitters) {
             if (emitter.second)
                 emitter.second->emit_data();
-        }*/
+        }
     }
 
     void convert_reorder(size_t step) {
@@ -463,22 +466,22 @@ private:
 #undef GET_OFF
 
     inline void load(const Vmm& vmm_dst, const Xbyak::Reg64& reg_src, Precision src_prc, const int& elt_num, bool fill) {
-        const auto seed = 0;//load_emitter_params(src_prc, Precision::FP32, elt_num, fill, "float_min").hash();
-      //  if (!emitters[seed]) {
-           // emitters[seed].reset(new jit_load_emitter(this, isa, src_prc, Precision::FP32, elt_num, Precision::FP32, fill, "float_min"));
-        //}
+        const auto seed = load_emitter_params(src_prc, Precision::FP32, elt_num, fill, "float_min").hash();
+        if (!emitters[seed]) {
+            emitters[seed].reset(new jit_load_emitter(this, isa, src_prc, Precision::FP32, elt_num, Precision::FP32, fill, "float_min"));
+        }
 
-     //   emitters[seed]->emit_code({static_cast<size_t>(reg_src.getIdx()), 0}, {static_cast<size_t>(vmm_dst.getIdx())},
-       //                           pool_aux_vmm_idxs, pool_aux_gpr_idxs);
+        emitters[seed]->emit_code({static_cast<size_t>(reg_src.getIdx()), 0}, {static_cast<size_t>(vmm_dst.getIdx())},
+                                  pool_aux_vmm_idxs, pool_aux_gpr_idxs);
     }
     inline void store(const Xbyak::Reg64& reg_dst, const Vmm& vmm_src, Precision dst_prc, const int& elt_num) {
-        const auto seed = 0;//store_emitter_params(Precision::FP32, dst_prc, elt_num).hash();
-    //    if (!emitters[seed]) {
-            // emitters[seed].reset(new jit_store_emitter(this, isa, Precision::FP32, dst_prc, elt_num));
-      //  }
+        const auto seed = store_emitter_params(Precision::FP32, dst_prc, elt_num).hash();
+        if (!emitters[seed]) {
+            emitters[seed].reset(new jit_store_emitter(this, isa, Precision::FP32, dst_prc, elt_num));
+        }
 
-        //emitters[seed]->emit_code({static_cast<size_t>(vmm_src.getIdx()), 0}, {static_cast<size_t>(reg_dst.getIdx())},
-          //                        pool_aux_vmm_idxs, pool_aux_gpr_idxs);
+        emitters[seed]->emit_code({static_cast<size_t>(vmm_src.getIdx()), 0}, {static_cast<size_t>(reg_dst.getIdx())},
+                                  pool_aux_vmm_idxs, pool_aux_gpr_idxs);
     }
 
     size_t vec_size;
@@ -499,7 +502,7 @@ private:
     const std::vector<size_t> pool_aux_gpr_idxs = { static_cast<size_t>(rsi.getIdx()), static_cast<size_t>(rbp.getIdx()) };
     const std::vector<size_t> pool_aux_vmm_idxs = { static_cast<size_t>(xmm_tmp.getIdx()) };
 
-    //std::unordered_map<size_t, std::unique_ptr<jit_emitter>> emitters;
+    std::unordered_map<size_t, std::unique_ptr<jit_emitter>> emitters;
 };
 
 template <cpu_isa_t isa>
@@ -580,10 +583,10 @@ private:
 
         this->postamble();
 
-   //     for (const auto& emitter : emitters) {
-   //         if (emitter.second)
-   //             emitter.second->emit_data();
-   //     }
+        for (const auto& emitter : emitters) {
+            if (emitter.second)
+                emitter.second->emit_data();
+        }
     }
 
     void convert_transpose(size_t step) {
@@ -622,22 +625,22 @@ private:
     }
 #undef GET_OFF
     inline void load(const Vmm& vmm_dst, const Xbyak::Reg64& reg_src, Precision src_prc, Precision dst_prc, const int& elt_num, bool fill) {
-        const auto seed = 0;//load_emitter_params(src_prc, dst_prc, elt_num, fill, "float_min").hash();
-       // if (!emitters[seed]) {
-           // emitters[seed].reset(new jit_load_emitter(this, isa, src_prc, dst_prc, elt_num, Precision::FP32, fill, "float_min"));
-       // }
+        const auto seed = load_emitter_params(src_prc, dst_prc, elt_num, fill, "float_min").hash();
+        if (!emitters[seed]) {
+            emitters[seed].reset(new jit_load_emitter(this, isa, src_prc, dst_prc, elt_num, Precision::FP32, fill, "float_min"));
+        }
 
-        //emitters[seed]->emit_code({static_cast<size_t>(reg_src.getIdx()), 0}, {static_cast<size_t>(vmm_dst.getIdx())},
-          //                        pool_aux_vmm_idxs, pool_aux_gpr_idxs);
+        emitters[seed]->emit_code({static_cast<size_t>(reg_src.getIdx()), 0}, {static_cast<size_t>(vmm_dst.getIdx())},
+                                  pool_aux_vmm_idxs, pool_aux_gpr_idxs);
     }
     inline void store(const Xbyak::Reg64& reg_dst, const Vmm& vmm_src, Precision src_prc, Precision dst_prc, const int& elt_num) {
-        const auto seed = 0;//store_emitter_params(src_prc, dst_prc, elt_num).hash();
-       // if (!emitters[seed]) {
-           // emitters[seed].reset(new jit_store_emitter(this, isa, src_prc, dst_prc, elt_num));
-       // }
+        const auto seed = store_emitter_params(src_prc, dst_prc, elt_num).hash();
+        if (!emitters[seed]) {
+            emitters[seed].reset(new jit_store_emitter(this, isa, src_prc, dst_prc, elt_num));
+        }
 
-        //emitters[seed]->emit_code({static_cast<size_t>(vmm_src.getIdx()), 0}, {static_cast<size_t>(reg_dst.getIdx())},
-          //                        pool_aux_vmm_idxs, pool_aux_gpr_idxs);
+        emitters[seed]->emit_code({static_cast<size_t>(vmm_src.getIdx()), 0}, {static_cast<size_t>(reg_dst.getIdx())},
+                                  pool_aux_vmm_idxs, pool_aux_gpr_idxs);
     }
 
     size_t vec_size;
@@ -662,8 +665,10 @@ private:
     const std::vector<size_t> pool_aux_gpr_idxs = { static_cast<size_t>(rsi.getIdx()), static_cast<size_t>(rbp.getIdx()) };
     const std::vector<size_t> pool_aux_vmm_idxs = { static_cast<size_t>(xmm_tmp.getIdx()) };
 
-   // std::unordered_map<size_t, std::unique_ptr<jit_emitter>> emitters;
+    std::unordered_map<size_t, std::unique_ptr<jit_emitter>> emitters;
 };
+
+#endif // OPENVINO_ARCH_X86_64
 
 bool MHA::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept {
     try {
@@ -792,32 +797,36 @@ void MHA::initSupportedPrimitiveDescriptors() {
 }
 
 void MHA::init_brgemm(brgemmCtx& ctx, std::unique_ptr<brgemm_kernel_t>& brgKernel, bool use_amx) {
-  //  brgemm_t brgDesc;
-  //  brgemm_strides_t strides {static_cast<dnnl_dim_t>(ctx.M * ctx.K), static_cast<dnnl_dim_t>(ctx.K * ctx.N)};
+#ifdef OPENVINO_ARCH_X86_64
+    brgemm_t brgDesc;
+    brgemm_strides_t strides {static_cast<dnnl_dim_t>(ctx.M * ctx.K), static_cast<dnnl_dim_t>(ctx.K * ctx.N)};
 
-  //  const bool is_int8 = one_of(ctx.dt_in0, data_type::u8, data_type::s8) && one_of(ctx.dt_in1, data_type::u8, data_type::s8);
-  //  auto isa = use_amx ? isa_undef
-   //     : ctx.dt_in0 == dnnl_data_type_t::dnnl_bf16 ? avx512_core_bf16 : (is_int8 ? avx512_core_vnni : avx512_core);
-   // auto status = brgemm_desc_init(&brgDesc, isa, brgemm_strd, ctx.dt_in0, ctx.dt_in1,
-     //       false, false, brgemm_row_major, 1.f, ctx.beta, ctx.LDA, ctx.LDB, ctx.LDC, ctx.M, ctx.N, ctx.K, &strides);
-    /*if (status != dnnl_success) {
+    const bool is_int8 = one_of(ctx.dt_in0, data_type::u8, data_type::s8) && one_of(ctx.dt_in1, data_type::u8, data_type::s8);
+    auto isa = use_amx ? isa_undef
+        : ctx.dt_in0 == dnnl_data_type_t::dnnl_bf16 ? avx512_core_bf16 : (is_int8 ? avx512_core_vnni : avx512_core);
+    auto status = brgemm_desc_init(&brgDesc, isa, brgemm_strd, ctx.dt_in0, ctx.dt_in1,
+            false, false, brgemm_row_major, 1.f, ctx.beta, ctx.LDA, ctx.LDB, ctx.LDC, ctx.M, ctx.N, ctx.K, &strides);
+    if (status != dnnl_success) {
         THROW_ERROR << "cannot be executed due to invalid brgconv params";
-    }*/
+    }
 
-   // ctx.is_with_amx = use_amx;
-    // status = brgemm_init_tiles(brgDesc, ctx.palette);
-  //  if (use_amx) {
-      //  amx_tile_configure(ctx.palette);
-   // }
+    ctx.is_with_amx = use_amx;
+     status = brgemm_init_tiles(brgDesc, ctx.palette);
+    if (use_amx) {
+        amx_tile_configure(ctx.palette);
+    }
 
-   // ctx.is_with_comp = ctx.dt_in0 == dnnl_data_type_t::dnnl_s8 && !ctx.is_with_amx;
+    ctx.is_with_comp = ctx.dt_in0 == dnnl_data_type_t::dnnl_s8 && !ctx.is_with_amx;
 
-  //  brgemm_kernel_t* brgKernel_ = nullptr;
-    //status = brgemm_kernel_create(&brgKernel_, brgDesc);
-    //if (status != dnnl_success) {
-    //    THROW_ERROR << "cannot be executed due to invalid brgconv params";
-    //}
-   // brgKernel.reset(brgKernel_);
+    brgemm_kernel_t* brgKernel_ = nullptr;
+    status = brgemm_kernel_create(&brgKernel_, brgDesc);
+    if (status != dnnl_success) {
+        THROW_ERROR << "cannot be executed due to invalid brgconv params";
+    }
+    brgKernel.reset(brgKernel_);
+#else
+    THROW_ERROR << "is not supported on non-x86_64";
+#endif // OPENVINO_ARCH_X86_64
 }
 
 void MHA::init_brgemm_copy_a(std::unique_ptr<jit_brgemm_matmul_copy_a_t>& brgCopyKernel, size_t K, size_t K_blk, size_t K_tail,
@@ -837,7 +846,9 @@ void MHA::init_brgemm_copy_a(std::unique_ptr<jit_brgemm_matmul_copy_a_t>& brgCop
     brgCopyKernelConf.a_dt_sz = DnnlExtensionUtils::sizeOfDataType(static_cast<dnnl::memory::data_type>(dt_in0));
     brgCopyKernelConf.transposed_A = false;
 
-    //create_brgemm_matmul_copy_a(brgCopyKernel, &brgCopyKernelConf);
+#if defined(OPENVINO_ARCH_X86_64)
+    create_brgemm_matmul_copy_a(brgCopyKernel, &brgCopyKernelConf);
+#endif // OPENVINO_ARCH_X86_64
 }
 
 void MHA::init_brgemm_copy_b(std::unique_ptr<jit_brgemm_matmul_copy_b_t>& brgCopyKernel, size_t N, size_t N_blk, size_t N_tail, size_t LDB, size_t K,
@@ -871,7 +882,9 @@ void MHA::init_brgemm_copy_b(std::unique_ptr<jit_brgemm_matmul_copy_b_t>& brgCop
     brgCopyKernelConf.has_zero_point_b = false;
     brgCopyKernelConf.src_zp_type = dnnl::impl::cpu::x64::none;
 
-    // create_brgemm_matmul_copy_b(brgCopyKernel, &brgCopyKernelConf);
+#if defined(OPENVINO_ARCH_X86_64)
+    create_brgemm_matmul_copy_b(brgCopyKernel, &brgCopyKernelConf);
+#endif // OPENVINO_ARCH_X86_64
 }
 
 void MHA::prepareParams() {
@@ -1081,13 +1094,16 @@ void MHA::prepareParams() {
         jcp.with_scales1 = !fqScales2.empty();
         jcp.broadcast_scales1 = fqScales2.size() == 1;
 
+#if defined(OPENVINO_ARCH_X86_X64)
         if (mayiuse(cpu_isa_t::avx512_core)) {
             mulAddSoftmaxKernel.reset(new jit_mul_add_softmax_kernel<cpu_isa_t::avx512_core>(jcp));
         } else if (mayiuse(cpu_isa_t::avx2)) {
             mulAddSoftmaxKernel.reset(new jit_mul_add_softmax_kernel<cpu_isa_t::avx2>(jcp));
         } else if (mayiuse(cpu_isa_t::sse41)) {
             mulAddSoftmaxKernel.reset(new jit_mul_add_softmax_kernel<cpu_isa_t::sse41>(jcp));
-        } else {
+        }
+#endif // OPENVINO_ARCH_X86_X64
+        if (!mulAddSoftmaxKernel) {
             THROW_ERROR << "cannot create jit eltwise kernel";
         }
     }
@@ -1102,13 +1118,16 @@ void MHA::prepareParams() {
         jcp.src_stride = N1;
         jcp.dst_stride = batch1 * N1;
 
+#if defined(OPENVINO_ARCH_X86_X64)
         if (mayiuse(cpu_isa_t::avx512_core)) {
             convertReorderKernel.reset(new jit_convert_reorder_kernel<cpu_isa_t::avx512_core>(jcp));
         } else if (mayiuse(cpu_isa_t::avx2)) {
             convertReorderKernel.reset(new jit_convert_reorder_kernel<cpu_isa_t::avx2>(jcp));
         } else if (mayiuse(cpu_isa_t::sse41)) {
             convertReorderKernel.reset(new jit_convert_reorder_kernel<cpu_isa_t::sse41>(jcp));
-        } else {
+        }
+#endif // OPENVINO_ARCH_X86_X64
+        if (!convertReorderKernel) {
             THROW_ERROR << "cannot create jit eltwise kernel";
         }
     }
@@ -1125,13 +1144,17 @@ void MHA::prepareParams() {
         jcp.outter_src_stride = strTranspose1In0[3];
         jcp.outter_dst_stride = N0;
 
+#if defined(OPENVINO_ARCH_X86_X64)
         if (mayiuse(cpu_isa_t::avx512_core)) {
             convertTransposeKernel.reset(new jit_convert_transpose_kernel<cpu_isa_t::avx512_core>(jcp));
         } else if (mayiuse(cpu_isa_t::avx2)) {
             convertTransposeKernel.reset(new jit_convert_transpose_kernel<cpu_isa_t::avx2>(jcp));
         } else if (mayiuse(cpu_isa_t::sse41)) {
             convertTransposeKernel.reset(new jit_convert_transpose_kernel<cpu_isa_t::sse41>(jcp));
-        } else {
+        }
+#endif // OPENVINO_ARCH_X86_X64
+
+        if (!convertTransposeKernel) {
             THROW_ERROR << "cannot create jit eltwise kernel";
         }
     }
@@ -1170,14 +1193,18 @@ static void reorder2D(const srcT* pin, dstT* pout, const std::vector<size_t>& di
 }
 
 void MHA::callBrgemm(brgemmCtx& ctx, std::unique_ptr<brgemm_kernel_t>& brgKernel, const void* pin0, const void* pin1, void* pout, void* wsp) {
+#if defined(OPENVINO_ARCH_X86_X64)
     if (ctx.is_with_amx)
-       // amx_tile_configure(ctx.palette);
+        amx_tile_configure(ctx.palette);
     if (ctx.is_with_comp) {
         brgemm_post_ops_data_t post_ops_data;
-      //  brgemm_kernel_execute_postops(brgKernel.get(), 1, pin0, pin1, nullptr, pout, pout, post_ops_data, wsp);
+        brgemm_kernel_execute_postops(brgKernel.get(), 1, pin0, pin1, nullptr, pout, pout, post_ops_data, wsp);
     } else {
-      //  brgemm_kernel_execute(brgKernel.get(), 1, pin0, pin1, nullptr, pout, wsp);
+        brgemm_kernel_execute(brgKernel.get(), 1, pin0, pin1, nullptr, pout, wsp);
     }
+#else
+    THROW_ERROR << "is not supported on non-x64 platforms";
+#endif // OPENVINO_ARCH_X86_X64
 }
 
 template <typename in1_type>
