@@ -43,7 +43,7 @@ public:
         return getOriginalInputsNumber();
     }
 
-    bool canBeExecutedInInt8() const;
+    bool canBeExecutedInInt8() const override;
     size_t getGroupNum() const { return groupNum; }
     //OV Legacy input zero point mechanism can support per-channel zero point.
     //Hold legacy input zero point.

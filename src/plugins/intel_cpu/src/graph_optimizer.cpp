@@ -63,10 +63,15 @@ namespace intel_cpu {
 GraphOptimizer::GraphOptimizer() {}
 
 void GraphOptimizer::ApplyCommonGraphOptimizations(Graph &graph) {
+    OV_ITT_SCOPE_CHAIN(FIRST_INFERENCE, taskChain, itt::domains::intel_cpu_LT, "ApplyCommonGraphOptimizations", "FuseConvolutionAndZeroPoints");
+    FuseConvolutionAndZeroPoints(graph);
+    graph.RemoveDroppedNodes();
+
+    OV_ITT_SCOPE_NEXT(FIRST_INFERENCE, taskChain, "FuseConvMatmulFCDeconvAndDQScales");
     FuseConvMatmulFCDeconvAndDQScales(graph);
     graph.RemoveDroppedNodes();
 
-    OV_ITT_SCOPE_CHAIN(FIRST_INFERENCE, taskChain, itt::domains::intel_cpu_LT, "ApplyCommonGraphOptimizations", "FuseConvolutionAndBias");
+    OV_ITT_SCOPE_NEXT(FIRST_INFERENCE, taskChain, "FuseConvolutionAndBias");
     FuseConvolutionMatMulDeconvAndBias(graph);
     graph.RemoveDroppedNodes();
 
@@ -92,10 +97,6 @@ void GraphOptimizer::ApplyCommonGraphOptimizations(Graph &graph) {
 
     OV_ITT_SCOPE_NEXT(FIRST_INFERENCE, taskChain, "FusePerformedAsScaleShiftAndFakeQuantize");
     FusePerformedAsScaleShiftAndFakeQuantize(graph);
-    graph.RemoveDroppedNodes();
-
-    OV_ITT_SCOPE_NEXT(FIRST_INFERENCE, taskChain, "FuseConvolutionAndZeroPoints");
-    FuseConvolutionAndZeroPoints(graph);
     graph.RemoveDroppedNodes();
 
     OV_ITT_SCOPE_NEXT(FIRST_INFERENCE, taskChain, "FuseConvolutionAndSimpleOperationThroughMaxPool");
@@ -199,25 +200,9 @@ void GraphOptimizer::FuseConvMatmulFCDeconvAndDQScales(Graph &graph) {
         if (!scaleNode->isConstant())
             return false;
         //Only Fusing scales for INT8 precision.
-        if (parentNode->getOriginalInputPrecisionAtPort(0) != Precision::U8 && parentNode->getOriginalInputPrecisionAtPort(0) != Precision::I8)
+        if (!parentNode->canBeExecutedInInt8())
             return false;
-        if (parentNode->getOriginalInputPrecisionAtPort(1) != Precision::I8)
-            return false;
-
-        //Deconv has some heuristic limitation to use INT8 besides input precision.
-        auto deconv = std::dynamic_pointer_cast<Deconvolution>(parentNode);
-        if (deconv && !deconv->canBeExecutedInInt8())
-            return false;
-        // FC bias has been fused into FC in transformation phase.
-        // todo: Move the FC fusing bias into graph optimizer.
-        const auto parentNodeInputEdges = parentNode->getParentEdges().size();
-
-        if (parentNodeInputEdges != 2) {
-            auto fcNode = std::dynamic_pointer_cast<FullyConnected>(parentNode);
-            if (!(parentNodeInputEdges == 3 && fcNode && fcNode->withBiasFused()))
-                return false;
-        }
-        return true;
+        return (parentNode->getParentEdges().size() == 2);
     };
 
     auto scaleDimsCheck = [](NodePtr node, NodePtr scales) {
@@ -272,23 +257,10 @@ void GraphOptimizer::FuseConvMatmulFCDeconvAndDQScales(Graph &graph) {
 
         auto node = mul->getParentEdgesAtPort(0)[0]->getParent();
         auto scales = mul->getParentEdgesAtPort(1)[0]->getParent();
-        if (!scaleDimsCheck(node, scales)) {
-            auto fcNode = std::dynamic_pointer_cast<FullyConnected>(node);
-            if (fcNode && fcNode->withBiasFused()) {
-                // For int8 FC, BIAS has been fused into FC during ngraph transformation. DQ fusing check fails here.
-                // Sliently exit here would cause accuracy issue, because this multiply would be append after BIAS.
-                // It is a bug. Assert to give more debugging information.
-                // todo: Remove this by moving the fullyconnect_bias fusing into graph optimizer from ngraph transformation.
-                DEBUG_LOG("BUG in  scaleDimsCheck##", scales->getName(), " into FullyConnect ##", node->getName(),
-                            "Fusing axis: ", node->getFusingAxis());
-                DEBUG_LOG(*node);
-                DEBUG_LOG(*scales);
-                IE_THROW() << "BUG: IN8 FC bias fused, DQ scale can not fused in " << node->getName() << std::endl;
-            }
-            continue;
-        }
+        if (!scaleDimsCheck(node, scales)) continue;
 
         if (initializeDeQuantizedScales(node, scales)) {
+            DEBUG_LOG("[GraphOptimizer]: multiply Node ##", mul->getName(), " optimized as DQ scales of Node ##", node->getName());
             node->addOriginalLayer(mul->getOriginalLayers());
             auto p_edge = mul->getParentEdgesAtPort(1)[0];
             graph.RemoveEdge(p_edge);
@@ -310,7 +282,7 @@ void GraphOptimizer::FuseConvolutionMatMulDeconvAndBias(Graph &graph) {
             return false;
 
         if (!deconv)
-            return (node->getType() == Type::Convolution || node->getType() == Type::MatMul) &&
+            return (node->getType() == Type::Convolution || node->getType() == Type::MatMul || node->getType() == Type::FullyConnected) &&
                    node->getParentEdges().size() == 2;
         else
             return deconv->canFuseBias();
@@ -353,7 +325,6 @@ void GraphOptimizer::FuseConvolutionMatMulDeconvAndBias(Graph &graph) {
             parent++;
             continue;
         }
-
         CPU_GRAPH_OPTIMIZER_SCOPE(FuseConvolutionMatMulDeconvAndBias_ParentNode);
 
         auto childNode = parentNode->getChildEdgeAt(0)->getChild();
@@ -419,7 +390,7 @@ void GraphOptimizer::FuseConvolutionMatMulDeconvAndBias(Graph &graph) {
                 parentEltwise->inputShapes.push_back(parent->getOutputShapeAtPort(0));
             }
         }
-
+        DEBUG_LOG("[GraphOptimizer]:Add Node ##: ", childNode->getName(), " initialize as Bias of Node ##", parentNode->getName());
         graph.DropNode(childNode);
         parentNode->addOriginalLayer(childNode->getOriginalLayers());
         parentNode->addOriginalInputPrecision(childNode->getOriginalInputPrecisionAtPort(1));
@@ -847,6 +818,7 @@ void GraphOptimizer::FuseConvolutionAndZeroPoints(Graph &graph) {
         auto weightsEltwise = conv->getParentEdgesAtPort(1)[0]->getParent();
         if (initializeInputZeroPoints(conv, dataEltwise, weightsEltwise)) {
             auto p_edge = dataEltwise->getParentEdgesAtPort(1)[0];
+            DEBUG_LOG("[GraphOptimizer]:Eltwise Subtract Node ##", dataEltwise->getName(), " is optimized as zeropoint of Conv ##", conv->getName());
             graph.RemoveEdge(p_edge);
             graph.DropNode(dataEltwise);
             initializeOutputCompensation(conv);

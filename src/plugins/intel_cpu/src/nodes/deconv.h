@@ -51,8 +51,9 @@ public:
     bool needShapeInfer() const override;
 
     void setDynamicBatchLim(int lim) override;
-    bool canBeExecutedInInt8() const;
     bool canFuseBias() const;
+    bool canBeExecutedInInt8() const override;
+
 
 protected:
     AttrPtr initPrimitiveAttr() override;

@@ -21,12 +21,6 @@ public:
                        const ngraph::Rank& output_rank,
                        const ngraph::element::Type output_type = ngraph::element::undefined);
 
-    FullyConnectedNode(const ngraph::Output<Node> &A,
-                       const ngraph::Output<Node> &B,
-                       const ngraph::Output<Node> &C,
-                       const ngraph::Rank& output_rank,
-                       const ngraph::element::Type output_type = ngraph::element::undefined);
-
     bool visit_attributes(ngraph::AttributeVisitor &visitor) override;
 
     void validate_and_infer_types() override;

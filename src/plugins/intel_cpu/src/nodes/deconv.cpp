@@ -470,18 +470,24 @@ void Deconvolution::initPaddingR(const Shape &inShape, const Shape &outShape) {
 
 void Deconvolution::setPostOps(dnnl::primitive_attr& attr, const VectorDims& dims) {
     dnnl::post_ops ops;
-    // OC, IC is the convolution forward output channel, input channel.
-    // According to ONEDNN API doc, mask whould be set on the corresponding index on weight.
-    // For [OC, IC, KH, KW] perchannel scale weight mask should set on IC dim( 1 << 1) for none group deconv;
-    // For [Group, OC, IC, KH, KW] IC and group dims ( 1 << 0 |  1<< 2) for group deconv.
-    // Perchannel weight should set on IC dimention not OC dimention.
-    // But we have to set on IC dimesion as following to make weight scale work. It should be ONEDNN bug??
-    // Current perchannel mask setting.
-    // Weight dims in NON-Group deconv: [OC, IC, KH, KW], perchannel weight scale applied on OC DIM
+
+    // ONEDNN define the convolution forward as :
+    //  [N, OC, OH, OW] = [N, IC, IH, IW]* [OC, IC, KH, KW]
+    // ONEDNN define the convolution data backward as:
+    //  [N, IC, OH, OW] = [N, OC, IH, IW]* [OC, IC, KH, KW]
+    // So for the convolution backward and forward, the weight dimension definition in ONEDNN is same.
+    // OC is the conv forward output channel, IC is conv forward input channel.
+
+    // But for deconvolution, Deconv_OC, Deconv_IC is the deconv output channel, input channel
+    // ONEDNN define the deconv OP as:
+    // [N, Deconv_OC, OH, OW] = [N, Deconv_IC, IH, IW] * [Deconv_OC, Deconv_IC, KH, KW]
+    // For deconv OP,  Deconv_OC = IC, Deconv_IC = OC.
+    // Openvino per-channel weight scales are applied on IC/Deconv_OC dimension.
+    // So for deconvolution,
+    // Weight dims in NON-Group deconv: [Deconv_OC, Deconv_IC, KH, KW], perchannel weight scale applied on Deconv_OC DIM
     //                                  weiScaleMaskPerChannel =  1 << 0
-    // Weight dims in Group deconv:     [Group, OC, IC, KH, KW], perchannel weight scale applied on GROUP and OC DIM,
+    // Weight dims in Group deconv:     [Group, Deconv_OC, Deconv_IC, KH, KW], perchannel weight scale applied on GROUP and Deconv_OC,
     //                                   weiScaleMaskPerChannel = ( 1 << 0 | 1 << 1) = 0x03
-    // @todo: Clarify with ONEDNN about deconvolution channel mask setting.
     DnnlPostOpsComposer dnnlpoc(getEngine(), attr, ops, postOpsArgs, dims, 1, isInt8, withGroups ? 3 : 1 << 0,  getDQScales(), withBiases);
 
     for (int i = 0; i < fusedWith.size(); ++i) {

@@ -296,10 +296,11 @@ Convolution::Convolution(const std::shared_ptr<ngraph::Node>& op, const GraphCon
 
 bool Convolution::canBeExecutedInInt8() const {
     auto inputDataType = DnnlExtensionUtils::IEPrecisionToDataType(getOriginalInputPrecisionAtPort(0));
+    auto weightsDataType = DnnlExtensionUtils::IEPrecisionToDataType(getOriginalInputPrecisionAtPort(1));
+
     if (!legacyInputZeroPoints.empty())
         inputDataType = memory::data_type::u8;
 
-    auto weightsDataType = DnnlExtensionUtils::IEPrecisionToDataType(getOriginalInputPrecisionAtPort(1));
     if (!legacyWeightsZeroPoints.empty())
         weightsDataType = memory::data_type::s8;
 

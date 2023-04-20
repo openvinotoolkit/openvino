@@ -168,9 +168,6 @@ FullyConnected::FullyConnected(const std::shared_ptr<ngraph::Node>& op, const Gr
     std::string errorMessage;
     if (isSupportedOperation(op, errorMessage)) {
         errorPrefix = "FullyConnected node with name '" + getName() + "'";
-
-        withBiases = inputShapes.size() == 3;
-
         if (context->getConfig().fcSparseWeiDecompressionRate < 1.0f)
             minSparseRate = context->getConfig().fcSparseWeiDecompressionRate;
     } else {
@@ -221,11 +218,20 @@ VectorDims FullyConnected::makeDummyOutputDims(const VectorDims& inDims) const {
     return shapeInferGeneric(inShapes).front();
 }
 
+bool FullyConnected::canBeExecutedInInt8() const {
+    auto firstInputPrecision = getOriginalInputPrecisionAtPort(0);
+    auto secondInputPrecision = getOriginalInputPrecisionAtPort(1);
+
+    return one_of(firstInputPrecision, Precision::U8, Precision::I8) && secondInputPrecision == Precision::I8;
+}
+
 void FullyConnected::getSupportedDescriptors() {
     if (getParentEdges().size() != 2 && getParentEdges().size() != 3)
         IE_THROW() << errorPrefix << " has incorrect number of input edges";
     if (getChildEdges().empty())
         IE_THROW()<< errorPrefix << " has incorrect number of output edges";
+
+    withBiases = getOriginalInputsNumber() == 3;
 
     useSparseWeights = useSparseWeightsDecompression();
 
@@ -236,8 +242,6 @@ void FullyConnected::getSupportedDescriptors() {
         outputDataType = DnnlExtensionUtils::IEPrecisionToDataType(fusedWith[fusedWith.size() - 1]->getOriginalOutputPrecisionAtPort(0));
     }
     auto weightsDataType = DnnlExtensionUtils::IEPrecisionToDataType(getOriginalInputPrecisionAtPort(WEIGHTS_ID));
-
-    isINT8 = one_of(inputDataType, memory::data_type::u8, memory::data_type::s8) && weightsDataType == memory::data_type::s8;
     // revert back outputDataType on special cases
     if (inputDataType == memory::data_type::f32) {
         // oneDNN only support f32 output when input is f32, even if FQ is fused
@@ -353,7 +357,6 @@ void FullyConnected::prepareParams() {
                 auto normalizedOutDims = { outDims[0] * outDims[1], outDims[2] };
                 outDesc = outDesc.reshape(normalizedOutDims);
             }
-
             std::shared_ptr<dnnl::inner_product_forward::primitive_desc> fcDsc;
             if (key.bias) {
                 fcDsc = std::make_shared<dnnl::inner_product_forward::primitive_desc>(
@@ -535,8 +538,8 @@ void FullyConnected::setPostOps(dnnl::primitive_attr& attr, const VectorDims& di
         IE_THROW() << "Unexpected rank(" << dims_ext.size() << ") for output tensor of node: " << getName();
     }
 
-
-    DnnlPostOpsComposer dnnlpoc(getEngine(), attr, ops, postOpsArgs, dims, dims.size() - 1, isINT8, 1 << 0,  getDQScales(), withBiases);
+    DnnlPostOpsComposer dnnlpoc(getEngine(), attr, ops, postOpsArgs, dims, dims.size() - 1, canBeExecutedInInt8(),
+                                    1 << 0,  getDQScales(), withBiases);
 
     for (int i = 0; i < fusedWith.size(); ++i) {
         auto& node = fusedWith[i];
@@ -964,7 +967,6 @@ bool FullyConnected::useSparseWeightsDecompression() {
 
     return true;
 }
-
 }   // namespace node
 }   // namespace intel_cpu
 }   // namespace ov

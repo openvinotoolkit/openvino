@@ -78,11 +78,14 @@ bool MatMulKey::operator==(const MatMulKey &rhs) const {
              implType == rhs.implType;
     return retVal;
 }
-
-bool canBeExecutedInInt8(const Precision& firstInput, const Precision& secondInput) {
-    return one_of(firstInput, Precision::U8, Precision::I8) && secondInput == Precision::I8;
-}
 } // namespace
+
+bool MatMul::canBeExecutedInInt8() const {
+    auto firstInputPrecision = getOriginalInputPrecisionAtPort(0);
+    auto secondInputPrecision = getOriginalInputPrecisionAtPort(1);
+
+    return one_of(firstInputPrecision, Precision::U8, Precision::I8) && secondInputPrecision == Precision::I8;
+}
 
 bool MatMul::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept {
     try {
@@ -223,7 +226,7 @@ bool MatMul::canFuse(const NodePtr& node) const {
     //  after matmul. In some bert model, this reorder causes great perf degradation.
     //  Todo: Remove this if onednn primitive support U8 output with floating input.
     if (node->getType() == Type::FakeQuantize && one_of(node->getOriginalOutputPrecisionAtPort(0), Precision::I8, Precision::U8) &&
-        !canBeExecutedInInt8(getOriginalInputPrecisionAtPort(0), getOriginalInputPrecisionAtPort(1)) &&
+        !canBeExecutedInInt8() &&
         getOriginalInputPrecisionAtPort(0) == InferenceEngine::Precision::FP32 )
         return false;
     return canFuseSimpleOperation(node);
@@ -237,7 +240,7 @@ void MatMul::setPostOps(dnnl::primitive_attr& attr, const VectorDims& dims, bool
         outputDataType = outDataDesc->getDataType();
     }
 
-    bool isINT8 = canBeExecutedInInt8(getOriginalInputPrecisionAtPort(0), getOriginalInputPrecisionAtPort(1));
+    bool isINT8 = canBeExecutedInInt8();
 
     DnnlPostOpsComposer dnnlpoc(getEngine(), attr, ops, postOpsArgs, dims, dims.size() - 1, isINT8, 1 << (dims.size() - 1), getDQScales(), withBiases);
 
@@ -343,7 +346,7 @@ void MatMul::getSupportedDescriptors() {
         postOpsPrec = fusedWith[fusedWith.size() - 1]->getOriginalOutputPrecisionAtPort(0);
     }
 
-    if (canBeExecutedInInt8(firstInPortPrec, secondInPortPrec)) {
+    if (canBeExecutedInInt8()) {
         // INT8 mode support wide range of output precisions
         outPortPrec = postOpsPrec;
     } else if (postOpsPrec == Precision::FP32) {
@@ -733,6 +736,7 @@ const std::vector<impl_desc_type>& MatMul::getPrimitivesPriority() {
     }
     return implPriorities;
 }
+
 }   // namespace node
 }   // namespace intel_cpu
 }   // namespace ov

@@ -374,7 +374,7 @@ def test_get_perf_counts(device):
     request = exec_net.requests[0]
     request.infer({'data': img})
     pc = request.get_perf_counts()
-    assert pc['29']["status"] == "EXECUTED"
+    assert pc['29/WithoutBiases']["status"] == "EXECUTED"
     del exec_net
     del ie_core
     del net

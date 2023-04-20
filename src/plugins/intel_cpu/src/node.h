@@ -551,6 +551,10 @@ public:
      */
     virtual void appendPostOps(dnnl::post_ops& ops, const VectorDims& postOpDims, std::unordered_map<int, MemoryPtr>& postOpsMem, const int channelAxis = 1);
     virtual void appendPostOps(dnnl::post_ops& ops, const VectorDims& postOpDims, std::vector<const void*>& postOpsMem, const int channelAxis = 1);
+    virtual bool canBeExecutedInInt8() const {
+        IE_THROW(NotImplemented) << "canBeExecutedInInt8 not implemented for node with type " << NameFromType(getType());
+        return false;
+    }
 
 protected:
     bool canFuseSimpleOperation(const NodePtr& node) const;
