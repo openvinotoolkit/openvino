@@ -31,7 +31,7 @@ bool evaluate(const std::shared_ptr<ngraph::op::v0::DetectionOutput>& op,
                       inputs[4]->get_data_ptr<const T>(),
                       outputs[0]->get_data_ptr<T>());
     } else {
-        throw ngraph::ngraph_error("DetectionOutput layer supports only 3 or 5 inputs");
+        OPENVINO_THROW("DetectionOutput layer supports only 3 or 5 inputs");
     }
     return true;
 }
@@ -61,7 +61,7 @@ bool evaluate(const std::shared_ptr<ngraph::op::v8::DetectionOutput>& op,
                       inputs[4]->get_data_ptr<const T>(),
                       outputs[0]->get_data_ptr<T>());
     } else {
-        throw ngraph::ngraph_error("DetectionOutput layer supports only 3 or 5 inputs");
+        OPENVINO_THROW("DetectionOutput layer supports only 3 or 5 inputs");
     }
     return true;
 }
@@ -140,8 +140,8 @@ bool evaluate_node<ngraph::op::v0::DetectionOutput>(std::shared_ptr<ngraph::Node
                                                       outputs,
                                                       inputs);
     default:
-        throw ngraph::ngraph_error(std::string("Unhandled data type ") + node->get_element_type().get_type_name() +
-                                   std::string("in evaluate_node()"));
+        OPENVINO_THROW(std::string("Unhandled data type ") + node->get_element_type().get_type_name() +
+                       std::string("in evaluate_node()"));
     }
 }
 
@@ -219,7 +219,7 @@ bool evaluate_node<ngraph::op::v8::DetectionOutput>(std::shared_ptr<ngraph::Node
                                                       outputs,
                                                       inputs);
     default:
-        throw ngraph::ngraph_error(std::string("Unhandled data type ") + node->get_element_type().get_type_name() +
-                                   std::string("in evaluate_node()"));
+        OPENVINO_THROW(std::string("Unhandled data type ") + node->get_element_type().get_type_name() +
+                       std::string("in evaluate_node()"));
     }
 }
