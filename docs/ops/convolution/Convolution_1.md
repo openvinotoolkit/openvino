@@ -109,7 +109,7 @@ The receptive field in each layer is calculated using the formulas:
 
 1D Convolution
 
-.. code-block:: console
+.. code-block:: sh
    
    <layer type="Convolution" ...>
        <data dilations="1" pads_begin="0" pads_end="0" strides="2" auto_pad="valid"/>
@@ -137,7 +137,7 @@ The receptive field in each layer is calculated using the formulas:
 
 2D Convolution
 
-.. code-block:: console
+.. code-block:: sh
    
    <layer type="Convolution" ...>
        <data dilations="1,1" pads_begin="2,2" pads_end="2,2" strides="1,1" auto_pad="explicit"/>
@@ -167,7 +167,7 @@ The receptive field in each layer is calculated using the formulas:
 
 3D Convolution
 
-.. code-block:: console
+.. code-block:: sh
    
    <layer type="Convolution" ...>
        <data dilations="2,2,2" pads_begin="0,0,0" pads_end="0,0,0" strides="3,3,3" auto_pad="explicit"/>

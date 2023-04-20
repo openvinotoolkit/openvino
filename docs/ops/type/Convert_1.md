@@ -45,7 +45,7 @@ where ``a`` corresponds to the input tensor.
 
 **Example**
 
-.. code-block:: console
+.. code-block:: sh
    
    <layer ... type="Convert">
        <data destination_type="f32"/>

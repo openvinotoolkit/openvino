@@ -55,7 +55,7 @@ To perform the summation in the opposite direction of the axis, set reverse attr
 
 *Example 1*
 
-.. code-block:: console
+.. code-block:: sh
    
    <layer ... type="CumSum" exclusive="0" reverse="0">
        <input>
@@ -73,7 +73,7 @@ To perform the summation in the opposite direction of the axis, set reverse attr
 
 *Example 2*
 
-.. code-block:: console
+.. code-block:: sh
    
    <layer ... type="CumSum" exclusive="1" reverse="0">
        <input>
@@ -91,7 +91,7 @@ To perform the summation in the opposite direction of the axis, set reverse attr
 
 *Example 3*
 
-.. code-block:: console
+.. code-block:: sh
    
    <layer ... type="CumSum" exclusive="0" reverse="1">
        <input>
@@ -109,7 +109,7 @@ To perform the summation in the opposite direction of the axis, set reverse attr
 
 *Example 4*
 
-.. code-block: console
+.. code-block: sh
    
    <layer ... type="CumSum" exclusive="1" reverse="1">
        <input>

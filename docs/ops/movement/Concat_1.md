@@ -31,7 +31,7 @@
 
 **Examples**
 
-.. code-block:: console
+.. code-block:: sh
    
    <layer id="1" type="Concat">
        <data axis="1" />
@@ -66,7 +66,7 @@
    </layer>
 
 
-.. code-block:: console
+.. code-block:: sh
    
    <layer id="1" type="Concat">
        <data axis="-3" />
