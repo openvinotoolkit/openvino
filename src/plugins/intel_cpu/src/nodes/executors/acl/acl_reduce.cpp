@@ -70,7 +70,7 @@ bool AclReduceExecutor::init(const ReduceAttrs& reduceAttrs,
         case Algorithm::ReduceMin:
         case Algorithm::ReduceSum:
         case Algorithm::ReduceProd: {
-            if (reduceAttrs.axes.size() != 1) {
+            if (reduceAttrs.axes.size() != 1u) {
                 return false;
             }
             Status reductionOperationStatus = NEReductionOperation::validate(&srcTensorInfo, &dstTensorInfo, axisCast(reduceAttrs.axes[0], srcDims.size()),
