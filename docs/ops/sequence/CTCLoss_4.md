@@ -26,16 +26,7 @@ Otherwise, the operation behaviour is undefined.
    
    p_{i,t,j} = \frac{\exp(logits[i,t,j])}{\sum^{K}_{k=0}{\exp(logits[i,t,k])}}
 
-2. For a given ``i``-th target from ``labels[i,:]`` find all aligned paths.
-A path ``S = (c1,c2,...,cT)`` is aligned with a target ``G=(g1,g2,...,gT)`` if both chains are equal after decoding.
-The decoding extracts substring of length ``label_length[i]`` from a target ``G``, merges repeated characters in ``G`` in case *preprocess_collapse_repeated* equal to true and
-finds unique elements in the order of character occurrence in case *unique* equal to true.
-The decoding merges repeated characters in ``S`` in case *ctc_merge_repeated* equal to true and removes blank characters represented by ``blank_index``.
-By default, ``blank_index`` is equal to ``C-1``, where ``C`` is a number of classes including the blank.
-For example, in case default *ctc_merge_repeated*, *preprocess_collapse_repeated*, *unique* and ``blank_index`` a target sequence ``G=(0,3,2,2,2,2,2,4,3)`` of a length ``label_length[i]=4`` is processed
-to ``(0,3,2,2)`` and a path ``S=(0,0,4,3,2,2,4,2,4)`` of a length ``logit_length[i]=9`` is also processed to ``(0,3,2,2)``, where ``C=5``.
-There exist other paths that are also aligned with ``G``, for instance, ``0,4,3,3,2,4,2,2,2``. Paths checked for alignment with a target ``label[:,i]`` must be of length ``logit_length[i] = L_i``.
-Compute probabilities of these aligned paths (alignments) as follows:
+2. For a given ``i``-th target from ``labels[i,:]`` find all aligned paths. A path ``S = (c1,c2,...,cT)`` is aligned with a target ``G=(g1,g2,...,gT)`` if both chains are equal after decoding. The decoding extracts substring of length ``label_length[i]`` from a target ``G``, merges repeated characters in ``G`` in case *preprocess_collapse_repeated* equal to true and finds unique elements in the order of character occurrence in case *unique* equal to true. The decoding merges repeated characters in ``S`` in case *ctc_merge_repeated* equal to true and removes blank characters represented by ``blank_index``. By default, ``blank_index`` is equal to ``C-1``, where ``C`` is a number of classes including the blank. For example, in case default *ctc_merge_repeated*, *preprocess_collapse_repeated*, *unique* and ``blank_index`` a target sequence ``G=(0,3,2,2,2,2,2,4,3)`` of a length ``label_length[i]=4`` is processed to ``(0,3,2,2)`` and a path ``S=(0,0,4,3,2,2,4,2,4)`` of a length ``logit_length[i]=9`` is also processed to ``(0,3,2,2)``, where ``C=5``. There exist other paths that are also aligned with ``G``, for instance, ``0,4,3,3,2,4,2,2,2``. Paths checked for alignment with a target ``label[:,i]`` must be of length ``logit_length[i] = L_i``. Compute probabilities of these aligned paths (alignments) as follows:
 
 .. math::
    

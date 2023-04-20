@@ -26,7 +26,7 @@ When output shape is specified as an input tensor ``output_shape`` then it speci
 
 where ``K_i`` filter kernel dimension along spatial axis ``i``.
 
- If ``output_shape`` is specified, ``pads_begin`` and ``pads_end`` are ignored, and ``auto_pad`` defines how to distribute padding amount around the tensor. In this case pads are determined based on the next formulas to correctly align input and output tensors:
+If ``output_shape`` is specified, ``pads_begin`` and ``pads_end`` are ignored, and ``auto_pad`` defines how to distribute padding amount around the tensor. In this case pads are determined based on the next formulas to correctly align input and output tensors:
 
 .. code-block:: sh
    
@@ -73,6 +73,7 @@ where ``K_i`` filter kernel dimension along spatial axis ``i``.
 * *auto_pad*
 
   * **Description**: *auto_pad* has the same definition as *auto_pad* for a regular Convolution but applied in the backward way, for the output tensor.
+    
     * *explicit*: use explicit padding values from ``pads_begin`` and ``pads_end``.
     * *same_upper* the input is padded to match the output size. In case of odd padding value an extra padding is added at the end.
     * *same_lower* the input is padded to match the output size. In case of odd padding value an extra padding is added at the beginning.
