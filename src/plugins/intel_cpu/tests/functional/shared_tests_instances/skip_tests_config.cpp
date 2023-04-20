@@ -208,7 +208,6 @@ std::vector<std::string> disabledTestPatterns() {
 #endif
 
 #if defined(OPENVINO_ARCH_ARM64) || defined(OPENVINO_ARCH_ARM)
-    retVector.emplace_back(R"(OVClassBasicPropsTest.smoke_SetConfigAffinity.*)");
     retVector.emplace_back(R"(ONNXQuantizedModels/QuantizedModelsTests.*)");
     {
         // TODO: generate new 'expected' runtime graph for CPU ARM
