@@ -126,10 +126,6 @@ std::vector<std::string> disabledTestPatterns() {
         // need to add support convert BIN -> FP32
         // if we set output precision as BIN, when we create output blob precision looks like UNSPECIFIED
         R"(.*smoke_FakeQuantizeLayerCPUTest.*bin.*)",
-        // Issue: 69088
-        // bad accuracy
-        R"(.*smoke_FakeQuantizeLayerCPUTest_Decompos.
-            *IS=_TS=\(\(4\.5\.6\.7\)\)_RS=\(\(1\.1\.6\.1\)\)_\(\(1\.5\.6\.1\)\)_\(\(1\.1\.1\.1\)\)_\(\(1\.1\.6\.1\)\).*)",
         // Issue: 69222
         R"(.*smoke_PriorBoxClustered.*PriorBoxClusteredLayerCPUTest.*_netPRC=f16_.*)",
         // Issue: 72005
@@ -188,12 +184,37 @@ std::vector<std::string> disabledTestPatterns() {
         R"(.*UniqueLayerTestCPU.*axis.*True.*)",
     };
 
+#if defined(OPENVINO_ARCH_X86)
+    retVector.emplace_back(R"(ONNXQuantizedModels/QuantizedModelsTests.*)");
+    {
+        // TODO: generate new 'expected' runtime graph for x86 CPU
+        retVector.emplace_back(R"(smoke_serialization/ExecGraphSerializationTest.ExecutionGraph.*)");
+        retVector.emplace_back(R"(smoke_ExecGraph/ExecGraphRuntimePrecision.CheckRuntimePrecision/Function=(EltwiseWithTwoDynamicInputs|FakeQuantizeRelu).*)");
+    }
+    retVector.emplace_back(R"(smoke_TestsDFT_(1|2|3|4)d/DFTLayerTest.CompareWithRefs.*)");
+    retVector.emplace_back(R"(MultipleLSTMCellTest/MultipleLSTMCellTest.CompareWithRefs.*)");
+    retVector.emplace_back(R"(.*convolution_backprop_quantize_type.*)");
+    retVector.emplace_back(R"(.*DetectionOutputLayerTest.*)");
+    // WIP: plugin cannot be loaded for some reason
+    retVector.emplace_back(R"(.*HeteroSyntheticTest.*)");
+    retVector.emplace_back(R"(.*IEClassBasicTestP.*)");
+    // int8 / code-generation specific
+    retVector.emplace_back(R"(smoke_LPT.*)");
+    retVector.emplace_back(R"(smoke_Snippets.*)");
+#endif
+
+#if defined(OPENVINO_ARCH_ARM)
+    retVector.emplace_back(R"(smoke_If/SimpleIfNotConstConditionAndDimsIncreaseTest.*)");
+#endif
+
 #if defined(OPENVINO_ARCH_ARM64) || defined(OPENVINO_ARCH_ARM)
     retVector.emplace_back(R"(OVClassBasicPropsTest.smoke_SetConfigAffinity.*)");
     retVector.emplace_back(R"(ONNXQuantizedModels/QuantizedModelsTests.*)");
-    // TODO: generate new 'expected' runtime graph for CPU ARM
-    retVector.emplace_back(R"(smoke_serialization/ExecGraphSerializationTest.ExecutionGraph.*)");
-    retVector.emplace_back(R"(smoke_ExecGraph/ExecGraphRuntimePrecision.CheckRuntimePrecision/Function=(EltwiseWithTwoDynamicInputs|FakeQuantizeRelu).*)");
+    {
+        // TODO: generate new 'expected' runtime graph for CPU ARM
+        retVector.emplace_back(R"(smoke_serialization/ExecGraphSerializationTest.ExecutionGraph.*)");
+        retVector.emplace_back(R"(smoke_ExecGraph/ExecGraphRuntimePrecision.CheckRuntimePrecision/Function=(EltwiseWithTwoDynamicInputs|FakeQuantizeRelu).*)");
+    }
     {
         // TODO: enable once streams / tput mode is supported
         retVector.emplace_back(R"(OVClassConfigTestCPU.smoke_Check(Model|Core)StreamsHasHigherPriorityThanLatencyHint.*)");
@@ -204,30 +225,22 @@ std::vector<std::string> disabledTestPatterns() {
         retVector.emplace_back(R"(smoke_CPU_OVClassCompileModelAndCheckSecondaryPropertiesTest.*)");
         retVector.emplace_back(R"(smoke_CPU_OVClassCompileModelAndCheckWithSecondaryPropertiesDoubleTest.*)");
     }
-    retVector.emplace_back(R"(smoke_LPT.*)");
-    retVector.emplace_back(R"(smoke_Activation_Basic/ActivationLayerTest.CompareWithRefs.*)");
-    retVector.emplace_back(R"(smoke_Integer_Activation_Basic/ActivationLayerTest.CompareWithRefs/(Tanh|Negative|Sqrt).*)");
-    retVector.emplace_back(R"(smoke_Activation_Basic_Prelu_Const/ActivationLayerTest.CompareWithRefs/(LeakyRelu|PReLu).*)");
-    retVector.emplace_back(R"(smoke_Activation_Basic_Prelu_Param/ActivationParamLayerTest.CompareWithRefs/(LeakyRelu|PReLu).*)");
-    retVector.emplace_back(R"(smoke_CompareWithRefs/ComparisonLayerTest.ComparisonTests.*)");
-    retVector.emplace_back(R"(smoke_CompareWithRefs_static/EltwiseLayerTest.EltwiseTests.*)");
-    retVector.emplace_back(R"(smoke_CompareWithRefs_static_check_collapsing/EltwiseLayerTest.EltwiseTests.*)");
-    retVector.emplace_back(R"(smoke_SingleThread/EltwiseLayerTest.EltwiseTests.*)");
-    retVector.emplace_back(R"(smoke_StaticShapeLoop/StaticShapeLoopTest.CompareWithRefs.*)");
-    retVector.emplace_back(R"(smoke_StaticShapeLoop/StaticShapeLoopTest.CompareWithPredefinedRefs.*)");
-    retVector.emplace_back(R"(smoke_TrivialLoop/TrivialLoopTest.AutoSlicingInputWithDynCondition_(CheckPredefinedValues|CheckReference).*)");
-    retVector.emplace_back(R"(smoke_Decomposition_(3|4)D/Mvn6LayerTest.CompareWithRefs.*)");
     retVector.emplace_back(R"(smoke_AvgPool_ExplicitPad_CeilRounding/PoolingLayerTest.CompareWithRefs.*)");
     retVector.emplace_back(R"(smoke_TestsDFT_(1|2|3|4)d/DFTLayerTest.CompareWithRefs.*)");
-    retVector.emplace_back(R"(smoke_TestsSelect_none/SelectLayerTest.CompareWithRefImpl/COND=BOOL.*)");
-    retVector.emplace_back(R"(smoke_TestsSelect_numpy/SelectLayerTest.CompareWithRefImpl/COND=BOOL.*)");
-    retVector.emplace_back(R"(smoke_Snippets.*)");
-    retVector.emplace_back(R"(smoke_Quantized.*)");
-    retVector.emplace_back(R"(smoke_NegativeQuantizedMatMulMultiplyFusion.*)");
     retVector.emplace_back(R"(MultipleLSTMCellTest/MultipleLSTMCellTest.CompareWithRefs.*)");
-    retVector.emplace_back(R"(smoke_MultipleAdd_Nd/MultiplyAddLayerTest.CompareWithRefs.*)");
     retVector.emplace_back(R"(smoke_If/SimpleIfTest.CompareWithRefs.*)");
     retVector.emplace_back(R"(smoke_If/SimpleIfNotConstConditionTest.CompareWithRefs.*)");
+    // invalid test: checks u8 precision for runtime graph, while it should be f32
+    retVector.emplace_back(R"(smoke_NegativeQuantizedMatMulMultiplyFusion.*)");
+    // int8 / code-generation specific
+    retVector.emplace_back(R"(smoke_LPT.*)");
+    retVector.emplace_back(R"(smoke_Snippets.*)");
+    retVector.emplace_back(R"(smoke_Quantized.*)");
+#endif
+
+#if !defined(OPENVINO_ARCH_X86_64)
+    // very time-consuming test
+    retVector.emplace_back(R"(.*OVInferConsistencyTest.*)");
 #endif
 
 #if defined(_WIN32) || defined(_WIN64)
