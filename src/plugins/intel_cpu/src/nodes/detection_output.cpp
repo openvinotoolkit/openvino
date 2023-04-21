@@ -127,10 +127,10 @@ void DetectionOutput::prepareParams() {
     //        --> g_topk(vector<>(all detections) --> indices per class))
     // MXNet: max conf for prior within img, filter(indices) --> topk_img(buffer) --> nms_cls(indices)
     //        --> g_topk(vector<>(all detections) --> indices per class))
-    int cacheSizeL3 = utils::get_cache_size(3, true);
+    unsigned cacheSizeL3 = utils::get_cache_size(3, true);
     isSparsityWorthwhile =
         (confidenceThreshold > sparsityThreshold) &&
-        ((classesNum * priorsNum * sizeof(float) * 2) > static_cast<size_t>(cacheSizeL3));
+        ((classesNum * priorsNum * sizeof(float) * 2) > cacheSizeL3);
     confInfoLen = (!decreaseClassId && isSparsityWorthwhile) ? (2 * priorsNum + 1) : priorsNum;
     reorderedConf.resize(imgNum * classesNum * confInfoLen);
 

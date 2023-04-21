@@ -265,11 +265,11 @@ bool Snippet::optimizeExecDomain(std::vector<VectorDims>& inputShapes, std::vect
         auto collapseLastDims = [](VectorDims& dims, size_t dimsToCollapse) {
             if (dimsToCollapse >= dims.size() - 1)
                 IE_THROW() << "Got invalid number of dims to collapse. Expected < " << dims.size() - 1 << " got " << dimsToCollapse;
-            for (int i = dims.size() - 2; static_cast<size_t>(i) > dims.size() - dimsToCollapse - 2; i--) {
+            for (int i = dims.size() - 2; i > static_cast<int>(dims.size() - dimsToCollapse - 2); i--) {
                 dims[dims.size() - 1] *= dims[i];
             }
 
-            for (int i = dims.size() - 2; static_cast<size_t>(i) >= dimsToCollapse; i--) {
+            for (int i = dims.size() - 2; i >= static_cast<int>(dimsToCollapse); i--) {
                 dims[i] = dims[i - dimsToCollapse];
             }
 

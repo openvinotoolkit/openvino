@@ -636,7 +636,7 @@ void Transformations::MainSnippets(void) {
                 const auto is_unsupported_parallel_work_amount =
                     parallel_get_num_threads() / 2 > parallel_work_amount &&
                     static_cast<size_t>(parallel_work_amount) < needed_num_of_threads;
-                const auto is_unsupported_kernel_work_amount = static_cast<int>(kernel_buffer_size) > l2_cache_size;
+                const auto is_unsupported_kernel_work_amount = kernel_buffer_size > l2_cache_size;
                 return is_unsupported_parallel_work_amount || is_unsupported_kernel_work_amount;
             },
             ngraph::snippets::pass::TokenizeMHASnippets);

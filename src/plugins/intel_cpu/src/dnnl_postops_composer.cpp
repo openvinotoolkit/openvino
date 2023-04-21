@@ -163,7 +163,7 @@ bool DnnlPostOpsComposer::appendScale(const std::vector<float>& scale, bool isLa
             else
                 IE_ASSERT(wei_scale_values.size() == OC);
 
-            for (size_t j = 0; j < OC; j++)
+            for (Dim j = 0; j < OC; j++)
                 wei_scale_values[j] *= scale[j];
         } else {
             for (size_t j = 0; j < wei_scale_values.size(); j++)

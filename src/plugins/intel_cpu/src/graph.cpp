@@ -569,7 +569,7 @@ static bool isReorderAvailable(const MemoryDescPtr& parentDesc, const MemoryDesc
 void Graph::InitEdges() {
     OV_ITT_SCOPE(FIRST_INFERENCE, itt::domains::intel_cpu_LT, "Graph::InitEdges");
 
-    size_t numberOfEdges = graphEdges.size();
+    ptrdiff_t numberOfEdges = static_cast<ptrdiff_t>(graphEdges.size());
 
     std::unordered_set<std::string> uniqueLayerNames;
     for (auto node : graphNodes) {
@@ -592,13 +592,13 @@ void Graph::InitEdges() {
         InsertReorder(edge, layerName, edge->getInputDesc(), edge->getOutputDesc(), isOptimized);
     };
 
-    auto updateEdge = [&](int& i) {
+    auto updateEdge = [&](ptrdiff_t& i) {
         graphEdges.erase(graphEdges.begin() + i);
         i--;
         numberOfEdges--;
     };
 
-    for (int i = 0; i < static_cast<int>(numberOfEdges); i++) {
+    for (ptrdiff_t i = 0; i < numberOfEdges; i++) {
         auto edge = graphEdges[i];
         auto reorderStatus = graphEdges[i]->needReorder();
         DEBUG_LOG(graphEdges[i]->name(), " reorderStatus = ", reorderStatus);
@@ -1358,8 +1358,8 @@ void Graph::SortTopologically() {
         VisitNode(node, sorted);
     }
 
-    for (int i = 0; i < static_cast<int>(sorted.size()); i++)
-        sorted[i]->execIndex = i;
+    for (size_t i = 0; i < sorted.size(); i++)
+        sorted[i]->execIndex = static_cast<int>(i);
 
     graphNodes.erase(graphNodes.begin(), graphNodes.end());
     graphNodes.assign(sorted.begin(), sorted.end());

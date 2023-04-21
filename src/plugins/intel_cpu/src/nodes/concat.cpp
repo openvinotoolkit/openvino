@@ -681,7 +681,7 @@ void Concat::execRef() {
             // Heuristic:
             // memcpy works generally faster for data sizes not
             // exceeding L1 cache.
-            if (static_cast<int>(nelemToCopy[a]) > L1Size) {
+            if (nelemToCopy[a] > L1Size) {
                 // The code below performs data copying: o[e] = i[e]
                 // and uses a workaround to make GNU compilers optimize it
                 uint8_t *ptro = o;
