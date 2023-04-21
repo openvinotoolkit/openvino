@@ -90,8 +90,8 @@ OutputVector translate_conv_2d_backprop_input_op(const NodeContext& node) {
                                                    ss_begin,
                                                    ss_end,
                                                    ss_strides,
-                                                   std::vector<int64_t>{},
-                                                   std::vector<int64_t>{});
+                                                   std::vector<int64_t>{0},
+                                                   std::vector<int64_t>{0});
 
     auto conv_backprop = make_shared<ConvolutionBackpropData>(out_backprop,
                                                               filter,
