@@ -83,18 +83,22 @@ Python API provides different synchronous calls to infer model, which block the 
 Inference Results - OVDict
 ++++++++++++++++++++++++++
 
-Synchronous calls are returning special data structure called ``OVDict``. Which could be compared to "frozen dictionary". There are various ways of accessing object's elements:
 
+Synchronous calls return a special data structure called ``OVDict``. It can be compared to a "frozen dictionary". There are various ways of accessing the object's elements:
 
 .. doxygensnippet:: docs/snippets/ov_python_exclusives.py
    :language: python
    :fragment: [ov_dict]
 
+.. note:: 
+   
+   It is possible to convert ``OVDict`` to a native dictionary using the ``to_dict()`` method.
 
-.. note:: It is possible to convert ``OVDict`` to native dictionary using ``to_dict()`` method.
+.. warning:: 
 
-
-.. warning:: Using ``to_dict()`` results in losing access via strings and integers. Additionally it performs shallow copy, thus any modifications may affect original object as well.
+   Using ``to_dict()`` results in losing access via strings and integers. Additionally, 
+   it performs a shallow copy, thus any modifications may affect the original 
+   object as well.
 
 
 AsyncInferQueue
