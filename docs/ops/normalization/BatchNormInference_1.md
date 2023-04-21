@@ -53,12 +53,14 @@ For a particular activation, consider a mini-batch :math:`\mathcal{B}` of m valu
      
      \mu_{\mathcal{B}} \leftarrow \frac{1}{m}\sum_{i=1}^{m}b_{i}
 
+* **Mini-batch variance**:
+  
+  .. math::
+     
+     \sigma_{\mathcal{B}}^{2}\leftarrow \frac{1}{m}\sum_{i=1}^{m} ( b_{i} - \mu_{\mathcal{B}})^{2}
+
 @endsphinxdirective
 
-*   **Mini-batch variance**:
-    \f[
-    \sigma_{\mathcal{B}}^{2}\leftarrow \frac{1}{m}\sum_{i=1}^{m} ( b_{i} - \mu_{\mathcal{B}})^{2}
-    \f]
 *   **Normalize**:
     \f[
     \hat{b_{i}} \leftarrow \frac{b_{i} - \mu_{\mathcal{B}}}{\sqrt{\sigma_{\mathcal{B}}^{2} + \epsilon }}
