@@ -136,7 +136,8 @@ public:
                << "_" << testValues.actual.precision1 << "_" << testValues.actual.dequantization1 << "_"
                << testValues.actual.precision2 << "_" << testValues.actual.dequantization2 << "_"
                << testValues.constInput << "_" << testValues.actual.constValues << "_" << testValues.additionalLayer
-               << "_" << testValues.postops_configuration << "_" << (testValues.params.updatePrecisions ? "true" : "false");
+               << "_" << testValues.postops_configuration << "_"
+               << (testValues.params.updatePrecisions ? "true" : "false");
         return result.str();
     }
 };
