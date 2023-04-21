@@ -59,7 +59,7 @@ public:
         _task = std::move(task);
         _task();
     }
-    InferenceEngine::Task _task;
+    IE::Task _task;
 };
 
 struct DeviceInformation {
@@ -191,35 +191,26 @@ public:
     virtual ~ScheduleContext() = default;
 };
 
-class MultiScheduleContext : public ScheduleContext {
+class MultiDeviceInferencePlugin;
+class AutoScheduleContext : public ScheduleContext {
 public:
-    using Ptr = std::shared_ptr<MultiScheduleContext>;
+    using Ptr = std::shared_ptr<AutoScheduleContext>;
     std::vector<DeviceInformation>                 _devicePriorities;
     std::vector<DeviceInformation>                 _devicePrioritiesInitial;
     std::unordered_map<std::string, IE::Parameter> _config;
-    DeviceMap<SoExecNetwork>                       _networksPerDevice;
-    std::mutex                                     _mutex;
     bool                                           _needPerfCounters;
     bool                                           _batchingDisabled = {false};
     bool                                           _startupfallback = true;
     bool                                           _runtimeFallback = true;
-    virtual ~MultiScheduleContext() = default;
-};
-
-class MultiDeviceInferencePlugin;
-class AutoScheduleContext : public MultiScheduleContext {
-public:
-    using Ptr = std::shared_ptr<AutoScheduleContext>;
-    std::string                 _modelPath;
-    IE::CNNNetwork              _network;
-    std::string                 _strDevices;
-    unsigned int                _modelPriority = 0;
-    std::string                 _performanceHint;
-    std::mutex                  _confMutex;
-    std::mutex                  _fallbackMutex;
-    MultiDeviceInferencePlugin* _plugin;
-    SoExecNetwork               _hwExecutableNetwork;
+    std::string                                    _modelPath;
+    IE::CNNNetwork                                 _network;
+    std::string                                    _strDevices;
+    unsigned int                                   _modelPriority = 0;
+    std::string                                    _performanceHint;
+    std::mutex                                     _confMutex;
+    std::mutex                                     _fallbackMutex;
+    MultiDeviceInferencePlugin*                    _plugin;
+    SoExecNetwork                                  _hwExecutableNetwork;
     virtual ~AutoScheduleContext() = default;
 };
-
 }  // namespace MultiDevicePlugin
