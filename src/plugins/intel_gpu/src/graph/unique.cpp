@@ -66,7 +66,11 @@ std::vector<layout> unique_reshape_inst::calc_output_layouts(const unique_reshap
     std::vector<ShapeType> output_shapes = {ShapeType(), ShapeType(), ShapeType(), ShapeType()};
 
     if (!impl_param.memory_deps.count(1)) {
-        output_shapes.at(0) = ov::PartialShape::dynamic(input_layout.get_partial_shape().rank());
+        if (desc->flattened) {
+            output_shapes.at(0) = ov::PartialShape{ov::Dimension::dynamic()};
+        } else {
+            output_shapes.at(0) = ov::PartialShape::dynamic(input_layout.get_partial_shape().rank());
+        }
         output_shapes.at(1) = ov::PartialShape{ov::Dimension::dynamic()};
         output_shapes.at(2) = ov::PartialShape{ov::Dimension::dynamic()};
         output_shapes.at(3) = ov::PartialShape{ov::Dimension::dynamic()};
@@ -94,9 +98,15 @@ std::vector<layout> unique_reshape_inst::calc_output_layouts(const unique_reshap
     for (auto i = 0U; i < desc->num_outputs; ++i) {
         const auto& output_shape = output_shapes.at(i);
         const auto output_dt = desc->output_data_types.at(i).value();
-        layouts.emplace_back(output_shape,
-                             output_dt,
-                             i == 0 ? input_layout.format : format::get_default_format(output_shape.size()));
+        auto output_format = format::get_default_format(output_shape.size());
+        if (i == 0) {
+            if (desc->flattened) {
+                output_format = format::adjust_to_rank(input_layout.format, output_shape.size());
+            } else {
+                output_format = input_layout.format;
+            }
+        }
+        layouts.emplace_back(output_shape, output_dt, output_format);
     }
 
     return layouts;
