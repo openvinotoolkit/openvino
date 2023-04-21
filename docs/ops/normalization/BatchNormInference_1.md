@@ -71,27 +71,26 @@ For a particular activation, consider a mini-batch :math:`\mathcal{B}` of m valu
      
      o_{i} \leftarrow \gamma\hat{b_{i}} + \beta = BN_{\gamma ,\beta } ( b_{i} )
 
-@endsphinxdirective
-
 **Attributes**:
 
 * *epsilon*
+  
   * **Description**: *epsilon* is a constant added to the variance for numerical stability.
   * **Range of values**: a floating-point number greater than or equal to zero
-  * **Type**: `float`
+  * **Type**: ``float``
   * **Required**: *yes*
 
 **Inputs**
 
-* **1**: `data` - A tensor of type *T* and at least rank 2. The second dimension represents the channel axis and must have a span of at least 1. **Required.**
-* **2**: `gamma` - Scaling factor for normalized value. A 1D tensor of type *T* with the same span as `data` channel axis. **Required.**
-* **3**: `beta` - Bias added to the scaled normalized value. A 1D tensor of type *T* with the same span as `data` channel axis. **Required.**
-* **4**: `mean` - Value for mean normalization. A 1D tensor of type *T* with the same span as `data` channel axis. **Required.**
-* **5**: `variance` - Value for variance normalization. A 1D tensor of type *T* with the same span as `data` channel axis. **Required.**
+* **1**: ``data`` - A tensor of type *T* and at least rank 2. The second dimension represents the channel axis and must have a span of at least 1. **Required.**
+* **2**: ``gamma`` - Scaling factor for normalized value. A 1D tensor of type *T* with the same span as ``data`` channel axis. **Required.**
+* **3**: ``beta`` - Bias added to the scaled normalized value. A 1D tensor of type *T* with the same span as ``data`` channel axis. **Required.**
+* **4**: ``mean`` - Value for mean normalization. A 1D tensor of type *T* with the same span as ``data`` channel axis. **Required.**
+* **5**: ``variance`` - Value for variance normalization. A 1D tensor of type *T* with the same span as ``data`` channel axis. **Required.**
 
 **Outputs**
 
-* **1**: The result of element-wise Batch Normalization operation applied to the input tensor `data`. A tensor of type *T* and the same shape as `data` input tensor.
+* **1**: The result of element-wise Batch Normalization operation applied to the input tensor ``data``. A tensor of type *T* and the same shape as ``data`` input tensor.
 
 **Types**
 
@@ -99,70 +98,73 @@ For a particular activation, consider a mini-batch :math:`\mathcal{B}` of m valu
 
 **Examples**
 
-*Example: 2D input tensor `data`*
+*Example: 2D input tensor ``data``*
 
-```xml
-<layer ... type="BatchNormInference" ...>
-    <data epsilon="9.99e-06" />
-    <input>
-        <port id="0">  <!-- input -->
-            <dim>10</dim>
-            <dim>128</dim>
-        </port>
-        <port id="1">  <!-- gamma -->
-            <dim>128</dim>
-        </port>
-        <port id="2">  <!-- beta -->
-            <dim>128</dim>
-        </port>
-        <port id="3">  <!-- mean -->
-            <dim>128</dim>
-        </port>
-        <port id="4">  <!-- variance -->
-            <dim>128</dim>
-        </port>
-    </input>
-    <output>
-        <port id="5">
-            <dim>10</dim>
-            <dim>128</dim>
-        </port>
-    </output>
-</layer>
-```
+.. code-block:: console
+   
+   <layer ... type="BatchNormInference" ...>
+       <data epsilon="9.99e-06" />
+       <input>
+           <port id="0">  <!-- input -->
+               <dim>10</dim>
+               <dim>128</dim>
+           </port>
+           <port id="1">  <!-- gamma -->
+               <dim>128</dim>
+           </port>
+           <port id="2">  <!-- beta -->
+               <dim>128</dim>
+           </port>
+           <port id="3">  <!-- mean -->
+               <dim>128</dim>
+           </port>
+           <port id="4">  <!-- variance -->
+               <dim>128</dim>
+           </port>
+       </input>
+       <output>
+           <port id="5">
+               <dim>10</dim>
+               <dim>128</dim>
+           </port>
+       </output>
+   </layer>
 
-*Example: 4D input tensor `data`*
+*Example: 4D input tensor ``data``*
 
-```xml
-<layer ... type="BatchNormInference" ...>
-    <data epsilon="9.99e-06" />
-    <input>
-        <port id="0">  <!-- input -->
-            <dim>1</dim>
-            <dim>3</dim>
-            <dim>224</dim>
-            <dim>224</dim>
-        </port>
-        <port id="1">  <!-- gamma -->
-            <dim>3</dim>
-        </port>
-        <port id="2">  <!-- beta -->
-            <dim>3</dim>
-        </port>
-        <port id="3">  <!-- mean -->
-            <dim>3</dim>
-        </port>
-        <port id="4">  <!-- variance -->
-            <dim>3</dim>
-        </port>
-    </input>
-    <output>
-        <port id="5">
-            <dim>1</dim>
-            <dim>3</dim>
-            <dim>224</dim>
-            <dim>224</dim>
-        </port>
-    </output>
-</layer>
-```
+.. code-block:: console
+   
+   <layer ... type="BatchNormInference" ...>
+       <data epsilon="9.99e-06" />
+       <input>
+           <port id="0">  <!-- input -->
+               <dim>1</dim>
+               <dim>3</dim>
+               <dim>224</dim>
+               <dim>224</dim>
+           </port>
+           <port id="1">  <!-- gamma -->
+               <dim>3</dim>
+           </port>
+           <port id="2">  <!-- beta -->
+               <dim>3</dim>
+           </port>
+           <port id="3">  <!-- mean -->
+               <dim>3</dim>
+           </port>
+           <port id="4">  <!-- variance -->
+               <dim>3</dim>
+           </port>
+       </input>
+       <output>
+           <port id="5">
+               <dim>1</dim>
+               <dim>3</dim>
+               <dim>224</dim>
+               <dim>224</dim>
+           </port>
+       </output>
+   </layer>
+
+@endsphinxdirective
+
