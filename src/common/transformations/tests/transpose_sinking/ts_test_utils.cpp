@@ -79,7 +79,7 @@ std::string to_string(const Shape& shape) {
     return result.str();
 }
 
-std::shared_ptr<ov::Node> parameter(ov::element::Type el_type, const PartialShape& ps) {
+Output<Node> parameter(ov::element::Type el_type, const PartialShape& ps) {
     return std::make_shared<Parameter>(el_type, ps);
 }
 

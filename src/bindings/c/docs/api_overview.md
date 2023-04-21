@@ -212,9 +212,6 @@ enum colorformat_e {
 ​    RGBX,        ///< RGBX color format with X ignored during inference
 
 ​    BGRX,        ///< BGRX color format with X ignored during inference
-
-​    NV12,        ///< NV12 color format represented as compound Y+UV blob
-
 };
 ```
 

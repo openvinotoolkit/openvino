@@ -81,7 +81,11 @@ class PytorchLayerTest:
 
         flatten_fw_res = []
 
-        def flattenize_list_outputs(res):
+        def flattenize_dict_outputs(res):
+            if isinstance(res, dict):
+                return flattenize_outputs(res.values())
+            
+        def flattenize_outputs(res):
             results = []
             for res_item in res:
                 # if None is at output we skip it
@@ -89,13 +93,17 @@ class PytorchLayerTest:
                     continue
                 # If input is list or tuple flattenize it
                 if isinstance(res_item, (list, tuple)):
-                    decomposed_res = flattenize_list_outputs(res_item)
+                    decomposed_res = flattenize_outputs(res_item)
+                    results.extend(decomposed_res)
+                    continue
+                if isinstance(res_item, dict):
+                    decomposed_res = flattenize_dict_outputs(res_item)
                     results.extend(decomposed_res)
                     continue
                 results.append(res_item)
             return results
 
-        flatten_fw_res = flattenize_list_outputs(fw_res)
+        flatten_fw_res = flattenize_outputs(fw_res)
 
         assert len(flatten_fw_res) == len(
             output_list), f'number of outputs not equal, {len(flatten_fw_res)} != {len(output_list)}'

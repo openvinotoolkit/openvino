@@ -331,13 +331,15 @@ public:
     struct idx_desc {
         std::string b;
         std::string f;
+        std::string v;
+        std::string u;
         std::string w;
         std::string z;
         std::string y;
         std::string x;
         size_t dims;
         explicit idx_desc(std::vector<std::string> idx, DataTensor t)
-            : b("0"), f("0"), w("0"), z("0"), y("0"), x("0"), dims(0) {
+            : b("0"), f("0"), v("0"), u("0"), w("0"), z("0"), y("0"), x("0"), dims(0) {
             dims = idx.size();
             switch (dims) {
                 case 1: f = idx[0]; break;
@@ -346,7 +348,9 @@ public:
                 case 4: b = idx[0]; f = idx[1]; y = idx[2]; x = idx[3]; break;
                 case 5: b = idx[0]; f = idx[1]; z = idx[2]; y = idx[3]; x = idx[4]; break;
                 case 6: b = idx[0]; f = idx[1]; w = idx[2]; z = idx[3]; y = idx[4]; x = idx[5]; break;
-                default: throw std::runtime_error("More than 6 dimenstions is not supported in fused op generator");
+                case 7: b = idx[0]; f = idx[1]; u = idx[2]; w = idx[3]; z = idx[4]; y = idx[5]; x = idx[6]; break;
+                case 8: b = idx[0]; f = idx[1]; v = idx[2]; u = idx[3]; w = idx[4]; z = idx[5]; y = idx[6]; x = idx[7]; break;
+                default: throw std::runtime_error("More than 8 dimenstions is not supported in fused op generator");
             }
 
             if (t.Batch().v == 1) {
@@ -354,6 +358,12 @@ public:
             }
             if (t.Feature().v == 1) {
                 f = "0";
+            }
+            if (t.V().v == 1) {
+                v = "0";
+            }
+            if (t.U().v == 1) {
+                u = "0";
             }
             if (t.W().v == 1) {
                 w = "0";

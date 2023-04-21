@@ -16,12 +16,14 @@
 #include "transformations/transpose_sinking/ts_squeeze.hpp"
 #include "transformations/transpose_sinking/ts_unary.hpp"
 #include "transformations/transpose_sinking/ts_unsqueeze.hpp"
+#include "ts_test_case.hpp"
 #include "ts_test_utils.hpp"
 
 using namespace std;
 using namespace ov;
 using namespace ov::opset10;
 using namespace ov::pass::transpose_sinking;
+using namespace transpose_sinking::testing;
 using namespace transpose_sinking::testing::utils;
 
 namespace transpose_sinking {
@@ -214,6 +216,7 @@ public:
 FactoryPtr CreateReshapeFactory(const std::string& type_name) {
     return std::make_shared<ReshapeFactory>(type_name);
 }
+
 // ----------------------------------------------------------------------------
 
 #undef CREATE_UNARY_FACTORY
@@ -251,71 +254,8 @@ FactoryPtr CreateReshapeFactory(const std::string& type_name) {
 
 #undef CREATE_RESHAPE_FACTORY
 #define CREATE_RESHAPE_FACTORY(type_name) CreateReshapeFactory(#type_name)
+
 // ----------------------------------------------------------------------------
-
-struct Preprocessing {
-    vector<function<OutputVector(vector<size_t>, OutputVector)>> preprocessing;
-    vector<vector<size_t>> indices;
-
-    OutputVector apply(const OutputVector& inputs) const {
-        OutputVector new_inputs = inputs;
-        for (size_t i = 0; i < preprocessing.size(); ++i) {
-            new_inputs = preprocessing[i](indices[i], new_inputs);
-        }
-        return new_inputs;
-    }
-};
-
-struct TestCase;
-struct ModelDescription;
-using TestParams = tuple<size_t /* idx num_main_ops */, size_t /* idx main_op */, TestCase>;
-using CreateGraphF =
-    function<shared_ptr<ov::Model>(size_t main_op_idx, const ModelDescription&, size_t, const OutputVector&)>;
-
-// Describes a model to test.
-// Expects to be used in such a scenario:
-// 1st Preprocessing inserts Transpose/Gather to the inputs
-// of the main node.
-// Factory contains the rules how to create the main testing node.
-// 2nd Preprocessing inserts Transpose/Gather to the outputs
-// of the main node.
-// model_template is a function which uses the arguments above.
-// Examples of the scenarios:
-// ModelDescription model: Param -> (Transpose inserted by 1st Preprocessing) -> Abs (main_node) -> Result
-// ModelDescription reference: Param -> Abs (main_node) -> (Transpose inserted by 2nd Preprocessing) -> Result
-struct ModelDescription {
-    Preprocessing preprocess_inputs_to_main;
-    // @parameterized with multiple values
-    vector<FactoryPtr> main_op;
-    Preprocessing preprocess_outputs_of_main;
-    CreateGraphF model_template;
-};
-
-struct TestCase {
-    OutputVector inputs_to_main;
-    // @parameterized with multiple values
-    vector<size_t> num_main_ops;
-
-    ModelDescription model;
-    ModelDescription model_ref;
-    PassFactoryPtr transformation;
-};
-
-class TransposeSinkingTestFixture : public ::testing::WithParamInterface<TestParams>, public TransformationTestsF {
-public:
-    static string get_test_name(const ::testing::TestParamInfo<TestParams>& obj) {
-        size_t num_main_ops_idx;
-        size_t main_op_idx;
-        TestCase test_case;
-        tie(num_main_ops_idx, main_op_idx, test_case) = obj.param;
-
-        ostringstream test_name;
-        test_name << "Factory=" << test_case.model.main_op[main_op_idx]->getTypeName() << "/";
-        test_name << "NumOps=" << test_case.num_main_ops[num_main_ops_idx] << "/";
-        test_name << "Transformation=" << test_case.transformation->getTypeName() << "/";
-        return test_name.str();
-    }
-};
 
 vector<FactoryPtr> unary_factories = {
     CREATE_UNARY_FACTORY(Abs),     CREATE_UNARY_FACTORY(Acos),     CREATE_UNARY_FACTORY(Acosh),
@@ -355,7 +295,16 @@ std::vector<FactoryPtr> reduction_factories = {
     CREATE_REDUCTION_FACTORY(ReduceL2),
 };
 
-TEST_P(TransposeSinkingTestFixture, CompareFunctions) {
+auto wrapper = [](const TestCase& test_case) {
+    OPENVINO_ASSERT(test_case.model.main_op.size() == test_case.model_ref.main_op.size(),
+                    "The number of main op (testing op) creator have to be the same for the testing model and for"
+                    "the reference model.");
+    return ::testing::Combine(::testing::Range<size_t>(0, test_case.num_main_ops.size()),
+                              ::testing::Range<size_t>(0, test_case.model.main_op.size()),
+                              ::testing::Values(test_case));
+};
+
+TEST_P(TSTestFixture, CompareFunctions) {
     size_t num_main_ops_idx;
     size_t main_op_idx;
     TestCase test_case;
@@ -387,15 +336,6 @@ shared_ptr<ov::Model> create_model(size_t main_node_idx,
     return make_shared<ov::Model>(outputs, filter_parameters(inputs_to_main));
 }
 
-auto wrapper = [](const TestCase& test_case) {
-    OPENVINO_ASSERT(test_case.model.main_op.size() == test_case.model_ref.main_op.size(),
-                    "The number of main op (testing op) creator have to be the same for the testing model and for"
-                    "the reference model.");
-    return ::testing::Combine(::testing::Range<size_t>(0, test_case.num_main_ops.size()),
-                              ::testing::Range<size_t>(0, test_case.model.main_op.size()),
-                              ::testing::Values(test_case));
-};
-
 auto test_forward_unary = [](const vector<FactoryPtr>& factories, const vector<size_t>& num_main_ops) {
     TestCase test_case;
 
@@ -420,10 +360,10 @@ auto test_forward_unary = [](const vector<FactoryPtr>& factories, const vector<s
 };
 
 INSTANTIATE_TEST_SUITE_P(TransposeSinkingCommonUnaryForward,
-                         TransposeSinkingTestFixture,
+                         TSTestFixture,
                          test_forward_unary(unary_factories, {1, 10}));
 INSTANTIATE_TEST_SUITE_P(TransposeSinkingCommonLogicalUnaryForward,
-                         TransposeSinkingTestFixture,
+                         TSTestFixture,
                          test_forward_unary(logical_unary_factories, {1}));
 
 auto test_forward_binary = []() {
@@ -451,7 +391,7 @@ auto test_forward_binary = []() {
     return wrapper(test_case);
 };
 
-INSTANTIATE_TEST_SUITE_P(TransposeSinkingCommonBinaryForward, TransposeSinkingTestFixture, test_forward_binary());
+INSTANTIATE_TEST_SUITE_P(TransposeSinkingCommonBinaryForward, TSTestFixture, test_forward_binary());
 
 auto test_forward_concat = []() {
     TestCase test_case;
@@ -479,7 +419,7 @@ auto test_forward_concat = []() {
     return wrapper(test_case);
 };
 
-INSTANTIATE_TEST_SUITE_P(TransposeSinkingCommonConcatForward, TransposeSinkingTestFixture, test_forward_concat());
+INSTANTIATE_TEST_SUITE_P(TransposeSinkingCommonConcatForward, TSTestFixture, test_forward_concat());
 
 auto test_forward_split = []() {
     TestCase test_case;
@@ -513,7 +453,7 @@ auto test_forward_split = []() {
     return wrapper(test_case);
 };
 
-INSTANTIATE_TEST_SUITE_P(TransposeSinkingCommonSplitForward, TransposeSinkingTestFixture, test_forward_split());
+INSTANTIATE_TEST_SUITE_P(TransposeSinkingCommonSplitForward, TSTestFixture, test_forward_split());
 
 auto test_forward_pad = []() {
     TestCase test_case;
@@ -541,7 +481,7 @@ auto test_forward_pad = []() {
     return wrapper(test_case);
 };
 
-INSTANTIATE_TEST_SUITE_P(TransposeSinkingCommonPadForward, TransposeSinkingTestFixture, test_forward_pad());
+INSTANTIATE_TEST_SUITE_P(TransposeSinkingCommonPadForward, TSTestFixture, test_forward_pad());
 
 auto test_forward_batch_to_space = []() {
     TestCase test_case;
@@ -570,9 +510,7 @@ auto test_forward_batch_to_space = []() {
     return wrapper(test_case);
 };
 
-INSTANTIATE_TEST_SUITE_P(TransposeSinkingCommonBatchToSpaceForward,
-                         TransposeSinkingTestFixture,
-                         test_forward_batch_to_space());
+INSTANTIATE_TEST_SUITE_P(TransposeSinkingCommonBatchToSpaceForward, TSTestFixture, test_forward_batch_to_space());
 
 auto test_forward_space_to_batch = []() {
     TestCase test_case;
@@ -601,9 +539,7 @@ auto test_forward_space_to_batch = []() {
     return wrapper(test_case);
 };
 
-INSTANTIATE_TEST_SUITE_P(TransposeSinkingCommonSpaceToBatchForward,
-                         TransposeSinkingTestFixture,
-                         test_forward_space_to_batch());
+INSTANTIATE_TEST_SUITE_P(TransposeSinkingCommonSpaceToBatchForward, TSTestFixture, test_forward_space_to_batch());
 
 auto test_forward_reduction = []() {
     TestCase test_case;
@@ -637,7 +573,7 @@ auto test_forward_reduction = []() {
     return wrapper(test_case);
 };
 
-INSTANTIATE_TEST_SUITE_P(TransposeSinkingCommonReductionForward, TransposeSinkingTestFixture, test_forward_reduction());
+INSTANTIATE_TEST_SUITE_P(TransposeSinkingCommonReductionForward, TSTestFixture, test_forward_reduction());
 
 auto test_forward_interpolate = []() {
     TestCase test_case;
@@ -680,9 +616,7 @@ auto test_forward_interpolate = []() {
     return wrapper(test_case);
 };
 
-INSTANTIATE_TEST_SUITE_P(TransposeSinkingCommonInterpolateForward,
-                         TransposeSinkingTestFixture,
-                         test_forward_interpolate());
+INSTANTIATE_TEST_SUITE_P(TransposeSinkingCommonInterpolateForward, TSTestFixture, test_forward_interpolate());
 
 auto test_forward_squeeze = []() {
     TestCase test_case;
@@ -716,7 +650,7 @@ auto test_forward_squeeze = []() {
     return wrapper(test_case);
 };
 
-INSTANTIATE_TEST_SUITE_P(TransposeSinkingCommonSqueezeForward, TransposeSinkingTestFixture, test_forward_squeeze());
+INSTANTIATE_TEST_SUITE_P(TransposeSinkingCommonSqueezeForward, TSTestFixture, test_forward_squeeze());
 
 auto test_forward_unsqueeze = []() {
     TestCase test_case;
@@ -757,7 +691,7 @@ auto test_forward_unsqueeze = []() {
     return wrapper(test_case);
 };
 
-INSTANTIATE_TEST_SUITE_P(TransposeSinkingCommonUnsqueezeForward, TransposeSinkingTestFixture, test_forward_unsqueeze());
+INSTANTIATE_TEST_SUITE_P(TransposeSinkingCommonUnsqueezeForward, TSTestFixture, test_forward_unsqueeze());
 
 auto test_forward_slice = []() {
     TestCase test_case;
@@ -801,7 +735,7 @@ auto test_forward_slice = []() {
     return wrapper(test_case);
 };
 
-INSTANTIATE_TEST_SUITE_P(TransposeSinkingCommonSliceForward, TransposeSinkingTestFixture, test_forward_slice());
+INSTANTIATE_TEST_SUITE_P(TransposeSinkingCommonSliceForward, TSTestFixture, test_forward_slice());
 
 auto test_forward_reshape_squeeze = []() {
     TestCase test_case;
@@ -835,9 +769,7 @@ auto test_forward_reshape_squeeze = []() {
     return wrapper(test_case);
 };
 
-INSTANTIATE_TEST_SUITE_P(TransposeSinkingCommonReshapeSqueezeForward,
-                         TransposeSinkingTestFixture,
-                         test_forward_reshape_squeeze());
+INSTANTIATE_TEST_SUITE_P(TransposeSinkingCommonReshapeSqueezeForward, TSTestFixture, test_forward_reshape_squeeze());
 
 auto test_forward_reshape_unsqueeze = []() {
     TestCase test_case;
@@ -879,8 +811,9 @@ auto test_forward_reshape_unsqueeze = []() {
 };
 
 INSTANTIATE_TEST_SUITE_P(TransposeSinkingCommonReshapeUnsqueezeForward,
-                         TransposeSinkingTestFixture,
+                         TSTestFixture,
                          test_forward_reshape_unsqueeze());
+
 // ------------------ BACKWARD --------------------
 
 auto test_backward_unary = []() {
@@ -906,7 +839,7 @@ auto test_backward_unary = []() {
     return wrapper(test_case);
 };
 
-INSTANTIATE_TEST_SUITE_P(TransposeSinkingCommonUnaryBackward, TransposeSinkingTestFixture, test_backward_unary());
+INSTANTIATE_TEST_SUITE_P(TransposeSinkingCommonUnaryBackward, TSTestFixture, test_backward_unary());
 
 auto test_backward_binary = []() {
     TestCase test_case;
@@ -932,7 +865,7 @@ auto test_backward_binary = []() {
     return wrapper(test_case);
 };
 
-INSTANTIATE_TEST_SUITE_P(TransposeSinkingCommonBinaryBackward, TransposeSinkingTestFixture, test_backward_binary());
+INSTANTIATE_TEST_SUITE_P(TransposeSinkingCommonBinaryBackward, TSTestFixture, test_backward_binary());
 
 auto test_backward_concat = []() {
     TestCase test_case;
@@ -959,7 +892,7 @@ auto test_backward_concat = []() {
     return wrapper(test_case);
 };
 
-INSTANTIATE_TEST_SUITE_P(TransposeSinkingCommonConcatBackward, TransposeSinkingTestFixture, test_backward_concat());
+INSTANTIATE_TEST_SUITE_P(TransposeSinkingCommonConcatBackward, TSTestFixture, test_backward_concat());
 
 auto test_backward_split = []() {
     TestCase test_case;
@@ -991,7 +924,7 @@ auto test_backward_split = []() {
     return wrapper(test_case);
 };
 
-INSTANTIATE_TEST_SUITE_P(TransposeSinkingCommonSplitBackward, TransposeSinkingTestFixture, test_backward_split());
+INSTANTIATE_TEST_SUITE_P(TransposeSinkingCommonSplitBackward, TSTestFixture, test_backward_split());
 
 auto test_backward_pad = []() {
     TestCase test_case;
@@ -1018,7 +951,7 @@ auto test_backward_pad = []() {
     return wrapper(test_case);
 };
 
-INSTANTIATE_TEST_SUITE_P(TransposeSinkingCommonPadBackward, TransposeSinkingTestFixture, test_backward_pad());
+INSTANTIATE_TEST_SUITE_P(TransposeSinkingCommonPadBackward, TSTestFixture, test_backward_pad());
 
 auto test_backward_batch_to_space = []() {
     TestCase test_case;
@@ -1046,9 +979,7 @@ auto test_backward_batch_to_space = []() {
     return wrapper(test_case);
 };
 
-INSTANTIATE_TEST_SUITE_P(TransposeSinkingCommonBatchToSpaceBackward,
-                         TransposeSinkingTestFixture,
-                         test_backward_batch_to_space());
+INSTANTIATE_TEST_SUITE_P(TransposeSinkingCommonBatchToSpaceBackward, TSTestFixture, test_backward_batch_to_space());
 
 auto test_backward_space_to_batch = []() {
     TestCase test_case;
@@ -1075,9 +1006,7 @@ auto test_backward_space_to_batch = []() {
     return wrapper(test_case);
 };
 
-INSTANTIATE_TEST_SUITE_P(TransposeSinkingCommonSpaceToBatchBackward,
-                         TransposeSinkingTestFixture,
-                         test_backward_space_to_batch());
+INSTANTIATE_TEST_SUITE_P(TransposeSinkingCommonSpaceToBatchBackward, TSTestFixture, test_backward_space_to_batch());
 
 auto test_backward_reduction = []() {
     TestCase test_case;
@@ -1110,9 +1039,7 @@ auto test_backward_reduction = []() {
     return wrapper(test_case);
 };
 
-INSTANTIATE_TEST_SUITE_P(TransposeSinkingCommonReductionBackward,
-                         TransposeSinkingTestFixture,
-                         test_backward_reduction());
+INSTANTIATE_TEST_SUITE_P(TransposeSinkingCommonReductionBackward, TSTestFixture, test_backward_reduction());
 
 auto test_backward_interpolate = []() {
     TestCase test_case;
@@ -1154,42 +1081,7 @@ auto test_backward_interpolate = []() {
     return wrapper(test_case);
 };
 
-INSTANTIATE_TEST_SUITE_P(TransposeSinkingCommonInterpolateBackward,
-                         TransposeSinkingTestFixture,
-                         test_backward_interpolate());
-
-auto test_backward_squeeze = []() {
-    TestCase test_case;
-
-    // Initialize common attributes
-    test_case.transformation = CREATE_PASS_FACTORY(TSSqueezeBackward);
-    test_case.num_main_ops = {1};
-    test_case.inputs_to_main = {
-        parameter(element::f32, {32, 1, 2, 1}),
-        constant<int64_t>(element::i32, {2}, {1, 3}),
-    };
-
-    // Test model description:
-    test_case.model.main_op = {CREATE_BINARY_FACTORY(Squeeze)};
-    test_case.model.preprocess_outputs_of_main = {{set_transpose_for}, {{0}}};
-    test_case.model.model_template = create_model;
-
-    // Reference model description:
-    auto new_transpose = [](const vector<size_t>& idxs, const OutputVector& out_vec) -> OutputVector {
-        OutputVector new_out_vec(out_vec.size());
-        auto order = make_shared<Constant>(element::i32, Shape{4}, std::vector<int64_t>{2, 1, 0, 3});
-        new_out_vec[0] = make_shared<Transpose>(out_vec[0], order);
-        new_out_vec[1] = out_vec[1];
-        return new_out_vec;
-    };
-    test_case.model_ref.preprocess_inputs_to_main = {{new_transpose}, {{0}}};
-    test_case.model_ref.main_op = {CREATE_BINARY_FACTORY(Squeeze)};
-    test_case.model_ref.model_template = create_model;
-
-    return wrapper(test_case);
-};
-
-INSTANTIATE_TEST_SUITE_P(TransposeSinkingCommonSqueezeBackward, TransposeSinkingTestFixture, test_backward_squeeze());
+INSTANTIATE_TEST_SUITE_P(TransposeSinkingCommonInterpolateBackward, TSTestFixture, test_backward_interpolate());
 
 auto test_backward_unsqueeze = []() {
     TestCase test_case;
@@ -1222,9 +1114,7 @@ auto test_backward_unsqueeze = []() {
     return wrapper(test_case);
 };
 
-INSTANTIATE_TEST_SUITE_P(TransposeSinkingCommonUnsqueezeBackward,
-                         TransposeSinkingTestFixture,
-                         test_backward_unsqueeze());
+INSTANTIATE_TEST_SUITE_P(TransposeSinkingCommonUnsqueezeBackward, TSTestFixture, test_backward_unsqueeze());
 
 auto test_backward_slice = []() {
     TestCase test_case;
@@ -1266,7 +1156,7 @@ auto test_backward_slice = []() {
     return wrapper(test_case);
 };
 
-INSTANTIATE_TEST_SUITE_P(TransposeSinkingCommonSliceBackward, TransposeSinkingTestFixture, test_backward_slice());
+INSTANTIATE_TEST_SUITE_P(TransposeSinkingCommonSliceBackward, TSTestFixture, test_backward_slice());
 
 auto test_backward_reshape_squeeze = []() {
     TestCase test_case;
@@ -1306,9 +1196,7 @@ auto test_backward_reshape_squeeze = []() {
     return wrapper(test_case);
 };
 
-INSTANTIATE_TEST_SUITE_P(TransposeSinkingCommonReshapeSqueezeBackward,
-                         TransposeSinkingTestFixture,
-                         test_backward_reshape_squeeze());
+INSTANTIATE_TEST_SUITE_P(TransposeSinkingCommonReshapeSqueezeBackward, TSTestFixture, test_backward_reshape_squeeze());
 
 auto test_backward_reshape_unsqueeze = []() {
     TestCase test_case;
@@ -1343,8 +1231,9 @@ auto test_backward_reshape_unsqueeze = []() {
 };
 
 INSTANTIATE_TEST_SUITE_P(TransposeSinkingCommonReshapeUnsqueezeBackward,
-                         TransposeSinkingTestFixture,
+                         TSTestFixture,
                          test_backward_reshape_unsqueeze());
+
 }  // namespace common
 }  // namespace testing
 }  // namespace transpose_sinking

@@ -185,6 +185,46 @@ macro (addVersionDefines FILE)
     unset(__version_file)
 endmacro()
 
+macro (ov_add_version_defines FILE TARGET)
+    set(__version_file ${FILE})
+    if(NOT IS_ABSOLUTE ${__version_file})
+        set(__version_file "${CMAKE_CURRENT_SOURCE_DIR}/${__version_file}")
+    endif()
+    if(NOT EXISTS ${__version_file})
+        message(FATAL_ERROR "${FILE} does not exists in current source directory")
+    endif()
+    _remove_source_from_target(${TARGET} ${FILE})
+    _remove_source_from_target(${TARGET} ${__version_file})
+    if (BUILD_SHARED_LIBS)
+        add_library(${TARGET}_version OBJECT ${__version_file})
+    else()
+        add_library(${TARGET}_version STATIC ${__version_file})
+    endif()
+    if(SUGGEST_OVERRIDE_SUPPORTED)
+        set_source_files_properties(${__version_file}
+            PROPERTIES COMPILE_OPTIONS -Wno-suggest-override)
+    endif()
+
+    target_compile_definitions(${TARGET}_version PRIVATE
+        CI_BUILD_NUMBER=\"${CI_BUILD_NUMBER}\"
+        $<TARGET_PROPERTY:${TARGET},INTERFACE_COMPILE_DEFINITIONS>
+        $<TARGET_PROPERTY:${TARGET},COMPILE_DEFINITIONS>)
+    target_include_directories(${TARGET}_version PRIVATE
+        $<TARGET_PROPERTY:${TARGET},INTERFACE_INCLUDE_DIRECTORIES>
+        $<TARGET_PROPERTY:${TARGET},INCLUDE_DIRECTORIES>)
+    target_link_libraries(${TARGET}_version PRIVATE
+        $<TARGET_PROPERTY:${TARGET},LINK_LIBRARIES>)
+    target_compile_options(${TARGET}_version PRIVATE
+        $<TARGET_PROPERTY:${TARGET},INTERFACE_COMPILE_OPTIONS>
+        $<TARGET_PROPERTY:${TARGET},COMPILE_OPTIONS>)
+    set_target_properties(${TARGET}_version
+        PROPERTIES INTERPROCEDURAL_OPTIMIZATION_RELEASE 
+        $<TARGET_PROPERTY:${TARGET},INTERPROCEDURAL_OPTIMIZATION_RELEASE>)
+
+    target_sources(${TARGET} PRIVATE $<TARGET_OBJECTS:${TARGET}_version>)
+    unset(__version_file)
+endmacro()
+
 function(ov_add_library_version library)
     if(NOT DEFINED OpenVINO_SOVERSION)
         message(FATAL_ERROR "Internal error: OpenVINO_SOVERSION is not defined")

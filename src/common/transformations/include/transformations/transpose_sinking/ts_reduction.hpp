@@ -21,7 +21,7 @@ class TRANSFORMATIONS_API TSReductionBackward;
 
 /**
  * @ingroup ie_transformation_common_api
- * @brief TransposeReductionForward transformation sinks Transpose through Reduce operations
+ * @brief TSReductionForward transformation sinks Transpose through Reduce operations
  * in the forward direction.
  */
 class ov::pass::transpose_sinking::TSReductionForward : public ov::pass::MatcherPass {
@@ -32,7 +32,7 @@ public:
 
 /**
  * @ingroup ie_transformation_common_api
- * @brief TransposeReductionBackward transformation sinks Transpose through Reduce operations
+ * @brief TSReductionBackward transformation sinks Transpose through Reduce operations
  * in the backward direction.
  */
 class ov::pass::transpose_sinking::TSReductionBackward : public ov::pass::MatcherPass {

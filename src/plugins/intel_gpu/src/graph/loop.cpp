@@ -529,7 +529,7 @@ void loop_inst::load(BinaryInputBuffer& ib) {
     ib >> _condition_id;
     ib >> _num_iteration_id;
     ib >> _max_iteration;
-    body_network = std::make_shared<cldnn::network>(ib, get_network().get_stream_ptr(), get_network().get_engine());
+    body_network = std::make_shared<cldnn::network>(ib, get_network().get_stream_ptr(), get_network().get_engine(), get_network().is_primary_stream());
 }
 
 }  // namespace cldnn
