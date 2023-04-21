@@ -971,6 +971,219 @@ std::vector<PadParams> generateParams() {
             op::PadMode::SYMMETRIC,
             reference_tests::Tensor(ET, {}, std::vector<T>{2112}),
             "pad_symmetric"),
+        PadParams(
+            reference_tests::Tensor(ET, {4, 3}, std::vector<T>{
+                1, 2, 3,
+                4, 5, 6,
+                7, 8, 9,
+                10, 11, 12
+            }),
+            reference_tests::Tensor(ET_INT, {2}, std::vector<T_INT>{-1, -1}),
+            reference_tests::Tensor(ET_INT, {2}, std::vector<T_INT>{-1, -1}),
+            reference_tests::Tensor(ET, {2, 1}, std::vector<T>{
+                5, 8
+            }),
+            op::PadMode::CONSTANT,
+            reference_tests::Tensor(ET, {}, std::vector<T>{0}),
+            "pad_doc_4x3_negative_constant"),
+        PadParams(
+            reference_tests::Tensor(ET, {3, 4}, std::vector<T>{
+                1, 2, 3, 4,
+                5, 6, 7, 8,
+                9, 10, 11, 12
+            }),
+            reference_tests::Tensor(ET_INT, {2}, std::vector<T_INT>{-1, -1}),
+            reference_tests::Tensor(ET_INT, {2}, std::vector<T_INT>{-1, -1}),
+            reference_tests::Tensor(ET, {1, 2}, std::vector<T>{
+                6, 7
+            }),
+            op::PadMode::CONSTANT,
+            reference_tests::Tensor(ET, {}, std::vector<T>{0}),
+            "pad_doc_3x4_negative_constant"),
+        PadParams(
+            reference_tests::Tensor(ET, {2, 2, 3}, std::vector<T>{
+                1, 2, 3,
+                4, 5, 6,
+
+                7, 8, 9,
+                10, 11, 12
+            }),
+            reference_tests::Tensor(ET_INT, {3}, std::vector<T_INT>{0, 0, 0}),
+            reference_tests::Tensor(ET_INT, {3}, std::vector<T_INT>{-1, 0, 0}),
+            reference_tests::Tensor(ET, {1, 2, 3}, std::vector<T>{
+                1, 2, 3,
+                4, 5, 6,
+            }),
+            op::PadMode::CONSTANT,
+            reference_tests::Tensor(ET, {}, std::vector<T>{0}),
+            "pad_doc_3D_negative_constant_remove_last"),
+        PadParams(
+            reference_tests::Tensor(ET, {2, 2, 3}, std::vector<T>{
+                1, 2, 3,
+                4, 5, 6,
+
+                7, 8, 9,
+                10, 11, 12
+            }),
+            reference_tests::Tensor(ET_INT, {3}, std::vector<T_INT>{-1, 0, 0}),
+            reference_tests::Tensor(ET_INT, {3}, std::vector<T_INT>{0, 0, 0}),
+            reference_tests::Tensor(ET, {1, 2, 3}, std::vector<T>{
+                7, 8, 9,
+                10, 11, 12
+            }),
+            op::PadMode::CONSTANT,
+            reference_tests::Tensor(ET, {}, std::vector<T>{0}),
+            "pad_doc_3D_negative_constant_remove_first"),
+        PadParams(
+            reference_tests::Tensor(ET, {3, 4}, std::vector<T>{
+                1, 2, 3, 4,
+                5, 6, 7, 8,
+                9, 10, 11, 12
+            }),
+            reference_tests::Tensor(ET_INT, {2}, std::vector<T_INT>{-1, 0}),
+            reference_tests::Tensor(ET_INT, {2}, std::vector<T_INT>{0, -2}),
+            reference_tests::Tensor(ET, {2, 2}, std::vector<T>{
+                5, 6, 9, 10
+            }),
+            op::PadMode::CONSTANT,
+            reference_tests::Tensor(ET, {}, std::vector<T>{0}),
+            "pad_doc_negative_constant"),
+        PadParams(
+            reference_tests::Tensor(ET, {3, 4}, std::vector<T>{
+                1, 2, 3, 4,
+                5, 6, 7, 8,
+                9, 10, 11, 12
+            }),
+            reference_tests::Tensor(ET_INT, {2}, std::vector<T_INT>{-1, -2}),
+            reference_tests::Tensor(ET_INT, {2}, std::vector<T_INT>{2, 3}),
+            reference_tests::Tensor(ET, {4, 5}, std::vector<T>{
+                 7, 8, 0, 0, 0,
+                 11, 12, 0, 0, 0,
+                 0, 0, 0, 0, 0,
+                 0, 0, 0, 0, 0
+            }),
+            op::PadMode::CONSTANT,
+            reference_tests::Tensor(ET, {}, std::vector<T>{0}),
+            "pad_doc_mixed_negative_positive_constant"),
+        PadParams(
+            reference_tests::Tensor(ET, {3, 4}, std::vector<T>{
+                1, 2, 3, 4,
+                5, 6, 7, 8,
+                9, 10, 11, 12
+            }),
+            reference_tests::Tensor(ET_INT, {2}, std::vector<T_INT>{2, 3}),
+            reference_tests::Tensor(ET_INT, {2}, std::vector<T_INT>{-1, -2}),
+            reference_tests::Tensor(ET, {4, 5}, std::vector<T>{
+                0, 0, 0, 0, 0,
+                0, 0, 0, 0, 0,
+                0, 0, 0, 1, 2,
+                0, 0, 0, 5, 6,
+                0, 0, 0, 9, 10,
+            }),
+            op::PadMode::CONSTANT,
+            reference_tests::Tensor(ET, {}, std::vector<T>{0}),
+            "pad_doc_mixed_positive_negative_constant"),
+        PadParams(
+            reference_tests::Tensor(ET, {3, 4}, std::vector<T>{
+                1, 2, 3, 4,
+                5, 6, 7, 8,
+                9, 10, 11, 12
+            }),
+            reference_tests::Tensor(ET_INT, {2}, std::vector<T_INT>{2, -1}),
+            reference_tests::Tensor(ET_INT, {2}, std::vector<T_INT>{-1, 3}),
+            reference_tests::Tensor(ET, {4, 6}, std::vector<T>{
+                10, 11, 12, 11, 10, 9,
+                6,   7,  8,  7,  6, 5,
+                2,   3,  4,  3,  2, 1,
+                6,   7,  8,  7,  6, 5,
+            }),
+            op::PadMode::REFLECT,
+            "pad_doc_mixed_positive_negative_reflect"),
+        PadParams(
+            reference_tests::Tensor(ET, {3, 4}, std::vector<T>{
+                1, 2, 3, 4,
+                5, 6, 7, 8,
+                9, 10, 11, 12,
+
+            }),
+            reference_tests::Tensor(ET_INT, {2}, std::vector<T_INT>{-4, 3}),
+            reference_tests::Tensor(ET_INT, {2}, std::vector<T_INT>{2, -5}),
+            reference_tests::Tensor(ET, {1, 2}, std::vector<T>{
+               4, 3,
+            }),
+            op::PadMode::REFLECT,
+            "pad_doc_mixed_negative_bigger_reflect"),
+        PadParams(
+            reference_tests::Tensor(ET, {3, 4}, std::vector<T>{
+                1, 2, 3, 4,
+                5, 6, 7, 8,
+                9, 10, 11, 12
+            }),
+            reference_tests::Tensor(ET_INT, {2}, std::vector<T_INT>{2, -1}),
+            reference_tests::Tensor(ET_INT, {2}, std::vector<T_INT>{-1, 3}),
+            reference_tests::Tensor(ET, {4, 6}, std::vector<T>{
+                2, 3, 4, 4, 4, 4,
+                2, 3, 4, 4, 4, 4,
+                2, 3, 4, 4, 4, 4,
+                6, 7, 8, 8, 8, 8,
+            }),
+            op::PadMode::EDGE,
+            "pad_doc_mixed_positive_negative_edge"),
+        PadParams(
+            reference_tests::Tensor(ET, {3, 4}, std::vector<T>{
+                1, 2, 3, 4,
+                5, 6, 7, 8,
+                9, 10, 11, 12
+            }),
+            reference_tests::Tensor(ET_INT, {2}, std::vector<T_INT>{-1, 0}),
+            reference_tests::Tensor(ET_INT, {2}, std::vector<T_INT>{0, -2}),
+            reference_tests::Tensor(ET, {2, 2}, std::vector<T>{
+                5, 6, 9, 10
+            }),
+            op::PadMode::EDGE,
+            "pad_doc_negative_edge"),
+        PadParams(
+            reference_tests::Tensor(ET, {3, 4}, std::vector<T>{
+                1, 2, 3, 4,
+                5, 6, 7, 8,
+                9, 10, 11, 12
+            }),
+            reference_tests::Tensor(ET_INT, {2}, std::vector<T_INT>{-1, 0}),
+            reference_tests::Tensor(ET_INT, {2}, std::vector<T_INT>{0, -2}),
+            reference_tests::Tensor(ET, {2, 2}, std::vector<T>{
+                5, 6, 9, 10
+            }),
+            op::PadMode::REFLECT,
+            "pad_doc_negative_reflect_doc_2"),
+        PadParams(
+            reference_tests::Tensor(ET, {3, 4}, std::vector<T>{
+                1, 2, 3, 4,
+                5, 6, 7, 8,
+                9, 10, 11, 12
+            }),
+            reference_tests::Tensor(ET_INT, {2}, std::vector<T_INT>{-1, 0}),
+            reference_tests::Tensor(ET_INT, {2}, std::vector<T_INT>{0, -2}),
+            reference_tests::Tensor(ET, {2, 2}, std::vector<T>{
+                5, 6, 9, 10
+            }),
+            op::PadMode::SYMMETRIC,
+            "pad_doc_negative_symmetric_2"),
+        PadParams(
+            reference_tests::Tensor(ET, {3, 4}, std::vector<T>{
+                1, 2, 3, 4,
+                5, 6, 7, 8,
+                9, 10, 11, 12
+            }),
+            reference_tests::Tensor(ET_INT, {2}, std::vector<T_INT>{2, -1}),
+            reference_tests::Tensor(ET_INT, {2}, std::vector<T_INT>{-1, 3}),
+            reference_tests::Tensor(ET, {4, 6}, std::vector<T>{
+                6, 7, 8, 8, 7, 6,
+                2, 3, 4, 4, 3, 2,
+                2, 3, 4, 4, 3, 2,
+                6, 7, 8, 8, 7, 6,
+            }),
+            op::PadMode::SYMMETRIC,
+            "pad_doc_mixed_positive_negative_symmetric"),
     };
     return params;
 }
