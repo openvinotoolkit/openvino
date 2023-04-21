@@ -39,7 +39,7 @@ def test_init_with_ngraph(ov_type, numpy_dtype):
     ov_tensors = []
     ov_tensors.append(Tensor(type=ov_type, shape=ov.Shape([1, 3, 32, 32])))
     ov_tensors.append(Tensor(type=ov_type, shape=[1, 3, 32, 32]))
-    assert np.all([list(ov_tensor.shape) == [1, 3, 32, 32] for ov_tensor in ov_tensors])
+    assert np.all(list(ov_tensor.shape) == [1, 3, 32, 32] for ov_tensor in ov_tensors)
     assert np.all(ov_tensor.element_type == ov_type for ov_tensor in ov_tensors)
     assert np.all(ov_tensor.data.dtype == numpy_dtype for ov_tensor in ov_tensors)
     assert np.all(ov_tensor.data.shape == (1, 3, 32, 32) for ov_tensor in ov_tensors)

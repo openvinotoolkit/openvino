@@ -128,3 +128,21 @@ static const std::vector<SelectWithOneValueConditionParams> params = {
 };
 
 INSTANTIATE_TEST_SUITE_P(SelectWithOneValueConditionTest, SelectWithOneValueConditionTest, ValuesIn(params));
+
+TEST(TransformationTests, SelectWithOneValueCondition_DontRenameParameter) {
+    auto x = make_shared<Parameter>(f32, Shape{3});
+    x->set_friendly_name("X");
+    auto y = make_shared<Parameter>(f32, Shape{3});
+    auto relu = make_shared<Relu>(y);
+    auto condition = Constant::create(boolean, Shape{3}, {true, true, true});
+    auto select = make_shared<Select>(condition, x, relu);
+    auto abs = make_shared<Abs>(select);
+    auto model = make_shared<Model>(OutputVector{abs}, ParameterVector{x, y});
+
+    pass::Manager manager;
+    manager.register_pass<pass::SelectWithOneValueCondition>();
+    manager.run_passes(model);
+
+    ASSERT_EQ(count_ops_of_type<Select>(model), 0);
+    EXPECT_EQ(model->get_parameters()[0]->get_friendly_name(), "X");
+}
