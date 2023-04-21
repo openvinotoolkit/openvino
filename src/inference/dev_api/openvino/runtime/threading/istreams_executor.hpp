@@ -85,7 +85,7 @@ public:
         static void update_hybrid_custom_threads(Config& config);
 
         std::string _name;          //!< Used by `ITT` to name executor threads
-        int _streams = 0;           //!< Number of streams.
+        int _streams = 1;           //!< Number of streams.
         int _threadsPerStream = 0;  //!< Number of threads per stream that executes `ov_parallel` calls
         ThreadBindingType _threadBindingType = ThreadBindingType::NONE;  //!< Thread binding to hardware resource type.
                                                                          //!< No binding by default
@@ -132,7 +132,7 @@ public:
          * @param[in]  threadPreferBigCores @copybrief Config::_threadPreferBigCores
          */
         Config(std::string name = "StreamsExecutor",
-               int streams = 0,
+               int streams = 1,
                int threadsPerStream = 0,
                ThreadBindingType threadBindingType = ThreadBindingType::NONE,
                int threadBindingStep = 1,
