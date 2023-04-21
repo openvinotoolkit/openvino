@@ -111,6 +111,17 @@ struct unique_reshape_impl : typed_primitive_impl_ocl<unique_reshape> {
             params.outputs.push_back(convert_data_tensor(impl_param.output_layouts.at(i)));
         }
 
+        // WA: For the same strange reason as in "calc_output_layouts" for the axis and dynamic output shape case,
+        // we need to adjust output format to match input format, not to have kernel compilation errors.
+        if (!primitive->flattened) {
+            const auto input_layout = impl_param.get_input_layout();
+            auto output_layout = impl_param.get_output_layout();
+            if (input_layout.format != output_layout.format) {
+                output_layout.format = input_layout.format;
+                params.outputs.front() = convert_data_tensor(output_layout);
+            }
+        }
+
         return {params, optional_params};
     }
 

@@ -104,6 +104,12 @@ std::vector<layout> unique_reshape_inst::calc_output_layouts(const unique_reshap
                 output_format = format::adjust_to_rank(input_layout.format, output_shape.size());
             } else {
                 output_format = input_layout.format;
+                // WA: For some strange reason (bug?) output format cannot have a rank greater than 4 for dynamic
+                // shape case, because it crashes in some random places during "reorder_inputs" pass.
+                // Thus, need to set "bfyx" here even if the format actually should be "bfzyx".
+                if (output_shape.is_dynamic()) {
+                    output_format = format::bfyx;
+                }
             }
         }
         layouts.emplace_back(output_shape, output_dt, output_format);
