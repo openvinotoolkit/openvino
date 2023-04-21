@@ -55,7 +55,7 @@ No attributes available.
                 <dim>4</dim>
             </port>
             <port id="1">
-                <dim>3</dim>  <!-- [1, 2, 3] -->
+                <dim>3</dim>  < !-- [1, 2, 3] -->
             </port>
         </input>
         <output>
@@ -73,13 +73,13 @@ No attributes available.
 
     <layer ... type="Tile">
         <input>
-            <port id="0">  <!-- will be promoted to shape (1, 2, 3, 4) -->
+            <port id="0">  < !-- will be promoted to shape (1, 2, 3, 4) -->
                 <dim>2</dim>
                 <dim>3</dim>
                 <dim>4</dim>
             </port>
             <port id="1">
-                <dim>4</dim>  <!-- [5, 1, 2, 3] -->
+                <dim>4</dim>  < !-- [5, 1, 2, 3] -->
             </port>
         </input>
         <output>
@@ -105,7 +105,7 @@ No attributes available.
                 <dim>4</dim>
             </port>
             <port id="1">
-                <dim>3</dim>  <!-- [1, 2, 3] will be promoted to [1, 1, 2, 3] -->
+                <dim>3</dim>  < !-- [1, 2, 3] will be promoted to [1, 1, 2, 3] -->
             </port>
         </input>
         <output>

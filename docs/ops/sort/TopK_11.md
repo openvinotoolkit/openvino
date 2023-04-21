@@ -24,14 +24,14 @@
   * **Type**: ``string``
   * **Required**: *yes*
 
-*sort*
+* *sort*
 
   * **Description**: Specifies the order of corresponding elements of the output tensor.
   * **Range of values**: ``value``, ``index``, ``none``
   * **Type**: ``string``
   * **Required**: *yes*
 
-*stable*
+* *stable*
 
   * **Description**: Specifies whether the equivalent elements should maintain their relative order from the input tensor. Takes effect only if the ``sort`` attribute is set to ``value`` or ``index``.
   * **Range of values**: *true* of *false*

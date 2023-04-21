@@ -17,7 +17,7 @@
     \begin{equation*}
         \mathrm{SoftPlus}(x) = \begin{cases}
             x & \text{if } x \geq \mathrm{threshold} \\
-            \ln(e^{x} + 1.0) & \text{if } x < \mathrm{threshold}
+            \log(e^{x} + 1.0) & \text{if } x < \mathrm{threshold}
         \end{cases}
     \end{equation*}
 
