@@ -100,12 +100,10 @@ TEST(remove_redundant_reorders, optimize_fsv16_to_bfyx) {
     ASSERT_EQ(fc_in_layout.front().data_padding.upper_size().feature[0], 0);
 }
 
-TEST(remove_redundant_reorders, skip_opt_out_when_) {
-    // 'Optimize reorders not changing memory layout' loop works prior to reorder fusing with padding.
-    // Enhance3-lite f16 b=2 model has issue that one reorder is opt out with not changing memory layout,
-    // and another peer reorder is fused to upper node with padding next.
-    // Then first opt out reorder has incompatible input/output layout and it causes accuracy drop in the model.
-    // This test checks fix code which skips 'Optimize reorders not changing memory layout' in that condition.
+TEST(remove_redundant_reorders, skip_reorder_fusing_when_sibling_not_support_padding) {
+    // Reorder fusing with padding in remove_redundant_reorders pass should check all sibiling nodes whether they support padding or not.
+    // This test case has two reorders after convolution and one has padding. This reorder shouldn't be fused in the pass.
+    // Reference model : Enhance3-lite
 
     auto& engine = get_test_engine();
     auto input = engine.allocate_memory({ data_types::f16, format::bfyx, { 2, 32, 480, 270 } });
@@ -137,5 +135,5 @@ TEST(remove_redundant_reorders, skip_opt_out_when_) {
 
     ASSERT_NE(prog, nullptr);
 
-    ASSERT_FALSE(prog->get_node("reorder_reshape_1").can_be_optimized());
+    ASSERT_EQ(prog->get_node("convolution").get_output_layout().data_padding, padding());
 }

@@ -313,17 +313,6 @@ void remove_redundant_reorders::run(program& p) {
         if (!o_layout.compatible(i_layout))
             continue;
 
-        // Check peer node which is reorder with padding. The reorder will cause layout incompatible.
-        // So r_node shouldn't be opt out in this case.
-        auto& dep = r_node.get_dependency(0);
-        auto will_dependency_have_padding = false;
-        for (auto user : dep.get_users()) {
-            if ((user != node) && (user->is_type<reorder>()) && (user->get_output_layout().data_padding))
-                will_dependency_have_padding = true;
-        }
-        if (will_dependency_have_padding == true)
-            continue;
-
         if (r_node.is_output() && i_layout.get_linear_size() != o_layout.get_linear_size())
             continue;
 
@@ -494,6 +483,25 @@ void remove_redundant_reorders::run(program& p) {
 
         if (dep.is_type<input_layout>())
             return false;
+
+        // Skip reorder padding fusing when any one of sibling nodes is optimized out or doesn't support padding.
+        if (node->get_output_layout().data_padding) {
+            if (update_implementations)
+                return false;
+
+            for (auto user : dep.get_users()) {
+                if (user != node) {
+                    if (user->can_be_optimized())
+                        return false;
+
+                    auto node_format = node->get_output_layout().format;
+                    for (size_t axis = 0; axis < node->get_dependency(0).get_output_layout().data_padding.lower_size().sizes(node_format).size(); axis++) {
+                        if (!user->is_padding_supported(axis, node->get_dependency(0).get_output_layout().data_padding.lower_size().sizes(node_format)[axis]))
+                            return false;
+                    }
+                }
+            }
+        }
 
         if (usr->as<convolution>().get_primitive()->groups != 1)
             return false;
