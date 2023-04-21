@@ -518,7 +518,7 @@ void prepare_quantization::prepare_asymmetric_quantization(program &p, convoluti
         }
 
         const int GS = groups;
-        const int OC = wl.ofm();
+        const int OC = grouped_weights_shape ? wl.ofm() : (wl.ofm() / GS);
         const int IC = wl.ifm();
         const int KS = wl.spatial(0)*wl.spatial(1)*wl.spatial(2);
 
@@ -599,7 +599,11 @@ void prepare_quantization::prepare_asymmetric_quantization(program &p, convoluti
     bool need_compensation = false;
 
     auto output_size = convolution_node.get_output_layout().get_tensor();
-    int ofm = convolution_node.typed_desc()->grouped_weights_shape ? in1.get_output_layout().feature() : in1.get_output_layout().batch();
+    auto wl = in1.get_output_layout();
+    if (!format::is_weights_format(wl.format)) {
+        wl = wl.convert_to_weights_layout(convolution_node.typed_desc()->grouped_weights_shape);
+    }
+    int ofm = wl.group() * wl.ofm();
     int ifm = in0.get_output_layout().feature();
     int ofm_aligned = ((ofm + 31) / 32) * 32;
     int ifm_aligned = ((ifm + 31) / 32) * 32;
