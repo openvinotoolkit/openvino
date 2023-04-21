@@ -1,20 +1,25 @@
 # BatchNormInference {#openvino_docs_ops_normalization_BatchNormInference_1}
 
-**Versioned name**: *BatchNormInference-1*
+@sphinxdirective
+
+**Versioned name**: *BatchNormInference-5*
 
 **Category**: *Normalization*
 
-**Short description**: *BatchNormInference* performs Batch Normalization operation described in the [Batch Normalization: Accelerating Deep Network Training by Reducing Internal Covariate Shift](https://arxiv.org/abs/1502.03167v2) article.
+**Short description**: *BatchNormInference* performs Batch Normalization operation described in the `Batch Normalization: Accelerating Deep Network Training by Reducing Internal Covariate Shift <https://arxiv.org/abs/1502.03167v2>`__ article.
 
 **Detailed Description**
 
-*BatchNormInference* performs the following operations on a given data batch input tensor `data`:
+*BatchNormInference* performs the following operations on a given data batch input tensor ``data``:
 
-* Normalizes each activation \f$x^{(k)}\f$ by the mean and variance.
-\f[
+* Normalizes each activation :math:`x^{(k)}` by the mean and variance.
+
+.. math::
+   
    \hat{x}^{(k)}=\frac{x^{(k)} - E[x^{(k)}]}{\sqrt{Var(x^{(k)}) + \epsilon}}
-\f]
-where \f$E[x^{(k)}]\f$ and \f$Var(x^{(k)})\f$ are the mean and variance, calculated per channel axis of `data` input, and correspond to `mean` and `variance` inputs, respectively. Additionally, \f$\epsilon\f$ is a value added to the variance for numerical stability and corresponds to `epsilon` attribute.
+
+where :math:`E[x^{(k)}]` and :math:`Var(x^{(k)})` are the mean and variance, calculated per channel axis of ``data`` input, and correspond to ``mean`` and ``variance`` inputs, respectively. Additionally, :math:`\epsilon` is a value added to the variance for numerical stability and corresponds to ``epsilon`` attribute.
+
 
 * Performs linear transformation of each normalized activation based on `gamma` and `beta` input, representing the scaling factor and shift, respectively.
 \f[
