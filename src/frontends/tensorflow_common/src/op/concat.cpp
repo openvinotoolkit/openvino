@@ -21,9 +21,11 @@ OutputVector translate_concat_op(const NodeContext& node) {
     // and is the last input to ConcatV2
     default_op_checks(node, 2, {"Concat", "ConcatV2"});
     auto input_size = static_cast<int>(node.get_input_size());
+
     int64_t axis;
     ov::Rank input_rank = ov::Rank::dynamic();
     OutputVector inputs;
+
     if (node.get_op_type() == "Concat") {
         std::vector<int64_t> axis_vector;
         get_const_input(node, 0, &axis_vector);
