@@ -52,4 +52,8 @@ INSTANTIATE_TEST_SUITE_P(smoke_Hetero_BehaviorTests,
                            ::testing::ValuesIn(heteroConfigs)),
         OVExecGraphImportExportTest::getTestCaseName);
 
+INSTANTIATE_TEST_SUITE_P(
+        smoke_OVClassImportExportTestP, OVClassExecutableNetworkImportExportTestP,
+        ::testing::Values("HETERO:CPU"));
+
 }  // namespace
