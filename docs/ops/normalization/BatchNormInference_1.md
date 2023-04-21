@@ -40,13 +40,15 @@ For a particular activation, consider a mini-batch :math:`\mathcal{B}` of m valu
        
        \mathcal{B} = x_{1...m}
 
+*   **Parameters to learn**: :math:`\gamma, \beta`
+*   **Output**:
+    
+    .. math::
+       
+       \{ o_{i} = BN_{\gamma, \beta} ( b_{i} ) \}
+
 @endsphinxdirective
 
-*   **Parameters to learn**: \f$ \gamma, \beta\f$
-*   **Output**:
-    \f[
-    \{ o_{i} = BN_{\gamma, \beta} ( b_{i} ) \}
-    \f]
 *   **Mini-batch mean**:
     \f[
     \mu_{\mathcal{B}} \leftarrow \frac{1}{m}\sum_{i=1}^{m}b_{i}
