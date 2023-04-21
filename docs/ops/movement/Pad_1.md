@@ -8,19 +8,19 @@
 
 **Detailed Description**: The attributes specify a number of elements to add along each axis and a rule by which new element values are generated: for example, whether they are filled with a given constant or generated based on the input tensor content.
 
-The following examples illustrate how output tensor is generated for the *Pad* layer for a given input tensor:
+The following examples illustrate how output tensor is generated for the *Pad* layer for a given inputs:
+
+### Positive pads example:
 ```
-INPUT =
+pads_begin = [0, 1]
+pads_end = [2, 3]
+
+data =
 [[ 1  2  3  4 ]
  [ 5  6  7  8 ]
  [ 9 10 11 12 ]]
 ```
-with the following attributes:
-```
-pads_begin = [0, 1]
-pads_end = [2, 3]
-```
-depending on the *pad_mode*.
+depending on the *pad_mode* attribute:
 * `pad_mode = "constant"`:
 ```
 OUTPUT =
@@ -57,6 +57,75 @@ OUTPUT =
  [ 9  9 10 11 12 12 11 10 ]
  [ 5  5  6  7  8  8  7  6 ]]
 ```
+### Negative pads example:
+```
+pads_begin = [-1, -1]
+pads_end = [-1, -1]
+
+DATA =
+[[1,  2,  3,  4]
+ [5,  6,  7,  8]
+ [9, 10, 11, 12]]
+Shape(3, 4)
+```
+for all of the *pad_mode* attribute options:
+* `pad_mode = "constant"`
+* `pad_mode = "edge"`
+* `pad_mode = "reflect"`
+* `pad_mode = "symmetric"`
+```
+OUTPUT =
+[[ 6, 7 ]]
+Shape(1, 2)
+```
+### Mixed pads example:
+```
+pads_begin = [2, -1]
+pads_end = [-1, 3]
+
+DATA =
+[[1,  2,  3,  4]
+ [5,  6,  7,  8]
+ [9, 10, 11, 12]]
+Shape(3, 4)
+```
+* `pad_mode = "constant"`:
+```
+OUTPUT =
+[[0, 0, 0, 0, 0, 0],
+ [0, 0, 0, 0, 0, 0],
+ [2, 3, 4, 0, 0, 0],
+ [6, 7, 8, 0, 0, 0]]
+Shape(4, 6)
+```
+* `pad_mode = "edge"`:
+```
+OUTPUT Shape(4, 6) =
+[[2, 3, 4, 4, 4, 4],
+ [2, 3, 4, 4, 4, 4],
+ [2, 3, 4, 4, 4, 4],
+ [6, 7, 8, 8, 8, 8]]
+Shape(4, 6)
+```
+* `pad_mode = "reflect"`:
+```
+OUTPUT =
+[[10, 11, 12, 11, 10, 9],
+ [6,   7,  8,  7,  6, 5],
+ [2,   3,  4,  3,  2, 1],
+ [6,   7,  8,  7,  6, 5]]
+Shape(4, 6)
+```
+* `pad_mode = "symmetric"`:
+```
+OUTPUT =
+[[6, 7, 8, 8, 7, 6],
+ [2, 3, 4, 4, 3, 2],
+ [2, 3, 4, 4, 3, 2],
+ [6, 7, 8, 8, 7, 6]]
+Shape(4, 6)
+```
+
 
 **Attributes**
 
@@ -75,9 +144,9 @@ OUTPUT =
 
 * **1**: `data` tensor of arbitrary shape and type *T*. **Required.**
 
-* **2**: `pads_begin` 1D tensor of type *T_INT*. Number of elements matches the number of indices in *data* attribute. Specifies the number of padding elements at the beginning of each axis. **Required.**
+* **2**: `pads_begin` 1D tensor of type *T_INT*. Number of elements matches the shape rank of *data* input. Specifies the number of padding elements to add at the beginning of each axis. Negative value means removal of the corresponding dimensions. **Required.**
 
-* **3**: `pads_end` 1D tensor of type *T_INT*. Number of elements matches the number of indices in *data* attribute. Specifies the number of padding elements at the ending of each axis. **Required.**
+* **3**: `pads_end` 1D tensor of type *T_INT*. Number of elements matches the shape rank of *data* input. Specifies the number of padding elements to add at the ending of each axis. Negative value means removal of the corresponding dimensions. **Required.**
 
 * **4**: `pad_value` scalar tensor of type *T*. Used with the `pad_mode = "constant"` only. All new elements are populated with this value or with 0 if input not provided. Shouldn't be set for other `pad_mode` values. **Optional.**
 
