@@ -94,7 +94,7 @@ public:
                 if (u->is_fused_dep(dep_idx)) {
                     continue;
                 }
-                if (u->get_dependency(dep_idx).get_unique_id() == unique_id) {
+                if (u->get_dependencies().at(dep_idx).first == this) {
                     return true;
                 }
             }
@@ -111,8 +111,8 @@ public:
     }
 
     virtual std::unique_ptr<kernel_impl_params> get_kernel_impl_params(const std::vector<layout>& in_layouts, const std::vector<layout>& out_layouts) const {
-        auto params = std::unique_ptr<kernel_impl_params>(new kernel_impl_params(get_program(), get_primitive(), get_unique_id(), in_layouts, out_layouts,
-                                                                                 get_fused_primitives()));
+        auto params = std::unique_ptr<kernel_impl_params>(new kernel_impl_params(get_program(), get_program().get_stream_ptr(), get_primitive(),
+                                                                                 get_unique_id(), in_layouts, out_layouts, get_fused_primitives()));
         params->memory_deps = get_const_memory_deps();
 
         auto deps = get_dependencies();

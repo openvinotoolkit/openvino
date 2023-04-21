@@ -5,9 +5,9 @@
 """openvino module namespace, exposing factory functions for all ops and other classes."""
 # noqa: F401
 
-from openvino.utils import add_openvino_libs_to_path
+from openvino.utils import _add_openvino_libs_to_search_path
 
-add_openvino_libs_to_path()
+_add_openvino_libs_to_search_path()
 
 from openvino._pyopenvino import get_version
 
@@ -44,6 +44,7 @@ from openvino._pyopenvino import ProfilingInfo
 from openvino._pyopenvino import get_batch
 from openvino._pyopenvino import set_batch
 from openvino._pyopenvino import serialize
+from openvino._pyopenvino import shutdown
 
 # Import opsets
 from openvino.runtime import opset1
@@ -59,7 +60,7 @@ from openvino.runtime import opset10
 from openvino.runtime import opset11
 
 # Import properties API
-from openvino._pyopenvino import properties
+from openvino.runtime import properties
 
 # Helper functions for openvino module
 from openvino.runtime.ie_api import tensor_from_file

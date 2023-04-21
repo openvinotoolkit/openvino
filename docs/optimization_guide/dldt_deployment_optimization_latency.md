@@ -38,6 +38,8 @@ For example, when the model is used exactly once, or when it is unloaded and rel
 Such a "first-inference latency" scenario may pose an additional limitation on the model load\compilation time, as inference accelerators (other than the CPU) usually require a certain level of model compilation upon loading.
 The :doc:`model caching <openvino_docs_OV_UG_Model_caching_overview>` option is a way to lessen the impact over multiple application runs. If model caching is not possible, for example, it may require write permissions for the application, the CPU offers the fastest model load time almost every time. 
 
+To improve common "first-inference latency" scenario, model reading was replaced with model mapping (using `mmap`) into a memory. But in some use cases (first of all, if model is located on removable or network drive) mapping may lead to latency increase. To switch mapping to reading, specify ``ov::enable_mmap(false)`` property for the ``ov::Core``.
+
 Another way of dealing with first-inference latency is using the :doc:`AUTO device selection inference mode <openvino_docs_OV_UG_supported_plugins_AUTO>`. It starts inference on the CPU, while waiting for the actual accelerator to load the model. At that point, it shifts to the new device seamlessly.
 
 Finally, note that any :doc:`throughput-oriented options <openvino_docs_deployment_optimization_guide_tput>` may significantly increase the model uptime.

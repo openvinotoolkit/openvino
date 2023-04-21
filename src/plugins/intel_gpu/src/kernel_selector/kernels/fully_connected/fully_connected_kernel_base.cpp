@@ -15,13 +15,8 @@ JitConstants FullyConnectedKernelBase::GetJitConstants(const fully_connected_par
     JitConstants jit = WeightBiasKernelBase::GetJitConstants(params);
     const auto& input = params.inputs[0];
     if (input.is_dynamic()) {
-        auto x = toCodeString(input.X(), 5);
-        auto y = toCodeString(input.Y(), 4);
-        auto z = toCodeString(input.Z(), 3);
-        auto w = toCodeString(input.W(), 2);
-        auto f = toCodeString(input.Feature(), 1);
-
-        jit.AddConstant(MakeJitConstant("INPUT0_ELEMENTS_COUNT", toVectorMulString({x, y, z, w, f})));
+        DimensionAccessHelper dims(input, 0);
+        jit.AddConstant(MakeJitConstant("INPUT0_ELEMENTS_COUNT", toVectorMulString({dims.x, dims.y, dims.z, dims.w, dims.f})));
     } else {
         const auto x_size = input.LogicalSize() / input.Batch().v;
         jit.AddConstant(MakeJitConstant("INPUT0_ELEMENTS_COUNT", x_size));
@@ -71,6 +66,7 @@ KernelsData FullyConnectedKernelBase::GetCommonKernelsData(const Params &params,
         OPENVINO_ASSERT(kd.kernels.size() == 1, "[GPU] Invalid kernels size for update dispatch data func");
         kd.kernels[0].params.workGroups.global = dispatchData.gws;
         kd.kernels[0].params.workGroups.local = dispatchData.lws;
+        kd.kernels[0].skip_execution = KernelData::SkipKernelExecution(prim_params);
     };
     fully_connected_params& newParams = *static_cast<fully_connected_params*>(kd.params.get());
 

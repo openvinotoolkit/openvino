@@ -26,8 +26,7 @@
 typedef std::function<void(size_t id, size_t group_id, const double latency, const std::exception_ptr& ptr)>
     QueueCallbackFunction;
 
-/// @brief Wrapper class for InferenceEngine::InferRequest. Handles asynchronous callbacks and calculates execution
-/// time.
+/// @brief Handles asynchronous callbacks and calculates execution time
 class InferReqWrap final {
 public:
     using Ptr = std::shared_ptr<InferReqWrap>;

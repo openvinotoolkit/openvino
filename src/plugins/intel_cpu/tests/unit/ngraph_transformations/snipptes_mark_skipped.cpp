@@ -5,7 +5,7 @@
 #include <subgraph_simple.hpp>
 #include <subgraph_customizable.hpp>
 #include <snippets_helpers.hpp>
-#include <ngraph_transformations/snippets_mark_skipped.hpp>
+#include <transformations/snippets/x64/pass/snippets_mark_skipped.hpp>
 #include "snippets/pass/tokenization.hpp"
 
 namespace ov {

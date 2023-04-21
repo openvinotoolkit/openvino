@@ -184,18 +184,24 @@ std::vector<size_t> GetTensorFriendlyWorkGroups(const DataTensor& t) {
     auto y = DataTensor::Channelndex(t.GetLayout(), Tensor::DataChannelName::Y);
     auto z = DataTensor::Channelndex(t.GetLayout(), Tensor::DataChannelName::Z);
     auto w = DataTensor::Channelndex(t.GetLayout(), Tensor::DataChannelName::W);
+    auto u = DataTensor::Channelndex(t.GetLayout(), Tensor::DataChannelName::U);
+    auto v = DataTensor::Channelndex(t.GetLayout(), Tensor::DataChannelName::V);
 
     auto primary_spatial_axis = x;
     if (y < primary_spatial_axis && y != -1) primary_spatial_axis = y;
     if (z < primary_spatial_axis && z != -1) primary_spatial_axis = z;
     if (w < primary_spatial_axis && w != -1) primary_spatial_axis = w;
+    if (u < primary_spatial_axis && u != -1) primary_spatial_axis = u;
+    if (v < primary_spatial_axis && v != -1) primary_spatial_axis = v;
 
     for (size_t i = 0; i < t.GetDims().size(); i++) {
         const auto& o = t.GetDims()[i];
         auto cur_axis_is_spatial = x == static_cast<int>(i) ||
                                    y == static_cast<int>(i) ||
                                    z == static_cast<int>(i) ||
-                                   w == static_cast<int>(i);
+                                   w == static_cast<int>(i) ||
+                                   u == static_cast<int>(i) ||
+                                   v == static_cast<int>(i);
         if (cur_axis_is_spatial && primary_spatial_axis != static_cast<int>(i)) {
             sizes.back() *= o.v;
         } else {
@@ -213,18 +219,18 @@ std::vector<size_t> GetTensorFriendlyWorkGroups(const DataTensor& t) {
 std::vector<size_t> GetOptimalLocalWorkGroupSizes(std::vector<size_t> gws, const EngineInfo& info,
                                                   DataLayout input_layout, DataLayout output_layout,
                                                   std::vector<std::vector<Tensor::DataChannelName>> dims_by_gws) {
-    enum axis { x, y, z, w, f, b, unused_axis };
+    enum axis { x, y, z, w, u, v, f, b, unused_axis };
 
     // GWS/LWS priority order should be considered for better local WGS setting
     // and as a result more optimized data reading/writing inside kernels
     std::vector<size_t> priority_order = { 0, 1, 2 };
-    std::vector<size_t> layout_order = { x, y, z, w, f, b };
+    std::vector<size_t> layout_order = { x, y, z, w, u, v, f, b };
 
     const size_t gws_dims_num = priority_order.size();
     const size_t axis_num = layout_order.size();
     size_t first_axis_idx = 0;
 
-    std::vector<size_t> axis_by_gws = { unused_axis, unused_axis, unused_axis, unused_axis, unused_axis, unused_axis };
+    std::vector<size_t> axis_by_gws = { unused_axis, unused_axis, unused_axis, unused_axis, unused_axis, unused_axis, unused_axis, unused_axis };
     for (size_t gws_idx = 0; gws_idx < gws_dims_num; gws_idx++) {
         for (size_t axis_idx = 0; axis_idx < dims_by_gws[gws_idx].size(); axis_idx++) {
             axis_by_gws[static_cast<size_t>(dims_by_gws[gws_idx][axis_idx])] = gws_idx;
@@ -280,51 +286,57 @@ std::vector<size_t> GetOptimalLocalWorkGroupSizes(std::vector<size_t> gws, const
         if (simple_planar_layout) {
             switch (output_layout) {
                 case DataLayout::bf:
-                    layout_order = { f, b, x, y, z, w };
+                    layout_order = { f, b, x, y, z, w, u, v };
                     break;
                 case DataLayout::fb:
-                    layout_order = { b, f, x, y, z, w };
+                    layout_order = { b, f, x, y, z, w, u, v };
                     break;
                 case DataLayout::bfyx:
-                    layout_order = { x, y, f, b, z, w };
+                    layout_order = { x, y, f, b, z, w, u, v };
                     break;
                 case DataLayout::yxfb:
-                    layout_order = { b, f, x, y, z, w };
+                    layout_order = { b, f, x, y, z, w, u, v };
                     break;
                 case DataLayout::byxf:
-                    layout_order = { f, x, y, b, z, w };
+                    layout_order = { f, x, y, b, z, w, u, v };
                     break;
                 case DataLayout::fyxb:
-                    layout_order = { b, x, y, f, z, w };
+                    layout_order = { b, x, y, f, z, w, u, v };
                     break;
                 case DataLayout::bfxy:
-                    layout_order = { y, x, f, b, z, w };
+                    layout_order = { y, x, f, b, z, w, u, v };
                     break;
                 case DataLayout::bfzyx:
-                    layout_order = { x, y, z, f, b, w };
+                    layout_order = { x, y, z, f, b, w, u, v };
                     break;
                 case DataLayout::bzyxf:
-                    layout_order = { f, x, y, z, b, w };
+                    layout_order = { f, x, y, z, b, w, u, v };
                     break;
                 case DataLayout::bfwzyx:
-                    layout_order = { x, y, z, w, f, b };
+                    layout_order = { x, y, z, w, f, b, u, v };
+                    break;
+                case DataLayout::bfuwzyx:
+                    layout_order = { x, y, z, w, u, f, b, v };
+                    break;
+                case DataLayout::bfvuwzyx:
+                    layout_order = { x, y, z, w, u, v , f, b };
                     break;
                 default:
-                    layout_order = { x, y, z, w, f, b };
+                    layout_order = { x, y, z, w, u, v, f, b };
                     break;
             }
         } else if (blocked_fsv_layout) {
             if (output_layout == DataLayout::b_fs_yx_fsv2 || output_layout == DataLayout::b_fs_yx_fsv4 ||
                 output_layout == DataLayout::b_fs_yx_fsv16 || output_layout == DataLayout::b_fs_yx_fsv32) {
-                layout_order = { f, x, y, b, z, w };
+                layout_order = { f, x, y, b, z, w, u, v };
             } else if (output_layout == DataLayout::b_fs_zyx_fsv2 || output_layout == DataLayout::b_fs_zyx_fsv4 ||
                        output_layout == DataLayout::b_fs_zyx_fsv16 || output_layout == DataLayout::b_fs_zyx_fsv32) {
-                layout_order = { f, x, y, z, b, w };
+                layout_order = { f, x, y, z, b, w, u, v };
             } else { // output_layout == DataLayout::fs_b_yx_fsv32
-                layout_order = { f, x, y, b, z, w };
+                layout_order = { f, x, y, b, z, w, u, v };
             }
         } else if (blocked_bsv_fsv_layout) {
-            layout_order = { f, b, x, y, z, w };
+            layout_order = { f, b, x, y, z, w, u, v };
         }
 
         calculate_optimized_priority_order();

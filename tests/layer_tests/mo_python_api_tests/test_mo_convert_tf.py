@@ -296,7 +296,7 @@ def create_tf_function(temp_dir):
     return keras_net, model_ref, None
 
 
-def create_tf_saved_model(temp_dir):
+def create_tf_saved_model_dir(temp_dir):
     import tensorflow as tf
 
     input_names = ["Input1", "Input2"]
@@ -306,6 +306,8 @@ def create_tf_saved_model(temp_dir):
     x2 = tf.keras.Input(shape=input_shape, name=input_names[1])
     y = tf.nn.sigmoid(tf.nn.relu(x1 + x2))
     keras_net = tf.keras.Model(inputs=[x1, x2], outputs=[y])
+
+    tf.saved_model.save(keras_net, temp_dir + "/model")
 
     shape = PartialShape([-1, 1, 2, 3])
     param1 = ov.opset8.parameter(shape, name="Input1:0", dtype=np.float32)
@@ -317,8 +319,14 @@ def create_tf_saved_model(temp_dir):
     parameter_list = [param1, param2]
     model_ref = Model([sigm], parameter_list, "test")
 
-    tf.saved_model.save(keras_net, temp_dir + "/model")
-    saved_model = tf.saved_model.load(temp_dir + "/model")
+    return temp_dir + "/model", model_ref
+
+
+def create_tf_saved_model(temp_dir):
+    import tensorflow as tf
+
+    saved_model_dir, model_ref = create_tf_saved_model_dir(temp_dir)
+    saved_model = tf.saved_model.load(saved_model_dir)
 
     return saved_model, model_ref, None
 
@@ -366,4 +374,15 @@ class TestMoConvertTF(CommonMOConvertTest):
         test_params = {'input_model': fw_model, 'use_new_frontend': True}
         if mo_params is not None:
             test_params.update(mo_params)
+        self._test_by_ref_graph(temp_dir, test_params, graph_ref, compare_tensor_names=False)
+
+    @pytest.mark.nightly
+    @pytest.mark.precommit
+    def test_unnamed_saved_model_dir(self, ie_device, precision, ir_version, temp_dir):
+        saved_model_dir, graph_ref = create_tf_saved_model_dir(temp_dir)
+
+        test_params = {'input_model': saved_model_dir, 'use_new_frontend': True}
+        self._test_by_ref_graph(temp_dir, test_params, graph_ref, compare_tensor_names=False)
+
+        test_params = {'input_model': saved_model_dir, 'use_new_frontend': False}
         self._test_by_ref_graph(temp_dir, test_params, graph_ref, compare_tensor_names=False)

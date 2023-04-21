@@ -51,7 +51,8 @@ void prepare_padding::run(program& p) {
 
                 if (!prim->with_output_size)
                     continue;
-
+                auto weights_layout = prim_node.weights().get_output_layout();
+                tensor filter_size = weights_layout.convert_to_weights_layout(prim->grouped_weights_shape).get_tensor();
                 auto format = node->get_output_layout().format;
                 if (format == format::b_fs_zyx_fsv16 ||
                     format == format::bs_fs_zyx_bsv16_fsv16 ||
@@ -59,8 +60,6 @@ void prepare_padding::run(program& p) {
                     format == format::bs_fs_yx_bsv32_fsv32 ||
                     format == format::b_fs_zyx_fsv32)
                     continue;
-
-                auto filter_size = prim_node.weights().get_output_layout().get_tensor();
 
                 auto needed_padding = calc_sliding_window_needed_input_padding(prim_node.input().get_output_layout(),
                                                                                prim->output_size,
