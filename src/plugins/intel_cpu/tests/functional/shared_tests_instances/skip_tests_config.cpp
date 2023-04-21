@@ -203,12 +203,7 @@ std::vector<std::string> disabledTestPatterns() {
     retVector.emplace_back(R"(smoke_Snippets.*)");
 #endif
 
-#if defined(OPENVINO_ARCH_ARM)
-    retVector.emplace_back(R"(smoke_If/SimpleIfNotConstConditionAndDimsIncreaseTest.*)");
-#endif
-
 #if defined(OPENVINO_ARCH_ARM64) || defined(OPENVINO_ARCH_ARM)
-    retVector.emplace_back(R"(OVClassBasicPropsTest.smoke_SetConfigAffinity.*)");
     retVector.emplace_back(R"(ONNXQuantizedModels/QuantizedModelsTests.*)");
     {
         // TODO: generate new 'expected' runtime graph for CPU ARM
@@ -228,8 +223,6 @@ std::vector<std::string> disabledTestPatterns() {
     retVector.emplace_back(R"(smoke_AvgPool_ExplicitPad_CeilRounding/PoolingLayerTest.CompareWithRefs.*)");
     retVector.emplace_back(R"(smoke_TestsDFT_(1|2|3|4)d/DFTLayerTest.CompareWithRefs.*)");
     retVector.emplace_back(R"(MultipleLSTMCellTest/MultipleLSTMCellTest.CompareWithRefs.*)");
-    retVector.emplace_back(R"(smoke_If/SimpleIfTest.CompareWithRefs.*)");
-    retVector.emplace_back(R"(smoke_If/SimpleIfNotConstConditionTest.CompareWithRefs.*)");
     // invalid test: checks u8 precision for runtime graph, while it should be f32
     retVector.emplace_back(R"(smoke_NegativeQuantizedMatMulMultiplyFusion.*)");
     // int8 / code-generation specific
