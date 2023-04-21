@@ -1,5 +1,7 @@
 # Divide {#openvino_docs_ops_arithmetic_Divide_1}
 
+@sphinxdirective
+
 **Versioned name**: *Divide-1*
 
 **Category**: *Arithmetic binary*
@@ -7,12 +9,12 @@
 **Short description**: *Divide* performs element-wise division operation with two given tensors applying broadcasting rule specified in the *auto_broacast* attribute.
 
 **Detailed description**
-Before performing arithmetic operation, input tensors *a* and *b* are broadcasted if their shapes are different and `auto_broadcast` attribute is not `none`. Broadcasting is performed according to `auto_broadcast` value.
+Before performing arithmetic operation, input tensors *a* and *b* are broadcasted if their shapes are different and ``auto_broadcast`` attribute is not ``none``. Broadcasting is performed according to ``auto_broadcast`` value.
 After broadcasting *Divide* performs division operation for the input tensors *a* and *b* using the formula below:
 
-\f[
-o_{i} = \frac{a_{i}}{b_{i}}
-\f]
+.. math::
+   
+   o_{i} = \frac{a_{i}}{b_{i}}
 
 The result of division by zero is undefined.
 
@@ -22,6 +24,7 @@ The result of division by zero is undefined.
 
   * **Description**: specifies if floor division should be calculate. This attribute is supported only for integer data types.
   * **Range of values**:
+    
     * false - regular division
     * true - floor division
   * **Type**: boolean
@@ -32,9 +35,10 @@ The result of division by zero is undefined.
 
   * **Description**: specifies rules used for auto-broadcasting of input tensors.
   * **Range of values**:
+    
     * *none* - no auto-broadcasting is allowed, all input shapes must match,
-    * *numpy* - numpy broadcasting rules, description is available in [Broadcast Rules For Elementwise Operations](../broadcast_rules.md),
-    * *pdpd* - PaddlePaddle-style implicit broadcasting, description is available in [Broadcast Rules For Elementwise Operations](../broadcast_rules.md).
+    * *numpy* - numpy broadcasting rules, description is available in :doc:`Broadcast Rules For Elementwise Operations <openvino_docs_ops_broadcast_rules>`,
+    * *pdpd* - PaddlePaddle-style implicit broadcasting, description is available in :doc:`Broadcast Rules For Elementwise Operations <openvino_docs_ops_broadcast_rules>`.
   * **Type**: string
   * **Default value**: "numpy"
   * **Required**: *no*
@@ -52,57 +56,60 @@ The result of division by zero is undefined.
 
 * *T*: any numeric type.
 
-
 **Examples**
 
 *Example 1*
 
-```xml
-<layer ... type="Divide">
-    <data auto_broadcast="none" m_pythondiv="true"/>
-    <input>
-        <port id="0">
-            <dim>256</dim>
-            <dim>56</dim>
-        </port>
-        <port id="1">
-            <dim>256</dim>
-            <dim>56</dim>
-        </port>
-    </input>
-    <output>
-        <port id="2">
-            <dim>256</dim>
-            <dim>56</dim>
-        </port>
-    </output>
-</layer>
-```
+.. code-block:: console
+   
+   <layer ... type="Divide">
+       <data auto_broadcast="none" m_pythondiv="true"/>
+       <input>
+           <port id="0">
+               <dim>256</dim>
+               <dim>56</dim>
+           </port>
+           <port id="1">
+               <dim>256</dim>
+               <dim>56</dim>
+           </port>
+       </input>
+       <output>
+           <port id="2">
+               <dim>256</dim>
+               <dim>56</dim>
+           </port>
+       </output>
+   </layer>
 
 *Example 2: broadcast*
-```xml
-<layer ... type="Divide">
-    <data auto_broadcast="numpy" m_pythondiv="false"/>
-    <input>
-        <port id="0">
-            <dim>8</dim>
-            <dim>1</dim>
-            <dim>6</dim>
-            <dim>1</dim>
-        </port>
-        <port id="1">
-            <dim>7</dim>
-            <dim>1</dim>
-            <dim>5</dim>
-        </port>
-    </input>
-    <output>
-        <port id="2">
-            <dim>8</dim>
-            <dim>7</dim>
-            <dim>6</dim>
-            <dim>5</dim>
-        </port>
-    </output>
-</layer>
-```
+
+.. code-block:: console
+   
+   <layer ... type="Divide">
+       <data auto_broadcast="numpy" m_pythondiv="false"/>
+       <input>
+           <port id="0">
+               <dim>8</dim>
+               <dim>1</dim>
+               <dim>6</dim>
+               <dim>1</dim>
+           </port>
+           <port id="1">
+               <dim>7</dim>
+               <dim>1</dim>
+               <dim>5</dim>
+           </port>
+       </input>
+       <output>
+           <port id="2">
+               <dim>8</dim>
+               <dim>7</dim>
+               <dim>6</dim>
+               <dim>5</dim>
+           </port>
+       </output>
+   </layer>
+
+@endsphinxdirective
+
