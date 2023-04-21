@@ -869,7 +869,7 @@ void MHA::init_brgemm_copy_b(std::unique_ptr<jit_brgemm_matmul_copy_b_t>& brgCop
     brgCopyKernelConf.has_zero_point_b = false;
     brgCopyKernelConf.src_zp_type = dnnl::impl::cpu::x64::none;
 
-    create_brgemm_matmul_copy_b(brgCopyKernel, &brgCopyKernelConf);
+    IE_ASSERT(create_brgemm_matmul_copy_b(brgCopyKernel, &brgCopyKernelConf) ==  dnnl::impl::status_t::dnnl_success);
 }
 
 void MHA::prepareParams() {
