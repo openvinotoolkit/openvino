@@ -4,9 +4,11 @@
 
 #include "cpu_map_scheduling.hpp"
 
+#include "ie_parallel.hpp"
 #include "ie_system_conf.h"
 
 namespace ov {
+namespace intel_cpu {
 
 std::vector<std::vector<int>> apply_scheduling_core_type(const ov::hint::SchedulingCoreType input_type,
                                                          const std::vector<std::vector<int>>& proc_type_table) {
@@ -40,7 +42,7 @@ std::vector<std::vector<int>> apply_scheduling_core_type(const ov::hint::Schedul
     return result_table;
 }
 
-std::vector<std::vector<int>> apply_hyper_threading(bool input_value,
+std::vector<std::vector<int>> apply_hyper_threading(bool& input_value,
                                                     const bool input_changed,
                                                     const std::vector<std::vector<int>>& proc_type_table) {
     std::vector<std::vector<int>> result_table = proc_type_table;
@@ -57,4 +59,35 @@ std::vector<std::vector<int>> apply_hyper_threading(bool input_value,
     return result_table;
 }
 
+bool get_cpu_pinning(bool& input_value,
+                     const bool input_changed,
+                     const int num_streams,
+                     const threading::IStreamsExecutor::ThreadBindingType bind_type,
+                     const std::vector<std::vector<int>>& proc_type_table) {
+    int result_value;
+    int num_sockets = get_num_numa_nodes();
+    bool latency = num_streams <= num_sockets && num_streams > 0;
+
+    if (proc_type_table[0][EFFICIENT_CORE_PROC] > 0 &&
+        proc_type_table[0][EFFICIENT_CORE_PROC] < proc_type_table[0][ALL_PROC]) {
+        result_value =
+            input_changed
+                ? input_value
+                : ((latency || bind_type == threading::IStreamsExecutor::ThreadBindingType::NUMA) ? false : true);
+    } else {
+        result_value = input_changed
+                           ? input_value
+                           : (bind_type == threading::IStreamsExecutor::ThreadBindingType::NUMA ? false : true);
+#if (IE_THREAD == IE_THREAD_TBB || IE_THREAD == IE_THREAD_TBB_AUTO)
+#    if defined(__APPLE__) || defined(_WIN32)
+        result_value = false;
+#    endif
+#endif
+    }
+    input_value = result_value;
+
+    return result_value;
+}
+
+}  // namespace intel_cpu
 }  // namespace ov
