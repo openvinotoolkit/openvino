@@ -59,12 +59,14 @@ For a particular activation, consider a mini-batch :math:`\mathcal{B}` of m valu
      
      \sigma_{\mathcal{B}}^{2}\leftarrow \frac{1}{m}\sum_{i=1}^{m} ( b_{i} - \mu_{\mathcal{B}})^{2}
 
+* **Normalize**:
+  
+  .. math::
+     
+     \hat{b_{i}} \leftarrow \frac{b_{i} - \mu_{\mathcal{B}}}{\sqrt{\sigma_{\mathcal{B}}^{2} + \epsilon }}
+
 @endsphinxdirective
 
-*   **Normalize**:
-    \f[
-    \hat{b_{i}} \leftarrow \frac{b_{i} - \mu_{\mathcal{B}}}{\sqrt{\sigma_{\mathcal{B}}^{2} + \epsilon }}
-    \f]
 *   **Scale and shift**:
     \f[
     o_{i} \leftarrow \gamma\hat{b_{i}} + \beta = BN_{\gamma ,\beta } ( b_{i} )
