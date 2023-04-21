@@ -1,6 +1,7 @@
 # Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 import argparse
+import os
 from collections import Counter
 
 import numpy as np
@@ -96,6 +97,22 @@ def send_framework_info(framework: str):
     """
     t = tm.Telemetry()
     t.send_event('mo', 'framework', framework)
+
+
+def remove_path_lines(message):
+    """
+    Removes any lines from message which contain os.sep.
+    For example in Linux, where os.sep is "/" the line "a/b/c\nline2" will be transformed to "\nline2".
+    In Windows, where os.sep is "\\" the line "line1\na\\b\\c" will be transformed to "line1\n".
+    :param message: input message string.
+    :return: message without lines that contain os.sep
+    """
+    import re
+
+    # remove any lines which contain os.sep to remove file paths
+    msg = re.sub('.*{}.*'.format(os.sep), '', message)
+
+    return msg
 
 
 def get_tid():

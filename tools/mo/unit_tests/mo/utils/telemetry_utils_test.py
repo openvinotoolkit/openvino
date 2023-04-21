@@ -1,13 +1,14 @@
 # Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
+import os
 import unittest
 from collections import Counter
 from unittest.mock import Mock
 
 from openvino.tools.mo.front.common.partial_infer.utils import int64_array, shape_array, dynamic_dimension_value
 from openvino.tools.mo.graph.graph import Graph, Node
-from openvino.tools.mo.utils.telemetry_utils import send_op_names_info, send_shapes_info
+from openvino.tools.mo.utils.telemetry_utils import send_op_names_info, send_shapes_info, remove_path_lines
 from unit_tests.utils.graph import build_graph, regular_op
 
 try:
@@ -100,3 +101,18 @@ class TestTelemetryUtils(unittest.TestCase):
                                                 '{fw:framework,shape:"[ 2  3 20 20],[ 7  4 10],[ 5  4 -1]"}')
         tm.Telemetry.send_event.assert_any_call('mo', 'partially_defined_shape',
                                                 '{partially_defined_shape:1,fw:framework}')
+
+    def test_remove_path_lines(self):
+        path1 = os.path.join("dir1", "dir 2", "dir.3", "dir")
+        message = "line1\n{}\nline3".format(path1)
+        assert remove_path_lines(message) == "line1\n\nline3"
+
+        message = "line1_\nline2.{}\nline3".format(path1)
+        assert remove_path_lines(message) == "line1_\n\nline3"
+
+        path2 = os.path.join("a", "_b")
+        message = "line1 \nline2 {}\nline3{}".format(path1, path2)
+        assert remove_path_lines(message) == "line1 \n\n"
+
+        message = "line1 line2 {}".format(path2)
+        assert remove_path_lines(message) == ""
