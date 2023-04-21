@@ -108,6 +108,7 @@ public:
         std::vector<std::vector<int>> _stream_core_ids;
         std::vector<int> _stream_ids;
         bool _cpu_pinning = false;
+        bool _streams_changed = false;
         enum StreamMode { DEFAULT, AGGRESSIVE, LESSAGGRESSIVE };
         enum PreferredCoreType {
             ANY,
