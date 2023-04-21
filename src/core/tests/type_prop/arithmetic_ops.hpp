@@ -147,7 +147,6 @@ TYPED_TEST_P(ArithmeticOperator, shape_inference_4D_x_3D_numpy_broadcast) {
 }
 
 TYPED_TEST_P(ArithmeticOperator, static_shape_pdpd_doc_examples) {
-    // TODO: PDPD broadcast review, ticket: 93618
     {
         auto A = std::make_shared<op::Parameter>(element::f32, Shape{2, 3, 4, 5});
         auto B = std::make_shared<op::Parameter>(element::f32, Shape{3, 4});
@@ -192,6 +191,28 @@ TYPED_TEST_P(ArithmeticOperator, static_shape_pdpd_doc_examples) {
         EXPECT_EQ(op->get_shape(), (Shape{2, 3, 4, 5}));
         EXPECT_EQ(op->get_autob().m_type, op::AutoBroadcastType::PDPD);
     }
+    {
+        auto A = std::make_shared<op::Parameter>(element::f32, Shape{2, 3, 4, 5});
+        auto B = std::make_shared<op::Parameter>(element::f32, Shape{1, 3});
+
+        const auto autob = op::AutoBroadcastSpec(op::AutoBroadcastType::PDPD, 0);
+        const auto op = std::make_shared<TypeParam>(A, B, autob);
+
+        EXPECT_EQ(op->get_element_type(), element::f32);
+        EXPECT_EQ(op->get_shape(), (Shape{2, 3, 4, 5}));
+        EXPECT_EQ(op->get_autob().m_type, op::AutoBroadcastType::PDPD);
+    }
+    {
+        auto A = std::make_shared<op::Parameter>(element::f32, Shape{2, 3, 4, 5});
+        auto B = std::make_shared<op::Parameter>(element::f32, Shape{3, 1, 5});
+
+        const auto autob = op::AutoBroadcastSpec(op::AutoBroadcastType::PDPD, 1);
+        const auto op = std::make_shared<TypeParam>(A, B, autob);
+
+        EXPECT_EQ(op->get_element_type(), element::f32);
+        EXPECT_EQ(op->get_shape(), (Shape{2, 3, 4, 5}));
+        EXPECT_EQ(op->get_autob().m_type, op::AutoBroadcastType::PDPD);
+    }
 }
 
 TYPED_TEST_P(ArithmeticOperator, static_shape_4D_x_4D_equal_pdpd_broadcast) {
@@ -203,6 +224,41 @@ TYPED_TEST_P(ArithmeticOperator, static_shape_4D_x_4D_equal_pdpd_broadcast) {
 
     EXPECT_EQ(op->get_element_type(), element::f32);
     EXPECT_EQ(op->get_shape(), (Shape{8, 1, 6, 5}));
+    EXPECT_EQ(op->get_autob().m_type, op::AutoBroadcastType::PDPD);
+}
+
+TYPED_TEST_P(ArithmeticOperator, static_shape_inference_4D_x_4D_pdpd_broadcast) {
+    auto A = std::make_shared<op::Parameter>(element::f32, Shape{8, 7, 6, 5});
+    auto B = std::make_shared<op::Parameter>(element::f32, Shape{8, 1, 6, 5});
+
+    const auto autob = op::AutoBroadcastSpec(op::AutoBroadcastType::PDPD);
+    const auto op = std::make_shared<TypeParam>(A, B, autob);
+
+    EXPECT_EQ(op->get_element_type(), element::f32);
+    EXPECT_EQ(op->get_shape(), (Shape{8, 7, 6, 5}));
+    EXPECT_EQ(op->get_autob().m_type, op::AutoBroadcastType::PDPD);
+}
+
+TYPED_TEST_P(ArithmeticOperator, static_shape_inference_4D_x_3D_ax_default_pdpd_broadcast) {
+    auto A = std::make_shared<op::Parameter>(element::f32, Shape{8, 7, 6, 5});
+    auto B = std::make_shared<op::Parameter>(element::f32, Shape{7, 1, 5});
+
+    const auto op = std::make_shared<TypeParam>(A, B, op::AutoBroadcastType::PDPD);
+
+    EXPECT_EQ(op->get_element_type(), element::f32);
+    EXPECT_EQ(op->get_shape(), (Shape{8, 7, 6, 5}));
+    EXPECT_EQ(op->get_autob().m_type, op::AutoBroadcastType::PDPD);
+}
+
+TYPED_TEST_P(ArithmeticOperator, static_shape_inference_4D_x_3D_ax_1_pdpd_bdir_broadcast) {
+    auto A = std::make_shared<op::Parameter>(element::f32, Shape{8, 1, 6, 1});
+    auto B = std::make_shared<op::Parameter>(element::f32, Shape{7, 1, 5});
+
+    const auto autob = op::AutoBroadcastSpec(op::AutoBroadcastType::PDPD, 1);
+    const auto op = std::make_shared<TypeParam>(A, B, autob);
+
+    EXPECT_EQ(op->get_element_type(), element::f32);
+    EXPECT_EQ(op->get_shape(), (Shape{8, 7, 6, 5}));
     EXPECT_EQ(op->get_autob().m_type, op::AutoBroadcastType::PDPD);
 }
 
@@ -349,7 +405,6 @@ TYPED_TEST_P(ArithmeticOperator, dynamic_shape_intervals_b_rank_smaller_broadcas
 }
 
 TYPED_TEST_P(ArithmeticOperator, dynamic_shape_intervals_broadcast_pdpd) {
-    // TODO: PDPD broadcast review, ticket: 93618
     {  // Equal rank
         auto A = std::make_shared<op::Parameter>(
             element::f32,
@@ -363,25 +418,33 @@ TYPED_TEST_P(ArithmeticOperator, dynamic_shape_intervals_broadcast_pdpd) {
         EXPECT_EQ(op->get_output_partial_shape(0),
                   (PartialShape{Dimension(1, 3), Dimension(2, 7), Dimension(1, 6), /* Dimension(6, -1), */ -1, 8}));
     }
-    {  // `A` fully dynamic dimension, axis = 0
-        auto A = std::make_shared<op::Parameter>(element::f32, PartialShape{-1, -1});
-        auto B = std::make_shared<op::Parameter>(element::f32, PartialShape{Dimension(1, 3), Dimension(2, 7)});
+    {  // `A` rank smaller
+        auto A = std::make_shared<op::Parameter>(
+            element::f32,
+            PartialShape{Dimension(1, 3), Dimension(1, 3), Dimension(1, 3), Dimension(4, 8), -1, 1, -1, 1, 3});
+        auto B = std::make_shared<op::Parameter>(
+            element::f32,
+            PartialShape{Dimension(1, 3), Dimension(2, 7), -1, 1, Dimension(1, 3), Dimension(4, 8), -1, 1, 3});
 
         const auto autob = op::AutoBroadcastSpec(op::AutoBroadcastType::PDPD, 0);
         const auto op = std::make_shared<TypeParam>(A, B, autob);
 
         EXPECT_EQ(op->get_element_type(), element::f32);
-        EXPECT_EQ(op->get_output_partial_shape(0), (PartialShape{-1, -1}));
+        EXPECT_EQ(op->get_output_partial_shape(0),
+                  (PartialShape{Dimension(1, 3), Dimension(2, 7), -1, Dimension(4, 8), -1, Dimension(4, 8), -1, 1, 3}));
     }
-    {  // `B` fully dynamic dimension, axis = 0
-        auto A = std::make_shared<op::Parameter>(element::f32, PartialShape{Dimension(1, 3), Dimension(2, 7)});
-        auto B = std::make_shared<op::Parameter>(element::f32, PartialShape{-1, -1});
+    {  // `B` rank smaller
+        auto A = std::make_shared<op::Parameter>(
+            element::f32,
+            PartialShape{Dimension(1, 3), Dimension(2, 7), -1, 1, Dimension(1, 3), Dimension(4, 8), -1, 1, 3});
+        auto B = std::make_shared<op::Parameter>(element::f32,
+                                                 PartialShape{Dimension(1, 3), Dimension(4, 8), -1, 1, -1, 1, 3});
 
-        const auto autob = op::AutoBroadcastSpec(op::AutoBroadcastType::PDPD, 0);
-        const auto op = std::make_shared<TypeParam>(A, B, autob);
+        const auto op = std::make_shared<TypeParam>(A, B);
 
         EXPECT_EQ(op->get_element_type(), element::f32);
-        EXPECT_EQ(op->get_output_partial_shape(0), (PartialShape{Dimension(1, 3), Dimension(2, 7)}));
+        EXPECT_EQ(op->get_output_partial_shape(0),
+                  (PartialShape{Dimension(1, 3), Dimension(2, 7), -1, Dimension(4, 8), -1, Dimension(4, 8), -1, 1, 3}));
     }
 }
 
@@ -823,6 +886,9 @@ REGISTER_TYPED_TEST_SUITE_P(ArithmeticOperator,
                             shape_inference_4D_x_3D_numpy_broadcast,
                             static_shape_pdpd_doc_examples,
                             static_shape_4D_x_4D_equal_pdpd_broadcast,
+                            static_shape_inference_4D_x_4D_pdpd_broadcast,
+                            static_shape_inference_4D_x_3D_ax_default_pdpd_broadcast,
+                            static_shape_inference_4D_x_3D_ax_1_pdpd_bdir_broadcast,
                             incompatible_element_types,
                             incompatible_boolean_type,
                             shape_inference_1D_x_1D_incompatible,

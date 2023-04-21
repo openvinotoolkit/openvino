@@ -325,35 +325,39 @@ bool ov::PartialShape::broadcast_merge_into(PartialShape& dst,
     }
     case op::AutoBroadcastType::PDPD: {
         if (dst.rank().is_dynamic() || src.rank().is_dynamic()) {
+            dst = PartialShape::dynamic();
             return true;
         } else {
             // Ranks are both static.
             auto dst_rank = dst.rank().get_length();
             auto src_rank = src.rank().get_length();
-            // source rank can't be bigger than destination rank according to PDPD broadcast rule.
-            if (src_rank > dst_rank)
-                return false;
-            if (dst_rank == src_rank && dst.compatible(src))
-                return true;
 
             int64_t axis = autob.m_axis;
-            if (axis < -1) {
+            if (src_rank > dst_rank || axis < -1)
                 return false;
-            }
-            if (axis == -1) {
-                axis = dst_rank - src_rank;
-            }
 
-            size_t len = src_rank;
-            while (len > 0 && src[len - 1].is_static() && src[len - 1].get_length() == 1) {
-                --len;
-            }
+            axis = (axis == -1) ? (dst_rank - src_rank) : axis;
 
-            for (size_t i = axis; i < axis + len; ++i) {
-                if (!(dst[i].compatible(src[i - axis]))) {
-                    return false;
-                }
+            if (src_rank + axis > dst_rank)
+                return false;
+
+            std::vector<Dimension> broadcast_shape(dst_rank);
+
+            for (int64_t i = 0; i < axis; i++)
+                broadcast_shape[i] = (dst[i].is_dynamic()) ? dst[i] : Dimension(1);
+
+            for (int64_t i = axis; i < axis + src_rank; i++)
+                broadcast_shape[i] = src[i - axis];
+
+            for (int64_t i = axis + src_rank; i < dst_rank; i++)
+                broadcast_shape[i] = (dst[i].is_dynamic()) ? dst[i] : Dimension(1);
+
+            std::vector<Dimension> dims(dst_rank);
+            bool success = true;
+            for (int64_t i = 0; i < dst_rank; i++) {
+                success &= Dimension::broadcast_merge(dims[i], dst[i], broadcast_shape[i]);
             }
+            dst = PartialShape(std::move(dims));
 
             return true;
         }

@@ -155,8 +155,8 @@ std::ostream& operator<<(std::ostream& s, const TopKMode& type);
 
 /// \brief Implicit broadcast specification
 struct OPENVINO_API AutoBroadcastSpec {
-    AutoBroadcastSpec() : m_type(AutoBroadcastType::NONE), m_axis(0) {}
-    AutoBroadcastSpec(AutoBroadcastType type) : m_type(type), m_axis(0) {}
+    AutoBroadcastSpec() : m_type(AutoBroadcastType::NONE), m_axis(-1) {}
+    AutoBroadcastSpec(AutoBroadcastType type) : m_type(type), m_axis(-1) {}
     AutoBroadcastSpec(const char* type) : AutoBroadcastSpec(type_from_string(type)) {}
     AutoBroadcastSpec(AutoBroadcastType type, int64_t axis) : m_type(type), m_axis(axis) {}
 

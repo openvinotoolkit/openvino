@@ -101,7 +101,7 @@ PDPD examples
   ``Result: Shape(2, 3, 4, 5)`` 
 
 * ``A: Shape(2, 3, 4, 5)`` 
-  ``B: Shape(5,)`` 
+  ``B: Shape(         5) with axis = 3`` 
   ``Result: Shape(2, 3, 4, 5)``
 
 Bidirectional Broadcast Rules 
