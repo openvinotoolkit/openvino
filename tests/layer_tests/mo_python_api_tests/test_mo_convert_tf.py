@@ -269,21 +269,14 @@ def create_tf_checkpoint(tmp_dir):
 def create_tf_function(temp_dir):
     import tensorflow as tf
 
-    input_names = ["Input1", "Input2"]
-    input_shape = [1, 2, 3]
-
-    x1 = tf.keras.Input(shape=input_shape, name=input_names[0])
-    x2 = tf.keras.Input(shape=input_shape, name=input_names[1])
-    y = tf.nn.sigmoid(tf.nn.relu(x1 + x2))
-    keras_net = tf.keras.Model(inputs=[x1, x2], outputs=[y])
-
     @tf.function(
         input_signature=[tf.TensorSpec(shape=[1, 2, 3], dtype=tf.float32),
                          tf.TensorSpec(shape=[1, 2, 3], dtype=tf.float32)])
-    def f(x):
-        return keras_net(x)
+    def f(x1, x2):
+        y = tf.nn.sigmoid(tf.nn.relu(x1 + x2))
+        return y
 
-    shape = PartialShape([-1, 1, 2, 3])
+    shape = PartialShape([1, 2, 3])
     param1 = ov.opset8.parameter(shape, dtype=np.float32)
     param2 = ov.opset8.parameter(shape, dtype=np.float32)
     add = ov.opset8.add(param1, param2)
@@ -293,7 +286,35 @@ def create_tf_function(temp_dir):
     parameter_list = [param1, param2]
     model_ref = Model([sigm], parameter_list, "test")
 
-    return keras_net, model_ref, None
+    return f, model_ref, None
+
+
+def create_tf_graph(temp_dir):
+    import tensorflow as tf
+
+    tf.compat.v1.reset_default_graph()
+
+    with tf.compat.v1.Session() as sess:
+        inp1 = tf.compat.v1.placeholder(tf.float32, [1, 2, 3], 'Input')
+        inp2 = tf.compat.v1.placeholder(tf.float32, [1, 2, 3], 'Input')
+        relu = tf.nn.relu(inp1 + inp2, name='Relu')
+
+        output = tf.nn.sigmoid(relu, name='Sigmoid')
+
+        tf.compat.v1.global_variables_initializer()
+        tf_net = sess.graph
+
+    shape = PartialShape([1, 2, 3])
+    param1 = ov.opset8.parameter(shape, dtype=np.float32)
+    param2 = ov.opset8.parameter(shape, dtype=np.float32)
+    add = ov.opset8.add(param1, param2)
+    relu = ov.opset8.relu(add)
+    sigm = ov.opset8.sigmoid(relu)
+
+    parameter_list = [param1, param2]
+    model_ref = Model([sigm], parameter_list, "test")
+
+    return tf_net, model_ref, None
 
 
 def create_tf_saved_model_dir(temp_dir):
@@ -336,7 +357,7 @@ class TestMoConvertTF(CommonMOConvertTest):
         # TF2
         create_keras_model,
         create_keras_layer,
-        #create_tf_function,  # skip, ticket 106247
+        create_tf_function,
         create_tf_module,
         create_tf_checkpoint,
         create_tf_saved_model,
@@ -345,6 +366,7 @@ class TestMoConvertTF(CommonMOConvertTest):
         create_tf_module_layout_list,
 
         # TF1
+        create_tf_graph,
         create_tf_graph_def,
         create_tf1_wrap_function,
         create_tf_session,

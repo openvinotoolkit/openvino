@@ -521,11 +521,17 @@ def check_model_object(argv):
 
         if isinstance(model, tf.compat.v1.GraphDef):
             return "tf"
+        if isinstance(model, tf.compat.v1.Graph):
+            argv['input_model'] = model.as_graph_def()
+            return "tf"
         if isinstance(model, tf.compat.v1.Session):
             argv['input_model'] = model.graph_def
             return "tf"
         if isinstance(model, tf.types.experimental.ConcreteFunction):
             argv['input_model'] = model.graph.as_graph_def()
+            return "tf"
+        if isinstance(model, tf.types.experimental.GenericFunction):
+            argv['input_model'] = model
             return "tf"
         if isinstance(model, tf.keras.Model):
             return "tf"

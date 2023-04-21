@@ -226,6 +226,14 @@ def prepare_graph_def(model):
 
         conc_func = tf_function.get_concrete_function(model_inputs)
         return freeze_tf2_concrete_function(model, conc_func, env_setup)
+    if isinstance(model, tf.types.experimental.GenericFunction):
+        env_setup = get_environment_setup("tf")
+
+        assert hasattr(model, "input_signature") and model.input_signature is not None, \
+            "'input_signature' needs to be set for model conversion."
+
+        conc_func = model.get_concrete_function(*tuple(model.input_signature))
+        return freeze_tf2_concrete_function(model, conc_func, env_setup)
     if isinstance(model, Trackable):
         env_setup = get_environment_setup("tf")
         return saved_model_load(model, env_setup)
