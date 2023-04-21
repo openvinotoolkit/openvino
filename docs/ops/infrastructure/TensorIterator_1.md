@@ -111,9 +111,7 @@ TensorIterator also has several special sections: ``body``, ``port_map``, ``back
 
 How ``body`` is iterated:
 
-*At the first iteration:*
-
-TensorIterator slices input tensors by a specified axis and iterates over all parts in a specified order. It process input tensors with arbitrary network specified as an IR network in the ``body`` section. IR is executed as no back-edges are present. Edges from ``port map`` are used to connect input ports of TensorIterator to ``Parameters`` in body.
+*At the first iteration:* TensorIterator slices input tensors by a specified axis and iterates over all parts in a specified order. It process input tensors with arbitrary network specified as an IR network in the ``body`` section. IR is executed as no back-edges are present. Edges from ``port map`` are used to connect input ports of TensorIterator to ``Parameters`` in body.
 
 [``inputs``] - ``Port map`` edges -> [``Parameters:body:Results``]
 
@@ -149,7 +147,7 @@ where ``Si`` is value of ``Result`` operation at i-th iteration in the tensor it
 
 *Example 1: a typical TensorIterator structure*
 
-.. code-block:: console 
+.. code-block:: cpp 
 
     <layer type="TensorIterator" ... >
         <input> ... </input>
@@ -174,7 +172,7 @@ where ``Si`` is value of ``Result`` operation at i-th iteration in the tensor it
 
 *Example 2: a full TensorIterator layer*
 
-.. code-block:: console 
+.. code-block:: cpp 
   
     <layer type="TensorIterator" ...>
         <input>

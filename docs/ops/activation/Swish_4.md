@@ -38,7 +38,7 @@ where β corresponds to ``beta`` scalar input.
 
 **Examples**
 
-*Example: Second input ``beta`` provided*
+Example: Second input ``beta`` provided
 
 .. code-block:: cpp 
 
@@ -60,7 +60,7 @@ where β corresponds to ``beta`` scalar input.
     </layer>
 
 
-*Example: Second input ``beta`` not provided*
+Example: Second input ``beta`` not provided
 
 .. code-block:: cpp 
 

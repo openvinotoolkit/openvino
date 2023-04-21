@@ -6,7 +6,7 @@
 
 **Category**: *sorting and maximization*
 
-*short description**: *TopK* computes indices and values of the *k* maximum/minimum values for each slice along a specified axis.
+**Short description**: *TopK* computes indices and values of the *k* maximum/minimum values for each slice along a specified axis.
 
 **Attributes**
 
@@ -17,7 +17,7 @@
   * **Type**: ``int``
   * **Required**: *yes*
 
-* ``mode*
+* *mode*
 
   * **Description**: Specifies whether *TopK* selects the largest or the smallest elements from each slice.
   * **Range of values**: "min", "max"
@@ -78,16 +78,16 @@ meaning that for each slice ``input[i1, ...., i(axis-1), :, i(axis+1), ..., iN]`
 
 Sorting and minimum/maximum are controlled by ``sort`` and ``mode`` attributes with additional configurability provided by ``stable``:
 
-* ``sort`` = *value*, ``mode`` = *max*, ``stable`` = *false* - descending by value, relative order of equal elements not guaranteed to be maintained
-* ``sort`` = *value``, ``mode`` = *max*, ``stable`` = *true*  - descending by value, relative order of equal elements guaranteed to be maintained
-* ``sort`` = *value``, ``mode`` = *min*, ``stable`` = *false* - ascending by value, relative order of equal elements not guaranteed to be maintained
-* ``sort`` = *value``, ``mode`` = *min*, ``stable`` = *true*  - ascending by value, relative order of equal elements guaranteed to be maintained
-* ``sort`` = *index*, ``mode`` = *max*, ``stable`` = *false* - ascending by index, relative order of equal elements not guaranteed to be maintained
-* ``sort`` = *index*, ``mode`` = *max*, ``stable`` = *true*  - ascending by index, relative order of equal elements guaranteed to be maintained
-* ``sort`` = *index*, ``mode`` = *min*, ``stable`` = *false* - ascending by index, relative order of equal elements not guaranteed to be maintained
-* ``sort`` = *index*, ``mode`` = *min*, ``stable`` = *true*  - ascending by index, relative order of equal elements guaranteed to be maintained
-* ``sort`` = *none* , ``mode`` = *max* - undefined
-* ``sort`` = *none* , ``mode`` = *min* - undefined
+* *sort* =  ``value`` , *mode* =  ``max`` , *stable* =  ``false``  - descending by value, relative order of equal elements not guaranteed to be maintained
+* *sort* = ``value`` , *mode* =  ``max`` , *stable* =  ``true``   - descending by value, relative order of equal elements guaranteed to be maintained
+* *sort* = ``value`` , *mode* =  ``min`` , *stable* =  ``false``  - ascending by value, relative order of equal elements not guaranteed to be maintained
+* *sort* = ``value`` , *mode* =  ``min`` , *stable* =  ``true``   - ascending by value, relative order of equal elements guaranteed to be maintained
+* *sort* =  ``index`` , *mode* =  ``max`` , *stable* =  ``false``  - ascending by index, relative order of equal elements not guaranteed to be maintained
+* *sort* =  ``index`` , *mode* =  ``max`` , *stable* =  ``true``   - ascending by index, relative order of equal elements guaranteed to be maintained
+* *sort* =  ``index`` , *mode* =  ``min`` , *stable* =  ``false``  - ascending by index, relative order of equal elements not guaranteed to be maintained
+* *sort* =  ``index`` , *mode* =  ``min`` , *stable* =  ``true``   - ascending by index, relative order of equal elements guaranteed to be maintained
+* *sort* =  ``none``  , *mode* =  ``max``  - undefined
+* *sort* =  ``none``  , *mode* =  ``min``  - undefined
 
 The relative order of equivalent elements is only preserved if the ``stable`` attribute is set to ``true``. This makes the implementation use stable sorting algorithm during the computation of TopK elements. Otherwise the output order is undefined.
 The "by index" order means that the input tensor's elements are still sorted by value but their order in the output tensor is additionally determined by the indices of those elements in the input tensor. This might yield multiple correct results though. For example if the input tensor contains the following elements:
@@ -130,7 +130,7 @@ The indices are always sorted ascendingly when ``sort == index`` for any given T
 
 This example assumes that ``K`` is equal to 10:
 
-.. code-block:: console 
+.. code-block:: cpp 
 
   <layer ... type="TopK" ... >
       <data axis="3" mode="max" sort="value" stable="true" index_element_type="i64"/>

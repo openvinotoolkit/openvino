@@ -54,33 +54,33 @@ The value can be in the range ``[ -r, r - 1]``, where ``r`` is the rank of ``dat
 
 *Example 1*
 
-.. code-block:: console 
+.. code-block:: cpp 
 
     <layer ... type="ScatterUpdate">
         <input>
-            <port id="0">  <!-- data -->
+            <port id="0">  < !-- data -->
                 <dim>1000</dim>
                 <dim>256</dim>
                 <dim>10</dim>
                 <dim>15</dim>
             </port>
-            <port id="1">  <!-- indices -->
+            <port id="1">  < !-- indices -->
                 <dim>125</dim>
                 <dim>20</dim>
             </port>
-            <port id="2">  <!-- udpates -->
+            <port id="2">  < !-- udpates -->
                 <dim>1000</dim>
                 <dim>125</dim>
                 <dim>20</dim>
                 <dim>10</dim>
                 <dim>15</dim>
             </port>
-            <port id="3">   <!-- axis -->
-                <dim>1</dim> <!-- value [1] -->
+            <port id="3">   < !-- axis -->
+                <dim>1</dim> < !-- value [1] -->
             </port>
         </input>
         <output>
-            <port id="4" precision="FP32"> <!-- output -->
+            <port id="4" precision="FP32"> < !-- output -->
                 <dim>1000</dim>
                 <dim>256</dim>
                 <dim>10</dim>
@@ -91,30 +91,30 @@ The value can be in the range ``[ -r, r - 1]``, where ``r`` is the rank of ``dat
 
 *Example 2*
 
-.. code-block:: console  
+.. code-block:: cpp  
 
     <layer ... type="ScatterUpdate">
         <input>
-            <port id="0">  <!-- data -->
-                <dim>3</dim>    <!-- {{-1.0f, 1.0f, -1.0f, 3.0f, 4.0f},  -->
-                <dim>5</dim>    <!-- {-1.0f, 6.0f, -1.0f, 8.0f, 9.0f},   -->
-            </port>             <!-- {-1.0f, 11.0f, 1.0f, 13.0f, 14.0f}} -->
-            <port id="1">  <!-- indices -->
-                <dim>2</dim> <!-- {0, 2} -->
+            <port id="0">  < !-- data -->
+                <dim>3</dim>    < !-- {{-1.0f, 1.0f, -1.0f, 3.0f, 4.0f},  -->
+                <dim>5</dim>    < !-- {-1.0f, 6.0f, -1.0f, 8.0f, 9.0f},   -->
+            </port>             < !-- {-1.0f, 11.0f, 1.0f, 13.0f, 14.0f}} -->
+            <port id="1">  < !-- indices -->
+                <dim>2</dim> < !-- {0, 2} -->
             </port>
-            <port id="2">  <!-- udpates -->
-                <dim>3</dim> <!-- {1.0f, 1.0f} -->
-                <dim>2</dim> <!-- {1.0f, 1.0f} -->
-            </port>          <!-- {1.0f, 2.0f} -->
-            <port id="3">   <!-- axis -->
-                <dim>1</dim> <!-- {1} -->
+            <port id="2">  < !-- udpates -->
+                <dim>3</dim> < !-- {1.0f, 1.0f} -->
+                <dim>2</dim> < !-- {1.0f, 1.0f} -->
+            </port>          < !-- {1.0f, 2.0f} -->
+            <port id="3">   < !-- axis -->
+                <dim>1</dim> < !-- {1} -->
             </port>
         </input>
         <output>
-            <port id="4">  <!-- output -->
-                <dim>3</dim>    <!-- {{1.0f, 1.0f, 1.0f, 3.0f, 4.0f},   -->
-                <dim>5</dim>    <!-- {1.0f, 6.0f, 1.0f, 8.0f, 9.0f},    -->
-            </port>             <!-- {1.0f, 11.0f, 2.0f, 13.0f, 14.0f}} -->
+            <port id="4">  < !-- output -->
+                <dim>3</dim>    < !-- {{1.0f, 1.0f, 1.0f, 3.0f, 4.0f},   -->
+                <dim>5</dim>    < !-- {1.0f, 6.0f, 1.0f, 8.0f, 9.0f},    -->
+            </port>             < !-- {1.0f, 11.0f, 2.0f, 13.0f, 14.0f}} -->
         </output>
     </layer>
 

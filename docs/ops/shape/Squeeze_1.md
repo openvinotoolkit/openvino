@@ -35,7 +35,7 @@
 
 *Example 1: squeeze 4D tensor to a 2D tensor*
 
-.. code-block:: console 
+.. code-block:: cpp 
 
     <layer ... type="Squeeze">
         <input>
@@ -48,7 +48,7 @@
         </input>
         <input>
             <port id="1">
-                <dim>2</dim>  <!-- value [0, 2] -->
+                <dim>2</dim>  < !-- value [0, 2] -->
             </port>
         </input>
         <output>
@@ -61,7 +61,7 @@
 
 *Example 2: squeeze 1D tensor with 1 element to a 0D tensor (constant)*
 
-.. code-block:: console 
+.. code-block:: cpp 
 
     <layer ... type="Squeeze">
         <input>
@@ -71,7 +71,7 @@
         </input>
         <input>
             <port id="1">
-                <dim>1</dim>  <!-- value is [0] -->
+                <dim>1</dim>  < !-- value is [0] -->
             </port>
         </input>
         <output>

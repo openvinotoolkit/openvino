@@ -52,7 +52,7 @@ The value can be in range ``[-r, r - 1]`` where ``r`` is the rank of ``data``. *
 
 **Example**
 
-.. code-block:: console  
+.. code-block:: cpp  
 
     <layer ... type="ScatterElementsUpdate">
         <input>
@@ -74,7 +74,7 @@ The value can be in range ``[-r, r - 1]`` where ``r`` is the rank of ``data``. *
                 <dim>7</dim>
                 <dim>6</dim>
             </port>
-            <port id="3">     <!-- value [0] -->
+            <port id="3">     < !-- value [0] -->
                 <dim>1</dim>
             </port>
         </input>

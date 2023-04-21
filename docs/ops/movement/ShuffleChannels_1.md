@@ -70,7 +70,7 @@ where ``group`` is the layer attribute described below.
 
 **Example**
 
-.. code-block:: console  
+.. code-block:: cpp  
 
     <layer ... type="ShuffleChannels" ...>
         <data group="3" axis="1"/>

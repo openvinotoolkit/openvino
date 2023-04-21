@@ -20,7 +20,7 @@
 
 **Example**
 
-.. code-block:: console 
+.. code-block:: cpp 
 
     <layer ... type="ShapeOf">
         <input>
@@ -32,7 +32,7 @@
             </port>
         </input>
         <output>
-            <port id="1">  <!-- output value is: [2,3,224,224]-->
+            <port id="1">  < !-- output value is: [2,3,224,224]-->
                 <dim>4</dim>
             </port>
         </output>

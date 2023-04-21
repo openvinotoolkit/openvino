@@ -47,25 +47,25 @@
 
 **Example**
 
-.. code-block:: console
+.. code-block:: cpp
 
     <layer ... type="Select">
         <input>
-            <port id="0">     <!-- cond value is: [[false, false], [true, false], [true, true]] -->
+            <port id="0">     < !-- cond value is: [[false, false], [true, false], [true, true]] -->
                 <dim>3</dim>
                 <dim>2</dim>
             </port>
-            <port id="1">     <!-- then value is: [[-1, 0], [1, 2], [3, 4]] -->
+            <port id="1">     < !-- then value is: [[-1, 0], [1, 2], [3, 4]] -->
                 <dim>3</dim>
                 <dim>2</dim>
             </port>
-            <port id="2">     <!-- else value is: [[11, 10], [9, 8], [7, 6]] -->
+            <port id="2">     < !-- else value is: [[11, 10], [9, 8], [7, 6]] -->
                 <dim>3</dim>
                 <dim>2</dim>
             </port>
         </input>
         <output>
-            <port id="1">     <!-- output value is: [[11, 10], [1, 8], [3, 4]] -->
+            <port id="1">     < !-- output value is: [[11, 10], [1, 8], [3, 4]] -->
                 <dim>3</dim>
                 <dim>2</dim>
             </port>

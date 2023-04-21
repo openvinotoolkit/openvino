@@ -74,7 +74,7 @@ If there are several elements with the same value then their output order is not
 
 **Example**
 
-.. code-block:: console 
+.. code-block:: cpp 
 
   <layer ... type="TopK" ... >
       <data axis="1" mode="max" sort="value"/>

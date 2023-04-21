@@ -36,7 +36,7 @@
 
 *Example 1*
 
-.. code-block:: console 
+.. code-block:: cpp 
 
     <layer ... type="Transpose">
         <input>
@@ -46,7 +46,7 @@
                 <dim>4</dim>
             </port>
             <port id="1">
-                <dim>3</dim>  <!-- [2, 0, 1] -->
+                <dim>3</dim>  < !-- [2, 0, 1] -->
             </port>
         </input>
         <output>
@@ -61,7 +61,7 @@
 
 *Example 2: input_order = empty 1D tensor of Shape[0]*
 
-.. code-block:: console 
+.. code-block:: cpp 
 
     <layer ... type="Transpose">
         <input>
@@ -71,7 +71,7 @@
                 <dim>4</dim>
             </port>
             <port id="1">
-                <dim>0</dim> <!-- input_order is an empty 1D tensor -->
+                <dim>0</dim> < !-- input_order is an empty 1D tensor -->
             </port>
         </input>
         <output>

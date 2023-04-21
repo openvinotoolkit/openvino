@@ -71,28 +71,28 @@ Number of elements in ``start``, ``stop``, ``step``, and ``axes`` inputs are req
 
 Example 1: basic slicing
 
-.. code-block:: console 
+.. code-block:: cpp 
 
   <layer id="1" type="Slice" ...>
       <input>
-          <port id="0">       <!-- data: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9] -->
+          <port id="0">       < !-- data: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9] -->
             <dim>10</dim>
           </port>
-          <port id="1">       <!-- start: [1] -->
+          <port id="1">       < !-- start: [1] -->
             <dim>1</dim>
           </port>
-          <port id="2">       <!-- stop: [8] -->
+          <port id="2">       < !-- stop: [8] -->
             <dim>1</dim>
           </port>
-          <port id="3">       <!-- step: [1] -->
+          <port id="3">       < !-- step: [1] -->
             <dim>1</dim>
           </port>
-          <port id="4">       <!-- axes: [0] -->
+          <port id="4">       < !-- axes: [0] -->
             <dim>1</dim>
           </port>
       </input>
       <output>
-          <port id="5">       <!-- output: [1, 2, 3, 4, 5, 6, 7] -->
+          <port id="5">       < !-- output: [1, 2, 3, 4, 5, 6, 7] -->
               <dim>7</dim>
           </port>
       </output>
@@ -101,25 +101,25 @@ Example 1: basic slicing
 
 Example 2: basic slicing, ``axes`` default
 
-.. code-block:: console 
+.. code-block:: cpp 
 
   <layer id="1" type="Slice" ...>
       <input>
-          <port id="0">       <!-- data: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9] -->
+          <port id="0">       < !-- data: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9] -->
             <dim>10</dim>
           </port>
-          <port id="1">       <!-- start: [1] -->
+          <port id="1">       < !-- start: [1] -->
             <dim>1</dim>
           </port>
-          <port id="2">       <!-- stop: [8] -->
+          <port id="2">       < !-- stop: [8] -->
             <dim>1</dim>
           </port>
-          <port id="3">       <!-- step: [1] -->
+          <port id="3">       < !-- step: [1] -->
             <dim>1</dim>
           </port>
       </input>
       <output>
-          <port id="4">       <!-- output: [1, 2, 3, 4, 5, 6, 7] -->
+          <port id="4">       < !-- output: [1, 2, 3, 4, 5, 6, 7] -->
               <dim>7</dim>
           </port>
       </output>
@@ -128,28 +128,28 @@ Example 2: basic slicing, ``axes`` default
 
 Example 3: basic slicing, ``step: [2]``
 
-.. code-block:: console 
+.. code-block:: cpp 
 
   <layer id="1" type="Slice" ...>
       <input>
-          <port id="0">       <!-- data: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9] -->
+          <port id="0">       < !-- data: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9] -->
             <dim>10</dim>
           </port>
-          <port id="1">       <!-- start: [1] -->
+          <port id="1">       < !-- start: [1] -->
             <dim>1</dim>
           </port>
-          <port id="2">       <!-- stop: [8] -->
+          <port id="2">       < !-- stop: [8] -->
             <dim>1</dim>
           </port>
-          <port id="3">       <!-- step: [2] -->
+          <port id="3">       < !-- step: [2] -->
             <dim>1</dim>
           </port>
-          <port id="4">       <!-- axes: [0] -->
+          <port id="4">       < !-- axes: [0] -->
             <dim>1</dim>
           </port>
       </input>
       <output>
-          <port id="5">       <!-- output: [1, 3, 5, 7] -->
+          <port id="5">       < !-- output: [1, 3, 5, 7] -->
               <dim>4</dim>
           </port>
       </output>
@@ -157,28 +157,28 @@ Example 3: basic slicing, ``step: [2]``
 
 Example 4: ``start`` and ``stop`` out of the dimension size, ``step: [1]``
 
-.. code-block:: console 
+.. code-block:: cpp 
 
   <layer id="1" type="Slice" ...>
       <input>
-          <port id="0">       <!-- data: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9] -->
+          <port id="0">       < !-- data: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9] -->
             <dim>10</dim>
           </port>
-          <port id="1">       <!-- start: [-100] -->
+          <port id="1">       < !-- start: [-100] -->
             <dim>1</dim>
           </port>
-          <port id="2">       <!-- stop: [100] -->
+          <port id="2">       < !-- stop: [100] -->
             <dim>1</dim>
           </port>
-          <port id="3">       <!-- step: [1] -->
+          <port id="3">       < !-- step: [1] -->
             <dim>1</dim>
           </port>
-          <port id="4">       <!-- axes: [0] -->
+          <port id="4">       < !-- axes: [0] -->
             <dim>1</dim>
           </port>
       </input>
       <output>
-          <port id="5">       <!-- output: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9] -->
+          <port id="5">       < !-- output: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9] -->
               <dim>10</dim>
           </port>
       </output>
@@ -187,28 +187,28 @@ Example 4: ``start`` and ``stop`` out of the dimension size, ``step: [1]``
 
 Example 5: slicing backward all elements, ``step: [-1]``, ``stop: [-11]``
 
-.. code-block:: console 
+.. code-block:: cpp 
 
   <layer id="1" type="Slice" ...>
       <input>
-          <port id="0">       <!-- data: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9] -->
+          <port id="0">       < !-- data: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9] -->
             <dim>10</dim>
           </port>
-          <port id="1">       <!-- start: [9] -->
+          <port id="1">       < !-- start: [9] -->
             <dim>1</dim>
           </port>
-          <port id="2">       <!-- stop: [-11] -->
+          <port id="2">       < !-- stop: [-11] -->
             <dim>1</dim>
           </port>
-          <port id="3">       <!-- step: [-1] -->
+          <port id="3">       < !-- step: [-1] -->
             <dim>1</dim>
           </port>
-          <port id="4">       <!-- axes: [0] -->
+          <port id="4">       < !-- axes: [0] -->
             <dim>1</dim>
           </port>
       </input>
       <output>
-          <port id="5">       <!-- output: [9, 8, 7, 6, 5, 4, 3, 2, 1, 0] -->
+          <port id="5">       < !-- output: [9, 8, 7, 6, 5, 4, 3, 2, 1, 0] -->
               <dim>10</dim>
           </port>
       </output>
@@ -217,28 +217,28 @@ Example 5: slicing backward all elements, ``step: [-1]``, ``stop: [-11]``
 
 Example 6: slicing backward, ``step: [-1]``, ``stop: [0]``
 
-.. code-block:: console 
+.. code-block:: cpp 
 
   <layer id="1" type="Slice" ...>
       <input>
-          <port id="0">       <!-- data: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9] -->
+          <port id="0">       < !-- data: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9] -->
             <dim>10</dim>
           </port>
-          <port id="1">       <!-- start: [9] -->
+          <port id="1">       < !-- start: [9] -->
             <dim>1</dim>
           </port>
-          <port id="2">       <!-- stop: [0] -->
+          <port id="2">       < !-- stop: [0] -->
             <dim>1</dim>
           </port>
-          <port id="3">       <!-- step: [-1] -->
+          <port id="3">       < !-- step: [-1] -->
             <dim>1</dim>
           </port>
-          <port id="4">       <!-- axes: [0] -->
+          <port id="4">       < !-- axes: [0] -->
             <dim>1</dim>
           </port>
       </input>
       <output>
-          <port id="5">       <!-- output: [9, 8, 7, 6, 5, 4, 3, 2, 1] -->
+          <port id="5">       < !-- output: [9, 8, 7, 6, 5, 4, 3, 2, 1] -->
               <dim>9</dim>
           </port>
       </output>
@@ -247,28 +247,28 @@ Example 6: slicing backward, ``step: [-1]``, ``stop: [0]``
 
 Example 7: slicing backward, ``step: [-1]``, ``stop: [-10]``
 
-.. code-block:: console  
+.. code-block:: cpp  
 
   <layer id="1" type="Slice" ...>
       <input>
-          <port id="0">       <!-- data: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9] -->
+          <port id="0">       < !-- data: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9] -->
             <dim>10</dim>
           </port>
-          <port id="1">       <!-- start: [9] -->
+          <port id="1">       < !-- start: [9] -->
             <dim>1</dim>
           </port>
-          <port id="2">       <!-- stop: [-10] -->
+          <port id="2">       < !-- stop: [-10] -->
             <dim>1</dim>
           </port>
-          <port id="3">       <!-- step: [-1] -->
+          <port id="3">       < !-- step: [-1] -->
             <dim>1</dim>
           </port>
-          <port id="4">       <!-- axes: [0] -->
+          <port id="4">       < !-- axes: [0] -->
             <dim>1</dim>
           </port>
       </input>
       <output>
-          <port id="5">       <!-- output: [9, 8, 7, 6, 5, 4, 3, 2, 1] -->
+          <port id="5">       < !-- output: [9, 8, 7, 6, 5, 4, 3, 2, 1] -->
               <dim>9</dim>
           </port>
       </output>
@@ -277,28 +277,28 @@ Example 7: slicing backward, ``step: [-1]``, ``stop: [-10]``
 
 Example 8: slicing backward, ``step: [-2]``
 
-.. code-block:: console 
+.. code-block:: cpp 
 
   <layer id="1" type="Slice" ...>
       <input>
-          <port id="0">       <!-- data: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9] -->
+          <port id="0">       < !-- data: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9] -->
             <dim>10</dim>
           </port>
-          <port id="1">       <!-- start: [9] -->
+          <port id="1">       < !-- start: [9] -->
             <dim>1</dim>
           </port>
-          <port id="2">       <!-- stop: [-11] -->
+          <port id="2">       < !-- stop: [-11] -->
             <dim>1</dim>
           </port>
-          <port id="3">       <!-- step: [-2] -->
+          <port id="3">       < !-- step: [-2] -->
             <dim>1</dim>
           </port>
-          <port id="4">       <!-- axes: [0] -->
+          <port id="4">       < !-- axes: [0] -->
             <dim>1</dim>
           </port>
       </input>
       <output>
-          <port id="5">       <!-- output: [9, 7, 5, 3, 1] -->
+          <port id="5">       < !-- output: [9, 7, 5, 3, 1] -->
               <dim>5</dim>
           </port>
       </output>
@@ -307,28 +307,28 @@ Example 8: slicing backward, ``step: [-2]``
 
 Example 9: ``start`` and ``stop`` out of the dimension size, slicing backward
 
-.. code-block:: console 
+.. code-block:: cpp 
 
   <layer id="1" type="Slice" ...>
       <input>
-          <port id="0">       <!-- data: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9] -->
+          <port id="0">       < !-- data: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9] -->
             <dim>10</dim>
           </port>
-          <port id="1">       <!-- start: [100] -->
+          <port id="1">       < !-- start: [100] -->
             <dim>1</dim>
           </port>
-          <port id="2">       <!-- stop: [-100] -->
+          <port id="2">       < !-- stop: [-100] -->
             <dim>1</dim>
           </port>
-          <port id="3">       <!-- step: [-1] -->
+          <port id="3">       < !-- step: [-1] -->
             <dim>1</dim>
           </port>
-          <port id="4">       <!-- axes: [0] -->
+          <port id="4">       < !-- axes: [0] -->
             <dim>1</dim>
           </port>
       </input>
       <output>
-          <port id="5">       <!-- output: [9, 8, 7, 6, 5, 4, 3, 2, 1, 0] -->
+          <port id="5">       < !-- output: [9, 8, 7, 6, 5, 4, 3, 2, 1, 0] -->
               <dim>10</dim>
           </port>
       </output>
@@ -337,29 +337,29 @@ Example 9: ``start`` and ``stop`` out of the dimension size, slicing backward
 
 Example 10: slicing 2D tensor, all axes specified
 
-.. code-block:: console 
+.. code-block:: cpp 
 
   <layer id="1" type="Slice" ...>
       <input>
-          <port id="0">       <!-- data: data: [[0, 1, 2, 3, 4], [5, 6, 7, 8, 9]] -->
+          <port id="0">       < !-- data: data: [[0, 1, 2, 3, 4], [5, 6, 7, 8, 9]] -->
             <dim>2</dim>
             <dim>5</dim>
           </port>
-          <port id="1">       <!-- start: [0, 1] -->
+          <port id="1">       < !-- start: [0, 1] -->
             <dim>2</dim>
           </port>
-          <port id="2">       <!-- stop: [2, 4] -->
+          <port id="2">       < !-- stop: [2, 4] -->
             <dim>2</dim>
           </port>
-          <port id="3">       <!-- step: [1, 2] -->
+          <port id="3">       < !-- step: [1, 2] -->
             <dim>2</dim>
           </port>
-          <port id="4">       <!-- axes: [0, 1] -->
+          <port id="4">       < !-- axes: [0, 1] -->
             <dim>2</dim>
           </port>
       </input>
       <output>
-          <port id="5">      <!-- output: [1, 3, 6, 8] -->
+          <port id="5">      < !-- output: [1, 3, 6, 8] -->
               <dim>2</dim>
               <dim>2</dim>
           </port>
@@ -369,30 +369,30 @@ Example 10: slicing 2D tensor, all axes specified
 
 Example 11: slicing 3D tensor, all axes specified
 
-.. code-block:: console 
+.. code-block:: cpp 
 
   <layer id="1" type="Slice" ...>
       <input>
-          <port id="0">       <!-- data -->
+          <port id="0">       < !-- data -->
             <dim>20</dim>
             <dim>10</dim>
             <dim>5</dim>
           </port>
-          <port id="1">       <!-- start: [0, 0, 0] -->
+          <port id="1">       < !-- start: [0, 0, 0] -->
             <dim>2</dim>
           </port>
-          <port id="2">       <!-- stop: [4, 10, 5] -->
+          <port id="2">       < !-- stop: [4, 10, 5] -->
             <dim>2</dim>
           </port>
-          <port id="3">       <!-- step: [1, 1, 1] -->
+          <port id="3">       < !-- step: [1, 1, 1] -->
             <dim>2</dim>
           </port>
-          <port id="4">       <!-- axes: [0, 1, 2] -->
+          <port id="4">       < !-- axes: [0, 1, 2] -->
             <dim>2</dim>
           </port>
       </input>
       <output>
-          <port id="5">       <!-- output -->
+          <port id="5">       < !-- output -->
               <dim>4</dim>
               <dim>10</dim>
               <dim>5</dim>
@@ -402,30 +402,30 @@ Example 11: slicing 3D tensor, all axes specified
 
 Example 12: slicing 3D tensor, last axes default
 
-.. code-block:: console 
+.. code-block:: cpp 
 
   <layer id="1" type="Slice" ...>
       <input>
-          <port id="0">       <!-- data -->
+          <port id="0">       < !-- data -->
             <dim>20</dim>
             <dim>10</dim>
             <dim>5</dim>
           </port>
-          <port id="1">       <!-- start: [0, 0] -->
+          <port id="1">       < !-- start: [0, 0] -->
             <dim>2</dim>
           </port>
-          <port id="2">       <!-- stop: [4, 10] -->
+          <port id="2">       < !-- stop: [4, 10] -->
             <dim>2</dim>
           </port>
-          <port id="3">       <!-- step: [1, 1] -->
+          <port id="3">       < !-- step: [1, 1] -->
             <dim>2</dim>
           </port>
-          <port id="4">       <!-- axes: [0, 1] -->
+          <port id="4">       < !-- axes: [0, 1] -->
             <dim>2</dim>
           </port>
       </input>
       <output>
-          <port id="5">       <!-- output -->
+          <port id="5">       < !-- output -->
               <dim>4</dim>
               <dim>10</dim>
               <dim>5</dim>

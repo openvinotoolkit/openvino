@@ -48,7 +48,7 @@ After broadcasting *Subtract* performs subtraction operation for the input tenso
 
 *Example 1*
 
-.. code-block:: console 
+.. code-block:: cpp 
 
     <layer ... type="Subtract">
         <data auto_broadcast="none"/>
@@ -72,7 +72,7 @@ After broadcasting *Subtract* performs subtraction operation for the input tenso
 
 *Example 2: broadcast*
 
-.. code-block:: console 
+.. code-block:: cpp 
 
     <layer ... type="Subtract">
         <data auto_broadcast="numpy"/>
