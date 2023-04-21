@@ -1,5 +1,7 @@
 # OpenVINO™ Python API Exclusives {#openvino_docs_OV_UG_Python_API_exclusives}
 
+@sphinxdirective
+
 OpenVINO™ Runtime Python API offers additional features and helpers to enhance user experience. The main goal of Python API is to provide user-friendly and simple yet powerful tool for Python users.
 
 Easier Model Compilation
@@ -86,13 +88,16 @@ Inference Results - OVDict
 
 Synchronous calls return a special data structure called ``OVDict``. It can be compared to a "frozen dictionary". There are various ways of accessing the object's elements:
 
+
 .. doxygensnippet:: docs/snippets/ov_python_exclusives.py
    :language: python
    :fragment: [ov_dict]
 
+
 .. note:: 
    
    It is possible to convert ``OVDict`` to a native dictionary using the ``to_dict()`` method.
+
 
 .. warning:: 
 
@@ -199,3 +204,5 @@ List of Functions that Release the GIL
 * openvino.runtime.InferRequest.query_state
 * openvino.runtime.Model.reshape
 * openvino.preprocess.PrePostProcessor.build
+
+@endsphinxdirective
