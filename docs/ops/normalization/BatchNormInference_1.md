@@ -47,12 +47,14 @@ For a particular activation, consider a mini-batch :math:`\mathcal{B}` of m valu
      
      o_{i} = BN_{\gamma, \beta} ( b_{i} )
 
+* **Mini-batch mean**:
+  
+  .. math::
+     
+     \mu_{\mathcal{B}} \leftarrow \frac{1}{m}\sum_{i=1}^{m}b_{i}
+
 @endsphinxdirective
 
-*   **Mini-batch mean**:
-    \f[
-    \mu_{\mathcal{B}} \leftarrow \frac{1}{m}\sum_{i=1}^{m}b_{i}
-    \f]
 *   **Mini-batch variance**:
     \f[
     \sigma_{\mathcal{B}}^{2}\leftarrow \frac{1}{m}\sum_{i=1}^{m} ( b_{i} - \mu_{\mathcal{B}})^{2}
