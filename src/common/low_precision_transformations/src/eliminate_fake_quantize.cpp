@@ -52,8 +52,8 @@ std::pair<bool, bool> check_interval(const std::shared_ptr<opset1::FakeQuantize>
                                      const float value,
                                      const float max_diff,
                                      const bool exact_comparison) noexcept {
+    auto need_to_check_intervals = false;
     const auto& constant_values = constant->cast_vector<float>();
-    std::vector<float> constant_values_to_check;
     for (const auto constant_value : constant_values) {
         const auto diff = std::fabs(constant_value - value);
         if (diff > std::numeric_limits<float>::epsilon()) {
@@ -61,13 +61,15 @@ std::pair<bool, bool> check_interval(const std::shared_ptr<opset1::FakeQuantize>
                 return { false, false };
             }
 
-            constant_values_to_check.push_back(constant_value);
+            // infer whole boundary interval constant (don't collect not equal values)
+            // to store the same values constant shape in accordace with FQ interval constant shapes
+            need_to_check_intervals = true;
         }
     }
 
-    if (!constant_values_to_check.empty()) {
+    if (need_to_check_intervals) {
         auto tmp_fq = as_type_ptr<opset1::FakeQuantize>(fq->clone_with_new_inputs({
-            std::make_shared<opset1::Constant>(constant->get_output_element_type(0), constant->get_shape(), constant_values_to_check),
+            constant,
             fq->get_input_node_shared_ptr(1),
             fq->get_input_node_shared_ptr(2),
             fq->get_input_node_shared_ptr(3),
@@ -86,7 +88,7 @@ std::pair<bool, bool> check_interval(const std::shared_ptr<opset1::FakeQuantize>
         }
     }
 
-    return { true, !constant_values_to_check.empty()};
+    return { true, need_to_check_intervals };
 }
 
 bool check_intervals(const std::shared_ptr<opset1::FakeQuantize>& fakeQuantize) {
