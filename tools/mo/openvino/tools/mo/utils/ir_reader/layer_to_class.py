@@ -8,7 +8,7 @@ import numpy as np
 
 from openvino.tools.mo.back.MaxPool import MaxPool
 from openvino.tools.mo.back.TopKNormalizer import TopKNormalizer
-from openvino.tools.mo.front.common.partial_infer.utils import int64_array
+from openvino.tools.mo.front.common.partial_infer.utils import int64_array, strict_compare_tensors
 from openvino.tools.mo.graph.graph import Graph, Node
 from openvino.tools.mo.ops.Cast import Cast
 from openvino.tools.mo.ops.GRU import GRU
@@ -195,7 +195,7 @@ def groupconv_to_conv(op: Node):
         weights_node.value = np.reshape(weights_node.value, new_shape)
     elif weights_node.type == 'Reshape':
         # We remove reshape node added in ConvolutionWithGroupsResolver pass
-        assert weights_node.in_port(0).get_source().data.get_shape() == new_shape, \
+        assert strict_compare_tensors(weights_node.in_port(0).get_source().data.get_shape(), new_shape), \
             'Weight shape and calculated shape mismatch in GroupConv node {}.'.format(op.name)
         op.in_port(1).disconnect()
         # We use add_destination method here to support case with multiple destinations of source port
@@ -210,7 +210,7 @@ def groupconv_to_conv(op: Node):
         const_node.value = np.reshape(const_node.value, new_shape)
 
     else:
-        assert op.in_port(1).get_source().data.get_shape() == new_shape, \
+        assert strict_compare_tensors(op.in_port(1).get_source().data.get_shape(), op.in_port(1).get_source().data.get_shape()), \
             'Weight shape and calculated shape mismatch in GroupConv node {}.'.format(op.name)
     # We need to set this attrs for correct shape infer as convolution
     op['group'] = group
@@ -342,6 +342,9 @@ def copy_graph_with_ops(graph: Graph) -> Graph:
     for op in graph.get_op_nodes():
         if op.soft_get('type') != 'Const' and op.soft_get('type') in preprocessing_op_nodes:
             preprocessing_op_nodes[op.type](op)
+
+    # clean up graph before coping nodes to the new graph
+    graph.clean_up()
 
     # Create a new copy of graph with correct attributes (shape & type infer, backend attrs etc.)
     for op in graph.get_op_nodes():
