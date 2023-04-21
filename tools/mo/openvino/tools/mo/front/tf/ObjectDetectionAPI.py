@@ -27,7 +27,7 @@ from openvino.tools.mo.front.Pack import Pack
 from openvino.tools.mo.front.TransposeOrderNormalizer import TransposeOrderNormalizer
 from openvino.tools.mo.front.split_normalizer import SqueezeAxis
 from openvino.tools.mo.front.tf.CropAndResizeReplacement import CropAndResizeReplacement
-from openvino.tools.mo.front.tf.FakeQuantWithMinMaxVars import FakeQuantWithMinMaxVarsToQuantize
+from openvino.tools.mo.front.FakeQuantWithMinMaxVars import FakeQuantWithMinMaxVarsToQuantize
 from openvino.tools.mo.front.tf.MapFNTransformation import MapFNInputSlicing, MapFNOutputConcatenation,\
     TensorListOutputConcatenation
 from openvino.tools.mo.front.tf.TFSliceToSlice import TFSliceToSliceReplacer
