@@ -37,7 +37,6 @@ OutputVector translate_concat_op(const NodeContext& node) {
                 input_rank = node.get_input(input_idx).get_partial_shape().rank();
             }
             inputs.push_back(node.get_input(input_idx));
-#endif
         }
     } else if (node.get_op_type() == "ConcatV2") {
         std::vector<int64_t> axis_vector;
