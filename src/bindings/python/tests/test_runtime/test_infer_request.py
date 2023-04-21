@@ -206,9 +206,6 @@ def test_set_tensors(device):
 
 def test_batched_tensors(device):
     core = Core()
-    if device == "CPU":
-        if "Intel" not in core.get_property(device, "FULL_DEVICE_NAME"):
-            pytest.skip("Can't run on ARM plugin")
 
     batch = 4
     one_shape = [1, 2, 2, 2]
@@ -643,9 +640,6 @@ def test_infer_queue_get_idle_handle(device):
 )
 def test_query_state_write_buffer(device, input_shape, data_type, mode):
     core = Core()
-    if device == "CPU":
-        if core.get_property(device, "FULL_DEVICE_NAME") == "arm_compute::NEON":
-            pytest.skip("Can't run on ARM plugin")
 
     from openvino.runtime import Tensor
     from openvino.runtime.utils.types import get_dtype
@@ -891,8 +885,6 @@ def test_invalid_inputs(device, shared_flag):
 
 def test_infer_dynamic_model(device):
     core = Core()
-    if device == "CPU" and "Intel" not in core.get_property(device, "FULL_DEVICE_NAME"):
-        pytest.skip("This test fails on ARM plugin because it doesn't support dynamic shapes.")
 
     param = ops.parameter(PartialShape([-1, -1]))
     model = Model(ops.relu(param), [param])
@@ -1093,8 +1085,6 @@ def test_mixed_scalar_infer(device, shared_flag, input_data):
 ])
 def test_mixed_dynamic_infer(device, shared_flag, input_data):
     core = Core()
-    if device == "CPU" and "Intel" not in core.get_property(device, "FULL_DEVICE_NAME"):
-        pytest.skip("This test fails on ARM plugin because it doesn't support dynamic shapes.")
     param0 = ops.parameter([], np.float32, name="data0")
     param1 = ops.parameter(["?"], np.float32, name="data1")
     add = ops.add(param0, param1, name="add")
