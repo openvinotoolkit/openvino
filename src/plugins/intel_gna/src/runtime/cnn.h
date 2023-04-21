@@ -14,6 +14,7 @@
 void CNNFilter32(intel_dnn_component_t* component);
 void CNNMaxPool(intel_dnn_component_t* component,
                 intel_dnn_number_type_t number_type,
+                const bool fused_with_convolution_2d,
                 const bool sumPoolingOverRide = false);
 
 void CNN2DFilter32(intel_dnn_component_t* component);

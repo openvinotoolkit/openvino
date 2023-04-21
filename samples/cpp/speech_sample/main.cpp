@@ -215,7 +215,7 @@ int main(int argc, char* argv[]) {
                                                                           numFrames * numFrameElements);
                     slog::info << "Using scale factor of " << floatScaleFactor << " calculated from first utterance."
                                << slog::endl;
-                    scale_factors_per_input[model->input(i).get_any_name()] = floatScaleFactor;
+                    scale_factors_per_input[strip_name(model->input(i).get_any_name())] = floatScaleFactor;
                 }
                 gnaPluginConfig[ov::intel_gna::scale_factors_per_input.name()] = scale_factors_per_input;
             }

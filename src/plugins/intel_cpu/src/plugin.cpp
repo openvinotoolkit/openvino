@@ -7,7 +7,7 @@
 #include "openvino/runtime/properties.hpp"
 #include "plugin.h"
 
-#include "transformation_pipeline.h"
+#include "transformations/transformation_pipeline.h"
 #include "itt.h"
 #include "extension_mngr.h"
 #include "extension.h"
@@ -272,8 +272,10 @@ void Engine::ApplyPerformanceHints(std::map<std::string, std::string> &config, c
     }
 }
 
-void Engine::GetPerformanceStreams(std::map<std::string, std::string>& config,
-                                   const std::shared_ptr<ngraph::Function>& ngraphFunc) const {
+void Engine::GetPerformanceStreams(Config& config, const std::shared_ptr<ngraph::Function>& ngraphFunc) {
+    const auto perf_hint_name = config.perfHintsConfig.ovPerfHint;
+    int streams;
+
     auto getPerfHintName = [&]() {
         const auto& input_streams = config.find(ov::num_streams.name());
 
@@ -336,29 +338,15 @@ void Engine::GetPerformanceStreams(std::map<std::string, std::string>& config,
             return 0;
         }
     };
-
-    auto streams = getPerfHintName();
-
-    auto num_requests = config.find(CONFIG_KEY(PERFORMANCE_HINT_NUM_REQUESTS));
-    int infer_requests = 0;
-    if (num_requests != config.end()) {  // arrived with config to the LoadNetwork (and thus higher pri)
-        infer_requests = PerfHintsConfig::CheckPerformanceHintRequestValue(num_requests->second);
-    } else if (engConfig.numRequests > 0) {  // set thru SetConfig to the plugin, 2nd priority
-        infer_requests = engConfig.numRequests;
+    
+    if (config.streamExecutorConfig._streams_changed) {
+        streams = config.streamExecutorConfig._streams;
+    } else {
+        engConfig.streamExecutorConfig._streams = 0;
+        streams = getPerfHintName();
     }
 
-    const auto common_hints = get_num_streams(streams, infer_requests, ngraphFunc, engConfig.streamExecutorConfig);
-
-    config[CONFIG_KEY(CPU_THROUGHPUT_STREAMS)] = common_hints.first;
-    config[ov::num_streams.name()] = common_hints.first;
-    config[CONFIG_KEY(CPU_THREADS_NUM)] = std::to_string(common_hints.second.num_threads);
-    config[CONFIG_KEY_INTERNAL(BIG_CORE_STREAMS)] = std::to_string(common_hints.second.big_core_streams);
-    config[CONFIG_KEY_INTERNAL(BIG_CORE_LOGIC_STREAMS)] = std::to_string(common_hints.second.big_core_logic_streams);
-    config[CONFIG_KEY_INTERNAL(SMALL_CORE_STREAMS)] = std::to_string(common_hints.second.small_core_streams);
-    config[CONFIG_KEY_INTERNAL(THREADS_PER_STREAM_BIG)] = std::to_string(common_hints.second.threads_per_stream_big);
-    config[CONFIG_KEY_INTERNAL(THREADS_PER_STREAM_SMALL)] =
-        std::to_string(common_hints.second.threads_per_stream_small);
-    config[CONFIG_KEY_INTERNAL(SMALL_CORE_OFFSET)] = std::to_string(common_hints.second.small_core_offset);
+    get_num_streams(streams, ngraphFunc, config);
 }
 
 StreamCfg Engine::GetNumStreams(InferenceEngine::IStreamsExecutor::ThreadBindingType thread_binding_type,
@@ -530,10 +518,7 @@ Engine::LoadExeNetworkImpl(const InferenceEngine::CNNNetwork &network, const std
         }
     }
 
-    if (is_cpu_map_available()) {
-        SetStreamtoConfig(config);
-        GetPerformanceStreams(config, nGraphFunc);
-    } else {
+    if (!is_cpu_map_available()) {
         ApplyPerformanceHints(config, nGraphFunc);
     }
     transformations.CpuSpecificOpSet();
@@ -547,6 +532,10 @@ Engine::LoadExeNetworkImpl(const InferenceEngine::CNNNetwork &network, const std
     conf.readProperties(config);
     if (conf.enableDynamicBatch) {
         conf.batchLimit = static_cast<int>(network.getBatchSize());
+    }
+
+    if (is_cpu_map_available()) {
+        GetPerformanceStreams(conf, nGraphFunc);
     }
 
     // SSE runtime check is needed for some ATOM machine, which is x86-64 but w/o SSE
@@ -569,15 +558,6 @@ void Engine::SetConfig(const std::map<std::string, std::string> &config) {
     streamsExplicitlySetForEngine = streamsSet(config);
 
     engConfig.readProperties(config);
-}
-
-void Engine::SetStreamtoConfig(const std::map<std::string, std::string>& config) {
-    auto set_enable = config.count(PluginConfigParams::KEY_CPU_THROUGHPUT_STREAMS) ||
-                      config.count(ov::num_streams.name()) || config.count(CONFIG_KEY(CPU_THREADS_NUM)) ||
-                      config.count(ov::inference_num_threads.name());
-    if (set_enable && is_cpu_map_available()) {
-        engConfig.readProperties(config);
-    }
 }
 
 bool Engine::isLegacyAPI() const {
@@ -877,5 +857,15 @@ InferenceEngine::IExecutableNetworkInternal::Ptr Engine::ImportNetwork(std::istr
 }   // namespace ov
 
 using namespace ov::intel_cpu;
+
+#if defined(OPENVINO_ARCH_ARM) || defined(OPENVINO_ARCH_ARM64)
+static const Version version = {{2, 1}, CI_BUILD_NUMBER, "openvino_arm_cpu_plugin"};
+#elif defined(OPENVINO_ARCH_X86) || defined(OPENVINO_ARCH_X86_64)
 static const Version version = {{2, 1}, CI_BUILD_NUMBER, "openvino_intel_cpu_plugin"};
+#elif defined(OPENVINO_ARCH_RISCV64)
+static const Version version = {{2, 1}, CI_BUILD_NUMBER, "openvino_riscv_cpu_plugin"};
+#else
+#error "Undefined system processor"
+#endif
+
 IE_DEFINE_PLUGIN_CREATE_FUNCTION(Engine, version)
