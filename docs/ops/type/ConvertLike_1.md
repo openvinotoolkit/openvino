@@ -14,7 +14,7 @@ Conversion from one supported type to another supported type is always allowed. 
 
 Output elements are represented as follows:
 
-.. code-block:: sh
+.. code-block:: cpp
 
     o[i] = Convert[destination_type=type(b)](a[i])
 
@@ -38,7 +38,7 @@ where ``a`` and ``b`` correspond to ``data`` and ``like`` input tensors, respect
 
 **Example**
 
-.. code-block:: console
+.. code-block:: cpp
    
    <layer ... type="ConvertLike">
        <input>

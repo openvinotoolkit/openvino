@@ -32,7 +32,7 @@
 
 *Example 1*
 
-.. code-block:: console
+.. code-block:: cpp
    
    <layer ... type="Ceiling">
        <input>

@@ -43,7 +43,7 @@ Sequences in the batch can have different length. The lengths of sequences are c
 
 **Example**
 
-.. code-block:: console
+.. code-block:: cpp
    
    <layer ... type="CTCGreedyDecoder" ...>
        <data ctc_merge_repeated="true" />
