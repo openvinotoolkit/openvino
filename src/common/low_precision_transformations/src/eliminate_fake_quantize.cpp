@@ -47,45 +47,46 @@ bool EliminateFakeQuantizeTransformation::transform(TransformationContext& conte
 }
 
 namespace {
-bool check_interval(const std::shared_ptr<opset1::FakeQuantize>& fq,
-                    const std::shared_ptr<opset1::Constant>& constant,
-                    const float value,
-                    const float max_diff,
-                    const bool exact_comparison) noexcept {
-    bool need_to_check_intervals = false;
+std::pair<bool, bool> check_interval(const std::shared_ptr<opset1::FakeQuantize>& fq,
+                                     const std::shared_ptr<opset1::Constant>& constant,
+                                     const float value,
+                                     const float max_diff,
+                                     const bool exact_comparison) noexcept {
     const auto& constant_values = constant->cast_vector<float>();
+    std::vector<float> constant_values_to_check;
     for (const auto constant_value : constant_values) {
-        if (std::fabs(constant_value - value) > std::numeric_limits<float>::epsilon()) {
-            const auto diff = std::fabs(constant_value - value);
-            if ((exact_comparison && (std::fabs(constant_value - value) > std::numeric_limits<float>::epsilon())) ||
-                (diff > max_diff)) {
-                return false;
+        const auto diff = std::fabs(constant_value - value);
+        if (diff > std::numeric_limits<float>::epsilon()) {
+            if (exact_comparison || (diff > max_diff)) {
+                return { false, false };
             }
 
-            need_to_check_intervals = true;
+            constant_values_to_check.push_back(constant_value);
         }
     }
 
-    if (need_to_check_intervals) {
+    if (!constant_values_to_check.empty()) {
         auto tmp_fq = as_type_ptr<opset1::FakeQuantize>(fq->clone_with_new_inputs({
-            constant,
+            std::make_shared<opset1::Constant>(constant->get_output_element_type(0), constant->get_shape(), constant_values_to_check),
             fq->get_input_node_shared_ptr(1),
             fq->get_input_node_shared_ptr(2),
             fq->get_input_node_shared_ptr(3),
             fq->get_input_node_shared_ptr(4)}));
         auto result = NetworkHelper::fold_fake_quantize(tmp_fq, false, 1);
         const auto result_constant = as_type_ptr<opset1::Constant>(result);
-        if (result_constant != nullptr) {
-            const auto& result_values = result_constant->cast_vector<float>();
-            for (const auto result_value : result_values) {
-                if (std::fabs(result_value - value) > std::numeric_limits<float>::epsilon()) {
-                    return false;
-                }
+        if (result_constant == nullptr) {
+            return { false, false };
+        }
+
+        const auto& result_values = result_constant->cast_vector<float>();
+        for (const auto result_value : result_values) {
+            if (std::fabs(result_value - value) > std::numeric_limits<float>::epsilon()) {
+                return { false, false };
             }
         }
     }
 
-    return true;
+    return { true, !constant_values_to_check.empty()};
 }
 
 bool check_intervals(const std::shared_ptr<opset1::FakeQuantize>& fakeQuantize) {
@@ -97,11 +98,32 @@ bool check_intervals(const std::shared_ptr<opset1::FakeQuantize>& fakeQuantize) 
     // input intervals can be not equal with type intervals for low precision only
     const auto exact_comparison = !element_type.is_integral();
 
-    return
-        check_interval(fakeQuantize, ov::as_type_ptr<opset1::Constant>(fakeQuantize->get_input_node_shared_ptr(1)), min_value, max_diff, exact_comparison) &&
-        check_interval(fakeQuantize, ov::as_type_ptr<opset1::Constant>(fakeQuantize->get_input_node_shared_ptr(2)), max_value, max_diff, exact_comparison) &&
-        check_interval(fakeQuantize, ov::as_type_ptr<opset1::Constant>(fakeQuantize->get_input_node_shared_ptr(3)), min_value, max_diff, true) &&
-        check_interval(fakeQuantize, ov::as_type_ptr<opset1::Constant>(fakeQuantize->get_input_node_shared_ptr(4)), max_value, max_diff, true);
+    // only one border can be not equal
+    auto result = check_interval(
+        fakeQuantize,
+        ov::as_type_ptr<opset1::Constant>(fakeQuantize->get_input_node_shared_ptr(1)),
+        min_value,
+        max_diff,
+        exact_comparison);
+    if (!result.first) {
+        return false;
+    }
+
+    return check_interval(fakeQuantize,
+                          ov::as_type_ptr<opset1::Constant>(fakeQuantize->get_input_node_shared_ptr(2)),
+                          max_value,
+                          max_diff,
+                          exact_comparison || result.second).first &&
+           check_interval(fakeQuantize,
+                          ov::as_type_ptr<opset1::Constant>(fakeQuantize->get_input_node_shared_ptr(3)),
+                          min_value,
+                          max_diff,
+                          true).first &&
+           check_interval(fakeQuantize,
+                          ov::as_type_ptr<opset1::Constant>(fakeQuantize->get_input_node_shared_ptr(4)),
+                          max_value,
+                          max_diff,
+                          true).first;
 }
 } // namespace
 
