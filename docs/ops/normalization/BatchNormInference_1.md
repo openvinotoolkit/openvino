@@ -28,18 +28,20 @@ where :math:`E[x^{(k)}]` and :math:`Var(x^{(k)})` are the mean and variance, cal
 
 where :math:`\gamma^{(k)}` and :math:`\beta^{(k)}` are learnable parameters, calculated per channel axis, and correspond to ``gamma`` and ``beta`` inputs.
 
-@endsphinxdirective
-
 **Mathematical Formulation**
 
-Let `x` be a *d*-dimensional input, \f$x=(x_{1}\dotsc x_{d})\f$. Since normalization is applied to each activation \f$E[x^{(k)}]\f$, you can focus on a particular activation and omit k.
+Let ``x`` be a *d*-dimensional input, :math:`x=(x_{1}\dotsc x_{d})`. Since normalization is applied to each activation :math:`E[x^{(k)}]`, you can focus on a particular activation and omit k.
 
-For a particular activation, consider a mini-batch \f$\mathcal{B}\f$ of m values. *BatchNormInference* performs Batch Normalization algorithm as follows:
+For a particular activation, consider a mini-batch :math:`\mathcal{B}` of m values. *BatchNormInference* performs Batch Normalization algorithm as follows:
 
 *   **Input**: Values of \f$x\f$ over a mini-batch:
-    \f[
-    \mathcal{B} = \{ x_{1...m} \}
-    \f]
+    
+    .. math::
+       
+       \mathcal{B} = \{ x_{1...m} \}
+
+@endsphinxdirective
+
 *   **Parameters to learn**: \f$ \gamma, \beta\f$
 *   **Output**:
     \f[
