@@ -50,9 +50,6 @@ def create_simple_request_and_inputs(device):
 
 def concat_model_with_data(device, ov_type, numpy_dtype):
     core = Core()
-    # todo: remove as 101726 will be fixed.
-    if ov_type == Type.boolean and device == "CPU" and "Intel" not in core.get_property(device, "FULL_DEVICE_NAME"):
-        pytest.skip("This test runs only on openvino intel cpu plugin")
 
     input_shape = [5]
 
