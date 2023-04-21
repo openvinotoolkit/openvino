@@ -607,6 +607,7 @@ void program::post_optimize_graph(bool is_internal) {
 
     reorder_factory rf;
     layout_optimizer lo;
+    set_layout_optimizer_attributes(lo);
     apply_opt_pass<post_optimize_weights>(rf);
 
     apply_opt_pass<remove_redundant_reorders>(lo, false, true);  // TODO: do we need it at this place also?
