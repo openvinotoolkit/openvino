@@ -20,6 +20,7 @@
 
 where :math:`E[x^{(k)}]` and :math:`Var(x^{(k)})` are the mean and variance, calculated per channel axis of ``data`` input, and correspond to ``mean`` and ``variance`` inputs, respectively. Additionally, :math:`\epsilon` is a value added to the variance for numerical stability and corresponds to ``epsilon`` attribute.
 
+@endsphinxdirective
 
 * Performs linear transformation of each normalized activation based on `gamma` and `beta` input, representing the scaling factor and shift, respectively.
 \f[
