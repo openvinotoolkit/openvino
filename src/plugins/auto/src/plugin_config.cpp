@@ -11,6 +11,9 @@ const std::set<std::string> PluginConfig::_deviceBlocklist = {"VPUX", "GNA"};
 
 PluginConfig::PluginConfig() {
     set_default();
+    device_property_validator = std::dynamic_pointer_cast<BaseValidator>(std::make_shared<FuncValidator>([](const ov::Any& target) -> bool {
+        return (target.as<std::string>().find(ov::device::properties.name()) != std::string::npos);
+    }));
 }
 
 void PluginConfig::set_default() {
