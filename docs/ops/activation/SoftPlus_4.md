@@ -47,7 +47,7 @@ For example, if *T* is ``fp32``, ``threshold`` should be ``20`` or if *T* is ``f
 
 **Example**
 
-.. code-block:: console 
+.. code-block:: cpp
 
     <layer ... type="SoftPlus">
         <input>

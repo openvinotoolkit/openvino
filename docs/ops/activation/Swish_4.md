@@ -40,7 +40,7 @@ where β corresponds to ``beta`` scalar input.
 
 *Example: Second input ``beta`` provided*
 
-.. code-block:: console 
+.. code-block:: cpp 
 
     <layer ... type="Swish">
         <input>
@@ -48,7 +48,7 @@ where β corresponds to ``beta`` scalar input.
                 <dim>256</dim>
                 <dim>56</dim>
             </port>
-            <port id="1">  <!-- beta value: 2.0 -->
+            <port id="1">  < !-- beta value: 2.0 -->
             </port>
         </input>
         <output>
@@ -62,7 +62,7 @@ where β corresponds to ``beta`` scalar input.
 
 *Example: Second input ``beta`` not provided*
 
-.. code-block:: console 
+.. code-block:: cpp 
 
     <layer ... type="Swish">
         <input>

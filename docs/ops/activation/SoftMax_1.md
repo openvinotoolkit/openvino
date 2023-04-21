@@ -38,7 +38,7 @@ where :math:`C` is a size of tensor along *axis* dimension.
 
 **Example**
 
-.. code-block:: console 
+.. code-block:: cpp
 
   <layer ... type="SoftMax" ... >
       <data axis="1" />

@@ -38,21 +38,20 @@ Where D is the rank of input tensor `data`. The sum of elements in ``split_lengt
 
 **Examples**
 
-.. code-block:: xml
-   :highlight: xcode
+.. code-block:: cpp
 
     <layer id="1" type="VariadicSplit" ...>
         <input>
-            <port id="0">            <!-- some data -->
+            <port id="0">            < !-- some data -->
                 <dim>6</dim>
                 <dim>12</dim>
                 <dim>10</dim>
                 <dim>24</dim>
             </port>
-            <port id="1">            <!-- axis: 0 -->
+            <port id="1">            < !-- axis: 0 -->
             </port>
             <port id="2">
-                <dim>3</dim>         <!-- split_lengths: [1, 2, 3] -->
+                <dim>3</dim>         < !-- split_lengths: [1, 2, 3] -->
             </port>
         </input>
         <output>
@@ -78,25 +77,25 @@ Where D is the rank of input tensor `data`. The sum of elements in ``split_lengt
     </layer>
 
 
-.. code-block:: xml
+.. code-block:: cpp
 
     <layer id="1" type="VariadicSplit" ...>
         <input>
-            <port id="0">            <!-- some data -->
+            <port id="0">            < !-- some data -->
                 <dim>6</dim>
                 <dim>12</dim>
                 <dim>10</dim>
                 <dim>24</dim>
             </port>
-            <port id="1">            <!-- axis: 0 -->
+            <port id="1">            < !-- axis: 0 -->
             </port>
             <port id="2">
-                <dim>2</dim>         <!-- split_lengths: [-1, 2] -->
+                <dim>2</dim>         < !-- split_lengths: [-1, 2] -->
             </port>
         </input>
         <output>
             <port id="3">
-                <dim>4</dim>         <!--  4 = 6 - 2  -->
+                <dim>4</dim>         < !--  4 = 6 - 2  -->
                 <dim>12</dim>
                 <dim>10</dim>
                 <dim>24</dim>
