@@ -18,14 +18,15 @@
 
 namespace ov {
 
-void CPU::init_cpu(CPU& cpu) {
+CPU::CPU() {
     std::vector<std::vector<std::string>> system_info_table;
 
+    _num_threads = parallel_get_max_threads();
     auto GetCatchInfoLinux = [&]() {
-        cpu._processors = sysconf(_SC_NPROCESSORS_ONLN);
-        system_info_table.resize(cpu._processors, std::vector<std::string>(3));
+        _processors = sysconf(_SC_NPROCESSORS_ONLN);
+        system_info_table.resize(_processors, std::vector<std::string>(3));
 
-        for (int n = 0; n < cpu._processors; n++) {
+        for (int n = 0; n < _processors; n++) {
             for (int m = 0; m < 3; m++) {
                 int Ln = (m == 0) ? m : m + 1;
 
@@ -43,12 +44,12 @@ void CPU::init_cpu(CPU& cpu) {
     };
 
     if (!GetCatchInfoLinux()) {
-        parse_processor_info_linux(cpu._processors,
+        parse_processor_info_linux(_processors,
                                    system_info_table,
-                                   cpu._sockets,
-                                   cpu._cores,
-                                   cpu._proc_type_table,
-                                   cpu._cpu_mapping_table);
+                                   _numa_nodes,
+                                   _cores,
+                                   _proc_type_table,
+                                   _cpu_mapping_table);
     } else {
         /*Previous CPU resource based on calculation*/
         std::ifstream cpuinfo("/proc/cpuinfo");
@@ -73,13 +74,13 @@ void CPU::init_cpu(CPU& cpu) {
                 sockets[socketId] = std::stoi(value);
             }
         }
-        cpu._processors = processors.size();
-        cpu._sockets = sockets.size();
+        _processors = processors.size();
+        _numa_nodes = sockets.size();
         for (auto&& socket : sockets) {
-            cpu._cores += socket.second;
+            _cores += socket.second;
         }
-        if (cpu._cores == 0) {
-            cpu._cores = cpu._processors;
+        if (_cores == 0) {
+            _cores = _processors;
         }
     }
     std::vector<std::vector<std::string>>().swap(system_info_table);

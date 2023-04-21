@@ -271,59 +271,18 @@ void Engine::ApplyPerformanceHints(std::map<std::string, std::string> &config, c
     }
 }
 
-void Engine::GetPerformanceStreams(std::map<std::string, std::string>& config,
-                                   const std::shared_ptr<ngraph::Function>& ngraphFunc) const {
-    auto getPerfHintName = [&]() {
-        const bool streamsExplicitlySetForModel = streamsSet(config);
-        // checking streams (to avoid overriding what user might explicitly set in the incoming config or previously via
-        // SetConfig)
-        if (streamsExplicitlySetForModel || streamsExplicitlySetForEngine)
-            return std::string();
-
-        const auto& perf_hint = config.find(CONFIG_KEY(PERFORMANCE_HINT));
-        // the perf_hint may have just arrived to the LoadNetwork, or was set with the plugin's SetConfig
-        if (perf_hint == config.end() && engConfig.perfHintsConfig.ovPerfHint.empty())
-            return std::string();
-        /* performance hints set for network has higher pririty than engine ones.
-         * This applies for all the configuration parameters */
-        const auto perf_hint_name = (perf_hint != config.end())
-                                        ? PerfHintsConfig::CheckPerformanceHintValue(perf_hint->second)
-                                        : engConfig.perfHintsConfig.ovPerfHint;
-        return perf_hint_name;
-    };
-
-    const auto perf_hint_name = getPerfHintName();
-    int streams = engConfig.streamExecutorConfig._streams;
+void Engine::GetPerformanceStreams(Config& config, const std::shared_ptr<ngraph::Function>& ngraphFunc) {
+    const auto perf_hint_name = config.perfHintsConfig.ovPerfHint;
+    int streams = config.streamExecutorConfig._streams;
     if (perf_hint_name == CONFIG_VALUE(LATENCY)) {
-        streams = static_cast<int>(getAvailableNUMANodes().size());
+        streams = get_num_numa_nodes();
     } else if (perf_hint_name == CONFIG_VALUE(THROUGHPUT)) {
         streams = 0;
-    } else if (perf_hint_name.empty()) {
-        streams = streams > 1 ? streams : (engConfig.streamExecutorConfig._set_streams ? streams : 0);
     }
+    streams = config.streamExecutorConfig._streams_changed ? config.streamExecutorConfig._streams
+                                                           : (streams == 1 ? 0 : streams);
 
-    auto num_requests = config.find(CONFIG_KEY(PERFORMANCE_HINT_NUM_REQUESTS));
-    int infer_requests = 0;
-    if (num_requests != config.end()) {  // arrived with config to the LoadNetwork (and thus higher pri)
-        infer_requests = PerfHintsConfig::CheckPerformanceHintRequestValue(num_requests->second);
-    } else if (engConfig.perfHintsConfig.ovPerfHintNumRequests) {  // set thru SetConfig to the plugin, 2nd priority
-        infer_requests = engConfig.perfHintsConfig.ovPerfHintNumRequests;
-    }
-
-    const auto common_hints = get_num_streams(streams, infer_requests, ngraphFunc, engConfig.streamExecutorConfig);
-
-    config[CONFIG_KEY(CPU_THROUGHPUT_STREAMS)] = common_hints.first;
-    config[ov::num_streams.name()] = common_hints.first;
-    config[CONFIG_KEY(CPU_THREADS_NUM)] = std::to_string(common_hints.second.num_threads);
-    config[CONFIG_KEY_INTERNAL(CPU_THREADS_PER_STREAM)] =
-        std::to_string(std::max(1, common_hints.second.num_threads / std::max(1, common_hints.second.num_streams)));
-    config[CONFIG_KEY_INTERNAL(BIG_CORE_STREAMS)] = std::to_string(common_hints.second.big_core_streams);
-    config[CONFIG_KEY_INTERNAL(BIG_CORE_LOGIC_STREAMS)] = std::to_string(common_hints.second.big_core_logic_streams);
-    config[CONFIG_KEY_INTERNAL(SMALL_CORE_STREAMS)] = std::to_string(common_hints.second.small_core_streams);
-    config[CONFIG_KEY_INTERNAL(THREADS_PER_STREAM_BIG)] = std::to_string(common_hints.second.threads_per_stream_big);
-    config[CONFIG_KEY_INTERNAL(THREADS_PER_STREAM_SMALL)] =
-        std::to_string(common_hints.second.threads_per_stream_small);
-    config[CONFIG_KEY_INTERNAL(SMALL_CORE_OFFSET)] = std::to_string(common_hints.second.small_core_offset);
+    get_num_streams(streams, ngraphFunc, config);
 }
 
 StreamCfg Engine::GetNumStreams(InferenceEngine::IStreamsExecutor::ThreadBindingType thread_binding_type,
@@ -495,10 +454,7 @@ Engine::LoadExeNetworkImpl(const InferenceEngine::CNNNetwork &network, const std
         }
     }
 
-    if (is_cpu_map_available()) {
-        SetStreamtoConfig(config);
-        GetPerformanceStreams(config, nGraphFunc);
-    } else {
+    if (!is_cpu_map_available()) {
         ApplyPerformanceHints(config, nGraphFunc);
     }
     transformations.CpuSpecificOpSet();
@@ -512,6 +468,10 @@ Engine::LoadExeNetworkImpl(const InferenceEngine::CNNNetwork &network, const std
     conf.readProperties(config);
     if (conf.enableDynamicBatch) {
         conf.batchLimit = static_cast<int>(network.getBatchSize());
+    }
+
+    if (is_cpu_map_available()) {
+        GetPerformanceStreams(conf, nGraphFunc);
     }
 
     // SSE runtime check is needed for some ATOM machine, which is x86-64 but w/o SSE
@@ -534,15 +494,6 @@ void Engine::SetConfig(const std::map<std::string, std::string> &config) {
     streamsExplicitlySetForEngine = streamsSet(config);
 
     engConfig.readProperties(config);
-}
-
-void Engine::SetStreamtoConfig(const std::map<std::string, std::string>& config) {
-    auto set_enable = config.count(PluginConfigParams::KEY_CPU_THROUGHPUT_STREAMS) ||
-                      config.count(ov::num_streams.name()) || config.count(CONFIG_KEY(CPU_THREADS_NUM)) ||
-                      config.count(ov::inference_num_threads.name());
-    if (set_enable && is_cpu_map_available()) {
-        engConfig.readProperties(config);
-    }
 }
 
 bool Engine::isLegacyAPI() const {

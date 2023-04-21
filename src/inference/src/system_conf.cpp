@@ -162,11 +162,14 @@ std::vector<int> get_available_numa_nodes() {
 int get_number_of_logical_cpu_cores(bool) {
     return parallel_get_max_threads();
 }
-std::vector<std::vector<int>> get_num_available_cpu_cores() {
+std::vector<std::vector<int>> get_proc_type_table() {
     return {{-1}};
 }
 bool is_cpu_map_available() {
     return false;
+}
+int get_num_numa_nodes() {
+    return -1;
 }
 std::vector<int> reserve_available_cpus(const ColumnOfProcessorTypeTable core_type,
                                         const int num_cpus,
@@ -175,10 +178,10 @@ std::vector<int> reserve_available_cpus(const ColumnOfProcessorTypeTable core_ty
                                         const bool reserve_logic_core) {
     return {};
 }
-std::vector<int> get_logic_cores(const std::vector<int> cpu_ids) {
+std::vector<int> get_logical_cores(const std::vector<int> cpu_ids) {
     return {};
 }
-void set_cpu_used(std::vector<int>& cpu_ids, int used) {}
+void set_cpu_used(const std::vector<int>& cpu_ids, const int used) {}
 
 #else
 
@@ -218,19 +221,23 @@ int get_number_of_cpu_cores(bool bigCoresOnly) {
 
 #        if !((OV_THREAD == OV_THREAD_TBB || OV_THREAD == OV_THREAD_TBB_AUTO))
 std::vector<int> get_available_numa_nodes() {
-    std::vector<int> nodes((0 == cpu._sockets) ? 1 : cpu._sockets);
+    std::vector<int> nodes((0 == cpu._numa_nodes) ? 1 : cpu._numa_nodes);
     std::iota(std::begin(nodes), std::end(nodes), 0);
     return nodes;
 }
 #        endif
 #    endif
 
-std::vector<std::vector<int>> get_num_available_cpu_cores() {
+std::vector<std::vector<int>> get_proc_type_table() {
     return cpu._proc_type_table;
 }
 
 bool is_cpu_map_available() {
     return cpu._proc_type_table.size() > 0 && cpu._num_threads == cpu._proc_type_table[0][ALL_PROC];
+}
+
+int get_num_numa_nodes() {
+    return cpu._numa_nodes;
 }
 
 std::vector<int> reserve_available_cpus(const ColumnOfProcessorTypeTable core_type,
@@ -241,9 +248,9 @@ std::vector<int> reserve_available_cpus(const ColumnOfProcessorTypeTable core_ty
     std::lock_guard<std::mutex> lock{cpu._cpu_mutex};
     std::vector<int> cpu_ids;
     int socket = -1;
-    if (reset_status >= PLUGIN_USED_START && cpu._sockets > 1) {
+    if (reset_status >= PLUGIN_USED_START && cpu._numa_nodes > 1) {
         socket = cpu._socket_idx;
-        cpu._socket_idx = (cpu._socket_idx + 1) % cpu._sockets;
+        cpu._socket_idx = (cpu._socket_idx + 1) % cpu._numa_nodes;
     }
     if (core_type < PROC_TYPE_TABLE_SIZE && core_type >= ALL_PROC) {
         for (int i = 0; i < cpu._processors; i++) {
@@ -257,7 +264,7 @@ std::vector<int> reserve_available_cpus(const ColumnOfProcessorTypeTable core_ty
             }
         }
         if (reserve_logic_core) {
-            auto logic_ids = get_logic_cores(cpu_ids);
+            auto logic_ids = get_logical_cores(cpu_ids);
             cpu_ids.insert(cpu_ids.end(), logic_ids.begin(), logic_ids.end());
         }
         set_cpu_used(cpu_ids, reset_status);
@@ -267,13 +274,14 @@ std::vector<int> reserve_available_cpus(const ColumnOfProcessorTypeTable core_ty
     return cpu_ids;
 }
 
-std::vector<int> get_logic_cores(const std::vector<int> cpu_ids) {
+std::vector<int> get_logical_cores(const std::vector<int> cpu_ids) {
     std::vector<int> logic_cores;
     if (cpu._proc_type_table[0][HYPER_THREADING_PROC] > 0) {
         int cpu_size = static_cast<int>(cpu_ids.size());
         for (int i = 0; i < cpu._processors; i++) {
             for (int j = 0; j < cpu_size; j++) {
-                if (cpu._cpu_mapping_table[i][CPU_MAP_CORE_ID] == cpu._cpu_mapping_table[cpu_ids[j]][CPU_MAP_CORE_ID] &&
+                if (cpu_ids[j] >= 0 &&
+                    cpu._cpu_mapping_table[i][CPU_MAP_CORE_ID] == cpu._cpu_mapping_table[cpu_ids[j]][CPU_MAP_CORE_ID] &&
                     cpu._cpu_mapping_table[i][CPU_MAP_CORE_TYPE] == HYPER_THREADING_PROC) {
                     logic_cores.push_back(cpu._cpu_mapping_table[i][CPU_MAP_PROCESSOR_ID]);
                 }
@@ -287,7 +295,7 @@ std::vector<int> get_logic_cores(const std::vector<int> cpu_ids) {
     return logic_cores;
 }
 
-void set_cpu_used(std::vector<int>& cpu_ids, int used) {
+void set_cpu_used(const std::vector<int>& cpu_ids, const int used) {
     const auto cpu_size = static_cast<int>(cpu_ids.size());
     for (int i = 0; i < cpu_size; i++) {
         if (cpu_ids[i] < cpu._processors) {
@@ -297,12 +305,14 @@ void set_cpu_used(std::vector<int>& cpu_ids, int used) {
     // update _proc_type_table
     if (used == NOT_USED || used >= PLUGIN_USED_START) {
         std::vector<int> all_table;
-        int start = cpu._sockets > 1 ? 1 : 0;
+        int start = cpu._numa_nodes > 1 ? 1 : 0;
         if (is_cpu_map_available()) {
             cpu._proc_type_table.assign(cpu._proc_type_table.size(), std::vector<int>(PROC_TYPE_TABLE_SIZE, 0));
             all_table.resize(PROC_TYPE_TABLE_SIZE, 0);
             for (int i = 0; i < cpu._processors; i++) {
-                if (cpu._cpu_mapping_table[i][CPU_MAP_USED_FLAG] < PLUGIN_USED_START) {
+                if (cpu._cpu_mapping_table[i][CPU_MAP_USED_FLAG] < PLUGIN_USED_START &&
+                    cpu._cpu_mapping_table[i][CPU_MAP_SOCKET_ID] >= 0 &&
+                    cpu._cpu_mapping_table[i][CPU_MAP_CORE_TYPE] >= ALL_PROC) {
                     cpu._proc_type_table[cpu._cpu_mapping_table[i][CPU_MAP_SOCKET_ID] + start]
                                         [cpu._cpu_mapping_table[i][CPU_MAP_CORE_TYPE]]++;
                     cpu._proc_type_table[cpu._cpu_mapping_table[i][CPU_MAP_SOCKET_ID] + start][ALL_PROC]++;
@@ -310,7 +320,7 @@ void set_cpu_used(std::vector<int>& cpu_ids, int used) {
                     all_table[ALL_PROC]++;
                 }
             }
-            if (cpu._sockets > 1) {
+            if (cpu._numa_nodes > 1) {
                 cpu._proc_type_table[0] = all_table;
             }
         }
