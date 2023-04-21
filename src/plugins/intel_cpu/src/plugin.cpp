@@ -273,14 +273,16 @@ void Engine::ApplyPerformanceHints(std::map<std::string, std::string> &config, c
 
 void Engine::GetPerformanceStreams(Config& config, const std::shared_ptr<ngraph::Function>& ngraphFunc) {
     const auto perf_hint_name = config.perfHintsConfig.ovPerfHint;
-    int streams = config.streamExecutorConfig._streams;
-    if (perf_hint_name == CONFIG_VALUE(LATENCY)) {
+    int streams;
+    if (config.streamExecutorConfig._streams_changed) {
+        streams = config.streamExecutorConfig._streams;
+    } else if (perf_hint_name == CONFIG_VALUE(LATENCY)) {
         streams = get_num_numa_nodes();
     } else if (perf_hint_name == CONFIG_VALUE(THROUGHPUT)) {
         streams = 0;
+    } else {
+        streams = config.streamExecutorConfig._streams == 1 ? 0 : config.streamExecutorConfig._streams;
     }
-    streams = config.streamExecutorConfig._streams_changed ? config.streamExecutorConfig._streams
-                                                           : (streams == 1 ? 0 : streams);
 
     get_num_streams(streams, ngraphFunc, config);
 }
