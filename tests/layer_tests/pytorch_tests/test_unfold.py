@@ -37,7 +37,7 @@ class TestUnfold(PytorchLayerTest):
 
     @pytest.mark.nightly
     @pytest.mark.precommit
-    def test_unfold(self, ie_device, precision, ir_version, dimension, size, step, input_tensor):
+    def test_unfold(self, ie_device, precision, ir_version, dimension, size, step, input_tensor, use_ts_backend):
         self.input_tensor = input_tensor
         self._test(*self.create_model(dimension, size, step),
-                   ie_device, precision, ir_version)
+                   ie_device, precision, ir_version, use_ts_backend=use_ts_backend)

@@ -249,7 +249,7 @@ class TorchScriptPythonDecoder (Decoder):
 
     def get_subgraph_size(self) -> int:
         if isinstance(self.graph_element, torch.Node):
-            return len(self.get_subgraphs()) 
+            return len(self.get_subgraphs())
         else:
             return 1
 

@@ -61,16 +61,16 @@ class TestMinMax(PytorchLayerTest):
     @pytest.mark.parametrize("op_type", ['min', 'max'])
     @pytest.mark.nightly
     @pytest.mark.precommit
-    def test_reduce_min_max(self, axes, keep_dims, op_type, ie_device, precision, ir_version):
+    def test_reduce_min_max(self, axes, keep_dims, op_type, ie_device, precision, ir_version, use_ts_backend):
         self._test(*self.create_model(op_type, axes, keep_dims,
-                                      single_input=True), ie_device, precision, ir_version)
+                                      single_input=True), ie_device, precision, ir_version, use_ts_backend=use_ts_backend)
 
     @pytest.mark.parametrize("op_type", ['min', 'max'])
     @pytest.mark.nightly
     @pytest.mark.precommit
-    def test_min_max(self, op_type, ie_device, precision, ir_version):
+    def test_min_max(self, op_type, ie_device, precision, ir_version, use_ts_backend):
         self._test(*self.create_model(op_type, None, None, single_input=False),
-                   ie_device, precision, ir_version, kwargs_to_prepare_input={"second_input": True})
+                   ie_device, precision, ir_version, kwargs_to_prepare_input={"second_input": True}, use_ts_backend=use_ts_backend)
 
 
 class TestPrimMax(PytorchLayerTest):
@@ -133,9 +133,9 @@ class TestPrimMax(PytorchLayerTest):
     ])
     @pytest.mark.nightly
     @pytest.mark.precommit
-    def test_min_max(self, case, kwargs_to_prepare_input, ie_device, precision, ir_version):
+    def test_min_max(self, case, kwargs_to_prepare_input, ie_device, precision, ir_version, use_ts_backend):
         self._test(*self.create_model(case),
-                   ie_device, precision, ir_version, kwargs_to_prepare_input=kwargs_to_prepare_input, use_mo_convert=False)
+                   ie_device, precision, ir_version, kwargs_to_prepare_input=kwargs_to_prepare_input, use_mo_convert=False, use_ts_backend=use_ts_backend)
 
 class TestPrimMin(PytorchLayerTest):
     def _prepare_input(self, first_input, second_input, dtype="float"):
@@ -197,6 +197,6 @@ class TestPrimMin(PytorchLayerTest):
     ])
     @pytest.mark.nightly
     @pytest.mark.precommit
-    def test_min(self, case, kwargs_to_prepare_input, ie_device, precision, ir_version):
+    def test_min(self, case, kwargs_to_prepare_input, ie_device, precision, ir_version, use_ts_backend):
         self._test(*self.create_model(case),
-                   ie_device, precision, ir_version, kwargs_to_prepare_input=kwargs_to_prepare_input, use_mo_convert=False)
+                   ie_device, precision, ir_version, kwargs_to_prepare_input=kwargs_to_prepare_input, use_mo_convert=False, use_ts_backend=use_ts_backend)

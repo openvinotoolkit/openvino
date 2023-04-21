@@ -63,5 +63,5 @@ def ts_openvino(subgraph, example_inputs):
             return result
         return _call
     except Exception as e:
-        print(str(e))
+        print(f"Exception is {str(e)}")
         return compile_fx(subgraph, example_inputs)

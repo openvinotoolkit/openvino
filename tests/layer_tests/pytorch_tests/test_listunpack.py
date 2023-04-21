@@ -84,9 +84,9 @@ class TestListUnpack(PytorchLayerTest):
 
     @pytest.mark.nightly
     @pytest.mark.precommit
-    def test_size_listunpack(self, ie_device, precision, ir_version):
+    def test_size_listunpack(self, ie_device, precision, ir_version, use_ts_backend):
         self._test(
-            *self.create_model_size_listunpack(), ie_device, precision, ir_version
+            *self.create_model_size_listunpack(), ie_device, precision, ir_version, use_ts_backend=use_ts_backend
         )
 
     @pytest.mark.parametrize(
@@ -94,35 +94,38 @@ class TestListUnpack(PytorchLayerTest):
     )
     @pytest.mark.nightly
     @pytest.mark.precommit
-    def test_size_slice_listunpack(self, slices, ie_device, precision, ir_version):
+    def test_size_slice_listunpack(self, slices, ie_device, precision, ir_version, use_ts_backend):
         self._test(
             *self.create_model_size_slice_listunpack(slices),
             ie_device,
             precision,
-            ir_version
+            ir_version,
+            use_ts_backend=use_ts_backend
         )
 
     @pytest.mark.nightly
     @pytest.mark.precommit
-    def test_listconstruct_append_listunpack(self, ie_device, precision, ir_version):
+    def test_listconstruct_append_listunpack(self, ie_device, precision, ir_version, use_ts_backend):
         self._test(
             *self.create_model_listconstruct_append_listunpack(),
             ie_device,
             precision,
-            ir_version
+            ir_version,
+            use_ts_backend=use_ts_backend
         )
 
     @pytest.mark.parametrize("idx", [-4, -3, -2, -1, 0, 1, 2, 3])
     @pytest.mark.nightly
     @pytest.mark.precommit
     def test_listconstruct_getitem_listunpack(
-            self, idx, ie_device, precision, ir_version
+            self, idx, ie_device, precision, ir_version, use_ts_backend
     ):
         self._test(
             *self.create_model_listconstruct_getitem_listunpack(idx),
             ie_device,
             precision,
             ir_version,
+            use_ts_backend=use_ts_backend
         )
 
 class TestMeshgridListUnpack(PytorchLayerTest):
@@ -199,6 +202,6 @@ class TestMeshgridListUnpack(PytorchLayerTest):
     @pytest.mark.parametrize("inp", [1, 2, 3, 4])
     @pytest.mark.nightly
     @pytest.mark.precommit
-    def test_meshgrid_listunpack(self, idx, inp, ie_device, precision, ir_version):
+    def test_meshgrid_listunpack(self, idx, inp, ie_device, precision, ir_version, use_ts_backend):
         func = getattr(self, f"create_model_meshgrid_listunpack_{inp}_in")
-        self._test(*func(idx), ie_device, precision, ir_version)
+        self._test(*func(idx), ie_device, precision, ir_version, use_ts_backend=use_ts_backend)

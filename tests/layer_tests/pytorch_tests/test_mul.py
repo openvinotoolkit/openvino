@@ -32,12 +32,12 @@ class TestMul(PytorchLayerTest):
     ])
     @pytest.mark.nightly
     @pytest.mark.precommit
-    def test_mul_pt_spec(self, input_array, other_array, ie_device, precision, ir_version):
+    def test_mul_pt_spec(self, input_array, other_array, ie_device, precision, ir_version, use_ts_backend):
         self.input_array = input_array
         self.input_type = np.float32
         self.other_array = other_array
         self.other_type = np.float32
-        self._test(*self.create_model(), ie_device, precision, ir_version)
+        self._test(*self.create_model(), ie_device, precision, ir_version, use_ts_backend=use_ts_backend)
 
 
 class TestMulTypes(PytorchLayerTest):
@@ -94,10 +94,10 @@ class TestMulTypes(PytorchLayerTest):
                                                           ])
     @pytest.mark.nightly
     @pytest.mark.precommit
-    def test_mul_types(self, ie_device, precision, ir_version, lhs_type, lhs_shape, rhs_type, rhs_shape):
+    def test_mul_types(self, ie_device, precision, ir_version, lhs_type, lhs_shape, rhs_type, rhs_shape, use_ts_backend):
         self.lhs_type = lhs_type
         self.lhs_shape = lhs_shape
         self.rhs_type = rhs_type
         self.rhs_shape = rhs_shape
         self._test(*self.create_model(lhs_type, lhs_shape, rhs_type, rhs_shape),
-                   ie_device, precision, ir_version)
+                   ie_device, precision, ir_version, use_ts_backend=use_ts_backend)

@@ -29,14 +29,14 @@ class TestSortConstants(PytorchLayerTest):
 
             def forward(self, input_tensor):
                 if self.stable is not None:
-                    return torch.sort(input_tensor, 
+                    return torch.sort(input_tensor,
                         stable = self.stable,
-                        dim = self.dim, 
+                        dim = self.dim,
                         descending = self.descending
                     )[0]
                 else:
-                    return torch.sort(input_tensor, 
-                        dim = self.dim, 
+                    return torch.sort(input_tensor,
+                        dim = self.dim,
                         descending = self.descending
                     )[0]
 
@@ -57,26 +57,26 @@ class TestSortConstants(PytorchLayerTest):
         np.array([[9, 8, 8], [8, 7, 7], [7, 5, 6],
                   [8, 8, 9], [7, 7, 8], [6, 5, 7],
                   [8, 9, 8], [7, 8, 7], [5, 6, 7]]),
-        np.array([[[1, 2, 3], [4, 5, 6], [7, 8, 9]], 
-                  [[5, 2, 4], [4, 9, 0], [7, 7, 9]], 
+        np.array([[[1, 2, 3], [4, 5, 6], [7, 8, 9]],
+                  [[5, 2, 4], [4, 9, 0], [7, 7, 9]],
                   [[5, 2, 4], [4, 9, 0], [7, 7, 9]]]),
-        np.array([[[3, 2, 2], [1, 2, 1], [3, 2, 2]], 
-                  [[1, 2, 1], [4, 3, 4], [3, 2, 2]], 
+        np.array([[[3, 2, 2], [1, 2, 1], [3, 2, 2]],
+                  [[1, 2, 1], [4, 3, 4], [3, 2, 2]],
                   [[3, 2, 2], [1, 2, 1], [7, 9, 9]]]),
-        np.array([[[2, 1, 3], [3, 2, 1], [1, 2, 3]], 
-                  [[2, 0, 2], [1, 2, 1], [3, 2, 8]], 
+        np.array([[[2, 1, 3], [3, 2, 1], [1, 2, 3]],
+                  [[2, 0, 2], [1, 2, 1], [3, 2, 8]],
                   [[3, 2, 2], [3, 2, 1], [1, 2, 3]],
-                  [[2, 1, 3], [3, 2, 1], [1, 2, 3]], 
-                  [[2, 0, 2], [1, 2, 1], [3, 2, 8]], 
+                  [[2, 1, 3], [3, 2, 1], [1, 2, 3]],
+                  [[2, 0, 2], [1, 2, 1], [3, 2, 8]],
                   [[3, 2, 2], [3, 2, 1], [1, 2, 3]],
-                  [[2, 1, 3], [3, 2, 1], [1, 2, 3]], 
-                  [[2, 0, 2], [1, 2, 1], [3, 2, 8]], 
+                  [[2, 1, 3], [3, 2, 1], [1, 2, 3]],
+                  [[2, 0, 2], [1, 2, 1], [3, 2, 8]],
                   [[3, 2, 2], [3, 2, 1], [1, 2, 3]]])
 
     ])
     @pytest.mark.parametrize("descending", [
         True,
-        False 
+        False
     ])
     @pytest.mark.parametrize("stable", [
         False,
@@ -85,8 +85,8 @@ class TestSortConstants(PytorchLayerTest):
     ])
     @pytest.mark.nightly
     @pytest.mark.precommit
-    def test_sort(self, input_tensor, descending, stable, ie_device, precision, ir_version):
+    def test_sort(self, input_tensor, descending, stable, ie_device, precision, ir_version, use_ts_backend):
         self.input_tensor = input_tensor
         dims = len(input_tensor.shape)
         for dim in range(-dims, dims):
-            self._test(*self.create_model(dim, descending, stable), ie_device, precision, ir_version)
+            self._test(*self.create_model(dim, descending, stable), ie_device, precision, ir_version, use_ts_backend=use_ts_backend)

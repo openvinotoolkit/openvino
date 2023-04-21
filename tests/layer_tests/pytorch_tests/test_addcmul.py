@@ -46,6 +46,6 @@ class TestAddCMul(PytorchLayerTest):
     ])
     @pytest.mark.nightly
     @pytest.mark.precommit
-    def test_addcmul(self, input_type, value, ie_device, precision, ir_version):
+    def test_addcmul(self, input_type, value, ie_device, precision, ir_version, use_ts_backend):
         self.input_type = input_type
-        self._test(*self.create_model(value), ie_device, precision, ir_version)
+        self._test(*self.create_model(value), ie_device, precision, ir_version, use_ts_backend=use_ts_backend)

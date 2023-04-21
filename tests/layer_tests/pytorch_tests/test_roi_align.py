@@ -51,8 +51,8 @@ class TestROIAlign(PytorchLayerTest):
     @pytest.mark.nightly
     @pytest.mark.precommit
     def test_roi_align(self, ie_device, precision, ir_version, input_tensor, boxes, output_size,
-                       spatial_scale, sampling_ratio, aligned):
+                       spatial_scale, sampling_ratio, aligned, use_ts_backend):
         self.input_tensor = input_tensor
         self.boxes = boxes
         self._test(*self.create_model(output_size, spatial_scale, sampling_ratio, aligned),
-                   ie_device, precision, ir_version, trace_model=True)
+                   ie_device, precision, ir_version, trace_model=True, use_ts_backend=use_ts_backend)
