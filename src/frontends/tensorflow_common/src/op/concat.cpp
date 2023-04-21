@@ -11,8 +11,6 @@ using namespace opset8;
 using namespace ov::frontend;
 using namespace ov::frontend::tensorflow;
 
-#define OPENVINO_CUSTOM_INT64_HACK
-
 namespace ov {
 namespace frontend {
 namespace tensorflow {
