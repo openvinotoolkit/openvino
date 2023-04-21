@@ -29,7 +29,7 @@ bool evaluate(const std::shared_ptr<ngraph::op::v3::ScatterNDUpdate>& op,
                                                                 op->get_input_shape(1),
                                                                 op->get_input_shape(2));
     } else {
-        throw ngraph::ngraph_error("ScatterNDUpdate layer support only i32 and i64 'indices' input precision!");
+        OPENVINO_THROW("ScatterNDUpdate layer support only i32 and i64 'indices' input precision!");
     }
     return true;
 }
@@ -108,7 +108,7 @@ bool evaluate_node<ngraph::op::v3::ScatterNDUpdate>(std::shared_ptr<ngraph::Node
                                                       outputs,
                                                       inputs);
     default:
-        throw ngraph::ngraph_error(std::string("Unhandled data type ") + node->get_element_type().get_type_name() +
-                                   std::string("in evaluate_node()"));
+        OPENVINO_THROW(std::string("Unhandled data type ") + node->get_element_type().get_type_name() +
+                       std::string("in evaluate_node()"));
     }
 }

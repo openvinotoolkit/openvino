@@ -34,4 +34,11 @@ void ExecutableNetwork::SetExeNetworkForContext() {
 std::string ExecutableNetwork::GetLogTag() const noexcept {
     return _sContext->_LogTag;
 }
+
+std::shared_ptr<ngraph::Function> ExecutableNetwork::GetExecGraphInfo() {
+    // TODO: When there are more then 2 executable networks, such as MULTI:GPU,CPU
+    auto autoSContext = std::dynamic_pointer_cast<AutoScheduleContext>(_sContext);
+    return autoSContext->_hwExecutableNetwork->GetExecGraphInfo();
+}
+
 }  // namespace MultiDevicePlugin

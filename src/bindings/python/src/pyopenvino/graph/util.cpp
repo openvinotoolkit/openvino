@@ -79,17 +79,19 @@ void regmodule_graph_util(py::module m) {
 
     mod.def(
         "deprecation_warning",
-        [](const std::string& function_name, const std::string& version, const std::string& message) {
+        [](const std::string& function_name, const std::string& version, const std::string& message, int stacklevel) {
             Common::utils::deprecation_warning(function_name, version, message);
         },
         py::arg("function_name"),
         py::arg("version") = "",
         py::arg("message") = "",
+        py::arg("stacklevel") = 2,
         R"(
             Prints deprecation warning "{function_name} is deprecated and will be removed in version {version}. {message}".
 
             :param function_name: The name of the deprecated function.
             :param version: The version in which the code will be removed.
             :param message: A message explaining why the function is deprecated.
+            :param stacklevel: How many layers should be propagated.
         )");
 }

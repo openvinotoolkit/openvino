@@ -56,11 +56,9 @@ void Memory::Create(MemoryDescPtr desc, const void* data, bool pads_zeroing) {
     padsZeroing = pads_zeroing;
     dnnlMemHandle.resetDnnlPrim();
 
-    size_t memSize = MemoryDesc::UNDEFINED_SIZE;
+    size_t memSize = 0;
     if (pMemDesc->isDefined()) {
         memSize = pMemDesc->getCurrentMemSize();
-    } else {
-        memSize = pMemDesc->hasDefinedMaxSize() ? pMemDesc->getMaxMemSize() : 0;
     }
 
     if (nullptr != data) {
@@ -93,7 +91,7 @@ void Memory::SetData(const Memory& src, bool ftz) const {
 void Memory::FillZero() {
     void* dataPtr = GetData();
     if (dataPtr != nullptr)
-        memset(dataPtr, 0, getDesc().getMaxMemSize());
+        memset(dataPtr, 0, getDesc().getCurrentMemSize());
 }
 
 void *Memory::GetPtr() const  {
@@ -122,7 +120,7 @@ void Memory::setDataHandle(void *data) {
             this);
     }
 
-    size_t maxMemSize = pMemDesc->hasDefinedMaxSize() ?  pMemDesc->getMaxMemSize() : 0;
+    size_t maxMemSize = pMemDesc->isDefined() ?  pMemDesc->getCurrentMemSize() : 0;
     mgrHandle->setExtBuff(data, maxMemSize);
     if (dnnlMemHandle.isInit()) {
         auto prim = dnnlMemHandle.getPrim();

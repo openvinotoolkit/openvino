@@ -61,18 +61,22 @@ def parse_arguments():
 def parse_rel_weights(rel_weights_path: os.path):
     rel_weights = dict()
     rel_weights_file_path = rel_weights_path
-    if os.path.isdir(rel_weights_path):
-        rel_weights_file_path = os.path.join(rel_weights_path, REL_WEIGHTS_FILENAME)
-    if os.path.isfile(rel_weights_file_path):
-        logger.info(f"Rel weights will be taken from {rel_weights_file_path}")
-        with open(rel_weights_path, "r") as rel_weights_file:
-            for line in rel_weights_file.readlines():
-                sep_pos = line.find(':')
-                op_name = line[:sep_pos:]
-                op_weight = float(line[sep_pos+1::].replace('\n', ''))
-                rel_weights.update({op_name: op_weight})
+    if rel_weights_path:
+        if os.path.isdir(rel_weights_path):
+            rel_weights_file_path = os.path.join(rel_weights_path, REL_WEIGHTS_FILENAME)
+        if os.path.isfile(rel_weights_file_path):
+            logger.info(f"Rel weights will be taken from {rel_weights_file_path}")
+            with open(rel_weights_path, "r") as rel_weights_file:
+                for line in rel_weights_file.readlines():
+                    sep_pos = line.find(':')
+                    op_name = line[:sep_pos:]
+                    op_weight = float(line[sep_pos+1::].replace('\n', ''))
+                    rel_weights.update({op_name: op_weight})
+        else:
+            logger.warning(f"Rel weights file does not exist! The expected passrates will be taken from runtime")
     else:
-        logger.warning(f"Rel weights file does not exist! The expected passrates will be taken from runtime")
+        logger.warning(f"Rel weights file is not specified! The expected passrates will be taken from runtime")
+
     return rel_weights
 
 
@@ -96,7 +100,9 @@ def merge_xmls(xml_paths: list):
 
         for op in xml_root.find("ops_list"):
             if ops_list.find(op.tag) is None:
-                SubElement(ops_list, op.tag)
+                op_node = SubElement(ops_list, op.tag)
+                for op_attrib in op.attrib:
+                    op_node.set(op_attrib, op.get(op_attrib))
 
         for device in xml_root.find("results"):
             device_results = summary_results.find(device.tag)
@@ -278,10 +284,14 @@ def create_summary(summary_root: Element, output_folder: os.path, expected_devic
     device_list, results, general_pass_rate, general_pass_rate_rel, pass_rate_avg, pass_rate_avg_rel, general_test_count, trusted_ops, covered_ops = \
         collect_statistic(summary_root, is_conformance_mode)
 
-    op_list = list()
+    op_list = dict()
     for op in summary_root.find("ops_list"):
-        op_list.append(op.tag)
-    op_list = sorted(op_list)
+        try:
+            opsets = op.attrib.get("opsets").split()
+            opsets = [int(opset) for opset in opsets]
+        except:
+            opsets = []
+        op_list.update({op.tag: opsets})
     
     if len(expected_devices) > 0 and sorted(expected_devices) != device_list:
         for expected_device in expected_devices:

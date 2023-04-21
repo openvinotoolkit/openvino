@@ -23,7 +23,7 @@ Check the versions of OpenVINO Runtime and Developement Tools
 Check the versions of Python and PIP
 ####################################
 
-To check your Python version, run ``python -VV`` or ``python --version``. The supported Python versions should be 64-bit and between 3.7 and 3.10. If you are using Python 3.6, you are recommended to upgrade the version to 3.7 or higher.
+To check your Python version, run ``python -VV`` or ``python --version``. The supported Python versions should be 64-bit and between 3.7 and 3.11. If you are using Python 3.6, you are recommended to upgrade the version to 3.7 or higher.
 
 If your Python version does not meet the requirements, update Python:
 
