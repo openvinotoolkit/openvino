@@ -201,6 +201,7 @@ def groupconv_to_conv(op: Node):
         # We use add_destination method here to support case with multiple destinations of source port
         weights_node.in_port(0).get_source().get_connection().add_destination(op.in_port(1))
         weights_node.in_port(0).disconnect()
+        op.graph.remove_node(weights_node.id)
     elif weights_node.type == 'Convert' and weights_node.destination_type == 'f32'\
             and weights_node.in_port(0).get_source().node.type == 'Const':
         # Support new FP16 IRs
@@ -342,9 +343,6 @@ def copy_graph_with_ops(graph: Graph) -> Graph:
     for op in graph.get_op_nodes():
         if op.soft_get('type') != 'Const' and op.soft_get('type') in preprocessing_op_nodes:
             preprocessing_op_nodes[op.type](op)
-
-    # clean up graph before coping nodes to the new graph
-    graph.clean_up()
 
     # Create a new copy of graph with correct attributes (shape & type infer, backend attrs etc.)
     for op in graph.get_op_nodes():

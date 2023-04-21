@@ -52,6 +52,10 @@ class TestFunction(unittest.TestCase):
             edges += [*connect('weights:0', 'group_conv:1')]
 
         graph = build_graph(nodes_attributes, edges)
+        reshape_node = None
+        if reshape_shape is None:
+            reshape_node = Node(graph, 'reshape')
+
         for op in graph.get_op_nodes(type='GroupConvolution'):
             groupconv_to_conv(op)
 
@@ -70,6 +74,8 @@ class TestFunction(unittest.TestCase):
             weights_const = np.reshape(weights_const, new_shape)
             node = Node(graph_ref, 'weights')
             node.value = weights_const
+
+            assert len(reshape_node.in_nodes()) == 0 and len(reshape_node.out_nodes()) == 0
 
         (flag, resp) = compare_graphs(graph, graph_ref, 'result', check_op_attrs=True)
         self.assertTrue(flag, resp)
