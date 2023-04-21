@@ -58,7 +58,7 @@ public:
     IInferPtr CreateInferRequestImpl(IE::InputsDataMap networkInputs, IE::OutputsDataMap networkOutputs) override;
     IInferPtr CreateInferRequestImpl(const std::vector<std::shared_ptr<const ov::Node>>& inputs,
                                                           const std::vector<std::shared_ptr<const ov::Node>>& outputs) override;
-    void run(IE::Task inferTask) override;
+    void run(IE::Task inferTask);
     Pipeline GetPipeline(const IInferPtr& syncRequestImpl, WorkerInferRequest** WorkerInferRequest) override;
     void WaitActualNetworkReady() const;
     virtual ~AutoSchedule();
