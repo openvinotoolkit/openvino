@@ -65,12 +65,13 @@ For a particular activation, consider a mini-batch :math:`\mathcal{B}` of m valu
      
      \hat{b_{i}} \leftarrow \frac{b_{i} - \mu_{\mathcal{B}}}{\sqrt{\sigma_{\mathcal{B}}^{2} + \epsilon }}
 
-@endsphinxdirective
+* **Scale and shift**:
+  
+  .. math::
+     
+     o_{i} \leftarrow \gamma\hat{b_{i}} + \beta = BN_{\gamma ,\beta } ( b_{i} )
 
-*   **Scale and shift**:
-    \f[
-    o_{i} \leftarrow \gamma\hat{b_{i}} + \beta = BN_{\gamma ,\beta } ( b_{i} )
-    \f]
+@endsphinxdirective
 
 **Attributes**:
 
