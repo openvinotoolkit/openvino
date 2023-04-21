@@ -203,6 +203,8 @@ std::vector<std::string> disabledTestPatterns() {
     retVector.emplace_back(R"(smoke_AvgPool_ExplicitPad_CeilRounding/PoolingLayerTest.CompareWithRefs.*)");
     // invalid test: checks u8 precision for runtime graph, while it should be f32
     retVector.emplace_back(R"(smoke_NegativeQuantizedMatMulMultiplyFusion.*)");
+    // int8 specific
+    retVector.emplace_back(R"(smoke_Quantized.*)");
 #endif
 
 #if !defined(OPENVINO_ARCH_X86_64)
