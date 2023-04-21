@@ -403,9 +403,6 @@ TEST_P(ov_core_test, ov_core_set_and_get_property_execution_mode) {
 }
 
 TEST_P(ov_core_test, ov_core_set_get_property_str) {
-#ifdef __aarch64__
-    GTEST_SKIP() << "Skip this test for ARM CPU for now, cause no string property supported";
-#endif
     auto device_name = GetParam();
     ov_core_t* core = nullptr;
     OV_EXPECT_OK(ov_core_create(&core));
@@ -459,9 +456,6 @@ TEST_P(ov_core_test, ov_core_set_property_int_invalid) {
 }
 
 TEST_P(ov_core_test, ov_core_set_multiple_common_properties) {
-#ifdef __aarch64__
-    GTEST_SKIP() << "Skip this test for ARM CPU for now, cause no string property supported";
-#endif
     auto device_name = GetParam();
     ov_core_t* core = nullptr;
     OV_EXPECT_OK(ov_core_create(&core));
