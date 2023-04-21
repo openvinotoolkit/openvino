@@ -38,7 +38,7 @@ For a particular activation, consider a mini-batch :math:`\mathcal{B}` of m valu
     
     .. math::
        
-       \mathcal{B} = \{ x_{1...m} \}
+       \mathcal{B} = x_{1...m}
 
 @endsphinxdirective
 
