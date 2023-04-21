@@ -4,6 +4,7 @@
 
 #include "tile_broadcast_utils.h"
 
+#include "cpu_convert.h"
 #include "cpu_memcpy.h"
 #include "ie_parallel.hpp"
 #include <memory_desc/cpu_memory_desc_utils.h>
@@ -250,7 +251,10 @@ void TileBroadcastCommon::optimizedExecute(const MemoryPtr& srcMemory, const Mem
     auto srcData = reinterpret_cast<const char *>(srcMemory->GetPtr());
     auto dstData = reinterpret_cast<char *>(dstMemory->GetPtr());
 
-    if (optimizedParams.srcStrides[5] == 0) {
+    if (srcMemory->getStaticDims() == dstMemory->getStaticDims()) {
+        const auto prc = dstMemory->getDesc().getPrecision();
+        cpu_convert(srcData, dstData, prc, prc, optimizedParams.copySize / prc.size());
+    } else if (optimizedParams.srcStrides[5] == 0) {
         if (optimizedParams.dstStrides[0] == optimizedParams.dims[5] * optimizedParams.dstStrides[5]) {
             size_t data_size = optimizedParams.dstStrides[5];
             size_t elt_cnt = optimizedParams.dims[5];
