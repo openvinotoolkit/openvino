@@ -690,7 +690,8 @@ void prepare_primitive_fusing::fuse_simple_primitives(program &p) {
         };
 
         auto fuse_activation_f = [&](activation_node& activation_node) {
-            if (supports_immad && activation_node.get_primitive()->activation_function == cldnn::activation_func::hyperbolic_tan) {
+            auto activation_func = activation_node.get_primitive()->activation_function;
+            if (supports_immad && activation_func == cldnn::activation_func::hyperbolic_tan) {
                 return;
             }
 
@@ -704,16 +705,16 @@ void prepare_primitive_fusing::fuse_simple_primitives(program &p) {
             if (_lo.get_optimization_attributes().use_onednn_impls) {
                 if (input.is_type<reshape>() || input.is_type<concatenation>())
                     return;
-
+                if (activation_func == cldnn::activation_func::relu_negative_slope &&
+                    (input.is_type<fully_connected>() || input.is_type<gemm>())) {
+                    // prelu fusion is not implemented in oneDNN3.1 (https://jira.devtools.intel.com/browse/MFDNN-9898)
+                    return;
+                }
                 // Activation should not be fused if oneDNN does NOT support it
                 if (_lo.is_primitive_implemented_for_onednn(input))  {
-                    auto activation_func = activation_node.get_primitive()->activation_function;
-                    // onednn post-op relu has a functional issue
-                    if (activation_func == cldnn::activation_func::relu_negative_slope)
-                        return;
                     #ifdef ENABLE_ONEDNN_FOR_GPU
                     try {
-                        onednn::convert_activation_func(activation_node.get_primitive()->activation_function);
+                        onednn::convert_activation_func(activation_func);
                     } catch (...) {
                         return;
                     }
