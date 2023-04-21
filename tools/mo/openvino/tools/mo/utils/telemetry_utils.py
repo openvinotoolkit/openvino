@@ -1,7 +1,6 @@
 # Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 import argparse
-import os
 import platform
 import sys
 from collections import Counter
@@ -83,6 +82,8 @@ def send_params_info(argv: argparse.Namespace, cli_parser: argparse.ArgumentPars
     t = tm.Telemetry()
     params_with_paths = get_params_with_paths_list()
     for arg, arg_value in params.items():
+        if arg == 'is_python_api_used':
+            continue
         if arg in params_with_paths:
             # If command line argument value is a directory or a path to file it is not sent
             # as it may contain confidential information. "1" value is used instead.
@@ -112,22 +113,6 @@ def send_transformations_status(return_code):
     }))
     t = tm.Telemetry()
     t.send_event('mo', 'offline_transformations_status', message)
-
-
-def remove_path_lines(message):
-    """
-    Removes any lines from message which contain os.sep.
-    For example in Linux, where os.sep is "/" the line "a/b/c\nline2" will be transformed to "\nline2".
-    In Windows, where os.sep is "\\" the line "line1\na\\b\\c" will be transformed to "line1\n".
-    :param message: input message string.
-    :return: message without lines that contain os.sep
-    """
-    import re
-
-    # remove any lines which contain os.sep to remove file paths
-    msg = re.sub('.*{}.*'.format(os.sep), '', message)
-
-    return msg
 
 
 def get_tid():

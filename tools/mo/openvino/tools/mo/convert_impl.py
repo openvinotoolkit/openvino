@@ -41,7 +41,7 @@ from openvino.tools.mo.utils.guess_framework import deduce_legacy_frontend_by_na
 from openvino.tools.mo.utils.logger import init_logger, progress_printer
 from openvino.tools.mo.utils.utils import refer_to_faq_msg
 from openvino.tools.mo.utils.versions_checker import check_requirements  # pylint: disable=no-name-in-module
-from openvino.tools.mo.utils.telemetry_utils import get_tid, send_transformations_status, send_params_info, send_framework_info, remove_path_lines
+from openvino.tools.mo.utils.telemetry_utils import get_tid, send_transformations_status, send_params_info, send_framework_info
 from openvino.tools.mo.moc_frontend.check_config import legacy_extensions_used
 from openvino.tools.mo.moc_frontend.pytorch_frontend_utils import get_pytorch_decoder, convert_pytorch_via_onnx
 from openvino.tools.mo.moc_frontend.shape_utils import parse_input_shapes, get_static_shape
@@ -908,11 +908,6 @@ def _convert(cli_parser: argparse.ArgumentParser, framework, args):
         return ov_model, argv
     except Exception as e:
         telemetry.send_event('mo', 'conversion_result', 'fail')
-
-        msg = remove_path_lines(str(e.with_traceback(None))).strip()
-        if len(msg):
-            telemetry.send_event('mo', 'error_info', "error_message:'{}'".format(msg))
-
         telemetry.end_session('mo')
         telemetry.force_shutdown(1.0)
         raise e.with_traceback(None)
