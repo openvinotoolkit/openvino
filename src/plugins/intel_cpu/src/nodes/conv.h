@@ -83,6 +83,7 @@ private:
         PerTensor,
         PerChannel
     };
+
     class FusedSubgraph;
     using FusedSubgraphPtr = std::shared_ptr<FusedSubgraph>;
     using executorPtr = std::shared_ptr<DnnlExecutor>;
@@ -97,7 +98,6 @@ private:
                                 const dnnl::engine& engine,
                                 bool constWeight);
     };
-    bool pendingConstWeightReorder = false;
 
     void prepareParams() override;
     void execute(dnnl::stream strm) override;

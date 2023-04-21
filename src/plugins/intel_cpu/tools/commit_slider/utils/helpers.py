@@ -34,11 +34,13 @@ def getParams():
     presetCfgPath = "utils/cfg.json"
     customCfgPath = ""
     customCfgPath = args.__dict__["configuration"]
-    cfgFile = open(presetCfgPath)
-    presetCfgData = json.load(cfgFile)
+    presetCfgData = None
+    with open(presetCfgPath) as cfgFile:
+        presetCfgData = json.load(cfgFile)
     cfgFile.close()
-    cfgFile = open(customCfgPath)
-    customCfgData = json.load(cfgFile)
+    customCfgData = None
+    with open(customCfgPath) as cfgFile:
+        customCfgData = json.load(cfgFile)
     cfgFile.close()
     # customize cfg
     for key in customCfgData:
@@ -226,7 +228,8 @@ def setupLogger(name, logPath, logFileName, level=log.INFO):
     if not os.path.exists(logPath):
         os.makedirs(logPath)
     logFileName = logPath + logFileName
-    open(logFileName, "w").close()  # clear old log
+    with open(logFileName, "w"):  # clear old log
+        pass
     handler = log.FileHandler(logFileName)
     formatter = log.Formatter("%(asctime)s %(levelname)s %(message)s")
     handler.setFormatter(formatter)

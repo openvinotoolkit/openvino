@@ -232,7 +232,7 @@ shared_ptr<Node> op::v0::LSTMCell::clone_with_new_inputs(const OutputVector& new
                                              get_clip(),
                                              m_input_forget);
     } else {
-        throw ngraph_error("Incorrect number of new arguments");
+        OPENVINO_THROW("Incorrect number of new arguments");
     }
 }
 
@@ -401,6 +401,6 @@ shared_ptr<Node> op::v4::LSTMCell::clone_with_new_inputs(const OutputVector& new
                                      get_activations_beta(),
                                      get_clip());
     } else {
-        throw ngraph_error("Incorrect number of new arguments");
+        OPENVINO_THROW("Incorrect number of new arguments");
     }
 }

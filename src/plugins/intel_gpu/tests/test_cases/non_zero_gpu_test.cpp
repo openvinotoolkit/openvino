@@ -482,3 +482,51 @@ TEST(test_gather_non_zero, not_use_local_mem) {
         ASSERT_EQ(expected_results[i], output_ptr[i]);
     }
 }
+
+TEST(non_zero_gpu, const_input) {
+    auto& engine = get_test_engine();
+    ov::Shape in_shape = { 3, 3 };
+    auto input_data_mem = engine.allocate_memory(layout{ov::PartialShape(in_shape), data_types::f32, format::bfyx});
+
+    std::vector<float> input_data = {
+        3.f, 0.f, 0.f,
+        0.f, 4.f, 0.f,
+        5.f, 6.f, 0.f,
+    };
+    set_values(input_data_mem, input_data);
+
+    std::vector<int32_t> out_data = {
+        0, 1, 2, 2, 0, 1, 0, 1
+    };
+
+    topology topology;
+    topology.add(data("InputData", input_data_mem));
+    topology.add(count_nonzero("count_nonzero", input_info("InputData")));
+    topology.add(gather_nonzero("gather_nonzero", input_info("InputData"), input_info("count_nonzero")));
+
+    ExecutionConfig config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::optimize_data(true));
+    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+    network network(engine, topology, config);
+
+    auto count_nonzero_inst = network.get_primitive("count_nonzero");
+    auto count_nonzero_impl = count_nonzero_inst->get_impl();
+    ASSERT_TRUE(count_nonzero_impl == nullptr);
+    // count nonzero should be optimized out from propagate_constant pass
+    ASSERT_TRUE(count_nonzero_inst->get_node().is_type<data>());
+
+    auto gather_nonzero_inst = network.get_primitive("gather_nonzero");
+    auto gather_nonzero_impl = gather_nonzero_inst->get_impl();
+    ASSERT_TRUE(gather_nonzero_impl != nullptr);
+    ASSERT_TRUE(gather_nonzero_impl->is_dynamic());
+
+    auto outputs = network.execute();
+
+    auto output = outputs.at("gather_nonzero").get_memory();
+    cldnn::mem_lock<int32_t> output_ptr(output, get_test_stream());
+
+    ASSERT_EQ(output_ptr.size(), (uint32_t)8);
+    for (uint32_t i = 0; i < out_data.size(); ++i) {
+        ASSERT_FLOAT_EQ(output_ptr[i], out_data[i]);
+    }
+}
