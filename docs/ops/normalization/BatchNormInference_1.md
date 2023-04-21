@@ -34,18 +34,18 @@ Let ``x`` be a *d*-dimensional input, :math:`x=(x_{1}\dotsc x_{d})`. Since norma
 
 For a particular activation, consider a mini-batch :math:`\mathcal{B}` of m values. *BatchNormInference* performs Batch Normalization algorithm as follows:
 
-*   **Input**: Values of \f$x\f$ over a mini-batch:
-    
-    .. math::
-       
-       \mathcal{B} = x_{1...m}
+* **Input**: Values of \f$x\f$ over a mini-batch:
+  
+  .. math::
+     
+     \mathcal{B} = x_{1...m}
 
-*   **Parameters to learn**: :math:`\gamma, \beta`
-*   **Output**:
-    
-    .. math::
-       
-       \{ o_{i} = BN_{\gamma, \beta} ( b_{i} ) \}
+* **Parameters to learn**: :math:`\gamma, \beta`
+* **Output**:
+  
+  .. math::
+     
+     o_{i} = BN_{\gamma, \beta} ( b_{i} )
 
 @endsphinxdirective
 
