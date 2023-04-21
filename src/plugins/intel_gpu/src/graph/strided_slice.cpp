@@ -114,9 +114,10 @@ std::string strided_slice_inst::to_string(strided_slice_node const& node) {
 
     json_composite strided_slice_info;
     strided_slice_info.add("input id", input.id());
-    strided_slice_info.add("begin_param id", node.get_dependency(1).id());
-    strided_slice_info.add("end_param id", node.get_dependency(2).id());
-    strided_slice_info.add("stride_param id", node.get_dependency(3).id());
+    std::vector<std::string> dependencies_info = {"begin_param id", "end_param id", "stride_param id"};
+    for (size_t i = 0; i < node.get_dependencies().size(); ++i) {
+        strided_slice_info.add(dependencies_info[i], node.get_dependency(i).id());
+    }
     strided_slice_info.add("begin", node.get_primitive()->begin);
     strided_slice_info.add("end", node.get_primitive()->end);
     strided_slice_info.add("strides", node.get_primitive()->strides);

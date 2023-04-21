@@ -6,6 +6,7 @@
 #include "to_string_utils.h"
 #include "data_inst.h"
 #include "condition_inst.h"
+#include "json_object.h"
 
 #include <algorithm>
 #include <vector>
@@ -136,7 +137,21 @@ void close_stream(std::ofstream& graph) { graph.close(); }
 
 std::string get_node_id(const program_node* ptr) { return "node_" + std::to_string(reinterpret_cast<uintptr_t>(ptr)); }
 
-void dump_full_node(std::ofstream& out, const program_node* node) { out << node->type()->to_string(*node); }
+void dump_full_node(std::ofstream& out, const program_node* node) {
+    GPU_DEBUG_GET_INSTANCE(debug_config);
+    try {
+        out << node->type()->to_string(*node);
+    } catch(const std::exception& e) {
+        auto node_info = std::shared_ptr<json_composite>(new json_composite());
+        node_info->add("id", node->id());
+        node_info->add("error", "failed to make string from descriptor");
+        std::stringstream emtpy_desc;
+        node_info->dump(emtpy_desc);
+        out << emtpy_desc.str();
+
+        GPU_DEBUG_INFO << node->id() << " to_string() error: " << e.what() << '\n';
+    }
+}
 }  // namespace
 
 std::string get_dir_path(const ExecutionConfig& config) {
