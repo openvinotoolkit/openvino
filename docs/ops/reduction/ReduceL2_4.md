@@ -49,7 +49,7 @@ Particular cases:
 
 **Examples**
 
-.. code-block:: console
+.. code-block:: cpp
 
     <layer id="1" type="ReduceL2" ...>
         <data keep_dims="true" />
@@ -61,7 +61,7 @@ Particular cases:
                 <dim>24</dim>
             </port>
             <port id="1">
-                <dim>2</dim>         <!-- value is [2, 3] that means independent reduction in each channel and batch -->
+                <dim>2</dim>         < !-- value is [2, 3] that means independent reduction in each channel and batch -->
             </port>
         </input>
         <output>
@@ -75,7 +75,7 @@ Particular cases:
     </layer>
 
 
-.. code-block:: console
+.. code-block:: cpp
 
     <layer id="1" type="ReduceL2" ...>
         <data keep_dims="false" />
@@ -87,7 +87,7 @@ Particular cases:
                 <dim>24</dim>
             </port>
             <port id="1">
-                <dim>2</dim>         <!-- value is [2, 3] that means independent reduction in each channel and batch -->
+                <dim>2</dim>         < !-- value is [2, 3] that means independent reduction in each channel and batch -->
             </port>
         </input>
         <output>
@@ -99,7 +99,7 @@ Particular cases:
     </layer>
 
 
-.. code-block:: console
+.. code-block:: cpp
 
     <layer id="1" type="ReduceL2" ...>
         <data keep_dims="false" />
@@ -111,7 +111,7 @@ Particular cases:
                 <dim>24</dim>
             </port>
             <port id="1">
-                <dim>1</dim>         <!-- value is [1] that means independent reduction in each channel and spatial dimensions -->
+                <dim>1</dim>         < !-- value is [1] that means independent reduction in each channel and spatial dimensions -->
             </port>
         </input>
         <output>
@@ -124,7 +124,7 @@ Particular cases:
     </layer>
 
 
-.. code-block:: console
+.. code-block:: cpp
 
     <layer id="1" type="ReduceL2" ...>
         <data keep_dims="false" />
@@ -136,7 +136,7 @@ Particular cases:
                 <dim>24</dim>
             </port>
             <port id="1">
-                <dim>1</dim>         <!-- value is [-2] that means independent reduction in each channel, batch and second spatial dimension -->
+                <dim>1</dim>         < !-- value is [-2] that means independent reduction in each channel, batch and second spatial dimension -->
             </port>
         </input>
         <output>

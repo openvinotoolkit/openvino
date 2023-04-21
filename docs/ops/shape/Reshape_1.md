@@ -46,7 +46,7 @@ If ``special_zero`` is set to ``true`` index of ``0`` cannot be larger than the 
 
 *Example 1: reshape empty tensor*
 
-.. code-block:: console
+.. code-block:: cpp
 
     <layer ... type="Reshape" ...>
         <data special_zero="false"/>
@@ -58,7 +58,7 @@ If ``special_zero`` is set to ``true`` index of ``0`` cannot be larger than the 
                 <dim>0</dim>
             </port>
             <port id="1">
-                <dim>2</dim>   <!--The tensor contains 2 elements: 0, 4 -->
+                <dim>2</dim>   < !--The tensor contains 2 elements: 0, 4 -->
             </port>
         </input>
         <output>
@@ -72,7 +72,7 @@ If ``special_zero`` is set to ``true`` index of ``0`` cannot be larger than the 
 
 *Example 2: reshape tensor - preserve first dim, calculate second and fix value for third dim*
 
-.. code-block:: console
+.. code-block:: cpp
 
     <layer ... type="Reshape" ...>
         <data special_zero="true"/>
@@ -84,7 +84,7 @@ If ``special_zero`` is set to ``true`` index of ``0`` cannot be larger than the 
                 <dim>24</dim>
             </port>
             <port id="1">
-                <dim>3</dim>   <!--The tensor contains 3 elements: 0, -1, 4 -->
+                <dim>3</dim>   < !--The tensor contains 3 elements: 0, -1, 4 -->
             </port>
         </input>
         <output>
@@ -99,7 +99,7 @@ If ``special_zero`` is set to ``true`` index of ``0`` cannot be larger than the 
 
 *Example 3: reshape tensor - preserve first two dims, fix value for third dim and calculate fourth*
 
-.. code-block:: console
+.. code-block:: cpp
 
     <layer ... type="Reshape" ...>
         <data special_zero="true"/>
@@ -110,7 +110,7 @@ If ``special_zero`` is set to ``true`` index of ``0`` cannot be larger than the 
                 <dim>3</dim>
             </port>
             <port id="1">
-                <dim>4</dim>   <!--The tensor contains 4 elements: 0, 0, 1, -1 -->
+                <dim>4</dim>   < !--The tensor contains 4 elements: 0, 0, 1, -1 -->
             </port>
         </input>
         <output>
@@ -126,7 +126,7 @@ If ``special_zero`` is set to ``true`` index of ``0`` cannot be larger than the 
 
 *Example 4: reshape tensor - calculate first dim and preserve second dim*
 
-.. code-block:: console
+.. code-block:: cpp
 
     <layer ... type="Reshape" ...>
         <data special_zero="true"/>
@@ -137,7 +137,7 @@ If ``special_zero`` is set to ``true`` index of ``0`` cannot be larger than the 
                 <dim>1</dim>
             </port>
             <port id="1">
-                <dim>2</dim>   <!--The tensor contains 2 elements: -1, 0 -->
+                <dim>2</dim>   < !--The tensor contains 2 elements: -1, 0 -->
             </port>
         </input>
         <output>
@@ -151,7 +151,7 @@ If ``special_zero`` is set to ``true`` index of ``0`` cannot be larger than the 
 
 *Example 5: reshape tensor - preserve first dim and calculate second dim*
 
-.. code-block:: console
+.. code-block:: cpp
 
     <layer ... type="Reshape" ...>
         <data special_zero="true"/>
@@ -162,7 +162,7 @@ If ``special_zero`` is set to ``true`` index of ``0`` cannot be larger than the 
                 <dim>1</dim>
             </port>
             <port id="1">
-                <dim>2</dim>   <!--The tensor contains 2 elements: 0, -1 -->
+                <dim>2</dim>   < !--The tensor contains 2 elements: 0, -1 -->
             </port>
         </input>
         <output>

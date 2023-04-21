@@ -43,7 +43,7 @@ If no axis specified, that means either the second input is empty if ``index`` m
 
 **Example**
 
-.. code-block:: console
+.. code-block:: cpp
 
     <layer ... type="Reverse">
         <data mode="index"/>
@@ -55,7 +55,7 @@ If no axis specified, that means either the second input is empty if ``index`` m
                 <dim>200</dim>
             </port>
             <port id="1">
-                <dim>1</dim>   <!-- reverting along single axis -->
+                <dim>1</dim>   < !-- reverting along single axis -->
             </port>
         </input>
         <output>

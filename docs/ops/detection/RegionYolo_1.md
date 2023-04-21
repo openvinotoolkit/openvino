@@ -86,13 +86,14 @@
 ``output.shape = [data.shape[0], ..., data.shape[axis-1], flat_dim, data.shape[end_axis + 1], ...]``
 
 **Types**
+
 * *T*: any supported floating-point type.
 
 **Example**
 
-.. code-block:: console
+.. code-block:: cpp
 
-  <!-- YOLO V3 example -->
+  < !-- YOLO V3 example -->
   <layer type="RegionYolo" ... >
       <data anchors="10,14,23,27,37,58,81,82,135,169,344,319" axis="1" classes="80" coords="4" do_softmax="0" end_axis="3" mask="0,1,2" num="6"/>
       <input>
@@ -113,7 +114,7 @@
       </output>
   </layer>
 
-  <!-- YOLO V2 Example -->
+  < !-- YOLO V2 Example -->
   <layer type="RegionYolo" ... >
       <data anchors="1.08,1.19,3.42,4.41,6.63,11.38,9.42,5.11,16.62,10.52" axis="1" classes="20" coords="4" do_softmax="1" end_axis="3" num="5"/>
       <input>

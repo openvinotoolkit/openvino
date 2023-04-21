@@ -69,21 +69,21 @@ This is aligned with PyTorch's operation ``torch.arange``, to align with tensorf
 
 *Example 1: positive step*
 
-.. code-block:: console
+.. code-block:: cpp
 
     <layer ... type="Range">
         <data output_type="i32">
         <input>
-            <port id="0">  <!-- start value: 2 -->
+            <port id="0">  < !-- start value: 2 -->
             </port>
-            <port id="1">  <!-- stop value: 23 -->
+            <port id="1">  < !-- stop value: 23 -->
             </port>
-            <port id="2">  <!-- step value: 3 -->
+            <port id="2">  < !-- step value: 3 -->
             </port>
         </input>
         <output>
             <port id="3">
-                <dim>7</dim> <!-- [ 2,  5,  8, 11, 14, 17, 20] -->
+                <dim>7</dim> < !-- [ 2,  5,  8, 11, 14, 17, 20] -->
             </port>
         </output>
     </layer>
@@ -91,21 +91,21 @@ This is aligned with PyTorch's operation ``torch.arange``, to align with tensorf
 
 *Example 2: negative step*
 
-.. code-block:: console
+.. code-block:: cpp
 
     <layer ... type="Range">
         <data output_type="i32">
         <input>
-            <port id="0">  <!-- start value: 23 -->
+            <port id="0">  < !-- start value: 23 -->
             </port>
-            <port id="1">  <!-- stop value: 2 -->
+            <port id="1">  < !-- stop value: 2 -->
             </port>
-            <port id="2">  <!-- step value: -3 -->
+            <port id="2">  < !-- step value: -3 -->
             </port>
         </input>
         <output>
             <port id="3">
-                <dim>7</dim> <!-- [23, 20, 17, 14, 11, 8, 5] -->
+                <dim>7</dim> < !-- [23, 20, 17, 14, 11, 8, 5] -->
             </port>
         </output>
     </layer>
@@ -113,21 +113,21 @@ This is aligned with PyTorch's operation ``torch.arange``, to align with tensorf
 
 *Example 3: floating-point*
 
-.. code-block:: console
+.. code-block:: cpp
 
     <layer ... type="Range">
         <data output_type="f32">
         <input>
-            <port id="0">  <!-- start value: 1 -->
+            <port id="0">  < !-- start value: 1 -->
             </port>
-            <port id="1">  <!-- stop value: 2.5 -->
+            <port id="1">  < !-- stop value: 2.5 -->
             </port>
-            <port id="2">  <!-- step value: 0.5 -->
+            <port id="2">  < !-- step value: 0.5 -->
             </port>
         </input>
         <output>
             <port id="3">
-                <dim>3</dim> <!-- [ 1.0,  1.5,  2.0] -->
+                <dim>3</dim> < !-- [ 1.0,  1.5,  2.0] -->
             </port>
         </output>
     </layer>

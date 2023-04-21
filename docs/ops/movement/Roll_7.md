@@ -79,7 +79,7 @@ No attributes available.
 
 *Example 1: "shift" and "axes" are 1D tensors.*
 
-.. code-block:: console 
+.. code-block:: cpp 
 
     <layer ... type="Roll">
         <input>
@@ -93,7 +93,7 @@ No attributes available.
                 <dim>2</dim>
             </port>
             <port id="2">
-                <dim>2</dim> <!-- shifting along specified axes with the corresponding shift values -->
+                <dim>2</dim> < !-- shifting along specified axes with the corresponding shift values -->
             </port>
         </input>
         <output>
@@ -109,7 +109,7 @@ No attributes available.
 
 *Example 2: "shift" value is a scalar and multiple axes are specified.*
 
-.. code-block:: console 
+.. code-block:: cpp 
 
     <layer ... type="Roll">
         <input>
@@ -123,7 +123,7 @@ No attributes available.
                 <dim>1</dim>
             </port>
             <port id="2">
-                <dim>2</dim> <!-- shifting along specified axes with the same shift value -->
+                <dim>2</dim> < !-- shifting along specified axes with the same shift value -->
             </port>
         </input>
         <output>

@@ -46,19 +46,19 @@
 
 **Example**
 
-.. code-block:: console
+.. code-block:: cpp
 
     <layer ... type="ReverseSequence">
         <data batch_axis="0" seq_axis="1"/>
         <input>
-            <port id="0">       <!-- data -->
-                <dim>4</dim>    <!-- batch_axis -->
-                <dim>10</dim>   <!-- seq_axis -->
+            <port id="0">       < !-- data -->
+                <dim>4</dim>    < !-- batch_axis -->
+                <dim>10</dim>   < !-- seq_axis -->
                 <dim>100</dim>
                 <dim>200</dim>
             </port>
             <port id="1">
-                <dim>4</dim>    <!-- seq_lengths value: [2, 4, 8, 10] -->
+                <dim>4</dim>    < !-- seq_lengths value: [2, 4, 8, 10] -->
             </port>
         </input>
         <output>

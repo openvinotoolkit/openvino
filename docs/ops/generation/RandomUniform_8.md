@@ -240,16 +240,16 @@ Example 3. *RandomUniform* output with ``global_seed`` = 80, ``op_seed`` = 100, 
 
 *Example 1: IR example.*
 
-.. code-block:: console
+.. code-block:: cpp
 
     <layer ... name="RandomUniform" type="RandomUniform">
         <data output_type="f32" global_seed="234" op_seed="148"/>
         <input>
-            <port id="0" precision="I32">  <!-- shape value: [2, 3, 10] -->
+            <port id="0" precision="I32">  < !-- shape value: [2, 3, 10] -->
                 <dim>3</dim>
             </port>
-            <port id="1" precision="FP32"/> <!-- min value -->
-            <port id="2" precision="FP32"/> <!-- max value -->
+            <port id="1" precision="FP32"/> < !-- min value -->
+            <port id="2" precision="FP32"/> < !-- max value -->
         </input>
         <output>
             <port id="3" precision="FP32" names="RandomUniform:0">

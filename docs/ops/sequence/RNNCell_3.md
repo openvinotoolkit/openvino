@@ -76,7 +76,7 @@
 
 **Example**
 
-.. code-block:: console
+.. code-block:: cpp
 
   <layer ... type="RNNCell" ...>
       <data hidden_size="128"/>

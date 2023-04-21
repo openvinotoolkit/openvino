@@ -68,7 +68,7 @@ Calculations for the generic case of axes and signal sizes are similar.
 
 There is no ``signal_size`` input (3D input tensor):
 
-.. code-block:: console
+.. code-block:: cpp
 
     <layer ... type="RDFT" ... >
         <input>
@@ -78,7 +78,7 @@ There is no ``signal_size`` input (3D input tensor):
                 <dim>320</dim>
             </port>
             <port id="1">
-                <dim>2</dim> <!-- axes input contains [1, 2] -->
+                <dim>2</dim> < !-- axes input contains [1, 2] -->
             </port>
         <output>
             <port id="2">
@@ -93,7 +93,7 @@ There is no ``signal_size`` input (3D input tensor):
 
 There is no ``signal_size`` input (2D input tensor):
 
-.. code-block:: console
+.. code-block:: cpp
 
     <layer ... type="RDFT" ... >
         <input>
@@ -102,7 +102,7 @@ There is no ``signal_size`` input (2D input tensor):
                 <dim>320</dim>
             </port>
             <port id="1">
-                <dim>2</dim> <!-- axes input contains [0, 1] -->
+                <dim>2</dim> < !-- axes input contains [0, 1] -->
             </port>
         <output>
             <port id="2">
@@ -117,7 +117,7 @@ There is no ``signal_size`` input (2D input tensor):
 
 There is ``signal_size`` input (3D input tensor):
 
-.. code-block:: console
+.. code-block:: cpp
 
     <layer ... type="RDFT" ... >
         <input>
@@ -127,10 +127,10 @@ There is ``signal_size`` input (3D input tensor):
                 <dim>320</dim>
             </port>
             <port id="1">
-                <dim>2</dim> <!-- axes input contains [1, 2] -->
+                <dim>2</dim> < !-- axes input contains [1, 2] -->
             </port>
             <port id="2">
-                <dim>2</dim> <!-- signal_size input contains [512, 100] -->
+                <dim>2</dim> < !-- signal_size input contains [512, 100] -->
             </port>
         <output>
             <port id="3">
@@ -144,7 +144,7 @@ There is ``signal_size`` input (3D input tensor):
 
 There is ``signal_size`` input (2D input tensor):
 
-.. code-block:: console
+.. code-block:: cpp
 
     <layer ... type="RDFT" ... >
         <input>
@@ -153,10 +153,10 @@ There is ``signal_size`` input (2D input tensor):
                 <dim>320</dim>
             </port>
             <port id="1">
-                <dim>2</dim> <!-- axes input contains [0, 1] -->
+                <dim>2</dim> < !-- axes input contains [0, 1] -->
             </port>
             <port id="2">
-                <dim>2</dim> <!-- signal_size input contains [512, 100] -->
+                <dim>2</dim> < !-- signal_size input contains [512, 100] -->
             </port>
         <output>
             <port id="3">
@@ -170,7 +170,7 @@ There is ``signal_size`` input (2D input tensor):
 
 There is ``signal_size`` input (4D input tensor, ``-1`` in ``signal_size``, unsorted axes):
 
-.. code-block:: console
+.. code-block:: cpp
 
     <layer ... type="RDFT" ... >
         <input>
@@ -181,10 +181,10 @@ There is ``signal_size`` input (4D input tensor, ``-1`` in ``signal_size``, unso
                 <dim>320</dim>
             </port>
             <port id="1">
-                <dim>3</dim> <!-- axes input contains  [3, 1, 2] -->
+                <dim>3</dim> < !-- axes input contains  [3, 1, 2] -->
             </port>
             <port id="2">
-                <dim>3</dim> <!-- signal_size input contains [170, -1, 1024] -->
+                <dim>3</dim> < !-- signal_size input contains [170, -1, 1024] -->
             </port>
         <output>
             <port id="3">
@@ -199,7 +199,7 @@ There is ``signal_size`` input (4D input tensor, ``-1`` in ``signal_size``, unso
 
 There is ``signal_size`` input (4D input tensor, ``-1`` in ``signal_size``, unsorted axes, the second example):
 
-.. code-block:: console
+.. code-block:: cpp
 
     <layer ... type="RDFT" ... >
         <input>
@@ -210,10 +210,10 @@ There is ``signal_size`` input (4D input tensor, ``-1`` in ``signal_size``, unso
                 <dim>320</dim>
             </port>
             <port id="1">
-                <dim>3</dim> <!-- axes input contains  [3, 0, 2] -->
+                <dim>3</dim> < !-- axes input contains  [3, 0, 2] -->
             </port>
             <port id="2">
-                <dim>3</dim> <!-- signal_size input contains [258, -1, 2056] -->
+                <dim>3</dim> < !-- signal_size input contains [258, -1, 2056] -->
             </port>
         <output>
             <port id="3">

@@ -42,7 +42,7 @@
 
 **Example**
 
-.. code-block:: console 
+.. code-block:: cpp 
 
     <layer ... type="Round">
         <data mode="half_to_even"/>

@@ -80,7 +80,7 @@ A single cell in the sequence is implemented in the same way as in `RNNCell <#RN
 
 **Example**
 
-.. code-block:: console
+.. code-block:: cpp
 
   <layer ... type="RNNSequence" ...>
       <data hidden_size="128"/>

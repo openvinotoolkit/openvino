@@ -29,7 +29,7 @@
 
 **Example**
 
-.. code-block:: console
+.. code-block:: cpp
 
     <layer id="89" name="reorg" type="ReorgYolo">
         <data stride="2"/>

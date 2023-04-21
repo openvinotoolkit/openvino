@@ -31,7 +31,7 @@ For each element from the input tensor calculates corresponding element in the o
 
 **Example**
 
-.. code-block:: console
+.. code-block:: cpp
 
     <layer ... type="ReLU">
         <input>
