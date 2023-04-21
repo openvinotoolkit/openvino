@@ -241,8 +241,8 @@ def read_requirements(path: str) -> List[str]:
     2. version specified in constraints.txt
     3. version unbound
 
-    Additionally, constraints.txt does not support environment markers.
-    They need to be specified in requirements.txt files.
+    Putting environment markers into constraints.txt is prone to bugs.
+    They should be specified in requirements.txt files.
     """
     requirements = []
     constraints = read_constraints()
