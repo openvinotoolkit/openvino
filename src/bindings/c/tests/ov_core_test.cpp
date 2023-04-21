@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "openvino/core/visibility.hpp"
 #include "ov_test.hpp"
 #include "test_model_repo.hpp"
 
@@ -139,7 +140,12 @@ TEST_P(ov_core_test, ov_core_compile_model_with_property) {
 
     char* property_value = nullptr;
     OV_EXPECT_OK(ov_compiled_model_get_property(compiled_model, key, &property_value));
+#if defined(OPENVINO_ARCH_ARM) || defined(OPENVINO_ARCH_ARM64)
+    // TODO: fix once ARM plugin supports multi-stream
+    EXPECT_STREQ(property_value, "1");
+#else
     EXPECT_STREQ(property_value, "2");
+#endif
     ov_free(property_value);
 
     ov_compiled_model_free(compiled_model);
