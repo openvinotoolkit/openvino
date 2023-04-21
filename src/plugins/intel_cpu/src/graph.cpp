@@ -386,7 +386,7 @@ void Graph::InitGraph() {
         if (node->isDynamicNode()) {
             haveDynNodes = true;
             if (node->outputShapeDataDependency() ||
-                // WA: for convolution plus summ(broadcast). Due to the fact that a convolution with sum use the same memory for second sum term and the output
+                // WA: for convolution plus sum(broadcast). Due to the fact that a convolution with sum use the same memory for second sum term and the output
                 // tensors (inPlace) resizing the output tensor, may lead to reallocation of this second term memory and possible data lost. The reallocation
                 // may happen when the second term shape is broadcasted to the output tensor shape. To avoid the data loss, we have a special processing for
                 // such cases inside the convolution node, but it works properly only when dynamic shapes inference, preparation and execution a called
@@ -398,25 +398,25 @@ void Graph::InitGraph() {
     }
 
     // In case of dynamic shapes, tensors may be resized due to the shapes variations.
-    // If the input tensor is included to memory reuse, that means its memory manager is shared with other tensors in the graph, which in turn may cause data
-    // loss when one of the tensor dow the graph requested mem resize, while the input data have not been yet read by the consumers. To avoid such situations
-    // we disalbe io mem reuse for the case of dynamic shapes.
+    // If the input tensor is included to memory reuse, it means that its memory manager is shared with other tensors in the graph, which in turn may cause data
+    // loss when one of the tensors down the graph requests mem resize, while the input data have not been yet read by the consumers. To avoid such situations
+    // we disable io mem reuse for the case of dynamic shapes.
     if (haveDynNodes) {
         this->reuse_io_tensors = false;
     }
 
     Allocate();
 
-    CreatePrimitives();
+    CreatePrimitivesAndExecConstants();
 
 #ifndef CPU_DEBUG_CAPS
     for (auto &graphNode : graphNodes) {
         graphNode->cleanup();
     }
 #endif
-    ExtractConstantAndExecutableNodes();
 
-    ExecuteConstantNodesOnly();
+    ExtractExecutableNodes();
+
     status = haveDynNodes ? Status::ReadyDynamic : Status::ReadyStatic;
 }
 
@@ -483,12 +483,10 @@ void Graph::InitOptimalPrimitiveDescriptors() {
     }
 }
 
-void Graph::ExtractConstantAndExecutableNodes() {
-    OV_ITT_SCOPE(FIRST_INFERENCE, itt::domains::intel_cpu_LT, "Graph::ExtractConstantAndExecutableNodes");
+void Graph::ExtractExecutableNodes() {
+    OV_ITT_SCOPE(FIRST_INFERENCE, itt::domains::intel_cpu_LT, "Graph::ExtractExecutableNodes");
     for (const auto& graphNode : graphNodes) {
-        if (graphNode->isConstant()) {
-            constantGraphNodes.emplace_back(graphNode);
-        } else if (CPU_DEBUG_CAPS_ALWAYS_TRUE(graphNode->isExecutable()) || graphNode->isDynamicNode()) {
+        if ((!graphNode->isConstant() && CPU_DEBUG_CAPS_ALWAYS_TRUE(graphNode->isExecutable())) || graphNode->isDynamicNode()) {
             /* @todo
              * Revise implementation.
              * With current way it is possible that with debug_caps enabled
@@ -503,8 +501,8 @@ void Graph::ExtractConstantAndExecutableNodes() {
     }
 }
 
-void Graph::ExecuteConstantNodesOnly() const {
-    OV_ITT_SCOPE(FIRST_INFERENCE, itt::domains::intel_cpu_LT, "Graph::ExecuteConstantNodesOnly");
+void Graph::CreatePrimitivesAndExecConstants() const {
+    OV_ITT_SCOPE(FIRST_INFERENCE, itt::domains::intel_cpu_LT, "Graph::CreatePrimitivesAndExecConstants");
     dnnl::stream stream(getEngine());
 
     using shared_memory_ptr = WeightsSharing::SharedMemory::Ptr;
@@ -531,7 +529,17 @@ void Graph::ExecuteConstantNodesOnly() const {
         return std::make_tuple(hasExternalInvalidEdges, hasLocalAllocatedEdges, outputs);
     };
 
-    for (const auto &node : constantGraphNodes) {
+    for (const auto &node : graphNodes) {
+        {
+            OV_ITT_SCOPE(FIRST_INFERENCE, itt::domains::intel_cpu_LT, node->profiling.createPrimitive);
+            DEBUG_LOG(*node);
+            node->createPrimitive();
+        }
+
+        if (!node->isConstant()) {
+            continue;
+        }
+
         if (context->getWeightsCache()) {
             auto sharedOutputs = acquireSharedOutputs(node);
 
@@ -882,15 +890,6 @@ void Graph::Allocate() {
 
     // Check all getters. Should work.
     for (auto& edge : graphEdges) edge->validate();
-}
-
-void Graph::CreatePrimitives() {
-    OV_ITT_SCOPED_TASK(itt::domains::intel_cpu, "Graph::CreatePrimitives");
-    for (auto& node : graphNodes) {
-        OV_ITT_SCOPE(FIRST_INFERENCE, itt::domains::intel_cpu_LT, node->profiling.createPrimitive);
-        DEBUG_LOG(*node);
-        node->createPrimitive();
-    }
 }
 
 void Graph::PushInputData(const std::string& name, const InferenceEngine::Blob::Ptr &in) {
