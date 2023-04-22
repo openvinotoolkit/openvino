@@ -1091,7 +1091,7 @@ void MHA::prepareParams() {
         jcp.with_scales1 = !fqScales2.empty();
         jcp.broadcast_scales1 = fqScales2.size() == 1;
 
-#if defined(OPENVINO_ARCH_X86_X64)
+#if defined(OPENVINO_ARCH_X86_64)
         if (mayiuse(cpu_isa_t::avx512_core)) {
             mulAddSoftmaxKernel.reset(new jit_mul_add_softmax_kernel<cpu_isa_t::avx512_core>(jcp));
         } else if (mayiuse(cpu_isa_t::avx2)) {
@@ -1099,7 +1099,7 @@ void MHA::prepareParams() {
         } else if (mayiuse(cpu_isa_t::sse41)) {
             mulAddSoftmaxKernel.reset(new jit_mul_add_softmax_kernel<cpu_isa_t::sse41>(jcp));
         }
-#endif // OPENVINO_ARCH_X86_X64
+#endif // OPENVINO_ARCH_X86_64
         if (!mulAddSoftmaxKernel) {
             THROW_ERROR << "cannot create jit eltwise kernel";
         }
@@ -1115,7 +1115,7 @@ void MHA::prepareParams() {
         jcp.src_stride = N1;
         jcp.dst_stride = batch1 * N1;
 
-#if defined(OPENVINO_ARCH_X86_X64)
+#if defined(OPENVINO_ARCH_X86_64)
         if (mayiuse(cpu_isa_t::avx512_core)) {
             convertReorderKernel.reset(new jit_convert_reorder_kernel<cpu_isa_t::avx512_core>(jcp));
         } else if (mayiuse(cpu_isa_t::avx2)) {
@@ -1123,7 +1123,7 @@ void MHA::prepareParams() {
         } else if (mayiuse(cpu_isa_t::sse41)) {
             convertReorderKernel.reset(new jit_convert_reorder_kernel<cpu_isa_t::sse41>(jcp));
         }
-#endif // OPENVINO_ARCH_X86_X64
+#endif // OPENVINO_ARCH_X86_64
         if (!convertReorderKernel) {
             THROW_ERROR << "cannot create jit eltwise kernel";
         }
@@ -1141,7 +1141,7 @@ void MHA::prepareParams() {
         jcp.outter_src_stride = strTranspose1In0[3];
         jcp.outter_dst_stride = N0;
 
-#if defined(OPENVINO_ARCH_X86_X64)
+#if defined(OPENVINO_ARCH_X86_64)
         if (mayiuse(cpu_isa_t::avx512_core)) {
             convertTransposeKernel.reset(new jit_convert_transpose_kernel<cpu_isa_t::avx512_core>(jcp));
         } else if (mayiuse(cpu_isa_t::avx2)) {
@@ -1149,7 +1149,7 @@ void MHA::prepareParams() {
         } else if (mayiuse(cpu_isa_t::sse41)) {
             convertTransposeKernel.reset(new jit_convert_transpose_kernel<cpu_isa_t::sse41>(jcp));
         }
-#endif // OPENVINO_ARCH_X86_X64
+#endif // OPENVINO_ARCH_X86_64
 
         if (!convertTransposeKernel) {
             THROW_ERROR << "cannot create jit eltwise kernel";
@@ -1190,7 +1190,7 @@ static void reorder2D(const srcT* pin, dstT* pout, const std::vector<size_t>& di
 }
 
 void MHA::callBrgemm(brgemmCtx& ctx, std::unique_ptr<brgemm_kernel_t>& brgKernel, const void* pin0, const void* pin1, void* pout, void* wsp) {
-#if defined(OPENVINO_ARCH_X86_X64)
+#if defined(OPENVINO_ARCH_X86_64)
     if (ctx.is_with_amx)
         amx_tile_configure(ctx.palette);
     if (ctx.is_with_comp) {
@@ -1201,7 +1201,7 @@ void MHA::callBrgemm(brgemmCtx& ctx, std::unique_ptr<brgemm_kernel_t>& brgKernel
     }
 #else
     THROW_ERROR << "is not supported on non-x64 platforms";
-#endif // OPENVINO_ARCH_X86_X64
+#endif // OPENVINO_ARCH_X86_64
 }
 
 template <typename in1_type>
