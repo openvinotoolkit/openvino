@@ -758,7 +758,8 @@ ie_infer_request_wait(ie_infer_request_t* infer_request, const int64_t timeout);
  * @param size New batch size to be used by all the following inference calls for this request.
  * @return Status code of the operation: OK(0) for success.
  */
-INFERENCE_ENGINE_C_API(IE_NODISCARD IEStatusCode)
+INFERENCE_ENGINE_C_API(OPENVINO_DEPRECATED("This function is deprecated and will be removed in 2023.1 release")
+                           IE_NODISCARD IEStatusCode)
 ie_infer_request_set_batch(ie_infer_request_t* infer_request, const size_t size);
 
 /** @} */  // end of InferRequest
