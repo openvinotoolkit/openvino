@@ -273,76 +273,34 @@ void Engine::ApplyPerformanceHints(std::map<std::string, std::string> &config, c
 }
 
 void Engine::GetPerformanceStreams(Config& config, const std::shared_ptr<ngraph::Function>& ngraphFunc) {
-    const auto perf_hint_name = config.perfHintsConfig.ovPerfHint;
     int streams;
 
     auto getPerfHintName = [&]() {
-        const auto& input_streams = config.find(ov::num_streams.name());
-
-        if (input_streams != config.end()) {
-            if (input_streams->second == "AUTO") {
-                config[CONFIG_KEY(PERFORMANCE_HINT)] = PluginConfigParams::LATENCY;
-                return static_cast<int>(getAvailableNUMANodes().size());
-            } else if (input_streams->second == "NUMA") {
-                config[CONFIG_KEY(PERFORMANCE_HINT)] = PluginConfigParams::THROUGHPUT;
-                return 0;
-            } else {
-                const auto n_streams = std::stoi(input_streams->second);
-                if (n_streams <= getAvailableNUMANodes().size()) {
-                    config[CONFIG_KEY(PERFORMANCE_HINT)] = PluginConfigParams::LATENCY;
-                } else {
-                    config[CONFIG_KEY(PERFORMANCE_HINT)] = PluginConfigParams::THROUGHPUT;
-                }
-                return n_streams;
-            }
-        }
-
-        if (streamsExplicitlySetForEngine && engConfig.streamExecutorConfig._streams > 0) {
-            if (engConfig.streamExecutorConfig._streams <= getAvailableNUMANodes().size()) {
-                config[CONFIG_KEY(PERFORMANCE_HINT)] = PluginConfigParams::LATENCY;
-            } else {
-                config[CONFIG_KEY(PERFORMANCE_HINT)] = PluginConfigParams::THROUGHPUT;
-            }
-            return engConfig.streamExecutorConfig._streams;
-        }
-
-        const auto& perf_hint = config.find(CONFIG_KEY(PERFORMANCE_HINT));
-
-        // the perf_hint may have just arrived to the LoadNetwork, or was set with the plugin's SetConfig
-        OPENVINO_SUPPRESS_DEPRECATED_START
-        if (perf_hint != config.end()) {
-            if ((perf_hint->second != PluginConfigParams::LATENCY) &&
-                (perf_hint->second != PluginConfigParams::THROUGHPUT)) {
-                IE_THROW() << "Wrong value " << perf_hint->second << " for property key "
-                           << ov::hint::performance_mode.name() << ". Expected only "
-                           << ov::hint::PerformanceMode::LATENCY << "/" << ov::hint::PerformanceMode::THROUGHPUT
-                           << std::endl;
-            }
-        } else if (engConfig.changedPerformanceHint) {
-            std::stringstream perfstr;
-            perfstr << engConfig.performanceHint;
-            config[CONFIG_KEY(PERFORMANCE_HINT)] = perfstr.str();
-        } else {
-            const std::vector<std::vector<int>> proc_type_table = get_num_available_cpu_cores();
+        if (!config.changedPerformanceHint) {
+            const std::vector<std::vector<int>> proc_type_table = get_proc_type_table();
             if (proc_type_table.size() == 1) {
-                config[CONFIG_KEY(PERFORMANCE_HINT)] = PluginConfigParams::LATENCY;
+                config.performanceHint = ov::hint::PerformanceMode::LATENCY;
             } else {
-                config[CONFIG_KEY(PERFORMANCE_HINT)] = PluginConfigParams::THROUGHPUT;
+                config.performanceHint = ov::hint::PerformanceMode::THROUGHPUT;
             }
         }
         OPENVINO_SUPPRESS_DEPRECATED_END
 
-        if (config[CONFIG_KEY(PERFORMANCE_HINT)] == CONFIG_VALUE(LATENCY)) {
+        if (config.performanceHint == ov::hint::PerformanceMode::LATENCY) {
             return static_cast<int>(getAvailableNUMANodes().size());
         } else {
             return 0;
         }
     };
-    
+
     if (config.streamExecutorConfig._streams_changed) {
         streams = config.streamExecutorConfig._streams;
+        if (streams <= getAvailableNUMANodes().size()) {
+            config.performanceHint = ov::hint::PerformanceMode::LATENCY;
+        } else {
+            config.performanceHint = ov::hint::PerformanceMode::THROUGHPUT;
+        }
     } else {
-        engConfig.streamExecutorConfig._streams = 0;
         streams = getPerfHintName();
     }
 

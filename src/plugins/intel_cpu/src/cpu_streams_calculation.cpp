@@ -280,7 +280,7 @@ void get_num_streams(const int streams,
     const int model_prefer = get_model_prefer_threads(streams, proc_type_table, ngraphFunc, executor_config);
     executor_config._streams_info_table = get_streams_info_table(streams,
                                                                  executor_config._threads,
-                                                                 config.perfHintsConfig.ovPerfHintNumRequests,
+                                                                 config.numRequests,
                                                                  model_prefer,
                                                                  proc_type_table);
     executor_config._threadsPerStream = executor_config._streams_info_table[0][THREADS_PER_STREAM];
