@@ -732,16 +732,20 @@ std::shared_ptr<Node> NetworkHelper::foldFakeQuantize(
         }
     }
 
-    const auto& original_et = fq->get_output_element_type(0);
-    OPENVINO_SUPPRESS_DEPRECATED_START
-    std::shared_ptr<Node> result = ov::get_constant_from_source(std::make_shared<ov::op::TypeRelaxed<opset1::FakeQuantize>>(*fq, element::f32));
-    OPENVINO_SUPPRESS_DEPRECATED_END
-    if (result != nullptr) {
+    if (ov::is_type<opset1::Constant>(fq->get_input_node_shared_ptr(0))) {
+        std::shared_ptr<Node> subgraph = std::make_shared<ov::op::TypeRelaxed<opset1::FakeQuantize>>(*fq, element::f32);
+        const auto& original_et = fq->get_output_element_type(0);
         const bool roundValues = roundValuesWasSet ? roundValuesArg : original_et.is_integral();
         if (roundValues) {
-            result = ov::op::util::make_try_fold<opset6::Round>(result, opset6::Round::RoundMode::HALF_TO_EVEN);
+            subgraph = std::make_shared<opset6::Round>(subgraph, opset6::Round::RoundMode::HALF_TO_EVEN);
         }
-        return foldConvert(result, original_et);
+
+        OPENVINO_SUPPRESS_DEPRECATED_START
+        const auto result = ov::get_constant_from_source(subgraph);
+        OPENVINO_SUPPRESS_DEPRECATED_END
+        if (result != nullptr) {
+            return foldConvert(result, original_et);
+        }
     }
 
     return fq;
