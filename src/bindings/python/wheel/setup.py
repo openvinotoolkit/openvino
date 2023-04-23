@@ -290,6 +290,9 @@ class PrepareLibs(build_clib):
                 install_dir = os.path.join(install_prefix, install_dir)
             # set rpath if applicable
             if sys.platform != "win32" and comp_data.get("rpath"):
+                if comp == "tbb_libs" and ARCH == "arm64" and sys.platform == "darwin":
+                    print(f"Ignore setting rpath for arm64 {comp}")
+                    continue
                 for path in filter(
                     lambda x: any(item in ([".so"] if sys.platform == "linux" else [".dylib", ".so"])
                                   for item in x.suffixes), Path(install_dir).glob("*"),
