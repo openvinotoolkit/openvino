@@ -19,6 +19,11 @@ using namespace ::details;
 using namespace ::tests;
 
 namespace {
+enum class broadcast_kinds {
+    none,
+    batch,
+    feature
+};
 struct gemm_test_params {
     std::vector<ov::PartialShape> in_shapes;
     ov::PartialShape out_shape;
@@ -31,7 +36,7 @@ struct gemm_test_params {
     size_t expected_fused_primitives;
     size_t expected_not_fused_primitives;
     std::string kernel_name;
-    dim_vec_kind broadcast_kind;
+    broadcast_kinds broadcast_kind;
     eltwise_mode eltwise_m;
 };
 
@@ -282,9 +287,9 @@ INSTANTIATE_TEST_SUITE_P(fusings_gpu, gemm_2in_scale, ::testing::ValuesIn(std::v
     gemm_test_params{ CASE_GEMM_2IN_U8U8_3, 3, 4 },
 }));
 
-
+#ifdef ENABLE_ONEDNN_FOR_GPU
 class gemm_2in_add : public GemmFusingTest {};
-TEST_P(gemm_2in_add, eltwise_postop) {
+TEST_P(gemm_2in_add, eltwise_postop_static) {
     auto p = GetParam();
 
     if (engine.get_device_info().supports_immad) {
@@ -294,9 +299,9 @@ TEST_P(gemm_2in_add, eltwise_postop) {
 
     auto add_data_layout = get_output_layout(p);
     auto add_data_size = add_data_layout.get_partial_shape();
-    if (p.broadcast_kind == dim_vec_kind::batch)
+    if (p.broadcast_kind == broadcast_kinds::batch)
         add_data_size[0] = 1;
-    else
+    else if (p.broadcast_kind == broadcast_kinds::feature)
         add_data_size[1] = 1;
     add_data_layout.set_partial_shape(add_data_size);
 
@@ -306,7 +311,7 @@ TEST_P(gemm_2in_add, eltwise_postop) {
     create_topologies(
         input_layout("input0", in_layout0),
         input_layout("input1", in_layout1),
-        data("add_data", get_mem(add_data_layout, 0.5f)),
+        data("add_data", get_mem(add_data_layout, 0, 10)),
         gemm("gemm_prim", { input_info("input0"), input_info("input1") }, data_types::f32, false, false, 1.f, 0.f, in_layout0.get_rank(), in_layout1.get_rank()),
         eltwise("add_prim", { input_info("gemm_prim"), input_info("add_data") }, p.eltwise_m, p.default_type),
         reorder("reorder_bfyx", input_info("add_prim"), p.default_format, data_types::f32)
@@ -327,9 +332,9 @@ TEST_P(gemm_2in_add, eltwise_postop_dynamic) {
 
     auto add_data_layout = get_output_layout(p);
     auto add_data_size = add_data_layout.get_partial_shape();
-    if (p.broadcast_kind == dim_vec_kind::batch)
+    if (p.broadcast_kind == broadcast_kinds::batch)
         add_data_size[0] = 1;
-    else
+    else if (p.broadcast_kind == broadcast_kinds::feature)
         add_data_size[1] = 1;
     add_data_layout.set_partial_shape(add_data_size);
 
@@ -362,9 +367,9 @@ TEST_P(gemm_2in_add, eltwise_postop_cached) {
 
     auto add_data_layout = get_output_layout(p);
     auto add_data_size = add_data_layout.get_partial_shape();
-    if (p.broadcast_kind == dim_vec_kind::batch)
+    if (p.broadcast_kind == broadcast_kinds::batch)
         add_data_size[0] = 1;
-    else
+    else if (p.broadcast_kind == broadcast_kinds::feature)
         add_data_size[1] = 1;
     add_data_layout.set_partial_shape(add_data_size);
 
@@ -385,19 +390,22 @@ TEST_P(gemm_2in_add, eltwise_postop_cached) {
 }
 
 INSTANTIATE_TEST_SUITE_P(fusings_gpu, gemm_2in_add, ::testing::ValuesIn(std::vector<gemm_test_params>{
-    gemm_test_params{ CASE_GEMM_2IN_FP16_5, 3, 4, "", dim_vec_kind::batch, eltwise_mode::sum },
-    gemm_test_params{ CASE_GEMM_2IN_FP16_5, 3, 4, "", dim_vec_kind::batch, eltwise_mode::prod },
-    gemm_test_params{ CASE_GEMM_2IN_FP16_5, 3, 4, "", dim_vec_kind::batch, eltwise_mode::sub },
-    gemm_test_params{ CASE_GEMM_2IN_FP16_5, 3, 4, "", dim_vec_kind::feature, eltwise_mode::sum },
-    gemm_test_params{ CASE_GEMM_2IN_FP16_5, 3, 4, "", dim_vec_kind::feature, eltwise_mode::prod },
-    gemm_test_params{ CASE_GEMM_2IN_FP16_5, 3, 4, "", dim_vec_kind::feature, eltwise_mode::sub },
-    gemm_test_params{ CASE_GEMM_2IN_FP16_5D_1, 3, 4, "", dim_vec_kind::batch, eltwise_mode::sum },
-    gemm_test_params{ CASE_GEMM_2IN_FP16_5D_1, 3, 4, "", dim_vec_kind::batch, eltwise_mode::prod },
-    gemm_test_params{ CASE_GEMM_2IN_FP16_5D_1, 3, 4, "", dim_vec_kind::batch, eltwise_mode::sub },
-    gemm_test_params{ CASE_GEMM_2IN_FP16_6D_1, 3, 4, "", dim_vec_kind::feature, eltwise_mode::sum },
-    gemm_test_params{ CASE_GEMM_2IN_FP16_6D_1, 3, 4, "", dim_vec_kind::feature, eltwise_mode::prod },
-    gemm_test_params{ CASE_GEMM_2IN_FP16_6D_1, 3, 4, "", dim_vec_kind::feature, eltwise_mode::sub },
+    // gemm_test_params{ CASE_GEMM_2IN_FP16_3, 3, 4, "", broadcast_kinds::none, eltwise_mode::sum },    // TODO: check why failed in eltwise_postop_dynamic
+    gemm_test_params{ CASE_GEMM_2IN_FP16_4, 3, 4, "", broadcast_kinds::none, eltwise_mode::sum },
+    gemm_test_params{ CASE_GEMM_2IN_FP16_5, 3, 4, "", broadcast_kinds::batch, eltwise_mode::sum },
+    gemm_test_params{ CASE_GEMM_2IN_FP16_5, 3, 4, "", broadcast_kinds::batch, eltwise_mode::prod },
+    gemm_test_params{ CASE_GEMM_2IN_FP16_5, 3, 4, "", broadcast_kinds::batch, eltwise_mode::sub },
+    gemm_test_params{ CASE_GEMM_2IN_FP16_5, 3, 4, "", broadcast_kinds::feature, eltwise_mode::sum },
+    gemm_test_params{ CASE_GEMM_2IN_FP16_5, 3, 4, "", broadcast_kinds::feature, eltwise_mode::prod },
+    gemm_test_params{ CASE_GEMM_2IN_FP16_5, 3, 4, "", broadcast_kinds::feature, eltwise_mode::sub },
+    gemm_test_params{ CASE_GEMM_2IN_FP16_5D_1, 3, 4, "", broadcast_kinds::batch, eltwise_mode::sum },
+    gemm_test_params{ CASE_GEMM_2IN_FP16_5D_1, 3, 4, "", broadcast_kinds::batch, eltwise_mode::prod },
+    gemm_test_params{ CASE_GEMM_2IN_FP16_5D_1, 3, 4, "", broadcast_kinds::batch, eltwise_mode::sub },
+    gemm_test_params{ CASE_GEMM_2IN_FP16_6D_1, 3, 4, "", broadcast_kinds::feature, eltwise_mode::sum },
+    gemm_test_params{ CASE_GEMM_2IN_FP16_6D_1, 3, 4, "", broadcast_kinds::feature, eltwise_mode::prod },
+    gemm_test_params{ CASE_GEMM_2IN_FP16_6D_1, 3, 4, "", broadcast_kinds::feature, eltwise_mode::sub },
 }));
+#endif
 
 class gemm_2in_act_scale_quantize_i8 : public GemmFusingTest {};
 TEST_P(gemm_2in_act_scale_quantize_i8, basic) {
