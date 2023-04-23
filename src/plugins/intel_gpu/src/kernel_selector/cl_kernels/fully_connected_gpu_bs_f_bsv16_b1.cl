@@ -160,7 +160,7 @@
 
 REQD_SUB_GROUP_SIZE(SUB_GROUP_SIZE)
 __attribute__((reqd_work_group_size(SUB_GROUP_SIZE, 1, 1)))
-KERNEL (fully_connected_gpu_bx_bs_x_bsv16_b1)(
+KERNEL (fully_connected_gpu_bx_bs_f_bsv16_b1)(
     const __global UNIT_TYPE* input,
     __global UNIT_TYPE* output,
     const __global UNIT_TYPE* weight
@@ -187,7 +187,7 @@ KERNEL (fully_connected_gpu_bx_bs_x_bsv16_b1)(
     // Input base offset in bytes (bfyx/bx format of input).
     const uint input_base     = 0;
 
-    // Filter base offset in bytes (bs_x_bsv16 format of weights).
+    // Filter base offset in bytes (bs_f_bsv16 format of weights).
     const uint filter_base    = sg_id * input_byte_size * RESPONSES_PER_SG_EXEC;
 
     // [SCATTERED] Output base identifier/element offset to use (bx format of output).

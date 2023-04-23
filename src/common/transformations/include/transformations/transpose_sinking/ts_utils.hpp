@@ -64,7 +64,9 @@ namespace sink_forward {
  * @brief Inserts reversed transposed on @args main_node inputs. Removes input transpose specified in @arg
  * transpose_input_info
  */
-bool UpdateInputTransposes(const std::shared_ptr<ov::Node>& main_node, const TransposeInputsInfo& transpose_input_info);
+bool UpdateInputTransposes(const std::shared_ptr<ov::Node>& main_node,
+                           const TransposeInputsInfo& transpose_input_info,
+                           std::vector<size_t> input_indexes = {});
 
 /**
  * @brief Removes @arg input node
@@ -86,7 +88,7 @@ namespace sink_backward {
  */
 ov::NodeVector InsertTransposeBeforeNode(const std::shared_ptr<ov::Node>& main_node,
                                          const std::shared_ptr<ov::opset10::Constant>& transpose_const,
-                                         std::vector<int> input_indexes = {});
+                                         std::vector<size_t> input_indexes = {});
 }  // namespace sink_backward
 
 void UpdateForwardSinkingAbility(const std::shared_ptr<ov::Node>&);
@@ -103,12 +105,27 @@ bool HasSameOutputTransposeNodes(const ov::Output<ov::Node>&);
 void RemoveSingleOutputConsumers(const std::shared_ptr<ov::Node>&);
 
 /**
- * @brief Changes the order of values in @arg input according to @arg transpose_axis_order along @arg axis
+ * @brief Inserts Gather operation which changes the order of values in @arg input
+ * according to @arg transpose_axis_order along @arg axis.
  */
 ov::Output<ov::Node> ChangeValuesOrder(const ov::Output<ov::Node>& input,
                                        const ov::AxisVector& transpose_axis_order,
                                        const std::shared_ptr<ov::opset10::Constant>& axis);
+/**
+ * @brief Inserts Gather operation which changes the order of values in @arg input
+ * according to @arg transpose_axis_order along @arg axis.
+ */
+Output<Node> ChangeAxes(const Output<Node>& input,
+                        const AxisVector& transpose_axis_order,
+                        const std::shared_ptr<ov::opset10::Constant>& axis);
 
+/**
+ * @brief Inserts Gather operation which changes the order of values in @arg input
+ * according to @arg transpose_axis_order along @arg axis.
+ */
+Output<Node> ChangeAxes(const Output<Node>& input,
+                        const std::shared_ptr<ov::opset10::Constant>& transpose_axis_order,
+                        const std::shared_ptr<ov::opset10::Constant>& axis);
 /**
  * @brief Returns the updated axes order for case when the initial axes order has more elements
  * than after TransposeSinking, e.g.:

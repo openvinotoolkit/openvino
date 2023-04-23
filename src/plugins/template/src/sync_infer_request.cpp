@@ -206,7 +206,10 @@ void ov::template_plugin::InferRequest::infer_preprocess() {
 void ov::template_plugin::InferRequest::start_pipeline() {
     OV_ITT_SCOPED_TASK(itt::domains::TemplatePlugin, m_profiling_task[StartPipeline])
     auto start = Time::now();
-    m_executable->call(m_backend_output_tensors, m_backend_input_tensors, m_eval_context);
+    m_executable->call(m_backend_output_tensors,
+                       m_backend_input_tensors,
+                       m_eval_context,
+                       get_template_model()->m_cfg.perf_count);
     m_durations[StartPipeline] = Time::now() - start;
 }
 // ! [infer_request:start_pipeline]
@@ -268,3 +271,9 @@ std::vector<ov::ProfilingInfo> ov::template_plugin::InferRequest::get_profiling_
     return info;
 }
 // ! [infer_request:get_profiling_info]
+
+// ! [infer_request:cancel]
+void ov::template_plugin::InferRequest::cancel() {
+    m_executable->cancel();
+}
+// ! [infer_request:cancel]

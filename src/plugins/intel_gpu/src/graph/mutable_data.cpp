@@ -51,19 +51,21 @@ std::string mutable_data_inst::to_string(mutable_data_node const& node) {
 }
 
 void mutable_data_inst::set_output_memory(memory::ptr mem_new, bool check, size_t idx) {
-    auto& eng = _network.get_engine();
-    auto& mem_node = const_cast<program_node *>(_node)->as<mutable_data>();
-    auto& mem_attached = mem_node.get_attached_memory();
-    const auto& mem_orig = *_outputs[idx];
+    if (_node != nullptr) {
+        auto& eng = _network.get_engine();
+        auto& mem_node = const_cast<program_node *>(_node)->as<mutable_data>();
+        auto& mem_attached = mem_node.get_attached_memory();
+        const auto& mem_orig = *_outputs[idx];
 
-    if (!eng.is_the_same_buffer(*mem_new, mem_attached)) {
-        if (_node->is_input()) {
-            mem_new->copy_from(_network.get_stream(), *_outputs[idx]);
-        }
+        if (!eng.is_the_same_buffer(*mem_new, mem_attached)) {
+            if (_node->is_input()) {
+                mem_new->copy_from(_network.get_stream(), *_outputs[idx]);
+            }
 
-        // re-attach mutable_data internal memory if necessary
-        if (eng.is_the_same_buffer(mem_orig, mem_attached)) {
-            mem_node.attach_memory(eng.reinterpret_buffer(*mem_new, mem_attached.get_layout()));
+            // re-attach mutable_data internal memory if necessary
+            if (eng.is_the_same_buffer(mem_orig, mem_attached)) {
+                mem_node.attach_memory(eng.reinterpret_buffer(*mem_new, mem_attached.get_layout()));
+            }
         }
     }
     primitive_inst::set_output_memory(mem_new, check);
