@@ -135,11 +135,10 @@ target_include_directories(${TARGET_NAME}_obj SYSTEM PRIVATE
     $<TARGET_PROPERTY:frontend_common::static,INTERFACE_INCLUDE_DIRECTORIES>
     $<TARGET_PROPERTY:xbyak,INTERFACE_INCLUDE_DIRECTORIES>)
 
-
 target_include_directories(${TARGET_NAME}_obj PRIVATE
     "${CMAKE_CURRENT_SOURCE_DIR}/src"
     # for ov_plugins.hpp
-    $<IF:$<BOOL:${OV_GENERATOR_MULTI_CONFIG}>,${CMAKE_CURRENT_BINARY_DIR}/$<CONFIG>,${CMAKE_CURRENT_BINARY_DIR}>
+    $<IF:$<AND:$<BOOL:${OV_GENERATOR_MULTI_CONFIG}>,$<VERSION_GREATER_EQUAL:${CMAKE_VERSION},3.20>>,${CMAKE_CURRENT_BINARY_DIR}/$<CONFIG>,${CMAKE_CURRENT_BINARY_DIR}>
     # for ie_ir_version.hpp
     $<$<TARGET_EXISTS:inference_engine_ir_v7_reader>:$<TARGET_PROPERTY:inference_engine_ir_v7_reader,SOURCE_DIR>>
     "${OpenVINO_SOURCE_DIR}/src/plugins/intel_gna/legacy/include"
