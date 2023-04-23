@@ -1,17 +1,18 @@
 # Ceiling  {#openvino_docs_ops_arithmetic_Ceiling_1}
 
+@sphinxdirective
+
 **Versioned name**: *Ceiling-1*
 
 **Category**: *Arithmetic unary*
 
 **Short description**: *Ceiling* performs element-wise ceiling operation with given tensor.
 
-**Detailed description**: For each element from the input tensor calculates corresponding
-element in the output tensor with the following formula:
+**Detailed description**: For each element from the input tensor calculates corresponding element in the output tensor with the following formula:
 
-\f[
-a_{i} = \lceil a_{i} \rceil
-\f]
+.. math::
+   
+   a_{i} = \lceil a_{i} \rceil
 
 **Attributes**: *Ceiling* operation has no attributes.
 
@@ -27,24 +28,26 @@ a_{i} = \lceil a_{i} \rceil
 
 * *T*: any numeric type.
 
-
 **Examples**
 
 *Example 1*
 
-```xml
-<layer ... type="Ceiling">
-    <input>
-        <port id="0">
-            <dim>256</dim>
-            <dim>56</dim>
-        </port>
-    </input>
-    <output>
-        <port id="1">
-            <dim>256</dim>
-            <dim>56</dim>
-        </port>
-    </output>
-</layer>
-```
+.. code-block:: cpp
+   
+   <layer ... type="Ceiling">
+       <input>
+           <port id="0">
+               <dim>256</dim>
+               <dim>56</dim>
+           </port>
+       </input>
+       <output>
+           <port id="1">
+               <dim>256</dim>
+               <dim>56</dim>
+           </port>
+       </output>
+   </layer>
+   
+@endsphinxdirective
+
