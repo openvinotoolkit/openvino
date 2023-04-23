@@ -166,7 +166,7 @@ struct CPUStreamsExecutor::Impl {
             } else {
                 _taskArena.reset(new custom::task_arena{concurrency});
             }
-            if (_impl->_config._cpu_pinning && stream_id < _impl->_config._streams) {
+            if (_impl->_config._cpu_pinning) {
                 _cpu_ids = static_cast<int>(_impl->_config._stream_core_ids.size()) == _impl->_config._streams
                                ? _impl->_config._stream_core_ids[stream_id]
                                : _cpu_ids;
