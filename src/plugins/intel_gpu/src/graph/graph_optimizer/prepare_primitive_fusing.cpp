@@ -707,7 +707,7 @@ void prepare_primitive_fusing::fuse_simple_primitives(program &p) {
                     return;
                 if (activation_func == cldnn::activation_func::relu_negative_slope &&
                     (input.is_type<fully_connected>() || input.is_type<gemm>())) {
-                    // prelu fusion is not implemented in oneDNN3.1 (https://jira.devtools.intel.com/browse/MFDNN-9898)
+                    // prelu fusion is not implemented in oneDNN3.1 (CVS-108233)
                     return;
                 }
                 // Activation should not be fused if oneDNN does NOT support it
