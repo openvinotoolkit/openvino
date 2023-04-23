@@ -273,20 +273,28 @@ void Engine::ApplyPerformanceHints(std::map<std::string, std::string> &config, c
 
 void Engine::GetPerformanceStreams(Config& config, const std::shared_ptr<ngraph::Function>& ngraphFunc) {
     const auto perf_hint_name = config.perfHintsConfig.ovPerfHint;
+    // save hints parameters to model rt_info
+    ov::AnyMap hints_props;
+    std::string hint_name;
     int streams;
     if (config.streamExecutorConfig._streams_changed) {
         streams = config.streamExecutorConfig._streams;
     } else if (perf_hint_name == CONFIG_VALUE(LATENCY)) {
         streams = get_num_numa_nodes();
+        hint_name = std::string(CONFIG_VALUE(LATENCY)) + "_" + std::string(ov::num_streams.name());
     } else if (perf_hint_name == CONFIG_VALUE(THROUGHPUT)) {
         streams = 0;
+        hint_name = std::string(CONFIG_VALUE(THROUGHPUT)) + "_" + std::string(ov::num_streams.name());
     } else {
         streams = config.streamExecutorConfig._streams == 1 ? 0 : config.streamExecutorConfig._streams;
     }
 
     get_num_streams(streams, ngraphFunc, config);
 
+    hints_props.insert({hint_name, std::to_string(config.streamExecutorConfig._streams)});
+    ngraphFunc->set_rt_info(hints_props, "intel_cpu_hints_config");
     config._config[CONFIG_KEY(CPU_THROUGHPUT_STREAMS)] = std::to_string(config.streamExecutorConfig._streams);
+    config._config[ov::num_streams.name()] = std::to_string(config.streamExecutorConfig._streams);
 }
 
 StreamCfg Engine::GetNumStreams(InferenceEngine::IStreamsExecutor::ThreadBindingType thread_binding_type,
@@ -781,6 +789,9 @@ InferenceEngine::IExecutableNetworkInternal::Ptr Engine::ImportNetwork(std::istr
 
     if (conf.enableDynamicBatch) {
         conf.batchLimit = static_cast<int>(cnnnetwork.getBatchSize());
+    }
+    if (is_cpu_map_available()) {
+        get_num_streams(conf.streamExecutorConfig._streams, function, conf);
     }
 
     auto execNetwork = std::make_shared<ExecNetwork>(cnnnetwork, conf, extensionManager, shared_from_this());
