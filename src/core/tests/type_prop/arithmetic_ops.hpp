@@ -250,18 +250,6 @@ TYPED_TEST_P(ArithmeticOperator, static_shape_inference_4D_x_3D_ax_default_pdpd_
     EXPECT_EQ(op->get_autob().m_type, op::AutoBroadcastType::PDPD);
 }
 
-TYPED_TEST_P(ArithmeticOperator, static_shape_inference_4D_x_3D_ax_1_pdpd_bdir_broadcast) {
-    auto A = std::make_shared<op::Parameter>(element::f32, Shape{8, 1, 6, 1});
-    auto B = std::make_shared<op::Parameter>(element::f32, Shape{7, 1, 5});
-
-    const auto autob = op::AutoBroadcastSpec(op::AutoBroadcastType::PDPD, 1);
-    const auto op = std::make_shared<TypeParam>(A, B, autob);
-
-    EXPECT_EQ(op->get_element_type(), element::f32);
-    EXPECT_EQ(op->get_shape(), (Shape{8, 7, 6, 5}));
-    EXPECT_EQ(op->get_autob().m_type, op::AutoBroadcastType::PDPD);
-}
-
 TYPED_TEST_P(ArithmeticOperator, incompatible_element_types) {
     auto A = std::make_shared<op::Parameter>(element::f32, Shape{2, 2, 3, 3});
     auto B = std::make_shared<op::Parameter>(element::i32, Shape{2, 2, 3, 3});
@@ -295,6 +283,15 @@ TYPED_TEST_P(ArithmeticOperator, shape_inference_5D_x_5D_incompatible) {
     auto B = std::make_shared<op::Parameter>(element::f32, Shape{389, 112, 19});
 
     ASSERT_THROW(const auto unused = std::make_shared<TypeParam>(A, B), ngraph::NodeValidationFailure);
+}
+
+TYPED_TEST_P(ArithmeticOperator, shape_inference_axis_less_than_negative_1_pdpd_incompatible) {
+    auto A = std::make_shared<op::Parameter>(element::f32, Shape{2, 3, 4, 5});
+    auto B = std::make_shared<op::Parameter>(element::f32, Shape{3, 1});
+
+    const auto autob = op::AutoBroadcastSpec(op::AutoBroadcastType::PDPD, -2);
+
+    ASSERT_THROW(const auto unused = std::make_shared<TypeParam>(A, B, autob), ngraph::NodeValidationFailure);
 }
 
 TYPED_TEST_P(ArithmeticOperator, fully_dynamic_shape_broadcast_numpy) {
@@ -888,12 +885,12 @@ REGISTER_TYPED_TEST_SUITE_P(ArithmeticOperator,
                             static_shape_4D_x_4D_equal_pdpd_broadcast,
                             static_shape_inference_4D_x_4D_pdpd_broadcast,
                             static_shape_inference_4D_x_3D_ax_default_pdpd_broadcast,
-                            static_shape_inference_4D_x_3D_ax_1_pdpd_bdir_broadcast,
                             incompatible_element_types,
                             incompatible_boolean_type,
                             shape_inference_1D_x_1D_incompatible,
                             shape_inference_3D_x_3D_incompatible,
                             shape_inference_5D_x_5D_incompatible,
+                            shape_inference_axis_less_than_negative_1_pdpd_incompatible,
 
                             // Dynamic shapes
                             fully_dynamic_shape_broadcast_numpy,

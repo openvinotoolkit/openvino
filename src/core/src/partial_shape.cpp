@@ -341,25 +341,12 @@ bool ov::PartialShape::broadcast_merge_into(PartialShape& dst,
             if (src_rank + axis > dst_rank)
                 return false;
 
-            std::vector<Dimension> broadcast_shape(dst_rank);
-
-            for (int64_t i = 0; i < axis; i++)
-                broadcast_shape[i] = (dst[i].is_dynamic()) ? dst[i] : Dimension(1);
-
-            for (int64_t i = axis; i < axis + src_rank; i++)
-                broadcast_shape[i] = src[i - axis];
-
-            for (int64_t i = axis + src_rank; i < dst_rank; i++)
-                broadcast_shape[i] = (dst[i].is_dynamic()) ? dst[i] : Dimension(1);
-
-            std::vector<Dimension> dims(dst_rank);
             bool success = true;
-            for (int64_t i = 0; i < dst_rank; i++) {
-                success &= Dimension::broadcast_merge(dims[i], dst[i], broadcast_shape[i]);
+            for (int64_t i = 0; i < src_rank; ++i) {
+                success &= Dimension::broadcast_merge(dst[axis + i], dst[axis + i], src[i]);
             }
-            dst = PartialShape(std::move(dims));
 
-            return true;
+            return success;
         }
     }
     default:
