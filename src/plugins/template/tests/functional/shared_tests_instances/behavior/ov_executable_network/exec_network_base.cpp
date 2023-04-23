@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "behavior/ov_executable_network/exec_network_base.hpp"
+#include "behavior/compiled_model/compiled_model_base.hpp"
 #include "ie_plugin_config.hpp"
 
 using namespace ov::test::behavior;
@@ -15,27 +15,52 @@ namespace {
             {ov::device::priorities(CommonTestUtils::DEVICE_TEMPLATE)}
     };
 
-    INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests, OVExecutableNetworkBaseTest,
+    INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests, OVCompiledModelBaseTest,
                             ::testing::Combine(
                                     ::testing::Values(CommonTestUtils::DEVICE_TEMPLATE),
                                     ::testing::ValuesIn(configs)),
-                            OVExecutableNetworkBaseTest::getTestCaseName);
+                            OVCompiledModelBaseTest::getTestCaseName);
 
-    INSTANTIATE_TEST_SUITE_P(smoke_Multi_BehaviorTests, OVExecutableNetworkBaseTest,
+    INSTANTIATE_TEST_SUITE_P(smoke_Multi_BehaviorTests, OVCompiledModelBaseTest,
                             ::testing::Combine(
                                     ::testing::Values(CommonTestUtils::DEVICE_MULTI),
                                     ::testing::ValuesIn(swPluginConfigs)),
-                            OVExecutableNetworkBaseTest::getTestCaseName);
+                            OVCompiledModelBaseTest::getTestCaseName);
 
-    INSTANTIATE_TEST_SUITE_P(smoke_Auto_BehaviorTests, OVExecutableNetworkBaseTest,
+    INSTANTIATE_TEST_SUITE_P(smoke_Auto_BehaviorTests, OVCompiledModelBaseTest,
                             ::testing::Combine(
                                     ::testing::Values(CommonTestUtils::DEVICE_AUTO),
                                     ::testing::ValuesIn(swPluginConfigs)),
-                            OVExecutableNetworkBaseTest::getTestCaseName);
+                            OVCompiledModelBaseTest::getTestCaseName);
 
-    INSTANTIATE_TEST_SUITE_P(smoke_Hetero_BehaviorTests, OVExecutableNetworkBaseTest,
+    INSTANTIATE_TEST_SUITE_P(smoke_Hetero_BehaviorTests, OVCompiledModelBaseTest,
                              ::testing::Combine(
                                      ::testing::Values(CommonTestUtils::DEVICE_HETERO),
                                      ::testing::ValuesIn(swPluginConfigs)),
-                             OVExecutableNetworkBaseTest::getTestCaseName);
+                             OVCompiledModelBaseTest::getTestCaseName);
+
+
+    INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests, OVCompiledModelBaseTestOptional,
+                            ::testing::Combine(
+                                    ::testing::Values(CommonTestUtils::DEVICE_TEMPLATE),
+                                    ::testing::ValuesIn(configs)),
+                            OVCompiledModelBaseTestOptional::getTestCaseName);
+
+    INSTANTIATE_TEST_SUITE_P(smoke_Multi_BehaviorTests, OVCompiledModelBaseTestOptional,
+                            ::testing::Combine(
+                                    ::testing::Values(CommonTestUtils::DEVICE_MULTI),
+                                    ::testing::ValuesIn(swPluginConfigs)),
+                            OVCompiledModelBaseTestOptional::getTestCaseName);
+
+    INSTANTIATE_TEST_SUITE_P(smoke_Auto_BehaviorTests, OVCompiledModelBaseTestOptional,
+                            ::testing::Combine(
+                                    ::testing::Values(CommonTestUtils::DEVICE_AUTO),
+                                    ::testing::ValuesIn(swPluginConfigs)),
+                            OVCompiledModelBaseTestOptional::getTestCaseName);
+
+    INSTANTIATE_TEST_SUITE_P(smoke_Hetero_BehaviorTests, OVCompiledModelBaseTestOptional,
+                             ::testing::Combine(
+                                     ::testing::Values(CommonTestUtils::DEVICE_HETERO),
+                                     ::testing::ValuesIn(swPluginConfigs)),
+                             OVCompiledModelBaseTestOptional::getTestCaseName);
 }  // namespace

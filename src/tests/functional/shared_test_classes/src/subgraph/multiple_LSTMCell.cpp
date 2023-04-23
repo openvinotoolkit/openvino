@@ -471,6 +471,11 @@ void MultipleLSTMCellTest::ApplyLowLatency() {
     }
 }
 
+void MultipleLSTMCellTest::LoadNetwork() {
+    LayerTestsUtils::LayerTestsCommon::LoadNetwork();
+    inferRequest = executableNetwork.CreateInferRequest();
+}
+
 void MultipleLSTMCellTest::Run() {
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
     if (transformation != ngraph::helpers::MemoryTransformation::NONE) {

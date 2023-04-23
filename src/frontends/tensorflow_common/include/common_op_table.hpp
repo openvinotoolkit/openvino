@@ -10,7 +10,6 @@
 
 #include "openvino/core/node_vector.hpp"
 #include "openvino/frontend/node_context.hpp"
-#include "openvino_conversions.hpp"
 #include "utils.hpp"
 
 #define TENSORFLOW_OP_VALIDATION(node_context, ...)                                        \
@@ -22,7 +21,8 @@ namespace ov {
 namespace frontend {
 namespace tensorflow {
 namespace op {
-#define OP_CONVERTER(op) OutputVector op(const ov::frontend::NodeContext& node)
+#define OP_CONVERTER(op)       OutputVector op(const ov::frontend::NodeContext& node)
+#define OP_CONVERTER_NAMED(op) NamedOutputVector op(const ov::frontend::NodeContext& node)
 #define OP_T_CONVERTER(op) \
     template <class T>     \
     OutputVector op(const ov::frontend::NodeContext& node)
@@ -34,7 +34,6 @@ OP_T_CONVERTER(translate_direct_reduce_op);
 OP_CONVERTER(translate_add_n_op);
 OP_CONVERTER(translate_arg_max_op);
 OP_CONVERTER(translate_arg_min_op);
-OP_CONVERTER(translate_assert_op);
 OP_CONVERTER(translate_avg_pool_op);
 OP_CONVERTER(translate_batch_mat_mul_op);
 OP_CONVERTER(translate_batch_to_space_nd_op);
@@ -50,7 +49,7 @@ OP_CONVERTER(translate_conv_2d_op);
 OP_CONVERTER(translate_conv_2d_backprop_input_op);
 OP_CONVERTER(translate_conv_3d_op);
 OP_CONVERTER(translate_conv_3d_backprop_input_v2_op);
-OP_CONVERTER(translate_ctc_greedy_decoder_op);
+OP_CONVERTER_NAMED(translate_ctc_greedy_decoder_op);
 OP_CONVERTER(translate_ctc_loss_op);
 OP_CONVERTER(translate_cumsum_op);
 OP_CONVERTER(translate_crop_and_resize_op);
@@ -64,7 +63,7 @@ OP_CONVERTER(translate_extract_image_patches_op);
 OP_CONVERTER(translate_fake_quant_op);
 OP_CONVERTER(translate_fill_op);
 OP_CONVERTER(translate_floor_div_op);
-OP_CONVERTER(translate_fused_batch_norm_op);
+OP_CONVERTER_NAMED(translate_fused_batch_norm_op);
 OP_CONVERTER(translate_gather_op);
 OP_CONVERTER(translate_gather_v2_op);
 OP_CONVERTER(translate_gather_nd_op);
@@ -87,7 +86,7 @@ OP_CONVERTER(translate_mat_mul_op);
 OP_CONVERTER(translate_matrix_diag_op);
 OP_CONVERTER(translate_max_pool_op);
 OP_CONVERTER(translate_mirror_pad_op);
-OP_CONVERTER(translate_non_max_suppression_op);
+OP_CONVERTER_NAMED(translate_non_max_suppression_op);
 OP_CONVERTER(translate_parallel_dynamic_stitch_op);
 OP_CONVERTER(translate_placeholder_op);
 OP_CONVERTER(translate_placeholder_with_default_op);
@@ -134,8 +133,8 @@ OP_CONVERTER(translate_tensor_list_reserve_op);
 OP_CONVERTER(translate_tensor_list_set_item_op);
 OP_CONVERTER(translate_tensor_list_stack_op);
 OP_CONVERTER(translate_tile_op);
-OP_CONVERTER(translate_top_k_op);
-OP_CONVERTER(translate_top_k_v2_op);
+OP_CONVERTER_NAMED(translate_top_k_op);
+OP_CONVERTER_NAMED(translate_top_k_v2_op);
 OP_CONVERTER(translate_transpose_op);
 OP_CONVERTER(translate_unpack_op);
 OP_CONVERTER(translate_where_op);
@@ -143,7 +142,7 @@ OP_CONVERTER(translate_x_div_y_op);
 OP_CONVERTER(translate_zeros_like_op);
 
 // Translators for internal operations
-OP_CONVERTER(translate_unique_op);
+OP_CONVERTER_NAMED(translate_unique_op);
 
 }  // namespace op
 }  // namespace tensorflow

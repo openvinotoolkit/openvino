@@ -20,8 +20,10 @@ endif()
 
 add_library(${TARGET_NAME}
     $<TARGET_OBJECTS:ngraph_obj>
+    $<TARGET_OBJECTS:ngraph_obj_version>
     $<TARGET_OBJECTS:frontend_common_obj>
     $<TARGET_OBJECTS:inference_engine_obj>
+    $<TARGET_OBJECTS:inference_engine_obj_version>
     $<TARGET_OBJECTS:inference_engine_transformations_obj>
     $<TARGET_OBJECTS:inference_engine_lp_transformations_obj>)
 
@@ -131,7 +133,7 @@ ie_cpack_add_component(${OV_CPACK_COMP_CORE_DEV}
                        HIDDEN
                        DEPENDS ${OV_CPACK_COMP_CORE} ${core_dev_components})
 
-if(BUILD_SHARED_LIBS)
+if(ENABLE_PLUGINS_XML)
     install(FILES $<TARGET_FILE_DIR:${TARGET_NAME}>/plugins.xml
             DESTINATION ${OV_CPACK_PLUGINSDIR}
             COMPONENT ${OV_CPACK_COMP_CORE})

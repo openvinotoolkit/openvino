@@ -36,7 +36,7 @@ public:
         topology.add(input_layout("input", input->get_layout()));
         topology.add(strided_slice("strided_slice", input_info("input"), begin_data, end_data, strides_data, {}, {}, {}, {}, {}, {2, 2, 2, 2}));
 
-        cldnn::network::ptr network = get_network(engine, topology, ExecutionConfig(), get_test_stream_ptr(), is_caching_test);
+        cldnn::network::ptr network = get_network(engine, topology, get_test_default_config(engine), get_test_stream_ptr(), is_caching_test);
 
         network->set_input_data("input", input);
 
@@ -81,7 +81,7 @@ public:
         topology.add(input_layout("input", input->get_layout()));
         topology.add(strided_slice("strided_slice", input_info("input"), begin_data, end_data, strides_data, {1, 1, 1, 1}, {1, 1, 1, 1}, {}, {}, {}, {2, 2, 2, 2}));
 
-        cldnn::network::ptr network = get_network(engine, topology, ExecutionConfig(), get_test_stream_ptr(), is_caching_test);
+        cldnn::network::ptr network = get_network(engine, topology, get_test_default_config(engine), get_test_stream_ptr(), is_caching_test);
 
         network->set_input_data("input", input);
 
@@ -128,7 +128,7 @@ public:
         topology.add(input_layout("input", input->get_layout()));
         topology.add(strided_slice("strided_slice", input_info("input"), begin_data, end_data, strides_data, {}, {}, {}, {}, {}, {1, 1, 1, 1}));
 
-        cldnn::network::ptr network = get_network(engine, topology, ExecutionConfig(), get_test_stream_ptr(), is_caching_test);
+        cldnn::network::ptr network = get_network(engine, topology, get_test_default_config(engine), get_test_stream_ptr(), is_caching_test);
 
         network->set_input_data("input", input);
 
@@ -176,7 +176,7 @@ public:
         topology.add(input_layout("input", input->get_layout()));
         topology.add(strided_slice("strided_slice", input_info("input"), begin_data, end_data, strides_data, {1, 1, 1, 1}, {1, 1, 1, 1}, {}, {}, {}, {2, 2, 2, 3}));
 
-        cldnn::network::ptr network = get_network(engine, topology, ExecutionConfig(), get_test_stream_ptr(), is_caching_test);
+        cldnn::network::ptr network = get_network(engine, topology, get_test_default_config(engine), get_test_stream_ptr(), is_caching_test);
 
         network->set_input_data("input", input);
 
@@ -240,7 +240,7 @@ public:
         topology.add(input_layout("input", input->get_layout()));
         topology.add(strided_slice("strided_slice", input_info("input"), begin_data, end_data, strides_data, {0, 1, 1, 0}, {}, {}, {}, {}, {1, 2, 4, 2}));
 
-        cldnn::network::ptr network = get_network(engine, topology, ExecutionConfig(), get_test_stream_ptr(), is_caching_test);
+        cldnn::network::ptr network = get_network(engine, topology, get_test_default_config(engine), get_test_stream_ptr(), is_caching_test);
 
         network->set_input_data("input", input);
 
@@ -292,7 +292,7 @@ public:
         topology.add(input_layout("input", input->get_layout()));
         topology.add(strided_slice("strided_slice", input_info("input"), begin_data, end_data, strides_data, {}, {}, { 1 }, {}, {}, {2, 2, 4, 1}));
 
-        cldnn::network::ptr network = get_network(engine, topology, ExecutionConfig(), get_test_stream_ptr(), is_caching_test);
+        cldnn::network::ptr network = get_network(engine, topology, get_test_default_config(engine), get_test_stream_ptr(), is_caching_test);
 
         network->set_input_data("input", input);
 
@@ -335,7 +335,7 @@ public:
         topology.add(input_layout("input", input->get_layout()));
         topology.add(strided_slice("strided_slice", input_info("input"), begin_data, end_data, strides_data, {}, {}, { 1, 0, 1 }, {}, {}, {2, 2, 1, 1}));
 
-        cldnn::network::ptr network = get_network(engine, topology, ExecutionConfig(), get_test_stream_ptr(), is_caching_test);
+        cldnn::network::ptr network = get_network(engine, topology, get_test_default_config(engine), get_test_stream_ptr(), is_caching_test);
 
         network->set_input_data("input", input);
 
@@ -376,7 +376,7 @@ public:
         topology.add(input_layout("input", input->get_layout()));
         topology.add(strided_slice("strided_slice", input_info("input"), begin_data, end_data, strides_data, {1, 0}, {}, {}, {}, {}, {2, 2, 1, 1}));
 
-        cldnn::network::ptr network = get_network(engine, topology, ExecutionConfig(), get_test_stream_ptr(), is_caching_test);
+        cldnn::network::ptr network = get_network(engine, topology, get_test_default_config(engine), get_test_stream_ptr(), is_caching_test);
 
         network->set_input_data("input", input);
 
@@ -417,7 +417,7 @@ public:
         topology.add(input_layout("input", input->get_layout()));
         topology.add(strided_slice("strided_slice", input_info("input"), begin_data, end_data, strides_data, {}, {}, {}, {}, {}, {1, 2, 2, 1}));
 
-        cldnn::network::ptr network = get_network(engine, topology, ExecutionConfig(), get_test_stream_ptr(), is_caching_test);
+        cldnn::network::ptr network = get_network(engine, topology, get_test_default_config(engine), get_test_stream_ptr(), is_caching_test);
 
         network->set_input_data("input", input);
 
@@ -458,7 +458,7 @@ public:
         topology.add(input_layout("input", input->get_layout()));
         topology.add(strided_slice("strided_slice", input_info("input"), begin_data, end_data, strides_data, {}, {}, {}, {}, {}, {2, 1, 1, 1}));
 
-        cldnn::network::ptr network = get_network(engine, topology, ExecutionConfig(), get_test_stream_ptr(), is_caching_test);
+        cldnn::network::ptr network = get_network(engine, topology, get_test_default_config(engine), get_test_stream_ptr(), is_caching_test);
 
         network->set_input_data("input", input);
 
@@ -503,7 +503,7 @@ public:
         topology.add(input_layout("input", input->get_layout()));
         topology.add(strided_slice("strided_slice", input_info("input"), begin_data, end_data, strides_data, {}, {}, {}, {}, {}, {2, 2, 2, 2}));
 
-        cldnn::network::ptr network = get_network(engine, topology, ExecutionConfig(), get_test_stream_ptr(), is_caching_test);
+        cldnn::network::ptr network = get_network(engine, topology, get_test_default_config(engine), get_test_stream_ptr(), is_caching_test);
 
         network->set_input_data("input", input);
 
@@ -544,7 +544,7 @@ public:
         topology.add(input_layout("input", input->get_layout()));
         topology.add(strided_slice("strided_slice", input_info("input"), begin_data, end_data, strides_data, {}, {}, {}, {}, {}, {2, 1, 1, 1}));
 
-        cldnn::network::ptr network = get_network(engine, topology, ExecutionConfig(), get_test_stream_ptr(), is_caching_test);
+        cldnn::network::ptr network = get_network(engine, topology, get_test_default_config(engine), get_test_stream_ptr(), is_caching_test);
 
         network->set_input_data("input", input);
 
@@ -590,7 +590,7 @@ public:
         topology.add(data("input4", strides));
         topology.add(strided_slice("strided_slice", input_info("input"), input_info("input2"), input_info("input3"), input_info("input4"), {}, {}, {}, {}, {}, {}));
 
-        ExecutionConfig config;
+        ExecutionConfig config = get_test_default_config(engine);
         config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
         network network(engine, topology, config);
 
@@ -640,7 +640,7 @@ public:
         topology.add(data("input4", strides));
         topology.add(strided_slice("strided_slice", input_info("input"), input_info("input2"), input_info("input3"), input_info("input4"), {}, {}, {}, {}, {}, {}));
 
-        ExecutionConfig config;
+        ExecutionConfig config = get_test_default_config(engine);
         config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
         network network(engine, topology, config);
 
@@ -759,7 +759,7 @@ public:
         topology.add(data("input4", strides));
         topology.add(strided_slice("strided_slice", input_info("input"), input_info("input2"), input_info("input3"), input_info("input4"), {}, {}, {}, {}, {}, {2, 2, 2, 2}));
 
-        cldnn::network::ptr network = get_network(engine, topology, ExecutionConfig(), get_test_stream_ptr(), is_caching_test);
+        cldnn::network::ptr network = get_network(engine, topology, get_test_default_config(engine), get_test_stream_ptr(), is_caching_test);
 
         network->set_input_data("input", input);
 
@@ -816,7 +816,7 @@ public:
         topology.add(data("input4", strides));
         topology.add(strided_slice("strided_slice", input_info("input"), input_info("input2"), input_info("input3"), input_info("input4"), {1, 1, 1, 1}, {1, 1, 1, 1}, {}, {}, {}, {2, 2, 2, 2}));
 
-        cldnn::network::ptr network = get_network(engine, topology, ExecutionConfig(), get_test_stream_ptr(), is_caching_test);
+        cldnn::network::ptr network = get_network(engine, topology, get_test_default_config(engine), get_test_stream_ptr(), is_caching_test);
 
         network->set_input_data("input", input);
 
@@ -875,7 +875,7 @@ public:
         topology.add(data("input4", strides));
         topology.add(strided_slice("strided_slice", input_info("input"), input_info("input2"), input_info("input3"), input_info("input4"), {}, {}, {}, {}, {}, {1, 1, 1, 1}));
 
-        cldnn::network::ptr network = get_network(engine, topology, ExecutionConfig(), get_test_stream_ptr(), is_caching_test);
+        cldnn::network::ptr network = get_network(engine, topology, get_test_default_config(engine), get_test_stream_ptr(), is_caching_test);
 
         network->set_input_data("input", input);
 
@@ -935,7 +935,7 @@ public:
         topology.add(data("input4", strides));
         topology.add(strided_slice("strided_slice", input_info("input"), input_info("input2"), input_info("input3"), input_info("input4"), {1, 1, 1, 1}, {1, 1, 1, 1}, {}, {}, {}, {2, 2, 2, 3}));
 
-        cldnn::network::ptr network = get_network(engine, topology, ExecutionConfig(), get_test_stream_ptr(), is_caching_test);
+        cldnn::network::ptr network = get_network(engine, topology, get_test_default_config(engine), get_test_stream_ptr(), is_caching_test);
 
         network->set_input_data("input", input);
 
@@ -1011,7 +1011,7 @@ public:
         topology.add(input_layout("input4", strides->get_layout()));
         topology.add(strided_slice("strided_slice", input_info("input"), input_info("input2"), input_info("input3"), input_info("input4"), {0, 1, 1, 0}, {}, {}, {}, {}, {1, 2, 4, 2}));
 
-        cldnn::network::ptr network = get_network(engine, topology, ExecutionConfig(), get_test_stream_ptr(), is_caching_test);
+        cldnn::network::ptr network = get_network(engine, topology, get_test_default_config(engine), get_test_stream_ptr(), is_caching_test);
 
         network->set_input_data("input", input);
         network->set_input_data("input2", begin);
@@ -1078,7 +1078,7 @@ public:
         topology.add(data("input4", strides));
         topology.add(strided_slice("strided_slice", input_info("input"), input_info("input2"), input_info("input3"), input_info("input4"), {}, {}, { 1 }, {}, {}, {2, 2, 4, 1}));
 
-        cldnn::network::ptr network = get_network(engine, topology, ExecutionConfig(), get_test_stream_ptr(), is_caching_test);
+        cldnn::network::ptr network = get_network(engine, topology, get_test_default_config(engine), get_test_stream_ptr(), is_caching_test);
 
         network->set_input_data("input", input);
 
@@ -1133,7 +1133,7 @@ public:
         topology.add(data("input4", strides));
         topology.add(strided_slice("strided_slice", input_info("input"), input_info("input2"), input_info("input3"), input_info("input4"), {}, {}, { 1, 0, 1 }, {}, {}, {2, 2, 1, 1}));
 
-        cldnn::network::ptr network = get_network(engine, topology, ExecutionConfig(), get_test_stream_ptr(), is_caching_test);
+        cldnn::network::ptr network = get_network(engine, topology, get_test_default_config(engine), get_test_stream_ptr(), is_caching_test);
 
         network->set_input_data("input", input);
 
@@ -1187,7 +1187,7 @@ public:
         topology.add(data("input4", strides));
         topology.add(strided_slice("strided_slice", input_info("input"), input_info("input2"), input_info("input3"), input_info("input4"), {1, 0}, {}, {}, {}, {}, {2, 2, 1, 1}));
 
-        cldnn::network::ptr network = get_network(engine, topology, ExecutionConfig(), get_test_stream_ptr(), is_caching_test);
+        cldnn::network::ptr network = get_network(engine, topology, get_test_default_config(engine), get_test_stream_ptr(), is_caching_test);
 
         network->set_input_data("input", input);
 
@@ -1240,7 +1240,7 @@ public:
         topology.add(data("input4", strides));
         topology.add(strided_slice("strided_slice", input_info("input"), input_info("input2"), input_info("input3"), input_info("input4"), {}, {}, {}, {}, {}, {1, 2, 2, 1}));
 
-        cldnn::network::ptr network = get_network(engine, topology, ExecutionConfig(), get_test_stream_ptr(), is_caching_test);
+        cldnn::network::ptr network = get_network(engine, topology, get_test_default_config(engine), get_test_stream_ptr(), is_caching_test);
 
         network->set_input_data("input", input);
 
@@ -1293,7 +1293,7 @@ public:
         topology.add(data("input4", strides));
         topology.add(strided_slice("strided_slice", input_info("input"), input_info("input2"), input_info("input3"), input_info("input4"), {}, {}, {}, {}, {}, {2, 1, 1, 1}));
 
-        cldnn::network::ptr network = get_network(engine, topology, ExecutionConfig(), get_test_stream_ptr(), is_caching_test);
+        cldnn::network::ptr network = get_network(engine, topology, get_test_default_config(engine), get_test_stream_ptr(), is_caching_test);
 
         network->set_input_data("input", input);
 
@@ -1350,7 +1350,7 @@ public:
         topology.add(data("input4", strides));
         topology.add(strided_slice("strided_slice", input_info("input"), input_info("input2"), input_info("input3"), input_info("input4"), {}, {}, {}, {}, {}, {2, 2, 2, 2}));
 
-        cldnn::network::ptr network = get_network(engine, topology, ExecutionConfig(), get_test_stream_ptr(), is_caching_test);
+        cldnn::network::ptr network = get_network(engine, topology, get_test_default_config(engine), get_test_stream_ptr(), is_caching_test);
 
         network->set_input_data("input", input);
 
@@ -1401,7 +1401,58 @@ public:
         topology.add(input_layout("input", input->get_layout()));
         topology.add(strided_slice("strided_slice", input_info("input"), begin, end, strides, {}, {}, {}, {}, {}, {1, 2, 2, 2}));
 
-        cldnn::network::ptr network = get_network(engine, topology, ExecutionConfig(), get_test_stream_ptr(), is_caching_test);
+        cldnn::network::ptr network = get_network(engine, topology, get_test_default_config(engine), get_test_stream_ptr(), is_caching_test);
+
+        network->set_input_data("input", input);
+
+        auto outputs = network->execute();
+
+        ASSERT_EQ(outputs.size(), size_t(1));
+        ASSERT_EQ(outputs.begin()->first, "strided_slice");
+
+        auto output = outputs.at("strided_slice").get_memory();
+
+        std::vector<float> answers = {
+                4.f, 5.f, 6.f, 7.f, 0.f, 1.f, 2.f, 3.f };
+
+        cldnn::mem_lock<float> output_ptr(output, get_test_stream());
+
+        ASSERT_EQ(output_ptr.size(), answers.size());
+        for (size_t i = 0; i < answers.size(); ++i)
+        {
+            ASSERT_TRUE(are_equal(answers[i], output_ptr[i]));
+        }
+    }
+
+    void test_2x2x2x2_full_negative_stride_negative_begin_f_axis(bool is_caching_test) {
+        // Input (BFYX): 1x2x2x2
+        // Begin (BFYX): 0x-1
+        // End (BFYX): 100x-100
+        // Stride (BFYX): 1x-1
+        // Output (BFYX): 1x2x2x2
+
+        auto& engine = get_test_engine();
+        auto input = engine.allocate_memory({ data_types::f32, format::bfyx, { 1, 2, 2, 2 } });
+
+        set_values(input, {
+                0.0f, 1.0f, 2.0f, 3.0f,
+                4.0f, 5.0f, 6.0f, 7.0f
+        });
+        std::vector<int64_t> begin = {
+                0, -1
+        };
+        std::vector<int64_t> end= {
+                100, -100
+        };
+        std::vector<int64_t> strides= {
+                1, -1
+        };
+
+        topology topology;
+        topology.add(input_layout("input", input->get_layout()));
+        topology.add(strided_slice("strided_slice", input_info("input"), begin, end, strides, {}, {}, {}, {}, {}, {1, 2, 2, 2}));
+
+        cldnn::network::ptr network = get_network(engine, topology, get_test_default_config(engine), get_test_stream_ptr(), is_caching_test);
 
         network->set_input_data("input", input);
 
@@ -1452,7 +1503,7 @@ public:
         topology.add(input_layout("input", input->get_layout()));
         topology.add(strided_slice("strided_slice", input_info("input"), begin, end, strides, {}, {}, {}, {}, {}, {1, 2, 2, 2}));
 
-        cldnn::network::ptr network = get_network(engine, topology, ExecutionConfig(), get_test_stream_ptr(), is_caching_test);
+        cldnn::network::ptr network = get_network(engine, topology, get_test_default_config(engine), get_test_stream_ptr(), is_caching_test);
 
         network->set_input_data("input", input);
 
@@ -1505,7 +1556,7 @@ public:
         topology.add(data("input4", strides));
         topology.add(strided_slice("strided_slice", input_info("input"), input_info("input2"), input_info("input3"), input_info("input4"), {}, {}, {}, {}, {}, {2, 1, 1, 1}));
 
-        cldnn::network::ptr network = get_network(engine, topology, ExecutionConfig(), get_test_stream_ptr(), is_caching_test);
+        cldnn::network::ptr network = get_network(engine, topology, get_test_default_config(engine), get_test_stream_ptr(), is_caching_test);
 
         network->set_input_data("input", input);
 
@@ -1563,7 +1614,7 @@ public:
         topology.add(input_layout("input4", strides->get_layout()));
         topology.add(strided_slice("strided_slice", input_info("input"), input_info("input2"), input_info("input3"), input_info("input4"), {}, {}, { 1 }, {}, {}, {2, 2, 4, 1}));
 
-        cldnn::network::ptr network = get_network(engine, topology, ExecutionConfig(), get_test_stream_ptr(), is_caching_test);
+        cldnn::network::ptr network = get_network(engine, topology, get_test_default_config(engine), get_test_stream_ptr(), is_caching_test);
 
         network->set_input_data("input", input);
         network->set_input_data("input2", begin);
@@ -1621,7 +1672,7 @@ public:
         topology.add(input_layout("input4", strides->get_layout()));
         topology.add(strided_slice("strided_slice", input_info("input"), input_info("input2"), input_info("input3"), input_info("input4"), {}, {}, { 1, 0, 1 }, {}, {}, {2, 2, 1, 1}));
 
-        cldnn::network::ptr network = get_network(engine, topology, ExecutionConfig(), get_test_stream_ptr(), is_caching_test);
+        cldnn::network::ptr network = get_network(engine, topology, get_test_default_config(engine), get_test_stream_ptr(), is_caching_test);
 
         network->set_input_data("input", input);
         network->set_input_data("input2", begin);
@@ -1668,7 +1719,7 @@ public:
         topology.add(input_layout("input", input->get_layout()));
         topology.add(strided_slice("strided_slice", input_info("input"), begin_data, end_data, strides_data, {}, {}, {}, {}, {}, {1, 2, 2, 1}));
 
-        cldnn::network::ptr network = get_network(engine, topology, ExecutionConfig(), get_test_stream_ptr(), is_caching_test);
+        cldnn::network::ptr network = get_network(engine, topology, get_test_default_config(engine), get_test_stream_ptr(), is_caching_test);
 
         network->set_input_data("input", input);
 
@@ -1723,7 +1774,7 @@ public:
         topology.add(data("input4", strides));
         topology.add(strided_slice("strided_slice", input_info("input"), input_info("input2"), input_info("input3"), input_info("input4"), {1, 0, 0, 1, 0}, {1, 0, 0, 1, 0}, {0, 1, 1, 0, 1}, {0, 0, 0, 0, 0}, {0, 0, 0, 0, 0}, {1, 1, 1, 8, 1}));
 
-        cldnn::network::ptr network = get_network(engine, topology, ExecutionConfig(), get_test_stream_ptr(), is_caching_test);
+        cldnn::network::ptr network = get_network(engine, topology, get_test_default_config(engine), get_test_stream_ptr(), is_caching_test);
 
         network->set_input_data("input", input);
 
@@ -1853,6 +1904,10 @@ TEST_F(strided_slice_gpu_constants, test_2x2x2x2_full_negative_stride) {
 
 TEST_F(strided_slice_gpu_constants, test_2x2x2x2_full_negative_stride_f_axis) {
     this->test_2x2x2x2_full_negative_stride_f_axis(false);
+}
+
+TEST_F(strided_slice_gpu_constants, test_2x2x2x2_full_negative_stride_negative_begin_f_axis) {
+    this->test_2x2x2x2_full_negative_stride_negative_begin_f_axis(false);
 }
 
 TEST_F(strided_slice_gpu_constants, test_2x2x2x2_full_negative_stride_f_axis_clamp) {
@@ -1986,6 +2041,10 @@ TEST_F(strided_slice_gpu_constants, test_2x2x2x2_full_negative_stride_cached) {
 
 TEST_F(strided_slice_gpu_constants, test_2x2x2x2_full_negative_stride_f_axis_cached) {
     this->test_2x2x2x2_full_negative_stride_f_axis(true);
+}
+
+TEST_F(strided_slice_gpu_constants, test_2x2x2x2_full_negative_stride_negative_begin_f_axis_cached) {
+    this->test_2x2x2x2_full_negative_stride_negative_begin_f_axis(true);
 }
 
 TEST_F(strided_slice_gpu_constants, test_2x2x2x2_full_negative_stride_f_axis_clamp_cached) {

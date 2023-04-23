@@ -25,8 +25,8 @@ using namespace ov::intel_gna;
 using namespace ov::intel_gna::pass;
 using namespace ov::intel_gna::common;
 
-NGRAPH_RTTI_DEFINITION(PWLApproximation, "PWLApproximation", 0);
-NGRAPH_RTTI_DEFINITION(PWLApproximationWithFq, "PWLApproximationWithFq", 0);
+NGRAPH_RTTI_DEFINITION(PWLApproximation, "PWLApproximation");
+NGRAPH_RTTI_DEFINITION(PWLApproximationWithFq, "PWLApproximationWithFq");
 
 template <typename T>
 double get_break_bound() {

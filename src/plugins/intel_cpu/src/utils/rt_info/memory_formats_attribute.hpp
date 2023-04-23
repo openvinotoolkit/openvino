@@ -43,7 +43,7 @@ public:
         }
 
         if (unique_mem_format.size() > 1) {
-            throw ngraph::ngraph_error(
+            OPENVINO_THROW(
                 std::string(MemoryFormat::get_type_info_static().name) +
                 " no rule defined for multiple values.");
         }

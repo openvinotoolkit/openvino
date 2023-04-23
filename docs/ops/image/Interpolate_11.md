@@ -14,7 +14,7 @@
   * **Range of values**: one of `nearest`, `linear`, `linear_onnx`, `cubic`, `bilinear_pillow`, `bicubic_pillow`
   * **Type**: string
   * **Required**: *yes*
-  **Note**: Only 2D, 3D, 4D, 5D tensors with `axes = {0, 1}`, `axes = {0, 1, 2}`, `axes = {2, 3}`,  `axes = {2, 3, 4}` respectively are supported for `"mode" == "linear_onnx"`.
+  * **Note**: Only 2D, 3D, 4D, 5D tensors with `axes = {0, 1}`, `axes = {0, 1, 2}`, `axes = {2, 3}`,  `axes = {2, 3, 4}` respectively are supported for `"mode" == "linear_onnx"`. In case of `bilinear_pillow` or `bicubic_pillow` only the spatial dimensions (H, W) can be specified in the `axes` tensor, for example in case of NHWC layout the axes should contain `axes = {1, 2}`.
 
 * *shape_calculation_mode*
 
@@ -37,6 +37,7 @@
   * **Type**: string
   * **Default value**: `half_pixel`
   * **Required**: *no*
+  * **Note**: When the selected interpolation mode is `BILINEAR_PILLOW` or `BICUBIC_PILLOW` this attribute is ignored.
 
 * *nearest_mode*
 
@@ -60,6 +61,7 @@
   * **Type**: boolean
   * **Default value**: false
   * **Required**: *no*
+  * **Note**: When the selected interpolation mode is `BILINEAR_PILLOW` or `BICUBIC_PILLOW` this attribute is ignored. Pillow-kind of antialiasing is applied in those modes.
 
 * *pads_begin*
 
@@ -79,10 +81,10 @@
 
 * *cube_coeff*
 
-  * **Description**: *cube_coeff* specifies the parameter *a* for cubic interpolation (see, e.g.  [article](https://ieeexplore.ieee.org/document/1163711/)).  *cube_coeff* is used only when `mode == cubic`.
+  * **Description**: *cube_coeff* specifies the parameter *a* for cubic interpolation (see, e.g.  [article](https://ieeexplore.ieee.org/document/1163711/)).  *cube_coeff* is used only when `mode == cubic` or `mode == bicubic_pillow`.
   * **Range of values**: floating-point number
   * **Type**: any of supported floating-point type
-  * **Default value**: `-0.75`
+  * **Default value**: `-0.75` (applicable for `mode == cubic`). The value compatible with `BICUBIC_PILLOW` needs to be manually set to `-0.5`
   * **Required**: *no*
 
 **Inputs**
@@ -91,7 +93,7 @@
 
 *   **2**: `scales_or_sizes` - 1D tensor containing the data used to calculate the spatial output shape. The number of elements must match the number of values in the `axes` input tensor, the order needs to match as well. The type of this input tensor is either *T_SCALES* or *T_SIZES* depending on the value of the `shape_calculation_mode` attribute. **Required.**
 
-*   **4**: `axes` - 1D tensor of type *T_AXES* specifying dimension indices where interpolation is applied, and `axes` is any unordered list of indices of different dimensions of input tensor, e.g. `[0, 4]`, `[4, 0]`, `[4, 2, 1]`, `[1, 2, 3]`. These indices should be non-negative integers from `0` to `rank(image) - 1` inclusively.  Other dimensions do not change. The order of elements in `axes` attribute matters and is mapped directly to the elements in the 2nd input `scales_or_sizes`. **Optional** with default value `[X,...,rank(image) - 1]` pointing to the spatial dimensions of the input image. The number of the default axes matches the number of elements in the `scales_or_sizes` input tensor.
+*   **3**: `axes` - 1D tensor of type *T_AXES* specifying dimension indices where interpolation is applied, and `axes` is any unordered list of indices of different dimensions of input tensor, e.g. `[0, 4]`, `[4, 0]`, `[4, 2, 1]`, `[1, 2, 3]`. These indices should be non-negative integers from `0` to `rank(image) - 1` inclusively.  Input tensor's dimensions not specified in the `axes` tensor are not modified by the operator. The order of elements in `axes` attribute matters and is mapped directly to the elements in the 2nd input `scales_or_sizes`. **Optional** with default value `[0,1,...,rank(image) - 1]`. If the `axes` input is not provided the number of elements in the `scales_or_sizes` tensor needs to match the number of automatically generated axes.
 
 **Outputs**
 

@@ -92,9 +92,6 @@ CompiledModel::CompiledModel(cldnn::BinaryInputBuffer& ib, InferenceEngine::Remo
         ib.seekg(pos);
         auto graph = std::make_shared<Graph>(ib, context_impl, m_config, n);
         m_graphs.push_back(graph);
-        if (n == 0) {
-            ib.setNetwork(graph->GetNetwork().get());
-        }
     }
 }
 
@@ -325,7 +322,7 @@ InferenceEngine::Parameter CompiledModel::GetMetric(const std::string &name) con
             ov::PropertyName{ov::compilation_num_threads.name(), PropertyMutability::RO},
             ov::PropertyName{ov::num_streams.name(), PropertyMutability::RO},
             ov::PropertyName{ov::hint::num_requests.name(), PropertyMutability::RO},
-            ov::PropertyName{ov::inference_precision.name(), PropertyMutability::RO},
+            ov::PropertyName{ov::hint::inference_precision.name(), PropertyMutability::RO},
             ov::PropertyName{ov::device::id.name(), PropertyMutability::RO},
             ov::PropertyName{ov::execution_devices.name(), PropertyMutability::RO}
         };

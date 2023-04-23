@@ -15,7 +15,7 @@ namespace op {
 
 using namespace ov::op;
 
-OutputVector translate_set_item(NodeContext& context) {
+OutputVector translate_set_item(const NodeContext& context) {
     // schema: aten::_set_item.t(t[](a!) l, int idx, t(b -> *) el) -> t[](a!)
     // _set_item inserts element in list
     num_inputs_check(context, 3, 3);

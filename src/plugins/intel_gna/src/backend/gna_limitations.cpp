@@ -41,6 +41,20 @@ const std::set<ov::element::Type> SupportedElementTypes::supported_parameter_typ
                                                                                       ov::element::i16,
                                                                                       ov::element::f32};
 
+size_t getMemoryAlignmentBytes(target::DeviceVersion target) {
+    static const std::unordered_map<target::DeviceVersion, size_t> mem_alignment_map{
+        {target::DeviceVersion::GNA1_0, 64},
+        {target::DeviceVersion::GNA2_0, 64},
+        {target::DeviceVersion::GNA3_0, 64},
+        {target::DeviceVersion::GNA3_1, 64},
+        {target::DeviceVersion::GNA3_5, 64},
+        {target::DeviceVersion::GNAEmbedded3_5, 64},
+        {target::DeviceVersion::GNA3_6, 16},
+        {target::DeviceVersion::GNA4_0, 16}};
+
+    return common::GetValueForKey<target::DeviceVersion, size_t>(target, mem_alignment_map);
+}
+
 bool SupportedElementTypes::is_parameter_type_supported(ov::element::Type elem_type, bool is_exception_allowed) {
     if (supported_parameter_types.count(elem_type) == 0) {
         if (is_exception_allowed) {
@@ -514,6 +528,13 @@ std::string Validator_35::ValidateCnn(const Validator_35::CnnLimits& limits,
     error += kerneHWlLimit.GetErrorOrEmpty(kernelH, kernelW);
     auto& strideHWLimit = (inPrecision == OvGnaTypeInt8) ? limits.kStrideHWLimit1B : limits.kStrideHWLimit2B;
     error += strideHWLimit.GetErrorOrEmpty(strideH, strideW);
+
+    const RangeLimit kKernelStrideHLimit{1, kernelH, "kernel stride height (must be up to kernel height)"};
+    const RangeLimit kKernelStrideWLimit{1, kernelW, "kernel stride width (must be up to kernel width)"};
+
+    error += kKernelStrideHLimit.GetErrorOrEmpty(strideH);
+    error += kKernelStrideWLimit.GetErrorOrEmpty(strideW);
+
     error += limits.kDilationLimit.GetErrorOrEmpty(dilationH, dilationW);
     return error;
 }
@@ -584,6 +605,12 @@ std::string Validator_35::ValidatePooling(const CnnLimits& limits,
                                           const uint32_t strideW) const {
     auto error = limits.kPoolingWindowHWLimit.GetErrorOrEmpty(windowH, windowW);
     error += limits.kPoolingStrideHWLimit.GetErrorOrEmpty(strideH, strideW);
+
+    const RangeLimit poolingStrideHLimit{1, windowH, "pooling stride height (must be up to pooling window height)"};
+    const RangeLimit poolingStrideWLimit{1, windowW, "pooling stride width (must be up to pooling window width)"};
+
+    error += poolingStrideHLimit.GetErrorOrEmpty(strideH);
+    error += poolingStrideWLimit.GetErrorOrEmpty(strideW);
 
     return error;
 }
@@ -789,7 +816,10 @@ static bool ValidateConcatAxis(const InferenceEngine::CNNLayerPtr layer, std::st
         if (unsupported_concat_axis != end_dim) {
             auto dims = concat_layer->insData[0].lock()->getDims();
             std::ostringstream in_dims_oss;
-            std::copy(dims.begin(), dims.end(), std::ostream_iterator<size_t>(in_dims_oss, ","));
+            std::copy(dims.begin(), std::prev(dims.end()), std::ostream_iterator<size_t>(in_dims_oss, ","));
+            if (!dims.empty()) {
+                in_dims_oss << dims.back();
+            }
             errMessage = "[ WARNING ] Topology with layer: " + layer->name + ", type: " + layer->type +
                          ", and concatenation axis(" + std::to_string(concat_layer->_axis) + ") for input dimensions(" +
                          in_dims_oss.str() + ") not supported\n";
@@ -808,7 +838,8 @@ bool ValidateConvConcatAxis(const InferenceEngine::ConcatLayer* concat_layer) {
 
         // Skipping here all layers which would disappear or otherwise fuse with convolution in the final GNA graph
         auto isFusableWithConv = [](InferenceEngine::CNNLayerPtr ptr) {
-            return (LayerInfo(ptr).isFusableWithConv() || LayerInfo(ptr).isNonFunctional());
+            return (LayerInfo(ptr).isFusableWithConv() || LayerInfo(ptr).isNonFunctional() ||
+                    LayerInfo(ptr).isConcat());
         };
 
         auto in_dims = concat_layer->insData[0].lock()->getDims();

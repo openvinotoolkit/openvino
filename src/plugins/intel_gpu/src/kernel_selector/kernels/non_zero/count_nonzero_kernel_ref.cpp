@@ -65,19 +65,11 @@ KernelsData CountNonzeroKernelRef::GetKernelsData(const Params& params, const op
     auto cldnn_jit = MakeBaseParamsJitConstants(newParams);
     if (newParams.has_dynamic_tensors()) {
         const auto& input = newParams.inputs[0];
-        auto x = toCodeString(input.X(), 5);
-        auto y = toCodeString(input.Y(), 4);
-        auto z = toCodeString(input.Z(), 3);
-        auto w = toCodeString(input.W(), 2);
-        auto f = toCodeString(input.Feature(), 1);
-        auto b = toCodeString(input.Batch(), 0);
-        cldnn_jit.AddConstants({
-            MakeJitConstant("DATA_SIZE", toVectorMulString({x, y, z, w, f, b}))
-        });
+        DimensionAccessHelper dims(input, 0);
+        const std::string total_data_size = toVectorMulString({dims.x, dims.y, dims.z, dims.w, dims.f, dims.b});
+        cldnn_jit.AddConstants({MakeJitConstant("DATA_SIZE", total_data_size)});
     } else {
-        cldnn_jit.AddConstants({
-            MakeJitConstant("DATA_SIZE", dispatchData.dataSize)
-        });
+        cldnn_jit.AddConstants({MakeJitConstant("DATA_SIZE", dispatchData.dataSize)});
     }
     auto jit = CreateJit(kernelName, cldnn_jit, entry_point);
 
@@ -89,6 +81,7 @@ KernelsData CountNonzeroKernelRef::GetKernelsData(const Params& params, const op
         OPENVINO_ASSERT(kd.kernels.size() == 1, "[GPU] Invalid kernels size for update dispatch data func");
         kd.kernels[0].params.workGroups.global = dispatchData.gws;
         kd.kernels[0].params.workGroups.local = dispatchData.lws;
+        kd.kernels[0].skip_execution = KernelData::SkipKernelExecution(prim_params);
     };
 
     // In case of count-nonzero, the output shape is static unconditionally,
