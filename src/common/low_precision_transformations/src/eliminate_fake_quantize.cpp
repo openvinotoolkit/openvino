@@ -75,12 +75,14 @@ bool check_interval(const std::shared_ptr<opset1::FakeQuantize>& fq,
             fq->get_input_node_shared_ptr(4)}));
         auto result = NetworkHelper::fold_fake_quantize(tmp_fq, false, 1);
         const auto result_constant = as_type_ptr<opset1::Constant>(result);
-        if (result_constant != nullptr) {
-            const auto& result_values = result_constant->cast_vector<float>();
-            for (const auto result_value : result_values) {
-                if (std::fabs(result_value - value) > std::numeric_limits<float>::epsilon()) {
-                    return false;
-                }
+        if (result_constant == nullptr) {
+            return false;
+        }
+
+        const auto& result_values = result_constant->cast_vector<float>();
+        for (const auto result_value : result_values) {
+            if (std::fabs(result_value - value) > std::numeric_limits<float>::epsilon()) {
+                return false;
             }
         }
     }
