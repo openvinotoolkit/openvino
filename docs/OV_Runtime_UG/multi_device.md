@@ -59,20 +59,6 @@ The following commands are accepted by the API:
        :fragment: [MULTI_0]
 
 
-
-.. tab:: C++
-
-    .. doxygensnippet:: docs/snippets/MULTI1.cpp
-       :language: cpp
-       :fragment: [part1]
-
-.. tab:: Python
-
-    .. doxygensnippet:: docs/snippets/ov_multi.py
-       :language: python
-       :fragment: [MULTI_1]
-
-
 To check what devices are present in the system, you can use the Device API. For information on how to do it, check :doc:`Query device properties and configuration <openvino_docs_OV_UG_query_api>`.
 
 
@@ -150,18 +136,5 @@ Additional Resources
 - :doc:`Supported Devices <openvino_docs_OV_UG_supported_plugins_Supported_Devices>`
 - :doc:`Automatic Device Selection <openvino_docs_OV_UG_supported_plugins_AUTO>`
 
-
-.. raw:: html
-
-    <iframe allowfullscreen mozallowfullscreen msallowfullscreen oallowfullscreen webkitallowfullscreen width="560" height="315" src="https://www.youtube.com/embed/xbORYFEmrqU" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
-
-
-.. note::
-
-   This video is currently available only for C++, but many of the same concepts apply to Python.
-
-   The following 2 features mentioned in the video are not avaiable in current release.
-   1. Change device priorities on the fly.
-   2. Define the number of requests to allocate for each device, like this: "MULTI:CPU(2),GPU(2)". However, this method is not recommended as it is not performance-portable.
 
 @endsphinxdirective
