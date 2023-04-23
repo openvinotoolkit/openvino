@@ -19,9 +19,24 @@ The AUTO plugin is also default plugin for OpenVINO when user has not selected a
 
 ### Accelerating First Inference Latency (FIL)
 
-Compiling the model to accelerator-optimized kernels may take some time. Then AUTO starts inference with the CPU of the system by default, as it provides very low latency and can start inference with no additional delays. While the CPU is performing inference, AUTO continues to load the model to the device best suited for the purpose and transfers the task to it when ready. 
+Compiling the model to accelerator-optimized kernels may take some time. When AUTO select one accelerator, AUTO can start inference with the CPU of the system by default, as it provides very low latency and can start inference with no additional delays. While the CPU is performing inference, AUTO continues to load the model to the device best suited for the purpose and transfers the task to it when ready. 
 
-Note user can disable this acceleration feature by excluding CPU from the priority list or disable ov::intel_auto::enable_startup_fallback.
+Below is the example of CPU acceleration during GPU compilation. 
+![alt text](https://docs.openvino.ai/latest/_images/autoplugin_accelerate.svg "AUTO cuts first inference latency (FIL) by running inference on the CPU until the GPU is ready")
+
+User can disable this acceleration feature by excluding CPU from the priority list or disable ov::intel_auto::enable_startup_fallback.The default value of ov::intel_auto::enable_startup_fallback is true.
+
+### Inference on Multiple Devices
+
+The ov::hint::performance_mode property enables you to specify a performance option for AUTO to be more efficient for particular use cases. And the CUMULATIVE_THROUGHPUT hint enables running inference on multiple devices for higher throughput. 
+
+With CUMULATIVE_THROUGHPUT, AUTO loads the network model to all available devices in the candidate list, and then runs inference on them based on the devices priority.
+
+### Runtime fallback
+
+When the inference of the currently selected device fails, AUTO can automatically fall back this infer request to other device. For LATENCY hint or THROUGHPUT hint, AUTO will select new capable device from the next cadidate device. For CUMULATVIE_THROUGHPUT, AUTO will remove failed device from execution device list.
+
+User can disable this feature by disable ov::intel_auto::enable_runtime_fallback.The default value of ov::intel_auto::enable_runtime_fallback is true.
 
 ## See also
  * [AUTO Plugin README](../README.md)
