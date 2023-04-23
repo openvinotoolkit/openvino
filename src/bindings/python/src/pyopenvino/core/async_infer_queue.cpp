@@ -201,6 +201,7 @@ void regclass_AsyncInferQueue(py::module m) {
                 *self.m_requests[handle].m_start_time = Time::now();
                 // Start InferRequest in asynchronus mode
                 self.m_requests[handle].m_request.start_async();
+                std::cout << "strart_sync_print" << std::endl;
             }
         },
         py::arg("inputs"),
