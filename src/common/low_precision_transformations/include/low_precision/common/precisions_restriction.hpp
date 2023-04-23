@@ -41,21 +41,37 @@ public:
     ngraph::Node::type_info_t operationType;
     bool specifyVersion;
     PrecisionsByPorts precisionsByPorts;
+    std::function<PrecisionsByPorts(const std::shared_ptr<Node>&)> precisionsByPortsFunction;
 
     PrecisionsRestriction() = default;
     PrecisionsRestriction(
-        const ngraph::Node::type_info_t operationType,
+        const ngraph::Node::type_info_t& operationType,
         const bool specifyVersion,
         const PrecisionsByPorts& precisionsByPorts) :
         operationType(operationType),
         specifyVersion(specifyVersion),
         precisionsByPorts(precisionsByPorts) {}
 
+    PrecisionsRestriction(
+        const ngraph::Node::type_info_t& operationType,
+        const bool specifyVersion,
+        const std::function<PrecisionsByPorts(const std::shared_ptr<Node>&)>& precisionsByPortsFunction) :
+        operationType(operationType),
+        specifyVersion(specifyVersion),
+        precisionsByPortsFunction(precisionsByPortsFunction) {}
+
     template <typename T>
     static PrecisionsRestriction create(
         const PrecisionsByPorts& precisionsByPorts,
         const bool specifyVersion = false) {
         return PrecisionsRestriction(T::get_type_info_static(), specifyVersion, precisionsByPorts);
+    }
+
+    template <typename T>
+    static PrecisionsRestriction create(
+        const std::function<PrecisionsByPorts(const std::shared_ptr<Node>&)> precisionsByPortsFunction,
+        const bool specifyVersion = false) {
+        return PrecisionsRestriction(T::get_type_info_static(), specifyVersion, precisionsByPortsFunction);
     }
 
     template <typename T>

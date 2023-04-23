@@ -30,10 +30,14 @@ ngraph::pass::low_precision::MarkupPrecisions::MarkupPrecisions(
         OPENVINO_SUPPRESS_DEPRECATED_START
         if (it == restrictionsByOperation.end()) {
             Restriction r(restriction.specifyVersion);
-            r.precisionsByVersion.emplace(restriction.operationType.version_id, restriction.precisionsByPorts);
+            r.precisionsByVersion.emplace(
+                restriction.operationType.version_id,
+                Restriction::RestrictionByVersion(restriction.precisionsByPortsFunction, restriction.precisionsByPorts));
             restrictionsByOperation.emplace(restriction.operationType.name, r);
         } else {
-            it->second.add(restriction.operationType.version_id, restriction.precisionsByPorts);
+            it->second.add(
+                restriction.operationType.version_id,
+                Restriction::RestrictionByVersion(restriction.precisionsByPortsFunction, restriction.precisionsByPorts));
         }
         OPENVINO_SUPPRESS_DEPRECATED_END
     }
@@ -113,13 +117,21 @@ bool ngraph::pass::low_precision::MarkupPrecisions::run_on_model(const std::shar
                     continue;
                 }
 
-                const pass::low_precision::PrecisionsRestriction::PrecisionsByPorts& precisionsByPorts = it2->second;
-                setRestriction(node, precisionsByPorts);
+                const Restriction::RestrictionByVersion& precisionsByPorts = it2->second;
+                setRestriction(
+                    node,
+                    (precisionsByPorts.precisionsFunction != nullptr) ?
+                        precisionsByPorts.precisionsFunction(node) :
+                        precisionsByPorts.precisions);
             } else {
                 assert(r.precisionsByVersion.size() == 1ul);
 
-                const pass::low_precision::PrecisionsRestriction::PrecisionsByPorts& precisionsByPorts = r.precisionsByVersion.begin()->second;
-                setRestriction(node, precisionsByPorts);
+                const Restriction::RestrictionByVersion& precisionsByPorts = r.precisionsByVersion.begin()->second;
+                setRestriction(
+                    node,
+                    (precisionsByPorts.precisionsFunction != nullptr) ?
+                        precisionsByPorts.precisionsFunction(node) :
+                        precisionsByPorts.precisions);
             }
         }
     }
