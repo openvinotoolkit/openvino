@@ -11,7 +11,7 @@ class ScatterUpdateInternal(ScatterUpdate):
     @staticmethod
     def infer(node: Node):
         updates_value = node.in_port(2).data.get_value()
-        if updates_value is not None and isinstance(updates_value, np.ma.masked_array) and updates_value.ndim != 0:
+        if updates_value is not None and isinstance(updates_value, np.ma.masked_array) and updates_value.ndim == 1:
             # we need to normalize masked_array so that the value infer works as expected
             value = [item if item is not np.ma.masked else dynamic_dimension_value for item in updates_value]
             updates_value = np.ma.masked_equal(value, dynamic_dimension_value).astype(dtype=updates_value.dtype)
