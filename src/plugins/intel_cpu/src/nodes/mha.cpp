@@ -785,8 +785,7 @@ void MHA::initSupportedPrimitiveDescriptors() {
                           {LayoutType::ncsp, Precision::FP32},
                           {LayoutType::ncsp, inputPrecisions[3]}},
                          {{LayoutType::ncsp, getOriginalOutputPrecisionAtPort(0)}},
-                         ref_any,
-                         isDynamicNode());
+                         ref_any);
 }
 
 void MHA::init_brgemm(brgemmCtx& ctx, std::unique_ptr<brgemm_kernel_t>& brgKernel, bool use_amx) {

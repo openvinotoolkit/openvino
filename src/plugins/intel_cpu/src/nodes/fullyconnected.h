@@ -56,8 +56,6 @@ public:
     void prepareParams() override;
     void executeDynamicImpl(dnnl::stream strm) override;
 
-    void setDynamicBatchLim(int lim) override;
-
     bool withBiasFused() const {
         return withBiases;
     }

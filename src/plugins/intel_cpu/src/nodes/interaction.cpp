@@ -207,7 +207,7 @@ void Interaction::initSupportedPrimitiveDescriptors() {
         }
     };
     //add descriptor
-    addSupportedPrimDesc(inPortConfigs, outPortConfigs, impl_desc_type::ref_any, true);
+    addSupportedPrimDesc(inPortConfigs, outPortConfigs, impl_desc_type::ref_any);
 }
 
 static inline void cat(uint8_t* out,

@@ -76,7 +76,6 @@ protected:
      */
     GraphGuard::Lock GetGraph() const;
 
-    bool canBeExecViaLegacyDynBatch(std::shared_ptr<const ov::Model> function, int64_t& maxBatchSize) const;
     bool CanProcessDynBatch(const InferenceEngine::CNNNetwork &network) const;
 
     bool isLegacyAPI() const;

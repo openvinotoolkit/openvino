@@ -969,7 +969,6 @@ void BinaryConvolution::initSupportedPrimitiveDescriptors() {
     setPostOps(attr);
 
     NodeConfig config;
-    config.dynBatchSupport = false;
     config.inConfs.resize(2);
     config.inConfs[0].constant(false);
     config.inConfs[0].inPlace(-1);

@@ -1827,7 +1827,6 @@ void Reduce::initSupportedPrimitiveDescriptors() {
     dst_data_size = output_prec.size();
 
     NodeConfig config;
-    config.dynBatchSupport = false;
     config.inConfs.resize(2);
     config.outConfs.resize(1);
     config.inConfs[REDUCE_DATA].constant(false);

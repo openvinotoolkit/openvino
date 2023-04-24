@@ -806,7 +806,6 @@ void DeformableConvolution::initSupportedPrimitiveDescriptors() {
 
     size_t inputsNumber = getOriginalInputsNumber();
     NodeConfig config;
-    config.dynBatchSupport = false;
     config.inConfs.resize(inputsNumber);
     config.inConfs[0].constant(false);
     config.inConfs[0].inPlace(-1);

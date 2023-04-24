@@ -160,9 +160,6 @@ void InferRequestBase::InferImpl() {
 
     if (graph->hasDynamicInput()) {
         redefineMemoryForInputNodes();
-    } else if (graph->getConfig().isNewApi && graph->getConfig().batchLimit > 0) {
-        const auto batch = _inputs.begin()->second->getTensorDesc().getDims()[0];
-        SetBatch(batch);
     }
 
     execDataPreprocessing(_inputs);
@@ -367,10 +364,7 @@ void LegacyInferRequest::SetBatch(int new_batch) {
     }
 
     m_curBatch = new_batch;
-
-    for (const auto& node : graph->GetNodes()) {
-        node->setDynamicBatchLim(new_batch);
-    }
+    graph->setDynBatch(m_curBatch);
 }
 
 void LegacyInferRequest::changeDefaultPtr() {
@@ -647,22 +641,6 @@ void InferRequest::initBlobs() {
     }
     for (const auto& it : modelOutputsMap) {
         InferRequest::GetBlob(it.first);
-    }
-}
-
-void InferRequest::SetBatch(int new_batch) {
-    if (!graph->getConfig().batchLimit || modelInputsMap.begin()->second->get_output_partial_shape(0).is_static()) {
-        IE_THROW() << "Can't set batch for model that can't be executed via legacy dynamic batch or for static model";
-    }
-
-    if (new_batch < 1 || new_batch > graph->getConfig().batchLimit) {
-        IE_THROW() << "Can't set batch that is bigger than upper bound";
-    }
-
-    m_curBatch = new_batch;
-
-    for (const auto& node : graph->GetNodes()) {
-        node->setDynamicBatchLim(new_batch);
     }
 }
 

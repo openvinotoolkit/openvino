@@ -446,38 +446,6 @@ void FullyConnected::prepareParams() {
     }
 }
 
-void FullyConnected::setDynamicBatchLim(int lim) {
-    if (!execPtr) {
-        IE_THROW() << "Can't set dynamic batch for FullyConnected node with name: " << getName() << ", because executor is not compiled";
-    }
-    if (execPtr->needReordering()) {
-        IE_THROW() << "Can't execute FullyConnected node with dynamic batch via executor with reorders";
-    }
-
-    auto setBatchPrimArgs = [this](int argType, const dnnl::memory& oldMem) {
-        dnnl::memory::desc newMemDesc(oldMem.get_desc());
-        newMemDesc.get()->dims[0] = batchToProcess();
-        newMemDesc.get()->padded_dims[0] = batchToProcess();
-
-        const auto dims = newMemDesc.get_dims();
-
-        if (dims.size() == 3) {
-            std::vector<dnnl::memory::dim> normalizedDims({dims[0] * dims[1], dims[2]});
-            newMemDesc = newMemDesc.reshape(normalizedDims);
-        }
-
-        primArgs.at(argType) = dnnl::memory(newMemDesc, oldMem.get_engine(), oldMem.get_data_handle());
-    };
-
-    if (useConv1x1) {
-        Node::setDynamicBatchLim(lim);
-    } else {
-        dynBatchLim = lim;
-        setBatchPrimArgs(DNNL_ARG_SRC, getParentEdgesAtPort(0)[0]->getMemory().GetPrimitive());
-        setBatchPrimArgs(DNNL_ARG_DST, getChildEdgesAtPort(0)[0]->getMemory().GetPrimitive());
-    }
-}
-
 void FullyConnected::execute(dnnl::stream strm) {
     if (!execPtr) {
         IE_THROW() << "Can't execute FullyConnected node with name: " << getName() << ", because executor is not compiled";
@@ -705,7 +673,6 @@ void FullyConnected::initSupportedPrimitiveDescriptors() {
             };
 
             NodeConfig config;
-            config.dynBatchSupport = true;
             for (size_t i = 0; i < descInputNumbers(); i++) {
                 PortConfig portConfig;
                 portConfig.inPlace(-1);

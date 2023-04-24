@@ -2040,7 +2040,6 @@ void Interpolate::initSupportedPrimitiveDescriptors() {
     auto axesType = Precision::I32;
 
     NodeConfig config;
-    config.dynBatchSupport = false;
     config.outConfs.resize(1);
     if (is_version11) {
         if (isAxesSpecified) {

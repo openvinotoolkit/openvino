@@ -170,8 +170,6 @@ void If::initSupportedPrimitiveDescriptors() {
         config.outConfs.push_back(dataConf);
     }
 
-    config.dynBatchSupport = true;
-
     supportedPrimitiveDescriptors.emplace_back(config, impl_desc_type::unknown);
 }
 
