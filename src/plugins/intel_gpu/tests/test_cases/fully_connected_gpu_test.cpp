@@ -728,6 +728,8 @@ TEST(fully_connected_gpu, b_fs_yx_fsv4)
     const int W_Y = in_Y;
     const int W_X = in_X;
 
+    const int O_F = W_B;
+
     // Input data
     std::vector<char> Data(in_F * in_B); // in_X = in_Y = 1
     int i = 0;
@@ -757,10 +759,10 @@ TEST(fully_connected_gpu, b_fs_yx_fsv4)
     set_values(weights_imad, std::move(Weights));
     topology.add(data("weights_gold", weights_gold), data("weights_imad", weights_imad));
 
-    auto bias_gold = engine.allocate_memory({ data_types::f32, format::bfyx, { 1, in_F, 1, 1 } });
-    auto bias_imad = engine.allocate_memory({ data_types::f32, format::bfyx, { 1, in_F, 1, 1 } });
+    auto bias_gold = engine.allocate_memory({ data_types::f32, format::bfyx, { 1, O_F, 1, 1 } });
+    auto bias_imad = engine.allocate_memory({ data_types::f32, format::bfyx, { 1, O_F, 1, 1 } });
 
-    std::vector<float> bias_data(in_F, 0);
+    std::vector<float> bias_data(O_F, 0);
     set_values(bias_gold, bias_data);
     set_values(bias_imad, bias_data);
 
@@ -1591,10 +1593,10 @@ INSTANTIATE_TEST_SUITE_P(
     fully_connected_i8_u8_test,
     testing::Combine(
         testing::Values(1, 2),
-        testing::Values(3, 64),
+        testing::Values(16, 64),
         testing::Values(1),
         testing::Values(1),
-        testing::Values(3, 32),
+        testing::Values(16, 32),
         testing::Values(format::bfyx, format::b_fs_yx_fsv4, format::b_fs_yx_fsv16, format::b_fs_yx_fsv32)
     ),
     fully_connected_i8_u8_test::PrintToStringParamName

@@ -419,17 +419,25 @@ void GNAPlugin::UpdateInputScaleFromNetwork(InferenceEngine::CNNNetwork& network
     for (auto&& input : inputs) {
         auto data = input.second->getInputData();
         for (auto&& nextToInputLayer : getInputTo(data)) {
-            if (!LayerInfo(nextToInputLayer.second).isFakeQuantize()) {
+            CNNLayerPtr next_layer = nextToInputLayer.second;
+            // FQ layer can be connected to the input via Reshape/Transpose/Gather and other non-functional layers.
+            if (LayerInfo(next_layer).is_fq_non_sensitive()) {
+                next_layer = CNNNetCheckNextLayerSkipCertain(nextToInputLayer.second, 0, 0, true, [](CNNLayerPtr l) {
+                                 return LayerInfo(l).is_fq_non_sensitive();
+                             }).first;
+            }
+
+            if (!LayerInfo(next_layer).isFakeQuantize()) {
                 continue;
             }
 
             // replacing scale factor from this fq layer
-            GNAFakeQuantizeLayer fqLayer(nextToInputLayer.second);
+            GNAFakeQuantizeLayer fqLayer(next_layer);
             auto inputRange = fqLayer.getInputRange();
             auto outputRange = fqLayer.getOutputRange();
             if (inputRange.second.size() != 1 || inputRange.second.size() != 1 || outputRange.second.size() != 1 ||
                 outputRange.second.size() != 1) {
-                THROW_GNA_LAYER_EXCEPTION(nextToInputLayer.second)
+                THROW_GNA_LAYER_EXCEPTION(next_layer)
                     << "unsupported, per-channel quantization for input layer : " << input.second->name();
             }
 

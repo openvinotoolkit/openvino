@@ -239,12 +239,11 @@ available in the ``mo/ops/reshape.py`` file):
         else:  # in the opposite case calculate the output shape only
             node.out_port(0).data.set_shape(output_shape)
 
-
 Methods ``in_port()`` and ``output_port()`` of the ``Node`` class are used to get and set data node attributes. For more information on
 how to use them, refer to the :doc:`Graph Traversal and Modification Using Ports and Connections <openvino_docs_MO_DG_prepare_model_customize_model_optimizer_Customize_Model_Optimizer_Model_Optimizer_Ports_Connections>` article.
 
 .. note::
-   A shape inference function should perform output shape calculation in the original model layout. For example, OpenVINO supports Convolution operations in NCHW layout only but TensorFlow supports NHWC layout as well. Model Optimizer shape inference function calculates output shapes for NHWC Convolutions in NHWC layout and only during the layout change phase the shape is converted to NCHW.
+   A shape inference function should perform output shape calculation in the original model layout. For example, OpenVINO™ supports Convolution operations in NCHW layout only but TensorFlow supports NHWC layout as well. Model Optimizer shape inference function calculates output shapes for NHWC Convolutions in NHWC layout and only during the layout change phase the shape is converted to NCHW.
 
 .. note::
    There is a legacy approach to read data node attribute, like ``input_shape = op_node.in_node(0).shape`` and modify data nodes attributes, like ``op_node.out_node(0).shape = some_value``. This approach is still used in the Model Optimizer code but is not recommended. Instead, use the approach described in the :ref:`Ports <mo_intro_ports>`.
@@ -265,7 +264,7 @@ NHWC to NCHW Layout Change
 
 There are several middle transformations responsible for changing model layout from NHWC to NCHW. These transformations are triggered by default for TensorFlow models as TensorFlow supports Convolution operations in the NHWC layout.
 
-This layout change is disabled automatically if the model does not have operations that OpenVINO&trade needs to execute in the NCHW layout, for example, Convolutions in NHWC layout.
+This layout change is disabled automatically if the model does not have operations that OpenVINO™ needs to execute in the NCHW layout, for example, Convolutions in NHWC layout.
 
 For more details on how it works, refer to the source code of the transformations mentioned in the below summary of the process: 
 

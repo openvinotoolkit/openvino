@@ -32,6 +32,10 @@
 #include <memory>
 #include <algorithm>
 
+#ifdef ENABLE_ONEDNN_FOR_GPU
+#include <impls/onednn/utils.hpp>
+#endif
+
 namespace cldnn {
 namespace {
 
@@ -179,6 +183,10 @@ void primitive_inst::update_shape() {
     if (input_shape_changed)
         set_shape_change();
 
+    // We assume that tensor ranks are static, thus shape_of doesn't need to update anything even if input shape is dynamic
+    if (_node->is_type<shape_of>() && !input_shape_changed)
+        return;
+
     // Even though the predecessors' shapes are not changed, the output shape might be udpated by the mem_dep
     auto memory_deps = _node->get_const_memory_deps();
     for (auto& i : _node->get_shape_infer_dependencies()) {
@@ -187,10 +195,6 @@ void primitive_inst::update_shape() {
         }
         input_shape_changed = true;
     }
-
-    // We assume that tensor ranks are static, thus shape_of doesn't need to update anything even if input shape is dynamic
-    if (_node->is_type<shape_of>() && !input_shape_changed)
-        return;
 
     if (!input_shape_changed && !_node->generates_dynamic_output() && _impl_params->get_output_layout().is_static())
         return;
@@ -391,8 +395,10 @@ bool primitive_inst::update_impl() {
                     }
 
                     auto impl = _node->type()->choose_impl(*_node, updated_params);
-                    auto kernels = _program->get_kernels_cache().compile(updated_params, impl->get_kernels_source());
-                    impl->set_kernels(kernels);
+                    if (!can_be_optimized()) {
+                        auto kernels = _program->get_kernels_cache().compile(updated_params, impl->get_kernels_source());
+                        impl->set_kernels(kernels);
+                    }
                     cache.add(updated_params, impl->clone());
                 });
                 if (!can_be_optimized())  {
@@ -404,9 +410,11 @@ bool primitive_inst::update_impl() {
                 }
             } else {
                 _impl = _node->type()->choose_impl(*_node, updated_params);
-                auto& kernels_cache = get_network().get_program()->get_kernels_cache();
-                auto kernels = kernels_cache.compile(updated_params, _impl->get_kernels_source());
-                _impl->set_kernels(kernels);
+                if (!can_be_optimized()) {
+                    auto& kernels_cache = get_network().get_program()->get_kernels_cache();
+                    auto kernels = kernels_cache.compile(updated_params, _impl->get_kernels_source());
+                    _impl->set_kernels(kernels);
+                }
                 cache.add(updated_params, _impl->clone());
 
                 auto new_impl_str = _impl != nullptr ? _impl->get_kernel_name() : "nullptr";
@@ -702,6 +710,8 @@ void primitive_inst::allocate_internal_buffers(void) {
     // allocate intermediate memory for the updated layout of buffer
     std::vector<memory::cptr> intermediates_memory;
     for (size_t i = 0; i < ibuf_layouts.size(); ++i) {
+        if (ibuf_layouts[i].get_linear_size() == 0)
+            continue;
         intermediates_memory.push_back(allocate_internal_buffer(i));
         max_intermediates_memory_sizes.push_back(intermediates_memory[i]->size());
     }
@@ -727,11 +737,12 @@ event::ptr primitive_inst::update_weights() {
     if (weights_params.engine == kernel_selector::GenericKernelParams::Engine::NONE) {
         // If kernel doesn't says that it doesn't require weights reorder, but weights were reordered previously, then
         // incorrect memory buffer may be assigned, so reset cached weights for such case
-        _reordered_weights_cache.add(original_weights_memory->get_layout(), original_weights_memory);
+        _reordered_weights_cache.add(original_layout, original_weights_memory);
+        _impl_params->weights_layout = optional_layout(original_layout);
     } else {
         auto expected_layout = from_weights_tensor(weights_params.dest);
         // Set original patrial shape, because it may be lost during kernel_selector::weights_tensor -> layout conversion
-        expected_layout.set_partial_shape(original_weights_memory->get_layout().get_partial_shape());
+        expected_layout.set_partial_shape(original_layout.get_partial_shape());
         _impl_params->weights_layout = optional_layout(expected_layout);
 
         if (_reordered_weights_cache.has(expected_layout)) {
@@ -767,7 +778,8 @@ event::ptr primitive_inst::update_weights() {
                 auto& kernels_cache = get_network().get_program()->get_kernels_cache();
                 auto kernels = kernels_cache.compile(*_impl_params, {weights_params.clKernel->code.kernelString});
                 OPENVINO_ASSERT(kernels.size() == 1, "The output of kernel compile has issue");
-                kernel = (kernels.begin()->second)[0];
+                auto& kernel_data = kernels.begin()->second;
+                kernel = kernel_data[0].first;
                 cache.add(kernel_key, kernel);
             }
 
@@ -867,7 +879,8 @@ memory::ptr primitive_inst::allocate_output(engine& _engine, memory_pool& pool, 
     // Also if the successor of a node is an cpu, then memory needs to be lockable.
     bool is_cpu = _node.get_selected_impl() ? _node.get_selected_impl()->is_cpu() : false;
     auto use_lockable_memory = is_output_buffer(_node) || is_cpu || is_any_user_cpu(_node.get_users()) ||
-                               !_engine.supports_allocation(allocation_type::usm_device);
+                               !_engine.supports_allocation(allocation_type::usm_device) ||
+                               (_node.is_shape_infer_dep() && _engine.get_device_info().dev_type == device_type::integrated_gpu);
     const auto& lockable_mem_type = _engine.get_lockable_preferred_memory_allocation_type(layout.format.is_image_2d());
 
     auto alloc_type = use_lockable_memory ? lockable_mem_type
@@ -1056,6 +1069,29 @@ bool primitive_inst::is_valid_fusion() const {
         auto dep_pshape = dep.first->_impl_params->get_output_layout().get_partial_shape();
         auto merged_shape = out_pshape;
         auto can_broadcast = ov::PartialShape::broadcast_merge_into(merged_shape, dep_pshape, fd.typed_desc<eltwise>()->broadcast_spec);
+
+#ifdef ENABLE_ONEDNN_FOR_GPU
+        // WA for OneDNN binary add fusions: we need to broadcast batch dimension to avoid situation with
+        // batch dimension mismatch in OneDNN tensor descriptors as follow:
+        // * Gemm output shape: (b,f,y,x) -> OneDNN shape: (b*f,y,x)
+        // * Gemm fused op shape: (1,f,y,x) -> OneDNN shape: (1*f,y,x)
+        // If batch dimension of gemm output is not equal to 1, then OneDNN will not be able to broadcast fused op data
+        // correctly and we need to do it manually
+        if (_node->is_type<gemm>() && _node->get_preferred_impl_type() == impl_types::onednn) {
+            auto gemm_layout = _impl_params->get_output_layout();
+            auto data_layout = dep.first->_impl_params->get_output_layout();
+            auto gemm_dims = onednn::convert_gemm_tensor(gemm_layout.get_tensor(),
+                                                         cldnn::format::dimension(gemm_layout.format),
+                                                         false);
+
+            auto data_dims = onednn::convert_gemm_tensor(data_layout.get_tensor(),
+                                                         cldnn::format::dimension(data_layout.format),
+                                                         false);
+
+            if (gemm_dims[0] != data_dims[0])
+                return false;
+        }
+#endif
 
         // We check that broadcasting of extra input is possible and it doesn't change output shape. If it output shape is changed, then
         // some dimension of dep_pshape is greater than out_pshape
@@ -1268,7 +1304,7 @@ void primitive_inst::load(cldnn::BinaryInputBuffer& ib) {
             ib >> output_layout;
             output_layouts.emplace_back(output_layout);
 
-            allocation_type _allocation_type;
+            allocation_type _allocation_type = allocation_type::unknown;
             ib >> make_data(&_allocation_type, sizeof(_allocation_type));
             allocation_types.emplace_back(_allocation_type);
         }
@@ -1333,7 +1369,7 @@ void primitive_inst::load(cldnn::BinaryInputBuffer& ib) {
     bool has_impl;
     ib >> has_impl;
     if (has_impl) {
-        _impl.release();
+        _impl.reset();
         ib >> _impl;
     }
 }

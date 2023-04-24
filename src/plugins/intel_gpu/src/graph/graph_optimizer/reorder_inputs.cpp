@@ -13,7 +13,6 @@
 #include "mvn_inst.h"
 #include "to_string_utils.h"
 #include "pooling_inst.h"
-#include "reshape_inst.h"
 
 #ifdef ENABLE_ONEDNN_FOR_GPU
 #include "gemm_inst.h"
@@ -285,6 +284,8 @@ void propagate_formats_rec(std::map<program_node*, format::type>& fmt_map,
     for (auto next : travel_direction_wrapper<dir>::next_nodes(node)) {
         if (!next->is_in_data_flow())
             continue;
+        if (!can_propagate_formats_rec<dir>(fmt_map, lo, node, next, fmt))
+            continue;
         propagate_formats_rec<dir>(fmt_map, lo, node, next, fmt);
     }
 }
@@ -511,6 +512,8 @@ void minimize_local_reorders(program& p, std::map<program_node*, format::type>& 
             continue;
 
         for (auto new_fmt : local_formats) {
+            if (fmt_map.at(node) != format::any && format::dimension(fmt_map.at(node)) != format::dimension(new_fmt))
+                continue;
             fmt_map.at(node) = new_fmt;
 
             auto reorders_cnt = count_reorders(fmt_map, lo, node);
@@ -992,11 +995,15 @@ void reorder_inputs::run(program& p, layout_optimizer& lo, reorder_factory& rf) 
                     auto& data = node->get_dependency(fused_prim.dep_start_idx);
 
                     auto gemm_layout = node->get_output_layout();
+                    auto data_layout = data.get_output_layout();
+
+                    if (gemm_layout.is_dynamic() || data_layout.is_dynamic())
+                        continue;
+
                     auto gemm_dims = onednn::convert_gemm_tensor(gemm_layout.get_tensor(),
                                                                  cldnn::format::dimension(gemm_layout.format),
                                                                  false);
 
-                    auto data_layout = data.get_output_layout();
                     auto data_dims = onednn::convert_gemm_tensor(data_layout.get_tensor(),
                                                                  cldnn::format::dimension(data_layout.format),
                                                                  false);
@@ -1024,6 +1031,24 @@ void reorder_inputs::run(program& p, layout_optimizer& lo, reorder_factory& rf) 
                     if (fc_layout.is_dynamic() || data_layout.is_dynamic())
                         continue;
 
+                    // fc_b     | fc_f      | data_b    | data_f    | broadcast condition
+                    // ---------+-----------+-----------+-----------+--------------------
+                    // 1        | 1         | 1         | 1         | no broadcast
+                    // 1        | 1         | 1         | N         | N/A
+                    // 1        | 1         | N         | 1         | N/A
+                    // 1        | 1         | N         | N         | N/A
+                    // 1        | N         | 1         | 1         | implicit broadcast
+                    // 1        | N         | 1         | N         | no broadcast
+                    // 1        | N         | N         | 1         | N/A
+                    // 1        | N         | N         | N         | N/A
+                    // N        | 1         | 1         | 1         | implicit broadcast
+                    // N        | 1         | 1         | N         | N/A
+                    // N        | 1         | N         | 1         | no broadcast
+                    // N        | 1         | N         | N         | N/A
+                    // N        | N         | 1         | 1         | implicit broadcast
+                    // N        | N         | 1         | N         | explicit broadcast
+                    // N        | N         | N         | 1         | explicit broadcast
+                    // N        | N         | N         | N         | no broadcast
                     if ((fc_layout.batch() == 1 || fc_layout.feature() == 1) ||
                         (data_layout.batch() == 1 && data_layout.feature() == 1) ||
                         (fc_layout.count() == data_layout.count())) {
