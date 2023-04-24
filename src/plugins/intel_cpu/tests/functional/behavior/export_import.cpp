@@ -65,7 +65,7 @@ TEST(ExportImportTest, ExportOptimalNumStreams) {
 
 class ExportOptimalNumStreamsTest : public ::testing::TestWithParam<std::string> {};
 
-TEST_P(ExportOptimalNumStreamsTest, OptimalNumStreamsThroughtput) {
+TEST_P(ExportOptimalNumStreamsTest, OptimalNumStreamsThroughput) {
     auto original_model = MakeMatMulModel();
     std::string deviceName = GetParam();
     ov::Core core;
