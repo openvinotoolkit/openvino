@@ -197,7 +197,7 @@ public:
      * @param newDynBatch
      * new dynamic batch value
      */
-    void setDymBatch(int newDynBatch) {
+    void setDynBatch(int newDynBatch) {
         dynBatch = newDynBatch;
     }
 

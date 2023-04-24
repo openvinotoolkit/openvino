@@ -364,7 +364,7 @@ void LegacyInferRequest::SetBatch(int new_batch) {
     }
 
     m_curBatch = new_batch;
-    graph->setDymBatch(m_curBatch);
+    graph->setDynBatch(m_curBatch);
 }
 
 void LegacyInferRequest::changeDefaultPtr() {
