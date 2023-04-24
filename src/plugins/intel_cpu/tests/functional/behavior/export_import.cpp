@@ -15,7 +15,7 @@
 
 namespace {
 
-class ExportImportTest : public CommonTestUtils::TestsCommon {};
+class ExportOptimalNumStreams : public ::testing::TestWithParam<std::string> {};
 
 std::shared_ptr<ov::Model> MakeMatMulModel() {
     const ov::Shape input_shape = {1, 4096};
@@ -33,9 +33,9 @@ std::shared_ptr<ov::Model> MakeMatMulModel() {
     return std::make_shared<ov::Model>(results, params, "MatMulModel");
 }
 
-TEST(ExportImportTest, ExportOptimalNumStreams) {
+TEST_P(ExportOptimalNumStreams, OptimalNumStreams) {
     auto original_model = MakeMatMulModel();
-    std::string deviceName = "CPU";
+    std::string deviceName = GetParam();
     ov::Core core;
     auto tput_mode = ov::hint::performance_mode(ov::hint::PerformanceMode::THROUGHPUT);
     auto latency_mode = ov::hint::performance_mode(ov::hint::PerformanceMode::LATENCY);
@@ -63,46 +63,6 @@ TEST(ExportImportTest, ExportOptimalNumStreams) {
     }
 }
 
-class ExportOptimalNumStreamsTest : public ::testing::TestWithParam<std::string> {};
-
-TEST_P(ExportOptimalNumStreamsTest, OptimalNumStreamsThroughput) {
-    auto original_model = MakeMatMulModel();
-    std::string deviceName = GetParam();
-    ov::Core core;
-    auto tput_mode = ov::hint::performance_mode(ov::hint::PerformanceMode::THROUGHPUT);
-
-    auto original_tp_network = core.compile_model(original_model, deviceName, tput_mode);
-    auto nstreams_tp_original = original_tp_network.get_property(ov::num_streams.name()).as<std::string>();
-
-    std::stringstream exported_stream;
-    original_tp_network.export_model(exported_stream);
-    {
-        std::stringstream ss(exported_stream.str());
-        auto imported_tp_network = core.import_model(ss, deviceName, tput_mode);
-        auto nstreams_tp_imported = imported_tp_network.get_property(ov::num_streams.name()).as<std::string>();
-        EXPECT_EQ(nstreams_tp_original, nstreams_tp_imported);
-    }
-}
-
-TEST_P(ExportOptimalNumStreamsTest, OptimalNumStreamsLatency) {
-    auto original_model = MakeMatMulModel();
-    std::string deviceName = GetParam();
-    ov::Core core;
-    auto latency_mode = ov::hint::performance_mode(ov::hint::PerformanceMode::LATENCY);
-
-    auto original_latency_network = core.compile_model(original_model, deviceName, latency_mode);
-    auto nstreams_latency_original = original_latency_network.get_property(ov::num_streams.name()).as<std::string>();
-
-    std::stringstream exported_stream;
-    original_latency_network.export_model(exported_stream);
-    {
-        std::stringstream ss(exported_stream.str());
-        auto imported_latency_network = core.import_model(ss, deviceName, latency_mode);
-        auto nstreams_latency_imported = imported_latency_network.get_property(ov::num_streams.name()).as<std::string>();
-        EXPECT_EQ(nstreams_latency_original, nstreams_latency_imported);
-    }
-}
-
-INSTANTIATE_TEST_CASE_P(smoke_ExportImportTest, ExportOptimalNumStreamsTest, ::testing::Values(std::string("CPU")));
+INSTANTIATE_TEST_CASE_P(smoke_ExportImportTest, ExportOptimalNumStreams, ::testing::Values(std::string("CPU")));
 
 }  // namespace

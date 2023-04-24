@@ -132,7 +132,7 @@ struct CPUStreamsExecutor::Impl {
             std::lock_guard<std::mutex> lock{_impl->_cpumap_mutex};
             const auto stream_id = _streamId >= _impl->_config._streams ? _impl->_config._streams - 1 : _streamId;
             const auto concurrency =
-                _impl->_config._streams_info_table.size() > 0
+                (_impl->_config._streams_info_table.size() > 0 && _impl->_config._stream_ids.size() > 0)
                     ? _impl->_config._streams_info_table[_impl->_config._stream_ids[stream_id]][THREADS_PER_STREAM]
                     : 0;
             const auto cpu_core_type =
