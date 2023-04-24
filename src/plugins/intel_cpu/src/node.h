@@ -648,6 +648,7 @@ protected:
                               bool dynBatchSupport = false);
 
     void prepareMemory(const std::vector<DnnlMemoryDescPtr>& intDescs);
+    void prepareMemory(const DnnlMemoryDescPtr& intDesc, size_t indx);
     void prepareMemory(dnnl::primitive_desc_iterator& itpd);
 
     MemoryPtr prepareWeightMemory(DnnlMemoryDescPtr weightDesc);
