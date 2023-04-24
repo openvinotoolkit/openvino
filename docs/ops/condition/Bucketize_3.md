@@ -18,7 +18,7 @@ For example, if the first input tensor is ``[[3, 50], [10, -1]]`` and the second
 
   * **Description**: the output tensor type
   * **Range of values**: "i64" or "i32"
-  * **Type**: string
+  * **Type**: ``string``
   * **Default value**: "i64"
   * **Required**: *no*
 

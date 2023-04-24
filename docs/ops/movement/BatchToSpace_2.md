@@ -100,7 +100,7 @@ Example: 2D input tensor ``data``
 
 Example: 5D input tensor ``data``
 
-.. code-block: console
+.. code-block:: cpp
    
    <layer type="BatchToSpace" ...>
        <input>

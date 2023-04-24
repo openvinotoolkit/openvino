@@ -31,7 +31,7 @@ For example, ``axes_mapping = [1]`` enables broadcasting of a tensor with shape 
     * *numpy* - numpy broadcasting rules, aligned with ONNX Broadcasting. Description is available in `ONNX docs <https://github.com/onnx/onnx/blob/master/docs/Broadcasting.md>`__ .; only one-directional broadcasting is applied from ``data`` to ``target_shape``. If this attribute value is used, then the 3rd input for the operation shouldn't be provided.
     * *explicit* - mapping of the input ``data`` shape axes to output shape is provided as an explicit 3rd input.
     * *bidirectional* - the broadcast rule is similar to ``numpy.array(input) * numpy.ones(target_shape)``. Dimensions are right alignment. Two corresponding dimension must have the same value, or one of them is equal to 1. If this attribute value is used, then the 3rd input for the operation shouldn't be provided.
-  * **Type**: string
+  * **Type**: ``string``
   * **Default value**: "numpy"
   * **Required**: *no*
 
