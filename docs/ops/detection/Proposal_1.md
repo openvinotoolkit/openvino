@@ -12,11 +12,12 @@
 
 *Proposal* has three inputs: a tensor with probabilities whether particular bounding box corresponds to background and foreground, a tensor with bbox_deltas for each of the bounding boxes, a tensor with input image size in the [``image_height``, ``image_width``, ``scale_height_and_width``] or [``image_height``, ``image_width``, ``scale_height``, ``scale_width``] format. The produced tensor has two dimensions ``[batch_size * post_nms_topn, 5]``, and for each output box contains batch index and box coordinates.
 *Proposal* layer does the following with the input tensor:
+
 1.  Generates initial anchor boxes. Left top corner of all boxes is at (0, 0). Width and height of boxes are calculated from *base_size* with *scale* and *ratio* attributes.
 2.  For each point in the first input tensor:
 
-    *   pins anchor boxes to the image according to the second input tensor that contains four deltas for each box: for *x* and *y* of center, for *width* and for *height*
-    *   finds out score in the first input tensor
+  *   pins anchor boxes to the image according to the second input tensor that contains four deltas for each box: for *x* and *y* of center, for *width* and for *height*
+  *   finds out score in the first input tensor
 3.  Filters out boxes with size less than *min_size*
 4.  Sorts all proposals (*box*, *score*) by score from highest to lowest
 5.  Takes top *pre_nms_topn* proposals
@@ -34,12 +35,14 @@
   * **Required**: *yes*
 
 * *pre_nms_topn*
+
   * **Description**: *pre_nms_topn* is the number of bounding boxes before the NMS operation. For example, *pre_nms_topn* equal to 15 means to take top 15 boxes with the highest scores.
   * **Range of values**: a positive integer number
   * **Type**: ``int``
   * **Required**: *yes*
 
 * *post_nms_topn*
+
   * **Description**: *post_nms_topn* is the number of bounding boxes after the NMS operation. For example, *post_nms_topn* equal to 15 means to take after NMS top 15 boxes with the highest scores.
   * **Range of values**: a positive integer number
   * **Type**: ``int``
@@ -124,6 +127,7 @@
 
   * **Description**: *framework* specifies how the box coordinates are calculated.
   * **Range of values**:
+  
     * "" (empty string) - calculate box coordinates like in Caffe*
     * *tensorflow* - calculate box coordinates like in the TensorFlow* Object Detection API models
   * **Type**: string

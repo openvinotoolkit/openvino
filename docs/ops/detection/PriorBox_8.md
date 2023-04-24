@@ -18,17 +18,17 @@
    
    	W \equiv Width \quad Of \quad Image \\ H \equiv Height \quad Of \quad Image
 
-    *   If step equals 0:
+  *   If step equals 0:
 
-    .. math::
+  .. math::
      
-     	 center_x=(w+0.5) \\ center_y=(h+0.5)
+     	center_x=(w+0.5) \\ center_y=(h+0.5)
 
-    *   else:
+  *   else:
 
-    .. math::
+  .. math::
      
-      	center_x=(w+offset)\*step \\ center_y=(h+offset)\*step \\ w \subset \left( 0, W \right ) \\ h \subset \left( 0, H \right )
+      center_x=(w+offset)*step \\ center_y=(h+offset)*step \\ w \subset \left( 0, W \right ) \\ h \subset \left( 0, H \right )
 
 2.  Then, it calculates coordinates of prior boxes for each :math:`s \subset \left( 0, min\_sizes \right )` :
 
@@ -37,23 +37,21 @@
    	xmin = \frac{\frac{center_x - s}{2}}{W}
    
    
-   
-   .. math::
+  
+  .. math::
    
    	ymin = \frac{\frac{center_y - s}{2}}{H}
    
-   
-   
-   .. math::
+     
+  .. math::
    
    	xmax = \frac{\frac{center_x + s}{2}}{W}
    
-   
-   
-   .. math::
+     
+  .. math::
    
    	ymin = \frac{\frac{center_y + s}{2}}{H}
-    
+
 3. If *clip* attribute is set to true, each output value is clipped between :math:`\left< 0, 1 \right>`.
 
 **Attributes**:
@@ -78,6 +76,7 @@
 
   * **Description**: *flip* is a flag that denotes that each *aspect_ratio* is duplicated and flipped. For example, *flip* equals 1 and *aspect_ratio* equals ``[4.0,2.0]``, meaning that the aspect_ratio is equal to ``[4.0,2.0,0.25,0.5]``.
   * **Range of values**:
+  
     * false or 0 - each *aspect_ratio* is flipped
     * true or 1  - each *aspect_ratio* is not flipped
   * **Type**: ``boolean``
