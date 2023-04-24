@@ -324,7 +324,7 @@ std::unique_ptr<TShape> get_input_const_data_as_shape(const ov::Node* op,
         PartialShape shape;
         OPENVINO_SUPPRESS_DEPRECATED_START
         if ((idx < op->get_input_size()) && ov::evaluate_as_partial_shape(op->input_value(idx), shape)) {
-        OPENVINO_SUPPRESS_DEPRECATED_END
+            OPENVINO_SUPPRESS_DEPRECATED_END
             return std::unique_ptr<TShape>(new TShape(std::move(shape)));
         }
     }
