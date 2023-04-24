@@ -4,6 +4,7 @@
 
 #pragma once
 
+#include <cstdint>
 #include <memory>
 #include <vector>
 #include <ngraph/ngraph.hpp>
@@ -18,7 +19,7 @@ public:
     FakeQuantizeOnWeights();
 
     FakeQuantizeOnWeights(
-        const size_t quantizationLevel,
+        const uint64_t quantizationLevel,
         const ngraph::Shape& constantShape,
         const std::vector<float>& inputLowValues,
         const std::vector<float>& inputHighValues,

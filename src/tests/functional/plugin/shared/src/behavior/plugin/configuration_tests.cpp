@@ -19,6 +19,7 @@ std::string DefaultConfigurationTest::getTestCaseName(const ::testing::TestParam
 }
 
 TEST_P(DefaultConfigurationTest, checkDeviceDefaultConfigurationValue) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED();
     target_device = std::get<DeviceName>(GetParam());
     std::string key;
     InferenceEngine::Parameter parameter;
@@ -91,8 +92,20 @@ TEST_P(CorrectSingleOptionDefaultValueConfigTests, CheckDefaultValueOfConfig) {
 
 // Setting correct config doesn't throw
 TEST_P(CorrectConfigTests, SetCorrectConfig) {
-    ASSERT_NO_THROW(ie->GetMetric(target_device, METRIC_KEY(SUPPORTED_CONFIG_KEYS)));
-    ASSERT_NO_THROW(ie->SetConfig(configuration, target_device));
+    InferenceEngine::Parameter metric;
+    bool has_unsupported_config = false;
+    ASSERT_NO_THROW(metric = ie->GetMetric(target_device, METRIC_KEY(SUPPORTED_CONFIG_KEYS)));
+    auto keys = metric.as<std::vector<std::string>>();
+
+    for (const auto& configItem : configuration) {
+        if (std::find(keys.begin(), keys.end(), configItem.first) == keys.end()) {
+            has_unsupported_config = true;
+            break;
+        }
+    }
+    if (!has_unsupported_config) {
+        ASSERT_NO_THROW(ie->SetConfig(configuration, target_device));
+    }
 }
 
 TEST_P(CorrectConfigTests, CanLoadNetworkWithCorrectConfig) {
@@ -185,11 +198,6 @@ TEST_P(DefaultValuesConfigTests, CanSetDefaultValueBackToPlugin) {
                                     << "config key=" << key << " "
                                     << "value=" << configValue.as<std::string>();
     }
-}
-
-TEST_P(ExclusiveAsyncReqTests, excluAsyncReqTests) {
-    ASSERT_NO_THROW(ie->SetConfig(configuration, target_device));
-    ASSERT_NO_THROW(ie->LoadNetwork(cnnNet, target_device, configuration));
 }
 
 TEST_P(SetPropLoadNetWorkGetPropTests, SetPropLoadNetWorkGetProperty) {

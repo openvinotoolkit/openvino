@@ -118,7 +118,7 @@ bool ngraph::snippets::pass::AssignRegisters::run_on_model(const std::shared_ptr
         std::set<Reg> result;
         for (const auto& t : tensors) {
             if (reg_map.count(t) == 0)
-                throw ngraph::ngraph_error("Assign registers: attempt to access not enumerated tensor");
+                OPENVINO_THROW("Assign registers: attempt to access not enumerated tensor");
             Reg reg_id = reg_map.at(t);
             if (reg_id != IS_MANUALLY_ALLOCATED_REG)
                 result.insert(reg_id);
@@ -179,7 +179,7 @@ bool ngraph::snippets::pass::AssignRegisters::run_on_model(const std::shared_ptr
                 for (const auto& port : out.get_target_inputs()) {
                     size_t k = std::find(ops.begin(), ops.end(), port.get_node()->shared_from_this()) - ops.begin();
                     if (k == ops.size())
-                        throw ngraph_error("assign registers can't find target op in the body");
+                        OPENVINO_THROW("assign registers can't find target op in the body");
                     switch (typed_ops[k].first) {
                         case opRegType::vec2vec:
                         case opRegType::vec2gpr:
@@ -258,7 +258,7 @@ bool ngraph::snippets::pass::AssignRegisters::run_on_model(const std::shared_ptr
             if (active.size() == reg_pool.size()) {
                 // todo: if it is LoopBegin or LoopEnd that requires gpr, and we don't have any in the pool,
                 //  then assign SIZE_MAX-1 as a flag to spill a reg inside emitter
-                throw ngraph::ngraph_error("can't allocate registers for a snippet ");
+                OPENVINO_THROW("can't allocate registers for a snippet ");
             } else {
                 register_map[unique_reg] = bank.top();
                 bank.pop();
@@ -287,7 +287,7 @@ bool ngraph::snippets::pass::AssignRegisters::run_on_model(const std::shared_ptr
             if (reg.second == IS_MANUALLY_ALLOCATED_REG)
                 continue;
             if (unique2reused.count(reg.second) == 0)
-                throw ngraph::ngraph_error("Assign registers failed to allocate register for a tensor");
+                OPENVINO_THROW("Assign registers failed to allocate register for a tensor");
             assigned_regs[reg.first] = unique2reused.at(reg.second);
         }
     };

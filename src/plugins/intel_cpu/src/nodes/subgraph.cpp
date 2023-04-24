@@ -22,14 +22,14 @@
 
 #include <snippets/op/subgraph.hpp>
 #include "snippets/pass/matmul_to_brgemm.hpp"
-#include "emitters/cpu_generator.hpp"
 #include "utils/cpu_utils.hpp"
-#include "snippets_transformations/enforce_precision.hpp"
-#include "snippets_transformations/fuse_load_store_and_convert.hpp"
-#include "snippets_transformations/mul_add_to_fma.hpp"
-#include "snippets_transformations/brgemm_to_brgemm_cpu.hpp"
-#include "snippets_transformations/remove_converts.hpp"
-#include "ngraph_transformations/convert_to_swish_cpu.hpp"
+#include "emitters/x64/cpu_generator.hpp"
+#include "transformations/snippets/x64/pass/fuse_load_store_and_convert.hpp"
+#include "transformations/snippets/x64/pass/mul_add_to_fma.hpp"
+#include "transformations/snippets/x64/pass/brgemm_to_brgemm_cpu.hpp"
+#include "transformations/snippets/x64/pass/remove_converts.hpp"
+#include "transformations/snippets/x64/pass/enforce_precision.hpp"
+#include "transformations/cpu_opset/common/pass/convert_to_swish_cpu.hpp"
 
 using namespace InferenceEngine;
 using namespace dnnl::impl::utils;

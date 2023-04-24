@@ -744,6 +744,7 @@ void Comparator::compare_inputs(ngraph::Node* node1, ngraph::Node* node2, std::o
             auto const2 = ngraph::as_type_ptr<Constant>(node2->get_input_node_shared_ptr(i));
             if (const1 && const2 && !equal_value(const1, const2)) {
                 err_log << "Different Constant values detected\n"
+                        << const1->get_friendly_name() << " & " << const2->get_friendly_name() << "\n"
                         << node1->description() << " Input(" << i << ") and " << node2->description() << " Input(" << i
                         << ")" << std::endl;
             }
@@ -856,7 +857,7 @@ void check_rt_info(const std::shared_ptr<ngraph::Function>& f) {
 
     auto err_msg = err_log.str();
     if (!err_msg.empty()) {
-        throw ngraph::ngraph_error(err_msg);
+        OPENVINO_THROW(err_msg);
     }
 }
 

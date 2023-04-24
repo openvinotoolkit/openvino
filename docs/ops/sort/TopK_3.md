@@ -66,7 +66,7 @@ So for each slice `input[i1, ...., i(axis-1), :, i(axis+1), ..., iN]` which repr
 
 Sorting and minimum/maximum are controlled by `sort` and `mode` attributes:
   * *mode*=`max`, *sort*=`value` - descending by value
-  * *mode*=`max`, *sort*=`index` - descending by index
+  * *mode*=`max`, *sort*=`index` - ascending by index
   * *mode*=`max`, *sort*=`none`  - undefined
   * *mode*=`min`, *sort*=`value` - ascending by value
   * *mode*=`min`, *sort*=`index` - ascending by index

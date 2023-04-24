@@ -48,9 +48,6 @@ std::vector<std::string> disabledTestPatterns() {
             // Not allowed dynamic loop tests on GPU
             R"(.*smoke_StaticShapeLoop_dynamic_exit.*)",
             // Not expected behavior
-            R"(.*Behavior.*InferRequestIOBBlobSetLayoutTest.*layout=(SCALAR|OIHW).*)",
-            R"(.*Behavior.*InferRequestIOBBlobSetLayoutTest.*CanSetInBlobWithDifferentLayouts.*layout=NHWC.*)",
-            R"(.*Behavior.*InferRequestIOBBlobSetLayoutTest.*CanSetOutBlobWithDifferentLayouts.*layout=(CN|HW).*)",
             R"(.*Behavior.*(Multi|Auto).*InferRequestSetBlobByType.*Batched.*)",
             R"(.*(Multi|Auto).*Behavior.*InferRequestIOBBlobTest.*canProcessDeallocatedOutputBlobAfterGetAndSetBlob.*)",
             // TODO Issue 100145
@@ -128,5 +125,7 @@ std::vector<std::string> disabledTestPatterns() {
             // TODO: support getconfig in auto/multi CVS-104942
             // TODO: move auto/multi cases to dedicated unit tests
             R"(.*(Auto|Multi).*SetPropLoadNetWorkGetPropTests.*)",
+            // unsupported metrics
+            R"(.*nightly_MultiHeteroAutoBatchOVGetMetricPropsTest.*OVGetMetricPropsTest.*(AVAILABLE_DEVICES|DEVICE_UUID|OPTIMIZATION_CAPABILITIES|MAX_BATCH_SIZE|DEVICE_GOPS|DEVICE_GOPS|RANGE_FOR_ASYNC_INFER_REQUESTS|RANGE_FOR_STREAMS).*)",
     };
 }

@@ -121,32 +121,18 @@ protected:
     }
 };
 
-using ConvLowPrecisionTestLib35 = ConvLowPrecisionTest;
-
 TEST_P(ConvLowPrecisionTest, CompareWithRefs) {
-    Run();
-};
-
-TEST_P(ConvLowPrecisionTestLib35, CompareWithRefs) {
-    if (gnaVersionCheck.gnaLibVersionLessThan("3.5")) {
-        GTEST_SKIP() << gnaVersionCheck.getLastCmpResultMsg() << std::endl;
-        return;
-    }
     Run();
 };
 
 const vector<InferenceEngine::Precision> netPrecisions = {InferenceEngine::Precision::FP16,
                                                           InferenceEngine::Precision::FP32};
 
-const vector<map<string, string>> configs_3_0 = {
+const vector<map<string, string>> configs_3_X = {
     {{"GNA_DEVICE_MODE", "GNA_SW_EXACT"}, {"GNA_PRECISION", "I8"}, {"GNA_EXEC_TARGET", "GNA_TARGET_3_0"}},
     {{"GNA_DEVICE_MODE", "GNA_SW_EXACT"}, {"GNA_PRECISION", "I16"}, {"GNA_EXEC_TARGET", "GNA_TARGET_3_0"}},
-};
-
-const vector<map<string, string>> configs_3_5 = {
     {{"GNA_DEVICE_MODE", "GNA_SW_EXACT"}, {"GNA_PRECISION", "I8"}, {"GNA_EXEC_TARGET", "GNA_TARGET_3_5"}},
-    {{"GNA_DEVICE_MODE", "GNA_SW_EXACT"}, {"GNA_PRECISION", "I16"}, {"GNA_EXEC_TARGET", "GNA_TARGET_3_5"}},
-};
+    {{"GNA_DEVICE_MODE", "GNA_SW_EXACT"}, {"GNA_PRECISION", "I16"}, {"GNA_EXEC_TARGET", "GNA_TARGET_3_5"}}};
 
 const vector<map<string, string>> configs_2_0 = {
     {{"GNA_DEVICE_MODE", "GNA_SW_EXACT"}, {"GNA_PRECISION", "I8"}, {"GNA_EXEC_TARGET", "GNA_TARGET_2_0"}},
@@ -172,23 +158,14 @@ INSTANTIATE_TEST_SUITE_P(smoke_LowPrecision20,
                                             ::testing::ValuesIn(levels)),
                          ConvLowPrecisionTest::getTestCaseName);
 
-INSTANTIATE_TEST_SUITE_P(smoke_LowPrecision30,
+INSTANTIATE_TEST_SUITE_P(smoke_LowPrecision3X,
                          ConvLowPrecisionTest,
                          ::testing::Combine(::testing::ValuesIn(netPrecisions),
                                             ::testing::Values(CommonTestUtils::DEVICE_GNA),
-                                            ::testing::ValuesIn(configs_3_0),
+                                            ::testing::ValuesIn(configs_3_X),
                                             ::testing::ValuesIn(inputShapes),
                                             ::testing::ValuesIn(fqMinMax),
                                             ::testing::ValuesIn(levels)),
                          ConvLowPrecisionTest::getTestCaseName);
 
-INSTANTIATE_TEST_SUITE_P(smoke_LowPrecision35,
-                         ConvLowPrecisionTestLib35,
-                         ::testing::Combine(::testing::ValuesIn(netPrecisions),
-                                            ::testing::Values(CommonTestUtils::DEVICE_GNA),
-                                            ::testing::ValuesIn(configs_3_5),
-                                            ::testing::ValuesIn(inputShapes),
-                                            ::testing::ValuesIn(fqMinMax),
-                                            ::testing::ValuesIn(levels)),
-                         ConvLowPrecisionTest::getTestCaseName);
 }  // namespace ConvLowPrecicionTestNs
