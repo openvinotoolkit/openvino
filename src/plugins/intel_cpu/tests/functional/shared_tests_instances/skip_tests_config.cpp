@@ -81,14 +81,6 @@ std::vector<std::string> disabledTestPatterns() {
         // Not implemented yet:
         R"(.*Behavior.*ExecutableNetworkBaseTest.*canSetConfigToExecNet.*)",
         R"(.*Behavior.*OVCompiledModelBaseTest.*canSetConfigToCompiledModel.*)",
-        R"(.*(Auto|Multi).*Behavior.*ExecutableNetworkBaseTest.*checkGetExecGraphInfo.*)",
-        R"(.*(Auto|Multi).*Behavior.*OVCompiledModelBaseTest.*checkGetExecGraphInfo.*)",
-        R"(.*(Auto|Multi).*Behavior.*ExecutableNetworkBaseTest.*CanCreateTwoExeNetworksAndCheckFunction.*)",
-        R"(.*(Auto|Multi).*Behavior.*OVCompiledModelBaseTest.*canCreateTwoCompiledModelAndCheckTheir.*)",
-        R"(.*(Auto|Multi).*Behavior.*ExecutableNetworkBaseTest.*(CheckExecGraphInfoBeforeExecution|CheckExecGraphInfoAfterExecution).*)",
-        R"(.*(Auto|Multi).*Behavior.*OVCompiledModelBaseTest.*(CheckExecGraphInfoBeforeExecution|CheckExecGraphInfoAfterExecution).*)",
-        R"(.*(Auto|Multi).*Behavior.*ExecutableNetworkBaseTest.*CheckExecGraphInfoSerialization.*)",
-        R"(.*(Auto|Multi).*Behavior.*OVCompiledModelBaseTest.*CheckExecGraphInfoSerialization.*)",
         R"(.*Behavior.*ExecutableNetworkBaseTest.*canExport.*)",
         R"(.*Behavior.*OVCompiledModelBaseTest.*canExportModel.*)",
         R"(.*Behavior.*ExecutableNetworkBaseTest.*canSetConfigToExecNetWithIncorrectConfig.*)",
@@ -185,35 +177,11 @@ std::vector<std::string> disabledTestPatterns() {
     };
 
 #if defined(OPENVINO_ARCH_X86)
-    retVector.emplace_back(R"(ONNXQuantizedModels/QuantizedModelsTests.*)");
-    {
-        // TODO: generate new 'expected' runtime graph for x86 CPU
-        retVector.emplace_back(R"(smoke_serialization/ExecGraphSerializationTest.ExecutionGraph.*)");
-        retVector.emplace_back(R"(smoke_ExecGraph/ExecGraphRuntimePrecision.CheckRuntimePrecision/Function=(EltwiseWithTwoDynamicInputs|FakeQuantizeRelu).*)");
-    }
-    retVector.emplace_back(R"(smoke_TestsDFT_(1|2|3|4)d/DFTLayerTest.CompareWithRefs.*)");
-    retVector.emplace_back(R"(MultipleLSTMCellTest/MultipleLSTMCellTest.CompareWithRefs.*)");
-    retVector.emplace_back(R"(.*convolution_backprop_quantize_type.*)");
     retVector.emplace_back(R"(.*DetectionOutputLayerTest.*)");
     // WIP: plugin cannot be loaded for some reason
     retVector.emplace_back(R"(.*HeteroSyntheticTest.*)");
     retVector.emplace_back(R"(.*IEClassBasicTestP.*)");
-    // int8 / code-generation specific
-    retVector.emplace_back(R"(smoke_LPT.*)");
-    retVector.emplace_back(R"(smoke_Snippets.*)");
-#endif
-
-#if defined(OPENVINO_ARCH_ARM)
-    retVector.emplace_back(R"(smoke_If/SimpleIfNotConstConditionAndDimsIncreaseTest.*)");
-#endif
-
-#if defined(OPENVINO_ARCH_ARM64) || defined(OPENVINO_ARCH_ARM)
-    retVector.emplace_back(R"(ONNXQuantizedModels/QuantizedModelsTests.*)");
-    {
-        // TODO: generate new 'expected' runtime graph for CPU ARM
-        retVector.emplace_back(R"(smoke_serialization/ExecGraphSerializationTest.ExecutionGraph.*)");
-        retVector.emplace_back(R"(smoke_ExecGraph/ExecGraphRuntimePrecision.CheckRuntimePrecision/Function=(EltwiseWithTwoDynamicInputs|FakeQuantizeRelu).*)");
-    }
+#elif defined(OPENVINO_ARCH_ARM64) || defined(OPENVINO_ARCH_ARM)
     {
         // TODO: enable once streams / tput mode is supported
         retVector.emplace_back(R"(OVClassConfigTestCPU.smoke_Check(Model|Core)StreamsHasHigherPriorityThanLatencyHint.*)");
@@ -225,21 +193,25 @@ std::vector<std::string> disabledTestPatterns() {
         retVector.emplace_back(R"(smoke_CPU_OVClassCompileModelAndCheckWithSecondaryPropertiesDoubleTest.*)");
     }
     retVector.emplace_back(R"(smoke_AvgPool_ExplicitPad_CeilRounding/PoolingLayerTest.CompareWithRefs.*)");
-    retVector.emplace_back(R"(smoke_TestsDFT_(1|2|3|4)d/DFTLayerTest.CompareWithRefs.*)");
-    retVector.emplace_back(R"(MultipleLSTMCellTest/MultipleLSTMCellTest.CompareWithRefs.*)");
-    retVector.emplace_back(R"(smoke_If/SimpleIfTest.CompareWithRefs.*)");
-    retVector.emplace_back(R"(smoke_If/SimpleIfNotConstConditionTest.CompareWithRefs.*)");
     // invalid test: checks u8 precision for runtime graph, while it should be f32
     retVector.emplace_back(R"(smoke_NegativeQuantizedMatMulMultiplyFusion.*)");
-    // int8 / code-generation specific
-    retVector.emplace_back(R"(smoke_LPT.*)");
-    retVector.emplace_back(R"(smoke_Snippets.*)");
+    // int8 specific
     retVector.emplace_back(R"(smoke_Quantized.*)");
 #endif
 
 #if !defined(OPENVINO_ARCH_X86_64)
     // very time-consuming test
     retVector.emplace_back(R"(.*OVInferConsistencyTest.*)");
+    // TODO: generate new 'expected' runtime graph for non-x64 CPU
+    retVector.emplace_back(R"(smoke_serialization/ExecGraphSerializationTest.ExecutionGraph.*)");
+    retVector.emplace_back(R"(smoke_ExecGraph/ExecGraphRuntimePrecision.CheckRuntimePrecision/Function=(EltwiseWithTwoDynamicInputs|FakeQuantizeRelu).*)");
+    // CVS-108803: bug in CPU scalar implementation
+    retVector.emplace_back(R"(smoke_TestsDFT_(1|2|3|4)d/DFTLayerTest.CompareWithRefs.*)");
+    // CVS-88764, CVS-91647, CVS-108802: accuracy issue
+    retVector.emplace_back(R"(MultipleLSTMCellTest/MultipleLSTMCellTest.CompareWithRefs.*)");
+    // int8 / code-generation specific
+    retVector.emplace_back(R"(smoke_LPT.*)");
+    retVector.emplace_back(R"(smoke_Snippets.*)");
 #endif
 
 #if defined(_WIN32) || defined(_WIN64)
