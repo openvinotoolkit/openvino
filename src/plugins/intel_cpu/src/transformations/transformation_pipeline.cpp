@@ -479,10 +479,10 @@ void Transformations::Lpt(const bool hasINT16orINT32Levels, const std::vector<ov
                     {{0}, {ov::element::u8, ov::element::i8}},
                     {{1}, {ov::element::i8}}
                 }),
-            PrecisionsRestriction::create<ov::opset1::GroupConvolution>([input0LowPrecisionList](const std::shared_ptr<ngraph::Node>& node){
+            PrecisionsRestriction::create<ov::opset1::GroupConvolution>([input0LowPrecisionList](const std::shared_ptr<ov::Node>& node){
                 const auto& input_partial_shape = node->get_input_partial_shape(0);
                 const auto& rank = input_partial_shape.rank();
-                if (rank.is_static() && (rank.get_length() == 5ull)) {
+                if (rank.is_static() && (rank.get_length() == 5)) {
                     return PrecisionsRestriction::PrecisionsByPorts{
                         {{0}, {ov::element::u8, ov::element::i8}},
                         {{1}, {ov::element::i8}}};
