@@ -50,10 +50,6 @@ static std::shared_ptr<ngraph::op::Eltwise> create_eltwise(const std::shared_ptr
                                                            const std::shared_ptr<ov::Node>& split1,
                                                            size_t index) {
     auto root_eltwise = std::dynamic_pointer_cast<ngraph::op::Eltwise>(node);
-    if (root_eltwise == nullptr) {
-        IE_THROW() << "Cannot cast to Eltwise node " << node->get_name();
-    }
-
     auto eltwise = std::make_shared<ngraph::op::Eltwise>(split0->output(index),
                                                          split1->output(index),
                                                          root_eltwise->eltwise_type,

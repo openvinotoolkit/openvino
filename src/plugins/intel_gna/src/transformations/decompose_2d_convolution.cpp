@@ -260,10 +260,6 @@ static std::vector<std::shared_ptr<ngraph::Node>> SplitFilters(const GraphData& 
     auto filter_values = std::dynamic_pointer_cast<ngraph::opset7::Constant>(
         graph_data.fq_filters == nullptr ? graph_data.conv->input_value(1).get_node_shared_ptr()
                                          : graph_data.fq_filters->input_value(0).get_node_shared_ptr());
-    if (filter_values == nullptr) {
-        THROW_GNA_EXCEPTION << "Cannot cast to Constant";
-    }
-
     bool vertical_permute = (conv_data.filter_height > 1);
     bool horizontal_permute = (conv_data.filter_dilation_width > 1);
     std::vector<std::shared_ptr<ngraph::Node>> h_1_filters{};
