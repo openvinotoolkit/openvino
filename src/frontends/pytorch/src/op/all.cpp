@@ -14,11 +14,9 @@ OutputVector translate_all(const NodeContext& context) {
     num_inputs_check(context, 1, 3);
     const auto input_tensor = context.get_input(0);
 
-    element::Type output_dtype;
+    element::Type output_dtype = element::boolean;
     if (input_tensor.get_element_type() == element::u8) {
         output_dtype = element::u8;
-    } else {
-        output_dtype = element::boolean;
     }
 
     bool keep_dims;
