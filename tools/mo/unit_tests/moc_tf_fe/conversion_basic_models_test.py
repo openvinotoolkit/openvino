@@ -272,6 +272,7 @@ class TestMoFreezePlaceholderTFFE(unittest.TestCase):
             ),
         ],
     )
+    @unittest.skip("109220: Use generating script for this test model instead of Git LFS")
     def test_conversion_model_with_non_standard_extension(self, input_freezing_value, inputs, expected,
                                                           dtype):
         self.basic("model_fp32.frozen", input_freezing_value, inputs, dtype, expected, only_conversion=False,
@@ -286,6 +287,7 @@ class TestMoFreezePlaceholderTFFE(unittest.TestCase):
                        only_conversion=True, input_model_is_text=False, use_new_frontend=True,
                        use_legacy_frontend=False)
 
+    @unittest.skip("109220: Make TF FE to return the error")
     def test_conversion_dir_model(self):
         with self.assertRaisesRegex(Exception,
                                     "Internal error or inconsistent input model: the frontend supports "
