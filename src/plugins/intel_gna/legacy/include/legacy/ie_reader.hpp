@@ -53,7 +53,7 @@ public:
     virtual std::vector<std::string> getDataFileExtensions() const = 0;
 
 protected:
-    ~IReader() = default;
+    virtual ~IReader() = default;
 };
 
 /**
