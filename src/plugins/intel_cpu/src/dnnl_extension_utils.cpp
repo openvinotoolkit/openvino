@@ -75,7 +75,7 @@ InferenceEngine::Precision DnnlExtensionUtils::DataTypeToIEPrecision(memory::dat
         case memory::data_type::bin:
             return InferenceEngine::Precision::BIN;
         case memory::data_type::undef:
-            return InferenceEngine::Precision::STRING;
+            return InferenceEngine::Precision::UNSPECIFIED; // TODO: How about reverse conversion of Precision::STRING?
         default: {
             IE_THROW() << "Unsupported data type.";
         }

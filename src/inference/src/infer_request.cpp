@@ -159,7 +159,9 @@ void InferRequest::set_output_tensor(const Tensor& tensor) {
 
 Tensor InferRequest::get_tensor(const ov::Output<const ov::Node>& port) {
     std::vector<std::shared_ptr<void>> soVec;
-    static Tensor string_tensor = Tensor(element::string, Shape{0});
+    // FIXME: Provide adequate solution for that at the level of a plugin itself
+    // FIXME: static variable!!!
+    static std::map<std::string, Tensor> string_tensors;
     OV_INFER_REQ_CALL_STATEMENT({
         OPENVINO_ASSERT(_impl->get_tensors(port).empty(),
                         "get_tensor shall not be used together with batched "
@@ -169,12 +171,17 @@ Tensor InferRequest::get_tensor(const ov::Output<const ov::Node>& port) {
         auto tensor = _impl->get_tensor(port);
         tensor._so.emplace_back(_so);
         // FIXME: Rude hack to replace u8 tensor for a plug side with a string tensor for user side
-        // Hardcoded: name of the parameter, exists only one tensor per process (static var)
-        if (port.get_node_shared_ptr()->get_friendly_name() == "sentence") {
-            std::cerr << "Hacking string tensor\n";
-            *reinterpret_cast<Tensor**>(tensor.data<uint8_t>()) = &string_tensor;
-            std::cerr << &string_tensor << "\n";
-            tensor = {string_tensor._impl, soVec};
+        // Hardcoded: should be in sync with name prefixes injected in the pre-processing transformation called in the beginning of compile_model
+        if (port.get_names().end() != std::find_if(port.get_names().begin(), port.get_names().end(), [](const std::string& name) {return name.find("__overriden_string_port_prefix__") == 0; })) {
+            std::cerr << "Hacking string tensor in the infer_request, tensor name: " << port.get_any_name() << "\n";
+            // Assume get_any_name is deterministic within one process
+            if(string_tensors.count(port.get_any_name()) == 0) {
+                string_tensors[port.get_any_name()] = Tensor(element::string, Shape{0});
+            }
+            auto string_tensor = &string_tensors[port.get_any_name()];
+            *reinterpret_cast<Tensor**>(tensor.data<uint8_t>()) = string_tensor;
+            std::cerr << string_tensor << "\n";
+            tensor = {string_tensor->_impl, soVec};
         }
         return tensor;
     });

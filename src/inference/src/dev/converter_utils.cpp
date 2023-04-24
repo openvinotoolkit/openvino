@@ -139,7 +139,7 @@ InferenceEngine::CNNNetwork ov::legacy_convert::convert_model(const std::shared_
     auto cloned = model->clone();
 
     {
-        int model;  // to stop improper usage
+        int model;  // hide this name to avoid accidental access
         std::cerr << "model->get_parameters().size() = " << cloned->get_parameters().size() << "\n";
 
         for (size_t i = 0; i < cloned->get_parameters().size(); ++i) {
@@ -148,12 +148,21 @@ InferenceEngine::CNNNetwork ov::legacy_convert::convert_model(const std::shared_
             //std::cerr << "name before: " << tensor.get_any_name() << "\n";
             //tensor.set_names({tensor.get_any_name() + "/postfix"});
             //std::cerr << "name after: " << tensor.get_any_name() << "\n";
-            std::cerr << "name before: " << cloned->get_parameters()[i]->get_friendly_name() << "\n";
-            //model->get_parameters()[i]->set_friendly_name(model->get_parameters()[i]->get_friendly_name() + "/postfix");
-            std::cerr << "name after: " << cloned->get_parameters()[i]->get_friendly_name() << "\n";
-            cloned->get_parameters()[i]->get_rt_info()["original_partial_shape"] = cloned->get_parameters()[i]->get_partial_shape();
-            cloned->get_parameters()[i]->set_element_type(element::u8);
-            cloned->get_parameters()[i]->set_partial_shape(PartialShape{sizeof(void*)});
+            auto parameter = cloned->get_parameters()[i];
+            if(parameter->get_element_type() == element::string) {
+                std::cerr << "Detected parameter with name " << parameter->output(0).get_any_name() << " with string type\n";
+                parameter->get_rt_info()["original_partial_shape"] = parameter->get_partial_shape();
+                parameter->set_element_type(element::u8);
+                parameter->set_partial_shape(PartialShape{sizeof(void*)});
+
+                // Add a new tensor name to recognize this changed parameter in the infer_request
+                auto& tensor = parameter->get_output_tensor(0);
+                std::string name = tensor.get_any_name();
+                name = "__overriden_string_port_prefix__" + name;
+                tensor.add_names({name});
+
+                std::cerr << "Patched a parameter of type element::string with new name " << name << "\n";
+            }
         }
     }
 

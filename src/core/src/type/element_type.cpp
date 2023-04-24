@@ -169,7 +169,7 @@ ov::element::Type::Type(size_t bitwidth,
         {ov::element::Type_t::u16, {16, false, false, false, "uint16_t", "u16"}},
         {ov::element::Type_t::u32, {32, false, false, false, "uint32_t", "u32"}},
         {ov::element::Type_t::u64, {64, false, false, false, "uint64_t", "u64"}},
-        {ov::element::Type_t::u64, {8*sizeof(std::string), false, false, false, "string", "string"}},
+        {ov::element::Type_t::string, {8*sizeof(std::string), false, false, false, "string", "string"}},
     };
     for (const auto& t : elements_map) {
         const TypeInfo& info = t.second;
@@ -297,7 +297,7 @@ Type fundamental_type_for(const Type& type) {
     case Type_t::u64:
         return from<element_type_traits<Type_t::u64>::value_type>();
     case Type_t::string:
-        return from<element_type_traits<Type_t::u64>::value_type>();
+        return from<element_type_traits<Type_t::string>::value_type>();
     default:
         OPENVINO_THROW("Unsupported Data type: ", type);
     }

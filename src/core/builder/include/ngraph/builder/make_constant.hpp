@@ -88,6 +88,7 @@ std::shared_ptr<Node> make_constant(const element::Type& type, const Shape& shap
         val = std::make_shared<ngraph::op::Constant>(type,
                                                      ngraph::Shape{},
                                                      std::vector<std::string>{static_cast<uint8_t>(num)});
+        break;
     case element::Type_t::dynamic:
         unsupported_data_type = "dynamic";
         break;
