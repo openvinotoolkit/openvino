@@ -1,11 +1,21 @@
 # AvgPoolPrecisionPreserved Attribute {#openvino_docs_OV_UG_lpt_AvgPoolPrecisionPreserved}
 
-ngraph::AvgPoolPrecisionPreservedAttribute class represents the `AvgPoolPrecisionPreserved` attribute.
+@sphinxdirective
 
-Utility attribute, which is used only during `AvgPool` operation, precision preserved property definition. 
+:ref:`ngraph::AvgPoolPrecisionPreservedAttribute <doxid-classngraph_1_1_avg_pool_precision_preserved_attribute>` class represents the ``AvgPoolPrecisionPreserved`` attribute.
 
-| Property name | Values                                       |
-|---------------|----------------------------------------------|
-| Required      | Yes                                          |
-| Defined       | Operation                                    |
-| Properties    | value (boolean)                              |
+Utility attribute, which is used only during ``AvgPool`` operation, precision preserved property definition. 
+
+.. list-table::
+    :header-rows: 1
+
+    * - Property name
+      - Values
+    * - Required
+      - Yes
+    * - Defined
+      - Operation
+    * - Properties
+      - value (boolean)
+
+@endsphinxdirective

@@ -26,7 +26,7 @@ For details on how plugins handle compressed ``FP16`` models, see
 
 .. note::
 
-   Some large models (larger than a few Gb) when compressed to ``FP16`` may consume enormous amount of RAM on the loading
+   Some large models (larger than a few GB) when compressed to ``FP16`` may consume enormous amount of RAM on the loading
    phase of the inference. In case if you are facing such problems, please try to convert them without compression: 
    `mo --input_model INPUT_MODEL --compress_to_fp16=False`
 
