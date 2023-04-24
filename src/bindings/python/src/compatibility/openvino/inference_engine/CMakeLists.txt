@@ -50,9 +50,9 @@ foreach(PYX_FILE IN LISTS PYX_SOURCES)
     set_target_properties(${PYX_NAME} PROPERTIES INTERPROCEDURAL_OPTIMIZATION_RELEASE ${ENABLE_LTO})
 endforeach()
 
-if(COMMAND ie_add_vs_version_file)
+if(COMMAND ov_add_vs_version_file)
     foreach(target IN LISTS INSTALLED_TARGETS)
-        ie_add_vs_version_file(NAME ${target}
+        ov_add_vs_version_file(NAME ${target}
                                FILEDESCRIPTION "Inference Engine Python library")
     endforeach()
 endif()
