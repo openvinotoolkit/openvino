@@ -16,7 +16,10 @@
 
 .. math::
 
-	PReLU(x) = \left\{\begin{array}{r} x \quad \mbox{if } x \geq 0 \\ \alpha x \quad \mbox{if } x < 0 \end{array}\right.
+   \text{PReLU}(x) = \begin{cases}
+   x & \text{if } x \geq 0 \\
+   \alpha x & \text{if } x < 0
+   \end{cases}
 
 where α is a learnable parameter and corresponds to the negative slope, defined by the second input ``slope``.
 

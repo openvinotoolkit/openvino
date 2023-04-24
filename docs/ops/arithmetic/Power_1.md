@@ -14,7 +14,7 @@ As a first step input tensors *a* and *b* are broadcasted if their shapes differ
 
 .. math::
 
-	o_{i} = {a_{i} ^ b_{i}}
+    o_i = a_i^{b_i}
 
 **Attributes**:
 

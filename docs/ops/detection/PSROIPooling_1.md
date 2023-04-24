@@ -39,6 +39,7 @@ ROIs coordinates are specified in absolute values for the average mode and in no
   * **Required**: *yes*
 
 * *mode*
+
   * **Description**: *mode* specifies mode for pooling.
   * **Range of values**:
 
@@ -49,6 +50,7 @@ ROIs coordinates are specified in absolute values for the average mode and in no
   * **Required**: *no*
 
 * *spatial_bins_x*
+
   * **Description**: *spatial_bins_x* specifies numbers of bins to divide the input feature maps over width. Used for "bilinear" mode only.
   * **Range of values**: a positive integer
   * **Type**: ``int``
@@ -56,6 +58,7 @@ ROIs coordinates are specified in absolute values for the average mode and in no
   * **Required**: *no*
 
 * *spatial_bins_y*
+
   * **Description**: *spatial_bins_y* specifies numbers of bins to divide the input feature maps over height.  Used for "bilinear" mode only.
   * **Range of values**: a positive integer
   * **Type**: ``int``
