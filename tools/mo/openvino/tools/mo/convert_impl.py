@@ -9,6 +9,7 @@ import platform
 import sys
 from collections import OrderedDict
 from copy import deepcopy
+from distutils.version import LooseVersion
 from pathlib import Path
 
 try:
@@ -41,7 +42,7 @@ from openvino.tools.mo.utils.guess_framework import deduce_legacy_frontend_by_na
 from openvino.tools.mo.utils.logger import init_logger, progress_printer
 from openvino.tools.mo.utils.utils import refer_to_faq_msg
 from openvino.tools.mo.utils.telemetry_utils import send_params_info, send_framework_info
-from openvino.tools.mo.utils.versions_checker import check_requirements  # pylint: disable=no-name-in-module
+from openvino.tools.mo.utils.versions_checker import check_requirements, get_environment_setup  # pylint: disable=no-name-in-module
 from openvino.tools.mo.utils.telemetry_utils import get_tid
 from openvino.tools.mo.moc_frontend.check_config import legacy_extensions_used
 from openvino.tools.mo.moc_frontend.pytorch_frontend_utils import get_pytorch_decoder, convert_pytorch_via_onnx
@@ -518,6 +519,7 @@ def check_model_object(argv):
     if 'tensorflow' in sys.modules:
         import tensorflow as tf
         from tensorflow.python.training.tracking.base import Trackable
+        env_setup = get_environment_setup("tf")
 
         if isinstance(model, tf.compat.v1.GraphDef):
             return "tf"
@@ -527,10 +529,10 @@ def check_model_object(argv):
         if isinstance(model, tf.compat.v1.Session):
             argv['input_model'] = model.graph_def
             return "tf"
-        if isinstance(model, tf.types.experimental.ConcreteFunction):
+        if env_setup["tensorflow"] >= LooseVersion("2.6.0") and isinstance(model, tf.types.experimental.ConcreteFunction):
             argv['input_model'] = model.graph.as_graph_def()
             return "tf"
-        if isinstance(model, tf.types.experimental.GenericFunction):
+        if env_setup["tensorflow"] >= LooseVersion("2.6.0") and isinstance(model, tf.types.experimental.GenericFunction):
             argv['input_model'] = model
             return "tf"
         if isinstance(model, tf.keras.Model):

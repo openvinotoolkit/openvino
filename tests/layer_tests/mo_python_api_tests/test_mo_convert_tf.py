@@ -1,12 +1,14 @@
 # Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-import numpy as np
-import pytest
-from common.mo_convert_test_class import CommonMOConvertTest
+import unittest
 
+import numpy as np
 import openvino.runtime as ov
+import pytest
 from openvino.runtime import PartialShape, Model, Dimension
+
+from common.mo_convert_test_class import CommonMOConvertTest
 
 
 def create_tf_graph_def(tmp_dir):
@@ -408,3 +410,21 @@ class TestMoConvertTF(CommonMOConvertTest):
 
         test_params = {'input_model': saved_model_dir, 'use_new_frontend': False}
         self._test_by_ref_graph(temp_dir, test_params, graph_ref, compare_tensor_names=False)
+
+
+class TFConvertTest(unittest.TestCase):
+    @pytest.mark.nightly
+    @pytest.mark.precommit
+    def test_tf_function_no_signature(self):
+        import tensorflow as tf
+        from openvino.tools.mo import convert_model
+
+        @tf.function()
+        def function(x1, x2):
+            y = tf.nn.sigmoid(tf.nn.relu(x1 + x2))
+            return y
+
+        # Check that ONNX conversion passed, so ONNX frontend raises error message of unsupported op.
+        with self.assertRaisesRegex(AssertionError,
+                                    ".*'input_signature' needs to be set for model conversion.*"):
+            convert_model(function)
