@@ -452,7 +452,7 @@ AutoBatchExecutableNetwork::AutoBatchExecutableNetwork(
 
 AutoBatchExecutableNetwork::~AutoBatchExecutableNetwork() {
     _terminate = true;
-    for (auto w : _workerRequests) {
+    for (const auto& w : _workerRequests) {
         w->_thread.join();
     }
     _workerRequests.clear();
@@ -698,7 +698,7 @@ DeviceInformation AutoBatchInferencePlugin::ParseMetaDevice(
     metaDevice.config = GetCore()->GetSupportedConfig(metaDevice.deviceName, user_config);
 
     // check that no irrelevant config-keys left
-    for (auto k : user_config) {
+    for (const auto& k : user_config) {
         const auto& name = k.first;
         if (metaDevice.config.find(name) == metaDevice.config.end() &&
             !ov::util::contains(supported_configKeys, name)) {
@@ -916,7 +916,7 @@ InferenceEngine::IExecutableNetworkInternal::Ptr AutoBatchInferencePlugin::LoadN
         // TODO: use the per-network metric (22.2) rather than plugin-level
         auto stats =
             pCore->GetMetric(device, ov::intel_gpu::memory_statistics.name()).as<std::map<std::string, uint64_t>>();
-        for (auto s : stats)
+        for (const auto& s : stats)
             footprint += s.second;
         return footprint;
     };
@@ -939,7 +939,7 @@ InferenceEngine::IExecutableNetworkInternal::Ptr AutoBatchInferencePlugin::LoadN
     }
     // auto-batch settings
     std::unordered_map<std::string, InferenceEngine::Parameter> networkConfig;
-    for (auto c : fullConfig) {
+    for (const auto& c : fullConfig) {
         if (supported_configKeys.end() != std::find(supported_configKeys.begin(), supported_configKeys.end(), c.first))
             networkConfig.insert(c);
     }
@@ -981,7 +981,7 @@ InferenceEngine::QueryNetworkResult AutoBatchInferencePlugin::QueryNetwork(
     if (!core)
         return InferenceEngine::QueryNetworkResult();
     auto cfg = user_config;
-    for (auto c : cfg) {
+    for (const auto& c : cfg) {
         if (c.first == CONFIG_KEY(AUTO_BATCH_DEVICE_CONFIG) || c.first == ov::device::priorities.name()) {
             auto val = c.second;
             cfg.erase(c.first);
