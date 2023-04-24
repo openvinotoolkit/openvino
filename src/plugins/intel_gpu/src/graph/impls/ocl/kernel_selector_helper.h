@@ -147,14 +147,15 @@ inline params_t get_default_params(const kernel_impl_params& param_info, bool is
             OPENVINO_ASSERT(desc.op_params != nullptr, "[GPU] Invalid fused operation (", param_info.desc->id , ") of type ", param_info.desc->type_string());
 
 
-            desc.dep_idx_start = fused_prim.dep_start_idx;
+            desc.dep_idx_start = fused_prim.outer_dep_start_idx;
             desc.dep_size = fused_prim.deps.size();
             desc.op_id = op_id++;
             desc.output_tensor = convert_data_tensor(fused_prim.output_layout);
             prim_id_type_map[fused_prim.desc->id] = std::make_pair(desc.op_id, desc.output_tensor.GetDType());
-
-            for (size_t i = desc.dep_idx_start; i < desc.dep_idx_start + desc.dep_size; i++) {
-                desc.tensors.push_back(convert_data_tensor(param_info.get_input_layout(i)));
+            if (fused_prim.has_outer_dep()) {
+                for (size_t i = desc.dep_idx_start; i < desc.dep_idx_start + desc.dep_size; i++) {
+                    desc.tensors.push_back(convert_data_tensor(param_info.get_input_layout(i)));
+                }
             }
 
             if (fused_prim.total_num_deps > 0) {
@@ -334,7 +335,7 @@ inline kernel_impl_params canonicalize_fused_shapes(const kernel_impl_params& im
         if (fd.is_type<eltwise>() && fd.total_num_deps == 2) {
             auto out_pshape = updated_impl_params.output_layouts[0].get_partial_shape();
 
-            auto& dep_layout = updated_impl_params.input_layouts[fd.dep_start_idx];
+            auto& dep_layout = updated_impl_params.input_layouts[fd.outer_dep_start_idx];
             auto dep_shape = dep_layout.get_partial_shape();
 
             if (!broadcastable(dep_shape, out_pshape, use_new_shape_infer)) {

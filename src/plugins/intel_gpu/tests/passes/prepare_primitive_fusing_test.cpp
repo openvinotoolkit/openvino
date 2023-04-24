@@ -13,6 +13,7 @@
 #include "reduce_inst.h"
 #include "reshape_inst.h"
 #include "gemm_inst.h"
+#include "convolution_inst.h"
 #include "pass_manager.h"
 #include "to_string_utils.h"
 
@@ -439,4 +440,74 @@ TEST(prepare_primitive_fusing, dont_remove_only_dep_reshape) {
 
     ASSERT_NE(prog, nullptr);
     ASSERT_TRUE(has_node(*prog, "reshape2"));
+}
+
+TEST(prepare_primitive_fusing, eltwise_fusing_residual_connection_taylor) {
+    // Extended eltwise fusing pattern
+    //   in    w
+    //     \  /
+    //     conv   elt1_in1
+    //     |  \    /
+    //     |   elt1
+    //     |    |
+    //     |   act
+    //     |  /
+    //     elt2
+    //     |
+    //    reorder
+    auto& engine = get_test_engine();
+    topology topology;
+    auto conv_in_layout = layout{ ov::PartialShape{1, 3, -1, -1}, data_types::f16, format::bfyx};
+    auto weight_layout = layout{ ov::PartialShape{10, 3, 3, 3}, data_types::f16, format::bfyx};
+    auto weight_mem = engine.allocate_memory(weight_layout);
+    auto weight_data = generate_random_4d<FLOAT16>(10, 3, 3, 3, -1, 1);
+    set_values(weight_mem, weight_data);
+    auto elt1_in1_layout = layout{ ov::PartialShape{1, 10, -1, -1}, data_types::f16, format::bfyx};
+
+    topology.add(data("weights", weight_mem));
+    topology.add(input_layout("conv_input", conv_in_layout));
+    topology.add(input_layout("elt1_input", elt1_in1_layout));
+    topology.add(convolution("conv", input_info("conv_input"), { "weights" }));
+    topology.add(eltwise("eltw1", { input_info("conv"), input_info("elt1_input") }, eltwise_mode::prod));
+    topology.add(activation("act", input_info("eltw1"), activation_func::erf));
+    topology.add(eltwise("elt2", { input_info("conv"), input_info("act") }, eltwise_mode::prod));
+    topology.add(reorder("reorder", input_info("elt2"), format::bfyx, data_types::f32));
+
+    ExecutionConfig config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::optimize_data(true));
+    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+    auto prog = program::build_program(engine, topology, config, false, true);
+
+    layout_optimizer lo(true);
+
+    program_wrapper::apply_opt_pass<prepare_primitive_fusing>(*prog, lo);
+    ASSERT_NE(prog, nullptr);
+    ASSERT_FALSE(has_node_with_type<eltwise>(*prog));
+
+    cldnn::network net(prog, 0);
+
+    // Valid
+    auto conv_input_data = generate_random_4d<FLOAT16>(1, 3, 7, 7, -1, 1);
+    auto conv_input_mem = engine.allocate_memory(layout{ov::PartialShape{1, 3, 7, 7}, data_types::f16, format::bfyx});
+    set_values(conv_input_mem, conv_input_data);
+
+    auto elt_input_data = generate_random_4d<FLOAT16>(1, 10, 5, 5, -10, 10);
+    auto elt_input_mem = engine.allocate_memory(layout{ov::PartialShape{1, 10, 5, 5}, data_types::f16, format::bfyx});
+    set_values(elt_input_mem, elt_input_data);
+
+    net.set_input_data("conv_input", conv_input_mem);
+    net.set_input_data("elt1_input", elt_input_mem);
+
+    net.execute();
+    const auto& conv_inst = net.get_primitive("conv");
+    ASSERT_FALSE(conv_inst->has_unfused_subgraph());
+
+    // Invalid => unfusion
+    auto conv_input_data2 = generate_random_4d<FLOAT16>(1, 3, 3, 3, -1, 1);
+    auto conv_input_mem2 = engine.allocate_memory(layout{ov::PartialShape{1, 3, 3, 3}, data_types::f16, format::bfyx});
+    set_values(conv_input_mem2, conv_input_data2);
+    net.set_input_data("conv_input", conv_input_mem2);
+    net.set_input_data("elt1_input", elt_input_mem);
+    net.execute();
+    ASSERT_TRUE(conv_inst->has_unfused_subgraph());
 }
