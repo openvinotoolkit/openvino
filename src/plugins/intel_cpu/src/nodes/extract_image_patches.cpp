@@ -25,7 +25,7 @@ using namespace Xbyak;
 namespace ov {
 namespace intel_cpu {
 namespace node {
-
+#if defined(OPENVINO_ARCH_X86_64)
 #define GET_OFF(field) offsetof(jit_extract_image_patches_args, field)
 
 template <cpu_isa_t isa>
@@ -270,6 +270,7 @@ private:
             dd(i * jpp.SW * jpp.dtype_size);
     }
 };
+#endif // OPENVINO_ARCH_X86_64
 
 bool ExtractImagePatches::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept {
     try {
@@ -440,8 +441,8 @@ void ExtractImagePatches::ExtractImagePatchesRefExecutor::executeReference(
     const std::vector<size_t> ostrides_partial = { ostrides[0], jpp.KW * IC * ostrides[1], IC * ostrides[1], ostrides[1] };
 
     parallel_for4d(OB, jpp.KH, jpp.KW, IC, [&](const size_t ob, const size_t kh, const size_t kw, const size_t ic) {
-        const int64_t iw_start = kw * RW - PL;
-        const int64_t ih_start = kh * RH - PT;
+        const int64_t iw_start = static_cast<int64_t>(kw * RW) - PL;
+        const int64_t ih_start = static_cast<int64_t>(kh * RH) - PT;
         const size_t ih_lpad = ih_start >= 0 ? 0 : std::ceil(-1.f * ih_start / jpp.SH);
         const size_t iw_lpad = iw_start >= 0 ? 0 : std::ceil(-1.f * iw_start / jpp.SW);
 
@@ -481,6 +482,7 @@ void ExtractImagePatches::ExtractImagePatchesRefExecutor::executeReference(
 
 void ExtractImagePatches::ExtractImagePatchesJitExecutor::executeOptimizedGeneric(
     void* src, void* dst, const VectorDims& istrides, const VectorDims& ostrides) const {
+#if defined(OPENVINO_ARCH_X86_64)
     const char* src_data = reinterpret_cast<const char*>(src);
     char* dst_data = reinterpret_cast<char*>(dst);
     const auto& jpp = pKernel->jpp;
@@ -507,6 +509,7 @@ void ExtractImagePatches::ExtractImagePatchesJitExecutor::executeOptimizedGeneri
         args.w_hi_pad = iw_hpad;
         (*pKernel)(&args);
     });
+#endif // OPENVINO_ARCH_X86_64
 }
 
 jit_extract_image_patches_params ExtractImagePatches::ExtractImagePatchesExecutor::fillJpp(
@@ -585,6 +588,7 @@ ExtractImagePatches::ExtractImagePatchesJitExecutor::ExtractImagePatchesJitExecu
     const VectorDims& rates,
     const ExtImgPatcherPadType& padType,
     const size_t prcSize) {
+#if defined(OPENVINO_ARCH_X86_64)
     auto jpp = fillJpp(inDims, outDims, kSizes, strides, rates, padType, prcSize);
     if (mayiuse(x64::avx512_core)) {
         pKernel.reset(new jit_extract_image_patches_kernel<x64::avx512_core>(jpp));
@@ -598,6 +602,7 @@ ExtractImagePatches::ExtractImagePatchesJitExecutor::ExtractImagePatchesJitExecu
 
     if (pKernel)
         pKernel->create_ker();
+#endif // OPENVINO_ARCH_X86_64
 }
 
 void ExtractImagePatches::ExtractImagePatchesJitExecutor::exec(

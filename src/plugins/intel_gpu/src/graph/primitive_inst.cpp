@@ -32,6 +32,10 @@
 #include <memory>
 #include <algorithm>
 
+#ifdef ENABLE_ONEDNN_FOR_GPU
+#include <impls/onednn/utils.hpp>
+#endif
+
 namespace cldnn {
 namespace {
 
@@ -179,6 +183,10 @@ void primitive_inst::update_shape() {
     if (input_shape_changed)
         set_shape_change();
 
+    // We assume that tensor ranks are static, thus shape_of doesn't need to update anything even if input shape is dynamic
+    if (_node->is_type<shape_of>() && !input_shape_changed)
+        return;
+
     // Even though the predecessors' shapes are not changed, the output shape might be udpated by the mem_dep
     auto memory_deps = _node->get_const_memory_deps();
     for (auto& i : _node->get_shape_infer_dependencies()) {
@@ -187,10 +195,6 @@ void primitive_inst::update_shape() {
         }
         input_shape_changed = true;
     }
-
-    // We assume that tensor ranks are static, thus shape_of doesn't need to update anything even if input shape is dynamic
-    if (_node->is_type<shape_of>() && !input_shape_changed)
-        return;
 
     if (!input_shape_changed && !_node->generates_dynamic_output() && _impl_params->get_output_layout().is_static())
         return;
@@ -596,7 +600,7 @@ primitive_inst::primitive_inst(network& network, program_node const& node, bool 
     , _inputs_memory_count(node.get_primitive()->input_size())
     , _outputs_memory_count(node.get_primitive()->output_size())
     , _fused_mem_count(node.get_fused_inputs_count())
-    , _fused_mem_offset(_fused_mem_count > 0 ? node.get_fused_primitives()[0].dep_start_idx : 0)
+    , _fused_mem_offset((_fused_mem_count > 0 && node.has_fused_dep()) ? node.get_first_fused_dep_idx() : 0)
     , _can_be_optimized(node.can_be_optimized())
     , _can_share_buffer(node.can_share_buffer())
     , _is_constant(node.is_constant()) {
@@ -706,6 +710,8 @@ void primitive_inst::allocate_internal_buffers(void) {
     // allocate intermediate memory for the updated layout of buffer
     std::vector<memory::cptr> intermediates_memory;
     for (size_t i = 0; i < ibuf_layouts.size(); ++i) {
+        if (ibuf_layouts[i].get_linear_size() == 0)
+            continue;
         intermediates_memory.push_back(allocate_internal_buffer(i));
         max_intermediates_memory_sizes.push_back(intermediates_memory[i]->size());
     }
@@ -873,7 +879,8 @@ memory::ptr primitive_inst::allocate_output(engine& _engine, memory_pool& pool, 
     // Also if the successor of a node is an cpu, then memory needs to be lockable.
     bool is_cpu = _node.get_selected_impl() ? _node.get_selected_impl()->is_cpu() : false;
     auto use_lockable_memory = is_output_buffer(_node) || is_cpu || is_any_user_cpu(_node.get_users()) ||
-                               !_engine.supports_allocation(allocation_type::usm_device);
+                               !_engine.supports_allocation(allocation_type::usm_device) ||
+                               (_node.is_shape_infer_dep() && _engine.get_device_info().dev_type == device_type::integrated_gpu);
     const auto& lockable_mem_type = _engine.get_lockable_preferred_memory_allocation_type(layout.format.is_image_2d());
 
     auto alloc_type = use_lockable_memory ? lockable_mem_type
@@ -964,7 +971,7 @@ cldnn::network::ptr primitive_inst::get_unfused_subgraph() {
     if (!_unfused_subgraph) {
         topology t;
 
-        std::vector<primitive_id> dep_ids;
+        std::vector<primitive_id> outer_dep_ids;
         // Add input primitives: constants are moved as is
         // Any other primitive types are replaced with input_layout
         for (auto& dep : _node->get_dependencies()) {
@@ -978,12 +985,12 @@ cldnn::network::ptr primitive_inst::get_unfused_subgraph() {
                 input_layout in_prim(dep.first->id(), dep.first->get_output_layout());
                 t.add(in_prim);
             }
-            dep_ids.push_back(dep.first->id());
+            outer_dep_ids.push_back(dep.first->id());
         }
 
         // Create the primitive itself
         t.add_primitive(std::const_pointer_cast<primitive>(_node->get_primitive()));
-        dep_ids.push_back(_node->id());
+        outer_dep_ids.push_back(_node->id());
 
         // Add primitives for fused-ops
         for (auto& fd : _impl_params->fused_desc) {
@@ -1001,25 +1008,26 @@ cldnn::network::ptr primitive_inst::get_unfused_subgraph() {
                 // And when we construct unfused subgraph for prim2, we take original eltwise2 primitive which expects eltwise1 primitive as input
                 // which doesn't exist anymore in the graph
                 // Thus we update dependency name used dependencies idx stored in fused descriptor.
-                if (std::find_if(dep_ids.begin(), dep_ids.end(),
-                                 [&](const primitive_id& pid) {
-                                     return pid == in.pid;
-                                 }) == dep_ids.end()) {
-                    size_t dep_id = fd.dep_start_idx;
-                    in = _node->get_dependency(dep_id).id();
+                if (fd.has_outer_dep()) {
+                    if (std::find_if(outer_dep_ids.begin(), outer_dep_ids.end(), [&](const primitive_id& pid) {
+                            return pid == in.pid;
+                        }) == outer_dep_ids.end()) {
+                        size_t dep_id = fd.outer_dep_start_idx;
+                        in = _node->get_dependency(dep_id).id();
+                    }
                 }
             }
             t.add_primitive(prim);
-            dep_ids.push_back(prim->id);
+            outer_dep_ids.push_back(prim->id);
         }
         // Samely, need to update dependency of the current fused nodes' input primitive ids with those in the current program
         auto prim_of_fused_node = std::const_pointer_cast<primitive>(_impl_params->desc);
         for (size_t i = 0; i < prim_of_fused_node->input.size(); ++i) {
             auto& in = prim_of_fused_node->input[i];
-            if (std::find_if(dep_ids.begin(), dep_ids.end(),
+            if (std::find_if(outer_dep_ids.begin(), outer_dep_ids.end(),
                              [&](const primitive_id& pid) {
                                  return pid == in.pid;
-                             }) == dep_ids.end()) {
+                             }) == outer_dep_ids.end()) {
                 in = _node->get_dependency(i).id();
             }
         }
@@ -1041,11 +1049,12 @@ bool primitive_inst::is_valid_fusion() const {
     auto fuse_descriptors = _impl_params->fused_desc;
     if (fuse_descriptors.empty())
         return true;
-
     std::vector<fused_primitive_desc> fused_eltwise_prims;
     for (auto& fd : fuse_descriptors) {
-        if (fd.is_type<eltwise>()) {
+        if (fd.is_type<eltwise>() || fd.is_type<activation>()) {
             fused_eltwise_prims.push_back(fd);
+        } else {
+            OPENVINO_ASSERT("[GPU] Unsupported fused operation in dynamic shape : ", fd.desc->id);
         }
     }
 
@@ -1054,14 +1063,39 @@ bool primitive_inst::is_valid_fusion() const {
 
     auto out_pshape = _impl_params->get_output_layout().get_partial_shape();
     for (auto& fd : fused_eltwise_prims) {
-        auto dep_idx = fd.dep_start_idx;
-        OPENVINO_ASSERT(fd.total_num_deps == 2, "[GPU] Unexpected count of dependencies in dynamic fusion for eltwise");
-        OPENVINO_ASSERT(_deps.size() > dep_idx, "[GPU] Invalid fused dependency idx");
-        auto dep = _deps[dep_idx];
+        auto outer_dep_idx = fd.outer_dep_start_idx;
+        if (outer_dep_idx < 0) // no outer dep
+            continue;
+        OPENVINO_ASSERT(fd.total_num_deps == 2, "[GPU] Unexpected count of dependencies in dynamic fusion for eltwise or activation");
+        OPENVINO_ASSERT(outer_dep_idx < 0 || static_cast<int32_t>(_deps.size()) > outer_dep_idx, "[GPU] Invalid fused dependency idx");
+        auto outer_dep = _deps[outer_dep_idx];
 
-        auto dep_pshape = dep.first->_impl_params->get_output_layout().get_partial_shape();
+        auto outer_dep_pshape = outer_dep.first->_impl_params->get_output_layout().get_partial_shape();
         auto merged_shape = out_pshape;
-        auto can_broadcast = ov::PartialShape::broadcast_merge_into(merged_shape, dep_pshape, fd.typed_desc<eltwise>()->broadcast_spec);
+        auto can_broadcast = ov::PartialShape::broadcast_merge_into(merged_shape, outer_dep_pshape, fd.typed_desc<eltwise>()->broadcast_spec);
+
+#ifdef ENABLE_ONEDNN_FOR_GPU
+        // WA for OneDNN binary add fusions: we need to broadcast batch dimension to avoid situation with
+        // batch dimension mismatch in OneDNN tensor descriptors as follow:
+        // * Gemm output shape: (b,f,y,x) -> OneDNN shape: (b*f,y,x)
+        // * Gemm fused op shape: (1,f,y,x) -> OneDNN shape: (1*f,y,x)
+        // If batch dimension of gemm output is not equal to 1, then OneDNN will not be able to broadcast fused op data
+        // correctly and we need to do it manually
+        if (_node->is_type<gemm>() && _node->get_preferred_impl_type() == impl_types::onednn) {
+            auto gemm_layout = _impl_params->get_output_layout();
+            auto data_layout = outer_dep.first->_impl_params->get_output_layout();
+            auto gemm_dims = onednn::convert_gemm_tensor(gemm_layout.get_tensor(),
+                                                         cldnn::format::dimension(gemm_layout.format),
+                                                         false);
+
+            auto data_dims = onednn::convert_gemm_tensor(data_layout.get_tensor(),
+                                                         cldnn::format::dimension(data_layout.format),
+                                                         false);
+
+            if (gemm_dims[0] != data_dims[0])
+                return false;
+        }
+#endif
 
         // We check that broadcasting of extra input is possible and it doesn't change output shape. If it output shape is changed, then
         // some dimension of dep_pshape is greater than out_pshape

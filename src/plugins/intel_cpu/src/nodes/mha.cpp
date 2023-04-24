@@ -11,10 +11,10 @@
 #include "common/cpu_memcpy.h"
 #include <utils/general_utils.h>
 #include <cpu/x64/jit_generator.hpp>
-#include "emitters/jit_dnnl_emitters.hpp"
-#include "emitters/jit_load_store_emitters.hpp"
+#include "emitters/x64/jit_dnnl_emitters.hpp"
+#include "emitters/x64/jit_load_store_emitters.hpp"
 #include "common/cpu_convert.h"
-#include "ngraph_transformations/op/mha.hpp"
+#include "transformations/cpu_opset/x64/op/mha.hpp"
 #include "dnnl_extension_utils.h"
 #include <ie_ngraph_utils.hpp>
 
@@ -785,8 +785,7 @@ void MHA::initSupportedPrimitiveDescriptors() {
                           {LayoutType::ncsp, Precision::FP32},
                           {LayoutType::ncsp, inputPrecisions[3]}},
                          {{LayoutType::ncsp, getOriginalOutputPrecisionAtPort(0)}},
-                         ref_any,
-                         isDynamicNode());
+                         ref_any);
 }
 
 void MHA::init_brgemm(brgemmCtx& ctx, std::unique_ptr<brgemm_kernel_t>& brgKernel, bool use_amx) {

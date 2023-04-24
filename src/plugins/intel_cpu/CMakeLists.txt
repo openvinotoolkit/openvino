@@ -11,11 +11,13 @@ set(TARGET_NAME "openvino_intel_cpu_plugin")
 if(CMAKE_COMPILER_IS_GNUCXX)
     ie_add_compiler_flags(-Wno-sign-compare)
 elseif(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
-    # C4267, 4244 issues from mkl-dnn headers conversion from 'XXX' to 'YYY', possible loss of data
+    # C4267, 4244 issues from oneDNN headers conversion from 'XXX' to 'YYY', possible loss of data
     ie_add_compiler_flags(/wd4267)
     ie_add_compiler_flags(/wd4244)
     # mkldnn headers: '<<': result of 32-bit shift implicitly converted to 64 bits
     ie_add_compiler_flags(/wd4334)
+    # oneDNN arm64: unary minus operator applied to unsigned type, result still unsigned
+    ie_add_compiler_flags(/wd4146)
 elseif(OV_COMPILER_IS_CLANG)
     ie_add_compiler_flags(-Wno-delete-non-abstract-non-virtual-dtor)
 endif()
@@ -38,13 +40,57 @@ if(ENABLE_TESTS)
     add_subdirectory(tests)
 endif()
 
+add_definitions(-DOV_CPU_WITH_DNNL)
+set(OV_CPU_WITH_DNNL ON)
+
+if(DNNL_AARCH64_USE_ACL)
+    add_definitions(-DOV_CPU_WITH_ACL)
+    set(OV_CPU_WITH_ACL ON)
+endif()
+
+if(OV_CPU_WITH_ACL)
+    set(CMAKE_CXX_STANDARD 14)
+endif()
+
+# remove target specific files from compilation
+
+if (NOT OV_CPU_WITH_ACL)
+    set(EXCLUDE_PATHS ${EXCLUDE_PATHS}
+                      ${CMAKE_CURRENT_SOURCE_DIR}/src/nodes/executors/acl/*)
+endif()
+
+if (NOT X86_64)
+    set(EXCLUDE_PATHS ${EXCLUDE_PATHS}
+                      ${CMAKE_CURRENT_SOURCE_DIR}/src/nodes/executors/x64/*
+                      ${CMAKE_CURRENT_SOURCE_DIR}/src/nodes/kernels/x64/*
+                      ${CMAKE_CURRENT_SOURCE_DIR}/src/emitters/x64/*
+                      ${CMAKE_CURRENT_SOURCE_DIR}/src/transformations/cpu_opset/x64/*
+                      ${CMAKE_CURRENT_SOURCE_DIR}/src/transformations/snippets/x64/*)
+endif()
+
+if (NOT (AARCH64 OR ARM))
+    set(EXCLUDE_PATHS ${EXCLUDE_PATHS}
+                      ${CMAKE_CURRENT_SOURCE_DIR}/src/transformations/cpu_opset/arm/*)
+endif()
+
+file(GLOB_RECURSE FILES_TO_REMOVE ${EXCLUDE_PATHS})
+list(REMOVE_ITEM SOURCES ${FILES_TO_REMOVE})
+list(REMOVE_ITEM HEADERS ${FILES_TO_REMOVE})
+
 # create plugin
 
-ie_add_plugin(NAME ${TARGET_NAME}
+ov_add_plugin(NAME ${TARGET_NAME}
               DEVICE_NAME "CPU"
               AS_EXTENSION
               VERSION_DEFINES_FOR src/plugin.cpp
               SOURCES ${SOURCES} ${HEADERS})
+
+# give a different file name depending on target platform architecture
+if(ARM OR AARCH64)
+    set_target_properties(${TARGET_NAME} PROPERTIES OUTPUT_NAME "openvino_arm_cpu_plugin")
+elseif(RISCV64)
+    set_target_properties(${TARGET_NAME} PROPERTIES OUTPUT_NAME "openvino_riscv_cpu_plugin")
+endif()
 
 set_ie_threading_interface_for(${TARGET_NAME})
 

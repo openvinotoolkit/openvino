@@ -409,7 +409,7 @@ public:
              */
             auto cnt = consumers(node.get());
             if (node.use_count() != cnt + 7) {
-                throw ngraph::ngraph_error("Wrong number of consumers");
+                OPENVINO_THROW("Wrong number of consumers");
             }
 
             NodeVector nodes;
@@ -423,7 +423,7 @@ public:
              */
             for (const auto& input_node : nodes) {
                 if (input_node.use_count() != consumers(input_node.get()) + 1) {
-                    throw ngraph::ngraph_error("Wrong number of consumers");
+                    OPENVINO_THROW("Wrong number of consumers");
                 }
             }
             return false;

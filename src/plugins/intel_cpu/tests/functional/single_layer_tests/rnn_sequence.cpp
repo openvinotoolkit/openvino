@@ -100,6 +100,12 @@ protected:
             selectedType = makeSelectedTypeStr(selectedType, netPrecision);
         }
 
+        if (selectedType.find("BF16") != std::string::npos) {
+            rel_threshold = 5e-2;
+        } else if (selectedType.find("FP32") != std::string::npos) {
+            rel_threshold = 1e-4;
+        }
+
         auto params = ngraph::builder::makeDynamicParams(netPrecision, inputDynamicShapes);
         const size_t batchSize = inputDynamicShapes[0][0].is_static() ? inputDynamicShapes[0][0].get_length() :
             inputDynamicShapes[1][0].is_static() ? inputDynamicShapes[1][0].get_length() :

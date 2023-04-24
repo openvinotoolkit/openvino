@@ -33,16 +33,14 @@ using namespace ov::frontend::tensorflow;
 namespace {
 
 void get_unsupported_operations_and_failures(const std::shared_ptr<Model>& model,
-                                             std::vector<std::string>& unsupported_operations,
+                                             std::set<std::string>& unsupported_operations,
                                              std::unordered_map<std::string, std::string>& failures) {
     for (const auto& node : model->get_ordered_ops()) {
         if (const auto& fw_node = ov::as_type_ptr<FrameworkNode>(node)) {
             auto op_type = fw_node->get_decoder()->get_op_type();
             // if this operation is encountered among unsupported operations
             // or conversion failures, skip it
-            if (failures.count(op_type) > 0 ||
-                std::find(unsupported_operations.begin(), unsupported_operations.end(), op_type) !=
-                    unsupported_operations.end()) {
+            if (failures.count(op_type) > 0 || unsupported_operations.count(op_type) > 0) {
                 continue;
             }
             auto fw_node_attrs = fw_node->get_attrs();
@@ -52,7 +50,7 @@ void get_unsupported_operations_and_failures(const std::shared_ptr<Model>& model
                 failures[op_type] = fw_node_attrs.at(FrameworkNode::failed_conversion_key);
             } else {
                 // found new unsupported operation
-                unsupported_operations.push_back(op_type);
+                unsupported_operations.insert(op_type);
             }
         }
         if (const auto& fw_node = ov::as_type_ptr<ov::op::util::MultiSubGraphOp>(node)) {
@@ -208,7 +206,7 @@ std::shared_ptr<ov::Model> FrontEnd::convert(const ov::frontend::InputModel::Ptr
     auto f = convert_partially(model);
 
     std::unordered_map<std::string, std::string> failures;
-    std::vector<std::string> unsupported_operations;
+    std::set<std::string> unsupported_operations;
     get_unsupported_operations_and_failures(f, unsupported_operations, failures);
 
     std::stringstream exception_message;
@@ -216,7 +214,7 @@ std::shared_ptr<ov::Model> FrontEnd::convert(const ov::frontend::InputModel::Ptr
         if (m_telemetry) {
             // TODO: 105173 support anonymization of exception message in order to send to telemetry
         }
-        exception_message << "[TensorFlow Frontend] Internal error: conversion is failed for " + failure.first +
+        exception_message << "[TensorFlow Frontend] Internal error, conversion is failed for " + failure.first +
                                  " operation with a message:\n" + failure.second + "\n";
     }
 
@@ -225,12 +223,16 @@ std::shared_ptr<ov::Model> FrontEnd::convert(const ov::frontend::InputModel::Ptr
             m_telemetry->send_event("error_cause", "tf_" + unsupported_operation);
         }
     }
-    // TODO 107500: report the full list of unsupported operations
-    // also, communicate with MO for the fallback to the legacy FE
-    // via OpConversionFailure exception that will store all failures and unsupported_operations
     if (unsupported_operations.size() > 0) {
-        exception_message << "[TensorFlow Frontend] Internal error: No translator found for " +
-                                 unsupported_operations[0] + " node.";
+        exception_message << "[TensorFlow Frontend] Internal error, no translator found for operation(s): ";
+        size_t counter = 0;
+        for (const auto& unsupported_operation : unsupported_operations) {
+            if (counter > 0) {
+                exception_message << ", ";
+            }
+            exception_message << unsupported_operation;
+            ++counter;
+        }
     }
 
     bool is_conversion_successful = ((unsupported_operations.size() == 0) && (failures.size() == 0));
@@ -309,33 +311,15 @@ void FrontEnd::convert(const std::shared_ptr<ov::Model>& partiallyConverted) con
 }
 
 void FrontEnd::normalize(const std::shared_ptr<ov::Model>& model) const {
-    {
-        // run transformations to convert sub-graphs with intermediate (or FrameworkNode) operations
-        // into sub-graphs with only OpenVINO operations
-        ov::pass::Manager manager;
-        manager.register_pass<pass::SavedModelUnusedRemover>();
-        manager.register_pass<pass::EmbeddingSegmentSingleFeatureFusion>();
-        manager.register_pass<pass::BlockLSTMReplacer>();
-        manager.register_pass<pass::GRUBlockCellReplacer>();
-        manager.register_pass<pass::ConstToResultRemover>();
-        manager.run_passes(model);
-    }
-
-    // TODO 107554: TSGeneral can fail on models with Framework nodes (not converted to OV opset)
-    std::unordered_map<std::string, std::string> failures;
-    std::vector<std::string> unsupported_operations;
-    get_unsupported_operations_and_failures(model, unsupported_operations, failures);
-    if (unsupported_operations.size() > 0 || failures.size() > 0) {
-        return;
-    }
-
-    {
-        // perform transpose sinking and reverse infer if the model contains only OpenVINO operations
-        ov::pass::Manager manager;
-        manager.register_pass<ov::pass::TransposeSinkingGeneral>();
-        manager.register_pass<ov::pass::ReverseShapeAndTypeInfer>();
-        manager.run_passes(model);
-    }
+    ov::pass::Manager manager;
+    manager.register_pass<pass::SavedModelUnusedRemover>();
+    manager.register_pass<pass::EmbeddingSegmentSingleFeatureFusion>();
+    manager.register_pass<pass::BlockLSTMReplacer>();
+    manager.register_pass<pass::GRUBlockCellReplacer>();
+    manager.register_pass<pass::ConstToResultRemover>();
+    manager.register_pass<ov::pass::TransposeSinkingGeneral>();
+    manager.register_pass<ov::pass::ReverseShapeAndTypeInfer>();
+    manager.run_passes(model);
 }
 
 void FrontEnd::add_extension(const std::shared_ptr<ov::Extension>& extension) {

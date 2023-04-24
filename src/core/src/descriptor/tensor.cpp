@@ -5,6 +5,7 @@
 #include "openvino/core/descriptor/tensor.hpp"
 
 #include "ngraph/node.hpp"
+#include "openvino/core/except.hpp"
 
 using namespace std;
 
@@ -106,7 +107,7 @@ const std::unordered_set<std::string>& ov::descriptor::Tensor::get_names() const
 
 const std::string& ov::descriptor::Tensor::get_any_name() const {
     if (m_name_it == m_names.cend()) {
-        throw ngraph::ngraph_error("Attempt to get a name for a Tensor without names");
+        OPENVINO_THROW("Attempt to get a name for a Tensor without names");
     }
     return *m_name_it;
 }

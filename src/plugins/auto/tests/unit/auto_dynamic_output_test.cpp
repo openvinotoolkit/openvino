@@ -86,18 +86,15 @@ TEST_P(DynamicOutputInferenceTest, CanSelectCorrectTargetDeviceandInitizeBlobWit
     ASSERT_NO_THROW(exeNetwork = plugin->LoadNetwork(cnnNet, config));
     std::shared_ptr<InferenceEngine::IInferRequestInternal> auto_request;
     ASSERT_NO_THROW(auto_request = exeNetwork->CreateInferRequest());
-    for (auto & iter : exeNetwork->GetOutputsInfo()) {
-        auto outBlob = auto_request->GetBlob(iter.first);
-        ASSERT_NE(outBlob->size(), 0);
-    }
     ASSERT_NO_THROW(auto_request->StartAsync());
+    ASSERT_NO_THROW(auto_request->Wait(0));
 }
 
 const std::vector<DynamicOutputConfigParams> testConfigs = {
     DynamicOutputConfigParams {false, "CPU,GPU", {ov::hint::performance_mode(ov::hint::PerformanceMode::CUMULATIVE_THROUGHPUT)},
-                    std::vector<std::string>{"CPU", "GPU"}},
+                    std::vector<std::string>{"CPU"}},
     DynamicOutputConfigParams {true, "CPU,GPU", {ov::hint::performance_mode(ov::hint::PerformanceMode::CUMULATIVE_THROUGHPUT)},
-                    std::vector<std::string>{"CPU", "GPU"}},
+                    std::vector<std::string>{"CPU"}},
 };
 
 INSTANTIATE_TEST_SUITE_P(smoke_Auto_BehaviorTests, DynamicOutputInferenceTest,

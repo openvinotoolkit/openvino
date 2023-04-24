@@ -103,7 +103,7 @@ namespace ngraph
 
                                 if (bias.get_node())
                                 {
-                                    throw ngraph_error(
+                                    OPENVINO_THROW(
                                         "Groups != 1 not supported for Quantized Convolution with "
                                         "bias.");
                                 }
