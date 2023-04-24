@@ -28,6 +28,8 @@
 
 #include <opencv2/gapi/fluid/gfluidkernel.hpp>  // GFluidOutputRois
 
+IE_SUPPRESS_DEPRECATED_START
+
 namespace InferenceEngine {
 namespace {
 int get_cv_depth(const TensorDesc &ie_desc);
