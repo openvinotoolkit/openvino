@@ -78,8 +78,12 @@ ExecNetwork::ExecNetwork(const InferenceEngine::CNNNetwork &network,
     }
     bool isFloatModel = !ov::op::util::has_op_with_type<ngraph::op::FakeQuantize>(function);
 
-    _cfg.isNewApi = !isLegacyAPI();
     _mutex = std::make_shared<std::mutex>();
+    const auto& core = _plugin->GetCore();
+    if (!core)
+        IE_THROW() << "Unable to get API version. Core is unavailable";
+    _cfg.isNewApi = core->isNewAPI();
+
 
     // WA for inference dynamic batch cases in new API
     if (_cfg.isNewApi) {
@@ -222,14 +226,6 @@ std::shared_ptr<ngraph::Function> ExecNetwork::GetExecGraphInfo() {
     return GetGraph()._graph.dump();
 }
 
-bool ExecNetwork::isLegacyAPI() const {
-    const auto& core = _plugin->GetCore();
-    if (!core)
-        IE_THROW() << "Unable to get API version. Core is unavailable";
-
-    return !core->isNewAPI();
-}
-
 Parameter ExecNetwork::GetConfigLegacy(const std::string &name) const {
     if (_graphs.empty())
         IE_THROW() << "No graph was found";
@@ -292,7 +288,7 @@ InferenceEngine::Parameter ExecNetwork::GetMetric(const std::string &name) const
     const auto& graph = graphLock._graph;
     const auto& config = graph.getConfig();
 
-    if (isLegacyAPI()) {
+    if (!_cfg.isNewApi) {
         return GetMetricLegacy(name, graph);
     }
 
