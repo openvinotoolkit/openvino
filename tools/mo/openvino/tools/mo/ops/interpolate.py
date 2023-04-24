@@ -49,7 +49,8 @@ def infer_for_opsetX(node: Node, opset: str):
     if node.shape_calculation_mode == 'sizes':
         dst_shape = node.in_port(1).data.get_value()
         assert dst_shape is not None
-        correct_scales_using_dst_shape(node, dst_shape, src_shape, axes)
+        if node.get_opset() != "opset11":
+            correct_scales_using_dst_shape(node, dst_shape, src_shape, axes)
         for i, axis in enumerate(axes):
             output_shape[axis] = dst_shape[i]
     else:
@@ -151,12 +152,13 @@ class Interpolate(Op):
             'pads_end': 0,
 
             'infer': self.infer,
-
             'force_precision_in_ports': {1: 'int64'},
             'in_ports_count': 2,
             'out_ports_count': 1,
         }
         super().__init__(graph, mandatory_props, attrs)
+        if self.attrs['version'] == 'opset11' and self.attrs['shape_calculation_mode'] != 'sizes':
+            del self.attrs['force_precision_in_ports']
 
     def supported_attrs(self):
         opset = self.get_opset()

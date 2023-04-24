@@ -16,9 +16,12 @@
 
 namespace ov {
 
-struct CPU {
+class CPU {
+public:
+    CPU();
+    ~CPU(){};
     int _processors = 0;
-    int _sockets = 0;
+    int _numa_nodes = 0;
     int _cores = 0;
     std::vector<std::vector<int>> _proc_type_table;
     std::vector<std::vector<int>> _cpu_mapping_table;
@@ -27,12 +30,6 @@ struct CPU {
     int _plugin_status = PLUGIN_USED_START;
     int _socket_idx = 0;
     int _num_threads = 0;
-
-    CPU() {
-        _num_threads = parallel_get_max_threads();
-        init_cpu(*this);
-    }
-    void init_cpu(CPU& cpu);
 };
 
 #ifdef __linux__
