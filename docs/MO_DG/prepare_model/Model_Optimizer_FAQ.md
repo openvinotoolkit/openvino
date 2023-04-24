@@ -80,10 +80,10 @@ Q4. What does the message "Input image of shape is larger than mean image from f
 
 .. _question-5:
 
-Q5. What does the message "Mean file is empty" mean?
+Q5. 
 #####################################################################################################################################################
 
-**A:** Most likely, the mean file specified with the ``--mean_file`` flag is empty while Model Optimizer is launched. Make sure that this is exactly the required mean file and try to regenerate it from the given dataset if possible.
+**A:** 
 
 .. _question-6:
 
@@ -263,17 +263,17 @@ Q16. What does the message "Input shape is required to convert MXNet model. Plea
 
 .. _question-17:
 
-Q17. What does the message "Both --mean_file and mean_values are specified. Specify either mean file or mean values" mean?
+Q17. 
 #####################################################################################################################################################
 
-**A:** The ``--mean_file`` and ``--mean_values`` options are two ways of specifying preprocessing for the input. However, they cannot be used together, as it would mean double subtraction and lead to ambiguity. Choose one of these options and pass it with the corresponding CLI option.
+**A:**
 
 .. _question-18:
 
-Q18. What does the message "Negative value specified for --mean_file_offsets option. Please specify positive integer values in format '(x,y)'" mean?
+Q18.
 #####################################################################################################################################################
 
-**A:** You might have specified negative values with ``--mean_file_offsets``. Only positive integer values in format '(x,y)' must be used.
+**A:**
 
 .. _question-19:
 
@@ -696,14 +696,14 @@ Q74. What does the message "Sub-graph contains network input node .." mean?
 Q75. What does the message "... elements of ... were clipped to infinity while converting a blob for node [...] to ..." mean?
 #####################################################################################################################################################
 
-**A:** This message may appear when the ``--compress_to_fp16`` (or deprecated ``--data_type``) command-line option is used. This option implies compression of all the model weights, biases, and other constant values to FP16. If a value of a constant is out of the range of valid FP16 values, the value is converted to positive or negative infinity. It may lead to incorrect results of inference or may not be a problem, depending on the model. The number of such elements and the total number of elements in the constant value is printed out together with the name of the node, where this value is used.
+**A:** This message may appear when the ``--compress_to_fp16`` command-line option is used. This option implies compression of all the model weights, biases, and other constant values to FP16. If a value of a constant is out of the range of valid FP16 values, the value is converted to positive or negative infinity. It may lead to incorrect results of inference or may not be a problem, depending on the model. The number of such elements and the total number of elements in the constant value is printed out together with the name of the node, where this value is used.
 
 .. _question-76:
 
 Q76. What does the message "... elements of ... were clipped to zero while converting a blob for node [...] to ..." mean?
 #####################################################################################################################################################
 
-**A:** This message may appear when the ``--compress_to_fp16`` (or deprecated ``--data_type``) command-line option is used. This option implies conversion of all blobs in the mode to FP16. If a value in the blob is so close to zero that it cannot be represented as a valid FP16 value, it is converted to a true zero FP16 value. Depending on the model, it may lead to incorrect results of inference or may not be a problem. The number of such elements and the total number of elements in the blob are printed out together with a name of the node, where this blob is used.
+**A:** This message may appear when the ``--compress_to_fp16`` command-line option is used. This option implies conversion of all blobs in the mode to FP16. If a value in the blob is so close to zero that it cannot be represented as a valid FP16 value, it is converted to a true zero FP16 value. Depending on the model, it may lead to incorrect results of inference or may not be a problem. The number of such elements and the total number of elements in the blob are printed out together with a name of the node, where this blob is used.
 
 .. _question-77:
 
