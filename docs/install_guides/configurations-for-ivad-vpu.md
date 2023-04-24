@@ -1,5 +1,17 @@
 # Configurations for Intel® Vision Accelerator Design with Intel® Movidius™ VPUs  {#openvino_docs_install_guides_installing_openvino_ivad_vpu}
 
+
+@sphinxdirective
+
+.. warning::
+
+   OpenVINO 2022.3, temporarily, does not support the VPU devices.
+   The feature will be re-implemented with the next update. Until then, 
+   continue using a previous release of OpenVINO, if you work with VPUs.
+
+@endsphinxdirective
+
+
 @sphinxdirective
 
 .. _vpu guide:

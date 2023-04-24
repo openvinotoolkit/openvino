@@ -20,6 +20,17 @@ Intel® Distribution of OpenVINO™ Toolkit is a comprehensive toolkit for devel
 * Speeds time-to-market via an easy-to-use library of computer vision functions and pre-optimized kernels.
 * Compatible with models from a wide variety of frameworks, including TensorFlow, PyTorch, PaddlePaddle, ONNX, and more.
 
+@sphinxdirective
+
+.. warning::
+
+   OpenVINO 2022.3, temporarily, does not support the VPU devices.
+   The feature will be re-implemented with the next update. Until then, 
+   continue using a previous release of OpenVINO, if you work with VPUs.
+
+@endsphinxdirective
+
+
 
 ## Install OpenVINO
 
