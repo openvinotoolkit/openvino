@@ -346,8 +346,9 @@ TEST(OVClassBasicPropsTest, smoke_SetConfigAfterCreatedFwModelPath) {
     std::string path = "";
 
     OV_ASSERT_NO_THROW(core.set_property("GNA", ov::intel_gna::firmware_model_image_path("model.bin")));
-    OV_ASSERT_NO_THROW(path = core.get_property("GNA", ov::intel_gna::firmware_model_image_path));
-    ASSERT_EQ("model.bin", path);
+    OV_EXPECT_THROW(path = core.get_property("GNA", ov::intel_gna::firmware_model_image_path),
+                    ov::Exception,
+                    testing::HasSubstr("Target device for embedded export should be one of embedded devices"));
 }
 
 // IE Class Query network
