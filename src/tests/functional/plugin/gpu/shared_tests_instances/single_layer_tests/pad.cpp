@@ -51,8 +51,8 @@ INSTANTIATE_TEST_SUITE_P(smoke_Pad2D,
                                           testing::Values(CommonTestUtils::DEVICE_GPU)),
                          PadLayerTest::getTestCaseName);
 
-const std::vector<std::vector<int64_t>> padsBegin4D = {{0, 0, 0, 0}, {1, 1, 1, 1}, {2, 0, 1, 0}, {0, 3, 0, 1}};
-const std::vector<std::vector<int64_t>> padsEnd4D   = {{0, 0, 0, 0}, {1, 1, 1, 1}, {2, 0, 0, 1}, {1, 3, 2, 0}};
+const std::vector<std::vector<int64_t>> padsBegin4D = {{0, 0, 0, 0}, {1, 1, 1, 1}, {2, 0, 1, 0}, {0, 3, 0, 1}, {-1, -1, -1, -1}, {0, 0, 2, -1}};
+const std::vector<std::vector<int64_t>> padsEnd4D   = {{0, 0, 0, 0}, {1, 1, 1, 1}, {2, 0, 0, 1}, {1, 3, 2, 0}, {-1, -1, -1, -1}, {0, 0, -1, 3}};
 
 INSTANTIATE_TEST_SUITE_P(smoke_Pad4DConst,
                          PadLayerTest,

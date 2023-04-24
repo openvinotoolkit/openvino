@@ -171,8 +171,8 @@ const std::vector<std::vector<int64_t>> padsEnd4DConstBlocked_Smoke   = {{0, 0, 
 const std::vector<std::vector<int64_t>> padsBegin4DBlocked_Smoke = {{0, 0, -1, 3}, {2, 0, 1, 0}};
 const std::vector<std::vector<int64_t>> padsEnd4DBlocked_Smoke   = {{0, 0, 2, 1}, {2, 0, 0, -1}};
 
-const std::vector<std::vector<int64_t>> padsBegin4D_Smoke = {{0, 1, 1, 1}, {0, 2, 1, 0}, {0, 0, -2, 0}};
-const std::vector<std::vector<int64_t>> padsEnd4D_Smoke   = {{0, 2, 1, 1}, {0, 0, 2, 0}};
+const std::vector<std::vector<int64_t>> padsBegin4D_Smoke = {{0, 1, 1, 1}, {0, 2, 1, 0}, {0, 0, -2, 0}, {-1, -1, -1, -1}, {0, 0, 2, -1}};
+const std::vector<std::vector<int64_t>> padsEnd4D_Smoke   = {{0, 2, 1, 1}, {0, 0, 2, 0}, {-1, -1, -1, -1}, {0, 0, -1, 3}};
 
 const std::vector<std::vector<int64_t>> padsBegin4DConstBlocked_Full = {{0, 0, 0, 0}, {0, 0, 1, -3}, {2, 16, 1, 0}, {0, 0, 2, 0}};
 const std::vector<std::vector<int64_t>> padsEnd4DConstBlocked_Full   = {{0, 0, 0, 0}, {0, 0, 2, 1}, {2, 0, 0, 1}, {1, -16, 2, 0}};
@@ -739,4 +739,3 @@ INSTANTIATE_TEST_SUITE_P(
 
 } // namespace
 } // namespace CPULayerTestsDefinitions
-
