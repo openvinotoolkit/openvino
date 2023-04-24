@@ -98,7 +98,6 @@ LIB_INSTALL_CFG = {
         "name": "tbb",
         "prefix": "libs.tbb",
         "install_dir": TBB_LIBS_DIR,
-        "rpath": LIBS_RPATH,
         "binary_dir": OPENVINO_BUILD_DIR,
     },
     "pugixml_libs": {
