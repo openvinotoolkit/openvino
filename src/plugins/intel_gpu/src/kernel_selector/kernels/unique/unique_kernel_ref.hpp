@@ -9,66 +9,66 @@
 namespace kernel_selector {
 
 /**
- * Unique reference kernel parameters.
+ * UniqueCount reference kernel parameters.
  */
-struct unique_params : base_params {
-    unique_params() : base_params(KernelType::UNIQUE) {}
+struct unique_count_params : base_params {
+    unique_count_params() : base_params(KernelType::UNIQUE_COUNT) {}
     bool flattened{};
     int64_t axis{};
 };
 
 /**
- * Unique reference kernel optional parameters.
+ * UniqueCount reference kernel optional parameters.
  */
-struct unique_optional_params : optional_params {
-    unique_optional_params() : optional_params(KernelType::UNIQUE) {}
+struct unique_count_optional_params : optional_params {
+    unique_count_optional_params() : optional_params(KernelType::UNIQUE_COUNT) {}
 };
 
 /**
- * Reference kernel for Unique.
+ * Reference kernel for UniqueCount.
  */
-class UniqueKernelRef : public KernelBaseOpenCL {
+class UniqueCountKernelRef : public KernelBaseOpenCL {
 public:
-    UniqueKernelRef() : KernelBaseOpenCL{"unique_ref"} {}
+    UniqueCountKernelRef() : KernelBaseOpenCL{"unique_count_ref"} {}
     KernelsData GetKernelsData(const Params& params, const optional_params& options) const override;
     ParamsKey GetSupportedKey() const override;
 
 protected:
     bool Validate(const Params& params, const optional_params& options) const override;
-    JitConstants GetJitConstants(const unique_params& kernel_params) const;
-    static CommonDispatchData SetDefault(const unique_params& kernel_params);
+    JitConstants GetJitConstants(const unique_count_params& kernel_params) const;
+    static CommonDispatchData SetDefault(const unique_count_params& kernel_params);
 };
 
 /**
- * UniqueReshape reference kernel parameters.
+ * UniqueGather reference kernel parameters.
  */
-struct unique_reshape_params : base_params {
-    unique_reshape_params() : base_params(KernelType::UNIQUE_RESHAPE) {}
+struct unique_gather_params : base_params {
+    unique_gather_params() : base_params(KernelType::UNIQUE_GATHER) {}
     bool flattened{};
     int64_t axis{};
     bool sorted{};
 };
 
 /**
- * UniqueReshape reference kernel optional parameters.
+ * UniqueGather reference kernel optional parameters.
  */
-struct unique_reshape_optional_params : optional_params {
-    unique_reshape_optional_params() : optional_params(KernelType::UNIQUE_RESHAPE) {}
+struct unique_gather_optional_params : optional_params {
+    unique_gather_optional_params() : optional_params(KernelType::UNIQUE_GATHER) {}
 };
 
 /**
- * Reference kernel for UniqueReshape.
+ * Reference kernel for UniqueGather.
  */
-class UniqueReshapeKernelRef : public KernelBaseOpenCL {
+class UniqueGatherKernelRef : public KernelBaseOpenCL {
 public:
-    UniqueReshapeKernelRef() : KernelBaseOpenCL{"unique_reshape_ref"} {}
+    UniqueGatherKernelRef() : KernelBaseOpenCL{"unique_gather_ref"} {}
     KernelsData GetKernelsData(const Params& params, const optional_params& options) const override;
     ParamsKey GetSupportedKey() const override;
 
 protected:
     bool Validate(const Params& params, const optional_params& options) const override;
-    JitConstants GetJitConstants(const unique_reshape_params& kernel_params) const;
-    static CommonDispatchData SetDefault(const unique_reshape_params& kernel_params);
+    JitConstants GetJitConstants(const unique_gather_params& kernel_params) const;
+    static CommonDispatchData SetDefault(const unique_gather_params& kernel_params);
 };
 
 }  // namespace kernel_selector

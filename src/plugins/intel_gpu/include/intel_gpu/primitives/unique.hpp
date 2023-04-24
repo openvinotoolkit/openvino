@@ -10,16 +10,15 @@
 
 namespace cldnn {
 
-/// @brief Unique-10 primitive.
-struct unique : primitive_base<unique> {
-    CLDNN_DECLARE_PRIMITIVE(unique)
+struct unique_count : primitive_base<unique_count> {
+    CLDNN_DECLARE_PRIMITIVE(unique_count)
 
-    /// @brief Constructs unique primitive.
+    /// @brief Constructs unique_count primitive.
     /// @param id This primitive id.
     /// @param input Input primitive id.
     /// @param flattened If true, operator works on a flattened version of the input tensor.
     /// @param axis Is used to “divide” the input tensor into slices.
-    unique(const primitive_id& id, const input_info& input, bool flattened, int64_t axis)
+    unique_count(const primitive_id& id, const input_info& input, bool flattened, int64_t axis)
         : primitive_base(id, {input}),
           flattened(flattened),
           axis(axis) {}
@@ -38,23 +37,28 @@ struct unique : primitive_base<unique> {
         if (!compare_common_params(rhs)) {
             return false;
         }
-        auto rhs_casted = downcast<const unique>(rhs);
+        auto rhs_casted = downcast<const unique_count>(rhs);
         return flattened == rhs_casted.flattened && axis == rhs_casted.axis;
     }
 };
 
-/// @brief Reshape unique outputs to match total unique count shape
-struct unique_reshape : primitive_base<unique_reshape> {
-    CLDNN_DECLARE_PRIMITIVE(unique_reshape)
+struct unique_gather : primitive_base<unique_gather> {
+    CLDNN_DECLARE_PRIMITIVE(unique_gather)
 
-    unique_reshape(const primitive_id& id,
-                   const std::vector<input_info>& inputs,
-                   bool flattened,
-                   int64_t axis,
-                   bool sorted,
-                   data_types elem_type,
-                   data_types index_type,
-                   data_types count_type)
+    /// @brief Constructs unique_gather primitive.
+    /// @param id This primitive id.
+    /// @param inputs Input primitives ids.
+    /// @param flattened If true, operator works on a flattened version of the input tensor.
+    /// @param axis Is used to “divide” the input tensor into slices.
+    /// @param sorted Controls the order of the returned unique values (sorts ascending when true).
+    unique_gather(const primitive_id& id,
+                  const std::vector<input_info>& inputs,
+                  bool flattened,
+                  int64_t axis,
+                  bool sorted,
+                  data_types elem_type,
+                  data_types index_type,
+                  data_types count_type)
         : primitive_base(id, inputs, decltype(output_paddings)(4), {elem_type, index_type, index_type, count_type}, 4),
           flattened(flattened),
           axis(axis),
@@ -76,7 +80,7 @@ struct unique_reshape : primitive_base<unique_reshape> {
         if (!compare_common_params(rhs)) {
             return false;
         }
-        auto rhs_casted = downcast<const unique_reshape>(rhs);
+        auto rhs_casted = downcast<const unique_gather>(rhs);
         return flattened == rhs_casted.flattened && axis == rhs_casted.axis && sorted == rhs_casted.sorted;
     }
 };

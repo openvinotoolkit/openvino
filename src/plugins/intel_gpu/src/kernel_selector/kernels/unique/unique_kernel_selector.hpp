@@ -8,21 +8,18 @@
 
 namespace kernel_selector {
 
-/*
- * Unique kernel selector.
- */
-class unique_kernel_selector : public kernel_selector_base {
+class unique_count_kernel_selector : public kernel_selector_base {
 public:
-    unique_kernel_selector();
+    unique_count_kernel_selector();
     KernelsData GetBestKernels(const Params& params, const optional_params& options) const override;
-    static unique_kernel_selector& Instance();
+    static unique_count_kernel_selector& Instance();
 };
 
-class unique_reshape_kernel_selector : public kernel_selector_base {
+class unique_gather_kernel_selector : public kernel_selector_base {
 public:
-    unique_reshape_kernel_selector();
+    unique_gather_kernel_selector();
     KernelsData GetBestKernels(const Params& params, const optional_params& options) const override;
-    static unique_reshape_kernel_selector& Instance();
+    static unique_gather_kernel_selector& Instance();
 };
 
 }  // namespace kernel_selector

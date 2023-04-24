@@ -61,19 +61,19 @@ public:
         topology topology;
         topology.add(input_layout("input", input->get_layout()));
         topology.add(reorder("reordered_input", input_info("input"), fmt, elem_data_type));
-        topology.add(unique("unique", {input_info("reordered_input")}, p.flattened, p.axis));
-        topology.add(unique_reshape("unique_reshape",
-                                    {input_info("reordered_input"), input_info("unique")},
-                                    p.flattened,
-                                    p.axis,
-                                    p.sorted,
-                                    elem_data_type,
-                                    index_data_type,
-                                    count_data_type));
-        topology.add(reorder("expected_unique_values", input_info("unique_reshape", 0), plain_format, elem_data_type));
-        topology.add(reorder("expected_indices", input_info("unique_reshape", 1), plain_format, index_data_type));
-        topology.add(reorder("expected_rev_indices", input_info("unique_reshape", 2), plain_format, index_data_type));
-        topology.add(reorder("expected_counts", input_info("unique_reshape", 3), plain_format, count_data_type));
+        topology.add(unique_count("unique_count", {input_info("reordered_input")}, p.flattened, p.axis));
+        topology.add(unique_gather("unique_gather",
+                                   {input_info("reordered_input"), input_info("unique_count")},
+                                   p.flattened,
+                                   p.axis,
+                                   p.sorted,
+                                   elem_data_type,
+                                   index_data_type,
+                                   count_data_type));
+        topology.add(reorder("expected_unique_values", input_info("unique_gather", 0), plain_format, elem_data_type));
+        topology.add(reorder("expected_indices", input_info("unique_gather", 1), plain_format, index_data_type));
+        topology.add(reorder("expected_rev_indices", input_info("unique_gather", 2), plain_format, index_data_type));
+        topology.add(reorder("expected_counts", input_info("unique_gather", 3), plain_format, count_data_type));
 
         auto config = get_test_default_config(engine);
         config.set_property(ov::intel_gpu::allow_new_shape_infer(true));

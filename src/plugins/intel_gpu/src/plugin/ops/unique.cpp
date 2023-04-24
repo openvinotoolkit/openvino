@@ -30,21 +30,20 @@ void CreateUniqueOp(Program& p, const std::shared_ptr<ngraph::op::v10::Unique>& 
 
     const auto input = p.GetInputInfo(op).front();
     const auto layer_name = layer_type_name_ID(op);
+    const auto count_prim_id = layer_name + "_count";
 
-    const cldnn::unique unique_prim(layer_name, input, flattened, axis);
-    p.add_primitive(*op, unique_prim);
+    const cldnn::unique_count unique_count_prim(count_prim_id, input, flattened, axis);
+    p.add_primitive(*op, unique_count_prim);
 
-    // We add unique reshape primitive to adjust outputs shapes to founded unique count
-    const auto layer_name_reshape = layer_name + "_reshape";
-    const cldnn::unique_reshape unique_reshape_prim(layer_name_reshape,
-                                                    {input, layer_name},
-                                                    flattened,
-                                                    axis,
-                                                    op->get_sorted(),
-                                                    cldnn::element_type_to_data_type(op->get_input_element_type(0)),
-                                                    cldnn::element_type_to_data_type(op->get_index_element_type()),
-                                                    cldnn::element_type_to_data_type(op->get_count_element_type()));
-    p.add_primitive(*op, unique_reshape_prim);
+    const cldnn::unique_gather unique_gather_prim(layer_name,
+                                                  {input, count_prim_id},
+                                                  flattened,
+                                                  axis,
+                                                  op->get_sorted(),
+                                                  cldnn::element_type_to_data_type(op->get_input_element_type(0)),
+                                                  cldnn::element_type_to_data_type(op->get_index_element_type()),
+                                                  cldnn::element_type_to_data_type(op->get_count_element_type()));
+    p.add_primitive(*op, unique_gather_prim);
 }
 
 }  // namespace

@@ -146,7 +146,7 @@ inline uint FUNC(fill_out_rev_indices)(OPTIONAL_SHAPE_INFO_ARG const __global IN
     }
 }
 
-KERNEL(unique_ref)
+KERNEL(unique_gather_ref)
 (OPTIONAL_SHAPE_INFO_ARG const __global INPUT0_TYPE* input,
  const __global INPUT1_TYPE* out_total_count,
  __global OUTPUT_TYPE* out_unique_elements,

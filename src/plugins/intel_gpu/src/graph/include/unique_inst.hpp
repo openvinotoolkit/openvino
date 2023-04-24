@@ -10,8 +10,8 @@
 namespace cldnn {
 
 template <>
-struct typed_program_node<unique> : typed_program_node_base<unique> {
-    using parent = typed_program_node_base<unique>;
+struct typed_program_node<unique_count> : typed_program_node_base<unique_count> {
+    using parent = typed_program_node_base<unique_count>;
     using parent::parent;
 
     program_node& input() const {
@@ -19,25 +19,25 @@ struct typed_program_node<unique> : typed_program_node_base<unique> {
     }
 };
 
-using unique_node = typed_program_node<unique>;
+using unique_count_node = typed_program_node<unique_count>;
 
 template <>
-class typed_primitive_inst<unique> : public typed_primitive_inst_base<unique> {
+class typed_primitive_inst<unique_count> : public typed_primitive_inst_base<unique_count> {
 public:
-    using parent = typed_primitive_inst_base<unique>;
+    using parent = typed_primitive_inst_base<unique_count>;
     using parent::parent;
 
-    static layout calc_output_layout(const unique_node& node, const kernel_impl_params& impl_param);
+    static layout calc_output_layout(const unique_count_node& node, const kernel_impl_params& impl_param);
     template <typename ShapeType>
-    static std::vector<layout> calc_output_layouts(const unique_node& node, const kernel_impl_params& impl_param);
-    static std::string to_string(const unique_node& node);
+    static std::vector<layout> calc_output_layouts(const unique_count_node& node, const kernel_impl_params& impl_param);
+    static std::string to_string(const unique_count_node& node);
 };
 
-using unique_inst = typed_primitive_inst<unique>;
+using unique_count_inst = typed_primitive_inst<unique_count>;
 
 template <>
-struct typed_program_node<unique_reshape> : typed_program_node_base<unique_reshape> {
-    using parent = typed_program_node_base<unique_reshape>;
+struct typed_program_node<unique_gather> : typed_program_node_base<unique_gather> {
+    using parent = typed_program_node_base<unique_gather>;
     using parent::parent;
 
     program_node& input() const {
@@ -53,21 +53,21 @@ struct typed_program_node<unique_reshape> : typed_program_node_base<unique_resha
     }
 };
 
-using unique_reshape_node = typed_program_node<unique_reshape>;
+using unique_gather_node = typed_program_node<unique_gather>;
 
 template <>
-class typed_primitive_inst<unique_reshape> : public typed_primitive_inst_base<unique_reshape> {
+class typed_primitive_inst<unique_gather> : public typed_primitive_inst_base<unique_gather> {
 public:
-    using parent = typed_primitive_inst_base<unique_reshape>;
+    using parent = typed_primitive_inst_base<unique_gather>;
     using parent::parent;
 
-    static layout calc_output_layout(const unique_reshape_node& node, const kernel_impl_params& impl_param);
+    static layout calc_output_layout(const unique_gather_node& node, const kernel_impl_params& impl_param);
     template <typename ShapeType>
-    static std::vector<layout> calc_output_layouts(const unique_reshape_node& node,
+    static std::vector<layout> calc_output_layouts(const unique_gather_node& node,
                                                    const kernel_impl_params& impl_param);
-    static std::string to_string(const unique_reshape_node& node);
+    static std::string to_string(const unique_gather_node& node);
 };
 
-using unique_reshape_inst = typed_primitive_inst<unique_reshape>;
+using unique_gather_inst = typed_primitive_inst<unique_gather>;
 
 }  // namespace cldnn

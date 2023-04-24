@@ -8,29 +8,29 @@
 
 namespace kernel_selector {
 
-unique_kernel_selector::unique_kernel_selector() {
-    Attach<UniqueKernelRef>();
+unique_count_kernel_selector::unique_count_kernel_selector() {
+    Attach<UniqueCountKernelRef>();
 }
 
-KernelsData unique_kernel_selector::GetBestKernels(const Params& params, const optional_params& options) const {
-    return GetNaiveBestKernel(params, options, KernelType::UNIQUE);
+KernelsData unique_count_kernel_selector::GetBestKernels(const Params& params, const optional_params& options) const {
+    return GetNaiveBestKernel(params, options, KernelType::UNIQUE_COUNT);
 }
 
-unique_kernel_selector& unique_kernel_selector::Instance() {
-    static unique_kernel_selector instance;
+unique_count_kernel_selector& unique_count_kernel_selector::Instance() {
+    static unique_count_kernel_selector instance;
     return instance;
 }
 
-unique_reshape_kernel_selector::unique_reshape_kernel_selector() {
-    Attach<UniqueReshapeKernelRef>();
+unique_gather_kernel_selector::unique_gather_kernel_selector() {
+    Attach<UniqueGatherKernelRef>();
 }
 
-KernelsData unique_reshape_kernel_selector::GetBestKernels(const Params& params, const optional_params& options) const {
-    return GetNaiveBestKernel(params, options, KernelType::UNIQUE_RESHAPE);
+KernelsData unique_gather_kernel_selector::GetBestKernels(const Params& params, const optional_params& options) const {
+    return GetNaiveBestKernel(params, options, KernelType::UNIQUE_GATHER);
 }
 
-unique_reshape_kernel_selector& unique_reshape_kernel_selector::Instance() {
-    static unique_reshape_kernel_selector instance;
+unique_gather_kernel_selector& unique_gather_kernel_selector::Instance() {
+    static unique_gather_kernel_selector instance;
     return instance;
 }
 

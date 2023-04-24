@@ -10,23 +10,24 @@
 namespace cldnn {
 namespace ocl {
 
-struct unique_impl : typed_primitive_impl_ocl<unique> {
-    using parent = typed_primitive_impl_ocl<unique>;
+struct unique_count_impl : typed_primitive_impl_ocl<unique_count> {
+    using parent = typed_primitive_impl_ocl<unique_count>;
     using parent::parent;
-    using kernel_selector_t = kernel_selector::unique_kernel_selector;
-    using kernel_params_t = std::pair<kernel_selector::unique_params, kernel_selector::unique_optional_params>;
+    using kernel_selector_t = kernel_selector::unique_count_kernel_selector;
+    using kernel_params_t =
+        std::pair<kernel_selector::unique_count_params, kernel_selector::unique_count_optional_params>;
 
     DECLARE_OBJECT_TYPE_SERIALIZATION
 
     std::unique_ptr<primitive_impl> clone() const override {
-        return make_unique<unique_impl>(*this);
+        return make_unique<unique_count_impl>(*this);
     }
 
     static kernel_params_t get_kernel_params(const kernel_impl_params& impl_param, bool is_shape_agnostic = false) {
-        const auto& primitive = impl_param.typed_desc<unique>();
-        auto params = get_default_params<kernel_selector::unique_params>(impl_param, is_shape_agnostic);
+        const auto& primitive = impl_param.typed_desc<unique_count>();
+        auto params = get_default_params<kernel_selector::unique_count_params>(impl_param, is_shape_agnostic);
         auto optional_params =
-            get_default_optional_params<kernel_selector::unique_optional_params>(impl_param.get_program());
+            get_default_optional_params<kernel_selector::unique_count_optional_params>(impl_param.get_program());
 
         params.flattened = primitive->flattened;
         params.axis = primitive->axis;
@@ -42,7 +43,7 @@ struct unique_impl : typed_primitive_impl_ocl<unique> {
 
 namespace detail {
 
-attach_unique_impl::attach_unique_impl() {
+attach_unique_count_impl::attach_unique_count_impl() {
     auto types = {
         data_types::u8,
         data_types::i8,
@@ -72,32 +73,32 @@ attach_unique_impl::attach_unique_impl() {
         format::bfwzyx,
     };
 
-    implementation_map<unique>::add(impl_types::ocl,
-                                    shape_types::any,
-                                    typed_primitive_impl_ocl<unique>::create<unique_impl>,
-                                    types,
-                                    formats);
+    implementation_map<unique_count>::add(impl_types::ocl,
+                                          shape_types::any,
+                                          typed_primitive_impl_ocl<unique_count>::create<unique_count_impl>,
+                                          types,
+                                          formats);
 }
 }  // namespace detail
 
-struct unique_reshape_impl : typed_primitive_impl_ocl<unique_reshape> {
-    using parent = typed_primitive_impl_ocl<unique_reshape>;
+struct unique_gather_impl : typed_primitive_impl_ocl<unique_gather> {
+    using parent = typed_primitive_impl_ocl<unique_gather>;
     using parent::parent;
-    using kernel_selector_t = kernel_selector::unique_reshape_kernel_selector;
+    using kernel_selector_t = kernel_selector::unique_gather_kernel_selector;
     using kernel_params_t =
-        std::pair<kernel_selector::unique_reshape_params, kernel_selector::unique_reshape_optional_params>;
+        std::pair<kernel_selector::unique_gather_params, kernel_selector::unique_gather_optional_params>;
 
     DECLARE_OBJECT_TYPE_SERIALIZATION
 
     std::unique_ptr<primitive_impl> clone() const override {
-        return make_unique<unique_reshape_impl>(*this);
+        return make_unique<unique_gather_impl>(*this);
     }
 
     static kernel_params_t get_kernel_params(const kernel_impl_params& impl_param, bool is_shape_agnostic = false) {
-        const auto& primitive = impl_param.typed_desc<unique_reshape>();
-        auto params = get_default_params<kernel_selector::unique_reshape_params>(impl_param, is_shape_agnostic);
+        const auto& primitive = impl_param.typed_desc<unique_gather>();
+        auto params = get_default_params<kernel_selector::unique_gather_params>(impl_param, is_shape_agnostic);
         auto optional_params =
-            get_default_optional_params<kernel_selector::unique_reshape_optional_params>(impl_param.get_program());
+            get_default_optional_params<kernel_selector::unique_gather_optional_params>(impl_param.get_program());
 
         params.flattened = primitive->flattened;
         params.axis = primitive->axis;
@@ -122,7 +123,7 @@ struct unique_reshape_impl : typed_primitive_impl_ocl<unique_reshape> {
 
 namespace detail {
 
-attach_unique_reshape_impl::attach_unique_reshape_impl() {
+attach_unique_gather_impl::attach_unique_gather_impl() {
     auto types = {
         data_types::u8,
         data_types::i8,
@@ -152,15 +153,15 @@ attach_unique_reshape_impl::attach_unique_reshape_impl() {
         format::bfwzyx,
     };
 
-    implementation_map<unique_reshape>::add(impl_types::ocl,
-                                            shape_types::any,
-                                            typed_primitive_impl_ocl<unique_reshape>::create<unique_reshape_impl>,
-                                            types,
-                                            formats);
+    implementation_map<unique_gather>::add(impl_types::ocl,
+                                           shape_types::any,
+                                           typed_primitive_impl_ocl<unique_gather>::create<unique_gather_impl>,
+                                           types,
+                                           formats);
 }
 }  // namespace detail
 }  // namespace ocl
 }  // namespace cldnn
 
-BIND_BINARY_BUFFER_WITH_TYPE(cldnn::ocl::unique_impl)
-BIND_BINARY_BUFFER_WITH_TYPE(cldnn::ocl::unique_reshape_impl)
+BIND_BINARY_BUFFER_WITH_TYPE(cldnn::ocl::unique_count_impl)
+BIND_BINARY_BUFFER_WITH_TYPE(cldnn::ocl::unique_gather_impl)

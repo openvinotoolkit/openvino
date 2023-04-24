@@ -124,13 +124,13 @@ JitConstants MakeFlattenedJitConstants(size_t rank, bool simple_layout) {
 
 }  // namespace
 
-KernelsData UniqueKernelRef::GetKernelsData(const Params& params, const optional_params& options) const {
+KernelsData UniqueCountKernelRef::GetKernelsData(const Params& params, const optional_params& options) const {
     if (!Validate(params, options)) {
         return {};
     }
 
-    auto kernel_data = KernelData::Default<unique_params>(params);
-    const auto& kernel_params = dynamic_cast<const unique_params&>(*kernel_data.params);
+    auto kernel_data = KernelData::Default<unique_count_params>(params);
+    const auto& kernel_params = dynamic_cast<const unique_count_params&>(*kernel_data.params);
     const auto dispatch_data = SetDefault(kernel_params);
     const auto entry_point = GetEntryPoint(kernelName, kernel_params.layerID, params, options);
     const auto jit_constants = GetJitConstants(kernel_params);
@@ -138,7 +138,7 @@ KernelsData UniqueKernelRef::GetKernelsData(const Params& params, const optional
     auto& kernel = kernel_data.kernels.front();
 
     kernel_data.update_dispatch_data_func = [this](const Params& params, KernelData& kd) {
-        const auto& prim_params = dynamic_cast<const unique_params&>(params);
+        const auto& prim_params = dynamic_cast<const unique_count_params&>(params);
         auto dispatchData = SetDefault(prim_params);
         OPENVINO_ASSERT(kd.kernels.size() == 1, "[GPU] Invalid kernels size for update dispatch data func");
         kd.kernels[0].params.workGroups.global = dispatchData.gws;
@@ -171,7 +171,7 @@ KernelsData UniqueKernelRef::GetKernelsData(const Params& params, const optional
     return {kernel_data};
 }
 
-ParamsKey UniqueKernelRef::GetSupportedKey() const {
+ParamsKey UniqueCountKernelRef::GetSupportedKey() const {
     ParamsKey key;
     key.EnableAllInputDataType();
     key.EnableAllOutputDataType();
@@ -185,12 +185,12 @@ ParamsKey UniqueKernelRef::GetSupportedKey() const {
     return key;
 }
 
-bool UniqueKernelRef::Validate(const Params& params, const optional_params& options) const {
-    if (params.GetType() != KernelType::UNIQUE || options.GetType() != KernelType::UNIQUE) {
+bool UniqueCountKernelRef::Validate(const Params& params, const optional_params& options) const {
+    if (params.GetType() != KernelType::UNIQUE_COUNT || options.GetType() != KernelType::UNIQUE_COUNT) {
         return false;
     }
 
-    const auto& kernel_params = dynamic_cast<const unique_params&>(params);
+    const auto& kernel_params = dynamic_cast<const unique_count_params&>(params);
     if (kernel_params.inputs.size() != 1) {
         return false;
     }
@@ -201,7 +201,7 @@ bool UniqueKernelRef::Validate(const Params& params, const optional_params& opti
     return true;
 }
 
-JitConstants UniqueKernelRef::GetJitConstants(const unique_params& kernel_params) const {
+JitConstants UniqueCountKernelRef::GetJitConstants(const unique_count_params& kernel_params) const {
     const auto input = kernel_params.inputs.front();
     auto jit_constants = MakeBaseParamsJitConstants(kernel_params);
 
@@ -222,7 +222,7 @@ JitConstants UniqueKernelRef::GetJitConstants(const unique_params& kernel_params
     return jit_constants;
 }
 
-CommonDispatchData UniqueKernelRef::SetDefault(const unique_params& /* kernel_params */) {
+CommonDispatchData UniqueCountKernelRef::SetDefault(const unique_count_params& /* kernel_params */) {
     CommonDispatchData dispatch_data;
 
     // For now we run only in one thread
@@ -233,13 +233,13 @@ CommonDispatchData UniqueKernelRef::SetDefault(const unique_params& /* kernel_pa
     return dispatch_data;
 }
 
-KernelsData UniqueReshapeKernelRef::GetKernelsData(const Params& params, const optional_params& options) const {
+KernelsData UniqueGatherKernelRef::GetKernelsData(const Params& params, const optional_params& options) const {
     if (!Validate(params, options)) {
         return {};
     }
 
-    auto kernel_data = KernelData::Default<unique_reshape_params>(params);
-    const auto& kernel_params = dynamic_cast<const unique_reshape_params&>(*kernel_data.params);
+    auto kernel_data = KernelData::Default<unique_gather_params>(params);
+    const auto& kernel_params = dynamic_cast<const unique_gather_params&>(*kernel_data.params);
     const auto dispatch_data = SetDefault(kernel_params);
     const auto entry_point = GetEntryPoint(kernelName, kernel_params.layerID, params, options);
     const auto jit_constants = GetJitConstants(kernel_params);
@@ -247,7 +247,7 @@ KernelsData UniqueReshapeKernelRef::GetKernelsData(const Params& params, const o
     auto& kernel = kernel_data.kernels.front();
 
     kernel_data.update_dispatch_data_func = [this](const Params& params, KernelData& kd) {
-        const auto& prim_params = dynamic_cast<const unique_reshape_params&>(params);
+        const auto& prim_params = dynamic_cast<const unique_gather_params&>(params);
         auto dispatchData = SetDefault(prim_params);
         OPENVINO_ASSERT(kd.kernels.size() == 1, "[GPU] Invalid kernels size for update dispatch data func");
         kd.kernels[0].params.workGroups.global = dispatchData.gws;
@@ -272,7 +272,7 @@ KernelsData UniqueReshapeKernelRef::GetKernelsData(const Params& params, const o
     return {kernel_data};
 }
 
-ParamsKey UniqueReshapeKernelRef::GetSupportedKey() const {
+ParamsKey UniqueGatherKernelRef::GetSupportedKey() const {
     ParamsKey key;
     key.EnableAllInputDataType();
     key.EnableAllOutputDataType();
@@ -286,12 +286,12 @@ ParamsKey UniqueReshapeKernelRef::GetSupportedKey() const {
     return key;
 }
 
-bool UniqueReshapeKernelRef::Validate(const Params& params, const optional_params& options) const {
-    if (params.GetType() != KernelType::UNIQUE_RESHAPE || options.GetType() != KernelType::UNIQUE_RESHAPE) {
+bool UniqueGatherKernelRef::Validate(const Params& params, const optional_params& options) const {
+    if (params.GetType() != KernelType::UNIQUE_GATHER || options.GetType() != KernelType::UNIQUE_GATHER) {
         return false;
     }
 
-    const auto& kernel_params = dynamic_cast<const unique_reshape_params&>(params);
+    const auto& kernel_params = dynamic_cast<const unique_gather_params&>(params);
     if (kernel_params.inputs.size() != 2) {
         return false;
     }
@@ -302,7 +302,7 @@ bool UniqueReshapeKernelRef::Validate(const Params& params, const optional_param
     return true;
 }
 
-JitConstants UniqueReshapeKernelRef::GetJitConstants(const unique_reshape_params& kernel_params) const {
+JitConstants UniqueGatherKernelRef::GetJitConstants(const unique_gather_params& kernel_params) const {
     const auto input = kernel_params.inputs.front();
     auto jit_constants = MakeBaseParamsJitConstants(kernel_params);
 
@@ -327,7 +327,7 @@ JitConstants UniqueReshapeKernelRef::GetJitConstants(const unique_reshape_params
     return jit_constants;
 }
 
-CommonDispatchData UniqueReshapeKernelRef::SetDefault(const unique_reshape_params& /* kernel_params */) {
+CommonDispatchData UniqueGatherKernelRef::SetDefault(const unique_gather_params& /* kernel_params */) {
     CommonDispatchData dispatch_data;
 
     // For now we run only in one thread

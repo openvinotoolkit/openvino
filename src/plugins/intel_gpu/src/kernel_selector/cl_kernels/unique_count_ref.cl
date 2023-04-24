@@ -55,7 +55,7 @@ inline uint FUNC(unique)(OPTIONAL_SHAPE_INFO_ARG const __global INPUT0_TYPE* inp
     return unique_length;
 }
 
-KERNEL(unique_ref)
+KERNEL(unique_count_ref)
 (OPTIONAL_SHAPE_INFO_ARG const __global INPUT0_TYPE* input,
  __global OUTPUT_TYPE* out_total_count,
  __global INPUT0_TYPE* out_unique_elements) {

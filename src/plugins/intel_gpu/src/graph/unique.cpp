@@ -15,32 +15,34 @@
 namespace cldnn {
 
 // -----------------------------------------------
-// unique
+// unique_count
 // -----------------------------------------------
-GPU_DEFINE_PRIMITIVE_TYPE_ID(unique)
+GPU_DEFINE_PRIMITIVE_TYPE_ID(unique_count)
 
-layout unique_inst::calc_output_layout(const unique_node& node, const kernel_impl_params& impl_param) {
+layout unique_count_inst::calc_output_layout(const unique_count_node& node, const kernel_impl_params& impl_param) {
     OPENVINO_THROW("Only calc_output_layouts should be used!");
 }
 
 template <typename ShapeType>
-std::vector<layout> unique_inst::calc_output_layouts(const unique_node& node, const kernel_impl_params& impl_param) {
+std::vector<layout> unique_count_inst::calc_output_layouts(const unique_count_node& node,
+                                                           const kernel_impl_params& impl_param) {
     return {layout{ov::PartialShape{1}, cldnn::data_types::i64, cldnn::format::bfyx}};
 }
 
-template std::vector<layout> unique_inst::calc_output_layouts<ov::PartialShape>(const unique_node& node,
-                                                                                const kernel_impl_params& impl_param);
+template std::vector<layout> unique_count_inst::calc_output_layouts<ov::PartialShape>(
+    const unique_count_node& node,
+    const kernel_impl_params& impl_param);
 
-std::string unique_inst::to_string(const unique_node& node) {
+std::string unique_count_inst::to_string(const unique_count_node& node) {
     auto primitive = node.get_primitive();
-    json_composite unique_info;
-    unique_info.add("input", node.input().id());
+    json_composite unique_count_info;
+    unique_count_info.add("input", node.input().id());
     if (!primitive->flattened) {
-        unique_info.add("axis", primitive->axis);
+        unique_count_info.add("axis", primitive->axis);
     }
 
     auto node_info = node.desc_to_json();
-    node_info->add("unique info", unique_info);
+    node_info->add("unique_count info", unique_count_info);
 
     std::ostringstream primitive_description;
     node_info->dump(primitive_description);
@@ -48,19 +50,19 @@ std::string unique_inst::to_string(const unique_node& node) {
 }
 
 // -----------------------------------------------
-// unique_reshape
+// unique_gather
 // -----------------------------------------------
-GPU_DEFINE_PRIMITIVE_TYPE_ID(unique_reshape)
+GPU_DEFINE_PRIMITIVE_TYPE_ID(unique_gather)
 
-layout unique_reshape_inst::calc_output_layout(const unique_reshape_node& node, const kernel_impl_params& impl_param) {
+layout unique_gather_inst::calc_output_layout(const unique_gather_node& node, const kernel_impl_params& impl_param) {
     OPENVINO_THROW("Only calc_output_layouts should be used!");
 }
 
 template <typename ShapeType>
-std::vector<layout> unique_reshape_inst::calc_output_layouts(const unique_reshape_node& node,
-                                                             const kernel_impl_params& impl_param) {
+std::vector<layout> unique_gather_inst::calc_output_layouts(const unique_gather_node& node,
+                                                            const kernel_impl_params& impl_param) {
     std::vector<layout> layouts;
-    const auto desc = impl_param.typed_desc<unique_reshape>();
+    const auto desc = impl_param.typed_desc<unique_gather>();
     const auto input_layout = impl_param.get_input_layout();
 
     std::vector<ShapeType> output_shapes = {ShapeType(), ShapeType(), ShapeType(), ShapeType()};
@@ -112,21 +114,21 @@ std::vector<layout> unique_reshape_inst::calc_output_layouts(const unique_reshap
     return layouts;
 }
 
-template std::vector<layout> unique_reshape_inst::calc_output_layouts<ov::PartialShape>(
-    const unique_reshape_node& node,
+template std::vector<layout> unique_gather_inst::calc_output_layouts<ov::PartialShape>(
+    const unique_gather_node& node,
     const kernel_impl_params& impl_param);
 
-std::string unique_reshape_inst::to_string(const unique_reshape_node& node) {
+std::string unique_gather_inst::to_string(const unique_gather_node& node) {
     auto primitive = node.get_primitive();
-    json_composite unique_reshape_info;
-    unique_reshape_info.add("input", node.input().id());
+    json_composite unique_gather_info;
+    unique_gather_info.add("input", node.input().id());
     if (!primitive->flattened) {
-        unique_reshape_info.add("axis", primitive->axis);
+        unique_gather_info.add("axis", primitive->axis);
     }
-    unique_reshape_info.add("sorted", primitive->sorted);
+    unique_gather_info.add("sorted", primitive->sorted);
 
     auto node_info = node.desc_to_json();
-    node_info->add("unique_reshape info", unique_reshape_info);
+    node_info->add("unique_gather info", unique_gather_info);
 
     std::ostringstream primitive_description;
     node_info->dump(primitive_description);

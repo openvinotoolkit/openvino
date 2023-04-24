@@ -1441,8 +1441,8 @@ void program::set_layout_optimizer_attributes(layout_optimizer& lo) {
             prim.type() != cldnn::gather_tree::type_id() &&
             prim.type() != cldnn::experimental_detectron_detection_output::type_id() &&
             prim.type() != cldnn::convert_color::type_id() &&
-            prim.type() != cldnn::unique::type_id() &&
-            prim.type() != cldnn::unique_reshape::type_id() &&
+            prim.type() != cldnn::unique_count::type_id() &&
+            prim.type() != cldnn::unique_gather::type_id() &&
             prim.type() != cldnn::experimental_detectron_generate_proposals_single_image::type_id()) {
             can_use_fsv16 = false;
         }
@@ -1496,8 +1496,8 @@ void program::set_layout_optimizer_attributes(layout_optimizer& lo) {
             prim.type() != cldnn::multiclass_nms::type_id() &&
             prim.type() != cldnn::normalize::type_id() &&
             prim.type() != cldnn::deconvolution::type_id() &&
-            prim.type() != cldnn::unique::type_id() &&
-            prim.type() != cldnn::unique_reshape::type_id() &&
+            prim.type() != cldnn::unique_count::type_id() &&
+            prim.type() != cldnn::unique_gather::type_id() &&
             prim.type() != cldnn::experimental_detectron_generate_proposals_single_image::type_id()) {
             can_use_bs_fs_yx_bsv16_fsv16 = false;
         }
