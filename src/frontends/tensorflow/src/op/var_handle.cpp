@@ -118,15 +118,16 @@ OutputVector translate_varisinitialized_op(const NodeContext& node) {
 
 OutputVector translate_readvariable_op(const NodeContext& node) {
     default_op_checks(node, 1, {"ReadVariableOp", "Assign"});
+
+    // Documentation says it should return only one tensor with dtype, but
+    // _output_shapes is a vector of shapes and it means it may have multiple outputs
+    // https://www.tensorflow.org/api_docs/python/tf/raw_ops/ReadVariableOp
     auto tmp_output_shapes = node.get_attribute_as_any("_output_shapes");
 
     if (tmp_output_shapes.empty() || !tmp_output_shapes.is<std::vector<::ov::PartialShape>>()) {
         return {node.get_input(0).get_node_shared_ptr()};
     }
 
-    // Documentation says it should return only one tensor with dtype, but
-    // _output_shapes in a vector of shapes and it means it could have multiple outputs
-    // https://www.tensorflow.org/api_docs/python/tf/raw_ops/ReadVariableOp
     auto output_shapes = tmp_output_shapes.as<std::vector<::ov::PartialShape>>();
 
     OutputVector outs = {};

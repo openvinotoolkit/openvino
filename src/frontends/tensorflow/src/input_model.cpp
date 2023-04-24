@@ -412,6 +412,11 @@ std::vector<ov::frontend::Place::Ptr> InputModel::InputModelTFImpl::get_inputs()
     if (m_native_format) {
         std::vector<ov::frontend::Place::Ptr> found_inputs;
         if (m_custom_inputs) {
+            // When user asks overrding inputs/outputs then some inputs should be
+            // excluded for output, depends on results after a call of topologically_sort_op_nodes
+            // For example, model has a two inputs, but after cutting by an output one input
+            // may be unavailable in path to new output. In such case we need to do not
+            // return it as an available input, otherwise it won't be connected with a graph.
             for (auto& input : m_inputs) {
                 for (auto& name : input->get_names()) {
                     if (std::find(m_found_inputs.begin(), m_found_inputs.end(), name) != m_found_inputs.end()) {

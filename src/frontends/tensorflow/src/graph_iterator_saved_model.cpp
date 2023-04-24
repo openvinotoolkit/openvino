@@ -29,7 +29,7 @@ bool GraphIteratorSavedModel::is_valid_signature(const ::tensorflow::SignatureDe
         {::tensorflow::DataType::DT_UINT8, ov::element::u8},
         {::tensorflow::DataType::DT_INT8, ov::element::i8},
         {::tensorflow::DataType::DT_BFLOAT16, ov::element::bf16},
-        {::tensorflow::DataType::DT_STRING, ov::element::undefined}};
+        {::tensorflow::DataType::DT_STRING, ov::element::dynamic}};
 
     for (const auto& it : signature.inputs()) {
         if (it.second.name().empty() || types.find(it.second.dtype()) == types.end())

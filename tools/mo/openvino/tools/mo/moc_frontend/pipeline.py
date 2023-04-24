@@ -42,6 +42,8 @@ def moc_pipeline(argv: argparse.Namespace, moc_front_end: FrontEnd):
             input_model = moc_front_end.load(argv.input_meta_graph)
             if argv.output:
                 # Simulate original behavior with freezing model
+                # While freezing we do a cutting of model, to keep similar behavior we
+                # need to simulate similar behavior with natively supported model
                 outputs = fe_output_user_data_repack(input_model, argv.output, moc_front_end.get_name())
                 input_model.override_all_outputs([x['node'] for x in outputs])
 

@@ -435,6 +435,8 @@ void TranslateSession::translate_graph(const ov::frontend::InputModel::Ptr& inpu
 
     if (saved_model_inputs.get() && saved_model_inputs->size() > 0) {
         for (auto param : params) {
+            // If parameter isn't found in a map of known inputs - mark them as unused
+            // and try to remove it in the normalize step later
             if (!apply_saved_model_names(param, saved_model_inputs)) {
                 param->get_output_tensor(0).add_names({"saved_model_unused"});
             }
@@ -443,6 +445,8 @@ void TranslateSession::translate_graph(const ov::frontend::InputModel::Ptr& inpu
 
     if (saved_model_outputs.get() && saved_model_outputs->size() > 0) {
         for (auto result : results) {
+            // If parameter isn't found in a map of known outputs - mark them as unused
+            // and try to remove it in the normalize step later
             if (!apply_saved_model_names(result, saved_model_outputs)) {
                 result->get_input_tensor(0).add_names({"saved_model_unused"});
             }
