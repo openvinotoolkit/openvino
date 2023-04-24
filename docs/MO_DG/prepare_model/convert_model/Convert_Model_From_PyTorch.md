@@ -6,7 +6,7 @@ This page provides instructions on how to convert a model from the PyTorch forma
 Model Optimizer Python API allows the conversion of PyTorch models using the ``convert_model()`` method.
 
 (Experimental) Converting a PyTorch model with PyTorch Frontend 
-#############################################
+###############################################################
 
 Example of PyTorch model converting:
 
