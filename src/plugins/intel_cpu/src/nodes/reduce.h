@@ -9,6 +9,7 @@
 #include <string>
 #include <memory>
 #include <vector>
+#include "executors/reduce_list.hpp"
 
 namespace ov {
 namespace intel_cpu {
@@ -118,6 +119,7 @@ private:
     inline void set_reduce_dim_flags();
     inline void reduce_ref(const float *in_ptr, float *out_ptr);
     void reduce_ref_process(const float *in_ptr, float *out_ptr, float init_value, std::function<float(float, float)> func);
+    void create_reduce_kernel(std::shared_ptr<jit_uni_reduce_kernel> &kernel, const jit_reduce_config_params &jcp);
     inline void reduce_ref_map(float *out_ptr, size_t work_amount_dst, size_t reduced_dims_work_amount);
     void nspc2ncsp(uint8_t *proc_ptr, uint8_t *out_ptr);
     void blocked2ncsp(uint8_t *proc_ptr, uint8_t *out_ptr);
@@ -137,7 +139,10 @@ private:
     bool is_hybrid_layout = false;
     bool compile_post_kernel = true;
     bool support_split = false;
+    bool precision_change = false;
+    bool ReduceAll_opt = false;
     bool ReduceDH_opt = false;
+    bool use_aux_kernel = false;
     bool ReduceN, ReduceC, ReduceD, ReduceH, ReduceW;
     size_t IB, IC, ID, IH, IW;
     size_t OB, OC, OD, OH, OW;
@@ -152,6 +157,7 @@ private:
     std::vector<int> raw_axes;
 
     jit_reduce_config_params jcp;
+    jit_reduce_config_params aux_jcp;
 
     dnnl::primitive_attr attr;
 
@@ -161,11 +167,17 @@ private:
     std::vector<uint8_t> vec_reduceDH_prc;
 
     std::shared_ptr<jit_uni_reduce_kernel> reduce_kernel;
+    std::shared_ptr<jit_uni_reduce_kernel> reduce_aux_kernel;
+    std::shared_ptr<jit_uni_reduce_kernel> reduce_tmp_kernel;
     std::shared_ptr<jit_uni_reduce_post_kernel> reduce_post_kernel;
 
     static const std::map<const ngraph::DiscreteTypeInfo, std::function<void(const std::shared_ptr<ngraph::Node>& op, Reduce& node)>> initializers;
 
     std::string errorPrefix;
+
+    ReduceAttrs reduceAttrs;
+    bool canUseAclExecutor = false;
+    std::shared_ptr<ReduceExecutor> aclExecPtr = nullptr;
 };
 
 }   // namespace node

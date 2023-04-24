@@ -213,9 +213,10 @@ void graph_topological_sort(GraphProto* graph) {
         std::multimap<std::string, const NodeProto*> output_name_to_node;
         GraphProto result;
 
-        for (int i = 0; i < graph->node().size(); ++i) {
+        const auto nodes_number = static_cast<int>(graph->node().size());
+        for (int i = 0; i < nodes_number; ++i) {
             for (const auto& output_name : graph->node(i).output()) {
-                output_name_to_node.emplace(output_name, graph->mutable_node(static_cast<int>(i)));
+                output_name_to_node.emplace(output_name, graph->mutable_node(i));
             }
         }
         auto get_node_by_out_name = [&output_name_to_node](const std::string& out_name) -> const NodeProto* {
@@ -442,6 +443,10 @@ void onnx_editor::ONNXModelEditor::extract_subgraph(const std::vector<InputEdge>
                                                     const bool merge_inputs) {
     if (inputs.empty() && outputs.empty()) {
         return;
+    }
+
+    if (!outputs.empty()) {
+        m_pimpl->m_model_proto->mutable_graph()->mutable_output()->Clear();
     }
 
     InferShapesAutoRelease onnx_shapes(m_pimpl->m_model_proto);

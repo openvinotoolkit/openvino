@@ -325,11 +325,11 @@ void generate_proposals(const std::vector<float>& im_info,
                         std::vector<float>& output_scores,
                         std::vector<int64_t>& num_rois) {
     const auto im_info_size =
-        std::accumulate(im_info_shape.begin() + 1, im_info_shape.end(), 1, std::multiplies<size_t>());
+        std::accumulate(im_info_shape.begin() + 1, im_info_shape.end(), size_t(1), std::multiplies<size_t>());
     const auto deltas_size =
-        std::accumulate(deltas_shape.begin() + 1, deltas_shape.end(), 1, std::multiplies<size_t>());
+        std::accumulate(deltas_shape.begin() + 1, deltas_shape.end(), size_t(1), std::multiplies<size_t>());
     const auto scores_size =
-        std::accumulate(scores_shape.begin() + 1, scores_shape.end(), 1, std::multiplies<size_t>());
+        std::accumulate(scores_shape.begin() + 1, scores_shape.end(), size_t(1), std::multiplies<size_t>());
     for (size_t i = 0; i < im_info_shape[0]; i++) {
         std::vector<float> cur_im_info(im_info.begin() + i * im_info_size,
                                        im_info.begin() + i * im_info_size + im_info_size);
@@ -398,9 +398,9 @@ void generate_proposals_postprocessing(void* prois,
         memcpy(scores_ptr, output_scores.data(), shape_size(output_scores_shape) * sizeof(float));
     } break;
     default:;
-        throw ngraph_error("Unsupported input data type: "
-                           "GenerateProposals operation"
-                           " supports only fp32, fp16, or bf16 data.");
+        OPENVINO_THROW("Unsupported input data type: "
+                       "GenerateProposals operation"
+                       " supports only fp32, fp16, or bf16 data.");
     }
 
     for (size_t i = 0; i < num_rois.size(); i++) {
@@ -414,8 +414,8 @@ void generate_proposals_postprocessing(void* prois,
             roi_num_ptr[i] = static_cast<int64_t>(num_rois[i]);
         } break;
         default:;
-            throw ngraph_error("Unsupported data type on output port 3: "
-                               " supports only int32 or int64.");
+            OPENVINO_THROW("Unsupported data type on output port 3: "
+                           " supports only int32 or int64.");
         }
     }
 }

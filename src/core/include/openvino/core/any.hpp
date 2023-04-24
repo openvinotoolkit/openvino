@@ -496,7 +496,7 @@ class OPENVINO_API Any {
         }
 
     protected:
-        ~Base() = default;
+        virtual ~Base() = default;
     };
 
     template <class T, typename = void>
@@ -675,14 +675,14 @@ public:
     /// @brief Default constructor
     Any() = default;
 
-    /// @brief Default copy constructor
+    /// @brief Сopy constructor
     /// @param other other Any object
-    Any(const Any& other) = default;
+    Any(const Any& other);
 
-    /// @brief Default copy assignment operator
+    /// @brief Сopy assignment operator
     /// @param other other Any object
     /// @return reference to the current object
-    Any& operator=(const Any& other) = default;
+    Any& operator=(const Any& other);
 
     /// @brief Default move constructor
     /// @param other other Any object

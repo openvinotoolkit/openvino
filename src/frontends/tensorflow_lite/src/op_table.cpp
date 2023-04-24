@@ -6,6 +6,7 @@
 
 #include "decoder_map.hpp"
 #include "openvino/opsets/opset10.hpp"
+#include "openvino/opsets/opset8.hpp"
 #include "utils.hpp"
 
 using namespace std;
@@ -27,7 +28,7 @@ using namespace ov::frontend::tensorflow::op;
         auto inputs = node.get_inputs();                                                                           \
         ov::frontend::tensorflow_lite::dequantize_inputs(inputs);                                                  \
         auto context = frontend::tensorflow_lite::NodeContext(decoder, inputs);                                    \
-        return func(context);                                                                                      \
+        return get_indexed_outputs(func(context));                                                                 \
     }
 
 namespace ov {

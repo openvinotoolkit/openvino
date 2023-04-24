@@ -6,7 +6,7 @@
 #include <string>
 #include <vector>
 
-#include "ngraph_transformations/op/interaction.hpp"
+#include "transformations/cpu_opset/x64/op/interaction.hpp"
 #include "interaction.h"
 #include <onednn/dnnl.h>
 #include <dnnl_extension_utils.h>
@@ -18,8 +18,8 @@
 #include <ie_ngraph_utils.hpp>
 #include <cpu/x64/cpu_isa_traits.hpp>
 #include <cpu/x64/jit_generator.hpp>
-#include "emitters/jit_dnnl_emitters.hpp"
-#include "emitters/jit_load_store_emitters.hpp"
+#include "emitters/x64/jit_dnnl_emitters.hpp"
+#include "emitters/x64/jit_load_store_emitters.hpp"
 
 using namespace InferenceEngine;
 using namespace dnnl::impl::cpu::x64;
@@ -341,6 +341,12 @@ void Interaction::prepareParams() {
         moveFeatureKernel->create_ker();
         moveInteractKernel->create_ker();
     }
+#ifdef CPU_DEBUG_CAPS
+    if (prim) {
+        auto pd = prim.get_primitive_desc();
+        DEBUG_LOG("verbose##", getName(), "##", DnnlExtensionUtils::query_pd_info(pd), "\n");
+    }
+#endif
 }
 
 void Interaction::executeDynamicImpl(dnnl::stream strm) {

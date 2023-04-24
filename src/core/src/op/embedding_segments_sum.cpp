@@ -99,7 +99,9 @@ void op::v3::EmbeddingSegmentsSum::validate_and_infer_types() {
                               ")");
     }
     const auto& result_et = get_input_element_type(EMB_TABLE);
+    OPENVINO_SUPPRESS_DEPRECATED_START
     const auto input_shapes = get_node_input_partial_shapes(*this);
+    OPENVINO_SUPPRESS_DEPRECATED_END
     const auto result_shapes = shape_infer(this, input_shapes);
 
     if (result_shapes[EMB_TABLE].rank().is_dynamic() || result_shapes[EMB_TABLE][0].is_dynamic()) {
@@ -130,6 +132,6 @@ shared_ptr<Node> op::v3::EmbeddingSegmentsSum::clone_with_new_inputs(const Outpu
                                                          new_args.at(4),
                                                          new_args.at(5));
     } else {
-        throw ngraph_error("Incorrect number of arguments");
+        OPENVINO_THROW("Incorrect number of arguments");
     }
 }

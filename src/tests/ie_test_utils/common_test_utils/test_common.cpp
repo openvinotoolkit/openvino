@@ -83,4 +83,15 @@ std::string TestsCommon::GetTestName() const {
     return test_name;
 }
 
+std::string TestsCommon::GetFullTestName() const {
+    std::string suite_name =
+        ::testing::UnitTest::GetInstance()->current_test_info()->test_suite_name();
+    std::replace_if(suite_name.begin(), suite_name.end(),
+        [](char c) { return !std::isalnum(c); }, '_');
+
+    std::string test_name = GetTestName();
+
+    return suite_name + "_" + test_name;
+}
+
 }  // namespace CommonTestUtils

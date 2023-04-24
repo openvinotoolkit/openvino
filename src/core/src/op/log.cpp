@@ -58,7 +58,7 @@ bool evaluate_log(const HostTensorPtr& arg0, const HostTensorPtr& out, const siz
 
 bool op::Log::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const {
     OV_OP_SCOPE(v0_Log_evaluate);
-    return logop::evaluate_log(inputs[0], outputs[0], shape_size(get_output_shape(0)));
+    return logop::evaluate_log(inputs[0], outputs[0], shape_size(inputs[0]->get_shape()));
 }
 
 bool op::Log::has_evaluate() const {

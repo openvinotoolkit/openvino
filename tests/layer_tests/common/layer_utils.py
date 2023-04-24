@@ -102,11 +102,10 @@ class InferAPI20(BaseInfer):
                 for tensor_name in out_obj.get_names():
                     result[tensor_name] = out_tensor
             else:
-                # do not change behaviour for mapping tensor names
-                # between the original framework and OpenVINO
-                # because it leads to fixing this functionality in the legacy frontend
-                tensor_name = out_obj.get_any_name().split(':')[0]
-                result[tensor_name] = out_tensor
+                for tensor_name in out_obj.get_names():
+                    result[tensor_name] = out_tensor
+                    tensor_name = tensor_name.split(':')[0]
+                    result[tensor_name] = out_tensor
 
         if "exec_net" in locals():
             del exec_net

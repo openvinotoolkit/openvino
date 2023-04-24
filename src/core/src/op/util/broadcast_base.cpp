@@ -194,7 +194,9 @@ void ov::op::util::BroadcastBase::validate_and_infer_types() {
     }
 
     PartialShape output_shape;
+    OPENVINO_SUPPRESS_DEPRECATED_START
     bool output_shape_defined = ngraph::evaluate_as_partial_shape(get_input_source_output(1), output_shape);
+    OPENVINO_SUPPRESS_DEPRECATED_END
 
     if (auto concat = ov::as_type_ptr<ngraph::op::v0::Concat>(input_value(1).get_node_shared_ptr())) {
         auto concat_inputs = concat->inputs();
@@ -235,7 +237,9 @@ void ov::op::util::BroadcastBase::validate_and_infer_types() {
                                   input_rank);
 
             if (output_shape_defined && has_and_set_equal_bounds(input_value(2))) {
+                OPENVINO_SUPPRESS_DEPRECATED_START
                 auto axes_mapping_val = get_constant_from_source(input_value(2))->get_axis_vector_val();
+                OPENVINO_SUPPRESS_DEPRECATED_END
                 validate_target_shape_none(arg_shape, axes_mapping_val, output_shape);
             }
         }
@@ -292,7 +296,9 @@ std::pair<bool, ov::AxisSet> ov::op::util::BroadcastBase::get_broadcast_axes() c
     bool axes_known = false;
 
     if (m_mode.m_type == BroadcastType::NONE) {
+        OPENVINO_SUPPRESS_DEPRECATED_START
         const auto axes_mapping_constant = get_constant_from_source(input_value(2));
+        OPENVINO_SUPPRESS_DEPRECATED_END
         if (get_input_partial_shape(1).is_static() && axes_mapping_constant) {
             auto axes_mapping_val = axes_mapping_constant->get_axis_vector_val();
             auto target_shape = get_input_shape(1);
@@ -443,9 +449,10 @@ ov::Shape ov::op::util::BroadcastBase::get_target_shape(const HostTensorPtr& inp
 
 bool ov::op::util::BroadcastBase::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const {
     OV_OP_SCOPE(util_BroadcastBase_evaluate);
+    OPENVINO_SUPPRESS_DEPRECATED_START
     NGRAPH_CHECK(ngraph::validate_host_tensor_vector(inputs, 2) || ngraph::validate_host_tensor_vector(inputs, 3));
     NGRAPH_CHECK(ngraph::validate_host_tensor_vector(outputs, 1));
-
+    OPENVINO_SUPPRESS_DEPRECATED_END
     Shape target_shape = get_target_shape(inputs[1]);
 
     PartialShape result_shape;

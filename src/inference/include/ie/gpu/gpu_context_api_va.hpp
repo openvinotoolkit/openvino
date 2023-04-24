@@ -100,6 +100,7 @@ public:
  * @param nv12_surf NV12 `VASurfaceID` to create NV12 from
  * @return A remote NV12 blob wrapping `VASurfaceID`
  */
+OPENVINO_DEPRECATED("This function is deprecated and will be removed in 2023.1 release")
 static inline Blob::Ptr make_shared_blob_nv12(size_t height,
                                               size_t width,
                                               RemoteContext::Ptr ctx,
