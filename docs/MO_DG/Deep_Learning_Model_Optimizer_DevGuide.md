@@ -19,9 +19,22 @@
 
 To convert a model to IR, you can run model conversion API by using the following command:
 
-.. code-block:: sh
+.. tab-set::
 
-   mo --input_model INPUT_MODEL
+    .. tab-item:: MO command line tool
+       :sync: cli-tool
+
+       .. code-block:: sh
+
+          mo --input_model INPUT_MODEL
+
+    .. tab-item:: MO Python API
+       :sync: mo-python-api
+
+       .. code-block:: python
+
+          from openvino.tools.mo import convert_model
+          ov_model = convert_model(INPUT_MODEL)
 
 
 If the out-of-the-box conversion (only the ``input_model`` parameter is specified) is not successful, use the parameters mentioned below to override input shapes and cut the model:
@@ -41,9 +54,22 @@ The ``compress_to_fp16`` compression parameter in MO command-line tool allows ge
 
 To get the full list of conversion parameters available in MO command-line tool, run the following command:
 
-.. code-block:: sh
+.. tab-set::
 
-   mo --help
+    .. tab-item:: MO command line tool
+       :sync: cli-tool
+
+       .. code-block:: sh
+
+          mo --help
+
+    .. tab-item:: MO Python API
+       :sync: mo-python-api
+
+       .. code-block:: python
+
+          from openvino.tools.mo import convert_model
+          ov_model = convert_model(help=True)
 
 
 Examples of MO command-line parameters
@@ -53,24 +79,64 @@ Below is a list of separate examples for different frameworks and MO command-lin
 
 1. Launch MO for a TensorFlow MobileNet model in the binary protobuf format:
 
-   .. code-block:: sh
-
-      mo --input_model MobileNet.pb
+   .. tab-set::
+   
+       .. tab-item:: MO command line tool
+          :sync: cli-tool
+   
+          .. code-block:: sh
+   
+             mo --input_model MobileNet.pb
+   
+       .. tab-item:: MO Python API
+          :sync: mo-python-api
+   
+          .. code-block:: python
+   
+             from openvino.tools.mo import convert_model
+             ov_model = convert_model("MobileNet.pb")
 
 
    Launch MO for a TensorFlow BERT model in the SavedModel format with three inputs. Specify input shapes explicitly where the batch size and the sequence length equal 2 and 30 respectively:
 
-   .. code-block:: sh
+   .. tab-set::
+   
+       .. tab-item:: MO command line tool
+          :sync: cli-tool
+   
+          .. code-block:: sh
+   
+             mo --saved_model_dir BERT --input_shape [2,30],[2,30],[2,30]
+   
+       .. tab-item:: MO Python API
+          :sync: mo-python-api
+   
+          .. code-block:: python
+   
+             from openvino.tools.mo import convert_model
+             ov_model = convert_model("BERT", input_shape=[[2,30],[2,30],[2,30]])
 
-      mo --saved_model_dir BERT --input mask,word_ids,type_ids --input_shape [2,30],[2,30],[2,30]
 
-      For more information, refer to the :doc:`Converting a TensorFlow Model <openvino_docs_MO_DG_prepare_model_convert_model_Convert_Model_From_TensorFlow>` guide.
+   For more information, refer to the :doc:`Converting a TensorFlow Model <openvino_docs_MO_DG_prepare_model_convert_model_Convert_Model_From_TensorFlow>` guide.
 
 2. Launch MO for an ONNX OCR model and specify new output explicitly:
 
-   .. code-block:: sh
-
-      mo --input_model ocr.onnx --output probabilities
+   .. tab-set::
+   
+       .. tab-item:: MO command line tool
+          :sync: cli-tool
+   
+          .. code-block:: sh
+   
+             mo --input_model ocr.onnx --output probabilities
+   
+       .. tab-item:: MO Python API
+          :sync: mo-python-api
+   
+          .. code-block:: python
+   
+             from openvino.tools.mo import convert_model
+             ov_model = convert_model("ocr.onnx", output="probabilities")
 
 
    For more information, refer to the :doc:`Converting an ONNX Model <openvino_docs_MO_DG_prepare_model_convert_model_Convert_Model_From_ONNX>` guide.
@@ -81,36 +147,88 @@ Below is a list of separate examples for different frameworks and MO command-lin
 
 3. Launch MO for a PaddlePaddle UNet model and apply mean-scale normalization to the input:
 
-   .. code-block:: sh
-
-      mo --input_model unet.pdmodel --mean_values [123,117,104] --scale 255
+   .. tab-set::
+   
+       .. tab-item:: MO command line tool
+          :sync: cli-tool
+   
+          .. code-block:: sh
+   
+             mo --input_model unet.pdmodel --mean_values [123,117,104] --scale 255
+   
+       .. tab-item:: MO Python API
+          :sync: mo-python-api
+   
+          .. code-block:: python
+   
+             from openvino.tools.mo import convert_model
+             ov_model = convert_model("unet.pdmodel", mean_values=[123,117,104], scale=255)
 
 
    For more information, refer to the :doc:`Converting a PaddlePaddle Model <openvino_docs_MO_DG_prepare_model_convert_model_Convert_Model_From_Paddle>` guide.
 
 4. Launch MO for an Apache MXNet SSD Inception V3 model and specify first-channel layout for the input:
 
-   .. code-block:: sh
-
-      mo --input_model ssd_inception_v3-0000.params --layout NCHW
+   .. tab-set::
+   
+       .. tab-item:: MO command line tool
+          :sync: cli-tool
+   
+          .. code-block:: sh
+   
+             mo --input_model ssd_inception_v3-0000.params --layout NCHW
+   
+       .. tab-item:: MO Python API
+          :sync: mo-python-api
+   
+          .. code-block:: python
+   
+             from openvino.tools.mo import convert_model
+             ov_model = convert_model("ssd_inception_v3-0000.params", layout="NCHW")
 
 
    For more information, refer to the :doc:`Converting an Apache MXNet Model <openvino_docs_MO_DG_prepare_model_convert_model_Convert_Model_From_MxNet>` guide.
 
 5. Launch MO for a Caffe AlexNet model with input channels in the RGB format which needs to be reversed:
 
-   .. code-block:: sh
-
-      mo --input_model alexnet.caffemodel --reverse_input_channels
+   .. tab-set::
+   
+       .. tab-item:: MO command line tool
+          :sync: cli-tool
+   
+          .. code-block:: sh
+   
+             mo --input_model alexnet.caffemodel --reverse_input_channels
+   
+       .. tab-item:: MO Python API
+          :sync: mo-python-api
+   
+          .. code-block:: python
+   
+             from openvino.tools.mo import convert_model
+             ov_model = convert_model("alexnet.caffemodel", reverse_input_channels=True)
 
 
    For more information, refer to the :doc:`Converting a Caffe Model <openvino_docs_MO_DG_prepare_model_convert_model_Convert_Model_From_Caffe>` guide.
 
 6. Launch MO for a Kaldi LibriSpeech nnet2 model:
 
-   .. code-block:: sh
-
-      mo --input_model librispeech_nnet2.mdl --input_shape [1,140]
+   .. tab-set::
+   
+       .. tab-item:: MO command line tool
+          :sync: cli-tool
+   
+          .. code-block:: sh
+   
+             mo --input_model librispeech_nnet2.mdl --input_shape [1,140]
+   
+       .. tab-item:: MO Python API
+          :sync: mo-python-api
+   
+          .. code-block:: python
+   
+             from openvino.tools.mo import convert_model
+             ov_model = convert_model("librispeech_nnet2.mdl", input_shape=[1,140])
 
 
    For more information, refer to the :doc:`Converting a Kaldi Model <openvino_docs_MO_DG_prepare_model_convert_model_Convert_Model_From_Kaldi>` guide.

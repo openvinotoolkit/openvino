@@ -9,9 +9,22 @@ but it is negligible for most models.
 
 To compress the model, use the ``compress_to_fp16=True`` option:
 
-.. code-block:: sh
+.. tab-set::
 
-   mo --input_model INPUT_MODEL --compress_to_fp16
+    .. tab-item:: MO command line tool
+       :sync: cli-tool
+
+       .. code-block:: sh
+
+          mo --input_model INPUT_MODEL --compress_to_fp16=False
+
+    .. tab-item:: MO Python API
+       :sync: mo-python-api
+
+       .. code-block:: python
+
+          from openvino.tools.mo import convert_model
+          ov_model = convert_model(INPUT_MODEL, compress_to_fp16=False)
 
 
 For details on how plugins handle compressed ``FP16`` models, see 

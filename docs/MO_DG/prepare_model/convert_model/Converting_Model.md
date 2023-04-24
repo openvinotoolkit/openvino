@@ -24,9 +24,22 @@ In this case, the ``input_shape`` parameter and the :doc:`reshape method <openvi
 For example, run model conversion for the TensorFlow MobileNet model with the single input
 and specify the input shape of ``[2,300,300,3]``:
 
-.. code-block:: sh
+.. tab-set::
 
-   mo --input_model MobileNet.pb --input_shape [2,300,300,3]
+   .. tab-item:: MO command line tool
+      :sync: cli-tool
+
+      .. code-block:: sh
+
+         mo --input_model MobileNet.pb --input_shape [2,300,300,3]
+
+   .. tab-item:: MO Python API
+      :sync: mo-python-api
+
+      .. code-block:: python
+
+         from openvino.tools.mo import convert_model
+         ov_model = convert_model("MobileNet.pb", input_shape=[2,300,300,3])
 
 
 If a model has multiple inputs, ``input_shape`` must be used in conjunction with ``input`` parameter.
@@ -34,16 +47,42 @@ The ``input`` parameter contains a list of input names, for which shapes in the 
 For example, launch model conversion for the ONNX OCR model with a pair of inputs ``data`` and ``seq_len``
 and specify shapes ``[3,150,200,1]`` and ``[3]`` for them:
 
-.. code-block:: sh
+.. tab-set::
 
-   mo --input_model ocr.onnx --input data,seq_len --input_shape [3,150,200,1],[3]
+   .. tab-item:: MO command line tool
+      :sync: cli-tool
+
+      .. code-block:: sh
+
+         mo --input_model ocr.onnx --input data,seq_len --input_shape [3,150,200,1],[3]
+
+   .. tab-item:: MO Python API
+      :sync: mo-python-api
+
+      .. code-block:: python
+
+         from openvino.tools.mo import convert_model
+         ov_model = convert_model("ocr.onnx", input=["data","seq_len"], input_shape=[[3,150,200,1],[3]])
 
 
 Alternatively, specify input shapes, using the ``input`` parameter as follows:
 
-.. code-block:: sh
+.. tab-set::
 
-   mo --input_model ocr.onnx --input data[3,150,200,1],seq_len[3]
+   .. tab-item:: MO command line tool
+      :sync: cli-tool
+
+      .. code-block:: sh
+
+         mo --input_model ocr.onnx --input data[3,150,200,1],seq_len[3]
+
+   .. tab-item:: MO Python API
+      :sync: mo-python-api
+
+      .. code-block:: python
+
+         from openvino.tools.mo import convert_model
+         ov_model = convert_model("ocr.onnx", input=[("data",[3,150,200,1]),("seq_len",[3])])
 
 
 The ``input_shape`` parameter allows overriding original input shapes to ones compatible with a given model.
@@ -51,23 +90,50 @@ Dynamic shapes, i.e. with dynamic dimensions, can be replaced in the original mo
 The dynamic dimension can be marked in Model Conversion API parameter as ``-1`` or ``?``.
 For example, launch model conversion for the ONNX OCR model and specify dynamic batch dimension for inputs:
 
-.. code-block:: sh
+.. tab-set::
 
-   mo --input_model ocr.onnx --input data,seq_len --input_shape [-1,150,200,1],[-1]
+   .. tab-item:: MO command line tool
+      :sync: cli-tool
+
+      .. code-block:: sh
+
+         mo --input_model ocr.onnx --input data,seq_len --input_shape [-1,150,200,1],[-1]
+
+   .. tab-item:: MO Python API
+      :sync: mo-python-api
+
+      .. code-block:: python
+
+         from openvino.tools.mo import convert_model
+         ov_model = convert_model("ocr.onnx", input=["data","seq_len"], input_shape=[[-1,150,200,1],[-1]]
 
 
 To optimize memory consumption for models with undefined dimensions in run-time, Model Conversion API provides the capability to define boundaries of dimensions.
 The boundaries of undefined dimension can be specified with ellipsis.
 For example, launch model conversion for the ONNX OCR model and specify a boundary for the batch dimension:
 
-.. code-block:: sh
+.. tab-set::
 
-   mo --input_model ocr.onnx --input data,seq_len --input_shape [1..3,150,200,1],[1..3]
+   .. tab-item:: MO command line tool
+      :sync: cli-tool
+
+      .. code-block:: sh
+
+         mo --input_model ocr.onnx --input data,seq_len --input_shape [1..3,150,200,1],[1..3]
+
+   .. tab-item:: MO Python API
+      :sync: mo-python-api
+
+      .. code-block:: python
+
+         from openvino.tools.mo import convert_model
+         from openvino.runtime import Dimension
+         ov_model = convert_model("ocr.onnx", input=["data","seq_len"], input_shape=[[Dimension(1,3),150,200,1],[Dimension(1,3)]]
 
 
 Practically, some models are not ready for input shapes change.
 In this case, a new input shape cannot be set via Model Conversion API.
-For more information about shape follow the :doc:`inference troubleshooting <troubleshooting_reshape_errors>` 
+For more information about shape follow the :doc:`inference troubleshooting <troubleshooting_reshape_errors>`
 and :ref:`ways to relax shape inference flow <how-to-fix-non-reshape-able-model>` guides.
 
 Additional Resources
