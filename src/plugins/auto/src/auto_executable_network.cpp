@@ -57,8 +57,22 @@ IE::Parameter AutoExecutableNetwork::GetMetric(const std::string& name) const {
             ov::PropertyName{ov::device::properties.name(), ov::PropertyMutability::RO},
             ov::PropertyName{ov::execution_devices.name(), ov::PropertyMutability::RO}};
     } else if (name == ov::hint::performance_mode) {
-        const auto value = ov::util::from_string(_autoSContext->_performanceHint, ov::hint::performance_mode);
-        return value;
+        auto value = _autoSContext->_performanceHint;
+        if (!_autoSContext->_core->isNewAPI())
+            return value;
+        if (value == InferenceEngine::PluginConfigParams::THROUGHPUT) {
+            return ov::hint::PerformanceMode::THROUGHPUT;
+        } else if (value == InferenceEngine::PluginConfigParams::LATENCY) {
+            return ov::hint::PerformanceMode::LATENCY;
+        } else if (value == InferenceEngine::PluginConfigParams::CUMULATIVE_THROUGHPUT) {
+            return ov::hint::PerformanceMode::CUMULATIVE_THROUGHPUT;
+        } else if (value == "UNDEFINED") {
+            OPENVINO_SUPPRESS_DEPRECATED_START
+            return ov::hint::PerformanceMode::UNDEFINED;
+            OPENVINO_SUPPRESS_DEPRECATED_END
+        } else {
+            OPENVINO_THROW("Unsupported value of ov::hint::PerformanceMode");
+        }
     } else if (name == ov::device::priorities) {
         auto value = _autoSContext->_config.find(ov::device::priorities.name());
         return decltype(ov::device::priorities)::value_type {value->second.as<std::string>()};
