@@ -182,3 +182,14 @@ class TestOps(unittest.TestCase):
         _, callable_attribute = layer_info[0]
         self.assertTrue(callable(callable_attribute))
         self.assertEqual(callable_attribute(if_node), "If_opset8")
+
+    def test_strided_slice_no_begin_end_mask(self):
+        data_shape = [6, 12, 10, 24]
+        data_parameter = opset11.parameter(
+            data_shape, name="Data", dtype=np.float32)
+        strided_slice = opset11.strided_slice(data_parameter, np.int32([1, 2, 3, 4]), np.int32(
+            [3, 6, 9, 12]), np.int32([1, 1, 1, 1]), begin_mask=[], end_mask=[], name="StridedSlice_10")
+        model = Model(strided_slice, [data_parameter])
+        graph = TestOps.check_graph_can_save(model, 'strided_slice_model')
+        strided_slice_node = graph.get_op_nodes(op="StridedSlice")[0]
+        self.assertEqual(strided_slice_node["version"], "opset1")
