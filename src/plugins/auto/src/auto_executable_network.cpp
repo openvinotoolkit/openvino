@@ -236,7 +236,7 @@ IE::Parameter AutoExecutableNetwork::GetMetric(const std::string& name) const {
         };
         if (_autoSchedule->_pCTPUTLoadContext) {
             std::vector<std::string> exeDevices = {};
-            std::lock_guard<std::mutex> lock(_autoSContext->_confMutex);
+            std::lock_guard<std::mutex> lock(_autoSContext->_fallbackMutex);
             for (auto const & n : _autoSContext->_devicePriorities) {
                 exeDevices.push_back(n.deviceName);
             }
@@ -258,7 +258,12 @@ IE::Parameter AutoExecutableNetwork::GetMetric(const std::string& name) const {
     } else if (name == ov::model_name) {
         std::lock_guard<std::mutex> lock(_autoSContext->_confMutex);
         if (_autoSchedule->_pCTPUTLoadContext) {
-            return _autoSchedule->_pCTPUTLoadContext[0].executableNetwork->GetMetric(name);
+            for (size_t i = 0; i < _autoSchedule->_nCTputDeviceNums; i++) {
+                if (_autoSchedule->_pCTPUTLoadContext[i].isAlready) {
+                    return _autoSchedule->_pCTPUTLoadContext[i].executableNetwork->GetMetric(name);
+                }
+            }
+            IE_THROW() << "No valid executable network found to get" << name;
         } else {
             if (_autoSchedule->_loadContext[CPU].isEnabled && _autoSchedule->_loadContext[CPU].isAlready)
                 return _autoSchedule->_loadContext[CPU].executableNetwork->GetMetric(name);

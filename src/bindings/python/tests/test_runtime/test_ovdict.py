@@ -99,7 +99,7 @@ def _check_dict(result, obj, output_names=None):
     assert _check_keys(result.keys(), outs)
     assert _check_values(result)
     assert _check_items(result, outs, output_names)
-    assert all([output_names[i] in result.names()[i] for i in range(0, len(output_names))])
+    assert all(output_names[i] in result.names()[i] for i in range(0, len(output_names)))
 
     return True
 

@@ -862,8 +862,8 @@ void reorder_inputs::run(program& p, layout_optimizer& lo, reorder_factory& rf) 
             onednn_add_fusing_helpers::for_eltwise(conv_node, eltwise_mode::sum,
                 [&](const program_node& p_node, const fused_primitive_desc& desc) {
                     auto fusing_type = onednn_add_fusing_helpers::get_add_fusing_type(p_node, desc);
-                    if (fusing_type == add_fusing_type::binary_per_tensor) {
-                        auto& dep_node = p_node.get_dependency(desc.dep_start_idx);
+                    if (fusing_type == add_fusing_type::binary_per_tensor && desc.has_outer_dep()) {
+                        auto& dep_node = p_node.get_dependency(desc.outer_dep_start_idx);
                         auto d_layout = dep_node.get_output_layout();
                         auto d_format = d_layout.format;
                         auto expected_format = format::any;
@@ -885,9 +885,9 @@ void reorder_inputs::run(program& p, layout_optimizer& lo, reorder_factory& rf) 
                             new_layout.format = expected_format;
                             auto new_input = rf.get_reorder(dep_node.id(), d_layout, new_layout);
                             if (new_input.first) {
-                                p.add_intermediate(new_input.first, conv_node, desc.dep_start_idx, !new_input.second);
+                                p.add_intermediate(new_input.first, conv_node, desc.outer_dep_start_idx, !new_input.second);
                             }
-                            conv_node.get_dependency(desc.dep_start_idx).set_output_layout(new_layout, false);
+                            conv_node.get_dependency(desc.outer_dep_start_idx).set_output_layout(new_layout, false);
                         }
                     }
                 });
@@ -965,7 +965,7 @@ void reorder_inputs::run(program& p, layout_optimizer& lo, reorder_factory& rf) 
                 if (activation_desc->activation_function == cldnn::activation_func::relu_negative_slope &&
                     !activation_desc->additional_params_input.empty()) {
                     const auto expected_dt = data_types::f32;
-                    const auto dep_idx = fused_desc.dep_start_idx;
+                    const auto dep_idx = fused_desc.outer_dep_start_idx;
                     const auto orig_layout = node->get_dependency(dep_idx).get_output_layout();
                     if (orig_layout.data_type == expected_dt)
                         continue;
@@ -992,14 +992,18 @@ void reorder_inputs::run(program& p, layout_optimizer& lo, reorder_factory& rf) 
             for (const auto& fused_prim : node->get_fused_primitives()) {
                 if (fused_prim.is_type<eltwise>() &&
                     one_of(fused_prim.typed_desc<eltwise>()->mode, {eltwise_mode::sum, eltwise_mode::sub, eltwise_mode::prod})) {
-                    auto& data = node->get_dependency(fused_prim.dep_start_idx);
+                    auto& data = node->get_dependency(fused_prim.outer_dep_start_idx);
 
                     auto gemm_layout = node->get_output_layout();
+                    auto data_layout = data.get_output_layout();
+
+                    if (gemm_layout.is_dynamic() || data_layout.is_dynamic())
+                        continue;
+
                     auto gemm_dims = onednn::convert_gemm_tensor(gemm_layout.get_tensor(),
                                                                  cldnn::format::dimension(gemm_layout.format),
                                                                  false);
 
-                    auto data_layout = data.get_output_layout();
                     auto data_dims = onednn::convert_gemm_tensor(data_layout.get_tensor(),
                                                                  cldnn::format::dimension(data_layout.format),
                                                                  false);
@@ -1012,7 +1016,7 @@ void reorder_inputs::run(program& p, layout_optimizer& lo, reorder_factory& rf) 
                     auto broadcast_prim = std::make_shared<cldnn::broadcast>(prim_id, cldnn::input_info(data.id()), gemm_layout.get_shape(), ov::AxisSet{});
 
                     auto& broadcast_node = p.get_or_create(broadcast_prim);
-                    p.add_intermediate(broadcast_node, *node, fused_prim.dep_start_idx, true);
+                    p.add_intermediate(broadcast_node, *node, fused_prim.outer_dep_start_idx, true);
                     broadcast_node.recalc_output_layouts(false);
                 }
             }
@@ -1021,7 +1025,7 @@ void reorder_inputs::run(program& p, layout_optimizer& lo, reorder_factory& rf) 
                 if (fused_prim.is_type<eltwise>() &&
                     one_of(fused_prim.typed_desc<eltwise>()->mode, {eltwise_mode::sum, eltwise_mode::sub, eltwise_mode::prod})) {
                     auto fc_layout = node->get_output_layout();
-                    auto& data = node->get_dependency(fused_prim.dep_start_idx);
+                    auto& data = node->get_dependency(fused_prim.outer_dep_start_idx);
                     auto data_layout = data.get_output_layout();
 
                     if (fc_layout.is_dynamic() || data_layout.is_dynamic())
@@ -1056,7 +1060,7 @@ void reorder_inputs::run(program& p, layout_optimizer& lo, reorder_factory& rf) 
                     auto broadcast_prim = std::make_shared<cldnn::broadcast>(prim_id, cldnn::input_info(data.id()), fc_layout.get_shape(), ov::AxisSet{});
 
                     auto& broadcast_node = p.get_or_create(broadcast_prim);
-                    p.add_intermediate(broadcast_node, *node, fused_prim.dep_start_idx, true);
+                    p.add_intermediate(broadcast_node, *node, fused_prim.outer_dep_start_idx, true);
                     broadcast_node.recalc_output_layouts(false);
                 }
             }

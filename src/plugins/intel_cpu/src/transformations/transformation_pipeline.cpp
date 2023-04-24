@@ -18,6 +18,7 @@
 
 // Common transformations
 #include "transformations/common_optimizations/add_fake_quantize_fusion.hpp"
+#include "transformations/common_optimizations/broadcast_transition.hpp"
 #include "transformations/common_optimizations/convert_compression_only_to_legacy.hpp"
 #include "transformations/common_optimizations/convert_quantize_dequantize.hpp"
 #include "transformations/common_optimizations/fq_mul_fusion.hpp"
@@ -81,12 +82,14 @@
 #include "utils/ngraph_transformation.hpp"
 
 // LPT transformations
-#include "transformations/low_precision/mark_dequantization_subgraph.hpp"
-#include "low_precision/convolution_backprop_data.hpp"
+#include "low_precision/add.hpp"
 #include "low_precision/convert_subtract_constant.hpp"
-#include "low_precision/network_helper.hpp"
-#include "low_precision/multiply_to_group_convolution.hpp"
+#include "low_precision/convolution_backprop_data.hpp"
 #include "low_precision/group_convolution.hpp"
+#include "low_precision/multiply_to_group_convolution.hpp"
+#include "low_precision/network_helper.hpp"
+#include "low_precision/rt_info/bias_attribute.hpp"
+#include "transformations/low_precision/mark_dequantization_subgraph.hpp"
 
 // CPU specific transformations
 #include "transformations/cpu_opset/convert_to_cpu_specific_opset.hpp"
@@ -97,6 +100,7 @@
 #include "transformations/cpu_opset/arm/pass/convert_group_conv1d.hpp"
 #include "transformations/cpu_opset/arm/pass/convert_reduce_multi_axis.hpp"
 #include "transformations/cpu_opset/arm/pass/mish_decomposition.hpp"
+#include "transformations/cpu_opset/common/pass/decompose_integer_divide.hpp"
 #include "transformations/cpu_opset/common/pass/convert_fq_rnn_to_quantized_rnn.hpp"
 #include "transformations/cpu_opset/common/pass/move_eltwise_up_data_movement.hpp"
 #include "transformations/cpu_opset/common/pass/ref_convert_i64_i32.hpp"
@@ -222,6 +226,7 @@ void Transformations::PreLpt(const std::vector<ov::element::Type>& defaultPrecis
     type_to_fuse_map type_to_fuse = {{ov::opset10::Convert::get_type_info_static(), fuse_type_to_convert}};
 
     CPU_REGISTER_PASS_COMMON(manager, ov::pass::AUGRUCellFusion);
+    CPU_REGISTER_PASS_COMMON(manager, ov::pass::BroadcastTransition);
     CPU_REGISTER_PASS_COMMON(manager, ov::pass::CommonOptimizations);
     CPU_REGISTER_PASS_COMMON(manager, ov::pass::WrapInterpolateIntoTransposes);
     CPU_REGISTER_PASS_COMMON(manager, ov::pass::TransposeSinking);
@@ -260,6 +265,10 @@ void Transformations::PreLpt(const std::vector<ov::element::Type>& defaultPrecis
     CPU_REGISTER_PASS_ARM(manager, ConvertConv1D);
     CPU_REGISTER_PASS_ARM(manager, ConvertGroupConv1D);
     CPU_REGISTER_PASS_ARM(manager, ConvertGroupConvolution);
+    // The plugin computes Divide in floating point precision.
+    // To preserve correct math for integer division we need to insert explicit Floor operation.
+    CPU_REGISTER_PASS_ARM(manager, DecomposeIntegerDivide);
+    CPU_REGISTER_PASS_X86(manager, DecomposeIntegerDivide);
 
     // SpaceToDepth/ DepthToSpace node implementation supports only equal input/output tensors with rank <= 5
     CPU_SET_CALLBACK_COMMON(manager,
@@ -520,6 +529,11 @@ void Transformations::Lpt(const bool hasINT16orINT32Levels, const std::vector<ov
                 WeightableLayerTransformation::isAsymmetricOnWeights(node, defaultPrecisions);
         },
         ngraph::pass::low_precision::ConvolutionBackpropDataTransformation);
+
+    lptManager.get_pass_config()->set_callback<ngraph::pass::low_precision::AddTransformation>(
+        [](const_node_ptr& node) -> bool {
+            return ov::marked_as_bias(node);
+        });
 
     CPU_DISABLE_PASS_COMMON(lptManager, ngraph::pass::low_precision::MultiplyToGroupConvolutionTransformation);
 

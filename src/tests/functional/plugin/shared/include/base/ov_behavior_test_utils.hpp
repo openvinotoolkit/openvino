@@ -213,6 +213,7 @@ public:
         OVClassNetworkTest::SetUp();
     }
 };
+using OVClassModelTestP = OVClassBaseTestP;
 
 class OVCompiledModelClassBaseTestP : public OVClassNetworkTest,
                                       public ::testing::WithParamInterface<std::string>,
@@ -247,6 +248,22 @@ public:
 };
 using OVClassExecutableNetworkGetMetricTest_DEVICE_PRIORITY = OVClassExecutableNetworkGetMetricTest_Priority;
 using OVClassExecutableNetworkGetMetricTest_MODEL_PRIORITY = OVClassExecutableNetworkGetMetricTest_Priority;
+
+class OVClassSetDevicePriorityConfigPropsTest : public OVPluginTestBase,
+                                                public ::testing::WithParamInterface<std::tuple<std::string, AnyMap>> {
+protected:
+    std::string deviceName;
+    ov::AnyMap configuration;
+    std::shared_ptr<ngraph::Function> actualNetwork;
+
+public:
+    void SetUp() override {
+        std::tie(target_device, configuration) = GetParam();
+        SKIP_IF_CURRENT_TEST_IS_DISABLED();
+        APIBaseTest::SetUp();
+        actualNetwork = ngraph::builder::subgraph::makeSplitConvConcat();
+    }
+};
 
 #define SKIP_IF_NOT_IMPLEMENTED(...)                   \
 {                                                      \

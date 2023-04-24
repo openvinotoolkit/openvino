@@ -73,10 +73,9 @@ void add_required_reorders::run(program& p) {
                 if (!fused_op.is_type<eltwise>() && !(fused_op.is_type<activation>() && fused_op.total_num_deps == 2))
                     continue;
 
-                auto dep_id = fused_op.dep_start_idx;
-                if (dep_id >= usr->get_dependencies().size())
+                if (!fused_op.has_outer_dep())
                     continue;
-
+                auto dep_id = fused_op.outer_dep_start_idx;
                 auto& dep = usr->get_dependency(dep_id);
                 if (!dep.is_type<data>())
                     continue;
