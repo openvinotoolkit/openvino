@@ -1,5 +1,7 @@
 # ShapeOf {#openvino_docs_ops_shape_ShapeOf_1}
 
+@sphinxdirective
+
 **Versioned name**: *ShapeOf-1*
 
 **Category**: *Shape manipulation*
@@ -18,20 +20,23 @@
 
 **Example**
 
-```xml
-<layer ... type="ShapeOf">
-    <input>
-        <port id="0">
-            <dim>2</dim>
-            <dim>3</dim>
-            <dim>224</dim>
-            <dim>224</dim>
-        </port>
-    </input>
-    <output>
-        <port id="1">  <!-- output value is: [2,3,224,224]-->
-            <dim>4</dim>
-        </port>
-    </output>
-</layer>
-```
+.. code-block:: cpp 
+
+    <layer ... type="ShapeOf">
+        <input>
+            <port id="0">
+                <dim>2</dim>
+                <dim>3</dim>
+                <dim>224</dim>
+                <dim>224</dim>
+            </port>
+        </input>
+        <output>
+            <port id="1">  < !-- output value is: [2,3,224,224]-->
+                <dim>4</dim>
+            </port>
+        </output>
+    </layer>
+
+@endsphinxdirective
+
