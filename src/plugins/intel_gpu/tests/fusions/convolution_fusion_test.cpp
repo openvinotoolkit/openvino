@@ -4378,6 +4378,64 @@ INSTANTIATE_TEST_SUITE_P(fusings_gpu, conv_before_permute_optimizing, ::testing:
     convolution_test_params{ CASE_CONV_FP16_PERMUTE_2, 3, 2, 4 },
 }));
 
+class EltwiseSumWithConstantFullTensorFusingTestOneDNN : public BaseFusingTest<convolution_eltw_sum_test_params> {
+public:
+    void execute(convolution_eltw_sum_test_params& p) {
+        if (!engine.get_device_info().supports_immad)
+            return;
+        auto input_prim = get_mem(get_weights_layout(p));
 
+        network network_not_fused(this->engine, this->topology_non_fused, cfg_not_fused);
+        network network_fused(this->engine, this->topology_fused, cfg_fused);
+        network_fused.set_input_data("input", input_prim);
+        network_not_fused.set_input_data("input", input_prim);
+
+        // Multiple executions of network to increase error of result.
+        // The output of constant layer will be changed through this iterations bigger.
+        for (int i = 0; i < 10; i++) {
+            network_not_fused.execute();
+            network_fused.execute();
+        }
+
+        compare(network_not_fused, network_fused, p);
+    }
+
+    layout get_input_layout(convolution_eltw_sum_test_params& p) {
+        auto pad = p.pad;
+        std::vector<int> pad_ = { 0, 0, static_cast<int>(pad[0]), static_cast<int>(pad[1]) };
+        return layout{ p.data_type, p.input_format, p.in_shape, padding{ pad_ } };
+    }
+
+    layout get_per_channel_layout(convolution_eltw_sum_test_params& p) {
+        return layout{ p.default_type, p.default_format, tensor{ 1, p.out_shape.feature[0], 1, 1 } };
+    }
+};
+
+// When dependency of eltwise is full tensor constant, use binary add instead of sum as post-op.
+class onednn_replace_full_tensor_sum_to_binary_add : public EltwiseSumWithConstantFullTensorFusingTestOneDNN {};
+TEST_P(onednn_replace_full_tensor_sum_to_binary_add, basic) {
+    auto p = GetParam();
+    if (engine.get_device_info().supports_immad)
+        p.expected_fused_primitives = p.expected_fused_primitives_onednn;
+
+    create_topologies(
+        data("src0", get_mem(get_input_layout(p))),
+        input_layout("input", get_weights_layout(p)),  // Input is weights.
+        data("eltwise_data", get_mem(layout{ p.eltw_type, p.eltw_format, p.out_shape })),
+        convolution("conv_prim", input_info("src0"), { "input" }, {}, p.groups, p.stride, p.pad, p.dilation, false),
+        eltwise("sum", { input_info("conv_prim"), input_info("eltwise_data") }, eltwise_mode::sum, p.out_type),
+        reorder("reorder_bfyx", input_info("sum"), p.default_format, p.default_type)
+    );
+
+    tolerance = 0.01f;
+    execute(p);
+}
+
+// in_shape; out_shape; kernel; stride; pad; dilation; groups; data_type; input_format; weights_type; weights_format; eltw_type; eltw_format; out_type; out_format; default_type; default_format;
+#define CASE_CONV_ELTW_SUM_TO_BINARY_ADD { 1, 32, 4, 4 }, { 1, 32, 2, 2 }, { 1, 1, 3, 3 }, { 1, 1 }, { 0, 0 }, { 1, 1 }, 1, data_types::f16, format::bfyx, data_types::f16, format::bfyx, data_types::f16, format::b_fs_yx_fsv16, data_types::f16, format::b_fs_yx_fsv16, data_types::f32, format::bfyx
+
+INSTANTIATE_TEST_SUITE_P(eltwise_sum_fusings_gpu, onednn_replace_full_tensor_sum_to_binary_add, ::testing::ValuesIn(std::vector<convolution_eltw_sum_test_params>{
+    convolution_eltw_sum_test_params{ CASE_CONV_ELTW_SUM_TO_BINARY_ADD, 2, 3, 4 },
+}));
 
 #endif  // ENABLE_ONEDNN_FOR_GPU

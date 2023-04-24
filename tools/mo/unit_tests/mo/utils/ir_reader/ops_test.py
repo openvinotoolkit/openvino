@@ -8,7 +8,7 @@ from pathlib import Path
 
 import openvino.runtime.opset11 as opset11
 import openvino.runtime.opset10 as opset10
-from openvino.runtime import Model, serialize
+from openvino.runtime import Model, serialize, Core
 
 from openvino.tools.mo.utils.ir_reader.restore_graph import restore_graph_from_ir, save_restored_graph
 from openvino.tools.mo.utils.logger import init_logger
@@ -28,6 +28,8 @@ class TestOps(unittest.TestCase):
             save_restored_graph(graph, tmp, {}, name)
             # restore 2 times to validate that after save graph doesn't lose attributes etc.
             graph, _ = restore_graph_from_ir(model_xml, model_bin)
+            # check that re-saved model can be read in runtime
+            Core().read_model(model_xml)
             return graph
 
     def test_topk_11(self):
@@ -43,6 +45,7 @@ class TestOps(unittest.TestCase):
         topk_node = graph.get_op_nodes(op="TopK")[0]
         self.assertEqual(topk_node["version"], "opset11")
         self.assertTrue(topk_node["stable"])
+        self.assertEqual(topk_node["index_element_type"], np.int32)
 
     def test_interpolate_11(self):
         data_shape = [6, 12, 10, 24]
@@ -54,6 +57,33 @@ class TestOps(unittest.TestCase):
         graph = TestOps.check_graph_can_save(model, 'interpolate_model')
         interpolate_node = graph.get_op_nodes(op="Interpolate")[0]
         self.assertEqual(interpolate_node["version"], "opset11")
+        self.assertTrue("force_precision_in_ports" in interpolate_node)
+        self.assertEqual(interpolate_node["force_precision_in_ports"], {1: 'int64'})
+
+    def test_interpolate_11_scales(self):
+        data_shape = [6, 12, 10, 24]
+        data_parameter = opset11.parameter(
+            data_shape, name="Data", dtype=np.float32)
+        interpolate = opset11.interpolate(data_parameter, np.float32(
+            [2., 2.]), "nearest", "scales", axes=np.int32([2, 3]), name="Interpolate_11")
+        model = Model(interpolate, [data_parameter])
+        graph = TestOps.check_graph_can_save(model, 'interpolate_model')
+        interpolate_node = graph.get_op_nodes(op="Interpolate")[0]
+        self.assertEqual(interpolate_node["version"], "opset11")
+        self.assertTrue("force_precision_in_ports" not in interpolate_node)
+
+    def test_interpolate_11_no_axes(self):
+        data_shape = [6, 12, 10, 24]
+        data_parameter = opset11.parameter(
+            data_shape, name="Data", dtype=np.float32)
+        interpolate = opset11.interpolate(data_parameter, np.int32(
+            [6, 12, 20, 48]), "nearest", "sizes", name="Interpolate_11")
+        model = Model(interpolate, [data_parameter])
+        graph = TestOps.check_graph_can_save(model, 'interpolate_model')
+        interpolate_node = graph.get_op_nodes(op="Interpolate")[0]
+        self.assertEqual(interpolate_node["version"], "opset11")
+        self.assertTrue("force_precision_in_ports" in interpolate_node)
+        self.assertEqual(interpolate_node["force_precision_in_ports"], {1: 'int64'})
 
     def test_interpolate_4(self):
         data_shape = [6, 12, 10, 24]

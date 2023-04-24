@@ -105,7 +105,7 @@ shared_ptr<Node> op::v1::DeformablePSROIPooling::clone_with_new_inputs(const Out
                                                        m_trans_std,
                                                        m_part_size);
     } else {
-        throw ngraph_error("Not supported number of DeformablePSROIPooling args");
+        OPENVINO_THROW("Not supported number of DeformablePSROIPooling args");
     }
 }
 
