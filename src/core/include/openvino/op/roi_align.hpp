@@ -55,18 +55,42 @@ public:
     int get_pooled_h() const {
         return m_pooled_h;
     }
+
+    void set_pooled_h(const int h) {
+        m_pooled_h = h;
+    }
+
     int get_pooled_w() const {
         return m_pooled_w;
     }
+    void set_pooled_w(const int w) {
+        m_pooled_w = w;
+    }
+
     int get_sampling_ratio() const {
         return m_sampling_ratio;
     }
+
+    void set_sampling_ratio(const int ratio) {
+        m_sampling_ratio = ratio;
+    }
+
     float get_spatial_scale() const {
         return m_spatial_scale;
     }
+
+    void set_spatial_scale(const float scale) {
+        m_spatial_scale = scale;
+    }
+
     PoolingMode get_mode() const {
         return m_mode;
     }
+
+    void set_mode(const PoolingMode mode) {
+        m_mode = mode;
+    }
+
     OPENVINO_SUPPRESS_DEPRECATED_START
     bool evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const override;
     OPENVINO_SUPPRESS_DEPRECATED_END
@@ -122,20 +146,48 @@ public:
     int get_pooled_h() const {
         return m_pooled_h;
     }
+
+    void set_pooled_h(const int h) {
+        m_pooled_h = h;
+    }
+
     int get_pooled_w() const {
         return m_pooled_w;
     }
+    void set_pooled_w(const int w) {
+        m_pooled_w = w;
+    }
+
     int get_sampling_ratio() const {
         return m_sampling_ratio;
     }
+
+    void set_sampling_ratio(const int ratio) {
+        m_sampling_ratio = ratio;
+    }
+
     float get_spatial_scale() const {
         return m_spatial_scale;
     }
+
+    void set_spatial_scale(const float scale) {
+        m_spatial_scale = scale;
+    }
+
     PoolingMode get_mode() const {
         return m_mode;
     }
+
+    void set_mode(const PoolingMode mode) {
+        m_mode = mode;
+    }
+
     AlignedMode get_aligned_mode() const {
         return m_aligned_mode;
+    }
+
+    void set_aligned_mode(AlignedMode mode) {
+        m_aligned_mode = mode;
     }
 
 private:
