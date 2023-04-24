@@ -32,7 +32,7 @@ protected:
         auto indicies = std::make_shared<op::v0::Parameter>(element::i32, PartialShape{i_dims});
 
         if (axis_val_ptr) {
-            auto axis = op::v0::Constant::create(element::i32, Shape{}, {*axis_val_ptr});
+            auto axis = op::v0::Constant::create(element::i32, ov::Shape{}, {*axis_val_ptr});
             return this->make_op(param, indicies, axis);
         } else {
             auto axis = std::make_shared<op::v0::Parameter>(element::i32, PartialShape{});
@@ -74,7 +74,7 @@ TYPED_TEST_P(StaticShapeInferenceGatherTest, axis_in_const_map) {
         std::tie(this->axis_val, this->input_shapes, this->exp_shape) = params;
 
         auto op = this->make_gather(this->input_shapes);
-        auto axis_tensor = std::make_shared<HostTensor>(element::i32, Shape{1}, &this->axis_val);
+        auto axis_tensor = std::make_shared<HostTensor>(element::i32, ov::Shape{1}, &this->axis_val);
 
         shape_inference(op.get(), this->input_shapes, this->output_shapes, {{2, axis_tensor}});
 

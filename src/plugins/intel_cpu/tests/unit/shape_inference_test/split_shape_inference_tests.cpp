@@ -55,7 +55,7 @@ INSTANTIATE_TEST_SUITE_P(multi_dim_shapes,
                          PrintToStringParamName());
 
 TEST_P(SplitStaticShapeInferenceTest, shape_inference_empty_const_map) {
-    const auto axis_node = std::make_shared<op::v0::Constant>(element::i64, Shape{}, axis);
+    const auto axis_node = std::make_shared<op::v0::Constant>(element::i64, ov::Shape{}, axis);
     op = make_op(arg, axis_node, num_of_splits);
 
     shape_inference(op.get(), input_shapes, output_shapes);
@@ -65,7 +65,7 @@ TEST_P(SplitStaticShapeInferenceTest, shape_inference_empty_const_map) {
 }
 
 TEST_P(SplitStaticShapeInferenceTest, shape_inference_with_const_map) {
-    const auto axis_node = std::make_shared<op::v0::Parameter>(element::i64, Shape{});
+    const auto axis_node = std::make_shared<op::v0::Parameter>(element::i64, ov::Shape{});
     op = make_op(arg, axis_node, num_of_splits);
 
     const auto axis_const = std::make_shared<op::v0::Constant>(element::i64, ov::Shape{}, axis);

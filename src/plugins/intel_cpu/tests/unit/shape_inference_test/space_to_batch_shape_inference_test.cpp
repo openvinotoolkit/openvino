@@ -36,9 +36,9 @@ TEST_F(SpaceToBatchV1StaticShapeInferenceTest, default_ctor) {
     int32_t pads_end_val[] = {0, 2, 1, 0, 0};
 
     const auto constant_data =
-        std::map<size_t, HostTensorPtr>{{1, std::make_shared<HostTensor>(element::i32, Shape{5}, block_val)},
-                                        {2, std::make_shared<HostTensor>(element::i32, Shape{5}, pads_begin_val)},
-                                        {3, std::make_shared<HostTensor>(element::i32, Shape{5}, pads_end_val)}};
+        std::map<size_t, HostTensorPtr>{{1, std::make_shared<HostTensor>(element::i32, ov::Shape{5}, block_val)},
+                                        {2, std::make_shared<HostTensor>(element::i32, ov::Shape{5}, pads_begin_val)},
+                                        {3, std::make_shared<HostTensor>(element::i32, ov::Shape{5}, pads_end_val)}};
 
     input_shapes = {{2, 32, 64, 128, 256}, {5}, {5}, {5}};
     shape_inference(op.get(), input_shapes, output_shapes, constant_data);
@@ -48,9 +48,9 @@ TEST_F(SpaceToBatchV1StaticShapeInferenceTest, default_ctor) {
 
 TEST_F(SpaceToBatchV1StaticShapeInferenceTest, blocks_pads_as_constants) {
     const auto data = std::make_shared<Parameter>(element::f32, PartialShape{-1, -1, -1, -1});
-    const auto block_shape = std::make_shared<Constant>(element::i64, Shape{4}, std::vector<int64_t>{1, 12, 100, 2});
-    const auto pads_begin = std::make_shared<Constant>(element::i64, Shape{4}, std::vector<int64_t>{0, 3, 38, 1});
-    const auto pads_end = std::make_shared<Constant>(element::i64, Shape{4}, std::vector<int64_t>{0, 5, 38, 0});
+    const auto block_shape = std::make_shared<Constant>(element::i64, ov::Shape{4}, std::vector<int64_t>{1, 12, 100, 2});
+    const auto pads_begin = std::make_shared<Constant>(element::i64, ov::Shape{4}, std::vector<int64_t>{0, 3, 38, 1});
+    const auto pads_end = std::make_shared<Constant>(element::i64, ov::Shape{4}, std::vector<int64_t>{0, 5, 38, 0});
 
     const auto op = make_op(data, block_shape, pads_begin, pads_end);
 
@@ -69,9 +69,9 @@ TEST_F(SpaceToBatchV1StaticShapeInferenceTest, blocks_pads_in_constant_map) {
     int32_t pads_end_val[] = {0, 2, 1, 0, 0};
 
     const auto constant_data =
-        std::map<size_t, HostTensorPtr>{{1, std::make_shared<HostTensor>(element::i32, Shape{5}, block_val)},
-                                        {2, std::make_shared<HostTensor>(element::i32, Shape{5}, pads_begin_val)},
-                                        {3, std::make_shared<HostTensor>(element::i32, Shape{5}, pads_end_val)}};
+        std::map<size_t, HostTensorPtr>{{1, std::make_shared<HostTensor>(element::i32, ov::Shape{5}, block_val)},
+                                        {2, std::make_shared<HostTensor>(element::i32, ov::Shape{5}, pads_begin_val)},
+                                        {3, std::make_shared<HostTensor>(element::i32, ov::Shape{5}, pads_end_val)}};
 
     input_shapes = {{2, 32, 64, 128, 256}, {5}, {5}, {5}};
     shape_inference(op.get(), input_shapes, output_shapes, constant_data);
@@ -91,7 +91,7 @@ TEST_F(SpaceToBatchV1StaticShapeInferenceTest, exception_missing_pads_data_in_co
 
     int32_t block_val[] = {1, 6, 5, 1, 16};
     const auto constant_data =
-        std::map<size_t, HostTensorPtr>{{1, std::make_shared<HostTensor>(element::i32, Shape{5}, block_val)}};
+        std::map<size_t, HostTensorPtr>{{1, std::make_shared<HostTensor>(element::i32, ov::Shape{5}, block_val)}};
 
     input_shapes = {{2, 32, 64, 128, 256}, {5}, {5}, {5}};
 

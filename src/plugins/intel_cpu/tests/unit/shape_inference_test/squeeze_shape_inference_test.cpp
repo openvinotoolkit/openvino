@@ -34,8 +34,8 @@ TEST_F(SqueezeStaticShapeInferenceAssertTest, no_axes) {
 }
 
 TEST_F(SqueezeStaticShapeInferenceAssertTest, parameter_static_shape_axes_no_data) {
-    const auto arg = std::make_shared<op::v0::Parameter>(element::f64, Shape{2, 1, 3, 1});
-    const auto axes = std::make_shared<op::v0::Parameter>(element::i64, Shape{2});
+    const auto arg = std::make_shared<op::v0::Parameter>(element::f64, ov::Shape{2, 1, 3, 1});
+    const auto axes = std::make_shared<op::v0::Parameter>(element::i64, ov::Shape{2});
     const auto op = make_op(arg, axes);
 
     input_shapes = ShapeVector{arg->get_shape(), axes->get_shape()};
@@ -97,7 +97,7 @@ INSTANTIATE_TEST_SUITE_P(
     PrintToStringParamName());
 
 TEST_P(SqueezeStaticShapeInferenceTest, shape_inference_empty_const_map) {
-    const auto axes_node = std::make_shared<op::v0::Constant>(element::i64, Shape{axes.size()}, axes);
+    const auto axes_node = std::make_shared<op::v0::Constant>(element::i64, ov::Shape{axes.size()}, axes);
     const auto op = make_op(arg, axes_node);
 
     shape_inference(op.get(), input_shapes, output_shapes);
@@ -106,7 +106,7 @@ TEST_P(SqueezeStaticShapeInferenceTest, shape_inference_empty_const_map) {
 }
 
 TEST_P(SqueezeStaticShapeInferenceTest, shape_inference_with_const_map) {
-    const auto axes_node = std::make_shared<op::v0::Parameter>(element::i64, Shape{1});
+    const auto axes_node = std::make_shared<op::v0::Parameter>(element::i64, ov::Shape{1});
     const auto op = make_op(arg, axes_node);
 
     const auto axes_const = std::make_shared<op::v0::Constant>(element::i64, ov::Shape{axes.size()}, axes);

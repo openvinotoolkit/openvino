@@ -22,9 +22,9 @@ TEST_F(StridedSliceStaticShapeInferenceTest, reverse_stride_begin_end_clip_to_di
     const auto mask = std::vector<int64_t>(4, 0);
 
     const auto data = std::make_shared<op::v0::Parameter>(element::f32, ov::PartialShape::dynamic());
-    const auto begin = op::v0::Constant::create(element::i64, Shape{3}, {100});
-    const auto end = op::v0::Constant::create(element::i64, Shape{3}, {-100});
-    const auto stride = op::v0::Constant::create(element::i64, Shape{3}, {-1});
+    const auto begin = op::v0::Constant::create(element::i64, ov::Shape{3}, {100});
+    const auto end = op::v0::Constant::create(element::i64, ov::Shape{3}, {-100});
+    const auto stride = op::v0::Constant::create(element::i64, ov::Shape{3}, {-1});
 
     const auto op = make_op(data, begin, end, stride, mask, mask);
 
@@ -37,9 +37,9 @@ TEST_F(StridedSliceStaticShapeInferenceTest, use_begin_end) {
     const auto mask = std::vector<int64_t>(4, 0);
 
     const auto data = std::make_shared<op::v0::Parameter>(element::f32, ov::PartialShape::dynamic());
-    const auto begin = std::make_shared<op::v0::Parameter>(element::i64, Shape{3});
-    const auto end = std::make_shared<op::v0::Parameter>(element::i64, Shape{3});
-    const auto stride = std::make_shared<op::v0::Parameter>(element::i64, Shape{3});
+    const auto begin = std::make_shared<op::v0::Parameter>(element::i64, ov::Shape{3});
+    const auto end = std::make_shared<op::v0::Parameter>(element::i64, ov::Shape{3});
+    const auto stride = std::make_shared<op::v0::Parameter>(element::i64, ov::Shape{3});
 
     const auto op = make_op(data, begin, end, stride, mask, mask);
 
@@ -55,9 +55,9 @@ TEST_F(StridedSliceStaticShapeInferenceTest, ignore_begin_end) {
     const auto end_mask = std::vector<int64_t>(3, 1);
 
     const auto data = std::make_shared<op::v0::Parameter>(element::f32, ov::PartialShape::dynamic());
-    const auto begin = std::make_shared<op::v0::Parameter>(element::i64, Shape{3});
-    const auto end = std::make_shared<op::v0::Parameter>(element::i64, Shape{3});
-    const auto stride = std::make_shared<op::v0::Parameter>(element::i64, Shape{3});
+    const auto begin = std::make_shared<op::v0::Parameter>(element::i64, ov::Shape{3});
+    const auto end = std::make_shared<op::v0::Parameter>(element::i64, ov::Shape{3});
+    const auto stride = std::make_shared<op::v0::Parameter>(element::i64, ov::Shape{3});
 
     const auto op = make_op(data, begin, end, stride, begin_mask, end_mask);
 
@@ -69,9 +69,9 @@ TEST_F(StridedSliceStaticShapeInferenceTest, ignore_begin_end_stride_by_two_last
     const auto end_mask = std::vector<int64_t>{0, 1, 1};
 
     const auto data = std::make_shared<op::v0::Parameter>(element::f32, ov::PartialShape::dynamic());
-    const auto begin = std::make_shared<op::v0::Parameter>(element::i64, Shape{3});
-    const auto end = std::make_shared<op::v0::Parameter>(element::i64, Shape{3});
-    const auto stride = std::make_shared<op::v0::Parameter>(element::i64, Shape{3});
+    const auto begin = std::make_shared<op::v0::Parameter>(element::i64, ov::Shape{3});
+    const auto end = std::make_shared<op::v0::Parameter>(element::i64, ov::Shape{3});
+    const auto stride = std::make_shared<op::v0::Parameter>(element::i64, ov::Shape{3});
 
     auto op = make_op(data, begin, end, stride, begin_mask, end_mask);
 
@@ -82,9 +82,9 @@ TEST_F(StridedSliceStaticShapeInferenceTest, use_reverse_stride_on_last_dimensio
     const auto mask = std::vector<int64_t>{0, 1, 1};
 
     const auto data = std::make_shared<op::v0::Parameter>(element::f32, ov::PartialShape::dynamic());
-    const auto begin = std::make_shared<op::v0::Parameter>(element::i64, Shape{3});
-    const auto end = std::make_shared<op::v0::Parameter>(element::i64, Shape{3});
-    const auto stride = std::make_shared<op::v0::Parameter>(element::i64, Shape{3});
+    const auto begin = std::make_shared<op::v0::Parameter>(element::i64, ov::Shape{3});
+    const auto end = std::make_shared<op::v0::Parameter>(element::i64, ov::Shape{3});
+    const auto stride = std::make_shared<op::v0::Parameter>(element::i64, ov::Shape{3});
 
     const auto op = make_op(data, begin, end, stride, mask, mask);
 

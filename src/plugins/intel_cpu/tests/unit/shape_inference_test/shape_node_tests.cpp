@@ -11,7 +11,7 @@ using namespace ov::intel_cpu;
 
 TEST(StaticShapeInferenceTest, ReshapeTest) {
     auto data = std::make_shared<ov::op::v0::Parameter>(element::f32, PartialShape{-1, -1, -1, -1});
-    auto pattern = std::make_shared<ov::op::v0::Constant>(element::i32, Shape{2}, std::vector<int32_t>{0, -1});
+    auto pattern = std::make_shared<ov::op::v0::Constant>(element::i32, ov::Shape{2}, std::vector<int32_t>{0, -1});
 
     auto reduce =
             std::make_shared<op::v1::Reshape>(data, pattern, true);
@@ -25,7 +25,7 @@ TEST(StaticShapeInferenceTest, ReshapeTest) {
 
 TEST(StaticShapeInferenceTest, ReshapeEmptyTest) {
     auto data = std::make_shared<ov::op::v0::Parameter>(element::f32, PartialShape{-1, 2, 2});
-    auto pattern = std::make_shared<ov::op::v0::Constant>(element::i32, Shape{2}, std::vector<int32_t>{0, 4});
+    auto pattern = std::make_shared<ov::op::v0::Constant>(element::i32, ov::Shape{2}, std::vector<int32_t>{0, 4});
 
     auto reduce =
             std::make_shared<op::v1::Reshape>(data, pattern, false);

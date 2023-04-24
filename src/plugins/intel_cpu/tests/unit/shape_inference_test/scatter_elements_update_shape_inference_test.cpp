@@ -26,7 +26,7 @@ TEST_F(ScatterElementsUpdateV3StaticShapeInferenceTest, default_ctor) {
 
     int32_t axis = 1;
     const auto const_data =
-        std::map<size_t, HostTensorPtr>{{3, std::make_shared<HostTensor>(element::i32, Shape{1}, &axis)}};
+        std::map<size_t, HostTensorPtr>{{3, std::make_shared<HostTensor>(element::i32, ov::Shape{1}, &axis)}};
 
     input_shapes = ShapeVector{{1000, 256, 10, 13}, {25, 125, 3, 1}, {25, 125, 3, 1}, {1}};
     shape_inference(op.get(), input_shapes, output_shapes, const_data);
@@ -39,7 +39,7 @@ TEST_F(ScatterElementsUpdateV3StaticShapeInferenceTest, correct_inputs_axis_as_c
     const auto d = std::make_shared<Parameter>(element::i32, PartialShape{-1, -1, -1, -1});
     const auto i = std::make_shared<Parameter>(element::i32, PartialShape{-1, -1, -1, -1});
     const auto u = std::make_shared<Parameter>(element::i32, PartialShape{-1, -1, -1, -1});
-    const auto a = std::make_shared<Constant>(element::i64, Shape{}, -2);
+    const auto a = std::make_shared<Constant>(element::i64, ov::Shape{}, -2);
 
     const auto op = make_op(d, i, u, a);
 
@@ -60,7 +60,7 @@ TEST_F(ScatterElementsUpdateV3StaticShapeInferenceTest, params_are_dynamic_rank_
 
     uint32_t axis = 2;
     const auto const_data =
-        std::map<size_t, HostTensorPtr>{{3, std::make_shared<HostTensor>(element::u32, Shape{}, &axis)}};
+        std::map<size_t, HostTensorPtr>{{3, std::make_shared<HostTensor>(element::u32, ov::Shape{}, &axis)}};
 
     input_shapes = ShapeVector{{5000, 256, 10, 15}, {30, 25, 3, 3}, {30, 25, 3, 3}, {}};
     shape_inference(op.get(), input_shapes, output_shapes, const_data);
@@ -79,7 +79,7 @@ TEST_F(ScatterElementsUpdateV3StaticShapeInferenceTest, incorrect_axis_value) {
 
     uint32_t axis = 4;
     const auto const_data =
-        std::map<size_t, HostTensorPtr>{{3, std::make_shared<HostTensor>(element::u32, Shape{}, &axis)}};
+        std::map<size_t, HostTensorPtr>{{3, std::make_shared<HostTensor>(element::u32, ov::Shape{}, &axis)}};
 
     input_shapes = ShapeVector{{5000, 256, 10, 15}, {30, 25, 3, 3}, {30, 25, 3, 3}, {}};
     OV_EXPECT_THROW(shape_inference(op.get(), input_shapes, output_shapes, const_data),

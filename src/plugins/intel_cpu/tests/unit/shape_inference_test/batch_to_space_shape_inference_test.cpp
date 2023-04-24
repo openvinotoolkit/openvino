@@ -36,9 +36,9 @@ TEST_F(BatchToSpaceV1StaticShapeInferenceTest, default_ctor) {
     int32_t crops_end_val[] = {0, 2, 1, 0, 0};
 
     const auto constant_data =
-        std::map<size_t, HostTensorPtr>{{1, std::make_shared<HostTensor>(element::i32, Shape{5}, block_val)},
-                                        {2, std::make_shared<HostTensor>(element::i32, Shape{5}, crops_begin_val)},
-                                        {3, std::make_shared<HostTensor>(element::i32, Shape{5}, crops_end_val)}};
+        std::map<size_t, HostTensorPtr>{{1, std::make_shared<HostTensor>(element::i32, ov::Shape{5}, block_val)},
+                                        {2, std::make_shared<HostTensor>(element::i32, ov::Shape{5}, crops_begin_val)},
+                                        {3, std::make_shared<HostTensor>(element::i32, ov::Shape{5}, crops_end_val)}};
 
     input_shapes = {{960, 6, 13, 128, 16}, {5}, {5}, {5}};
     shape_inference(op.get(), input_shapes, output_shapes, constant_data);
@@ -54,9 +54,9 @@ TEST_F(BatchToSpaceV1StaticShapeInferenceTest, blocks_crops_in_constant_map) {
     int32_t crops_end_val[] = {0, 2, 1, 0, 0};
 
     const auto constant_data =
-        std::map<size_t, HostTensorPtr>{{1, std::make_shared<HostTensor>(element::i32, Shape{5}, block_val)},
-                                        {2, std::make_shared<HostTensor>(element::i32, Shape{5}, crops_begin_val)},
-                                        {3, std::make_shared<HostTensor>(element::i32, Shape{5}, crops_end_val)}};
+        std::map<size_t, HostTensorPtr>{{1, std::make_shared<HostTensor>(element::i32, ov::Shape{5}, block_val)},
+                                        {2, std::make_shared<HostTensor>(element::i32, ov::Shape{5}, crops_begin_val)},
+                                        {3, std::make_shared<HostTensor>(element::i32, ov::Shape{5}, crops_end_val)}};
 
     input_shapes = {{960, 6, 13, 128, 16}, {5}, {5}, {5}};
 
@@ -66,9 +66,9 @@ TEST_F(BatchToSpaceV1StaticShapeInferenceTest, blocks_crops_in_constant_map) {
 
 TEST_F(BatchToSpaceV1StaticShapeInferenceTest, blocs_crops_as_constants) {
     auto data = std::make_shared<Parameter>(element::f32, PartialShape{-1, -1, -1, -1});
-    auto block_shape = std::make_shared<Constant>(element::i64, Shape{4}, std::vector<int64_t>{1, 10, 5, 1});
-    auto crops_begin = std::make_shared<Constant>(element::i64, Shape{4}, std::vector<int64_t>{0, 3, 1, 0});
-    auto crops_end = std::make_shared<Constant>(element::i64, Shape{4}, std::vector<int64_t>{0, 3, 0, 0});
+    auto block_shape = std::make_shared<Constant>(element::i64, ov::Shape{4}, std::vector<int64_t>{1, 10, 5, 1});
+    auto crops_begin = std::make_shared<Constant>(element::i64, ov::Shape{4}, std::vector<int64_t>{0, 3, 1, 0});
+    auto crops_end = std::make_shared<Constant>(element::i64, ov::Shape{4}, std::vector<int64_t>{0, 3, 0, 0});
 
     op = make_op(data, block_shape, crops_begin, crops_end);
     input_shapes = {{100, 7, 13, 3}, {4}, {4}, {4}};
@@ -84,8 +84,8 @@ TEST_F(BatchToSpaceV1StaticShapeInferenceTest, missing_tensor_data) {
     int32_t crops_end_val[] = {0, 2, 1, 0, 0};
 
     const auto constant_data =
-        std::map<size_t, HostTensorPtr>{{1, std::make_shared<HostTensor>(element::i32, Shape{5}, block_val)},
-                                        {3, std::make_shared<HostTensor>(element::i32, Shape{5}, crops_end_val)}};
+        std::map<size_t, HostTensorPtr>{{1, std::make_shared<HostTensor>(element::i32, ov::Shape{5}, block_val)},
+                                        {3, std::make_shared<HostTensor>(element::i32, ov::Shape{5}, crops_end_val)}};
 
     input_shapes = {{960, 6, 13, 128, 16}, {5}, {5}, {5}};
 

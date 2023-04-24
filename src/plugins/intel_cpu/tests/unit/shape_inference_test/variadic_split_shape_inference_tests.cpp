@@ -69,9 +69,9 @@ INSTANTIATE_TEST_SUITE_P(multi_dim_shapes,
                          PrintToStringParamName());
 
 TEST_P(VariadicSplitStaticShapeInferenceTest, shape_inference_empty_const_map) {
-    const auto axis_node = std::make_shared<op::v0::Constant>(element::i64, Shape{}, axis);
+    const auto axis_node = std::make_shared<op::v0::Constant>(element::i64, ov::Shape{}, axis);
     const auto split_len_node =
-        std::make_shared<op::v0::Constant>(element::i64, Shape{split_lengths.size()}, split_lengths);
+        std::make_shared<op::v0::Constant>(element::i64, ov::Shape{split_lengths.size()}, split_lengths);
     op = make_op(data, axis_node, split_len_node);
 
     shape_inference(op.get(), input_shapes, output_shapes);
@@ -83,7 +83,7 @@ TEST_P(VariadicSplitStaticShapeInferenceTest, shape_inference_empty_const_map) {
 TEST_P(VariadicSplitStaticShapeInferenceTest, shape_inference_axis_in_const_map) {
     const auto axis_node = std::make_shared<op::v0::Parameter>(element::i64, ov::PartialShape::dynamic());
     const auto split_len_node =
-        std::make_shared<op::v0::Constant>(element::i64, Shape{split_lengths.size()}, split_lengths);
+        std::make_shared<op::v0::Constant>(element::i64, ov::Shape{split_lengths.size()}, split_lengths);
     op = make_op(data, axis_node, split_len_node);
 
     const auto axis_const = std::make_shared<op::v0::Constant>(element::i64, ov::Shape{}, axis);
@@ -101,10 +101,10 @@ TEST_P(VariadicSplitStaticShapeInferenceTest, shape_inference_all_const_in_map) 
     const auto split_len_node = std::make_shared<op::v0::Parameter>(element::i64, ov::PartialShape::dynamic());
     op = make_op(data, axis_node, split_len_node);
 
-    const auto axis_const = std::make_shared<op::v0::Constant>(element::i64, Shape{}, axis);
+    const auto axis_const = std::make_shared<op::v0::Constant>(element::i64, ov::Shape{}, axis);
     const auto axis_tensor = std::make_shared<ngraph::runtime::HostTensor>(axis_const);
     const auto split_len_const =
-        std::make_shared<op::v0::Constant>(element::i64, Shape{split_lengths.size()}, split_lengths);
+        std::make_shared<op::v0::Constant>(element::i64, ov::Shape{split_lengths.size()}, split_lengths);
     const auto split_len_tensor = std::make_shared<ngraph::runtime::HostTensor>(split_len_const);
 
     const std::map<size_t, std::shared_ptr<ngraph::runtime::HostTensor>>& constant_data = {{2, split_len_tensor},
