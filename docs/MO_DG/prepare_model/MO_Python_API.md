@@ -3,7 +3,7 @@
 @sphinxdirective
 
 Model Optimizer (MO) has a Python API for model conversion, which is represented by the ``convert_model()`` method in the openvino.tools.mo namespace.
-  ``convert_model()`` has all the functionality available from the command-line tool, plus the ability to pass Python model objects like Pytorch model or TensorFlow Keras model directly without saving it into files and without leaving the training environment (Jupyter Notebook or training scripts). As well as the input models consumed directly from Python, ``convert_model`` can take OpenVINO extension objects constructed directly in Python for easier conversion of operations that are not supported in OpenVINO (TODO: insert the link).
+  ``convert_model()`` has all the functionality available from the command-line tool, plus the ability to pass Python model objects like Pytorch model or TensorFlow Keras model directly without saving it into files and without leaving the training environment (Jupyter Notebook or training scripts). As well as the input models consumed directly from Python, ``convert_model`` can take OpenVINO extension objects constructed directly in Python for easier conversion of operations that are not supported in OpenVINO.
   ``convert_model()`` returns an openvino.runtime.Model object which can be compiled and inferred or serialized to IR.
 
 .. code-block:: python
