@@ -9,13 +9,21 @@ but it is negligible for most models.
 
 To compress the model, use the `--compress_to_fp16` or `--compress_to_fp16=True` option:
 
-.. code-block:: sh
+.. tab-set::
 
-   # cli tool
-   mo --input_model INPUT_MODEL --compress_to_fp16=False
+    .. tab-item:: CLI tool
+       :sync: cli-tool
 
-   # MO Python API
-   ov_model = convert_model(INPUT_MODEL, compress_to_fp16=False)
+       .. code-block:: sh
+
+          mo --input_model INPUT_MODEL --compress_to_fp16=False
+
+    .. tab-item:: MO Python API
+       :sync: mo-python-api
+
+       .. code-block:: sh
+
+          ov_model = convert_model(INPUT_MODEL, compress_to_fp16=False)
 
 
 For details on how plugins handle compressed ``FP16`` models, see 

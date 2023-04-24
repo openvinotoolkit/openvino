@@ -33,13 +33,21 @@ The script generates ONNX model file ``cascade_rcnn_r101_fpn_1x_coco.onnx`` in t
 Converting an ONNX Cascade RCNN R-101 Model to OpenVINO IR
 ##########################################################
 
-.. code-block:: sh
+.. tab-set::
 
-   # cli tool
-   mo --input_model cascade_rcnn_r101_fpn_1x_coco.onnx --mean_values [123.675,116.28,103.53] --scale_values [58.395,57.12,57.375]
+    .. tab-item:: CLI tool
+       :sync: cli-tool
 
-   # MO Python API
-   ov_model = convert_model("cascade_rcnn_r101_fpn_1x_coco.onnx", mean_values=[123.675,116.28,103.53], scale_values=[58.395,57.12,57.375])
+       .. code-block:: sh
+
+          mo --input_model cascade_rcnn_r101_fpn_1x_coco.onnx --mean_values [123.675,116.28,103.53] --scale_values [58.395,57.12,57.375]
+
+    .. tab-item:: MO Python API
+       :sync: mo-python-api
+
+       .. code-block:: sh
+
+          ov_model = convert_model("cascade_rcnn_r101_fpn_1x_coco.onnx", mean_values=[123.675,116.28,103.53], scale_values=[58.395,57.12,57.375])
 
 
 @endsphinxdirective

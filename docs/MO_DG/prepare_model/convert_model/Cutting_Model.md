@@ -46,13 +46,21 @@ In TensorBoard, along with some of its predecessors, it looks as follows:
 
 Convert this model and put the results in a writable output directory:
 
-.. code-block:: sh
+.. tab-set::
 
-   # cli tool
-   mo --input_model inception_v1.pb -b 1 --output_dir <OUTPUT_MODEL_DIR>
+   .. tab-item:: CLI tool
+      :sync: cli-tool
 
-   # MO Python API
-   ov_model = convert_model("inception_v1.pb", batch=1)
+      .. code-block:: sh
+
+         mo --input_model inception_v1.pb -b 1 --output_dir <OUTPUT_MODEL_DIR>
+
+   .. tab-item:: MO Python API
+      :sync: mo-python-api
+
+      .. code-block:: sh
+
+         ov_model = convert_model("inception_v1.pb", batch=1)
 
 
 (The other examples on this page assume that you first go to the ``model_optimizer`` directory and add the ``--output_dir`` argument with a directory where you have read/write permissions.)
@@ -100,19 +108,25 @@ The last layer in the model is ``InceptionV1/Logits/Predictions/Reshape_1``, whi
 
 Due to automatic identification of inputs and outputs, providing the ``--input`` and ``--output`` options to convert the whole model is not required. The following commands are equivalent for the Inception V1 model:
 
-.. code-block:: sh
+.. tab-set::
 
-   # cli tool
-   mo --input_model inception_v1.pb -b 1 --output_dir <OUTPUT_MODEL_DIR>
+   .. tab-item:: CLI tool
+      :sync: cli-tool
 
-   # MO Python API
-   ov_model = convert_model("inception_v1.pb", batch=1)
+      .. code-block:: sh
 
-   # cli tool
-   mo --input_model inception_v1.pb -b 1 --input input --output InceptionV1/Logits/Predictions/Reshape_1 --output_dir <OUTPUT_MODEL_DIR>
+         mo --input_model inception_v1.pb -b 1 --output_dir <OUTPUT_MODEL_DIR>
 
-   # MO Python API
-   ov_model = convert_model("inception_v1.pb", batch=1, input="input", output="InceptionV1/Logits/Predictions/Reshape_1")
+         mo --input_model inception_v1.pb -b 1 --input input --output InceptionV1/Logits/Predictions/Reshape_1 --output_dir <OUTPUT_MODEL_DIR>
+
+   .. tab-item:: MO Python API
+      :sync: mo-python-api
+
+      .. code-block:: sh
+
+         ov_model = convert_model("inception_v1.pb", batch=1)
+
+         ov_model = convert_model("inception_v1.pb", batch=1, input="input", output="InceptionV1/Logits/Predictions/Reshape_1")
 
 
 The Intermediate Representations are identical for both conversions. The same is true if the model has multiple inputs and/or outputs.
@@ -132,13 +146,21 @@ If you want to cut your model at the end, you have the following options:
 
 1. The following command cuts off the rest of the model after the ``InceptionV1/InceptionV1/Conv2d_1a_7x7/Relu``, making this node the last in the model:
 
-   .. code-block:: sh
-
-      # cli tool
-      mo --input_model inception_v1.pb -b 1 --output=InceptionV1/InceptionV1/Conv2d_1a_7x7/Relu --output_dir <OUTPUT_MODEL_DIR>
-
-      # MO Python API
-      ov_model = convert_model("inception_v1.pb", batch=1, output="InceptionV1/InceptionV1/Conv2d_1a_7x7/Relu")
+   .. tab-set::
+   
+      .. tab-item:: CLI tool
+         :sync: cli-tool
+   
+         .. code-block:: sh
+   
+            mo --input_model inception_v1.pb -b 1 --output=InceptionV1/InceptionV1/Conv2d_1a_7x7/Relu --output_dir <OUTPUT_MODEL_DIR>
+   
+      .. tab-item:: MO Python API
+         :sync: mo-python-api
+   
+         .. code-block:: sh
+   
+            ov_model = convert_model("inception_v1.pb", batch=1, output="InceptionV1/InceptionV1/Conv2d_1a_7x7/Relu")
 
 
    The resulting Intermediate Representation has three layers:
@@ -186,13 +208,21 @@ If you want to cut your model at the end, you have the following options:
 
 2. The following command cuts the edge that comes from 0 output port of the ``InceptionV1/InceptionV1/Conv2d_1a_7x7/Relu`` and the rest of the model, making this node the last one in the model:
 
-   .. code-block::
-
-      # cli tool
-      mo --input_model inception_v1.pb -b 1 --output InceptionV1/InceptionV1/Conv2d_1a_7x7/Relu:0 --output_dir <OUTPUT_MODEL_DIR>
-
-      # MO Python API
-      ov_model = convert_model("inception_v1.pb", batch=1, output="InceptionV1/InceptionV1/Conv2d_1a_7x7/Relu:0")
+   .. tab-set::
+   
+      .. tab-item:: CLI tool
+         :sync: cli-tool
+   
+         .. code-block:: sh
+   
+            mo --input_model inception_v1.pb -b 1 --output InceptionV1/InceptionV1/Conv2d_1a_7x7/Relu:0 --output_dir <OUTPUT_MODEL_DIR>
+   
+      .. tab-item:: MO Python API
+         :sync: mo-python-api
+   
+         .. code-block:: sh
+   
+            ov_model = convert_model("inception_v1.pb", batch=1, output="InceptionV1/InceptionV1/Conv2d_1a_7x7/Relu:0")
 
 
    The resulting Intermediate Representation has three layers, which are the same as in the previous case:
@@ -240,13 +270,21 @@ If you want to cut your model at the end, you have the following options:
 
 3. The following command cuts the edge that comes to 0 input port of the ``InceptionV1/InceptionV1/Conv2d_1a_7x7/Relu`` and the rest of the model including ``InceptionV1/InceptionV1/Conv2d_1a_7x7/Relu``, deleting this node and making the previous node ``InceptionV1/InceptionV1/Conv2d_1a_7x7/Conv2D`` the last in the model:
 
-   .. code-block:: sh
-
-      # cli tool
-      mo --input_model inception_v1.pb -b 1 --output=0:InceptionV1/InceptionV1/Conv2d_1a_7x7/Relu --output_dir <OUTPUT_MODEL_DIR>
-
-      # MO Python API
-      ov_model = convert_model("inception_v1.pb", batch=1, output="0:InceptionV1/InceptionV1/Conv2d_1a_7x7/Relu")
+   .. tab-set::
+   
+      .. tab-item:: CLI tool
+         :sync: cli-tool
+   
+         .. code-block:: sh
+   
+            mo --input_model inception_v1.pb -b 1 --output=0:InceptionV1/InceptionV1/Conv2d_1a_7x7/Relu --output_dir <OUTPUT_MODEL_DIR>
+   
+      .. tab-item:: MO Python API
+         :sync: mo-python-api
+   
+         .. code-block:: sh
+   
+            ov_model = convert_model("inception_v1.pb", batch=1, output="0:InceptionV1/InceptionV1/Conv2d_1a_7x7/Relu")
 
 
    The resulting Intermediate Representation has two layers, which are the same as the first two layers in the previous case:
@@ -288,13 +326,21 @@ If you want to go further and cut the beginning of the model, leaving only the `
 
 1. Use the following command line, where ``--input`` and ``--output`` specify the same node in the graph:
 
-   .. code-block:: sh
-
-      # cli tool
-      mo --input_model=inception_v1.pb -b 1 --output InceptionV1/InceptionV1/Conv2d_1a_7x7/Relu --input InceptionV1/InceptionV1/Conv2d_1a_7x7/Relu --output_dir <OUTPUT_MODEL_DIR>
-
-      # MO Python API
-      ov_model = convert_model("inception_v1.pb", batch=1, output="InceptionV1/InceptionV1/Conv2d_1a_7x7/Relu", input="InceptionV1/InceptionV1/Conv2d_1a_7x7/Relu")
+   .. tab-set::
+   
+      .. tab-item:: CLI tool
+         :sync: cli-tool
+   
+         .. code-block:: sh
+   
+            mo --input_model=inception_v1.pb -b 1 --output InceptionV1/InceptionV1/Conv2d_1a_7x7/Relu --input InceptionV1/InceptionV1/Conv2d_1a_7x7/Relu --output_dir <OUTPUT_MODEL_DIR>
+   
+      .. tab-item:: MO Python API
+         :sync: mo-python-api
+   
+         .. code-block:: sh
+   
+            ov_model = convert_model("inception_v1.pb", batch=1, output="InceptionV1/InceptionV1/Conv2d_1a_7x7/Relu", input="InceptionV1/InceptionV1/Conv2d_1a_7x7/Relu")
 
 
    The resulting Intermediate Representation looks as follows:
@@ -330,13 +376,22 @@ If you want to go further and cut the beginning of the model, leaving only the `
 
 2. Cut the edge incoming to layer by port number. To specify the incoming port, use the following notation ``--input=port:input_node``. To cut everything before ``ReLU`` layer, cut the edge incoming to port 0 of ``InceptionV1/InceptionV1/Conv2d_1a_7x7/Relu`` node:
 
-   .. code-block:: sh
+   .. tab-set::
+   
+      .. tab-item:: CLI tool
+         :sync: cli-tool
+   
+         .. code-block:: sh
+   
+            mo --input_model inception_v1.pb -b 1 --input 0:InceptionV1/InceptionV1/Conv2d_1a_7x7/Relu --output InceptionV1/InceptionV1/Conv2d_1a_7x7/Relu --output_dir <OUTPUT_MODEL_DIR>
+   
+      .. tab-item:: MO Python API
+         :sync: mo-python-api
+   
+         .. code-block:: sh
+   
+            ov_model = convert_model("inception_v1.pb", batch=1, input="0:InceptionV1/InceptionV1/Conv2d_1a_7x7/Relu", output="InceptionV1/InceptionV1/Conv2d_1a_7x7/Relu")
 
-      # cli tool
-      mo --input_model inception_v1.pb -b 1 --input 0:InceptionV1/InceptionV1/Conv2d_1a_7x7/Relu --output InceptionV1/InceptionV1/Conv2d_1a_7x7/Relu --output_dir    <OUTPUT_MODEL_DIR>
-
-      # MO Python API
-      ov_model = convert_model("inception_v1.pb", batch=1, input="0:InceptionV1/InceptionV1/Conv2d_1a_7x7/Relu", output="InceptionV1/InceptionV1/Conv2d_1a_7x7/Relu")
 
    The resulting Intermediate Representation looks as follows:
 
@@ -371,13 +426,21 @@ If you want to go further and cut the beginning of the model, leaving only the `
 
 3. Cut edge outcoming from layer by port number. To specify the outcoming port, use the following notation ``--input=input_node:port``. To cut everything before ``ReLU`` layer, cut edge from ``InceptionV1/InceptionV1/Conv2d_1a_7x7/BatchNorm/batchnorm/add_1`` node to ``ReLU``:
 
-   .. code-block:: sh
-
-      # cli tool 
-      mo --input_model inception_v1.pb -b 1 --input InceptionV1/InceptionV1/Conv2d_1a_7x7/BatchNorm/batchnorm/add_1:0 --output InceptionV1/InceptionV1/Conv2d_1a_7x7/Relu    --output_dir <OUTPUT_MODEL_DIR>
-
-      # MO Python API
-      ov_model = convert_model("inception_v1.pb", batch=1, input="InceptionV1/InceptionV1/Conv2d_1a_7x7/BatchNorm/batchnorm/add_1:0", output="InceptionV1/InceptionV1/Conv2d_1a_7x7/Relu")
+   .. tab-set::
+   
+      .. tab-item:: CLI tool
+         :sync: cli-tool
+   
+         .. code-block:: sh
+   
+            mo --input_model inception_v1.pb -b 1 --input InceptionV1/InceptionV1/Conv2d_1a_7x7/BatchNorm/batchnorm/add_1:0 --output InceptionV1/InceptionV1/Conv2d_1a_7x7/Relu --output_dir <OUTPUT_MODEL_DIR>
+   
+      .. tab-item:: MO Python API
+         :sync: mo-python-api
+   
+         .. code-block:: sh
+   
+            ov_model = convert_model("inception_v1.pb", batch=1, input="InceptionV1/InceptionV1/Conv2d_1a_7x7/BatchNorm/batchnorm/add_1:0", output="InceptionV1/InceptionV1/Conv2d_1a_7x7/Relu")
 
 
    The resulting Intermediate Representation looks as follows:
@@ -412,13 +475,21 @@ Shape Override for New Inputs
 
 The input shape can be overridden with ``--input_shape``. In this case, the shape is applied to the node referenced in ``--input``, not to the original ``Placeholder`` in the model. For example, the command below:
 
-.. code-block:: sh
+.. tab-set::
 
-   # cli tool
-    mo --input_model inception_v1.pb --input_shape=[1,5,10,20] --output InceptionV1/InceptionV1/Conv2d_1a_7x7/Relu --input InceptionV1/InceptionV1/Conv2d_1a_7x7/Relu --output_dir    <OUTPUT_MODEL_DIR>
+   .. tab-item:: CLI tool
+      :sync: cli-tool
 
-   # MO Python API
-   ov_model = convert_model("inception_v1.pb", input_shape=[1,5,10,20], output="InceptionV1/InceptionV1/Conv2d_1a_7x7/Relu", input="InceptionV1/InceptionV1/Conv2d_1a_7x7/Relu")
+      .. code-block:: sh
+
+         mo --input_model inception_v1.pb --input_shape=[1,5,10,20] --output InceptionV1/InceptionV1/Conv2d_1a_7x7/Relu --input InceptionV1/InceptionV1/Conv2d_1a_7x7/Relu --output_dir <OUTPUT_MODEL_DIR>
+
+   .. tab-item:: MO Python API
+      :sync: mo-python-api
+
+      .. code-block:: sh
+
+         ov_model = convert_model("inception_v1.pb", input_shape=[1,5,10,20], output="InceptionV1/InceptionV1/Conv2d_1a_7x7/Relu", input="InceptionV1/InceptionV1/Conv2d_1a_7x7/Relu")
 
 
 gives the following shapes in the ``Input`` and ``ReLU`` layers:
@@ -469,26 +540,42 @@ There are operations that contain more than one input port. In the example consi
 
 Following this behavior, Model Optimizer creates an ``Input`` layer for port 0 only, leaving port 1 as a constant. Thus, the result of:
 
-.. code-block:: sh
+.. tab-set::
 
-   # cli tool
-   mo --input_model inception_v1.pb -b 1 --input InceptionV1/InceptionV1/Conv2d_1a_7x7/convolution --output_dir <OUTPUT_MODEL_DIR>
+   .. tab-item:: CLI tool
+      :sync: cli-tool
 
-   # MO Python API
-   ov_model = convert_model("inception_v1.pb", batch=1, input="InceptionV1/InceptionV1/Conv2d_1a_7x7/convolution")
+      .. code-block:: sh
+
+         mo --input_model inception_v1.pb -b 1 --input InceptionV1/InceptionV1/Conv2d_1a_7x7/convolution --output_dir <OUTPUT_MODEL_DIR>
+
+   .. tab-item:: MO Python API
+      :sync: mo-python-api
+
+      .. code-block:: sh
+
+         ov_model = convert_model("inception_v1.pb", batch=1, input="InceptionV1/InceptionV1/Conv2d_1a_7x7/convolution")
 
 
 is identical to the result of conversion of the model as a whole, because this convolution is the first executable operation in Inception V1.
 
 Different behavior occurs when ``--input_shape`` is also used as an attempt to override the input shape:
 
-.. code-block:: sh
+.. tab-set::
 
-   # cli tool
-   mo --input_model inception_v1.pb--input=InceptionV1/InceptionV1/Conv2d_1a_7x7/convolution --input_shape [1,224,224,3]  --output_dir <OUTPUT_MODEL_DIR>
+   .. tab-item:: CLI tool
+      :sync: cli-tool
 
-   # MO Python API
-   ov_model = convert_model("inception_v1.pb", input="InceptionV1/InceptionV1/Conv2d_1a_7x7/convolution", input_shape=[1,224,224,3])
+      .. code-block:: sh
+
+         mo --input_model inception_v1.pb--input=InceptionV1/InceptionV1/Conv2d_1a_7x7/convolution --input_shape [1,224,224,3]  --output_dir <OUTPUT_MODEL_DIR>
+
+   .. tab-item:: MO Python API
+      :sync: mo-python-api
+
+      .. code-block:: sh
+
+         ov_model = convert_model("inception_v1.pb", input="InceptionV1/InceptionV1/Conv2d_1a_7x7/convolution", input_shape=[1,224,224,3])
 
 
 An error occurs (for more information, see the :ref:`Model Optimizer FAQ <question-30>`):
@@ -503,13 +590,21 @@ When ``--input_shape`` is specified and the node contains multiple input ports, 
 
 The correct command line is:
 
-.. code-block:: sh
+.. tab-set::
 
-   # cli tool
-   mo --input_model inception_v1.pb --input 0:InceptionV1/InceptionV1/Conv2d_1a_7x7/convolution --input_shape=[1,224,224,3] --output_dir <OUTPUT_MODEL_DIR>
+   .. tab-item:: CLI tool
+      :sync: cli-tool
 
-   # MO Python API
-   ov_model = convert_model("inception_v1.pb", input="0:InceptionV1/InceptionV1/Conv2d_1a_7x7/convolution", input_shape=[1,224,224,3])
+      .. code-block:: sh
+
+         mo --input_model inception_v1.pb --input 0:InceptionV1/InceptionV1/Conv2d_1a_7x7/convolution --input_shape=[1,224,224,3] --output_dir <OUTPUT_MODEL_DIR>
+
+   .. tab-item:: MO Python API
+      :sync: mo-python-api
+
+      .. code-block:: sh
+
+         ov_model = convert_model("inception_v1.pb", input="0:InceptionV1/InceptionV1/Conv2d_1a_7x7/convolution", input_shape=[1,224,224,3])
 
 
 @endsphinxdirective

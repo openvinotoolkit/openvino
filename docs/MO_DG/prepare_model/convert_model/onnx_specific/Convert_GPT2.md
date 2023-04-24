@@ -17,13 +17,21 @@ Converting an ONNX GPT-2 Model to IR
 
 Generate the Intermediate Representation of the model GPT-2 by running Model Optimizer with the following parameters:
 
-.. code-block:: sh
+.. tab-set::
 
-   # cli tool
-   mo --input_model gpt2-10.onnx --input_shape [X,Y,Z] --output_dir <OUTPUT_MODEL_DIR>
+    .. tab-item:: CLI tool
+       :sync: cli-tool
 
-   # MO Python API
-   ov_model = convert_model("gpt2-10.onnx", input_shape=[X,Y,Z])
+       .. code-block:: sh
+
+          mo --input_model gpt2-10.onnx --input_shape [X,Y,Z] --output_dir <OUTPUT_MODEL_DIR>
+
+    .. tab-item:: MO Python API
+       :sync: mo-python-api
+
+       .. code-block:: sh
+
+          ov_model = convert_model("gpt2-10.onnx", input_shape=[X,Y,Z])
 
 
 @endsphinxdirective

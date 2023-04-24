@@ -37,13 +37,21 @@ The script generates the ONNX model file ``f3net.onnx``. The model conversion wa
 Converting an ONNX F3Net Model to IR
 ####################################
 
-.. code-block:: sh
+.. tab-set::
 
-   # cli tool
-   mo --input_model <MODEL_DIR>/f3net.onnx
+    .. tab-item:: CLI tool
+       :sync: cli-tool
 
-   # MO Python API
-   ov_model = convert_model("<MODEL_DIR>/f3net.onnx")
+       .. code-block:: sh
+
+          mo --input_model <MODEL_DIR>/f3net.onnx
+
+    .. tab-item:: MO Python API
+       :sync: mo-python-api
+
+       .. code-block:: sh
+
+          ov_model = convert_model("<MODEL_DIR>/f3net.onnx")
 
 
 @endsphinxdirective

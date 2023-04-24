@@ -25,17 +25,25 @@ Converting an EfficientDet TensorFlow Model to the IR
 
 To generate the IR of the EfficientDet TensorFlow model, run:
 
-.. code-block:: sh
+.. tab-set::
 
-   # cli tool
-   mo \
-   --input_model savedmodeldir/efficientdet-d4_frozen.pb \
-   --transformations_config front/tf/automl_efficientdet.json \
-   --input_shape [1,$IMAGE_SIZE,$IMAGE_SIZE,3] \
-   --reverse_input_channels
+    .. tab-item:: CLI tool
+       :sync: cli-tool
 
-   # MO Python API
-   ov_model = convert_model("savedmodeldir/efficientdet-d4_frozen.pb", transformations_config="front/tf/automl_efficientdet.json", input_shape=[1,IMAGE_SIZE,IMAGE_SIZE,3],    reverse_input_channels=True)
+       .. code-block:: sh
+
+          mo \
+          --input_model savedmodeldir/efficientdet-d4_frozen.pb \
+          --transformations_config front/tf/automl_efficientdet.json \
+          --input_shape [1,$IMAGE_SIZE,$IMAGE_SIZE,3] \
+          --reverse_input_channels
+
+    .. tab-item:: MO Python API
+       :sync: mo-python-api
+
+       .. code-block:: sh
+
+          ov_model = convert_model("savedmodeldir/efficientdet-d4_frozen.pb", transformations_config="front/tf/automl_efficientdet.json", input_shape=[1,IMAGE_SIZE,IMAGE_SIZE,3], reverse_input_channels=True)
 
 
 Where ``$IMAGE_SIZE`` is the size that the input image of the original TensorFlow model will be resized to. Different

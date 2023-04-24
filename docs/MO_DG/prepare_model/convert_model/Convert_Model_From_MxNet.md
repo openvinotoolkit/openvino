@@ -4,13 +4,21 @@
 
 To convert an MXNet model, run Model Optimizer with the path to the ``.params`` file of the input model:
 
-.. code-block:: sh
+.. tab-set::
 
-   # cli tool
-    mo --input_model model-file-0000.params
+   .. tab-item:: CLI tool
+      :sync: cli-tool
 
-   # MO Python API
-   ov_model = convert_model("model-file-0000.params")
+      .. code-block:: sh
+
+          mo --input_model model-file-0000.params
+
+   .. tab-item:: MO Python API
+      :sync: mo-python-api
+
+      .. code-block:: sh
+
+         ov_model = convert_model("model-file-0000.params")
 
 
 Using MXNet-Specific Conversion Parameters 

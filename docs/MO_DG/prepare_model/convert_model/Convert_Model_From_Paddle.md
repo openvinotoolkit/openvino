@@ -4,23 +4,41 @@
 
 To convert a PaddlePaddle model, use the ``mo`` script and specify the path to the input ``.pdmodel`` model file:
 
-.. code-block:: sh
+.. tab-set::
 
-   # cli tool
-   mo --input_model <INPUT_MODEL>.pdmodel
+   .. tab-item:: CLI tool
+      :sync: cli-tool
 
-   # MO Python API
-   ov_model = convert_model("<INPUT_MODEL>.pdmodel")
+      .. code-block:: sh
+
+         mo --input_model <INPUT_MODEL>.pdmodel
+
+   .. tab-item:: MO Python API
+      :sync: mo-python-api
+
+      .. code-block:: sh
+
+         ov_model = convert_model("<INPUT_MODEL>.pdmodel")
+
 
 **For example,** this command converts a yolo v3 PaddlePaddle network to OpenVINO IR network:
 
-.. code-block:: sh
+.. tab-set::
 
-   # cli tool
-   mo --input_model=yolov3.pdmodel --input=image,im_shape,scale_factor --input_shape=[1,3,608,608],[1,2],[1,2] --reverse_input_channels --output=save_infer_model/scale_0.tmp_1,   save_infer_model/scale_1.tmp_1
+   .. tab-item:: CLI tool
+      :sync: cli-tool
 
-   # MO Python API
-   ov_model = convert_model("yolov3.pdmodel", input=["image","im_shape","scale_factor"], input_shape=[[1,3,608,608],[1,2],[1,2]], reverse_input_channels=True, output=   ["save_infer_model/scale_0.tmp_1","save_infer_model/scale_1.tmp_1"])
+      .. code-block:: sh
+
+         mo --input_model=yolov3.pdmodel --input=image,im_shape,scale_factor --input_shape=[1,3,608,608],[1,2],[1,2] --reverse_input_channels --output=save_infer_model/scale_0.tmp_1,   save_infer_model/scale_1.tmp_1
+
+   .. tab-item:: MO Python API
+      :sync: mo-python-api
+
+      .. code-block:: sh
+
+         ov_model = convert_model("yolov3.pdmodel", input=["image","im_shape","scale_factor"], input_shape=[[1,3,608,608],[1,2],[1,2]], reverse_input_channels=True, output=   ["save_infer_model/scale_0.tmp_1","save_infer_model/scale_1.tmp_1"])
+
 
 Supported PaddlePaddle Layers
 #############################

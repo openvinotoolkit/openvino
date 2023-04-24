@@ -31,13 +31,21 @@ The script generates the ONNX model file ``RCAN.onnx``. More information about m
 Converting an ONNX RCAN Model to IR
 ###################################
 
-.. code-block:: sh
+.. tab-set::
 
-   # cli tool
-   mo --input_model RCAN.onnx
+    .. tab-item:: CLI tool
+       :sync: cli-tool
 
-   # MO Python API
-   ov_model = convert_model("RCAN.onnx")
+       .. code-block:: sh
+
+          mo --input_model RCAN.onnx
+
+    .. tab-item:: MO Python API
+       :sync: mo-python-api
+
+       .. code-block:: sh
+
+          ov_model = convert_model("RCAN.onnx")
 
 
 @endsphinxdirective

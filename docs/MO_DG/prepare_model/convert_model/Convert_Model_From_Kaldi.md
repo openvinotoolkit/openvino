@@ -8,13 +8,23 @@
 
 To convert a Kaldi model, run Model Optimizer with the path to the input model ``.nnet`` or ``.mdl`` file:
 
-.. code-block:: cpp
 
-   # cli tool
-    mo --input_model <INPUT_MODEL>.nnet
+.. tab-set::
 
-   # MO Python API
-   ov_model = convert_model("<INPUT_MODEL>.nnet")
+   .. tab-item:: CLI tool
+      :sync: cli-tool
+
+      .. code-block:: sh
+
+         mo --input_model <INPUT_MODEL>.nnet
+
+   .. tab-item:: MO Python API
+      :sync: mo-python-api
+
+      .. code-block:: sh
+
+         ov_model = convert_model("<INPUT_MODEL>.nnet")
+
 
 Using Kaldi-Specific Conversion Parameters
 ##########################################
@@ -34,23 +44,40 @@ Examples of CLI Commands
 
 * To launch Model Optimizer for the ``wsj_dnn5b_smbr`` model with the specified ``.nnet`` file:
 
-  .. code-block:: cpp
+  .. tab-set::
+  
+     .. tab-item:: CLI tool
+        :sync: cli-tool
+  
+        .. code-block:: sh
+  
+           mo --input_model wsj_dnn5b_smbr.nnet
+  
+     .. tab-item:: MO Python API
+        :sync: mo-python-api
+  
+        .. code-block:: sh
+  
+           ov_model = convert_model("wsj_dnn5b_smbr.nnet")
 
-     # cli tool
-        mo --input_model wsj_dnn5b_smbr.nnet
-
-     # MO Python API
-        ov_model = convert_model("wsj_dnn5b_smbr.nnet")
 
 * To launch Model Optimizer for the ``wsj_dnn5b_smbr`` model with the existing file that contains counts for the last layer with biases:
 
-  .. code-block:: cpp
-
-     # cli tool
-     mo --input_model wsj_dnn5b_smbr.nnet --counts wsj_dnn5b_smbr.counts
-
-     # MO Python API
-     ov_model = convert_model("wsj_dnn5b_smbr.nnet", counts="wsj_dnn5b_smbr.counts")
+  .. tab-set::
+  
+     .. tab-item:: CLI tool
+        :sync: cli-tool
+  
+        .. code-block:: sh
+  
+           mo --input_model wsj_dnn5b_smbr.nnet --counts wsj_dnn5b_smbr.counts
+  
+     .. tab-item:: MO Python API
+        :sync: mo-python-api
+  
+        .. code-block:: sh
+  
+           ov_model = convert_model("wsj_dnn5b_smbr.nnet", counts="wsj_dnn5b_smbr.counts")
 
 
   * The Model Optimizer normalizes сounts in the following way:
@@ -71,13 +98,22 @@ Examples of CLI Commands
 
 * If you want to remove the last SoftMax layer in the topology, launch the Model Optimizer with the `--remove_output_softmax` flag:
 
-.. code-block:: cpp
+  .. tab-set::
+  
+     .. tab-item:: CLI tool
+        :sync: cli-tool
+  
+        .. code-block:: sh
+  
+           mo --input_model wsj_dnn5b_smbr.nnet --counts wsj_dnn5b_smbr.counts --remove_output_softmax
+  
+     .. tab-item:: MO Python API
+        :sync: mo-python-api
+  
+        .. code-block:: sh
+  
+           ov_model = convert_model("wsj_dnn5b_smbr.nnet", counts="wsj_dnn5b_smbr.counts", remove_output_softmax=True)
 
-   # cli tool
-   mo --input_model wsj_dnn5b_smbr.nnet --counts wsj_dnn5b_smbr.counts --remove_output_softmax
-
-   # MO Python API
-   ov_model = convert_model("wsj_dnn5b_smbr.nnet", counts="wsj_dnn5b_smbr.counts", remove_output_softmax=True)
 
 The Model Optimizer finds the last layer of the topology and removes this layer only if it is a SoftMax layer.
 

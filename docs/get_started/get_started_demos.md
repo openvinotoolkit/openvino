@@ -203,61 +203,87 @@ To save disk space for your IR file, you can apply :doc:`weights compression to 
 
 Generic Model Optimizer script:
 
-.. code-block:: sh
+.. tab-set::
 
-   # cli tool 
-      mo --input_model <model_dir>/<model_file>
+    .. tab-item:: CLI tool
+        :sync: cli-tool
 
-   # MO Python API
-   ov_model = convert_model("<model_dir>/<model_file>")
+        .. code-block:: sh
+
+           mo --input_model <model_dir>/<model_file>
+
+    .. tab-item:: MO Python API
+        :sync: mo-python-api
+
+        .. code-block:: sh
+
+           ov_model = convert_model("<model_dir>/<model_file>")
 
 
 The IR files produced by the script are written to the ``<ir_dir>`` directory.
 
 The command with most placeholders filled in and FP16 precision:
 
-.. tab:: Linux
 
-   .. tab:: CLI tool
+.. tab-set::
 
-      .. code-block:: sh
+   .. tab-item:: Linux
+      :sync: lin
+   
+      .. tab-set::
+   
+         .. tab-item:: CLI tool
+            :sync: cli-tool
 
-         mo --input_model ~/models/public/googlenet-v1/googlenet-v1.caffemodel --compress_to_fp16 --output_dir ~/ir
+            .. code-block:: sh
+      
+               mo --input_model ~/models/public/googlenet-v1/googlenet-v1.caffemodel --compress_to_fp16 --output_dir ~/ir
+      
+         .. tab-item:: MO Python API
+            :sync: mo-python-api
 
-   .. tab:: MO Python API
+            .. code-block:: sh
+      
+               ov_model = convert_model("~/models/public/googlenet-v1/googlenet-v1.caffemodel", compress_to_fp16=True)
+   
+   .. tab-item:: Windows
+      :sync: win
 
-      .. code-block:: sh
+      .. tab-set::
+   
+         .. tab-item:: CLI tool
+            :sync: cli-tool
+      
+            .. code-block:: bat
+      
+               mo --input_model %USERPROFILE%\Documents\models\public\googlenet-v1\googlenet-v1.caffemodel --compress_to_fp16 --output_dir %USERPROFILE%\Documents\ir
+      
+         .. tab-item:: MO Python API
+            :sync: mo-python-api
+            
+            .. code-block:: bat
+      
+               ov_model = convert_model("%USERPROFILE%\Documents\models\public\googlenet-v1\googlenet-v1.caffemodel", compress_to_fp16=True)
+   
+   
+   .. tab-item:: macOS
+      :sync: mac
 
-         ov_model = convert_model("~/models/public/googlenet-v1/googlenet-v1.caffemodel", compress_to_fp16=True)
-
-.. tab:: Windows
-
-   .. tab:: CLI tool
-
-      .. code-block:: bat
-
-         mo --input_model %USERPROFILE%\Documents\models\public\googlenet-v1\googlenet-v1.caffemodel --compress_to_fp16 --output_dir %USERPROFILE%\Documents\ir
-
-   .. tab:: MO Python API
-
-      .. code-block:: bat
-
-         ov_model = convert_model("%USERPROFILE%\Documents\models\public\googlenet-v1\googlenet-v1.caffemodel", compress_to_fp16=True)
-
-
-.. tab:: macOS
-
-   .. tab:: CLI tool
-
-      .. code-block:: sh
-
-         mo --input_model ~/models/public/googlenet-v1/googlenet-v1.caffemodel --compress_to_fp16 --output_dir ~/ir
-
-   .. tab:: MO Python API
-
-      .. code-block:: sh
-
-         ov_model = convert_model("~/models/public/googlenet-v1/googlenet-v1.caffemodel", compress_to_fp16=True)
+      .. tab-set::
+      
+         .. tab-item:: CLI tool
+            :sync: cli-tool
+      
+            .. code-block:: sh
+      
+               mo --input_model ~/models/public/googlenet-v1/googlenet-v1.caffemodel --compress_to_fp16 --output_dir ~/ir
+      
+         .. tab-item:: MO Python API
+            :sync: mo-python-api
+      
+            .. code-block:: sh
+      
+               ov_model = convert_model("~/models/public/googlenet-v1/googlenet-v1.caffemodel", compress_to_fp16=True)
 
 
 .. _download-media:

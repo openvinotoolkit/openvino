@@ -56,13 +56,22 @@ The script generates ONNX model file ``bert-ner.onnx``.
 Converting an ONNX BERT-NER model to IR
 #######################################
 
-.. code-block:: bash
 
-# cli tool 
-mo --input_model bert-ner.onnx --input "input_mask[1,128],segment_ids[1,128],input_ids[1,128]"
+.. tab-set::
 
-# MO Python API
-ov_model = convert_model("bert-ner.onnx", input=[("input_mask", [1,128]), ("segment_ids", [1,128]), ("input_ids", [1,128])])
+    .. tab-item:: CLI tool
+       :sync: cli-tool
+
+       .. code-block:: sh
+
+          mo --input_model bert-ner.onnx --input "input_mask[1,128],segment_ids[1,128],input_ids[1,128]"
+
+    .. tab-item:: MO Python API
+       :sync: mo-python-api
+
+       .. code-block:: sh
+
+          ov_model = convert_model("bert-ner.onnx", input=[("input_mask", [1,128]), ("segment_ids", [1,128]), ("input_ids", [1,128])])
 
 
 where ``1`` is ``batch_size`` and ``128`` is ``sequence_length``.

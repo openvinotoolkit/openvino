@@ -30,13 +30,22 @@ To specify the layout, you can use the ``--layout`` option followed by the layou
 For example, the following command specifies the ``NHWC`` layout for a Tensorflow 
 ``nasnet_large`` model that was exported to the ONNX format:
 
-.. code-block:: sh
 
-   # cli tool
-   mo --input_model tf_nasnet_large.onnx --layout nhwc
+.. tab-set::
 
-   # MO Python API
-   ov_model = convert_model("tf_nasnet_large.onnx", layout="nhwc")
+    .. tab-item:: CLI tool
+       :sync: cli-tool
+
+       .. code-block:: sh
+
+          mo --input_model tf_nasnet_large.onnx --layout nhwc
+
+    .. tab-item:: MO Python API
+       :sync: mo-python-api
+
+       .. code-block:: sh
+
+          ov_model = convert_model("tf_nasnet_large.onnx", layout="nhwc")
 
 
 Additionally, if a model has more than one input or needs both input and output 
@@ -46,13 +55,21 @@ For example, the following command specifies the layout for an ONNX ``Yolo v3 Ti
 model with its first input ``input_1`` in ``NCHW`` layout and second input ``image_shape`` 
 having two dimensions: batch and size of the image expressed as the ``N?`` layout:
 
-.. code-block:: sh
+.. tab-set::
 
-   # cli tool
-   mo --input_model yolov3-tiny.onnx --layout input_1(nchw),image_shape(n?)
+    .. tab-item:: CLI tool
+       :sync: cli-tool
 
-   # MO Python API
-   ov_model = convert_model("yolov3-tiny.onnx", layout={"input_1": "nchw", "image_shape": "n?"})
+       .. code-block:: sh
+
+          mo --input_model yolov3-tiny.onnx --layout input_1(nchw),image_shape(n?)
+
+    .. tab-item:: MO Python API
+       :sync: mo-python-api
+
+       .. code-block:: sh
+
+          ov_model = convert_model("yolov3-tiny.onnx", layout={"input_1": "nchw", "image_shape": "n?"})
 
 
 Changing Model Layout
@@ -64,17 +81,26 @@ Use either ``--layout`` or ``--source_layout`` with ``--target_layout`` to chang
 For example, for the same ``nasnet_large`` model mentioned previously, you can use 
 the following commands to provide data in the ``NCHW`` layout:
 
-.. code-block:: sh
 
-   # cli tool
-   mo --input_model tf_nasnet_large.onnx --source_layout nhwc --target_layout nchw
-   # MO Python API
-   ov_model = convert_model("tf_nasnet_large.onnx", source_layout="nhwc", target_layout="nchw")
+.. tab-set::
 
-   # cli tool
-   mo --input_model tf_nasnet_large.onnx --layout "nhwc->nchw"
-   # MO Python API
-   ov_model = convert_model("tf_nasnet_large.onnx", layout="nhwc->nchw")
+    .. tab-item:: CLI tool
+       :sync: cli-tool
+
+       .. code-block:: sh
+
+          mo --input_model tf_nasnet_large.onnx --source_layout nhwc --target_layout nchw
+
+          mo --input_model tf_nasnet_large.onnx --layout "nhwc->nchw"
+
+    .. tab-item:: MO Python API
+       :sync: mo-python-api
+
+       .. code-block:: sh
+
+          ov_model = convert_model("tf_nasnet_large.onnx", source_layout="nhwc", target_layout="nchw")
+
+          ov_model = convert_model("tf_nasnet_large.onnx", layout="nhwc->nchw")
 
 
 Again, if a model has more than one input or needs both input and output layouts 
@@ -83,17 +109,25 @@ specified, you need to provide the name of each input or output to apply the lay
 For example, to provide data in the ``NHWC`` layout for the `Yolo v3 Tiny` model 
 mentioned earlier, use the following commands:
 
-.. code-block:: sh
+.. tab-set::
 
-   # cli tool
-   mo --input_model yolov3-tiny.onnx --source_layout "input_1(nchw),image_shape(n?)" --target_layout "input_1(nhwc)"
-   # MO Python API
-   ov_model = convert_model("yolov3-tiny.onnx", source_layout={"input_1": "nchw", "image_shape": "n?"}, target_layout={"input_1": "nhwc"})
+    .. tab-item:: CLI tool
+       :sync: cli-tool
 
-   # cli tool
-   mo --input_model yolov3-tiny.onnx --layout "input_1(nchw->nhwc),image_shape(n?)"
-   # MO Python API
-   ov_model = convert_model("yolov3-tiny.onnx", layout={"input_1": "nchw->nhwc", "image_shape": "n?"}
+       .. code-block:: sh
+
+          mo --input_model yolov3-tiny.onnx --source_layout "input_1(nchw),image_shape(n?)" --target_layout "input_1(nhwc)"
+
+          mo --input_model yolov3-tiny.onnx --layout "input_1(nchw->nhwc),image_shape(n?)"
+
+    .. tab-item:: MO Python API
+       :sync: mo-python-api
+
+       .. code-block:: sh
+
+          ov_model = convert_model("yolov3-tiny.onnx", source_layout={"input_1": "nchw", "image_shape": "n?"}, target_layout={"input_1": "nhwc"})
+
+          ov_model = convert_model("yolov3-tiny.onnx", layout={"input_1": "nchw->nhwc", "image_shape": "n?"}
 
 
 Specifying Mean and Scale Values
@@ -126,13 +160,21 @@ and optimizes this block so that the preprocessing takes negligible time for inf
 For example, the following command runs Model Optimizer for the PaddlePaddle UNet 
 model and applies mean-scale normalization to the input data:
 
-.. code-block:: sh
+.. tab-set::
 
-   # cli tool
-   mo --input_model unet.pdmodel --mean_values [123,117,104] --scale 255
+    .. tab-item:: CLI tool
+       :sync: cli-tool
 
-   # MO Python API
-   ov_model = convert_model("unet.pdmodel", mean_values=[123,117,104], scale=255)
+       .. code-block:: sh
+
+          mo --input_model unet.pdmodel --mean_values [123,117,104] --scale 255
+
+    .. tab-item:: MO Python API
+       :sync: mo-python-api
+
+       .. code-block:: sh
+
+          ov_model = convert_model("unet.pdmodel", mean_values=[123,117,104], scale=255)
 
 
 Reversing Input Channels
@@ -159,13 +201,22 @@ this block so that the preprocessing takes only negligible time for inference.
 For example, the following command launches Model Optimizer for the TensorFlow AlexNet 
 model and embeds the ``reverse_input_channel`` preprocessing block into OpenVINO IR:
 
-.. code-block:: sh
 
-   # cli tool
-   mo --input_model alexnet.pb --reverse_input_channels
+.. tab-set::
 
-   # MO Python API
-   ov_model = convert_model("alexnet.pb", reverse_input_channels=True)
+    .. tab-item:: CLI tool
+       :sync: cli-tool
+
+       .. code-block:: sh
+
+          mo --input_model alexnet.pb --reverse_input_channels
+
+    .. tab-item:: MO Python API
+       :sync: mo-python-api
+
+       .. code-block:: sh
+
+          ov_model = convert_model("alexnet.pb", reverse_input_channels=True)
 
 
 .. note::

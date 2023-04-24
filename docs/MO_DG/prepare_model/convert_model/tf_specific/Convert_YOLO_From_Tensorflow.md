@@ -52,13 +52,22 @@ This section explains how to convert the YOLOv4 Keras model from the `repository
 
       Before you run the conversion, make sure you have installed all the Model Optimizer dependencies for TensorFlow 2.
 
-   .. code-block:: sh
 
-      # cli tool
-      mo --saved_model_dir yolov4 --output_dir models/IRs --input_shape [1,608,608,3] --model_name yolov4
-
-      # MO Python API
-      ov_model = convert_model(saved_model_dir="yolov4", input_shape=[1,608,608,3])
+   .. tab-set::
+   
+       .. tab-item:: CLI tool
+          :sync: cli-tool
+   
+          .. code-block:: sh
+   
+             mo --saved_model_dir yolov4 --output_dir models/IRs --input_shape [1,608,608,3] --model_name yolov4
+   
+       .. tab-item:: MO Python API
+          :sync: mo-python-api
+   
+          .. code-block:: sh
+   
+             ov_model = convert_model(saved_model_dir="yolov4", input_shape=[1,608,608,3])
 
 
 Converting YOLOv3 Model to the OpenVINO format
