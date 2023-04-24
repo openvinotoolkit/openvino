@@ -1026,7 +1026,7 @@ void MHA::prepareParams() {
 
                 // don't create brgemm kernels for empty tiles
                 if (M_ != 0 && K_ != 0 && N_ != 0) {
-                    if (brg1BaseIdx == static_cast<size_t>(-1))
+                    if (brg1BaseIdx == std::numeric_limits<size_t>::max())
                         brg1BaseIdx = getBrgIdx(m, k, n);
 
                     init_brgemm(brgemmCtx, brgKernels1[getBrgIdx(m, k, n)], brg1WithAMX);
