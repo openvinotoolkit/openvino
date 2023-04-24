@@ -316,6 +316,7 @@ std::vector<std::shared_ptr<OpPlace>> InputModel::InputModelTFImpl::topologicall
                 if (m_tensor_places.find(input_port_name) != m_tensor_places.end()) {
                     const auto& tensor_place = m_tensor_places[input_port_name];
                     is_input |= tensor_place->is_input();
+                    m_found_inputs.push_back(input_port_name);
                 }
 
                 // 2. check if the producer node is pruned by its output port
@@ -496,6 +497,12 @@ void InputModel::InputModelTFImpl::override_all_inputs(const std::vector<ov::fro
     for (const auto& input_place : inputs) {
         m_inputs.push_back(castToTensorPlace(input_place));
     }
+
+    if (m_native_format) {
+        // Need to read actual outputs
+        m_custom_inputs = true;
+        topologically_sort_op_nodes();
+    }
 }
 
 void InputModel::InputModelTFImpl::override_all_outputs(const std::vector<ov::frontend::Place::Ptr>& outputs) {
@@ -646,7 +653,6 @@ ov::element::Type InputModel::get_element_type(const ov::frontend::Place::Ptr& p
 void InputModel::set_tensor_value(const ov::frontend::Place::Ptr& place, const void* value) {
     _impl->set_tensor_value(place, value);
 }
-
 }  // namespace tensorflow
 }  // namespace frontend
 }  // namespace ov
