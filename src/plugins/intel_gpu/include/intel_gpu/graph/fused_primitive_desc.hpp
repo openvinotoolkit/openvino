@@ -52,7 +52,6 @@ struct fused_primitive_desc {
 
     bool operator!=(const fused_primitive_desc& rhs) const { return !(*this == rhs); }
 
-    bool has_outer_dep() { return outer_dep_start_idx >= 0; }
     bool has_outer_dep() const { return outer_dep_start_idx >= 0; }
 
     std::shared_ptr<const primitive> desc;
@@ -66,7 +65,7 @@ struct fused_primitive_desc {
     std::map<primitive_id, size_t> fused_deps;
     // TODO:
     // Currently, it assumes very simple case where dep 0 is the fused node and no input sharing b/w fused node and peer node
-    // To cover such cases wehre some of the peer node uses input of fused node, we need to maintain actual indexes of the dependencies
+    // To cover such cases where some of the peer node uses input of fused node, we need to maintain actual indexes of the dependencies
     // not only the "starting index".
     int32_t outer_dep_start_idx = -1; // if -1, no external dep after fusing
     size_t total_num_deps = 0;

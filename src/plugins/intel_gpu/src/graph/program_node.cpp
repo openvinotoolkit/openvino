@@ -943,7 +943,7 @@ void program_node::init_onednn_primitive_attributes() {
         if (desc.is_type<activation>()) {
             auto fused_desc = desc.typed_desc<activation>();
             if (fused_desc->activation_function == cldnn::activation_func::relu_negative_slope
-                && !fused_desc->additional_params_input.empty() && desc.has_outer_dep()) {
+                && !fused_desc->additional_params_input.empty()) {
                 auto dep_idx = cldnn_post_ops[idx].outer_dep_start_idx;
                 int oc_dim = static_cast<int>(desc.output_layout.get_tensor().feature.size());
                 post_ops.append_prelu(1 << oc_dim);
@@ -974,10 +974,9 @@ void program_node::init_onednn_primitive_attributes() {
 
                 update_onednn_post_op_list(onednn_post_op_type::eltwise_act, empty_mem);
             }
-        } else if (desc.is_type<eltwise>() && desc.has_outer_dep()) {
+        } else if (desc.is_type<eltwise>()) {
             auto dep_idx = desc.outer_dep_start_idx;
             auto in = get_dependency(dep_idx).get_output_layout();
-
             auto set_binary_op = [&](dnnl::algorithm alg, onednn_post_op_type op_type) {
                 if (is_type<fully_connected>()) {
                     std::unique_ptr<const kernel_impl_params> impl_params = get_kernel_impl_params();
@@ -988,7 +987,7 @@ void program_node::init_onednn_primitive_attributes() {
                     auto mem_desc = onednn::layout_to_memory_desc(in, dnnl::memory::format_tag::ab);
                     post_ops.append_binary(alg, mem_desc);
                     update_onednn_post_op_list(op_type, dep_idx, dnnl::memory::format_tag::ab, false,
-                                               mem_desc.get_dims(), mem_desc.get_data_type());
+                            mem_desc.get_dims(), mem_desc.get_data_type());
                 } else if (is_type<gemm>()) {
                     size_t rank = cldnn::format::dimension(in.format);
                     size_t in_batched_size = in.count() / (in.spatial(0) * in.spatial(1));
@@ -1001,7 +1000,7 @@ void program_node::init_onednn_primitive_attributes() {
                     auto mem_desc = onednn::layout_to_memory_desc(in);
                     post_ops.append_binary(alg, mem_desc);
                     update_onednn_post_op_list(op_type, dep_idx, onednn::convert_data_format(in.format), false,
-                                               mem_desc.get_dims(), mem_desc.get_data_type());
+                            mem_desc.get_dims(), mem_desc.get_data_type());
                 }
             };
 
@@ -1028,7 +1027,7 @@ void program_node::init_onednn_primitive_attributes() {
                 error_msg << desc.desc->id << " is fused node of " + this->id() + ".";
                 OPENVINO_ASSERT(false, error_msg.str());
             }
-        } else if (desc.is_type<quantize>() && desc.has_outer_dep()) {
+        } else if (desc.is_type<quantize>()) {
             auto dep_idx = desc.outer_dep_start_idx;
 
             // ********************************* Common case with output range usage ********************************* //
