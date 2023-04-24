@@ -5,7 +5,7 @@
 This page provides instructions on how to convert a model from the PyTorch format to the OpenVINO IR format using Model Optimizer.
 Model Optimizer Python API allows the conversion of PyTorch models using the ``convert_model()`` method.
 
-Converting a PyTorch model with MO Python API
+(Experimental) Converting a PyTorch model with PyTorch Frontend 
 #############################################
 
 Example of PyTorch model converting:
@@ -62,7 +62,7 @@ If the ``onnx_opset_version`` is not set, the default opset from ``torch.onnx.ex
 Exporting a PyTorch Model to ONNX Format
 ########################################
 
-When ``convert_model()`` fails to convert the model you can convert it to ONNX first with specific ``torch.onnx.export()`` parameters which are not available in ``convert_model()``, explore the model and apply model cutting techniques (with ``input``/``output`` parameters) if there are ONNX operators that are not supported by OpenVINO.
+Currently, the most robust method of converting PyTorch models is exporting PyTorch model to ONNX and then converting it to IR. In order to convert and deploy a PyTorch model you need to do the following steps:
 
 1. `Export a PyTorch model to ONNX <#exporting-a-pytorch-model-to-onnx-format>`__.
 2. :doc:`Convert the ONNX model <openvino_docs_MO_DG_prepare_model_convert_model_Convert_Model_From_ONNX>` to produce an optimized :doc:`Intermediate Representation <openvino_docs_MO_DG_IR_and_opsets>` of the model based on the trained network topology, weights, and biases values.

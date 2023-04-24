@@ -12,7 +12,7 @@ Model Optimizer (MO) has a Python API for model conversion, which is represented
 
    ov_model = convert_model("resnet.onnx")
 
-MO Python API allows the conversion of PyTorch models.
+MO Python API allows the conversion of models directly from memory.
 
 .. code-block:: python
 
@@ -24,7 +24,7 @@ MO Python API allows the conversion of PyTorch models.
 The following types are supported as an input model for ``convert_model()``:
 
 * PyTorch - ``torch.nn.Module``, ``torch.jit.ScriptModule``, ``torch.jit.ScriptFunction``. Refer to the :doc:`Converting a PyTorch Model<openvino_docs_MO_DG_prepare_model_convert_model_Convert_Model_From_PyTorch>` article for more details.
-* TensorFlow/ TensorFlow2 / Keras - ``tf.keras.Model``, ``tf.keras.layers.Layer``, ``tf.compat.v1.GraphDef``, ``tf.Module``, ``tf.compat.v1.wrap_function``, ``tf.compat.v1.session``, ``tf.train.checkpoint``, ``tf.python.training.tracking.base.Trackable``(with limitations). Refer to the :doc:`Converting a TensorFlow Model<openvino_docs_MO_DG_prepare_model_convert_model_Convert_Model_From_TensorFlow>` article for more details.
+* TensorFlow/ TensorFlow2 / Keras - ``tf.keras.Model``, ``tf.keras.layers.Layer``, ``tf.compat.v1.Graph``, ``tf.compat.v1.GraphDef``, ``tf.Module``, ``tf.function``, ``tf.compat.v1.session``, ``tf.train.checkpoint``. Refer to the :doc:`Converting a TensorFlow Model<openvino_docs_MO_DG_prepare_model_convert_model_Convert_Model_From_TensorFlow>` article for more details.
 
 ``convert_model()`` accepts all parameters available in the MO command-line tool. Parameters can be specified by Python classes or string analogs, similar to the command-line tool.
 
