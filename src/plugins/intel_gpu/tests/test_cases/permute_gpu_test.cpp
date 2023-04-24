@@ -58,7 +58,7 @@ TEST(permute_gpu_f32, output_ordering_test)
                     input_layout("input", input->get_layout()),
                     permute("permute", input_info("input"), perm));
 
-                network network(engine, topology);
+                network network(engine, topology, get_test_default_config(engine));
                 network.set_input_data("input", input);
                 auto outputs = network.execute();
                 auto output = outputs.at("permute");
@@ -113,7 +113,7 @@ TEST(permute_gpu_f32, basic_bfyx_permute_0_1_2_3)
         input_layout("input", input->get_layout()),
         permute("permute", input_info("input"), { 0, 1, 2, 3 }));
 
-    network network(engine, topology);
+    network network(engine, topology, get_test_default_config(engine));
     network.set_input_data("input", input);
 
     auto outputs = network.execute();
@@ -172,7 +172,7 @@ TEST(permute_gpu_f32, basic_bfyx_permute_0_1_3_2)
         input_layout("input", input->get_layout()),
         permute("permute", input_info("input"), { 0, 1, 3, 2 }));
 
-    network network(engine, topology);
+    network network(engine, topology, get_test_default_config(engine));
     network.set_input_data("input", input);
 
     auto outputs = network.execute();
@@ -219,7 +219,7 @@ TEST(permute_gpu_f32, basic_yxfb_permute_1_0_2_3)
         input_layout("input", input_mem->get_layout()),
         permute("permute", input_info("input"), { 1, 0, 2, 3 }));
 
-    network network(engine, topology);
+    network network(engine, topology, get_test_default_config(engine));
     network.set_input_data("input", input_mem);
 
     auto outputs = network.execute();
@@ -281,7 +281,7 @@ TEST(permute_gpu_f32, basic_bfyx_permute_0_1_3_2_input_padding)
         reorder("reorder", input_info("input"), input->get_layout().with_padding(padding{ { 0, 0, 2, 1 }, 0 })),
         permute("permute", input_info("reorder"), { 0, 1, 3, 2 }));
 
-    network network(engine, topology);
+    network network(engine, topology, get_test_default_config(engine));
     network.set_input_data("input", input);
 
     auto outputs = network.execute();
@@ -338,7 +338,7 @@ TEST(permute_gpu_f32, basic_yxfb_permute_batch_with_feature)
         input_layout("input", input->get_layout()),
         permute("permute", input_info("input"), { 1, 0, 2, 3 }));
 
-    network network(engine, topology);
+    network network(engine, topology, get_test_default_config(engine));
     network.set_input_data("input", input);
 
     auto outputs = network.execute();
@@ -393,7 +393,7 @@ TEST(permute_gpu_f32, basic_bfyx_permute_batch_with_feature)
         input_layout("input", input->get_layout()),
         permute("permute", input_info("input"), { 1, 0, 2, 3 }));
 
-    network network(engine, topology);
+    network network(engine, topology, get_test_default_config(engine));
     network.set_input_data("input", input);
 
     auto outputs = network.execute();
@@ -453,7 +453,7 @@ void permute_test_with_reorder()
         permute("permute", input_info("reorder"), { 0, 1, 3, 2 }),
         reorder("reorder_out", input_info("permute"), { data_types::f32, format::bfyx,{ 2, 2, 3, 2 } }));
 
-    network network(engine, topology);
+    network network(engine, topology, get_test_default_config(engine));
     network.set_input_data("input", input);
 
     auto outputs = network.execute();
@@ -552,7 +552,7 @@ TEST(permute_fuse_reorder_gpu_f32, basic_b_fs_yx_fsv4_permute_1_8_16_1)
         reorder("reorder2", input_info("permute"), format::bfyx, data_types::f32),
         permute("out", input_info("reorder2"), { 0, 3, 1, 2}));
 
-    ExecutionConfig config;
+    ExecutionConfig config = get_test_default_config(engine);
     config.set_property(ov::intel_gpu::optimize_data(false));
     config.set_property(ov::intel_gpu::allow_static_input_reorder(true));
 
@@ -567,7 +567,7 @@ TEST(permute_fuse_reorder_gpu_f32, basic_b_fs_yx_fsv4_permute_1_8_16_1)
         reorder("reorder2", input_info("permute"), format::bfyx, data_types::f32), // to be fused to previous permute
         permute("out", input_info("reorder2"), { 0, 3, 1, 2})); // return to original value
 
-    ExecutionConfig config_fused;
+    ExecutionConfig config_fused = get_test_default_config(engine);
     config_fused.set_property(ov::intel_gpu::optimize_data(true));
     network fused(engine, topology_fused, config_fused);
     fused.set_input_data("input", input);
@@ -602,7 +602,7 @@ TEST(fc_permute_crop_gpu, basic_permute_yxfb)
         permute("permute", input_info("input"), { 1, 0, 2, 3 }) // yxfb {5, 1, 1, 512}  --- without permute fix yxfb {1, 5, 512, 1}
     );
 
-    network network(engine, topology);
+    network network(engine, topology, get_test_default_config(engine));
     network.set_input_data("input", input_mem);
 
     auto outputs = network.execute();
@@ -637,7 +637,7 @@ TEST(fc_permute_crop_gpu, basic_0)
         crop("crop", input_info("permute"), { 1, 1, 1, 512 }, { 4, 0, 0 ,0 })       // without permute fix it will fail "Tensor pitches didn't set correctly"
     );
 
-    network network(engine, topology);
+    network network(engine, topology, get_test_default_config(engine));
     network.set_input_data("input", input_mem);
 
     auto outputs = network.execute();
@@ -667,7 +667,7 @@ TEST(fc_permute_gpu, basic_permute_bfyx)
         permute("permute", input_info("input"), { 1, 0, 2, 3 })
     );
 
-    network network(engine, topology);
+    network network(engine, topology, get_test_default_config(engine));
     network.set_input_data("input", input_mem);
 
     auto outputs = network.execute();
@@ -727,7 +727,7 @@ TEST(permute_gpu_f32, permute_bfwzyx)
         permute("permute", input_info("input"), permute_order)
     );
 
-    network network(engine, topology);
+    network network(engine, topology, get_test_default_config(engine));
     network.set_input_data("input", input_mem);
 
     auto outputs = network.execute();
@@ -819,7 +819,7 @@ TEST(permute_gpu_f32, 6D_reshape_permute_reshape)
         reorder("output_4d", input_info("reshape_6_to_4"), { data_types::f32, format::bfyx, cldnn::tensor(batch(b), feature(f), spatial(x, y)) })
     );
 
-    network network(engine, topology);
+    network network(engine, topology, get_test_default_config(engine));
     network.set_input_data("input", input_mem);
 
     auto outputs = network.execute();
@@ -870,7 +870,7 @@ TEST(permute_gpu_f32, basic_bfzyx_permute_0_4_1_2_3)
         input_layout("input", input->get_layout()),
         permute("permute", input_info("input"), { 0, 4, 1, 2, 3 }));
 
-    network network(engine, topology);
+    network network(engine, topology, get_test_default_config(engine));
     network.set_input_data("input", input);
 
     auto outputs = network.execute();
@@ -937,7 +937,7 @@ TEST(permute_gpu_f32_tile_8x8_4x4, normal_bfyx_0_2_3_1) {
         input_layout("input", input->get_layout()),
         permute("permute", input_info("input"), { 0, 2, 3, 1 }));
 
-    network network(engine, topology);
+    network network(engine, topology, get_test_default_config(engine));
     network.set_input_data("input", input);
 
     auto outputs = network.execute();
@@ -993,7 +993,7 @@ TEST(permute_gpu_f32_tile_8x8_4x4, f_remainder_bfyx_0_2_3_1) {
         input_layout("input", input->get_layout()),
         permute("permute", input_info("input"), { 0, 2, 3, 1 }));
 
-    network network(engine, topology);
+    network network(engine, topology, get_test_default_config(engine));
     network.set_input_data("input", input);
 
     auto outputs = network.execute();
@@ -1049,7 +1049,7 @@ TEST(permute_gpu_f32_tile_8x8_4x4, x_remainder_bfyx_0_2_3_1) {
         input_layout("input", input->get_layout()),
         permute("permute", input_info("input"), { 0, 2, 3, 1 }));
 
-    network network(engine, topology);
+    network network(engine, topology, get_test_default_config(engine));
     network.set_input_data("input", input);
 
     auto outputs = network.execute();
@@ -1099,7 +1099,7 @@ TEST(permute_gpu_f32_tile_8x8_4x4, xf_remainder_bfyx_0_2_3_1) {
         input_layout("input", input->get_layout()),
         permute("permute", input_info("input"), { 0, 2, 3, 1 }));
 
-    network network(engine, topology);
+    network network(engine, topology, get_test_default_config(engine));
     network.set_input_data("input", input);
 
     auto outputs = network.execute();
@@ -1149,7 +1149,7 @@ TEST(permute_gpu_f32_tile_8x8_4x4, normal_bfzyx_0_2_3_4_1) {
         input_layout("input", input->get_layout()),
         permute("permute", input_info("input"), { 0, 2, 3, 4, 1 }));
 
-    network network(engine, topology);
+    network network(engine, topology, get_test_default_config(engine));
     network.set_input_data("input", input);
 
     auto outputs = network.execute();
@@ -1211,7 +1211,7 @@ TEST(permute_gpu_f32_tile_8x8_4x4, f_remainder_bfzyx_0_2_3_4_1) {
         input_layout("input", input->get_layout()),
         permute("permute", input_info("input"), { 0, 2, 3, 4, 1 }));
 
-    network network(engine, topology);
+    network network(engine, topology, get_test_default_config(engine));
     network.set_input_data("input", input);
 
     auto outputs = network.execute();
@@ -1265,7 +1265,7 @@ TEST(permute_gpu_f32_tile_8x8_4x4, x_remainder_bfzyx_0_2_3_4_1) {
         input_layout("input", input->get_layout()),
         permute("permute", input_info("input"), { 0, 2, 3, 4, 1 }));
 
-    network network(engine, topology);
+    network network(engine, topology, get_test_default_config(engine));
     network.set_input_data("input", input);
 
     auto outputs = network.execute();
@@ -1319,7 +1319,7 @@ TEST(permute_gpu_f32_tile_8x8_4x4, xf_remainder_bfzyx_0_2_3_4_1) {
         input_layout("input", input->get_layout()),
         permute("permute", input_info("input"), { 0, 2, 3, 4, 1 }));
 
-    network network(engine, topology);
+    network network(engine, topology, get_test_default_config(engine));
     network.set_input_data("input", input);
 
     auto outputs = network.execute();
@@ -1373,7 +1373,7 @@ TEST(permute_gpu_f32_tile_8x8_4x4, normal_bfwzyx_0_2_3_4_5_1) {
         input_layout("input", input->get_layout()),
         permute("permute", input_info("input"), { 0, 2, 3, 4, 5, 1 }));
 
-    network network(engine, topology);
+    network network(engine, topology, get_test_default_config(engine));
     network.set_input_data("input", input);
 
     auto outputs = network.execute();
@@ -1445,7 +1445,7 @@ TEST(permute_gpu_f32_tile_8x8_4x4, f_remainder_bfwzyx_0_2_3_4_5_1) {
         input_layout("input", input->get_layout()),
         permute("permute", input_info("input"), { 0, 2, 3, 4, 5, 1 }));
 
-    network network(engine, topology);
+    network network(engine, topology, get_test_default_config(engine));
     network.set_input_data("input", input);
 
     auto outputs = network.execute();
@@ -1505,7 +1505,7 @@ TEST(permute_gpu_f32_tile_8x8_4x4, x_remainder_bfwzyx_0_2_3_4_5_1) {
         input_layout("input", input->get_layout()),
         permute("permute", input_info("input"), { 0, 2, 3, 4, 5, 1 }));
 
-    network network(engine, topology);
+    network network(engine, topology, get_test_default_config(engine));
     network.set_input_data("input", input);
 
     auto outputs = network.execute();
@@ -1565,7 +1565,7 @@ TEST(permute_gpu_f32_tile_8x8_4x4, xf_remainder_bfwzyx_0_2_3_4_5_1) {
         input_layout("input", input->get_layout()),
         permute("permute", input_info("input"), { 0, 2, 3, 4, 5, 1 }));
 
-    network network(engine, topology);
+    network network(engine, topology, get_test_default_config(engine));
     network.set_input_data("input", input);
 
     auto outputs = network.execute();
@@ -1627,7 +1627,7 @@ public:
     template<data_types Data_Type>
     void run_test(const std::vector<cldnn::tensor::value_type>& sizes, cldnn::format format_fsv,
                   const std::string & permute_opt = "permute_tile_8x8_4x4_fsv",
-                  std::vector<uint16_t> permute_order = {});
+                  std::vector<uint16_t> permute_order = {}, bool is_caching_test = false);
 };
 
 template<>
@@ -1654,7 +1654,7 @@ void TiledPermuteTest::set_random_values<int8_t>(const cldnn::memory::ptr mem) c
 
 template<data_types Data_Type>
 void TiledPermuteTest::run_test(const std::vector<cldnn::tensor::value_type>& sizes, cldnn::format format_fsv,
-                                const std::string & permute_opt, std::vector<uint16_t> permute_order)
+                                const std::string & permute_opt, std::vector<uint16_t> permute_order, bool is_caching_test)
 {
     // convert half_t to FLOAT16
     using type_ = typename data_type_to_type<Data_Type>::type;
@@ -1686,24 +1686,24 @@ void TiledPermuteTest::run_test(const std::vector<cldnn::tensor::value_type>& si
     );
 
     // run with permute_ref
-    ov::intel_gpu::ExecutionConfig config_ref;
+    ov::intel_gpu::ExecutionConfig config_ref = get_test_default_config(engine);
     ov::intel_gpu::ImplementationDesc permute_ref = { format_fsv, "permute_ref" };
     config_ref.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ {"output", permute_ref} }));
 
-    cldnn::network network_ref(engine, topology_ref, config_ref);
-    network_ref.set_input_data("input", input);
-    auto outputs_ref = network_ref.execute();
+    cldnn::network::ptr network_ref = get_network(engine, topology_ref, config_ref, get_test_stream_ptr(), is_caching_test);
+    network_ref->set_input_data("input", input);
+    auto outputs_ref = network_ref->execute();
     auto output_ref = outputs_ref.begin()->second.get_memory();
     cldnn::mem_lock<type> output_ref_ptr(output_ref, get_test_stream());
 
     // run with optimized kernel, e.g. permute_tile_8x8_4x4_fsv16
-    ExecutionConfig config_tile;
+    ExecutionConfig config_tile = get_test_default_config(engine);
     ov::intel_gpu::ImplementationDesc permute_tile_opt = { format_fsv, permute_opt };
     config_tile.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ {"output", permute_tile_opt} }));
 
-    cldnn::network network_tile(engine, topology_ref, config_tile);
-    network_tile.set_input_data("input", input);
-    auto outputs_tile = network_tile.execute();
+    cldnn::network::ptr network_tile = get_network(engine, topology_ref, config_tile, get_test_stream_ptr(), is_caching_test);
+    network_tile->set_input_data("input", input);
+    auto outputs_tile = network_tile->execute();
     auto output_tile = outputs_tile.begin()->second.get_memory();
     cldnn::mem_lock<type> output_tile_ptr(output_tile, get_test_stream());
 
@@ -1872,7 +1872,7 @@ TEST(permute_gpu_f32_dynamic, bfyx_0_2_3_1) {
         input_layout("input", input_layout_dynamic),
         permute("permute", input_info("input"), { 0, 2, 3, 1 }));
 
-    ExecutionConfig config;
+    ExecutionConfig config = get_test_default_config(engine);
     config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
     network network(engine, topology, config);
     network.set_input_data("input", input);
@@ -1913,10 +1913,67 @@ INSTANTIATE_TEST_SUITE_P(, permute_bfzyx_to_bfyxz,
     ::testing::ValuesIn(std::vector<TiledPermuteParam> {
             {{1, 3, 85, 20, 20}, format::bfzyx},
             {{1, 3, 85, 40, 40}, format::bfzyx},
-            {{1, 3, 85, 80, 80}, format::bfzyx}
+            {{1, 3, 85, 80, 80}, format::bfzyx},
+            {{1, 192, 2, 64, 33}, format::bfzyx}
         }));
 
 TEST_P(permute_bfzyx_to_bfyxz, combined) {
     auto p = GetParam();
     run_test<cldnn::data_types::f32>(p.sizes, p.format_fsv, "permute_bfzyx_to_bfyxz", {0, 1, 3, 4, 2});
+}
+
+#ifdef RUN_ALL_MODEL_CACHING_TESTS
+TEST_P(permute_tile_fsv_4d, f16_cached) {
+    auto p = GetParam();
+    run_test<cldnn::data_types::f16>(p.sizes, p.format_fsv, "permute_tile_8x8_4x4_fsv", {}, true);
+}
+
+TEST_P(permute_tile_fsv_4d, f32_cached) {
+    auto p = GetParam();
+    run_test<cldnn::data_types::f32>(p.sizes, p.format_fsv, "permute_tile_8x8_4x4_fsv", {}, true);
+}
+
+TEST_P(permute_tile_fsv_4d, i8_cached) {
+    auto p = GetParam();
+    run_test<cldnn::data_types::i8>(p.sizes, p.format_fsv, "permute_tile_8x8_4x4_fsv", {}, true);
+}
+
+TEST_P(permute_tile_fsv_4d, i32_cached) {
+    auto p = GetParam();
+    run_test<cldnn::data_types::i32>(p.sizes, p.format_fsv, "permute_tile_8x8_4x4_fsv", {}, true);
+}
+
+TEST_P(permute_tile_fsv_4d, i64_cached) {
+    auto p = GetParam();
+    run_test<cldnn::data_types::i64>(p.sizes, p.format_fsv, "permute_tile_8x8_4x4_fsv", {}, true);
+}
+
+TEST_P(permute_tile_fsv_5d, f16_cached) {
+    auto p = GetParam();
+    run_test<cldnn::data_types::f16>(p.sizes, p.format_fsv, "permute_tile_8x8_4x4_fsv", {}, true);
+}
+
+TEST_P(permute_tile_fsv_5d, f32_cached) {
+    auto p = GetParam();
+    run_test<cldnn::data_types::f32>(p.sizes, p.format_fsv, "permute_tile_8x8_4x4_fsv", {}, true);
+}
+
+TEST_P(permute_tile_fsv_5d, i8_cached) {
+    auto p = GetParam();
+    run_test<cldnn::data_types::i8>(p.sizes, p.format_fsv, "permute_tile_8x8_4x4_fsv", {}, true);
+}
+
+TEST_P(permute_tile_fsv_5d, i32_cached) {
+    auto p = GetParam();
+    run_test<cldnn::data_types::i32>(p.sizes, p.format_fsv, "permute_tile_8x8_4x4_fsv", {}, true);
+}
+
+TEST_P(permute_bfzyx_to_bfyxz, combined_cached) {
+    auto p = GetParam();
+    run_test<cldnn::data_types::f32>(p.sizes, p.format_fsv, "permute_bfzyx_to_bfyxz", {0, 1, 3, 4, 2}, true);
+}
+#endif
+TEST_P(permute_tile_fsv_5d, i64_cached) {
+    auto p = GetParam();
+    run_test<cldnn::data_types::i64>(p.sizes, p.format_fsv, "permute_tile_8x8_4x4_fsv", {}, true);
 }

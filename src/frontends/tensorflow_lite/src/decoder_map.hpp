@@ -57,8 +57,9 @@ public:
     /// \return producer_output_port_index Output port index from which data is generated
     void get_input_node(size_t input_port_idx,
                         std::string& producer_name,
+                        std::string& producer_output_port_name,
                         size_t& producer_output_port_index) const override {
-        m_decoder->get_input_node(input_port_idx, producer_name, producer_output_port_index);
+        m_decoder->get_input_node(input_port_idx, producer_name, producer_output_port_name, producer_output_port_index);
     }
 
     /// \brief Get operation type

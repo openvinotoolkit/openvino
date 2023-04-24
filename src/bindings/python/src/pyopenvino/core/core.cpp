@@ -196,13 +196,13 @@ void regclass_Core(py::module m) {
         py::arg("device_name"),
         py::arg("properties"),
         R"(
-            Reads model and creates a compiled model from IR / ONNX / PDPD file.
+            Reads model and creates a compiled model from IR / ONNX / PDPD / TF and TFLite file.
             This can be more efficient than using read_model + compile_model(model_in_memory_object) flow,
             especially for cases when caching is enabled and cached model is available.
 
             GIL is released while running this function.
 
-            :param model_path: A path to a model in IR / ONNX / PDPD format.
+            :param model_path: A path to a model in IR / ONNX / PDPD / TF and TFLite format.
             :type model_path: Union[str, pathlib.Path]
             :param device_name: Name of the device to load the model to.
             :type device_name: str
@@ -223,13 +223,13 @@ void regclass_Core(py::module m) {
         py::arg("model_path"),
         py::arg("properties"),
         R"(
-            Reads model and creates a compiled model from IR / ONNX / PDPD file with device selected by AUTO plugin.
+            Reads model and creates a compiled model from IR / ONNX / PDPD / TF and TFLite file with device selected by AUTO plugin.
             This can be more efficient than using read_model + compile_model(model_in_memory_object) flow,
             especially for cases when caching is enabled and cached model is available.
 
             GIL is released while running this function.
 
-            :param model_path: A path to a model in IR / ONNX / PDPD format.
+            :param model_path: A path to a model in IR / ONNX / PDPD / TF and TFLite format.
             :type model_path: Union[str, pathlib.Path]
             :param properties: Optional dict of pairs: (property name, property value) relevant only for this load operation.
             :type properties: dict
@@ -268,11 +268,11 @@ void regclass_Core(py::module m) {
         py::arg("model"),
         py::arg("weights") = py::bytes(),
         R"(
-            Reads models from IR / ONNX / PDPD formats.
+            Reads models from IR / ONNX / PDPD / TF and TFLite formats.
 
             GIL is released while running this function.
 
-            :param model: Bytes with model in IR / ONNX / PDPD format.
+            :param model: Bytes with model in IR / ONNX / PDPD / TF and TFLite format.
             :type model: bytes
             :param weights: Bytes with tensor's data.
             :type weights: bytes
@@ -287,17 +287,19 @@ void regclass_Core(py::module m) {
         py::arg("model"),
         py::arg("weights") = "",
         R"(
-            Reads models from IR / ONNX / PDPD formats.
+            Reads models from IR / ONNX / PDPD / TF and TFLite formats.
 
             GIL is released while running this function.
 
-            :param model: A path to a model in IR / ONNX / PDPD format.
+            :param model: A path to a model in IR / ONNX / PDPD / TF and TFLite format.
             :type model: str
             :param weights: A path to a data file For IR format (*.bin): if path is empty,
                             it tries to read a bin file with the same name as xml and if the bin
                             file with the same name was not found, loads IR without weights.
                             For ONNX format (*.onnx): weights parameter is not used.
                             For PDPD format (*.pdmodel) weights parameter is not used.
+                            For TF format (*.pb) weights parameter is not used.
+                            For TFLite format (*.tflite) weights parameter is not used.
             :type weights: str
             :return: A model.
             :rtype: openvino.runtime.Model
@@ -310,14 +312,14 @@ void regclass_Core(py::module m) {
         py::arg("model"),
         py::arg("weights"),
         R"(
-            Reads models from IR / ONNX / PDPD formats.
+            Reads models from IR / ONNX / PDPD / TF and TFLite formats.
 
             GIL is released while running this function.
 
-            :param model: A string with model in IR / ONNX / PDPD format.
+            :param model: A string with model in IR / ONNX / PDPD / TF and TFLite format.
             :type model: str
-            :param weights: Tensor with weights. Reading ONNX / PDPD models doesn't support
-                            loading weights from weights tensors.
+            :param weights: Tensor with weights. Reading ONNX / PDPD / TF and TFLite models
+                            doesn't support loading weights from weights tensors.
             :type weights: openvino.runtime.Tensor
             :return: A model.
             :rtype: openvino.runtime.Model
@@ -358,24 +360,26 @@ void regclass_Core(py::module m) {
             }
 
             std::stringstream str;
-            str << "Provided python object type " << model_path.get_type().str()
+            str << "Provided python object type " << py::str(model_path.get_type())
                 << " isn't supported as 'model' argument.";
-            throw ov::Exception(str.str());
+            OPENVINO_THROW(str.str());
         },
         py::arg("model"),
         py::arg("weights") = py::none(),
         R"(
-            Reads models from IR / ONNX / PDPD formats.
+            Reads models from IR / ONNX / PDPD / TF and TFLite formats.
 
             GIL is released while running this function.
 
-            :param model: A path to a model in IR / ONNX / PDPD format or a model itself wrapped in io.ByesIO format.
+            :param model: A path to a model in IR / ONNX / PDPD / TF and TFLite format or a model itself wrapped in io.ByesIO format.
             :type model: Union[pathlib.Path, io.BytesIO]
             :param weights: A path to a data file For IR format (*.bin): if path is empty,
                             it tries to read a bin file with the same name as xml and if the bin
                             file with the same name was not found, loads IR without weights.
                             For ONNX format (*.onnx): weights parameter is not used.
                             For PDPD format (*.pdmodel) weights parameter is not used.
+                            For TF format (*.pb): weights parameter is not used.
+                            For TFLite format (*.tflite) weights parameter is not used.
             :type weights: pathlib.Path
             :return: A model.
             :rtype: openvino.runtime.Model
@@ -578,6 +582,21 @@ void regclass_Core(py::module m) {
             :param extensions: List of Extension objects.
             :type extensions: list[openvino.runtime.Extension]
         )");
+
+    cls.def("get_available_devices",
+            &ov::Core::get_available_devices,
+            py::call_guard<py::gil_scoped_release>(),
+            R"(
+                Returns devices available for inference Core objects goes over all registered plugins.
+
+                GIL is released while running this function.
+
+                :returns: A list of devices. The devices are returned as: CPU, GPU.0, GPU.1, GNA...
+                    If there more than one device of specific type, they are enumerated with .# suffix.
+                    Such enumerated device can later be used as a device name in all Core methods like:
+                    compile_model, query_model, set_property and so on.
+                :rtype: list
+            )");
 
     cls.def_property_readonly("available_devices",
                               &ov::Core::get_available_devices,

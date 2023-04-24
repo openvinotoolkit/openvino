@@ -5,6 +5,9 @@
 #pragma once
 #include "primitive.hpp"
 #include "openvino/op/util/attr_types.hpp"
+#include "intel_gpu/graph/serialization/input_info_serializer.hpp"
+#include "intel_gpu/graph/serialization/string_serializer.hpp"
+#include "intel_gpu/graph/serialization/vector_serializer.hpp"
 
 #include <algorithm>
 #include <vector>
@@ -18,6 +21,10 @@ namespace cldnn {
 /// you will need to firstly cast it to int (look into tests for example).
 struct arg_max_min : public primitive_base<arg_max_min> {
     CLDNN_DECLARE_PRIMITIVE(arg_max_min)
+
+    arg_max_min() : primitive_base("", {}) {}
+
+    DECLARE_OBJECT_TYPE_SERIALIZATION
 
     /// @brief Constructs arg_max_min primitive.
     /// @param id This primitive id.
@@ -94,6 +101,32 @@ struct arg_max_min : public primitive_base<arg_max_min> {
                axis == rhs_casted.axis &&
                sort == rhs_casted.sort &&
                values_first == rhs_casted.values_first;
+    }
+
+    size_t get_output_nums() const {
+        return (input_size() == 3 ? 2 : output_size());
+    }
+    bool has_second_output() const { return get_output_nums() == 2; }
+    bool use_multiple_outputs() const { return input_size() != 3; }
+
+    void save(BinaryOutputBuffer& ob) const override {
+        ob << input;
+        ob << num_outputs;
+        ob << make_data(&mode, sizeof(ov::op::TopKMode));
+        ob << top_k;
+        ob << axis;
+        ob << make_data(&sort, sizeof(ov::op::TopKSortType));
+        ob << values_first;
+    }
+
+    void load(BinaryInputBuffer& ib) override {
+        ib >> input;
+        ib >> num_outputs;
+        ib >> make_data(&mode, sizeof(ov::op::TopKMode));
+        ib >> top_k;
+        ib >> axis;
+        ib >> make_data(&sort, sizeof(ov::op::TopKSortType));
+        ib >> values_first;
     }
 };
 }  // namespace cldnn

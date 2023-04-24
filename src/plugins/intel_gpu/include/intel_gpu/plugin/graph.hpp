@@ -43,7 +43,9 @@ public:
     Graph(InferenceEngine::CNNNetwork& network,
           RemoteContextImpl::Ptr context,
           const ExecutionConfig& config,
-          uint16_t stream_id = 0);
+          uint16_t stream_id = 0,
+          InferenceEngine::InputsDataMap* inputs = nullptr,
+          InferenceEngine::OutputsDataMap* outputs = nullptr);
     Graph(cldnn::BinaryInputBuffer& ib, RemoteContextImpl::Ptr context,  const ExecutionConfig& config, uint16_t stream_id = 0);
     explicit Graph(std::shared_ptr<Graph> graph, uint16_t stream_id = 0);
     void Export(cldnn::BinaryOutputBuffer &ob);
@@ -57,7 +59,7 @@ public:
     cldnn::engine& get_engine() const { return m_context->get_engine(); }
     const ExecutionConfig& get_config() const { return m_config; }
 
-    int GetMaxDynamicBatchSize() const { return m_config.get_property(ov::intel_gpu::max_dynamic_batch); }
+    size_t GetMaxDynamicBatchSize() const { return m_config.get_property(ov::intel_gpu::max_dynamic_batch);}
     const std::map<std::string, cldnn::layout>& GetInputLayouts() const { return m_program->GetInputLayouts(); }
     const InferenceEngine::InputsDataMap GetNetworkInputs() const { return m_program->GetNetworkInputs(); }
     const InferenceEngine::OutputsDataMap GetNetworkOutputs() const { return m_program->GetNetworkOutputs(); }

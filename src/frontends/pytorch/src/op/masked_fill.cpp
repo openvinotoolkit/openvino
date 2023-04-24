@@ -18,12 +18,12 @@ namespace op {
 
 using namespace ov::op;
 
-OutputVector translate_masked_fill(NodeContext& context) {
+OutputVector translate_masked_fill(const NodeContext& context) {
     num_inputs_check(context, 3, 3);
     auto data = context.get_input(0);
     auto mask = context.get_input(1);
     auto value = context.get_input(2);
-    auto data_shape = context.mark_node(std::make_shared<v3::ShapeOf>(data));
+    auto data_shape = context.mark_node(std::make_shared<v3::ShapeOf>(data, element::i32));
     value = context.mark_node(std::make_shared<v1::ConvertLike>(value, data));
     auto broadcasted_value = context.mark_node(std::make_shared<v3::Broadcast>(value, data_shape));
     auto bool_mask = context.mark_node(std::make_shared<v0::Convert>(mask, element::boolean));

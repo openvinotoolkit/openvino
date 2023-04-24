@@ -62,7 +62,9 @@ void op::v4::CTCLoss::validate_and_infer_types() {
                               input_et);
     }
 
+    OPENVINO_SUPPRESS_DEPRECATED_START
     const auto output_shape = shape_infer(this, ov::get_node_input_partial_shapes(*this)).front();
+    OPENVINO_SUPPRESS_DEPRECATED_END
     set_output_type(0, logits_type, output_shape);
 }
 
@@ -95,7 +97,7 @@ shared_ptr<Node> op::v4::CTCLoss::clone_with_new_inputs(const OutputVector& new_
                                     ctc_merge_repeated_,
                                     unique_);
     } else {
-        throw ov::Exception("Incorrect number of arguments");
+        OPENVINO_THROW("Incorrect number of arguments");
     }
 }
 }  // namespace ov

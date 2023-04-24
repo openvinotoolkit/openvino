@@ -15,6 +15,7 @@
 #include <vector>
 
 #include "openvino/runtime/common.hpp"
+#include "openvino/runtime/ivariable_state.hpp"
 #include "openvino/runtime/profiling_info.hpp"
 #include "openvino/runtime/tensor.hpp"
 
@@ -23,6 +24,10 @@ namespace ov {
 class IAsyncInferRequest;
 class ICompiledModel;
 
+/**
+ * @brief An internal API of inference request to be implemented by plugin
+ * @ingroup ov_dev_api_infer_request_api
+ */
 class OPENVINO_RUNTIME_API IInferRequest {
 public:
     virtual ~IInferRequest();
@@ -87,7 +92,7 @@ public:
      * State control essential for recurrent models.
      * @return Vector of Variable State objects.
      */
-    virtual std::vector<ov::VariableState> query_state() const = 0;
+    virtual std::vector<std::shared_ptr<ov::IVariableState>> query_state() const = 0;
 
     /**
      * @brief Gets pointer to compiled model (usually synchronous request holds the compiled model)

@@ -14,7 +14,7 @@
 
 namespace ov {
 // Forward declaration
-void FRONTEND_API shutdown();
+FRONTEND_API void shutdown();
 namespace frontend {
 // -------------- FrontEndManager -----------------
 using FrontEndFactory = std::function<FrontEnd::Ptr()>;
@@ -97,13 +97,13 @@ FRONTEND_API FrontEnd::Ptr FrontEndManager::load_by_model(const std::vector<ov::
 
 // --------- Plugin exporting information --------------
 
-/// \brief Each frontend plugin is responsible to export GetAPIVersion function returning
+/// \brief Each frontend plugin is responsible to export get_api_version function returning
 /// version of frontend API used for this plugin
 /// If version is not matched with OV_FRONTEND_API_VERSION - plugin will not be loaded by
 /// FrontEndManager
 using FrontEndVersion = uint64_t;
 
-/// \brief Each frontend plugin is responsible to export GetFrontEndData function returning
+/// \brief Each frontend plugin is responsible to export get_front_end_data function returning
 /// heap-allocated pointer to this structure. Will be used by FrontEndManager during loading
 /// of plugins
 struct FrontEndPluginInfo {

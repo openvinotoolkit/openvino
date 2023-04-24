@@ -40,7 +40,7 @@ OpSummary &OpSummary::getInstance() {
     return *p_instance;
 }
 
-void OpSummary::updateOPsStats(const ov::NodeTypeInfo &op, const PassRate::Statuses &status) {
+void OpSummary::updateOPsStats(const ov::NodeTypeInfo &op, const PassRate::Statuses &status, double rel_influence_coef) {
     auto it = opsStats.find(op);
     if (opsStats.find(op) == opsStats.end()) {
         opsStats.insert({op, PassRate()});
@@ -50,6 +50,8 @@ void OpSummary::updateOPsStats(const ov::NodeTypeInfo &op, const PassRate::Statu
         isCrashReported = false;
         if (passrate.crashed > 0)
             passrate.crashed--;
+    } else {
+        passrate.rel_all += rel_influence_coef;
     }
     if (isHangReported) {
         isHangReported = false;
@@ -61,6 +63,7 @@ void OpSummary::updateOPsStats(const ov::NodeTypeInfo &op, const PassRate::Statu
                 passrate.isImplemented = true;
             }
             passrate.passed++;
+            passrate.rel_passed += rel_influence_coef;
             break;
         case PassRate::FAILED:
             passrate.failed++;
@@ -93,8 +96,8 @@ void OpSummary::updateOPsImplStatus(const ov::NodeTypeInfo &op, const bool implS
     }
 }
 
-std::string OpSummary::getOpVersion(const ov::NodeTypeInfo &type_info) {
-    std::string opset_name = "opset", version = type_info.get_version();
+std::string OpSummary::getOpVersion(const std::string& version) {
+    std::string opset_name = "opset";
     auto pos = version.find(opset_name);
     if (pos == std::string::npos) {
         return "undefined";
@@ -123,13 +126,15 @@ std::map<std::string, PassRate> OpSummary::getStatisticFromReport() {
         auto s = std::stoi(child.attribute("skipped").value());
         auto c = std::stoi(child.attribute("crashed").value());
         auto h = std::stoi(child.attribute("hanged").value());
-        PassRate obj(p, f, s, c, h);
+        auto rel_passed = std::stoi(child.attribute("rel_passed").value());
+        auto rel_all = std::stoi(child.attribute("rel_all").value());
+        PassRate obj(p, f, s, c, h, rel_passed, rel_all);
         oldOpsStat.insert({entry, obj});
     }
     return oldOpsStat;
 }
 
-void OpSummary::updateOPsStats(const std::shared_ptr<ov::Model> &model, const PassRate::Statuses &status) {
+void OpSummary::updateOPsStats(const std::shared_ptr<ov::Model> &model, const PassRate::Statuses &status, double k) {
     if (model->get_parameters().empty()) {
         return;
     }
@@ -160,26 +165,26 @@ void OpSummary::updateOPsStats(const std::shared_ptr<ov::Model> &model, const Pa
         }
         if (extractBody) {
             if (std::dynamic_pointer_cast<ov::op::v0::TensorIterator>(op)) {
-                updateOPsStats(op->get_type_info(), status);
+                updateOPsStats(op->get_type_info(), status, k);
                 auto ti = ov::as_type_ptr<ov::op::v0::TensorIterator>(op);
                 auto ti_body = ti->get_function();
-                updateOPsStats(ti_body, status);
+                updateOPsStats(ti_body, status, k);
             } else if (std::dynamic_pointer_cast<ov::op::v5::Loop>(op)) {
-                updateOPsStats(op->get_type_info(), status);
+                updateOPsStats(op->get_type_info(), status, k);
                 auto loop = ov::as_type_ptr<ov::op::v5::Loop>(op);
                 auto loop_body = loop->get_function();
-                updateOPsStats(loop_body, status);
+                updateOPsStats(loop_body, status, k);
             } else if (std::dynamic_pointer_cast<ov::op::v8::If>(op)) {
-                updateOPsStats(op->get_type_info(), status);
+                updateOPsStats(op->get_type_info(), status, k);
                 auto if_op = ov::as_type_ptr<ov::op::v8::If>(op);
                 std::vector<std::shared_ptr<ov::Model>> bodies;
                 for (size_t i = 0; i < if_op->get_internal_subgraphs_size(); i++) {
                     auto if_body = if_op->get_function(i);
-                    updateOPsStats(if_body, status);
+                    updateOPsStats(if_body, status, k);
                 }
             }
         }
-        updateOPsStats(op->get_type_info(), status);
+        updateOPsStats(op->get_type_info(), status, k);
     }
 }
 
@@ -251,12 +256,21 @@ void OpSummary::saveReport() {
 
     std::string outputFilePath = outputFolder + std::string(CommonTestUtils::FileSeparator) + filename;
 
-    std::set<ov::NodeTypeInfo> opsInfo;
+    std::map<ov::NodeTypeInfo, std::string> opsInfo;
     for (const auto &opset_pair : get_available_opsets()) {
         std::string opset_version = opset_pair.first;
         const ov::OpSet& opset = opset_pair.second();
         const auto &type_info_set = opset.get_type_info_set();
-        opsInfo.insert(type_info_set.begin(), type_info_set.end());
+        for (const auto& type_info : type_info_set) {
+            auto it = opsInfo.find(type_info);
+            std::string op_version = getOpVersion(opset_version);
+            if (it == opsInfo.end()) {
+                opsInfo.insert({type_info, op_version});
+            } else {
+                opsInfo[type_info] += " ";
+                opsInfo[type_info] += op_version;
+            }
+        }
     }
 
     auto &summary = OpSummary::getInstance();
@@ -294,16 +308,16 @@ void OpSummary::saveReport() {
 
     pugi::xml_node opsNode = root.append_child("ops_list");
     for (const auto &op : opsInfo) {
-        std::string name = std::string(op.name) + "-" + getOpVersion(op);
-        pugi::xml_node entry = opsNode.append_child(name.c_str());
-        (void) entry;
+        std::string name = std::string(op.first.name) + "-" + getOpVersion(op.first.version_id);
+        std::cout << name << " " << op.second << std::endl;
+        opsNode.append_child(name.c_str()).append_attribute("opsets").set_value(op.second.c_str());
     }
 
     pugi::xml_node resultsNode = root.child("results");
     pugi::xml_node currentDeviceNode = resultsNode.append_child(summary.deviceName.c_str());
     std::unordered_set<std::string> opList;
     for (const auto &it : stats) {
-        std::string name = std::string(it.first.name) + "-" + getOpVersion(it.first);
+        std::string name = std::string(it.first.name) + "-" + getOpVersion(it.first.version_id);
         opList.insert(name);
         pugi::xml_node entry = currentDeviceNode.append_child(name.c_str());
         entry.append_attribute("implemented").set_value(it.second.isImplemented);
@@ -313,6 +327,9 @@ void OpSummary::saveReport() {
         entry.append_attribute("crashed").set_value(static_cast<unsigned long long>(it.second.crashed));
         entry.append_attribute("hanged").set_value(static_cast<unsigned long long>(it.second.hanged));
         entry.append_attribute("passrate").set_value(it.second.getPassrate());
+        entry.append_attribute("relative_passed").set_value(it.second.rel_passed);
+        entry.append_attribute("relative_all").set_value(it.second.rel_all);
+        entry.append_attribute("relative_passrate").set_value(it.second.getRelPassrate());
     }
 
     if (extendReport && fileExists) {
@@ -328,6 +345,9 @@ void OpSummary::saveReport() {
                 entry.append_attribute("crashed").set_value(static_cast<unsigned long long>(item.second.crashed));
                 entry.append_attribute("hanged").set_value(static_cast<unsigned long long>(item.second.hanged));
                 entry.append_attribute("passrate").set_value(item.second.getPassrate());
+                entry.append_attribute("relative_passed").set_value(item.second.rel_passed);
+                entry.append_attribute("relative_all").set_value(item.second.rel_all);
+                entry.append_attribute("relative_passrate").set_value(item.second.getRelPassrate());
             } else {
                 entry = currentDeviceNode.child(item.first.c_str());
                 auto implStatus = entry.attribute("implemented").value() == std::string("true") ? true : false;
@@ -336,7 +356,9 @@ void OpSummary::saveReport() {
                 auto s = std::stoi(entry.attribute("skipped").value()) + item.second.skipped;
                 auto c = std::stoi(entry.attribute("crashed").value()) + item.second.crashed;
                 auto h = std::stoi(entry.attribute("hanged").value()) + item.second.hanged;
-                PassRate obj(p, f, s, c, h);
+                auto rel_passed = std::stoi(entry.attribute("relative_passed").value()) + item.second.rel_passed;
+                auto rel_all = std::stoi(entry.attribute("relative_all").value()) + item.second.rel_all;
+                PassRate obj(p, f, s, c, h, rel_passed, rel_all);
 
                 (implStatus || obj.isImplemented)
                 ? entry.attribute("implemented").set_value(true)
@@ -347,6 +369,9 @@ void OpSummary::saveReport() {
                 entry.attribute("crashed").set_value(static_cast<unsigned long long>(obj.crashed));
                 entry.attribute("hanged").set_value(static_cast<unsigned long long>(obj.hanged));
                 entry.attribute("passrate").set_value(obj.getPassrate());
+                entry.attribute("relative_passed").set_value(item.second.rel_passed);
+                entry.attribute("relative_all").set_value(item.second.rel_all);
+                entry.attribute("relative_passrate").set_value(item.second.getRelPassrate());
             }
         }
     }

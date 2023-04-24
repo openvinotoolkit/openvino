@@ -13,3 +13,12 @@
 #        define OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
 #    endif
 #endif
+
+// Disabled MSVC warning
+#if defined(_MSC_VER)
+#    define DISABLE_WARNING_MSVC_BEGIN(id) __pragma(warning(push)) __pragma(warning(disable : id))
+#    define DISABLE_WARNING_MSVC_END(id)   __pragma(warning(pop))
+#else
+#    define DISABLE_WARNING_MSVC_BEGIN(id)
+#    define DISABLE_WARNING_MSVC_END(id)
+#endif

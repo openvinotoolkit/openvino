@@ -46,15 +46,15 @@ void extend_with_zeros(const Strides& strides,
             const auto offset_batch = batch * input_size * input_shape[1];
             for (size_t channel = 0; channel < input_shape[1]; ++channel) {
                 const auto offset_channel = offset_batch + channel * input_size;
-                for (int i_z = 0; i_z < input_3d[0]; ++i_z) {
+                for (size_t i_z = 0; i_z < input_3d[0]; ++i_z) {
                     const auto offset_i_z = i_z * input_3d[2] * input_3d[1];
-                    for (int i_y = 0; i_y < input_3d[1]; ++i_y) {
+                    for (size_t i_y = 0; i_y < input_3d[1]; ++i_y) {
                         const auto offset_i_y = i_y * input_3d[2];
-                        for (int i_x = 0; i_x < input_3d[2]; ++i_x) {
+                        for (size_t i_x = 0; i_x < input_3d[2]; ++i_x) {
                             input_zeros.push_back(in[offset_channel + i_x + offset_i_y + offset_i_z]);
 
                             if (i_x < input_3d[2] - 1) {
-                                for (int k = 0; k < strides_3d[2] - 1; k++) {
+                                for (size_t k = 0; k < strides_3d[2] - 1; k++) {
                                     input_zeros.push_back(0);
                                 }
                             }

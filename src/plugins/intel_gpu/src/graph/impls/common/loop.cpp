@@ -2,11 +2,12 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 #include "loop_inst.h"
-#include "impls/implementation_map.hpp"
+#include "implementation_map.hpp"
 #include "register.hpp"
 #include "mutable_data_inst.h"
 #include "input_layout_inst.h"
 #include "intel_gpu/graph/serialization/loop_serializer.hpp"
+#include "intel_gpu/runtime/error_handler.hpp"
 #include <vector>
 #include <algorithm>
 
@@ -22,7 +23,7 @@ struct loop_impl : typed_primitive_impl<loop> {
         return make_unique<loop_impl>(*this);
     }
 
-    void init_kernels(const kernels_cache&) override {}
+    void init_kernels(const kernels_cache& , const kernel_impl_params&) override {}
 
     loop_impl() : parent() {}
 

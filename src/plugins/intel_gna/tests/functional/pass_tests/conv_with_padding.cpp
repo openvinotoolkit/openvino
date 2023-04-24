@@ -69,9 +69,6 @@ protected:
         std::tie(precision, targetDevice, configuration, input_shape, filter_shape, padding_size) = this->GetParam();
 
         GnaLayerTestCheck::SetUp(targetDevice);
-        if (GnaLayerTestCheck::gnaLibVersionLessThan("3.5")) {
-            GTEST_SKIP() << GnaLayerTestCheck::getLastCmpResultMsg() << std::endl;
-        }
 
         auto ng_precision = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(precision);
         auto input = std::make_shared<ngraph::opset8::Parameter>(ng_precision, ngraph::Shape{input_shape});
@@ -106,7 +103,7 @@ TEST_P(ConvWithPaddingTestNeg, CompareWithRefImpl) {
     } catch (...) {
         what.assign("Unknown failure occurred.");
     }
-    EXPECT_HAS_SUBSTRING(what, std::string("Convolution's input padding is not supported"));
+    EXPECT_HAS_SUBSTRING(what, std::string("Unsupported convolution input padding"));
 };
 
 const InferenceEngine::Precision net_precisions{InferenceEngine::Precision::FP32};

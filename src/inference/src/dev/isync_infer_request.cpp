@@ -13,7 +13,7 @@
 #include "openvino/op/util/op_types.hpp"
 #include "openvino/runtime/icompiled_model.hpp"
 #include "openvino/runtime/iinfer_request.hpp"
-#include "openvino/runtime/remote_context.hpp"
+#include "openvino/runtime/iremote_context.hpp"
 #include "openvino/runtime/tensor.hpp"
 
 namespace {
@@ -137,7 +137,7 @@ void ov::ISyncInferRequest::convert_batched_tensors() {
         auto tmp_shape = item.second.at(0).get_shape();
         auto tmp_et = item.second.at(0).get_element_type();
         tmp_shape[0] = item.second.size();
-        ov::RemoteContext remote_context;
+        std::shared_ptr<ov::IRemoteContext> remote_context;
         ov::Tensor input_tensor;
         try {
             auto net = get_compiled_model();
@@ -146,8 +146,8 @@ void ov::ISyncInferRequest::convert_batched_tensors() {
             }
         } catch (const ov::NotImplemented&) {
         }
-        if (remote_context._impl) {
-            input_tensor = remote_context.create_host_tensor(tmp_et, tmp_shape);
+        if (remote_context) {
+            input_tensor = ov::Tensor(remote_context->create_host_tensor(tmp_et, tmp_shape), {});
         } else {
             input_tensor = ov::Tensor(tmp_et, tmp_shape);
         }
@@ -189,7 +189,7 @@ void ov::ISyncInferRequest::set_tensor(const ov::Output<const ov::Node>& port, c
     try {
         check_tensor(port, tensor);
     } catch (const ov::Exception& ex) {
-        OPENVINO_UNREACHABLE("Failed to set tensor. ", ex.what());
+        OPENVINO_THROW("Failed to set tensor. ", ex.what());
     }
     if (found_port.is_input()) {
         m_tensors.at(get_inputs().at(found_port.idx).get_tensor_ptr()) = tensor;
@@ -247,16 +247,11 @@ void ov::ISyncInferRequest::check_tensor(const ov::Output<const ov::Node>& port,
                     " tensor size is not equal to the model ",
                     tensor_type,
                     " type: got ",
-                    tensor.get_size(),
+                    tensor.get_shape(),
                     " expecting ",
                     port.get_shape(),
                     ".");
-    OPENVINO_ASSERT(tensor.data() != nullptr, "Tensor data equal nullptr!");
-
-    // FIXME: SyncInferRequest is a friend only to check that blob is correct
-    OPENVINO_ASSERT(ov::shape_size(tensor._impl->getTensorDesc().getDims()) ==
-                        ov::shape_size(tensor._impl->getTensorDesc().getBlockingDesc().getBlockDims()),
-                    "Tensor is corrupted!");
+    OPENVINO_ASSERT(tensor.is<ov::RemoteTensor>() || tensor.data() != nullptr, "Tensor data equal nullptr!");
 }
 
 void ov::ISyncInferRequest::allocate_tensor(const ov::Output<const ov::Node>& port,

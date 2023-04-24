@@ -16,6 +16,8 @@
 #include <ngraph/opsets/opset7.hpp>
 #include <ngraph/opsets/opset8.hpp>
 #include <ngraph/opsets/opset9.hpp>
+#include <ngraph/opsets/opset10.hpp>
+#include <ngraph/opsets/opset11.hpp>
 
 #include "ngraph_functions/utils/data_utils.hpp"
 #include "openvino/core/partial_shape.hpp"
@@ -250,7 +252,7 @@ std::shared_ptr<ngraph::Node> makeSplit(const ngraph::Output<Node> &in,
 
 std::shared_ptr<ngraph::Node> makeVariadicSplit(const ngraph::Output<Node> &in,
                                                 const std::vector<size_t> numSplits,
-                                                size_t axis);
+                                                int64_t axis);
 
 std::shared_ptr<ngraph::Node> makeActivation(const ngraph::Output<Node> &in,
                                              const element::Type &type,

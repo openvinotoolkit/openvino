@@ -3,8 +3,9 @@
 //
 
 #include "read_value_inst.h"
-#include "impls/implementation_map.hpp"
+#include "implementation_map.hpp"
 #include "register.hpp"
+#include "intel_gpu/runtime/error_handler.hpp"
 
 namespace cldnn {
 namespace cpu {
@@ -61,7 +62,7 @@ struct read_value_impl : public typed_primitive_impl<read_value> {
         return instance.get_network().get_stream().create_user_event(true);
     }
 
-    void init_kernels(const kernels_cache&) override {}
+    void init_kernels(const kernels_cache& , const kernel_impl_params&) override {}
 
 public:
     static std::unique_ptr<primitive_impl> create(const read_value_node& arg, const kernel_impl_params& impl_param) {

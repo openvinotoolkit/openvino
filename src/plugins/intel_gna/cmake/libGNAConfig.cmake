@@ -2,8 +2,25 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 
-# module to locate GNA libraries
-
+#
+# The module defines several imported targets:
+#
+# - (Optional) libGNA::API
+# - (Optional) libGNA::KERNEL
+#
+# And high-level imported interface target:
+#
+# - libGNA
+#
+# And the following variables:
+#
+# - libGNA_API_FOUND
+# - libGNA_KERNEL_FOUND
+#
+# The example usage:
+#
+#  find_package(libGNA COMPONENTS API KERNEL)
+#
 
 set(libGNA_FOUND TRUE)
 
@@ -27,7 +44,17 @@ if(libGNA_FIND_REQUIRED_KERNEL)
 
     if(GNA_KERNEL_LIBRARY)
         add_library(libGNA::KERNEL SHARED IMPORTED)
-        set_target_properties(libGNA::KERNEL PROPERTIES IMPORTED_LOCATION ${GNA_KERNEL_LIBRARY})
+        set_property(TARGET libGNA::KERNEL APPEND PROPERTY IMPORTED_CONFIGURATIONS RELEASE)
+        if(WIN32)
+            set(gna_dll "${CMAKE_SHARED_LIBRARY_PREFIX}${GNA_KERNEL_LIB_NAME}${CMAKE_SHARED_LIBRARY_SUFFIX}")
+            set_target_properties(libGNA::KERNEL PROPERTIES
+                IMPORTED_LOCATION_RELEASE "${libGNA_LIBRARIES_BASE_PATH}/${gna_dll}"
+                IMPORTED_IMPLIB_RELEASE "${GNA_KERNEL_LIBRARY}")
+        else()
+            set_target_properties(libGNA::KERNEL PROPERTIES
+                IMPORTED_LOCATION_RELEASE "${GNA_KERNEL_LIBRARY}"
+                INTERFACE_LINK_OPTIONS "-Wl,-rpath-link,${libGNA_LIBRARIES_BASE_PATH}")
+        endif()
         set(libGNA_KERNEL_FOUND TRUE)
     else()
         message(SEND_ERROR "GNA KERNEL library (${GNA_KERNEL_LIB_NAME}) was not found in ${libGNA_LIBRARIES_BASE_PATH}")
@@ -40,7 +67,7 @@ if(libGNA_FIND_REQUIRED_API)
               NO_CMAKE_FIND_ROOT_PATH)
     if(libGNA_INCLUDE_DIRS)
         add_library(libGNA::API INTERFACE IMPORTED)
-        set_target_properties(libGNA::API PROPERTIES INTERFACE_INCLUDE_DIRECTORIES ${libGNA_INCLUDE_DIRS})
+        set_target_properties(libGNA::API PROPERTIES INTERFACE_INCLUDE_DIRECTORIES "${libGNA_INCLUDE_DIRS}")
         set(libGNA_API_FOUND TRUE)
     else()
         message(SEND_ERROR "GNA API headers (gna2-api.h) was not found in ${GNA_EXT_DIR}/include")
@@ -48,15 +75,6 @@ if(libGNA_FIND_REQUIRED_API)
 endif()
 
 add_library(libGNA INTERFACE IMPORTED)
-foreach(_lib_name ${libGNA_FIND_COMPONENTS})
+foreach(_lib_name IN LISTS libGNA_FIND_COMPONENTS)
     set_property(TARGET libGNA APPEND PROPERTY INTERFACE_LINK_LIBRARIES libGNA::${_lib_name})
 endforeach(_lib_name)
-
-if (WIN32)
-    if(libGNA_FIND_REQUIRED_KERNEL)
-        set_target_properties(libGNA::KERNEL PROPERTIES
-            IMPORTED_IMPLIB ${GNA_KERNEL_LIBRARY})
-    endif()
-else()
-    set_target_properties(libGNA PROPERTIES INTERFACE_LINK_OPTIONS "-Wl,-rpath-link,${libGNA_LIBRARIES_BASE_PATH}")
-endif ()

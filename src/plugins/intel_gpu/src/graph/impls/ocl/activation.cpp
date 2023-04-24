@@ -2,16 +2,14 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "activation/activation_kernel_base.h"
-#include "activation/activation_kernel_selector.h"
-#include "activation_inst.h"
-#include "impls/implementation_map.hpp"
-#include "intel_gpu/runtime/error_handler.hpp"
-#include "kernel_selector_helper.h"
 #include "primitive_base.hpp"
 
+#include "activation_inst.h"
+#include "activation/activation_kernel_base.h"
+#include "activation/activation_kernel_selector.h"
+
 namespace {
-inline void convert_new_activation_func(const activation& prim, std::vector<kernel_selector::base_activation_params>& params) {
+inline void convert_new_activation_func(const cldnn::activation& prim, std::vector<kernel_selector::base_activation_params>& params) {
     params.insert(params.begin(), {get_kernel_selector_activation_param(prim.activation_function),
                                    prim.additional_params.a,
                                    prim.additional_params.b});
@@ -68,7 +66,6 @@ struct activation_impl : typed_primitive_impl_ocl<activation> {
     void update_dispatch_data(const kernel_impl_params& impl_param) override {
         auto kernel_params = get_kernel_params(impl_param, true);
         (_kernel_data.update_dispatch_data_func)(kernel_params.first, _kernel_data);
-        update_kernels_list_to_skip();
     }
 };
 
@@ -163,3 +160,4 @@ attach_activation_impl::attach_activation_impl() {
 }  // namespace cldnn
 
 BIND_BINARY_BUFFER_WITH_TYPE(cldnn::ocl::activation_impl)
+BIND_BINARY_BUFFER_WITH_TYPE(cldnn::activation)

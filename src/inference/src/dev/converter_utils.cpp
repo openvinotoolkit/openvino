@@ -12,6 +12,8 @@
 #include "cnn_network_ngraph_impl.hpp"
 #include "cpp_interfaces/interface/ie_iexecutable_network_internal.hpp"
 #include "cpp_interfaces/interface/ie_iplugin_internal.hpp"
+#include "cpp_interfaces/interface/ie_ivariable_state_internal.hpp"
+#include "dev/make_tensor.hpp"
 #include "icompiled_model_wrapper.hpp"
 #include "ie_blob.h"
 #include "ie_common.h"
@@ -29,11 +31,15 @@
 #include "openvino/runtime/icompiled_model.hpp"
 #include "openvino/runtime/iinfer_request.hpp"
 #include "openvino/runtime/iplugin.hpp"
+#include "openvino/runtime/itensor.hpp"
+#include "openvino/runtime/ivariable_state.hpp"
 #include "openvino/runtime/profiling_info.hpp"
 #include "openvino/runtime/remote_context.hpp"
+#include "openvino/runtime/so_ptr.hpp"
 #include "openvino/runtime/tensor.hpp"
+#include "openvino/runtime/threading/executor_manager.hpp"
 #include "openvino/runtime/variable_state.hpp"
-#include "so_ptr.hpp"
+#include "threading/ie_executor_manager.hpp"
 #include "transformations/utils/utils.hpp"
 
 namespace {
@@ -185,6 +191,31 @@ std::shared_ptr<const ov::Model> ov::legacy_convert::convert_model(const Inferen
 
 namespace ov {
 
+class IVariableStateInternalWrapper : public InferenceEngine::IVariableStateInternal {
+    std::shared_ptr<ov::IVariableState> m_state;
+
+public:
+    IVariableStateInternalWrapper(const std::shared_ptr<ov::IVariableState>& state)
+        : InferenceEngine::IVariableStateInternal(state->get_name()),
+          m_state(state) {}
+
+    std::string GetName() const override {
+        return m_state->get_name();
+    }
+
+    void Reset() override {
+        m_state->reset();
+    }
+
+    void SetState(const InferenceEngine::Blob::Ptr& newState) override {
+        m_state->set_state(ov::Tensor(ov::make_tensor(newState), {}));
+    }
+
+    InferenceEngine::Blob::CPtr GetState() const override {
+        return tensor_to_blob(m_state->get_state()._impl);
+    }
+};
+
 class IInferencePluginWrapper : public InferenceEngine::IInferencePlugin {
 public:
     IInferencePluginWrapper(const std::shared_ptr<ov::IPlugin>& plugin) : m_plugin(plugin) {
@@ -194,8 +225,11 @@ public:
         version.description = ver.description;
         SetVersion(version);
         _isNewAPI = plugin->is_new_api();
-        _executorManager = plugin->get_executor_manager();
+        _executorManager = InferenceEngine::create_old_manager(plugin->get_executor_manager());
     }
+
+    virtual ~IInferencePluginWrapper() = default;
+
     std::string GetName() const noexcept override {
         return m_plugin->get_device_name();
     }
@@ -219,7 +253,7 @@ public:
         return ov::legacy_convert::convert_compiled_model(
             m_plugin->compile_model(ov::legacy_convert::convert_model(network, m_plugin->is_new_api()),
                                     ov::any_copy(config),
-                                    ov::RemoteContext{context, {}}));
+                                    ov::RemoteContext{ov::legacy_convert::convert_remote_context(context), {}}));
     }
 
     ov::SoPtr<InferenceEngine::IExecutableNetworkInternal> LoadNetwork(
@@ -255,12 +289,12 @@ public:
     }
 
     std::shared_ptr<InferenceEngine::RemoteContext> CreateContext(const InferenceEngine::ParamMap& params) override {
-        return m_plugin->create_context(params)._impl;
+        return ov::legacy_convert::convert_remote_context(m_plugin->create_context(params));
     }
 
     std::shared_ptr<InferenceEngine::RemoteContext> GetDefaultContext(
         const InferenceEngine::ParamMap& params) override {
-        return m_plugin->get_default_context(params)._impl;
+        return ov::legacy_convert::convert_remote_context(m_plugin->get_default_context(params));
     }
 
     std::shared_ptr<InferenceEngine::IExecutableNetworkInternal> ImportNetwork(
@@ -281,11 +315,13 @@ public:
         const std::shared_ptr<InferenceEngine::RemoteContext>& context,
         const std::map<std::string, std::string>& config) override {
         return ov::legacy_convert::convert_compiled_model(
-            m_plugin->import_model(networkModel, ov::RemoteContext{context, {}}, ov::any_copy(config)));
+            m_plugin->import_model(networkModel,
+                                   ov::RemoteContext{ov::legacy_convert::convert_remote_context(context), {}},
+                                   ov::any_copy(config)));
     }
 
     void SetCore(std::weak_ptr<InferenceEngine::ICore> core) override {
-        return m_plugin->set_core(std::dynamic_pointer_cast<ov::ICore>(core));
+        return m_plugin->set_core(std::dynamic_pointer_cast<ov::ICore>(core.lock()));
     }
 
     std::shared_ptr<InferenceEngine::ICore> GetCore() const noexcept override {
@@ -384,7 +420,7 @@ public:
     }
 
     std::shared_ptr<InferenceEngine::RemoteContext> GetContext() const override {
-        return m_model->get_context()._impl;
+        return ov::legacy_convert::convert_remote_context(m_model->get_context());
     }
 
     std::shared_ptr<ov::ICompiledModel> get_compiled_model() {
@@ -442,9 +478,11 @@ public:
     std::map<std::string, InferenceEngine::InferenceEngineProfileInfo> GetPerformanceCounts() const override {
         auto res = m_request->get_profiling_info();
         std::map<std::string, InferenceEngine::InferenceEngineProfileInfo> ret;
-        for (const auto& info : res) {
+        for (size_t i = 0; i < res.size(); i++) {
+            const auto& info = res[i];
             InferenceEngine::InferenceEngineProfileInfo old_info;
             old_info.cpu_uSec = info.cpu_time.count();
+            old_info.execution_index = static_cast<unsigned>(i);
             old_info.realTime_uSec = info.real_time.count();
             strncpy(old_info.exec_type, info.exec_type.c_str(), sizeof(old_info.exec_type));
             old_info.exec_type[sizeof(old_info.exec_type) - 1] = 0;
@@ -468,7 +506,7 @@ public:
 
     void SetBlob(const std::string& name, const InferenceEngine::Blob::Ptr& data) override {
         try {
-            m_request->set_tensor(find_port(name), ov::Tensor{data, {}});
+            m_request->set_tensor(find_port(name), ov::Tensor{ov::make_tensor(data), {}});
         } catch (const ov::Exception& ex) {
             const std::string what = ex.what();
             if (what.find("Failed to set tensor") != std::string::npos) {
@@ -482,7 +520,7 @@ public:
         try {
             std::vector<ov::Tensor> tensors;
             for (const auto& blob : blobs) {
-                tensors.emplace_back(ov::Tensor{blob, {}});
+                tensors.emplace_back(ov::Tensor{ov::make_tensor(blob), {}});
             }
             m_request->set_tensors(find_port(name), tensors);
         } catch (const ov::Exception& ex) {
@@ -491,14 +529,14 @@ public:
     }
 
     InferenceEngine::Blob::Ptr GetBlob(const std::string& name) override {
-        return m_request->get_tensor(find_port(name))._impl;
+        return tensor_to_blob(m_request->get_tensor(find_port(name))._impl);
     }
 
     InferenceEngine::BatchedBlob::Ptr GetBlobs(const std::string& name) override {
         auto tensors = m_request->get_tensors(find_port(name));
         std::vector<InferenceEngine::Blob::Ptr> blobs;
         for (const auto& tensor : tensors) {
-            blobs.emplace_back(tensor._impl);
+            blobs.emplace_back(tensor_to_blob(tensor._impl));
         }
         return std::make_shared<InferenceEngine::BatchedBlob>(blobs);
     }
@@ -521,7 +559,7 @@ public:
         auto res = m_request->query_state();
         std::vector<std::shared_ptr<InferenceEngine::IVariableStateInternal>> ret;
         for (const auto& state : res) {
-            ret.emplace_back(state._impl);
+            ret.emplace_back(std::make_shared<ov::IVariableStateInternalWrapper>(state));
         }
         return ret;
     }
@@ -558,6 +596,31 @@ private:
 
 namespace InferenceEngine {
 
+class IVariableStateWrapper : public ov::IVariableState {
+private:
+    std::shared_ptr<InferenceEngine::IVariableStateInternal> m_state;
+    mutable ov::Tensor m_converted_state;
+
+public:
+    explicit IVariableStateWrapper(const std::shared_ptr<InferenceEngine::IVariableStateInternal>& state)
+        : ov::IVariableState(state->GetName()),
+          m_state(state) {}
+
+    void reset() override {
+        m_state->Reset();
+    }
+
+    void set_state(const ov::Tensor& state) override {
+        m_state->SetState(ov::tensor_to_blob(state._impl));
+    }
+
+    const ov::Tensor& get_state() const override {
+        m_converted_state =
+            ov::Tensor(ov::make_tensor(std::const_pointer_cast<InferenceEngine::Blob>(m_state->GetState())), {});
+        return m_converted_state;
+    }
+};
+
 class IAsyncInferRequestWrapper : public ov::IAsyncInferRequest {
 public:
     IAsyncInferRequestWrapper(const std::shared_ptr<InferenceEngine::IInferRequestInternal>& request)
@@ -584,22 +647,22 @@ public:
         } catch (const ov::Cancelled&) {
             throw;
         } catch (const InferenceEngine::InferCancelled& e) {
-            throw ov::Cancelled{e.what()};
+            ov::Cancelled::create(e.what());
         } catch (const std::exception& ex) {
-            throw ov::Exception(ex.what());
+            OPENVINO_THROW(ex.what());
         } catch (...) {
-            OPENVINO_UNREACHABLE("Unexpected exception");
+            OPENVINO_THROW("Unexpected exception");
         }
     }
     bool wait_for(const std::chrono::milliseconds& timeout) override {
         try {
             return m_request->Wait(timeout.count()) == InferenceEngine::OK;
         } catch (const InferenceEngine::InferCancelled& e) {
-            throw ov::Cancelled{e.what()};
+            ov::Cancelled::create(e.what());
         } catch (const std::exception& ex) {
-            throw Exception(ex.what());
+            OPENVINO_THROW(ex.what());
         } catch (...) {
-            OPENVINO_UNREACHABLE("Unexpected exception");
+            OPENVINO_THROW("Unexpected exception");
         }
     }
 
@@ -651,11 +714,11 @@ public:
                         name,
                         "'");
         auto blob = m_request->GetBlob(name);
-        ov::Tensor tensor = {blob, {m_request->getPointerToSo()}};
+        ov::Tensor tensor = {ov::make_tensor(blob), {m_request->getPointerToSo()}};
         return tensor;
     }
     void set_tensor(const ov::Output<const ov::Node>& port, const ov::Tensor& tensor) override {
-        m_request->SetBlob(get_legacy_name_from_port(port), tensor._impl);
+        m_request->SetBlob(get_legacy_name_from_port(port), ov::tensor_to_blob(tensor._impl));
     }
 
     std::vector<ov::Tensor> get_tensors(const ov::Output<const ov::Node>& port) const override {
@@ -664,24 +727,23 @@ public:
         if (!blobs)
             return ret;
         for (size_t i = 0; i < blobs->size(); i++) {
-            ret.emplace_back(ov::Tensor{blobs->getBlob(i), {m_request->getPointerToSo()}});
+            ret.emplace_back(ov::Tensor{ov::make_tensor(blobs->getBlob(i)), {m_request->getPointerToSo()}});
         }
         return ret;
     }
     void set_tensors(const ov::Output<const ov::Node>& port, const std::vector<ov::Tensor>& tensors) override {
         std::vector<InferenceEngine::Blob::Ptr> blobs;
         for (const auto& tensor : tensors) {
-            blobs.emplace_back(tensor._impl);
+            blobs.emplace_back(ov::tensor_to_blob(tensor._impl));
         }
         m_request->SetBlobs(get_legacy_name_from_port(port), blobs);
     }
 
-    std::vector<ov::VariableState> query_state() const override {
-        std::vector<ov::VariableState> variable_states;
+    std::vector<std::shared_ptr<ov::IVariableState>> query_state() const override {
+        std::vector<std::shared_ptr<ov::IVariableState>> variable_states;
         std::vector<std::shared_ptr<void>> soVec;
-        soVec = {m_request->getPointerToSo()};
         for (auto&& state : m_request->QueryState()) {
-            variable_states.emplace_back(ov::VariableState{state, soVec});
+            variable_states.emplace_back(std::make_shared<InferenceEngine::IVariableStateWrapper>(state));
         }
         return variable_states;
     }
@@ -731,4 +793,104 @@ std::shared_ptr<::ov::IAsyncInferRequest> ov::legacy_convert::convert_infer_requ
         return comp_model->get_infer_request();
     }
     return std::make_shared<InferenceEngine::IAsyncInferRequestWrapper>(request);
+}
+
+namespace ov {
+
+class RemoteContextWrapper : public InferenceEngine::RemoteContext {
+private:
+    std::shared_ptr<ov::IRemoteContext> m_context;
+
+public:
+    RemoteContextWrapper(const std::shared_ptr<ov::IRemoteContext>& context) : m_context(context) {}
+
+    const std::shared_ptr<ov::IRemoteContext>& get_context() {
+        return m_context;
+    }
+
+    std::string getDeviceName() const noexcept override {
+        return m_context->get_device_name();
+    }
+
+    InferenceEngine::RemoteBlob::Ptr CreateBlob(const InferenceEngine::TensorDesc& tensorDesc,
+                                                const InferenceEngine::ParamMap& params = {}) override {
+        return std::dynamic_pointer_cast<InferenceEngine::RemoteBlob>(ov::tensor_to_blob(
+            m_context->create_tensor(InferenceEngine::details::convertPrecision(tensorDesc.getPrecision()),
+                                     tensorDesc.getBlockingDesc().getBlockDims(),
+                                     params)));
+    }
+
+    InferenceEngine::MemoryBlob::Ptr CreateHostBlob(const InferenceEngine::TensorDesc& tensorDesc) override {
+        return std::dynamic_pointer_cast<InferenceEngine::MemoryBlob>(ov::tensor_to_blob(
+            m_context->create_host_tensor(InferenceEngine::details::convertPrecision(tensorDesc.getPrecision()),
+                                          tensorDesc.getBlockingDesc().getBlockDims())));
+    }
+
+    InferenceEngine::ParamMap getParams() const override {
+        return m_context->get_property();
+    }
+};
+
+}  // namespace ov
+
+namespace InferenceEngine {
+
+class IRemoteContextWrapper : public ov::IRemoteContext {
+private:
+    std::shared_ptr<InferenceEngine::RemoteContext> m_context;
+    mutable std::string m_name;
+    mutable ov::AnyMap m_params;
+
+public:
+    IRemoteContextWrapper(const std::shared_ptr<InferenceEngine::RemoteContext>& context) : m_context(context) {}
+    virtual ~IRemoteContextWrapper() = default;
+    const std::shared_ptr<InferenceEngine::RemoteContext>& get_context() {
+        return m_context;
+    }
+    const std::string& get_device_name() const override {
+        m_name = m_context->getDeviceName();
+        return m_name;
+    }
+
+    const ov::AnyMap& get_property() const override {
+        m_params = m_context->getParams();
+        return m_params;
+    }
+
+    std::shared_ptr<ov::IRemoteTensor> create_tensor(const ov::element::Type& type,
+                                                     const ov::Shape& shape,
+                                                     const ov::AnyMap& params = {}) override {
+        InferenceEngine::TensorDesc desc(InferenceEngine::details::convertPrecision(type),
+                                         shape,
+                                         InferenceEngine::TensorDesc::getLayoutByDims(shape));
+        auto blob = m_context->CreateBlob(desc, params);
+        blob->allocate();
+        return std::dynamic_pointer_cast<ov::IRemoteTensor>(ov::make_tensor(blob));
+    }
+
+    std::shared_ptr<ov::ITensor> create_host_tensor(const ov::element::Type type, const ov::Shape& shape) override {
+        InferenceEngine::TensorDesc desc(InferenceEngine::details::convertPrecision(type),
+                                         shape,
+                                         InferenceEngine::TensorDesc::getLayoutByDims(shape));
+        auto blob = m_context->CreateHostBlob(desc);
+        blob->allocate();
+        return ov::make_tensor(blob);
+    }
+};
+
+}  // namespace InferenceEngine
+
+std::shared_ptr<InferenceEngine::RemoteContext> ov::legacy_convert::convert_remote_context(
+    const std::shared_ptr<ov::IRemoteContext>& context) {
+    if (auto ctx = std::dynamic_pointer_cast<InferenceEngine::IRemoteContextWrapper>(context)) {
+        return ctx->get_context();
+    }
+    return std::make_shared<ov::RemoteContextWrapper>(context);
+}
+std::shared_ptr<ov::IRemoteContext> ov::legacy_convert::convert_remote_context(
+    const std::shared_ptr<InferenceEngine::RemoteContext>& context) {
+    if (auto ctx = std::dynamic_pointer_cast<ov::RemoteContextWrapper>(context)) {
+        return ctx->get_context();
+    }
+    return std::make_shared<InferenceEngine::IRemoteContextWrapper>(context);
 }

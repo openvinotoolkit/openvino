@@ -20,7 +20,7 @@ namespace op {
 
 using namespace ov::op;
 
-OutputVector translate_var_mean(NodeContext& context) {
+OutputVector translate_var_mean(const NodeContext& context) {
     num_inputs_check(context, 1, 4);
     auto data = context.get_input(0);
     bool unbiased = true;
@@ -52,8 +52,8 @@ OutputVector translate_var_mean(NodeContext& context) {
             axes = context.get_input(1);
             mean = context.mark_node(std::make_shared<v1::ReduceMean>(data, axes, keepdims));
             t_mean = context.mark_node(std::make_shared<v1::ReduceMean>(data, axes, true));
-            auto reduced_dims = context.mark_node(std::make_shared<v3::ShapeOf>(data));
-            auto zero = context.mark_node(v0::Constant::create(element::i64, Shape{}, {0}));
+            auto reduced_dims = context.mark_node(std::make_shared<v3::ShapeOf>(data, element::i32));
+            auto zero = context.mark_node(v0::Constant::create(element::i32, Shape{}, {0}));
             reduced_dims = context.mark_node(std::make_shared<v8::Gather>(reduced_dims, axes, zero));
             num_elements = context.mark_node(std::make_shared<v1::ReduceProd>(reduced_dims, zero, false));
         }
@@ -75,7 +75,7 @@ OutputVector translate_var_mean(NodeContext& context) {
     return {var, mean};
 };
 
-OutputVector translate_var(NodeContext& context) {
+OutputVector translate_var(const NodeContext& context) {
     auto res = translate_var_mean(context);
     return {res[0]};
 }

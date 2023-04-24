@@ -486,6 +486,28 @@ std::shared_ptr<ov::Model> generate(const std::shared_ptr<ov::op::v4::Interpolat
     return std::make_shared<ov::Model>(results, params, "Interpolate-4");
 }
 
+std::shared_ptr<ov::Model> generate(const std::shared_ptr<ov::op::v11::Interpolate> &node) {
+    using InterpolateAttrs = op::v11::Interpolate::InterpolateAttrs;
+    using InterpolateMode = op::v11::Interpolate::InterpolateMode;
+    using ShapeCalcMode = op::v11::Interpolate::ShapeCalcMode;
+    using TransformMode = op::v11::Interpolate::CoordinateTransformMode;
+    using NearestMode = op::v11::Interpolate::NearestMode;
+    const auto data = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{2, 2, 30, 60});
+    const auto scales = ngraph::builder::makeConstant<float>(ov::element::f32, {2}, {0.5f, 0.5f});
+    const auto axes = ngraph::builder::makeConstant<int64_t>(ov::element::i64, {2}, {2, 3});
+    const InterpolateAttrs attrs{InterpolateMode::BILINEAR_PILLOW,
+                                 ShapeCalcMode::SCALES,
+                                 std::vector<size_t>{0, 0, 0, 0},
+                                 std::vector<size_t>{0, 0, 0, 0},
+                                 TransformMode::HALF_PIXEL,
+                                 NearestMode::ROUND_PREFER_FLOOR,
+                                 false,
+                                 -0.75};
+    const auto interpolate = std::make_shared<ov::op::v11::Interpolate>(data, scales, axes, attrs);
+    ov::ResultVector results{std::make_shared<ov::op::v0::Result>(interpolate)};
+    return std::make_shared<ov::Model>(results, ov::ParameterVector{{data}}, "Interpolate-11");
+}
+
 std::shared_ptr<ov::Model> generate(const std::shared_ptr<ov::op::v3::Assign> &node) {
     auto params = ngraph::builder::makeDynamicParams(ov::element::f32, {{1}});
     auto read_value = std::make_shared<ov::op::v3::ReadValue>(params[0], "v0");
@@ -603,7 +625,7 @@ std::shared_ptr<ov::Model> generate(const std::shared_ptr<ov::op::v3::NonMaxSupp
                                                                ov::op::v3::NonMaxSuppression::BoxEncodingType::CENTER,
                                                                false);
     ov::ResultVector results{std::make_shared<ov::op::v0::Result>(nms)};
-    return std::make_shared<ov::Model>(results, params, "NonMaxSuppression-1");
+    return std::make_shared<ov::Model>(results, params, "NonMaxSuppression-3");
 }
 
 std::shared_ptr<ov::Model> generate(const std::shared_ptr<ov::op::v4::NonMaxSuppression> &node) {
@@ -618,7 +640,7 @@ std::shared_ptr<ov::Model> generate(const std::shared_ptr<ov::op::v4::NonMaxSupp
                                                                ov::op::v4::NonMaxSuppression::BoxEncodingType::CENTER,
                                                                false);
     ov::ResultVector results{std::make_shared<ov::op::v0::Result>(nms)};
-    return std::make_shared<ov::Model>(results, params, "NonMaxSuppression-1");
+    return std::make_shared<ov::Model>(results, params, "NonMaxSuppression-4");
 }
 
 std::shared_ptr<ov::Model> generate(const std::shared_ptr<ov::op::v5::NonMaxSuppression> &node) {
@@ -633,7 +655,7 @@ std::shared_ptr<ov::Model> generate(const std::shared_ptr<ov::op::v5::NonMaxSupp
                                                                ov::op::v5::NonMaxSuppression::BoxEncodingType::CENTER,
                                                                false);
     ov::ResultVector results{std::make_shared<ov::op::v0::Result>(nms)};
-    return std::make_shared<ov::Model>(results, params, "NonMaxSuppression-1");
+    return std::make_shared<ov::Model>(results, params, "NonMaxSuppression-5");
 }
 
 std::shared_ptr<ov::Model> generate(const std::shared_ptr<ov::op::v9::NonMaxSuppression> &node) {
@@ -648,7 +670,7 @@ std::shared_ptr<ov::Model> generate(const std::shared_ptr<ov::op::v9::NonMaxSupp
                                                                ov::op::v9::NonMaxSuppression::BoxEncodingType::CENTER,
                                                                false);
     ov::ResultVector results{std::make_shared<ov::op::v0::Result>(nms)};
-    return std::make_shared<ov::Model>(results, params, "NonMaxSuppression-1");
+    return std::make_shared<ov::Model>(results, params, "NonMaxSuppression-9");
 }
 
 std::shared_ptr<ov::Model> generate(const std::shared_ptr<ov::op::v3::NonZero> &node) {
@@ -1079,6 +1101,21 @@ std::shared_ptr<ov::Model> generate(const std::shared_ptr<ov::op::v3::TopK> &nod
                                                    1,
                                                    ov::op::v3::TopK::Mode::MAX,
                                                    ov::op::v3::TopK::SortType::SORT_VALUES);
+    ov::ResultVector results{std::make_shared<ov::op::v0::Result>(Node->output(0)),
+                             std::make_shared<ov::op::v0::Result>(Node->output(1))};
+    return std::make_shared<ov::Model>(results, params, "TopKGraph");
+}
+
+std::shared_ptr<ov::Model> generate(const std::shared_ptr<ov::op::v11::TopK> &node) {
+    const auto params = ngraph::builder::makeDynamicParams(ov::element::f32, {{2, 3, 2}});
+    const auto k = ngraph::builder::makeConstant<int64_t>(ov::element::i64, {}, {3});
+    auto Node = std::make_shared<ov::op::v11::TopK>(params.at(0),
+                                                   k,
+                                                   -2,
+                                                   ov::op::v11::TopK::Mode::MIN,
+                                                   ov::op::v11::TopK::SortType::SORT_VALUES,
+                                                   ov::element::i64,
+                                                   true);
     ov::ResultVector results{std::make_shared<ov::op::v0::Result>(Node->output(0)),
                              std::make_shared<ov::op::v0::Result>(Node->output(1))};
     return std::make_shared<ov::Model>(results, params, "TopKGraph");
@@ -1846,6 +1883,7 @@ OpGenerator getOpGeneratorMap() {
 #include "openvino/opsets/opset8_tbl.hpp"
 #include "openvino/opsets/opset9_tbl.hpp"
 #include "openvino/opsets/opset10_tbl.hpp"
+#include "openvino/opsets/opset11_tbl.hpp"
 #undef _OPENVINO_OP_REG
     };
     return opGeneratorMap;

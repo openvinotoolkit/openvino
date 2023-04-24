@@ -17,6 +17,10 @@ struct border_params : public base_params {
     BorderType b_type;
     float border_value;
 
+    ArgType begin_type;
+    ArgType end_type;
+    ArgType pad_value_type;
+
     border_params() : base_params(KernelType::BORDER), b_type(BorderType::CONSTANT), border_value(0.0f) {}
 
     ParamsKey GetParamsKey() const override {
@@ -46,5 +50,6 @@ protected:
     JitConstants GetJitConstants(const border_params& params) const;
     DispatchData SetDefault(const border_params& params) const;
     KernelsData GetCommonKernelsData(const Params& params, const optional_params&) const;
+    bool SkipKernelExecution(const border_params& params) const;
 };
 }  // namespace kernel_selector

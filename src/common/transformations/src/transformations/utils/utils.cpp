@@ -47,7 +47,7 @@ bool get_single_value(const std::shared_ptr<op::v0::Constant>& const_node, float
     case element::Type_t::u64:
         return util::normalize_single_value(const_node->get_vector<uint64_t>(), value);
     default:
-        throw ov::Exception("Unsupported precision for const operation: " + const_node->get_friendly_name());
+        OPENVINO_THROW("Unsupported precision for const operation: ", const_node->get_friendly_name());
     }
 }
 
@@ -125,7 +125,7 @@ std::shared_ptr<ngraph::Node> activation(const std::string& activation_name,
     } else if (activation_name == "tanh") {
         return std::make_shared<opset4::Tanh>(apply_to);
     } else {
-        throw ov::Exception("Unsupported activation function");
+        OPENVINO_THROW("Unsupported activation function");
     }
 }
 
@@ -270,6 +270,9 @@ bool can_eliminate_eltwise_node(const std::shared_ptr<Node>& eltwise,
     switch (constant_ptr->get_element_type()) {
     case element::f32:
         actual_const = reinterpret_cast<const float*>(data_ptr)[0];
+        break;
+    case element::f16:
+        actual_const = reinterpret_cast<const ov::float16*>(data_ptr)[0];
         break;
     case element::i32:
         actual_const = static_cast<float>(reinterpret_cast<const int32_t*>(data_ptr)[0]);

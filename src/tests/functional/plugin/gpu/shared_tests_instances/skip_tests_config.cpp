@@ -9,8 +9,6 @@
 
 std::vector<std::string> disabledTestPatterns() {
     return {
-            //TODO: Issue: 34748
-            R"(.*(ComparisonLayerTest).*)",
             // TODO: Issue: 39612
             R"(.*Interpolate.*cubic.*tf_half_pixel_for_nn.*FP16.*)",
             // TODO: Issue: 43794
@@ -50,9 +48,6 @@ std::vector<std::string> disabledTestPatterns() {
             // Not allowed dynamic loop tests on GPU
             R"(.*smoke_StaticShapeLoop_dynamic_exit.*)",
             // Not expected behavior
-            R"(.*Behavior.*InferRequestIOBBlobSetLayoutTest.*layout=(SCALAR|OIHW).*)",
-            R"(.*Behavior.*InferRequestIOBBlobSetLayoutTest.*CanSetInBlobWithDifferentLayouts.*layout=NHWC.*)",
-            R"(.*Behavior.*InferRequestIOBBlobSetLayoutTest.*CanSetOutBlobWithDifferentLayouts.*layout=(CN|HW).*)",
             R"(.*Behavior.*(Multi|Auto).*InferRequestSetBlobByType.*Batched.*)",
             R"(.*(Multi|Auto).*Behavior.*InferRequestIOBBlobTest.*canProcessDeallocatedOutputBlobAfterGetAndSetBlob.*)",
             // TODO Issue 100145
@@ -60,13 +55,11 @@ std::vector<std::string> disabledTestPatterns() {
             R"(.*Behavior.*OVInferRequestIOTensorTest.*canInferAfterIOBlobReallocation.*)",
             R"(.*Behavior.*OVInferRequestDynamicTests.*InferUpperBoundNetworkAfterIOTensorsReshaping.*)",
             R"(.*(Auto|Multi).*Behavior.*IncorrectConfigTests.*CanNotLoadNetworkWithIncorrectConfig.*)",
-            // TODO: until issue is xxx-59670 is resolved
-            R"(.*Gather8LayerTest.*)",
             // Not implemented yet:
             R"(.*Behavior.*ExecutableNetworkBaseTest.*canSetConfigToExecNet.*)",
             R"(.*Behavior.*ExecutableNetworkBaseTest.*canExport.*)",
-            R"(.*OVExecutableNetworkBaseTest.*CanSetConfigToExecNet.*)",
-            R"(.*OVExecutableNetworkBaseTest.*CanSetConfigToExecNetAndCheckConfigAndCheck.*)",
+            R"(.*OVCompiledModelBaseTest.*CanSetConfigToExecNet.*)",
+            R"(.*OVCompiledModelBaseTest.*CanSetConfigToExecNetAndCheckConfigAndCheck.*)",
             // TODO: Issue 67408
             R"(.*smoke_LSTMSequenceCommonClip.*LSTMSequenceTest.*CompareWithRefs.*)",
             // Expected behavior. GPU plugin doesn't support i64 for eltwise power operation.
@@ -118,7 +111,7 @@ std::vector<std::string> disabledTestPatterns() {
             R"(.*smoke_select_CompareWithRefsNumpy_dynamic_range.*)",
             R"(.*CachingSupportCase.*LoadNetworkCacheTestBase.*CompareWithRefImpl.*)",
 #if defined(_WIN32) || defined(_WIN64)
-            R"(.*Auto_KernelCachingSupportCase.*CanCreateCacheDirAndDumpBinariesUnicodePath.*)",
+            R"(.*KernelCachingSupportCase.*CanCreateCacheDirAndDumpBinariesUnicodePath.*)",
 #endif
             R"(.*CachingSupportCase.*GPU.*CompileModelCacheTestBase.*CompareWithRefImpl.*)",
             // Currently 1D convolution has an issue
@@ -128,5 +121,11 @@ std::vector<std::string> disabledTestPatterns() {
 
             // Looks like the test is targeting CPU plugin and doesn't respect that execution graph may vary from plugin to plugin
             R"(.*ExecGraphSerializationTest.*)",
+
+            // TODO: support getconfig in auto/multi CVS-104942
+            // TODO: move auto/multi cases to dedicated unit tests
+            R"(.*(Auto|Multi).*SetPropLoadNetWorkGetPropTests.*)",
+            // unsupported metrics
+            R"(.*nightly_MultiHeteroAutoBatchOVGetMetricPropsTest.*OVGetMetricPropsTest.*(AVAILABLE_DEVICES|DEVICE_UUID|OPTIMIZATION_CAPABILITIES|MAX_BATCH_SIZE|DEVICE_GOPS|DEVICE_GOPS|RANGE_FOR_ASYNC_INFER_REQUESTS|RANGE_FOR_STREAMS).*)",
     };
 }

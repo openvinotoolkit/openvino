@@ -10,10 +10,9 @@ try:
     import openvino_telemetry as tm
 except ImportError:
     import openvino.tools.mo.utils.telemetry_stub as tm
-
+from openvino.tools.mo.utils.get_ov_update_message import get_compression_message
 from openvino.tools.mo.convert_impl import _convert
 from openvino.tools.mo.pipeline.common import get_ir_version
-from openvino.tools.mo.utils.cli_parser import get_model_name_from_args
 from openvino.tools.mo.utils.logger import init_logger
 from openvino.tools.mo.utils.error import Error, FrameworkError
 import traceback
@@ -24,7 +23,6 @@ from openvino.tools.mo.utils.guess_framework import deduce_legacy_frontend_by_na
 
 # pylint: disable=no-name-in-module,import-error
 from openvino.frontend import FrontEndManager
-from openvino._offline_transformations import generate_mapping_file
 from openvino.runtime import serialize
 
 
@@ -38,13 +36,17 @@ def main(cli_parser: argparse.ArgumentParser, framework=None):
     try:
         ngraph_function, argv = _convert(cli_parser, framework, {})
         is_tf, _, _, _, _ = deduce_legacy_frontend_by_namespace(argv)
+        if 'compress_to_fp16' in argv and argv.compress_to_fp16:
+            print(get_compression_message())
+
         ov_update_message = get_ov_update_message()
         ov_api20_message = get_ov_api20_message()
         if ov_update_message is not None:
             print(ov_update_message)
         if ov_api20_message is not None and ngraph_function is not None:
             print(ov_api20_message)
-        if not argv.use_legacy_frontend and is_tf:
+        is_fallback = getattr(argv, 'is_fallback', False)
+        if not argv.use_legacy_frontend and is_tf and not is_fallback:
             # now TF FE is default frontend for TensorFlow models conversion
             print(get_tf_fe_message())
 
@@ -80,11 +82,6 @@ def main(cli_parser: argparse.ArgumentParser, framework=None):
 
     serialize(ngraph_function, model_path.encode('utf-8'), model_path.replace('.xml', '.bin').encode('utf-8'))
 
-    # generate .mapping file
-    path_to_mapping = model_path_no_ext + ".mapping"
-    extract_names = argv.framework in ['tf', 'mxnet', 'kaldi']
-    generate_mapping_file(ngraph_function, path_to_mapping, extract_names)
-
     print('[ SUCCESS ] Generated IR version {} model.'.format(get_ir_version(argv)))
     print('[ SUCCESS ] XML file: {}'.format(model_path))
     print('[ SUCCESS ] BIN file: {}'.format(model_path.replace('.xml', '.bin')))
@@ -93,4 +90,4 @@ def main(cli_parser: argparse.ArgumentParser, framework=None):
 
 if __name__ == "__main__":
     from openvino.tools.mo.utils.cli_parser import get_all_cli_parser
-    sys.exit(main(get_all_cli_parser(FrontEndManager()), None))
+    sys.exit(main(get_all_cli_parser(), None))

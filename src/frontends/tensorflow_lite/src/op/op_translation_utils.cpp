@@ -10,7 +10,6 @@
 
 #include "openvino/core/node_vector.hpp"
 #include "openvino/frontend/tensorflow_lite/node_context.hpp"
-#include "openvino_conversions.hpp"
 #include "utils.hpp"
 
 namespace ov {
@@ -78,13 +77,21 @@ void get_activation(ov::OutputVector& output,
         output = ov::frontend::tensorflow::op::translate_relu_6_op(context);
     } else if (activation == "TANH") {
         output = ov::frontend::tensorflow::op::translate_unary_op<opset10::Tanh>(context);
+    } else if (activation == "RELU_N1_TO_1") {
+        auto clamp = std::make_shared<opset10::Clamp>(output[0], -1.0f, 1.0f);
+        clamp->set_friendly_name(context.get_name());
+        output = clamp->outputs();
+    } else if (activation == "SIGN_BIT") {
+        auto zero = std::make_shared<opset10::ConvertLike>(opset10::Constant::create(element::i32, {}, {0}), output[0]);
+        auto less = std::make_shared<opset10::Less>(output[0], zero);
+        less->set_friendly_name(context.get_name());
+        output = less->outputs();
     } else {
-        // TODO: Fused activation to support:
-        //          RELU_N1_TO_1 = 2,
-        //          SIGN_BIT = 5,
-        if (activation != "NONE") {
-            FRONT_END_THROW("Unknown Activation fused to " + node.get_decoder()->get_op_type() + ": " + activation);
-        }
+        FRONT_END_GENERAL_CHECK(activation == "NONE",
+                                "Unknown Activation fused to ",
+                                node.get_decoder()->get_op_type(),
+                                ": ",
+                                activation);
     }
     del_output_names(output);
 }
@@ -124,7 +131,7 @@ std::shared_ptr<ov::frontend::tensorflow_lite::DecoderMap> get_pool_decoder_map(
 
 OutputVector attribute_helper(const ov::frontend::tensorflow_lite::NodeContext& node,
                               const std::map<std::string, ov::Any>& attrs,
-                              ov::OutputVector (*converter)(const ov::frontend::NodeContext&),
+                              ov::frontend::CreatorFunction converter,
                               std::string new_op_type,
                               bool empty_name,
                               ov::OutputVector inputs) {
@@ -143,6 +150,23 @@ OutputVector attribute_helper(const ov::frontend::tensorflow_lite::NodeContext& 
     auto outputs = converter(context);
     del_output_names(outputs);
     return outputs;
+}
+
+OutputVector attribute_helper(const ov::frontend::tensorflow_lite::NodeContext& node,
+                              const std::map<std::string, ov::Any>& attrs,
+                              ov::frontend::CreatorFunctionNamedAndIndexed converter,
+                              std::string new_op_type,
+                              bool empty_name,
+                              ov::OutputVector inputs) {
+    return attribute_helper(
+        node,
+        attrs,
+        [&](const ov::frontend::NodeContext& ctx) {
+            return indexed_from_named(converter(ctx));
+        },
+        new_op_type,
+        empty_name,
+        inputs);
 }
 
 std::shared_ptr<DecoderFlatBuffer> get_decoder(const ov::frontend::tensorflow_lite::NodeContext& node) {

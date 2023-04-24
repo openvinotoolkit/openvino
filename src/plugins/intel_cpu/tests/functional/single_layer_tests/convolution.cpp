@@ -8,6 +8,7 @@
 #include "shared_test_classes/base/ov_subgraph.hpp"
 #include "ngraph_functions/utils/ngraph_helpers.hpp"
 #include "ngraph_functions/builders.hpp"
+#include "openvino/core/visibility.hpp"
 #include <shared_test_classes/single_layer/convolution.hpp>
 
 using namespace InferenceEngine;
@@ -144,7 +145,10 @@ protected:
                     }
 
                     std::vector<ov::Shape> secondParameterShapes;
-                    opToShapeInfer->get_input_tensor(0).set_partial_shape(targetShapes.front());
+                    if (auto parameter = dynamic_cast<ov::op::v0::Parameter*>(opToShapeInfer->get_input_node_ptr(0))) {
+                        parameter->set_partial_shape(targetShapes.front());
+                        parameter->validate_and_infer_types();
+                    }
                     opToShapeInfer->validate_and_infer_types();
                     targetShapes.push_back(opToShapeInfer->get_output_shape(0));
                 }
@@ -1627,6 +1631,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_Conv_2D_AutoPad_FP32, ConvolutionLayerCPUTest,
 
 } // namespace
 
+#if !defined(__clang__) || defined(__APPLE__)
 
 /* ============= Winograd ============= */
 namespace winograd {
@@ -1684,6 +1689,8 @@ INSTANTIATE_TEST_SUITE_P(smoke_Conv_winograd, ConvolutionLayerCPUTest,
                          ConvolutionLayerCPUTest::getTestCaseName);
 
 } // namespace winograd
+
+#endif
 
 /* ============= Large Filter Test ============= */
 namespace {

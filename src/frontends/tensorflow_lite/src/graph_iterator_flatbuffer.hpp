@@ -6,7 +6,6 @@
 
 #include <fstream>
 
-#include "decoder_flatbuffer.h"
 #include "openvino/frontend/exception.hpp"
 #include "openvino/util/file_util.hpp"
 #include "schema_generated.h"
@@ -24,8 +23,9 @@ struct TensorInfo {
 
 class GraphIteratorFlatBuffer {
     size_t node_index = 0;
+    std::vector<uint8_t> m_data;
     std::vector<const tflite::Operator*> m_nodes;
-    std::shared_ptr<tflite::Model> m_model;
+    const tflite::Model* m_model;
 
 public:
     explicit GraphIteratorFlatBuffer(const std::string& path);

@@ -21,11 +21,15 @@
 #include <ie_ngraph_utils.hpp>
 
 #include <snippets/op/subgraph.hpp>
-#include "emitters/cpu_generator.hpp"
+#include "snippets/pass/matmul_to_brgemm.hpp"
 #include "utils/cpu_utils.hpp"
-#include "snippets_transformations/fuse_load_store_and_convert.hpp"
-#include "snippets_transformations/mul_add_to_fma.hpp"
-#include "ngraph_transformations/convert_to_swish_cpu.hpp"
+#include "emitters/x64/cpu_generator.hpp"
+#include "transformations/snippets/x64/pass/fuse_load_store_and_convert.hpp"
+#include "transformations/snippets/x64/pass/mul_add_to_fma.hpp"
+#include "transformations/snippets/x64/pass/brgemm_to_brgemm_cpu.hpp"
+#include "transformations/snippets/x64/pass/remove_converts.hpp"
+#include "transformations/snippets/x64/pass/enforce_precision.hpp"
+#include "transformations/cpu_opset/common/pass/convert_to_swish_cpu.hpp"
 
 using namespace InferenceEngine;
 using namespace dnnl::impl::utils;
@@ -36,10 +40,41 @@ using namespace Xbyak;
 namespace ov {
 namespace intel_cpu {
 namespace node {
+namespace {
 
+/* This class implementation is a temporal WA
+   TODO: revise the implementation to remove the node reference*/
+class SnippetShapeInfer : public ShapeInferEmptyPads {
+public:
+    SnippetShapeInfer(Snippet* node) : m_node(node) {}
+    Result infer(
+        const std::vector<std::reference_wrapper<const VectorDims>>& input_shapes,
+        const std::unordered_map<size_t, MemoryPtr>& data_dependency) override {
+        return {m_node->shapeInfer(), ShapeInferStatus::success};
+    }
+
+    port_mask_t get_port_mask() const override {
+        return EMPTY_PORT_MASK;
+    }
+
+private:
+    Snippet* m_node;
+};
+
+class SnippetShapeInferFactory : public ShapeInferFactory {
+public:
+    SnippetShapeInferFactory(Snippet* node) : m_node(node) {}
+    ShapeInferPtr makeShapeInfer() const override {
+        return std::make_shared<SnippetShapeInfer>(m_node);
+    }
+
+private:
+    Snippet* m_node;
+};
+} // namespace
 
 Snippet::Snippet(const std::shared_ptr<ngraph::Node>& op, const GraphContext::CPtr context)
-        : Node(op, context, NgraphShapeInferFactory(op, EMPTY_PORT_MASK)) {
+        : Node(op, context, SnippetShapeInferFactory(this)) {
     host_isa = dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core) ?
         dnnl::impl::cpu::x64::avx512_core : dnnl::impl::cpu::x64::avx2;
     original_snippet = ov::as_type_ptr<ngraph::snippets::op::Subgraph>(op);
@@ -87,11 +122,11 @@ void Snippet::initSupportedPrimitiveDescriptors() {
     const size_t ndims = outputShapes[0].getRank();
     // Domain sensitive operations support only Planar layout
     const bool isOnlyPlanarApplicable = snippet->has_domain_sensitive_ops();
-    const bool isChannelsFirstApplicable = dnnl::impl::utils::one_of(ndims, 1, 2, 3, 4, 5) && dimRanksAreEqual && !isOnlyPlanarApplicable;
+    const bool isChannelsFirstApplicable = dnnl::impl::utils::one_of(ndims, 1u, 2u, 3u, 4u, 5u) && dimRanksAreEqual && !isOnlyPlanarApplicable;
     // Todo: Snippets currently don't support per-channel broadcasting of Blocked descriptors because
     //  canonicalization can't distinguish between <N, C, H, W, c> and <N, C, D, H, W> cases.
     //  See snippets::op::Subgraph::canonicalize for details.
-    bool isBlockedApplicable = dnnl::impl::utils::one_of(ndims,  4, 5) && dimRanksAreEqual && !isOnlyPlanarApplicable;
+    bool isBlockedApplicable = dnnl::impl::utils::one_of(ndims,  4u, 5u) && dimRanksAreEqual && !isOnlyPlanarApplicable;
 
     for (const auto& inShape : inputShapes) {
         if (isDynamic && inShape.getRank() != 1)
@@ -147,7 +182,12 @@ void Snippet::initSupportedPrimitiveDescriptors() {
         config.dynBatchSupport = false;
         config.inConfs.resize(inputShapes.size());
         for (size_t i = 0; i < inputShapes.size(); i++) {
-            auto precision = getOriginalInputPrecisionAtPort(i);
+            const auto originalInputPrecision = getOriginalInputPrecisionAtPort(i);
+            const auto precision = ((originalInputPrecision == InferenceEngine::Precision::FP32) &&
+                                     context->getConfig().enforceBF16 &&
+                                     snippet->has_domain_sensitive_ops()) ?
+                static_cast<InferenceEngine::Precision>(InferenceEngine::Precision::BF16) :
+                originalInputPrecision;
             if (supportedPrecisions.count(precision) == 0)
                 IE_THROW() << "Subgraph node with name `" << getName() << "` doesn't support " << precision << " precision.";
 
@@ -349,7 +389,7 @@ void Snippet::createPrimitive() {
     buffer_scratchpad.resize(buffer_scratchpad_size * parallel_get_max_threads(), 0);
 }
 
-std::vector<VectorDims> Snippet::shapeInfer() const {
+std::vector<VectorDims> Snippet::shapeInfer() {
     // todo: it's very strange that we don't have broadcast_merge_into for cpu shapes
     auto broadcast_merge = [](VectorDims& dst, const VectorDims& src){
         // Ranks are both static.
@@ -359,7 +399,7 @@ std::vector<VectorDims> Snippet::shapeInfer() const {
         dst.insert(dst.begin(), new_rank - dst_rank, 1);
         std::vector<Dimension> dims(new_rank);
         bool success = true;
-        for (int64_t i = 0; i < new_rank; i++) {
+        for (size_t i = 0; i < new_rank; i++) {
             auto dsti = i < (new_rank - dst_rank) ? 1 : dst[i - (new_rank - dst_rank)];
             auto srci = i < (new_rank - src_rank) ? 1 : src[i - (new_rank - src_rank)];
             if (dsti != srci && srci != Shape::UNDEFINED_DIM) {
@@ -500,28 +540,44 @@ bool Snippet::created() const {
 }
 
 void Snippet::generate(const jit_snippets_compile_args* jcp) {
-    ov::pass::Manager optManager;
-    optManager.register_pass<ov::intel_cpu::pass::FuseLoadConvert>();
-    optManager.register_pass<ov::intel_cpu::pass::FuseStoreConvert>();
-    optManager.register_pass<ConvertToSwishCPU>();
-    optManager.register_pass<ov::intel_cpu::pass::MulAddToFMA>();
+    ov::pass::Manager pre_dialect;
+    pre_dialect.register_pass<ConvertToSwishCPU>();
+    if (context->getConfig().enforceBF16 && snippet->has_domain_sensitive_ops()) {
+        // enforce BF16 precisions to supported operations
+        // MatMul has to be decomposed to Brgemm operations before enforcement
+        // Note, MatMul decomposition will be ran later again for case if BF16 enforcement is not happened
+        pre_dialect.register_pass<ngraph::snippets::pass::MatMulToBrgemm>();
+        pre_dialect.register_pass<pass::EnforcePrecision>(element::f32, element::bf16);
+    }
 
+    ov::pass::Manager post_dialect;
+    post_dialect.register_pass<ov::intel_cpu::pass::BrgemmToBrgemmCPU>();
+
+    ov::pass::Manager post_precision;
+    post_precision.register_pass<ov::intel_cpu::pass::RemoveConverts>();
+    post_precision.register_pass<ov::intel_cpu::pass::FuseLoadConvert>();
+    post_precision.register_pass<ov::intel_cpu::pass::FuseStoreConvert>();
     // LoadConvert uses Load emitter that support conversion from any type to only f32
-    optManager.get_pass_config()->set_callback<ov::intel_cpu::pass::FuseLoadConvert>(
+    post_precision.get_pass_config()->set_callback<ov::intel_cpu::pass::FuseLoadConvert>(
             [](const std::shared_ptr<const ov::Node>& n) -> bool {
                 if (const auto& convert = std::dynamic_pointer_cast<const ov::op::v0::Convert>(n))
                     return convert->get_destination_type() != ov::element::f32;
                 return true;
             });
-
     // StoreConvert uses Store emitter that support conversion from only f32 to any types
-    optManager.get_pass_config()->set_callback<ov::intel_cpu::pass::FuseStoreConvert>(
+    post_precision.get_pass_config()->set_callback<ov::intel_cpu::pass::FuseStoreConvert>(
             [](const std::shared_ptr<const ov::Node>& n) -> bool {
                 if (const auto& convert = std::dynamic_pointer_cast<const ov::op::v0::Convert>(n))
                     return convert->get_input_element_type(0) != ov::element::f32;
                 return true;
             });
-    schedule = snippet->generate(optManager, reinterpret_cast<const void*>(jcp));
+    post_precision.register_pass<ov::intel_cpu::pass::MulAddToFMA>();
+
+    schedule = snippet->generate(
+        pre_dialect,
+        post_dialect,
+        post_precision,
+        reinterpret_cast<const void*>(jcp));
 }
 
 void Snippet::update_ptrs(jit_snippets_call_args& call_args) {

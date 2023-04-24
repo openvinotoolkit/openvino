@@ -147,6 +147,10 @@ bool Output<Node>::operator>=(const Output& other) const {
     return !(*this < other);
 }
 
+Output<Node>::operator Output<const Node>() const {
+    return Output<const Node>(get_node(), get_index());
+}
+
 Output<const Node>::Output(const Node* node, size_t index) : m_index(index) {
     OPENVINO_ASSERT(node, "Cannot create ov::Output<const ov::Node> from nullptr!");
     m_node = node->shared_from_this();

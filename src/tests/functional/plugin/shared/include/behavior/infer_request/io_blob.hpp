@@ -122,10 +122,14 @@ TEST_P(InferRequestIOBBlobTest, failToSetInputWithIncorrectSizes) {
     // Create InferRequest
     InferenceEngine::InferRequest req;
     ASSERT_NO_THROW(req = execNet.CreateInferRequest());
+    auto td = cnnNet.getInputsInfo().begin()->second->getTensorDesc();
+    auto dims = td.getDims();
+    dims[0] *= 2;
+    td.reshape(dims);
+
     InferenceEngine::Blob::Ptr blob =
-            FuncTestUtils::createAndFillBlob(cnnNet.getInputsInfo().begin()->second->getTensorDesc());
+            FuncTestUtils::createAndFillBlob(td);
     blob->allocate();
-    blob->getTensorDesc().getDims()[0] *= 2;
     ASSERT_THROW(req.SetBlob(cnnNet.getInputsInfo().begin()->first, blob), InferenceEngine::Exception);
 }
 
@@ -133,10 +137,14 @@ TEST_P(InferRequestIOBBlobTest, failToSetOutputWithIncorrectSizes) {
     // Create InferRequest
     InferenceEngine::InferRequest req;
     ASSERT_NO_THROW(req = execNet.CreateInferRequest());
+    auto td = cnnNet.getOutputsInfo().begin()->second->getTensorDesc();
+    auto dims = td.getDims();
+    dims[0] *= 2;
+    td.reshape(dims);
+
     InferenceEngine::Blob::Ptr blob =
-            FuncTestUtils::createAndFillBlob(cnnNet.getOutputsInfo().begin()->second->getTensorDesc());
+            FuncTestUtils::createAndFillBlob(td);
     blob->allocate();
-    blob->getTensorDesc().getDims()[0] *= 2;
     ASSERT_THROW(req.SetBlob(cnnNet.getOutputsInfo().begin()->first, blob), InferenceEngine::Exception);
 }
 

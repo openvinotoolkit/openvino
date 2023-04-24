@@ -19,12 +19,8 @@
 #include "log/log.hpp"
 #include "ops/util/util.hpp"
 
-namespace ov {
-namespace intel_gna {
-using namespace common;
-namespace limitations {
-namespace {
-std::ostream& operator<<(std::ostream& os, const std::set<ov::element::Type>& t) {
+namespace std {
+inline std::ostream& operator<<(std::ostream& os, const std::set<ov::element::Type>& t) {
     for (auto it = t.begin(); it != t.end(); ++it) {
         if (it != t.begin()) {
             os << ", " << *it;
@@ -34,11 +30,30 @@ std::ostream& operator<<(std::ostream& os, const std::set<ov::element::Type>& t)
     }
     return os;
 }
-}  // namespace
+}  // namespace std
+
+namespace ov {
+namespace intel_gna {
+using namespace target;
+namespace limitations {
 
 const std::set<ov::element::Type> SupportedElementTypes::supported_parameter_types = {ov::element::u8,
                                                                                       ov::element::i16,
                                                                                       ov::element::f32};
+
+size_t getMemoryAlignmentBytes(target::DeviceVersion target) {
+    static const std::unordered_map<target::DeviceVersion, size_t> mem_alignment_map{
+        {target::DeviceVersion::GNA1_0, 64},
+        {target::DeviceVersion::GNA2_0, 64},
+        {target::DeviceVersion::GNA3_0, 64},
+        {target::DeviceVersion::GNA3_1, 64},
+        {target::DeviceVersion::GNA3_5, 64},
+        {target::DeviceVersion::GNAEmbedded3_5, 64},
+        {target::DeviceVersion::GNA3_6, 16},
+        {target::DeviceVersion::GNA4_0, 16}};
+
+    return common::GetValueForKey<target::DeviceVersion, size_t>(target, mem_alignment_map);
+}
 
 bool SupportedElementTypes::is_parameter_type_supported(ov::element::Type elem_type, bool is_exception_allowed) {
     if (supported_parameter_types.count(elem_type) == 0) {
@@ -71,7 +86,7 @@ bool SupportedElementTypes::is_constant_type_supported(ov::element::Type elem_ty
 }
 
 bool is_conv_supported(const std::shared_ptr<ngraph::op::ConvolutionIE>& conv_ie,
-                       const ov::intel_gna::common::DeviceVersion& effective_compile_target,
+                       const DeviceVersion& effective_compile_target,
                        const InferenceEngine::Precision gna_precision,
                        bool is_exception_allowed) {
     OPENVINO_ASSERT(conv_ie, "ConvolutionIE node is empty!");
@@ -129,7 +144,7 @@ bool is_conv_supported(const std::shared_ptr<ngraph::op::ConvolutionIE>& conv_ie
 }
 
 bool is_pooling_supported(const std::shared_ptr<ngraph::opset7::MaxPool> max_pool,
-                          const ov::intel_gna::common::DeviceVersion& effective_compile_target,
+                          const DeviceVersion& effective_compile_target,
                           bool is_exception_allowed) {
     OPENVINO_ASSERT(max_pool, "MaxPool node is empty!");
     auto kernels = max_pool->get_kernel();
@@ -172,7 +187,7 @@ bool is_split_supported(const std::shared_ptr<ov::Node>& node, bool is_exception
 }
 
 bool is_op_supported(const std::shared_ptr<ov::Node>& node,
-                     const ov::intel_gna::common::DeviceVersion& effective_compile_target,
+                     const DeviceVersion& effective_compile_target,
                      const InferenceEngine::Precision gna_precision,
                      bool is_exception_allowed) {
     if (ov::op::util::is_parameter(node)) {
@@ -210,7 +225,7 @@ bool is_op_supported(const std::shared_ptr<ov::Node>& node,
 }
 
 void check_all_ops_supported(const std::shared_ptr<ov::Model>& model,
-                             const ov::intel_gna::common::DeviceVersion& effective_compile_target,
+                             const DeviceVersion& effective_compile_target,
                              const InferenceEngine::Precision gna_precision) {
     std::stringstream error;
     // Walk through the transformed model
@@ -513,6 +528,13 @@ std::string Validator_35::ValidateCnn(const Validator_35::CnnLimits& limits,
     error += kerneHWlLimit.GetErrorOrEmpty(kernelH, kernelW);
     auto& strideHWLimit = (inPrecision == OvGnaTypeInt8) ? limits.kStrideHWLimit1B : limits.kStrideHWLimit2B;
     error += strideHWLimit.GetErrorOrEmpty(strideH, strideW);
+
+    const RangeLimit kKernelStrideHLimit{1, kernelH, "kernel stride height (must be up to kernel height)"};
+    const RangeLimit kKernelStrideWLimit{1, kernelW, "kernel stride width (must be up to kernel width)"};
+
+    error += kKernelStrideHLimit.GetErrorOrEmpty(strideH);
+    error += kKernelStrideWLimit.GetErrorOrEmpty(strideW);
+
     error += limits.kDilationLimit.GetErrorOrEmpty(dilationH, dilationW);
     return error;
 }
@@ -584,6 +606,12 @@ std::string Validator_35::ValidatePooling(const CnnLimits& limits,
     auto error = limits.kPoolingWindowHWLimit.GetErrorOrEmpty(windowH, windowW);
     error += limits.kPoolingStrideHWLimit.GetErrorOrEmpty(strideH, strideW);
 
+    const RangeLimit poolingStrideHLimit{1, windowH, "pooling stride height (must be up to pooling window height)"};
+    const RangeLimit poolingStrideWLimit{1, windowW, "pooling stride width (must be up to pooling window width)"};
+
+    error += poolingStrideHLimit.GetErrorOrEmpty(strideH);
+    error += poolingStrideWLimit.GetErrorOrEmpty(strideW);
+
     return error;
 }
 
@@ -627,13 +655,15 @@ bool Validator_35::ShouldUseOnlyConv2DGnaIface() const {
     return true;
 }
 
-std::unique_ptr<AbstractValidator> AbstractValidator::Create(const common::DeviceVersion& target) {
+std::unique_ptr<AbstractValidator> AbstractValidator::Create(const DeviceVersion& target) {
     switch (target) {
     case DeviceVersion::GNA3_0:
-    case DeviceVersion::GNAEmbedded3_1:
+    case DeviceVersion::GNA3_1:
         return tools::make_unique<Validator_30>();
     case DeviceVersion::GNA3_5:
     case DeviceVersion::GNAEmbedded3_5:
+    case DeviceVersion::GNA3_6:
+    case DeviceVersion::GNA4_0:
         return tools::make_unique<Validator_35>();
     default:
         return nullptr;
@@ -659,8 +689,8 @@ bool AbstractValidator::ValidationSuccesful(const bool throwOnError,
 }
 
 bool UseOnly16BitConvolutionWeights(const DeviceVersion& compile_target) {
-    return (compile_target == common::DeviceVersion::GNA2_0 || compile_target == common::DeviceVersion::GNA3_0) ||
-           compile_target == common::DeviceVersion::GNAEmbedded3_1;
+    return compile_target == DeviceVersion::GNA1_0 || compile_target == DeviceVersion::GNA2_0 ||
+           compile_target == DeviceVersion::GNA3_0 || compile_target == DeviceVersion::GNA3_1;
 }
 
 }  // namespace cnn2d
@@ -786,7 +816,10 @@ static bool ValidateConcatAxis(const InferenceEngine::CNNLayerPtr layer, std::st
         if (unsupported_concat_axis != end_dim) {
             auto dims = concat_layer->insData[0].lock()->getDims();
             std::ostringstream in_dims_oss;
-            std::copy(dims.begin(), dims.end(), std::ostream_iterator<size_t>(in_dims_oss, ","));
+            std::copy(dims.begin(), std::prev(dims.end()), std::ostream_iterator<size_t>(in_dims_oss, ","));
+            if (!dims.empty()) {
+                in_dims_oss << dims.back();
+            }
             errMessage = "[ WARNING ] Topology with layer: " + layer->name + ", type: " + layer->type +
                          ", and concatenation axis(" + std::to_string(concat_layer->_axis) + ") for input dimensions(" +
                          in_dims_oss.str() + ") not supported\n";
@@ -805,7 +838,8 @@ bool ValidateConvConcatAxis(const InferenceEngine::ConcatLayer* concat_layer) {
 
         // Skipping here all layers which would disappear or otherwise fuse with convolution in the final GNA graph
         auto isFusableWithConv = [](InferenceEngine::CNNLayerPtr ptr) {
-            return (LayerInfo(ptr).isFusableWithConv() || LayerInfo(ptr).isNonFunctional());
+            return (LayerInfo(ptr).isFusableWithConv() || LayerInfo(ptr).isNonFunctional() ||
+                    LayerInfo(ptr).isConcat());
         };
 
         auto in_dims = concat_layer->insData[0].lock()->getDims();
@@ -894,7 +928,7 @@ bool AreLayersSupported(InferenceEngine::CNNNetwork& network, std::string& errMe
                 }
             } else if (info.isConcat()) {
                 if (!ValidateConcatAxis(layer, errMessage)) {
-                    log::warning() << errMessage;
+                    THROW_GNA_EXCEPTION << errMessage;
                 }
             }
         },

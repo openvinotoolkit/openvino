@@ -65,11 +65,11 @@ jobs:
   steps:
   - task: UsePythonVersion@0
     inputs:
-      versionSpec: '3.10'
+      versionSpec: '3.11.2'
       addToPath: true
       architecture: 'x64'
       githubToken: $(auth_token)
-    displayName: Setup Python 3.10
+    displayName: Setup Python 3.11
     name: setupPython
 
   - script: |
@@ -93,7 +93,6 @@ jobs:
 
   - checkout: self
     clean: 'true'
-    fetchDepth: '1'
     submodules: 'true'
     path: openvino
 
@@ -107,7 +106,6 @@ jobs:
   - checkout: testdata
     clean: 'true'
     lfs: 'true'
-    fetchDepth: '1'
     path: testdata
 
   - script: |

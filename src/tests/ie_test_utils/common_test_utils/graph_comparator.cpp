@@ -34,11 +34,9 @@ bool is_type_relaxed(const std::string& type) {
 }
 
 bool compare_type_info(const ngraph::DiscreteTypeInfo& info1, const ngraph::DiscreteTypeInfo& info2) {
-    OPENVINO_SUPPRESS_DEPRECATED_START
-    if (!is_type_relaxed(info1.name) && !is_type_relaxed(info2.name) && (info1.version != info2.version)) {
+    if (!is_type_relaxed(info1.name) && !is_type_relaxed(info2.name) && (std::strcmp(info1.version_id, info2.version_id) != 0)) {
         return false;
     }
-            OPENVINO_SUPPRESS_DEPRECATED_END
 
     const std::string info1Name =
             is_type_relaxed(info1.name) && (info1.parent != nullptr) ? info1.parent->name : info1.name;
@@ -89,9 +87,7 @@ bool less_by_parent_name(const std::shared_ptr<ngraph::op::v0::Result>& l,
 }
 
 std::string typeInfoToStr(const ngraph::Node::type_info_t& typeInfo) {
-    OPENVINO_SUPPRESS_DEPRECATED_START
-    return std::string(typeInfo.name) + "/" + to_str(typeInfo.version);
-    OPENVINO_SUPPRESS_DEPRECATED_END
+    return std::string(typeInfo.name) + "/" + std::string(typeInfo.version_id);
 }
 
 std::string tensor_names(const ngraph::descriptor::Tensor& t) {
@@ -111,9 +107,7 @@ namespace detail {
 
 template <typename Ptr>
 Ptr not_null(Ptr&& p) {
-    if (!p) {
-        throw ov::Exception("empty pointer");
-    }
+    OPENVINO_ASSERT(p, "empty pointer");
     return std::forward<Ptr>(p);
 }
 
@@ -161,7 +155,7 @@ public:
 
         std::stringstream ss;
         ss << "Type is not supported: [" << lhs->get_type_info().name << "]";
-        throw ov::Exception(ss.str());
+        OPENVINO_THROW(ss.str());
     }
 
     bool parameter_and_input_match(size_t num_iterations) const {
@@ -202,7 +196,7 @@ public:
 
         std::stringstream ss;
         ss << "Type is not supported: [" << m_description->get_type_info().name << "]";
-        throw ov::Exception(ss.str());
+        OPENVINO_THROW(ss.str());
     }
 
     static bool equal_parameters(const Parameter* lhs, const Parameter* rhs) {
@@ -257,7 +251,7 @@ public:
 
         std::stringstream ss;
         ss << "Type is not supported: [" << lhs->get_type_info().name << "]";
-        throw ov::Exception(ss.str());
+        OPENVINO_THROW(ss.str());
     }
 
     bool result_and_output_match(size_t num_iterations) const {
@@ -292,7 +286,7 @@ public:
 
         std::stringstream ss;
         ss << "Type is not supported: [" << m_description->get_type_info().name << "]";
-        throw ov::Exception(ss.str());
+        OPENVINO_THROW(ss.str());
     }
 
     static bool equal_results(const Result* lhs, const Result* rhs) {
@@ -750,6 +744,7 @@ void Comparator::compare_inputs(ngraph::Node* node1, ngraph::Node* node2, std::o
             auto const2 = ngraph::as_type_ptr<Constant>(node2->get_input_node_shared_ptr(i));
             if (const1 && const2 && !equal_value(const1, const2)) {
                 err_log << "Different Constant values detected\n"
+                        << const1->get_friendly_name() << " & " << const2->get_friendly_name() << "\n"
                         << node1->description() << " Input(" << i << ") and " << node2->description() << " Input(" << i
                         << ")" << std::endl;
             }
@@ -862,7 +857,7 @@ void check_rt_info(const std::shared_ptr<ngraph::Function>& f) {
 
     auto err_msg = err_log.str();
     if (!err_msg.empty()) {
-        throw ngraph::ngraph_error(err_msg);
+        OPENVINO_THROW(err_msg);
     }
 }
 

@@ -56,18 +56,25 @@ def _(
     is_shared: bool = False,
     key: Optional[ValidKeys] = None,
 ) -> Tensor:
-    # Edge-case for numpy arrays if shape is "empty",
-    # assume this is a scalar value - always copy
-    if not value.shape:
-        return Tensor(np.ndarray([], value.dtype, np.array(value)))
-    tensor_type = get_request_tensor(request, key).get_element_type()
+    tensor = get_request_tensor(request, key)
+    tensor_type = tensor.get_element_type()
     tensor_dtype = tensor_type.to_dtype()
-    # WA for FP16-->BF16 edge-case - always copy
+    if value.ndim == 0:
+        tensor_shape = tuple(tensor.shape)
+        if tensor_dtype == value.dtype and tensor_shape == value.shape:
+            return Tensor(value, shared_memory=is_shared)
+        else:
+            return Tensor(value.astype(tensor_dtype).reshape(tensor_shape), shared_memory=False)
+    # WA for FP16-->BF16 edge-case, always copy.
     if tensor_type == Type.bf16:
         tensor = Tensor(tensor_type, value.shape)
         tensor.data[:] = value.view(tensor_dtype)
         return tensor
-    return Tensor(value.astype(tensor_dtype) if tensor_dtype != value.dtype else value, shared_memory=is_shared)
+    # If types are mismatched, convert and always copy.
+    if tensor_dtype != value.dtype:
+        return Tensor(value.astype(tensor_dtype), shared_memory=False)
+    # Otherwise, use mode defined in the call.
+    return Tensor(value, shared_memory=is_shared)
 
 
 @value_to_tensor.register(np.number)
@@ -75,11 +82,18 @@ def _(
 @value_to_tensor.register(float)
 def _(
     value: ScalarTypes,
-    request: Optional[_InferRequestWrapper] = None,
+    request: _InferRequestWrapper,
     is_shared: bool = False,
     key: Optional[ValidKeys] = None,
 ) -> Tensor:
-    return Tensor(np.ndarray([], type(value), np.array(value)))
+    # np.number/int/float edge-case, copy will occur in both scenarios.
+    tensor_type = get_request_tensor(request, key).get_element_type()
+    tensor_dtype = tensor_type.to_dtype()
+    tmp = np.array(value)
+    # If types are mismatched, convert.
+    if tensor_dtype != tmp.dtype:
+        return Tensor(tmp.astype(tensor_dtype), shared_memory=False)
+    return Tensor(tmp, shared_memory=False)
 
 
 def to_c_style(value: Any, is_shared: bool = False) -> Any:
@@ -87,7 +101,6 @@ def to_c_style(value: Any, is_shared: bool = False) -> Any:
         if hasattr(value, "__array__"):
             return to_c_style(np.array(value, copy=False)) if is_shared else np.array(value, copy=True)
         return value
-    # Check C-style if not convert data (or raise error?)
     return value if value.flags["C_CONTIGUOUS"] else np.ascontiguousarray(value)
 
 
@@ -212,7 +225,7 @@ def update_tensor(
     key: Optional[ValidKeys] = None,
 ) -> None:
     if hasattr(inputs, "__array__"):
-        update_tensor(normalize_arrays(inputs, is_shared=False), request, key=None)
+        update_tensor(normalize_arrays(inputs, is_shared=False), request, key)
         return None
     raise TypeError(f"Incompatible inputs of type: {type(inputs)} under {key} key!")
 
@@ -223,20 +236,20 @@ def _(
     request: _InferRequestWrapper,
     key: Optional[ValidKeys] = None,
 ) -> None:
-    # If shape is "empty", assume this is a scalar value
-    if not inputs.shape:
-        set_request_tensor(
-            request,
-            value_to_tensor(inputs, request=request, is_shared=False),
-            key,
-        )
-    else:
+    if inputs.ndim != 0:
         tensor = get_request_tensor(request, key)
         # Update shape if there is a mismatch
-        if tensor.shape != inputs.shape:
+        if tuple(tensor.shape) != inputs.shape:
             tensor.shape = inputs.shape
         # When copying, type should be up/down-casted automatically.
         tensor.data[:] = inputs[:]
+    else:
+        # If shape is "empty", assume this is a scalar value
+        set_request_tensor(
+            request,
+            value_to_tensor(inputs, request=request, is_shared=False, key=key),
+            key,
+        )
 
 
 @update_tensor.register(np.number)  # type: ignore
@@ -249,7 +262,7 @@ def _(
 ) -> None:
     set_request_tensor(
         request,
-        value_to_tensor(inputs, is_shared=False),
+        value_to_tensor(inputs, request=request, is_shared=False, key=key),
         key,
     )
 
@@ -320,7 +333,7 @@ def _(
     inputs: Union[Tensor, ScalarTypes],
     request: _InferRequestWrapper,
 ) -> Tensor:
-    return value_to_tensor(inputs, is_shared=False)
+    return value_to_tensor(inputs, request=request, is_shared=False)
 ###
 # End of "copied" dispatcher methods.
 ###

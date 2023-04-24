@@ -116,7 +116,7 @@ using roi_pooling_test_params = std::tuple<roi_pooling_test_inputs<T>,
 template <class T>
 struct roi_pooling_gpu_test : public testing::TestWithParam<roi_pooling_test_params<T>> {
 public:
-    void test() {
+    void test(bool is_caching_test) {
         format::type fmt;
         pooling_mode mode;
         bool position_sensitive;
@@ -185,11 +185,12 @@ public:
 
         topology.add(reorder("reordered_roi_pooling", input_info("roi_pooling"), plane_format, type_to_data_type<T>::value));
 
-        network network(engine, topology);
+        cldnn::network::ptr network = get_network(engine, topology, get_test_default_config(engine), get_test_stream_ptr(), is_caching_test);
+
         for (auto& input : inputs) {
-            network.set_input_data(input.first, input.second);
+            network->set_input_data(input.first, input.second);
         }
-        const auto outputs = network.execute();
+        const auto outputs = network->execute();
 
         ASSERT_EQ(outputs.size(), size_t(1));
         ASSERT_EQ(outputs.begin()->first, "reordered_roi_pooling");
@@ -236,7 +237,11 @@ public:
 using roi_pooling_gpu_test_float = roi_pooling_gpu_test<float>;
 
 TEST_P(roi_pooling_gpu_test_float, test) {
-    ASSERT_NO_FATAL_FAILURE(test());
+    ASSERT_NO_FATAL_FAILURE(test(false));
+}
+
+TEST_P(roi_pooling_gpu_test_float, test_cached) {
+    ASSERT_NO_FATAL_FAILURE(test(true));
 }
 
 const std::vector<roi_pooling_test_inputs<float>> roi_pooling_max_inputs = {

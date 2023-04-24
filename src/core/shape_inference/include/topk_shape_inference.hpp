@@ -11,27 +11,26 @@
 
 namespace ov {
 namespace op {
-namespace v1 {
 
+namespace util {
 // Helper to get correct K from tensor as shape.
 template <class T>
 struct GetK {
-    const TopK* m_op;
+    const util::TopKBase* m_op;
 
-    GetK(const TopK* op) : m_op{op} {}
+    GetK(const util::TopKBase* op) : m_op{op} {}
 
     template <class K>
     T operator()(const K k) const {
         NODE_VALIDATION_CHECK(m_op,
                               cmp::ge(k, 0) && cmp::le(k, std::numeric_limits<T>::max()),
-                              "The value of 'K' must be more or equal zero.",
+                              "The value of 'K' must be greater or equal to zero.",
                               " (got ",
                               k,
                               ").");
         return static_cast<T>(k);
     }
 };
-
 /**
  * \brief TopK shape inference
  *
@@ -44,7 +43,7 @@ struct GetK {
  * \return Vector of output shapes for
  */
 template <class TShape>
-std::vector<TShape> shape_infer(const TopK* op,
+std::vector<TShape> shape_infer(const util::TopKBase* op,
                                 const std::vector<TShape>& input_shapes,
                                 const std::map<size_t, HostTensorPtr>& constant_data = {}) {
     using TDim = typename TShape::value_type;
@@ -68,7 +67,9 @@ std::vector<TShape> shape_infer(const TopK* op,
 
     auto output_shape = input_shape;
     if (input_shape.rank().is_static()) {
+        OPENVINO_SUPPRESS_DEPRECATED_START
         const auto normalized_axis = ov::normalize_axis(op, op->get_provided_axis(), input_shape.rank());
+        OPENVINO_SUPPRESS_DEPRECATED_END
         auto& dim_axis = output_shape[normalized_axis];
 
         if (auto k_as_shape = get_input_const_data_as_shape<TShape>(op, 1, constant_data, GetK<TDimValue>(op))) {
@@ -92,7 +93,9 @@ std::vector<TShape> shape_infer(const TopK* op,
 
                 const auto lower = std::min<TDimValue>(in_min, k_min);
                 const auto upper =
-                    in_max < 0 ? Dimension::dynamic().get_max_length() : std::max<TDimValue>(in_max, k_max);
+                    in_max < 0
+                        ? Dimension::dynamic().get_max_length()
+                        : std::min<TDimValue>(in_max, (k_max < 0 ? std::numeric_limits<TDimValue>::max() : k_max));
                 dim_axis = TDim(lower, upper);
             }
         } else {
@@ -102,6 +105,9 @@ std::vector<TShape> shape_infer(const TopK* op,
 
     return std::vector<TShape>(2, output_shape);
 }
+}  // namespace util
+
+namespace v1 {
 
 /**
  * \brief TopK shape inference
@@ -118,8 +124,18 @@ void shape_infer(const TopK* op,
                  const std::vector<T>& input_shapes,
                  std::vector<T>& output_shapes,
                  const std::map<size_t, HostTensorPtr>& constant_data = {}) {
-    output_shapes = shape_infer(op, input_shapes, constant_data);
+    output_shapes = util::shape_infer(op, input_shapes, constant_data);
 }
 }  // namespace v1
+
+namespace v3 {
+template <typename T>
+void shape_infer(const TopK* op,
+                 const std::vector<T>& input_shapes,
+                 std::vector<T>& output_shapes,
+                 const std::map<size_t, HostTensorPtr>& constant_data = {}) {
+    output_shapes = util::shape_infer(op, input_shapes, constant_data);
+}
+}  // namespace v3
 }  // namespace op
 }  // namespace ov

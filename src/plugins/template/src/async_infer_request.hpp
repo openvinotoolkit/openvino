@@ -6,25 +6,29 @@
 
 #include <memory>
 
-#include "infer_request.hpp"
 #include "openvino/runtime/iasync_infer_request.hpp"
 #include "openvino/runtime/iinfer_request.hpp"
+#include "sync_infer_request.hpp"
 
-namespace TemplatePlugin {
+namespace ov {
+namespace template_plugin {
 
 // ! [async_infer_request:header]
 class AsyncInferRequest : public ov::IAsyncInferRequest {
 public:
     AsyncInferRequest(const std::shared_ptr<InferRequest>& request,
-                      const InferenceEngine::ITaskExecutor::Ptr& task_executor,
-                      const InferenceEngine::ITaskExecutor::Ptr& wait_executor,
-                      const InferenceEngine::ITaskExecutor::Ptr& callback_executor);
+                      const std::shared_ptr<ov::threading::ITaskExecutor>& task_executor,
+                      const std::shared_ptr<ov::threading::ITaskExecutor>& wait_executor,
+                      const std::shared_ptr<ov::threading::ITaskExecutor>& callback_executor);
 
     ~AsyncInferRequest();
+    void cancel() override;
 
 private:
-    InferenceEngine::ITaskExecutor::Ptr m_wait_executor;
+    std::function<void()> m_cancel_callback;
+    std::shared_ptr<ov::threading::ITaskExecutor> m_wait_executor;
 };
 // ! [async_infer_request:header]
 
-}  // namespace TemplatePlugin
+}  // namespace template_plugin
+}  // namespace ov

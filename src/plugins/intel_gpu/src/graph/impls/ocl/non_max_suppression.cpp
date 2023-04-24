@@ -2,13 +2,12 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "primitive_base.hpp"
+
+#include "non_max_suppression_inst.h"
 #include "data_inst.h"
-#include "kernel_selector_helper.h"
 #include "non_max_suppression/non_max_suppression_kernel_ref.h"
 #include "non_max_suppression/non_max_suppression_kernel_selector.h"
-#include "non_max_suppression_inst.h"
-#include "primitive_base.hpp"
-#include "impls/implementation_map.hpp"
 
 namespace cldnn {
 namespace ocl {
@@ -31,19 +30,19 @@ protected:
             args.inputs.push_back(instance.input_memory_ptr(i));
         }
 
-        if (instance.has_num_select_per_class() && !instance.node->num_select_per_class_node().is_constant()) {
+        if (instance.has_num_select_per_class() && !instance.num_select_per_class_inst()->is_constant()) {
             args.inputs.push_back(instance.num_select_per_class_mem());
         }
 
-        if (instance.has_iou_threshold() && !instance.node->iou_threshold_node().is_constant()) {
+        if (instance.has_iou_threshold() && !instance.iou_threshold_inst()->is_constant()) {
             args.inputs.push_back(instance.iou_threshold_mem());
         }
 
-        if (instance.has_score_threshold() && !instance.node->score_threshold_node().is_constant()) {
+        if (instance.has_score_threshold() && !instance.score_threshold_inst()->is_constant()) {
             args.inputs.push_back(instance.score_threshold_mem());
         }
 
-        if (instance.has_soft_nms_sigma() && !instance.node->soft_nms_sigma_node().is_constant()) {
+        if (instance.has_soft_nms_sigma() && !instance.soft_nms_sigma_inst()->is_constant()) {
             args.inputs.push_back(instance.soft_nms_sigma_mem());
         }
 
@@ -73,10 +72,10 @@ public:
         if (arg.has_num_select_per_class()) {
             cldnn::program_node& node = arg.num_select_per_class_node();
             if (node.is_type<data>()) {
-                params.num_select_per_class_type = kernel_selector::NmsArgType::Constant;
+                params.num_select_per_class_type = kernel_selector::base_params::ArgType::Constant;
                 params.num_select_per_class = get_value<int>(node);
             } else {
-                params.num_select_per_class_type = kernel_selector::NmsArgType::Input;
+                params.num_select_per_class_type = kernel_selector::base_params::ArgType::Input;
                 params.inputs.push_back(convert_data_tensor(impl_param.get_output_layout()));
             }
         }
@@ -84,10 +83,10 @@ public:
         if (arg.has_iou_threshold()) {
             cldnn::program_node& node = arg.iou_threshold_node();
             if (node.is_type<data>()) {
-                params.iou_threshold_type = kernel_selector::NmsArgType::Constant;
+                params.iou_threshold_type = kernel_selector::base_params::ArgType::Constant;
                 params.iou_threshold = get_value<float>(node);
             } else {
-                params.iou_threshold_type = kernel_selector::NmsArgType::Input;
+                params.iou_threshold_type = kernel_selector::base_params::ArgType::Input;
                 params.inputs.push_back(convert_data_tensor(impl_param.get_output_layout()));
             }
         }
@@ -95,10 +94,10 @@ public:
         if (arg.has_score_threshold()) {
             cldnn::program_node& node = arg.score_threshold_node();
             if (node.is_type<data>()) {
-                params.score_threshold_type = kernel_selector::NmsArgType::Constant;
+                params.score_threshold_type = kernel_selector::base_params::ArgType::Constant;
                 params.score_threshold = get_value<float>(node);
             } else {
-                params.score_threshold_type = kernel_selector::NmsArgType::Input;
+                params.score_threshold_type = kernel_selector::base_params::ArgType::Input;
                 params.inputs.push_back(convert_data_tensor(impl_param.get_output_layout()));
             }
         }
@@ -106,10 +105,10 @@ public:
         if (arg.has_soft_nms_sigma()) {
             cldnn::program_node& node = arg.soft_nms_sigma_node();
             if (node.is_type<data>()) {
-                params.soft_nms_sigma_type = kernel_selector::NmsArgType::Constant;
+                params.soft_nms_sigma_type = kernel_selector::base_params::ArgType::Constant;
                 params.soft_nms_sigma = get_value<float>(node);
             } else {
-                params.soft_nms_sigma_type = kernel_selector::NmsArgType::Input;
+                params.soft_nms_sigma_type = kernel_selector::base_params::ArgType::Input;
                 params.inputs.push_back(convert_data_tensor(impl_param.get_output_layout()));
             }
         }

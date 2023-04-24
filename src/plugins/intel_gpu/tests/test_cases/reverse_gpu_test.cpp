@@ -43,7 +43,7 @@ struct ReverseParams {
 template <typename T, reverse_mode mode>
 struct reverse_gpu_test : public ::testing::TestWithParam<ReverseParams<T, mode>> {
 public:
-    void test() {
+    void test(bool is_caching_test = false) {
         auto data_type = type_to_data_type<T>::value;
         ReverseParams<T, mode> params = testing::TestWithParam<ReverseParams<T, mode>>::GetParam();
         auto& engine = get_test_engine();
@@ -76,10 +76,10 @@ public:
             tp.add(reverse(reverse_id, input_info(reverse_input_id), input_info(axes_id), mode));
         }
 
-        network network(engine, tp);
-        network.set_input_data(reverse_input_id, reverse_input);
-        network.set_input_data(axes_id, reverse_axes);
-        auto result = network.execute();
+        cldnn::network::ptr network = get_network(engine, tp, get_test_default_config(engine), get_test_stream_ptr(), is_caching_test);
+        network->set_input_data(reverse_input_id, reverse_input);
+        network->set_input_data(axes_id, reverse_axes);
+        auto result = network->execute();
 
         auto out_mem = result.at(ouput_op_name).get_memory();
         cldnn::mem_lock<T> out_ptr(out_mem, get_test_stream());
@@ -422,3 +422,52 @@ INSTANTIATE_TEST_SUITE_P(smoke_reverse_f16_index,
                          reverse_gpu_test_f16_index,
                          ::testing::ValuesIn(generateIndexParams<half_t>()),
                          PrintToStringParamName());
+
+#ifdef RUN_ALL_MODEL_CACHING_TESTS
+TEST_P(reverse_gpu_test_int32_mask, reverse_i32_mask_cached) {
+    ASSERT_NO_FATAL_FAILURE(test(true));
+}
+
+TEST_P(reverse_gpu_test_int32_index, reverse_i32_index_cached) {
+    ASSERT_NO_FATAL_FAILURE(test(true));
+}
+
+TEST_P(reverse_gpu_test_int64_mask, reverse_i64_mask_cached) {
+    ASSERT_NO_FATAL_FAILURE(test(true));
+}
+
+TEST_P(reverse_gpu_test_int64_index, reverse_i64_index_cached) {
+    ASSERT_NO_FATAL_FAILURE(test(true));
+}
+
+TEST_P(reverse_gpu_test_float_mask, reverse_float_mask_cached) {
+    ASSERT_NO_FATAL_FAILURE(test(true));
+}
+
+TEST_P(reverse_gpu_test_float_index, reverse_float_index_cached) {
+    ASSERT_NO_FATAL_FAILURE(test(true));
+}
+
+TEST_P(reverse_gpu_test_int8_mask, reverse_int8_mask_cached) {
+    ASSERT_NO_FATAL_FAILURE(test(true));
+}
+
+TEST_P(reverse_gpu_test_int8_index, reverse_int8_index_cached) {
+    ASSERT_NO_FATAL_FAILURE(test(true));
+}
+
+TEST_P(reverse_gpu_test_uint8_mask, reverse_uint8_mask_cached) {
+    ASSERT_NO_FATAL_FAILURE(test(true));
+}
+
+TEST_P(reverse_gpu_test_uint8_index, reverse_uint8_index_cached) {
+    ASSERT_NO_FATAL_FAILURE(test(true));
+}
+
+TEST_P(reverse_gpu_test_f16_mask, reverse_f16_mask_cached) {
+    ASSERT_NO_FATAL_FAILURE(test(true));
+}
+#endif
+TEST_P(reverse_gpu_test_f16_index, reverse_f16_index_cached) {
+    ASSERT_NO_FATAL_FAILURE(test(true));
+}

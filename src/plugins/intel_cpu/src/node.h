@@ -6,6 +6,7 @@
 
 #include <ie_api.h>
 #include <memory>
+#include <oneapi/dnnl/dnnl.hpp>
 #include <vector>
 #include <string>
 #include <cassert>
@@ -13,7 +14,6 @@
 #include <caseless.hpp>
 #include "cpu_memory.h"
 #include "edge.h"
-#include "dnnl_descriptor.h"
 #include "selective_build.h"
 #include "onednn/dnnl.h"
 #include "onednn/iml_type_mapper.h"
@@ -37,6 +37,8 @@
 
 #include "dnnl_postops_composer.h"
 #include "graph_context.h"
+#include "nodes/executors/mvn_list.hpp"
+#include "nodes/executors/executor.hpp"
 
 namespace ov {
 namespace intel_cpu {
@@ -75,6 +77,12 @@ class NodeDesc {
 public:
     NodeDesc(const NodeConfig& conf, impl_desc_type type): config(conf) {
         implementationType = type;
+        executorFactory = nullptr;
+    }
+
+    NodeDesc(const NodeConfig& conf, impl_desc_type type, ExecutorFactoryPtr factory): config(conf) {
+        implementationType = type;
+        executorFactory = factory;
     }
 
     const NodeConfig& getConfig() const {
@@ -93,9 +101,28 @@ public:
         implementationType = type;
     }
 
+    ExecutorFactoryPtr getExecutorFactory() const {
+        return executorFactory;
+    }
+
+    template <typename T,
+            typename std::enable_if<!std::is_pointer<T>::value && !std::is_reference<T>::value, int>::type = 0,
+            typename std::enable_if<std::is_base_of<ExecutorFactory, T>::value, int>::type = 0>
+    std::shared_ptr<T> getExecutorFactoryAs() {
+        auto casted = std::dynamic_pointer_cast<T>(executorFactory);
+        if (!casted)
+            IE_THROW() << "Cannot dynamically cast ExecutorFactory";
+        return casted;
+    }
+
+    void setExecutorFactory(ExecutorFactoryPtr factory) {
+        executorFactory = factory;
+    }
+
 private:
     NodeConfig config;
     impl_desc_type implementationType;
+    ExecutorFactoryPtr executorFactory;
 };
 
 class Node {
@@ -334,7 +361,7 @@ public:
 
     void resolveInPlaceEdges();
 
-    virtual void execute(dnnl::stream strm);
+    virtual void execute(dnnl::stream strm) = 0;
     void updateShapes();
     void updateDynamicParams();
     void executeDynamic(dnnl::stream strm);
@@ -382,12 +409,12 @@ public:
         this->typeStr = typeStr;
     }
 
-    virtual size_t descInputNumbers(DnnlDesriptor desc) {
-        return desc.inputNumbers();
+    virtual size_t descInputNumbers() {
+        return 1;
     }
 
-    virtual size_t descOutputNumbers(DnnlDesriptor desc) {
-        return desc.outputNumbers();
+    virtual size_t descOutputNumbers() {
+        return 1;
     }
 
     const PerfCounters & perfCounters() const {
@@ -513,6 +540,10 @@ public:
     */
     std::pair<std::vector<float>, std::vector<float>> getScalesAndShifts(const Node *parentNode) const;
 
+    void initializeDQScales(const float* scaleData, const size_t scaleSize);
+    const std::vector<float>& getDQScales() const {
+        return DQScales;
+    }
     /**
      * @brief Appends new item into ops list with the information on how the node should be executed as post operation.
      * Seed node should call this routine and pass its post operations list as parameter.
@@ -578,8 +609,7 @@ protected:
     std::vector<NodeDesc> supportedPrimitiveDescriptors;
     std::unordered_map<int, dnnl::memory> primArgs;
     std::unordered_map<int, MemoryPtr> postOpsArgs;
-    dnnl::primitive prim;
-    std::vector<DnnlDesriptor> descs;
+    std::vector<dnnl::primitive_desc> descs;
 
     const GraphContext::CPtr context;
 
@@ -620,6 +650,8 @@ protected:
     void prepareMemory(const std::vector<DnnlMemoryDescPtr>& intDescs);
     void prepareMemory(dnnl::primitive_desc_iterator& itpd);
 
+    MemoryPtr prepareWeightMemory(DnnlMemoryDescPtr weightDesc);
+
     bool isDynamic = false;
 
     bool isInputTensorAtPortEmpty(size_t port) const;
@@ -636,7 +668,7 @@ protected:
     bool inputShapesModified() const;
     virtual bool needShapeInfer() const;
     std::vector<VectorDims> shapeInferGeneric(const std::vector<Shape>& inputDims) const;
-    virtual std::vector<VectorDims> shapeInfer() const;
+    IShapeInfer::Result shapeInfer() const;
     // TODO [DS] : make pure after all nodes will be support dynamic shapes
     virtual void executeDynamicImpl(dnnl::stream strm) {
         IE_THROW(NotImplemented) << "[DS] executeDynamicImpl not implemented for node with type: " << getTypeStr();
@@ -649,9 +681,10 @@ protected:
         IE_THROW(NotImplemented) << "[DS] prapareParams not implemented for node with type " << NameFromType(getType());
     }
 
-    MemoryPtr getScratchPadMem(const const_dnnl_primitive_desc_t& pd) {
-        auto scratchpadMemoryDesc = DnnlExtensionUtils::query_md(pd, dnnl::query::scratchpad_md);
-        scratchpadMem = context->getScratchPad()->createScratchPadMem(scratchpadMemoryDesc);
+    MemoryPtr getScratchPadMem(const DnnlMemoryDescPtr& desc) {
+        if (!scratchpadMem || !scratchpadMem->getDesc().isCompatible(*desc)) {
+            scratchpadMem = context->getScratchPad()->createScratchPadMem(desc);
+        }
         return scratchpadMem;
     }
 
@@ -686,6 +719,15 @@ private:
 
     enum LOOK { LOOK_UP = 1, LOOK_DOWN = 2 };
     ConstantType checkConstant(LOOK look, std::vector<NodePtr>& checkNodes);
+    // Hold output scales
+    std::vector<float> DQScales;
+    // we cannot rely on per-NUMA weightCache for caching weights because:
+    //   1.it may not exist(in single stream configuration)
+    //   2.it only holds weak references, the life-cycle of cached item
+    //     is still under control of strong references outside of cache.
+    // privateWeightCache is for holding strong references to constant weight
+    // copies of same content with different layouts.
+    std::unordered_map<std::string, MemoryPtr> privateWeightCache;
 
 #ifdef CPU_DEBUG_CAPS
     friend class Verbose;
