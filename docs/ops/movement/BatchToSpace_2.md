@@ -42,7 +42,7 @@ Where
 - :math:`B_0` is expected to be 1
 - :math:`CB_i` = crops_begin[i]
 - :math:`CE_i` = crops_end[i]
-- :math:`CB_0` and `CE_0` are expected to be 0
+- :math:`CB_0` and :math:`CE_0` are expected to be 0
 - :math:`CB_i + CE_i \leq D_i \times B_i`
 
 *BatchToSpace* operation is the reverse of *SpaceToBatch* operation.
@@ -52,16 +52,16 @@ Where
 **Inputs**
 
 *   **1**: ``data`` - A tensor of type *T* and rank greater than or equal to 2. Layout is ``[batch, D_1, D_2 ... D_{N-1}]`` (number of batches, spatial axes). **Required.**
-*   **2**: ``block_shape`` - Specifies the block sizes of ``batch`` axis of ``data`` input which are moved to the corresponding spatial axes. A 1D tensor of type *T_INT* and shape ``[N]``. All element values must be greater than or equal to 1.``block_shape[0]`` is expected to be 1. **Required.**
+*   **2**: ``block_shape`` - Specifies the block sizes of ``batch`` axis of ``data`` input which are moved to the corresponding spatial axes. A 1D tensor of type *T_INT* and shape ``[N]``. All element values must be greater than or equal to 1. ``block_shape[0]`` is expected to be 1. **Required.**
 *   **3**: ``crops_begin`` - Specifies the amount to crop from the beginning along each axis of ``data`` input. A 1D tensor of type *T_INT* and shape ``[N]``. All element values must be greater than or equal to 0. ``crops_begin[0]`` is expected to be 0. **Required.**
 *   **4**: ``crops_end`` - Specifies the amount to crop from the ending along each axis of ``data`` input. A 1D tensor of type *T_INT* and shape ``[N]``. All element values must be greater than or equal to 0. ``crops_end[0]`` is expected to be 0. **Required.**
 *   **Note**: ``N`` corresponds to the rank of ``data`` input.
 *   **Note**: ``batch`` axis of ``data`` input must be evenly divisible by the cumulative product of ``block_shape`` elements.
-*   **Note**: It is required that ``crops_begin[i] + crops_end[i] <= block_shape[i] * input_shape[i]``.
+*   **Note**: It is required that ``crops_begin[i] + crops_end[i] <= block_shape[i] \* input_shape[i]``.
 
 **Outputs**
 
-*   **1**: Permuted tensor of type *T* with the same rank as ``data`` input tensor, and shape ``[batch / (block_shape[0] * block_shape[1] * ... * block_shape[N - 1]), D_1 * block_shape[1] - crops_begin[1] - crops_end[1], D_2 * block_shape[2] - crops_begin[2] - crops_end[2], ..., D_{N - 1} * block_shape[N - 1] - crops_begin[N - 1] - crops_end[N - 1]``.
+*   **1**: Permuted tensor of type *T* with the same rank as ``data`` input tensor, and shape ``[batch / (block_shape[0] \* block_shape[1] \* ... \* block_shape[N - 1]), D_1 \* block_shape[1] - crops_begin[1] - crops_end[1], D_2 \* block_shape[2] - crops_begin[2] - crops_end[2], ..., D_{N - 1} \* block_shape[N - 1] - crops_begin[N - 1] - crops_end[N - 1]``.
 
 **Types**
 
@@ -70,64 +70,64 @@ Where
 
 **Examples**
 
-*Example: 2D input tensor ``data``*
+Example: 2D input tensor ``data``
 
-.. code-block:: console
+.. code-block:: cpp
    
    <layer type="BatchToSpace" ...>
        <input>
-           <port id="0">       <!-- data -->
-               <dim>10</dim>   <!-- batch -->
-               <dim>2</dim>    <!-- spatial dimension 1 -->
+           <port id="0">       < !-- data -->
+               <dim>10</dim>   < !-- batch -->
+               <dim>2</dim>    < !-- spatial dimension 1 -->
            </port>
-           <port id="1">       <!-- block_shape value: [1, 5] -->
+           <port id="1">       < !-- block_shape value: [1, 5] -->
                <dim>2</dim>
            </port>
-           <port id="2">       <!-- crops_begin value: [0, 2] -->
+           <port id="2">       < !-- crops_begin value: [0, 2] -->
                <dim>2</dim>
            </port>
-           <port id="3">       <!-- crops_end value: [0, 0] -->
+           <port id="3">       < !-- crops_end value: [0, 0] -->
                <dim>2</dim>
            </port>
        </input>
        <output>
            <port id="3">
-               <dim>2</dim>    <!-- data.shape[0] / (block_shape.shape[0] * block_shape.shape[1]) -->
-               <dim>8</dim>    <!-- data.shape[1] * block_shape.shape[1] - crops_begin[1] - crops_end[1]-->
+               <dim>2</dim>    < !-- data.shape[0] / (block_shape.shape[0] * block_shape.shape[1]) -->
+               <dim>8</dim>    < !-- data.shape[1] * block_shape.shape[1] - crops_begin[1] - crops_end[1]-->
            </port>
        </output>
    </layer>
 
-*Example: 5D input tensor ``data``*
+Example: 5D input tensor ``data``
 
 .. code-block: console
    
    <layer type="BatchToSpace" ...>
        <input>
-           <port id="0">       <!-- data -->
-               <dim>48</dim>   <!-- batch -->
-               <dim>3</dim>    <!-- spatial dimension 1 -->
-               <dim>3</dim>    <!-- spatial dimension 2 -->
-               <dim>1</dim>    <!-- spatial dimension 3 -->
-               <dim>3</dim>    <!-- spatial dimension 4 -->
+           <port id="0">       < !-- data -->
+               <dim>48</dim>   < !-- batch -->
+               <dim>3</dim>    < !-- spatial dimension 1 -->
+               <dim>3</dim>    < !-- spatial dimension 2 -->
+               <dim>1</dim>    < !-- spatial dimension 3 -->
+               <dim>3</dim>    < !-- spatial dimension 4 -->
            </port>
-           <port id="1">       <!-- block_shape value: [1, 2, 4, 3, 1] -->
+           <port id="1">       < !-- block_shape value: [1, 2, 4, 3, 1] -->
                <dim>5</dim>
            </port>
-           <port id="2">       <!-- crops_begin value: [0, 0, 1, 0, 0] -->
+           <port id="2">       < !-- crops_begin value: [0, 0, 1, 0, 0] -->
                <dim>5</dim>
            </port>
-           <port id="3">       <!-- crops_end value: [0, 0, 1, 0, 0] -->
+           <port id="3">       < !-- crops_end value: [0, 0, 1, 0, 0] -->
                <dim>5</dim>
            </port>
        </input>
        <output>
            <port id="3">
-               <dim>2</dim>    <!-- data.shape[0] / (block_shape.shape[0] * block_shape.shape[1] * ... * block_shape.shape[4]) -->
-               <dim>6</dim>    <!-- data.shape[1] * block_shape.shape[1] - crops_begin[1] - crops_end[1]-->
-               <dim>10</dim>   <!-- data.shape[2] * block_shape.shape[2] - crops_begin[2] - crops_end[2] -->
-               <dim>3</dim>    <!-- data.shape[3] * block_shape.shape[3] - crops_begin[3] - crops_end[3] -->
-               <dim>3</dim>    <!-- data.shape[4] * block_shape.shape[4] - crops_begin[4] - crops_end[4] -->
+               <dim>2</dim>    < !-- data.shape[0] / (block_shape.shape[0] * block_shape.shape[1] * ... * block_shape.shape[4]) -->
+               <dim>6</dim>    < !-- data.shape[1] * block_shape.shape[1] - crops_begin[1] - crops_end[1]-->
+               <dim>10</dim>   < !-- data.shape[2] * block_shape.shape[2] - crops_begin[2] - crops_end[2] -->
+               <dim>3</dim>    < !-- data.shape[3] * block_shape.shape[3] - crops_begin[3] - crops_end[3] -->
+               <dim>3</dim>    < !-- data.shape[4] * block_shape.shape[4] - crops_begin[4] - crops_end[4] -->
            </port>
        </output>
    </layer>

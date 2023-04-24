@@ -14,19 +14,19 @@
 
 * Normalizes each activation :math:`x^{(k)}` by the mean and variance.
 
-.. math::
-   
-   \hat{x}^{(k)}=\frac{x^{(k)} - E[x^{(k)}]}{\sqrt{Var(x^{(k)}) + \epsilon}}
-
-where :math:`E[x^{(k)}]` and :math:`Var(x^{(k)})` are the mean and variance, calculated per channel axis of ``data`` input, and correspond to ``mean`` and ``variance`` inputs, respectively. Additionally, :math:`\epsilon` is a value added to the variance for numerical stability and corresponds to ``epsilon`` attribute.
+  .. math::
+     
+     \hat{x}^{(k)}=\frac{x^{(k)} - E[x^{(k)}]}{\sqrt{Var(x^{(k)}) + \epsilon}}
+  
+  where :math:`E[x^{(k)}]` and :math:`Var(x^{(k)})` are the mean and variance, calculated per channel axis of ``data`` input, and correspond to ``mean`` and ``variance`` inputs, respectively. Additionally, :math:`\epsilon` is a value added to the variance for numerical stability and corresponds to ``epsilon`` attribute.
 
 * Performs linear transformation of each normalized activation based on ``gamma`` and ``beta`` input, representing the scaling factor and shift, respectively.
 
-.. math::
-   
-   \hat{y}^{(k)}=\gamma^{(k)}\hat{x}^{(k)} + \beta^{(k)}
-
-where :math:`\gamma^{(k)}` and :math:`\beta^{(k)}` are learnable parameters, calculated per channel axis, and correspond to ``gamma`` and ``beta`` inputs.
+  .. math::
+     
+     \hat{y}^{(k)}=\gamma^{(k)}\hat{x}^{(k)} + \beta^{(k)}
+  
+  where :math:`\gamma^{(k)}` and :math:`\beta^{(k)}` are learnable parameters, calculated per channel axis, and correspond to ``gamma`` and ``beta`` inputs.
 
 **Mathematical Formulation**
 
@@ -34,18 +34,18 @@ Let ``x`` be a *d*-dimensional input, :math:`x=(x_{1}\dotsc x_{d})`. Since norma
 
 For a particular activation, consider a mini-batch :math:`\mathcal{B}` of m values. *BatchNormInference* performs Batch Normalization algorithm as follows:
 
-* **Input**: Values of \f$x\f$ over a mini-batch:
+* **Input**: Values of :math:`x` over a mini-batch:
   
   .. math::
      
-     \mathcal{B} = x_{1...m}
+     \mathcal{B} = {x_{1...m}}
     
 * **Parameters to learn**: :math:`\gamma, \beta`
 * **Output**:
   
   .. math::
      
-     o_{i} = BN_{\gamma, \beta} ( b_{i} )
+     {o_{i} = BN_{\gamma, \beta} ( b_{i} )}
     
 * **Mini-batch mean**:
   
@@ -99,27 +99,27 @@ For a particular activation, consider a mini-batch :math:`\mathcal{B}` of m valu
 
 **Examples**
 
-*Example: 2D input tensor ``data``*
+Example: 2D input tensor ``data``
 
-.. code-block:: console
+.. code-block:: cpp
    
    <layer ... type="BatchNormInference" ...>
        <data epsilon="9.99e-06" />
        <input>
-           <port id="0">  <!-- input -->
+           <port id="0">  < !-- input -->
                <dim>10</dim>
                <dim>128</dim>
            </port>
-           <port id="1">  <!-- gamma -->
+           <port id="1">  < !-- gamma -->
                <dim>128</dim>
            </port>
-           <port id="2">  <!-- beta -->
+           <port id="2">  < !-- beta -->
                <dim>128</dim>
            </port>
-           <port id="3">  <!-- mean -->
+           <port id="3">  < !-- mean -->
                <dim>128</dim>
            </port>
-           <port id="4">  <!-- variance -->
+           <port id="4">  < !-- variance -->
                <dim>128</dim>
            </port>
        </input>
@@ -131,29 +131,29 @@ For a particular activation, consider a mini-batch :math:`\mathcal{B}` of m valu
        </output>
    </layer>
 
-*Example: 4D input tensor ``data``*
+Example: 4D input tensor ``data``
 
-.. code-block:: console
+.. code-block:: cpp
    
    <layer ... type="BatchNormInference" ...>
        <data epsilon="9.99e-06" />
        <input>
-           <port id="0">  <!-- input -->
+           <port id="0">  < !-- input -->
                <dim>1</dim>
                <dim>3</dim>
                <dim>224</dim>
                <dim>224</dim>
            </port>
-           <port id="1">  <!-- gamma -->
+           <port id="1">  < !-- gamma -->
                <dim>3</dim>
            </port>
-           <port id="2">  <!-- beta -->
+           <port id="2">  < !-- beta -->
                <dim>3</dim>
            </port>
-           <port id="3">  <!-- mean -->
+           <port id="3">  < !-- mean -->
                <dim>3</dim>
            </port>
-           <port id="4">  <!-- variance -->
+           <port id="4">  < !-- variance -->
                <dim>3</dim>
            </port>
        </input>

@@ -26,6 +26,7 @@ For example, if the first input tensor is ``[[3, 50], [10, -1]]`` and the second
 
   * **Description**: indicates whether bucket includes the right or the left edge of interval.
   * **Range of values**:
+
     * true - bucket includes the right interval edge
     * false - bucket includes the left interval edge
   * **Type**: ``boolean``
@@ -51,7 +52,7 @@ For example, if the first input tensor is ``[[3, 50], [10, -1]]`` and the second
 
 **Example**
 
-.. code-block:: console
+.. code-block:: cpp
    
    <layer ... type="Bucketize">
        <input>

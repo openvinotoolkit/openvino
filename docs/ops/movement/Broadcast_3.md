@@ -14,7 +14,7 @@
 
 Attribute ``mode`` and the 3rd input ``axes_mapping`` are relevant for cases when rank of the input ``data`` tensor doesn't match the size of the ``target_shape`` input. They both define how axes from ``data`` shape are mapped to the output axes. If ``mode`` is set to ``numpy``, it means that the standard one-directional numpy broadcasting rules are applied. These rules are described in :doc:`Broadcast Rules For Elementwise Operations <openvino_docs_ops_broadcast_rules>`, when only one-directional broadcasting is applied: input tensor ``data`` is broadcasted to ``target_shape`` but not vice-versa.
 
-In case if ``mode`` is set to ``bidirectional``, then the broadcast rule is similar to ``numpy.array(input) * numpy.ones(target_shape)``. Dimensions are right alignment. Two corresponding dimension must have the same value, or one of them is equal to 1. If this attribute value is used, then the 3rd input for the operation shouldn't be provided. The behaviour is described in :doc:`Bidirectional Broadcast Rules <openvino_docs_ops_broadcast_rules>`>.
+In case if ``mode`` is set to ``bidirectional``, then the broadcast rule is similar to ``numpy.array(input) * numpy.ones(target_shape)``. Dimensions are right alignment. Two corresponding dimension must have the same value, or one of them is equal to 1. If this attribute value is used, then the 3rd input for the operation shouldn't be provided. The behaviour is described in :doc:`Bidirectional Broadcast Rules <openvino_docs_ops_broadcast_rules>`.
 
 In case if ``mode`` is set to ``explicit``, then 3rd input ``axes_mapping`` comes to play. It contains a list of axis indices, each index maps an axis from the 1st input tensor ``data`` to axis in the output. The size of ``axis_mapping`` should match the rank of input ``data`` tensor, so all axes from ``data`` tensor should be mapped to axes of the output.
 
@@ -27,6 +27,7 @@ For example, ``axes_mapping = [1]`` enables broadcasting of a tensor with shape 
 
   * **Description**: specifies rules used for mapping of ``input`` tensor axes to output shape axes.
   * **Range of values**:
+
     * *numpy* - numpy broadcasting rules, aligned with ONNX Broadcasting. Description is available in `ONNX docs <https://github.com/onnx/onnx/blob/master/docs/Broadcasting.md>`__ .; only one-directional broadcasting is applied from ``data`` to ``target_shape``. If this attribute value is used, then the 3rd input for the operation shouldn't be provided.
     * *explicit* - mapping of the input ``data`` shape axes to output shape is provided as an explicit 3rd input.
     * *bidirectional* - the broadcast rule is similar to ``numpy.array(input) * numpy.ones(target_shape)``. Dimensions are right alignment. Two corresponding dimension must have the same value, or one of them is equal to 1. If this attribute value is used, then the 3rd input for the operation shouldn't be provided.
@@ -52,7 +53,7 @@ For example, ``axes_mapping = [1]`` enables broadcasting of a tensor with shape 
 
 **Example**
 
-.. code-block:: console
+.. code-block:: cpp
    
    <layer ... type="Broadcast" ...>
        <data mode="numpy"/>
@@ -63,9 +64,9 @@ For example, ``axes_mapping = [1]`` enables broadcasting of a tensor with shape 
                <dim>1</dim>
           </port>
            <port id="1">
-               <dim>4</dim>   <!--The tensor contains 4 elements: [1, 16, 50, 50] -->
+               <dim>4</dim>   < !--The tensor contains 4 elements: [1, 16, 50, 50] -->
            </port>
-           <!-- the 3rd input shouldn't be provided with mode="numpy" -->
+           < !-- the 3rd input shouldn't be provided with mode="numpy" -->
        </input>
        <output>
            <port id="2">
@@ -84,10 +85,10 @@ For example, ``axes_mapping = [1]`` enables broadcasting of a tensor with shape 
                <dim>16</dim>
           </port>
            <port id="1">
-               <dim>4</dim>   <!--The tensor contains 4 elements: [1, 16, 50, 50] -->
+               <dim>4</dim>   < !--The tensor contains 4 elements: [1, 16, 50, 50] -->
            </port>
            <port id="1">
-               <dim>1</dim>   <!--The tensor contains 1 elements: [1] -->
+               <dim>1</dim>   < !--The tensor contains 1 elements: [1] -->
            </port>
        </input>
        <output>
@@ -108,10 +109,10 @@ For example, ``axes_mapping = [1]`` enables broadcasting of a tensor with shape 
                <dim>50</dim>
           </port>
            <port id="1">
-               <dim>4</dim>   <!--The tensor contains 4 elements: [1, 50, 50, 16] -->
+               <dim>4</dim>   < !--The tensor contains 4 elements: [1, 50, 50, 16] -->
            </port>
            <port id="1">
-               <dim>2</dim>   <!--The tensor contains 2 elements: [1, 2] -->
+               <dim>2</dim>   < !--The tensor contains 2 elements: [1, 2] -->
            </port>
        </input>
        <output>
@@ -133,9 +134,9 @@ For example, ``axes_mapping = [1]`` enables broadcasting of a tensor with shape 
                <dim>1</dim>
           </port>
            <port id="1">
-               <dim>4</dim>   <!--The tensor contains 4 elements: [1, 1, 50, 50] -->
+               <dim>4</dim>   < !--The tensor contains 4 elements: [1, 1, 50, 50] -->
            </port>
-           <!-- the 3rd input shouldn't be provided with mode="bidirectional" -->
+           < !-- the 3rd input shouldn't be provided with mode="bidirectional" -->
        </input>
        <output>
            <port id="2">

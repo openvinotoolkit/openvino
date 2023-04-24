@@ -12,9 +12,10 @@
 
 
 Computation algorithm for mode *xnor-popcount*:
+
 - ``X = XNOR(input_patch, filter)``, where XNOR is bitwise operation on two bit streams
 - ``P = popcount(X)``, where popcount is the number of ``1`` bits in the ``X`` bit stream
-- ``Output = 2 * P - B``, where ``B`` is the total number of bits in the ``P`` bit stream
+- ``Output = 2 \* P - B``, where ``B`` is the total number of bits in the ``P`` bit stream
 
 **Attributes**:
 
@@ -52,6 +53,7 @@ Computation algorithm for mode *xnor-popcount*:
 
   * **Description**: *mode* defines how input tensor ``0/1`` values and weights ``0/1`` are interpreted as real numbers and how the result is computed.
   * **Range of values**:
+
     * *xnor-popcount*
   * **Type**: ``string``
   * **Required**: *yes*
@@ -67,6 +69,7 @@ Computation algorithm for mode *xnor-popcount*:
 * *auto_pad*
 
   * **Description**: *auto_pad* how the padding is calculated. Possible values:
+
     * *explicit* - use explicit padding values from *pads_begin* and *pads_end*.
     * *same_upper* - the input is padded to match the output size. In case of odd padding value an extra padding is added at the end.
     * *same_lower* - the input is padded to match the output size. In case of odd padding value an extra padding is added at the beginning.
@@ -96,7 +99,7 @@ Computation algorithm for mode *xnor-popcount*:
 
 2D Convolution
 
-.. code-block: console
+.. code-block:: cpp
    
    <layer type="BinaryConvolution" ...>
        <data dilations="1,1" pads_begin="2,2" pads_end="2,2" strides="1,1" mode="xnor-popcount" pad_value="0" auto_pad="explicit"/>

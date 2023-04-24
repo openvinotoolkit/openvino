@@ -25,6 +25,7 @@ For example, ``axes_mapping = [1]`` enables broadcasting of a tensor with shape 
 
   * **Description**: specifies rules used for mapping of ``input`` tensor axes to output shape axes.
   * **Range of values**:
+
     * *numpy* - numpy broadcasting rules, aligned with ONNX Broadcasting. Description is available in `ONNX docs <https://github.com/onnx/onnx/blob/master/docs/Broadcasting.md>`__.; only one-directional broadcasting is applied from ``data`` to ``target_shape``. If this attribute value is used, then the 3rd input for the operation shouldn't be provided.
     * *explicit* - mapping of the input ``data`` shape axes to output shape is provided as an explicit 3rd input.
   * **Type**: string
@@ -44,7 +45,7 @@ For example, ``axes_mapping = [1]`` enables broadcasting of a tensor with shape 
 
 **Example**
 
-.. code-block:: console
+.. code-block:: cpp
    
    <layer ... type="Broadcast" ...>
        <data mode="numpy"/>
@@ -55,9 +56,9 @@ For example, ``axes_mapping = [1]`` enables broadcasting of a tensor with shape 
                <dim>1</dim>
           </port>
            <port id="1">
-               <dim>4</dim>   <!--The tensor contains 4 elements: [1, 16, 50, 50] -->
+               <dim>4</dim>   < !--The tensor contains 4 elements: [1, 16, 50, 50] -->
            </port>
-           <!-- the 3rd input shouldn't be provided with mode="numpy" -->
+           < !-- the 3rd input shouldn't be provided with mode="numpy" -->
        </input>
        <output>
            <port id="2">
@@ -76,10 +77,10 @@ For example, ``axes_mapping = [1]`` enables broadcasting of a tensor with shape 
                <dim>16</dim>
           </port>
            <port id="1">
-               <dim>4</dim>   <!--The tensor contains 4 elements: [1, 16, 50, 50] -->
+               <dim>4</dim>   < !--The tensor contains 4 elements: [1, 16, 50, 50] -->
            </port>
            <port id="1">
-               <dim>1</dim>   <!--The tensor contains 1 elements: [1] -->
+               <dim>1</dim>   < !--The tensor contains 1 elements: [1] -->
            </port>
        </input>
        <output>
@@ -100,10 +101,10 @@ For example, ``axes_mapping = [1]`` enables broadcasting of a tensor with shape 
                <dim>50</dim>
           </port>
            <port id="1">
-               <dim>4</dim>   <!--The tensor contains 4 elements: [1, 50, 50, 16] -->
+               <dim>4</dim>   < !--The tensor contains 4 elements: [1, 50, 50, 16] -->
            </port>
            <port id="1">
-               <dim>2</dim>   <!--The tensor contains 2 elements: [1, 2] -->
+               <dim>2</dim>   < !--The tensor contains 2 elements: [1, 2] -->
            </port>
        </input>
        <output>
