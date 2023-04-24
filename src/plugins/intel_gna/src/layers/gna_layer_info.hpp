@@ -352,7 +352,7 @@ public:
     bool is_gather() const noexcept {
         return isOfType("gather");
     }
-    bool is_fq_non_sensitive() const noexcept {
+    bool is_fq_non_sensitive() const {
         return isPermute() || is_gather() || isNonFunctional();
     }
     bool isPooling() const noexcept {
