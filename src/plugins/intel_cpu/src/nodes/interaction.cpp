@@ -6,7 +6,7 @@
 #include <string>
 #include <vector>
 
-#include "ngraph_transformations/op/interaction.hpp"
+#include "transformations/cpu_opset/x64/op/interaction.hpp"
 #include "interaction.h"
 #include <onednn/dnnl.h>
 #include <dnnl_extension_utils.h>
@@ -18,8 +18,8 @@
 #include <ie_ngraph_utils.hpp>
 #include <cpu/x64/cpu_isa_traits.hpp>
 #include <cpu/x64/jit_generator.hpp>
-#include "emitters/jit_dnnl_emitters.hpp"
-#include "emitters/jit_load_store_emitters.hpp"
+#include "emitters/x64/jit_dnnl_emitters.hpp"
+#include "emitters/x64/jit_load_store_emitters.hpp"
 
 using namespace InferenceEngine;
 using namespace dnnl::impl::cpu::x64;
@@ -207,7 +207,7 @@ void Interaction::initSupportedPrimitiveDescriptors() {
         }
     };
     //add descriptor
-    addSupportedPrimDesc(inPortConfigs, outPortConfigs, impl_desc_type::ref_any, true);
+    addSupportedPrimDesc(inPortConfigs, outPortConfigs, impl_desc_type::ref_any);
 }
 
 static inline void cat(uint8_t* out,

@@ -19,6 +19,7 @@
 
 #include "low_precision/align_quantization_intervals.hpp"
 #include "low_precision/fake_quantize_decomposition.hpp"
+#include "low_precision/markup_bias.hpp"
 #include "low_precision/markup_precisions.hpp"
 #include "low_precision/markup_can_be_quantized.hpp"
 #include "low_precision/markup_avg_pool_precision_preserved.hpp"
@@ -76,6 +77,7 @@
 // cleanup transformations
 #include "itt.hpp"
 #include "low_precision/convert.hpp"
+#include "low_precision/eliminate_fake_quantize.hpp"
 #include "low_precision/fold_fake_quantize.hpp"
 #include "low_precision/fuse_convert.hpp"
 #include "low_precision/fuse_multiply_to_fake_quantize.hpp"
@@ -201,6 +203,7 @@ bool ngraph::pass::low_precision::MarkupOptimizations::run_on_model(const std::s
         markup.register_pass<low_precision::AlignQuantizationIntervals>(params.defaultPrecisions);
         markup.register_pass<low_precision::AlignQuantizationParameters>(params.defaultPrecisions);
     }
+    markup.register_pass<low_precision::MarkupBias>();
     markup.run_passes(f);
     return false;
 }
@@ -266,6 +269,7 @@ bool ngraph::pass::low_precision::LowPrecision::run_on_model(const std::shared_p
     ADD_MATCHER(common, VariadicSplitTransformation, params)
 
     std::shared_ptr<ngraph::pass::GraphRewrite> cleanup = manager.register_pass<ngraph::pass::GraphRewrite>();
+    ADD_MATCHER(cleanup, EliminateFakeQuantizeTransformation, params)
     ADD_MATCHER(cleanup, FoldConvertTransformation, params)
     ADD_MATCHER(cleanup, FuseConvertTransformation, params)
     ADD_MATCHER(cleanup, FuseSubtractToFakeQuantizeTransformation, params)

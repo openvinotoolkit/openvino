@@ -37,14 +37,8 @@ public:
 
     void get_input_node(size_t input_port_idx,
                         std::string& producer_name,
+                        std::string& producer_output_port_name,
                         size_t& producer_output_port_index) const override {
-        throw "Not implemented";
-    }
-
-    void get_input_node(size_t input_port_idx,
-                        std::string& producer_name,
-                        size_t& producer_output_port_index,
-                        const OpTypeByName& op_type_by_name) const override {
         throw "Not implemented";
     }
 
@@ -157,7 +151,8 @@ TEST(FrontEndConvertModelTest, test_unsupported_tf1_while) {
                   "OpConversionFailure is expected.";
     } catch (const OpConversionFailure& error) {
         string error_message = error.what();
-        string ref_message = "No translator found for Enter node.";
+        string ref_message = "[TensorFlow Frontend] Internal error, no translator found for operation(s): Enter, Exit, "
+                             "LoopCond, Merge, NextIteration, Switch";
         ASSERT_TRUE(error_message.find(ref_message) != string::npos);
         ASSERT_EQ(model, nullptr);
     } catch (...) {
@@ -194,7 +189,8 @@ TEST(FrontEndConvertModelTest, test_unsupported_tf1_while_and_incorrect_less_tra
         string error_message = error.what();
         string ref_message = "Less expects ten inputs.\n"
                              "\n"
-                             "[TensorFlow Frontend] Internal error: No translator found for Enter node.";
+                             "[TensorFlow Frontend] Internal error, no translator found for operation(s): Enter, Exit, "
+                             "LoopCond, Merge, NextIteration, Switch";
         ASSERT_TRUE(error_message.find(ref_message) != string::npos);
         ASSERT_EQ(model, nullptr);
     } catch (...) {
@@ -214,10 +210,32 @@ TEST(FrontEndConvertModelTest, conversion_with_unknown_exception) {
     } catch (const OpConversionFailure& error) {
         string error_message = error.what();
         string ref_message = "Unknown exception type\n"
-                             "[TensorFlow Frontend] Internal error: No translator found for Enter node.";
+                             "[TensorFlow Frontend] Internal error, no translator found for operation(s): Enter, Exit, "
+                             "LoopCond, Merge, NextIteration, Switch";
         ASSERT_TRUE(error_message.find(ref_message) != string::npos);
         ASSERT_EQ(model, nullptr);
     } catch (...) {
         FAIL() << "Conversion of TensorFlow 1 While failed by wrong reason.";
+    }
+}
+
+TEST(FrontEndConvertModelTest, test_unsupported_resource_gather_translator) {
+    shared_ptr<Model> model = nullptr;
+    try {
+        auto conv_ext =
+            std::make_shared<ov::frontend::ConversionExtension>("ResourceGather", incorrect_less_translator);
+        model = convert_model("resource_gather_model/resource_gather_model.pbtxt", conv_ext);
+        FAIL() << "The model with ResourceGather node must not be converted due to incorrect "
+                  "ResourceGather translator. "
+                  "OpConversionFailure is expected.";
+    } catch (const OpConversionFailure& error) {
+        string error_message = error.what();
+        string ref_message = "Less expects ten inputs.\n";
+        string no_ref_message = "[TensorFlow Frontend] Internal error: No translator found for";
+        ASSERT_TRUE(error_message.find(ref_message) != string::npos);
+        ASSERT_TRUE(error_message.find(no_ref_message) == string::npos);
+        ASSERT_EQ(model, nullptr);
+    } catch (...) {
+        FAIL() << "Conversion of the model with ResourceGather failed by wrong reason.";
     }
 }

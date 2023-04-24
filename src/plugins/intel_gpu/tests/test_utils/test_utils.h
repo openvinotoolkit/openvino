@@ -167,6 +167,32 @@ inline VF<T> flatten_4d(cldnn::format input_format, VVVVF<T> &data) {
 }
 
 template<typename T>
+inline VF<T> flatten_5d(cldnn::format input_format, VVVVVF<T> &data) {
+    size_t a = data.size();
+    size_t b = data[0].size();
+    size_t c = data[0][0].size();
+    size_t d = data[0][0][0].size();
+    size_t e = data[0][0][0][0].size();
+    VF<T> vec(a * b * c * d * e, (T)(0.0f));
+    size_t idx = 0;
+
+    switch (input_format.value) {
+        case cldnn::format::bfzyx:
+            for (size_t bi = 0; bi < a; ++bi)
+                for (size_t fi = 0; fi < b; ++fi)
+                    for (size_t zi = 0; zi < c; ++zi)
+                        for (size_t yi = 0; yi < d; ++yi)
+                            for (size_t xi = 0; xi < e; ++xi)
+                                vec[idx++] = data[bi][fi][zi][yi][xi];
+            break;
+
+        default:
+            assert(0);
+    }
+    return vec;
+}
+
+template<typename T>
 inline VF<T> flatten_6d(cldnn::format input_format, VVVVVVF<T> &data) {
     size_t a = data.size();
     size_t b = data[0].size();
@@ -769,7 +795,6 @@ inline cldnn::network::ptr get_network(cldnn::engine& engine,
                                 const bool is_caching_test) {
     cldnn::network::ptr network;
     if (is_caching_test) {
-        std::cout << "cached" << std::endl;
         cldnn::membuf mem_buf;
         {
             cldnn::network _network(engine, topology, config);

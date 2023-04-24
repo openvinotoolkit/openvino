@@ -11,6 +11,7 @@
 
 namespace ov {
 
+OPENVINO_DEPRECATED("This function is deprecated and will be moved to dev api in 2024.0 release.")
 OPENVINO_API
 PartialShape infer_convolution_forward(const Node* node,
                                        const PartialShape& data_batch_shape,
@@ -21,6 +22,7 @@ PartialShape infer_convolution_forward(const Node* node,
                                        const Strides& filter_strides,
                                        const Strides& filter_dilation);
 
+OPENVINO_DEPRECATED("This function is deprecated and will be moved to dev api in 2024.0 release.")
 OPENVINO_API
 void infer_auto_padding(const Shape& image_shape,
                         const Shape& filter_shape,
@@ -39,6 +41,7 @@ void infer_auto_padding(const Shape& image_shape,
 /// \return    Checking if axis is in range [-tensor_rank, tensor_rank-1], otherwise
 ///            returns error. If negative axis, it counts from the last to the first axis,
 ///            by adding tensor_rank to axis.
+OPENVINO_DEPRECATED("This function is deprecated and will be moved to dev api in 2024.0 release.")
 OPENVINO_API
 int64_t normalize_axis(const Node* node, std::int64_t axis, const Rank& tensor_rank);
 
@@ -51,6 +54,7 @@ int64_t normalize_axis(const Node* node, std::int64_t axis, const Rank& tensor_r
 /// \return     If any negative axis in vector, it counts from the last to the first
 ///             axis, by adding tensor_rank to axis.
 ///
+OPENVINO_DEPRECATED("This function is deprecated and will be moved to dev api in 2024.0 release.")
 OPENVINO_API
 std::vector<size_t> normalize_axes(const std::string& node_description,
                                    const std::vector<int64_t>& axes,
@@ -65,6 +69,7 @@ std::vector<size_t> normalize_axes(const std::string& node_description,
 /// \return    Checking if axis is in range [-tensor_rank, tensor_rank-1], otherwise
 ///            returns error. If negative axis, it counts from the last to the first axis,
 ///            by adding tensor_rank to axis.
+OPENVINO_DEPRECATED("This function is deprecated and will be moved to dev api in 2024.0 release.")
 OPENVINO_API
 int64_t normalize_axis(const std::string& node_description, std::int64_t axis, const Rank& tensor_rank);
 
@@ -79,6 +84,7 @@ int64_t normalize_axis(const std::string& node_description, std::int64_t axis, c
 /// \return     Checking if axis is in range [axis_range_min, axis_range_max], otherwise
 ///             returns error. If negative axis, it counts from the last to the first axis,
 ///             by adding tensor_rank to axis.
+OPENVINO_DEPRECATED("This function is deprecated and will be moved to dev api in 2024.0 release.")
 OPENVINO_API
 int64_t normalize_axis(const Node* node,
                        std::int64_t axis,
@@ -97,6 +103,7 @@ int64_t normalize_axis(const Node* node,
 /// \return     Checking if axis is in range [axis_range_min, axis_range_max], otherwise
 ///             returns error. If negative axis, it counts from the last to the first axis,
 ///             by adding tensor_rank to axis.
+OPENVINO_DEPRECATED("This function is deprecated and will be moved to dev api in 2024.0 release.")
 OPENVINO_API
 int64_t normalize_axis(const std::string& node_description,
                        std::int64_t axis,
@@ -112,6 +119,7 @@ int64_t normalize_axis(const std::string& node_description,
 /// \param[in]      tensor_rank  The corresponding tensor rank.
 /// \param[in,out]  axes         The requested vector of axes.
 ///
+OPENVINO_DEPRECATED("This function is deprecated and will be moved to dev api in 2024.0 release.")
 OPENVINO_API
 void normalize_axes(const Node* node, const int64_t& tensor_rank, std::vector<int64_t>& axes);
 
@@ -120,10 +128,12 @@ void normalize_axes(const Node* node, const int64_t& tensor_rank, std::vector<in
 /// \param output Node output pointing to the tensor for estimation.
 /// \param pshape Resulting estimation would be stored in this PartialShape.
 /// \return boolean status if value evaluation was successful.
+OPENVINO_DEPRECATED("This function is deprecated and will be moved to dev api in 2024.0 release.")
 OPENVINO_API bool evaluate_as_partial_shape(const Output<Node>& output, PartialShape& pshape);
 
 /// \brief Runs an estimation of source tensor. If it succeeded to calculate both bounds and
 /// they are the same returns Constant operation from the resulting bound, otherwise nullptr.
+OPENVINO_DEPRECATED("This function is deprecated and will be moved to dev api in 2024.0 release.")
 OPENVINO_API std::shared_ptr<op::v0::Constant> get_constant_from_source(const Output<Node>& source);
 
 /// \brief Propagates value label from 0 input to the only output through an operation.
@@ -132,6 +142,7 @@ OPENVINO_API std::shared_ptr<op::v0::Constant> get_constant_from_source(const Ou
 /// \param node Operation to be performed
 /// \param output_labels Vector of TensorLabel objects representing resulting value labels
 /// \return boolean status if label evaluation was successful.
+OPENVINO_DEPRECATED("This function is deprecated and will be moved to dev api in 2024.0 release.")
 OPENVINO_API bool default_label_evaluator(const Node* node, TensorLabelVector& output_labels);
 
 /// \brief Generates transpose default axes order at end of input vector.
@@ -140,6 +151,7 @@ OPENVINO_API bool default_label_evaluator(const Node* node, TensorLabelVector& o
 ///
 /// \param axes_order  Vector where default order will be generated.
 /// \param length      Sequence length of axes order.
+OPENVINO_DEPRECATED("This function is deprecated and will be moved to dev api in 2024.0 release.")
 OPENVINO_API void generate_transpose_default_order(std::vector<int64_t>& axes_order, const size_t length);
 
 /// \brief Check if vector of axes order has got valid values.
@@ -150,12 +162,14 @@ OPENVINO_API void generate_transpose_default_order(std::vector<int64_t>& axes_or
 /// \param size        Input for transpose rank size.
 ///
 /// \return true if axes order is valid otherwise false.
+OPENVINO_DEPRECATED("This function is deprecated and will be moved to dev api in 2024.0 release.")
 OPENVINO_API bool is_valid_axes_order(const std::vector<int64_t>& axes_order, const size_t size);
 
 /// \brief Checks label tensor if there is no label
 ///
 /// \param labels  Label tensor for check.
 /// \return True if there is no labels, otherwise false.
+OPENVINO_DEPRECATED("This function is deprecated and will be moved to dev api in 2024.0 release.")
 OPENVINO_API bool has_no_labels(const TensorLabel& labels);
 
 /// \brief Get the node input partial shapes.
@@ -163,6 +177,7 @@ OPENVINO_API bool has_no_labels(const TensorLabel& labels);
 /// \param node   Node to extract input shapes.
 ///
 /// \return Vector of PartialShapes of each input.
+OPENVINO_DEPRECATED("This function is deprecated and will be moved to dev api in 2024.0 release.")
 OPENVINO_API std::vector<PartialShape> get_node_input_partial_shapes(const ov::Node& node);
 
 /// \brief Check if rank is compatible to any of rank from container.
@@ -171,6 +186,7 @@ OPENVINO_API std::vector<PartialShape> get_node_input_partial_shapes(const ov::N
 /// \param ranks  VEctor of ranks used to check input rank compatibility.
 ///
 /// \return True if rank compatible to any from ranks, otherwise false.
+OPENVINO_DEPRECATED("This function is deprecated and will be moved to dev api in 2024.0 release.")
 OPENVINO_API bool is_rank_compatible_any_of(const ov::Rank& rank, const std::vector<ov::Rank>& ranks);
 
 }  // namespace ov

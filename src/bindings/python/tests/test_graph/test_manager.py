@@ -11,9 +11,9 @@ import pytest
 import openvino.runtime.opset10 as ops
 from openvino.runtime import Core, Model
 from openvino.runtime.passes import Manager, Serialize, ConstantFolding, Version
-from tests.test_graph.util import count_ops_of_type
 
-from tests.test_utils.test_utils import create_filename_for_test
+from tests.test_graph.util import count_ops_of_type
+from tests.test_utils.test_utils import create_filename_for_test, compare_models
 
 def create_model():
     shape = [100, 100, 2]
@@ -68,18 +68,17 @@ def test_serialize_separate_paths_kwargs(prepare_ir_paths):
     parameter_a = ops.parameter(shape, dtype=np.float32, name="A")
     parameter_b = ops.parameter(shape, dtype=np.float32, name="B")
     parameter_c = ops.parameter(shape, dtype=np.float32, name="C")
-    model = (parameter_a + parameter_b) * parameter_c
-    func = Model(model, [parameter_a, parameter_b, parameter_c], "Model")
+    _model = (parameter_a + parameter_b) * parameter_c
+    model = Model(_model, [parameter_a, parameter_b, parameter_c], "Model")
 
     xml_path, bin_path = prepare_ir_paths
     pass_manager = Manager()
     pass_manager.register_pass(Serialize(path_to_xml=xml_path, path_to_bin=bin_path))
-    pass_manager.run_passes(func)
+    pass_manager.run_passes(model)
 
     res_model = core.read_model(model=xml_path, weights=bin_path)
 
-    assert func.get_parameters() == res_model.get_parameters()
-    assert func.get_ordered_ops() == res_model.get_ordered_ops()
+    assert compare_models(model, res_model)
 
 
 def test_serialize_separate_paths_args(prepare_ir_paths):
@@ -90,18 +89,17 @@ def test_serialize_separate_paths_args(prepare_ir_paths):
     parameter_b = ops.parameter(shape, dtype=np.float32, name="B")
     parameter_c = ops.parameter(shape, dtype=np.float32, name="C")
     parameter_d = ops.parameter(shape, dtype=np.float32, name="D")
-    model = ((parameter_a + parameter_b) * parameter_c) / parameter_d
-    func = Model(model, [parameter_a, parameter_b, parameter_c, parameter_d], "Model")
+    _model = ((parameter_a + parameter_b) * parameter_c) / parameter_d
+    model = Model(_model, [parameter_a, parameter_b, parameter_c, parameter_d], "Model")
 
     xml_path, bin_path = prepare_ir_paths
     pass_manager = Manager()
     pass_manager.register_pass(Serialize(xml_path, bin_path))
-    pass_manager.run_passes(func)
+    pass_manager.run_passes(model)
 
     res_model = core.read_model(model=xml_path, weights=bin_path)
 
-    assert func.get_parameters() == res_model.get_parameters()
-    assert func.get_ordered_ops() == res_model.get_ordered_ops()
+    assert compare_models(model, res_model)
 
 
 def test_serialize_pass_mixed_args_kwargs(prepare_ir_paths):
@@ -110,18 +108,17 @@ def test_serialize_pass_mixed_args_kwargs(prepare_ir_paths):
     shape = [3, 2]
     parameter_a = ops.parameter(shape, dtype=np.float32, name="A")
     parameter_b = ops.parameter(shape, dtype=np.float32, name="B")
-    model = parameter_a - parameter_b
-    func = Model(model, [parameter_a, parameter_b], "Model")
+    _model = parameter_a - parameter_b
+    model = Model(_model, [parameter_a, parameter_b], "Model")
 
     xml_path, bin_path = prepare_ir_paths
     pass_manager = Manager()
     pass_manager.register_pass(Serialize(xml_path, path_to_bin=bin_path))
-    pass_manager.run_passes(func)
+    pass_manager.run_passes(model)
 
     res_model = core.read_model(model=xml_path, weights=bin_path)
 
-    assert func.get_parameters() == res_model.get_parameters()
-    assert func.get_ordered_ops() == res_model.get_ordered_ops()
+    assert compare_models(model, res_model)
 
 
 def test_serialize_pass_mixed_args_kwargs_v2(prepare_ir_paths):
@@ -135,8 +132,7 @@ def test_serialize_pass_mixed_args_kwargs_v2(prepare_ir_paths):
 
     res_model = core.read_model(model=xml_path, weights=bin_path)
 
-    assert model.get_parameters() == res_model.get_parameters()
-    assert model.get_ordered_ops() == res_model.get_ordered_ops()
+    assert compare_models(model, res_model)
 
 
 # request - https://docs.pytest.org/en/7.1.x/reference/reference.html#request
@@ -153,39 +149,16 @@ def test_serialize_results(prepare_ir_paths):
     core = Core()
     node_constant = ops.constant(np.array([[0.0, 0.1, -0.1], [-2.5, 2.5, 3.0]], dtype=np.float32))
     node_ceil = ops.ceiling(node_constant)
-    func = Model(node_ceil, [], "Model")
+    model = Model(node_ceil, [], "Model")
 
     xml_path, bin_path = prepare_ir_paths
     pass_manager = Manager()
     pass_manager.register_pass(Serialize(path_to_xml=xml_path, path_to_bin=bin_path))
-    pass_manager.run_passes(func)
+    pass_manager.run_passes(model)
 
     res_model = core.read_model(model=xml_path, weights=bin_path)
-    const = func.get_results()[0].input(0).get_source_output().get_node()
-    new_const = res_model.get_results()[0].input(0).get_source_output().get_node()
 
-    assert const == new_const
-
-    import gc
-    gc.collect()    # CVS-106805
-
-
-@pytest.mark.xfail(reason="CVS-106805. Delete test after fix")
-def test_serialize_results_fails(prepare_ir_paths):
-    core = Core()
-    node_constant = ops.constant(np.array([[0.0, 0.1, -0.1], [-2.5, 2.5, 3.0]], dtype=np.float32))
-    func = Model(node_constant, [], "Model")
-
-    xml_path, bin_path = prepare_ir_paths
-    pass_manager = Manager()
-    pass_manager.register_pass(Serialize(path_to_xml=xml_path, path_to_bin=bin_path))
-    pass_manager.run_passes(func)
-
-    res_model = core.read_model(model=xml_path, weights=bin_path)
-    const = func.get_results()
-    new_const = res_model.get_results()
-
-    assert const == new_const
+    assert compare_models(model, res_model)
 
 
 def test_default_version(prepare_ir_paths):
@@ -199,8 +172,7 @@ def test_default_version(prepare_ir_paths):
 
     res_model = core.read_model(model=xml_path, weights=bin_path)
 
-    assert model.get_parameters() == res_model.get_parameters()
-    assert model.get_ordered_ops() == res_model.get_ordered_ops()
+    assert compare_models(model, res_model)
 
 
 def test_default_version_IR_V11_seperate_paths(prepare_ir_paths):
@@ -214,5 +186,4 @@ def test_default_version_IR_V11_seperate_paths(prepare_ir_paths):
 
     res_model = core.read_model(model=xml_path, weights=bin_path)
 
-    assert model.get_parameters() == res_model.get_parameters()
-    assert model.get_ordered_ops() == res_model.get_ordered_ops()
+    assert compare_models(model, res_model)

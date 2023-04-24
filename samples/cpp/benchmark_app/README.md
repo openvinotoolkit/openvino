@@ -166,7 +166,7 @@ Running the application with the ``-h`` or ``--help`` option yields the followin
                                      'throughput' or 'tput': device performance mode will be set to THROUGHPUT.
                                      'cumulative_throughput' or 'ctput': device performance mode will be set to CUMULATIVE_THROUGHPUT.
                                      'latency': device performance mode will be set to LATENCY.
-                                     'none': device performance mode will be set to UNDEFINED.
+                                     'none': no device performance mode will be set.
                                     Using explicit 'nstreams' or other device-specific options, please set hint to 'none'
           -niter  <integer>             Optional. Number of iterations. If not specified, the number of iterations is calculated depending on a device.
           -t                            Optional. Time in seconds to execute topology.
@@ -217,27 +217,18 @@ Running the application with the ``-h`` or ``--help`` option yields the followin
           -exec_graph_path        Optional. Path to a file where to store executable graph information serialized.
           -dump_config            Optional. Path to JSON file to dump IE parameters, which were set by application.
           -load_config            Optional. Path to JSON file to load custom IE parameters. Please note, command line parameters have higher priority then parameters from configuration    file.
-                                    Example 1: a simple JSON file for HW device with primary properties.
-                                             {
-                                                  "CPU": {"NUM_STREAMS": "3", "PERF_COUNT": "NO"}
-                                             }
-                                    Example 2: a simple JSON file for meta device(AUTO/MULTI) with HW device properties.
-                                             {
-                                                     "AUTO": {
-                                                             "PERFORMANCE_HINT": "",
-                                                             "PERF_COUNT": "NO",
-                                                             "DEVICE_PROPERTIES": {
-                                                             "CPU": {
-                                                                 "INFERENCE_PRECISION_HINT": "f32",
-                                                                 "NUM_STREAMS": "3"
-                                                             },
-                                                             "GPU": {
-                                                                 "INFERENCE_PRECISION_HINT": "f32",
-                                                                 "NUM_STREAMS": "5"
-                                                             }
-                                                         }
-                                                     }
-                                             }
+                              Example 1: a simple JSON file for HW device with primary properties.
+                                       {
+                                            "CPU": {"NUM_STREAMS": "3", "PERF_COUNT": "NO"}
+                                       }
+                              Example 2: a simple JSON file for meta device(AUTO/MULTI) with HW device properties.
+                                       {
+                                               "AUTO": {
+                                                       "PERFORMANCE_HINT": "THROUGHPUT",
+                                                       "PERF_COUNT": "NO",
+                                                       "DEVICE_PROPERTIES": "{CPU:{INFERENCE_PRECISION_HINT:f32,NUM_STREAMS:3},GPU:{INFERENCE_PRECISION_HINT:f32,NUM_STREAMS:5}}"
+                                               }
+                                       }
 
 
 Running the application with the empty list of options yields the usage message given above and an error message.

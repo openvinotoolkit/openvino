@@ -37,6 +37,8 @@
 
 #include "dnnl_postops_composer.h"
 #include "graph_context.h"
+#include "nodes/executors/mvn_list.hpp"
+#include "nodes/executors/executor.hpp"
 
 namespace ov {
 namespace intel_cpu {
@@ -75,6 +77,12 @@ class NodeDesc {
 public:
     NodeDesc(const NodeConfig& conf, impl_desc_type type): config(conf) {
         implementationType = type;
+        executorFactory = nullptr;
+    }
+
+    NodeDesc(const NodeConfig& conf, impl_desc_type type, ExecutorFactoryPtr factory): config(conf) {
+        implementationType = type;
+        executorFactory = factory;
     }
 
     const NodeConfig& getConfig() const {
@@ -93,9 +101,28 @@ public:
         implementationType = type;
     }
 
+    ExecutorFactoryPtr getExecutorFactory() const {
+        return executorFactory;
+    }
+
+    template <typename T,
+            typename std::enable_if<!std::is_pointer<T>::value && !std::is_reference<T>::value, int>::type = 0,
+            typename std::enable_if<std::is_base_of<ExecutorFactory, T>::value, int>::type = 0>
+    std::shared_ptr<T> getExecutorFactoryAs() {
+        auto casted = std::dynamic_pointer_cast<T>(executorFactory);
+        if (!casted)
+            IE_THROW() << "Cannot dynamically cast ExecutorFactory";
+        return casted;
+    }
+
+    void setExecutorFactory(ExecutorFactoryPtr factory) {
+        executorFactory = factory;
+    }
+
 private:
     NodeConfig config;
     impl_desc_type implementationType;
+    ExecutorFactoryPtr executorFactory;
 };
 
 class Node {
@@ -330,8 +357,6 @@ public:
 
     PerfCount &PerfCounter() { return perfCounter; }
 
-    virtual void setDynamicBatchLim(int lim);
-
     void resolveInPlaceEdges();
 
     virtual void execute(dnnl::stream strm) = 0;
@@ -513,6 +538,10 @@ public:
     */
     std::pair<std::vector<float>, std::vector<float>> getScalesAndShifts(const Node *parentNode) const;
 
+    void initializeDQScales(const float* scaleData, const size_t scaleSize);
+    const std::vector<float>& getDQScales() const {
+        return DQScales;
+    }
     /**
      * @brief Appends new item into ops list with the information on how the node should be executed as post operation.
      * Seed node should call this routine and pass its post operations list as parameter.
@@ -527,9 +556,6 @@ protected:
     void setType(Type type) {
         this->type = type;
     }
-
-    virtual size_t getMaxBatch() const;
-
 
     virtual PortDescBasePtr getConsistentInputDesc(const NodeConfig &config, size_t idx) const;
     virtual PortDescBasePtr getConsistentOutputDesc(const NodeConfig &config, size_t idx) const;
@@ -560,7 +586,7 @@ protected:
     int selectedPrimitiveDescriptorIndex = -1;
     bool permanent = false;
     bool temporary = false;
-    int dynBatchLim = 0;
+
     enum class InPlaceType {
         Unknown,
         InPlace,
@@ -595,7 +621,6 @@ protected:
     virtual const std::vector<impl_desc_type>& getPrimitivesPriority();
 
     virtual std::vector<dnnl::memory::format_tag> getAvailableFormatsForDims(const Shape& dims) const;
-    int batchToProcess() const;
 
     InferenceEngine::Layout getWeightsLayoutByDims(InferenceEngine::SizeVector dims, bool isGrouped);
 
@@ -613,10 +638,10 @@ protected:
 
     void addSupportedPrimDesc(const std::vector<PortConfigurator>& inPortConfigs,
                               const std::vector<PortConfigurator>& outPortConfigs,
-                              impl_desc_type implType,
-                              bool dynBatchSupport = false);
+                              impl_desc_type implType);
 
     void prepareMemory(const std::vector<DnnlMemoryDescPtr>& intDescs);
+    void prepareMemory(const DnnlMemoryDescPtr& intDesc, size_t indx);
     void prepareMemory(dnnl::primitive_desc_iterator& itpd);
 
     MemoryPtr prepareWeightMemory(DnnlMemoryDescPtr weightDesc);
@@ -688,7 +713,8 @@ private:
 
     enum LOOK { LOOK_UP = 1, LOOK_DOWN = 2 };
     ConstantType checkConstant(LOOK look, std::vector<NodePtr>& checkNodes);
-
+    // Hold output scales
+    std::vector<float> DQScales;
     // we cannot rely on per-NUMA weightCache for caching weights because:
     //   1.it may not exist(in single stream configuration)
     //   2.it only holds weak references, the life-cycle of cached item

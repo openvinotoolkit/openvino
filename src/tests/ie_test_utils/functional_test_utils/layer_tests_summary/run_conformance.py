@@ -21,7 +21,7 @@ from utils import file_utils
 logger = get_logger('conformance_runner')
 has_python_api = True
 try:
-    from rename_conformance_ir import create_hash
+    from rename_conformance_ir import create_hash, save_rel_weights
 except:
     logger.warning("Please set the above env variable to get the same conformance ir names run by run!")
     has_python_api = False
@@ -50,6 +50,7 @@ def parse_arguments():
     ov_config_path_helper = "Specify path to file contains plugin config"
     dump_conformance_help = "Set '1' if you want to create Conformance IRs from custom/downloaded models. In other cases, set 0. The default value is '1'"
     shape_mode_help = "Specify shape mode for conformance. Default value is ``. Possible values: `static`, `dynamic`, ``"
+    parallel_help = "Parallel over HW devices. For example run tests over GPU.0, GPU.1 and etc"
 
     parser.add_argument("-m", "--models_path", help=models_path_help, type=str, required=False, default=NO_MODEL_CONSTANT)
     parser.add_argument("-d", "--device", help= device_help, type=str, required=False, default="CPU")
@@ -61,12 +62,14 @@ def parse_arguments():
     parser.add_argument("-c", "--ov_config_path", help=ov_config_path_helper, type=str, required=False, default="")
     parser.add_argument("-s", "--dump_conformance", help=dump_conformance_help, type=int, required=False, default=0)
     parser.add_argument("-sm", "--shape_mode", help=shape_mode_help, type=str, required=False, default="")
+    parser.add_argument("-p", "--parallel_devices", help=parallel_help, type=bool, required=False, default=False)
 
     return parser.parse_args()
 
 class Conformance:
     def __init__(self, device:str, model_path:os.path, ov_path:os.path, type:str, workers:int,
-                 gtest_filter:str, working_dir:os.path, ov_config_path:os.path, shape_mode:str):
+                 gtest_filter:str, working_dir:os.path, ov_config_path:os.path, shape_mode:str,
+                 parallel_devices:bool):
         self._device = device
         self._model_path = model_path
         self._ov_path = ov_path
@@ -91,6 +94,7 @@ class Conformance:
         else:
             logger.error(f'Incorrect value to set shape mode: {shape_mode}. Please check to get possible values')
             exit(-1)
+        self._is_parallel_over_devices = parallel_devices
 
     def __download_models(self, url_to_download, path_to_save):
         _, file_name = os.path.split(urlparse(url_to_download).path)
@@ -136,7 +140,8 @@ class Conformance:
             exit(-1)
         self._model_path = conformance_ir_path
         if has_python_api:
-            create_hash(Path(self._model_path))
+            op_rel_weight = create_hash(Path(self._model_path))
+            save_rel_weights(Path(self._model_path), op_rel_weight)
             logger.info(f"All conformance IRs in {self._ov_bin_path} were renamed based on hash")
         else:
             logger.warning("The OV Python was not built or Environment was not updated to requirments. Skip the step to rename Conformance IR based on a hash")
@@ -167,7 +172,7 @@ class Conformance:
                              f"--report_unique_name", f'--output_folder="{parallel_report_dir}"',
                              f'--gtest_filter={self._gtest_filter}', f'--config_path="{self._ov_config_path}"',
                              f'--shape_mode={self._shape_mode}']
-        conformance = TestParallelRunner(f"{conformance_path}", command_line_args, self._workers, logs_dir, "")
+        conformance = TestParallelRunner(f"{conformance_path}", command_line_args, self._workers, logs_dir, "", self._is_parallel_over_devices)
         conformance.run()
         conformance.postprocess_logs()
 
@@ -182,7 +187,8 @@ class Conformance:
 
     def __summarize(self, xml_report_path:os.path, report_dir: os.path):
         summary_root = ET.parse(xml_report_path).getroot()
-        create_summary(summary_root, report_dir, [], "", "", False, True)
+        rel_weights_path = os.path.join(self._model_path, constants.REL_WEIGHTS_FILENAME.replace(constants.REL_WEIGHTS_REPLACE_STR, self._shape_mode))
+        create_summary(summary_root, report_dir, [], "", "", True, True, rel_weights_path)
         copytree(os.path.join(SCRIPT_DIR_PATH, "template"), os.path.join(report_dir, "template"))
         logger.info(f"Report was saved to {os.path.join(report_dir, 'report.html')}")
 
@@ -236,5 +242,5 @@ if __name__ == "__main__":
                               args.ov_path, args.type,
                               args.workers, args.gtest_filter,
                               args.working_dir, args.ov_config_path,
-                              args.shape_mode)
+                              args.shape_mode, args.parallel_devices)
     conformance.run(args.dump_conformance)

@@ -66,8 +66,11 @@ ov::pass::GatherNegativeConstIndicesNormalize::GatherNegativeConstIndicesNormali
                                                  ov::opset7::Constant::create(input_type, Shape{}, {0}));
 
         std::shared_ptr<Node> add = std::make_shared<ov::opset7::Add>(input_gather, indices_constant);
-        if (auto folded_const = ngraph::get_constant_from_source(add))
+        OPENVINO_SUPPRESS_DEPRECATED_START
+        if (auto folded_const = ngraph::get_constant_from_source(add)) {
+            OPENVINO_SUPPRESS_DEPRECATED_END
             add = folded_const;
+        }
         gather->input(1).replace_source_output(add);
 
         ngraph::copy_runtime_info(gather, {shape_of, input_gather, add});

@@ -8,7 +8,7 @@
 #include "ngram.h"
 #include "ie_parallel.hpp"
 #include "common/cpu_memcpy.h"
-#include "ngraph_transformations/op/ngram.hpp"
+#include "transformations/cpu_opset/common/op/ngram.hpp"
 
 namespace ov {
 namespace intel_cpu {
@@ -94,8 +94,7 @@ void Ngram::initSupportedPrimitiveDescriptors() {
     addSupportedPrimDesc({{LayoutType::ncsp, InferenceEngine::Precision::FP32},
                           {LayoutType::ncsp, idcesPrecision}},
                          {{LayoutType::ncsp, InferenceEngine::Precision::FP32}},
-                         ref_any,
-                         isDynamicNode());
+                         ref_any);
 }
 
 void Ngram::prepareParams() {
