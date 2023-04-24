@@ -424,7 +424,6 @@ class TFConvertTest(unittest.TestCase):
             y = tf.nn.sigmoid(tf.nn.relu(x1 + x2))
             return y
 
-        # Check that ONNX conversion passed, so ONNX frontend raises error message of unsupported op.
         with self.assertRaisesRegex(AssertionError,
                                     ".*'input_signature' needs to be set for model conversion.*"):
             convert_model(function)
