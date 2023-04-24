@@ -430,9 +430,6 @@ def test_set_negative_batch_size(device):
 
 def test_blob_setter(device):
     ie_core = ie.IECore()
-    if device == "CPU":
-        if ie_core.get_metric(device, "FULL_DEVICE_NAME") == "arm_compute::NEON":
-            pytest.skip("Can't run on ARM plugin")
     net = ie_core.read_network(test_net_xml, test_net_bin)
     exec_net_1 = ie_core.load_network(network=net, device_name=device, num_requests=1)
 
@@ -510,9 +507,6 @@ def test_resize_algorithm_work(device):
                     "Memory layers fully supported only on CPU")
 def test_query_state_write_buffer(device, input_shape, data_type, mode):
     ie_core = ie.IECore()
-    if device == "CPU":
-        if ie_core.get_metric(device, "FULL_DEVICE_NAME") == "arm_compute::NEON":
-            pytest.skip("Can't run on ARM plugin")
 
     layout = ["C", "HW", "CHW", "NCHW"]
 

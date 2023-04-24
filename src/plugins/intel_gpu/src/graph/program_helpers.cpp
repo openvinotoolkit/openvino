@@ -114,6 +114,7 @@ add_fusing_type onednn_add_fusing_helpers::get_add_fusing_type(
             && p_layout.format == d_layout.format && p_layout.get_tensor() == d_layout.get_tensor()
             && p_layout.data_padding == d_layout.data_padding
             && dep_node.get_users().size() == 1
+            && !dep_node.is_constant()
             && !p_node.is_type<pooling>()) {
             return add_fusing_type::sum;
         } else if (p_layout.get_tensor() == d_layout.get_tensor()) {
