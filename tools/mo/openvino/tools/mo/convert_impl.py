@@ -518,7 +518,6 @@ def check_model_object(argv):
     model = argv['input_model']
     if 'tensorflow' in sys.modules:
         import tensorflow as tf
-        from tensorflow.python.training.tracking.base import Trackable
         env_setup = get_environment_setup("tf")
 
         if isinstance(model, tf.compat.v1.GraphDef):
@@ -559,8 +558,6 @@ def check_model_object(argv):
             outputs = model(*inputs)
             argv['input_model'] = tf.keras.Model(inputs, outputs)
             argv['input_shape'] = None
-            return "tf"
-        if isinstance(model, Trackable):
             return "tf"
     if 'torch' in sys.modules:
         import torch

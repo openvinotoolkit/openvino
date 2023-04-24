@@ -200,7 +200,6 @@ def freeze_tf2_concrete_function(model, concrete_func, env_setup):
 
 
 def prepare_graph_def(model):
-    from tensorflow.python.training.tracking.base import Trackable  # pylint: disable=no-name-in-module,import-error
     env_setup = get_environment_setup("tf")
     if isinstance(model, tf_v1.GraphDef):
         nodes_to_clear_device = model.node
@@ -233,8 +232,6 @@ def prepare_graph_def(model):
 
         conc_func = model.get_concrete_function(*tuple(model.input_signature))
         return freeze_tf2_concrete_function(model, conc_func, env_setup)
-    if isinstance(model, Trackable):
-        return saved_model_load(model, env_setup)
     raise Exception("Unknown model type {}.".format(type(model)))
 
 

@@ -113,7 +113,6 @@ def convert_model(
             tf.function
             tf.Module
             tf.train.checkpoint
-            tf.python.training.tracking.base.Trackable for case when it is output from tf.saved_model.load()
 
         :param input:
             Input can be set by passing a list of InputCutInfo objects or by a list

@@ -345,15 +345,6 @@ def create_tf_saved_model_dir(temp_dir):
     return temp_dir + "/model", model_ref
 
 
-def create_tf_saved_model(temp_dir):
-    import tensorflow as tf
-
-    saved_model_dir, model_ref = create_tf_saved_model_dir(temp_dir)
-    saved_model = tf.saved_model.load(saved_model_dir)
-
-    return saved_model, model_ref, None
-
-
 class TestMoConvertTF(CommonMOConvertTest):
     test_data = [
         # TF2
@@ -362,7 +353,6 @@ class TestMoConvertTF(CommonMOConvertTest):
         create_tf_function,
         create_tf_module,
         create_tf_checkpoint,
-        create_tf_saved_model,
         create_keras_layer_dynamic,
         create_tf_module_dynamic,
         create_tf_module_layout_list,
