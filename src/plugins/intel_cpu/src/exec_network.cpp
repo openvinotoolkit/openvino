@@ -192,7 +192,7 @@ ExecNetwork::GraphGuard::Lock ExecNetwork::GetGraph() const {
                         (_cfg.lpTransformsMode == Config::On) &&
                         ngraph::pass::low_precision::LowPrecision::isFunctionQuantized(_network.getFunction());
 
-                    ctx = std::make_shared<GraphContext>(_cfg, extensionManager, weightsCache, _mutex, isQuantizedFlag);
+                    ctx = std::make_shared<GraphContext>(_cfg, extensionManager, weightsCache, isQuantizedFlag);
                 }
                 graphLock._graph.CreateGraph(_network, ctx);
             } catch (...) {

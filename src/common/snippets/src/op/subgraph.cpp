@@ -60,8 +60,6 @@ void snippets::op::Subgraph::init_config() {
     for (const auto& op : ops) {
         config.m_is_quantized = config.m_is_quantized ||
             ov::is_type<ov::op::v0::FakeQuantize>(op);
-        config.m_has_type_relaxed_ops = config.m_has_type_relaxed_ops ||
-            std::dynamic_pointer_cast<ov::op::TypeRelaxedBase>(op);
         config.m_has_domain_sensitive_ops = config.m_has_domain_sensitive_ops ||
             ov::is_type<ov::op::v1::Transpose>(op) ||
             ov::is_type<ov::op::v1::Softmax>(op) ||

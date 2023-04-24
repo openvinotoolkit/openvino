@@ -89,14 +89,7 @@ void Snippet::copy_snippet() {
         auto new_input = std::make_shared<ngraph::opset1::Parameter>(input.get_element_type(), input.get_partial_shape());
         subgraph_node_inputs.push_back(new_input);
     }
-    std::shared_ptr<ov::Model> new_body = nullptr;
-    // Ticket[79554]: TypeRelaxed ops aren't thread safe so we use mutex to avoid collision in throughput mode
-    if (original_snippet->has_type_relaxed_ops()) {
-        std::lock_guard<std::mutex> lock(*context->getSharedMutex());
-        new_body = original_snippet->body_ptr()->clone();
-    } else {
-        new_body = original_snippet->body_ptr()->clone();
-    }
+    std::shared_ptr<ov::Model> new_body = original_snippet->body_ptr()->clone();
     snippet = std::make_shared<ngraph::snippets::op::Subgraph>(subgraph_node_inputs, new_body);
     ngraph::copy_runtime_info(original_snippet, snippet);
     snippet->set_friendly_name(original_snippet->get_friendly_name());
