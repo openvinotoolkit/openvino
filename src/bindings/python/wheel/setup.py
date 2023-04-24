@@ -299,6 +299,9 @@ class PrepareLibs(build_clib):
                     lambda x: any(item in ([".so"] if sys.platform == "linux" else [".dylib", ".so"])
                                   for item in x.suffixes), Path(install_dir).glob("*"),
                 ):
+                    if comp == "tbb_libs" and path.is_symlink():
+                        self.announce(f"no set rpath for symlink {path}", level=3)
+                        continue
                     set_rpath(comp_data["rpath"], os.path.realpath(path))
 
     def get_reallink(self, link_file):
