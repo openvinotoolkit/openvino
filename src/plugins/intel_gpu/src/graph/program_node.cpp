@@ -991,7 +991,8 @@ void program_node::init_onednn_primitive_attributes() {
                                                mem_desc.get_dims(), mem_desc.get_data_type());
                 } else if (is_type<gemm>()) {
                     size_t rank = cldnn::format::dimension(in.format);
-                    dnnl::memory::dims dims = onednn::convert_gemm_tensor(in.get_tensor(), rank, in.batch() == 1);
+                    size_t in_batched_size = in.count() / (in.spatial(0) * in.spatial(1));
+                    dnnl::memory::dims dims = onednn::convert_gemm_tensor(in.get_tensor(), rank, in_batched_size == 1);
                     dnnl::memory::data_type dt = onednn::convert_data_type(in.data_type);
                     dnnl::memory::format_tag fmt = onednn::convert_gemm_data_format(dims);
                     post_ops.append_binary(alg, dnnl::memory::desc(dims, dt, fmt));
