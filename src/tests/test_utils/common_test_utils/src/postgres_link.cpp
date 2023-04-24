@@ -13,6 +13,8 @@
 #include <map>
 #include <sstream>
 
+#include "openvino/core/version.hpp"
+
 /// \brief Enables dynamic load of libpq module
 #define PGQL_DYNAMIC_LOAD
 /// \brief Enables extended debug messages to the stderr
@@ -796,6 +798,9 @@ static bool compileString(const std::string& srcStr,
 class PostgreSQLEventListener : public ::testing::EmptyTestEventListener {
     std::shared_ptr<PostgreSQLConnection> connectionKeeper;
 
+    std::string bin_version;
+    std::string lib_version;
+
     const char* session_id = nullptr;  // String value of session id, it will be converted to sessinoId
     const char* run_id = nullptr;      // String value of run (might be char[33]), it will be converted to testRunId
     bool isPostgresEnabled = false;
@@ -919,9 +924,11 @@ class PostgreSQLEventListener : public ::testing::EmptyTestEventListener {
                       host_info_id)
     GET_PG_IDENTIFIER(RequestSessionId(void),
                       "BEGIN TRANSACTION ISOLATION LEVEL SERIALIZABLE; "
-                          << "CALL ON_MISS_SESSION('" << this->session_id << "');"
+                          << "CALL ON_MISS_SESSION('" << this->session_id << "', '" << this->bin_version << "', '"
+                          << this->lib_version << "');"
                           << "COMMIT;"
-                          << "SELECT GET_SESSION('" << this->session_id << "');",
+                          << "SELECT GET_SESSION('" << this->session_id << "', '" << this->bin_version << "', '"
+                          << this->lib_version << "');",
                       sessionId,
                       session_id)
     GET_PG_IDENTIFIER(RequestSuiteNameId(const char* test_suite_name),
@@ -1314,6 +1321,13 @@ class PostgreSQLEventListener : public ::testing::EmptyTestEventListener {
 
             if (!connInitResult)
                 return;
+
+            bin_version = std::to_string(OPENVINO_VERSION_MAJOR) + "." + std::to_string(OPENVINO_VERSION_MINOR) + "." +
+                          std::to_string(OPENVINO_VERSION_PATCH);
+            {
+                ov::Version version = ov::get_openvino_version();
+                lib_version = version.buildNumber;
+            }
 
             isPostgresEnabled = connInitResult;
 
