@@ -151,7 +151,8 @@ TEST(FrontEndConvertModelTest, test_unsupported_tf1_while) {
                   "OpConversionFailure is expected.";
     } catch (const OpConversionFailure& error) {
         string error_message = error.what();
-        string ref_message = "No translator found for Enter node.";
+        string ref_message = "[TensorFlow Frontend] Internal error, no translator found for operation(s): Enter, Exit, "
+                             "LoopCond, Merge, NextIteration, Switch";
         ASSERT_TRUE(error_message.find(ref_message) != string::npos);
         ASSERT_EQ(model, nullptr);
     } catch (...) {
@@ -188,7 +189,8 @@ TEST(FrontEndConvertModelTest, test_unsupported_tf1_while_and_incorrect_less_tra
         string error_message = error.what();
         string ref_message = "Less expects ten inputs.\n"
                              "\n"
-                             "[TensorFlow Frontend] Internal error: No translator found for Enter node.";
+                             "[TensorFlow Frontend] Internal error, no translator found for operation(s): Enter, Exit, "
+                             "LoopCond, Merge, NextIteration, Switch";
         ASSERT_TRUE(error_message.find(ref_message) != string::npos);
         ASSERT_EQ(model, nullptr);
     } catch (...) {
@@ -208,7 +210,8 @@ TEST(FrontEndConvertModelTest, conversion_with_unknown_exception) {
     } catch (const OpConversionFailure& error) {
         string error_message = error.what();
         string ref_message = "Unknown exception type\n"
-                             "[TensorFlow Frontend] Internal error: No translator found for Enter node.";
+                             "[TensorFlow Frontend] Internal error, no translator found for operation(s): Enter, Exit, "
+                             "LoopCond, Merge, NextIteration, Switch";
         ASSERT_TRUE(error_message.find(ref_message) != string::npos);
         ASSERT_EQ(model, nullptr);
     } catch (...) {

@@ -85,7 +85,7 @@ TEST(TFTelemetryTest, test_nonexistent_add) {
         FAIL() << "Non-existent operation Adddd must not be supported by TF FE.";
     } catch (const OpConversionFailure& error) {
         string error_message = error.what();
-        string ref_message = "No translator found for Adddd node.";
+        string ref_message = "Internal error, no translator found for operation(s): Adddd";
         ASSERT_TRUE(error_message.find(ref_message) != string::npos);
         ASSERT_EQ(function, nullptr);
 

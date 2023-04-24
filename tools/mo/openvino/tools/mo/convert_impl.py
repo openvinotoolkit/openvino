@@ -303,9 +303,9 @@ def update_fallback_with_conversion_error(use_new_frontend: bool, is_tf: bool, e
         return False
 
     # for TensorFlow FE we have a set of operations that should lead to the fallback to the legacy
-    conversion_error_re = r"^(\[TensorFlow\ Frontend\]\ Internal\ error\:\ No\ translator\ found\ for\ )(\w+)(\ node\.)$"
+    conversion_error_re = r"^(\[TensorFlow\ Frontend\]\ Internal\ error\,\ no\ translator\ found\ for\ operation\(s\)\:\ )((\w+)(\,\ \w+)*)$"
     conversion_error_match = re.findall(conversion_error_re, ex_msg, re.MULTILINE)
-    fallback_operations = [
+    all_fallback_operations = [
         # corresponds to TF1 While operation
         "TensorArrayScatterV3", "TensorArrayV3", "TensorArraySizeV3", "TensorArrayGatherV3",
         "LoopCond", "Enter", "NextIteration", "Exit",
@@ -316,11 +316,17 @@ def update_fallback_with_conversion_error(use_new_frontend: bool, is_tf: bool, e
         "RFFT", "RFFT2D", "RFFT3D", "IRFFT", "IRFFT2D", "IRFFT3D",
         "Complex", "ComplexAbs", "Real", "Imag",
     ]
-    if len(conversion_error_match) < 1 or len(conversion_error_match[0]) != 3 or \
-            conversion_error_match[0][1] not in fallback_operations:
+    if len(conversion_error_match) < 1 or len(conversion_error_match[0]) != 4:
+        # no match for the fallback by unsupported operation
         return False
 
-    fallback_reasons.append("Unsupported operation: " + conversion_error_match[0][1])
+    unsupported_operations = conversion_error_match[0][1].replace(" ", "").split(",")
+    fallback_operations = [operation for operation in unsupported_operations if operation in all_fallback_operations]
+
+    if len(fallback_operations) == 0:
+        return False
+
+    fallback_reasons.append("Fallback to the legacy TF FE due to operation(s): " + ', '.join(fallback_operations))
     return True
 
 
