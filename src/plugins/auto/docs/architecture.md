@@ -4,7 +4,7 @@ This guide includes the current architectural ideas and guidelines for AUTO Plug
 
 ## Main Architectual Design Concepts
 
-AUTO is a meta plugin in OpenVINO that doesn’t bind to a specific type of hardware device. When the user chooses AUTO as the target device, the AUTO plugin automatically discovers all accelerators and hardware features of the platform, and selects one or more devices suitable for the task based on the application's configuration.
+AUTO is a meta plugin in OpenVINO that doesn’t bind to a specific type of hardware device. When the user chooses AUTO as the target device, the AUTO plugin automatically discovers all processing units and hardware features of the platform, and selects one or more devices suitable for the task based on the application's configuration.
 
 The logic behind the choice is as follows:
 * Check what supported devices are available.
@@ -29,7 +29,7 @@ The user can disable this acceleration feature by excluding CPU from the priorit
 
 The `ov::hint::performance_mode` property enables you to specify a performance option for AUTO to be more efficient for particular use cases, while the `CUMULATIVE_THROUGHPUT` hint enables running inference on multiple devices at once for higher throughput.
 
-With CUMULATIVE_THROUGHPUT, AUTO loads the model to all available devices in the candidate list. Then, it runs inference, choosing devices based on their priority.
+With CUMULATIVE_THROUGHPUT, AUTO loads the model to all available devices in the candidate list. Then, it runs inference on-device based on the device's priority.
 
 ### Runtime fallback
 
