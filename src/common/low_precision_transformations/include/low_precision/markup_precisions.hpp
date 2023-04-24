@@ -47,6 +47,11 @@ public:
                 precisionsFunction(precisionsFunction),
                 precisions(precisions) {}
 
+            PrecisionsRestriction::PrecisionsByPorts get(const std::shared_ptr<Node>& node) const {
+                return (precisionsFunction != nullptr) ? precisionsFunction(node) : precisions;
+            }
+
+        private:
             std::function<PrecisionsRestriction::PrecisionsByPorts(const std::shared_ptr<Node>&)> precisionsFunction;
             PrecisionsRestriction::PrecisionsByPorts precisions;
         };

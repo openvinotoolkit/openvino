@@ -37,11 +37,12 @@ namespace low_precision {
 class PrecisionsRestriction {
 public:
     using PrecisionsByPorts = std::vector<std::pair<std::vector<size_t>, std::vector<ngraph::element::Type>>>;
+    using PrecisionsByPortsFunction = std::function<PrecisionsByPorts(const std::shared_ptr<Node>&)>;
 
     ngraph::Node::type_info_t operationType;
     bool specifyVersion;
     PrecisionsByPorts precisionsByPorts;
-    std::function<PrecisionsByPorts(const std::shared_ptr<Node>&)> precisionsByPortsFunction;
+    PrecisionsByPortsFunction precisionsByPortsFunction;
 
     PrecisionsRestriction() = default;
     PrecisionsRestriction(
@@ -55,7 +56,7 @@ public:
     PrecisionsRestriction(
         const ngraph::Node::type_info_t& operationType,
         const bool specifyVersion,
-        const std::function<PrecisionsByPorts(const std::shared_ptr<Node>&)>& precisionsByPortsFunction) :
+        const PrecisionsByPortsFunction& precisionsByPortsFunction) :
         operationType(operationType),
         specifyVersion(specifyVersion),
         precisionsByPortsFunction(precisionsByPortsFunction) {}
@@ -69,7 +70,7 @@ public:
 
     template <typename T>
     static PrecisionsRestriction create(
-        const std::function<PrecisionsByPorts(const std::shared_ptr<Node>&)> precisionsByPortsFunction,
+        const PrecisionsByPortsFunction& precisionsByPortsFunction,
         const bool specifyVersion = false) {
         return PrecisionsRestriction(T::get_type_info_static(), specifyVersion, precisionsByPortsFunction);
     }

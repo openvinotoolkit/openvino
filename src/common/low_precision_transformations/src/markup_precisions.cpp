@@ -117,21 +117,13 @@ bool ngraph::pass::low_precision::MarkupPrecisions::run_on_model(const std::shar
                     continue;
                 }
 
-                const Restriction::RestrictionByVersion& precisionsByPorts = it2->second;
-                setRestriction(
-                    node,
-                    (precisionsByPorts.precisionsFunction != nullptr) ?
-                        precisionsByPorts.precisionsFunction(node) :
-                        precisionsByPorts.precisions);
+                const auto& precisionsByPorts = it2->second;
+                setRestriction(node, precisionsByPorts.get(node));
             } else {
                 assert(r.precisionsByVersion.size() == 1ul);
 
-                const Restriction::RestrictionByVersion& precisionsByPorts = r.precisionsByVersion.begin()->second;
-                setRestriction(
-                    node,
-                    (precisionsByPorts.precisionsFunction != nullptr) ?
-                        precisionsByPorts.precisionsFunction(node) :
-                        precisionsByPorts.precisions);
+                const auto& precisionsByPorts = r.precisionsByVersion.begin()->second;
+                setRestriction(node, precisionsByPorts.get(node));
             }
         }
     }
