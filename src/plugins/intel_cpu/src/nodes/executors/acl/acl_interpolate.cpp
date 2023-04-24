@@ -27,8 +27,12 @@ bool ov::intel_cpu::ACLInterpolateExecutor::init(const InterpolateAttrs &interpo
     auto& inter_mode = aclInterpolateAttrs.mode;
     acl_coord = arm_compute::SamplingPolicy::TOP_LEFT;
     auto& out_shape = dstDescs[0]->getShape().getDims();
+    auto index_h = 2, index_w = 3;
+    if (srcDescs[0]->hasLayoutType(LayoutType::nspc)) {
+        index_h = 1; index_w = 2;
+    }
 
-    if ((coord_mode == InterpolateCoordTransMode::pytorch_half_pixel && out_shape[2] > 1 && out_shape[3] > 1) ||
+    if ((coord_mode == InterpolateCoordTransMode::pytorch_half_pixel && out_shape[index_h] > 1 && out_shape[index_w] > 1) ||
         coord_mode == InterpolateCoordTransMode::half_pixel) {
         acl_coord = arm_compute::SamplingPolicy::CENTER;
     }
@@ -93,9 +97,13 @@ bool ov::intel_cpu::ACLInterpolateExecutorBuilder::isSupportedConfiguration(
         const std::vector<MemoryDescPtr> &dstDescs) {
     auto& inp_shape = srcDescs[0]->getShape().getDims();
     auto& out_shape = dstDescs[0]->getShape().getDims();
+    auto index_h = 2, index_w = 3;
+    if (srcDescs[0]->hasLayoutType(LayoutType::nspc)) {
+        index_h = 1; index_w = 2;
+    }
 
-    float scale_h = static_cast<float>(out_shape[2]) / inp_shape[2];
-    float scale_w = static_cast<float>(out_shape[3]) / inp_shape[3];
+    float scale_h = static_cast<float>(out_shape[index_h]) / inp_shape[index_h];
+    float scale_w = static_cast<float>(out_shape[index_w]) / inp_shape[index_w];
     bool is_upsample = scale_h > 1 && scale_w > 1;
 
     auto& coord_mode = interpolateAttrs.coordTransMode;
@@ -129,8 +137,8 @@ bool ov::intel_cpu::ACLInterpolateExecutorBuilder::isSupportedConfiguration(
             return true;
         }
     } else if (scale_h < 1 && scale_w < 1) {
-        float down_scale_h = static_cast<float>(inp_shape[2]) / out_shape[2];
-        float down_scale_w = static_cast<float>(inp_shape[3]) / out_shape[3];
+        float down_scale_h = static_cast<float>(inp_shape[index_h]) / out_shape[index_h];
+        float down_scale_w = static_cast<float>(inp_shape[index_w]) / out_shape[index_w];
         bool int_factor = down_scale_h == static_cast<int>(down_scale_h) && down_scale_w == static_cast<int>(down_scale_w);
 
         if (int_factor && coord_mode != InterpolateCoordTransMode::align_corners &&
@@ -139,7 +147,7 @@ bool ov::intel_cpu::ACLInterpolateExecutorBuilder::isSupportedConfiguration(
         }
 
         if (int_factor && nearest_mode == InterpolateNearestMode::round_prefer_ceil &&
-            ((out_shape[2] > 1 && out_shape[3] > 1) || coord_mode != InterpolateCoordTransMode::half_pixel)) {
+            ((out_shape[index_h] > 1 && out_shape[index_w] > 1) || coord_mode != InterpolateCoordTransMode::half_pixel)) {
             return true;
         }
     }
