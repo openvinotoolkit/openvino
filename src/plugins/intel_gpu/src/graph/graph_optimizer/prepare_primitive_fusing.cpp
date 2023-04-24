@@ -705,7 +705,8 @@ void prepare_primitive_fusing::fuse_simple_primitives(program &p) {
             if (_lo.get_optimization_attributes().use_onednn_impls) {
                 if (input.is_type<reshape>() || input.is_type<concatenation>())
                     return;
-                if (activation_func == cldnn::activation_func::relu_negative_slope &&
+                auto additional_params_input = activation_node.get_primitive()->additional_params_input;
+                if (activation_func == cldnn::activation_func::relu_negative_slope && !additional_params_input.empty() &&
                     (input.is_type<fully_connected>() || input.is_type<gemm>())) {
                     // prelu fusion is not implemented in oneDNN3.1 (CVS-108233)
                     return;
