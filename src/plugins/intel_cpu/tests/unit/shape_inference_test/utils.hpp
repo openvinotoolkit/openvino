@@ -8,13 +8,13 @@
 #include <openvino/op/parameter.hpp>
 #include <utils/shape_inference/shape_inference.hpp>
 #include <utils/shape_inference/static_shape.hpp>
-
-#include "utils/shape_inference/static_shape.hpp"
+#include "custom_shape_infer.hpp"
 
 #pragma once
 
 namespace ov {
 namespace intel_cpu {
+
 template <class TIface = IShapeInferCommon, class TTensorPtr = HostTensorPtr>
 void shape_inference(ov::Node* op,
                      const std::vector<StaticShape>& input_shapes,
@@ -24,6 +24,7 @@ void shape_inference(ov::Node* op,
     auto result = shape_infer->infer(input_shapes, constant_data);
     OPENVINO_ASSERT(ShapeInferStatus::success == result.status, "shape inference result has unexpected status");
     output_shapes = std::move(result.shapes);
+    custom_shape_inference(op, input_shapes, output_shapes, constant_data);
 }
 }  // namespace intel_cpu
 }  // namespace ov
@@ -62,7 +63,7 @@ struct TestTensor {
 // so each element of inputs can be:
 //      {1,2,3,4}                   tensor of shape [4] and values (1,2,3,4)
 //      2                           tensor of scalar with value 2
-//      Shape{2,2}                  tensor of shape [2,2] and value unknown
+//      ov::Shape{2,2}                  tensor of shape [2,2] and value unknown
 //      {Shape{2,2}, {1,2,3,4}}     tensor of shape [2,2] and values (1,2,3,4)
 inline void check_static_shape(ov::Node* op,
                                std::initializer_list<TestTensor> inputs,
