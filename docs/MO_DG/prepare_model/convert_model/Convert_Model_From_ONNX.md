@@ -18,7 +18,11 @@ To convert an ONNX model, run Model Optimizer with the path to the input model `
 
 .. code-block:: sh
 
+   # cli tool
    mo --input_model <INPUT_MODEL>.onnx
+
+   # MO Python API
+   ov_model = convert_model("<INPUT_MODEL>.onnx")
 
 There are no ONNX specific parameters, so only framework-agnostic parameters are available to convert your model. For details, see the *General Conversion Parameters* section in the :doc:`Converting a Model to Intermediate Representation (IR) <openvino_docs_MO_DG_prepare_model_convert_model_Converting_Model>` guide.
 

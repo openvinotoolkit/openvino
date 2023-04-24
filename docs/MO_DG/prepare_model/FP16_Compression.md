@@ -11,7 +11,11 @@ To compress the model, use the `--compress_to_fp16` or `--compress_to_fp16=True`
 
 .. code-block:: sh
 
-   mo --input_model INPUT_MODEL --compress_to_fp16
+   # cli tool
+   mo --input_model INPUT_MODEL --compress_to_fp16=False
+
+   # MO Python API
+   ov_model = convert_model(INPUT_MODEL, compress_to_fp16=False)
 
 
 For details on how plugins handle compressed ``FP16`` models, see 

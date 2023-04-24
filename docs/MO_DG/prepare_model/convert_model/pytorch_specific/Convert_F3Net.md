@@ -39,7 +39,11 @@ Converting an ONNX F3Net Model to IR
 
 .. code-block:: sh
 
+   # cli tool
    mo --input_model <MODEL_DIR>/f3net.onnx
+
+   # MO Python API
+   ov_model = convert_model("<MODEL_DIR>/f3net.onnx")
 
 
 @endsphinxdirective

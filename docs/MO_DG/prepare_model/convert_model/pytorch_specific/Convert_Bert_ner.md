@@ -58,7 +58,11 @@ Converting an ONNX BERT-NER model to IR
 
 .. code-block:: bash
 
-   mo --input_model bert-ner.onnx --input "input_mask[1,128],segment_ids[1,128],input_ids[1,128]"
+# cli tool 
+mo --input_model bert-ner.onnx --input "input_mask[1,128],segment_ids[1,128],input_ids[1,128]"
+
+# MO Python API
+ov_model = convert_model("bert-ner.onnx", input=[("input_mask", [1,128]), ("segment_ids", [1,128]), ("input_ids", [1,128])])
 
 
 where ``1`` is ``batch_size`` and ``128`` is ``sequence_length``.

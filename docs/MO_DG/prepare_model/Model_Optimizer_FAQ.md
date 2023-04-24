@@ -548,19 +548,31 @@ Q56. What does the message "Input shape .. cannot be parsed" mean?
 
   .. code-block:: shell
 
+     # cli tool
      mo --input_model <INPUT_MODEL>.caffemodel --input_shape (1,3,227,227)
+
+     # MO Python API
+     ov_model = convert_model("<INPUT_MODEL>.caffemodel", input_shape=[1,3,227,227])
 
 *
 
   .. code-block:: shell
 
-     mo --input_model <INPUT_MODEL>.caffemodel --input_shape [1,3,227,227]
+     # cli tool
+      mo --input_model <INPUT_MODEL>.caffemodel --input_shape [1,3,227,227]
+
+     # MO Python API
+     ov_model = convert_model("<INPUT_MODEL>.caffemodel", input_shape=[1,3,227,227])
 
 * In case of multi input topology you should also specify inputs:
 
   .. code-block:: shell
 
-     mo --input_model /path-to/your-model.caffemodel --input data,rois --input_shape (1,3,227,227),(1,6,1,1)
+     # cli tool
+      mo --input_model /path-to/your-model.caffemodel --input data,rois --input_shape (1,3,227,227),(1,6,1,1)
+
+     # MO Python API
+     ov_model = convert_model("/path-to/your-model.caffemodel", input=["data","rois"], input_shape=[[1,3,227,227],[1,6,1,1])
 
 
 Keep in mind that there is no space between and inside the brackets for input shapes.

@@ -32,7 +32,11 @@ For example, the following command specifies the ``NHWC`` layout for a Tensorflo
 
 .. code-block:: sh
 
+   # cli tool
    mo --input_model tf_nasnet_large.onnx --layout nhwc
+
+   # MO Python API
+   ov_model = convert_model("tf_nasnet_large.onnx", layout="nhwc")
 
 
 Additionally, if a model has more than one input or needs both input and output 
@@ -44,7 +48,11 @@ having two dimensions: batch and size of the image expressed as the ``N?`` layou
 
 .. code-block:: sh
 
+   # cli tool
    mo --input_model yolov3-tiny.onnx --layout input_1(nchw),image_shape(n?)
+
+   # MO Python API
+   ov_model = convert_model("yolov3-tiny.onnx", layout={"input_1": "nchw", "image_shape": "n?"})
 
 
 Changing Model Layout
@@ -58,8 +66,15 @@ the following commands to provide data in the ``NCHW`` layout:
 
 .. code-block:: sh
 
+   # cli tool
    mo --input_model tf_nasnet_large.onnx --source_layout nhwc --target_layout nchw
+   # MO Python API
+   ov_model = convert_model("tf_nasnet_large.onnx", source_layout="nhwc", target_layout="nchw")
+
+   # cli tool
    mo --input_model tf_nasnet_large.onnx --layout "nhwc->nchw"
+   # MO Python API
+   ov_model = convert_model("tf_nasnet_large.onnx", layout="nhwc->nchw")
 
 
 Again, if a model has more than one input or needs both input and output layouts 
@@ -70,8 +85,15 @@ mentioned earlier, use the following commands:
 
 .. code-block:: sh
 
+   # cli tool
    mo --input_model yolov3-tiny.onnx --source_layout "input_1(nchw),image_shape(n?)" --target_layout "input_1(nhwc)"
+   # MO Python API
+   ov_model = convert_model("yolov3-tiny.onnx", source_layout={"input_1": "nchw", "image_shape": "n?"}, target_layout={"input_1": "nhwc"})
+
+   # cli tool
    mo --input_model yolov3-tiny.onnx --layout "input_1(nchw->nhwc),image_shape(n?)"
+   # MO Python API
+   ov_model = convert_model("yolov3-tiny.onnx", layout={"input_1": "nchw->nhwc", "image_shape": "n?"}
 
 
 Specifying Mean and Scale Values
@@ -106,7 +128,11 @@ model and applies mean-scale normalization to the input data:
 
 .. code-block:: sh
 
+   # cli tool
    mo --input_model unet.pdmodel --mean_values [123,117,104] --scale 255
+
+   # MO Python API
+   ov_model = convert_model("unet.pdmodel", mean_values=[123,117,104], scale=255)
 
 
 Reversing Input Channels
@@ -135,7 +161,11 @@ model and embeds the ``reverse_input_channel`` preprocessing block into OpenVINO
 
 .. code-block:: sh
 
+   # cli tool
    mo --input_model alexnet.pb --reverse_input_channels
+
+   # MO Python API
+   ov_model = convert_model("alexnet.pb", reverse_input_channels=True)
 
 
 .. note::

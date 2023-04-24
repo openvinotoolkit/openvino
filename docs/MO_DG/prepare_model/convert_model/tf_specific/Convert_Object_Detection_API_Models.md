@@ -61,7 +61,11 @@ For example, if you downloaded the pre-trained `SSD InceptionV2 topology <http:/
 
 .. code-block:: sh
 
-  mo --input_model=/tmp/ssd_inception_v2_coco_2018_01_28/frozen_inference_graph.pb --transformations_config front/tf/ssd_v2_support.json --tensorflow_object_detection_api_pipeline_config /tmp/ssd_inception_v2_coco_2018_01_28/pipeline.config --reverse_input_channels
+   # cli tool
+   mo --input_model=/tmp/ssd_inception_v2_coco_2018_01_28/frozen_inference_graph.pb --transformations_config front/tf/ssd_v2_support.json    --tensorflow_object_detection_api_pipeline_config /tmp/ssd_inception_v2_coco_2018_01_28/pipeline.config --reverse_input_channels
+
+   # MO Python API
+   ov_model = convert_model("/tmp/ssd_inception_v2_coco_2018_01_28/frozen_inference_graph.pb", transformations_config="front/tf/ssd_v2_support.json",    tensorflow_object_detection_api_pipeline_config="/tmp/ssd_inception_v2_coco_2018_01_28/pipeline.config", reverse_input_channels=True)
 
 
 OpenVINO™ Toolkit Samples and Open Model Zoo Demos

@@ -21,7 +21,11 @@ This article provides the instructions and examples on how to use Model Optimize
 
   .. code-block:: sh
 
-     mo --input_model <model_directory>/ssd_512_mobilenet1.0.params --enable_ssd_gluoncv --input_shape [1,512,512,3] --input data --output_dir <OUTPUT_MODEL_DIR>
+     # cli tool
+      mo --input_model <model_directory>/ssd_512_mobilenet1.0.params --enable_ssd_gluoncv --input_shape [1,512,512,3] --input data --output_dir <OUTPUT_MODEL_DIR>
+
+     # MO Python API
+     ov_model = convert_model("<model_directory>/ssd_512_mobilenet1.0.params", enable_ssd_gluoncv=True, input_shape=[1,512,512,3], input="data")
 
 * **For YOLO-v3 topology:**
 
@@ -29,13 +33,21 @@ This article provides the instructions and examples on how to use Model Optimize
 
     .. code-block:: sh
 
+       # cli tool
        mo --input_model <model_directory>/yolo3_mobilenet1.0_voc-0000.params  --input_shape [1,255,255,3] --output_dir <OUTPUT_MODEL_DIR>
+
+       # MO Python API
+       ov_model = convert_model("<model_directory>/yolo3_mobilenet1.0_voc-0000.params", input_shape=[1,255,255,3])
 
   * To convert the model with replacing the subgraph with RegionYolo layers:
 
     .. code-block:: sh
 
-       mo --input_model <model_directory>/models/yolo3_mobilenet1.0_voc-0000.params  --input_shape [1,255,255,3] --transformations_config "front/mxnet/yolo_v3_mobilenet1_voc.  json" --output_dir <OUTPUT_MODEL_DIR>
+       # cli tool
+       mo --input_model <model_directory>/models/yolo3_mobilenet1.0_voc-0000.params  --input_shape [1,255,255,3] --transformations_config "front/mxnet/yolo_v3_mobilenet1_voc.    json" --output_dir <OUTPUT_MODEL_DIR>
+
+       # MO Python API
+       ov_model = convert_model("<model_directory>/models/yolo3_mobilenet1.0_voc-0000.params", input_shape=[1,255,255,3], transformations_config="front/mxnet/yolo_v3_mobilenet1_voc.json")
 
 
 @endsphinxdirective

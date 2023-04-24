@@ -33,7 +33,11 @@ Converting an ONNX RCAN Model to IR
 
 .. code-block:: sh
 
+   # cli tool
    mo --input_model RCAN.onnx
+
+   # MO Python API
+   ov_model = convert_model("RCAN.onnx")
 
 
 @endsphinxdirective

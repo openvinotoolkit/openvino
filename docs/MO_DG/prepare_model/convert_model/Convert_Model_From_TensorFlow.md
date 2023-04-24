@@ -16,7 +16,11 @@ To convert a TensorFlow model, use the ``*mo*`` script to simply convert a model
 
 .. code-block:: cpp
 
-   mo --input_model <INPUT_MODEL>.pb
+   # cli tool
+    mo --input_model <INPUT_MODEL>.pb
+
+   # MO Python API
+   ov_model = convert_model("<INPUT_MODEL>.pb")
 
 
 Converting Non-Frozen Model Formats 
@@ -30,13 +34,21 @@ To convert the model with the inference graph in ``.pb`` format, run the `mo` sc
 
 .. code-block:: cpp
 
-   mo --input_model <INFERENCE_GRAPH>.pb --input_checkpoint <INPUT_CHECKPOINT>
+   # cli tool
+    mo --input_model <INFERENCE_GRAPH>.pb --input_checkpoint <INPUT_CHECKPOINT>
+
+   # MO Python API
+   ov_model = convert_model("<INFERENCE_GRAPH>.pb", input_checkpoint="<INPUT_CHECKPOINT>")
 
 To convert the model with the inference graph in ``.pbtxt`` format, run the ``mo`` script with a path to the checkpoint file:
 
 .. code-block:: cpp
 
-   mo --input_model <INFERENCE_GRAPH>.pbtxt --input_checkpoint <INPUT_CHECKPOINT> --input_model_is_text
+   # cli tool
+    mo --input_model <INFERENCE_GRAPH>.pbtxt --input_checkpoint <INPUT_CHECKPOINT> --input_model_is_text
+
+   # MO Python API
+   ov_model = convert_model("<INFERENCE_GRAPH>.pbtxt", input_checkpoint="<INPUT_CHECKPOINT>", input_model_is_text=True)
 
 
 2. **MetaGraph**. In this case, a model consists of three or four files stored in the same directory: ``model_name.meta``, ``model_name.index``,
@@ -45,7 +57,11 @@ To convert such TensorFlow model, run the `mo` script with a path to the MetaGra
 
 .. code-block:: cpp
 
-   mo --input_meta_graph <INPUT_META_GRAPH>.meta
+   # cli tool
+    mo --input_meta_graph <INPUT_META_GRAPH>.meta
+
+   # MO Python API
+   ov_model = convert_model(input_meta_graph="<INPUT_META_GRAPH>.meta")
 
 
 3. **SavedModel format**. In this case, a model consists of a special directory with a ``.pb`` file
@@ -54,7 +70,11 @@ To convert such TensorFlow model, run the ``mo`` script with a path to the Saved
 
 .. code-block:: cpp
 
-   mo --saved_model_dir <SAVED_MODEL_DIRECTORY>
+   # cli tool
+    mo --saved_model_dir <SAVED_MODEL_DIRECTORY>
+
+   # MO Python API
+   ov_model = convert_model(saved_model_dir="<SAVED_MODEL_DIRECTORY>")
 
 
 You can convert TensorFlow 1.x SavedModel format in the environment that has a 1.x or 2.x version of TensorFlow. However, TensorFlow 2.x SavedModel format strictly requires the 2.x version of TensorFlow.
@@ -99,7 +119,11 @@ To convert such a model, run the `mo` script with a path to the SavedModel direc
 
 .. code-block:: cpp
 
-   mo --saved_model_dir <SAVED_MODEL_DIRECTORY>
+   # cli tool
+    mo --saved_model_dir <SAVED_MODEL_DIRECTORY>
+
+   # MO Python API
+   ov_model = convert_model(saved_model_dir="<SAVED_MODEL_DIRECTORY>")
 
 TensorFlow 2 SavedModel format strictly requires the 2.x version of TensorFlow installed in the
 environment for conversion to the Intermediate Representation (IR).
@@ -140,7 +164,7 @@ For example, the model with a custom layer ``CustomLayer`` from ``custom_layer.p
 
 Then follow the above instructions for the SavedModel format.
 
-.. note:: 
+.. note::
 
    Do not use other hacks to resave TensorFlow 2 models into TensorFlow 1 formats.
 
@@ -151,21 +175,33 @@ Command-Line Interface (CLI) Examples Using TensorFlow-Specific Parameters
 
 .. code-block:: cpp
 
-   mo --input_model inception_v1.pbtxt --input_model_is_text -b 1
+   # cli tool
+    mo --input_model inception_v1.pbtxt --input_model_is_text -b 1
+
+   # MO Python API
+   ov_model = convert_model("inception_v1.pbtxt", input_model_is_text=True, batch=1)
 
 
 * Launching the Model Optimizer for Inception V1 frozen model and dump information about the graph to TensorBoard log dir ``/tmp/log_dir``
 
 .. code-block:: cpp
 
-   mo --input_model inception_v1.pb -b 1 --tensorboard_logdir /tmp/log_dir
+   # cli tool
+    mo --input_model inception_v1.pb -b 1 --tensorboard_logdir /tmp/log_dir
+
+   # MO Python API
+   ov_model = convert_model("inception_v1.pb", batch=1, tensorboard_logdir="/tmp/log_dir")
 
 
 * Launching the Model Optimizer for BERT model in the SavedModel format, with three inputs. Specify explicitly the input shapes where the batch size and the sequence length equal 2 and 30 respectively.
 
 .. code-block:: cpp
 
+   # cli tool
    mo --saved_model_dir BERT --input mask,word_ids,type_ids --input_shape [2,30],[2,30],[2,30]
+
+   # MO Python API
+   ov_model = convert_model(saved_model_dir="BERT", input=["mask","word_ids","type_ids"], input_shape=[[2,30],[2,30],[2,30]])
 
 
 Supported TensorFlow and TensorFlow 2 Keras Layers

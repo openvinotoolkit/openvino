@@ -42,10 +42,14 @@ To generate the BERT Intermediate Representation (IR) of the model, run Model Op
 
 .. code-block:: sh
 
+   # cli tool
     mo \
    --input_meta_graph uncased_L-12_H-768_A-12/bert_model.ckpt.meta \
    --output bert/pooler/dense/Tanh                                 \
    --input Placeholder{i32},Placeholder_1{i32},Placeholder_2{i32}
+
+   # MO Python API
+   ov_model = convert_model("uncased_L-12_H-768_A-12/bert_model.ckpt.meta", output="bert/pooler/dense/Tanh", input=[("Placeholder", np.int32),("Placeholder_1", np.int32),   ("Placeholder_2", np.int32)])
 
 
 Pretrained models are not suitable for batch reshaping out-of-the-box because of multiple hardcoded shapes in the model.
@@ -146,9 +150,13 @@ Run Model Optimizer with the following command line parameters to generate resha
 
 .. code-block:: sh
 
+   # cli tool
     mo \
    --input_model inference_graph.pb \
    --input "IteratorGetNext:0{i32}[1,128],IteratorGetNext:1{i32}[1,128],IteratorGetNext:4{i32}[1,128]"
+
+   # MO Python API
+   ov_model = convert_model("inference_graph.pb", input=[("IteratorGetNext:0", numpy.int32, [1,128]),("IteratorGetNext:1", numpy.int32, [1,128]),("IteratorGetNext:4", numpy.   int32, [1,128])])
 
 For other applicable parameters, refer to the :doc:`Convert Model from TensorFlow <openvino_docs_MO_DG_prepare_model_convert_model_Convert_Model_From_TensorFlow>` guide.
 

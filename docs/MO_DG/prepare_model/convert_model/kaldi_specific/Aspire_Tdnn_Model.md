@@ -12,7 +12,11 @@ Generate the Intermediate Representation of the model by running Model Optimizer
 
 .. code-block:: sh
 
-   mo --input_model exp/chain/tdnn_7b/final.mdl --output output
+   # cli tool
+    mo --input_model exp/chain/tdnn_7b/final.mdl --output output
+
+   # MO Python API
+   ov_model = convert_model("exp/chain/tdnn_7b/final.mdl", output="output")
 
 
 The IR will have two inputs: ``input`` for data, and ``ivector`` for ivectors.

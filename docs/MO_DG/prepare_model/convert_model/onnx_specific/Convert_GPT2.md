@@ -19,7 +19,11 @@ Generate the Intermediate Representation of the model GPT-2 by running Model Opt
 
 .. code-block:: sh
 
-    mo --input_model gpt2-10.onnx --input_shape [X,Y,Z] --output_dir <OUTPUT_MODEL_DIR>
+   # cli tool
+   mo --input_model gpt2-10.onnx --input_shape [X,Y,Z] --output_dir <OUTPUT_MODEL_DIR>
+
+   # MO Python API
+   ov_model = convert_model("gpt2-10.onnx", input_shape=[X,Y,Z])
 
 
 @endsphinxdirective

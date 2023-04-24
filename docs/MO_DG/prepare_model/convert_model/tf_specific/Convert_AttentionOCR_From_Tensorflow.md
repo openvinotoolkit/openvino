@@ -33,11 +33,15 @@ The resized image is sent to the convolution neural network (CNN). Because Model
 
 .. code-block:: sh
 
+   # cli tool
    mo \
    --input_model=model/path/frozen_graph.pb \
    --input="map/TensorArrayStack/TensorArrayGatherV3:0[1,32,86,1]" \
    --output "transpose_1,transpose_2" \
    --output_dir path/to/ir/
+
+   # MO Python API
+   ov_model = convert_model("model/path/frozen_graph.pb", input=("map/TensorArrayStack/TensorArrayGatherV3:0", [1,32,86,1]), output=["transpose_1", "transpose_2"])
 
 
 Where:

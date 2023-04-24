@@ -29,7 +29,11 @@ To fix some operators which prevent normal shape propagation:
 
   .. code-block:: sh
 
+     # cli tool
      mo --input_model path/to/model --input data[8,3,224,224],1:reshaped[2]->[0,-1]`
+
+     # MO Python API
+     ov_model = convert_model("path/to/model", input=["data[8,3,224,224]", "1:reshaped[2]->[0,-1]"])
 
 
   With ``1:reshaped[2]``, it is required to cut the second input (counting from zero, so ``1:`` means the second input) of the operation named ``reshaped`` and replace it with a ``Parameter`` with shape ``[2]``.

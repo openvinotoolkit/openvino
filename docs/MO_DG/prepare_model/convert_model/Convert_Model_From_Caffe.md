@@ -6,7 +6,11 @@ To convert a Caffe model, run Model Optimizer with the path to the input model `
 
 .. code-block:: cpp
 
-   mo --input_model <INPUT_MODEL>.caffemodel
+   # cli tool
+    mo --input_model <INPUT_MODEL>.caffemodel
+
+   # MO Python API
+   ov_model = convert_model("<INPUT_MODEL>.caffemodel")
 
 
 The following list provides the Caffe-specific parameters.
@@ -39,18 +43,28 @@ CLI Examples Using Caffe-Specific Parameters
 ++++++++++++++++++++++++++++++++++++++++++++
 
 * Launching Model Optimizer for `bvlc_alexnet.caffemodel <https://github.com/BVLC/caffe/tree/master/models/bvlc_alexnet>`__ with a specified `prototxt` file. This is needed when the name of the Caffe model and the `.prototxt` file are different or are placed in different directories. Otherwise, it is enough to provide only the path to the input `model.caffemodel` file.
-  
+
   .. code-block:: cpp
-      
-    mo --input_model bvlc_alexnet.caffemodel --input_proto bvlc_alexnet.prototxt
-   
+
+     # cli tool
+     mo --input_model bvlc_alexnet.caffemodel --input_proto bvlc_alexnet.prototxt
+
+      # MO Python API
+     ov_model = convert_model("bvlc_alexnet.caffemodel", input_proto="bvlc_alexnet.prototxt")
+
+
 * Launching Model Optimizer for `bvlc_alexnet.caffemodel <https://github.com/BVLC/caffe/tree/master/models/bvlc_alexnet>`__ with a specified `CustomLayersMapping` file. This is the legacy method of quickly enabling model conversion if your model has custom layers. This requires the Caffe system on the computer. Example of ``CustomLayersMapping.xml`` can be found in ``<OPENVINO_INSTALLATION_DIR>/mo/front/caffe/CustomLayersMapping.xml.example``. The optional parameters without default values and not specified by the user in the ``.prototxt`` file are removed from the Intermediate Representation, and nested parameters are flattened:
 
   .. code-block:: cpp
 
-    mo --input_model bvlc_alexnet.caffemodel -k CustomLayersMapping.xml --disable_omitting_optional --enable_flattening_nested_params
-   
-   This example shows a multi-input model with input layers: ``data``, ``rois``
+     # cli tool
+     mo --input_model bvlc_alexnet.caffemodel -k CustomLayersMapping.xml --disable_omitting_optional --enable_flattening_nested_params
+
+      # MO Python API
+     ov_model = convert_model("bvlc_alexnet.caffemodel", k="CustomLayersMapping.xml", disable_omitting_optional=True, enable_flattening_nested_params=True)
+
+
+  This example shows a multi-input model with input layers: ``data``, ``rois``
 
   .. code-block:: cpp
 
@@ -75,7 +89,12 @@ CLI Examples Using Caffe-Specific Parameters
 
   .. code-block:: cpp
 
-    mo --input_model /path-to/your-model.caffemodel --input data,rois --input_shape (1,3,227,227),[1,6,1,1]
+     # cli tool
+     mo --input_model /path-to/your-model.caffemodel --input data,rois --input_shape (1,3,227,227),[1,6,1,1]
+
+     # MO Python API
+     ov_model = convert_model("/path-to/your-model.caffemodel", input=["data", "rois"], input_shape=[[1,3,227,227],[1,6,1,1]])
+
 
 Custom Layer Definition
 ########################
