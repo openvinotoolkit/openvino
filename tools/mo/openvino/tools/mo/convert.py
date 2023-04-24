@@ -103,6 +103,7 @@ def convert_model(
             torch.jit.ScriptFunction
 
             TF
+            tf.compat.v1.Graph
             tf.compat.v1.GraphDef
             tf.compat.v1.wrap_function
             tf.compat.v1.session
