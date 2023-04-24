@@ -174,28 +174,28 @@ shared_ptr<Node> op::v9::ROIAlign::clone_with_new_inputs(const OutputVector& new
 }
 
 template <>
-NGRAPH_API EnumNames<op::v3::ROIAlign::PoolingMode>& EnumNames<op::v3::ROIAlign::PoolingMode>::get() {
-    static auto enum_names = EnumNames<ngraph::op::v3::ROIAlign::PoolingMode>(
+OPENVINO_API EnumNames<op::v3::ROIAlign::PoolingMode>& EnumNames<op::v3::ROIAlign::PoolingMode>::get() {
+    static auto enum_names = EnumNames<op::v3::ROIAlign::PoolingMode>(
         "op::v3::ROIAlign::PoolingMode",
         {{"avg", op::v3::ROIAlign::PoolingMode::AVG}, {"max", op::v3::ROIAlign::PoolingMode::MAX}});
     return enum_names;
 }
 
 template <>
-NGRAPH_API EnumNames<ngraph::op::v9::ROIAlign::PoolingMode>& EnumNames<ngraph::op::v9::ROIAlign::PoolingMode>::get() {
-    static auto enum_names = EnumNames<ngraph::op::v9::ROIAlign::PoolingMode>(
+OPENVINO_API EnumNames<op::v9::ROIAlign::PoolingMode>& EnumNames<op::v9::ROIAlign::PoolingMode>::get() {
+    static auto enum_names = EnumNames<op::v9::ROIAlign::PoolingMode>(
         "op::v9::ROIAlign::PoolingMode",
-        {{"avg", ngraph::op::v9::ROIAlign::PoolingMode::AVG}, {"max", ngraph::op::v9::ROIAlign::PoolingMode::MAX}});
+        {{"avg", op::v9::ROIAlign::PoolingMode::AVG}, {"max", op::v9::ROIAlign::PoolingMode::MAX}});
     return enum_names;
 }
 
 template <>
-NGRAPH_API EnumNames<ngraph::op::v9::ROIAlign::AlignedMode>& EnumNames<ngraph::op::v9::ROIAlign::AlignedMode>::get() {
-    static auto enum_names = EnumNames<ngraph::op::v9::ROIAlign::AlignedMode>(
+OPENVINO_API EnumNames<op::v9::ROIAlign::AlignedMode>& EnumNames<op::v9::ROIAlign::AlignedMode>::get() {
+    static auto enum_names = EnumNames<op::v9::ROIAlign::AlignedMode>(
         "op::v9::ROIAlign::AlignedMode",
-        {{"asymmetric", ngraph::op::v9::ROIAlign::AlignedMode::ASYMMETRIC},
-         {"half_pixel_for_nn", ngraph::op::v9::ROIAlign::AlignedMode::HALF_PIXEL_FOR_NN},
-         {"half_pixel", ngraph::op::v9::ROIAlign::AlignedMode::HALF_PIXEL}});
+        {{"asymmetric", op::v9::ROIAlign::AlignedMode::ASYMMETRIC},
+         {"half_pixel_for_nn", op::v9::ROIAlign::AlignedMode::HALF_PIXEL_FOR_NN},
+         {"half_pixel", op::v9::ROIAlign::AlignedMode::HALF_PIXEL}});
     return enum_names;
 }
 
@@ -215,27 +215,27 @@ namespace op {
 namespace roi_align {
 namespace {
 
-template <ov::element::Type_t ET>
-bool evaluate(const ov::HostTensorPtr& feature_maps,
-              const ov::HostTensorPtr& rois,
+template <element::Type_t ET>
+bool evaluate(const Tensor& feature_maps,
+              const Tensor& rois,
               const std::vector<int64_t>& batch_indices_vec_scaled_up,
-              const ov::HostTensorPtr& out,
+              const Tensor& out,
               const int pooled_height,
               const int pooled_width,
               const int sampling_ratio,
               const float spatial_scale,
               const v3::ROIAlign::PoolingMode& pooling_mode,
-              const ov::Shape& batch_indices_shape,
+              const Shape& batch_indices_shape,
               const v9::ROIAlign::AlignedMode& aligned_mode = v9::ROIAlign::AlignedMode::ASYMMETRIC) {
     using T = typename element_type_traits<ET>::value_type;
-    ngraph::runtime::reference::roi_align<T>(feature_maps->get_data_ptr<ET>(),
-                                             rois->get_data_ptr<ET>(),
+    ngraph::runtime::reference::roi_align<T>(feature_maps.data<T>(),
+                                             rois.data<T>(),
                                              batch_indices_vec_scaled_up.data(),
-                                             out->get_data_ptr<ET>(),
-                                             feature_maps->get_shape(),
-                                             rois->get_shape(),
+                                             out.data<T>(),
+                                             feature_maps.get_shape(),
+                                             rois.get_shape(),
                                              batch_indices_shape,
-                                             out->get_shape(),
+                                             out.get_shape(),
                                              pooled_height,
                                              pooled_width,
                                              sampling_ratio,
@@ -245,21 +245,21 @@ bool evaluate(const ov::HostTensorPtr& feature_maps,
     return true;
 }
 
-bool evaluate_roi_align(const ov::HostTensorVector& args,
-                        const ov::HostTensorPtr& out,
-                        const int pooled_height,
-                        const int pooled_width,
-                        const int sampling_ratio,
-                        const float spatial_scale,
-                        const v3::ROIAlign::PoolingMode& pooling_mode,
-                        const v9::ROIAlign::AlignedMode& aligned_mode = v9::ROIAlign::AlignedMode::ASYMMETRIC) {
-    auto feature_maps = args[0];
-    auto rois = args[1];
-    auto batch_indices = args[2];
-    std::vector<int64_t> batch_indices_vec_scaled_up = host_tensor_2_vector<int64_t>(batch_indices);
+bool evaluate(const TensorVector& args,
+              const Tensor& out,
+              const int pooled_height,
+              const int pooled_width,
+              const int sampling_ratio,
+              const float spatial_scale,
+              const v3::ROIAlign::PoolingMode& pooling_mode,
+              const v9::ROIAlign::AlignedMode& aligned_mode = v9::ROIAlign::AlignedMode::ASYMMETRIC) {
+    const auto& feature_maps = args[0];
+    const auto& rois = args[1];
+    const auto& batch_indices = args[2];
+    const auto batch_indices_vec_scaled_up = get_tensor_data_as<int64_t>(batch_indices, ov::util::Cast<int64_t>());
 
-    bool rc = true;
-    switch (feature_maps->get_element_type()) {
+    bool rc;
+    switch (feature_maps.get_element_type()) {
         NGRAPH_TYPE_CASE(evaluate_roi_align,
                          bf16,
                          feature_maps,
@@ -271,7 +271,7 @@ bool evaluate_roi_align(const ov::HostTensorVector& args,
                          sampling_ratio,
                          spatial_scale,
                          pooling_mode,
-                         batch_indices->get_shape(),
+                         batch_indices.get_shape(),
                          aligned_mode);
         NGRAPH_TYPE_CASE(evaluate_roi_align,
                          f16,
@@ -284,7 +284,7 @@ bool evaluate_roi_align(const ov::HostTensorVector& args,
                          sampling_ratio,
                          spatial_scale,
                          pooling_mode,
-                         batch_indices->get_shape(),
+                         batch_indices.get_shape(),
                          aligned_mode);
         NGRAPH_TYPE_CASE(evaluate_roi_align,
                          f32,
@@ -297,7 +297,7 @@ bool evaluate_roi_align(const ov::HostTensorVector& args,
                          sampling_ratio,
                          spatial_scale,
                          pooling_mode,
-                         batch_indices->get_shape(),
+                         batch_indices.get_shape(),
                          aligned_mode);
     default:
         rc = false;
@@ -309,15 +309,9 @@ bool evaluate_roi_align(const ov::HostTensorVector& args,
 }  // namespace
 }  // namespace roi_align
 
-bool v3::ROIAlign::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const {
+bool v3::ROIAlign::evaluate(TensorVector& outputs, const TensorVector& inputs) const {
     OV_OP_SCOPE(v3_ROIAlign_evaluate);
-    return roi_align::evaluate_roi_align(inputs,
-                                         outputs[0],
-                                         m_pooled_h,
-                                         m_pooled_w,
-                                         m_sampling_ratio,
-                                         m_spatial_scale,
-                                         m_mode);
+    return roi_align::evaluate(inputs, outputs[0], m_pooled_h, m_pooled_w, m_sampling_ratio, m_spatial_scale, m_mode);
 }
 
 bool v3::ROIAlign::has_evaluate() const {
