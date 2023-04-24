@@ -2,18 +2,18 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 
-set(IE_VS_VER_FILEVERSION_QUAD "${OpenVINO_VERSION_MAJOR},${OpenVINO_VERSION_MINOR},${OpenVINO_VERSION_PATCH},${OpenVINO_VERSION_BUILD}")
-set(IE_VS_VER_PRODUCTVERSION_QUAD "${OpenVINO_VERSION_MAJOR},${OpenVINO_VERSION_MINOR},${OpenVINO_VERSION_PATCH},${OpenVINO_VERSION_BUILD}")
-set(IE_VS_VER_FILEVERSION_STR "${OpenVINO_VERSION_MAJOR}.${OpenVINO_VERSION_MINOR}.${OpenVINO_VERSION_PATCH}.${OpenVINO_VERSION_BUILD}")
+set(OV_VS_VER_FILEVERSION_QUAD "${OpenVINO_VERSION_MAJOR},${OpenVINO_VERSION_MINOR},${OpenVINO_VERSION_PATCH},${OpenVINO_VERSION_BUILD}")
+set(OV_VS_VER_PRODUCTVERSION_QUAD "${OpenVINO_VERSION_MAJOR},${OpenVINO_VERSION_MINOR},${OpenVINO_VERSION_PATCH},${OpenVINO_VERSION_BUILD}")
+set(OV_VS_VER_FILEVERSION_STR "${OpenVINO_VERSION_MAJOR}.${OpenVINO_VERSION_MINOR}.${OpenVINO_VERSION_PATCH}.${OpenVINO_VERSION_BUILD}")
 
-set(IE_VS_VER_COMPANY_NAME_STR "Intel Corporation")
-set(IE_VS_VER_PRODUCTVERSION_STR "${CI_BUILD_NUMBER}")
-set(IE_VS_VER_PRODUCTNAME_STR "OpenVINO toolkit")
-set(IE_VS_VER_COPYRIGHT_STR "Copyright (C) 2018-2021, Intel Corporation")
-set(IE_VS_VER_COMMENTS_STR "https://docs.openvino.ai/")
+set(OV_VS_VER_COMPANY_NAME_STR "Intel Corporation")
+set(OV_VS_VER_PRODUCTVERSION_STR "${CI_BUILD_NUMBER}")
+set(OV_VS_VER_PRODUCTNAME_STR "OpenVINO toolkit")
+set(OV_VS_VER_COPYRIGHT_STR "Copyright (C) 2018-2021, Intel Corporation")
+set(OV_VS_VER_COMMENTS_STR "https://docs.openvino.ai/")
 
 #
-# ie_add_vs_version_file(NAME <name>
+# ov_add_vs_version_file(NAME <name>
 #                        FILEDESCRIPTION <file description>
 #                        [COMPANY_NAME <company name>]
 #                        [FILEVERSION <file version>]
@@ -25,7 +25,7 @@ set(IE_VS_VER_COMMENTS_STR "https://docs.openvino.ai/")
 #                        [FILEVERSION_QUAD <name>]
 #                        [PRODUCTVERSION_QUAD <name>])
 #
-function(ie_add_vs_version_file)
+function(ov_add_vs_version_file)
     if(NOT WIN32 OR NOT BUILD_SHARED_LIBS)
         return()
     endif()
@@ -38,14 +38,14 @@ function(ie_add_vs_version_file)
 
     get_target_property(target_type ${VS_VER_NAME} TYPE)
     if(NOT target_type MATCHES "^(SHARED|MODULE)_LIBRARY$")
-        message(FATAL_ERROR "ie_add_vs_version_file can work only with dynamic libraries")
+        message(FATAL_ERROR "ov_add_vs_version_file can work only with dynamic libraries")
     endif()
 
     macro(_vs_ver_update_variable name)
-        if(VS_VER_NAME AND DEFINED IE_${VS_VER_NAME}_VS_VER_${name})
-            set(IE_VS_VER_${name} "${IE_${VS_VER_NAME}_VS_VER_${name}}")
+        if(VS_VER_NAME AND DEFINED OV_${VS_VER_NAME}_VS_VER_${name})
+            set(OV_VS_VER_${name} "${OV_${VS_VER_NAME}_VS_VER_${name}}")
         elseif(VS_VER_${name})
-            set(IE_VS_VER_${name} "${VS_VER_${name}}")
+            set(OV_VS_VER_${name} "${VS_VER_${name}}")
         endif()
     endmacro()
 
@@ -53,10 +53,10 @@ function(ie_add_vs_version_file)
     _vs_ver_update_variable(PRODUCTVERSION_QUAD)
 
     macro(_vs_ver_update_str_variable name)
-        if(VS_VER_NAME AND DEFINED IE_${VS_VER_NAME}_VS_VER_${name})
-            set(IE_VS_VER_${name}_STR "${IE_${VS_VER_NAME}_VS_VER_${name}}")
+        if(VS_VER_NAME AND DEFINED OV_${VS_VER_NAME}_VS_VER_${name})
+            set(OV_VS_VER_${name}_STR "${OV_${VS_VER_NAME}_VS_VER_${name}}")
         elseif(VS_VER_${name})
-            set(IE_VS_VER_${name}_STR "${VS_VER_${name}}")
+            set(OV_VS_VER_${name}_STR "${VS_VER_${name}}")
         endif()
     endmacro()
 
@@ -69,8 +69,8 @@ function(ie_add_vs_version_file)
     _vs_ver_update_str_variable(PRODUCTVERSION)
     _vs_ver_update_str_variable(COMMENTS)
 
-    set(IE_VS_VER_ORIGINALFILENAME_STR "${CMAKE_SHARED_LIBRARY_PREFIX}${VS_VER_NAME}${CMAKE_SHARED_LIBRARY_SUFFIX}")
-    set(IE_VS_VER_INTERNALNAME_STR ${VS_VER_NAME})
+    set(OV_VS_VER_ORIGINALFILENAME_STR "${CMAKE_SHARED_LIBRARY_PREFIX}${VS_VER_NAME}${CMAKE_SHARED_LIBRARY_SUFFIX}")
+    set(OV_VS_VER_INTERNALNAME_STR ${VS_VER_NAME})
 
     set(vs_version_output "${CMAKE_CURRENT_BINARY_DIR}/vs_version.rc")
     configure_file("${IEDevScripts_DIR}/vs_version/vs_version.rc.in" "${vs_version_output}" @ONLY)

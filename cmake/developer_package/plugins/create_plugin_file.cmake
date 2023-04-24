@@ -4,13 +4,13 @@
 
 cmake_policy(SET CMP0007 NEW)
 
-set(newContent "        <plugin name=\"${IE_DEVICE_NAME}\" location=\"${IE_PLUGIN_LIBRARY_NAME}\">")
+set(newContent "        <plugin name=\"${OV_DEVICE_NAME}\" location=\"${OV_PLUGIN_LIBRARY_NAME}\">")
 
-if(IE_PLUGIN_PROPERTIES)
+if(OV_PLUGIN_PROPERTIES)
     set(newContent "${newContent}
             <properties>")
 
-    foreach(props IN LISTS IE_PLUGIN_PROPERTIES)
+    foreach(props IN LISTS OV_PLUGIN_PROPERTIES)
         string(REPLACE ":" ";" props "${props}")
 
         list(GET props 0 key)
@@ -27,4 +27,4 @@ endif()
 set(newContent "${newContent}
         </plugin>")
 
-file(WRITE "${IE_CONFIG_OUTPUT_FILE}" "${newContent}")
+file(WRITE "${OV_CONFIG_OUTPUT_FILE}" "${newContent}")

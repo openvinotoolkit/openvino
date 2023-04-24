@@ -133,9 +133,8 @@ jobs:
   - task: CMake@1
     inputs:
       cmakeArgs: >
-        -GNinja
+        -G "Ninja Multi-Config"
         -DCMAKE_VERBOSE_MAKEFILE=ON
-        -DCMAKE_BUILD_TYPE=$(BUILD_TYPE)
         -DCMAKE_TOOLCHAIN_FILE=$(ANDROID_TOOLS)/ndk-bundle/build/cmake/android.toolchain.cmake
         -DCMAKE_COMPILE_WARNING_AS_ERROR=ON
         -DANDROID_ABI=$(ANDROID_ABI_CONFIG)

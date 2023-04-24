@@ -11,7 +11,7 @@ set (TARGET_NAME "openvino_hetero_plugin")
 file(GLOB SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/*.cpp)
 file(GLOB_RECURSE HEADERS ${CMAKE_CURRENT_SOURCE_DIR}/*.hpp)
 
-ie_add_plugin(NAME ${TARGET_NAME}
+ov_add_plugin(NAME ${TARGET_NAME}
               DEVICE_NAME "HETERO"
               PSEUDO_DEVICE
               SOURCES ${SOURCES} ${HEADERS}

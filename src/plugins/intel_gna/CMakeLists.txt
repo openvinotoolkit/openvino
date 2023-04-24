@@ -51,7 +51,7 @@ find_package(libGNA REQUIRED
 # Shared plugin library
 #
 
-ie_add_plugin(NAME ${TARGET_NAME}
+ov_add_plugin(NAME ${TARGET_NAME}
               DEVICE_NAME "GNA"
               SOURCES ${SOURCES} ${HEADERS}
               VERSION_DEFINES_FOR src/gna_plugin_entry_points.cpp
