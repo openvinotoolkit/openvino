@@ -771,6 +771,52 @@ void Node::initDescriptor(const NodeConfig& config) {
     selectedPD->setConfig(updatedConfig);
 }
 
+void Node::prepareMemory(const DnnlMemoryDescPtr& intDesc, size_t indx) {
+    size_t minSize = indx + 1;
+    if (internalBlobMemory.size() < minSize) {
+        internalBlobMemory.resize(minSize);
+    }
+
+    if (minSize > internalBlobs.size()) {
+        IE_THROW() << "Can't prepare memory for internal blob, requested index: " << indx <<
+            " is out of bounds of the internalBlobs vector of size " << internalBlobs.size();
+    }
+
+    const auto &internalBlob = internalBlobs[indx];
+
+    auto create = [&] () {
+        // TODO [DS]: internal blobs should be removed or rewritten using Memory object
+        auto newDesc = MemoryDescUtils::convertToDnnlBlockedMemoryDesc(internalBlob->getTensorDesc());
+
+        Memory memory{ engine };
+        memory.Create(newDesc, internalBlob->buffer());
+
+        MemoryPtr _ptr = std::make_shared<Memory>(engine);
+        _ptr->Create(intDesc);
+        node::Reorder::reorderData(memory, *_ptr, context->getParamsCache());
+        return _ptr;
+    };
+
+    MemoryPtr ptr;
+    auto weightCache = context->getWeightsCache();
+    if (weightCache != nullptr && memory::format_kind::blocked == intDesc->getDnnlDesc().get_format_kind()) {
+        const auto& format = intDesc->serializeFormat();
+        const uint64_t data_hash = weightCache->GetHashFunc().hash(
+                internalBlob->buffer(), internalBlob->byteSize());
+
+        const std::string string_hash = name + "_" + std::to_string(indx)
+                                        + "_" + format
+                                        + "_" + std::to_string(internalBlob->byteSize())
+                                        + "_" + std::to_string(data_hash);
+
+        ptr = *weightCache->findOrCreate(string_hash, create);
+    } else {
+        ptr = create();
+    }
+
+    internalBlobMemory[indx] = ptr;
+}
+
 void Node::prepareMemory(const std::vector<DnnlMemoryDescPtr>& intDescs) {
     if (internalBlobs.size() != intDescs.size()) {
         IE_THROW() << "Can't prepare memory for internal blob, internal blob and internal descs number do not match "
@@ -779,38 +825,7 @@ void Node::prepareMemory(const std::vector<DnnlMemoryDescPtr>& intDescs) {
 
     internalBlobMemory.clear();
     for (size_t i = 0; i < internalBlobs.size(); i++) {
-        const auto &internalBlob = internalBlobs[i];
-
-        auto create = [&] () {
-            // TODO [DS]: internal blobs should be removed or rewritten using Memory object
-            auto newDesc = MemoryDescUtils::convertToDnnlBlockedMemoryDesc(internalBlob->getTensorDesc());
-
-            Memory memory{ engine };
-            memory.Create(newDesc, internalBlob->buffer());
-
-            MemoryPtr _ptr = std::make_shared<Memory>(engine);
-            _ptr->Create(*intDescs[i]);
-            _ptr->SetData(memory);
-
-            return _ptr;
-        };
-
-        MemoryPtr ptr;
-        auto weightCache = context->getWeightsCache();
-        if (weightCache != nullptr) {
-            const uint64_t data_hash = weightCache->GetHashFunc().hash(
-                    internalBlob->buffer(), internalBlob->byteSize());
-
-            const std::string string_hash = name + "_" + std::to_string(i)
-                                            + "_" + std::to_string(internalBlob->byteSize())
-                                            + "_" + std::to_string(data_hash);
-
-            ptr = *weightCache->findOrCreate(string_hash, create);
-        } else {
-            ptr = create();
-        }
-
-        internalBlobMemory.push_back(ptr);
+        prepareMemory(intDescs[i], i);
     }
 }
 
