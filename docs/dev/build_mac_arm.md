@@ -3,7 +3,7 @@
 This guide shows how to build OpenVINO Runtime for later inference on Apple Silicon & Intel MYRIAD devices on OSX. 
 
 There are two options how to use OpenVINO on Apple Silicon:
-- (Native) Compile OpenVINO for arm64 architecture with extra module [OpenVINO ARM plugin](https://github.com/openvinotoolkit/openvino_contrib/tree/master/modules/arm_plugin) location in [OpenVINO Contrib](https://github.com/openvinotoolkit/openvino_contrib). Note, build steps will cover this as a default scenario.
+- (Native) Compile OpenVINO for arm64 architecture. Note, build steps will cover this as a default scenario.
 - (Rosetta) Compile Intel CPU plugin `x86_64` architecture and run under [Rosetta](https://support.apple.com/en-us/HT211861).
 
 The software was validated on:
@@ -53,13 +53,10 @@ The software was validated on:
 
 ## How to build
 
-1. (Get sources) Clone submodules:
+1. (Get sources) Clone the repository and submodules:
 ```sh
 git clone https://github.com/openvinotoolkit/openvino.git
-git clone https://github.com/openvinotoolkit/openvino_contrib.git
-cd openvino_contrib
-git submodule update --init
-cd ../openvino
+cd openvino
 git submodule update --init
 ```
 2. Create a build folder:
@@ -68,7 +65,7 @@ mkdir build && cd build
 ```
 3. (CMake configure) OpenVINO project uses a CMake-based build system. In the created `build` directory, run `cmake` to fetch project dependencies and create build rules:
 ```sh
-cmake -DCMAKE_BUILD_TYPE=Release -DOPENVINO_EXTRA_MODULES=../openvino_contrib/modules/arm_plugin ..
+cmake -DCMAKE_BUILD_TYPE=Release ..
 ```
 > **NOTE**: By default OpenVINO CMake scripts try to introspect the system and enable all possible functionality based on that. You can look at the CMake output and see warnings, which show that some functionality is turned off and the corresponding reason, guiding what to do to install additionally to enable unavailable functionality. Additionally, you can change CMake options to enable / disable some functionality, add / remove compilation flags, provide custom version of dependencies like TBB, PugiXML, OpenCV, Protobuf. For more information, see [CMake Options for Custom Compilation](./cmake_options_for_custom_comiplation.md).
 4. (CMake build) Build OpenVINO project:
