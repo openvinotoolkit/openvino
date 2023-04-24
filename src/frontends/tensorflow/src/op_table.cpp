@@ -265,6 +265,7 @@ const std::map<std::string, CreatorFunction> get_supported_ops() {
         // Translators for SavedModel and MetaGraph
         {"Assign", CreatorFunction(translate_readvariable_op)},
         {"AssignVariableOp", CreatorFunction(translate_assignvariable_op)},
+        {"IsVariableInitialized", CreatorFunction(translate_varisinitialized_op)},
         {"MergeV2Checkpoints", CreatorFunction(translate_identity_op)},
         {"ReadVariableOp", CreatorFunction(translate_readvariable_op)},
         {"RestoreV2", CreatorFunction(translate_restorev2_op)},
