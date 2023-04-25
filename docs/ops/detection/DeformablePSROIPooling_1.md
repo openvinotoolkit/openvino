@@ -42,7 +42,7 @@ This operation is compatible with `Apache MXNet DeformablePSROIPooling <https://
   * **Default value**: 1
   * **Required**: *no*
 
-* *mode*y
+* *mode*
 
   * **Description**: *mode* specifies mode for pooling.
   * **Range of values**:
@@ -78,8 +78,7 @@ This operation is compatible with `Apache MXNet DeformablePSROIPooling <https://
 
 * *part_size*
 
-  * **Description**: *part_size* is the size of ``H`` and ``W`` dimensions of the third input (offsets). Basically it is the height and width of the third input
-  with transformation values.
+  * **Description**: *part_size* is the size of ``H`` and ``W`` dimensions of the third input (offsets). Basically it is the height and width of the third input with transformation values.
   * **Range of values**: positive integer number
   * **Type**: ``int``
   * **Default value**: 1
@@ -103,7 +102,7 @@ This operation is compatible with `Apache MXNet DeformablePSROIPooling <https://
 
 * Two inputs (without offsets)
 
-.. code-block:: console
+.. code-block:: cpp
    
    <layer ... type="DeformablePSROIPooling" ... >
        <data spatial_scale="0.0625" output_dim="882" group_size="3" mode="bilinear_deformable" spatial_bins_x="4" spatial_bins_y="4" trans_std="0.0" part_size="3"/>
@@ -132,7 +131,7 @@ This operation is compatible with `Apache MXNet DeformablePSROIPooling <https://
 
 * Three inputs (with offsets)
 
-.. code-block:: console
+.. code-block:: cpp
    
    <layer ... type="DeformablePSROIPooling" ... >
        <data group_size="7" mode="bilinear_deformable" output_dim="8" part_size="7" spatial_bins_x="4" spatial_bins_y="4" spatial_scale="0.0625" trans_std="0.1"/>
