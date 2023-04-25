@@ -101,11 +101,6 @@ void Split::initSupportedPrimitiveDescriptors() {
     const auto axisPrecision = Precision::I32;
     auto outPrecision = inpPrecision; // the split layer doesn't convert precisions
 
-    bool dynBatchSupport = true;
-    if (axis < 1) {
-        dynBatchSupport = false;
-    }
-
     // Set plain and tailC formats
     std::vector<LayoutType> tdCreatorTypes{ LayoutType::ncsp, LayoutType::nspc };
 
@@ -137,7 +132,6 @@ void Split::initSupportedPrimitiveDescriptors() {
     for (auto itr = itrRange.first; itr != itrRange.second; ++itr) {
         NodeConfig config;
 
-        config.dynBatchSupport = dynBatchSupport;
         config.inConfs.resize(INPUTS_NUM);
         config.inConfs[0].inPlace(-1);
         config.inConfs[0].constant(false);
@@ -215,7 +209,6 @@ void Split::initSupportedPrimitiveDescriptors() {
     if (axis == 1 && (dstFirstDims.size() == 4 || dstFirstDims.size() == 5)) {
         NodeConfig config;
 
-        config.dynBatchSupport = dynBatchSupport;
         config.inConfs.resize(INPUTS_NUM);
         config.inConfs[0].inPlace(-1);
         config.inConfs[0].constant(false);
@@ -315,17 +308,15 @@ void Split::execute(dnnl::stream strm) {
         THROW_ERROR << "Output data pointers have not been initialized.";
 
     const auto &srcMem = getParentEdgesAtPort(0)[0]->getMemory();
-    size_t batch = srcMem.getStaticDims()[0];
-    Dim MB = isDynamicNode() ? batch : batchToProcess();
 
     if (canUseOptimizedNspc2Ncsp) {
-        optimizedNspc2Ncsp(MB);
+        optimizedNspc2Ncsp(srcMem.getStaticDims()[0]);
         return;
     }
 
     uint8_t* srcData = reinterpret_cast<uint8_t*>(srcMem.GetPtr());
     IE_ASSERT(execPtr != nullptr);
-    execPtr->exec(srcData, getRawDstMemPtrs(), batch, MB);
+    execPtr->exec(srcData, getRawDstMemPtrs());
 }
 
 bool Split::created() const {
@@ -499,13 +490,6 @@ void Split::selectOptimalPrimitiveDescriptor() {
     selectPrimitiveDescriptorByIndex(0);
 }
 
-void Split::setDynamicBatchLim(int lim) {
-    if (axis == 0)
-        THROW_ERROR << "Dynamic batch is not supported by split layer with axis == 0 parameter";
-
-    dynBatchLim = lim;
-}
-
 void Split::optimizedNspc2Ncsp(size_t MB) {
     auto parentEdge = getParentEdgeAt(0);
     const int rank = parentEdge->getMemory().GetShape().getRank();
@@ -606,11 +590,8 @@ Split::SplitOptimizedExecutor::SplitOptimizedExecutor(BlockedMemoryDescCPtr inDe
     }
 }
 
-void Split::SplitOptimizedExecutor::exec(const uint8_t* srcData, const std::vector<uint8_t*>& dstRawMemPtrs,
-                                                   const Dim origBatch, const Dim perInferBatch) {
+void Split::SplitOptimizedExecutor::exec(const uint8_t* srcData, const std::vector<uint8_t*>& dstRawMemPtrs) {
     size_t execCountStrides = countStrides;
-    if (origBatch != perInferBatch)
-        execCountStrides = execCountStrides / origBatch * perInferBatch;
 
     parallel_for2d(dstRawMemPtrs.size(), execCountStrides, [&](size_t i, size_t j) {
         uint8_t* dstData = dstRawMemPtrs[i];
