@@ -21,6 +21,10 @@ INSTANTIATE_TEST_SUITE_P(smoke_OVClassModelTestP,
                          OVClassModelTestP,
                          ::testing::Values(CommonTestUtils::DEVICE_TEMPLATE));
 
+INSTANTIATE_TEST_SUITE_P(smoke_OVClassModelOptionalTestP,
+                         OVClassModelOptionalTestP,
+                         ::testing::Values(CommonTestUtils::DEVICE_TEMPLATE));
+
 TEST(OVClassBasicPropsTest, smoke_TEMPLATEGetSetConfigNoThrow) {
     ov::Core core = createCoreWithTemplate();
 

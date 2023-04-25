@@ -24,6 +24,7 @@ INSTANTIATE_TEST_SUITE_P(nightly_OVBasicPropertiesTestsP,
 
 // TODO
 INSTANTIATE_TEST_SUITE_P(DISABLED_smoke_OVClassModelTestP, OVClassModelTestP, ::testing::Values("GNA"));
+INSTANTIATE_TEST_SUITE_P(DISABLED_smoke_OVClassModelOptionalTestP, OVClassModelOptionalTestP, ::testing::Values("GNA"));
 
 //
 // IE Class GetMetric

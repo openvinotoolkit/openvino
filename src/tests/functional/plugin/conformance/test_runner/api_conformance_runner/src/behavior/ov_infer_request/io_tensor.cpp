@@ -12,7 +12,7 @@ using namespace ov::test::behavior;
 using namespace ov::test::conformance;
 
 namespace {
-INSTANTIATE_TEST_SUITE_P(ov_infer_request, OVInferRequestIOTensorTest,
+INSTANTIATE_TEST_SUITE_P(ov_infer_request_mandatory, OVInferRequestIOTensorTest,
                         ::testing::Combine(
                                 ::testing::ValuesIn(return_all_possible_device_combination()),
                                 ::testing::Values(pluginConfig)),
@@ -37,14 +37,14 @@ std::vector<ov::element::Type> ovIOTensorElemTypes = {
     ov::element::u64,
 };
 
-INSTANTIATE_TEST_SUITE_P(ov_infer_request, OVInferRequestIOTensorSetPrecisionTest,
+INSTANTIATE_TEST_SUITE_P(ov_infer_request_mandatory, OVInferRequestIOTensorSetPrecisionTest,
                          ::testing::Combine(
                                  ::testing::ValuesIn(ovIOTensorElemTypes),
                                  ::testing::ValuesIn(return_all_possible_device_combination()),
                                  ::testing::Values(pluginConfig)),
                          OVInferRequestIOTensorSetPrecisionTest::getTestCaseName);
 
-INSTANTIATE_TEST_SUITE_P(ov_infer_request, OVInferRequestCheckTensorPrecision,
+INSTANTIATE_TEST_SUITE_P(ov_infer_request_mandatory, OVInferRequestCheckTensorPrecision,
                          ::testing::Combine(
                                  ::testing::ValuesIn(ovIOTensorElemTypes),
                                  ::testing::ValuesIn(return_all_possible_device_combination()),

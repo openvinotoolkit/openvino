@@ -214,6 +214,7 @@ public:
     }
 };
 using OVClassModelTestP = OVClassBaseTestP;
+using OVClassModelOptionalTestP = OVClassBaseTestP;
 
 class OVCompiledModelClassBaseTestP : public OVClassNetworkTest,
                                       public ::testing::WithParamInterface<std::string>,
