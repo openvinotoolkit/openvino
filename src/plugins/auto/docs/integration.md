@@ -16,7 +16,7 @@ QueryNetwork(query_model) is recommanded since it is important for AUTO to make 
 | ov::hint::performance_mode           |  Yes      | Performance mode hint.                        |
 | ov::hint::num_requests               |  Yes      | num_requests hint.                            |
 | ov::device::full_name                |  Yes      | Automatic device selection.                   |
-| ov::model_name                       |  Yes      | For AUTO to support this property.            |
+| ov::model_name                       |  Yes      | Return model name.                            |
 | ov::optimal_batch_size               |  No       | Decide batch size in automatic batching case. |
 | ov::optimal_number_of_infer_requests |  Yes      | Decide AUTO optimal_number_of_infer_requests. |
 | ov::range_for_streams                |  Yes      | Decide AUTO optimal_number_of_infer_requests in automatic batching case. |
@@ -41,6 +41,7 @@ command: benchmark_app -d ${device} -hint ${hint} -m \<any model works on HW plu
 | latency               | \<HW>          |
 | latency               | AUTO:\<HW>     |
 | latency               | AUTO:\<HW>,CPU |
+| cumulative_throughput | AUTO:\<HW>     |
 | cumulative_throughput | AUTO:\<HW>,CPU |
 
 ### Test multiple devices running simultaneously
