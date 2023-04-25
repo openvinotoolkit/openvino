@@ -353,13 +353,20 @@ std::pair<VectorDims, VectorDims> Deconvolution::makeDummyInOutShape() {
             ov::CoordinateDiff pe = autoPad ? ov::CoordinateDiff(paddingR.size(), 0) : paddingR;
 
             const auto& origInDims = getInputShapeAtPort(0).getDims();
+            const auto& origInMinDims = getInputShapeAtPort(0).getMinDims();
+            const auto& origInMaxDims = getInputShapeAtPort(0).getMaxDims();
             const auto& weightDims = getWeightDims();
             const size_t wghOffset = getAlgorithm() == Algorithm::DeconvolutionGrouped ? 1 : 0;
             for (size_t i = 0; i < inputDims.size() - 2; i++) {
                 if (origInDims[2 + i] == Shape::UNDEFINED_DIM) {
-                    inputDims[2 + i] = ((lastOutputSpatialDims[i] - (dilation[i] + 1) *
-                                        (weightDims[wghOffset + 2 + i] - 1) - 1 + pb[i] + pe[i] - outputPadding[i])) /
+                    inputDims[2 + i] = (lastOutputSpatialDims[i] - (dilation[i] + 1) *
+                                        (weightDims[wghOffset + 2 + i] - 1) - 1 + pb[i] + pe[i] - outputPadding[i]) /
                                         stride[i] + 1;
+                    // WA: if deconv output shape is provided in a separate input and autoPad is true,
+                    // paddings must be calculated based on input and output shapes (per specification).
+                    // However, the inputDims are unknown so the paddings cannot be calculated.
+                    // Because of that, we might get wrong inputDims values which are out of dynamic shape range
+                    inputDims[2 + i] = std::min(origInMaxDims[i + 2], std::max(origInMinDims[i + 2], inputDims[2 + i]));
                 }
             }
         }
