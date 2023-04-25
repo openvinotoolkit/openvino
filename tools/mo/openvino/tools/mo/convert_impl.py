@@ -847,7 +847,7 @@ def framework_is_tf(args, argv):
     if argv is not None:
         is_tf, _, _, _, _ = deduce_legacy_frontend_by_namespace(argv)
         return is_tf
-    return 'Unknown'
+    return False
 
 
 def _convert(cli_parser: argparse.ArgumentParser, framework, args, python_api_used):
