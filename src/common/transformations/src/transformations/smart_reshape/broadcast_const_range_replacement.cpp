@@ -59,7 +59,7 @@ ov::pass::BroadcastConstRangeReplacement::BroadcastConstRangeReplacement() {
         const auto target_dim_index =
             std::distance(const_node_shape.cbegin(),
                           std::find(const_node_shape.cbegin(), const_node_shape.cend(), elem_count));
-        const int64_t target_dim_neg_index = target_dim_index - const_rank;
+        const int64_t target_dim_neg_index = target_dim_index - static_cast<int64_t>(const_rank);
 
         NodeRegistry node_registry;
 

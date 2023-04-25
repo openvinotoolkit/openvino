@@ -139,7 +139,14 @@ OPENVINO_RUNTIME_API bool with_cpu_x86_avx512_core_amx();
 OPENVINO_RUNTIME_API bool is_cpu_map_available();
 
 /**
- * @brief      Returns number of CPU cores on Linux/Windows
+ * @brief      Get number of numa nodes
+ * @ingroup    ie_dev_api_system_conf
+ * @return     Number of numa nodes
+ */
+OPENVINO_RUNTIME_API int get_num_numa_nodes();
+
+/**
+ * @brief      Returns a table of number of processor types on Linux/Windows
  * @ingroup    ie_dev_api_system_conf
  * @return     A table about number of CPU cores of different types defined with ColumnOfProcessorTypeTable
  * The following are two example of processor type table.
@@ -153,15 +160,7 @@ OPENVINO_RUNTIME_API bool is_cpu_map_available();
  *  ALL_PROC | MAIN_CORE_PROC | EFFICIENT_CORE_PROC | HYPER_THREADING_PROC
  *     32            8                 16                       8           // Total number of one socket
  */
-OPENVINO_RUNTIME_API std::vector<std::vector<int>> get_num_available_cpu_cores();
-
-/**
- * @brief      Returns corresponding logical cores
- * @ingroup    ie_dev_api_system_conf
- * @param[in]  cpu_ids physical cores
- * @return     logical cores corresponding to physical core.
- */
-OPENVINO_RUNTIME_API std::vector<int> get_logic_cores(const std::vector<int> cpu_ids);
+OPENVINO_RUNTIME_API std::vector<std::vector<int>> get_proc_type_table();
 
 /**
  * @enum       ColumnOfProcessorTypeTable
@@ -203,17 +202,11 @@ enum ProcessorUseStatus {
 /**
  * @brief      Get and reserve available cpu ids
  * @ingroup    ie_dev_api_system_conf
- * @param[in]  core_type core type.
- * @param[in]  num_cpus number of cpus.
- * @param[in]  seek_status look for CPU_MAP_USED_FLAG of seek_status in CPU mapping table
- * @param[in]  reset_status reset CPU_MAP_USED_FLAG with reset_status.
+ * @param[in]  streams_info_table streams information table.
  * @return     Array of available cpu ids.
  */
-OPENVINO_RUNTIME_API std::vector<int> reserve_available_cpus(const ColumnOfProcessorTypeTable core_type,
-                                                             const int num_cpus,
-                                                             const int seek_status = NOT_USED,
-                                                             const int reset_status = CPU_USED,
-                                                             const bool reserve_logic_core = false);
+OPENVINO_RUNTIME_API std::vector<std::vector<int>> reserve_available_cpus(
+    const std::vector<std::vector<int>> streams_info_table);
 
 /**
  * @brief      Set CPU_MAP_USED_FLAG of cpu_mapping
@@ -221,7 +214,7 @@ OPENVINO_RUNTIME_API std::vector<int> reserve_available_cpus(const ColumnOfProce
  * @param[in]  cpu_ids cpus in cpu_mapping.
  * @param[in]  used update CPU_MAP_USED_FLAG of cpu_mapping with this flag bit
  */
-OPENVINO_RUNTIME_API void set_cpu_used(std::vector<int>& cpu_ids, int used);
+OPENVINO_RUNTIME_API void set_cpu_used(const std::vector<int>& cpu_ids, const int used);
 
 /**
  * @enum       ColumnOfCPUMappingTable
