@@ -73,10 +73,9 @@ void add_required_reorders::run(program& p) {
                 if (!fused_op.is_type<eltwise>() && !(fused_op.is_type<activation>() && fused_op.total_num_deps == 2))
                     continue;
 
-                auto dep_id = fused_op.dep_start_idx;
-                if (dep_id >= usr->get_dependencies().size())
+                if (!fused_op.has_outer_dep())
                     continue;
-
+                auto dep_id = fused_op.outer_dep_start_idx;
                 auto& dep = usr->get_dependency(dep_id);
                 if (!dep.is_type<data>())
                     continue;
@@ -199,14 +198,13 @@ void add_required_reorders::run(program& p) {
                     }
                 }
 
-                if (!correct_layout_selected) {
-                    throw std::runtime_error("Internal Error: no layout format available for " + usr->id() +
-                                                " (format: " + std::to_string(original_layout.format.value) +
-                                                ", data_type: " + data_type_traits::name(original_layout.data_type) + ") "
-                                                "compatible with " + node.first->id() +
-                                                " (format: " + std::to_string(node.first->get_output_layout().format.value) +
-                                                ", data_type: " + data_type_traits::name(node.first->get_output_layout().data_type) + ")");
-                }
+                OPENVINO_ASSERT(correct_layout_selected,
+                                "[GPU] No layout format available for ", usr->id(),  ", impl_type: ", usr->get_preferred_impl_type(),
+                                " (format: ", original_layout.format.to_string(),
+                                ", data_type: ", data_type_traits::name(original_layout.data_type), ") ",
+                                "compatible with ", node.first->id(),
+                                " (format: ", node.first->get_output_layout().format.to_string(),
+                                ", data_type: ", data_type_traits::name(node.first->get_output_layout().data_type), ")");
             }
         }
 

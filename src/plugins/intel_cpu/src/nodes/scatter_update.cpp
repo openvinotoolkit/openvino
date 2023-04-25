@@ -192,7 +192,6 @@ void ScatterUpdate::initSupportedPrimitiveDescriptors() {
                         !getParentEdgeAt(DATA_ID)->getParent()->isConstant();
 
     NodeConfig config;
-    config.dynBatchSupport = false;
     if (axisRelaxed) {
         config.inConfs.resize(4);
     } else {

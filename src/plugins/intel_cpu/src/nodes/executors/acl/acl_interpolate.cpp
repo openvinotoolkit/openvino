@@ -39,6 +39,7 @@ bool ov::intel_cpu::ACLInterpolateExecutor::init(const InterpolateAttrs &interpo
             return false;
     }
 
+
     auto srcDims = srcDescs[0]->getShape().getDims();
     auto dstDims = dstDescs[0]->getShape().getDims();
     auto srcTensorInfo = arm_compute::TensorInfo(shapeCast(srcDims), 1,

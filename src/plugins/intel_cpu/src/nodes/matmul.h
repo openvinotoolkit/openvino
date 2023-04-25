@@ -27,7 +27,6 @@ public:
     MemoryDescPtr getSrcMemDesc(dnnl::primitive_desc_iterator &primitive_desc_it, size_t idx) override;
     bool canFuse(const NodePtr& node) const override;
     bool created() const override;
-    size_t getMaxBatch() const override;
 
     InferenceEngine::Precision getRuntimePrecision() const override;
     size_t descInputNumbers() override {

@@ -1520,8 +1520,19 @@ JitConstants MakeActivationJitConstants(std::vector<kernel_selector::base_activa
     std::string activation_params = "";
     for (size_t i = 0; i < params.size(); i++) {
         std::string activation_suffix = suffix + "_" + toCodeString(i);
-        auto jitConstants = JitConstants{MakeJitConstant("NL_M" + activation_suffix, params[i].m),
-                                         MakeJitConstant("NL_N" + activation_suffix, params[i].n)};
+        std::string nl_m = toCodeString(params[i].m);
+        std::string nl_n = toCodeString(params[i].n);
+        if (params[i].function == ActivationFunction::CLAMP) {
+            if (out_dt == Datatype::INT8) {
+                nl_m = toCodeString(std::max(params[i].m, static_cast<float>(SCHAR_MIN)));
+                nl_n = toCodeString(std::min(params[i].n, static_cast<float>(SCHAR_MAX)));
+            } else if (out_dt == Datatype::UINT8) {
+                nl_m = toCodeString(std::max(params[i].m, 0.0f));
+                nl_n = toCodeString(std::min(params[i].n, static_cast<float>(UCHAR_MAX)));
+            }
+        }
+        auto jitConstants = JitConstants{MakeJitConstant("NL_M" + activation_suffix, nl_m),
+                                         MakeJitConstant("NL_N" + activation_suffix, nl_n)};
         jitConstants.Merge(MakeActivationJitConstants(
                 params[i].function, out_dt, activation_suffix, use_type_parameter, disable_type_conversion));
         res.Merge(jitConstants);
@@ -1892,6 +1903,16 @@ JitConstants FusedOpsCodeGenerator::MakeOpJitConstants(const FusedOpsConfigurati
                 auto suffix = "_FUSED_OP"+toCodeString(desc.op_id) + conf.suffix;
                 std::string nl_m = toCodeString(activation_p.m);
                 std::string nl_n = toCodeString(activation_p.n);
+
+                if (activation_p.function == ActivationFunction::CLAMP) {
+                    if (out_type == Datatype::INT8) {
+                        nl_m = toCodeString(std::max(activation_p.m, static_cast<float>(SCHAR_MIN)));
+                        nl_n = toCodeString(std::min(activation_p.n, static_cast<float>(SCHAR_MAX)));
+                    } else if (out_type == Datatype::UINT8) {
+                        nl_m = toCodeString(std::max(activation_p.m, 0.0f));
+                        nl_n = toCodeString(std::min(activation_p.n, static_cast<float>(UCHAR_MAX)));
+                    }
+                }
 
                 if (desc.tensors.size() == 1) {
                     if (desc.tensors[0].GetDType() != out_type) {
