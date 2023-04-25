@@ -346,6 +346,7 @@ DECLARE_CONFIG_KEY(PERF_COUNT);
 
 /**
  * @brief The key defines dynamic limit of batch processing.
+ * @deprecated
  *
  * Specified value is applied to all following Infer() calls. Inference Engine processes
  * min(batch_limit, original_batch_size) first pictures from input blob. For example, if input
@@ -357,11 +358,14 @@ DECLARE_CONFIG_KEY(PERF_COUNT);
  * -1 - Do not limit batch processing
  * >0 - Direct value of limit. Batch size to process is min(new batch_limit, original_batch)
  */
+INFERENCE_ENGINE_DEPRECATED("This config is deprecated and will be removed in 2023.1 release")
 DECLARE_CONFIG_KEY(DYN_BATCH_LIMIT);
 
 /**
  * @brief The key checks whether dynamic batch is enabled.
+ * @deprecated
  */
+INFERENCE_ENGINE_DEPRECATED("This config is deprecated and will be removed in 2023.1 release")
 DECLARE_CONFIG_KEY(DYN_BATCH_ENABLED);
 
 /**
