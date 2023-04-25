@@ -1520,8 +1520,23 @@ JitConstants MakeActivationJitConstants(std::vector<kernel_selector::base_activa
     std::string activation_params = "";
     for (size_t i = 0; i < params.size(); i++) {
         std::string activation_suffix = suffix + "_" + toCodeString(i);
-        auto jitConstants = JitConstants{MakeJitConstant("NL_M" + activation_suffix, params[i].m),
-                                         MakeJitConstant("NL_N" + activation_suffix, params[i].n)};
+        std::string nl_m = toCodeString(params[i].m);
+        std::string nl_n = toCodeString(params[i].n);
+        if (params[i].function == ActivationFunction::CLAMP) {
+            if (out_dt == Datatype::INT8) {
+                float max_i8 = 127.f;
+                float min_i8 = -128.f;
+                nl_m = "fmax(" + nl_m + ", " + toCodeString(min_i8) + ")";
+                nl_n = "fmin(" + nl_n + ", " + toCodeString(max_i8) + ")";
+            } else if (out_dt == Datatype::UINT8) {
+                float max_u8 = 255.f;
+                float min_u8 = 0.f;
+                nl_m = "fmax(" + nl_m + ", " + toCodeString(min_u8) + ")";
+                nl_n = "fmin(" + nl_n + ", " + toCodeString(max_u8) + ")";
+            }
+        }
+        auto jitConstants = JitConstants{MakeJitConstant("NL_M" + activation_suffix, nl_m),
+                                         MakeJitConstant("NL_N" + activation_suffix, nl_n)};
         jitConstants.Merge(MakeActivationJitConstants(
                 params[i].function, out_dt, activation_suffix, use_type_parameter, disable_type_conversion));
         res.Merge(jitConstants);
@@ -1892,6 +1907,20 @@ JitConstants FusedOpsCodeGenerator::MakeOpJitConstants(const FusedOpsConfigurati
                 auto suffix = "_FUSED_OP"+toCodeString(desc.op_id) + conf.suffix;
                 std::string nl_m = toCodeString(activation_p.m);
                 std::string nl_n = toCodeString(activation_p.n);
+
+                if (activation_p.function == ActivationFunction::CLAMP) {
+                    if (out_type == Datatype::INT8) {
+                        float max_i8 = 127.f;
+                        float min_i8 = -128.f;
+                        nl_m = "fmax(" + nl_m + ", " + toCodeString(min_i8) + ")";
+                        nl_n = "fmin(" + nl_n + ", " + toCodeString(max_i8) + ")";
+                    } else if (out_type == Datatype::UINT8) {
+                        float max_u8 = 255.f;
+                        float min_u8 = 0.f;
+                        nl_m = "fmax(" + nl_m + ", " + toCodeString(min_u8) + ")";
+                        nl_n = "fmin(" + nl_n + ", " + toCodeString(max_u8) + ")";
+                    }
+                }
 
                 if (desc.tensors.size() == 1) {
                     if (desc.tensors[0].GetDType() != out_type) {
