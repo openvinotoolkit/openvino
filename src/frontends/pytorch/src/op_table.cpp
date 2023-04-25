@@ -28,7 +28,6 @@ OP_CONVERTER(translate_batch_norm);
 OP_CONVERTER(translate_bitwise_not);
 OP_CONVERTER(translate_cat);
 OP_CONVERTER(translate_clamp);
-OP_CONVERTER(translate_col2im);
 OP_CONVERTER(translate_constant);
 OP_CONVERTER(translate_conv_transposend);
 OP_CONVERTER(translate_convnd);
