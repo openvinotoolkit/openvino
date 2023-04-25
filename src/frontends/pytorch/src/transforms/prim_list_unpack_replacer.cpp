@@ -75,9 +75,6 @@ PrimListUnpackReplacer::PrimListUnpackReplacer() {
 
         if (auto chunk = cast_fw_node(input_node, "aten::chunk")) {
             auto input_tensor = chunk->get_input_source_output(0);
-            if (input_tensor.get_partial_shape().rank().is_dynamic()) {
-                return false;
-            }
             auto chunks_i32 = chunk->get_input_source_output(1);
             auto dim = chunk->get_input_source_output(2);
 

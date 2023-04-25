@@ -129,9 +129,6 @@ AtenGetItemReplacer::AtenGetItemReplacer() {
             return true;
         }
         if (auto chunk = cast_fw_node(input_node, "aten::chunk")) {
-            auto getitem_index_ptr = getitem->input_value(1).get_node_shared_ptr();
-            auto getitem_index_const = std::dynamic_pointer_cast<ov::op::v0::Constant>(getitem_index_ptr);
-
             auto input_tensor = chunk->get_input_source_output(0);
             auto chunks_i32 = chunk->get_input_source_output(1);
             auto dim = chunk->get_input_source_output(2);
@@ -139,8 +136,12 @@ AtenGetItemReplacer::AtenGetItemReplacer() {
             auto chunks = std::make_shared<opset10::Convert>(chunks_i32, element::i64);
             auto const_0 = opset10::Constant::create(element::i64, Shape{1}, {0});
             auto const_1 = opset10::Constant::create(element::i64, Shape{1}, {1});
-            // auto const_dim = opset10::Constant::create(element::i64, Shape{1}, {dim});
             auto const_0_nodim = opset10::Constant::create(element::i64, Shape{}, {0});
+
+            auto getitem_index_i32 = getitem->get_input_source_output(1);
+            auto getitem_index_i64 = std::make_shared<opset10::Convert>(getitem_index_i32, element::i64);
+            auto getitem_index_unsq = std::make_shared<opset10::Unsqueeze>(getitem_index_i64, const_0);
+            auto dim_unsq = std::make_shared<opset10::Unsqueeze>(dim, const_0);
 
             auto input_shape = std::make_shared<opset10::ShapeOf>(input_tensor);
             auto input_dimension = std::make_shared<opset10::Gather>(input_shape, dim, const_0);
@@ -156,8 +157,8 @@ AtenGetItemReplacer::AtenGetItemReplacer() {
             auto computed_is_last_nonzero = std::make_shared<opset10::Greater>(computed_last_chunk_size, const_0_nodim);
             auto computed_chunks = std::make_shared<opset10::Divide>(input_size, computed_chunk_size, true);
 
-            auto is_slice_normal_size = std::make_shared<opset10::GreaterEqual>(getitem_index_const, computed_chunks);
-            auto is_slice_not_normal_size = std::make_shared<opset10::Less>(getitem_index_const, computed_chunks);
+            auto is_slice_normal_size = std::make_shared<opset10::Less>(getitem_index_unsq, computed_chunks);
+            auto is_slice_not_normal_size = std::make_shared<opset10::GreaterEqual>(getitem_index_unsq, computed_chunks);
             auto is_slice_normal_size_int = std::make_shared<opset10::Convert>(is_slice_normal_size, element::i64);
             auto is_slice_not_normal_size_int =
                 std::make_shared<opset10::Convert>(is_slice_normal_size_int, element::i64);
@@ -167,10 +168,10 @@ AtenGetItemReplacer::AtenGetItemReplacer() {
                 std::make_shared<opset10::Multiply>(is_slice_not_normal_size_int, computed_last_chunk_size);
             auto slice_size = std::make_shared<opset10::Add>(slice_size_lhs, slice_size_rhs);
 
-            auto slice_begin = std::make_shared<opset10::Multiply>(getitem_index_const, computed_chunk_size);
+            auto slice_begin = std::make_shared<opset10::Multiply>(getitem_index_unsq, computed_chunk_size);
             auto slice_end = std::make_shared<opset10::Add>(slice_begin, slice_size);
 
-            auto sliced_chunk = std::make_shared<opset10::Slice>(input_tensor, slice_begin, slice_end, const_1, dim);
+            auto sliced_chunk = std::make_shared<opset10::Slice>(input_tensor, slice_begin, slice_end, const_1, dim_unsq);
 
             copy_runtime_info({getitem, input_node}, sliced_chunk);
             replace_node(getitem, sliced_chunk);

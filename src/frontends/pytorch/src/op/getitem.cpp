@@ -19,6 +19,8 @@ OutputVector translate_getitem(const NodeContext& context) {
     if (std::dynamic_pointer_cast<ov::op::util::FrameworkNode>(input.get_node_shared_ptr())) {
         FRONT_END_OP_CONVERSION_CHECK(!cast_fw_node(input.get_node_shared_ptr(), "aten::split"),
                                       "special case for aten::__getitem__");
+        FRONT_END_OP_CONVERSION_CHECK(!cast_fw_node(input.get_node_shared_ptr(), "aten::chunk"),
+                                      "special case for aten::__getitem__");
         const auto&& list_elems = get_list_as_outputs(input);
         auto getitem_idx = context.const_input<int64_t>(1);
         if (getitem_idx < 0) {
