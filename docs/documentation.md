@@ -13,12 +13,8 @@
    Media Processing and CV Libraries <media_processing_cv_libraries>
    OpenVINO™ Security <openvino_docs_security_guide_introduction>
 
-@endsphinxdirective
-
 
 This section provides reference documents that guide you through the OpenVINO toolkit workflow, from preparing models, optimizing them, to deploying them in your own deep learning applications.
-
-@sphinxdirective
 
 | :doc:`API Reference doc path <api/api_reference>`
 | A collection of reference articles for OpenVINO C++, C, and Python APIs. 
