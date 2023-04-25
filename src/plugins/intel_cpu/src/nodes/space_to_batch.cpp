@@ -5,7 +5,7 @@
 #include "space_to_batch.h"
 
 #include "ie_parallel.hpp"
-#include <openvino/op/ops.hpp>
+#include <openvino/op/space_to_batch.hpp>
 
 using namespace InferenceEngine;
 
@@ -165,7 +165,7 @@ void SpaceToBatch::SpaceToBatchKernel() {
         std::vector<size_t> indxStart(2, 0);
         std::vector<size_t> indxEnd(2, 0);
         parallel_it_init(start, indxStart[0], inShape5D[0], indxStart[1], channels);
-        if (start >= workAmount) {
+        if (start >= end) {
             return;
         }
         parallel_it_init((end - 1), indxEnd[0], inShape5D[0], indxEnd[1], channels);
