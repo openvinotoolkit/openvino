@@ -35,24 +35,25 @@ This operation is compatible with `Apache MXNet DeformablePSROIPooling <https://
 
 * *group_size*
 
-  * **Description**: *group_size* is the number of horizontal bins per row to divide single ROI area. Total number of bins can be calculated as ``group_size*group_size``. It defines pooled width and height, so output ``H_out`` and ``W_out`` dimensions (always equal).
-  Square of the ``group_size`` is also the number to divide input channels ``C_in`` dimension and split it into ``C_in \\ group_size*group_size`` groups.
-  Each group corresponds to the exactly one output channel and ROI's bins are spread over input channel group members.
+  * **Description**: *group_size* is the number of horizontal bins per row to divide single ROI area. Total number of bins can be calculated as ``group_size*group_size``. It defines pooled width and height, so output ``H_out`` and ``W_out`` dimensions (always equal). Square of the ``group_size`` is also the number to divide input channels ``C_in`` dimension and split it into ``C_in \\ group_size*group_size`` groups. Each group corresponds to the exactly one output channel and ROI's bins are spread over input channel group members.
 
   * **Range of values**: a positive integer
   * **Type**: ``int``
   * **Default value**: 1
   * **Required**: *no*
 
-* *mode*
+* *mode*y
+
   * **Description**: *mode* specifies mode for pooling.
   * **Range of values**:
+
     * *bilinear_deformable* - perform pooling with bilinear interpolation over single ROI bin. For each ROI bin average of his interpolated ``spatial_bins_x*spatial_bins_y`` sub-bins values is calculated.
-  * **Type**: string
+  * **Type**: ``string``
   * **Default value**: *bilinear_deformable*
   * **Required**: *no*
 
 * *spatial_bins_x*
+
   * **Description**: *spatial_bins_x* specifies number of horizontal sub-bins (bilinear interpolation samples) to divide ROI single bin.
   * **Range of values**: a positive integer
   * **Type**: ``int``
@@ -60,6 +61,7 @@ This operation is compatible with `Apache MXNet DeformablePSROIPooling <https://
   * **Required**: *no*
 
 * *spatial_bins_y*
+
   * **Description**: *spatial_bins_y* specifies number of vertical sub-bins (bilinear interpolation samples) to divide ROI single bin.
   * **Range of values**: a positive integer
   * **Type**: ``int``
@@ -67,6 +69,7 @@ This operation is compatible with `Apache MXNet DeformablePSROIPooling <https://
   * **Required**: *no*
 
 * *trans_std*
+
   * **Description**: *trans_std* is the value that all third input values (offests) are multiplied with to modulate the magnitude of the offsets.
   * **Range of values**: floating-point number
   * **Type**: ``float``
@@ -74,6 +77,7 @@ This operation is compatible with `Apache MXNet DeformablePSROIPooling <https://
   * **Required**: *no*
 
 * *part_size*
+
   * **Description**: *part_size* is the size of ``H`` and ``W`` dimensions of the third input (offsets). Basically it is the height and width of the third input
   with transformation values.
   * **Range of values**: positive integer number

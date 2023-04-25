@@ -27,7 +27,7 @@ The result of division by zero is undefined.
     
     * false - regular division
     * true - floor division
-  * **Type**: boolean
+  * **Type**: ``boolean``
   * **Default value**: true
   * **Required**: *no*
 
@@ -39,7 +39,7 @@ The result of division by zero is undefined.
     * *none* - no auto-broadcasting is allowed, all input shapes must match,
     * *numpy* - numpy broadcasting rules, description is available in :doc:`Broadcast Rules For Elementwise Operations <openvino_docs_ops_broadcast_rules>`,
     * *pdpd* - PaddlePaddle-style implicit broadcasting, description is available in :doc:`Broadcast Rules For Elementwise Operations <openvino_docs_ops_broadcast_rules>`.
-  * **Type**: string
+  * **Type**: ``string``
   * **Default value**: "numpy"
   * **Required**: *no*
 
@@ -60,7 +60,7 @@ The result of division by zero is undefined.
 
 *Example 1*
 
-.. code-block:: console
+.. code-block:: cpp
    
    <layer ... type="Divide">
        <data auto_broadcast="none" m_pythondiv="true"/>
@@ -84,7 +84,7 @@ The result of division by zero is undefined.
 
 *Example 2: broadcast*
 
-.. code-block:: console
+.. code-block:: cpp
    
    <layer ... type="Divide">
        <data auto_broadcast="numpy" m_pythondiv="false"/>

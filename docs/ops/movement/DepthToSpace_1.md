@@ -14,7 +14,7 @@
 
 The operation is equivalent to the following transformation of the input tensor ``data`` with ``K`` spatial dimensions of shape ``[N, C, D1, D2, ..., DK]`` to *Y* output tensor. If ``mode = blocks_first``:
 
-.. code-block:: console
+.. code-block:: cpp
    
    x' = reshape(data, [N, block_size, block_size, ..., block_size, C / (block_size ^ K), D1, D2, ..., DK])
    x'' = transpose(x', [0,  K + 1,  K + 2, 1, K + 3, 2, K + 4, 3, ..., K + (K + 1), K])
@@ -22,7 +22,7 @@ The operation is equivalent to the following transformation of the input tensor 
 
 If ``mode = depth_first``:
 
-.. code-block:: console
+.. code-block:: cpp
    
    x' = reshape(data, [N, C / (block_size ^ K), block_size, block_size, ..., block_size, D1, D2, ..., DK])
    x'' = transpose(x', [0,  1,  K + 2, 2, K + 3, 3, K + 4, 4, ..., K + (K + 1), K + 1])
@@ -42,6 +42,7 @@ If ``mode = depth_first``:
 
   * **Description**: specifies how the input depth dimension is split to block coordinates and the new depth dimension.
   * **Range of values**:
+  
     * *blocks_first*: the input depth is divided to ``[block_size, ..., block_size,  new_depth]``
     * *depth_first*: the input depth is divided to ``[new_depth, block_size, ..., block_size]``
   * **Type**: ``string``

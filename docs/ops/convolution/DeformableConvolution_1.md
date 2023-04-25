@@ -59,6 +59,7 @@ Where
 * *auto_pad*
 
   * **Description**: *auto_pad* how the padding is calculated. Possible values:
+  
     * *explicit* - use explicit padding values from *pads_begin* and *pads_end*.
     * *same_upper* - the input is padded to match the output size. In case of odd padding value an extra padding is added at the end.
     * *same_lower* - the input is padded to match the output size. In case of odd padding value an extra padding is added at the beginning.
