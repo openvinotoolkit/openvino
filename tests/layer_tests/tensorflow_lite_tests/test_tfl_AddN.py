@@ -4,7 +4,7 @@ import pytest
 import tensorflow as tf
 
 from common.tflite_layer_test_class import TFLiteLayerTest
-from common.utils.tflite_utils import data_generators, additional_test_params
+from common.utils.tflite_utils import data_generators
 
 test_ops = [
     {'op_name': 'ADD_N', 'op_func': tf.math.add_n},

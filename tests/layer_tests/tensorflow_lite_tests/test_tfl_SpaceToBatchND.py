@@ -7,12 +7,12 @@ from common.tflite_layer_test_class import TFLiteLayerTest
 from common.utils.tflite_utils import data_generators
 
 test_ops = [
-    {'op_name': 'BATCH_TO_SPACE_ND', 'op_func': tf.batch_to_space},
+    {'op_name': 'SPACE_TO_BATCH_ND', 'op_func': tf.space_to_batch},
 ]
 
 test_params = [
     {'shape': [8, 10, 10, 3], 'block_shape': [2, 2], 'paddings': [[0, 2], [0, 0]]},
-    {'shape': [24, 10, 10, 1], 'block_shape': [2, 12], 'paddings': [[2, 0], [0, 2]]}
+    {'shape': [24, 10, 10, 1], 'block_shape': [2, 12], 'paddings': [[2, 0], [0, 2]]}  # segfault
 ]
 
 
@@ -24,7 +24,7 @@ for i, (parameters, shapes) in enumerate(test_data):
 
 class TestTFLiteSpaceToBatchNDLayerTest(TFLiteLayerTest):
     inputs = ["Input"]
-    outputs = ["ReduceOperation"]
+    outputs = ["SpaceToBatchOP"]
 
     def _prepare_input(self, inputs_dict, generator=None):
         if generator is None:

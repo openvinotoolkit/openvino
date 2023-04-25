@@ -24,7 +24,7 @@ for i, (parameters, shapes) in enumerate(test_data):
 
 class TestTFLiteBatchToSpaceNDLayerTest(TFLiteLayerTest):
     inputs = ["Input"]
-    outputs = ["ReduceOperation"]
+    outputs = ["BatchToSpaceND"]
 
     def _prepare_input(self, inputs_dict, generator=None):
         if generator is None:
