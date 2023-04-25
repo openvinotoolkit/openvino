@@ -71,7 +71,7 @@ OutputVector translate_scaled_dot_product_attention(const NodeContext& context) 
     // two types of masks are supported. A boolean mask where a value of True indicates that the element should take
     // part in attention. A float mask of the same type as query, key, value that is added to the attention score.
     auto is_causal = context.const_input<bool>(5);
-    if (is_causal or !context.input_is_none(3)) {
+    if (is_causal || !context.input_is_none(3)) {
         Output<Node> mask;
         Output<Node> atten_mask;
         if (!context.input_is_none(3)) {

@@ -133,8 +133,6 @@ public:
 
     void executeDynamicImpl(dnnl::stream strm) override;
 
-    void setDynamicBatchLim(int lim) override;
-
     enum BroadcastingPolicy {
         PerChannel,
         PerTensor,
@@ -153,7 +151,6 @@ private:
 
     EltwiseImplType implType = EltwiseImplType::reference;
     std::vector<bool> broadcastPolicy;
-    bool isDynBatchEnabled = false;
     bool specialConvolutionAddFusing = false;
     size_t inputNum = 0;
     std::vector<ptrdiff_t> start_offset_in = {};
