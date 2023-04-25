@@ -348,6 +348,6 @@ def convert_model(
     del params['args']
     params.update(args)
     cli_parser = get_all_cli_parser()
-    ov_model, _ = _convert(cli_parser, framework, params)
+    ov_model, _ = _convert(cli_parser, framework, params, True)
     restore_logger_state(logger_state)
     return ov_model

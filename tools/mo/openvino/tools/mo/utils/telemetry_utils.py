@@ -103,3 +103,11 @@ def get_tid():
     This function returns the ID of the database to send telemetry.
     """
     return telemetry_params['TID']
+
+
+def send_conversion_result(conversion_result: str, need_shutdown=True):
+    t = tm.Telemetry()
+    t.send_event('mo', 'conversion_result', conversion_result)
+    t.end_session('mo')
+    if need_shutdown:
+        t.force_shutdown(1.0)

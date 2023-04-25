@@ -138,7 +138,7 @@ def convert_pytorch_via_onnx(args, example_inputs, cli_parser, framework, main_c
 
         args['input_model'] = model_onnx
 
-        ov_model, argv = main_convert(cli_parser, framework, args)
+        ov_model, argv = main_convert(cli_parser, framework, args, True)
     except Exception as e:
         raise e
     finally:
