@@ -181,7 +181,7 @@ void set_cpu_used(const std::vector<int>& cpu_ids, const int used) {}
 
 #else
 
-static thread_local CPU cpu;
+static CPU cpu;
 
 #    ifndef _WIN32
 int get_number_of_cpu_cores(bool bigCoresOnly) {
