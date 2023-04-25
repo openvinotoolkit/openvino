@@ -259,7 +259,7 @@ def log_not_satisfied_dependencies(framework: str, not_satisfied_versions: list,
             if module[1] == 'package error':
                 log.error('Error happened while importing {} module. It may happen due to unsatisfied requirements of '
                           'that module. Please run requirements installation script once more.\n'
-                          'Details on module importing failure: {}'.format(module[0], module[3]))
+                          'Details on module importing failure: {}'.format(module[0], module[2]))
         for module in not_satisfied_versions:
             missed_modules_message += "\t{}: {}, {}\n".format(module[0], module[1], module[2])
         log.error(message.format(missed_modules_message, helper_command), extra=extra_params)
