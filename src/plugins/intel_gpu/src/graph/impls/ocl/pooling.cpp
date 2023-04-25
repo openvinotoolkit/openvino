@@ -167,8 +167,6 @@ public:
 namespace detail {
 
 attach_pooling_impl::attach_pooling_impl() {
-    std::set<implementation_map<pooling>::key_type> keys;
-
     auto types = { data_types::f16, data_types::f32, data_types::i8, data_types::u8 };
     auto formats = { format::bfyx,
                      format::byxf,
@@ -189,12 +187,7 @@ attach_pooling_impl::attach_pooling_impl() {
                      format::bs_fs_zyx_bsv32_fsv16,
                      format::bs_fs_zyx_bsv32_fsv32 };
 
-    for (const auto type : types) {
-        for (const auto format : formats) {
-            keys.emplace(type, format);
-        }
-    }
-
+    auto keys = implementation_map<pooling>::combine(types, formats);
     keys.emplace(data_types::f16, format::fs_b_yx_fsv32);
     keys.emplace(data_types::f32, format::fs_b_yx_fsv32);
 

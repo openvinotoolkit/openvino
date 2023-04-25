@@ -173,19 +173,9 @@ using ov::set_cpu_used;
 using ov::get_proc_type_table;
 
 /**
- * @brief      Returns corresponding logical cores
+ * @brief      Get and reserve available cpu ids
  * @ingroup    ie_dev_api_system_conf
- * @param[in]  cpu_ids physical cores
- * @return     logical cores corresponding to physical core.
- */
-using ov::get_logical_cores;
-
-/**
- * @brief      Returns available cpu ids
- * @ingroup    ie_dev_api_system_conf
- * @param[in]  core_type core type.
- * @param[in]  num_cpus number of cpus.
- * @param[in]  cpu_task is cpu task, not other plugin tasks
+ * @param[in]  streams_info_table streams information table.
  * @return     Array of available cpu ids.
  */
 using ov::reserve_available_cpus;
