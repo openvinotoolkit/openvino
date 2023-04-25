@@ -166,7 +166,7 @@ void MultiClassNms::prepareParams() {
     } else {
         m_numBatches = boxes_dims[0];
     }
-    m_numBoxes = shared ? boxes_dims[1] : boxes_dims[1];
+    m_numBoxes = boxes_dims[1];
     m_numClasses = shared ? scores_dims[1] : scores_dims[0];
 
     int max_output_boxes_per_class = 0;
