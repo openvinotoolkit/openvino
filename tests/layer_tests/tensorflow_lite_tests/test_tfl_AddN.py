@@ -46,5 +46,5 @@ class TestTFLiteAddNLayerTest(TFLiteLayerTest):
 
     @pytest.mark.parametrize("params", test_data)
     @pytest.mark.nightly
-    def test_arg_value(self, params, ie_device, precision, temp_dir):
+    def test_add_n(self, params, ie_device, precision, temp_dir):
         self._test(ie_device, precision, temp_dir, params)
