@@ -32,6 +32,10 @@
 #include "unit_test_utils/mocks/mock_iexecutable_network.hpp"
 #include "unit_test_utils/mocks/mock_iinfer_request.hpp"
 
+#ifdef __EMSCRIPTEN__
+#include "unit_test_utils/mocks/mock_engine/mock_plugin.hpp"
+#endif
+
 using namespace InferenceEngine;
 using namespace ::testing;
 using namespace InferenceEngine::details;
@@ -309,6 +313,7 @@ public:
         func(ie);
         ie.UnregisterPlugin(deviceName);
 #else
+        InjectMockEngine(mockPlugin.get());
         func(ie);
 #endif
     }
@@ -2392,9 +2397,6 @@ TEST_P(CachingTest, LoadBATCHWithConfig) {
 }
 #endif  // defined(ENABLE_AUTO_BATCH)
 
-#ifndef __EMSCRIPTEN__
-// TODO: Solve mock inject issue
-
 // In case of sporadic failures - increase 'TEST_DURATION_MS' 100x times for better reproducibility
 TEST_P(CachingTest, Load_threads) {
     const auto TEST_DURATION_MS = 2000;
@@ -2434,7 +2436,6 @@ TEST_P(CachingTest, Load_threads) {
     } while (duration_cast<milliseconds>(high_resolution_clock::now() - start).count() < TEST_DURATION_MS);
     std::cout << "Caching Load multiple threads test completed. Tried " << index << " times" << std::endl;
 }
-#endif
 
 #if defined(ENABLE_OV_IR_FRONTEND)
 

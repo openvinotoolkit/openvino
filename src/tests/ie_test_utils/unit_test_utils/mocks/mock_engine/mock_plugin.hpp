@@ -61,3 +61,7 @@ public:
 
     std::map<std::string, std::string> config;
 };
+
+#ifdef __EMSCRIPTEN__
+INFERENCE_PLUGIN_API(void) InjectMockEngine(InferenceEngine::IInferencePlugin* target) noexcept(false);
+#endif

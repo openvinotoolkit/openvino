@@ -134,9 +134,31 @@ std::string MockPlugin::GetName() const noexcept {
 InferenceEngine::IInferencePlugin* __target = nullptr;
 
 #ifdef __EMSCRIPTEN__
-static const Version version = {{2, 1}, "0", "mock_plugin"};
-IE_DEFINE_PLUGIN_CREATE_FUNCTION(MockPlugin, version);
+static const Version version = {{2, 1}, "0", "mock_engine"};
+// IE_DEFINE_PLUGIN_CREATE_FUNCTION(MockPlugin, version);
 
+INFERENCE_PLUGIN_API(void)
+IE_CREATE_PLUGIN(::std::shared_ptr<::ov::IPlugin>& plugin) noexcept(false);
+void IE_CREATE_PLUGIN(::std::shared_ptr<::ov::IPlugin>& plugin) noexcept(false) {
+    std::shared_ptr<::InferenceEngine::IInferencePlugin> ie_plugin;
+    try {
+        IInferencePlugin* p = nullptr;
+        std::swap(__target, p);
+        ie_plugin = ::std::make_shared<MockPlugin>(p);
+    } catch (const InferenceEngine::Exception&) {
+        throw;
+    } catch (const std::exception& ex) {
+        IE_THROW() << ex.what();
+    } catch (...) {
+        IE_THROW(Unexpected);
+    }
+    ie_plugin->SetVersion(version);
+    plugin = convert_plugin(ie_plugin);
+}
+
+void InjectMockEngine(InferenceEngine::IInferencePlugin* target) noexcept(false) {
+    __target = target;
+}
 #else
 OPENVINO_PLUGIN_API void CreatePluginEngine(std::shared_ptr<ov::IPlugin>& plugin) {
     IInferencePlugin* p = nullptr;
