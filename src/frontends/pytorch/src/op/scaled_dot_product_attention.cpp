@@ -37,15 +37,14 @@ OutputVector translate_scaled_dot_product_attention(const NodeContext& context) 
     // dropout_p=0., bool is_causal=False)
     num_inputs_check(context, 6, 6);
     auto query = context.get_input(0);
-    // return {query};
     auto key = context.get_input(1);
     auto value = context.get_input(2);
     auto q_shape = context.mark_node(std::make_shared<v3::ShapeOf>(query, element::i32));
     auto k_shape = context.mark_node(std::make_shared<v3::ShapeOf>(key, element::i32));
     auto minus_one = context.mark_node(v0::Constant::create(element::i32, Shape{}, {-1}));
     auto minus_two = context.mark_node(v0::Constant::create(element::i32, Shape{}, {-2}));
-    auto zero_i = context.mark_node(ov::op::v0::Constant::create(element::i32, Shape{}, {0}));
-    auto one_i = context.mark_node(ov::op::v0::Constant::create(element::i32, Shape{}, {1}));
+    auto zero_i = context.mark_node(v0::Constant::create(element::i32, Shape{}, {0}));
+    auto one_i = context.mark_node(v0::Constant::create(element::i32, Shape{}, {1}));
     auto scale = context.mark_node(std::make_shared<v8::Gather>(q_shape, minus_one, zero_i));
     scale = context.mark_node(std::make_shared<v1::ConvertLike>(scale, query));
     auto sqrt_scale = context.mark_node(std::make_shared<v0::Sqrt>(scale));
