@@ -1616,7 +1616,6 @@ TEST(reorder_gpu_opt, non_trivial_remove_redundant)
     };
 
     ExecutionConfig config = get_test_default_config(engine);
-
     config.set_property(ov::intel_gpu::optimize_data(true));
 
     network net(engine, tpl, config);
@@ -1625,8 +1624,12 @@ TEST(reorder_gpu_opt, non_trivial_remove_redundant)
     auto executed_primitives = net.get_executed_primitives();
     auto all_primitives = net.get_all_primitives();
 
+    if (engine.get_device_info().supports_immad) {
+        // Currently, oneDNN only supports in_order_queue
+        return;
+    }
+
     ASSERT_TRUE(executed_primitives.count("in") == 1);
-    //ASSERT_TRUE(all_primitives.at("r1") == "_optimized_");
     ASSERT_TRUE(executed_primitives.at("in") != outputs.at("r1").get_event());
     ASSERT_TRUE(outputs.count("r1") == 1);
     ASSERT_TRUE(outputs.at("r1").get_memory()->get_layout().format == format::bfyx);
