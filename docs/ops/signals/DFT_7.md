@@ -62,6 +62,9 @@ for all indices ``n_0,...,n_{k-1}``, ``m_0,...,m_{r-1}``, and the result of the 
 .. math::
    
    Z[n_0,\dots,n_{k-1},m_0,\dots,m_{r-1}, 0]=Re Y[n_0,\dots,n_{k-1},m_0,\dots,m_{r-1}],
+
+.. math::
+   
    Z[n_0,\dots,n_{k-1},m_0,\dots,m_{r-1}, 1]=Im Y[n_0,\dots,n_{k-1},m_0,\dots,m_{r-1}].
 
 Calculations for the generic case of axes and signal sizes are similar.
