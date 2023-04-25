@@ -9,6 +9,7 @@ import platform
 import sys
 from collections import OrderedDict
 from copy import deepcopy
+from distutils.version import LooseVersion
 from pathlib import Path
 
 try:
@@ -41,7 +42,7 @@ from openvino.tools.mo.utils.guess_framework import deduce_legacy_frontend_by_na
 from openvino.tools.mo.utils.logger import init_logger, progress_printer
 from openvino.tools.mo.utils.utils import refer_to_faq_msg
 from openvino.tools.mo.utils.telemetry_utils import send_params_info, send_framework_info
-from openvino.tools.mo.utils.versions_checker import check_requirements  # pylint: disable=no-name-in-module
+from openvino.tools.mo.utils.versions_checker import check_requirements, get_environment_setup  # pylint: disable=no-name-in-module
 from openvino.tools.mo.utils.telemetry_utils import get_tid
 from openvino.tools.mo.moc_frontend.check_config import legacy_extensions_used
 from openvino.tools.mo.moc_frontend.pytorch_frontend_utils import get_pytorch_decoder, convert_pytorch_via_onnx
@@ -303,9 +304,9 @@ def update_fallback_with_conversion_error(use_new_frontend: bool, is_tf: bool, e
         return False
 
     # for TensorFlow FE we have a set of operations that should lead to the fallback to the legacy
-    conversion_error_re = r"^(\[TensorFlow\ Frontend\]\ Internal\ error\:\ No\ translator\ found\ for\ )(\w+)(\ node\.)$"
+    conversion_error_re = r"^(\[TensorFlow\ Frontend\]\ Internal\ error\,\ no\ translator\ found\ for\ operation\(s\)\:\ )((\w+)(\,\ \w+)*)$"
     conversion_error_match = re.findall(conversion_error_re, ex_msg, re.MULTILINE)
-    fallback_operations = [
+    all_fallback_operations = [
         # corresponds to TF1 While operation
         "TensorArrayScatterV3", "TensorArrayV3", "TensorArraySizeV3", "TensorArrayGatherV3",
         "LoopCond", "Enter", "NextIteration", "Exit",
@@ -316,11 +317,17 @@ def update_fallback_with_conversion_error(use_new_frontend: bool, is_tf: bool, e
         "RFFT", "RFFT2D", "RFFT3D", "IRFFT", "IRFFT2D", "IRFFT3D",
         "Complex", "ComplexAbs", "Real", "Imag",
     ]
-    if len(conversion_error_match) < 1 or len(conversion_error_match[0]) != 3 or \
-            conversion_error_match[0][1] not in fallback_operations:
+    if len(conversion_error_match) < 1 or len(conversion_error_match[0]) != 4:
+        # no match for the fallback by unsupported operation
         return False
 
-    fallback_reasons.append("Unsupported operation: " + conversion_error_match[0][1])
+    unsupported_operations = conversion_error_match[0][1].replace(" ", "").split(",")
+    fallback_operations = [operation for operation in unsupported_operations if operation in all_fallback_operations]
+
+    if len(fallback_operations) == 0:
+        return False
+
+    fallback_reasons.append("Fallback to the legacy TF FE due to operation(s): " + ', '.join(fallback_operations))
     return True
 
 
@@ -517,15 +524,21 @@ def check_model_object(argv):
     model = argv['input_model']
     if 'tensorflow' in sys.modules:
         import tensorflow as tf
-        from tensorflow.python.training.tracking.base import Trackable
+        env_setup = get_environment_setup("tf")
 
         if isinstance(model, tf.compat.v1.GraphDef):
+            return "tf"
+        if isinstance(model, tf.compat.v1.Graph):
+            argv['input_model'] = model.as_graph_def()
             return "tf"
         if isinstance(model, tf.compat.v1.Session):
             argv['input_model'] = model.graph_def
             return "tf"
-        if isinstance(model, tf.types.experimental.ConcreteFunction):
+        if env_setup["tensorflow"] >= LooseVersion("2.6.0") and isinstance(model, tf.types.experimental.ConcreteFunction):
             argv['input_model'] = model.graph.as_graph_def()
+            return "tf"
+        if env_setup["tensorflow"] >= LooseVersion("2.6.0") and isinstance(model, tf.types.experimental.GenericFunction):
+            argv['input_model'] = model
             return "tf"
         if isinstance(model, tf.keras.Model):
             return "tf"
@@ -551,8 +564,6 @@ def check_model_object(argv):
             outputs = model(*inputs)
             argv['input_model'] = tf.keras.Model(inputs, outputs)
             argv['input_shape'] = None
-            return "tf"
-        if isinstance(model, Trackable):
             return "tf"
     if 'torch' in sys.modules:
         import torch

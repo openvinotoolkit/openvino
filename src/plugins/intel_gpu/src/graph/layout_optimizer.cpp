@@ -405,7 +405,7 @@ bool layout_optimizer::can_fuse_reorder(program_node& prev, program_node& next, 
             for (auto& p : next.get_fused_primitives()) {
                 // find eltwise sum primitive which has dependency nodes, and gather dependency indices of it.
                 if (p.is_type<eltwise>() && p.typed_desc<eltwise>()->mode == eltwise_mode::sum) {
-                    for (size_t i = p.dep_start_idx; i < p.dep_start_idx + p.total_num_deps; i++) {
+                    for (size_t i = p.outer_dep_start_idx; i < p.outer_dep_start_idx + p.total_num_deps; i++) {
                         dep_idx_set.insert(i);
                     }
                 }
@@ -1299,6 +1299,18 @@ bool layout_optimizer::is_primitive_implemented_for_onednn(program_node& node) {
         node.is_type<convolution>() || node.is_type<deconvolution>() ||
         node.is_type<reduce>() || node.is_type<reorder>() || node.is_type<concatenation>()) {
         return true;
+    }
+
+    return false;
+}
+
+bool layout_optimizer::onednn_check_preferred_impl_type_of_users(program_node& node) {
+    if (node.get_users().size() == 0)
+        return false;
+
+    for (auto& user : node.get_users()) {
+        if (user->get_preferred_impl_type() == impl_types::onednn)
+            return true;
     }
 
     return false;
