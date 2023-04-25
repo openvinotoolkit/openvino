@@ -821,23 +821,6 @@ std::vector<DeviceInformation> MultiDeviceInferencePlugin::FilterDeviceByNetwork
         return false;
     };
 
-    auto isOutputDynamic = [&]() {
-        for (size_t i = 0; i < model->inputs().size() ; i++) {
-            if (model->input(i).get_partial_shape().is_dynamic()) {
-            // any input is dynamic
-                return false;
-            }
-        }
-        for (size_t i = 0; i < model->outputs().size() ; i++) {
-            if (model->output(i).get_partial_shape().is_dynamic()) {
-            // any output is dynamic
-                LOG_INFO_TAG("dynamic output model");
-                return true;
-            }
-        }
-        return false;
-    };
-
     // Check if CPU is in candidate list
     auto cpuiter = std::find_if(metaDevices.begin(), metaDevices.end(), [](const DeviceInformation& deviceInfo) {
         return deviceInfo.deviceName.find("CPU") != std::string::npos;
@@ -846,7 +829,7 @@ std::vector<DeviceInformation> MultiDeviceInferencePlugin::FilterDeviceByNetwork
     // If CPU is in candidate list, load dynamic network to CPU first
     // For MULTI do not only load stateful network to CPU
     // For AUTO CTPUT only load stateful network to CPU
-    if (((model->is_dynamic() && !isOutputDynamic()) || (isStateful() && _LogTag != "MULTI")) && cpuiter != metaDevices.end()) {
+    if (((model->is_dynamic()) || (isStateful() && _LogTag != "MULTI")) && cpuiter != metaDevices.end()) {
         filterDevice.push_back(*cpuiter);
         return filterDevice;
     }

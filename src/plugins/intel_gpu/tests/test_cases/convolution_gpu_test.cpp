@@ -7911,10 +7911,10 @@ class convolution_test_base {
 public:
     virtual topology build_topology(cldnn::engine& engine) {
         auto input_lay = layout(input_type(), format::bfyx, input_size(), padding_size());
-        auto wei_lay = layout(weights_type(), format::bfyx, weights_size());
+        auto wei_lay = grouped_weights_shape() ? layout(weights_type(), format::bfzyx, grouped_weights_size()) : layout(weights_type(), format::bfyx, weights_size());
 
         auto wei_mem = engine.allocate_memory(wei_lay);
-        auto weights_flat = flatten_4d(format::bfyx, _weights);
+        auto weights_flat = grouped_weights_shape() ? flatten_5d(format::bfzyx, _grouped_weights) : flatten_4d(format::bfyx, _weights);
         set_values(wei_mem, weights_flat);
         layout reordered_layout = layout{ input_type(), input_format(), input_size(), padding_size() };
         auto topo = topology();
@@ -7949,6 +7949,7 @@ public:
                 {static_cast<std::ptrdiff_t>(_offset_y), static_cast<std::ptrdiff_t>(_offset_x)},
                 {static_cast<uint64_t>(_dilation_y), static_cast<uint64_t>(_dilation_x)});
             conv_prim.output_data_types = {output_type()};
+            conv_prim.grouped_weights_shape = grouped_weights_shape();
             topo.add(conv_prim);
         } else {
             auto bias_lay = layout(output_type(), format::bfyx, tensor(feature(output_features())));
@@ -7965,6 +7966,7 @@ public:
                 {static_cast<std::ptrdiff_t>(_offset_y), static_cast<std::ptrdiff_t>(_offset_x)},
                 {static_cast<uint64_t>(_dilation_y), static_cast<uint64_t>(_dilation_x)});
             conv_prim.output_data_types = {output_type()};
+            conv_prim.grouped_weights_shape = grouped_weights_shape();
             topo.add(conv_prim);
         }
 
@@ -8047,6 +8049,10 @@ public:
         _weights = std::move(weights);
     }
 
+    void set_grouped_weights(VVVVVF<WeightsT> grouped_weights) {
+        _grouped_weights = std::move(grouped_weights);
+    }
+
     void set_bias(VF<OutputT> bias) {
         _bias = std::move(bias);
     }
@@ -8082,9 +8088,14 @@ public:
         _bigger_pad = bigger_pad;
     }
 
+    void set_grouped_weights_shape(bool grouped_weights_shape) {
+        _grouped_weights_shape = grouped_weights_shape;
+    }
+
 protected:
     VVVVF<InputT> _input;
     VVVVF<WeightsT> _weights;
+    VVVVVF<WeightsT> _grouped_weights;
     VF<OutputT> _bias;
     VF<InputT> _input_zp;
     VF<WeightsT> _weights_zp;
@@ -8094,15 +8105,16 @@ protected:
     int _dilation_x, _dilation_y;
     bool _padded_input;
     bool _bigger_pad;
+    bool _grouped_weights_shape;
 
     size_t batch_num() const { return _input.size(); }
     size_t input_features() const { return _input[0].size(); }
     size_t input_x() const { return _input[0][0][0].size(); }
     size_t input_y() const { return _input[0][0].size(); }
-    size_t output_features() const { return _weights.size(); }
-    size_t weights_input_features() const { return _weights[0].size(); }
-    size_t filter_x() const { return _weights[0][0][0].size(); }
-    size_t filter_y() const { return _weights[0][0].size(); }
+    size_t output_features() const { return _grouped_weights_shape ? _grouped_weights[0].size() : _weights.size(); }
+    size_t weights_input_features() const { return _grouped_weights_shape ? _grouped_weights[0][0].size() : _weights[0].size(); }
+    size_t filter_x() const { return _grouped_weights_shape ? _grouped_weights[0][0][0][0].size() : _weights[0][0][0].size(); }
+    size_t filter_y() const { return _grouped_weights_shape ? _grouped_weights[0][0][0].size() : _weights[0][0].size(); }
     size_t groups() const { return input_features() / weights_input_features(); }
 
     bool has_bias() { return _bias.size() > 0; }
@@ -8110,6 +8122,7 @@ protected:
     bool has_weights_zp() { return _weights_zp.size() > 0; }
     bool need_padded_input() { return _padded_input; }
     bool bigger_pad() { return _bigger_pad; }
+    bool grouped_weights_shape() { return _grouped_weights_shape; }
 
     data_types input_type() const { return type_to_data_type<InputT>::value; }
     format input_format() const { return _input_fmt; }
@@ -8126,6 +8139,13 @@ protected:
                       TensorValue(weights_input_features()),
                       TensorValue(filter_x()),
                       TensorValue(filter_y()));
+    }
+    tensor grouped_weights_size() const {
+        return tensor(TensorValue(groups()),
+                      TensorValue(output_features()),
+                      TensorValue(filter_x()),
+                      TensorValue(filter_y()),
+                      TensorValue(weights_input_features()));
     }
     padding padding_size() const {
         if (_padded_input) {
@@ -8163,6 +8183,7 @@ struct convolution_random_test_all_params {
     bool asymmetric_data;
     bool need_padded_input;
     bool bigger_pad;
+    bool grouped_weights_shape;
 };
 
 template <typename InputT, typename WeightsT, typename OutputT>
@@ -8172,6 +8193,7 @@ public:
         VVVVF<OutputT> expected = VVVVF<OutputT>(this->batch_num(), VVVF<OutputT>(this->output_features()));
         bool depthwise = this->groups() == this->input_features();
         bool grouped = (this->groups() > 1 && !depthwise) ? true : false;
+        size_t group_size = this->output_features() / this->groups();
         for (size_t bi = 0; bi < this->batch_num(); ++bi)
         for (size_t fi = 0; fi < this->output_features(); ++fi) {
             size_t f_begin = depthwise ? fi : 0;
@@ -8180,7 +8202,7 @@ public:
             auto weights_zp = this->has_weights_zp() ? this->_weights_zp[fi] : static_cast<WeightsT>(0);
             expected[bi][fi] = reference_convolve<InputT, OutputT, WeightsT>(
                 this->_input[bi],
-                this->_weights[fi],
+                (this->_grouped_weights_shape ? this->_grouped_weights[fi / group_size][fi % group_size] : this->_weights[fi]),
                 this->_stride_y,
                 this->_stride_x,
                 static_cast<float>(bias),
@@ -8205,14 +8227,20 @@ public:
 
         auto input_data = generate_random_4d<InputT>(
             params.batch, params.input_features, params.input_xy[1], params.input_xy[0], -256, 256);
-        auto weights_data = generate_random_4d<WeightsT>(
-            params.output_features, wei_in_f, params.filter_xy[1], params.filter_xy[0], -256, 256);
+        if (params.grouped_weights_shape) {
+            auto weights_data = generate_random_5d<WeightsT>(
+                params.groups, (params.output_features / params.groups), wei_in_f, params.filter_xy[1], params.filter_xy[0], -256, 256);
+            this->set_grouped_weights(std::move(weights_data));
+        } else {
+            auto weights_data = generate_random_4d<WeightsT>(
+                params.output_features, wei_in_f, params.filter_xy[1], params.filter_xy[0], -256, 256);
+            this->set_weights(std::move(weights_data));
+        }
         auto bias_data = params.with_bias ? generate_random_1d<OutputT>(params.output_features, -256, 256) : VF<OutputT>();
         auto weights_zp_data = params.asymmetric_weights ? generate_random_1d<WeightsT>(params.output_features, -256, 256) : VF<WeightsT>();
         auto input_zp_data = params.asymmetric_data ? generate_random_1d<InputT>(params.input_features, -256, 256) : VF<InputT>();
 
         this->set_input(params.input_format, std::move(input_data));
-        this->set_weights(std::move(weights_data));
         this->set_bias(std::move(bias_data));
         this->set_strides(params.stride_xy[0], params.stride_xy[1]);
         this->set_offsets(params.offset_xy[0], params.offset_xy[1]);
@@ -8221,6 +8249,7 @@ public:
         this->set_input_zp(std::move(input_zp_data));
         this->set_padded_input(params.need_padded_input);
         this->set_bigger_pad(params.bigger_pad);
+        this->set_grouped_weights_shape(params.grouped_weights_shape);
     }
 
     void run_random(const convolution_random_test_all_params& params) {
@@ -8250,6 +8279,7 @@ static std::string to_string_convolution_all_params(const testing::TestParamInfo
     bool asymm_input = params.asymmetric_data;
     bool padded_input = params.need_padded_input;
     bool bigger_pad = params.bigger_pad;
+    bool grouped_weights_shape = params.grouped_weights_shape;
     // Wrapper for negative walues as ex. "-1" will generate invalid gtest param string
     auto to_string_neg = [](int val) {
         if (val >= 0)
@@ -8267,7 +8297,7 @@ static std::string to_string_convolution_all_params(const testing::TestParamInfo
         "_g" + std::to_string(groups) +
         (Bias ? "_bias" : "") + (asymm_weights ? "_wzp" : "") + (asymm_input ? "_izp" : "") +
         (padded_input ? "_in_pad" : "") +
-        (bigger_pad ? "_bigger_pad" : "");
+        (bigger_pad ? "_bigger_pad" : "") + (grouped_weights_shape ? "_grouped_weights" : "");
 }
 
 template <typename InputT, typename WeightsT, typename OutputT>
@@ -8276,10 +8306,11 @@ public:
     using parent = convolution_random_test_base<InputT, WeightsT, OutputT>;
     topology build_topology(cldnn::engine& engine) override {
         auto input_lay = layout(this->input_type(), format::b_fs_yx_fsv4, this->input_size(), this->padding_size());
-        auto wei_lay = layout(this->weights_type(), format::bfyx, this->weights_size());
+        auto wei_lay = this->grouped_weights_shape() ? layout(this->weights_type(), format::bfzyx, this->grouped_weights_size()) :
+                       layout(this->weights_type(), format::bfyx, this->weights_size());
 
         auto wei_mem = engine.allocate_memory(wei_lay);
-        auto wei_flat = flatten_4d(format::bfyx, this->_weights);
+        auto wei_flat = this->grouped_weights_shape() ? flatten_5d(format::bfzyx, this->_grouped_weights) : flatten_4d(format::bfyx, this->_weights);
         set_values(wei_mem, wei_flat);
         layout reordered_layout = layout{ this->input_type(), this->input_format(), this->input_size(), this->padding_size() };
         auto topo = topology();
@@ -8314,6 +8345,7 @@ public:
                 {static_cast<std::ptrdiff_t>(this->_offset_y), static_cast<std::ptrdiff_t>(this->_offset_x)},
                 {static_cast<uint64_t>(this->_dilation_y), static_cast<uint64_t>(this->_dilation_x)});
             conv_prim.output_data_types = {this->output_type()};
+            conv_prim.grouped_weights_shape = this->grouped_weights_shape();
             topo.add(conv_prim);
         } else {
             auto bias_lay = layout(this->output_type(), format::bfyx, tensor(feature(this->output_features())));
@@ -8330,6 +8362,7 @@ public:
                 {static_cast<std::ptrdiff_t>(this->_offset_y), static_cast<std::ptrdiff_t>(this->_offset_x)},
                 {static_cast<uint64_t>(this->_dilation_y), static_cast<uint64_t>(this->_dilation_x)});
             conv_prim.output_data_types = {this->output_type()};
+            conv_prim.grouped_weights_shape = this->grouped_weights_shape();
             topo.add(conv_prim);
         }
 
@@ -8471,43 +8504,43 @@ struct params_generator : std::vector<convolution_random_test_all_params> {
         for (auto b : batches) {
             // first conv
             push_back(convolution_random_test_all_params{
-                b, 3, 32, { 28, 28 }, { 7, 7 }, { 2, 2 }, { 3, 3 }, { 1, 1 }, true, 1, input_format, asymm_weights, asymm_data, padded_input, bigger_pad });
+                b, 3, 32, { 28, 28 }, { 7, 7 }, { 2, 2 }, { 3, 3 }, { 1, 1 }, true, 1, input_format, asymm_weights, asymm_data, padded_input, bigger_pad, false });
             push_back(convolution_random_test_all_params{
-                b, 3, 64, { 1024, 10 }, { 5, 5 }, { 2, 2 }, { 2, 2 }, { 1, 1 }, true, 1, input_format, asymm_weights, asymm_data, padded_input, bigger_pad });
+                b, 3, 64, { 1024, 10 }, { 5, 5 }, { 2, 2 }, { 2, 2 }, { 1, 1 }, true, 1, input_format, asymm_weights, asymm_data, padded_input, bigger_pad, false });
             push_back(convolution_random_test_all_params{
-                b, 3, 15, { 10, 10 }, { 5, 5 }, { 1, 1 }, { 2, 2 }, { 1, 1 }, true, 1, input_format, asymm_weights, asymm_data, padded_input, bigger_pad });
+                b, 3, 15, { 10, 10 }, { 5, 5 }, { 1, 1 }, { 2, 2 }, { 1, 1 }, true, 1, input_format, asymm_weights, asymm_data, padded_input, bigger_pad, false });
             push_back(convolution_random_test_all_params{
-                b, 4, 18, { 10, 10 }, { 5, 5 }, { 1, 1 }, { 2, 2 }, { 1, 1 }, true, 1, input_format, asymm_weights, asymm_data, padded_input, bigger_pad });
+                b, 4, 18, { 10, 10 }, { 5, 5 }, { 1, 1 }, { 2, 2 }, { 1, 1 }, true, 1, input_format, asymm_weights, asymm_data, padded_input, bigger_pad, false });
             // 3x3
             push_back(convolution_random_test_all_params{
-                b, 32, 48, { 14, 14 }, { 3, 3 }, { 1, 1 }, { 1, 1 }, { 1, 1 }, true, 1, input_format, asymm_weights, asymm_data, padded_input, bigger_pad });
+                b, 32, 48, { 14, 14 }, { 3, 3 }, { 1, 1 }, { 1, 1 }, { 1, 1 }, true, 1, input_format, asymm_weights, asymm_data, padded_input, bigger_pad, false });
             push_back(convolution_random_test_all_params{
-                b, 32, 48, { 14, 14 }, { 3, 3 }, { 2, 2 }, { 1, 1 }, { 1, 1 }, true, 1, input_format, asymm_weights, asymm_data, padded_input, bigger_pad });
+                b, 32, 48, { 14, 14 }, { 3, 3 }, { 2, 2 }, { 1, 1 }, { 1, 1 }, true, 1, input_format, asymm_weights, asymm_data, padded_input, bigger_pad, false });
             // 1x1
             push_back(convolution_random_test_all_params{
-                b, 32, 48, { 28, 28 }, { 1, 1 }, { 1, 1 }, { 0, 0 }, { 1, 1 }, true, 1, input_format, asymm_weights, asymm_data, padded_input, bigger_pad });
+                b, 32, 48, { 28, 28 }, { 1, 1 }, { 1, 1 }, { 0, 0 }, { 1, 1 }, true, 1, input_format, asymm_weights, asymm_data, padded_input, bigger_pad, false });
             push_back(convolution_random_test_all_params{
-                b, 32, 48, { 28, 28 }, { 1, 1 }, { 2, 2 }, { 0, 0 }, { 1, 1 }, true, 1, input_format, asymm_weights, asymm_data, padded_input, bigger_pad });
+                b, 32, 48, { 28, 28 }, { 1, 1 }, { 2, 2 }, { 0, 0 }, { 1, 1 }, true, 1, input_format, asymm_weights, asymm_data, padded_input, bigger_pad, false });
             // 5x5
             push_back(convolution_random_test_all_params{
-                b, 32, 48, { 28, 28 }, { 5, 5 }, { 1, 1 }, { 2, 2 }, { 1, 1 }, true, 1, input_format, asymm_weights, asymm_data, padded_input, bigger_pad });
+                b, 32, 48, { 28, 28 }, { 5, 5 }, { 1, 1 }, { 2, 2 }, { 1, 1 }, true, 1, input_format, asymm_weights, asymm_data, padded_input, bigger_pad, false });
             push_back(convolution_random_test_all_params{
-                b, 32, 48, { 28, 28 }, { 5, 5 }, { 2, 2 }, { 2, 2 }, { 1, 1 }, true, 1, input_format, asymm_weights, asymm_data, padded_input, bigger_pad });
+                b, 32, 48, { 28, 28 }, { 5, 5 }, { 2, 2 }, { 2, 2 }, { 1, 1 }, true, 1, input_format, asymm_weights, asymm_data, padded_input, bigger_pad, false });
             // depthwise
             push_back(convolution_random_test_all_params{
-                b, 64, 64, { 19, 19 }, { 3, 3 }, { 1, 1 }, { 1, 1 }, { 1, 1 }, true, 64, input_format, asymm_weights, asymm_data, padded_input, bigger_pad });
+                b, 64, 64, { 19, 19 }, { 3, 3 }, { 1, 1 }, { 1, 1 }, { 1, 1 }, true, 64, input_format, asymm_weights, asymm_data, padded_input, bigger_pad, false });
             push_back(convolution_random_test_all_params{
-                b, 64, 64, { 19, 19 }, { 3, 3 }, { 2, 2 }, { 1, 1 }, { 1, 1 }, true, 64, input_format, asymm_weights, asymm_data, padded_input, bigger_pad });
+                b, 64, 64, { 19, 19 }, { 3, 3 }, { 2, 2 }, { 1, 1 }, { 1, 1 }, true, 64, input_format, asymm_weights, asymm_data, padded_input, bigger_pad, false });
             // dilation
             push_back(convolution_random_test_all_params{
-                b, 32, 24, { 19, 19 }, { 3, 3 }, { 1, 1 }, { 1, 1 }, { 2, 2 }, true, 1, input_format, asymm_weights, asymm_data, padded_input, bigger_pad });
+                b, 32, 24, { 19, 19 }, { 3, 3 }, { 1, 1 }, { 1, 1 }, { 2, 2 }, true, 1, input_format, asymm_weights, asymm_data, padded_input, bigger_pad, false });
             push_back(convolution_random_test_all_params{
-                b, 32, 24, { 19, 19 }, { 3, 3 }, { 2, 2 }, { 1, 1 }, { 2, 2 }, true, 1, input_format, asymm_weights, asymm_data, padded_input, bigger_pad });
+                b, 32, 24, { 19, 19 }, { 3, 3 }, { 2, 2 }, { 1, 1 }, { 2, 2 }, true, 1, input_format, asymm_weights, asymm_data, padded_input, bigger_pad, false });
             // depthwise + dilation
             push_back(convolution_random_test_all_params{
-                b, 64, 64, { 19, 19 }, { 3, 3 }, { 1, 1 }, { 1, 1 }, { 2, 2 }, true, 64, input_format, asymm_weights, asymm_data, padded_input, bigger_pad });
+                b, 64, 64, { 19, 19 }, { 3, 3 }, { 1, 1 }, { 1, 1 }, { 2, 2 }, true, 64, input_format, asymm_weights, asymm_data, padded_input, bigger_pad, false });
             push_back(convolution_random_test_all_params{
-                b, 64, 64, { 19, 19 }, { 3, 3 }, { 2, 2 }, { 1, 1 }, { 2, 2 }, true, 64, input_format, asymm_weights, asymm_data, padded_input, bigger_pad });
+                b, 64, 64, { 19, 19 }, { 3, 3 }, { 2, 2 }, { 1, 1 }, { 2, 2 }, true, 64, input_format, asymm_weights, asymm_data, padded_input, bigger_pad, false });
         }
         return *this;
     }
@@ -8521,19 +8554,19 @@ struct params_generator : std::vector<convolution_random_test_all_params> {
         for (auto b : batches) {
             // 1x1
             push_back(convolution_random_test_all_params{
-                b, 23, 41, { 19, 19 }, { 1, 1 }, { 1, 1 }, { 0, 0 }, { 1, 1 }, true, 1, input_format, asymm_weights, asymm_data, padded_input, bigger_pad });
+                b, 23, 41, { 19, 19 }, { 1, 1 }, { 1, 1 }, { 0, 0 }, { 1, 1 }, true, 1, input_format, asymm_weights, asymm_data, padded_input, bigger_pad, false });
             push_back(convolution_random_test_all_params{
-                b, 23, 41, { 19, 19 }, { 1, 1 }, { 2, 2 }, { 0, 0 }, { 1, 1 }, true, 1, input_format, asymm_weights, asymm_data, padded_input, bigger_pad });
+                b, 23, 41, { 19, 19 }, { 1, 1 }, { 2, 2 }, { 0, 0 }, { 1, 1 }, true, 1, input_format, asymm_weights, asymm_data, padded_input, bigger_pad, false });
             // 3x3
             push_back(convolution_random_test_all_params{
-                b, 16, 28, { 14, 14 }, { 3, 3 }, { 1, 1 }, { 1, 1 }, { 1, 1 }, true, 1, input_format, asymm_weights, asymm_data, padded_input, bigger_pad });
+                b, 16, 28, { 14, 14 }, { 3, 3 }, { 1, 1 }, { 1, 1 }, { 1, 1 }, true, 1, input_format, asymm_weights, asymm_data, padded_input, bigger_pad, false });
             push_back(convolution_random_test_all_params{
-                b, 23, 41, { 19, 17 }, { 3, 3 }, { 1, 1 }, { 1, 1 }, { 1, 1 }, true, 1, input_format, asymm_weights, asymm_data, padded_input, bigger_pad });
+                b, 23, 41, { 19, 17 }, { 3, 3 }, { 1, 1 }, { 1, 1 }, { 1, 1 }, true, 1, input_format, asymm_weights, asymm_data, padded_input, bigger_pad, false });
             // 5x5
             push_back(convolution_random_test_all_params{
-                b, 16, 28, { 14, 14 }, { 5, 5 }, { 1, 1 }, { 2, 2 }, { 1, 1 }, true, 1, input_format, asymm_weights, asymm_data, padded_input, bigger_pad });
+                b, 16, 28, { 14, 14 }, { 5, 5 }, { 1, 1 }, { 2, 2 }, { 1, 1 }, true, 1, input_format, asymm_weights, asymm_data, padded_input, bigger_pad, false });
             push_back(convolution_random_test_all_params{
-                b, 23, 41, { 19, 17 }, { 5, 5 }, { 1, 1 }, { 2, 2 }, { 1, 1 }, true, 1, input_format, asymm_weights, asymm_data, padded_input, bigger_pad });
+                b, 23, 41, { 19, 17 }, { 5, 5 }, { 1, 1 }, { 2, 2 }, { 1, 1 }, true, 1, input_format, asymm_weights, asymm_data, padded_input, bigger_pad, false });
         }
         return *this;
     }
@@ -8542,21 +8575,22 @@ struct params_generator : std::vector<convolution_random_test_all_params> {
                                      bool asymm_weights = false,
                                      bool asymm_data = false,
                                      bool padded_input = false,
-                                     bool bigger_pad = false) {
+                                     bool bigger_pad = false,
+                                     bool grouped_weights_shape = false) {
         std::vector<int> strides = { 1, 2 };
         for (auto s : strides) {
             // 1x1
             push_back(convolution_random_test_all_params{
             //      feature   input     filter    stride    offset  dilation  bias  groups
             //batch in  out   x  y      x  y      x  y      x  y      x  y
-                16, 32, 32, { 4, 4 }, { 1, 1 }, { s, s }, { 0, 0 }, { 1, 1 }, true, 1, input_format, asymm_weights, asymm_data, padded_input, bigger_pad });
+                16, 32, 32, { 4, 4 }, { 1, 1 }, { s, s }, { 0, 0 }, { 1, 1 }, true, 1, input_format, asymm_weights, asymm_data, padded_input, bigger_pad, grouped_weights_shape });
             push_back(convolution_random_test_all_params{
-                16, 32, 32, { 9, 9 }, { 1, 1 }, { s, s }, { 0, 0 }, { 1, 1 }, true, 1, input_format, asymm_weights, asymm_data, padded_input, bigger_pad });
+                16, 32, 32, { 9, 9 }, { 1, 1 }, { s, s }, { 0, 0 }, { 1, 1 }, true, 1, input_format, asymm_weights, asymm_data, padded_input, bigger_pad, grouped_weights_shape });
             // 3x3
             push_back(convolution_random_test_all_params{
-                16, 32, 32, { 4, 4 }, { 3, 3 }, { s, s }, { 0, 0 }, { 1, 1 }, true, 1, input_format, asymm_weights, asymm_data, padded_input, bigger_pad });
+                16, 32, 32, { 4, 4 }, { 3, 3 }, { s, s }, { 0, 0 }, { 1, 1 }, true, 1, input_format, asymm_weights, asymm_data, padded_input, bigger_pad, grouped_weights_shape });
             push_back(convolution_random_test_all_params{
-                16, 32, 32, { 9, 9 }, { 3, 3 }, { s, s }, { 0, 0 }, { 1, 1 }, true, 1, input_format, asymm_weights, asymm_data, padded_input, bigger_pad });
+                16, 32, 32, { 9, 9 }, { 3, 3 }, { s, s }, { 0, 0 }, { 1, 1 }, true, 1, input_format, asymm_weights, asymm_data, padded_input, bigger_pad, grouped_weights_shape });
         }
         return *this;
     }
@@ -8615,6 +8649,7 @@ INSTANTIATE_TEST_SUITE_P(
         .smoke_test_params(format::b_fs_yx_fsv16, false, false, true)
         .smoke_test_params(format::b_fs_yx_fsv16, false, false, true, true)
         .bs_test_params(format::bs_fs_yx_bsv16_fsv16)
+        .bs_test_params(format::b_fs_yx_fsv16, false, true, false, false, true)
     ),
     to_string_convolution_all_params
 );
@@ -9221,6 +9256,81 @@ TEST(convolution_gpu_onednn, padding_for_cldnn_kernel_after_onednn) {
     ASSERT_EQ(output_layout_ref.spatial(1), output_y);
     ASSERT_EQ(output_layout_ref.feature(), output_f);
     ASSERT_EQ(output_layout_ref.batch(), output_b);
+
+    for (size_t i = 0; i < output_memory_ref->count(); i++) {
+        ASSERT_EQ(output_ptr_ref.data()[i], output_ptr_test.data()[i]);
+    }
+}
+
+TEST(convolution_gpu_onednn, spatial_1d) {
+    auto& engine = get_test_engine();
+    if (!engine.get_device_info().supports_immad)
+        return;
+
+    ov::PartialShape input_pshape = {1, 16, 6};
+    ov::PartialShape weights_pshape = {16, 16, 3};
+    layout in_layout{ input_pshape, data_types::f16, format::bfyx };
+    layout weights_layout{ weights_pshape, data_types::f16, format::bfyx };
+    auto input_data = generate_random_1d<FLOAT16>(in_layout.count(), -1, 1);
+    auto input_mem = engine.allocate_memory(in_layout);
+    set_values(input_mem, input_data);
+
+    auto weights_data = generate_random_1d<FLOAT16>(weights_layout.count(), -1, 1);
+    auto weights_mem = engine.allocate_memory(weights_layout);
+    set_values(weights_mem, weights_data);
+
+    auto input = input_layout("input", input_mem->get_layout());
+    auto weights = data("weights", weights_mem);
+    auto conv = convolution("conv",
+                            input_info("input"),
+                            { "weights" },
+                            1,
+                            ov::Strides{1},
+                            ov::CoordinateDiff{0},
+                            ov::Strides{1},
+                            ov::CoordinateDiff{0},
+                            ov::CoordinateDiff{0});
+    auto output_reorder = reorder("reorder", input_info("conv"), format::bfyx, data_types::f32 );
+
+    topology t(input, weights, conv, output_reorder);
+
+    ExecutionConfig config_test = get_test_default_config(engine);
+    ov::intel_gpu::ImplementationDesc conv_impl_test = { format::b_fs_yx_fsv16, "", impl_types::onednn };
+    config_test.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ { "conv", conv_impl_test } }));
+    config_test.set_property(ov::intel_gpu::optimize_data(true));
+    config_test.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+
+    ExecutionConfig config_ref = get_test_default_config(engine);
+    ov::intel_gpu::ImplementationDesc conv_impl_ref = { format::bfyx, "", impl_types::ocl };
+    config_ref.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{{ "conv", conv_impl_ref } }));
+    config_ref.set_property(ov::intel_gpu::optimize_data(true));
+    config_ref.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+
+    network network_test(engine, t, config_test);
+    network network_ref(engine, t, config_ref);
+
+    network_test.set_input_data("input", input_mem);
+    network_ref.set_input_data("input", input_mem);
+
+    auto outputs_test = network_test.execute();
+    auto outputs_ref = network_ref.execute();
+
+    ASSERT_EQ(outputs_test.size(), size_t(1));
+    ASSERT_EQ(outputs_test.begin()->first, "reorder");
+    ASSERT_EQ(outputs_ref.size(), size_t(1));
+    ASSERT_EQ(outputs_ref.begin()->first, "reorder");
+
+    auto output_memory_test = outputs_test.at("reorder").get_memory();
+    auto output_layout_test = output_memory_test->get_layout();
+    cldnn::mem_lock<float> output_ptr_test(output_memory_test, get_test_stream());
+
+    auto output_memory_ref = outputs_ref.at("reorder").get_memory();
+    auto output_layout_ref = output_memory_ref->get_layout();
+    cldnn::mem_lock<float> output_ptr_ref(output_memory_ref, get_test_stream());
+
+    ov::PartialShape expected_shape = {1, 16, 4};
+    ASSERT_EQ(output_layout_test.get_partial_shape(), expected_shape);
+    ASSERT_EQ(output_layout_ref.get_partial_shape(), expected_shape);
 
     for (size_t i = 0; i < output_memory_ref->count(); i++) {
         ASSERT_EQ(output_ptr_ref.data()[i], output_ptr_test.data()[i]);

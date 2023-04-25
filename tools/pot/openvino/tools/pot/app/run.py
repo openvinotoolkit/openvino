@@ -27,6 +27,9 @@ def main():
 
 
 def app(argv):
+    logger.warning('Post-training Optimization Tool is deprecated and will be removed in the future.'
+                   ' Please use Neural Network Compression Framework'
+                   ' instead: https://github.com/openvinotoolkit/nncf')
     telemetry = start_session_telemetry()
     parser = get_common_argument_parser()
     args = parser.parse_args(args=argv)
