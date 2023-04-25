@@ -558,11 +558,7 @@ std::list<DeviceInformation> MultiDeviceInferencePlugin::GetValidDevice(
             if (deviceType == ov::device::Type::INTEGRATED || deviceType == Metrics::DeviceType::integrated) {
                 iGPU.push_back(item);
             } else if (deviceType == ov::device::Type::DISCRETE || deviceType == Metrics::DeviceType::discrete) {
-                auto deviceArchitecture = GetCore()->GetMetric(item.deviceName, METRIC_KEY(DEVICE_ARCHITECTURE)).as<std::string>();
-                // Check if the device is an Intel device
-                if (deviceArchitecture.find("vendor=0x8086") != std::string::npos) {
-                    dGPU.push_back(item);
-                }
+                dGPU.push_back(item);
             }
             continue;
         }
@@ -683,11 +679,15 @@ void MultiDeviceInferencePlugin::RegisterPriority(const unsigned int& priority,
 
 std::string MultiDeviceInferencePlugin::GetDeviceList(const std::map<std::string, std::string>& config) const {
     std::string allDevices;
+    std::string deviceArchitecture;
     auto deviceList = GetCore()->GetAvailableDevices();
     auto deviceListConfig = config.find(ov::device::priorities.name());
     for (auto&& device : deviceList) {
         // filter out the supported devices
-        if (!_pluginConfig.isSupportedDevice(device))
+        if (device.find("GPU") != std::string::npos) {
+            deviceArchitecture = GetCore()->GetMetric(device, METRIC_KEY(DEVICE_ARCHITECTURE)).as<std::string>();
+        }
+        if (!_pluginConfig.isSupportedDevice(device, deviceArchitecture))
             continue;
         allDevices += device + ",";
     }
@@ -720,13 +720,27 @@ std::string MultiDeviceInferencePlugin::GetDeviceList(const std::map<std::string
             });
             return iter != devices.end();
         };
+        auto isAnyDev_emptyMerged = [](std::string& device, const std::vector<std::string>& devices) {
+            auto iter = std::find_if(devices.begin(), devices.end(), [device](const std::string& devItem) {
+                std::string _device = device;
+                std::string::size_type realEndPos = 0;
+                if ((realEndPos = _device.find('.')) != std::string::npos && devItem.find('.') == std::string::npos) {
+                    _device = _device.substr(0, realEndPos);
+                }
+                return devItem.find(_device) != std::string::npos;
+            });
+            return iter != devices.end();
+        };
         auto deviceWithDefaultID = [](std::string& device) {
             // AUTO assume the default device ID will be "0" for the single device.
             return device.find(".") == std::string::npos ? device + ".0" : device;
         };
         if (devicesToBeMerged.empty()) {
             for (auto&& device : deviceList) {
-                if (isAnyDev(device, devicesToBeDeleted) || !_pluginConfig.isSupportedDevice(device))
+                if (device.find("GPU") != std::string::npos) {
+                    deviceArchitecture = GetCore()->GetMetric(device, METRIC_KEY(DEVICE_ARCHITECTURE)).as<std::string>();
+                }
+                if (isAnyDev_emptyMerged(device, devicesToBeDeleted) || !_pluginConfig.isSupportedDevice(device, deviceArchitecture))
                     continue;
                 devicesMerged.push_back(device);
             }
