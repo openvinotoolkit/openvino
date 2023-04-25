@@ -79,6 +79,13 @@ public:
                 }
             }
         }
+        if ((reduceAttrs.operation == Algorithm::ReduceSum ||
+             reduceAttrs.operation == Algorithm::ReduceMax ||
+             reduceAttrs.operation == Algorithm::ReduceMin ||
+             reduceAttrs.operation == Algorithm::ReduceProd) &&
+             reduceAttrs.axes.size() != 1) {
+                return false;
+             }
 
         return true;
     }
