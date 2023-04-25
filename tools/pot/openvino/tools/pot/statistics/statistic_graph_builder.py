@@ -112,10 +112,10 @@ class StatisticGraphBuilder:
         reduce_op = create_op_node_with_second_input(node.graph, insert_op, int64_array(axis_const),
                                                      dict(name=f'{type_stat}_{node_name.split("|")[-1]}'))
         reduce_op['fullname'] = reset_node_fullname(node.fullname, reduce_op.name)
-        if node.graph != model_graph:
-            Op.create_data_node(reduce_op.graph, reduce_op, {'shape': [1]})
+        Op.create_data_node(reduce_op.graph, reduce_op, {'shape': [1]})
 
         node.out_port(out_port if out_port else 0).connect(reduce_op.in_port(0))
+        reduce_op.infer(reduce_op)
         return self.insert_result(model_graph, node, reduce_op, type_stat, out_port)
 
     def insert_min(self, model_graph, node, type_stat, node_name, **kwargs):
@@ -148,10 +148,10 @@ class StatisticGraphBuilder:
         max_op = create_op_node_with_second_input(node.graph, ReduceMax, int64_array(axis_const),
                                                   dict(name=f'{type_stat}_{clean_name}'))
 
-        if node.graph != model_graph:
-            Op.create_data_node(max_op.graph, max_op, {'shape': [1]})
+        Op.create_data_node(max_op.graph, max_op, {'shape': [1]})
         max_op['fullname'] = reset_node_fullname(node.fullname, max_op.name)
         abs_node.out_port(0).connect(max_op.in_port(0))
+        max_op.infer(max_op)
         return self.insert_result(model_graph, node, max_op, type_stat, out_port)
 
     def insert_result(self, model_graph, node, child_node, name, port=None):
