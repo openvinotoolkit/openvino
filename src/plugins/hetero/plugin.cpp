@@ -65,15 +65,6 @@ Configs any_copy(const ov::AnyMap& params) {
     return result;
 }
 
-ov::AnyMap clone_map(const ov::AnyMap& m) {
-    ov::AnyMap rm;
-    for (auto&& kvp : m) {
-        rm[kvp.first] = kvp.second.is<ov::AnyMap>() ? ov::Any(clone_map(kvp.second.as<ov::AnyMap>())) : kvp.second;
-    }
-
-    return rm;
-}
-
 }  // namespace
 
 Engine::Engine() {
@@ -83,7 +74,7 @@ Engine::Engine() {
 }
 
 ParsedConfig<ov::AnyMap> Engine::MergeConfigs(const ov::AnyMap& user_config) const {
-    auto device_config = clone_map(user_config);
+    auto device_config = user_config;
     auto hetero_config = _config;
 
     // after API 1.0 removal, replace with the loop over getHeteroSupportedConfigKeys()

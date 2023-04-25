@@ -56,7 +56,9 @@ public:
     void prepareParams() override;
     void executeDynamicImpl(dnnl::stream strm) override;
 
-    void setDynamicBatchLim(int lim) override;
+    bool withBiasFused() const {
+        return withBiases;
+    }
 
 private:
     void createDescriptorInternal(const dnnl::memory::desc &inputDesc,
@@ -100,6 +102,7 @@ private:
     float minSparseRate = 1.f;
     float weiSparseRate = 0.f;
     bool useSparseWeightsDecompression();
+    bool isINT8 = false;
 };
 
 }   // namespace node

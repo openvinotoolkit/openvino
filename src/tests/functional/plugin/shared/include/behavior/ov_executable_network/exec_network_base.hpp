@@ -129,15 +129,6 @@ TEST(OVExecutableNetworkBaseTest, smoke_LoadNetworkToDefaultDeviceNoThrow) {
     EXPECT_NO_THROW(auto execNet = core->compile_model(function));
 }
 
-TEST_P(OVExecutableNetworkBaseTest, canLoadCorrectNetworkToGetExecutableWithIncorrectConfig) {
-    std::set<std::string> metaPlugins = {"AUTO", "MULTI", "HETERO"};
-    if (metaPlugins.end() != std::find(metaPlugins.begin(), metaPlugins.end(), target_device)) {
-        GTEST_SKIP();
-    }
-    ov::AnyMap incorrectConfig = {{"abc", "def"}};
-    EXPECT_ANY_THROW(auto execNet = core->compile_model(function, target_device, incorrectConfig));
-}
-
 TEST_P(OVExecutableNetworkBaseTest, canLoadCorrectNetworkToGetExecutableAndCreateInferRequest) {
     auto execNet = core->compile_model(function, target_device, configuration);
     EXPECT_NO_THROW(auto req = execNet.create_infer_request());
@@ -360,6 +351,34 @@ TEST_P(OVExecutableNetworkBaseTest, CheckExecGraphInfoAfterExecution) {
         } else {
             EXPECT_GE(layer.second, 0);
         }
+    }
+}
+
+TEST_P(OVExecutableNetworkBaseTest, LoadNetworkCreateDefaultExecGraphResult) {
+    auto net = core->compile_model(function, target_device, configuration);
+    auto runtime_function = net.get_runtime_model();
+    ASSERT_NE(nullptr, runtime_function);
+    auto actual_parameters = runtime_function->get_parameters();
+    auto actual_results = runtime_function->get_results();
+    auto expected_parameters = function->get_parameters();
+    auto expected_results = function->get_results();
+    ASSERT_EQ(expected_parameters.size(), actual_parameters.size());
+    for (std::size_t i = 0; i < expected_parameters.size(); ++i) {
+        auto expected_element_type = expected_parameters[i]->get_output_element_type(0);
+        auto actual_element_type = actual_parameters[i]->get_output_element_type(0);
+        ASSERT_EQ(expected_element_type, actual_element_type) << "For index: " << i;
+        auto expected_shape = expected_parameters[i]->get_output_shape(0);
+        auto actual_shape = actual_parameters[i]->get_output_shape(0);
+        ASSERT_EQ(expected_shape, actual_shape) << "For index: " << i;
+    }
+    ASSERT_EQ(expected_results.size(), actual_results.size());
+    for (std::size_t i = 0; i < expected_results.size(); ++i) {
+        auto expected_element_type = expected_results[i]->get_input_element_type(0);
+        auto actual_element_type = actual_results[i]->get_input_element_type(0);
+        ASSERT_EQ(expected_element_type, actual_element_type) << "For index: " << i;
+        auto expected_shape = expected_results[i]->get_input_shape(0);
+        auto actual_shape = actual_results[i]->get_input_shape(0);
+        ASSERT_EQ(expected_shape, actual_shape) << "For index: " << i;
     }
 }
 

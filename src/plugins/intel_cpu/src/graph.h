@@ -190,6 +190,17 @@ public:
         return graphHasDynamicInput;
     }
 
+    /**
+     * @brief This call updates the dynamic batch value
+     * 
+     * @note It is used for backward compatibility with legacy API only.
+     * @param newDynBatch
+     * new dynamic batch value
+     */
+    void setDynBatch(int newDynBatch) {
+        dynBatch = newDynBatch;
+    }
+
 protected:
     void VisitNode(NodePtr node, std::vector<NodePtr>& sortedNodes);
 
@@ -230,10 +241,9 @@ protected:
     void InitEdges();
     void Allocate();
     void AllocateWithReuse();
-    void CreatePrimitives();
-    void ExtractConstantAndExecutableNodes();
+    void ExtractExecutableNodes();
     void ExecuteNode(const NodePtr& node, const dnnl::stream& stream) const;
-    void ExecuteConstantNodesOnly() const;
+    void CreatePrimitivesAndExecConstants() const;
     void InferStatic(InferRequestBase* request);
     void InferDynamic(InferRequestBase* request);
 
@@ -248,14 +258,17 @@ private:
     std::map<std::string, NodePtr> outputNodesMap;
 
     // these node pointers (from graphNodes) are to avoid regular checking for
-    // constantness of nodes in ExecuteConstantNodesOnly, Infer methods and calls of
+    // constantness of nodes in Infer methods and calls of
     // non-executable (optimized out) nodes, such as Input, Reshape, etc.
-    std::vector<NodePtr> constantGraphNodes;
     std::vector<NodePtr> executableGraphNodes;
 
     std::unordered_map<Node*, size_t> syncNodesInds;
 
     GraphContext::CPtr context;
+
+    // this field stores the dynamic batch value to provide backward compatibility
+    // with the legacy API dyn batch behaviour
+    int dynBatch = -1;
 
     void EnforceBF16();
 };

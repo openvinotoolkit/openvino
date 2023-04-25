@@ -969,7 +969,6 @@ void BinaryConvolution::initSupportedPrimitiveDescriptors() {
     setPostOps(attr);
 
     NodeConfig config;
-    config.dynBatchSupport = false;
     config.inConfs.resize(2);
     config.inConfs[0].constant(false);
     config.inConfs[0].inPlace(-1);
@@ -1093,6 +1092,7 @@ void BinaryConvolution::createPrimitive() {
     if (!args_ok)
         IE_THROW() << "BinaryConvolution with name '" << getName() << "' has unsupported parameters";
 #if defined(OPENVINO_ARCH_X86_64)
+    jit_dw_conv_params jcp_dw_conv = {};
     if (implType == impl_desc_type::jit_avx512) {
         bin_conv_kernel.reset(new jit_uni_bin_conv_kernel_f32<x64::avx512_core>(jcp, jcp_dw_conv, *attr.get()));
     } else if (implType == impl_desc_type::jit_avx2) {

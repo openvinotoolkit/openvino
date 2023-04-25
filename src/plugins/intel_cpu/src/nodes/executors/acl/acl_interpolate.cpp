@@ -5,18 +5,6 @@
 #include "acl_interpolate.hpp"
 #include "acl_utils.hpp"
 
-static arm_compute::TensorShape interpolateShapeCast(const ov::intel_cpu::VectorDims& dims) {
-    arm_compute::TensorShape tensorShape;
-    for (std::size_t i = 0; i < dims.size(); ++i) {
-        tensorShape.set(dims.size() - i - 1, dims[i], false);
-    }
-    if (tensorShape.num_dimensions() == 0) {
-        tensorShape.set(0, 1, false);
-        tensorShape.set_num_dimensions(1);
-    }
-    return tensorShape;
-}
-
 bool ov::intel_cpu::ACLInterpolateExecutor::init(const InterpolateAttrs &interpolateAttrs,
                                                  const std::vector <MemoryDescPtr> &srcDescs,
                                                  const std::vector <MemoryDescPtr> &dstDescs,
@@ -47,10 +35,10 @@ bool ov::intel_cpu::ACLInterpolateExecutor::init(const InterpolateAttrs &interpo
 
     auto srcDims = srcDescs[0]->getShape().getStaticDims();
     auto dstDims = dstDescs[0]->getShape().getStaticDims();
-    auto srcTensorInfo = arm_compute::TensorInfo(interpolateShapeCast(srcDims), 1,
+    auto srcTensorInfo = arm_compute::TensorInfo(shapeCast(srcDims), 1,
                                                  precisionToAclDataType(srcDescs[0]->getPrecision()),
                                                  getAclDataLayoutByMemoryDesc(srcDescs[0]));
-    auto dstTensorInfo = arm_compute::TensorInfo(interpolateShapeCast(dstDims), 1,
+    auto dstTensorInfo = arm_compute::TensorInfo(shapeCast(dstDims), 1,
                                                  precisionToAclDataType(dstDescs[0]->getPrecision()),
                                                  getAclDataLayoutByMemoryDesc(dstDescs[0]));
 
@@ -169,7 +157,9 @@ bool ov::intel_cpu::ACLInterpolateExecutorBuilder::isSupported(const ov::intel_c
         return false;
     }
 
-    if (interpolateAttrs.mode == InterpolateMode::cubic) {
+    if (interpolateAttrs.mode == InterpolateMode::cubic ||
+        interpolateAttrs.mode == InterpolateMode::bilinear_pillow ||
+        interpolateAttrs.mode == InterpolateMode::bicubic_pillow) {
         return false;
     }
 

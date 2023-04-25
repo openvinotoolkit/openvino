@@ -16,24 +16,12 @@
 #include <vector>
 namespace MultiDevicePlugin {
 using namespace InferenceEngine;
-// legacy config
-static constexpr ov::Property<bool, ov::PropertyMutability::RW> exclusive_asyc_requests{"EXCLUSIVE_ASYNC_REQUESTS"};
 
 class BaseValidator {
 public:
     using Ptr = std::shared_ptr<BaseValidator>;
     virtual ~BaseValidator() = default;
     virtual bool is_valid(const ov::Any& v) const = 0;
-};
-
-class FuncValidator : public BaseValidator {
-public:
-explicit FuncValidator(std::function<bool(const ov::Any&)> func) : m_func(func) { }
-    bool is_valid(const ov::Any& v) const override {
-        return m_func(v);
-    }
-private:
-    std::function<bool(const ov::Any&)> m_func;
 };
 
 template<typename T>
@@ -148,6 +136,7 @@ public:
     T get_property(const ov::Property<T, mutability>& property) const {
         return get_property(property.name()).template as<T>();
     }
+
     void apply_user_properties();
     ov::AnyMap get_full_properties();
 
@@ -234,7 +223,6 @@ private:
     ov::AnyMap full_properties;       // combined with user set properties, including secondary properties
     ov::AnyMap property_mutabilities; // mutability for supported configs/metrics installation
     std::map<std::string, BaseValidator::Ptr> property_validators;
-    BaseValidator::Ptr device_property_validator;
     static const std::set<std::string> _deviceBlocklist;
 };
 } // namespace MultiDevicePlugin
