@@ -35,6 +35,7 @@ from openvino.tools.mo.utils.ir_reader.extender import Extender
 from openvino.tools.mo.utils.ir_reader.internal_ops.squeeze import SqueezeInternal
 from openvino.tools.mo.utils.ir_reader.internal_ops.unsqueeze import UnsqueezeInternal
 from openvino.tools.mo.utils.ir_reader.internal_ops.unique import UniqueInternal
+from openvino.tools.mo.utils.ir_reader.internal_ops.scatter import ScatterUpdateInternal
 
 # Operations not registered in collect_ops() function
 custom_ops = {
@@ -51,6 +52,7 @@ custom_ops = {
     'MaxPool': Pooling,
     'Multiply': Mul,
     'Power': Pow,
+    'ScatterUpdate': ScatterUpdateInternal,
     'Slice': OvSlice,
     'Split': Split,
     'Squeeze': SqueezeInternal,
