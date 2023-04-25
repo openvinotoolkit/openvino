@@ -35,6 +35,7 @@ public:
     static std::string getTestCaseName(const testing::TestParamInfo<ConvEltwiseFusionParams> &obj);
 
 protected:
+    using TransformationTestsF::TearDown;
     void SetUp() override;
 };
 } // namespace SubgraphTestsDefinitions
