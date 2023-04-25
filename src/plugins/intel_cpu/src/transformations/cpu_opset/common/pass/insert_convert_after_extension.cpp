@@ -4,7 +4,7 @@
 
 #include "insert_convert_after_extension.hpp"
 
-#include <openvino/opsets/opset10.hpp>
+#include <openvino/op/convert.hpp>
 #include "cpu_types.h"
 #include "itt.hpp"
 
@@ -25,7 +25,7 @@ ov::pass::InsertConvertAfterExtension::InsertConvertAfterExtension() {
         for (auto& output : ref->outputs()) {
             if (output.get_element_type() == ov::element::i64 || output.get_element_type() == ov::element::u64) {
                 auto targetInputs = output.get_target_inputs();
-                auto convert = std::make_shared<ov::opset10::Convert>(output, ov::element::i32);
+                auto convert = std::make_shared<ov::op::v0::Convert>(output, ov::element::i32);
 
                 for (const auto& targetInput : targetInputs) {
                     targetInput.replace_source_output(convert);

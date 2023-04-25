@@ -246,12 +246,16 @@ void Graph::Replicate(const CNNNetwork &network) {
 
         if (op->get_type_info() == op::v0::Result::get_type_info_static()) {
             const auto &input = op->input_value(0);
-            const auto name = op::util::get_ie_output_name(input);
 
-            if (outputsInfo.count(name) != 0) {
+            for (const auto& name : input.get_names()) {
+                if (outputsInfo.count(name) != 0) {
+                    outputNodesMap[name] = node;
+                }
+            }
+
+            const auto name = ov::op::util::get_ie_output_name(input);
+            if (outputsInfo.count(name) != 0 && outputNodesMap.count(name) == 0) {
                 outputNodesMap[name] = node;
-            } else if (!input.get_names().empty()) {
-                outputNodesMap[*input.get_names().begin()] = node;
             }
         }
 
