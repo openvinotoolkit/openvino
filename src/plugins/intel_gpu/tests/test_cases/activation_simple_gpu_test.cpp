@@ -1459,6 +1459,41 @@ TEST(activation_i8_fw_gpu, basic_yxfb_all_funcs)
     }
 }
 
+TEST(activation_i8_fw_gpu, clamp_basic_bfzyx)
+{
+    auto& engine = get_test_engine();
+    auto input = engine.allocate_memory({ data_types::i8, format::bfzyx, { 1, 2, 2, 2, 2 } });
+
+    std::vector<int8_t> input_vec = {
+        1,   0,  5,   1,
+        2,   0,  6,  -5,
+        3,   0, -7,  12,
+        4,   0, -8,   8
+    };
+    set_values(input, input_vec);
+
+    topology topology;
+    activation_additional_params params = {-136, 136};
+    topology.add(input_layout("input", input->get_layout()));
+    topology.add(activation("activation", input_info("input"), activation_func::clamp, params));
+
+    network network(engine, topology, get_test_default_config(engine));
+    network.set_input_data("input", input);
+    auto outputs = network.execute();
+
+    ASSERT_EQ(outputs.size(), size_t(1));
+    ASSERT_EQ(outputs.begin()->first, "activation");
+
+    auto output_memory = outputs.at("activation").get_memory();
+    auto output_layout = output_memory->get_layout();
+    cldnn::mem_lock<int8_t> output_ptr(output_memory, get_test_stream());
+    cldnn::mem_lock<int8_t> input_ptr(input, get_test_stream());
+
+    for (size_t i = 0; i < output_layout.get_linear_size(); ++i) {
+        ASSERT_EQ(std::min(std::max(static_cast<int32_t>(input_ptr[i]), static_cast<int32_t>(params.a)), static_cast<int32_t>(params.b)), static_cast<int32_t>(output_ptr[i]));
+    }
+}
+
 TEST(activation_i32_fw_gpu, basic_yxfb_i32_funcs) {
     auto& engine = get_test_engine();
     auto input = engine.allocate_memory({ data_types::i32, format::yxfb,{ 2, 2, 2, 2 } });
