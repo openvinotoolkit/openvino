@@ -691,6 +691,9 @@ std::string MultiDeviceInferencePlugin::GetDeviceList(const std::map<std::string
             continue;
         allDevices += device + ",";
     }
+    if (allDevices.empty()) {
+        IE_THROW() << "Please, check environment due to no supported devices can be used";
+    }
     std::vector<std::string> devicesMerged;
     if (deviceListConfig != config.end() && !deviceListConfig->second.empty()) {
         auto priorities = deviceListConfig->second;
@@ -758,15 +761,10 @@ std::string MultiDeviceInferencePlugin::GetDeviceList(const std::map<std::string
                 }
             }
         }
-    }
-    if (devicesMerged.size()) {
         allDevices.clear();
         std::for_each(devicesMerged.begin(), devicesMerged.end(), [&allDevices](const std::string& device) {
             allDevices += device + ",";
         });
-    }
-    if (allDevices.empty()) {
-        IE_THROW() << "Please, check environment due to no supported devices can be used";
     }
     // remove the last ',' if exist
     if (allDevices.back() == ',')

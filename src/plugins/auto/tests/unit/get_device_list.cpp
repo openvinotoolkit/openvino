@@ -113,6 +113,9 @@ const std::vector<Params> testConfigsWithId = {Params{" ", " "},
                                          Params{"-GPU.0,-GPU.1", "CPU"},
                                          Params{"-GPU.0,-GPU.1,INVALID_DEVICE", "INVALID_DEVICE"},
                                          Params{"-GPU.0,-GPU.1,-INVALID_DEVICE", "CPU"},
+                                         Params{"-GPU.0,-GPU.1,-CPU", ""},
+                                         Params{"GPU,-GPU.0", "GPU.1"},
+                                         Params{"GPU.0,-GPU", "GPU.0"},
                                          Params{"-GPU.0,-CPU", "GPU.1"}};
 
 const std::vector<Params> testConfigs = {Params{" ", " "},
