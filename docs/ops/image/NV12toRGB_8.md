@@ -94,13 +94,13 @@ Input NV12 image tensor shall have ``NHWC (also known as NYXC)`` layout and can 
 
     <layer ... type="NV12toRGB">
         <input>
-            <port id="0">  <!-- Y plane -->
+            <port id="0">  < !-- Y plane -->
                 <dim>1</dim>
                 <dim>480</dim>
                 <dim>640</dim>
                 <dim>1</dim>
             </port>
-            <port id="1">  <!-- UV plane -->
+            <port id="1">  < !-- UV plane -->
                 <dim>1</dim>
                 <dim>240</dim>
                 <dim>320</dim>

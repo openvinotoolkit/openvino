@@ -24,7 +24,6 @@ Then calculations of *PriorBoxClustered* can be written as
 	center_x=(w+offset)*step
 
 
-
 .. math::
 
 	center_y=(h+offset)*step

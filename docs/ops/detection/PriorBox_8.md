@@ -16,41 +16,41 @@
 
 .. math::
    
-   	W \equiv Width \quad Of \quad Image \\ H \equiv Height \quad Of \quad Image
+  W \equiv Width \quad Of \quad Image \\ H \equiv Height \quad Of \quad Image
 
-  *   If step equals 0:
+*   If step equals 0:
 
-  .. math::
+.. math::
      
-     	center_x=(w+0.5) \\ center_y=(h+0.5)
+  center_x=(w+0.5) \\ center_y=(h+0.5)
 
-  *   else:
+*   else:
 
-  .. math::
-     
-      center_x=(w+offset)*step \\ center_y=(h+offset)*step \\ w \subset \left( 0, W \right ) \\ h \subset \left( 0, H \right )
+.. math::
+    
+  center_x=(w+offset)*step \\ center_y=(h+offset)*step \\ w \subset \left( 0, W \right ) \\ h \subset \left( 0, H \right )
 
 2.  Then, it calculates coordinates of prior boxes for each :math:`s \subset \left( 0, min\_sizes \right )` :
 
-  .. math::
+.. math::
    
-   	xmin = \frac{\frac{center_x - s}{2}}{W}
+  xmin = \frac{\frac{center_x - s}{2}}{W}
    
    
   
-  .. math::
+ .. math::
    
-   	ymin = \frac{\frac{center_y - s}{2}}{H}
-   
-     
-  .. math::
-   
-   	xmax = \frac{\frac{center_x + s}{2}}{W}
+  ymin = \frac{\frac{center_y - s}{2}}{H}
    
      
-  .. math::
+.. math::
    
-   	ymin = \frac{\frac{center_y + s}{2}}{H}
+  xmax = \frac{\frac{center_x + s}{2}}{W}
+   
+     
+.. math::
+   
+  ymin = \frac{\frac{center_y + s}{2}}{H}
 
 3. If *clip* attribute is set to true, each output value is clipped between :math:`\left< 0, 1 \right>`.
 

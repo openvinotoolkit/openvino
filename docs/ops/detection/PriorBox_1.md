@@ -15,44 +15,44 @@
 
 1.  First calculates *center_x* and *center_y* of prior box:
 
-  .. math::
+.. math::
    
-   	W \equiv Width \quad Of \quad Image \\ H \equiv Height \quad Of \quad Image
+  W \equiv Width \quad Of \quad Image \\ H \equiv Height \quad Of \quad Image
    
    
-  * If step equals 0:
+* If step equals 0:
      
-    .. math::
+.. math::
      
-     	center_x=(w+0.5) \\ center_y=(h+0.5)
+   center_x=(w+0.5) \\ center_y=(h+0.5)
    
-  * else:
+* else:
      
-    .. math::
+.. math::
      
-     	center_x=(w+offset)*step \\ center_y=(h+offset)*step \\ w \subset \left( 0, W \right ) \\ h \subset \left( 0, H \right )
+   center_x=(w+offset)*step \\ center_y=(h+offset)*step \\ w \subset \left( 0, W \right ) \\ h \subset \left( 0, H \right )
 
 2.  Then, for each :math:`s \subset \left( 0, min\_sizes \right )` calculates coordinates of prior boxes:
 
-  .. math::
+.. math::
    
-   	xmin = \frac{\frac{center_x - s}{2}}{W}
+  	xmin = \frac{\frac{center_x - s}{2}}{W}
    
    
    
-  .. math::
+.. math::
    
    	ymin = \frac{\frac{center_y - s}{2}}{H}
    
    
    
-  .. math::
+.. math::
    
    	xmax = \frac{\frac{center_x + s}{2}}{W}
    
    
    
-  .. math::
+.. math::
    
    	ymin = \frac{\frac{center_y + s}{2}}{H}
 
