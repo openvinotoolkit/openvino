@@ -61,9 +61,9 @@ bool AclEltwiseExecutor::init(const EltwiseAttrs &eltwiseAttrs, const std::vecto
         srcDescs[0]->getShape().getDims() != srcDescs[1]->getShape().getDims()) {
         auto dim_size = srcDescs[0]->getShape().getDims().size();
         auto mover = [&dim_size](TensorShape &_shape) {
-            if (dim_size == 5) { std::swap(_shape[2], _shape[3]); }
-            std::swap(_shape[1], _shape[2]);
-            std::swap(_shape[0], _shape[1]);
+            if (dim_size > 4) { std::swap(_shape[2], _shape[3]); }
+            if (dim_size > 3) { std::swap(_shape[1], _shape[2]); }
+            if (dim_size > 2) { std::swap(_shape[0], _shape[1]); }
         };
         if (dim_size < 5) {
             srcDataLayout[0] = srcDataLayout[1] = dstDataLayout[0] = DataLayout::NCHW;
@@ -326,7 +326,7 @@ bool AclEltwiseExecutor::init(const EltwiseAttrs &eltwiseAttrs, const std::vecto
             break;
         case Algorithm::EltwiseSwish:
             if (!NEActivationLayer::validate(&srcTensorsInfo[0], &dstTensorsInfo[0],
-                                             {ActivationLayerInfo::ActivationFunction::SWISH, aclEltwiseAttrs.beta}))
+                                             {ActivationLayerInfo::ActivationFunction::SWISH, aclEltwiseAttrs.alpha}))
                 return false;
             exec_func = [this]{
                 auto acl_op = std::make_unique<NEActivationLayer>();
