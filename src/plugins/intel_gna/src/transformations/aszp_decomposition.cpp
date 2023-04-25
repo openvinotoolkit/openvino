@@ -2,15 +2,16 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 #include "transformations/aszp_decomposition.hpp"
+
+#include "aszp_decomposition.hpp"
+#include "backend/gna_limitations.hpp"
+#include "memory"
 #include "ngraph/opsets/opset11.hpp"
 #include "ngraph/pass/graph_rewrite.hpp"
 #include "ngraph/pattern/op/or.hpp"
 #include "ngraph/pattern/op/wrap_type.hpp"
 #include "ngraph/rt_info.hpp"
 #include "openvino/cc/ngraph/itt.hpp"
-#include "backend/gna_limitations.hpp"
-#include "aszp_decomposition.hpp"
-#include "memory"
 
 using namespace ngraph;
 using namespace op;
@@ -19,89 +20,99 @@ namespace ov {
 namespace intel_gna {
 namespace pass {
 
-static std::tuple<int64_t, int64_t, int64_t> extract_height_padding(ov::CoordinateDiff pads_begin, ov::CoordinateDiff pads_end) {
-	auto height_begin = pads_begin[0];
-	auto height_end   = pads_end[0];
+static std::tuple<int64_t, int64_t, int64_t> extract_height_padding(ov::CoordinateDiff pads_begin,
+                                                                    ov::CoordinateDiff pads_end) {
+    auto height_begin = pads_begin[0];
+    auto height_end = pads_end[0];
 
-	return std::make_tuple(
-		height_begin, height_end,
-		height_begin > height_end ? height_begin - height_end : height_end - height_begin
-	);
+    return std::make_tuple(height_begin,
+                           height_end,
+                           height_begin > height_end ? height_begin - height_end : height_end - height_begin);
 }
 
-static std::tuple<int64_t, int64_t, int64_t> extract_width_padding(ov::CoordinateDiff pads_begin, ov::CoordinateDiff pads_end) {
-	auto width_begin = pads_begin[1];
-	auto width_end   = pads_end[1];
+static std::tuple<int64_t, int64_t, int64_t> extract_width_padding(ov::CoordinateDiff pads_begin,
+                                                                   ov::CoordinateDiff pads_end) {
+    auto width_begin = pads_begin[1];
+    auto width_end = pads_end[1];
 
-	return std::make_tuple(
-		width_begin, width_end,
-		width_begin > width_end ? width_begin - width_end : width_end - width_begin
-	);
+    return std::make_tuple(width_begin,
+                           width_end,
+                           width_begin > width_end ? width_begin - width_end : width_end - width_begin);
 }
 
 std::shared_ptr<ngraph::opset11::Transpose> create_transpose(const Output<Node>& input) {
-    return std::make_shared<ngraph::opset11::Transpose>(input,
-		ngraph::opset11::Constant::create(element::Type_t::i64, Shape{2}, {1, 0}));
+    return std::make_shared<ngraph::opset11::Transpose>(
+        input,
+        ngraph::opset11::Constant::create(element::Type_t::i64, Shape{2}, {1, 0}));
 }
 
 std::shared_ptr<ngraph::opset11::Reshape> create_reshape(const Output<Node>& input, uint64_t ndims, ov::Shape shape) {
-	return std::make_shared<ngraph::opset11::Reshape>(input, 
-		ngraph::opset11::Constant::create(ngraph::element::i64, Shape{ndims}, shape)->output(0),false);
+    return std::make_shared<ngraph::opset11::Reshape>(
+        input,
+        ngraph::opset11::Constant::create(ngraph::element::i64, Shape{ndims}, shape)->output(0),
+        false);
 }
 
 std::shared_ptr<ngraph::opset11::Constant> create_zero_const(ov::Shape shape) {
-	return ngraph::opset11::Constant::create(ngraph::element::f32, shape, std::vector<float>(shape[0]*shape[1], 0.0f));
+    return ngraph::opset11::Constant::create(ngraph::element::f32,
+                                             shape,
+                                             std::vector<float>(shape[0] * shape[1], 0.0f));
 }
 
-std::shared_ptr<ov::op::v0::Concat> concatenate_zeros(
-	uint32_t pad_begin,
-	uint32_t pad_end,
-	std::shared_ptr<ov::Node> padding_const,
-	std::shared_ptr<ov::Node> input_node) {
-
-	OutputVector concat_vector;
-	if (pad_begin > pad_end) {
-		concat_vector.push_back(padding_const->output(0));
-		concat_vector.push_back(input_node->output(0));
-	}else {
-		concat_vector.push_back(input_node->output(0));
-		concat_vector.push_back(padding_const->output(0));	
-	}
-	return std::make_shared<ngraph::op::Concat>(concat_vector,1);
-
+std::shared_ptr<ov::op::v0::Concat> concatenate_zeros(uint32_t pad_begin,
+                                                      uint32_t pad_end,
+                                                      std::shared_ptr<ov::Node> padding_const,
+                                                      std::shared_ptr<ov::Node> input_node) {
+    OutputVector concat_vector;
+    if (pad_begin > pad_end) {
+        concat_vector.push_back(padding_const->output(0));
+        concat_vector.push_back(input_node->output(0));
+    } else {
+        concat_vector.push_back(input_node->output(0));
+        concat_vector.push_back(padding_const->output(0));
+    }
+    return std::make_shared<ngraph::op::Concat>(concat_vector, 1);
 }
 
-//returns nullptr if detects that convolution isn't surrounded by transpositions
+// returns nullptr if detects that convolution isn't surrounded by transpositions
 std::shared_ptr<ngraph::opset11::Transpose> get_transpose_before(std::shared_ptr<ov::Node> conv) {
-	const Output<Node>& parent = conv->input_value(0);
-	
-	auto transpose_before = std::dynamic_pointer_cast<ngraph::opset11::Transpose>(parent.get_node()->shared_from_this());
-	if (nullptr == transpose_before) return nullptr;
+    const Output<Node>& parent = conv->input_value(0);
 
-	auto convolution_children = conv->output(0).get_target_inputs();
-	auto convolution_bias = std::dynamic_pointer_cast<ngraph::opset11::Add>(convolution_children.begin()->get_node()->shared_from_this());
-	
-	std::shared_ptr<ngraph::opset11::Transpose> transpose_after;
-	
-	if (nullptr != convolution_bias) {
-		auto add_children = convolution_bias->output(0).get_target_inputs();
-        if (add_children.size() != 1) return nullptr;
-        
-		transpose_after = std::dynamic_pointer_cast<ngraph::opset11::Transpose>(add_children.begin()->get_node()->shared_from_this());
-	} else transpose_after = std::dynamic_pointer_cast<ngraph::opset11::Transpose>(convolution_children.begin()->get_node()->shared_from_this());
-	
-	if (transpose_after == nullptr) return nullptr;
+    auto transpose_before =
+        std::dynamic_pointer_cast<ngraph::opset11::Transpose>(parent.get_node()->shared_from_this());
+    if (nullptr == transpose_before)
+        return nullptr;
 
-	return transpose_before;
+    auto convolution_children = conv->output(0).get_target_inputs();
+    auto convolution_bias =
+        std::dynamic_pointer_cast<ngraph::opset11::Add>(convolution_children.begin()->get_node()->shared_from_this());
+
+    std::shared_ptr<ngraph::opset11::Transpose> transpose_after;
+
+    if (nullptr != convolution_bias) {
+        auto add_children = convolution_bias->output(0).get_target_inputs();
+        if (add_children.size() != 1)
+            return nullptr;
+
+        transpose_after =
+            std::dynamic_pointer_cast<ngraph::opset11::Transpose>(add_children.begin()->get_node()->shared_from_this());
+    } else
+        transpose_after = std::dynamic_pointer_cast<ngraph::opset11::Transpose>(
+            convolution_children.begin()->get_node()->shared_from_this());
+
+    if (transpose_after == nullptr)
+        return nullptr;
+
+    return transpose_before;
 }
 
-static std::tuple<uint64_t, uint64_t, uint64_t, uint64_t> get_input_dimensions(ov::Shape input_shape) {   
-	uint64_t N = input_shape[0]; // batchsize
-	uint64_t H = input_shape[1]; // no input channels (input depth)
-	uint64_t W = input_shape[2]; // input height
-	uint64_t C = input_shape[3]; // input widith
+static std::tuple<uint64_t, uint64_t, uint64_t, uint64_t> get_input_dimensions(ov::Shape input_shape) {
+    uint64_t N = input_shape[0];  // batchsize
+    uint64_t H = input_shape[1];  // no input channels (input depth)
+    uint64_t W = input_shape[2];  // input height
+    uint64_t C = input_shape[3];  // input widith
 
-	return std::make_tuple(N,H,W,C);
+    return std::make_tuple(N, H, W, C);
 }
 
 Output<Node> decompose_height(Output<Node> input,
@@ -134,128 +145,128 @@ Output<Node> decompose_height(Output<Node> input,
     }
 }
 
-Output<Node> decompose_height(Output<Node> input, ov::CoordinateDiff pads_begin, ov::CoordinateDiff pads_end, ov::Shape conv_input_shape) {
-	uint32_t width_begin, width_end, width_padding, height_padding;
+Output<Node> decompose_height(Output<Node> input,
+                              ov::CoordinateDiff pads_begin,
+                              ov::CoordinateDiff pads_end,
+                              ov::Shape conv_input_shape) {
+    uint32_t width_begin, width_end, width_padding, height_padding;
     std::tie(width_begin, width_end, width_padding) = extract_width_padding(pads_begin, pads_end);
-	height_padding = pads_end[0] - pads_begin[0] > 0 ? pads_end[0] - pads_begin[0] : pads_begin[0] - pads_end[0];
+    height_padding = pads_end[0] - pads_begin[0] > 0 ? pads_end[0] - pads_begin[0] : pads_begin[0] - pads_end[0];
 
-	uint64_t N, H, W, C;
-    std::tie(N,H,W,C) = get_input_dimensions(conv_input_shape);
+    uint64_t N, H, W, C;
+    std::tie(N, H, W, C) = get_input_dimensions(conv_input_shape);
 
-	if (width_padding != 0) {
-		auto new_reshape   = create_reshape(input, 2, Shape{(H+height_padding)*W, C});
-		auto new_transpose = create_transpose(new_reshape->output(0));
-		auto new_reshape2  = create_reshape(new_transpose->output(0),2, Shape{C*(H+height_padding), W});
+    if (width_padding != 0) {
+        auto new_reshape = create_reshape(input, 2, Shape{(H + height_padding) * W, C});
+        auto new_transpose = create_transpose(new_reshape->output(0));
+        auto new_reshape2 = create_reshape(new_transpose->output(0), 2, Shape{C * (H + height_padding), W});
 
-		auto padding_const = create_zero_const( Shape{C*(H+height_padding),width_padding} );
-		auto new_concat    = concatenate_zeros(width_begin,width_end,padding_const,new_reshape2);
+        auto padding_const = create_zero_const(Shape{C * (H + height_padding), width_padding});
+        auto new_concat = concatenate_zeros(width_begin, width_end, padding_const, new_reshape2);
 
-		auto new_unshape2    = create_reshape(new_concat->output(0), 2, Shape{C, (H + height_padding) * (W + width_padding)});
-		auto new_untranspose = create_transpose(new_unshape2->output(0));
-		auto new_unshape     = create_reshape(new_untranspose->output(0), 4, {N, H+height_padding, W+width_padding ,C});
+        auto new_unshape2 =
+            create_reshape(new_concat->output(0), 2, Shape{C, (H + height_padding) * (W + width_padding)});
+        auto new_untranspose = create_transpose(new_unshape2->output(0));
+        auto new_unshape = create_reshape(new_untranspose->output(0), 4, {N, H + height_padding, W + width_padding, C});
 
-		return new_unshape->output(0);
-	}else {
-		return input;
-	}
+        return new_unshape->output(0);
+    } else {
+        return input;
+    }
 }
 
 void trimm_padding(ov::CoordinateDiff& pads_begin, ov::CoordinateDiff& pads_end) {
     if (pads_begin[0] > pads_end[0]) {
-		pads_begin[0] = pads_end[0];
-	}else {
-		pads_end[0] = pads_begin[0];
+        pads_begin[0] = pads_end[0];
+    } else {
+        pads_end[0] = pads_begin[0];
     }
-	if (pads_begin[1] > pads_end[1]) {
+    if (pads_begin[1] > pads_end[1]) {
         pads_begin[1] = pads_end[1];
     } else {
         pads_end[1] = pads_begin[1];
     }
 }
 
-std::shared_ptr<ov::Node> create_convolution (
-	std::shared_ptr<ngraph::opset11::Convolution> conv, 
-	const Output<Node>& input, 
-	ov::CoordinateDiff pads_begin, 
-	ov::CoordinateDiff pads_end){
+std::shared_ptr<ov::Node> create_convolution(std::shared_ptr<ngraph::opset11::Convolution> conv,
+                                             const Output<Node>& input,
+                                             ov::CoordinateDiff pads_begin,
+                                             ov::CoordinateDiff pads_end) {
+    trimm_padding(pads_begin, pads_end);
 
-	trimm_padding(pads_begin, pads_end);
+    if (nullptr != conv) {
+        return std::make_shared<opset11::Convolution>(input,
+                                                      conv->input_value(1),
+                                                      conv->get_strides(),
+                                                      pads_begin,
+                                                      pads_end,
+                                                      conv->get_dilations(),
+                                                      conv->get_auto_pad());
+    }
 
-	if (nullptr != conv){
-		return std::make_shared<opset11::Convolution>(
-			input, 
-			conv->input_value(1), 
-			conv->get_strides(), 
-			pads_begin, pads_end, 
-			conv->get_dilations(), 
-			conv->get_auto_pad());
-	}
-
-	return nullptr;
+    return nullptr;
 }
 
 static bool decompose(std::shared_ptr<ngraph::opset11::Convolution> conv) {
-	if (conv == nullptr) {
-		return false;
-	}
-
-	auto pads_begin = conv->get_pads_begin();
-    auto pads_end   = conv->get_pads_end();
-	
-	if (pads_begin.size() < 2 || pads_end.size() < 2) {
+    if (conv == nullptr) {
         return false;
-	}
+    }
+
+    auto pads_begin = conv->get_pads_begin();
+    auto pads_end = conv->get_pads_end();
+
+    if (pads_begin.size() < 2 || pads_end.size() < 2) {
+        return false;
+    }
 
     if (pads_begin[0] == pads_end[0] && pads_begin[1] == pads_end[1]) {
         return false;
     }
 
-	auto transpose_before = get_transpose_before(conv);
+    auto transpose_before = get_transpose_before(conv);
     if (nullptr == transpose_before) {
         return false;
     }
-	
-	// TODO ====================================================shouldn't we check size of input_shape?
-	Output<Node> input = transpose_before->input_value(0);
-	auto input_shape = input.get_shape();
-	if (input_shape.size() != 4 || input_shape[0] != 1) {
-		return false;
-	}
 
-	Output<Node> skip_input_H_const = decompose_height(input, pads_begin, pads_end, input_shape);
-	Output<Node> skip_input_W_const = decompose_height(skip_input_H_const, pads_begin, pads_end, input_shape);
+    // TODO ====================================================shouldn't we check size of input_shape?
+    Output<Node> input = transpose_before->input_value(0);
+    auto input_shape = input.get_shape();
+    if (input_shape.size() != 4 || input_shape[0] != 1) {
+        return false;
+    }
 
-	auto final_transpose = std::make_shared<ngraph::opset11::Transpose>(skip_input_W_const, ngraph::op::Constant::create(element::Type_t::i64, Shape{4}, {0, 3, 1, 2}));
+    Output<Node> skip_input_H_const = decompose_height(input, pads_begin, pads_end, input_shape);
+    Output<Node> skip_input_W_const = decompose_height(skip_input_H_const, pads_begin, pads_end, input_shape);
 
-	auto new_conv = create_convolution(conv, final_transpose->output(0), pads_begin, pads_end);
-	
-	if (new_conv == nullptr) {
-		return false;
-	}
+    auto final_transpose = std::make_shared<ngraph::opset11::Transpose>(
+        skip_input_W_const,
+        ngraph::op::Constant::create(element::Type_t::i64, Shape{4}, {0, 3, 1, 2}));
 
-	new_conv->set_friendly_name(conv->get_friendly_name());
-	ngraph::copy_runtime_info(conv, new_conv);
+    auto new_conv = create_convolution(conv, final_transpose->output(0), pads_begin, pads_end);
 
-	ngraph::replace_node(conv, new_conv);
-	return true;
+    if (new_conv == nullptr) {
+        return false;
+    }
+
+    new_conv->set_friendly_name(conv->get_friendly_name());
+    ngraph::copy_runtime_info(conv, new_conv);
+
+    ngraph::replace_node(conv, new_conv);
+    return true;
 }
-
-
 
 AszpDecomposition::AszpDecomposition() {
-	MATCHER_SCOPE(AszpDecomposition);
-	auto conv = ngraph::pattern::wrap_type<ngraph::opset11::Convolution>();
+    MATCHER_SCOPE(AszpDecomposition);
+    auto conv = ngraph::pattern::wrap_type<ngraph::opset11::Convolution>();
 
-	ov::matcher_pass_callback callback = [](ngraph::pattern::Matcher& m) {
+    ov::matcher_pass_callback callback = [](ngraph::pattern::Matcher& m) {
         auto conv = std::dynamic_pointer_cast<ngraph::opset11::Convolution>(m.get_match_root());
-		return decompose(conv);
+        return decompose(conv);
     };
 
-	auto m = std::make_shared<ngraph::pattern::Matcher>(conv, matcher_name);
+    auto m = std::make_shared<ngraph::pattern::Matcher>(conv, matcher_name);
     this->register_matcher(m, callback);
 }
-
-
 
 }  // namespace pass
 }  // namespace intel_gna

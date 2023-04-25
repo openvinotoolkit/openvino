@@ -11,9 +11,9 @@ namespace pass {
 
 /*
  *
- * @brief Convert a convolution node with asymmetric zero padding to concatenate zeros to the input so that the padding can be symmetric:
- * So far only supports N==1, Input to the transform node should be in NHWC
- * The transform looks for the pattern transpose->convolution->transform that get fused into one gna operation
+ * @brief Convert a convolution node with asymmetric zero padding to concatenate zeros to the input so that the padding
+ * can be symmetric: So far only supports N==1, Input to the transform node should be in NHWC The transform looks for
+ * the pattern transpose->convolution->transform that get fused into one gna operation
  *
  *                                                                                   Input {N,H,W,C}
  *                                                                                          |
@@ -34,13 +34,13 @@ namespace pass {
  *                       |                                                         |
  *            Transpose to {N,C,H,W}                                  Transpose to {N,C,H+Hpad,W}
  *                       |                                                         |
- *  Convolution: pads begin: [A,B], pads end: [C,D] |------>  Convolution: pads begin: [C,B], pads end: [C,D]  
- *          (for example A>C - A-C==Hpad)                                  (A now equal to C) 
+ *  Convolution: pads begin: [A,B], pads end: [C,D] |------>  Convolution: pads begin: [C,B], pads end: [C,D]
+ *          (for example A>C - A-C==Hpad)                                  (A now equal to C)
  *                       |                                                         |
  *             Transpose back to nhwc                                   Transpose back to nhwc
  *                       |                                                         |
  *                     output                                                    output
- * 
+ *
  *                                                                                   Input {N,H,W,C}
  *                                                                                          |
  *                                                                                    Reshape to 2d
@@ -50,11 +50,11 @@ namespace pass {
  *                                                                                       {C,H*W}
  *                                                                                          |
  *                                                                      Const            Reshape
- *                                                                (Zeros {C*H,Wpad})     {C*H,W}  
+ *                                                                (Zeros {C*H,Wpad})     {C*H,W}
  *                                                                        |                 |
  *                                                                        |---Concatenate---|
  *                                                                            {C*H,W+Wpad}
- *                                                                                 | 
+ *                                                                                 |
  *                                                                              Reshape
  *                                                                           {C,H*(W+Wpad)}
  *                                                                                 |
@@ -66,8 +66,8 @@ namespace pass {
  *                       |                                                         |
  *            Transpose to {N,C,H,W}                                  Transpose to {N,C,H,W+Wpad}
  *                       |                                                         |
- *  Convolution: pads begin: [A,B], pads end: [C,D] |------>  Convolution: pads begin: [C,B], pads end: [C,D]  
- *          (for example B>D - B-D==Wpad)                                  (A now equal to C) 
+ *  Convolution: pads begin: [A,B], pads end: [C,D] |------>  Convolution: pads begin: [C,B], pads end: [C,D]
+ *          (for example B>D - B-D==Wpad)                                  (A now equal to C)
  *                       |                                                         |
  *              Transpose back to nhwc                                  Transpose back to nhwc
  *                       |                                                         |
@@ -82,4 +82,4 @@ public:
 
 }  // namespace pass
 }  // namespace intel_gna
-} 
+}  // namespace ov
