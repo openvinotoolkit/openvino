@@ -9,23 +9,20 @@
 #include "ngraph_functions/utils/ngraph_helpers.hpp"
 #include "shared_test_classes/base/layer_test_utils.hpp"
 #include "shared_test_classes/base/ov_subgraph.hpp"
-#include "test_utils/cpu_test_utils.hpp"
+#include "openvino/pass/serialize.hpp"
 
 using namespace ngraph;
 using namespace ov::test;
-using namespace CPUTestUtils;
 using namespace InferenceEngine;
 
-namespace SubgraphTestsDefinitions {
+namespace GPULayerTestsDefinitions {
 using BroadcastEltwiseParams = std::tuple<
     ElementType, // input precision
     InputShape,  // input shape
     ov::Shape    // target broadcast shape
 >;
 
-class BroadcastEltwise : virtual public SubgraphBaseTest,
-                      public CPUTestsBase,
-                      public testing::WithParamInterface<BroadcastEltwiseParams> {
+class BroadcastEltwise : virtual public SubgraphBaseTest, public testing::WithParamInterface<BroadcastEltwiseParams> {
 public:
     static std::string getTestCaseName(const testing::TestParamInfo<BroadcastEltwiseParams>& obj) {
         ElementType input_precision;
@@ -47,7 +44,7 @@ protected:
         ElementType input_precision;
         InputShape input_shape;
         std::tie(input_precision, input_shape, target_shape) = GetParam();
-        targetDevice = CommonTestUtils::DEVICE_CPU;
+        targetDevice = CommonTestUtils::DEVICE_GPU;
 
         std::vector<InputShape> input_shapes{input_shape, {{}, {{target_shape.size()}}}};
         init_input_shapes(input_shapes);
@@ -74,41 +71,24 @@ protected:
         inputs.insert({funcInputs[1].get_node_shared_ptr(), shape_tensor});
     }
 
-    void CheckLastNode(const ov::CompiledModel& execNet) {
-        const auto model = execNet.get_runtime_model();
-        const auto last_node = model->get_result()->get_input_node_shared_ptr(0);
-        const auto& rt_info = last_node->get_rt_info();
-        const auto layer_type = rt_info.find("layerType")->second.as<std::string>();
-        EXPECT_EQ(layer_type, "Broadcast");
-
-        const bool data_shape_exceeds_target = [&]() {
-            const auto& in_data_shape = model->get_parameters()[0]->get_output_shape(0);
-            if (in_data_shape.size() < target_shape.size()) {
-                return false;
-            }
-            auto bcasted_target = target_shape;
-            bcasted_target.insert(bcasted_target.begin(), in_data_shape.size() - bcasted_target.size(), 1);
-            for (size_t i = 0; i < in_data_shape.size(); ++i) {
-                if (in_data_shape[i] < bcasted_target[i]) {
-                    return false;
-                }
-            }
-            return true;
-        }();
-
-        // If data shape exceeds original target shape, Broadcast must have equal input and output shapes after transition
-        if (data_shape_exceeds_target) {
-            EXPECT_EQ(last_node->get_input_shape(0), last_node->get_output_shape(0));
-        }
-    }
-
-private:
     ov::Shape target_shape;
 };
 
 TEST_P(BroadcastEltwise, smoke_CompareWithRefs) {
     run();
-    CheckLastNode(compiledModel);
+
+    const auto model = compiledModel.get_runtime_model();
+
+    const auto last_node = model->get_result()->get_input_node_shared_ptr(0);
+    const auto& last_rt_info = last_node->get_rt_info();
+    const auto last_layer_type = last_rt_info.find("layerType")->second.as<std::string>();
+    EXPECT_EQ(last_layer_type, "Reorder");
+
+    // Check that BroadcastTransition transformation was applied and broadcast is after eltwise now.
+    const auto last_node_input = last_node->get_input_node_shared_ptr(0);
+    const auto& last_input_rt_info = last_node_input->get_rt_info();
+    const auto last_input_layer_type = last_input_rt_info.find("layerType")->second.as<std::string>();
+    EXPECT_EQ(last_input_layer_type, "broadcast");
 }
 
 namespace {
@@ -118,16 +98,15 @@ const std::vector<InputShape> input_shapes = {
 };
 
 const std::vector<ov::Shape> target_shapes = {
-    {1, 3, 16, 16},
     {1, 3, 16, 1},
     {16, 16},
 };
 
 INSTANTIATE_TEST_SUITE_P(smoke_BroadcastEltwise,
                          BroadcastEltwise,
-                         ::testing::Combine(::testing::Values(ov::element::f32),
+                         ::testing::Combine(::testing::Values(ov::element::f16),
                                             ::testing::ValuesIn(input_shapes),
                                             ::testing::ValuesIn(target_shapes)),
                          BroadcastEltwise::getTestCaseName);
 } // namespace
-} // namespace SubgraphTestsDefinitions
+} // namespace GPULayerTestsDefinitions
