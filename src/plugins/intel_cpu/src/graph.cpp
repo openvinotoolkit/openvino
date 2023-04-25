@@ -204,24 +204,7 @@ void Graph::Replicate(const CNNNetwork &network) {
 
     this->_name = network.getName();
 
-    std::shared_ptr<const ov::Model> func = nullptr;
-    // we perform model cloning and reshaping on Replicate stage to preserve input/output information
-    // it help to perform a graph compilation like in static case
-    // and handle dynamic batch case in inference stage with minimal code changes
-    if (getConfig().isNewApi && getConfig().batchLimit > 0) {
-        auto upperBoundModel = ngraph::clone_function(*network.getFunction());
-        std::map<ov::Output<ov::Node>, ov::PartialShape> newInShape;
-        for (const auto& in : upperBoundModel->get_parameters()) {
-            auto newShape = in->get_output_partial_shape(0);
-            newShape[0] = getConfig().batchLimit;
-            newInShape[in] = newShape;
-        }
-        upperBoundModel->reshape(newInShape);
-
-        func = upperBoundModel;
-    } else {
-        func = network.getFunction();
-    }
+    std::shared_ptr<const ov::Model> func = network.getFunction();
 
     if (!func) {
         IE_THROW() << "Function pointer inside CNNNetwork is nullptr";
@@ -911,19 +894,7 @@ void Graph::PushInputData(const std::string& name, const InferenceEngine::Blob::
             Memory ext_mem(getEngine());
             ext_mem.Create(ext_tdesc, ext_data_ptr, false);
 
-            // branch for handling dynamic batch feature in new API
-            if (getConfig().isNewApi && getConfig().batchLimit > 0 && ext_mem.getStaticDims()[0] != childEdge->getMemory().getStaticDims()[0]) {
-                auto newDims = childEdge->getMemory().getStaticDims();
-                newDims[0] = ext_mem.getStaticDims()[0];
-
-                Memory tmpMem(getEngine());
-                auto newDesc = childEdge->getMemory().getDesc().cloneWithNewDims(newDims, true);
-                tmpMem.Create(newDesc, childEdge->getMemory().GetData(), false);
-
-                tmpMem.SetData(ext_mem, false);
-            } else {
-                childEdge->getMemory().SetData(ext_mem, false);
-            }
+            childEdge->getMemory().SetData(ext_mem, false);
         }
 
         // todo: make sure 'name' exists in this map...
@@ -979,9 +950,6 @@ void Graph::PullOutputData(BlobMap &out) {
             if (expectedDesc.getLayout() == InferenceEngine::Layout::BLOCKED) {
                 expectedDesc = TensorDesc(expectedDesc.getPrecision(), expectedDesc.getLayout());
             }
-            if (getConfig().isNewApi && getConfig().batchLimit > 0) {
-                outDims[0] = node->batchToProcess();
-            }
             out[name]->setShape(outDims);
         }
 
@@ -993,7 +961,7 @@ void Graph::PullOutputData(BlobMap &out) {
         auto srcPrec = actualDesc.getPrecision();
         auto dstPrec = expectedDesc.getPrecision();
 
-        if ((getConfig().isNewApi && !getConfig().batchLimit) && srcPrec == dstPrec && ext_blob->byteSize() != intr_blob.GetSize())
+        if (getConfig().isNewApi && srcPrec == dstPrec && ext_blob->byteSize() != intr_blob.GetSize())
                 IE_THROW() << "Output blob byte size is not equal network output byte size ("
                                    << ext_blob->byteSize() << "!=" << intr_blob.GetSize() << ").";
 
@@ -1012,29 +980,16 @@ void Graph::PullOutputData(BlobMap &out) {
             Memory outBloMem(getEngine());
             outBloMem.Create(outBlobDesc, ext_blob_ptr, false);
 
-            // branch for handling dynamic batch feature in new API
-            if (getConfig().isNewApi && getConfig().batchLimit > 0 && outBloMem.getStaticDims()[0] != intr_blob.getStaticDims()[0]) {
-                auto newDims = intr_blob.getStaticDims();
-                newDims[0] = outBloMem.getStaticDims()[0];
-
-                Memory tmpMem(getEngine());
-                auto newDesc = intr_blob.getDesc().cloneWithNewDims(newDims, true);
-                tmpMem.Create(newDesc, intr_blob.GetData(), false);
-
-                outBloMem.SetData(tmpMem, false);
-            } else {
-                outBloMem.SetData(intr_blob, false);
-            }
+            outBloMem.SetData(intr_blob, false);
         } else {
             size_t size_to_copy = intr_blob.GetDescWithType<BlockedMemoryDesc>()->getPaddedElementsCount();
-            // TODO: Should we support InferenceEngine::PluginConfigParams::KEY_DYN_BATCH_LIMIT???
-            // TODO [DS]: phase 2: should we support this behaviour? Looks obsolete in the dynamic shapes paradigm
-            if (getConfig().batchLimit) {
+            // used only for backward compatibility with the legacy API
+            if (getConfig().batchLimit && dynBatch > 0) {
                 if (node->isDynamicNode() && !getConfig().isNewApi) {
                     IE_THROW(NotImplemented) << "[DS] not implemented dynamic batch for node with dynamic shape";
                 }
-                int MB_to_process = node->batchToProcess();
-                size_to_copy = std::accumulate(outDims.begin() + 1, outDims.end(), (size_t)1, std::multiplies<size_t>()) * MB_to_process;
+
+                size_to_copy = std::accumulate(outDims.begin() + 1, outDims.end(), (size_t)1, std::multiplies<size_t>()) * static_cast<size_t>(dynBatch);
             }
 
             cpu_convert(intr_blob_ptr, ext_blob_ptr, srcPrec, dstPrec, size_to_copy);

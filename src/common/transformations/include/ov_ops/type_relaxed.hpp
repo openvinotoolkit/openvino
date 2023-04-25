@@ -232,7 +232,6 @@ public:
     bool visit_attributes(AttributeVisitor& visitor) override;
 
 private:
-    mutable std::mutex type_relax_mutex;
     void init() {
         validate_and_infer_types();
     }
@@ -351,14 +350,28 @@ void TypeRelaxed<BaseOp>::validate_and_infer_types() {
 
 template <typename BaseOp>
 std::shared_ptr<Node> TypeRelaxed<BaseOp>::clone_with_new_inputs(const OutputVector& new_args) const {
-    std::lock_guard<std::mutex> lock(type_relax_mutex);
-    // copy then modify inputs
+    // thread safety: we protect inputs source output objects -- clone original op with fake parameters
+    OutputVector fake_new_inputs;
+    for (size_t i = 0; i < BaseOp::get_input_size(); ++i) {
+        auto origin_input_type = get_origin_input_type(i);
+        if (origin_input_type == element::undefined)
+            origin_input_type = BaseOp::get_input_element_type(i);
+        fake_new_inputs.push_back(
+            std::make_shared<v0::Parameter>(origin_input_type, BaseOp::get_input_partial_shape(i)));
+    }
+    auto base_op = BaseOp::clone_with_new_inputs(fake_new_inputs);
+    // since originally TypeRelaxed was copying everything from the original node, we continue doing the same
+    auto curr_base_op = BaseOp::shared_from_this();
+    base_op->add_node_control_dependents(curr_base_op);
+    base_op->add_node_control_dependencies(curr_base_op);
+    base_op->set_friendly_name(BaseOp::get_friendly_name());
+    base_op->get_rt_info() = {curr_base_op->get_rt_info()};
+
     std::shared_ptr<Node> new_node =
-        std::make_shared<TypeRelaxed<BaseOp>>((BaseOp&)(*this), m_input_data_types, m_output_data_types);
+        std::make_shared<TypeRelaxed<BaseOp>>((BaseOp&)(*base_op), m_input_data_types, m_output_data_types);
     for (size_t i = 0; i < new_node->get_input_size(); ++i) {
         new_node->input(i).replace_source_output(new_args[i]);
     }
-
     new_node->validate_and_infer_types();
     return new_node;
 }

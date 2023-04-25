@@ -106,8 +106,7 @@ void GridSample::initSupportedPrimitiveDescriptors() {
     addSupportedPrimDesc({{LayoutType::ncsp, dataPrecision},
                           {LayoutType::ncsp, gridPrecision}},
                          {{LayoutType::ncsp, dataPrecision}},
-                         implType,
-                         isDynamicNode());
+                         implType);
 }
 
 void GridSample::createPrimitive() {
