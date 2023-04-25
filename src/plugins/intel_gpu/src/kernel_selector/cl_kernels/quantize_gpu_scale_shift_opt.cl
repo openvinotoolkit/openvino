@@ -53,6 +53,27 @@ KERNEL(quantize_gpu_scale_shift_opt)(const __global INPUT0_TYPE* input,
     const int w = wzyx_div_xy / OUTPUT_SIZE_Z;
 
     const int output_offset = OUTPUT_GET_INDEX(b, of, w, z, y, x);
+#elif OUTPUT_DIMS == 7
+    const int uwzyx = get_global_id(GWS_YX);
+
+    const int x = uwzyx % OUTPUT_SIZE_X;
+    const int y = uwzyx / OUTPUT_SIZE_X % OUTPUT_SIZE_Y;
+    const int z = uwzyx / OUTPUT_SIZE_X / OUTPUT_SIZE_Y % OUTPUT_SIZE_Z;
+    const int w = uwzyx / OUTPUT_SIZE_X / OUTPUT_SIZE_Y / OUTPUT_SIZE_Z % OUTPUT_SIZE_W;
+    const int u = uwzyx / OUTPUT_SIZE_X / OUTPUT_SIZE_Y / OUTPUT_SIZE_Z / OUTPUT_SIZE_W;
+
+    const int output_offset = OUTPUT_GET_INDEX(b, of, u, w, z, y, x);
+#elif OUTPUT_DIMS == 8
+    const int vuwzyx = get_global_id(GWS_YX);
+
+    const int x = vuwzyx % OUTPUT_SIZE_X;
+    const int y = vuwzyx / OUTPUT_SIZE_X % OUTPUT_SIZE_Y;
+    const int z = vuwzyx / OUTPUT_SIZE_X / OUTPUT_SIZE_Y % OUTPUT_SIZE_Z;
+    const int w = vuwzyx / OUTPUT_SIZE_X / OUTPUT_SIZE_Y / OUTPUT_SIZE_Z % OUTPUT_SIZE_W;
+    const int u = vuwzyx / OUTPUT_SIZE_X / OUTPUT_SIZE_Y / OUTPUT_SIZE_Z / OUTPUT_SIZE_W % OUTPUT_SIZE_U;
+    const int v = vuwzyx / OUTPUT_SIZE_X / OUTPUT_SIZE_Y / OUTPUT_SIZE_Z / OUTPUT_SIZE_W / OUTPUT_SIZE_U;
+
+    const int output_offset = OUTPUT_GET_INDEX(b, of, v, u, w, z, y, x);
 #else
 #   error quantize_gpu_scale_shift_opt.cl: output tensors with more than 6 dimensions are unsupported
 #endif
@@ -63,6 +84,10 @@ KERNEL(quantize_gpu_scale_shift_opt)(const __global INPUT0_TYPE* input,
     const int input_offset = INPUT0_GET_INDEX(b, of, z, y, x);
 #elif INPUT0_DIMS == 6
     const int input_offset = INPUT0_GET_INDEX(b, of, w, z, y, x);
+#elif INPUT0_DIMS == 7
+    const int input_offset = INPUT0_GET_INDEX(b, of, u, w, z, y, x);
+#elif INPUT0_DIMS == 8
+    const int input_offset = INPUT0_GET_INDEX(b, of, v, u, w, z, y, x);
 #else
 #   error quantize_gpu_scale_shift_opt.cl: input tensors with more than 6 dimensions are unsupported
 #endif
@@ -74,6 +99,10 @@ KERNEL(quantize_gpu_scale_shift_opt)(const __global INPUT0_TYPE* input,
     const int in_range_offset = INPUT1_GET_INDEX_SAFE(b, of, z, y, x);
 #elif INPUT1_DIMS == 6
     const int in_range_offset = INPUT1_GET_INDEX_SAFE(b, of, w, z, y, x);
+#elif INPUT1_DIMS == 7
+    const int in_range_offset = INPUT1_GET_INDEX_SAFE(b, of, u, w, z, y, x);
+#elif INPUT1_DIMS == 8
+    const int in_range_offset = INPUT1_GET_INDEX_SAFE(b, of, v, u, w, z, y, x);
 #else
 #   error quantize_gpu_scale_shift_opt.cl: unsupported INPUT1_DIMS size
 #endif
@@ -85,6 +114,10 @@ KERNEL(quantize_gpu_scale_shift_opt)(const __global INPUT0_TYPE* input,
     const int scales_offset = INPUT7_GET_INDEX_SAFE(b, of, z, y, x);
 #elif INPUT7_DIMS == 6
     const int scales_offset = INPUT7_GET_INDEX_SAFE(b, of, w, z, y, x);
+#elif INPUT7_DIMS == 7
+    const int scales_offset = INPUT7_GET_INDEX_SAFE(b, of, u, w, z, y, x);
+#elif INPUT7_DIMS == 8
+    const int scales_offset = INPUT7_GET_INDEX_SAFE(b, of, v, u, w, z, y, x);
 #else
 #   error quantize_gpu_scale_shift_opt.cl: unsupported INPUT7_DIMS size
 #endif

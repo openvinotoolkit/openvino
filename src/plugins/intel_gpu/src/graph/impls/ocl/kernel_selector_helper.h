@@ -147,14 +147,15 @@ inline params_t get_default_params(const kernel_impl_params& param_info, bool is
             OPENVINO_ASSERT(desc.op_params != nullptr, "[GPU] Invalid fused operation (", param_info.desc->id , ") of type ", param_info.desc->type_string());
 
 
-            desc.dep_idx_start = fused_prim.dep_start_idx;
+            desc.dep_idx_start = fused_prim.outer_dep_start_idx;
             desc.dep_size = fused_prim.deps.size();
             desc.op_id = op_id++;
             desc.output_tensor = convert_data_tensor(fused_prim.output_layout);
             prim_id_type_map[fused_prim.desc->id] = std::make_pair(desc.op_id, desc.output_tensor.GetDType());
-
-            for (size_t i = desc.dep_idx_start; i < desc.dep_idx_start + desc.dep_size; i++) {
-                desc.tensors.push_back(convert_data_tensor(param_info.get_input_layout(i)));
+            if (fused_prim.has_outer_dep()) {
+                for (size_t i = desc.dep_idx_start; i < desc.dep_idx_start + desc.dep_size; i++) {
+                    desc.tensors.push_back(convert_data_tensor(param_info.get_input_layout(i)));
+                }
             }
 
             if (fused_prim.total_num_deps > 0) {
@@ -309,35 +310,35 @@ inline ov::PartialShape extend_shape_to_rank_from_begin(ov::PartialShape pshape,
     return extended_pshape;
 }
 
+inline bool broadcastable(const ov::PartialShape& first_pshape, const ov::PartialShape& second_pshape, bool use_new_shape_infer) {
+    if (first_pshape.is_dynamic() || second_pshape.is_dynamic()) {
+        return false;
+    }
+    if (first_pshape.size() != second_pshape.size() && use_new_shape_infer) {
+        return false;
+    }
+    size_t min_size = std::min(first_pshape.size(), second_pshape.size());
+
+    for (size_t i = 0; i < min_size; ++i) {
+        if (!(first_pshape[i] == 1 || second_pshape[i] == 1 || first_pshape[i] == second_pshape[i])) {
+            return false;
+        }
+    }
+    return true;
+}
+
 inline kernel_impl_params canonicalize_fused_shapes(const kernel_impl_params& impl_params) {
     auto updated_impl_params = impl_params;
     bool use_new_shape_infer = impl_params.prog->get_config().get_property(ov::intel_gpu::allow_new_shape_infer);
-
-    auto broadcastable = [use_new_shape_infer](const ov::PartialShape& first_pshape, const ov::PartialShape& second_pshape) {
-        if (first_pshape.is_dynamic() || second_pshape.is_dynamic()) {
-            return false;
-        }
-        if (first_pshape.size() != second_pshape.size() && use_new_shape_infer) {
-            return false;
-        }
-        size_t min_size = std::min(first_pshape.size(), second_pshape.size());
-
-        for (size_t i = 0; i < min_size; ++i) {
-            if (!(first_pshape[i] == 1 || second_pshape[i] == 1 || first_pshape[i] == second_pshape[i])) {
-                return false;
-            }
-        }
-        return true;
-    };
 
     for (auto& fd : updated_impl_params.fused_desc) {
         if (fd.is_type<eltwise>() && fd.total_num_deps == 2) {
             auto out_pshape = updated_impl_params.output_layouts[0].get_partial_shape();
 
-            auto& dep_layout = updated_impl_params.input_layouts[fd.dep_start_idx];
+            auto& dep_layout = updated_impl_params.input_layouts[fd.outer_dep_start_idx];
             auto dep_shape = dep_layout.get_partial_shape();
 
-            if (!broadcastable(dep_shape, out_pshape)) {
+            if (!broadcastable(dep_shape, out_pshape, use_new_shape_infer)) {
                 dep_layout.set_partial_shape(extend_shape_to_rank_from_begin(dep_shape, out_pshape.size()));
             }
         }

@@ -20,7 +20,6 @@
 #include "openvino/pass/manager.hpp"
 #include "openvino/util/common_util.hpp"
 #include "openvino/util/log.hpp"
-#include "pass/transpose_sinking.hpp"
 #include "so_extension.hpp"
 #include "tf_framework_node.hpp"
 #include "transformations/common_optimizations/reverse_shape_and_type_infer.hpp"
@@ -32,24 +31,35 @@ using namespace ov;
 using namespace ov::frontend::tensorflow;
 
 namespace {
-std::vector<std::string> get_unconverted_types_from_model(const std::shared_ptr<Model>& model) {
-    std::vector<std::string> unconverted_ops_types;
+
+void get_unsupported_operations_and_failures(const std::shared_ptr<Model>& model,
+                                             std::set<std::string>& unsupported_operations,
+                                             std::unordered_map<std::string, std::string>& failures) {
     for (const auto& node : model->get_ordered_ops()) {
         if (const auto& fw_node = ov::as_type_ptr<FrameworkNode>(node)) {
             auto op_type = fw_node->get_decoder()->get_op_type();
-            unconverted_ops_types.push_back(op_type);
+            // if this operation is encountered among unsupported operations
+            // or conversion failures, skip it
+            if (failures.count(op_type) > 0 || unsupported_operations.count(op_type) > 0) {
+                continue;
+            }
+            auto fw_node_attrs = fw_node->get_attrs();
+            if (fw_node_attrs.find(FrameworkNode::failed_conversion_key) != fw_node_attrs.end()) {
+                // save only the first encountered failure that is more improtant for developer
+                // that means the translator is found but the conversion is failed
+                failures[op_type] = fw_node_attrs.at(FrameworkNode::failed_conversion_key);
+            } else {
+                // found new unsupported operation
+                unsupported_operations.insert(op_type);
+            }
         }
         if (const auto& fw_node = ov::as_type_ptr<ov::op::util::MultiSubGraphOp>(node)) {
             int subgraphs_size = static_cast<int>(fw_node->get_internal_subgraphs_size());
             for (int i = 0; i < subgraphs_size; ++i) {
-                auto internal_types = get_unconverted_types_from_model(fw_node->get_function(i));
-                unconverted_ops_types.insert(unconverted_ops_types.begin(),
-                                             internal_types.begin(),
-                                             internal_types.end());
+                get_unsupported_operations_and_failures(fw_node->get_function(i), unsupported_operations, failures);
             }
         }
     }
-    return unconverted_ops_types;
 }
 
 void translate_framework_node(const std::shared_ptr<FrameworkNode>& node,
@@ -69,7 +79,7 @@ void translate_framework_node(const std::shared_ptr<FrameworkNode>& node,
     auto old_output = old_outputs.begin();
 
     for (; new_output != new_node_outputs.end() && old_output != old_outputs.end(); ++old_output, ++new_output) {
-        old_output->replace(*new_output);
+        old_output->replace(new_output->port);
     }
 }
 }  // namespace
@@ -195,15 +205,38 @@ ov::frontend::InputModel::Ptr FrontEnd::load_impl(const std::vector<ov::Any>& va
 std::shared_ptr<ov::Model> FrontEnd::convert(const ov::frontend::InputModel::Ptr& model) const {
     auto f = convert_partially(model);
 
-    auto unsupported_operations = get_unconverted_types_from_model(f);
+    std::unordered_map<std::string, std::string> failures;
+    std::set<std::string> unsupported_operations;
+    get_unsupported_operations_and_failures(f, unsupported_operations, failures);
+
+    std::stringstream exception_message;
+    for (const auto& failure : failures) {
+        if (m_telemetry) {
+            // TODO: 105173 support anonymization of exception message in order to send to telemetry
+        }
+        exception_message << "[TensorFlow Frontend] Internal error, conversion is failed for " + failure.first +
+                                 " operation with a message:\n" + failure.second + "\n";
+    }
+
     if (m_telemetry) {
         for (const auto& unsupported_operation : unsupported_operations) {
             m_telemetry->send_event("error_cause", "tf_" + unsupported_operation);
         }
     }
-    FRONT_END_OP_CONVERSION_CHECK(
-        unsupported_operations.size() == 0,
-        "[TensorFlow Frontend] Internal error: No translator found for " + unsupported_operations[0] + " node.");
+    if (unsupported_operations.size() > 0) {
+        exception_message << "[TensorFlow Frontend] Internal error, no translator found for operation(s): ";
+        size_t counter = 0;
+        for (const auto& unsupported_operation : unsupported_operations) {
+            if (counter > 0) {
+                exception_message << ", ";
+            }
+            exception_message << unsupported_operation;
+            ++counter;
+        }
+    }
+
+    bool is_conversion_successful = ((unsupported_operations.size() == 0) && (failures.size() == 0));
+    FRONT_END_OP_CONVERSION_CHECK(is_conversion_successful, exception_message.str());
 
     return f;
 }
@@ -278,31 +311,15 @@ void FrontEnd::convert(const std::shared_ptr<ov::Model>& partiallyConverted) con
 }
 
 void FrontEnd::normalize(const std::shared_ptr<ov::Model>& model) const {
-    {
-        // run transformations to convert sub-graphs with intermediate (or FrameworkNode) operations
-        // into sub-graphs with only OpenVINO operations
-        ov::pass::Manager manager;
-        manager.register_pass<pass::SavedModelUnusedRemover>();
-        manager.register_pass<pass::EmbeddingSegmentSingleFeatureFusion>();
-        manager.register_pass<pass::BlockLSTMReplacer>();
-        manager.register_pass<pass::GRUBlockCellReplacer>();
-        manager.register_pass<pass::ConstToResultRemover>();
-        manager.run_passes(model);
-    }
-
-    // TODO: TSGeneral can fail on models with Framework nodes (not converted to OV opset)
-    auto unsupported_ops = get_unconverted_types_from_model(model);
-    if (unsupported_ops.size() > 0) {
-        return;
-    }
-
-    {
-        // perform transpose sinking and reverse infer if the model contains only OpenVINO operations
-        ov::pass::Manager manager;
-        manager.register_pass<ov::pass::TransposeSinkingGeneral>();
-        manager.register_pass<ov::pass::ReverseShapeAndTypeInfer>();
-        manager.run_passes(model);
-    }
+    ov::pass::Manager manager;
+    manager.register_pass<pass::SavedModelUnusedRemover>();
+    manager.register_pass<pass::EmbeddingSegmentSingleFeatureFusion>();
+    manager.register_pass<pass::BlockLSTMReplacer>();
+    manager.register_pass<pass::GRUBlockCellReplacer>();
+    manager.register_pass<pass::ConstToResultRemover>();
+    manager.register_pass<ov::pass::TransposeSinkingGeneral>();
+    manager.register_pass<ov::pass::ReverseShapeAndTypeInfer>();
+    manager.run_passes(model);
 }
 
 void FrontEnd::add_extension(const std::shared_ptr<ov::Extension>& extension) {
@@ -315,13 +332,22 @@ void FrontEnd::add_extension(const std::shared_ptr<ov::Extension>& extension) {
         m_extensions.push_back(so_ext);
     } else if (auto common_conv_ext = std::dynamic_pointer_cast<ov::frontend::ConversionExtension>(extension)) {
         m_conversion_extensions.push_back(common_conv_ext);
-        m_op_translators[common_conv_ext->get_op_type()] = [=](const NodeContext& context) {
-            return common_conv_ext->get_converter()(context);
-        };
-    } else if (const auto& tensorflow_conv_ext = std::dynamic_pointer_cast<ConversionExtension>(extension)) {
+        if (common_conv_ext->get_converter()) {
+            m_op_translators[common_conv_ext->get_op_type()] =
+                ov::frontend::tensorflow::CreatorFunctionIndexed([=](const tensorflow::NodeContext& context) {
+                    return common_conv_ext->get_converter()(context);
+                });
+        } else if (common_conv_ext->get_converter_named_and_indexed()) {
+            m_op_translators[common_conv_ext->get_op_type()] =
+                ov::frontend::tensorflow::CreatorFunctionNamedAndIndexed([=](const tensorflow::NodeContext& context) {
+                    return common_conv_ext->get_converter_named_and_indexed()(context);
+                });
+        }
+        // Ignore other types of extensions in particular CreatorFunctionNamed which cannot be used with tensorflow
+        // frontend
+    } else if (const auto& tensorflow_conv_ext =
+                   std::dynamic_pointer_cast<ov::frontend::tensorflow::ConversionExtension>(extension)) {
         m_conversion_extensions.push_back(tensorflow_conv_ext);
-        m_op_translators[tensorflow_conv_ext->get_op_type()] = [=](const NodeContext& context) {
-            return tensorflow_conv_ext->get_converter()(context);
-        };
+        m_op_translators[tensorflow_conv_ext->get_op_type()] = tensorflow_conv_ext->get_converter();
     }
 }

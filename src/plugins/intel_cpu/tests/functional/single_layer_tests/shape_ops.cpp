@@ -17,7 +17,8 @@ namespace CPULayerTestsDefinitions {
 enum class shapeNodeType {
     Reshape,
     Squeeze,
-    Unsqueeze
+    Unsqueeze,
+    ReshapeWithNonZero
 };
 
 inline std::ostream& operator<<(std::ostream& os, shapeNodeType type) {
@@ -30,6 +31,9 @@ inline std::ostream& operator<<(std::ostream& os, shapeNodeType type) {
             break;
         case shapeNodeType::Unsqueeze:
             os << "Unsqueeze";
+            break;
+        case shapeNodeType::ReshapeWithNonZero:
+            os << "ReshapeWithNonZero";
             break;
     }
     return os;
@@ -91,6 +95,7 @@ protected:
         case ov::element::Type_t::INT_TYPE: { \
                     tensor = ov::runtime::Tensor{ov::element::INT_TYPE, targetInputStaticShapes[i]}; \
                     auto inputData = tensor.data<ov::element_type_traits<ov::element::INT_TYPE>::value_type>(); \
+                    ASSERT_TRUE(idx < data.size()); \
                     for (size_t j = 0lu; j < data[idx].size(); ++j) { \
                             inputData[j] =  data[idx][j]; \
                     } \
@@ -104,14 +109,24 @@ protected:
 #undef RESHAPE_TEST_CASE
                 }
             } else {
-                if (funcInput.get_element_type().is_real()) {
-                    tensor = utils::create_and_fill_tensor(
-                            funcInput.get_element_type(), targetInputStaticShapes[i], 10, 0, 1000);
+                if (isWithNonZero) {
+                    // fill tensor with all zero, so the NonZero op will create 0 shape as the input of reshape op
+                    tensor = utils::create_and_fill_tensor(funcInput.get_element_type(), targetInputStaticShapes[i], 1, 0);
                 } else {
-                    tensor = utils::create_and_fill_tensor(funcInput.get_element_type(), targetInputStaticShapes[i]);
+                    if (funcInput.get_element_type().is_real()) {
+                        tensor = utils::create_and_fill_tensor(
+                                funcInput.get_element_type(), targetInputStaticShapes[i], 10, 0, 1000);
+                    } else {
+                        tensor = utils::create_and_fill_tensor(funcInput.get_element_type(), targetInputStaticShapes[i]);
+                    }
                 }
             }
             inputs.insert({funcInput.get_node_shared_ptr(), tensor});
+        }
+        // next infer will use next output pattern
+        idx++;
+        if (idx >= data.size()) {
+            idx = data.size() - 1;
         }
     }
 
@@ -126,7 +141,14 @@ protected:
         bool specialZero;
         std::tie(inpDesc, secondType, nodeType, prc, secondInPrc, specialZero) = this->GetParam();
 
-        selectedType = std::string("unknown_") + prc.name();
+        if (nodeType == shapeNodeType::ReshapeWithNonZero) {
+            isWithNonZero = true;
+            // the input of nonZero is FP32, but the output of nonZero is i32,
+            // so the input of reshape is i32.
+            selectedType = std::string("unknown_I32");
+        } else {
+            selectedType = std::string("unknown_") + prc.name();
+        }
 
         data = inpDesc.data;
 
@@ -163,6 +185,11 @@ protected:
                 shapeOps = std::make_shared<ngraph::opset1::Unsqueeze>(dataInput, secondaryInput);
                 break;
             }
+            case shapeNodeType::ReshapeWithNonZero: {
+                auto nonZero = std::make_shared<ngraph::opset3::NonZero>(dataInput);
+                shapeOps = std::make_shared<ngraph::opset1::Reshape>(nonZero, secondaryInput, specialZero);
+                break;
+            }
         }
 
         function = makeNgraphFunction(ngPrc, inputs, shapeOps, "ShapeOpsCPUTest");
@@ -172,6 +199,7 @@ private:
     std::vector<std::vector<int>> data;
     size_t idx;
     element::Type_t secondInPrc;
+    bool isWithNonZero = false;
 };
 
 TEST_P(ShapeOpsCPUTest, CompareWithRefs) {
@@ -220,6 +248,22 @@ const auto params_dynBatch = ::testing::Combine(::testing::Values(shape_dynBatch
                                                 ::testing::Values(true));
 
 INSTANTIATE_TEST_SUITE_P(smoke_CompareWithRefs_dynBatch, ShapeOpsCPUTest, params_dynBatch, ShapeOpsCPUTest::getTestCaseName);
+
+// test cases about NonZero connect with reshape
+// the output shape of NonZero is {4. 0}
+// the output shapes of reshapes are {1, 0 ,4} {4, 0, 1} {2, 0, 2}
+inputDescription shape_NonZero{{{-1, -1, -1, -1},
+                                 {ngraph::Shape{4, 5, 7, 3}, ngraph::Shape{6, 3, 4, 8}, ngraph::Shape{2, 2, 3, 9}}},
+                                 {std::vector<int>{-1, 0, 4}, std::vector<int>{0, 0, -1}, std::vector<int>{2, 0, 2}}};
+
+const auto params_NonZero = ::testing::Combine(::testing::Values(shape_NonZero),
+                                                ::testing::Values(ngraph::helpers::InputLayerType::PARAMETER),
+                                                ::testing::Values(shapeNodeType::ReshapeWithNonZero),
+                                                ::testing::Values(Precision::FP32),
+                                                ::testing::ValuesIn(secondInPrcs),
+                                                ::testing::Values(true));
+
+INSTANTIATE_TEST_SUITE_P(smoke_CompareWithRefs_NonZero, ShapeOpsCPUTest, params_NonZero, ShapeOpsCPUTest::getTestCaseName);
 
 } // namespace reshapeTest
 

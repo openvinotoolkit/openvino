@@ -99,7 +99,6 @@ public:
     size_t get_virtual_port_count() const { return m_virtual_port_count; }
     bool is_buffer_needed() const { return m_buffer_needed; }
     bool is_quantized() const { return config.m_is_quantized; }
-    bool has_type_relaxed_ops() const { return config.m_has_type_relaxed_ops; }
     bool has_domain_sensitive_ops() const { return config.m_has_domain_sensitive_ops; }
     snippets::Schedule generate(const BlockedShapeVector& output_shapes,
                                 const BlockedShapeVector& input_shapes,
@@ -157,9 +156,6 @@ private:
     Shape exec_domain = {};
     std::shared_ptr<ngraph::snippets::Generator> m_generator = nullptr;
 
-    // TODO: Change logic of insert Converts. This exec element type can be different for plugins
-    const ov::element::Type execution_element_type = ov::element::f32;
-
     ov::PartialShape master_shape;
     size_t tileRank = 0; // set by plugin to specify the number of dimensions processed in a single kernel call
 
@@ -172,9 +168,6 @@ private:
     public:
         // True if Subgraph contains FakeQuantize -> FQ decomposition should be called
         bool m_is_quantized = false;
-        // True if Subgraph contains TypeRelaxed nodes -> for several streams in tp mode we should copy body using mutexes
-        // because TypeRelaxed::copy_with_new_inputs() isn't save-thread method
-        bool m_has_type_relaxed_ops = false;
         // True if body has operations that don't support plugin-side domain optimizations
         // (e.g. Transpose, Softmax, MatMul in general doesn't support dimensions collapsing)
         bool m_has_domain_sensitive_ops = false;

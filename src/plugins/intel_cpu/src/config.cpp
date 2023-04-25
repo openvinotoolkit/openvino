@@ -28,24 +28,28 @@ using namespace dnnl::impl::cpu::x64;
 
 Config::Config() {
     // this is default mode
+#if defined(__APPLE__) || defined(_WIN32)
+    streamExecutorConfig._threadBindingType = InferenceEngine::IStreamsExecutor::NONE;
+#else
     streamExecutorConfig._threadBindingType = InferenceEngine::IStreamsExecutor::CORES;
+#endif
 
-    // for the TBB code-path, additional configuration depending on the OS and CPU types
-    #if (IE_THREAD == IE_THREAD_TBB || IE_THREAD == IE_THREAD_TBB_AUTO)
-        #if defined(__APPLE__) || defined(_WIN32)
-        // 'CORES' is not implemented for Win/MacOS; so the 'NONE' or 'NUMA' is default
-        auto numaNodes = getAvailableNUMANodes();
-        if (numaNodes.size() > 1) {
-            streamExecutorConfig._threadBindingType = InferenceEngine::IStreamsExecutor::NUMA;
-        } else {
-            streamExecutorConfig._threadBindingType = InferenceEngine::IStreamsExecutor::NONE;
-        }
-        #endif
+// for the TBB code-path, additional configuration depending on the OS and CPU types
+#if (IE_THREAD == IE_THREAD_TBB || IE_THREAD == IE_THREAD_TBB_AUTO)
+#    if defined(__APPLE__) || defined(_WIN32)
+    // 'CORES' is not implemented for Win/MacOS; so the 'NONE' or 'NUMA' is default
+    auto numaNodes = getAvailableNUMANodes();
+    if (numaNodes.size() > 1) {
+        streamExecutorConfig._threadBindingType = InferenceEngine::IStreamsExecutor::NUMA;
+    } else {
+        streamExecutorConfig._threadBindingType = InferenceEngine::IStreamsExecutor::NONE;
+    }
+#    endif
 
-        if (getAvailableCoresTypes().size() > 1 /*Hybrid CPU*/) {
-            streamExecutorConfig._threadBindingType = InferenceEngine::IStreamsExecutor::HYBRID_AWARE;
-        }
-    #endif
+    if (getAvailableCoresTypes().size() > 1 /*Hybrid CPU*/) {
+        streamExecutorConfig._threadBindingType = InferenceEngine::IStreamsExecutor::HYBRID_AWARE;
+    }
+#endif
 
     if (!mayiuse(avx512_core_bf16))
         enforceBF16 = false;
@@ -74,11 +78,23 @@ void Config::readProperties(const std::map<std::string, std::string> &prop) {
     for (const auto& kvp : prop) {
         const auto& key = kvp.first;
         const auto& val = kvp.second;
+        IE_SUPPRESS_DEPRECATED_START
         if (streamExecutorConfigKeys.end() !=
             std::find(std::begin(streamExecutorConfigKeys), std::end(streamExecutorConfigKeys), key)) {
             streamExecutorConfig.SetConfig(key, val);
         } else if (hintsConfigKeys.end() != std::find(hintsConfigKeys.begin(), hintsConfigKeys.end(), key)) {
             perfHintsConfig.SetConfig(key, val);
+        } else if (key == ov::hint::enable_cpu_pinning.name()) {
+            if (val == PluginConfigParams::YES) {
+                enableCpuPinning = true;
+                changedCpuPinning = true;
+            } else if (val == PluginConfigParams::NO) {
+                enableCpuPinning = false;
+                changedCpuPinning = true;
+            } else {
+                IE_THROW() << "Wrong value " << val << "for property key " << ov::hint::enable_cpu_pinning.name()
+                           << ". Expected only true/false." << std::endl;
+            }
         } else if (key == ov::hint::scheduling_core_type.name()) {
             const auto core_type = ov::util::from_string(val, ov::hint::scheduling_core_type);
             if (core_type == ov::hint::SchedulingCoreType::ANY_CORE ||
@@ -91,15 +107,15 @@ void Config::readProperties(const std::map<std::string, std::string> &prop) {
                            << ov::hint::SchedulingCoreType::PCORE_ONLY << "/"
                            << ov::hint::SchedulingCoreType::ECORE_ONLY << std::endl;
             }
-        } else if (key == ov::hint::use_hyper_threading.name()) {
+        } else if (key == ov::hint::enable_hyper_threading.name()) {
             if (val == PluginConfigParams::YES) {
-                useHyperThreading = true;
+                enableHyperThreading = true;
                 changedHyperThreading = true;
             } else if (val == PluginConfigParams::NO) {
-                useHyperThreading = false;
+                enableHyperThreading = false;
                 changedHyperThreading = true;
             } else {
-                IE_THROW() << "Wrong value " << val << "for property key " << ov::hint::use_hyper_threading.name()
+                IE_THROW() << "Wrong value " << val << "for property key " << ov::hint::enable_hyper_threading.name()
                            << ". Expected only true/false." << std::endl;
             }
         } else if (key == PluginConfigParams::KEY_DYN_BATCH_LIMIT) {
@@ -235,6 +251,7 @@ void Config::readProperties(const std::map<std::string, std::string> &prop) {
         } else {
             IE_THROW(NotFound) << "Unsupported property " << key << " by CPU plugin";
         }
+        IE_SUPPRESS_DEPRECATED_END
     }
     // apply execution mode after all the params are handled to prevent possible conflicts
     // when both execution_mode and inference_precision are specified
@@ -249,8 +266,15 @@ void Config::readProperties(const std::map<std::string, std::string> &prop) {
     if (!prop.empty())
         _config.clear();
 
-    if (exclusiveAsyncRequests)  // Exclusive request feature disables the streams
+    if (exclusiveAsyncRequests) { // Exclusive request feature disables the streams
         streamExecutorConfig._streams = 1;
+        streamExecutorConfig._streams_changed = true;
+    }
+
+#if defined(OPENVINO_ARCH_ARM) || defined(OPENVINO_ARCH_ARM64)
+    // TODO: multi-stream execution has functional issues on ARM target
+    streamExecutorConfig._streams = 1;
+#endif
 
     CPU_DEBUG_CAP_ENABLE(applyDebugCapsProperties());
     updateProperties();
@@ -282,12 +306,14 @@ void Config::updateProperties() {
         _config.insert({ PluginConfigParams::KEY_EXCLUSIVE_ASYNC_REQUESTS, PluginConfigParams::YES });
     else
         _config.insert({ PluginConfigParams::KEY_EXCLUSIVE_ASYNC_REQUESTS, PluginConfigParams::NO });
+    IE_SUPPRESS_DEPRECATED_START
     if (enableDynamicBatch == true)
         _config.insert({ PluginConfigParams::KEY_DYN_BATCH_ENABLED, PluginConfigParams::YES });
     else
         _config.insert({ PluginConfigParams::KEY_DYN_BATCH_ENABLED, PluginConfigParams::NO });
 
     _config.insert({ PluginConfigParams::KEY_DYN_BATCH_LIMIT, std::to_string(batchLimit) });
+    IE_SUPPRESS_DEPRECATED_END
 
     _config.insert({ PluginConfigParams::KEY_CPU_THROUGHPUT_STREAMS, std::to_string(streamExecutorConfig._streams) });
 

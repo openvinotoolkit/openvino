@@ -58,6 +58,14 @@ static void CreateResultOp(Program& p, const std::shared_ptr<ngraph::op::v0::Res
         outputlayout != SCALAR) {
         IE_THROW() << "Unsupported layout (" << outputlayout << ") in output: " << originalOutName;
     }
+    auto out_rank = op->get_output_partial_shape(0).size();
+    auto out_format = cldnn::format::get_default_format(out_rank);
+    std::vector<size_t> default_order(out_rank);
+    std::iota(default_order.begin(), default_order.end(), 0);
+    // For legacy API we need to handle NHWC as well, so check non default order
+    if (outputlayout == NHWC) {
+        out_format = FormatFromLayout(outputlayout);
+    }
 
     auto outLayerName = layer_type_name_ID(op);
     Precision precision = outputData->getPrecision();
@@ -69,14 +77,14 @@ static void CreateResultOp(Program& p, const std::shared_ptr<ngraph::op::v0::Res
         && !ngraph::is_type<ngraph::op::v1::VariadicSplit>(prev)) {
         auto reorder_primitive = cldnn::reorder(outLayerName,
                                                 outputID,
-                                                FormatFromLayout(outputlayout),
+                                                out_format,
                                                 DataTypeFromPrecision(precision));
         p.add_primitive(*op, reorder_primitive, {originalOutName});
 
     } else {
         auto reorder_primitive = cldnn::reorder(outLayerName,
                                                 outputID,
-                                                FormatFromLayout(outputlayout),
+                                                out_format,
                                                 DataTypeFromPrecision(precision));
         p.add_primitive(*op, reorder_primitive, {originalOutName});
     }
