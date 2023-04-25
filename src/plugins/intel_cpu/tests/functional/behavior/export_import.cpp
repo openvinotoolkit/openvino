@@ -15,7 +15,7 @@
 
 namespace {
 
-class ExportImportTest : public CommonTestUtils::TestsCommon {};
+class ExportOptimalNumStreams : public ::testing::TestWithParam<std::string> {};
 
 std::shared_ptr<ov::Model> MakeMatMulModel() {
     const ov::Shape input_shape = {1, 4096};
@@ -33,9 +33,9 @@ std::shared_ptr<ov::Model> MakeMatMulModel() {
     return std::make_shared<ov::Model>(results, params, "MatMulModel");
 }
 
-TEST(ExportImportTest, ExportOptimalNumStreams) {
+TEST_P(ExportOptimalNumStreams, OptimalNumStreams) {
     auto original_model = MakeMatMulModel();
-    std::string deviceName = "CPU";
+    std::string deviceName = GetParam();
     ov::Core core;
     auto tput_mode = ov::hint::performance_mode(ov::hint::PerformanceMode::THROUGHPUT);
     auto latency_mode = ov::hint::performance_mode(ov::hint::PerformanceMode::LATENCY);
@@ -62,4 +62,7 @@ TEST(ExportImportTest, ExportOptimalNumStreams) {
         EXPECT_EQ(nstreams_latency_original, nstreams_latency_imported);
     }
 }
+
+INSTANTIATE_TEST_CASE_P(smoke_ExportImportTest, ExportOptimalNumStreams, ::testing::Values(std::string("CPU")));
+
 }  // namespace
