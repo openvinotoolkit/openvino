@@ -326,7 +326,7 @@ bool AclEltwiseExecutor::init(const EltwiseAttrs &eltwiseAttrs, const std::vecto
             break;
         case Algorithm::EltwiseSwish:
             if (!NEActivationLayer::validate(&srcTensorsInfo[0], &dstTensorsInfo[0],
-                                             {ActivationLayerInfo::ActivationFunction::SWISH, aclEltwiseAttrs.beta}))
+                                             {ActivationLayerInfo::ActivationFunction::SWISH, aclEltwiseAttrs.alpha}))
                 return false;
             exec_func = [this]{
                 auto acl_op = std::make_unique<NEActivationLayer>();
