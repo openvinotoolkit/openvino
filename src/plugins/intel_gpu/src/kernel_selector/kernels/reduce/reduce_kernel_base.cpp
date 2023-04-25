@@ -30,7 +30,15 @@ JitConstants ReduceKernelBase::GetJitConstants(const reduce_params& params) cons
 
     const auto& output = params.outputs[0];
     if (output.is_dynamic()) {
-        size_t output_tensor_offset = 1 + GetFusedPrimitiveInputsCount(params);
+        size_t output_tensor_offset = params.inputs[0].is_dynamic() ? 1 : 0;
+        for (size_t i = 0; i < params.fused_ops.size(); i++) {
+            auto& fused_op_inputs = params.fused_ops[i].tensors;
+
+            for (auto& t : fused_op_inputs) {
+                if (t.is_dynamic())
+                    output_tensor_offset++;
+            }
+        }
         DimensionAccessHelper dims(output, output_tensor_offset);
         jit.AddConstant(MakeJitConstant("COMPUTATIONAL_OPERATIONS_NUMBER", toVectorMulString({dims.x,
                                                                                               dims.y,
