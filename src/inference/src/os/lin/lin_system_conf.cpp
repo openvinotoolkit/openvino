@@ -106,7 +106,7 @@ CPU::CPU() {
             }
 
             if (_proc_type_table.size() > 1) {
-                int n = 0;
+                long unsigned int n = 0;
 
                 while (n < _proc_type_table.size()) {
                     if (0 == _proc_type_table[n][ALL_PROC]) {
