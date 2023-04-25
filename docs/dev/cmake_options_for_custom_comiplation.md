@@ -194,6 +194,6 @@ In this case OpenVINO CMake scripts take `TBBROOT` environment variable into acc
 [PDPD]:https://github.com/PaddlePaddle/Paddle
 [TensorFlow]:https://www.tensorflow.org/
 [TensorFlow Lite]:https://www.tensorflow.org/lite
-[PyTorch]:https://www.tensorflow.org/lite
+[PyTorch]:https://pytorch.org/
 [FlatBuffers]:https://google.github.io/flatbuffers/
 [oneTBB]:https://github.com/oneapi-src/oneTBB

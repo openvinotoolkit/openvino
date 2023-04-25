@@ -17,7 +17,7 @@ ov_add_test_target(
         ADD_CLANG_FORMAT
         LABELS
             OV
-            TF_FE
+            TFL_FE
 )
 
 # Test model generating

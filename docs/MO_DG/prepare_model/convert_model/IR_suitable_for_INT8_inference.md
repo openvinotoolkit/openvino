@@ -13,8 +13,8 @@ Intermediate Representation should be specifically formed to be suitable for low
 Such a model is called a Low Precision IR and can be generated in two ways:
 
 * By :doc:`quantizing regular IR with the Post-Training Optimization tool <pot_introduction>`
-* Using Model Optimizer for a model pre-trained for Low Precision inference: TensorFlow pre-TFLite models (``.pb`` model file with ``FakeQuantize`` operations) and ONNX quantized models.
-Both TensorFlow and ONNX quantized models can be prepared by `Neural Network Compression Framework <https://github.com/openvinotoolkit/nncf/blob/develop/README.md>`__.
+* Using Model Optimizer for a model pre-trained for Low Precision inference: TensorFlow models (``.pb`` model file with ``FakeQuantize`` operations), quantized TensorFlow Lite models and ONNX quantized models.
+TensorFlow and ONNX quantized models can be prepared by `Neural Network Compression Framework <https://github.com/openvinotoolkit/nncf/blob/develop/README.md>`__.
 
 For an operation to be executed in INT8, it must have `FakeQuantize` operations as inputs.
 For more details, see the :doc:`specification of FakeQuantize operation <openvino_docs_ops_quantization_FakeQuantize_1>`. 

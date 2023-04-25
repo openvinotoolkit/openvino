@@ -814,6 +814,120 @@ paddlepaddle >= 2.1
 ==========================================  ===============================================================================
 
 
+TensorFlow Lite Supported Operators
+###########################################################
+
+==========================================  ===============================================================================
+Operator Name in TensorFlow Lite            Limitations
+==========================================  ===============================================================================
+ ABS
+ ADD
+ ADD_N
+ ARG_MAX
+ ARG_MIN
+ AVERAGE_POOL_2D
+ BATCH_MATMUL
+ BATCH_TO_SPACE_ND
+ BROADCAST_ARGS
+ BROADCAST_TO
+ CAST
+ CEIL
+ COMPLEX_ABS                                Supported in a specific pattern with RFFT2D
+ CONCATENATION
+ CONV_2D
+ COS
+ DEPTH_TO_SPACE
+ DEPTHWISE_CONV_2D
+ DEQUANTIZE
+ DIV
+ ELU
+ EQUAL
+ EXP
+ EXPAND_DIMS
+ FILL
+ FLOOR
+ FLOOR_DIV
+ FLOOR_MOD
+ FULLY_CONNECTED
+ GATHER
+ GATHER_ND
+ GREATER
+ GREATER_EQUAL
+ HARD_SWISH
+ L2_NORMALIZATION
+ LEAKY_RELU
+ LESS
+ LESS_EQUAL
+ LOG
+ LOG_SOFTMAX
+ LOGICAL_AND
+ LOGICAL_NOT
+ LOGICAL_OR
+ LOGISTIC
+ MATRIX_DIAG
+ MAX_POOL_2D
+ MAXIMUM
+ MEAN
+ MINIMUM
+ MIRROR_PAD
+ MUL
+ NEG
+ NOT_EQUAL
+ ONE_HOT
+ PACK
+ PAD
+ PADV2
+ POW
+ PRELU
+ QUANTIZE
+ RANGE
+ RANK
+ REDUCE_ALL
+ REDUCE_ANY
+ REDUCE_MAX
+ REDUCE_MIN
+ REDUCE_PROD
+ RELU
+ RELU6
+ RESHAPE
+ RESIZE_BILINEAR
+ RESIZE_NEAREST_NEIGHBOR
+ REVERSE_V2
+ RFFT2D                                           Supported in a specific pattern with COMPLEX_ABS
+ ROUND
+ RSQRT
+ SCATTER_ND
+ SEGMENT_SUM
+ SELECT
+ SELECT_V2
+ SHAPE
+ SIGN
+ SIN
+ SLICE
+ SOFTMAX
+ SPACE_TO_BATCH_ND
+ SPACE_TO_DEPTH
+ SPLIT
+ SPLIT_V
+ SQRT
+ SQUARE
+ SQUARED_DIFFERENCE
+ SQUEEZE
+ STRIDED_SLICE
+ SUB
+ SUM
+ TANH
+ TILE
+ TOPK_V2
+ TRANSPOSE
+ TRANSPOSE_CONV
+ UNIQUE
+ UNPACK
+ WHERE
+ ZEROS_LIKE
+==========================================  ===============================================================================
+
+
  @endsphinxdirective
 
 
