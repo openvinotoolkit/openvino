@@ -327,7 +327,6 @@ void StridedSlice::initSupportedPrimitiveDescriptors() {
     const size_t nDims = getInputShapeAtPort(DATA_ID).getRank();
 
     NodeConfig config;
-    config.dynBatchSupport = false;
     config.inConfs.resize(getParentEdges().size());
     config.inConfs[DATA_ID].inPlace(-1);
     config.inConfs[BEGIN_ID].inPlace(-1);

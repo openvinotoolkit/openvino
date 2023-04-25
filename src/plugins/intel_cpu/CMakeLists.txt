@@ -79,7 +79,7 @@ list(REMOVE_ITEM HEADERS ${FILES_TO_REMOVE})
 
 # create plugin
 
-ie_add_plugin(NAME ${TARGET_NAME}
+ov_add_plugin(NAME ${TARGET_NAME}
               DEVICE_NAME "CPU"
               AS_EXTENSION
               VERSION_DEFINES_FOR src/plugin.cpp
