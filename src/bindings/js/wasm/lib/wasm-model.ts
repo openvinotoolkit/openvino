@@ -9,14 +9,13 @@ import {
 } from './helpers';
 
 import type { ITensor, IModel, IShape } from 'openvinojs-common';
-import type { OpenvinoModule } from './types';
-import type { OriginalModel } from './ov-module';
+import type { OpenvinoWASMModule, OriginalModel } from './types';
 
 class WASMModel implements IModel {
-  #ov: OpenvinoModule;
+  #ov: OpenvinoWASMModule;
   #originalModel: OriginalModel;
 
-  constructor(ov: OpenvinoModule, originalModel: OriginalModel) {
+  constructor(ov: OpenvinoWASMModule, originalModel: OriginalModel) {
     this.#ov = ov;
     this.#originalModel = originalModel;
   }
@@ -46,7 +45,7 @@ export default async function loadModel(xmlPath: string, binPath: string, shapeD
   if (typeof xmlPath !== 'string' || typeof binPath !== 'string')
     throw new Error('Parameters \'xmlPath\' and \'binPath\' should be string');
 
-  const ov: OpenvinoModule = await openvinoWASM();
+  const ov: OpenvinoWASMModule = await openvinoWASM();
 
   const xmlData = await getFileDataAsArray(xmlPath);
   const binData = await getFileDataAsArray(binPath);
@@ -68,7 +67,7 @@ export default async function loadModel(xmlPath: string, binPath: string, shapeD
   return new WASMModel(ov, originalModel);
 }
 
-function runInference(ov: OpenvinoModule, model: OriginalModel, tensor: ITensor): ITensor | null {
+function runInference(ov: OpenvinoWASMModule, model: OriginalModel, tensor: ITensor): ITensor | null {
   let originalTensor;
   let originalOutputTensor; 
 

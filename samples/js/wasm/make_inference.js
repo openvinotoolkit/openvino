@@ -1,7 +1,4 @@
 async function makeInference({ modelPath, imgPath, shape, layout }, events = {}) {
-  const ov = await openvino.init(); 
-  const { Tensor, loadModel } = ov; 
-
   events.onLibInitializing = events.onLibInitializing || (() => {});
   events.onModelLoaging = events.onModelLoaging || (() => {});
   events.onInferenceRunning = events.onInferenceRunning || (() => {});
@@ -11,11 +8,11 @@ async function makeInference({ modelPath, imgPath, shape, layout }, events = {})
 
   events.onLibInitializing();
 
-  console.log(`== OpenVINO v${ov.getVersionString()}`);
-  console.log(`== Description string: ${ov.getDescriptionString()}`);
+  console.log(`== OpenVINO v${await openvino.getVersionString()}`);
+  console.log(`== Description string: ${await openvino.getDescriptionString()}`);
 
-  events.onModelLoaging(ov);
-  const model = await loadModel(modelPath.xml, modelPath.bin, shape, layout);
+  events.onModelLoaging(openvino);
+  const model = await openvino.loadModel(modelPath.xml, modelPath.bin, shape, layout);
 
   events.onInferenceRunning(model);
   const inputTensor = await getArrayByImgPath(imgPath);

@@ -1,5 +1,4 @@
 import type { TypedArray, PrecisionSupportedType } from 'openvinojs-common';
-import type { OriginalModel } from './ov-module';
 
 export type OVType =
   | 'uint8_t'
@@ -27,7 +26,7 @@ interface WASMFilesystem {
   close(stream: string): void,
 }
 
-export interface OpenvinoModule {
+export interface OpenvinoWASMModule {
   FS: WASMFilesystem,
   HEAP8: TypedArray,
   HEAPU8: TypedArray,
@@ -55,4 +54,8 @@ export interface OriginalTensor {
   getPrecision(): OVType;
   getShape(): OriginalShape;
   getData(): number;
+}
+
+export interface OriginalModel {
+  infer(tensor: OriginalTensor): OriginalTensor,
 }

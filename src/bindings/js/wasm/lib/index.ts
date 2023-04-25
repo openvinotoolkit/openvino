@@ -1,25 +1,18 @@
 import openvinoWASM from '../bin/openvino_wasm';
 import loadModel from './wasm-model';
-import { Tensor, Shape } from 'openvinojs-common';
 
-import type { OpenvinoModule } from './types';
+import createModule from 'openvinojs-common';
 
-export async function init() { 
-  const ov: OpenvinoModule = await openvinoWASM();
+export default createModule('wasm', loadModel, getVersionString, getDescriptionString);
 
-  function getVersionString(): string {
-    return ov.getVersionString();
-  }
+async function getVersionString(): Promise<string> {
+  const ov = await openvinoWASM();
   
-  function getDescriptionString(): string {
-    return ov.getDescriptionString();
-  }
+  return ov.getVersionString();
+}
 
-  return {
-    loadModel, 
-    Tensor,
-    Shape,
-    getVersionString, 
-    getDescriptionString,
-  };
-};
+async function getDescriptionString(): Promise<string> {
+  const ov = await openvinoWASM();
+  
+  return ov.getDescriptionString();
+}
