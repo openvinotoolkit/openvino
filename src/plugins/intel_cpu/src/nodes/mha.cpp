@@ -1002,7 +1002,7 @@ void MHA::prepareParams() {
 
     accPrecision1 = one_of(brg1PrcIn0, Precision::U8, Precision::I8) ? Precision::I32 : Precision::FP32;
 
-    size_t brg1BaseIdx = -1;
+    size_t brg1BaseIdx = std::numeric_limits<size_t>::max();
     for (size_t m = 0; m < 2; m++) {
         for (size_t k = 0; k < 2; k++) {
             for (size_t n = 0; n < 2; n++) {

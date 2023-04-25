@@ -86,7 +86,7 @@ void EmbeddingSegmentsSum::initFromInputs() {
     indices_ = reinterpret_cast<const int *>(getParentEdgeAt(INDICES_IDX)->getMemoryPtr()->GetPtr());
     indicesSize_ = getParentEdgeAt(INDICES_IDX)->getMemory().GetShape().getElementsCount();
 
-    segmentIds_ = reinterpret_cast<const size_t *>(getParentEdgeAt(SEGMENT_ID_IDX)->getMemoryPtr()->GetPtr());
+    segmentIds_ = reinterpret_cast<const int *>(getParentEdgeAt(SEGMENT_ID_IDX)->getMemoryPtr()->GetPtr());
     lastNumSegments_ = getNumSegments();
 
     if (getParentEdges().size() > DEFAULT_INDEX_IDX) {
@@ -95,7 +95,7 @@ void EmbeddingSegmentsSum::initFromInputs() {
 }
 
 void EmbeddingSegmentsSum::getIndices(size_t embIndex, const int*& indices, size_t& size, int& weightsIdx, bool& withWeight) {
-    if (embIndex >= lastNumSegments_)
+    if (embIndex >= static_cast<size_t>(lastNumSegments_))
         IE_THROW() << "Invalid embedding bag index.";
 
     indices = nullptr;
@@ -103,7 +103,7 @@ void EmbeddingSegmentsSum::getIndices(size_t embIndex, const int*& indices, size
     withWeight = true;
 
     for (int si = 0; si < static_cast<int>(indicesSize_); si++) {
-        if (segmentIds_[si] == embIndex) {
+        if (static_cast<size_t>(segmentIds_[si]) == embIndex) {
             size++;
             if (indices == nullptr) {
                 indices = indices_ + si;
@@ -122,8 +122,8 @@ void EmbeddingSegmentsSum::getIndices(size_t embIndex, const int*& indices, size
     }
 }
 
-size_t EmbeddingSegmentsSum::getNumSegments() const {
-    return reinterpret_cast<const size_t *>(getParentEdgesAtPort(NUM_SEGMENTS_IDX)[0]->getMemory().GetPtr())[0];
+int32_t EmbeddingSegmentsSum::getNumSegments() const {
+    return reinterpret_cast<const int32_t *>(getParentEdgesAtPort(NUM_SEGMENTS_IDX)[0]->getMemory().GetPtr())[0];
 }
 
 bool EmbeddingSegmentsSum::needShapeInfer() const {
