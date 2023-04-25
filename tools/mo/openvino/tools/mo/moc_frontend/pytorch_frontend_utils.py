@@ -101,7 +101,6 @@ def prepare_torch_inputs(example_inputs, input_shape, input_info=None, allow_non
     elif input_info is not None or input_shape is not None:
         input_info = input_to_input_cut_info(input_info) or []
         input_shape_to_input_cut_info(input_shape, input_info)
-        print(len(input_info))
         inputs = []
         for inp in input_info:
             shape = inp.shape
