@@ -63,6 +63,16 @@ const std::map<ActivationTypes, std::vector<std::vector<float>>> activationTypes
         {SoftSign,              {}},
 };
 
+const std::map<ActivationTypes, std::vector<std::vector<float>>> big_rank_activation_types = {
+        {Relu,                  {}},
+        {Exp,                   {}},
+        {Log,                   {}},
+        {Abs,                   {}},
+        {Clamp,                 {{-2.0f, 2.0f}}},
+        {Ceiling,               {}},
+        {Swish,                 {{0.5f}}},
+};
+
 const std::map<ActivationTypes, std::vector<std::vector<float>>> activationParamTypes = {
     {PReLu, {{-0.01f}}},
     {LeakyRelu, {{0.01f}}}
@@ -73,12 +83,19 @@ std::map<std::vector<size_t>, std::vector<std::vector<size_t>>> basic = {
         {{1, 128}, {{}}},
 };
 
+std::map<std::vector<size_t>, std::vector<std::vector<size_t>>> big_ranks = {
+        {{1, 2, 3, 4, 5, 3}, {{}}},
+        {{1, 2, 3, 4, 1, 3, 2}, {{}}},
+        {{1, 2, 3, 4, 3, 2, 1, 2}, {{}}},
+};
+
 std::map<std::vector<size_t>, std::vector<std::vector<size_t>>> preluBasic = {
         {{1, 10, 20}, {{10}, {20}, {10, 20}}},
         {{1, 128}, {{1}, {128}}},
 };
 
-const auto basicCases = ::testing::Combine(
+const auto basicCases = []() {
+    return ::testing::Combine(
         ::testing::ValuesIn(CommonTestUtils::combineParams(activationTypes)),
         ::testing::ValuesIn(netPrecisions),
         ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
@@ -86,10 +103,11 @@ const auto basicCases = ::testing::Combine(
         ::testing::Values(InferenceEngine::Layout::ANY),
         ::testing::Values(InferenceEngine::Layout::ANY),
         ::testing::ValuesIn(CommonTestUtils::combineParams(basic)),
-        ::testing::Values(CommonTestUtils::DEVICE_GPU)
-);
+        ::testing::Values(CommonTestUtils::DEVICE_GPU));
+};
 
-const auto basicPreluCases = ::testing::Combine(
+const auto basicPreluCases = []() {
+    return ::testing::Combine(
         ::testing::ValuesIn(CommonTestUtils::combineParams(activationParamTypes)),
         ::testing::ValuesIn(netPrecisions),
         ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
@@ -97,13 +115,27 @@ const auto basicPreluCases = ::testing::Combine(
         ::testing::Values(InferenceEngine::Layout::ANY),
         ::testing::Values(InferenceEngine::Layout::ANY),
         ::testing::ValuesIn(CommonTestUtils::combineParams(preluBasic)),
-        ::testing::Values(CommonTestUtils::DEVICE_GPU)
-);
+        ::testing::Values(CommonTestUtils::DEVICE_GPU));
+};
 
+const auto big_rank_cases = []() {
+    return ::testing::Combine(
+        ::testing::ValuesIn(CommonTestUtils::combineParams(big_rank_activation_types)),
+        ::testing::ValuesIn(netPrecisions),
+        ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+        ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+        ::testing::Values(InferenceEngine::Layout::ANY),
+        ::testing::Values(InferenceEngine::Layout::ANY),
+        ::testing::ValuesIn(CommonTestUtils::combineParams(big_ranks)),
+        ::testing::Values(CommonTestUtils::DEVICE_GPU));
+};
 
-INSTANTIATE_TEST_SUITE_P(smoke_Activation_Basic, ActivationLayerTest, basicCases, ActivationLayerTest::getTestCaseName);
-INSTANTIATE_TEST_SUITE_P(smoke_Activation_Basic_Prelu, ActivationLayerTest, basicPreluCases, ActivationLayerTest::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_Activation_Basic, ActivationLayerTest, basicCases(), ActivationLayerTest::getTestCaseName);
 
-INSTANTIATE_TEST_SUITE_P(smoke_Activation_Basic, ActivationParamLayerTest, basicPreluCases, ActivationLayerTest::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(Activation_BigRanks, ActivationLayerTest, big_rank_cases(), ActivationLayerTest::getTestCaseName);
+
+INSTANTIATE_TEST_SUITE_P(smoke_Activation_Basic_Prelu, ActivationLayerTest, basicPreluCases(), ActivationLayerTest::getTestCaseName);
+
+INSTANTIATE_TEST_SUITE_P(smoke_Activation_Basic, ActivationParamLayerTest, basicPreluCases(), ActivationLayerTest::getTestCaseName);
 
 }  // namespace

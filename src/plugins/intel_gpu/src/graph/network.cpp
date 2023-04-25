@@ -466,6 +466,12 @@ network::network(cldnn::BinaryInputBuffer& ib, const ExecutionConfig& config, st
         prim_inst->set_output_memory(new_mem);
     }
 
+    for (auto p_inst : _exec_order) {
+        if (p_inst->can_be_optimized() && !p_inst->is_dynamic()) {
+            p_inst->update_output_memory();
+        }
+    }
+
     size_t num_variable_state_primitives;
     ib >> num_variable_state_primitives;
     for (size_t i = 0; i < num_variable_state_primitives; i++) {
@@ -598,7 +604,9 @@ void network::save(cldnn::BinaryOutputBuffer& ob) {
                     auto fusing_type = onednn_add_fusing_helpers::get_add_fusing_type(*node, fused_op);
                     if (fusing_type != add_fusing_type::sum || eltw_dep != 0)
                         continue;
-                    eltw_dep = fused_op.dep_start_idx;
+                    if (!fused_op.has_outer_dep())
+                        continue;
+                    eltw_dep = fused_op.outer_dep_start_idx;
                     auto& eltw_in = node->get_dependency(eltw_dep);
                     if (_primitives.find(eltw_in.id()) != _primitives.end() && _primitives.find(node->id()) != _primitives.end()) {
                         reuse_map[node->id()] = eltw_in.id();
@@ -1001,7 +1009,9 @@ void network::allocate_primitives() {
                     auto fusing_type = onednn_add_fusing_helpers::get_add_fusing_type(*node, fused_op);
                     if (fusing_type != add_fusing_type::sum || eltw_dep != 0)
                         continue;
-                    eltw_dep = fused_op.dep_start_idx;
+                    if (!fused_op.has_outer_dep())
+                        continue;
+                    eltw_dep = fused_op.outer_dep_start_idx;
                     auto& eltw_in = node->get_dependency(eltw_dep);
                     if (_primitives.find(eltw_in.id()) != _primitives.end() && _primitives.find(node->id()) != _primitives.end()) {
                         auto& eltw_inst = _primitives.at(eltw_in.id());
