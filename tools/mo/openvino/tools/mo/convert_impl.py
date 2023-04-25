@@ -886,10 +886,11 @@ def _convert(cli_parser: argparse.ArgumentParser, framework, args, python_api_us
         update_args_for_saved_model_dir(args)
 
         argv = pack_params_to_args_namespace(args, cli_parser)
-        argv.is_python_api_used = python_api_used
 
         # send telemetry with params info before any internal values are set to argv, for example 'feManager'
         send_params_info(argv, cli_parser)
+
+        argv.is_python_api_used = python_api_used
 
         if inp_model_is_object and model_framework == 'tf2':
             argv.tf2_used = True

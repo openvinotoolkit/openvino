@@ -82,8 +82,6 @@ def send_params_info(argv: argparse.Namespace, cli_parser: argparse.ArgumentPars
     t = tm.Telemetry()
     params_with_paths = get_params_with_paths_list()
     for arg, arg_value in params.items():
-        if arg == 'is_python_api_used':
-            continue
         if arg in params_with_paths:
             # If command line argument value is a directory or a path to file it is not sent
             # as it may contain confidential information. "1" value is used instead.
