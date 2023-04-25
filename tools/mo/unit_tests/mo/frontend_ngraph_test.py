@@ -9,7 +9,6 @@ import unittest
 from unittest.mock import patch
 
 from openvino.tools.mo.subprocess_main import setup_env, subprocess_main
-from openvino.tools.mo.utils.get_ov_update_message import get_try_legacy_fe_message
 
 import pytest
 
