@@ -1,22 +1,25 @@
 # ReLU {#openvino_docs_ops_activation_ReLU_1}
 
+@sphinxdirective
+
 **Versioned name**: *ReLU-1*
 
 **Category**: *Activation function*
 
-**Short description**: ReLU element-wise activation function. ([Reference](http://caffe.berkeleyvision.org/tutorial/layers/relu.html))
+**Short description**: ReLU element-wise activation function. (`Reference <http://caffe.berkeleyvision.org/tutorial/layers/relu.html>`__).
 
-**Detailed description**: [Reference](https://github.com/Kulbear/deep-learning-nano-foundation/wiki/ReLU-and-Softmax-Activation-Functions#rectified-linear-units)
+**Detailed description**: `Reference <https://github.com/Kulbear/deep-learning-nano-foundation/wiki/ReLU-and-Softmax-Activation-Functions#rectified-linear-units>`__.
 
 **Attributes**: *ReLU* operation has no attributes.
 
 **Mathematical Formulation**
 
-For each element from the input tensor calculates corresponding
- element in the output tensor with the following formula:
- \f[
- Y_{i}^{( l )} = max(0,\ Y_{i}^{( l - 1 )})
- \f]
+For each element from the input tensor calculates corresponding element in the output tensor with the following formula:
+
+.. math::
+
+   Y_{i}^{( l )} = max(0,\ Y_{i}^{( l - 1 )})
+
 
 **Inputs**:
 
@@ -28,20 +31,21 @@ For each element from the input tensor calculates corresponding
 
 **Example**
 
-```xml
-<layer ... type="ReLU">
-    <input>
-        <port id="0">
-            <dim>256</dim>
-            <dim>56</dim>
-        </port>
-    </input>
-    <output>
-        <port id="1">
-            <dim>256</dim>
-            <dim>56</dim>
-        </port>
-    </output>
-</layer>
+.. code-block:: cpp
 
-```
+    <layer ... type="ReLU">
+        <input>
+            <port id="0">
+                <dim>256</dim>
+                <dim>56</dim>
+            </port>
+        </input>
+        <output>
+            <port id="1">
+                <dim>256</dim>
+                <dim>56</dim>
+            </port>
+        </output>
+    </layer>
+
+@endsphinxdirective
