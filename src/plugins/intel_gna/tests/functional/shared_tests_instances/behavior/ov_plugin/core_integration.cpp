@@ -341,10 +341,21 @@ TEST(OVClassBasicPropsTest, smoke_SetConfigAfterCreatedLogLevel) {
     ASSERT_THROW(core.set_property("GNA", {{ov::log::level.name(), "NO"}}), ov::Exception);
 }
 
-TEST(OVClassBasicPropsTest, smoke_SetConfigAfterCreatedFwModelPath) {
+TEST(OVClassBasicPropsTest, smoke_SetConfigAfterCreatedFwModelPathNegative) {
     ov::Core core;
     std::string path = "";
 
+    OV_ASSERT_NO_THROW(core.set_property("GNA", ov::intel_gna::execution_target(ov::intel_gna::HWGeneration::GNA_3_5)));
+    OV_ASSERT_NO_THROW(core.set_property("GNA", ov::intel_gna::firmware_model_image_path("model.bin")));
+    ASSERT_THROW(path = core.get_property("GNA", ov::intel_gna::firmware_model_image_path), ov::Exception);
+}
+
+TEST(OVClassBasicPropsTest, smoke_SetConfigAfterCreatedFwModelPathPositive) {
+    ov::Core core;
+    std::string path = "";
+
+    OV_ASSERT_NO_THROW(
+        core.set_property("GNA", ov::intel_gna::execution_target(ov::intel_gna::HWGeneration::GNA_3_5_E)));
     OV_ASSERT_NO_THROW(core.set_property("GNA", ov::intel_gna::firmware_model_image_path("model.bin")));
     OV_ASSERT_NO_THROW(path = core.get_property("GNA", ov::intel_gna::firmware_model_image_path));
     ASSERT_EQ("model.bin", path);
