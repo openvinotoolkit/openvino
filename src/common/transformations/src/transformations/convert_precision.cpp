@@ -84,14 +84,12 @@ bool fuse_type_to_logical(const std::shared_ptr<ngraph::Node>& node, const preci
     const auto& to = it->second;
     if (auto type_relaxed = std::dynamic_pointer_cast<ov::op::TypeRelaxedBase>(node)) {
         type_relaxed->set_overridden_output_type(to);
-        type_relaxed->set_origin_input_type(ov::element::boolean, 0);
-        type_relaxed->set_origin_input_type(ov::element::boolean, 1);
+        for (size_t i = 0; i < node->get_input_size(); ++i)
+            type_relaxed->set_origin_input_type(ov::element::boolean, i);
         return true;
     } else if (auto casted = std::dynamic_pointer_cast<T>(node)) {
-        auto relaxed_op = std::make_shared<ov::op::TypeRelaxed<T>>(
-            *casted,
-            ov::element::TypeVector{ov::element::boolean, ov::element::boolean},
-            ov::element::TypeVector{to});
+        ov::element::TypeVector input_types(node->get_input_size(), ov::element::boolean);
+        auto relaxed_op = std::make_shared<ov::op::TypeRelaxed<T>>(*casted, input_types, ov::element::TypeVector{to});
         replace_node(node, relaxed_op);
         return true;
     }
