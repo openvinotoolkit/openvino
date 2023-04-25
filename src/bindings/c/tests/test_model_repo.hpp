@@ -56,7 +56,7 @@ inline void fill_random_input_nv12_data(uint8_t* data, const size_t w, const siz
 inline std::string generate_test_xml_file() {
 #if defined(OPENVINO_ARCH_ARM) || defined(OPENVINO_ARCH_ARM64)
     std::string tmp_libraryname = "openvino_arm_cpu_plugin";
-#elif defined(OPENVINO_ARCH_X86) || defined(OPENVINO_ARCH_X86_64)
+#elif defined(OPENVINO_ARCH_X86) || defined(OPENVINO_ARCH_X86_64) || defined(__EMSCRIPTEN__)
     std::string tmp_libraryname = "openvino_intel_cpu_plugin";
 #elif defined(OPENVINO_ARCH_RISCV64)
     std::string tmp_libraryname = "openvino_riscv_cpu_plugin";

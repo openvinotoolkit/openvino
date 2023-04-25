@@ -133,6 +133,11 @@ std::string MockPlugin::GetName() const noexcept {
 
 InferenceEngine::IInferencePlugin* __target = nullptr;
 
+#ifdef __EMSCRIPTEN__
+static const Version version = {{2, 1}, "0", "mock_plugin"};
+IE_DEFINE_PLUGIN_CREATE_FUNCTION(MockPlugin, version);
+
+#else
 OPENVINO_PLUGIN_API void CreatePluginEngine(std::shared_ptr<ov::IPlugin>& plugin) {
     IInferencePlugin* p = nullptr;
     std::swap(__target, p);
@@ -142,3 +147,4 @@ OPENVINO_PLUGIN_API void CreatePluginEngine(std::shared_ptr<ov::IPlugin>& plugin
 OPENVINO_PLUGIN_API void InjectProxyEngine(InferenceEngine::IInferencePlugin* target) {
     __target = target;
 }
+#endif

@@ -117,6 +117,7 @@ public:
     }
 
     void register_front_end(const std::string& name, const std::string& library_path) {
+#ifndef __EMSCRIPTEN__
         auto lib_path = ov::util::from_file_path(ov::util::get_plugin_path(library_path));
         PluginInfo plugin;
         plugin.m_file_path = lib_path;
@@ -124,6 +125,7 @@ public:
         FRONT_END_GENERAL_CHECK(plugin.load(), "Cannot load frontend ", plugin.get_name_from_file());
         std::lock_guard<std::mutex> guard(m_loading_mutex);
         m_plugins.push_back(std::move(plugin));
+#endif
     }
 
     static void shutdown() {
@@ -217,9 +219,13 @@ private:
     }
 
     void search_all_plugins() {
+#ifndef __EMSCRIPTEN__
         auto fe_lib_dir = get_frontend_library_path();
         if (!fe_lib_dir.empty())
             find_plugins(fe_lib_dir, m_plugins);
+#else
+        find_plugins({}, m_plugins);
+#endif
     }
 };
 

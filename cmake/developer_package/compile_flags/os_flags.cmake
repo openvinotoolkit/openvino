@@ -444,6 +444,21 @@ else()
         set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -s ALLOW_MEMORY_GROWTH=1")
         ie_add_compiler_flags(-sDISABLE_EXCEPTION_CATCHING=0)
         # ie_add_compiler_flags(-sUSE_PTHREADS=1)
+
+        # TODO: enable GTEST_IS_THREADSAFE=1
+        ie_add_compiler_flags(-DGTEST_IS_THREADSAFE=0)
+
+        ie_add_compiler_flags(-Wno-unused-command-line-argument)
+        ie_add_compiler_flags(-pthread -s ALLOW_MEMORY_GROWTH=1 -s EXIT_RUNTIME=1 -fexceptions)
+        ie_add_compiler_flags(-s FORCE_FILESYSTEM=1)
+
+        set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -pthread -s ALLOW_MEMORY_GROWTH=1 -fexceptions")
+        set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -sSTACK_OVERFLOW_CHECK=1 -sWARN_UNALIGNED=1")
+        set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -s MODULARIZE -s EXPORT_NAME=\"createModule\"")
+
+        # Debug, will remove later
+        set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} --memoryprofiler")
+        set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -Wno-unused-command-line-argument -fsanitize=address -g2 -O1")
     else()
         set(exclude_libs "-Wl,--exclude-libs,ALL")
         set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} -Wl,--gc-sections ${exclude_libs}")

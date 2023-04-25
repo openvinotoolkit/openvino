@@ -176,7 +176,9 @@ TEST_F(CoreThreadingTests, ReadNetwork) {
 
     runParallel(
         [&]() {
+#ifndef __EMSCRIPTEN__
             safeAddExtension(ie);
+#endif
             (void)ie.ReadNetwork(modelName, weightsName);
         },
         100,

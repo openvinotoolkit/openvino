@@ -22,22 +22,42 @@ endif()
 source_group("src" FILES ${LIBRARY_SRC})
 source_group("include" FILES ${LIBRARY_HEADERS})
 
-# Create module library file from sources.
-add_library(${TARGET_NAME} MODULE
-            ${LIBRARY_SRC}
-            ${LIBRARY_HEADERS})
+if(EMSCRIPTEN)
+    addVersionDefines(${CMAKE_CURRENT_SOURCE_DIR}/mock_plugin.cpp CI_BUILD_NUMBER)
+    ie_add_plugin(NAME ${TARGET_NAME}
+        DEVICE_NAME "mock"
+        PSEUDO_DEVICE
+        SOURCES ${LIBRARY_SRC} ${LIBRARY_HEADERS}
+        VERSION_DEFINES_FOR mock_plugin.cpp ADD_CLANG_FORMAT)
 
-target_include_directories(${TARGET_NAME} PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
+    if(TARGET IE::inference_engine_plugin_api)
+        target_link_libraries(${TARGET_NAME} PRIVATE IE::inference_engine_plugin_api)
+    else()
+        target_link_libraries(${TARGET_NAME} PRIVATE openvino::runtime::dev)
+    endif()
 
-if(TARGET IE::inference_engine_plugin_api)
-    target_link_libraries(${TARGET_NAME} PRIVATE IE::inference_engine_plugin_api)
+    # target_link_libraries(${TARGET_NAME} PRIVATE inference_engine)
+    ie_add_api_validator_post_build_step(TARGET ${TARGET_NAME})
+    set_target_properties(${TARGET_NAME} PROPERTIES INTERPROCEDURAL_OPTIMIZATION_RELEASE ${ENABLE_LTO})
+
 else()
-    target_link_libraries(${TARGET_NAME} PRIVATE openvino::runtime::dev)
-endif()
+    # Create module library file from sources.
+    add_library(${TARGET_NAME} MODULE
+        ${LIBRARY_SRC}
+        ${LIBRARY_HEADERS})
 
-target_link_libraries(${TARGET_NAME} PRIVATE inference_engine)
+    target_include_directories(${TARGET_NAME} PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
 
-target_compile_definitions(${TARGET_NAME} PRIVATE IMPLEMENT_INFERENCE_ENGINE_PLUGIN)
+    if(TARGET IE::inference_engine_plugin_api)
+        target_link_libraries(${TARGET_NAME} PRIVATE IE::inference_engine_plugin_api)
+    else()
+        target_link_libraries(${TARGET_NAME} PRIVATE openvino::runtime::dev)
+    endif()
 
-install(TARGETS ${TARGET_NAME}
+    target_link_libraries(${TARGET_NAME} PRIVATE inference_engine)
+
+    target_compile_definitions(${TARGET_NAME} PRIVATE IMPLEMENT_INFERENCE_ENGINE_PLUGIN)
+
+    install(TARGETS ${TARGET_NAME}
         LIBRARY DESTINATION tests COMPONENT tests EXCLUDE_FROM_ALL)
+endif()

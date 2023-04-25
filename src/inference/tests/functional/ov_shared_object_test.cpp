@@ -12,6 +12,7 @@
 using namespace ::testing;
 using namespace std;
 
+#ifndef OPENVINO_STATIC_LIBRARY
 class SharedObjectOVTests : public ::testing::Test {
 protected:
     std::string get_mock_engine_name() {
@@ -61,3 +62,4 @@ TEST_F(SharedObjectOVTests, canCallExistedMethod) {
     std::shared_ptr<InferenceEngine::IInferencePlugin> ptr;
     EXPECT_NO_THROW(factory(ptr));
 }
+#endif

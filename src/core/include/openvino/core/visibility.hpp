@@ -45,6 +45,12 @@
 #    define _OPENVINO_HIDDEN_METHOD
 #endif
 
+#if defined(EMSCRIPTEN)
+#    ifndef __EMSCRIPTEN__
+#        define __EMSCRIPTEN__
+#    endif
+#endif
+
 // see https://sourceforge.net/p/predef/wiki/Architectures/
 #if defined(__arm__) || defined(_M_ARM) || defined(__ARMEL__)
 #    define OPENVINO_ARCH_ARM

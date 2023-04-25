@@ -87,10 +87,12 @@ public:
 Core::Core(const std::string& xmlConfigFile) {
     _impl = std::make_shared<Impl>();
 
+#ifndef __EMSCRIPTEN__
     std::string xmlConfigFile_ = ov::findPluginXML(xmlConfigFile);
     if (!xmlConfigFile_.empty())
         // If XML is default, load default plugins by absolute paths
         _impl->register_plugins_in_registry(xmlConfigFile_, xmlConfigFile.empty());
+#endif
     // Load plugins from pre-compiled list
     _impl->register_compile_time_plugins();
 }

@@ -15,6 +15,7 @@ class MockPlugin : public InferenceEngine::IInferencePlugin {
 
 public:
     explicit MockPlugin(InferenceEngine::IInferencePlugin*target);
+    explicit MockPlugin() {};
 
     void SetConfig(const std::map<std::string, std::string>& config) override;
 

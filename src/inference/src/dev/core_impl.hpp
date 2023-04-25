@@ -180,12 +180,14 @@ private:
     void AddExtensionUnsafe(const InferenceEngine::IExtensionPtr& extension) const;
     template <typename C, typename = FileUtils::enableIfSupportedChar<C>>
     void TryToRegisterLibraryAsExtensionUnsafe(const std::basic_string<C>& path) const {
+#ifndef __EMSCRIPTEN__
         try {
             const auto extension_ptr = std::make_shared<InferenceEngine::Extension>(path);
             AddExtensionUnsafe(extension_ptr);
         } catch (const InferenceEngine::GeneralError&) {
             // in case of shared library is not opened
         }
+#endif
     }
     ov::SoPtr<InferenceEngine::IExecutableNetworkInternal> LoadNetworkImpl(
         const InferenceEngine::CNNNetwork& model,

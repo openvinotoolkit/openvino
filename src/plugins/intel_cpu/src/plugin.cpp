@@ -46,7 +46,7 @@ namespace intel_cpu {
 
 static std::string getDeviceFullName() {
     std::string brand_string;
-#if defined(__EMSCRIPTEN___)
+#if defined(__EMSCRIPTEN__)
     brand_string = "WebAssembly CPU";
 #elif defined(OPENVINO_ARCH_RISCV64)
     // TODO: extract actual device name
@@ -796,7 +796,7 @@ using namespace ov::intel_cpu;
 
 #if defined(OPENVINO_ARCH_ARM) || defined(OPENVINO_ARCH_ARM64)
 static const Version version = {{2, 1}, CI_BUILD_NUMBER, "openvino_arm_cpu_plugin"};
-#elif defined(OPENVINO_ARCH_X86) || defined(OPENVINO_ARCH_X86_64)
+#elif defined(OPENVINO_ARCH_X86) || defined(OPENVINO_ARCH_X86_64) || defined(__EMSCRIPTEN__)
 static const Version version = {{2, 1}, CI_BUILD_NUMBER, "openvino_intel_cpu_plugin"};
 #elif defined(OPENVINO_ARCH_RISCV64)
 static const Version version = {{2, 1}, CI_BUILD_NUMBER, "openvino_riscv_cpu_plugin"};

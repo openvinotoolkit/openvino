@@ -281,10 +281,11 @@ public:
         initParamTest();
         mockPlugin = std::make_shared<MockCachingInferencePlugin>();
         setupMock(*mockPlugin);
+#ifndef __EMSCRIPTEN__
         std::string libraryPath = get_mock_engine_path();
         sharedObjectLoader = ov::util::load_shared_object(libraryPath.c_str());
         injectProxyEngine = make_std_function<void(IInferencePlugin*)>("InjectProxyEngine");
-
+#endif
         FuncTestUtils::TestModel::generateTestModel(modelName, weightsName);
     }
 
@@ -300,12 +301,16 @@ public:
 
     void testLoad(const std::function<void(Core& ie)>& func) {
         Core ie;
+#ifndef __EMSCRIPTEN__
         injectProxyEngine(mockPlugin.get());
         ie.RegisterPlugin(ov::util::make_plugin_library_name(CommonTestUtils::getExecutableDirectory(),
                                                              std::string("mock_engine") + IE_BUILD_POSTFIX),
                           deviceName);
         func(ie);
         ie.UnregisterPlugin(deviceName);
+#else
+        func(ie);
+#endif
     }
 
     LoadFunction getLoadFunction(TestLoadType type) const {
@@ -526,7 +531,6 @@ TEST_P(CachingTest, TestLoad) {
         });
         EXPECT_EQ(networks.size(), 1);
     }
-
     {
         EXPECT_CALL(*mockPlugin, LoadExeNetworkImpl(_, _, _)).Times(0);
         EXPECT_CALL(*mockPlugin, LoadExeNetworkImpl(_, _)).Times(0);
@@ -2388,6 +2392,9 @@ TEST_P(CachingTest, LoadBATCHWithConfig) {
 }
 #endif  // defined(ENABLE_AUTO_BATCH)
 
+#ifndef __EMSCRIPTEN__
+// TODO: Solve mock inject issue
+
 // In case of sporadic failures - increase 'TEST_DURATION_MS' 100x times for better reproducibility
 TEST_P(CachingTest, Load_threads) {
     const auto TEST_DURATION_MS = 2000;
@@ -2427,6 +2434,7 @@ TEST_P(CachingTest, Load_threads) {
     } while (duration_cast<milliseconds>(high_resolution_clock::now() - start).count() < TEST_DURATION_MS);
     std::cout << "Caching Load multiple threads test completed. Tried " << index << " times" << std::endl;
 }
+#endif
 
 #if defined(ENABLE_OV_IR_FRONTEND)
 
