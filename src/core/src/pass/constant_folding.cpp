@@ -9,12 +9,10 @@
 #include "openvino/core/rt_info.hpp"
 #include "openvino/core/validation_util.hpp"
 #include "openvino/op/constant.hpp"
-#include "openvino/op/gather.hpp"
 #include "openvino/op/util/op_types.hpp"
 #include "openvino/op/util/read_value_base.hpp"
 #include "openvino/op/util/shape_of_base.hpp"
 #include "openvino/op/util/sub_graph_base.hpp"
-#include "openvino/opsets/opset11.hpp"
 
 using namespace std;
 
@@ -25,9 +23,9 @@ using namespace std;
  *
  * \return true if output can be folded otherwise false.
  */
-const auto is_output_foldable = [](const ov::Output<ov::Node>& output, const std::string& key = "can_be_folded") {
+const auto is_output_foldable = [](const ov::Output<ov::Node>& output) {
     const auto& rt_info = output.get_node()->get_rt_info();
-    return rt_info.count(key) && rt_info.at(key).as<bool>();
+    return !rt_info.count("can_be_folded") || rt_info.at("can_be_folded").as<bool>();
 };
 
 /**
@@ -51,76 +49,6 @@ const auto friendly_name_from = [](const ov::Node& node, const size_t output_cou
     } else {
         return node.get_friendly_name() + "." + std::to_string(idx);
     }
-};
-
-const auto fold_gather = [](const std::shared_ptr<ov::Node>& current_node) -> bool {
-    auto data_out = current_node->input_value(0);
-    if (!ov::as_type_ptr<ov::opset11::ShapeOf>(data_out.get_node_shared_ptr())) {
-        return false;
-    }
-    auto out_pshape = data_out.get_node_shared_ptr()->input_value(0).get_partial_shape();
-    if (out_pshape.rank().is_static() && is_output_foldable(data_out, "can_be_partially_folded")) {
-        auto rank = out_pshape.rank().get_length();
-        std::set<size_t> dyn_indices;
-
-        // In some cases, Gather doesn't use dynamic dimensions from its 1st input `ShapeOf(data)`
-        // in `indices` argument, so we can create a constant after ShapeOf with any values instead
-        // of the dynamic dims.
-        int64_t stub = 1;
-        std::vector<int64_t> shape_with_stubs(rank);
-        for (int64_t i = 0; i < rank; ++i) {
-            if (out_pshape[i].is_dynamic()) {
-                dyn_indices.insert(i);
-                shape_with_stubs[i] = stub;
-            } else {
-                shape_with_stubs[i] = out_pshape[i].get_length();
-            }
-        }
-
-        auto indices = current_node->input_value(1).get_node_shared_ptr();
-        bool dyn_indices_required = false;
-        if (auto const_indices = ov::as_type_ptr<ov::opset11::Constant>(indices)) {
-            auto indices_values = const_indices->cast_vector<int64_t>();
-            for (const auto& idx : indices_values) {
-                if (dyn_indices.count(idx)) {
-                    dyn_indices_required = true;
-                    break;
-                }
-            }
-
-            if (!dyn_indices_required) {
-                auto replacement = std::make_shared<ov::op::v0::Constant>(data_out.get_element_type(),
-                                                                          ov::Shape{shape_with_stubs.size()},
-                                                                          shape_with_stubs);
-
-                current_node->input(0).replace_source_output(replacement);
-                auto rt_info = data_out.get_node_shared_ptr()->get_rt_info();
-                rt_info.erase("can_be_partially_folded");
-                // Propagate runtime info attributes to replacement
-                copy_runtime_info(data_out.get_node_shared_ptr(), replacement);
-                return true;
-            }
-        }
-    }
-
-    return false;
-};
-
-/**
- * \brief Folds the inputs of the `current_node` when ConstantFolding depends on node's logic.
- * For example, when Gather has dynamic dims in the first inputs after ShapeOf, but
- * operates with non-dynamic data specified in 'indices' argument.
- *
- * \param current_node Node which inputs can be folded.
- *
- * \return true if inputs can be folded otherwise false.
- */
-const auto apply_additional_folding_rules = [](const std::shared_ptr<ov::Node>& current_node) -> bool {
-    if (ov::as_type_ptr<ov::op::util::GatherBase>(current_node)) {
-        return fold_gather(current_node);
-    }
-    // no additional rules found for the node.
-    return false;
 };
 
 bool ov::pass::ConstantFolding::run_on_model(const std::shared_ptr<ov::Model>& model) {
@@ -202,15 +130,7 @@ bool ov::pass::ConstantFolding::pre_calculated_values_folding(const std::shared_
             // propagation because we can't detect borders of shape_of sub-graphs, so we propagate can_be_folded
             // attribute through all nodes including nodes on data path. So to limit the spread of attribute to other
             // shape-of sub-graphs we do not propagate it through ShapeOf nodes.
-            auto pshape = input_values.begin()->get_partial_shape();
-            can_be_folded = pshape.is_static();
-
-            // In some cases, we don't need that all dims in pshape to be static, e.g.
-            // Gather(shape_of, indices, axis), where `indices` arg doesn't contain indices
-            // of dynamic dims in `shape_of`.
-            if (!can_be_folded && pshape.rank().is_static()) {
-                node->get_rt_info()["can_be_partially_folded"] = true;
-            }
+            can_be_folded = true;
         } else if (op::util::is_parameter(node) || op::util::is_output(node) || op::util::is_sink(node) ||
                    is_type<op::util::ReadValueBase>(node)) {
             can_be_folded = false;
@@ -254,18 +174,12 @@ bool ov::pass::ConstantFolding::pre_calculated_values_folding(const std::shared_
 
                     rewritten = true;
                 }
-            } else if (is_output_foldable(output, "can_be_partially_folded")) {
-                // it's not necessary to continue searching
-                // this output will be processed in apply_additional_folding_rules function if possible
-                continue;
             } else {
                 // continue searching
                 const auto& input_node = output.get_node_shared_ptr();
                 nodes.push_front(input_node);
             }
         }
-
-        rewritten = rewritten || apply_additional_folding_rules(curr_node);
     }
     return rewritten;
 }
