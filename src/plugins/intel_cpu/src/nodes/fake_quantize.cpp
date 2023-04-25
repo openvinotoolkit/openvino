@@ -1344,7 +1344,6 @@ void FakeQuantize::initSupportedPrimitiveDescriptors() {
 
     for (auto& fmt : dataFormats) {
         NodeConfig config;
-        config.dynBatchSupport = true;
         for (size_t i = 0; i < getParentEdges().size(); i++) {
             PortConfig dataConfig;
             dataConfig.inPlace(-1);

@@ -159,7 +159,6 @@ void AdaptivePooling::initSupportedPrimitiveDescriptors() {
     precision = Precision::FP32;
 
     InferenceEngine::LayerConfig config;
-    config.dynBatchSupport = false;
     config.inConfs.resize(2);
     config.outConfs.resize((algorithm == Algorithm::AdaptivePoolingAvg ? 1 : 2));
 

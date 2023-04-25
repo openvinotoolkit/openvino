@@ -148,7 +148,6 @@ void Concat::initSupportedPrimitiveDescriptors() {
     for (auto itr = itrRange.first; itr != itrRange.second; ++itr) {
         NodeConfig config;
 
-        config.dynBatchSupport = true;
         config.outConfs.resize(1);
         config.outConfs[0].inPlace(-1);
         config.outConfs[0].constant(false);

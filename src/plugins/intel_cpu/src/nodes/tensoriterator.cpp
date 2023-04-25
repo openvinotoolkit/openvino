@@ -51,7 +51,6 @@ static NodeConfig make_plain_config(const std::shared_ptr<ov::Node>& op) {
         config.outConfs.push_back(data_conf);
     }
 
-    config.dynBatchSupport = true;
     return config;
 }
 

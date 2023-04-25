@@ -200,8 +200,7 @@ void Gather::initSupportedPrimitiveDescriptors() {
                           {LayoutType::ncsp, Precision::I32},
                           {LayoutType::ncsp, Precision::I32, isAxisInputConst}},
                          {{LayoutType::ncsp, dataPrecision}},
-                         ref_any,
-                         isDynamicNode());
+                         ref_any);
 }
 
 void Gather::createPrimitive() {

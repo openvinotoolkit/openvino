@@ -778,7 +778,6 @@ void ROIAlign::initSupportedPrimitiveDescriptors() {
     }
 
     NodeConfig config;
-    config.dynBatchSupport = false;
     config.inConfs.resize(3);
     config.outConfs.resize(1);
 

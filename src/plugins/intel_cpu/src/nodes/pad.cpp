@@ -129,7 +129,6 @@ void Pad::initSupportedPrimitiveDescriptors() {
     const size_t numOfDims = inputDataShape.getRank();
 
     NodeConfig config;
-    config.dynBatchSupport = false;
     config.inConfs.resize(isPadValueSpecified ? 4 : 3);
     config.outConfs.resize(1);
 
