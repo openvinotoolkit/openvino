@@ -143,15 +143,15 @@ TEST(type_prop, select_labels_all_params_none) {
 }
 
 TEST(type_prop, select_labels_all_params_pdpd) {
-    auto labeled_shape_cond = PartialShape{-1, 2, 1, 3, 1, {2, 5}, {1, 8}, {5, -1}, {-1, 5}};
-    auto labeled_shape_then = PartialShape{-1, 2, 4, 1, 1, {1, 5}, {2, 8}, {5, -1}, {-1, 5}};
-    auto labeled_shape_else = PartialShape{-1, 2, 1, 3, 5, {1, 7}, {1, 8}, {5, -1}, {-1, 5}};
+    auto labeled_shape_cond = PartialShape{-1, 2, 1, 1, 1, {1, 5}, {1, 8}, {5, -1}, {-1, 5}};
+    auto labeled_shape_then = PartialShape{-1, 2, 4, 3, 5, {2, 5}, {2, 8}, {5, -1}, {-1, 5}};
+    auto labeled_shape_else = PartialShape{-1, 2, 1, 3, 1, {1, 5}, {1, 8}, {5, -1}, {-1, 5}};
 
     set_shape_labels(labeled_shape_cond, 10);
     set_shape_labels(labeled_shape_then, 20);
     set_shape_labels(labeled_shape_else, 30);
 
-    ov::TensorLabel expected_labels{10, 11, 22, 13, 34, 15, 26, 17, 18};
+    ov::TensorLabel expected_labels{10, 11, 22, 33, 24, 25, 26, 17, 18};
 
     auto cond_param = make_shared<op::Parameter>(element::boolean, labeled_shape_cond);
     auto then_param = make_shared<op::Parameter>(element::f32, labeled_shape_then);

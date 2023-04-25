@@ -343,6 +343,11 @@ bool ov::PartialShape::broadcast_merge_into(PartialShape& dst,
 
             bool success = true;
             for (int64_t i = 0; i < src_rank; ++i) {
+                if (dst[axis + i].is_static() && src[i].is_static()) {
+                    if (src[i].get_length() > dst[axis + i].get_length())
+                        return false;
+                }
+
                 success &= Dimension::broadcast_merge(dst[axis + i], dst[axis + i], src[i]);
             }
 
