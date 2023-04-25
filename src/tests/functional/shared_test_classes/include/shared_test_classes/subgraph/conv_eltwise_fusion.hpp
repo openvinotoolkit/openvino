@@ -30,12 +30,11 @@ typedef std::tuple<
 
 class ConvEltwiseFusion
         : public testing::WithParamInterface<ConvEltwiseFusionParams>,
-          virtual public LayerTestsUtils::LayerTestsCommon, TransformationTestsF {
+          virtual public LayerTestsUtils::LayerTestsCommon {
 public:
     static std::string getTestCaseName(const testing::TestParamInfo<ConvEltwiseFusionParams> &obj);
 
 protected:
-    using TransformationTestsF::TearDown;
     void SetUp() override;
 };
 } // namespace SubgraphTestsDefinitions

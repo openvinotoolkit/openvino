@@ -48,8 +48,7 @@ void ConvEltwiseFusion::SetUp() {
     size_t num_inputs;
     std::tie(conv_params, eltwise_type, negative, input_shape, weights_shape, const_shape, precision, targetDevice) = this->GetParam();
     std::tie(conv_type, num_inputs) = conv_params;
-
-    TransformationTestsF::SetUp();
+    pass::Manager manager;
 
     {
         auto param = std::make_shared<opset11::Parameter>(precision, input_shape);
@@ -99,8 +98,12 @@ void ConvEltwiseFusion::SetUp() {
             OPENVINO_THROW("Unsupported type");
         }
 
-        TransformationTestsF::function = std::make_shared<Model>(eltwise, ParameterVector{param}, "conv_eltwise");
+        function = std::make_shared<Model>(eltwise, ParameterVector{param}, "conv_eltwise");
     }
+
+    manager.register_pass<pass::ConstantFolding>();
+
+    std::shared_ptr<Model> function_ref;
 
     if (!negative) {
         auto param = std::make_shared<opset11::Parameter>(precision, input_shape);
@@ -132,14 +135,15 @@ void ConvEltwiseFusion::SetUp() {
             }
         }
 
-        TransformationTestsF::function_ref = std::make_shared<Model>(conv, ParameterVector{param}, "conv_eltwise_ref");
+        function_ref = std::make_shared<Model>(conv, ParameterVector{param}, "conv_eltwise_ref");
+    } else {
+        function_ref = function->clone();
     }
 
-    LayerTestsCommon::function = TransformationTestsF::function->clone();
+    auto cloned_function = function->clone();
+    manager.run_passes(cloned_function);
 
-    manager.register_pass<pass::ConstantFolding>();
-
-    comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
-    comparator.enable(FunctionsComparator::CmpValues::ATTRIBUTES);
+    auto res = compare_functions(cloned_function, function_ref);
+    ASSERT_TRUE(res.first) << res.second;
 }
 } // namespace SubgraphTestsDefinitions
