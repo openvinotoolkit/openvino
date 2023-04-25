@@ -11,7 +11,6 @@ from unittest.mock import patch
 from openvino.tools.mo.main import main
 from openvino.tools.mo.utils.get_ov_update_message import get_tf_fe_message, get_compression_message, \
     get_try_legacy_fe_message
-from ..mo.convert.logger_test_actual import create_tf_model
 
 
 def arg_parse_helper(input_model,
@@ -73,7 +72,8 @@ class TestInfoMessagesTFFE(unittest.TestCase):
     @patch('openvino.tools.mo.convert_impl.driver', side_effect=Exception('MESSAGE'))
     def run_fail_tf_fe(self, mock_driver):
         from openvino.tools.mo import convert_model
-        convert_model(create_tf_model(), silent=False)
+        path = os.path.dirname(__file__)
+        convert_model(os.path.join(path, "test_models", "model_int32.pbtxt"), silent=False)
 
     def test_suggest_legacy_fe(self):
         f = io.StringIO()
