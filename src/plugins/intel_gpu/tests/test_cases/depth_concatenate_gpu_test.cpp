@@ -501,6 +501,11 @@ TEST(depth_concatenate_f32_gpu, test07_padded_output) {
     const int32_t output_f = 2 * input_f;
 
     auto& engine = get_test_engine();
+    if (engine.get_device_info().supports_immad) {
+        // Currently, oneDNN does NOT support input/output padding
+        return;
+    }
+
     auto input1 = engine.allocate_memory({ data_types::f16, format::fs_b_yx_fsv32, {1, input_f, 1, 1} });
     auto input2 = engine.allocate_memory({ data_types::f16, format::fs_b_yx_fsv32, {1, input_f, 1, 1} });
 

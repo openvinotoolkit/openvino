@@ -68,7 +68,24 @@ private:
 
     void copyWeightsData();
 
-    using executorPtr = std::shared_ptr<DnnlExecutor>;
+    class RnnDnnlExecutor : public DnnlExecutor {
+        public:
+            RnnDnnlExecutor(const dnnl::primitive_desc& pd);
+
+            DnnlMemoryDescPtr getWeightIterDesc() const {
+                return wghts_iter_md;
+            }
+
+            DnnlMemoryDescPtr getBiasDesc() const {
+                return bias_md;
+            }
+
+        private:
+            DnnlMemoryDescPtr wghts_iter_md;
+            DnnlMemoryDescPtr bias_md;
+    };
+
+    using executorPtr = std::shared_ptr<RnnDnnlExecutor>;
     executorPtr execPtr = nullptr;
 
     /** Specify mode Cell or Seq. true - Cell, false - Seq */
@@ -142,9 +159,6 @@ private:
 
     static constexpr size_t optimalBatchSize = 16lu;
     static constexpr size_t batchDimDummyValue = 64lu;
-
-    bool wasMemoryPrepared = false;
-    MemoryPtr scratchpadMem;
 
     float inputScale    = 0.f;
     float inputShift    = 0.f;
