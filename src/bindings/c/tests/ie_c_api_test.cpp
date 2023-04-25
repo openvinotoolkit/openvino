@@ -144,11 +144,6 @@ TEST_P(ie_c_api_test, ie_core_register_plugins) {
 
     IE_EXPECT_OK(ie_core_register_plugins(core, plugins_xml.c_str()));
 
-    // Trigger plugin loading
-    ie_core_versions_t versions = {0};
-    IE_EXPECT_OK(ie_core_get_versions(core, "CUSTOM", &versions));
-    ie_core_versions_free(&versions);
-
     ie_core_free(&core);
     TestDataHelpers::delete_test_xml_file();
 }
@@ -1229,8 +1224,6 @@ TEST_P(ie_c_api_test, ie_infer_request_infer_async_wait_time) {
     ie_core_free(&core);
 }
 
-// For ARM plugin, no "Batch" related operations support for now, so skip related APIs
-#ifndef __aarch64__
 TEST_P(ie_c_api_test, ie_infer_request_set_batch) {
     ie_core_t *core = nullptr;
     IE_ASSERT_OK(ie_core_create("", &core));
@@ -1317,7 +1310,6 @@ TEST_P(ie_c_api_test, ie_infer_request_set_negative_batch) {
     ie_network_free(&network);
     ie_core_free(&core);
 }
-#endif
 
 TEST_P(ie_c_api_test, ie_blob_make_memory) {
 

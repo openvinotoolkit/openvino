@@ -24,13 +24,13 @@ enum MVNEpsMode {
 };
 
 struct MVNAttrs {
-    MVNLayoutType layout;
-    std::tuple<size_t, size_t, size_t, size_t, size_t> shape5D;
-    bool initAcrossChannels_;
-    bool execAcrossChannels_;
-    bool normalizeVariance_;
-    float epsValue_;
-    MVNEpsMode epsMode_;
+    MVNLayoutType layout = mvn_planar;
+    std::tuple<size_t, size_t, size_t, size_t, size_t> shape5D = std::make_tuple(0u, 0u, 0u, 0u, 0u);
+    bool initAcrossChannels_ = false;
+    bool execAcrossChannels_ = false;
+    bool normalizeVariance_  = false;
+    float epsValue_ = 0.0f;
+    MVNEpsMode epsMode_ = INSIDE_SQRT;
     InferenceEngine::Precision src_prc;
     InferenceEngine::Precision dst_prc;
 };
