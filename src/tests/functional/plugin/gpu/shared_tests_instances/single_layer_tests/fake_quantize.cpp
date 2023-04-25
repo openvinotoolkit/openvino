@@ -16,7 +16,7 @@ const std::vector<InferenceEngine::Precision> netPrecisions = {
         InferenceEngine::Precision::FP16
 };
 
-const std::vector<std::vector<size_t>> inputShapes = {{1, 1, 1, 1}, {3, 10, 5, 6}};
+const std::vector<std::vector<size_t>> inputShapes = {{1, 1, 1, 1}, {3, 10, 5, 6}, {1, 2, 3, 4, 2, 3, 2, 2}};
 const std::vector<std::vector<size_t>> constShapes = {{1}};
 const std::vector<size_t> levels = {16, 255, 256};
 
