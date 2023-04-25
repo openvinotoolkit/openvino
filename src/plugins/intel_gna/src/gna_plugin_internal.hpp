@@ -19,10 +19,11 @@ namespace intel_gna {
 
 class GNAPluginInternal : public InferenceEngine::IInferencePlugin {
 private:
-    std::mutex syncCallsToLoadExeNetworkImpl;
+    mutable std::mutex syncCalls;
     Config defaultConfig;
     std::weak_ptr<GNAPlugin> plgPtr;
     std::shared_ptr<GNAPlugin> GetCurrentPlugin() const {
+        std::lock_guard<std::mutex> lock{syncCalls};
         auto ptr = plgPtr.lock();
         if (ptr == nullptr) {
             return std::make_shared<GNAPlugin>();
@@ -38,7 +39,7 @@ public:
     InferenceEngine::IExecutableNetworkInternal::Ptr LoadExeNetworkImpl(
         const InferenceEngine::CNNNetwork& network,
         const std::map<std::string, std::string>& config) override {
-        std::lock_guard<std::mutex> lock{syncCallsToLoadExeNetworkImpl};
+        std::lock_guard<std::mutex> lock{syncCalls};
         Config updated_config(defaultConfig);
         updated_config.UpdateFromMap(config);
         auto plg = std::make_shared<GNAPlugin>(updated_config.keyConfigMap);
@@ -54,6 +55,7 @@ public:
     InferenceEngine::IExecutableNetworkInternal::Ptr ImportNetwork(
         const std::string& modelFileName,
         const std::map<std::string, std::string>& config) override {
+        std::lock_guard<std::mutex> lock{syncCalls};
         Config updated_config(defaultConfig);
         updated_config.UpdateFromMap(config);
         auto plg = std::make_shared<GNAPlugin>(updated_config.keyConfigMap);
@@ -68,6 +70,7 @@ public:
     InferenceEngine::IExecutableNetworkInternal::Ptr ImportNetwork(
         std::istream& networkModel,
         const std::map<std::string, std::string>& config) override {
+        std::lock_guard<std::mutex> lock{syncCalls};
         Config updated_config(defaultConfig);
         updated_config.UpdateFromMap(config);
         auto plg = std::make_shared<GNAPlugin>(updated_config.keyConfigMap);
