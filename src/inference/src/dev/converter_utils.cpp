@@ -154,6 +154,7 @@ InferenceEngine::CNNNetwork ov::legacy_convert::convert_model(const std::shared_
                 parameter->get_rt_info()["original_partial_shape"] = parameter->get_partial_shape();
                 parameter->set_element_type(element::u8);
                 parameter->set_partial_shape(PartialShape{sizeof(void*)});
+                parameter->validate_and_infer_types();
 
                 // Add a new tensor name to recognize this changed parameter in the infer_request
                 auto& tensor = parameter->get_output_tensor(0);

@@ -191,11 +191,11 @@ ov::Any DecoderProto::get_attribute(const std::string& name) const {
 
     case ::tensorflow::AttrValue::ValueCase::kType: {
         auto atype = attrs[0].type();
-        if (atype != ::tensorflow::DT_STRING) {
+        //if (atype != ::tensorflow::DT_STRING) {
             return get_ov_type(attrs[0].type());
-        } else {
-            return ov::Any("DT_STRING");
-        }
+        //} else {
+        //    return ov::Any("DT_STRING");
+        //}
     }
 
     case ::tensorflow::AttrValue::ValueCase::kList: {
