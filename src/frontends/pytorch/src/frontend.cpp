@@ -40,7 +40,6 @@ namespace pytorch {
 namespace {
 std::set<std::string> get_unconverted_types_from_model(const std::shared_ptr<Model>& model) {
     std::set<std::string> unconverted_ops_types;
-    ov::serialize(model, "/home/pkrzemin/frontend_model.xml", "/home/pkrzemin/frontend_model.bin");
     for (const auto& node : model->get_ordered_ops()) {
         if (const auto& fw_node = ov::as_type_ptr<PtFrameworkNode>(node)) {
             auto op_type = fw_node->get_decoder()->get_op_type();

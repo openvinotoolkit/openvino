@@ -52,7 +52,8 @@ class PytorchLayerTest:
                 inp, np.ndarray) else inp for inp in inputs]
             trace_model = kwargs.get('trace_model', False)
             freeze_model = kwargs.get('freeze_model', True)
-            model, converted_model = self.convert_directly_via_frontend(model, torch_inputs, trace_model, dynamic_shapes, inputs, freeze_model)
+            model, converted_model = self.convert_via_mo(model, torch_inputs, trace_model, dynamic_shapes, inputs)
+            # model, converted_model = self.convert_directly_via_frontend(model, torch_inputs, trace_model, dynamic_shapes, inputs, freeze_model)
             graph = model.inlined_graph
 
             if kind is not None and not isinstance(kind, (tuple, list)):
