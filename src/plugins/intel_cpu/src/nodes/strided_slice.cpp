@@ -684,7 +684,7 @@ void StridedSlice::StridedSliceCommonExecutor::dimsGluing() {
         if (params.attrs.begin[idx] != 0 ||
             static_cast<size_t>(params.attrs.end[idx]) != params.srcBlockedDims[idx] - 1 ||
             params.attrs.stride[idx] != 1) {
-            indexes.push_back(std::max<size_t>(idx - 1, 0u));
+            indexes.push_back(0u == idx ? 0 : idx - 1);
             indexes.push_back(params.attrs.stride[idx] == 1 ? idx : idx + 1);
 
             if (idx != 0 && secondDim.first == 0)
