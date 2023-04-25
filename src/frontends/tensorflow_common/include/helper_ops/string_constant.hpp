@@ -7,31 +7,31 @@
 #include <string>
 #include <vector>
 
-#include "internal_operation.hpp"
+#include "unsupported_constant.hpp"
 
 namespace ov {
 namespace frontend {
 namespace tensorflow {
 
 /// Pseudo-entity for storing strings
-class StringConstant : public InternalOperation {
+class StringConstant : public UnsupportedConstant {
 public:
-    OPENVINO_OP("StringConstant", "ov::frontend::tensorflow::util", InternalOperation);
+    OPENVINO_OP("StringConstant", "ov::frontend::tensorflow::util", UnsupportedConstant);
 
     StringConstant(ov::Any data, const std::shared_ptr<DecoderBase>& decoder = std::make_shared<DecoderFake>())
-        : InternalOperation(decoder, {}, 1),
+        : UnsupportedConstant(decoder),
           m_data(data) {
         validate_and_infer_types();
     }
 
     StringConstant(std::string& str, const std::shared_ptr<DecoderBase>& decoder = std::make_shared<DecoderFake>())
-        : InternalOperation(decoder, {}, 1),
+        : UnsupportedConstant(decoder),
           m_data({str}) {
         validate_and_infer_types();
     }
 
     StringConstant(const std::shared_ptr<DecoderBase>& decoder = std::make_shared<DecoderFake>())
-        : InternalOperation(decoder, {}, 1) {
+        : UnsupportedConstant(decoder) {
         validate_and_infer_types();
     }
 

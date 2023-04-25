@@ -29,7 +29,7 @@ public:
                            const ov::OutputVector& ov_inputs,
                            ov::OutputVector& ov_outputs);
 
-    std::shared_ptr<ov::Model> get_body_ov_model(const std::string& body_graph_name);
+    std::shared_ptr<ov::Model> get_body_ov_model(const std::string& body_graph_name, bool clear_names = true);
 
     ov::frontend::InputModel::Ptr get_input_model(void) const {
         return m_input_model;
