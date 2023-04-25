@@ -465,7 +465,7 @@ void TranslateSession::translate_graph(const ov::frontend::InputModel::Ptr& inpu
 }
 
 std::shared_ptr<ov::Model> TranslateSession::get_body_ov_model(const std::string& body_graph_name,
-                                                               const OutputVector& ov_inputs,
+                                                               const ov::OutputVector& ov_inputs,
                                                                bool clear_names) {
     std::shared_ptr<ov::Model> body_model = nullptr;
     auto input_model = std::dynamic_pointer_cast<InputModel>(m_input_model);
