@@ -34,7 +34,7 @@ Napi::Function TensorWrap::GetClassConstructor(Napi::Env env) {
     return DefineClass(env,
                        "TensorWrap",
                        {InstanceAccessor<&TensorWrap::get_data>("data"),
-                       InstanceMethod("getData", &TensorWrap::get_shape),
+                        InstanceMethod("getData", &TensorWrap::get_data),
                         InstanceMethod("getShape", &TensorWrap::get_shape),
                         InstanceMethod("getPrecision", &TensorWrap::get_precision)});
 }

@@ -1,19 +1,20 @@
 #include <napi.h>
 
-
 #include "compiled_model.hpp"
 #include "core_wrap.hpp"
+#include "element_type.hpp"
 #include "infer_request.hpp"
 #include "model_wrap.hpp"
+#include "openvino/openvino.hpp"
 #include "pre_post_process_wrap.hpp"
-#include "tensor.hpp"
-#include "element_type.hpp"
 #include "session.hpp"
 #include "shape_lite.hpp"
+#include "tensor.hpp"
 
 Napi::String Method(const Napi::CallbackInfo& info) {
-  Napi::Env env = info.Env();
-  return Napi::String::New(env, "world");
+    ov::Version version = ov::get_openvino_version();
+    std::string str;
+    return Napi::String::New(info.Env(), str.assign(version.buildNumber));
 }
 
 /// @brief Initialize native add-on
@@ -29,8 +30,7 @@ Napi::Object InitAll(Napi::Env env, Napi::Object exports) {
     Napi::PropertyDescriptor element = Napi::PropertyDescriptor::Accessor<enumElementType>("element");
     exports.DefineProperty(element);
 
-    exports.Set(Napi::String::New(env, "getDescriptionString"),
-              Napi::Function::New(env, Method));
+    exports.Set(Napi::String::New(env, "getDescriptionString"), Napi::Function::New(env, Method));
 
     return exports;
 }

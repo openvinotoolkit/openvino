@@ -14,7 +14,8 @@ ShapeLite::ShapeLite(const Napi::CallbackInfo& info) : Napi::ObjectWrap<ShapeLit
 Napi::Function ShapeLite::GetClassConstructor(Napi::Env env) {
     return DefineClass(env,
                        "ShapeLite",
-                       {InstanceMethod("getDim", &ShapeLite::get_dim),
+                       {InstanceAccessor<&ShapeLite::get_data>("data"),
+                        InstanceMethod("getDim", &ShapeLite::get_dim),
                         InstanceMethod("shapeSize", &ShapeLite::shape_size),
                         InstanceMethod("getData", &ShapeLite::get_data)});
 }
