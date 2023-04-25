@@ -181,6 +181,9 @@ using namespace ov::frontend::onnx;
 
 namespace ngraph {
 namespace onnx_import {
+
+const char* OPENVINO_ONNX_DOMAIN = "org.openvinotoolkit";
+
 namespace {
 template <typename Container = std::map<int64_t, Operator>>
 typename Container::const_iterator find(int64_t version, const Container& map) {

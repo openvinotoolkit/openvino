@@ -30,6 +30,9 @@ namespace intel_cpu {
 namespace node {
 
 #define THROW_ERROR IE_THROW() << getTypeStr() << " node with name '" << getName() << "' "
+
+#if defined(OPENVINO_ARCH_X86_64)
+
 template <cpu_isa_t isa>
 struct jit_move_scale_kernel : public jit_uni_move_scale_kernel, public jit_generator {
     DECLARE_CPU_JIT_AUX_FUNCTIONS(jit_move_scale_kernel)
@@ -159,6 +162,8 @@ private:
     std::unordered_map<size_t, std::unique_ptr<jit_emitter>> emitters;
 };
 
+#endif // OPENVINO_ARCH_X86_64
+
 Interaction::Interaction(const std::shared_ptr<ngraph::Node>& op, const GraphContext::CPtr context)
         : Node(op, context, NgraphShapeInferFactory(op, EMPTY_PORT_MASK)) {
     std::string errorMessage;
@@ -269,8 +274,6 @@ void Interaction::execRef(dnnl::stream strm) {
     }
 }
 
-
-
 void Interaction::execute(dnnl::stream strm) {
     execRef(strm);
 }
@@ -324,6 +327,7 @@ void Interaction::prepareParams() {
     interJcp.broadcast_scales = fqScales.size() == 1;
     interJcp.input_size = interactFeatureSize;
 
+#if defined(OPENVINO_ARCH_X86_64)
     if (mayiuse(cpu_isa_t::avx512_core)) {
         moveFeatureKernel.reset(new jit_move_scale_kernel<cpu_isa_t::avx512_core>(jcp));
         moveInteractKernel.reset(new jit_move_scale_kernel<cpu_isa_t::avx512_core>(interJcp));
@@ -333,13 +337,14 @@ void Interaction::prepareParams() {
     } else if (mayiuse(cpu_isa_t::sse41)) {
         moveFeatureKernel.reset(new jit_move_scale_kernel<cpu_isa_t::sse41>(jcp));
         moveInteractKernel.reset(new jit_move_scale_kernel<cpu_isa_t::sse41>(interJcp));
-    } else {
-        THROW_ERROR << "cannot create jit eltwise kernel";
     }
+#endif // OPENVINO_ARCH_X86_64
 
     if (moveFeatureKernel && moveInteractKernel) {
         moveFeatureKernel->create_ker();
         moveInteractKernel->create_ker();
+    } else {
+        THROW_ERROR << "cannot create jit eltwise kernel";
     }
 #ifdef CPU_DEBUG_CAPS
     if (prim) {

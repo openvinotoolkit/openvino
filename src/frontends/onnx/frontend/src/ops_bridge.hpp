@@ -106,7 +106,7 @@ private:
     std::unordered_map<std::string, DomainOpset> m_map;
 };
 
-constexpr const char* OPENVINO_ONNX_DOMAIN = "org.openvinotoolkit";
+extern const char* OPENVINO_ONNX_DOMAIN;
 
 }  // namespace onnx_import
 
