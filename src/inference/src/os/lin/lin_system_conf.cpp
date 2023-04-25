@@ -35,6 +35,7 @@ CPU::CPU() {
                 std::ifstream cache_file("/sys/devices/system/cpu/cpu" + std::to_string(cpu_index) + "/cache/index" +
                                          std::to_string(cache_index) + "/shared_cpu_list");
                 if (!cache_file.is_open()) {
+                    cache_index = -1;
                     break;
                 }
                 std::string cache_info;
@@ -42,7 +43,7 @@ CPU::CPU() {
                 one_info[n] = cache_info;
             }
 
-            if (cache_index < 3) {
+            if (cache_index == -1) {
                 if (cpu_index == 0) {
                     return -1;
                 } else {
