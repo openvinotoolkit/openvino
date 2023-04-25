@@ -774,7 +774,7 @@ static bool ValidateConcatAxis(const InferenceEngine::CNNLayerPtr layer, std::st
                         0,
                         [](InferenceEngine::CNNLayerPtr ptr) {
                             return LayerInfo(ptr).isNonFunctional() || LayerInfo(ptr).isFakeQuantize() ||
-                                   LayerInfo(ptr).isSplit();
+                                   LayerInfo(ptr).isSplit() || LayerInfo(ptr).isPermute();
                         });
 
                     IE_ASSERT(pre_prev_layer);
