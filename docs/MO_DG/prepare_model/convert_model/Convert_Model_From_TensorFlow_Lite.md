@@ -8,7 +8,7 @@ To convert a TensorFlow Lite model, use the ``mo`` script and specify the path t
 
    mo --input_model <INPUT_MODEL>.tflite
 
-.. note:: TensorFlow Lite models are supported via FrontEnd API. You may skip conversion to IR and read models directly by OpenVINO runtime API
+.. note:: TensorFlow Lite models are supported via FrontEnd API. You may skip conversion to IR and read models directly by OpenVINO runtime API.
 
 Supported TensorFlow Lite Layers
 ###################################
