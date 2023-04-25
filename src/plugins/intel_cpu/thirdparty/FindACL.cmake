@@ -67,7 +67,7 @@ elseif(ENABLE_ARM_COMPUTE_CMAKE)
     endforeach()
 
     # required by oneDNN to attempt to parse ACL version
-    set(ENV{ACL_ROOT_DIR} "${ARM_COMPUTE_BINARY_DIR}")
+    set(ENV{ACL_ROOT_DIR} "${ARM_COMPUTE_SOURCE_DIR}")
 else()
     set(ARM_COMPUTE_SOURCE_DIR "${intel_cpu_thirdparty_SOURCE_DIR}/ComputeLibrary")
     set(ARM_COMPUTE_BINARY_DIR "${intel_cpu_thirdparty_BINARY_DIR}/ComputeLibrary")
@@ -331,23 +331,5 @@ else()
     endforeach()
 
     # required by oneDNN to attempt to parse ACL version
-
-    find_package(Git)
-
-    if(GIT_FOUND)
-        execute_process(
-            COMMAND ${GIT_EXECUTABLE} describe --tags
-            WORKING_DIRECTORY "${ARM_COMPUTE_SOURCE_DIR}"
-            RESULT_VARIABLE RESULT
-            OUTPUT_VARIABLE ACL_VERSION_SHA
-            OUTPUT_STRIP_TRAILING_WHITESPACE)
-    endif()
-
-    if(NOT GIT_FOUND OR RESULT)
-        set(ACL_VERSION_HASH "Unknown")
-    endif()
-
-    file(WRITE "${ARM_COMPUTE_BINARY_DIR}/version/arm_compute_version.embed" "\"${ACL_VERSION_SHA}\"")
-
-    set(ENV{ACL_ROOT_DIR} "${ARM_COMPUTE_BINARY_DIR}")
+    set(ENV{ACL_ROOT_DIR} "${ARM_COMPUTE_SOURCE_DIR}")
 endif()
