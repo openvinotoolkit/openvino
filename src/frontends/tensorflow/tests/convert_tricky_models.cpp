@@ -506,6 +506,50 @@ TEST_F(TransformationTestsF, RaggedTensorToSparse) {
     }
 }
 
+TEST_F(TransformationTestsF, SavedModelProgramOnly) {
+    {
+        model = convert_model("saved_model_program-only");
+        model->validate_nodes_and_infer_types();
+    }
+    {
+        // create a reference graph
+        auto x = make_shared<Constant>(element::f32, Shape{2, 3}, vector<float>{1, 2, 3, 3, 2, 1});
+        auto y = make_shared<Parameter>(element::f32, Shape{1});
+        auto add = make_shared<Add>(x, y);
+
+        model_ref = make_shared<Model>(OutputVector{add}, ParameterVector{y});
+    }
+}
+
+TEST_F(TransformationTestsF, SavedModelVariables) {
+    {
+        model = convert_model("saved_model_variables");
+        model->validate_nodes_and_infer_types();
+    }
+    {
+        // create a reference graph
+        auto x = make_shared<Parameter>(element::f32, Shape{1});
+        auto y = make_shared<Constant>(element::f32, Shape{}, vector<float>{123});
+        auto multiply = make_shared<Multiply>(x, y);
+
+        model_ref = make_shared<Model>(OutputVector{multiply}, ParameterVector{x});
+    }
+}
+
+TEST_F(TransformationTestsF, MetaGraphVariables) {
+    {
+        model = convert_model("metagraph_variables/graph.meta");
+        model->validate_nodes_and_infer_types();
+    }
+    {
+        // create a reference graph
+        auto x = make_shared<Constant>(element::f32, Shape{2, 3}, vector<float>{1, 2, 3, 3, 2, 1});
+        auto y = make_shared<Parameter>(element::f32, Shape{1});
+        auto add = make_shared<Add>(x, y);
+
+        model_ref = make_shared<Model>(OutputVector{add}, ParameterVector{y});
+    }
+}
 TEST_F(TransformationTestsF, SplitInFunction) {
     {
         // create FAKE conversion extension for Split using named ports, this is not required for Split, but it tests
