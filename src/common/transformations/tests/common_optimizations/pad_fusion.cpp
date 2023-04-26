@@ -599,18 +599,4 @@ TEST_F(TransformationTestsF, NegativePadPreservation) {
         function = std::make_shared<Function>(NodeVector{conv}, ParameterVector{data, filters});
         manager.register_pass<ov::pass::PadFusion>();
     }
-    {
-        auto data = std::make_shared<opset5::Parameter>(element::i32, data_shape);
-        auto pads_begin = opset5::Constant::create(element::i32, Shape{4}, {0, 0, -1, -1});
-        auto pads_end = opset5::Constant::create(element::i32, Shape{4}, {0, 0, -1, -1});
-        auto pad = std::make_shared<opset5::Pad>(data, pads_begin, pads_end, op::PadMode::CONSTANT);
-        auto filters = std::make_shared<opset5::Parameter>(element::i32, Shape{1, 3, 4, 4});
-        auto conv = std::make_shared<opset5::Convolution>(pad,
-                                                          filters,
-                                                          Strides{1, 1},
-                                                          CoordinateDiff{0, 0},
-                                                          CoordinateDiff{1, 1},
-                                                          Shape{1, 1});
-        function_ref = std::make_shared<Function>(NodeVector{conv}, ParameterVector{data, filters});
-    }
 }
