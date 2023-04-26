@@ -549,15 +549,15 @@ std::list<DeviceInformation> MultiDeviceInferencePlugin::GetValidDevice(
             continue;
         }
         if (item.deviceName.find("GPU") == 0) {
-            ov::Any deviceType;
-            if (IsNewAPI()) {
-                deviceType = GetCore()->GetMetric(item.deviceName, METRIC_KEY(DEVICE_TYPE)).as<ov::device::Type>();
-            } else {
-                deviceType = GetCore()->GetMetric(item.deviceName, METRIC_KEY(DEVICE_TYPE)).as<Metrics::DeviceType>();
+            std::string deviceType;
+            try {
+                deviceType = GetCore()->GetMetric(item.deviceName, METRIC_KEY(DEVICE_TYPE)).as<std::string>();
+            } catch (const IE::Exception&) {
+                LOG_DEBUG_TAG("GetMetric:%s for %s failed ", "DEVICE_TYPE", item.deviceName);
             }
-            if (deviceType == ov::device::Type::INTEGRATED || deviceType == Metrics::DeviceType::integrated) {
+            if (deviceType == "integrated") {
                 iGPU.push_back(item);
-            } else if (deviceType == ov::device::Type::DISCRETE || deviceType == Metrics::DeviceType::discrete) {
+            } else if (deviceType == "discrete") {
                 dGPU.push_back(item);
             }
             continue;
@@ -685,14 +685,15 @@ std::string MultiDeviceInferencePlugin::GetDeviceList(const std::map<std::string
     for (auto&& device : deviceList) {
         // filter out the supported devices
         if (device.find("GPU") != std::string::npos) {
-            deviceArchitecture = GetCore()->GetMetric(device, METRIC_KEY(DEVICE_ARCHITECTURE)).as<std::string>();
+            try {
+                deviceArchitecture = GetCore()->GetMetric(device, METRIC_KEY(DEVICE_ARCHITECTURE)).as<std::string>();
+            } catch (const IE::Exception&) {
+                LOG_DEBUG_TAG("GetMetric:%s for %s failed ", "DEVICE_ARCHITECTURE", device);
+            }
         }
         if (!_pluginConfig.isSupportedDevice(device, deviceArchitecture))
             continue;
         allDevices += device + ",";
-    }
-    if (allDevices.empty()) {
-        IE_THROW() << "Please, check environment due to no supported devices can be used";
     }
     std::vector<std::string> devicesMerged;
     if (deviceListConfig != config.end() && !deviceListConfig->second.empty()) {
@@ -720,7 +721,7 @@ std::string MultiDeviceInferencePlugin::GetDeviceList(const std::map<std::string
             });
             return iter != devices.end();
         };
-        auto isAnyDev_emptyMerged = [](std::string& device, const std::vector<std::string>& devices) {
+        auto isAnyDevWithEmptyMerged = [](std::string& device, const std::vector<std::string>& devices) {
             auto iter = std::find_if(devices.begin(), devices.end(), [device](const std::string& devItem) {
                 std::string _device = device;
                 std::string::size_type realEndPos = 0;
@@ -738,9 +739,14 @@ std::string MultiDeviceInferencePlugin::GetDeviceList(const std::map<std::string
         if (devicesToBeMerged.empty()) {
             for (auto&& device : deviceList) {
                 if (device.find("GPU") != std::string::npos) {
-                    deviceArchitecture = GetCore()->GetMetric(device, METRIC_KEY(DEVICE_ARCHITECTURE)).as<std::string>();
+                    try {
+                        deviceArchitecture =
+                            GetCore()->GetMetric(device, METRIC_KEY(DEVICE_ARCHITECTURE)).as<std::string>();
+                    } catch (const IE::Exception&) {
+                        LOG_DEBUG_TAG("GetMetric:%s for %s failed ", "DEVICE_ARCHITECTURE", device);
+                    }
                 }
-                if (isAnyDev_emptyMerged(device, devicesToBeDeleted) || !_pluginConfig.isSupportedDevice(device, deviceArchitecture))
+                if (isAnyDevWithEmptyMerged(device, devicesToBeDeleted) || !_pluginConfig.isSupportedDevice(device, deviceArchitecture))
                     continue;
                 devicesMerged.push_back(device);
             }
@@ -779,6 +785,9 @@ std::string MultiDeviceInferencePlugin::GetDeviceList(const std::map<std::string
         std::for_each(devicesMerged.begin(), devicesMerged.end(), [&allDevices](const std::string& device) {
             allDevices += device + ",";
         });
+    }
+    if (allDevices.empty()) {
+        IE_THROW() << "Please, check environment due to no supported devices can be used";
     }
     // remove the last ',' if exist
     if (allDevices.back() == ',')

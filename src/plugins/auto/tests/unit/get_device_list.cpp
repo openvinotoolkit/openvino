@@ -97,8 +97,13 @@ TEST_P(GetDeviceListTest, GetDeviceListTestWithExcludeList) {
     ON_CALL(*core, GetMetric(HasSubstr("GPU"), StrEq(METRIC_KEY(DEVICE_ARCHITECTURE)), _))
         .WillByDefault(Return("GPU: vendor=0x8086 arch=0"));
     EXPECT_CALL(*core, GetAvailableDevices()).Times(1);
-    auto result = plugin->GetDeviceList({{ov::device::priorities.name(), priorityDevices}});
-    EXPECT_EQ(result, metaDevices);
+    if (metaDevices == "") {
+        EXPECT_THROW(plugin->GetDeviceList({{ov::device::priorities.name(), priorityDevices}}), IE::Exception);
+    } else {
+        std::string result;
+        ASSERT_NO_THROW(result = plugin->GetDeviceList({{ov::device::priorities.name(), priorityDevices}}));
+        EXPECT_EQ(result, metaDevices);
+    }
 }
 
 using GetDeviceListTestWithNotInteldGPU = GetDeviceListTest;
@@ -119,8 +124,13 @@ TEST_P(GetDeviceListTestWithNotInteldGPU, GetDeviceListTestWithExcludeList) {
     ON_CALL(*core, GetMetric(StrEq("GPU"), StrEq(METRIC_KEY(DEVICE_ARCHITECTURE)), _))
         .WillByDefault(Return("GPU: vendor=0x8086 arch=0"));
     EXPECT_CALL(*core, GetAvailableDevices()).Times(1);
-    auto result = plugin->GetDeviceList({{ov::device::priorities.name(), priorityDevices}});
-    EXPECT_EQ(result, metaDevices);
+    if (metaDevices == "") {
+        EXPECT_THROW(plugin->GetDeviceList({{ov::device::priorities.name(), priorityDevices}}), IE::Exception);
+    } else {
+        std::string result;
+        ASSERT_NO_THROW(result = plugin->GetDeviceList({{ov::device::priorities.name(), priorityDevices}}));
+        EXPECT_EQ(result, metaDevices);
+    }
 }
 
 const std::vector<Params> testConfigsWithId = {Params{" ", " "},
