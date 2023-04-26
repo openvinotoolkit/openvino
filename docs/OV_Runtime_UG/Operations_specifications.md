@@ -43,7 +43,7 @@
    DeformablePSROIPooling-1 <openvino_docs_ops_detection_DeformablePSROIPooling_1>
    DepthToSpace-1 <openvino_docs_ops_movement_DepthToSpace_1>
    DetectionOutput-1 <openvino_docs_ops_detection_DetectionOutput_1>
-   DetectionOutput-1 <openvino_docs_ops_detection_DetectionOutput_8>
+   DetectionOutput-8 <openvino_docs_ops_detection_DetectionOutput_8>
    DFT-7 <openvino_docs_ops_signals_DFT_7>
    Divide-1 <openvino_docs_ops_arithmetic_Divide_1>
    Einsum-7 <openvino_docs_ops_matrix_Einsum_7>

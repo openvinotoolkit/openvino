@@ -94,8 +94,7 @@ void Ngram::initSupportedPrimitiveDescriptors() {
     addSupportedPrimDesc({{LayoutType::ncsp, InferenceEngine::Precision::FP32},
                           {LayoutType::ncsp, idcesPrecision}},
                          {{LayoutType::ncsp, InferenceEngine::Precision::FP32}},
-                         ref_any,
-                         isDynamicNode());
+                         ref_any);
 }
 
 void Ngram::prepareParams() {
