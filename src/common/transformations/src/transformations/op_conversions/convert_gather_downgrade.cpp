@@ -6,9 +6,7 @@
 
 #include <ngraph/pattern/op/wrap_type.hpp>
 #include <ngraph/rt_info.hpp>
-#include <openvino/opsets/opset1.hpp>
-#include <openvino/opsets/opset7.hpp>
-#include <openvino/opsets/opset8.hpp>
+#include "openvino/op/gather.hpp"
 
 #include "itt.hpp"
 
@@ -18,16 +16,16 @@ using namespace ov;
 pass::ConvertGather7ToGather1::ConvertGather7ToGather1() {
     MATCHER_SCOPE(ConvertGather7ToGather1);
 
-    auto gather_v7_pattern = pattern::wrap_type<opset7::Gather>();
+    auto gather_v7_pattern = pattern::wrap_type<ov::op::v7::Gather>();
 
     matcher_pass_callback callback = [=](pattern::Matcher& m) {
-        auto gather_v7_node = std::dynamic_pointer_cast<opset7::Gather>(m.get_match_root());
+        auto gather_v7_node = std::dynamic_pointer_cast<ov::op::v7::Gather>(m.get_match_root());
         if (!gather_v7_node)
             return false;
         if (gather_v7_node->get_batch_dims() != 0)
             return false;
 
-        auto gather_v1_node = make_shared<opset1::Gather>(gather_v7_node->input_value(0),
+        auto gather_v1_node = make_shared<ov::op::v1::Gather>(gather_v7_node->input_value(0),
                                                           gather_v7_node->input_value(1),
                                                           gather_v7_node->input_value(2));
 
@@ -44,14 +42,14 @@ pass::ConvertGather7ToGather1::ConvertGather7ToGather1() {
 pass::ConvertGather8ToGather7::ConvertGather8ToGather7() {
     MATCHER_SCOPE(ConvertGather8ToGather7);
 
-    auto gather_v8_pattern = pattern::wrap_type<opset8::Gather>();
+    auto gather_v8_pattern = pattern::wrap_type<ov::op::v8::Gather>();
 
     matcher_pass_callback callback = [=](pattern::Matcher& m) {
-        auto gather_v8_node = std::dynamic_pointer_cast<opset8::Gather>(m.get_match_root());
+        auto gather_v8_node = std::dynamic_pointer_cast<ov::op::v8::Gather>(m.get_match_root());
         if (!gather_v8_node)
             return false;
 
-        auto gather_v7_node = make_shared<opset7::Gather>(gather_v8_node->input_value(0),
+        auto gather_v7_node = make_shared<ov::op::v7::Gather>(gather_v8_node->input_value(0),
                                                           gather_v8_node->input_value(1),
                                                           gather_v8_node->input_value(2),
                                                           gather_v8_node->get_batch_dims());
