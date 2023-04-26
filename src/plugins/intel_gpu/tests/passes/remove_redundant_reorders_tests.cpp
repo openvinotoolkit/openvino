@@ -14,6 +14,8 @@
 #include "softmax_inst.h"
 #include "reduce_inst.h"
 #include "fully_connected_inst.h"
+#include "convolution_inst.h"
+#include "permute_inst.h"
 
 #include "pass_manager.h"
 #include "to_string_utils.h"
@@ -96,4 +98,42 @@ TEST(remove_redundant_reorders, optimize_fsv16_to_bfyx) {
     auto& fc_node = prog->get_node("fc");
     auto fc_in_layout = fc_node.get_input_layouts();
     ASSERT_EQ(fc_in_layout.front().data_padding.upper_size().feature[0], 0);
+}
+
+TEST(remove_redundant_reorders, skip_reorder_fusing_when_sibling_not_support_padding) {
+    // Reorder fusing with padding in remove_redundant_reorders pass should check all sibiling nodes whether they support padding or not.
+    // This test case has two reorders after convolution and one has padding. This reorder shouldn't be fused in the pass.
+    // Reference model : Enhance3-lite
+
+    auto& engine = get_test_engine();
+    auto input = engine.allocate_memory({ data_types::f16, format::bfyx, { 2, 32, 480, 270 } });
+    auto weights = engine.allocate_memory({ data_types::f16, format::bfyx, { 16, 32, 1, 1 } });
+    auto weights_2 = engine.allocate_memory({ data_types::f16, format::bfyx, { 64, 16, 3, 3 } });
+
+    topology topology;
+    topology.add(data("weights", weights));
+    topology.add(data("weights_2", weights_2));
+    topology.add(input_layout("input", input->get_layout()));
+    topology.add(convolution("convolution", input_info("input"), { "weights" }));
+    topology.add(reorder("reorder_reshape_1", input_info("convolution"), { data_types::f16, format::bfwzyx, { 2, 16, 1, 1, 480, 270 } }));
+    topology.add(permute("transpose_1", input_info("reorder_reshape_1"), { 0, 1, 2, 3, 5, 4 }));
+    topology.add(reorder("convolution_reorder_1", input_info("convolution"),
+                        { data_types::f16, format::fs_b_yx_fsv32, { 2, 16, 480, 270 }, padding({0, 0, 1, 1}, 0) }));
+    topology.add(convolution("convolution_2", input_info("convolution_reorder_1"),
+                            { "weights_2" }, { 1, 1}, { 1, 1}, { 1, 1}, false, padding({0, 0, 1, 1}, 0)));
+
+    ExecutionConfig config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::optimize_data(true));
+
+    auto prog = program::build_program(engine, topology, config, false, true);
+    config.set_property(ov::intel_gpu::optimize_data(true));
+
+    layout_optimizer lo(true);
+
+    bool optimize_data = config.get_property(ov::intel_gpu::optimize_data);
+    program_wrapper::apply_opt_pass<remove_redundant_reorders>(*prog, lo, optimize_data);
+
+    ASSERT_NE(prog, nullptr);
+
+    ASSERT_EQ(prog->get_node("convolution").get_output_layout().data_padding, padding());
 }
