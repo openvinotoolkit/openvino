@@ -823,7 +823,7 @@ void RemovePermutationsNHWCToNCHWPass::run() {
             !getInputTo(pattern_start->outData.front()).empty()) {
             auto layer_before_permute = CNNNetPrevLayer(pattern_start);
             DataPtr output = nullptr;
-            for (auto& before_output : layer_before_permute->outData) {
+            for (const auto& before_output : layer_before_permute->outData) {
                 if (areEqualDatas(pattern_start->input(), before_output)) {
                     output = before_output;
                     output->setLayout(getTransposedLayout(output));
