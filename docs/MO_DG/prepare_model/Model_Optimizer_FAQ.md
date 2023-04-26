@@ -73,24 +73,19 @@ absent in the :doc:`list of supported layers <openvino_docs_MO_DG_prepare_model_
 
 .. _question-4:
 
-Q4. What does the message "Input image of shape is larger than mean image from file" mean?
 #####################################################################################################################################################
 
-**A:** Your model input shapes must be smaller than or equal to the shapes of the mean image file you provide. The idea behind the mean file is to subtract its values from the input image in an element-wise manner. When the mean file is smaller than the input image, there are not enough values to perform element-wise subtraction. Also, make sure you use the mean file that was used during the network training phase. Note that the mean file is dependent on dataset.
+This MO argument/option was deprecated and removed, question is not actual anymore.
 
 .. _question-5:
 
-Q5. 
 #####################################################################################################################################################
 
-**A:** 
+This MO argument/option was deprecated and removed, question is not actual anymore.
 
 .. _question-6:
 
-Q6. What does the message "Probably mean file has incorrect format" mean?
 #####################################################################################################################################################
-
-**A:** The mean file that you provide for Model Optimizer must be in the ``.binaryproto`` format. You can try to check the content, using recommendations from the BVLC Caffe (`#290 <https://github.com/BVLC/caffe/issues/290>`__).
 
 .. _question-7:
 
@@ -213,11 +208,9 @@ Q9. What does the message "Mean file for topologies with multiple inputs is not 
 
 .. _question-10:
 
-Q10. What does the message "Cannot load or process mean file: value error" mean?
 #####################################################################################################################################################
 
-**A:** There are multiple reasons why Model Optimizer does not accept the mean file.
-See FAQs :ref:`#4 <question-4>`, :ref:`#5 <question-5>`, and :ref:`#6 <question-6>`.
+This MO argument/option was deprecated and removed, question is not actual anymore.
 
 .. _question-11:
 
@@ -263,17 +256,15 @@ Q16. What does the message "Input shape is required to convert MXNet model. Plea
 
 .. _question-17:
 
-Q17. 
 #####################################################################################################################################################
 
-**A:**
+This MO argument/option was deprecated and removed, question is not actual anymore.
 
 .. _question-18:
 
-Q18.
 #####################################################################################################################################################
 
-**A:**
+This MO argument/option was deprecated and removed, question is not actual anymore.
 
 .. _question-19:
 
