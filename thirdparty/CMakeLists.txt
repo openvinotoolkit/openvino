@@ -427,7 +427,7 @@ if(ENABLE_SNAPPY_COMPRESSION)
     endif()
 
     if(NOT TARGET Snappy::snappy)
-        function(tf_build_snappy)
+        function(ov_build_snappy)
             set(BUILD_SHARED_LIBS OFF)
             set(SNAPPY_BUILD_BENCHMARKS OFF)
             set(SNAPPY_BUILD_TESTS OFF)
@@ -454,9 +454,14 @@ if(ENABLE_SNAPPY_COMPRESSION)
             add_subdirectory(snappy EXCLUDE_FROM_ALL)
             # need to create alias Snappy::snappy
             add_library(Snappy::snappy ALIAS snappy)
+
+            # WA for emscriptem build which currently requires -fexceptions
+            if(EMSCRIPTEN)
+                target_compile_options(snappy PRIVATE "-fexceptions")
+            endif()
         endfunction()
 
-        tf_build_snappy()
+        ov_build_snappy()
         ov_install_static_lib(snappy ${OV_CPACK_COMP_CORE})
     endif()
 endif()
