@@ -7,18 +7,14 @@ from common.tflite_layer_test_class import TFLiteLayerTest
 from common.utils.tflite_utils import data_generators
 
 test_ops = [
-    {'op_name': ['CONV_2D', 'TRANSPOSE'], 'op_func': tf.nn.conv2d},
+    {'op_name': ['DEPTHWISE_CONV_2D', 'RESHAPE'], 'op_func': tf.nn.depthwise_conv2d},
 ]
 
 test_params = [
-    {'shape': [1, 8, 22, 22], 'ksize': [32, 3, 4, 4], 'strides': 2, 'padding': 'SAME', 'data_format': 'NCHW',
-     'dilations': [1, 1, 1, 1]},
-    {'shape': [1, 22, 22, 9], 'ksize': [32, 3, 3, 3], 'strides': (2, 1), 'padding': 'SAME', 'data_format': 'NHWC',
-     'dilations': [1, 2, 2, 1]},
-    {'shape': [1, 22, 22, 8], 'ksize': [1, 3, 4, 4], 'strides': 2, 'padding': 'VALID', 'data_format': 'NHWC',
-     'dilations': [1, 1, 1, 1]},
-    {'shape': [1, 22, 22, 3], 'ksize': [1, 3, 3, 3], 'strides': (3, 4), 'padding': 'VALID', 'data_format': 'NHWC',
-     'dilations': [1, 2, 2, 1]},
+    {'shape': [1, 22, 22, 8], 'ksize': [3, 3, 8, 2], 'strides': [1, 2, 2, 1], 'padding': 'SAME', 'data_format': 'NHWC',
+     'dilations': [1, 1]},
+    {'shape': [1, 22, 22, 9], 'ksize': [3, 3, 9, 1], 'strides': [1, 1, 1, 1], 'padding': 'SAME', 'data_format': 'NHWC',
+     'dilations': [1, 1]},
 ]
 
 
@@ -28,9 +24,9 @@ for i, (parameters, shapes) in enumerate(test_data):
     test_data[i] = parameters.copy()
 
 
-class TestTFLiteConv2DLayerTest(TFLiteLayerTest):
+class TestTFLiteDepthwiseConv2DLayerTest(TFLiteLayerTest):
     inputs = ["Input", "Conv2D_weights"]
-    outputs = ["Conv2D"]
+    outputs = ["DepthwiseConv2D"]
 
     def _prepare_input(self, inputs_dict, generator=None):
         if generator is None:
@@ -55,5 +51,5 @@ class TestTFLiteConv2DLayerTest(TFLiteLayerTest):
 
     @pytest.mark.parametrize("params", test_data)
     @pytest.mark.nightly
-    def test_conv2d(self, params, ie_device, precision, temp_dir):
+    def test_depthwise_conv2d(self, params, ie_device, precision, temp_dir):
         self._test(ie_device, precision, temp_dir, params)
