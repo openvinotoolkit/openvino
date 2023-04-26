@@ -457,8 +457,9 @@ else()
         set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -s MODULARIZE -s EXPORT_NAME=\"createModule\"")
 
         # Debug, will remove later
-        set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} --memoryprofiler")
-        set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -Wno-unused-command-line-argument -fsanitize=address -g2 -O1")
+        # set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} --memoryprofiler -fsanitize=address")
+        # set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -Wno-unused-command-line-argument")
+        ie_add_compiler_flags("-g2 -O3")
     else()
         set(exclude_libs "-Wl,--exclude-libs,ALL")
         set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} -Wl,--gc-sections ${exclude_libs}")
