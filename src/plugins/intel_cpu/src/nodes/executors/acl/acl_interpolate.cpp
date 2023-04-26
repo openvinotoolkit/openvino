@@ -39,9 +39,18 @@ bool ov::intel_cpu::ACLInterpolateExecutor::init(const InterpolateAttrs &interpo
             return false;
     }
 
-
     auto srcDims = srcDescs[0]->getShape().getDims();
     auto dstDims = dstDescs[0]->getShape().getDims();
+
+    if (srcDescs[0]->hasLayoutType(LayoutType::nspc) && dstDescs[0]->hasLayoutType(LayoutType::nspc)) {
+        auto mover = [](VectorDims &_shape) {
+            std::swap(_shape[1], _shape[2]);
+            std::swap(_shape[2], _shape[3]);
+        };
+        mover(srcDims);
+        mover(dstDims);
+    }
+
     auto srcTensorInfo = arm_compute::TensorInfo(shapeCast(srcDims), 1,
                                                  precisionToAclDataType(srcDescs[0]->getPrecision()),
                                                  getAclDataLayoutByMemoryDesc(srcDescs[0]));
