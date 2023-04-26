@@ -81,7 +81,7 @@ class TestSortConstants(PytorchLayerTest):
     @pytest.mark.parametrize("stable", [
         False,
         None,
-        not_yet_supported(True)
+        True
     ])
     @pytest.mark.nightly
     @pytest.mark.precommit
