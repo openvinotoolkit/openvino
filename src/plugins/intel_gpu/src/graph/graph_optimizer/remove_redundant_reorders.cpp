@@ -496,7 +496,8 @@ void remove_redundant_reorders::run(program& p) {
 
                     auto node_format = node->get_output_layout().format;
                     for (size_t axis = 0; axis < node->get_dependency(0).get_output_layout().data_padding.lower_size().sizes(node_format).size(); axis++) {
-                        if (!user->is_padding_supported(axis, node->get_dependency(0).get_output_layout().data_padding.lower_size().sizes(node_format)[axis]))
+                        if (!user->is_padding_supported(static_cast<int>(axis),
+                            node->get_dependency(0).get_output_layout().data_padding.lower_size().sizes(node_format)[axis]))
                             return false;
                     }
                 }
