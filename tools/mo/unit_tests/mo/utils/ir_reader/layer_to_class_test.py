@@ -56,9 +56,6 @@ class TestFunction(unittest.TestCase):
         if reshape_shape is None:
             reshape_node = Node(graph, 'reshape')
 
-        for op in graph.get_op_nodes(type='GroupConvolution'):
-            groupconv_to_conv(op)
-
         graph_ref = build_graph(nodes_attributes,
                                 [*connect('input:0', 'conv:0'),
                                  *connect('weights:0', 'conv:1'),
