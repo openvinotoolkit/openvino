@@ -136,7 +136,7 @@ struct CPUStreamsExecutor::Impl {
                     ? _impl->_config._streams_info_table[_impl->_config._stream_ids[stream_id]][THREADS_PER_STREAM]
                     : 0;
             const auto cpu_core_type =
-                _impl->_config._streams_info_table.size() > 0
+                (_impl->_config._streams_info_table.size() > 0 && _impl->_config._stream_ids.size() > 0)
                     ? static_cast<ColumnOfProcessorTypeTable>(
                           _impl->_config._streams_info_table[_impl->_config._stream_ids[stream_id]][PROC_TYPE])
                     : static_cast<ColumnOfProcessorTypeTable>(0);
