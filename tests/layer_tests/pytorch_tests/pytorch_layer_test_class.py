@@ -85,6 +85,9 @@ class PytorchLayerTest:
             # Framework infer:
             fw_res = model(*deepcopy(torch_inputs))
 
+            if not isinstance(fw_res, (tuple)):
+                fw_res = (fw_res,)
+
             output_list = list(infer_res.values())
 
             flatten_fw_res = []
@@ -196,6 +199,12 @@ class PytorchLayerTest:
         ov_res = ov_model(*inputs)
         fw_res = fw_model(*inputs)
 
+        if not isinstance(fw_res, (tuple)):
+            fw_res = (fw_res,)
+
+        if not isinstance(ov_res, (tuple)):
+            ov_res = (ov_res,)
+
         flatten_fw_res, flatten_ov_res = [], []
         flatten_fw_res = flattenize_outputs(fw_res)
         flatten_ov_res = flattenize_outputs(ov_res)
@@ -257,8 +266,6 @@ def flattenize_dict_outputs(res):
 
 
 def flattenize_outputs(res):
-    if not isinstance(res, (tuple)):
-        res = (res,)
     results = []
     for res_item in res:
         # if None is at output we skip it
