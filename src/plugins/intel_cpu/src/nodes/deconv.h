@@ -50,10 +50,8 @@ public:
     void executeDynamicImpl(dnnl::stream strm) override { execute(strm); }
     bool needShapeInfer() const override;
 
-    void setDynamicBatchLim(int lim) override;
     bool canFuseBias() const;
     bool canBeExecutedInInt8() const override;
-
 
 protected:
     AttrPtr initPrimitiveAttr() override;

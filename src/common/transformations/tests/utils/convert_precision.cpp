@@ -671,6 +671,14 @@ TEST(TransformationTests, ConvertPrecision_LogicalNot) {
 
     ASSERT_FALSE(has_type<element::Type_t::boolean>(f));
     ASSERT_TRUE(has_type<element::Type_t::u8>(f));
+
+    std::shared_ptr<ov::op::TypeRelaxedBase> tr;
+    for (const auto& node : f->get_ordered_ops())
+        if (auto op = std::dynamic_pointer_cast<ov::op::TypeRelaxedBase>(node))
+            tr = op;
+    ASSERT_TRUE(tr != nullptr);
+    ASSERT_EQ(tr->get_origin_input_type(0), element::boolean);
+    ASSERT_EQ(tr->get_origin_input_type(1), element::undefined);
 }
 
 TEST(TransformationTests, ConvertPrecision_Select) {
@@ -1708,6 +1716,122 @@ TEST(TransformationTests, ConvertPrecision_exp_through_unsqueeze) {
         auto mul_1 = make_shared<opset10::Multiply>(reduce_sum_1, factor_const);
         auto mul_1_compressed = make_shared<opset10::Convert>(mul_1, element::f16);
         auto matmul_1 = make_shared<opset10::MatMul>(mul_1_compressed, input_2);
+
+        model_ref = make_shared<Model>(NodeVector{matmul_1}, ParameterVector{input_1, input_2});
+    }
+
+    const FunctionsComparator func_comparator = FunctionsComparator::with_default();
+    FunctionsComparator::Result result = func_comparator(model_ref, model);
+    ASSERT_TRUE(result.valid) << result.message;
+}
+
+TEST(TransformationTests, ConvertPrecision_disable_for_quantized_nodes_1) {
+    shared_ptr<Model> model, model_ref;
+    pass::Manager manager;
+    {
+        auto input_1 = make_shared<opset10::Parameter>(element::f32, Shape{1, 3, 224, 224});
+        auto input_2 = make_shared<opset10::Parameter>(element::f32, Shape{1, 3, 224, 224});
+        auto exp_1 = make_shared<opset10::Exp>(input_1);
+
+        auto in_low = op::v0::Constant::create(element::f32, Shape{}, {0.f});
+        auto in_high = op::v0::Constant::create(element::f32, Shape{}, {5.f});
+        auto out_low = op::v0::Constant::create(element::f32, Shape{}, {2.f});
+        auto out_high = op::v0::Constant::create(element::f32, Shape{}, {4.f});
+        auto fq_1 = make_shared<opset10::FakeQuantize>(exp_1, in_low, in_high, out_low, out_high, 256);
+
+        auto reduction_axes = opset10::Constant::create(element::i64, Shape{1}, {-1});
+        auto reduce_sum_1 = make_shared<opset10::ReduceSum>(fq_1, reduction_axes);
+
+        auto fq_2 = make_shared<opset10::FakeQuantize>(reduce_sum_1, in_low, in_high, out_low, out_high, 256);
+        auto matmul_1 = make_shared<opset10::MatMul>(fq_2, input_2);
+
+        model = make_shared<Model>(NodeVector{matmul_1}, ParameterVector{input_1, input_2});
+
+        type_to_fuse_map empty_type_to_fuse_map = {};
+        bool keep_precision_sensitive_in_fp32 = true;
+        manager.register_pass<pass::ConvertPrecision>(precisions_map{{element::f32, element::f16}},
+                                                      empty_type_to_fuse_map,
+                                                      keep_precision_sensitive_in_fp32);
+        manager.run_passes(model);
+    }
+
+    {
+        auto input_1 = make_shared<opset10::Parameter>(element::f16, Shape{1, 3, 224, 224});
+        auto input_2 = make_shared<opset10::Parameter>(element::f16, Shape{1, 3, 224, 224});
+        auto exp_1 = make_shared<opset10::Exp>(input_1);
+
+        auto in_low = op::v0::Constant::create(element::f16, Shape{}, {0.f});
+        auto in_high = op::v0::Constant::create(element::f16, Shape{}, {5.f});
+        auto out_low = op::v0::Constant::create(element::f16, Shape{}, {2.f});
+        auto out_high = op::v0::Constant::create(element::f16, Shape{}, {4.f});
+        auto fq_1 = make_shared<opset10::FakeQuantize>(exp_1, in_low, in_high, out_low, out_high, 256);
+
+        auto reduction_axes = opset10::Constant::create(element::i64, Shape{1}, {-1});
+        auto reduce_sum_1 = make_shared<opset10::ReduceSum>(fq_1, reduction_axes);
+
+        auto fq_2 = make_shared<opset10::FakeQuantize>(reduce_sum_1, in_low, in_high, out_low, out_high, 256);
+        auto matmul_1 = make_shared<opset10::MatMul>(fq_2, input_2);
+
+        model_ref = make_shared<Model>(NodeVector{matmul_1}, ParameterVector{input_1, input_2});
+    }
+
+    const FunctionsComparator func_comparator = FunctionsComparator::with_default();
+    FunctionsComparator::Result result = func_comparator(model_ref, model);
+    ASSERT_TRUE(result.valid) << result.message;
+}
+
+TEST(TransformationTests, ConvertPrecision_disable_for_quantized_nodes_2) {
+    shared_ptr<Model> model, model_ref;
+    pass::Manager manager;
+    {
+        auto input_1 = make_shared<opset10::Parameter>(element::f32, Shape{1, 3, 224, 224});
+        auto input_2 = make_shared<opset10::Parameter>(element::f32, Shape{1, 3, 224, 224});
+        auto exp_1 = make_shared<opset10::Exp>(input_1);
+
+        auto in_low = op::v0::Constant::create(element::f32, Shape{}, {0.f});
+        auto in_high = op::v0::Constant::create(element::f32, Shape{}, {5.f});
+        auto out_low = op::v0::Constant::create(element::f32, Shape{}, {2.f});
+        auto out_high = op::v0::Constant::create(element::f32, Shape{}, {4.f});
+        auto fq_1 = make_shared<opset10::FakeQuantize>(exp_1, in_low, in_high, out_low, out_high, 256);
+
+        auto unsqueeze_axes = opset10::Constant::create(element::i64, Shape{1}, {1});
+        auto unsqueeze_1 = make_shared<opset10::Unsqueeze>(fq_1, unsqueeze_axes);
+
+        auto reduction_axes = opset10::Constant::create(element::i64, Shape{1}, {-1});
+        auto reduce_sum_1 = make_shared<opset10::ReduceSum>(unsqueeze_1, reduction_axes);
+
+        auto fq_2 = make_shared<opset10::FakeQuantize>(reduce_sum_1, in_low, in_high, out_low, out_high, 256);
+        auto matmul_1 = make_shared<opset10::MatMul>(fq_2, input_2);
+
+        model = make_shared<Model>(NodeVector{matmul_1}, ParameterVector{input_1, input_2});
+
+        type_to_fuse_map empty_type_to_fuse_map = {};
+        bool keep_precision_sensitive_in_fp32 = true;
+        manager.register_pass<pass::ConvertPrecision>(precisions_map{{element::f32, element::f16}},
+                                                      empty_type_to_fuse_map,
+                                                      keep_precision_sensitive_in_fp32);
+        manager.run_passes(model);
+    }
+
+    {
+        auto input_1 = make_shared<opset10::Parameter>(element::f16, Shape{1, 3, 224, 224});
+        auto input_2 = make_shared<opset10::Parameter>(element::f16, Shape{1, 3, 224, 224});
+        auto exp_1 = make_shared<opset10::Exp>(input_1);
+
+        auto in_low = op::v0::Constant::create(element::f16, Shape{}, {0.f});
+        auto in_high = op::v0::Constant::create(element::f16, Shape{}, {5.f});
+        auto out_low = op::v0::Constant::create(element::f16, Shape{}, {2.f});
+        auto out_high = op::v0::Constant::create(element::f16, Shape{}, {4.f});
+        auto fq_1 = make_shared<opset10::FakeQuantize>(exp_1, in_low, in_high, out_low, out_high, 256);
+
+        auto unsqueeze_axes = opset10::Constant::create(element::i64, Shape{1}, {1});
+        auto unsqueeze_1 = make_shared<opset10::Unsqueeze>(fq_1, unsqueeze_axes);
+
+        auto reduction_axes = opset10::Constant::create(element::i64, Shape{1}, {-1});
+        auto reduce_sum_1 = make_shared<opset10::ReduceSum>(unsqueeze_1, reduction_axes);
+
+        auto fq_2 = make_shared<opset10::FakeQuantize>(reduce_sum_1, in_low, in_high, out_low, out_high, 256);
+        auto matmul_1 = make_shared<opset10::MatMul>(fq_2, input_2);
 
         model_ref = make_shared<Model>(NodeVector{matmul_1}, ParameterVector{input_1, input_2});
     }

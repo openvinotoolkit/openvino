@@ -55,8 +55,6 @@ public:
 
     void prepareParams() override;
     void executeDynamicImpl(dnnl::stream strm) override;
-
-    void setDynamicBatchLim(int lim) override;
     bool canBeExecutedInInt8() const override;
 
 private:

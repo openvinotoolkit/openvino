@@ -2040,7 +2040,6 @@ void Interpolate::initSupportedPrimitiveDescriptors() {
     auto axesType = Precision::I32;
 
     NodeConfig config;
-    config.dynBatchSupport = false;
     config.outConfs.resize(1);
     if (is_version11) {
         if (isAxesSpecified) {
@@ -2087,7 +2086,9 @@ void Interpolate::initSupportedPrimitiveDescriptors() {
 
 #if defined (OV_CPU_WITH_ACL)
                 interpAttrs.hasPad = hasPad;
-                pushDesc(LayoutType::nspc, undef, true);
+                //TODO: Fix NHWC case in ACL executor
+                //Interpolate ACL executor produces incorrect result in NHWC case
+                //pushDesc(LayoutType::nspc, undef, true);
                 pushDesc(LayoutType::ncsp, undef, true);
                 canUseAclExecutor = !supportedPrimitiveDescriptors.empty();
                 if (canUseAclExecutor)
@@ -2148,7 +2149,9 @@ void Interpolate::initSupportedPrimitiveDescriptors() {
 
 #if defined (OV_CPU_WITH_ACL)
         interpAttrs.hasPad = hasPad;
-        pushDesc(LayoutType::nspc, undef, true);
+        //TODO: Fix NHWC case in ACL executor
+        //Interpolate ACL executor produces incorrect result in NHWC case
+        //pushDesc(LayoutType::nspc, undef, true);
         pushDesc(LayoutType::ncsp, undef, true);
         canUseAclExecutor = !supportedPrimitiveDescriptors.empty();
         if (canUseAclExecutor)

@@ -608,16 +608,6 @@ VectorDims Deconvolution::shapeInferInternal(const VectorDims &inDims, std::vect
     return std::move(result.dims.back());
 }
 
-void Deconvolution::setDynamicBatchLim(int lim) {
-    if (!execPtr) {
-        IE_THROW() << "Can't set dynamic batch for Deconvolution node with name: " << getName() << ", because executor is not compiled";
-    }
-    if (execPtr->needReordering()) {
-        IE_THROW() << "Can't execute Deconvolution node with dynamic batch via executor with reorders";
-    }
-    Node::setDynamicBatchLim(lim);
-}
-
 void Deconvolution::execute(dnnl::stream strm) {
     if (!execPtr) {
         IE_THROW() << "Can't execute Deconvolution node with name: " << getName() << ", because executor is not compiled";
