@@ -132,11 +132,11 @@ struct CPUStreamsExecutor::Impl {
             std::lock_guard<std::mutex> lock{_impl->_cpumap_mutex};
             const auto stream_id = _streamId >= _impl->_config._streams ? _impl->_config._streams - 1 : _streamId;
             const auto concurrency =
-                _impl->_config._streams_info_table.size() > 0
+                (_impl->_config._streams_info_table.size() > 0 && _impl->_config._stream_ids.size() > 0)
                     ? _impl->_config._streams_info_table[_impl->_config._stream_ids[stream_id]][THREADS_PER_STREAM]
                     : 0;
             const auto cpu_core_type =
-                _impl->_config._streams_info_table.size() > 0
+                (_impl->_config._streams_info_table.size() > 0 && _impl->_config._stream_ids.size() > 0)
                     ? static_cast<ColumnOfProcessorTypeTable>(
                           _impl->_config._streams_info_table[_impl->_config._stream_ids[stream_id]][PROC_TYPE])
                     : static_cast<ColumnOfProcessorTypeTable>(0);
@@ -166,13 +166,10 @@ struct CPUStreamsExecutor::Impl {
             } else {
                 _taskArena.reset(new custom::task_arena{concurrency});
             }
-            if (_impl->_config._cpu_pinning && _streamId < _impl->_config._streams) {
-                // Handle special case: reserve 4 cores when threads is 3 in ECore
-                const auto num_cpus =
-                    cpu_core_type == EFFICIENT_CORE_PROC && concurrency == 3 && _impl->_config._small_core_streams > 1
-                        ? concurrency + 1
-                        : concurrency;
-                _cpu_ids = reserve_available_cpus(cpu_core_type, num_cpus, _impl->_config._plugin_task);
+            if (_impl->_config._cpu_pinning) {
+                _cpu_ids = static_cast<int>(_impl->_config._stream_core_ids.size()) == _impl->_config._streams
+                               ? _impl->_config._stream_core_ids[stream_id]
+                               : _cpu_ids;
                 if (_cpu_ids.size() > 0) {
                     CpuSet processMask;
                     int ncpus = 0;

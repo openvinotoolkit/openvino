@@ -26,7 +26,6 @@ public:
     bool isOptimized() const;
     void initOptimalPrimitiveDescriptor() override;
 
-    void setDynamicBatchLim(int lim) override;
     bool isExecutable() const override;
 
     bool needPrepareParams() const override;
@@ -36,8 +35,7 @@ public:
 
 private:
     struct SplitExecutor {
-        virtual void exec(const uint8_t* srcData, const std::vector<uint8_t*>& dstRawMemPtrs,
-                          const Dim origBatch, const Dim perInferBatch) = 0;
+        virtual void exec(const uint8_t* srcData, const std::vector<uint8_t*>& dstRawMemPtrs) = 0;
         virtual ~SplitExecutor() = default;
     };
     std::shared_ptr<SplitExecutor> execPtr = nullptr;
@@ -45,8 +43,7 @@ private:
     struct SplitOptimizedExecutor : public SplitExecutor {
         public:
             SplitOptimizedExecutor(BlockedMemoryDescCPtr inDesc, const std::vector<BlockedMemoryDescCPtr> &outDescs, const size_t axis);
-            void exec(const uint8_t* srcData, const std::vector<uint8_t*>& dstRawMemPtrs,
-                      const Dim origBatch, const Dim perInferBatch) override;
+            void exec(const uint8_t* srcData, const std::vector<uint8_t*>& dstRawMemPtrs) override;
 
         private:
             std::vector<size_t> dataSize;

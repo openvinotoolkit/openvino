@@ -7,13 +7,6 @@ import pytest
 
 from pytorch_layer_test_class import PytorchLayerTest
 
-def not_yet_supported(value):
-    return pytest.param(
-        value,
-        marks = pytest.mark.xfail(
-            reason="Failed due to aten::sort not yet supporting stable sorting. Ticket 105242"
-        ),
-    )
 
 class TestSortConstants(PytorchLayerTest):
     def _prepare_input(self):
@@ -30,15 +23,15 @@ class TestSortConstants(PytorchLayerTest):
             def forward(self, input_tensor):
                 if self.stable is not None:
                     return torch.sort(input_tensor,
-                        stable = self.stable,
-                        dim = self.dim,
-                        descending = self.descending
-                    )[0]
+                                      stable=self.stable,
+                                      dim=self.dim,
+                                      descending=self.descending
+                                      )[0]
                 else:
                     return torch.sort(input_tensor,
-                        dim = self.dim,
-                        descending = self.descending
-                    )[0]
+                                      dim=self.dim,
+                                      descending=self.descending
+                                      )[0]
 
         ref_net = None
         return aten_sort(dim, descending, stable), ref_net, "aten::sort"
@@ -81,7 +74,7 @@ class TestSortConstants(PytorchLayerTest):
     @pytest.mark.parametrize("stable", [
         False,
         None,
-        not_yet_supported(True)
+        True
     ])
     @pytest.mark.nightly
     @pytest.mark.precommit
@@ -89,4 +82,5 @@ class TestSortConstants(PytorchLayerTest):
         self.input_tensor = input_tensor
         dims = len(input_tensor.shape)
         for dim in range(-dims, dims):
-            self._test(*self.create_model(dim, descending, stable), ie_device, precision, ir_version, use_ts_backend=use_ts_backend)
+            self._test(*self.create_model(dim, descending, stable),
+                       ie_device, precision, ir_version, use_ts_backend=use_ts_backend)

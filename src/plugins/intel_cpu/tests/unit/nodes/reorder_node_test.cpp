@@ -113,7 +113,6 @@ public:
         auto context = std::make_shared<GraphContext>(conf,
                                                       nullptr,
                                                       std::make_shared<WeightsSharing>(),
-                                                      std::make_shared<std::mutex>(),
                                                       false);
         const dnnl::engine cpuEngine = context->getEngine();
 

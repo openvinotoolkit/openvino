@@ -25,7 +25,7 @@ struct mvn_test_params {
     bool normalize_variance;
     float epsilon;
     bool eps_inside_sqrt;
-    bool across_channels;
+    std::vector<int64_t> axes;
 };
 
 class mvn_test : public testing::TestWithParam<mvn_test_params> { };
@@ -36,7 +36,7 @@ TEST_P(mvn_test, shape_infer) {
     auto& engine = get_test_engine();
 
     auto input_layout_prim = std::make_shared<input_layout>("input", p.input_layout);
-    auto mvn_prim = std::make_shared<mvn>("output", input_info("input"), p.normalize_variance, p.epsilon, p.eps_inside_sqrt, p.across_channels);
+    auto mvn_prim = std::make_shared<mvn>("output", input_info("input"), p.normalize_variance, p.epsilon, p.eps_inside_sqrt, p.axes);
 
     cldnn::program prog(engine);
 
@@ -53,11 +53,11 @@ INSTANTIATE_TEST_SUITE_P(smoke, mvn_test,
     testing::ValuesIn(std::vector<mvn_test_params>{
         {
             layout{ov::PartialShape{1, 2, 3}, data_types::f32, format::bfyx},
-            true, 1e-9f, true, true
+            true, 1e-9f, true, {2, 3}
         },
         {
             layout{ov::PartialShape::dynamic(4), data_types::f32, format::bfyx},
-            true, 1e-9f, true, true
+            true, 1e-9f, true, {1, 2, 3}
         }
     }));
 
