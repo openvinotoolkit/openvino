@@ -113,27 +113,27 @@ private:
     void preset_params();
     void prepare_original_idx();
 
-    bool topk_innermost;
-    bool jit_mode;
-    bool sort_index;
-    bool stable;
-    bool mode_max;
-    int axis;
+    bool topk_innermost = false;
+    bool jit_mode = false;
+    bool sort_index = false;
+    bool stable = false;
+    bool mode_max = false;
+    int axis = 0;
     static const size_t TOPK_DATA = 0;
     static const size_t TOPK_K = 1;
     static const size_t TOPK_INDEX = 1;
-    size_t O, A, I;
-    size_t blk_size;
-    size_t data_size;
-    size_t axis_dim;
-    int top_k;
-    int dim, before_num;
-    bool bubble_inplace;
-    bool preset_params_done;
+    size_t O = 0, A = 0, I = 0;
+    size_t blk_size = 0;
+    size_t data_size = 0;
+    size_t axis_dim = 0;
+    int top_k = 0;
+    int dim = 0, before_num = 0;
+    bool bubble_inplace = false;
+    bool preset_params_done = false;
 
     VectorDims src_dims, dst_dims;
-    TopKLayoutType layout;
-    TopKAlgorithm algorithm;
+    TopKLayoutType layout = TopKLayoutType::topk_ncsp;
+    TopKAlgorithm algorithm = TopKAlgorithm::topk_bubble_sort;
 
     std::vector<int> vec_bitonic_idx;
     std::vector<int> vec_bitonic_k_idx;
