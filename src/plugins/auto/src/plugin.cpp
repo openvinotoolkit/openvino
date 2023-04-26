@@ -684,14 +684,19 @@ std::string MultiDeviceInferencePlugin::GetDeviceList(const std::map<std::string
     std::string deviceArchitecture;
     auto deviceList = GetCore()->GetAvailableDevices();
     auto deviceListConfig = config.find(ov::device::priorities.name());
+    auto getGpuArchitecture = [&](const std::string& name) -> std::string {
+        try {
+            auto architectureInfo = GetCore()->GetMetric(name, METRIC_KEY(DEVICE_ARCHITECTURE)).as<std::string>();
+            return architectureInfo;
+        } catch (const IE::Exception&) {
+            LOG_DEBUG_TAG("GetMetric:%s for %s failed ", "DEVICE_ARCHITECTURE", name.c_str());
+        }
+        return "";
+    };
     for (auto&& device : deviceList) {
         // filter out the supported devices
         if (device.find("GPU") != std::string::npos) {
-            try {
-                deviceArchitecture = GetCore()->GetMetric(device, METRIC_KEY(DEVICE_ARCHITECTURE)).as<std::string>();
-            } catch (const IE::Exception&) {
-                LOG_DEBUG_TAG("GetMetric:%s for %s failed ", "DEVICE_ARCHITECTURE", device.c_str());
-            }
+            deviceArchitecture = getGpuArchitecture(device);
         }
         if (!_pluginConfig.isSupportedDevice(device, deviceArchitecture))
             continue;
@@ -725,12 +730,12 @@ std::string MultiDeviceInferencePlugin::GetDeviceList(const std::map<std::string
         };
         auto isAnyDevWithEmptyMerged = [](std::string& device, const std::vector<std::string>& devices) {
             auto iter = std::find_if(devices.begin(), devices.end(), [device](const std::string& devItem) {
-                std::string _device = device;
+                std::string deviceName = device;
                 std::string::size_type realEndPos = 0;
-                if ((realEndPos = _device.find('.')) != std::string::npos && devItem.find('.') == std::string::npos) {
-                    _device = _device.substr(0, realEndPos);
+                if ((realEndPos = deviceName.find('.')) != std::string::npos && devItem.find('.') == std::string::npos) {
+                    deviceName = deviceName.substr(0, realEndPos);
                 }
-                return devItem.find(_device) != std::string::npos;
+                return devItem.find(deviceName) != std::string::npos;
             });
             return iter != devices.end();
         };
@@ -741,12 +746,7 @@ std::string MultiDeviceInferencePlugin::GetDeviceList(const std::map<std::string
         if (devicesToBeMerged.empty()) {
             for (auto&& device : deviceList) {
                 if (device.find("GPU") != std::string::npos) {
-                    try {
-                        deviceArchitecture =
-                            GetCore()->GetMetric(device, METRIC_KEY(DEVICE_ARCHITECTURE)).as<std::string>();
-                    } catch (const IE::Exception&) {
-                        LOG_DEBUG_TAG("GetMetric:%s for %s failed ", "DEVICE_ARCHITECTURE", device.c_str());
-                    }
+                    deviceArchitecture = getGpuArchitecture(device);
                 }
                 if (isAnyDevWithEmptyMerged(device, devicesToBeDeleted) || !_pluginConfig.isSupportedDevice(device, deviceArchitecture))
                     continue;

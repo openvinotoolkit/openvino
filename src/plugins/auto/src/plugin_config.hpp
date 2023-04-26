@@ -183,7 +183,7 @@ public:
         return pluginName == "AUTO" ? supported_metrics : multi_supported_metrics;
     }
 
-    bool isSupportedDevice(const std::string& deviceName, std::string option) const {
+    bool isSupportedDevice(const std::string& deviceName, const std::string& option) const {
         if (deviceName.empty())
             return false;
         auto realDevName = deviceName[0] != '-' ? deviceName : deviceName.substr(1);
