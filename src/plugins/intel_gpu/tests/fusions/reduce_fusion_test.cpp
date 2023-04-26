@@ -18,8 +18,8 @@ using namespace ::tests;
 
 namespace {
 struct reduce_test_params {
-    cldnn::tensor in_shape;
-    cldnn::tensor out_shape;
+    ov::PartialShape in_shape;
+    ov::PartialShape out_shape;
     cldnn::data_types data_type;
     cldnn::format input_format;
     data_types default_type;
@@ -34,8 +34,11 @@ struct reduce_test_params {
 
 class ReduceFusingTest : public ::BaseFusingTest<reduce_test_params> {
 public:
-    void execute(reduce_test_params& p) {
+    void execute(reduce_test_params& p, bool is_dynamic = false) {
         auto input_prim = get_mem(get_input_layout(p));
+
+        cfg_not_fused.set_property(ov::intel_gpu::allow_new_shape_infer(is_dynamic));
+        cfg_fused.set_property(ov::intel_gpu::allow_new_shape_infer(is_dynamic));
 
         network network_not_fused(this->engine, this->topology_non_fused, cfg_not_fused);
         network network_fused(this->engine, this->topology_fused, cfg_fused);
@@ -52,70 +55,60 @@ public:
             if (axis >= static_cast<int64_t>(rank))
                 throw std::runtime_error("Unsupported reduce test case");
 
-            switch (axis) {
-                case 0:  // batch
-                    p.out_shape.batch[0] = 1;
-                    break;
-                case 1:  // feature
-                    p.out_shape.feature[0] = 1;
-                    break;
-                case 2:
-                    p.out_shape.spatial[rank - 3] = 1;
-                    break;
-                case 3:
-                    p.out_shape.spatial[rank - 4] = 1;
-                    break;
-                case 4:
-                    p.out_shape.spatial[rank - 5] = 1;
-                    break;
-                case 5:
-                    p.out_shape.spatial[rank - 6] = 1;
-                    break;
-            }
+            p.out_shape[axis] = 1;
         }
     }
 
+    layout get_dynamic_input_layout(reduce_test_params& p) {
+        return layout{ ov::PartialShape::dynamic(p.in_shape.size()), p.data_type, p.input_format };
+    }
+
     layout get_input_layout(reduce_test_params& p) {
-        return layout{ p.data_type, p.input_format, p.in_shape };
+        return layout{ p.in_shape, p.data_type, p.input_format };
+    }
+
+    layout get_output_layout(reduce_test_params& p) {
+        return layout{ p.out_shape, p.data_type, p.input_format  };
     }
 
     layout get_per_channel_layout(reduce_test_params& p) {
-        return layout{ p.default_type, p.default_format, tensor{ 1, p.in_shape.feature[0], 1, 1 } };
+        return layout{ {1, p.in_shape[1], 1, 1}, p.default_type, p.default_format };
     }
+
 };
 }  // namespace
 
 /* ----------------------------------------------------------------------------------------------------- */
 /* ---------------------------------------- Reduce cases ----------------------------------------------- */
 /* ----------------------------------------------------------------------------------------------------- */
-#define CASE_REDUCE_F32_0 { 3, 7, 5, 7 }, { 3, 7, 5, 7 }, data_types::f32, format::b_fs_yx_fsv16, data_types::f32, format::bfyx
-#define CASE_REDUCE_F32_1 { 3, 7, 5, 7 }, { 3, 7, 5, 7 }, data_types::f32, format::bfyx, data_types::f32, format::bfyx
-#define CASE_REDUCE_F32_2 { 2, 4, 8, 4, 4 }, { 2, 4, 8, 4, 4 }, data_types::f32, format::bfzyx, data_types::f32, format::bfyx
-#define CASE_REDUCE_F32_3 { 16, 16, 16, 8, 8, 8 }, { 16, 16, 16, 8, 8, 8 }, data_types::f32, format::bfwzyx, data_types::f32, format::bfyx
+#define CASE_REDUCE_F32_0 { 3, 7, 7, 5 }, { 3, 7, 7, 5 }, data_types::f32, format::b_fs_yx_fsv16, data_types::f32, format::bfyx
+#define CASE_REDUCE_F32_1 { 3, 7, 7, 5 }, { 3, 7, 7, 5 }, data_types::f32, format::bfyx, data_types::f32, format::bfyx
+#define CASE_REDUCE_F32_2 { 2, 4, 4, 4, 8 }, { 2, 4, 4, 4, 8 }, data_types::f32, format::bfzyx, data_types::f32, format::bfyx
+#define CASE_REDUCE_F32_3 { 16, 16, 8, 8, 8, 16 }, { 16, 16, 8, 8, 8, 16 }, data_types::f32, format::bfwzyx, data_types::f32, format::bfyx
 #define CASE_REDUCE_F32_4 { 2, 8, 4, 4 }, { 2, 8, 4, 4 }, data_types::f32, format::b_fs_yx_fsv16, data_types::f32, format::bfyx
 
-#define CASE_REDUCE_F16_0 { 3, 7, 5, 7 }, { 3, 7, 5, 7 }, data_types::f16, format::b_fs_yx_fsv16, data_types::f32, format::bfyx
+#define CASE_REDUCE_F16_0 { 3, 7, 7, 5 }, { 3, 7, 7, 5 }, data_types::f16, format::b_fs_yx_fsv16, data_types::f32, format::bfyx
 #define CASE_REDUCE_F16_1 { 2, 8, 4, 4 }, { 2, 8, 4, 4 }, data_types::f16, format::bfyx, data_types::f32, format::bfyx
-#define CASE_REDUCE_F16_2 { 2, 4, 8, 4, 4 }, { 2, 4, 8, 4, 4 }, data_types::f16, format::bfzyx, data_types::f32, format::bfyx
-#define CASE_REDUCE_F16_3 { 3, 5, 3, 5, 7, 7 }, { 3, 5, 3, 5, 7, 7 }, data_types::f16, format::bfwzyx, data_types::f32, format::bfyx
+#define CASE_REDUCE_F16_2 { 2, 4, 4, 4, 8 }, { 2, 4, 4, 4, 8 }, data_types::f16, format::bfzyx, data_types::f32, format::bfyx
+#define CASE_REDUCE_F16_3 { 3, 5, 7, 7, 5, 3 }, { 3, 5, 7, 7, 5, 3 }, data_types::f16, format::bfwzyx, data_types::f32, format::bfyx
 #define CASE_REDUCE_F16_4 { 2, 8, 4, 4 }, { 2, 8, 4, 4 }, data_types::f16, format::b_fs_yx_fsv16, data_types::f32, format::bfyx
 
-#define CASE_REDUCE_I32_0 { 3, 7, 5, 7 }, { 3, 7, 5, 7 }, data_types::i32, format::b_fs_yx_fsv16, data_types::f32, format::bfyx
+#define CASE_REDUCE_I32_0 { 3, 7, 7, 5 }, { 3, 7, 7, 5 }, data_types::i32, format::b_fs_yx_fsv16, data_types::f32, format::bfyx
 #define CASE_REDUCE_I32_1 { 2, 8, 4, 4 }, { 2, 8, 4, 4 }, data_types::i32, format::bfyx, data_types::f32, format::bfyx
-#define CASE_REDUCE_I32_2 { 2, 4, 8, 4, 4 }, { 2, 4, 8, 4, 4 }, data_types::i32, format::bfzyx, data_types::f32, format::bfyx
-#define CASE_REDUCE_I32_3 { 3, 5, 3, 5, 7, 7 }, { 3, 5, 3, 5, 7, 7 }, data_types::i32, format::bfwzyx, data_types::f32, format::bfyx
-#define CASE_REDUCE_I32_4 { 3, 5, 3, 5, 7, 7 }, { 3, 5, 3, 5, 7, 7 }, data_types::i32, format::bfwzyx, data_types::f32, format::bfyx
+#define CASE_REDUCE_I32_2 { 2, 4, 4, 4, 8 }, { 2, 4, 4, 4, 8 }, data_types::i32, format::bfzyx, data_types::f32, format::bfyx
+#define CASE_REDUCE_I32_3 { 3, 5, 7, 7, 5, 3 }, { 3, 5, 7, 7, 5, 3 }, data_types::i32, format::bfwzyx, data_types::f32, format::bfyx
+#define CASE_REDUCE_I32_4 { 3, 5, 7, 7, 5, 3 }, { 3, 5, 7, 7, 5, 3 }, data_types::i32, format::bfwzyx, data_types::f32, format::bfyx
 
-#define CASE_REDUCE_I8_0 { 3, 7, 5, 7 }, { 3, 7, 5, 7 }, data_types::i8, format::b_fs_yx_fsv16, data_types::f32, format::bfyx
+#define CASE_REDUCE_I8_0 { 3, 7, 7, 5 }, { 3, 7, 7, 5 }, data_types::i8, format::b_fs_yx_fsv16, data_types::f32, format::bfyx
 #define CASE_REDUCE_I8_1 { 2, 8, 4, 4 }, { 2, 8, 4, 4 }, data_types::i8, format::bfyx, data_types::f32, format::bfyx
-#define CASE_REDUCE_I8_2 { 2, 4, 8, 4, 4 }, { 2, 4, 8, 4, 4 }, data_types::i8, format::bfzyx, data_types::f32, format::bfyx
-#define CASE_REDUCE_I8_3 { 3, 5, 3, 5, 7, 7 }, { 3, 5, 3, 5, 7, 7 }, data_types::i8, format::bfwzyx, data_types::f32, format::bfyx
+#define CASE_REDUCE_I8_2 { 2, 4, 4, 4, 8 }, { 2, 4, 4, 4, 8 }, data_types::i8, format::bfzyx, data_types::f32, format::bfyx
+#define CASE_REDUCE_I8_3 { 3, 5, 7, 7, 5, 3 }, { 3, 5, 7, 7, 5, 3 }, data_types::i8, format::bfwzyx, data_types::f32, format::bfyx
 #define CASE_REDUCE_I8_4 { 2, 8, 4, 4 }, { 2, 8, 4, 4 }, data_types::i8, format::b_fs_yx_fsv16, data_types::f32, format::bfyx
 
-#define CASE_REDUCE_U8_0 { 3, 7, 5, 7 }, { 3, 7, 5, 7 },data_types::u8, format::b_fs_yx_fsv16, data_types::f32, format::bfyx
+#define CASE_REDUCE_U8_0 { 3, 7, 7, 5 }, { 3, 7, 7, 5 },data_types::u8, format::b_fs_yx_fsv16, data_types::f32, format::bfyx
 #define CASE_REDUCE_U8_1 { 2, 8, 4, 4 }, { 2, 8, 4, 4 }, data_types::u8, format::bfyx, data_types::f32, format::bfyx
-#define CASE_REDUCE_U8_2 { 2, 4, 8, 4, 4 }, { 2, 4, 8, 4, 4 }, data_types::u8, format::bfzyx, data_types::f32, format::bfyx
-#define CASE_REDUCE_U8_3 { 3, 5, 3, 5, 7, 7 }, { 3, 5, 3, 5, 7, 7 }, data_types::u8, format::bfwzyx, data_types::f32, format::bfyx
+#define CASE_REDUCE_U8_2 { 2, 4, 4, 4, 8 }, { 2, 4, 4, 4, 8 }, data_types::u8, format::bfzyx, data_types::f32, format::bfyx
+#define CASE_REDUCE_U8_3 { 3, 5, 7, 7, 5, 3 }, { 3, 5, 7, 7, 5, 3 }, data_types::u8, format::bfwzyx, data_types::f32, format::bfyx
 #define CASE_REDUCE_U8_4 { 2, 8, 4, 4 }, { 2, 8, 4, 4 }, data_types::u8, format::b_fs_yx_fsv16, data_types::f32, format::bfyx
 
 class reduce_eltwise_activation_quantize : public ReduceFusingTest {};
@@ -270,6 +263,24 @@ TEST_P(reduce_scale_activation, per_channel) {
 
     tolerance = 1e-02f;
     execute(p);
+}
+
+TEST_P(reduce_scale_activation, dynamic) {
+    auto p = GetParam();
+    create_topologies(
+        input_layout("input", get_dynamic_input_layout(p)),
+        data("scale_data", get_mem(get_per_channel_layout(p), -0.125f)),
+        reduce("reduce", input_info("input"), p.reduce_mode, p.reduce_axes, p.keep_dims),
+        eltwise("scale", { input_info("reduce"), input_info("scale_data") }, eltwise_mode::prod),
+        activation("activation", input_info("scale"), activation_func::cos),
+        reorder("output_reorder", input_info("activation"), p.default_format, data_types::f32)
+    );
+    // Activation won't be fused because onednn doesn't support cos activation
+    if (engine.get_device_info().supports_immad)
+        p.expected_fused_primitives++;
+
+    tolerance = 1e-02f;
+    execute(p, true);
 }
 
 INSTANTIATE_TEST_SUITE_P(fusings_gpu, reduce_scale_activation, ::testing::ValuesIn(std::vector<reduce_test_params>{
