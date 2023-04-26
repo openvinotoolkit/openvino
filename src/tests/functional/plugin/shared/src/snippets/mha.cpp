@@ -68,7 +68,7 @@ void MHA::generate_inputs(const std::vector<ngraph::Shape>& targetInputStaticSha
     for (int i = 0; i < model_inputs.size(); ++i) {
         const auto& model_input = model_inputs[i];
         ov::Tensor tensor;
-        tensor = ov::test::utils::create_and_fill_tensor_normal_distribution(model_input.get_element_type(), targetInputStaticShapes[i], 1.0f, 0.5f);
+        tensor = ov::test::utils::create_and_fill_tensor(model_input.get_element_type(), model_input.get_shape(), 11, 0, 10);
         inputs.insert({model_input.get_node_shared_ptr(), tensor});
     }
 }
@@ -148,8 +148,9 @@ void MHAWOTranspose::SetUp() {
 
     setInferenceType(prc);
     inType = outType = prc;
-    if (prc == ov::element::bf16)
-        abs_threshold = 0.3;
+    if (prc == ov::element::bf16) {
+        rel_threshold = 0.05f;
+    }
 }
 
 
