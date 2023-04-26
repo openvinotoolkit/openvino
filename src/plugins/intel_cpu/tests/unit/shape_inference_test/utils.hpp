@@ -24,7 +24,7 @@ void shape_inference(ov::Node* op,
     auto result = shape_infer->infer(input_shapes, constant_data);
     OPENVINO_ASSERT(ShapeInferStatus::success == result.status, "shape inference result has unexpected status");
     output_shapes = std::move(result.shapes);
-    custom_shape_inference(op, input_shapes, output_shapes, constant_data);
+    unit_test::custom_shape_inference(op, input_shapes, output_shapes, constant_data);
 }
 }  // namespace intel_cpu
 }  // namespace ov

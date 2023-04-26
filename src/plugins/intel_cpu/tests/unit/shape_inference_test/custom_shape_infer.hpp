@@ -11,6 +11,8 @@
 
 namespace ov {
 namespace intel_cpu {
+unit_test {
+
 class CustomShapeInferFF : public openvino::cc::Factory<Type, ShapeInferFactory*(const std::shared_ptr<ov::Node>& op)> {
 public:
     CustomShapeInferFF();
@@ -21,5 +23,7 @@ void custom_shape_inference(ov::Node* op,
                      const std::vector<StaticShape>& input_shapes,
                      std::vector<StaticShape>& output_shapes,
                      const std::map<size_t, HostTensorPtr>& constant_data = {});
+
+} // namespace unit_test
 } // namespace intel_cpu
 } // namespace ov

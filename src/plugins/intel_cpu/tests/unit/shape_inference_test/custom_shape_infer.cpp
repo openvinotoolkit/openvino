@@ -8,6 +8,7 @@
 #include <gtest/gtest.h>
 namespace ov {
 namespace intel_cpu {
+unit_test {
 
 #define INTEL_CPU_CUSTOM_SHAPE_INFER(__prim, __type) \
     registerNodeIfRequired(intel_cpu, __prim, __type, __prim)
@@ -186,5 +187,6 @@ void custom_shape_inference(ov::Node* op,
     }
 }
 
+} // namespace unit_test
 } // namespace intel_cpu
 } // namespace ov
