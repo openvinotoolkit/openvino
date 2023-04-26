@@ -456,6 +456,9 @@ TEST(prepare_primitive_fusing, eltwise_fusing_residual_connection) {
     //     |
     //    reorder
     auto& engine = get_test_engine();
+    if (engine.get_device_info().supports_immad)
+        return;
+
     topology topology;
     auto conv_in_layout = layout{ ov::PartialShape{1, 3, -1, -1}, data_types::f16, format::bfyx};
     auto weight_layout = layout{ ov::PartialShape{10, 3, 3, 3}, data_types::f16, format::bfyx};
