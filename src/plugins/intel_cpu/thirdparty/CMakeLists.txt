@@ -60,15 +60,14 @@ function(ie_add_onednn)
         endif()
 
         set(ARM_COMPUTE_SCONS_JOBS "8" CACHE STRING "Number of parallel threads to build ARM Compute Library")
+        set(DNNL_USE_ACL ON CACHE BOOL "" FORCE)
 
         if(ARM)
             set(DNNL_TARGET_ARCH "ARM" CACHE STRING "" FORCE)
-            set(DNNL_AARCH64_USE_ACL OFF CACHE BOOL "" FORCE)
             set(ARM_COMPUTE_TARGET_ARCH_DEFAULT armv7a)
             set(ARM_COMPUTE_TARGET_ARCHS armv7a armv7a-hf)
         else()
             set(DNNL_TARGET_ARCH "AARCH64" CACHE STRING "" FORCE)
-            set(DNNL_AARCH64_USE_ACL ON CACHE BOOL "" FORCE)
             # move to separate ACL cmake
             if(APPLE)
                 # Apple M1 / M2 is assumed

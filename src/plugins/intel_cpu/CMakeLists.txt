@@ -43,7 +43,7 @@ endif()
 add_definitions(-DOV_CPU_WITH_DNNL)
 set(OV_CPU_WITH_DNNL ON)
 
-if(DNNL_AARCH64_USE_ACL)
+if(DNNL_USE_ACL)
     add_definitions(-DOV_CPU_WITH_ACL)
     set(OV_CPU_WITH_ACL ON)
 endif()
