@@ -6,7 +6,7 @@
 #include "aszp_decomposition.hpp"
 #include "backend/gna_limitations.hpp"
 #include "memory"
-#include "ngraph/opsets/opset11.hpp"
+#include "openvino/opsets/opset11.hpp"
 #include "ngraph/pass/graph_rewrite.hpp"
 #include "ngraph/pattern/op/or.hpp"
 #include "ngraph/pattern/op/wrap_type.hpp"
@@ -40,27 +40,27 @@ static std::tuple<int64_t, int64_t, int64_t> extract_width_padding(ov::Coordinat
                            width_begin > width_end ? width_begin - width_end : width_end - width_begin);
 }
 
-std::shared_ptr<ngraph::opset11::Transpose> create_transpose(const Output<Node>& input) {
-    return std::make_shared<ngraph::opset11::Transpose>(
+std::shared_ptr<ov::opset11::Transpose> create_transpose(const Output<Node>& input) {
+    return std::make_shared<ov::opset11::Transpose>(
         input,
-        ngraph::opset11::Constant::create(element::Type_t::i64, Shape{2}, {1, 0}));
+        ov::opset11::Constant::create(element::Type_t::i64, Shape{2}, {1, 0}));
 }
 
-std::shared_ptr<ngraph::opset11::Reshape> create_reshape(const Output<Node>& input, uint64_t ndims, ov::Shape shape) {
-    return std::make_shared<ngraph::opset11::Reshape>(
+std::shared_ptr<ov::opset11::Reshape> create_reshape(const Output<Node>& input, uint64_t ndims, ov::Shape shape) {
+    return std::make_shared<ov::opset11::Reshape>(
         input,
-        ngraph::opset11::Constant::create(ngraph::element::i64, Shape{ndims}, shape)->output(0),
+        ov::opset11::Constant::create(ngraph::element::i64, Shape{ndims}, shape)->output(0),
         false);
 }
 
-std::shared_ptr<ngraph::opset11::Constant> create_zero_const(ov::Shape shape) {
-    return ngraph::opset11::Constant::create(ngraph::element::f32,
+std::shared_ptr<ov::opset11::Constant> create_zero_const(ov::Shape shape) {
+    return ov::opset11::Constant::create(ngraph::element::f32,
                                              shape,
                                              std::vector<float>(shape[0] * shape[1], 0.0f));
 }
 
-std::shared_ptr<ov::op::v0::Concat> concatenate_zeros(uint32_t pad_begin,
-                                                      uint32_t pad_end,
+std::shared_ptr<ov::op::v0::Concat> concatenate_zeros(uint64_t pad_begin,
+                                                      uint64_t pad_end,
                                                       std::shared_ptr<ov::Node> padding_const,
                                                       std::shared_ptr<ov::Node> input_node) {
     OutputVector concat_vector;
@@ -75,19 +75,19 @@ std::shared_ptr<ov::op::v0::Concat> concatenate_zeros(uint32_t pad_begin,
 }
 
 // returns nullptr if detects that convolution isn't surrounded by transpositions
-std::shared_ptr<ngraph::opset11::Transpose> get_transpose_before(std::shared_ptr<ov::Node> conv) {
+std::shared_ptr<ov::opset11::Transpose> get_transpose_before(std::shared_ptr<ov::Node> conv) {
     const Output<Node>& parent = conv->input_value(0);
 
     auto transpose_before =
-        std::dynamic_pointer_cast<ngraph::opset11::Transpose>(parent.get_node()->shared_from_this());
+        std::dynamic_pointer_cast<ov::opset11::Transpose>(parent.get_node()->shared_from_this());
     if (nullptr == transpose_before)
         return nullptr;
 
     auto convolution_children = conv->output(0).get_target_inputs();
     auto convolution_bias =
-        std::dynamic_pointer_cast<ngraph::opset11::Add>(convolution_children.begin()->get_node()->shared_from_this());
+        std::dynamic_pointer_cast<ov::opset11::Add>(convolution_children.begin()->get_node()->shared_from_this());
 
-    std::shared_ptr<ngraph::opset11::Transpose> transpose_after;
+    std::shared_ptr<ov::opset11::Transpose> transpose_after;
 
     if (nullptr != convolution_bias) {
         auto add_children = convolution_bias->output(0).get_target_inputs();
@@ -95,9 +95,9 @@ std::shared_ptr<ngraph::opset11::Transpose> get_transpose_before(std::shared_ptr
             return nullptr;
 
         transpose_after =
-            std::dynamic_pointer_cast<ngraph::opset11::Transpose>(add_children.begin()->get_node()->shared_from_this());
+            std::dynamic_pointer_cast<ov::opset11::Transpose>(add_children.begin()->get_node()->shared_from_this());
     } else
-        transpose_after = std::dynamic_pointer_cast<ngraph::opset11::Transpose>(
+        transpose_after = std::dynamic_pointer_cast<ov::opset11::Transpose>(
             convolution_children.begin()->get_node()->shared_from_this());
 
     if (transpose_after == nullptr)
@@ -119,7 +119,7 @@ Output<Node> decompose_height(Output<Node> input,
                               ov::CoordinateDiff pads_begin,
                               ov::CoordinateDiff pads_end,
                               ov::Shape conv_input_shape) {
-    uint32_t height_begin, height_end, height_padding, width_padding;
+    uint64_t height_begin, height_end, height_padding, width_padding;
     std::tie(height_begin, height_end, height_padding) = extract_height_padding(pads_begin, pads_end);
     width_padding = pads_end[1] - pads_begin[1] > 0 ? pads_end[1] - pads_begin[1] : pads_begin[1] - pads_end[1];
 
@@ -149,7 +149,7 @@ Output<Node> decompose_width(Output<Node> input,
                               ov::CoordinateDiff pads_begin,
                               ov::CoordinateDiff pads_end,
                               ov::Shape conv_input_shape) {
-    uint32_t width_begin, width_end, width_padding, height_padding;
+    uint64_t width_begin, width_end, width_padding, height_padding;
     std::tie(width_begin, width_end, width_padding) = extract_width_padding(pads_begin, pads_end);
     height_padding = pads_end[0] - pads_begin[0] > 0 ? pads_end[0] - pads_begin[0] : pads_begin[0] - pads_end[0];
 
@@ -188,7 +188,7 @@ void trimm_padding(ov::CoordinateDiff& pads_begin, ov::CoordinateDiff& pads_end)
     }
 }
 
-std::shared_ptr<ov::Node> create_convolution(std::shared_ptr<ngraph::opset11::Convolution> conv,
+std::shared_ptr<ov::Node> create_convolution(std::shared_ptr<ov::opset11::Convolution> conv,
                                              const Output<Node>& input,
                                              ov::CoordinateDiff pads_begin,
                                              ov::CoordinateDiff pads_end) {
@@ -207,7 +207,7 @@ std::shared_ptr<ov::Node> create_convolution(std::shared_ptr<ngraph::opset11::Co
     return nullptr;
 }
 
-static bool decompose(std::shared_ptr<ngraph::opset11::Convolution> conv) {
+static bool decompose(std::shared_ptr<ov::opset11::Convolution> conv) {
     if (conv == nullptr) {
         return false;
     }
@@ -235,9 +235,9 @@ static bool decompose(std::shared_ptr<ngraph::opset11::Convolution> conv) {
     }
 
     Output<Node> skip_input_H_const = decompose_height(input, pads_begin, pads_end, input_shape);
-    Output<Node> skip_input_W_const = decompose_height(skip_input_H_const, pads_begin, pads_end, input_shape);
+    Output<Node> skip_input_W_const = decompose_width(skip_input_H_const, pads_begin, pads_end, input_shape);
 
-    auto final_transpose = std::make_shared<ngraph::opset11::Transpose>(
+    auto final_transpose = std::make_shared<ov::opset11::Transpose>(
         skip_input_W_const,
         ngraph::op::Constant::create(element::Type_t::i64, Shape{4}, {0, 3, 1, 2}));
 
@@ -256,10 +256,10 @@ static bool decompose(std::shared_ptr<ngraph::opset11::Convolution> conv) {
 
 AszpDecomposition::AszpDecomposition() {
     MATCHER_SCOPE(AszpDecomposition);
-    auto conv = ngraph::pattern::wrap_type<ngraph::opset11::Convolution>();
+    auto conv = ngraph::pattern::wrap_type<ov::opset11::Convolution>();
 
     ov::matcher_pass_callback callback = [](ngraph::pattern::Matcher& m) {
-        auto conv = std::dynamic_pointer_cast<ngraph::opset11::Convolution>(m.get_match_root());
+        auto conv = std::dynamic_pointer_cast<ov::opset11::Convolution>(m.get_match_root());
         return decompose(conv);
     };
 
