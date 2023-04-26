@@ -69,7 +69,7 @@ KERNEL(adaptive_pooling_gpu)(
                     const uint idx = INPUT0_GET_INDEX(b, f, j, i);
                 #endif
 
-                const current_input_value = TO_ACCUMULATOR_TYPE(input[idx]);
+                const ACCUMULATOR_TYPE current_input_value = TO_ACCUMULATOR_TYPE(input[idx]);
 #if MAX_POOLING
                 if (current_input_value > result) {
                     result = current_input_value;
