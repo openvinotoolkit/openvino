@@ -17,6 +17,7 @@ class CommonMOConvertTest:
         model_name = kwargs['model_name']
         del kwargs['output_dir']
         model = convert_model(**kwargs)
+        print(model)
         serialize(model, str(Path(output_dir, model_name + '.xml')))
 
     def _test(self, temp_dir, test_params, ref_params):

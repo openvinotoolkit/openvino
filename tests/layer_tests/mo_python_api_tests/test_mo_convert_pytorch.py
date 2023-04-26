@@ -641,6 +641,12 @@ def create_pytorch_nn_module_shapes_list_static_single_input(tmp_dir):
     return pt_model, ref_model, {'input_shape': inp_shapes}
 
 
+def create_pytorch_nn_module_shapes_list_static_single_input_via_input(tmp_dir):
+    pt_model = make_pt_model_one_input()
+    inp_shapes = [1, 3, 20, 20]
+    ref_model = make_ref_pt_model_one_input(inp_shapes)
+    return pt_model, ref_model, {"input": (inp_shapes, np.float32)}
+
 def create_pytorch_nn_module_convert_pytorch_frontend1(tmp_dir):
     pt_model = make_pt_model_one_input()
     shape = [-1, -1, -1, -1]
@@ -692,6 +698,7 @@ def create_pytorch_nn_module_convert_pytorch_frontend3(tmp_dir):
 
 def create_pytorch_nn_module_convert_pytorch_frontend4(tmp_dir):
     pt_model = make_pt_model_two_inputs()
+    print(pt_model)
     shape = [-1, -1, -1, -1]
     shape = PartialShape(shape)
     param1 = ov.opset10.parameter(shape, dtype=np.float32)

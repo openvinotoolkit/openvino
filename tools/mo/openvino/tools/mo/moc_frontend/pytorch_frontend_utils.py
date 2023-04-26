@@ -69,7 +69,7 @@ def extract_input_info_from_example(example_inputs, args):
             dtype = getattr(input_data, "dtype", type(input_data))
             ov_dtype = pt_to_ov_type_map.get(str(dtype))
             data_rank = getattr(input_data, "ndim", 0)
-            input_shape = input_info.shape if input_shapes is not None else PartialShape([-1] * data_rank)
+            input_shape = input_info.shape if input_info.shape is not None else PartialShape([-1] * data_rank)
 
             updated_input_info.append(
                 openvino.tools.mo.InputCutInfo(input_info.name, input_shape, ov_dtype, input_info.value)
