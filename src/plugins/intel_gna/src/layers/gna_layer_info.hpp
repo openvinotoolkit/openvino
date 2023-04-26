@@ -349,6 +349,12 @@ public:
     bool isNonValuesChangable() const {
         return isNonFunctional() || isSplit() || isSlice() || isConcat();
     }
+    bool is_gather() const noexcept {
+        return isOfType("gather");
+    }
+    bool is_fq_non_sensitive() const {
+        return isPermute() || is_gather() || isNonFunctional();
+    }
     bool isPooling() const noexcept {
         return isOfType("pooling");
     }

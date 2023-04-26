@@ -69,8 +69,6 @@ public:
 
     bool isWinograd() const { return isWino; }
 
-    void setDynamicBatchLim(int lim) override;
-
 protected:
     InferenceEngine::Precision fusedEltwisePrecision(const NodePtr& fusingNode) const;
     void redefineOutputMemory(const std::vector<VectorDims> &newOutputShapes) override;
@@ -98,7 +96,6 @@ private:
                                 const dnnl::engine& engine,
                                 bool constWeight);
     };
-    bool pendingConstWeightReorder = false;
 
     void prepareParams() override;
     void execute(dnnl::stream strm) override;
