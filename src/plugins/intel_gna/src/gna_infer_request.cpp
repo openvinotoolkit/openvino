@@ -162,11 +162,11 @@ void GNAInferRequest::CreateInferRequest() {
     }
 
     // copy inputs blobs since we need to have them in separate address space to allow simultaneous infer requests
-    for (auto output : _networkOutputs) {
+    for (const auto& output : _networkOutputs) {
         _outputs[output.first] = plg->GetOutputBlob(output.first, output.second->getTensorDesc().getPrecision());
     }
 
-    for (auto input : _networkInputs) {
+    for (const auto& input : _networkInputs) {
         _inputs[input.first] = plg->GetInputBlob(input.first, input.second->getTensorDesc().getPrecision());
     }
 }
