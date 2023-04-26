@@ -13,7 +13,7 @@
 
 This article describes Model Optimizer internals. Altering them may result in application instability, and in case of future changes to the API, lack of backward compatibility.
 
-> **NOTE**: If you want to add support for ONNX, PaddlePaddle or Tensorflow operations, or you are not familiar with other extension alternatives in OpenVINO, read [this guide](../../../Extensibility_UG/Intro.md) instead.
+> **NOTE**: If you want to add support for ONNX, TensorFlow Lite, PaddlePaddle or TensorFlow operations, or you are not familiar with other extension alternatives in OpenVINO, read [this guide](../../../Extensibility_UG/Intro.md) instead.
 
 <a name="model-optimizer-extensibility"></a>Model Optimizer extensibility mechanism enables support of new operations and custom transformations to generate the optimized intermediate representation (IR) as described in the
 [Deep Learning Network Intermediate Representation and Operation Sets in OpenVINO™](../../IR_and_opsets.md). This
@@ -238,7 +238,7 @@ Methods `in_port()` and `output_port()` of the `Node` class are used to get and 
 how to use them, refer to the [Graph Traversal and Modification Using Ports and Connections](@ref graph-ports-and-conneсtions) section.
 
 > **NOTE**: A shape inference function should perform output shape calculation in the original model layout. For
-> example, OpenVINO&trade; supports Convolution operations in NCHW layout only but TensorFlow supports NHWC layout as
+> example, OpenVINO™ supports Convolution operations in NCHW layout only but TensorFlow supports NHWC layout as
 > well. Model Optimizer shape inference function calculates output shapes for NHWC Convolutions in NHWC layout and only
 > during the layout change phase the shape is converted to NCHW.
 
@@ -259,7 +259,7 @@ More information on how to develop middle transformations and dedicated API desc
 
 There are several middle transformations responsible for changing model layout from NHWC to NCHW. These transformations are triggered by default for TensorFlow models as TensorFlow supports Convolution operations in the NHWC layout.
 
-This layout change is disabled automatically if the model does not have operations that OpenVINO&trade needs to execute in the NCHW layout, for example, Convolutions in NHWC layout.
+This layout change is disabled automatically if the model does not have operations that OpenVINO™ needs to execute in the NCHW layout, for example, Convolutions in NHWC layout.
 
 
 For more details on how it works, refer to the source code of the transformations mentioned in the below summary of the process: 

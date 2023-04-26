@@ -30,7 +30,7 @@ ngraph::op::PadMode get_pad_mode(std::string mode) {
     } else if (mode == "edge") {
         pad_mode = ngraph::op::PadMode::EDGE;
     } else {
-        throw ngraph::ngraph_error("Unsupported padding mode: [" + mode + "]");
+        OPENVINO_THROW("Unsupported padding mode: [" + mode + "]");
     }
 
     return pad_mode;

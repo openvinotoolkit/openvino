@@ -12,7 +12,7 @@ import pkg_resources
 import re
 from setuptools import setup, find_packages
 from pathlib import Path
-from typing import List
+from typing import Dict, List
 
 
 with open('README.md', 'r', encoding='utf-8') as f:
@@ -55,6 +55,9 @@ def read_requirements(path: str) -> List[str]:
     1. version specified in requirements.txt
     2. version specified in constraints.txt
     3. version unbound
+
+    Putting environment markers into constraints.txt is prone to bugs.
+    They should be specified in requirements.txt files.
     """
     requirements = []
     constraints = read_constraints()
@@ -66,8 +69,15 @@ def read_requirements(path: str) -> List[str]:
             continue
         # get rid of newlines
         line = line.replace('\n', '')
-        # if version is specified (non-word chars present)
-        if re.search('\W', line):
+        # if version is specified (non-word chars present) 
+        package_constraint = constraints.get(line.split(';')[0])
+        if re.search('(~|=|<|>)', line) and len(line.split(';'))>1:
+            if package_constraint:  # both markers and versions specified
+                marker_index = line.find(";")
+                # insert package version between package name and environment markers
+                line = line[:marker_index] \
+                + ",".join([constraint for constraint in package_constraint]) \
+                + line[marker_index:]
             requirements.append(line)
         # else get version from constraints
         else:

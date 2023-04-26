@@ -17,7 +17,7 @@ set(pyversion python${PYTHON_VERSION_MAJOR}.${PYTHON_VERSION_MINOR})
 message(STATUS "Python version=${pyversion}")
 
 if(OpenVINO_SOURCE_DIR)
-    if(WIN32)
+    if(OV_GENERATOR_MULTI_CONFIG)
         set(PYTHON_BRIDGE_OUTPUT_DIRECTORY ${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/$<CONFIG>/python_api/${pyversion}/)
     else()
         set(PYTHON_BRIDGE_OUTPUT_DIRECTORY ${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/python_api/${pyversion}/)
@@ -34,7 +34,6 @@ endif()
 if (CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
     # disable warning: This operator was deprecated and will be removed with v0 operation.
     add_compile_options(/wd4996)
-    add_compile_options(/wd4244)
 elseif(CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
     add_compile_options(-Wno-deprecated-register -Wno-range-loop-analysis)
 elseif(OV_COMPILER_IS_APPLECLANG)
@@ -76,7 +75,7 @@ if(OpenVINO_SOURCE_DIR OR OpenVINODeveloperPackage_FOUND)
     ie_python_minimal_api(_${PROJECT_NAME})
     add_clang_format_target(_${PROJECT_NAME}_clang FOR_TARGETS _${PROJECT_NAME})
 
-    ie_cpack_add_component(${OV_CPACK_COMP_PYTHON_NGRAPH}_${pyversion} HIDDEN)
+    ov_cpack_add_component(${OV_CPACK_COMP_PYTHON_NGRAPH}_${pyversion} HIDDEN)
 
     install(TARGETS _${PROJECT_NAME}
             DESTINATION ${OV_CPACK_PYTHONDIR}

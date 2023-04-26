@@ -24,7 +24,7 @@ class TestReduceL1L2(OnnxRuntimeLayerTest):
 
         import onnx
         from onnx import helper
-        from onnx import TensorProto
+        from onnx import TensorProto, OperatorSetIdProto
 
         output_shape = shape.copy()
         _axes = axes.copy() if axes is not None else list(range(len(shape)))
@@ -55,8 +55,14 @@ class TestReduceL1L2(OnnxRuntimeLayerTest):
             [output],
         )
 
+        # Set ONNX Opset
+        onnx_opset = OperatorSetIdProto()
+        onnx_opset.domain = ""
+        # ONNX opset with `axes` as attribute in ONNX Reduce ops
+        onnx_opset.version = 11
+
         # Create the model (ModelProto)
-        onnx_net = helper.make_model(graph_def, producer_name='test_model')
+        onnx_net = helper.make_model(graph_def, producer_name='test_model', opset_imports=[onnx_opset])
 
         #
         #   Create reference IR net
@@ -103,7 +109,7 @@ class TestReduceL1L2(OnnxRuntimeLayerTest):
 
         import onnx
         from onnx import helper
-        from onnx import TensorProto
+        from onnx import TensorProto, OperatorSetIdProto
 
         output_shape = shape.copy()
         _axes = axes.copy() if axes is not None else list(range(len(shape)))
@@ -161,8 +167,14 @@ class TestReduceL1L2(OnnxRuntimeLayerTest):
             [output],
         )
 
+        # Set ONNX Opset
+        onnx_opset = OperatorSetIdProto()
+        onnx_opset.domain = ""
+        # ONNX opset with `axes` as attribute in ONNX Reduce ops
+        onnx_opset.version = 11
+
         # Create the model (ModelProto)
-        onnx_net = helper.make_model(graph_def, producer_name='test_model')
+        onnx_net = helper.make_model(graph_def, producer_name='test_model', opset_imports=[onnx_opset])
 
         #
         #   Create reference IR net

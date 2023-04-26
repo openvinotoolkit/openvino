@@ -71,7 +71,12 @@ void FP::infer() {
             break;
         }
         case kDnnMaxPoolOp: {
-            ApplyMaxPoolTransform(comp, kDnnFloat);
+            bool is_fused_with_convolution_2d = false;
+            if (i > 0 && dnn->component[i - 1].operation == kDnnConvolutional2dOp) {
+                is_fused_with_convolution_2d = true;
+            }
+
+            ApplyMaxPoolTransform(comp, kDnnFloat, is_fused_with_convolution_2d);
             break;
         }
         case kDnnInterleaveOp: {

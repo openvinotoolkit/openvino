@@ -64,7 +64,7 @@ inline void float_write_helper(half_t* mem, float f) { *mem = static_cast<half_t
 void sort_and_keep_n_items(std::vector<proposal_t>& proposals, size_t n) {
     auto cmp_fn = [](const proposal_t& a, const proposal_t& b) { return (a.confidence > b.confidence); };
 
-    if (proposals.size() > n) {
+    if (proposals.size() >= n) {
         std::partial_sort(proposals.begin(), proposals.begin() + n, proposals.end(), cmp_fn);
         proposals.resize(n);
     } else {

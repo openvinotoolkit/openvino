@@ -10,6 +10,7 @@
 #include <vector>
 
 #include "low_precision/network_helper.hpp"
+#include "low_precision/rt_info/bias_attribute.hpp"
 
 using namespace ngraph;
 using namespace ngraph::pass;
@@ -59,9 +60,9 @@ bool EltwiseBaseTransformation::canBeTransformed(const TransformationContext& co
 }
 
 static bool isTargetType(const std::shared_ptr<Node> node) {
-    return ov::is_type<opset1::Convolution>(node) ||
-           ov::is_type<opset1::GroupConvolution>(node) ||
-           ov::is_type<opset1::MatMul>(node);
+    return node != nullptr && (ov::is_type<opset1::Convolution>(node) ||
+                               ov::is_type<opset1::GroupConvolution>(node) ||
+                               ov::is_type<opset1::MatMul>(node));
 }
 
 static std::shared_ptr<Node> getDataParent(const std::shared_ptr<Node> branchData) {
@@ -70,21 +71,39 @@ static std::shared_ptr<Node> getDataParent(const std::shared_ptr<Node> branchDat
         parent = parent->get_input_node_shared_ptr(0);
     }
 
-    if (ov::is_type<opset1::Add>(parent) && isTargetType(parent->get_input_node_shared_ptr(0))) {
-        return parent->get_input_node_shared_ptr(0);
+    if (ov::marked_as_bias(parent)) {
+        // we need to check both inputs in order to handle the case with constant on 0's input
+        for (size_t i = 0; i < parent->get_input_size(); ++i) {
+            const auto bias_parent = parent->get_input_node_shared_ptr(i);
+            // target node just before bias
+            if (isTargetType(bias_parent)) {
+                return bias_parent;
+            }
+            // between target node and bias are placed some DQ operations
+            const auto dq = NetworkHelper::getDequantization(bias_parent);
+            const auto data_node = dq.data.get_node_shared_ptr();
+            if (isTargetType(data_node)) {
+                return data_node;
+            }
+        }
     }
     return parent;
 }
 
 static bool isBranchHaveMultipleConsumers(const std::shared_ptr<Node> branchData, const std::shared_ptr<Node> branchDataParent) {
+    auto several_consumers = [](const std::shared_ptr<ov::Node>& node) {
+        return node->get_output_size() != 1 || node->get_output_target_inputs(0).size() != 1;
+    };
+
     auto parent = branchData;
     while (parent != branchDataParent) {
-        if ((parent->get_output_size() != 1ul) || (parent->get_output_target_inputs(0).size() != 1ul)) {
+        if (several_consumers(parent)) {
             return true;
         }
-        parent = parent->get_input_node_shared_ptr(0);
+        const auto new_parent = parent->get_input_node_shared_ptr(0);
+        parent = !ov::is_type<opset1::Constant>(new_parent) ? new_parent : parent->get_input_node_shared_ptr(1);
     }
-    return (parent->get_output_size() != 1ul) || (parent->get_output_target_inputs(0).size() != 1ul);
+    return several_consumers(parent);
 }
 
 // return branch index with FP32 precision after eltwise transformation

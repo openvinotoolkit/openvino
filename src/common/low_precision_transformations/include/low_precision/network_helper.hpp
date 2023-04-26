@@ -199,7 +199,7 @@ public:
     static std::shared_ptr<Node> toScalarIfPossible(std::shared_ptr<Node> node);
 
     static std::shared_ptr<Node> fold_fake_quantize(const std::shared_ptr<opset1::FakeQuantize>& fq);
-    static std::shared_ptr<Node> fold_fake_quantize(const std::shared_ptr<opset1::FakeQuantize>& fq, const bool roundValues, int outChannelsShapeIndex = 0);
+    static std::shared_ptr<Node> fold_fake_quantize(const std::shared_ptr<opset1::FakeQuantize>& fq, const bool roundValues);
 
     static FakeQuantizeDequantization foldDequantization(const std::shared_ptr<Node>& node,
         const size_t branchIndex,
@@ -256,8 +256,7 @@ private:
     static std::shared_ptr<Node> foldFakeQuantize(
             const std::shared_ptr<opset1::FakeQuantize>& fq,
             const bool roundValues,
-            const bool roundValuesWasSet,
-            int outChannelsShapeIndex = 0);
+            const bool roundValuesWasSet);
 
     // 1  - on weights
     // 0  - weightable layer was not found
@@ -318,19 +317,14 @@ template <typename T, typename... Args>
 std::shared_ptr<Node> fold_reshape(Args&&... args) {
     std::shared_ptr<Node> node = std::make_shared<T>(args...);
     if (node->get_output_size() == 1) {
-        // issue #57985: remove fold_reshape & reuse nGraph implementation
-        const auto values = ov::as_type_ptr<opset1::Constant>(node->input_value(1).get_node_shared_ptr())->template cast_vector<int64_t>();
-        if (std::any_of(values.begin(), values.end(), [](const int64_t value) { return (value == 0) || (value == -1); })) {
-            return fold<opset1::Reshape>(std::forward<Args>(args)...);
+        const auto data_const = ov::as_type_ptr<opset1::Constant>(node->get_input_node_shared_ptr(0));
+        const auto target_shape = ov::as_type_ptr<opset1::Constant>(node->get_input_node_shared_ptr(1));
+        if (data_const && target_shape) {
+            return std::make_shared<opset1::Constant>(node->get_input_element_type(0),
+                                                      node->get_output_shape(0),
+                                                      data_const->get_data_ptr());
         }
-
-        if (ov::is_type<opset1::Constant>(node->input_value(0).get_node_shared_ptr()) &&
-            ov::is_type<opset1::Constant>(node->input_value(1).get_node_shared_ptr())) {
-            return std::make_shared<opset1::Constant>(
-                    node->get_input_element_type(0),
-                    Shape(ov::as_type_ptr<opset1::Constant>(node->input_value(1).get_node_shared_ptr())->template cast_vector<size_t>()),
-                    ov::as_type_ptr<opset1::Constant>(node->input_value(0).get_node_shared_ptr())->get_data_ptr());
-        }
+        return fold<opset1::Reshape>(std::forward<Args>(args)...);
     }
     return node;
 }
