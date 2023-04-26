@@ -306,7 +306,7 @@ void TranslateSession::translate_graph(const ov::frontend::InputModel::Ptr& inpu
                                                                    "Unknown exception type");
                 ov_outputs = named_from_indexed(fw_outs);
             }
-        } else if (auto body_ov_model = get_body_ov_model(operation_type)) {
+        } else if (auto body_ov_model = get_body_ov_model(operation_type, ov_inputs)) {
             OutputVector indexed_ov_outputs;
             inject_body_model(body_ov_model, operation_type, ov_inputs, indexed_ov_outputs);
 
@@ -464,18 +464,48 @@ void TranslateSession::translate_graph(const ov::frontend::InputModel::Ptr& inpu
     ov_model = std::make_shared<ov::Model>(ordered_results, ordered_params, m_model_name);
 }
 
-std::shared_ptr<ov::Model> TranslateSession::get_body_ov_model(const std::string& body_graph_name, bool clear_names) {
+std::shared_ptr<ov::Model> TranslateSession::get_body_ov_model(const std::string& body_graph_name,
+                                                               const ov::OutputVector& ov_inputs,
+                                                               bool clear_names) {
     std::shared_ptr<ov::Model> body_model = nullptr;
     auto input_model = std::dynamic_pointer_cast<InputModel>(m_input_model);
-    if (m_cached_body_models->count(body_graph_name)) {
+    std::vector<ov::PartialShape> input_shapes;
+    input_shapes.reserve(ov_inputs.size());
+    std::vector<ov::element::Type> input_types;
+    input_types.reserve(ov_inputs.size());
+    for (const auto& ov_input : ov_inputs) {
+        input_shapes.push_back(ov_input.get_partial_shape());
+        input_types.push_back(ov_input.get_element_type());
+    }
+    CachedBodyModelSignature body_model_signature{body_graph_name, input_shapes, input_types};
+
+    if (m_cached_body_models->count(body_model_signature)) {
         // check if such body graph has been converted before
         // re-use it from the cache for further injection
 
         // create new instance of the required body model
         // since it will be modified by injection
-        auto cached_body_model = m_cached_body_models->at(body_graph_name);
+        auto cached_body_model = m_cached_body_models->at(body_model_signature);
         body_model = cached_body_model->clone();
     } else if (auto body_input_model = input_model->get_body_input_model(body_graph_name)) {
+        // set input shapes and types for InputModel of the body graph
+        // it allows to get more optimized model after the conversion,
+        // for example, to get less sub-graphs with ShapeOf and Convert operations
+        auto inputs = body_input_model->get_inputs();
+        size_t num_inputs = inputs.size();
+        FRONT_END_GENERAL_CHECK(num_inputs == ov_inputs.size(),
+                                "[TensorFlow Frontend] internal error: a number of external  and internal inputs for a "
+                                "body graph mismatch");
+        for (size_t input_ind = 0; input_ind < num_inputs; ++input_ind) {
+            auto input_place = inputs[input_ind];
+            if (input_types[input_ind].is_static()) {
+                body_input_model->set_element_type(input_place, input_types[input_ind]);
+            }
+            if (input_shapes[input_ind].rank().is_static()) {
+                body_input_model->set_partial_shape(input_place, input_shapes[input_ind]);
+            }
+        }
+
         // try to find a function by name in the model library
         translate_graph(body_input_model, body_model);
         // save new instance of body_model in the cache of body models
@@ -492,7 +522,7 @@ std::shared_ptr<ov::Model> TranslateSession::get_body_ov_model(const std::string
         }
 
         auto cached_body_model = body_model->clone();
-        update_cached_body_models(body_graph_name, cached_body_model);
+        update_cached_body_models(body_model_signature, cached_body_model);
     }
     return body_model;
 }
