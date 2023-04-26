@@ -152,6 +152,14 @@ const std::vector<ScatterNDUpdateLayerParams> scatterParams = {
         },
         IndicesValues{ 0, 1, 1, 2, 2, 2 }
     },
+    ScatterNDUpdateLayerParams{
+        ScatterNDUpdateShapes{
+            {{{3, 10}, {4, 11}, {3, 9}, {8, 15}}, {{ 10, 9, 9, 11 }, { 7, 5, 3, 12 }, { 3, 4, 9, 8 }}},
+            {{2, 3}, {{2, 3}, {2, 3}, {2, 3}}},
+            {{{2, 4}, -1}, {{2, 11}, {2, 12}, {2, 8}}}
+        },
+        IndicesValues{ 0, 1, 1, 2, -2, -1 }
+    },
 };
 
 const std::vector<ElementType> inputPrecisions = {

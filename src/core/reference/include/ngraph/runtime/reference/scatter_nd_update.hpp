@@ -35,9 +35,17 @@ void scatterNdUpdate(const dataType* const inputData,
         return padding;
     }();
 
+    // Negative value for indices means counting backwards from the end.
+    std::vector<indicesType> indicesCopy(indices, indices + shape_size(indicesShape));
+    for (size_t i = 0; i < indicesCopy.size(); i++) {
+        if (indicesCopy[i] < 0) {
+            indicesCopy[i] += dataShape[0];
+        }
+    }
+
     const auto num_of_updates = shape_size(span(indicesShape).drop_back(1));
     for (size_t i = 0; i != num_of_updates; ++i) {
-        const auto indices_coord = indices + i * indicesShape.back();
+        const auto indices_coord = indicesCopy.data() + i * indicesShape.back();
         const auto coord = span(indices_coord, indicesShape.back());
         const auto out_index = std::inner_product(begin(coord), end(coord), begin(input_data_dim_pading), uint64_t(0));
 
