@@ -599,4 +599,5 @@ TEST_F(TransformationTestsF, NegativePadPreservation) {
         function = std::make_shared<Function>(NodeVector{conv}, ParameterVector{data, filters});
         manager.register_pass<ov::pass::PadFusion>();
     }
+    // Reference function is equal to function
 }
