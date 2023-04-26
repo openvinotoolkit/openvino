@@ -11,16 +11,17 @@ namespace test {
 namespace snippets {
 
 typedef std::tuple<
-        std::vector<ov::PartialShape>,   // Input shapes
-        bool,                            // With Multiply
-        size_t,                          // Expected num nodes
-        size_t,                          // Expected num subgraphs
-        std::string                      // Target Device
+        std::vector<ov::PartialShape>,     // Input shapes
+        bool,                              // With Multiply
+        ov::element::Type,                 // Inference precision
+        size_t,                            // Expected num nodes
+        size_t,                            // Expected num subgraphs
+        std::string,                       // Target Device
+        std::map<std::string, std::string> // Config
 > MHAParams;
 
-
 class MHA : public testing::WithParamInterface<ov::test::snippets::MHAParams>,
-        virtual public ov::test::SnippetsTestsCommon {
+            virtual public ov::test::SnippetsTestsCommon {
 public:
     static std::string getTestCaseName(testing::TestParamInfo<ov::test::snippets::MHAParams> obj);
 
@@ -39,6 +40,10 @@ protected:
 
 class MHAWOTransposeOnInputs : public MHA {
 protected:
+    void SetUp() override;
+};
+
+class MHAWOTranspose : public MHA {
     void SetUp() override;
 };
 

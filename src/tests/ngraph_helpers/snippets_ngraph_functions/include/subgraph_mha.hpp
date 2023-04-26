@@ -126,6 +126,24 @@ protected:
     std::shared_ptr<ov::Model> initOriginal() const override;
 };
 
+/* Graph:
+ *    \     /
+ *    MatMul0
+ *       |
+ *    Softmax
+ *        \      /
+ *         MatMul1
+ *           |
+ */
+class MHAWOTransposeFunction : public SnippetsFunctionBase {
+public:
+    explicit MHAWOTransposeFunction(const std::vector<PartialShape>& inputShapes) : SnippetsFunctionBase(inputShapes) {
+        NGRAPH_CHECK(input_shapes.size() == 3, "Got invalid number of input shapes");
+    }
+protected:
+    std::shared_ptr<ov::Model> initOriginal() const override;
+};
+
 }  // namespace snippets
 }  // namespace test
 }  // namespace ov
