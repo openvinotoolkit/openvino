@@ -442,7 +442,7 @@ TEST(prepare_primitive_fusing, dont_remove_only_dep_reshape) {
     ASSERT_TRUE(has_node(*prog, "reshape2"));
 }
 
-TEST(prepare_primitive_fusing, eltwise_fusing_residual_connection_taylor) {
+TEST(prepare_primitive_fusing, eltwise_fusing_residual_connection) {
     // Extended eltwise fusing pattern
     //   in    w
     //     \  /
