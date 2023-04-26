@@ -97,6 +97,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_QuantMatMul_u8i8, QuantMatMulTest,
                                 ::testing::Values(CommonTestUtils::DEVICE_CPU)),
                         QuantMatMulTest::getTestCaseName);
 
+#if defined(OPENVINO_ARCH_64_BIT)
 INSTANTIATE_TEST_SUITE_P(smoke_QuantMatMul_i16i32, QuantMatMulTest,
                         ::testing::Combine(
                                 quantParams_i16,
@@ -106,6 +107,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_QuantMatMul_i16i32, QuantMatMulTest,
                                 ::testing::ValuesIn(shapesB),
                                 ::testing::Values(CommonTestUtils::DEVICE_CPU)),
                         QuantMatMulTest::getTestCaseName);
+#endif
 
 } // namespace
 
