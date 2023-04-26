@@ -14,14 +14,13 @@ flowchart LR
         tf[("TensorFlow (*.pb)")]
         classDef blue3 fill:#0068B5, stroke: #004A86, color: #E9E9E9
         class ir,onnx,paddle,tflite,tf blue3
-        style models fill:#E9E9E9, stroke: #AEAEAE, color: #262626
-        
+       
         click onnx "https://github.com/onnx/onnx"
     end
     
     mo{{Model Optimizer}}
-    
-    style mo fill:#B1D272, stroke: #8BAE46, color: #262626
+    classDef mos fill:#B1D272, stroke: #8BAE46, color: #000022
+    class mo mos
     
     onnx--convert--->mo
     paddle--convert--->mo
@@ -33,19 +32,16 @@ flowchart LR
         auto(["AUTO"])
         cpu(["Intel_CPU"])
         gpu(["Intel_GPU"])
-        classDef carbon1 fill:#E9E9E9, stroke: #AEAEAE, color: #262626
-        class auto,cpu,gpu carbon1
-        style plugins #FFE17A
-
+        classDef daisy3 fill:#EDB200, stroke: #C98F00, color: #262626
+        class auto,cpu,gpu daisy3
     end
     subgraph frontends [OV Frontends]
         ir_fe["IR Frontend"]
         onnx_fe["ONNX Frontend"]
         tflite_fe["TensorFlow Lite Frontend"]
         paddle_fe["Paddle Frontend"]
-        classDef blue1 fill:#76CEFF, stroke: #00A3F6, color: #262626
+        classDef blue1 fill:#76CEFF, stroke: #00A3F6, color: #000022
         class ir_fe,onnx_fe,tflite_fe,paddle_fe blue1
-        style frontends #FFE17A
     end
     openvino(openvino library)
     ir--Read ir---ir_fe
@@ -60,9 +56,8 @@ flowchart LR
     openvino--infer--->cpu
     openvino--infer--->gpu
     openvino--infer--->auto
-    style openvino fill:#76CEFF, stroke: #00A3F6, color: #262626
-    linkStyle 5,6,7,8 color:#0068B5
-    linkStyle 0,1,2,3 color:#8BAE46
+    classDef blue1 fill:#76CEFF, stroke: #00A3F6, color: #000022
+    class openvino blue1
 ```
 
 ## [Get Started](./get_started.md)
