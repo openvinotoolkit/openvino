@@ -8,7 +8,7 @@ Model Optimizer Python API allows the conversion of PyTorch models using the ``c
 (Experimental) Converting a PyTorch model with PyTorch Frontend 
 ###############################################################
 
-Example of PyTorch model converting:
+Example of PyTorch model conversion:
 
 .. code-block:: python
 
@@ -20,11 +20,12 @@ Example of PyTorch model converting:
    ov_model = convert_model(model)
 
 Following PyTorch model formats are supported:
+
 * ``torch.nn.Module``
 * ``torch.jit.ScriptModule``
 * ``torch.jit.ScriptFunction``
 
-Converting of some PyTorch models may require model tracing which need setting of ``input_shape`` or ``example_input`` parameters.
+Converting certain PyTorch models may require model tracing, which needs ``input_shape`` or ``example_input`` parameters to be set.
 
 ``example_input`` is used as example input for model tracing.
 ``input_shape`` is used for constructing a float zero-filled torch.Tensor for model tracing.
@@ -48,9 +49,10 @@ Example:
 * ``list`` or ``tuple`` with tensors (``openvino.runtime.Tensor`` / ``torch.Tensor`` / ``np.ndarray``)
 * ``dictionary`` where key is the input name, value is the tensor (``openvino.runtime.Tensor`` / ``torch.Tensor`` / ``np.ndarray``)
 
-If ``use_legacy_frontend`` is set, it enables PyTorch model converting using temporary ONNX model.
+If ``use_legacy_frontend`` is set, it enables PyTorch model conversion using a temporary ONNX model.
 ONNX opset version can be set using an optional ``onnx_opset_version`` parameter.
-If the ``onnx_opset_version`` is not set, the default opset from ``torch.onnx.export()`` is used.
+
+If  ``onnx_opset_version`` is not set, the default opset from ``torch.onnx.export()`` is used.
 
 .. code-block:: python
 
@@ -62,7 +64,7 @@ If the ``onnx_opset_version`` is not set, the default opset from ``torch.onnx.ex
 Exporting a PyTorch Model to ONNX Format
 ########################################
 
-Currently, the most robust method of converting PyTorch models is exporting PyTorch model to ONNX and then converting it to IR. In order to convert and deploy a PyTorch model you need to do the following steps:
+Currently, the most robust method of converting PyTorch models is exporting a PyTorch model to ONNX and then converting it to IR. To convert and deploy a PyTorch model, follow these steps:
 
 1. `Export a PyTorch model to ONNX <#exporting-a-pytorch-model-to-onnx-format>`__.
 2. :doc:`Convert the ONNX model <openvino_docs_MO_DG_prepare_model_convert_model_Convert_Model_From_ONNX>` to produce an optimized :doc:`Intermediate Representation <openvino_docs_MO_DG_IR_and_opsets>` of the model based on the trained network topology, weights, and biases values.

@@ -189,7 +189,7 @@ MO Python API supports passing TensorFlow/TensorFlow2 models directly from memor
    model = hub.KerasLayer("https://tfhub.dev/google/imagenet/mobilenet_v1_100_224/classification/5")
    ov_model = convert_model(model, input_shape=[-1, 224, 224, 3])
 
-* ``tf.Module``. Requires setting of "input_shape".
+* ``tf.Module``. Requires setting the "input_shape".
 
 .. code-block:: python
 
