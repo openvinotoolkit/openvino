@@ -5,6 +5,18 @@
 #include "acl_interpolate.hpp"
 #include "acl_utils.hpp"
 
+static bool getIndices(const ov::intel_cpu::MemoryDescPtr &desc, int& index_h, int& index_w) {
+    if (desc->hasLayoutType(ov::intel_cpu::LayoutType::ncsp)) {
+        index_h = 2;
+        index_w = 3;
+        return true;
+    } else if (desc->hasLayoutType(ov::intel_cpu::LayoutType::nspc)) {
+        index_h = 1;
+        index_w = 2;
+        return true;
+    } else { return false; }
+}
+
 bool ov::intel_cpu::ACLInterpolateExecutor::init(const InterpolateAttrs &interpolateAttrs,
                                                  const std::vector <MemoryDescPtr> &srcDescs,
                                                  const std::vector <MemoryDescPtr> &dstDescs,
@@ -13,14 +25,9 @@ bool ov::intel_cpu::ACLInterpolateExecutor::init(const InterpolateAttrs &interpo
     InterpolateExecutor::init(aclInterpolateAttrs, srcDescs, dstDescs, attr);
     acl_coord = arm_compute::SamplingPolicy::TOP_LEFT;
     auto& out_shape = dstDescs[0]->getShape().getDims();
+
     int index_h, index_w;
-    if (dstDescs[0]->hasLayoutType(LayoutType::ncsp)) {
-        index_h = 2;
-        index_w = 3;
-    } else if (dstDescs[0]->hasLayoutType(LayoutType::nspc)) {
-        index_h = 1;
-        index_w = 2;
-    } else { return false; }
+    if (!getIndices(dstDescs[0], index_h, index_w)) { return false; }
 
     if ((aclInterpolateAttrs.coordTransMode == InterpolateCoordTransMode::pytorch_half_pixel && out_shape[index_h] > 1 && out_shape[index_w] > 1) ||
         aclInterpolateAttrs.coordTransMode == InterpolateCoordTransMode::half_pixel) {
@@ -97,16 +104,13 @@ void ov::intel_cpu::ACLInterpolateExecutor::exec(const std::vector<MemoryCPtr>& 
 bool ov::intel_cpu::ACLInterpolateExecutorBuilder::isSupportedConfiguration(
         const ov::intel_cpu::InterpolateAttrs &interpolateAttrs, const std::vector<MemoryDescPtr> &srcDescs,
         const std::vector<MemoryDescPtr> &dstDescs) {
+    IE_ASSERT(srcDescs[0]->getShape().getDims().size() == 4);
+
     auto& inp_shape = srcDescs[0]->getShape().getDims();
     auto& out_shape = dstDescs[0]->getShape().getDims();
+
     int index_h, index_w;
-    if (srcDescs[0]->hasLayoutType(LayoutType::ncsp)) {
-        index_h = 2;
-        index_w = 3;
-    } else if (srcDescs[0]->hasLayoutType(LayoutType::nspc)) {
-        index_h = 1;
-        index_w = 2;
-    } else { return false; }
+    if (!getIndices(srcDescs[0], index_h, index_w)) { return false; }
 
     float scale_h = static_cast<float>(out_shape[index_h]) / inp_shape[index_h];
     float scale_w = static_cast<float>(out_shape[index_w]) / inp_shape[index_w];
