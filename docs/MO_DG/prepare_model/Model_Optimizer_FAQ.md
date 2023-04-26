@@ -71,22 +71,6 @@ Q3. What does the message "[ ERROR ]: Unable to create ports for node with id" m
 To lessen the scope, compile the list of layers that are custom for Model Optimizer: present in the topology,
 absent in the :doc:`list of supported layers <openvino_docs_MO_DG_prepare_model_Supported_Frameworks_Layers>` for the target framework. Then, refer to available options in the corresponding section in the  :doc:`Custom Layers in Model Optimizer <openvino_docs_MO_DG_prepare_model_customize_model_optimizer_Customize_Model_Optimizer>` page.
 
-.. _question-4:
-
-#####################################################################################################################################################
-
-This MO argument/option was deprecated and removed, question is not actual anymore.
-
-.. _question-5:
-
-#####################################################################################################################################################
-
-This MO argument/option was deprecated and removed, question is not actual anymore.
-
-.. _question-6:
-
-#####################################################################################################################################################
-
 .. _question-7:
 
 Q7. What does the message "Invalid proto file: there is neither 'layer' nor 'layers' top-level messages" mean?
@@ -205,12 +189,6 @@ Q9. What does the message "Mean file for topologies with multiple inputs is not 
 #####################################################################################################################################################
 
 **A:** Model Optimizer does not support mean file processing for topologies with more than one input. In this case, you need to perform preprocessing of the inputs for a generated Intermediate Representation in OpenVINO Runtime to perform subtraction for every input of your multi-input model. See the :doc:`Overview of Preprocessing <openvino_docs_OV_UG_Preprocessing_Overview>` for details.
-
-.. _question-10:
-
-#####################################################################################################################################################
-
-This MO argument/option was deprecated and removed, question is not actual anymore.
 
 .. _question-11:
 
