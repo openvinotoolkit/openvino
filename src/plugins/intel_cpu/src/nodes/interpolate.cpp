@@ -2107,9 +2107,7 @@ void Interpolate::initSupportedPrimitiveDescriptors() {
     if (is_version11) {
 #if defined (OV_CPU_WITH_ACL)
         interpAttrs.hasPad = hasPad;
-        //TODO: Fix NHWC case in ACL executor
-        //Interpolate ACL executor produces incorrect result in NHWC case
-        //pushDesc(LayoutType::nspc, undef, true, true);
+        pushDesc(LayoutType::nspc, undef, true, true);
         pushDesc(LayoutType::ncsp, undef, true, true);
         canUseAclExecutor = !supportedPrimitiveDescriptors.empty();
         if (canUseAclExecutor)
@@ -2141,9 +2139,7 @@ void Interpolate::initSupportedPrimitiveDescriptors() {
 
 #if defined (OV_CPU_WITH_ACL)
         interpAttrs.hasPad = hasPad;
-        //TODO: Fix NHWC case in ACL executor
-        //Interpolate ACL executor produces incorrect result in NHWC case
-        //pushDesc(LayoutType::nspc, undef, false, true);
+        pushDesc(LayoutType::nspc, undef, false, true);
         pushDesc(LayoutType::ncsp, undef, false, true);
         canUseAclExecutor = !supportedPrimitiveDescriptors.empty();
         if (canUseAclExecutor)
