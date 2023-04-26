@@ -82,6 +82,8 @@ To run the sample, you need specify a model and image:
   
    - The sample accepts models in ONNX format (.onnx) that do not require preprocessing.
 
+   - Stating flags that take only single option like `-m` multiple times, for example `python classification_sample_async.py -m model.xml -m model2.xml`, results in only the last value being used.
+
 Example
 +++++++
 
