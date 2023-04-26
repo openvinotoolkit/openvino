@@ -120,7 +120,6 @@ struct CPUStreamsExecutor::Impl {
                 _impl->_streamIdQueue.push(_streamId);
             }
 #if OV_THREAD == OV_THREAD_TBB || OV_THREAD == OV_THREAD_TBB_AUTO
-            set_cpu_used(_cpu_ids, NOT_USED);
             if (nullptr != _observer) {
                 _observer->observe(false);
             }
