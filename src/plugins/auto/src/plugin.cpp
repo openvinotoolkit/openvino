@@ -553,12 +553,14 @@ std::list<DeviceInformation> MultiDeviceInferencePlugin::GetValidDevice(
             try {
                 deviceType = GetCore()->GetMetric(item.deviceName, METRIC_KEY(DEVICE_TYPE)).as<std::string>();
             } catch (const IE::Exception&) {
-                LOG_DEBUG_TAG("GetMetric:%s for %s failed ", "DEVICE_TYPE", item.deviceName);
+                LOG_DEBUG_TAG("GetMetric:%s for %s failed ", "DEVICE_TYPE", item.deviceName.c_str());
             }
             if (deviceType == "integrated") {
                 iGPU.push_back(item);
             } else if (deviceType == "discrete") {
                 dGPU.push_back(item);
+            } else {
+                LOG_DEBUG_TAG("Unknown device type for %s", item.deviceName.c_str());
             }
             continue;
         }
@@ -688,7 +690,7 @@ std::string MultiDeviceInferencePlugin::GetDeviceList(const std::map<std::string
             try {
                 deviceArchitecture = GetCore()->GetMetric(device, METRIC_KEY(DEVICE_ARCHITECTURE)).as<std::string>();
             } catch (const IE::Exception&) {
-                LOG_DEBUG_TAG("GetMetric:%s for %s failed ", "DEVICE_ARCHITECTURE", device);
+                LOG_DEBUG_TAG("GetMetric:%s for %s failed ", "DEVICE_ARCHITECTURE", device.c_str());
             }
         }
         if (!_pluginConfig.isSupportedDevice(device, deviceArchitecture))
@@ -743,7 +745,7 @@ std::string MultiDeviceInferencePlugin::GetDeviceList(const std::map<std::string
                         deviceArchitecture =
                             GetCore()->GetMetric(device, METRIC_KEY(DEVICE_ARCHITECTURE)).as<std::string>();
                     } catch (const IE::Exception&) {
-                        LOG_DEBUG_TAG("GetMetric:%s for %s failed ", "DEVICE_ARCHITECTURE", device);
+                        LOG_DEBUG_TAG("GetMetric:%s for %s failed ", "DEVICE_ARCHITECTURE", device.c_str());
                     }
                 }
                 if (isAnyDevWithEmptyMerged(device, devicesToBeDeleted) || !_pluginConfig.isSupportedDevice(device, deviceArchitecture))
