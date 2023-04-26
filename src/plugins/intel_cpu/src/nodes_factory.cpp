@@ -191,8 +191,8 @@ Node::NodesFactory::NodesFactory()
     INTEL_CPU_NODE(DFT, Type::DFT);
     INTEL_CPU_NODE(RDFT, Type::RDFT);
     INTEL_CPU_NODE(ExtractImagePatches, Type::ExtractImagePatches);
-#if defined(OPENVINO_ARCH_X86_64)
     INTEL_CPU_NODE(FakeQuantize, Type::FakeQuantize);
+#if defined(OPENVINO_ARCH_X86_64)
     INTEL_CPU_NODE(GridSample, Type::GridSample);
     INTEL_CPU_NODE(Interaction, Type::Interaction);
     INTEL_CPU_NODE(MHA, Type::MHA);
