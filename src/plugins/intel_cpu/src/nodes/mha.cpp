@@ -879,7 +879,9 @@ void MHA::init_brgemm_copy_b(std::unique_ptr<jit_brgemm_matmul_copy_b_t>& brgCop
     brgCopyKernelConf.src_zp_type = dnnl::impl::cpu::x64::none;
 
 #if defined(OPENVINO_ARCH_X86_64)
-    create_brgemm_matmul_copy_b(brgCopyKernel, &brgCopyKernelConf);
+    auto ret = create_brgemm_matmul_copy_b(brgCopyKernel, &brgCopyKernelConf);
+    if ( ret != dnnl::impl::status_t::dnnl_success )
+        THROW_ERROR << "cannot create_brgemm_matmul_copy_b kernel, dnnl_status: " << ret;
 #endif // OPENVINO_ARCH_X86_64
 }
 
