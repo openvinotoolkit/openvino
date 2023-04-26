@@ -7,13 +7,13 @@
 #include <memory>
 #include <ngraph/pattern/op/wrap_type.hpp>
 #include <ngraph/rt_info.hpp>
-#include "openvino/op/minimum.hpp"
-#include "openvino/op/maximum.hpp"
-#include "openvino/op/multiply.hpp"
-#include "openvino/op/constant.hpp"
 #include <vector>
 
 #include "itt.hpp"
+#include "openvino/op/constant.hpp"
+#include "openvino/op/maximum.hpp"
+#include "openvino/op/minimum.hpp"
+#include "openvino/op/multiply.hpp"
 
 ov::pass::ConvertMinimum::ConvertMinimum() {
     MATCHER_SCOPE(ConvertMinimum);
@@ -40,9 +40,9 @@ ov::pass::ConvertMinimum::ConvertMinimum() {
 
         auto max = std::make_shared<ov::op::v1::Maximum>(neg_0, neg_1);
 
-        auto neg_2 =
-            std::make_shared<ov::op::v1::Multiply>(max,
-                                                   ov::op::v0::Constant::create(max->get_element_type(), Shape{}, {-1}));
+        auto neg_2 = std::make_shared<ov::op::v1::Multiply>(
+            max,
+            ov::op::v0::Constant::create(max->get_element_type(), Shape{}, {-1}));
 
         neg_2->set_friendly_name(minimum->get_friendly_name());
         ngraph::copy_runtime_info(minimum, {neg_0, neg_1, max, neg_2});

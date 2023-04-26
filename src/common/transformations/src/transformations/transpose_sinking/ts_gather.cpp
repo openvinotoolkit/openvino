@@ -5,12 +5,12 @@
 #include "transformations/transpose_sinking/ts_gather.hpp"
 
 #include "itt.hpp"
-#include "openvino/op/util/op_types.hpp"
-#include "openvino/op/gather.hpp"
-#include "openvino/op/transpose.hpp"
-#include "openvino/op/squeeze.hpp"
-#include "openvino/op/unsqueeze.hpp"
 #include "openvino/op/constant.hpp"
+#include "openvino/op/gather.hpp"
+#include "openvino/op/squeeze.hpp"
+#include "openvino/op/transpose.hpp"
+#include "openvino/op/unsqueeze.hpp"
+#include "openvino/op/util/op_types.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "transformations/rt_info/transpose_sinking_attr.hpp"
 #include "transformations/transpose_sinking/ts_utils.hpp"
@@ -24,7 +24,8 @@ TSGatherForward::TSGatherForward() {
     MATCHER_SCOPE(TSGatherForward);
 
     auto transpose_label = wrap_type<ov::op::v1::Transpose>({any_input(), wrap_type<ov::op::v0::Constant>()});
-    auto gather_label = wrap_type<ov::op::v8::Gather>({transpose_label, any_input(), wrap_type<ov::op::v0::Constant>()});
+    auto gather_label =
+        wrap_type<ov::op::v8::Gather>({transpose_label, any_input(), wrap_type<ov::op::v0::Constant>()});
 
     ov::matcher_pass_callback matcher_pass_callback = [=](pattern::Matcher& m) {
         const auto& pattern_to_output = m.get_pattern_map();
@@ -84,15 +85,17 @@ TSGatherForward::TSGatherForward() {
             }
         }
 
-        auto new_order_const =
-            ov::op::v0::Constant::create(transpose_order->get_element_type(), {new_transpose_order.size()}, new_transpose_order);
+        auto new_order_const = ov::op::v0::Constant::create(transpose_order->get_element_type(),
+                                                            {new_transpose_order.size()},
+                                                            new_transpose_order);
         TransposeInputsInfo transpose_input_info = {transpose, new_order_const, 0};
         // deletes Transpose from 0 input
         auto success = sink_forward::UpdateInputTransposes(main_node, transpose_input_info, {0});
         if (!success) {
             return false;
         }
-        auto new_axis = ov::op::v0::Constant::create(gather_axis->get_element_type(), gather_axis->get_shape(), {order_val[axis]});
+        auto new_axis =
+            ov::op::v0::Constant::create(gather_axis->get_element_type(), gather_axis->get_shape(), {order_val[axis]});
         main_node->input(2).replace_source_output(new_axis);
         copy_runtime_info(gather_axis, new_axis);
         main_node->validate_and_infer_types();
@@ -111,12 +114,13 @@ TSGatherForward::TSGatherForward() {
 TSGatherBackward::TSGatherBackward() {
     MATCHER_SCOPE(TSGatherBackward);
 
-    auto gather_label =
-        wrap_type<ov::op::v8::Gather>({any_input(), any_input(), wrap_type<ov::op::v0::Constant>()}, HasSameOutputTransposeNodes);
+    auto gather_label = wrap_type<ov::op::v8::Gather>({any_input(), any_input(), wrap_type<ov::op::v0::Constant>()},
+                                                      HasSameOutputTransposeNodes);
     auto transpose_label =
-        wrap_type<ov::op::v1::Transpose>({gather_label, wrap_type<ov::op::v0::Constant>()}, [](const Output<Node>& output) -> bool {
-            return has_static_rank()(output) && is_sinking_node(output);
-        });
+        wrap_type<ov::op::v1::Transpose>({gather_label, wrap_type<ov::op::v0::Constant>()},
+                                         [](const Output<Node>& output) -> bool {
+                                             return has_static_rank()(output) && is_sinking_node(output);
+                                         });
 
     ov::matcher_pass_callback matcher_pass_callback = [=](pattern::Matcher& m) {
         const auto& pattern_to_output = m.get_pattern_map();
@@ -230,8 +234,9 @@ TSGatherBackward::TSGatherBackward() {
             }
         }
         const auto reversed_transpose_order = ReverseTransposeOrder(order_val);
-        const auto& transpose_const =
-            ov::op::v0::Constant::create(transpose_order->get_element_type(), {new_transpose_order.size()}, new_transpose_order);
+        const auto& transpose_const = ov::op::v0::Constant::create(transpose_order->get_element_type(),
+                                                                   {new_transpose_order.size()},
+                                                                   new_transpose_order);
         for (auto& new_node : sink_backward::InsertTransposeBeforeNode(main_node,
                                                                        transpose_const,
                                                                        /* input_indexes= */ {0})) {

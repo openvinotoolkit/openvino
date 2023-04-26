@@ -7,13 +7,13 @@
 #include <ngraph/pattern/op/wrap_type.hpp>
 #include <ngraph/rt_info.hpp>
 #include <ngraph/validation_util.hpp>
-#include "openvino/op/strided_slice.hpp"
-#include "openvino/op/squeeze.hpp"
-#include "openvino/op/constant.hpp"
 #include <transformations/smart_reshape/strided_slice_squeeze.hpp>
 
-#include "transformations_visibility.hpp"
+#include "openvino/op/constant.hpp"
+#include "openvino/op/squeeze.hpp"
+#include "openvino/op/strided_slice.hpp"
 #include "openvino/op/util/sub_graph_base.hpp"
+#include "transformations_visibility.hpp"
 
 ov::pass::StridedSliceSqueeze::StridedSliceSqueeze() {
     // TODO: enable conditional compile

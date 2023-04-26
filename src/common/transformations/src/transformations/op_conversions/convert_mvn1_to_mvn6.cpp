@@ -7,10 +7,10 @@
 #include <ngraph/pattern/op/wrap_type.hpp>
 #include <ngraph/rt_info.hpp>
 #include <numeric>
-#include "openvino/op/constant.hpp"
-#include "openvino/op/mvn.hpp"
 
 #include "itt.hpp"
+#include "openvino/op/constant.hpp"
+#include "openvino/op/mvn.hpp"
 
 ov::pass::ConvertMVN1ToMVN6::ConvertMVN1ToMVN6() {
     MATCHER_SCOPE(ConvertMVN1ToMVN6);

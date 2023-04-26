@@ -6,9 +6,9 @@
 
 #include <ngraph/pattern/op/wrap_type.hpp>
 #include <ngraph/rt_info.hpp>
-#include "openvino/op/gather.hpp"
 
 #include "itt.hpp"
+#include "openvino/op/gather.hpp"
 
 using namespace std;
 using namespace ov;
@@ -26,8 +26,8 @@ pass::ConvertGather7ToGather1::ConvertGather7ToGather1() {
             return false;
 
         auto gather_v1_node = make_shared<ov::op::v1::Gather>(gather_v7_node->input_value(0),
-                                                          gather_v7_node->input_value(1),
-                                                          gather_v7_node->input_value(2));
+                                                              gather_v7_node->input_value(1),
+                                                              gather_v7_node->input_value(2));
 
         gather_v1_node->set_friendly_name(gather_v7_node->get_friendly_name());
         ngraph::copy_runtime_info(gather_v7_node, gather_v1_node);
@@ -50,9 +50,9 @@ pass::ConvertGather8ToGather7::ConvertGather8ToGather7() {
             return false;
 
         auto gather_v7_node = make_shared<ov::op::v7::Gather>(gather_v8_node->input_value(0),
-                                                          gather_v8_node->input_value(1),
-                                                          gather_v8_node->input_value(2),
-                                                          gather_v8_node->get_batch_dims());
+                                                              gather_v8_node->input_value(1),
+                                                              gather_v8_node->input_value(2),
+                                                              gather_v8_node->get_batch_dims());
 
         gather_v7_node->set_friendly_name(gather_v8_node->get_friendly_name());
         ngraph::copy_runtime_info(gather_v8_node, gather_v7_node);

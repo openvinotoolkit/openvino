@@ -7,13 +7,13 @@
 #include <memory>
 #include <ngraph/pattern/op/wrap_type.hpp>
 #include <ngraph/rt_info.hpp>
-#include "openvino/op/logical_and.hpp"
-#include "openvino/op/multiply.hpp"
-#include "openvino/op/broadcast.hpp"
-#include "openvino/op/constant.hpp"
 #include <vector>
 
 #include "itt.hpp"
+#include "openvino/op/broadcast.hpp"
+#include "openvino/op/constant.hpp"
+#include "openvino/op/logical_and.hpp"
+#include "openvino/op/multiply.hpp"
 
 namespace {
 
@@ -80,9 +80,9 @@ ov::pass::ConvertBroadcast3::ConvertBroadcast3() {
             input = std::make_shared<ov::op::v1::Broadcast>(input, target_shape_input, op::AutoBroadcastType::PDPD);
         } else if (broadcast_type == op::BroadcastType::NONE) {
             input = std::make_shared<ov::op::v1::Broadcast>(input,
-                                                        target_shape_input,
-                                                        broadcast->input_value(2),
-                                                        op::AutoBroadcastType::NONE);
+                                                            target_shape_input,
+                                                            broadcast->input_value(2),
+                                                            op::AutoBroadcastType::NONE);
         } else if (broadcast_type == op::BroadcastType::BIDIRECTIONAL) {
             if (auto const_target_shape =
                     std::dynamic_pointer_cast<ov::op::v0::Constant>(target_shape_input.get_node_shared_ptr())) {
@@ -93,8 +93,8 @@ ov::pass::ConvertBroadcast3::ConvertBroadcast3() {
                     input = std::make_shared<ov::op::v1::Broadcast>(
                         input,
                         ov::op::v0::Constant::create(element::i64,
-                                                 Shape({aligned_target_shape.size()}),
-                                                 aligned_target_shape));
+                                                     Shape({aligned_target_shape.size()}),
+                                                     aligned_target_shape));
                 } else {
                     if (input_element_type == element::boolean) {
                         input = std::make_shared<ov::op::v1::LogicalAnd>(

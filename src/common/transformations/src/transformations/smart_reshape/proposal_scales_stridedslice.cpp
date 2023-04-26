@@ -6,15 +6,15 @@
 #include <ngraph/pattern/op/or.hpp>
 #include <ngraph/pattern/op/wrap_type.hpp>
 #include <ngraph/rt_info.hpp>
-#include "openvino/op/reshape.hpp"
-#include "openvino/op/proposal.hpp"
-#include "openvino/op/convert.hpp"
-#include "openvino/op/constant.hpp"
-#include "openvino/op/parameter.hpp"
-#include "openvino/op/strided_slice.hpp"
 #include <transformations/smart_reshape/proposal_scales_stridedslice.hpp>
 
 #include "itt.hpp"
+#include "openvino/op/constant.hpp"
+#include "openvino/op/convert.hpp"
+#include "openvino/op/parameter.hpp"
+#include "openvino/op/proposal.hpp"
+#include "openvino/op/reshape.hpp"
+#include "openvino/op/strided_slice.hpp"
 
 namespace {
 

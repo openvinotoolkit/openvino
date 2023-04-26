@@ -7,12 +7,12 @@
 #include <memory>
 #include <ngraph/pattern/op/wrap_type.hpp>
 #include <ngraph/rt_info.hpp>
-#include "openvino/op/negative.hpp"
-#include "openvino/op/multiply.hpp"
-#include "openvino/op/constant.hpp"
 #include <vector>
 
 #include "itt.hpp"
+#include "openvino/op/constant.hpp"
+#include "openvino/op/multiply.hpp"
+#include "openvino/op/negative.hpp"
 
 ov::pass::ConvertNegative::ConvertNegative() {
     MATCHER_SCOPE(ConvertNegative);
@@ -24,9 +24,9 @@ ov::pass::ConvertNegative::ConvertNegative() {
             return false;
         }
 
-        auto mul =
-            std::make_shared<ov::op::v1::Multiply>(neg->input(0).get_source_output(),
-                                                   ov::op::v0::Constant::create(neg->get_element_type(), Shape{}, {-1}));
+        auto mul = std::make_shared<ov::op::v1::Multiply>(
+            neg->input(0).get_source_output(),
+            ov::op::v0::Constant::create(neg->get_element_type(), Shape{}, {-1}));
         mul->set_friendly_name(neg->get_friendly_name());
         ngraph::copy_runtime_info(neg, mul);
         ngraph::replace_node(neg, mul);

@@ -5,29 +5,29 @@
 #include "transformations/transpose_sinking/ts_utils.hpp"
 
 #include "itt.hpp"
-#include "openvino/op/util/op_types.hpp"
-#include "openvino/op/softplus.hpp"
-#include "openvino/op/reverse_sequence.hpp"
-#include "openvino/op/transpose.hpp"
-#include "openvino/op/space_to_batch.hpp"
-#include "openvino/op/unsqueeze.hpp"
-#include "openvino/op/is_inf.hpp"
 #include "openvino/op/batch_to_space.hpp"
-#include "openvino/op/variadic_split.hpp"
+#include "openvino/op/clamp.hpp"
+#include "openvino/op/constant.hpp"
+#include "openvino/op/convert.hpp"
+#include "openvino/op/elu.hpp"
 #include "openvino/op/gather.hpp"
+#include "openvino/op/interpolate.hpp"
+#include "openvino/op/is_finite.hpp"
+#include "openvino/op/is_inf.hpp"
 #include "openvino/op/logical_not.hpp"
 #include "openvino/op/pad.hpp"
-#include "openvino/op/reshape.hpp"
-#include "openvino/op/constant.hpp"
 #include "openvino/op/prelu.hpp"
-#include "openvino/op/elu.hpp"
-#include "openvino/op/convert.hpp"
-#include "openvino/op/clamp.hpp"
-#include "openvino/op/interpolate.hpp"
-#include "openvino/op/squeeze.hpp"
-#include "openvino/op/split.hpp"
+#include "openvino/op/reshape.hpp"
+#include "openvino/op/reverse_sequence.hpp"
 #include "openvino/op/slice.hpp"
-#include "openvino/op/is_finite.hpp"
+#include "openvino/op/softplus.hpp"
+#include "openvino/op/space_to_batch.hpp"
+#include "openvino/op/split.hpp"
+#include "openvino/op/squeeze.hpp"
+#include "openvino/op/transpose.hpp"
+#include "openvino/op/unsqueeze.hpp"
+#include "openvino/op/util/op_types.hpp"
+#include "openvino/op/variadic_split.hpp"
 #include "openvino/util/common_util.hpp"
 #include "transformations/rt_info/transpose_sinking_attr.hpp"
 #include "transformations/utils/utils.hpp"
@@ -44,7 +44,8 @@ using NodePtr = std::shared_ptr<Node>;
 Output<Node> ChangeValuesOrder(const Output<Node>& input,
                                const AxisVector& transpose_axis_order,
                                const std::shared_ptr<ov::op::v0::Constant>& axis) {
-    auto indices = std::make_shared<ov::op::v0::Constant>(element::i32, Shape{transpose_axis_order.size()}, transpose_axis_order);
+    auto indices =
+        std::make_shared<ov::op::v0::Constant>(element::i32, Shape{transpose_axis_order.size()}, transpose_axis_order);
     auto gather = std::make_shared<ov::op::v8::Gather>(input, indices, axis);
     copy_runtime_info(input.get_node_shared_ptr(), gather);
     return gather;
@@ -60,7 +61,8 @@ Output<Node> ChangeAxes(const Output<Node>& indices,
 Output<Node> ChangeAxes(const Output<Node>& indices,
                         const AxisVector& transpose_axis_order,
                         const std::shared_ptr<ov::op::v0::Constant>& axis) {
-    auto data = std::make_shared<ov::op::v0::Constant>(element::i32, Shape{transpose_axis_order.size()}, transpose_axis_order);
+    auto data =
+        std::make_shared<ov::op::v0::Constant>(element::i32, Shape{transpose_axis_order.size()}, transpose_axis_order);
     return ChangeAxes(indices, data, axis);
 }
 
@@ -213,9 +215,10 @@ bool UpdateInputTransposes(const NodePtr& main_node,
                 return false;
             }
             const auto reversed_transpose_axis_order = ReverseTransposeOrder(transpose_order);
-            auto new_transpose_const = std::make_shared<ov::op::v0::Constant>(transpose_element_type,
-                                                                  Shape{reversed_transpose_axis_order.size()},
-                                                                  reversed_transpose_axis_order);
+            auto new_transpose_const =
+                std::make_shared<ov::op::v0::Constant>(transpose_element_type,
+                                                       Shape{reversed_transpose_axis_order.size()},
+                                                       reversed_transpose_axis_order);
             auto new_transpose = std::make_shared<ov::op::v1::Transpose>(input_node, new_transpose_const);
 
             main_node->input(i).replace_source_output(new_transpose->output(0));
@@ -244,8 +247,8 @@ NodeVector InsertOutputTransposes(const NodePtr& main_node, const TransposeInput
 
     for (size_t i = 0; i < main_node->get_output_size(); ++i) {
         auto new_transpose_const = std::make_shared<ov::op::v0::Constant>(transpose_element_type,
-                                                              Shape{transpose_axis_order.size()},
-                                                              transpose_axis_order);
+                                                                          Shape{transpose_axis_order.size()},
+                                                                          transpose_axis_order);
         auto main_node_consumers = main_node->output(i).get_target_inputs();
         auto new_transpose = std::make_shared<ov::op::v1::Transpose>(main_node->output(i), new_transpose_const);
         for (auto& consumer : main_node_consumers) {
@@ -291,8 +294,8 @@ NodeVector InsertTransposeBeforeNode(const NodePtr& main_node,
         auto input_node = FixInputNodeRank(main_node->input_value(i), max_input_rank);
 
         auto new_transpose_const = std::make_shared<ov::op::v0::Constant>(transpose_element_type,
-                                                              Shape{transpose_axis_order.size()},
-                                                              transpose_axis_order);
+                                                                          Shape{transpose_axis_order.size()},
+                                                                          transpose_axis_order);
         auto new_transpose = std::make_shared<ov::op::v1::Transpose>(input_node, new_transpose_const);
 
         main_node->input(i).replace_source_output(new_transpose->output(0));

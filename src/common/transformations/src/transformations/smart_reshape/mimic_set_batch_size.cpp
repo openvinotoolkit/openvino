@@ -2,19 +2,19 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "openvino/op/reshape.hpp"
-#include "openvino/op/convert.hpp"
-#include "openvino/op/constant.hpp"
-#include "openvino/op/shape_of.hpp"
-#include "openvino/op/gather.hpp"
-#include "openvino/op/concat.hpp"
-#include "openvino/op/multiply.hpp"
-#include "openvino/op/ceiling.hpp"
 #include <ngraph/pass/constant_folding.hpp>
 #include <ngraph/pass/manager.hpp>
 #include <transformations/smart_reshape/mimic_set_batch_size.hpp>
 
 #include "itt.hpp"
+#include "openvino/op/ceiling.hpp"
+#include "openvino/op/concat.hpp"
+#include "openvino/op/constant.hpp"
+#include "openvino/op/convert.hpp"
+#include "openvino/op/gather.hpp"
+#include "openvino/op/multiply.hpp"
+#include "openvino/op/reshape.hpp"
+#include "openvino/op/shape_of.hpp"
 
 using namespace ngraph;
 
@@ -34,7 +34,8 @@ bool ov::pass::MimicSetBatchSize::run_on_model(const std::shared_ptr<ngraph::Fun
             if (in_pshape.rank().is_dynamic() || in_pshape.rank().get_length() <= 1 || in_pshape[0].is_dynamic() ||
                 out_pshape.rank().is_dynamic() || out_pshape.rank().get_length() <= 1 || out_pshape[0].is_dynamic())
                 continue;
-            const auto& pattern = std::dynamic_pointer_cast<ov::op::v0::Constant>(reshape->get_input_node_shared_ptr(1));
+            const auto& pattern =
+                std::dynamic_pointer_cast<ov::op::v0::Constant>(reshape->get_input_node_shared_ptr(1));
             if (pattern && pattern->cast_vector<int64_t>()[0] > 0) {
                 scale[reshape->get_friendly_name()] =
                     static_cast<float>(out_pshape[0].get_length()) / static_cast<float>(in_pshape[0].get_length());
@@ -48,8 +49,8 @@ bool ov::pass::MimicSetBatchSize::run_on_model(const std::shared_ptr<ngraph::Fun
             reshape->get_output_partial_shape(0).rank().is_dynamic())
             continue;
 
-        const auto& shape_of =
-            std::make_shared<ov::op::v3::ShapeOf>(reshape->get_input_source_output(0), reshape->get_input_element_type(1));
+        const auto& shape_of = std::make_shared<ov::op::v3::ShapeOf>(reshape->get_input_source_output(0),
+                                                                     reshape->get_input_element_type(1));
         const auto& new_input_batch = std::make_shared<ov::op::v1::Gather>(
             shape_of,
             ov::op::v0::Constant::create(ngraph::element::i64, {1}, std::vector<int64_t>{0}),

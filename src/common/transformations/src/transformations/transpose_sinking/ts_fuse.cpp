@@ -9,8 +9,8 @@
 
 #include "itt.hpp"
 #include "openvino/core/validation_util.hpp"
-#include "openvino/op/transpose.hpp"
 #include "openvino/op/constant.hpp"
+#include "openvino/op/transpose.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "transformations/transpose_sinking/ts_utils.hpp"
 #include "transformations/utils/utils.hpp"
@@ -21,9 +21,11 @@ using namespace ov::pass::transpose_sinking::utils;
 
 TSFuse::TSFuse() {
     MATCHER_SCOPE(TransposeFuse);
-    auto transpose_1_label = pattern::wrap_type<ov::op::v1::Transpose>({pattern::any_input(), pattern::wrap_type<ov::op::v0::Constant>()},
-                                                           HasSameOutputTransposeNodes);
-    auto transpose_2_label = pattern::wrap_type<ov::op::v1::Transpose>({transpose_1_label, pattern::wrap_type<ov::op::v0::Constant>()});
+    auto transpose_1_label =
+        pattern::wrap_type<ov::op::v1::Transpose>({pattern::any_input(), pattern::wrap_type<ov::op::v0::Constant>()},
+                                                  HasSameOutputTransposeNodes);
+    auto transpose_2_label =
+        pattern::wrap_type<ov::op::v1::Transpose>({transpose_1_label, pattern::wrap_type<ov::op::v0::Constant>()});
     ov::matcher_pass_callback matcher_pass_callback = [=](pattern::Matcher& m) {
         const auto& pattern_to_output = m.get_pattern_map();
 
@@ -31,8 +33,10 @@ TSFuse::TSFuse() {
         auto transpose2 = pattern_to_output.at(transpose_2_label);
         auto input = transpose1->input_value(0);
 
-        auto transpose1_order = std::dynamic_pointer_cast<ov::op::v0::Constant>(transpose1->get_input_node_shared_ptr(1));
-        auto transpose2_order = std::dynamic_pointer_cast<ov::op::v0::Constant>(transpose2->get_input_node_shared_ptr(1));
+        auto transpose1_order =
+            std::dynamic_pointer_cast<ov::op::v0::Constant>(transpose1->get_input_node_shared_ptr(1));
+        auto transpose2_order =
+            std::dynamic_pointer_cast<ov::op::v0::Constant>(transpose2->get_input_node_shared_ptr(1));
         if (!transpose1_order || !transpose2_order)
             return false;
 

@@ -8,9 +8,8 @@
 
 #include "itt.hpp"
 #include "openvino/core/validation_util.hpp"
-#include "openvino/op/shape_of.hpp"
-#include "openvino/op/shape_of.hpp"
 #include "openvino/op/constant.hpp"
+#include "openvino/op/shape_of.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 
 ov::pass::ShapeOfConstFolding::ShapeOfConstFolding() {

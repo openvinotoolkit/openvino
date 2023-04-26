@@ -6,9 +6,9 @@
 
 #include <ngraph/pattern/op/wrap_type.hpp>
 #include <ngraph/rt_info.hpp>
-#include "openvino/op/multiclass_nms.hpp"
 
 #include "itt.hpp"
+#include "openvino/op/multiclass_nms.hpp"
 
 ov::pass::ConvertMulticlassNms8ToMulticlassNms9::ConvertMulticlassNms8ToMulticlassNms9() {
     MATCHER_SCOPE(ConvertMulticlassNms8ToMulticlassNms9);

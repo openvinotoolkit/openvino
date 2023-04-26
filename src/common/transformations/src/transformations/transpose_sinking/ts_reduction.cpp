@@ -9,10 +9,10 @@
 
 #include "itt.hpp"
 #include "openvino/core/validation_util.hpp"
+#include "openvino/op/constant.hpp"
+#include "openvino/op/transpose.hpp"
 #include "openvino/op/util/arithmetic_reductions_keep_dims.hpp"
 #include "openvino/op/util/logical_reduction_keep_dims.hpp"
-#include "openvino/op/transpose.hpp"
-#include "openvino/op/constant.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "transformations/rt_info/transpose_sinking_attr.hpp"
 #include "transformations/transpose_sinking/ts_utils.hpp"
@@ -78,10 +78,11 @@ TSReductionForward::TSReductionForward() {
         }
 
         auto new_transpose_order = ov::op::v0::Constant::create(transpose_order->get_element_type(),
-                                                    {transpose_order_values.size()},
-                                                    transpose_order_values);
+                                                                {transpose_order_values.size()},
+                                                                transpose_order_values);
 
-        auto new_const = ov::op::v0::Constant::create(reduction_axes->get_element_type(), {new_values.size()}, new_values);
+        auto new_const =
+            ov::op::v0::Constant::create(reduction_axes->get_element_type(), {new_values.size()}, new_values);
         main_node->input(1).replace_source_output(new_const);
         TransposeInputsInfo transpose_input_info = {transpose, new_transpose_order, 0};
         // deletes Transpose from 0 input
@@ -110,9 +111,10 @@ TSReductionBackward::TSReductionBackward() {
         {any_input(), wrap_type<ov::op::v0::Constant>()},
         HasSameOutputTransposeNodes);
     auto transpose_label =
-        wrap_type<ov::op::v1::Transpose>({reduce_label, wrap_type<ov::op::v0::Constant>()}, [](const Output<Node>& output) -> bool {
-            return has_static_rank()(output) && is_sinking_node(output);
-        });
+        wrap_type<ov::op::v1::Transpose>({reduce_label, wrap_type<ov::op::v0::Constant>()},
+                                         [](const Output<Node>& output) -> bool {
+                                             return has_static_rank()(output) && is_sinking_node(output);
+                                         });
 
     ov::matcher_pass_callback matcher_pass_callback = [=](pattern::Matcher& m) {
         const auto& pattern_to_output = m.get_pattern_map();
@@ -141,15 +143,16 @@ TSReductionBackward::TSReductionBackward() {
         }
         auto reversed_order_values = ReverseTransposeOrder(transpose_order_values);
         auto new_transpose_order = ov::op::v0::Constant::create(transpose_order->get_element_type(),
-                                                    {transpose_order_values.size()},
-                                                    transpose_order_values);
+                                                                {transpose_order_values.size()},
+                                                                transpose_order_values);
 
         std::vector<size_t> new_values;
         for (const auto& axis : non_negative_axes) {
             new_values.push_back(reversed_order_values[axis]);
         }
 
-        auto new_const = ov::op::v0::Constant::create(reduction_axes->get_element_type(), {new_values.size()}, new_values);
+        auto new_const =
+            ov::op::v0::Constant::create(reduction_axes->get_element_type(), {new_values.size()}, new_values);
         main_node->input(1).replace_source_output(new_const);
         for (auto& new_node : sink_backward::InsertTransposeBeforeNode(main_node, new_transpose_order, {0})) {
             register_new_node(new_node);

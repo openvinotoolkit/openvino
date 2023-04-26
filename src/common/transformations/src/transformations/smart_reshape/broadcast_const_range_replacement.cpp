@@ -3,14 +3,6 @@
 //
 
 #include <memory>
-#include "openvino/op/broadcast.hpp"
-#include "openvino/op/equal.hpp"
-#include "openvino/op/convert.hpp"
-#include "openvino/op/constant.hpp"
-#include "openvino/op/select.hpp"
-#include "openvino/op/range.hpp"
-#include "openvino/op/gather.hpp"
-#include "openvino/op/unsqueeze.hpp"
 #include <ngraph/pattern/op/wrap_type.hpp>
 #include <ngraph/rt_info.hpp>
 #include <ngraph/validation_util.hpp>
@@ -18,6 +10,14 @@
 #include <vector>
 
 #include "itt.hpp"
+#include "openvino/op/broadcast.hpp"
+#include "openvino/op/constant.hpp"
+#include "openvino/op/convert.hpp"
+#include "openvino/op/equal.hpp"
+#include "openvino/op/gather.hpp"
+#include "openvino/op/range.hpp"
+#include "openvino/op/select.hpp"
+#include "openvino/op/unsqueeze.hpp"
 #include "transformations/utils/utils.hpp"
 
 ov::pass::BroadcastConstRangeReplacement::BroadcastConstRangeReplacement() {
@@ -37,8 +37,7 @@ ov::pass::BroadcastConstRangeReplacement::BroadcastConstRangeReplacement() {
         const auto data_const_out = broadcast->get_input_source_output(0);
         const auto target_shape_out = broadcast->get_input_source_output(1);
 
-        const auto const_node =
-            std::dynamic_pointer_cast<ov::op::v0::Constant>(data_const_out.get_node_shared_ptr());
+        const auto const_node = std::dynamic_pointer_cast<ov::op::v0::Constant>(data_const_out.get_node_shared_ptr());
         if (!const_node || !const_node->get_element_type().is_integral_number())
             return false;
 
@@ -85,8 +84,7 @@ ov::pass::BroadcastConstRangeReplacement::BroadcastConstRangeReplacement() {
         const auto original_end = node_registry.add(ov::op::v0::Constant::create(data_elem_type, {}, {elem_count}));
 
         const auto cast_gather_dim = node_registry.make<ov::op::v0::Convert>(gather_dim, data_elem_type);
-        const auto select_end =
-            node_registry.make<ov::op::v1::Select>(dim_check_one, original_end, cast_gather_dim);
+        const auto select_end = node_registry.make<ov::op::v1::Select>(dim_check_one, original_end, cast_gather_dim);
 
         const auto default_range_step = node_registry.add(ov::op::v0::Constant::create(data_elem_type, {}, {1}));
         std::shared_ptr<Node> replacement =

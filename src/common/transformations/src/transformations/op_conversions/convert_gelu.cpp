@@ -6,16 +6,16 @@
 #include <ngraph/ngraph.hpp>
 #include <ngraph/pattern/op/wrap_type.hpp>
 #include <ngraph/rt_info.hpp>
-#include "openvino/op/gelu.hpp"
-#include "openvino/op/constant.hpp"
-#include "openvino/op/divide.hpp"
-#include "openvino/op/erf.hpp"
-#include "openvino/op/add.hpp"
-#include "openvino/op/sqrt.hpp"
-#include "openvino/op/multiply.hpp"
 #include <transformations/op_conversions/convert_gelu.hpp>
 
 #include "itt.hpp"
+#include "openvino/op/add.hpp"
+#include "openvino/op/constant.hpp"
+#include "openvino/op/divide.hpp"
+#include "openvino/op/erf.hpp"
+#include "openvino/op/gelu.hpp"
+#include "openvino/op/multiply.hpp"
+#include "openvino/op/sqrt.hpp"
 
 ov::pass::ConvertGELU::ConvertGELU() {
     MATCHER_SCOPE(ConvertGELU);

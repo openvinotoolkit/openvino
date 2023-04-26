@@ -6,11 +6,11 @@
 
 #include <ngraph/pattern/op/wrap_type.hpp>
 #include <ngraph/rt_info.hpp>
-#include "openvino/op/max_pool.hpp"
 #include <transformations/utils/utils.hpp>
 
 #include "itt.hpp"
 #include "openvino/core/descriptor/tensor.hpp"
+#include "openvino/op/max_pool.hpp"
 
 using namespace std;
 using namespace ov;

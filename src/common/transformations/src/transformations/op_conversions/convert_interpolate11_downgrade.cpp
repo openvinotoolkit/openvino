@@ -7,12 +7,12 @@
 #include <array>
 #include <ngraph/pattern/op/wrap_type.hpp>
 #include <ngraph/rt_info.hpp>
-#include "openvino/op/constant.hpp"
-#include "openvino/op/broadcast.hpp"
-#include "openvino/op/interpolate.hpp"
-#include "openvino/op/shape_of.hpp"
 
 #include "itt.hpp"
+#include "openvino/op/broadcast.hpp"
+#include "openvino/op/constant.hpp"
+#include "openvino/op/interpolate.hpp"
+#include "openvino/op/shape_of.hpp"
 #include "utils.hpp"
 
 namespace {

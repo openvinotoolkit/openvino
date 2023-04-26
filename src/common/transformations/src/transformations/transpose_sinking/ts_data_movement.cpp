@@ -5,13 +5,13 @@
 #include "transformations/transpose_sinking/ts_data_movement.hpp"
 
 #include "itt.hpp"
-#include "openvino/op/util/op_types.hpp"
 #include "openvino/op/batch_to_space.hpp"
-#include "openvino/op/reverse_sequence.hpp"
-#include "openvino/op/transpose.hpp"
-#include "openvino/op/space_to_batch.hpp"
-#include "openvino/op/pad.hpp"
 #include "openvino/op/constant.hpp"
+#include "openvino/op/pad.hpp"
+#include "openvino/op/reverse_sequence.hpp"
+#include "openvino/op/space_to_batch.hpp"
+#include "openvino/op/transpose.hpp"
+#include "openvino/op/util/op_types.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "openvino/util/common_util.hpp"
 #include "transformations/rt_info/transpose_sinking_attr.hpp"
@@ -40,8 +40,9 @@ TSDataMovementForward::TSDataMovementForward() {
     MATCHER_SCOPE(TSDataMovementForward);
     auto const_label = wrap_type<ov::op::v0::Constant>();
     auto transpose_label = wrap_type<ov::op::v1::Transpose>({any_input(), const_label});
-    auto main_node_label = wrap_type<ov::op::v1::Pad, ov::op::v1::BatchToSpace, ov::op::v1::SpaceToBatch, ov::op::v0::ReverseSequence>(
-        {transpose_label, any_input(), any_input(), any_input()});
+    auto main_node_label =
+        wrap_type<ov::op::v1::Pad, ov::op::v1::BatchToSpace, ov::op::v1::SpaceToBatch, ov::op::v0::ReverseSequence>(
+            {transpose_label, any_input(), any_input(), any_input()});
 
     matcher_pass_callback matcher_pass_callback = [=](Matcher& m) {
         const auto& pattern_to_node = m.get_pattern_map();
@@ -96,20 +97,23 @@ TSDataMovementBackward::TSDataMovementBackward() {
     MATCHER_SCOPE(TSDataMovementBackward);
 
     auto main_node_label =
-        wrap_type<ov::op::v1::Pad, ov::op::v1::BatchToSpace, ov::op::v1::SpaceToBatch, ov::op::v0::ReverseSequence>([](const Output<Node>& output) -> bool {
-            return has_static_rank()(output) && HasSameOutputTransposeNodes(output);
-        });
+        wrap_type<ov::op::v1::Pad, ov::op::v1::BatchToSpace, ov::op::v1::SpaceToBatch, ov::op::v0::ReverseSequence>(
+            [](const Output<Node>& output) -> bool {
+                return has_static_rank()(output) && HasSameOutputTransposeNodes(output);
+            });
 
     auto transpose_const_label = wrap_type<ov::op::v0::Constant>();
 
     auto transpose_label =
-        wrap_type<ov::op::v1::Transpose>({main_node_label, transpose_const_label}, [](const Output<Node>& output) -> bool {
-            return has_static_rank()(output) && is_sinking_node(output);
-        });
+        wrap_type<ov::op::v1::Transpose>({main_node_label, transpose_const_label},
+                                         [](const Output<Node>& output) -> bool {
+                                             return has_static_rank()(output) && is_sinking_node(output);
+                                         });
 
     matcher_pass_callback matcher_pass_callback = [=](Matcher& m) {
         const auto& pattern_to_output = m.get_pattern_value_map();
-        auto transpose_const = as_type_ptr<ov::op::v0::Constant>(pattern_to_output.at(transpose_const_label).get_node_shared_ptr());
+        auto transpose_const =
+            as_type_ptr<ov::op::v0::Constant>(pattern_to_output.at(transpose_const_label).get_node_shared_ptr());
         auto transpose = pattern_to_output.at(transpose_label).get_node_shared_ptr();
         auto main_node = pattern_to_output.at(main_node_label).get_node_shared_ptr();
         if (transformation_callback(main_node)) {

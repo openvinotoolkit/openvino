@@ -7,16 +7,16 @@
 #include <memory>
 #include <ngraph/pattern/op/wrap_type.hpp>
 #include <ngraph/rt_info.hpp>
-#include "openvino/op/sign.hpp"
-#include "openvino/op/divide.hpp"
-#include "openvino/op/subtract.hpp"
-#include "openvino/op/abs.hpp"
-#include "openvino/op/multiply.hpp"
-#include "openvino/op/convert.hpp"
-#include "openvino/op/mod.hpp"
 #include <vector>
 
 #include "itt.hpp"
+#include "openvino/op/abs.hpp"
+#include "openvino/op/convert.hpp"
+#include "openvino/op/divide.hpp"
+#include "openvino/op/mod.hpp"
+#include "openvino/op/multiply.hpp"
+#include "openvino/op/sign.hpp"
+#include "openvino/op/subtract.hpp"
 
 ov::pass::ConvertMod::ConvertMod() {
     MATCHER_SCOPE(ConvertMod);

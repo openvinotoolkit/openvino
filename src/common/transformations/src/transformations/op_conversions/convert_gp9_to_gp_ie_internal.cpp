@@ -6,9 +6,9 @@
 
 #include <ngraph/pattern/op/wrap_type.hpp>
 #include <ngraph/rt_info.hpp>
-#include "openvino/op/generate_proposals.hpp"
 
 #include "itt.hpp"
+#include "openvino/op/generate_proposals.hpp"
 #include "ov_ops/generate_proposals_ie_internal.hpp"
 #include "transformations/utils/utils.hpp"
 

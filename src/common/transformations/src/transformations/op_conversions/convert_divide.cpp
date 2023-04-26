@@ -9,13 +9,13 @@
 #include <ngraph/pattern/op/wrap_type.hpp>
 #include <ngraph/rt_info.hpp>
 #include <ngraph/validation_util.hpp>
-#include "openvino/op/power.hpp"
-#include "openvino/op/divide.hpp"
-#include "openvino/op/multiply.hpp"
-#include "openvino/op/constant.hpp"
 #include <vector>
 
 #include "itt.hpp"
+#include "openvino/op/constant.hpp"
+#include "openvino/op/divide.hpp"
+#include "openvino/op/multiply.hpp"
+#include "openvino/op/power.hpp"
 #include "transformations/rt_info/nonconvertible_divide.hpp"
 #include "transformations/utils/utils.hpp"
 
@@ -72,8 +72,8 @@ ov::pass::ConvertDivide::ConvertDivide() {
 
 ov::pass::ConvertDivideWithConstant::ConvertDivideWithConstant() {
     MATCHER_SCOPE(ConvertDivideWithConstant);
-    auto div =
-        ngraph::pattern::wrap_type<ov::op::v1::Divide>({pattern::any_input(), pattern::wrap_type<ov::op::v0::Constant>()});
+    auto div = ngraph::pattern::wrap_type<ov::op::v1::Divide>(
+        {pattern::any_input(), pattern::wrap_type<ov::op::v0::Constant>()});
 
     matcher_pass_callback callback = [](pattern::Matcher& m) {
         return convert_divide(m.get_match_root());

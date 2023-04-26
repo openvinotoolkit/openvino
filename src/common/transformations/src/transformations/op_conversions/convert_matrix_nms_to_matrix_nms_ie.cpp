@@ -7,11 +7,11 @@
 #include <memory>
 #include <ngraph/pattern/op/wrap_type.hpp>
 #include <ngraph/rt_info.hpp>
-#include "openvino/op/matrix_nms.hpp"
-#include "openvino/op/convert.hpp"
 #include <vector>
 
 #include "itt.hpp"
+#include "openvino/op/convert.hpp"
+#include "openvino/op/matrix_nms.hpp"
 #include "ov_ops/nms_static_shape_ie.hpp"
 #include "transformations/utils/utils.hpp"
 

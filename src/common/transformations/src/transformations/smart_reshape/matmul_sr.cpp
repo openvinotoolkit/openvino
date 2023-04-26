@@ -10,15 +10,15 @@
 #include <ngraph/rt_info.hpp>
 #include <ngraph/validation_util.hpp>
 #include <numeric>
-#include "openvino/op/reshape.hpp"
-#include "openvino/op/constant.hpp"
-#include "openvino/op/transpose.hpp"
-#include "openvino/op/matmul.hpp"
-#include "openvino/op/gather.hpp"
-#include "openvino/op/shape_of.hpp"
-#include "openvino/op/concat.hpp"
 
 #include "itt.hpp"
+#include "openvino/op/concat.hpp"
+#include "openvino/op/constant.hpp"
+#include "openvino/op/gather.hpp"
+#include "openvino/op/matmul.hpp"
+#include "openvino/op/reshape.hpp"
+#include "openvino/op/shape_of.hpp"
+#include "openvino/op/transpose.hpp"
 
 namespace {
 

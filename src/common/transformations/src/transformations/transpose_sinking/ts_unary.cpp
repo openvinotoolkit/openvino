@@ -7,15 +7,15 @@
 #include <utility>
 
 #include "itt.hpp"
-#include "openvino/op/softplus.hpp"
-#include "openvino/op/is_inf.hpp"
-#include "openvino/op/transpose.hpp"
-#include "openvino/op/is_finite.hpp"
 #include "openvino/op/clamp.hpp"
-#include "openvino/op/elu.hpp"
-#include "openvino/op/logical_not.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/convert.hpp"
+#include "openvino/op/elu.hpp"
+#include "openvino/op/is_finite.hpp"
+#include "openvino/op/is_inf.hpp"
+#include "openvino/op/logical_not.hpp"
+#include "openvino/op/softplus.hpp"
+#include "openvino/op/transpose.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "transformations/rt_info/transpose_sinking_attr.hpp"
 #include "transformations/transpose_sinking/ts_utils.hpp"
@@ -63,9 +63,15 @@ TSUnaryForward::TSUnaryForward() {
     MATCHER_SCOPE(TSUnaryForward);
 
     auto transpose_label = wrap_type<ov::op::v1::Transpose>({any_input(), any_input()});
-    auto unary_label =
-        wrap_type<UnaryElementwiseArithmetic, ov::op::v0::Clamp, ov::op::v0::Elu, ov::op::v4::SoftPlus, ov::op::v1::LogicalNot, ov::op::v0::Convert, ov::op::v10::IsInf, ov::op::v10::IsNaN, ov::op::v10::IsFinite>(
-            {transpose_label});
+    auto unary_label = wrap_type<UnaryElementwiseArithmetic,
+                                 ov::op::v0::Clamp,
+                                 ov::op::v0::Elu,
+                                 ov::op::v4::SoftPlus,
+                                 ov::op::v1::LogicalNot,
+                                 ov::op::v0::Convert,
+                                 ov::op::v10::IsInf,
+                                 ov::op::v10::IsNaN,
+                                 ov::op::v10::IsFinite>({transpose_label});
 
     ov::matcher_pass_callback matcher_pass_callback = [=](Matcher& m) {
         const auto& pattern_to_output = m.get_pattern_value_map();
@@ -101,10 +107,15 @@ TSUnaryBackward::TSUnaryBackward() {
         return HasSameOutputTransposeNodes(output);
     };
 
-    auto unary_label =
-        wrap_type<UnaryElementwiseArithmetic, ov::op::v0::Clamp, ov::op::v0::Elu, ov::op::v4::SoftPlus, ov::op::v1::LogicalNot, ov::op::v0::Convert, ov::op::v10::IsInf, ov::op::v10::IsNaN, ov::op::v10::IsFinite>(
-            {any_input()},
-            unary_restrictions);
+    auto unary_label = wrap_type<UnaryElementwiseArithmetic,
+                                 ov::op::v0::Clamp,
+                                 ov::op::v0::Elu,
+                                 ov::op::v4::SoftPlus,
+                                 ov::op::v1::LogicalNot,
+                                 ov::op::v0::Convert,
+                                 ov::op::v10::IsInf,
+                                 ov::op::v10::IsNaN,
+                                 ov::op::v10::IsFinite>({any_input()}, unary_restrictions);
 
     auto transpose_const_label = wrap_type<ov::op::v0::Constant>();
 
@@ -112,7 +123,8 @@ TSUnaryBackward::TSUnaryBackward() {
 
     ov::matcher_pass_callback matcher_pass_callback = [=](Matcher& m) {
         const auto& pattern_to_output = m.get_pattern_value_map();
-        auto transpose_const = as_type_ptr<ov::op::v0::Constant>(pattern_to_output.at(transpose_const_label).get_node_shared_ptr());
+        auto transpose_const =
+            as_type_ptr<ov::op::v0::Constant>(pattern_to_output.at(transpose_const_label).get_node_shared_ptr());
         auto transpose = pattern_to_output.at(transpose_label).get_node_shared_ptr();
         auto unary = pattern_to_output.at(unary_label).get_node_shared_ptr();
         if (transformation_callback(unary)) {

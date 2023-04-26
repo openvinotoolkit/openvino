@@ -6,10 +6,10 @@
 
 #include <ngraph/pattern/op/wrap_type.hpp>
 #include <ngraph/rt_info.hpp>
-#include "openvino/op/max_pool.hpp"
 #include <transformations/utils/utils.hpp>
 
 #include "itt.hpp"
+#include "openvino/op/max_pool.hpp"
 
 ov::pass::ConvertMaxPool1ToMaxPool8::ConvertMaxPool1ToMaxPool8() {
     MATCHER_SCOPE(ConvertMaxPool1ToMaxPool8);
