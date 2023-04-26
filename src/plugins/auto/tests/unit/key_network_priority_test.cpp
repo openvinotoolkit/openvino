@@ -30,6 +30,7 @@ using ::testing::Eq;
 using ::testing::ReturnRef;
 using ::testing::AtLeast;
 using ::testing::InvokeWithoutArgs;
+using ::testing::HasSubstr;
 using Config = std::map<std::string, std::string>;
 using namespace MockMultiDevice;
 
@@ -88,12 +89,20 @@ public:
        IE_SET_METRIC(OPTIMIZATION_CAPABILITIES, vpuxCability, {"INT8"});
        ON_CALL(*core, GetMetric(StrEq(CommonTestUtils::DEVICE_CPU),
                    StrEq(METRIC_KEY(OPTIMIZATION_CAPABILITIES)), _)).WillByDefault(RETURN_MOCK_VALUE(cpuCability));
-       ON_CALL(*core, GetMetric(StrEq(CommonTestUtils::DEVICE_GPU),
+       ON_CALL(*core, GetMetric(HasSubstr("GPU"),
                    StrEq(METRIC_KEY(OPTIMIZATION_CAPABILITIES)), _)).WillByDefault(RETURN_MOCK_VALUE(gpuCability));
        ON_CALL(*core, GetMetric(StrEq("MYRIAD"),
                    StrEq(METRIC_KEY(OPTIMIZATION_CAPABILITIES)), _)).WillByDefault(RETURN_MOCK_VALUE(myriadCability));
        ON_CALL(*core, GetMetric(StrEq(CommonTestUtils::DEVICE_KEEMBAY),
                    StrEq(METRIC_KEY(OPTIMIZATION_CAPABILITIES)), _)).WillByDefault(RETURN_MOCK_VALUE(vpuxCability));
+       ON_CALL(*core, GetMetric(HasSubstr("GPU"),
+                   StrEq(METRIC_KEY(DEVICE_ARCHITECTURE)), _)).WillByDefault(Return("GPU: vendor=0x8086 arch=0"));
+       ON_CALL(*core, GetMetric(StrEq("GPU"),
+                   StrEq(METRIC_KEY(DEVICE_TYPE)), _)).WillByDefault(Return(Metrics::DeviceType::integrated));
+       ON_CALL(*core, GetMetric(StrEq("GPU.0"),
+                   StrEq(METRIC_KEY(DEVICE_TYPE)), _)).WillByDefault(Return(Metrics::DeviceType::integrated));
+       ON_CALL(*core, GetMetric(StrEq("GPU.1"),
+                   StrEq(METRIC_KEY(DEVICE_TYPE)), _)).WillByDefault(Return(Metrics::DeviceType::discrete));
        ON_CALL(*plugin, SelectDevice).WillByDefault([this](const std::vector<DeviceInformation>& metaDevices,
                    const std::string& netPrecision, unsigned int Priority) {
                return plugin->MultiDeviceInferencePlugin::SelectDevice(metaDevices, netPrecision, Priority);
@@ -115,14 +124,14 @@ TEST_P(KeyNetworkPriorityTest, SelectDevice) {
     std::vector<DeviceInformation> resDevInfo;
     if (enableDevicePriority) {
         metaDevices = {{CommonTestUtils::DEVICE_CPU, {}, 2, "", "CPU_01", 0},
-            {CommonTestUtils::DEVICE_GPU, {}, 2, "01", "iGPU_01", 1},
-            {CommonTestUtils::DEVICE_GPU, {}, 2, "01", "dGPU_01", 2},
+            {"GPU.0", {}, 2, "01", "iGPU_01", 1},
+            {"GPU.1", {}, 2, "01", "dGPU_01", 2},
             {"MYRIAD", {}, 2, "01", "MYRIAD_01", 3},
             {CommonTestUtils::DEVICE_KEEMBAY, {}, 2, "01", "VPUX_01", 4}};
     } else {
         metaDevices = {{CommonTestUtils::DEVICE_CPU, {}, 2, "", "CPU_01", 0},
-            {CommonTestUtils::DEVICE_GPU, {}, 2, "01", "iGPU_01", 0},
-            {CommonTestUtils::DEVICE_GPU, {}, 2, "01", "dGPU_01", 0},
+            {"GPU.0", {}, 2, "01", "iGPU_01", 0},
+            {"GPU.1", {}, 2, "01", "dGPU_01", 0},
             {"MYRIAD", {}, 2, "01", "MYRIAD_01", 0},
             {CommonTestUtils::DEVICE_KEEMBAY, {}, 2, "01", "VPUX_01", 0}};
     }
@@ -144,14 +153,14 @@ TEST_P(KeyNetworkPriorityTest, MultiThreadsSelectDevice) {
     std::vector<std::future<void>> futureVect;
     if (enableDevicePriority) {
         metaDevices = {{CommonTestUtils::DEVICE_CPU, {}, 2, "", "CPU_01", 0},
-            {CommonTestUtils::DEVICE_GPU, {}, 2, "01", "iGPU_01", 1},
-            {CommonTestUtils::DEVICE_GPU, {}, 2, "01", "dGPU_01", 2},
+            {"GPU.0", {}, 2, "01", "iGPU_01", 1},
+            {"GPU.1", {}, 2, "01", "dGPU_01", 2},
             {"MYRIAD", {}, 2, "01", "MYRIAD_01", 3},
             {CommonTestUtils::DEVICE_KEEMBAY, {}, 2, "01", "VPUX_01", 4}};
     } else {
         metaDevices = {{CommonTestUtils::DEVICE_CPU, {}, 2, "", "CPU_01", 0},
-            {CommonTestUtils::DEVICE_GPU, {}, 2, "01", "iGPU_01", 0},
-            {CommonTestUtils::DEVICE_GPU, {}, 2, "01", "dGPU_01", 0},
+            {"GPU.0", {}, 2, "01", "iGPU_01", 0},
+            {"GPU.1", {}, 2, "01", "dGPU_01", 0},
             {"MYRIAD", {}, 2, "01", "MYRIAD_01", 0},
             {CommonTestUtils::DEVICE_KEEMBAY, {}, 2, "01", "VPUX_01", 0}};
     }
