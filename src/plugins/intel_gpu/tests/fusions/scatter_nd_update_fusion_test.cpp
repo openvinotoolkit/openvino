@@ -71,10 +71,9 @@ public:
 
     template<typename T>
     T generate_random_val(int min, int max, int k = 8) {
-        static std::default_random_engine generator(random_seed);
         // 1/k is the resolution of the floating point numbers
         std::uniform_int_distribution<int> distribution(k * min, k * max);
-        T val = (T)distribution(generator);
+        T val = (T)distribution(this->generator);
         val /= k;
 
         return val;
