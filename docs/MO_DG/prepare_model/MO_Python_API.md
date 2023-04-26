@@ -8,18 +8,10 @@ Model Optimizer (MO) has a Python API for model conversion, which is represented
 
 .. code-block:: python
 
-   from openvino.tools.mo import convert_model
-
-   ov_model = convert_model("resnet.onnx")
-
-MO Python API allows the conversion of models directly from memory.
-
-.. code-block:: python
-
    import torchvision
    
    model = torchvision.models.resnet50(pretrained=True)
-   ov_model = convert_model(model, input_shape=[1,3,100,100])
+   ov_model = convert_model(model)
 
 The following types are supported as an input model for ``convert_model()``:
 
@@ -42,11 +34,6 @@ Example 2:
 
    ov_model = convert_model(model, input_shape="[1,3,100,100]", mean_values="[127,127,127]", layout="NCHW")
 
-Command-line flags, like ``--compress_to_fp16``, can be set in the Python API by providing a boolean value (``True`` or ``False``).
-
-.. code-block:: python
-
-   ov_model = convert_model(model, compress_to_fp16=True)
 
 The ``input`` parameter can be set by a ``tuple`` with a name, shape, and type. The input name of the type string is required in the tuple. The shape and type are optional.
 The shape can be a ``list`` or ``tuple`` of dimensions (``int`` or ``openvino.runtime.Dimension``), or ``openvino.runtime.PartialShape``, or ``openvino.runtime.Shape``. The type can be of numpy type or ``openvino.runtime.Type``.
