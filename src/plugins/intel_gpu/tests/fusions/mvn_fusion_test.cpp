@@ -23,7 +23,7 @@ struct mvn_test_params {
     tensor elwise_size;
     data_types input_type;
     format input_format;
-    bool across_channels;
+    std::vector<int64_t> reduction_axes;
     bool normalize_variance;
     data_types default_type;
     format default_format;
@@ -63,46 +63,47 @@ public:
 /* --------------------------------------- MVN cases --------------------------------------------------- */
 /* ----------------------------------------------------------------------------------------------------- */
 
-#define CASE_MVN_F32_1      { 1, 16, 8, 8 },    { 1, 16, 8, 8 },    data_types::f32, format::bfyx, false, true, data_types::f32, format::bfyx
-#define CASE_MVN_F32_2      { 2, 16, 8, 8 },    { 2, 16, 8, 8 },    data_types::f32, format::bfyx, true, true, data_types::f32, format::bfyx
-#define CASE_MVN_3D_F32_1   { 1, 16, 8, 8, 8 }, { 1, 16, 8, 8, 8 }, data_types::f32, format::bfzyx, false, true, data_types::f32, format::bfzyx
-#define CASE_MVN_3D_F32_2   { 2, 16, 8, 8, 8 }, { 2, 16, 8, 8, 8 }, data_types::f32, format::bfzyx, true, true, data_types::f32, format::bfzyx
-#define CASE_MVN_3D_F32_3   { 2, 8, 4, 4, 4 },  { 2, 8, 1, 1, 1 },  data_types::f32, format::bfzyx, true, true, data_types::f32, format::bfzyx
-#define CASE_MVN_F16_1      { 1, 16, 8, 8 },    { 1, 16, 8, 8 },    data_types::f16, format::bfyx, false, true, data_types::f16, format::bfyx
-#define CASE_MVN_F16_2      { 2, 16, 8, 8 },    { 2, 16, 8, 8 },    data_types::f16, format::bfyx, true, true, data_types::f16, format::bfyx
-#define CASE_MVN_3D_F16_1   { 1, 16, 8, 8, 8 }, { 1, 16, 8, 8, 8 }, data_types::f16, format::bfzyx, false, true, data_types::f16, format::bfzyx
-#define CASE_MVN_3D_F16_2   { 2, 16, 8, 8, 8 }, { 2, 16, 8, 8, 8 }, data_types::f16, format::bfzyx, true, true, data_types::f16, format::bfzyx
-#define CASE_MVN_I8_1       { 1, 16, 8, 8 },    { 1, 16, 8, 8 },    data_types::i8, format::bfyx, false, true, data_types::f32, format::bfyx
-#define CASE_MVN_I8_2       { 2, 16, 8, 8 },    { 2, 16, 8, 8 },    data_types::i8, format::bfyx, true, true, data_types::f32, format::bfyx
-#define CASE_MVN_I8_3       { 1, 16, 8, 8 },    { 1, 16, 8, 8 },    data_types::i8, format::b_fs_yx_fsv16, false, true, data_types::f32, format::bfyx
-#define CASE_MVN_I8_4       { 2, 16, 8, 8 },    { 2, 16, 8, 8 },    data_types::i8, format::b_fs_yx_fsv16, true, true, data_types::f32, format::bfyx
-#define CASE_MVN_I8_5       { 2, 16, 8, 8 },    { 1, 1, 1, 8 },     data_types::i8, format::b_fs_yx_fsv16, false, true, data_types::f32, format::bfyx
-#define CASE_MVN_I8_6       { 2, 16, 8, 8 },    { 1, 1, 1, 1 },     data_types::i8, format::b_fs_yx_fsv16, true, true, data_types::f32, format::bfyx
-#define CASE_MVN_I8_7       { 2, 16, 1, 8 },    { 1, 1, 8, 1 },     data_types::i8, format::b_fs_yx_fsv16, true, true, data_types::f32, format::bfyx
-#define CASE_MVN_3D_I8_1    { 1, 16, 8, 8, 8 }, { 1, 16, 8, 8, 8 }, data_types::i8, format::bfzyx, false, true, data_types::f32, format::bfzyx
-#define CASE_MVN_3D_I8_2    { 2, 16, 8, 8, 8 }, { 2, 16, 8, 8, 8 }, data_types::i8, format::bfzyx, true, true, data_types::f32, format::bfzyx
-#define CASE_MVN_3D_I8_3    { 2, 16, 8, 8, 8 }, { 2, 1, 8, 8, 1 },  data_types::i8, format::bfzyx, true, true, data_types::f32, format::bfzyx
-#define CASE_MVN_3D_I8_4    { 2, 16, 8, 8, 8 }, { 2, 16, 8, 1, 8 }, data_types::i8, format::bfzyx, false, true, data_types::f32, format::bfzyx
-#define CASE_MVN_3D_I8_5    { 2, 2, 1, 2, 1 },  { 2, 2, 2, 2, 2 },  data_types::i8, format::bfzyx, false, true, data_types::f32, format::bfzyx
-#define CASE_MVN_U8_1       { 1, 16, 8, 8 },    { 1, 16, 8, 8 },    data_types::u8, format::bfyx, false, true, data_types::f32, format::bfyx
-#define CASE_MVN_U8_2       { 2, 16, 8, 8 },    { 2, 16, 8, 8 },    data_types::u8, format::bfyx, true, true, data_types::f32, format::bfyx
-#define CASE_MVN_U8_3       { 1, 16, 8, 8 },    { 1, 16, 8, 8 },    data_types::u8, format::b_fs_yx_fsv16, false, true, data_types::f32, format::bfyx
-#define CASE_MVN_U8_4       { 2, 16, 8, 8 },    { 2, 16, 8, 8 },    data_types::u8, format::b_fs_yx_fsv16, true, true, data_types::f32, format::bfyx
-#define CASE_MVN_U8_5       { 2, 16, 8, 8 },    { 2, 1, 8, 8 },     data_types::u8, format::b_fs_yx_fsv16, false, true, data_types::f32, format::bfyx
-#define CASE_MVN_U8_6       { 2, 16, 8, 8 },    { 1, 1, 1, 8 },     data_types::u8, format::b_fs_yx_fsv16, true, true, data_types::f32, format::bfyx
-#define CASE_MVN_U8_7       { 1, 16, 16, 1 },   { 1, 16, 1, 16 },   data_types::u8, format::b_fs_yx_fsv16, true, true, data_types::f32, format::bfyx
-#define CASE_MVN_3D_U8_1    { 1, 16, 8, 8, 8 }, { 1, 16, 8, 8, 8 }, data_types::u8, format::bfzyx, false, true, data_types::f32, format::bfzyx
-#define CASE_MVN_3D_U8_2    { 2, 16, 8, 8, 8 }, { 2, 16, 8, 8, 8 }, data_types::u8, format::bfzyx, true, true, data_types::f32, format::bfzyx
-#define CASE_MVN_3D_U8_3    { 2, 16, 8, 8, 8 }, { 2, 1, 1, 1, 1 },  data_types::u8, format::bfzyx, true, true, data_types::f32, format::bfzyx
-#define CASE_MVN_3D_U8_4    { 2, 16, 8, 8, 8 }, { 1, 1, 1, 1, 1 },  data_types::u8, format::bfzyx, false, true, data_types::f32, format::bfzyx
-#define CASE_MVN_3D_U8_5    { 2, 16, 1, 8, 8 }, { 1, 1, 8, 1, 1 },  data_types::u8, format::bfzyx, false, true, data_types::f32, format::bfzyx
+#define CASE_MVN_F32_1      { 1, 16, 8, 8 },    { 1, 16, 8, 8 },    data_types::f32, format::bfyx, {2, 3}, true, data_types::f32, format::bfyx
+#define CASE_MVN_F32_2      { 2, 16, 8, 8 },    { 2, 16, 8, 8 },    data_types::f32, format::bfyx, {1, 2, 3}, true, data_types::f32, format::bfyx
+#define CASE_MVN_3D_F32_1   { 1, 16, 8, 8, 8 }, { 1, 16, 8, 8, 8 }, data_types::f32, format::bfzyx, {2, 3, 4}, true, data_types::f32, format::bfzyx
+#define CASE_MVN_3D_F32_2   { 2, 16, 8, 8, 8 }, { 2, 16, 8, 8, 8 }, data_types::f32, format::bfzyx, {1, 2, 3, 4}, true, data_types::f32, format::bfzyx
+#define CASE_MVN_3D_F32_3   { 2, 8, 4, 4, 4 },  { 2, 8, 1, 1, 1 },  data_types::f32, format::bfzyx, {1, 2, 3, 4}, true, data_types::f32, format::bfzyx
+#define CASE_MVN_F16_1      { 1, 16, 8, 8 },    { 1, 16, 8, 8 },    data_types::f16, format::bfyx, {2, 3}, true, data_types::f16, format::bfyx
+#define CASE_MVN_F16_2      { 2, 16, 8, 8 },    { 2, 16, 8, 8 },    data_types::f16, format::bfyx, {1, 2, 3}, true, data_types::f16, format::bfyx
+#define CASE_MVN_3D_F16_1   { 1, 16, 8, 8, 8 }, { 1, 16, 8, 8, 8 }, data_types::f16, format::bfzyx, {2, 3, 4}, true, data_types::f16, format::bfzyx
+#define CASE_MVN_3D_F16_2   { 2, 16, 8, 8, 8 }, { 2, 16, 8, 8, 8 }, data_types::f16, format::bfzyx, {1, 2, 3, 4}, true, data_types::f16, format::bfzyx
+#define CASE_MVN_I8_1       { 1, 16, 8, 8 },    { 1, 16, 8, 8 },    data_types::i8, format::bfyx, {2, 3}, true, data_types::f32, format::bfyx
+#define CASE_MVN_I8_2       { 2, 16, 8, 8 },    { 2, 16, 8, 8 },    data_types::i8, format::bfyx, {1, 2, 3}, true, data_types::f32, format::bfyx
+#define CASE_MVN_I8_3       { 1, 16, 8, 8 },    { 1, 16, 8, 8 },    data_types::i8, format::b_fs_yx_fsv16, {2, 3}, true, data_types::f32, format::bfyx
+#define CASE_MVN_I8_4       { 2, 16, 8, 8 },    { 2, 16, 8, 8 },    data_types::i8, format::b_fs_yx_fsv16, {1, 2, 3}, true, data_types::f32, format::bfyx
+#define CASE_MVN_I8_5       { 2, 16, 8, 8 },    { 1, 1, 1, 8 },     data_types::i8, format::b_fs_yx_fsv16, {2, 3}, true, data_types::f32, format::bfyx
+#define CASE_MVN_I8_6       { 2, 16, 8, 8 },    { 1, 1, 1, 1 },     data_types::i8, format::b_fs_yx_fsv16, {1, 2, 3}, true, data_types::f32, format::bfyx
+#define CASE_MVN_I8_7       { 2, 16, 1, 8 },    { 1, 1, 8, 1 },     data_types::i8, format::b_fs_yx_fsv16, {1, 2, 3}, true, data_types::f32, format::bfyx
+#define CASE_MVN_I8_8       { 2, 16, 3, 8 },    { 1, 1, 3, 8 },     data_types::i8, format::b_fs_yx_fsv16, {3}, true, data_types::f32, format::bfyx
+#define CASE_MVN_3D_I8_1    { 1, 16, 8, 8, 8 }, { 1, 16, 8, 8, 8 }, data_types::i8, format::bfzyx, {2, 3, 4}, true, data_types::f32, format::bfzyx
+#define CASE_MVN_3D_I8_2    { 2, 16, 8, 8, 8 }, { 2, 16, 8, 8, 8 }, data_types::i8, format::bfzyx, {1, 2, 3, 4}, true, data_types::f32, format::bfzyx
+#define CASE_MVN_3D_I8_3    { 2, 16, 8, 8, 8 }, { 2, 1, 8, 8, 1 },  data_types::i8, format::bfzyx, {1, 2, 3, 4}, true, data_types::f32, format::bfzyx
+#define CASE_MVN_3D_I8_4    { 2, 16, 8, 8, 8 }, { 2, 16, 8, 1, 8 }, data_types::i8, format::bfzyx, {2, 3, 4}, true, data_types::f32, format::bfzyx
+#define CASE_MVN_3D_I8_5    { 2, 2, 1, 2, 1 },  { 2, 2, 2, 2, 2 },  data_types::i8, format::bfzyx, {2, 3, 4}, true, data_types::f32, format::bfzyx
+#define CASE_MVN_U8_1       { 1, 16, 8, 8 },    { 1, 16, 8, 8 },    data_types::u8, format::bfyx, {2, 3}, true, data_types::f32, format::bfyx
+#define CASE_MVN_U8_2       { 2, 16, 8, 8 },    { 2, 16, 8, 8 },    data_types::u8, format::bfyx, {1, 2, 3}, true, data_types::f32, format::bfyx
+#define CASE_MVN_U8_3       { 1, 16, 8, 8 },    { 1, 16, 8, 8 },    data_types::u8, format::b_fs_yx_fsv16, {2, 3}, true, data_types::f32, format::bfyx
+#define CASE_MVN_U8_4       { 2, 16, 8, 8 },    { 2, 16, 8, 8 },    data_types::u8, format::b_fs_yx_fsv16, {1, 2, 3}, true, data_types::f32, format::bfyx
+#define CASE_MVN_U8_5       { 2, 16, 8, 8 },    { 2, 1, 8, 8 },     data_types::u8, format::b_fs_yx_fsv16, {2, 3}, true, data_types::f32, format::bfyx
+#define CASE_MVN_U8_6       { 2, 16, 8, 8 },    { 1, 1, 1, 8 },     data_types::u8, format::b_fs_yx_fsv16, {1, 2, 3}, true, data_types::f32, format::bfyx
+#define CASE_MVN_U8_7       { 1, 16, 16, 1 },   { 1, 16, 1, 16 },   data_types::u8, format::b_fs_yx_fsv16, {1, 2, 3}, true, data_types::f32, format::bfyx
+#define CASE_MVN_3D_U8_1    { 1, 16, 8, 8, 8 }, { 1, 16, 8, 8, 8 }, data_types::u8, format::bfzyx, {2, 3, 4}, true, data_types::f32, format::bfzyx
+#define CASE_MVN_3D_U8_2    { 2, 16, 8, 8, 8 }, { 2, 16, 8, 8, 8 }, data_types::u8, format::bfzyx, {1, 2, 3, 4}, true, data_types::f32, format::bfzyx
+#define CASE_MVN_3D_U8_3    { 2, 16, 8, 8, 8 }, { 2, 1, 1, 1, 1 },  data_types::u8, format::bfzyx, {1, 2, 3, 4}, true, data_types::f32, format::bfzyx
+#define CASE_MVN_3D_U8_4    { 2, 16, 8, 8, 8 }, { 1, 1, 1, 1, 1 },  data_types::u8, format::bfzyx, {2, 3, 4}, true, data_types::f32, format::bfzyx
+#define CASE_MVN_3D_U8_5    { 2, 16, 1, 8, 8 }, { 1, 1, 8, 1, 1 },  data_types::u8, format::bfzyx, {2, 3, 4}, true, data_types::f32, format::bfzyx
 
 class mvn_activation : public MVNFusingTest {};
 TEST_P(mvn_activation, basic) {
     auto p = GetParam();
     create_topologies(
         input_layout("input", get_input_layout(p)),
-        mvn("mvn", input_info("input"), p.normalize_variance, 1e-10f, false, false),
+        mvn("mvn", input_info("input"), p.normalize_variance, 1e-10f, false, p.reduction_axes),
         activation("act", input_info("mvn"), activation_func::hyperbolic_tan),
         reorder("reorder_bfyx", input_info("act"), format::bfyx, data_types::f32)
     );
@@ -124,6 +125,7 @@ INSTANTIATE_TEST_SUITE_P(fusings_gpu, mvn_activation, ::testing::ValuesIn(std::v
     mvn_test_params{ CASE_MVN_I8_2, 2, 3, 3 },
     mvn_test_params{ CASE_MVN_I8_3, 2, 3, 3 },
     mvn_test_params{ CASE_MVN_I8_4, 2, 3, 3 },
+    mvn_test_params{ CASE_MVN_I8_8, 2, 3, 3 },
     mvn_test_params{ CASE_MVN_3D_I8_1, 2, 3, 3 },
     mvn_test_params{ CASE_MVN_3D_I8_2, 2, 3, 3 },
     mvn_test_params{ CASE_MVN_U8_1, 2, 3, 3 },
@@ -139,7 +141,7 @@ TEST_P(mvn_scale_quantize_i8, basic) {
     auto p = GetParam();
     create_topologies(
         input_layout("input", get_input_layout(p)),
-        mvn("mvn", input_info("input"), p.normalize_variance, 1e-10f, false, false),
+        mvn("mvn", input_info("input"), p.normalize_variance, 1e-10f, false, p.reduction_axes),
         data("scale_data", get_mem(get_per_channel_layout(p))),
         eltwise("scale", { input_info("mvn"), input_info("scale_data") }, eltwise_mode::prod, p.default_type),
         data("in_low", get_mem(get_per_channel_layout(p), min_random, 0)),
@@ -169,6 +171,7 @@ INSTANTIATE_TEST_SUITE_P(fusings_gpu, mvn_scale_quantize_i8, ::testing::ValuesIn
     mvn_test_params{ CASE_MVN_I8_2, 2, 2, 4 },
     mvn_test_params{ CASE_MVN_I8_3, 2, 2, 4 },
     mvn_test_params{ CASE_MVN_I8_4, 2, 2, 4 },
+    mvn_test_params{ CASE_MVN_I8_8, 3, 3, 4 },
     mvn_test_params{ CASE_MVN_3D_I8_1, 2, 2, 4 },
     mvn_test_params{ CASE_MVN_3D_I8_2, 2, 2, 4 },
     mvn_test_params{ CASE_MVN_U8_1, 2, 2, 4 },
@@ -184,7 +187,7 @@ TEST_P(mvn_scale_activation_eltwise_fp32_quantize_i8, basic) {
     auto p = GetParam();
     create_topologies(
         input_layout("input", get_input_layout(p)),
-        mvn("mvn", input_info("input"), p.normalize_variance, 1e-10f, false, false),
+        mvn("mvn", input_info("input"), p.normalize_variance, 1e-10f, false, p.reduction_axes),
         data("scale_data", get_mem(get_per_channel_layout(p))),
         eltwise("scale", { input_info("mvn"), input_info("scale_data") }, eltwise_mode::prod, p.default_type),
         activation("act", input_info("scale"), activation_func::hyperbolic_tan),
@@ -220,6 +223,7 @@ INSTANTIATE_TEST_SUITE_P(fusings_gpu, mvn_scale_activation_eltwise_fp32_quantize
     mvn_test_params{ CASE_MVN_I8_5, 2, 4, 6 },
     mvn_test_params{ CASE_MVN_I8_6, 2, 4, 6 },
     mvn_test_params{ CASE_MVN_I8_7, 3, 4, 6 },
+    mvn_test_params{ CASE_MVN_I8_8, 3, 5, 6 },
     mvn_test_params{ CASE_MVN_3D_I8_1, 2, 4, 6 },
     mvn_test_params{ CASE_MVN_3D_I8_2, 2, 4, 6 },
     mvn_test_params{ CASE_MVN_3D_I8_3, 2, 4, 6 },
@@ -244,7 +248,7 @@ TEST_P(mvn_eltwise, basic) {
     auto p = GetParam();
     create_topologies(
         input_layout("input", layout{ p.input_type, p.input_format, p.input_size }),
-        mvn("mvn", input_info("input"), p.normalize_variance, 1e-10f, false, false),
+        mvn("mvn", input_info("input"), p.normalize_variance, 1e-10f, false, p.reduction_axes),
         data("eltw_data", get_mem(layout{ p.input_type, p.default_format, p.elwise_size })),
         eltwise("eltw", { input_info("mvn"), input_info("eltw_data") }, eltwise_mode::sum, data_types::f32),
         reorder("reorder_bfyx", input_info("eltw"), p.default_format, data_types::f32)
@@ -280,7 +284,7 @@ TEST_P(mvn_eltwise_f16, basic) {
     auto p = GetParam();
     create_topologies(
         input_layout("input", layout{ p.input_type, p.input_format, p.input_size }),
-        mvn("mvn", input_info("input"), p.normalize_variance, 1e-10f, false, false),
+        mvn("mvn", input_info("input"), p.normalize_variance, 1e-10f, false, p.reduction_axes),
         data("eltw_data", get_mem(layout{ p.input_type, p.default_format, p.elwise_size })),
         eltwise("eltw", { input_info("mvn"), input_info("eltw_data") }, eltwise_mode::sum, data_types::f16),
         reorder("reorder_bfyx", input_info("eltw"), p.default_format, data_types::f32)
@@ -292,5 +296,6 @@ TEST_P(mvn_eltwise_f16, basic) {
 
 INSTANTIATE_TEST_SUITE_P(fusings_gpu, mvn_eltwise_f16, ::testing::ValuesIn(std::vector<mvn_test_params>{
     mvn_test_params{ CASE_MVN_I8_6, 2, 2, 3 },
+    mvn_test_params{ CASE_MVN_I8_8, 3, 3, 3 },
     mvn_test_params{ CASE_MVN_U8_2, 2, 2, 3 },
 }));

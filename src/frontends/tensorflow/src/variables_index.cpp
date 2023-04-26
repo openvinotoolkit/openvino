@@ -44,6 +44,8 @@ static T smUnpack(char*& ptr, const char* ptr_end) {
     return 0;
 }
 
+/// \brief Structure is for storing information about block in Varaibles Index file.
+/// It defines only offset and block size, no information about exact content.
 struct VIBlock {
     uint64_t m_size;
     uint64_t m_offset;
@@ -54,6 +56,11 @@ struct VIBlock {
     }
 };
 
+#define VARIABLES_INDEX_FOOTER_SIZE 48
+
+/// \brief Structure is for storing information about Variables Index footer information.
+/// It contains description of two blocks and a magic number for a file verification.
+/// Currently, it is placed in last VARIABLES_INDEX_FOOTER_SIZE bytes at the end of a file.
 struct VIFooter {
     VIBlock m_metaIndex;
     VIBlock m_index;
@@ -66,7 +73,10 @@ struct VIFooter {
     void read(std::ifstream& fs) {
         fs.seekg(0, std::ios::end);
         size_t size = fs.tellg();
-        char footerData[48] = {}, *ptr = &footerData[0];
+        FRONT_END_GENERAL_CHECK(size >= VARIABLES_INDEX_FOOTER_SIZE,
+                                "Wrong index file, file size is less than minimal expected");
+
+        char footerData[VARIABLES_INDEX_FOOTER_SIZE] = {}, *ptr = &footerData[0];
         fs.seekg(size - sizeof(footerData));
         fs.read(ptr, sizeof(footerData));
 
@@ -84,14 +94,18 @@ struct VIFooter {
     }
 };
 
-void SavedModelVariablesIndex::read_variables_index_block(std::ifstream& fs,
-                                                          const VIBlock& index,
-                                                          std::vector<char>& data,
-                                                          uint32_t& offset,
-                                                          uint32_t& offset_end) {
+void VariablesIndex::read_variables_index_block(std::ifstream& fs,
+                                                const VIBlock& index,
+                                                std::vector<char>& data,
+                                                uint32_t& offset,
+                                                uint32_t& offset_end) {
     size_t block_size = index.m_size;
     data.clear();
     data.resize(block_size + 5 /*kBlockTrailerSize*/);
+    FRONT_END_GENERAL_CHECK(index.m_offset <= m_variables_index_size,
+                            "Block offset is bigger than variables index size");
+    FRONT_END_GENERAL_CHECK(index.m_offset + data.size() <= m_variables_index_size,
+                            "Block size is bigger than variables index size");
     fs.seekg(index.m_offset, std::ios::beg);
     fs.read(data.data(), data.size());
 #ifndef ENABLE_SNAPPY_COMPRESSION
@@ -117,11 +131,11 @@ void SavedModelVariablesIndex::read_variables_index_block(std::ifstream& fs,
     offset = smReadFixed<uint32_t>(data.data() + offset_end);
 }
 
-void SavedModelVariablesIndex::read_variables_index_pair(char*& ptr,
-                                                         const char* ptr_end,
-                                                         std::string& key,
-                                                         char*& value,
-                                                         uint32_t& val_length) {
+void VariablesIndex::read_variables_index_pair(char*& ptr,
+                                               const char* ptr_end,
+                                               std::string& key,
+                                               char*& value,
+                                               uint32_t& val_length) {
     uint32_t shared, nonShared;
     shared = smUnpack<uint32_t>(ptr, ptr_end);
     nonShared = smUnpack<uint32_t>(ptr, ptr_end);
@@ -140,8 +154,10 @@ void SavedModelVariablesIndex::read_variables_index_pair(char*& ptr,
     ptr = value + val_length;
 }
 
-void SavedModelVariablesIndex::read_variables_index(std::ifstream& fs,
-                                                    std::map<std::string, std::vector<char>>& varIndex) {
+void VariablesIndex::read_variables_index(std::ifstream& fs, std::map<std::string, std::vector<char>>& varIndex) {
+    fs.seekg(0, std::ios::end);
+    m_variables_index_size = fs.tellg();
+
     VIFooter footer;
 
     footer.read(fs);
@@ -178,12 +194,12 @@ void SavedModelVariablesIndex::read_variables_index(std::ifstream& fs,
     }
 }
 
-void SavedModelVariablesIndex::read_bundle_header() {
+void VariablesIndex::read_bundle_header() {
     auto item = m_variables_index.find("");
     FRONT_END_GENERAL_CHECK(item != m_variables_index.end(), "Bundle Header isn't found in index");
 
     ::tensorflow::BundleHeaderProto bundleHeader;
-    FRONT_END_GENERAL_CHECK(bundleHeader.ParseFromString(item->second.data()),
+    FRONT_END_GENERAL_CHECK(bundleHeader.ParseFromArray(item->second.data(), static_cast<int>(item->second.size())),
                             "Bundle Header: Cannot parse Bundle Header");
     FRONT_END_GENERAL_CHECK(bundleHeader.version().producer() == 1, "Bundle Header: Unsupported producer version");
     FRONT_END_GENERAL_CHECK(bundleHeader.version().min_consumer() == 0, "Bundle Header: Unsupported consumer version");
@@ -192,11 +208,14 @@ void SavedModelVariablesIndex::read_bundle_header() {
     m_total_shards = bundleHeader.num_shards();
 }
 
-void SavedModelVariablesIndex::read_checkpointable_object_graph() {
+void VariablesIndex::read_checkpointable_object_graph() {
     m_variables_map.clear();
 
     auto item = m_variables_index.find("_CHECKPOINTABLE_OBJECT_GRAPH");
-    FRONT_END_GENERAL_CHECK(item != m_variables_index.end(), "Checkpointable Object Graph isn't found in index");
+    if (item == m_variables_index.end()) {
+        // Might be missing for some models. In such case all variables should be resolved thru RestoreV2
+        return;
+    }
 
     ::tensorflow::BundleEntryProto entry;
     FRONT_END_GENERAL_CHECK(entry.ParseFromArray(item->second.data(), static_cast<int>(item->second.size())),
@@ -231,32 +250,7 @@ void SavedModelVariablesIndex::read_checkpointable_object_graph() {
     }
 }
 
-bool GraphIteratorSavedModel::is_valid_signature(const ::tensorflow::SignatureDef& signature) const {
-    const std::map<::tensorflow::DataType, ov::element::Type> types{
-        {::tensorflow::DataType::DT_BOOL, ov::element::boolean},
-        {::tensorflow::DataType::DT_INT16, ov::element::i16},
-        {::tensorflow::DataType::DT_INT32, ov::element::i32},
-        {::tensorflow::DataType::DT_INT64, ov::element::i64},
-        {::tensorflow::DataType::DT_HALF, ov::element::f16},
-        {::tensorflow::DataType::DT_FLOAT, ov::element::f32},
-        {::tensorflow::DataType::DT_DOUBLE, ov::element::f64},
-        {::tensorflow::DataType::DT_UINT8, ov::element::u8},
-        {::tensorflow::DataType::DT_INT8, ov::element::i8},
-        {::tensorflow::DataType::DT_BFLOAT16, ov::element::bf16},
-        {::tensorflow::DataType::DT_STRING, ov::element::undefined}};
-
-    for (const auto& it : signature.inputs()) {
-        if (it.second.name().empty() || types.find(it.second.dtype()) == types.end())
-            return false;
-    }
-    for (const auto& it : signature.outputs()) {
-        if (it.second.name().empty() || types.find(it.second.dtype()) == types.end())
-            return false;
-    }
-    return true;
-}
-
-bool SavedModelVariablesIndex::read_variables(std::ifstream& vi_stream, const std::string& path) {
+bool VariablesIndex::read_variables(std::ifstream& vi_stream, const std::string& path, const bool is_saved_model) {
     m_variables_index.clear();
     read_variables_index(vi_stream, m_variables_index);
     read_bundle_header();
@@ -264,10 +258,15 @@ bool SavedModelVariablesIndex::read_variables(std::ifstream& vi_stream, const st
     std::vector<char> suffix(20);
     for (int32_t shard = 0; shard < m_total_shards; ++shard) {
         std::snprintf(suffix.data(), suffix.size(), "data-%05d-of-%05d", shard, m_total_shards);
-        std::string fullPath = ov::util::path_join({path, "variables", std::string("variables.") + suffix.data()});
+        std::string fullPath;
+        if (is_saved_model) {
+            fullPath = ov::util::path_join({path, "variables", std::string("variables.") + suffix.data()});
+        } else {
+            fullPath = path + "." + suffix.data();
+        }
         m_data_files[shard] =
             std::shared_ptr<std::ifstream>(new std::ifstream(fullPath, std::ifstream::in | std::ifstream::binary));
-        FRONT_END_GENERAL_CHECK(m_data_files[shard]->is_open(), "Saved Model's variable index file does not exist");
+        FRONT_END_GENERAL_CHECK(m_data_files[shard]->is_open(), "Variable index data file does not exist");
     }
 
     read_checkpointable_object_graph();
@@ -275,7 +274,7 @@ bool SavedModelVariablesIndex::read_variables(std::ifstream& vi_stream, const st
 }
 
 #if defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
-bool SavedModelVariablesIndex::read_variables(std::ifstream& vi_stream, const std::wstring& path) {
+bool VariablesIndex::read_variables(std::ifstream& vi_stream, const std::wstring& path, const bool is_saved_model) {
     m_variables_index.clear();
     read_variables_index(vi_stream, m_variables_index);
     read_bundle_header();
@@ -283,11 +282,15 @@ bool SavedModelVariablesIndex::read_variables(std::ifstream& vi_stream, const st
     std::vector<wchar_t> suffix(20);
     for (int32_t shard = 0; shard < m_total_shards; ++shard) {
         swprintf_s(suffix.data(), suffix.size(), L"data-%05d-of-%05d", shard, m_total_shards);
-        std::wstring fullPath =
-            ov::util::path_join_w({path, L"variables", std::wstring(L"variables.") + suffix.data()});
+        std::wstring fullPath;
+        if (is_saved_model) {
+            fullPath = ov::util::path_join_w({path, L"variables", std::wstring(L"variables.") + suffix.data()});
+        } else {
+            fullPath = path + L"." + suffix.data();
+        }
         m_data_files[shard] =
             std::shared_ptr<std::ifstream>(new std::ifstream(fullPath, std::ifstream::in | std::ifstream::binary));
-        FRONT_END_GENERAL_CHECK(m_data_files[shard]->is_open(), "Saved Model's variable index file does not exist");
+        FRONT_END_GENERAL_CHECK(m_data_files[shard]->is_open(), "Variable index data file does not exist");
     }
 
     read_checkpointable_object_graph();
@@ -296,14 +299,20 @@ bool SavedModelVariablesIndex::read_variables(std::ifstream& vi_stream, const st
 #endif
 
 struct PtrNode {
+    using SharedPtrNode = std::shared_ptr<PtrNode>;
+
     const ::tensorflow::NodeDef* node;
-    std::vector<PtrNode*> inputs;
-    std::vector<PtrNode*> outputs;
+    std::vector<SharedPtrNode> inputs;
+    std::vector<SharedPtrNode> outputs;
 
     PtrNode() : node(nullptr), inputs(), outputs() {}
 
-    PtrNode(const ::tensorflow::NodeDef& src_node, const std::map<std::string, PtrNode*>& node_dictionary) {
+    PtrNode(const ::tensorflow::NodeDef& src_node) {
         node = &src_node;
+    }
+
+    void associate_node(const SharedPtrNode shared_node, const std::map<std::string, SharedPtrNode>& node_dictionary) {
+        FRONT_END_GENERAL_CHECK(shared_node.get() == this, "Only current object is expected for association");
         std::vector<std::string> parsedName;
         for (const auto& input_name : node->input()) {
             parse_node_name(input_name, parsedName);
@@ -313,17 +322,25 @@ struct PtrNode {
                 continue;
             }
 
-            input_node->second->outputs.push_back(this);
+            input_node->second->outputs.push_back(shared_node);
             inputs.push_back(input_node->second);
         }
     }
 
-    void find_parent_by_op(const std::string& op, std::vector<PtrNode*>& result) const {
+    void find_parent_by_op(const std::string& op,
+                           std::vector<SharedPtrNode>& result,
+                           std::shared_ptr<std::vector<const PtrNode*>> walked = nullptr) const {
+        if (walked.get() == nullptr) {
+            walked = std::make_shared<std::vector<const PtrNode*>>();
+        }
         for (auto input : inputs) {
             if (input->op() == op) {
                 result.push_back(input);
             }
-            input->find_parent_by_op(op, result);
+            if (find(walked->begin(), walked->end(), input.get()) == walked->end()) {
+                walked->push_back(this);
+                input->find_parent_by_op(op, result, walked);
+            }
         }
     }
 
@@ -350,7 +367,7 @@ struct PtrNode {
 
 static void read_stateful_partitioned_call(const std::shared_ptr<::tensorflow::GraphDef> graph_def,
                                            const ::tensorflow::NodeDef& partCall,
-                                           std::map<std::string, PtrNode*>& node_dictionary) {
+                                           std::map<std::string, PtrNode::SharedPtrNode>& node_dictionary) {
     FRONT_END_GENERAL_CHECK(partCall.op() == "StatefulPartitionedCall", "Passed node isn't StatefulPartitionedCall");
 
     std::string func_name = partCall.attr().at("f").func().name();
@@ -366,7 +383,7 @@ static void read_stateful_partitioned_call(const std::shared_ptr<::tensorflow::G
     FRONT_END_GENERAL_CHECK(func_def, "Function isn't found in the library");
     FRONT_END_GENERAL_CHECK(graph_def->has_library(), "GraphDef contains functions, but doesn't have the library");
 
-    std::map<std::string, PtrNode*> nodes;
+    std::map<std::string, PtrNode::SharedPtrNode> nodes;
 
     // Filling temporary input nodes for exact function
     for (int i = 0; i < func_def->signature().input_arg_size(); ++i) {
@@ -380,7 +397,9 @@ static void read_stateful_partitioned_call(const std::shared_ptr<::tensorflow::G
 
     // Parsing nodes and inline partitioned calls
     for (const auto& node : func_def->node_def()) {
-        nodes[node.name()] = new PtrNode(node, nodes);
+        auto shared_node = std::make_shared<PtrNode>(node);
+        shared_node->associate_node(shared_node, nodes);
+        nodes[node.name()] = shared_node;
 
         if (node.op() == "StatefulPartitionedCall") {
             read_stateful_partitioned_call(graph_def, node, nodes);
@@ -403,12 +422,14 @@ static void read_stateful_partitioned_call(const std::shared_ptr<::tensorflow::G
     }
 }
 
-void GraphIteratorSavedModel::map_assignvariable(const std::shared_ptr<::tensorflow::GraphDef> graph_def,
-                                                 std::map<std::string, std::string>& variables_map) const {
-    std::map<std::string, PtrNode*> nodes;
+void VariablesIndex::map_assignvariable(const std::shared_ptr<::tensorflow::GraphDef> graph_def,
+                                        std::map<std::string, std::string>& variables_map) {
+    std::map<std::string, PtrNode::SharedPtrNode> nodes;
 
     for (const auto& node : graph_def->node()) {
-        nodes[node.name()] = new PtrNode(node, nodes);
+        auto shared_node = std::make_shared<PtrNode>(node);
+        shared_node->associate_node(shared_node, nodes);
+        nodes[node.name()] = shared_node;
 
         if (node.op() == "StatefulPartitionedCall") {
             read_stateful_partitioned_call(graph_def, node, nodes);
@@ -416,66 +437,64 @@ void GraphIteratorSavedModel::map_assignvariable(const std::shared_ptr<::tensorf
     }
 
     for (const auto& node : nodes) {
-        if (node.second->op() != "AssignVariableOp") {
-            continue;
+        if (node.second->op() == "AssignVariableOp") {
+            // TODO: assets reading
+
+            std::vector<PtrNode::SharedPtrNode> restorev2_nodes;
+            std::vector<PtrNode::SharedPtrNode> varhandle_nodes;
+
+            node.second->find_parent_by_op("RestoreV2", restorev2_nodes);
+            node.second->find_parent_by_op("VarHandleOp", varhandle_nodes);
+
+            if (restorev2_nodes.size() == 1 && varhandle_nodes.size() == 1) {
+                std::vector<std::string> restore_output;
+                // Expected path is: RestoreV2 -(output_index)-(0)-> Identity -(0)-(1)-> AssignVariableOp
+                PtrNode::parse_node_name(node.second->inputs[1]->node->input(0), restore_output);
+
+                int output_index = std::atoi(restore_output[restore_output.size() - 1].c_str());
+
+                // Expected path is: Const(tensor_names) -(0)-(1)-> RestoreV2
+                const auto& variable_name =
+                    restorev2_nodes[0]->inputs[1]->node->attr().at("value").tensor().string_val(output_index);
+
+                variables_map[varhandle_nodes[0]->node->name()] = variable_name;
+            }
+        } else if (node.second->op() == "Assign") {
+            std::vector<PtrNode::SharedPtrNode> restorev2_nodes;
+            std::vector<PtrNode::SharedPtrNode> variablev2_nodes;
+
+            node.second->find_parent_by_op("RestoreV2", restorev2_nodes);
+            node.second->find_parent_by_op("VariableV2", variablev2_nodes);
+
+            // Added support of Variable nodes in case no associated VariableV2 nodes found
+            if (variablev2_nodes.size() == 0) {
+                node.second->find_parent_by_op("Variable", variablev2_nodes);
+            }
+
+            if (restorev2_nodes.size() == 1 && variablev2_nodes.size() == 1) {
+                std::vector<std::string> restore_output;
+                // Expected path is: RestoreV2 -(output_index)-(0)-> Assign
+                PtrNode::parse_node_name(node.second->node->input(1), restore_output);
+
+                int output_index = std::atoi(restore_output[restore_output.size() - 1].c_str());
+
+                // Expected path is: Const(tensor_names) -(0)-(1)-> RestoreV2
+                const auto& variable_name =
+                    restorev2_nodes[0]->inputs[1]->node->attr().at("value").tensor().string_val(output_index);
+
+                variables_map[variablev2_nodes[0]->node->name()] = variable_name;
+            }
         }
+    }
 
-        // TODO: assets reading
-
-        std::vector<PtrNode*> restorev2_nodes;
-        std::vector<PtrNode*> varhandle_nodes;
-
-        node.second->find_parent_by_op("RestoreV2", restorev2_nodes);
-        node.second->find_parent_by_op("VarHandleOp", varhandle_nodes);
-
-        FRONT_END_GENERAL_CHECK(restorev2_nodes.size() == 1, "Found unexpected amount of RestoreV2 nodes");
-        FRONT_END_GENERAL_CHECK(varhandle_nodes.size() == 1, "Found unexpected amount of VarHandleOp nodes");
-
-        std::vector<std::string> restore_output;
-        // Expected path is: RestoreV2 -(output_index)-(0)-> Identity -(0)-(1)-> AssignVariableOp
-        PtrNode::parse_node_name(node.second->inputs[1]->node->input(0), restore_output);
-
-        int output_index = std::atoi(restore_output[restore_output.size() - 1].c_str());
-
-        // Expected path is: Const(tensor_names) -(0)-(1)-> RestoreV2
-        const auto& variable_name =
-            restorev2_nodes[0]->inputs[1]->node->attr().at("value").tensor().string_val(output_index);
-
-        variables_map[varhandle_nodes[0]->node->name()] = variable_name;
+    // Removing cross-links, otherwise memory leak will be caused by lost shared pointers
+    for (auto node : nodes) {
+        node.second->inputs.clear();
+        node.second->outputs.clear();
     }
 
     nodes.clear();
 }
-
-bool GraphIteratorSavedModel::is_supported(const std::string& path) {
-    return ov::util::directory_exists(path) && ov::util::file_exists(ov::util::path_join({path, "saved_model.pb"}));
-}
-
-#if defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
-bool GraphIteratorSavedModel::is_supported(const std::wstring& path) {
-    return ov::util::directory_exists(path) && ov::util::file_exists(ov::util::path_join_w({path, L"saved_model.pb"}));
-}
-#endif
-
-template <>
-std::basic_string<char> get_saved_model_name<char>() {
-    return "/saved_model.pb";
-}
-template <>
-std::basic_string<char> get_variables_index_name<char>() {
-    return "/variables/variables.index";
-}
-
-#if defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
-template <>
-std::basic_string<wchar_t> get_saved_model_name<wchar_t>() {
-    return L"/saved_model.pb";
-}
-template <>
-std::basic_string<wchar_t> get_variables_index_name<wchar_t>() {
-    return L"/variables/variables.index";
-}
-#endif
 
 }  // namespace tensorflow
 }  // namespace frontend
