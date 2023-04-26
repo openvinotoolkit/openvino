@@ -262,4 +262,37 @@ INSTANTIATE_TEST_SUITE_P(smoke_LPT, GroupConvolutionTransformation,
         ::testing::ValuesIn(addPrecisionPreserved)),
     GroupConvolutionTransformation::getTestCaseName);
 } // namespace depthwise
+
+namespace i8_3d {
+const std::vector<std::pair<ngraph::PartialShape, ngraph::Shape>> inputShapes = {
+    {{1, 6, 1, 24, 24}, {1, 24, 1, 18, 18}},
+    {{1, 24, 8, 12, 12}, {1, 24, 1, 1, 1}}
+};
+
+const std::vector<LayerTestsDefinitions::GroupConvolutionTransformationParam> params = {
+    // group convolution, tensor quantization
+    {
+        3ul,
+        -1,
+        {256ul, ngraph::Shape{1, 1, 1, 1, 1}, {-12.8f}, {12.7f}, {-12.8f}, {12.7f}},
+        {255ul, ngraph::Shape { 1, 1, 1, 1, 1 }, { 0.f }, { 254.f }, { -127.f }, { 127.f }},
+        true,
+        "Convolution",
+        "I8"
+    },
+};
+
+const std::vector<bool> addPrecisionPreserved = {false};
+
+INSTANTIATE_TEST_SUITE_P(smoke_LPT, GroupConvolutionTransformation,
+    ::testing::Combine(
+        ::testing::ValuesIn(netPrecisions),
+        ::testing::Values(CommonTestUtils::DEVICE_CPU),
+        ::testing::ValuesIn(trasformationParamValues),
+        ::testing::ValuesIn(inputShapes),
+        ::testing::ValuesIn(params),
+        ::testing::ValuesIn(addPrecisionPreserved)),
+    GroupConvolutionTransformation::getTestCaseName);
+}  // namespace i8_3d
 }  // namespace
+

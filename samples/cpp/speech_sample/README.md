@@ -185,6 +185,8 @@ Here, the floating point Kaldi-generated reference neural network scores (``dev9
   
    - The sample supports input and output in numpy file format (.npz)
 
+   - Stating flags that take only single option like `-m` multiple times, for example `./speech_sample -m model.xml -m model2.xml`, results in only the first value being used.
+
 Sample Output
 #############
 

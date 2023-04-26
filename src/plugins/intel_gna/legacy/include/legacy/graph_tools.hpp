@@ -191,8 +191,8 @@ inline void UnorderedDFS(std::unordered_set<CNNLayer*>& visited,
         visited.insert(cnnLayer.get());
 
         // visit children
-        for (auto& od : cnnLayer->outData) {
-            for (auto nl : getInputTo(od)) {
+        for (const auto& od : cnnLayer->outData) {
+            for (const auto& nl : getInputTo(od)) {
                 layers.push(nl.second);
             }
         }
@@ -612,7 +612,7 @@ inline CNNNetwork CNNNetCopy(const CNNNetwork& input, const Copier& cp) {
     InputsDataMap inputsInfo = input.getInputsInfo();
     std::set<DataPtr> insDatas;
     for (auto&& info : inputsInfo) {
-        for (auto secondLayer : getInputTo(info.second->getInputData())) {
+        for (const auto& secondLayer : getInputTo(info.second->getInputData())) {
             auto secondLayerNew = oldToNewLayers[secondLayer.second.get()];
             InputInfo::Ptr infoNew = std::make_shared<InputInfo>();
             infoNew->setInputData(

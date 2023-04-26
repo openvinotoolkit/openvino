@@ -66,7 +66,7 @@ ov::Shape tensorToShape(const tensor& t, const format f)
 
 template<typename T>
 void generateTestData(const AdaptiveAvgPoolingParams& p, const format fmt, std::vector<T>& inputs, std::vector<T>& outputs) {
-    const auto in = generate_random_1d<float>(p.inputTensor.count(), -127, 127, 1);
+    const auto in = generate_random_1d<float>(p.inputTensor.count(), -127, 127, 8);
     std::vector<float> out(p.outputTensor.count());
 
     const auto inShape = tensorToShape(p.inputTensor, fmt);
@@ -171,6 +171,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_adaptive_avg_pooling_test_f32_2d,
                                  ::testing::ValuesIn(std::vector<AdaptiveAvgPoolingParams>{
                                         { tensor(1, 2, 7, 3), tensor(1, 2, 3, 3) },
                                         { tensor(2, 3, 7, 3), tensor(2, 3, 3, 3) },
+                                        { tensor(1, 3, 16, 16), tensor(1, 3, 16, 16) },
                                     }),
                                  ::testing::Values(format::bfyx),
                                  ::testing::Values(format::bfyx),
