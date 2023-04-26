@@ -33,7 +33,7 @@
 #include "unit_test_utils/mocks/mock_iinfer_request.hpp"
 
 #ifdef __EMSCRIPTEN__
-#include "unit_test_utils/mocks/mock_engine/mock_plugin.hpp"
+#    include "unit_test_utils/mocks/mock_engine/mock_plugin.hpp"
 #endif
 
 using namespace InferenceEngine;

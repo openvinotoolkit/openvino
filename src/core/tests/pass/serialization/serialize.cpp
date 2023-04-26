@@ -343,7 +343,7 @@ public:
 };
 
 #ifndef __EMSCRIPTEN__
-//TODO: fix crash issue in get_rt_info()
+// TODO: fix crash issue in get_rt_info()
 TEST_F(MetaDataSerialize, get_meta_serialized_without_init) {
     auto model = ov::test::readModel(ir_with_meta);
 

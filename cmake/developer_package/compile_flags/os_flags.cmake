@@ -459,6 +459,7 @@ else()
         # Debug, will remove later
         # set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} --memoryprofiler -fsanitize=address")
         # set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -Wno-unused-command-line-argument")
+        set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -g2 -O3")
         ie_add_compiler_flags("-g2 -O3")
     else()
         set(exclude_libs "-Wl,--exclude-libs,ALL")
