@@ -15,6 +15,8 @@
 #include "common/pass/convert_to_power_static.hpp"
 #include "common/pass/convert_to_leaky_relu.hpp"
 #include "common/pass/convert_to_swish_cpu.hpp"
+#include "arm/pass/swish_decomposition.hpp"
+#include "arm/pass/sigmoid_decomposition.hpp"
 #include "transformations/convert_precision.hpp"
 #include "transformations/utils/utils.hpp"
 #include "common/pass/rnn_sequences_optimization.hpp"
@@ -38,6 +40,8 @@ inline void ConvertToCPUSpecificOpset(std::shared_ptr<ngraph::Function> &nGraphF
     CPU_REGISTER_PASS_COMMON(manager, FullyConnectedBiasFusion);
     CPU_REGISTER_PASS_X64(manager, ConvertToPowerStatic);
     CPU_REGISTER_PASS_COMMON(manager, ConvertToLeakyRelu);
+    CPU_REGISTER_PASS_ARM(manager, SwishDecomposition); // WA for accuracy issue with swish
+    CPU_REGISTER_PASS_ARM(manager, SigmoidDecomposition); // WA for accuracy issue with swish
     CPU_REGISTER_PASS_COMMON(manager, ConvertToSwishCPU);
     CPU_REGISTER_PASS_COMMON(manager, OptimizeSequenceTransposes);
     if (!ov::op::util::has_op_with_type<ngraph::op::FakeQuantize>(nGraphFunc)) {
