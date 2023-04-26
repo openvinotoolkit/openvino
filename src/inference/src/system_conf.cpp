@@ -225,6 +225,7 @@ std::vector<int> get_available_numa_nodes() {
 #    endif
 
 std::vector<std::vector<int>> get_proc_type_table() {
+    std::lock_guard<std::mutex> lock{cpu._proc_type_mutex};
     return cpu._proc_type_table;
 }
 
@@ -274,6 +275,7 @@ std::vector<std::vector<int>> reserve_available_cpus(const std::vector<std::vect
 }
 
 void set_cpu_used(const std::vector<int>& cpu_ids, const int used) {
+    std::lock_guard<std::mutex> lock{cpu._cpu_mutex};
     const auto cpu_size = static_cast<int>(cpu_ids.size());
     for (int i = 0; i < cpu_size; i++) {
         if (cpu_ids[i] < cpu._processors) {
