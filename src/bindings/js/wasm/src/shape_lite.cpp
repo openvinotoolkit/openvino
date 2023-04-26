@@ -5,7 +5,7 @@
 #include <iostream>
 
 #include "openvino/openvino.hpp"
-#include "../include/shape_lite.h" 
+#include "../include/shape_lite.h"
 
 ShapeLite::ShapeLite(uintptr_t data, int dim) {
     size_t* data_array = reinterpret_cast<size_t*>(data);

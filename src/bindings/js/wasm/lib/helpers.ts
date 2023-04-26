@@ -1,17 +1,29 @@
-import { Shape, Tensor, IShape, ITensor, jsTypeByPrecisionMap } from 'openvinojs-common';
+import {
+  Shape,
+  Tensor,
+  IShape,
+  ITensor,
+  jsTypeByPrecisionMap,
+} from 'openvinojs-common';
 
-import { OpenvinoWASMModule } from './types';
 import { heapLabelByArrayTypeMap, ovTypesMap } from './maps';
 
 import type { TypedArray } from 'openvinojs-common';
-import type { HEAPType, OriginalShape, OriginalTensor } from './types';
+import type {
+  HEAPType,
+  OriginalShape,
+  OriginalTensor,
+  OpenvinoWASMModule,
+  OriginalShapeWrapper,
+  OriginalTensorWrapper,
+} from './types';
 
 export function isNodeEnv() {
   return typeof window === 'undefined';
 }
 
 export async function getFileDataAsArray(path: string): Promise<Uint8Array> {
-  const fileData = isNodeEnv() 
+  const fileData = isNodeEnv()
     ? await getFileDataNode(path)
     : await getFileDataBrowser(path);
 
@@ -34,7 +46,11 @@ async function getFileDataBrowser(path: string): Promise<ArrayBuffer | null> {
   return blob ? await blob.arrayBuffer() : null;
 }
 
-export function uploadFile(ov: OpenvinoWASMModule, filename: string, data: Uint8Array) {
+export function uploadFile(
+  ov: OpenvinoWASMModule,
+  filename: string,
+  data: Uint8Array
+) {
   const stream = ov.FS.open(filename, 'w+');
 
   ov.FS.write(stream, data, 0, data.length, 0);
@@ -43,32 +59,45 @@ export function uploadFile(ov: OpenvinoWASMModule, filename: string, data: Uint8
 
 const SHAPE_HEAP: HEAPType = heapLabelByArrayTypeMap[Shape.TYPE.name];
 
-export function parseOriginalShape(ov: OpenvinoWASMModule, originalShape: OriginalShape): Shape {
+export function parseOriginalShape(
+  ov: OpenvinoWASMModule,
+  originalShape: OriginalShape
+): Shape {
   const originalDim = originalShape.getDim();
   const originalDataPointer = originalShape.getData();
 
   const dimensions = new Shape.TYPE(originalDim);
 
   for (let i = 0; i < originalDim; i++) {
-    const dimension = ov[SHAPE_HEAP][originalDataPointer/Shape.TYPE.BYTES_PER_ELEMENT + i];
-    
+    const dimension =
+      ov[SHAPE_HEAP][originalDataPointer/Shape.TYPE.BYTES_PER_ELEMENT + i];
+
     dimensions[i] = dimension;
   }
 
   return new Shape(...dimensions);
 }
 
-export function convertShape(ov: OpenvinoWASMModule, shape: IShape): OriginalShapeWrapper {
+export function convertShape(
+  ov: OpenvinoWASMModule,
+  shape: IShape
+): OriginalShapeWrapper {
   const originalDimensions = new Shape.TYPE(shape.data);
   const elementSizeInBytes = originalDimensions.BYTES_PER_ELEMENT;
   const heapSpace = ov._malloc(originalDimensions.length*elementSizeInBytes);
   const offset = Math.sqrt(elementSizeInBytes);
-  ov[SHAPE_HEAP].set(originalDimensions, heapSpace>>offset); 
-  
-  return { obj: new ov.Shape(heapSpace, shape.dim), free: () => ov._free(heapSpace) };
+  ov[SHAPE_HEAP].set(originalDimensions, heapSpace>>offset);
+
+  return {
+    obj: new ov.Shape(heapSpace, shape.dim),
+    free: () => ov._free(heapSpace)
+  };
 }
 
-export function parseOriginalTensor(ov: OpenvinoWASMModule, originalTensor: OriginalTensor): Tensor {
+export function parseOriginalTensor(
+  ov: OpenvinoWASMModule,
+  originalTensor: OriginalTensor
+): Tensor {
   const precision = ovTypesMap[originalTensor.getPrecision()];
   const shape = parseOriginalShape(ov, originalTensor.getShape());
 
@@ -76,20 +105,22 @@ export function parseOriginalTensor(ov: OpenvinoWASMModule, originalTensor: Orig
   const heapTypeLabel = heapLabelByArrayTypeMap[dataType.name];
   const originalDataPointer = originalTensor.getData();
 
-  const elementsCount = shape.data.reduce((acc: number, val: number) => acc*val);
+  const elementsCount =
+    shape.data.reduce((acc: number, val: number) => acc*val);
   const data: TypedArray = new dataType(elementsCount);
 
-  for (let i = 0; i < elementsCount; i++) {
+  for (let i = 0; i < elementsCount; i++)
     // @ts-ignore: FIXME: Fix OpenvinoModule type
-    const element = ov[heapTypeLabel][originalDataPointer/dataType.BYTES_PER_ELEMENT + i];
-    
-    data[i] = element;
-  }
+    data[i] =
+      ov[heapTypeLabel][originalDataPointer/dataType.BYTES_PER_ELEMENT + i];
 
   return new Tensor(precision, data, shape);
 }
 
-export function convertTensor(ov: OpenvinoWASMModule, tensor: ITensor): OriginalTensorWrapper {
+export function convertTensor(
+  ov: OpenvinoWASMModule,
+  tensor: ITensor
+): OriginalTensorWrapper {
   const { precision } = tensor;
   const dataType = jsTypeByPrecisionMap[precision];
   const originalShape = convertShape(ov, tensor.shape);
@@ -101,23 +132,13 @@ export function convertTensor(ov: OpenvinoWASMModule, tensor: ITensor): Original
   const waPrecision = heapLabelByArrayTypeMap[dataType.name];
 
   // @ts-ignore: FIXME: Fix OpenvinoModule type
-  ov[waPrecision].set(originalData, heapSpace>>offset); 
+  ov[waPrecision].set(originalData, heapSpace>>offset);
 
-  return { 
+  return {
     obj: new ov.Tensor(precision, heapSpace, originalShape.obj),
     free: () => {
       originalShape.free();
       ov._free(heapSpace);
     }
    };
-}
-
-interface OriginalShapeWrapper {
-  obj: OriginalShape,
-  free: () => void,
-}
-
-interface OriginalTensorWrapper {
-  obj: OriginalTensor,
-  free: () => void,
 }

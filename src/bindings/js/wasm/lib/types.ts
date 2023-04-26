@@ -10,7 +10,7 @@ export type OVType =
   | 'float'
   | 'double';
 
-  export type HEAPType = 
+  export type HEAPType =
   | 'HEAP8'
   | 'HEAPU8'
   | 'HEAP16'
@@ -22,7 +22,8 @@ export type OVType =
 
 interface WASMFilesystem {
   open(filename: string, flags: string): string,
-  write(stream: string, data: Uint8Array, position: number, length: number, from: number): void,
+  write(stream: string, data: Uint8Array, position: number, length: number,
+    from: number): void,
   close(stream: string): void,
 }
 
@@ -39,8 +40,15 @@ export interface OpenvinoWASMModule {
   _malloc: (amount: number) => number,
   _free: (heapPointer: number) => void,
   Shape: new (heapPointer: number, dimensions: number) => OriginalShape,
-  Tensor: new (precision: PrecisionSupportedType, heapPointer: number, shape: OriginalShape) => OriginalTensor,
-  Session: new (xmlFilename: string, binFilename: string, originalShapeObj: OriginalShape, layout: string) => OriginalModel,
+  Tensor: new (
+    precision: PrecisionSupportedType,
+    heapPointer: number,
+    shape: OriginalShape) => OriginalTensor,
+  Session: new (
+    xmlFilename: string,
+    binFilename: string,
+    originalShapeObj: OriginalShape,
+    layout: string) => OriginalModel,
   getVersionString(): string,
   getDescriptionString(): string,
 };
@@ -58,4 +66,14 @@ export interface OriginalTensor {
 
 export interface OriginalModel {
   infer(tensor: OriginalTensor): OriginalTensor,
+}
+
+export interface OriginalShapeWrapper {
+  obj: OriginalShape,
+  free: () => void,
+}
+
+export interface OriginalTensorWrapper {
+  obj: OriginalTensor,
+  free: () => void,
 }

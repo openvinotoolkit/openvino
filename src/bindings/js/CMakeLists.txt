@@ -6,5 +6,5 @@ project(OpenVINO_JS_API)
 
 # if(EMSCRIPTEN)
     add_subdirectory(wasm)
-    add_subdirectory(node-addon)
+    add_subdirectory(node)
 # endif()

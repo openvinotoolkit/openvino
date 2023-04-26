@@ -14,7 +14,8 @@ export const ovTypesMap: { [Type in OVType]: PrecisionSupportedType } = {
 };
 
 // FIXME: define correct type
-export const heapLabelByArrayTypeMap: { [ArrayType in keyof JSArrayType as string]: HEAPType } = {
+export const heapLabelByArrayTypeMap
+: { [ArrayType in keyof JSArrayType as string]: HEAPType } = {
   Int8Array: 'HEAP8',
   Uint8Array: 'HEAPU8',
   // Uint8ClampedArray: 'HEAPU8',
