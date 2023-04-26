@@ -3,13 +3,13 @@
 //
 
 #include "utils/custom_shape_inference/reshape.hpp"
+#include "utils/custom_shape_inference/gather.hpp"
 #include "ie_ngraph_utils.hpp"
 #include "custom_shape_infer.hpp"
 #include <gtest/gtest.h>
 namespace ov {
 namespace intel_cpu {
-unit_test {
-
+namespace unit_test {
 #define INTEL_CPU_CUSTOM_SHAPE_INFER(__prim, __type) \
     registerNodeIfRequired(intel_cpu, __prim, __type, __prim)
 
@@ -93,7 +93,7 @@ CustomShapeInferFF::CustomShapeInferFF():Factory("CpuCustomShapeInferTestFactory
     // INTEL_CPU_CUSTOM_SHAPE_INFER(Ngram, Type::Ngram);
     // INTEL_CPU_CUSTOM_SHAPE_INFER(Interpolate, Type::Interpolate);
     // INTEL_CPU_CUSTOM_SHAPE_INFER(Reduce, Type::Reduce);
-    // INTEL_CPU_CUSTOM_SHAPE_INFER(Gather, Type::Gather);
+    INTEL_CPU_CUSTOM_SHAPE_INFER(node::GatherShapeInferFactory, Type::Gather);
     // INTEL_CPU_CUSTOM_SHAPE_INFER(NonMaxSuppression, Type::NonMaxSuppression);
     // INTEL_CPU_CUSTOM_SHAPE_INFER(ROIPooling, Type::ROIPooling);
     // INTEL_CPU_CUSTOM_SHAPE_INFER(ROIAlign, Type::ROIAlign);
@@ -139,6 +139,7 @@ void custom_shape_inference(ov::Node* op,
                      const std::map<size_t, HostTensorPtr>& constant_data) {
     static std::shared_ptr<CustomShapeInferFF> cusFactory = std::make_shared<CustomShapeInferFF>();
     if (auto shapeInferFactory = cusFactory->create(op->shared_from_this())) {
+        std::cout << "===========" << "op" << op->get_type_name() << std::endl;
         auto cusShapeInfer =  shapeInferFactory->makeShapeInfer();
         std::vector<std::reference_wrapper<const VectorDims>> cusInputShapes;
         std::vector<VectorDims> tmpInputShapes;
@@ -186,7 +187,6 @@ void custom_shape_inference(ov::Node* op,
         compare_result(output_shapes, result.dims);
     }
 }
-
 } // namespace unit_test
 } // namespace intel_cpu
 } // namespace ov
