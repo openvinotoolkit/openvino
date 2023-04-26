@@ -7,39 +7,41 @@
 #include <array>
 #include <ngraph/pattern/op/wrap_type.hpp>
 #include <ngraph/rt_info.hpp>
-#include <openvino/opsets/opset11.hpp>
-#include <openvino/opsets/opset4.hpp>
 
 #include "itt.hpp"
+#include "openvino/op/broadcast.hpp"
+#include "openvino/op/constant.hpp"
+#include "openvino/op/interpolate.hpp"
+#include "openvino/op/shape_of.hpp"
 #include "utils.hpp"
 
 namespace {
 // v4_sizes, v4_scales
 std::pair<ov::Output<ov::Node>, ov::Output<ov::Node>> make_v4_inputs(
-    const std::shared_ptr<ov::opset11::Interpolate>& interpolate) {
+    const std::shared_ptr<ov::op::v11::Interpolate>& interpolate) {
     ov::pass::NodeRegistry registry;
     std::pair<ov::Output<ov::Node>, ov::Output<ov::Node>> ret;
     std::shared_ptr<ov::Node> broadcast_shape;
 
     if (interpolate->get_input_size() == 3) {
         // broadcast dummy constant to the shape of axes
-        broadcast_shape = registry.make<ov::opset4::ShapeOf>(interpolate->input_value(2));
+        broadcast_shape = registry.make<ov::op::v3::ShapeOf>(interpolate->input_value(2));
     } else {
         // broadcast dummy constant to the rank of data
-        broadcast_shape = registry.make<ov::opset4::ShapeOf>(interpolate->input_value(0));
-        broadcast_shape = registry.make<ov::opset4::ShapeOf>(broadcast_shape);
+        broadcast_shape = registry.make<ov::op::v3::ShapeOf>(interpolate->input_value(0));
+        broadcast_shape = registry.make<ov::op::v3::ShapeOf>(broadcast_shape);
     }
 
     if (interpolate->get_attrs().shape_calculation_mode == ov::op::util::InterpolateBase::ShapeCalcMode::SCALES) {
         ret.second = interpolate->input_value(1);
-        std::shared_ptr<ov::Node> sizes_input = registry.make<ov::opset4::Constant>(ov::element::i32, ov::Shape{}, 1);
-        sizes_input = registry.make<ov::opset4::Broadcast>(sizes_input, broadcast_shape);
+        std::shared_ptr<ov::Node> sizes_input = registry.make<ov::op::v0::Constant>(ov::element::i32, ov::Shape{}, 1);
+        sizes_input = registry.make<ov::op::v3::Broadcast>(sizes_input, broadcast_shape);
         ret.first = sizes_input;
     } else {
         ret.first = interpolate->input_value(1);
         std::shared_ptr<ov::Node> scales_input =
-            registry.make<ov::opset4::Constant>(ov::element::f32, ov::Shape{}, 1.0f);
-        scales_input = registry.make<ov::opset4::Broadcast>(scales_input, broadcast_shape);
+            registry.make<ov::op::v0::Constant>(ov::element::f32, ov::Shape{}, 1.0f);
+        scales_input = registry.make<ov::op::v3::Broadcast>(scales_input, broadcast_shape);
         ret.second = scales_input;
     }
 
@@ -52,7 +54,7 @@ std::pair<ov::Output<ov::Node>, ov::Output<ov::Node>> make_v4_inputs(
 ov::pass::ConvertInterpolate11ToInterpolate4::ConvertInterpolate11ToInterpolate4() {
     MATCHER_SCOPE(ConvertInterpolate11ToInterpolate4);
 
-    const auto interpolate_v11_pattern = pattern::wrap_type<opset11::Interpolate>();
+    const auto interpolate_v11_pattern = pattern::wrap_type<ov::op::v11::Interpolate>();
 
     const matcher_pass_callback callback = [=](pattern::Matcher& m) {
         const auto v4_compatible_interpolation_mode = [](const op::util::InterpolateBase::InterpolateMode mode) {
@@ -65,26 +67,26 @@ ov::pass::ConvertInterpolate11ToInterpolate4::ConvertInterpolate11ToInterpolate4
             return std::find(std::begin(allowed_modes), std::end(allowed_modes), mode) != std::end(allowed_modes);
         };
 
-        const auto interpolate_v11 = std::dynamic_pointer_cast<opset11::Interpolate>(m.get_match_root());
+        const auto interpolate_v11 = std::dynamic_pointer_cast<ov::op::v11::Interpolate>(m.get_match_root());
         if (!interpolate_v11 || !v4_compatible_interpolation_mode(interpolate_v11->get_attrs().mode) ||
             transformation_callback(interpolate_v11)) {
             return false;
         }
 
         // downgrade only if the interpolation mode used to create v11 is supported by v4
-        std::shared_ptr<ov::opset4::Interpolate> interpolate_v4;
+        std::shared_ptr<ov::op::v4::Interpolate> interpolate_v4;
         ov::Output<ov::Node> v4_input_output_shape;
         ov::Output<ov::Node> v4_input_scales;
         std::tie(v4_input_output_shape, v4_input_scales) = make_v4_inputs(interpolate_v11);
 
         if (interpolate_v11->get_input_size() == 3) {  // with axes input
-            interpolate_v4 = std::make_shared<ov::opset4::Interpolate>(interpolate_v11->input_value(0),
+            interpolate_v4 = std::make_shared<ov::op::v4::Interpolate>(interpolate_v11->input_value(0),
                                                                        v4_input_output_shape,
                                                                        v4_input_scales,
                                                                        interpolate_v11->input_value(2),
                                                                        interpolate_v11->get_attrs());
         } else {
-            interpolate_v4 = std::make_shared<ov::opset4::Interpolate>(interpolate_v11->input_value(0),
+            interpolate_v4 = std::make_shared<ov::op::v4::Interpolate>(interpolate_v11->input_value(0),
                                                                        v4_input_output_shape,
                                                                        v4_input_scales,
                                                                        interpolate_v11->get_attrs());

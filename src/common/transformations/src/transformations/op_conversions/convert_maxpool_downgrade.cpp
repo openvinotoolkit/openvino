@@ -6,12 +6,11 @@
 
 #include <ngraph/pattern/op/wrap_type.hpp>
 #include <ngraph/rt_info.hpp>
-#include <openvino/opsets/opset1.hpp>
-#include <openvino/opsets/opset8.hpp>
 #include <transformations/utils/utils.hpp>
 
 #include "itt.hpp"
 #include "openvino/core/descriptor/tensor.hpp"
+#include "openvino/op/max_pool.hpp"
 
 using namespace std;
 using namespace ov;
@@ -19,10 +18,10 @@ using namespace ov;
 pass::ConvertMaxPool8ToMaxPool1::ConvertMaxPool8ToMaxPool1() {
     MATCHER_SCOPE(ConvertMaxPool8ToMaxPool1);
 
-    auto maxpool_v8_pattern = pattern::wrap_type<ov::opset8::MaxPool>();
+    auto maxpool_v8_pattern = pattern::wrap_type<ov::op::v8::MaxPool>();
 
     matcher_pass_callback callback = [=](pattern::Matcher& m) {
-        auto maxpool_v8_node = std::dynamic_pointer_cast<ov::opset8::MaxPool>(m.get_match_root());
+        auto maxpool_v8_node = std::dynamic_pointer_cast<ov::op::v8::MaxPool>(m.get_match_root());
 
         if (!maxpool_v8_node || maxpool_v8_node->get_output_target_inputs(1).size() != 0)
             return false;
@@ -31,7 +30,7 @@ pass::ConvertMaxPool8ToMaxPool1::ConvertMaxPool8ToMaxPool1() {
             if (dilation != 1)
                 return false;
 
-        auto maxpool_v1_node = make_shared<ov::opset1::MaxPool>(maxpool_v8_node->input_value(0),
+        auto maxpool_v1_node = make_shared<ov::op::v1::MaxPool>(maxpool_v8_node->input_value(0),
                                                                 maxpool_v8_node->get_strides(),
                                                                 maxpool_v8_node->get_pads_begin(),
                                                                 maxpool_v8_node->get_pads_end(),
