@@ -145,7 +145,7 @@ Output<Node> decompose_height(Output<Node> input,
     }
 }
 
-Output<Node> decompose_height(Output<Node> input,
+Output<Node> decompose_width(Output<Node> input,
                               ov::CoordinateDiff pads_begin,
                               ov::CoordinateDiff pads_end,
                               ov::Shape conv_input_shape) {
@@ -228,7 +228,6 @@ static bool decompose(std::shared_ptr<ngraph::opset11::Convolution> conv) {
         return false;
     }
 
-    // TODO ====================================================shouldn't we check size of input_shape?
     Output<Node> input = transpose_before->input_value(0);
     auto input_shape = input.get_shape();
     if (input_shape.size() != 4 || input_shape[0] != 1) {
