@@ -1024,7 +1024,7 @@ void InsertCopyLayerPass::run() {
             LayerInfo(l).isSplit()) {
             std::vector<FuncChildrenInfo> copy_insertion_tuples;
             std::vector<FuncChildrenInfo> delayed_copy_insertion_tuples;
-            for (auto& output : l->outData) {
+            for (const auto& output : l->outData) {
                 auto& inputTo = getInputTo(output);
                 for (auto& childLayer : inputTo) {
                     std::vector<int> connections = CNNLayerFindInsDataIdxes(output, childLayer.second);
