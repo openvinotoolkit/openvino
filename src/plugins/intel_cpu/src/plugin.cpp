@@ -382,15 +382,18 @@ StreamCfg Engine::GetNumStreams(InferenceEngine::IStreamsExecutor::ThreadBinding
 }
 
 static bool shouldEnforceBF16(const std::map<std::string, std::string>& modelConfig, const Config& engineConfig) {
-    const auto& enforceBF16 = modelConfig.find(InferenceEngine::PluginConfigParams::KEY_ENFORCE_BF16);
-    if (enforceBF16 == modelConfig.end()) { // not set for the model
-        return engineConfig.enforceBF16 && dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core); // use value from engine
-    }
-
-    if (enforceBF16->second == PluginConfigParams::YES) {
-        return dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core);
-    } else {
+    // For BF16 execution, the machine should have AVX512 at least
+    if (!dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core))
         return false;
+
+    const auto& enforceBF16 = modelConfig.find(InferenceEngine::PluginConfigParams::KEY_ENFORCE_BF16);
+    const auto& inferPrec = modelConfig.find(ov::hint::inference_precision.name());
+    if (enforceBF16 != modelConfig.end()) {
+        return enforceBF16->second == PluginConfigParams::YES;
+    } else if (inferPrec != modelConfig.end()) {
+        return inferPrec->second == "bf16";
+    } else {
+        return engineConfig.enforceBF16;
     }
 }
 
