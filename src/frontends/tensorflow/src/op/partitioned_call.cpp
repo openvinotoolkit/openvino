@@ -33,8 +33,9 @@ OutputVector translate_partitioned_call_op(const NodeContext& node) {
     // of StatefulPartitionedCall. And because otherwise they will cause a duplicates. But we need to keep them
     // for "internal functions of Saved Model", which are named "__inference_signature_wrapper" or
     // "__inference_wrapped_model".
-    auto body_model =
-        translate_session->get_body_ov_model(operation_type, operation_type.find("wrappe") == std::string::npos);
+    auto body_model = translate_session->get_body_ov_model(operation_type,
+                                                           ov_inputs,
+                                                           operation_type.find("wrappe") == std::string::npos);
     FRONT_END_OP_CONVERSION_CHECK(
         body_model,
         "[TensorFlow Frontend] Internal error or incorrect input model: body graph is not found for " + operation_type +

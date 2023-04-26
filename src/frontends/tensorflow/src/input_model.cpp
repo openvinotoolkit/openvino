@@ -180,6 +180,19 @@ void InputModel::InputModelTFImpl::load_places() {
                 // by default, PlaceholderWithDefault is NOT used as input
                 m_inputs.push_back(tensor_place);
             }
+        } else if (op_type == "input_arg") {
+            // create a tensor place for the body graph parameter node and save it in the m_inputs
+            // it allows to set shapes for the body graph InputModel for its more optimal conversion
+            auto param_type = node_decoder->get_attribute("type");
+            ov::element::Type type = ov::element::dynamic;
+            if (param_type.is<ov::element::Type>()) {
+                type = param_type.as<ov::element::Type>();
+            }
+            auto tensor_place = std::make_shared<TensorPlace>(m_input_model,
+                                                              ov::PartialShape::dynamic(),
+                                                              type,
+                                                              std::vector<std::string>{op_name});
+            m_inputs.push_back(tensor_place);
         }
         for (size_t input_port_idx = 0; input_port_idx < node_decoder->get_input_size(); ++input_port_idx) {
             std::string producer_op_name;
