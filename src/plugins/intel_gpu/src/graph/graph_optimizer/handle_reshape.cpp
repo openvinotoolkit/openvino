@@ -149,6 +149,11 @@ void handle_reshape::run(program& p) {
                         auto new_reshape = std::make_shared<reshape>("reorder:_reshape_split_" + user->id() + "_" + node->id(),
                                                                      input_node.id(),
                                                                      output_shape);
+                        new_reshape->special_zero = prim->special_zero;
+                        new_reshape->output_partial_shape = prim->output_partial_shape;
+                        new_reshape->output_pattern = prim->output_pattern;
+                        new_reshape->mode = prim->mode;
+                        new_reshape->input = prim->input;
                         auto& new_reshape_node = p.get_or_create(new_reshape);
                         user->replace_dependency(0, input_node);
                         p.add_intermediate(new_reshape_node, *user, 0);

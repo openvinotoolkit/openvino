@@ -94,6 +94,8 @@ To run the sample, you need to specify a model and image:
   
    - The sample accepts models in ONNX format (.onnx) that do not require preprocessing.
 
+   - Stating flags that take only single option like `-m` multiple times, for example `./classification_sample_async -m model.xml -m model2.xml`, results in only the first value being used.
+
 Example
 +++++++
 
