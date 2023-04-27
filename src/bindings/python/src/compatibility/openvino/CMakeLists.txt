@@ -53,4 +53,4 @@ endif()
 
 # install
 
-ie_cpack_add_component(${PYTHON_COMPONENT} HIDDEN)
+ov_cpack_add_component(${PYTHON_COMPONENT} HIDDEN)

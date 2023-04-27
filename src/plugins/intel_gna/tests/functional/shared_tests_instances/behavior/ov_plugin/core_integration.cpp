@@ -223,11 +223,23 @@ TEST(OVClassBasicPropsTest, smoke_SetConfigAfterCreatedTargetDevice) {
     OV_ASSERT_NO_THROW(compile_target = core.get_property("GNA", ov::intel_gna::compile_target));
     ASSERT_EQ(ov::intel_gna::HWGeneration::GNA_2_0, compile_target);
 
+    OV_ASSERT_NO_THROW(core.set_property("GNA", ov::intel_gna::execution_target(ov::intel_gna::HWGeneration::GNA_3_5)));
+    OV_ASSERT_NO_THROW(execution_target = core.get_property("GNA", ov::intel_gna::execution_target));
+    ASSERT_EQ(ov::intel_gna::HWGeneration::GNA_3_5, execution_target);
+    OV_ASSERT_NO_THROW(compile_target = core.get_property("GNA", ov::intel_gna::compile_target));
+    ASSERT_EQ(ov::intel_gna::HWGeneration::GNA_2_0, compile_target);
+
     OV_ASSERT_NO_THROW(core.set_property("GNA", ov::intel_gna::compile_target(ov::intel_gna::HWGeneration::GNA_3_0)));
     OV_ASSERT_NO_THROW(execution_target = core.get_property("GNA", ov::intel_gna::execution_target));
-    ASSERT_EQ(ov::intel_gna::HWGeneration::GNA_3_0, execution_target);
+    ASSERT_EQ(ov::intel_gna::HWGeneration::GNA_3_5, execution_target);
     OV_ASSERT_NO_THROW(compile_target = core.get_property("GNA", ov::intel_gna::compile_target));
     ASSERT_EQ(ov::intel_gna::HWGeneration::GNA_3_0, compile_target);
+
+    OV_ASSERT_NO_THROW(core.set_property("GNA", ov::intel_gna::compile_target(ov::intel_gna::HWGeneration::GNA_3_5)));
+    OV_ASSERT_NO_THROW(execution_target = core.get_property("GNA", ov::intel_gna::execution_target));
+    ASSERT_EQ(ov::intel_gna::HWGeneration::GNA_3_5, execution_target);
+    OV_ASSERT_NO_THROW(compile_target = core.get_property("GNA", ov::intel_gna::compile_target));
+    ASSERT_EQ(ov::intel_gna::HWGeneration::GNA_3_5, compile_target);
 
     OV_ASSERT_NO_THROW(
         core.set_property("GNA", ov::intel_gna::execution_target(ov::intel_gna::HWGeneration::UNDEFINED)));
@@ -246,6 +258,16 @@ TEST(OVClassBasicPropsTest, smoke_SetConfigAfterCreatedTargetDevice) {
                                    {ov::intel_gna::compile_target(ov::intel_gna::HWGeneration::GNA_2_0),
                                     {GNA_CONFIG_KEY(COMPILE_TARGET), "GNA_TARGET_3_0"}}),
                  ov::Exception);
+
+    ASSERT_THROW(core.set_property("GNA",
+                                   {ov::intel_gna::execution_target(ov::intel_gna::HWGeneration::GNA_2_0),
+                                    {GNA_CONFIG_KEY(EXEC_TARGET), "GNA_TARGET_3_5"}}),
+                 ov::Exception);
+    ASSERT_THROW(core.set_property("GNA",
+                                   {ov::intel_gna::compile_target(ov::intel_gna::HWGeneration::GNA_2_0),
+                                    {GNA_CONFIG_KEY(COMPILE_TARGET), "GNA_TARGET_3_5"}}),
+                 ov::Exception);
+
     ASSERT_THROW(core.set_property("GNA", {{ov::intel_gna::execution_target.name(), "ABC"}}), ov::Exception);
     ASSERT_THROW(core.set_property("GNA", {{ov::intel_gna::compile_target.name(), "ABC"}}), ov::Exception);
 }
@@ -319,10 +341,21 @@ TEST(OVClassBasicPropsTest, smoke_SetConfigAfterCreatedLogLevel) {
     ASSERT_THROW(core.set_property("GNA", {{ov::log::level.name(), "NO"}}), ov::Exception);
 }
 
-TEST(OVClassBasicPropsTest, smoke_SetConfigAfterCreatedFwModelPath) {
+TEST(OVClassBasicPropsTest, smoke_SetConfigAfterCreatedFwModelPathNegative) {
     ov::Core core;
     std::string path = "";
 
+    OV_ASSERT_NO_THROW(core.set_property("GNA", ov::intel_gna::execution_target(ov::intel_gna::HWGeneration::GNA_3_5)));
+    OV_ASSERT_NO_THROW(core.set_property("GNA", ov::intel_gna::firmware_model_image_path("model.bin")));
+    ASSERT_THROW(path = core.get_property("GNA", ov::intel_gna::firmware_model_image_path), ov::Exception);
+}
+
+TEST(OVClassBasicPropsTest, smoke_SetConfigAfterCreatedFwModelPathPositive) {
+    ov::Core core;
+    std::string path = "";
+
+    OV_ASSERT_NO_THROW(
+        core.set_property("GNA", ov::intel_gna::execution_target(ov::intel_gna::HWGeneration::GNA_3_5_E)));
     OV_ASSERT_NO_THROW(core.set_property("GNA", ov::intel_gna::firmware_model_image_path("model.bin")));
     OV_ASSERT_NO_THROW(path = core.get_property("GNA", ov::intel_gna::firmware_model_image_path));
     ASSERT_EQ("model.bin", path);
