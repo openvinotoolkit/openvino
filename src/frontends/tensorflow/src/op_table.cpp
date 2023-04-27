@@ -42,6 +42,7 @@ TF_OP_CONVERTER(translate_staticregexfullmatch_op);
 TF_OP_CONVERTER(translate_stringjoin_op);
 TF_OP_CONVERTER(translate_mergev2checkpoint_op);
 TF_OP_CONVERTER(translate_while_op);
+TF_OP_CONVERTER(translate_placeholder_linked_op);
 
 const std::map<std::string, CreatorFunction> get_supported_ops() {
     return {
@@ -202,7 +203,7 @@ const std::map<std::string, CreatorFunction> get_supported_ops() {
         {"DynamicStitch", CreatorFunction(translate_parallel_dynamic_stitch_op)},
         {"ParallelDynamicStitch", CreatorFunction(translate_parallel_dynamic_stitch_op)},
         {"PartitionedCall", CreatorFunction(translate_partitioned_call_op)},
-        {"Placeholder", CreatorFunction(translate_placeholder_op)},
+        {"Placeholder", CreatorFunction(translate_placeholder_linked_op)},
         {"PlaceholderWithDefault", CreatorFunction(translate_placeholder_with_default_op)},
         {"PreventGradient", CreatorFunction(translate_identity_op)},
         {"Range", CreatorFunction(translate_range_op)},
@@ -255,20 +256,25 @@ const std::map<std::string, CreatorFunction> get_supported_ops() {
         {"TopK", CreatorFunction(translate_top_k_op)},
         {"TopKV2", CreatorFunction(translate_top_k_v2_op)},
         {"Transpose", CreatorFunction(translate_transpose_op)},
-        {"ReadVariableOp", CreatorFunction(translate_readvariable_op)},
-        {"AssignVariableOp", CreatorFunction(translate_assignvariable_op)},
-        {"VarIsInitializedOp", CreatorFunction(translate_varisinitialized_op)},
-        {"VarHandleOp", CreatorFunction(translate_varhandle_op)},
-        {"RestoreV2", CreatorFunction(translate_restorev2_op)},
-        {"StaticRegexFullMatch", CreatorFunction(translate_staticregexfullmatch_op)},
-        {"StringJoin", CreatorFunction(translate_stringjoin_op)},
-        {"ShardedFilename", CreatorFunction(translate_identity_op)},
-        {"MergeV2Checkpoints", CreatorFunction(translate_identity_op)},
         {"Unpack", CreatorFunction(translate_unpack_op)},
         {"While", CreatorFunction(translate_while_op)},
         {"Where", CreatorFunction(translate_where_op)},
         {"Xdivy", CreatorFunction(translate_x_div_y_op)},
         {"ZerosLike", CreatorFunction(translate_zeros_like_op)},
+
+        // Translators for SavedModel and MetaGraph
+        {"Assign", CreatorFunction(translate_readvariable_op)},
+        {"AssignVariableOp", CreatorFunction(translate_assignvariable_op)},
+        {"IsVariableInitialized", CreatorFunction(translate_varisinitialized_op)},
+        {"MergeV2Checkpoints", CreatorFunction(translate_identity_op)},
+        {"ReadVariableOp", CreatorFunction(translate_readvariable_op)},
+        {"RestoreV2", CreatorFunction(translate_restorev2_op)},
+        {"ShardedFilename", CreatorFunction(translate_identity_op)},
+        {"StaticRegexFullMatch", CreatorFunction(translate_staticregexfullmatch_op)},
+        {"StringJoin", CreatorFunction(translate_stringjoin_op)},
+        {"VarIsInitializedOp", CreatorFunction(translate_varisinitialized_op)},
+        {"VarHandleOp", CreatorFunction(translate_varhandle_op)},
+        {"VariableV2", CreatorFunction(translate_varhandle_op)},
 
         // Translators for internal operations
         {"BlockLSTM", CreatorFunction(translate_block_lstm_op)},
