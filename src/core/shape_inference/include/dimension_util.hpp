@@ -161,7 +161,7 @@ auto ceil_div(const TDim& dim, const typename TDim::value_type divisor) -> TDim 
     if (dim.is_static()) {
         return {util::ceil_div<T>(dim.get_length(), divisor)};
     } else if (dim.get_max_length() == static_cast<T>(dim::inf_bound)) {
-        return {dim};
+        return {util::ceil_div<T>(dim.get_min_length(), divisor), dim.get_max_length()};
     } else {
         return {util::ceil_div<T>(dim.get_min_length(), divisor), util::ceil_div<T>(dim.get_max_length(), divisor)};
     }
@@ -183,7 +183,7 @@ auto floor_div(const TDim& dim, const typename TDim::value_type divisor) -> TDim
     if (dim.is_static()) {
         return {dim.get_length() / divisor};
     } else if (dim.get_max_length() == static_cast<T>(dim::inf_bound)) {
-        return {dim};
+        return {dim.get_min_length() / divisor, dim.get_max_length()};
     } else {
         return {dim.get_min_length() / divisor, dim.get_max_length() / divisor};
     }
