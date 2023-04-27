@@ -5,11 +5,14 @@
 #include "test_utils.h"
 
 #include "intel_gpu/runtime/engine.hpp"
-
 #include "intel_gpu/graph/program.hpp"
+#include "intel_gpu/graph/network.hpp"
+
 #include "data_inst.h"
 #include "eltwise_inst.h"
-#include "intel_gpu/graph/network.hpp"
+#include "dft_inst.h"
+#include "gather_inst.h"
+#include "border_inst.h"
 #include "pass_manager.h"
 #include "to_string_utils.h"
 
@@ -67,6 +70,89 @@ TEST(reorder_inputs, propagation) {
     auto& pool_node = prog_impl->get_node("pool");
 
     ASSERT_EQ(pool_node.get_output_layout().format.value, conv_pref);
+}
+
+TEST(reorder_inputs, mixed_ranks_irdft) {
+    // Topology:
+    // transpose -> (5d) -> irdft -> (4d) -> eltwise
+    // Expected: (bfzyx) -> irdft -> (bfyx)
+
+    auto& engine = get_test_engine();
+
+    topology topology;
+    topology.add(input_layout("input", layout{ { 1, 120, 2, 64, 33 }, data_types::f16, format::bfzyx }));
+    topology.add(input_layout("eltw_input", layout{ { 1, 120, 64, 64 }, data_types::f16, format::bfyx }));
+    topology.add(permute("permute", input_info("input"), { 0, 1, 3, 4, 2 }));
+    topology.add(dft("dft", input_info("permute"), {2, 3}, {64, 64}, {1, 120, 64, 64}, dft_direction::inverse, dft_mode::real));
+    topology.add(eltwise("eltwise", input_info("dft"), input_info("eltw_input"), eltwise_mode::sum));
+
+    ExecutionConfig config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::optimize_data(true));
+
+    program::ptr prog = nullptr;
+    ASSERT_NO_THROW(prog = program::build_program(engine, topology, config));
+    ASSERT_NE(prog, nullptr);
+
+    auto prog_impl = prog.get();
+
+    auto& dft_node = prog_impl->get_node("dft");
+
+    ASSERT_EQ(dft_node.get_input_layouts()[0].format, format::bfzyx);
+    ASSERT_EQ(dft_node.get_output_layout().format, format::bfyx);
+}
+
+TEST(reorder_inputs, mixed_ranks_gather) {
+    // Topology:
+    // (4d) -> conv -> (4d) -> border -> (4d) -> gather -> (5d) -> gather -> (6d) -> permute (6d)
+    // In case when preferred format for convolution is selected as byxf (in the test it's enforced)
+    // it could be propagated to border and gathers, but dimensions are handled incorrectly
+    // and the second gather may complain that axis >= rank
+    // So here we expect that input format for gather is aligned with actual output rank and format
+
+    auto& engine = get_test_engine();
+    auto data1_mem = engine.allocate_memory(layout{ { 3, 128, 1, 1 }, data_types::i32, format::bfyx });
+    auto data2_mem = engine.allocate_memory(layout{ { 3, 55, 1, 1 }, data_types::i32, format::bfyx });
+    auto weights_mem = engine.allocate_memory(layout{ { 2, 256, 3, 3 }, data_types::f16, format::bfyx });
+
+    topology topology;
+    topology.add(input_layout("input", layout{ { 1, 256, 128, 55 }, data_types::f16, format::bfyx }));
+    topology.add(data("weights", weights_mem));
+    topology.add(data("data1", data1_mem));
+    topology.add(data("data2", data2_mem));
+    topology.add(convolution("conv",
+                             input_info("input"),
+                             { "weights" },
+                             1,
+                             ov::Strides{1, 1},
+                             ov::CoordinateDiff{0, 0},
+                             ov::Strides{1, 1},
+                             ov::CoordinateDiff{0, 0},
+                             ov::CoordinateDiff{0, 0}));
+    topology.add(border("pad", { input_info("conv") }, 0, ov::CoordinateDiff{0, 0, 1, 1}, ov::CoordinateDiff{0, 0, 1, 1}));
+    topology.add(gather("gather1", input_info("pad"), input_info("data1"), 2, { 1, 2, 3, 128, 57 }, 0, false));
+    topology.add(gather("gather2", input_info("gather1"), input_info("data2"), 4, { 1, 2, 3, 128, 3, 55 }, 0, false));
+    topology.add(permute("permute", input_info("gather2"), {0, 1, 2, 4, 3, 5}));
+
+    ExecutionConfig config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::optimize_data(true));
+    ov::intel_gpu::ImplementationDesc conv_impl = { format::byxf, "" };
+    ov::intel_gpu::ImplementationDesc permute_impl = { format::bfwzyx, "" };
+    config.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ {"conv", conv_impl}, { "permute", permute_impl} }));
+
+    program::ptr prog = nullptr;
+    prog = program::build_program(engine, topology, config);
+    ASSERT_NE(prog, nullptr);
+
+    auto prog_impl = prog.get();
+
+    auto& gather1_node = prog_impl->get_node("gather1");
+    auto& gather2_node = prog_impl->get_node("gather2");
+
+    ASSERT_EQ(gather1_node.get_input_layouts()[0].format, format::bfzyx);
+    ASSERT_EQ(gather1_node.get_output_layout().format, format::bfzyx);
+
+    ASSERT_EQ(gather2_node.get_input_layouts()[0].format, format::bfwzyx);
+    ASSERT_EQ(gather2_node.get_output_layout().format, format::bfwzyx);
 }
 
 TEST(reorder_inputs, impl_forcing_basic_format) {
