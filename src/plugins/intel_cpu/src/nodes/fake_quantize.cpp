@@ -1344,7 +1344,6 @@ void FakeQuantize::initSupportedPrimitiveDescriptors() {
 
     for (auto& fmt : dataFormats) {
         NodeConfig config;
-        config.dynBatchSupport = true;
         for (size_t i = 0; i < getParentEdges().size(); i++) {
             PortConfig dataConfig;
             dataConfig.inPlace(-1);
@@ -1994,6 +1993,9 @@ void FakeQuantize::updateOptimizedFormula(bool do_rounding) {
             // merged with inputScale/inputShift with updated cropLow/cropHigh
             clo = clo * osc + osh;
             chi = chi * osc + osh;
+            if (clo > chi)
+                std::swap(clo, chi);
+
             //  crop(x*isc + ish, a, b)*osc + osh
             //  crop(x*isc*osc + ish*osc + osh, a', b')
             isc = isc * osc;

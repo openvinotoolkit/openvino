@@ -43,53 +43,51 @@ function(ie_add_onednn)
     endif()
 
     set(SDL_cmake_included ON)  ## to skip internal SDL flags. SDL flags are already set on IE level
-    if (ANDROID OR ((CMAKE_CXX_COMPILER_ID STREQUAL "MSVC") AND NOT (THREADING STREQUAL "OMP")))
+    if (ANDROID OR ((CMAKE_CXX_COMPILER_ID STREQUAL "MSVC" OR OV_COMPILER_IS_CLANG) AND NOT (THREADING STREQUAL "OMP")))
         set(OpenMP_cmake_included ON) ## to skip "omp simd" inside a code. Lead to some crashes inside NDK LLVM..
     endif()
 
-    if(SUGGEST_OVERRIDE_SUPPORTED)
-        # xbyak compilation fails
-        set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-suggest-override")
-    endif()
     if(X86_64)
         set(DNNL_TARGET_ARCH "X64" CACHE STRING "" FORCE)
     elseif(X86)
         set(DNNL_TARGET_ARCH "X86" CACHE STRING "" FORCE)
     elseif(RISCV64)
         set(DNNL_TARGET_ARCH "RV64" CACHE STRING "" FORCE)
-    elseif(AARCH64)
-        set(DNNL_TARGET_ARCH "AARCH64" CACHE STRING "" FORCE)
-        set(DNNL_AARCH64_USE_ACL ON CACHE BOOL "" FORCE)
+    elseif(AARCH64 OR ARM)
         # TODO: fix warning
         if(CMAKE_COMPILER_IS_GNUCXX OR OV_COMPILER_IS_CLANG)
             ie_add_compiler_flags(-Wno-macro-redefined)
         endif()
 
-        # move to separate ACL cmake
-        if(APPLE)
-            # Apple M1 / M2 is assumed
-            set(ARM_COMPUTE_TARGET_ARCH_DEFAULT armv8.2-a)
+        set(ARM_COMPUTE_SCONS_JOBS "8" CACHE STRING "Number of parallel threads to build ARM Compute Library")
+        set(DNNL_USE_ACL ON CACHE BOOL "" FORCE)
+
+        if(ARM)
+            set(DNNL_TARGET_ARCH "ARM" CACHE STRING "" FORCE)
+            set(ARM_COMPUTE_TARGET_ARCH_DEFAULT armv7a)
+            set(ARM_COMPUTE_TARGET_ARCHS armv7a armv7a-hf)
         else()
-            set(ARM_COMPUTE_TARGET_ARCH_DEFAULT arm64-v8a)
+            set(DNNL_TARGET_ARCH "AARCH64" CACHE STRING "" FORCE)
+            # move to separate ACL cmake
+            if(APPLE)
+                # Apple M1 / M2 is assumed
+                set(ARM_COMPUTE_TARGET_ARCH_DEFAULT armv8.2-a)
+            else()
+                set(ARM_COMPUTE_TARGET_ARCH_DEFAULT arm64-v8a)
+            endif()
+            set(ARM_COMPUTE_TARGET_ARCHS arm64-v8a
+                                         arm64-v8.2-a arm64-v8.2-a-sve arm64-v8.2-a-sve2
+                                         armv8a
+                                         armv8.2-a armv8.2-a-sve
+                                         armv8.6-a armv8.6-a-sve armv8.6-a-sve2 armv8.6-a-sve2-sme2
+                                         armv8r64 # the same as armv8.4-a
+                                         )
         endif()
-        set(ARM_COMPUTE_TARGET_ARCHS arm64-v8a arm64-v8.2-a arm64-v8.2-a-sve arm64-v8.2-a-sve2
-                                     armv8a armv8.2-a armv8.2-a-sve armv8.6-a armv8.6-a-sve armv8.6-a-sve2
-                                     armv8r64)
 
         set(ARM_COMPUTE_TARGET_ARCH "${ARM_COMPUTE_TARGET_ARCH_DEFAULT}" CACHE STRING "Architecture for ARM ComputeLibrary")
         set_property(CACHE ARM_COMPUTE_TARGET_ARCH PROPERTY STRINGS ${ARM_COMPUTE_TARGET_ARCHS})
     else()
         message(FATAL_ERROR "Unsupported system processor ${CMAKE_SYSTEM_PROCESSOR}")
-    endif()
-    if(CMAKE_COMPILER_IS_GNUCXX OR OV_COMPILER_IS_CLANG)
-        ie_add_compiler_flags(-Wno-undef)
-        ie_add_compiler_flags(-Wno-missing-declarations)
-        if(CMAKE_CXX_COMPILER_VERSION VERSION_GREATER_EQUAL 12 AND CMAKE_COMPILER_IS_GNUCXX)
-            ie_add_compiler_flags(-Wno-error=array-bounds)
-            ie_add_compiler_flags(-Wno-error=stringop-overflow=)
-        endif()
-    elseif(UNIX AND CMAKE_CXX_COMPILER_ID STREQUAL "Intel")
-        set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -diag-disable=10121")
     endif()
 
     # WA for old TBBConfig.cmake like tbb2019_20180718oss
@@ -142,7 +140,11 @@ function(ie_add_onednn)
     list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}")
 
     add_subdirectory(onednn EXCLUDE_FROM_ALL)
+
     ov_install_static_lib(dnnl cpu)
+    if(ARM OR AARCH64)
+        ov_install_static_lib(arm_compute_core cpu)
+    endif()
 endfunction()
 
 if(ENABLE_INTEL_CPU)

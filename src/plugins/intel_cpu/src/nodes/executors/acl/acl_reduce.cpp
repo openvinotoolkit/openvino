@@ -2,7 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "acl_utils.hpp"
 #include "acl_reduce.hpp"
 
 namespace ov {
@@ -71,9 +70,6 @@ bool AclReduceExecutor::init(const ReduceAttrs& reduceAttrs,
         case Algorithm::ReduceMin:
         case Algorithm::ReduceSum:
         case Algorithm::ReduceProd: {
-            if (reduceAttrs.axes.size() != 1) {
-                return false;
-            }
             Status reductionOperationStatus = NEReductionOperation::validate(&srcTensorInfo, &dstTensorInfo, axisCast(reduceAttrs.axes[0], srcDims.size()),
                                                                              getAclReductionOperationByAlgorithm(reduceAttrs.operation), reduceAttrs.keepDims);
             if (!reductionOperationStatus) {

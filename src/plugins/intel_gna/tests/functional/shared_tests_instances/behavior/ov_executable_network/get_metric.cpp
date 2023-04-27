@@ -6,6 +6,7 @@
 
 #include <gna/gna_config.hpp>
 
+#include "behavior/ov_executable_network/properties.hpp"
 #include "openvino/runtime/intel_gna/properties.hpp"
 
 using namespace ov::test::behavior;
@@ -255,4 +256,8 @@ INSTANTIATE_TEST_SUITE_P(smoke_OVClassHeteroExecutableNetworkGetMetricTest,
 INSTANTIATE_TEST_SUITE_P(smoke_OVClassHeteroExecutableNetworkGetMetricTest,
                          OVClassHeteroExecutableNetworkGetMetricTest_TARGET_FALLBACK,
                          ::testing::Values("GNA"));
+
+// IE Class Load network
+
+INSTANTIATE_TEST_SUITE_P(smoke_OVClassCompileModelTest, OVClassCompileModelTest, ::testing::Values("GNA"));
 }  // namespace

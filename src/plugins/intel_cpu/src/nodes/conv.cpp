@@ -616,8 +616,9 @@ void Convolution::setPostOps(dnnl::primitive_attr& attr,
     dnnl::post_ops ops;
     auto& args = convPostOpsArgs[useLegacyPostOps];
     bool isINT8 = canBeExecutedInInt8();
-
-    DnnlPostOpsComposer dnnlpoc(getEngine(), attr, ops, args, dims, 1, isINT8);
+    // Weight dims in NON-Group CONV: [OC, IC, KH, KW], perchannel weight scale applied on OC DIM, weiScaleMaskPerChannel =  1 << 0
+    // Weight dims in Group CONV:[Group, OC, IC, KH, KW], perchannel weight scale applied on GROUP and OC DIM, weiScaleMaskPerChannel = ( 1 << 0 | 1<< 1) = 0x03
+    DnnlPostOpsComposer dnnlpoc(getEngine(), attr, ops, args, dims, 1, isINT8, isGrouped ? 3 : 1 << 0, getDQScales(), withBiases);
 
     DEBUG_LOG(getName(), " useLegacyPostOps=", useLegacyPostOps, " initWeights=", initWeights);
 
@@ -637,11 +638,8 @@ void Convolution::setPostOps(dnnl::primitive_attr& attr,
                 ops.append_sum(1.0, 0, DnnlExtensionUtils::IEPrecisionToDataType(eltwisePrecision));
             } else {
                 if (useLegacyPostOps) {
-                    bool forceBinary = false;
-                    // Temporary debug functionality to be able to force binary postops for any model
-                    CPU_DEBUG_CAP_ENABLE(if (std::getenv("OV_CPU_FORCE_ELTWISE_AS_BINARY")) {forceBinary = true;})
                     // try mapping with optimization w/o using binary postOps
-                    if (eltwiseNode->appendAttrPostOps(dnnlpoc, isLastPostOp, outputDataType, forceBinary)) {
+                    if (eltwiseNode->appendAttrPostOps(dnnlpoc, isLastPostOp, outputDataType, false)) {
                         DEBUG_LOG(getName(), ": Append ", node->getName(), " as original post op without binary");
                         continue;
                     }
@@ -681,11 +679,8 @@ void Convolution::setPostOps(dnnl::primitive_attr& attr,
             }
 
             if (useLegacyPostOps) {
-                bool forceBinary = false;
-                // Temporary debug functionality to be able to force binary postops for any model
-                CPU_DEBUG_CAP_ENABLE(if (std::getenv("OV_CPU_FORCE_FQ_AS_BINARY")) {forceBinary = true;})
                 // can we implement it without binary postOps?
-                if (fakeQuantizeNode->appendAttrPostOps(dnnlpoc, isLastPostOp, outputDataType, forceBinary, do_rounding)) {
+                if (fakeQuantizeNode->appendAttrPostOps(dnnlpoc, isLastPostOp, outputDataType, false, do_rounding)) {
                     DEBUG_LOG(getName(), ": Append ", node->getName(), " as original post op without binary");
                     continue;
                 }
@@ -753,7 +748,6 @@ void Convolution::initSupportedPrimitiveDescriptors() {
         auto itpd = desc;
         while (itpd) {
             NodeConfig config;
-            config.dynBatchSupport = true;
 
             for (size_t i = 0; i < descInputNumbers(); i++) {
                 PortConfig dataConfig;
@@ -930,7 +924,7 @@ void Convolution::createDescriptor(const std::vector<MemoryDescPtr>& inputDesc,
 void Convolution::addZeroPoints(dnnl::primitive_attr& attr) {
     if (inputZeroPoints.empty())
         return;
-    DEBUG_LOG("Set original input zeropoints");
+    DEBUG_LOG(getName(), ": Set original input zeropoints");
     attr.set_zero_points_mask(DNNL_ARG_SRC, 0);
 
     if (!stockInputZeroPointsMemPtr) {
@@ -942,7 +936,7 @@ void Convolution::addZeroPoints(dnnl::primitive_attr& attr) {
 
 void Convolution::addLegacyZeroPoints(dnnl::primitive_attr& attr) {
     if (!legacyInputZeroPoints.empty()) {
-        DEBUG_LOG("Set legacy input zero points");
+        DEBUG_LOG(getName(), ": Set legacy input zero points");
         attr.set_input_zero_points(legacyInputZeroPoints.size(), 1 << 1 /*through C dim*/);
         if (!legacyInputZeroPointsMemPtr) {
             legacyInputZeroPointsMemPtr.reset(new Memory(getEngine()));
@@ -952,7 +946,7 @@ void Convolution::addLegacyZeroPoints(dnnl::primitive_attr& attr) {
     }
 
     if (!legacyWeightsZeroPoints.empty()) {
-        DEBUG_LOG("Set legacy weights zero points");
+        DEBUG_LOG(getName(), ": Set legacy weights zero points");
         attr.set_weights_zero_points(legacyWeightsZeroPoints.size(), 1 << 1 /*through C dim*/);
 
         if (!legacyWeightsZeroPointsMemPtr) {
@@ -963,7 +957,7 @@ void Convolution::addLegacyZeroPoints(dnnl::primitive_attr& attr) {
     }
 
     if (!legacyOutputCompensation.empty()) {
-        DEBUG_LOG("Set legacy output compensationss");
+        DEBUG_LOG(getName(), ": Set legacy output compensationss");
         attr.set_output_compensations(legacyOutputCompensation.size(), 1 << 1 /*through C dim*/);
 
         if (!legacyOutputCompensationMemPtr) {
@@ -1180,16 +1174,6 @@ bool Convolution::canFuse(const NodePtr& node) const {
 
 dnnl::memory Convolution::getWeights() const {
     return getParentEdgeAt(1)->getMemory().GetPrimitive();
-}
-
-void Convolution::setDynamicBatchLim(int lim) {
-    if (!execPtr) {
-        IE_THROW() << "Can't set dynamic batch for Convolution node with name: " << getName() << ", because executor is not compiled";
-    }
-    if (execPtr->needReordering()) {
-        IE_THROW() << "Can't execute Convolution node with dynamic batch via executor with reorders";
-    }
-    Node::setDynamicBatchLim(lim);
 }
 
 dnnl::memory Convolution::getBias() const {
@@ -1506,7 +1490,7 @@ void Convolution::prepareParams() {
             auto it = primArgs.find(DNNL_ARG_WEIGHTS);
             if (it == primArgs.end() || !prevExecPtr ||
                 !execPtr->getWeightDesc()->isCompatible(*(prevExecPtr->getWeightDesc()))) {
-                pendingConstWeightReorder = true;
+                primArgs[DNNL_ARG_WEIGHTS] = prepareWeightMemory(execPtr->getWeightDesc())->GetPrimitive();
             }
         } else {
             // non-const weight will be reordered by executor on every exec
@@ -1561,11 +1545,6 @@ Convolution::ConvolutionExecutor::ConvolutionExecutor(const dnnl::convolution_fo
 void Convolution::execute(dnnl::stream strm) {
     if (!execPtr) {
         IE_THROW() << "Can't execute Convolution node with name: " << getName() << ", because executor is not compiled";
-    }
-
-    if (pendingConstWeightReorder) {
-        primArgs[DNNL_ARG_WEIGHTS] = prepareWeightMemory(execPtr->getWeightDesc())->GetPrimitive();
-        pendingConstWeightReorder = false;
     }
 
     execPtr->exec(primArgs, strm);
@@ -1688,10 +1667,7 @@ void Convolution::initTryBrgconvFlag() {
         shouldTryBrgconv = true;
     }
 
-    // Temporary debug functionality to be able to force brgconv for any model
-    CPU_DEBUG_CAP_ENABLE(if (std::getenv("OV_CPU_FORCE_BRGCONV")) {shouldTryBrgconv = true;})
-
-    DEBUG_LOG("shouldTryBrgconv = ", shouldTryBrgconv);
+    DEBUG_LOG(getName(), ": shouldTryBrgconv = ", shouldTryBrgconv);
 }
 
 void Convolution::initializeInputZeroPoints(const uint8_t* inputZpData, const size_t inputZpSize) {

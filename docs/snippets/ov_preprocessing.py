@@ -38,7 +38,7 @@ ppp.input(input_name).preprocess() \
     .resize(ResizeAlgorithm.RESIZE_LINEAR) \
     .mean([100.5, 101, 101.5]) \
     .scale([50., 51., 52.])
-# .convert_layout(Layout('NCHW')); # Not needed, such conversion will be added implicitly
+# .convert_layout(Layout('NCHW')) # Not needed, such conversion will be added implicitly
 # ! [ov:preprocess:steps]
 # ! [ov:preprocess:build]
 print(f'Dump preprocessor: {ppp}')
