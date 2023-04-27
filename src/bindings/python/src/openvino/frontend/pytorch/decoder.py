@@ -15,6 +15,8 @@ import inspect
 import ctypes
 
 def maybe_convert_max_int(value : int):
+    # FIXME: This is a convertion from 64-bit positive max integer value
+    # to 32-bit positive max integer value. Find a better way to handle this.
     if value == 9223372036854775807:
         return 2147483647
     else:
