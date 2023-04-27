@@ -169,7 +169,7 @@ This is achieved by specifying maps as arguments for ``OpExtension`` constructor
 
 
 Attribute mapping with named inputs and outputs
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 Mappings in previous examples assume that inputs and outputs of an operator in framework model representation come 
 with a particular order so you can directly map framework operation input ``0`` to OpenVINO operation input ``0`` and so on. 
