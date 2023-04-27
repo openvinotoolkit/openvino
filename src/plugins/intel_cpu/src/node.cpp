@@ -1630,15 +1630,19 @@ void Node::addSupportedPrimDesc(const std::vector<PortConfigurator>& inPortConfi
     supportedPrimitiveDescriptors.push_back({config, implType});
 }
 
-void Node::initializeDQScales(const float* scaleData, const size_t scaleSize) {
-    bool scalePerTensor;
-    if (!DQScales.empty() || !scaleSize)
-        IE_THROW() << "DQ scales is preset or scale size is 0, ##" << getName();
-    DQScales.reserve(scaleSize);
-    scalePerTensor = true;
-    for (size_t i = 0; i < scaleSize; i++) {
-        DQScales.push_back(scaleData[i]);
-        if (scaleData[i] != scaleData[0])
+void Node::setDQScales(const float* scaleData, const size_t scaleSize) {
+    bool scalePerTensor = true;
+    if (DQScales.empty())
+        DQScales.resize(scaleSize, 1.0);
+    if (!(scaleSize == 1 || DQScales.size() == 1 || DQScales.size() == scaleSize))
+        IE_THROW() << "set invalid scales size , DQScales vector size: " << DQScales.size()
+                    << ", scale data size: " << scaleSize
+                    << "Node: ##" << getName();
+    if (scaleSize > DQScales.size())
+        DQScales.resize(scaleSize, DQScales[0]);
+    for (size_t i = 0; i < DQScales.size(); i++) {
+        DQScales[i] = DQScales[i] * (scaleSize == 1 ? scaleData[0] : scaleData[i]);
+        if (DQScales[i] != DQScales[0])
             scalePerTensor = false;
     }
     if (scalePerTensor)
