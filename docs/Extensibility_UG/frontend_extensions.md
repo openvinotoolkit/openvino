@@ -118,6 +118,7 @@ Attributes in OpenVINO operators are identified by their names, so for framework
 you can specify name to name mapping. For frameworks where OpenVINO operator's attributes can be mapped to one of the framework 
 operator inputs (like PyTorch), there's a name to input index mapping.
 
+
 Named attributes mapping
 ^^^^^^^^^^^^^^^^^^^^^^^^
 
@@ -140,29 +141,12 @@ And original model in framework representation also has operation with name ``Cu
 
 Both ``attr1`` and ``attr2`` are copied from framework representation to OpenVINO representation automatically.
 
-The code is slightly different, if you want to use ``OpExtension`` for PaddlePaddle model. PaddlePaddle operations 
-have named inputs and outputs, so you need to pass their names in ``OpExtension`` constructor. For example, 
-if ``CustomOperation`` has 3 inputs named "A", "B" and "C" and two outputs named "X" and "Y", then the code 
-that registers the extension looks like following:
-
-.. doxygensnippet:: docs/snippets/ov_extensions.cpp
-   :language: cpp
-   :fragment: [frontend_extension_CustomOperation_as_is_paddle]
-
-
 If for some reason names of attributes are different but values still can be copied “as-is” you can pass attribute 
 names mapping in ``OpExtension`` constructor:
 
 .. doxygensnippet:: docs/snippets/ov_extensions.cpp
    :language: cpp
    :fragment: [frontend_extension_CustomOperation_rename]
-
-and similarily if ``CustomOperation`` will be used in PaddlePaddle model:
-
-.. doxygensnippet:: docs/snippets/ov_extensions.cpp
-   :language: cpp
-   :fragment: [frontend_extension_CustomOperation_rename_paddle]
-
 
 Where ``fw_attr1`` and ``fw_attr2`` are names for corresponding attributes in framework operation representation.
 
@@ -175,13 +159,6 @@ to achieve that do the following:
    :fragment: [frontend_extension_CustomOperation_rename_set]
 
 
-and similarily with named inputs and outputs:
-
-.. doxygensnippet:: docs/snippets/ov_extensions.cpp
-   :language: cpp
-   :fragment: [frontend_extension_CustomOperation_rename_set_paddle]
-
-
 So the conclusion is that each attribute of target OpenVINO operation should be initialized either by
 
 1. Setting automatically due to name matching
@@ -189,6 +166,46 @@ So the conclusion is that each attribute of target OpenVINO operation should be 
 3. Set to a constant value
 
 This is achieved by specifying maps as arguments for ``OpExtension`` constructor.
+
+
+Attribute mapping with named inputs and outputs
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Mappings in previous examples assume that inputs and outputs of an operator in framework model representation come 
+with a particular order so you can directly map framework operation input ``0`` to OpenVINO operation input ``0`` and so on. 
+That's not always the case, for frameworks like PaddlePaddle, operation inputs and outputs are identified by their names 
+and may be defined in any order. So to map it to OpenVINO operation inputs and outputs, you have to specify that order yourself. 
+This can be done by creating two vector of strings, one for input and one for output, where framework operation 
+input name at position ``i`` maps to OpenVINO operation input at position ``i`` (and similarly for outputs).
+
+
+Let's see the following example. Like previously, we'd like to map ``CustomOperation`` in the original model, 
+to OpenVINO ``CustomOperation`` as is (so their name and attributes names match). This time, that framework operation 
+inputs and outputs are not stricly ordered and can be identified  by their names ``A``, ``B``, ``C`` for inputs 
+and ``X``, ``Y`` for outputs. Those inputs and outputs can be mapped to OpenVINO operation, such that inputs 
+``A``, ``B``, ``C`` map to OpenVINO ``CustomOperation`` first, second and third input and ``X`` and ``Y`` 
+outputs map to OpenVINO ``CustomOperation`` first and second output respectively. 
+
+Given that, such custom operation can be registered by the following:
+
+.. doxygensnippet:: docs/snippets/ov_extensions.cpp
+   :language: cpp
+   :fragment: [frontend_extension_CustomOperation_as_is_paddle]
+
+
+Second example shows how to map the operation with named inputs and outputs, but when names of attributes are different:
+
+.. doxygensnippet:: docs/snippets/ov_extensions.cpp
+   :language: cpp
+   :fragment: [frontend_extension_CustomOperation_rename_paddle]
+
+
+and the last one shows how to map the operation with named inputs and outputs, but when (in order to correctly map framework 
+operation to OpenVINO operation) one of the attributes has to be set to predefined value:
+
+.. doxygensnippet:: docs/snippets/ov_extensions.cpp
+   :language: cpp
+   :fragment: [frontend_extension_CustomOperation_rename_set_paddle]
 
 
 Mapping attributes from operation inputs
