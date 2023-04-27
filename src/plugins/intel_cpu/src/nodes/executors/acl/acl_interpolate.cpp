@@ -24,18 +24,12 @@ bool ov::intel_cpu::ACLInterpolateExecutor::init(const InterpolateAttrs &interpo
     aclInterpolateAttrs = interpolateAttrs;
     InterpolateExecutor::init(aclInterpolateAttrs, srcDescs, dstDescs, attr);
     acl_coord = arm_compute::SamplingPolicy::TOP_LEFT;
-    auto& out_shape = dstDescs[0]->getShape().getDims();
-    auto index_h = 2, index_w = 3;
-    if (srcDescs[0]->hasLayoutType(LayoutType::nspc)) {
-        index_h = 1; index_w = 2;
-    }
 
     int index_h, index_w;
     if (!getIndices(dstDescs[0], index_h, index_w)) { return false; }
 
     if ((aclInterpolateAttrs.coordTransMode == InterpolateCoordTransMode::pytorch_half_pixel && out_shape[index_h] > 1 && out_shape[index_w] > 1) ||
         aclInterpolateAttrs.coordTransMode == InterpolateCoordTransMode::half_pixel) {
-
         acl_coord = arm_compute::SamplingPolicy::CENTER;
     }
 
@@ -113,10 +107,6 @@ bool ov::intel_cpu::ACLInterpolateExecutorBuilder::isSupportedConfiguration(
 
     auto& inp_shape = srcDescs[0]->getShape().getDims();
     auto& out_shape = dstDescs[0]->getShape().getDims();
-    auto index_h = 2, index_w = 3;
-    if (srcDescs[0]->hasLayoutType(LayoutType::nspc)) {
-        index_h = 1; index_w = 2;
-    }
 
     int index_h, index_w;
     if (!getIndices(srcDescs[0], index_h, index_w)) { return false; }
