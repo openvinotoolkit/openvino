@@ -224,13 +224,10 @@ struct TBBStreamsExecutor::Impl {
         if (shared->_streamQueue.try_pop(stream)) {
             struct TryPop {
                 void operator()() const {
-                    try {
                         do {
                             Task task = std::move(_task);
                             task();
                         } while (_shared->_taskQueue.try_pop(_task));
-                    } catch (...) {
-                    }
                     if (_shared->_streamQueue.try_push(_stream)) {
                         if (_shared->_taskQueue.try_pop(_task)) {
                             Schedule(_shared, std::move(_task));

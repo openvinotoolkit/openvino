@@ -21,22 +21,14 @@ struct BlobAllocator : public IAllocator {
     void unlock(void*) noexcept override {}
 
     void* alloc(const size_t size) noexcept override {
-        try {
             return size_map.emplace(_impl.allocate(size), size).first->first;
-        } catch (...) {
-            return nullptr;
-        }
     }
 
     bool free(void* handle) noexcept override {
-        try {
             auto size = size_map.at(handle);
             size_map.erase(handle);
             _impl.deallocate(handle, size);
             return true;
-        } catch (...) {
-            return false;
-        }
     }
 
     ov::Allocator _impl;

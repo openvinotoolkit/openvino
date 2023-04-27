@@ -88,17 +88,11 @@ struct PerfHintsConfig {
      */
     static int CheckPerformanceHintRequestValue(const std::string& val) {
         int val_i = -1;
-        try {
             val_i = std::stoi(val);
             if (val_i >= 0)
                 return val_i;
             else
                 throw std::logic_error("wrong val");
-        } catch (const std::exception&) {
-            IE_THROW() << "Wrong value of " << val << " for property key "
-                       << PluginConfigParams::KEY_PERFORMANCE_HINT_NUM_REQUESTS
-                       << ". Expected only positive integer numbers";
-        }
     }
 };
 }  // namespace InferenceEngine

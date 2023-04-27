@@ -268,7 +268,6 @@ StatusCode CNNNetworkNGraphImpl::addOutput(const std::string& layerName,
                                            ResponseDesc* resp) noexcept {
     OV_ITT_SCOPED_TASK(ov::itt::domains::IE, "CNNNetworkNGraphImpl::addOutput");
 
-    try {
         for (const auto& layer : _ngraph_function->get_ops()) {
             // Result can have the same name as previous operation
             if (layer->get_friendly_name() == layerName && !std::dynamic_pointer_cast<ngraph::op::Result>(layer)) {
@@ -292,12 +291,7 @@ StatusCode CNNNetworkNGraphImpl::addOutput(const std::string& layerName,
                 result->set_friendly_name(outputName);
                 _ngraph_function->add_results({result});
                 // Check that we cannot add Result to layer with non unique friendly name
-                try {
                     validateFunctionNames();
-                } catch (...) {
-                    _ngraph_function->remove_result(result);
-                    throw;
-                }
 
                 if (_outputData.count(outputName) == 0) {
                     reshape();
@@ -305,9 +299,6 @@ StatusCode CNNNetworkNGraphImpl::addOutput(const std::string& layerName,
                 return OK;
             }
         }
-    } catch (...) {
-        return GENERAL_ERROR;
-    }
     return DescriptionBuffer(NOT_FOUND, resp) << "Cannot add output! Layer " << layerName << " wasn't found!";
 }
 
@@ -355,7 +346,6 @@ void CNNNetworkNGraphImpl::reshape() {
 
 StatusCode CNNNetworkNGraphImpl::reshape(const std::map<std::string, ngraph::PartialShape>& inputShapes,
                                          ResponseDesc* responseDesc) noexcept {
-    try {
         if (inputShapes.empty())
             return OK;
 
@@ -383,30 +373,14 @@ StatusCode CNNNetworkNGraphImpl::reshape(const std::map<std::string, ngraph::Par
             originalInputShapes[param->get_friendly_name()] = param->get_output_partial_shape(0);
         }
 
-        try {
             ngraph::pass::Manager ssr_manager;
             using namespace ov::pass;
             REGISTER_PASS(ssr_manager, SmartReshape)
             ssr_manager.run_passes(_ngraph_function);
 
             reshape(inputShapes);
-        } catch (std::exception& ex) {
-            reshape(originalInputShapes);
-            return DescriptionBuffer(GENERAL_ERROR, responseDesc) << ex.what();
-        }
 
         return OK;
-    } catch (const InferenceEngine::GeneralError& ex) {
-        return DescriptionBuffer(GENERAL_ERROR, responseDesc) << ex.what();
-    } catch (const ov::Exception& ex) {
-        return DescriptionBuffer(GENERAL_ERROR, responseDesc) << ex.what();
-    } catch (const std::runtime_error& ex) {
-        return DescriptionBuffer(GENERAL_ERROR, responseDesc) << ex.what();
-    } catch (const std::out_of_range& ex) {
-        return DescriptionBuffer(OUT_OF_BOUNDS, responseDesc) << ex.what();
-    } catch (...) {
-        return GENERAL_ERROR;
-    }
 }
 
 StatusCode CNNNetworkNGraphImpl::reshape(const std::map<std::string, SizeVector>& inputShapes,
@@ -514,7 +488,6 @@ void CNNNetworkNGraphImpl::reshape(const std::map<std::string, ngraph::PartialSh
 StatusCode CNNNetworkNGraphImpl::serialize(const std::string& xmlPath,
                                            const std::string& binPath,
                                            ResponseDesc* resp) const noexcept {
-    try {
         std::map<std::string, ngraph::OpSet> custom_opsets;
         for (const auto& extension : _ie_extensions) {
             auto opset = extension->getOpSets();
@@ -524,19 +497,11 @@ StatusCode CNNNetworkNGraphImpl::serialize(const std::string& xmlPath,
         using namespace ov::pass;
         REGISTER_PASS(manager, Serialize, xmlPath, binPath, custom_opsets, ov::pass::Serialize::Version::IR_V10)
         manager.run_passes(_ngraph_function);
-    } catch (const Exception& e) {
-        return DescriptionBuffer(GENERAL_ERROR, resp) << e.what();
-    } catch (const std::exception& e) {
-        return DescriptionBuffer(UNEXPECTED, resp) << e.what();
-    } catch (...) {
-        return DescriptionBuffer(UNEXPECTED, resp);
-    }
     return OK;
 }
 
 StatusCode CNNNetworkNGraphImpl::serialize(std::ostream& xmlBuf, std::ostream& binBuf, ResponseDesc* resp) const
     noexcept {
-    try {
         std::map<std::string, ngraph::OpSet> custom_opsets;
         for (const auto& extension : _ie_extensions) {
             auto opset = extension->getOpSets();
@@ -546,19 +511,11 @@ StatusCode CNNNetworkNGraphImpl::serialize(std::ostream& xmlBuf, std::ostream& b
         using namespace ov::pass;
         REGISTER_PASS(manager, Serialize, xmlBuf, binBuf, custom_opsets, ov::pass::Serialize::Version::IR_V10)
         manager.run_passes(_ngraph_function);
-    } catch (const Exception& e) {
-        return DescriptionBuffer(GENERAL_ERROR, resp) << e.what();
-    } catch (const std::exception& e) {
-        return DescriptionBuffer(UNEXPECTED, resp) << e.what();
-    } catch (...) {
-        return DescriptionBuffer(UNEXPECTED, resp);
-    }
     return OK;
 }
 
 StatusCode CNNNetworkNGraphImpl::serialize(std::ostream& xmlBuf, Blob::Ptr& binBlob, ResponseDesc* resp) const
     noexcept {
-    try {
         std::map<std::string, ngraph::OpSet> custom_opsets;
         for (const auto& extension : _ie_extensions) {
             auto opset = extension->getOpSets();
@@ -578,13 +535,6 @@ StatusCode CNNNetworkNGraphImpl::serialize(std::ostream& xmlBuf, Blob::Ptr& binB
         binBlob = make_shared_blob<uint8_t>(tensorDesc);
         binBlob->allocate();
         pbuf->sgetn(binBlob->buffer(), bufSize);
-    } catch (const Exception& e) {
-        return DescriptionBuffer(GENERAL_ERROR, resp) << e.what();
-    } catch (const std::exception& e) {
-        return DescriptionBuffer(UNEXPECTED, resp) << e.what();
-    } catch (...) {
-        return DescriptionBuffer(UNEXPECTED, resp);
-    }
     return OK;
 }
 
@@ -599,7 +549,6 @@ StatusCode CNNNetworkNGraphImpl::getOVNameForTensor(std::string& ov_name,
 }
 
 StatusCode CNNNetworkNGraphImpl::setBatchSize(size_t size, ResponseDesc* responseDesc) noexcept {
-    try {
         if (getBatchSize() == size)
             return OK;
         auto original_parameters = _ngraph_function->get_parameters();
@@ -656,7 +605,4 @@ StatusCode CNNNetworkNGraphImpl::setBatchSize(size_t size, ResponseDesc* respons
         ssr_manager.run_passes(_ngraph_function);
 
         return reshape(inShapes, responseDesc);
-    } catch (std::exception& ex) {
-        return DescriptionBuffer(GENERAL_ERROR, responseDesc) << ex.what();
-    }
 }

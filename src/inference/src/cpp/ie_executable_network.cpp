@@ -19,11 +19,7 @@ namespace InferenceEngine {
 #define EXEC_NET_CALL_STATEMENT(...)                                        \
     if (_impl == nullptr)                                                   \
         IE_THROW(NotAllocated) << "ExecutableNetwork was not initialized."; \
-    try {                                                                   \
-        __VA_ARGS__;                                                        \
-    } catch (...) {                                                         \
-        InferenceEngine::details::Rethrow();                                \
-    }
+        __VA_ARGS__;
 
 ExecutableNetwork::~ExecutableNetwork() {
     _impl = {};

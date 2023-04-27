@@ -100,10 +100,8 @@ public:
         , _impl(context, stream, layout, mem, surf, plane, mem_type) {}
 
     void allocate() noexcept override {
-        try {
-            if (!_impl.is_allocated())
-                _impl.allocate();
-        } catch (...) {}
+        if (!_impl.is_allocated())
+            _impl.allocate();
     }
     bool deallocate() noexcept override { return _impl.deallocate(); }
     InferenceEngine::ParamMap getParams() const override { return _impl.getParams(); }

@@ -268,12 +268,8 @@ void ocl_stream::set_arguments(kernel& kernel, const kernel_arguments_desc& args
 
     auto& kern = ocl_kernel.get_handle();
 
-    try {
         GPU_DEBUG_TRACE_DETAIL << "Set arguments for primitive: " << args_desc.layerID << " (" << kern.get() << ")\n";
         set_arguments_impl(kern, args_desc.arguments, args);
-    } catch (cl::Error const& err) {
-        throw ocl_error(err);
-    }
 }
 
 event::ptr ocl_stream::enqueue_kernel(kernel& kernel,
@@ -304,15 +300,7 @@ event::ptr ocl_stream::enqueue_kernel(kernel& kernel,
 
     bool set_output_event = sync_method == sync_methods::events || is_output;
 
-    try {
         _command_queue.enqueueNDRangeKernel(kern, cl::NullRange, global, local, dep_events_ptr, set_output_event ? &ret_ev : nullptr);
-    } catch (cl::Error const& err) {
-        /// WA: Force exit. Any opencl api call can be hang after CL_OUT_OF_RESOURCES.
-        if (err.err() == CL_OUT_OF_RESOURCES) {
-            ov::intel_gpu::ForceExit();
-        }
-        throw ocl_error(err);
-    }
 
     return std::make_shared<ocl_event>(ret_ev, ++_queue_counter);
 }
@@ -334,14 +322,10 @@ event::ptr ocl_stream::enqueue_marker(std::vector<event::ptr> const& deps, bool 
                     dep_events.push_back(ocl_base_ev->get());
         }
 
-        try {
             if (dep_events.empty()) {
                 return create_user_event(true);
             }
             _command_queue.enqueueMarkerWithWaitList(&dep_events, &ret_ev);
-        } catch (cl::Error const& err) {
-            throw ocl_error(err);
-        }
 
         return std::make_shared<ocl_event>(ret_ev, ++_queue_counter);
     } else if (sync_method == sync_methods::barriers) {
@@ -385,20 +369,12 @@ void ocl_stream::wait_for_events(const std::vector<event::ptr>& events) {
     }
 
     if (needs_barrier) {
-        try {
             cl::Event barrier_ev;
             _command_queue.enqueueBarrierWithWaitList(nullptr, &barrier_ev);
             clevents.push_back(barrier_ev);
-        } catch (cl::Error const& err) {
-            throw ocl_error(err);
-        }
     }
 
-    try {
         cl::WaitForEvents(clevents);
-    } catch (cl::Error const& err) {
-        throw ocl_error(err);
-    }
 }
 
 void ocl_stream::sync_events(std::vector<event::ptr> const& deps, bool is_output) {
@@ -411,14 +387,10 @@ void ocl_stream::sync_events(std::vector<event::ptr> const& deps, bool is_output
     }
 
     if (needs_barrier) {
-        try {
             if (is_output)
                 _command_queue.enqueueBarrierWithWaitList(nullptr, &_last_barrier_ev);
             else
                 _command_queue.enqueueBarrierWithWaitList(nullptr, nullptr);
-        } catch (cl::Error const& err) {
-            throw ocl_error(err);
-        }
 
         _last_barrier = ++_queue_counter;
     }

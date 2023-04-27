@@ -56,11 +56,7 @@ OPENVINO_PLUGIN_API void CreatePreProcessData(std::shared_ptr<IPreProcessData>& 
 #define OV_PREPROC_PLUGIN_CALL_STATEMENT(...)                                                      \
     if (!_ptr)                                                                                     \
         IE_THROW() << "Wrapper used in the OV_PREPROC_PLUGIN_CALL_STATEMENT was not initialized."; \
-    try {                                                                                          \
-        __VA_ARGS__;                                                                               \
-    } catch (...) {                                                                                \
-        ::InferenceEngine::details::Rethrow();                                                     \
-    }
+        __VA_ARGS__;
 
 class PreProcessDataPlugin {
     std::shared_ptr<void> _so = nullptr;

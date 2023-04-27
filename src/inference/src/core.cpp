@@ -15,12 +15,8 @@
 namespace {
 std::string resolve_extension_path(const std::string& path) {
     std::string retvalue;
-    try {
         const std::string absolute_path = ov::util::get_absolute_file_path(path);
         retvalue = FileUtils::fileExist(absolute_path) ? absolute_path : path;
-    } catch (const std::runtime_error&) {
-        retvalue = path;
-    }
     return retvalue;
 }
 
@@ -55,13 +51,7 @@ std::string findPluginXML(const std::string& xmlFile) {
 }
 
 #define OV_CORE_CALL_STATEMENT(...)             \
-    try {                                       \
-        __VA_ARGS__;                            \
-    } catch (const std::exception& ex) {        \
-        OPENVINO_THROW(ex.what());              \
-    } catch (...) {                             \
-        OPENVINO_THROW("Unexpected exception"); \
-    }
+        __VA_ARGS__;
 
 class Core::Impl : public CoreImpl {
 public:

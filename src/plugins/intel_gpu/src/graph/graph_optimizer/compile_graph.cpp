@@ -71,16 +71,12 @@ void compile_graph::run(program& p) {
 
         if (can_select_impl) {
             tasks.push_back([node, &exception, change_initial_impl, original_impl_type] {
-                try {
                     node->selected_impl = node->type()->choose_impl(*node);
                     if (change_initial_impl) {
                         GPU_DEBUG_TRACE_DETAIL << node->id() << ": use " << node->get_preferred_impl_type()
                                                << " as initial impl instead of " << original_impl_type << std::endl;
                         node->set_preferred_impl_type(original_impl_type);
                     }
-                } catch(...) {
-                    exception = std::current_exception();
-                }
             });
         } else {
             if (change_initial_impl) {

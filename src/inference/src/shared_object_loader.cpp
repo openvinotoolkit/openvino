@@ -20,21 +20,13 @@ SharedObjectLoader::SharedObjectLoader(const wchar_t* pluginName)
 #endif
 
 SharedObjectLoader::SharedObjectLoader(const char* pluginName) : _so{nullptr} {
-    try {
         _so = ov::util::load_shared_object(pluginName);
-    } catch (const std::runtime_error& ex) {
-        IE_THROW(GeneralError) << ex.what();
-    }
 }
 
 SharedObjectLoader::~SharedObjectLoader() {}
 
 void* SharedObjectLoader::get_symbol(const char* symbolName) const {
-    try {
         return ov::util::get_symbol(_so, symbolName);
-    } catch (const std::runtime_error& ex) {
-        IE_THROW(NotFound) << ex.what();
-    }
 }
 
 std::shared_ptr<void> SharedObjectLoader::get() const {

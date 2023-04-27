@@ -16,19 +16,12 @@ public:
     void unlock(void* a) noexcept override {}
 
     void* alloc(size_t size) noexcept override {
-        try {
             auto handle = reinterpret_cast<void*>(new char[size]);
             return handle;
-        } catch (...) {
-            return nullptr;
-        }
     }
 
     bool free(void* handle) noexcept override {
-        try {
             delete[] reinterpret_cast<char*>(handle);
-        } catch (...) {
-        }
         return true;
     }
 };

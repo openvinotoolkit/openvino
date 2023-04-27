@@ -505,27 +505,15 @@ public:
     }
 
     void SetBlob(const std::string& name, const InferenceEngine::Blob::Ptr& data) override {
-        try {
             m_request->set_tensor(find_port(name), ov::Tensor{ov::make_tensor(data), {}});
-        } catch (const ov::Exception& ex) {
-            const std::string what = ex.what();
-            if (what.find("Failed to set tensor") != std::string::npos) {
-                IE_THROW(ParameterMismatch) << what;
-            }
-            IE_THROW(GeneralError) << what;
-        }
     }
 
     void SetBlobs(const std::string& name, const std::vector<InferenceEngine::Blob::Ptr>& blobs) override {
-        try {
             std::vector<ov::Tensor> tensors;
             for (const auto& blob : blobs) {
                 tensors.emplace_back(ov::Tensor{ov::make_tensor(blob), {}});
             }
             m_request->set_tensors(find_port(name), tensors);
-        } catch (const ov::Exception& ex) {
-            IE_THROW(GeneralError) << ex.what();
-        }
     }
 
     InferenceEngine::Blob::Ptr GetBlob(const std::string& name) override {
@@ -642,28 +630,10 @@ public:
     }
 
     void wait() override {
-        try {
             m_request->Wait(InferenceEngine::InferRequest::RESULT_READY);
-        } catch (const ov::Cancelled&) {
-            throw;
-        } catch (const InferenceEngine::InferCancelled& e) {
-            ov::Cancelled::create(e.what());
-        } catch (const std::exception& ex) {
-            OPENVINO_THROW(ex.what());
-        } catch (...) {
-            OPENVINO_THROW("Unexpected exception");
-        }
     }
     bool wait_for(const std::chrono::milliseconds& timeout) override {
-        try {
             return m_request->Wait(timeout.count()) == InferenceEngine::OK;
-        } catch (const InferenceEngine::InferCancelled& e) {
-            ov::Cancelled::create(e.what());
-        } catch (const std::exception& ex) {
-            OPENVINO_THROW(ex.what());
-        } catch (...) {
-            OPENVINO_THROW("Unexpected exception");
-        }
     }
 
     void cancel() override {

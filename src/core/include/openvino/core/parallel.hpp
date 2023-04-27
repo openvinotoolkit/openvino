@@ -103,11 +103,7 @@ inline void parallel_set_num_threads(int n) {
 inline int parallel_get_env_threads() {
     int env_cores = 0;
     if (getenv("OMP_NUM_THREADS") != nullptr) {
-        try {
             env_cores = std::stoi(getenv("OMP_NUM_THREADS"));
-        } catch (const std::exception&) {
-            env_cores = 0;
-        }
     }
     return env_cores;
 }

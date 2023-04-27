@@ -259,7 +259,6 @@ void ngraph::parse_version_string(std::string version, size_t& major, size_t& mi
 
     size_t err;
     bool error = false;
-    try {
         major = stoi(major_str, &err);
         if (err != major_str.size()) {
             error = true;
@@ -272,9 +271,6 @@ void ngraph::parse_version_string(std::string version, size_t& major, size_t& mi
         if (err != patch_str.size()) {
             error = true;
         }
-    } catch (...) {
-        error = true;
-    }
     if (error) {
         throw runtime_error("Error parsing version string '" + version + "'");
     }

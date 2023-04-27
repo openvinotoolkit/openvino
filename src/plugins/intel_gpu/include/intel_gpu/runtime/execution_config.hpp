@@ -48,12 +48,8 @@ template<typename T>
 class PropertyTypeValidator : public BaseValidator {
 public:
     bool is_valid(const ov::Any& v) const override {
-        try {
-            v.as<T>();
-            return true;
-        } catch (ov::Exception&) {
-            return false;
-        }
+        v.as<T>();
+        return true;
     }
 };
 

@@ -160,13 +160,7 @@ template <typename F>
 static auto stream_to(std::istream& is, F&& f) -> decltype(f(std::declval<const std::string&>())) {
     std::string str;
     is >> str;
-    try {
         return f(str);
-    } catch (std::exception& e) {
-        OPENVINO_THROW(std::string{"Could not convert to: "} +
-                       typeid(decltype(f(std::declval<const std::string&>()))).name() + " from string \"" + str +
-                       "\": " + e.what());
-    }
 }
 
 void Read<int>::operator()(std::istream& is, int& value) const {

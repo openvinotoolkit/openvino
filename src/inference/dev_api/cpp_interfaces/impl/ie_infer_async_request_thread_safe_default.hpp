@@ -100,14 +100,7 @@ class AsyncInferRequestThreadSafeDefault : public IInferRequestInternal {
             _state = InferState::Busy;
         }
         if (state != InferState::Stop) {
-            try {
                 f();
-            } catch (...) {
-                _promise.set_exception(std::current_exception());
-                std::lock_guard<std::mutex> lock{_mutex};
-                _state = InferState::Idle;
-                throw;
-            }
         }
     }
 
@@ -403,7 +396,6 @@ private:
                 std::exception_ptr currentException = nullptr;
                 auto& thisStage = *itStage;
                 auto itNextStage = itStage + 1;
-                try {
                     auto& stageTask = std::get<Stage_e::task>(thisStage);
                     IE_ASSERT(nullptr != stageTask);
                     stageTask();
@@ -413,9 +405,6 @@ private:
                         IE_ASSERT(nullptr != nextStageExecutor);
                         nextStageExecutor->run(MakeNextStageTask(itNextStage, itEndStage, std::move(callbackExecutor)));
                     }
-                } catch (...) {
-                    currentException = std::current_exception();
-                }
 
                 if ((itEndStage == itNextStage) || (nullptr != currentException)) {
                     auto lastStageTask = [this, currentException]() mutable {
@@ -427,11 +416,7 @@ private:
                             std::swap(callback, _callback);
                         }
                         if (callback) {
-                            try {
                                 callback(currentException);
-                            } catch (...) {
-                                currentException = std::current_exception();
-                            }
                             std::lock_guard<std::mutex> lock{_mutex};
                             if (!_callback) {
                                 std::swap(callback, _callback);

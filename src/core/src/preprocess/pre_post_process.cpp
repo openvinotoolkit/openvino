@@ -140,11 +140,7 @@ OutputInfo& PrePostProcessor::output(const std::string& tensor_name) {
 }
 
 std::ostream& operator<<(std::ostream& str, const PrePostProcessor& prePostProcessor) {
-    try {
         prePostProcessor.dump(str);
-    } catch (ov::AssertFailure& ex) {
-        str << std::endl << "Error occurred: " << ex.what();
-    }
     return str;
 }
 

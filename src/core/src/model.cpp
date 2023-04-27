@@ -1159,25 +1159,6 @@ void ov::set_batch(const std::shared_ptr<ov::Model>& f, ov::Dimension batch_size
         new_shape[batch_idx] = batch_size;
         new_shapes_map[f->input(i)] = new_shape;
     }
-    try {
         f->reshape(new_shapes_map);
-    } catch (const std::exception& e) {
-        std::stringstream stream;
-        stream << "Failed to set batch size to " << batch_size << ". Possible reasons are:" << std::endl;
-        stream << "    1) Ensure that all inputs have valid layout set with batch dimension" << std::endl;
-        stream << "    2) Check model's documentation if batch size can be set to it at all" << std::endl;
-        stream << "Available inputs:" << std::endl;
-        for (size_t i = 0; i < f->get_parameters().size(); ++i) {
-            bs_util::dump_parameter(stream, f, i);
-            if (new_shapes_map.count(f->input(i))) {
-                stream << i << ": Tried reshape " << f->input(i).get_partial_shape() << " to "
-                       << new_shapes_map[f->input(i)] << std::endl;
-            } else {
-                stream << i << ": No reshape has been applied" << std::endl;
-            }
-        }
-        stream << "---" << std::endl;
-        stream << "Original error message is: " << e.what();
-        OPENVINO_ASSERT(false, stream.str());
-    }
+
 }

@@ -59,11 +59,7 @@ ConstInputsDataMap IExecutableNetworkInternal::GetInputsInfo() const {
 
 std::shared_ptr<IInferRequestInternal> IExecutableNetworkInternal::CreateInferRequest() {
     std::shared_ptr<IInferRequestInternal> asyncRequestImpl;
-    try {
         asyncRequestImpl = CreateInferRequestImpl(_parameters, _results);
-    } catch (const InferenceEngine::NotImplemented&) {
-    } catch (const ov::NotImplemented&) {
-    }
     if (!asyncRequestImpl)
         asyncRequestImpl = CreateInferRequestImpl(_networkInputs, _networkOutputs);
     asyncRequestImpl->setPointerToExecutableNetworkInternal(shared_from_this());

@@ -41,17 +41,11 @@ AnyMap RemoteTensor::get_params() const {
     OPENVINO_ASSERT(_impl != nullptr, "Tensor was not initialized.");
     type_check(*this);
     auto remote_tensor = std::dynamic_pointer_cast<ov::IRemoteTensor>(_impl);
-    try {
         AnyMap paramMap;
         for (auto&& param : remote_tensor->get_properties()) {
             paramMap.emplace(param.first, Any{param.second, _so});
         }
         return paramMap;
-    } catch (const std::exception& ex) {
-        OPENVINO_THROW(ex.what());
-    } catch (...) {
-        OPENVINO_THROW("Unexpected exception");
-    }
 }
 
 std::string RemoteTensor::get_device_name() const {
@@ -59,12 +53,6 @@ std::string RemoteTensor::get_device_name() const {
     auto remote_tensor = std::dynamic_pointer_cast<ov::IRemoteTensor>(_impl);
     OPENVINO_ASSERT(remote_tensor, "Tensor is not remote.");
     type_check(*this);
-    try {
         return remote_tensor->get_device_name();
-    } catch (const std::exception& ex) {
-        OPENVINO_THROW(ex.what());
-    } catch (...) {
-        OPENVINO_THROW("Unexpected exception");
-    }
 }
 }  // namespace ov

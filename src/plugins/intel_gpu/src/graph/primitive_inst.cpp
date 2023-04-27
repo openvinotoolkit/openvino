@@ -505,14 +505,10 @@ event::ptr primitive_inst::execute(const std::vector<event::ptr>& events) {
             dependencies.reserve(dependencies.size() + _exec_deps.size());
             for (auto& input : _exec_deps) {
                 auto id = input->id();
-                try {
                     // if the requested event does not exists it means that it has not been executed, so the processing_order is
                     // wrong or synchronization failed.
                     auto ev = get_network().get_primitive_event(id);
                     dependencies.emplace_back(ev);
-                } catch (const std::out_of_range& oor) {
-                    OPENVINO_ASSERT(false, "[GPU] execution order corrupted: ", oor.what());
-                }
             }
         }
     }
@@ -1138,12 +1134,8 @@ void primitive_inst::add_profiling_data(instrumentation::pipeline_stage stage, b
 }
 
 std::string primitive_inst::get_implementation_name() const {
-    try {
         auto kernel_name = _impl ? _impl->get_kernel_name() : "";
         return !kernel_name.empty() ? kernel_name : "undef";
-    } catch (...) { }
-
-    return "undef";
 }
 
 static primitive_id find_dep_by_mem(const cldnn::primitive_inst* p_inst, memory& mem_ptr, int max_dist = 5) {

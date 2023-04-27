@@ -142,7 +142,6 @@ memory::ptr ocl_engine::allocate_memory(const layout& layout, allocation_type ty
     OPENVINO_ASSERT(supports_allocation(type) || type == allocation_type::cl_mem,
                     "[GPU] Unsupported allocation type: ", type);
 
-    try {
         memory::ptr res = nullptr;
         if (layout.format.is_image_2d()) {
             res = std::make_shared<ocl::gpu_image2d>(this, layout);
@@ -157,16 +156,6 @@ memory::ptr ocl_engine::allocate_memory(const layout& layout, allocation_type ty
         }
 
         return res;
-    } catch (const cl::Error& clErr) {
-        switch (clErr.err()) {
-            case CL_MEM_OBJECT_ALLOCATION_FAILURE:
-            case CL_OUT_OF_RESOURCES:
-            case CL_OUT_OF_HOST_MEMORY:
-            case CL_INVALID_BUFFER_SIZE:
-                OPENVINO_THROW("[GPU] out of GPU resources");
-            default:
-                OPENVINO_THROW("[GPU] buffer allocation failed");
-        }
     }
 }
 
@@ -176,7 +165,6 @@ memory::ptr ocl_engine::reinterpret_buffer(const memory& memory, const layout& n
                     "[GPU] trying to reinterpret between image and non-image layouts. Current: ",
                     memory.get_layout().format.to_string(), " Target: ", new_layout.format.to_string());
 
-    try {
         if (new_layout.format.is_image_2d()) {
            return std::make_shared<ocl::gpu_image2d>(this,
                                      new_layout,
@@ -191,13 +179,9 @@ memory::ptr ocl_engine::reinterpret_buffer(const memory& memory, const layout& n
                                     new_layout,
                                     reinterpret_cast<const ocl::gpu_buffer&>(memory).get_buffer());
         }
-    } catch (cl::Error const& err) {
-        throw ocl::ocl_error(err);
-    }
 }
 
 memory::ptr ocl_engine::reinterpret_handle(const layout& new_layout, shared_mem_params params) {
-   try {
         if (new_layout.format.is_image_2d() && params.mem_type == shared_mem_type::shared_mem_image) {
             cl::Image2D img(static_cast<cl_mem>(params.mem), true);
             return std::make_shared<ocl::gpu_image2d>(this, new_layout, img);
@@ -226,18 +210,6 @@ memory::ptr ocl_engine::reinterpret_handle(const layout& new_layout, shared_mem_
         } else {
             OPENVINO_THROW("[GPU] unknown shared object fromat or type");
         }
-    }
-    catch (const cl::Error& clErr) {
-        switch (clErr.err()) {
-        case CL_MEM_OBJECT_ALLOCATION_FAILURE:
-        case CL_OUT_OF_RESOURCES:
-        case CL_OUT_OF_HOST_MEMORY:
-        case CL_INVALID_BUFFER_SIZE:
-            OPENVINO_THROW("[GPU] out of GPU resources");
-        default:
-            OPENVINO_THROW("[GPU] buffer allocation failed");
-        }
-    }
 }
 
 bool ocl_engine::is_the_same_buffer(const memory& mem1, const memory& mem2) {

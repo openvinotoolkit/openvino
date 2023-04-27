@@ -839,7 +839,6 @@ uint32_t Plugin::get_max_batch_size(const std::map<std::string, Parameter>& opti
     auto inputs_info = cloned_network.getInputsInfo();
     ICNNNetwork::InputShapes new_shapes;
 
-    try {
         std::set<std::pair<std::string, size_t>> batched_inputs;
 
         auto function = InferenceEngine::details::cloneNetwork(cloned_network).getFunction();
@@ -875,15 +874,10 @@ uint32_t Plugin::get_max_batch_size(const std::map<std::string, Parameter>& opti
             return static_cast<uint32_t>(max_batch_size);
         }
 
-        try {
             ICNNNetwork::InputShapes shapes = cloned_network.getInputShapes();
             for (const auto& input : batched_inputs)
                 shapes[input.first][input.second] = base_batch_size;
             cloned_network.reshape(shapes);
-        } catch (...) {
-            GPU_DEBUG_INFO << "[MAX_BATCH_SIZE] Error at reshape to " << base_batch_size << std::endl;
-            return static_cast<uint32_t>(max_batch_size);
-        }
 
         auto nGraphFunc = cloned_network.getFunction();
         TransformationsPipeline transformations(config, device_info);
@@ -899,9 +893,6 @@ uint32_t Plugin::get_max_batch_size(const std::map<std::string, Parameter>& opti
         GPU_DEBUG_INFO << "[GPU_MAX_BATCH_SIZE] Base batch size: " << base_batch_size  << std::endl;
         GPU_DEBUG_INFO << "[GPU_MAX_BATCH_SIZE] Const mem usage: " << device_memory_usage.first  << std::endl;
         GPU_DEBUG_INFO << "[GPU_MAX_BATCH_SIZE] General mem usage: " << device_memory_usage.second  << std::endl;
-    } catch (std::exception& e) {
-        GPU_DEBUG_INFO << "[GPU_MAX_BATCH_SIZE] Failed in reshape or build program " << e.what() << std::endl;
-    }
 
     return static_cast<uint32_t>(max_batch_size);
 }
@@ -922,11 +913,7 @@ uint32_t Plugin::get_optimal_batch_size(const std::map<std::string, Parameter>& 
         return static_cast<uint32_t>(1);
     }
     std::shared_ptr<ngraph::Function> model;
-    try {
         model = model_param->second.as<std::shared_ptr<ngraph::Function>>();
-    } catch (...) {
-        IE_THROW() << "[OPTIMAL_BATCH_SIZE] ov::hint::model should be std::shared_ptr<ov::Model> type";
-    }
     GPU_DEBUG_INFO << "DEVICE_INFO:"
                    << "gfx_version.major, " << device_info.gfx_ver.major
                    << "gfx_version.minor " << std::to_string(device_info.gfx_ver.minor) << std::endl;

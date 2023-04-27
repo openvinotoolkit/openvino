@@ -32,13 +32,8 @@ void propagate_rt_info(Node* node, const Output<Node>& final_port) {
             for (auto& in : output.get_target_inputs()) {
                 if (stop_nodes.count(in.get_node()))
                     continue;
-                try {
                     auto consumer = in.get_node()->shared_from_this();
                     copy_runtime_info({curr_node, consumer}, consumer);
-                } catch (const std::bad_weak_ptr&) {
-                    // Exception can be thrown, if `shared_from_this()` was called during node creation.
-                    // Continue propagation for other nodes.
-                }
             }
         }
     }

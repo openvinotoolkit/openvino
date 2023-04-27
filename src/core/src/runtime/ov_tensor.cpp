@@ -18,13 +18,7 @@ namespace ov {
 
 #define OV_TENSOR_STATEMENT(...)                                      \
     OPENVINO_ASSERT(_impl != nullptr, "Tensor was not initialized."); \
-    try {                                                             \
-        __VA_ARGS__;                                                  \
-    } catch (const std::exception& ex) {                              \
-        OPENVINO_THROW(ex.what());                                    \
-    } catch (...) {                                                   \
-        OPENVINO_ASSERT(false, "Unexpected exception");               \
-    }
+        __VA_ARGS__;                                                  
 
 void Tensor::type_check(const Tensor&) {}
 

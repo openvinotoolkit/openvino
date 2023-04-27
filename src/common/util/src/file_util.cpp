@@ -194,7 +194,6 @@ static void iterate_files_worker(const std::string& path,
     DIR* dir;
     struct dirent* ent;
     if ((dir = opendir(path.c_str())) != nullptr) {
-        try {
             while ((ent = readdir(dir)) != nullptr) {
                 std::string name = ent->d_name;
                 std::string path_name = ov::util::path_join({path, name});
@@ -223,11 +222,6 @@ static void iterate_files_worker(const std::string& path,
                     break;
                 }
             }
-        } catch (...) {
-            std::exception_ptr p = std::current_exception();
-            closedir(dir);
-            std::rethrow_exception(p);
-        }
         closedir(dir);
     } else {
         throw std::runtime_error("error enumerating file " + path);

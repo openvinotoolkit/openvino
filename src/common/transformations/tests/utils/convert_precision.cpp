@@ -1134,12 +1134,7 @@ void constant_convert_test(element::Type type_from,
     ASSERT_NE(c, nullptr);
     ASSERT_EQ(c->get_friendly_name(), expected_friendly_name);
     std::vector<To> actual;
-    try {
         actual = c->cast_vector<To>();
-    } catch (...) {
-        size_t dst_size = (type_to.bitwidth() * size + 7) / 8;
-        actual.assign(c->get_data_ptr<uint8_t>(), c->get_data_ptr<uint8_t>() + dst_size);
-    }
     ASSERT_TRUE(actual.size() >= expected.size());
     for (size_t i = 0; i < expected.size(); i++) {
         ASSERT_EQ(expected[i], actual[i]);

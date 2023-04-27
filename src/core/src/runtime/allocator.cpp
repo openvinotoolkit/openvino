@@ -78,13 +78,7 @@ Allocator::Allocator(const Allocator& other, const std::shared_ptr<void>& so) : 
 
 #define OV_ALLOCATOR_STATEMENT(...)                                      \
     OPENVINO_ASSERT(_impl != nullptr, "Allocator was not initialized."); \
-    try {                                                                \
-        __VA_ARGS__;                                                     \
-    } catch (const std::exception& ex) {                                 \
-        OPENVINO_THROW(ex.what());                                       \
-    } catch (...) {                                                      \
-        OPENVINO_ASSERT(false, "Unexpected exception");                  \
-    }
+        __VA_ARGS__;
 
 void* Allocator::allocate(const size_t bytes, const size_t alignment) {
     OV_ALLOCATOR_STATEMENT(return _impl->allocate(bytes, alignment));

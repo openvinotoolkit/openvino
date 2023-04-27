@@ -378,11 +378,7 @@ std::shared_ptr<cldnn::program> Program::BuildProgram(const std::vector<std::sha
     } else {
         OV_ITT_SCOPED_TASK(itt::domains::intel_gpu_plugin, "Program::CreateProgram");
         cldnn::program::ptr program;
-        try {
             program = cldnn::program::build_program(m_engine, *m_topology, m_config);
-        } catch (std::exception& e) {
-            OPENVINO_ASSERT(false, "GPU program build failed!\n", e.what());
-        }
         CleanupBuild();
 
         return program;
@@ -392,7 +388,6 @@ std::shared_ptr<cldnn::program> Program::BuildProgram(const std::vector<std::sha
 bool Program::IsOpSupported(const InferenceEngine::CNNNetwork& network, const std::shared_ptr<ngraph::Node>& op) {
     OV_ITT_SCOPED_TASK(itt::domains::intel_gpu_plugin, "Program::IsOpSupported");
     cldnn::topology topology;
-    try {
         // Query mode disables checks that input primitives are created,
         // as IsOpSupported method is called for each operation separately
         // So we just ensure that inputs count is valid for given operation
@@ -408,11 +403,6 @@ bool Program::IsOpSupported(const InferenceEngine::CNNNetwork& network, const st
         CreateSingleLayerPrimitive(topology, op);
         CleanupBuild();
         DisableQueryMode();
-    } catch (std::exception&) {
-        // Exception means that an operation or some of it's parameters are not supported
-        CleanupBuild();
-        return false;
-    }
 
     return true;
 }

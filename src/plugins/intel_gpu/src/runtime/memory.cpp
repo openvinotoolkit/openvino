@@ -29,12 +29,7 @@ memory::memory(engine* engine, const layout& layout, allocation_type type, bool 
 
 memory::~memory() {
     if (!_reused && _engine) {
-        try {
             _engine->subtract_memory_used(_bytes_count, _type);
-        } catch (...) {}
-        GPU_DEBUG_LOG << "Free " << _bytes_count << " bytes of " << _type << " allocation type"
-                      << " (current=" << _engine->get_used_device_memory(_type) << ";"
-                      << " max=" << _engine->get_max_used_device_memory(_type) << ")" << std::endl;
     }
 }
 

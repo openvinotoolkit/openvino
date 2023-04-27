@@ -37,7 +37,6 @@ void select_preferred_formats::run(program& p) {
             continue;
         }
         // Onednn primitive descriptor creation may fail, for example, due to asymmetric weight.
-        try {
             if (n->is_type<convolution>()) {
                 auto prim_desc = onednn::get_convolution_primitive_descriptor(*n->get_kernel_impl_params(),
                                                                               dnnl::primitive_attr(),
@@ -51,9 +50,6 @@ void select_preferred_formats::run(program& p) {
             } else if (n->is_type<fully_connected>() || n->is_type<gemm>()) {
                 _lo.select_preferred_formats_for_onednn(*n);
             }
-        } catch(std::exception &exception) {
-            GPU_DEBUG_INFO << "WARNING(select_preferred_formats): " << exception.what() << std::endl;
-        }
     }
 #else
     (void)_lo;

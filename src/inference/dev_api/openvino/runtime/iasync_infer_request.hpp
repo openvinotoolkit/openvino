@@ -252,14 +252,7 @@ private:
             m_state = InferState::BUSY;
         }
         if (state != InferState::STOP) {
-            try {
                 f();
-            } catch (...) {
-                m_promise.set_exception(std::current_exception());
-                std::lock_guard<std::mutex> lock{m_mutex};
-                m_state = InferState::IDLE;
-                throw;
-            }
         }
     }
 

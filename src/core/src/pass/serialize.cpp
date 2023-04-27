@@ -1099,18 +1099,7 @@ bool pass::Serialize::run_on_model(const std::shared_ptr<ov::Model>& model) {
         std::ofstream xml_file(m_xmlPath, std::ios::out);
         OPENVINO_ASSERT(xml_file, "Can't open xml file: \"" + m_xmlPath + "\"");
 
-        try {
             serializeFunc(xml_file, bin_file, model, m_version, m_custom_opsets);
-        } catch (const ov::AssertFailure&) {
-            // optimization decision was made to create .bin file upfront and
-            // write to it directly instead of buffering its content in memory,
-            // hence we need to delete it here in case of failure
-            xml_file.close();
-            bin_file.close();
-            std::remove(m_xmlPath.c_str());
-            std::remove(m_binPath.c_str());
-            throw;
-        }
     }
 
     // Return false because we didn't change ov Model

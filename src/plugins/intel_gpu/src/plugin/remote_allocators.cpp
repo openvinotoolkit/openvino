@@ -33,17 +33,12 @@ void RemoteAllocator::unlock(void* handle) noexcept {
 void* USMHostAllocator::lock(void* handle, InferenceEngine::LockOp) noexcept {
     if (!_usm_host_blob)
         return nullptr;
-    try {
         return _usm_host_blob->get();
-    } catch (...) {
-        return nullptr;
-    }
 };
 
 void USMHostAllocator::unlock(void* handle) noexcept {}
 
 void* USMHostAllocator::alloc(size_t size) noexcept {
-    try {
         auto td = TensorDesc(Precision::U8, SizeVector{size}, InferenceEngine::Layout::C);
         ParamMap params = {{GPU_PARAM_KEY(SHARED_MEM_TYPE), GPU_PARAM_VALUE(USM_HOST_BUFFER)}};
         _usm_host_blob = std::dynamic_pointer_cast<USMBlob>(_context->CreateBlob(td, params));
@@ -52,15 +47,10 @@ void* USMHostAllocator::alloc(size_t size) noexcept {
             return nullptr;
         }
         return _usm_host_blob->get();
-    } catch (...) {
-        return nullptr;
-    }
 }
 
 bool USMHostAllocator::free(void* handle) noexcept {
-    try {
         _usm_host_blob = nullptr;
-    } catch(...) { }
     return true;
 }
 

@@ -84,7 +84,6 @@ ov::Node::Node(const OutputVector& arguments, size_t output_size) : Node() {
 }
 
 ov::Node::~Node() {
-    try {
         // raise a flag to reset nodes cache
         for_each(m_shared_rt_info.cbegin(), m_shared_rt_info.cend(), [](const std::shared_ptr<SharedRTInfo>& info) {
             info->set_use_topological_cache(false);
@@ -104,8 +103,6 @@ ov::Node::~Node() {
                 input.remove_output();
             }
         }
-    } catch (...) {
-    }
 }
 
 std::shared_ptr<ov::Node> ov::Node::copy_with_new_inputs(const OutputVector& inputs) const {

@@ -12,11 +12,7 @@
 
 #define OV_PLUGIN_CALL_STATEMENT(...)                                                  \
     OPENVINO_ASSERT(m_ptr != nullptr, "OpenVINO Runtime Plugin was not initialized."); \
-    try {                                                                              \
-        __VA_ARGS__;                                                                   \
-    } catch (...) {                                                                    \
-        ::InferenceEngine::details::Rethrow();                                         \
-    }
+        __VA_ARGS__;
 ov::Plugin::~Plugin() {
     m_ptr = {};
 }

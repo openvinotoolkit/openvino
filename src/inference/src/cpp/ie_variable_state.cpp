@@ -11,21 +11,11 @@
 #define VARIABLE_CALL_STATEMENT(...)                                    \
     if (_impl == nullptr)                                               \
         IE_THROW(NotAllocated) << "VariableState was not initialized."; \
-    try {                                                               \
-        __VA_ARGS__;                                                    \
-    } catch (...) {                                                     \
-        ::InferenceEngine::details::Rethrow();                          \
-    }
+        __VA_ARGS__;
 
 #define OV_VARIABLE_CALL_STATEMENT(...)                                      \
     OPENVINO_ASSERT(_impl != nullptr, "VariableState was not initialized."); \
-    try {                                                                    \
-        __VA_ARGS__;                                                         \
-    } catch (const std::exception& ex) {                                     \
-        OPENVINO_THROW(ex.what());                                           \
-    } catch (...) {                                                          \
-        OPENVINO_THROW("Unexpected exception");                              \
-    }
+        __VA_ARGS__;
 
 namespace InferenceEngine {
 

@@ -10,13 +10,7 @@
 
 #define OV_COMPILED_MODEL_CALL_STATEMENT(...)                                \
     OPENVINO_ASSERT(_impl != nullptr, "CompiledModel was not initialized."); \
-    try {                                                                    \
-        __VA_ARGS__;                                                         \
-    } catch (const std::exception& ex) {                                     \
-        OPENVINO_THROW(ex.what());                                           \
-    } catch (...) {                                                          \
-        OPENVINO_THROW("Unexpected exception");                              \
-    }
+        __VA_ARGS__;
 
 namespace ov {
 

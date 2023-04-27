@@ -132,7 +132,6 @@ ov::threading::Task ov::IAsyncInferRequest::make_next_stage_task(
             std::exception_ptr currentException = nullptr;
             auto& thisStage = *itStage;
             auto itNextStage = itStage + 1;
-            try {
                 auto& stageTask = std::get<Stage_e::TASK>(thisStage);
                 OPENVINO_ASSERT(nullptr != stageTask);
                 stageTask();
@@ -142,9 +141,6 @@ ov::threading::Task ov::IAsyncInferRequest::make_next_stage_task(
                     OPENVINO_ASSERT(nullptr != nextStageExecutor);
                     nextStageExecutor->run(make_next_stage_task(itNextStage, itEndStage, std::move(callbackExecutor)));
                 }
-            } catch (...) {
-                currentException = std::current_exception();
-            }
 
             if ((itEndStage == itNextStage) || (nullptr != currentException)) {
                 auto lastStageTask = [this, currentException]() mutable {
@@ -156,11 +152,7 @@ ov::threading::Task ov::IAsyncInferRequest::make_next_stage_task(
                         std::swap(callback, m_callback);
                     }
                     if (callback) {
-                        try {
                             callback(currentException);
-                        } catch (...) {
-                            currentException = std::current_exception();
-                        }
                         std::lock_guard<std::mutex> lock{m_mutex};
                         if (!m_callback) {
                             std::swap(callback, m_callback);

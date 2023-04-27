@@ -46,11 +46,7 @@ namespace {
 
 template <typename F>
 void allowNotImplemented(F&& f) {
-    try {
         f();
-    } catch (const InferenceEngine::NotImplemented&) {
-    } catch (const ov::NotImplemented&) {
-    }
 }
 
 void stripDeviceName(std::string& device, const std::string& substr) {

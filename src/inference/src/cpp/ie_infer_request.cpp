@@ -24,11 +24,7 @@ namespace InferenceEngine {
 #define INFER_REQ_CALL_STATEMENT(...)                                     \
     if (_impl == nullptr)                                                 \
         IE_THROW(NotAllocated) << "Inference Request is not initialized"; \
-    try {                                                                 \
-        __VA_ARGS__                                                       \
-    } catch (...) {                                                       \
-        ::InferenceEngine::details::Rethrow();                            \
-    }
+        __VA_ARGS__
 
 InferRequest::~InferRequest() {
     _impl = {};
@@ -139,15 +135,6 @@ void InferRequest::SetCompletionCallbackImpl(std::function<void(InferRequest, St
             StatusCode statusCode = StatusCode::OK;
             if (exceptionPtr != nullptr) {
                 statusCode = [&] {
-                    try {
-                        std::rethrow_exception(exceptionPtr);
-                    }
-                    CATCH_IE_EXCEPTIONS_RETURN catch (const std::exception&) {
-                        return GENERAL_ERROR;
-                    }
-                    catch (...) {
-                        return UNEXPECTED;
-                    }
                 }();
             }
             callbackToSet(weakThis, statusCode);
@@ -162,15 +149,6 @@ void InferRequest::SetCompletionCallbackImpl(IInferRequest::CompletionCallback c
             StatusCode statusCode = StatusCode::OK;
             if (exceptionPtr != nullptr) {
                 statusCode = [&] {
-                    try {
-                        std::rethrow_exception(exceptionPtr);
-                    }
-                    CATCH_IE_EXCEPTIONS_RETURN catch (const std::exception&) {
-                        return GENERAL_ERROR;
-                    }
-                    catch (...) {
-                        return UNEXPECTED;
-                    }
                 }();
             }
             callbackToSet(weakThis, statusCode);

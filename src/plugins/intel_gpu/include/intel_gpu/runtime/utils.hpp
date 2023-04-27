@@ -142,12 +142,7 @@ inline derived_type* downcast(base_type* base) {
 
 template <typename derived_type, typename base_type, typename std::enable_if<std::is_base_of<base_type, derived_type>::value, int>::type = 0>
 inline derived_type& downcast(base_type& base) {
-    try {
-        return dynamic_cast<derived_type&>(base);
-    } catch (std::bad_cast& /* ex */) {
-        throw std::runtime_error("Unable to cast reference from base to derived type");
-    }
-    throw std::runtime_error("downcast failed with unhandled exception");
+    return dynamic_cast<derived_type&>(base);
 }
 
 template <typename T>

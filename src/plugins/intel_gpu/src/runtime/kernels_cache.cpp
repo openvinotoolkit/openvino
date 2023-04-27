@@ -237,7 +237,6 @@ void kernels_cache::build_batch(const engine& build_engine, const batch_program&
             precompiled_kernels.push_back(bin);
         }
     }
-    try {
         cl::vector<cl::Kernel> kernels;
 
         // Run compilation
@@ -296,18 +295,6 @@ void kernels_cache::build_batch(const engine& build_engine, const batch_program&
                 }
             }
         }
-    } catch (const cl::BuildError& err) {
-        if (dump_sources && dump_file.good())
-            dump_file << "\n/* Build Log:\n";
-
-        for (auto& p : err.getBuildLog()) {
-            if (dump_sources && dump_file.good())
-                dump_file << p.second << "\n";
-            err_log += p.second + '\n';
-        }
-        if (dump_sources && dump_file.good())
-            dump_file << "*/\n";
-    }
     if (!err_log.empty()) {
         GPU_DEBUG_INFO << "-------- OpenCL build error" << std::endl;
         GPU_DEBUG_INFO << err_log << std::endl;
@@ -361,7 +348,6 @@ std::vector<kernel::ptr> kernels_cache::get_kernels(kernel_impl_params params) c
 bool kernels_cache::validate_simple_kernel_execution(kernel::ptr krl) {
     auto casted = downcast<ocl::ocl_kernel>(krl.get());
     auto kernel = casted->get_handle();
-    try {
         auto casted_dev = dynamic_cast<ocl::ocl_device*>(_engine.get_device().get());
         auto device = casted_dev->get_device();
         cl::Context ctx(device);
@@ -387,9 +373,6 @@ bool kernels_cache::validate_simple_kernel_execution(kernel::ptr krl) {
 
         ev.wait();
         return true;
-    } catch (...) {
-        return false;
-    }
 }
 
 void kernels_cache::build_all() {
@@ -410,11 +393,7 @@ void kernels_cache::build_all() {
         for (size_t idx = 0; idx < batches.size(); idx++) {
             auto& batch = batches[idx];
             tasks.push_back([this, &_build_engine, &batch, &exception] {
-                try {
                     build_batch(_build_engine, batch, _kernels);
-                } catch(...) {
-                    exception = std::current_exception();
-                }
             });
         }
         _task_executor->runAndWait(tasks);
@@ -535,7 +514,6 @@ void kernels_cache::load(BinaryInputBuffer& ib) {
     std::unique_ptr<ocl::ocl_engine> build_engine =
         cldnn::make_unique<ocl::ocl_engine>(_engine.get_device(), runtime_types::ocl);
 
-    try {
         std::lock_guard<std::mutex> lock(_mutex);
         _cached_kernels.clear();
 
@@ -557,13 +535,6 @@ void kernels_cache::load(BinaryInputBuffer& ib) {
                 }
             }
         }
-    } catch (const cl::BuildError& err) {
-        std::string err_log = "";
-        for (auto& p : err.getBuildLog()) {
-            err_log += p.second + '\n';
-        }
-        IE_THROW() << err_log;
-    }
 }
 
 kernels_cache::compiled_kernels kernels_cache::compile(const kernel_impl_params& params,

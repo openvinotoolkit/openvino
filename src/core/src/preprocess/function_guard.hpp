@@ -31,7 +31,6 @@ public:
     }
     virtual ~FunctionGuard() {
         if (!m_done) {
-            try {
                 auto params = m_function->get_parameters();
                 // Remove parameters added by preprocessing
                 for (const auto& param : params) {
@@ -57,12 +56,6 @@ public:
                     m_results[i]->get_default_output().get_tensor().set_names(m_result_tensors[i]);
                 }
                 m_function->add_results(m_results);
-            } catch (std::exception& ex) {
-                // Stress condition, can't recover function to original state
-                std::cerr << "Unrecoverable error occurred during preprocessing. Model is corrupted, exiting: "
-                          << ex.what();
-                // exit(EXIT_FAILURE);
-            }
         }
     }
     void reset() noexcept {

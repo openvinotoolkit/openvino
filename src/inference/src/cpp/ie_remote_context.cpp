@@ -18,13 +18,7 @@
 #define OV_REMOTE_CONTEXT_STATEMENT(...)                                     \
     OPENVINO_ASSERT(_impl != nullptr, "RemoteContext was not initialized."); \
     type_check(*this);                                                       \
-    try {                                                                    \
-        __VA_ARGS__;                                                         \
-    } catch (const std::exception& ex) {                                     \
-        OPENVINO_THROW(ex.what());                                           \
-    } catch (...) {                                                          \
-        OPENVINO_THROW("Unexpected exception");                              \
-    }
+        __VA_ARGS__;
 
 namespace ov {
 

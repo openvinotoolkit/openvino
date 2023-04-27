@@ -327,20 +327,12 @@ T load_entrypoint(const cl_context context, const std::string name) {
 
 template <typename T>
 T try_load_entrypoint(const cl_context context, const std::string name) {
-    try {
         return load_entrypoint<T>(context, name);
-    } catch (...) {
-        return nullptr;
-    }
 }
 
 template <typename T>
 T try_load_entrypoint(const cl_platform_id platform, const std::string name) {
-    try {
         return load_entrypoint<T>(platform, name);
-    } catch (...) {
-        return nullptr;
-    }
 }
 
 template <typename T>
@@ -884,12 +876,8 @@ public:
 
     void* ptr() { return _ptr; }
     void memFree() {
-        try {
             if (!_shared_memory)
                 _usmHelper.free_mem(_ptr);
-        } catch (...) {
-            // Exception may happen only when clMemFreeINTEL function is unavailable, thus can't free memory properly
-        }
         _ptr = nullptr;
     }
     ~UsmHolder() {

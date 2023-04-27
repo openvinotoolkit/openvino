@@ -139,16 +139,11 @@ float convert_element(float f) { return f; }
 float convert_element(half_t h) { return half_to_float(h); }
 
 size_t get_x_pitch(const layout& layout) {
-    try {
         auto tensor_x0 = tensor(batch(0), feature(0), spatial(0, 0, 0, 0));
         auto tensor_x1 = tensor(batch(0), feature(0), spatial(1, 0, 0, 0));
         auto x0 = layout.get_linear_offset(tensor_x0);
         auto x1 = layout.get_linear_offset(tensor_x1);
         return (x1 - x0);
-    } catch (...) {
-        // When spatial size of x=0, x_pitch is meaningless
-        return 0;
-    }
 }
 
 template <class T>

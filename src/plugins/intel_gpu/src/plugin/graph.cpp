@@ -208,12 +208,9 @@ std::shared_ptr<ngraph::Function> Graph::GetExecGraphInfoByPrimitivesInfo(std::v
                                                                           bool filter_const_primitives) {
     OV_ITT_SCOPED_TASK(itt::domains::intel_gpu_plugin, "Graph::GetExecGraphInfoByPrimitivesInfo");
     if (m_config.get_property(ov::enable_profiling)) {
-        try {
             // Update may throw an exception for step-by-step runtime graph dump,
             // since network->get_executed_primitives() method can't be called before network execution
             UpdatePerfStatistics();
-        } catch (std::exception&) {
-        }
     }
 
     std::map<std::string, std::shared_ptr<ngraph::Node>> node2layer;
@@ -508,12 +505,8 @@ std::shared_ptr<ngraph::Function> Graph::GetExecGraphInfoByPrimitivesInfo(std::v
 void Graph::Export(cldnn::BinaryOutputBuffer &ob) {
     bool need_onednn_engine = false;
 #ifdef ENABLE_ONEDNN_FOR_GPU
-    try {
         get_engine().get_onednn_engine();
         need_onednn_engine = true;
-    } catch (ov::AssertFailure &) {
-        need_onednn_engine = false;
-    }
 #endif  // ENABLE_ONEDNN_FOR_GPU
     ob << need_onednn_engine;
 

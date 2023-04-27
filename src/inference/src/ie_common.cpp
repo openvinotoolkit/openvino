@@ -33,41 +33,7 @@ std::map<std::string, ngraph::OpSet> IExtension::getOpSets() {
 namespace details {
 
 void Rethrow() {
-    try {
-        throw;
-    } catch (const ov::NotImplemented& e) {
-        IE_THROW(NotImplemented) << e.what();
-    } catch (const InferenceEngine::GeneralError& e) {
-        throw e;
-    } catch (const InferenceEngine::NotImplemented& e) {
-        throw e;
-    } catch (const InferenceEngine::NetworkNotLoaded& e) {
-        throw e;
-    } catch (const InferenceEngine::ParameterMismatch& e) {
-        throw e;
-    } catch (const InferenceEngine::NotFound& e) {
-        throw e;
-    } catch (const InferenceEngine::OutOfBounds& e) {
-        throw e;
-    } catch (const InferenceEngine::Unexpected& e) {
-        throw e;
-    } catch (const InferenceEngine::RequestBusy& e) {
-        throw e;
-    } catch (const InferenceEngine::ResultNotReady& e) {
-        throw e;
-    } catch (const InferenceEngine::NotAllocated& e) {
-        throw e;
-    } catch (const InferenceEngine::InferNotStarted& e) {
-        throw e;
-    } catch (const InferenceEngine::NetworkNotRead& e) {
-        throw e;
-    } catch (const InferenceEngine::InferCancelled& e) {
-        throw e;
-    } catch (const std::exception& e) {
-        IE_THROW() << e.what();
-    } catch (...) {
-        IE_THROW(Unexpected);
-    }
+
 }
 
 IE_SUPPRESS_DEPRECATED_START

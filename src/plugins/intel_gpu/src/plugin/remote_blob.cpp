@@ -229,48 +229,28 @@ void RemoteBlobImpl::unlock() const {
 }
 
 LockedMemory<void> RemoteBlobImpl::buffer() noexcept {
-    try {
         lock();
         return LockedMemory<void>(m_allocator.get(), _handle, 0);
-    } catch (...) {
-        return LockedMemory<void>(nullptr, nullptr, 0);
-    }
 }
 
 LockedMemory<const void> RemoteBlobImpl::cbuffer() const noexcept {
-    try {
         lock();
         return LockedMemory<const void>(m_allocator.get(), _handle, 0);
-    } catch (...) {
-        return LockedMemory<const void>(nullptr, nullptr, 0);
-    }
 }
 
 LockedMemory<void> RemoteBlobImpl::rwmap() noexcept {
-    try {
         lock();
         return LockedMemory<void>(m_allocator.get(), _handle, 0);
-    } catch (...) {
-        return LockedMemory<void>(nullptr, nullptr, 0);
-    }
 }
 
 LockedMemory<const void> RemoteBlobImpl::rmap() const noexcept {
-    try {
         lock();
         return LockedMemory<const void>(m_allocator.get(), _handle, 0);
-    } catch (...) {
-        return LockedMemory<const void>(nullptr, nullptr, 0);
-    }
 }
 
 LockedMemory<void> RemoteBlobImpl::wmap() noexcept {
-    try {
         lock();
         return LockedMemory<void>(m_allocator.get(), _handle, 0);
-    } catch (...) {
-        return LockedMemory<void>(nullptr, nullptr, 0);
-    }
 }
 
 bool RemoteBlobImpl::supports_caching() const {

@@ -66,10 +66,7 @@ std::vector<instrumentation::profiling_interval> event::get_profiling_info() {
 void event::call_handlers() {
     std::lock_guard<std::mutex> lock(_handlers_mutex);
     for (auto& pair : _handlers) {
-        try {
             pair.first(pair.second);
-        } catch (...) {
-        }
     }
     _handlers.clear();
 }

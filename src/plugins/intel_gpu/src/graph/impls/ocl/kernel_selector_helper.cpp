@@ -100,7 +100,6 @@ bool query_local_block_io_supported(engine& e, const ExecutionConfig& config) {
     kernel_string->entry_point = "is_local_block_io_supported";
     kernel_string->batch_compilation = true;
 
-    try {
         kernel_impl_params dummy_params;
         auto _kernels_cache_device_query = std::unique_ptr<kernels_cache>(new kernels_cache(e, config, 0));
         _kernels_cache_device_query->add_kernels_source(dummy_params, {kernel_string}, false);
@@ -108,9 +107,6 @@ bool query_local_block_io_supported(engine& e, const ExecutionConfig& config) {
 
         auto _kernels = _kernels_cache_device_query->get_kernels(dummy_params);
         cache[device] = _kernels_cache_device_query->validate_simple_kernel_execution(_kernels[0]);
-    } catch (std::exception& /*ex*/) {
-        cache[device] = false;
-    }
 
     return cache.at(device);
 }

@@ -60,11 +60,7 @@ protected:
     template <typename AsyncInferRequestType = AsyncInferRequestThreadSafeDefault>
     IInferRequestInternal::Ptr CreateAsyncInferRequestFromSync() {
         InferenceEngine::IInferRequestInternal::Ptr syncRequestImpl;
-        try {
             syncRequestImpl = this->CreateInferRequestImpl(_parameters, _results);
-        } catch (const ::ov::NotImplemented&) {
-        } catch (const InferenceEngine::NotImplemented&) {
-        }
         if (!syncRequestImpl) {
             syncRequestImpl = this->CreateInferRequestImpl(_networkInputs, _networkOutputs);
             syncRequestImpl->setModelInputsOutputs(_parameters, _results);

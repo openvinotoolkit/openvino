@@ -7,11 +7,7 @@
 namespace InferenceEngine {
 
 INFERENCE_ENGINE_API_CPP(std::shared_ptr<IAllocator>) CreateDefaultAllocator() noexcept {
-    try {
         return std::make_shared<SystemMemoryAllocator>();
-    } catch (...) {
-        return nullptr;
-    }
 }
 
 }  // namespace InferenceEngine

@@ -18,15 +18,7 @@
 
 #define OV_INFER_REQ_CALL_STATEMENT(...)                                    \
     OPENVINO_ASSERT(_impl != nullptr, "InferRequest was not initialized."); \
-    try {                                                                   \
-        __VA_ARGS__;                                                        \
-    } catch (const ::InferenceEngine::RequestBusy& ex) {                    \
-        ov::Busy::create(ex.what());                                        \
-    } catch (const std::exception& ex) {                                    \
-        OPENVINO_THROW(ex.what());                                          \
-    } catch (...) {                                                         \
-        OPENVINO_THROW("Unexpected exception");                             \
-    }
+        __VA_ARGS__;
 
 namespace {
 
@@ -229,30 +221,12 @@ void InferRequest::start_async() {
 
 void InferRequest::wait() {
     OPENVINO_ASSERT(_impl != nullptr, "InferRequest was not initialized.");
-    try {
         _impl->wait();
-    } catch (const ov::Cancelled&) {
-        throw;
-    } catch (const ie::InferCancelled& e) {
-        Cancelled::create(e.what());
-    } catch (const std::exception& ex) {
-        OPENVINO_THROW(ex.what());
-    } catch (...) {
-        OPENVINO_THROW("Unexpected exception");
-    }
 }
 
 bool InferRequest::wait_for(const std::chrono::milliseconds timeout) {
     OPENVINO_ASSERT(_impl != nullptr, "InferRequest was not initialized.");
-    try {
         return _impl->wait_for(timeout);
-    } catch (const ie::InferCancelled& e) {
-        Cancelled::create(e.what());
-    } catch (const std::exception& ex) {
-        OPENVINO_THROW(ex.what());
-    } catch (...) {
-        OPENVINO_THROW("Unexpected exception");
-    }
 }
 
 void InferRequest::set_callback(std::function<void(std::exception_ptr)> callback) {

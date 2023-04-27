@@ -716,11 +716,7 @@ void prepare_primitive_fusing::fuse_simple_primitives(program &p) {
                 // Activation should not be fused if oneDNN does NOT support it
                 if (_lo.is_primitive_implemented_for_onednn(input))  {
                     #ifdef ENABLE_ONEDNN_FOR_GPU
-                    try {
                         onednn::convert_activation_func(activation_func);
-                    } catch (...) {
-                        return;
-                    }
                     #endif
                 }
             }

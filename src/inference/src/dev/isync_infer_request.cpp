@@ -139,13 +139,10 @@ void ov::ISyncInferRequest::convert_batched_tensors() {
         tmp_shape[0] = item.second.size();
         std::shared_ptr<ov::IRemoteContext> remote_context;
         ov::Tensor input_tensor;
-        try {
             auto net = get_compiled_model();
             if (net) {
                 remote_context = net->get_context();
             }
-        } catch (const ov::NotImplemented&) {
-        }
         if (remote_context) {
             input_tensor = ov::Tensor(remote_context->create_host_tensor(tmp_et, tmp_shape), {});
         } else {
@@ -186,11 +183,7 @@ void ov::ISyncInferRequest::set_tensor(const ov::Output<const ov::Node>& port, c
     OV_ITT_SCOPED_TASK(InferenceEngine::itt::domains::Plugin, "set_tensor");
     auto found_port = find_port(port);
     OPENVINO_ASSERT(found_port.found(), "Cannot find tensor for port ", port);
-    try {
         check_tensor(port, tensor);
-    } catch (const ov::Exception& ex) {
-        OPENVINO_THROW("Failed to set tensor. ", ex.what());
-    }
     if (found_port.is_input()) {
         m_tensors.at(get_inputs().at(found_port.idx).get_tensor_ptr()) = tensor;
         m_batched_tensors.erase(get_inputs().at(found_port.idx).get_tensor_ptr());

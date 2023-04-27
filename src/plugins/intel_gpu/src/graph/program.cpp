@@ -252,19 +252,11 @@ program::ptr program::build_program(engine& engine,
 }
 
 program_node& program::get_node(primitive_id const& id) {
-    try {
         return *nodes_map.at(id);
-    } catch (...) {
-        throw std::runtime_error("Program doesn't contain primitive node: " + id);
-    }
 }
 
 program_node const& program::get_node(primitive_id const& id) const {
-    try {
         return *nodes_map.at(id);
-    } catch (...) {
-        throw std::runtime_error("Program doesn't contain primitive node: " + id);
-    }
 }
 
 // TODO: Remove once we will get full support for input/output padding in all primitive implementations.
@@ -435,14 +427,9 @@ void program::add_node_dependencies(program_node* node) {
     auto deps = node->get_primitive()->dependencies();
     // add pointers to node's dependencies
     for (auto& dep : deps) {
-        try {
             auto dep_node = nodes_map.at(dep.pid);
             node->dependencies.push_back({dep_node.get(), dep.idx});
             dep_node->users.push_back(node);
-        } catch (...) {
-            throw std::runtime_error("Program doesn't contain primitive: " + dep.pid +
-                                     " that is input to: " + node->get_primitive()->id);
-        }
     }
 }
 
@@ -461,14 +448,9 @@ void program::copy_node_dependencies(program_node* dest_node, program_node* src_
         if (nodes_map.find(src_dep.first->get_primitive()->id) == nodes_map.end())
             continue;
 
-        try {
             auto dest_dep = nodes_map.at(src_dep.first->get_primitive()->id);
             dest_node->dependencies.push_back({dest_dep.get(), src_dep.second});
             dest_dep->users.push_back(dest_node);
-        } catch (...) {
-            throw std::runtime_error("Program doesn't contain primitive: " + src_dep.first->get_primitive()->id +
-                                     " that is input to: " + src_node->get_primitive()->id);
-        }
     }
 }
 
@@ -1253,14 +1235,10 @@ data_types program::get_inference_precision(const program_node& node) const {
 }
 
 std::string program::get_implementation_info(const primitive_id& id) const {
-    try {
         const auto& node = get_node(id);
         auto impl = node.get_selected_impl();
         auto kernel_name = impl ? impl->get_kernel_name() : "";
         return !kernel_name.empty() ? (kernel_name + "__" + dt_to_str(get_inference_precision(node))) : "undef";
-    } catch (...) { }
-
-    return "undef";
 }
 
 program::primitives_info program::get_current_stage_info() const {

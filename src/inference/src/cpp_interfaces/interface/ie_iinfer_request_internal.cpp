@@ -309,13 +309,10 @@ void IInferRequestInternal::convertBatchedInputBlob(const std::string& name, con
     auto batched_desc = InferenceEngine::TensorDesc(tmp_desc.getPrecision(), tmp_desc.getDims(), blockingDesc);
     std::shared_ptr<RemoteContext> remote_context;
     MemoryBlob::Ptr mem_blob;
-    try {
         auto net = getPointerToExecutableNetworkInternal();
         if (net) {
             remote_context = net->GetContext();
         }
-    } catch (const InferenceEngine::NotImplemented&) {
-    }
     if (remote_context) {
         mem_blob = remote_context->CreateHostBlob(batched_desc);
     } else {

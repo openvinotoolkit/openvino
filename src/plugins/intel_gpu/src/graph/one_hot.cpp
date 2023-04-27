@@ -51,12 +51,10 @@ std::vector<layout> one_hot_inst::calc_output_layouts(const one_hot_node& /*node
     auto dt = desc->output_data_types[0].value_or(input_layout.data_type);
 
     ov::op::v1::OneHot op;
-    try {
         // set_axis also calls resolve_axis method which tries to get input0 partial shape
         // thus wrap this call with try/catch.
         // it's safe as shape_infer method calls normalize_axis internally
         op.set_axis(desc->one_hot_axis);
-    } catch (...) {}
 
     std::vector<ShapeType> output_shapes = { ShapeType{} };
     std::vector<ShapeType> input_shapes = {

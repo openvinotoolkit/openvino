@@ -1635,11 +1635,7 @@ format layout_optimizer::get_preferred_format(program_node& node) {
                 auto fmt = get_preferred_format(node.get_dependency(i));
                 // Check if selected format can be adjusted to the required output rank
                 // If no, use default fotmat instead
-                try {
                     format::adjust_to_rank(fmt, out_lay_rank);
-                } catch (ov::Exception&) {
-                    fmt = format::get_default_format(out_lay_rank);
-                }
                 node.set_preferred_input_fmt(i, fmt);
             }
         }
