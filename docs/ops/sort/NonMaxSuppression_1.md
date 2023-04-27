@@ -10,13 +10,13 @@
 
 **Detailed description**: *NonMaxSuppression* layer performs non maximum suppression algorithm as described below:
 
-1.  Take the box with highest score. If the score is less than ``score_threshold`` then stop. Otherwise add the box to the
+1. Take the box with highest score. If the score is less than ``score_threshold`` then stop. Otherwise add the box to the
 output and continue to the next step.
 
-2.  For each input box, calculate the IOU (intersection over union) with the box added during the previous step. If the
+2. For each input box, calculate the IOU (intersection over union) with the box added during the previous step. If the
 value is greater than the ``iou_threshold`` threshold then remove the input box from further consideration.
 
-3.  Return to step 1.
+3. Return to step 1.
 
 This algorithm is applied independently to each class of each batch element. The total number of output boxes for each
 class must not exceed ``max_output_boxes_per_class``.
