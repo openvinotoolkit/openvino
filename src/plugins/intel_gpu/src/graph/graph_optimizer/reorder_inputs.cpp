@@ -512,7 +512,9 @@ void minimize_local_reorders(program& p, std::map<program_node*, format::type>& 
             continue;
 
         for (auto new_fmt : local_formats) {
-            if (fmt_map.at(node) != format::any && format::dimension(fmt_map.at(node)) != format::dimension(new_fmt))
+            // Avoid setting of formats which will require transform from higher rank to smaller one which requires dimension squeeze
+            // TODO: Needs to be updated once we improve layout assignment logic
+            if (fmt_map.at(node) != format::any && format::dimension(fmt_map.at(node)) > format::dimension(new_fmt))
                 continue;
             fmt_map.at(node) = new_fmt;
 

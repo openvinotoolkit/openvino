@@ -2,16 +2,10 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <cmath>
-#include <vector>
-#include <string>
-#include <dnnl_types.h>
-#include "ie_parallel.hpp"
-#include "utils/bfloat16.hpp"
-#include <selective_build.h>
 #include "space_to_batch.h"
-#include <nodes/common/blocked_desc_creator.h>
-#include <ngraph/opsets/opset2.hpp>
+
+#include "ie_parallel.hpp"
+#include <openvino/op/space_to_batch.hpp>
 
 using namespace InferenceEngine;
 
@@ -19,9 +13,9 @@ namespace ov {
 namespace intel_cpu {
 namespace node {
 
-bool SpaceToBatch::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept {
+bool SpaceToBatch::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept {
     try {
-        const auto spaceToBatch = std::dynamic_pointer_cast<const ngraph::opset2::SpaceToBatch>(op);
+        const auto spaceToBatch = std::dynamic_pointer_cast<const ov::op::v1::SpaceToBatch>(op);
         if (!spaceToBatch) {
             errorMessage = "Only opset2 SpaceToBatch operation is supported";
             return false;
@@ -32,7 +26,7 @@ bool SpaceToBatch::isSupportedOperation(const std::shared_ptr<const ngraph::Node
     return true;
 }
 
-SpaceToBatch::SpaceToBatch(const std::shared_ptr<ngraph::Node>& op, const GraphContext::CPtr context)
+SpaceToBatch::SpaceToBatch(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context)
     : Node(op, context, NgraphShapeInferFactory(op, PortMask(1, 2, 3))) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
@@ -104,8 +98,11 @@ static std::vector<size_t> getShape5D(const SizeVector &shape) {
 
 template<typename T>
 void SpaceToBatch::SpaceToBatchKernel() {
+    const auto& srcMem = getParentEdgesAtPort(0)[0]->getMemoryPtr();
+    const auto& dstMem = getChildEdgesAtPort(0)[0]->getMemoryPtr();
+
     const auto *blockShapesPtr = reinterpret_cast<int *>(getParentEdgeAt(1)->getMemoryPtr()->GetPtr());
-    size_t dataRank = getParentEdgesAtPort(0)[0]->getMemoryPtr()->GetShape().getRank();
+    size_t dataRank = srcMem->GetShape().getRank();
     blockShapeIn.clear();
     for (size_t i = 0; i < dataRank; i++) {
         blockShapeIn.push_back(*(blockShapesPtr + i));
@@ -117,21 +114,24 @@ void SpaceToBatch::SpaceToBatchKernel() {
         padsBeginIn.push_back(*(padsBeginPtr + i));
     }
 
-    const auto *srcData = reinterpret_cast<const T *>(getParentEdgeAt(0)->getMemoryPtr()->GetPtr());
-    auto *dstData = reinterpret_cast<T *>(getChildEdgeAt(0)->getMemoryPtr()->GetPtr());
+    const auto *srcData = reinterpret_cast<const T *>(srcMem->GetPtr());
+    auto *dstData = reinterpret_cast<T *>(dstMem->GetPtr());
 
-    const auto &inDims = getParentEdgesAtPort(0)[0]->getMemoryPtr()->getStaticDims();
-    const auto &outDims = getChildEdgesAtPort(0)[0]->getMemoryPtr()->getStaticDims();
+    const auto srcLen = srcMem->GetSize() / sizeof(T);
+    const auto dstLen = dstMem->GetSize() / sizeof(T);
 
-    const bool blocked = getParentEdgeAt(0)->getMemory().getDesc().hasLayoutType(LayoutType::nCsp16c) ||
-                         getParentEdgeAt(0)->getMemory().getDesc().hasLayoutType(LayoutType::nCsp8c);
+    const auto &inDims = srcMem->getStaticDims();
+    const auto &outDims = dstMem->getStaticDims();
+
+    const bool blocked = srcMem->getDesc().hasLayoutType(LayoutType::nCsp16c) ||
+                         srcMem->getDesc().hasLayoutType(LayoutType::nCsp8c);
     const auto dimsSize = inDims.size();
 
     auto inShape5D  = getShape5D(outDims);
     auto outShape5D = getShape5D(inDims);
     auto blockShape = getShape5D(blockShapeIn);
 
-    if (getParentEdgeAt(0)->getMemory().getDesc().hasLayoutType(LayoutType::nspc)) {
+    if (srcMem->getDesc().hasLayoutType(LayoutType::nspc)) {
         inShape5D.push_back(inShape5D[1]);
         inShape5D.erase(inShape5D.begin() + 1);
         outShape5D.push_back(outShape5D[1]);
@@ -140,10 +140,10 @@ void SpaceToBatch::SpaceToBatchKernel() {
         blockShape.erase(blockShape.begin() + 1);
     }
 
-    const auto outBlkDims = getChildEdgeAt(0)->getMemory().GetDescWithType<BlockedMemoryDesc>()->getBlockDims();
+    const auto outBlkDims = dstMem->GetDescWithType<BlockedMemoryDesc>()->getBlockDims();
     const size_t blockSize = blocked ? outBlkDims.back() : 1lu;
     const size_t blockCountInput = outBlkDims[1];
-    const size_t blockCountOutput = getParentEdgeAt(0)->getMemory().GetDescWithType<BlockedMemoryDesc>()->getBlockDims()[1];
+    const size_t blockCountOutput = srcMem->GetDescWithType<BlockedMemoryDesc>()->getBlockDims()[1];
     const auto blockRemainder = inShape5D[1] % blockSize;
     const auto lastBlock = blockRemainder == 0 ? blockSize : blockRemainder;
 
@@ -153,11 +153,7 @@ void SpaceToBatch::SpaceToBatchKernel() {
     const size_t outSpatialStep = outShape5D[2] * outShape5D[3] * outShape5D[4];
     const size_t outBatchStep = (blocked ? blockSize * blockCountOutput : outShape5D[1]) * outSpatialStep;
 
-    parallel_nt(0, [&](const int ithr, const int nthr) {
-        size_t start(0lu), end(0lu);
-        splitter(inShape5D[0] * inBatchStep, nthr, ithr, start, end);
-        std::fill(dstData + start, dstData + end, T(0));
-    });
+    memset(dstData, 0, dstMem->GetSize());
 
     size_t channels = (inShape5D[1] / blockSize);
     channels = channels == 0 ? 1 : channels;
@@ -169,6 +165,9 @@ void SpaceToBatch::SpaceToBatchKernel() {
         std::vector<size_t> indxStart(2, 0);
         std::vector<size_t> indxEnd(2, 0);
         parallel_it_init(start, indxStart[0], inShape5D[0], indxStart[1], channels);
+        if (start >= end) {
+            return;
+        }
         parallel_it_init((end - 1), indxEnd[0], inShape5D[0], indxEnd[1], channels);
         std::vector<int64_t> oAdd(5, 1);
         std::vector<size_t> begin(5, 0);
@@ -184,7 +183,7 @@ void SpaceToBatch::SpaceToBatchKernel() {
             oAdd[2] = dimsSize == 5 ? bIdx % blockShapeIn[2] - padsBeginIn[2] : 0lu;
             bIdx = dimsSize == 5 ? bIdx / blockShapeIn[2] : bIdx;
             oAdd[1] = bIdx % blockShapeIn[1] - padsBeginIn[1];
-            if (getParentEdgeAt(0)->getMemory().getDesc().hasLayoutType(LayoutType::nspc)) {
+            if (srcMem->getDesc().hasLayoutType(LayoutType::nspc)) {
                 oAdd.push_back(oAdd[1]);
                 oAdd.erase(oAdd.begin() + 1);
             }
@@ -225,6 +224,9 @@ void SpaceToBatch::SpaceToBatchKernel() {
                                     const int64_t tmpOc = i5 * blockShape[1] + addTmpOc;
                                     const size_t srcIdx5 = srcIdx4 + it * outSpatialStep * blockSize + (tmpOc - it * blockSize);
                                     const size_t dstIdx5 = dstIdx4 + i5;
+                                    if (srcIdx5 >= srcLen || dstIdx5 >= dstLen) {
+                                        continue;
+                                    }
                                     dstData[dstIdx5] = srcData[srcIdx5];
                                 }
                             }
