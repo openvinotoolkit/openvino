@@ -50,7 +50,7 @@ public:
     const std::shared_ptr<InferenceEngine::IAllocator> &getAllocator() const noexcept;
     void *getHandle() const noexcept { return _handle; }
 
-    void reinterpret(cldnn::layout new_layout);
+    void reinterpret(const cldnn::layout& new_layout);
 
     bool is_allocated() const noexcept;
     bool is_locked() const noexcept;

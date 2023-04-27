@@ -375,7 +375,7 @@ public:
             if (node->id() == dep->id()) {
                 return;
             }
-            for (auto subdep : dep->get_dependencies()) {
+            for (const auto& subdep : dep->get_dependencies()) {
                 add_memory_dependency(node, subdep.first);
                 add_memory_dependency(subdep.first, node);
             }

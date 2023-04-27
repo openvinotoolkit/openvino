@@ -22,7 +22,12 @@ namespace cldnn {
 struct arg_max_min : public primitive_base<arg_max_min> {
     CLDNN_DECLARE_PRIMITIVE(arg_max_min)
 
-    arg_max_min() : primitive_base("", {}) {}
+    arg_max_min() : primitive_base("", {}),
+                    mode(ov::op::TopKMode::MAX),
+                    top_k(0),
+                    axis(0),
+                    sort(ov::op::TopKSortType::NONE),
+                    values_first(false) {}
 
     DECLARE_OBJECT_TYPE_SERIALIZATION
 

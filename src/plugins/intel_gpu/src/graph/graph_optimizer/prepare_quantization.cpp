@@ -713,9 +713,6 @@ void prepare_quantization::prepare_asymmetric_quantization(program &p, convoluti
 
     // Remove sub operations from the graph and set correct users for zero points and inputs
     if (asymmetric_data) {
-        if (!new_a_zp || !new_input)
-            CLDNN_ERROR_MESSAGE(new_conv_node.id(), "Unexpected nullptr in asymmetric quantization for activations optimization");
-
         auto& zp_users = new_a_zp->users;
         auto& in_users = new_input->users;
         // Erase sub node from input and zero point users...
@@ -735,9 +732,6 @@ void prepare_quantization::prepare_asymmetric_quantization(program &p, convoluti
     }
 
     if (asymmetric_weights) {
-        if (!new_w_zp || !new_weights)
-            CLDNN_ERROR_MESSAGE(new_conv_node.id(), "Unexpected nullptr in asymmetric quantization for weights optimization");
-
         auto& zp_users = new_w_zp->users;
         auto& wei_users = new_weights->users;
         // Erase sub node from weights and zero point users...

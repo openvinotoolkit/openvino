@@ -524,7 +524,8 @@ void InferRequest::wait() {
 
         bool need_output_update = false;
 
-        if (outputLayout.bytes_count() == 0 || _outputs.find(no.first) == _outputs.end() || _outputs.at(no.first)->byteSize() != outputMemory->size()) {
+        if (outputLayout.bytes_count() == 0 || _outputs.find(no.first) == _outputs.end() ||
+            (outputMemory && _outputs.at(no.first)->byteSize() != outputMemory->size())) {
             need_output_update = true;
         }
 

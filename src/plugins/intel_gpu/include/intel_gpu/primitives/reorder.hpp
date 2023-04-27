@@ -26,7 +26,9 @@ enum class reorder_mean_mode {
 struct reorder : public primitive_base<reorder> {
     CLDNN_DECLARE_PRIMITIVE(reorder)
 
-    reorder() : primitive_base("", {}), output_format(format::any) {}
+    reorder() : primitive_base("", {}),
+                output_format(format::any),
+                mean_mode(reorder_mean_mode::subtract) {}
 
     DECLARE_OBJECT_TYPE_SERIALIZATION
 

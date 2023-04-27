@@ -356,7 +356,7 @@ protected:
         for (auto u : _node->get_users())
             users.push_back(u->id());
 
-        for (auto u : _network.get_primitives(users)) {
+        for (const auto& u : _network.get_primitives(users)) {
             if (u->need_reset_input_memory())
                 return true;
         }

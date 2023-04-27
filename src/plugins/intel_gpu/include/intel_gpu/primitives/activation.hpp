@@ -75,7 +75,8 @@ struct activation_additional_params {
 struct activation : public primitive_base<activation> {
     CLDNN_DECLARE_PRIMITIVE(activation)
 
-    activation() : primitive_base("", {}) {}
+    activation() : primitive_base("", {}),
+                   activation_function(activation_func::none) {}
 
     DECLARE_OBJECT_TYPE_SERIALIZATION
 

@@ -431,7 +431,7 @@ network::network(cldnn::BinaryInputBuffer& ib, const ExecutionConfig& config, st
         }
     }
 
-    for (auto p_inst : _exec_order) {
+    for (const auto& p_inst : _exec_order) {
         p_inst->rebuild_deps(_primitives);
         p_inst->rebuild_exec_deps(_primitives);
 
@@ -442,7 +442,7 @@ network::network(cldnn::BinaryInputBuffer& ib, const ExecutionConfig& config, st
                 auto nodes_list = stack.front();
                 stack.pop_front();
 
-                for (auto processed_nodes : *nodes_list) {
+                for (const auto& processed_nodes : *nodes_list) {
                     auto processed_node = processed_nodes.first;
                     auto dep_node = _primitives[processed_node->id()];
                     dep_node->set_output_memory(p_inst->output_memory_ptr(), false);
@@ -458,7 +458,7 @@ network::network(cldnn::BinaryInputBuffer& ib, const ExecutionConfig& config, st
     std::map<std::string, std::string> reuse_map;
     ib >> reuse_map;
 
-    for (auto reuse_pair : reuse_map) {
+    for (const auto& reuse_pair : reuse_map) {
         auto& eltw_inst = _primitives.at(reuse_pair.second);
         auto& prim_inst = _primitives.at(reuse_pair.first);
         auto& eltw_mem = eltw_inst->output_memory();

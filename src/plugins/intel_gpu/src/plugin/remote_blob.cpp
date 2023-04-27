@@ -32,6 +32,7 @@ RemoteBlobImpl::RemoteBlobImpl(InferenceEngine::gpu::ClContext::Ptr context,
     , m_plane(plane)
     , m_layout(layout)
     , m_mem_type(mem_type)
+    , m_hash(0)
     , m_memory_object(nullptr)
     , lockedCounter(0)
     , lockedHolder(nullptr)
@@ -196,7 +197,7 @@ std::shared_ptr<InferenceEngine::RemoteContext> RemoteBlobImpl::getContext() con
     return m_context;
 }
 
-void RemoteBlobImpl::reinterpret(cldnn::layout new_layout) {
+void RemoteBlobImpl::reinterpret(const cldnn::layout& new_layout) {
     OPENVINO_ASSERT(m_layout.bytes_count() >= new_layout.bytes_count(),
                     "[GPU] Can't reinterpret blob to the size bigger than allocated memory buffer");
     m_layout = new_layout;

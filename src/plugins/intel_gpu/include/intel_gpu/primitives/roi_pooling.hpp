@@ -13,7 +13,19 @@ namespace cldnn {
 struct roi_pooling : public primitive_base<roi_pooling> {
     CLDNN_DECLARE_PRIMITIVE(roi_pooling)
 
-    roi_pooling() : primitive_base("", {}) {}
+    roi_pooling() : primitive_base("", {}),
+                    mode(pooling_mode::max),
+                    position_sensitive(false),
+                    pooled_width(0),
+                    pooled_height(0),
+                    spatial_scale(0.0f),
+                    trans_std(0.0f),
+                    no_trans(false),
+                    output_dim(0),
+                    part_size(0),
+                    group_size(0),
+                    spatial_bins_x(1),
+                    spatial_bins_y(1) {}
 
     DECLARE_OBJECT_TYPE_SERIALIZATION
 
