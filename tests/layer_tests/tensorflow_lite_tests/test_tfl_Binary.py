@@ -9,6 +9,7 @@ from tensorflow_lite_tests.test_tfl_Unary import data_generators
 test_ops = [
     {'op_name': 'EQUAL', 'op_func': tf.math.equal},
     {'op_name': 'FLOOR_MOD', 'op_func': tf.math.floormod},
+    {'op_name': 'FLOOR_DIV', 'op_func': tf.math.floordiv, 'kwargs_to_prepare_input': 'positive'},
     {'op_name': 'GREATER', 'op_func': tf.math.greater},
     {'op_name': 'GREATER_EQUAL', 'op_func': tf.math.greater_equal},
     {'op_name': 'LESS', 'op_func': tf.math.less},
