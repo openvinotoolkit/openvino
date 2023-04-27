@@ -87,7 +87,7 @@ Table of Contents
 * :doc:`IDFT <openvino_docs_ops_signals_IDFT_7>`
 * :doc:`I420toBGR <openvino_docs_ops_image_I420toBGR_8>`
 * :doc:`I420toRGB <openvino_docs_ops_image_I420toRGB_8>`
-* :doc:`If <openvino_docs_ops_condition_If_8>`
+* :doc:`If <openvino_docs_ops_infrastructure_If_8>`
 * :doc:`Interpolate <openvino_docs_ops_image_Interpolate_4>`
 * :doc:`IRDFT <openvino_docs_ops_signals_IRDFT_9>`
 * :doc:`IsInf <openvino_docs_ops_comparison_IsInf_10>`
