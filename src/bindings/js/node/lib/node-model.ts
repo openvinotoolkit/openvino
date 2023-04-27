@@ -1,5 +1,5 @@
 import { Tensor, TypedArray, Shape } from 'openvinojs-common';
-import type { ITensor, IShape, IModel } from 'openvinojs-common';
+import type { ITensor, IShape, IModel, PrecisionSupportedType } from 'openvinojs-common';
 const ovNode = require('../build/Release/ov_node_addon.node');
 
 
@@ -24,11 +24,10 @@ class CommonModel implements IModel {
     async infer(tensorOrDataArray: ITensor | number[], shape: IShape): Promise<ITensor> {
         const tensor_data = tensorOrDataArray instanceof Array
             ? Float32Array.from(tensorOrDataArray) : tensorOrDataArray.data;
+        const precision = tensorOrDataArray instanceof Tensor
+            ? tensorOrDataArray.precision : "float32";
 
-        const nodeTensor = new this.#ovNode.Tensor("f32", Int32Array.from(shape.data), tensor_data);
-        // TO_DO check if I have to use int32array for shape
-        // TO_DO use precision from ITensor
-
+        const nodeTensor = new this.#ovNode.Tensor(precision, shape.data, tensor_data);
         const output = this.#nodeModel.infer(nodeTensor);
 
         return parseNodeTensor(output);
@@ -36,17 +35,16 @@ class CommonModel implements IModel {
     }
 }
 
-function parseNodeTensor(output: NodeTensor): Tensor {
-    const precision = "float32";
-    const data = output.data;
-    const shape = new Shape(output.getShape().getData()); // TO_DO output.getShape() returns ShapeLite() from Node
-
+function parseNodeTensor(nodeTensor: NodeTensor): Tensor {
+    const precision = nodeTensor.getPrecision() as PrecisionSupportedType;
+    const data = nodeTensor.data;
+    const shape = new Shape(nodeTensor.getShape().getData());
     return new Tensor(precision, data, shape);
 }
 
 
 export interface ovNodeModule {
-    Tensor: new (precision: string, shape: number[] | Int32Array, tensor_data: TypedArray) => NodeTensor, //TO_DO tensor_data  from ITensor 
+    Tensor: new (precision: string, shape: number[] | Uint32Array | Int32Array, tensor_data: TypedArray) => NodeTensor,
     Model: new () => NodeModel,
     Shape: new (dimension: number, data: Uint32Array) => ShapeLite,
     getDescriptionString(): string
