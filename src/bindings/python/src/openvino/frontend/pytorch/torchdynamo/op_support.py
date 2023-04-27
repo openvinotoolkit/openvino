@@ -153,6 +153,7 @@ class OperatorSupport(OperatorSupport):
             "torch.ops.aten.native_batch_norm.default": None,
             "torch.ops.aten.relu_.default": None,
             "torch.ops.aten.max_pool2d_with_indices.default": None,
+            "torch.ops.aten.add.Tensor": None,
             "torch.ops.aten.add_.Tensor": None,
             "torch.ops.aten.mean.dim": None,
             "torch.ops.aten.view.default": None,
@@ -163,6 +164,12 @@ class OperatorSupport(OperatorSupport):
             "torch.ops.aten.t.default": None,
             "torch.ops.aten.empty.memory_format": None,
             "torch.ops.aten.mul.Tensor": None,
+            "torch.ops.aten.cat.default": None,
+            "torch.ops.aten.avg_pool2d.default": None,
+            "torch.ops.aten._adaptive_avg_pool2d.default": None,
+            "torch.ops.aten.unsqueeze.default": None,
+            "torch.ops.aten.select.int": None,
+            "torch.ops.aten.slice.Tensor": None,
         }
 
         super().__init__(support_dict)
@@ -185,5 +192,3 @@ class OperatorSupport(OperatorSupport):
                 return True
 
         return super().is_node_supported(submodules, node)
-
-

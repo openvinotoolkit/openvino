@@ -15,10 +15,15 @@ namespace op {
 using namespace ov::op;
 
 OutputVector translate_max_poolnd(const NodeContext& context) {
-    num_inputs_check(context, 4, 6);
+    num_inputs_check(context, 3, 6);
     auto kernel = context.const_input<Shape>(1);
     auto strides = context.const_input<Strides>(2);
-    auto pads = context.const_input<Shape>(3);  // pytorch supports only symmetric paddings
+    Shape pads;
+    if (context.input_is_none(3)) {
+        pads = Shape(kernel.size(),0);
+    } else {
+        pads = context.const_input<Shape>(3);  // pytorch supports only symmetric paddings
+    }
     Strides dilations;
     if (!context.input_is_none(4)) {
         dilations = context.const_input<Strides>(4);
