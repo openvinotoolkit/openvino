@@ -45,14 +45,12 @@ class TestTFLiteBinaryWithActivationLayerTest(TFLiteLayerTest):
         self.allowed_ops = [params['op_name']]
         tf.compat.v1.reset_default_graph()
         with tf.compat.v1.Session() as sess:
-            in0 = tf.compat.v1.placeholder(params.get('dtype', tf.float32), params['shape'],
-                                           name=TestTFLiteBinaryWithActivationLayerTest.inputs[0])
-            in1 = tf.compat.v1.placeholder(params.get('dtype', tf.float32), params['shape'],
-                                           name=TestTFLiteBinaryWithActivationLayerTest.inputs[1])
-            bin_op_name = TestTFLiteBinaryWithActivationLayerTest.outputs[0] if not params['activation'] else \
-            TestTFLiteBinaryWithActivationLayerTest.outputs[0] + "/op"
+            in0 = tf.compat.v1.placeholder(params.get('dtype', tf.float32), params['shape'], name=self.inputs[0])
+            in1 = tf.compat.v1.placeholder(params.get('dtype', tf.float32), params['shape'], name=self.inputs[1])
+            bin_op_name = self.outputs[0] if not params['activation'] else \
+            self.outputs[0] + "/op"
             op = params['op_func'](in0, in1, name=bin_op_name)
-            op = activation_helper(op, params['activation'], TestTFLiteBinaryWithActivationLayerTest.outputs[0])
+            op = activation_helper(op, params['activation'], self.outputs[0])
 
             net = sess.graph_def
         return net

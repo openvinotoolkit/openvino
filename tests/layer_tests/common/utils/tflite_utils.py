@@ -23,10 +23,17 @@ def make_boolean_array(inputs_dict):
     return inputs_dict
 
 
+def make_int32_array(inputs_dict):
+    for input in inputs_dict.keys():
+        inputs_dict[input] = np.random.randint(-255, 255, inputs_dict[input]).astype(np.int32)
+    return inputs_dict
+
+
 data_generators = {
     'positive': make_positive_array,
     'short_range': short_range,
     'boolean': make_boolean_array,
+    'int32': make_int32_array
 }
 
 
