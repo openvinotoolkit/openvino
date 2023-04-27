@@ -98,7 +98,7 @@ To set both source and destination layouts in the ``layout`` parameter, use the 
 
 ``LayoutMap("NCHW", "NHWC")`` is equivalent to ``LayoutMap(source_layout="NCHW", target_layout="NHWC")``.
 
-Example of usage of ``LayoutMap`` class for changing of layout of model input:
+Example of using the ``LayoutMap`` class to change the layout of a model input:
 
 .. code-block:: python
 
