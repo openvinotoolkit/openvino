@@ -248,6 +248,7 @@ std::vector<std::vector<int>> reserve_available_cpus(const std::vector<std::vect
     for (int i = 0; i < cpu._processors; i++) {
         for (int j = 0; j < info_table_size; j++) {
             if (static_cast<int>(res_stream_ids[j].size()) < streams_info_table[j][NUMBER_OF_STREAMS]) {
+                std::lock_guard<std::mutex> lock{cpu._cpu_mutex};
                 if (cpu._cpu_mapping_table[i][CPU_MAP_CORE_TYPE] == streams_info_table[j][PROC_TYPE] &&
                     cpu._cpu_mapping_table[i][CPU_MAP_USED_FLAG] == NOT_USED) {
                     stream_ids[j].push_back(cpu._cpu_mapping_table[i][CPU_MAP_PROCESSOR_ID]);
