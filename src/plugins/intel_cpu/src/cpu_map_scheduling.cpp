@@ -6,6 +6,7 @@
 
 #include "ie_parallel.hpp"
 #include "ie_system_conf.h"
+#include "threading/ie_cpu_streams_info.hpp"
 
 namespace ov {
 namespace intel_cpu {
@@ -87,6 +88,32 @@ bool get_cpu_pinning(bool& input_value,
     input_value = result_value;
 
     return result_value;
+}
+
+bool update_cpu_pinning(const bool input_pinning,
+                        const bool input_changed,
+                        const std::vector<std::vector<int>>& stream_info_table,
+                        const std::vector<std::vector<int>>& original_proc_type_table) {
+#if (defined(_WIN32) || defined(_WIN64))
+
+    return false;
+
+#endif
+
+#ifdef __linux__
+
+    if (input_changed && !input_pinning) {
+        return false;
+    } else {
+        for (auto& row : stream_info_table) {
+            if (row[InferenceEngine::PROC_TYPE] == ALL_PROC) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+#endif
 }
 
 }  // namespace intel_cpu
