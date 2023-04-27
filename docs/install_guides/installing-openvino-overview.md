@@ -13,12 +13,23 @@
 
 @endsphinxdirective
 
-Intel® Distribution of OpenVINO™ toolkit is a comprehensive toolkit for developing applications and solutions based on deep learning tasks, such as computer vision, automatic speech recognition, natural language processing, recommendation systems, and more. It provides high-performance and rich deployment options, from edge to cloud. Some of its advantages are:
+Intel® Distribution of OpenVINO™ Toolkit is a comprehensive toolkit for developing applications and solutions based on deep learning tasks, such as computer vision, automatic speech recognition, natural language processing, recommendation systems, and more. It provides high-performance and rich deployment options, from edge to cloud. Some of its advantages are:
 
 * Enables CNN-based and transformer-based deep learning inference on the edge or cloud.
 * Supports various execution modes across Intel® technologies: Intel® CPU, Intel® Integrated Graphics, Intel® Discrete Graphics, Intel® Neural Compute Stick 2, and Intel® Vision Accelerator Design with Intel® Movidius™ VPUs.
 * Speeds time-to-market via an easy-to-use library of computer vision functions and pre-optimized kernels.
 * Compatible with models from a wide variety of frameworks, including TensorFlow, PyTorch, PaddlePaddle, ONNX, and more.
+
+@sphinxdirective
+
+.. warning::
+
+   OpenVINO 2022.3, temporarily, does not support the VPU devices.
+   The feature will be re-implemented with the next update. Until then, 
+   continue using a previous release of OpenVINO, if you work with VPUs.
+
+@endsphinxdirective
+
 
 
 ## Install OpenVINO
@@ -33,10 +44,11 @@ Intel® Distribution of OpenVINO™ toolkit is a comprehensive toolkit for devel
 
 @endsphinxdirective
 
-OpenVINO installation package is distributed in two parts: OpenVINO Runtime and OpenVINO Development Tools.
+OpenVINO installation package is distributed as two options: OpenVINO Runtime and OpenVINO Development Tools.
 
 * **OpenVINO Runtime** contains the core set of libraries for running machine learning model inference on processor devices.
 * **OpenVINO Development Tools** is a set of utilities for working with OpenVINO and OpenVINO models. It includes the following tools:
+  - OpenVINO Runtime
   - Model Optimizer
   - Post-Training Optimization Tool
   - Benchmark Tool

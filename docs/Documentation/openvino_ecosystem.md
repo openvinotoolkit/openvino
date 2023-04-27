@@ -6,8 +6,8 @@
    :maxdepth: 1
    :hidden:
 
-   ovtf_integration
    ote_documentation
+   ovtf_integration
    ovsa_get_started
    openvino_inference_engine_tools_compile_tool_README
    openvino_docs_tuning_utilities
@@ -26,6 +26,15 @@ More resources:
 * [Documentation](@ref tmo_introduction)
 * [GitHub](https://github.com/openvinotoolkit/nncf)
 * [PyPI](https://pypi.org/project/nncf/)
+
+### OpenVINO™ Training Extensions
+A convenient environment to train Deep Learning models and convert them using the OpenVINO™ toolkit for optimized inference.
+
+More resources:
+
+* [Overview](@ref ote_documentation)
+* [GitHub](https://github.com/openvinotoolkit/training_extensions)
+* [Documentation](https://openvinotoolkit.github.io/training_extensions/stable/guide/get_started/introduction.html)
 
 ### OpenVINO™ Security Add-on	 
 A solution for Model Developers and Independent Software Vendors to use secure packaging and secure model execution.	 
@@ -50,6 +59,7 @@ More resources:
 * [documentation on GitHub](https://dlstreamer.github.io/index.html)
 * [installation Guide on GitHub](https://github.com/openvinotoolkit/dlstreamer_gst/wiki/Install-Guide)
 
+
 ### DL Workbench
 A web-based tool for deploying deep learning models. Built on the core of OpenVINO and equipped with a graphics user interface, DL Workbench is a great way to explore the possibilities of the OpenVINO workflow, import, analyze, optimize, and build your pre-trained models. You can do all that by visiting [Intel® DevCloud for the Edge](https://software.intel.com/content/www/us/en/develop/tools/devcloud.html) and launching DL Workbench on-line.
 
@@ -57,12 +67,6 @@ More resources:
 * [documentation](dl_workbench_overview.md)
 * [Docker Hub](https://hub.docker.com/r/openvino/workbench)
 * [PyPI](https://pypi.org/project/openvino-workbench/)
-
-### OpenVINO™ Training Extensions (OTE)
-A convenient environment to train Deep Learning models and convert them using the OpenVINO™ toolkit for optimized inference.
-
-More resources:
-* [GitHub](https://github.com/openvinotoolkit/training_extensions)
 
 ### Computer Vision Annotation Tool (CVAT)
 An online, interactive video and image annotation tool for computer vision purposes.
