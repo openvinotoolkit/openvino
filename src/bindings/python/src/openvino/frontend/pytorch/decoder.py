@@ -106,7 +106,7 @@ class TorchScriptPythonDecoder (Decoder):
         self.pt_module = pt_module
         self.raw_inputs = list(self.graph_element.inputs())
         self.raw_outputs = list(self.graph_element.outputs())
-        if self._input_signature is not None and self.raw_inputs[0].debugName() == "self":
+        if self._input_signature is not None and 'self' in self.raw_inputs[0].debugName():
             self._input_signature.insert(0, "self")
 
         if isinstance(self.graph_element, torch.Graph):
