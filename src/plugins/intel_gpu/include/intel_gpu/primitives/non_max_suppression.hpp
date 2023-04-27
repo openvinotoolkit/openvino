@@ -17,7 +17,10 @@ namespace cldnn {
 struct non_max_suppression : public primitive_base<non_max_suppression> {
     CLDNN_DECLARE_PRIMITIVE(non_max_suppression)
 
-    non_max_suppression() : primitive_base("", {}) {}
+    non_max_suppression() : primitive_base("", {}),
+                            selected_indices_num(0),
+                            center_point_box(false),
+                            sort_result_descending(false) {}
 
     DECLARE_OBJECT_TYPE_SERIALIZATION
 

@@ -12,7 +12,7 @@
 namespace cldnn {
 class QuantizeFuseParams : public NodeFuseParams {
 public:
-    QuantizeFuseParams(layout out_layout,
+    QuantizeFuseParams(const layout& out_layout,
                        bool scale_shift_opt,
                        bool need_post_scale,
                        bool need_post_shift,

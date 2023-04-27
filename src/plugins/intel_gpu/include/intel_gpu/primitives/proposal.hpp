@@ -17,7 +17,25 @@ namespace cldnn {
 struct proposal : public primitive_base<proposal> {
     CLDNN_DECLARE_PRIMITIVE(proposal)
 
-    proposal() : primitive_base("", {}) {}
+    proposal() : primitive_base("", {}),
+                 max_proposals(0),
+                 iou_threshold(0.0f),
+                 base_bbox_size(16),
+                 min_bbox_size(0),
+                 feature_stride(0),
+                 pre_nms_topn(0),
+                 post_nms_topn(0),
+                 coordinates_offset(1.0f),
+                 box_coordinate_scale(1.0f),
+                 box_size_scale(1.0f),
+                 for_deformable(false),
+                 swap_xy(false),
+                 initial_clip(false),
+                 clip_before_nms(true),
+                 clip_after_nms(false),
+                 round_ratios(true),
+                 shift_anchors(false),
+                 normalize(false) {}
 
     DECLARE_OBJECT_TYPE_SERIALIZATION
 
