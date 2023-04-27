@@ -14,7 +14,7 @@ Similar to *NV12toRGB* but output channels for each pixel are reversed so that t
 
 **Inputs:**
 
-Same as specified for :doc:``NV12toRGB <openvino_docs_ops_image_NV12toRGB_8>`` operation.
+Same as specified for :doc:`NV12toRGB <openvino_docs_ops_image_NV12toRGB_8>` operation.
 
 **Outputs:**
 

@@ -59,7 +59,7 @@ Particular cases:
 
 **Examples**
 
-*Example: Normalization over channel dimension for ``NCHW`` layout*
+Example: Normalization over channel dimension for ``NCHW`` layout
 
 .. code-block::  cpp
 
@@ -87,7 +87,7 @@ Particular cases:
     </layer>
 
 
-*Example: Normalization over channel and spatial dimensions for ``NCHW`` layout*
+Example: Normalization over channel and spatial dimensions for ``NCHW`` layout
 
 .. code-block::  cpp
 
