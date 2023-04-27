@@ -24,6 +24,7 @@ bool ov::intel_cpu::ACLInterpolateExecutor::init(const InterpolateAttrs &interpo
     aclInterpolateAttrs = interpolateAttrs;
     InterpolateExecutor::init(aclInterpolateAttrs, srcDescs, dstDescs, attr);
     acl_coord = arm_compute::SamplingPolicy::TOP_LEFT;
+    auto& out_shape = dstDescs[0]->getShape().getDims();
 
     int index_h, index_w;
     if (!getIndices(dstDescs[0], index_h, index_w)) { return false; }
