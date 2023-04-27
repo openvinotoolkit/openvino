@@ -37,8 +37,7 @@ class Partitioner:
         for partition in partitions:
             for pnode in partition.nodes:
                 for pnode_input in pnode.all_input_nodes:
-                    if pnode_input.op in ['get_attr']:
-                        if pnode_input.op not in getattr_to_merge:
+                    if pnode_input.op in ['get_attr'] and pnode_input.op not in getattr_to_merge:
                             getattr_to_merge[pnode_input] = partition
         for getattr_node, getattr_part in getattr_to_merge.items():
             getattr_part.add_node(getattr_node)

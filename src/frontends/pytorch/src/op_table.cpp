@@ -29,6 +29,7 @@ OP_CONVERTER(translate_bool);
 OP_CONVERTER(translate_batch_norm);
 OP_CONVERTER(translate_bitwise_not);
 OP_CONVERTER(translate_cat);
+OP_CONVERTER(translate_cat_fx);
 OP_CONVERTER(translate_clamp);
 OP_CONVERTER(translate_constant);
 OP_CONVERTER(translate_conv_transposend);
@@ -109,6 +110,7 @@ OP_CONVERTER(translate_set_item);
 OP_CONVERTER(translate_selu);
 OP_CONVERTER(translate_size);
 OP_CONVERTER(translate_slice);
+OP_CONVERTER(translate_slice_fx);
 OP_CONVERTER(translate_softmax);
 OP_CONVERTER(translate_sort);
 OP_CONVERTER(translate_square);
@@ -366,6 +368,7 @@ const std::map<std::string, CreatorFunction> get_supported_ops_fx() {
     return {
         {"<built-in function getitem>", op::translate_getitem}, // TODO: Check if there is any other way to handle this
         {"aten.convolution.default", op::translate_convolution},
+        {"aten.add.Tensor", op::translate_add},
         {"aten.add_.Tensor", op::translate_add},
         {"aten.addmm.default", op::translate_addmm},
         {"aten.empty.memory_format", op::translate_empty},
@@ -393,6 +396,12 @@ const std::map<std::string, CreatorFunction> get_supported_ops_fx() {
         {"torchvision::nms", op::translate_nms},
         {"torchvision::roi_align", op::translate_roi_align},
         {"aten.mul.Tensor", op::translate_1to1_match_2_inputs_align_types<opset10::Multiply>},
+        {"aten.cat.default", op::translate_cat_fx},
+        {"aten.avg_pool2d.default", op::translate_avg_poolnd},
+        {"aten._adaptive_avg_pool2d.default", op::translate_1to1_match_2_inputs<opset10::AdaptiveAvgPool>},
+        {"aten.unsqueeze.default", op::translate_1to1_match_2_inputs<opset10::Unsqueeze>},
+        {"aten.select.int", op::translate_select},
+        {"aten.slice.Tensor", op::translate_slice_fx},
     };
 };
 

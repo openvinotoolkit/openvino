@@ -14,6 +14,14 @@ import numpy as np
 import inspect
 import ctypes
 
+def maybe_convert_max_int(value : int):
+    # FIXME: This is a convertion from 64-bit positive max integer value
+    # to 32-bit positive max integer value. Find a better way to handle this.
+    if value == 9223372036854775807:
+        return 2147483647
+    else:
+        return value
+
 def fetch_attr(self_module, target : str):
     """
     Fetch an attribute from the ``Module`` hierarchy of ``self.module``.
@@ -478,6 +486,22 @@ class TorchFXPythonDecoder (Decoder):
             # negative index is used to mark inputs initialized by inline constants, there are no such inputs in the graph
             self._inputs = [self._nodes.index(arg) if arg in self._nodes else (arg,) for arg in pt_module.args]
 
+            # FIXME: Find a better way to pass nested tuples to OV frontend. This is a temprary solution to flatten arguments.
+            new_inputs = []
+            for i in range(len(pt_module.args)):
+                expand_list = False
+                if isinstance(pt_module.args[i], list):
+                    for arg in pt_module.args[i]:
+                        if arg in self._nodes:
+                            expand_list = True
+                            break;
+                if expand_list:
+                    for arg in pt_module.args[i]:
+                        new_inputs.append(self._nodes.index(arg))
+                else:
+                    new_inputs.append(self._inputs[i])
+            self._inputs = new_inputs
+
             print(f'[ FX DECODER DEBUG ] inputs: {self._inputs}')
             print(f'[ FX DECODER DEBUG ] outputs: {self._outputs}')
 
@@ -562,12 +586,22 @@ class TorchFXPythonDecoder (Decoder):
 
     def get_type_for_value(self, value):
         print(f'[ FX DECODER DEBUG ] Decoder method called: {inspect.currentframe().f_code.co_name}')
-        if value and ('tensor_meta' in value.meta.keys()):
-            pt_type = value.meta['tensor_meta'].dtype
-            if pt_type in pt_to_ov_type_map:
-                ov_type = pt_to_ov_type_map[pt_type]
-                return OVAny(ov_type)
-        return OVAny(OVType.f32)
+        if issubclass(type(value), torch.fx.Node):
+            if ('tensor_meta' in value.meta.keys()):
+                pt_type = value.meta['tensor_meta'].dtype
+                if pt_type in pt_to_ov_type_map:
+                    ov_type = pt_to_ov_type_map[pt_type]
+                    return OVAny(ov_type)
+            else:
+                return OVAny(OVType.f32)
+        elif isinstance(value, int):
+            return OVAny(OVType.i32)
+        elif isinstance(value, float):
+            return OVAny(OVType.f32)
+        elif isinstance(value, bool):
+            return OVAny(OVType.boolean)
+        else:
+            return OVAny(OVType.f32)
 
     def get_input_transpose_order(self, index):
         print(f'[ FX DECODER DEBUG ] Decoder method called: {inspect.currentframe().f_code.co_name}')
@@ -833,6 +867,7 @@ class TorchFXPythonDecoder (Decoder):
                 elif isinstance(arg, bool):
                     constant = make_constant(OVType.boolean, Shape([]), [arg])
                 elif isinstance(arg, int):
+                    arg = maybe_convert_max_int(arg)
                     constant = make_constant(OVType.i32, Shape([]), [arg])  # TODO: i32? why not i64?
                 elif isinstance(arg, float):
                     constant = make_constant(OVType.f32, Shape([]), [arg])  # TODO: f32? why not f64?
