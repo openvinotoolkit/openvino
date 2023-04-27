@@ -14,7 +14,7 @@ namespace cldnn {
 
 class ReorderFuseParams : public NodeFuseParams {
 public:
-    ReorderFuseParams(layout in, layout out) : NodeFuseParams(reorder::type_id()), _in(in), _out(out) {}
+    ReorderFuseParams(const layout& in, const layout& out) : NodeFuseParams(reorder::type_id()), _in(in), _out(out) {}
 
     layout _in;
     layout _out;
