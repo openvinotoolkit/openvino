@@ -168,9 +168,7 @@ std::vector<std::string> disabledTestPatterns() {
         // Reorder->GridSample->Reorder also does not work here. Potential fix is to use nearest conversion instead of truncation.
         R"(.*GridSampleLayerTestCPU.*(BILINEAR|BICUBIC).*(i32|i8).*)",
         // 98151. Not valid sorting for slices in reference.
-        R"(.*UniqueLayerTestCPU.*axis.*True.*)",
-        // 109482. Sporadic failure.
-        R"(.*smoke_StaticSpaceToBatch_4D_parallel_block_edge.*)"
+        R"(.*UniqueLayerTestCPU.*axis.*True.*)"
     };
 
 #if defined(OPENVINO_ARCH_X86)
