@@ -30,7 +30,7 @@ Converting certain PyTorch models may require model tracing, which needs ``input
 ``example_input`` is used as example input for model tracing.
 ``input_shape`` is used for constructing a float zero-filled torch.Tensor for model tracing.
 
-Example of usage of ``example_input``:
+Example of using ``example_input``:
 
 .. code-block:: python
 
