@@ -698,7 +698,6 @@ def create_pytorch_nn_module_convert_pytorch_frontend3(tmp_dir):
 
 def create_pytorch_nn_module_convert_pytorch_frontend4(tmp_dir):
     pt_model = make_pt_model_two_inputs()
-    print(pt_model)
     shape = [-1, -1, -1, -1]
     shape = PartialShape(shape)
     param1 = ov.opset10.parameter(shape, dtype=np.float32)
