@@ -23,7 +23,7 @@ The following types are supported as an input model for ``convert_model()``:
 
 ``convert_model()`` accepts all parameters available in the MO command-line tool. Parameters can be specified by Python classes or string analogs, similar to the command-line tool.
 
-Example of usage of native Python classes for setting ``input_shape``, ``mean_values`` and ``layout``:
+Example of using native Python classes to set ``input_shape``, ``mean_values`` and ``layout``:
 
 .. code-block:: python
 
@@ -31,7 +31,7 @@ Example of usage of native Python classes for setting ``input_shape``, ``mean_va
    
    ov_model = convert_model(model, input_shape=PartialShape([1,3,100,100]), mean_values=[127, 127, 127], layout=Layout("NCHW"))
 
-Example of usage strings for setting ``input_shape``, ``mean_values`` and ``layout``:
+Example of using strings for setting ``input_shape``, ``mean_values`` and ``layout``:
 
 .. code-block:: python
 
@@ -41,7 +41,7 @@ Example of usage strings for setting ``input_shape``, ``mean_values`` and ``layo
 The ``input`` parameter can be set by a ``tuple`` with a name, shape, and type. The input name of the type string is required in the tuple. The shape and type are optional.
 The shape can be a ``list`` or ``tuple`` of dimensions (``int`` or ``openvino.runtime.Dimension``), or ``openvino.runtime.PartialShape``, or ``openvino.runtime.Shape``. The type can be of numpy type or ``openvino.runtime.Type``.
 
-Example of usage of a tuple in ``input`` parameter for cutting the model:
+Example of using a tuple in the ``input`` parameter to cut a model:
 
 .. code-block:: python
 
@@ -58,7 +58,7 @@ Supported types for ``InputCutInfo``:
 * type: ``numpy type``, ``openvino.runtime.Type``.
 * value: ``numpy.ndarray``, ``list`` of numeric values, ``bool``.
 
-Example of usage of ``InputCutInfo`` for freezing an input with value:
+Example of using ``InputCutInfo`` to freeze an input with value:
 
 .. code-block:: python
 
@@ -77,7 +77,7 @@ Parameters supporting ``list``:
 * mean_values
 * scale_values
 
-Example of usage of lists for setting shapes, types and layout for multiple inputs:
+Example of using lists to set shapes, types and layout for multiple inputs:
 
 .. code-block:: python
 
@@ -85,7 +85,7 @@ Example of usage of lists for setting shapes, types and layout for multiple inpu
 
 ``layout``, ``source_layout`` and ``dest_layout`` accept an ``openvino.runtime.Layout`` object or ``string``.
 
-Example of usage of ``Layout`` class for setting of layout of model input:
+Example of using the ``Layout`` class to set the layout of a model input:
 
 .. code-block:: python
 
