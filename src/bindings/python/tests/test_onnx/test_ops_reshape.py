@@ -234,6 +234,20 @@ def test_squeeze():
     graph_results = run_node(node, [data, axes])
     assert np.array_equal(graph_results, [expected_output])
 
+    data = np.arange(6, dtype=np.int32).reshape([1, 2, 1, 3, 1])
+    expected_output = data.reshape([1, 2, 3, 1])
+    axes = np.array([2]).astype(np.int64)
+    node = onnx.helper.make_node("Squeeze", inputs=["x", "axes"], outputs=["y"])
+    graph_results = run_node(node, [data, axes])
+    assert np.array_equal(graph_results, [expected_output])
+
+    data = np.arange(6, dtype=np.int32).reshape([1, 2, 1, 3, 1])
+    expected_output = data.reshape([1, 2, 3])
+    axes = np.array([-3, -1]).astype(np.int64)
+    node = onnx.helper.make_node("Squeeze", inputs=["x", "axes"], outputs=["y"])
+    graph_results = run_node(node, [data, axes])
+    assert np.array_equal(graph_results, [expected_output])
+
 
 @xfail_issue_44858
 def test_unsqueeze():
