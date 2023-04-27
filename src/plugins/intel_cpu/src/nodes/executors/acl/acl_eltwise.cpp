@@ -31,7 +31,7 @@ bool AclEltwiseExecutorBuilder::isSupported(const EltwiseAttrs& eltwiseAttrs,
                                             const std::vector<MemoryDescPtr>& srcDescs,
                                             const std::vector<MemoryDescPtr>& dstDescs) const {
     auto checkPrecision = [&srcDescs, &dstDescs](std::vector<Precision> srcVecPrc, Precision dstPrc) -> bool {
-        for (int i = 0; i < srcDescs.size(); i++) {
+        for (size_t i = 0; i < srcDescs.size(); i++) {
             if (srcDescs[i]->getPrecision() != srcVecPrc[i]) return false;
         }
         if (dstDescs[0]->getPrecision() != dstPrc) { return false; }
