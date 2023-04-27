@@ -43,7 +43,7 @@ endif()
 add_definitions(-DOV_CPU_WITH_DNNL)
 set(OV_CPU_WITH_DNNL ON)
 
-if(DNNL_AARCH64_USE_ACL)
+if(DNNL_USE_ACL)
     add_definitions(-DOV_CPU_WITH_ACL)
     set(OV_CPU_WITH_ACL ON)
 endif()
@@ -79,7 +79,7 @@ list(REMOVE_ITEM HEADERS ${FILES_TO_REMOVE})
 
 # create plugin
 
-ie_add_plugin(NAME ${TARGET_NAME}
+ov_add_plugin(NAME ${TARGET_NAME}
               DEVICE_NAME "CPU"
               AS_EXTENSION
               VERSION_DEFINES_FOR src/plugin.cpp
