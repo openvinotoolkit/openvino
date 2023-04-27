@@ -164,12 +164,7 @@ void Tile::plainExecute(dnnl::stream strm) {
     for (int i = axis; i < inDims.size(); i++ )
         m_inner_dim *= inDims[i];
 
-    int MB = 0;
-    if (isDynamicNode()) {
-        MB = srcMemory.getStaticDims()[0];
-    } else {
-        MB = batchToProcess();
-    }
+    int MB = srcMemory.getStaticDims()[0];
     if (axis > 0) {
         m_outer_dim /= inDims[0];
         m_outer_dim *= MB;
