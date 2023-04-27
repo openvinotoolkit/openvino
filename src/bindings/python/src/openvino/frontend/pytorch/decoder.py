@@ -137,7 +137,8 @@ class TorchScriptPythonDecoder (Decoder):
                     inputs = [inputs]
             return inputs, input_signature
 
-        pt_module.eval()
+        if isinstance(pt_module, torch.nn.Module):
+            pt_module.eval()
         input_signature = None
         if isinstance(pt_module, torch.nn.Module) and not isinstance(pt_module, (torch.jit._trace.TopLevelTracedModule, torch.jit._script.RecursiveScriptModule)):
             input_signature = list(inspect.signature(pt_module.forward).parameters.keys())
