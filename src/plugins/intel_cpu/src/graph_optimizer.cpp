@@ -2260,7 +2260,6 @@ void GraphOptimizer::MergeTransposeAndReorder(Graph &graph) {
             // cannot be optimized
             auto* transposeNode = dynamic_cast<Transpose*>(parentNode.get());
             if (transposeNode == nullptr) {
-                IE_THROW() << "[CPU] parent node is not transpose node";
                 IE_THROW() << "[CPU] parent node of type:" << parentNode->getTypeStr() << " with name: "
                     << parentNode->getName() << " is not a transpose node";
             }
