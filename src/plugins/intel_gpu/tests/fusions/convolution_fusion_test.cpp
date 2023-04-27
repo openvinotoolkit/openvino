@@ -2526,6 +2526,31 @@ TEST_P(conv_int8_scale_activation_quantize_i8_activation, basic) {
     execute(p);
 }
 
+TEST_P(conv_int8_scale_activation_quantize_i8_activation, activation_clamp) {
+    auto p = GetParam();
+    create_topologies(
+        input_layout("input", get_input_layout(p)),
+        data("weights", get_mem(get_weights_layout(p))),
+        data("bias", get_mem(get_bias_layout(p))),
+        data("in_lo", get_mem(get_per_channel_layout(p), min_random, 0)),
+        data("in_hi", get_mem(get_per_channel_layout(p), 1, max_random)),
+        data("out_lo", get_mem(get_single_element_layout(p), -127)),
+        data("out_hi", get_mem(get_single_element_layout(p), 127)),
+        data("scale_data", get_mem(get_per_channel_layout(p), 1.0f/p.kernel.count()/255)),
+        data("slope_data", get_mem(get_per_channel_layout(p))),
+        convolution("conv_prim", input_info("input"), { "weights" }, { "bias" }, p.groups, p.stride, p.pad, p.dilation),
+        eltwise("scale", { input_info("conv_prim"), input_info("scale_data") }, eltwise_mode::prod),
+        activation("activation_scale", input_info("scale"), "slope_data", activation_func::relu_negative_slope),
+        quantize("quantize", input_info("activation_scale"), input_info("in_lo"), input_info("in_hi"),
+                 input_info("out_lo"), input_info("out_hi"), 255, data_types::i8),
+        activation("activation_quantize", input_info("quantize"), activation_func::clamp, {-136.f, 136.f}),
+        reorder("reorder_bfyx", input_info("activation_quantize"), p.default_format, data_types::f32)
+    );
+
+    tolerance = 1.f;
+    execute(p);
+}
+
 INSTANTIATE_TEST_SUITE_P(fusings_gpu, conv_int8_scale_activation_quantize_i8_activation, ::testing::ValuesIn(std::vector<convolution_test_params>{
     convolution_test_params{ CASE_CONV_U8S8_1, 2, 2, 6 },
     convolution_test_params{ CASE_CONV_U8S8_2, 2, 2, 6 },

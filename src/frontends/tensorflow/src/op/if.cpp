@@ -20,15 +20,23 @@ OutputVector translate_if_op(const NodeContext& node) {
     auto translate_session = node.get_translate_session();
     FRONT_END_GENERAL_CHECK(translate_session, "[TensorFlow Frontend] Internal error: Translate session is nullptr.");
 
+    // skip the first input because it does not go to the body graphs
+    size_t input_size_t = node.get_input_size() - 1;
+    int input_size = static_cast<int>(input_size_t);
+    ov::OutputVector ov_inputs;
+    for (int input_ind = 0; input_ind < input_size; ++input_ind) {
+        ov_inputs.push_back(node.get_input(input_ind + 1));
+    }
+
     // retrieve body ov::Model for then and else branches
     auto then_branch_type = node.get_attribute<std::string>("then_branch");
     auto else_branch_type = node.get_attribute<std::string>("else_branch");
-    auto then_branch_body = translate_session->get_body_ov_model(then_branch_type);
+    auto then_branch_body = translate_session->get_body_ov_model(then_branch_type, ov_inputs);
     FRONT_END_GENERAL_CHECK(
         then_branch_body,
         "[TensorFlow Frontend] Internal error or incorrect input model. Cannot find branch body graph with name " +
             then_branch_type);
-    auto else_branch_body = translate_session->get_body_ov_model(else_branch_type);
+    auto else_branch_body = translate_session->get_body_ov_model(else_branch_type, ov_inputs);
     FRONT_END_GENERAL_CHECK(
         else_branch_body,
         "[TensorFlow Frontend] Internal error or incorrect input model. Cannot find branch body graph with name " +
@@ -36,7 +44,6 @@ OutputVector translate_if_op(const NodeContext& node) {
 
     // get condition output
     auto cond = node.get_input(0);
-    size_t input_size_t = node.get_input_size() - 1;
     auto then_params = then_branch_body->get_parameters();
     auto else_params = else_branch_body->get_parameters();
     FRONT_END_GENERAL_CHECK(input_size_t == then_params.size(),
@@ -52,7 +59,6 @@ OutputVector translate_if_op(const NodeContext& node) {
     if_op->set_else_body(else_branch_body);
 
     // set inputs
-    int input_size = static_cast<int>(input_size_t);
     for (int ind = 0; ind < input_size; ++ind) {
         auto curr_input = node.get_input(ind + 1);
         auto then_param = then_params[ind];

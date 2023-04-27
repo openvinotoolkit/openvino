@@ -40,10 +40,8 @@ class TestSpaceToBatch(CommonTFLayerTest):
 
     test_data_4D = [
         dict(in_shape=[1, 2, 2, 3], block_shape_value=[2, 2], pads_value=[[0, 0], [0, 0]]),
-        pytest.param(dict(in_shape=[1, 2, 9, 1], block_shape_value=[4, 3], pads_value=[[1, 1], [2, 4]]),
-                     marks=pytest.mark.skip(reason="107967")),
-        pytest.param(dict(in_shape=[1, 2, 1, 4], block_shape_value=[3, 2, 2], pads_value=[[1, 0], [0, 1], [1, 1]]),
-                     marks=pytest.mark.skip(reason="107967")),
+        dict(in_shape=[1, 2, 9, 1], block_shape_value=[4, 3], pads_value=[[1, 1], [2, 4]]),
+        dict(in_shape=[1, 2, 1, 4], block_shape_value=[3, 2, 2], pads_value=[[1, 0], [0, 1], [1, 1]])
     ]
 
     @pytest.mark.parametrize("params", test_data_4D)
