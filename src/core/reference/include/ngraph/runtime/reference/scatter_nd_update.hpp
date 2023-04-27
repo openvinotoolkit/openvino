@@ -39,7 +39,7 @@ void scatterNdUpdate(const dataType* const inputData,
     std::vector<indicesType> indicesCopy(indices, indices + shape_size(indicesShape));
     for (size_t i = 0; i < indicesCopy.size(); i++) {
         if (indicesCopy[i] < 0) {
-            indicesCopy[i] += dataShape[0];
+            indicesCopy[i] += static_cast<indicesType>(dataShape[0]);
         }
     }
 
