@@ -217,13 +217,16 @@ FactoryPtr CreateReshapeFactory(const std::string& type_name) {
     return std::make_shared<ReshapeFactory>(type_name);
 }
 
-
 class FakeQuantizeFactory : public IFactory {
 public:
     explicit FakeQuantizeFactory(const std::string& type_name) : IFactory(type_name) {}
     NodePtr create(const OutputVector& parent_nodes) const override {
-        return std::make_shared<FakeQuantize>(parent_nodes[0], parent_nodes[1], parent_nodes[2],
-                                              parent_nodes[3], parent_nodes[4], 128);
+        return std::make_shared<FakeQuantize>(parent_nodes[0],
+                                              parent_nodes[1],
+                                              parent_nodes[2],
+                                              parent_nodes[3],
+                                              parent_nodes[4],
+                                              128);
     }
 };
 
@@ -416,11 +419,11 @@ auto test_forward_fq = []() {
     test_case.transformation = CREATE_PASS_FACTORY(TSBinaryForward);
     test_case.num_main_ops = {1, 10};
     test_case.inputs_to_main = {
-            parameter(element::f32, {1, 96, 55, 55}),
-            parameter(element::f32, {55, 55, 96, 1}),
-            parameter(element::f32, {1}),
-            parameter(element::f32, {55, 1, 1, 1}),
-            parameter(element::f32, {55, 55, 1, 1}),
+        parameter(element::f32, {1, 96, 55, 55}),
+        parameter(element::f32, {55, 55, 96, 1}),
+        parameter(element::f32, {1}),
+        parameter(element::f32, {55, 1, 1, 1}),
+        parameter(element::f32, {55, 55, 1, 1}),
     };
 
     // Test model description:
@@ -926,11 +929,11 @@ auto test_backward_fq = []() {
     test_case.transformation = CREATE_PASS_FACTORY(TSBinaryBackward);
     test_case.num_main_ops = {1, 10};
     test_case.inputs_to_main = {
-            parameter(element::f32, {1, 96, 55, 55}),
-            parameter(element::f32, {1, 96, 55, 55}),
-            parameter(element::f32, {1}),
-            parameter(element::f32, {1, 96, 55, 1}),
-            parameter(element::f32, {1, 96, 1, 1}),
+        parameter(element::f32, {1, 96, 55, 55}),
+        parameter(element::f32, {1, 96, 55, 55}),
+        parameter(element::f32, {1}),
+        parameter(element::f32, {1, 96, 55, 1}),
+        parameter(element::f32, {1, 96, 1, 1}),
     };
 
     // Test model description:
