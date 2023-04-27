@@ -9,7 +9,7 @@
 #include <memory>
 #include <vector>
 #include <sstream>
-#include <string>
+#include <cstring>
 
 namespace cldnn {
 const char *debug_configuration::prefix = "GPU_Debug: ";
@@ -18,11 +18,11 @@ const char *debug_configuration::prefix = "GPU_Debug: ";
 
 #ifdef GPU_DEBUG_CONFIG
 
-#define GPU_DEBUG_COUT std::cout << cldnn::debug_configuration::prefix
+#define GPU_DEBUG_COUT_ std::cout << cldnn::debug_configuration::prefix
 
 template<typename T>
 void print_option(std::string option_name, T option_value) {
-    GPU_DEBUG_COUT << "Config " << option_name << " = " << option_value << std::endl;
+    GPU_DEBUG_COUT_ << "Config " << option_name << " = " << option_value << std::endl;
 }
 
 static std::string to_upper_case(const std::string& var) {
@@ -105,6 +105,7 @@ static void print_help_messages() {
     std::vector<std::pair<std::string, std::string>> message_list;
     message_list.emplace_back("OV_GPU_Help", "Print help messages");
     message_list.emplace_back("OV_GPU_Verbose", "Verbose execution");
+    message_list.emplace_back("OV_GPU_ListLayers", "Print layers names");
     message_list.emplace_back("OV_GPU_PrintMultiKernelPerf", "Print execution time of each kernel in multi-kernel primitimive");
     message_list.emplace_back("OV_GPU_DisableUsm", "Disable usm usage");
     message_list.emplace_back("OV_GPU_DisableOnednn", "Disable onednn for discrete GPU (no effect for integrated GPU)");
@@ -136,9 +137,9 @@ static void print_help_messages() {
     });
     int name_width = static_cast<int>(max_name_length_item->first.size()) + 2;
 
-    GPU_DEBUG_COUT << "Supported environment variables for debugging" << std::endl;
+    GPU_DEBUG_COUT_ << "Supported environment variables for debugging" << std::endl;
     for (auto& p : message_list) {
-        GPU_DEBUG_COUT << " - " << std::left << std::setw(name_width) << p.first + "  " << p.second << std::endl;
+        GPU_DEBUG_COUT_ << " - " << std::left << std::setw(name_width) << p.first + "  " << p.second << std::endl;
     }
 }
 
@@ -147,6 +148,8 @@ static void print_help_messages() {
 debug_configuration::debug_configuration()
         : help(0)
         , verbose(0)
+        , verbose_color(0)
+        , list_layers(0)
         , print_multi_kernel_perf(0)
         , disable_usm(0)
         , disable_onednn(0)
@@ -166,6 +169,8 @@ debug_configuration::debug_configuration()
 #ifdef GPU_DEBUG_CONFIG
     get_gpu_debug_env_var("Help", help);
     get_common_debug_env_var("Verbose", verbose);
+    get_gpu_debug_env_var("VerboseColor", verbose_color);
+    get_gpu_debug_env_var("ListLayers", list_layers);
     get_gpu_debug_env_var("PrintMultiKernelPerf", print_multi_kernel_perf);
     get_gpu_debug_env_var("DisableUsm", disable_usm);
     get_gpu_debug_env_var("DumpGraphs", dump_graphs);
@@ -231,7 +236,7 @@ debug_configuration::debug_configuration()
 
     if (after_proc_str.length() > 0) {
 #ifdef _WIN32
-        GPU_DEBUG_COUT << "Warning: OV_GPU_AfterProc is supported only on linux" << std::endl;
+        GPU_DEBUG_COUT_ << "Warning: OV_GPU_AfterProc is supported only on linux" << std::endl;
 #else
         after_proc_str = " " + after_proc_str + " "; // Insert delimiter for easier parsing when used
         std::stringstream ss(after_proc_str);
@@ -257,16 +262,50 @@ const debug_configuration *debug_configuration::get_instance() {
 #endif
 }
 
-bool debug_configuration::is_dumped_layer(const std::string& layerName, bool is_output) const {
+bool debug_configuration::is_dumped_layer(const std::string& layer_name, bool is_output) const {
 #ifdef GPU_DEBUG_CONFIG
     if (is_output == true && dump_layers_result == 1 &&
-        (layerName.find("constant:") == std::string::npos))
+        (layer_name.find("constant:") == std::string::npos))
         return true;
     if (dump_layers.empty() && dump_layers_result == 0)
         return true;
 
+    auto is_match = [](const std::string& layer_name, const std::string& pattern) -> bool {
+        // Check pattern from exec_graph
+        size_t pos = layer_name.find(':');
+        auto exec_graph_name = layer_name.substr(pos + 1, layer_name.size());
+        if (strcasecmp(exec_graph_name.c_str(), pattern.c_str()) == 0) {
+            return true;
+        }
+        // Check pattern for wildcard letter
+        size_t n = layer_name.size();
+        size_t m = pattern.size();
+        std::vector<std::vector<bool>> lookup_tbl(n + 1, std::vector<bool>(m + 1, false));
+        lookup_tbl[0][0] = true;
+        auto to_upper = [](char elem) -> char {
+            if (elem >= 'a' && elem <= 'z') {
+                return elem - ('a'-'A');
+            }
+            return elem;
+        };
+        for (size_t j = 1; j <= m; ++j)
+            if (pattern[j - 1] == '*')
+                lookup_tbl[0][j] = lookup_tbl[0][j - 1];
+        for (size_t i = 1; i <= n; ++i) {
+            for (size_t j = 1; j <= m; ++j) {
+                if (pattern[j - 1] == '*') {
+                    lookup_tbl[i][j] = lookup_tbl[i][j - 1] || lookup_tbl[i - 1][j];
+                } else if (pattern[j - 1] == '?' || to_upper(layer_name[i - 1]) == to_upper(pattern[j - 1])) {
+                    lookup_tbl[i][j] = lookup_tbl[i - 1][j - 1];
+                } else {
+                    lookup_tbl[i][j] = false;
+                }
+            }
+        }
+        return lookup_tbl[n][m];
+    };
     auto iter = std::find_if(dump_layers.begin(), dump_layers.end(), [&](const std::string& dl){
-        return (layerName.compare(dl) == 0);
+        return is_match(layer_name, dl);
     });
     return (iter != dump_layers.end());
 #else
