@@ -598,3 +598,15 @@ def test_pytorch_decoder_can_convert_optional_tensor_none():
     outputs = list(nc_decoder.graph_element.outputs())
     assert len(outputs) == 1
     assert isinstance(outputs[0].type(), torch.NoneType)
+
+
+def f(x, y):
+    return x + y
+
+
+@pytest.mark.precommit
+def test_pytorch_decoder_can_convert_scripted_function():
+    from openvino.frontend.pytorch.decoder import TorchScriptPythonDecoder
+    scripted = torch.jit.script(f)
+    nc_decoder = TorchScriptPythonDecoder(scripted)
+    assert nc_decoder is not None
