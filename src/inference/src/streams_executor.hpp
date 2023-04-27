@@ -26,7 +26,6 @@ public:
     std::vector<std::vector<int>> _proc_type_table;
     std::vector<std::vector<int>> _cpu_mapping_table;
     std::mutex _cpu_mutex;
-    std::mutex _task_mutex;
     int _plugin_status = PLUGIN_USED_START;
     int _socket_idx = 0;
     int _num_threads = 0;

@@ -225,6 +225,7 @@ std::vector<int> get_available_numa_nodes() {
 #    endif
 
 std::vector<std::vector<int>> get_proc_type_table() {
+    std::lock_guard<std::mutex> lock{cpu._cpu_mutex};
     return cpu._proc_type_table;
 }
 
@@ -247,6 +248,7 @@ std::vector<std::vector<int>> reserve_available_cpus(const std::vector<std::vect
     for (int i = 0; i < cpu._processors; i++) {
         for (int j = 0; j < info_table_size; j++) {
             if (static_cast<int>(res_stream_ids[j].size()) < streams_info_table[j][NUMBER_OF_STREAMS]) {
+                std::lock_guard<std::mutex> lock{cpu._cpu_mutex};
                 if (cpu._cpu_mapping_table[i][CPU_MAP_CORE_TYPE] == streams_info_table[j][PROC_TYPE] &&
                     cpu._cpu_mapping_table[i][CPU_MAP_USED_FLAG] == NOT_USED) {
                     stream_ids[j].push_back(cpu._cpu_mapping_table[i][CPU_MAP_PROCESSOR_ID]);
@@ -274,6 +276,7 @@ std::vector<std::vector<int>> reserve_available_cpus(const std::vector<std::vect
 }
 
 void set_cpu_used(const std::vector<int>& cpu_ids, const int used) {
+    std::lock_guard<std::mutex> lock{cpu._cpu_mutex};
     const auto cpu_size = static_cast<int>(cpu_ids.size());
     for (int i = 0; i < cpu_size; i++) {
         if (cpu_ids[i] < cpu._processors) {
