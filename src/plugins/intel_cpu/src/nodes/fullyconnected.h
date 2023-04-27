@@ -78,12 +78,12 @@ private:
     static const size_t DATA_ID = 0;
     static const size_t WEIGHTS_ID = 1;
     static const size_t BIAS_ID = 2;
-    dnnl::memory::data_type outputDataType;
+    dnnl::memory::data_type outputDataType = dnnl::memory::data_type::undef;
 
     using executorPtr = std::shared_ptr<DnnlExecutor>;
     executorPtr execPtr = nullptr;
     bool useConv1x1 = false;
-    impl_desc_type implementationTypeIP;
+    impl_desc_type implementationTypeIP = impl_desc_type::unknown;
     MemoryDescPtr weightDescIP;
     dnnl::primitive_attr attr;
 
