@@ -43,7 +43,7 @@ if(ENABLE_INTEL_GPU)
             # 'brew install opencl-headers'
             find_package(OpenCLHeaders QUIET)
             if(NOT OpenCLHeaders_FOUND)
-                message(FATAL_ERROR "OpenCLHeaders not found, but OpenCLICDLoader is installed. Please, install OpenCL headers")
+                message(WARNING "OpenCLHeaders not found, but OpenCLICDLoader is installed. Please, install OpenCL headers")
             else()
                 set_target_properties(OpenCL::Headers PROPERTIES IMPORTED_GLOBAL ON)
             endif()
