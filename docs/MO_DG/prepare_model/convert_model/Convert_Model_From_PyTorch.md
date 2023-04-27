@@ -30,7 +30,7 @@ Converting certain PyTorch models may require model tracing, which needs ``input
 ``example_input`` is used as example input for model tracing.
 ``input_shape`` is used for constructing a float zero-filled torch.Tensor for model tracing.
 
-Example:
+Example of usage of ``example_input``:
 
 .. code-block:: python
 
@@ -54,12 +54,14 @@ ONNX opset version can be set using an optional ``onnx_opset_version`` parameter
 
 If  ``onnx_opset_version`` is not set, the default opset from ``torch.onnx.export()`` is used.
 
+Example of PyTorch model conversion using a temporary ONNX model:
+
 .. code-block:: python
 
    import torchvision
    
    model = torchvision.models.resnet50(pretrained=True)
-   ov_model = convert_model(model, input_shape=[1,3,100,100], onnx_opset_version=13)
+   ov_model = convert_model(model, input_shape=[1,3,100,100], use_legacy_frontend=True, onnx_opset_version=13)
 
 Exporting a PyTorch Model to ONNX Format
 ########################################

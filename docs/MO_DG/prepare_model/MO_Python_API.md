@@ -7,6 +7,8 @@ Model Optimizer (MO) has a Python API for model conversion, which is represented
   ``convert_model()`` has all the functionality available from the command-line tool, plus the ability to pass Python model objects, such as a Pytorch model or TensorFlow Keras model directly, without saving them into files and without leaving the training environment (Jupyter Notebook or training scripts). In addition to input models consumed directly from Python, ``convert_model`` can take OpenVINO extension objects constructed directly in Python for easier conversion of operations that are not supported in OpenVINO.
   ``convert_model()`` returns an openvino.runtime.Model object which can be compiled and inferred or serialized to IR.
 
+Example of conversion of a PyTorch model directly from memory:
+
 .. code-block:: python
 
    import torchvision
@@ -21,7 +23,7 @@ The following types are supported as an input model for ``convert_model()``:
 
 ``convert_model()`` accepts all parameters available in the MO command-line tool. Parameters can be specified by Python classes or string analogs, similar to the command-line tool.
 
-Example 1:
+Example of usage of native Python classes for setting ``input_shape``, ``mean_values`` and ``layout``:
 
 .. code-block:: python
 
@@ -29,7 +31,7 @@ Example 1:
    
    ov_model = convert_model(model, input_shape=PartialShape([1,3,100,100]), mean_values=[127, 127, 127], layout=Layout("NCHW"))
 
-Example 2:
+Example of usage strings for setting ``input_shape``, ``mean_values`` and ``layout``:
 
 .. code-block:: python
 
@@ -38,6 +40,8 @@ Example 2:
 
 The ``input`` parameter can be set by a ``tuple`` with a name, shape, and type. The input name of the type string is required in the tuple. The shape and type are optional.
 The shape can be a ``list`` or ``tuple`` of dimensions (``int`` or ``openvino.runtime.Dimension``), or ``openvino.runtime.PartialShape``, or ``openvino.runtime.Shape``. The type can be of numpy type or ``openvino.runtime.Type``.
+
+Example of usage of a tuple in ``input`` parameter for cutting the model:
 
 .. code-block:: python
 
@@ -53,6 +57,8 @@ Supported types for ``InputCutInfo``:
 * shape: ``list`` or ``tuple`` of dimensions (``int`` or ``openvino.runtime.Dimension``), ``openvino.runtime.PartialShape``, ``openvino.runtime.Shape``.
 * type: ``numpy type``, ``openvino.runtime.Type``.
 * value: ``numpy.ndarray``, ``list`` of numeric values, ``bool``.
+
+Example of usage of ``InputCutInfo`` for freezing an input with value:
 
 .. code-block:: python
 
@@ -71,11 +77,15 @@ Parameters supporting ``list``:
 * mean_values
 * scale_values
 
+Example of usage of lists for setting shapes, types and layout for multiple inputs:
+
 .. code-block:: python
 
    ov_model = convert_model(model, input=[("input1", [1,3,100,100], np.float32), ("input2", [1,3,100,100], np.float32)], layout=[Layout("NCHW"), LayoutMap("NCHW", "NHWC")])
 
 ``layout``, ``source_layout`` and ``dest_layout`` accept an ``openvino.runtime.Layout`` object or ``string``.
+
+Example of usage of ``Layout`` class for setting of layout of model input:
 
 .. code-block:: python
 
@@ -87,6 +97,8 @@ Parameters supporting ``list``:
 To set both source and destination layouts in the ``layout`` parameter, use the ``LayoutMap`` class. ``LayoutMap`` accepts two parameters: ``source_layout`` and ``target_layout``.
 
 ``LayoutMap("NCHW", "NHWC")`` is equivalent to ``LayoutMap(source_layout="NCHW", target_layout="NHWC")``.
+
+Example of usage of ``LayoutMap`` class for changing of layout of model input:
 
 .. code-block:: python
 
