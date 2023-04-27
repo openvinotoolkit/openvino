@@ -19,16 +19,22 @@ namespace op {
 using namespace ov::op;
 
 OutputVector translate_avg_poolnd(const NodeContext& context) {
-    num_inputs_check(context, 4, 7);
+    num_inputs_check(context, 3, 7);
     auto input = context.get_input(0);
     auto kernel = context.const_input<Shape>(1);
     auto strides = context.const_input<Strides>(2);
-    auto pads = context.const_input<Shape>(3);  // pytorch supports only symmetric padding
+    bool count_include_pad = true;
+    Shape pads;
+    if (context.input_is_none(3)) {
+        count_include_pad = false;
+        pads = Shape(kernel.size(),0);
+    } else {
+        pads = context.const_input<Shape>(3);  // pytorch supports only symmetric paddings
+    }
     ov::op::RoundingType rounding_type = ov::op::RoundingType::FLOOR;
     if (!(context.input_is_none(4))) {
         rounding_type = context.const_input<bool>(4) ? ov::op::RoundingType::CEIL : ov::op::RoundingType::FLOOR;
     }
-    bool count_include_pad = true;
     if (!(context.input_is_none(5))) {
         count_include_pad = context.const_input<bool>(5);
     }
