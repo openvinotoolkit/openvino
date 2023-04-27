@@ -975,7 +975,6 @@ void RNN::createDescriptor(const std::vector<MemoryDescPtr> &inputDesc,
 
     // Fill supported config
     NodeConfig config;
-    config.dynBatchSupport = false;
     for (size_t i = 0; i < inputDesc.size(); i++) {
         PortConfig dataConfig;
         dataConfig.inPlace(-1);

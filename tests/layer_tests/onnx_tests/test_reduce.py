@@ -23,7 +23,7 @@ class TestReduce(OnnxRuntimeLayerTest):
 
         import onnx
         from onnx import helper
-        from onnx import TensorProto
+        from onnx import TensorProto, OperatorSetIdProto
 
         if op not in ['ReduceMin', 'ReduceMax', 'ReduceMean', 'ReduceProd', 'ReduceSum']:
             raise ValueError("Operation has to be either Reduce(Min or Max or Mean or Sum or Prod")
@@ -54,8 +54,14 @@ class TestReduce(OnnxRuntimeLayerTest):
             [output],
         )
 
+        # Set ONNX Opset
+        onnx_opset = OperatorSetIdProto()
+        onnx_opset.domain = ""
+        # ONNX opset with `axes` as attribute in ONNX Reduce ops
+        onnx_opset.version = 11
+
         # Create the model (ModelProto)
-        onnx_net = helper.make_model(graph_def, producer_name='test_model')
+        onnx_net = helper.make_model(graph_def, producer_name='test_model', opset_imports=[onnx_opset])
 
         #
         #   Create reference IR net
@@ -124,7 +130,6 @@ class TestReduce(OnnxRuntimeLayerTest):
     @pytest.mark.parametrize("params", test_data_precommit)
     @pytest.mark.parametrize("keep_dims", [True, False])
     @pytest.mark.precommit
-    @pytest.mark.skip(reason='ONNX Runtime error: Error Unrecognized attribute: axes for operator ReduceMax, ticket: 107652')
     def test_reduce_max_precommit(self, params, keep_dims, ie_device, precision, ir_version,
                                   temp_dir, use_old_api):
         self._test(*self.create_reduce(**params, op='ReduceMax', keep_dims=keep_dims,
@@ -134,7 +139,6 @@ class TestReduce(OnnxRuntimeLayerTest):
     @pytest.mark.parametrize("params", test_data)
     @pytest.mark.parametrize("keep_dims", [True, False])
     @pytest.mark.nightly
-    @pytest.mark.skip(reason='ONNX Runtime error: Error Unrecognized attribute: axes for operator ReduceMax, ticket: 107652')
     def test_reduce_max(self, params, keep_dims, ie_device, precision, ir_version, temp_dir, use_old_api):
         self._test(*self.create_reduce(**params, op='ReduceMax', keep_dims=keep_dims,
                                        ir_version=ir_version),
@@ -162,7 +166,6 @@ class TestReduce(OnnxRuntimeLayerTest):
     @pytest.mark.parametrize("params", test_data_precommit)
     @pytest.mark.parametrize("keep_dims", [True, False])
     @pytest.mark.precommit
-    @pytest.mark.skip(reason='ONNX Runtime error: Error Unrecognized attribute: axes for operator ReduceMean, ticket: 107652')
     def test_reduce_mean_precommit(self, params, keep_dims, ie_device, precision, ir_version,
                                    temp_dir, use_old_api):
         self._test(*self.create_reduce(**params, op='ReduceMean', keep_dims=keep_dims,
@@ -173,7 +176,6 @@ class TestReduce(OnnxRuntimeLayerTest):
     @pytest.mark.parametrize("keep_dims", [True, False])
     @pytest.mark.nightly
     @pytest.mark.precommit
-    @pytest.mark.skip(reason='ONNX Runtime error: Error Unrecognized attribute: axes for operator ReduceMean, ticket: 107652')
     def test_reduce_mean(self, params, keep_dims, ie_device, precision, ir_version, temp_dir,
                          use_old_api):
         self._test(*self.create_reduce(**params, op='ReduceMean', keep_dims=keep_dims,
@@ -183,7 +185,6 @@ class TestReduce(OnnxRuntimeLayerTest):
     @pytest.mark.parametrize("params", test_data_precommit)
     @pytest.mark.parametrize("keep_dims", [True, False])
     @pytest.mark.precommit
-    @pytest.mark.skip(reason='ONNX Runtime error: Error Unrecognized attribute: axes for operator ReduceMin, ticket: 107652')
     def test_reduce_min_precommit(self, params, keep_dims, ie_device, precision, ir_version,
                                   temp_dir, use_old_api):
         self._test(*self.create_reduce(**params, op='ReduceMin', keep_dims=keep_dims,
@@ -193,7 +194,6 @@ class TestReduce(OnnxRuntimeLayerTest):
     @pytest.mark.parametrize("params", test_data)
     @pytest.mark.parametrize("keep_dims", [True, False])
     @pytest.mark.nightly
-    @pytest.mark.skip(reason='ONNX Runtime error: Error Unrecognized attribute: axes for operator ReduceMin, ticket: 107652')
     def test_reduce_min(self, params, keep_dims, ie_device, precision, ir_version, temp_dir, use_old_api):
         self._test(*self.create_reduce(**params, op='ReduceMin', keep_dims=keep_dims,
                                        ir_version=ir_version),

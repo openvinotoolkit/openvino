@@ -123,7 +123,7 @@ std::unique_ptr<json_composite> program_node::desc_to_json() const {
             dep_ids.push_back(dep.first);
         }
         fused_node_info.add("dependencies", dep_ids);
-        fused_node_info.add("dep start_idx", fused_desc.dep_start_idx);
+        fused_node_info.add("dep start_idx", fused_desc.outer_dep_start_idx);
         json_composite info;
         info.add("data type", dt_to_str(fused_desc.output_layout.data_type));
         info.add("format", output_layouts[0].format.to_string());
@@ -380,7 +380,7 @@ bool program_node::has_padded_dependency() const {
 
 bool program_node::is_fused_dep(size_t dep_idx) const {
     for (auto fused : get_fused_primitives()) {
-        if (dep_idx >= fused.dep_start_idx) {
+        if (fused.has_outer_dep() && static_cast<int32_t>(dep_idx) >= fused.outer_dep_start_idx) {
             return true;
         }
     }
@@ -944,7 +944,7 @@ void program_node::init_onednn_primitive_attributes() {
             auto fused_desc = desc.typed_desc<activation>();
             if (fused_desc->activation_function == cldnn::activation_func::relu_negative_slope
                 && !fused_desc->additional_params_input.empty()) {
-                auto dep_idx = cldnn_post_ops[idx].dep_start_idx;
+                auto dep_idx = cldnn_post_ops[idx].outer_dep_start_idx;
                 int oc_dim = static_cast<int>(desc.output_layout.get_tensor().feature.size());
                 post_ops.append_prelu(1 << oc_dim);
                 update_onednn_post_op_list(onednn_post_op_type::binary_relu, dep_idx);
@@ -975,9 +975,8 @@ void program_node::init_onednn_primitive_attributes() {
                 update_onednn_post_op_list(onednn_post_op_type::eltwise_act, empty_mem);
             }
         } else if (desc.is_type<eltwise>()) {
-            auto dep_idx = desc.dep_start_idx;
+            auto dep_idx = desc.outer_dep_start_idx;
             auto in = get_dependency(dep_idx).get_output_layout();
-
             auto set_binary_op = [&](dnnl::algorithm alg, onednn_post_op_type op_type) {
                 if (is_type<fully_connected>()) {
                     std::unique_ptr<const kernel_impl_params> impl_params = get_kernel_impl_params();
@@ -988,7 +987,7 @@ void program_node::init_onednn_primitive_attributes() {
                     auto mem_desc = onednn::layout_to_memory_desc(in, dnnl::memory::format_tag::ab);
                     post_ops.append_binary(alg, mem_desc);
                     update_onednn_post_op_list(op_type, dep_idx, dnnl::memory::format_tag::ab, false,
-                                               mem_desc.get_dims(), mem_desc.get_data_type());
+                            mem_desc.get_dims(), mem_desc.get_data_type());
                 } else if (is_type<gemm>()) {
                     size_t rank = cldnn::format::dimension(in.format);
                     size_t in_batched_size = in.count() / (in.spatial(0) * in.spatial(1));
@@ -1001,7 +1000,7 @@ void program_node::init_onednn_primitive_attributes() {
                     auto mem_desc = onednn::layout_to_memory_desc(in);
                     post_ops.append_binary(alg, mem_desc);
                     update_onednn_post_op_list(op_type, dep_idx, onednn::convert_data_format(in.format), false,
-                                               mem_desc.get_dims(), mem_desc.get_data_type());
+                            mem_desc.get_dims(), mem_desc.get_data_type());
                 }
             };
 
@@ -1029,7 +1028,7 @@ void program_node::init_onednn_primitive_attributes() {
                 OPENVINO_ASSERT(false, error_msg.str());
             }
         } else if (desc.is_type<quantize>()) {
-            auto dep_idx = desc.dep_start_idx;
+            auto dep_idx = desc.outer_dep_start_idx;
 
             // ********************************* Common case with output range usage ********************************* //
             const auto& q_param = desc.get_typed_fuse_params<QuantizeFuseParams>();
@@ -1249,3 +1248,4 @@ void program_node::init_onednn_primitive_attributes() {
 
 
 #endif // ENABLE_ONEDNN_FOR_GPU
+
