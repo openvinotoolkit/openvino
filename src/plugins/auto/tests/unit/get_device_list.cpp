@@ -26,6 +26,9 @@ using ::testing::ReturnRef;
 using ::testing::NiceMock;
 using ::testing::AtLeast;
 using ::testing::InvokeWithoutArgs;
+using ::testing::HasSubstr;
+using ::testing::StrEq;
+using ::testing::_;
 using Config = std::map<std::string, std::string>;
 using namespace MockMultiDevice;
 
@@ -91,9 +94,43 @@ TEST_P(GetDeviceListTest, GetDeviceListTestWithExcludeList) {
     std::tie(priorityDevices, metaDevices) = priorityAndMetaDev;
 
     ON_CALL(*core, GetAvailableDevices()).WillByDefault(Return(availableDevs));
+    ON_CALL(*core, GetMetric(HasSubstr("GPU"), StrEq(METRIC_KEY(DEVICE_ARCHITECTURE)), _))
+        .WillByDefault(Return("GPU: vendor=0x8086 arch=0"));
     EXPECT_CALL(*core, GetAvailableDevices()).Times(1);
-    auto result = plugin->GetDeviceList({{ov::device::priorities.name(), priorityDevices}});
-    EXPECT_EQ(result, metaDevices);
+    if (metaDevices == "") {
+        EXPECT_THROW(plugin->GetDeviceList({{ov::device::priorities.name(), priorityDevices}}), IE::Exception);
+    } else {
+        std::string result;
+        ASSERT_NO_THROW(result = plugin->GetDeviceList({{ov::device::priorities.name(), priorityDevices}}));
+        EXPECT_EQ(result, metaDevices);
+    }
+}
+
+using GetDeviceListTestWithNotInteldGPU = GetDeviceListTest;
+TEST_P(GetDeviceListTestWithNotInteldGPU, GetDeviceListTestWithExcludeList) {
+    // get Parameter
+    Params priorityAndMetaDev;
+    std::string priorityDevices;
+    std::string metaDevices;
+    std::vector<std::string> availableDevs;
+    std::tie(availableDevs, priorityAndMetaDev) = this->GetParam();
+    std::tie(priorityDevices, metaDevices) = priorityAndMetaDev;
+
+    ON_CALL(*core, GetAvailableDevices()).WillByDefault(Return(availableDevs));
+    ON_CALL(*core, GetMetric(StrEq("GPU.1"), StrEq(METRIC_KEY(DEVICE_ARCHITECTURE)), _))
+        .WillByDefault(Return("GPU: vendor=0x10DE arch=0"));
+    ON_CALL(*core, GetMetric(StrEq("GPU.0"), StrEq(METRIC_KEY(DEVICE_ARCHITECTURE)), _))
+        .WillByDefault(Return("GPU: vendor=0x8086 arch=0"));
+    ON_CALL(*core, GetMetric(StrEq("GPU"), StrEq(METRIC_KEY(DEVICE_ARCHITECTURE)), _))
+        .WillByDefault(Return("GPU: vendor=0x8086 arch=0"));
+    EXPECT_CALL(*core, GetAvailableDevices()).Times(1);
+    if (metaDevices == "") {
+        EXPECT_THROW(plugin->GetDeviceList({{ov::device::priorities.name(), priorityDevices}}), IE::Exception);
+    } else {
+        std::string result;
+        ASSERT_NO_THROW(result = plugin->GetDeviceList({{ov::device::priorities.name(), priorityDevices}}));
+        EXPECT_EQ(result, metaDevices);
+    }
 }
 
 const std::vector<Params> testConfigsWithId = {Params{" ", " "},
@@ -113,6 +150,11 @@ const std::vector<Params> testConfigsWithId = {Params{" ", " "},
                                          Params{"-GPU.0,-GPU.1", "CPU"},
                                          Params{"-GPU.0,-GPU.1,INVALID_DEVICE", "INVALID_DEVICE"},
                                          Params{"-GPU.0,-GPU.1,-INVALID_DEVICE", "CPU"},
+                                         Params{"-GPU.0,-GPU.1,-CPU", ""},
+                                         Params{"GPU,-GPU.0", "GPU.1"},
+                                         Params{"-GPU,CPU", "CPU"},
+                                         Params{"-GPU,-CPU", ""},
+                                         Params{"GPU.0,-GPU", "GPU.0"},
                                          Params{"-GPU.0,-CPU", "GPU.1"}};
 
 const std::vector<Params> testConfigs = {Params{" ", " "},
@@ -139,6 +181,36 @@ const std::vector<Params> testConfigs = {Params{" ", " "},
                                          Params{"CPU,-INVALID_DEVICE", "CPU"},
                                          Params{"CPU,GPU,VPUX", "CPU,GPU,VPUX"}};
 
+const std::vector<Params> testConfigsWithIdNotInteldGPU = {Params{" ", " "},
+                                         Params{"", "CPU,GPU.0"},
+                                         Params{"CPU, ", "CPU, "},
+                                         Params{" ,CPU", " ,CPU"},
+                                         Params{"CPU,", "CPU"},
+                                         Params{"CPU,,GPU", "CPU,GPU.0,GPU.1"},
+                                         Params{"CPU, ,GPU", "CPU, ,GPU.0,GPU.1"},
+                                         Params{"CPU,GPU,GPU.1", "CPU,GPU.0,GPU.1"},
+                                         Params{"CPU,GPU,VPUX,INVALID_DEVICE", "CPU,GPU.0,GPU.1,VPUX,INVALID_DEVICE"},
+                                         Params{"VPUX,GPU,CPU,-GPU.0", "VPUX,GPU.1,CPU"},
+                                         Params{"-GPU.0,GPU,CPU", "GPU.1,CPU"},
+                                         Params{"-GPU.0,GPU", "GPU.1"},
+                                         Params{"-GPU,GPU.0", "GPU.0"},
+                                         Params{"-GPU.0", "CPU"},
+                                         Params{"-GPU.0,-GPU.1", "CPU"},
+                                         Params{"-GPU.0,-GPU.1,INVALID_DEVICE", "INVALID_DEVICE"},
+                                         Params{"-GPU.0,-GPU.1,-INVALID_DEVICE", "CPU"},
+                                         Params{"-GPU.0,-GPU.1,-CPU", ""},
+                                         Params{"GPU,-GPU.0", "GPU.1"},
+                                         Params{"GPU.0,-GPU", "GPU.0"},
+                                         Params{"GPU", "GPU.0,GPU.1"},
+                                         Params{"GPU.0", "GPU.0"},
+                                         Params{"GPU.1", "GPU.1"},
+                                         Params{"-CPU", "GPU.0"},
+                                         Params{"-CPU,-GPU", ""},
+                                         Params{"-CPU,-GPU.0", ""},
+                                         Params{"-CPU,-GPU.1", "GPU.0"},
+                                         Params{"-GPU,CPU", "CPU"},
+                                         Params{"-GPU.0,-CPU", ""}};
+
 INSTANTIATE_TEST_SUITE_P(smoke_Auto_BehaviorTests_GetDeviceListWithID,
                          GetDeviceListTest,
                          ::testing::Combine(::testing::Values(availableDevsWithId),
@@ -149,6 +221,11 @@ INSTANTIATE_TEST_SUITE_P(smoke_Auto_BehaviorTests_GetDeviceList,
                          GetDeviceListTest,
                          ::testing::Combine(::testing::Values(availableDevs), ::testing::ValuesIn(testConfigs)),
                          GetDeviceListTest::getTestCaseName);
+
+INSTANTIATE_TEST_SUITE_P(smoke_Auto_BehaviorTests_GetDeviceListNotInteldGPU,
+                         GetDeviceListTestWithNotInteldGPU,
+                         ::testing::Combine(::testing::Values(availableDevsWithId), ::testing::ValuesIn(testConfigsWithIdNotInteldGPU)),
+                         GetDeviceListTestWithNotInteldGPU::getTestCaseName);
 
 //toDo need add test for ParseMetaDevices(_, config) to check device config of
 //return metaDevices
