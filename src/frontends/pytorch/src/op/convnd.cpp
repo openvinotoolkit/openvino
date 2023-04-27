@@ -50,7 +50,10 @@ OutputVector translate_convnd(const NodeContext& context) {
                                                       pad_type);
     }
     if (!context.input_is_none(2)) {
-        auto bias = context.get_input_from_visible_context(2);
+        auto bias = context.get_input(2);
+        if (std::dynamic_pointer_cast<v0::Constant>(context.get_input_from_visible_context(2).get_node_shared_ptr())) {
+            bias = context.get_input_from_visible_context(2);
+        }
         auto bias_rank = bias.get_partial_shape().rank();
         if (bias_rank == 1) {
             bias = reshape_channelwise(context, bias, conv);
