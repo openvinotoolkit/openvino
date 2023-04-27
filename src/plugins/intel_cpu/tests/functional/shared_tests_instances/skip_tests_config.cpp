@@ -169,6 +169,8 @@ std::vector<std::string> disabledTestPatterns() {
         R"(.*GridSampleLayerTestCPU.*(BILINEAR|BICUBIC).*(i32|i8).*)",
         // 98151. Not valid sorting for slices in reference.
         R"(.*UniqueLayerTestCPU.*axis.*True.*)",
+        // 109482. Sporadic failure.
+        R"(.*smoke_StaticSpaceToBatch_4D_parallel_block_edge.*)"
     };
 
 #if defined(OPENVINO_ARCH_X86)
