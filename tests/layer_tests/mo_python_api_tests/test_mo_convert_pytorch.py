@@ -780,9 +780,8 @@ class TestMoConvertPyTorch(CommonMOConvertTest):
         create_pytorch_nn_module_sample_list_of_tensors,
         create_pytorch_jit_script_module,
         create_pytorch_jit_script_function,
-        # Disabled due to Ticket-109430
-        #create_pytorch_nn_module_layout_list,
-        #create_pytorch_nn_module_layout_list_case2,
+        create_pytorch_nn_module_layout_list,
+        create_pytorch_nn_module_layout_list_case2,
         create_pytorch_nn_module_mean_list,
         create_pytorch_nn_module_mean_list_default_no_compression,
         create_pytorch_nn_module_mean_list_compressin_enabled,
