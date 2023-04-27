@@ -157,6 +157,10 @@ void handle_reshape::run(program& p) {
                         auto& new_reshape_node = p.get_or_create(new_reshape);
                         user->replace_dependency(0, input_node);
                         p.add_intermediate(new_reshape_node, *user, 0);
+                        if (new_reshape->input_size() == 2) {
+                            p.add_connection(prim_node.get_dependency(1), new_reshape_node);
+                        }
+
                         reorder_reshape_nodes.push_back(&new_reshape_node);
                     }
                 }
