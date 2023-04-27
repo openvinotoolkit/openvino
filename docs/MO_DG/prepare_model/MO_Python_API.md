@@ -19,7 +19,7 @@ Example of conversion of a PyTorch model directly from memory:
 The following types are supported as an input model for ``convert_model()``:
 
 * PyTorch - ``torch.nn.Module``, ``torch.jit.ScriptModule``, ``torch.jit.ScriptFunction``. Refer to the :doc:`Converting a PyTorch Model<openvino_docs_MO_DG_prepare_model_convert_model_Convert_Model_From_PyTorch>` article for more details.
-* TensorFlow/ TensorFlow2 / Keras - ``tf.keras.Model``, ``tf.keras.layers.Layer``, ``tf.compat.v1.Graph``, ``tf.compat.v1.GraphDef``, ``tf.Module``, ``tf.function``, ``tf.compat.v1.session``, ``tf.train.checkpoint``. Refer to the :doc:`Converting a TensorFlow Model<openvino_docs_MO_DG_prepare_model_convert_model_Convert_Model_From_TensorFlow>` article for more details.
+* TensorFlow / TensorFlow 2 / Keras - ``tf.keras.Model``, ``tf.keras.layers.Layer``, ``tf.compat.v1.Graph``, ``tf.compat.v1.GraphDef``, ``tf.Module``, ``tf.function``, ``tf.compat.v1.session``, ``tf.train.checkpoint``. Refer to the :doc:`Converting a TensorFlow Model<openvino_docs_MO_DG_prepare_model_convert_model_Convert_Model_From_TensorFlow>` article for more details.
 
 ``convert_model()`` accepts all parameters available in the MO command-line tool. Parameters can be specified by Python classes or string analogs, similar to the command-line tool.
 
