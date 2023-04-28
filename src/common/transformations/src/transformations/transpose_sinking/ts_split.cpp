@@ -74,7 +74,7 @@ bool HasInputSplitAndTransposeSiblings(const Output<Node>& output) {
 }
 
 bool IsSplitSinked(const Output<Node>& output) {
-    return HasInputSplitAndTransposeSiblings(output) && is_sinking_node(output);
+    return HasInputSplitAndTransposeSiblings(output);
 }
 
 bool GetSplitAxis(const std::shared_ptr<ov::op::v0::Constant>& split_axis, const ov::Rank& rank, int64_t& axis) {

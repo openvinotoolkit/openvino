@@ -107,7 +107,7 @@ TSDataMovementBackward::TSDataMovementBackward() {
     auto transpose_label =
         wrap_type<ov::op::v1::Transpose>({main_node_label, transpose_const_label},
                                          [](const Output<Node>& output) -> bool {
-                                             return has_static_rank()(output) && is_sinking_node(output);
+                                             return has_static_rank()(output);
                                          });
 
     matcher_pass_callback matcher_pass_callback = [=](Matcher& m) {
