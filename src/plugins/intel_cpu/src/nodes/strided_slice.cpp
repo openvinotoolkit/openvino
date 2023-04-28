@@ -27,12 +27,6 @@ bool StridedSlice::isSupportedOperation(const std::shared_ptr<const ov::Node>& o
                 !ov::is_type<ov::op::v8::Slice>(op)) {
             errorMessage = "Only StridedSlice from opset1 and Slice from opset8 operations are supported.";
             return false;
-
-            if (op->get_input_size() > AXES_ID && !ov::is_type<ov::op::v0::Constant>(op->get_input_node_ptr(AXES_ID))) {
-                // TODO: all required modifications are completed on the node level. More functional tests have to be implemented to resolve the limitation.
-                errorMessage = "Only constant 'axis' input is supported.";
-                return false;
-            }
         }
     } catch (...) {
         return false;
@@ -327,7 +321,6 @@ void StridedSlice::initSupportedPrimitiveDescriptors() {
     const size_t nDims = getInputShapeAtPort(DATA_ID).getRank();
 
     NodeConfig config;
-    config.dynBatchSupport = false;
     config.inConfs.resize(getParentEdges().size());
     config.inConfs[DATA_ID].inPlace(-1);
     config.inConfs[BEGIN_ID].inPlace(-1);

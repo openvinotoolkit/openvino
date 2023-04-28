@@ -2,13 +2,74 @@
 
 @sphinxdirective
 
-The PyTorch framework is supported through export to the ONNX format. In order to optimize and deploy a model that was trained with it:
+This page provides instructions on how to convert a model from the PyTorch format to the OpenVINO IR format using Model Optimizer.
+Model Optimizer Python API allows the conversion of PyTorch models using the ``convert_model()`` method.
 
-1. `Export a PyTorch model to ONNX <#exporting-a-pytorch-model-to-onnx-format>`__.
-2. :doc:`Convert the ONNX model <openvino_docs_MO_DG_prepare_model_convert_model_Convert_Model_From_ONNX>` to produce an optimized :doc:`Intermediate Representation <openvino_docs_MO_DG_IR_and_opsets>` of the model based on the trained network topology, weights, and biases values.
+(Experimental) Converting a PyTorch model with PyTorch Frontend 
+###############################################################
+
+Example of PyTorch model conversion:
+
+.. code-block:: python
+
+   import torchvision
+   import torch
+   from openvino.tools.mo import convert_model
+   
+   model = torchvision.models.resnet50(pretrained=True)
+   ov_model = convert_model(model)
+
+Following PyTorch model formats are supported:
+
+* ``torch.nn.Module``
+* ``torch.jit.ScriptModule``
+* ``torch.jit.ScriptFunction``
+
+Converting certain PyTorch models may require model tracing, which needs ``input_shape`` or ``example_input`` parameters to be set.
+
+``example_input`` is used as example input for model tracing.
+``input_shape`` is used for constructing a float zero-filled torch.Tensor for model tracing.
+
+Example of using ``example_input``:
+
+.. code-block:: python
+
+   import torchvision
+   import torch
+   from openvino.tools.mo import convert_model
+   
+   model = torchvision.models.resnet50(pretrained=True)
+   ov_model = convert_model(model, example_input=torch.zeros(1, 3, 100, 100))
+
+``example_input`` accepts the following formats:
+
+* ``openvino.runtime.Tensor``
+* ``torch.Tensor``
+* ``np.ndarray``
+* ``list`` or ``tuple`` with tensors (``openvino.runtime.Tensor`` / ``torch.Tensor`` / ``np.ndarray``)
+* ``dictionary`` where key is the input name, value is the tensor (``openvino.runtime.Tensor`` / ``torch.Tensor`` / ``np.ndarray``)
+
+If ``use_legacy_frontend`` is set, it enables PyTorch model conversion using a temporary ONNX model.
+ONNX opset version can be set using an optional ``onnx_opset_version`` parameter.
+
+If  ``onnx_opset_version`` is not set, the default opset from ``torch.onnx.export()`` is used.
+
+Example of PyTorch model conversion using a temporary ONNX model:
+
+.. code-block:: python
+
+   import torchvision
+   
+   model = torchvision.models.resnet50(pretrained=True)
+   ov_model = convert_model(model, input_shape=[1,3,100,100], use_legacy_frontend=True, onnx_opset_version=13)
 
 Exporting a PyTorch Model to ONNX Format
 ########################################
+
+Currently, the most robust method of converting PyTorch models is exporting a PyTorch model to ONNX and then converting it to IR. To convert and deploy a PyTorch model, follow these steps:
+
+1. `Export a PyTorch model to ONNX <#exporting-a-pytorch-model-to-onnx-format>`__.
+2. :doc:`Convert the ONNX model <openvino_docs_MO_DG_prepare_model_convert_model_Convert_Model_From_ONNX>` to produce an optimized :doc:`Intermediate Representation <openvino_docs_MO_DG_IR_and_opsets>` of the model based on the trained network topology, weights, and biases values.
 
 PyTorch models are defined in Python. To export them, use the ``torch.onnx.export()`` method. The code to
 evaluate or test the model is usually provided with its code and can be used for its initialization and export.

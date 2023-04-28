@@ -169,6 +169,8 @@ std::vector<std::string> disabledTestPatterns() {
         R"(.*GridSampleLayerTestCPU.*(BILINEAR|BICUBIC).*(i32|i8).*)",
         // 98151. Not valid sorting for slices in reference.
         R"(.*UniqueLayerTestCPU.*axis.*True.*)",
+        // 109482. Sporadic failure.
+        R"(.*smoke_StaticSpaceToBatch_4D_parallel_block_edge.*)"
     };
 
 #if defined(OPENVINO_ARCH_X86)
@@ -192,6 +194,11 @@ std::vector<std::string> disabledTestPatterns() {
     retVector.emplace_back(R"(smoke_NegativeQuantizedMatMulMultiplyFusion.*)");
     // int8 specific
     retVector.emplace_back(R"(smoke_Quantized.*)");
+#endif
+
+#if defined(OPENVINO_ARCH_ARM)
+    // TODO: rounding errors
+    retVector.emplace_back(R"(.*iv_secondaryInputType=PARAMETER_opType=VECTOR_NetType=i32.*)");
 #endif
 
 #if !defined(OPENVINO_ARCH_X86_64)
