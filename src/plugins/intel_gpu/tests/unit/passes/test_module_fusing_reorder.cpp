@@ -60,7 +60,7 @@ TEST(test_can_fuse_reorder, reorder_for_mixed_type_convolution_fsv32_onednn)
     topology.add(data("weights", weights));
     topology.add(data("bias", bias));
     topology.add(reorder("reorder_input", input_info("input"), format::b_fs_yx_fsv32, data_types::u8));
-    topology.add(cldnn::convolution("conv", { input_info("reorder_input") }, { "weights" }, { "bias"}, 1, {1, 1}, {0, 0}, {1, 1}, {1, 32, 2, 2}, data_types::f32, false));
+    topology.add(cldnn::convolution("conv", input_info("reorder_input"), "weights", "bias", 1, {1, 1}, {1, 1}, {0, 0}, {0, 0}, false));
     topology.add(reorder("reorder_conv", input_info("conv"), reorder_layout));
 
     ExecutionConfig cfg = get_test_default_config(engine);
@@ -97,7 +97,7 @@ TEST(test_can_fuse_reorder, reorder_for_mixed_type_convolution_fsv32_cldnn)
     topology.add(data("weights", weights));
     topology.add(data("bias", bias));
     topology.add(reorder("reorder_input", input_info("input"), format::b_fs_yx_fsv32, data_types::u8));
-    topology.add(cldnn::convolution("conv", { input_info("reorder_input") }, { "weights" }, { "bias"}, 1, {1, 1}, {0, 0}, {1, 1}, {1, 32, 2, 2}, data_types::f32, false));
+    topology.add(cldnn::convolution("conv", input_info("reorder_input"), "weights", "bias", 1, {1, 1}, {1, 1}, {0, 0}, {0, 0}, false));
     topology.add(reorder("reorder_conv", input_info("conv"), reorder_layout));
 
     ExecutionConfig cfg = get_test_default_config(engine);
@@ -169,7 +169,7 @@ TEST_P(test_fused_reorder_deep_depth, no_removal_for_deep_depth_conv)
     topology.add(input_layout("input", input->get_layout()));
     topology.add(data("weights", weights));
     topology.add(reorder("reorder_input", input_info("input"), p.output_format, p.input_data_type));
-    topology.add(cldnn::convolution("conv", { input_info("reorder_input") }, { "weights" }));
+    topology.add(cldnn::convolution("conv", input_info("reorder_input"), "weights", "", 1, {1, 1}, {1, 1}, {0, 0}, {0, 0}, false));
     topology.add(reorder("reorder_conv", input_info("conv"), reorder_layout));
 
     ExecutionConfig cfg = get_test_default_config(engine);
@@ -220,7 +220,7 @@ TEST_P(test_can_fuse_reorder_cldnn, reorder_for_firstconv_cldnn)
     topology.add(data("weights", weights));
     topology.add(data("bias", bias));
     topology.add(reorder("reorder_input", input_info("input"), p.output_format, p.input_data_type));
-    topology.add(cldnn::convolution("conv2", { input_info("reorder_input") }, { "weights" }, { "bias"}, 1, {1, 1}, {0, 0}, {1, 1}, p.out_shape, p.input_data_type, false));
+    topology.add(cldnn::convolution("conv2", input_info("reorder_input"), "weights", "bias", 1, {1, 1}, {1, 1}, {0, 0}, {0, 0}, false));
     topology.add(reorder("reorder_conv", input_info("conv2"), reorder_layout));
 
     ExecutionConfig cfg = get_test_default_config(engine);
@@ -250,10 +250,10 @@ TEST_P(test_can_fuse_reorder_cldnn, reorder_for_firstconv_cldnn)
 
 INSTANTIATE_TEST_SUITE_P(testing_can_fuse_reorder_first_conv, test_can_fuse_reorder_cldnn,
                         ::testing::ValuesIn(std::vector<reorder_test_param>{
-                                            reorder_test_param{format::bfyx, format::b_fs_yx_fsv32, data_types::u8, data_types::u8, {1, 3, 8, 8}, {1, 32, 8, 8}, {1, 3, 1, 1},
-                                                tensor{1}, tensor{0}, data_types::u8, format::goiyx, true},
-                                            reorder_test_param{format::bfyx, format::b_fs_yx_fsv16, data_types::f16, data_types::f16, {1, 3, 8, 8}, {1, 32, 8, 8}, {1, 3, 1, 1},
-                                                tensor{1}, tensor{0}, data_types::f16, format::goiyx, true},
+                                            reorder_test_param{format::bfyx, format::b_fs_yx_fsv32, data_types::u8, data_types::u8, {1, 3, 8, 8}, {1, 32, 8, 8}, {32, 3, 1, 1},
+                                                tensor{1}, tensor{0}, data_types::u8, format::oiyx, true},
+                                            reorder_test_param{format::bfyx, format::b_fs_yx_fsv16, data_types::f16, data_types::f16, {1, 3, 8, 8}, {1, 32, 8, 8}, {32, 3, 1, 1},
+                                                tensor{1}, tensor{0}, data_types::f16, format::oiyx, true},
                                             }));
 
 // To test removal of reorder for first convolution optimizing in onednn kernel (shallow input depth to deep output depth)
@@ -272,7 +272,7 @@ TEST_P(test_can_fuse_reorder_onednn, reorder_for_firstconv_onednn)
     topology.add(data("weights", weights));
     topology.add(reorder("reorder_input", input_info("input"), p.input_format, p.output_data_type));
     topology.add(reorder("reorder_conv", input_info("reorder_input"), p.output_format, p.output_data_type));
-    topology.add(cldnn::convolution("conv", { input_info("reorder_input") }, { "weights" }));
+    topology.add(cldnn::convolution("conv", input_info("reorder_input"), "weights", "", 1, {1, 1}, {1, 1}, {0, 0}, {0, 0}, false));
     topology.add(reorder("reorder_result", input_info("conv"), reorder_layout));
 
     ExecutionConfig cfg = get_test_default_config(engine);
@@ -328,7 +328,7 @@ TEST_P(can_fuse_reorder, surface_input_reorder) {
     auto surface_input_reorder_prim = reorder(reorder_prim_id, input_info("input"), reorder_layout);
     surface_input_reorder_prim.input_mem_type = reorder::memory_type::surface;
     auto conv_input_reorder_prim = reorder("reorder_conv", input_info(reorder_prim_id), req_format, req_data_type);
-    auto conv_prim = cldnn::convolution("conv", { input_info("reorder_conv") }, { "weights" });
+    auto conv_prim = cldnn::convolution("conv", input_info("reorder_conv"), "weights", "", 1, {1, 1}, {1, 1}, {0, 0}, {0, 0}, false);
 
     topology.add(input_layout_prim, weights_data_prim, surface_input_reorder_prim, conv_input_reorder_prim, conv_prim);
 
@@ -389,7 +389,7 @@ TEST_P(can_fuse_reorder, surface_input_reorder_batched) {
     surface_input_reorder_prim2.input_mem_type = reorder::memory_type::surface;
     auto concat = concatenation("concat",{ input_info(reorder_prim_id1),input_info(reorder_prim_id2) }, 0);
     auto conv_input_reorder_prim = reorder("reorder_conv", input_info("concat"), req_format, req_data_type);
-    auto conv_prim = cldnn::convolution("conv", { input_info("reorder_conv") }, { "weights" });
+    auto conv_prim = cldnn::convolution("conv", input_info("reorder_conv"), "weights" , "", 1, {1, 1}, {1, 1}, {0, 0}, {0, 0}, false);
 
     topology.add(input_layout_prim1, input_layout_prim2, weights_data_prim,
                  surface_input_reorder_prim1, surface_input_reorder_prim2,
@@ -451,7 +451,7 @@ TEST_P(test_can_fuse_reorder_onednn_errata, errata_case_for_conv) {
     topology.add(data("weights", weights));
     topology.add(reorder("reorder_input", input_info("input"), p.input_layout.format, p.input_layout.data_type));
     topology.add(reorder("reorder_conv", input_info("reorder_input"), p.reorder_layout.format, p.reorder_layout.data_type));
-    topology.add(convolution("conv", { input_info("reorder_conv") }, { "weights" }));
+    topology.add(convolution("conv", input_info("reorder_conv"), "weights", "", 1, {1, 1}, {1, 1}, {0, 0}, {0, 0}, false));
     topology.add(reorder("reorder_result", input_info("conv"), p.conv_layout));
 
     ExecutionConfig cfg = get_test_default_config(engine);

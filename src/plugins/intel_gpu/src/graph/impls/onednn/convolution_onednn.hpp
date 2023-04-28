@@ -18,8 +18,8 @@ static std::shared_ptr<dnnl::convolution_forward::primitive_desc> get_convolutio
 
     dnnl::memory::dims stride(prim->stride.begin(), prim->stride.end());
     dnnl::memory::dims dilation(prim->dilation.begin(), prim->dilation.end());
-    dnnl::memory::dims pad_l(prim->pad.begin(), prim->pad.end());
-    dnnl::memory::dims pad_r(prim->pad.begin(), prim->pad.end());
+    dnnl::memory::dims pad_l(prim->padding_above.begin(), prim->padding_above.end());
+    dnnl::memory::dims pad_r(prim->padding_below.begin(), prim->padding_below.end());
 
     // issue: it could not find the implementation for 1d kernel GroupConvolution from onednn.
     // root-cause: 3d tensor of input/output is changed to 4d via ngraph.

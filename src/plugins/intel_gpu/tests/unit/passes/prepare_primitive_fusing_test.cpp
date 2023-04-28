@@ -470,7 +470,7 @@ TEST(prepare_primitive_fusing, eltwise_fusing_residual_connection) {
     topology.add(data("weights", weight_mem));
     topology.add(input_layout("conv_input", conv_in_layout));
     topology.add(input_layout("elt1_input", elt1_in1_layout));
-    topology.add(convolution("conv", input_info("conv_input"), { "weights" }));
+    topology.add(convolution("conv", input_info("conv_input"), "weights", "", 1, {1, 1}, {1, 1}, {0, 0}, {0, 0}, false));
     topology.add(eltwise("eltw1", { input_info("conv"), input_info("elt1_input") }, eltwise_mode::prod));
     topology.add(activation("act", input_info("eltw1"), activation_func::erf));
     topology.add(eltwise("elt2", { input_info("conv"), input_info("act") }, eltwise_mode::prod));

@@ -533,8 +533,6 @@ bool should_use_winograd_2x3_s1(std::shared_ptr<const convolution> const& prim,
         || weights_layout.batch() % 64 != 0  // current algorithm is effective for ofm to be multiply of 64
         || any_not_one(prim->stride)               // stride has to be 1x1 by definition
         || any_not_one(prim->dilation)             // no support for dilation
-        || (output_size_handling_enabled &&
-            prim->with_output_size)                // no support for convolutions with user-specified output size
         || (input_layout.count() > 3000000)        // limit max input size as winograd consumes more memory
         || (input_layout.count() < 50000)          // limit min input size as winograd is not effective for small input
         || (input_layout.spatial(0) < 8 &&
@@ -612,7 +610,8 @@ bool layout_optimizer::convolution_byxf_opt(const layout& input_layout,
          weights_layout.spatial(1) == 1 && output_layout.feature() % 64 == 0 &&
          weights_layout.batch() % 64 == 0 &&
          all_ones(conv->stride) &&
-         all_zeroes(conv->pad)) ||
+         all_zeroes(conv->padding_above) &&
+         all_zeroes(conv->padding_below)) ||
         // Winograd
         should_use_winograd_2x3_s1(conv, input_layout, weights_layout, _output_size_handling_enabled))
         return true;
@@ -739,7 +738,7 @@ bool layout_optimizer::convolution_bs_fs_yx_bsv16_fsv16_opt(const layout& input_
                                                             std::shared_ptr<const convolution> conv) {
     // A set of rules that define when bs_fs_yx_bsv16_fsv16 mem format can be used
     bool correct_batch = input_layout.batch() > 16;
-    bool correct_feature = (input_layout.feature() % 16 == 0 || input_layout.feature() == 3) && conv->output_size.feature[0] % 16 == 0;
+    bool correct_feature = (input_layout.feature() % 16 == 0 || input_layout.feature() == 3) && output_layout.feature() % 16 == 0;
     bool fp16_ver = input_layout.data_type == data_types::f16 && input_layout.batch() % 32 == 0;
     bool fp32_ver = input_layout.data_type == data_types::f32 && input_layout.batch() % 16 == 0;
     bool single_group = conv->groups == 1;
@@ -1147,16 +1146,12 @@ layout layout_optimizer::get_expected_layout(layout const& current_layout,
                     current_layout.format == format::os_is_yx_osv16_isv4) {
             // imad case
             // nothing to do, just go out from here.
-        } else if (layout_optimizer::convolution_bfyx_opt(current_layout, weights_layout, prim) ||
-                    (_output_size_handling_enabled && prim->with_output_size) || node.get_transposed()) {
-            {
-                expected_tensor = current_layout.get_tensor();
-                if (current_layout.format == format::b_fs_zyx_fsv16 || current_layout.format == format::bs_fs_zyx_bsv16_fsv16)
-                    expected_format = cldnn::format::bfzyx;
-                else
-                    expected_format = cldnn::format::bfyx;
-            }
-
+        } else if (layout_optimizer::convolution_bfyx_opt(current_layout, weights_layout, prim) || node.get_transposed()) {
+            expected_tensor = current_layout.get_tensor();
+            if (current_layout.format == format::b_fs_zyx_fsv16 || current_layout.format == format::bs_fs_zyx_bsv16_fsv16)
+                expected_format = cldnn::format::bfzyx;
+            else
+                expected_format = cldnn::format::bfyx;
         } else {
             expected_tensor = current_layout.get_tensor();
             expected_format = cldnn::format::yxfb;
