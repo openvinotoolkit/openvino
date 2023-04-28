@@ -75,23 +75,12 @@ def pytest_addoption(parser):
         required=False,
         action="store_true",
         help="Switch to tflite tests version")
-    parser.addoption(
-        "--use_ts_backend",
-        action="store_true",
-        help="Use Pytorch Torchscript backend for tests",
-    )
 
 
 @pytest.fixture(scope="session")
 def ir_version(request):
     """Fixture function for command-line option."""
     return request.config.getoption('ir_version')
-
-
-@pytest.fixture(scope="session")
-def use_ts_backend(request):
-    """Fixture function for command-line option."""
-    return request.config.getoption('use_ts_backend')
 
 
 @pytest.fixture(scope="session")

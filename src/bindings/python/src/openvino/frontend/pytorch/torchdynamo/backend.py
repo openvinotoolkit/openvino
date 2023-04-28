@@ -39,6 +39,7 @@ def ts_openvino(subgraph, example_inputs):
         }
         decoder = TorchScriptPythonDecoder(fr_model)
 
+        # TODO: Use convert_model instead when mo --convert_model api becomes a part of OV runtime
         im = fe.load(decoder)
         om = fe.convert(im)
 
@@ -48,8 +49,8 @@ def ts_openvino(subgraph, example_inputs):
         om.validate_nodes_and_infer_types()
 
         device = 'CPU'
-        if (os.getenv("OPENVINO_DEVICE") is not None):
-            device = os.getenv("OPENVINO_DEVICE")
+        if (os.getenv("OPENVINO_TS_BACKEND_DEVICE") is not None):
+            device = os.getenv("OPENVINO_TS_BACKEND_DEVICE")
             assert device in core.available_devices, "Specified device " + device + " is not in the list of OpenVINO Available Devices"
 
         compiled_model = core.compile_model(om, device)
