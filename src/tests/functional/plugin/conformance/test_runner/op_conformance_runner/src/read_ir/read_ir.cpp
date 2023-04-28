@@ -235,17 +235,23 @@ void ReadIRTest::SetUp() {
     auto pgLink = this->GetPGLink();
     if (pgLink) {
 #    if defined(__arm__) || defined(_M_ARM) || defined(__aarch64__) || defined(_M_ARM64)
-        std::cerr << "ARM way in IR " << this->targetDevice;
         if (this->targetDevice == "CPU") {
-            std::cerr << " replaced\n";
             pgLink->SetCustomField("targetDevice", "CPU_ARM", true);
         } else {
-            std::cerr << " left\n";
             pgLink->SetCustomField("targetDevice", this->targetDevice, true);
         }
 #    else
-        std::cerr << "Non-ARM way in IR\n";
-        pgLink->SetCustomField("targetDevice", this->targetDevice, true);
+        if (this->targetDevice == "GPU") {
+            auto devName = core->get_property("GPU", "FULL_DEVICE_NAME").as<std::string>();
+            std::cerr << "GPU Device: " << devName << std::endl;
+            if (devName.find("dGPU") != std::string::npos) {
+                pgLink->SetCustomField("targetDevice", "DGPU", true);
+            } else {
+                pgLink->SetCustomField("targetDevice", this->targetDevice, true);
+            }
+        } else {
+            pgLink->SetCustomField("targetDevice", this->targetDevice, true);
+        }
 #    endif
         pgLink->SetCustomField("caseType", hasDynamic ? "dynamic" : "static");
 

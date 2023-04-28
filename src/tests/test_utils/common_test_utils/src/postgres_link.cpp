@@ -271,14 +271,17 @@ public:
             // After transactional queries were introduced - we need to check error message and try
             // do a query again if it is expected serialization error.
             // More about serialization: https://www.postgresql.org/docs/9.5/transaction-iso.html
-            if (errStr.find("could not serialize access") != std::string::npos) {
-                std::cerr << PG_WRN << "Serialization error, trying again, try attempt: " << queryCounter++
+            if (errStr.find("could not serialize access") != std::string::npos ||
+                errStr.find("current transaction is aborted") != std::string::npos) {
+                std::cerr << PG_WRN
+                          << "Serialization error, trying again, try attempt: " << static_cast<uint32_t>(queryCounter++)
                           << std::endl;
 #ifdef _WIN32
                 Sleep(50);  // Wait some time for the next attempt
 #else
                 usleep(50000);
 #endif
+                result = CommonQuery(query);
             } else {
                 std::cerr << PG_ERR << "Error message: " << errStr << std::endl;
                 result.reset(nullptr);
@@ -637,17 +640,13 @@ static void addPair(std::map<std::string, std::string>& keyValues, const std::st
     // Normalize target devices
     if (key == "target_device" || key == "TargetDevice" || key == "Device" || key == "targetDevice") {
 #if defined(__arm__) || defined(_M_ARM) || defined(__aarch64__) || defined(_M_ARM64)
-        std::cerr << "ARM Debug: " << key << " = " << value;
         if (value == "CPU") {
             keyValues["targetDevice"] = "CPU_ARM";
-            std::cerr << " replaced\n";
         } else {
             keyValues["targetDevice"] = value;
-            std::cerr << " left\n";
         }
 #else
         keyValues["targetDevice"] = value;
-        std::cerr << "No an ARM\n";
 #endif
         return;
     }
