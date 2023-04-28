@@ -230,16 +230,46 @@ For more details, see the :doc:`optimization guide<openvino_docs_deployment_opti
 Dynamic Shapes
 +++++++++++++++++++++++++++++++++++++++
 
-The GPU plugin supports dynamic shapes for batch dimension only (specified as ``N`` in the :doc:`layouts terms<openvino_docs_OV_UG_Layout_Overview>`) with a fixed upper bound. 
-Any other dynamic dimensions are unsupported. Internally, GPU plugin creates ``log2(N)`` (``N`` - is an upper bound for batch dimension here) 
-low-level execution graphs for batch sizes equal to powers of 2 to emulate dynamic behavior, so that incoming infer request 
-with a specific batch size is executed via a minimal combination of internal networks. For example, batch size 33 may be executed via 2 internal networks with batch size 32 and 1.
+GPU plugin supports dynamic shape and the general description can be found in :doc:`dynamic shapes guide<openvino_docs_OV_UG_DynamicShapes>`.
+Currently, the plugin mainly supports NLP models (Natural Language Processing). Also, dynamic rank is not supported.
 
-.. note:: 
+To support dynamic shape execution, the following basic infrastructures are implemented:
 
-   Such approach requires much more memory and the overall model compilation time is significantly longer, compared to the static batch scenario.
+- Runtime shape inference : Infers the output shapes of each primitive for a new input shape at runtime
+- Shape agnostic kernels : New kernels that can run arbitrary shapes. If shape agnostic kernel is not available, the required kernel is compiled at runtime for each shape.
+- Asynchronous kernel compilation : Even when a shape agnostic kernel is available, the GPU plugin compiles an optimal kernerl for the given shape and preserve it in the in-memory cache for future use.
+- In-memory cache : Preserves kernels compiled in runtime and weights reordered for the specific kernels
 
-The code snippet below demonstrates how to use dynamic batching in simple scenarios:
+The code snippet below demonstrates how to use dynamic shape in GPU plugin:
+
+.. tab-set::
+
+   .. tab-item:: C++
+      :sync: cpp
+
+      .. doxygensnippet:: docs/snippets/gpu/dynamic_shape.cpp
+         :language: cpp
+         :fragment: dynamic_shape
+
+   .. tab-item:: Python
+      :sync: py
+
+      .. doxygensnippet:: docs/snippets/gpu/dynamic_shape.py
+         :language: Python
+         :fragment: dynamic_shape
+
+
+Bounded dynamic batch
+-----------------------------------------------------------
+
+It is worth noting that the internal behavior differs from general cases in cases where only the batch dimension is dynamic and has a fixed upper bound, a.k.a bounded batch dynamic shape.
+While general dynamic shape can run on one compiled model, the GPU plugin creates ``log2(N)`` (``N`` - is an upper bound for batch dimension here) low-level
+execution graphs for batch sizes equal to powers of 2 to emulate dynamic behavior in the bounded dynamic batch.
+As a result, an incoming infer request with a specific batch size is executed via a minimal combination of internal networks.
+For example, a batch size of 33 may be executed via two internal networks with batch sizes of 32 and 1.
+This approach is adopted for performance reasons, but it requires more memory and increased compilation time for multiple copies of internal networks.
+
+The code snippet below demonstrates examples of bounded dynamic batch:
 
 .. tab-set::
 
@@ -258,7 +288,51 @@ The code snippet below demonstrates how to use dynamic batching in simple scenar
          :fragment: dynamic_batch
 
 
-For more details, see the :doc:`dynamic shapes guide<openvino_docs_OV_UG_DynamicShapes>`.
+Notes for performance and memory consumption in dynamic shape
+-----------------------------------------------------------
+
+- Extra CPU utilization during inference :
+
+   - Shape inference for new input shapes
+   - Kernel compilation in runtime for optimal kernel
+   - Unfusion of the fused subgraph when the fusing is illegal for runtime shape
+
+-  Higher memory consumption for in-memory cache
+
+   - Optimal kernels and weights from the previously used shapes are preserved in in-memory cache for future use
+
+
+Recommendations for performance improvement
+-----------------------------------------------------------
+
+- Use static shape whenever possible
+
+   - Static models can benefit from more agressive optimizations such as constant propagation, fusing, reorder optimizatio.
+   If the same shape is used for dynamic model, the performance is worse than running that shape with static model.
+   It is therefore recommended to reshape the dynamic model to a static model, if the scenario allows.
+
+- Use bounded dynamic shape whenever possible
+
+   - The GPU plugin needs to reallocate memory if the current shape is larger than the maximum of the previous shapes, which causes additional overhead.
+   - Using bounded dynamic shape will help reduce such overhead. For example, use {ov::Dimension(1, 10), ov::Dimension(1, 384)} instead of {ov::Dimension(-1), ov::Dimension(-1)}.
+   - Note that bounded dynamic *batch* is handled differently as mentioned above.
+
+- Use permanent cache, i.e., either OpenCL cache or OpenVino model_cache, to reduce runtime re-compilation overhead
+
+   - GPU plugin deploys in-memory cache to store compiled kernels for previously used shapes, but the size of such in-memory cache is limited.
+   Therefore, it is recommended to use either of the following permanent caches too:
+
+      - OpenVino model_cache: See the :doc:`Model caching overview<openvino_docs_OV_UG_Model_caching_overview>`
+      - OpenCL cache : See the page : https://github.com/intel/compute-runtime/blob/master/opencl/doc/FAQ.md#feature-cl_cache
+
+- The longer the inference sequence, the better throughput can be obtained, because it can leverage the runtime compilation time.
+
+   - If the primitive has a shape-agnostic kernel, it uses that kernel for the first inference.
+   However, as mentioned above, it also asynchronously compiles optimal kernels in parallel for future use.
+   If the application process is quickly stopped and the GPU plugin is destroyed, the compilation may not be finished.
+   If the application process allows enough time for asynchronous compilation, the more optimal kernels become available, enabling better throughput.
+   For example, running 200 inputs of {[1, 1], ..., [1, 50], [1, 1], ... , [1, 50], [1, 1], ..., [1, 50], [1, 1], ..., [1, 50]} may achieve better throughput than running 100 inputs of {[1, 1], ..., [1, 50], [1, 1], ... , [1,50]}.
+
 
 Preprocessing Acceleration
 +++++++++++++++++++++++++++++++++++++++
