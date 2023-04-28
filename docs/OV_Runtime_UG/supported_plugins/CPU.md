@@ -108,8 +108,8 @@ to query ``ov::device::capabilities`` property, which should contain ``BF16`` in
 If the model has been converted to ``bf16``, the ``ov::hint::inference_precision`` is set to ``ov::element::bf16`` and can be checked via 
 the ``ov::CompiledModel::get_property`` call. The code below demonstrates how to get the element type:
 
-.. doxygensnippet:: snippets/cpu/Bfloat16Inference1.cpp
-   :language: py
+.. doxygensnippet:: docs/snippets/cpu/Bfloat16Inference1.cpp
+   :language: cpp
    :fragment: [part1]
 
 To infer the model in ``f32`` precision instead of ``bf16`` on targets with native ``bf16`` support, set the ``ov::hint::inference_precision`` to ``ov::element::f32``.
