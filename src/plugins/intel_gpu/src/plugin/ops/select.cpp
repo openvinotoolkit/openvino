@@ -47,9 +47,7 @@ static void CreateSelectOp(Program& p, const std::shared_ptr<ngraph::op::v1::Sel
                     auto reorderPrim = cldnn::reorder(reorderName,
                                                       inputs[i],
                                                       targetFormat,
-                                                      targetDatatype,
-                                                      std::vector<float>(),
-                                                      cldnn::reorder_mean_mode::subtract);
+                                                      targetDatatype);
 
                     p.add_primitive(*op, reorderPrim);
 

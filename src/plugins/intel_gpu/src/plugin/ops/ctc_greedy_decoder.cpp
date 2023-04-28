@@ -35,9 +35,7 @@ static void CreateCommonCTCGreedyDecoderOp(Program& p, const std::shared_ptr<ngr
             auto preprocessPrim = cldnn::reorder(reorderPrimName,
                                                  inputs[portIndex],
                                                  targetFormat,
-                                                 cldnn::data_types::i32,
-                                                 std::vector<float>(),
-                                                 cldnn::reorder_mean_mode::subtract);
+                                                 cldnn::data_types::i32);
             p.add_primitive(*op, preprocessPrim);
             reordered_inputs[portIndex] = cldnn::input_info(reorderPrimName);
         } else {

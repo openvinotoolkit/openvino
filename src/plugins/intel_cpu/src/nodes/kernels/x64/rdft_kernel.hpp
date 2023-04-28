@@ -35,7 +35,7 @@ struct jit_dft_args {
 struct jit_dft_kernel {
     jit_dft_kernel(bool is_inverse, enum dft_type type) : is_inverse_(is_inverse), kernel_type_(type) {}
 
-    void (*ker_)(const jit_dft_args*);
+    void (*ker_)(const jit_dft_args*) = nullptr;
 
     void operator()(const jit_dft_args* args) {
         assert(ker_);
