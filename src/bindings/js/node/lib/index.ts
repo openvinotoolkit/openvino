@@ -1,22 +1,20 @@
 const ov = require('../build/Release/ov_node_addon.node');
 import loadModel from './node-model';
-import { Tensor, Shape } from 'openvinojs-common'
+import createModule from 'openvinojs-common'
 
-export async function init() { 
-  return {
-    loadModel, 
-    Tensor,
-    Shape,
-    getDescriptionString,
-    getModelName,
-  };
+
+export default
+  createModule('node', loadModel, getVersionString, getDescriptionString);
+
+
+async function getVersionString(): Promise<string> {
+    const str= "Version";
+    return str;
 };
 
-function getDescriptionString(): string {
+async function getDescriptionString(): Promise<string> {
     return ov.getDescriptionString();
 };
 
-function getModelName(model_path: string): string {
-    const model = new ov.Model().read_model(model_path);
-    return model.get_name();
-}
+
+

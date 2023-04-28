@@ -1,6 +1,6 @@
 import { Tensor, TypedArray, Shape } from 'openvinojs-common';
 import type { ITensor, IShape, IModel, PrecisionSupportedType } from 'openvinojs-common';
-const ovNode = require('../build/Release/ov_node_addon.node');
+const ovNode : ovNodeModule = require('../build/Release/ov_node_addon.node');
 
 
 export default async function loadModel(xmlPath: string, binPath: string): Promise<IModel> {
@@ -64,6 +64,7 @@ export interface ShapeLite {
 };
 
 export interface NodeModel {
-    read_model(): NodeModel;
+    read_model(path: string): NodeModel;
+    compile(device: string): NodeModel;
     infer(tensor: NodeTensor): NodeTensor;
 }
