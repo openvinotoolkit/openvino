@@ -136,6 +136,7 @@ KernelsData ConcatenationKernelBase::GetCommonKernelsData(const Params& params, 
             DispatchData dispatchData = SetDefault(newParams);
             kernel.params.workGroups.global = dispatchData.gws;
             kernel.params.workGroups.local = dispatchData.lws;
+            kernel.skip_execution = KernelData::SkipKernelExecution(newParams);
 
             ScalarDescriptor s;
             s.t = ScalarDescriptor::Types::UINT32;
@@ -173,6 +174,7 @@ KernelsData ConcatenationKernelBase::GetCommonKernelsData(const Params& params, 
         kernel.code.kernelString = GetKernelString(kernelName, jit, entryPoint, params.engineInfo);
         kernel.params.workGroups.global = dispatchData.gws;
         kernel.params.workGroups.local = dispatchData.lws;
+        kernel.skip_execution = KernelData::SkipKernelExecution(newParams);
         if (is_dynamic) {
             kernel.params.arguments.push_back({ArgumentDescriptor::Types::SHAPE_INFO, 0});
         }

@@ -132,8 +132,39 @@ OPENVINO_RUNTIME_API bool with_cpu_x86_avx512_core_amx_bf16();
 OPENVINO_RUNTIME_API bool with_cpu_x86_avx512_core_amx();
 
 /**
+ * @brief      Checks whether cpu_mapping Available
+ * @ingroup    ie_dev_api_system_conf
+ * @return     `True` is CPU mapping is available, `false` otherwise
+ */
+OPENVINO_RUNTIME_API bool is_cpu_map_available();
+
+/**
+ * @brief      Get number of numa nodes
+ * @ingroup    ie_dev_api_system_conf
+ * @return     Number of numa nodes
+ */
+OPENVINO_RUNTIME_API int get_num_numa_nodes();
+
+/**
+ * @brief      Returns a table of number of processor types on Linux/Windows
+ * @ingroup    ie_dev_api_system_conf
+ * @return     A table about number of CPU cores of different types defined with ColumnOfProcessorTypeTable
+ * The following are two example of processor type table.
+ *  1. Processor table of two socket CPUs XEON server
+ *  ALL_PROC | MAIN_CORE_PROC | EFFICIENT_CORE_PROC | HYPER_THREADING_PROC
+ *     96            48                 0                       48          // Total number of two sockets
+ *     48            24                 0                       24          // Number of socket one
+ *     48            24                 0                       24          // Number of socket two
+ *
+ * 2. Processor table of one socket CPU desktop
+ *  ALL_PROC | MAIN_CORE_PROC | EFFICIENT_CORE_PROC | HYPER_THREADING_PROC
+ *     32            8                 16                       8           // Total number of one socket
+ */
+OPENVINO_RUNTIME_API std::vector<std::vector<int>> get_proc_type_table();
+
+/**
  * @enum       ColumnOfProcessorTypeTable
- * @brief      This enum contains defination of each columns in processor type table which bases on cpu core types. Will
+ * @brief      This enum contains definition of each columns in processor type table which bases on cpu core types. Will
  * extend to support other CPU core type like ARM.
  *
  * The following are two example of processor type table.
@@ -158,8 +189,36 @@ enum ColumnOfProcessorTypeTable {
 };
 
 /**
+ * @enum       ProcessorUseStatus
+ * @brief      Definition of CPU_MAP_USED_FLAG column in CPU mapping table.
+ */
+enum ProcessorUseStatus {
+    NOT_USED = -1,           //!< Processor is not bound to thread
+    CPU_USED = 1,            //!< CPU is in using
+    PLUGIN_USED_START = 100  //!< Plugin other than CPU needs to use. If more GPUs use CPUs, the CPU_MAP_USED_FLAG is
+                             //!< accumulated from PLUGIN_USED_START. For example: GPU.0:100, GPU.1:101
+};
+
+/**
+ * @brief      Get and reserve available cpu ids
+ * @ingroup    ie_dev_api_system_conf
+ * @param[in]  streams_info_table streams information table.
+ * @return     Array of available cpu ids.
+ */
+OPENVINO_RUNTIME_API std::vector<std::vector<int>> reserve_available_cpus(
+    const std::vector<std::vector<int>> streams_info_table);
+
+/**
+ * @brief      Set CPU_MAP_USED_FLAG of cpu_mapping
+ * @ingroup    ie_dev_api_system_conf
+ * @param[in]  cpu_ids cpus in cpu_mapping.
+ * @param[in]  used update CPU_MAP_USED_FLAG of cpu_mapping with this flag bit
+ */
+OPENVINO_RUNTIME_API void set_cpu_used(const std::vector<int>& cpu_ids, const int used);
+
+/**
  * @enum       ColumnOfCPUMappingTable
- * @brief      This enum contains defination of each columns in CPU mapping table which use processor id as index.
+ * @brief      This enum contains definition of each columns in CPU mapping table which use processor id as index.
  *
  * GROUP_ID is generated according to the following rules.
  *  1. If one MAIN_CORE_PROC and one HYPER_THREADING_PROC are based on same Performance-cores, they are in one group.

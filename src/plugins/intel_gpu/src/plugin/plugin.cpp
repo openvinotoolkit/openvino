@@ -132,7 +132,7 @@ InferenceEngine::CNNNetwork Plugin::clone_and_transform_model(const InferenceEng
         GPU_DEBUG_IF(!debug_config->dump_graphs.empty()) {
             auto path_base = debug_config->dump_graphs + "/" + network.getName() + "_" +  "transformed_func";
             ov::pass::Serialize(path_base + ".xml", path_base + ".bin").run_on_model(nGraphFunc);
-    }
+        }
     }
     return clonedNetwork;
 }
@@ -156,7 +156,7 @@ Plugin::Plugin() : m_default_contexts({}) {
 }
 
 auto check_inputs = [](InferenceEngine::InputsDataMap _networkInputs) {
-    for (auto ii : _networkInputs) {
+    for (const auto& ii : _networkInputs) {
         auto input_precision = ii.second->getTensorDesc().getPrecision();
         if (input_precision != InferenceEngine::Precision::FP16 &&
             input_precision != InferenceEngine::Precision::FP32 &&
@@ -319,7 +319,7 @@ QueryNetworkResult Plugin::QueryNetwork(const CNNNetwork& network,
                     return false;
 
                 auto pshape = node->get_output_partial_shape(0);
-                if (pshape.rank().is_dynamic())
+                if (pshape.rank().is_dynamic() || pshape.size() > cldnn::layout::max_rank())
                     return false;
 
                 int dynCount = 0;
@@ -671,7 +671,7 @@ Parameter Plugin::GetMetric(const std::string& name, const std::map<std::string,
         cachingProperties.push_back(ov::PropertyName(ov::device::architecture.name(), PropertyMutability::RO));
         cachingProperties.push_back(ov::PropertyName(ov::intel_gpu::execution_units_count.name(), PropertyMutability::RO));
         cachingProperties.push_back(ov::PropertyName(ov::intel_gpu::driver_version.name(), PropertyMutability::RO));
-        cachingProperties.push_back(ov::PropertyName(ov::inference_precision.name(), PropertyMutability::RW));
+        cachingProperties.push_back(ov::PropertyName(ov::hint::inference_precision.name(), PropertyMutability::RW));
         cachingProperties.push_back(ov::PropertyName(ov::hint::execution_mode.name(), PropertyMutability::RW));
         return decltype(ov::caching_properties)::value_type(cachingProperties);
     } else if (name == ov::intel_gpu::driver_version) {
@@ -730,7 +730,7 @@ std::vector<ov::PropertyName> Plugin::get_supported_properties() const {
         ov::PropertyName{ov::compilation_num_threads.name(), PropertyMutability::RW},
         ov::PropertyName{ov::num_streams.name(), PropertyMutability::RW},
         ov::PropertyName{ov::hint::num_requests.name(), PropertyMutability::RW},
-        ov::PropertyName{ov::inference_precision.name(), PropertyMutability::RW},
+        ov::PropertyName{ov::hint::inference_precision.name(), PropertyMutability::RW},
         ov::PropertyName{ov::device::id.name(), PropertyMutability::RW},
     };
 

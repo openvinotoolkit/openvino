@@ -41,6 +41,7 @@ std::ostream& operator <<(std::ostream& os, const InputShape& inputShape) {
 }
 
 void SubgraphBaseTest::run() {
+    is_reported = true;
     bool isCurrentTestDisabled = FuncTestUtils::SkipTestsConfig::currentTestIsDisabled();
 
     ov::test::utils::PassRate::Statuses status = isCurrentTestDisabled ?
@@ -226,7 +227,7 @@ void SubgraphBaseTest::compile_model() {
                 break;
             }
         }
-        configuration.insert({ov::inference_precision.name(), hint});
+        configuration.insert({ov::hint::inference_precision.name(), hint});
     }
 
     compiledModel = core->compile_model(function, targetDevice, configuration);

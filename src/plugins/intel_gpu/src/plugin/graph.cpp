@@ -105,7 +105,7 @@ Graph::Graph(cldnn::BinaryInputBuffer &ib, RemoteContextImpl::Ptr context, const
     size_t num_networks;
     ib >> num_networks;
     for (size_t i = 0; i < num_networks; ++i) {
-        m_networks.emplace_back(std::make_shared<cldnn::network>(ib, get_engine().create_stream(config), get_engine(), m_stream_id));
+        m_networks.emplace_back(std::make_shared<cldnn::network>(ib, get_engine().create_stream(config), get_engine(), m_stream_id == 0));
     }
 }
 
@@ -535,7 +535,7 @@ void Graph::Export(cldnn::BinaryOutputBuffer &ob) {
     ob << outputDims;
 
     ob << m_networks.size();
-    for (auto net : m_networks) {
+    for (const auto& net : m_networks) {
         net->save(ob);
     }
 }

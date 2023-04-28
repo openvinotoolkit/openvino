@@ -27,7 +27,7 @@ from openvino.tools.mo.front.Pack import Pack
 from openvino.tools.mo.front.TransposeOrderNormalizer import TransposeOrderNormalizer
 from openvino.tools.mo.front.split_normalizer import SqueezeAxis
 from openvino.tools.mo.front.tf.CropAndResizeReplacement import CropAndResizeReplacement
-from openvino.tools.mo.front.tf.FakeQuantWithMinMaxVars import FakeQuantWithMinMaxVarsToQuantize
+from openvino.tools.mo.front.FakeQuantWithMinMaxVars import FakeQuantWithMinMaxVarsToQuantize
 from openvino.tools.mo.front.tf.MapFNTransformation import MapFNInputSlicing, MapFNOutputConcatenation,\
     TensorListOutputConcatenation
 from openvino.tools.mo.front.tf.TFSliceToSlice import TFSliceToSliceReplacer
@@ -98,7 +98,7 @@ def _value_or_raise(match: SubgraphMatch, pipeline_config: PipelineConfig, key: 
         raise Error('The sub-graph replacer "[REPLACEMENT_ID]" was not able to find the value for key "{}" in the '
                     'pipeline configuration file specified with the --tensorflow_object_detection_api_pipeline_config '
                     'command line parameter. Update the sub-graph replacement configuration file specified with the '
-                    '--tensorflow_use_custom_operations_config command line parameter by adding key "{}" with required '
+                    '--transformations_config command line parameter by adding key "{}" with required '
                     'value to the "custom_attributes" dictionary of the "[REPLACEMENT_ID]" replacer.'.format(key, key))
     return value
 

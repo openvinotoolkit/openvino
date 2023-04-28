@@ -151,6 +151,7 @@ public:
     nodes_ordering& get_processing_order();
     uint32_t get_prog_id() { return prog_id; }
     stream& get_stream() { return *_stream; }
+    stream::ptr get_stream_ptr() const { return _stream; }
     const stream& get_stream() const { return *_stream; }
     const std::list<primitive_id>& get_optimized_out() const { return optimized_out; }
     const std::list<optimized_info>& get_optimized() const { return optimized; }
@@ -187,6 +188,8 @@ public:
                           program_node& prev,
                           bool connect_int_node_with_old_dep = true,
                           bool move_usrs_of_prev_to_node = false);
+
+    void add_connection(program_node& prev, program_node& next);
 
     // removes a node from the graph and deletes it afterwards,
     // prereq: node cannot be marked as output and has to have exactly one dependency
@@ -330,8 +333,6 @@ private:
     void add_split_outputs();
     // mark if the node is constant assuming that all dependencies are marked properly
     void reverse_connection(program_node& dep_node, program_node& user_node);
-
-    void add_connection(program_node& prev, program_node& next);
 
     void remove_connection(program_node& prev, program_node& next);
 

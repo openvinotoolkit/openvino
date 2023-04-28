@@ -145,7 +145,10 @@ protected:
                     }
 
                     std::vector<ov::Shape> secondParameterShapes;
-                    opToShapeInfer->get_input_tensor(0).set_partial_shape(targetShapes.front());
+                    if (auto parameter = dynamic_cast<ov::op::v0::Parameter*>(opToShapeInfer->get_input_node_ptr(0))) {
+                        parameter->set_partial_shape(targetShapes.front());
+                        parameter->validate_and_infer_types();
+                    }
                     opToShapeInfer->validate_and_infer_types();
                     targetShapes.push_back(opToShapeInfer->get_output_shape(0));
                 }

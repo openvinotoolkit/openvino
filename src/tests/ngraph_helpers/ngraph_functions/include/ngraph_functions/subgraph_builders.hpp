@@ -747,6 +747,136 @@ inline std::shared_ptr<ngraph::Function> makeConvertTranspose(std::vector<size_t
     fn_ptr->set_friendly_name("ConvertTranspose");
     return fn_ptr;
 }
+
+inline std::shared_ptr<ngraph::Function> makeMultipleInputOutputReLU(std::vector<size_t> inputShape = {1, 1, 32, 32},
+                                                                    ngraph::element::Type_t type = ngraph::element::Type_t::f32) {
+    auto param1 = std::make_shared<ngraph::opset8::Parameter>(type, ngraph::Shape(inputShape));
+    param1->set_friendly_name("param1");
+    param1->output(0).get_tensor().set_names({"data1"});
+    auto param2 = std::make_shared<ngraph::opset8::Parameter>(type, ngraph::Shape(inputShape));
+    param2->set_friendly_name("param2");
+    param2->output(0).get_tensor().set_names({"data2"});
+    auto relu = std::make_shared<ngraph::opset8::Relu>(param1);
+    relu->set_friendly_name("relu_op");
+    relu->output(0).get_tensor().set_names({"relu"});
+    auto result1 = std::make_shared<ngraph::opset8::Result>(relu);
+    result1->set_friendly_name("result1");
+    auto concat = std::make_shared<ngraph::opset8::Concat>(OutputVector{relu, param2}, 1);
+    concat->set_friendly_name("concat_op");
+    concat->output(0).get_tensor().set_names({"concat"});
+    auto result2 = std::make_shared<ngraph::opset8::Result>(concat);
+    result2->set_friendly_name("result2");
+    auto fn_ptr = std::make_shared<ngraph::Function>(ngraph::ResultVector{result1, result2},
+                                                     ngraph::ParameterVector{param1, param2});
+    fn_ptr->set_friendly_name("MultipleInputOutputReLU");
+    return fn_ptr;
+}
+
+inline std::shared_ptr<ngraph::Function> makeMultipleInputOutputDoubleConcat(std::vector<size_t> inputShape = {1, 1, 32, 32},
+                                                                            ngraph::element::Type_t type = ngraph::element::Type_t::f32) {
+    auto param1 = std::make_shared<ngraph::opset8::Parameter>(type, ngraph::Shape{inputShape});
+    param1->set_friendly_name("param1");
+    param1->output(0).get_tensor().set_names({"data1"});
+    auto param2 = std::make_shared<ngraph::opset8::Parameter>(type, ngraph::Shape(inputShape));
+    param2->set_friendly_name("param2");
+    param2->output(0).get_tensor().set_names({"data2"});
+    auto concat1 = std::make_shared<ngraph::opset8::Concat>(OutputVector{param1, param2}, 1);
+    concat1->set_friendly_name("concat_op1");
+    concat1->output(0).get_tensor().set_names({"concat1"});
+    auto result1 = std::make_shared<ngraph::opset8::Result>(concat1);
+    result1->set_friendly_name("result1");
+    auto concat2 = std::make_shared<ngraph::opset8::Concat>(OutputVector{concat1, param2}, 1);
+    concat2->set_friendly_name("concat_op2");
+    concat2->output(0).get_tensor().set_names({"concat2"});
+    auto result2 = std::make_shared<ngraph::opset8::Result>(concat2);
+    result2->set_friendly_name("result2");
+    auto fn_ptr = std::make_shared<ngraph::Function>(ngraph::ResultVector{ result1, result2 },
+                                                     ngraph::ParameterVector{ param1, param2 });
+    fn_ptr->set_friendly_name("makeMultipleInputOutputDoubleConcat");
+    return fn_ptr;
+}
+
+inline std::shared_ptr<ngraph::Function> makeSingleConcatWithConstant(std::vector<size_t> inputShape = {1, 1, 2, 4},
+                                                    ngraph::element::Type type = ngraph::element::Type_t::f32) {
+    auto parameter =  ngraph::builder::makeParams(type, {inputShape});
+    parameter[0]->set_friendly_name("Param_1");
+    parameter[0]->output(0).get_tensor().set_names({"data"});
+    auto init_const = ngraph::op::Constant::create(type, inputShape, {0});
+
+    std::vector<std::shared_ptr<ngraph::Node>> args = {parameter[0], init_const};
+    auto conc = std::make_shared<ngraph::op::Concat>(args, 3);
+    conc->set_friendly_name("concat");
+    auto res = std::make_shared<ngraph::op::Result>(conc);
+    res->set_friendly_name("result");
+
+    std::shared_ptr<ngraph::Function> fn_ptr = std::make_shared<ngraph::Function>(ngraph::ResultVector({res}),
+                                                                                  ngraph::ParameterVector{parameter});
+    fn_ptr->set_friendly_name("SingleConcatWithConstant");
+    return fn_ptr;
+}
+
+inline std::shared_ptr<ngraph::Function> makeConcatWithParams(std::vector<size_t> inputShape = {1, 1, 32, 32},
+                                                    ngraph::element::Type_t type = ngraph::element::Type_t::f32) {
+    auto parameter1 = std::make_shared<ngraph::opset8::Parameter>(type, ngraph::Shape{inputShape});
+    parameter1->set_friendly_name("param1");
+    parameter1->output(0).get_tensor().set_names({"data1"});
+    auto parameter2 = std::make_shared<ngraph::opset8::Parameter>(type, ngraph::Shape{inputShape});
+    parameter2->set_friendly_name("param2");
+    parameter2->output(0).get_tensor().set_names({"data2"});
+    auto concat = std::make_shared<ngraph::opset8::Concat>(OutputVector{parameter1, parameter2}, 1);
+    concat->set_friendly_name("concat_op");
+    concat->output(0).get_tensor().set_names({"concat"});
+    auto result = std::make_shared<ngraph::opset8::Result>(concat);
+    result->set_friendly_name("result");
+    auto fn_ptr = std::make_shared<ngraph::Function>(ngraph::ResultVector{result},
+                                                     ngraph::ParameterVector{parameter1, parameter2});
+    fn_ptr->set_friendly_name("SingleConcatWithParams");
+    return fn_ptr;
+}
+
+
+inline std::shared_ptr<ngraph::Function> makeSingleSplit(std::vector<size_t> inputShape = {1, 4, 32, 32},
+                                                         ngraph::element::Type_t type = ngraph::element::Type_t::f32) {
+    auto param1 = std::make_shared<ngraph::opset8::Parameter>(type, ngraph::Shape{inputShape});
+    param1->set_friendly_name("param1");
+    param1->output(0).get_tensor().set_names({"data1"});
+    auto axis_node = ngraph::opset8::Constant::create(element::i64, Shape{}, {1});
+    auto split = std::make_shared<ngraph::opset8::Split>(param1, axis_node, 2);
+    split->set_friendly_name("split");
+    split->output(0).get_tensor().set_names({"tensor_split_1"});
+    split->output(1).get_tensor().set_names({"tensor_split_2"});
+    auto result1 = std::make_shared<ngraph::opset8::Result>(split->output(0));
+    result1->set_friendly_name("result1");
+    auto result2 = std::make_shared<ngraph::opset8::Result>(split->output(1));
+    result2->set_friendly_name("result2");
+    auto fn_ptr =
+        std::make_shared<ngraph::Function>(ngraph::ResultVector{result1, result2}, ngraph::ParameterVector{param1});
+    fn_ptr->set_friendly_name("SingleSplit");
+    return fn_ptr;
+}
+
+inline std::shared_ptr<ngraph::Function> makeSplitConcat(std::vector<size_t> inputShape = {1, 4, 24, 24},
+                                                         ngraph::element::Type_t type = ngraph::element::Type_t::f32) {
+    auto param1 = std::make_shared<ngraph::opset8::Parameter>(type, ngraph::Shape{inputShape});
+    param1->set_friendly_name("Param1");
+    param1->output(0).get_tensor().set_names({"data1"});
+    auto axis_node = ngraph::opset8::Constant::create(element::i64, Shape{}, {1});
+    auto split = std::make_shared<ngraph::opset8::Split>(param1, axis_node, 2);
+    split->set_friendly_name("Split");
+    split->output(0).get_tensor().set_names({"tensor_split_1"});
+    split->output(1).get_tensor().set_names({"tensor_split_2"});
+
+    auto concat = std::make_shared<ngraph::opset8::Concat>(OutputVector{split->output(0), split->output(1)}, 1);
+    concat->set_friendly_name("Concat_op");
+    concat->output(0).get_tensor().set_names({"Concat"});
+    auto result = std::make_shared<ngraph::opset8::Result>(concat);
+    result->set_friendly_name("Result");
+    auto fn_ptr = std::make_shared<ngraph::Function>(ngraph::ResultVector{ result },
+                                                     ngraph::ParameterVector{ param1 });
+    fn_ptr->set_friendly_name("SplitConcat");
+    return fn_ptr;
+}
+
 }  // namespace subgraph
 }  // namespace builder
 }  // namespace ngraph

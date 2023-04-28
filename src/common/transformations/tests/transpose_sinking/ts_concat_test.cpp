@@ -13,11 +13,13 @@
 #include "openvino/pass/manager.hpp"
 #include "transformations/init_node_info.hpp"
 #include "transformations/transpose_sinking/ts_utils.hpp"
+#include "ts_test_case.hpp"
 #include "ts_test_utils.hpp"
 
 using namespace ov;
 using namespace ov::opset10;
 using namespace ov::pass::transpose_sinking;
+using namespace transpose_sinking::testing;
 using namespace transpose_sinking::testing::utils;
 
 namespace {

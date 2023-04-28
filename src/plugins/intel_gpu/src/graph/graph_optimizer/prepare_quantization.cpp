@@ -4,7 +4,6 @@
 
 #include "pooling_inst.h"
 #include "quantize_inst.h"
-#include "reshape_inst.h"
 #include "reorder_inst.h"
 #include "binary_convolution_inst.h"
 #include "eltwise_inst.h"
@@ -511,12 +510,16 @@ void prepare_quantization::prepare_asymmetric_quantization(program &p, convoluti
     };
 
     const auto& stream = p.get_stream();
-    auto fill_compensation = [&](int groups, const memory::ptr w, const memory::ptr azp, const memory::ptr wzp, memory::ptr compensation) {
-        const auto& wl = w->get_layout();
+    auto fill_compensation = [&](int groups, const memory::ptr w, const memory::ptr azp, const memory::ptr wzp, memory::ptr compensation,
+                                 bool grouped_weights_shape) {
+        auto wl = w->get_layout();
+        if (!format::is_weights_format(wl.format)) {
+            wl = wl.convert_to_weights_layout(grouped_weights_shape);
+        }
 
         const int GS = groups;
-        const int OC = wl.batch() / GS;
-        const int IC = wl.feature();  // already divided by GS
+        const int OC = grouped_weights_shape ? wl.ofm() : (wl.ofm() / GS);
+        const int IC = wl.ifm();
         const int KS = wl.spatial(0)*wl.spatial(1)*wl.spatial(2);
 
         const auto& w_dt = wl.data_type;
@@ -596,7 +599,11 @@ void prepare_quantization::prepare_asymmetric_quantization(program &p, convoluti
     bool need_compensation = false;
 
     auto output_size = convolution_node.get_output_layout().get_tensor();
-    int ofm = in1.get_output_layout().batch();
+    auto wl = in1.get_output_layout();
+    if (!format::is_weights_format(wl.format)) {
+        wl = wl.convert_to_weights_layout(convolution_node.typed_desc()->grouped_weights_shape);
+    }
+    int ofm = wl.group() * wl.ofm();
     int ifm = in0.get_output_layout().feature();
     int ofm_aligned = ((ofm + 31) / 32) * 32;
     int ifm_aligned = ((ifm + 31) / 32) * 32;
@@ -643,6 +650,10 @@ void prepare_quantization::prepare_asymmetric_quantization(program &p, convoluti
         w_zero_points.push_back(new_w_zp->id());
     }
 
+    if (!new_weights->is_type<data>()) {
+        need_compensation = false;
+    }
+
     std::vector<primitive_id> compensation = {};
     cldnn::program_node* new_compenstation = nullptr;
     if (need_compensation) {
@@ -652,7 +663,7 @@ void prepare_quantization::prepare_asymmetric_quantization(program &p, convoluti
         auto azp = asymmetric_data ? new_a_zp->as<data>().get_attached_memory_ptr() : nullptr;
         auto wzp = asymmetric_weights ? new_w_zp->as<data>().get_attached_memory_ptr() : nullptr;
         int groups = static_cast<int>(convolution_node.get_groups());
-        fill_compensation(groups, w, azp, wzp, data_to_allocate);
+        fill_compensation(groups, w, azp, wzp, data_to_allocate, convolution_node.typed_desc()->grouped_weights_shape);
 
         auto compensation_prim = std::make_shared<data>(convolution_node.id() + "_compensation", data_to_allocate);
         new_compenstation = &p.get_or_create(compensation_prim);
@@ -702,9 +713,6 @@ void prepare_quantization::prepare_asymmetric_quantization(program &p, convoluti
 
     // Remove sub operations from the graph and set correct users for zero points and inputs
     if (asymmetric_data) {
-        if (!new_a_zp || !new_input)
-            CLDNN_ERROR_MESSAGE(new_conv_node.id(), "Unexpected nullptr in asymmetric quantization for activations optimization");
-
         auto& zp_users = new_a_zp->users;
         auto& in_users = new_input->users;
         // Erase sub node from input and zero point users...
@@ -724,9 +732,6 @@ void prepare_quantization::prepare_asymmetric_quantization(program &p, convoluti
     }
 
     if (asymmetric_weights) {
-        if (!new_w_zp || !new_weights)
-            CLDNN_ERROR_MESSAGE(new_conv_node.id(), "Unexpected nullptr in asymmetric quantization for weights optimization");
-
         auto& zp_users = new_w_zp->users;
         auto& wei_users = new_weights->users;
         // Erase sub node from weights and zero point users...

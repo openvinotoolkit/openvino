@@ -12,10 +12,13 @@ if(CMAKE_COMPILER_IS_GNUCXX)
     ie_add_compiler_flags(-Wno-strict-aliasing)
 endif()
 
+if(OV_COMPILER_IS_CLANG)
+    ie_add_compiler_flags(-Wno-delete-non-abstract-non-virtual-dtor)
+endif()
+
 if(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
     # 4267 4244 conversion from 'XXX' to 'YYY', possible loss of data
     ie_add_compiler_flags(/wd4244)
-    ie_add_compiler_flags(/wd4267)
     # '<': signed/unsigned mismatch
     ie_add_compiler_flags(/wd4018)
 endif()
@@ -43,7 +46,7 @@ add_subdirectory(src/graph)
 
 file(GLOB_RECURSE PLUGIN_SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/src/plugin/*.cpp ${CMAKE_CURRENT_SOURCE_DIR}/include/intel_gpu/plugin/*.hpp)
 
-ie_add_plugin(NAME ${TARGET_NAME}
+ov_add_plugin(NAME ${TARGET_NAME}
               DEVICE_NAME "GPU"
               SOURCES ${PLUGIN_SOURCES}
               VERSION_DEFINES_FOR src/plugin/plugin.cpp)

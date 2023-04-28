@@ -12,9 +12,11 @@
 #include <functional>
 #include <map>
 
+#include "interpolate_pil.hpp"
 #include "ngraph/coordinate_transform.hpp"
 #include "ngraph/op/interpolate.hpp"
 #include "ngraph/shape_util.hpp"
+#include "transpose.hpp"
 
 namespace ngraph {
 namespace runtime {
@@ -302,6 +304,12 @@ public:
         case InterpolateMode::CUBIC:
             cubic_func(input_data, out);
             break;
+        case InterpolateMode::BILINEAR_PILLOW:
+            bilinear_pil_func(input_data, out);
+            break;
+        case InterpolateMode::BICUBIC_PILLOW:
+            bicubic_pil_func(input_data, out);
+            break;
         default:
             OPENVINO_THROW("Unsupported interpolation mode");
             break;
@@ -345,6 +353,10 @@ private:
     /// \param input_data pointer to input data
     /// \param out pointer to memory block for output data
     void nearest_func(const T* input_data, T* out);
+
+    void bilinear_pil_func(const T* input_data, T* out);
+    void bicubic_pil_func(const T* input_data, T* out);
+    void multidim_pil_func(const T* input_data, T* out, const interpolate_pil::filter& filterp);
 };
 
 template <typename T>
@@ -413,7 +425,7 @@ void InterpolateEval<T>::linear_onnx_func(const T* input_data, T* out) {
     }
 
     if (!correct_axes)
-        throw ngraph_error("Axes are not correct!");
+        OPENVINO_THROW("Axes are not correct!");
 
     const auto info = helper.get_info_for_generic_linear_onnx();
 
@@ -562,6 +574,106 @@ void InterpolateEval<T>::cubic_func(const T* input_data, T* out) {
         out[output_transform.index(output_coord)] = static_cast<T>(summa);
     }
     NGRAPH_SUPPRESS_DEPRECATED_END
+}
+
+template <typename T>
+void InterpolateEval<T>::bilinear_pil_func(const T* input_data, T* out) {
+    struct interpolate_pil::filter bilinear = {interpolate_pil::bilinear_filter, 1.0, m_cube_coeff};
+    multidim_pil_func(input_data, out, bilinear);
+}
+
+template <typename T>
+void InterpolateEval<T>::bicubic_pil_func(const T* input_data, T* out) {
+    struct interpolate_pil::filter bicubic = {interpolate_pil::bicubic_filter, 2.0, m_cube_coeff};
+    multidim_pil_func(input_data, out, bicubic);
+}
+
+template <typename T>
+void InterpolateEval<T>::multidim_pil_func(const T* input_data, T* out, const interpolate_pil::filter& filterp) {
+    OPENVINO_ASSERT(m_axes.size() == 2, "For Pillow based modes exactly two (HW) axes need to be provided.");
+
+    auto h_dim_idx = m_axes[0];
+    auto w_dim_idx = m_axes[1];
+    auto h_dim_in = m_input_data_shape[h_dim_idx];
+    auto w_dim_in = m_input_data_shape[w_dim_idx];
+    auto h_dim_out = m_out_shape[h_dim_idx];
+    auto w_dim_out = m_out_shape[w_dim_idx];
+    auto in_matrix_elem_size = h_dim_in * w_dim_in;
+    auto out_matrix_elem_size = h_dim_out * w_dim_out;
+
+    auto box = std::vector<float>{0.f, 0.f, static_cast<float>(w_dim_in), static_cast<float>(h_dim_in)};
+
+    if (shape_size(m_input_data_shape) == in_matrix_elem_size) {
+        // Input data is 2D or ND with other dimensions equal 1
+        interpolate_pil::imaging_resample_inner(input_data,
+                                                w_dim_in,
+                                                h_dim_in,
+                                                w_dim_out,
+                                                h_dim_out,
+                                                filterp,
+                                                box.data(),
+                                                out);
+    } else {
+        // Flatten other dimensions and interpolate over 2D matrices
+        std::vector<int64_t> in_transp_axes_order;
+        for (size_t i = 0; i < m_input_data_shape.size(); ++i) {
+            if (std::find(m_axes.begin(), m_axes.end(), i) == m_axes.end()) {
+                in_transp_axes_order.push_back(i);
+            }
+        }
+        in_transp_axes_order.insert(in_transp_axes_order.end(), m_axes.begin(), m_axes.end());
+
+        Shape transp_input_shape;
+        Shape transp_output_shape;
+        for (auto&& axis : in_transp_axes_order) {
+            transp_input_shape.push_back(m_input_data_shape[axis]);
+            transp_output_shape.push_back(m_out_shape[axis]);
+        }
+        size_t flat_batch_size =
+            transp_input_shape.size() > 2
+                ? shape_size(transp_input_shape.begin(), transp_input_shape.begin() + transp_input_shape.size() - 2)
+                : 1;
+
+        // Transpose HW dimensions to the end of the tensor shape
+        std::vector<T> transposed_in(input_data, input_data + shape_size(m_input_data_shape));
+        transpose(reinterpret_cast<const char*>(input_data),
+                  reinterpret_cast<char*>(transposed_in.data()),
+                  m_input_data_shape,
+                  sizeof(T),
+                  in_transp_axes_order.data(),
+                  transp_input_shape);
+
+        std::vector<T> transposed_out(shape_size(m_out_shape));
+        T* in_matrix_ptr = transposed_in.data();
+        T* out_matrix_ptr = transposed_out.data();
+
+        // Resample each 2D matrix
+        for (size_t i = 0; i < flat_batch_size; ++i) {
+            interpolate_pil::imaging_resample_inner(in_matrix_ptr,
+                                                    w_dim_in,
+                                                    h_dim_in,
+                                                    w_dim_out,
+                                                    h_dim_out,
+                                                    filterp,
+                                                    box.data(),
+                                                    out_matrix_ptr);
+            in_matrix_ptr += in_matrix_elem_size;
+            out_matrix_ptr += out_matrix_elem_size;
+        }
+
+        std::vector<int64_t> out_transp_axes_order(m_out_shape.size() - 2);
+        std::iota(out_transp_axes_order.begin(), out_transp_axes_order.end(), 0);
+        out_transp_axes_order.insert(out_transp_axes_order.begin() + h_dim_idx, transp_input_shape.size() - 2);
+        out_transp_axes_order.insert(out_transp_axes_order.begin() + w_dim_idx, transp_input_shape.size() - 1);
+
+        // Transpose back to the original data dimensions order
+        transpose(reinterpret_cast<const char*>(transposed_out.data()),
+                  reinterpret_cast<char*>(out),
+                  transp_output_shape,
+                  sizeof(T),
+                  out_transp_axes_order.data(),
+                  m_out_shape);
+    }
 }
 
 template <typename T>

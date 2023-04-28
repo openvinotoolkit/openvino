@@ -100,7 +100,7 @@ jobs:
     BUILD_PYTHON: $(WORK_DIR)/build_python
     INSTALL_PYTHON: $(INSTALL_OPENVINO)/extras/python
     LD_LIBRARY_PATH: $(Agent.ToolsDirectory)/Python/$(OV_PYTHON_VERSION)/x64/lib
-    OV_PYTHON_VERSION: 3.10.10 # Full version of Python its required for LD_LIBRARY_PATH. More details https://github.com/microsoft/azure-pipelines-tool-lib/blob/master/docs/overview.md#tool-cache
+    OV_PYTHON_VERSION: 3.11.2 # Full version of Python its required for LD_LIBRARY_PATH. More details https://github.com/microsoft/azure-pipelines-tool-lib/blob/master/docs/overview.md#tool-cache
 
   steps:
   - task: UsePythonVersion@0
@@ -110,7 +110,7 @@ jobs:
       disableDownloadFromRegistry: false
       architecture: 'x64'
       githubToken: $(auth_token)
-    displayName: Setup Python 3.10
+    displayName: Setup Python 3.11
     name: setupPython
   - bash: |
       #!/bin/bash
@@ -172,7 +172,8 @@ jobs:
       # For running Python API tests
       python3 -m pip install -r $(REPO_DIR)/src/bindings/python/src/compatibility/openvino/requirements-dev.txt
       # For running Paddle frontend unit tests
-      python3 -m pip install -r $(REPO_DIR)/src/frontends/paddle/tests/requirements.txt
+      # TODO Reenable PDPD after paddlepaddle==2.5.0 with compliant protobuf is released (ticket 95904)
+      #python3 -m pip install -r $(REPO_DIR)/src/frontends/paddle/tests/requirements.txt
       # For running ONNX frontend unit tests
       python3 -m pip install -r $(REPO_DIR)/src/frontends/onnx/tests/requirements.txt
       # For running TensorFlow frontend unit tests
@@ -390,10 +391,6 @@ jobs:
   - script: $(RUN_PREFIX) $(INSTALL_TEST_DIR)/ov_conditional_compilation_tests --gtest_print_time=1 --gtest_output=xml:$(INSTALL_TEST_DIR)/TEST-ConditionalCompilation.xml
     displayName: 'Conditional Compilation Tests'
 
-  # TODO Reenable PDPD after paddlepaddle==2.5.0 with compliant protobuf is released (ticket 95904)
-  #- script: $(RUN_PREFIX) $(INSTALL_TEST_DIR)/paddle_tests --gtest_print_time=1 --gtest_output=xml:$(INSTALL_TEST_DIR)/TEST-PaddleTests.xml
-  #  displayName: 'Paddle Tests'
-
   - script: $(RUN_PREFIX) $(INSTALL_TEST_DIR)/ov_ir_frontend_tests --gtest_print_time=1 --gtest_output=xml:$(INSTALL_TEST_DIR)/TEST-IRFrontend.xml
     displayName: 'IR Frontend Tests'
 
@@ -401,8 +398,9 @@ jobs:
     displayName: 'ONNX Frontend Tests'
 
   # TODO Reenable PDPD after paddlepaddle==2.5.0 with compliant protobuf is released (ticket 95904)
-  #- script: $(RUN_PREFIX) $(INSTALL_TEST_DIR)/paddle_tests --gtest_print_time=1 --gtest_output=xml:$(INSTALL_TEST_DIR)/TEST-Paddle.xml
-  #  displayName: 'Paddle Frontend UT'
+  - script: $(RUN_PREFIX) $(INSTALL_TEST_DIR)/paddle_tests --gtest_print_time=1 --gtest_output=xml:$(INSTALL_TEST_DIR)/TEST-Paddle.xml
+    displayName: 'Paddle Frontend UT'
+    enabled: 'false'
 
   - script: $(RUN_PREFIX) $(INSTALL_TEST_DIR)/ov_tensorflow_frontend_tests --gtest_print_time=1 --gtest_output=xml:$(INSTALL_TEST_DIR)/TEST-Tensorflow.xml
     displayName: 'TensorFlow Frontend Unit Tests'

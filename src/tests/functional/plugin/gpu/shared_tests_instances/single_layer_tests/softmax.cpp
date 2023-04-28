@@ -20,7 +20,10 @@ const std::vector<ov::Shape> inputShapes2D = {
     {1, 100},
     {100, 1},
     {10, 10},
-    {100, 10}
+    {100, 10},
+    {1024, 300},
+    {1024, 304},
+    {1024, 306}
 };
 
 const std::vector<int64_t> axis2D = {
@@ -80,6 +83,18 @@ INSTANTIATE_TEST_SUITE_P(
                      ::testing::Values(ov::element::undefined),
                      testing::ValuesIn(ov::test::static_shapes_to_test_representation(inputShapes4D)),
                      testing::ValuesIn(axis4D),
+                     testing::Values(CommonTestUtils::DEVICE_GPU),
+                     testing::Values(ov::AnyMap())),
+    SoftMax8LayerTest::getTestCaseName);
+
+INSTANTIATE_TEST_SUITE_P(
+    smoke_SoftMaxStableDiffusion,
+    SoftMax8LayerTest,
+    testing::Combine(testing::ValuesIn(netPrecisions),
+                     ::testing::Values(ov::element::undefined),
+                     ::testing::Values(ov::element::undefined),
+                     ::testing::ValuesIn(ov::test::static_shapes_to_test_representation({{16, 4096, 4096}})),
+                     testing::Values(-1),
                      testing::Values(CommonTestUtils::DEVICE_GPU),
                      testing::Values(ov::AnyMap())),
     SoftMax8LayerTest::getTestCaseName);

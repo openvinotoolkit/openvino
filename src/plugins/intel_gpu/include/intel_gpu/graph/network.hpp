@@ -50,7 +50,7 @@ private:
     memory::ptr _result;
     stream::ptr _stream;
     layout _layout;
-    network_output(event::ptr evt, memory::ptr mem, stream::ptr stream, layout layout) : _event(evt), _result(mem), _stream(stream), _layout(layout) {}
+    network_output(event::ptr evt, memory::ptr mem, stream::ptr stream, const layout& layout) : _event(evt), _result(mem), _stream(stream), _layout(layout) {}
     friend struct network;
 };
 
@@ -87,8 +87,8 @@ public:
 
     network(program::ptr program, stream::ptr stream, uint16_t stream_id);
 
-    network(cldnn::BinaryInputBuffer& ifs, stream::ptr stream, engine& engine, uint16_t stream_id = 0);
-    network(cldnn::BinaryInputBuffer& ifs, const ExecutionConfig& config, stream::ptr stream, engine& engine, uint16_t stream_id = 0);
+    network(cldnn::BinaryInputBuffer& ifs, stream::ptr stream, engine& engine, bool is_primary_stream = true);
+    network(cldnn::BinaryInputBuffer& ifs, const ExecutionConfig& config, stream::ptr stream, engine& engine, bool is_primary_stream = true);
 
     ~network();
 
@@ -213,6 +213,7 @@ public:
     bool is_internal() const { return _internal; }
     bool is_primary_stream() const { return _is_primary_stream; }
     bool is_dynamic() const { return _is_dynamic; }
+    size_t get_weights_cache_capacity() const { return _weights_cache_capacity; }
 
     memory_pool& get_memory_pool() {
         return *_memory_pool;
@@ -254,6 +255,7 @@ private:
     std::vector<std::shared_ptr<primitive_inst>> _variable_state_primitives;
     program::primitives_info _prims_info;
     std::map<primitive_id, primitive_id> _ext_id_mapping;
+    size_t _weights_cache_capacity = 1;
 
     std::unordered_map<primitive_id, event::ptr> _events;
     output_chains_map _output_chains;
@@ -268,6 +270,7 @@ private:
     std::shared_ptr<primitive_inst> find_primitive(const primitive_id& id) const;
     void check_names();
     void add_default_output_chains();
+    void calculate_weights_cache_capacity();
     output_chains_map::iterator add_output_chain(std::shared_ptr<primitive_inst>& p_inst);
 
     // Move from cldnn::program to cldnn::network for multi-threads issue.
