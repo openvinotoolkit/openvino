@@ -14,9 +14,7 @@ namespace {
 
 const Params params[] = {
     std::tuple<Device, Config>{ CommonTestUtils::DEVICE_CPU, {{ CONFIG_KEY(PERF_COUNT), CONFIG_VALUE(YES) }}},
-#ifndef __EMSCRIPTEN__
     std::tuple<Device, Config>{ CommonTestUtils::DEVICE_HETERO, {{ "TARGET_FALLBACK", CommonTestUtils::DEVICE_CPU }}},
-#endif
 #ifdef ENABLETESTMULTI
     std::tuple<Device, Config>{ CommonTestUtils::DEVICE_MULTI, {{ MULTI_CONFIG_KEY(DEVICE_PRIORITIES) , CommonTestUtils::DEVICE_CPU }}},
     std::tuple<Device, Config>{ CommonTestUtils::DEVICE_AUTO, {{ MULTI_CONFIG_KEY(DEVICE_PRIORITIES) , CommonTestUtils::DEVICE_CPU }}},

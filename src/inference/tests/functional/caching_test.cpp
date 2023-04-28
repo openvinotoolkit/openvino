@@ -31,6 +31,7 @@
 #include "unit_test_utils/mocks/cpp_interfaces/interface/mock_iinference_plugin.hpp"
 #include "unit_test_utils/mocks/mock_iexecutable_network.hpp"
 #include "unit_test_utils/mocks/mock_iinfer_request.hpp"
+#include "functional_test_utils/skip_tests_config.hpp"
 
 #ifdef __EMSCRIPTEN__
 #    include "unit_test_utils/mocks/mock_engine/mock_plugin.hpp"
@@ -285,6 +286,7 @@ public:
         initParamTest();
         mockPlugin = std::make_shared<MockCachingInferencePlugin>();
         setupMock(*mockPlugin);
+        SKIP_IF_CURRENT_TEST_IS_DISABLED()
 #ifndef __EMSCRIPTEN__
         std::string libraryPath = get_mock_engine_path();
         sharedObjectLoader = ov::util::load_shared_object(libraryPath.c_str());

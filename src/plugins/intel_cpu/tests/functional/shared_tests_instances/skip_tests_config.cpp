@@ -171,6 +171,24 @@ std::vector<std::string> disabledTestPatterns() {
         R"(.*UniqueLayerTestCPU.*axis.*True.*)",
     };
 
+#ifdef __EMSCRIPTEN__
+    // JS OOM issue under WASM
+    retVector.emplace_back(R"(.*smoke_LoadNetworkAccuracy.*)");
+    retVector.emplace_back(R"(.*smoke_LoadNetwork_MultipleIECores.*)");
+    retVector.emplace_back(R"(.*CoreThreadingTestsWithIterations.smoke_LoadNetwork/targetDevice=HETERO.*)");
+    retVector.emplace_back(R"(.*CoreThreadingTestsWithIterations.smoke_LoadNetwork_MultipleIECores.*)");
+    retVector.emplace_back(R"(.*CPU_Streams/CoreThreadingTestsWithIterations.*)");
+    retVector.emplace_back(R"(.*CoreThreadingTests.smoke_QueryNetwork.*)");
+    // memory out of bounds
+    retVector.emplace_back(R"(.*smoke_CompareWithRefs_static/EltwiseLayerTest.EltwiseTests.*)");
+    retVector.emplace_back(R"(.*smoke_CompareWithRefs_static_check_collapsing/EltwiseLayerTest.EltwiseTests.*)");
+    retVector.emplace_back(R"(.*smoke_CompareWithRefs_dynamic/EltwiseLayerTest.EltwiseTests.*)");
+    retVector.emplace_back(R"(.*smoke_CompareWithRefs_dynamic_large_upper_bound/EltwiseLayerTest.EltwiseTests.*)");
+    retVector.emplace_back(R"(.*EltwiseLayerTest.*)");
+    retVector.emplace_back(
+        R"(.*smoke_ExperimentalDetectronGenerateProposalsSingleImageLayerTest/ExperimentalDetectronGenerateProposalsSingleImageLayerTest.*)");
+#endif
+
 #if defined(OPENVINO_ARCH_X86)
     retVector.emplace_back(R"(.*DetectionOutputLayerTest.*)");
     // WIP: plugin cannot be loaded for some reason

@@ -8,5 +8,10 @@
 #include <vector>
 
 std::vector<std::string> disabledTestPatterns() {
-    return {};
+    return {
+#ifdef __EMSCRIPTEN__
+        // Disable for JS OOM issues
+        R"(.*LoadMulti_NoCachingOnDevice.*)",
+#endif
+    };
 }
